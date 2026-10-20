@@ -169,6 +169,11 @@ void FWeaponFX::AddStreak(const FVector& Tail, const FVector& Head, float Width,
 	Streaks.Add({ Tail, Head, Width, Color, Intensity });
 }
 
+void FWeaponFX::AddGlow(const FVector& Location, float Size, const FLinearColor& Color, float Intensity)
+{
+	Streaks.Add({ Location, Location, Size, Color, Intensity, true });
+}
+
 FWeaponFX::FParticle& FWeaponFX::AddParticle(EParticle Type, const FVector& Location, const FVector& Velocity, float Life)
 {
 	if (Particles.Num() >= MaxParticles)

@@ -54,6 +54,12 @@ public:
 	/** A glowing streak drawn this frame only; bullets redraw their tracers every frame as they move. */
 	void AddStreak(const FVector& Tail, const FVector& Head, float Width, const FLinearColor& Color, float Intensity);
 
+	/**
+	 * A round glow Size cm across at Location, facing the camera, drawn this frame only (a flash's soft disc): what reads of
+	 * a thing flying straight away from the eye, which a streak along its way shows end-on as nothing (Rail Spike's head).
+	 */
+	void AddGlow(const FVector& Location, float Size, const FLinearColor& Color, float Intensity);
+
 	/** Sparks, flash, dust and chips (or an ichor splash) where a bullet hit, thrown off the surface. */
 	void SpawnImpact(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, EImpactSurface Surface, bool bCritical);
 
@@ -221,6 +227,8 @@ private:
 		float Width;
 		FLinearColor Color;
 		float Intensity;
+		/** A round glow at Head, Width across (AddGlow), not a line. */
+		bool bRound = false;
 	};
 
 	FParticle& AddParticle(EParticle Type, const FVector& Location, const FVector& Velocity, float Life);

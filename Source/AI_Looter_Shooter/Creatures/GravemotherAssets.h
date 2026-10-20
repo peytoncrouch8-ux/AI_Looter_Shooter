@@ -96,9 +96,18 @@ namespace GravemotherAssets
 	AI_LOOTER_SHOOTER_API UDecalComponent* AddGroundDecal(AActor& Owner, const TCHAR* MaterialPath, const FVector& Center, float Yaw,
 		float Length, float Width, int32 SortOrder, float Depth = 150.f);
 
-	/** Its Opacity (0-1), and its Reveal (0-1 along its length, for a crack crawling out); null is fine. */
+	/**
+	 * Its Opacity (0-1), and its Reveal (0-1 along its length from U = 0, for a crack crawling out: a ground decal's U runs
+	 * along its Yaw, so 0 to 1 crawls the way the line goes), its front soft over Soft of its length (negative: as it is);
+	 * null is fine.
+	 */
 	AI_LOOTER_SHOOTER_API void SetDecalOpacity(UDecalComponent* Decal, float Opacity);
-	AI_LOOTER_SHOOTER_API void SetDecalReveal(UDecalComponent* Decal, float Reveal);
+	AI_LOOTER_SHOOTER_API void SetDecalReveal(UDecalComponent* Decal, float Reveal, float Soft = -1.f);
+	/**
+	 * A strip's first and last tiles: the picture fades in over FadeIn of its length from its start and out over FadeOut to
+	 * its end (M_GraveDecal's FadeIn, FadeOut; 0 a hard edge, where tiles meet), so a strip doesn't end in a straight line.
+	 */
+	AI_LOOTER_SHOOTER_API void SetDecalEnds(UDecalComponent* Decal, float FadeIn, float FadeOut);
 	/** Where along its picture it starts (M_GraveDecal's Tiles offset in U): a strip that tiles along U (the crack, the
 	 *  furrow) laid with one offset for all its tiles still joins up, and each furrow looks its own. */
 	AI_LOOTER_SHOOTER_API void SetDecalShift(UDecalComponent* Decal, float UOffset);

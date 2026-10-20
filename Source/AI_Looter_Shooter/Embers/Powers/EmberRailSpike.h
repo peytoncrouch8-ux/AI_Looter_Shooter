@@ -6,6 +6,7 @@
 #include "EmberRailSpike.generated.h"
 
 class ACreatureBase;
+class AGroundCrack;
 
 /** One spike's line, laid out before it flies: from the aim's start to where the world stops it (or its reach). */
 struct AI_LOOTER_SHOOTER_API FRailSpikeLine
@@ -33,6 +34,12 @@ struct AI_LOOTER_SHOOTER_API FRailSpikeLine
  *    (Extras "Shove" 150 cm, "Dizzy" 0.3 s; never a boss): Ember.RailSpike.Hit, sparks and steam. In the world at the end
  *    it embeds, glowing and cooling for a while (Ember.RailSpike.Embed, sparks and dust); with nothing there it falls away.
  *  - On use: a steam piston's bang (Ember.RailSpike.Fire), steam from the forearm, a hard kick of the view.
+ *  - Seen from behind (the player always is): its line runs straight away from the eye and shows end-on, so what reads is
+ *    what lies across it (EmberRailSpikeLook.cpp, 2026-10-20 polish): a glowing head that keeps its size into the distance,
+ *    a shock ring and a doughnut of steam as it leaves the arm, a helix of hot air wound round its way, rings of steam
+ *    every few metres, sparks burst out sideways and a ring at each body it goes through, a ring on the surface where it
+ *    embeds; and on the ground under it (where it skims within 3.2 m) dust thrown out both sides as it passes and, where
+ *    within 1.5 m, a glowing scar torn open behind it (AGroundCrack) that closes again.
  * Instant: the component ends it the moment it's used; the spike flies on its linger (the player's clock).
  */
 UCLASS()
@@ -69,8 +76,38 @@ protected:
 	virtual bool Linger(float DeltaSeconds) override;
 
 private:
+	/** A shock ring spreading square to its Axis (as it leaves the arm, through a body, on the surface it embeds in). */
+	struct FShockRing
+	{
+		FVector Center = FVector::ZeroVector;
+		FVector Axis = FVector::ForwardVector;
+		float Age = 0.f;
+		float Life = 0.2f;
+		float From = 10.f;
+		float To = 80.f;
+		float Width = 3.f;
+		float Glow = 10.f;
+		FLinearColor Color = FLinearColor::White;
+	};
+
 	void Pierce(ACreatureBase& Creature, float Along);
 	void Embed();
+	/** Where the spike is seen at Distance along its line: from the forearm, joining the aim line over ConvergeDistance. */
+	FVector SeenAt(float Distance) const;
+
+	// --- What reads from behind (EmberRailSpikeLook.cpp) ---
+	/** On use: the rings and steam at the arm; the ground under the line looked up for the dust and the scar. */
+	void BeginLook();
+	/** As it flies on from Was to Flown: its head's glow, steam rings and ground dust as it passes, the scar opening. */
+	void LookInFlight(float Was);
+	/** Through a body at At: sparks burst sideways, a ring, a flash, what it spills thrown out the far side. */
+	void LookAtPierce(ACreatureBase& Creature, const FVector& At);
+	/** Stuck at the line's end: a ring on the surface. */
+	void LookAtEmbed();
+	/** One frame of the rings and the hot-air helix; true while any shows. */
+	bool LingerLook(float DeltaSeconds);
+	void AddShock(const FVector& Center, const FVector& Axis, float Life, float From, float To, float Width, float Glow,
+		const FLinearColor& Hue);
 
 	FRailSpikeLine Line;
 	FVector VisualStart = FVector::ZeroVector;
@@ -89,4 +126,19 @@ private:
 	float TrailAge = -1.f;
 	EmberFX::FEmberSparks Sparks;
 	FRandomStream Random{ 0x5a1e };
+
+	TArray<FShockRing> Shocks;
+	/** The hot-air helix round its way (seconds since it was driven; negative: gone), and its turn's start. */
+	float WakeAge = -1.f;
+	float WakeTwist = 0.f;
+	/** How far along it the next steam ring and the next breath of ground dust go (cm). */
+	float RingLaid = 0.f;
+	int32 GroundLaid = 0;
+	/** The ground under the line every GroundStep cm from its start (its height under the line; negative: none). */
+	TArray<float> GroundHeight;
+	TArray<FVector> GroundPoint;
+	/** The scar torn under it where it skims low, from ScarFrom to ScarTo along the line (cm). */
+	TWeakObjectPtr<AGroundCrack> Scar;
+	float ScarFrom = 0.f;
+	float ScarTo = 0.f;
 };

@@ -29,6 +29,12 @@ struct AI_LOOTER_SHOOTER_API FBodySwingSettings
 	 * arms, and held level with their anchors they couldn't follow an arm raised to aim (the arm came up through them).
 	 */
 	bool bRisesToTarget = false;
+	/**
+	 * The share of the anchor's own move carried straight to the points each step (0: all of it left to their inertia, as
+	 * free cloth hangs). A thing lying against the body goes with it, so only the rest of a start or a stop flings it: the
+	 * body starts and stops at about 3 g, which swung Crane's hook out level on every step off (2026-10-20).
+	 */
+	float Carry = 0.f;
 };
 
 /** A limb the swinging points keep clear of: a segment between two points (component space) and the distance kept. */
@@ -43,6 +49,11 @@ struct AI_LOOTER_SHOOTER_API FBodySwingCapsule
 	 * back in a stride passed between two of the skirt's points and showed through the cloth between them.
 	 */
 	float BoneRadius = 0.f;
+	/**
+	 * Pushed off the shortest way, never across the limb to the chain's outward side (a hand or forearm: it hangs outside
+	 * the coat as often as in it, and taken for come through, the cloth was flipped out over the hand).
+	 */
+	bool bShortestWay = false;
 };
 
 /** The ground a chain lies on. */
@@ -70,6 +81,8 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	TArray<FVector> Shown;
 	/** Where the anchor was last frame: it moves smoothly across a long frame's steps, and a jump is a teleport. */
 	FVector LastAnchor = FVector::ZeroVector;
+	/** Where the anchor was at the last fixed step (its move since is what Carry hands on). */
+	FVector LastStepAnchor = FVector::ZeroVector;
 	/** Time not yet stepped (less than one fixed step). */
 	float Accumulator = 0.f;
 	bool bStarted = false;
@@ -89,7 +102,8 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	 * clearance as its radius (all in world space; the caller converts). The anchor jumping over 1.5 m starts it over.
 	 * It steps in fixed 1/120 s steps (the leftover carried), so every frame rate swings alike; Shown is what to draw.
 	 * No point goes under the floor (so a crouch lays the hem on the ground), and the last may then lie nearer its head
-	 * than its length (Floor.LastReach).
+	 * than its length (Floor.LastReach). A point a limb (or the floor, or the ceiling over its head) pushes keeps no speed
+	 * into it, and the push gives it none. Settings.Carry of the anchor's move is handed straight on to the points.
 	 */
 	void Step(const FVector& Anchor, TConstArrayView<FVector> Targets, TConstArrayView<float> Lengths,
 		TConstArrayView<FBodySwingCapsule> Capsules, const FBodySwingSettings& Settings, float DeltaSeconds,
@@ -142,8 +156,16 @@ struct AI_LOOTER_SHOOTER_API FBodySwing
 	int32 NumChains() const { return Chains.Num(); }
 	bool IsBoundTo(const FReferenceSkeleton& Skeleton) const;
 
-	/** Chain kind's settings, by its name's prefix (skirt, cape, bandana, hair, lantern): the tuning table. */
+	/** Chain kind's settings, by its name's prefix (skirt, cape, bandana, hair, lantern, hook, longhair): the tuning table. */
 	static FBodySwingSettings SettingsFor(const FString& ChainName);
+
+	/**
+	 * The kind (SettingsFor's name) of the chain ChainName hanging from ParentBone: a `lantern_` chain hung from the spine is
+	 * a hook (Crane's toll-chain hook on his chest: heavier and shorter than Ellis's lantern on her thigh, and lying against
+	 * him), hair hung from the neck is long hair (Crane's, down his back and in front of his shoulders; Ellis's hangs from
+	 * her head under the hat); else the chain's own name.
+	 */
+	static FString KindOf(const FString& ChainName, const FString& ParentBone);
 
 	/** Neighbouring skirt chains whose cloth between them keeps off the limbs too (the coat's ring). */
 	int32 NumRingPairs() const { return Ring.Num(); }
@@ -158,6 +180,12 @@ private:
 		FBoneReference To;
 		/** The most a point is kept from it (cm): about the limb's own radius with the clothes on it. */
 		float MaxClearance = 0.f;
+		/**
+		 * A forearm or a hand: it pushes the cloth at most HandGive past where the animation has it (each frame), however
+		 * far its rest clearance asks. A chain hung right where the idle hand rests (Crane's front-left skirt, Pike's sides)
+		 * was thrown 18 to 29 cm out and up, folded over the hip, by a hand measured against the bind pose's A.
+		 */
+		bool bHand = false;
 	};
 
 	struct FChain

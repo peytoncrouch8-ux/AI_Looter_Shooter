@@ -9,6 +9,8 @@ class ACreatureBase;
 class AEmberPropActor;
 class UAudioComponent;
 class UMaterialInstanceDynamic;
+class UStaticMeshComponent;
+class UWorld;
 
 /**
  * Slag Bomb, Gauge's Forge power, lobbed from its firebox (Docs/Handoffs/CloudIslandConcepts_2026-10-05.md, "Ember
@@ -22,10 +24,17 @@ class UMaterialInstanceDynamic;
  *    molten globs thrown out, grave dirt, Ember.SlagBomb.Burst.
  *  - The pool: PoolSeconds (6) of slag Radius round the burst: whatever stands in it, or left it under BurnLinger (0.6 s)
  *    ago, burns for BurnDamage (10) every BurnInterval (0.5 s), worn orange while it burns (the hit flash's overlay),
- *    Ember.SlagBomb.Sear on each burn. Its edge glows, hot blobs crust over as it cools, sparks and pale smoke rise; its
- *    bubbling is a loop on it (Ember.SlagBomb.Pool). The player is never burned. Its time running out with the pool still
- *    hot (a late landing), the pool burns out its own time on the linger; cut short, it goes at once. EmberSlagBombLook.cpp
- *    draws the pool.
+ *    Ember.SlagBomb.Sear on each burn. Sparks, pale smoke and a low molten haze rise off it; its bubbling is a loop on it
+ *    (Ember.SlagBomb.Pool). The player is never burned. Its time running out with the pool still hot (a late landing), the
+ *    pool burns out its own time on the linger; cut short, it goes at once. EmberSlagBombLook.cpp draws the pool.
+ *  - The pool's look (2026-10-20, Saved/Polish/SLAGPOOL.md): SM_SlagPool (Art/Models/Props/SlagPool.py), 50 cm round at
+ *    scale 1, scaled Radius / 50 across and PoolScaleZ up, tilted to the plane through the ground round it, random yaw;
+ *    two or three SM_SlagSplatA/B splashes at its rim on their own ground. Its glowing slots (SlagMolten, SlagWhiteHot,
+ *    SlagGlowEdge: M_StylizedSurface, emissive = Color x Glow) share one dynamic instance each across the pool and the
+ *    splashes, cooling from their own colour and glow toward a dark red #5A1406 at 0.15 of it; SM_SlagPoolCrust (on the
+ *    pool, its pivot) rises out of the melt as it cools; over its last 0.6 s it sinks 2 cm (model) as the glow goes. It
+ *    reads as molten slag on Medium with no light; High and Epic add the prop's light. Without the models it is drawn as
+ *    before: a glowing edge and hot blobs (code-drawn streaks).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UEmberSlagBomb : public UEmberPowerBase
@@ -71,6 +80,10 @@ private:
 	void BurnTick();
 	void EndPool();
 	void DrawPool(float DeltaSeconds);
+	/** The pool's models set down at At on its anchor (EmberSlagBombLook.cpp); false while they aren't in the game. */
+	bool PlacePool(UWorld& World, const FVector& At);
+	/** Its glow cooling, its crust rising and, at the end (Fade 1 to 0), sinking away. */
+	void DrivePool(float Cool, float Fade);
 
 	// The numbers, kept at the use.
 	float InnerDamage = DefaultDamage;
@@ -105,6 +118,19 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> BurnLook;
 	EmberFX::FEmberTint Burning;
+
+	// The pool's models (PlacePool): its glowing slots' shared instances and their own colour and glow, the crust over it,
+	// and every piece that sinks at the end with its resting height.
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> PoolGlows;
+	TArray<FLinearColor> PoolGlowColors;
+	TArray<float> PoolGlowStrengths;
+	TWeakObjectPtr<UStaticMeshComponent> PoolCrust;
+	TArray<TWeakObjectPtr<UStaticMeshComponent>> PoolPieces;
+	TArray<FVector> PoolPieceRest;
+	/** The pool's height scale (its across is Radius / 50), for the crust's and the sink's model centimetres. */
+	float PoolScaleZ = 1.f;
+	bool bPoolModel = false;
 
 	// What lingers: the burst's ring of fire.
 	float RingAge = -1.f;

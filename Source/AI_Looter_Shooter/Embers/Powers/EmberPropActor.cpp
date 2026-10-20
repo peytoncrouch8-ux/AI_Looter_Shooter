@@ -116,3 +116,22 @@ void AEmberPropActor::Remove()
 {
 	Destroy();
 }
+
+UStaticMeshComponent* AEmberPropActor::AddPiece(UStaticMesh* Mesh, USceneComponent* Parent)
+{
+	if (!Mesh)
+	{
+		return nullptr;
+	}
+	UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this, NAME_None, RF_Transient);
+	Piece->SetMobility(EComponentMobility::Movable);
+	Piece->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	Piece->SetCanEverAffectNavigation(false);
+	Piece->SetGenerateOverlapEvents(false);
+	Piece->SetCastShadow(false);
+	Piece->SetStaticMesh(Mesh);
+	Piece->SetupAttachment(Parent ? Parent : GetRootComponent());
+	Piece->RegisterComponent();
+	AddInstanceComponent(Piece);
+	return Piece;
+}

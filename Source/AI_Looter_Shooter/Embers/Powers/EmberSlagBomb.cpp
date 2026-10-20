@@ -358,10 +358,13 @@ void UEmberSlagBomb::Burst(const FVector& At)
 	}
 	Burning.SetMaterial(BurnLook);
 	Anchor = AEmberPropActor::Place(World, nullptr, At, 0.f, FVector::OneVector);
+	bPoolModel = false;
 	if (AEmberPropActor* Here = Anchor.Get())
 	{
 		Here->SetLight(Molten, 30.f, Radius * 1.6f, FVector(0.0, 0.0, 60.0));
 		Bubbling = LooterSound::Start(Here, LooterSoundCue::Ember::SlagBombPool, Here->GetRootComponent());
+		// The slag itself (EmberSlagBombLook.cpp); without its models the edge and blobs are drawn instead.
+		bPoolModel = PlacePool(*World, At);
 	}
 	StartLinger();
 	UE_LOG(LogLooter, Log, TEXT("Slag Bomb: burst at %s, the pool for %.0f s"), *At.ToCompactString(), PoolSeconds);
@@ -414,6 +417,11 @@ void UEmberSlagBomb::EndPool()
 		Here->Remove();
 	}
 	Anchor.Reset();
+	// Its models went with the anchor.
+	bPoolModel = false;
+	PoolPieces.Reset();
+	PoolPieceRest.Reset();
+	PoolCrust.Reset();
 	const UWorld* World = GetBodyWorld();
 	FWeaponFX* FX = Effects();
 	if (bHadPool && FX && World && !World->bIsTearingDown)

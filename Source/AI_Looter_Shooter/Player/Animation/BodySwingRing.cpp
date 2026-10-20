@@ -137,10 +137,10 @@ void FBodySwing::ApplyRing(TConstArrayView<FBodySwingCapsule> LimbsNow, double S
 				};
 				// Halfway between them moves by half what both move together; the patch's middle by a quarter.
 				Capsule.Radius = Pair.MidClearances[Level * NumLimbs + Limb] * static_cast<float>(Scale);
-				Spread(FBodySwingPoints::PushPlaceOut((PointA + PointB) * 0.5, Capsule, Outward), 2.0);
+				Spread(FBodySwingPoints::PushPlaceOut((PointA + PointB) * 0.5, Capsule, Capsule.bShortestWay ? FVector::ZeroVector : Outward), 2.0);
 				Capsule.Radius = Pair.CenterClearances[Level * NumLimbs + Limb] * static_cast<float>(Scale);
 				const FVector Center = (AboveA + AboveB + A.Sim.Shown[Level] + DeltaA + B.Sim.Shown[Level] + DeltaB) * 0.25;
-				Spread(FBodySwingPoints::PushPlaceOut(Center, Capsule, Outward), 4.0);
+				Spread(FBodySwingPoints::PushPlaceOut(Center, Capsule, Capsule.bShortestWay ? FVector::ZeroVector : Outward), 4.0);
 			}
 			DeltaA = DeltaA.GetClampedToMaxSize(MaxRingPush * Scale);
 			DeltaB = DeltaB.GetClampedToMaxSize(MaxRingPush * Scale);

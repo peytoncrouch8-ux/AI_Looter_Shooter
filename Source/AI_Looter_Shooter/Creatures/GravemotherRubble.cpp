@@ -50,6 +50,8 @@ AGravemotherRubble::AGravemotherRubble()
 	Pile->SetGenerateOverlapEvents(false);
 	Pile->SetCanEverAffectNavigation(false);
 	Pile->ComponentTags.Add(GravemotherAssets::SurfaceDirtTag);
+	// Its own scar (and a furrow's crack) lies on the ground round it, not painted over the pile's top.
+	Pile->bReceivesDecals = false;
 }
 
 AGravemotherRubble* AGravemotherRubble::Spawn(UWorld* World, const FVector& InGround, float Yaw, float InSeconds, float InSettleSeconds)

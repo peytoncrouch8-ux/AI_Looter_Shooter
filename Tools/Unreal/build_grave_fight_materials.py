@@ -9,9 +9,10 @@
                     the ground it lies on, on Medium without Lumen as on High). DecalColor (its colour, alpha the opacity),
                     DecalNormal, DecalORM; Tiles (U and V repeats, U and V offsets) on the decal's own UV (U along the
                     strip). Opacity = alpha x Opacity (the code drives it through a MID) x Reveal's front (the part of U
-                    up to Reveal shows, its front soft over RevealSoft; 1 shows it all: the heave's crawl) x the decal's
-                    lifetime fade x its component's DecalColor alpha, only on surfaces facing back up its axis (never
-                    smeared down a wall or a mound's steep side). Tint, NormalStrength.
+                    up to Reveal shows, its front soft over RevealSoft; 1 shows it all: the heave's crawl) x the ends'
+                    fades (FadeIn from U = 0, FadeOut to U = 1, shares of U; 0 none: a strip's first and last tiles) x
+                    the decal's lifetime fade x its component's DecalColor alpha, only on surfaces facing back up its axis
+                    (never smeared down a wall or a mound's steep side). Tint, NormalStrength.
   M_FX_GraveCard    /Game/Art/Materials/Masters: unlit, translucent, two-sided: a dust card (the engine's Plane, UVs 0-1)
                     drawn as instanced quads the code turns to the camera. Per-instance custom data (the code's layout):
                     0-2 the card's colour (linear; its tint, the light already in it: the material is unlit), 3 its
@@ -128,7 +129,10 @@ N *= dot(N, V) < 0.0 ? -1.0 : 1.0;
 return smoothstep(0.2, 0.5, dot(N, -normalize(Axis)));"""
 DECAL_OPACITY = """// The part of the strip up to Reveal shows (its front soft over RevealSoft of U); at 1 all of it.
 float Front = saturate((Reveal - UV.x) / max(RevealSoft, 1e-3) + 1.0);
-return saturate(Alpha * Strength * Front * Facing * Life * Code.a);"""
+// A strip's first and last tiles fade in from U = 0 over FadeIn and out to U = 1 over FadeOut (0: cut square, where one
+// tile meets the next), so the strip doesn't end in a straight edge.
+float Ends = (FadeIn > 0.0 ? smoothstep(0.0, FadeIn, UV.x) : 1.0) * (FadeOut > 0.0 ? smoothstep(0.0, FadeOut, 1.0 - UV.x) : 1.0);
+return saturate(Alpha * Strength * Front * Ends * Facing * Life * Code.a);"""
 DECAL_NORMAL = 'return normalize(float3(N.xy * Strength, N.z));'
 
 
@@ -158,6 +162,7 @@ def build_decal(defaults):
     opacity = g.custom(DECAL_OPACITY, [
         ('UV', coords, ''), ('Alpha', bc, 'A'), ('Strength', g.scalar('Opacity', 1.0, -1200, 900), ''),
         ('Reveal', g.scalar('Reveal', 1.0, -1200, 1000), ''), ('RevealSoft', g.scalar('RevealSoft', 0.03, -1200, 1100), ''),
+        ('FadeIn', g.scalar('FadeIn', 0.0, -1200, 1300), ''), ('FadeOut', g.scalar('FadeOut', 0.0, -1200, 1400), ''),
         ('Facing', facing, ''), ('Life', g.node(unreal.MaterialExpressionDecalLifetimeOpacity, -1200, 1200), ''),
         ('Code', code, 'RGBA'),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -700, 700, 'Opacity')

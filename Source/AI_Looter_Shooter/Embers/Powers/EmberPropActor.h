@@ -45,6 +45,15 @@ public:
 	/** Takes it away now. */
 	void Remove();
 
+	/** Its model's component (to move, tilt or dress it: Slag Bomb's pool). */
+	UStaticMeshComponent* GetModel() const { return Model; }
+
+	/**
+	 * One more model on it, seen and never touched like the first, no shadow, attached to Parent (its root when null) at
+	 * its pivot: Slag Bomb's crust over the pool and its splashes. Null without a Mesh.
+	 */
+	UStaticMeshComponent* AddPiece(UStaticMesh* Mesh, USceneComponent* Parent = nullptr);
+
 	/** The model at Path, or null without a warning while it isn't in the game. Looked for again while missing. */
 	static UStaticMesh* FindMesh(const TCHAR* Path);
 

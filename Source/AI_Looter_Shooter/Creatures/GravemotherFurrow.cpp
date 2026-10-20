@@ -5,6 +5,7 @@
 #include "Creatures/GravemotherFurrow.h"
 #include "Creatures/GravemotherAssets.h"
 #include "Creatures/GravemotherFX.h"
+#include "Creatures/GravemotherRubble.h"
 #include "Creatures/GroundCrack.h"
 #include "World/WorldQueries.h"
 #include "Components/DecalComponent.h"
@@ -12,6 +13,7 @@
 #include "Components/SceneComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 
 namespace
 {
@@ -30,6 +32,18 @@ namespace
 	const FLinearColor StandInSeam(0.035f, 0.028f, 0.02f);
 	/** The slam's scar (cm across, MI_Decal_ImpactScar). */
 	constexpr float SlamScarSize = 340.f;
+	/**
+	 * The crack crawls out through each tile with its Reveal (M_GraveDecal: U up to it shows), its front soft over this share
+	 * of a tile (34 cm), rather than popping in a tile (2.8 m) at a time; checked by eye 2026-10-20.
+	 */
+	constexpr float CrackRevealSoft = 0.12f;
+	/**
+	 * The strips' ends at her end and the far end fade over these shares of a tile (M_GraveDecal's FadeIn/FadeOut): cut
+	 * square, the ploughed strip's start stood out as a hard-edged rectangle once she'd left it (2026-10-20 by eye).
+	 */
+	constexpr float CrackFadeIn = 0.3f;
+	constexpr float StripFadeIn = 0.35f;
+	constexpr float StripFadeOut = 0.25f;
 }
 
 AGravemotherFurrow::AGravemotherFurrow()
@@ -60,6 +74,8 @@ AGravemotherFurrow::AGravemotherFurrow()
 	BermSet->SetGenerateOverlapEvents(false);
 	BermSet->SetCanEverAffectNavigation(false);
 	BermSet->ComponentTags.Add(GravemotherAssets::SurfaceDirtTag);
+	// A ground decal (a later furrow's crack or strip, a scar) lies on the ground, not over a berm standing on it.
+	BermSet->bReceivesDecals = false;
 
 	Crest = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Crest"));
 	Crest->SetupAttachment(Root);
@@ -70,6 +86,7 @@ AGravemotherFurrow::AGravemotherFurrow()
 	Crest->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Crest->SetCastShadow(false);
 	Crest->SetCanEverAffectNavigation(false);
+	Crest->bReceivesDecals = false;
 }
 
 AGravemotherFurrow* AGravemotherFurrow::Spawn(UWorld* World, const FVector& InStart, const FVector& InDirection, float InLength,
@@ -110,8 +127,17 @@ FVector AGravemotherFurrow::OnGround(const FVector& Point, float Rise) const
 	{
 		return Point;
 	}
-	// The terrain and solid props (never volumes, nor its own berms).
-	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("GravemotherFurrow"), this);
+	// The terrain and solid props (never volumes, nor any furrow's berms or her rubble: a tile laid over an older furrow's
+	// berm sat on its top, 70 cm over the ground, and its decal never reached the ground under it).
+	FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("GravemotherFurrow"), this);
+	for (TActorIterator<AGravemotherFurrow> It(World); It; ++It)
+	{
+		Params.AddIgnoredActor(*It);
+	}
+	for (TActorIterator<AGravemotherRubble> It(World); It; ++It)
+	{
+		Params.AddIgnoredActor(*It);
+	}
 	FHitResult Hit;
 	if (World->LineTraceSingleByObjectType(Hit, Point + FVector(0.0, 0.0, Over), Point - FVector(0.0, 0.0, GroundReach),
 		FCollisionObjectQueryParams(ECC_WorldStatic), Params))
@@ -138,6 +164,12 @@ void AGravemotherFurrow::Lay()
 		Tile.Center = OnGround(Start + Direction * Tile.Along);
 		Tile.Decal = GravemotherAssets::AddGroundDecal(*this, GravemotherAssets::DecalHeaveCrack, Tile.Center, Yaw, CrackStep, CrackWidth, 1);
 		GravemotherAssets::SetDecalShift(Tile.Decal, CrackShift);
+		GravemotherAssets::SetDecalReveal(Tile.Decal, 0.f, CrackRevealSoft);
+	}
+	if (CrackTiles.Num() > 0)
+	{
+		// Out from under her forelegs it fades in; the far end has its cap.
+		GravemotherAssets::SetDecalEnds(CrackTiles[0].Decal, CrackFadeIn, 0.f);
 	}
 	// The cap a little past the line's end, on the ground at the last tile's level: the line stops short of a rise, so the
 	// floor a ledge over it would give is not its ground (it once lay on a rock 1.8 m up, its decal reaching nothing).
@@ -160,6 +192,15 @@ void AGravemotherFurrow::Lay()
 		Tile.Center = OnGround(Start + Direction * Tile.Along);
 		Tile.Decal = GravemotherAssets::AddGroundDecal(*this, GravemotherAssets::DecalFurrow, Tile.Center, Yaw, StripStep, StripWidth, 0);
 		GravemotherAssets::SetDecalShift(Tile.Decal, StripShift);
+	}
+	if (StripTiles.Num() > 0)
+	{
+		// Both its ends fade (one tile: in and out).
+		GravemotherAssets::SetDecalEnds(StripTiles[0].Decal, StripFadeIn, StripTiles.Num() == 1 ? StripFadeOut : 0.f);
+		if (StripTiles.Num() > 1)
+		{
+			GravemotherAssets::SetDecalEnds(StripTiles.Last().Decal, 0.f, StripFadeOut);
+		}
 	}
 
 	// The berms' spots, both sides, every BermEvery from her forelegs to the line's end: turned a little and sized apart.
@@ -246,6 +287,10 @@ void AGravemotherFurrow::SetHeave(float InFront)
 	for (FTile& Tile : CrackTiles)
 	{
 		Tile.bLaid |= Front > 0.f && Tile.Along - Half <= Front;
+		// The split crawls through the tile with its front (U runs the line's way: from her end toward the far end), the
+		// soft front kept just behind it; a tile it's past shows whole.
+		const float Through = (Front - (Tile.Along - Half)) / FMath::Max(Half * 2.f, 1.f);
+		GravemotherAssets::SetDecalReveal(Tile.Decal, Through >= 1.f ? 1.f : Through - CrackRevealSoft * 0.5f);
 	}
 	if (Front >= Length - 1.f && EndCap)
 	{

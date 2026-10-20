@@ -925,12 +925,35 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   bone shortened along its length axis); the stride's boot through the coat 48 -> 34 points, the crouch's hem under the
   ground 278 points 15.0 cm -> 57 points 4.9 cm (the panel between two gathered chains).
   Tuning table: `FBodySwing::SettingsFor`
-  (skirt 7 rad/s, damping 3.5; cape 12, 5; bandana and hair 9, 3.5; lantern 2, 1.2). `Looter.Body.Swing 0` holds the
-  animated pose. Lessons (each found by Looter.Player.BodySwing.* and a Python copy of the step): a nudge of the position
+  (skirt 7 rad/s, damping 3.5; cape 12, 5; bandana and hair 9, 3.5; lantern 2, 1.2; hook 7, 5.5, gravity 1, bulk 1.5,
+  Carry 0.75; longhair 9, 5, Carry 0.35). The kind is the chain's name but for what it hangs from (`FBodySwing::KindOf`,
+  2026-10-20): a `lantern_` chain on a spine bone is a hook (Crane's toll-chain hook on his chest; Ellis's lantern on
+  thigh_r keeps its numbers), `hair*` on a neck bone long hair (Crane's back hair and front locks; Ellis's hangs from her
+  head). `Carry` hands that share of the anchor's own move straight to the points each step (Points and Previous): the
+  body starts and stops at about 3 g, which swung the hook out level on every start and stop and kept it swinging through
+  his run (74 -> 31 degrees at a run's start, settled 25 -> 1.5 degrees 2 s after a stop; the hair 70 -> 63, settled 4
+  -> 0.6). `Looter.Body.Swing 0` holds the animated pose. Lessons (each found by Looter.Player.BodySwing.* and a Python
+  copy of the step): a nudge of the position
   toward the target each step is a stiffer spring the shorter the step (30 vs 120 fps ended 7.5 cm apart); chains with
   length constraints swing differently at different step sizes (1/60 vs 1/240 s steps: 20 cm), so it always takes fixed
   1/120 s steps, the leftover carried, and shows the blend of the last two; a push out of a limb must not become speed (it
-  flung a chain right over the thigh); three loose links are a chaotic triple pendulum (test frame rates on the skirt).
+  flung a chain right over the thigh), nor may a point keep its speed into the limb (2026-10-20: kept, a point held
+  against a limb stored a fall into it step on step and slid round the limb on it: Ellis's cape's back wagged 7 cm and
+  her bandana 6 cm side to side at a standstill, Crane's cape 14 cm; the push's inward part of the speed is dropped,
+  `Looter.Player.BodySwing.Rest`); three loose links are a chaotic triple pendulum (test frame rates on the skirt).
+  Hands and forearms (`FLimb::bHand`, 2026-10-20; the Pike agent found the cause on Pike): their clearances are measured
+  in the bind pose's A, where they're far from the coat, so a chain hung where the idle hand rests (Crane's front-left
+  skirt, Pike's sides) was kept 5-7 cm off a hand lying on it, and the bone push, taking the hand for a limb come
+  through to the outside, flipped the cloth out over it: Crane's skirt_fl end stood 29 cm out and up (the flare at his
+  left hand). Now a hand or forearm pushes the shortest way (`FBodySwingCapsule::bShortestWay`: never across to the
+  chain's outward side; the ring too) and at most `HandGive` 3 cm past where the animation has the point or bone. Crane's
+  skirt_fl at idle 27-29 -> 3-10 cm, the flare gone; Ellis's duster as it was (her idle offsets within the run-to-run
+  spread, front shots alike). `Looter.Player.BodySwing.Hand`. `Saved/PolishCode/swing_offsets.py <tag>` (not committed)
+  lists every chain end's idle offset from its animated pose (Looter.Body.Swing 1 against 0); it varies a few cm run to
+  run with the idle's sway, so measure two or three times.
+  Watching swing without eyes on it: `Saved/PolishCode/swing_rec.py <tag>` (not committed) records every chain's tip in
+  its parent bone's frame through a scripted walk, stop, sprint, turn, strafe, crouch and jumps to a CSV,
+  `swing_sum.awk` sums each move's widest and settled angle.
 - The cape hangs from spine_05 through its chains, so it kept the arms-out shape it was modelled over (wings in front):
   its corners' targets also ride the upper arms (front 60%, back 40%: `CapeFollowFront/Back`), so it drapes as the arms
   hang and lifts as a gun comes up. The arm they ride is eased on the cape's own bone (`FollowEaseSeconds` 0.35): riding
@@ -1144,11 +1167,34 @@ committed; its content is in this section once the round lands). The agents' not
     within 4.5 m in sight, thrown back, then `Finish`; lives -> struck for 90 at the end.
   - Slag Bomb: landing = the creature in sights' feet, else the aim's world hit (ground under a wall), else 20 m out; a
     parabolic lob 0.45-1 s; 48 within 2.5 m, 26 within 4.5 m; a 6 s pool burning 10 every 0.5 s (and 0.6 s after leaving),
-    worn orange; duration 7 s, a pool still hot at the end burns out on the linger.
+    worn orange; duration 7 s, a pool still hot at the end burns out on the linger. The pool is a model since 2026-10-20
+    (`Art/Models/Props/SlagPool.py`, POLISH-ART; the contract `Saved/Polish/SLAGPOOL.md`, not committed): SM_SlagPool on
+    the anchor prop (`AEmberPropActor::GetModel`), XY Radius / 50 (9), Z 5 (at 9 its plates stood 13 cm), tilted to the
+    plane through the edge's ground ring (Newell's normal; level where that plane tilts past 60 degrees), its pivot on that plane over the
+    burst (held -5..+15 cm of it), random yaw, no shadow; SM_SlagPoolCrust on it (`AddPiece`) rising from -0.9 to 0
+    (model cm) by smoothstep(0.2, 0.9, cool); 2-3 SM_SlagSplatA/B splashes 0.8-1.5 at the rim, each on its own ground and
+    normal. One dynamic instance per glowing slot (SlagMolten, SlagWhiteHot, SlagGlowEdge on M_StylizedSurface), shared
+    by the pool and splashes, starting from the slot's own Color and Glow: Glow x lerp(0.15, 1, Heat) x the last 0.6 s's
+    fade (x 0.93-1 flicker but the edge), Color lerp(#5A1406, own, Heat), Heat = 1 - cool^1.5; it sinks 2 cm (model) over
+    its last 0.6 s. It replaced the glowing edge and the blob streaks (still drawn when the models are missing); sparks,
+    smoke, haze and the High/Epic light stay. Reads as molten slag on Medium with no light (`slag_med_*.png`), lit on
+    High (`slag_high_*.png`).
   - Iron Hide: the player's damage x0.4 ("IronHide"), `UMovementSlowComponent` 0.75 renewed each tick; a hurt whose causer
     is a living creature burns it for 12 (once per 0.3 s each); every blow clangs.
   - Rail Spike: `PlanLine` along the aim to 25 m or the world; every creature within 60 cm, hit as the 28000 cm/s spike
-    passes: 60, shoved 1.5 m; embeds glowing 2.5 s.
+    passes: 60, shoved 1.5 m; embeds glowing 2.5 s. Its looks are `EmberRailSpikeLook.cpp` (2026-10-20 polish: its line
+    runs straight away from the eye in first person and from the camera behind, so a streak along it showed end-on as
+    nothing): a round glow on its head (`FWeaponFX::AddGlow`, 16 cm + 1.2% of its distance, so it keeps a size on
+    screen), shock rings square to its way (`EmberFX::DrawRing`; at 1.6 and 2.4 m out as it leaves, 22 and 36 cm: nearer
+    and wider they filled the first-person view; one at each body, 95 cm; one on the surface it embeds in), a steam
+    doughnut at 1.2 m, a helix of hot air round the line (from 1.1 m, a turn per 90 cm, 8 -> 24 cm, 0.5 s, glow 16,
+    3.5 cm wide: thinner and dimmer it vanished in daylight), rings of steam every 2.6 m, sparks burst out sideways at
+    each body (square to the line they read from behind) and its spill thrown out the far side, the kick Pitch 1.6, Roll
+    0.4-0.7, FOV +4.5%. The ground under the line (traced every 1 m from his feet on): dust thrown out both sides as it
+    passes where the line is within 3.2 m of it, grit within 1.2 m, and a scar (`AGroundCrack`, 16 cm, iron-orange seam)
+    torn open behind it along the first stretch within 1.5 m, 2 m past his feet on, that holds 1.2 s and closes; the
+    scar, dark lips and a glowing seam running away from the eye, is what reads best from first person. Screenshots
+    `Saved/Screenshots/Tools/rs2_fp_*.png`, `rs2_3p_*.png` (before: `tuned_RailSpike_*`).
   - Spyglass: a ground-traced cyan ring to 60 m in 1.2 s marks as it passes (then every 0.5 s within 60 m): damage x1.3
     ("Spyglass"), mark, orange wash; lens: view -5 degrees and the cameras' vignette 0.85, restored exactly. No through-wall
     silhouette (needs a custom-depth post-process material).
@@ -1404,6 +1450,18 @@ folder). The pieces:
 - Bug fixed: build_grave_fight_materials.py fed `Tiles` to its Custom node from the vector's RGB pin ("swizzle 'zw' out
   of bounds": M_GraveDecal failed to compile, decals drew the default material); it takes the RGBA pin now. The crack's
   end cap looks for its ground only 60 cm over the last tile's (it once lay on a rock 1.8 m up and reached nothing).
+- The decals checked by eye (2026-10-20, POLISH-CODE; the Sink and the west field at (-57, 5) m; `Saved/PolishCode/
+  gm_*.py` and `stand.py`, not committed, probe and stage them): (1) Reveal was never driven: the crack popped in a tile
+  (2.8 m) at a time. Each tile's Reveal now follows the front (`SetHeave`, soft over `CrackRevealSoft` 0.12 of a tile,
+  kept just behind the front). A ground decal's U runs along its Yaw (the engine's decal UV is the box's local Z, Y; Z is
+  the line's way here), so 0 -> 1 crawls from her toward the player: seen so. (2) Both strips were cut square at her end
+  (the ploughed strip's start stood out as a hard-edged rectangle once she'd left it): M_GraveDecal has `FadeIn`/
+  `FadeOut` (shares of U; `SetDecalEnds`): the crack's first tile fades in over 0.3, the strip's first over 0.35 and its
+  last out over 0.25. (3) A new furrow's ground trace stopped on an older furrow's berm (a tile 70 cm up whose decal never
+  reached the ground: a gap): `OnGround` ignores every furrow and the rubble, and berms, the crest and the rubble pile
+  take no decals. (4) The end cap joins: the strip's crack meets U = 0 or 1 within 0.02 V of the cap's entry (1.5 cm of a
+  7 cm crack) and the cap overlaps the last tile 14 cm; in play the slam's scar lay over it each time. The scar, the mound
+  cracks and the ploughed strip between the berms looked right; the clod's landing shadow wasn't caught in a frame.
 - Shared hooks it added: `ASpiderCreature::GetPoseOverride` (a subclass's body and front-leg pose; none by default),
   `UBossComponent::BeginStagger(Seconds, Callout)`, `UBulletSubsystem::OwnLookTag` ("Impact.Own": the stone, clod and mounds
   draw and sound their own hits), `UHudBossBarWidget::SetArmour` (the stone bar), `LooterUI::Color::Granite*`.

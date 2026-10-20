@@ -168,6 +168,7 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 	{
 		Reset(Targets);
 		LastAnchor = Anchor;
+		LastStepAnchor = Anchor;
 		return;
 	}
 	// A fixed step, the leftover carried to the next frame: chains joined by length constraints swing differently at
@@ -188,6 +189,17 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 		const float Along = Frame > 0.f ? FMath::Min(1.f, (FixedStep * static_cast<float>(Stepped + 1) - Carried) / Frame) : 1.f;
 		const FVector Head0 = FMath::Lerp(LastAnchor, Anchor, static_cast<double>(Along));
 		const FVector Shift = Head0 - Anchor;
+		if (Settings.Carry > 0.f)
+		{
+			// Its share of the anchor's move since the last step, handed on as it is (where and how fast: Previous too).
+			const FVector Handed = (Head0 - LastStepAnchor) * static_cast<double>(Settings.Carry);
+			for (int32 Index = 0; Index < Count; ++Index)
+			{
+				Points[Index] += Handed;
+				Previous[Index] += Handed;
+			}
+		}
+		LastStepAnchor = Head0;
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const FVector Velocity = (Points[Index] - Previous[Index]) * Keep;
@@ -206,16 +218,29 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 			{
 				const FBodySwingCapsule& Capsule = Capsules[Index * PerPoint + Limb];
 				P = PushOut(P, Capsule);
-				P = PushBoneOut(Head, P, Capsule, Outward);
+				P = PushBoneOut(Head, P, Capsule, Capsule.bShortestWay ? FVector::ZeroVector : Outward);
 			}
 			P = Head + (P - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
 			P = KeepUnder(Head, P, Lengths[Index], Settings.bRisesToTarget ? FMath::Max(Head.Z, Targets[Index].Z + Shift.Z) : Head.Z);
 			const bool bGrounded = P.Z < Floor.Z;
 			P = KeepAbove(Head, P, Lengths[Index], Floor.Z, Rest, ReachOf(Index));
 			// A limb moves the cloth aside without throwing it: the push isn't carried on as speed (it flung a chain over
-			// the thigh it was pushed off). On the ground it rests (its speed into the ground, kept, flipped a gathered
-			// hem up over its head).
-			Previous[Index] += P - Free;
+			// the thigh it was pushed off). Nor does it keep its speed into what pushed it: kept, a point held against a
+			// limb stored a fall into it step on step, and slid round the limb on it, back and forth (Ellis's and Crane's
+			// capes' backs wagged 7 to 14 cm side to side at a standstill, 2026-10-20). On the ground it rests (its speed
+			// into the ground, kept, flipped a gathered hem up over its head).
+			const FVector Push = P - Free;
+			FVector Velocity = Free - Previous[Index];
+			if (Push.SizeSquared() > UE_KINDA_SMALL_NUMBER)
+			{
+				const FVector Out = Push.GetUnsafeNormal();
+				const double Into = FVector::DotProduct(Velocity, Out);
+				if (Into < 0.0)
+				{
+					Velocity -= Out * Into;
+				}
+			}
+			Previous[Index] = P - Velocity;
 			if (bGrounded)
 			{
 				Previous[Index] = P;

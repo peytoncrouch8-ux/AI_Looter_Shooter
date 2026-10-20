@@ -256,6 +256,15 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   in `Saved/Polish/SLAGPOOL.md`) and fixes Odessa's black watch-chain island; POLISH-CODE (owns the editor) makes Rail
   Spike read from behind and in first person, checks and fixes the Gravemother's ground decals by eye, tunes Crane's hook
   (and hair, coat, cape) swing in motion, then wires the slag pool once Main imports it. PIKE still on his coat patch.
+- POLISH-ART done and committed (746b33e): SM_SlagPool (+ SlagPoolCrust, SlagSplatA/B; slots SlagCrust, SlagMolten,
+  SlagWhiteHot, SlagGlowEdge; `Saved/Polish/SLAGPOOL.md`), and Odessa's watch chain (its game tube ran through her body:
+  OdessaGear 0.43% -> 0%). POLISH-CODE imports both and wires the pool.
+- PIKE's coat patch found and fixed (f4c49a9, rig only, mesh identical): BodySwing keeps skirt points ~5 cm from the
+  hand and ~7 cm from the forearm; his side skirt chains hung where his idle hand hangs, the springs threw the front panel
+  over the pocket. Side chains now behind the hip (0.65 of the way round), front ones outside the thigh. POLISH-CODE
+  reimports SK_Pike and checks whether Crane's left-hand flare is the same (a code-side rule preferred). Pike's leftovers
+  (not done, ask): the cuff tabs bake near-black (turn them out in `pike_clothes.build_cuffs`, a rebake); a dark sliver
+  on the left hip from behind; the coat front tucks under the thighs crouched.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases

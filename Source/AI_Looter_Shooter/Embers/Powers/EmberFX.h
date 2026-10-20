@@ -31,6 +31,13 @@ namespace EmberFX
 		float Glow);
 
 	/**
+	 * A glowing ring this frame: Radius round Center, square to Axis, in Segments streaks. Square to the way something flies,
+	 * it faces whoever looks along that way: a shock ring reads from behind where a line along the flight shows end-on.
+	 */
+	AI_LOOTER_SHOOTER_API void DrawRing(FWeaponFX& Effects, const FVector& Center, const FVector& Axis, float Radius, int32 Segments, float Width,
+		const FLinearColor& Color, float Glow);
+
+	/**
 	 * A playing card seen this frame at Center, its long side along Along (any length), turned Spin radians round it:
 	 * a pale face with a coloured edge, as two short wide streaks (the face and its glinting rim).
 	 */

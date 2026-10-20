@@ -76,6 +76,28 @@ namespace EmberFX
 		}
 	}
 
+	void DrawRing(FWeaponFX& Effects, const FVector& Center, const FVector& Axis, float Radius, int32 Segments, float Width,
+		const FLinearColor& Color, float Glow)
+	{
+		const FVector Normal = Axis.GetSafeNormal();
+		if (Normal.IsNearlyZero() || Radius <= 0.f || Glow <= 0.f)
+		{
+			return;
+		}
+		FVector U, V;
+		Normal.FindBestAxisVectors(U, V);
+		const int32 Count = FMath::Max(Segments, 3);
+		// Each piece reaches a third of a piece past its ends: a streak's ends are soft, and end to end they read as a
+		// dashed ring (2026-10-20, Rail Spike's shock).
+		const float Step = UE_TWO_PI / static_cast<float>(Count);
+		auto At = [&](float Angle) { return Center + (U * FMath::Cos(Angle) + V * FMath::Sin(Angle)) * Radius; };
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const float From = Step * (static_cast<float>(Index) - 0.33f);
+			Effects.AddStreak(At(From), At(From + Step * 1.66f), Width, Color, Glow);
+		}
+	}
+
 	void DrawCard(FWeaponFX& Effects, const FVector& Center, const FVector& Along, float Spin, const FLinearColor& Edge, float Glow, float Size)
 	{
 		// A card is 9 cm by 6: seen as a short, wide streak along its tumble, its long side turned by the spin (a card

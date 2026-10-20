@@ -38,6 +38,13 @@ namespace
 	constexpr float FloorClearance = 2.f;
 
 	/**
+	 * A forearm or hand moves the cloth aside by at most this (cm) past where the animation has it (FLimb::bHand): the
+	 * coat's sides still stand off the hands at the idle (they sank 2.5 cm into Ellis's duster without), but a chain hung
+	 * where the idle hand rests is no longer thrown out over the hip by a clearance measured in the bind pose's A.
+	 */
+	constexpr double HandGive = 3.0;
+
+	/**
 	 * How far out a chain's last point lies on the ground, a share of its bone's length (FBodySwingFloor::LastReach): laid
 	 * out at full length the hem's flaps jutted out stiffly round a crouch; nearer, the bone shortens and the hem gathers.
 	 */
@@ -100,46 +107,6 @@ namespace
 // FBodySwing
 // ---------------------------------------------------------------------------
 
-FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
-{
-	FBodySwingSettings Settings;
-	// Gravity is a small share: the animated pose already hangs, and the spring would hold a full share's sag off it
-	// (g x share / stiffness^2: 2 cm on the skirt at 0.08).
-	if (ChainName.StartsWith(TEXT("skirt")))
-	{
-		// The duster's heavy oilskin: swings wide on a turn or a stop and takes a moment to settle.
-		Settings.Stiffness = 7.f;
-		Settings.Damping = 3.5f;
-		Settings.Gravity = 0.08f;
-	}
-	else if (ChainName.StartsWith(TEXT("cape")))
-	{
-		// Short and held by the shoulders: a lift and a flutter.
-		Settings.Stiffness = 12.f;
-		Settings.Damping = 5.f;
-		Settings.Gravity = 0.05f;
-		// Fluted and stiff, it stands off the arms further than the coat's cloth does.
-		Settings.Bulk = 6.f;
-	}
-	else if (ChainName.StartsWith(TEXT("bandana")) || ChainName.StartsWith(TEXT("hair")))
-	{
-		Settings.Stiffness = 9.f;
-		Settings.Damping = 3.5f;
-		Settings.Gravity = 0.05f;
-	}
-	else if (ChainName.StartsWith(TEXT("lantern")))
-	{
-		// A pendulum on its wire: gravity swings it (it hangs straight down at rest, so there's no sag), the spring
-		// barely holds it, slow to settle.
-		Settings.Stiffness = 2.f;
-		Settings.Damping = 1.2f;
-		Settings.Gravity = 1.f;
-		// Its glass and cage round the wire: 4.3 cm across, half of it each side, and a little.
-		Settings.Bulk = 2.5f;
-	}
-	return Settings;
-}
-
 bool FBodySwing::IsBoundTo(const FReferenceSkeleton& Skeleton) const
 {
 	return BoundBoneCount == Skeleton.GetNum() && Skeleton.GetNum() > 0 && BoundFirstBone == Skeleton.GetBoneName(0);
@@ -187,6 +154,8 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		Limb.From = FBoneReference(Skeleton.GetBoneName(From));
 		Limb.To = FBoneReference(Skeleton.GetBoneName(To));
 		Limb.MaxClearance = Spec.MaxClearance;
+		const FString LimbName = Skeleton.GetBoneName(From).ToString();
+		Limb.bHand = LimbName.StartsWith(TEXT("lowerarm")) || LimbName.StartsWith(TEXT("hand"));
 		// The upper arm's rest is the bind pose's, raised 31 degrees off the idle: the cape's clearances are measured
 		// against the arm as it hangs at the game's idle (Ellis.py's unweighted `cape_arm_<side>`) when the mesh has it.
 		FVector RestB = Rest[To].GetLocation();
@@ -209,7 +178,9 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		Ordered.Sort([](const TPair<int32, int32>& A, const TPair<int32, int32>& B) { return A.Key < B.Key; });
 		FChain& Chain = Chains.AddDefaulted_GetRef();
 		Chain.Name = Entry.Key;
-		Chain.Settings = SettingsFor(Entry.Key);
+		// Its kind by its name and what it hangs from (a lantern on the chest is a hook).
+		const int32 Parent = Skeleton.GetParentIndex(Ordered[0].Value);
+		Chain.Settings = SettingsFor(KindOf(Entry.Key, Parent != INDEX_NONE ? Skeleton.GetBoneName(Parent).ToString() : FString()));
 		// The cape's chains ride on the upper arms (`cape_<key><side>`: cape_al, the arm chain on the figure's left), each
 		// by its key's share; its rest on the arm is measured against the arm as it hangs at the idle (`cape_arm_<side>`)
 		// when the mesh has it, else the bind pose's.
@@ -346,6 +317,7 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 		const FCompactPoseBoneIndex From = Limb.From.GetCompactPoseIndex(Bones);
 		const FCompactPoseBoneIndex To = Limb.To.GetCompactPoseIndex(Bones);
 		FBodySwingCapsule& Capsule = LimbsNow.AddDefaulted_GetRef();
+		Capsule.bShortestWay = Limb.bHand;
 		if (From.IsValid() && To.IsValid())
 		{
 			Capsule.A = ComponentToWorld.TransformPosition(Pose.GetComponentSpaceTransform(From).GetLocation());
@@ -412,6 +384,7 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 			Targets.Add(ComponentToWorld.TransformPosition(Target));
 			Lengths.Add(Chain.Lengths[Index] * static_cast<float>(Scale));
 		}
+		Chain.Anchor = ComponentToWorld.TransformPosition(Animated[0].GetLocation());
 		TArray<FBodySwingCapsule, TInlineAllocator<64>> Capsules;
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
@@ -420,10 +393,23 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 				FBodySwingCapsule Capsule = LimbsNow[Limb];
 				Capsule.Radius = Chain.Clearances[Index * LimbsNow.Num() + Limb] * static_cast<float>(Scale);
 				Capsule.BoneRadius = Chain.BoneClearances[Index * LimbsNow.Num() + Limb] * static_cast<float>(Scale);
+				if (Limbs.IsValidIndex(Limb) && Limbs[Limb].bHand)
+				{
+					// A hand or forearm moves the cloth aside by at most HandGive past where the animation has it.
+					const FVector& Target = Targets[Index];
+					const FVector& Before = Index > 0 ? Targets[Index - 1] : Chain.Anchor;
+					const double Give = HandGive * Scale;
+					const double PointAway = FVector::Dist(Target, FMath::ClosestPointOnSegment(Target, Capsule.A, Capsule.B));
+					FVector OnBone;
+					FVector OnLimb;
+					FMath::SegmentDistToSegmentSafe(Before, Target, Capsule.A, Capsule.B, OnBone, OnLimb);
+					const double BoneAway = FVector::Dist(OnBone, OnLimb);
+					Capsule.Radius = static_cast<float>(FMath::Min(static_cast<double>(Capsule.Radius), PointAway + Give));
+					Capsule.BoneRadius = static_cast<float>(FMath::Min(static_cast<double>(Capsule.BoneRadius), BoneAway + Give));
+				}
 				Capsules.Add(Capsule);
 			}
 		}
-		Chain.Anchor = ComponentToWorld.TransformPosition(Animated[0].GetLocation());
 		FBodySwingFloor Floor;
 		Floor.Z = FloorZ;
 		// The hem gathers on the ground only when its bone can shorten (along an axis of its own).

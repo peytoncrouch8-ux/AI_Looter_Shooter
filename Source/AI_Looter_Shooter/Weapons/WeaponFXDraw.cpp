@@ -215,8 +215,10 @@ void FWeaponFX::Redraw(const FVector& Camera)
 
 	for (const FStreak& Streak : Streaks)
 	{
-		GlowTransforms.Add(StreakTransform(Streak.Tail, Streak.Head, Streak.Width, Camera));
-		AddGlowData(GlowData, Streak.Color, Streak.Intensity, 0.f);
+		// A round one is a flash's soft disc (the glow material's shape 1), a line the streak's.
+		GlowTransforms.Add(Streak.bRound ? SpriteTransform(Streak.Head, Streak.Width, 0.f, Camera)
+			: StreakTransform(Streak.Tail, Streak.Head, Streak.Width, Camera));
+		AddGlowData(GlowData, Streak.Color, Streak.Intensity, Streak.bRound ? 1.f : 0.f);
 	}
 
 	// Chunks shrink away over the end of their life: the last fifth of a short one, the last 0.4 s of one that lay a while.

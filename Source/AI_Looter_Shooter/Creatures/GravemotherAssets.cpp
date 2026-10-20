@@ -57,6 +57,9 @@ namespace
 
 	const FName OpacityParameter(TEXT("Opacity"));
 	const FName RevealParameter(TEXT("Reveal"));
+	const FName RevealSoftParameter(TEXT("RevealSoft"));
+	const FName FadeInParameter(TEXT("FadeIn"));
+	const FName FadeOutParameter(TEXT("FadeOut"));
 	/** M_GraveDecal's (U repeats, V repeats, U offset, V offset). */
 	const FName TilesParameter(TEXT("Tiles"));
 }
@@ -185,11 +188,24 @@ namespace GravemotherAssets
 		}
 	}
 
-	void SetDecalReveal(UDecalComponent* Decal, float Reveal)
+	void SetDecalReveal(UDecalComponent* Decal, float Reveal, float Soft)
 	{
 		if (UMaterialInstanceDynamic* Look = Decal ? Cast<UMaterialInstanceDynamic>(Decal->GetDecalMaterial()) : nullptr)
 		{
 			Look->SetScalarParameterValue(RevealParameter, FMath::Clamp(Reveal, 0.f, 1.f));
+			if (Soft >= 0.f)
+			{
+				Look->SetScalarParameterValue(RevealSoftParameter, Soft);
+			}
+		}
+	}
+
+	void SetDecalEnds(UDecalComponent* Decal, float FadeIn, float FadeOut)
+	{
+		if (UMaterialInstanceDynamic* Look = Decal ? Cast<UMaterialInstanceDynamic>(Decal->GetDecalMaterial()) : nullptr)
+		{
+			Look->SetScalarParameterValue(FadeInParameter, FMath::Clamp(FadeIn, 0.f, 1.f));
+			Look->SetScalarParameterValue(FadeOutParameter, FMath::Clamp(FadeOut, 0.f, 1.f));
 		}
 	}
 
