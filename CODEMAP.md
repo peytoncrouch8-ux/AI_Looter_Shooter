@@ -537,6 +537,20 @@ The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter
 - `Tools/Unreal/build_highlight_material.py`: `M_ObjectiveHighlight` (unlit translucent overlay: fill, Fresnel rim, pulse, Strength, MaskCenter/MaskRadius spot, Figure = characters' rim-only look).
 - `Tools/Unreal/build_impact_surfaces.py`: bakes terrain surface maps and trim-sheet collision UVs for `Weapons/ImpactSurface`; rerun after macro, scatter or trim-sheet changes.
 - `Art/Textures/BulletMarks/make_bullet_marks.py`: bullet marks atlas (`T_BulletMarks_BC`, `_N`, `_ORM`) for `M_BulletMark`.
+- `Art/Models/Creatures/Gravemother.py`: SK_Gravemother, the Barrow fight's body (2026-10-20): Spider.py's mesh and 31 bones
+  in a mud-grey hide, grave mud on the lower legs (`GravemotherMud`), snapped root stubs (`GraveRoots`), the abdomen its
+  own slot `GravemotherAbdomen` (bare Bone print under the stone; `MI_GravemotherBare` for the crack-off), hit hulls as
+  SK_Spider's plus `USP_AbdomenRear` (the soft rear crit). `GravemotherStone.py`: SM_GravemotherStone_0/_1/_2 (intact,
+  cracked, shattered, roots on; pivot the foot's middle, +X out of the carved face), `_StoneShard_1..5` (in place round
+  the stone's pivot), `SM_StoneChip_1..3`; `stone_attach.json` in the export (the stone's place on `abdomen`). Helpers
+  `Tools/Blender/looter_barrow.py`, `looter_barrow_stone.py`.
+- `Art/Models/Props/GraveFight.py`: the Barrow fight's earth: `SM_GraveClod_S/M/L`, `SM_GraveRubble` (1.1 m, cover),
+  `SM_GraveBerm` (2.6 m, laid every 2 m, X along it, steep face -Y), `SM_GraveMound`, `SM_GraveMoundBurst`,
+  `SM_GraveDebris_1..5`. `Art/Textures/GraveFight/make_grave_fight.py`: dust puff atlases (grave earth, floor), dust jet,
+  spark streak, flash, decal sets (heave crack + end, furrow, impact scar, landing shadow, mound cracks).
+- `Tools/Unreal/build_grave_fight_materials.py`: imports `T_GraveFight_*` to `/Game/Art/Effects/GraveFight/`, masters
+  `M_GraveDecal` (Opacity, Reveal, Tiles), `M_FX_GraveCard` and `M_FX_GraveGlow` (per-instance data 0-2 colour, 3 opacity
+  or strength, 4 atlas cell), the eleven `MI_Decal_*`/`MI_FX_*` and `MI_GravemotherBare`.
 - `Art/Textures/LookoutStain/make_lookout_stain.py`: the old stain on the lookout's deck (`T_LookoutStain_BC`, `_N`, `_ORM`) for `MI_LookoutStain`.
 - `Tools/Unreal/build_area_roosts.py`: Hob's roosts from `layout.json` `gameplay.roosts` (nudged up to 6 m off solids, tagged Obstacle and Roost); called by `build_area_story.py`; two a map at most (`MOST_PER_MAP`); run alone it replaces every roost in the level.
 - `Tools/Blender/looter_homes.py`, `looter_rr_town.py`, `town_sheet.py`: Ransom's Rest buildings (`Homestead.py`: ten homes, well, privy, windpump; `FrontsRR.py`, `DepotRR.py`, `WorkshopBright.py`, `BarnWhitlock.py`) and the look sheet.
