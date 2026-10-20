@@ -9,8 +9,9 @@ the spec; the painted bust Saved/ArtPreviews/Portraits/Odessa/OdessaA.png). Boot
   - dark hair combed back and pinned in a knot at the nape; gold drop earrings
   - a white starched high collar and a black silk cravat (a band, a knot, its fall over the waistcoat, a gold stick pin)
   - a gold brocade waistcoat closing under the cravat, four gold buttons, a watch chain to the pocket on her right
-  - the wine-red tailcoat: fitted, open in front with darker silk lapels and a rolled collar, cut away at the waist in a
-    curve back to long tails (to the back of the knee, split up the back to the waist seam, two gold buttons at its top),
+  - the wine-red tailcoat: fitted, open in front with darker silk lapels and a rolled collar, cut square across the
+    front at the waist with long tails from behind the sides (to the back of the knee, split up the back to the waist
+    seam, two gold buttons at its top),
     fitted sleeves with darker turned-back cuffs over the shirt's white cuffs
   - black gloves with short flared cuffs; charcoal trousers tucked into tall black riding boots with riding heels
   - a slim hip belt with a gold buckle, the oxblood card case at her right hip
@@ -287,10 +288,10 @@ SMART_UV = ('Eye_', 'Soles', 'HatCrown', 'HatBrim', 'HatBand', 'HatCard', 'VestB
 # The game mesh's share of each detailed part's triangles (Decimate, collapse; 1 keeps it whole): the face, hands, hat
 # brim, the coat's edges and the collar get the triangles; small hard parts stay whole (reduced, they shred).
 LOW = {'Odessa': 1.0, 'Eye': 0.35, 'Hair': 0.12, 'Knot': 0.25, 'Earring': 0.6, 'EarDrop': 0.5, 'HatCrown': 0.09,
-       'HatBrim': 0.22, 'HatBand': 0.6, 'HatBandInner': 1.0, 'HatCard': 1.0, 'Coat': 0.16, 'CoatTails': 0.15,
+       'HatBrim': 0.22, 'HatBand': 0.6, 'HatBandInner': 1.0, 'HatCard': 1.0, 'Coat': 0.16, 'CoatTails': 0.14,
        'Lapel': 1.0, 'CoatCollar': 0.24, 'CoatButton': 0.5, 'CoatCuff': 0.4, 'ShirtCuff': 0.4, 'Gauntlet': 0.45,
-       'Gloves': 0.36, 'Vest': 0.35, 'VestButton': 0.35, 'Shirt': 0.5, 'Collar': 0.35, 'CravatBand': 0.3,
-       'CravatKnot': 0.6, 'CravatFall': 1.0, 'StickPin': 0.6, 'WatchFob': 0.6, 'Trousers': 0.35, 'Boots': 0.2,
+       'Gloves': 0.36, 'Vest': 0.32, 'VestButton': 0.35, 'Shirt': 0.5, 'Collar': 0.35, 'CravatBand': 0.3,
+       'CravatKnot': 0.6, 'CravatFall': 1.0, 'StickPin': 0.6, 'WatchFob': 0.6, 'Trousers': 0.33, 'Boots': 0.18,
        'Soles': 0.7, 'Belt': 0.45, 'Buckle': 1.0, 'CardCase': 0.6}
 kit.LOW.update(LOW)
 kit.EDGE_KEEP.update({'HatBrim': 0.010, 'Collar': 0.008, 'CravatBand': 0.006, 'Hair': 0.004})
@@ -352,7 +353,7 @@ def unflip(low, high):
 
 
 # Reduced layers pushed back outside the reduced layers under them (outer, its unders, the gap)
-CLEAR = (('Vest', ('Shirt',), 0.003), ('CravatFall', ('Shirt', 'Vest'), 0.002), ('CravatBand', ('Collar',), 0.002),
+CLEAR = (('Vest', ('Shirt',), 0.003), ('CravatFall', ('Shirt', 'Vest'), 0.003), ('CravatBand', ('Collar',), 0.002),
          ('Coat', ('Vest', 'Shirt', 'ShirtCuff'), 0.004), ('CoatTails', ('Vest', 'Belt', 'Buckle', 'Trousers', 'CardCase'), 0.004),
          ('Coat', ('CoatTails',), 0.002), ('Lapel', ('Coat',), 0.002), ('CoatCollar', ('Collar', 'CravatBand', 'Coat'), 0.003),
          ('CoatCuff', ('Coat',), 0.002), ('ShirtCuff', ('Gauntlet',), 0.002), ('Gauntlet', ('Gloves',), 0.002),

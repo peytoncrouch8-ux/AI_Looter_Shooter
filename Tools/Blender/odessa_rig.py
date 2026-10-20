@@ -104,8 +104,12 @@ def weights(fig, ob):
             t = gm.smoothstep(0.75 * fig.ball_s, 1.1 * fig.ball_s, (P[sel] - ankle) @ f)
             out[sel] = hu.blend(fig.names, int(sel.sum()), {f'foot_{s}': 1.0 - t, f'ball_{s}': t})
         return out
-    if name.startswith(('Belt', 'Buckle')):
-        return rigid_w(fig, n, {'pelvis': 0.85, 'spine_01': 0.15})
+    if name == 'Belt':
+        # the skin's own weights, as the trousers' under it (rigid on the hips, a crouch's trousers rose 2.8 cm over
+        # its lower edge at the hip creases)
+        return fig.b.weights_at(P)[1]
+    if name == 'Buckle':
+        return rigid_at(fig, P.mean(0), n)
     if name.startswith('CardCase'):
         # the loop over the belt too (on the belt's weights a crouch's trousers rose 2.5 cm over it)
         return case_w(fig, n)
@@ -130,8 +134,13 @@ def case_w(fig, n):
     """The card case, rigid, on the skin's weights where its back lies against the trousers: it moves as the cloth
     under it does (on the thigh alone, or the hips alone, a crouch's hip crease folded 5 cm of trousers over it)."""
     c, nrm, up = fig.case
-    back = np.asarray(c) - np.asarray(nrm) * 0.016
-    w = fig.b.weights_at(back[None, :])[1]
+    return rigid_at(fig, np.asarray(c) - np.asarray(nrm) * 0.016, n)
+
+
+def rigid_at(fig, point, n):
+    """n vertices moving as one, on the skin's weights at the point nearest point (a buckle, a case: rigid, yet with the
+    cloth under them)."""
+    w = fig.b.weights_at(np.asarray(point, dtype=np.float64)[None, :])[1]
     return np.repeat(hu.top4(w), n, axis=0)
 
 

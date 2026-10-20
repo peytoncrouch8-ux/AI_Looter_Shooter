@@ -1,13 +1,14 @@
 """Odessa's wine tailcoat (Art/Models/Characters/Odessa.py calls these): fitted to the waist, open in front with darker
-silk lapels and a rolled collar, cut away at the waist in a curve back to long tails split up the back to the waist
-seam (two gold buttons at its top), fitted sleeves with darker turned-back cuffs over the shirt's white cuffs.
+silk lapels and a rolled collar, cut square across the front at the waist (a swallowtail) with long tails from behind
+the sides, split up the back to the waist seam (two gold buttons at its top), fitted sleeves with darker turned-back
+cuffs over the shirt's white cuffs.
 
 Its body and sleeves are one shell of the body, 'Coat' (torso and arms pushed out over the waistcoat and smoothed as
 cloth, the bust's and the back's hollows spanned), cut clean by planes (bmesh bisect) at the neckline, the waist, the
 front opening and the cuffs; the set-in sleeves' seams drawn round the armholes ('Seams'). (A coat draped round the
 torso by columns, with sleeves of their own, could not make a shoulder: its top either squared off over the arms or
 left the sleeves' heads open, 2026-10-19.) The tails ('CoatTails') hang below from under the coat's waist seam, draped
-by columns round the hips (wrap_radii), plumb off the seat, the cutaway's curve their front edge."""
+by columns round the hips (wrap_radii), plumb off the seat, from behind the sides (front_angle)."""
 import math
 
 import bpy  # first: bmesh and mathutils come with it
@@ -24,8 +25,12 @@ COAT_OFF = 0.0185       # the coat's body off the skin (m): over the waistcoat (
 TAIL_EASE = 0.010       # the tails' room over the hips and the seat
 TAIL_HEM = 0.50         # the tails' hem (m): to the back of the knee
 TAIL_FLARE = 0.02       # how much the tails stand off further at the hem (m)
-CUT = 0.13              # the cutaway: the front edge curves from the waist back to the tails over this height (m)
-TAIL_TOP_EDGE = 1.95    # the tails' outer edge where the cutaway reaches them (radians from the front: past the side)
+CUT = 0.06              # under the waist the tails' front edge turns from TAIL_WAIST_EDGE back to TAIL_TOP_EDGE over this
+TAIL_WAIST_EDGE = 1.96  # the tails' front edge at the waist seam (radians from the front): a swallowtail's, cut square
+                        # across the front and the sides at the waist (a morning coat's curve from the front opening
+                        # down past the hips put the tails where her hanging sleeves lie: 2.9 cm through them; from
+                        # 106 degrees the sleeves still met their front edge)
+TAIL_TOP_EDGE = 2.00    # ... CUT under it (radians from the front: past the side)
 TAIL_HEM_EDGE = 2.36    # ... and at their hem (they narrow as they fall)
 SPLIT = 0.008           # the tails part this much at the hem (m between them), closed at the waist seam
 TUCK = 0.012            # the tails' top tucked this far up under the coat's waist seam (m)
@@ -42,16 +47,16 @@ def front_gap(fig, z):
     return float(np.interp(z, [fig.waist, lap, nz - 0.06, nz + 0.02], [0.080, 0.085, 0.056, 0.042]))
 
 
-def front_angle(fig, z, r_front):
-    """The tails' front edge at height z: radians round from the front. Down from the waist the cutaway curves back past
-    the hips to the tails' edge, which narrows to the hem."""
+def front_angle(fig, z):
+    """The tails' front edge at height z: radians round from the front. Behind the sides from the waist seam (the coat
+    cut square across the front), turning a little further back under it to the tails' edge, which narrows to the
+    hem."""
     w = fig.waist
-    a_w = math.asin(min(0.98, front_gap(fig, w) / max(r_front, 0.05)))
     if z >= w:
-        return a_w
+        return TAIL_WAIST_EDGE
     if z >= w - CUT:
         t = float(gm.smoothstep(0.0, 1.0, (w - z) / CUT))
-        return a_w + (TAIL_TOP_EDGE - a_w) * t ** 0.8
+        return TAIL_WAIST_EDGE + (TAIL_TOP_EDGE - TAIL_WAIST_EDGE) * t
     t = (w - CUT - z) / max(w - CUT - TAIL_HEM, 1e-6)
     return TAIL_TOP_EDGE + (TAIL_HEM_EDGE - TAIL_TOP_EDGE) * t
 
@@ -85,7 +90,8 @@ def build_coat(fig, vest, body):
         a, w = fig.sk[f'upperarm_{s}'][0], fig.sk[f'lowerarm_{s}'][1]
         t = np.clip(((wv - a) @ gm.unit(w - a)) / np.linalg.norm(w - a), 0, 1)
         along = np.where(wv[:, 0] * sx > 0, t, along)
-    sleeve_off = 0.012 + 0.003 * gm.smoothstep(0.0, 0.25, along) + 0.008 * along
+    # (the forearms 3 mm slimmer than at first: hanging, they lay against her hips)
+    sleeve_off = 0.012 + 0.003 * gm.smoothstep(0.0, 0.25, along) + 0.005 * along
     off = COAT_OFF * (1.0 - arm) + sleeve_off * arm
     piece, used = gm.shell(wv, fig.faces, fig.fuv, fig.face_mask(region), off, iters=18)
     a_p = arm[used]
@@ -281,10 +287,10 @@ def waist_ring(fig, coat, fine):
 
 
 def build_tails(fig, under_pts, coat):
-    """The tails and the cutaway, one cloth: columns from her left front edge round the back to her right one, from
+    """The tails, one cloth: columns from her left tail's front edge round the back to her right one's, from
     TUCK up under the coat's waist seam down to the hem; at the seam the coat's own waist (2 mm inside it), below it
-    hanging plumb off the seat over the belt and the thighs, flaring a little to the hem; the front edge the cutaway's
-    curve back to the tails' edge (front_angle); split up the back to the waist seam."""
+    hanging plumb off the seat over the belt and the thighs, flaring a little to the hem; the front edge behind the
+    sides, turning further back down to the hem (front_angle); split up the back to the waist seam."""
     rng = np.random.default_rng(29)
     top = fig.waist + TUCK
     n_z, n_t = 52, 112
@@ -305,8 +311,7 @@ def build_tails(fig, under_pts, coat):
     ph = rng.random(8) * 6.28
     rows = []
     for j, z in enumerate(zs):
-        r_front = float(np.interp(0.0, fine, R[j], period=2 * math.pi))
-        a = front_angle(fig, z, r_front)
+        a = front_angle(fig, z)
         g = SPLIT * 0.5 * float(np.clip((fig.waist - 0.02 - z) / (fig.waist - 0.02 - TAIL_HEM), 0.0, 1.0)) ** 1.3
         r_back = float(np.interp(math.pi, fine, R[j], period=2 * math.pi))
         back = math.pi - g / max(r_back, 0.05)
@@ -353,7 +358,8 @@ def build_tails(fig, under_pts, coat):
     wrap = lambda a_: np.abs((a_ + math.pi) % (2 * math.pi) - math.pi)
     back = np.where(co[:, 2] > split_top, wrap(ang - math.pi) * rad, 1.0)
     kit.set_seams(ob, np.minimum(back, np.abs(co[:, 2] - fig.waist)))
-    log(f'tails: {len(ob.data.polygons)} faces, the cutaway from the waist to {math.degrees(TAIL_TOP_EDGE):.0f} degrees, '
+    log(f'tails: {len(ob.data.polygons)} faces, from {math.degrees(TAIL_WAIST_EDGE):.0f} degrees at the waist, '
+        f'{math.degrees(TAIL_TOP_EDGE):.0f} under it, '
         f'{math.degrees(TAIL_HEM_EDGE):.0f} at the hem, {TAIL_HEM:.2f} m')
     return ob
 

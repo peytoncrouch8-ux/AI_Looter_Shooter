@@ -594,6 +594,25 @@ def _collar_radius(fig, wall, th, a, z):
     return float(np.interp(z, zs, rs))
 
 
+def front_envelope(xs, ys, x):
+    """A strip laid across points (x, y) from the front (-y): the hull over them from the front, so it spans their
+    dips. Returns its y at x and its slope dy/dx there."""
+    pts = sorted(zip(xs, (-y for y in ys)))
+    hull = []
+    for p in pts:
+        while len(hull) >= 2 and ((hull[-1][0] - hull[-2][0]) * (p[1] - hull[-2][1])
+                                  - (hull[-1][1] - hull[-2][1]) * (p[0] - hull[-2][0])) >= 0.0:
+            hull.pop()
+        hull.append(p)
+    hx = np.array([h[0] for h in hull])
+    hf = np.array([h[1] for h in hull])
+    if len(hx) == 1:
+        return -float(hf[0]), 0.0
+    k = int(np.clip(np.searchsorted(hx, x) - 1, 0, len(hx) - 2))
+    slope = (hf[k + 1] - hf[k]) / max(hx[k + 1] - hx[k], 1e-9)
+    return -float(np.interp(x, hx, hf)), -float(slope)
+
+
 def build_cravat(fig, collar, under):
     """The black silk cravat: a band round the collar's foot, a knot at the throat, its puffed fall down over the
     waistcoat's V, a gold stick pin in the fall."""
@@ -628,19 +647,31 @@ def build_cravat(fig, collar, under):
     knot_c = front + np.array([0.0, -0.010, -0.002])
     s = fig.b.scale
     knot = kit.ellipsoid('CravatKnot', knot_c, (0.013 * s, 0.0095 * s, 0.0075 * s), (0, -1, 0), 16, 10, slot('Silk'))
-    # the fall: a strip over the shirt and the waistcoat's V from under the knot, widening, puffed in the middle
+    # the fall: a strip over the shirt and the waistcoat's V from under the knot, widening, puffed in the middle; laid
+    # across the frontmost of what is under it, 8 mm past its edges, so it bridges the V's edges (it lay down on the
+    # shirt between them and the waistcoat's edges stood out over it: 3 cm at the V's foot)
     tree = gm.bvh_objects(under + [band])
     rows = []
     for t in np.linspace(0, 1, 16):
         w = 0.009 + 0.016 * t ** 0.6
         zz = knot_c[2] - 0.006 - t * 0.095
+        xs, ys, tilt = [], [], []
+        for x in knot_c[0] + np.linspace(-w - 0.008, w + 0.008, 15):
+            hit = tree.ray_cast(Vector((x, -0.6, zz)), Vector((0, 1, 0)), 1.5)
+            if hit[0] is not None:
+                xs.append(float(x))
+                ys.append(hit[0][1])
+                tilt.append(hit[1][2] / max(-hit[1][1], 0.3))
         row = []
         for i in range(7):
             u = i / 6 - 0.5
             x = knot_c[0] + u * 2 * w
-            hit = tree.ray_cast(Vector((x, -0.6, zz)), Vector((0, 1, 0)), 1.5)
-            p = np.array(hit[0]) if hit[0] is not None else np.array([x, knot_c[1], zz])
-            n = np.array(hit[1]) if hit[0] is not None else np.array([0.0, -1.0, 0.0])
+            if xs:
+                y, slope = front_envelope(xs, ys, x)
+                n = gm.unit(np.array([slope, -1.0, float(np.interp(x, xs, tilt))]))
+                p = np.array([x, y, zz])
+            else:
+                p, n = np.array([x, knot_c[1], zz]), np.array([0.0, -1.0, 0.0])
             puff = (0.0025 + 0.0035 * t) * math.sin(math.pi * i / 6) + 0.0012 * math.sin(math.pi * i / 2) * t
             row.append(p + n * (0.0025 + puff))
         rows.append(row)
@@ -768,8 +799,8 @@ def build_belt(fig, under_obs):
 
 
 CASE_AT = -1.35         # the card case round the hips: radians from the front, her right (at -0.95, over the hip
-                        # crease, a crouch folded the trousers 5 cm over it; at -1.15 still 2.3 cm)
-CASE_SIZE = (0.075, 0.100, 0.024)
+                        # crease, a crouch folded the trousers 5 cm over it; at -1.15 still 2.3 cm, at -1.30 1.3 cm)
+CASE_SIZE = (0.068, 0.092, 0.020)  # (at 7.5 x 10 x 2.4 cm a hanging hand's fingertips met it; this still takes a deck)
 
 
 def belt_frame(fig, angle):
@@ -800,7 +831,7 @@ def rounded_box(name, centre, axes, half, material, n=3, p=4.0):
 
 def build_card_case(fig):
     """The card case on the belt at her right hip: an oxblood leather case hung by a loop over the belt, its lid's flap
-    with a gold clasp."""
+    with a gold clasp. (Hung a few degrees out at its foot, it met a hanging hand.)"""
     p, n, up, t = belt_frame(fig, CASE_AT)
     across = gm.unit(np.cross(up, n))
     w, h, d = CASE_SIZE
