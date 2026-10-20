@@ -1,7 +1,7 @@
 // Developer console commands for the hero pick (not in shipping builds):
 //   Looter.Hero            the roster (playable or in the works, and why), the hero played now and the no-session pick
 //   Looter.Hero <Id>       the hero a play with no session plays (Looter.PlayLevel, a level straight from the editor), put
-//                          on at once when such a play is running (body and powers); a session keeps its own hero
+//                          on at once when such a play is running (body, powers, HUD portrait); a session keeps its own hero
 // Looter.Hero.Unlock 1 (a console variable, HeroDefinition.cpp) lets heroes in the works be picked too: on the hero
 // select and here (they play with Ellis's body and no powers until their model, retargeter and powers are in the game).
 
@@ -16,6 +16,7 @@
 #include "Embers/HeroDefinition.h"
 #include "Player/Animation/BodyFigureComponent.h"
 #include "Session/SessionSubsystem.h"
+#include "UI/HUD/HudPortraitWidget.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -90,7 +91,7 @@ namespace
 			*USessionSubsystem::GetNoSessionHeroId().ToString());
 	}
 
-	/** Puts the hero played on everything in GameWorld wearing one: the player's powers and body, the loadout's stand-in. */
+	/** Puts the hero played on everything in GameWorld wearing one: the player's powers and body, the loadout's stand-in, the HUD's portrait. */
 	void WearHeroNow(UWorld* GameWorld)
 	{
 		for (FConstPlayerControllerIterator It = GameWorld->GetPlayerControllerIterator(); It; ++It)
@@ -106,6 +107,15 @@ namespace
 			if (It->GetWorld() == GameWorld && It->HasBegunPlay())
 			{
 				It->WearHero();
+			}
+		}
+		// The HUD's portrait window too.
+		const UHeroDefinition* Played = USessionSubsystem::FindPlayedHero(GameWorld);
+		for (TObjectIterator<UHudPortraitWidget> It; It; ++It)
+		{
+			if (Played && It->GetWorld() == GameWorld)
+			{
+				It->SetHero(Played->Id);
 			}
 		}
 	}

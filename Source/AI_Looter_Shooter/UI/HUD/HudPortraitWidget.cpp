@@ -2,6 +2,12 @@
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/HudPortraitData.inl"
+#include "UI/Style/HudPortraitData_Odessa.inl"
+#include "UI/Style/HudPortraitData_Crane.inl"
+#include "UI/Style/HudPortraitData_Gauge.inl"
+#include "UI/Style/HudPortraitData_Pike.inl"
+#include "Embers/HeroDefinition.h"
+#include "Session/SessionSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -166,6 +172,55 @@ namespace
 			PlaceOnCanvas(Parent, Image, Glow.Center * PortraitScale - Size * 0.5, Size);
 		}
 	}
+
+	/** One hero's portrait: the functions Art/Icons/HudPortrait.py generates in that hero's HudPortraitData namespace. */
+	struct FPortraitSet
+	{
+		/** Starts each picture's texture name: painted textures are shared by name for the session, so one set per hero. */
+		const TCHAR* TexturePrefix;
+		HudPortraitData::FPicture (*Glass)();
+		HudPortraitData::FPicture (*Bust)();
+		HudPortraitData::FPicture (*EyesOpen)();
+		HudPortraitData::FPicture (*BrowsCalm)();
+		HudPortraitData::FPicture (*EyesHurt)();
+		HudPortraitData::FPicture (*EyesFlare)();
+		TArray<HudPortraitData::FGlow> (*EyesOpenGlows)();
+		TArray<HudPortraitData::FGlow> (*EyesHurtGlows)();
+		TArray<HudPortraitData::FGlow> (*EyesFlareGlows)();
+		double BlinkCenterY;
+		/** The squint's glows flicker like a failing lamp while it shows (Gauge's lamp). */
+		bool bHurtFlickers = false;
+	};
+
+#define LOOTER_PORTRAIT_SET(Prefix, Ns) FPortraitSet{ TEXT(Prefix), &Ns::Glass, &Ns::Bust, &Ns::EyesOpen, &Ns::BrowsCalm, \
+	&Ns::EyesHurt, &Ns::EyesFlare, &Ns::EyesOpenGlows, &Ns::EyesHurtGlows, &Ns::EyesFlareGlows, Ns::BlinkCenterY }
+
+	/** The hero's portrait by UHeroDefinition::Id; Ellis's for any other id (None, a hero without one). */
+	const FPortraitSet& PortraitSetFor(FName HeroId)
+	{
+		// Ellis's textures keep the names they had before the pick ("HudPortraitBust").
+		static const FPortraitSet EllisSet = LOOTER_PORTRAIT_SET("HudPortrait", HudPortraitData);
+		static const FPortraitSet OdessaSet = LOOTER_PORTRAIT_SET("HudPortraitOdessa", HudPortraitData::Odessa);
+		static const FPortraitSet CraneSet = LOOTER_PORTRAIT_SET("HudPortraitCrane", HudPortraitData::Crane);
+		static const FPortraitSet GaugeSet = []
+		{
+			FPortraitSet Set = LOOTER_PORTRAIT_SET("HudPortraitGauge", HudPortraitData::Gauge);
+			Set.bHurtFlickers = true;
+			return Set;
+		}();
+		static const FPortraitSet PikeSet = LOOTER_PORTRAIT_SET("HudPortraitPike", HudPortraitData::Pike);
+		static const FName Odessa(TEXT("Odessa")), Crane(TEXT("Crane")), Gauge(TEXT("Gauge")), Pike(TEXT("Pike"));
+		return HeroId == Odessa ? OdessaSet : HeroId == Crane ? CraneSet : HeroId == Gauge ? GaugeSet
+			: HeroId == Pike ? PikeSet : EllisSet;
+	}
+
+#undef LOOTER_PORTRAIT_SET
+
+	/** "HudPortrait" + hero + picture: "HudPortraitBust" for Ellis, "HudPortraitCraneBust" for Crane. */
+	FName PortraitTextureName(const FPortraitSet& Set, const TCHAR* Picture)
+	{
+		return FName(*FString::Printf(TEXT("%s%s"), Set.TexturePrefix, Picture));
+	}
 }
 
 TSharedRef<SWidget> UHudPortraitWidget::RebuildWidget()
@@ -189,63 +244,116 @@ TSharedRef<SWidget> UHudPortraitWidget::RebuildWidget()
 		ClipSlot->SetHorizontalAlignment(HAlign_Center);
 		ClipSlot->SetVerticalAlignment(VAlign_Center);
 
-		UCanvasPanel* Content = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-		Content->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-		Content->SetRenderTransformAngle(-45.f);
-		UCanvasPanelSlot* ContentSlot = Turned->AddChildToCanvas(Content);
+		UCanvasPanel* ContentPanel = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		ContentPanel->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		ContentPanel->SetRenderTransformAngle(-45.f);
+		UCanvasPanelSlot* ContentSlot = Turned->AddChildToCanvas(ContentPanel);
 		ContentSlot->SetAutoSize(false);
 		ContentSlot->SetAlignment(FVector2D(0.5f, 0.5f));
 		ContentSlot->SetPosition(FVector2D(ClipSide * 0.5f));
 		ContentSlot->SetSize(FVector2D(WindowSize));
 
-		// The glass is the window's background: it fades with the UI transparency setting. It reaches past the window
-		// far enough that the shake never shows its edge.
-		UCanvasPanel* FaceGroup = AddPortraitGroup(WidgetTree, Content);
-		Face = FaceGroup;
-		MarkBackground(AddPortraitPicture(WidgetTree, FaceGroup, TEXT("HudPortraitGlass"), HudPortraitData::Glass()));
-
-		UCanvasPanel* BodyGroup = AddPortraitGroup(WidgetTree, FaceGroup);
-		Body = BodyGroup;
-		AddPortraitPicture(WidgetTree, BodyGroup, TEXT("HudPortraitBust"), HudPortraitData::Bust());
-
-		// The calm eyes: the eyes and their glows blink (squashing toward their middle), the brows stay put.
-		UCanvasPanel* CalmGroup = AddPortraitGroup(WidgetTree, BodyGroup);
-		CalmEyes = CalmGroup;
-		UCanvasPanel* BlinkGroup = AddPortraitGroup(WidgetTree, CalmGroup);
-		BlinkGroup->SetRenderTransformPivot(FVector2D(0.5f, static_cast<float>(HudPortraitData::BlinkCenterY / HudPortraitData::WindowUnits)));
-		BlinkingEyes = BlinkGroup;
-		AddPortraitGlows(WidgetTree, BlinkGroup, HudPortraitData::EyesOpenGlows());
-		AddPortraitPicture(WidgetTree, BlinkGroup, TEXT("HudPortraitEyesOpen"), HudPortraitData::EyesOpen());
-		AddPortraitPicture(WidgetTree, CalmGroup, TEXT("HudPortraitBrowsCalm"), HudPortraitData::BrowsCalm());
-
-		// The squint and the flare, hidden until a reaction shows them; the flare draws over whichever eyes show.
-		UCanvasPanel* HurtGroup = AddPortraitGroup(WidgetTree, BodyGroup);
-		HurtEyes = HurtGroup;
-		AddPortraitGlows(WidgetTree, HurtGroup, HudPortraitData::EyesHurtGlows());
-		AddPortraitPicture(WidgetTree, HurtGroup, TEXT("HudPortraitEyesHurt"), HudPortraitData::EyesHurt());
-		UCanvasPanel* FlareGroup = AddPortraitGroup(WidgetTree, BodyGroup);
-		FlareEyes = FlareGroup;
-		AddPortraitGlows(WidgetTree, FlareGroup, HudPortraitData::EyesFlareGlows());
-		AddPortraitPicture(WidgetTree, FlareGroup, TEXT("HudPortraitEyesFlare"), HudPortraitData::EyesFlare());
-
-		// The window's red, over the content but not shaking with it (a plain square: the clip makes it the diamond).
-		Flash = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-		Flash->SetColorAndOpacity(Color::Hurt().CopyWithNewOpacity(0.f));
-		Flash->SetVisibility(ESlateVisibility::Hidden);
-		PlaceOnCanvas(Content, Flash, FVector2D::ZeroVector, FVector2D(WindowSize));
-
-		// Start at rest: calm eyes, nothing flashing.
-		ShownShake = FVector2D::ZeroVector;
-		ShownBreath = 0.f;
-		ShownBlink = 1.f;
-		ShownCalm = 1.f;
-		ShownHurt = -1.f;
-		ShownFlare = -1.f;
-		ShownFlash = 0.f;
-		ShowOpacity(HurtEyes, 0.f, ShownHurt);
-		ShowOpacity(FlareEyes, 0.f, ShownFlare);
+		Content = ContentPanel;
+		if (HeroId.IsNone())
+		{
+			// The hero played: the session's pick, or Looter.Hero's with no session (the same answer UEmberComponent and
+			// UBodyFigureComponent get as the character begins; works before the pawn exists). Null in a test world: Ellis.
+			if (const UHeroDefinition* Hero = USessionSubsystem::FindPlayedHero(this))
+			{
+				HeroId = Hero->Id;
+			}
+		}
+		BuildPortrait();
 	}
 	return Super::RebuildWidget();
+}
+
+void UHudPortraitWidget::BuildPortrait()
+{
+	if (!WidgetTree || !Content)
+	{
+		return;
+	}
+	const FPortraitSet& Set = PortraitSetFor(HeroId);
+	Content->ClearChildren();
+
+	// The glass is the window's background: it fades with the UI transparency setting. It reaches past the window
+	// far enough that the shake never shows its edge.
+	UCanvasPanel* FaceGroup = AddPortraitGroup(WidgetTree, Content);
+	Face = FaceGroup;
+	MarkBackground(AddPortraitPicture(WidgetTree, FaceGroup, PortraitTextureName(Set, TEXT("Glass")), Set.Glass()));
+
+	UCanvasPanel* BodyGroup = AddPortraitGroup(WidgetTree, FaceGroup);
+	Body = BodyGroup;
+	AddPortraitPicture(WidgetTree, BodyGroup, PortraitTextureName(Set, TEXT("Bust")), Set.Bust());
+
+	// The calm eyes: the eyes and their glows blink (squashing toward their middle), the brows stay put.
+	UCanvasPanel* CalmGroup = AddPortraitGroup(WidgetTree, BodyGroup);
+	CalmEyes = CalmGroup;
+	UCanvasPanel* BlinkGroup = AddPortraitGroup(WidgetTree, CalmGroup);
+	BlinkGroup->SetRenderTransformPivot(FVector2D(0.5f, static_cast<float>(Set.BlinkCenterY / HudPortraitData::WindowUnits)));
+	BlinkingEyes = BlinkGroup;
+	AddPortraitGlows(WidgetTree, BlinkGroup, Set.EyesOpenGlows());
+	AddPortraitPicture(WidgetTree, BlinkGroup, PortraitTextureName(Set, TEXT("EyesOpen")), Set.EyesOpen());
+	AddPortraitPicture(WidgetTree, CalmGroup, PortraitTextureName(Set, TEXT("BrowsCalm")), Set.BrowsCalm());
+
+	// The squint and the flare, hidden until a reaction shows them; the flare draws over whichever eyes show. The
+	// squint's glows are a group of their own (behind its picture) so a failing lamp can flicker them apart from it.
+	UCanvasPanel* HurtGroup = AddPortraitGroup(WidgetTree, BodyGroup);
+	HurtEyes = HurtGroup;
+	UCanvasPanel* HurtGlowGroup = AddPortraitGroup(WidgetTree, HurtGroup);
+	HurtGlows = HurtGlowGroup;
+	bHurtFlickers = Set.bHurtFlickers;
+	AddPortraitGlows(WidgetTree, HurtGlowGroup, Set.EyesHurtGlows());
+	AddPortraitPicture(WidgetTree, HurtGroup, PortraitTextureName(Set, TEXT("EyesHurt")), Set.EyesHurt());
+	UCanvasPanel* FlareGroup = AddPortraitGroup(WidgetTree, BodyGroup);
+	FlareEyes = FlareGroup;
+	AddPortraitGlows(WidgetTree, FlareGroup, Set.EyesFlareGlows());
+	AddPortraitPicture(WidgetTree, FlareGroup, PortraitTextureName(Set, TEXT("EyesFlare")), Set.EyesFlare());
+
+	// The window's red, over the content but not shaking with it (a plain square: the clip makes it the diamond).
+	Flash = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
+	Flash->SetColorAndOpacity(Color::Hurt().CopyWithNewOpacity(0.f));
+	Flash->SetVisibility(ESlateVisibility::Hidden);
+	PlaceOnCanvas(Content, Flash, FVector2D::ZeroVector, FVector2D(WindowSize));
+
+	// Start at rest: calm eyes, nothing flashing.
+	ShownShake = FVector2D::ZeroVector;
+	ShownBreath = 0.f;
+	ShownBlink = 1.f;
+	ShownCalm = 1.f;
+	ShownHurt = -1.f;
+	ShownFlare = -1.f;
+	ShownHurtGlow = 1.f;
+	ShownFlash = 0.f;
+	ShowOpacity(HurtEyes, 0.f, ShownHurt);
+	ShowOpacity(FlareEyes, 0.f, ShownFlare);
+}
+
+void UHudPortraitWidget::SetHero(FName InHeroId)
+{
+	if (InHeroId == HeroId)
+	{
+		return;
+	}
+	HeroId = InHeroId;
+	if (Content)
+	{
+		BuildPortrait();   // already on screen: redraw for the new hero
+	}
+}
+
+UHudPortraitWidget::FPortraitCounts UHudPortraitWidget::CountPortrait(FName HeroId)
+{
+	const FPortraitSet& Set = PortraitSetFor(HeroId);
+	FPortraitCounts Counts;
+	Counts.GlassLayers = Set.Glass().Icon.Layers.Num();
+	Counts.BustLayers = Set.Bust().Icon.Layers.Num();
+	Counts.EyesOpenGlows = Set.EyesOpenGlows().Num();
+	Counts.EyesHurtGlows = Set.EyesHurtGlows().Num();
+	Counts.EyesFlareGlows = Set.EyesFlareGlows().Num();
+	Counts.TexturePrefix = Set.TexturePrefix;
+	return Counts;
 }
 
 void UHudPortraitWidget::PlayHit()
@@ -314,6 +422,12 @@ void UHudPortraitWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 	const float Squint = bLowHealth ? 1.f : HoldThenFade(SquintTime, SquintSeconds, SquintHold);
 	ShowOpacity(HurtEyes, Squint, ShownHurt);
 	ShowOpacity(CalmEyes, 1.f - Squint, ShownCalm);
+	if (bHurtFlickers && HurtGlows && Squint > 0.f)
+	{
+		// A failing lamp: two beating sines, never fully out (on BlinkClock: its wrap every 5.2 s can't show in a flicker).
+		const float Flicker = 0.45f + 0.55f * FMath::Abs(FMath::Sin(BlinkClock * 23.f) * FMath::Sin(BlinkClock * 7.3f + 1.f));
+		ShowOpacity(HurtGlows, Flicker, ShownHurtGlow);
+	}
 	ShowOpacity(FlareEyes, HoldThenFade(FlareTime, FlareSeconds, FlareHold), ShownFlare);
 
 	// The window's red: a hit's flash and the low-health pulse, the one over the other.

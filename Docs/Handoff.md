@@ -119,6 +119,30 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
 - FP-ARMS started (the slot HUD-PORTRAITS freed): SK_FP_Arms_<Hero> x4 on FPArms.py from its own file (FPArms.py
   untouched: its digest would re-bake Ellis's arms), rig jsons `Intermediate/FPArms/FPArms_<Hero>_rig.json`, wiring
   notes `Saved/FPArms/WIRING.md`.
+- BARROW-CODE done and committed (50a6f1e): the Barrow fight on the real assets, 726/726 tests; its fix to ART's
+  materials script (M_GraveDecal's Tiles from RGBA); the bestiary page updated. Not checked: perf (§11.4: the PC was under
+  memory pressure from the agents; PIE hitches were PCG and Mass), the decals' look by eye (Reveal direction, the crack's
+  end cap joining), real bullets on the stone/clod/mounds by hand (tests cover them), one plough on bumpy ground stopped
+  at 5.8 of 12.2 m. New palette entries LooterUI::Color::GraniteLight/Granite/GraniteDark (the stone bar).
+- With the build lane free: HUD-WIRE (Sonnet) applies `Saved/HudPortraits/WIRING.md` (incl. Gauge's hurt flicker),
+  builds, tests, shoots each hero's portrait in PIE; LINES-WIRE (Opus) writes the line-variant code into a holding tree
+  `Saved/LinesWire/Source/...` (+ `Tools/Unreal/hero_lines.json`, `create_hero_lines.py`) on Main's provisional §7 calls
+  (cold open kept for all; "kid" for all; Hollis -> Harlan; epitaph and posters as drafted; Sexton's sweeteners), to be
+  merged and built by it after HUD-WIRE and the hero imports.
+- HUD-WIRE done and committed with this note: each hero's own HUD portrait (live on `Looter.Hero`), test
+  `Looter.HUD.PortraitSets`, 727/727. GAUGE reported done (not yet reviewed or imported): SK_Gauge 31,956 triangles, 67
+  bones (no swing chains), five 2048 sets GaugeHead/Chest/Belly/Arms/Legs, slots + GaugeLamp/GaugeFire glows, export in
+  `Intermediate/ArtExport_Gauge`; expect rifle stocks to clip its boiler/right pauldron when aiming; check its 1.28x hands.
+- **USAGE LIMIT hit (2026-10-20 ~02:00). Every running agent was STOPPED mid-step; their work is on disk, nothing of
+  theirs committed.** Where each stood: CRANE (previews read as the portrait; was about to rebake with fixes + audit r2),
+  PIKE (clay reads well; was starting the bake with previews), ODESSA (round-2 daylight renders), POWERS (writing
+  `Saved/Powers/`; was about to set the twelve entries in `create_ember_assets.py`), FP-ARMS (building Odessa's arms),
+  LINES-WIRE (writing `Saved/LinesWire/`; at the Bestiary widgets). **On resume:** resume each with SendMessage (same
+  agent ids in this session, else new agents briefed from the two contracts and their files), saying what landed on disk;
+  review Gauge's previews, import (`Looter.ImportModels C:/Dev/AI_Looter_Shooter/Intermediate/ArtExport_Gauge`), run
+  `build_hero_retarget.py Gauge` (untested), `create_ember_assets.py`, check in PIE with `Looter.Hero Gauge`; then each
+  hero as it lands; then merge POWERS' and LINES-WIRE's holding trees (they build and fix their own); ask the user the
+  cold-open question (Lines §7) first thing.
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):

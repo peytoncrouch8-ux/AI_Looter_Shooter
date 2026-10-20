@@ -1142,6 +1142,20 @@ committed: its names are here). The session keeps the pick; the character takes 
   until the level opens or `CancelConfirm` (StartNewGame refused).
 - **Session cards** name their hero: the face cut in a 72 px square with a hairline in their colour, the name in their
   colour under the level; the delete popup names them too.
+- **The HUD portrait** (2026-10-20): each hero's HUD portrait is an SVG in Ellis's structure (groups glass, colour offset
+  1.3 x 0.9, rim, ink, eyes-open/hurt/flare with gradient ellipses as glows): `Art/Icons/HudPortrait[_<Hero>].svg` ->
+  `UI/Style/HudPortraitData[_<Hero>].inl` by `Art/Icons/HudPortrait.py [Hero|all]` (default Ellis; the generator also reads
+  plain `<circle>` and `<ellipse>` and refuses a gradient ellipse outside the eye groups); previews
+  `Saved/ArtPreviews/Icons/HudPortrait_<Hero>_<State>[_Hud].png`. `UHudPortraitWidget` picks the set by hero id
+  (`PortraitSetFor`, anonymous in the .cpp; any other id shows Ellis's) and names each hero's painted textures apart
+  (`HudPortrait<Hero>Bust`; Ellis's keep `HudPortraitBust`): painted icons are cached by name for the session. It asks
+  `FindPlayedHero` as it builds (the same answer the body and powers get; none in a test world: Ellis); `SetHero(Id)`
+  redraws a built window (`BuildPortrait`), which `Looter.Hero <Id>` calls through `WearHeroNow`. Each hero's glow lists
+  take any count and colour (Crane's one eye: 2 glows, a warm glint on his coin in the flare; Gauge's lamp: warm, blink
+  centre 89.0). Gauge's squint also flickers its glows like a failing lamp (`FPortraitSet::bHurtFlickers`; two beating
+  sines on `BlinkClock`, never below 0.45). Four .inl (50-70 KB) compile in the one .cpp; only the played hero's
+  textures are drawn. Test: `Looter.HUD.PortraitSets` (`Tests/HudPortraitTests.cpp`: a whole set per roster id, texture
+  names apart, unknown id = Ellis's, the built widget's image count follows the hero).
 - Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`).
   `.Playable` expects only Ellis while the twelve powers have no code: update it as they land.
 
