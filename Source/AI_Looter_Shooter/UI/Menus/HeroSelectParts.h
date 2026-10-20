@@ -20,6 +20,17 @@ namespace HeroSelectParts
 	/** What the roster, the panel and the stage say of a hero not playable yet. */
 	inline const TCHAR* const InTheWorks = TEXT("In the works");
 
+	/**
+	 * The live stand's picture on the 1600 x 900 page: its middle and size (AHeroSelectStage's 720 x 900 at 0.71, so it's
+	 * sharp at 1080p); it reaches up behind the header's corner and down to the roster. A little right of the roster's
+	 * middle: centred on it, Crane's hat (the tallest) crossed the title's end (2026-10-20). The glow centres here too.
+	 */
+	inline const FVector2D StandCentre(600.f, 372.f);
+	inline const FVector2D StandSize(512.f, 640.f);
+
+	/** The glow behind a playable hero, in their colour (0.34 hardly showed past the painted frame, 2026-10-19). */
+	inline constexpr float StageGlowAlpha = 0.5f;
+
 	/** How a portrait is cut: whole (its painted frame and name plate), the face's square, or a wide band at the eyes. */
 	enum class ECrop : uint8
 	{

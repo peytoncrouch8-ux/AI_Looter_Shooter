@@ -19,7 +19,7 @@ namespace StageStudio
 	/**
 	 * Far outside any level, so nothing there shadows or lights a stand, and the minimap's top-down bake never sees it. Each
 	 * stand has its own index: 0 the loadout's character stand-in (ALoadoutStage, not shown since the 2026-10-08 redesign),
-	 * 1 the bestiary's, 2 the bench's, 3 the loadout's showcase gun (ALoadoutGunStage).
+	 * 1 the bestiary's, 2 the bench's, 3 the loadout's showcase gun (ALoadoutGunStage), 4 the hero select's (AHeroSelectStage).
 	 */
 	AI_LOOTER_SHOOTER_API FVector Location(int32 StandIndex);
 

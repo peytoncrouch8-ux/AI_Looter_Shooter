@@ -265,6 +265,29 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   reimports SK_Pike and checks whether Crane's left-hand flare is the same (a code-side rule preferred). Pike's leftovers
   (not done, ask): the cuff tabs bake near-black (turn them out in `pike_clothes.build_cuffs`, a rebake); a dark sliver
   on the left hip from behind; the coat front tucks under the thighs crouched.
+- POLISH-CODE done and committed (582517d), 747/747: Rail Spike reads from behind (head glow, shock rings, steam, side
+  sparks, ground dust, a glowing AGroundCrack scar); the Gravemother's decals (Reveal now crawls, soft FadeIn/FadeOut
+  ends, no tiles floating over old berms; the end cap joins within ~1.5 cm by measurement, never seen; the clod's
+  landing shadow never caught in a frame); BodySwing (BodySwingKinds.cpp): a hook's and long hair's own settings with a
+  `Carry` share, pushed cloth drops its speed into a limb (Crane's 14 cm standing wag gone, all heroes), hands push the
+  shortest way at most 3 cm (Crane's flared coat; same cause as Pike's, now fixed in code for all); tests
+  `.Hook/.Rest/.Hand`; the slag pool wired (`AEmberPropActor::GetModel/AddPiece`). Not measured: perf of the new Rail
+  Spike and slag looks (the PC was busy).
+- User said "keep working": PIKE does his leftovers (cuffs, whiskers, hip sliver); PORTRAIT-CLEANUP (Sonnet) merges the
+  portrait scripts' helpers into bust.py with scenes and model exports compared identical; SELECT resumed for **a live
+  3D hero stand** in the select screen's middle (the chosen hero's model idling on a stand, turning, draggable, a rim in
+  the hero's colour; portraits stay on the cards).
+- PORTRAIT-CLEANUP done and committed (520ee4a): `Art/Portraits/bustkit.py` (955) + bust.py (862) hold the shared helpers;
+  hero portraits Crane 603, Pike 540, Gauge 521, Odessa 709, Ellis 567; proven identical (15 scenes, 4 model exports;
+  tools `Saved/PortraitCleanup/scene_cmp.py`). Model scripts list `bustkit.py` in BAKE_SOURCES (Pike's via PIKE). The FP
+  arms of Crane and Pike rebake at their next export (fp_arms_heroes digests the portrait files).
+- SELECT's live 3D stand done and committed with this note: `AHeroSelectStage` (an unpossessed pawn: a hidden mannequin
+  playing ABP_Unarmed, the hero's body copying it through their retargeter via `UBodyFigureComponent::SetShownHero`) on a
+  plinth in a 720x900 capture, swaying around three-quarter view, drag/right stick to turn; key, fill, a hero-colour rim
+  and a kicker in their first ember's colour; a 0.28 s fade + 0.6 s turn-in on a switch; a 76 px painted face on the
+  panel. Cost only while the select is open: +1.4 ms GPU, +2.1 ms render thread (PIE, Medium). Live tuning
+  `Looter.HeroStand.Key/.Fill/.Rim/.Kicker/.Exposure`, `Looter.HeroStand.Run 0` holds it. 748/748, `Looter.Heroes.Stand`.
+  Polish noted: Crane's face reads blotchy at the stand's size under the rim light.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases

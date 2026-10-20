@@ -26,7 +26,7 @@ namespace
 	/** The gap between the key hints at the bottom. */
 	constexpr float PromptGap = 20.f;
 	/** How long the chosen portrait takes to settle in, and how far it slides from. */
-	constexpr float StageInSeconds = 0.2f;
+	constexpr float StageInSeconds = 0.28f;
 	constexpr float StageInSlide = 14.f;
 	/** The glow's breath behind the stage: its period and how far it dims. */
 	constexpr float GlowBreathSeconds = 4.2f;
@@ -256,14 +256,20 @@ void UHeroSelectWidget::AdvanceNav(float DeltaSeconds)
 		RestyleCards();
 	}
 
-	// The chosen portrait settles in from a little to the left; the glow behind it breathes slowly.
+	// The chosen hero fades in on the stand as they turn in (from nothing: the swap's first frame never shows), or their
+	// portrait settles in from a little to the left; the glow behind breathes slowly.
 	if (StageIn < 1.f && StagePicture)
 	{
 		StageIn = FMath::Min(StageIn + DeltaSeconds / StageInSeconds, 1.f);
 		const float Eased = 1.f - FMath::Square(1.f - StageIn);
 		StagePicture->SetRenderOpacity(FMath::Lerp(0.35f, 1.f, Eased));
 		StagePicture->SetRenderTranslation(FVector2D(-StageInSlide * (1.f - Eased), 0.f));
+		if (StandImage)
+		{
+			StandImage->SetRenderOpacity(Eased);
+		}
 	}
+	TickStand(DeltaSeconds);
 	GlowClock = FMath::Fmod(GlowClock + DeltaSeconds, GlowBreathSeconds);
 	if (StageGlow && !IsConfirming())
 	{
@@ -348,6 +354,11 @@ TArray<FPrompt> UHeroSelectWidget::GetPrompts() const
 	if (!bPad)
 	{
 		Prompts.Add(FPrompt{ TEXT("1 - 5"), TEXT("Hero") });
+	}
+	// The hero on the stand turns with the right stick, or a drag across them.
+	if (bStandShown)
+	{
+		Prompts.Add(FPrompt{ bPad ? TEXT("RS") : TEXT("Drag"), TEXT("Turn") });
 	}
 	Prompts.Add(MakePrompt(EPromptKey::Back, bPad, TEXT("Back")));
 	return Prompts;

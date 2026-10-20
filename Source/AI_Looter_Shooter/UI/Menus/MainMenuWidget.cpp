@@ -234,6 +234,7 @@ void UMainMenuWidget::ShowMainButtons()
 	bHeroSelectShown = false;
 	if (HeroSelect)
 	{
+		HeroSelect->Close();
 		HeroSelect->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	if (ColumnBox)

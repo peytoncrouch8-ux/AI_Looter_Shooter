@@ -419,6 +419,8 @@ void UMainMenuWidget::CloseHeroSelect()
 	const int32 Index = HeroSelect ? HeroSelect->GetSlot() : 0;
 	if (HeroSelect)
 	{
+		// Its stand stops rendering with it.
+		HeroSelect->Close();
 		HeroSelect->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	if (ColumnBox)

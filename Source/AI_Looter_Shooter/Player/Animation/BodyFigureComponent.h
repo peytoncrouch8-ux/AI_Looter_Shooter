@@ -4,6 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "BodyFigureComponent.generated.h"
 
+class UHeroDefinition;
 class UIKRetargeter;
 class UWeaponManagerComponent;
 
@@ -37,6 +38,12 @@ public:
 	/** Puts on the body of the hero played now (Looter.Hero switched it mid-play); the same body is left as it is. */
 	void WearHero();
 
+	/**
+	 * Wears Hero's body from now on instead of the hero played (a stand: the hero select's), at once if play has begun.
+	 * Null goes back to the hero played.
+	 */
+	void SetShownHero(const UHeroDefinition* Hero);
+
 	/** Ellis's mesh and the retargeter, found by path once imported (null before): the class's defaults. */
 	static USkeletalMesh* FindFigureMesh();
 	static UIKRetargeter* FindRetargeter();
@@ -51,7 +58,7 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	/** The hero played's mesh and retargeter when both are in the game, else Ellis's. */
+	/** The shown hero's (else the hero played's) mesh and retargeter when both are in the game, else Ellis's. */
 	void PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter) const;
 	/** Puts on PickBody's body, hides the mannequin under it, ticks after it, and draws as it is drawn (FollowBody). */
 	void Wear();
@@ -64,6 +71,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UIKRetargeter> Retargeter;
+
+	/** The hero a stand shows (SetShownHero); null: the hero played. */
+	UPROPERTY(Transient)
+	TObjectPtr<const UHeroDefinition> ShownHero;
 
 	/** The mannequin this hid, shown again if Ellis goes. */
 	TWeakObjectPtr<USkeletalMeshComponent> HiddenBody;

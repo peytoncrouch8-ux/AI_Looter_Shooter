@@ -7,11 +7,14 @@
 #include "UI/Style/LooterUIFocus.h"
 #include "HeroSelectWidget.generated.h"
 
+class AHeroSelectStage;
 class UHeroDefinition;
 class UHorizontalBox;
 class UImage;
 class ULooterButton;
+class UMaterialInstanceDynamic;
 class UOverlay;
+class USizeBox;
 class UTextBlock;
 class UTexture2D;
 class UVerticalBox;
@@ -24,12 +27,14 @@ DECLARE_DELEGATE_TwoParams(FOnHeroConfirmed, int32 /*Slot*/, FName /*HeroId*/);
  * opened by an empty session's New Game on the main menu, over the island, the main menu's column hidden. Laid out at
  * 1600 x 900 and scaled to the screen like the inventory's pages (Docs/HeroSelect/ui.html's idea):
  *  - top left: CHOOSE YOUR HERO, for which session
- *  - the stage: the chosen hero's painted portrait, large, a glow in their colour behind it (room for a live 3D stand
- *    later); greyed with an IN THE WORKS stamp while the hero isn't playable
+ *  - the stage: the chosen hero's game model live on a plinth (AHeroSelectStage's picture, 2026-10-20): idling, swaying
+ *    slowly, turned by a drag or the right stick, a glow in their colour behind it; a new choice fades in as the hero
+ *    turns in. A hero whose body isn't in the game shows their painted portrait there instead; one in the works stands
+ *    as a dark silhouette (or a greyed painting) with an IN THE WORKS stamp
  *  - under it the roster: the five as cards (the portrait's band at the eyes, a strip in their colour, name, role, the
  *    number key), the chosen one's edge orange; a hero in the works greyed and stamped
- *  - right: the hero's panel (role, name, story, the three ember powers with their words and clocks), Back and
- *    "Play as <hero>" (disabled, "In the works", for a hero not playable)
+ *  - right: the hero's panel (their painted face, role, name, story, the three ember powers with their words and
+ *    clocks), Back and "Play as <hero>" (disabled, "In the works", for a hero not playable)
  *  - bottom left: what the keys do.
  * The keyboard and a controller drive it as the other menus (FMenuNavigator: the roster's row, then Back and Play): left
  * and right move along the roster and the choice follows, 1 to 5 and the bumpers choose too, A or Enter on a card or on
@@ -39,8 +44,10 @@ DECLARE_DELEGATE_TwoParams(FOnHeroConfirmed, int32 /*Slot*/, FName /*HeroId*/);
  * OnConfirmed, which the main menu answers with USessionSubsystem::StartNewGame.
  *
  * Only playable heroes can be confirmed (UHeroDefinition::CanBePicked; Looter.Hero.Unlock 1 lets the rest through).
- * HeroSelectWidget.cpp builds it and handles choosing and confirming; HeroSelectRoster.cpp the roster's cards;
- * HeroSelectNav.cpp the keys, the mouse and the key hints; HeroSelectParts the portraits and power rows.
+ * HeroSelectWidget.cpp builds it and handles choosing; HeroSelectConfirm.cpp confirming (and its beat);
+ * HeroSelectRoster.cpp the roster's cards; HeroSelectStand.cpp the live stand (spawning it, its picture, turning it);
+ * HeroSelectNav.cpp the keys, the mouse and the key hints; HeroSelectParts the portraits and power rows. The stand
+ * renders only while the screen is open (Close).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHeroSelectWidget : public UUserWidget
@@ -51,12 +58,26 @@ public:
 	/** Seconds from confirming to OnConfirmed: the beat that says the pick took. */
 	static constexpr float ConfirmSeconds = 0.85f;
 
-	/** Shows the roster for session InSlot's new game (0 to 2), Ellis chosen, the focus on their card. */
+	/** Shows the roster for session InSlot's new game (0 to 2), Ellis chosen, the focus on their card, the stand running. */
 	void Open(int32 InSlot);
+
+	/** The screen goes (back to the picker, or the menu leaves): the stand stops rendering, a drag lets go. */
+	void Close();
 
 	int32 GetSlot() const { return SessionSlot; }
 
-	// --- The roster and the choice (HeroSelectWidget.cpp) ---
+	// --- The live stand (HeroSelectStand.cpp) ---
+
+	/** The stand (spawned the first time the screen opens, kept, idle while closed), or null. */
+	AHeroSelectStage* GetStand() const;
+
+	/** The stand shows the chosen hero (their body is in the game); otherwise their painting stands there. */
+	bool IsStandShown() const { return bStandShown; }
+
+	/** The right stick's X (-1 to 1): turns the hero on the stand while held (the main menu hands it on). */
+	void HandleTurnStick(float Value);
+
+	// --- The roster and the choice (HeroSelectWidget.cpp; confirming: HeroSelectConfirm.cpp) ---
 
 	int32 NumHeroes() const { return Heroes.Num(); }
 	const UHeroDefinition* GetHero(int32 Index) const;
@@ -109,6 +130,11 @@ public:
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual TSharedRef<SWidget> RebuildWidget() override;
+	virtual void NativeDestruct() override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
 
 private:
 	/** A roster card's parts that change with the choice. */
@@ -126,8 +152,17 @@ private:
 	UWidget* MakeHeader();
 	UWidget* MakeStage();
 	UWidget* MakePanel();
-	/** The stage and the panel for the chosen hero, and each card's look. */
-	void ShowSelected();
+	/** The stage and the panel for the chosen hero, and each card's look. bSwitched: the choice just changed (the beat). */
+	void ShowSelected(bool bSwitched = false);
+	// HeroSelectStand.cpp: the live stand
+	/** The stand's picture (and its stamp for a hero in the works), placed behind the header. */
+	UWidget* MakeStand();
+	/** Spawns the stand the first time, gives the picture its capture, and sets it running. */
+	void OpenStand();
+	/** Puts the chosen hero on the stand (bSwitched: turning in), or shows their painting when their body isn't in the game. */
+	void ShowStandHero(bool bSwitched);
+	/** A frame of the stand: the stick's turn, the picture's brightness (a silhouette for a hero in the works). */
+	void TickStand(float DeltaSeconds);
 	// HeroSelectRoster.cpp: the cards
 	void RebuildRoster();
 	FCard MakeCard(int32 Index, const UHeroDefinition& Hero);
@@ -163,6 +198,19 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UImage> StageWash;
 	UPROPERTY(Transient) TObjectPtr<UWidget> StageStamp;
 	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> RosterRow;
+
+	/** The live stand's picture (the loadout's cut-out material on the stand's capture) and its IN THE WORKS stamp. */
+	UPROPERTY(Transient) TObjectPtr<UImage> StandImage;
+	UPROPERTY(Transient) TObjectPtr<UWidget> StandStamp;
+	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> StandMaterial;
+	TWeakObjectPtr<AHeroSelectStage> Stand;
+	bool bStandShown = false;
+	bool bDraggingStand = false;
+	/** The right stick's turn, held (already past its dead zone). */
+	float StandTurnInput = 0.f;
+
+	/** The panel's painted face of the chosen hero (rebuilt as the choice changes). */
+	UPROPERTY(Transient) TObjectPtr<USizeBox> PanelFace;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RoleText;
 	UPROPERTY(Transient) TObjectPtr<UWidget> RoleWorks;

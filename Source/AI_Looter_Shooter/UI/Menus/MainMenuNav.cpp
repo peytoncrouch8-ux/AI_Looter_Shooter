@@ -292,6 +292,12 @@ FReply UMainMenuWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, 
 		// Taken, so Slate makes no navigation of its own from the stick.
 		return FReply::Handled();
 	}
+	// The right stick turns the hero on the hero select's stand.
+	if (Key == EKeys::Gamepad_RightX && bHeroSelectShown && HeroSelect)
+	{
+		HeroSelect->HandleTurnStick(InAnalogEvent.GetAnalogValue());
+		return FReply::Handled();
+	}
 	return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogEvent);
 }
 

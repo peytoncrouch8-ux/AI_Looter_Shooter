@@ -1257,19 +1257,51 @@ committed: its names are here). The session keeps the pick; the character takes 
   `Looter.Hero` alone lists the roster and what each hero still lacks.
 - **The screen** (`UHeroSelectWidget`, `UI/Menus/HeroSelect*`): an empty slot's New Game opens it over the island, the
   main menu's column hidden; the main menu hands it every key and its clock. Laid out at 1600 x 900, scaled to fit (like
-  the inventory's pages): header top left (bar, SESSION N · NEW GAME, CHOOSE YOUR HERO, one line), the chosen portrait
-  500 px on the stage (top clear of the header: the frame's fittings touched its line at 520) with a 1080 px glow in the
-  hero's colour (alpha 0.5, breathing; the space is meant for a live 3D stand later), the roster under it (five 176 x 140 cards: eye band, number key, colour strip, name, role; greyed and stamped IN THE
-  WORKS when not playable), the panel on the right (496 x 820: role, name, colour rule, story, EMBER POWERS with three
-  rows: medallion with the Inked icon or the power's glow, name, nature chip, words, cooldown; status line; Back and
-  "Play as <name>", disabled "In the works"). Greyed = the image tinted 0.42 grey under a 42% IconShade wash (Slate has no
-  desaturation without a material).
+  the inventory's pages): header top left (bar, SESSION N · NEW GAME, CHOOSE YOUR HERO, a line wrapped at 360), the live
+  stand in the middle (below) with a 1080 px glow in the hero's colour behind it (alpha 0.5, breathing) and a soft shadow
+  under the plinth, the roster under it (five 176 x 140 cards: eye band, number key, colour strip, name, role; greyed and
+  stamped IN THE WORKS when not playable), the panel on the right (496 x 820: the painted face 76 px beside role, name and
+  colour rule, story, EMBER POWERS with three rows: medallion with the Inked icon or the power's glow, name, nature chip,
+  words, cooldown; status line; Back and "Play as <name>", disabled "In the works"). A hero whose body isn't in the game
+  shows their whole painted portrait (500 px, centred at 560, 424) where the stand is. Greyed = the image tinted 0.42 grey
+  under a 42% IconShade wash (Slate has no desaturation without a material).
+- **The live stand** (2026-10-20, `AHeroSelectStage`, `UI/Menus/HeroSelectStage` + `HeroSelectStand.cpp`): the chosen hero's
+  game model on a plinth, rendered into the screen's middle (picture 512 x 640 at 600, 372 on the page: right of the
+  roster's middle, as Crane's hat crossed the title's end at 560; from a 720 x 900 capture through the loadout's cut-out
+  material `M_UI_LoadoutStage`).
+  - Built like the other off-screen stands (`StageStudio`, stand index 4) and like the player's body: a hidden
+    SKM_Manny_Simple plays ABP_Unarmed with the stance layer's weary idle, and `UBodyFigureComponent` wears the hero's
+    FigureMesh through their Retargeter (`SetShownHero`: a stand's hero instead of the hero played). The stand is an
+    `APawn`, never possessed: the anim instance needs a pawn owner standing still to ease the weary idle in, and reads
+    which way the body faces from it, so the whole actor turns (the camera and lights are absolute).
+  - Framing: camera 600 cm out at 110 cm, looking at 96, 20.5 degrees across (the tallest hero, Crane, and the plinth's
+    front foot both fit with ~1 degree to spare). Turn: a three-quarter rest (12 degrees) swaying 16 either side over 14 s;
+    a drag (0.45 degrees a pixel; dragging right turns the front right) or the right stick (120 degrees a second, dead
+    zone 0.2; the main menu hands RightX on) turns them, the sway resting 2.5 s then easing back over 1.5 s from where the
+    player left them (its share is folded into the player's turn, so nothing jumps).
+  - Lights (candelas, live: `Looter.HeroStand.Key` 160 warm spot with the one shadow, `.Fill` 20 cool, `.Rim` 420 in the
+    hero's colour from behind, `.Kicker` 200 in their first power's colour from the other side, `.Exposure` 1); colours
+    normalized to full strength so a dark hero colour still lights. The hero is on channel 1, the plinth on channel 2
+    (key and fill only: the rims grazing its top turned it into a disc of the hero's colour). The sky light is off in the
+    capture (it flattened everything blue), and AO, contact and capsule shadows, translucency, eye adaptation and lens
+    flares.
+  - The plinth: the engine's cylinder three times (top r 60 MetalDeep, band r 61.5 glowing in the hero's colour through
+    M_StylizedSurface's Glow 6, foot r 70 Ink).
+  - A switch: the picture fades in from nothing over 0.28 s (the swap's first frame never shows) while the hero turns in
+    from 70 degrees off over 0.6 s (ease-out cubic), the rim flaring (x2, fading over 0.7 s) and the band brightening. The
+    confirm: the picture lifts 3%, rim x1.9, kicker x1.8, key x1.35, band x2.5 (`SetFlare`). A hero in the works with a
+    body stands as a silhouette (exposure 0.03, the bestiary's unmet creatures) with the IN THE WORKS stamp.
+  - Cost: spawned the first time the screen opens, kept, inactive (no tick, no capture, lights off) whenever it's closed
+    (`UHeroSelectWidget::Close`, from the main menu's CloseHeroSelect and ShowMainButtons), destroyed with the widget.
+    Measured in PIE on Medium (2026-10-20, `Looter.HeroStand.Run 0` holds it for comparisons): +1.4 ms GPU (6.1 against
+    4.7 for the whole frame), +2.1 ms render thread, +0.2 ms game thread; the main menu without the hero select pays nothing.
 - **Keys:** one roster row then Back/Play (`FMenuNavigator`, wrapping). Left/right move and the choice follows; 1-5 and
   the bumpers choose; A or Enter on a card or Play confirms; B or Esc back to the picker (focus on that New Game). Mouse:
   click a card to choose, Play to confirm; a card under the mouse lights. Sounds: UI.Hover as the choice moves, UI.Click
   for a click, UI.Equip + Ember.Ready on confirm, UI.Denied (and the reason on the panel) for a hero in the works,
-  UI.Back. Confirm plays a 0.85 s beat (portrait lifts 3.5%, the glow swells) before `OnConfirmed`; keys are ignored
-  until the level opens or `CancelConfirm` (StartNewGame refused).
+  UI.Back. Confirm plays a 0.85 s beat (the stand's picture lifts 3%, its lights flare, the glow swells) before
+  `OnConfirmed`; keys are ignored until the level opens or `CancelConfirm` (StartNewGame refused). The hints add "Drag
+  Turn" (keyboard) or "RS Turn" (pad) while the stand shows.
 - **Session cards** name their hero: the face cut in a 72 px square with a hairline in their colour, the name in their
   colour under the level; the delete popup names them too.
 - **The HUD portrait** (2026-10-20): each hero's HUD portrait is an SVG in Ellis's structure (groups glass, colour offset
@@ -1286,7 +1318,10 @@ committed: its names are here). The session keeps the pick; the character takes 
   sines on `BlinkClock`, never below 0.45). Four .inl (50-70 KB) compile in the one .cpp; only the played hero's
   textures are drawn. Test: `Looter.HUD.PortraitSets` (`Tests/HudPortraitTests.cpp`: a whole set per roster id, texture
   names apart, unknown id = Ellis's, the built widget's image count follows the hero).
-- Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`).
+- Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`);
+  `Looter.Heroes.Stand` (`Tests/HeroStandTests.cpp`: the stand builds for each of the five with their own body and
+  retargeter, turns, stops; the screen puts the chosen hero on it, the right stick turns them, a hero with no body gets
+  their painting, Close stops it).
   `.Playable` checks every power has code and a hero is playable exactly when body and retargeter load; `.Character`
   expects Toll Chain's own Refused on a bare actor. `.Screen` still says "Odessa is in the works": update it when SK_Odessa lands.
 

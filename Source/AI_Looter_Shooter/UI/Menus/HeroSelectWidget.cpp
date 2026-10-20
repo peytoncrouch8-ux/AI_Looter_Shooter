@@ -9,6 +9,7 @@
 #include "Embers/HeroDefinition.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Menus/HeroSelectParts.h"
+#include "UI/Menus/HeroSelectStage.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
@@ -34,20 +35,20 @@ namespace
 {
 	const FName ActionBack(TEXT("Back"));
 	const FName ActionConfirm(TEXT("ConfirmHero"));
-	/** The cue that says the ember took (the powers' own "ready" chime), under the equip's clack. */
-	const FName EmberReadyCue(TEXT("Ember.Ready"));
 
 	// The page is laid out at 1600 x 900 (LoadoutParts::PageSize) and scaled to the screen.
 	const FVector2D HeaderPosition(64.f, 30.f);
+	/** The header's line under the title wraps here: left of the stand's middle, where the tallest hero's hat reaches. */
+	constexpr float HeaderTextWidth = 360.f;
 	/**
-	 * The stage: the portrait's middle, its size, and the glow behind it. Its top clears the header's last line by ~30
-	 * (the painted frame's fittings stand proud of the picture; at 520 from 152 they touched the line, 2026-10-19).
+	 * The painted portrait standing in for a hero whose body isn't in the game (the live stand is at HeroSelectParts::
+	 * StandCentre): its middle and size. Its top clears the header's last line by ~30 (the painted frame's fittings stand
+	 * proud of the picture; at 520 from 152 they touched the line, 2026-10-19).
 	 */
 	const FVector2D StageCentre(560.f, 424.f);
 	constexpr float PortraitSize = 500.f;
 	constexpr float GlowSize = 1080.f;
-	/** The glow's strength behind a playable hero and a greyed one (0.34 hardly showed past the frame). */
-	constexpr float GlowAlpha = 0.5f;
+	/** The glow's strength behind a greyed hero (a playable one's: HeroSelectParts::StageGlowAlpha). */
 	constexpr float GreyedGlowAlpha = 0.14f;
 	/** The roster's top, under the stage (its cards: HeroSelectRoster.cpp). */
 	constexpr float RosterTop = 694.f;
@@ -57,15 +58,11 @@ namespace
 	const FVector2D FooterPosition(64.f, 854.f);
 	constexpr float ButtonHeight = 46.f;
 	constexpr float BackWidth = 130.f;
+	/** The panel's painted face beside the name (the portraits stay on the cards and the panel; the stand shows the body). */
+	constexpr float PanelFaceSize = 76.f;
 
 	/** The panel's glass: the kit's screen glass a little clearer, as the main menu's column is, so the two read as one menu. */
 	FLinearColor PanelGlass() { return WithAlpha(Color::ScreenBg(), 0.87f); }
-
-	float EaseOut(float Alpha)
-	{
-		const float Inverse = 1.f - FMath::Clamp(Alpha, 0.f, 1.f);
-		return 1.f - Inverse * Inverse * Inverse;
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +93,11 @@ void UHeroSelectWidget::Open(int32 InSlot)
 	{
 		StageGlow->SetRenderScale(FVector2D::UnitVector);
 	}
+	if (StandImage)
+	{
+		StandImage->SetRenderScale(FVector2D::UnitVector);
+		StandImage->SetRenderOpacity(1.f);
+	}
 	StopNavHold();
 	Gather();
 	// Ellis first, the story's own (the roster's first).
@@ -105,6 +107,8 @@ void UHeroSelectWidget::Open(int32 InSlot)
 		Eyebrow->SetText(FText::FromString(FString::Printf(TEXT("SESSION %d  ·  NEW GAME"), SessionSlot + 1)));
 	}
 	RebuildRoster();
+	// The live stand runs only while the screen is open (Close stops it).
+	OpenStand();
 	ShowSelected();
 	SetStatus(FString(), Color::TextDim());
 	RebuildNavigation(Cards.IsValidIndex(Selected) ? Cards[Selected].Button : nullptr);
@@ -188,9 +192,15 @@ TSharedRef<SWidget> UHeroSelectWidget::RebuildWidget()
 			}
 		};
 
-		// Back to front: the stage's glow and portrait, the header over the stage's corner, the roster, the panel, the hints.
+		// Back to front: the glow behind the hero, the live stand (or, when the hero's body isn't in the game, their
+		// portrait), the header over the stand's corner, the roster, the panel, the hints.
 		StageGlow = MakeImage(WidgetTree, GlowBrush(FVector2D(GlowSize, GlowSize), FLinearColor::White));
-		Place(StageGlow, StageCentre, FVector2D(GlowSize, GlowSize), FVector2D(0.5f, 0.5f));
+		Place(StageGlow, StandCentre, FVector2D(GlowSize, GlowSize), FVector2D(0.5f, 0.5f));
+		// A soft shadow under the plinth's foot, so the stand sits on something rather than floating over the island.
+		const FVector2D FloorShadowSize(440.f, 70.f);
+		Place(MakeImage(WidgetTree, GlowBrush(FloorShadowSize, WithAlpha(Color::Ink(), 0.75f))),
+			FVector2D(StandCentre.X, StandCentre.Y + StandSize.Y * 0.47f), FloorShadowSize, FVector2D(0.5f, 0.5f));
+		Place(MakeStand(), StandCentre, StandSize, FVector2D(0.5f, 0.5f));
 		Place(MakeStage(), StageCentre, FVector2D(PortraitSize, PortraitSize), FVector2D(0.5f, 0.5f));
 		Place(MakeHeader(), HeaderPosition, FVector2D::ZeroVector);
 
@@ -223,7 +233,9 @@ UWidget* UHeroSelectWidget::MakeHeader()
 		->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
 	UTextBlock* Sub = MakeText(WidgetTree, TEXT("Whoever you pick is the Revenant Sexton raised. A session keeps its hero."), 12, Color::TextDim());
 	Sub->SetFont(Font(12, false));
-	Header->AddChildToVerticalBox(Sub)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+	// Two short lines, clear of the hero's hat on the stand beside them.
+	Sub->SetAutoWrapText(true);
+	Header->AddChildToVerticalBox(MakeSized(WidgetTree, Sub, HeaderTextWidth))->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 	return Header;
 }
 
@@ -249,8 +261,15 @@ UWidget* UHeroSelectWidget::MakePanel()
 {
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 
-	// The role, and the stamp on a hero in the works.
+	// Their painted face (the stand shows their body), then the role (with the stamp on a hero in the works), the name
+	// and a rule in their colour.
 	{
+		UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		PanelFace = MakeSized(WidgetTree, nullptr, PanelFaceSize, PanelFaceSize);
+		UHorizontalBoxSlot* FaceSlot = Head->AddChildToHorizontalBox(PanelFace);
+		FaceSlot->SetVerticalAlignment(VAlign_Center);
+		FaceSlot->SetPadding(FMargin(0.f, 0.f, 16.f, 0.f));
+		UVerticalBox* Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		UHorizontalBox* Top = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		RoleText = MakeText(WidgetTree, TEXT(""), 12, Color::CyanText(), true, 400);
 		UHorizontalBoxSlot* RoleSlot = Top->AddChildToHorizontalBox(RoleText);
@@ -258,13 +277,17 @@ UWidget* UHeroSelectWidget::MakePanel()
 		RoleSlot->SetVerticalAlignment(VAlign_Center);
 		RoleWorks = MakeWorksStamp(WidgetTree, 9);
 		Top->AddChildToHorizontalBox(RoleWorks)->SetVerticalAlignment(VAlign_Center);
-		Content->AddChildToVerticalBox(Top);
+		Words->AddChildToVerticalBox(Top);
+		NameText = MakeText(WidgetTree, TEXT(""), 30, Color::Accent(), true, 60);
+		NameText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		Words->AddChildToVerticalBox(NameText)->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
+		NameRule = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
+		Words->AddChildToVerticalBox(MakeSized(WidgetTree, NameRule, 72.f, 3.f))->SetHorizontalAlignment(HAlign_Left);
+		UHorizontalBoxSlot* WordsSlot = Head->AddChildToHorizontalBox(Words);
+		WordsSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		WordsSlot->SetVerticalAlignment(VAlign_Center);
+		Content->AddChildToVerticalBox(Head);
 	}
-	NameText = MakeText(WidgetTree, TEXT(""), 30, Color::Accent(), true, 60);
-	NameText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
-	Content->AddChildToVerticalBox(NameText)->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
-	NameRule = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-	Content->AddChildToVerticalBox(MakeSized(WidgetTree, NameRule, 72.f, 3.f))->SetHorizontalAlignment(HAlign_Left);
 
 	StoryText = MakeText(WidgetTree, TEXT(""), 13, Color::Text());
 	StoryText->SetFont(Font(13, false));
@@ -340,10 +363,10 @@ void UHeroSelectWidget::Select(int32 Index, bool bSound)
 	{
 		LooterSound::Play2D(this, LooterSoundCue::Hover);
 	}
-	// The portrait settles in, so the change is felt as well as seen.
+	// The new hero fades in as they turn in on the stand (or their portrait settles in), felt as well as seen.
 	StageIn = 0.f;
 	SetStatus(FString(), Color::TextDim());
-	ShowSelected();
+	ShowSelected(true);
 }
 
 bool UHeroSelectWidget::SelectById(FName Id)
@@ -357,7 +380,7 @@ bool UHeroSelectWidget::SelectById(FName Id)
 	return true;
 }
 
-void UHeroSelectWidget::ShowSelected()
+void UHeroSelectWidget::ShowSelected(bool bSwitched)
 {
 	RestyleCards();
 	const UHeroDefinition* Hero = GetHero(Selected);
@@ -367,15 +390,18 @@ void UHeroSelectWidget::ShowSelected()
 	}
 	const bool bPickable = CanConfirm(Selected);
 
-	// The stage: the whole painting, greyed and stamped for a hero in the works, the glow in their colour behind.
+	// The stage: the hero live on the stand, or (their body not in the game) the whole painting, greyed and stamped for a
+	// hero in the works; the glow in their colour behind either.
+	ShowStandHero(bSwitched);
 	UTexture2D* Portrait = Portraits.IsValidIndex(Selected) ? Portraits[Selected].Get() : nullptr;
 	StageImage->SetBrush(Portrait ? PortraitBrush(Portrait, FVector2D(PortraitSize, PortraitSize), ECrop::Whole) : RectBrush(Color::Track(), WithAlpha(Hero->Color, 0.6f), 2.f));
 	StageImage->SetColorAndOpacity(bPickable ? FLinearColor::White : GreyedTint());
 	StageWash->SetVisibility(bPickable ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	StageStamp->SetVisibility(bPickable ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
-	StageGlow->SetColorAndOpacity(WithAlpha(Hero->Color, bPickable ? GlowAlpha : GreyedGlowAlpha));
+	StageGlow->SetColorAndOpacity(WithAlpha(Hero->Color, bPickable ? StageGlowAlpha : GreyedGlowAlpha));
 
-	// The panel: who they are, then their three powers.
+	// The panel: who they are (their painted face beside their name), then their three powers.
+	PanelFace->SetContent(MakePortrait(WidgetTree, Portrait, FVector2D(PanelFaceSize, PanelFaceSize), ECrop::Face, !bPickable, Hero->Color));
 	RoleText->SetText(FText::FromString(Hero->Role.ToString().ToUpper()));
 	RoleWorks->SetVisibility(bPickable ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	NameText->SetText(FText::FromString(Hero->DisplayName.ToString().ToUpper()));
@@ -418,73 +444,3 @@ FString UHeroSelectWidget::GetStatus() const
 	return StatusText ? StatusText->GetText().ToString() : FString();
 }
 
-// ---------------------------------------------------------------------------
-// Confirming
-// ---------------------------------------------------------------------------
-
-bool UHeroSelectWidget::Confirm()
-{
-	const UHeroDefinition* Hero = GetHero(Selected);
-	if (!Hero || IsConfirming())
-	{
-		return false;
-	}
-	if (!CanConfirm(Selected))
-	{
-		LooterSound::Play2D(this, LooterSoundCue::Denied);
-		SetStatus(FString::Printf(TEXT("%s is in the works: their model and powers aren't in the game yet."), *Hero->DisplayName.ToString()), Color::Worse());
-		return false;
-	}
-	// The pick takes: the equip's clack and the ember's chime, the portrait lifting into the glow, then the session starts.
-	LooterSound::Play2D(this, LooterSoundCue::Inventory::Equip);
-	LooterSound::Play2D(this, EmberReadyCue);
-	ConfirmLeft = ConfirmSeconds;
-	bConfirmSent = false;
-	StopNavHold();
-	SetStatus(FString::Printf(TEXT("Session %d begins as %s..."), SessionSlot + 1, *Hero->DisplayName.ToString()), Color::Accent());
-	RefreshFooter();
-	return true;
-}
-
-void UHeroSelectWidget::CancelConfirm(const FString& Why)
-{
-	ConfirmLeft = -1.f;
-	bConfirmSent = false;
-	if (StagePicture)
-	{
-		StagePicture->SetRenderScale(FVector2D::UnitVector);
-	}
-	if (StageGlow)
-	{
-		StageGlow->SetRenderScale(FVector2D::UnitVector);
-	}
-	ShowSelected();
-	SetStatus(Why, Color::Worse());
-}
-
-void UHeroSelectWidget::TickConfirm(float DeltaSeconds)
-{
-	if (ConfirmLeft < 0.f)
-	{
-		return;
-	}
-	ConfirmLeft = FMath::Max(ConfirmLeft - DeltaSeconds, 0.f);
-	const float Progress = EaseOut(1.f - ConfirmLeft / ConfirmSeconds);
-	if (StagePicture)
-	{
-		StagePicture->SetRenderScale(FVector2D(1.f + 0.035f * Progress));
-	}
-	// The glow swells and burns brighter in the hero's colour: their ember catching.
-	const UHeroDefinition* Hero = GetHero(Selected);
-	if (StageGlow && Hero)
-	{
-		StageGlow->SetColorAndOpacity(WithAlpha(Hero->Color, FMath::Lerp(GlowAlpha, 0.9f, Progress)));
-		StageGlow->SetRenderScale(FVector2D(1.f + 0.12f * Progress));
-		StageGlow->SetRenderOpacity(1.f);
-	}
-	if (ConfirmLeft <= 0.f && !bConfirmSent)
-	{
-		bConfirmSent = true;
-		OnConfirmed.ExecuteIfBound(SessionSlot, GetSelectedId());
-	}
-}

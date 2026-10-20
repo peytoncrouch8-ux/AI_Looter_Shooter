@@ -95,8 +95,9 @@ void UBodyFigureComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter) const
 {
-	// The hero played (the session's pick, or Looter.Hero's), when both their mesh and their retargeter are in the game.
-	if (const UHeroDefinition* Hero = USessionSubsystem::FindPlayedHero(this))
+	// The hero a stand shows, or the hero played (the session's pick, or Looter.Hero's), when both their mesh and their
+	// retargeter are in the game.
+	if (const UHeroDefinition* Hero = ShownHero ? ShownHero.Get() : USessionSubsystem::FindPlayedHero(this))
 	{
 		USkeletalMesh* HeroMesh = Hero->LoadFigureMesh();
 		UIKRetargeter* HeroRetargeter = HeroMesh ? Hero->LoadRetargeter() : nullptr;
@@ -130,6 +131,15 @@ void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& Out
 void UBodyFigureComponent::WearHero()
 {
 	Wear();
+}
+
+void UBodyFigureComponent::SetShownHero(const UHeroDefinition* Hero)
+{
+	ShownHero = Hero;
+	if (HasBegunPlay())
+	{
+		Wear();
+	}
 }
 
 void UBodyFigureComponent::Wear()
