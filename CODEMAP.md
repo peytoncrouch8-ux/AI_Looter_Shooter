@@ -551,6 +551,13 @@ The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter
   (script-made); cloth cache `Crane.drape.json`. Helpers `Tools/Blender/crane_common.py` (posed body joints),
   `crane_head.py`, `crane_clothes.py`, `crane_gear.py` (chain, star, hook), `crane_hair.py`, `crane_rig.py`,
   `crane_looks.py`, `crane_audit.py`.
+- `Art/Models/Characters/FPArms<Hero>.py` (Odessa, Crane, Gauge, Pike): SK_FP_Arms_<Hero>, each hero's first-person
+  arms on SK_FP_Arms's 46 bones bone for bone (the hands code binds them unchanged; rig jsons
+  `Intermediate/FPArms/FPArms_<Hero>_rig.json` match Ellis's), looks baked from the hero's own materials, softened for
+  the eye's distance (sets FPArmsOdessaGlove/Coat, FPArmsCraneSkin/Coat, FPArmsGauge, FPArmsPikeSkin/Coat). Builders
+  `Tools/Blender/fp_arms_base.py` (runs FPArms.py up to its build line; FPArms.py untouched), `fp_arms_hands.py`,
+  `fp_arms_cloth.py`, `fp_arms_paint.py`, `fp_arms_gauge.py` (three fingers), `fp_arms_heroes.py`; look sheet
+  `fp_arms_heroes_sheet.py <Hero>`. Not drawn in game yet: wiring in `Saved/FPArms/WIRING.md`.
 - `Tools/Unreal/build_area_animals.py`: chicken yards and the porch cat from town.json's spots, cliff swallows at the placed SM_SwallowNests; folder `Animals`.
 - `Tools/Blender/looter_animals.py`, `animals_sheet.py`: the small animals (`Art/Models/Creatures/Chicken.py`, `Cat.py`, `Swallow.py`: skins, cards, rigs, pose tables) and look sheet 44.
 - `Tools/Unreal/build_world_materials.py`: textured masters (`M_World`, `M_Gun`, `M_WorldFoliage`, `M_Terrain`, `M_Water`, `M_Waterfall`, `M_WaterMist` and the water textures' import, sky and backdrop), island style switches (off by default; Sunbleached on `M_World`, `M_WorldFoliage`, `M_Terrain`, `M_SkyClouds`), `M_SunbleachedPost`. Character masters (Ellis's slots): `M_Character`, `M_CharacterCloth`, `M_CharacterSkin`, `M_CharacterHair` (hair cards: masked, two-sided, Hair shading). `M_Terrain` ground layers (`GROUND_WEIGHTS`, `TERRAIN_CODE`, `GROUND_DEFAULTS`): grass, matted thatch `GroundThatch`, stony `GroundStony`, damp soil, each normalized by its own mean. Also `M_BulletMark` (deferred decal; atlas cell by decal colour).
