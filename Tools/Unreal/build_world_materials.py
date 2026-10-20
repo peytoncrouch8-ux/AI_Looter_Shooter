@@ -2092,8 +2092,10 @@ def build_bullet_mark():
 #   M_CharacterCloth  the engine's Cloth shading: a fuzz of fibres lit at grazing angles (its fuzz colour: the base
 #                     colour lightened toward FuzzTint by FuzzLift, times FuzzStrength, 0 none), the same roughness
 #                     controls. (The Cloth amount, Custom Data 0, can't be wired from Python: unwired it's 1, all cloth.)
-#   M_CharacterSkin   Subsurface Profile shading (SP_Skin, the engine's skin defaults): light scattering under the skin
-#                     (SubsurfaceAmount), skin's 2.8% reflectance (Specular 0.35).
+#   M_CharacterSkin   Preintegrated Skin shading (SKIN_SHADING, below: why not Subsurface Profile): the light scattered
+#                     under the skin, the skin's colour x ScatterColor x ScatterAmount, wrapped round the terminator by
+#                     the engine's lookup (ScatterOpacity: its row and the shadows' thickness); skin's 2.8% reflectance
+#                     (Specular 0.35).
 #   M_CharacterHair   hair cards (Ellis round 6; the atlas from Tools/Blender/ellis_hair.py): masked, two-sided, the
 #                     engine's Hair shading (strands lit along their tangent: a highlight band across the hair, a warm
 #                     second one through it). The colour map's alpha is the strands' coverage, raised as the map mips
@@ -2205,16 +2207,36 @@ def skin_profile():
     return profile
 
 
+# Preintegrated Skin, not Subsurface Profile (2026-10-20): Medium and High scatter a profile with the screen-space
+# Separable filter (their r.SSS.HalfRes 1 forces it), and on these hands and faces it smeared the profile's red into
+# red-and-green blotches at every radius (r.SSS.Scale 0.15 too); only Epic's full-resolution Burley read clean. The
+# preintegrated model needs no screen pass: the engine's wrap lookup adds the scattered light around each light's
+# terminator, the same on every quality level. MSM_SUBSURFACE_PROFILE builds the old one (SP_Skin, SubsurfaceAmount).
+SKIN_SHADING = unreal.MaterialShadingModel.MSM_PREINTEGRATED_SKIN
+
+
 def build_character_skin(orm_default):
     mat = material('M_CharacterSkin')
-    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_SUBSURFACE_PROFILE)
-    mat.set_editor_property('subsurface_profile', skin_profile())
+    mat.set_editor_property('shading_model', SKIN_SHADING)
     g = Graph(mat)
     color, _ = character_surface(g, orm_default)
     g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(g.scalar('Specular', 0.35, -400, -150), '', unreal.MaterialProperty.MP_SPECULAR)
-    # Subsurface Profile reads how much light scatters under the skin from Opacity.
-    g.out(g.scalar('SubsurfaceAmount', 1.0, -400, -500), '', unreal.MaterialProperty.MP_OPACITY)
+    if SKIN_SHADING == unreal.MaterialShadingModel.MSM_SUBSURFACE_PROFILE:
+        mat.set_editor_property('subsurface_profile', skin_profile())
+        # Subsurface Profile reads how much light scatters under the skin from Opacity.
+        g.out(g.scalar('SubsurfaceAmount', 1.0, -400, -500), '', unreal.MaterialProperty.MP_OPACITY)
+    else:
+        mat.set_editor_property('subsurface_profile', None)
+        # The scattered light is the skin's own colour pushed warm (ScatterColor, linear) times ScatterAmount, so every
+        # skin tone scatters in its own hue; a dead skin (Crane) takes a cool, pale ScatterColor instead of the red.
+        scatter = g.mul(g.mul(color, '', g.vector('ScatterColor', (1.0, 0.3, 0.2, 1.0), -800, -900), '', -500, -800), '',
+                        g.scalar('ScatterAmount', 0.4, -800, -700), '', -300, -750)
+        g.out(scatter, '', unreal.MaterialProperty.MP_SUBSURFACE_COLOR)
+        # Opacity picks the lookup's row (lower: a wider wrap) and how thick the skin is to the shadows: lower lets the
+        # scattered light through what shades it (at 0.9 Odessa's hat brim's shadow glowed orange across her face);
+        # 0.99, the engine's most, keeps the shadows and still wraps softly round the terminator.
+        g.out(g.scalar('ScatterOpacity', 0.99, -400, -500), '', unreal.MaterialProperty.MP_OPACITY)
     finish(mat, CHARACTER_USAGES)
     return mat
 

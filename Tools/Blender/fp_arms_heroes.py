@@ -239,7 +239,9 @@ def build_crane(rest, b):
                                                                  ragged=0.9, seed=11, segs=40))
     cuff.data.materials.append(looks['Coat'])
     b.weights[cuff] = {'lowerarm': np.ones(len(cuff.data.vertices))}
-    b.add_set('FPArmsCraneSkin', [hand], 'CharacterSkin', 'FPArmsCrane_Skin', fit=dict(normal=0.38, soften=0.5))
+    # his model's dead skin scatter (Crane.py GAME_MATERIALS 'CraneSkin')
+    b.add_set('FPArmsCraneSkin', [hand], 'CharacterSkin', 'FPArmsCrane_Skin', fit=dict(normal=0.38, soften=0.5),
+              ScatterAmount=0.35, ScatterColor='#D0DCC8')
     b.add_set('FPArmsCraneCoat', [sleeve, lining, cuff], 'CharacterCloth', 'FPArmsCrane_Coat', fit=dict(normal=0.85),
               FuzzStrength=0.3, FuzzLift=0.1)
     b.cloth.append(('FPArmsCraneCoat', [sleeve, cuff]))
