@@ -109,6 +109,8 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	StanceInput.WeaponForegrip = Weapon ? Weapon->GetForegripPoint() : FVector::ZeroVector;
 	const UWeaponDefinition* HeldDefinition = Weapon ? Weapon->GetInstance().Definition.Get() : nullptr;
 	StanceInput.HoldReach = HeldDefinition ? HeldDefinition->HoldReach : 0.f;
+	// The left hand grips a shotgun's pump, a six-gun's shooting hand, any other gun's handguard.
+	StanceInput.WeaponKind = HeldDefinition ? HeldDefinition->Kind : EWeaponKind::None;
 	// The hero worn over this body holds the gun at their own shoulder and eye (a tall or short hero's hands are pinned
 	// to these hands, so these move for them).
 	if (!Figure.IsValid() && Pawn)

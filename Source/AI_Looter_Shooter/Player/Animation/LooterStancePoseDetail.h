@@ -92,11 +92,46 @@ namespace LooterStancePoseDetail
 		const FVector& Forward, const FVector& Right);
 
 	/**
-	 * The left hand solved onto the held gun's foregrip, its palm turned by PalmTurn (the carry's, ApplyCarry); let go of
-	 * during a reload and for a six-gun carried one-handed in a sprint.
+	 * The left hand solved onto the held gun's foregrip and turned to grip it (LeftHandOnGun; PalmTurn is the carry's turn of
+	 * the pose's own hand, ApplyCarry, which the elbow follows); let go of by ForegripHold.
 	 */
 	void ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right,
 		const FQuat& PalmTurn);
+
+	/** How firmly the left hand holds the foregrip (0-1): let go of during a reload and for a six-gun carried one-handed. */
+	float ForegripHold(const FLooterStanceInput& Stance);
+
+	/** How the left hand holds the gun (LooterStancePoseGrip.cpp): under a long gun's handguard, round a pump, round a six-gun's shooting hand. */
+	enum class ELooterGrip : uint8
+	{
+		Handguard,
+		Pump,
+		SixGun
+	};
+
+	ELooterGrip GripOf(const FLooterStanceInput& Stance);
+
+	/**
+	 * How much of the left hand's grip shows (0-1), beside the foregrip's own let-go (ForegripHold): none without a gun, eased
+	 * off as a grenade throw or a climb takes the hand, so they turn it from the pose's own hand as they always have.
+	 */
+	float GripShare(const FLooterStanceInput& Stance);
+
+	/**
+	 * The left hand's turn (component space) gripping the gun turned Gun: its knuckles, palm and index-and-thumb way set on the
+	 * gun by the hold kind, so it turns with the gun (kick and carry and all), blended from AnimHand (the pose's own hand,
+	 * turned with a carried gun) by GripShare. ApplyCarry reckons the left arm's reach with it too.
+	 */
+	FQuat LeftHandOnGun(const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FQuat& Gun, const FQuat& AnimHand);
+
+	/** The left palm's spot moved off the foregrip by the hold kind (the gun's own space, cm; zero unless tuned), by GripShare. */
+	FVector LeftGripShift(const FLooterStanceInput& Stance);
+
+	/**
+	 * The left fingers and thumb closed round the gun by the hold kind's curls, blended in by Weight (ForegripHold times
+	 * GripShare), on the local pose once the component-space work is done: only these joints' own turns change.
+	 */
+	void ApplyLeftGripFingers(FCompactPose& Pose, const FLooterStanceInput& Stance, float Weight);
 
 	/**
 	 * The left palm (the mannequin's HandGrip_L point, where a held thing sits) from the hand_l bone, in that bone's space:

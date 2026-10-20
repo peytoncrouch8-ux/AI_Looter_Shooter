@@ -11,8 +11,8 @@
 using namespace LooterStancePoseDetail;
 
 // The stance pose's gun work: a short gun held out at arm's length, each shot's recoil in the body, a melee strike's jab,
-// and the left hand on the foregrip (on a six-gun's grip: the support hand wrapped round the shooting hand); and SolveArm,
-// the arm IK the throw and the revolver's reload share.
+// and the left hand on the foregrip (on a six-gun's grip: the support hand wrapped round the shooting hand; how it grips is
+// LooterStancePoseGrip.cpp's); and SolveArm, the arm IK the throw and the revolver's reload share.
 
 namespace
 {
@@ -239,15 +239,15 @@ void LooterStancePoseDetail::ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose
 		OnGun += FVector(0.f, Side * SupportClear, -SupportDrop);
 	}
 	const FVector GripLocation = (Stance.HoldSocketLocal * Pose.GetComponentSpaceTransform(HoldBone)).GetLocation();
-	const FVector Foregrip = GripLocation + Stance.WeaponRotation.RotateVector(OnGun);
+	const FVector Foregrip = GripLocation + Stance.WeaponRotation.RotateVector(OnGun + LeftGripShift(Stance));
 
 	FTransform Shoulder = Pose.GetComponentSpaceTransform(UpperArm);
 	FTransform Elbow = Pose.GetComponentSpaceTransform(LowerArm);
 	FTransform Wrist = Pose.GetComponentSpaceTransform(Hand);
 
-	// Aim the palm (the mannequin's HandGrip_L point) at the foregrip, keeping the animation's hand orientation; a carried
-	// gun turns it, so the palm keeps its place on the gun (ApplyCarry).
-	const FQuat HandRotation = (PalmTurn * Wrist.GetRotation()).GetNormalized();
+	// Aim the palm (the mannequin's HandGrip_L point) at the foregrip, the hand turned to grip the gun (LeftHandOnGun: set on
+	// the gun by the hold, so it turns with the gun's kick and carry), not left as the rifle animation's open palm up under it.
+	const FQuat HandRotation = LeftHandOnGun(Bones, Stance, Stance.WeaponRotation, (PalmTurn * Wrist.GetRotation()).GetNormalized());
 	const FVector WristTarget = Foregrip - HandRotation.RotateVector(LeftPalmFromWrist());
 	// Keep the elbow bending down and out, the way it already is. Carried, it goes where the forearm turned with the palm
 	// would put it, so the wrist doesn't bend away from the gun.
@@ -259,8 +259,13 @@ void LooterStancePoseDetail::ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose
 		/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
 	Wrist.SetRotation(HandRotation);
 
+	const FBoneTransform Chain[] = { FBoneTransform(UpperArm, Shoulder), FBoneTransform(LowerArm, Elbow), FBoneTransform(Hand, Wrist) };
+	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), ForegripHold(Stance));
+}
+
+float LooterStancePoseDetail::ForegripHold(const FLooterStanceInput& Stance)
+{
 	// During a reload the left hand is busy (the magazine, or a revolver's cylinder), so it lets go of the foregrip; a
 	// six-gun carried in one hand in a sprint lets go too, the arm swinging with the run (ULooterCharacterAnimInstance).
-	const FBoneTransform Chain[] = { FBoneTransform(UpperArm, Shoulder), FBoneTransform(LowerArm, Elbow), FBoneTransform(Hand, Wrist) };
-	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), (1.f - Stance.ReloadWeight) * (1.f - Stance.Carry.OneHanded()));
+	return (1.f - Stance.ReloadWeight) * (1.f - Stance.Carry.OneHanded());
 }

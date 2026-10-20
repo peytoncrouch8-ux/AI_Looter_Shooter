@@ -1,5 +1,6 @@
 #include "Player/PlayerViewComponent.h"
 #include "AI_Looter_Shooter.h"
+#include "Player/Animation/BodyFigureComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
@@ -62,6 +63,8 @@ void UPlayerViewComponent::BeginPlay()
 	Character = Owner;
 	Locomotion = Owner->FindComponentByClass<UPlayerLocomotionComponent>();
 	WeaponManager = Owner->FindComponentByClass<UWeaponManagerComponent>();
+	// The worn hero's body says how to fit the third-person camera to its size (UpdateHeroCamera).
+	Figure = Owner->FindComponentByClass<UBodyFigureComponent>();
 	FirstPersonFieldOfView = FirstPersonCamera->FieldOfView;
 
 	// The template's first-person arms only carry the camera now (the gun is held by the camera itself), and with a

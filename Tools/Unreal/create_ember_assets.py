@@ -180,6 +180,15 @@ ARMS_SCALE = {'Ellis': 0.0, 'Odessa': 0.84, 'Crane': 0.0, 'Gauge': 0.0, 'Pike': 
 THIRD_PERSON_HOLD = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (0.0, 0.0, -4.5), 'Crane': (0.0, 0.0, 16.5),
                      'Gauge': (5.0, 3.0, -8.0), 'Pike': (0.0, 0.0, -6.5)}
 
+# Where the over-the-shoulder camera sits for each body against Ellis's, which it was tuned to (UHeroDefinition::
+# ThirdPersonCamera; cm on the full-size body: extra arm length (+ farther back), extra to the right, extra up). Starting
+# estimates from Saved/Screenshots/HeroGuns/checks/game_camera_aim_all.png (2026-10-20), tuned in play with the
+# Looter.ThirdPerson.* cvars: Crane's hat (head and shoulders ~14 cm up, a wide brim) and Gauge's smokestacks (shoulders
+# ~12 cm wider, stacks on his back) filled the left of the aimed view: Crane up with his head and back and out a little,
+# Gauge out and back. Odessa and Pike, a little smaller than Ellis, come a touch closer and lower with their heads.
+THIRD_PERSON_CAMERA = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (0.0, 0.0, -3.0), 'Crane': (20.0, 8.0, 16.0),
+                       'Gauge': (35.0, 14.0, 8.0), 'Pike': (-5.0, 0.0, -5.0)}
+
 
 def hero(id, name, role, story, color, powers):
     arms = 'SK_FP_Arms' if id == 'Ellis' else f'SK_FP_Arms_{id}'
@@ -187,7 +196,8 @@ def hero(id, name, role, story, color, powers):
                 portrait=f'/Game/UI/Portraits/T_Portrait_{id}.T_Portrait_{id}',
                 mesh=f'/Game/Art/Characters/SK_{id}.SK_{id}',
                 retargeter=f'/Game/Player/Retarget/RTG_MannyTo{id}.RTG_MannyTo{id}',
-                arms=f'/Game/Art/Characters/{arms}.{arms}', arms_scale=ARMS_SCALE[id], hold=THIRD_PERSON_HOLD[id])
+                arms=f'/Game/Art/Characters/{arms}.{arms}', arms_scale=ARMS_SCALE[id], hold=THIRD_PERSON_HOLD[id],
+                camera=THIRD_PERSON_CAMERA[id])
 
 
 # The roster's order (UHeroDefinition::RosterIds); each hero's first power is equipped in a new game.
@@ -319,6 +329,8 @@ def setup_hero(spec, cls, made):
     asset.set_first_person_arms(looks['arms'], spec['arms_scale'])
     # The gun at this body's own shoulder and eye in third person.
     asset.set_editor_property('third_person_hold', unreal.Vector(*spec['hold']))
+    # And the over-the-shoulder camera fitted to this body's size (the hat or pack clear of the aimed view).
+    asset.set_editor_property('third_person_camera', unreal.Vector(*spec['camera']))
     asset.set_editor_property('powers', powers)
     save(asset, path)
     there = [what for what, object_path in looks.items() if object_path]

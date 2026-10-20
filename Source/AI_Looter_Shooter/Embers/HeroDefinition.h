@@ -97,6 +97,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
 	FVector ThirdPersonHold = FVector::ZeroVector;
 
+	/**
+	 * Where the over-the-shoulder camera sits for this body against where it sits for Ellis's (cm on the full-size body, in
+	 * the camera's frame like UPlayerViewComponent::ShoulderOffset: X extra arm length, + farther back; Y extra to the right;
+	 * Z extra up; zero for Ellis, whose size the camera was tuned to). The one camera was tuned to the mannequin: tall Crane's
+	 * hat and broad Gauge's smokestacks filled the left of the view while aiming (2026-10-20). It is added to the view's
+	 * arm length and shoulder offset in the over-the-shoulder view only (the front view and first person don't use it), and
+	 * eases in when the hero changes mid-play. Set by create_ember_assets.py (THIRD_PERSON_CAMERA), tuned in play with the
+	 * Looter.ThirdPerson.* cvars (Docs/Pipeline.md "The hero pick").
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
+	FVector ThirdPersonCamera = FVector::ZeroVector;
+
 	/** The hero's three, in the order the powers page lists them; the first is equipped in a new game. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")
 	TArray<TObjectPtr<UEmberDefinition>> Powers;

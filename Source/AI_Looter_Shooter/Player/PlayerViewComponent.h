@@ -11,6 +11,7 @@ class AController;
 class APawn;
 class AWeaponBase;
 class UAnimInstance;
+class UBodyFigureComponent;
 class UCameraComponent;
 class UHealthComponent;
 class UPlayerLocomotionComponent;
@@ -34,7 +35,9 @@ enum class EPlayerViewMode : uint8
  *
  *  - Third person: a collision-tested spring arm over the right shoulder. It eases out of the head when you switch,
  *    follows crouching without popping, and pulls in instead of clipping through walls. The full body becomes
- *    visible and holds the gun in its hands; shots still go exactly where the crosshair points.
+ *    visible and holds the gun in its hands; shots still go exactly where the crosshair points. The camera is tuned to
+ *    Ellis's size; a taller or broader hero moves it back, up or out (UHeroDefinition::ThirdPersonCamera) so their hat or
+ *    pack doesn't fill the view.
  *  - First person: the original camera and camera-held gun.
  *
  * Also owns the camera field of view (first person's is the player's setting, UGraphicsSettingsSubsystem; sprinting
@@ -176,6 +179,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "View|Third Person", meta = (ClampMin = "0"))
 	float ProbeSize = 12.f;
 
+	/**
+	 * The worn hero's extra camera offset right now (UHeroDefinition::ThirdPersonCamera: X arm length, Y right, Z up; cm on the
+	 * full-size body), added on top of ArmLength and ShoulderOffset (and of the Looter.ThirdPerson.* overrides) in the
+	 * over-the-shoulder view. It eases to its hero's after a Looter.Hero swap instead of jumping.
+	 */
+	FVector GetHeroCameraOffset() const { return HeroCamera; }
+
+	/** Rate (per second) the hero's camera offset eases toward its target: a swap settles in about half a second. */
+	static constexpr float HeroCameraEase = 7.f;
+
 	/** Seconds for the camera to ease out of the head into its third-person spot. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "View|Third Person", meta = (ClampMin = "0.01"))
 	float PullOutTime = 0.25f;
@@ -220,6 +233,8 @@ private:
 	void ApplyMode();
 	void RefreshBodyAnimation();
 	void UpdateBoom(float DeltaTime);
+	/** Eases HeroCamera toward the worn hero's offset (snaps where nobody sees it: first person, the front view). */
+	void UpdateHeroCamera(float DeltaTime);
 	void UpdateFieldOfView();
 	/** Hands the camera manager's field of view back (PreviewFieldOfView locked it). */
 	void UnlockCameraFieldOfView();
@@ -232,6 +247,8 @@ private:
 	TWeakObjectPtr<USkeletalMeshComponent> Arms;
 	TWeakObjectPtr<UPlayerLocomotionComponent> Locomotion;
 	TWeakObjectPtr<UWeaponManagerComponent> WeaponManager;
+	/** The body the player wears (its hero's camera offset); found as play begins, like the anim instance's. */
+	TWeakObjectPtr<const UBodyFigureComponent> Figure;
 
 	UPROPERTY(Transient)
 	TObjectPtr<USpringArmComponent> Boom;
@@ -249,6 +266,9 @@ private:
 	EPlayerViewMode Mode = EPlayerViewMode::FirstPerson;
 	/** 0 = camera at the head, 1 = fully out on the arm. */
 	float PullOut = 1.f;
+	/** The hero's camera offset as eased so far (GetHeroCameraOffset); before the first frame there is nothing to ease from. */
+	FVector HeroCamera = FVector::ZeroVector;
+	bool bHeroCameraKnown = false;
 	/**
 	 * The first-person camera's field of view as authored: the view a character no local player controls keeps (players
 	 * use their setting), and the angle the first-person view model is drawn at whatever the setting.

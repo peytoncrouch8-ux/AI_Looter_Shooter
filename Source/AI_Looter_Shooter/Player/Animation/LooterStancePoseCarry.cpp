@@ -198,15 +198,17 @@ FQuat LooterStancePoseDetail::ApplyCarry(FCSPose<FCompactPose>& Pose, const FBon
 		const FVector SupportElbow = Pose.GetComponentSpaceTransform(SupportLower).GetLocation();
 		const float ArmLength = static_cast<float>(FVector::Dist(SupportShoulder, SupportElbow) + FVector::Dist(SupportElbow, SupportWrist.GetLocation()));
 
-		// Shouldered: the hand where it is, the gun along the aim with whatever kick it has.
+		// Shouldered: the hand where it is, the gun along the aim with whatever kick it has. The left hand is reckoned turned
+		// as it will grip the gun (LeftHandOnGun), so its wrist is reckoned where it will be.
 		const FQuat ShoulderedGun = (Stance.WeaponRotation * Stance.CarryRotation.Inverse() * Stance.AimRotation).GetNormalized();
 		const FVector ShoulderedGrip = (Stance.HoldSocketLocal * Wrist).GetLocation();
-		const FVector ShoulderedReach = ShoulderedGrip + ShoulderedGun.RotateVector(OnGun) - SupportWrist.GetRotation().RotateVector(LeftPalmFromWrist()) - SupportShoulder;
+		const FQuat ShoulderedPalm = LeftHandOnGun(Bones, Stance, ShoulderedGun, SupportWrist.GetRotation());
+		const FVector ShoulderedReach = ShoulderedGrip + ShoulderedGun.RotateVector(OnGun) - ShoulderedPalm.RotateVector(LeftPalmFromWrist()) - SupportShoulder;
 		const float Comfortable = SupportReach * ArmLength;
 		const float Limit = FMath::Lerp(FMath::Max(Comfortable, static_cast<float>(ShoulderedReach.Size())), Comfortable, Weight);
 
 		const FVector Grip = (Stance.HoldSocketLocal * FTransform(HandRotation, Target, Wrist.GetScale3D())).GetLocation();
-		const FQuat Palm = (HandTurn * SupportWrist.GetRotation()).GetNormalized();
+		const FQuat Palm = LeftHandOnGun(Bones, Stance, Stance.WeaponRotation, (HandTurn * SupportWrist.GetRotation()).GetNormalized());
 		const FVector Reach = Grip + Stance.WeaponRotation.RotateVector(OnGun) - Palm.RotateVector(LeftPalmFromWrist()) - SupportShoulder;
 		const float Over = static_cast<float>(Reach.Size()) - Limit;
 		if (Over > 0.f)

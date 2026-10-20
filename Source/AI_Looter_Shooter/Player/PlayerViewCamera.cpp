@@ -1,4 +1,5 @@
 #include "Player/PlayerViewComponent.h"
+#include "Player/Animation/BodyFigureComponent.h"
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "Player/Animation/LooterClimbPose.h"
 #include "Player/Animation/LooterStancePoseCarry.h"
@@ -85,9 +86,25 @@ namespace
 	}
 }
 
+void UPlayerViewComponent::UpdateHeroCamera(float DeltaTime)
+{
+	const FVector Target = Figure.IsValid() ? Figure->GetCameraOffset() : FVector::ZeroVector;
+	// Only the over-the-shoulder view shows it, so everywhere else (first person, the front view, the first frame) it takes
+	// the hero's at once: a hero changed in first person has its camera in place when the view comes out. A change seen
+	// over the shoulder (Looter.Hero) glides: the arm sliding to its new spot, not the picture jumping.
+	if (Mode != EPlayerViewMode::ThirdPerson || !bHeroCameraKnown)
+	{
+		HeroCamera = Target;
+		bHeroCameraKnown = true;
+		return;
+	}
+	HeroCamera = FMath::VInterpTo(HeroCamera, Target, DeltaTime, HeroCameraEase);
+}
+
 void UPlayerViewComponent::UpdateBoom(float DeltaTime)
 {
 	const ACharacter* Owner = Character.Get();
+	UpdateHeroCamera(DeltaTime);
 	if (IsFirstPerson() || !Boom)
 	{
 		return;
@@ -110,8 +127,11 @@ void UPlayerViewComponent::UpdateBoom(float DeltaTime)
 
 	if (Mode == EPlayerViewMode::ThirdPerson)
 	{
-		const FVector Shoulder(ShoulderOffset.X, Tuned(CVarShoulderRight, ShoulderOffset.Y), Tuned(CVarShoulderUp, ShoulderOffset.Z));
-		Boom->TargetArmLength = Tuned(CVarArmLength, ArmLength) * Scale * Out;
+		// The worn hero's offset on top of the base, a cvar's override of it too (the cvars are tuned for Ellis; each hero
+		// keeps its own fit relative to them). Aiming doesn't move the boom (it only narrows the field of view), so the
+		// fit holds the same through a sight.
+		const FVector Shoulder(ShoulderOffset.X, Tuned(CVarShoulderRight, ShoulderOffset.Y) + HeroCamera.Y, Tuned(CVarShoulderUp, ShoulderOffset.Z) + HeroCamera.Z);
+		Boom->TargetArmLength = static_cast<float>((Tuned(CVarArmLength, ArmLength) + HeroCamera.X) * Scale * Out);
 		Boom->SocketOffset = Shoulder * Scale * Out;
 	}
 	else

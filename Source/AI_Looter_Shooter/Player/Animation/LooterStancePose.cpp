@@ -10,7 +10,8 @@
 using namespace LooterStancePoseDetail;
 
 // The stance pose's body: lean, aim, crouch and slide. The weapon's part (a short gun held out, recoil, a melee strike's
-// jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the gun carried low or in a sprint in
+// jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the left hand's grip on the gun (its turn and its
+// fingers) in LooterStancePoseGrip.cpp, the gun carried low or in a sprint in
 // LooterStancePoseCarry.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp, a grenade throw's in
 // LooterStancePoseThrow.cpp and a revolver's reload in LooterStancePoseReload.cpp.
 
@@ -213,5 +214,12 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 	}
 
 	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MoveTemp(Pose), Output);
+
+	// The left fingers close round the gun as the hand grips it, and open as it lets go (a reload, a one-handed carry, a
+	// throw, a climb): their own turns only, so on the local pose, wherever the stages above took the hand.
+	if (Stance.bHandOnForegrip)
+	{
+		ApplyLeftGripFingers(Output, Stance, ForegripHold(Stance) * GripShare(Stance));
+	}
 	return true;
 }

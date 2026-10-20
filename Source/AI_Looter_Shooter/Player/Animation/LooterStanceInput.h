@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Player/Animation/LooterClimbPose.h"
 #include "Player/Animation/LooterStancePoseCarry.h"
+#include "Weapons/WeaponTypes.h"
 
 class UAnimSequenceBase;
 
@@ -43,6 +44,11 @@ struct FLooterStanceInput
 	FQuat WeaponRotation = FQuat::Identity;
 	/** How far out along its barrel the hands push the held gun (cm; its definition's HoldReach): a six-gun at arm's length. */
 	float HoldReach = 0.f;
+	/**
+	 * What kind of gun is held (its definition's Kind): how the left hand grips it (LooterStancePoseGrip.cpp: a shotgun's
+	 * pump, a six-gun's shooting hand, any other gun's handguard). None for the loadout screen's stand-in.
+	 */
+	EWeaponKind WeaponKind = EWeaponKind::None;
 	/**
 	 * Where the hero's body worn over this one holds the gun against this body's hold (cm, the aim's frame: X along it, Y
 	 * right, Z up; UHeroDefinition::ThirdPersonHold): both hands, and the gun in them, move by it.

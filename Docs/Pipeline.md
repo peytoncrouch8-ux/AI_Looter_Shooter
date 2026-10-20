@@ -883,7 +883,12 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   game on 2026-10-15, so both have play.py steps.
 - Materials (the user: "plastic, stiff and unlike a real fps character"; round 1 approved 2026-10-15): Ellis.py's
   GAME_MATERIALS gives each kind of surface its own slot on a master made for it, several slots sharing one baked set:
-  EllisSkin on M_CharacterSkin (Subsurface Profile, SP_Skin: the engine's skin defaults), EllisDuster and EllisGarbCloth
+  EllisSkin on M_CharacterSkin (Preintegrated Skin since 2026-10-20, `SKIN_SHADING` in build_world_materials.py:
+  subsurface colour = skin colour x ScatterColor (linear 1, 0.3, 0.2) x ScatterAmount 0.4, wrapped round each light's
+  terminator by the engine's PreintegratedSkinBRDF lookup; ScatterOpacity 0.99, which also sets how thick the skin is to
+  shadows: 0.9 let the scatter through Odessa's hat-brim shadow as an orange glow; no screen-space SSS pass, so the same
+  look on every quality; Crane and his first-person arms ScatterAmount 0.35, ScatterColor '#D0DCC8', dead skin;
+  SubsurfaceAmount and SP_Skin unused, SP_Skin kept for the MSM_SUBSURFACE_PROFILE fallback), EllisDuster and EllisGarbCloth
   on M_CharacterCloth (the engine's Cloth shading: a fibre sheen at grazing angles), EllisGarbHair (the hat band only
   since round 6), EllisGear and EllisHolsterGun on M_Character, EllisHair on M_CharacterHair (masked, two-sided, the
   engine's Hair shading along the cards' V; opacity = the atlas's alpha raised per mip level (MipBoost 0.35) through
@@ -1290,9 +1295,8 @@ committed: its names are here). The session keeps the pick; the character takes 
     normalized to full strength so a dark hero colour still lights. The rim's colour at full strength lights at most
     luminance 0.6 (`RimShareFor`, 2026-10-20): Crane's pale sage (0.84 at full strength) blew his pale grey-green face out
     in green-white patches (`final_crane.png`; with the rims off it read clean), now x0.71; Pike's teal x0.85; Ellis,
-    Odessa and Gauge whole. Also found then: his skin's red subsurface scatter (M_CharacterSkin's SP_Skin at
-    SubsurfaceAmount 1) shows as red-and-white blotches on grey-green skin at the stand's size; 0.15 read clean (a
-    Crane.py `GAME_MATERIALS` change, not made); a 1.5x capture (1080 x 1350) smooths edges for +0.7 ms GPU (not made).
+    Odessa and Gauge whole. (His skin's red-and-white blotches then were the Subsurface Profile's; gone with the
+    Preintegrated Skin, see Bugs.) A 1.5x capture (1080 x 1350) smooths edges for +0.7 ms GPU (not made).
     The hero is on channel 1, the plinth on channel 2
     (key and fill only: the rims grazing its top turned it into a disc of the hero's colour). The sky light is off in the
     capture (it flattened everything blue), and AO, contact and capsule shadows, translucency, eye adaptation and lens
@@ -1353,9 +1357,20 @@ committed: its names are here). The session keeps the pick; the character takes 
     in a toolset's name) at the first MCP call 25-35 s after a run of Python tick-callback scripts had finished
     (hero_guns, a lamp and Fleet check, a first-person check); cause not found: after a long capture session, restart
     the editor before other work.
-  - Left as they were, Ellis's too: the left hand open, palm up, under the foregrip (the rifle animation's); the Bullpup's
-    reload tips its stock up across the face; the Ranchhand's reload swings the left arm out at the side; the game camera
-    doesn't follow a hero's size (Crane's hat and Gauge's stacks fill the left of the aimed view; the crosshair is clear).
+  - The left hand's grip (2026-10-20): `LooterStancePoseGrip.cpp`. The hidden mannequin's left hand is turned onto the
+    gun by its hold kind (`GripOf`: Handguard, Pump for a shotgun, SixGun for `HoldReach > 0` or a revolver; gun-space
+    Handle/Palm/Turn tables in `MakeHandguard`/`MakePump`/`MakeSixGun`, started from first person's `FGunHands`) and its
+    fingers and thumb curled from straight (rest bends read off the reference skeleton, as the first-person rig does):
+    handguard 67/63/30 (at 55/55 the fingers stood off the shell), pump 55/70/45, six-gun 45/60/40 (knuckle/middle/tip
+    degrees); thumbs 15/10/5, 15/10/0, 18/5/5. All of it blends by `ForegripHold x GripShare`, so it lets go in a reload, a
+    one-handed carry, a throw or a climb. The palm point stays on the foregrip; `ApplyCarry` estimates the left arm's
+    reach with the gripping hand (`LeftHandOnGun`), else the pump falls short in a sprint. Heroes copy it through their
+    retargeters. Tune live with `Looter.Grip.*` (`.On 0` shows the old open hand), bake with `Looter.Grip.Dump`. Lessons:
+    the rifle animation's and the mannequin's left fingers already rest bent 36-64 degrees, so tests check where the
+    fingertips end up (round the gun), not closing against the rest pose; the mannequin's smaller hand closes its outer
+    fingers inside the Bullpup's shell, the heroes' lie on its far side. Test `Looter.Anim.Grip.*` (`Tests/StanceGripTests.cpp`).
+  - Left as they were, Ellis's too: the Bullpup's reload tips its stock up across the face; the Ranchhand's reload swings
+    the left arm out at the side; a flat white card by the Ranchhand's receiver in right-side views (seen, not looked into).
 - Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`);
   `Looter.Heroes.Stand` (`Tests/HeroStandTests.cpp`: the stand builds for each of the five with their own body and
   retargeter, turns, stops; the screen puts the chosen hero on it, the right stick turns them, a hero with no body gets
@@ -1763,6 +1778,15 @@ a whole build cycle).
 ## Bugs and how they were fixed
 
 Each line: bug (date). Cause. Fix.
+
+- Red-and-green/white blotches on the heroes' bare skin (Pike's hand, Odessa's cheek, Crane's face; 2026-10-20). Cause:
+  M_CharacterSkin's Subsurface Profile goes through the Separable SSS filter on Medium/High (BaseScalability's
+  r.SSS.HalfRes 1 + r.SSS.HalfRes.ForceSeparable 1; only Epic runs Burley); its fitted kernel (~2.7 cm) smeared red into
+  blotches and left green, at any r.SSS.Scale, full res too. Not the textures, lights or SubsurfaceAmount. Fix:
+  Preintegrated Skin shading (Materials above). Also: build_world_materials.py run during PIE fails (EditorAssetLibrary
+  refuses in play mode, does_asset_exist says False, create_asset raises an "Overwrite Existing Object" dialog that blocks
+  the editor): cancel it (nothing changes) and build with PIE stopped. take_high_res_screenshot in PIE writes the file
+  twice ~0.35 s apart, and a background editor draws late: focus it and wait 1 s+ after the file appears.
 
 - The Bestiary's habitat line ("RANSOM'S REST: RANSOM'S POINT AT THE TOP OF THE BLUFF PATH, ...") ran past the details card's
   right edge (2026-10-20). Cause: an unwrapped kit label. Fix: it wraps (BestiaryWidgetDetails.cpp), as the name above it.
