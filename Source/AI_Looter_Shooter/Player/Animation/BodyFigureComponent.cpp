@@ -142,7 +142,13 @@ void UBodyFigureComponent::Wear()
 	{
 		Retargeter = NewRetargeter;
 		SetSkinnedAssetAndUpdate(Mesh, false);
-		// A new mesh shows every section: the holster is put right again on the next tick.
+		// Hidden sections are kept by index on the component, not the mesh: Ellis's holstered revolver (slot 5, hidden
+		// while a revolver is drawn) hid slot 5 of the next hero worn, Odessa's and Crane's coats. Show every section
+		// of the new mesh; the holster is put right again on the next tick.
+		for (int32 LOD = 0; LOD < GetNumLODs(); ++LOD)
+		{
+			ShowAllMaterialSections(LOD);
+		}
 		bHolsterGunShown = true;
 		if (Mesh && Retargeter)
 		{

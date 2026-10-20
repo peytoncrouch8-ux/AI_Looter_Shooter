@@ -221,6 +221,18 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   not done on its say-so; the fix's re-export rewrites both. **PIPE-FIX running**: models.ps1 and artrun at one thread
   count (6), a shared fixed-order `uv_sphere`, rounded simulate points, a packed-UV hash guard beside bake.digest, then
   re-exports of Crane, Pike, Ellis, Odessa, FPArmsCrane/Pike/Odessa, each checked to fit; Main reimports after FP-ARMS.
+- FP-ARMS phase 2 done and committed (898a8ca): each hero's first-person arms load by the played hero (UHeroDefinition
+  FirstPersonArms + scale: Odessa 0.84, Pike 0.86, others the component's 0.88), swap on `Looter.Hero`; SK_Odessa imported
+  and retargeted: **all five heroes playable**; 744/744. Checked in PIE: all five with rifle, shotgun, revolver, hip and
+  aim; Gauge's wrist balls read big in the revolver hold (in character), Crane's wide cuffs fill the bottom of the
+  revolver view. **Odessa's tailcoat doesn't show in game** (only the gold waistcoat and dark sleeves): ODESSA resumed to
+  find and fix it (likely inward faces) in its own files; PIPE-FIX re-exports her last, then Main reimports.
+  **Found and fixed by Main:** not the mesh (ODESSA rendered the export one-sided: whole and wine) but hidden sections
+  kept by index on the component across a mesh change: Ellis's slot 5 is EllisHolsterGun (hidden while a revolver is
+  drawn), and slot 5 is Odessa's (and Crane's) coat; `Looter.Hero` swapped meshes with it still hidden.
+  `UBodyFigureComponent::Wear` now calls ShowAllMaterialSections on every LOD of a new mesh. Checked in PIE: Ellis with a
+  revolver, then `Looter.Hero Odessa`: her wine coat shows. Odessa's model needs no change (PIPE-FIX re-exports her for the
+  textures only; told to wait, now free to go).
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
   + MI_PosterDecal/Scrap_<Id>, and the `hero_meshes`/`other_mesh` lines in `build_area_story.py` and
   `build_area_missionprops_valley.py` (run by Main after the merge).
