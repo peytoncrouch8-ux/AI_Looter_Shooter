@@ -58,6 +58,8 @@ hangs on the hook (CellarKey, MinersTag), the thing hanging plumb below. Sizes a
                     then ABEL, and under him ELLIS painted out in fresher black brush strokes the letters still show
                     through. Pivot: the middle of its back's bottom edge (hang it on the wall, its bottom about 1 m up),
                     front -Y.
+  KeepersRoll_Bare  the same roll as every hero but Ellis sees it (the readable's OtherMesh): no ELLIS, the line under
+                    ABEL freshly primed in cream and bare, waiting for the next name.
 
   The seeds (2026-10-16, Saved/Seeds/CONTRACT.md; readables placed by build_area_seeds.py):
   LedgerPage        a loose leaf of Sexton's ledger, 20 x 32 cm (long side along Y, Unreal's X), lying flat: ruled in
@@ -1985,8 +1987,35 @@ def fenn_coffin_lid(mid, yaw, S, Hd):
 
 # --- The keepers' roll ---
 
-def keepers_roll():
-    m = Model('KeepersRoll', seed=SEED + 400)
+def primed_line(z, face_y, name_w):
+    """The bare roll's next line: a band of fresh primer brushed across the black where a name goes (centred on z, as
+    wide as the widest name and a little more), overlapping strokes with ragged, thinning ends; no letters on it."""
+    rnd = random.Random(SEED + 440)
+    parts = []
+    half = name_w * 0.5 + 0.04
+    # Five full strokes overlapping into the band, then a thin dry stroke along its top and its bottom, shorter.
+    strokes = [(z - 0.022 + 0.011 * k, 0.019 - 0.002 * (k % 2), 0.0) for k in range(5)]
+    strokes += [(z + 0.031, 0.006, 0.05), (z - 0.031, 0.005, 0.07)]
+    for k, (zc, width, short) in enumerate(strokes):
+        zz = zc + rnd.uniform(-0.0008, 0.0008)
+        x0 = -half + short * rnd.uniform(0.5, 1.5) + rnd.uniform(-0.018, 0.012)
+        x1 = half - short * rnd.uniform(0.5, 1.5) + rnd.uniform(-0.012, 0.018)
+        pts = [(x0 + (x1 - x0) * s, face_y - 0.0014 - 0.0002 * k, zz + 0.0009 * math.sin(s * 6.0 + k * 1.7)) for s in
+               (0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0)]
+        stroke = ribbon(pts, width, (0.0, -1.0, 0.0), 'PaintCream', density=None, seed=SEED + 463 + 3 * k)
+        for v in stroke.data.vertices:
+            s = (v.co.x - x0) / (x1 - x0)
+            taper = min(1.0, min(s, 1.0 - s) / 0.07)
+            v.co.z = zz + (v.co.z - zz) * (0.3 + 0.7 * taper)
+        stroke.data.update()
+        parts.append(stroke)
+    return parts
+
+
+def keepers_roll(bare=False):
+    """The roll; bare (KeepersRoll_Bare, what every hero but Ellis sees): no ELLIS under ABEL, the line where the next
+    name goes freshly primed and bare."""
+    m = Model('KeepersRoll_Bare' if bare else 'KeepersRoll', seed=SEED + 400)
     W, H, PT = 0.8, 1.2, 0.022
     face_y = -PT
     for k in range(4):                                          # four upright planks painted black
@@ -2023,17 +2052,19 @@ def keepers_roll():
     front = (0.0, -1.0, 0.0)
     letters(m, 'KEEPERS', (0.0, face_y, 1.1), 0.072, front, UP, look='brass', tol=0.05, lift=0.0008, width=0.62)
     letters(m, 'OF SAINT ADA', (0.0, face_y, 1.035), 0.036, front, UP, look='brass', tol=0.06, lift=0.0008, width=0.5)
-    names = list(ROLL_NAMES) + ['ABEL', 'ELLIS']
+    names = list(ROLL_NAMES) + ['ABEL'] + ([] if bare else ['ELLIS'])
     z = 0.9
     widths = []
     for name in names:
         w, _ = letters(m, name, (0.0, face_y, z), 0.058, front, UP, look='brass', tol=0.055, lift=0.0008)
         widths.append((name, z, w))
         z -= 0.118
+    if bare:
+        parts += primed_line(z, face_y, max(w for _, _, w in widths))
     # ELLIS painted out: strokes of fresher black over the gilt, the letters showing through between them.
     _, ez, ew = widths[-1]
     rnd = random.Random(SEED + 420)
-    for k in range(7):
+    for k in range(0 if bare else 7):
         zz = ez - 0.036 + 0.012 * k + rnd.uniform(-0.0012, 0.0012)
         x0, x1 = -ew * 0.5 - 0.035 + rnd.uniform(-0.01, 0.01), ew * 0.5 + 0.035 + rnd.uniform(-0.01, 0.01)
         pts = [(x0 + (x1 - x0) * s, face_y - 0.0016 - 0.0002 * k, zz + 0.0018 * math.sin(s * 7.0 + k)) for s in
@@ -2061,7 +2092,9 @@ BUILDERS = [('LanternBail', lantern_bail), ('WinchCrank', winch_crank), ('CoalSa
             ('CodeBook', code_book), ('PostLog', post_log), ('PayrollBook', payroll_book),
             ('PayrollChest', payroll_chest), ('LampOil', lamp_oil), ('CacheTag', cache_tag),
             ('DeaconsSlip', deacons_slip), ('KeepersRoll', keepers_roll), ('LedgerPage', ledger_page),
-            ('DeaconLetter', deacon_letter), ('PostRack', post_rack), ('ReachesMap', reaches_map)]
+            ('DeaconLetter', deacon_letter), ('PostRack', post_rack), ('ReachesMap', reaches_map),
+            # 2026-10-20 (the hero pick): the roll every hero but Ellis sees. Last, so the others come out as before.
+            ('KeepersRoll_Bare', lambda: keepers_roll(bare=True))]
 
 
 def build():
@@ -2103,6 +2136,7 @@ CAPTIONS = {
     'FennCoffin': "Fenn's coffin, closed: GRAVESEND, FARE PAID",
     'FennCoffin_Open': 'Head lid open, the coins on his eyes',
     'KeepersRoll': 'The roll: ELLIS painted out under ABEL',
+    'KeepersRoll_Bare': 'The roll for the other heroes: the next line primed, bare',
     'LedgerPage': "A loose page of Sexton's ledger, a corner lifted",
     'DeaconLetter': "The Deacon's letter, folded and sealed",
     'PostRack': "The saloon's post rack, two old letters in it",
@@ -2193,7 +2227,7 @@ def previews(built):
             wall = _plane('_Wall_' + name, [(-1.0, 0.001, 0.8), (1.0, 0.001, 0.8), (1.0, 0.001, 2.2), (-1.0, 0.001, 2.2)],
                           'WoodCream', 'WoodPlanks')
             path = shoot(name, [obj], [wall], view=(-0.3, -1.0, 0.12), lens=45.0, sun=(25.0, 32.0), margin=1.1)
-        elif name == 'KeepersRoll':
+        elif name in ('KeepersRoll', 'KeepersRoll_Bare'):
             obj.location = (0.0, 0.0, 0.95)
             bpy.context.view_layer.update()
             wall = _plane('_Wall', [(-1.4, 0.001, 0.0), (1.4, 0.001, 0.0), (1.4, 0.001, 2.8), (-1.4, 0.001, 2.8)],

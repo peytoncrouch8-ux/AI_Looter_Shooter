@@ -104,6 +104,10 @@ PERCH_UP = 30.0
 PERCH_BACK = 12.0
 # Reading a headboard is done close to (cm).
 READ_REACH = 250.0
+# The headboard on Ellis's grave, carved for each hero (Art/Models/Props/Graves.py: Headboard_<Hero>, the grave's pivot):
+# Ellis's is the readable's own model, the others' go in its hero_meshes (UHeroDefinition ids).
+HEADBOARD_MESH = '/Game/Art/Props/SM_Headboard_{}'
+HEADBOARD_HEROES = ('Odessa', 'Crane', 'Gauge', 'Pike')
 # A conversation through a window carries as far as one through a door (USpeakerPointComponent's default, cm).
 TALK_REACH = 400.0
 
@@ -363,10 +367,51 @@ def place_headboards(build, grave_ellis):
                                 tags=(tag, 'Readable', 'Readable_HeadboardEllis'))
             texts.apply_readable(board, 'HeadboardEllis')
             board.set_editor_property('reach', READ_REACH)
+            hero_headboards(build, board, grave)
         elif point_cls is not None:
             speaker(build, point_cls, (at.x, at.y, at.z), yaw, tag, tag, prompt='Read', reach=READ_REACH,
                     line_set=lines(build, 'DA_Lines_HeadboardAbel'))
     build.log('the headboards, to read (Ellis\'s a readable for Main 1\'s optional)')
+
+
+def hero_headboards(build, board, grave):
+    """The carving on the grave's headboard follows the played hero (2026-10-20, the hero pick): the board is its own
+    model now (Graves.py's Headboard_<Hero>, split out of Grave_Ellis on the grave's pivot), so the readable brings it:
+    the readable stays on the Interact socket and its mesh stands on the grave's transform, SM_Headboard_Ellis as
+    placed, the other four in its hero_meshes (AReadableProp swaps to the played hero's as play begins). Without the
+    boards (Graves not imported again yet: the grave still has its own) it stays as it was, nothing of its own to show."""
+    ellis = HEADBOARD_MESH.format('Ellis')
+    if not unreal.EditorAssetLibrary.does_asset_exist(ellis):
+        build.warn(f'no {ellis} yet (Tools/models.ps1 -Only Graves): the headboard shows only the grave\'s own carving')
+        return
+    mesh = board.get_editor_property('mesh')
+    mesh.set_static_mesh(unreal.load_asset(ellis))
+    # World = relative * parent, so the mesh's relative transform is the grave's times the readable's inverse.
+    on_grave = grave.get_actor_transform().multiply(board.get_actor_transform().inverse())
+    mesh.set_relative_transform(on_grave, False, True)
+    off = (mesh.get_world_location() - grave.get_actor_location()).length()
+    if off > 1.0:
+        build.warn(f'the headboard stands {off:.0f} cm off the grave\'s pivot: check Headboard_Ellis in the level')
+    meshes = {}
+    for hero in HEADBOARD_HEROES:
+        path = HEADBOARD_MESH.format(hero)
+        if unreal.EditorAssetLibrary.does_asset_exist(path):
+            meshes[unreal.Name(hero)] = unreal.load_asset(path)
+        else:
+            build.warn(f'no {path}: {hero} reads the board as Ellis\'s')
+    try:
+        try:
+            board.set_editor_property('hero_meshes', meshes)
+        except TypeError:   # a plain dict not taken for the TMap: build one
+            typed = unreal.Map(unreal.Name, unreal.StaticMesh)
+            for key, value in meshes.items():
+                typed[key] = value
+            board.set_editor_property('hero_meshes', typed)
+    except Exception as error:   # a game module from before the hero lines: Ellis's board for everyone
+        build.warn(f'no ReadableProp.hero_meshes ({error}): build the game module with the hero lines, then run this '
+                   f'again; every hero sees Ellis\'s board till then')
+        return
+    build.log(f'Ellis\'s headboard carries the played hero\'s name ({len(meshes)} other boards)')
 
 
 # ---------------------------------------------------------------------------

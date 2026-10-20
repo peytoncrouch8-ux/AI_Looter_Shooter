@@ -558,6 +558,12 @@ The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter
   `Tools/Blender/fp_arms_base.py` (runs FPArms.py up to its build line; FPArms.py untouched), `fp_arms_hands.py`,
   `fp_arms_cloth.py`, `fp_arms_paint.py`, `fp_arms_gauge.py` (three fingers), `fp_arms_heroes.py`; look sheet
   `fp_arms_heroes_sheet.py <Hero>`. Not drawn in game yet: wiring in `Saved/FPArms/WIRING.md`.
+- `Tools/Blender/looter_poster_heroes.py`: each hero's wanted-poster words and woodcut bust for `looter_posters.py
+  --hero=<Id>|all` (`Art/Textures/Posters/T_Posters_<Id>_BC.png`; Ellis's atlas unchanged; `build_decal_materials.py`
+  makes `MI_PosterDecal_<Id>`, `MI_PosterScrap_<Id>`). `Art/Models/Props/Graves.py` splits the headboard out of
+  Grave_Ellis: SM_Headboard_<Hero> x5 (`HEADBOARD_NAMES`, `HEADBOARD_EPITAPH`); `MissionProps.py` adds
+  `KeepersRoll_Bare`; `build_area_story.py` `hero_headboards()` and `build_area_missionprops_valley.py` `OTHER_MESHES`
+  set the readables' per-hero meshes (need the hero-lines code).
 - `Tools/Unreal/build_area_animals.py`: chicken yards and the porch cat from town.json's spots, cliff swallows at the placed SM_SwallowNests; folder `Animals`.
 - `Tools/Blender/looter_animals.py`, `animals_sheet.py`: the small animals (`Art/Models/Creatures/Chicken.py`, `Cat.py`, `Swallow.py`: skins, cards, rigs, pose tables) and look sheet 44.
 - `Tools/Unreal/build_world_materials.py`: textured masters (`M_World`, `M_Gun`, `M_WorldFoliage`, `M_Terrain`, `M_Water`, `M_Waterfall`, `M_WaterMist` and the water textures' import, sky and backdrop), island style switches (off by default; Sunbleached on `M_World`, `M_WorldFoliage`, `M_Terrain`, `M_SkyClouds`), `M_SunbleachedPost`. Character masters (Ellis's slots): `M_Character`, `M_CharacterCloth`, `M_CharacterSkin`, `M_CharacterHair` (hair cards: masked, two-sided, Hair shading). `M_Terrain` ground layers (`GROUND_WEIGHTS`, `TERRAIN_CODE`, `GROUND_DEFAULTS`): grass, matted thatch `GroundThatch`, stony `GroundStony`, damp soil, each normalized by its own mean. Also `M_BulletMark` (deferred decal; atlas cell by decal colour).

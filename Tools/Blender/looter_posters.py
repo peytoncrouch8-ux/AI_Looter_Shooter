@@ -49,6 +49,12 @@ pencil or iron-gall ink.
     Tools\\artrun.ps1 -Script Tools\\Blender\\looter_posters.py -ScriptArgs '--no-render'   the atlases only
     Tools\\artrun.ps1 -Script Tools\\Blender\\looter_posters.py -ScriptArgs B,'--install'   after the pick: writes
                                          Art/Textures/Posters/T_Posters_BC.png (the same bytes as the B preview)
+    Tools\\artrun.ps1 -Script Tools\\Blender\\looter_posters.py -ScriptArgs '--hero=all'    every other hero's atlas
+                                         (2026-10-20, the hero pick; '--hero=Gauge' one): B's whole atlas again with
+                                         the hero's name, what for and woodcut bust on the poster (so its remnant and
+                                         scrap match), Art/Textures/Posters/T_Posters_<Id>_BC.png, and renders in
+                                         Saved/ArtPreviews/RansomsRest/Posters/Heroes/ ('--no-render': none). The
+                                         heroes' words and busts: looter_poster_heroes.py. Ellis's is T_Posters_BC.
 
 It writes Saved/ArtPreviews/RansomsRest/Posters/: T_Posters_BC_<option>.png (the atlas itself), Atlas_<option>.png
 (the atlas laid flat, cells outlined), and renders in golden late-afternoon light on the real models: the poster on
@@ -1094,8 +1100,9 @@ SIGN_OFF = 'CAPT. R. CALDER, RIM RANGERS'
 NAME_BASELINE = 473.0
 
 
-def poster_print(sheet, option, seed):
-    """Sets the poster's type and ornaments: (black ink, red ink)."""
+def poster_print(sheet, option, seed, hero=None):
+    """Sets the poster's type and ornaments: (black ink, red ink). hero (looter_poster_heroes.HERO_POSTERS' entry, for
+    any hero but Ellis): the same border and top, then that hero's bust, name and what for."""
     rng = np.random.default_rng(seed)
     black, red = Ink(sheet.shape), Ink(sheet.shape)
     W, H = sheet.size
@@ -1112,6 +1119,9 @@ def poster_print(sheet, option, seed):
     type_line(black, sheet, rng, 'DEAD OR ALIVE', 24.0, W * 0.5, 158.0, width=280.0)
     for x in (48.0, W - 48.0):
         type_shape(black, sheet, [star(x, 146.0, 8.5)])
+    if hero is not None:
+        hero['print'](sheet, black, red, rng, hero)
+        return black, red
     # The middle: the option's portrait or type.
     middle = {'A': middle_type, 'B': middle_woodcut, 'C': middle_engraving}[option]
     middle(sheet, black, rng)
@@ -1439,14 +1449,14 @@ def already(sheet, grain, seed):
     return charcoal(cov, pres, prof, grain, seed + 3)
 
 
-def poster(option, seed=1):
+def poster(option, seed=1, hero=None):
     """The poster cell for an option: dict(color (h, w, 3), alpha, mask (the paper), heads (the nails' heads), sheet,
-    maps (the paper's grain and folds))."""
+    maps (the paper's grain and folds)). hero: another hero's poster on the same paper (poster_print)."""
     sheet = Sheet('Poster', POSTER_MM)
     loops, torn = poster_outline(sheet, seed + 100)
     mask = fill(loops, sheet.shape, ss=4)
     color, maps = poster_paper(sheet, mask, seed + 200)
-    black, red = poster_print(sheet, option, seed + 300)
+    black, red = poster_print(sheet, option, seed + 300, hero)
     # The press: black, then red a hair out of register.
     a = letterpress(black, maps['fine'], maps['fibers'], seed + 400) * (1.0 - 0.75 * maps['cracks'])
     color = multiply(color, a, (0.17, 0.145, 0.13))
@@ -1875,9 +1885,10 @@ def seven_cross(seed=91):
 
 # --- The atlas ---
 
-def atlas(option):
-    """The whole decal atlas for a poster option: (rgba uint8 (1024, 1024, 4), the cells' colour and alpha)."""
-    p = poster(option)
+def atlas(option, hero=None):
+    """The whole decal atlas for a poster option: (rgba uint8 (1024, 1024, 4), the cells' colour and alpha). hero:
+    another hero's atlas (their poster, and the remnant and scrap torn from it; every other cell the same)."""
+    p = poster(option, hero=hero)
     front = scrap(p)
     cells = {'Poster': (p['color'], p['alpha']), 'Remnant': remnant(p), 'Scrap': front,
              'ScrapBack': scrap_back(front), 'Note': note(), 'Seven': seven(),
@@ -1909,7 +1920,7 @@ def sheet_label(img, text, x, y, cap, color=(0.86, 0.84, 0.8), align='left'):
     img[...] = mix(img, np.asarray(color, np.float32), layer)
 
 
-def atlas_sheet(rgba, option):
+def atlas_sheet(rgba, option, label=None):
     """The atlas laid flat for the look sheet: the cells over a dark checker, outlined and named, with a legend."""
     a = rgba[..., 3:].astype(np.float32) / 255.0
     x, y = lt.coords((ATLAS, ATLAS))
@@ -1923,7 +1934,7 @@ def atlas_sheet(rgba, option):
         # The legend in the free strip under the scraps, in two columns.
         sheet_label(img, f'{k + 1}  {CELL_NAMES[name]}', 480 + 150 * (k // 4), 936 + 22 * (k % 4), 11,
                     color=(0.78, 0.76, 0.72))
-    sheet_label(img, f'OPTION {option}', 378, 952, 15, color=(0.95, 0.65, 0.29))
+    sheet_label(img, label or f'OPTION {option}', 378, 952, 15, color=(0.95, 0.65, 0.29))
     return img
 
 
@@ -2252,8 +2263,90 @@ def render_all(options):
         lt.write_png(os.path.join(OUT_DIR, 'Compare_ABC_1m.png'), lt.to8(np.clip(row, 0.0, 1.0)))
 
 
+# --- The other heroes' atlases (2026-10-20, the hero pick) ---
+
+HERO_DIR = os.path.join(OUT_DIR, 'Heroes')
+
+
+def hero_path(hero_id):
+    """The game's atlas for a hero but Ellis: Art/Textures/Posters/T_Posters_<Id>_BC.png (build_decal_materials.py
+    imports it as T_Posters_<Id>_BC and makes MI_PosterDecal_<Id> and MI_PosterScrap_<Id>)."""
+    return os.path.join(lt.TEXTURE_DIR, 'Posters', f'T_Posters_{hero_id}_BC.png')
+
+
+def hero_ids(argv):
+    """The heroes named by --hero=<Id>[,<Id>...] (or --hero <Id>; 'all': every hero but Ellis), in roster order."""
+    if not any(a == '--hero' or a.startswith('--hero=') for a in argv):
+        return []
+    import looter_poster_heroes as lph
+    named = []
+    for k, a in enumerate(argv):
+        if a.startswith('--hero='):
+            named += a.split('=', 1)[1].split(',')
+        elif a == '--hero' and k + 1 < len(argv):
+            named += argv[k + 1].split(',')
+    if any(n.lower() == 'all' for n in named):
+        return list(lph.HERO_POSTERS)
+    bad = [n for n in named if n not in lph.HERO_POSTERS]
+    if bad:
+        raise SystemExit(f'--hero: no poster for {", ".join(bad)} (heroes: {", ".join(lph.HERO_POSTERS)}; Ellis is '
+                         f'T_Posters_BC itself)')
+    return [h for h in lph.HERO_POSTERS if h in named]
+
+
+def build_hero(hero_id):
+    """Writes a hero's atlas (option B's paper and print, the hero's poster) into the game's textures, and its flat
+    look-sheet view to the previews."""
+    import looter_poster_heroes as lph
+    rgba, _ = atlas('B', hero=lph.HERO_POSTERS[hero_id])
+    lt.write_png(hero_path(hero_id), rgba)
+    os.makedirs(HERO_DIR, exist_ok=True)
+    lt.write_png(os.path.join(HERO_DIR, f'Atlas_{hero_id}.png'), lt.to8(atlas_sheet(rgba, 'B', label=hero_id.upper())))
+    lt._log(f'posters: {hero_id} -> {hero_path(hero_id)}')
+    return rgba
+
+
+def render_heroes(hero_ids_):
+    """Each hero's poster on the cabin's logs at about 1 m (Ellis's beside them for comparison), all five side by side,
+    and the first hero's torn remnant."""
+    import bpy
+    scene, made = build_set()
+    px, pz = POSTER_AT
+    paths = [('Ellis', FINAL_PATH if os.path.isfile(FINAL_PATH) else atlas_path('B'))]
+    paths += [(h, hero_path(h)) for h in hero_ids_]
+    mats = {}
+    for name, path in paths:
+        image = bpy.data.images.load(path, check_existing=False)
+        image.colorspace_settings.name = 'sRGB'
+        image.alpha_mode = 'STRAIGHT'
+        mats[name] = _decal_material(f'_Posters_{name}', image)
+    poster = _decal('_Poster', 'Poster', mats['Ellis'], (px, CABIN_FRONT, pz), lift=0.004, turn=-0.6)
+    near = _camera('_Near', (px + 0.16, CABIN_FRONT - 1.0, 1.65), (px, CABIN_FRONT, pz - 0.03), 23.5, 'VERTICAL')
+    os.makedirs(HERO_DIR, exist_ok=True)
+    shots = []
+    for name, _ in paths:
+        poster.data.materials[0] = mats[name]
+        shots.append(_render(scene, near, os.path.join(HERO_DIR, f'Poster_{name}_1m.png'), (1080, 1350)))
+    if hero_ids_:
+        poster.hide_render = True
+        remnant = _decal('_Remnant', 'Remnant', mats[hero_ids_[0]], (px, CABIN_FRONT, pz), lift=0.004, turn=-0.6)
+        _render(scene, near, os.path.join(HERO_DIR, f'Remnant_{hero_ids_[0]}_1m.png'), (1080, 1350))
+        remnant.hide_render = True
+    panels = [_pixels(p) for p in shots]
+    gap = np.full((panels[0].shape[0], 12, 3), 0.1, np.float32)
+    row = np.concatenate([x for p in panels for x in (p, gap)][:-1], axis=1)
+    lt.write_png(os.path.join(HERO_DIR, 'Compare_Heroes_1m.png'), lt.to8(np.clip(row, 0.0, 1.0)))
+
+
 def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+    heroes = hero_ids(argv)
+    if heroes:
+        for hero_id in heroes:
+            build_hero(hero_id)
+        if '--no-render' not in argv:
+            render_heroes(heroes)
+        return
     options = [a.upper() for a in argv if a.upper() in OPTIONS] or list(OPTIONS)
     install = '--install' in argv
     if install and len(options) != 1:

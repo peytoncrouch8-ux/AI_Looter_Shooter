@@ -19,6 +19,11 @@
                   nothing past the cell shows, and it doesn't matter which way the card's UVs run.
   MI_PosterDecal, /Game/Art/Materials: the instances AWantedPoster uses, with the atlas set.
   MI_PosterScrap
+  T_Posters_<Id>_BC, MI_PosterDecal_<Id>, MI_PosterScrap_<Id>: every other hero's atlas (2026-10-20, the hero pick;
+                  Tools/Blender/looter_posters.py --hero=<Id>: the hero's name and bust on the same sheet), one for each
+                  Art/Textures/Posters/T_Posters_<Id>_BC.png there is, imported with the atlas's settings, and its two
+                  instances. AWantedPoster takes the played hero's in a game world when they exist, Ellis's otherwise
+                  (Story/HeroLines::HeroVariantPath).
 
 It never touches another asset: the masters' graphs are rebuilt in place (their instances stay linked), and an asset at
 one of these paths that isn't what this makes is left alone. It reuses build_world_materials.py's graph helpers (without
@@ -27,7 +32,9 @@ running that module's build). Run it in the open editor (it needs no C++):
 It prints a DECALMATS line per asset and "DECALMATS done".
 """
 import ast
+import glob
 import os
+import re
 import types
 
 import unreal
@@ -36,6 +43,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 INSTANCE_FOLDER = '/Game/Art/Materials'
 ATLAS = '/Game/Art/Textures/Posters/T_Posters_BC'
+# Every other hero's atlas, by UHeroDefinition id (from Art/Textures/Posters/T_Posters_<Id>_BC.png).
+HERO_ATLAS = '/Game/Art/Textures/Posters/T_Posters_{}_BC'
 # The installed atlas first; its stand-in only for a checkout without it.
 ATLAS_SOURCES = (os.path.join(PROJECT, 'Art', 'Textures', 'Posters', 'T_Posters_BC.png'),
                  os.path.join(PROJECT, 'Saved', 'ArtPreviews', 'RansomsRest', 'Posters', 'T_Posters_BC_B.png'))
@@ -83,23 +92,39 @@ MEL = W.MEL
 def import_atlas():
     """T_Posters_BC from the installed PNG (else its stand-in), with the atlas's settings; its path, or None with neither
     a source nor the asset (the masters then default to white, and the posters show blank paper)."""
-    source = next((path for path in ATLAS_SOURCES if os.path.isfile(path)), None)
+    return import_texture(ATLAS, ATLAS_SOURCES)
+
+
+def hero_atlases():
+    """Every other hero's atlas there is a PNG for: [(hero id, its PNG)], in name order."""
+    found = []
+    for path in sorted(glob.glob(os.path.join(PROJECT, 'Art', 'Textures', 'Posters', 'T_Posters_*_BC.png'))):
+        match = re.fullmatch(r'T_Posters_([A-Za-z0-9]+)_BC\.png', os.path.basename(path))
+        if match:
+            found.append((match.group(1), path))
+    return found
+
+
+def import_texture(asset, sources):
+    """A poster atlas (asset: its package path) from the first of sources that exists, with the atlas's settings; its
+    path, or None with neither a source nor the asset."""
+    source = next((path for path in sources if os.path.isfile(path)), None)
     if source is not None:
         task = unreal.AssetImportTask()
         task.set_editor_property('filename', source)
-        task.set_editor_property('destination_path', ATLAS.rsplit('/', 1)[0])
-        task.set_editor_property('destination_name', ATLAS.rsplit('/', 1)[1])
+        task.set_editor_property('destination_path', asset.rsplit('/', 1)[0])
+        task.set_editor_property('destination_name', asset.rsplit('/', 1)[1])
         task.set_editor_property('replace_existing', True)
         task.set_editor_property('automated', True)
         task.set_editor_property('save', False)
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    elif not unreal.EditorAssetLibrary.does_asset_exist(ATLAS):
-        unreal.log_warning(f'DECALMATS no atlas: neither {ATLAS_SOURCES[0]} nor its stand-in {ATLAS_SOURCES[1]} exists, '
-                           f'and {ATLAS} was never imported. The masters take a plain white texture until it is.')
+    elif not unreal.EditorAssetLibrary.does_asset_exist(asset):
+        unreal.log_warning(f'DECALMATS no atlas: none of {", ".join(sources)} exists, and {asset} was never imported. '
+                           f'The masters take a plain white texture until it is.')
         return None
-    texture = unreal.load_asset(ATLAS)
+    texture = unreal.load_asset(asset)
     if not isinstance(texture, unreal.Texture2D):
-        raise RuntimeError(f'{ATLAS} is not a texture: nothing was changed')
+        raise RuntimeError(f'{asset} is not a texture: nothing was changed')
     texture.set_editor_property('srgb', True)
     texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_BC7)
     texture.set_editor_property('lod_group', unreal.TextureGroup.TEXTUREGROUP_WORLD)
@@ -109,8 +134,8 @@ def import_atlas():
     texture.set_editor_property('address_y', unreal.TextureAddress.TA_CLAMP)
     unreal.EditorAssetLibrary.save_loaded_asset(texture, only_if_is_dirty=False)
     origin = os.path.relpath(source, PROJECT).replace('\\', '/') if source else 'the asset as it was (no source found)'
-    log(f'{ATLAS} from {origin}: {texture.blueprint_get_size_x()} x {texture.blueprint_get_size_y()}, sRGB, BC7, clamped')
-    return ATLAS
+    log(f'{asset} from {origin}: {texture.blueprint_get_size_x()} x {texture.blueprint_get_size_y()}, sRGB, BC7, clamped')
+    return asset
 
 
 # --- M_PosterDecal ---
@@ -252,6 +277,12 @@ def run():
     scrap = build_scrap(atlas)
     instance('MI_PosterDecal', decal, atlas)
     instance('MI_PosterScrap', scrap, atlas)
+    # Every other hero's: their atlas and its two instances (the played hero's are found by these names).
+    for hero, source in hero_atlases():
+        hero_atlas = import_texture(HERO_ATLAS.format(hero), (source,))
+        if hero_atlas:
+            instance(f'MI_PosterDecal_{hero}', decal, hero_atlas)
+            instance(f'MI_PosterScrap_{hero}', scrap, hero_atlas)
     log('done')
 
 

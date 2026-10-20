@@ -13,8 +13,13 @@ on the ground; fronts face -Y (a headboard's lettered face, a fence's outside).
   Grave_MoundFresh          a fresh mound of dirt (put a headboard at its +Y end); a respawn grave
   Grave_MoundSunken         an old grave on boot hill: a low mound settled over the years, its middle sunk into a
                             shallow hollow, dry grass grown over it in tufts (put a weathered headboard at its +Y end)
-  Grave_Ellis               Ellis's grave, dug open from inside: heaped dirt, the coffin's lid smashed, the headboard
-                            ELLIS RANSOM / CAME HOME AT THE LAST knocked askew; the player wakes in the coffin
+  Grave_Ellis               Ellis's grave, dug open from inside: heaped dirt, the coffin's lid smashed; the player
+                            wakes in the coffin. Its headboard is a model of its own (Headboard_<Hero>, below): the
+                            grave keeps the board's collision, the Interact socket on its face and its shade on the dirt
+  Headboard_<Hero>          the grave's headboard, knocked askew, carved for each hero (Ellis, Odessa, Crane, Gauge,
+                            Pike): Ellis's ELLIS RANSOM / CAME HOME / AT THE LAST, the others' <NAME> / STOOD UP / AT
+                            THE LAST (HEADBOARD_NAMES, HEADBOARD_EPITAPH). Pivot: the grave's (stand it on the grave's
+                            transform); the readable HeadboardEllis shows the played hero's (build_area_story.py)
   Grave_Abel                Abel's grave: a whole mound under frost in the afternoon sun, black dead flowers, the
                             headboard ABEL RANSOM / KEEPER OF SAINT ADA / HE HELD THE DOOR rimed with frost
   Grave_Keeper              the keeper's grave at the crossroads: an oak board on two posts under a little roof, a
@@ -47,6 +52,7 @@ Grave_MoundSunken's grass is FoliagePalette blades (the wreath's material: dry s
 """
 import math
 import random
+import sys
 
 import bmesh
 import bpy
@@ -70,6 +76,15 @@ LEAVES = lt.material('FoliagePalette')                                        # 
 TILE = {PAINT_BLACK: 'PaintWorn', DIRT: 'GroundDirt', FROST: 'Polymer', IRON: 'MetalWorn', CREPE: 'Polymer',
         GRANITE: 'RockGranite'}
 PREVIEW = 'RansomsRest/Chapel'
+
+# The words carved on the headboard of the grave the Revenant claws out of, by hero (UHeroDefinition ids): the name, then
+# the epitaph. Ellis's are the story's own; every other hero's name goes over HEADBOARD_EPITAPH (the user may change
+# it: Main's provisional call, 2026-10-20). The readable's words must say the same: Tools/Unreal/story_texts.py
+# READABLES['HeadboardEllis'] (Ellis) and Tools/Unreal/hero_lines.json readable.HeadboardEllis.text (the others).
+HEADBOARD_NAMES = {'Ellis': 'ELLIS RANSOM', 'Odessa': 'ODESSA LARK', 'Crane': 'HOLLIS CRANE', 'Gauge': 'GAUGE',
+                   'Pike': 'WENDELL PIKE'}
+HEADBOARD_EPITAPH = ('STOOD UP', 'AT THE LAST')
+ELLIS_EPITAPH = ('CAME HOME', 'AT THE LAST')
 
 
 # --- Parts ---
@@ -752,13 +767,11 @@ def grave_ellis(name, seed):
     lp.place(lid, (0.0, 0.0, 0.0), (0.0, -34.0, 82.0))
     lp.place(lid, (0.62, 0.35, 0.36))
     parts.append(lid)
-    # The headboard at the head (+Y), knocked back and askew.
-    board = named_board([('ELLIS RANSOM', 0.072, 0.62), ('CAME HOME', 0.05, 0.5), ('AT THE LAST', 0.05, 0.43)],
-                        seed + 20, 0.56, 0.86)
-    board_m = Matrix.Translation((0.1, 1.95, 0.0)) @ Matrix.Rotation(math.radians(-7.0), 4, 'Z') @ \
-        Matrix.Rotation(math.radians(5.0), 4, 'Y') @ Matrix.Rotation(math.radians(-12.0), 4, 'X')
-    transform(board, board_m)
-    parts += board
+    # The headboard at the head (+Y), knocked back and askew, is a model of its own (Headboard_<Hero>, carved with the
+    # played hero's name): the grave keeps its collision and the Interact socket on its face, and bakes its shade on the
+    # dirt with Ellis's board standing there, as before the split.
+    board = grave_board('Ellis', seed + 20)
+    board_m = GRAVE_BOARD_M
     obj = lp.join(name, parts)
     lp.hull_points(obj, [board_m @ Vector((x, y, z)) for x in (-0.29, 0.29) for y in (-0.04, 0.06) for z in (0.0, 0.86)])
     for x, y, sx, sy in ((0.0, 1.45, 1.3, 0.4), (0.0, -1.45, 1.3, 0.4), (0.95, 0.0, 0.4, 2.2), (-0.95, 0.0, 0.4, 2.2)):
@@ -766,7 +779,83 @@ def grave_ellis(name, seed):
     socket(obj, 'Respawn', (0.0, -0.1, 0.12))
     socket(obj, 'Loot', (0.0, 0.1, 0.16))
     socket(obj, 'Interact', board_m @ Vector((0.0, -0.06, 0.55)))
-    return finish(obj, ao=0.45)
+    return finish_shaded(obj, lp.join('GraveShade_' + name, board), ao=0.45)
+
+
+# The grave's headboard in the grave's frame: at its head (+Y), knocked back and askew.
+GRAVE_BOARD_M = Matrix.Translation((0.1, 1.95, 0.0)) @ Matrix.Rotation(math.radians(-7.0), 4, 'Z') @ \
+    Matrix.Rotation(math.radians(5.0), 4, 'Y') @ Matrix.Rotation(math.radians(-12.0), 4, 'X')
+GRAVE_BOARD_SIZE = (0.56, 0.86)
+
+
+def headboard_lines(hero):
+    """The carving on the grave's headboard for a hero: (text, size, z) from the top. Ellis's exactly as it always was; a
+    long name is set smaller to stay on the board, a short one (GAUGE) bigger."""
+    if hero == 'Ellis':
+        return [('ELLIS RANSOM', 0.072, 0.62), (ELLIS_EPITAPH[0], 0.05, 0.5), (ELLIS_EPITAPH[1], 0.05, 0.43)]
+    name = HEADBOARD_NAMES[hero]
+    size = 0.09 if len(name) <= 6 else 0.072
+    size = min(size, fitted_size(name, size, ELLIS_NAME_WIDTH[0] if ELLIS_NAME_WIDTH else 0.46))
+    first = 0.5 if len(HEADBOARD_EPITAPH) > 1 else 0.47
+    lines = [(name, size, 0.62)]
+    for k, text in enumerate(HEADBOARD_EPITAPH):
+        lines.append((text, min(0.05, fitted_size(text, 0.05, 0.44)), first - 0.07 * k))
+    return lines
+
+
+ELLIS_NAME_WIDTH = []
+
+
+def lettering_width(text, size):
+    bm = lc.lettering(text, size, tolerance=0.05 if size >= 0.06 else 0.065)
+    if bm is None:
+        return 0.0
+    xs = [v.co.x for v in bm.verts]
+    bm.free()
+    return max(xs) - min(xs)
+
+
+def fitted_size(text, size, width):
+    """The size at which text is at most width wide (m)."""
+    w = lettering_width(text, size)
+    return size if w <= width or w <= 0.0 else size * width / w
+
+
+def grave_board(hero, seed):
+    """The grave's headboard carved for a hero, in the grave's frame: its parts."""
+    if hero != 'Ellis' and not ELLIS_NAME_WIDTH:
+        ELLIS_NAME_WIDTH.append(lettering_width('ELLIS RANSOM', 0.072))   # no name runs wider than Ellis's
+    board = named_board(headboard_lines(hero), seed, *GRAVE_BOARD_SIZE)
+    return transform(board, GRAVE_BOARD_M)
+
+
+def finish_shaded(obj, shade, ao):
+    """finish(), with shade (a mesh object) standing beside the model while its occlusion is baked, then removed: a
+    model split off another one (the headboard off the grave) shades and is shaded as it was in one piece."""
+    shade.parent = obj
+    lm.smooth(obj, 35.0)
+    lt.bake_vertex_ao(obj, distance=ao, children=False)
+    obj['Nanite'] = 0
+    obj['LODs'] = '50,25'
+    mesh = shade.data
+    bpy.data.objects.remove(shade)
+    if mesh.users == 0:
+        bpy.data.meshes.remove(mesh)
+    return obj
+
+
+def hero_headboard(hero, grave, seed):
+    """Headboard_<hero>: the grave's board alone, carved for the hero, on the grave's pivot. Its collision stands a
+    centimetre proud of the grave's own hull round the board, so the Interact key's line meets the readable showing it
+    first; its occlusion is baked with the grave's dirt round its foot."""
+    board = grave_board(hero, seed)
+    obj = lp.join('Headboard_' + hero, board)
+    lp.hull_points(obj, [GRAVE_BOARD_M @ Vector((x, y, z)) for x in (-0.3, 0.3) for y in (-0.05, 0.065)
+                         for z in (-0.01, 0.87)])
+    socket(obj, 'Interact', GRAVE_BOARD_M @ Vector((0.0, -0.06, 0.55)))
+    shade = bpy.data.objects.new('GraveShade_' + obj.name, grave.data.copy())
+    bpy.context.scene.collection.objects.link(shade)
+    return finish_shaded(obj, shade, ao=0.45)
 
 
 def grave_abel(name, seed):
@@ -1205,8 +1294,39 @@ models = [
     fence_picket_gate('Fence_PicketGate_Open', 62, angle=105.0),
     mound_sunken('Grave_MoundSunken', 32),
 ]
+KIT = list(models)
+# The grave's headboard, one per hero (2026-10-20, split out of Grave_Ellis: the readable on the grave shows the played
+# hero's), built after the rest so those come out exactly as before.
+GRAVE = next(o for o in models if o.name == 'Grave_Ellis')
+HEADBOARDS = [hero_headboard(hero, GRAVE, 41 + 20) for hero in HEADBOARD_NAMES]
+models += HEADBOARDS
 
-if lt.want_preview():
+HEADBOARDS_ONLY = '--headboards' in (sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
+
+
+def preview_headboards():
+    """The five boards side by side (each on its own, from the front), and each on the grave as the game shows it."""
+    for k, obj in enumerate(HEADBOARDS):
+        obj.location = ((k - 2) * 0.72, 0.0, 0.0)
+    bpy.context.view_layer.update()
+    lt.preview(HEADBOARDS, lt.preview_path(PREVIEW, 'Headboards'), view=(-0.05, -1.6, 0.28), fit=0.62,
+               resolution=(1800, 700), ground_at='origin')
+    for obj in HEADBOARDS:
+        obj.location = (0.0, 0.0, 0.0)
+    bpy.context.view_layer.update()
+    for obj in HEADBOARDS:
+        lt.preview([GRAVE, obj], lt.preview_path(PREVIEW, 'Grave_' + obj.name), view=(-0.25, -1.6, 0.55), fit=0.7,
+                   resolution=(1200, 1000), ground_at='origin')
+
+
+if lt.want_preview() and HEADBOARDS_ONLY:
+    # --headboards: only the hero headboards' pictures.
+    for obj in HEADBOARDS:
+        print(f'GRAVES: {obj.name}: {lp.tri_count(obj)} triangles, '
+              f'{len([c for c in obj.children if c.name.startswith("UCX_")])} hulls, '
+              f'materials {", ".join(m.name for m in obj.data.materials)}', flush=True)
+    preview_headboards()
+elif lt.want_preview():
     # Each model on its own, then the kit in rows.
     for obj in models:
         print(f'GRAVES: {obj.name}: {lp.tri_count(obj)} triangles, '
@@ -1227,10 +1347,11 @@ if lt.want_preview():
             if obj.name in ('Wreath', 'CrepeSwag'):   # hung from their nails: stand them on the ground here
                 obj.location.z = -min(Vector(c).z for c in obj.bound_box)
         y += 3.2
+    HEADBOARDS[0].location = GRAVE.location   # Ellis's board on the grave, as the game stands it
     bpy.context.view_layer.update()
     # The ground at the pivots, as in the game: buried feet and the mounds' sunk skirts go under it.
-    lt.preview(models, lt.preview_path(PREVIEW, 'Graves_kit'), view=(-0.25, -1.6, 0.75), fit=0.62, resolution=(1600, 1000),
-               ground_at='origin')
+    lt.preview(KIT + HEADBOARDS[:1], lt.preview_path(PREVIEW, 'Graves_kit'), view=(-0.25, -1.6, 0.75), fit=0.62,
+               resolution=(1600, 1000), ground_at='origin')
     for obj in models:
         obj.location = (0.0, 0.0, 0.0)
     bpy.context.view_layer.update()
@@ -1239,7 +1360,7 @@ if lt.want_preview():
                             ('CrepeSwag', (-0.15, -1.6, 0.05), 0.8), ('Coffin_Broken', (-0.8, -1.4, 0.9), 0.8),
                             ('Grave_MoundSunken', (-0.6, -1.5, 0.8), 0.8)):
         obj = next(o for o in models if o.name == name)
-        lt.preview([obj], lt.preview_path(PREVIEW, name), view=view, fit=fit, ground=name not in ('Wreath', 'CrepeSwag'),
+        lt.preview([obj] + (HEADBOARDS[:1] if obj is GRAVE else []), lt.preview_path(PREVIEW, name), view=view, fit=fit, ground=name not in ('Wreath', 'CrepeSwag'),
                    ground_at='origin' if name in ('Grave_Ellis', 'Grave_Abel', 'Grave_MoundSunken') else 'bottom')
     # The fences chained: iron sections, the gate, a corner turning back; the picket run with its gate and end post.
     by_name = {o.name: o for o in models}
@@ -1266,6 +1387,7 @@ if lt.want_preview():
     lt.preview(run, lt.preview_path(PREVIEW, 'Fences'), view=(-0.5, -1.6, 0.55), fit=0.75)
     for copy in run:
         bpy.data.objects.remove(copy)
+    preview_headboards()
     for obj in models:
         print(f'GRAVES: {obj.name}: {lp.tri_count(obj)} triangles', flush=True)
 else:

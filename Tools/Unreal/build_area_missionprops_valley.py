@@ -124,6 +124,10 @@ LINES = {
         (THADDEUS, "A cellar wants keeping. I'll keep it."))),
 }
 
+# What every hero but Ellis sees in place of a readable's model (2026-10-20, the hero pick: AReadableProp.OtherMesh):
+# the keepers' roll with no ELLIS painted out under ABEL (Art/Models/Props/MissionProps.py KeepersRoll_Bare).
+OTHER_MESHES = {'KeepersRoll': 'KeepersRoll_Bare'}
+
 # The readables: id -> (title, heading, text, lines after, prompt, models to try in order). The design's words.
 READABLES = {
     'LookoutStains': ("The boards where it happened", "", "", say(
@@ -453,6 +457,17 @@ def readable(build, meshes, readable_id, at, yaw, shown_when=None, pitch=0.0):
         prop.get_editor_property('mesh').set_static_mesh(model)
     elif models:
         build.warn(f'no SM_{models[0]} yet (Art/Models/Props, wave 4b): {readable_id} is read with nothing of its own to see')
+    other = OTHER_MESHES.get(readable_id)
+    if model is not None and other:
+        other_model = first_mesh(meshes, (other,))
+        if other_model is None:
+            build.warn(f'no SM_{other} yet (Tools/models.ps1 -Only MissionProps): every hero sees Ellis\'s {readable_id}')
+        else:
+            try:
+                prop.set_editor_property('other_mesh', other_model)
+            except Exception as error:   # a game module from before the hero lines
+                build.warn(f'no ReadableProp.other_mesh ({error}): build the game module with the hero lines and run '
+                           f'this again; every hero sees Ellis\'s {readable_id} till then')
     build.log(f'{readable_id} to read at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f})')
     return prop
 
