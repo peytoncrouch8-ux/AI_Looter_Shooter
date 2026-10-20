@@ -54,15 +54,17 @@ def link_mesh(name, around=32, wire=10):
     return me
 
 
-def place_links(name, path, normals, mesh, start_flat=True, lying=True):
+def place_links(name, path, normals, mesh, start_flat=True, lying=True, shell=None):
     """Links every PITCH along a path (k, 3), each a quarter turn from the last: the flat ones lie on the surface
     (normals), the others stand edge on (lying: the path is LIFT off a surface, and each link rests on it, an edge-on
-    link's centre higher by its half width). Returns one joined object and each link's centre."""
+    link's centre higher by its half width; shell, per path point: the thickness the game mesh gives what it lies on
+    after the bake, which it rests on too). Returns one joined object and each link's centre."""
     path, normals = np.asarray(path, float), np.asarray(normals, float)
     s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))])
     q = np.arange(0.0, s[-1], PITCH)
     P = np.stack([np.interp(q, s, path[:, i]) for i in range(3)], 1)
     Nn = np.stack([np.interp(q, s, normals[:, i]) for i in range(3)], 1)
+    Sh = np.interp(q, s, shell) if shell is not None else np.zeros(len(q))
     bm = bmesh.new()
     centres = []
     src = bmesh.new()
@@ -78,7 +80,7 @@ def place_links(name, path, normals, mesh, start_flat=True, lying=True):
             x, z = z, -x
         c = Vector((P[k] + P[k + 1]) * 0.5)
         if lying:
-            rest = LINK['wire'] + 0.0012 + (LINK['rr'] if edge else 0.0)
+            rest = LINK['wire'] + 0.0012 + (LINK['rr'] if edge else 0.0) + 0.5 * (Sh[k] + Sh[k + 1])
             c = c + nk * (rest - LIFT)
         M = Matrix.Translation(c) @ Matrix((x, t, z)).transposed().to_4x4()
         tmp = src.copy()
@@ -143,8 +145,9 @@ def build_chain(fig, surfaces):
     the left hip and up behind: detailed links for the bake; the hook's place on it (fig.hook_at)."""
     path, nrm, frame = bandolier_path(fig, surfaces)
     fig.chain_path = (path, nrm)
+    fig.chain_shell = chain_shell(path, surfaces)
     detailed = link_mesh('_LinkHi', 32, 10)
-    chain, centres = place_links('Chain', path, nrm, detailed)
+    chain, centres = place_links('Chain', path, nrm, detailed, shell=fig.chain_shell)
     # the hook hangs from the link on the chest's front nearest this height, right of the middle
     z_hook = fig.shoulder_z - 0.07
     front = centres[(centres[:, 1] < fig.centre[1]) & (centres[:, 0] < 0.02)]
@@ -160,8 +163,33 @@ def chain_low(fig):
     """The chain's game links: the same places, LOW_LINK points round each link and round its wire."""
     path, nrm = fig.chain_path
     low = link_mesh('_LinkLow', *LOW_LINK)
-    ob, _ = place_links('Chain_low', path, nrm, low)
+    ob, _ = place_links('Chain_low', path, nrm, low, shell=fig.chain_shell)
     return ob
+
+
+# The game mesh's thickness on what the chain lies on (Crane.py's THICK, given outward after the bake: the coat's 4 mm
+# and half a millimetre for its reduction; the shirt's 1.5 mm): the links rest on that (round 1's sat 2 mm into the
+# coat's shell)
+SHELL = {'Coat': 0.0045, 'Shirt': 0.0015}
+
+
+def chain_shell(path, surfaces):
+    """Per point of the chain's path, the shell (SHELL) of the surface nearest under it, blended along the chain."""
+    trees = [(SHELL.get(o.name.split('.')[0], 0.0), gm.bvh_objects([o])) for o in surfaces]
+    out = np.zeros(len(path))
+    for k, p in enumerate(path):
+        best = None
+        for sh, t in trees:
+            hit = t.find_nearest(Vector(tuple(p)), 0.05)
+            if hit[0] is not None and (best is None or hit[3] < best[0]):
+                best = (hit[3], sh)
+        out[k] = best[1] if best else 0.0
+    n = len(path) - 1                         # (the path is closed: its last point is its first)
+    ring = [[i, (i + 1) % n] for i in range(n)]
+    sm = gm.laplacian(out[:n, None], ring, 4)[:, 0]
+    out = np.append(sm, sm[:1])
+    log(f'chain: rests on the coat\'s shell along {np.mean(out > 0.003) * 100:.0f}% of its loop')
+    return out
 
 
 HOOK = dict(shank=0.070, bend=0.030, wire=0.0075)
@@ -204,13 +232,14 @@ STAR_AT = (0.120, 0.260)    # on the coat's left breast below the hair's lock (h
 
 def build_star(fig, surfaces):
     """The marshal's six-point tin star with a ball on every point and a raised boss (the portrait's tin_star), pinned
-    on the coat's left breast (surfaces: the coat) 3 mm off it. (Pinned to the cape's front corner, it rode that cloth's
-    share of the upper arm and went under the coat as the arms came down.) Its weights: the coat's there, whole (rig)."""
+    on the coat's left breast (surfaces: the coat) 3 mm off the game coat's outer side (SHELL). (Pinned to the cape's
+    front corner, it rode that cloth's share of the upper arm and went under the coat as the arms came down.) Its
+    weights: the coat's there, whole (rig)."""
     tree = gm.bvh_objects(surfaces)
     x, z = fig.neck[0] + STAR_AT[0], fig.neck[2] - STAR_AT[1]
     hit = tree.ray_cast(Vector((x, -0.6, z)), Vector((0, 1, 0)), 1.5)
     at, n = (hit[0], hit[1]) if hit[0] is not None else (Vector((x, -0.15, z)), Vector((0, -1, 0)))
-    star = CP.tin_star(at + n * 0.003, n, False)
+    star = CP.tin_star(at + n * (0.003 + SHELL['Coat']), n, False)       # 3 mm off the game coat's outer side
     for m in list(star.modifiers):
         star.modifiers.remove(m)
     star.data.materials.clear()

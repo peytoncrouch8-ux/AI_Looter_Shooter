@@ -657,9 +657,28 @@ def lap_vent(fig, coat, vent):
     coat.data.update()
 
 
+SEAT_SMOOTH = 24         # passes of smoothing over the settled coat's back under the seat
+
+
+def seat_smooth(fig, cloth):
+    """The settled coat's back from the seat to the knees smoothed (Taubin's, its volume kept: SEAT_SMOOTH passes), so
+    its fine upright pleats go and its broad folds stay (the cloth gathered into them from the stooped back's width;
+    bending 28 instead of 12 in the simulation left them as they were)."""
+    P = gm._object_coords(cloth)
+    rel = P[:, :2] - fig.centre
+    f, l = gm.frame2d(FWD)
+    cos_a = (rel @ f) / np.maximum(np.linalg.norm(rel, axis=1), 1e-6)
+    w = gm.smoothstep(-0.25, -0.75, cos_a) * gm.smoothstep(fig.hip_z + 0.06, fig.hip_z - 0.04, P[:, 2]) \
+        * gm.smoothstep(HEM + 0.05, fig.hip_z - 0.55, P[:, 2])
+    P = gm.laplacian(P, [list(p.vertices) for p in cloth.data.polygons], SEAT_SMOOTH, weight=w)
+    cloth.data.vertices.foreach_set('co', P.astype(np.float32).ravel())
+    cloth.data.update()
+
+
 def settle(fig, coat, colliders):
     """The coat's skirt falls into its folds (Blender's cloth over the body, trousers, shirt, belt and boots, held above
-    the hips; kept in Crane.drape.json). Bending 12: a heavy coat's broad folds (Ellis.py's)."""
+    the hips; kept in Crane.drape.json). Bending 12: a heavy coat's broad folds (Ellis.py's). Its back under the seat
+    smoothed after (seat_smooth)."""
     vent = np.array(coat['vent'], dtype=np.int64).reshape(-1, 2)
     cloth, at = welded(coat, vent, '_CoatCloth')
     zd = gm._object_coords(cloth)[:, 2]
@@ -669,6 +688,7 @@ def settle(fig, coat, colliders):
                       self_collision=True,
                       note='The settled coat of Hollis Crane (Art/Models/Characters/Crane.py writes it: the cloth '
                            'simulation\'s result for the digest of its inputs).')
+    seat_smooth(fig, cloth)
     coat.data.vertices.foreach_set('co', gm._object_coords(cloth)[at].astype(np.float32).ravel())
     coat.data.update()
     bpy.data.objects.remove(cloth)
@@ -941,7 +961,9 @@ def cape_idle(fig, ob, co, back=False):
 
 def clear_cape(fig, capes, under, sleeves, gap=0.003):
     """Pushes the reduced cape back outside the reduced coat (and what lies on it) and the reduced sleeves, all as the
-    game's idle has them (Ellis.py's)."""
+    game's idle has them (Ellis.py's). (This also brings the cape's top behind the neck down onto the coat's top edge,
+    under the collar's foot. Left high there, the cape took the collar's foot out through it, so instead Crane.py's
+    tuck_coat_top draws the coat's top in under the cape.)"""
     from mathutils.bvhtree import BVHTree
     trees = [gm.bvh_objects(under)] if under else []
     for s in sleeves:

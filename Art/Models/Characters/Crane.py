@@ -23,6 +23,7 @@ turned last to face like the mannequin.
     --rig-check                               the swing bones at rest and bent, in clay: Saved/Concepts/CraneSwing
     --preview                                 the baked look, arms down: Saved/ArtPreviews/Characters/Crane
     --audit <tag>                             the game's poses, every layer checked: Saved/Concepts/CraneAudit/<tag>
+    --fixviews <tag>                          one-sided clay close-ups, parts tinted, no bake: Saved/Concepts/CraneFix/<tag>
     --no-sim  --rebake  --frames N  --size N
 """
 import math
@@ -351,10 +352,12 @@ def make_lows(fig, highs):
     push_out(by('Coat'), by('Shirt', 'Belt', 'Buckle', 'Trousers'), 0.003)
     push_out(by('Cuff'), by('Sleeves'), 0.003)
     push_out(by('Boots'), by('Trousers'), 0.003)
+    lift_links(fig, by('Chain')[0], next(o for o in highs if o.name == 'Chain'), by('Coat'), THICK['Coat'] + 0.001)
     cw.clear_cape(fig, by('Cape'), by('Coat', 'Chain'), by('Sleeves'))
     push_out(by('Collar'), by('Cape', 'ShirtBand'), 0.003)
+    tuck_coat_top(fig, by('Coat'), by('Cape', 'Collar'), by('Crane', 'ShirtBand'))
     push_out(by('Mustache', 'Brows'), by('Crane'), 0.001)
-    lift_whole(by('Star'), by('Coat'), 0.0015)
+    lift_whole(by('Star'), by('Coat'), THICK['Coat'] + 0.002)
     coin_sight(fig, lows)
     return lows
 
@@ -378,6 +381,75 @@ def lift_whole(objs, under, gap):
             ob.data.vertices.foreach_set('co', (co + along * worst).astype(np.float32).ravel())
             ob.data.update()
             log(f'{ob.name}: lifted {worst * 1000:.1f} mm off the reduced coat')
+
+
+def lift_links(fig, chain, chain_high, under, gap):
+    """Each of the chain's game links below the cape moved out whole along what it lies on until all its points are gap
+    clear of the reduced parts under it (the coat: gap takes in the thickness it gets after the bake), its detailed link
+    (the bake's source) moved alike. (The coat pushed off the belt lay 2 mm out over the reduced links at the hip; under
+    the cape, links lifted pushed the cape out in a ridge behind the neck.)"""
+    n = int(chain['LinkPoints'])
+    co, hi = gm._object_coords(chain), gm._object_coords(chain_high)
+    k = len(co) // n
+    nh = len(hi) // k
+    assert k * n == len(co) and k * nh == len(hi), 'the game chain and the detailed one have their links alike'
+    tree = gm.bvh_objects(under)
+    moved, most = 0, 0.0
+    below = fig.shoulder_z - cw.CAPE_DROP
+    for i in range(k):
+        worst, along = 0.0, None
+        if co[i * n:(i + 1) * n, 2].mean() > below:
+            continue
+        for p in co[i * n:(i + 1) * n]:
+            loc, nrm, _i, _d = tree.find_nearest(Vector(tuple(p)), 0.03)
+            if loc is not None:
+                d = (Vector(tuple(p)) - loc).dot(nrm)
+                # (more than 8 mm behind it, the link isn't on that bit of coat: by its front edge, over the shirt)
+                if -0.008 < d < gap and gap - d > worst:
+                    worst, along = gap - d, np.array(nrm)
+        if along is not None:
+            co[i * n:(i + 1) * n] += along * worst
+            hi[i * nh:(i + 1) * nh] += along * worst
+            moved, most = moved + 1, max(most, worst)
+    for ob, pts in ((chain, co), (chain_high, hi)):
+        ob.data.vertices.foreach_set('co', pts.astype(np.float32).ravel())
+        ob.data.update()
+    log(f'chain: {moved} of {k} links lifted off the reduced coat, {most * 1000:.1f} mm at most')
+
+
+TUCK = 0.010             # the coat's top behind the neck this far inside the cape and the collar (its 4 mm, and 6 mm
+                         # for its reduced faces between the points moved)
+
+
+def tuck_coat_top(fig, coats, over, inner):
+    """The coat's top edge behind the neck drawn in under the cape and the collar (TUCK inside them, level from the
+    neck's axis), never nearer the neck and the shirt's band than 6 mm: the cape's top edge dips at the back of the neck
+    to the coat's top, which stood 8 mm out past it at the collar's foot (audit r3: 'Coat through Cape', 2-3 cm by the
+    normals of its top edge)."""
+    t_over, t_in = gm.bvh_objects(over), gm.bvh_objects(inner)
+    nx, ny, nz = fig.neck
+    moved, most = 0, 0.0
+    for ob in coats:
+        co = gm._object_coords(ob)
+        for i in np.nonzero(co[:, 2] > nz - 0.06)[0]:
+            p = co[i]
+            rel = np.array([p[0] - nx, p[1] - ny])
+            r = float(np.linalg.norm(rel))
+            if r < 1e-4 or -rel[1] / r > math.cos(math.radians(cw.CAPE_OPEN + 20.0)):
+                continue                      # (the coat's front, where the cape is open, keeps its lapels)
+            d = Vector((rel[0] / r, rel[1] / r, 0.0))
+            o = Vector((nx, ny, float(p[2])))
+            hit = t_over.ray_cast(o, d, 0.4)
+            if hit[0] is None or r <= hit[3] - TUCK:
+                continue
+            floor = t_in.ray_cast(o, d, 0.4)
+            want = max(hit[3] - TUCK, (floor[3] + 0.006) if floor[0] is not None else 0.0)
+            if want < r:
+                co[i, :2] = [nx + rel[0] / r * want, ny + rel[1] / r * want]
+                moved, most = moved + 1, max(most, r - want)
+        ob.data.vertices.foreach_set('co', co.astype(np.float32).ravel())
+        ob.data.update()
+    log(f'coat: {moved} points of its top behind the neck tucked in under the cape and collar, {most * 1000:.1f} mm at most')
 
 
 def coin_sight(fig, lows):
@@ -511,7 +583,7 @@ def main():
     lows = make_lows(fig, highs)
     log(f'game mesh: {sum(len(p.data.polygons) for p in lows)} faces before thickness')
     prepare_uvs(lows)
-    check = '--stats' in ARGS or '--rig-check' in ARGS
+    check = '--stats' in ARGS or '--rig-check' in ARGS or '--fixviews' in ARGS
     baked = None if check else bake_all(lows, highs, int(arg_value('--size', 2048)))
     for ob in highs:
         me = ob.data
@@ -527,6 +599,10 @@ def main():
     arm, skin = cr.rig(fig, lows)
     if '--rig-check' in ARGS:
         cr.rig_check(fig, arm, skin, REPO)
+        return
+    if '--fixviews' in ARGS:
+        import crane_audit
+        crane_audit.fix_views(fig, arm, skin, arg_value('--fixviews', 'now'), log, REPO)
         return
     view = lambda: cr.viewer_materials(skin, baked, TEXTURE_SETS, MADE_SETS, GLOWS)
     if '--audit' in ARGS:
