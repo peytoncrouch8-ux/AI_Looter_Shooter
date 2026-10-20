@@ -7,6 +7,7 @@
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureRankSettings.h"
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -90,6 +91,33 @@ namespace
 		UE_LOG(LogLooter, Log, TEXT("Looter.ForgetBestiary: nothing met or defeated; every bestiary page reads ??? again."));
 	}
 
+	void PrintDefeats(const TArray<FString>& Args, UWorld* World)
+	{
+		const UPlayerProgressionSubsystem* Progression = FindProgression(World);
+		if (!Progression)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Bestiary.Defeats: no player (start the game first)."));
+			return;
+		}
+		// Each kind's total, then the tiers it was defeated at since the tiers were recorded (an older save's earlier defeats
+		// have none, so the tiers can add up to less than the total).
+		const FPlayerProgressData& Progress = Progression->GetProgress();
+		UE_LOG(LogLooter, Log, TEXT("Looter.Bestiary.Defeats: %d kinds defeated"), Progress.Defeated.Num());
+		for (const TPair<FString, int32>& Pair : Progress.Defeated)
+		{
+			FString Tiers;
+			const FTierDefeats* Split = Progress.DefeatedByTier.Find(Pair.Key);
+			for (const ECreatureRank Tier : LooterRanks::Tiers)
+			{
+				if (Split && Split->Count(Tier) > 0)
+				{
+					Tiers += FString::Printf(TEXT("%s%s %d"), Tiers.IsEmpty() ? TEXT("") : TEXT(", "), *UCreatureRankSettings::GetTierName(Tier), Split->Count(Tier));
+				}
+			}
+			UE_LOG(LogLooter, Log, TEXT("  %s: %d (%s)"), *Pair.Key, Pair.Value, Tiers.IsEmpty() ? TEXT("no tiers recorded") : *Tiers);
+		}
+	}
+
 	void PrintXPTable(const TArray<FString>& Args, UWorld* World)
 	{
 		// Kills of a Basic creature at the player's own level, made one at a time with the leftover experience carried
@@ -132,6 +160,11 @@ namespace
 		TEXT("Looter.XP.Table"),
 		TEXT("Prints the kills each level takes from 1 to the maximum (Basic creatures at the player's level) and the totals."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PrintXPTable));
+
+	FAutoConsoleCommandWithWorldAndArgs DefeatsCommand(
+		TEXT("Looter.Bestiary.Defeats"),
+		TEXT("Lists what the player has defeated: each kind's total and the enemy tiers it was defeated at."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PrintDefeats));
 
 	FAutoConsoleCommandWithWorldAndArgs ForgetBestiaryCommand(
 		TEXT("Looter.ForgetBestiary"),

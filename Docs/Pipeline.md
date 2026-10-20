@@ -1524,6 +1524,23 @@ a whole build cycle).
   50 cm of it), Ethereal's red ghost-rim; the tag's frame and clamps on Hallowed/Ethereal, the word popping on notice, a dim
   trait line from Gravebound up; notice stings over the rank sting; death shows (pillar 9 m/1.7 s Hallowed, 13 m/2.1 s
   Ethereal), loot pops 0.15-0.18 s after, the XP popup tinted.
+- **Bestiary by tier** (2026-10-20): `FPlayerProgressData::DefeatedByTier` (kind's class path -> `FTierDefeats`, rank -> count,
+  rank saved by name) beside `Defeated` (the total, unchanged: every defeat of the kind, whatever its rank). Written by
+  `UPlayerProgressionSubsystem::RecordDefeat` (every path that counts a defeat: `AwardKill`, the mound's spiderling) from
+  `ACreatureBase::GetRank()` at the death (a promotion lasts until it; the respawn resets it later), tiers only
+  (`LooterRanks::IsTier`): Legendary monsters and bosses count in the total alone and keep their own pages; a non-creature
+  (dummy) too. Read by `GetDefeatedByTier(class)` (same classes as `GetDefeated`, `CountsForPage`). **Old saves read as tiers
+  unknown** (user-visible effect: none shown): a session from before has totals and no split, no version bump (the field is
+  new within session version 3; `ULooterProgressSave::ToProgress` likewise), the split counts only defeats since; no tier is
+  guessed because Restless and Gravebound existed before today and weren't told apart, so "all Regular" would be wrong. The
+  line under "Defeated" (`BestiaryTiers::Pieces/Words`, drawn by `BestiaryWidgetDetails.cpp`): the tiers met above Regular,
+  lowest first, small caps in the tag's colour (`CreatureTierLook::TagColor`), dim " · " between, right-aligned under the
+  count, a small diamond before Hallowed and Ethereal (`IsTopTier`); Regular is left out (the count above is mostly Regular),
+  no line when none met. Checked in play (`Looter.SpawnCreature Spider <tier>`, `Looter.KillNearest`, `Looter.Bestiary.Defeats`
+  logs the split; inventory > 3). Tests `Looter.Bestiary.TierCounts` (counting, rank at death, Legendary and dummy
+  total-only), `.TierSave` (round trip, an older save and the pre-session save, counting on from them), `.TierLine`
+  (words, order, colours, marks). A bare `ULocalPlayer` (`NewObject<ULocalPlayer>(GEngine)`) with `NewObject<UPlayerProgressionSubsystem>`
+  inside it is enough to test the progression with no game (no game instance: nothing saves).
 - **Lessons**: Phasing never blinks in a safe zone (Delia's salt line covers the farm, orchard and family plot: test in
   town); its wall and sight checks trace 150 cm up (fences and gravestones blocked every spot at foot height); a perf horde
   at the game's start sits in that safe zone and barely fights: give `Looter.Perf.Horde` a spot in town (`0 -1400 90`).

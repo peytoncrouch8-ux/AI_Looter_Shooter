@@ -3,8 +3,10 @@
 
 #include "UI/Bestiary/BestiaryWidget.h"
 #include "Bestiary/BestiaryEntry.h"
+#include "Bestiary/BestiaryTiers.h"
 #include "Bestiary/Ledger.h"
 #include "Missions/MissionRunner.h"
+#include "Progression/PlayerProgressData.h"
 #include "Session/CampaignRecord.h"
 #include "Story/HeroLines.h"
 #include "UI/Bestiary/BestiaryStage.h"
@@ -42,6 +44,47 @@ namespace
 	FString FormatWhole(float Value)
 	{
 		return FText::AsNumber(FMath::RoundToInt(Value)).ToString();
+	}
+
+	/** The small diamond in front of a top tier on the defeat line, tinted by the tier. */
+	const FVectorIcon& TierMarkIcon()
+	{
+		static const FVectorIcon Icon = []
+		{
+			FVectorIcon Diamond;
+			Diamond.ViewBox = FVector2D(12.f, 12.f);
+			Diamond.Fills.Add({ FVector2D(6.0, 1.0), FVector2D(11.0, 6.0), FVector2D(6.0, 11.0), FVector2D(1.0, 6.0) });
+			return Diamond;
+		}();
+		return Icon;
+	}
+
+	/**
+	 * The line under the defeat count: the tiers met in their colours ("Restless 3 · Gravebound 1 · Hallowed 1"), a small
+	 * diamond before Hallowed and Ethereal. Small caps like the page's other captions; the words stay the tag's own.
+	 */
+	UWidget* MakeTierLine(UWidgetTree* Tree, const TArray<BestiaryTiers::FTierCount>& Pieces)
+	{
+		constexpr int32 FontSize = 9;
+		constexpr int32 Spacing = 80;
+		UHorizontalBox* Line = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		for (int32 Index = 0; Index < Pieces.Num(); ++Index)
+		{
+			const BestiaryTiers::FTierCount& Piece = Pieces[Index];
+			if (Index > 0)
+			{
+				Line->AddChildToHorizontalBox(Label(Tree, BestiaryTiers::Separator, FontSize, Color::TextDim(), Spacing))->SetVerticalAlignment(VAlign_Center);
+			}
+			if (Piece.bMark)
+			{
+				UHorizontalBoxSlot* MarkSlot = Line->AddChildToHorizontalBox(MakeImage(Tree,
+					IconBrush(TEXT("BestiaryTierMark"), TierMarkIcon(), 4.f, FVector2D(8.f, 8.f), Piece.Color)));
+				MarkSlot->SetVerticalAlignment(VAlign_Center);
+				MarkSlot->SetPadding(FMargin(0.f, 0.f, 4.f, 0.f));
+			}
+			Line->AddChildToHorizontalBox(Label(Tree, BestiaryTiers::PieceWords(Piece), FontSize, Piece.Color, Spacing))->SetVerticalAlignment(VAlign_Center);
+		}
+		return Line;
 	}
 }
 
@@ -136,6 +179,14 @@ void UBestiaryWidget::RefreshDetails()
 		AddStat(TEXT("Experience"), Stats.XPReward > 0 ? FString::Printf(TEXT("%d XP"), Stats.XPReward) : FString(TEXT("None")), Stats.XPReward > 0);
 		const int32 Defeated = GetDefeated(*Entry);
 		AddStat(TEXT("Defeated"), FText::AsNumber(Defeated).ToString(), Defeated > 0);
+		// Under the count, which tiers they were (only the tiers met; Legendary monsters and bosses have pages of their own).
+		const TArray<BestiaryTiers::FTierCount> Tiers = BestiaryTiers::Pieces(GetDefeatedByTier(*Entry));
+		if (!Tiers.IsEmpty())
+		{
+			UVerticalBoxSlot* TierSlot = DetailsBox->AddChildToVerticalBox(MakeTierLine(WidgetTree, Tiers));
+			TierSlot->SetHorizontalAlignment(HAlign_Right);
+			TierSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+		}
 	}
 
 	// Under the card: the description, then the field notes.

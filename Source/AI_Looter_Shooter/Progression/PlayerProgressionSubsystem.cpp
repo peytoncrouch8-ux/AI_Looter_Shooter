@@ -129,6 +129,7 @@ void UPlayerProgressionSubsystem::ResetProgress()
 {
 	Progress.bTutorialDone = false;
 	Progress.Defeated.Reset();
+	Progress.DefeatedByTier.Reset();
 	Progress.Encountered.Reset();
 	SetLevel(1);
 }
@@ -245,6 +246,13 @@ void UPlayerProgressionSubsystem::RecordDefeat(const AActor* Victim)
 	const FString Kind = Victim->GetClass()->GetPathName();
 	++Progress.Defeated.FindOrAdd(Kind);
 	Progress.Encountered.Add(Kind);
+	// The tier it died as: the rank it holds now (a promotion lasts until the death, and it goes back to its starting rank only
+	// when it respawns, so this is the one the player fought). Legendary monsters and bosses are no tier: the total has them.
+	const ACreatureBase* Creature = Cast<ACreatureBase>(Victim);
+	if (Creature && LooterRanks::IsTier(Creature->GetRank()))
+	{
+		++Progress.DefeatedByTier.FindOrAdd(Kind).ByTier.FindOrAdd(Creature->GetRank());
+	}
 	RequestSave();
 }
 
@@ -271,6 +279,7 @@ void UPlayerProgressionSubsystem::ForgetBestiary()
 {
 	Progress.Encountered.Reset();
 	Progress.Defeated.Reset();
+	Progress.DefeatedByTier.Reset();
 	RequestSave();
 }
 
@@ -308,6 +317,25 @@ int32 UPlayerProgressionSubsystem::GetDefeated(const UClass* ActorType) const
 		Count += CountsForPage(Killed, ActorType) ? Pair.Value : 0;
 	}
 	return Count;
+}
+
+FTierDefeats UPlayerProgressionSubsystem::GetDefeatedByTier(const UClass* ActorType) const
+{
+	FTierDefeats Total;
+	if (!ActorType)
+	{
+		return Total;
+	}
+	// The same classes GetDefeated adds up, so a page's tiers and its count come from the same kills.
+	for (const TPair<FString, FTierDefeats>& Pair : Progress.DefeatedByTier)
+	{
+		const UClass* Killed = FSoftClassPath(Pair.Key).TryLoadClass<AActor>();
+		if (CountsForPage(Killed, ActorType))
+		{
+			Total.Add(Pair.Value);
+		}
+	}
+	return Total;
 }
 
 void UPlayerProgressionSubsystem::RequestSave() const

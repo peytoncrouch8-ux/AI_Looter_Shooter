@@ -271,6 +271,11 @@ public:
 
 	// --- The player ---
 
+	/**
+	 * Level and experience, the tutorial, and the bestiary's kinds met and defeated. Its DefeatedByTier (the defeat counts per
+	 * enemy tier, 2026-10-20) is new within version 3: a save from before it reads as tiers unknown, with every total right,
+	 * so it needs no upgrade and no new version.
+	 */
 	UPROPERTY()
 	FPlayerProgressData Progress;
 

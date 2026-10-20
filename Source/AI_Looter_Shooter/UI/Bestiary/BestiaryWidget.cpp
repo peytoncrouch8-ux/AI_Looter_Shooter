@@ -474,3 +474,10 @@ int32 UBestiaryWidget::GetDefeated(const UBestiaryEntry& Entry) const
 	const UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
 	return Progression ? Progression->GetDefeated(Entry.ActorClass.LoadSynchronous()) : 0;
 }
+
+FTierDefeats UBestiaryWidget::GetDefeatedByTier(const UBestiaryEntry& Entry) const
+{
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	const UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
+	return Progression ? Progression->GetDefeatedByTier(Entry.ActorClass.LoadSynchronous()) : FTierDefeats();
+}

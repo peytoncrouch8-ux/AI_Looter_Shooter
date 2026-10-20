@@ -24,6 +24,7 @@ class UMaterialInstanceDynamic;
 class UScrollBox;
 class UTextBlock;
 class UVerticalBox;
+struct FTierDefeats;
 
 /**
  * The bestiary, the inventory's second page, laid out like the loadout page beside it:
@@ -91,6 +92,8 @@ private:
 
 	const UBestiaryEntry* GetSelected() const;
 	int32 GetDefeated(const UBestiaryEntry& Entry) const;
+	/** Of those, how many at each enemy tier (the line under the count). */
+	FTierDefeats GetDefeatedByTier(const UBestiaryEntry& Entry) const;
 	/**
 	 * The player has met one, or the story has met them: its page is open. Until then it reads "???" and its model stands
 	 * as a silhouette.

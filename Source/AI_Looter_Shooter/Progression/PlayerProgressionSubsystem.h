@@ -130,11 +130,21 @@ public:
 	 */
 	static AWeaponBase* CreditKillWeapon(const AActor* Victim, int32 PlayerLevel);
 
-	/** Counts one more of the victim's kind defeated. */
+	/**
+	 * Counts one more of the victim's kind defeated, and, for a creature that is one of the five tiers as it dies, one more at
+	 * that tier (FPlayerProgressData::DefeatedByTier). A Legendary monster or a boss, or anything that isn't a creature, counts
+	 * in the total only.
+	 */
 	void RecordDefeat(const AActor* Victim);
 
-	/** How many actors of this class (or classes derived from it) the player has defeated. */
+	/** How many actors of this class (or classes derived from it) the player has defeated, all tiers and ranks together. */
 	int32 GetDefeated(const UClass* ActorType) const;
+
+	/**
+	 * Of GetDefeated, how many at each tier, counted since tiers were recorded (an older save's earlier defeats have no tier,
+	 * so the tiers can add up to less than the total). Summed over the same classes as GetDefeated.
+	 */
+	FTierDefeats GetDefeatedByTier(const UClass* ActorType) const;
 
 	/**
 	 * Notes that the local player behind Player has met this actor's kind: it hunted them, they hurt it, or they

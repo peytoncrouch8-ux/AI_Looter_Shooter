@@ -48,7 +48,10 @@ public:
 	UPROPERTY()
 	TSet<FString> Encountered;
 
-	/** Its progress as a session holds it, older versions brought up to date. */
+	/**
+	 * Its progress as a session holds it, older versions brought up to date. It keeps no split of defeats by enemy tier (this
+	 * save is from before sessions, and nothing writes it any more): it becomes a session's progress with tiers unknown.
+	 */
 	FPlayerProgressData ToProgress() const
 	{
 		FPlayerProgressData Progress;
