@@ -288,6 +288,8 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   panel. Cost only while the select is open: +1.4 ms GPU, +2.1 ms render thread (PIE, Medium). Live tuning
   `Looter.HeroStand.Key/.Fill/.Rim/.Kicker/.Exposure`, `Looter.HeroStand.Run 0` holds it. 748/748, `Looter.Heroes.Stand`.
   Polish noted: Crane's face reads blotchy at the stand's size under the rim light.
+- Perf of the polish (RR spawn, Medium, Gauge, 8 spiders): baseline 7.7 ms; Rail Spike every 3 s with its new look 7.8;
+  Slag Bomb every 8 s with the slag pool model 7.8 (Performance.md rows).
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
