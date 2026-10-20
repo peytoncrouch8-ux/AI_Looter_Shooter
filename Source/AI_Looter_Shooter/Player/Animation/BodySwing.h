@@ -156,16 +156,17 @@ struct AI_LOOTER_SHOOTER_API FBodySwing
 	int32 NumChains() const { return Chains.Num(); }
 	bool IsBoundTo(const FReferenceSkeleton& Skeleton) const;
 
-	/** Chain kind's settings, by its name's prefix (skirt, cape, bandana, hair, lantern, hook, longhair): the tuning table. */
+	/** Chain kind's settings, by its name's prefix (skirt, cape, bandana, hair, lantern, hook, longhair, tails): the tuning table. */
 	static FBodySwingSettings SettingsFor(const FString& ChainName);
 
 	/**
 	 * The kind (SettingsFor's name) of the chain ChainName hanging from ParentBone: a `lantern_` chain hung from the spine is
 	 * a hook (Crane's toll-chain hook on his chest: heavier and shorter than Ellis's lantern on her thigh, and lying against
 	 * him), hair hung from the neck is long hair (Crane's, down his back and in front of his shoulders; Ellis's hangs from
-	 * her head under the hat); else the chain's own name.
+	 * her head under the hat), a skirt chain on a tailcoat (bTailcoat: the body's skirt has no front chains, skirt_f*:
+	 * Odessa's tails) is tails; else the chain's own name.
 	 */
-	static FString KindOf(const FString& ChainName, const FString& ParentBone);
+	static FString KindOf(const FString& ChainName, const FString& ParentBone, bool bTailcoat = false);
 
 	/** Neighbouring skirt chains whose cloth between them keeps off the limbs too (the coat's ring). */
 	int32 NumRingPairs() const { return Ring.Num(); }

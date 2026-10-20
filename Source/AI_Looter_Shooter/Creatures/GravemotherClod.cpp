@@ -35,11 +35,14 @@ namespace
 	/** Its trail: a puff of earth every this often (s), a crumb falling off every CrumbEvery. */
 	constexpr float TrailEvery = 0.05f;
 	constexpr float CrumbEvery = 0.12f;
-	/** Its shadow on the ground: from this size to that (cm) and this opacity to that, as it comes down. */
+	/**
+	 * Its shadow on the ground: from this size to that (cm) and this opacity to that, as it comes down (the decal's own
+	 * AlphaScale 1.8 darkens it more: at 0.85 and the picture's alpha it was hardly seen through grass, 2026-10-20).
+	 */
 	constexpr float ShadowStartSize = 100.f;
 	constexpr float ShadowEndSize = 260.f;
-	constexpr float ShadowStartOpacity = 0.3f;
-	constexpr float ShadowEndOpacity = 0.85f;
+	constexpr float ShadowStartOpacity = 0.35f;
+	constexpr float ShadowEndOpacity = 1.f;
 	/** The shadow's stand-in: a ring of dark cracks (AGroundCrack) this wide, round this share of the burst. */
 	constexpr float ShadowCrackWidth = 8.f;
 	constexpr float ShadowCrackShare = 0.6f;

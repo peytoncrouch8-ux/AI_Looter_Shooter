@@ -83,6 +83,24 @@ namespace
 		return Max > UE_KINDA_SMALL_NUMBER ? FLinearColor(Colour.R / Max, Colour.G / Max, Colour.B / Max, 1.f) : FLinearColor::White;
 	}
 
+	/**
+	 * The rim lights at most this luminance (of its colour at full strength): a pale hero colour is nearly white at full
+	 * strength and lit far hotter than a saturated one at the same candelas. Crane's sage (0.84) blew his pale grey-green
+	 * face out in green-white patches on the stand (2026-10-20); Pike's teal (0.70) is held too, Ellis's blue (0.55),
+	 * Gauge's amber and Odessa's crimson are under it.
+	 */
+	constexpr float MaxRimLuminance = 0.6f;
+}
+
+float AHeroSelectStage::RimShareFor(const FLinearColor& HeroColour)
+{
+	const float Luminance = AsLight(HeroColour).GetLuminance();
+	return Luminance > MaxRimLuminance ? MaxRimLuminance / Luminance : 1.f;
+}
+
+namespace
+{
+
 	float EaseOutCubic(float Alpha)
 	{
 		const float Inverse = 1.f - FMath::Clamp(Alpha, 0.f, 1.f);
@@ -251,6 +269,7 @@ bool AHeroSelectStage::ShowHero(const UHeroDefinition* InHero, bool bTurnIn)
 	const FLinearColor HeroColour = AsLight(Hero->Color);
 	const UEmberDefinition* FirstPower = Hero->Powers.IsEmpty() ? nullptr : Hero->Powers[0].Get();
 	RimLight->SetLightColor(HeroColour);
+	RimShare = RimShareFor(Hero->Color);
 	KickerLight->SetLightColor(FirstPower ? AsLight(FirstPower->Color) : HeroColour);
 	ColourPlinth(Hero->Color);
 	ApplyLights();
@@ -364,7 +383,7 @@ void AHeroSelectStage::ApplyLights()
 {
 	// A switch flares the rim (fading over SwitchFlareSeconds); the confirm burns the rim and the key brighter.
 	const float Switch = SwitchFlareLeft / SwitchFlareSeconds;
-	RimLight->SetIntensity(CVarRim.GetValueOnGameThread() * (1.f + 1.f * Switch * Switch + 0.9f * ConfirmFlare));
+	RimLight->SetIntensity(CVarRim.GetValueOnGameThread() * RimShare * (1.f + 1.f * Switch * Switch + 0.9f * ConfirmFlare));
 	KickerLight->SetIntensity(CVarKicker.GetValueOnGameThread() * (1.f + 0.6f * Switch + 0.8f * ConfirmFlare));
 	KeyLight->SetIntensity(CVarKey.GetValueOnGameThread() * (1.f + 0.35f * ConfirmFlare));
 	FillLight->SetIntensity(CVarFill.GetValueOnGameThread());

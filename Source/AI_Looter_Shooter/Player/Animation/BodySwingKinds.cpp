@@ -28,6 +28,17 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Gravity = 0.05f;
 		Settings.Carry = 0.35f;
 	}
+	else if (ChainName.StartsWith(TEXT("tails")))
+	{
+		// Odessa's tailcoat tails (KindOf): 44 cm of wool from the hips to behind the knees. On the duster's settings they
+		// flew out level behind her through every run (60-75 degrees held, 2026-10-20): the springs damp the points' own
+		// speed through the air, which holds a short chain far further out than Ellis's long one. Stiffer, carried a good
+		// share with her, they lift and bounce: about 10 degrees at a run.
+		Settings.Stiffness = 10.f;
+		Settings.Damping = 4.f;
+		Settings.Gravity = 0.08f;
+		Settings.Carry = 0.6f;
+	}
 	else if (ChainName.StartsWith(TEXT("skirt")))
 	{
 		// The duster's heavy oilskin: swings wide on a turn or a stop and takes a moment to settle.
@@ -63,7 +74,7 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 	return Settings;
 }
 
-FString FBodySwing::KindOf(const FString& ChainName, const FString& ParentBone)
+FString FBodySwing::KindOf(const FString& ChainName, const FString& ParentBone, bool bTailcoat)
 {
 	const FString Parent = ParentBone.ToLower();
 	if (ChainName.StartsWith(TEXT("lantern")) && Parent.StartsWith(TEXT("spine")))
@@ -73,6 +84,10 @@ FString FBodySwing::KindOf(const FString& ChainName, const FString& ParentBone)
 	if (ChainName.StartsWith(TEXT("hair")) && Parent.StartsWith(TEXT("neck")))
 	{
 		return TEXT("longhair");
+	}
+	if (bTailcoat && ChainName.StartsWith(TEXT("skirt")))
+	{
+		return TEXT("tails");
 	}
 	return ChainName;
 }

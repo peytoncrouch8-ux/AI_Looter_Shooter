@@ -935,10 +935,14 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   ground 278 points 15.0 cm -> 57 points 4.9 cm (the panel between two gathered chains).
   Tuning table: `FBodySwing::SettingsFor`
   (skirt 7 rad/s, damping 3.5; cape 12, 5; bandana and hair 9, 3.5; lantern 2, 1.2; hook 7, 5.5, gravity 1, bulk 1.5,
-  Carry 0.75; longhair 9, 5, Carry 0.35). The kind is the chain's name but for what it hangs from (`FBodySwing::KindOf`,
-  2026-10-20): a `lantern_` chain on a spine bone is a hook (Crane's toll-chain hook on his chest; Ellis's lantern on
-  thigh_r keeps its numbers), `hair*` on a neck bone long hair (Crane's back hair and front locks; Ellis's hangs from her
-  head). `Carry` hands that share of the anchor's own move straight to the points each step (Points and Previous): the
+  Carry 0.75; longhair 9, 5, Carry 0.35; tails 10, 4, gravity 0.08, Carry 0.6). The kind is the chain's name but for what
+  it hangs from (`FBodySwing::KindOf`, 2026-10-20): a `lantern_` chain on a spine bone is a hook (Crane's toll-chain hook
+  on his chest; Ellis's lantern on thigh_r keeps its numbers), `hair*` on a neck bone long hair (Crane's back hair and
+  front locks; Ellis's hangs from her head), and a skirt with no front chains (no `skirt_f*`: Odessa's six) is a
+  tailcoat's tails (Ellis's, Crane's and Pike's coats all have front chains: `Looter.Player.BodySwing.Ellis` checks the
+  four). On the duster's settings Odessa's 44 cm tails flew out level behind her through every run (60-77 degrees held
+  in the parent's frame): the damping slows the points' own speed through the air, a drag that holds a short chain far
+  further out than a long one; now 40-47 (the pelvis's own lean in it, as the long coats' ~50), settled within 0.5 s. `Carry` hands that share of the anchor's own move straight to the points each step (Points and Previous): the
   body starts and stops at about 3 g, which swung the hook out level on every start and stop and kept it swinging through
   his run (74 -> 31 degrees at a run's start, settled 25 -> 1.5 degrees 2 s after a stop; the hair 70 -> 63, settled 4
   -> 0.6). `Looter.Body.Swing 0` holds the animated pose. Lessons (each found by Looter.Player.BodySwing.* and a Python
@@ -1281,7 +1285,13 @@ committed: its names are here). The session keeps the pick; the character takes 
     player left them (its share is folded into the player's turn, so nothing jumps).
   - Lights (candelas, live: `Looter.HeroStand.Key` 160 warm spot with the one shadow, `.Fill` 20 cool, `.Rim` 420 in the
     hero's colour from behind, `.Kicker` 200 in their first power's colour from the other side, `.Exposure` 1); colours
-    normalized to full strength so a dark hero colour still lights. The hero is on channel 1, the plinth on channel 2
+    normalized to full strength so a dark hero colour still lights. The rim's colour at full strength lights at most
+    luminance 0.6 (`RimShareFor`, 2026-10-20): Crane's pale sage (0.84 at full strength) blew his pale grey-green face out
+    in green-white patches (`final_crane.png`; with the rims off it read clean), now x0.71; Pike's teal x0.85; Ellis,
+    Odessa and Gauge whole. Also found then: his skin's red subsurface scatter (M_CharacterSkin's SP_Skin at
+    SubsurfaceAmount 1) shows as red-and-white blotches on grey-green skin at the stand's size; 0.15 read clean (a
+    Crane.py `GAME_MATERIALS` change, not made); a 1.5x capture (1080 x 1350) smooths edges for +0.7 ms GPU (not made).
+    The hero is on channel 1, the plinth on channel 2
     (key and fill only: the rims grazing its top turned it into a disc of the hero's colour). The sky light is off in the
     capture (it flattened everything blue), and AO, contact and capsule shadows, translucency, eye adaptation and lens
     flares.
@@ -1504,8 +1514,14 @@ folder). The pieces:
   last out over 0.25. (3) A new furrow's ground trace stopped on an older furrow's berm (a tile 70 cm up whose decal never
   reached the ground: a gap): `OnGround` ignores every furrow and the rubble, and berms, the crest and the rubble pile
   take no decals. (4) The end cap joins: the strip's crack meets U = 0 or 1 within 0.02 V of the cap's entry (1.5 cm of a
-  7 cm crack) and the cap overlaps the last tile 14 cm; in play the slam's scar lay over it each time. The scar, the mound
-  cracks and the ploughed strip between the berms looked right; the clod's landing shadow wasn't caught in a frame.
+  7 cm crack) and the cap overlaps the last tile 14 cm; caught the moment it shows (`Saved/PolishCode/gm_catch.py`: waits
+  for a decal, freezes time, stands the player beside it), the crack runs on into the cap's taper unbroken
+  (`gm_cap_caught_zoom.png`). The scar, the mound cracks and the ploughed strip between the berms looked right. (5) The
+  clod's landing shadow hardly showed through the west field's grass (the picture's alpha is at most 0.5, the decal
+  darkens only the terrain between the blades; `gm_shadow_fp.png`): M_GraveDecal's `AlphaScale` (1.8 on
+  MI_Decal_LandingShadow, `DECAL_SCALARS` in the script) and the clod's opacity 0.35 -> 1 (was 0.3 -> 0.85) make it a
+  plain dark disc with a rim from the throw on (`gm_shadow_after.png`). To make her throw: the player 19-20 m off (her
+  furrow's reach is 16 m at her size, the clod's 7-22 m), `Looter.Gravemother Clod`.
 - Shared hooks it added: `ASpiderCreature::GetPoseOverride` (a subclass's body and front-leg pose; none by default),
   `UBossComponent::BeginStagger(Seconds, Callout)`, `UBulletSubsystem::OwnLookTag` ("Impact.Own": the stone, clod and mounds
   draw and sound their own hits), `UHudBossBarWidget::SetArmour` (the stone bar), `LooterUI::Color::Granite*`.
@@ -1629,6 +1645,9 @@ folder). The pieces:
 - A test's name must not be the start of another test's name (`Looter.Economy.Offer` beside `Looter.Economy.Offer.Odds`;
   `Looter.Locomotion.Pace` beside `.Pace.Chases`, fixed by naming it `.Pace.Speeds`): the runner takes it for a group and reports it
   "Not Run" (happened twice on 2026-10-13). Name every test as a leaf.
+- `Looter.Hero.Unlock` typed at the console (0 or 1) outranks the tests' own set (`ECVF_SetByCode` is lower than the
+  console's): `Looter.Heroes.Playable`, `.Save` and `.Screen` then fail on "Unlocked: Odessa...". Restart the editor after
+  a play check that used it, before the tests (2026-10-20, twice).
 
 ## Bugs and how they were fixed
 

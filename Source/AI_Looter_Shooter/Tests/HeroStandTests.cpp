@@ -79,7 +79,11 @@ bool FHeroStandTest::RunTest(const FString& Parameters)
 		TestTrue(*FString::Printf(TEXT("%s: SK_%s"), *Who, *Who), Figure && Figure->GetSkeletalMeshAsset() == Hero->LoadFigureMesh());
 		TestTrue(*FString::Printf(TEXT("%s: through RTG_MannyTo%s"), *Who, *Who), Figure && Figure->GetRetargeter() == Hero->LoadRetargeter());
 		TestTrue(*FString::Printf(TEXT("%s: turning in from the side"), *Who), Stand->GetTurn() > 30.f);
+		// A pale colour's rim is held down (it lit near white and blew Crane's face out); a saturated one's is whole.
+		TestEqual(*FString::Printf(TEXT("%s: the rim's share by its colour"), *Who), Stand->GetRimShare(), AHeroSelectStage::RimShareFor(Hero->Color));
 	}
+	TestTrue(TEXT("Crane's sage rim is held down"), AHeroSelectStage::RimShareFor(FLinearColor(FColor(0xB9, 0xD9, 0x8C))) < 0.8f);
+	TestEqual(TEXT("Odessa's crimson rim is whole"), AHeroSelectStage::RimShareFor(FLinearColor(FColor(0xD0, 0x4A, 0x68))), 1.f);
 
 	// Turning: the player's turn takes over from the turn-in at once; running and stopped.
 	Stand->AddTurn(-20.f);

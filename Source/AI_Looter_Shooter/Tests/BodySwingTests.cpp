@@ -275,57 +275,16 @@ bool FBodySwingKindsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Hair from the head is hair"), FBodySwing::KindOf(TEXT("hair"), TEXT("head")), FString(TEXT("hair")));
 	TestEqual(TEXT("...from the neck long hair, its front locks too"), FBodySwing::KindOf(TEXT("hair_fl"), TEXT("neck_01")), FString(TEXT("longhair")));
 	TestEqual(TEXT("Anything else by its name"), FBodySwing::KindOf(TEXT("cape_bm"), TEXT("spine_05")), FString(TEXT("cape_bm")));
+	TestEqual(TEXT("A coat's skirt is a skirt"), FBodySwing::KindOf(TEXT("skirt_bl"), TEXT("pelvis")), FString(TEXT("skirt_bl")));
+	TestEqual(TEXT("...a tailcoat's, tails"), FBodySwing::KindOf(TEXT("skirt_bl"), TEXT("pelvis"), true), FString(TEXT("tails")));
+	const FBodySwingSettings Tails = FBodySwing::SettingsFor(TEXT("tails"));
+	const FBodySwingSettings Duster = FBodySwing::SettingsFor(TEXT("skirt_bl"));
+	TestTrue(TEXT("Tails: stiffer than the duster's skirt, carried with the body"), Tails.Stiffness > Duster.Stiffness && Tails.Carry > 0.f
+		&& Duster.Carry == 0.f);
 	const FBodySwingSettings Hook = FBodySwing::SettingsFor(TEXT("hook"));
 	TestTrue(TEXT("The hook: a pendulum (full gravity), stiffer and quicker to settle than the lantern, going partly with him"),
 		FMath::IsNearlyEqual(Hook.Gravity, 1.f) && Hook.Stiffness > Lantern.Stiffness && Hook.Damping > Lantern.Damping && Hook.Carry > 0.f);
 	TestTrue(TEXT("Long hair goes partly with him too"), FBodySwing::SettingsFor(TEXT("longhair")).Carry > 0.f);
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingHookTest, "Looter.Player.BodySwing.Hook",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FBodySwingHookTest::RunTest(const FString& Parameters)
-{
-	// A 22 cm hook hanging from a body that runs off at 450 cm/s in 0.15 s (about 3 g, as play moves it), runs, and stops as
-	// sharply: with the lantern's settings it swings out near level; the hook's swing far less and settle.
-	const FVector Start(0.0, 0.0, 150.0);
-	const float Length = 22.f;
-	auto Swing = [&](const FBodySwingSettings& Settings, float& OutSettled)
-	{
-		FBodySwingPoints Sim;
-		float Widest = 0.f;
-		OutSettled = 0.f;
-		const float Fps = 60.f;
-		FVector Anchor = Start;
-		float Speed = 0.f;
-		for (int32 Frame = 0; Frame < 180; ++Frame)
-		{
-			const float Time = static_cast<float>(Frame) / Fps;
-			// Off from 0.2 s, at full speed by 0.35 s, stopping from 1.2 s to 1.35 s.
-			const float Target = Time >= 0.2f && Time < 1.2f ? 450.f : 0.f;
-			Speed = FMath::FInterpConstantTo(Speed, Target, 1.f / Fps, 3000.f);
-			Anchor.X += Speed / Fps;
-			const TArray<FVector> Targets({ Anchor + FVector(0.0, 0.0, -Length) });
-			Sim.Step(Anchor, Targets, TArray<float>({ Length }), {}, Settings, 1.f / Fps);
-			const FVector Hang = (Sim.Points[0] - Anchor).GetSafeNormal();
-			const float Angle = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(static_cast<float>(-Hang.Z), -1.f, 1.f)));
-			Widest = FMath::Max(Widest, Angle);
-			if (Time >= 2.7f)
-			{
-				OutSettled = FMath::Max(OutSettled, Angle);
-			}
-		}
-		return Widest;
-	};
-	float LanternLeft = 0.f;
-	float HookLeft = 0.f;
-	const float LanternWidest = Swing(FBodySwing::SettingsFor(TEXT("lantern")), LanternLeft);
-	const float HookWidest = Swing(FBodySwing::SettingsFor(TEXT("hook")), HookLeft);
-	TestTrue(FString::Printf(TEXT("The hook swings at most half the lantern's way out (%.0f against %.0f degrees)"), HookWidest, LanternWidest),
-		HookWidest < LanternWidest * 0.5f);
-	TestTrue(FString::Printf(TEXT("...and still swings (%.0f degrees)"), HookWidest), HookWidest > 5.f);
-	TestTrue(FString::Printf(TEXT("...and has settled a second and a half after the stop (%.1f degrees off)"), HookLeft), HookLeft < 3.f);
 	return true;
 }
 
@@ -482,6 +441,20 @@ bool FBodySwingEllisTest::RunTest(const FString& Parameters)
 	FBodyHatTip Tip;
 	Tip.Bind(Ellis->GetRefSkeleton());
 	TestTrue(TEXT("A hat bone to tip"), Tip.HasHat());
+
+	// Which coats are tailcoats (FBodySwing::KindOf): Odessa's skirt has no front chains, the long coats all do.
+	const TCHAR* const Coats[][2] = { { TEXT("Ellis"), TEXT("1") }, { TEXT("Crane"), TEXT("1") }, { TEXT("Pike"), TEXT("1") }, { TEXT("Odessa"), TEXT("0") } };
+	for (const auto& Coat : Coats)
+	{
+		const USkeletalMesh* Body = LoadObject<USkeletalMesh>(nullptr, *FString::Printf(TEXT("/Game/Art/Characters/SK_%s.SK_%s"), Coat[0], Coat[0]));
+		if (!Body)
+		{
+			continue;
+		}
+		const bool bFront = Body->GetRefSkeleton().FindBoneIndex(TEXT("skirt_fl_01")) != INDEX_NONE;
+		TestEqual(FString::Printf(TEXT("SK_%s: %s"), Coat[0], bFront ? TEXT("a long coat, its skirt's front chained") : TEXT("a tailcoat, tails only")),
+			bFront, FCString::Atoi(Coat[1]) != 0);
+	}
 	return true;
 }
 

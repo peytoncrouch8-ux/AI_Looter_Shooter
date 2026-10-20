@@ -171,6 +171,15 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		LimbRests.Add({ Rest[From].GetLocation(), RestB, Spec.MaxClearance });
 	}
 	const int32 Pelvis = Skeleton.FindBoneIndex(TEXT("pelvis"));
+	// A coat whose skirt has chains but none at its front is a tailcoat: its chains are tails (Odessa's).
+	bool bAnySkirt = false;
+	bool bFrontSkirt = false;
+	for (const TPair<FString, TArray<TPair<int32, int32>>>& Entry : Found)
+	{
+		bAnySkirt |= Entry.Key.StartsWith(TEXT("skirt_"));
+		bFrontSkirt |= Entry.Key.StartsWith(TEXT("skirt_f"));
+	}
+	const bool bTailcoat = bAnySkirt && !bFrontSkirt;
 
 	for (TPair<FString, TArray<TPair<int32, int32>>>& Entry : Found)
 	{
@@ -178,9 +187,9 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		Ordered.Sort([](const TPair<int32, int32>& A, const TPair<int32, int32>& B) { return A.Key < B.Key; });
 		FChain& Chain = Chains.AddDefaulted_GetRef();
 		Chain.Name = Entry.Key;
-		// Its kind by its name and what it hangs from (a lantern on the chest is a hook).
+		// Its kind by its name and what it hangs from (a lantern on the chest is a hook), a skirt by the coat it's on.
 		const int32 Parent = Skeleton.GetParentIndex(Ordered[0].Value);
-		Chain.Settings = SettingsFor(KindOf(Entry.Key, Parent != INDEX_NONE ? Skeleton.GetBoneName(Parent).ToString() : FString()));
+		Chain.Settings = SettingsFor(KindOf(Entry.Key, Parent != INDEX_NONE ? Skeleton.GetBoneName(Parent).ToString() : FString(), bTailcoat));
 		// The cape's chains ride on the upper arms (`cape_<key><side>`: cape_al, the arm chain on the figure's left), each
 		// by its key's share; its rest on the arm is measured against the arm as it hangs at the idle (`cape_arm_<side>`)
 		// when the mesh has it, else the bind pose's.

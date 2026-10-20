@@ -11,7 +11,8 @@
                     strip). Opacity = alpha x Opacity (the code drives it through a MID) x Reveal's front (the part of U
                     up to Reveal shows, its front soft over RevealSoft; 1 shows it all: the heave's crawl) x the ends'
                     fades (FadeIn from U = 0, FadeOut to U = 1, shares of U; 0 none: a strip's first and last tiles) x
-                    the decal's lifetime fade x its component's DecalColor alpha, only on surfaces facing back up its axis
+                    AlphaScale (the picture's alpha scaled: the landing shadow's 1.8) x the decal's lifetime fade x its
+                    component's DecalColor alpha, only on surfaces facing back up its axis
                     (never smeared down a wall or a mound's steep side). Tint, NormalStrength.
   M_FX_GraveCard    /Game/Art/Materials/Masters: unlit, translucent, two-sided: a dust card (the engine's Plane, UVs 0-1)
                     drawn as instanced quads the code turns to the camera. Per-instance custom data (the code's layout):
@@ -83,6 +84,9 @@ MEL = W.MEL
 CARDS = ('DustPuffs', 'FloorPuffs', 'DustJet', 'SparkStreak', 'Flash')
 DECALS = ('HeaveCrack', 'HeaveCrackEnd', 'Furrow', 'ImpactScar', 'LandingShadow', 'MoundCracks')
 WRAP_U = ('HeaveCrack', 'Furrow')
+# Per decal, its instance's own numbers: the clod's landing shadow (its picture's alpha at most 0.5) darker, so it reads
+# through the grass as the telegraph it is (2026-10-20: at the old 0.85 opacity it was hardly seen in the west field).
+DECAL_SCALARS = {'LandingShadow': {'AlphaScale': 1.8}}
 
 
 def texture(file_name, kind, wrap_u=False):
@@ -132,7 +136,7 @@ float Front = saturate((Reveal - UV.x) / max(RevealSoft, 1e-3) + 1.0);
 // A strip's first and last tiles fade in from U = 0 over FadeIn and out to U = 1 over FadeOut (0: cut square, where one
 // tile meets the next), so the strip doesn't end in a straight edge.
 float Ends = (FadeIn > 0.0 ? smoothstep(0.0, FadeIn, UV.x) : 1.0) * (FadeOut > 0.0 ? smoothstep(0.0, FadeOut, 1.0 - UV.x) : 1.0);
-return saturate(Alpha * Strength * Front * Ends * Facing * Life * Code.a);"""
+return saturate(Alpha * AlphaScale * Strength * Front * Ends * Facing * Life * Code.a);"""
 DECAL_NORMAL = 'return normalize(float3(N.xy * Strength, N.z));'
 
 
@@ -160,7 +164,8 @@ def build_decal(defaults):
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1200, 700, 'Facing')
     code = g.node(unreal.MaterialExpressionDecalColor, -1600, 950)
     opacity = g.custom(DECAL_OPACITY, [
-        ('UV', coords, ''), ('Alpha', bc, 'A'), ('Strength', g.scalar('Opacity', 1.0, -1200, 900), ''),
+        ('UV', coords, ''), ('Alpha', bc, 'A'), ('AlphaScale', g.scalar('AlphaScale', 1.0, -1200, 1500), ''),
+        ('Strength', g.scalar('Opacity', 1.0, -1200, 900), ''),
         ('Reveal', g.scalar('Reveal', 1.0, -1200, 1000), ''), ('RevealSoft', g.scalar('RevealSoft', 0.03, -1200, 1100), ''),
         ('FadeIn', g.scalar('FadeIn', 0.0, -1200, 1300), ''), ('FadeOut', g.scalar('FadeOut', 0.0, -1200, 1400), ''),
         ('Facing', facing, ''), ('Life', g.node(unreal.MaterialExpressionDecalLifetimeOpacity, -1200, 1200), ''),
@@ -315,7 +320,8 @@ def run():
             unreal.log_error(f'GRAVEFIGHTMATS MI_Decal_{name} not made: its maps are missing')
             continue
         instance(FOLDER, f'MI_Decal_{name}', decal_master,
-                 textures={'DecalColor': maps['BC'], 'DecalNormal': maps['N'], 'DecalORM': maps['ORM']})
+                 textures={'DecalColor': maps['BC'], 'DecalNormal': maps['N'], 'DecalORM': maps['ORM']},
+                 scalars=DECAL_SCALARS.get(name))
     for mi, sheet, grid, master_mat in (('MI_FX_GraveDust', 'DustPuffs', (2.0, 2.0), card_master),
                                         ('MI_FX_FloorDust', 'FloorPuffs', (2.0, 2.0), card_master),
                                         ('MI_FX_GraveDustJet', 'DustJet', (2.0, 1.0), card_master),

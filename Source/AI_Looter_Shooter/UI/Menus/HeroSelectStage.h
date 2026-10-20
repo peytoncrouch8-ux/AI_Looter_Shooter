@@ -81,6 +81,13 @@ public:
 	/** Brightness the screen applies when it tone maps the picture. */
 	float GetExposure() const { return Exposure; }
 
+	/**
+	 * The share of Looter.HeroStand.Rim a hero's rim gets: its colour at full strength lights at most a set luminance (a
+	 * pale colour like Crane's sage is nearly white at full strength and blew his face out). 1 for a saturated colour.
+	 */
+	static float RimShareFor(const FLinearColor& HeroColour);
+	float GetRimShare() const { return RimShare; }
+
 	/** The camera, framing (horizontal field of view, degrees) and the turn the hero is shown at. */
 	UPROPERTY(EditAnywhere, Category = "Stage")
 	float CameraDistance = 600.f;
@@ -179,6 +186,8 @@ private:
 	float TurnInLeft = 0.f;
 	float SwitchFlareLeft = 0.f;
 	float ConfirmFlare = 0.f;
+	/** The hero's rim's share of its strength (RimShareFor). */
+	float RimShare = 1.f;
 	float CurrentTurn = 0.f;
 	bool bActive = false;
 };
