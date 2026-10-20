@@ -3,15 +3,21 @@ C++ data: painted pictures the game draws into textures once (LooterUI::FPainted
 and the soft glows behind the eyes (LooterUI::GlowBrush). UHudPortraitWidget stacks them in the player frame's diamond
 window, moves them and fades them (UI/HUD/HudPortraitWidget.cpp).
 
+Each playable hero has one (2026-10-19): Ellis's is HudPortrait.svg, the other four HudPortrait_<Hero>.svg (Odessa,
+Crane, Gauge, Pike), drawn the same way (the same groups, glass, ink weights and framing) from the user's picked painted
+portraits (Art/Portraits/Picks/<Hero>.png).
+
 The SVG is where the portrait is drawn; this file only reads it. Running it writes
     Source/AI_Looter_Shooter/UI/Style/HudPortraitData.inl   the portrait as C++ data (generated: change the SVG and run
                                                             this again)
     Saved/ArtPreviews/Icons/HudPortrait_<State>.png         the window drawn from that data, big and at its HUD size
                                                             (calm, mid-blink, hurt, flaring), to check against the SVG
+and for another hero HudPortraitData_<Hero>.inl (namespace HudPortraitData::<Hero>, sharing FPicture, FGlow and
+WindowUnits with Ellis's file, which it includes) and HudPortrait_<Hero>_<State>.png.
 
-    python Art/Icons/HudPortrait.py
+    python Art/Icons/HudPortrait.py [Hero | all]            Ellis when no hero is named; all five with "all"
     The data needs any Python 3; the previews need numpy (Blender's Python has it:
-    "C:/Program Files/Blender Foundation/Blender 4.4/4.4/python/bin/python.exe" Art/Icons/HudPortrait.py).
+    "C:/Program Files/Blender Foundation/Blender 4.4/4.4/python/bin/python.exe" Art/Icons/HudPortrait.py Crane).
 
 How the SVG becomes pictures. Each picture is one texture, so the widget can move or fade it on its own:
   Glass      the glass group: its radial gradient as one radial layer per stretch between two stops (so the colour runs
@@ -30,13 +36,15 @@ put; so each picture keeps its art up to MARGIN units past the square. Pictures 
 (SNAP units) so that at rest their textures (drawn at twice the HUD size) land 2:1 on the screen's pixels.
 
 Supported SVG: groups (fill, stroke, stroke-width, opacity, transform translate), paths (M L H V C Q Z, absolute or
-relative), rects, polygons, and ellipses filled with a radial gradient (the glows). Anything else stops the script, so a
-change to the SVG is never dropped quietly.
+relative), rects, polygons, circles and ellipses with a plain fill or stroke (flattened like the curves), and ellipses
+filled with a radial gradient (the glows, only in the eye groups). Anything else stops the script, so a change to the
+SVG is never dropped quietly.
 """
 import math
 import os
 import re
 import struct
+import sys
 import xml.etree.ElementTree as ET
 import zlib
 
@@ -44,6 +52,21 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SVG_IN = os.path.join(REPO, 'Art', 'Icons', 'HudPortrait.svg')
 DATA_OUT = os.path.join(REPO, 'Source', 'AI_Looter_Shooter', 'UI', 'Style', 'HudPortraitData.inl')
 PREVIEW_OUT = os.path.join(REPO, 'Saved', 'ArtPreviews', 'Icons')
+
+# The heroes by UHeroDefinition::Id, in the roster's order, with the names their data's comment gives them. Ellis's is
+# the original portrait (its file names carry no hero); the others are named after the hero.
+HEROES = {'Ellis': 'Ellis Ransom', 'Odessa': 'Odessa Lark', 'Crane': 'Hollis Crane', 'Gauge': 'Gauge',
+          'Pike': 'Wendell Pike'}
+DEFAULT_HERO = 'Ellis'
+
+
+def hero_files(hero):
+    """The hero's SVG, data file and preview name prefix."""
+    if hero == DEFAULT_HERO:
+        return SVG_IN, DATA_OUT, 'HudPortrait'
+    return (os.path.join(REPO, 'Art', 'Icons', f'HudPortrait_{hero}.svg'),
+            os.path.join(REPO, 'Source', 'AI_Looter_Shooter', 'UI', 'Style', f'HudPortraitData_{hero}.inl'),
+            f'HudPortrait_{hero}')
 
 HUD_SCALE = 0.64        # px a unit on a 1080p screen: the 200-unit window is 128 px tip to tip (the spec)
 SNAP = 1.0 / HUD_SCALE  # one HUD pixel, in units
@@ -223,10 +246,28 @@ class Shape:
         elif self.tag == 'polygon':
             values = [float(v) for v in re.split(r'[\s,]+', element.get('points').strip())]
             self.subpaths = [([(values[k] + dx, values[k + 1] + dy) for k in range(0, len(values), 2)], True)]
-        elif self.tag == 'ellipse':
-            self.ellipse = (get('cx') + dx, get('cy') + dy, get('rx'), get('ry'))
+        elif self.tag in ('ellipse', 'circle'):
+            cx, cy = get('cx') + dx, get('cy') + dy
+            rx, ry = (get('r'), get('r')) if self.tag == 'circle' else (get('rx'), get('ry'))
+            if self.tag == 'ellipse' and str(self.fill).startswith('url('):
+                self.ellipse = (cx, cy, rx, ry)        # a glow
+            else:
+                self.subpaths = [(ellipse_points(cx, cy, rx, ry), True)]
         else:
             raise ValueError(f'unsupported element <{self.tag}>')
+
+
+def ellipse_points(cx, cy, rx, ry):
+    """A plain ellipse as four quarter cubics (the usual 0.5523 handles), flattened like a path's curves."""
+    k = 0.5522847498
+    points = [(cx + rx, cy)]
+    for (ax, ay), (bx, by) in (((1, 0), (0, 1)), ((0, 1), (-1, 0)), ((-1, 0), (0, -1)), ((0, -1), (1, 0))):
+        p0 = (cx + ax * rx, cy + ay * ry)
+        p1 = (p0[0] + bx * rx * k, p0[1] + by * ry * k)
+        p3 = (cx + bx * rx, cy + by * ry)
+        p2 = (p3[0] + ax * rx * k, p3[1] + ay * ry * k)
+        points += flatten_cubic(p0, p1, p2, p3)
+    return points[:-1]   # the last point is the first again
 
 
 def inherit(style, element):
@@ -440,9 +481,12 @@ def build(shapes, gradients, patterns, window):
         raise ValueError('the window must be the diamond inscribed in the 200-unit square')
 
     layers_by_group, glows_by_group = {}, {}
+    glow_groups = {group for _, group in GLOWS}
     for shape in shapes:
         out = layers_by_group.setdefault(shape.group, [])
-        if shape.tag == 'ellipse':
+        if shape.ellipse:
+            if shape.group not in glow_groups:
+                raise ValueError(f'{shape.id or shape.group}: glows only in the eye groups')
             gradient = gradients[re.fullmatch(r'url\(#(.+)\)', shape.fill).group(1)]
             body, core = glows(shape, gradient)
             glows_by_group.setdefault(shape.group, []).append((body, core))
@@ -526,7 +570,9 @@ def cpp_glows(name, glow_list):
     return f'\tinline TArray<FGlow> {name}()\n\t{{\n\t\treturn {{\n{rows}\n\t\t}};\n\t}}\n'
 
 
-def write_cpp(pictures, glow_sets, blink_y):
+def write_cpp(pictures, glow_sets, blink_y, hero=DEFAULT_HERO):
+    if hero != DEFAULT_HERO:
+        return write_hero_cpp(pictures, glow_sets, blink_y, hero)
     header = (
         '// Generated by Art/Icons/HudPortrait.py from Art/Icons/HudPortrait.svg: change the art there and run it again;\n'
         '// don\'t edit this file. The HUD portrait as painted pictures (LooterUI::FPaintedIcon) and eye glows\n'
@@ -547,6 +593,30 @@ def write_cpp(pictures, glow_sets, blink_y):
     with open(DATA_OUT, 'w', encoding='utf-8', newline='\n') as f:
         f.write(header + body + '}\n')
     return DATA_OUT
+
+
+def write_hero_cpp(pictures, glow_sets, blink_y, hero):
+    """Another hero's portrait: the same functions as Ellis's in namespace HudPortraitData::<Hero>, sharing Ellis's
+    file's FPicture, FGlow and WindowUnits (it includes it), so the widget can pick a hero's set by its id."""
+    svg_in, data_out, _ = hero_files(hero)
+    svg = os.path.basename(svg_in)
+    header = (
+        f'// Generated by Art/Icons/HudPortrait.py from Art/Icons/{svg} ("HudPortrait.py {hero}"): change the art there\n'
+        f'// and run it again; don\'t edit this file. {HEROES[hero]}\'s HUD portrait, built as Ellis\'s (HudPortraitData.inl):\n'
+        '// painted pictures (LooterUI::FPaintedIcon) and eye glows (LooterUI::GlowBrush) for UHudPortraitWidget; how the SVG\n'
+        '// becomes these is in that script\'s docstring. Units are the SVG\'s (x right, y down); a picture\'s points and\n'
+        '// gradients count from its Origin.\n'
+        '#pragma once\n\n'
+        '#include "UI/Style/LooterUIStyle.h"\n'
+        '#include "UI/Style/HudPortraitData.inl"\n\n'
+        '// The same names as Ellis\'s (HudPortraitData::Glass() and the rest), one namespace in.\n'
+        f'namespace HudPortraitData::{hero}\n{{\n'
+        '\t/** The open eyes squash toward this height for the blink: the middle of their glows and slits. */\n'
+        f'\tconstexpr double BlinkCenterY = {blink_y:.2f};\n\n')
+    body = '\n'.join([cpp_picture(p) for p in pictures] + [cpp_glows(n, g) for n, g in glow_sets])
+    with open(data_out, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(header + body + '}\n')
+    return data_out
 
 
 # --- The previews: the window drawn from the data (the game's rules, supersampled), to check against the SVG ---
@@ -664,7 +734,7 @@ def write_png(path, rgb):
                 + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b''))
 
 
-def write_previews(pictures, glow_sets):
+def write_previews(pictures, glow_sets, prefix='HudPortrait'):
     try:
         import numpy  # noqa: F401
     except ImportError:
@@ -674,7 +744,7 @@ def write_previews(pictures, glow_sets):
     written = []
     for state in ('Calm', 'Blink', 'Hurt', 'Flare'):
         for suffix, scale, ss in (('', 2.56, 2), ('_Hud', HUD_SCALE, 6)):
-            path = os.path.join(PREVIEW_OUT, f'HudPortrait_{state}{suffix}.png')
+            path = os.path.join(PREVIEW_OUT, f'{prefix}_{state}{suffix}.png')
             write_png(path, render(pictures, glow_sets, state, scale, ss))
             written.append(path)
     return written
@@ -683,11 +753,14 @@ def write_previews(pictures, glow_sets):
 BLINK_Y = 90.0
 
 
-def main():
+def make(hero):
+    """Reads the hero's SVG and writes its data and previews."""
     global BLINK_Y
-    shapes, gradients, patterns, window = read_svg(SVG_IN)
+    svg_in, _, prefix = hero_files(hero)
+    print(f'{hero}: {svg_in}')
+    shapes, gradients, patterns, window = read_svg(svg_in)
     pictures, glow_sets, BLINK_Y = build(shapes, gradients, patterns, window)
-    print('wrote', write_cpp(pictures, glow_sets, BLINK_Y))
+    print('wrote', write_cpp(pictures, glow_sets, BLINK_Y, hero))
     for p in pictures:
         px = (math.ceil(p.view[0] * HUD_SCALE * 2 - 1e-3), math.ceil(p.view[1] * HUD_SCALE * 2 - 1e-3))
         print(f'{p.name}: origin {p.origin[0]:.2f}, {p.origin[1]:.2f}, view {p.view[0]:.2f} x {p.view[1]:.2f} '
@@ -696,9 +769,23 @@ def main():
     for name, g in glow_sets:
         print(f'{name}: {len(g)} glows')
     print(f'blink centre y {BLINK_Y:.2f}')
-    for path in write_previews(pictures, glow_sets):
+    for path in write_previews(pictures, glow_sets, prefix):
         print('wrote', path)
 
 
+def main(args):
+    if len(args) > 1:
+        raise SystemExit('usage: HudPortrait.py [Hero | all]')
+    wanted = args[0] if args else DEFAULT_HERO
+    if wanted.lower() == 'all':
+        heroes = list(HEROES)
+    else:
+        heroes = [h for h in HEROES if h.lower() == wanted.lower()]
+        if not heroes:
+            raise SystemExit(f'no hero {wanted!r}: one of {", ".join(HEROES)}, or all')
+    for hero in heroes:
+        make(hero)
+
+
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

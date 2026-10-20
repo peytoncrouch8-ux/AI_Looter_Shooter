@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+<!--
+Wendell Pike, the Surveyor: his HUD portrait (the user's pick 2026-10-19, "A The Surveyor": Art/Portraits/Picks/Pike.png),
+drawn as Ellis's (Art/Icons/HudPortrait.svg: the same groups, glass, ink weights, misregistration and framing) and read
+by Art/Icons/HudPortrait.py ("HudPortrait.py Pike"). A stocky old surveyor: brown bowler with brass goggles pushed up on
+it, round wire spectacles with cyan eyes behind them, grey mutton chops joined to a big mustache, a teal neckerchief, the
+khaki field coat with its collar up and chest pockets, the tripod's brass-shod legs over his right shoulder.
+
+Layers, back to front (ids below):
+  glass       Ellis's dark blue glass with faint scanlines
+  colour      the flat fills, offset 1.3 x 0.9 units from the ink
+  rim         the cyan rim light along the hat and the left shoulder
+  ink         the ink lines (#0a1218), 1.2-3 units wide
+  eyes-open   the resting eyes behind the spectacles: two glowing cyan slits, and the calm brows
+  eyes-hurt   narrow eyes and brows pulled down
+  eyes-flare  wide glowing eyes for a level-up
+-->
+<defs>
+<clipPath id="window"><polygon points="100,0 200,100 100,200 0,100"/></clipPath>
+<radialGradient id="glassFill" cx="50%" cy="40%" r="64%"><stop offset="0" stop-color="#1f5470"/><stop offset="0.5" stop-color="#0c2a3c"/><stop offset="1" stop-color="#04101a"/></radialGradient>
+<radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e6fbff" stop-opacity="1"/><stop offset="0.3" stop-color="#7fd8ff" stop-opacity="0.7"/><stop offset="1" stop-color="#5ccaff" stop-opacity="0"/></radialGradient>
+<pattern id="scanlines" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1.2" fill="#5ac8ff" opacity="0.08"/></pattern>
+</defs>
+<g clip-path="url(#window)">
+<g id="glass">
+<rect x="-10" y="-10" width="220" height="220" fill="url(#glassFill)"/>
+<rect x="-10" y="-10" width="220" height="220" fill="url(#scanlines)"/>
+</g>
+<g id="colour" transform="translate(1.3 0.9)">
+<path id="tripod" d="M24.96,156.46 L33.96,98.46 L28.04,97.54 L19.04,155.54 Z M40.98,156.31 L47.98,88.31 L42.02,87.69 L35.02,155.69 Z" fill="#6c4f3a"/>
+<path id="tripod-shoes" d="M33,106.63 L34.26,98.51 L27.74,97.49 L26.48,105.61 Z M47.3,97.86 L48.28,88.34 L41.72,87.66 L40.74,97.18 Z" fill="#c7b260"/>
+<path id="tripod-strap" d="M24 123.5 L46.5 119.4 L47 125 L24.5 129 Z" fill="#3b2d23"/>
+<path id="coat" d="M-6 206 L-6 158 C14 146 38 138 62 134 L138 134 C162 138 186 146 206 158 L206 206 Z" fill="#76704f"/>
+<path id="shoulders-lit" d="M-6 158 C14 146 38 138 62 134 L138 134 C162 138 186 146 206 158 L206 165 C186 153 162 145 138 141.5 L62 141.5 C38 145 14 153 -6 165 Z" fill="#988f6a"/>
+<path id="collar-left" d="M50 206 L54 150 L58 122 L82 130 L88 150 L84 206 Z" fill="#666046"/>
+<path id="collar-right" d="M150 206 L146 150 L142 122 L118 130 L112 150 L116 206 Z" fill="#666046"/>
+<path id="collar-tops" d="M58 122 L82 130 L79 139 L57 131 Z M142 122 L118 130 L121 139 L143 131 Z" fill="#a69d76"/>
+<path id="shirt" d="M84 206 L88 150 L100 166 L112 150 L116 206 Z" fill="#c9c1a8"/>
+<path id="pockets" d="M66 156 L85 156 L85 163 L75.5 167 L66 163 Z M134 156 L115 156 L115 163 L124.5 167 L134 163 Z" fill="#8b8360"/>
+<circle id="buttons" cx="75.5" cy="163.6" r="1.5" fill="#c7b260"/>
+<circle cx="124.5" cy="163.6" r="1.5" fill="#c7b260"/>
+<path id="neck" d="M88 116 L112 116 L113 132 L87 132 Z" fill="#94776a"/>
+<path id="neckerchief" d="M84 126 C92 130.5 108 130.5 116 126 L118.5 136 L113 146 C109.5 154 105.5 162 100 172 C94.5 162 90.5 154 87 146 L81.5 136 Z" fill="#3fbfaa"/>
+<path id="neckerchief-shade" d="M100 140 C106 139.6 112 138 118.5 136 L113 146 C109.5 154 105.5 162 100 172 Z" fill="#26907f"/>
+<path id="knot" d="M94 132 L106 132 L108 141 C104 143 96 143 92 141 Z" fill="#5fd6c2"/>
+<path id="face" d="M70 72 L130 72 L133 94 C133 106 131 114 127 120 C120 127 110 130 100 130 C90 130 80 127 73 120 C69 114 67 106 67 94 Z" fill="#b5988a"/>
+<path id="brim-shadow" d="M69 72 L131 72 L131.4 79.5 C121 82 110 82.6 100 82.6 C90 82.6 79 82 68.6 79.5 Z" fill="#6b5448"/>
+<circle id="lenses" cx="86" cy="90" r="8.8" fill="#d8f2fa" opacity="0.14"/>
+<circle cx="114" cy="90" r="8.8" fill="#d8f2fa" opacity="0.14"/>
+<path id="lip" d="M94.5 121 C97 124.5 103 124.5 105.5 121 Z" fill="#8f6658"/>
+<path id="whiskers" d="M66 80 C63 94 63.5 107 67.5 116 L70 122 L72.5 120 L75 126 L78 123.5 L81.5 128.5 L84.5 125.5 L88 127.5 C90.5 125.5 92.5 123 94 120 C96 121 98 121.5 100 121.5 C102 121.5 104 121 106 120 C107.5 123 109.5 125.5 112 127.5 L115.5 125.5 L118.5 128.5 L122 123.5 L125 126 L127.5 120 L130 122 L132.5 116 C136.5 107 137 94 134 80 L128.5 82 C129.5 92 128.5 102 125.5 108 C120 111 113.5 111 108 108 C105 106.5 102.5 106 100 106 C97.5 106 95 106.5 92 108 C86.5 111 80 111 74.5 108 C71.5 102 70.5 92 71.5 82 Z" fill="#b9c0c3"/>
+<path id="whiskers-shade" d="M67.5 116 L70 122 L72.5 120 L75 126 L78 123.5 L81.5 128.5 L84.5 125.5 L88 127.5 C90.5 125.5 92.5 123 94 120 C89 121.5 82 120 76 116 C72 113 69.5 108 68 102 Z M132.5 116 L130 122 L127.5 120 L125 126 L122 123.5 L118.5 128.5 L115.5 125.5 L112 127.5 C109.5 125.5 107.5 123 106 120 C111 121.5 118 120 124 116 C128 113 130.5 108 132 102 Z" fill="#878f94"/>
+<path id="nose" d="M97 92 L103 92 C105.5 98 107.5 103 106.5 107 C104 109.5 96 109.5 93.5 107 C92.5 103 94.5 98 97 92 Z" fill="#c8a795"/>
+<path id="nose-shine" d="M101.5 98 C102.6 100.5 103.4 102.6 103.6 104.6" fill="none" stroke="#e2c6b4" stroke-width="1.3"/>
+<path id="crown" d="M69 64 C67 45 80 28 100 28 C120 28 133 45 131 64 C120 66 110 66.6 100 66.6 C90 66.6 80 66 69 64 Z" fill="#5f4637"/>
+<path id="crown-shade" d="M69 64 C67 45 80 28 100 28 C91 31 84 42 82.5 65.7 C78 65.3 73.5 64.7 69 64 Z" fill="#422f24"/>
+<path id="crown-shine" d="M113 32.5 C120 36 125 42 127.5 49" fill="none" stroke="#7d604d" stroke-width="2.6"/>
+<path id="hatband" d="M68.7 57.5 C80 60 90 61 100 61 C110 61 120 60 131.3 57.5 L131 64 C120 66 110 66.6 100 66.6 C90 66.6 80 66 69 64 Z" fill="#271d17"/>
+<path id="goggle-strap" d="M69.5 50 C80 47 90 46 100 46 C110 46 120 47 130.5 50 L131 55.5 C120 52.6 110 51.6 100 51.6 C90 51.6 80 52.6 69 55.5 Z" fill="#3b2d23"/>
+<circle id="goggles" cx="87.5" cy="47" r="9.5" fill="#c7b260"/>
+<circle cx="112.5" cy="47" r="9.5" fill="#c7b260"/>
+<rect id="goggle-bridge" x="96" y="44.6" width="8" height="4.8" fill="#c7b260"/>
+<path id="goggles-shade" d="M96.4 50 C95 54.6 91.4 56.6 87.5 56.5 C83.6 56.5 80 54.2 78.6 50.6 C82 53 86 53.8 89.6 52.8 C92.6 52 95 51 96.4 50 Z M121.4 50 C120 54.6 116.4 56.6 112.5 56.5 C108.6 56.5 105 54.2 103.6 50.6 C107 53 111 53.8 114.6 52.8 C117.6 52 120 51 121.4 50 Z" fill="#8a7636"/>
+<circle id="goggle-lenses" cx="87.5" cy="47" r="6.1" fill="#1b252b"/>
+<circle cx="112.5" cy="47" r="6.1" fill="#1b252b"/>
+<path id="goggle-glints" d="M83.6 45.4 C84.2 43.4 85.6 42.2 87.4 41.8 M108.6 45.4 C109.2 43.4 110.6 42.2 112.4 41.8" fill="none" stroke="#ffc06a" stroke-width="1.4"/>
+<path id="brim" d="M52 64 C56 58 63 57 70 60 C80 63.4 90 64.4 100 64.4 C110 64.4 120 63.4 130 60 C137 57 144 58 148 64 C145 70.5 136 73 124 72.4 C116 72 108 71.6 100 71.6 C92 71.6 84 72 76 72.4 C64 73 55 70.5 52 64 Z" fill="#6b5242"/>
+<path id="brim-underside" d="M52 64 C55 70.5 64 73 76 72.4 C84 72 92 71.6 100 71.6 C108 71.6 116 72 124 72.4 C136 73 145 70.5 148 64 C143 67.5 135 68.6 124 68.4 C116 68.2 108 68 100 68 C92 68 84 68.2 76 68.4 C65 68.6 57 67.5 52 64 Z" fill="#2c211a"/>
+</g>
+<g id="rim" fill="none" stroke="#7fd8ff" stroke-width="1.4" stroke-linecap="round">
+<path d="M69 63 C67 44.5 80 27.5 100 27.5 M53 63.5 C57 58 63 57 70 59.5" opacity="0.8"/>
+<path d="M-6 157 C14 145 38 137 62 133" opacity="0.6"/>
+</g>
+<g id="ink" fill="none" stroke="#0a1218" stroke-linejoin="round" stroke-linecap="round">
+<path d="M24.96,156.46 L33.96,98.46 L28.04,97.54 L19.04,155.54 Z M40.98,156.31 L47.98,88.31 L42.02,87.69 L35.02,155.69 Z" stroke-width="2"/>
+<path d="M33 106.63 L26.48 105.61 M47.3 97.86 L40.74 97.18 M24 123.5 L46.5 119.4 M24.5 129 L47 125" stroke-width="1.4"/>
+<path d="M-6 158 C14 146 38 138 62 134 L82.5 134 M117.5 134 L138 134 C162 138 186 146 206 158" stroke-width="3"/>
+<path d="M50 206 L54 150 L58 122 L82 130 L88 150 L84 206 M150 206 L146 150 L142 122 L118 130 L112 150 L116 206" stroke-width="2.6"/>
+<path d="M57.5 131 L79 139 M142.5 131 L121 139" stroke-width="1.6"/>
+<path d="M88 150 L100 166 L112 150" stroke-width="2"/>
+<path d="M66 156 L85 156 L85 163 L75.5 167 L66 163 Z M134 156 L115 156 L115 163 L124.5 167 L134 163 Z" stroke-width="1.6"/>
+<path d="M88 116 L87 127 M112 116 L113 127" stroke-width="2"/>
+<path d="M84 126 C92 130.5 108 130.5 116 126 L118.5 136 L113 146 C109.5 154 105.5 162 100 172 C94.5 162 90.5 154 87 146 L81.5 136 Z" stroke-width="2.2"/>
+<path d="M94 132 L106 132 L108 141 C104 143 96 143 92 141 Z" stroke-width="1.6"/>
+<path d="M96 143 C97 152 98.5 160 100 168 M104.5 143 C106 148 107.5 152 110 154" stroke-width="1.3"/>
+<path d="M70 72 L68.4 80 M130 72 L131.6 80 M88.5 127.6 C92 129.4 96 130 100 130 C104 130 108 129.4 111.5 127.6" stroke-width="2.4"/>
+<path d="M66 80 C63 94 63.5 107 67.5 116 L70 122 L72.5 120 L75 126 L78 123.5 L81.5 128.5 L84.5 125.5 L88 127.5 C90.5 125.5 92.5 123 94 120 C96 121 98 121.5 100 121.5 C102 121.5 104 121 106 120 C107.5 123 109.5 125.5 112 127.5 L115.5 125.5 L118.5 128.5 L122 123.5 L125 126 L127.5 120 L130 122 L132.5 116 C136.5 107 137 94 134 80 L128.5 82 C129.5 92 128.5 102 125.5 108 C120 111 113.5 111 108 108 C105 106.5 102.5 106 100 106 C97.5 106 95 106.5 92 108 C86.5 111 80 111 74.5 108 C71.5 102 70.5 92 71.5 82 Z" stroke-width="2"/>
+<path d="M67 92 C67.5 100 69.5 108 74 114 M133 92 C132.5 100 130.5 108 126 114 M84 113 C88 114.5 91.5 115.6 95 115.6 M116 113 C112 114.5 108.5 115.6 105 115.6 M100 106.2 L100 110.5" stroke-width="1.3"/>
+<path d="M97.5 93 C95.5 98 93.5 103 93.6 107 C96 109.5 104 109.5 106.4 107" stroke-width="1.5"/>
+<path d="M69 64 C67 45 80 28 100 28 C120 28 133 45 131 64" stroke-width="3"/>
+<path d="M69.5 50 C80 47 90 46 100 46 C110 46 120 47 130.5 50 M69 55.5 C80 52.6 90 51.6 100 51.6 C110 51.6 120 52.6 131 55.5" stroke-width="1.4"/>
+<circle cx="87.5" cy="47" r="9.5" stroke-width="2.2"/>
+<circle cx="112.5" cy="47" r="9.5" stroke-width="2.2"/>
+<circle cx="87.5" cy="47" r="6.1" stroke-width="1.4"/>
+<circle cx="112.5" cy="47" r="6.1" stroke-width="1.4"/>
+<path d="M52 64 C56 58 63 57 70 60 C80 63.4 90 64.4 100 64.4 C110 64.4 120 63.4 130 60 C137 57 144 58 148 64 C145 70.5 136 73 124 72.4 C116 72 108 71.6 100 71.6 C92 71.6 84 72 76 72.4 C64 73 55 70.5 52 64 Z" stroke-width="3"/>
+<circle cx="86" cy="90" r="8.8" stroke-width="2.2"/>
+<circle cx="114" cy="90" r="8.8" stroke-width="2.2"/>
+<path d="M94.8 88.6 C97 86.6 103 86.6 105.2 88.6" stroke-width="1.8"/>
+<path d="M77.2 88.2 L70.5 86.4 M122.8 88.2 L129.5 86.4" stroke-width="1.6"/>
+</g>
+<g id="eyes-open">
+<ellipse cx="86" cy="90" rx="14" ry="8" fill="url(#eyeGlow)"/>
+<ellipse cx="114" cy="90" rx="14" ry="8" fill="url(#eyeGlow)"/>
+<path d="M80 90.4 C83.5 88.2 88.5 87.6 92.5 89 C88.5 91.4 84 92 80 90.4 Z" fill="#f2fdff"/>
+<path d="M120 90.4 C116.5 88.2 111.5 87.6 107.5 89 C111.5 91.4 116 92 120 90.4 Z" fill="#f2fdff"/>
+<path d="M75.5 80.8 C80.5 78.8 87 78.4 93.5 79.6 M124.5 80.8 C119.5 78.8 113 78.4 106.5 79.6" fill="none" stroke="#0a1218" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+<g id="eyes-hurt" display="none">
+<ellipse cx="86" cy="90" rx="10" ry="5.5" fill="url(#eyeGlow)" opacity="0.7"/>
+<ellipse cx="114" cy="90" rx="10" ry="5.5" fill="url(#eyeGlow)" opacity="0.7"/>
+<path d="M80.5 90.2 C84.5 89.2 88.5 89 92 89.8 C88.5 90.9 84.5 91.1 80.5 90.2 Z" fill="#f2fdff"/>
+<path d="M119.5 90.2 C115.5 89.2 111.5 89 108 89.8 C111.5 90.9 115.5 91.1 119.5 90.2 Z" fill="#f2fdff"/>
+<path d="M75.5 79 C82 80 88 81.5 94 83.6 M124.5 79 C118 80 112 81.5 106 83.6" fill="none" stroke="#0a1218" stroke-width="2.4" stroke-linecap="round"/>
+</g>
+<g id="eyes-flare" display="none">
+<ellipse cx="86" cy="90" rx="26" ry="15" fill="url(#eyeGlow)"/>
+<ellipse cx="114" cy="90" rx="26" ry="15" fill="url(#eyeGlow)"/>
+<path d="M79 90.4 C83 87.4 88.5 86.6 93.5 88.4 C89 91.8 84 92.6 79 90.4 Z" fill="#ffffff"/>
+<path d="M121 90.4 C117 87.4 111.5 86.6 106.5 88.4 C111 91.8 116 92.6 121 90.4 Z" fill="#ffffff"/>
+</g>
+</g>
+</svg>
