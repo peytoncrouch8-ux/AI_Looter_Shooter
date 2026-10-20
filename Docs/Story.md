@@ -86,7 +86,9 @@ open: the ember in the Deacon's hand flares and dims as he fires.
   models in `Art/Backlog/Characters`. Ellis's game model is SK_Ellis. **The portraits the user picked (2026-10-19)**,
   the specs for the game models (`Art/Portraits/<Hero>.py` `OPTIONS`; sheets `Saved/ArtPreviews/Portraits/<Hero>/`):
   Ellis A The Revenant, Crane **A The Marshal**, Pike **A The Surveyor**, Gauge **C Company Iron**, Odessa **A The
-  Dealer**.
+  Dealer**. **The cold open is the same for every hero** (the user, 2026-10-20): whoever is picked is shot on Ransom's
+  Point and raised by Sexton; each hero's earlier past (Odessa's bullet, Pike's ravine, Crane's forty years, Gauge's
+  wreck) is told in their own region.
 - **One story for everyone** (the user: "You take Ellis's place"). The picked hero is the Revenant Sexton raised in the
   Ransom plot; missions, areas and bosses are the same for all five. The family story is told in full only as Ellis.
   For the other four the shared text goes hero-neutral: Pa is **the Keeper** (Abel Ransom), Delia the Keeper's mother,

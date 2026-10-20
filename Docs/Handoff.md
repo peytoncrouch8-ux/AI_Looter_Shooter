@@ -243,7 +243,9 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   showing: look next). PIKE resumed to diagnose and fix it (re-export; Main reimports).
 - **Morning state (2026-10-20 ~04:50): the hero pick is built end to end**: five playable heroes with their own bodies,
   first-person arms, HUD portraits, three powers each and their own words; the Gravemother's Barrow fight; all committed
-  and pushed (last 6a5c172), 744/744. Waiting on the user: the cold-open question (Lines §7, above) and their playtest.
+  and pushed (last 6a5c172), 744/744. **The user's call (2026-10-20 morning): the cold open is kept for every hero**
+  (Story.md "The heroes"); Main's other four provisional Lines calls stand unless the user says otherwise. Waiting on the
+  user: their playtest.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
