@@ -544,6 +544,13 @@ The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter
   (63 mannequin, 4 twist, skirt_{fl,sl,bl,bm,br,sr,fr} and bandana chains with `_end` leaves, `hat`), sets
   PikeSkin/Coat/Garb/Gear (baked) and PikeHair (script-made, ellis_hair's layout). Helpers `Tools/Blender/pike_clothes.py`,
   `pike_gear.py` (pack, tripod, map tube, bandolier, spyglass), `pike_hair.py`, `pike_rig.py`, `pike_audit.py`, `pike_looks.py`.
+- `Art/Models/Characters/Crane.py`: SK_Crane, Hollis Crane the Unpaid (the user's pick A The Marshal): 33,507 triangles,
+  144 bones (63 mannequin, 4 twist, skirt ring x9, cape x9 + `cape_arm`, hair/hair_fl/hair_fr, lantern_01 = the toll
+  chain's hook, `_end` leaves, `hat`), a stoop posed into the bind pose (head joint 7 cm ahead of the neck), the coin
+  over the left eye, cyan right socket, the ember glow at the chest; sets CraneSkin/Coat/Garb/Gear (baked), CraneHair
+  (script-made); cloth cache `Crane.drape.json`. Helpers `Tools/Blender/crane_common.py` (posed body joints),
+  `crane_head.py`, `crane_clothes.py`, `crane_gear.py` (chain, star, hook), `crane_hair.py`, `crane_rig.py`,
+  `crane_looks.py`, `crane_audit.py`.
 - `Tools/Unreal/build_area_animals.py`: chicken yards and the porch cat from town.json's spots, cliff swallows at the placed SM_SwallowNests; folder `Animals`.
 - `Tools/Blender/looter_animals.py`, `animals_sheet.py`: the small animals (`Art/Models/Creatures/Chicken.py`, `Cat.py`, `Swallow.py`: skins, cards, rigs, pose tables) and look sheet 44.
 - `Tools/Unreal/build_world_materials.py`: textured masters (`M_World`, `M_Gun`, `M_WorldFoliage`, `M_Terrain`, `M_Water`, `M_Waterfall`, `M_WaterMist` and the water textures' import, sky and backdrop), island style switches (off by default; Sunbleached on `M_World`, `M_WorldFoliage`, `M_Terrain`, `M_SkyClouds`), `M_SunbleachedPost`. Character masters (Ellis's slots): `M_Character`, `M_CharacterCloth`, `M_CharacterSkin`, `M_CharacterHair` (hair cards: masked, two-sided, Hair shading). `M_Terrain` ground layers (`GROUND_WEIGHTS`, `TERRAIN_CODE`, `GROUND_DEFAULTS`): grass, matted thatch `GroundThatch`, stony `GroundStony`, damp soil, each normalized by its own mean. Also `M_BulletMark` (deferred decal; atlas cell by decal colour).
