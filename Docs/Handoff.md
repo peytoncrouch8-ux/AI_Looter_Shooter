@@ -82,8 +82,7 @@ portrait/mesh/retargeter fields only once the asset exists). BARROW-CODE phase 2
 until it reports). A seventh agent, HUD-PORTRAITS, draws the four heroes' inked HUD portraits
 (`Art/Icons/HudPortrait_<Hero>.svg` -> `HudPortraitData_<Hero>.inl`, not included yet) and writes
 `Saved/HudPortraits/WIRING.md` for Main's C++ hookup once BARROW-CODE is done. Main's own untested piece:
-`Tools/Unreal/build_hero_retarget.py <Hero>` (replaces `build_ellis_retarget.py` once tested; then update its Pipeline
-and CODEMAP mentions). **The user (2026-10-19, "what can speed it up"): start the twelve powers now, keep the 8-agent
+`Tools/Unreal/build_hero_retarget.py <Hero>` (tested on Gauge; it replaced `build_ellis_retarget.py`). **The user (2026-10-19, "what can speed it up"): start the twelve powers now, keep the 8-agent
 cap.** An eighth agent, POWERS, writes the twelve powers' C++ into a holding tree `Saved/Powers/Source/...` (not under
 Source: BARROW-CODE owns the builds), edits `create_ember_assets.py` and the powers' sound recipes/cues in place, and
 writes `Saved/Powers/README.md` (files, run order, compile risks); Main moves the tree into Source and builds once
@@ -143,6 +142,18 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   `build_hero_retarget.py Gauge` (untested), `create_ember_assets.py`, check in PIE with `Looter.Hero Gauge`; then each
   hero as it lands; then merge POWERS' and LINES-WIRE's holding trees (they build and fix their own); ask the user the
   cold-open question (Lines §7) first thing.
+- **Resumed ~01:30** (the limit lifted): the six agents resumed with SendMessage. **Gauge is in the game**: imported
+  (68 bones, 7 slots, 17 hit zones), `build_hero_retarget.py Gauge` (auto aligned), `create_ember_assets.py` filled
+  DA_Hero_Gauge's mesh/retargeter; checked in PIE (`Looter.Hero.Unlock 1`, `Looter.Hero Gauge`): third person from
+  behind and front, its HUD portrait, Slag Bomb on Q (no code yet). Not yet looked at: aiming (rifle stock vs boiler and
+  right pauldron), its 1.28x hands on the grips, running. The DA_Ember_* assets show modified (POWERS' data, re-saved by
+  that run): left out of Gauge's commit, they go in with the POWERS merge.
+- POWERS done in its holding tree (`Saved/Powers/README.md`; the reviewer's items fixed): twelve powers, icons, 35 cues
+  (95 WAVs, check 0 flagged), tests `Looter.Embers.Power.<Id>`; BulletSubsystem.h/.cpp and LooterSoundCues.h apply as
+  patches (`Saved/Powers/Patches/`). Its calls: damage = the demo's x1.43 (the demo's 14-damage round vs today's 20),
+  Last Rites 60 burst / 90 strike, Long Shot +15% per 10 m, Grave Ward heals 5/s, Double or Nothing never misses twice
+  running (cooldown 15), Long Shot marks its own targets, Lucky Streak crits every third pull, Grave Ward slows by
+  CustomTimeDilation, Spyglass without a through-wall silhouette (a mark widget and an orange wash instead).
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):

@@ -828,8 +828,9 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   prerequisite) so the hands don't lag the guns, and mirrors its first/third-person drawing (`bOwnerNoSee`,
   `FirstPersonPrimitiveType`) each tick: invisible to the player in first person, his shadow cast. Without SK_Ellis or the
   retargeter the mannequin shows as before. `ALoadoutStage` wears him too (unused since the redesign).
-- `Tools/Unreal/build_ellis_retarget.py` makes `/Game/Player/Retarget/IK_Manny`, `IK_Ellis` (the engine's auto chains: the
-  same 29 on both, fingers too) and the retargeter: default ops (Pelvis Motion, FK Chains, Run IK Rig, Root Motion, Remap
+- `Tools/Unreal/build_hero_retarget.py <Hero>` (default Ellis; first used for Gauge 2026-10-20) makes
+  `/Game/Player/Retarget/IK_Manny`, `IK_<Hero>` (the engine's auto chains: the same 29 on both, fingers too; Gauge's
+  unweighted ring and pinky bones map too) and `RTG_MannyTo<Hero>`: default ops (Pelvis Motion, FK Chains, Run IK Rig, Root Motion, Remap
   Curves) plus Blend to Source on LeftArm and RightArm (hands go to the mannequin's, the arms reach them by IK: before it
   his hands missed the rifle). Lessons: SK_Ellis faced +X, the mannequin +Y: the retarget pose turned his root 90 degrees
   and nothing else, as the engine's auto align compared them unturned and tipped his head ~25 degrees sideways (both

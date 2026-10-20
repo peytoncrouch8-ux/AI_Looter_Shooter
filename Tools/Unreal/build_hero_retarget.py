@@ -1,18 +1,19 @@
-"""Ellis's body retarget (the user, 2026-10-15: SK_Ellis is the player's body; "retarget live"): the mannequin stays the
-player's animated body, hidden, and Ellis copies its pose every frame through the IK retargeter this script makes
-(Source/AI_Looter_Shooter/Player/Animation/BodyFigureComponent, BodyRetargetAnimInstance).
+"""A hero's body retarget (Docs/Pipeline.md "Character models"; the user, 2026-10-15: "retarget live"): the mannequin stays
+the player's animated body, hidden, and the hero's figure copies its pose every frame through the IK retargeter this
+script makes (Source/AI_Looter_Shooter/Player/Animation/BodyFigureComponent, BodyRetargetAnimInstance). Every hero's
+skeleton carries the mannequin's 63 bone names (Art/Models/Characters/<Hero>.py), so one recipe serves all five.
 
-    Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_ellis_retarget.py" -Until "RETARGET (done|failed)"
+    Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_hero_retarget.py Crane" -Until "RETARGET (done|failed)"
 
-Makes in /Game/Player/Retarget (run again, it sets up the same assets afresh in place: deleting them would null and dirty
-BP_LooterCharacter, whose Ellis component points at the retargeter):
+The hero is the first argument (default Ellis). Makes in /Game/Player/Retarget (run again, it sets up the same assets
+afresh in place: deleting them would null and dirty what points at them, BP_LooterCharacter's body and DA_Hero_<Hero>):
 - IK_Manny: SKM_Manny_Simple's IK rig, its chains and goals made by the engine's own rules for the UE5 mannequin.
-- IK_Ellis: SK_Ellis's (his 63 mannequin bones carry the mannequin's names, so the same rules map them: the same 29
-  chains; his swing bones and `hat` are in none, the game's code moves them).
-- RTG_MannyToEllis: the retargeter, the default ops plus Blend to Source on both arms (the hands go where the mannequin's
-  are, so the guns in its hand sockets sit in Ellis's), chains mapped by name. His retarget pose: SK_Ellis faces +Y like
-  the mannequin (since 2026-10-15), so the engine's auto align lines every chain up (fingers too); an older SK_Ellis
-  facing +X gets his root turned a quarter round instead (auto align would compare them unturned and tip his head
+- IK_<Hero>: SK_<Hero>'s (the same names, so the same rules map them: the same 29 chains; swing bones and `hat` are in
+  none, the game's code moves them).
+- RTG_MannyTo<Hero>: the retargeter, the default ops plus Blend to Source on both arms (the hands go where the
+  mannequin's are, so the guns in its hand sockets sit in the hero's), chains mapped by name. The retarget pose: a hero
+  facing +Y like the mannequin gets every chain lined up by the engine's auto align (fingers too); one facing +X (an old
+  SK_Ellis) gets its root turned a quarter round instead (auto align would compare them unturned and tip the head
   sideways; `--align` runs it anyway).
 """
 import sys
@@ -21,7 +22,7 @@ import unreal
 
 FOLDER = '/Game/Player/Retarget'
 MANNY = '/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple'
-ELLIS = '/Game/Art/Characters/SK_Ellis.SK_Ellis'
+HEROES = ('Ellis', 'Odessa', 'Crane', 'Gauge', 'Pike')
 SOURCE = unreal.RetargetSourceOrTarget.SOURCE
 TARGET = unreal.RetargetSourceOrTarget.TARGET
 
@@ -71,7 +72,7 @@ def facing_of(rig):
 
 def pin_hands(controller):
     """The hands where the mannequin's are (the guns ride its hand sockets): a Blend to Source op on both arms, under the
-    Run IK Rig op, so Ellis's arms reach them by IK whatever their length."""
+    Run IK Rig op, so the hero's arms reach them by IK whatever their length."""
     index = -1
     for op_type in ('/Script/IKRig.IKRetargetBlendToSourceOp', 'IKRetargetBlendToSourceOp', 'FIKRetargetBlendToSourceOp'):
         index = controller.add_retarget_op(op_type)
@@ -98,39 +99,42 @@ def pin_hands(controller):
 
 
 def main():
+    args = [a for a in sys.argv[1:] if not a.startswith('-')]
+    hero = args[0] if args else 'Ellis'
+    if hero not in HEROES:
+        say(f'failed: unknown hero {hero} (one of {", ".join(HEROES)})')
+        return
     manny = unreal.load_asset(MANNY)
-    ellis = unreal.load_asset(ELLIS)
-    if not manny or not ellis:
-        say(f'failed: missing {"SKM_Manny_Simple" if not manny else "SK_Ellis"}')
+    figure = unreal.load_asset(f'/Game/Art/Characters/SK_{hero}.SK_{hero}')
+    if not manny or not figure:
+        say(f'failed: missing {"SKM_Manny_Simple" if not manny else f"SK_{hero}"}')
         return
     manny_rig = make_rig('IK_Manny', manny)
-    ellis_rig = make_rig('IK_Ellis', ellis)
+    hero_rig = make_rig(f'IK_{hero}', figure)
 
-    retargeter = existing_or_new('RTG_MannyToEllis', unreal.IKRetargeter, unreal.IKRetargetFactory())
+    retargeter = existing_or_new(f'RTG_MannyTo{hero}', unreal.IKRetargeter, unreal.IKRetargetFactory())
     controller = unreal.IKRetargeterController.get_controller(retargeter)
     controller.remove_all_ops()
     controller.set_ik_rig(SOURCE, manny_rig)
-    controller.set_ik_rig(TARGET, ellis_rig)
+    controller.set_ik_rig(TARGET, hero_rig)
     controller.set_preview_mesh(SOURCE, manny)
-    controller.set_preview_mesh(TARGET, ellis)
+    controller.set_preview_mesh(TARGET, figure)
     controller.add_default_ops()
     controller.assign_ik_rig_to_all_ops(SOURCE, manny_rig)
-    controller.assign_ik_rig_to_all_ops(TARGET, ellis_rig)
+    controller.assign_ik_rig_to_all_ops(TARGET, hero_rig)
     controller.auto_map_chains(unreal.AutoMapChainType.EXACT, True)
     pin_hands(controller)
     ops = [str(controller.get_op_name(i)) for i in range(controller.get_num_retarget_ops())]
-    say(f'ops: {", ".join(ops)}')
+    say(f'{hero}: ops: {", ".join(ops)}')
 
     pose = controller.get_current_retarget_pose_name(TARGET)
     controller.reset_retarget_pose(pose, [], TARGET)
-    facing = facing_of(ellis_rig)
+    facing = facing_of(hero_rig)
     if facing == '+Y':
-        # Facing the mannequin's way: the engine lines his limbs, neck and fingers up along the mannequin's.
+        # Facing the mannequin's way: the engine lines the limbs, neck and fingers up along the mannequin's.
         controller.auto_align_all_bones(TARGET, unreal.RetargetAutoAlignMethod.CHAIN_TO_CHAIN)
         say('target faces +Y as the mannequin does: auto aligned')
     else:
-        # An older SK_Ellis facing +X: his root turned a quarter round instead (auto align would compare them unturned
-        # and tip his head sideways; --align runs it anyway).
         quarter = unreal.Quat()
         quarter.set_from_euler(unreal.Vector(0.0, 0.0, 90.0))
         controller.set_rotation_offset_for_retarget_pose_bone('root', quarter, TARGET)
@@ -138,7 +142,7 @@ def main():
             controller.auto_align_all_bones(TARGET, unreal.RetargetAutoAlignMethod.CHAIN_TO_CHAIN)
         say(f'target faces {facing}: root turned 90 degrees')
 
-    for asset in (manny_rig, ellis_rig, retargeter):
+    for asset in (manny_rig, hero_rig, retargeter):
         unreal.EditorAssetLibrary.save_loaded_asset(asset)
     say('done')
 

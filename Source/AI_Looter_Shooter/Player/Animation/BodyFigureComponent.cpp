@@ -14,7 +14,7 @@
 
 namespace
 {
-	/** Ellis boots to hat (Art/Models/Characters/Ellis.py), and the retargeter Tools/Unreal/build_ellis_retarget.py makes. */
+	/** Ellis boots to hat (Art/Models/Characters/Ellis.py), and the retargeter Tools/Unreal/build_hero_retarget.py makes. */
 	const TCHAR* const FigurePath = TEXT("/Game/Art/Characters/SK_Ellis.SK_Ellis");
 	const TCHAR* const RetargeterPath = TEXT("/Game/Player/Retarget/RTG_MannyToEllis.RTG_MannyToEllis");
 
@@ -113,7 +113,7 @@ void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& Out
 		}
 	}
 	// Ellis's: the class's defaults, or looked up again when they were remade since the class was set up
-	// (build_ellis_retarget.py replaces the assets, which leaves the defaults' pointers empty).
+	// (build_hero_retarget.py replaces the assets, which leaves the defaults' pointers empty).
 	const UBodyFigureComponent* Defaults = GetDefault<UBodyFigureComponent>();
 	OutMesh = Defaults->GetSkeletalMeshAsset();
 	OutRetargeter = Defaults->Retargeter;
