@@ -240,7 +240,12 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   watch-chain tube gets no bake source: `odessa_clothes.build_watch_chain`). Each export repeats bit-identically.
 - In-game front shots of all five after the reimport (`Saved/Screenshots/Tools/hero_front_<Hero>.png`): right, except
   **Pike shows a dark patch low on his coat front at the right hip** (the spyglass frog's leather or the coat's inside
-  showing: look next).
+  showing: look next). PIKE resumed to diagnose and fix it (re-export; Main reimports).
+- **Morning state (2026-10-20 ~04:50): the hero pick is built end to end**: five playable heroes with their own bodies,
+  first-person arms, HUD portraits, three powers each and their own words; the Gravemother's Barrow fight; all committed
+  and pushed (last 6a5c172), 744/744. Waiting on the user: the cold-open question (Lines §7, above) and their playtest.
+  Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
+  pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
   + MI_PosterDecal/Scrap_<Id>, and the `hero_meshes`/`other_mesh` lines in `build_area_story.py` and
   `build_area_missionprops_valley.py` (run by Main after the merge).
