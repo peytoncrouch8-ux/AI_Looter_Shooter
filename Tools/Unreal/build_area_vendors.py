@@ -45,7 +45,7 @@ VENDORS = {
     'RansomsRest': dict(
         label='Vendor_Pruitt',
         title="Pruitt's General Store",
-        greeting=('A hatch in the door slides open a hand\'s width. "Coin on the sill, and step back," says Hollis Pruitt. '
+        greeting=('A hatch in the door slides open a hand\'s width. "Coin on the sill, and step back," says Harlan Pruitt. '
                   '"Ammunition, salt, whatever\'s on the shelf. I\'ll take guns off your hands, too."'),
         prompt="Trade at Pruitt's",
         after=('Main3',),

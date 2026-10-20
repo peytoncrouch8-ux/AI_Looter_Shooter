@@ -10,6 +10,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionText.h"
+#include "Story/HeroLines.h"
 #include "UI/Style/MissionMarkIcons.h"
 #include "World/LightBeam.h"
 #include "World/WorldQueries.h"
@@ -154,12 +155,14 @@ const FMissionItemInfo* AMissionItem::GetInfo() const
 
 FText AMissionItem::GetItemName() const
 {
+	// "Pa's lantern bail" is Ellis's name for it (Story/HeroLines).
 	if (!DisplayName.IsEmpty())
 	{
-		return DisplayName;
+		return HeroLines::Resolve(DisplayName);
 	}
 	const FMissionItemInfo* Info = GetInfo();
-	return Info && !Info->Name.IsEmpty() ? Info->Name : FText::FromString(FName::NameToDisplayString(ItemId.ToString(), /*bIsBool*/ false));
+	return Info && !Info->Name.IsEmpty() ? HeroLines::Resolve(Info->Name)
+		: FText::FromString(FName::NameToDisplayString(ItemId.ToString(), /*bIsBool*/ false));
 }
 
 bool AMissionItem::ShouldShow() const
@@ -276,7 +279,8 @@ FInteractionOptions AMissionItem::GetInteractionOptions(const UInteractionCompon
 	Options.bTap = true;
 	Options.bHold = false;
 	// Its name after the verb as in a sentence: "Take the clamp pin", though the data writes it as a title ("The clamp pin").
-	Options.TapPrompt = Prompt.IsEmpty() ? FText::Format(LOCTEXT("TakePrompt", "Take {0}"), MissionText::InSentence(GetItemName())) : Prompt;
+	Options.TapPrompt = Prompt.IsEmpty() ? FText::Format(LOCTEXT("TakePrompt", "Take {0}"), MissionText::InSentence(GetItemName()))
+		: HeroLines::Resolve(Prompt);
 	Options.Reach = Reach;
 	return Options;
 }

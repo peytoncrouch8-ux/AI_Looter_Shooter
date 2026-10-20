@@ -90,6 +90,11 @@ bool UHeroDefinition::HasAllPowerCode() const
 	return true;
 }
 
+FText UHeroDefinition::GetShortName() const
+{
+	return ShortName.IsEmpty() ? FText::FromName(Id) : ShortName;
+}
+
 bool UHeroDefinition::IsPlayable() const
 {
 	// The cheap test first: the twelve new powers' code lands after the models.

@@ -1,6 +1,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Areas/AreaDefinition.h"
 #include "Missions/MissionObjective.h"
+#include "Story/HeroLines.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -28,7 +29,8 @@ FText UMissionDefinition::GetGiverName() const
 {
 	if (!TurnIn.GiverName.IsEmpty())
 	{
-		return TurnIn.GiverName;
+		// "Grandma Delia" and "Pa" are Ellis's words for them (Story/HeroLines).
+		return HeroLines::Resolve(TurnIn.GiverName);
 	}
 	if (TurnIn.SpeakerTag.IsNone())
 	{
@@ -54,7 +56,7 @@ FText UMissionDefinition::GetOfferGiverName() const
 {
 	if (!Offer.GiverName.IsEmpty())
 	{
-		return Offer.GiverName;
+		return HeroLines::Resolve(Offer.GiverName);
 	}
 	if (Offer.GiverTag.IsNone())
 	{

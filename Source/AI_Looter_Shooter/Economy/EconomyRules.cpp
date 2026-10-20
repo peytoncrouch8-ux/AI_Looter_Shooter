@@ -2,6 +2,7 @@
 #include "Creatures/CreatureRank.h"
 #include "Loot/Chest.h"
 #include "Math/RandomStream.h"
+#include "Story/HeroLines.h"
 #include "Weapons/NamedWeaponDefinition.h"
 
 #define LOCTEXT_NAMESPACE "LooterEconomy"
@@ -190,7 +191,8 @@ bool LooterEconomy::CanSell(const FWeaponInstanceData& Gun, FText* OutWhy)
 		if (OutWhy)
 		{
 			const FText Name = Gun.Named->DisplayName.IsEmpty() ? LOCTEXT("ThisGun", "This gun") : Gun.Named->DisplayName;
-			*OutWhy = FText::Format(LOCTEXT("NamedNotForSale", "{0} isn't for sale. Some things stay in the family."), Name);
+			// The pattern in the played hero's words before the gun's name goes in ("the family" is Ellis's: Story/HeroLines).
+			*OutWhy = FText::Format(HeroLines::Resolve(LOCTEXT("NamedNotForSale", "{0} isn't for sale. Some things stay in the family.")), Name);
 		}
 		return false;
 	}

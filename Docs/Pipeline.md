@@ -1207,6 +1207,61 @@ committed: its names are here). The session keeps the pick; the character takes 
   `.Playable` checks every power has code and a hero is playable exactly when body and retargeter load; `.Character`
   expects Toll Chain's own Refused on a bare actor. `.Screen` still says "Odessa is in the works": update it when SK_Odessa lands.
 
+## The heroes' words (one story, whoever you play; built 2026-10-20)
+
+Docs/Story.md "The heroes": every hero takes Ellis's place; Pa is the Keeper, Delia the Keeper's mother; the Deacon's "kid"
+is whoever you are. Every text stays written as Ellis's (scripts, assets, LOCTEXT); one table swaps it where it is shown.
+- **Data:** `/Game/Data/Story/DA_HeroLines` (`UHeroLineTable`, rows `FHeroLineVariant`: Id, Source, Speaker, Other,
+  Heroes, bDropForOthers), written whole by `Tools/Unreal/create_hero_lines.py` from `Tools/Unreal/hero_lines.json` (the
+  one place variants are written; 146 text rows + 3 painted). Per entry: `current` = Ellis's words exactly (the key),
+  `neutral` = what the other four read, `heroes` = a hero's own voice, `speaker` = who says it (a row with a speaker
+  swaps only in that speaker's mouth: "Who?" stays Hob's), `drop_for_others`. The script refuses (saves nothing) a
+  duplicate current (ignoring case), a hero id outside Odessa/Crane/Gauge/Pike, an unknown `{token}`, or a lost `{0}`/
+  `{Interact}`. Run it after `create_story_lines.py`; then `Looter.Lines.*`.
+- **Precedence** (`HeroLines::Resolve`, by the text's source string): Ellis, or no row: as written. Else the hero's own
+  words; else nothing if `drop_for_others`; else the neutral; else as written. Tokens in the chosen words: `{Hero}`
+  (`UHeroDefinition::GetShortName`, the id), `{HeroFull}` (DisplayName), `{HERO}` (in capitals), `{Initialed}` ("O. Lark";
+  one word stays: "Gauge").
+- **The played hero** is a static in `HeroLines`: `USessionSubsystem` sets it in `BeginPlayWorld` (InitGame, before any
+  BeginPlay) and `BeginMenuWorld`; `Looter.Hero` (via `SetNoSessionHeroId`) at once. While automation tests run it is
+  Ellis unless a test opens `HeroLines::FScopedHero`, so a Looter.Hero left set never fails a test that checks Ellis's
+  words. `FScopedTable` lends a test its own table.
+- **Where words are swapped:** `UCaptionSubsystem::Play` (every caption and speaker: line sets, mission lines, readables'
+  lines, the porch plate, C++ scenes, Abel, Hob's roosts, town life, posters' remarks); mission giver names
+  (`GetGiverName`, `GetOfferGiverName`, the offer card's `GiverNameOf`); summary and briefing (offer card, Missions page,
+  notice board); objectives (`GetDisplayText`/`GetShortText`, before the keys); choices; mission items (name, line,
+  prompt); the readable card (heading, title, text); the Ledger (name, kind, habitat, description, notes); the boss bar's
+  phase (`MakePhaseLine`, before the capitals); the heirloom's "not for sale" pattern; the barks
+  (`UCreatureVoiceDirector`). A new place that shows story words calls `HeroLines::Resolve`.
+- **Painted words:** `AReadableProp::HeroMeshes` (the played hero's own model) / `OtherMesh` (any hero but Ellis), applied
+  in BeginPlay: Ellis's headboard readable carries `SM_Headboard_Ellis` on the grave's transform and the four others in
+  `hero_meshes` (`build_area_story.py` `hero_headboards`); the keepers' roll `other_mesh` = `SM_KeepersRoll_Bare`
+  (`build_area_missionprops_valley.py` `OTHER_MESHES`). Art: `Art/Models/Props/Graves.py` (Grave_Ellis has no board of
+  its own: import Graves only together with a gameplay build), `MissionProps.py`. Wanted posters: in a game world
+  `AWantedPoster` takes `MI_Poster{Decal,Scrap}_<Id>` (atlas `T_Posters_<Id>_BC` by `Tools/Blender/looter_posters.py
+  --hero`, materials by `build_decal_materials.py`), else Ellis's; never in the editor's level (it saves its instance).
+- **Writing new lines** (the user's rule): shared lines leave out "Pa", "Ellis" and "kid" (the Deacon's "kid" excepted)
+  and need no row. A line that is Ellis's own (the family, Ellis's past) is written as Ellis's and gets a row with its
+  neutral; a hero's own voice is a row with `heroes` only. The player character's lines name speaker "Ellis" (shows the
+  played hero). Later regions' Ellis beats (the spark's "keeper by blood", "The Kid Who Came Home", the Gravesend
+  confession's "came home", Delia's door in the epilogue) need rows when written.
+- **The user's pending calls** (Main's provisional answers, 2026-10-20) are in `hero_lines.json` `decisions`: cold open
+  kept for all; "kid" for all; the townsman Hollis renamed Harlan (Harlan Pruitt) for everyone, in C++
+  (`TownLifeRules.cpp`) and `build_area_vendors.py`, no rows; epitaph "<NAME>. STOOD UP AT THE LAST." and the posters as
+  drafted; Sexton's sweeteners per hero.
+- **Tests:** `Looter.Lines.Table` (the asset matches the json, sources unique, tokens filled, `{0}` kept, no family word for
+  any other hero), `.Precedence`, `.Wiring` (captions, objective, boss phase, readable mesh pick, no table),
+  `.NoFamily` (each other hero: every line set, mission, Ledger page, named gun, Lvl_RansomsRest's game actors, game
+  classes' defaults and the C++ lines read without `\b(Pa|Pa's|El|Ellis|Grandma|grandmother|your father|young'un|Ransom kid|Ransom's child|Abel's child)\b`;
+  allowed: "Tilly's Pa's car"; 1559 texts on 2026-10-20). A NoFamily miss: give the line its row, or rebuild the
+  placed piece whose words drifted from the script.
+- **Merged 2026-10-20** (LINES-WIRE): run order was build, `create_hero_lines.py` (146 rows), `create_ember_assets.py`
+  (short names), `Looter.ImportModels Intermediate/ArtExport_LinesArt` (Graves + MissionProps, 56 models),
+  `build_decal_materials.py`, `build_area.py RansomsRest gameplay` (story, valley props, vendors: the headboard's
+  `hero_meshes`, the roll's `other_mesh`, the Harlan greeting), tests 743/743. Seen in PIE as Crane and as Ellis: the
+  headboard carving and card, the poster, the roll (bare for Crane, ELLIS painted out for Ellis), captions naming the hero,
+  Delia Ransom at her door. The headboard now stands at the grave's head (the readable's own mesh), read from beside it.
+
 ## Seeds in Ransom's Rest (the saga's first clues, built 2026-10-16 overnight)
 
 The list and the words' facts: `Docs/Story.md` "Seeds in Ransom's Rest" (the seven towns' saints in its Areas table).

@@ -5,6 +5,7 @@
 #include "Session/SessionSubsystem.h"
 #include "Embers/HeroDefinition.h"
 #include "Session/SessionSave.h"
+#include "Story/HeroLines.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -23,6 +24,8 @@ FName USessionSubsystem::GetNoSessionHeroId()
 void USessionSubsystem::SetNoSessionHeroId(FName HeroId)
 {
 	NoSessionHero = HeroId;
+	// Looter.Hero (only with no session played) swaps the words at once, as it puts the body and powers on.
+	HeroLines::SetPlayedHero(GetNoSessionHeroId());
 }
 
 FName USessionSubsystem::GetPlayedHeroId() const

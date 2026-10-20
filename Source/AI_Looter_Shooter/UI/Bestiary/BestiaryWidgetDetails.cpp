@@ -6,6 +6,7 @@
 #include "Bestiary/Ledger.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
+#include "Story/HeroLines.h"
 #include "UI/Bestiary/BestiaryStage.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -70,14 +71,16 @@ void UBestiaryWidget::RefreshDetails()
 	const bool bKnown = IsKnown(*Entry);
 	bSelectedKnown = bKnown;
 	const bool bName = Entry->Page == EBestiaryPage::LedgerName;
-	const FString Kind = bKnown ? Entry->Kind.ToString() : FString();
+	// Every word of a page in the played hero's words (a Ledger page about Delia's grandchild is Ellis's: Story/HeroLines).
+	const FString Kind = bKnown ? HeroLines::Resolve(Entry->Kind).ToString() : FString();
 	DetailsHeader->SetText(FText::FromString((Kind.IsEmpty() ? CategoryWord(Entry->Category) : CategoryWord(Entry->Category) + TEXT(" · ") + Kind).ToUpper()));
 
-	UTextBlock* NameText = Label(WidgetTree, bKnown ? Entry->DisplayName.ToString() : FString(Unknown), 17, bKnown ? Color::Text() : Color::TextDim(), 40);
+	UTextBlock* NameText = Label(WidgetTree, bKnown ? HeroLines::Resolve(Entry->DisplayName).ToString() : FString(Unknown), 17,
+		bKnown ? Color::Text() : Color::TextDim(), 40);
 	NameText->SetAutoWrapText(true);
 	DetailsBox->AddChildToVerticalBox(NameText);
 	// Where it's found; a Ledger name's whereabouts are a line of their own below, blank until the story finds them.
-	const FString Habitat = bName ? FString() : bKnown ? Entry->Habitat.ToString() : Words.NotMet;
+	const FString Habitat = bName ? FString() : bKnown ? HeroLines::Resolve(Entry->Habitat).ToString() : Words.NotMet;
 	if (!Habitat.IsEmpty())
 	{
 		DetailsBox->AddChildToVerticalBox(Label(WidgetTree, Habitat, 9, Color::TextDim(), 140))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
@@ -115,7 +118,7 @@ void UBestiaryWidget::RefreshDetails()
 	{
 		// The Ledger's names: where they are, once the Keeper's Lantern has found them.
 		const bool bFound = IsFound(*Entry);
-		AddStat(TEXT("Whereabouts"), bFound ? Entry->Habitat.ToString() : Words.BlankWhereabouts, bFound);
+		AddStat(TEXT("Whereabouts"), bFound ? HeroLines::Resolve(Entry->Habitat).ToString() : Words.BlankWhereabouts, bFound);
 	}
 	else if (Entry->NeedsActor())
 	{
@@ -138,7 +141,7 @@ void UBestiaryWidget::RefreshDetails()
 	// Under the card: the description, then the field notes.
 	if (!Entry->Description.IsEmpty())
 	{
-		UTextBlock* Description = MakeText(WidgetTree, Entry->Description.ToString(), 10, Color::Text());
+		UTextBlock* Description = MakeText(WidgetTree, HeroLines::Resolve(Entry->Description).ToString(), 10, Color::Text());
 		Description->SetAutoWrapText(true);
 		NotesBox->AddChildToVerticalBox(Description);
 	}
@@ -151,7 +154,7 @@ void UBestiaryWidget::RefreshDetails()
 			UHorizontalBoxSlot* BulletSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::Accent())), 5.f, 5.f));
 			BulletSlot->SetVerticalAlignment(VAlign_Top);
 			BulletSlot->SetPadding(FMargin(2.f, 6.f, 10.f, 0.f));
-			UTextBlock* NoteText = MakeText(WidgetTree, Note.ToString(), 10, Color::Text());
+			UTextBlock* NoteText = MakeText(WidgetTree, HeroLines::Resolve(Note).ToString(), 10, Color::Text());
 			NoteText->SetAutoWrapText(true);
 			Line->AddChildToHorizontalBox(NoteText)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 			NotesBox->AddChildToVerticalBox(Line)->SetPadding(FMargin(0.f, 4.f, 8.f, 0.f));

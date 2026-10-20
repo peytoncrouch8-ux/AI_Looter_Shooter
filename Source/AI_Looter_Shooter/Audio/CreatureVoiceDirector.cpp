@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/CreatureVoiceComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Story/HeroLines.h"
 #include "UI/World/CreatureBarkActor.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
@@ -135,7 +136,12 @@ bool UCreatureVoiceDirector::RequestBark(UCreatureVoiceComponent& Speaker, ECrea
 	{
 		return false;
 	}
-	const FString Text = CreatureBarks::AllLines()[Line].Text;
+	// The played hero's words (a Ransom to Ellis, a stranger to anyone else: Story/HeroLines); the murmur follows them.
+	const FString Text = HeroLines::ResolveString(CreatureBarks::AllLines()[Line].Text);
+	if (Text.IsEmpty())
+	{
+		return false;
+	}
 
 	// One voice at a time too: a bark cutting in over another stops the other's murmur where it is.
 	UCreatureVoiceComponent* Previous = LastSpeaker.Get();

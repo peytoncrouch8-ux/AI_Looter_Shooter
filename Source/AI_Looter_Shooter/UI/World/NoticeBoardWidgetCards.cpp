@@ -7,6 +7,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRewards.h"
 #include "Missions/MissionRunner.h"
+#include "Story/HeroLines.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterButton.h"
@@ -215,7 +216,7 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 	}
 	if (Mission && !Mission->Summary.IsEmpty())
 	{
-		UTextBlock* Notice = MakeText(WidgetTree, Mission->Summary.ToString(), 12, bFaint ? Color::TextDim() : Color::Text());
+		UTextBlock* Notice = MakeText(WidgetTree, HeroLines::Resolve(Mission->Summary).ToString(), 12, bFaint ? Color::TextDim() : Color::Text());
 		Notice->SetWrapTextAt(NoticeWrap);
 		Info->AddChildToVerticalBox(Notice)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	}

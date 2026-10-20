@@ -5,6 +5,7 @@
 #include "Progression/PlayerProgressData.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/SessionSave.h"
+#include "Story/HeroLines.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
@@ -266,6 +267,8 @@ void USessionSubsystem::BeginPlayWorld(UWorld* World, const FString& Options)
 	ArrivalLanding = Current ? Current->GetArrivalOn(MapOf(World)) : NAME_None;
 	bArrivalByTrain = bArrivalByTrain && bFromTrip && !ArrivalLanding.IsNone();
 	SetPlayerProgress(Current ? Current->Progress : FPlayerProgressData());
+	// Before any actor begins play (the game mode's InitGame): the level's words are the played hero's from its first line.
+	HeroLines::SetPlayedHero(GetPlayedHeroId());
 }
 
 void USessionSubsystem::RestorePlayWorld(UWorld* World)
@@ -302,6 +305,7 @@ void USessionSubsystem::BeginMenuWorld(UWorld* World)
 	bWorldRestored = false;
 	// The menu is no one's game: whatever was played before is put away.
 	SetPlayerProgress(FPlayerProgressData());
+	HeroLines::SetPlayedHero(GetPlayedHeroId());
 }
 
 bool USessionSubsystem::SaveNow()

@@ -182,6 +182,24 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
 - LINES-ART done and committed (588e6af, not imported): SM_Headboard_<Hero> x5 (Grave_Ellis loses its board: import
   Graves only together with the story script run), KeepersRoll_Bare, T_Posters_<Id>_BC x4 + MI_PosterDecal/Scrap_<Id> via
   `build_decal_materials.py`; run order in the commit message (after the LINES-WIRE merge).
+- POWERS merged, built and committed (425d1c3): the twelve powers, Crane and Pike imported with their retargeters,
+  DA_Hero_Crane/Pike filled: **Crane, Gauge and Pike are playable; Odessa waits for her model.** 739/739. Each power played
+  in PIE and tuned for daylight (bigger slag blobs, Iron Hide's forge glow, Rail Spike's glow line, thicker tripwire,
+  bigger chain links and cards). Weak or unchecked: the Slag Bomb pool reads as chips in a fire ring, not molten slag (a
+  flat emissive mesh or decal: an art call); Rail Spike's line is seen end-on from behind; Crane's hook swing not seen in
+  motion; Last Rites' death burst only by its test; Iron Hide's glow in first person. Perf skipped (PC busy).
+  `Saved/Powers/` is stale now (Source is the truth). Next: LINES-WIRE phase 2 (merge, build, the line art's imports and
+  area scripts), then FP-ARMS wiring, then Odessa.
+- ODESSA done and committed (283ff95, not imported): 34,909 triangles, 92 bones (tails on skirt_sl/bl/bli/bri/br/sr, hat),
+  no cloth simulation, hair a combed shell + knot (Character master), the ace in the hat band, the card case on her right
+  side. Her import (+ `build_hero_retarget.py Odessa`, `create_ember_assets.py`) goes with the FP-ARMS wiring step; then
+  no hero is left unplayable, so the hero tests need a synthetic unplayable hero. BodySwing's skirt settings were tuned
+  for a duster: her short tails may want their own.
+- **Found by ODESSA: `bmesh.ops.create_uvsphere` orders faces differently each Blender run**, and a kept bake (digest
+  match) may then not fit a later export's UVs (decimate, smart UV and the atlas pack follow the order): scrambled
+  texture in game. Ellis, Pike, Crane (and maybe Gauge, the FP arms) call it. BAKE-CHECK agent diagnosing per model
+  (no fix yet); the likely fix is a shared fixed-order sphere (odessa_kit.uv_sphere) and a rebake + re-export of the
+  models that mismatch.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
   + MI_PosterDecal/Scrap_<Id>, and the `hero_meshes`/`other_mesh` lines in `build_area_story.py` and
   `build_area_missionprops_valley.py` (run by Main after the merge).

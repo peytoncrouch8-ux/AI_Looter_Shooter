@@ -7,6 +7,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "Story/CaptionSubsystem.h"
+#include "Story/HeroLines.h"
 #include "World/MinimapSubsystem.h"
 #include "World/MissionArtifact.h"
 #include "Components/BoxComponent.h"
@@ -73,6 +74,18 @@ namespace
 	{
 		return FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(ObjectPath)))
 			? LoadObject<T>(nullptr, ObjectPath) : nullptr;
+	}
+
+	/**
+	 * In a played world, the played hero's own atlas once it's made (MI_PosterDecal_<Id>: their name and bust; Ellis's is
+	 * the asset itself, Story/HeroLines::HeroVariantPath), else null. Never in the editor's level, which saves its instance.
+	 */
+	template <typename T>
+	T* HeroVariantIfMade(const AActor& Poster, const TCHAR* ObjectPath)
+	{
+		const UWorld* World = Poster.GetWorld();
+		const FString Path = World && World->IsGameWorld() ? HeroLines::HeroVariantPath(ObjectPath, HeroLines::GetPlayedHeroId()) : FString();
+		return Path.IsEmpty() ? nullptr : LoadIfMade<T>(*Path);
 	}
 
 	/**
@@ -311,7 +324,8 @@ UMaterialInstanceDynamic* AWantedPoster::FindOrMakeDecalMaterial()
 	{
 		return nullptr;
 	}
-	UMaterialInterface* Base = DecalMaterial ? DecalMaterial.Get() : LoadIfMade<UMaterialInterface>(DecalMaterialPath);
+	UMaterialInterface* Base = HeroVariantIfMade<UMaterialInterface>(*this, DecalMaterialPath);
+	Base = Base ? Base : DecalMaterial ? DecalMaterial.Get() : LoadIfMade<UMaterialInterface>(DecalMaterialPath);
 	if (!Base)
 	{
 		return nullptr;
@@ -334,7 +348,8 @@ UStaticMesh* AWantedPoster::GetScrapMesh() const
 
 UMaterialInterface* AWantedPoster::GetScrapMaterial() const
 {
-	return ScrapMaterial ? ScrapMaterial.Get() : LoadIfMade<UMaterialInterface>(ScrapMaterialPath);
+	UMaterialInterface* Hero = HeroVariantIfMade<UMaterialInterface>(*this, ScrapMaterialPath);
+	return Hero ? Hero : ScrapMaterial ? ScrapMaterial.Get() : LoadIfMade<UMaterialInterface>(ScrapMaterialPath);
 }
 
 // ---------------------------------------------------------------------------

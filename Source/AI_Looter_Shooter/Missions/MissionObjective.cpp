@@ -1,6 +1,7 @@
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionSubsystem.h"
 #include "Missions/MissionText.h"
+#include "Story/HeroLines.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Controller.h"
@@ -133,7 +134,8 @@ TOptional<FVector> UMissionObjective::FindWaypoint(const FMissionContext& Contex
 
 FString UMissionObjective::GetDisplayText(const UWorld* World) const
 {
-	return MissionText::ResolveKeys(World, Text.IsEmpty() ? DescribeRule() : Text.ToString());
+	// The played hero's words first (Story/HeroLines: "Sit with Pa." is Ellis's), then the keys: a variant keeps them.
+	return MissionText::ResolveKeys(World, Text.IsEmpty() ? DescribeRule() : HeroLines::Resolve(Text).ToString());
 }
 
 FString UMissionObjective::GetTrackerText(const UWorld* World, const FMissionObjectiveState& State) const
@@ -148,7 +150,7 @@ FString UMissionObjective::GetTrackerText(const UWorld* World, const FMissionObj
 
 FString UMissionObjective::GetShortText(const UWorld* World) const
 {
-	return ShortText.IsEmpty() ? GetDisplayText(World) : MissionText::ResolveKeys(World, ShortText.ToString());
+	return ShortText.IsEmpty() ? GetDisplayText(World) : MissionText::ResolveKeys(World, HeroLines::Resolve(ShortText).ToString());
 }
 
 void UMissionObjective::FillTrackerParts(const UWorld* World, const FMissionObjectiveState& State, FMissionTrackerParts& Out) const

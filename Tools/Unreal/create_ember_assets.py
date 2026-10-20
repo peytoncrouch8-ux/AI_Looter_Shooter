@@ -35,7 +35,7 @@ What each number means to its power (UEmberDefinition's fields; each power class
             the rest as each entry says.
 
 Heroes (UHeroDefinition): the roster's five (Ellis, Odessa, Crane, Gauge, Pike; UHeroDefinition::RosterIds), each with
-role, story (the concept doc's lines; Ellis is "they" in all text), colour (the contract's), the portrait
+role, short name (the id: what a caption calls them), story (the concept doc's lines; Ellis is "they" in all text), colour (the contract's), the portrait
 /Game/UI/Portraits/T_Portrait_<Id>, the body /Game/Art/Characters/SK_<Id> and its retargeter
 /Game/Player/Retarget/RTG_MannyTo<Id> (each field set once its asset exists; the game finds a missing one by the same
 name, so a hero lights up as Main lands their model; rerun this after each to fill the fields).
@@ -288,6 +288,8 @@ def setup_hero(spec, cls, made):
     asset, created = load_or_create(spec['asset'], cls)
     asset.set_editor_property('id', unreal.Name(spec['id']))
     asset.set_editor_property('display_name', unreal.Text(spec['name']))
+    # What a caption calls them (the player character's lines, Story/HeroLines' {Hero}): the id is the word for all five.
+    asset.set_editor_property('short_name', unreal.Text(spec['id']))
     asset.set_editor_property('role', unreal.Text(spec['role']))
     asset.set_editor_property('story', unreal.Text(spec['story']))
     asset.set_editor_property('color', linear_color(spec['color']))

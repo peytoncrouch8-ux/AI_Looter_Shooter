@@ -12,6 +12,7 @@
 #include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/SessionSubsystem.h"
+#include "Story/HeroLines.h"
 #include "UI/Inventory/MapPlaces.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Weapons/NamedWeaponDefinition.h"
@@ -158,18 +159,19 @@ EMissionGiverKind FMissionOfferCard::GiverKindOf(const UMissionDefinition& Missi
 
 FText FMissionOfferCard::GiverNameOf(const UMissionDefinition& Mission, const AActor* Giver)
 {
+	// Each in the played hero's words ("Pa" is Ellis's: Story/HeroLines; GetOfferGiverName resolves its own).
 	if (!Mission.Offer.GiverName.IsEmpty())
 	{
-		return Mission.Offer.GiverName;
+		return HeroLines::Resolve(Mission.Offer.GiverName);
 	}
 	// A board's or an artifact's own title says it better than its tag.
 	if (const ANoticeBoard* Board = Cast<ANoticeBoard>(Giver); Board && !Board->Title.IsEmpty())
 	{
-		return Board->Title;
+		return HeroLines::Resolve(Board->Title);
 	}
 	if (const AMissionArtifact* Artifact = Cast<AMissionArtifact>(Giver); Artifact && !Artifact->Title.IsEmpty())
 	{
-		return Artifact->Title;
+		return HeroLines::Resolve(Artifact->Title);
 	}
 	return Mission.GetOfferGiverName();
 }
@@ -262,8 +264,8 @@ FMissionOfferCard FMissionOfferCard::Make(const UMissionDefinition& Mission, con
 	// The story: a found thing's own words when it has them, else the offer's briefing, else what the mission is about.
 	const AMissionArtifact* Artifact = Cast<AMissionArtifact>(Giver);
 	Card.bDocument = Card.GiverKind == EMissionGiverKind::Artifact;
-	Card.Briefing = Artifact && !Artifact->Text.IsEmpty() ? Artifact->Text
-		: !Mission.Offer.Briefing.IsEmpty() ? Mission.Offer.Briefing : Mission.Summary;
+	Card.Briefing = HeroLines::Resolve(Artifact && !Artifact->Text.IsEmpty() ? Artifact->Text
+		: !Mission.Offer.Briefing.IsEmpty() ? Mission.Offer.Briefing : Mission.Summary);
 
 	// The first step only: what comes after is the job's to reveal. An optional objective says so.
 	if (Mission.Steps.IsValidIndex(0))
@@ -310,7 +312,7 @@ FMissionOfferCard FMissionOfferCard::MakeChoice(const UMissionDefinition& Missio
 	{
 		Card.From = FText::Format(LOCTEXT("FromAt", "{0} · {1}"), Card.From, Place);
 	}
-	Card.Question = !Mission.TurnIn.ChoiceQuestion.IsEmpty() ? Mission.TurnIn.ChoiceQuestion
+	Card.Question = !Mission.TurnIn.ChoiceQuestion.IsEmpty() ? HeroLines::Resolve(Mission.TurnIn.ChoiceQuestion)
 		: LOCTEXT("DefaultQuestion", "Two ways to settle it. Choose one: it can't be undone.");
 
 	// What comes whichever is chosen: the mission's experience (unless a choice names its own), and the optional objectives'
@@ -341,8 +343,8 @@ FMissionOfferCard FMissionOfferCard::MakeChoice(const UMissionDefinition& Missio
 			continue;
 		}
 		FMissionChoiceCard& Shown = Card.Choices.AddDefaulted_GetRef();
-		Shown.Title = Choice->Title;
-		Shown.Line = Choice->Line;
+		Shown.Title = HeroLines::Resolve(Choice->Title);
+		Shown.Line = HeroLines::Resolve(Choice->Line);
 		// What it gives, never the giver's purse by id: a choice's silver is its own.
 		Shown.Rewards = DescribeRewards(Choice->Rewards, NAME_None);
 		if (Shown.Rewards.IsEmpty())
@@ -360,10 +362,11 @@ FMissionOfferCard FMissionOfferCard::MakeReading(const AActor* Thing, const UWor
 {
 	FMissionOfferCard Card;
 	const AReadableProp* Readable = Cast<AReadableProp>(Thing);
-	Card.Kind = Readable && !Readable->Heading.IsEmpty() ? Readable->Heading : LOCTEXT("KindRead", "Written here");
-	Card.Title = Readable ? Readable->Title : FText::GetEmpty();
+	// Its words as the played hero reads them (the headboard's, the keepers' roll: Story/HeroLines).
+	Card.Kind = Readable && !Readable->Heading.IsEmpty() ? HeroLines::Resolve(Readable->Heading) : LOCTEXT("KindRead", "Written here");
+	Card.Title = Readable ? HeroLines::Resolve(Readable->Title) : FText::GetEmpty();
 	Card.From = Thing ? PlaceNear(World, Thing->GetActorLocation()) : FText::GetEmpty();
-	Card.Briefing = Readable ? Readable->Text : FText::GetEmpty();
+	Card.Briefing = Readable ? HeroLines::Resolve(Readable->Text) : FText::GetEmpty();
 	Card.bDocument = true;
 	Card.Decline = LOCTEXT("Close", "Close");
 	return Card;

@@ -1,4 +1,5 @@
 #include "UI/HUD/HudBossBarWidget.h"
+#include "Story/HeroLines.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Camera/PlayerCameraManager.h"
@@ -66,7 +67,8 @@ FText UHudBossBarWidget::MakeLevelText(int32 Level)
 
 FText UHudBossBarWidget::MakePhaseLine(const FText& InPhaseName, bool bUntargetable, const FText& InHint)
 {
-	return (bUntargetable && !InHint.IsEmpty() ? InHint : InPhaseName).ToUpper();
+	// In the played hero's words before the capitals (Abel's "You brought them here" is to Ellis: Story/HeroLines).
+	return HeroLines::Resolve(bUntargetable && !InHint.IsEmpty() ? InHint : InPhaseName).ToUpper();
 }
 
 FText UHudBossBarWidget::GetNameText() const

@@ -1,5 +1,6 @@
 #include "Story/CaptionSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Story/HeroLines.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 
@@ -33,7 +34,10 @@ TStatId UCaptionSubsystem::GetStatId() const
 
 int32 UCaptionSubsystem::Play(const TArray<FStoryLine>& Lines, ECaptionPlay How)
 {
-	const int32 Conversation = How == ECaptionPlay::Interrupt ? Queue.Interrupt(Lines) : Queue.Enqueue(Lines);
+	// Every line is written as Ellis's: the played hero's words (Story/HeroLines), speakers too. A line left with no
+	// words (Ellis's alone) is skipped by the queue.
+	const TArray<FStoryLine> Said = HeroLines::ResolveLines(Lines);
+	const int32 Conversation = How == ECaptionPlay::Interrupt ? Queue.Interrupt(Said) : Queue.Enqueue(Said);
 	LogNewLine();
 	return Conversation;
 }

@@ -6,6 +6,7 @@
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "Story/HeroLines.h"
 #include "UI/Bestiary/BestiaryStage.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutPaintLayer.h"
@@ -352,9 +353,10 @@ UBestiaryWidget::FCard UBestiaryWidget::MakeEntryCard(int32 Index)
 	// The name over what it is and its level; "???" until the player has met one.
 	const bool bKnown = IsKnown(Entry);
 	UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Text->AddChildToVerticalBox(FittedLabel(WidgetTree, bKnown ? Entry.DisplayName.ToString() : FString(Unknown), 10,
+	// In the played hero's words ("Grandma Delia Ransom" is Ellis's: Story/HeroLines).
+	Text->AddChildToVerticalBox(FittedLabel(WidgetTree, bKnown ? HeroLines::Resolve(Entry.DisplayName).ToString() : FString(Unknown), 10,
 		bKnown ? Color::Text() : Color::TextDim(), 50));
-	FString Sub = bKnown ? Entry.Kind.ToString() : Ledger::Words(bLedger).NotMet;
+	FString Sub = bKnown ? HeroLines::Resolve(Entry.Kind).ToString() : Ledger::Words(bLedger).NotMet;
 	if (bKnown && Stats.Level > 0)
 	{
 		Sub += FString::Printf(TEXT("%sLv %d"), Sub.IsEmpty() ? TEXT("") : TEXT(" · "), Stats.Level);

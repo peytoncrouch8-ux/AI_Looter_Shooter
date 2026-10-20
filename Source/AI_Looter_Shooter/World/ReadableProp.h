@@ -9,6 +9,7 @@
 
 class UMissionRunner;
 class USceneComponent;
+class UStaticMesh;
 class UStaticMeshComponent;
 
 /**
@@ -20,7 +21,9 @@ class UStaticMeshComponent;
  * so an optional objective counts it (an Event objective), and the Interact event as any use.
  *
  * Its model is the dressing's or its own Mesh (set by the build script); it's there while ShownWhen holds (empty: always),
- * hidden and off the Interact key otherwise. Never ticks.
+ * hidden and off the Interact key otherwise. Never ticks. Painted words follow the played hero (Story/HeroLines): as play
+ * begins its own Mesh becomes the hero's in HeroMeshes (the headboard carved with their name), else OtherMesh for any hero
+ * but Ellis (the keepers' roll with no ELLIS under ABEL), else stays as placed. Its words are swapped where they're shown.
  *
  * From a build script (Python):
  *     roll = actors.spawn_actor_from_class(unreal.ReadableProp, unreal.Vector(x, y, z))
@@ -72,6 +75,9 @@ public:
 	/** Its lines said after reading, each naming its speaker (none named: the title's). */
 	TArray<FStoryLine> GetLinesToSay() const;
 
+	/** The model the hero HeroId sees here: HeroMeshes' own, else OtherMesh for any hero but Ellis; null: Mesh as placed. */
+	UStaticMesh* PickMeshFor(FName HeroId) const;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USceneComponent> Root;
 
@@ -118,6 +124,20 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Readable")
 	FName SetsFlag;
+
+	/**
+	 * A hero's own model in place of Mesh, by UHeroDefinition::Id: the headboard carved with their name
+	 * (SM_Headboard_<Id>; build_area_story.py's place_headboards). Python: set_editor_property('hero_meshes', {...}).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Readable|Heroes")
+	TMap<FName, TObjectPtr<UStaticMesh>> HeroMeshes;
+
+	/**
+	 * Any hero but Ellis with no model of their own in HeroMeshes sees this one (SM_KeepersRoll_Bare). None: Mesh as
+	 * placed. Only for a readable that brings its own Mesh. Python: set_editor_property('other_mesh', mesh).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Readable|Heroes")
+	TObjectPtr<UStaticMesh> OtherMesh;
 
 protected:
 	virtual void BeginPlay() override;

@@ -8,6 +8,7 @@
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "Story/HeroLines.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
@@ -89,7 +90,7 @@ void UMissionsWidget::RefreshDetails()
 		->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	if (!Mission->Summary.IsEmpty())
 	{
-		UTextBlock* Summary = MakeText(WidgetTree, Mission->Summary.ToString(), 10, Color::Text());
+		UTextBlock* Summary = MakeText(WidgetTree, HeroLines::Resolve(Mission->Summary).ToString(), 10, Color::Text());
 		Summary->SetAutoWrapText(true);
 		DetailsBox->AddChildToVerticalBox(Summary)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
 	}

@@ -40,10 +40,10 @@ namespace
 	// nobody here is a named character of the story: the storekeeper's family, a couple and an old father, a mother and
 	// her child. They know only what a town would: Tilly dressed Ellis, the gate was fought, the bell rang, Abel is quiet.
 	const FMutter Mutters[] = {
-		{ Pruitt, EStage::Afraid, TEXT("A woman, inside"), TEXT("Bar the door, Hollis. It's coming up the street.") },
+		{ Pruitt, EStage::Afraid, TEXT("A woman, inside"), TEXT("Bar the door, Harlan. It's coming up the street.") },
 		{ Pruitt, EStage::Afraid, TEXT("A man, inside"), TEXT("Lord. That's the Ransom child. Was the Ransom child.") },
 		{ Pruitt, EStage::GateWon, TEXT("A man, inside"), TEXT("Tilly Bright says it put down the ones at the gate.") },
-		{ Pruitt, EStage::GateWon, TEXT("A woman, inside"), TEXT("Still a corpse, Hollis. Grateful don't change that.") },
+		{ Pruitt, EStage::GateWon, TEXT("A woman, inside"), TEXT("Still a corpse, Harlan. Grateful don't change that.") },
 		{ Pruitt, EStage::BellRung, TEXT("A woman, inside"), TEXT("That was the chapel bell. First time in a week.") },
 		{ Pruitt, EStage::AbelAtRest, TEXT("A man, inside"), TEXT("They say Abel sits quiet out on Gravewind Point now. The child did that.") },
 

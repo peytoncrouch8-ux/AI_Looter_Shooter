@@ -9,9 +9,11 @@
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
 #include "Story/CaptionSubsystem.h"
+#include "Story/HeroLines.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 
 #define LOCTEXT_NAMESPACE "ReadableProp"
 
@@ -50,6 +52,11 @@ void AReadableProp::BeginPlay()
 		Tags.AddUnique(TagFor(ReadableId));
 	}
 	bShownNow = true;
+	// Painted words are the played hero's too: their own carving, else the one every hero but Ellis sees.
+	if (UStaticMesh* HeroMesh = PickMeshFor(HeroLines::GetPlayedHeroId()); HeroMesh && Mesh)
+	{
+		Mesh->SetStaticMesh(HeroMesh);
+	}
 	if (UInteractionSubsystem* Registry = UInteractionSubsystem::Get(this))
 	{
 		Registry->Register(this);
@@ -157,6 +164,19 @@ TArray<FStoryLine> AReadableProp::GetLinesToSay() const
 		}
 	}
 	return Said;
+}
+
+UStaticMesh* AReadableProp::PickMeshFor(FName HeroId) const
+{
+	if (HeroLines::IsDefaultHeroId(HeroId))
+	{
+		return nullptr;
+	}
+	if (const TObjectPtr<UStaticMesh>* Own = HeroMeshes.Find(HeroId); Own && *Own)
+	{
+		return Own->Get();
+	}
+	return OtherMesh.Get();
 }
 
 FInteractionOptions AReadableProp::GetInteractionOptions(const UInteractionComponent& User) const

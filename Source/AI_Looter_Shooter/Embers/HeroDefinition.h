@@ -34,6 +34,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")
 	FText DisplayName;
 
+	/**
+	 * What a caption calls them: "Ellis", "Odessa", "Crane", "Gauge", "Pike", the speaker of every line the player
+	 * character says (Story/HeroLines' {Hero}). Empty: the Id (GetShortName), the same five words today.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hero")
+	FText ShortName;
+
 	/** "the Revenant", "the Cardsharp", "the Unpaid", "the Iron Hand", "the Surveyor". */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")
 	FText Role;
@@ -90,6 +97,9 @@ public:
 
 	/** Every power has its code (a non-abstract power class), and there is at least one. */
 	bool HasAllPowerCode() const;
+
+	/** ShortName, or the Id while it's empty. */
+	FText GetShortName() const;
 
 	// --- The roster ---
 

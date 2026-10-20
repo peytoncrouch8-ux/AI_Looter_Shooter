@@ -10,6 +10,7 @@
 #include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/CampaignRecord.h"
+#include "Story/HeroLines.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/MissionMarkIcons.h"
@@ -168,11 +169,12 @@ void UMissionsWidget::AddCarried(const UMissionDefinition& Mission)
 		BulletSlot->SetVerticalAlignment(VAlign_Top);
 		BulletSlot->SetPadding(FMargin(3.f, 6.f, 12.f, 0.f));
 		UVerticalBox* Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		const FString Name = Item.Name.IsEmpty() ? FName::NameToDisplayString(Item.Id.ToString(), false) : Item.Name.ToString();
+		// In the played hero's words ("Pa's lantern bail" is Ellis's: Story/HeroLines).
+		const FString Name = Item.Name.IsEmpty() ? FName::NameToDisplayString(Item.Id.ToString(), false) : HeroLines::Resolve(Item.Name).ToString();
 		Words->AddChildToVerticalBox(MakeText(WidgetTree, Name, 11, Color::Text()));
 		if (!Item.Line.IsEmpty())
 		{
-			UTextBlock* About = MakeText(WidgetTree, Item.Line.ToString(), 9, Color::TextDim());
+			UTextBlock* About = MakeText(WidgetTree, HeroLines::Resolve(Item.Line).ToString(), 9, Color::TextDim());
 			About->SetFont(Font(9, false));
 			About->SetAutoWrapText(true);
 			Words->AddChildToVerticalBox(About)->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
@@ -205,16 +207,17 @@ void UMissionsWidget::AddChoice(const UMissionDefinition& Mission, EMissionStatu
 			continue;
 		}
 		const FString Gives = MissionRewards::DescribeShort(Choice->Rewards);
+		const FString ChoiceTitle = HeroLines::Resolve(Choice->Title).ToString();
 		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UHorizontalBoxSlot* BulletSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::Title())), 5.f, 5.f));
 		BulletSlot->SetVerticalAlignment(VAlign_Top);
 		BulletSlot->SetPadding(FMargin(3.f, 6.f, 13.f, 0.f));
 		UVerticalBox* Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		Words->AddChildToVerticalBox(MakeText(WidgetTree, Gives.IsEmpty() ? Choice->Title.ToString() : FString::Printf(TEXT("%s: %s"),
-			*Choice->Title.ToString(), *Gives), 10, bSettled ? Color::TextDim() : Color::Text()));
+		Words->AddChildToVerticalBox(MakeText(WidgetTree, Gives.IsEmpty() ? ChoiceTitle : FString::Printf(TEXT("%s: %s"),
+			*ChoiceTitle, *Gives), 10, bSettled ? Color::TextDim() : Color::Text()));
 		if (!Choice->Line.IsEmpty() && !bSettled)
 		{
-			UTextBlock* About = MakeText(WidgetTree, Choice->Line.ToString(), 9, Color::TextDim());
+			UTextBlock* About = MakeText(WidgetTree, HeroLines::Resolve(Choice->Line).ToString(), 9, Color::TextDim());
 			About->SetFont(Font(9, false));
 			About->SetAutoWrapText(true);
 			Words->AddChildToVerticalBox(About)->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));

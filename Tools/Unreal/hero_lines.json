@@ -1,0 +1,2299 @@
+{
+ "about": "Hero variants of every line, page, prompt, bark and painted word on Ransom's Rest that names Ellis's family or Ellis's own life (the LINES agent, 2026-10-20; the user's rules: Docs/Story.md 'The heroes'). One entry per distinct current text. 'current' is Ellis's text, word for word, and stays Ellis's. 'neutral' is what every other hero reads. 'heroes' holds a hero's own words over the neutral, only where their voice or their things make it better (a hero not listed reads the neutral). 'speaker' is who says it now ('Ellis': the player character, whose caption names the played hero). drop_for_others: Ellis's alone; other heroes skip the line unless they have their own. How the game picks: Story/HeroLines.h (the design: Docs/Pipeline.md once merged; drafted in Saved/Lines/DESIGN.md). Tools/Unreal/create_hero_lines.py writes every entry but the painted ones into /Game/Data/Story/DA_HeroLines: current -> Source (the key, word for word), neutral -> Other (left empty when it equals current), heroes -> Heroes, drop_for_others -> bDropForOthers, speaker -> Speaker (a line said by someone else keeps its words). Change words here, run the script, run Looter.Lines.*. A current must match Ellis's text exactly, or its row never fires.",
+ "decisions": {
+  "about": "Main's provisional calls on the five questions (Saved/Lines/DESIGN.md section 7, 2026-10-20), for the user to confirm. Each says where to change it if the user decides otherwise.",
+  "1_cold_open": "Kept for every hero (the drafts). Otherwise: a second neutral on the rows the doc lists (Delia's turn-in mission.Main1.turnin.0, the headboard, Ruth's journal, Amos, Aldana, Abel's phase, the Deacon's letter and slip, the barks, the strongbox), and the cold open's camera in C++.",
+  "2_kid": "The Deacon says \"kid\" to every hero: no row for code.ColdOpen \"Home, kid.\" beyond its neutral, none for \"I'm sorry, kid.\" or the Deacon's letters. Otherwise: heroes entries for Crane and Gauge on those.",
+  "3_hollis": "The townsman is Harlan (Harlan Pruitt) for every hero, Ellis included: renamed where it is written (World/TownLifeRules.cpp, Tests/TownLifeTests.cpp, Tools/Unreal/build_area_vendors.py's greeting), so its two rows (mutter.Pruitt.Hollis, .Hollis2) are gone. A rename back is those three places.",
+  "4_epitaph_posters": "As drafted: lines.HeadboardEllis, readable.HeadboardEllis.text (\"{HERO}. STOOD UP AT THE LAST.\") and painted.Headboard / painted.WantedPoster (the art).",
+  "5_sexton": "Sexton's sweeteners as drafted: lines.SextonDeal.5 and ledger.Sexton.note1 heroes entries."
+ },
+ "tokens": {
+  "{Hero}": {
+   "Ellis": "Ellis",
+   "Odessa": "Odessa",
+   "Crane": "Crane",
+   "Gauge": "Gauge",
+   "Pike": "Pike"
+  },
+  "{HeroFull}": {
+   "Ellis": "Ellis Ransom",
+   "Odessa": "Odessa Lark",
+   "Crane": "Hollis Crane",
+   "Gauge": "Gauge",
+   "Pike": "Wendell Pike"
+  },
+  "{HERO}": {
+   "Ellis": "ELLIS RANSOM",
+   "Odessa": "ODESSA LARK",
+   "Crane": "HOLLIS CRANE",
+   "Gauge": "GAUGE",
+   "Pike": "WENDELL PIKE"
+  },
+  "{Initialed}": {
+   "Ellis": "E. Ransom",
+   "Odessa": "O. Lark",
+   "Crane": "H. Crane",
+   "Gauge": "Gauge",
+   "Pike": "W. Pike"
+  }
+ },
+ "voices": {
+  "Odessa": "wry and sharp; cards, odds, stakes, the house. She.",
+  "Crane": "slow, dry, old-West formal: sir, ma'am, I'll not, a man. He. Dead forty years; a coin over the left eye.",
+  "Gauge": "clipped, earnest machine speech; short plain statements, sincere. It. Iron, a headlamp, a firebox, no collar.",
+  "Pike": "talkative, precise old surveyor: yards, bearings, dates, the plat. He. Spectacles, a big coat."
+ },
+ "entries": [
+  {
+   "id": "speaker.Ellis",
+   "kind": "speaker",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "ELLIS"
+    },
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "ELLIS"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "ELLIS"
+    },
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "ELLIS"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "ELLIS"
+    },
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/ColdOpen.cpp",
+     "at": "LOCTEXT(\"Ellis\")"
+    },
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/SitWithPa.cpp",
+     "at": "LOCTEXT(\"Ellis\")"
+    }
+   ],
+   "current": "Ellis",
+   "neutral": "{Hero}",
+   "note": "Every line the player character says names Ellis as its speaker: it names the played hero."
+  },
+  {
+   "id": "speaker.GrandmaDelia",
+   "kind": "speaker",
+   "where": [
+    {
+     "file": "Tools/Unreal/build_area_farm.py",
+     "at": "speaker name='Grandma Delia'"
+    },
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "PORCH_PLATE eat_lines speaker"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "DELIA"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "Main3 and Main6 offer giver"
+    }
+   ],
+   "current": "Grandma Delia",
+   "neutral": "Delia Ransom",
+   "note": "Not the hero's grandmother: the Keeper's mother, by her name."
+  },
+  {
+   "id": "speaker.GrandmaDeliaRansom",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_bestiary_pages.py",
+     "at": "PAGES['Delia'] name"
+    }
+   ],
+   "current": "Grandma Delia Ransom",
+   "neutral": "Delia Ransom"
+  },
+  {
+   "id": "speaker.Pa",
+   "kind": "speaker",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "Main7 offer giver='Pa'"
+    }
+   ],
+   "current": "Pa",
+   "neutral": "the Keeper",
+   "note": "Shows as \"Offered by the Keeper, at Gravewind Point\"."
+  },
+  {
+   "id": "lines.DeliaMain1.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_DeliaMain1'][0]"
+    }
+   ],
+   "current": "...Ellis? Don't. Don't you open that door.",
+   "neutral": "...It's you. I buried you beside my son. Don't. Don't you open that door."
+  },
+  {
+   "id": "lines.HeadboardEllis",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HeadboardEllis'][0]"
+    }
+   ],
+   "current": "ELLIS RANSOM. CAME HOME AT THE LAST.",
+   "neutral": "{HERO}. STOOD UP AT THE LAST.",
+   "note": "The epitaph Delia carves for a stranger who drew on the Deacon at the last (Ruth told her). Ellis keeps CAME HOME."
+  },
+  {
+   "id": "lines.SextonDeal.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_SextonDeal'][1]"
+    }
+   ],
+   "current": "You were on this rail. The night they shot me.",
+   "speaker": "Ellis",
+   "neutral": "You were on this rail. The night they shot me.",
+   "heroes": {
+    "Odessa": "You were on this rail the night they shot me. Enjoy the show?",
+    "Crane": "You were sat on this rail, sir. The night they shot me.",
+    "Gauge": "You. On this rail. The night they shot me. I remember you.",
+    "Pike": "You were sat on this very rail the night they shot me. Third post from the stair. I notice where things are."
+   },
+   "note": "Neutral words are Ellis's own (they fit anyone shot on the Point); the speaker becomes the hero."
+  },
+  {
+   "id": "lines.SextonDeal.3",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_SextonDeal'][3]"
+    }
+   ],
+   "current": "Seven of your old friends carry seven embers that aren't theirs. Bring each one here, to this rail, at the new moon.",
+   "neutral": "Seven of the Deacon's gang carry seven embers that aren't theirs. Bring each one here, to this rail, at the new moon.",
+   "note": "Says nothing of the hero having ridden with them, so it holds whichever way the cold-open question goes."
+  },
+  {
+   "id": "lines.SextonDeal.5",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_SextonDeal'][5]"
+    }
+   ],
+   "current": "And your father crosses. I'll see to his fare myself.",
+   "neutral": "And whatever else you owe is settled. I'll see to it myself.",
+   "heroes": {
+    "Odessa": "And your marker comes back to you, torn in two. I paid a great deal for it.",
+    "Crane": "And your fare is paid, marshal. Forty years on the road is long enough.",
+    "Gauge": "And the spark in your firebox is yours. Free and clear. Nobody comes to collect it.",
+    "Pike": "And you'll walk the one road you never mapped, Mr. Pike. I'll see you're expected at the end of it."
+   },
+   "note": "Sexton's sweetener is the hero's own debt, as their select-screen story already tells it (marker, fare, spark, the way)."
+  },
+  {
+   "id": "lines.SextonDeal.6",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_SextonDeal'][6]"
+    }
+   ],
+   "current": "And if I don't?",
+   "speaker": "Ellis",
+   "neutral": "And if I don't?",
+   "heroes": {
+    "Odessa": "And if I fold?",
+    "Crane": "And if I decline?",
+    "Gauge": "And if I refuse?",
+    "Pike": "And should I decline? Hypothetically."
+   }
+  },
+  {
+   "id": "lines.SextonDeal.8",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_SextonDeal'][8]"
+    }
+   ],
+   "current": "They scattered. Where do I even start?",
+   "speaker": "Ellis",
+   "neutral": "They scattered. Where do I even start?",
+   "heroes": {
+    "Odessa": "They scattered to the four winds. Where does a lady start?",
+    "Crane": "They scattered. A man needs a trail to follow.",
+    "Gauge": "They scattered. I need a heading.",
+    "Pike": "They've scattered over half the Reaches. Even a surveyor wants a starting point."
+   }
+  },
+  {
+   "id": "lines.SextonDeal.10",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_SextonDeal'][10]"
+    }
+   ],
+   "current": "The keeper's dead.",
+   "speaker": "Ellis",
+   "neutral": "The keeper's dead.",
+   "heroes": {
+    "Odessa": "The keeper's dead. I watched him fall.",
+    "Crane": "The keeper's dead, sir.",
+    "Gauge": "The keeper is dead.",
+    "Pike": "The keeper's dead. Shot on the bluff path, forty yards below us."
+   }
+  },
+  {
+   "id": "lines.TillyMain3.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_TillyMain3']"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main3 turn_in lines"
+    }
+   ],
+   "current": "I laid you out, you know. You and your Pa, the same morning.",
+   "neutral": "I laid you out, you know. You and the Keeper, the same morning.",
+   "heroes": {
+    "Crane": "I laid you out, you know. You and the Keeper, the same morning. You'd been dead a good while longer than he had, by the look.",
+    "Gauge": "I laid you out, you know. Well, I had you hosed down and a sheet put over you. You and the Keeper, the same morning."
+   }
+  },
+  {
+   "id": "lines.TillyMain3.2",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_TillyMain3']"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main3 turn_in lines"
+    }
+   ],
+   "current": "You've ruined my collar, by the way.",
+   "neutral": "You've ruined my collar, by the way.",
+   "heroes": {
+    "Gauge": "You've ruined my good sheet, by the way."
+   },
+   "note": "Gauge wore no collar."
+  },
+  {
+   "id": "lines.TillyMain3.3",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_TillyMain3']"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main3 turn_in lines"
+    }
+   ],
+   "current": "Pa's lantern. Was it with him?",
+   "speaker": "Ellis",
+   "neutral": "The Keeper's lantern. Was it with him?",
+   "heroes": {
+    "Odessa": "The Keeper's lantern. Was it on him?",
+    "Crane": "The Keeper's lantern, ma'am. Was it with him?",
+    "Pike": "The Keeper's lantern, miss. Was it with him when they brought him down?"
+   }
+  },
+  {
+   "id": "lines.TillyAfterMain3.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_TillyAfterMain3'][0]"
+    }
+   ],
+   "current": "Still closed. Mind that collar.",
+   "neutral": "Still closed. Mind that collar.",
+   "heroes": {
+    "Gauge": "Still closed. Mind my sheet."
+   }
+  },
+  {
+   "id": "lines.AldanaWaiting.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaWaiting']"
+    }
+   ],
+   "current": "Tilly sent me. Pa's lantern.",
+   "speaker": "Ellis",
+   "neutral": "Tilly sent me. The Keeper's lantern.",
+   "heroes": {
+    "Odessa": "Tilly Bright sent me, Father. About the Keeper's lantern.",
+    "Crane": "Miss Bright sent me, Father. On the matter of the Keeper's lantern.",
+    "Pike": "Miss Bright sent me round, Father. It's about the Keeper's lantern."
+   }
+  },
+  {
+   "id": "lines.AldanaWaiting.2",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaWaiting']"
+    }
+   ],
+   "current": "...Abel's child. Lord forgive me, I'd know that voice through any door.",
+   "neutral": "...The one Delia laid beside Abel. Lord forgive me, I said the words over you myself.",
+   "heroes": {
+    "Gauge": "...The iron one Delia laid beside Abel. Lord forgive me, I said the words over you myself. I wasn't sure they'd take."
+   }
+  },
+  {
+   "id": "lines.AldanaWaiting.3",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaWaiting']"
+    }
+   ],
+   "current": "If the saint still knows you, she'll answer her bell. Ring it. Then look at what was done to her.",
+   "neutral": "If the saint will hear you, she'll answer her bell. Ring it. Then look at what was done to her.",
+   "note": "The saint never knew a stranger."
+  },
+  {
+   "id": "lines.AldanaBell.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaBell'][0]"
+    }
+   ],
+   "current": "The rope's inside the door. Ring her, Ellis. Then go and look at her. I can't.",
+   "neutral": "The rope's inside the door. Ring her. Then go and look at her. I can't."
+  },
+  {
+   "id": "lines.AldanaMain4.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaMain4']"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main4 turn_in lines"
+    }
+   ],
+   "current": "How do I find them?",
+   "speaker": "Ellis",
+   "neutral": "How do I find them?",
+   "heroes": {
+    "Odessa": "So how do I find them? I don't play blind.",
+    "Crane": "How does a man find them, Father?",
+    "Pike": "Then how does one find them? Give me a bearing and I can find anything."
+   }
+  },
+  {
+   "id": "lines.AldanaMain4.4",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaMain4']"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main4 turn_in lines"
+    }
+   ],
+   "current": "Your father's fell in the dark, whole.",
+   "neutral": "Abel's fell in the dark, whole."
+  },
+  {
+   "id": "lines.AldanaAfterMain4.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaAfterMain4'][0]"
+    }
+   ],
+   "current": "The Sink, Ellis. Your father's lantern. I'll pray it's still whole.",
+   "neutral": "The Sink. Abel's lantern. I'll pray it's still whole."
+  },
+  {
+   "id": "lines.HobMain5Way.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HobMain5Way'][0]"
+    }
+   ],
+   "current": "Keepers walk the dead to the boards by lantern light. Your Pa's is down there, sunshine, somewhere under the webs. Ramp's on the west side, by the gap in the fence.",
+   "neutral": "Keepers walk the dead to the boards by lantern light. The Keeper's is down there, sunshine, somewhere under the webs. Ramp's on the west side, by the gap in the fence."
+  },
+  {
+   "id": "lines.HobMain5Lantern.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HobMain5Lantern'][0]"
+    }
+   ],
+   "current": "That's the last of them. There, in the webbing by the north wall. Brass and glass. That's your Pa's.",
+   "neutral": "That's the last of them. There, in the webbing by the north wall. Brass and glass. That's the Keeper's."
+  },
+  {
+   "id": "lines.HobMain5.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HobMain5'][0]"
+    }
+   ],
+   "current": "Spiders hoard anything a saint has touched. Your Pa's lantern was lit from her every night he kept her. To them it smells like supper, sunshine.",
+   "neutral": "Spiders hoard anything a saint has touched. The Keeper's lantern was lit from her every night he kept her. To them it smells like supper, sunshine."
+  },
+  {
+   "id": "lines.AldanaAfterMain5.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaAfterMain5'][0]"
+    }
+   ],
+   "current": "Take it home, Ellis. Your grandmother will know what's owed a keeper.",
+   "neutral": "Take it up to Delia Ransom. A keeper's mother knows what's owed a keeper."
+  },
+  {
+   "id": "lines.HobMain6Way.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HobMain6Way'][0]"
+    }
+   ],
+   "current": "Keeper's grave. Every Ransom who ever sat up with the dead is under that board, sunshine. Your Pa's the first one who won't stay there.",
+   "neutral": "Keeper's grave. Every Ransom who ever sat up with the dead is under that board, sunshine. Abel's the first one who won't stay there."
+  },
+  {
+   "id": "lines.HobMain6Bridge.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HobMain6Bridge'][0]"
+    }
+   ],
+   "current": "Every Ransom for sixty years walked the dead this way at sundown. Your Pa walked it the night before they shot him.",
+   "neutral": "Every Ransom for sixty years walked the dead this way at sundown. Abel walked it the night before they shot him."
+  },
+  {
+   "id": "lines.AbelOnBoard.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AbelOnBoard'][0]"
+    }
+   ],
+   "current": "Sun goes down the same every night, El. I never once got tired of it.",
+   "neutral": "Sun goes down the same every night. I never once got tired of it."
+  },
+  {
+   "id": "lines.AbelOnBoard.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AbelOnBoard'][1]"
+    }
+   ],
+   "current": "Your grandmother still setting a plate? Eat it, even if you can't taste it. She needs to see it gone.",
+   "neutral": "My mother still setting a plate for you? Eat it, even if you can't taste it. She needs to see it gone."
+  },
+  {
+   "id": "lines.AbelAfterMain7.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AbelAfterMain7'][1]"
+    }
+   ],
+   "current": "Go on, El. I'll keep the boards.",
+   "neutral": "Go on. I'll keep the boards."
+  },
+  {
+   "id": "lines.HobMain7Lean.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HobMain7Lean'][1]"
+    }
+   ],
+   "current": "Go home first, sunshine. Your grandmother's been keeping something back.",
+   "neutral": "Back to the farm first, sunshine. Delia's been keeping something back."
+  },
+  {
+   "id": "lines.AgentWindowLily.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AgentWindowLily'][0]"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "LINES['AgentWindowLily']"
+    }
+   ],
+   "current": "Line's open to the Lily, kid. Your car's coupled.",
+   "neutral": "Line's open to the Lily. Your car's coupled.",
+   "heroes": {
+    "Odessa": "Line's open to the Lily, miss. Your car's coupled.",
+    "Crane": "Line's open to the Lily, marshal. Your car's coupled.",
+    "Gauge": "Line's open to the Lily. Your car's coupled. We shored up the floor.",
+    "Pike": "Line's open to the Lily, Mr. Pike. Your car's coupled."
+   },
+   "note": "Mr. Sloane's 'kid' is not the Deacon's: the writing rule takes it out."
+  },
+  {
+   "id": "lines.FennCoins.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_FennCoins'][0]"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "LINES['FennCoins']"
+    }
+   ],
+   "current": "Your fare, Mr. Fenn.",
+   "speaker": "Ellis",
+   "neutral": "Your fare, Mr. Fenn.",
+   "heroes": {
+    "Odessa": "Your fare, Mr. Fenn. Paid in full.",
+    "Crane": "Your fare, Mr. Fenn. Set right.",
+    "Gauge": "Your fare. Returned.",
+    "Pike": "Your fare, Mr. Fenn. One to each eye, as is proper."
+   }
+  },
+  {
+   "id": "lines.AmosMeet.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AmosMeet']"
+    },
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS Side2 offer lines"
+    }
+   ],
+   "current": "Amos Whitlock?",
+   "speaker": "Ellis",
+   "neutral": "Amos Whitlock?",
+   "heroes": {
+    "Odessa": "Amos Whitlock, I presume?",
+    "Crane": "Mr. Whitlock.",
+    "Gauge": "Amos Whitlock. Farmer.",
+    "Pike": "Amos Whitlock, of the Mill Creek fields? Your name's on the plat."
+   }
+  },
+  {
+   "id": "lines.AmosMeet.2",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AmosMeet']"
+    },
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS Side2 offer lines"
+    }
+   ],
+   "current": "What's left of him. And you're Abel's young'un. I heard the shooting from the Sundown Road the night the saint went out. I'm sorry for it.",
+   "neutral": "What's left of him. And you'd be the one the Deacon shot on the Point. I heard it from the Sundown Road the night the saint went out. I'm sorry for it.",
+   "heroes": {
+    "Gauge": "What's left of him. And you're the iron fella the Deacon shot on the Point. Heard it ring from the Sundown Road the night the saint went out. I'm sorry for it."
+   }
+  },
+  {
+   "id": "lines.AmosRoad.3",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AmosRoad'][3]"
+    }
+   ],
+   "current": "Drive them off, Ellis. Gently, if there's a gently. They were good boys.",
+   "neutral": "Drive them off. Gently, if there's a gently. They were good boys."
+  },
+  {
+   "id": "lines.AmosAfterMain6.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AmosAfterMain6'][0]"
+    }
+   ],
+   "current": "Saw a light out on Gravewind Point at dusk. Your Pa's, I'd wager. Good to know a keeper's still keeping.",
+   "neutral": "Saw a light out on Gravewind Point at dusk. Abel's, I'd wager. Good to know a keeper's still keeping."
+  },
+  {
+   "id": "lines.HobBaleThird.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HobBaleThird'][0]"
+    }
+   ],
+   "current": "Hauling hay for a ghost. Your Pa would laugh, sunshine. Then he'd hand you another.",
+   "neutral": "Hauling hay for a ghost. Sexton would call that charity, sunshine. He wouldn't mean it kindly."
+  },
+  {
+   "id": "lines.AmosBaleLast.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AmosBaleLast'][0]"
+    }
+   ],
+   "current": "That's the last of it. Thank you, Ellis.",
+   "neutral": "That's the last of it. Thank you kindly.",
+   "heroes": {
+    "Odessa": "That's the last of it. Thank you, miss.",
+    "Crane": "That's the last of it. Thank you, marshal.",
+    "Gauge": "That's the last of it. Thank you, big fella."
+   }
+  },
+  {
+   "id": "lines.ThaddeusTalk.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_ThaddeusTalk'][0]"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "LINES['ThaddeusTalk']"
+    }
+   ],
+   "current": "Ransom's child. I measured you, you know. You've stood up since.",
+   "neutral": "The one beside Abel. I measured you, you know. You've stood up since.",
+   "heroes": {
+    "Gauge": "The iron one beside Abel. I measured you, you know. Built the box twice. You've stood up since."
+   }
+  },
+  {
+   "id": "lines.ThaddeusAfter.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_ThaddeusAfter'][0]"
+    }
+   ],
+   "current": "Five foot eleven, you were, and narrow at the shoulder. Pine. No brass.",
+   "neutral": "I have your measure in the book. Pine. No brass.",
+   "heroes": {
+    "Odessa": "Five foot eight, you were, heels and all, and slight. Pine. No brass.",
+    "Crane": "Six foot five, you were, and nothing to you but bone. Long pine. No brass.",
+    "Gauge": "Six foot four, you were, and iron through. Oak, doubled. No brass. It wouldn't have held.",
+    "Pike": "Five foot six, you were, and broad as a door. Deep pine, for the coat. No brass."
+   },
+   "note": "Ellis's 1.80 m; the heroes' heights from Saved/Heroes/CONTRACT.md (1.72, 1.95, 1.92, 1.68 m)."
+  },
+  {
+   "id": "lines.ThaddeusAfter.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_ThaddeusAfter'][1]"
+    }
+   ],
+   "current": "I remember them all, Ransom's child. Somebody has to.",
+   "neutral": "I remember them all. Somebody has to."
+  },
+  {
+   "id": "lines.AldanaAda.5",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_AldanaAda'][5]"
+    }
+   ],
+   "current": "Sixty years at the edge of the world.",
+   "speaker": "Ellis",
+   "neutral": "Sixty years at the edge of the world.",
+   "heroes": {
+    "Odessa": "Sixty years at the edge of the world. That's a long time to hold one hand.",
+    "Crane": "Sixty years at the edge. I walked forty on that road. I'd not wish it on her.",
+    "Gauge": "Sixty years. Holding up a light. I understand that.",
+    "Pike": "Sixty-one, if the Ledger's right. Out past the edge of any map."
+   }
+  },
+  {
+   "id": "lines.HobMain6Point.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_story_lines.py",
+     "at": "SETS['DA_Lines_HobMain6Point'][0]"
+    }
+   ],
+   "current": "There's a light out past the fog. Low. Steady.",
+   "speaker": "Ellis",
+   "neutral": "There's a light out past the fog. Low. Steady.",
+   "heroes": {
+    "Odessa": "There's a light out past the fog. Low and steady. I don't like its odds.",
+    "Crane": "There's a light out yonder, past the fog. Low. Steady.",
+    "Gauge": "Light. Past the fog. Low. Steady. Not a star.",
+    "Pike": "There's a light past the fog, west by a hair south. Low. Steady. It's on no chart I know."
+   }
+  },
+  {
+   "id": "readable.HeadboardEllis.title",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['HeadboardEllis'] title"
+    }
+   ],
+   "current": "Ellis's headboard",
+   "neutral": "Your headboard",
+   "note": "Also the speaker of a readable line with none (ReadableProp.cpp: Line.Speaker = Title)."
+  },
+  {
+   "id": "readable.HeadboardEllis.heading",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['HeadboardEllis'] heading"
+    }
+   ],
+   "current": "Fresh pine, in the family plot",
+   "neutral": "Fresh pine, in the Ransoms' plot"
+  },
+  {
+   "id": "readable.HeadboardEllis.text",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['HeadboardEllis'] text"
+    }
+   ],
+   "current": "ELLIS RANSOM.\nCAME HOME AT THE LAST.",
+   "neutral": "{HERO}.\nSTOOD UP AT THE LAST.",
+   "note": "Must match the carving on the hero's headboard mesh (Graves.py: painted entry painted.Headboard)."
+  },
+  {
+   "id": "readable.HeadboardEllis.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['HeadboardEllis'] lines[0]"
+    }
+   ],
+   "current": "Who carved this?",
+   "speaker": "Ellis",
+   "neutral": "Who carved this?",
+   "heroes": {
+    "Odessa": "Who carved this? Steady hand.",
+    "Gauge": "Who made this?",
+    "Pike": "Who carved this? The letters are good. The spacing's off."
+   }
+  },
+  {
+   "id": "readable.HeadboardEllis.line1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['HeadboardEllis'] lines[1]"
+    }
+   ],
+   "current": "Your grandmother. Took her all night, sunshine. She did the letters twice.",
+   "neutral": "Delia Ransom. Copied your name off your own wanted poster, sunshine. Did the letters twice."
+  },
+  {
+   "id": "readable.LookoutStains.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['LookoutStains'] lines[0]"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "READABLES['LookoutStains']"
+    }
+   ],
+   "current": "He was standing right here.",
+   "speaker": "Ellis",
+   "neutral": "He was standing right here.",
+   "heroes": {
+    "Odessa": "He was standing right here. Close enough to touch.",
+    "Crane": "He stood right here.",
+    "Gauge": "He stood here. Two paces off.",
+    "Pike": "He was standing right here. Two yards off, no more."
+   }
+  },
+  {
+   "id": "readable.KeepersRoll.text",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['KeepersRoll'] text"
+    }
+   ],
+   "current": "KEEPERS\nOF SAINT ADA\n\nSILAS\nHANNAH\nJONAS\nABEL\n\nUnder ABEL a name has been painted out. It still shows through:\nELLIS",
+   "neutral": "KEEPERS\nOF SAINT ADA\n\nSILAS\nHANNAH\nJONAS\nABEL\n\nUnder ABEL the plank is primed for the next name, and bare.",
+   "note": "Must match the roll's mesh: painted entry painted.KeepersRoll."
+  },
+  {
+   "id": "readable.KeepersRoll.text.valley",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "READABLES['KeepersRoll'] text (what the valley script places)"
+    }
+   ],
+   "current": "KEEPERS OF THE LANTERN\nSAINT ADA'S, RANSOM'S REST\n\nSILAS RANSOM\nHANNAH RANSOM\nJONAS RANSOM\nABEL RANSOM\n\nUnder Abel's name a line has been painted out in white. It still shows through: ELLIS.",
+   "neutral": "KEEPERS OF THE LANTERN\nSAINT ADA'S, RANSOM'S REST\n\nSILAS RANSOM\nHANNAH RANSOM\nJONAS RANSOM\nABEL RANSOM\n\nUnder Abel's name the plank is primed white for the next, and bare.",
+   "note": "Second copy of the roll's words: see DESIGN.md \"Two copies of the valley readables\"."
+  },
+  {
+   "id": "readable.KeepersRoll.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['KeepersRoll'] lines[0]"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "READABLES['KeepersRoll']"
+    }
+   ],
+   "current": "Heir to the family business, sunshine. Funny how that goes.",
+   "neutral": "Nobody under him, sunshine. The line stops at Abel. Unless somebody picks it up."
+  },
+  {
+   "id": "readable.SheriffHat.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['SheriffHat'] lines[0]"
+    }
+   ],
+   "current": "Wade Odell. The sheriff.",
+   "speaker": "Ellis",
+   "neutral": "W. Odell. The sheriff, by the hat.",
+   "heroes": {
+    "Crane": "W. Odell. A lawman, by the hat."
+   },
+   "note": "A stranger reads the name off the band."
+  },
+  {
+   "id": "readable.SheriffBadge.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['SheriffBadge'] lines[0]"
+    }
+   ],
+   "current": "Wade Odell's badge. He gave me a hiding once, for stealing apples.",
+   "speaker": "Ellis",
+   "neutral": "Sheriff Odell's badge. Whatever lives down here ate the law.",
+   "heroes": {
+    "Odessa": "Sheriff Odell's badge. He'd have run me out of town by sundown.",
+    "Crane": "Odell's star. A lawman ought to go in the ground with it. I'll see it gets back.",
+    "Gauge": "Sheriff Odell. His badge. Bent.",
+    "Pike": "Odell's badge. Tin, nickel-plated, bent near double. Poor devil."
+   },
+   "note": "Ellis's childhood memory: Ellis's alone."
+  },
+  {
+   "id": "readable.AgentDesk.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['AgentDesk'] lines[0]"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "READABLES['AgentDesk']"
+    }
+   ],
+   "current": "Ned's paper.",
+   "speaker": "Ellis",
+   "neutral": "Ned's paper.",
+   "heroes": {
+    "Odessa": "Ned Purcell's paper. I'd know that hand at any table."
+   }
+  },
+  {
+   "id": "readable.RuthJournal.text",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['RuthJournal'] text"
+    }
+   ],
+   "current": "The night of the robbery. Skiff came up the canyon at dusk, running dark. Lights on Ransom's Point. A shot on the bluff path, then one up top. The Ransom kid drew on the Deacon at the last. Saw it through the glass. Doesn't wash out ten years. Rode the north trail down and round by the rail. Dawn before I got there. Closed the kid's eyes myself. Wasn't sorry.\n\nLast entry. Riding south after them. If the kid's ghost is reading this: I'd have hanged you anyway. Probably.\n\n— R.C.",
+   "neutral": "The night of the robbery. Skiff came up the canyon at dusk, running dark. Lights on Ransom's Point. A shot on the bluff path, then one up top. The kid drew on the Deacon at the last. Saw it through the glass. Didn't save the keeper. Didn't save the kid. Rode the north trail down and round by the rail. Dawn before I got there. Closed the kid's eyes myself. Wasn't sorry.\n\nLast entry. Riding south after them. If the kid's ghost is reading this: I'd have hanged you anyway. Probably.\n\n— R.C.",
+   "heroes": {
+    "Odessa": "The night of the robbery. Skiff came up the canyon at dusk, running dark. Lights on Ransom's Point. A shot on the bluff path, then one up top. The cardsharp drew on the Deacon at the last. Saw it through the glass. Didn't save the keeper. Didn't save her. Rode the north trail down and round by the rail. Dawn before I got there. Closed her eyes myself. Wasn't sorry.\n\nLast entry. Riding south after them. If the cardsharp's ghost is reading this: I'd have hanged you anyway. Probably.\n\n— R.C.",
+    "Crane": "The night of the robbery. Skiff came up the canyon at dusk, running dark. Lights on Ransom's Point. A shot on the bluff path, then one up top. The old marshal drew on the Deacon at the last. Saw it through the glass. Didn't save the keeper. Didn't save him. Rode the north trail down and round by the rail. Dawn before I got there. Closed his eye myself. The other had a coin on it already. Wasn't sorry.\n\nLast entry. Riding south after them. If the marshal's ghost is reading this: I'd have hanged you anyway. Probably.\n\n— R.C.",
+    "Gauge": "The night of the robbery. Skiff came up the canyon at dusk, running dark. Lights on Ransom's Point. A shot on the bluff path, then one up top. The railroad's iron man drew on the Deacon at the last. Saw it through the glass. Didn't save the keeper. Didn't save it. Rode the north trail down and round by the rail. Dawn before I got there. Shut its lamp off myself. Wasn't sorry.\n\nLast entry. Riding south after them. If whatever's in that iron is reading this: I'd have hanged you anyway. Probably.\n\n— R.C.",
+    "Pike": "The night of the robbery. Skiff came up the canyon at dusk, running dark. Lights on Ransom's Point. A shot on the bluff path, then one up top. The surveyor drew on the Deacon at the last. Saw it through the glass. Didn't save the keeper. Didn't save him. Rode the north trail down and round by the rail. Dawn before I got there. Took his spectacles off and closed his eyes myself. Wasn't sorry.\n\nLast entry. Riding south after them. If the surveyor's ghost is reading this: I'd have hanged you anyway. Probably.\n\n— R.C."
+   },
+   "note": "The user's own neutral: 'the kid drew'. 'Doesn't wash out ten years' is Ellis's ten years with the gang."
+  },
+  {
+   "id": "readable.RuthJournal.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['RuthJournal'] lines[0]"
+    }
+   ],
+   "current": "...She closed your eyes, sunshine. Not everybody would have bothered.",
+   "neutral": "...She closed your eyes, sunshine. Not everybody would have bothered.",
+   "heroes": {
+    "Crane": "...She closed your eye, sunshine. Not everybody would have bothered.",
+    "Gauge": "...She shut your lamp off, sunshine. Not everybody would have bothered."
+   }
+  },
+  {
+   "id": "readable.CodeBook.text",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['CodeBook'] text"
+    }
+   ],
+   "current": "The far light, read off letter by letter:\n\nLARKSPUR WE SEE YOU.\nCALDER RIDES SOUTH.\nALL POSTS: WORD IS THE RANSOM KID WALKS. SHOOT ON SIGHT.",
+   "neutral": "The far light, read off letter by letter:\n\nLARKSPUR WE SEE YOU.\nCALDER RIDES SOUTH.\nALL POSTS: WORD IS {HERO} WALKS. SHOOT ON SIGHT.",
+   "note": "The Rangers use the name on the hero's wanted poster."
+  },
+  {
+   "id": "readable.DeaconsSlip.text",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['DeaconsSlip'] text"
+    }
+   ],
+   "current": "Kid's share.\nFor when the kid comes home.\n\n— A.D.",
+   "neutral": "Kid's share.\nFor when the kid comes back.\n\n— A.D.",
+   "note": "The Deacon's 'kid' is whoever you are (the user); only 'home' is Ellis's."
+  },
+  {
+   "id": "readable.DeaconsSlip.text.valley",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "READABLES['DeaconsSlip'] text"
+    }
+   ],
+   "current": "Kid's share. For when the kid comes home.\n\n— A.D.",
+   "neutral": "Kid's share. For when the kid comes back.\n\n— A.D."
+  },
+  {
+   "id": "readable.DeaconLetter_Cleft.text",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['DeaconLetter_Cleft'] text"
+    }
+   ],
+   "current": "Kid. The man who pays us isn't a man.\nHe paid us in coin off dead men's eyes, and I took it. God help me, I'd take it again.\nSix towns now, and he wants yours worst of all. I can't tell you why. I'm afraid I'll find out.\nWhen we're done here, take your share and ride. Don't come looking for me.\n\n— A.D.",
+   "neutral": "Kid. The man who pays us isn't a man.\nHe paid us in coin off dead men's eyes, and I took it. God help me, I'd take it again.\nSix towns now, and he wants this one worst of all. I can't tell you why. I'm afraid I'll find out.\nWhen we're done here, take your share and ride. Don't come looking for me.\n\n— A.D."
+  },
+  {
+   "id": "readable.DeaconLetter_Cleft.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['DeaconLetter_Cleft'] lines[0]"
+    }
+   ],
+   "current": "Six towns. Then mine.",
+   "speaker": "Ellis",
+   "neutral": "Six towns. Then this one.",
+   "heroes": {
+    "Odessa": "Six towns, and this one the jackpot.",
+    "Crane": "Six towns. And this one last.",
+    "Gauge": "Six towns. Then this one. Seven.",
+    "Pike": "Six towns. Then here. He was keeping count, same as me."
+   }
+  },
+  {
+   "id": "readable.DeaconLetter_Saloon.text",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['DeaconLetter_Saloon'] text"
+    }
+   ],
+   "current": "Mrs. Ransom,\n\nYou don't know my hand. You know my name, and you've cause to curse it.\n\nGet Abel and his lantern off the Rest before the month is out. Your sister's, anywhere. Don't ask me why. I can't put it in a letter.\n\nThe kid is well. The kid doesn't know, and I'd sooner it stayed that way.\n\nBurn this.\n\n— A. Dunne",
+   "neutral": "Mrs. Ransom,\n\nYou don't know my hand. You know my name, and you've cause to curse it.\n\nGet Abel and his lantern off the Rest before the month is out. Your sister's, anywhere. Don't ask me why. I can't put it in a letter.\n\nI've no right to ask you anything. I'm asking.\n\nBurn this.\n\n— A. Dunne",
+   "note": "'The kid is well' is about Delia's grandchild: Ellis's alone."
+  },
+  {
+   "id": "ledger.RansomsRest.text",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "LEDGER_TOWNS['RansomsRest'] text (the loose page and DA_Bestiary_Town_RansomsRest)"
+    }
+   ],
+   "current": "RANSOM'S REST\nSaint Ada, who lay down on the first board. Lit sixty-one years since.\nFares carried free since: 2,207 souls.\nOwing, at two coins the soul: 4,414.\n\nTo be collected 21 August, at dusk, by the Dunne Gang. Guided in by E. Ransom.\nKeeper: A. Ransom. To be settled on the bluff path.\nCollector, thereafter: E. Ransom. Engaged from the 28th.\n\nEntered 21 July.\n\nIn the margin: Dunne will keep this one for himself. Allow it. For now.",
+   "neutral": "RANSOM'S REST\nSaint Ada, who lay down on the first board. Lit sixty-one years since.\nFares carried free since: 2,207 souls.\nOwing, at two coins the soul: 4,414.\n\nTo be collected 21 August, at dusk, by the Dunne Gang.\nKeeper: A. Ransom. To be settled on the bluff path.\nCollector, thereafter: {Initialed}. Engaged from the 28th.\n\nEntered 21 July.\n\nIn the margin: Dunne will keep this one for himself. Allow it. For now.",
+   "heroes": {
+    "Gauge": "RANSOM'S REST\nSaint Ada, who lay down on the first board. Lit sixty-one years since.\nFares carried free since: 2,207 souls.\nOwing, at two coins the soul: 4,414.\n\nTo be collected 21 August, at dusk, by the Dunne Gang.\nKeeper: A. Ransom. To be settled on the bluff path.\nCollector, thereafter: the engine called Gauge. Engaged from the 28th.\n\nEntered 21 July.\n\nIn the margin: Dunne will keep this one for himself. Allow it. For now."
+   },
+   "note": "'Guided in by E. Ransom' is Ellis's alone (they knew the way home). Sexton still enters the hero a month ahead."
+  },
+  {
+   "id": "ledger.RansomsRest.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "LEDGER_TOWNS['RansomsRest'] lines[0]"
+    }
+   ],
+   "current": "July. He wrote my name in July.",
+   "speaker": "Ellis",
+   "neutral": "July. He wrote my name in July.",
+   "heroes": {
+    "Odessa": "July. He had my name in his book before the cards were dealt.",
+    "Crane": "July. He wrote my name down in July. A patient man.",
+    "Gauge": "Entered twenty-first July. My name. He knew.",
+    "Pike": "Twenty-first of July. Thirty-eight days before the 28th. He had me down near six weeks early."
+   }
+  },
+  {
+   "id": "porch.eat_lines.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "PORCH_PLATE eat_lines[0]"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "place_porch_plate eat_lines"
+    }
+   ],
+   "current": "...Thank you, Ellis.",
+   "speaker": "Grandma Delia",
+   "neutral": "...Thank you."
+  },
+  {
+   "id": "item.LanternBail.prompt",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "ITEMS['LanternBail'] prompt"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "place_bail prompt"
+    }
+   ],
+   "current": "Take Pa's lantern bail",
+   "neutral": "Take the Keeper's lantern bail"
+  },
+  {
+   "id": "mission.Main1.summary",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main1 summary"
+    }
+   ],
+   "current": "Seven days after the Dunne Gang's last job, Ellis claws out of a fresh grave in the Ransom family plot, beside Pa's. Read the board beside yours, then go up to the farmhouse. Grandma Delia won't open the door to a corpse, but she has left a plate on the porch.",
+   "neutral": "Seven days after the Dunne Gang's last job, you claw out of a fresh grave in the Ransom family plot, beside the Keeper's. Read the board beside yours, then go up to the farmhouse. Delia Ransom, the Keeper's mother, won't open the door to a corpse, but she has left a plate on the porch."
+  },
+  {
+   "id": "mission.Main1.turnin.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main1 turn_in lines[0]"
+    }
+   ],
+   "current": "I was to lay you on the boards tonight.",
+   "neutral": "Ruth Calder told me you drew on the Deacon at the last. So I put you in our plot, beside Abel. I was to lay you on the boards tonight.",
+   "note": "The one line that tells a stranger why they woke in the Ransom plot."
+  },
+  {
+   "id": "mission.Main1.turnin.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main1 turn_in lines[1]"
+    }
+   ],
+   "current": "Your Pa got up Wednesday night, came up through the dirt like it was fog.",
+   "neutral": "My son got up Wednesday night, came up through the dirt like it was fog."
+  },
+  {
+   "id": "mission.Main2.summary",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main2 summary"
+    }
+   ],
+   "current": "Someone is waiting on Ransom's Point, the lookout where the Deacon shot Ellis seven days ago. Spiders nest at the top now, and a tall man in a stovepipe hat sits on the lookout's rail with a ledger on his knee.",
+   "neutral": "Someone is waiting on Ransom's Point, the lookout where the Deacon shot you seven days ago. Spiders nest at the top now, and a tall man in a stovepipe hat sits on the lookout's rail with a ledger on his knee."
+  },
+  {
+   "id": "mission.Main2.offer.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main2 offer lines[1]"
+    }
+   ],
+   "current": "Who?",
+   "speaker": "Ellis",
+   "neutral": "Who?",
+   "heroes": {
+    "Odessa": "Who's dealing?",
+    "Crane": "Who would that be?",
+    "Pike": "Who, precisely?"
+   }
+  },
+  {
+   "id": "mission.Main2.turnin.2",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main2 turn_in lines[2]"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main3 offer lines[1]"
+    }
+   ],
+   "current": "Pa's lantern. Where is it?",
+   "speaker": "Ellis",
+   "neutral": "The Keeper's lantern, then. Where is it?",
+   "heroes": {
+    "Odessa": "The dead keeper's lantern, then. Where's it gone?",
+    "Crane": "The Keeper's lantern, then. Where would it be?",
+    "Gauge": "The Keeper's lantern. Location?",
+    "Pike": "The Keeper's lantern, then. Where might it have got to?"
+   },
+   "note": "Said to Sexton (Main 2 turn-in) and to Delia (Main 3 offer): one key, both read well."
+  },
+  {
+   "id": "mission.Main2.turnin.3",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main2 turn_in lines[3]"
+    }
+   ],
+   "current": "I attend deaths, friend, not lost property. Ask your grandmother what he ran out with.",
+   "neutral": "I attend deaths, friend, not lost property. Ask his mother what he ran out with."
+  },
+  {
+   "id": "mission.Main3.summary",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main3 summary"
+    }
+   ],
+   "current": "Pa ran up the bluff path with his keeper's lantern lit, and nobody has seen it since. Go into town by the farm road and ask Tilly Bright, who laid him out, what came home with him. The living shutter their windows, and the Unpaid come for the corpse at the gate.",
+   "neutral": "The Keeper ran up the bluff path with his lantern lit, and nobody has seen it since. Go into town by the farm road and ask Tilly Bright, who laid him out, what came home with him. The living shutter their windows, and the Unpaid come for the corpse at the gate."
+  },
+  {
+   "id": "mission.Main3.briefing",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main3 offer briefing"
+    }
+   ],
+   "current": "Pa ran up the bluff path with his keeper's lantern lit, and nobody has seen it since. Tilly Bright, the undertaker's daughter, laid him out. Go into town and ask her what came home with him.",
+   "neutral": "The Keeper ran up the bluff path with his lantern lit, and nobody has seen it since. Tilly Bright, the undertaker's daughter, laid him out. Go into town and ask her what came home with him."
+  },
+  {
+   "id": "mission.Main4.summary",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main4 summary"
+    }
+   ],
+   "current": "Father Aldana blessed Pa's lantern every spring and sat up with his body the night he died. He has barred himself in the chapel's vestry since the dead came home, and the chapel yard is full of them.",
+   "neutral": "Father Aldana blessed the Keeper's lantern every spring and sat up with his body the night he died. He has barred himself in the chapel's vestry since the dead came home, and the chapel yard is full of them."
+  },
+  {
+   "id": "mission.Main4.offer.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main4 offer lines[0]"
+    }
+   ],
+   "current": "Father Aldana sat up with your Pa the night they brought him down.",
+   "neutral": "Father Aldana sat up with the Keeper the night they brought him down."
+  },
+  {
+   "id": "mission.Main4.briefing",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main4 offer briefing"
+    }
+   ],
+   "current": "Father Aldana blessed your father's lantern every spring and sat up with his body the night he died. Since the dead came home he has barred himself in the chapel's vestry. The chapel yard is full of them.",
+   "neutral": "Father Aldana blessed the Keeper's lantern every spring and sat up with his body the night he died. Since the dead came home he has barred himself in the chapel's vestry. The chapel yard is full of them."
+  },
+  {
+   "id": "mission.Main5.summary",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main5 summary"
+    }
+   ],
+   "current": "The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg sacs.",
+   "neutral": "The gang smashed the keeper's lantern in every town they robbed, but Abel's fell in the dark, whole. Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg sacs."
+  },
+  {
+   "id": "mission.Main5.offer.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main5 offer lines[1]"
+    }
+   ],
+   "current": "Go down and bring it back, Ellis. I'd stake the chapel on it being whole.",
+   "neutral": "Go down and bring it back. I'd stake the chapel on it being whole."
+  },
+  {
+   "id": "mission.Main5.briefing",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main5 offer briefing"
+    }
+   ],
+   "current": "The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. Spiders hoard anything a saint has touched. Go down into the Sink and bring it back.",
+   "neutral": "The gang smashed the keeper's lantern in every town they robbed, but Abel's fell in the dark, whole. Spiders hoard anything a saint has touched. Go down into the Sink and bring it back."
+  },
+  {
+   "id": "mission.Main5.turnin.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main5 turn_in lines[0]"
+    }
+   ],
+   "current": "You found it. Dark, but whole. Hold it to the altar candle, Ellis.",
+   "neutral": "You found it. Dark, but whole. Hold it to the altar candle."
+  },
+  {
+   "id": "mission.Main5.turnin.2",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main5 turn_in lines[2]"
+    }
+   ],
+   "current": "Then how do I light it?",
+   "speaker": "Ellis",
+   "neutral": "Then how do I light it?",
+   "heroes": {
+    "Odessa": "Then how do I light it? Ask it nicely?",
+    "Crane": "Then how's it to be lit?",
+    "Gauge": "Then how do I light it? My firebox is hot.",
+    "Pike": "Then how does one light it?"
+   }
+  },
+  {
+   "id": "mission.Main5.turnin.3",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main5 turn_in lines[3]"
+    }
+   ],
+   "current": "I don't know. Take it home to your grandmother, Ellis. She'll know what's owed a keeper.",
+   "neutral": "I don't know. Take it up to Delia Ransom. She'll know what's owed a keeper."
+  },
+  {
+   "id": "mission.Main6.summary",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main6 summary"
+    },
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main6 offer briefing"
+    }
+   ],
+   "current": "At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the Keeper's Lantern on his post and show him the way, even if he can't go.",
+   "neutral": "At dusk the Keeper walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the Keeper's Lantern on his post and show him the way, even if he can't go.",
+   "note": "The summary and the briefing are the same words: one key covers both."
+  },
+  {
+   "id": "mission.Main6.offer.3",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main6 offer lines[3]"
+    }
+   ],
+   "current": "He'll be on the boards at dusk. He won't know you, Ellis. Go anyway.",
+   "neutral": "He'll be on the boards at dusk. He won't know you. Go anyway."
+  },
+  {
+   "id": "mission.Main6.obj.bail",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "main6_steps step 0 collect_items text"
+    }
+   ],
+   "current": "Bring Pa's lantern bail from Tilly's window sill.",
+   "neutral": "Bring the Keeper's lantern bail from Tilly's window sill."
+  },
+  {
+   "id": "mission.Main6.obj.bail.short",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "main6_steps step 0 collect_items short"
+    }
+   ],
+   "current": "Bring Pa's lantern bail",
+   "neutral": "Bring the lantern bail"
+  },
+  {
+   "id": "mission.Main6.obj.sit",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "main6_steps step 3 scene objective text"
+    }
+   ],
+   "current": "Sit with Pa.",
+   "neutral": "Sit with the Keeper."
+  },
+  {
+   "id": "mission.Main6.item.name",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main6 items LanternBail name"
+    },
+    {
+     "file": "Tools/Unreal/build_area_missionprops_valley.py",
+     "at": "ITEMS['LanternBail'] name (what its prompt calls it)"
+    }
+   ],
+   "current": "Pa's lantern bail",
+   "neutral": "The Keeper's lantern bail",
+   "note": "A sentence lower-cases the leading The (MissionText::InSentence): 'Take the Keeper's lantern bail'."
+  },
+  {
+   "id": "mission.Main6.item.line",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main6 items LanternBail line"
+    }
+   ],
+   "current": "The ring Pa's lantern hung by, snapped off in his fist. Tilly couldn't open his hand till morning.",
+   "neutral": "The ring the Keeper's lantern hung by, snapped off in his fist. Tilly couldn't open his hand till morning."
+  },
+  {
+   "id": "mission.Main7.summary",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main7 summary"
+    }
+   ],
+   "current": "Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell and the Gilded Lily. Go home to Delia first. Then Tilly's hearse car waits at the depot.",
+   "neutral": "The Keeper lit his lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell and the Gilded Lily. Go back to Delia's door first. Then Tilly's hearse car waits at the depot."
+  },
+  {
+   "id": "mission.Main7.offer.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main7 offer lines[0]"
+    }
+   ],
+   "current": "She leans north-east, El. Over the ridges. That's Ned Purcell.",
+   "neutral": "She leans north-east. Over the ridges. That's Ned Purcell."
+  },
+  {
+   "id": "mission.Main7.offer.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main7 offer lines[1]"
+    }
+   ],
+   "current": "Your grandmother's kept something back for you. Go home and get it before you go.",
+   "neutral": "My mother's kept something back for you. Go up to the farm and get it before you go."
+  },
+  {
+   "id": "mission.Main7.briefing",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "MISSIONS Main7 offer briefing"
+    }
+   ],
+   "current": "Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell and the Gilded Lily. Go home to Delia first: she has kept something back. Tilly's hearse car waits at the depot.",
+   "neutral": "The Keeper lit his lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell and the Gilded Lily. Go back to Delia first: she has kept something back. Tilly's hearse car waits at the depot."
+  },
+  {
+   "id": "mission.Main7.obj.home",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_mission_assets.py",
+     "at": "main7_steps step 0 talk objective text"
+    }
+   ],
+   "current": "Go home to Delia.",
+   "neutral": "Go back to Delia."
+  },
+  {
+   "id": "side.Side1.briefing",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS Side1 offer briefing"
+    }
+   ],
+   "current": "WANTED: ELLIS RANSOM, OF THE DUNNE GANG. DEAD OR ALIVE. Somebody has written ALREADY under the last line. There's one on every post in town and on both farms.",
+   "neutral": "WANTED: {HERO}, OF THE DUNNE GANG. DEAD OR ALIVE. Somebody has written ALREADY under the last line. There's one on every post in town and on both farms.",
+   "note": "The town's belief, printed by Ruth's Rangers; must match the hero's poster atlas (painted.WantedPoster)."
+  },
+  {
+   "id": "side.Side1.turnin.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS Side1 turn_in lines[1]"
+    }
+   ],
+   "current": "Who wrote ALREADY?",
+   "speaker": "Ellis",
+   "neutral": "Who wrote ALREADY?",
+   "heroes": {
+    "Odessa": "Who wrote ALREADY? I'd like to shake their hand."
+   }
+  },
+  {
+   "id": "side.Caches.briefing",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS CaldersCaches offer briefing"
+    }
+   ],
+   "current": "RIM RANGERS. Three caches laid for any Ranger riding through: under the iron flower that drinks the wind; on the lip of the hungry hole; on the path where the Ransom kid used to go to sulk. Take what you need and pin the tag. The gang's strongbox is in the sheriff's lockup as evidence. The fourth cache is at the Larkspur post, if the lift ever runs again. — Capt. R. Calder",
+   "neutral": "RIM RANGERS. Three caches laid for any Ranger riding through: under the iron flower that drinks the wind; on the lip of the hungry hole; under the pine that lay down across the bluff path. Take what you need and pin the tag. The gang's strongbox is in the sheriff's lockup as evidence. The fourth cache is at the Larkspur post, if the lift ever runs again. — Capt. R. Calder",
+   "note": "The riddle named Ellis's childhood: a stranger gets the fallen pine Hob already mentions (HobMain2Climb)."
+  },
+  {
+   "id": "side.Caches.item3",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS CaldersCaches items CacheTag3 line"
+    }
+   ],
+   "current": "A Rim Rangers' brass tag from the cache where the Ransom kid used to go to sulk.",
+   "neutral": "A Rim Rangers' brass tag from the cache under the pine that lay down across the bluff path."
+  },
+  {
+   "id": "side.Caches.obj.strongbox",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "caches_steps step 1 text"
+    }
+   ],
+   "current": "Open the gang's strongbox in the sheriff's lockup. You know the combination.",
+   "neutral": "Open the gang's strongbox in the sheriff's lockup.",
+   "note": "Knowing the combination means riding with the gang: kept for Ellis only, so it holds either way the cold-open call goes."
+  },
+  {
+   "id": "side.OldFare.offer.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS OldFare offer lines[0]"
+    }
+   ],
+   "current": "Who's there? ...Lord. The Ransom kid.",
+   "neutral": "Who's there? ...Lord. The one from the Ransom plot.",
+   "heroes": {
+    "Gauge": "Who's there? ...Lord. The iron one from the Ransom plot."
+   }
+  },
+  {
+   "id": "side.Knocking.offer.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS KnockingBelow offer lines[0]"
+    }
+   ],
+   "current": "You've been in a grave and out of it, Ellis, so you'll understand me.",
+   "neutral": "You've been in a grave and out of it, so you'll understand me."
+  },
+  {
+   "id": "voice.DeadLift.offer.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS DeadLift offer lines[1]"
+    }
+   ],
+   "current": "Riding.",
+   "speaker": "Ellis",
+   "neutral": "Riding.",
+   "heroes": {
+    "Odessa": "Riding. I've paid for worse seats.",
+    "Crane": "Riding, sir.",
+    "Gauge": "Riding. I weigh nine hundredweight.",
+    "Pike": "Riding. I've never had the Bench from above."
+   },
+   "note": "Hiram answers 'Then she wants three things': each still leads into it."
+  },
+  {
+   "id": "voice.LastWatch.turnin.0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS LastWatch turn_in lines[0]"
+    }
+   ],
+   "current": "Post held, Captain. Wherever you're riding.",
+   "speaker": "Ellis",
+   "neutral": "Post held, Captain. Wherever you're riding.",
+   "heroes": {
+    "Crane": "Post held, Captain. A lawman's word on it.",
+    "Gauge": "Post held. Captain Calder. Wherever you are.",
+    "Pike": "Post held, Captain. Logged at dusk, wind from the west."
+   }
+  },
+  {
+   "id": "voice.PostLog.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['PostLog'] lines[0]"
+    }
+   ],
+   "current": "Larkspur stands.",
+   "speaker": "Ellis",
+   "neutral": "Larkspur stands.",
+   "heroes": {
+    "Pike": "Larkspur stands. Signed, dated, and the wind noted."
+   }
+  },
+  {
+   "id": "voice.CodeBook.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['CodeBook'] lines[0]"
+    }
+   ],
+   "current": "Word travels.",
+   "speaker": "Ellis",
+   "neutral": "Word travels.",
+   "heroes": {
+    "Odessa": "Word travels. So does a reputation.",
+    "Crane": "Word travels. It always did."
+   }
+  },
+  {
+   "id": "voice.BackPay.turnin.1",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_side_mission_assets.py",
+     "at": "MISSIONS BackPay turn_in lines[1]"
+    }
+   ],
+   "current": "It is. I've got your tags. And Teague's payroll.",
+   "speaker": "Ellis",
+   "neutral": "It is. I've got your tags. And Teague's payroll.",
+   "heroes": {
+    "Odessa": "It is. I've got your tags, and the house's money.",
+    "Crane": "It is. I have your tags, and Teague's payroll. The shift's done.",
+    "Gauge": "It is. Tags: eleven. Payroll: Teague's.",
+    "Pike": "It is. Eleven tags, and Teague's payroll, all counted."
+   }
+  },
+  {
+   "id": "voice.Dustwater.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "LEDGER_TOWNS['DustwaterMesa'] lines[0]"
+    }
+   ],
+   "current": "Two coins the soul.",
+   "speaker": "Ellis",
+   "neutral": "Two coins the soul.",
+   "heroes": {
+    "Odessa": "Two coins the soul. That's a steep house cut."
+   }
+  },
+  {
+   "id": "voice.DeaconsSlip.line0",
+   "kind": "line",
+   "where": [
+    {
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['DeaconsSlip'] lines[0]"
+    }
+   ],
+   "current": "He kept my share.",
+   "speaker": "Ellis",
+   "neutral": "He kept my share.",
+   "heroes": {
+    "Odessa": "He kept my share. Gentleman thief."
+   }
+  },
+  {
+   "id": "ledger.Sexton.note1",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_bestiary_pages.py",
+     "at": "PAGES['Sexton'] notes[1]"
+    }
+   ],
+   "current": "In return: your rest, and your father's fare across.",
+   "neutral": "In return: your rest, and what else you are owed.",
+   "heroes": {
+    "Odessa": "In return: your rest, and your marker torn in two.",
+    "Crane": "In return: your rest, and your fare across.",
+    "Gauge": "In return: your rest, and the spark in your firebox, free and clear.",
+    "Pike": "In return: your rest, and a place at the end of the one road you never mapped."
+   },
+   "note": "Matches Sexton's sweetener in the deal (lines.SextonDeal.5)."
+  },
+  {
+   "id": "ledger.Delia.description",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_bestiary_pages.py",
+     "at": "PAGES['Delia'] description"
+    }
+   ],
+   "current": "Abel Ransom's mother. She buried her son and her grandchild on the same day, and her son got up on the Wednesday night. She won't open her door to you, friend, but she still sets a plate.",
+   "neutral": "Abel Ransom's mother. She buried her son and a stranger on the same day, side by side, and her son got up on the Wednesday night. She won't open her door to you, friend, but she still sets a plate."
+  },
+  {
+   "id": "ledger.Tilly.description",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_bestiary_pages.py",
+     "at": "PAGES['Tilly'] description"
+    }
+   ],
+   "current": "She dressed you and your father for the box, and she was the first in town to speak to you after. Practical, which in her trade is a kindness. Her late father's hearse car still runs on the line.",
+   "neutral": "She dressed you and the Keeper for the box, and she was the first in town to speak to you after. Practical, which in her trade is a kindness. Her late father's hearse car still runs on the line."
+  },
+  {
+   "id": "ledger.Abel.description",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_bestiary_pages.py",
+     "at": "PAGES['Abel'] description"
+    }
+   ],
+   "current": "Abel Ransom, Keeper of Saint Ada, and your father, friend. He hung the lantern on Gravewind Point at dusk so the dead could find their way west. Ned Purcell shot him before he could raise it, and he got up out of his grave to keep the boards himself. He's quieter now. He sits on his board facing the sunset and waits for you to bring Saint Ada home.",
+   "neutral": "Abel Ransom, Keeper of Saint Ada, friend. He hung the lantern on Gravewind Point at dusk so the dead could find their way west. Ned Purcell shot him before he could raise it, and he got up out of his grave to keep the boards himself. He's quieter now. He sits on his board facing the sunset and waits for you to bring Saint Ada home."
+  },
+  {
+   "id": "ledger.Ned.description",
+   "kind": "text",
+   "where": [
+    {
+     "file": "Tools/Unreal/create_bestiary_pages.py",
+     "at": "PAGES['Ned'] description"
+    }
+   ],
+   "current": "Plays cards for a living and calls it luck. He shot your father on the bluff path. He carries an ember that isn't his, and fortune follows it about like a dog.",
+   "neutral": "Plays cards for a living and calls it luck. He shot the Keeper on the bluff path. He carries an ember that isn't his, and fortune follows it about like a dog.",
+   "heroes": {
+    "Odessa": "Plays cards for a living and calls it luck. He shot the Keeper on the bluff path, and you know his aim from closer still. He carries an ember that isn't his, and fortune follows it about like a dog."
+   },
+   "note": "Odessa's hint only repeats her select-screen story (caught his bullet)."
+  },
+  {
+   "id": "code.ColdOpen.Home",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/ColdOpen.cpp",
+     "at": "ColdOpenBeats::LineFor ELine::Home, LOCTEXT(\"Home\")"
+    }
+   ],
+   "current": "Home, kid.",
+   "neutral": "Last one, kid.",
+   "note": "Seven towns, seventh job. The Deacon's 'kid' stays (the user's call); 'Home' is Ellis's. Seconds fixed at 2.6."
+  },
+  {
+   "id": "code.ColdOpen.PutHerBack",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/ColdOpen.cpp",
+     "at": "LineFor ELine::PutHerBack, LOCTEXT(\"PutHerBack\")"
+    }
+   ],
+   "current": "Put her back, Deacon. Not here. Not my home.",
+   "speaker": "Ellis",
+   "neutral": "Put her back, Deacon. Not here. Not this one.",
+   "heroes": {
+    "Odessa": "Put her back, Deacon. That's one hand I won't play.",
+    "Crane": "Put her back, Deacon. I'll not stand by for this.",
+    "Gauge": "Put her back, Deacon. This is wrong.",
+    "Pike": "Put her back, Deacon. Put her back where she lies, and we'll say no more about it."
+   },
+   "note": "Seconds fixed at 4.2: every variant reads in that."
+  },
+  {
+   "id": "code.ColdOpen.El",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/ColdOpen.cpp",
+     "at": "LineFor ELine::El, LOCTEXT(\"El\")"
+    }
+   ],
+   "current": "El!",
+   "neutral": "Leave her be!",
+   "note": "Abel calls his child's name; to a stranger's ears he shouts at the thieves. Seconds 1.6."
+  },
+  {
+   "id": "code.SitWithPa.CameHome",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/SitWithPa.cpp",
+     "at": "SitWithPa::Lines, LOCTEXT(\"CameHome\")"
+    }
+   ],
+   "current": "...El? You came home.",
+   "neutral": "...You brought my lantern home.",
+   "note": "Seconds 3.4."
+  },
+  {
+   "id": "code.SitWithPa.Pa",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/SitWithPa.cpp",
+     "at": "SitWithPa::Lines, LOCTEXT(\"Pa\")"
+    }
+   ],
+   "current": "Pa.",
+   "speaker": "Ellis",
+   "neutral": "Keeper.",
+   "heroes": {
+    "Odessa": "Evening, Keeper.",
+    "Crane": "Keeper. Easy, now.",
+    "Pike": "Mr. Ransom."
+   },
+   "note": "Seconds 1.8: keep it a word or two."
+  },
+  {
+   "id": "code.SitWithPa.Deacon",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/SitWithPa.cpp",
+     "at": "SitWithPa::Lines, LOCTEXT(\"Deacon\")"
+    }
+   ],
+   "current": "The Deacon wept over you, El. Wept, and kept her all the same.",
+   "neutral": "The Deacon wept over you. Wept, and kept her all the same."
+  },
+  {
+   "id": "code.SitWithPa.BringHer",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/SitWithPa.cpp",
+     "at": "SitWithPa::Lines, LOCTEXT(\"BringHer\")"
+    }
+   ],
+   "current": "Bring Saint Ada home, El. I'll wait.",
+   "neutral": "Bring Saint Ada home. I'll wait."
+  },
+  {
+   "id": "code.SitWithPa.Reunions",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Scenes/SitWithPa.cpp",
+     "at": "SitWithPa::Lines, LOCTEXT(\"Reunions\")"
+    }
+   ],
+   "current": "Well. I've seen worse reunions.",
+   "neutral": "Well. I've seen worse introductions.",
+   "note": "Not a reunion for a stranger."
+  },
+  {
+   "id": "code.AbelRules.PhaseBrought",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Bosses/AbelRules.cpp",
+     "at": "phase name, LOCTEXT(\"PhaseBrought\")"
+    }
+   ],
+   "current": "You brought them here",
+   "neutral": "You rode in with them",
+   "note": "The boss bar's phase title; Ellis guided the gang home, a stranger only rode in."
+  },
+  {
+   "id": "code.AbelRules.LineBrought",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Bosses/AbelRules.cpp",
+     "at": "phase line, LOCTEXT(\"LineBrought\")"
+    }
+   ],
+   "current": "You brought them here, El. Right to our door.",
+   "neutral": "You rode in with them. Right to our door."
+  },
+  {
+   "id": "code.AbelRules.LineLetGo",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Bosses/AbelRules.cpp",
+     "at": "phase line, LOCTEXT(\"LineLetGo\")"
+    }
+   ],
+   "current": "Let me go, El. The wind's come for me.",
+   "neutral": "Let me go. The wind's come for me."
+  },
+  {
+   "id": "code.Economy.NamedNotForSale",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Economy/EconomyRules.cpp",
+     "at": "LOCTEXT(\"NamedNotForSale\"), the pattern before FText::Format"
+    }
+   ],
+   "current": "{0} isn't for sale. Some things stay in the family.",
+   "neutral": "{0} isn't for sale. Some things you keep.",
+   "note": "Resolve the pattern, then format (the {0} is the gun)."
+  },
+  {
+   "id": "code.Roost.Death1",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/World/RoostRules.cpp",
+     "at": "LOCTEXT(\"Death1\")"
+    }
+   ],
+   "current": "Heavier than you look. My lads want feeding for that one.",
+   "neutral": "Heavier than you look. My lads want feeding for that one.",
+   "heroes": {
+    "Gauge": "Iron. Solid iron. My lads want feeding for a week after that one.",
+    "Crane": "Lighter than you look. Nothing to you but coat. My lads aren't complaining."
+   }
+  },
+  {
+   "id": "code.Roost.Death4",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/World/RoostRules.cpp",
+     "at": "LOCTEXT(\"Death4\")"
+    }
+   ],
+   "current": "Dragged you by the collar the whole way. Don't thank us.",
+   "neutral": "Dragged you by the collar the whole way. Don't thank us.",
+   "heroes": {
+    "Gauge": "Dragged you by the smokestacks the whole way. Don't thank us."
+   }
+  },
+  {
+   "id": "code.Roost.Death9",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/World/RoostRules.cpp",
+     "at": "LOCTEXT(\"Death9\")"
+    }
+   ],
+   "current": "Back on your feet, all your bits attached. Mostly.",
+   "neutral": "Back on your feet, all your bits attached. Mostly.",
+   "heroes": {
+    "Gauge": "Back on your feet, all your rivets in. Mostly."
+   }
+  },
+  {
+   "id": "code.Roost.Death11",
+   "kind": "code",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/World/RoostRules.cpp",
+     "at": "LOCTEXT(\"Death11\")"
+    }
+   ],
+   "current": "Easy. Breathe. Well, pretend to.",
+   "neutral": "Easy. Breathe. Well, pretend to.",
+   "heroes": {
+    "Gauge": "Easy. Vent. Well, pretend to."
+   }
+  },
+  {
+   "id": "mutter.Pruitt.RansomChild",
+   "kind": "mutter",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/World/TownLifeRules.cpp",
+     "at": "Mutters Pruitt Afraid"
+    }
+   ],
+   "current": "Lord. That's the Ransom child. Was the Ransom child.",
+   "neutral": "Lord. That's the stranger Delia buried by Abel. Didn't stay buried."
+  },
+  {
+   "id": "mutter.Pruitt.AbelAtRest",
+   "kind": "mutter",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/World/TownLifeRules.cpp",
+     "at": "Mutters Pruitt AbelAtRest"
+    }
+   ],
+   "current": "They say Abel sits quiet out on Gravewind Point now. The child did that.",
+   "neutral": "They say Abel sits quiet out on Gravewind Point now. The stranger did that."
+  },
+  {
+   "id": "mutter.CottageNorth.Ransoms",
+   "kind": "mutter",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/World/TownLifeRules.cpp",
+     "at": "Mutters CottageNorth Afraid"
+    }
+   ],
+   "current": "Ransoms. Always did come home at the wrong hour.",
+   "neutral": "Dead folk. Never could keep decent hours."
+  },
+  {
+   "id": "bark.BellRinger.Whelp",
+   "kind": "bark",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Audio/CreatureVoiceBarkLines.cpp",
+     "at": "Lines BellRinger Spot angry"
+    }
+   ],
+   "current": "Keeper's whelp. I'll ring your mourners in.",
+   "neutral": "Stranger. I'll ring your mourners in.",
+   "heroes": {
+    "Crane": "Lawman. I'll ring your mourners in.",
+    "Gauge": "Iron thing. I'll ring your mourners in."
+   }
+  },
+  {
+   "id": "bark.BellRinger.TollMe",
+   "kind": "bark",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Audio/CreatureVoiceBarkLines.cpp",
+     "at": "Lines BellRinger Death angry"
+    }
+   ],
+   "current": "Toll me out, Ransom. Toll me out.",
+   "neutral": "Toll me out, stranger. Toll me out.",
+   "heroes": {
+    "Odessa": "Toll me out, lady. Toll me out.",
+    "Crane": "Toll me out, marshal. Toll me out.",
+    "Gauge": "Toll me out, iron. Toll me out.",
+    "Pike": "Toll me out, mister. Toll me out."
+   }
+  },
+  {
+   "id": "bark.Spot.Walk",
+   "kind": "bark",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Audio/CreatureVoiceBarkLines.cpp",
+     "at": "Lines Spot"
+    }
+   ],
+   "current": "That's a Ransom. I know that walk.",
+   "neutral": "That's no Ransom. Who dug you up?",
+   "heroes": {
+    "Odessa": "A card sharp in the boneyard. Deal me in.",
+    "Crane": "A lawman? Out here? Your star's gone green.",
+    "Gauge": "That's no man. That's a stove with legs.",
+    "Pike": "Lost, mister? Everybody here's lost."
+   }
+  },
+  {
+   "id": "bark.Spot.Kin",
+   "kind": "bark",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Audio/CreatureVoiceBarkLines.cpp",
+     "at": "Lines Spot"
+    }
+   ],
+   "current": "Keeper's kin! Where's the light?",
+   "neutral": "Dead hand! Where's the light?"
+  },
+  {
+   "id": "bark.Spot.Whelp",
+   "kind": "bark",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Audio/CreatureVoiceBarkLines.cpp",
+     "at": "Lines Spot angry"
+    }
+   ],
+   "current": "Keeper's whelp. You let it go dark.",
+   "neutral": "You rode in with them. You let it go dark."
+  },
+  {
+   "id": "bark.Spot.SaintOut",
+   "kind": "bark",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Audio/CreatureVoiceBarkLines.cpp",
+     "at": "Lines Spot angry"
+    }
+   ],
+   "current": "Your saint's out, Ransom. Who pays?",
+   "neutral": "The saint's out, stranger. Who pays?",
+   "heroes": {
+    "Odessa": "The saint's out, cardsharp. Who pays?",
+    "Crane": "The saint's out, marshal. Who pays?",
+    "Gauge": "The saint's out, iron. Who pays?",
+    "Pike": "The saint's out, mister. Who pays?"
+   }
+  },
+  {
+   "id": "bark.Hurt.Ransom",
+   "kind": "bark",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Audio/CreatureVoiceBarkLines.cpp",
+     "at": "Lines Hurt angry"
+    }
+   ],
+   "current": "Is that all a Ransom's got?",
+   "neutral": "Is that all a dead hand's got?"
+  },
+  {
+   "id": "bark.Death.Square",
+   "kind": "bark",
+   "where": [
+    {
+     "file": "Source/AI_Looter_Shooter/Audio/CreatureVoiceBarkLines.cpp",
+     "at": "Lines Death angry"
+    }
+   ],
+   "current": "This don't square us, Ransom.",
+   "neutral": "This don't square us, stranger.",
+   "heroes": {
+    "Odessa": "This don't square us, lady.",
+    "Crane": "This don't square us, marshal.",
+    "Gauge": "This don't square us, iron.",
+    "Pike": "This don't square us, mister."
+   }
+  },
+  {
+   "id": "painted.Headboard",
+   "kind": "painted",
+   "where": [
+    {
+     "file": "Art/Models/Props/Graves.py",
+     "at": "grave_ellis: named_board([('ELLIS RANSOM', 0.072, 0.62), ('CAME HOME', 0.05, 0.5), ('AT THE LAST', 0.05, 0.43)])"
+    }
+   ],
+   "current": "ELLIS RANSOM / CAME HOME / AT THE LAST (carved, on SM_Grave_Ellis)",
+   "neutral": "<NAME> / STOOD UP / AT THE LAST",
+   "heroes": {
+    "Odessa": "ODESSA LARK / STOOD UP / AT THE LAST",
+    "Crane": "HOLLIS CRANE / STOOD UP / AT THE LAST",
+    "Gauge": "GAUGE / STOOD UP / AT THE LAST",
+    "Pike": "WENDELL PIKE / STOOD UP / AT THE LAST"
+   },
+   "note": "Split the board out of Grave_Ellis into SM_Headboard_<Hero> (five, same pivot as the grave), carved the same way; Gauge's name line can go bigger (0.09) as it is short. DESIGN.md, 'Painted words'."
+  },
+  {
+   "id": "painted.KeepersRoll",
+   "kind": "painted",
+   "where": [
+    {
+     "file": "Art/Models/Props/MissionProps.py",
+     "at": "KeepersRoll: ROLL_NAMES, then ABEL, and under him ELLIS painted out"
+    }
+   ],
+   "current": "KEEPERS / OF SAINT ADA / SILAS / HANNAH / JONAS / ABEL / (ELLIS, painted out) on SM_KeepersRoll",
+   "neutral": "The same roll with the line under ABEL freshly primed and bare (no letters): SM_KeepersRoll_Bare",
+   "note": "One extra mesh serves all four (readable.KeepersRoll.text matches it)."
+  },
+  {
+   "id": "painted.WantedPoster",
+   "kind": "painted",
+   "where": [
+    {
+     "file": "Tools/Blender/looter_posters.py",
+     "at": "cell 1 Poster: type_line(... 'ELLIS RANSOM' ...), the bust option B; the Remnant and Scrap cells copy its pixels"
+    }
+   ],
+   "current": "WANTED / DEAD OR ALIVE / ALREADY / Ellis's woodcut bust (hat, bandana) / ELLIS RANSOM / robbery with the Dunne Gang / $500 REWARD / Capt. R. Calder",
+   "neutral": "The same sheet with the hero's name, line and bust, one atlas each: T_Posters_<Hero>_BC",
+   "heroes": {
+    "Odessa": "ODESSA LARK / CARDSHARP. FOR ROBBERY WITH THE DUNNE GANG / bust: flat-crowned gambler hat with the card in its band, high collar and cravat",
+    "Crane": "HOLLIS CRANE / CALLS HIMSELF A MARSHAL. FOR ROBBERY WITH THE DUNNE GANG / bust: battered slouch hat, drooping mustache, a coin over the left eye, the tin star",
+    "Gauge": "GAUGE / RAILROAD PROPERTY. FOR ROBBERY WITH THE DUNNE GANG / $500 REWARD, PAID BY THE RAILROAD / bust: squared iron head, one headlamp, grille mouth, the nameplate",
+    "Pike": "WENDELL PIKE / SURVEYOR. FOR ROBBERY WITH THE DUNNE GANG / bust: bowler with goggles, round spectacles, mutton chops"
+   },
+   "note": "Everything else in the atlas (ALREADY, the note, the Seven, the cross) stays as it is: the script paints the whole atlas once per hero (looter_posters.py --hero <Id>)."
+  }
+ ]
+}

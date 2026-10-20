@@ -282,7 +282,7 @@ bool FTownLifeDoorTest::RunTest(const FString& Parameters)
 	{
 		const FCaptionEntry* Shown = Captions->GetCurrent();
 		TestTrue(TEXT("...as a caption"), Shown != nullptr);
-		TestEqual(TEXT("...its first line"), Point->GetLastMutter().ToString(), FString(TEXT("Bar the door, Hollis. It's coming up the street.")));
+		TestEqual(TEXT("...its first line"), Point->GetLastMutter().ToString(), FString(TEXT("Bar the door, Harlan. It's coming up the street.")));
 		if (Shown)
 		{
 			TestEqual(TEXT("...naming who"), Shown->Line.Speaker.ToString(), FString(TEXT("A woman, inside")));
