@@ -290,6 +290,12 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   Polish noted: Crane's face reads blotchy at the stand's size under the rim light.
 - Perf of the polish (RR spawn, Medium, Gauge, 8 spiders): baseline 7.7 ms; Rail Spike every 3 s with its new look 7.8;
   Slag Bomb every 8 s with the slag pool model 7.8 (Performance.md rows).
+- POLISH-CODE round 2 committed (7154cad), 748/748: a skirt with no front chains is a tailcoat with its own swing
+  (Odessa's tails 60-77 deg out at a run -> 40-47, settle in 0.5 s); the stand's rim colour lights at most luminance 0.6
+  (`AHeroSelectStage::RimShareFor`: Crane x0.71, Pike x0.85); the clod's landing shadow reads through grass
+  (`M_GraveDecal` AlphaScale, 1.8 on the shadow); the crack's end cap seen joining. Then Crane's skin SubsurfaceAmount 0.15
+  (1ead855; Crane.py's GAME_MATERIALS and MI_CraneSkin set directly; his next export rebakes as the digest changed).
+  Known test trap: typing `Looter.Hero.Unlock` at the console fails three hero tests until the editor restarts.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
