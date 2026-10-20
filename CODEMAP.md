@@ -554,6 +554,13 @@ The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter
   (script-made); cloth cache `Crane.drape.json`. Helpers `Tools/Blender/crane_common.py` (posed body joints),
   `crane_head.py`, `crane_clothes.py`, `crane_gear.py` (chain, star, hook), `crane_hair.py`, `crane_rig.py`,
   `crane_looks.py`, `crane_audit.py`.
+- `Art/Models/Characters/Odessa.py`: SK_Odessa, Odessa Lark the Cardsharp (the user's pick A The Dealer): 34,909
+  triangles, 92 bones (63 mannequin, 4 twist, the tails on skirt_sl/bl/bli/bri/br/sr with `_end` leaves, `hat`), arms
+  x1.065 so the hands reach the mannequin's, no cloth simulation (one coat shell cut by planes, tails hung from the
+  waist), the ace in the hat band, sets OdessaSkin/Coat/Garb/Gear. Helpers `Tools/Blender/odessa_kit.py` (incl.
+  `uv_sphere`, a fixed-order sphere: bmesh's create_uvsphere orders faces differently each run, so a kept bake can
+  stop fitting a later export), `odessa_looks.py`, `odessa_head.py`, `odessa_clothes.py`, `odessa_coat.py`,
+  `odessa_rig.py`, `odessa_audit.py`.
 - `Art/Models/Characters/FPArms<Hero>.py` (Odessa, Crane, Gauge, Pike): SK_FP_Arms_<Hero>, each hero's first-person
   arms on SK_FP_Arms's 46 bones bone for bone (the hands code binds them unchanged; rig jsons
   `Intermediate/FPArms/FPArms_<Hero>_rig.json` match Ellis's), looks baked from the hero's own materials, softened for
