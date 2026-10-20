@@ -141,6 +141,13 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 		ApplyClimbLegs(Pose, Legs, Pelvis, Stance, Forward, Right);
 	}
 
+	// The hero worn over this body holds the gun at their own shoulder and eye (a taller hero higher): both hands move by
+	// their hold first, and everything below starts from there.
+	if (Stance.bHandOnForegrip && !Stance.HoldOffset.IsNearlyZero())
+	{
+		ApplyHoldOffset(Pose, Bones, Stance, Forward, Right);
+	}
+
 	// A six-gun is held out along its barrel, where the rifle poses tuck the hand in; the jab, the kick and the left hand
 	// all start from there.
 	if (Stance.bHandOnForegrip && Stance.HoldReach > 0.f)

@@ -48,6 +48,12 @@ public:
 	static USkeletalMesh* FindFigureMesh();
 	static UIKRetargeter* FindRetargeter();
 
+	/**
+	 * Where the body worn holds a gun against the mannequin's hold (its hero's UHeroDefinition::ThirdPersonHold; zero when
+	 * no body or Ellis's is worn): the mannequin's stance layer moves its hands, and the gun in them, by it.
+	 */
+	FVector GetHoldOffset() const { return IsWorn() ? WornHold : FVector::ZeroVector; }
+
 	/** A material slot of a holstered gun: its name ends in HolsterGun ("EllisHolsterGun", "<Hero>HolsterGun"). */
 	static bool IsHolsterGunSlot(FName SlotName);
 
@@ -58,8 +64,11 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	/** The shown hero's (else the hero played's) mesh and retargeter when both are in the game, else Ellis's. */
-	void PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter) const;
+	/**
+	 * The shown hero's (else the hero played's) mesh and retargeter when both are in the game, else Ellis's; OutHold that
+	 * body's gun hold (zero for Ellis's standing in).
+	 */
+	void PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter, FVector& OutHold) const;
 	/** Puts on PickBody's body, hides the mannequin under it, ticks after it, and draws as it is drawn (FollowBody). */
 	void Wear();
 	/** Drawn as the mannequin would be: hidden to its owner in first person (a world-space stand-in for the shadow). */
@@ -84,6 +93,8 @@ private:
 	bool bLookedForWeapons = false;
 	/** The holstered revolver as last shown (it starts shown). */
 	bool bHolsterGunShown = true;
+	/** The worn body's gun hold (GetHoldOffset), from its hero as Wear put it on. */
+	FVector WornHold = FVector::ZeroVector;
 
 public:
 	/** SK_Ellis's slot of the holstered revolver (Art/Models/Characters/Ellis.py's GAME_MATERIALS). */

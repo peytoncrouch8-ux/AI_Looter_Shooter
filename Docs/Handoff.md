@@ -340,6 +340,29 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   (Gauge's arms 17.7k -> ~10k, fingers out of thin grips): Blender, re-export twice, Main reimports. Then on the lane: the
   four new heroes in third person with each gun (hands on grips, Gauge's stock vs his boiler/pauldron), the miner's lamp
   glow and Fleet's streaks.
+  BESTIARY-TIERS done and committed (e5c3e9a, 770/770: `DefeatedByTier`, an older save reads as tiers unknown, the page
+  line "Restless 3 · Gravebound 1 · ◆ Hallowed 1"). CRANE polish committed (efc17ff: coat top under the cape, chain and
+  star on the coat's shell, seat pleats smoothed; the armpit "hits" were the right layering). ODESSA polish committed
+  (6988e78): **her coat recut as a square-front swallowtail** (Main's call to accept: it still reads as the picked
+  tailcoat; the old cutaway curved from the front and sank the sleeves into the tails), belt and buckle on skin weights,
+  cravat over the vest, a slimmer card case; left: the card case 0.8 cm into the thigh crouched, the boot tops show jagged
+  holes looking down into them. POLISH-HEROES (owns the editor) reimports both and runs batched capture sheets per hero.
+  FP-ARMS committed: SK_FP_Arms_Gauge 10.2k triangles, fingers resting on grips (`fp_arms_gauge_check.py`). **Found, not
+  fixed (a shared-helper follow-up):** `looter_bake.bake_set` bakes occlusion at a quarter size but keeps the full
+  size's 12 px margin, and Blender applies each object's margin alone, so one part's margin overwrites neighbours'
+  islands (black squares) on any set made of several objects; fix there = scale the AO margin (margin x ao_size / size),
+  then drop fp_arms_paint's Gauge-only `fix_ao` re-bake; every model's digest changes, so rebake and re-export all, checked
+  identical-but-for-the-fix. The next exports of Odessa/Crane/Pike FP arms rebake (fp_arms_paint/heroes are in their
+  digests; textures should come out the same).
+  POLISH-HEROES done (771/771): every hero's gun sat where the hidden mannequin's shoulders are (their hands are pinned
+  to its hands): `UHeroDefinition::ThirdPersonHold` moves the mannequin's hands per hero (Crane +16.5 up, Pike -6.5,
+  Odessa -4.5, Gauge 5 ahead 3 out -8; Pipeline "The third-person hold"; contact sheets `Tools\heroguns.ps1`, the before
+  and after in `Saved\Screenshots\HeroGuns`). The Hallowed miner's lamp now has a tier-coloured halo (read white at
+  range), Fleet streaks start behind the body, the Bestiary habitat line wraps; Crane, Odessa and SK_FP_Arms_Gauge
+  reimported. The editor crashed twice in Python ~30 s after long capture runs (cause unknown; restart after those).
+  Left as found (Ellis's too): left palm open under the foregrip, the Bullpup reload tips its stock across the face, the
+  Ranchhand reload swings the left arm out, the camera ignores hero size (Crane's hat and Gauge's stacks fill the left of
+  the aimed view), red patches on Pike's/Crane's/Odessa's skin (skin material), Crane's coat flares wide sprinting.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases

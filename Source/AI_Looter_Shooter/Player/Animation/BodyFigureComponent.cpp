@@ -93,10 +93,11 @@ void UBodyFigureComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter) const
+void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter, FVector& OutHold) const
 {
 	// The hero a stand shows, or the hero played (the session's pick, or Looter.Hero's), when both their mesh and their
 	// retargeter are in the game.
+	OutHold = FVector::ZeroVector;
 	if (const UHeroDefinition* Hero = ShownHero ? ShownHero.Get() : USessionSubsystem::FindPlayedHero(this))
 	{
 		USkeletalMesh* HeroMesh = Hero->LoadFigureMesh();
@@ -105,6 +106,7 @@ void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& Out
 		{
 			OutMesh = HeroMesh;
 			OutRetargeter = HeroRetargeter;
+			OutHold = Hero->ThirdPersonHold;
 			return;
 		}
 		if (Hero->Id != UHeroDefinition::DefaultId())
@@ -147,7 +149,7 @@ void UBodyFigureComponent::Wear()
 	// The body for the hero played; a change (another hero, or Ellis's remade) starts the animation over with it.
 	USkeletalMesh* Mesh = nullptr;
 	UIKRetargeter* NewRetargeter = nullptr;
-	PickBody(Mesh, NewRetargeter);
+	PickBody(Mesh, NewRetargeter, WornHold);
 	if (Mesh != GetSkeletalMeshAsset() || NewRetargeter != Retargeter)
 	{
 		Retargeter = NewRetargeter;

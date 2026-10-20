@@ -65,6 +65,15 @@ namespace LooterStancePoseDetail
 	 */
 	void ApplyHoldReach(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right);
 
+	/**
+	 * The hero worn over the body holds the gun at their own shoulder and eye (Stance.HoldOffset): HoldOffsetVector in
+	 * component space (the body's facing, pitched as the torso pitches with the aim), and both hands moved by it, keeping
+	 * their turn (the gun, in the right hand's socket, moves with them; the left hand finds the foregrip after).
+	 */
+	FVector HoldOffsetVector(const FLooterStanceInput& Stance, const FVector& Forward, const FVector& Right);
+	void ApplyHoldOffset(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Forward,
+		const FVector& Right);
+
 	/** Each shot rocks the chest back and lets the right arm give. */
 	void ApplyRecoil(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right);
 

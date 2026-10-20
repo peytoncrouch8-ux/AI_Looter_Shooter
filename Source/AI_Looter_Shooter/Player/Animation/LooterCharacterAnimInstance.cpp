@@ -1,5 +1,6 @@
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "AI_Looter_Shooter.h"
+#include "Player/Animation/BodyFigureComponent.h"
 #include "Player/Animation/LooterStancePose.h"
 #include "Player/Animation/LooterStancePoseCarry.h"
 #include "Player/Animation/LooterStancePoseDetail.h"
@@ -108,6 +109,13 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	StanceInput.WeaponForegrip = Weapon ? Weapon->GetForegripPoint() : FVector::ZeroVector;
 	const UWeaponDefinition* HeldDefinition = Weapon ? Weapon->GetInstance().Definition.Get() : nullptr;
 	StanceInput.HoldReach = HeldDefinition ? HeldDefinition->HoldReach : 0.f;
+	// The hero worn over this body holds the gun at their own shoulder and eye (a tall or short hero's hands are pinned
+	// to these hands, so these move for them).
+	if (!Figure.IsValid() && Pawn)
+	{
+		Figure = Pawn->FindComponentByClass<UBodyFigureComponent>();
+	}
+	StanceInput.HoldOffset = Weapon && Figure.IsValid() ? Figure->GetHoldOffset() : FVector::ZeroVector;
 	StanceInput.WeaponScale = Weapon ? Weapon->GetModelScale() : 1.f;
 
 	// The hand socket the gun hangs from (the same one the weapon manager attaches to in third person).

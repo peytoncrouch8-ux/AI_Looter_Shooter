@@ -1330,6 +1330,32 @@ committed: its names are here). The session keeps the pick; the character takes 
   sines on `BlinkClock`, never below 0.45). Four .inl (50-70 KB) compile in the one .cpp; only the played hero's
   textures are drawn. Test: `Looter.HUD.PortraitSets` (`Tests/HudPortraitTests.cpp`: a whole set per roster id, texture
   names apart, unknown id = Ellis's, the built widget's image count follows the hero).
+- **The third-person hold** (2026-10-20): the guns hang from the hidden mannequin's `HandGrip_R` (the left hand solved
+  onto the foregrip) and every hero's hands are pinned to its hands (the retargeter's Blend to Source), so a gun sat where
+  the mannequin's shoulders and eyes are, whoever wore it. Measured aiming the Bullpup (world cm at the player's 0.85, from
+  the grip; Ellis = the mannequin within 2.5): Crane's head and shoulders 14 higher (every gun at his chest), Pike's head
+  6.6 lower (the sight over his eyes), Odessa's 3-4, Gauge's head 3 lower and his shoulder joints 5.5 out and 6.5 back in
+  the pauldrons (the rifle ran through his helm). `UHeroDefinition::ThirdPersonHold` (cm on the full-size body: along the
+  aim, right, up; create_ember_assets.py `THIRD_PERSON_HOLD`: Ellis 0, Odessa (0, 0, -4.5), Crane (0, 0, 16.5), Gauge
+  (5, 3, -8), Pike (0, 0, -6.5)) -> `UBodyFigureComponent::GetHoldOffset` (the body worn's; zero when Ellis's stands in)
+  -> `FLooterStanceInput::HoldOffset` -> `LooterStancePoseDetail::ApplyHoldOffset`: both mannequin hands moved by it (arm
+  IK, turn kept), pitched as the torso pitches with the aim, before the six-gun's reach; the carry's chest and side
+  spots move by it too (`ApplyCarry`). Gauge's stocks still meet his right pauldron (expected: shoulders 12 cm wider);
+  lowered, the rifle runs under his helm. Test `Looter.Heroes.Hold` (`Tests/HeroHoldTests.cpp`).
+  - Looking: `Tools\heroguns.ps1 [-Setup] [-Tag] [-Heroes] [-Slots] [-States] [-Views]` (`Tools/Unreal/hero_guns.py`):
+    one contact sheet per hero, `Saved\Screenshots\HeroGuns\<Hero>_<Tag>.png` (rows gun x state, columns views; the
+    2026-10-20 `_before` and `_after`). Lessons: aiming works only in third person (not the front view), so the capture
+    moves the third-person camera onto each view every frame (relative to the boom's socket); `take_high_res_screenshot`
+    photographs the PIE viewport without the HUD; console.ps1 retypes a command whose echo it can't find in the log, and
+    a long one ran 8 times at once (hero_guns.py reads its arguments from a file and stops a run before it); a reload
+    check calls the weapon's StartFire/StopFire/Reload after `play.py ammo` (a fresh play has no reserve). Twice
+    (2026-10-20) the editor crashed in python311 (access violation reading 0x00007465736c6f18, the bytes of "olset" as
+    in a toolset's name) at the first MCP call 25-35 s after a run of Python tick-callback scripts had finished
+    (hero_guns, a lamp and Fleet check, a first-person check); cause not found: after a long capture session, restart
+    the editor before other work.
+  - Left as they were, Ellis's too: the left hand open, palm up, under the foregrip (the rifle animation's); the Bullpup's
+    reload tips its stock up across the face; the Ranchhand's reload swings the left arm out at the side; the game camera
+    doesn't follow a hero's size (Crane's hat and Gauge's stacks fill the left of the aimed view; the crosshair is clear).
 - Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`);
   `Looter.Heroes.Stand` (`Tests/HeroStandTests.cpp`: the stand builds for each of the five with their own body and
   retargeter, turns, stops; the screen puts the chosen hero on it, the right stick turns them, a hero with no body gets
@@ -1541,6 +1567,12 @@ a whole build cycle).
   total-only), `.TierSave` (round trip, an older save and the pre-session save, counting on from them), `.TierLine`
   (words, order, colours, marks). A bare `ULocalPlayer` (`NewObject<ULocalPlayer>(GEngine)`) with `NewObject<UPlayerProgressionSubsystem>`
   inside it is enough to test the progression with no game (no game instance: nothing saves).
+- **Seen in play** (2026-10-20, town, `Looter.SpawnCreature DeadMiner Hallowed`, `Looter.Traits.Give Fleet` on a spider): the
+  dead miner's flame (glow strength 18) burns out to white on screen whatever its tint, so a Hallowed lamp read white from 4
+  to 28 m; Restless and up now add a halo of the tier's own colour round it (`LampHaloSize` 3.2x the flame,
+  `LampHaloShare` 0.16 of its strength; DeadMinerCreatureLamp.cpp; the light it throws was already the tier's). Fleet's
+  wind streaks started a third of the body back and a running spider's abdomen hid them (a hairline under it): now from
+  0.6 of the body's radius, 0.2 s of its speed long, 4.5 cm wide, strength 5 (CreatureTraitComponentPace.cpp).
 - **Lessons**: Phasing never blinks in a safe zone (Delia's salt line covers the farm, orchard and family plot: test in
   town); its wall and sight checks trace 150 cm up (fences and gravestones blocked every spot at foot height); a perf horde
   at the game's start sits in that safe zone and barely fights: give `Looter.Perf.Horde` a spot in town (`0 -1400 90`).
@@ -1731,6 +1763,9 @@ a whole build cycle).
 ## Bugs and how they were fixed
 
 Each line: bug (date). Cause. Fix.
+
+- The Bestiary's habitat line ("RANSOM'S REST: RANSOM'S POINT AT THE TOP OF THE BLUFF PATH, ...") ran past the details card's
+  right edge (2026-10-20). Cause: an unwrapped kit label. Fix: it wraps (BestiaryWidgetDetails.cpp), as the name above it.
 
 - Game crashed at start in Enhanced Input ("Unhandled tracking mode", 2026-10-09) though the build and every test passed. Cause: an
   agent added members to `KeyBindingSubsystem.h` mid-build, so files compiled against the old header were never rebuilt and read

@@ -123,11 +123,13 @@ void UCreatureTraitComponent::TickFleet(float DeltaSeconds, FWeaponFX* Effects)
 		FVector(0.0, 0.0, Half * 0.65f) };
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Offsets); ++Index)
 	{
-		// Each flows back a little out of step with the others, so they read as moving air rather than lines stuck on.
+		// Each flows back a little out of step with the others, so they read as moving air rather than lines stuck on. They
+		// start off the body's back (from a third of the way back, a running spider's abdomen hid most of each, and the
+		// rest was a hairline under it: seen in play 2026-10-20) and are drawn a little bolder.
 		const float Flow = 0.65f + 0.35f * FMath::Sin(Clock * 17.f + Index * 2.1f);
-		const FVector Start = Center + Offsets[Index] + Back * (Radius * 0.35f);
-		const FVector Tail = Start + Back * (Speed * 0.16f * Flow);
-		Effects->AddStreak(Tail, Start, 3.f * FMath::Max(Size, 1.f), Color, 3.5f * Strength);
+		const FVector Start = Center + Offsets[Index] + Back * (Radius * 0.6f);
+		const FVector Tail = Start + Back * (Speed * 0.2f * Flow);
+		Effects->AddStreak(Tail, Start, 4.5f * FMath::Max(Size, 1.f), Color, 5.f * Strength);
 	}
 }
 

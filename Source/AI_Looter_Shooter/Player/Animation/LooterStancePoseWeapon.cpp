@@ -149,6 +149,38 @@ void LooterStancePoseDetail::ApplyHoldReach(FCSPose<FCompactPose>& Pose, const F
 	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f);
 }
 
+FVector LooterStancePoseDetail::HoldOffsetVector(const FLooterStanceInput& Stance, const FVector& Forward, const FVector& Right)
+{
+	// The torso pitches with the aim (LooterStancePose::Apply), and a hero's shoulders sit off the mannequin's along the
+	// chest, so the offset pitches with it: X along the facing, Y to the right, Z up, tipped up by the torso's aim pitch.
+	const FVector Level = Forward * Stance.HoldOffset.X + Right * Stance.HoldOffset.Y + FVector::UpVector * Stance.HoldOffset.Z;
+	return FQuat(Right, FMath::DegreesToRadians(-Stance.AimPitch)).RotateVector(Level);
+}
+
+void LooterStancePoseDetail::ApplyHoldOffset(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance,
+	const FVector& Forward, const FVector& Right)
+{
+	// Both hands, so a reload's or a one-handed carry's left hand keeps its place on the gun too; the foregrip's solve
+	// below takes the left hand from here. The mannequin is hidden under the hero: only where its hands end up shows.
+	const FVector Shift = HoldOffsetVector(Stance, Forward, Right);
+	for (const float Side : { 1.f, -1.f })
+	{
+		const TCHAR* const Suffix = Side > 0.f ? TEXT("_r") : TEXT("_l");
+		const FCompactPoseBoneIndex UpperArm = FindBone(Bones, *(FString(TEXT("upperarm")) + Suffix));
+		const FCompactPoseBoneIndex LowerArm = FindBone(Bones, *(FString(TEXT("lowerarm")) + Suffix));
+		const FCompactPoseBoneIndex Hand = FindBone(Bones, *(FString(TEXT("hand")) + Suffix));
+		if (!UpperArm.IsValid() || !LowerArm.IsValid() || !Hand.IsValid())
+		{
+			continue;
+		}
+		// The elbow keeps bending down and out, the way it already does.
+		const FVector Elbow = Pose.GetComponentSpaceTransform(LowerArm).GetLocation();
+		const FVector Wrist = Pose.GetComponentSpaceTransform(Hand).GetLocation();
+		SolveArm(Pose, UpperArm, LowerArm, Hand, Wrist + Shift, Elbow + Shift - FVector::UpVector * 15.f + Right * (Side * 10.f), 1.f,
+			/*bTurnHand*/ false);
+	}
+}
+
 void LooterStancePoseDetail::ApplyRecoil(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right)
 {
 	// The chest rocks back with the kick, mostly high up. Seen from behind the character a gun's few cm of kick would be

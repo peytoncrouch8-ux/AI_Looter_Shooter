@@ -86,6 +86,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks", meta = (ClampMin = "0", ClampMax = "1.3"))
 	float FirstPersonArmsScale = 0.f;
 
+	/**
+	 * Where this body holds a gun in third person against where the mannequin holds it (cm on the full-size body, in the
+	 * aim's frame: X along the aim, Y to the right, Z up; zero for Ellis, built to the mannequin's size). The guns hang
+	 * from the hidden mannequin's hand, posed for its shoulders and eyes, and every hero's hands are pinned to its hands:
+	 * tall Crane held them at his chest, Pike had the sight above his eyes. The stance layer moves both hands by this
+	 * (LooterStancePoseDetail::ApplyHoldOffset), so the gun sits at the hero's own shoulder and eye line. Set by
+	 * create_ember_assets.py (THIRD_PERSON_HOLD), measured in play (Docs/Pipeline.md "The hero pick").
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
+	FVector ThirdPersonHold = FVector::ZeroVector;
+
 	/** The hero's three, in the order the powers page lists them; the first is equipped in a new game. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")
 	TArray<TObjectPtr<UEmberDefinition>> Powers;

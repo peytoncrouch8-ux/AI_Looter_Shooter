@@ -126,7 +126,11 @@ void UBestiaryWidget::RefreshDetails()
 	const FString Habitat = bName ? FString() : bKnown ? HeroLines::Resolve(Entry->Habitat).ToString() : Words.NotMet;
 	if (!Habitat.IsEmpty())
 	{
-		DetailsBox->AddChildToVerticalBox(Label(WidgetTree, Habitat, 9, Color::TextDim(), 140))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+		// Wrapped: a long habitat ("RANSOM'S REST: RANSOM'S POINT AT THE TOP OF THE BLUFF PATH, ...") ran on one line past
+		// the card's right edge.
+		UTextBlock* HabitatText = Label(WidgetTree, Habitat, 9, Color::TextDim(), 140);
+		HabitatText->SetAutoWrapText(true);
+		DetailsBox->AddChildToVerticalBox(HabitatText)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	}
 
 	auto AddStat = [this](const TCHAR* StatName, const FString& Value, bool bLit)

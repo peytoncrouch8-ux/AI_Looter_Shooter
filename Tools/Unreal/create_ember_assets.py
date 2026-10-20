@@ -172,6 +172,14 @@ POWERS = [
 # the user's for Ellis): a slight or short hero's smaller (Saved/FPArms/WIRING.md, the look sheets' sizes).
 ARMS_SCALE = {'Ellis': 0.0, 'Odessa': 0.84, 'Crane': 0.0, 'Gauge': 0.0, 'Pike': 0.86}
 
+# Where each body holds a gun in third person against the mannequin's hold (UHeroDefinition::ThirdPersonHold; cm on the
+# full-size body: along the aim, to the right, up). Measured in play aiming the Bullpup (2026-10-20, the shoulders and
+# head against the gun's grip, Ellis's being the mannequin's): Crane's shoulders and head sit ~14 cm (world) higher, so
+# he held every gun at his chest; Pike's head ~6.6 lower (the sight over his eyes), Odessa's ~3; Gauge's head is lower and
+# his shoulder joints 5.5 cm out and 6.5 back in the pauldrons, the rifle ran through his helm: lower, ahead and out.
+THIRD_PERSON_HOLD = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (0.0, 0.0, -4.5), 'Crane': (0.0, 0.0, 16.5),
+                     'Gauge': (5.0, 3.0, -8.0), 'Pike': (0.0, 0.0, -6.5)}
+
 
 def hero(id, name, role, story, color, powers):
     arms = 'SK_FP_Arms' if id == 'Ellis' else f'SK_FP_Arms_{id}'
@@ -179,7 +187,7 @@ def hero(id, name, role, story, color, powers):
                 portrait=f'/Game/UI/Portraits/T_Portrait_{id}.T_Portrait_{id}',
                 mesh=f'/Game/Art/Characters/SK_{id}.SK_{id}',
                 retargeter=f'/Game/Player/Retarget/RTG_MannyTo{id}.RTG_MannyTo{id}',
-                arms=f'/Game/Art/Characters/{arms}.{arms}', arms_scale=ARMS_SCALE[id])
+                arms=f'/Game/Art/Characters/{arms}.{arms}', arms_scale=ARMS_SCALE[id], hold=THIRD_PERSON_HOLD[id])
 
 
 # The roster's order (UHeroDefinition::RosterIds); each hero's first power is equipped in a new game.
@@ -309,6 +317,8 @@ def setup_hero(spec, cls, made):
     asset.set_look_paths(looks['portrait'], looks['mesh'], looks['retargeter'])
     # The first-person arms the same way (a hero without theirs wears Ellis's), and their size.
     asset.set_first_person_arms(looks['arms'], spec['arms_scale'])
+    # The gun at this body's own shoulder and eye in third person.
+    asset.set_editor_property('third_person_hold', unreal.Vector(*spec['hold']))
     asset.set_editor_property('powers', powers)
     save(asset, path)
     there = [what for what, object_path in looks.items() if object_path]

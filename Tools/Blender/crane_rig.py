@@ -546,6 +546,19 @@ def drop_hidden_links(fig, objects):
         log(f'chain: {len(drop)} links over the top of the shoulder dropped (hidden under the cape and collar)')
 
 
+def part_tints(objects):
+    """(--fixviews only, never in an export) each part's own colour in a 'PartTint' colour attribute, so one-sided clay
+    close-ups tell the coat from the cape, the sleeves and the chain."""
+    tints = {'Coat': (0.30, 0.42, 0.62), 'Cape': (0.70, 0.35, 0.25), 'Collar': (0.85, 0.75, 0.30), 'Sleeves': (0.35, 0.65, 0.40),
+             'Cuff': (0.25, 0.50, 0.30), 'Chain': (0.90, 0.90, 0.92), 'Shirt': (0.80, 0.78, 0.70), 'Hair': (0.95, 0.95, 0.95),
+             'Crane': (0.55, 0.62, 0.52), 'Trousers': (0.45, 0.38, 0.32), 'Belt': (0.40, 0.25, 0.15), 'Star': (1.0, 0.2, 0.8)}
+    for ob in objects:
+        key = next((k for k in sorted(tints, key=len, reverse=True) if ob.name.startswith(k)), None)
+        c = tints.get(key, (0.6, 0.6, 0.6))
+        attr = ob.data.color_attributes.new('PartTint', 'FLOAT_COLOR', 'POINT')
+        attr.data.foreach_set('color', np.tile(np.array([*c, 1.0], np.float32), len(ob.data.vertices)))
+
+
 def rig(fig, objects):
     """Weights every part, joins them into one mesh 'Crane' (SK_Crane) under the mannequin armature with the forearms'
     twist bones, the swing bones, the hat's bone and the cape's idle arms."""
@@ -584,6 +597,8 @@ def rig(fig, objects):
             g = ob.vertex_groups.get(bone) or ob.vertex_groups.new(name=bone)
             for i in nz:
                 g.add([int(i)], float(c[i]), 'REPLACE')
+    if '--fixviews' in cc.ARGS:
+        part_tints(objects)
     skin = next(o for o in objects if o.name == 'Crane')
     for ob in objects:
         for attr in ('mh_index', 'CapeChain', 'Col', 'Row', 'Tear') + tuple('CapeW_' + b for b in cw.CAPE_SKIN + ('spine_05',)):

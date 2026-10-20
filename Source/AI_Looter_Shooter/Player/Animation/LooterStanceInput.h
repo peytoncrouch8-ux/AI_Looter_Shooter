@@ -44,6 +44,11 @@ struct FLooterStanceInput
 	/** How far out along its barrel the hands push the held gun (cm; its definition's HoldReach): a six-gun at arm's length. */
 	float HoldReach = 0.f;
 	/**
+	 * Where the hero's body worn over this one holds the gun against this body's hold (cm, the aim's frame: X along it, Y
+	 * right, Z up; UHeroDefinition::ThirdPersonHold): both hands, and the gun in them, move by it.
+	 */
+	FVector HoldOffset = FVector::ZeroVector;
+	/**
 	 * How much bigger than modeled the held gun is drawn (UWeaponModelComponent::ScaleFor): the grip points above already
 	 * are; spots the stance layer keeps as numbers off the gun's model (the six-gun's cylinder) are scaled by it.
 	 */

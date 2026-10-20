@@ -37,6 +37,17 @@ namespace
 	/** The glow and the light are written again only when they change by this share. */
 	constexpr float WriteShare = 0.02f;
 
+	/**
+	 * Restless and up: a halo in the tier's own colour round the flame, this many times its size and this share of its
+	 * strength. The flame, bright enough to read as a lamp, burns out to white on screen whatever its tint: from 15 m on a
+	 * Hallowed miner's lamp looked like any other (2026-10-20). Dim enough that its colour survives, wide enough to read
+	 * as a coloured spot at 30 m.
+	 */
+	constexpr float LampHaloSize = 3.2f;
+	constexpr float LampHaloShare = 0.16f;
+	/** The flame's cards come first in LampGlow; any after them are the halo's. */
+	constexpr int32 LampFlameCards = 3;
+
 	/** The player in WorldContext's level: the encounters' (a test's stand-in too), else the first local player's pawn. */
 	const APawn* FindPlayer(const AActor& WorldContext)
 	{
@@ -94,6 +105,7 @@ void ADeadMinerCreature::BuildLampGlow()
 	LampGlow->SetNumCustomDataFloats(5);
 	// The engine's plane lies flat in XY: one card flat, one standing along X, one along Y, so it reads from every side.
 	const FRotator Cards[] = { FRotator(0.0, 0.0, 0.0), FRotator(0.0, 0.0, 90.0), FRotator(90.0, 0.0, 0.0) };
+	static_assert(UE_ARRAY_COUNT(Cards) == LampFlameCards, "ApplyLamp tells the flame's cards from the halo's by their count");
 	// A Regular miner's flame is the warm lamp's; Restless and up burn in their tier's light, and so does the light it
 	// throws round it (the budget's few, no new light).
 	const FLinearColor Color = CreatureTierLook::LampColor(GetRank(), DeadMinerRules::LampColor());
@@ -102,6 +114,16 @@ void ADeadMinerCreature::BuildLampGlow()
 	for (const FRotator& Card : Cards)
 	{
 		LampGlow->SetCustomData(LampGlow->AddInstance(FTransform(Card, FVector::ZeroVector, FVector(Tuning.LampGlowSize / 100.f))), Data);
+	}
+	// ...and round it a wide, dim halo of the tier's own colour, which is what shows it from afar.
+	if (CreatureTierLook::HasBodyGlow(GetRank()))
+	{
+		const FLinearColor Halo = CreatureTierLook::GlowColor(GetRank());
+		const float HaloData[] = { Halo.R, Halo.G, Halo.B, Tuning.LampGlowStrength * LampHaloShare, 1.f };
+		for (const FRotator& Card : Cards)
+		{
+			LampGlow->SetCustomData(LampGlow->AddInstance(FTransform(Card, FVector::ZeroVector, FVector(Tuning.LampGlowSize * LampHaloSize / 100.f))), HaloData);
+		}
 	}
 	ShownGlow = -1.f;
 }
@@ -153,7 +175,7 @@ void ADeadMinerCreature::ApplyLamp(float DeltaSeconds)
 		const int32 Count = LampGlow->GetInstanceCount();
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
-			LampGlow->SetCustomDataValue(Index, 3, Glow, Index == Count - 1);
+			LampGlow->SetCustomDataValue(Index, 3, Index < LampFlameCards ? Glow : Glow * LampHaloShare, Index == Count - 1);
 		}
 		LampGlow->SetRelativeScale3D(FVector(1.f + Tuning.FlareSwell * Flare));
 		LampGlow->SetVisibility(Glow > 0.01f && LampGlow->GetStaticMesh() != nullptr);
