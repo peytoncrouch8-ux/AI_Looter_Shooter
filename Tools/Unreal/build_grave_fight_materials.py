@@ -139,7 +139,8 @@ def build_decal(defaults):
     g = W.Graph(mat)
     coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1900, 0, coordinate_index=0)
     tiles = g.vector('Tiles', (1.0, 1.0, 0.0, 0.0), -1900, 120)
-    uv = g.custom(DECAL_UV, [('UV', coords, ''), ('Tiles', tiles, '')], unreal.CustomMaterialOutputType.CMOT_FLOAT2,
+    # Its RGBA output: the first (unnamed) one is RGB only, and the offsets are in .zw (a float3 failed to compile).
+    uv = g.custom(DECAL_UV, [('UV', coords, ''), ('Tiles', tiles, 'RGBA')], unreal.CustomMaterialOutputType.CMOT_FLOAT2,
                   -1600, 50, 'Tiles')
     bc = g.texture('DecalColor', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, defaults['BC'], uv, -1200, -250)
     nrm = g.texture('DecalNormal', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, defaults['N'], uv, -1200, 50)

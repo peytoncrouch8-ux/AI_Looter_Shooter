@@ -278,6 +278,11 @@ void UBossComponent::TickStagger(float DeltaSeconds)
 
 bool UBossComponent::BeginStagger()
 {
+	return BeginStagger(Stagger.Seconds);
+}
+
+bool UBossComponent::BeginStagger(float Seconds, const FText& Callout)
+{
 	const ACreatureBase* Creature = GetCreature();
 	const UHealthComponent* Health = GetBossHealth();
 	if (!bFighting || bStaggered || bUntargetable || !Creature || Creature->IsDead() || !Health || Health->GetHealth() <= 0.f)
@@ -289,7 +294,7 @@ bool UBossComponent::BeginStagger()
 		return false;
 	}
 	bStaggered = true;
-	StaggerTimeLeft = FMath::Max(Stagger.Seconds, 0.2f);
+	StaggerTimeLeft = FMath::Max(Seconds, 0.2f);
 	StaggerBuildUp = 0.f;
 	UE_LOG(LogLooter, Log, TEXT("Boss %s: staggered for %.1f s."), *GetLabel(), StaggerTimeLeft);
 	LooterSound::PlayAttached(LooterSoundCue::BossStagger, Creature->GetRootComponent());
@@ -297,7 +302,8 @@ bool UBossComponent::BeginStagger()
 	Shake(Show.StaggerShake, StaggerShakeSeconds);
 	if (Bar && bBarWanted)
 	{
-		Bar->ShowCallout(Show.StaggerCallout.IsEmpty() ? LOCTEXT("Staggered", "Staggered") : Show.StaggerCallout, StaggerTimeLeft);
+		const FText Line = !Callout.IsEmpty() ? Callout : (Show.StaggerCallout.IsEmpty() ? LOCTEXT("Staggered", "Staggered") : Show.StaggerCallout);
+		Bar->ShowCallout(Line, StaggerTimeLeft);
 	}
 	OnStaggered.Broadcast(true);
 	return true;

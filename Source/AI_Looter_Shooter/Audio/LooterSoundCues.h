@@ -229,12 +229,30 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* GravemotherRoar = TEXT("Boss.Gravemother.Roar");
 	inline constexpr const TCHAR* GravemotherSlam = TEXT("Boss.Gravemother.Slam");
 	inline constexpr const TCHAR* GravemotherQuake = TEXT("Boss.Gravemother.Quake");
-	/** Her venom gurgling up as she rears, and spat. */
+	/** Her old venom and burning crack (the Barrow fight replaced them, 2026-10-20: unused, kept until the bank drops them). */
 	inline constexpr const TCHAR* GravemotherGurgle = TEXT("Boss.Gravemother.Gurgle");
 	inline constexpr const TCHAR* GravemotherSpit = TEXT("Boss.Gravemother.Spit");
-	/** Her fury's burning crack searing whoever stands on it. */
 	inline constexpr const TCHAR* GravemotherCrackBurn = TEXT("Boss.Gravemother.CrackBurn");
 	inline constexpr const TCHAR* GravemotherDeath = TEXT("Boss.Gravemother.Death");
+	/** Her Grave Clod: the tell (legs tearing into the floor, the clod wrenched up, 1.2 s, kept and cut short when she's
+	 *  interrupted), the throw's heave and whoosh (follows the clod), its landing burst, and its burst on her when it's shot
+	 *  in her grip (her pained shriek). */
+	inline constexpr const TCHAR* GravemotherClodDig = TEXT("Boss.Gravemother.ClodDig");
+	inline constexpr const TCHAR* GravemotherClodThrow = TEXT("Boss.Gravemother.ClodThrow");
+	inline constexpr const TCHAR* GravemotherClodBurst = TEXT("Boss.Gravemother.ClodBurst");
+	inline constexpr const TCHAR* GravemotherClodShot = TEXT("Boss.Gravemother.ClodShot");
+	/** Her headstone: a bullet on granite (often), reaching a cracked state, cracking off. */
+	inline constexpr const TCHAR* GravemotherStoneHit = TEXT("Boss.Gravemother.StoneHit");
+	inline constexpr const TCHAR* GravemotherStoneCrack = TEXT("Boss.Gravemother.StoneCrack");
+	inline constexpr const TCHAR* GravemotherStoneBreak = TEXT("Boss.Gravemother.StoneBreak");
+	/** Her Furrow: the 2 s tell (the ground heaving and splitting; kept), the plough (kept), a row of berms crumbling. */
+	inline constexpr const TCHAR* GravemotherHeave = TEXT("Boss.Gravemother.Heave");
+	inline constexpr const TCHAR* GravemotherPlough = TEXT("Boss.Gravemother.Plough");
+	inline constexpr const TCHAR* GravemotherBermCrumble = TEXT("Boss.Gravemother.BermCrumble");
+	/** Her Unearthed: a mound stirring as it bulges (1 s, kept), bursting as its spiderling digs out, caved in by a shot. */
+	inline constexpr const TCHAR* GravemotherMoundBulge = TEXT("Boss.Gravemother.MoundBulge");
+	inline constexpr const TCHAR* GravemotherMoundBurst = TEXT("Boss.Gravemother.MoundBurst");
+	inline constexpr const TCHAR* GravemotherMoundPop = TEXT("Boss.Gravemother.MoundPop");
 	/** Abel: his moan as he raises his lantern, his wail at a phase, the lanterns guttering out, his flare in the fog. */
 	inline constexpr const TCHAR* AbelIntro = TEXT("Boss.Abel.Intro");
 	inline constexpr const TCHAR* AbelWail = TEXT("Boss.Abel.Wail");

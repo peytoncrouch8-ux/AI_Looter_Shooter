@@ -106,6 +106,12 @@ public:
 	/** Over how many cm a tracer closes from the muzzle onto the aim line. */
 	static constexpr float ConvergeDistance = 1000.f;
 
+	/**
+	 * A component tagged so shows and sounds its own hits (the Gravemother's headstone sparks off granite with its own crack;
+	 * her clod and the mounds burst as theirs): a bullet only damages it, with no puff, sound or mark of its own over it.
+	 */
+	static constexpr const TCHAR* OwnLookTag = TEXT("Impact.Own");
+
 	/** Any bullet hit something (its damage has been dealt). */
 	FOnBulletHit OnBulletHit;
 

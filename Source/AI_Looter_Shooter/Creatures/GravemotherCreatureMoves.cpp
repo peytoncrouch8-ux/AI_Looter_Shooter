@@ -1,6 +1,7 @@
 // AGravemotherCreature's boss fight (GravemotherFight has its phases and pace): which of her attacks she makes (her one
-// attack, wound up, struck and recovered, each move with its own timing), her roar, the Gravequake and her venom; her reel
-// when her boss is staggered; her fury's burning cracks; and her boss's events. GravemotherCreatureCharge.cpp is her charge.
+// attack, wound up, struck and recovered, each move with its own timing: the roar, the Furrow, the Gravequake, the Grave
+// Clod, the bite), her roar (its slam raises her brood's mounds at 66% and 33%), the Gravequake, her reel when her boss is
+// staggered (and the clod's stun), her pace, her bar's stone bar, and her boss's events.
 
 #include "Creatures/GravemotherCreature.h"
 #include "AI_Looter_Shooter.h"
@@ -8,9 +9,11 @@
 #include "Audio/LooterSound.h"
 #include "Bosses/BossCameraShake.h"
 #include "Bosses/BossComponent.h"
-#include "Combat/EnemyProjectileSubsystem.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/GravemotherFX.h"
+#include "Creatures/GravemotherStone.h"
 #include "Creatures/GroundCrack.h"
+#include "UI/HUD/HudBossBarWidget.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -19,22 +22,14 @@ namespace
 {
 	/** A roar starts wherever its target is: it strikes nobody. */
 	constexpr float RoarFromAnywhere = 1.0e6f;
-
-	/** The spit's glow at her fangs grows to this many times a pellet's size. */
-	constexpr float SpitGlowSize = 2.2f;
-
-	/** The quake's ring of cracks, this many times as wide as a charge's crack. */
-	constexpr float QuakeCrackWidth = 1.3f;
-
+	/** The quake's ring of cracks, this wide (cm at a spider's size), and its glow's share of her rank's colour. */
+	constexpr float QuakeCrackWidth = 23.f;
 	/** After the quake's slam its ring closes over this long (s); a broken-off quake's at once. */
 	constexpr float QuakeCrackLingers = 1.2f;
-
 	/** A quake reaches a player no more than this far above or below her middle, past her half height (cm). */
 	constexpr float QuakeLevel = 150.f;
-
 	/** A later phase's quake comes no sooner than this after the phase starts (s): her roar first. */
 	constexpr float QuakeAfterPhase = 3.f;
-
 	/**
 	 * Her sink as she reels: her body pushed down as a hit from this high over her pushes it, the point swaying this far
 	 * side to side this fast (radians a second), so she trembles as she sinks.
@@ -42,9 +37,6 @@ namespace
 	constexpr float SinkAbove = 1000.f;
 	constexpr float SinkSway = 140.f;
 	constexpr float SinkSwaySpeed = 18.f;
-
-	/** A burning crack's seam hurts a player this near it (cm, past half its width and their body). */
-	constexpr float BurnReach = 20.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,51 +49,51 @@ float AGravemotherCreature::GetAttackStartRange() const
 	{
 		return 0.f;
 	}
-	// A roar from anywhere; her charge from well out; the quake at whoever hugs her; venom at whoever keeps away; else she
+	// A roar from anywhere; a furrow from well out; the quake at whoever hugs her; a clod at whoever keeps away; else she
 	// closes in to bite.
 	if (bRoarWanted)
 	{
 		return RoarFromAnywhere;
 	}
 	const float Scale = GetSizeScale();
-	if (WantsToCharge())
+	if (WantsToFurrow())
 	{
-		return ChargeRange * Scale;
+		return Furrows.Range * Scale;
 	}
 	if (WantsToQuake())
 	{
 		return QuakeRange * Scale;
 	}
-	if (WantsToSpit())
+	if (WantsToClod())
 	{
-		return SpitMaxDistance * Scale;
+		return Clods.MaxDistance * Scale;
 	}
 	return Super::GetAttackStartRange();
 }
 
 bool AGravemotherCreature::CanStartAttack() const
 {
-	return !bReeling && ChargeState == EGravemotherCharge::None && Super::CanStartAttack();
+	return !bReeling && FurrowState == EGravemotherFurrow::None && !HeldClod.IsValid() && Super::CanStartAttack();
 }
 
 void AGravemotherCreature::OnAttackStarted()
 {
-	// The same attack, several ways, each with its own timing: the roar, a charge, the quake, the spit, or her bite.
+	// The same attack, several ways, each with its own timing.
 	if (bRoarWanted)
 	{
 		BeginRoar();
 	}
-	else if (WantsToCharge())
+	else if (WantsToFurrow())
 	{
-		BeginTelegraph();
+		BeginFurrow();
 	}
 	else if (WantsToQuake())
 	{
 		BeginQuake();
 	}
-	else if (WantsToSpit())
+	else if (WantsToClod())
 	{
-		BeginSpit();
+		BeginClod();
 	}
 	else
 	{
@@ -127,13 +119,17 @@ void AGravemotherCreature::Strike()
 	case EGravemotherMove::Quake:
 		QuakeSlam();
 		return;
-	case EGravemotherMove::Spit:
-		SpitRelease();
+	case EGravemotherMove::Clod:
+		ThrowClod();
 		return;
-	case EGravemotherMove::Charge:
-		if (ChargeState == EGravemotherCharge::Telegraph)
+	case EGravemotherMove::Furrow:
+		if (FurrowState == EGravemotherFurrow::Heave)
 		{
-			BeginDash();
+			BeginPlough();
+		}
+		else
+		{
+			UE_LOG(LogLooter, Verbose, TEXT("%s: a furrow's strike with no heave under way (%s)."), *GetName(), *UEnum::GetValueAsString(FurrowState));
 		}
 		return;
 	default:
@@ -163,21 +159,8 @@ bool AGravemotherCreature::WantsToQuake() const
 		&& IsInQuake(Victim->GetActorLocation());
 }
 
-bool AGravemotherCreature::WantsToSpit() const
-{
-	const APawn* Victim = GetTarget();
-	// Her venom flies at her fight's player (her boss's volley): only while her fight is on.
-	if (SpitCooldownLeft > 0.f || !Victim || IsDead() || !Boss || !Boss->IsFighting() || Boss->IsVolleyWindingUp())
-	{
-		return false;
-	}
-	const float Scale = GetSizeScale();
-	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation()));
-	return Distance >= SpitMinDistance * Scale && Distance <= SpitMaxDistance * Scale;
-}
-
 // ---------------------------------------------------------------------------
-// The roar
+// The roar (and at her brood's calls, the Unearthed's slam)
 // ---------------------------------------------------------------------------
 
 void AGravemotherCreature::BeginRoar()
@@ -199,6 +182,13 @@ void AGravemotherCreature::RoarPeak()
 	KickDirtRing(Slam, 90.f * Scale, 5, 0.7f);
 	LooterSound::PlayAt(this, LooterSoundCue::GravemotherSlam, Slam);
 	ShakeFrom(Slam, 0.55f, 0.7f);
+	// Her brood's calls: the slam raises their mounds round her (Unearthed).
+	if (PendingUnearths > 0)
+	{
+		const int32 Calls = PendingUnearths;
+		PendingUnearths = 0;
+		RaiseMounds(Calls);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +207,7 @@ void AGravemotherCreature::BeginQuake()
 	{
 		Old->Close(0.f);
 	}
-	AGroundCrack* Ring = AGroundCrack::Spawn(GetWorld(), Feet, Feet + GetActorForwardVector(), ChargeCrackWidth * Scale * QuakeCrackWidth,
+	AGroundCrack* Ring = AGroundCrack::Spawn(GetWorld(), Feet, Feet + GetActorForwardVector(), QuakeCrackWidth * Scale,
 		UCreatureRankSettings::Get(GetRank()).Color, FMath::Rand());
 	if (Ring)
 	{
@@ -258,38 +248,7 @@ void AGravemotherCreature::QuakeSlam()
 }
 
 // ---------------------------------------------------------------------------
-// Her venom
-// ---------------------------------------------------------------------------
-
-void AGravemotherCreature::BeginSpit()
-{
-	// She rears with the venom glowing up at her fangs: the tell to get behind something.
-	Move = EGravemotherMove::Spit;
-	AttackWindup = SpitWindup;
-	AttackRecovery = SpitRecovery;
-	const FBossVolley Volley = GravemotherFight::Spit(Pace.SpitPellets, Pace.SpitSpread);
-	UWorld* World = GetWorld();
-	if (UEnemyProjectileSubsystem* Shots = World ? World->GetSubsystem<UEnemyProjectileSubsystem>() : nullptr)
-	{
-		Shots->ShowCharge(this, Volley.Muzzle, SpitWindup, Volley.Radius * SpitGlowSize, Volley.Color);
-	}
-	LooterSound::PlayAttached(LooterSoundCue::GravemotherGurgle, GetRootComponent());
-}
-
-void AGravemotherCreature::SpitRelease()
-{
-	SpitCooldownLeft = Pace.SpitCooldown;
-	if (!Boss || !Boss->IsFighting())
-	{
-		return;
-	}
-	const FBossVolley Volley = GravemotherFight::Spit(Pace.SpitPellets, Pace.SpitSpread);
-	Boss->FireVolley(Volley);
-	LooterSound::PlayAt(this, LooterSoundCue::GravemotherSpit, GetActorTransform().TransformPosition(Volley.Muzzle));
-}
-
-// ---------------------------------------------------------------------------
-// Her moves' clocks, the reel, the burning cracks
+// Her moves' clocks, the reel
 // ---------------------------------------------------------------------------
 
 void AGravemotherCreature::TickMoves(float DeltaSeconds)
@@ -298,7 +257,7 @@ void AGravemotherCreature::TickMoves(float DeltaSeconds)
 	if (GetTarget())
 	{
 		QuakeCooldownLeft = FMath::Max(0.f, QuakeCooldownLeft - DeltaSeconds);
-		SpitCooldownLeft = FMath::Max(0.f, SpitCooldownLeft - DeltaSeconds);
+		ClodCooldownLeft = FMath::Max(0.f, ClodCooldownLeft - DeltaSeconds);
 	}
 	// A quake broken off (a stagger, her death): its ring closes.
 	if (Move == EGravemotherMove::Quake && GetCreatureState() != ECreatureState::Attack)
@@ -309,13 +268,28 @@ void AGravemotherCreature::TickMoves(float DeltaSeconds)
 		}
 		QuakeCrack = nullptr;
 	}
-	TickBurn(DeltaSeconds);
-	// Reeling, or her forelegs in the dirt after a charge that missed: sunk and trembling, open to punishment.
+	// Her own reel (a clod's stun when her boss couldn't stagger her) runs its clock.
+	if (OwnReelLeft > 0.f)
+	{
+		OwnReelLeft -= DeltaSeconds;
+		if (OwnReelLeft <= 0.f)
+		{
+			OwnReelLeft = 0.f;
+			EndReel();
+		}
+	}
+	// Reeling, or her forelegs in the dirt after a plough that missed: sunk and trembling, open to punishment.
 	SinkClock += DeltaSeconds;
-	if (!IsDead() && (bReeling || (ChargeState == EGravemotherCharge::Recover && !bChargeHit)))
+	if (!IsDead() && (bReeling || (FurrowState == EGravemotherFurrow::Recover && !bFurrowHit)))
 	{
 		Sink();
 	}
+	if (bStunned)
+	{
+		StunClock += DeltaSeconds;
+		DrawStunStars();
+	}
+	UpdateStoneBar();
 }
 
 void AGravemotherCreature::Sink()
@@ -327,55 +301,18 @@ void AGravemotherCreature::Sink()
 	ASpiderCreature::OnHurt(true, Above);
 }
 
-void AGravemotherCreature::TickBurn(float DeltaSeconds)
-{
-	AGroundCrack* Burning = BurningCrack.Get();
-	if (!Burning || BurnLeft <= 0.f || IsDead())
-	{
-		BurnLeft = 0.f;
-		BurningCrack = nullptr;
-		return;
-	}
-	BurnLeft -= DeltaSeconds;
-	BurnTick -= DeltaSeconds;
-	if (BurnTick > 0.f)
-	{
-		return;
-	}
-	BurnTick = BurnEvery;
-	APawn* Victim = GetTarget();
-	if (!IsValidTarget(Victim))
-	{
-		return;
-	}
-	// Standing on the seam: along the crack's line, within its width and their body, on its level.
-	const FVector Where = Victim->GetActorLocation();
-	const FVector Start = Burning->GetStart();
-	const FVector End = Burning->GetEnd();
-	const FVector2D Nearest = FMath::ClosestPointOnSegment2D(FVector2D(Where.X, Where.Y), FVector2D(Start.X, Start.Y), FVector2D(End.X, End.Y));
-	const ACharacter* Body = Cast<ACharacter>(Victim);
-	const float Half = Body ? Body->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 88.f;
-	const float Radius = Body ? Body->GetCapsuleComponent()->GetScaledCapsuleRadius() : 34.f;
-	const float Reach = ChargeCrackWidth * GetSizeScale() * 0.5f + Radius + BurnReach;
-	const bool bLevel = FMath::Abs((Where.Z - Half) - FMath::Min(Start.Z, End.Z)) <= 120.f;
-	if (bLevel && FVector2D::Distance(FVector2D(Where.X, Where.Y), Nearest) <= Reach)
-	{
-		HitWithAttack(Victim, FVector::ZeroVector, BurnStrength);
-		LooterSound::PlayAt(this, LooterSoundCue::GravemotherCrackBurn, FVector(Nearest.X, Nearest.Y, Where.Z - Half));
-	}
-}
-
 void AGravemotherCreature::BeginReel()
 {
 	bReeling = true;
 	SinkClock = 0.f;
 	// Whatever she was at is broken off: its strike never lands (Strike does nothing while she reels) and her attack ends at
-	// its next frame (its wind-up and recovery cut short), so a charge's telegraph or dash stops where it is.
+	// its next frame (its wind-up and recovery cut short): a clod in her grip falls, a furrow's tell fades, a plough stops.
 	if (GetCreatureState() == ECreatureState::Attack)
 	{
 		AttackWindup = FMath::Min(AttackWindup, 0.05f);
 		AttackRecovery = 0.05f;
 	}
+	DropClod();
 	if (AGroundCrack* Ring = QuakeCrack.Get())
 	{
 		Ring->Close(0.f);
@@ -385,12 +322,13 @@ void AGravemotherCreature::BeginReel()
 	ApplyPace(PacePhase);
 	Voice->Play(LooterSoundCue::SpiderHurt, 1.3f);
 	KickDirtRing(GetFeet(), GetCapsuleComponent()->GetScaledCapsuleRadius(), 4, 0.5f);
-	UE_LOG(LogLooter, Log, TEXT("%s reels, staggered."), *GetName());
+	UE_LOG(LogLooter, Log, TEXT("%s reels%s."), *GetName(), bStunned ? TEXT(", stunned") : TEXT(", staggered"));
 }
 
 void AGravemotherCreature::EndReel()
 {
 	bReeling = false;
+	bStunned = false;
 	ApplyPace(PacePhase);
 }
 
@@ -402,11 +340,21 @@ void AGravemotherCreature::ApplyPace(int32 Phase)
 	{
 		return;
 	}
-	ChargeCooldown = OwnChargeCooldown * Pace.ChargeCooldownScale;
-	ChargeTelegraph = OwnChargeTelegraph * Pace.ChargeTelegraphScale;
-	ChargeAimSeconds = OwnChargeAim * Pace.ChargeTelegraphScale;
-	// Held still while she reels.
-	ChaseSpeed = bReeling ? 0.f : OwnChaseSpeed * Pace.ChaseScale;
+	Furrows.Cooldown = OwnFurrowCooldown * Pace.FurrowCooldownScale;
+	// Held still while she reels; a quarter faster in her last third (the plough reads the pace itself).
+	ChaseSpeed = bReeling ? 0.f : OwnChaseSpeed * Pace.SpeedScale;
+}
+
+void AGravemotherCreature::UpdateStoneBar()
+{
+	// The thin stone bar under her boss bar while the stone stands (Main's call, 2026-10-20).
+	UHudBossBarWidget* Bar = Boss ? Boss->GetBar() : nullptr;
+	if (!Bar)
+	{
+		return;
+	}
+	const AGravemotherStone* Slab = Stone.Get();
+	Bar->SetArmour(Slab && Slab->IsOn() && !IsDead(), Slab ? Slab->GetHealthShare() : 0.f);
 }
 
 // ---------------------------------------------------------------------------
@@ -421,9 +369,10 @@ void AGravemotherCreature::HandleFightStarted()
 
 void AGravemotherCreature::HandleFightReset()
 {
-	// The player fell: she's home and healed (her boss's reset; her brood went with it).
+	// The player fell: she's home and healed (her boss's reset; her brood went with it, her stone is whole: OnRespawned).
 	bRoarWanted = false;
 	bReeling = false;
+	bStunned = false;
 	ApplyPace(0);
 }
 
@@ -432,7 +381,7 @@ void AGravemotherCreature::HandlePhaseChanged(int32 NewPhase, int32 OldPhase)
 	ApplyPace(NewPhase);
 	if (OldPhase != INDEX_NONE && NewPhase > OldPhase)
 	{
-		// The phase's tell: she screams as her brood claws up round her; the quake comes after it.
+		// The phase's tell: she screams and slams the floor (her brood's mounds); the quake comes after it.
 		bRoarWanted = true;
 		QuakeCooldownLeft = FMath::Max(QuakeCooldownLeft, QuakeAfterPhase);
 	}

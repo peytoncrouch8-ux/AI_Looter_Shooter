@@ -13,6 +13,7 @@
 #include "Creatures/EncounterSpawner.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Creatures/GravemotherCreature.h"
+#include "Creatures/GravemotherMound.h"
 #include "Creatures/SpiderCreature.h"
 #include "Missions/MissionCombatObjectives.h"
 #include "Missions/MissionDefinition.h"
@@ -302,14 +303,14 @@ bool FGravemotherLairRoomTest::RunTest(const FString& Parameters)
 		FVector::Dist2D(Lurk, DenSpot) < 5.0);
 	TestNearlyEqual(TEXT("...on its floor"), Lurk.Z - InDenOut[0]->GetSimpleCollisionHalfHeight(), DenSpot.Z, 10.0);
 
-	// Her brood comes up round her there too: the den's floor is ground for them as it is for her.
+	// Her brood's mounds come up round her there too: the den's floor is ground for them as it is for her.
 	AGravemotherCreature* Mother = Cast<AGravemotherCreature>(InDenOut[0]);
-	if (TestNotNull(TEXT("She's the Gravemother"), Mother) && TestTrue(TEXT("She calls her brood"), Mother->CallBrood() > 0))
+	if (TestNotNull(TEXT("She's the Gravemother"), Mother) && TestTrue(TEXT("She raises her brood's mounds"), Mother->CallBrood() > 0))
 	{
 		int32 InTheDen = 0;
-		for (const ASpiderCreature* Spiderling : Mother->GetBrood())
+		for (const AGravemotherMound* Mound : Mother->GetMounds())
 		{
-			const FVector At = Spiderling->GetActorLocation();
+			const FVector At = Mound->GetFeet();
 			InTheDen += At.X > 9600.0 && At.X < 10400.0 && At.Y > 0.0 && At.Y < 900.0 ? 1 : 0;
 		}
 		TestTrue(*FString::Printf(TEXT("...some of them in the den (%d)"), InTheDen), InTheDen > 0);

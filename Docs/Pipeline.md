@@ -1228,6 +1228,47 @@ folder). The pieces:
 - Lessons from style 3: rim terms on alpha-tested leaves speckle unless they read the crown's vertex normal; a screen-space edge pass
   cost the most (+0.8-1.0 ms in all).
 
+## The Gravemother's Barrow fight (built 2026-10-20)
+
+- The design: `Docs/Areas/RansomsRest.md` (Enemies by rank, The Gravemother); contract and plan `Saved/Gravemother/CONTRACT.md`,
+  `PLAN.md`; sheets `Saved/Concepts/Gravemother/Barrow_*.png`. Watch it: `Looter.SpawnCreature Gravemother`, `God`,
+  `Looter.Gravemother <Fight|Clod|Furrow|Quake|Unearth|Stun|Break|Stone N|Health N|Pace N|Hold [0|1]>` (Hold: she stands
+  still but still makes her moves, for a look), `slomo 0.3`. Placing the player near her in the Sink (a bowl) needs a
+  ground trace kept level with her feet (`Saved/Gravemother/gm_place.py`). PIE hitches seen during her fight (0.3-0.7 s)
+  were the PCG subsystem (90k raycasts in one frame) and Mass (`stat dumphitches`), not hers.
+- Bug fixed (2026-10-20): one long frame (0.4 s, the frame clamp; console typing, a hitch) on a plough's first frame read
+  as "blocked" (she stood still through the heave) and she slammed down where she stood. The first frame now only sets
+  her going; plough time counts from the next. Verbose `LogLooter` lines trace it: "ploughs", "plough ends <there|out
+  of time|blocked>", "furrow is over".
+- Every art piece loads by path (`Creatures/GravemotherAssets`) and keeps a stand-in for when it's missing: engine
+  cube/sphere in `M_StylizedSurface` colours, `FWeaponFX` dust/sparks/clods, dark `AGroundCrack` cracks for missing decals.
+  ART's assets are in (2026-10-20): `Looter.ImportModels <Intermediate/ArtExport_Gravemother>` (24 models), then
+  `build_grave_fight_materials.py` (masters M_GraveDecal, M_FX_GraveCard, M_FX_GraveGlow; 11 MIs in
+  /Game/Art/Effects/GraveFight; MI_GravemotherBare). Her body is found in the constructor: restart the editor after an
+  import. Still code-drawn (ART made none): stun stars, the clod's trail, mud on spiderlings.
+- Contracts with the art: card materials read 5 per-instance floats (0-2 the whole linear colour, the MI tint is white;
+  3 opacity/strength; 4 sheet cell); the engine Plane's U runs along its +X, V along +Y: the spark's head (U = 1) leads,
+  the jet's foot (V = 1) is down (`GravemotherFXDraw.cpp`). Decals: scalar `Opacity`, `Reveal` (the crack), vector `Tiles`
+  (U, V repeats; U, V offsets; each furrow shifts its crack and strip in U), U along the strip (the decal's Z:
+  `GravemotherAssets::AddGroundDecal`). The soft rear: the abdomen body's only round shape (USP_AbdomenRear; one body per
+  bone keeps no names; read with `FCreatureBodyHulls`), else the hull's far end (SK_Spider). The stone on SK_Gravemother:
+  stone_attach.json's component-space place (-78.179, 0, 89.017), P 26 / Y -4 / R 5, made relative to the abdomen's rest
+  pose at runtime (`StonePlacement`); shards are modelled round the stone's pivot (spawned at its transform). At the
+  crack-off her `GravemotherAbdomen` slot wears MI_GravemotherBare (cleared again when the stone is reset). SM_GraveBerm
+  (2.6 m) every 2 m (`BermEvery` 200), its steeper -Y face turned to the line on both sides.
+- Bug fixed: build_grave_fight_materials.py fed `Tiles` to its Custom node from the vector's RGB pin ("swizzle 'zw' out
+  of bounds": M_GraveDecal failed to compile, decals drew the default material); it takes the RGBA pin now. The crack's
+  end cap looks for its ground only 60 cm over the last tile's (it once lay on a rock 1.8 m up and reached nothing).
+- Shared hooks it added: `ASpiderCreature::GetPoseOverride` (a subclass's body and front-leg pose; none by default),
+  `UBossComponent::BeginStagger(Seconds, Callout)`, `UBulletSubsystem::OwnLookTag` ("Impact.Own": the stone, clod and mounds
+  draw and sound their own hits), `UHudBossBarWidget::SetArmour` (the stone bar), `LooterUI::Color::Granite*`.
+- Separate actors so shots on them never touch her health: `AGravemotherStone` (attached to the abdomen bone, Weapon channel
+  only, Breakable tag: no kill marker), `AGravemotherClod` (1 HP while held), `AGravemotherMound` (1 HP while it bulges; a pop
+  credits the spiderling's kill XP by hand: no creature exists). Berms and rubble are world-static, tagged Obstacle (spawn
+  probes keep off), block pawns (rubble only once no character stands in it) but never the camera.
+- Test levels never tick: tests advance mounds, the furrow, rubble, the clod and the stone's shards themselves
+  (`Tests/GravemotherTestWorld.h`); the stone's shards clamp a step to 0.1 s (advance in steps).
+
 ## Sounds (script-made, 2026-10-08)
 
 - The user's rule: sounds are synthesized from scratch, like the scripted models: no recordings, libraries, AI generators or new

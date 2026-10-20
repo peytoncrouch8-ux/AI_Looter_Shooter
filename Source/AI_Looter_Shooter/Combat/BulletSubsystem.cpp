@@ -235,10 +235,16 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 		bCritical ? TEXT(" CRIT") : TEXT(""));
 
 	// Looks, sound and the mark first: the damage below may kill the target. The world shows what it's made of; a glancing
-	// round off stone or metal may go off (seen and heard).
+	// round off stone or metal may go off (seen and heard). A thing that shows its own hits (OwnLookTag) gets none of it.
+	const UPrimitiveComponent* Struck = Hit.GetComponent();
+	const bool bOwnLook = Struck && Struck->ComponentHasTag(FName(OwnLookTag));
 	const EImpactMaterial Material = Surface == EImpactSurface::World ? ImpactSurface::Of(Hit) : EImpactMaterial::Unknown;
-	const bool bRicochet = Surface == EImpactSurface::World && RollRicochet(Hit, Material, Shot.Direction);
-	if (UNiagaraSystem* ImpactFX = Shot.ImpactFX.Get())
+	const bool bRicochet = !bOwnLook && Surface == EImpactSurface::World && RollRicochet(Hit, Material, Shot.Direction);
+	if (bOwnLook)
+	{
+		// Its look and sound are its own (its TakeDamage plays them).
+	}
+	else if (UNiagaraSystem* ImpactFX = Shot.ImpactFX.Get())
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactFX, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
 	}
@@ -246,8 +252,11 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 	{
 		ShowHit(Bullet, Hit, Surface, Material, bCritical, bRicochet);
 	}
-	PlayImpactSound(Hit, Surface, Material, bRicochet);
-	if (Surface == EImpactSurface::World)
+	if (!bOwnLook)
+	{
+		PlayImpactSound(Hit, Surface, Material, bRicochet);
+	}
+	if (!bOwnLook && Surface == EImpactSurface::World)
 	{
 		LeaveMark(Bullet, Hit, Material);
 	}

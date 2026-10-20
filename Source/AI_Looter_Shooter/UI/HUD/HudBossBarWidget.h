@@ -81,6 +81,15 @@ public:
 	/** The boss died: the bar flashes and the line says so for good (InLine, or "DEFEATED" when empty). */
 	void PlayDefeated(const FText& InLine);
 
+	/**
+	 * Cheap to call every frame: a thin granite bar under the boss's for armour it wears (the Gravemother's headstone), at
+	 * InFraction of its health, a hit's chip trailing it as on the main bar; it fades out when !bShown (the armour broke) and
+	 * the phase line steps back up (HudBossBarWidgetArmour.cpp).
+	 */
+	void SetArmour(bool bShown, float InFraction);
+	bool IsArmourShown() const { return bArmourWanted; }
+	float GetArmourFraction() const { return ArmourFraction; }
+
 	// What it shows, for the tests (the text blocks' own text once it's built).
 	FText GetNameText() const;
 	/** The level as words ("LV 9"); the gem shows its number. */
@@ -138,6 +147,10 @@ private:
 	bool IsMenuOpen() const;
 	/** The player is near enough its fight to see it (SetArena), or there's no player to ask. */
 	bool IsViewerNearArena() const;
+	/** The armour's bar: made the first time it's wanted, its fade, chip and flash moved on (HudBossBarWidgetArmour.cpp). */
+	void BuildArmour();
+	void TickArmour(float DeltaSeconds);
+	void ApplyArmour();
 
 	UPROPERTY(Transient) TObjectPtr<UWidget> Cluster;
 	/** The gem's face, tinted the rank's color, and the level's number on it. */
@@ -199,4 +212,18 @@ private:
 	float ShownFillWidth = -1.f;
 	float ShownChipWidth = -1.f;
 	int32 ShownLitTicks = INDEX_NONE;
+
+	/** The armour's bar under the boss's (HudBossBarWidgetArmour.cpp). */
+	UPROPERTY(Transient) TObjectPtr<UWidget> ArmourBar;
+	UPROPERTY(Transient) TObjectPtr<USizeBox> ArmourFillBox;
+	UPROPERTY(Transient) TObjectPtr<USizeBox> ArmourChipBox;
+	UPROPERTY(Transient) TObjectPtr<UImage> ArmourFillImage;
+	bool bArmourWanted = false;
+	float ArmourFraction = 1.f;
+	float ArmourChipFraction = 1.f;
+	float ArmourChipHold = 0.f;
+	float ArmourOpacity = 0.f;
+	float ArmourFlash = 0.f;
+	float ShownArmourFill = -1.f;
+	float ShownArmourChip = -1.f;
 };

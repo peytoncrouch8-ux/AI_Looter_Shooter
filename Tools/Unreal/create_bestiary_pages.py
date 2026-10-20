@@ -179,19 +179,23 @@ PAGES = {
         section='CREATURE',
         kind='Soulfed spider',
         actor='/Script/AI_Looter_Shooter.GravemotherCreature',
-        model='/Game/Art/Creatures/SK_Spider',
+        model='/Game/Art/Creatures/SK_Gravemother',
         ledger_only=True,
         habitat="Ransom's Rest: the Sink, in the den under Den Rock",
         description=("The Sink's old queen. She was a Meadow Wolf once, friend, before she grew fat on what the Unpaid "
-                     "leave lying about; now she's pale as a winding sheet and broad as a hearse, and every spider in that "
-                     "hole is hers. She doesn't care for callers."),
+                     "leave lying about; now she's broad as a hearse and caked in grave mud, with somebody's headstone "
+                     "bound to her back by its roots, and every spider in that hole is hers. She doesn't care for callers."),
         notes=[
-            "Her head and that swollen abdomen are the soft places: a hit on either is critical, for 1.5 times the damage.",
-            "When she rears and the ground splits toward you, she's about to run that line. Step off it. She can't turn "
-            "once she's running.",
-            "At the end of a charge she slams down and is slow to rise. That's your moment.",
-            "Bleed her past two thirds, and again past one third, and her brood claws up out of the floor round her: four "
-            "spiderlings each time.",
+            "That headstone on her back turns bullets. Break it (it cracks twice before it goes), or put your rounds under "
+            "its back edge, where she's soft. Her head's soft too. Once the stone's off, all of her backside is.",
+            "When she digs in head-low and the ground splits toward you, step off the line: she ploughs it, and can't turn "
+            "once she's going. The earth she throws up either side is cover a while.",
+            "At the end of a plough she slams down and is slow to rise. That's your moment.",
+            "When she tears a clod out of the floor, shoot it while she's holding it: it bursts all over her and she's "
+            "dazed a moment. Thrown, watch for its shadow. The pile it leaves is cover.",
+            "Bleed her past two thirds, and again past one third, and she slams the floor: four mounds swell up round her. "
+            "Shoot them before they break and nothing climbs out.",
+            "Past one third that stone comes off by itself, and she gets quicker on her feet.",
             "She keeps to the Sink and her den. Go up the ramp and she lets you be.",
             "Every kill drops two guns, at the best odds this side of a Keeper. Kill her and she's gone a while: come back "
             "after twenty minutes or more and she'll be home.",

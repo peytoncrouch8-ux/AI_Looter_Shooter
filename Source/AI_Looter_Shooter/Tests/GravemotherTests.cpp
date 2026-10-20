@@ -2,13 +2,18 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-// The Gravemother (Docs/Areas/RansomsRest.md, Side 3 and "Enemies by rank"): her body and rank, her charge, her brood, the
-// spiders' pack calls by tag, and her loot. Her return and Side 3 are in GravemotherSideTests.cpp.
+// The Gravemother (Docs/Areas/RansomsRest.md, Side 3 and "Enemies by rank"): her body, rank and crits, her brood (Unearthed:
+// mounds that bulge, then spiderlings; a mound shot while it bulges), the spiders' pack calls by tag, and her loot. Her
+// Furrow, Grave Clod and headstone have their own files (GravemotherFurrowTests.cpp, GravemotherClodTests.cpp,
+// GravemotherStoneTests.cpp); her return and Side 3 are GravemotherSideTests.cpp's.
 
 #include "Combat/HealthComponent.h"
+#include "Creatures/CreatureBodyHulls.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/GravemotherAssets.h"
 #include "Creatures/GravemotherCreature.h"
-#include "Creatures/GroundCrack.h"
+#include "Creatures/GravemotherMound.h"
+#include "Creatures/GravemotherStone.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Loot/LootDropComponent.h"
@@ -18,8 +23,10 @@
 #include "Progression/ProgressionSettings.h"
 #include "Tests/BossTestWorld.h"
 #include "Tests/EncounterTestWorld.h"
+#include "Tests/GravemotherTestWorld.h"
 #include "Weapons/WeaponDefinition.h"
 #include "AIController.h"
+#include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/HitResult.h"
@@ -32,47 +39,37 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Tests/AutomationCommon.h"
 
+using namespace GravemotherTestWorld;
+
 namespace
 {
-	/** The Gravemother as her lair spawns her (Legendary), at OwnLevel before her rank's, begun, dropping no loot. */
-	AGravemotherCreature* SpawnMother(UWorld* World, const FVector& Feet, int32 OwnLevel = 1)
+	/** A point on her abdomen (world): its soft rear (Rear) or its front by the pedicel, from her physics asset as her code reads it. */
+	bool AbdomenPoint(AGravemotherCreature& Mother, bool bRear, FVector& OutWorld)
 	{
-		ACreatureBase::FRuntimeSpawn Spawn;
-		Spawn.Rank = ECreatureRank::Legendary;
-		Spawn.Level = OwnLevel;
-		AGravemotherCreature* Mother = Cast<AGravemotherCreature>(
-			ACreatureBase::SpawnAtRuntime(World, AGravemotherCreature::StaticClass(), Feet, 0.f, Spawn));
-		if (Mother && !Mother->HasActorBegunPlay())
+		const USkeletalMesh* Model = Mother.GetMesh()->GetSkeletalMeshAsset();
+		const UPhysicsAsset* Physics = Mother.GetMesh()->GetPhysicsAsset();
+		if (!Model || !Physics)
 		{
-			Mother->DispatchBeginPlay();
+			return false;
 		}
-		BossTestWorld::NoLoot(Mother);
-		return Mother;
-	}
-
-	/** Hurts a creature down to Share of its health, as the game's damage arrives, from By (or nobody). */
-	void HurtTo(ACreatureBase* Creature, float Share, AController* By = nullptr)
-	{
-		const UHealthComponent* Health = Creature ? Creature->FindComponentByClass<UHealthComponent>() : nullptr;
-		if (Health)
+		FCreatureBodyHulls Zones;
+		const FName Bones[] = { AGravemotherCreature::AbdomenBone };
+		Zones.AddFromPhysicsAsset(Physics, &Model->GetRefSkeleton(), Bones);
+		const FCreatureBodyHulls::FShape* Round = Zones.Shapes.FindByPredicate([](const FCreatureBodyHulls::FShape& Shape) { return Shape.IsRound(); });
+		const FCreatureBodyHulls::FShape* Hull = Zones.Shapes.FindByPredicate([](const FCreatureBodyHulls::FShape& Shape) { return !Shape.IsRound(); });
+		if (!Hull)
 		{
-			BossTestWorld::Hurt(Creature, Health->GetHealth() - Health->GetMaxHealth() * Share, By);
+			return false;
 		}
-	}
-
-	/** A hit on one of her bones, as a bullet reports it. */
-	FHitResult HitOn(ACreatureBase& Creature, FName Bone)
-	{
-		FHitResult Hit;
-		Hit.Component = Creature.GetMesh();
-		Hit.BoneName = Bone;
-		return Hit;
-	}
-
-	/** Her feet: the ground under her middle. */
-	FVector FeetOf(const ACreatureBase& Creature)
-	{
-		return Creature.GetActorLocation() - FVector(0.0, 0.0, Creature.GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+		const FVector Axis = Hull->BoundCenter.GetSafeNormal();
+		double Farthest = 0.0;
+		for (const FVector& Corner : Hull->Points)
+		{
+			Farthest = FMath::Max(Farthest, FVector::DotProduct(Corner, Axis));
+		}
+		const FVector InBone = bRear ? (Round ? Round->BoundCenter : Axis * (Farthest * 0.92)) : Axis * (Farthest * 0.15);
+		OutWorld = Mother.GetMesh()->GetSocketTransform(AGravemotherCreature::AbdomenBone, RTS_World).TransformPosition(InBone);
+		return true;
 	}
 }
 
@@ -81,9 +78,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravemotherBodyTest, "Looter.Creatures.Gravemo
 
 bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 {
-	// As the design has her: a brown spider at 1.8 times its size, Legendary with her name in orange on her tag (no
-	// "Soulfed"), twelve times a spider's health (about 5,600 at level 8), crits on the head and the abdomen (their hit
-	// hulls), one of the spiders' pack, never back on her own; in her pale hide once it's made.
+	// As the design has her: a brown spider at 1.8 times its size, Legendary with her name in orange on her tag, twelve times
+	// a spider's health (about 5,600 at level 8), one of the spiders' pack, never back on her own; her headstone on her back.
+	// Crits: her head always; her abdomen's soft rear while the stone stands, all of it once it's off; never a leg or her
+	// thorax. Her own model once it's imported, else the spider's in the pale hide.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -117,20 +115,39 @@ bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 		Legendary.HealthMultiplier), Health, Wanted, 0.5f);
 	TestTrue(TEXT("...about 5,600"), Health > 5400.f && Health < 5800.f);
 
-	// Crits on the head and the abdomen, nowhere else; both have hit hulls on the spider's model.
+	// Her headstone is on her back, a piece of its own on her abdomen bone.
+	AGravemotherStone* Stone = Mother->GetStone();
+	if (!TestNotNull(TEXT("Her headstone"), Stone))
+	{
+		return false;
+	}
+	TestTrue(TEXT("...on, attached to her abdomen"), Mother->IsStoneOn() && Stone->GetAttachParentActor() == Mother
+		&& Stone->GetAttachParentSocketName() == AGravemotherCreature::AbdomenBone);
+
+	// Crits: the head; a leg, the thorax and a plain spider's abdomen never.
 	TestTrue(TEXT("The head is critical"), Mother->IsCriticalSpot(HitOn(*Mother, TEXT("head"))));
-	TestTrue(TEXT("The abdomen is critical"), Mother->IsCriticalSpot(HitOn(*Mother, TEXT("abdomen"))));
 	TestFalse(TEXT("A leg isn't"), Mother->IsCriticalSpot(HitOn(*Mother, TEXT("femur_0_l"))));
 	TestFalse(TEXT("The thorax isn't"), Mother->IsCriticalSpot(HitOn(*Mother, TEXT("body"))));
 	TestFalse(TEXT("A spider's abdomen isn't"), Spider->IsCriticalSpot(HitOn(*Spider, TEXT("abdomen"))));
-	if (const UPhysicsAsset* Hulls = Mother->GetMesh()->GetPhysicsAsset())
+	FVector Rear;
+	FVector Front;
+	if (AbdomenPoint(*Mother, true, Rear) && AbdomenPoint(*Mother, false, Front))
 	{
-		TestTrue(TEXT("The head and the abdomen have hit hulls (no new bones)"),
-			Hulls->FindBodyIndex(TEXT("head")) != INDEX_NONE && Hulls->FindBodyIndex(TEXT("abdomen")) != INDEX_NONE);
+		TestTrue(TEXT("With the stone on, her abdomen's soft rear is critical"), Mother->IsCriticalSpot(HitOn(*Mother, AGravemotherCreature::AbdomenBone, Rear)));
+		TestFalse(TEXT("...its front, by the pedicel, isn't"), Mother->IsCriticalSpot(HitOn(*Mother, AGravemotherCreature::AbdomenBone, Front)));
+		Stone->Break(false);
+		TestFalse(TEXT("Broken, the stone is off"), Mother->IsStoneOn());
+		TestTrue(TEXT("...and all of her abdomen is critical: its front"), Mother->IsCriticalSpot(HitOn(*Mother, AGravemotherCreature::AbdomenBone, Front)));
+		TestTrue(TEXT("...and its rear"), Mother->IsCriticalSpot(HitOn(*Mother, AGravemotherCreature::AbdomenBone, Rear)));
 	}
 	else
 	{
-		AddInfo(TEXT("SK_Spider has no physics asset here: its hit hulls weren't checked."));
+		AddWarning(TEXT("Her model has no physics asset here: her abdomen's crits weren't checked."));
+	}
+	if (const UPhysicsAsset* Hulls = Mother->GetMesh()->GetPhysicsAsset())
+	{
+		TestTrue(TEXT("The head and the abdomen have hit hulls"),
+			Hulls->FindBodyIndex(TEXT("head")) != INDEX_NONE && Hulls->FindBodyIndex(AGravemotherCreature::AbdomenBone) != INDEX_NONE);
 	}
 
 	// One of the spiders' pack, and her rank's call reaches every spider within 30 m.
@@ -138,172 +155,74 @@ bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 		&& Spider->SharesPackWith(*Mother));
 	TestTrue(TEXT("Her call reaches 30 m"), Mother->GetPackCallRadius() >= 3000.f);
 
-	// Her hide: MI_SpiderBody_Pale once it's made, else the spider's own.
-	UMaterialInterface* Worn = Mother->GetMesh()->GetMaterial(0);
-	const TCHAR* PaleHide = TEXT("/Game/Art/Materials/MI_SpiderBody_Pale.MI_SpiderBody_Pale");
-	if (FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(PaleHide))))
+	// Her look: her own model once it's imported (Spider.py's rig: the spider's bones), else the spider's in the pale hide.
+	const USkeletalMesh* Model = Mother->GetMesh()->GetSkeletalMeshAsset();
+	if (GravemotherAssets::IsImported(GravemotherAssets::Body))
 	{
-		TestEqual(TEXT("She wears the pale hide"), GetPathNameSafe(Worn), FString(PaleHide));
+		TestEqual(TEXT("She wears her own body"), GetPathNameSafe(Model), FString(GravemotherAssets::Body));
 	}
 	else
 	{
-		TestTrue(TEXT("Without the pale hide, the spider's own"), Worn == Spider->GetMesh()->GetMaterial(0));
-		AddInfo(TEXT("MI_SpiderBody_Pale isn't made yet: she wears the spider's hide."));
+		TestTrue(TEXT("Until her body is imported, the spider's"), Model == Spider->GetMesh()->GetSkeletalMeshAsset());
+		const TCHAR* PaleHide = TEXT("/Game/Art/Materials/MI_SpiderBody_Pale.MI_SpiderBody_Pale");
+		if (FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(PaleHide))))
+		{
+			TestEqual(TEXT("...in the pale hide"), GetPathNameSafe(Mother->GetMesh()->GetMaterial(0)), FString(PaleHide));
+		}
+		AddInfo(TEXT("SK_Gravemother isn't imported yet: she's SK_Spider."));
 	}
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravemotherChargeTest, "Looter.Creatures.Gravemother.Charge",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravemotherMoundsTest, "Looter.Creatures.Gravemother.Unearthed.Mounds",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FGravemotherChargeTest::RunTest(const FString& Parameters)
+bool FGravemotherMoundsTest::RunTest(const FString& Parameters)
 {
-	// Her charge: with her target 5 to 16 m off and her way clear she rears and tracks them, then holds her aim while the
-	// ground cracks open along her line through a long wind-up; only then she dashes straight down it, running down whoever
-	// is in it once, and slams down at its end (the ground bursts); then it cools down and she bites. Up close she bites.
+	// Unearthed: at 66% and at 33% of her health, each once a life (a hit past both lines makes both), her next attack is
+	// the roar whose slam raises four mounds round her; they bulge for 1 s, then spiderlings dig out: a brown spider at 0.45x
+	// with a fifth of its health (60 at level 1), Basic and on the Basic table, named for what it is, round her on her level.
+	// A killing blow calls none.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
 		return false;
 	}
 	UWorld* World = WorldWrapper.GetTestWorld();
-	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector(1000.0, 0.0, 0.0));
-	AGravemotherCreature* Mother = SpawnMother(World, FVector::ZeroVector);
+	ACharacter* Player = BossTestWorld::SpawnPlayer(World, FVector(1000.0, 0.0, 0.0));
+	AGravemotherCreature* Mother = SpawnMother(World, FVector::ZeroVector, 1);
 	if (!TestNotNull(TEXT("Player stand-in"), Player) || !TestNotNull(TEXT("The Gravemother"), Mother))
 	{
 		return false;
 	}
-	TestTrue(TEXT("A long telegraph: over a second"), Mother->ChargeTelegraph >= 1.2f && Mother->ChargeAimSeconds < Mother->ChargeTelegraph);
-	TestFalse(TEXT("She sizes up whoever she first sees before she charges"), Mother->IsChargeReady());
-	Mother->AlertTo(Player);
-	Mother->ReadyCharge();
-	constexpr float Step = 0.05f;
-	Mother->Tick(Step);
-	TestTrue(TEXT("10 m off, the charge ready: she rears to charge"), Mother->GetCreatureState() == ECreatureState::Attack
-		&& Mother->GetChargeState() == EGravemotherCharge::Telegraph);
-	TestNearlyEqual(TEXT("The attack's wind-up is the telegraph"), Mother->AttackWindup, Mother->ChargeTelegraph, 0.001f);
-
-	// Before her aim she tracks her target; after it the line is fixed, whatever they do.
-	float Clock = 0.f;
-	auto RunUntil = [&](float Time)
-	{
-		while (Clock + Step * 0.5f < Time && Mother->GetChargeState() == EGravemotherCharge::Telegraph)
-		{
-			Mother->Tick(Step);
-			Clock += Step;
-		}
-	};
-	RunUntil(0.25f);
-	Player->SetActorLocation(FVector(1000.0, 300.0, 0.0));
-	RunUntil(Mother->ChargeAimSeconds - 0.1f);
-	TestNull(TEXT("No crack before she takes her aim"), Mother->GetCrack());
-	const double Toward = FMath::RadiansToDegrees(FMath::Atan2(300.0, 1000.0));
-	TestNearlyEqual(TEXT("She turns to follow her target while she rears"), Mother->GetActorRotation().Yaw, Toward, 3.0);
-	RunUntil(Mother->ChargeAimSeconds + 0.1f);
-	TestTrue(TEXT("Her aim taken"), Mother->HasTakenAim());
-	const FVector Line = Mother->GetChargeDirection();
-	TestNearlyEqual(TEXT("...at where they stood"), Line.Rotation().Yaw, Toward, 0.5);
-	const float Scale = Mother->GetSizeScale();
-	TestNearlyEqual(TEXT("...running on past them"), Mother->GetChargeLength(),
-		static_cast<float>(FVector::Dist2D(Mother->GetActorLocation(), Player->GetActorLocation())) + Mother->ChargeOvershoot * Scale, 1.f);
-	Player->SetActorLocation(FVector(1000.0, -400.0, 0.0));
-	RunUntil(Mother->ChargeTelegraph - 0.1f);
-	TestNearlyEqual(TEXT("Her aim held when they moved"), Mother->GetActorRotation().Yaw, Toward, 0.5);
-	TestTrue(TEXT("...the line too"), Mother->GetChargeDirection().Equals(Line, 1e-4));
-	TestTrue(TEXT("Still winding up: no dash before the telegraph's end"), Mother->GetChargeState() == EGravemotherCharge::Telegraph);
-	const AGroundCrack* Crack = Mother->GetCrack();
-	if (!TestNotNull(TEXT("The ground cracks open along her line"), Crack))
-	{
-		return false;
-	}
-	TestTrue(*FString::Printf(TEXT("...nearly all the way by now (%.2f)"), Crack->GetOpen()),
-		Crack->GetOpen() > 0.9f && Crack->NumPiecesShown() > 0);
-	const FVector Feet = FeetOf(*Mother);
-	const float Front = Mother->GetCapsuleComponent()->GetScaledCapsuleRadius();
-	TestTrue(TEXT("...from under her forelegs to where she'll stop"), Crack->GetStart().Equals(Feet + Line * Front, 1.0)
-		&& Crack->GetEnd().Equals(Feet + Line * (Mother->GetChargeLength() + Front), 1.0));
-	TestFalse(TEXT("Nobody run down during the wind-up"), Mother->HasChargeHit());
-
-	// The dash, once the wind-up is over: full tilt down the line.
-	while (Clock < 3.f && Mother->GetChargeState() == EGravemotherCharge::Telegraph)
-	{
-		Mother->Tick(Step);
-		Clock += Step;
-	}
-	TestTrue(*FString::Printf(TEXT("She dashes at the telegraph's end (%.2f s)"), Clock), Mother->GetChargeState() == EGravemotherCharge::Dash
-		&& FMath::Abs(Clock - Mother->ChargeTelegraph) <= Step * 1.5f);
-	const float Speed = Mother->ChargeSpeed * Scale;
-	TestTrue(TEXT("...straight down her line at full speed"), Mother->GetVelocity().GetSafeNormal2D().Equals(Line, 1e-3)
-		&& FMath::IsNearlyEqual(static_cast<float>(Mother->GetVelocity().Size2D()), Speed, 1.f));
-	TestNearlyEqual(TEXT("The crack lies open all the way"), Crack->GetOpen(), 1.f, 0.001f);
-
-	// Someone standing in her line 6 m on is run down as she passes, once. (A test level doesn't move her: she's carried
-	// down the line as her movement would carry her.)
-	const FVector Start = Mother->GetChargeStart();
-	Player->SetActorLocation(FVector(Start.X + Line.X * 600.0, Start.Y + Line.Y * 600.0, 0.0));
-	float Covered = 0.f;
-	while (Covered < Mother->GetChargeLength() + Speed * Step && Mother->GetChargeState() == EGravemotherCharge::Dash)
-	{
-		Covered = FMath::Min(Covered + Speed * Step, Mother->GetChargeLength());
-		Mother->SetActorLocation(Start + Line * Covered);
-		Mother->Tick(Step);
-	}
-	TestTrue(TEXT("Run down as she passed"), Mother->HasChargeHit());
-	TestTrue(TEXT("At the crack's end she slams down: her recovery"), Mother->GetChargeState() == EGravemotherCharge::Recover);
-	TestTrue(*FString::Printf(TEXT("...and the ground bursts round her forelegs (%d cracks)"), Crack->NumBurstCracks()),
-		Crack->NumBurstCracks() >= 6);
-	for (int32 Frame = 0; Frame < 100 && Mother->GetChargeState() != EGravemotherCharge::None; ++Frame)
-	{
-		Mother->Tick(Step);
-	}
-	TestTrue(TEXT("Up again: the charge is over"), Mother->GetChargeState() == EGravemotherCharge::None
-		&& Mother->GetCreatureState() != ECreatureState::Attack);
-	TestFalse(TEXT("...and cooling down"), Mother->IsChargeReady());
-	TestTrue(TEXT("...its crack left to close"), Crack->IsClosing() && Mother->GetCrack() == nullptr);
-	TestNearlyEqual(TEXT("...her bite's timing back"), Mother->AttackWindup, GetDefault<AGravemotherCreature>()->AttackWindup, 0.001f);
-
-	// Up close (inside her charge's least distance) she bites, charge ready or not.
-	ACharacter* Near = EncounterTestWorld::SpawnPlayer(World, FVector(300.0, 6000.0, 0.0));
-	AGravemotherCreature* Biter = SpawnMother(World, FVector(0.0, 6000.0, 0.0));
-	if (TestNotNull(TEXT("Second player stand-in"), Near) && TestNotNull(TEXT("Second Gravemother"), Biter))
-	{
-		Biter->AlertTo(Near);
-		Biter->ReadyCharge();
-		Biter->Tick(Step);
-		TestTrue(TEXT("3 m off: a bite, not a charge"), Biter->GetCreatureState() == ECreatureState::Attack
-			&& Biter->GetChargeState() == EGravemotherCharge::None);
-		TestNearlyEqual(TEXT("...with a bite's wind-up"), Biter->AttackWindup, GetDefault<AGravemotherCreature>()->AttackWindup, 0.001f);
-	}
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravemotherBroodTest, "Looter.Creatures.Gravemother.Brood",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FGravemotherBroodTest::RunTest(const FString& Parameters)
-{
-	// Her brood: at 66% and at 33% of her health she calls four spiderlings, each call once a life (a hit past both lines
-	// makes both), and a killing blow calls none. A spiderling is a brown spider at 0.45x with a fifth of its health (60 at
-	// level 1), Basic and on the Basic table, named for what it is, come up round her on her level.
-	FTestWorldWrapper WorldWrapper;
-	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
-	{
-		return false;
-	}
-	UWorld* World = WorldWrapper.GetTestWorld();
-	AGravemotherCreature* Mother = SpawnMother(World, FVector::ZeroVector, 1);
-	if (!TestNotNull(TEXT("The Gravemother"), Mother))
-	{
-		return false;
-	}
-	TestEqual(TEXT("Level 1 of her own, and her rank's two on top"), Mother->Level,
-		1 + UCreatureRankSettings::Get(ECreatureRank::Legendary).LevelOffset);
+	TestEqual(TEXT("Level 1 of her own, and her rank's two on top"), Mother->Level, 1 + UCreatureRankSettings::Get(ECreatureRank::Legendary).LevelOffset);
 	HurtTo(Mother, 0.7f);
-	TestTrue(TEXT("At 70%: no brood yet"), Mother->GetBroodCallsMade() == 0 && Mother->GetBrood().Num() == 0);
+	TestTrue(TEXT("At 70%: no call yet"), Mother->GetBroodCallsMade() == 0 && Mother->GetMounds().Num() == 0);
 	HurtTo(Mother, 0.65f);
+	TestTrue(TEXT("At 65%: her first call, waiting on her roar"), Mother->GetBroodCallsMade() == 1 && Mother->GetPendingUnearths() == 1
+		&& Mother->IsRoarWanted() && Mother->GetMounds().Num() == 0);
+
+	// Her roar (she rears and screams), and its slam raises the mounds.
+	Mother->AlertTo(Player);
+	const float RoarAt = TickUntil(Mother, 1.f, [Mother]() { return Mother->GetMove() == EGravemotherMove::Roar; });
+	if (!TestTrue(TEXT("She roars"), RoarAt >= 0.f))
+	{
+		return false;
+	}
+	TickFor(Mother, Mother->RoarWindup + Step);
+	const TArray<AGravemotherMound*> Mounds = Mother->GetMounds();
+	TestTrue(*FString::Printf(TEXT("Her slam raises four mounds (%d)"), Mounds.Num()), Mounds.Num() == Gravemother::BroodSize
+		&& Mother->GetPendingUnearths() == 0);
+	TestEqual(TEXT("...and no spiderling yet"), Mother->GetBrood().Num(), 0);
+	for (const AGravemotherMound* Mound : Mounds)
+	{
+		TestTrue(TEXT("...each bulging"), Mound->IsBulging() && Mound->GetBulge() < 1.f);
+	}
+	AdvanceMounds(*Mother, Mother->Unearth.BulgeSeconds * 0.5f);
+	TestEqual(TEXT("Half way: still no spiderling"), Mother->GetBrood().Num(), 0);
+	AdvanceMounds(*Mother, Mother->Unearth.BulgeSeconds * 0.5f + Step * 2.f);
 	const TArray<ASpiderCreature*> First = Mother->GetBrood();
-	TestTrue(*FString::Printf(TEXT("At 65%%: her first call, four spiderlings (%d)"), First.Num()),
-		Mother->GetBroodCallsMade() == 1 && First.Num() == Gravemother::BroodSize);
+	TestEqual(TEXT("A second on: four spiderlings dug out"), First.Num(), Gravemother::BroodSize);
 
 	const float Scale = Mother->GetSizeScale();
 	const FVector Feet = FeetOf(*Mother);
@@ -322,31 +241,82 @@ bool FGravemotherBroodTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The Basic table: it can drop a legendary"), Loot && Loot->LootTable == ULootLibrary::GetDefaultLootTable());
 		TestFalse(TEXT("Gone for good once killed"), Spiderling->WillRespawn());
 		const FVector Spot = FeetOf(*Spiderling);
-		TestTrue(TEXT("Come up round her"), FVector::Dist2D(Spot, Feet) <= Mother->BroodRadius * Scale + 1.0
-			&& FVector::Dist2D(Spot, Feet) >= Mother->BroodSpacing - 1.0);
-		// (A test level has no ground to settle a body on, so a spawned one stands a little off its spot: within a step.)
-		TestTrue(TEXT("...on her level"), FMath::Abs(Spot.Z - Feet.Z) <= Mother->BroodMaxStep);
+		TestTrue(TEXT("Dug out round her"), FVector::Dist2D(Spot, Feet) <= Mother->Unearth.Radius * Scale + 1.0
+			&& FVector::Dist2D(Spot, Feet) >= Mother->Unearth.Spacing - 1.0);
+		TestTrue(TEXT("...on her level"), FMath::Abs(Spot.Z - Feet.Z) <= Mother->Unearth.MaxStep);
 	}
-	TestTrue(TEXT("...apart from each other"), EncounterTestWorld::AllApart(EncounterTestWorld::PlacesOf(Brood), Mother->BroodSpacing - 1.0));
+	TestTrue(TEXT("...apart from each other"), EncounterTestWorld::AllApart(EncounterTestWorld::PlacesOf(Brood), Mother->Unearth.Spacing - 1.0));
 
 	HurtTo(Mother, 0.5f);
 	TestEqual(TEXT("At 50%: no more"), Mother->GetBroodCallsMade(), 1);
 	HurtTo(Mother, 0.32f);
-	TestTrue(TEXT("At 32%: her second call, four more"), Mother->GetBroodCallsMade() == 2
-		&& Mother->GetBrood().Num() == 2 * Gravemother::BroodSize);
+	TestTrue(TEXT("At 32%: her second call"), Mother->GetBroodCallsMade() == 2 && Mother->GetPendingUnearths() == 1);
 	HurtTo(Mother, 0.1f);
 	TestEqual(TEXT("At 10%: no third"), Mother->GetBroodCallsMade(), 2);
 
-	// One hit past both lines brings both; a killing blow brings none.
+	// One hit past both lines calls both; with nobody to roar at, they come up anyway a moment later. A killing blow, none.
 	AGravemotherCreature* Struck = SpawnMother(World, FVector(0.0, 8000.0, 0.0), 1);
 	AGravemotherCreature* Felled = SpawnMother(World, FVector(0.0, -8000.0, 0.0), 1);
 	if (TestNotNull(TEXT("Second Gravemother"), Struck) && TestNotNull(TEXT("Third Gravemother"), Felled))
 	{
 		HurtTo(Struck, 0.2f);
-		TestTrue(TEXT("From full to 20% in one hit: both calls"), Struck->GetBroodCallsMade() == 2
-			&& Struck->GetBrood().Num() == 2 * Gravemother::BroodSize);
+		TestTrue(TEXT("From full to 20% in one hit: both calls"), Struck->GetBroodCallsMade() == 2 && Struck->GetPendingUnearths() == 2);
+		TickFor(Struck, Struck->Unearth.LateRaiseSeconds + Step * 2.f);
+		TestEqual(TEXT("...her slam not coming, both calls' mounds come up anyway"), Struck->GetMounds().Num(), 2 * Gravemother::BroodSize);
+		AdvanceMounds(*Struck, Struck->Unearth.BulgeSeconds + Step * 2.f);
+		TestEqual(TEXT("...and eight spiderlings"), Struck->GetBrood().Num(), 2 * Gravemother::BroodSize);
 		BossTestWorld::Kill(Felled);
-		TestTrue(TEXT("Killed outright: none"), Felled->IsDead() && Felled->GetBroodCallsMade() == 0 && Felled->GetBrood().Num() == 0);
+		TestTrue(TEXT("Killed outright: none"), Felled->IsDead() && Felled->GetBroodCallsMade() == 0 && Felled->GetMounds().Num() == 0);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravemotherMoundShotTest, "Looter.Creatures.Gravemother.Unearthed.Shot",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGravemotherMoundShotTest::RunTest(const FString& Parameters)
+{
+	// A mound shot while it bulges caves in on its spiderling: one less digs out. Burst, it can't be shot any more. Her
+	// death caves the rest in.
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	AGravemotherCreature* Mother = SpawnMother(World, FVector::ZeroVector, 1);
+	if (!TestNotNull(TEXT("The Gravemother"), Mother) || !TestEqual(TEXT("She raises four mounds"), Mother->CallBrood(), Gravemother::BroodSize))
+	{
+		return false;
+	}
+	const TArray<AGravemotherMound*> Mounds = Mother->GetMounds();
+	AGravemotherMound* Shot = Mounds[0];
+	TestTrue(TEXT("A bulging mound can be shot (its box on the Weapon channel)"), Shot->GetHitBox()->GetCollisionEnabled() != ECollisionEnabled::NoCollision
+		&& Shot->GetHitBox()->GetCollisionResponseToChannel(ECC_GameTraceChannel2) == ECR_Block);
+	AdvanceMounds(*Mother, Mother->Unearth.BulgeSeconds * 0.5f);
+	BossTestWorld::Hurt(Shot, 10.f);
+	TestTrue(TEXT("Shot while it bulges: it caves in"), Shot->WasPopped() && !Shot->IsBulging());
+	AdvanceMounds(*Mother, Mother->Unearth.BulgeSeconds * 0.5f + Step * 2.f);
+	TestEqual(TEXT("Three spiderlings dig out, not four"), Mother->GetBrood().Num(), Gravemother::BroodSize - 1);
+	TestNull(TEXT("...none from the one shot"), Shot->GetSpiderling());
+	AGravemotherMound* Burst = Mounds[1];
+	TestTrue(TEXT("A burst mound can't be shot"), Burst->HasBurst() && Burst->GetHitBox()->GetCollisionEnabled() == ECollisionEnabled::NoCollision
+		&& Burst->GetSpiderling() != nullptr);
+
+	// Her death caves in what's still bulging.
+	AGravemotherCreature* Other = SpawnMother(World, FVector(0.0, 8000.0, 0.0), 1);
+	if (TestNotNull(TEXT("Second Gravemother"), Other) && TestTrue(TEXT("Her mounds"), Other->CallBrood() > 0))
+	{
+		const TArray<AGravemotherMound*> Hers = Other->GetMounds();
+		BossTestWorld::Kill(Other);
+		bool bAllCaved = true;
+		for (const AGravemotherMound* Mound : Hers)
+		{
+			bAllCaved &= Mound->IsCollapsed();
+		}
+		TestTrue(TEXT("Killed, her bulging mounds cave in"), bAllCaved);
+		AdvanceMounds(*Other, Other->Unearth.BulgeSeconds + Step * 2.f);
+		TestEqual(TEXT("...and no spiderling digs out"), Other->GetBrood().Num(), 0);
 	}
 	return true;
 }

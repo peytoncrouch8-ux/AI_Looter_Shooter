@@ -76,8 +76,49 @@ imports the bank). BARROW-CODE's plan is in `Saved/Gravemother/PLAN.md`; Main's 
 editor is free): the long stagger = her boss stagger 2.5 s, the clod stun the same at 2 s; burning cracks dropped; the
 clod's burst on her does no damage; **a popped mound gives the spiderling's kill XP**; **a thin stone bar under her
 boss bar** while the stone stands; spiderlings stay the plain spider; tests `Looter.Creatures.Gravemother.*`; small
-additive changes to SpiderCreature, BossComponent, BulletSubsystem approved. Clean-up later: the portrait scripts' shared helpers into `bust.py` (`tube`,
+additive changes to SpiderCreature, BossComponent, BulletSubsystem approved. **SELECT done and committed (e2aaab8)**:
+the hero select works (716/716 tests); after each model lands rerun `create_ember_assets.py` (it fills a hero's
+portrait/mesh/retargeter fields only once the asset exists). BARROW-CODE phase 2 started (owns the editor and builds
+until it reports). A seventh agent, HUD-PORTRAITS, draws the four heroes' inked HUD portraits
+(`Art/Icons/HudPortrait_<Hero>.svg` -> `HudPortraitData_<Hero>.inl`, not included yet) and writes
+`Saved/HudPortraits/WIRING.md` for Main's C++ hookup once BARROW-CODE is done. Main's own untested piece:
+`Tools/Unreal/build_hero_retarget.py <Hero>` (replaces `build_ellis_retarget.py` once tested; then update its Pipeline
+and CODEMAP mentions). **The user (2026-10-19, "what can speed it up"): start the twelve powers now, keep the 8-agent
+cap.** An eighth agent, POWERS, writes the twelve powers' C++ into a holding tree `Saved/Powers/Source/...` (not under
+Source: BARROW-CODE owns the builds), edits `create_ember_assets.py` and the powers' sound recipes/cues in place, and
+writes `Saved/Powers/README.md` (files, run order, compile risks); Main moves the tree into Source and builds once
+BARROW-CODE reports. First-person arms and line variants start as agents free up. **The user went to bed
+2026-10-20 ~00:00: "No questions until 5am."** Main runs unattended until then, its calls under "Decided unattended
+(2026-10-20 night)" below. Clean-up later: the portrait scripts' shared helpers into `bust.py` (`tube`,
 `chain`, `turn`, `ramp`, `ball`, `tear`, `point_light`), and the hero model scripts' shared machinery out of Ellis.py.
+
+### Decided unattended (2026-10-20 night), for the user's review
+(Main's calls while the user slept; newest last.)
+- BARROW-ART accepted and committed (b0e4ed6): SK_Gravemother on Spider.py's 31 bones (14.97k triangles), the stone's
+  three states with roots, 5 shards, 3 chips, the fight's earth, FX/decal textures; her hide reads a little paler than
+  the sheet's #8C8070 under the preview's warm light: judged in game. BARROW-CODE imports them and runs
+  `build_grave_fight_materials.py` between its builds. Its card colours are passed by code (MI tint white).
+- A ninth job as ART freed its slot: LINES drafts every hero variant of the existing lines plus the pick-by-hero design
+  into `Saved/Lines/` (VARIANTS.json, DESIGN.md); Main wires it after BARROW-CODE. First-person arms start when a hero
+  model agent finishes.
+- HUD-PORTRAITS accepted and committed (d6272f0): the four inked HUD portraits; Crane's single cyan eye beside the coin,
+  Gauge's warm lamp (visor drops when hurt), Odessa without the hand card, Pike with the tripod's legs. Wiring after
+  BARROW-CODE from `Saved/HudPortraits/WIRING.md`.
+- LINES done (`Saved/Lines/`, git-ignored: VARIANTS.json 148 rows, DESIGN.md, ELLIS_ONLY.md): a lookup table
+  `DA_HeroLines` keyed by Ellis's exact text, resolved in `UCaptionSubsystem::Play` and ~15 read sites, tokens {Hero}...,
+  test `Looter.Lines.NoFamily`. Its five questions, Main's provisional calls (**ASK THE USER at 5 am, the first one
+  above all**): (1) the cold open contradicts the four select-screen stories (Odessa caught Ned's bullet, Pike left in a
+  ravine, Crane forty years dead, Gauge woke in a wreck, yet every hero dies on the Point): provisional (a) keep the cold
+  open for all, their own regions tell their earlier past; the other choice (b) cuts the hero out of the cold open for the
+  four (~15 rows need a second neutral). (2) The Deacon says "kid" to every hero, Crane and Gauge too (the user's own
+  words: "the Deacon's kid is whoever you are"). (3) The townsman "Hollis" renamed Harlan for every hero (Crane is
+  Hollis). (4) The non-Ellis epitaph "<NAME>. STOOD UP AT THE LAST." and each hero's poster line (Gauge "RAILROAD
+  PROPERTY") kept as drafted. (5) Sexton's per-hero sweeteners (Odessa's marker, Crane's fare, Gauge's spark, Pike's last
+  road) in place of "your father crosses". Art the lines need: SM_Headboard_<Hero> x5 split from Grave_Ellis, a bare
+  keepers' roll, four poster atlases (not started: waits on the user's cold-open call).
+- FP-ARMS started (the slot HUD-PORTRAITS freed): SK_FP_Arms_<Hero> x4 on FPArms.py from its own file (FPArms.py
+  untouched: its digest would re-bake Ellis's arms), rig jsons `Intermediate/FPArms/FPArms_<Hero>_rig.json`, wiring
+  notes `Saved/FPArms/WIRING.md`.
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):

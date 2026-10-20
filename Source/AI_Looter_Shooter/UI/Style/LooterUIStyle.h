@@ -134,6 +134,13 @@ namespace LooterUI
 		FLinearColor EmberDustDevil();
 		FLinearColor EmberSundown();
 		FLinearColor EmberBorrowedTime();
+
+		// --- A boss's armour bar under its own (the Gravemother's headstone, 2026-10-20): the headstone's granite ---
+
+		/** The fill's light top band and its body, and the shade under it. */
+		FLinearColor GraniteLight();
+		FLinearColor Granite();
+		FLinearColor GraniteDark();
 	}
 
 	enum class EShape : uint8

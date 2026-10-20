@@ -323,7 +323,8 @@ Still true here (the expansion keeps these where it says "today's"):
 - Side 3, "Find where the Gravemother hungers": done as you go down into the Sink: anywhere on its floor, or on its ramp from
   about 2 m below the rim (the rim and the ramp's head don't count; the den needn't be entered). The arrow points at the ramp
   head on the rim. XP the first time; the Legendary loot table on every kill. She comes back on an arrival after at least 20
-  minutes of play since her last death (an arrival: coming in at the station by train, or loading a session).
+  minutes of play since her last death (an arrival: coming in at the station by train, or loading a session). Her fight is
+  Barrow (*Enemies by rank*, The Gravemother).
 
 Today's lines (word for word):
 - Main 1, Delia (she won't open the screen door to a corpse, but sets a plate on the porch):
@@ -369,10 +370,30 @@ Today's lines (word for word):
   hand bell. The OrchardEdge camp and the Churchyard ambush. The support kind, kill it first: 110 HP, 6 damage at level 1.
   Hangs back behind its pack and tolls every 7 s (a clear tell): the toll raises one Unpaid fallen lately near it, or
   steadies its pack. The bell is a crit spot; a shot to it in the tell loses the toll. Gravebound's cracked bell slows the player.
-- **The Gravemother** (Legendary): spider subclass at 1.8× size with a pale-hide material instance; the den is its own mesh.
-  The Sink's den. Orange tag, ×12 health (about 5,000 at her set level 6). Crits on the existing head and abdomen hit hulls
-  (no new bones). A charge with a long telegraph and a ground crack. Calls 4 spiderlings at 66% and 33%. No climbing, no
-  leaps. Its own Ledger page.
+- **The Gravemother** (Legendary): spider subclass at 1.8× size (SK_Gravemother, Spider.py's rig in a mud-grey hide, once
+  imported; until then SK_Spider in the pale hide); the den is its own mesh. The Sink's den. Orange tag, ×12 health (about
+  5,000 at her set level 6). No climbing, no leaps. Its own Ledger page. Her fight is **Barrow** (the user's pick
+  2026-10-15, built 2026-10-20; sheets `Saved/Concepts/Gravemother/Barrow_*.png`):
+  - **Headstone** (the user's pick over plain armour): a granite headstone root-bound to her abdomen, its own health (20% of
+    hers), intact / cracked at 66% of it / shattered at 33%; shots on it hurt the stone, not her (sparks, chips). Broken it
+    cracks off (her long stagger, 2.5 s, not her last third); at her 33% it cracks off by itself (no stagger). A thin granite
+    bar under her boss bar while it stands.
+  - **Crits:** her head always; her abdomen's soft rear (under the stone's back edge) while the stone stands; all of her
+    abdomen once it's off.
+  - **Furrow** (was the charge): 5-16 m, a 2 s tell (head low, front legs in the floor; the ground heaves and splits along
+    her line, all of it by 1.8 s, dust jetting), then she ploughs the line head-low (twice her bite, run down once) and a
+    berm rises each side behind her (cover 20 s, then they crumble). Never off a drop or through a wall, berm or rubble.
+    Missed, 2 s down (the window).
+  - **Grave Clod** (was the spit; in her fight, 7-22 m, the lob's way clear): front legs dig in, the clod torn up at 0.4 s and
+    overhead by 0.8 s, lobbed at 1.2 s at where the player stands (1.5 s to 20 m, a landing shadow growing there); it bursts
+    (1.5× bite at its middle, half at 2 m) and leaves rubble (cover 10 s, then it settles). Shot in her grip it bursts on her:
+    stunned 2 s ("Stunned" on her bar, stars), no damage.
+  - **Unearthed** (was the brood): at 66% and 33% her roar's slam raises 4 mounds round her (a call she can't roar for comes
+    up 2.5 s later anyway); they bulge 1 s, then spiderlings dig out (the spider at 0.45×, 20% health). A mound shot while it
+    bulges caves in: no spiderling, the shooter gets its kill XP.
+  - Kept: her bite, the roar, the Gravequake (from 66%), staggers from crits, the bar, phases, loot shower, walking home.
+  - **Last third** (her 33%): +25% chase and plough speed. Tells never shorten. Cooldowns: furrow 8/7/5.5 s, clod 7/6/4.5 s,
+    quake 9/7 s by phase.
 - **Abel Ransom, the Keeper** (Boss), on the Unpaid rig: Gravewind Point. See *The boss*.
 - The mountain's dead miners and the Foreman: expansion §6.
 - The egg sacs are shootable props modeled on `ATargetDummy`, not enemies. Everything a spawner, an egg sac or a boss creates

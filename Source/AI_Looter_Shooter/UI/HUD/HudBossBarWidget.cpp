@@ -112,6 +112,10 @@ void UHudBossBarWidget::SetBoss(const FText& InName, int32 InLevel, const FLinea
 	BarFlash = 0.f;
 	ShownFillWidth = -1.f;
 	ShownChipWidth = -1.f;
+	// No armour until its boss says so (SetArmour).
+	bArmourWanted = false;
+	ArmourFraction = 1.f;
+	ArmourChipFraction = 1.f;
 	BuildTicks();
 	ApplyTexts();
 	ApplyFill();
@@ -265,8 +269,9 @@ void UHudBossBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	{
 		ApplyColors();
 	}
-	// The intro, the flashes, the jolt and the callout (HudBossBarWidgetMotion.cpp).
+	// The intro, the flashes, the jolt and the callout (HudBossBarWidgetMotion.cpp); the armour's bar (HudBossBarWidgetArmour.cpp).
 	TickMotion(InDeltaTime);
+	TickArmour(InDeltaTime);
 }
 
 bool UHudBossBarWidget::IsMenuOpen() const

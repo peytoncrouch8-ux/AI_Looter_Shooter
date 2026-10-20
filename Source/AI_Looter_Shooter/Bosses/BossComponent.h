@@ -207,6 +207,12 @@ public:
 	 */
 	bool BeginStagger();
 
+	/**
+	 * The same for Seconds, its bar calling out Callout (empty: the show's): a boss's own stun (the Gravemother's clod burst
+	 * on her, 2 s, "Stunned"). It refuses as BeginStagger does; its cooldown follows as usual.
+	 */
+	bool BeginStagger(float Seconds, const FText& Callout = FText::GetEmpty());
+
 	/** Ends a stagger now (its creature's code, a reset); it builds nothing up for Stagger.Cooldown after. */
 	void EndStagger();
 

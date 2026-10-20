@@ -177,6 +177,10 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 		GroundPitch = TargetPitch;
 		GroundRoll = TargetRoll;
 	}
+	// A subclass's own pose (the Gravemother's dig, lift and plough), alive: on the spider's, or in place of its attack's.
+	PoseOverride = FSpiderPoseOverride();
+	bPoseOverride = CurrentState != ECreatureState::Dead && GetPoseOverride(PoseOverride);
+	const float OwnAttack = bPoseOverride ? FMath::Clamp(PoseOverride.OwnShare, 0.f, 1.f) : 1.f;
 
 	if (CurrentState == ECreatureState::Attack)
 	{
@@ -184,9 +188,9 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 		const float Windup = FMath::Clamp(Time / AttackWindup, 0.f, 1.f);
 		const float Strike = FMath::Clamp((Time - AttackWindup) / AttackRecovery, 0.f, 1.f);
 		const float Rear = FMath::InterpEaseInOut(0.f, 1.f, Windup, 2.f) * (1.f - Strike);
-		TargetPitch += 24.f * Rear - 12.f * FMath::Sin(Strike * UE_PI);
-		TargetZ += 16.f * Scale * Rear;
-		Lunge = (-14.f * Rear + 30.f * FMath::Sin(Strike * UE_PI)) * Scale;
+		TargetPitch += (24.f * Rear - 12.f * FMath::Sin(Strike * UE_PI)) * OwnAttack;
+		TargetZ += 16.f * Scale * Rear * OwnAttack;
+		Lunge = (-14.f * Rear + 30.f * FMath::Sin(Strike * UE_PI)) * Scale * OwnAttack;
 		TargetFang = Strike > 0.f ? 0.f : 30.f * Windup;
 	}
 	else if (CurrentState == ECreatureState::Dead)
@@ -201,6 +205,16 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 		TargetZ += FMath::Sin(AnimTime * 2.2f) * 1.5f * Scale; // breathing
 		// Its notice beat (reared, fangs flared) and idle life (grooming), SpiderCreatureReact.cpp.
 		ReactBody(TargetZ, TargetPitch, TargetFang);
+	}
+	if (bPoseOverride)
+	{
+		TargetZ += PoseOverride.Rise * Scale;
+		TargetPitch += PoseOverride.Pitch;
+		Lunge += PoseOverride.Lunge * Scale;
+		if (PoseOverride.Fang.IsSet())
+		{
+			TargetFang = PoseOverride.Fang.GetValue();
+		}
 	}
 
 	if (!bBodyInitialized || DeltaSeconds <= 0.f)
@@ -308,10 +322,11 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 		}
 	}
 
-	// Legs the attack or death animation holds don't walk.
-	auto IsHeld = [CurrentState](const FLeg& Leg)
+	// Legs the attack, death or a subclass's pose holds don't walk.
+	const bool bFrontHeld = bPoseOverride && PoseOverride.bFrontFeet;
+	auto IsHeld = [CurrentState, bFrontHeld](const FLeg& Leg)
 	{
-		return CurrentState == ECreatureState::Dead || (CurrentState == ECreatureState::Attack && Leg.Pair == 0);
+		return CurrentState == ECreatureState::Dead || ((CurrentState == ECreatureState::Attack || bFrontHeld) && Leg.Pair == 0);
 	};
 
 	// Where each foot wants to be: its rest spot, led by the velocity so it lands ahead of the body.
@@ -400,7 +415,14 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 		}
 		else
 		{
-			if (CurrentState == ECreatureState::Attack && Leg.Pair == 0)
+			if (bFrontHeld && Leg.Pair == 0)
+			{
+				// Where the subclass's pose holds it (dug into the floor, raised with a clod), on its spring.
+				StepHeldFoot(Leg, OverrideFootTarget(Leg, Body), PoseOverride.FrontOmega, DeltaSeconds);
+				Leg.bStepping = false;
+				Leg.bNeedsReset = true;
+			}
+			else if (CurrentState == ECreatureState::Attack && Leg.Pair == 0)
 			{
 				// Front legs rise with the body, then slam down ahead of it on the strike (the body's frame carries the size).
 				// A spring carries them, so they lift off from rest instead of leaping up at full speed, and the slam's

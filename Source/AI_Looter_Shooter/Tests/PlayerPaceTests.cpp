@@ -82,7 +82,7 @@ bool FPlayerPaceChasesTest::RunTest(const FString& Parameters)
 		{ TEXT("An Unpaid"), GetDefault<AUnpaidCreature>()->ChaseSpeed, 470.f },
 		{ TEXT("A Bell-Ringer"), GetDefault<ABellRingerCreature>()->ChaseSpeed, 400.f },
 		{ TEXT("The Gravemother"), GetDefault<AGravemotherCreature>()->ChaseSpeed, 480.f },
-		{ TEXT("The Gravemother's charge"), GetDefault<AGravemotherCreature>()->ChargeSpeed, 900.f },
+		{ TEXT("The Gravemother's plough"), GetDefault<AGravemotherCreature>()->Furrows.Speed, 900.f },
 		{ TEXT("Abel"), GetDefault<AAbelKeeper>()->ChaseSpeed, 430.f },
 	};
 	for (const FChase& Chase : Chases)

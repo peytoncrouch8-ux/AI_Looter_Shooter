@@ -231,6 +231,11 @@ namespace LooterUI::Color
 	FLinearColor EmberDustDevil()    { return Hex(232, 246, 255); }
 	FLinearColor EmberSundown()      { return Hex(255, 178, 77); }
 	FLinearColor EmberBorrowedTime() { return Hex(201, 180, 255); }
+
+	// The Gravemother's headstone (#8E8B86 on the Barrow sheet), lit and shaded as the HUD's bars are.
+	FLinearColor GraniteLight()      { return Hex(196, 192, 184); }
+	FLinearColor Granite()           { return Hex(142, 139, 134); }
+	FLinearColor GraniteDark()       { return Hex(84, 81, 77); }
 }
 
 // ---------------------------------------------------------------------------

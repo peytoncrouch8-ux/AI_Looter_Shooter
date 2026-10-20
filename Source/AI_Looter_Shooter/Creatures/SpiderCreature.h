@@ -5,6 +5,33 @@
 #include "SpiderCreature.generated.h"
 
 /**
+ * A spider subclass's own pose for one frame (ASpiderCreature::GetPoseOverride), laid on the spider's: the Gravemother digs
+ * her front legs into the floor, lifts a clod over her head in them, and ploughs head-low. Every other spider has none.
+ */
+struct FSpiderPoseOverride
+{
+	/** Added to the body's targets: its height and lunge (cm at size 1), its pitch (degrees, nose up). */
+	float Rise = 0.f;
+	float Pitch = 0.f;
+	float Lunge = 0.f;
+	/** The fangs' spread (degrees), when set. */
+	TOptional<float> Fang;
+	/** How much of the spider's own attack rear and lunge stays under it (0: the override's alone). */
+	float OwnShare = 1.f;
+	/**
+	 * The front pair held by the override: in the air at FrontAir (the body's frame at size 1; X ahead, Y the right leg's,
+	 * mirrored for the left, Z up), or on the ground under FrontGround (the actor's frame at size 1: X ahead, Y out) sunk
+	 * DigDepth (cm at size 1) into it, blended by GroundShare (1: on the ground); on a spring of FrontOmega (1/s).
+	 */
+	bool bFrontFeet = false;
+	FVector FrontAir = FVector::ZeroVector;
+	FVector2D FrontGround = FVector2D::ZeroVector;
+	float GroundShare = 0.f;
+	float DigDepth = 0.f;
+	float FrontOmega = 14.f;
+};
+
+/**
  * Human-sized brown hunting spider (wolf-spider look, not a black widow). 300 health; the head is the critical spot
  * (x1.5 per the game-wide rule), and every other part takes base damage.
  *
@@ -49,7 +76,13 @@ public:
 	enum class EIdleAct : uint8 { None, Tap, Groom };
 	EIdleAct GetIdleAct() const { return IdleAct; }
 
+	/** Where a leg's foot was posed this frame (world): Pair 0 (front) to 3, Side -1 left or +1 right. Its middle with none. */
+	FVector GetPosedFoot(int32 Pair, float Side) const;
+
 protected:
+	/** Its own pose this frame, alive (the Gravemother's moves); false: the spider's own (every other spider). */
+	virtual bool GetPoseOverride(FSpiderPoseOverride& Out) const { return false; }
+
 	virtual void BeginPlay() override;
 	// --- Hits, death, coming back, the notice beat, its entrance (SpiderCreatureReact.cpp) ---
 	virtual void OnAttackStarted() override;
@@ -174,6 +207,9 @@ private:
 	/** How far (cm, full size) a foot may get from its spot before its group steps it back: farther at speed. */
 	static float StepThresholdAt(float Speed);
 
+	/** Where the pose override holds a front leg's foot now (world; SpiderCreatureLegs.cpp). */
+	FVector OverrideFootTarget(const FLeg& Leg, const FTransform& Body) const;
+
 	// --- Its death (SpiderCreatureDeath.cpp) ---
 	/** As it dies: its body and each foot as they are (the throe starts there), its legs' timing by its dice, its dead pose. */
 	void RecordDeathPose();
@@ -278,4 +314,7 @@ private:
 	float DeathRoll = 0.f;
 	float DeathLunge = 0.f;
 	float DeadRollSide = 1.f;
+	/** A subclass's pose this frame (GetPoseOverride), asked once in AnimateBody and kept for AnimateLegs. */
+	FSpiderPoseOverride PoseOverride;
+	bool bPoseOverride = false;
 };

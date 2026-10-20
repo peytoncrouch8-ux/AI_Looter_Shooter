@@ -1,11 +1,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Creatures/CreatureBodyHulls.h"
 #include "Creatures/GravemotherFight.h"
+#include "Creatures/GravemotherTypes.h"
 #include "Creatures/SpiderCreature.h"
 #include "GravemotherCreature.generated.h"
 
+class AGravemotherClod;
+class AGravemotherFurrow;
+class AGravemotherMound;
+class AGravemotherStone;
 class AGroundCrack;
+class UAudioComponent;
 class UBossComponent;
 
 /** The Gravemother's numbers that never change in play (Docs/Areas/RansomsRest.md, "Enemies by rank" and Side 3). */
@@ -31,61 +38,31 @@ namespace Gravemother
 	inline const FName DenPlaceTag(TEXT("Place_Den"));
 }
 
-/** Where the Gravemother's charge is. */
-UENUM(BlueprintType)
-enum class EGravemotherCharge : uint8
-{
-	/** Not charging: she walks and bites as any spider does. */
-	None,
-	/** The wind-up: she rears and turns to her target, then holds her aim while the ground cracks open along her line. */
-	Telegraph,
-	/** The dash: straight down the crack at full tilt, running down whoever stands in it. */
-	Dash,
-	/** Stopped at the crack's end with her forelegs slammed down: a moment before she can bite again. */
-	Recover,
-};
-
-/** Which of her attacks she's at (each is the creature's one attack, wound up, struck and recovered, with its own timing). */
-UENUM(BlueprintType)
-enum class EGravemotherMove : uint8
-{
-	Bite,
-	Charge,
-	/** Rearing and screaming (her fight's start, each later phase), her forelegs slamming down at its height. */
-	Roar,
-	/** The Gravequake: rearing high while a ring of cracks spreads out under her, then a slam that bursts it. */
-	Quake,
-	/** Rearing with venom glowing at her fangs, then a cone of slow pellets. */
-	Spit,
-};
-
 /**
  * The Gravemother (Docs/Areas/RansomsRest.md, Side 3 and "Enemies by rank"): Ransom's Rest's Legendary monster, a brown
- * spider grown huge in the Sink's den on what the Unpaid leave behind. SK_Spider and its rig at Gravemother::Size (1.8x)
- * a spider's size, in a pale hide (MI_SpiderBody_Pale once it's made, else the spider's own), Legendary: her name in
- * orange on her tag (no "Soulfed"), twelve times a spider's health (about 5,600 at level 8). Her head and abdomen are
- * critical (their hit hulls; no new bones). She walks and bites as a spider does, never climbing or leaping, and two
- * moves are her own:
- *  - The charge (GravemotherCreatureCharge.cpp): with her target 5 to 16 m off, her way clear and ChargeCooldown passed,
- *    she rears and tracks them for ChargeAimSeconds, then holds her aim while the ground cracks open along her line
- *    (AGroundCrack) through the rest of a long ChargeTelegraph, and dashes straight down it, never off a drop or through
- *    a wall. It runs down whoever is in it (ChargeStrength times a bite's damage and shove), and at the crack's end she
- *    slams down, the ground bursts, and she's slow to rise. Step out of the crack's line before she comes.
- *  - Her brood (GravemotherCreatureBrood.cpp): at 66% and 33% of her health, each once a life, she calls four
- *    spiderlings, which claw up out of the ground round her on her own level and hunting ground and come for her target.
- *    A spiderling is a configuration of the brown spider (SpawnSpiderling), not a class of its own, so its Ledger page is
- *    the spider's.
- * Her lair, an AEncounterSpawner with a LegendaryId (Tools/Unreal/build_area_den.py), brings her, and brings her back
- * only on an arrival 20 minutes of play after her last death (USessionSubsystem::IsLegendaryBack). Hurt, she calls
- * every spider within 30 m onto her attacker (her rank's pack call; spiders share the Spider pack tag).
- *
- * She's a boss fight too (her UBossComponent, GravemotherFight for its phases and pace; GravemotherCreatureMoves.cpp): she
- * lives in her den as any spider does until she turns on a player, and then her bar sweeps in ("The Gravemother, Brood of
- * the Sink") as she rears and screams. Three phases at her brood's calls; venom spat at a player who keeps away; from the
- * second the Gravequake for one who hugs her; in the third she's quicker and her cracks burn. A charge she misses leaves
- * her forelegs in the dirt a while (the window to punish); crits on her head and abdomen close together stagger her
- * (she sinks, trembling, for a moment). Her brood are her boss's adds and die with her; she falls in a slow beat and her
- * loot bursts out of her. Gone off her ground a while, the fight stands down and she walks home.
+ * spider grown huge in the Sink's den, at Gravemother::Size (1.8x) a spider's size, Legendary (her name in orange on her
+ * tag), twelve times a spider's health. Her fight is "Barrow", the user's pick (2026-10-15, built 2026-10-20; the sheets in
+ * Saved/Concepts/Gravemother/Barrow_*.png): she wears a toppled granite headstone bound to her abdomen by roots
+ * (AGravemotherStone: its own health, three states, cracking off), and her moves tear up the grave earth of her den:
+ *  - the Furrow (GravemotherCreatureFurrow.cpp, AGravemotherFurrow): with her target 5 to 16 m off and her way clear, a 2 s
+ *    tell, head low and front legs in the floor while the ground heaves and splits along her line toward them; then she
+ *    ploughs it head-low, running down whoever is in it, and throws up a berm each side (cover for 20 s). Never off a drop
+ *    or through a wall. Missed, she's slow to rise (the window).
+ *  - the Grave Clod (GravemotherCreatureClod.cpp, AGravemotherClod): at a player 7 to 22 m off in her fight, her front legs
+ *    dig in and lift a clod overhead (1.2 s), then she lobs it (1.5 s to 20 m, its shadow showing where): it bursts and
+ *    leaves a rubble pile (cover, 10 s). Shot in her grip, it bursts on her and stuns her 2 s.
+ *  - Unearthed (GravemotherCreatureUnearthed.cpp, AGravemotherMound): at 66% and 33% of her health she rears, screams and
+ *    slams the floor: four mounds bulge for 1 s, then spiderlings (the brown spider at 0.45x) dig out; a mound shot while
+ *    it bulges kills its spiderling.
+ *  - the Gravequake for whoever hugs her (from her second phase), her bite, her roar: as before.
+ * Crits (GravemotherCreatureStone.cpp): her head always; her abdomen only on its soft rear (under the stone's back edge)
+ * while the stone stands, all of it once the stone is off. Shots on the stone hurt the stone, not her. Broken early, it
+ * staggers her (her boss's stagger); at her 33% it cracks off by itself, and from then she runs a quarter faster.
+ * Her lair (AEncounterSpawner with a LegendaryId) brings her, and back only on an arrival 20 minutes of play after her last
+ * death. Her boss fight (UBossComponent, GravemotherFight) gives her the bar, phases, staggers (she reels:
+ * GravemotherCreatureMoves.cpp), her brood as adds, the loot shower and the stand-down; her poses for her own moves lay over
+ * the spider's (GravemotherCreaturePose.cpp). Until her own model (SK_Gravemother) is imported she's SK_Spider in a pale
+ * hide, and every piece of her fight has its stand-in (GravemotherAssets).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AGravemotherCreature : public ASpiderCreature
@@ -96,212 +73,140 @@ public:
 	AGravemotherCreature();
 
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void SetActorHiddenInGame(bool bNewHidden) override;
 
-	// --- Her brood (GravemotherCreatureBrood.cpp) ---
+	/** Her abdomen's bone: the stone rides it, its soft rear is a crit. */
+	static const FName AbdomenBone;
 
-	/**
-	 * How a spiderling starts: a Basic brown spider at Gravemother::SpiderlingSize with its share of health, at Level (0:
-	 * its area's band).
-	 */
+	// --- Her brood: Unearthed (GravemotherCreatureUnearthed.cpp) ---
+
+	/** How a spiderling starts: a Basic brown spider at Gravemother::SpiderlingSize with its share of health, at Level (0: its area's band). */
 	static FRuntimeSpawn MakeSpiderlingSpawn(int32 Level = 0);
 
-	/**
-	 * Spawns a spiderling standing on Feet, facing Yaw: gone for good once killed, named for what it is on its tag, and
-	 * begun even in a level that isn't playing (a test's). Null when it couldn't spawn.
-	 */
+	/** Spawns a spiderling standing on Feet, facing Yaw: gone for good once killed, named for what it is, begun. Null when it couldn't. */
 	static ASpiderCreature* SpawnSpiderling(UWorld* World, const FVector& Feet, float Yaw, int32 Level = 0);
 
 	/** What a spiderling's tag calls it. */
 	static FText SpiderlingName();
 
-	/** Calls her brood now, as her health does at 66% and 33%: up to BroodSize spiderlings round her. How many came. */
+	/** Raises one call's mounds round her now (the console, the tests; her health's calls come through her roar). How many. */
 	int32 CallBrood();
 
-	/** Her calls this life (two at most). */
+	/** Her calls this life (two at most), and those her roar hasn't raised yet. */
 	int32 GetBroodCallsMade() const { return BroodCallsMade; }
+	int32 GetPendingUnearths() const { return PendingUnearths; }
 
-	/** Her brood alive now. */
+	/** Her brood alive now, and her mounds not yet gone (bulging, burst or caved). */
 	TArray<ASpiderCreature*> GetBrood() const;
+	TArray<AGravemotherMound*> GetMounds() const;
 
-	// --- Her charge (GravemotherCreatureCharge.cpp) ---
+	/** A mound of hers bursts: its spiderling claws out (her brood, her boss's add). */
+	ASpiderCreature* RaiseFromMound(AGravemotherMound& Mound);
+	/** A mound of hers was shot while it bulged: one less. */
+	void NoteMoundPopped(AGravemotherMound& Mound, AController* By);
 
-	EGravemotherCharge GetChargeState() const { return ChargeState; }
+	// --- Her Furrow (GravemotherCreatureFurrow.cpp) ---
 
-	/** Its cooldown is done: the next time her target is far enough off and her way to them clear, she charges. */
-	bool IsChargeReady() const { return ChargeCooldownLeft <= 0.f; }
-
-	/** Readies her charge at once (the tests, the console). */
-	void ReadyCharge();
-
-	/** She has taken her aim on this charge: its line is fixed and its crack open. */
+	EGravemotherFurrow GetFurrowState() const { return FurrowState; }
+	/** Its cooldown is done: the next time her target is far enough off and her way to them clear, she ploughs. */
+	bool IsFurrowReady() const { return FurrowCooldownLeft <= 0.f; }
+	/** Readies it at once (the tests, the console). */
+	void ReadyFurrow();
+	/** She has taken her aim on this furrow: its line is fixed and the ground heaving along it. */
 	bool HasTakenAim() const { return bAimTaken; }
+	/** The line this furrow runs (world): from where she stood as she took aim, along its direction, this far. */
+	FVector GetFurrowStart() const { return FurrowStart; }
+	FVector GetFurrowDirection() const { return FurrowDirection; }
+	float GetFurrowLength() const { return FurrowLength; }
+	/** How far along it the ground has split (cm). */
+	float GetHeaveFront() const { return HeaveFront; }
+	/** This furrow ran its target down (it hits once). */
+	bool HasFurrowHit() const { return bFurrowHit; }
+	/** This furrow's ground, while it's hers (it stands its berms' time after). */
+	AGravemotherFurrow* GetFurrow() const { return Furrow.Get(); }
+	/** Her plough's speed now (cm/s: her size, her pace). */
+	float GetPloughSpeed() const;
 
-	/** The line this charge runs (world): from where she stood as she took aim, along its direction, this far. */
-	FVector GetChargeStart() const { return ChargeStart; }
-	FVector GetChargeDirection() const { return ChargeDirection; }
-	float GetChargeLength() const { return ChargeLength; }
+	// --- Her Grave Clod (GravemotherCreatureClod.cpp) ---
 
-	/** This charge ran its target down (a charge hits once). */
-	bool HasChargeHit() const { return bChargeHit; }
+	bool IsClodReady() const { return ClodCooldownLeft <= 0.f; }
+	void ReadyClod() { ClodCooldownLeft = 0.f; LobCheckedAt = -1.f; }
+	/** The clod in her grip, and the last one she threw (while it flies). */
+	AGravemotherClod* GetHeldClod() const { return HeldClod.Get(); }
+	AGravemotherClod* GetThrownClod() const { return ThrownClod.Get(); }
+	/** Stunned by a clod burst on her (her boss's stagger, with stars over her head). */
+	bool IsStunned() const { return bStunned; }
+	/** The clod in her grip was shot (it calls this): it burst on her; she's stunned. */
+	void CounterClod(AController* By);
 
-	/** The charge's crack in the ground, while it's hers (it lingers and closes on its own after). */
-	AGroundCrack* GetCrack() const { return Crack.Get(); }
+	// --- Her headstone (GravemotherCreatureStone.cpp) ---
 
-	/** The crack still burning after a dash in her fury (its seam hurts whoever stands on it), while it burns. */
-	AGroundCrack* GetBurningCrack() const { return BurnLeft > 0.f ? BurningCrack.Get() : nullptr; }
+	AGravemotherStone* GetStone() const { return Stone.Get(); }
+	bool IsStoneOn() const;
+	/** Whether a point on her abdomen (world) is its soft rear (her physics asset's round zone there, or its far end). */
+	bool IsSoftRear(const FVector& WorldPoint) const;
+	/** The stone tells her of a hit on it, of a new crack, and of its breaking (bByHerThird: at her 33%). */
+	void NoteStoneHit(AController* By);
+	void OnStoneCracked(EGravemotherStone NewState);
+	void OnStoneBroken(bool bByHerThird);
+	/** Her head always; her abdomen's soft rear while the stone stands, all of it once it's off. */
+	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
 
 	// --- Her boss fight (GravemotherCreatureMoves.cpp) ---
 
 	UBossComponent* GetBoss() const { return Boss; }
-
 	/** Which of her attacks she's at (or was at last). */
 	EGravemotherMove GetMove() const { return Move; }
-
-	/** Her next attack is a roar (her fight's start, a later phase). */
+	/** Her next attack is a roar (her fight's start, a later phase, her brood's call). */
 	bool IsRoarWanted() const { return bRoarWanted; }
-
 	/** She reels from a stagger (her boss's), sunk on her legs. */
 	bool IsReeling() const { return bReeling; }
-
 	/** The phase her pace is set for, and the pace. */
 	int32 GetPacePhase() const { return PacePhase; }
 	const GravemotherFight::FPace& GetPace() const { return Pace; }
-
 	/** Sets her pace for a phase (her boss's phase changes do). */
 	void ApplyPace(int32 Phase);
-
-	/** Readies her quake and her spit at once (the tests, the console). */
+	/** Readies her quake at once (the tests, the console). */
 	void ReadyQuake() { QuakeCooldownLeft = 0.f; }
-	void ReadySpit() { SpitCooldownLeft = 0.f; }
 	bool IsQuakeReady() const { return QuakeCooldownLeft <= 0.f; }
-	bool IsSpitReady() const { return SpitCooldownLeft <= 0.f; }
-
 	/** The ring of cracks spreading under her through a quake's wind-up. */
 	AGroundCrack* GetQuakeCrack() const { return QuakeCrack.Get(); }
-
 	/** Whether a player at Where would be caught by her quake's burst (on her level, inside its ring). */
 	bool IsInQuake(const FVector& Where) const;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UBossComponent> Boss;
 
-	// --- Settings: every distance and speed is at a brown spider's size and grows with hers ---
+	// --- Settings (GravemotherTypes.h; distances "at a spider's size" grow with hers) ---
 
-	/** She charges a target up to this far off (cm), and no nearer than ChargeMinDistance: closer, she bites. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "100", Units = "cm"))
-	float ChargeRange = 900.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "cm"))
-	float ChargeMinDistance = 300.f;
-
-	/** She runs on this far past where her target stood as she took aim (cm). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "cm"))
-	float ChargeOvershoot = 150.f;
-
-	/** How fast the dash runs (cm/s; the constructor scales it with the player's speed). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "100", Units = "cm/s"))
-	float ChargeSpeed = 900.f;
-
-	/** The whole wind-up (s): she tracks her target for ChargeAimSeconds of it, then holds her aim while the crack runs out. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0.2", Units = "s"))
-	float ChargeTelegraph = 1.5f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
-	float ChargeAimSeconds = 0.6f;
-
-	/** How long she stays down after the slam before she can bite again (s), having run her target down. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
-	float ChargeRecover = 1.f;
-
-	/** A charge that ran nobody down leaves her forelegs in the dirt this long (s): the window to punish her. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
-	float ChargeMissRecover = 2.f;
-
-	/** From one charge's end to the next one's readiness, while she's after someone (s); and from her first sight of them. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
-	float ChargeCooldown = 8.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
-	float ChargeFirstDelay = 2.f;
-
-	/** The dash hits this many times as hard as her bite, damage and shove. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0"))
-	float ChargeStrength = 2.f;
-
-	/** The dash runs down whoever comes within this of her body's edge (cm). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "cm"))
-	float ChargeHitMargin = 40.f;
-
-	/** The crack's width at its widest, and how far its burst reaches round the slam (cm). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "1", Units = "cm"))
-	float ChargeCrackWidth = 18.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "10", Units = "cm"))
-	float ChargeBurstRadius = 170.f;
-
-	/** Her brood comes up within this of her (cm, at a spider's size), on her level (BroodMaxStep cm above or below her feet). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Brood", meta = (ClampMin = "100", Units = "cm"))
-	float BroodRadius = 450.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Brood", meta = (ClampMin = "10", Units = "cm"))
-	float BroodMaxStep = 200.f;
-
-	/** Spiderlings come up at least this far apart, and from her middle (cm, as they are). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Brood", meta = (ClampMin = "50", Units = "cm"))
-	float BroodSpacing = 200.f;
-
-	/** None comes up nearer the player than this (cm): out of the ground round her, not under the player's feet. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Brood", meta = (ClampMin = "0", Units = "cm"))
-	float BroodClearOfPlayer = 300.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother")
+	FGravemotherFurrowSettings Furrows;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother")
+	FGravemotherClodSettings Clods;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother")
+	FGravemotherUnearthSettings Unearth;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother")
+	FGravemotherStoneSettings StoneSettings;
 
 	/** Her roar: rearing and screaming this long, then the slam, then up again (s). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Roar", meta = (ClampMin = "0.1", Units = "s"))
 	float RoarWindup = 0.9f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Roar", meta = (ClampMin = "0.1", Units = "s"))
 	float RoarRecovery = 0.6f;
 
 	/** The Gravequake: she quakes at a target this near (cm, at a spider's size), and its burst reaches this far round her. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "50", Units = "cm"))
 	float QuakeRange = 280.f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "50", Units = "cm"))
 	float QuakeRadius = 300.f;
-
 	/** Its wind-up (the ring of cracks spreading out to its reach: the time to get out of it) and its recovery (s). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "0.2", Units = "s"))
 	float QuakeWindup = 1.2f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "0.1", Units = "s"))
 	float QuakeRecovery = 0.9f;
-
 	/** Its burst hits this many times as hard as her bite, damage and shove. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "0"))
 	float QuakeStrength = 1.5f;
-
-	/** Her venom: she spits at a target between these distances (cm, at a spider's size), rearing this long first (s). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Spit", meta = (ClampMin = "0", Units = "cm"))
-	float SpitMinDistance = 400.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Spit", meta = (ClampMin = "100", Units = "cm"))
-	float SpitMaxDistance = 1200.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Spit", meta = (ClampMin = "0.1", Units = "s"))
-	float SpitWindup = 0.8f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Spit", meta = (ClampMin = "0.1", Units = "s"))
-	float SpitRecovery = 0.5f;
-
-	/** In her fury a charge's crack burns this long after her dash (s), hurting whoever stands on its seam every BurnEvery. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Fury", meta = (ClampMin = "0", Units = "s"))
-	float BurnSeconds = 4.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Fury", meta = (ClampMin = "0.1", Units = "s"))
-	float BurnEvery = 0.5f;
-
-	/** Each burn hits this many times as hard as her bite. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Fury", meta = (ClampMin = "0"))
-	float BurnStrength = 0.2f;
 
 protected:
 	virtual void BeginPlay() override;
@@ -311,110 +216,161 @@ protected:
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) override;
 	virtual void OnDied() override;
 	virtual void OnRespawned() override;
+	virtual void SetHitVolumesEnabled(bool bEnabled) override;
 	virtual bool CanStartAttack() const override;
 	virtual float GetAttackStartRange() const override;
 	virtual bool TracksTargetInWindup() const override;
+	/** Her own moves' poses over the spider's (GravemotherCreaturePose.cpp). */
+	virtual bool GetPoseOverride(FSpiderPoseOverride& Out) const override;
 
 private:
-	// --- The charge (GravemotherCreatureCharge.cpp) ---
-	/** Her target is in reach of a charge and her way to them is clear, with the charge ready. */
-	bool WantsToCharge() const;
-	/** Her way to her target is clear for a charge (looked at a few times a second, not every frame). */
+	// --- The Furrow (GravemotherCreatureFurrow.cpp) ---
+	bool WantsToFurrow() const;
+	/** Her way to her target is clear for a furrow (looked at a few times a second, not every frame). */
 	bool IsLaneClear() const;
-	/** How far a charge along Direction can run, up to Wanted (cm): short of a wall, a drop or a rise she couldn't walk. */
+	/** How far a furrow along Direction can run, up to Wanted (cm): short of a wall, a drop or a rise she couldn't walk. */
 	float MeasureLane(const FVector& Direction, float Wanted) const;
-	void BeginTelegraph();
-	/** Fixes the line: toward her target as they stand now, its length measured, its crack laid. */
+	void BeginFurrow();
+	/** Fixes the line: toward her target as they stand now, its length measured, its ground laid. */
 	void TakeAim();
-	void BeginDash();
-	void TickCharge(float DeltaSeconds);
-	void TickDash(float DeltaSeconds);
-	/** Runs down her target if her body passed within reach of them going From To (once a charge). Whether it did now. */
-	bool TryChargeHit(const FVector& From, const FVector& To);
-	/** The dash is over: she slams down where she is and the ground bursts. */
-	void EndDash();
-	/** Back to walking and biting, the cooldown started (when there was a charge) and the crack left to close. */
-	void FinishCharge();
+	void BeginPlough();
+	void TickFurrow(float DeltaSeconds);
+	void TickPlough(float DeltaSeconds);
+	/** Runs down her target if her body passed within reach of them going From To (once a furrow). Whether it did now. */
+	bool TryFurrowHit(const FVector& From, const FVector& To);
+	/** The plough is over: she slams down where she is. */
+	void EndPlough();
+	/** Back to walking and biting, the cooldown started (when there was a furrow), its ground let go. */
+	void FinishFurrow();
 	/** Her feet: the ground under her middle. */
 	FVector GetFeet() const;
-	/** Grave dirt thrown up at Where (FWeaponFX), Strength 0 to 1. */
+	/** Grave dirt thrown up at Where, Strength 0 to 1 (UGravemotherFX's earth, or the weapons' grave dirt). */
 	void KickDirt(const FVector& Where, float Strength);
 
-	// --- The brood (GravemotherCreatureBrood.cpp) ---
-	/** Drops the dead from her brood. */
+	// --- The Grave Clod (GravemotherCreatureClod.cpp) ---
+	bool WantsToClod() const;
+	/** Her lob's way to her target is clear (sampled a few times a second). */
+	bool IsLobClear() const;
+	/** Where the clod sits in her grip now: between her front feet, a little over them. */
+	FVector GripSpot() const;
+	void BeginClod();
+	void TickClod(float DeltaSeconds);
+	void ThrowClod();
+	/** Her grip lost (a stagger, her death, the attack cut short): the clod falls. */
+	void DropClod();
+
+	// --- Unearthed (GravemotherCreatureUnearthed.cpp) ---
+	/** Raises Calls calls' mounds round her now, cracks racing out to them; how many. */
+	int32 RaiseMounds(int32 Calls);
+	/** A call her roar hasn't raised in time raises its mounds anyway. */
+	void TickUnearth(float DeltaSeconds);
+	/** Caves in every mound still bulging (her death, her fight over). */
+	void CollapseMounds();
 	void PruneBrood();
+
+	// --- The stone (GravemotherCreatureStone.cpp) ---
+	/** Her stone, made or set whole again for a new life. */
+	void ResetStone();
+	/** Where the stone sits on her abdomen bone (ART's placement, or one worked out from her abdomen's hull). */
+	FTransform StonePlacement() const;
+	/** Reads her abdomen's hit zones from her physics asset (the soft rear's). */
+	void ReadAbdomenZones();
 
 	// --- Her boss fight's moves (GravemotherCreatureMoves.cpp) ---
 	bool WantsToQuake() const;
-	bool WantsToSpit() const;
 	void BeginRoar();
 	void RoarPeak();
 	void BeginQuake();
 	void QuakeSlam();
-	void BeginSpit();
-	void SpitRelease();
-	/** Her moves' clocks, a quake's crack left behind by a broken-off quake, the reel, the burning crack. */
 	void TickMoves(float DeltaSeconds);
-	void TickBurn(float DeltaSeconds);
-	/** Her stagger: whatever she was at broken off, sunk and trembling; and up again. */
 	void BeginReel();
 	void EndReel();
-	/** Sunk on her legs, trembling (the reel, a missed charge's slam): her body pushed down as a hit pushes it, every frame. */
+	/** Sunk on her legs, trembling (the reel, a missed plough's slam): her body pushed down as a hit pushes it, every frame. */
 	void Sink();
-	/** Her boss's events. */
 	void HandleFightStarted();
 	void HandleFightReset();
 	void HandlePhaseChanged(int32 NewPhase, int32 OldPhase);
 	void HandleStaggered(bool bStaggered);
-	/** A shake of the camera from where she is (BossCameraShake). */
 	void ShakeFrom(const FVector& Where, float Strength, float Seconds) const;
-	/** Dirt thrown up in a ring of Count spots Radius round Center (and Center itself), Strength 0 to 1. */
 	void KickDirtRing(const FVector& Center, float Radius, int32 Count, float Strength);
+	/** Her bar's thin stone bar, as the stone stands. */
+	void UpdateStoneBar();
 
-	// The charge
-	EGravemotherCharge ChargeState = EGravemotherCharge::None;
-	float ChargeCooldownLeft = 0.f;
-	/** Her own clock, which runs as she ticks (the lane's looks are timed by it). */
-	float ChargeClock = 0.f;
+	// --- Her poses and her stars (GravemotherCreaturePose.cpp) ---
+	/** Stars wheeling over her head while she's stunned. */
+	void DrawStunStars();
+
+	// The Furrow
+	EGravemotherFurrow FurrowState = EGravemotherFurrow::None;
+	float FurrowCooldownLeft = 0.f;
+	/** Her own clock, which runs as she ticks (the lane's and the lob's looks are timed by it). */
+	float Clock = 0.f;
 	mutable float LaneCheckedAt = -1.f;
 	mutable bool bLaneClear = false;
 	bool bAimTaken = false;
-	bool bChargeHit = false;
-	FVector ChargeStart = FVector::ZeroVector;
-	FVector ChargeDirection = FVector::ForwardVector;
-	float ChargeLength = 0.f;
-	float DashTime = 0.f;
-	float DashSeconds = 0.f;
-	FVector DashLast = FVector::ZeroVector;
-	float TrailIn = 0.f;
-	TWeakObjectPtr<AGroundCrack> Crack;
-	/** Her bite's timing, which the charge's takes the place of while she charges. */
+	bool bFurrowHit = false;
+	bool bPloughRan = false;
+	/** Her plough's first frame has set her going (its time counts from the next: TickPlough). */
+	bool bPloughSetOff = false;
+	FVector FurrowStart = FVector::ZeroVector;
+	FVector FurrowDirection = FVector::ForwardVector;
+	float FurrowLength = 0.f;
+	float HeaveFront = 0.f;
+	float PloughTime = 0.f;
+	float PloughSeconds = 0.f;
+	FVector PloughLast = FVector::ZeroVector;
+	float ShakeIn = 0.f;
+	TWeakObjectPtr<AGravemotherFurrow> Furrow;
+	TWeakObjectPtr<UAudioComponent> HeaveSound;
+	TWeakObjectPtr<UAudioComponent> PloughSound;
+	/** Her bite's timing, which her moves' take the place of while she's at them. */
 	float BiteWindup = 0.55f;
 	float BiteRecovery = 0.45f;
 
-	// The brood
+	// The Grave Clod
+	float ClodCooldownLeft = 0.f;
+	mutable float LobCheckedAt = -1.f;
+	mutable bool bLobClear = false;
+	bool bClodTorn = false;
+	bool bClodCountered = false;
+	bool bStunned = false;
+	float StunClock = 0.f;
+	/** Her own reel's clock when her boss can't stagger her (not fighting): seconds left. */
+	float OwnReelLeft = 0.f;
+	float DigDirtIn = 0.f;
+	float SiftIn = 0.f;
+	TWeakObjectPtr<AGravemotherClod> HeldClod;
+	TWeakObjectPtr<AGravemotherClod> ThrownClod;
+	TWeakObjectPtr<UAudioComponent> DigSound;
+
+	// Unearthed
 	int32 BroodCallsMade = 0;
+	int32 PendingUnearths = 0;
+	float PendingFor = 0.f;
 	TArray<TWeakObjectPtr<ASpiderCreature>> Brood;
+	TArray<TWeakObjectPtr<AGravemotherMound>> Mounds;
+	/** The cracks racing out to the mounds (the decal's stand-in). */
+	TArray<TWeakObjectPtr<AGroundCrack>> MoundCracks;
+
+	// The stone
+	TWeakObjectPtr<AGravemotherStone> Stone;
+	/** Her abdomen's hit zones (bone space), read once: its round shapes are the soft rear. */
+	FCreatureBodyHulls AbdomenZones;
+	TArray<int32> RearZones;
+	int32 AbdomenHull = INDEX_NONE;
+	bool bZonesRead = false;
 
 	// Her boss fight
 	EGravemotherMove Move = EGravemotherMove::Bite;
 	bool bRoarWanted = false;
 	float QuakeCooldownLeft = 0.f;
-	float SpitCooldownLeft = 0.f;
 	TWeakObjectPtr<AGroundCrack> QuakeCrack;
 	bool bReeling = false;
 	float SinkClock = 0.f;
-	/** This charge reached its dash (a telegraph cut short leaves no burning crack). */
-	bool bDashRan = false;
-	TWeakObjectPtr<AGroundCrack> BurningCrack;
-	float BurnLeft = 0.f;
-	float BurnTick = 0.f;
 	int32 PacePhase = 0;
 	GravemotherFight::FPace Pace;
-	/** Her own charge and chase, as her class (or the level) gave them, which her pace scales. */
+	/** Her own furrow cooldown and chase, as her class (or the level) gave them, which her pace scales. */
 	bool bOwnPaceCaptured = false;
-	float OwnChargeCooldown = 8.f;
-	float OwnChargeTelegraph = 1.5f;
-	float OwnChargeAim = 0.6f;
+	float OwnFurrowCooldown = 8.f;
 	float OwnChaseSpeed = 480.f;
 };

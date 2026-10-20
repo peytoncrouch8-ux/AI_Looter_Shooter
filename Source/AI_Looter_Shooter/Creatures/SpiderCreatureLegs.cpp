@@ -47,6 +47,35 @@ float ASpiderCreature::WantedKneeSpread(const FLeg& Leg, float Stretch)
 	return FMath::Min(In * KneeSpreadPerFold, MaxKneeSpread);
 }
 
+FVector ASpiderCreature::OverrideFootTarget(const FLeg& Leg, const FTransform& Body) const
+{
+	// In the air in the body's frame (the clod lifted over her head), or on the ground ahead of the actor and dug into it
+	// (her front legs tearing at the floor), or between the two as she lifts.
+	const FSpiderPoseOverride& Pose = PoseOverride;
+	const float Scale = GetSizeScale();
+	const FVector Air = Body.TransformPosition(FVector(Pose.FrontAir.X, Pose.FrontAir.Y * Leg.Side, Pose.FrontAir.Z));
+	if (Pose.GroundShare <= 0.f)
+	{
+		return Air;
+	}
+	const FQuat Yaw = FRotator(0.f, GetActorRotation().Yaw, 0.f).Quaternion();
+	const FVector Spot = GetActorLocation() + Yaw.RotateVector(FVector(Pose.FrontGround.X, Pose.FrontGround.Y * Leg.Side, 0.f) * Scale);
+	const FVector Ground = GroundUnder(Spot) - FVector(0.f, 0.f, Pose.DigDepth * Scale);
+	return FMath::Lerp(Air, Ground, FMath::Clamp(Pose.GroundShare, 0.f, 1.f));
+}
+
+FVector ASpiderCreature::GetPosedFoot(int32 Pair, float Side) const
+{
+	for (const FLeg& Leg : Legs)
+	{
+		if (Leg.Pair == Pair && (Leg.Side > 0.f) == (Side > 0.f))
+		{
+			return Leg.PosedFoot;
+		}
+	}
+	return GetActorLocation();
+}
+
 void ASpiderCreature::StepHeldFoot(FLeg& Leg, const FVector& Target, float Omega, float DeltaSeconds)
 {
 	// Critically damped: no overshoot, and from rest it speeds up over a few frames rather than in one.
