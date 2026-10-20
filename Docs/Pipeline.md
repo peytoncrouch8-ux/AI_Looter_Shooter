@@ -528,7 +528,8 @@ docstring and `OPTIONS`).
   `Tools\portraits.ps1 <Hero>` runs a hero end to end (1024 px, 80 samples: about 100 s a bust here, paint 10 s).
   Lessons: the aux pass must save with the **Raw** view transform (Standard's sRGB curve turned id 1 into 4 and 6 into
   10, so paint.js tightened the wrong materials; every portrait before 2026-10-16 was painted that way);
-  `--aux-only` / `-AuxOnly` redo just that pass; `render.js --script` and `--frame` resolve beside render.js (pass
+  `--aux-only` / `-AuxOnly` redo just that pass (3-10 s a bust; a lone string splatted into a native call goes letter
+  by letter, so `portraits.ps1` wraps its extra arguments in `@(...)`); `render.js --script` and `--frame` resolve beside render.js (pass
   `Odessa.py`, not `Art/Portraits/Odessa.py`); Gauge has no MakeHuman body (primitives, a stand-in head Empty for
   `stage`, its own `render_aux_glow` reading each material's `looter_glow`); a hero's cyan rim light that also lit the
   hair went light-linked past it (Odessa's `rim_sparing`); eyes with no glow use the skin id (the aux pass blooms every

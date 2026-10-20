@@ -20,7 +20,8 @@ if (-not (Test-Path (Join-Path $portraits $frame))) { "no $frame yet (node Art\P
 foreach ($key in $Keys) {
     if (-not $NoRender) {
         $t = Get-Date
-        $extra = if ($AuxOnly) { @('--aux-only') } else { @() }
+        # @(...) keeps it an array: a lone string splatted into a native call goes letter by letter.
+        $extra = @(if ($AuxOnly) { '--aux-only' })
         & $blender -b --factory-startup --python-exit-code 1 --python (Join-Path $portraits $script) -- $key --size $Size --samples $Samples --out $Out @extra 2>&1 |
             Select-String -Pattern 'built in|rendered in|Error|Traceback' | ForEach-Object { "  $Hero$key : $($_.Line.Trim())" }
         if ($LASTEXITCODE -ne 0) { "RENDER FAILED: $Hero$key"; exit 1 }

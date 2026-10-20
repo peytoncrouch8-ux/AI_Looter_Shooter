@@ -49,15 +49,13 @@ here end to end (d20f275). Then (Pipeline "Character portraits", the four heroes
 `EllisBlender.py` (3b30400), per-hero frames and `sheet.js --hero` (68ad752), the four hero scripts (2187ba2 Crane,
 e7917bb Pike, 08a3677 Gauge, 87b0152 Odessa), `Tools\portraits.ps1`, the aux pass's Raw fix (3d0f206: every earlier
 portrait was painted with the ids misread). The four sheets `Saved/ArtPreviews/Portraits/<Hero>/Sheet_<Hero>.png` were
-sent to the user (Crane's and Pike's sheets were sent; Gauge's and Odessa's are rendered but NOT yet sent). **PAUSED
-by the user 2026-10-16 evening ("we are out of usage so pause everything until Monday at 9pm", i.e. 2026-10-20 21:00):**
-the aux-only repaints after the Raw fix (`Tools\portraits.ps1 <Hero> -AuxOnly` for Crane, Pike, Gauge, Odessa) were
-stopped part-way, so every sheet on disk is still the pre-fix painting (ids misread, which only softens or tightens the
-wrong materials; the busts themselves are right). **On resume:** run `-AuxOnly` for all four (about 2 min a hero), look
-at the four `Sheet_<Hero>.png`, send all four to the user, then **wait on the user: one pick (A, B or C) per hero**; each
-pick becomes a game model the way Ellis's did (Pipeline "Character models"). Clean-up before more hero work: merge the
-hero scripts' helpers into `bust.py` (renders compared before/after) and trim the files under ~600 lines. Nothing is
-scheduled; no agent or job is running; the editor is open with PIE stopped.
+sent to the user. (Paused by the user 2026-10-16 to 2026-10-19 21:00 for usage.) **Resumed 2026-10-19:** all four
+repainted with `-AuxOnly` after the Raw fix (that switch had passed Blender `--aux-only` letter by letter, so it
+re-rendered the colour pass too; fixed in `portraits.ps1`), the four sheets looked over and sent. **Waiting on the
+user: one pick (A, B or C) per hero**; each pick becomes a game model the way Ellis's did (Pipeline "Character
+models"). Clean-up before more hero work: merge the hero scripts' helpers into `bust.py` (shared: `tube`, `chain`,
+`turn`, `ramp`, `ball`, `tear`, `point_light`; renders compared before/after) and trim the files under ~600 lines.
+Nothing is scheduled; no agent or job is running; the editor is closed.
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):
