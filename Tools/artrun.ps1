@@ -10,7 +10,11 @@
 #   artrun.ps1 -Export Chapel,Graves -Family RR_Chapel                 export test (models.ps1 -NoImport) into
 #                                                                      Intermediate\ArtExport_<Family>
 #   artrun.ps1 -Script Tools\Blender\tangentcheck.py -ScriptArgs Intermediate\ArtExport_RR_Chapel,--where
-param([string]$Script = '', [switch]$Preview, [string[]]$ScriptArgs = @(), [string[]]$Export = @(), [string]$Family = '')
+#   -Threads N    Blender's render and bake threads (default: all)
+# Several agents share one PC (16 GB, 6 cores): at most LOOTER_BLENDER_SLOTS (default 2) runs go at once; the rest wait
+# for a slot (Saved\BlenderSlots\slot<k>.lock, held open while Blender runs; a killed run frees its slot).
+param([string]$Script = '', [switch]$Preview, [string[]]$ScriptArgs = @(), [string[]]$Export = @(), [string]$Family = '',
+    [int]$Threads = 0)
 
 $root = Split-Path $PSScriptRoot -Parent
 $flag = Join-Path $root 'Saved\ArtPause.flag'
@@ -21,14 +25,31 @@ while (Test-Path $flag) {
     Start-Sleep -Seconds 15
     $waited += 15
 }
+$slotDir = Join-Path $root 'Saved\BlenderSlots'
+New-Item -ItemType Directory -Force $slotDir | Out-Null
+$slots = if ($env:LOOTER_BLENDER_SLOTS) { [int]$env:LOOTER_BLENDER_SLOTS } else { 2 }
+$lock = $null
+$waited = 0
+while (-not $lock) {
+    for ($k = 1; $k -le $slots -and -not $lock; $k++) {
+        try { $lock = [IO.File]::Open((Join-Path $slotDir "slot$k.lock"), 'OpenOrCreate', 'ReadWrite', 'None') } catch { }
+    }
+    if ($lock) { break }
+    if ($waited -ge 1800) { "No Blender slot free after 30 minutes ($slots in use): run this again later."; exit 4 }
+    if ($waited -eq 0) { "Waiting for a Blender slot ($slots in use by other runs)..." }
+    Start-Sleep -Seconds 5
+    $waited += 5
+}
 # Child processes inherit a below-normal priority class.
 (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
 Set-Location $root
 
 if ($Export) {
-    if (-not $Family) { 'Give -Family: the export goes to Intermediate\ArtExport_<Family>.'; exit 1 }
+    if (-not $Family) { 'Give -Family: the export goes to Intermediate\ArtExport_<Family>.'; $lock.Dispose(); exit 1 }
     & powershell -NoProfile -File (Join-Path $PSScriptRoot 'models.ps1') -Only ($Export -join ',') -Out "Intermediate\ArtExport_$Family" -NoImport
-    exit $LASTEXITCODE
+    $code = $LASTEXITCODE
+    $lock.Dispose()
+    exit $code
 }
 if (-not $Script) { 'Give -Script <file.py> or -Export <names> -Family <family>.'; exit 1 }
 
@@ -46,6 +67,9 @@ $setup = "import sys; sys.path.insert(0, '$helpers'); import bpy; bpy.ops.wm.rea
 $rest = @()
 if ($Preview) { $rest += '--preview' }
 $rest += $ScriptArgs
-$blenderArgs = @('-b', '--factory-startup', '--python-exit-code', '2', '--python-expr', $setup, '--python', $path, '--') + $rest
+$threadArgs = @(if ($Threads -gt 0) { '-t'; "$Threads" })
+$blenderArgs = @('-b', '--factory-startup') + $threadArgs + @('--python-exit-code', '2', '--python-expr', $setup, '--python', $path, '--') + $rest
 & $blender @blenderArgs 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -notmatch '^(Blender \d|Read prefs|Fra:\d|\s*$)' }
-exit $LASTEXITCODE
+$code = $LASTEXITCODE
+$lock.Dispose()
+exit $code

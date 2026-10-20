@@ -83,7 +83,10 @@ open: the ember in the Deacon's hand flares and dims as he fires.
 - Before a new game the player picks one of five, Borderlands' way: **Ellis Ransom** the Revenant, **Odessa Lark** the
   Cardsharp, **Hollis Crane** the Unpaid, **Gauge** the Iron Hand, **Wendell Pike** the Surveyor. Looks, stories and
   three powers each: `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`, "Five heroes" and "Ember powers"; concept
-  models in `Art/Backlog/Characters`. Ellis's game model is SK_Ellis.
+  models in `Art/Backlog/Characters`. Ellis's game model is SK_Ellis. **The portraits the user picked (2026-10-19)**,
+  the specs for the game models (`Art/Portraits/<Hero>.py` `OPTIONS`; sheets `Saved/ArtPreviews/Portraits/<Hero>/`):
+  Ellis A The Revenant, Crane **A The Marshal**, Pike **A The Surveyor**, Gauge **C Company Iron**, Odessa **A The
+  Dealer**.
 - **One story for everyone** (the user: "You take Ellis's place"). The picked hero is the Revenant Sexton raised in the
   Ransom plot; missions, areas and bosses are the same for all five. The family story is told in full only as Ellis.
   For the other four the shared text goes hero-neutral: Pa is **the Keeper** (Abel Ransom), Delia the Keeper's mother,
