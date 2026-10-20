@@ -196,7 +196,9 @@ MADE_SETS = {'CraneHair': ('Hair',)}
 GLOWS = {'EyeGlow': (0x5AD8FF, 4.0), 'Ember': (0x5AD8FF, 5.0)}
 # The game's material slots: (master, the looks on it, the master's parameters), several slots sharing a set
 GAME_MATERIALS = {
-    'CraneSkin': ('CharacterSkin', ('Skin', 'Scalp', 'DeadEye'), {}),
+    # A dead man's skin barely scatters: the master's red subsurface showed as red-and-white blotches on his grey-green
+    # face under the hero select's rim and in warm light (2026-10-20; 0.15 read clean).
+    'CraneSkin': ('CharacterSkin', ('Skin', 'Scalp', 'DeadEye'), {'SubsurfaceAmount': 0.15}),
     'CraneCoat': ('CharacterCloth', ('Coat',), {'FuzzStrength': 0.3, 'FuzzLift': 0.1}),
     'CraneGarbCloth': ('CharacterCloth', ('Felt', 'Shirt', 'Trousers'), {'FuzzStrength': 0.3, 'FuzzLift': 0.12}),
     'CraneGarbLeather': ('Character', ('HatBand',), {'Specular': 0.3}),
