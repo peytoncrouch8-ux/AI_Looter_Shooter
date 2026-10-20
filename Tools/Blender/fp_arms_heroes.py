@@ -121,11 +121,17 @@ class Built:
         self.cloth = []             # (set name, [objects]) the weave goes on
         self.sources = []           # files the looks' colours come from (the bake's digest)
         self.fit = {}               # set name -> BakedSet.adjust's numbers (the look brought to first person)
+        self.rivets = {}            # set name -> ([objects], [(centre, normal, radius)]): rivets painted on (Gauge's)
+        self.fix_ao = set()         # sets whose occlusion is baked again with a margin for its size (fp_arms_paint)
 
-    def add_set(self, name, objects, master, slot, fit=None, **params):
+    def add_set(self, name, objects, master, slot, fit=None, rivets=None, fix_ao=False, **params):
         self.sets.append((name, objects, master, params, slot))
         if fit:
             self.fit[name] = fit
+        if rivets:
+            self.rivets[name] = rivets
+        if fix_ao:
+            self.fix_ao.add(name)
 
     def objects(self):
         return [o for _, objs, _, _, _ in self.sets for o in objs]
@@ -353,7 +359,8 @@ def build(hero):
     first = b.sets[0][0]
     stamp_path = os.path.join(lt.TEXTURE_DIR, first, 'bake.digest')
     baked, stamp = pt.bake_sets([(n, objs) for n, objs, _, _, _ in b.sets], b.objects(), stamp_path,
-                                OWN + SHARED + b.sources, force='rebake' in ARGV, keep='keep-textures' in ARGV)
+                                OWN + SHARED + b.sources, force='rebake' in ARGV, keep='keep-textures' in ARGV,
+                                fix_ao=b.fix_ao)
     if baked is not None:
         for set_name, objs, _, _, _ in b.sets:
             if set_name in b.fit:
@@ -364,6 +371,9 @@ def build(hero):
             pt.paint_hand(baked[set_name], hand, co, nrm, spec, style)
         for set_name, objs in b.cloth:
             pt.paint_cloth(baked[set_name], objs)
+        for set_name, (objs, rivets) in b.rivets.items():
+            whole = next(o for n, o, _, _, _ in b.sets if n == set_name)
+            pt.paint_rivets(baked[set_name], objs, rivets, others=[o for o in whole if o not in objs])
         for bs in baked.values():
             bs.save()
         pt.write_digest(stamp)

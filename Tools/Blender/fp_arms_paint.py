@@ -143,12 +143,37 @@ class BakedSet:
                     normal=normal)
 
 
-def bake_sets(sets, all_objects, digest_path, sources, force=False, keep=False):
+def _bake_ao(name, objs, size, margin, samples, distance):
+    """A set's occlusion baked again with a margin for its own size, as the set's BakedSet.ao (rows top first, scaled
+    to SIZE). looter_bake bakes it at a quarter of the set's size but with the set's margin (12 texels there = 48 at
+    full size, four times the islands' gaps), and Blender runs each object's margin on its own: one part's margin then
+    paints over its neighbours' islands (Gauge's bands and cuff wore black squares from the pistons' and the thumb's)."""
+    sc = bpy.context.scene
+    mats = bk._materials(objs)
+    img = bk._image(f'{name}_AO_own', size, 'Non-Color')
+    for m in mats:
+        bk._target(m, img)
+    sc.cycles.samples = samples
+    sc.world.light_settings.distance = distance
+    sc.render.bake.margin = margin
+    bk.select(objs)
+    bpy.ops.object.bake(type='AO', margin=margin, use_clear=True)
+    for m in mats:
+        nd = m.node_tree.nodes.get('BAKE_TARGET')
+        if nd is not None:
+            m.node_tree.nodes.remove(nd)
+    ao = bk._resize(bk._pixels(img)[..., 0], SIZE)[::-1].astype(np.float64)
+    bpy.data.images.remove(img)
+    log(f'{name}: occlusion baked again at {size} with a {margin}-texel margin')
+    return ao
+
+
+def bake_sets(sets, all_objects, digest_path, sources, force=False, keep=False, fix_ao=()):
     """sets: [(set name, [objects])] (each object wearing its looks, UVs made). Packs each set's atlas (always: the UVs
     must match the files), then bakes them all raised, or keeps the files when the digest matches. Returns ({name:
     BakedSet}, the digest to write once they're painted and saved), or (None, None) when the files were kept. The
     files are kept only while every set's packed UVs match the ones it was baked on (looter_bake's UV guard;
-    'keep-textures' keeps them anyway, with a warning)."""
+    'keep-textures' keeps them anyway, with a warning). fix_ao: sets whose occlusion is baked again (_bake_ao)."""
     for name, objs in sets:
         bk.pack(objs, margin=0.006)
     # each atlas's fingerprint now, before the bake raises the arms
@@ -174,6 +199,8 @@ def bake_sets(sets, all_objects, digest_path, sources, force=False, keep=False):
             paths = bk.bake_set(name, objs, size=SIZE, samples=1, ao_samples=32, ao_distance=0.06, margin=12,
                                 uv=uvs[name])
             out[name] = BakedSet(name, paths)
+            if name in fix_ao:
+                out[name].ao = _bake_ao(name, objs, SIZE // 4, margin=2, samples=32, distance=0.06)
     finally:
         for ob, co in rest:
             ob.data.vertices.foreach_set('co', co.ravel())
@@ -273,3 +300,52 @@ def paint_cloth(bs, objs, weave=1.0, seed=5):
     cloth = bs.height_mask & (bs.metal < 0.5)
     bs.height = np.where(cloth, bs.height + weave * (tw * 0.000022 + tw2 * 0.000008 + fuzz * 0.000006), bs.height)
     bs.color = np.where(cloth[..., None], bs.color * (1.0 - 0.035 * weave * tw)[..., None], bs.color)
+
+
+def paint_rivets(bs, objs, rivets, others=(), color=(0.83, 0.66, 0.36), rough=0.24):
+    """Round-headed brass rivets painted onto parts' faces (Gauge's casings: modelled, each ring of them cost more than
+    the hand): rivets [(centre, normal, radius)] in the parts' space (m). A dome in the height (its normal), polished
+    brass in colour, metal and roughness, a dark ring where the head meets the plate; only on faces looking the
+    rivet's way. others: the set's other parts, flat in the height: save() spreads the painted height only past the
+    islands' edges, and without them it spread the domes into their islands in blocks (dark squares on the bands)."""
+    for obj in others:
+        _, mask = rasterize_object(obj, np.array([v.co[:] for v in obj.data.vertices]))
+        bs.height_mask |= mask
+    for obj in objs:
+        me = obj.data
+        co = np.array([v.co[:] for v in me.vertices])
+        img, mask = rasterize_object(obj, co)
+        uv, idx, wco, _ = mesh_corners(obj)
+        px_m = texel_size(uv, idx, co)
+        bs.px_m = px_m if bs.px_m is None else min(bs.px_m, px_m)
+        T = img[mask]
+        P, N = T[:, 0:3], T[:, 3:6]
+        N = N / np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+        head = np.zeros(len(P))
+        ring = np.zeros(len(P))
+        dome = np.zeros(len(P))
+        for c, n, r in rivets:
+            n = np.asarray(n, dtype=np.float64) / np.linalg.norm(n)
+            d = P - np.asarray(c)
+            facing = (N @ n) > 0.6
+            dist = np.linalg.norm(d - np.outer(d @ n, n), axis=1)
+            near = facing & (np.abs(d @ n) < r) & (dist < r * 1.35)
+            if not near.any():
+                continue
+            t = np.where(near, dist / r, 9.0)
+            h = np.sqrt(np.clip(1.0 - t * t, 0.0, 1.0))
+            head = np.maximum(head, np.where(t < 1.0, np.clip((1.0 - t) / 0.12, 0.0, 1.0), 0.0))
+            dome = np.maximum(dome, h * 0.6 * r)
+            ring = np.maximum(ring, np.where(near, np.exp(-((t - 1.06) / 0.1) ** 2), 0.0))
+        if not (head.any() or ring.any()):
+            continue
+        col = bs.color[mask]
+        col = col * (1.0 - 0.6 * ring)[:, None]
+        brass = np.asarray(color) * (0.85 + 0.25 * (dome / max(dome.max(), 1e-9)))[:, None]
+        bs.color[mask] = mix(col, brass, head)
+        bs.rough[mask] = bs.rough[mask] * (1.0 - head) + rough * head
+        bs.metal[mask] = np.maximum(bs.metal[mask], head)
+        bs.ao[mask] = bs.ao[mask] * (1.0 - 0.35 * ring)
+        bs.height[mask] = bs.height[mask] + dome - 0.0002 * ring
+        bs.height_mask |= mask
+        log(f'{bs.name}: {int((head > 0.5).sum())} texels of rivet heads painted on {obj.name}')
