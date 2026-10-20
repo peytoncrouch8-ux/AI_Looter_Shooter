@@ -851,8 +851,10 @@ def build_cuffs(M, fig, coat):
         hit = tree.ray_cast(Vector(tuple(mid + out * 0.15)), Vector(tuple(-out)), 0.3)
         at = np.array(hit[0]) if hit[0] is not None else mid + out * (ra + 0.006)
         side = gm.unit(np.cross(out, ax))
-        tab = np.array([[at + ax * 0.018 + side * w_ + out * 0.0025 for w_ in (-0.009, 0.0, 0.009)],
-                        [at - ax * 0.012 + side * w_ + out * 0.003 for w_ in (-0.009, 0.0, 0.009)]])
+        # rows from the elbow's side toward the hand: the grid's faces then face out (the other way round they faced the
+        # cuff, baked its shadow, near black, and Unreal culled them from outside)
+        tab = np.array([[at - ax * 0.012 + side * w_ + out * 0.003 for w_ in (-0.009, 0.0, 0.009)],
+                        [at + ax * 0.018 + side * w_ + out * 0.0025 for w_ in (-0.009, 0.0, 0.009)]])
         parts.append(gm.mesh(f'CuffTab_{s}', gm.grid(tab[..., 0], tab[..., 1], tab[..., 2]), M.slot('Coat')))
         parts.append(place_button(f'CoatButton_cuff{s}', at - ax * 0.002 + out * 0.006, out, M.slot('Brass'), 0.0048))
     return parts

@@ -38,6 +38,12 @@ DUST = np.array([0.55, 0.50, 0.42])
 KIND = {k: dict(v) for k, v in eh.KIND.items()}
 for _k in KIND.values():
     _k['width'] = (_k['width'][0] * 1.1, _k['width'][1] * 1.15)        # coarser, wiry whiskers
+# Soft card edges (2026-10-20: up close in game the chops' edge stepped like stairs, each card's top and sides a hard
+# line): the strands' roots fade in from a start of their own, up to this share of the card down (the broad dark under-
+# strands, the rest), over this share; toward a strip's sides they thin to SIDE_FLOOR over SIDE_SHARE of its width.
+ROOT_FADE = (0.05, 0.16, 0.07)
+SIDE_FLOOR, SIDE_SHARE = 0.2, 0.2
+CHOP_EDGE = 26           # narrow cards each side along the chops' edge up the cheek (whiskers)
 
 
 def _region(h, w, kind, seed, periodic=False):
@@ -111,9 +117,14 @@ def _region(h, w, kind, seed, periodic=False):
         tipf = lt.smooth(L - 0.16, L, t) if L > 0.2 else t / max(L, 1e-3)
         wd = wd * (1.0 - 0.65 * tipf)
         a = (1.0 - lt.smooth(L - 0.035, L, t)) * (1.0 if body else rng.uniform(0.86, 1.0))
+        # each strand fading in from its own start a little way down: a card's top lying over the skin (the chops'
+        # edge up the cheek, the brows) has no hard line across it (in game the mask clipped it into steps)
+        t0 = rng.uniform(0.0, ROOT_FADE[0] if body else ROOT_FADE[1])
+        a = a * lt.smooth(t0, t0 + ROOT_FADE[2], t)
         if not periodic:
             edge = np.minimum(x - lo_x, hi_x - x)
-            a = a * (0.45 + 0.55 * np.clip(edge / (0.12 * span_x), 0.0, 1.0)) * lt.smooth(0.0, 8.0, edge)
+            a = a * (SIDE_FLOOR + (1.0 - SIDE_FLOOR) * np.clip(edge / (SIDE_SHARE * span_x), 0.0, 1.0)) * \
+                lt.smooth(0.0, 8.0, edge)
         dark = (rng.random() < DARK_SHARE) or (c is not None and c['dark'] and rng.random() < 0.5)
         root, mid, tip = DARK if dark else LIGHT
         v = math.exp(rng.normal() * 0.12) * (c['v'] if c is not None else 1.0) * cfg['value']
@@ -133,6 +144,7 @@ def _region(h, w, kind, seed, periodic=False):
     if 'fill' in cfg:
         edge = cfg['fill'] + 0.08 * lt.noise((8, w), seed + 99, 40.0, 0.01)[4]
         fill_a = 1.0 - lt.smooth(edge[None, :] - 0.08, edge[None, :], t_all[:, None])
+        fill_a = fill_a * lt.smooth(0.0, ROOT_FADE[2] + 0.03, t_all)[:, None]       # the sheet's roots fade in too
         mixc = LIGHT[0] * (1 - DARK_SHARE) + DARK[0] * DARK_SHARE
         mixm = LIGHT[1] * (1 - DARK_SHARE) + DARK[1] * DARK_SHARE
         fc = (mixc + (mixm - mixc) * lt.smooth(0.0, 0.5, t_all)[:, None]) * cfg['value'] * 0.62
@@ -300,9 +312,9 @@ def grow_bent(tree, root, length, rows, clear, out_bias, rng, wob, down, bend):
 
 
 def _card(cards, tree, head_c, rng, root, direction, length, width, kind, rows=5, lift=(0.0015, 0.004), out_bias=0.3,
-          wob=0.04, twist=12.0, across=2, cup=0.06, flare=0.0, normal_bias=None, bend=None):
+          wob=0.04, twist=12.0, across=2, cup=0.06, flare=0.0, normal_bias=None, bend=None, top=None):
     """One card from root along direction for length, kept lift(t) off the surfaces in tree, curled to cup, UVs on a
-    strip of kind; bend turns it along its length."""
+    strip of kind; bend turns it along its length; top(point), the height of the edge it grows under there."""
     clear = lambda t: lift[0] + (lift[1] - lift[0]) * float(lt.smooth(0.0, 0.6, t))
     if bend is not None:
         st = grow_bent(tree, root, length, rows, clear, out_bias, rng, wob, direction, bend)
@@ -311,6 +323,14 @@ def _card(cards, tree, head_c, rng, root, direction, length, width, kind, rows=5
     tang, side, out = eh.frames(st, head_c, rng.uniform(-twist, twist))
     w = width * rng.uniform(0.85, 1.15) * (1.0 - 0.35 * np.linspace(0.0, 1.0, rows))
     Pg, sfrac = eh.card_grid(st, side, out, w, across, np.full(rows, cup))
+    if top is not None:
+        # each column's root end slid down the card to under the edge, easing out toward the tip: a card's level top
+        # across a rising edge (the chops' up the cheek) stood out of it as a step (2026-10-20)
+        ease = 1.0 - np.linspace(0.0, 1.0, rows)
+        for j in range(Pg.shape[1]):
+            over = Pg[0, j, 2] - top(Pg[0, j])
+            if over > 0.0:
+                Pg[:, j] += tang * (over / max(-tang[0, 2], 0.3) * ease)[:, None]
     k = int(rng.choice(eh.strips_of(kind)))
     sf = sfrac[::-1] if rng.random() < 0.5 else sfrac
     tt = np.linspace(0.0, 1.0, rows)
@@ -408,6 +428,7 @@ def whiskers(M, fig, skin, mat):
         # four levels of cards, the higher roots' over the lower ones; the cards curl forward toward the mouth lower
         # down (more at the front of the cheek), the outer levels clumped (their tapered ends break the outline up)
         a_front, a_back = prof[0, 0], prof[-1, 0]
+        edge_at = lambda q: float(np.interp(np.degrees(np.abs(round_angle(q, head_c)[0])), prof[:, 0], prof[:, 1])) - 0.003
         for level, (f, lift, kind, width) in enumerate(((0.72, (0.0028, 0.0065), 'dense', 0.022),
                                                        (0.50, (0.0048, 0.0098), 'dense', 0.022),
                                                        (0.27, (0.0068, 0.0130), 'clump', 0.021),
@@ -426,9 +447,32 @@ def whiskers(M, fig, skin, mat):
                 front = float(np.clip((a_back - c) / max(a_back - a_front, 1.0), 0.0, 1.0))
                 d = gm.unit(down + 0.10 * fwd + 0.20 * side + rng.normal(size=3) * 0.05)
                 bend = 0.25 * fwd * (0.4 + 0.8 * front) - 0.10 * side
-                _card(cards, tree, head_c, rng, r, d, max(L, 0.016), width, kind, rows=5, lift=lift, out_bias=0.25,
-                      wob=0.05, twist=14.0, cup=0.06, bend=bend)
+                # the lower levels lie under the rest: four rows, the lowest flat (their triangles pay for the edge's
+                # cards)
+                rows_, across_ = ((4, 1), (4, 2), (5, 2), (5, 2))[level]
+                _card(cards, tree, head_c, rng, r, d, max(L, 0.016), width, kind, rows=rows_, lift=lift, out_bias=0.25,
+                      wob=0.05, twist=14.0, across=across_, cup=0.06, bend=bend, top=edge_at)
                 add(f'chops {kind}')
+        # the edge up the cheek: the chops' top rises from the mouth's corner to the temple, and the levels' cards, each
+        # with a level top, stepped up it like stairs; narrow cards rooted close together along it, over the levels,
+        # their roots fading in (the atlas), break it up as a whisker's edge
+        for k in range(CHOP_EDGE):
+            c = a_front + (a_back - a_front) * (k + rng.uniform(0.2, 0.8)) / CHOP_EDGE
+            t = np.interp(c, prof[:, 0], prof[:, 1])
+            b = np.interp(c, prof[:, 0], prof[:, 2])
+            z = t - rng.uniform(0.002, 0.008)
+            p = on_skin(c, z, sx)
+            if p is None:
+                continue
+            r, _n = snap(p, 0.0095)
+            front = float(np.clip((a_back - c) / max(a_back - a_front, 1.0), 0.0, 1.0))
+            L = min(0.6 * (z - b), 0.034) * rng.uniform(0.75, 1.0) + 0.008
+            d = gm.unit(down + 0.10 * fwd + 0.20 * side + rng.normal(size=3) * 0.08)
+            kind = 'wisp' if k % 3 == 2 else 'clump'
+            _card(cards, tree, head_c, rng, r, d, max(L, 0.014), rng.uniform(0.009, 0.012), kind, rows=4,
+                  lift=(0.0095, 0.0170), out_bias=0.25, wob=0.05, twist=16.0, across=1, cup=0.0,
+                  bend=0.25 * fwd * (0.4 + 0.8 * front) - 0.10 * side, top=edge_at)
+            add('chops edge')
         for _ in range(6):
             i = idx[rng.integers(len(idx))]
             r, _n = snap(W[i], 0.006)

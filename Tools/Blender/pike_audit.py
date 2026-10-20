@@ -98,6 +98,14 @@ def check(fig, arm, pose):
     return found
 
 
+# the one-sided shots: (target, camera offset, lens mm, size)
+SHOTS = {'onesided_front': ((0.0, -0.1, 0.95), (0.0, -2.6, 0.1), 85.0, (1200, 1400)),
+         'onesided_hip_left': ((0.15, -0.1, 0.82), (0.45, -1.3, 0.05), 85.0, (1200, 1200)),
+         'onesided_hip_left_side': ((0.18, -0.02, 0.82), (1.3, -0.35, 0.05), 85.0, (1200, 1200)),
+         'onesided_hip_right': ((-0.15, -0.1, 0.82), (-0.45, -1.3, 0.05), 85.0, (1200, 1200)),
+         'onesided_spyglass': ((0.21, 0.06, 0.85), (1.2, 0.55, 0.1), 85.0, (1200, 1200))}
+
+
 def one_sided(M, fig, arm, skin, baked, path):
     """The baked look drawn one-sided as Unreal draws it (a face seen from behind is see-through: Cycles has no back
     face culling, so each material turns transparent on its back faces), at the game's idle: the front and both hips
@@ -118,6 +126,14 @@ def one_sided(M, fig, arm, skin, baked, path):
         nt.links.new(clear.outputs[0], mix.inputs[2])
         nt.links.new(mix.outputs[0], out.inputs['Surface'])
         mat['_one_sided'] = True
+    for mat in [sl.material for sl in skin.material_slots if sl.material is not None]:
+        if os.environ.get('AUDIT_FLAG') and os.environ['AUDIT_FLAG'] in mat.name:
+            # a material flagged bright red (which part a spot in the render is)
+            nt = mat.node_tree
+            out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+            em = nt.nodes.new('ShaderNodeEmission')
+            em.inputs['Color'].default_value = (1.0, 0.0, 0.0, 1.0)
+            nt.links.new(em.outputs[0], out.inputs['Surface'])
     la.cycles(int(os.environ.get('AUDIT_SAMPLES', 32)))
     la.light('day')
     if os.environ.get('AUDIT_SUN'):
@@ -151,20 +167,103 @@ def one_sided(M, fig, arm, skin, baked, path):
     for side in 'lr':
         print(f'PIKE one-sided: hand_{side} {tuple(round(v, 3) for v in pbs["hand_" + side].head)} to '
               f'{tuple(round(v, 3) for v in pbs["middle_01_" + side].head)}', flush=True)
-    shots = {'onesided_front': ((0.0, -0.1, 0.95), (0.0, -2.6, 0.1), 85.0, (1200, 1400)),
-             'onesided_hip_left': ((0.15, -0.1, 0.82), (0.45, -1.3, 0.05), 85.0, (1200, 1200)),
-             'onesided_hip_left_side': ((0.18, -0.02, 0.82), (1.3, -0.35, 0.05), 85.0, (1200, 1200)),
-             'onesided_hip_right': ((-0.15, -0.1, 0.82), (-0.45, -1.3, 0.05), 85.0, (1200, 1200)),
-             'onesided_spyglass': ((0.21, 0.06, 0.85), (1.2, 0.55, 0.1), 85.0, (1200, 1200))}
+    if os.environ.get('AUDIT_PROBE'):
+        probes(M, fig, skin)
+    shots = SHOTS
+    only = os.environ.get('AUDIT_SHOTS')
     for name, (target, off, lens, size) in shots.items():
+        if only and name not in only.split(','):
+            continue
         la.shoot(path(name), target, off, lens, size)
     la.reset(arm)
+
+
+def probe(M, fig, ray, skin=None):
+    """Which game parts a ray (origin x,y,z then the point it aims at x,y,z; the rest pose) passes through, nearest
+    first, each hit's facing (front: seen as drawn; back: Unreal culls it): a dark spot in a render named."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    o, at = Vector(ray[:3]), Vector(ray[3:6])
+    d = (at - o).normalized()
+    hits = []
+    for name, (co, faces, _w) in fig.rest.items():
+        tris = [(f[0], f[k], f[k + 1]) for f in faces for k in range(1, len(f) - 1)]
+        if not tris:
+            continue
+        tree = BVHTree.FromPolygons([tuple(map(float, p)) for p in co], tris, all_triangles=True)
+        start = o.copy()
+        for _ in range(6):
+            loc, nrm, _i, dist = tree.ray_cast(start, d, 5.0)
+            if loc is None:
+                break
+            hits.append(((loc - o).length, name, 'front' if nrm.dot(d) < 0.0 else 'back', tuple(round(v, 3) for v in loc)))
+            start = loc + d * 1e-4
+    for dist, name, side, loc in sorted(hits)[:12]:
+        print(f'PIKE probe: {dist * 100:6.1f} cm {name} ({side}) at {loc}', flush=True)
+    # the joined game mesh as drawn: the first face the ray meets, its material and the baked texels under it
+    skin = skin or bpy.data.objects.get('Pike')
+    if skin is None:
+        return
+    me = skin.evaluated_get(bpy.context.evaluated_depsgraph_get()).to_mesh()
+    me.calc_loop_triangles()
+    mw = skin.matrix_world
+    co = [mw @ v.co for v in me.vertices]
+    tris = list(me.loop_triangles)
+    tree = BVHTree.FromPolygons([tuple(c) for c in co], [tuple(t.vertices) for t in tris], all_triangles=True)
+    loc, nrm, i, _d = tree.ray_cast(o, d, 5.0)
+    if loc is None:
+        print('PIKE probe: the joined mesh: nothing', flush=True)
+        return
+    t = tris[i]
+    from mathutils.geometry import barycentric_transform
+    uvl = me.uv_layers.active.data
+    uv = barycentric_transform(loc, *(co[v] for v in t.vertices),
+                               *(Vector((uvl[k].uv[0], uvl[k].uv[1], 0.0)) for k in t.loops))
+    mat = skin.material_slots[me.polygons[t.polygon_index].material_index].material
+    name = mat.name.split('.')[0] if mat else ''
+    out = f'PIKE probe: drawn {name} ({"front" if nrm.dot(d) < 0.0 else "back"}) uv ({uv.x:.4f}, {uv.y:.4f})'
+    tex = name.replace('_', '')
+    tex = 'PikeGarb' if tex.startswith('PikeGarb') else tex
+    for ch in ('BC', 'ORM', 'N'):
+        p = os.path.join(M.REPO, 'Art', 'Textures', tex, f'T_{tex}_{ch}.png')
+        if os.path.exists(p):
+            im = bpy.data.images.load(p, check_existing=True)
+            w, h = im.size
+            if '_px' not in im:
+                PIXELS[p] = np.array(im.pixels[:], dtype=np.float32).reshape(h, w, 4)
+                im['_px'] = 1
+            px = PIXELS[p][int(uv.y % 1.0 * (h - 1)), int(uv.x % 1.0 * (w - 1)), :3]
+            out += f'; {ch} {[round(float(v), 2) for v in px]}'
+    print(out, flush=True)
+
+
+PIXELS = {}
+
+
+def probes(M, fig, skin):
+    """AUDIT_PROBE's rays ('x,y,z,x,y,z' or 'shot,x,y'; ';' between): probe() each (in one_sided, as posed)."""
+    for ray in os.environ['AUDIT_PROBE'].split(';'):
+        v = ray.split(',')
+        if v[0] in SHOTS:
+            # 'shot,x,y': through pixel (x, y) of a one-sided shot (la.shoot's camera: 36 mm sensor, square)
+            from mathutils import Vector
+            target, off, lens, size = SHOTS[v[0]]
+            cam = Vector(target) + Vector(off)
+            rot = (Vector(target) - cam).to_track_quat('-Z', 'Y').to_matrix()
+            half = 18.0 / lens
+            nx, ny = (float(v[1]) - size[0] / 2) / (size[0] / 2), (size[1] / 2 - float(v[2])) / (size[0] / 2)
+            d = rot @ Vector((nx * half, ny * half, -1.0))
+            v = list(cam) + list(cam + d)
+        probe(M, fig, [float(x) for x in v], skin)
 
 
 def run(M, fig, arm, skin, baked, tag):
     out = os.path.join(M.REPO, 'Saved', 'Concepts', 'PikeAudit', tag)
     os.makedirs(out, exist_ok=True)
     path = lambda n: os.path.join(out, n + '.png')
+    if os.environ.get('AUDIT_PROBE') and not os.environ.get('AUDIT_ONESIDED'):
+        probes(M, fig, skin)
+        return
     if os.environ.get('AUDIT_ONESIDED'):
         one_sided(M, fig, arm, skin, baked, path)
         M.log(f'audit: one-sided renders in {out}')

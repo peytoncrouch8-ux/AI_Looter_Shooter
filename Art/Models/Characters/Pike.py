@@ -276,9 +276,19 @@ def build_skin(fig):
     scalp = (hv[:, 1] > line) & (fig.w_head > 0.5)
     beard = fig.beard > 0.5
     idx = np.array([d.value for d in ob.data.attributes['mh_index'].data])
+    # on the cheeks the stubble stops a ring of faces inside the chops: its edge runs along the mesh's faces (steps of
+    # a centimetre and more) and showed past the cards' soft edge as dark stairs up the cheek (2026-10-20); there the
+    # cards' edge lies over skin, as real whiskers thin out over it (the mustache keeps all of it: pink showed through)
+    cheek = np.abs(fig.b.h['verts'][:, 0]) > 0.42
+    deep = beard.copy()
+    for e in ob.data.edges:
+        a, b = idx[e.vertices[0]], idx[e.vertices[1]]
+        if beard[a] != beard[b]:
+            deep[a] &= ~cheek[a]
+            deep[b] &= ~cheek[b]
     for p in ob.data.polygons:
         v = idx[list(p.vertices)]
-        if scalp[v].all() or beard[v].sum() >= len(v) - 1:
+        if scalp[v].all() or deep[v].sum() >= len(v) - 1:
             p.material_index = 1
     # the skin's painted zones (looter_looks.skin multiplies its colour by them): a weathered man of fifty-five
     attr = ob.data.color_attributes.new('zones', 'FLOAT_COLOR', 'POINT')
@@ -553,6 +563,12 @@ CLEAR = (('Waistcoat', ('Shirt',)), ('Coat', ('Waistcoat', 'Shirt')), ('Skirt', 
          ('Bandolier', ('Coat', 'Lapel', 'Pocket', 'Flap', 'Strap', 'Belt', 'Waistcoat')),
          ('Kerchief', ('Pike', 'Collar', 'Coat', 'Lapel', 'Waistcoat', 'Shirt', 'Strap', 'Bandolier')),
          ('Rucksack', ('Coat', 'Strap', 'Bandolier')), ('Bedroll', ('Coat', 'Skirt', 'Belt', 'Strap', 'Bandolier')))
+# Reduced faces dropped where the skirt and the belt always cover them (every point of the face in the band, m): the
+# breeches' top and the waistcoat's foot. Under the belt at the left hip they came through the skirt's big faces between
+# its points (a sliver under the belt seen from behind, 2026-10-20; clear() moves points only, and lifting or smoothing
+# the skirt over them folded it or let them through lower down). The skirt's top band moves with the pelvis, so no
+# pose uncovers them.
+HIDDEN = {'Trousers': (BELT - 0.065, 2.0), 'Waistcoat': (0.0, BELT - 0.035)}
 
 
 def make_lows(fig, highs):
@@ -589,6 +605,15 @@ def make_lows(fig, highs):
                 low.vertex_groups.remove(low.vertex_groups['keep'])
             unflip(low, ob)
     by = lambda *names: [o for o in lows if family(o.name) in names]
+    for fam, (lo, hi) in HIDDEN.items():
+        for ob in by(fam):
+            bm = bmesh.new()
+            bm.from_mesh(ob.data)
+            gone = [f for f in bm.faces if all(lo < v.co.z < hi for v in f.verts)]
+            bmesh.ops.delete(bm, geom=gone, context='FACES')
+            bm.to_mesh(ob.data)
+            bm.free()
+            log(f'{ob.name}: {len(gone)} hidden faces dropped')
     for outer, inner in CLEAR:
         under = by(*inner)
         if not under:
@@ -629,9 +654,16 @@ def prepare_uvs(objects):
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
     ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'Pike.py'),
-    ('Art', 'Portraits', 'bust.py'), ('Tools', 'Blender', 'ellis_hat.py'), ('Tools', 'Blender', 'ellis_hair.py'),
+    ('Art', 'Portraits', 'bust.py'), ('Art', 'Portraits', 'bustkit.py'), ('Tools', 'Blender', 'ellis_hat.py'),
+    ('Tools', 'Blender', 'ellis_hair.py'),
     ('Tools', 'Blender', 'pike_clothes.py'), ('Tools', 'Blender', 'pike_gear.py'), ('Tools', 'Blender', 'pike_hair.py'),
     ('Tools', 'Blender', 'pike_looks.py'))]
+
+
+# The bake's rays per set where the defaults fall short (looter_bake.bake_set: from cage m outside each game face, reaching
+# reach m): the coat's skirt at 13% cuts 1.0-1.5 cm inside the draped one at the left hip, and rays from 1.5 cm out
+# started past it and met nothing (an unbaked black patch below the belt, 2026-10-20)
+BAKE_RAYS = {'PikeCoat': dict(cage=0.025, reach=0.05)}
 
 
 def bake_all(lows, highs, size):
@@ -652,7 +684,7 @@ def bake_all(lows, highs, size):
         if have == want and '--rebake' not in ARGS:
             out[set_name] = bk.load_set(set_name)
         if out.get(set_name) is None:
-            out[set_name] = bk.bake_set(set_name, obs, size, sources=src, hide=highs)
+            out[set_name] = bk.bake_set(set_name, obs, size, sources=src, hide=highs, **BAKE_RAYS.get(set_name, {}))
             log(f'baked {set_name} ({len(obs)} parts from {len(src)})')
         else:
             log(f'{set_name}: kept (baked from these scripts before)')
