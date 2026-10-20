@@ -663,12 +663,26 @@ def build_watch_chain(fig, vest):
     nz = fig.neck[2]
     a = np.array([0.004, nz - BUTTON0])
     b = np.array([-0.075, nz - BUTTON0 - 0.012])
-    pts = []
+    # Only hits on the waistcoat's front count: by the first button the two fronts part, and two rays slipped through
+    # to the back panel 20 cm behind (2026-10-20): the game tube ran through the body there, and those faces baked
+    # black (no link within the bake's reach). A missed sample takes its place between its neighbours on the front.
+    hits = []
     for t in np.linspace(0, 1, 40):
         x, zz = a + (b - a) * t - np.array([0.0, 0.032 * math.sin(math.pi * t)])
         hit = tree.ray_cast(Vector((x, -0.6, zz)), Vector((0, 1, 0)), 1.5)
-        if hit[0] is not None:
-            pts.append((np.array(hit[0]), np.array(hit[1])))
+        front = hit[0] is not None and hit[1].y < -0.3
+        hits.append((np.array(hit[0]), np.array(hit[1])) if front else None)
+    good = [k for k, h in enumerate(hits) if h is not None]
+    pts = []
+    for k, h in enumerate(hits):
+        if h is None:
+            lo = max((g for g in good if g < k), default=None)
+            hi = min((g for g in good if g > k), default=None)
+            if lo is None or hi is None:
+                continue                    # past the last hit on the front: the chain ends there
+            w = (k - lo) / (hi - lo)
+            h = (hits[lo][0] * (1.0 - w) + hits[hi][0] * w, gm.unit(hits[lo][1] * (1.0 - w) + hits[hi][1] * w))
+        pts.append(h)
     bm = bmesh.new()
     path = []
     for k, (p, nrm) in enumerate(pts):

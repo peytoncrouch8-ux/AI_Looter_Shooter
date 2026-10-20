@@ -252,6 +252,10 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   power lights went High/Epic only** (`AEmberPropActor::LightsAllowed`; the light was the whole +0.3 ms, proven with
   `ShowFlag.PointLights 0`). The Gravemother's Barrow fight over 2,400 frames: 7.7 (p95 8.2). New dev command
   `Looter.Embers.Repeat <id> <seconds>|off`. Not measured: the 37-view tour (nothing changed the world's views).
+- **Polish (the user's pick next):** POLISH-ART (Blender) makes SM_SlagPool (molten slag as an emissive surface, notes
+  in `Saved/Polish/SLAGPOOL.md`) and fixes Odessa's black watch-chain island; POLISH-CODE (owns the editor) makes Rail
+  Spike read from behind and in first person, checks and fixes the Gravemother's ground decals by eye, tunes Crane's hook
+  (and hair, coat, cape) swing in motion, then wires the slag pool once Main imports it. PIKE still on his coat patch.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
