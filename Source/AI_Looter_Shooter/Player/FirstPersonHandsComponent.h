@@ -14,7 +14,9 @@ class USkeletalMesh;
 class UWeaponManagerComponent;
 
 /**
- * The player's first-person arms, Ellis's gloves and duster sleeves (SK_FP_Arms), on the gun in hand like Borderlands':
+ * The player's first-person arms, the played hero's (UHeroDefinition::FirstPersonArms: Ellis's gloves and duster sleeves
+ * SK_FP_Arms, or SK_FP_Arms_<Id>, every one on SK_FP_Arms' skeleton; Ellis's while a hero's aren't in the game), at that
+ * hero's size (FirstPersonArmsScale, else ArmsScale), on the gun in hand like Borderlands':
  * a child of the first-person camera drawn as first person (the gun's own field of view and scale, so they never clip a
  * wall), posed entirely by code (FFirstPersonHandsRig) from the gun as it is this frame. ALooterCharacter makes it.
  *
@@ -48,6 +50,16 @@ public:
 	/** The mannequin stands in for the arms (SK_FP_Arms isn't imported yet). */
 	bool IsUsingStandIn() const { return bStandIn; }
 
+	/**
+	 * Puts on the arms of the hero played now (Looter.Hero switching heroes mid-play: Dev/HeroDevCommands' WearHeroNow).
+	 * A session's hero is known before the character begins, so a normal start needs nothing more.
+	 */
+	void WearHero();
+
+	/** The arms worn now (the hero's, Ellis's or the stand-in), and their size against the guns. */
+	const USkeletalMesh* GetArmsMesh() const;
+	float GetArmsScale() const { return GetWantedScale(); }
+
 	/** Where a hand's grip point is now, and where it was sent (world): the last frame's pose and its targets. */
 	FVector GetHoldPoint(EFirstPersonHand Hand) const;
 	FVector GetTargetHoldPoint(EFirstPersonHand Hand) const;
@@ -57,7 +69,10 @@ public:
 
 	const FFirstPersonHandsRig& GetRig() const { return Rig; }
 
-	/** Ellis's first-person arms (Art/Models/Characters/FPArms.py): used once their package exists. */
+	/**
+	 * Ellis's first-person arms (Art/Models/Characters/FPArms.py): every hero's while theirs aren't in the game, and the
+	 * player's when no hero is played (a test level's character).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hands")
 	TSoftObjectPtr<USkeletalMesh> ArmsMesh;
 
@@ -84,7 +99,8 @@ public:
 
 	/**
 	 * The arms' size against the guns (1: Ellis's own, as the look sheet showed them). Smaller arms still hold the guns
-	 * where they did: every spot is the same, the grip contact exact. Looter.Hands.Scale overrides it while tuning.
+	 * where they did: every spot is the same, the grip contact exact. A hero's FirstPersonArmsScale replaces it;
+	 * Looter.Hands.Scale overrides both while tuning.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hands", meta = (ClampMin = "0.6", ClampMax = "1.3"))
 	float ArmsScale = 0.88f;
@@ -99,7 +115,7 @@ protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
-	/** The arms' mesh (SK_FP_Arms, else the stand-in), the rig bound to it, and where it sits on the camera. */
+	/** The arms' mesh (the played hero's, else SK_FP_Arms, else the stand-in), the rig bound to it, where it sits on the camera. */
 	bool LoadArms();
 
 	/** Sets the arms on the camera at Scale: SK_FP_Arms as made (its root is the eye), the stand-in turned and set back. */
@@ -140,6 +156,8 @@ private:
 	bool bHaveSupport = false;
 
 	float MenuOpenSeconds = 0.f;
+	/** The played hero's FirstPersonArmsScale while their own arms are worn (0: ArmsScale). */
+	float HeroScale = 0.f;
 	bool bStandIn = false;
 	bool bShowing = false;
 };

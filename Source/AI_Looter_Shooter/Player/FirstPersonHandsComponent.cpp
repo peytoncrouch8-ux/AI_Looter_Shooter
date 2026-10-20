@@ -1,11 +1,13 @@
 #include "Player/FirstPersonHandsComponent.h"
 #include "AI_Looter_Shooter.h"
+#include "Embers/HeroDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerThrowComponent.h"
 #include "Player/PlayerViewComponent.h"
+#include "Session/SessionSubsystem.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -127,7 +129,24 @@ void UFirstPersonHandsComponent::BeginPlay()
 
 bool UFirstPersonHandsComponent::LoadArms()
 {
-	USkeletalMesh* Arms = LoadIfMade(ArmsMesh);
+	// The played hero's own arms (the session's pick, or Looter.Hero's), at their size; Ellis's while theirs aren't in the
+	// game (as UBodyFigureComponent::PickBody does for bodies), or where no hero is played (a test level's character).
+	USkeletalMesh* Arms = nullptr;
+	HeroScale = 0.f;
+	if (const UHeroDefinition* Hero = USessionSubsystem::FindPlayedHero(this))
+	{
+		Arms = Hero->LoadFirstPersonArms();
+		HeroScale = Arms ? Hero->FirstPersonArmsScale : 0.f;
+		if (!Arms && Hero->Id != UHeroDefinition::DefaultId())
+		{
+			UE_LOG(LogLooter, Log, TEXT("%s: %s's first-person arms aren't in the game yet (%s); Ellis's stand in."), *GetName(),
+				*Hero->Id.ToString(), *Hero->GetFirstPersonArmsPath().GetAssetName());
+		}
+	}
+	if (!Arms)
+	{
+		Arms = LoadIfMade(ArmsMesh);
+	}
 	bStandIn = Arms == nullptr;
 	if (!Arms)
 	{
@@ -161,7 +180,37 @@ void UFirstPersonHandsComponent::PlaceOnCamera(float Scale)
 float UFirstPersonHandsComponent::GetWantedScale() const
 {
 	const float Tuning = CVarHandsScale.GetValueOnGameThread();
-	return FMath::Clamp(Tuning > 0.f ? Tuning : ArmsScale, 0.5f, 1.5f);
+	return FMath::Clamp(Tuning > 0.f ? Tuning : (HeroScale > 0.f ? HeroScale : ArmsScale), 0.5f, 1.5f);
+}
+
+void UFirstPersonHandsComponent::WearHero()
+{
+	// Only once begun on a camera (BeginPlay found one and attached the arms to it).
+	if (!Camera.IsValid() || !HasBegunPlay())
+	{
+		return;
+	}
+	const USkeletalMesh* Before = GetArmsMesh();
+	if (!LoadArms())
+	{
+		UE_LOG(LogLooter, Log, TEXT("%s: no arms mesh with both arms' bones for the hero played; the hands stay hidden."), *GetName());
+		Show(false);
+		SetComponentTickEnabled(false);
+		return;
+	}
+	SetComponentTickEnabled(true);
+	// Posed afresh on the next tick (the new mesh's bones), never shown in its rest pose meanwhile.
+	bShowing = false;
+	SetVisibility(false);
+	if (Before != GetArmsMesh())
+	{
+		UE_LOG(LogLooter, Log, TEXT("%s: wearing %s at %.2f."), *GetName(), *GetNameSafe(GetArmsMesh()), GetWantedScale());
+	}
+}
+
+const USkeletalMesh* UFirstPersonHandsComponent::GetArmsMesh() const
+{
+	return Cast<USkeletalMesh>(GetSkinnedAsset());
 }
 
 void UFirstPersonHandsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)

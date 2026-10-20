@@ -102,6 +102,23 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   0.85 of the half-frame, but for the shotgun's trigger hand). Long guns level (no muzzle-down tilt: the user, "the AR is
   tilted forward"). Support hand palm up under the fore-end, forearms from below so the sleeve's cut end (SK_FP_Arms
   ends at the elbow in a capped cut) stays under the frame (`ForeForearm` in `FirstPersonHandsGrips.cpp`).
+- The heroes' first-person arms (2026-10-20): SK_FP_Arms_Odessa, _Crane, _Gauge, _Pike from
+  `Art/Models/Characters/FPArms<Hero>.py` on `Tools/Blender/fp_arms_heroes.py` (+ `fp_arms_base/hands/cloth/paint/gauge.py`;
+  FPArms.py's definitions are run up to its build line, FPArms.py never edited). Every one is on SK_FP_Arms' skeleton bone
+  for bone (`Intermediate/FPArms/FPArms_<Hero>_rig.json` = FPArms_rig.json), so the rig, the grip tables and the motions
+  serve all five unchanged; palms' undersides kept within 2 mm of Ellis's (the 3.6 cm grip offset). Looks: each hero's own
+  procedural looks (from their model's tables) baked onto these meshes raised 1.5 m (dust and mud go by height), then fitted
+  to first person (`BakedSet.adjust`: the 3P creases read as crazed plastic a foot from the eye: bumps 0.3-0.85, skin and
+  glove colour softened), then the hand's detail painted (seams and points on a glove; nails, knuckle wrinkles, palm lines
+  on bare hands); texels baked tilted past 60 degrees (decimation fold-overs) are flattened. Gauge's three fingers: blocks on
+  `thumb_*`/`index_*`/`middle_*`, moved 6-7 mm apart along their curl axes (the skeleton can't be spread); ring and pinky
+  bones unweighted. Worn by `UFirstPersonHandsComponent::LoadArms` from the played hero (`UHeroDefinition::FirstPersonArms`,
+  naming rule SK_FP_Arms_<Id>; Ellis's while a hero's aren't in), at `FirstPersonArmsScale` (Odessa 0.84, Pike 0.86, the
+  rest 0: the component's 0.88; `create_ember_assets.py` `ARMS_SCALE`); `Looter.Hero` mid-play swaps them (`WearHero`).
+  Look sheet: `Tools/Blender/fp_arms_heroes_sheet.py <Hero>` (fp_arms_sheet.py's poser on the three guns at the hip holds
+  and drawn sizes) into `Saved/ArtPreviews/Characters/FPArms_<Hero>/`. Export `artrun.ps1 -Export FPArms<Hero> -Family
+  FPArms<Hero>`; the bake is skipped while `Art/Textures/FPArms<Hero><Set>/bake.digest` matches. Test
+  `Looter.Player.Hands.HeroArms`. Wiring notes: `Saved/FPArms/WIRING.md`.
 - The shotgun (the user, 2026-10-15): 20 cm nearer than the rifle ("too far forward making the arm look silly"): the
   stock leaves the frame past the bottom right and the left arm's reach is short. Every full stock hid the trigger glove
   at the old hold (only the stockless Raider grip showed it), so it sits under the frame now. The left hand cups the pump

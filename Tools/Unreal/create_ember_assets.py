@@ -37,8 +37,9 @@ What each number means to its power (UEmberDefinition's fields; each power class
 Heroes (UHeroDefinition): the roster's five (Ellis, Odessa, Crane, Gauge, Pike; UHeroDefinition::RosterIds), each with
 role, short name (the id: what a caption calls them), story (the concept doc's lines; Ellis is "they" in all text), colour (the contract's), the portrait
 /Game/UI/Portraits/T_Portrait_<Id>, the body /Game/Art/Characters/SK_<Id> and its retargeter
-/Game/Player/Retarget/RTG_MannyTo<Id> (each field set once its asset exists; the game finds a missing one by the same
-name, so a hero lights up as Main lands their model; rerun this after each to fill the fields).
+/Game/Player/Retarget/RTG_MannyTo<Id>, the first-person arms /Game/Art/Characters/SK_FP_Arms_<Id> (Ellis's SK_FP_Arms)
+(each field set once its asset exists; the game finds a missing one by the same name, so a hero lights up as Main lands
+their model; rerun this after each to fill the fields), and the arms' size against the guns (ARMS_SCALE).
 """
 import unreal
 
@@ -167,11 +168,18 @@ POWERS = [
 ]
 
 
+# The first-person arms' size against the guns (UHeroDefinition::FirstPersonArmsScale; 0: the hands component's 0.88,
+# the user's for Ellis): a slight or short hero's smaller (Saved/FPArms/WIRING.md, the look sheets' sizes).
+ARMS_SCALE = {'Ellis': 0.0, 'Odessa': 0.84, 'Crane': 0.0, 'Gauge': 0.0, 'Pike': 0.86}
+
+
 def hero(id, name, role, story, color, powers):
+    arms = 'SK_FP_Arms' if id == 'Ellis' else f'SK_FP_Arms_{id}'
     return dict(asset=f'DA_Hero_{id}', id=id, name=name, role=role, story=story, color=color, powers=powers,
                 portrait=f'/Game/UI/Portraits/T_Portrait_{id}.T_Portrait_{id}',
                 mesh=f'/Game/Art/Characters/SK_{id}.SK_{id}',
-                retargeter=f'/Game/Player/Retarget/RTG_MannyTo{id}.RTG_MannyTo{id}')
+                retargeter=f'/Game/Player/Retarget/RTG_MannyTo{id}.RTG_MannyTo{id}',
+                arms=f'/Game/Art/Characters/{arms}.{arms}', arms_scale=ARMS_SCALE[id])
 
 
 # The roster's order (UHeroDefinition::RosterIds); each hero's first power is equipped in a new game.
@@ -297,13 +305,16 @@ def setup_hero(spec, cls, made):
     # asset is in the game: a soft pointer to a missing package fails the editor's asset validation. Until then the game
     # finds them by the same naming rule (UHeroDefinition::GetFigureMeshPath), so run this again after each model lands.
     looks = {what: spec[what] if unreal.EditorAssetLibrary.does_asset_exist(spec[what].split('.')[0]) else ''
-             for what in ('portrait', 'mesh', 'retargeter')}
+             for what in ('portrait', 'mesh', 'retargeter', 'arms')}
     asset.set_look_paths(looks['portrait'], looks['mesh'], looks['retargeter'])
+    # The first-person arms the same way (a hero without theirs wears Ellis's), and their size.
+    asset.set_first_person_arms(looks['arms'], spec['arms_scale'])
     asset.set_editor_property('powers', powers)
     save(asset, path)
     there = [what for what, object_path in looks.items() if object_path]
     unreal.log(f"EMBERS {path} {'made' if created else 'updated'}: {spec['name']}, {spec['role']}, {spec['color']}, "
-               f"with {', '.join(spec['powers'])}; in the game: {', '.join(there) if there else 'nothing yet'}")
+               f"with {', '.join(spec['powers'])}; in the game: {', '.join(there) if there else 'nothing yet'}; "
+               f"arms' size {spec['arms_scale'] or 'as the hands component has it'}")
 
 
 def run():

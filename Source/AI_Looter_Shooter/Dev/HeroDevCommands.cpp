@@ -15,6 +15,7 @@
 #include "Embers/EmberPower.h"
 #include "Embers/HeroDefinition.h"
 #include "Player/Animation/BodyFigureComponent.h"
+#include "Player/FirstPersonHandsComponent.h"
 #include "Session/SessionSubsystem.h"
 #include "UI/HUD/HudPortraitWidget.h"
 #include "Engine/Engine.h"
@@ -91,7 +92,10 @@ namespace
 			*USessionSubsystem::GetNoSessionHeroId().ToString());
 	}
 
-	/** Puts the hero played on everything in GameWorld wearing one: the player's powers and body, the loadout's stand-in, the HUD's portrait. */
+	/**
+	 * Puts the hero played on everything in GameWorld wearing one: the player's powers, body and first-person arms, the
+	 * loadout's stand-in, the HUD's portrait.
+	 */
 	void WearHeroNow(UWorld* GameWorld)
 	{
 		for (FConstPlayerControllerIterator It = GameWorld->GetPlayerControllerIterator(); It; ++It)
@@ -103,6 +107,13 @@ namespace
 			}
 		}
 		for (TObjectIterator<UBodyFigureComponent> It; It; ++It)
+		{
+			if (It->GetWorld() == GameWorld && It->HasBegunPlay())
+			{
+				It->WearHero();
+			}
+		}
+		for (TObjectIterator<UFirstPersonHandsComponent> It; It; ++It)
 		{
 			if (It->GetWorld() == GameWorld && It->HasBegunPlay())
 			{

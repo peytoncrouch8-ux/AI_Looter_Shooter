@@ -22,14 +22,15 @@
 #include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
+#include "Retargeter/IKRetargeter.h"
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
 
-// The hero pick (2026-10-19): the five definitions complete, which heroes are playable (every hero's three powers have
-// their code since 2026-10-20; a hero waits only on their model and retargeter: Odessa's, 2026-10-20), the session keeping
-// its hero (an old save reads as Ellis), the hero select built and driven by keys (the choice, a hero in the works
-// refused, the confirm's beat starting the chosen hero), the main menu's way in and out, and another hero's powers on a
-// body (owned, with their code).
+// The hero pick (2026-10-19): the five definitions complete, which heroes are playable (all five since Odessa's body
+// landed, 2026-10-20: a hero in the works is made for the tests that need one, FHeroInTheWorks), the session keeping its
+// hero (an old save reads as Ellis), the hero select built and driven by keys (the choice, a hero in the works refused,
+// the confirm's beat starting the chosen hero), the main menu's way in and out, and another hero's powers on a body
+// (owned, with their code).
 
 namespace
 {
@@ -63,6 +64,33 @@ namespace
 		}
 		IConsoleVariable* Var = nullptr;
 		int32 Before = 0;
+	};
+
+	/**
+	 * A hero in the works for a test: every hero is playable since Odessa's body landed (2026-10-20), so her loaded
+	 * definition is made one (its retargeter pointed at a package that isn't in the game, in memory only, never marked
+	 * dirty or saved) and put back however the test ends. The hero select and a new game read the same loaded object.
+	 */
+	struct FHeroInTheWorks
+	{
+		FHeroInTheWorks()
+		{
+			Hero = UHeroDefinition::Load(OdessaId);
+			if (Hero)
+			{
+				Before = Hero->Retargeter;
+				Hero->Retargeter = TSoftObjectPtr<UIKRetargeter>(FSoftObjectPath(TEXT("/Game/Tests/RTG_InTheWorks.RTG_InTheWorks")));
+			}
+		}
+		~FHeroInTheWorks()
+		{
+			if (Hero)
+			{
+				Hero->Retargeter = Before;
+			}
+		}
+		UHeroDefinition* Hero = nullptr;
+		TSoftObjectPtr<UIKRetargeter> Before;
 	};
 
 	/** The menus back under the mouse when a test ends, as the game starts. */
@@ -204,25 +232,22 @@ bool FHeroPlayableTest::RunTest(const FString& Parameters)
 		TestEqual(*FString::Printf(TEXT("%s: picked only when playable"), *Id.ToString()), Hero->CanBePicked(), Hero->IsPlayable());
 		// Every hero's three powers have their code (Embers/Powers, 2026-10-20): what's left is a body and its retargeter.
 		TestTrue(*FString::Printf(TEXT("%s: every power has its code"), *Id.ToString()), Hero->HasAllPowerCode());
-		if (Id == EllisId)
-		{
-			TestTrue(TEXT("Ellis is playable (SK_Ellis, RTG_MannyToEllis, three powers with code)"), Hero->IsPlayable());
-		}
-		else
-		{
-			TestEqual(*FString::Printf(TEXT("%s: in the works only while their body or retargeter is missing"), *Id.ToString()), Hero->IsPlayable(),
-				Hero->LoadFigureMesh() != nullptr && Hero->LoadRetargeter() != nullptr);
-		}
+		// All five are in the game (Odessa's body last, 2026-10-20): each body with its retargeter.
+		TestTrue(*FString::Printf(TEXT("%s is playable (SK_%s, RTG_MannyTo%s, three powers with code)"), *Id.ToString(), *Id.ToString(),
+			*Id.ToString()), Hero->IsPlayable());
 	}
 
-	// The developers' unlock lets a hero in the works be picked (Odessa: her body isn't in yet, 2026-10-20).
-	const UHeroDefinition* Odessa = UHeroDefinition::Load(OdessaId);
+	// The developers' unlock lets a hero in the works be picked (one made for the test: FHeroInTheWorks).
+	FHeroInTheWorks InTheWorks;
+	const UHeroDefinition* Odessa = InTheWorks.Hero;
 	if (TestNotNull(TEXT("Odessa"), Odessa))
 	{
+		TestFalse(TEXT("In the works: not playable (no retargeter)"), Odessa->IsPlayable());
+		TestFalse(TEXT("...not picked"), Odessa->CanBePicked());
 		Unlock.Set(true);
 		TestTrue(TEXT("Unlocked: Odessa can be picked"), UHeroDefinition::AreLockedHeroesUnlocked() && Odessa->CanBePicked());
 		Unlock.Set(false);
-		TestEqual(TEXT("Locked again: picked only once playable (her body in)"), Odessa->CanBePicked(), Odessa->IsPlayable());
+		TestEqual(TEXT("Locked again: picked only once playable"), Odessa->CanBePicked(), Odessa->IsPlayable());
 	}
 	TestNull(TEXT("No hero by an unknown id"), UHeroDefinition::Load(TEXT("Nobody")));
 	TestNull(TEXT("...or none"), UHeroDefinition::Load(NAME_None));
@@ -263,7 +288,8 @@ bool FHeroSaveTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("...brought up to date as Ellis's"), OlderBack->GetHeroId(), EllisId);
 	}
 
-	// A new game takes only a hero that can be picked.
+	// A new game takes only a hero that can be picked (Odessa in the works for the test).
+	FHeroInTheWorks InTheWorks;
 	ULooterSessionSave* NewGame = NewSave(ULooterSessionSave::CurrentVersion);
 	TestTrue(TEXT("A new game as Ellis"), USessionSubsystem::ApplyNewGameHero(*NewGame, EllisId) && NewGame->HeroId == EllisId);
 	ULooterSessionSave* Refused = NewSave(ULooterSessionSave::CurrentVersion);
@@ -295,6 +321,8 @@ bool FHeroSelectScreenTest::RunTest(const FString& Parameters)
 {
 	FMouseAfter Mouse;
 	FHeroUnlock Unlock(false);
+	// Odessa in the works for the test (every hero is playable now): the screen reads her as such when it opens.
+	FHeroInTheWorks InTheWorks;
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
 	{

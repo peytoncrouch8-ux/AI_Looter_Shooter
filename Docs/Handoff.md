@@ -200,6 +200,27 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   texture in game. Ellis, Pike, Crane (and maybe Gauge, the FP arms) call it. BAKE-CHECK agent diagnosing per model
   (no fix yet); the likely fix is a shared fixed-order sphere (odessa_kit.uv_sphere) and a rebake + re-export of the
   models that mismatch.
+- LINES-WIRE merged, built and committed (02a3628): DA_HeroLines (146 rows), resolution in captions and every read site,
+  the painted words imported and placed by `build_area.py RansomsRest gameplay`; 743/743. Checked in PIE as Crane (his
+  headboard, card, captions, poster, bare roll, Delia's line) and as Ellis (unchanged). The headboard is now the readable's
+  own mesh, read from beside the grave (~2 m).
+- FP-ARMS phase 2 running (owns the editor): wiring, the four arms' import, Odessa's import + retarget, the hero tests
+  with a synthetic unplayable hero, PIE per hero in first person.
+- Git hiccup seen three times tonight: `unable to write file .git/objects/..: Permission denied` on `git add` of an asset
+  the editor had just saved; nothing staged; the same command a few seconds later works (a transient lock: the editor's
+  revision control or the virus scanner). Retry, don't change permissions.
+- `Art/Models/Characters/Crane.drape.json` shows modified (BAKE-CHECK's test export re-simulated the coat: evidence for
+  the sphere-order problem); left uncommitted until BAKE-CHECK reports.
+- **BAKE-CHECK's diagnosis** (evidence `Saved/BakeCheck/`): mismatched in game now: SK_Crane (Coat 4.2%, Gear 15.4% of
+  island pixels on unbaked background), SK_Pike (Gear 9.7%), SK_Odessa (Gear 15.1%, imported 03:18 by FP-ARMS),
+  SK_FP_Arms_Crane (Skin 6.5%); fit: Ellis, Gauge, SK_FP_Arms, the other three FP arms. Causes: (1) **thread count**: the
+  bakes ran at artrun's -Threads 6, the exports through models.ps1 at all threads (Decimate and push-outs differ);
+  (2) create_uvsphere's random face order (Ellis's buttons and knot, Crane's left eye and star, Pike's buttons, knot,
+  pouches, studs); (3) the cloth cache rounds points to 5 decimals but the mesh kept full precision. It changed
+  `Crane.drape.json` and `Ellis.drape.json` by mistake and asked Main to `git checkout` them (its own attempt was denied):
+  not done on its say-so; the fix's re-export rewrites both. **PIPE-FIX running**: models.ps1 and artrun at one thread
+  count (6), a shared fixed-order `uv_sphere`, rounded simulate points, a packed-UV hash guard beside bake.digest, then
+  re-exports of Crane, Pike, Ellis, Odessa, FPArmsCrane/Pike/Odessa, each checked to fit; Main reimports after FP-ARMS.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
   + MI_PosterDecal/Scrap_<Id>, and the `hero_meshes`/`other_mesh` lines in `build_area_story.py` and
   `build_area_missionprops_valley.py` (run by Main after the merge).

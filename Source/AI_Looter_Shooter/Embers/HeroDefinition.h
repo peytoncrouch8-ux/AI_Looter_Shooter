@@ -70,6 +70,22 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
 	TSoftObjectPtr<UIKRetargeter> Retargeter;
 
+	/**
+	 * Their arms on the gun in first person (`/Game/Art/Characters/SK_FP_Arms_<Id>`; Ellis's is SK_FP_Arms). Every hero's
+	 * are made on SK_FP_Arms' skeleton bone for bone (Tools/Blender/fp_arms_heroes.py), so the hands code binds any of
+	 * them with the same grips. Set by create_ember_assets.py once imported; while empty the naming rule finds them, and
+	 * a hero whose arms aren't in the game wears Ellis's (UFirstPersonHandsComponent).
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
+	TSoftObjectPtr<USkeletalMesh> FirstPersonArms;
+
+	/**
+	 * Those arms' size against the guns (UFirstPersonHandsComponent::ArmsScale, Ellis's 0.88): a slight hero's smaller
+	 * (Odessa 0.84, Pike 0.86). 0 keeps the component's. Every grip spot stays where it is at any size.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks", meta = (ClampMin = "0", ClampMax = "1.3"))
+	float FirstPersonArmsScale = 0.f;
+
 	/** The hero's three, in the order the powers page lists them; the first is equipped in a new game. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")
 	TArray<TObjectPtr<UEmberDefinition>> Powers;
@@ -88,10 +104,14 @@ public:
 	FSoftObjectPath GetPortraitPath() const;
 	FSoftObjectPath GetFigureMeshPath() const;
 	FSoftObjectPath GetRetargeterPath() const;
+	/** FirstPersonArms' path, or the naming rule's (Ellis: SK_FP_Arms; the rest SK_FP_Arms_<Id>). */
+	FSoftObjectPath GetFirstPersonArmsPath() const;
 
 	/** The body and its retargeter, loaded when they're in the game; null while they aren't (no load warning then). */
 	USkeletalMesh* LoadFigureMesh() const;
 	UIKRetargeter* LoadRetargeter() const;
+	/** The first-person arms, or null while they aren't in the game (no load warning then). */
+	USkeletalMesh* LoadFirstPersonArms() const;
 	/** The portrait texture, or null while it isn't imported. */
 	UTexture2D* LoadPortrait() const;
 
@@ -124,4 +144,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Hero|Editor")
 	void SetLookPaths(const FString& PortraitPath, const FString& FigureMeshPath, const FString& RetargeterPath);
+
+	/** Points FirstPersonArms at this object path (empty: the naming rule) and sets their size. For create_ember_assets.py. */
+	UFUNCTION(BlueprintCallable, Category = "Hero|Editor")
+	void SetFirstPersonArms(const FString& ArmsPath, float ArmsScale);
 };

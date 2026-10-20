@@ -73,6 +73,17 @@ FSoftObjectPath UHeroDefinition::GetRetargeterPath() const
 	return PathOr(Retargeter, TEXT("/Game/Player/Retarget"), TEXT("RTG_MannyTo"), Id);
 }
 
+FSoftObjectPath UHeroDefinition::GetFirstPersonArmsPath() const
+{
+	if (!FirstPersonArms.IsNull())
+	{
+		return FirstPersonArms.ToSoftObjectPath();
+	}
+	// Ellis's arms came first and have no suffix.
+	return Id == EllisId ? FSoftObjectPath(TEXT("/Game/Art/Characters/SK_FP_Arms.SK_FP_Arms"))
+		: NamedPath(TEXT("/Game/Art/Characters"), TEXT("SK_FP_Arms_"), Id);
+}
+
 bool UHeroDefinition::HasAllPowerCode() const
 {
 	if (Powers.IsEmpty())
@@ -114,6 +125,11 @@ USkeletalMesh* UHeroDefinition::LoadFigureMesh() const
 UIKRetargeter* UHeroDefinition::LoadRetargeter() const
 {
 	return LoadIfThere<UIKRetargeter>(GetRetargeterPath());
+}
+
+USkeletalMesh* UHeroDefinition::LoadFirstPersonArms() const
+{
+	return LoadIfThere<USkeletalMesh>(GetFirstPersonArmsPath());
 }
 
 UTexture2D* UHeroDefinition::LoadPortrait() const
@@ -159,6 +175,13 @@ void UHeroDefinition::SetLookPaths(const FString& PortraitPath, const FString& F
 	Portrait = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(PortraitPath));
 	FigureMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(FigureMeshPath));
 	Retargeter = TSoftObjectPtr<UIKRetargeter>(FSoftObjectPath(RetargeterPath));
+	MarkPackageDirty();
+}
+
+void UHeroDefinition::SetFirstPersonArms(const FString& ArmsPath, float ArmsScale)
+{
+	FirstPersonArms = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(ArmsPath));
+	FirstPersonArmsScale = FMath::Clamp(ArmsScale, 0.f, 1.3f);
 	MarkPackageDirty();
 }
 

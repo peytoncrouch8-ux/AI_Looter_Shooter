@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Embers/HeroDefinition.h"
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/FirstPersonHandsRig.h"
@@ -14,8 +15,9 @@
 #include "ReferenceSkeleton.h"
 
 // The first-person hands as plain math: the rig on the mannequin's rest pose (hands reach their spots, far ones too, the
-// fingers curl into the palm, the body squeezed away), each reload's support-hand path (on the part it works at the
-// gun's own steps, home at both ends, never a jump) and the throw's (round the jar while it's held).
+// fingers curl into the palm, the body squeezed away), every hero's arms bound as Ellis's are, each reload's support-hand
+// path (on the part it works at the gun's own steps, home at both ends, never a jump) and the throw's (round the jar
+// while it's held).
 
 namespace
 {
@@ -254,6 +256,84 @@ bool FFirstPersonHandsArmsTest::RunTest(const FString& Parameters)
 			ShoulderAt.X <= 0.0 || ShoulderAt.Z / ShoulderAt.X < -0.5625);
 		TestTrue(FString::Printf(TEXT("Hand %s: the elbow is low (%s)"), Sides[Side], *ElbowAt.ToCompactString()),
 			ElbowAt.X <= 0.0 || ElbowAt.Z / ElbowAt.X < -0.5);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstPersonHandsHeroArmsTest, "Looter.Player.Hands.HeroArms",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FFirstPersonHandsHeroArmsTest::RunTest(const FString& Parameters)
+{
+	// Every hero's first-person arms (UHeroDefinition::FirstPersonArms: SK_FP_Arms_<Id>, Tools/Blender/fp_arms_heroes.py)
+	// are made on SK_FP_Arms' skeleton bone for bone, so the rig reads each as it reads Ellis's: the same grip points, palm
+	// facings and rest curls, both hands on a hip hold's spots. Each hero's size against the guns is a sane one.
+	const USkeletalMesh* EllisArms = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Art/Characters/SK_FP_Arms.SK_FP_Arms"));
+	FFirstPersonHandsRig EllisRig;
+	if (!TestNotNull(TEXT("SK_FP_Arms"), EllisArms) || !TestTrue(TEXT("Ellis's arms bind"), EllisRig.Bind(EllisArms, false)))
+	{
+		return false;
+	}
+	const EFirstPersonHand Hands[2] = { EFirstPersonHand::Left, EFirstPersonHand::Right };
+	FHandsRigTargets Targets;
+	const int32 Left = FirstPersonHands::Index(EFirstPersonHand::Left);
+	const int32 Right = FirstPersonHands::Index(EFirstPersonHand::Right);
+	Targets.Hands[Right] = FHandPlacement::Make(FVector(44.0, 16.5, -16.5), FVector(1.0, 0.0, -0.2), FVector(0.1, -1.0, 0.0),
+		FHandFingers::Of(EHandGrip::Trigger), FVector(-0.8, 0.35, -0.45));
+	Targets.Hands[Left] = FHandPlacement::Make(FVector(68.0, 14.0, -10.0), FVector(0.0, 1.0, -0.2), FVector(0.0, 0.3, 1.0),
+		FHandFingers::Of(EHandGrip::Forend), FVector(-0.45, -0.5, -0.75));
+	for (const FName Id : UHeroDefinition::RosterIds())
+	{
+		const UHeroDefinition* Hero = UHeroDefinition::Load(Id);
+		if (!TestNotNull(*FString::Printf(TEXT("DA_Hero_%s"), *Id.ToString()), Hero))
+		{
+			continue;
+		}
+		const FString Name = Id.ToString();
+		const FString Expected = Id == UHeroDefinition::DefaultId() ? TEXT("SK_FP_Arms") : FString::Printf(TEXT("SK_FP_Arms_%s"), *Name);
+		TestEqual(*FString::Printf(TEXT("%s: their arms are %s"), *Name, *Expected), Hero->GetFirstPersonArmsPath().GetAssetName(), Expected);
+		TestTrue(*FString::Printf(TEXT("%s: a sane size against the guns (%.2f)"), *Name, Hero->FirstPersonArmsScale),
+			Hero->FirstPersonArmsScale == 0.f || (Hero->FirstPersonArmsScale >= 0.75f && Hero->FirstPersonArmsScale <= 1.f));
+		const USkeletalMesh* Arms = Hero->LoadFirstPersonArms();
+		FFirstPersonHandsRig Rig;
+		if (!TestNotNull(*FString::Printf(TEXT("%s: their arms are in the game"), *Name), Arms)
+			|| !TestTrue(*FString::Printf(TEXT("%s: the rig binds them"), *Name), Rig.Bind(Arms, false)))
+		{
+			continue;
+		}
+		TestEqual(*FString::Printf(TEXT("%s: SK_FP_Arms' bones"), *Name), Arms->GetRefSkeleton().GetNum(), EllisArms->GetRefSkeleton().GetNum());
+		TestTrue(*FString::Printf(TEXT("%s: facing ahead (+X)"), *Name), Rig.GetForward().Equals(FVector::ForwardVector, 0.02));
+		for (const EFirstPersonHand Hand : Hands)
+		{
+			const TCHAR* Side = Hand == EFirstPersonHand::Left ? TEXT("left") : TEXT("right");
+			const float GripOff = static_cast<float>(FVector::Dist(Rig.GetRestHoldPoint(Hand), EllisRig.GetRestHoldPoint(Hand)));
+			TestTrue(*FString::Printf(TEXT("%s: the %s grip point Ellis's (%.3f cm off)"), *Name, Side, GripOff), GripOff <= 0.1f);
+			TestTrue(*FString::Printf(TEXT("%s: the %s palm facing Ellis's"), *Name, Side),
+				FVector::DotProduct(Rig.GetRestPalm(Hand), EllisRig.GetRestPalm(Hand)) > 0.999);
+			for (int32 Finger = 0; Finger < FHandFingers::Count; ++Finger)
+			{
+				for (int32 Joint = 0; Joint < FHandFingers::Joints; ++Joint)
+				{
+					const float Rest = Rig.GetRestCurl(Hand, Finger, Joint);
+					const float EllisRest = EllisRig.GetRestCurl(Hand, Finger, Joint);
+					if (!FMath::IsNearlyEqual(Rest, EllisRest, 0.5f))
+					{
+						AddError(FString::Printf(TEXT("%s: the %s hand's finger %d joint %d rests at %.1f degrees, Ellis's at %.1f"), *Name, Side,
+							Finger, Joint, Rest, EllisRest));
+					}
+				}
+			}
+		}
+		TArray<FTransform> Local;
+		TArray<FTransform> Space;
+		Rig.Pose(Targets, Local, Space);
+		for (const EFirstPersonHand Hand : Hands)
+		{
+			const int32 Index = FirstPersonHands::Index(Hand);
+			const float Off = static_cast<float>(FVector::Dist(Rig.HoldPointIn(Hand, Space), Targets.Hands[Index].Hold));
+			TestTrue(*FString::Printf(TEXT("%s: the %s hand on its spot (%.2f cm off)"), *Name, Index == Left ? TEXT("left") : TEXT("right"), Off),
+				Off <= HandsTestNear);
+		}
 	}
 	return true;
 }
