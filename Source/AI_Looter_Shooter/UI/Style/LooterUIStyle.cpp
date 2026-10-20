@@ -236,6 +236,14 @@ namespace LooterUI::Color
 	FLinearColor GraniteLight()      { return Hex(196, 192, 184); }
 	FLinearColor Granite()           { return Hex(142, 139, 134); }
 	FLinearColor GraniteDark()       { return Hex(84, 81, 77); }
+
+	// The enemy tiers: Restless and Gravebound are the Rare and Epic loot beams' colors as sRGB (UWeaponDefinition's
+	// rarity table), as their tags always were.
+	FLinearColor TierRegular()       { return Text(); }
+	FLinearColor TierRestless()      { return Hex(124, 170, 255); }
+	FLinearColor TierGravebound()    { return Hex(204, 124, 244); }
+	FLinearColor TierHallowed()      { return Hex(245, 200, 66); }
+	FLinearColor TierEthereal()      { return Hex(255, 59, 59); }
 }
 
 // ---------------------------------------------------------------------------

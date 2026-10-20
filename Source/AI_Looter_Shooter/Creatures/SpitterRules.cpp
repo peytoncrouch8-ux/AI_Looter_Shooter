@@ -64,6 +64,8 @@ int32 SpitterRules::GlobsFor(ECreatureRank Rank)
 	switch (Rank)
 	{
 	case ECreatureRank::Epic:
+	case ECreatureRank::Hallowed:
+	case ECreatureRank::Ethereal:
 	case ECreatureRank::Legendary:
 	case ECreatureRank::Boss:
 		return 3;

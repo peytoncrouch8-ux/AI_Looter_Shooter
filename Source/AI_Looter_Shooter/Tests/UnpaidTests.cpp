@@ -108,7 +108,9 @@ bool FUnpaidStatsTest::RunTest(const FString& Parameters)
 		ECreatureRank Rank;
 		float Health;
 	};
-	const FRankCase Cases[] = { { ECreatureRank::Basic, 1.f }, { ECreatureRank::Rare, 2.5f }, { ECreatureRank::Epic, 5.f } };
+	// The five tiers' health (the design of 2026-10-20).
+	const FRankCase Cases[] = { { ECreatureRank::Basic, 1.f }, { ECreatureRank::Rare, 2.f }, { ECreatureRank::Epic, 3.f },
+		{ ECreatureRank::Hallowed, 3.5f }, { ECreatureRank::Ethereal, 4.f } };
 	TMap<ECreatureRank, const AUnpaidCreature*> ByRank;
 	double Column = 0.0;
 	for (const FRankCase& Case : Cases)
@@ -197,8 +199,8 @@ bool FUnpaidCoalTest::RunTest(const FString& Parameters)
 	}
 	UWorld* World = WorldWrapper.GetTestWorld();
 	const AUnpaidCreature* Unpaid = SpawnUnpaid(World, FVector::ZeroVector);
-	const AUnpaidCreature* Gravebound = SpawnUnpaid(World, FVector(0.0, 3000.0, 0.0), ECreatureRank::Epic);
-	if (!TestNotNull(TEXT("Unpaid spawned"), Unpaid) || !TestNotNull(TEXT("Gravebound spawned"), Gravebound))
+	const AUnpaidCreature* Ethereal = SpawnUnpaid(World, FVector(0.0, 3000.0, 0.0), ECreatureRank::Ethereal);
+	if (!TestNotNull(TEXT("Unpaid spawned"), Unpaid) || !TestNotNull(TEXT("Ethereal spawned"), Ethereal))
 	{
 		return false;
 	}
@@ -224,12 +226,12 @@ bool FUnpaidCoalTest::RunTest(const FString& Parameters)
 	Elsewhere.Component = nullptr;
 	TestFalse(TEXT("A hit on something else isn't its coal"), Unpaid->IsCriticalSpot(Elsewhere));
 
-	// A bigger one's coal is as much bigger: a line 14 cm off misses a Basic one's and finds a Gravebound one's (x1.2).
-	const FVector BigCoal = Gravebound->GetCoalLocation();
+	// A bigger one's coal is as much bigger: a line 14 cm off misses a Basic one's and finds an Ethereal one's (x1.3).
+	const FVector BigCoal = Ethereal->GetCoalLocation();
 	TestFalse(TEXT("14 cm off a Basic one's coal: not critical"),
 		Unpaid->IsCriticalSpot(ChestShot(*Unpaid, ChestBone, Chest + FVector(600.0, 14.0, 0.0), Chest + FVector(-100.0, 14.0, 0.0))));
-	TestTrue(TEXT("14 cm off a Gravebound one's: critical"),
-		Gravebound->IsCriticalSpot(ChestShot(*Gravebound, ChestBone, BigCoal + FVector(600.0, 14.0, 0.0), BigCoal + FVector(-100.0, 14.0, 0.0))));
+	TestTrue(TEXT("14 cm off an Ethereal one's: critical"),
+		Ethereal->IsCriticalSpot(ChestShot(*Ethereal, ChestBone, BigCoal + FVector(600.0, 14.0, 0.0), BigCoal + FVector(-100.0, 14.0, 0.0))));
 	return true;
 }
 

@@ -86,6 +86,17 @@ public:
 	/** Every source's scale together (1 with none). */
 	float GetDamageTakenScale() const;
 
+	/**
+	 * The share of each hit it shrugs off, 0 to 0.9 (a creature's tier: FCreatureRankInfo::Defense, set as its rank is
+	 * applied), after every scale; a critical hit pierces half of it (AfterDefense). The number shown and every listener
+	 * get what's left.
+	 */
+	void SetDefense(float InDefense);
+	float GetDefense() const { return Defense; }
+
+	/** What a hit for Damage leaves through Defense: Damage x (1 - Defense x (bCritical ? 0.5 : 1)) (the user's "crits pierce half"). */
+	static float AfterDefense(float Damage, float Defense, bool bCritical);
+
 	/** What dealt the latest damage (the gun, for shots), so death handlers can tell what made the kill. */
 	UFUNCTION(BlueprintPure, Category = "Health")
 	AActor* GetLastDamageCauser() const { return LastDamageCauser.Get(); }
@@ -133,6 +144,8 @@ private:
 	uint32 HurtCount = 0;
 	/** SetDamageTakenScale's, by source. */
 	TMap<FName, float> DamageTakenScales;
+	/** SetDefense's. */
+	float Defense = 0.f;
 	TWeakObjectPtr<AActor> LastDamageCauser;
 
 	// The engine broadcasts point damage right before "any damage" in the same TakeDamage call,

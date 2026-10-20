@@ -141,6 +141,19 @@ namespace LooterUI
 		FLinearColor GraniteLight();
 		FLinearColor Granite();
 		FLinearColor GraniteDark();
+
+		// --- The enemy tiers (2026-10-20; UCreatureRankSettings): a tag's word and name, and the tier's glow. Tier-only
+		// colours (the user's call): Restless and Gravebound happen to share the Rare and Epic loot beams' blue and purple;
+		// Hallowed's yellow and Ethereal's red are no gun rarity's ---
+
+		/** Regular: the tag's plain text white (the same as Text). */
+		FLinearColor TierRegular();
+		FLinearColor TierRestless();
+		FLinearColor TierGravebound();
+		/** #F5C842, saint-gold yellow. */
+		FLinearColor TierHallowed();
+		/** #FF3B3B. */
+		FLinearColor TierEthereal();
 	}
 
 	enum class EShape : uint8

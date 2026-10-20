@@ -19,6 +19,7 @@ class UCreatureHitReactionComponent;
 class UCreatureKnockComponent;
 class UCreaturePackComponent;
 class UCreatureReactComponent;
+class UCreatureTraitComponent;
 class UCreatureVoiceComponent;
 class UHealthComponent;
 class ULootDropComponent;
@@ -125,10 +126,24 @@ public:
 	ECreatureRank GetRank() const { return CurrentRank; }
 
 	/**
-	 * Promotes (or demotes) it until it dies: its tag, size, health, damage, experience, level, loot table and pack call
-	 * follow the rank (UCreatureRankSettings), a hurt creature keeping its share of health. Before play, the rank it starts with.
+	 * Promotes (or demotes) it until it dies: its tag, size, health, defense, damage, experience, level, loot table, traits
+	 * and pack call follow the rank (UCreatureRankSettings), a hurt creature keeping its share of health. Before play, the
+	 * rank it starts with.
 	 */
 	void SetRank(ECreatureRank NewRank);
+
+	/** The share of each hit its tier shrugs off (FCreatureRankInfo::Defense; a crit pierces half): its health component's. */
+	float GetDefense() const;
+
+	/**
+	 * The seed its traits are rolled from (UCreatureTraitComponent::RollTraits), the same at every load with no save data:
+	 * a placed one's name in its level (a spawned one's object id) with the roll that promoted it this arrival (0 for a
+	 * rank it was placed or spawned with).
+	 */
+	int32 GetTierSeed() const;
+
+	/** Its tier's traits (none below Gravebound), set each time its rank is applied. */
+	UCreatureTraitComponent* GetTraitComponent() const { return TraitComponent; }
 
 	/**
 	 * Sets its level, which its tag shows and the guns it drops take (passed to its loot drop component). In play its
@@ -415,6 +430,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCreatureKnockComponent> Knock;
 
+	/** Its tier's traits (Fleet, Mending, Warded...; ApplyTraits sets them as its rank is applied). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCreatureTraitComponent> TraitComponent;
+
 	/** Height above the capsule center where the health bar floats, at size 1 (it rises with the scaled actor). */
 	float HealthBarHeight = 130.f;
 
@@ -482,12 +501,13 @@ private:
 	// --- Rank, level and size (CreatureBaseRank.cpp) ---
 	void BeginRankAndLevel();
 	void RespawnRankAndLevel();
-	ECreatureRank RollArrivalRank() const;
+	ECreatureRank RollArrivalRank();
 	int32 RollOwnLevel(ECreatureRank Rank) const;
 	void TakeRankAndLevel(ECreatureRank Rank, int32 OwnLevel);
 	void ApplyRank();
 	void ApplyStats();
 	void ApplySize();
+	void ApplyTraits();
 	void CaptureBaseStats();
 
 	// --- Update rate (CreatureBaseUpdateRate.cpp) ---
@@ -547,6 +567,8 @@ private:
 	bool bKeepsGivenLevel = false;
 	/** Spawned in play (SpawnAtRuntime): never comes back, and its body is removed once it has sunk away. */
 	bool bSpawnedAtRuntime = false;
+	/** The roll that promoted it this arrival (its bits), for GetTierSeed; 0 for a rank it was placed or spawned with. */
+	int32 TierRoll = 0;
 	/** What the class or the level gave it, which ranks multiply (CaptureBaseStats). */
 	bool bBaseCaptured = false;
 	float BaseMaxHealth = 100.f;

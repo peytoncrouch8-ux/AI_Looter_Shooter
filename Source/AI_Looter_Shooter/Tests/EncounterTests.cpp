@@ -46,8 +46,12 @@ bool FEncounterGroupsTest::RunTest(const FString& Parameters)
 	UAreaDefinition* Valley = NewObject<UAreaDefinition>(GetTransientPackage(), NAME_None, RF_Transient);
 	Valley->RarePromotionChance = 0.08f;
 	Valley->EpicPromotionChance = 0.02f;
-	TestTrue(TEXT("The area's promotions: Gravebound under 2%"), EncounterRules::PickRank(ByArea, Valley, 0.01f) == ECreatureRank::Epic);
+	TestTrue(TEXT("The area's tiers: Ethereal first, under 0.08%"), EncounterRules::PickRank(ByArea, Valley, 0.0005f) == ECreatureRank::Ethereal);
+	TestTrue(TEXT("...Hallowed in the 0.4% after"), EncounterRules::PickRank(ByArea, Valley, 0.003f) == ECreatureRank::Hallowed);
+	TestTrue(TEXT("...Gravebound in the 2% after"), EncounterRules::PickRank(ByArea, Valley, 0.01f) == ECreatureRank::Epic);
 	TestTrue(TEXT("...Restless in the 8% after"), EncounterRules::PickRank(ByArea, Valley, 0.05f) == ECreatureRank::Rare);
+	TestTrue(TEXT("Rolled ranks are capped, a fixed one isn't"), EncounterRules::IsRolled(ByArea) && EncounterRules::IsRolled(OwnChances)
+		&& !EncounterRules::IsRolled(Lieutenant));
 	TestTrue(TEXT("...Basic otherwise"), EncounterRules::PickRank(ByArea, Valley, 0.5f) == ECreatureRank::Basic);
 	TestTrue(TEXT("No area: Basic"), EncounterRules::PickRank(ByArea, nullptr, 0.01f) == ECreatureRank::Basic);
 
@@ -58,7 +62,8 @@ bool FEncounterGroupsTest::RunTest(const FString& Parameters)
 	TestNearlyEqual(TEXT("A fixed group: its rank's size"), EncounterRules::LargestRankSize(Lieutenant, nullptr), SizeOf(ECreatureRank::Rare),
 		0.001f);
 	TestNearlyEqual(TEXT("Its own chances: up to Gravebound's"), EncounterRules::LargestRankSize(OwnChances, nullptr), UpToGravebound, 0.001f);
-	TestNearlyEqual(TEXT("The area's promotions: up to Gravebound's"), EncounterRules::LargestRankSize(ByArea, Valley), UpToGravebound, 0.001f);
+	// Every tier an area can roll, however rare: room for an Ethereal one.
+	TestNearlyEqual(TEXT("The area's promotions: up to Ethereal's"), EncounterRules::LargestRankSize(ByArea, Valley), SizeOf(ECreatureRank::Ethereal), 0.001f);
 	TestNearlyEqual(TEXT("No area: Basic's"), EncounterRules::LargestRankSize(ByArea, nullptr), SizeOf(ECreatureRank::Basic), 0.001f);
 
 	// Which waves a group joins: every one from its first, or only those up to its last.

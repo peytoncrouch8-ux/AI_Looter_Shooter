@@ -830,6 +830,8 @@ Ellis.py:
   (`Art/Textures/<Set>/uv.digest`); `load_set` refuses a kept bake whose fingerprint differs, so the set rebakes instead
   of drifting. Check tools: `Saved/BakeCheck/` (`analyze.py` paints an export's islands over its BC map: red on unbaked
   background) and `Saved/BakeCheck/fix/` (`run_model.ps1`, `compare_fbx.py`). Every hero now exports bit-identically twice.
+  Don't queue a second run of a model while an edited bake source is still baking: the queued run starts on the new
+  script and bakes the same sets in parallel (harmless only when its inputs are identical; PIKE, 2026-10-20).
 - The cloud box can't push Git LFS: its PNGs are not committed (`.git/info/exclude` there). The PC baked them on
   2026-10-15 with Blender 4.4 (the cloud wrote the scripts against 5.2's module: they ran unchanged; ~25 min for build,
   simulation and four 2048 sets beside the editor) and they're committed. MakeHuman's base.obj (1.75 MB, gitignored) is
@@ -1121,7 +1123,7 @@ committed; its content is in this section once the round lands). The agents' not
 - **Knocked and dizzy** (`Creatures/CreatureKnockComponent`, a default subobject "Knock" on every `ACreatureBase`;
   `TickBrain` waits while `HoldsBrain`, as for a stagger): `Knock(Away, Distance, Height, Dizzy)` launches like a hop
   (`LaunchVelocity`: up for the arc's top, across for the distance in that air time; its speed replaced), the distance
-  times the rank's share (Rare 0.85, Epic 0.7, Legendary 0.45, Boss none) over the square root of its size; the landing
+  times the rank's share (Rare 0.85, Epic 0.7, Hallowed 0.6, Ethereal 0.5, Legendary 0.45, Boss none) over the square root of its size; the landing
   must have ground within 110 cm over / 150 cm under its feet (sizes scale it) and inside the playable area, else 0.75,
   0.5, 0.3 of it, else only dazed. The body cartwheels once over the planned flight (the mesh turned round the
   capsule's middle from its captured rest transform), lands (LandedDelegate, the floor found, or 2.5 s) with a dust ring,
@@ -1472,6 +1474,38 @@ folder). The pieces:
   block until `LightingTests.cpp` skips the default-Day check on a level with an `IslandStyle` actor (one line).
 - Lessons from style 3: rim terms on alpha-tested leaves speckle unless they read the crown's vertex normal; a screen-space edge pass
   cost the most (+0.8-1.0 ms in all).
+
+## Enemy tiers (the core built 2026-10-20)
+
+The design and its numbers: `Saved/Tiers/DESIGN.md` (user-approved), the agents' names `Saved/Tiers/CONTRACT.md`; the
+rules for players: Docs/Story.md, "Enemy ranks and legendary drops".
+- **The enum**: `ECreatureRank` keeps Basic 0, Rare 1, Epic 2, Legendary 3, Boss 4 and appends Hallowed 5, Ethereal 6 (levels,
+  encounter groups, egg sacs and saves hold the numbers). Never compare ranks with `<`/`>` or index arrays by their numbers:
+  `LooterRanks::Order`, `IsAbove`, `IsAtLeast`, `TierIndex`, `IsTier`, `TierBelow` (`Creatures/CreatureRank.h`). A rule per
+  rank is a `switch` naming each (audit 2026-10-20: stagger, shove, melee knock, Dust Devil's fling, motes, grenades, the
+  Bell-Ringer's toll, the Spitter's globs, the Unpaid's lunge, voice pitch, barks, elite music, the patrol's leader).
+- **Numbers live in data**: `UCreatureRankSettings` (Project Settings > Game > Creature Ranks; per rank `FCreatureRankInfo`:
+  word, colour, glow, size, health, damage, XP, levels, `Defense`, `TraitCount`, loot table, `SilverMultiplier`,
+  `SpawnChanceFirst`/`Late`, `MaxAlivePerArea`, pack call). Tables by `Tools/Unreal/create_rank_assets.py` (re-run after a
+  change to `DesignLootOdds`). Colours `LooterUI::Color::Tier*`.
+- **Defense**: `UHealthComponent::SetDefense` (set in `ACreatureBase::ApplyStats`), applied once in `HandleAnyDamage` after
+  the damage-taken scales: `x (1 - Defense x (crit ? 0.5 : 1))`; numbers shown and listeners get what's left.
+- **Spawn odds**: the area's place in the campaign = `UCreatureRankSettings::CampaignRise(MinLevel)` (FirstAreaLevel 1 → 0,
+  LateAreaLevel 50 → 1); `UAreaDefinition::PickPromotion` rolls the rarest tier first (`PickTier`). The area's own
+  Rare/EpicPromotionChance only switch promotions on. Caps: `UAreaRulesSubsystem::KeepUnderCaps` counts the living (a
+  creature not begun yet by its StartingRank) and steps a capped roll down; on arrival promotions and on spawner waves
+  (rolled groups only, the wave's own rolls counted), never on Fixed ranks, commands or egg sacs.
+- **Traits**: `UCreatureTraitComponent` ("Traits") on every creature; `ApplyRank` → `ApplyTraits` (before `OnRankChanged`)
+  sets `RollTraits(TraitCount, Ethereal, *this, GetTierSeed())`; the seed is CRC32 of the actor's name (stable across loads
+  and PIE; a runtime spawn uses its UniqueID) hashed with the promotion roll's bits (0 when placed or spawned with its
+  rank). Nothing saved: a session keeps no creatures, only `PromotionsRolledAt` (no reroll within 20 min), so no save
+  version change (still 3).
+- **Silver**: tiers pay a Regular kill's odds through `LooterEconomy::ScaledKillOdds` (chance `1-(1-c)^m`, the amount grown
+  to keep the average at m times): this cut today's Restless/Gravebound silver (x3.7 / x8.7 a Regular Unpaid's before).
+- **Dev**: `Looter.SpawnCreature <kind> <tier> [count] [chase]` logs the last one's health, defense, bite, XP and traits;
+  `Looter.Tier.Hit [damage] [crit]` hits the nearest as the player's shot and logs what defense let through;
+  `Looter.Tier.Odds [kills]`; `Looter.Perf.Horde Spider 8 Ethereal`. A test level's creatures take damage only through
+  `OnTakeAnyDamage.Broadcast` under `FEditorScriptExecutionGuard` (no game mode: `ApplyDamage` does nothing there).
 
 ## The Gravemother's Barrow fight (built 2026-10-20)
 

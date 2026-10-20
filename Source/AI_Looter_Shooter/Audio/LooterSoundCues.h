@@ -208,6 +208,31 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* UnpaidRise = TEXT("Creature.Unpaid.Rise");
 	inline constexpr const TCHAR* SpiderDrop = TEXT("Creature.Spider.Drop");
 
+	/** The enemy tiers (2026-10-20, Saved/Tiers/CONTRACT.md): the top two tiers' moments, and the traits' (UCreatureTraitComponent). */
+	namespace Tier
+	{
+		/** A Hallowed or Ethereal creature first noticing the player: a sting over the rank sting. */
+		inline constexpr const TCHAR* NoticeHallowed = TEXT("Creature.Tier.Notice.Hallowed");
+		inline constexpr const TCHAR* NoticeEthereal = TEXT("Creature.Tier.Notice.Ethereal");
+		/** Its bigger death burst in the tier's colour, with the soul-light pillar. */
+		inline constexpr const TCHAR* DeathHallowed = TEXT("Creature.Tier.Death.Hallowed");
+		inline constexpr const TCHAR* DeathEthereal = TEXT("Creature.Tier.Death.Ethereal");
+		/** Its loot popping out. */
+		inline constexpr const TCHAR* LootPopHallowed = TEXT("Loot.Tier.Pop.Hallowed");
+		inline constexpr const TCHAR* LootPopEthereal = TEXT("Loot.Tier.Pop.Ethereal");
+		/** The traits: Warded's ward shattering, Grave-burst's swell and blast, Phasing's blink, Vengeful's enrage, Mending's heal, Rallying's aura. */
+		inline constexpr const TCHAR* TraitWardBreak = TEXT("Creature.Trait.WardBreak");
+		/** Each hit the ward takes before it breaks. */
+		inline constexpr const TCHAR* TraitWardHit = TEXT("Creature.Trait.WardHit");
+		inline constexpr const TCHAR* TraitSwell = TEXT("Creature.Trait.Swell");
+		inline constexpr const TCHAR* TraitBurst = TEXT("Creature.Trait.Burst");
+		inline constexpr const TCHAR* TraitPhase = TEXT("Creature.Trait.Phase");
+		inline constexpr const TCHAR* TraitEnrage = TEXT("Creature.Trait.Enrage");
+		/** A loop (LooterSound::Start / Stop) while Mending heals. */
+		inline constexpr const TCHAR* TraitMend = TEXT("Creature.Trait.Mend");
+		inline constexpr const TCHAR* TraitRally = TEXT("Creature.Trait.Rally");
+	}
+
 	// --- The world ---
 	inline constexpr const TCHAR* ChapelBellToll = TEXT("World.ChapelBell.Toll");
 	inline constexpr const TCHAR* JettyBell = TEXT("World.JettyBell");

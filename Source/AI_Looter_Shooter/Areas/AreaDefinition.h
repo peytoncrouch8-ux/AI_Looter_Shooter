@@ -151,13 +151,15 @@ public:
 	TArray<FAreaKindLevel> KindLevels;
 
 	/**
-	 * The chance a placed Basic creature is Restless (Rare) when the area's promotions roll on an arrival (8% on Ransom's
-	 * Rest). A promotion lasts one life: it comes back as Basic.
+	 * Since the five tiers (2026-10-20) these two only say whether the area promotes at all (either above 0: Ransom's Rest
+	 * and the Lily keep 8% and 2%, Skyreach 0): the chance of each tier is the rank settings', at the area's place in the
+	 * campaign (FCreatureRankInfo::SpawnChanceFirst/Late, GetCampaignRise; PromotionChance). Kept by name so the area
+	 * assets and create_area_assets.py read as before. A promotion lasts one life: it comes back as Basic.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0", ClampMax = "1"))
 	float RarePromotionChance = 0.f;
 
-	/** The chance it's Gravebound (Epic) instead (2% on Ransom's Rest). Legendary monsters are hand-placed. */
+	/** With RarePromotionChance: above 0, the area promotes. Legendary monsters are hand-placed. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0", ClampMax = "1"))
 	float EpicPromotionChance = 0.f;
 
@@ -204,12 +206,23 @@ public:
 	 */
 	int32 LevelFor(int32 PlayerLevel, int32 Spread, int32 OwnLevel) const;
 
-	/** An arrival here can promote creatures. */
+	/** An arrival here can promote creatures (RarePromotionChance or EpicPromotionChance above 0). */
 	bool HasPromotions() const;
 
 	/**
-	 * The rank a placed Basic creature takes when the area's promotions roll, from Roll (uniform in 0 to 1): Epic below
-	 * EpicPromotionChance, Rare in the RarePromotionChance after it, else Basic.
+	 * How far along the campaign the area is, for its tiers' chances: 0 on Ransom's Rest (its creatures start at level 1),
+	 * 1 for the late areas, read from its creatures' lowest level (UCreatureRankSettings::CampaignRise; an area with no band
+	 * is 0).
+	 */
+	float GetCampaignRise() const;
+
+	/** A tier's share of regular spawns here: its chance at the area's place in the campaign, 0 where the area doesn't promote. */
+	float PromotionChance(ECreatureRank Tier) const;
+
+	/**
+	 * The rank a regular spawn takes here (a placed Basic creature as the promotions roll, a spawner rolling by its area),
+	 * from Roll (uniform in 0 to 1): the rarest tier first (UCreatureRankSettings::PickTier at GetCampaignRise), else Basic.
+	 * The caps on living ones are the level's (UAreaRulesSubsystem::KeepUnderCaps).
 	 */
 	ECreatureRank PickPromotion(float Roll) const;
 

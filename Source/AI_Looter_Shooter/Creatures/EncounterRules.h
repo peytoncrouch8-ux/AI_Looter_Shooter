@@ -89,9 +89,13 @@ namespace EncounterRules
 
 	/**
 	 * A rank for one of Group's creatures from Roll (uniform in 0 to 1): its fixed one, its own chances (Gravebound first,
-	 * then Restless), or Area's promotions (Basic without an area).
+	 * then Restless), or Area's tiers (UAreaDefinition::PickPromotion: Ethereal first, down to Restless; Basic without an
+	 * area). The spawner keeps a rolled one under the level's caps (UAreaRulesSubsystem::KeepUnderCaps; IsRolled).
 	 */
 	AI_LOOTER_SHOOTER_API ECreatureRank PickRank(const FEncounterGroup& Group, const UAreaDefinition* Area, float Roll);
+
+	/** Group's ranks are rolled (its own chances or its area's), so the tiers' caps hold them; a Fixed rank is the designer's. */
+	AI_LOOTER_SHOOTER_API bool IsRolled(const FEncounterGroup& Group);
 
 	/** Whether Group joins wave Wave (counted from 1). */
 	AI_LOOTER_SHOOTER_API bool JoinsWave(const FEncounterGroup& Group, int32 Wave);

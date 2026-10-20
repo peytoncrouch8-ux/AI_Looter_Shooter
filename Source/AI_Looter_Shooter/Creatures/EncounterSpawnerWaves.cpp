@@ -72,6 +72,14 @@ void AEncounterSpawner::StartWave()
 	const int32 Wave = ++WavesStarted;
 	WaveClock = 0.f;
 	const UAreaDefinition* Area = FindArea();
+	const UWorld* World = GetWorld();
+	const UAreaRulesSubsystem* Rules = World ? World->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
+	// The ranks still to come count against the tiers' caps with the living ones (two Ethereals in one wave would be one too many).
+	TArray<ECreatureRank, TInlineAllocator<16>> Coming;
+	for (const FOwedCreature& Entry : Owed)
+	{
+		Coming.Add(Entry.Rank);
+	}
 	int32 Brought = 0;
 	for (int32 GroupIndex = 0; GroupIndex < Groups.Num(); ++GroupIndex)
 	{
@@ -86,6 +94,11 @@ void AEncounterSpawner::StartWave()
 			FOwedCreature& Entry = Owed.AddDefaulted_GetRef();
 			Entry.Group = GroupIndex;
 			Entry.Rank = EncounterRules::PickRank(Group, Area, Rolls.FRand());
+			if (Rules && EncounterRules::IsRolled(Group))
+			{
+				Entry.Rank = Rules->KeepUnderCaps(Entry.Rank, nullptr, Coming);
+			}
+			Coming.Add(Entry.Rank);
 			++TotalQueued;
 			++Brought;
 		}

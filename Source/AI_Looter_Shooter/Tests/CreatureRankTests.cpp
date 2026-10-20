@@ -10,6 +10,7 @@
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootTable.h"
 #include "Progression/ProgressionSettings.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -147,37 +148,53 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreatureRanksTest, "Looter.Creatures.Ranks",
 
 bool FCreatureRanksTest::RunTest(const FString& Parameters)
 {
-	// The ranks as decided (Docs/Story.md, "Enemy ranks and legendary drops"). Basic is creatures as they always were;
-	// Restless, Gravebound and Soulfed show their word in the rarity color of the odds they carry (the loot beams' colors),
-	// each a little bigger and tougher than the one below.
+	// The ranks as decided (Docs/Story.md, "Enemy ranks and legendary drops"; the five tiers, 2026-10-20). Basic (Regular) is
+	// creatures as they always were; each tier up shows its word in its own colour (Restless and Gravebound happen to be the
+	// Rare and Epic loot beams' blue and purple; Hallowed's yellow and Ethereal's red are the tiers' alone), and is bigger,
+	// tougher and better paid than the one below; Soulfed sits above them in the legendary orange.
 	const FCreatureRankInfo& Basic = UCreatureRankSettings::Get(ECreatureRank::Basic);
 	TestTrue(TEXT("Basic shows no word"), Basic.Word.IsEmpty());
 	TestTrue(TEXT("Basic is as its class made it"), Basic.Size == 1.f && Basic.HealthMultiplier == 1.f && Basic.DamageMultiplier == 1.f
-		&& Basic.XPMultiplier == 1.f && Basic.LevelOffset == 0 && Basic.PackCallRadius == 0.f && Basic.bRespawns);
+		&& Basic.XPMultiplier == 1.f && Basic.LevelOffset == 0 && Basic.PackCallRadius == 0.f && Basic.bRespawns && Basic.Defense == 0.f
+		&& Basic.TraitCount == 0 && Basic.SilverMultiplier == 1.f);
+	TestTrue(TEXT("Basic's tag is the plain text colour"), Basic.Color.Equals(LooterUI::Color::TierRegular(), 0.001f));
 	struct FSoulLight
 	{
 		ECreatureRank Rank;
 		const TCHAR* Word;
-		EWeaponRarity Rarity;
+		FLinearColor Color;
 	};
-	const FSoulLight Lights[] = { { ECreatureRank::Rare, TEXT("Restless"), EWeaponRarity::Rare },
-		{ ECreatureRank::Epic, TEXT("Gravebound"), EWeaponRarity::Epic }, { ECreatureRank::Legendary, TEXT("Soulfed"), EWeaponRarity::Legendary } };
 	const UWeaponDefinition* Palette = GetDefault<UWeaponDefinition>();
-	float LastSize = Basic.Size;
+	const FSoulLight Lights[] = {
+		{ ECreatureRank::Rare, TEXT("Restless"), Palette->GetRarityInfo(EWeaponRarity::Rare).Color },
+		{ ECreatureRank::Epic, TEXT("Gravebound"), Palette->GetRarityInfo(EWeaponRarity::Epic).Color },
+		{ ECreatureRank::Hallowed, TEXT("Hallowed"), LooterUI::Color::TierHallowed() },
+		{ ECreatureRank::Ethereal, TEXT("Ethereal"), LooterUI::Color::TierEthereal() },
+		{ ECreatureRank::Legendary, TEXT("Soulfed"), Palette->GetRarityInfo(EWeaponRarity::Legendary).Color } };
+	const FCreatureRankInfo* Below = &Basic;
 	for (const FSoulLight& Light : Lights)
 	{
 		const FCreatureRankInfo& Info = UCreatureRankSettings::Get(Light.Rank);
 		TestEqual(FString::Printf(TEXT("%s's word"), Light.Word), Info.Word.ToString(), FString(Light.Word));
-		const FLinearColor Beam = Palette->GetRarityInfo(Light.Rarity).Color;
-		TestTrue(FString::Printf(TEXT("%s shows in the %s loot beam's color (%s against %s)"), Light.Word,
-			*UEnum::GetDisplayValueAsText(Light.Rarity).ToString(), *Info.Color.ToString(), *Beam.ToString()), Info.Color.Equals(Beam, 0.01f));
-		TestTrue(FString::Printf(TEXT("%s is bigger than the rank below (%.2fx)"), Light.Word, Info.Size), Info.Size > LastSize);
-		TestTrue(FString::Printf(TEXT("%s is tougher than Basic"), Light.Word), Info.HealthMultiplier > 1.f && Info.DamageMultiplier > 1.f);
-		LastSize = Info.Size;
+		TestTrue(FString::Printf(TEXT("%s shows in its colour (%s against %s)"), Light.Word, *Info.Color.ToString(), *Light.Color.ToString()),
+			Info.Color.Equals(Light.Color, 0.01f));
+		TestTrue(FString::Printf(TEXT("%s is bigger than the rank below (%.2fx)"), Light.Word, Info.Size), Info.Size > Below->Size);
+		TestTrue(FString::Printf(TEXT("%s has more health and a harder bite than the rank below"), Light.Word),
+			Info.HealthMultiplier > Below->HealthMultiplier && Info.DamageMultiplier >= Below->DamageMultiplier);
+		TestTrue(FString::Printf(TEXT("%s is worth more experience than the rank below"), Light.Word), Info.XPMultiplier > Below->XPMultiplier);
+		if (LooterRanks::IsTier(Light.Rank))
+		{
+			TestTrue(FString::Printf(TEXT("%s: more defense, silver and traits than the tier below, and rarer"), Light.Word),
+				Info.Defense > Below->Defense && Info.SilverMultiplier > Below->SilverMultiplier && Info.TraitCount >= Below->TraitCount
+				&& (Below == &Basic || (Info.SpawnChanceFirst < Below->SpawnChanceFirst && Info.SpawnChanceLate < Below->SpawnChanceLate)));
+		}
+		Below = &Info;
 		ECreatureRank ByWord = ECreatureRank::Basic;
 		TestTrue(FString::Printf(TEXT("%s names its rank, any case"), Light.Word),
 			UCreatureRankSettings::ParseRank(FString(Light.Word).ToLower(), ByWord) && ByWord == Light.Rank);
 	}
+	ECreatureRank ByRegular = ECreatureRank::Rare;
+	TestTrue(TEXT("\"Regular\" names Basic"), UCreatureRankSettings::ParseRank(TEXT("regular"), ByRegular) && ByRegular == ECreatureRank::Basic);
 	TestTrue(TEXT("A boss's name shows in orange"),
 		UCreatureRankSettings::Get(ECreatureRank::Boss).Color.Equals(Palette->GetRarityInfo(EWeaponRarity::Legendary).Color, 0.01f));
 	TestFalse(TEXT("A Legendary monster doesn't come back on its own"), UCreatureRankSettings::Get(ECreatureRank::Legendary).bRespawns);

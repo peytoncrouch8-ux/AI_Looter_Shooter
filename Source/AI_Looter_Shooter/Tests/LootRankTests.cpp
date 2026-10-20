@@ -28,10 +28,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootRankOddsTest, "Looter.Loot.RankOdds",
 
 bool FLootRankOddsTest::RunTest(const FString& Parameters)
 {
-	// The design's odds rank by rank (Docs/Story.md, "Enemy ranks and legendary drops"), from each rank's own table (its
-	// asset, or until Tools/Unreal/create_rank_assets.py has made it, the stand-in with the same odds): a legendary on
-	// 0.3% / 2.2% / 11.8% / 21.4% / 30.3% of kills; guns on 30% of kills (Basic, the default table), 60% (Rare) and every
-	// kill from Epic up; more ammo pickups up the ranks, each still a kill's 18 to 36 rounds; Common the likeliest rarity.
+	// The design's odds rank by rank (Docs/Story.md, "Enemy ranks and legendary drops"; the five tiers the user approved on
+	// 2026-10-20), from each rank's own table (its asset, or until Tools/Unreal/create_rank_assets.py has made it, the
+	// stand-in with the same odds): a legendary on 0.3% / 2.2% / 5.5% / 13.3% / 21.3% of kills up the tiers, Soulfed 21.4% and
+	// bosses 30.3% as before; guns on 30% of kills (Regular, the default table), 60% (Restless), 90% (Gravebound) and every
+	// kill above; more guns and ammo pickups up the tiers, each pickup still a kill's 18 to 36 rounds; Common the likeliest
+	// rarity at every rank.
 	struct FRankTarget
 	{
 		ECreatureRank Rank;
@@ -39,7 +41,8 @@ bool FLootRankOddsTest::RunTest(const FString& Parameters)
 		double KillsWithGuns;
 	};
 	const FRankTarget Targets[] = {
-		{ ECreatureRank::Basic, 0.003, 0.3 }, { ECreatureRank::Rare, 0.022, 0.6 }, { ECreatureRank::Epic, 0.118, 1.0 },
+		{ ECreatureRank::Basic, 0.003, 0.3 }, { ECreatureRank::Rare, 0.022, 0.6 }, { ECreatureRank::Epic, 0.055, 0.9 },
+		{ ECreatureRank::Hallowed, 0.133, 1.0 }, { ECreatureRank::Ethereal, 0.213, 1.0 },
 		{ ECreatureRank::Legendary, 0.214, 1.0 }, { ECreatureRank::Boss, 0.303, 1.0 } };
 	TestTrue(TEXT("Basic keeps the default table"), UCreatureRankSettings::GetLootTable(ECreatureRank::Basic) == ULootLibrary::GetDefaultLootTable());
 
@@ -48,7 +51,7 @@ bool FLootRankOddsTest::RunTest(const FString& Parameters)
 	double LastAmmo = -1.0;
 	for (const FRankTarget& Target : Targets)
 	{
-		const FString Name = UCreatureRankSettings::GetRankName(Target.Rank);
+		const FString Name = UCreatureRankSettings::GetTierName(Target.Rank);
 		const ULootTable* Table = UCreatureRankSettings::GetLootTable(Target.Rank);
 		if (!TestNotNull(FString::Printf(TEXT("%s has a loot table"), *Name), Table))
 		{
@@ -57,7 +60,7 @@ bool FLootRankOddsTest::RunTest(const FString& Parameters)
 
 		// Enough kills that even Basic's 1 in 333 is counted to a few percent, from a fixed seed so the result never flickers.
 		const int32 Kills = FMath::Clamp(FMath::RoundToInt32(3000.0 / Target.Legendary), 200000, 1000000);
-		const LootOdds::FTally Tally = LootOdds::Simulate(Table, Kills, 20261001 + static_cast<int32>(Target.Rank));
+		const LootOdds::FTally Tally = LootOdds::Simulate(Table, Kills, 20261001 + LooterRanks::Order(Target.Rank));
 		const LootOdds::FExpected Expected = LootOdds::Expected(Table);
 		const double Legendary = Tally.PerKill(Tally.KillsWithLegendary);
 		const double KillsWithGuns = Tally.PerKill(Tally.KillsWithWeapons);
@@ -83,7 +86,13 @@ bool FLootRankOddsTest::RunTest(const FString& Parameters)
 				TierName(Tier + 1), Tally.Rarities[Tier + 1]), Tally.Rarities[Tier] > Tally.Rarities[Tier + 1]);
 		}
 
-		// Up the ranks: legendaries more often, more guns, more ammo pickups, each still holding a kill's 18 to 36 rounds.
+		// Up the tiers (Regular to Ethereal), and from a Soulfed monster to a boss: legendaries more often, more guns, more ammo
+		// pickups, each still holding a kill's 18 to 36 rounds. A Soulfed monster's table is an Ethereal's give or take, so
+		// the climb starts again at it.
+		if (Target.Rank == ECreatureRank::Legendary)
+		{
+			LastLegendary = LastGuns = LastAmmo = -1.0;
+		}
 		TestTrue(FString::Printf(TEXT("%s: legendaries more often than the rank below"), *Name), Legendary > LastLegendary);
 		TestTrue(FString::Printf(TEXT("%s: more guns a kill than the rank below (%.2f)"), *Name, Guns), Guns > LastGuns);
 		TestTrue(FString::Printf(TEXT("%s: more ammo pickups a kill than the rank below (%.2f)"), *Name, Ammo), Ammo > LastAmmo);

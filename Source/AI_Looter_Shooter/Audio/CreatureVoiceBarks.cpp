@@ -104,7 +104,8 @@ bool CreatureBarks::CanBarkRank(ECreatureRank Rank)
 
 bool CreatureBarks::IsAngryRank(ECreatureRank Rank)
 {
-	return Rank == ECreatureRank::Rare || Rank == ECreatureRank::Epic || Rank == ECreatureRank::Legendary;
+	// Every tier above Regular, and a Soulfed monster: fed on the dark. A boss never barks.
+	return Rank != ECreatureRank::Basic && Rank != ECreatureRank::Boss;
 }
 
 int32 CreatureBarks::PickLine(ECreatureBark Situation, ECreatureRank Rank, FRandomStream& Random, TConstArrayView<int32> Recent, FName Kind)

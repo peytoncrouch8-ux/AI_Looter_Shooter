@@ -123,14 +123,15 @@ void UCreatureHealthBarWidget::ApplyLabel()
 	if (LevelText && RankText && NameText)
 	{
 		LevelText->SetText(FText::FromString(FString::Printf(TEXT("LV %d"), CreatureLevel)));
-		// The rank shows in its color: on its word, or on the name when the rank has none (a boss). Basic's color is the
-		// plain text color, so a basic creature's tag looks as it always did.
+		// The tier shows in its color on its word and the name both ("Hallowed Meadow Wolf" all in saint-gold; the tiers'
+		// design, 2026-10-20), and a boss's name with no word. Basic's color is the plain text color, so a Regular creature's
+		// tag looks as it always did.
 		const bool bHasWord = !RankWord.IsEmpty();
 		RankText->SetText(RankWord);
 		RankText->SetColorAndOpacity(FSlateColor(RankColor));
 		RankText->SetVisibility(bHasWord ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		NameText->SetText(CreatureName);
-		NameText->SetColorAndOpacity(FSlateColor(bHasWord ? Color::Text() : RankColor));
+		NameText->SetColorAndOpacity(FSlateColor(RankColor));
 		// A pop under way carries on over the fresh colors.
 		if (bRankFlashing)
 		{

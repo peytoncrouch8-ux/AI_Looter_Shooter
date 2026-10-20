@@ -250,33 +250,51 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAreaPromotionsTest, "Looter.Areas.Promotions",
 
 bool FAreaPromotionsTest::RunTest(const FString& Parameters)
 {
-	// Docs/Story.md, "Enemy ranks": on Ransom's Rest an arrival makes 8% of placed Basic creatures Restless and 2% Gravebound,
-	// for one life. A seeded simulation of 200,000 creatures' rolls lands on those shares.
+	// Docs/Story.md, "Enemy ranks": on Ransom's Rest (its creatures from level 1, the campaign's first area) an arrival makes
+	// 8% of placed Basic creatures Restless, 2% Gravebound, 0.4% Hallowed and 0.08% Ethereal, for one life. A seeded
+	// simulation of 1,000,000 creatures' rolls lands on those shares.
 	const UAreaDefinition* Valley = MakeTestArea(1, 10, 0.08f, 0.02f);
 	TestTrue(TEXT("Ransom's Rest's chances promote"), Valley->HasPromotions());
-	constexpr int32 Rolls = 200000;
+	TestNearlyEqual(TEXT("Ransom's Rest is the campaign's start"), Valley->GetCampaignRise(), 0.f, 1e-6f);
+	constexpr int32 Rolls = 1000000;
 	FRandomStream Random(20261002);
-	int32 Counts[LooterRanks::NumRanks] = {};
+	TMap<ECreatureRank, int32> Counts;
 	for (int32 Roll = 0; Roll < Rolls; ++Roll)
 	{
-		++Counts[static_cast<int32>(UAreaRulesSubsystem::RollPromotionIn(Valley, Random))];
+		++Counts.FindOrAdd(UAreaRulesSubsystem::RollPromotionIn(Valley, Random));
 	}
-	const double RareShare = static_cast<double>(Counts[static_cast<int32>(ECreatureRank::Rare)]) / Rolls;
-	const double EpicShare = static_cast<double>(Counts[static_cast<int32>(ECreatureRank::Epic)]) / Rolls;
-	AddInfo(FString::Printf(TEXT("%d placed Basic creatures: %.2f%% Restless, %.2f%% Gravebound, %.2f%% Basic"), Rolls, RareShare * 100.0,
-		EpicShare * 100.0, 100.0 * Counts[static_cast<int32>(ECreatureRank::Basic)] / Rolls));
-	TestNearlyEqual(TEXT("8% Restless"), RareShare, 0.08, 0.003);
-	TestNearlyEqual(TEXT("2% Gravebound"), EpicShare, 0.02, 0.0015);
-	TestEqual(TEXT("Never a Legendary monster: they're hand-placed"), Counts[static_cast<int32>(ECreatureRank::Legendary)], 0);
-	TestEqual(TEXT("Never a boss"), Counts[static_cast<int32>(ECreatureRank::Boss)], 0);
+	auto Share = [&Counts](ECreatureRank Rank) { return static_cast<double>(Counts.FindRef(Rank)) / Rolls; };
+	AddInfo(FString::Printf(TEXT("%d placed Basic creatures: %.3f%% Restless, %.3f%% Gravebound, %.3f%% Hallowed, %.3f%% Ethereal, %.2f%% Basic"),
+		Rolls, Share(ECreatureRank::Rare) * 100.0, Share(ECreatureRank::Epic) * 100.0, Share(ECreatureRank::Hallowed) * 100.0,
+		Share(ECreatureRank::Ethereal) * 100.0, Share(ECreatureRank::Basic) * 100.0));
+	TestNearlyEqual(TEXT("8% Restless"), Share(ECreatureRank::Rare), 0.08, 0.0015);
+	TestNearlyEqual(TEXT("2% Gravebound"), Share(ECreatureRank::Epic), 0.02, 0.0008);
+	TestNearlyEqual(TEXT("0.4% Hallowed"), Share(ECreatureRank::Hallowed), 0.004, 0.0004);
+	TestNearlyEqual(TEXT("0.08% Ethereal (1 in 1,250)"), Share(ECreatureRank::Ethereal), 0.0008, 0.00015);
+	TestEqual(TEXT("Never a Legendary monster: they're hand-placed"), Counts.FindRef(ECreatureRank::Legendary), 0);
+	TestEqual(TEXT("Never a boss"), Counts.FindRef(ECreatureRank::Boss), 0);
 
-	// The rolls' edges: the rarer rank first, then the next, then Basic.
-	TestTrue(TEXT("A roll under 2%: Gravebound"), Valley->PickPromotion(0.f) == ECreatureRank::Epic && Valley->PickPromotion(0.019f) == ECreatureRank::Epic);
-	TestTrue(TEXT("From 2% to 10%: Restless"), Valley->PickPromotion(0.021f) == ECreatureRank::Rare && Valley->PickPromotion(0.099f) == ECreatureRank::Rare);
-	TestTrue(TEXT("Above: Basic"), Valley->PickPromotion(0.101f) == ECreatureRank::Basic && Valley->PickPromotion(1.f) == ECreatureRank::Basic);
-	const UAreaDefinition* Crowded = MakeTestArea(1, 10, 0.9f, 0.6f);
-	TestTrue(TEXT("Chances past 100%: the rarer rank keeps its share"), Crowded->PickPromotion(0.59f) == ECreatureRank::Epic
-		&& Crowded->PickPromotion(0.61f) == ECreatureRank::Rare && Crowded->PickPromotion(0.99f) == ECreatureRank::Rare);
+	// The rolls' edges: the rarest tier first, then each below it, then Basic.
+	TestTrue(TEXT("A roll under 0.08%: Ethereal"), Valley->PickPromotion(0.f) == ECreatureRank::Ethereal && Valley->PickPromotion(0.00079f) == ECreatureRank::Ethereal);
+	TestTrue(TEXT("To 0.48%: Hallowed"), Valley->PickPromotion(0.00081f) == ECreatureRank::Hallowed && Valley->PickPromotion(0.0047f) == ECreatureRank::Hallowed);
+	TestTrue(TEXT("To 2.48%: Gravebound"), Valley->PickPromotion(0.0049f) == ECreatureRank::Epic && Valley->PickPromotion(0.0247f) == ECreatureRank::Epic);
+	TestTrue(TEXT("To 10.48%: Restless"), Valley->PickPromotion(0.0249f) == ECreatureRank::Rare && Valley->PickPromotion(0.1047f) == ECreatureRank::Rare);
+	TestTrue(TEXT("Above: Basic"), Valley->PickPromotion(0.1049f) == ECreatureRank::Basic && Valley->PickPromotion(1.f) == ECreatureRank::Basic);
+
+	// The tiers come more often along the campaign: the late areas (creatures from level 50) roll 12%, 4%, 1% and 0.25%; an
+	// area between rises straight with its creatures' lowest level.
+	const UAreaDefinition* Late = MakeTestArea(50, 60, 0.08f, 0.02f);
+	TestNearlyEqual(TEXT("The late areas: Restless 12%"), Late->PromotionChance(ECreatureRank::Rare), 0.12f, 1e-5f);
+	TestNearlyEqual(TEXT("...Gravebound 4%"), Late->PromotionChance(ECreatureRank::Epic), 0.04f, 1e-5f);
+	TestNearlyEqual(TEXT("...Hallowed 1%"), Late->PromotionChance(ECreatureRank::Hallowed), 0.01f, 1e-6f);
+	TestNearlyEqual(TEXT("...Ethereal 0.25% (1 in 400)"), Late->PromotionChance(ECreatureRank::Ethereal), 0.0025f, 1e-6f);
+	const UAreaDefinition* Between = MakeTestArea(9, 15, 0.08f, 0.02f);
+	TestNearlyEqual(TEXT("The Lily (from level 9) is 8/49 of the way"), Between->GetCampaignRise(), 8.f / 49.f, 1e-5f);
+	TestTrue(TEXT("...its Restless between the first and the late areas' chances"), Between->PromotionChance(ECreatureRank::Rare) > 0.08f
+		&& Between->PromotionChance(ECreatureRank::Rare) < 0.12f);
+	TestNearlyEqual(TEXT("Past the late areas, no more"), MakeTestArea(60, 65, 0.08f, 0.02f)->PromotionChance(ECreatureRank::Ethereal), 0.0025f, 1e-6f);
+	TestEqual(TEXT("Basic has no chance of its own: it's what's left"), Valley->PromotionChance(ECreatureRank::Basic), 0.f);
+	TestEqual(TEXT("A Legendary monster is never rolled"), Late->PromotionChance(ECreatureRank::Legendary), 0.f);
 	const UAreaDefinition* Older = NewObject<UAreaDefinition>(GetTransientPackage(), NAME_None, RF_Transient);
 	TestFalse(TEXT("An area asset without the chances' fields (Skyreach's too) promotes nothing"), Older->HasPromotions());
 	TestTrue(TEXT("... whatever the roll"), UAreaRulesSubsystem::RollPromotionIn(Older, Random) == ECreatureRank::Basic

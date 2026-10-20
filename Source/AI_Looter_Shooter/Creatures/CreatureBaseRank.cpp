@@ -2,6 +2,7 @@
 #include "Areas/AreaRulesSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/CreatureTraitComponent.h"
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
@@ -27,19 +28,50 @@ void ACreatureBase::BeginRankAndLevel()
 /** Coming back: as its StartingRank (a promotion lasts one life), at a level its area rolls again for the player's now. */
 void ACreatureBase::RespawnRankAndLevel()
 {
+	TierRoll = 0;
 	TakeRankAndLevel(StartingRank, RollOwnLevel(StartingRank));
 }
 
-/** The rank it begins play with: StartingRank, or for a placed Basic creature its area's promotion this arrival. */
-ECreatureRank ACreatureBase::RollArrivalRank() const
+/**
+ * The rank it begins play with: StartingRank, or for a placed Basic creature its area's promotion this arrival (kept under
+ * the tiers' caps), whose roll its traits' seed keeps.
+ */
+ECreatureRank ACreatureBase::RollArrivalRank()
 {
+	TierRoll = 0;
 	// Only placed Basic creatures are promoted on arrival: a placed rank is the level designer's, and spawners roll their own.
 	if (StartingRank != ECreatureRank::Basic || bSpawnedAtRuntime)
 	{
 		return StartingRank;
 	}
 	UAreaRulesSubsystem* Rules = GetWorld() ? GetWorld()->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
-	return Rules ? Rules->RollPromotion() : StartingRank;
+	return Rules ? Rules->RollPromotion(this, &TierRoll) : StartingRank;
+}
+
+float ACreatureBase::GetDefense() const
+{
+	return Health ? Health->GetDefense() : 0.f;
+}
+
+int32 ACreatureBase::GetTierSeed() const
+{
+	// A placed one's name in its level is the same at every load (and in play in the editor); a spawned one never comes back,
+	// so its object's id will do. The name's characters, not the FName's own hash, which changes from run to run.
+	const uint32 Id = bSpawnedAtRuntime ? GetUniqueID() : FCrc::StrCrc32(*GetName());
+	return static_cast<int32>(HashCombineFast(Id, static_cast<uint32>(TierRoll)));
+}
+
+/** Its tier's traits from its seed: none below Gravebound, and never a Legendary monster's or a boss's (theirs are their own moves). */
+void ACreatureBase::ApplyTraits()
+{
+	if (!TraitComponent)
+	{
+		return;
+	}
+	const int32 Count = LooterRanks::IsTier(CurrentRank) ? UCreatureRankSettings::Get(CurrentRank).TraitCount : 0;
+	TraitComponent->SetTraits(Count > 0
+		? UCreatureTraitComponent::RollTraits(Count, CurrentRank == ECreatureRank::Ethereal, *this, GetTierSeed())
+		: TArray<ECreatureTrait>());
 }
 
 /** Its own level before its rank's: from where it stands in its area, or GivenLevel (no band, or spawned at one). */
@@ -121,9 +153,11 @@ void ACreatureBase::ApplyStats()
 	}
 	AttackDamage = BaseAttackDamage * LevelScale * Info.DamageMultiplier;
 	XPReward = FMath::Max(0, FMath::RoundToInt32(BaseXPReward * Info.XPMultiplier));
+	// Its tier's defense takes a share of every hit from here on (a crit pierces half: UHealthComponent).
+	Health->SetDefense(Info.Defense);
 }
 
-/** Applies CurrentRank: stats from the base ones, loot table, and size. */
+/** Applies CurrentRank: stats from the base ones, loot table, size and traits. */
 void ACreatureBase::ApplyRank()
 {
 	CaptureBaseStats();
@@ -134,6 +168,8 @@ void ACreatureBase::ApplyRank()
 	Loot->LootTable = CurrentRank == ECreatureRank::Basic ? OwnTable : UCreatureRankSettings::GetLootTable(CurrentRank);
 
 	ApplySize();
+	// Before OnRankChanged, so the subclass's own rank looks see its traits.
+	ApplyTraits();
 	OnRankChanged();
 }
 

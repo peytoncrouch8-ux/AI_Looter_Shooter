@@ -8,30 +8,49 @@
 namespace
 {
 	/** Where each rank's table asset lives, beside the default one (none for Basic: the creature's own table). */
-	const TCHAR* RankTablePaths[] = {
-		nullptr,
-		TEXT("/Game/Weapons/Data/DA_LootTable_Rare.DA_LootTable_Rare"),
-		TEXT("/Game/Weapons/Data/DA_LootTable_Epic.DA_LootTable_Epic"),
-		TEXT("/Game/Weapons/Data/DA_LootTable_Legendary.DA_LootTable_Legendary"),
-		TEXT("/Game/Weapons/Data/DA_LootTable_Boss.DA_LootTable_Boss") };
-	static_assert(UE_ARRAY_COUNT(RankTablePaths) == LooterRanks::NumRanks, "A table path per rank");
+	const TCHAR* RankTablePath(ECreatureRank Rank)
+	{
+		switch (Rank)
+		{
+		case ECreatureRank::Rare: return TEXT("/Game/Weapons/Data/DA_LootTable_Rare.DA_LootTable_Rare");
+		case ECreatureRank::Epic: return TEXT("/Game/Weapons/Data/DA_LootTable_Epic.DA_LootTable_Epic");
+		case ECreatureRank::Hallowed: return TEXT("/Game/Weapons/Data/DA_LootTable_Hallowed.DA_LootTable_Hallowed");
+		case ECreatureRank::Ethereal: return TEXT("/Game/Weapons/Data/DA_LootTable_Ethereal.DA_LootTable_Ethereal");
+		case ECreatureRank::Legendary: return TEXT("/Game/Weapons/Data/DA_LootTable_Legendary.DA_LootTable_Legendary");
+		case ECreatureRank::Boss: return TEXT("/Game/Weapons/Data/DA_LootTable_Boss.DA_LootTable_Boss");
+		default: return nullptr;
+		}
+	}
 
+	/** One rank's tag, body and stats: word, color, size, health, damage and experience multipliers, levels on top, defense. */
 	FCreatureRankInfo MakeRank(const TCHAR* Word, const FLinearColor& Color, float Size, float Health, float Damage, float XP,
-		int32 Levels, ECreatureRank Rank)
+		int32 Levels, float Defense, ECreatureRank Rank)
 	{
 		FCreatureRankInfo Info;
 		Info.Word = Word ? FText::FromString(Word) : FText::GetEmpty();
 		Info.Color = Color;
+		Info.GlowColor = Color;
 		Info.Size = Size;
 		Info.HealthMultiplier = Health;
 		Info.DamageMultiplier = Damage;
 		Info.XPMultiplier = XP;
 		Info.LevelOffset = Levels;
-		if (const TCHAR* Path = RankTablePaths[static_cast<int32>(Rank)])
+		Info.Defense = Defense;
+		if (const TCHAR* Path = RankTablePath(Rank))
 		{
 			Info.LootTable = TSoftObjectPtr<ULootTable>(FSoftObjectPath(Path));
 		}
 		return Info;
+	}
+
+	/** A tier's traits, silver, spawn chances (Ransom's Rest, the late areas) and cap. */
+	void SetTier(FCreatureRankInfo& Info, int32 Traits, float Silver, float First, float Late, int32 MaxAlive)
+	{
+		Info.TraitCount = Traits;
+		Info.SilverMultiplier = Silver;
+		Info.SpawnChanceFirst = First;
+		Info.SpawnChanceLate = Late;
+		Info.MaxAlivePerArea = MaxAlive;
 	}
 }
 
@@ -40,17 +59,30 @@ UCreatureRankSettings::UCreatureRankSettings()
 	CategoryName = TEXT("Game");
 	SectionName = TEXT("Creature Ranks");
 
-	// The tag colors are the rarity colors of the loot beams (UWeaponDefinition's rarity table, as sRGB): soul-light uses
-	// the game's one color code. Sizes, stats and levels are the design's (Docs/Story.md); bosses set their own size.
-	// Each: word, color, size, health, damage and experience multipliers, levels on top.
-	Basic = MakeRank(nullptr, LooterUI::Color::Text(), 1.f, 1.f, 1.f, 1.f, 0, ECreatureRank::Basic);
-	Rare = MakeRank(TEXT("Restless"), LooterUI::Hex(124, 170, 255), 1.1f, 2.5f, 1.2f, 2.f, 1, ECreatureRank::Rare);
-	Epic = MakeRank(TEXT("Gravebound"), LooterUI::Hex(204, 124, 244), 1.2f, 5.f, 1.4f, 4.f, 1, ECreatureRank::Epic);
-	Legendary = MakeRank(TEXT("Soulfed"), LooterUI::Hex(255, 204, 0), 1.4f, 12.f, 1.6f, 10.f, 2, ECreatureRank::Legendary);
-	Boss = MakeRank(nullptr, LooterUI::Hex(255, 204, 0), 1.f, 1.f, 1.f, 20.f, 1, ECreatureRank::Boss);
+	// The design the user approved on 2026-10-20 (Saved/Tiers/DESIGN.md, Docs/Story.md): five tiers for every regular enemy,
+	// each tougher (health, defense, damage, levels, size), rarer and better paid; Soulfed and bosses as they were. At the
+	// valley's middle level, effective health against a Regular one is 2.4, 4.0, 5.5 and 7.0 up the tiers.
+	// Each: word, color, size, health, damage and experience multipliers, levels on top, defense.
+	Basic = MakeRank(nullptr, LooterUI::Color::TierRegular(), 1.f, 1.f, 1.f, 1.f, 0, 0.f, ECreatureRank::Basic);
+	Rare = MakeRank(TEXT("Restless"), LooterUI::Color::TierRestless(), 1.08f, 2.f, 1.15f, 2.f, 1, 0.1f, ECreatureRank::Rare);
+	Epic = MakeRank(TEXT("Gravebound"), LooterUI::Color::TierGravebound(), 1.15f, 3.f, 1.3f, 3.5f, 1, 0.2f, ECreatureRank::Epic);
+	Hallowed = MakeRank(TEXT("Hallowed"), LooterUI::Color::TierHallowed(), 1.22f, 3.5f, 1.45f, 6.f, 2, 0.28f, ECreatureRank::Hallowed);
+	Ethereal = MakeRank(TEXT("Ethereal"), LooterUI::Color::TierEthereal(), 1.3f, 4.f, 1.6f, 9.f, 2, 0.35f, ECreatureRank::Ethereal);
+	// Soulfed's and a boss's orange is the legendary loot beam's (UWeaponDefinition's rarity table, as sRGB).
+	Legendary = MakeRank(TEXT("Soulfed"), LooterUI::Hex(255, 204, 0), 1.4f, 12.f, 1.6f, 10.f, 2, 0.f, ECreatureRank::Legendary);
+	Boss = MakeRank(nullptr, LooterUI::Hex(255, 204, 0), 1.f, 1.f, 1.f, 20.f, 1, 0.f, ECreatureRank::Boss);
 
-	// Gravebound and Soulfed spiders call every spider near them (Docs/Areas/RansomsRest.md, "Enemies by rank").
+	// Each tier: traits, silver against a Regular kill, its share of regular spawns on Ransom's Rest and by the late areas,
+	// and the most alive at once in an area for a roll to make another.
+	SetTier(Rare, 0, 1.5f, 0.08f, 0.12f, 0);
+	SetTier(Epic, 1, 2.5f, 0.02f, 0.04f, 4);
+	SetTier(Hallowed, 2, 4.f, 0.004f, 0.01f, 2);
+	SetTier(Ethereal, 3, 6.f, 0.0008f, 0.0025f, 1);
+
+	// Gravebound and better spiders call every spider near them (Docs/Areas/RansomsRest.md, "Enemies by rank").
 	Epic.PackCallRadius = 3000.f;
+	Hallowed.PackCallRadius = 3000.f;
+	Ethereal.PackCallRadius = 3000.f;
 	Legendary.PackCallRadius = 3000.f;
 
 	// Legendary monsters and bosses come back only when their area says so (after 20 minutes of play, or never).
@@ -67,6 +99,10 @@ const FCreatureRankInfo& UCreatureRankSettings::Get(ECreatureRank Rank)
 		return Settings->Rare;
 	case ECreatureRank::Epic:
 		return Settings->Epic;
+	case ECreatureRank::Hallowed:
+		return Settings->Hallowed;
+	case ECreatureRank::Ethereal:
+		return Settings->Ethereal;
 	case ECreatureRank::Legendary:
 		return Settings->Legendary;
 	case ECreatureRank::Boss:
@@ -78,15 +114,19 @@ const FCreatureRankInfo& UCreatureRankSettings::Get(ECreatureRank Rank)
 
 UCreatureRankSettings::FRankLootOdds UCreatureRankSettings::DesignLootOdds(ECreatureRank Rank)
 {
-	// Docs/Story.md: the guns come more often and in greater numbers up the ranks, at most Luck 1.3, where Common is still
-	// the likeliest rarity (Uncommon passes it above 1.4). Each rank drops more ammo pickups, each still 18-36 rounds.
-	// Each: chance a kill drops guns, fewest and most guns, luck, fewest and most ammo pickups.
+	// The design (Docs/Story.md): the guns come more often and in greater numbers up the tiers, at most Luck 1.3, where
+	// Common is still the likeliest rarity (Uncommon passes it above 1.4). Each tier drops more ammo pickups, each still
+	// 18-36 rounds. Each: chance a kill drops guns, fewest and most guns, luck, fewest and most ammo pickups.
 	switch (Rank)
 	{
 	case ECreatureRank::Rare:
 		return { 0.6f, 1, 1, 0.5f, 2, 3 };
 	case ECreatureRank::Epic:
-		return { 1.f, 1, 2, 1.f, 3, 4 };
+		return { 0.9f, 1, 1, 0.8f, 2, 4 };
+	case ECreatureRank::Hallowed:
+		return { 1.f, 1, 2, 1.1f, 3, 5 };
+	case ECreatureRank::Ethereal:
+		return { 1.f, 2, 2, 1.3f, 4, 6 };
 	case ECreatureRank::Legendary:
 		return { 1.f, 2, 2, 1.3f, 4, 6 };
 	case ECreatureRank::Boss:
@@ -117,9 +157,9 @@ ULootTable* UCreatureRankSettings::GetLootTable(ECreatureRank Rank)
 		return ULootLibrary::GetDefaultLootTable();
 	}
 
-	// No asset yet: a stand-in with the design's odds and the default table's guns and ammo, made once.
+	// No asset yet: a stand-in with the design's odds and the default table's guns and ammo, made once (kept by the rank's place).
 	UCreatureRankSettings* Settings = GetMutableDefault<UCreatureRankSettings>();
-	const int32 Index = static_cast<int32>(Rank);
+	const int32 Index = LooterRanks::Order(Rank);
 	if (Settings->StandInTables.Num() < LooterRanks::NumRanks)
 	{
 		Settings->StandInTables.SetNum(LooterRanks::NumRanks);
@@ -156,13 +196,23 @@ FString UCreatureRankSettings::GetRankName(ECreatureRank Rank)
 	return StaticEnum<ECreatureRank>()->GetNameStringByValue(static_cast<int64>(Rank));
 }
 
+FString UCreatureRankSettings::GetTierName(ECreatureRank Rank)
+{
+	if (Rank == ECreatureRank::Basic)
+	{
+		return TEXT("Regular");
+	}
+	const FText& Word = Get(Rank).Word;
+	return Word.IsEmpty() ? GetRankName(Rank) : Word.ToString();
+}
+
 bool UCreatureRankSettings::ParseRank(const FString& Text, ECreatureRank& OutRank)
 {
 	const FString Wanted = Text.TrimStartAndEnd();
 	for (const ECreatureRank Candidate : LooterRanks::All)
 	{
 		const FText& Word = Get(Candidate).Word;
-		if (Wanted.Equals(GetRankName(Candidate), ESearchCase::IgnoreCase)
+		if (Wanted.Equals(GetRankName(Candidate), ESearchCase::IgnoreCase) || Wanted.Equals(GetTierName(Candidate), ESearchCase::IgnoreCase)
 			|| (!Word.IsEmpty() && Wanted.Equals(Word.ToString(), ESearchCase::IgnoreCase)))
 		{
 			OutRank = Candidate;
@@ -170,4 +220,57 @@ bool UCreatureRankSettings::ParseRank(const FString& Text, ECreatureRank& OutRan
 		}
 	}
 	return false;
+}
+
+// ---------------------------------------------------------------------------
+// Spawns
+// ---------------------------------------------------------------------------
+
+float UCreatureRankSettings::CampaignRise(int32 MinLevel)
+{
+	const UCreatureRankSettings* Settings = GetDefault<UCreatureRankSettings>();
+	const int32 First = FMath::Max(Settings->FirstAreaLevel, 1);
+	const int32 Late = FMath::Max(Settings->LateAreaLevel, First + 1);
+	return FMath::Clamp(static_cast<float>(MinLevel - First) / static_cast<float>(Late - First), 0.f, 1.f);
+}
+
+float UCreatureRankSettings::SpawnChance(ECreatureRank Rank, float Rise)
+{
+	if (!LooterRanks::IsTier(Rank) || Rank == ECreatureRank::Basic)
+	{
+		return 0.f;
+	}
+	const FCreatureRankInfo& Info = Get(Rank);
+	return FMath::Clamp(FMath::Lerp(Info.SpawnChanceFirst, Info.SpawnChanceLate, FMath::Clamp(Rise, 0.f, 1.f)), 0.f, 1.f);
+}
+
+ECreatureRank UCreatureRankSettings::PickTier(float Roll, float Rise)
+{
+	// The rarest first, so chances that add up past 1 still give it its share.
+	float Below = 0.f;
+	for (int32 Index = LooterRanks::NumTiers - 1; Index >= 1; --Index)
+	{
+		const ECreatureRank Tier = LooterRanks::Tiers[Index];
+		Below += SpawnChance(Tier, Rise);
+		if (Roll < Below)
+		{
+			return Tier;
+		}
+	}
+	return ECreatureRank::Basic;
+}
+
+ECreatureRank UCreatureRankSettings::KeepUnderCaps(ECreatureRank Rolled, TFunctionRef<int32(ECreatureRank)> AliveOf)
+{
+	ECreatureRank Kept = Rolled;
+	while (LooterRanks::IsTier(Kept) && Kept != ECreatureRank::Basic)
+	{
+		const int32 Cap = Get(Kept).MaxAlivePerArea;
+		if (Cap <= 0 || AliveOf(Kept) < Cap)
+		{
+			break;
+		}
+		Kept = LooterRanks::TierBelow(Kept);
+	}
+	return Kept;
 }

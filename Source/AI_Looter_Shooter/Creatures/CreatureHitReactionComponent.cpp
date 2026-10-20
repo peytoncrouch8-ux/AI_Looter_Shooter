@@ -44,6 +44,8 @@ namespace
 		{
 		case ECreatureRank::Rare: return 0.85f;
 		case ECreatureRank::Epic: return 0.7f;
+		case ECreatureRank::Hallowed: return 0.6f;
+		case ECreatureRank::Ethereal: return 0.5f;
 		default: return 1.f;
 		}
 	}
@@ -230,7 +232,7 @@ void UCreatureHitReactionComponent::HandleDeath(AController* Killer)
 	APlayerController* Player = Cast<APlayerController>(Killer);
 	if (Player && Player->IsLocalController())
 	{
-		const bool bHeavy = bLastHitCritical || Creature->GetRank() >= ECreatureRank::Epic;
+		const bool bHeavy = bLastHitCritical || LooterRanks::IsAtLeast(Creature->GetRank(), ECreatureRank::Epic);
 		UCameraShakeModifier::Kick(Player, ViewKicks::ForKill(bHeavy));
 	}
 	StartCorpseKnock(*Creature);
@@ -260,7 +262,7 @@ void UCreatureHitReactionComponent::StartCorpseKnock(ACreatureBase& Creature)
 {
 	// A big body takes a killing shot without sliding off (a Soulfed monster's own death is its show).
 	const FVector Away = LastShotDirection.GetSafeNormal2D();
-	if (Away.IsNearlyZero() || Creature.GetRank() >= ECreatureRank::Legendary)
+	if (Away.IsNearlyZero() || LooterRanks::IsAtLeast(Creature.GetRank(), ECreatureRank::Legendary))
 	{
 		return;
 	}

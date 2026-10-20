@@ -1,14 +1,17 @@
-"""Makes (or brings up to date) the creature ranks' loot tables beside the default one, /Game/Weapons/Data/DA_LootTable_Rare,
-_Epic, _Legendary and _Boss, and saves them. Run it in the open editor:
+"""Makes (or brings up to date) the creature ranks' loot tables beside the default one, /Game/Weapons/Data/DA_LootTable_Rare
+(Restless), _Epic (Gravebound), _Hallowed, _Ethereal, _Legendary (Soulfed) and _Boss, and saves them. Run it in the open
+editor:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_rank_assets.py"
 
 Each table is DA_LootTable_Default's guns (and their weights) and ammo classes with its rank's odds (Docs/Story.md,
-"Enemy ranks and legendary drops"): the same numbers as UCreatureRankSettings::DesignLootOdds, which the game uses as a
-stand-in until these assets exist. Ammo pickups still hold a kill's 18-36 rounds each; ranks drop more of them. Running it
-again puts the tables' guns, ammo and odds back to these. Basic keeps DA_LootTable_Default, which this never changes.
+"Enemy ranks and legendary drops"; the five tiers the user approved on 2026-10-20): the same numbers as
+UCreatureRankSettings::DesignLootOdds, which the game uses as a stand-in until these assets exist. Ammo pickups still hold
+a kill's 18-36 rounds each; ranks drop more of them. Running it again puts the tables' guns, ammo and odds back to these.
+Basic (Regular) keeps DA_LootTable_Default, which this never changes.
 
-With the stock rarity weights (60/25/10/4/1), a kill drops a legendary 0.3% of the time from Basic, 2.2% Rare, 11.8% Epic,
-21.4% Legendary and 30.3% Boss. In the game, Looter.Loot.SimulateDrops <rank> prints them; Looter.Loot.RankOdds tests them.
+With the stock rarity weights (60/25/10/4/1), a kill drops a legendary 0.3% of the time from Regular, 2.2% Restless,
+5.5% Gravebound, 13.3% Hallowed, 21.3% Ethereal, 21.4% Soulfed and 30.3% Boss. In the game, Looter.Loot.SimulateDrops
+<rank> and Looter.Tier.Odds print them; Looter.Loot.RankOdds tests them.
 """
 import unreal
 
@@ -18,7 +21,9 @@ DEFAULT = f'{DATA}/DA_LootTable_Default'
 # Rank: (chance a kill drops guns, fewest guns, most guns, luck, fewest ammo pickups, most ammo pickups).
 RANKS = {
     'Rare': (0.6, 1, 1, 0.5, 2, 3),
-    'Epic': (1.0, 1, 2, 1.0, 3, 4),
+    'Epic': (0.9, 1, 1, 0.8, 2, 4),
+    'Hallowed': (1.0, 1, 2, 1.1, 3, 5),
+    'Ethereal': (1.0, 2, 2, 1.3, 4, 6),
     'Legendary': (1.0, 2, 2, 1.3, 4, 6),
     'Boss': (1.0, 3, 3, 1.3, 8, 10),
 }

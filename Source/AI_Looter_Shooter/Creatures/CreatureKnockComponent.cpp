@@ -94,6 +94,8 @@ float UCreatureKnockComponent::FlingShare(ECreatureRank Rank)
 	{
 	case ECreatureRank::Rare: return 0.85f;
 	case ECreatureRank::Epic: return 0.7f;
+	case ECreatureRank::Hallowed: return 0.6f;
+	case ECreatureRank::Ethereal: return 0.5f;
 	case ECreatureRank::Legendary: return 0.45f;
 	case ECreatureRank::Boss: return 0.f;
 	default: return 1.f;

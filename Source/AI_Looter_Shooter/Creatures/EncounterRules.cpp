@@ -141,8 +141,18 @@ float EncounterRules::LargestRankSize(const FEncounterGroup& Group, const UAreaD
 			Group.EpicChance > 0.f ? SizeOf(ECreatureRank::Epic) : 0.f);
 
 	default:
-		return FMath::Max3(Basic, Area && Area->RarePromotionChance > 0.f ? SizeOf(ECreatureRank::Rare) : 0.f,
-			Area && Area->EpicPromotionChance > 0.f ? SizeOf(ECreatureRank::Epic) : 0.f);
+	{
+		// Every tier the area can roll, however rare: an Ethereal needs its room as much as a Restless one.
+		float Largest = Basic;
+		for (const ECreatureRank Tier : LooterRanks::Tiers)
+		{
+			if (Area && Area->PromotionChance(Tier) > 0.f)
+			{
+				Largest = FMath::Max(Largest, SizeOf(Tier));
+			}
+		}
+		return Largest;
+	}
 	}
 }
 
@@ -210,6 +220,11 @@ ECreatureRank EncounterRules::PickRank(const FEncounterGroup& Group, const UArea
 	default:
 		return Area ? Area->PickPromotion(Roll) : ECreatureRank::Basic;
 	}
+}
+
+bool EncounterRules::IsRolled(const FEncounterGroup& Group)
+{
+	return Group.RankRoll != EEncounterRankRoll::Fixed;
 }
 
 bool EncounterRules::JoinsWave(const FEncounterGroup& Group, int32 Wave)

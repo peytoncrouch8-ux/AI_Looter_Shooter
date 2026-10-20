@@ -53,7 +53,7 @@ struct AI_LOOTER_SHOOTER_API FRecoverySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soul-motes", meta = (ClampMin = "0", ClampMax = "1"))
 	float DropChanceRestless = 0.25f;
 
-	/** "Gravebound", and "Soulfed" above it. */
+	/** "Gravebound", and every rank above it but a boss (Hallowed, Ethereal, Soulfed). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soul-motes", meta = (ClampMin = "0", ClampMax = "1"))
 	float DropChanceGravebound = 0.5f;
 

@@ -198,7 +198,7 @@ namespace
 	double ExpectedKillXP(const FPathKills& Kills, int32 PlayerLevel, const UAreaDefinition& Area, const FLevelRules& Rules)
 	{
 		const ACreatureBase& Creature = *Kills.Creature;
-		TArray<TPair<ECreatureRank, double>, TInlineAllocator<3>> Odds;
+		TArray<TPair<ECreatureRank, double>, TInlineAllocator<LooterRanks::NumTiers>> Odds;
 		switch (Kills.Rank)
 		{
 		case EPathRank::Basic:
@@ -212,12 +212,15 @@ namespace
 			break;
 		case EPathRank::AreaRolled:
 		{
-			// As the area rolls a promotion: Gravebound first, then Restless.
-			const double Epic = FMath::Clamp(static_cast<double>(Area.EpicPromotionChance), 0.0, 1.0);
-			const double Rare = FMath::Clamp(static_cast<double>(Area.RarePromotionChance), 0.0, 1.0 - Epic);
-			Odds.Add({ ECreatureRank::Epic, Epic });
-			Odds.Add({ ECreatureRank::Rare, Rare });
-			Odds.Add({ ECreatureRank::Basic, 1.0 - Epic - Rare });
+			// As the area rolls a promotion: the rarest tier first, down to Restless (UAreaDefinition::PickPromotion).
+			double Left = 1.0;
+			for (int32 Tier = LooterRanks::NumTiers - 1; Tier >= 1; --Tier)
+			{
+				const double Chance = FMath::Clamp(static_cast<double>(Area.PromotionChance(LooterRanks::Tiers[Tier])), 0.0, Left);
+				Odds.Add({ LooterRanks::Tiers[Tier], Chance });
+				Left -= Chance;
+			}
+			Odds.Add({ ECreatureRank::Basic, Left });
 			break;
 		}
 		}

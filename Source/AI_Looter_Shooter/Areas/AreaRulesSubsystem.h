@@ -16,9 +16,10 @@ struct FCampaignRecord;
  *    level here (the area's boss, a Legendary monster), else its zone's levels, rolled for a level of variety; one placed
  *    or spawned at a level of its own keeps it. Its rank's levels come on top (ACreatureBase, as it begins play and each
  *    time it comes back). So a player who comes back strong finds the bluff's spiders still level 1-2, worth little.
- *  - promotions: as the player arrives, each placed Basic creature may be Restless or Gravebound for one life, by the
- *    area's chances. In a session a map rolls at most once per 20 minutes of play (USessionSubsystem::ClaimPromotionRoll),
- *    so reloading doesn't reroll them; without a session every start rolls.
+ *  - promotions: as the player arrives, each placed Basic creature may be one of the four tiers above it for one life
+ *    (Restless, Gravebound, Hallowed, Ethereal), by the tiers' chances at the area's place in the campaign, under the
+ *    tiers' caps of living ones (KeepUnderCaps). In a session a map rolls at most once per 20 minutes of play
+ *    (USessionSubsystem::ClaimPromotionRoll), so reloading doesn't reroll them; without a session every start rolls.
  *  - practice (Skyreach): its kills give no experience (UPlayerProgressionSubsystem::KillXP), and once the player has
  *    left it for the first time its creatures drop only ammo (ULootDropComponent).
  * A level that is no area's, or an area asset made before bands, leaves its creatures as they were placed.
@@ -55,11 +56,27 @@ public:
 	static int32 RollLevelIn(const UAreaDefinition* InArea, const FVector& Spot, const UClass* Kind, int32 OwnLevel, bool bOwnLevelChosen,
 		const FRandomStream& Random);
 
-	/** The rank a placed Basic creature starts this arrival with: a promotion when this arrival rolls them, else Basic. */
-	ECreatureRank RollPromotion();
+	/**
+	 * The rank a placed Basic creature (Asking) starts this arrival with: a promotion when this arrival rolls them, kept
+	 * under the tiers' caps (KeepUnderCaps), else Basic. OutRoll, when given, gets the roll's bits (its traits' seed).
+	 */
+	ECreatureRank RollPromotion(const AActor* Asking = nullptr, int32* OutRoll = nullptr);
 
-	/** A placed Basic creature's rank when InArea's promotions roll, drawn from Random against its chances. */
-	static ECreatureRank RollPromotionIn(const UAreaDefinition* InArea, const FRandomStream& Random);
+	/**
+	 * A placed Basic creature's rank when InArea's promotions roll, drawn from Random against the tiers' chances at its
+	 * place in the campaign (UAreaDefinition::PickPromotion). OutRoll, when given, gets the roll (0 to 1).
+	 */
+	static ECreatureRank RollPromotionIn(const UAreaDefinition* InArea, const FRandomStream& Random, float* OutRoll = nullptr);
+
+	/**
+	 * Rolled kept under the tiers' caps in this level (FCreatureRankInfo::MaxAlivePerArea: Gravebound 4, Hallowed 2,
+	 * Ethereal 1): a capped tier with that many alive (Except aside, Pending more already rolled to come) steps down a
+	 * tier until one has room. Placed ranks count, though nothing caps them.
+	 */
+	ECreatureRank KeepUnderCaps(ECreatureRank Rolled, const AActor* Except = nullptr, TConstArrayView<ECreatureRank> Pending = {}) const;
+
+	/** How many living creatures of Rank are in this level (Except aside): its rank in play, or the one it will begin play with. */
+	int32 CountAlive(ECreatureRank Rank, const AActor* Except = nullptr) const;
 
 	// --- Practice (Skyreach) ---
 
@@ -97,6 +114,8 @@ private:
 	/** What this arrival made of its creatures, for the log: levels given by where they stand, and promotions. */
 	int32 LevelsGiven = 0;
 	int32 PromotionsAsked = 0;
-	int32 PromotedRare = 0;
-	int32 PromotedEpic = 0;
+	/** By tier (LooterRanks::TierIndex); Basic's are the ones left as they were. */
+	int32 Promoted[LooterRanks::NumTiers] = {};
+	/** Rolls a cap stepped down (KeepUnderCaps), for the log. */
+	int32 PromotionsCapped = 0;
 };

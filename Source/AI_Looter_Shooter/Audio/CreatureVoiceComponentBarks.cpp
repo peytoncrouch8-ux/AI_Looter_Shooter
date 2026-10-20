@@ -36,6 +36,8 @@ float UCreatureVoiceComponent::RankPitch(ECreatureRank Rank)
 	{
 	case ECreatureRank::Rare: return 0.97f;
 	case ECreatureRank::Epic: return 0.94f;
+	case ECreatureRank::Hallowed: return 0.92f;
+	case ECreatureRank::Ethereal: return 0.9f;
 	case ECreatureRank::Legendary: return 0.92f;
 	default: return 1.f;
 	}

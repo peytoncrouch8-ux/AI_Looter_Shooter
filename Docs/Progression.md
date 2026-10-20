@@ -36,7 +36,7 @@ The user's calls:
 - **The curve** (`FXPCurve`): reaching level L takes **180 × (L^2.8 − 1)** in all, rounded: Borderlands 2's shape at
   three times its experience. **The top level is 65** (about 21.4 million in all).
 - **Kills** (`FLevelRules::KillXP`): the creature's `XPReward` (10; times its rank's multiplier: Restless ×2,
-  Gravebound ×4, Soulfed ×10, Boss ×20) × the kill scale (**1**) × **its level^1.2**, less 15 points a level when it's
+  Gravebound ×3.5, Hallowed ×6, Ethereal ×9, Soulfed ×10, Boss ×20) × the kill scale (**1**) × **its level^1.2**, less 15 points a level when it's
   below the player (never under 10%), never under 1. A Basic creature gives **10** at level 1, 23 at 2, 69 at 5, 103 at
   7, 364 at 20 and 1,361 at 60; a Restless one at level 3 gives 75, a level 5-6 miner 76-94, the Gravemother 859, the
   Foreman 1,136, Abel 2,066. The creature's level is where it stands, never the player's (*Creature levels*).
@@ -167,7 +167,7 @@ Main missions **15,700 XP** in all, side missions **8,850**. Each optional objec
 `Looter.Progression.Pacing` plays two paths on paper from the same data the game uses (`Tests/PacingPaths.h`): the
 mission assets' rewards, the creatures' own numbers, the layout's levels and encounters. Kills one at a time at the level
 the ones before left the player on, each averaged over the levels where it stands and the area's promotions (8%
-Restless, 2% Gravebound) as the game rolls them; then the turn-in. It fails outside **5.3-5.8** for the story alone and
+Restless, 2% Gravebound, 0.4% Hallowed, 0.08% Ethereal) as the game rolls them; then the turn-in. It fails outside **5.3-5.8** for the story alone and
 **6.6-7.0** for everything, or if the missions give under two thirds of the story's experience.
 
 ### The story alone
@@ -268,8 +268,11 @@ Silver pops out as a small pile of coins (`ASilverPickup`) that flies to a livin
 
 | Source | Chance | Amount (level 1) | Average |
 |---|---:|---:|---:|
-| An Unpaid's kill: Basic / Restless / Gravebound / Soulfed / Boss | 55% / 85% / 100% / 100% / 100% | 3-7 / 9-15 / 18-30 / 50-80 / 100-140 | 2.75 / 10.2 / 24 / 65 / 120 |
-| A beast's kill (spiders, slimes): the same ranks | 20% / 50% / 80% / 100% / 100% | 2-4 / 5-9 / 10-18 / 40-60 / 80-120 | 0.6 / 3.5 / 11.2 / 50 / 100 |
+| An Unpaid's kill: Regular / Restless / Gravebound / Hallowed / Ethereal / Soulfed / Boss | 55 / 70 / 86 / 96 / 99 / 100 / 100% | 3-7 / 4-8 / 5-11 / 7-16 / 10-23 / 50-80 / 100-140 | 2.75 / 4.2 / 6.9 / 11 / 16.4 / 65 / 120 |
+| A beast's kill (spiders, slimes): the same ranks | 20 / 28 / 43 / 59 / 74 / 100 / 100% | 2-4 / 2-4 / 2-5 / 3-5 / 3-7 / 40-60 / 80-120 | 0.6 / 0.85 / 1.5 / 2.4 / 3.7 / 50 / 100 |
+
+The tiers' rows are a Regular kill's times their `SilverMultiplier` (x1.5 / 2.5 / 4 / 6; `LooterEconomy::ScaledKillOdds`,
+2026-10-20); before the tiers a Restless kill gave 10.2 (Unpaid) and a Gravebound 24.
 | Ranger cache, camp crate (Supply Crate) | 90% | 10-20 | 13.5 |
 | The gang's Strongbox | 100% | 40-70 | 55 |
 | Coffin / grave | 70% / 75% | 6-14 / 6-16 | 7 / 8.25 |

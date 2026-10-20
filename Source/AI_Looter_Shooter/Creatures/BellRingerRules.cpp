@@ -36,6 +36,8 @@ float BellRingerRules::TollInterval(const FBellRingerTuning& Tuning, ECreatureRa
 	case ECreatureRank::Rare:
 		return Tuning.TollInterval * 0.8f;
 	case ECreatureRank::Epic:
+	case ECreatureRank::Hallowed:
+	case ECreatureRank::Ethereal:
 	case ECreatureRank::Legendary:
 		return Tuning.TollInterval * 0.75f;
 	default:
@@ -45,7 +47,8 @@ float BellRingerRules::TollInterval(const FBellRingerTuning& Tuning, ECreatureRa
 
 bool BellRingerRules::IsCrackedBell(ECreatureRank Rank)
 {
-	return Rank == ECreatureRank::Epic || Rank == ECreatureRank::Legendary;
+	// Gravebound and above, never a boss's.
+	return LooterRanks::IsAtLeast(Rank, ECreatureRank::Epic) && Rank != ECreatureRank::Boss;
 }
 
 EBellToll BellRingerRules::ChooseToll(bool bFallenToRaise, int32 RaisedSoFar, int32 MaxRaises, bool bRoomForMore)

@@ -42,6 +42,17 @@ void UHealthComponent::SetDamageTakenScale(FName Source, float Scale)
 	DamageTakenScales.Add(Source, FMath::Max(Scale, 0.f));
 }
 
+void UHealthComponent::SetDefense(float InDefense)
+{
+	Defense = FMath::Clamp(InDefense, 0.f, 0.9f);
+}
+
+float UHealthComponent::AfterDefense(float Damage, float InDefense, bool bCritical)
+{
+	const float Share = FMath::Clamp(InDefense, 0.f, 0.9f) * (bCritical ? 0.5f : 1.f);
+	return Damage * (1.f - Share);
+}
+
 float UHealthComponent::GetDamageTakenScale() const
 {
 	float Scale = 1.f;
@@ -57,15 +68,17 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float IncomingDamag
 {
 	const FVector HitLocation = bHasPendingHitLocation ? PendingHitLocation : GetOwner()->GetActorLocation() + FVector(0.f, 0.f, 50.f);
 	bHasPendingHitLocation = false;
-	// An ember power's say over what it takes (a mark makes it more, plates less), before anything counts it.
-	const float Damage = DamageTakenScales.IsEmpty() ? IncomingDamage : IncomingDamage * GetDamageTakenScale();
+	const bool bCritical = DamageType && DamageType->IsA<UWeaponCritDamageType>();
+	// An ember power's say over what it takes (a mark makes it more, plates less), then its tier's defense (a crit pierces
+	// half of it), once, before anything counts it.
+	const float Scaled = DamageTakenScales.IsEmpty() ? IncomingDamage : IncomingDamage * GetDamageTakenScale();
+	const float Damage = Defense > 0.f ? AfterDefense(Scaled, Defense, bCritical) : Scaled;
 
 	if (bDead || Damage <= 0.f)
 	{
 		return;
 	}
 
-	const bool bCritical = DamageType && DamageType->IsA<UWeaponCritDamageType>();
 	LastDamageCauser = DamageCauser;
 	++HurtCount;
 	// Hurting something counts as meeting it (the bestiary's unknown pages); only the player's hits count.

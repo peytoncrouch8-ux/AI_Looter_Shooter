@@ -18,7 +18,8 @@
 
 namespace
 {
-	const ECreatureRank Ranks[] = { ECreatureRank::Basic, ECreatureRank::Rare, ECreatureRank::Epic, ECreatureRank::Legendary, ECreatureRank::Boss };
+	/** Every rank, lowest first (the five tiers, Soulfed, Boss). */
+	const TConstArrayView<ECreatureRank> Ranks = LooterRanks::All;
 	const EChestKind Containers[] = { EChestKind::SupplyCrate, EChestKind::Strongbox, EChestKind::Coffin, EChestKind::Grave,
 		EChestKind::Mailbox, EChestKind::Footlocker };
 	const EWeaponRarity Rarities[] = { EWeaponRarity::Common, EWeaponRarity::Uncommon, EWeaponRarity::Rare, EWeaponRarity::Epic,

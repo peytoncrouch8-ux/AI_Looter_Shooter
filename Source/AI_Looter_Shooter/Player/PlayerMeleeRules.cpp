@@ -16,13 +16,21 @@ float FMeleeRules::StrikeDamage(float LevelScale, float Roll)
 FVector FMeleeRules::KnockVelocity(const FVector& Away, float Size, ECreatureRank Rank, bool bLight)
 {
 	const FVector Flat = Away.GetSafeNormal2D();
-	if (Flat.IsNearlyZero() || Rank >= ECreatureRank::Legendary)
+	if (Flat.IsNearlyZero() || LooterRanks::IsAtLeast(Rank, ECreatureRank::Legendary))
 	{
 		// A Soulfed monster or a boss stands its ground: its fight is made around its own moves.
 		return FVector::ZeroVector;
 	}
-	// A tougher rank gives less ground, as with a stagger's shove; a bigger body less again, a slime more.
-	const float RankShare = Rank == ECreatureRank::Rare ? 0.85f : (Rank == ECreatureRank::Epic ? 0.7f : 1.f);
+	// A tougher tier gives less ground, as with a stagger's shove; a bigger body less again, a slime more.
+	float RankShare = 1.f;
+	switch (Rank)
+	{
+	case ECreatureRank::Rare: RankShare = 0.85f; break;
+	case ECreatureRank::Epic: RankShare = 0.7f; break;
+	case ECreatureRank::Hallowed: RankShare = 0.6f; break;
+	case ECreatureRank::Ethereal: RankShare = 0.5f; break;
+	default: break;
+	}
 	const float Scale = RankShare * (bLight ? LightKnockScale : 1.f) / FMath::Sqrt(FMath::Max(Size, 0.3f));
 	return (Flat * KnockSpeed + FVector::UpVector * KnockLift) * Scale;
 }

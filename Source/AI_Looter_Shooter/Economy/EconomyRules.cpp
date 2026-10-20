@@ -1,5 +1,6 @@
 #include "Economy/EconomyRules.h"
 #include "Creatures/CreatureRank.h"
+#include "Creatures/CreatureRankSettings.h"
 #include "Loot/Chest.h"
 #include "Math/RandomStream.h"
 #include "Story/HeroLines.h"
@@ -9,23 +10,16 @@
 
 namespace
 {
-	/** A kill's silver at level 1, by rank (EnumIndex order: Basic, Restless, Gravebound, Soulfed, Boss). */
-	const LooterEconomy::FDropOdds UnpaidKills[] = {
-		{ 0.55f, 3, 7 },
-		{ 0.85f, 9, 15 },
-		{ 1.f, 18, 30 },
-		{ 1.f, 50, 80 },
-		{ 1.f, 100, 140 },
-	};
-	const LooterEconomy::FDropOdds BeastKills[] = {
-		{ 0.2f, 2, 4 },
-		{ 0.5f, 5, 9 },
-		{ 0.8f, 10, 18 },
-		{ 1.f, 40, 60 },
-		{ 1.f, 80, 120 },
-	};
-	static_assert(UE_ARRAY_COUNT(UnpaidKills) == LooterRanks::NumRanks && UE_ARRAY_COUNT(BeastKills) == LooterRanks::NumRanks,
-		"One kill drop per rank");
+	/**
+	 * A kill's silver at level 1: a Regular one's, and a Soulfed monster's and a boss's, which keep their own. The tiers
+	 * between pay a Regular kill's times their SilverMultiplier (KillOdds, ScaledKillOdds).
+	 */
+	constexpr LooterEconomy::FDropOdds UnpaidRegular = { 0.55f, 3, 7 };
+	constexpr LooterEconomy::FDropOdds UnpaidSoulfed = { 1.f, 50, 80 };
+	constexpr LooterEconomy::FDropOdds UnpaidBoss = { 1.f, 100, 140 };
+	constexpr LooterEconomy::FDropOdds BeastRegular = { 0.2f, 2, 4 };
+	constexpr LooterEconomy::FDropOdds BeastSoulfed = { 1.f, 40, 60 };
+	constexpr LooterEconomy::FDropOdds BeastBoss = { 1.f, 80, 120 };
 
 	/** What a vendor pays and asks at level 1, in EWeaponRarity order. A vendor never stocks a Common. */
 	constexpr int32 SellBases[] = { 8, 18, 40, 90, 200 };
@@ -74,8 +68,29 @@ FText LooterEconomy::Words(int32 Silver)
 
 LooterEconomy::FDropOdds LooterEconomy::KillOdds(ECreatureRank Rank, bool bUnpaid)
 {
-	const int32 Index = FMath::Clamp(static_cast<int32>(Rank), 0, LooterRanks::NumRanks - 1);
-	return bUnpaid ? UnpaidKills[Index] : BeastKills[Index];
+	switch (Rank)
+	{
+	case ECreatureRank::Legendary: return bUnpaid ? UnpaidSoulfed : BeastSoulfed;
+	case ECreatureRank::Boss: return bUnpaid ? UnpaidBoss : BeastBoss;
+	default: break;
+	}
+	const FDropOdds Regular = bUnpaid ? UnpaidRegular : BeastRegular;
+	return Rank == ECreatureRank::Basic ? Regular : ScaledKillOdds(Regular, UCreatureRankSettings::Get(Rank).SilverMultiplier);
+}
+
+LooterEconomy::FDropOdds LooterEconomy::ScaledKillOdds(const FDropOdds& Regular, float Multiplier)
+{
+	if (Multiplier <= 0.f || Regular.Chance <= 0.f)
+	{
+		return { 0.f, 0, 0 };
+	}
+	// As if it had Multiplier kills' chances to drop: it drops more often (a Regular beast's 20% is an Ethereal's 74%), and
+	// the amount makes up the rest of the average, so the whole is Multiplier times a Regular kill's.
+	const float Chance = 1.f - FMath::Pow(1.f - FMath::Clamp(Regular.Chance, 0.f, 1.f), Multiplier);
+	const float Grow = Multiplier * Regular.Chance / FMath::Max(Chance, UE_KINDA_SMALL_NUMBER);
+	const int32 Min = FMath::Max(1, FMath::RoundToInt32(static_cast<float>(Regular.Min) * Grow));
+	const int32 Max = FMath::Max(Min, FMath::RoundToInt32(static_cast<float>(Regular.Max) * Grow));
+	return { Chance, Min, Max };
 }
 
 LooterEconomy::FDropOdds LooterEconomy::ContainerOdds(EChestKind Kind)

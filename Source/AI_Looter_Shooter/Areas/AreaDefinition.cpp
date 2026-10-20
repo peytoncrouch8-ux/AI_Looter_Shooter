@@ -1,5 +1,6 @@
 #include "Areas/AreaDefinition.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureRankSettings.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -114,20 +115,19 @@ bool UAreaDefinition::HasPromotions() const
 	return RarePromotionChance > 0.f || EpicPromotionChance > 0.f;
 }
 
+float UAreaDefinition::GetCampaignRise() const
+{
+	return HasLevelBand() ? UCreatureRankSettings::CampaignRise(MinLevel) : 0.f;
+}
+
+float UAreaDefinition::PromotionChance(ECreatureRank Tier) const
+{
+	return HasPromotions() ? UCreatureRankSettings::SpawnChance(Tier, GetCampaignRise()) : 0.f;
+}
+
 ECreatureRank UAreaDefinition::PickPromotion(float Roll) const
 {
-	// The rarer rank first, so chances that add up past 1 still give it its share.
-	const float EpicChance = FMath::Clamp(EpicPromotionChance, 0.f, 1.f);
-	const float RareChance = FMath::Clamp(RarePromotionChance, 0.f, 1.f);
-	if (Roll < EpicChance)
-	{
-		return ECreatureRank::Epic;
-	}
-	if (Roll < EpicChance + RareChance)
-	{
-		return ECreatureRank::Rare;
-	}
-	return ECreatureRank::Basic;
+	return HasPromotions() ? UCreatureRankSettings::PickTier(Roll, GetCampaignRise()) : ECreatureRank::Basic;
 }
 
 bool UAreaDefinition::IsNamed(const FString& Words) const

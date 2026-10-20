@@ -17,7 +17,8 @@ namespace
 		ECreatureRank Rank = ECreatureRank::Basic;
 		if (Args.Num() > 0 && !UCreatureRankSettings::ParseRank(Args[0], Rank))
 		{
-			UE_LOG(LogLooter, Warning, TEXT("Looter.Loot.SimulateDrops: no rank called '%s' (Basic, Rare, Epic, Legendary, Boss)."), *Args[0]);
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Loot.SimulateDrops: no rank called '%s' (Regular, Restless, Gravebound, Hallowed, Ethereal, ")
+				TEXT("Soulfed, Boss)."), *Args[0]);
 			return;
 		}
 		const int32 Kills = Args.Num() > 1 ? FMath::Clamp(FCString::Atoi(*Args[1]), 1, 10000000) : 100000;
@@ -56,7 +57,8 @@ namespace
 
 	FAutoConsoleCommand SimulateDropsCommand(
 		TEXT("Looter.Loot.SimulateDrops"),
-		TEXT("Looter.Loot.SimulateDrops [Basic|Rare|Epic|Legendary|Boss] [kills, 100000 by default]: rolls the rank's loot table ")
+		TEXT("Looter.Loot.SimulateDrops [Regular|Restless|Gravebound|Hallowed|Ethereal|Soulfed|Boss] [kills, 100000 by default]: ")
+		TEXT("rolls the rank's loot table ")
 		TEXT("for that many kills and prints how often guns drop, their rarities and legendaries per kill, and the ammo pickups, ")
 		TEXT("beside what the table's numbers work out to."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&SimulateDrops));

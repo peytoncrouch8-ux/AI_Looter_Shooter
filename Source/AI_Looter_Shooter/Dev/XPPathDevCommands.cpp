@@ -68,8 +68,8 @@ namespace
 		{
 			return 0.0;
 		}
-		// The rank's odds as EncounterRules::PickRank and UAreaDefinition::PickPromotion roll them: Epic first, then Rare.
-		TArray<TPair<ECreatureRank, double>, TInlineAllocator<3>> Ranks;
+		// The rank's odds as EncounterRules::PickRank and UAreaDefinition::PickPromotion roll them: the rarest first.
+		TArray<TPair<ECreatureRank, double>, TInlineAllocator<LooterRanks::NumTiers>> Ranks;
 		auto AddOdds = [&Ranks](double Epic, double Rare)
 		{
 			Epic = FMath::Clamp(Epic, 0.0, 1.0);
@@ -88,7 +88,14 @@ namespace
 		}
 		else if (Rules.Area && Rules.Area->HasPromotions())
 		{
-			AddOdds(Rules.Area->EpicPromotionChance, Rules.Area->RarePromotionChance);
+			double Left = 1.0;
+			for (int32 Tier = LooterRanks::NumTiers - 1; Tier >= 1; --Tier)
+			{
+				const double Chance = FMath::Clamp(static_cast<double>(Rules.Area->PromotionChance(LooterRanks::Tiers[Tier])), 0.0, Left);
+				Ranks.Add({LooterRanks::Tiers[Tier], Chance});
+				Left -= Chance;
+			}
+			Ranks.Add({ECreatureRank::Basic, Left});
 		}
 		else
 		{

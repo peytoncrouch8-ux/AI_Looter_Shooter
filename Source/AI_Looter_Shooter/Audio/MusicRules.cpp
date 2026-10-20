@@ -113,7 +113,8 @@ bool MusicRules::EarnsVictory(double FightSeconds, int32 Kills)
 
 bool MusicRules::IsElite(ECreatureRank Rank)
 {
-	return Rank == ECreatureRank::Epic || Rank == ECreatureRank::Legendary;
+	// Gravebound and above, short of a boss (whose fight has music of its own).
+	return LooterRanks::IsAtLeast(Rank, ECreatureRank::Epic) && Rank != ECreatureRank::Boss;
 }
 
 EBossTheme MusicRules::ThemeFor(bool bUnpaidBoss)

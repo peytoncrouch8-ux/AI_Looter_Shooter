@@ -73,7 +73,7 @@ public:
 	/** Back on its feet: no knock, no daze, the body put back (death; tests). */
 	void Recover();
 
-	/** How far each rank is thrown, as a share of a Basic one's: a boss not at all. */
+	/** How far each rank is thrown, as a share of a Basic one's (Dust Devil's flings; Hallowed 60%, Ethereal 50%): a boss not at all. */
 	static float FlingShare(ECreatureRank Rank);
 
 	/** The launch that lands Distance cm along Away (flat, unit) on ground as high as it left, its arc's top Height over it. */

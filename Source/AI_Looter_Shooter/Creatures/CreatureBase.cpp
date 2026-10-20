@@ -9,6 +9,7 @@
 #include "Creatures/CreaturePackComponent.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/CreatureReactComponent.h"
+#include "Creatures/CreatureTraitComponent.h"
 #include "Loot/LootDropComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/CreatureHealthBarWidget.h"
@@ -57,6 +58,8 @@ ACreatureBase::ACreatureBase()
 	Pack = CreateDefaultSubobject<UCreaturePackComponent>(TEXT("Pack"));
 	React = CreateDefaultSubobject<UCreatureReactComponent>(TEXT("React"));
 	Knock = CreateDefaultSubobject<UCreatureKnockComponent>(TEXT("Knock"));
+	// Its tier's traits (Gravebound 1, Hallowed 2, Ethereal 3), set as its rank is applied (CreatureBaseRank.cpp).
+	TraitComponent = CreateDefaultSubobject<UCreatureTraitComponent>(TEXT("Traits"));
 
 	HealthBar = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
 	HealthBar->SetupAttachment(GetCapsuleComponent());

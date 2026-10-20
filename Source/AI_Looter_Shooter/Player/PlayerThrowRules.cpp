@@ -53,6 +53,8 @@ float FThrowRules::DropChance(ECreatureRank Rank, int32 Carried)
 	{
 	case ECreatureRank::Rare: Chance = 0.15f; break;
 	case ECreatureRank::Epic: Chance = 0.3f; break;
+	case ECreatureRank::Hallowed: Chance = 0.45f; break;
+	case ECreatureRank::Ethereal: Chance = 0.6f; break;
 	case ECreatureRank::Legendary: Chance = 0.6f; break;
 	case ECreatureRank::Boss: Chance = 1.f; break;
 	default: break;

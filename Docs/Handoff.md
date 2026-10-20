@@ -295,7 +295,31 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   (`AHeroSelectStage::RimShareFor`: Crane x0.71, Pike x0.85); the clod's landing shadow reads through grass
   (`M_GraveDecal` AlphaScale, 1.8 on the shadow); the crack's end cap seen joining. Then Crane's skin SubsurfaceAmount 0.15
   (1ead855; Crane.py's GAME_MATERIALS and MI_CraneSkin set directly; his next export rebakes as the digest changed).
-  Known test trap: typing `Looter.Hero.Unlock` at the console fails three hero tests until the editor restarts.
+  Known test trap: typing `Looter.Hero.Unlock` at the console fails three hero tests until the editor restarts (fixed
+  since: 88ec205).
+- **Enemy tiers (the user, 2026-10-20): Regular (white), Restless (blue), Gravebound (purple), Hallowed (yellow),
+  Ethereal (red)** for every regular enemy (not bosses, not named Legendary monsters). The design with every number and
+  the user's calls (tier-only colours; crits pierce half the defense; Ethereals 1 in 1,250 on Ransom's Rest; numbers
+  approved): `Saved/Tiers/DESIGN.md`; the build contract `Saved/Tiers/CONTRACT.md` (neither committed; Story.md's ranks
+  table is updated by TIER-CORE). Running: TIER-CORE (owns the editor: enum appended Hallowed=5, Ethereal=6, settings,
+  defense, promotions, loot, tag, tests), TIER-TRAITS and TIER-LOOK (holding trees `Saved/Tiers/Traits|Look/`, merge
+  after CORE in that order), TIER-SOUND (13 cues). PIKE's leftovers done and committed (872b030: cuff tabs, softer
+  chops, the hip patch; 34,900 triangles); TIER-CORE reimports SK_Pike at a break.
+  TIER-SOUND done and committed (d1db327, 13 cues; WardHit asked for after). TIER-TRAITS done in its holding tree
+  (`Saved/Tiers/Traits/README.md`): replaces CORE's 3 stand-ins, adds the component's 5 topic files, UCreatureRallied,
+  CreatureTraitRules, UCreatureTraitSettings (every number), `Looter.Traits.Give|Show`, 9 tests; small changes to
+  HealthComponent (an `FHealthShield` delegate after defense) and CreatureBase (`SettleBody()`). Its calls: a "hard hit"
+  for Phasing = 8% of max health within 1 s; the Spitter and Bell-Ringer never Fleet or Grave-burst, the Bell-Ringer
+  never Vengeful; every kind can phase; the ward doesn't regenerate; an extra cue `Creature.Trait.WardHit`.
+  TIER-LOOK done in its holding tree (`Saved/Tiers/Look/README.md`): the tier glow and Ethereal's ghost-rim as a "tier
+  shell" (a leader-posed copy of the body in a new `M_CreatureTier`, one translucent draw per tiered creature: the
+  overlay slot is taken by the hit flash, and the bodies' own slots share M_World/FoliagePalette), the tag per tier
+  (frame and clamps, the word popping on notice, a dim trait line), notice stings over the rank sting, death shows
+  (pillar 9 m/1.7 s Hallowed, 13 m/2.1 s Ethereal), loot pops 0.15-0.18 s after, the XP popup tinted. Unverified until
+  PIE: the spider eye UV patch (if the abdomen glows instead, V 0-0.125) and the slime core's place. Merge after TRAITS
+  (`git merge-file` against its patches/base), then `build_tier_material.py`; perf with `Looter.Perf.Horde Spider 8
+  Ethereal`. To save time (the user: "multitask"): TIER-TRAITS stages ONE combined TRAITS+LOOK merge in
+  `Saved/Tiers/Merged/` against CORE's working copy now, and does the single merge/build/test/PIE/perf after CORE.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases

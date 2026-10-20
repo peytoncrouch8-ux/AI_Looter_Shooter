@@ -28,6 +28,8 @@ float FRecoverySettings::DropChance(ECreatureRank Rank) const
 	case ECreatureRank::Rare:
 		return DropChanceRestless;
 	case ECreatureRank::Epic:
+	case ECreatureRank::Hallowed:
+	case ECreatureRank::Ethereal:
 	case ECreatureRank::Legendary:
 		return DropChanceGravebound;
 	case ECreatureRank::Boss:

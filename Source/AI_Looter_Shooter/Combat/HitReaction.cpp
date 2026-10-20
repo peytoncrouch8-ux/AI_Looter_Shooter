@@ -28,6 +28,9 @@ float FHitReaction::StaggerSecondsFor(ECreatureRank Rank)
 	case ECreatureRank::Basic: return 0.32f;
 	case ECreatureRank::Rare: return 0.26f;
 	case ECreatureRank::Epic: return 0.2f;
+	// The top tiers still flinch, shorter each tier up: a Soulfed monster or a boss never does.
+	case ECreatureRank::Hallowed: return 0.16f;
+	case ECreatureRank::Ethereal: return 0.12f;
 	default: return 0.f;
 	}
 }

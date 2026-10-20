@@ -24,6 +24,8 @@ FUnpaidRankTraits UnpaidRules::RankTraits(ECreatureRank Rank)
 		Traits.WindupScale = 0.75f;
 		break;
 	case ECreatureRank::Epic:
+	case ECreatureRank::Hallowed:
+	case ECreatureRank::Ethereal:
 	case ECreatureRank::Legendary:
 		Traits.LungeSpeedScale = 1.35f;
 		Traits.WindupScale = 0.75f;

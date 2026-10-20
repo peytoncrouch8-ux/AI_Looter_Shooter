@@ -8,6 +8,7 @@
 #include "Session/SessionSubsystem.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 
 namespace
 {
@@ -57,17 +58,63 @@ int32 UAreaRulesSubsystem::RollLevelFor(const ACreatureBase& Creature, int32 Own
 	return RollLevelIn(Area, Spot, Creature.GetClass(), OwnLevel, bOwnLevelChosen, Rolls);
 }
 
-ECreatureRank UAreaRulesSubsystem::RollPromotion()
+ECreatureRank UAreaRulesSubsystem::RollPromotion(const AActor* Asking, int32* OutRoll)
 {
 	if (!bPromotionsRoll)
 	{
 		return ECreatureRank::Basic;
 	}
-	const ECreatureRank Promoted = RollPromotionIn(Area, Rolls);
+	float Roll = 0.f;
+	const ECreatureRank Rolled = RollPromotionIn(Area, Rolls, &Roll);
+	const ECreatureRank Kept = KeepUnderCaps(Rolled, Asking);
 	++PromotionsAsked;
-	PromotedRare += Promoted == ECreatureRank::Rare ? 1 : 0;
-	PromotedEpic += Promoted == ECreatureRank::Epic ? 1 : 0;
-	return Promoted;
+	PromotionsCapped += Kept != Rolled ? 1 : 0;
+	if (const int32 Tier = LooterRanks::TierIndex(Kept); Tier != INDEX_NONE)
+	{
+		++Promoted[Tier];
+	}
+	if (OutRoll)
+	{
+		// The roll's own bits: two creatures promoted alike still get traits of their own.
+		*OutRoll = static_cast<int32>(GetTypeHash(Roll));
+	}
+	return Kept;
+}
+
+ECreatureRank UAreaRulesSubsystem::KeepUnderCaps(ECreatureRank Rolled, const AActor* Except, TConstArrayView<ECreatureRank> Pending) const
+{
+	// Counted only when a capped tier comes up (a few in a hundred rolls), so an arrival's hundreds of creatures stay cheap.
+	return UCreatureRankSettings::KeepUnderCaps(Rolled, [this, Except, Pending](ECreatureRank Tier)
+	{
+		int32 Coming = 0;
+		for (const ECreatureRank Each : Pending)
+		{
+			Coming += Each == Tier ? 1 : 0;
+		}
+		return CountAlive(Tier, Except) + Coming;
+	});
+}
+
+int32 UAreaRulesSubsystem::CountAlive(ECreatureRank Rank, const AActor* Except) const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return 0;
+	}
+	int32 Alive = 0;
+	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	{
+		const ACreatureBase* Creature = *It;
+		if (Creature == Except || Creature->IsDead() || Creature->IsActorBeingDestroyed())
+		{
+			continue;
+		}
+		// One still to begin play hasn't taken its rank yet: the one it will start with.
+		const ECreatureRank Its = Creature->HasActorBegunPlay() ? Creature->GetRank() : Creature->StartingRank;
+		Alive += Its == Rank ? 1 : 0;
+	}
+	return Alive;
 }
 
 int32 UAreaRulesSubsystem::RollLevelIn(const UAreaDefinition* InArea, const FVector& Spot, const UClass* Kind, int32 OwnLevel,
@@ -86,9 +133,18 @@ int32 UAreaRulesSubsystem::RollLevelIn(const UAreaDefinition* InArea, const FVec
 	return InArea->PickLevel(Spot, Kind, Roll);
 }
 
-ECreatureRank UAreaRulesSubsystem::RollPromotionIn(const UAreaDefinition* InArea, const FRandomStream& Random)
+ECreatureRank UAreaRulesSubsystem::RollPromotionIn(const UAreaDefinition* InArea, const FRandomStream& Random, float* OutRoll)
 {
-	return InArea && InArea->HasPromotions() ? InArea->PickPromotion(Random.FRand()) : ECreatureRank::Basic;
+	if (!InArea || !InArea->HasPromotions())
+	{
+		return ECreatureRank::Basic;
+	}
+	const float Roll = Random.FRand();
+	if (OutRoll)
+	{
+		*OutRoll = Roll;
+	}
+	return InArea->PickPromotion(Roll);
 }
 
 // ---------------------------------------------------------------------------
@@ -146,8 +202,16 @@ void UAreaRulesSubsystem::HandleLevelBegun()
 	}
 	if (bPromotionsRoll)
 	{
-		UE_LOG(LogLooter, Log, TEXT("%s: this arrival promoted %d of %d placed Basic creatures: %d %s, %d %s"), *AreaName,
-			PromotedRare + PromotedEpic, PromotionsAsked, PromotedRare, *UCreatureRankSettings::Get(ECreatureRank::Rare).Word.ToString(),
-			PromotedEpic, *UCreatureRankSettings::Get(ECreatureRank::Epic).Word.ToString());
+		FString Tiers;
+		int32 Total = 0;
+		for (int32 Tier = 1; Tier < LooterRanks::NumTiers; ++Tier)
+		{
+			const ECreatureRank Rank = LooterRanks::Tiers[Tier];
+			Tiers += FString::Printf(TEXT("%s%d %s (%.2f%%)"), Tiers.IsEmpty() ? TEXT("") : TEXT(", "), Promoted[Tier],
+				*UCreatureRankSettings::GetTierName(Rank), UCreatureRankSettings::SpawnChance(Rank, Area->GetCampaignRise()) * 100.f);
+			Total += Promoted[Tier];
+		}
+		UE_LOG(LogLooter, Log, TEXT("%s: this arrival promoted %d of %d placed Basic creatures (its place in the campaign %.2f): %s; %d stepped down by the caps."),
+			*AreaName, Total, PromotionsAsked, Area->GetCampaignRise(), *Tiers, PromotionsCapped);
 	}
 }

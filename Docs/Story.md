@@ -175,7 +175,7 @@ The gang's leader and Ellis's mentor, almost a father. He was a preacher thrown 
 ## Enemies and creatures
 
 - **The Unpaid**: the restless dead of the robbed towns. They are pale shapes in the clothes they died in, fading below the waist into a trailing shroud, with a dull red coal where the heart should be. They drift, phase through walls and shriek. Ellis sees them clearly; the living barely do. **Dead miners** (2026-10-13) are a kind of the Unpaid in the Providence mine: miners' gear, head lamps, picks. **The Bell-Ringer** (2026-10-12) is the chapel's old ringer, an Unpaid who tolls a bronze hand bell to rally the dead and hangs back behind them (`Docs/Areas/RansomsRest.md`).
-- **Ranks**: some creatures and dead have fed longer on the dark. Ellis sees it as soul-light, on the living and the dead: the Restless glow blue, the Gravebound purple, the Soulfed and the named horrors orange. An Unpaid's coal burns in the same color. Brighter souls hit harder and are likelier to carry soul-forged iron, which is why a legendary can drop from anything but comes far more often from Rares, Epics, Legendaries and bosses (rules: *Enemy ranks and legendary drops*).
+- **Ranks**: some creatures and dead have fed longer on the dark. Ellis sees it as soul-light, on the living and the dead: the Restless glow blue, the Gravebound purple, the Hallowed saint-gold, the rare Ethereal red, the Soulfed and the named horrors orange. An Unpaid's coal burns in the same color. Brighter souls hit harder and are likelier to carry soul-forged iron, which is why a legendary can drop from anything but comes far more often from Rares, Epics, Legendaries and bosses (rules: *Enemy ranks and legendary drops*).
 - **Each outlaw's following**, the living, slowly going Hollow: Ned's card sharps and bouncers, Ira's dust riders, Constance's flock of zealots, Barrels's furnace men, Lena's spotters, Tobias's quarry crew. One rig set, seven costumes.
 - **Bounty hunters**: there's a price on the walking corpse, and the living come to claim it in Act II.
 - **The Mourners**: Sexton's servants from the end of Act II, murders of crows that fold into figures in black.
@@ -263,34 +263,47 @@ Legendary weapons can drop from anything that can die: rarer from basic creature
 
 The user's rule that Common is the most likely rarity and each tier up is rarer holds at every rank. Luck above 1.4 would make Uncommon guns more likely than Common ones (and Epic passes Common near 1.5), so the tables stop at Luck 1.3 and give the top ranks more guns instead.
 
+**Five tiers** for every regular enemy (the user's ask and approval, 2026-10-20; the design with every number: `Saved/Tiers/DESIGN.md`, kept in `UCreatureRankSettings` for tuning): Regular, Restless, Gravebound, Hallowed, Ethereal, each harder, better paid and rarer; Soulfed monsters and bosses stand above them. Code names stay Basic/Rare/Epic; Hallowed and Ethereal were appended to `ECreatureRank` after Boss (saved numbers keep their meaning); order only through `LooterRanks` (`IsAbove`, `Order`).
+
 | Rank | Word and tag | Where it comes from | Stats, on top of level | Loot table | Legendary per kill |
 |---|---|---|---|---|---|
-| Basic | No word; the name tag as today | Default | ×1 | `DA_LootTable_Default` (unchanged, keeps its name): a gun on 30% of kills, 1 gun, Luck 0 | 0.3% (1 in 333) |
-| Rare | “Restless”, blue | 8% of spawns on Ransom's Rest (up to 12% later), plus one placed in most scripted fights | Health ×2.5, damage ×1.2, XP ×2, size ×1.1, +1 level | `DA_LootTable_Rare`: 60%, 1 gun, Luck 0.5 | 2.2% (1 in 46) |
-| Epic | “Gravebound”, purple | 2% on Ransom's Rest (up to 4% later), plus placed ones | Health ×5, damage ×1.4, XP ×4, size ×1.2, +1 level, one trait | `DA_LootTable_Epic`: every kill, 1–2 guns, Luck 1.0 | 11.8% (1 in 8.5) |
+| Basic (Regular) | No word; the name tag as today | Default | ×1 | `DA_LootTable_Default` (unchanged, keeps its name): a gun on 30% of kills, 1 gun, Luck 0, ammo 1–2 | 0.3% (1 in 333) |
+| Rare (Restless) | “Restless”, blue (#7CAAFF) | 8% of regular spawns on Ransom's Rest, 12% by the late areas; no cap; plus one placed in most scripted fights | Health ×2.0, defense 10%, damage ×1.15, XP ×2, silver ×1.5, size ×1.08, +1 level | `DA_LootTable_Rare`: 60%, 1 gun, Luck 0.5, ammo 2–3 | 2.2% (1 in 45) |
+| Epic (Gravebound) | “Gravebound”, purple (#CC7CF4) | 2% → 4%; at most 4 alive per area; plus placed ones | Health ×3.0, defense 20%, damage ×1.3, XP ×3.5, silver ×2.5, size ×1.15, +1 level, 1 trait | `DA_LootTable_Epic`: 90%, 1 gun, Luck 0.8, ammo 2–4 | 5.5% (1 in 18) |
+| Hallowed | “Hallowed”, saint-gold yellow (#F5C842) | 0.4% (1 in 250) → 1%; at most 2 alive | Health ×3.5, defense 28%, damage ×1.45, XP ×6, silver ×4, size ×1.22, +2 levels, 2 traits | `DA_LootTable_Hallowed`: every kill, 1–2 guns, Luck 1.1, ammo 3–5 | 13.3% (1 in 7.5) |
+| Ethereal | “Ethereal”, red (#FF3B3B) | 0.08% (1 in 1,250) → 0.25% (1 in 400); at most 1 alive | Health ×4.0, defense 35%, damage ×1.6, XP ×9, silver ×6, size ×1.3, +2 levels, 3 traits (Phasing always one) | `DA_LootTable_Ethereal`: every kill, 2 guns, Luck 1.3, ammo 4–6 | 21.3% (1 in 4.7) |
 | Legendary | A name, or “Soulfed”; orange | Hand-placed as an area's design names them (Ransom's Rest: the Gravemother and the Foreman); 0.5% of spawns later, at most one random Soulfed alive per area | Health ×12, damage ×1.6, XP ×10, size ×1.4–1.8, +2 levels, a lair and one unique move | `DA_LootTable_Legendary`: every kill, 2 guns, Luck 1.3 | 21.4% (about 1 in 5) |
 | Boss | Orange, plus a boss bar | Story fights | Health set per boss, XP ×20, +1 level | `DA_LootTable_Boss`: every kill, 3 guns, Luck 1.3 | 30.3% (about 1 in 3) |
+
+- **Defense** takes its share of every hit (bullets, blows, grenades, ember powers: `UHealthComponent`, once); a crit pierces half of it (the user's call). Effective health against a Regular one at the valley's level 4: 2.4, 4.0, 5.5, 7.0 up the tiers (Soulfed about 13.6).
+- **Spawn odds** rise with the area's place in the campaign, read from its creatures' lowest level: 1 (Ransom's Rest) gives the first numbers, 50 and up the late ones, straight between (the Lily, from 9: 8/49 of the way). They roll for placed Basic creatures on arrival and for spawners rolling by area; a roll past a tier's cap of living ones steps down a tier. Areas' `RarePromotionChance`/`EpicPromotionChance` now only switch promotions on (Skyreach off).
+- **Traits** (Gravebound 1, Hallowed 2, Ethereal 3): Fleet, Mending, Warded, Grave-burst, Rallying, Vengeful, Phasing (DESIGN.md has what each does), rolled from a seed of the creature's name in its level and its promotion roll, so a load rebuilds them with nothing saved.
+- **Silver** a tier's kill gives: a Regular kill's × its multiplier on average, dropping more often (`LooterEconomy::ScaledKillOdds`); Soulfed and bosses keep their own.
+- **The tag**: word and name both in the tier's colour. Tier-only colours (the user's call): yellow and red are no gun rarity's; blue and purple happen to match the Rare and Epic beams.
 
 Rarity of each dropped gun at each luck (Common / Uncommon / Rare / Epic / Legendary):
 
 | Luck | Used by | Shares |
 |---|---|---|
-| 0 | Basic | 60 / 25 / 10 / 4 / 1 % |
-| 0.5 | Rare, Supply Crate | 43 / 27 / 16 / 9.7 / 3.7 % |
-| 1.0 | Epic, Strongbox | 30 / 25 / 20 / 16 / 8.1 % |
-| 1.3 | Legendary, Boss | 24 / 23 / 21 / 20 / 11.3 % |
+| 0 | Regular | 60 / 25 / 10 / 4 / 1 % |
+| 0.5 | Restless, Supply Crate | 43 / 27 / 16 / 9.7 / 3.7 % |
+| 0.8 | Gravebound | 35 / 26 / 19 / 14 / 6.1 % |
+| 1.0 | Strongbox | 30 / 25 / 20 / 16 / 8.1 % |
+| 1.1 | Hallowed | 28 / 25 / 21 / 17 / 9.1 % |
+| 1.3 | Ethereal, Legendary, Boss | 24 / 23 / 21 / 20 / 11.3 % |
 
 **Rules.**
 - **Anything means anything.** Every enemy that can die, including boss adds, spiderlings and egg-sac spiders, uses at least the Basic table, so any kill can drop a legendary. The one exception: a practice area after the first cast-off (Skyreach, until its rework) drops only ammo.
-- **Ranks show in soul-light.** Name tags use the rarity palette, so a purple tag means purple odds, and an Unpaid's coal burns in its rank's color (a basic one's is dull red, which is no rarity color). Rarity colors stay the game's one color code. Bosses also get a slim slanted bar at the top of the HUD.
+- **Ranks show in soul-light.** Name tags show the tier's colour (above), and an Unpaid's coal burns in it (a basic one's is dull red). Bosses also get a slim slanted bar at the top of the HUD.
 - **Promotions** are rolled on each arrival in an area. A promoted creature that dies comes back as Basic.
 - **No reload farming.** Each map saves when its promotions were last rolled and when its Legendary monster last died, counted in time played. An arrival rerolls promotions and brings the Legendary monster back only after 20 minutes of play, so Save & Quit then Continue doesn't reroll them.
-- **Ammo** keeps the user's rule: every kill, leaning 2× to the kill gun's class. Ranked enemies drop more boxes through `Min/MaxAmmoDrops`: Basic 1–2, Rare 2–3, Epic 3–4, Legendary 4–6, Boss 8–10.
+- **Ammo** keeps the user's rule: every kill, leaning 2× to the kill gun's class. Ranked enemies drop more boxes through `Min/MaxAmmoDrops`: Regular 1–2, Restless 2–3, Gravebound 2–4, Hallowed 3–5, Ethereal and Legendary 4–6, Boss 8–10.
 - **Signature legendaries** (from the *Gilded Lily* on). On top of the boss table, each Hollow boss carries its soul-forged legendary (Dead Man's Hand, Whistler and so on): a separate roll after the boss table, guaranteed on the first defeat (or always 15%; the user's call when the *Lily* starts) and 15% on refights. Needs new `ULootTable` fields (the signature weapon, its chance, a first-defeat guarantee) and first defeats saved in the session. Ransom's Rest has no signature gun; its first named gun is Heirloom.
 - **Refights.** Anything with a page in Sexton's Ledger can be called back to account, before the ending and after it. Hollow bosses and Legendary monsters come back on a later arrival (after the 20 minutes), and the endgame's Ledger bounties work the same way. Abel is fought once; he becomes a friend.
 - **Tests and tools.**
-  - `Looter.Loot.RankOdds` simulates 200,000 kills per rank with a fixed seed: the legendary rate rises with rank, sits within 10% of the table, and every rank table's rarity shares fall from Common to Legendary.
-  - `Looter.Loot.SimulateDrops <rank> <kills>` prints the counts.
+  - `Looter.Loot.RankOdds` simulates 200,000 kills per rank with a fixed seed: the legendary rate rises up the tiers (and from Soulfed to Boss), sits within 10% of the table, and every rank table's rarity shares fall from Common to Legendary.
+  - `Looter.Tiers.*`: the order, defense with and without crits, stats by tier, spawn odds and caps, traits, a save round trip.
+  - `Looter.Loot.SimulateDrops <rank> <kills>` and `Looter.Tier.Odds [kills]` print the counts.
   - The DropOdds, DefaultTable and WeaponRarityOrder tests stay.
 
 **Chests** (in the game since step 26, the user's OK 2026-10-07): a Supply Crate gives 1 gun at Luck 0.5 (3.7% legendary), a Strongbox 2 guns at Luck 1.0 (15.5%), and a saint's Reliquary opens after each Hollow falls.

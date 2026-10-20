@@ -114,7 +114,7 @@ void APatrolSpawner::PlaceFile(const TArray<FVector>& WorldRoute)
 	{
 		if (A.GetRank() != B.GetRank())
 		{
-			return static_cast<uint8>(A.GetRank()) > static_cast<uint8>(B.GetRank());
+			return LooterRanks::IsAbove(A.GetRank(), B.GetRank());
 		}
 		return A.GetUniqueID() < B.GetUniqueID();
 	});

@@ -8,6 +8,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/CreatureTraitComponent.h"
 #include "Creatures/DeadMinerCreature.h"
 #include "Creatures/ForemanCreature.h"
 #include "Creatures/GravemotherCreature.h"
@@ -258,8 +259,8 @@ namespace
 		ECreatureRank Rank = Defaults->StartingRank;
 		if (Args.Num() > 1 && !UCreatureRankSettings::ParseRank(Args[1], Rank))
 		{
-			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: no rank called '%s' (Basic, Rare, Epic, Legendary, Boss, or ")
-				TEXT("Restless, Gravebound, Soulfed)."), *Args[1]);
+			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: no rank called '%s' (Regular, Restless, Gravebound, Hallowed, ")
+				TEXT("Ethereal, Soulfed, Boss, or Basic, Rare, Epic, Legendary)."), *Args[1]);
 			return;
 		}
 		const int32 Count = Args.Num() > 2 ? FMath::Clamp(FCString::Atoi(*Args[2]), 1, 40) : 1;
@@ -280,6 +281,7 @@ namespace
 		constexpr int32 PerRow = 5;
 		int32 Spawned = 0;
 		FString Name;
+		const ACreatureBase* LastSpawned = nullptr;
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const int32 Row = Index / PerRow;
@@ -303,6 +305,7 @@ namespace
 			}
 			++Spawned;
 			Name = Creature->DisplayName.ToString();
+			LastSpawned = Creature;
 			if (bChase)
 			{
 				Creature->AlertTo(Pawn);
@@ -315,6 +318,23 @@ namespace
 		UE_LOG(LogLooter, Log, TEXT("Looter.SpawnCreature: %d of %d %s (%s, %.2fx size, level %d) in front of the player%s."), Spawned, Count,
 			*Shown, *UCreatureRankSettings::GetRankName(Rank), Grown,
 			(SpawnLevel > 0 ? SpawnLevel : Defaults->Level) + Info.LevelOffset, bChase ? TEXT(", hunting them") : TEXT(""));
+		if (LastSpawned)
+		{
+			// What it came out as, to check a tier against its numbers: health, defense (a crit pierces half), bite, worth, traits.
+			const UHealthComponent* Health = LastSpawned->FindComponentByClass<UHealthComponent>();
+			FString Traits;
+			if (const UCreatureTraitComponent* TraitComponent = LastSpawned->GetTraitComponent())
+			{
+				for (const ECreatureTrait Trait : TraitComponent->GetTraits())
+				{
+					Traits += (Traits.IsEmpty() ? TEXT("") : TEXT(", ")) + StaticEnum<ECreatureTrait>()->GetNameStringByValue(static_cast<int64>(Trait));
+				}
+			}
+			UE_LOG(LogLooter, Log, TEXT("Looter.SpawnCreature: %s is level %d with %.0f health, %.0f%% defense (%.1f%% on a crit), a %.1f bite, %d XP at ")
+				TEXT("level 1, %.2fx size; traits: %s (seed %d)."), *LastSpawned->GetName(), LastSpawned->Level, Health ? Health->GetMaxHealth() : 0.f,
+				LastSpawned->GetDefense() * 100.f, LastSpawned->GetDefense() * 50.f, LastSpawned->AttackDamage, LastSpawned->XPReward,
+				LastSpawned->GetSizeScale(), Traits.IsEmpty() ? TEXT("none") : *Traits, LastSpawned->GetTierSeed());
+		}
 		if (Spawned < Count)
 		{
 			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: %d found no ground in front of the player."), Count - Spawned);
@@ -427,20 +447,22 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs HordeCommand(
 		TEXT("Looter.Perf.Horde"),
 		TEXT("Looter.Perf.Horde <Spider|Spiderling|Gravemother|Slime|Unpaid> <count> [rank] [x y yaw]: to measure a fight, puts ")
-		TEXT("the player at (x, y) facing yaw (when given) where they can't be hurt, and sends count creatures of a rank at them from ")
-		TEXT("an arc ahead: ")
-		TEXT("perf.ps1 -Map /Game/Maps/Lvl_RansomsRest -Exec \"Looter.Quality Medium,Looter.Perf.Horde Unpaid 12 Basic 0 -1400 90\"."),
+		TEXT("the player at (x, y) facing yaw (when given) where they can't be hurt, and sends count creatures of a rank (Regular, ")
+		TEXT("Restless, Gravebound, Hallowed, Ethereal, Soulfed, Boss) at them from an arc ahead: ")
+		TEXT("perf.ps1 -Map /Game/Maps/Lvl_RansomsRest -Exec \"Looter.Quality Medium,Looter.Perf.Horde Spider 8 Ethereal 0 -1400 90\"."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnHorde));
 
 	FAutoConsoleCommandWithWorldAndArgs SpawnCreatureCommand(
 		TEXT("Looter.SpawnCreature"),
-		TEXT("Looter.SpawnCreature <Spider|Spiderling|Gravemother|Slime|Unpaid> [Basic|Rare|Epic|Legendary|Boss] [count] [chase] ")
+		TEXT("Looter.SpawnCreature <Spider|Spiderling|Gravemother|Slime|Unpaid|Spitter|BellRinger|DeadMiner|Foreman> ")
+		TEXT("[Regular|Restless|Gravebound|Hallowed|Ethereal|Soulfed|Boss] [count] [chase] ")
 		TEXT("[size=<scale>] [level=<n>]: spawns creatures of a rank (with none named, their kind's own: the Gravemother is ")
 		TEXT("Legendary) on the ground in front of the player (rows of five, from about 8 m out). They never come back once ")
 		TEXT("killed. chase sets them on the player at once; size sets their BodyScale (0.45 a spiderling, 1.8 a giant) before the ")
 		TEXT("rank's own; level is before the rank's offset. A Spiderling is the Gravemother's brood: a brown spider at 0.45 with a ")
-		TEXT("fifth of its health. Ranks also take their words (Restless, Gravebound, Soulfed): Looter.SpawnCreature Unpaid ")
-		TEXT("Gravebound 1 chase. The Unpaid's cap (12 at once) holds for the encounters, not here."),
+		TEXT("fifth of its health. Ranks also take their code names (Basic, Rare, Epic, Legendary): Looter.SpawnCreature Unpaid ")
+		TEXT("Gravebound 1 chase. The last one's health, defense, bite and traits go to the log. The Unpaid's cap (12 at once) and ")
+		TEXT("the tiers' caps hold for the encounters and promotions, not here."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnCreature));
 }
 
