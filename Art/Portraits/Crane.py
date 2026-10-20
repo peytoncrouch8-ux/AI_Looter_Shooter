@@ -1,13 +1,12 @@
 """Hollis Crane's portrait busts (the Unpaid: a marshal dead forty years and still walking) in Blender (Cycles), from
-MakeHuman's CC0 base mesh, on the machinery every hero's bust shares (bust.py; run it as EllisBlender.py, more there):
+MakeHuman's CC0 base mesh, on the machinery every hero's bust shares (bust.py, bustkit.py; run it as EllisBlender.py):
 	blender -b --factory-startup --python-exit-code 1 --python Art/Portraits/Crane.py -- <A|B|C> [--size N] [--samples N]
 	node Art/Portraits/render.js Crane<X> --script Crane.py --passes <dir>
   A  The Marshal: slouch hat, coin on the left eye, cyan in the right socket, ragged cape, tin star, toll chain and hook.
   B  Forty Years Walking: bald crown and wild thin hair, both sockets cyan, cape in threads, brighter ember, chain slack.
   C  Lawman, Once: as buried: hat squared, mustache waxed, star polished, string tie, the coin; one faint eye, no bloom.
-Helpers bust.py lacks (Main merges them): stooped(), face_counts_as_head(), turn(), nd(), ramp(), tube(), chain().
+The stoop, the turned bust, the chain's links and the node shorthands are bustkit's.
 """
-import json
 import math
 import os
 import sys
@@ -25,12 +24,13 @@ if _TOOLS not in sys.path:
 	sys.path.append(_TOOLS)
 import looter_model as lm  # noqa: E402
 import mh  # noqa: E402
-import bust  # noqa: E402
 from bust import (  # noqa: E402
-	ID, add_mod, build_human, build_lapels, build_shirt_collar, build_string_tie, bump, buttons, bvh_of, canvas_material, clump,
-	curves_object, cut_vee, drape, frame2d, grid_object, grow, grow_combed, hair_material, leather_material, lin, link,
-	material, mesh_object, mix_rgb, neck_frame, noise, principled, run, shell, shoulder_z, strip_on,
-	surface_point, world_points)
+	ID, add_mod, bump, bvh_of, canvas_material, clump, curves_object, drape, frame2d, grid_object, grow, grow_combed,
+	hair_material, leather_material, lin, link, material, mesh_object, mix_rgb, neck_frame, noise, principled, run, shell,
+	shoulder_z, strip_on, surface_point, world_points)
+from bustkit import (  # noqa: E402
+	build_lapels, build_shirt_collar, build_string_tie, buttons, cut_vee, edit_faces, face_counts_as_head, head_pt,
+	link_chain, link_shape, nd, point_light, ramp, stooped, tube_data, turn_scene)
 
 # The paint pass's settings per option (render.js reads these lines): swamp and bone; C warmer, the burial parlour.
 # PAINT A {"bgTop":"#0b1412","bgBottom":"#040807","bgGlow":"#2a4a40","glowAt":[0.70,0.30],"sparks":"#a8ffe0","dust":"#8fa89c","glow":"#5ad8ff"}
@@ -92,120 +92,7 @@ OPTIONS = {
 }
 
 
-# ---------------------------------------------------------------- shared-code gaps (helpers for bust.py)
-
-def stooped(opt, face, macro, name):
-	"""bust.build_human with the upper spine bent forward by opt["stoop"] and the shoulders hunched (mh.build wrapped)."""
-	s = opt.get("stoop", 0.0)
-	extra = {"spine02": ((1, 0, 0), s * 0.4), "spine01": ((1, 0, 0), s * 0.6), "clavicle.L": ((0, 0, 1), 3.0), "clavicle.R": ((0, 0, 1), -3.0)}
-	orig = mh.build
-	mh.build = lambda macro=None, face=None, pose=None: orig(macro=macro, face=face, pose={**(pose or {}), **extra})
-	try:
-		return build_human(opt, face, macro, name)
-	finally:
-		mh.build = orig
-
-
-def face_counts_as_head(h):
-	"""shell() keeps the jaw (its own bone) once the stoop drops it below a garment's top: "head" now counts every
-	bone under the head."""
-	wts = json.load(open(os.path.join(mh.DATA, "rigs", "default_weights.mhw")))["weights"]
-	under = lambda b: b == "head" or (h["bones"][b]["parent"] is not None and under(h["bones"][b]["parent"]))
-	acc = np.zeros(len(h["verts"]))
-	for b in filter(under, h["bones"]):
-		for i, x in wts.get(b, []):
-			acc[i] += x
-	orig = h["weights"]
-	h["weights"] = lambda bone: np.minimum(acc, 1.0) if bone == "head" else orig(bone)
-
-
-def turn(h, deg):
-	"""Turn everything about the vertical through the head bone (the camera's target): the stoop shows in three-quarter."""
-	p = mh.to_blender(mh.apply(h["glob"]["head"], h["bones"]["head"]["head"]))
-	M = Matrix.Translation((p[0], p[1], 0)) @ Matrix.Rotation(math.radians(deg), 4, "Z") @ Matrix.Translation((-p[0], -p[1], 0))
-	for ob in bpy.context.scene.objects:
-		ob.matrix_world = M @ ob.matrix_world
-
-
-def nd(nt, kind, ins=(), op=None):
-	"""A shader node with its inputs set or linked: ins maps an input's name or index to a value or an output socket."""
-	n = nt.nodes.new(kind)
-	if op:
-		n.operation = op
-	for k, v in dict(ins).items():
-		if isinstance(v, bpy.types.NodeSocket):
-			nt.links.new(v, n.inputs[k])
-		else:
-			n.inputs[k].default_value = v
-	return n
-
-
-def ramp(nt, fac, stops):
-	"""A colour ramp on fac through (position, sRGB) stops, in order."""
-	r = nd(nt, "ShaderNodeValToRGB", {0: fac})
-	el = r.color_ramp.elements
-	for i, (p, c) in enumerate(stops):
-		e = el[i] if i < 2 else el.new(p)
-		e.position, e.color = p, (*lin(c), 1)
-	return r.outputs[0]
-
-
-def tube(name, pts, radii, mat, cyclic=False):
-	"""A round tube along a polyline, as curve data bevelled round, its radius per point (the hook, a chain link)."""
-	cu = bpy.data.curves.new(name, "CURVE")
-	cu.dimensions, cu.bevel_depth, cu.bevel_resolution, cu.use_fill_caps = "3D", 1.0, 3, True
-	sp = cu.splines.new("POLY")
-	sp.points.add(len(pts) - 1)
-	sp.use_cyclic_u = cyclic
-	for p, q, r in zip(sp.points, pts, radii):
-		p.co, p.radius = (*q, 1.0), r
-	cu.materials.append(mat)
-	return cu
-
-
-def link_shape(mat, straight=0.012, rr=0.0075, wire=0.0034):
-	"""One chain link: a stadium in the xy plane, long axis y (curve data for many objects to share)."""
-	u = np.linspace(0, 2 * math.pi, 32, endpoint=False)
-	c = np.stack([rr * np.cos(u), rr * np.sin(u) + straight * 0.5 * np.clip(np.sin(u) * 3, -1, 1), np.zeros(32)], 1)
-	return tube("Link", c, [wire] * 32, mat, True)
-
-
-def chain(name, path, normals, mat, pitch=0.021):
-	"""Links every pitch (a link's inner length) along a path, each a quarter turn from the last, flat ones on the surface."""
-	path, normals = np.asarray(path, float), np.asarray(normals, float)
-	s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))])
-	q = np.arange(0, s[-1], pitch)
-	P, Nn = (np.stack([np.interp(q, s, a[:, i]) for i in range(3)], 1) for a in (path, normals))
-	me = link_shape(mat)
-	out = []
-	for k in range(len(P) - 1):
-		t = Vector(P[k + 1] - P[k]).normalized()
-		z = Vector(Nn[k])
-		z = (z - t * z.dot(t)).normalized()
-		x = t.cross(z)
-		if k % 2:
-			x, z = z, -x
-		ob = link(bpy.data.objects.new(name, me))
-		ob.matrix_world = Matrix.Translation(Vector((P[k] + P[k + 1]) * 0.5)) @ Matrix((x, t, z)).transposed().to_4x4()
-		out.append(ob)
-	return out
-
-
-# ---------------------------------------------------------------- small makers
-
-def point_light(name, loc, watts, color, radius=0.004):
-	ld = bpy.data.lights.new(name, "POINT")
-	ld.energy, ld.color, ld.shadow_soft_size = watts, lin(color), radius
-	lo = link(bpy.data.objects.new(name, ld))
-	lo.location = loc
-	return lo
-
-
-def to_world(h):
-	"""Head rest space (decimetres) -> world (metres), for a point."""
-	g = h["glob"]["head"]
-	return lambda p: Vector(mh.to_blender(mh.apply(g, np.array([p], float)))[0])
-
+# ---------------------------------------------------------------- materials
 
 def metal_material(name, dark, light, rough, rust=0.0, scale=60.0):
 	"""Iron, tin: two tones mottled by world position (the links share one mesh), rust in patches."""
@@ -418,7 +305,7 @@ def build_hair(h, hf, opt, bvh):
 	rng = np.random.default_rng(7)
 	hv, ey = hf["verts"], hf["eye_y"]
 	cz = (hv[:, 2].max() + hv[:, 2].min()) * 0.5
-	to_w = to_world(h)
+	to_w = lambda p: head_pt(h, p)
 	out = []
 	if opt["hair"] != "wild":
 		ring = hv[np.abs(hv[:, 1] - (ey + 0.46)) < 0.05]
@@ -460,7 +347,7 @@ def build_hair(h, hf, opt, bvh):
 def build_mustache(h, hf, opt, bvh):
 	"""The white mustache drooping past the mouth to the jaw (A, B); waxed into tight points for the burial (C)."""
 	rng = np.random.default_rng(13)
-	gr, to_w = h["glob"]["head"][:3, :3], to_world(h)
+	gr, to_w = h["glob"]["head"][:3, :3], lambda p: head_pt(h, p)
 	nose = hf["verts"][np.argmax(hf["verts"][:, 2])]
 	waxed = opt["mustache"] == "waxed"
 	groups = {}
@@ -485,7 +372,7 @@ def build_mustache(h, hf, opt, bvh):
 def build_brows(h, hf, opt, bvh):
 	"""Brows: long wiry white hairs on a heavy ridge, the outer ends drooping as old men's do."""
 	rng = np.random.default_rng(3)
-	to_w, fr = to_world(h), hf["front"]
+	to_w, fr = lambda p: head_pt(h, p), hf["front"]
 	strands = []
 	for e in hf["eyes"]:
 		sx = math.copysign(1.0, e[0])
@@ -508,20 +395,15 @@ def build_brows(h, hf, opt, bvh):
 
 def tear(ob, centre, size, rng):
 	"""Rip a hole in a garment over centre: the cloth there cut finer, then a ragged hole, taller than wide."""
-	bm = bmesh.new()
-	bm.from_mesh(ob.data)
-	bmesh.ops.subdivide_edges(bm, edges=[e for e in bm.edges if (e.verts[0].co - centre).length < size * 2.5], cuts=2, use_grid_fill=True)
 	ph = rng.random(3) * 6.283
-	cut = []
-	for f in bm.faces:
-		d = f.calc_center_median() - centre
+
+	def hole(c):
+		d = c - centre
 		th = math.atan2(d.z, d.x)
 		rr = size * (1 + 0.32 * math.sin(5 * th + ph[0]) + 0.18 * math.sin(11 * th + ph[1]) + 0.1 * math.sin(17 * th + ph[2]))
-		if d.y < 0.03 and (d.x / 0.8) ** 2 + (d.z / 1.3) ** 2 < rr * rr:
-			cut.append(f)
-	bmesh.ops.delete(bm, geom=cut, context="FACES")
-	bm.to_mesh(ob.data)
-	bm.free()
+		return d.y < 0.03 and (d.x / 0.8) ** 2 + (d.z / 1.3) ** 2 < rr * rr
+	edit_faces(ob, hole, lambda bm: bmesh.ops.subdivide_edges(
+		bm, edges=[e for e in bm.edges if (e.verts[0].co - centre).length < size * 2.5], cuts=2, use_grid_fill=True))
 
 
 def build_cape(pts, neck, sz, cloth, worn, rng):
@@ -646,7 +528,7 @@ def hook(origin, e1, e2, L, Rb, r0, mat, extra=0.45):
 	c = origin - e2 * L + e1 * Rb
 	pts = [origin - e2 * (L * t) for t in np.linspace(0, 1, 8)] + [c + e1 * (Rb * math.cos(a)) + e2 * (Rb * math.sin(a)) for a in np.linspace(math.pi, 2 * math.pi + extra, 28)[1:]]
 	n = len(pts)
-	hk = link(bpy.data.objects.new("Hook", tube("Hook", pts, [r0 * min(1.0, max(0.12, 1.0 - (i - n * 0.55) / (n * 0.45))) for i in range(n)], mat)))
+	hk = link(bpy.data.objects.new("Hook", tube_data("Hook", pts, [r0 * min(1.0, max(0.12, 1.0 - (i - n * 0.55) / (n * 0.45))) for i in range(n)], mat)))
 	eye = link(bpy.data.objects.new("HookEye", link_shape(mat, 0.002, 0.008, 0.0035)))
 	eye.matrix_world = Matrix.Translation(origin + e2 * 0.008) @ Matrix((e1, e2, e1.cross(e2))).transposed().to_4x4()
 	return [hk, eye]
@@ -682,12 +564,12 @@ def build_chain(h, opt, surfaces):
 		# hang it in front of whatever bulges below the shoulder (the cape flares), not inside it
 		ys = [sp[0].y for zz in np.linspace(S.z - 0.09, S.z, 6) for xx in (S.x, S.x + Rb * 2) for sp in [surface_point(bvh, xx, zz)] if sp]
 		o = Vector((S.x, min(ys + [S.y]) - 0.01, S.z)) - up * (Rb - r0 - 0.003 + L) - side * Rb
-		parts = hook(o, side, -up, L, Rb, r0, iron, 0.7) + chain("Link", [np.array(o - up * (0.012 + 0.02 * k)) for k in range(6)], [(0, -1.0, 0)] * 6, iron)
+		parts = hook(o, side, -up, L, Rb, r0, iron, 0.7) + link_chain("Link", [np.array(o - up * (0.012 + 0.02 * k)) for k in range(6)], [(0, -1.0, 0)] * 6, iron)
 	else:
 		for s in np.linspace(0, 1, 16)[1:]:
 			lay(surface_point(bvh, x + 0.05 * s ** 2, z0 - (z0 - (sz - 0.03)) * s))
 		parts = hook(Vector(path[-1]) + Vector((0, -0.006, -0.012)), side, up, 0.045, 0.024, 0.0055, iron, 0.5)
-	return parts + chain("Link", path, nrm, iron)
+	return parts + link_chain("Link", path, nrm, iron)
 
 
 # ---------------------------------------------------------------- the bust
@@ -709,7 +591,7 @@ def build(opt):
 	build_mustache(h, hf, opt, face)
 	build_brows(h, hf, opt, face)
 	sockets(eyes, axes, opt, face)
-	turn(h, opt["turn"])
+	turn_scene(h, opt["turn"])
 	return h, eyes
 
 

@@ -1,5 +1,5 @@
 """Gauge, the Iron Hand: the railroad's clockwork track-laying engine as a painted-portrait bust in Blender (Cycles),
-on the machinery every hero's bust shares (bust.py). Spec: Saved/Portraits/CONTRACT.md.
+on the machinery every hero's bust shares (bust.py, bustkit.py). Spec: Saved/Portraits/CONTRACT.md.
 
 No MakeHuman body: Gauge is built from primitives (bevelled iron boxes, a lofted boiler, domes, brass bands, rivet
 rows, pipes). bust.stage frames a MakeHuman head bone, so build() hands it a stand-in whose "head bone" is Gauge's
@@ -10,8 +10,8 @@ neck pivot, and no eyes to aim (the headlamp is aimed by turning the head). Run 
   B  Woken in the Wreck: rust, a pauldron torn to the works, a bent stack, the firebox sprung on the cyan ember, the
      lamp cracked but lit, the company's letters half gone.
   C  Company Iron: black enamel, polished brass, the crest, GAUGE on a level brow, a warm white lamp (before the ember).
-Helpers the shared code lacks (Main may merge them into bust.py): GLASS (material id 14), render_aux_glow (the aux
-pass reads a material's "looter_glow" mask and leaves "looter_aux_skip" volumes out), the primitive builders.
+The primitives (bustkit: box, cyl, torus, dome, rivets ... under a parent Empty), the shader shorthands and the aux pass
+that reads a material's "looter_glow" mask (bust.render_aux) are shared; what is here is Gauge's iron.
 """
 import math
 import os
@@ -24,10 +24,11 @@ from mathutils import Euler, Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import bust  # noqa: E402
-from bust import ID, add_mod, bump, lin, link, material, mix_rgb, noise, principled  # noqa: E402
-
-GLASS = ID.get("glass", 14)   # bust.ID stops at black 13; the contract gives glass 14 (lamp, gauge face)
+from bust import ID, add_mod, bump, lin, material, mix_rgb, noise, principled, run  # noqa: E402
+import bustkit  # noqa: E402
+from bustkit import (  # noqa: E402
+	GLASS, M, ao_grime, bevel, bm_object, box, coords, cyl, dome, emission, empty, gear, grid, math_node, mix_shader, mrange,
+	pipe, radial, rivets, superellipse, text, torus)
 
 # The paint pass's settings per option (render.js reads these lines).
 # PAINT A {"bgTop":"#140d0a","bgBottom":"#060403","bgGlow":"#5a2c12","glowAt":[0.70,0.30],"sparks":"#ff8a1c","dust":"#6b5a50","glow":"#5ad8ff"}
@@ -66,222 +67,17 @@ OPTIONS = {
 			("Brow", (0.1, -0.7, 0.5), 8.0, (1.0, 0.85, 0.65), 0.5)]},
 }
 
-# ---------------------------------------------------------------- primitives (each under a parent Empty)
-
-def M(loc=(0, 0, 0), rot=(0, 0, 0), scale=None):
-	"""A transform: an optional scale, then rotation in degrees (XYZ), then placed at loc."""
-	m = Matrix.Translation(loc) @ Euler([math.radians(a) for a in rot], "XYZ").to_matrix().to_4x4()
-	return m @ Matrix.Diagonal((*scale, 1)) if scale else m
-
-def empty(name, loc, rot=(0, 0, 0), parent=None):
-	e = link(bpy.data.objects.new(name, None))
-	e.location, e.rotation_euler, e.parent = loc, Euler([math.radians(a) for a in rot], "XYZ"), parent
-	return e
+# ---------------------------------------------------------------- hooks into the shared kit
 
 def obj(name, bm, mat, parent, at=None, smooth=True):
-	"""bm as an object under parent. at None: the mesh is already in the parent's space; else at is the object's own
-	transform, so its Object coordinates stay local (the lens, dial and flame materials need that)."""
-	me = bpy.data.meshes.new(name)
-	bm.to_mesh(me)
-	bm.free()
-	if smooth:
-		me.shade_smooth()
-	ob = link(bpy.data.objects.new(name, me))
-	ob.parent = parent
-	if at is not None:
-		ob.matrix_basis = at
-	if mat is not None:
-		ob.data.materials.append(mat)
-	return ob
-
-def bevel(ob, w, seg=3):
-	# hardened normals keep the plates' faces flat and only the bevels round
-	add_mod(ob, "BEVEL", width=w, segments=seg, limit_method="ANGLE", harden_normals=True)
-	return ob
-
-def box(name, half, mat, parent, at=None, taper=(1.0, 1.0), bev=0.008):
-	"""A box of half-sizes half, its top face scaled by taper, bevelled."""
-	bm = bmesh.new()
-	bmesh.ops.create_cube(bm, size=2.0)
-	for v in bm.verts:
-		k = taper if v.co.z > 0 else (1.0, 1.0)
-		v.co = Vector((v.co.x * half[0] * k[0], v.co.y * half[1] * k[1], v.co.z * half[2]))
-	bm.transform(at or Matrix())
-	ob = obj(name, bm, mat, parent)
-	return bevel(ob, bev) if bev else ob
-
-def cyl(name, r, depth, mat, parent, at=None, segs=40, r2=None, bev=0.003, caps=True):
-	"""A cylinder (or cone, r2) along its local z, centred."""
-	bm = bmesh.new()
-	bmesh.ops.create_cone(bm, cap_ends=caps, cap_tris=False, segments=segs, radius1=r, radius2=r if r2 is None else r2,
-		depth=depth, matrix=at or Matrix())
-	ob = obj(name, bm, mat, parent)
-	return bevel(ob, bev, 2) if bev else ob
-
-def grid(name, rows, mat, parent, close=True, cap_top=None):
-	"""A quad grid from rows of points (each row a ring when close); cap_top: a point the last row fans to."""
-	nr, nc = len(rows), len(rows[0])
-	bm = bmesh.new()
-	vs = [bm.verts.new(tuple(p)) for row in rows for p in row]
-	faces = [(j * nc + i, j * nc + (i + 1) % nc, (j + 1) * nc + (i + 1) % nc, (j + 1) * nc + i)
-		for j in range(nr - 1) for i in range(nc if close else nc - 1)]
-	if cap_top is not None:
-		vs.append(bm.verts.new(tuple(cap_top)))
-		faces += [((nr - 1) * nc + i, (nr - 1) * nc + (i + 1) % nc, len(vs) - 1) for i in range(nc)]
-	for f in faces:
-		try:
-			bm.faces.new([vs[i] for i in f])
-		except ValueError:   # a face that exists already: skip it
-			pass
-	bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-	return obj(name, bm, mat, parent)
-
-def superellipse(rx, ry, cx, cy, z, n, p):
-	t = np.linspace(0, 2 * math.pi, n, endpoint=False)
-	c, s = np.cos(t), np.sin(t)
-	return np.stack([cx + rx * np.sign(c) * np.abs(c) ** (2 / p), cy + ry * np.sign(s) * np.abs(s) ** (2 / p), np.full(n, z)], 1)
-
-def torus(name, R, r, mat, parent, at=None, seg=56, tseg=10):
-	rows = [[((R + r * math.cos(b)) * math.cos(a), (R + r * math.cos(b)) * math.sin(a), r * math.sin(b))
-		for b in np.linspace(0, 2 * math.pi, tseg, endpoint=False)] for a in np.linspace(0, 2 * math.pi, seg, endpoint=False)]
-	ob = grid(name, rows + [rows[0]], mat, parent)
-	ob.data.transform(at or Matrix())
-	return ob
-
-def dome(name, rad, mat, parent, at, keep=None, thick=0.01, seg=56, rings=16):
-	"""Half an ellipsoid (rad = rx, ry, rz) opening down; keep(x, y, z) on the unit dome drops the faces it refuses."""
-	bm = bmesh.new()
-	rows = [[bm.verts.new((rad[0] * math.cos(ph) * math.cos(t), rad[1] * math.cos(ph) * math.sin(t), rad[2] * math.sin(ph)))
-		for t in np.linspace(0, 2 * math.pi, seg, endpoint=False)] for ph in np.linspace(0, math.pi / 2, rings, endpoint=False)]
-	pole = bm.verts.new((0, 0, rad[2]))
-	for i in range(rings):
-		for j in range(seg):
-			k = (j + 1) % seg
-			vs = [rows[i][j], rows[i][k], pole] if i == rings - 1 else [rows[i][j], rows[i][k], rows[i + 1][k], rows[i + 1][j]]
-			c = sum((v.co for v in vs), Vector()) / len(vs)
-			if keep is None or keep(c.x / rad[0], c.y / rad[1], c.z / rad[2]):
-				bm.faces.new(vs)
-	bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-	bm.transform(at)
-	ob = obj(name, bm, mat, parent)
-	add_mod(ob, "SOLIDIFY", thickness=thick, offset=-1.0)
-	add_mod(ob, "SUBSURF", levels=1, render_levels=2)
-	return ob
-
-def rivets(name, pts, nrms, r, mat, parent):
-	"""Round-headed rivets: one mesh of squashed spheres, each standing on its normal."""
-	bm = bmesh.new()
-	for p, n in zip(pts, nrms):
-		q = Vector(n).normalized().to_track_quat("Z", "Y").to_matrix().to_4x4()
-		bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=r, matrix=Matrix.Translation(Vector(p)) @ q @ Matrix.Diagonal((1, 1, 0.6, 1)))
-	return obj(name, bm, mat, parent)
-
-def pipe(name, pts, r, mat, parent):
-	cu = bpy.data.curves.new(name, "CURVE")
-	cu.dimensions, cu.bevel_depth, cu.bevel_resolution, cu.use_fill_caps = "3D", r, 4, True
-	sp = cu.splines.new("BEZIER")
-	sp.bezier_points.add(len(pts) - 1)
-	for bp, p in zip(sp.bezier_points, pts):
-		bp.co, bp.handle_left_type, bp.handle_right_type = p, "AUTO", "AUTO"
-	cu.materials.append(mat)
-	ob = link(bpy.data.objects.new(name, cu))
-	ob.parent = parent
-	return ob
-
-def text(name, body, size, mat, parent, at, extrude=0.0015):
-	"""Raised letters as a mesh (the aux pass and paint.js see meshes, not font objects)."""
-	cu = bpy.data.curves.new(name, "FONT")
-	cu.body, cu.size, cu.extrude, cu.align_x, cu.align_y = body, size, extrude, "CENTER", "CENTER"
-	tmp = link(bpy.data.objects.new(name + ".font", cu))
-	me = bpy.data.meshes.new_from_object(tmp.evaluated_get(bpy.context.evaluated_depsgraph_get()))
-	bpy.data.objects.remove(tmp)
-	me.materials.clear()
-	me.materials.append(mat)
-	ob = link(bpy.data.objects.new(name, me))
-	ob.parent, ob.matrix_basis = parent, at
-	return ob
-
-def gear(name, r, teeth, thick, mat, parent, at):
-	"""A spur gear: a toothed disc on a hub."""
-	bm = bmesh.new()
-	prof = [(r * rr * math.cos(t), r * rr * math.sin(t)) for k in range(teeth)
-		for da, rr in ((0.0, 0.84), (0.18, 0.84), (0.28, 1.0), (0.62, 1.0), (0.72, 0.84)) for t in [2 * math.pi * (k + da) / teeth]]
-	top = [bm.verts.new((x, y, thick / 2)) for x, y in prof]
-	bot = [bm.verts.new((x, y, -thick / 2)) for x, y in prof]
-	bm.faces.new(top)
-	bm.faces.new(bot[::-1])
-	n = len(prof)
-	for i in range(n):
-		bm.faces.new([bot[i], bot[(i + 1) % n], top[(i + 1) % n], top[i]])
-	bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-	bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=r * 0.3, radius2=r * 0.3, depth=thick * 2.2)
-	bm.transform(at)
-	return bevel(obj(name, bm, mat, parent), 0.0015, 1)
+	"""bm as an object under parent (bustkit.bm_object with Gauge's argument order). at None: the mesh is already in the
+	parent's space; else at is the object's own transform, so its Object coordinates stay local."""
+	return bm_object(name, bm, mat, smooth, parent, at)
 
 def point_light(name, parent, loc, power, color, radius=0.03):
-	ld = bpy.data.lights.new(name, "POINT")
-	ld.energy, ld.color, ld.shadow_soft_size = power, lin(color), radius
-	lo = link(bpy.data.objects.new(name, ld))
-	lo.parent, lo.location = parent, loc
-	return lo
+	return bustkit.point_light(name, loc, power, color, radius, parent)
 
-# ---------------------------------------------------------------- shader helpers and materials
-
-def feed(nt, sock, v):
-	"""Set an input socket to a value, or link a socket into it."""
-	if isinstance(v, (int, float, tuple)):
-		sock.default_value = v
-	else:
-		nt.links.new(v, sock)
-
-def math_node(nt, operation, *ins):
-	n = nt.nodes.new("ShaderNodeMath")
-	n.operation = operation
-	for k, v in enumerate(ins):
-		feed(nt, n.inputs[k], v)
-	return n.outputs[0]
-
-def mrange(nt, src, a, b, lo=0.0, hi=1.0):
-	"""A clamped Map Range: src from a..b to lo..hi."""
-	n = nt.nodes.new("ShaderNodeMapRange")
-	nt.links.new(src, n.inputs["Value"])
-	for k, v in zip(("From Min", "From Max", "To Min", "To Max"), (a, b, lo, hi)):
-		n.inputs[k].default_value = v
-	return n.outputs[0]
-
-def coords(nt):
-	return nt.nodes.new("ShaderNodeTexCoord").outputs["Object"]
-
-def radial(nt, co):
-	"""(distance from the object's z axis, z)."""
-	sep = nt.nodes.new("ShaderNodeSeparateXYZ")
-	nt.links.new(co, sep.inputs[0])
-	xy = nt.nodes.new("ShaderNodeCombineXYZ")
-	nt.links.new(sep.outputs[0], xy.inputs[0])
-	nt.links.new(sep.outputs[1], xy.inputs[1])
-	ln = nt.nodes.new("ShaderNodeVectorMath")
-	ln.operation = "LENGTH"
-	nt.links.new(xy.outputs[0], ln.inputs[0])
-	return ln.outputs["Value"], sep.outputs[2]
-
-def emission(nt, color, strength):
-	em = nt.nodes.new("ShaderNodeEmission")
-	feed(nt, em.inputs["Color"], color)
-	feed(nt, em.inputs["Strength"], strength)
-	return em
-
-def mix_shader(nt, fac, a, b):
-	mx = nt.nodes.new("ShaderNodeMixShader")
-	feed(nt, mx.inputs[0], fac)
-	nt.links.new(a.outputs[0], mx.inputs[1])
-	nt.links.new(b.outputs[0], mx.inputs[2])
-	return mx
-
-def ao_grime(nt, col, dist, dark):
-	"""Grime in the crevices: col darkened toward dark where ambient occlusion closes in."""
-	ao = nt.nodes.new("ShaderNodeAmbientOcclusion")
-	ao.inputs["Distance"].default_value = dist
-	return mix_rgb(nt, ao.outputs["AO"], dark, col)
+# ---------------------------------------------------------------- materials
 
 def iron_mat(opt, name="Iron", tone=1.0):
 	"""Working iron: dark, oiled, metal; rust patches and rain streaks over it in B."""
@@ -718,38 +514,8 @@ def build(opt):
 	build_head(opt, m, head)
 	return stand_in(), []
 
-def render_aux_glow(path, samples=4):
-	"""bust.render_aux, but the glow mask is each material's "looter_glow" (eyes 1 by default), so the lamp, ember and
-	fire bloom, and objects with a "looter_aux_skip" material (the steam) leave the pass."""
-	sc = bpy.context.scene
-	keep = (sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look)
-	sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look = samples, False, "Raw", "None"  # Raw as bust.render_aux: Standard sRGB-encoded the ids
-	swaps, hidden = [], [o for o in sc.objects if o.type == "LIGHT"]
-	for ob in sc.objects:
-		for slot in (ob.material_slots if ob.type in ("MESH", "CURVES", "CURVE") else []):
-			mt = slot.material
-			if mt is not None and mt.get("looter_aux_skip"):
-				hidden.append(ob)
-			elif mt is not None:
-				pid = mt.get("looter_id", 0)
-				glow = mt.get("looter_glow", 1.0 if pid == ID["eye"] else 0.0)
-				swaps.append((slot, mt))
-				slot.material = material(mt.name + ".aux", pid, lambda nt: emission(nt, (glow, 0.0, pid / 16.0, 1.0), 1.0))
-	for o in hidden:
-		o.hide_render = True
-	bg = sc.world.node_tree.nodes["Background"].inputs["Strength"]
-	strength, bg.default_value = bg.default_value, 0.0
-	bust.render(path)
-	for slot, mt in swaps:
-		slot.material = mt
-	for o in hidden:
-		o.hide_render = False
-	bg.default_value = strength
-	sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look = keep
-
 def main():
-	bust.render_aux = render_aux_glow   # run() looks it up in bust when it calls it
-	bust.run(OPTIONS, "Gauge", build)
+	run(OPTIONS, "Gauge", build)
 
 if __name__ == "__main__":
 	main()

@@ -1,5 +1,5 @@
 """Odessa Lark's portrait busts (the Cardsharp) in Blender (Cycles), from MakeHuman's CC0 base mesh, on the machinery
-every hero's bust shares (bust.py; EllisBlender.py is the worked example; Saved/Portraits/CONTRACT.md the brief).
+every hero's bust shares (bust.py, bustkit.py; EllisBlender.py is the worked example; Saved/Portraits/CONTRACT.md the brief).
 
     "C:/Program Files/Blender Foundation/Blender 4.4/blender.exe" -b --factory-startup --python-exit-code 1
         --python Art/Portraits/Odessa.py -- <A|B|C> [--size 1024] [--samples 96] [--out <dir>] [--no-aux] [--blend]
@@ -26,9 +26,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import mh  # noqa: E402
 from bust import (  # noqa: E402
-	ID, add_mod, body_bvh, brass_material, build_human, build_lapels, build_shirt_collar, bump, buttons, bvh_of, clump,
-	curves_object, cut_vee, grid_object, hair_material, head_axis, leather_material, lin, link, material, mesh_object,
-	mix_rgb, neck_frame, noise, principled, run, shell, strip_on, surface_point, zones)
+	ID, add_mod, area_light, body_bvh, brass_material, build_human, bump, bvh_of, clump, curves_object, grid_object,
+	hair_material, head_axis, leather_material, lin, material, mesh_object, mix_rgb, neck_frame, noise, principled, run, shell,
+	strip_on, surface_point, zones)
+from bustkit import (  # noqa: E402
+	add_torus, ball, bm_object, body_co, body_ix, build_lapels, build_shirt_collar, buttons, cloth, cut_vee, edit_faces,
+	emit_material, frustum, head_pt, living_eye, ramp, ring_band, set_body_co)
 
 # The paint pass's settings per option (render.js reads these lines): wine and gold; C's glow is lamplight (no cyan).
 # PAINT A {"bgTop":"#1a0d14","bgBottom":"#07050a","bgGlow":"#5a2a3a","glowAt":[0.70,0.30],"sparks":"#ffd27a","dust":"#c9a06a","glow":"#5ad8ff"}
@@ -85,97 +88,7 @@ OPTIONS = {
 }
 
 
-# ---------------------------------------------------------------- small helpers bust.py lacks
-
-def obj_from_bm(name, bm, mats=(), smooth=True):
-	me = bpy.data.meshes.new(name)
-	bm.to_mesh(me)
-	bm.free()
-	if smooth:
-		me.shade_smooth()
-	ob = link(bpy.data.objects.new(name, me))
-	for m in mats:
-		ob.data.materials.append(m)
-	return ob
-
-
-def cloth(ob, thick, mat, offset=1.0):
-	"""Thickness, smoothing and a material: what every sheet of cloth here gets."""
-	add_mod(ob, "SOLIDIFY", thickness=thick, offset=offset)
-	add_mod(ob, "SUBSURF", levels=1, render_levels=2)
-	ob.data.materials.append(mat)
-	return ob
-
-
-def add_torus(bm, R, r, m, nu=14, nv=6):
-	"""A torus (ring R, tube r) into bm, placed by the 4x4 m: bmesh has no torus primitive."""
-	vs = [bm.verts.new(m @ Vector(((R + r * math.cos(v)) * math.cos(u), (R + r * math.cos(v)) * math.sin(u), r * math.sin(v))))
-		for u in np.linspace(0, 2 * math.pi, nu, endpoint=False) for v in np.linspace(0, 2 * math.pi, nv, endpoint=False)]
-	for i in range(nu):
-		for j in range(nv):
-			i2, j2 = (i + 1) % nu, (j + 1) % nv
-			bm.faces.new((vs[i * nv + j], vs[i2 * nv + j], vs[i2 * nv + j2], vs[i * nv + j2]))
-
-
-def ball(name, at, radius, mat, scale=(1, 1, 1), normal=None):
-	bm = bmesh.new()
-	bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=radius)
-	ob = obj_from_bm(name, bm, [mat])
-	ob.location, ob.scale = at, scale
-	if normal is not None:
-		ob.rotation_euler = normal.to_track_quat("Z", "Y").to_euler()
-	return ob
-
-
-def frustum(name, p0, p1, r0, r1, mat):
-	"""An open tapered tube from p0 to p1 (sleeves, cuffs)."""
-	bm = bmesh.new()
-	d = p1 - p0
-	m = Matrix.Translation((p0 + p1) * 0.5) @ d.to_track_quat("Z", "Y").to_matrix().to_4x4()
-	bmesh.ops.create_cone(bm, cap_ends=False, segments=24, radius1=r0, radius2=r1, depth=d.length, matrix=m)
-	return cloth(obj_from_bm(name, bm), 0.003, mat)
-
-
-def ring_band(name, c, rows, mat, thick=0.002):
-	"""A band round a vertical axis at c (x, y): rows of (radius(theta), z(theta)) functions, theta 0 at the front."""
-	th = np.linspace(0, 2 * math.pi, 72, endpoint=False)
-	pts = np.array([[c[0] + math.sin(t) * r(t), c[1] - math.cos(t) * r(t), z(t)] for r, z in rows for t in th])
-	n = len(rows)
-	return cloth(grid_object(name, pts[:, 0].reshape(n, -1), pts[:, 1].reshape(n, -1), pts[:, 2].reshape(n, -1), wrap=True), thick, mat)
-
-
-def body_co(body):
-	co = np.empty(len(body.data.vertices) * 3)
-	body.data.vertices.foreach_get("co", co)
-	return co.reshape(-1, 3)
-
-
-def set_body_co(body, co):
-	body.data.vertices.foreach_set("co", co.ravel())
-	body.data.update()
-
-
-def head_pt(h, p):
-	"""Head rest space (decimetres) -> posed world (metres)."""
-	return Vector(mh.to_blender(mh.apply(h["glob"]["head"], np.asarray(p, dtype=np.float64)[None]))[0])
-
-
-def body_ix(h):
-	return np.unique(np.concatenate(h["group_faces"]("body")))
-
-
 # ---------------------------------------------------------------- materials (Odessa's own)
-
-def ramp(nt, fac, stops):
-	r = nt.nodes.new("ShaderNodeValToRGB")
-	el = r.color_ramp.elements
-	el[0].position, el[0].color = stops[0]
-	el[1].position, el[1].color = stops[-1]
-	for pos, col in stops[1:-1]:
-		el.new(pos).color = col
-	nt.links.new(fac, r.inputs[0])
-	return r.outputs[0]
-
 
 def velvet_material(name, pid, dark, light, sheen, rough=0.72):
 	"""Wool, felt or velvet: colour drifting in big soft patches, a fine weave, creases, a sheen at grazing angles."""
@@ -216,30 +129,9 @@ def brocade_material():
 
 
 def living_eye_material():
-	"""Brown eyes, wet, no light in them (C, as in life). Skin's id, not the eye's: the aux pass marks every eye-id
-	pixel as glowing, and these must not bloom."""
-	def build(nt):
-		sep = nt.nodes.new("ShaderNodeSeparateXYZ")
-		nt.links.new(nt.nodes.new("ShaderNodeTexCoord").outputs["Object"], sep.inputs[0])
-		zr = nt.nodes.new("ShaderNodeMath")
-		zr.operation = "DIVIDE"
-		nt.links.new(sep.outputs["Z"], zr.inputs[0])
-		zr.inputs[1].default_value = 0.0118   # the eyeball's +z looks at the camera; z / r runs -1..1
-		c = lambda rgb: (*lin(rgb), 1)
-		b = principled(nt, ramp(nt, zr.outputs[0], [(0.80, c((0.74, 0.70, 0.66))), (0.83, c((0.10, 0.05, 0.03))),
-			(0.86, c((0.36, 0.19, 0.08))), (0.925, c((0.52, 0.31, 0.12))), (0.95, c((0.02, 0.015, 0.012)))]), rough=0.08, spec=0.6)
-		b.inputs["Coat Weight"].default_value = 1.0
-		return b
-	return material("LivingEye", ID["skin"], build)
-
-
-def emit_material(name, color, strength, pid):
-	def build(nt):
-		em = nt.nodes.new("ShaderNodeEmission")
-		em.inputs["Color"].default_value = (*lin(color), 1)
-		em.inputs["Strength"].default_value = strength
-		return em
-	return material(name, pid, build)
+	"""Brown eyes, wet, no light in them (C, as in life; bustkit.living_eye keeps them out of the glow mask)."""
+	return living_eye("LivingEye", [(0.80, (0.74, 0.70, 0.66)), (0.83, (0.10, 0.05, 0.03)), (0.86, (0.36, 0.19, 0.08)),
+		(0.925, (0.52, 0.31, 0.12)), (0.95, (0.02, 0.015, 0.012))], 0.6, **{"Coat Weight": 1.0})
 
 
 def smoke_material():
@@ -420,7 +312,7 @@ def card(name, suit, xf):
 		for poly in pip_shapes(suit):
 			face([(cx + x * s * rot, cz + z * s * rot) for x, z in poly], -CARD_T / 2 - 0.00012, 1 if suit in ("heart", "diamond") else 2, True)
 	inks = [((0.88, 0.84, 0.76), 0.35), ((0.66, 0.05, 0.07), 0.3), ((0.02, 0.02, 0.025), 0.3)]
-	return obj_from_bm(name, bm, [material(f"Card{i}", ID["linen"], lambda nt, c=c, r=r: principled(nt, c, rough=r, spec=0.5))
+	return bm_object(name, bm, [material(f"Card{i}", ID["linen"], lambda nt, c=c, r=r: principled(nt, c, rough=r, spec=0.5))
 		for i, (c, r) in enumerate(inks)], smooth=False)
 
 
@@ -448,7 +340,7 @@ def glove(M, mat, thumb_fwd=0.0):
 	cap((-0.039, -0.001 + ty, -0.068), (-0.022, -0.0096 + ty, -0.036), 0.0100, 0.0090)
 	cap((0.003, 0.018, -0.118), (0.006, 0.028, -0.17), 0.021, 0.023)             # wrist
 	bm.transform(M)
-	g = obj_from_bm("Glove", bm, [mat])
+	g = bm_object("Glove", bm, [mat])
 	add_mod(g, "REMESH", mode="VOXEL", voxel_size=0.0014, use_smooth_shade=True)
 	add_mod(g, "SMOOTH", factor=1.0, iterations=6)
 	linen = material("CuffLinen", ID["linen"], lambda nt: principled(nt, (0.82, 0.80, 0.75), rough=0.6, spec=0.3))
@@ -623,7 +515,7 @@ def bullet_mark(h, hf, body):
 	ball("Hole", at - n * 0.0006, 0.0055, material("Wound", ID["skin"], lambda nt: principled(nt, (0.10, 0.025, 0.035), rough=0.5, spec=0.4)), (1, 1, 0.35), n)
 	bmr = bmesh.new()
 	add_torus(bmr, 0.0072, 0.0018, n.to_track_quat("Z", "Y").to_matrix().to_4x4())
-	obj_from_bm("ScarRing", bmr, [material("Scar", ID["skin"], lambda nt: principled(nt, (0.58, 0.44, 0.45), rough=0.5, spec=0.4))]).location = at
+	bm_object("ScarRing", bmr, [material("Scar", ID["skin"], lambda nt: principled(nt, (0.58, 0.44, 0.45), rough=0.5, spec=0.4))]).location = at
 	ball("MarkCore", at + n * 0.0005, 0.0016, glow)
 	threads = []
 	for k in range(5):
@@ -653,20 +545,9 @@ def neck_section(h, z0, dz=0.008):
 	return c, np.percentile(np.linalg.norm(band[:, :2] - c, axis=1), 92)
 
 
-def edit_faces(ob, doomed):
-	"""Delete the faces of ob whose centre doomed(centre) says to; returns the cut edge's points."""
-	bm = bmesh.new()
-	bm.from_mesh(ob.data)
-	bmesh.ops.delete(bm, geom=[f for f in bm.faces if doomed(f.calc_center_median())], context="FACES")
-	edge = [v.co.copy() for v in bm.verts if v.is_boundary]
-	bm.to_mesh(ob.data)
-	bm.free()
-	return edge
-
-
 def build_clothes(h, body, opt, wine):
 	"""Shirt, brocade waistcoat and wine tailcoat as shells of the body: the waistcoat in a V closing below the
-	cravat (bust.cut_vee only widens, as an open coat does), the tailcoat open in a wide V with lapels and a rolled
+	cravat (cut_vee only widens, as an open coat does), the tailcoat open in a wide V with lapels and a rolled
 	collar; the high white collar and black cravat (A, B) or an open neck and choker (C); the watch chain."""
 	neck = neck_frame(h)
 	gold = brass_material()
@@ -756,7 +637,7 @@ def watch_chain(vest, neck, gold, z_btn):
 		m = Matrix((tan, side, tan.cross(side))).transposed().to_4x4()
 		m.translation = p + nrm * 0.004
 		add_torus(bm, 0.0026, 0.0007, m @ Matrix.Diagonal((1.3, 1.0, 1.0, 1.0)), 10, 5)
-	obj_from_bm("WatchChain", bm, [gold])
+	bm_object("WatchChain", bm, [gold])
 
 
 def build_smoke(h):
@@ -781,11 +662,7 @@ def rim_sparing(h, opt, spare):
 	spare: under A's brim it turned her dark hair pale grey."""
 	loc, power, color, size = opt["rim"]
 	target = Vector(mh.to_blender(mh.apply(h["glob"]["head"], h["bones"]["head"]["head"]))) + Vector((0.0, 0.0, opt["cam"][1]))
-	ld = bpy.data.lights.new("Rim", "AREA")
-	ld.energy, ld.color, ld.size = power, lin(color), size
-	lo = link(bpy.data.objects.new("Rim", ld))
-	lo.location = target + Vector(loc)
-	lo.rotation_euler = (target - lo.location).to_track_quat("-Z", "Y").to_euler()
+	lo = area_light("Rim", target, loc, power, color, size)
 	skip = bpy.data.collections.new("RimSkips")
 	lo.light_linking.receiver_collection = skip
 	for o in spare:

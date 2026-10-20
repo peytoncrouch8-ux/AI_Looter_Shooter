@@ -1,5 +1,5 @@
 """Ellis Ransom's portrait busts in Blender (Cycles), from MakeHuman's CC0 base mesh shaped into Ellis, on the
-machinery every hero's bust shares (bust.py).
+machinery every hero's bust shares (bust.py, and the kit in bustkit.py).
 
 Run with the Blender binary or Blender's Python module bpy (more in bust.py):
     "C:/Program Files/Blender Foundation/Blender 4.4/blender.exe" -b --factory-startup --python-exit-code 1
@@ -27,11 +27,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import mh  # noqa: E402
 from bust import (  # noqa: E402
-	ID, add_mod, bandana_material, binding, body_bvh, brass_material, build_flower, build_human, build_lapels,
-	build_shirt_collar, build_string_tie, buttons, bvh_of, canvas_material, chin_z, clump, curves_object, cut_vee,
-	drape, felt_material, frame2d, grid_object, grow, grow_combed, hair_material, head_axis, leather_material, link,
-	material, mesh_object, neck_frame, principled, run, shell, shoulder_z, strip_on, sun_pin, surface_point,
-	world_points)
+	ID, add_mod, bandana_material, body_bvh, brass_material, build_human, bvh_of, canvas_material, chin_z, clump,
+	curves_object, drape, felt_material, frame2d, grid_object, grow, grow_combed, hair_material, head_axis, leather_material,
+	link, material, mesh_object, neck_frame, principled, run, shell, shoulder_z, strip_on, surface_point, world_points)
+from bustkit import (  # noqa: E402
+	binding, build_flower, build_lapels, build_shirt_collar, build_string_tie, buttons, cut_vee, sun_pin)
 # Art/Models/Characters/Ellis.py reads these through this module (eb.close_lids, eb.head_frame, eb.sun_pin).
 from bust import close_lids, head_frame  # noqa: E402,F401
 

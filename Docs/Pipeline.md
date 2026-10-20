@@ -548,11 +548,20 @@ docstring and `OPTIONS`).
   `--aux-only` / `-AuxOnly` redo just that pass (3-10 s a bust; a lone string splatted into a native call goes letter
   by letter, so `portraits.ps1` wraps its extra arguments in `@(...)`); `render.js --script` and `--frame` resolve beside render.js (pass
   `Odessa.py`, not `Art/Portraits/Odessa.py`); Gauge has no MakeHuman body (primitives, a stand-in head Empty for
-  `stage`, its own `render_aux_glow` reading each material's `looter_glow`); a hero's cyan rim light that also lit the
+  `stage`, material ids 14 glass / 15 wood); a hero's cyan rim light that also lit the
   hair went light-linked past it (Odessa's `rim_sparing`); eyes with no glow use the skin id (the aux pass blooms every
-  id-2 pixel). Each hero file carries 100-330 lines of helpers bust.py should absorb (primitives, chains, tubes, shader
-  shorthands, posed arms, `turn`, a stoop, hair tufts, glass/wood ids 14/15): the merge is the next clean-up, renders
-  compared before and after as the split was.
+  id-2 pixel). **The merge (2026-10-20, no visible change):** the helpers the hero files carried each moved to
+  `Art/Portraits/bustkit.py` (listed in `CODEMAP.md`: garment parts and props, shader shorthands, bmesh objects, wires,
+  chains, hair tufts, the stoop, the raised arm via `ARM` + `use_arm_pose()`, Gauge's primitives); `bust.render_aux` reads a
+  material's `looter_glow` / `looter_aux_skip` (Gauge's own pass is gone), `bust.area_light` places the stage's lights (and
+  Odessa's rim); `bust.ID` has glass 14 and wood 15. Crane's instanced curve links (`link_chain`) and Pike's one-mesh links
+  (`mesh_chain`) are different builds, so both stay; the heroes' tears differ in outline only and share `edit_faces`.
+  Proof: all 15 scenes (5 heroes x A/B/C) saved with `--blend` at 96 px / 1 sample before and after and compared object by
+  object (names, parents, transforms, every RNA property, vertex positions to 1e-5, polygons as sorted records because a
+  bmesh primitive orders its faces differently each run, UVs, weights, materials' nodes and links, curve points, lights,
+  world), the aux PNGs at 384 px pixel for pixel, and the Ellis, Crane, Gauge and Odessa model exports with
+  `Saved/BakeCheck/fix/compare_fbx.py`: all identical (the rebake the new digest forced wrote the same texture bytes; only
+  the `bake.digest` stamps changed). Any model script that bakes from the portraits lists `bustkit.py` in its `BAKE_SOURCES`.
 
 ## Character models (MakeHuman bodies, simulated and draped clothes, baked looks; Ellis, 2026-10-15)
 

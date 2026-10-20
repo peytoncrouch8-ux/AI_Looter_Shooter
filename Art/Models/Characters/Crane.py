@@ -431,7 +431,7 @@ def share_link_uvs(ob):
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
     ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'Crane.py'),
-    ('Art', 'Portraits', 'bust.py'), ('Tools', 'Blender', 'ellis_hat.py'), ('Tools', 'Blender', 'ellis_hair.py'),
+    ('Art', 'Portraits', 'bust.py'), ('Art', 'Portraits', 'bustkit.py'), ('Tools', 'Blender', 'ellis_hat.py'), ('Tools', 'Blender', 'ellis_hair.py'),
     ('Tools', 'Blender', 'crane_common.py'), ('Tools', 'Blender', 'crane_head.py'), ('Tools', 'Blender', 'crane_clothes.py'),
     ('Tools', 'Blender', 'crane_gear.py'), ('Tools', 'Blender', 'crane_looks.py'), ('Tools', 'Blender', 'crane_hair.py'))]
 # (crane_rig.py and crane_audit.py are left out: they shape nothing that's baked)

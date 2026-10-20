@@ -1,9 +1,11 @@
 """Painted-portrait busts in Blender (Cycles) from MakeHuman's CC0 base mesh: the machinery every hero's portrait
-script shares (Ellis's: EllisBlender.py). Docs/Pipeline.md, "Character portraits".
+script shares (Ellis's: EllisBlender.py). Docs/Pipeline.md, "Character portraits". bustkit.py is the second shared module:
+the building blocks (shader shorthands, primitives, wires, chains, hair tufts, posing hooks) and the garment parts and
+props (lapels, collar, tie, buttons, the sun pin) heroes dress their busts with.
 
-A hero script (Art/Portraits/<Hero>Blender.py) holds its FACE (mh face modifiers), MACRO (mh macro sliders), OPTIONS
-(key -> option dict) and the "# PAINT <key> {...}" lines render.js reads; it builds the costume with the helpers here
-and ends with
+A hero script (Art/Portraits/<Hero>.py; Ellis's EllisBlender.py) holds its FACE (mh face modifiers), MACRO (mh macro
+sliders), OPTIONS (key -> option dict) and the "# PAINT <key> {...}" lines render.js reads; it builds the costume with the
+helpers here and in bustkit and ends with
 	def build(opt):
 		h, hf, body, eyes = build_human(opt, FACE, MACRO, "<Hero>")
 		...                                  # hat, hair (curves_object, grow, clump), clothes (shell, drape, strip_on)
@@ -30,7 +32,7 @@ import time
 import bpy  # first: bmesh and mathutils come with it
 import bmesh
 import numpy as np
-from mathutils import Matrix, Vector
+from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -39,7 +41,7 @@ import mh  # noqa: E402
 
 # Material ids shared with paint.js (and the march in lib.glsl).
 ID = {"skin": 1, "eye": 2, "felt": 3, "leather": 4, "bandana": 5, "coat": 6, "shirt": 7, "brass": 8, "hair": 9,
-	"feather": 10, "lead": 11, "linen": 12, "black": 13}
+	"feather": 10, "lead": 11, "linen": 12, "black": 13, "glass": 14, "wood": 15}
 
 EYE_BACK = 0.022   # decimetres the eyeball's front sits behind the eye helper's cornea
 
@@ -692,18 +694,6 @@ def strip_on(bvh, rows, name, lift, mat, thick=0.004):
 	return ob
 
 
-def binding(name, line, width, mat=None):
-	"""A narrow strip (a hem binding) along a polyline, hanging down by width."""
-	n = len(line)
-	verts = np.concatenate([line + np.array([0, 0, width * 0.5]), line - np.array([0, 0, width * 0.5])])
-	faces = [[i, i + 1, n + i + 1, n + i] for i in range(n - 1)]
-	ob = mesh_object(name, verts, faces)
-	add_mod(ob, "SOLIDIFY", thickness=0.006, offset=0.0)
-	add_mod(ob, "SUBSURF", levels=1, render_levels=2)
-	ob.data.materials.append(mat or leather_material((0.12, 0.07, 0.045)))
-	return ob
-
-
 def shell(body, h, name, offset_top, offset_loose, top_z, keep_neck=0.25):
 	"""The torso and arms pushed out along their normals: a garment's base, cut off below top_z."""
 	neck_w = h["weights"]("neck01") + h["weights"]("neck02") + h["weights"]("neck03") + h["weights"]("head")
@@ -724,182 +714,6 @@ def shell(body, h, name, offset_top, offset_loose, top_z, keep_neck=0.25):
 	ob.modifiers.clear()
 	ob.data.materials.clear()
 	return ob, bm
-
-
-def cut_vee(ob, neck, vee):
-	"""Open a garment at the front in a V from the collar down."""
-	bf, bl = frame2d(np.array([0.0, -1.0]))
-	bm = bmesh.new()
-	bm.from_mesh(ob.data)
-	cut = []
-	for fc in bm.faces:
-		c = fc.calc_center_median()
-		rel = np.array([c.x - neck[0], c.y - neck[1]])
-		halfw = vee + max(neck[2] - c.z, 0) * 0.16
-		if rel @ bf > 0.02 and abs(rel @ bl) < halfw:
-			cut.append(fc)
-	bmesh.ops.delete(bm, geom=cut, context="FACES")
-	bm.to_mesh(ob.data)
-	bm.free()
-
-
-def buttons(target_ob, neck, count, step, mat, radius=0.0055, x=0.006, z0=0.07):
-	bvh = bvh_of(target_ob)
-	out = []
-	for k in range(count):
-		sp = surface_point(bvh, neck[0] + x, neck[2] - z0 - k * step)
-		if sp is None:
-			continue
-		bmb = bmesh.new()
-		bmesh.ops.create_uvsphere(bmb, u_segments=16, v_segments=8, radius=radius)
-		me = bpy.data.meshes.new("Button")
-		bmb.to_mesh(me)
-		bmb.free()
-		me.shade_smooth()
-		bo = link(bpy.data.objects.new("Button", me))
-		bo.location = sp[0] + sp[1] * 0.003
-		bo.scale = (1, 1, 0.6)
-		bo.rotation_euler = sp[1].to_track_quat("Z", "Y").to_euler()
-		bo.data.materials.append(mat)
-		out.append(bo)
-	return out
-
-
-def build_lapels(coat_ob, neck, vee, mat, under_ob=None):
-	"""Lapels folded back either side of the coat's opening, notched below the collar."""
-	bvh = bvh_of(coat_ob, under_ob) if under_ob else bvh_of(coat_ob)
-	parts = []
-	for side in (-1.0, 1.0):
-		rows = []
-		for j in range(14):
-			t = j / 13
-			z = neck[2] - 0.005 - t * 0.20
-			halfw = vee + (neck[2] - z) * 0.16
-			w = 0.075 * (1 - t) ** 0.9 * (0.82 if t < 0.12 else 1.0)
-			row = []
-			for i in range(5):
-				u = i / 4
-				x = neck[0] + side * (halfw - 0.006 + w * u)
-				row.append((x, z, 0.004 * (1 - u)))   # the edge by the opening rolls up a little
-			rows.append(row)
-		parts.append(strip_on(bvh, rows, "Lapel", 0.003, mat))
-	return parts
-
-
-def build_shirt_collar(h, neck, mat, height=0.042):
-	"""A starched stand collar round the neck, open a finger's width at the front."""
-	bf, bl = frame2d(np.array([0.0, -1.0]))
-	nw = h["weights"]("neck01") + h["weights"]("neck02")
-	nv = mh.to_blender(h["verts"][nw > 0.6])
-	near = nv[np.abs(nv[:, 2] - (neck[2] + 0.02)) < 0.015]
-	rel = near[:, :2] - neck[:2]
-	nr = np.percentile(np.linalg.norm(rel, axis=1), 90) + 0.007
-	thetas = np.linspace(math.radians(12), math.radians(348), 100)
-	X = np.zeros((6, len(thetas))); Y = np.zeros_like(X); Z = np.zeros_like(X)
-	for j in range(6):
-		t = j / 5
-		for i, th in enumerate(thetas):
-			d = math.cos(th) * bf + math.sin(th) * bl
-			r = nr + 0.003 * t
-			X[j, i] = neck[0] + d[0] * r
-			Y[j, i] = neck[1] + d[1] * r
-			Z[j, i] = neck[2] - 0.004 + height * t * (0.85 + 0.15 * (0.5 - 0.5 * math.cos(th)))
-	ob = grid_object("ShirtCollar", X, Y, Z)
-	add_mod(ob, "SOLIDIFY", thickness=0.0025, offset=1.0)
-	add_mod(ob, "SUBSURF", levels=1, render_levels=2)
-	ob.data.materials.append(mat)
-	return ob, nr
-
-
-def build_string_tie(shirt_ob, neck, nr, mat):
-	"""A black string tie: a small bow at the collar and two tails down the shirt front."""
-	bvh = bvh_of(shirt_ob)
-	parts = []
-	front = Vector((neck[0], neck[1] - nr - 0.006, neck[2] + 0.006))
-	for side in (-1.0, 1.0):
-		bm = bmesh.new()
-		bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=8, radius=0.011)
-		me = bpy.data.meshes.new("TieLoop")
-		bm.to_mesh(me)
-		bm.free()
-		me.shade_smooth()
-		lo = link(bpy.data.objects.new("TieLoop", me))
-		lo.location = front + Vector((side * 0.013, -0.002, 0.0))
-		lo.scale = (1.2, 0.35, 0.55)
-		lo.rotation_euler = (0.0, side * 0.35, 0.0)
-		lo.data.materials.append(mat)
-		parts.append(lo)
-		rows = []
-		for j in range(12):
-			t = j / 11
-			z = front.z - 0.006 - t * 0.12
-			x = neck[0] + side * (0.004 + 0.012 * t) + 0.004 * math.sin(t * 5 + side)
-			rows.append([(x - 0.0025, z, 0.0), (x + 0.0025, z, 0.0)])
-		rows = [list(r) for r in zip(*rows)]
-		rows = [[rows[0][j], rows[1][j]] for j in range(12)]
-		parts.append(strip_on(bvh, rows, "TieTail", 0.0025, mat, 0.0015))
-	bm = bmesh.new()
-	bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=0.0065)
-	me = bpy.data.meshes.new("TieKnot")
-	bm.to_mesh(me)
-	bm.free()
-	me.shade_smooth()
-	ko = link(bpy.data.objects.new("TieKnot", me))
-	ko.location = front + Vector((0, -0.003, 0))
-	ko.data.materials.append(mat)
-	parts.append(ko)
-	return parts
-
-
-# ---------------------------------------------------------------- props
-
-def sun_pin(at, normal):
-	"""Saint Ada's sun-ring: a brass ring with twelve short rays round a small ember."""
-	bm = bmesh.new()
-	ring = bmesh.ops.create_circle(bm, cap_ends=False, segments=32, radius=0.011)
-	bmesh.ops.delete(bm, geom=bm.verts[:], context="VERTS")
-	bm.free()
-	parts = []
-	me = bpy.data.meshes.new("SunPin")
-	bm = bmesh.new()
-	# the ring: a torus
-	torus = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=32, radius1=0.012, radius2=0.012, depth=0.003)
-	for k in range(12):
-		a = 2 * math.pi * k / 12
-		ray = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True, segments=4, radius1=0.0025, radius2=0.0, depth=0.008,
-			matrix=Matrix.Translation((math.cos(a) * 0.0155, math.sin(a) * 0.0155, 0)) @ Matrix.Rotation(math.pi / 2, 4, "Y") @ Matrix.Rotation(-a, 4, "X"))
-	bm.to_mesh(me)
-	bm.free()
-	ob = link(bpy.data.objects.new("SunPin", me))
-	ob.location = at
-	ob.rotation_euler = normal.to_track_quat("Z", "Y").to_euler()
-	ob.data.materials.append(brass_material())
-	return ob
-
-
-def build_flower(at, normal):
-	"""A dried flower in the buttonhole, gone black: a rosette of curled petals on a short stem."""
-	rng = np.random.default_rng(2)
-	mat = material("DeadFlower", ID["linen"], lambda nt: principled(nt, (0.10, 0.07, 0.09), rough=0.6, spec=0.3))
-	parts = []
-	q = normal.to_track_quat("Z", "Y")
-	for k in range(9):
-		a = 2 * math.pi * k / 9 + rng.random() * 0.3
-		ring = 0.006 if k < 6 else 0.002
-		bm = bmesh.new()
-		bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=0.007)
-		me = bpy.data.meshes.new("Petal")
-		bm.to_mesh(me)
-		bm.free()
-		me.shade_smooth()
-		po = link(bpy.data.objects.new("Petal", me))
-		off = Vector((math.cos(a) * ring, math.sin(a) * ring, 0.002 * k / 9))
-		po.location = at + q @ off
-		po.scale = (1.0, 0.55, 0.25)
-		po.rotation_euler = (q @ Matrix.Rotation(a, 3, "Z").to_quaternion()).to_euler()
-		po.data.materials.append(mat)
-		parts.append(po)
-	return parts
 
 
 # ---------------------------------------------------------------- stage, lights, camera, render
@@ -936,19 +750,21 @@ def stage(h, opt, size, samples):
 	cam.location = target + Vector((0.0, -opt["cam"][0], 0.02))
 	cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 	sc.camera = cam
-
-	def area(name, loc, power, color, size_m):
-		ld = bpy.data.lights.new(name, "AREA")
-		ld.energy = power
-		ld.color = lin(color)
-		ld.size = size_m
-		lo = link(bpy.data.objects.new(name, ld))
-		lo.location = target + Vector(loc)
-		lo.rotation_euler = (target - lo.location).to_track_quat("-Z", "Y").to_euler()
-		return lo
 	for name, loc, power, color, size_m in opt["lights"]:
-		area(name, loc, power, color, size_m)
+		area_light(name, target, loc, power, color, size_m)
 	return cam, target
+
+
+def area_light(name, target, loc, power, color, size_m):
+	"""An area light at loc from target (a world point), aimed at it."""
+	ld = bpy.data.lights.new(name, "AREA")
+	ld.energy = power
+	ld.color = lin(color)
+	ld.size = size_m
+	lo = link(bpy.data.objects.new(name, ld))
+	lo.location = target + Vector(loc)
+	lo.rotation_euler = (target - lo.location).to_track_quat("-Z", "Y").to_euler()
+	return lo
 
 
 def point_eyes_at(eyes, cam):
@@ -962,7 +778,9 @@ def render(path):
 
 
 def render_aux(path, samples=4):
-	"""The aux pass for paint.js: every material swapped for an emission of (glow, 0, id / 16)."""
+	"""The aux pass for paint.js: every material swapped for an emission of (glow, 0, id / 16). The glow mask is the
+	material's "looter_glow" (eyes 1 by default: lamp, ember and fire bloom); objects whose material has "looter_aux_skip"
+	(steam: a volume that the pass would see as a solid cone) leave the pass."""
 	sc = bpy.context.scene
 	keep = (sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look)
 	sc.cycles.samples = samples
@@ -971,13 +789,16 @@ def render_aux(path, samples=4):
 	# (skin 1 read back as 4, coat 6 as 10), so paint.js tightened the wrong materials. Raw writes the values as they are.
 	sc.view_settings.view_transform = "Raw"
 	sc.view_settings.look = "None"
-	swaps = []
+	swaps, hidden = [], [o for o in sc.objects if o.type == "LIGHT"]
 	for ob in sc.objects:
 		if ob.type not in ("MESH", "CURVES", "CURVE"):
 			continue
 		for slot in ob.material_slots:
 			m = slot.material
 			if m is None:
+				continue
+			if m.get("looter_aux_skip"):
+				hidden.append(ob)
 				continue
 			pid = m.get("looter_id", 0)
 			flat = bpy.data.materials.new(m.name + ".aux")
@@ -986,21 +807,20 @@ def render_aux(path, samples=4):
 			for n in list(nt.nodes):
 				nt.nodes.remove(n)
 			em = nt.nodes.new("ShaderNodeEmission")
-			glow = 1.0 if pid == ID["eye"] else 0.0
+			glow = m.get("looter_glow", 1.0 if pid == ID["eye"] else 0.0)
 			em.inputs["Color"].default_value = (glow, 0.0, pid / 16.0, 1.0)
 			out = nt.nodes.new("ShaderNodeOutputMaterial")
 			nt.links.new(em.outputs[0], out.inputs["Surface"])
 			swaps.append((slot, m))
 			slot.material = flat
-	lights = [o for o in sc.objects if o.type == "LIGHT"]
-	for lo in lights:
+	for lo in hidden:
 		lo.hide_render = True
 	strength = sc.world.node_tree.nodes["Background"].inputs["Strength"].default_value
 	sc.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.0
 	render(path)
 	for slot, m in swaps:
 		slot.material = m
-	for lo in lights:
+	for lo in hidden:
 		lo.hide_render = False
 	sc.world.node_tree.nodes["Background"].inputs["Strength"].default_value = strength
 	sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look = keep

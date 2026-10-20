@@ -453,7 +453,7 @@ def prepare_uvs(objects):
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
     ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'bust.py'),
-    ('Art', 'Portraits', 'Odessa.py'), ('Tools', 'Blender', 'odessa_kit.py'), ('Tools', 'Blender', 'odessa_looks.py'),
+    ('Art', 'Portraits', 'bustkit.py'), ('Art', 'Portraits', 'Odessa.py'), ('Tools', 'Blender', 'odessa_kit.py'), ('Tools', 'Blender', 'odessa_looks.py'),
     ('Tools', 'Blender', 'odessa_head.py'), ('Tools', 'Blender', 'odessa_clothes.py'),
     ('Tools', 'Blender', 'odessa_coat.py'))]
 
