@@ -11,6 +11,8 @@
 #                                                                      Intermediate\ArtExport_<Family>
 #   artrun.ps1 -Script Tools\Blender\tangentcheck.py -ScriptArgs Intermediate\ArtExport_RR_Chapel,--where
 #   -Threads N    Blender's render and bake threads (default: all)
+#   Quote script arguments that start with '-': -ScriptArgs '--audit,final' (unquoted, PowerShell binds --preview to -Preview
+#   and --audit to nothing).
 # Several agents share one PC (16 GB, 6 cores): at most LOOTER_BLENDER_SLOTS (default 2) runs go at once; the rest wait
 # for a slot (Saved\BlenderSlots\slot<k>.lock, held open while Blender runs; a killed run frees its slot).
 param([string]$Script = '', [switch]$Preview, [string[]]$ScriptArgs = @(), [string[]]$Export = @(), [string]$Family = '',

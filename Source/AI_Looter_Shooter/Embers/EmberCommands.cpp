@@ -165,12 +165,12 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs UseCommand(
 		TEXT("Looter.Embers.Use"),
 		TEXT("Looter.Embers.Use [id]: fires the equipped ember power (or the named one, equipped first) past its cooldown; ")
-		TEXT("ids: DustDevil, Sundown, BorrowedTime."),
+		TEXT("ids: the hero's own (Looter.Embers.State lists them: DustDevil, LuckyStreak, TollChain, SlagBomb, Spyglass...)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&UseEmber));
 
 	FAutoConsoleCommandWithWorldAndArgs EquipCommand(
 		TEXT("Looter.Embers.Equip"),
-		TEXT("Looter.Embers.Equip <id>: equips an owned ember power (not while one runs); ids: DustDevil, Sundown, BorrowedTime."),
+		TEXT("Looter.Embers.Equip <id>: equips an owned ember power (not while one runs); ids: the hero's own (Looter.Embers.State lists them)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&EquipEmber));
 
 	FAutoConsoleCommandWithWorldAndArgs StateCommand(

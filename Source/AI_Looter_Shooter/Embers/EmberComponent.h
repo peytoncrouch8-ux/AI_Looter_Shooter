@@ -98,6 +98,12 @@ public:
 	/** Ends the running power now (death, a scene, the level ending): End(bInterrupted). */
 	void Interrupt();
 
+	/**
+	 * Ends the running power now as if its time had run out (End, not interrupted): a power whose work is done early (Last
+	 * Rites' mark settled by a death) calls it from its Tick, so the HUD's arc stops with it. Its cooldown runs on as ever.
+	 */
+	void Finish();
+
 	// --- Saving ---
 
 	void SaveEmbers(FEmberSave& OutSave) const;

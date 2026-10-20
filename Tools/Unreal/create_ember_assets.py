@@ -15,19 +15,22 @@ Ellis's three (the first round, 2026-10-15; code in Embers/Powers):
                          bullets too). Cooldown 20 s (decided unattended, 2026-10-15 night; tuned in play).
   DA_Ember_BorrowedTime  Borrowed Time (Debt), UEmberBorrowedTime: 8 s of damage taken going into Sexton's ledger, paid
                          back over 3 s after; each kill strikes a quarter off. Cooldown 24 s (decided unattended).
-The other twelve (the hero pick, 2026-10-19) are data only: words, nature, colour and the demo's numbers from
-Docs/Handoffs/CloudIslandConcepts_2026-10-05.md ("Ember powers", "Five heroes"; the new ones' numbers are starting points,
-the cooldowns set in play). No power class and no icon yet: power_class None leaves the field as it is (a class set by
-hand survives), icon '' leaves none (the panels draw the power's ember glow instead). Write each class's name here when
-its code lands. Until all three of a hero's have code the hero is "In the works" (UHeroDefinition::IsPlayable).
+The other twelve (the hero pick, 2026-10-19; their code 2026-10-20, Embers/Powers/Ember<Id>, each class's comment says
+what it reads): words, nature, colour, icon (Art/Icons/InkedIcons.py) and numbers, the demo's from
+Docs/Handoffs/CloudIslandConcepts_2026-10-05.md ("Ember powers", "Five heroes") brought to today's game: the demo's damage
+was set against a 14 rifle round, today's level 1 rifle deals 20, so damage is x1.43 unless an entry says otherwise (each
+entry's comment gives its numbers and why). Starting points: tuned in play. A hero is playable once their body and
+retargeter are in the game too (UHeroDefinition::IsPlayable). power_class None leaves the field as it is (a class set by
+hand survives), icon '' leaves none.
 
 What each number means to its power (UEmberDefinition's fields; each power class documents what it reads):
-  Damage    against a level 1 rifle's 14 a shot, grown with the player's level (UEmberComponent::GetLevelScale).
+  Damage    against a level 1 rifle's 20 a shot (the demo's was 14), grown with the player's level
+            (UEmberComponent::GetLevelScale).
   Range     cm: a dash's length, a hook's or a lob's reach, a mark's range, a wire's length.
   Radius    cm: the reach either side of a path, a burst's or a light's radius, a line's half width.
   Strength  a share or a rate: Sundown's world speed (0.25), Borrowed Time's share struck off a kill (0.25), Double or
             Nothing's multiplier (2), Grave Ward's slow (0.5: half speed), Iron Hide's damage cut (0.6), Spyglass's extra
-            damage taken (0.3), Long Shot's bonus per 10 m (0.1).
+            damage taken (0.3), Long Shot's bonus per 10 m (0.15).
   Extras    by name: Dust Devil's FlingMin/FlingMax (cm), Dizzy (s), FovKick (degrees); Borrowed Time's PayBackSeconds;
             the rest as each entry says.
 
@@ -70,72 +73,97 @@ POWERS = [
           icon='BorrowedTime', power_class='EmberBorrowedTime'),
 
     # --- Odessa Lark, the Cardsharp ---
-    # The demo's numbers (cloud handoff, "Ember powers"): 8 s, ricochets within 12 m for 10, one shot in three critical.
+    # The demo's 8 s and 12 m; the ricochet 14 (the demo's 10 against its 14 rifle: about 0.7 of a round, kept against
+    # today's 20); every third pull critical.
     power('DA_Ember_LuckyStreak', 'LuckyStreak', 'Lucky Streak', 'Fortune',
-          "For 8 seconds every shot that hits ricochets into the nearest other creature within 12 meters for 10 damage, "
-          "and one shot in three is a critical hit wherever it lands.",
-          '#ffcf4a', 22.0, 8.0, damage=10.0, range=1200.0, extras={'CritEvery': 3.0}),
-    # Starting points: 52 cards in a 35-degree cone to 14 m, 6 each.
+          "For 8 seconds every shot that hits ricochets into the nearest other creature within 12 meters for 14 damage, "
+          "and every third shot is a critical hit wherever it lands.",
+          '#ffcf4a', 22.0, 8.0, damage=14.0, range=1200.0, extras={'CritEvery': 3.0},
+          icon='LuckyStreak', power_class='EmberLuckyStreak'),
+    # 52 cards in a fan 35 degrees wide and 12 tall, to 14 m, 8 each (the demo-era 6 against a 14 rifle, x1.43): a fan
+    # point blank lands 15 to 25 cards on a spider; at 10 m a handful.
     power('DA_Ember_FiftyTwoPickup', 'FiftyTwoPickup', 'Fifty-Two Pickup', 'Fortune',
-          "You fling the whole deck: fifty-two razor cards fan out in a cone up to 14 meters, each cutting whatever "
-          "it meets for 6 damage.",
-          '#ff5d6c', 14.0, 0.0, damage=6.0, range=1400.0, extras={'Cards': 52.0, 'ConeDegrees': 35.0}),
+          "You fling the whole deck: fifty-two razor cards fan out up to 14 meters, each cutting whatever it meets for "
+          "8 damage.",
+          '#ff5d6c', 14.0, 0.0, damage=8.0, range=1400.0, extras={'Cards': 52.0, 'ConeDegrees': 35.0, 'FanTall': 12.0},
+          icon='FiftyTwoPickup', power_class='EmberFiftyTwoPickup'),
+    # Even odds at double pay nothing on average; never two misses running (MissStreak 1) makes it about 4 in 3 of her
+    # damage, so it earns its slot beside Lucky Streak; cooldown 15 (from 18).
     power('DA_Ember_DoubleOrNothing', 'DoubleOrNothing', 'Double or Nothing', 'Risk',
-          "For 6 seconds every shot you fire deals double damage or misses entirely, at even odds.",
-          '#7be0a0', 18.0, 6.0, strength=2.0, extras={'Odds': 0.5}),
+          "For 6 seconds every shot you fire deals double damage or misses entirely, at even odds. Luck never leaves "
+          "you twice running: after a miss, the next shot pays double.",
+          '#7be0a0', 15.0, 6.0, strength=2.0, extras={'Odds': 0.5, 'MissStreak': 1.0},
+          icon='DoubleOrNothing', power_class='EmberDoubleOrNothing'),
 
     # --- Hollis Crane, the Unpaid ---
-    # Starting points: an 18 m hook, 12 damage, stunned 1.5 s; the drag takes half a second.
+    # An 18 m hook for 20 (one rifle round: a single target, against Dust Devil's 15 to everything by its path), stunned
+    # 1.5 s; the duration is the throw and the haul.
     power('DA_Ember_TollChain', 'TollChain', 'Toll Chain', 'Debt',
-          "Your chain hooks the creature in your sights up to 18 meters away and drags it to your feet for 12 damage, "
+          "Your chain hooks the creature in your sights up to 18 meters away and drags it to your feet for 20 damage, "
           "stunned for a second and a half.",
-          '#d6a35c', 10.0, 0.5, damage=12.0, range=1800.0, extras={'Stun': 1.5}),
-    # Starting points: a 5 m light for 8 s, creatures at half speed, 4 health a second inside it.
+          '#d6a35c', 10.0, 0.5, damage=20.0, range=1800.0, extras={'Stun': 1.5},
+          icon='TollChain', power_class='EmberTollChain'),
+    # A 5 m light for 8 s, creatures at half speed, 5 health a second inside (40 over the 8 s: from 4, so it weighs
+    # against Borrowed Time's 8 s of no damage at the same cooldown, though only while he stands in it).
     power('DA_Ember_GraveWard', 'GraveWard', 'Grave Ward', 'Mercy',
           "You plant your lantern. For 8 seconds creatures in its light, 5 meters round, move at half speed, and you "
-          "mend 4 health a second while you stand in it.",
-          '#9ff0d0', 24.0, 8.0, radius=500.0, strength=0.5, extras={'HealPerSecond': 4.0}),
-    # Starting points: a 40 m mark for 8 s; its soul bursts for 30 within 4.5 m, or the mark strikes for 45.
+          "mend 5 health a second while you stand in it.",
+          '#9ff0d0', 24.0, 8.0, radius=500.0, strength=0.5, extras={'HealPerSecond': 5.0},
+          icon='GraveWard', power_class='EmberGraveWard'),
+    # A 40 m mark for 8 s; its soul bursts for 60 within 4.5 m, or the mark strikes for 90 (the demo-era 30 and 45 x1.43,
+    # then up: both pay only after a wait or a kill; the strike is about a third of a spider).
     power('DA_Ember_LastRites', 'LastRites', 'Last Rites', 'Judgment',
           "You mark the creature in your sights. If it dies within 8 seconds its soul bursts on the creatures within "
-          "4.5 meters for 30 damage; if it lives, the mark strikes it for 45.",
-          '#e9e4ff', 16.0, 8.0, damage=30.0, range=4000.0, radius=450.0, extras={'Strike': 45.0}),
+          "4.5 meters for 60 damage; if it lives, the mark strikes it for 90.",
+          '#e9e4ff', 16.0, 8.0, damage=60.0, range=4000.0, radius=450.0, extras={'Strike': 90.0},
+          icon='LastRites', power_class='EmberLastRites'),
 
     # --- Gauge, the Iron Hand ---
-    # The demo's numbers: 20 m lob, 34 within 2.5 m and 18 within 4.5 m, a 4.5 m pool for 6 s burning 7 every 0.5 s.
+    # The demo's lob x1.43 (its rifle 14, today's 20): 48 within 2.5 m, 26 within 4.5 m, a 4.5 m pool for 6 s burning
+    # 10 every 0.5 s; the duration 7 s is the flight (under a second) and the pool.
     power('DA_Ember_SlagBomb', 'SlagBomb', 'Slag Bomb', 'Forge',
           "A bomb lobbed from the firebox onto the creature in your sights, or the ground there, up to 20 meters. It "
-          "bursts for 34 within 2.5 meters and 18 within 4.5, and leaves a pool of slag for 6 seconds that burns "
-          "whatever stands in it for 7 every half second.",
-          '#ff8a1c', 12.0, 6.0, damage=34.0, range=2000.0, radius=450.0,
-          extras={'InnerRadius': 250.0, 'OuterDamage': 18.0, 'BurnDamage': 7.0, 'BurnInterval': 0.5, 'BurnLinger': 0.6}),
-    # Starting points: 60% less damage for 6 s at three-quarter pace; a biter burns for 8.
+          "bursts for 48 within 2.5 meters and 26 within 4.5, and leaves a pool of slag for 6 seconds that burns "
+          "whatever stands in it for 10 every half second.",
+          '#ff8a1c', 12.0, 7.0, damage=48.0, range=2000.0, radius=450.0,
+          extras={'InnerRadius': 250.0, 'OuterDamage': 26.0, 'BurnDamage': 10.0, 'BurnInterval': 0.5, 'BurnLinger': 0.6,
+                  'PoolSeconds': 6.0},
+          icon='SlagBomb', power_class='EmberSlagBomb'),
+    # 60% less damage for 6 s at three-quarter pace; a biter burns for 12 (8 x1.43).
     power('DA_Ember_IronHide', 'IronHide', 'Iron Hide', 'Forge',
           "Your plates lock: for 6 seconds you take 60% less damage and move at three-quarter pace, and whatever "
-          "bites you burns its teeth for 8 damage.",
-          '#b8c4cf', 20.0, 6.0, strength=0.6, extras={'Pace': 0.75, 'BiteBurn': 8.0}),
-    # Starting points: a 25 m line, 40 to each creature on it.
+          "bites you burns its teeth for 12 damage.",
+          '#b8c4cf', 20.0, 6.0, strength=0.6, extras={'Pace': 0.75, 'BiteBurn': 12.0},
+          icon='IronHide', power_class='EmberIronHide'),
+    # A 25 m line, 60 to each creature on it (40 x1.43), each driven back 1.5 m and dazed a moment.
     power('DA_Ember_RailSpike', 'RailSpike', 'Rail Spike', 'Steam',
           "A spike driven from your forearm on a burst of steam, through every creature in a line 25 meters long, "
-          "for 40 damage each.",
-          '#a8dcff', 9.0, 0.0, damage=40.0, range=2500.0, radius=60.0),
+          "for 60 damage each, driving each one back.",
+          '#a8dcff', 9.0, 0.0, damage=60.0, range=2500.0, radius=60.0, extras={'Shove': 150.0, 'Dizzy': 0.3},
+          icon='RailSpike', power_class='EmberRailSpike'),
 
     # --- Wendell Pike, the Surveyor ---
     # The demo's numbers: 10 s, every creature within 60 m marked through walls, 30% more damage taken.
     power('DA_Ember_Spyglass', 'Spyglass', 'Spyglass', 'Sight',
           "For 10 seconds every creature within 60 meters is marked, even through walls, with its distance, and "
           "marked creatures take 30% more damage.",
-          '#ffb24d', 18.0, 10.0, range=6000.0, strength=0.3),
-    # Starting points: a 6 m wire standing 20 s; a creature crossing it takes 20 and is stunned 2 s.
+          '#ffb24d', 18.0, 10.0, range=6000.0, strength=0.3,
+          icon='Spyglass', power_class='EmberSpyglass'),
+    # A 6 m wire standing 20 s; a creature crossing it takes 30 (20 x1.43) and lies stunned 2 s.
     power('DA_Ember_Tripwire', 'Tripwire', 'Tripwire', 'Craft',
           "You string a wire between two stakes up to 6 meters apart. For 20 seconds whatever crosses it trips, "
-          "takes 20 damage and lies stunned for 2 seconds.",
-          '#e2c98f', 14.0, 20.0, damage=20.0, range=600.0, extras={'Stun': 2.0}),
-    # Starting points: 8 s, 10% harder per 10 m flown, up to double; marked creatures always critically hit.
+          "takes 30 damage and lies stunned for 2 seconds.",
+          '#e2c98f', 14.0, 20.0, damage=30.0, range=600.0, extras={'Stun': 2.0},
+          icon='Tripwire', power_class='EmberTripwire'),
+    # 8 s, 15% harder per 10 m flown (from 10%: the game's fights are 20-30 m, where 10% was hardly felt), up to double;
+    # the creatures in his sights (30 degrees, 60 m) are marked as it starts, and any he hits from 25 m or farther.
     power('DA_Ember_LongShot', 'LongShot', 'Long Shot', 'Sight',
-          "For 8 seconds your shots hit 10% harder for every 10 meters they fly, up to double, and marked creatures "
-          "are always critically hit.",
-          '#6fe3d0', 20.0, 8.0, strength=0.1, extras={'MaxBonus': 1.0}),
+          "For 8 seconds your shots hit 15% harder for every 10 meters they fly, up to double. The creatures in your "
+          "sights as it starts, and any you hit from 25 meters or farther, are marked, and marked creatures are always "
+          "critically hit.",
+          '#6fe3d0', 20.0, 8.0, range=6000.0, strength=0.15,
+          extras={'MaxBonus': 1.0, 'ConeDegrees': 30.0, 'MarkFrom': 2500.0},
+          icon='LongShot', power_class='EmberLongShot'),
 ]
 
 

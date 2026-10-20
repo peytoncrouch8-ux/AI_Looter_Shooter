@@ -154,6 +154,37 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   Last Rites 60 burst / 90 strike, Long Shot +15% per 10 m, Grave Ward heals 5/s, Double or Nothing never misses twice
   running (cooldown 15), Long Shot marks its own targets, Lucky Streak crits every third pull, Grave Ward slows by
   CustomTimeDilation, Spyglass without a through-wall silhouette (a mark widget and an orange wash instead).
+  POWERS phase 2 running: it merges its tree, builds, runs the asset/sound scripts and tests, checks each power in PIE
+  (it owns the editor until it reports).
+- LINES-WIRE done in its holding tree (`Saved/LinesWire/README.md`: 8 new files, 23 replaced as patches, all applying;
+  `Tools/Unreal/hero_lines.json` + `create_hero_lines.py` in place; `build_area_vendors.py` Hollis -> Harlan). Merge after
+  POWERS: resume it (it builds and fixes its own), run order in its README (create_hero_lines.py expects "HEROLINES done:
+  146"; re-run `build_area_vendors.py RansomsRest`). Its choices: tests read Ellis's words unless a test sets a hero
+  (FScopedHero); a row can name its speaker; a few extra read sites (choice titles, board/artifact titles). WantedPoster.cpp
+  (507) and SessionSubsystem.cpp (505) end just over the ~500-line limit.
+- PIKE done and committed (d97f803, not imported: POWERS imports him at its next break, with `build_hero_retarget.py Pike`):
+  34,990 triangles, 92 bones (skirt chains fl/sl/bl/bm/br/sr/fr, bandana, hat), no holster slot; the pack bends with the
+  back; spectacles are rims only (no glass master); audit leftovers 3 cm or less (lips through the mustache cards, the skirt
+  top through the belt's dip, coat edges through straps, the spyglass into the skirt in a stride); his side whiskers
+  stair-step up close (a polish item). His agent found `looter_looks.skin` multiplies by a `zones` attribute Ellis.py never
+  sets, so T_EllisSkin_BC baked near-black: the user asked for Ellis's face "kept dark" (2026-10-15), so check before
+  changing it. His shoulders sit 6.5 cm lower than Ellis's (retarget).
+- CRANE done and committed (2fe2b16, not imported: POWERS imports him with Pike): 33,507 triangles, 144 bones (skirt ring,
+  cape as Ellis's, hair/hair_fl/hair_fr, lantern_01 = the hook, hat), the stoop posed into the bind pose (head 7 cm ahead
+  of the neck: check the retarget), no waistcoat, no holster; small audit leftovers (coat top through the cape behind the
+  neck, coat through the sleeves at the armpits, chain links into the coat, hem 1.4 cm under the ground crouched); fine
+  pleats in the coat's back at the seat. Shared-code wishes in his report: ellis_hat brow height, ellis_hair colours as
+  parameters, looter_human posed joints; the portrait Crane.py's coin faces point inward.
+- FP-ARMS done and committed (e7d569d, not imported or wired): SK_FP_Arms_<Hero> x4 on Ellis's arm skeleton (rig jsons
+  match: the hands code binds them unchanged); wiring in `Saved/FPArms/WIRING.md` (UHeroDefinition FirstPersonArms +
+  scale: Odessa 0.84, Pike 0.86, the rest 0.88; the hands component loads the played hero's; a test); resume FP-ARMS for
+  it after the merges. Gauge's are 17.7k triangles (could be trimmed); its finger blocks may sink 2-3 mm into thin grips.
+- LINES-ART done and committed (588e6af, not imported): SM_Headboard_<Hero> x5 (Grave_Ellis loses its board: import
+  Graves only together with the story script run), KeepersRoll_Bare, T_Posters_<Id>_BC x4 + MI_PosterDecal/Scrap_<Id> via
+  `build_decal_materials.py`; run order in the commit message (after the LINES-WIRE merge).
+- LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
+  + MI_PosterDecal/Scrap_<Id>, and the `hero_meshes`/`other_mesh` lines in `build_area_story.py` and
+  `build_area_missionprops_valley.py` (run by Main after the merge).
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):

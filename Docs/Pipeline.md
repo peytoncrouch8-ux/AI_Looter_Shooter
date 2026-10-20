@@ -1090,6 +1090,53 @@ committed; its content is in this section once the round lands). The agents' not
   Denied a fizzle and a muted click. Tests: `Looter.Embers.Power.DustDevil`, `.Sundown`, `.BorrowedTime`
   (`Tests/EmberPowerTests.cpp`: definitions made in the test; the dash stepped by hand; a test level has no game mode,
   so the damage itself isn't checked there; hurts are broadcast as `AActor::TakeDamage` hands them out).
+- **The twelve** (Odessa's, Crane's, Gauge's, Pike's; built 2026-10-20 by the POWERS agent, its notes in
+  `Saved/Powers/README.md`, not committed). All on `UEmberPowerBase` (`Embers/Powers/EmberPowerBase`): damage through
+  `Hurt` (UEmberDamageType point damage, no causer, logged in `GetDealt` for tests), the target `FindInSights` (nearest the
+  crosshair: within the cone or the body's width + 45 cm, in sight), lingering looks on a next-frame chain on the player's
+  clock (`StartLinger`/`Linger`; a test level never ticks: each power's `Step...` is public). Hooks they added:
+  `UBulletSubsystem::OnBulletFiring(FBulletShot&)` (a listener changes the shot: damage, way, tracer, `bSureCritical`,
+  `bBlank`: 0 damage, no hit shown on bodies, no gun marker, OnBulletHit still says where) and `OnBulletLanding` (before the
+  roll: `FBulletLanding::bCritical`, `DamageScale`); `UHealthComponent::SetDamageTakenScale(Source, Scale)` (multiplied,
+  before everything sees the hit); `UEmberComponent::Finish()`. Marks over creatures: `AEmberMarkActor` (screen-space, so
+  through walls; diamond + distance, or the power's icon + seconds). Props: `AEmberPropActor` (`SM_RR_Mine_Lantern` x1.3,
+  `SM_FencePost` scaled 0.45/0.42 as stakes; loaded by path, no collision). Numbers: the demo's damage x1.43 (its rifle was
+  14, today's 20), the rest per entry in create_ember_assets.py. Each:
+  - Lucky Streak: every 3rd pull (a pull = one frame's pellets of one gun) sure-critical with a gold tracer; each hit on a
+    creature (one per frame) sends a homing gold ricochet to the nearest other creature within 12 m in sight, 14.
+  - Fifty-Two Pickup: 52 cards over a 35 x 12 degree fan, 3600 cm/s, 14 m; a card's segment vs capsules each frame; a
+    creature's cuts in a frame summed into one hit (8 each); world hits stick 1.4 s.
+  - Double or Nothing: per pull, heads x2 (green tracer) or tails: every pellet turned 5-9 degrees and blank; never two
+    tails running (`MissStreak` 1), so about 4/3 of the damage.
+  - Toll Chain: 4-degree sights to 18 m (else refused); chain out 0.13 s, bite 20, `Daze` for the haul + 1.5 s, hauled
+    eased along traced ground (a capsule sweep ignoring pawns stops it) to a stride off; shorter by rank/size; bosses only bitten.
+  - Grave Ward: the lantern a step ahead; creatures flat within 5 m (and 3 m height) get CustomTimeDilation 0.5 while their
+    clock is 1 (re-taken after a hit-stop, given back on leaving); the player inside mends 5/s.
+  - Last Rites: mark in sights to 40 m (sigil, pale wash); dies within 8 s (by anything) -> 60 to every other creature
+    within 4.5 m in sight, thrown back, then `Finish`; lives -> struck for 90 at the end.
+  - Slag Bomb: landing = the creature in sights' feet, else the aim's world hit (ground under a wall), else 20 m out; a
+    parabolic lob 0.45-1 s; 48 within 2.5 m, 26 within 4.5 m; a 6 s pool burning 10 every 0.5 s (and 0.6 s after leaving),
+    worn orange; duration 7 s, a pool still hot at the end burns out on the linger.
+  - Iron Hide: the player's damage x0.4 ("IronHide"), `UMovementSlowComponent` 0.75 renewed each tick; a hurt whose causer
+    is a living creature burns it for 12 (once per 0.3 s each); every blow clangs.
+  - Rail Spike: `PlanLine` along the aim to 25 m or the world; every creature within 60 cm, hit as the 28000 cm/s spike
+    passes: 60, shoved 1.5 m; embeds glowing 2.5 s.
+  - Spyglass: a ground-traced cyan ring to 60 m in 1.2 s marks as it passes (then every 0.5 s within 60 m): damage x1.3
+    ("Spyglass"), mark, orange wash; lens: view -5 degrees and the cameras' vignette 0.85, restored exactly. No through-wall
+    silhouette (needs a custom-depth post-process material).
+  - Tripwire: across the aim where it meets ground within 15 m (else 4 m ahead), 3 m each side in 25 cm ground steps;
+    a creature's feet crossing it (2D) or standing on it trips once: 30, `Knock` 1.4 m, stunned 2 s.
+  - Long Shot: damage x(1 + 0.15 per 10 m, at most 2); marks what's in his sights (30 degrees, 60 m, 8) and anything hit
+    from 25 m; marked = sure critical. (Spyglass's marks never meet it: one power at a time.)
+  Icons in `Art/Icons/InkedIcons.py` (Ellis's box and ink). Sounds `recipes/embers_odessa.py`, `_crane`, `_gauge`, `_pike`
+  (35 cues; the per-shot ones quiet and off 2-5 kHz). Tests `Looter.Embers.Power.<Id>` (`Tests/Ember<Hero>Tests.cpp`).
+  Play check 2026-10-20 (Ransom's Rest village, screenshots `Saved/Screenshots/Tools/<Id>_*.png`): all twelve work in PIE.
+  Lessons: code-drawn streaks under ~2 cm vanish in daylight past ~5 m; a power over in a few frames needs something that
+  lingers. Tuned then: Slag Bomb's pool (it read as a thin ring: 36 bigger blobs, a 7 cm edge, a low unlit molten haze
+  of puffs, more smoke); Iron Hide's body glows forge orange while locked (FEmberTint on the player, 0.12 breathing,
+  flaring 0.6 on the lock, 0.45 per blow); Rail Spike leaves a 0.4 s fading glow line and a smoke thread; Tripwire's wire
+  1.6 cm at glow 7; Toll Chain's links 3 cm at 9; flying cards drawn x1.35. To see a quick power in a screenshot: `slomo
+  0.03-0.15` before `Looter.Embers.Use`, `slomo 1` after (console.ps1 calls take ~1.5 s each).
 
 ## The hero pick (the select screen, built 2026-10-19)
 
@@ -1102,16 +1149,15 @@ committed: its names are here). The session keeps the pick; the character takes 
   `FigureMesh` `/Game/Art/Characters/SK_<Id>`, `Retargeter` `/Game/Player/Retarget/RTG_MannyTo<Id>`, three powers) and the
   fifteen `DA_Ember_<Id>`, all from `Tools/Unreal/create_ember_assets.py`. The twelve new powers (`LuckyStreak,
   FiftyTwoPickup, DoubleOrNothing, TollChain, GraveWard, LastRites, SlagBomb, IronHide, RailSpike, Spyglass, Tripwire,
-  LongShot`) are data only: words, nature, colour and starting numbers in the script (the demo's four from the cloud
-  handoff, the rest decided 2026-10-19 as starting points), no class, no icon (`power_class` None leaves the field as it is;
-  name the class there when its code lands). The portrait, mesh and retargeter fields are set by `SetLookPaths` (Python
+  LongShot`) have their code since 2026-10-20 (Ember powers, "The twelve" below); each entry names its class and icon,
+  with its numbers and why in a comment. The portrait, mesh and retargeter fields are set by `SetLookPaths` (Python
   sets a soft pointer only from a loaded object) only once each asset exists: a soft pointer to a missing package failed
   the editor's asset validation on save (AssetReferenceRestrictions, 2026-10-19). Meanwhile the game finds each by the
   naming rule (`GetFigureMeshPath` and the rest), so a hero lights up as soon as the model lands; rerun the script after
   each to fill the fields.
-- **Playable** (`IsPlayable`): the mesh and retargeter load and every power has a class. Only Ellis today; the others show
-  "In the works". `Looter.Hero.Unlock 1` (console variable; never in shipping) lets one be picked anyway: Ellis's body
-  stands in, their powers are owned but can't fire (NoPower).
+- **Playable** (`IsPlayable`): the mesh and retargeter load and every power has a class. Every power has its class now, so a
+  hero is playable once SK_<Id> and RTG_MannyTo<Id> are in; until then "In the works". `Looter.Hero.Unlock 1` (console
+  variable; never in shipping) lets one be picked anyway: Ellis's body stands in, their powers work.
 - **Portraits:** the user's picks copied to `Art/Portraits/Picks/<Hero>.png` (Ellis A, Crane A, Pike A, Gauge C, Odessa A)
   and imported by `Tools/Unreal/import_hero_portraits.py` as UI textures (BC7, UI group, no mips, never streamed, clamped).
   Paintings, so textures (not kit vector art). The screen cuts them by UV region (`HeroSelectParts::ECrop`: whole, face
@@ -1158,7 +1204,8 @@ committed: its names are here). The session keeps the pick; the character takes 
   textures are drawn. Test: `Looter.HUD.PortraitSets` (`Tests/HudPortraitTests.cpp`: a whole set per roster id, texture
   names apart, unknown id = Ellis's, the built widget's image count follows the hero).
 - Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`).
-  `.Playable` expects only Ellis while the twelve powers have no code: update it as they land.
+  `.Playable` checks every power has code and a hero is playable exactly when body and retargeter load; `.Character`
+  expects Toll Chain's own Refused on a bare actor. `.Screen` still says "Odessa is in the works": update it when SK_Odessa lands.
 
 ## Seeds in Ransom's Rest (the saga's first clues, built 2026-10-16 overnight)
 

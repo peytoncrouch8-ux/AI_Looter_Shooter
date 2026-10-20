@@ -5017,5 +5017,485 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 4
+  },
+  "Ember.LuckyStreak.Start": {
+    "files": [
+      "Ember_LuckyStreak_Start_01.wav",
+      "Ember_LuckyStreak_Start_02.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.LuckyStreak.Lucky": {
+    "files": [
+      "Ember_LuckyStreak_Lucky_01.wav",
+      "Ember_LuckyStreak_Lucky_02.wav",
+      "Ember_LuckyStreak_Lucky_03.wav"
+    ],
+    "volume_db": -21.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ember.LuckyStreak.Ricochet": {
+    "files": [
+      "Ember_LuckyStreak_Ricochet_01.wav",
+      "Ember_LuckyStreak_Ricochet_02.wav",
+      "Ember_LuckyStreak_Ricochet_03.wav",
+      "Ember_LuckyStreak_Ricochet_04.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Ember.FiftyTwoPickup.Throw": {
+    "files": [
+      "Ember_FiftyTwoPickup_Throw_01.wav",
+      "Ember_FiftyTwoPickup_Throw_02.wav",
+      "Ember_FiftyTwoPickup_Throw_03.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.FiftyTwoPickup.Hit": {
+    "files": [
+      "Ember_FiftyTwoPickup_Hit_01.wav",
+      "Ember_FiftyTwoPickup_Hit_02.wav",
+      "Ember_FiftyTwoPickup_Hit_03.wav",
+      "Ember_FiftyTwoPickup_Hit_04.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Ember.DoubleOrNothing.Start": {
+    "files": [
+      "Ember_DoubleOrNothing_Start_01.wav",
+      "Ember_DoubleOrNothing_Start_02.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.DoubleOrNothing.Double": {
+    "files": [
+      "Ember_DoubleOrNothing_Double_01.wav",
+      "Ember_DoubleOrNothing_Double_02.wav",
+      "Ember_DoubleOrNothing_Double_03.wav"
+    ],
+    "volume_db": -23.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ember.DoubleOrNothing.Nothing": {
+    "files": [
+      "Ember_DoubleOrNothing_Nothing_01.wav",
+      "Ember_DoubleOrNothing_Nothing_02.wav",
+      "Ember_DoubleOrNothing_Nothing_03.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ember.TollChain.Throw": {
+    "files": [
+      "Ember_TollChain_Throw_01.wav",
+      "Ember_TollChain_Throw_02.wav",
+      "Ember_TollChain_Throw_03.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.TollChain.Hook": {
+    "files": [
+      "Ember_TollChain_Hook_01.wav",
+      "Ember_TollChain_Hook_02.wav",
+      "Ember_TollChain_Hook_03.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.GraveWard.Plant": {
+    "files": [
+      "Ember_GraveWard_Plant_01.wav",
+      "Ember_GraveWard_Plant_02.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ember.GraveWard.Hum": {
+    "files": [
+      "Ember_GraveWard_Hum_01.wav"
+    ],
+    "volume_db": -26.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.GraveWard.Out": {
+    "files": [
+      "Ember_GraveWard_Out_01.wav",
+      "Ember_GraveWard_Out_02.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ember.LastRites.Mark": {
+    "files": [
+      "Ember_LastRites_Mark_01.wav",
+      "Ember_LastRites_Mark_02.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.LastRites.Burst": {
+    "files": [
+      "Ember_LastRites_Burst_01.wav",
+      "Ember_LastRites_Burst_02.wav",
+      "Ember_LastRites_Burst_03.wav"
+    ],
+    "volume_db": -9.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.LastRites.Strike": {
+    "files": [
+      "Ember_LastRites_Strike_01.wav",
+      "Ember_LastRites_Strike_02.wav",
+      "Ember_LastRites_Strike_03.wav"
+    ],
+    "volume_db": -8.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.SlagBomb.Throw": {
+    "files": [
+      "Ember_SlagBomb_Throw_01.wav",
+      "Ember_SlagBomb_Throw_02.wav",
+      "Ember_SlagBomb_Throw_03.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.SlagBomb.Burst": {
+    "files": [
+      "Ember_SlagBomb_Burst_01.wav",
+      "Ember_SlagBomb_Burst_02.wav",
+      "Ember_SlagBomb_Burst_03.wav"
+    ],
+    "volume_db": -7.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.SlagBomb.Pool": {
+    "files": [
+      "Ember_SlagBomb_Pool_01.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.SlagBomb.Sear": {
+    "files": [
+      "Ember_SlagBomb_Sear_01.wav",
+      "Ember_SlagBomb_Sear_02.wav",
+      "Ember_SlagBomb_Sear_03.wav",
+      "Ember_SlagBomb_Sear_04.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Ember.IronHide.Lock": {
+    "files": [
+      "Ember_IronHide_Lock_01.wav",
+      "Ember_IronHide_Lock_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.IronHide.Clang": {
+    "files": [
+      "Ember_IronHide_Clang_01.wav",
+      "Ember_IronHide_Clang_02.wav",
+      "Ember_IronHide_Clang_03.wav",
+      "Ember_IronHide_Clang_04.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ember.IronHide.Burn": {
+    "files": [
+      "Ember_IronHide_Burn_01.wav",
+      "Ember_IronHide_Burn_02.wav",
+      "Ember_IronHide_Burn_03.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.IronHide.Unlock": {
+    "files": [
+      "Ember_IronHide_Unlock_01.wav",
+      "Ember_IronHide_Unlock_02.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.RailSpike.Fire": {
+    "files": [
+      "Ember_RailSpike_Fire_01.wav",
+      "Ember_RailSpike_Fire_02.wav",
+      "Ember_RailSpike_Fire_03.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ember.RailSpike.Hit": {
+    "files": [
+      "Ember_RailSpike_Hit_01.wav",
+      "Ember_RailSpike_Hit_02.wav",
+      "Ember_RailSpike_Hit_03.wav",
+      "Ember_RailSpike_Hit_04.wav"
+    ],
+    "volume_db": -3.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Ember.RailSpike.Embed": {
+    "files": [
+      "Ember_RailSpike_Embed_01.wav",
+      "Ember_RailSpike_Embed_02.wav",
+      "Ember_RailSpike_Embed_03.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.Spyglass.Start": {
+    "files": [
+      "Ember_Spyglass_Start_01.wav",
+      "Ember_Spyglass_Start_02.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.Spyglass.Mark": {
+    "files": [
+      "Ember_Spyglass_Mark_01.wav",
+      "Ember_Spyglass_Mark_02.wav",
+      "Ember_Spyglass_Mark_03.wav",
+      "Ember_Spyglass_Mark_04.wav"
+    ],
+    "volume_db": -26.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 3
+  },
+  "Ember.Spyglass.End": {
+    "files": [
+      "Ember_Spyglass_End_01.wav",
+      "Ember_Spyglass_End_02.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.Tripwire.Set": {
+    "files": [
+      "Ember_Tripwire_Set_01.wav",
+      "Ember_Tripwire_Set_02.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.Tripwire.Trip": {
+    "files": [
+      "Ember_Tripwire_Trip_01.wav",
+      "Ember_Tripwire_Trip_02.wav",
+      "Ember_Tripwire_Trip_03.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ember.Tripwire.Slack": {
+    "files": [
+      "Ember_Tripwire_Slack_01.wav",
+      "Ember_Tripwire_Slack_02.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ember.LongShot.Start": {
+    "files": [
+      "Ember_LongShot_Start_01.wav",
+      "Ember_LongShot_Start_02.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.LongShot.Hit": {
+    "files": [
+      "Ember_LongShot_Hit_01.wav",
+      "Ember_LongShot_Hit_02.wav",
+      "Ember_LongShot_Hit_03.wav"
+    ],
+    "volume_db": -26.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
   }
 }

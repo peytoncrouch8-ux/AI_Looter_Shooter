@@ -32,10 +32,33 @@ void UHealthComponent::HandlePointDamage(AActor* DamagedActor, float Damage, ACo
 	PendingHitLocation = HitLocation;
 }
 
-void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser)
+void UHealthComponent::SetDamageTakenScale(FName Source, float Scale)
+{
+	if (FMath::IsNearlyEqual(Scale, 1.f))
+	{
+		DamageTakenScales.Remove(Source);
+		return;
+	}
+	DamageTakenScales.Add(Source, FMath::Max(Scale, 0.f));
+}
+
+float UHealthComponent::GetDamageTakenScale() const
+{
+	float Scale = 1.f;
+	for (const TPair<FName, float>& Each : DamageTakenScales)
+	{
+		Scale *= Each.Value;
+	}
+	return Scale;
+}
+
+void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float IncomingDamage, const UDamageType* DamageType, AController* InstigatedBy,
+	AActor* DamageCauser)
 {
 	const FVector HitLocation = bHasPendingHitLocation ? PendingHitLocation : GetOwner()->GetActorLocation() + FVector(0.f, 0.f, 50.f);
 	bHasPendingHitLocation = false;
+	// An ember power's say over what it takes (a mark makes it more, plates less), before anything counts it.
+	const float Damage = DamageTakenScales.IsEmpty() ? IncomingDamage : IncomingDamage * GetDamageTakenScale();
 
 	if (bDead || Damage <= 0.f)
 	{

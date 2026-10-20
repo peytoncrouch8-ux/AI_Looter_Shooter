@@ -372,12 +372,223 @@ def borrowed_time():
     return Icon('BorrowedTime', shapes, cuts=cuts, shade=32, outline=OUTLINE['Ammo'], cut_width=1.1)
 
 
+# --- The four new heroes' twelve (2026-10-20; the powers in Embers/Powers), in the same box and ink as Ellis's ---
+
+def rot(points, cx, cy, degrees):
+    """Points turned round (cx, cy) by degrees (clockwise on screen: y is down)."""
+    a = math.radians(degrees)
+    c, s = math.cos(a), math.sin(a)
+    return [(cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c) for x, y in points]
+
+
+def rrect(cx, cy, w, h, r, n=4):
+    """A rectangle centred on (cx, cy) with its corners rounded to radius r (n + 1 points each), clockwise on screen."""
+    hw, hh = w / 2, h / 2
+    r = min(r, hw, hh)
+    pts = []
+    for qx, qy, a0 in ((cx + hw - r, cy - hh + r, -90), (cx + hw - r, cy + hh - r, 0), (cx - hw + r, cy + hh - r, 90),
+                       (cx - hw + r, cy - hh + r, 180)):
+        for k in range(n + 1):
+            a = math.radians(a0 + 90 * k / n)
+            pts.append((qx + r * math.cos(a), qy + r * math.sin(a)))
+    return pts
+
+
+def closed(poly):
+    """A polygon as a closed cut line (its first point again at its end)."""
+    return list(poly) + [poly[0]]
+
+
+def card(cx, cy, degrees, w=21.0, h=30.0):
+    """A playing card centred on (cx, cy) turned by degrees: its outline, and its straight left edge (the edge that lies
+    over the card beside it in a fan) as a cut."""
+    outline = rot(rrect(cx, cy, w, h, 3.0), cx, cy, degrees)
+    edge = rot([(cx - w / 2, cy - h / 2 + 3.0), (cx - w / 2, cy + h / 2 - 3.0)], cx, cy, degrees)
+    return outline, edge
+
+
+def lucky_streak():
+    """Lucky Streak (Odessa's Fortune): two playing cards fanned, the front one's diamond pip cut through it, and a spark
+    of luck off their top corner (the ricochet's gold, the lucky round)."""
+    back, _ = card(25.0, 35.0, -15.0)
+    front, front_edge = card(38.0, 37.0, 11.0)
+    pip = rot([(38.0, 30.0), (43.0, 37.0), (38.0, 44.0), (33.0, 37.0)], 38.0, 37.0, 11.0)
+    # The front card's whole outline cut, so it reads over the back one.
+    cuts = [closed(front)]
+    shapes = [back, front, star4(51.5, 11.0, 7.5, 2.0)]
+    return Icon('LuckyStreak', shapes, holes=[pip], cuts=cuts, shade=36, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
+def fifty_two_pickup():
+    """Fifty-Two Pickup (Odessa's thrown deck): five cards fanned wide from one corner held low, each lying over the one to
+    its left (its left edge cut), the front one's diamond pip cut through it."""
+    pivot = (32.0, 55.0)
+    shapes, cuts = [], []
+    for k, degrees in enumerate((-46.0, -23.0, 0.0, 23.0, 46.0)):
+        outline = rot(rrect(32.0, 32.0, 17.0, 27.0, 2.6), pivot[0], pivot[1], degrees)
+        edge = rot([(23.5, 21.6), (23.5, 42.4)], pivot[0], pivot[1], degrees)
+        shapes.append(outline)
+        if k:
+            cuts.append(edge)
+    # The front card is the right-most: its whole outline cut, and its pip.
+    cuts.append(closed(shapes[-1]))
+    pip = rot([(32.0, 26.5), (35.6, 32.0), (32.0, 37.5), (28.4, 32.0)], pivot[0], pivot[1], 46.0)
+    return Icon('FiftyTwoPickup', shapes, holes=[pip], cuts=cuts, shade=34, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
+def double_or_nothing():
+    """Double or Nothing (Odessa's Risk): a struck coin in front, its rim ringed and a star pip cut through it, and behind
+    it an empty ring where the other coin was: something, or nothing."""
+    front = circle(39.0, 37.0, 15.5, 28)
+    ring = circle(19.0, 21.5, 12.0, 24)
+    ring_hole = circle(19.0, 21.5, 7.4, 20)
+    pip = star4(39.0, 37.0, 6.5, 1.9)
+    cuts = [closed(front), closed(circle(39.0, 37.0, 11.6, 28))]
+    return Icon('DoubleOrNothing', [ring, front], holes=[ring_hole, pip], cuts=cuts, shade=34, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
+def toll_chain():
+    """Toll Chain (Crane's Debt): three iron links running down from the top left, face, edge, face, and the hook hanging
+    off the last, its barb turned up."""
+    shapes, holes, cuts = [], [], []
+    for k, (cx, cy) in enumerate(((13.0, 11.0), (21.5, 19.5), (30.0, 28.0))):
+        if k % 2 == 0:
+            # A link face on: a stadium with its slot through it.
+            outline = rot(rrect(cx, cy, 15.0, 8.6, 4.3, 5), cx, cy, 45.0)
+            shapes.append(outline)
+            holes.append(rot(rrect(cx, cy, 8.0, 3.0, 1.5, 4), cx, cy, 45.0))
+            cuts.append(closed(outline))
+        else:
+            # A link edge on: a short thick bar.
+            shapes.append(rot(rrect(cx, cy, 15.0, 4.2, 2.1, 4), cx, cy, 45.0))
+    # The hook: a thick J from under the last link, round to its barb.
+    hook = [(36.0, 34.0), (39.5, 40.0), (41.5, 47.5), (44.5, 54.0), (49.5, 57.0), (54.5, 55.5), (57.0, 50.5), (56.5, 45.5)]
+    shapes.append([(53.0, 46.5), (56.8, 39.5), (60.0, 46.6)])                                  # the barb
+    return Icon('TollChain', shapes, holes=holes, strokes=[hook], cuts=cuts, shade=33, outline=OUTLINE['Ammo'], stroke_width=5.2,
+                cut_width=1.1)
+
+
+def grave_ward():
+    """Grave Ward (Crane's Mercy): the lantern he plants, its bail, cap, glass in two panes with the flame in it and its
+    foot, and four short rays of its light either side."""
+    cx = 32.0
+    shapes = [
+        [(23.5, 20.0), (27.5, 14.0), (36.5, 14.0), (40.5, 20.0)],                                # the cap
+        rect(21.5, 42.5, 20.0, 23.0),                                                             # its band
+        rect(23.5, 40.5, 23.0, 45.5),                                                             # the glass
+        rect(20.5, 43.5, 45.5, 50.5)]                                                             # the foot
+    strokes = [[(25.5, 15.5), (26.5, 9.0), (cx, 6.0), (37.5, 9.0), (38.5, 15.5)]]               # the bail
+    for degrees in (8.0, 38.0, 142.0, 172.0):
+        a = math.radians(degrees)
+        ux, uy = math.cos(a), -math.sin(a)
+        centre = [(cx + ux * d, 33.0 + uy * d) for d in (17.5, 21.5, 25.5)]
+        shapes.append(offset_band(centre, [4.2, 2.8, 1.1]))
+    flame = [(cx, 26.5), (34.6, 32.5), (34.0, 37.5), (cx, 39.5), (30.0, 37.5), (29.4, 32.5), (cx, 26.5)]
+    cuts = [flame, [(23.5, 23.0), (40.5, 23.0)], [(21.5, 45.5), (42.5, 45.5)]]
+    return Icon('GraveWard', shapes, strokes=strokes, cuts=cuts, shade=36, outline=OUTLINE['Ammo'], stroke_width=2.4, cut_width=1.1)
+
+
+def last_rites():
+    """Last Rites (Crane's Judgment): a ringed grave cross on its plinth, the ring cut where it crosses the arms so both
+    read."""
+    cx, cy = 32.0, 25.0
+    shapes = [rect(28.0, 36.0, 4.0, 52.0), rect(16.0, 48.0, 21.0, 29.0),                    # the cross
+              rect(22.0, 42.0, 52.0, 59.0)]                                                     # its plinth
+    ring = [p for p in circle(cx, cy, 13.0, 32)]
+    cuts = [[(28.0, 52.0), (36.0, 52.0)]]                                                       # the cross on its plinth
+    return Icon('LastRites', shapes, strokes=[ring + ring[:1]], cuts=cuts, shade=30, outline=OUTLINE['Ammo'], stroke_width=4.4,
+                cut_width=1.1)
+
+
+def slag_bomb():
+    """Slag Bomb (Gauge's Forge): a ball of molten slag lobbed down to the right, its crust cracked across it, three
+    tapered streaks of fire trailing back up the way it came, and a drop flung off ahead of it."""
+    cx, cy, r = 38.0, 39.0, 15.0
+    shapes = [circle(cx, cy, r, 30)]
+    # The trail: three streaks leaving the ball's upper left, thick at the ball, thinning to points up the arc.
+    for side, length, w in ((-7.5, 27.0, 7.0), (0.0, 33.0, 8.4), (7.5, 24.0, 6.2)):
+        ux, uy = -0.70, -0.71                                                                  # back up the arc
+        nx, ny = -uy, ux                                                                       # across it
+        start = (cx + ux * (r - 4.0) + nx * side, cy + uy * (r - 4.0) + ny * side)
+        centre = [(start[0] + ux * d, start[1] + uy * d) for d in (0.0, length * 0.45, length)]
+        shapes.append(offset_band(centre, [w, w * 0.62, 0.9]))
+    shapes += [circle(56.5, 54.5, 2.8, 12), circle(58.5, 45.0, 2.0, 10)]                       # drops flung ahead
+    # The crust cracked open: a jagged crack across the ball and a branch off it.
+    cuts = [[(26.0, 36.0), (31.5, 39.5), (35.0, 36.5), (40.5, 41.5), (45.0, 39.0), (51.5, 43.5)],
+            [(40.5, 41.5), (39.0, 47.5), (42.5, 51.5)]]
+    return Icon('SlagBomb', shapes, cuts=cuts, shade=38, outline=OUTLINE['Ammo'], cut_width=1.3)
+
+
+def iron_hide():
+    """Iron Hide (Gauge's plates locked): a heater shield of riveted iron plate, its centre seam and a band across it,
+    rivets along them."""
+    right = [(32.0, 7.0), (52.0, 7.0), (52.0, 30.0)] + quad((52.0, 30.0), (51.0, 47.0), (32.0, 59.0))[1:]
+    shield = right + [(2 * 32.0 - x, y) for x, y in reversed(right[1:-1])]
+    cuts = [[(32.0, 7.0), (32.0, 57.0)], [(12.0, 22.0), (52.0, 22.0)]]
+    for x, y in ((17.0, 12.0), (47.0, 12.0), (17.0, 27.0), (47.0, 27.0), (27.0, 37.0), (37.0, 37.0), (32.0, 48.0)):
+        cuts.append(closed(circle(x, y, 1.0, 8)))
+    return Icon('IronHide', [shield], cuts=cuts, shade=30, outline=OUTLINE['Ammo'], cut_width=1.3)
+
+
+def rail_spike():
+    """Rail Spike (Gauge's Steam): a railway spike driven up to the right, its chisel point leading and its hooked head
+    behind, two speed streaks beside it and a cloud of steam where it left."""
+    # The spike along +x in its own frame, then turned to rise to the right.
+    spike = [(-3.0, -4.5), (2.0, -4.5), (2.0, -3.0), (34.0, -3.0), (42.0, 0.0), (34.0, 3.0), (2.0, 3.0), (2.0, 9.5),
+             (-3.0, 9.5)]
+    cx, cy, degrees = 30.0, 32.0, -42.0
+    place = lambda pts: rot([(cx - 17.0 + x, cy + y) for x, y in pts], cx, cy, degrees)
+    shapes = [place(spike)]
+    for offset in (-8.5, 8.5):
+        centre = place([(8.0, offset), (18.0, offset), (28.0, offset)])
+        shapes.append(offset_band(centre, [0.8, 2.6, 0.8]))
+    shapes += [circle(12.5, 52.5, 6.0, 16), circle(7.5, 45.5, 4.4, 14), circle(19.5, 58.0, 3.6, 12)]   # the steam
+    cuts = [place([(2.0, -3.0), (2.0, 3.0)])]
+    return Icon('RailSpike', shapes, cuts=cuts, shade=34, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
+def spyglass():
+    """Spyglass (Pike's Sight): a brass spyglass drawn out, three sections rising to the right, their joints banded, and a
+    glint off its lens."""
+    sections = [rect(0.0, 12.5, -3.4, 3.4), rect(11.5, 25.0, -4.7, 4.7), rect(24.0, 38.0, -6.0, 6.0), rect(37.0, 41.5, -7.0, 7.0)]
+    cx, cy, degrees = 30.0, 35.0, -36.0
+    place = lambda pts: rot([(cx - 21.0 + x, cy + y) for x, y in pts], cx, cy, degrees)
+    shapes = [place(s) for s in sections] + [star4(53.0, 11.0, 7.0, 1.9)]
+    cuts = [place([(x, -h), (x, h)]) for x, h in ((12.0, 3.4), (24.5, 4.7), (31.0, 6.0), (37.5, 6.0))]
+    return Icon('Spyglass', shapes, cuts=cuts, shade=33, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
+def tripwire():
+    """Tripwire (Pike's Craft): two stakes driven into the ground line, the wire strung between them plucked in the middle
+    where something has caught it."""
+    stake = [(-3.2, 20.0), (0.0, 16.5), (3.2, 20.0), (3.2, 46.0), (0.0, 51.5), (-3.2, 46.0)]
+    shapes = [[(10.5 + x, y) for x, y in stake], [(53.5 + x, y) for x, y in stake],
+              rect(4.0, 60.0, 48.0, 52.0)]                                                           # the ground
+    wire = [(13.0, 28.0), (25.5, 28.5), (29.0, 24.5), (32.0, 33.5), (35.0, 24.5), (38.5, 28.5), (51.0, 28.0)]
+    cuts = [[(7.3, 48.0), (13.7, 48.0)], [(50.3, 48.0), (56.7, 48.0)]]                                # where the stakes go in
+    return Icon('Tripwire', shapes, strokes=[wire], cuts=cuts, shade=34, outline=OUTLINE['Ammo'], stroke_width=2.2, cut_width=1.1)
+
+
+def long_shot():
+    """Long Shot (Pike's aimed shot): a scope's reticle, its ring with four ticks and a dot, and a bullet's long streak
+    coming in from the bottom left to its heart."""
+    cx, cy = 37.0, 27.0
+    ring = circle(cx, cy, 14.5, 32)
+    shapes = [rect(cx - 1.6, cx + 1.6, cy - 21.5, cy - 9.0), rect(cx - 1.6, cx + 1.6, cy + 9.0, cy + 21.5),
+              rect(cx - 21.5, cx - 9.0, cy - 1.6, cy + 1.6), rect(cx + 9.0, cx + 21.5, cy - 1.6, cy + 1.6),
+              circle(cx, cy, 2.8, 12)]
+    centre = [(4.0, 57.0), (12.0, 49.5), (20.0, 42.0), (26.5, 36.0)]
+    shapes.append(offset_band(centre, [0.8, 2.4, 4.2, 5.2]))
+    return Icon('LongShot', shapes, strokes=[ring + ring[:1]], shade=30, outline=OUTLINE['Ammo'], stroke_width=3.4, cut_width=1.1)
+
+
 # The ink line's width in each icon's units: guns scale it with their length so every gun's line looks the same
 # when they're drawn the same width; the ammo icons, the grenade and the ember powers share one box and one width.
 OUTLINE = {'Rifle': 1.72, 'Shotgun': 2.56, 'Revolver': 0.72, 'Ammo': 3.2}
 AMMO_TYPES = ('AssaultRifle', 'Shotgun', 'Pistol', 'SMG', 'Sniper')   # EAmmoType order
 # The ember powers' icons by UEmberDefinition::IconName (the contract's names: the generated functions are named so).
-EMBER_ICONS = ('DustDevil', 'Sundown', 'BorrowedTime')
+EMBER_ICONS = ('DustDevil', 'Sundown', 'BorrowedTime', 'LuckyStreak', 'FiftyTwoPickup', 'DoubleOrNothing', 'TollChain',
+               'GraveWard', 'LastRites', 'SlagBomb', 'IronHide', 'RailSpike', 'Spyglass', 'Tripwire', 'LongShot')
 
 
 def is_square(icon):
@@ -395,7 +606,8 @@ def icons():
     side = max(shared[2] - shared[0], shared[3] - shared[1])
     cx, cy = (shared[0] + shared[2]) / 2, (shared[1] + shared[3]) / 2
     square = (cx - side / 2, cy - side / 2, cx + side / 2, cy + side / 2)
-    embers = [dust_devil(), sundown(), borrowed_time()]
+    embers = [dust_devil(), sundown(), borrowed_time(), lucky_streak(), fifty_two_pickup(), double_or_nothing(), toll_chain(),
+              grave_ward(), last_rites(), slag_bomb(), iron_hide(), rail_spike(), spyglass(), tripwire(), long_shot()]
     return guns + [r.place(square) for r in rounds] + [grave_salt_grenade().place(square)] + [e.place(square) for e in embers]
 
 

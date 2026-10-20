@@ -339,6 +339,17 @@ void UEmberComponent::Interrupt()
 	}
 }
 
+void UEmberComponent::Finish()
+{
+	if (ActiveIndex != INDEX_NONE)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Embers: the running power finished early"));
+		ActiveLeft = 0.f;
+		EndActive(false);
+		SetComponentTickEnabled(State != EEmberState::Ready);
+	}
+}
+
 void UEmberComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);

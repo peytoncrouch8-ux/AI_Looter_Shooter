@@ -885,5 +885,86 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* Ready = TEXT("Ember.Ready");
 		/** The key pressed and nothing happened (2D, short): a dull ember's dry fizzle, a muted wooden click. */
 		inline constexpr const TCHAR* Denied = TEXT("Ember.Denied");
+
+		// --- The four new heroes' twelve (2026-10-20: Embers/Powers/*; Art/Sounds/recipes/embers_odessa.py, embers_crane.py,
+		//     embers_gauge.py, embers_pike.py). The player's own feedback is 2D; what happens out in the world is placed ---
+
+		// Odessa's: Lucky Streak, Fifty-Two Pickup, Double or Nothing (Fortune, Risk)
+		/** Lucky Streak dealt (2D, ~1 s): a deck riffled in one hand, a coin's bright spin and a run of small warm chimes. */
+		inline constexpr const TCHAR* LuckyStreakStart = TEXT("Ember.LuckyStreak.Start");
+		/** A lucky round leaving the gun, every third shot (2D, short, quiet: it rides on the shot): a gold coin's tiny ring. */
+		inline constexpr const TCHAR* LuckyStreakLucky = TEXT("Ember.LuckyStreak.Lucky");
+		/** A ricochet off a hit into the next creature (3D, short): a bright glancing whistle and a card's flick. */
+		inline constexpr const TCHAR* LuckyStreakRicochet = TEXT("Ember.LuckyStreak.Ricochet");
+		/** Fifty-Two Pickup flung (2D, ~0.7 s): the whole deck sprung from the hand, a fast flutter of cards and a fan of air. */
+		inline constexpr const TCHAR* FiftyTwoPickupThrow = TEXT("Ember.FiftyTwoPickup.Throw");
+		/** Cards slicing into a creature (3D, short): paper whips and the thin cuts of their edges. */
+		inline constexpr const TCHAR* FiftyTwoPickupHit = TEXT("Ember.FiftyTwoPickup.Hit");
+		/** Double or Nothing called (2D, ~1 s): a coin flicked high, spinning, and slapped down on the back of a glove. */
+		inline constexpr const TCHAR* DoubleOrNothingStart = TEXT("Ember.DoubleOrNothing.Start");
+		/** A shot that came up double (2D, short, on the shot): a coin's bright ring, heads. */
+		inline constexpr const TCHAR* DoubleOrNothingDouble = TEXT("Ember.DoubleOrNothing.Double");
+		/** A shot that came up nothing (2D, short, on the shot): a dull coin dropped flat on felt. */
+		inline constexpr const TCHAR* DoubleOrNothingNothing = TEXT("Ember.DoubleOrNothing.Nothing");
+
+		// Crane's: Toll Chain, Grave Ward, Last Rites (Debt, Mercy, Judgment)
+		/** The toll chain thrown (2D, ~0.9 s): iron links rattling out fast off the shoulder, a whip of air, a far low toll. */
+		inline constexpr const TCHAR* TollChainThrow = TEXT("Ember.TollChain.Throw");
+		/** The hook biting and the haul (3D, ~0.7 s): a heavy iron bite, the chain snapping taut and rattling home. */
+		inline constexpr const TCHAR* TollChainHook = TEXT("Ember.TollChain.Hook");
+		/** The lantern planted (3D, ~1.3 s): its iron foot set down, the glass's rattle, the flame catching, a soft warm chord. */
+		inline constexpr const TCHAR* GraveWardPlant = TEXT("Ember.GraveWard.Plant");
+		/** The lantern burning (3D loop): a soft flame's flutter over a low warm hum. */
+		inline constexpr const TCHAR* GraveWardHum = TEXT("Ember.GraveWard.Hum");
+		/** The lantern going out (3D, ~0.8 s): the flame snuffed in a puff, the glass's small tink, the hum let go. */
+		inline constexpr const TCHAR* GraveWardOut = TEXT("Ember.GraveWard.Out");
+		/** A creature marked for its rites (2D, ~1.6 s): one low funeral bell and a whispered chord under it. */
+		inline constexpr const TCHAR* LastRitesMark = TEXT("Ember.LastRites.Mark");
+		/** The marked one's soul bursting on its pack (3D, ~1.4 s): a choir's breath cut off, a bright bell's crash, souls rushing out. */
+		inline constexpr const TCHAR* LastRitesBurst = TEXT("Ember.LastRites.Burst");
+		/** The mark striking one that lived (3D, ~1.3 s): a heavy bell's blow, a crack of light, a deep boom rolling off. */
+		inline constexpr const TCHAR* LastRitesStrike = TEXT("Ember.LastRites.Strike");
+
+		// Gauge's: Slag Bomb, Iron Hide, Rail Spike (Forge, Steam)
+		/** The bomb lobbed (2D, ~0.8 s): the firebox door's clank, a roar of its draught, the heavy lob and its sizzle going. */
+		inline constexpr const TCHAR* SlagBombThrow = TEXT("Ember.SlagBomb.Throw");
+		/** The bomb bursting (3D, ~1.5 s): a heavy thump, molten slag spraying and sizzling, iron bits clanging down. */
+		inline constexpr const TCHAR* SlagBombBurst = TEXT("Ember.SlagBomb.Burst");
+		/** The slag pool (3D loop): thick bubbling, popping and hissing as it cools. */
+		inline constexpr const TCHAR* SlagBombPool = TEXT("Ember.SlagBomb.Pool");
+		/** Slag searing a creature, each burn (3D, short): a hot hiss and a pop. */
+		inline constexpr const TCHAR* SlagBombSear = TEXT("Ember.SlagBomb.Sear");
+		/** Iron Hide's plates locking (2D, ~1 s): plates slammed shut one after another, bolts ratcheting home, steam hissing out. */
+		inline constexpr const TCHAR* IronHideLock = TEXT("Ember.IronHide.Lock");
+		/** A blow glancing off the locked plates (2D, short): a heavy plate's dull ring. */
+		inline constexpr const TCHAR* IronHideClang = TEXT("Ember.IronHide.Clang");
+		/** A biter's teeth on the hot plates (3D, short): a sizzle and a clank. */
+		inline constexpr const TCHAR* IronHideBurn = TEXT("Ember.IronHide.Burn");
+		/** The plates opening again (2D, ~0.8 s): steam let out in a long sigh, plates sliding back. */
+		inline constexpr const TCHAR* IronHideUnlock = TEXT("Ember.IronHide.Unlock");
+		/** The rail spike driven (2D, ~1 s): a steam piston's bang, the spike's ring as it leaves, a long hiss after. */
+		inline constexpr const TCHAR* RailSpikeFire = TEXT("Ember.RailSpike.Fire");
+		/** The spike through a creature (3D, short): a heavy iron punch and a crunch. */
+		inline constexpr const TCHAR* RailSpikeHit = TEXT("Ember.RailSpike.Hit");
+		/** The spike driven into the world at its end (3D, ~0.8 s): iron biting into rock and ringing. */
+		inline constexpr const TCHAR* RailSpikeEmbed = TEXT("Ember.RailSpike.Embed");
+
+		// Pike's: Spyglass, Tripwire, Long Shot (Sight, Craft)
+		/** The spyglass drawn out (2D, ~1.2 s): brass tubes sliding out and clicking home, a lens's glint and a sweep of air. */
+		inline constexpr const TCHAR* SpyglassStart = TEXT("Ember.Spyglass.Start");
+		/** A creature found as the sweep passes it (2D, short, quiet): a small brass tick and a high soft ping. */
+		inline constexpr const TCHAR* SpyglassMark = TEXT("Ember.Spyglass.Mark");
+		/** The spyglass shut (2D, short): the tubes pushed home. */
+		inline constexpr const TCHAR* SpyglassEnd = TEXT("Ember.Spyglass.End");
+		/** The wire strung (2D, ~1.1 s): two stakes knocked in, the wire drawn taut and humming. */
+		inline constexpr const TCHAR* TripwireSet = TEXT("Ember.Tripwire.Set");
+		/** A creature caught by the wire (3D, ~0.6 s): the wire's twang and a body hitting the ground. */
+		inline constexpr const TCHAR* TripwireTrip = TEXT("Ember.Tripwire.Trip");
+		/** The wire let go (3D, ~0.5 s): a falling twang as it goes slack. */
+		inline constexpr const TCHAR* TripwireSlack = TEXT("Ember.Tripwire.Slack");
+		/** Long Shot steadied (2D, ~1.3 s): a breath drawn and held, a scope's ring turned in clicks, a far high tone. */
+		inline constexpr const TCHAR* LongShotStart = TEXT("Ember.LongShot.Start");
+		/** A long shot landing (2D, short, on every hit: quiet): a distant bright tink, pitched up the farther it flew. */
+		inline constexpr const TCHAR* LongShotHit = TEXT("Ember.LongShot.Hit");
 	}
 }

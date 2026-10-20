@@ -76,6 +76,16 @@ public:
 	 */
 	uint32 GetHurtCount() const { return HurtCount; }
 
+	/**
+	 * Scales every damage it takes from now on, by who asks (an ember power's: Spyglass's mark 1.3, Iron Hide's plates 0.4);
+	 * 1 takes that one's away. Each source holds one scale; they multiply. The number shown and every listener get the
+	 * damage as scaled.
+	 */
+	void SetDamageTakenScale(FName Source, float Scale);
+
+	/** Every source's scale together (1 with none). */
+	float GetDamageTakenScale() const;
+
 	/** What dealt the latest damage (the gun, for shots), so death handlers can tell what made the kill. */
 	UFUNCTION(BlueprintPure, Category = "Health")
 	AActor* GetLastDamageCauser() const { return LastDamageCauser.Get(); }
@@ -121,6 +131,8 @@ private:
 	float MaxHealthScale = 1.f;
 	/** GetHurtCount's. */
 	uint32 HurtCount = 0;
+	/** SetDamageTakenScale's, by source. */
+	TMap<FName, float> DamageTakenScales;
 	TWeakObjectPtr<AActor> LastDamageCauser;
 
 	// The engine broadcasts point damage right before "any damage" in the same TakeDamage call,

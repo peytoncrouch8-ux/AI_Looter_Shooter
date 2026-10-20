@@ -25,10 +25,11 @@
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
 
-// The hero pick (2026-10-19): the five definitions complete, which heroes are playable (only Ellis until the other four's
-// models, retargeters and powers land), the session keeping its hero (an old save reads as Ellis), the hero select built
-// and driven by keys (the choice, a hero in the works refused, the confirm's beat starting the chosen hero), the main
-// menu's way in and out, and a hero in the works on the character (their powers owned but not usable).
+// The hero pick (2026-10-19): the five definitions complete, which heroes are playable (every hero's three powers have
+// their code since 2026-10-20; a hero waits only on their model and retargeter: Odessa's, 2026-10-20), the session keeping
+// its hero (an old save reads as Ellis), the hero select built and driven by keys (the choice, a hero in the works
+// refused, the confirm's beat starting the chosen hero), the main menu's way in and out, and another hero's powers on a
+// body (owned, with their code).
 
 namespace
 {
@@ -201,25 +202,27 @@ bool FHeroPlayableTest::RunTest(const FString& Parameters)
 		const bool bParts = Hero->HasAllPowerCode() && Hero->LoadFigureMesh() && Hero->LoadRetargeter();
 		TestEqual(*FString::Printf(TEXT("%s: playable by its parts"), *Id.ToString()), Hero->IsPlayable(), bParts);
 		TestEqual(*FString::Printf(TEXT("%s: picked only when playable"), *Id.ToString()), Hero->CanBePicked(), Hero->IsPlayable());
+		// Every hero's three powers have their code (Embers/Powers, 2026-10-20): what's left is a body and its retargeter.
+		TestTrue(*FString::Printf(TEXT("%s: every power has its code"), *Id.ToString()), Hero->HasAllPowerCode());
 		if (Id == EllisId)
 		{
 			TestTrue(TEXT("Ellis is playable (SK_Ellis, RTG_MannyToEllis, three powers with code)"), Hero->IsPlayable());
 		}
 		else
 		{
-			// Only Ellis today: the other four's twelve powers have no code yet (their models land first).
-			TestFalse(*FString::Printf(TEXT("%s is in the works"), *Id.ToString()), Hero->IsPlayable());
+			TestEqual(*FString::Printf(TEXT("%s: in the works only while their body or retargeter is missing"), *Id.ToString()), Hero->IsPlayable(),
+				Hero->LoadFigureMesh() != nullptr && Hero->LoadRetargeter() != nullptr);
 		}
 	}
 
-	// The developers' unlock lets a hero in the works be picked.
-	const UHeroDefinition* Crane = UHeroDefinition::Load(CraneId);
-	if (TestNotNull(TEXT("Crane"), Crane))
+	// The developers' unlock lets a hero in the works be picked (Odessa: her body isn't in yet, 2026-10-20).
+	const UHeroDefinition* Odessa = UHeroDefinition::Load(OdessaId);
+	if (TestNotNull(TEXT("Odessa"), Odessa))
 	{
 		Unlock.Set(true);
-		TestTrue(TEXT("Unlocked: Crane can be picked"), UHeroDefinition::AreLockedHeroesUnlocked() && Crane->CanBePicked());
+		TestTrue(TEXT("Unlocked: Odessa can be picked"), UHeroDefinition::AreLockedHeroesUnlocked() && Odessa->CanBePicked());
 		Unlock.Set(false);
-		TestFalse(TEXT("Locked again: not"), Crane->CanBePicked());
+		TestEqual(TEXT("Locked again: picked only once playable (her body in)"), Odessa->CanBePicked(), Odessa->IsPlayable());
 	}
 	TestNull(TEXT("No hero by an unknown id"), UHeroDefinition::Load(TEXT("Nobody")));
 	TestNull(TEXT("...or none"), UHeroDefinition::Load(NAME_None));
@@ -264,11 +267,11 @@ bool FHeroSaveTest::RunTest(const FString& Parameters)
 	ULooterSessionSave* NewGame = NewSave(ULooterSessionSave::CurrentVersion);
 	TestTrue(TEXT("A new game as Ellis"), USessionSubsystem::ApplyNewGameHero(*NewGame, EllisId) && NewGame->HeroId == EllisId);
 	ULooterSessionSave* Refused = NewSave(ULooterSessionSave::CurrentVersion);
-	TestFalse(TEXT("...not as Crane, in the works"), USessionSubsystem::ApplyNewGameHero(*Refused, CraneId));
+	TestFalse(TEXT("...not as Odessa, in the works"), USessionSubsystem::ApplyNewGameHero(*Refused, OdessaId));
 	TestTrue(TEXT("...the save untouched"), Refused->HeroId.IsNone());
 	TestFalse(TEXT("...nor as nobody"), USessionSubsystem::ApplyNewGameHero(*Refused, TEXT("Nobody")));
 	Unlock.Set(true);
-	TestTrue(TEXT("Unlocked: Crane's new game"), USessionSubsystem::ApplyNewGameHero(*Refused, CraneId) && Refused->HeroId == CraneId);
+	TestTrue(TEXT("Unlocked: Odessa's new game"), USessionSubsystem::ApplyNewGameHero(*Refused, OdessaId) && Refused->HeroId == OdessaId);
 	Unlock.Set(false);
 
 	// A play with no session plays Ellis unless Looter.Hero named another; a world with no sessions has no say.
@@ -369,12 +372,12 @@ bool FHeroSelectScreenTest::RunTest(const FString& Parameters)
 	// Unlocked, a hero in the works can be confirmed (opening reads it again).
 	Unlock.Set(true);
 	Screen->Open(0);
-	TestTrue(TEXT("Unlocked: Crane can be confirmed"), Screen->CanConfirm(2));
-	Screen->Select(2);
+	TestTrue(TEXT("Unlocked: Odessa can be confirmed"), Screen->CanConfirm(1));
+	Screen->Select(1);
 	TestTrue(TEXT("...Play enabled"), Screen->GetConfirmButton()->GetIsEnabled());
 	TestTrue(TEXT("...confirmed"), Screen->Confirm());
 	RunScreen(*Screen, UHeroSelectWidget::ConfirmSeconds + 0.2f);
-	TestTrue(TEXT("...session 1 as Crane"), Confirms == 2 && ConfirmedSlot == 0 && ConfirmedHero == CraneId);
+	TestTrue(TEXT("...session 1 as Odessa"), Confirms == 2 && ConfirmedSlot == 0 && ConfirmedHero == OdessaId);
 	return true;
 }
 
@@ -445,7 +448,8 @@ bool FHeroCharacterTest::RunTest(const FString& Parameters)
 	}
 	TestNull(TEXT("A world with no sessions names no hero (the caller keeps its own)"), USessionSubsystem::FindPlayedHero(World));
 
-	// A hero in the works on a body: their three owned (the powers page lists them), none usable until its code lands.
+	// Crane's powers on a bare body: his three owned (the powers page lists them), each with its code; a bare actor is no
+	// body to throw a chain from, so Toll Chain's own say refuses the press (no longer NoPower: the code is in).
 	AActor* Body = World->SpawnActor<AActor>();
 	UEmberComponent* Embers = NewObject<UEmberComponent>(Body);
 	Embers->HeroDefinition = Crane;
@@ -454,7 +458,7 @@ bool FHeroCharacterTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Crane bound"), Embers->GetHero() == Crane);
 	TestEqual(TEXT("...three owned"), Embers->NumOwned(), 3);
 	TestEqual(TEXT("...the first equipped"), Embers->GetEquippedId(), FName(TEXT("TollChain")));
-	TestEqual(TEXT("...but nothing to fire"), Embers->TryUse(), EEmberDenied::NoPower);
+	TestEqual(TEXT("...its code there (no body to throw from: refused, not NoPower)"), Embers->TryUse(), EEmberDenied::Refused);
 	Embers->RebindHero();
 	TestTrue(TEXT("Rebound: the same hero, ready"), Embers->GetHero() == Crane && Embers->IsReady());
 

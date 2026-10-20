@@ -96,8 +96,12 @@ FVector UBulletSubsystem::TracerPoint(const FBulletShot& Shot, float Distance)
 	return Shot.Start + Shot.Direction * Distance + Offset * (1.f - FMath::SmoothStep(0.f, ConvergeDistance, Distance));
 }
 
-void UBulletSubsystem::Fire(const FBulletShot& Shot)
+void UBulletSubsystem::Fire(const FBulletShot& FiredShot)
 {
+	// An ember power may bend it first (Double or Nothing's roll, Lucky Streak's lucky round): the shot as it will fly.
+	FBulletShot Shot = FiredShot;
+	OnBulletFiring.Broadcast(Shot);
+
 	// Shots fired by one gun in one frame are one volley (a shotgun's pellets from one pull): they share the cap on marks.
 	if (GFrameCounter != LastFireFrame || Shot.Weapon != LastFireWeapon || Shot.Shooter != LastFireShooter)
 	{
@@ -222,11 +226,18 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 	// The target says where its critical spots are; the damage rules (range roll, x1.5 crit) are the same for every weapon,
 	// but for a cursed iron's critical multiplier (the gun hands it over with the shot).
 	const ICriticalSpotTarget* Target = Cast<ICriticalSpotTarget>(HitActor);
-	const bool bCritical = Target && Target->IsCriticalSpot(Hit);
+	bool bCritical = Shot.bSureCritical || (Target && Target->IsCriticalSpot(Hit));
+	// An ember power has its say before the damage is rolled (Long Shot's distance and its marked creatures' sure critical).
+	FBulletLanding Landing;
+	Landing.Traveled = Bullet.Traveled;
+	Landing.bCritical = bCritical;
+	OnBulletLanding.Broadcast(Shot, Hit, Landing);
+	bCritical = Landing.bCritical;
 	const float Roll = FMath::FRand();
 	// Past the gun's range the damage falls off with the distance flown.
 	const float Falloff = Shot.FalloffStats.IsSet() ? Shot.FalloffStats->DamageAtDistance(Bullet.Traveled) : 1.f;
-	const float Damage = LooterCombat::HitDamage(Shot.Damage * Falloff, bCritical, Roll, Shot.CritMultiplier);
+	const float Damage = Shot.bBlank ? 0.f
+		: LooterCombat::HitDamage(Shot.Damage * Falloff * FMath::Max(Landing.DamageScale, 0.f), bCritical, Roll, Shot.CritMultiplier);
 	const FString Part = Hit.BoneName.IsNone() ? GetNameSafe(Hit.GetComponent())
 		: FString::Printf(TEXT("%s bone %s"), *GetNameSafe(Hit.GetComponent()), *Hit.BoneName.ToString());
 	UE_LOG(LogLooter, Verbose, TEXT("Hit %s on %s after %.0f cm: %.1f (range %.1f-%.1f, roll %.2f) x%.2f = %.1f%s"), *GetNameSafe(HitActor),
@@ -237,7 +248,8 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 	// Looks, sound and the mark first: the damage below may kill the target. The world shows what it's made of; a glancing
 	// round off stone or metal may go off (seen and heard). A thing that shows its own hits (OwnLookTag) gets none of it.
 	const UPrimitiveComponent* Struck = Hit.GetComponent();
-	const bool bOwnLook = Struck && Struck->ComponentHasTag(FName(OwnLookTag));
+	// A blank (Double or Nothing's "nothing") passing something with health shows and sounds nothing there either: a miss.
+	const bool bOwnLook = (Struck && Struck->ComponentHasTag(FName(OwnLookTag))) || (Shot.bBlank && Surface != EImpactSurface::World);
 	const EImpactMaterial Material = Surface == EImpactSurface::World ? ImpactSurface::Of(Hit) : EImpactMaterial::Unknown;
 	const bool bRicochet = !bOwnLook && Surface == EImpactSurface::World && RollRicochet(Hit, Material, Shot.Direction);
 	if (bOwnLook)
@@ -261,7 +273,7 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 		LeaveMark(Bullet, Hit, Material);
 	}
 
-	if (HitActor)
+	if (HitActor && !Shot.bBlank)
 	{
 		// The damage type tells receivers (health, damage numbers) whether this was a critical hit.
 		const TSubclassOf<UDamageType> DamageType = bCritical ? UWeaponCritDamageType::StaticClass() : UWeaponDamageType::StaticClass();
@@ -274,7 +286,7 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 		HitComponent->AddImpulseAtLocation(Shot.Direction * Shot.HitImpulse, Hit.ImpactPoint, Hit.BoneName);
 	}
 
-	if (Weapon)
+	if (Weapon && !Shot.bBlank)
 	{
 		Weapon->NotifyBulletHit(Hit, Damage, bCritical);
 	}

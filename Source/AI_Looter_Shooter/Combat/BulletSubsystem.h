@@ -49,7 +49,32 @@ struct FBulletShot
 	TWeakObjectPtr<AWeaponBase> Weapon;
 	TWeakObjectPtr<AActor> Shooter;
 	TWeakObjectPtr<AController> Instigator;
+
+	/** Critical wherever it lands (Lucky Streak's every third round), at its CritMultiplier. */
+	bool bSureCritical = false;
+	/**
+	 * Can't hurt (Double or Nothing's "nothing": thrown wide, it misses entirely): it flies and marks the world as any round
+	 * does, but whatever has health that it meets takes nothing and shows nothing, and its gun is told no hit (no marker).
+	 * OnBulletHit still reports where it struck, with 0 damage (the fauna scatter at a shot's landing all the same).
+	 */
+	bool bBlank = false;
 };
+
+/** A bullet landing, before its damage is dealt (UBulletSubsystem::OnBulletLanding): what a power may change. */
+struct FBulletLanding
+{
+	/** How far it flew (cm). */
+	float Traveled = 0.f;
+	/** It lands critical (the target's critical spot, or a sure critical): a power may make it so. */
+	bool bCritical = false;
+	/** Its damage times this (Long Shot's distance); 1 leaves it. */
+	float DamageScale = 1.f;
+};
+
+/** A bullet is about to fly (UBulletSubsystem::Fire): the shot as it will fly, for a power to change (its damage, way, look). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBulletFiring, FBulletShot& /*Shot*/);
+/** A bullet has met something and its damage is about to be rolled: the shot, the hit and what may change. */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnBulletLanding, const FBulletShot& /*Shot*/, const FHitResult& /*Hit*/, FBulletLanding& /*Landing*/);
 
 /**
  * Bullets in flight. Each fired bullet is a real projectile: it travels along the shooter's aim at its gun's bullet
@@ -114,6 +139,15 @@ public:
 
 	/** Any bullet hit something (its damage has been dealt). */
 	FOnBulletHit OnBulletHit;
+
+	/**
+	 * The ember powers' say over the shots (Embers/Powers: Double or Nothing, Lucky Streak, Long Shot): every shot passes
+	 * OnBulletFiring as it's fired (a listener changes the shot it's handed: its damage, its way, its tracer, bSureCritical,
+	 * bBlank) and OnBulletLanding as it meets something, before its damage is rolled (a listener may make it critical or
+	 * scale it). Each listener checks the shot is its player's (Shooter). Nothing listens most of the game.
+	 */
+	FOnBulletFiring OnBulletFiring;
+	FOnBulletLanding OnBulletLanding;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Tick(float DeltaTime) override;
