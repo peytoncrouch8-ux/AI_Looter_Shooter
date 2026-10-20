@@ -1645,9 +1645,10 @@ folder). The pieces:
 - A test's name must not be the start of another test's name (`Looter.Economy.Offer` beside `Looter.Economy.Offer.Odds`;
   `Looter.Locomotion.Pace` beside `.Pace.Chases`, fixed by naming it `.Pace.Speeds`): the runner takes it for a group and reports it
   "Not Run" (happened twice on 2026-10-13). Name every test as a leaf.
-- `Looter.Hero.Unlock` typed at the console (0 or 1) outranks the tests' own set (`ECVF_SetByCode` is lower than the
-  console's): `Looter.Heroes.Playable`, `.Save` and `.Screen` then fail on "Unlocked: Odessa...". Restart the editor after
-  a play check that used it, before the tests (2026-10-20, twice).
+- `Looter.Hero.Unlock` typed at the console (0 or 1) outranked the tests' own set (`ECVF_SetByCode` is lower than the
+  console's): `Looter.Heroes.Playable`, `.Save` and `.Screen` failed on "Unlocked: Odessa..." until the editor restarted
+  (2026-10-20, twice). Fixed: the tests' `FHeroUnlock` sets and restores it at `ECVF_SetByConsole` (checked: Unlock 1
+  typed, then Looter.Heroes 7/7). A test that sets a console variable a developer may also type: use the console's priority.
 
 ## Bugs and how they were fixed
 

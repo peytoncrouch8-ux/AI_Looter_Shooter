@@ -39,7 +39,10 @@ namespace
 	const FName CraneId(TEXT("Crane"));
 	const FName PikeId(TEXT("Pike"));
 
-	/** Looter.Hero.Unlock set for a test and put back however it ends. */
+	/**
+	 * Looter.Hero.Unlock set for a test and put back however it ends. Set at the console's priority: a value typed at the
+	 * console outranks SetByCode, which then changed nothing, and three hero tests failed until the editor restarted.
+	 */
 	struct FHeroUnlock
 	{
 		explicit FHeroUnlock(bool bOn)
@@ -52,14 +55,14 @@ namespace
 		{
 			if (Var)
 			{
-				Var->Set(Before, ECVF_SetByCode);
+				Var->Set(Before, ECVF_SetByConsole);
 			}
 		}
 		void Set(bool bOn)
 		{
 			if (Var)
 			{
-				Var->Set(bOn ? 1 : 0, ECVF_SetByCode);
+				Var->Set(bOn ? 1 : 0, ECVF_SetByConsole);
 			}
 		}
 		IConsoleVariable* Var = nullptr;
