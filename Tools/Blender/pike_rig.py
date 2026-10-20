@@ -153,8 +153,14 @@ def follow(P, host):
 
 # The skirt's chains each side at their share of the arc from the front (0) round to the back's middle (1); 'behind'
 # straight behind the thigh's middle (a stride's back leg pushes it back: Ellis.py's lesson); skirt_bm down the middle
-# of the back. Joints: the belt line, halfway, the hem.
-SKIRT_CHAINS = (('f', 1 / 6), ('s', 1 / 2), ('b', 'behind'))
+# of the back. Joints: the belt line, halfway, the hem. The side chains sit behind the hips' side, out of the hands'
+# way: the game's springs keep every point 5 cm off the hand (7 off the forearm), and at the idle the hand hangs
+# beside the hip, at the side chain's halfway point when it lay square to the side (1/2): the springs lifted that
+# point 18-21 cm out and up and the coat's front panel folded over the pocket (a black patch in game, 2026-10-20).
+# The front chains just outside the thigh's line (0.22, 40 degrees): at 1/6 the stepping thigh pushed them in toward
+# the middle and came through the panel between them and the side chains.
+SKIRT_CHAINS = (('f', 0.22), ('s', 0.65), ('b', 'behind'))
+FRONT_HOLD = 0.4         # the share of the way from the front chain to the side chain the front one holds alone
 BANDANA_PARENT = 'neck_01'
 END_BONE = 0.02
 
@@ -305,6 +311,11 @@ def ring_weights(P, chains):
             lo, hi = knots[:, i], knots[:, i + 1]
             inside = (th > lo) & (th <= hi)
             t = np.clip((th - lo) / np.maximum(hi - lo, 1e-6), 0.0, 1.0)
+            if i == 0:
+                # the front chain holds the front of the side (the hip pocket) and hands over behind it: the stepping
+                # thigh pushes the front chain out, and cloth shared evenly with the side chain stayed behind and the
+                # thigh came through it
+                t = gm.smoothstep(FRONT_HOLD, 1.0, t)
             w[inside, i] += 1.0 - t[inside]
             w[inside, i + 1] += t[inside]
         w[:, -1] += th > knots[:, -1]

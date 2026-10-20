@@ -98,10 +98,77 @@ def check(fig, arm, pose):
     return found
 
 
+def one_sided(M, fig, arm, skin, baked, path):
+    """The baked look drawn one-sided as Unreal draws it (a face seen from behind is see-through: Cycles has no back
+    face culling, so each material turns transparent on its back faces), at the game's idle: the front and both hips
+    close (a hole shows the sky through him)."""
+    M.viewer_materials(skin, baked)
+    for slot in skin.material_slots:
+        mat = slot.material
+        if mat is None or mat.get('_one_sided'):
+            continue
+        nt = mat.node_tree
+        out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+        src = out.inputs['Surface'].links[0].from_socket
+        geo = nt.nodes.new('ShaderNodeNewGeometry')
+        mix = nt.nodes.new('ShaderNodeMixShader')
+        clear = nt.nodes.new('ShaderNodeBsdfTransparent')
+        nt.links.new(geo.outputs['Backfacing'], mix.inputs[0])
+        nt.links.new(src, mix.inputs[1])
+        nt.links.new(clear.outputs[0], mix.inputs[2])
+        nt.links.new(mix.outputs[0], out.inputs['Surface'])
+        mat['_one_sided'] = True
+    la.cycles(int(os.environ.get('AUDIT_SAMPLES', 32)))
+    la.light('day')
+    if os.environ.get('AUDIT_SUN'):
+        # another sun: 'tilt,turn' degrees (the sun's own X and Z turns; 65,35 a low sun from his left front) under a
+        # dimmer sky, as a late afternoon in the game
+        tilt, turn = (float(v) for v in os.environ['AUDIT_SUN'].split(','))
+        sun = next(o for o in bpy.data.objects if o.name.startswith('_AuditSun'))
+        sun.rotation_euler = (math.radians(tilt), 0.0, math.radians(turn))
+        bpy.context.scene.world.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.35
+    # the arms as the game's idle holds them, or closer in (AUDIT_ARM degrees off the body: the hands by the skirt)
+    steps = la._arms_down(float(os.environ['AUDIT_ARM'])) if os.environ.get('AUDIT_ARM') else la.POSES['idle']
+    if os.environ.get('AUDIT_POSE'):
+        steps = la.POSES[os.environ['AUDIT_POSE']]
+    elif os.environ.get('AUDIT_FORE'):
+        # the arms forward of the plain idle ('upper,fore': each one's forward share; the game's idle in the hero
+        # shots holds the hands in front of the hips, the forearms leaning forward)
+        up, fore = (float(v) for v in os.environ['AUDIT_FORE'].split(','))
+        s = math.sin(math.radians(float(os.environ.get('AUDIT_ARM', 10.0))))
+        steps = [('point', 'upperarm_l', (s, -up, -1.0)), ('point', 'lowerarm_l', (s * 0.6, -fore, -1.0)),
+                 ('point', 'upperarm_r', (-s, -up, -1.0)), ('point', 'lowerarm_r', (-s * 0.6, -fore, -1.0))]
+    la.pose(arm, steps)
+    pbs = arm.pose.bones
+    skirt = [n for c, names in chains(fig).items() if c.startswith('skirt') for n in names]
+    before = {n: pbs[n].tail.copy() for n in skirt}
+    la.settle_swing(arm, chains(fig), steps)
+    for n in skirt:
+        d = pbs[n].tail - before[n]
+        if d.length > 0.01:
+            print(f'PIKE one-sided: {n} tip pushed {d.length * 100:.1f} cm ({d.x * 100:.1f}, {d.y * 100:.1f}, '
+                  f'{d.z * 100:.1f}) by the springs and limbs', flush=True)
+    for side in 'lr':
+        print(f'PIKE one-sided: hand_{side} {tuple(round(v, 3) for v in pbs["hand_" + side].head)} to '
+              f'{tuple(round(v, 3) for v in pbs["middle_01_" + side].head)}', flush=True)
+    shots = {'onesided_front': ((0.0, -0.1, 0.95), (0.0, -2.6, 0.1), 85.0, (1200, 1400)),
+             'onesided_hip_left': ((0.15, -0.1, 0.82), (0.45, -1.3, 0.05), 85.0, (1200, 1200)),
+             'onesided_hip_left_side': ((0.18, -0.02, 0.82), (1.3, -0.35, 0.05), 85.0, (1200, 1200)),
+             'onesided_hip_right': ((-0.15, -0.1, 0.82), (-0.45, -1.3, 0.05), 85.0, (1200, 1200)),
+             'onesided_spyglass': ((0.21, 0.06, 0.85), (1.2, 0.55, 0.1), 85.0, (1200, 1200))}
+    for name, (target, off, lens, size) in shots.items():
+        la.shoot(path(name), target, off, lens, size)
+    la.reset(arm)
+
+
 def run(M, fig, arm, skin, baked, tag):
     out = os.path.join(M.REPO, 'Saved', 'Concepts', 'PikeAudit', tag)
     os.makedirs(out, exist_ok=True)
     path = lambda n: os.path.join(out, n + '.png')
+    if os.environ.get('AUDIT_ONESIDED'):
+        one_sided(M, fig, arm, skin, baked, path)
+        M.log(f'audit: one-sided renders in {out}')
+        return
     poses = os.environ.get('AUDIT_POSES', ','.join(POSES)).split(',')
     report = {}
     for pose in poses:
