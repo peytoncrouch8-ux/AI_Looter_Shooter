@@ -22,7 +22,8 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
 - guns; impacts (also a cue per surface: dirt, grass, gravel, sand, stone, sheet metal, glass, cloth, hay, bone; and the
   ricochet layered on glancing hits); feedback; ui; loot (and the bench, the soul-motes); player (and the melee strike,
   the mantle and vault, a hard landing's thud, the splash in water); creatures (and the rank sting, the ambushes' entrances); world.
-- fauna (the ambient birds, insects, tumbleweeds, dust devils, washing); bosses (the boss fights' stings and voices);
+- fauna (the ambient birds, insects, tumbleweeds, dust devils, washing); bosses (the boss fights' stings and voices); gravemother_barrow (the Gravemother's Barrow fight: clod, stone, furrow,
+  mounds; on bosses.py's helpers);
   ambience (beds by area and light, sweeteners); music (the score: themes, combat and boss layers, stingers).
 - voices (the Unpaid's murmured barks, the idle calls, the living heard through walls); throwables (the grave-salt
   grenade); props (the lootable world: crates, barrels, graves, coffins, mailboxes, footlockers); economy (silver found,

@@ -20,7 +20,7 @@ REGISTRY = {}
 GROUPS = ['guns', 'impacts', 'feedback', 'ui', 'loot', 'player', 'creatures', 'world', 'fauna', 'ambience', 'music',
           'bosses', 'voices', 'throwables', 'props', 'economy', 'bells', 'shrines', 'givers', 'graves', 'holds',
           'lostloot', 'missions', 'orelift', 'watchfire', 'miners', 'foreman', 'roosts', 'fittings', 'windows', 'gusts',
-          'animals', 'reactions', 'brass', 'embers']
+          'animals', 'reactions', 'brass', 'embers', 'gravemother_barrow']
 
 
 class Cue:

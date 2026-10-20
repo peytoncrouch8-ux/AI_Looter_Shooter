@@ -23,7 +23,7 @@ CHECK = os.path.join(ROOT, 'Saved', 'SoundCheck')
 FREQUENT = ['Weapon.Rifle.Fire', 'Weapon.Shotgun.Fire', 'Impact.*', 'UI.HitMarker', 'UI.Click', 'UI.Hover', 'UI.Tab',
             'Player.Footstep.*', 'Loot.AmmoPickup', 'Weapon.Shotgun.ShellIn', 'Creature.Hit', 'Player.SlideLoop',
             'Weapon.AimIn', 'Creature.Spider.Hit', 'Creature.Slime.Hit', 'Creature.Unpaid.Hit',
-            'Loot.Drop.Uncommon', 'Loot.Drop.Rare', 'Boss.Loot.Pop', 'Boss.Gravemother.CrackBurn',
+            'Loot.Drop.Uncommon', 'Loot.Drop.Rare', 'Boss.Loot.Pop', 'Boss.Gravemother.CrackBurn', 'Boss.Gravemother.StoneHit',
             'Creature.Spider.Burst', 'Creature.Slime.Splat', 'UI.Equip', 'UI.Stow', 'Player.Melee.*', 'UI.Hold.Complete',
             'World.Gust.*', 'Creature.Chicken.Cluck', 'Weapon.Casing.*', 'Weapon.NearMiss.*', 'Creature.Spider.Twitch',
             'Creature.Slime.Bubble', 'Player.Splash']

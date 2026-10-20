@@ -4838,5 +4838,184 @@
     "loop": false,
     "space": "2D",
     "max_concurrent": 2
+  },
+  "Boss.Gravemother.ClodDig": {
+    "files": [
+      "Boss_Gravemother_ClodDig_01.wav",
+      "Boss_Gravemother_ClodDig_02.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.ClodThrow": {
+    "files": [
+      "Boss_Gravemother_ClodThrow_01.wav",
+      "Boss_Gravemother_ClodThrow_02.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.ClodBurst": {
+    "files": [
+      "Boss_Gravemother_ClodBurst_01.wav",
+      "Boss_Gravemother_ClodBurst_02.wav",
+      "Boss_Gravemother_ClodBurst_03.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Gravemother.ClodShot": {
+    "files": [
+      "Boss_Gravemother_ClodShot_01.wav",
+      "Boss_Gravemother_ClodShot_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.StoneHit": {
+    "files": [
+      "Boss_Gravemother_StoneHit_01.wav",
+      "Boss_Gravemother_StoneHit_02.wav",
+      "Boss_Gravemother_StoneHit_03.wav",
+      "Boss_Gravemother_StoneHit_04.wav",
+      "Boss_Gravemother_StoneHit_05.wav",
+      "Boss_Gravemother_StoneHit_06.wav"
+    ],
+    "volume_db": -4.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Boss.Gravemother.StoneCrack": {
+    "files": [
+      "Boss_Gravemother_StoneCrack_01.wav",
+      "Boss_Gravemother_StoneCrack_02.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.StoneBreak": {
+    "files": [
+      "Boss_Gravemother_StoneBreak_01.wav",
+      "Boss_Gravemother_StoneBreak_02.wav"
+    ],
+    "volume_db": -6.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.Heave": {
+    "files": [
+      "Boss_Gravemother_Heave_01.wav",
+      "Boss_Gravemother_Heave_02.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.Plough": {
+    "files": [
+      "Boss_Gravemother_Plough_01.wav",
+      "Boss_Gravemother_Plough_02.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.BermCrumble": {
+    "files": [
+      "Boss_Gravemother_BermCrumble_01.wav",
+      "Boss_Gravemother_BermCrumble_02.wav",
+      "Boss_Gravemother_BermCrumble_03.wav",
+      "Boss_Gravemother_BermCrumble_04.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.08,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Boss.Gravemother.MoundBulge": {
+    "files": [
+      "Boss_Gravemother_MoundBulge_01.wav",
+      "Boss_Gravemother_MoundBulge_02.wav",
+      "Boss_Gravemother_MoundBulge_03.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Boss.Gravemother.MoundBurst": {
+    "files": [
+      "Boss_Gravemother_MoundBurst_01.wav",
+      "Boss_Gravemother_MoundBurst_02.wav",
+      "Boss_Gravemother_MoundBurst_03.wav"
+    ],
+    "volume_db": -6.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Boss.Gravemother.MoundPop": {
+    "files": [
+      "Boss_Gravemother_MoundPop_01.wav",
+      "Boss_Gravemother_MoundPop_02.wav",
+      "Boss_Gravemother_MoundPop_03.wav"
+    ],
+    "volume_db": -8.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
   }
 }
