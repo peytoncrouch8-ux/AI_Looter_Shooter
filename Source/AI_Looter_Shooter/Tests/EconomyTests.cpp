@@ -102,6 +102,35 @@ bool FEconomyKillDropsTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("A boss always drops silver"), LooterEconomy::KillOdds(ECreatureRank::Boss, true).Chance >= 1.f
 		&& LooterEconomy::KillOdds(ECreatureRank::Boss, false).Chance >= 1.f);
+
+	// Regular, Restless and Gravebound pay exactly what they did before the top two tiers (Main's call, 2026-10-20: the tiers
+	// took nothing away); Hallowed and Ethereal 1.6 and 2.5 times a Gravebound kill.
+	struct FKept
+	{
+		ECreatureRank Rank;
+		bool bUnpaid;
+		LooterEconomy::FDropOdds Odds;
+	};
+	const FKept Kept[] = {
+		{ ECreatureRank::Basic, true, { 0.55f, 3, 7 } }, { ECreatureRank::Rare, true, { 0.85f, 9, 15 } }, { ECreatureRank::Epic, true, { 1.f, 18, 30 } },
+		{ ECreatureRank::Basic, false, { 0.2f, 2, 4 } }, { ECreatureRank::Rare, false, { 0.5f, 5, 9 } }, { ECreatureRank::Epic, false, { 0.8f, 10, 18 } } };
+	for (const FKept& Each : Kept)
+	{
+		const LooterEconomy::FDropOdds Odds = LooterEconomy::KillOdds(Each.Rank, Each.bUnpaid);
+		TestTrue(FString::Printf(TEXT("%s %s: as before (%.0f%%, %d-%d)"), *UEnum::GetValueAsString(Each.Rank), Each.bUnpaid ? TEXT("Unpaid") : TEXT("beast"),
+			Each.Odds.Chance * 100.f, Each.Odds.Min, Each.Odds.Max),
+			FMath::IsNearlyEqual(Odds.Chance, Each.Odds.Chance) && Odds.Min == Each.Odds.Min && Odds.Max == Each.Odds.Max);
+	}
+	for (const bool bUnpaid : { true, false })
+	{
+		const float Gravebound = LooterEconomy::KillOdds(ECreatureRank::Epic, bUnpaid).Average();
+		const float Hallowed = LooterEconomy::KillOdds(ECreatureRank::Hallowed, bUnpaid).Average();
+		const float Ethereal = LooterEconomy::KillOdds(ECreatureRank::Ethereal, bUnpaid).Average();
+		const TCHAR* Kind = bUnpaid ? TEXT("Unpaid") : TEXT("beast");
+		TestTrue(FString::Printf(TEXT("A Hallowed %s pays 1.6 Gravebound kills (%.2f against %.2f)"), Kind, Hallowed, Gravebound),
+			FMath::Abs(Hallowed - 1.6f * Gravebound) <= 0.05f * 1.6f * Gravebound);
+		TestTrue(FString::Printf(TEXT("An Ethereal %s pays 2.5 (%.2f)"), Kind, Ethereal), FMath::Abs(Ethereal - 2.5f * Gravebound) <= 0.05f * 2.5f * Gravebound);
+	}
 	TestTrue(TEXT("A Basic beast drops it now and then, not every kill"), LooterEconomy::KillOdds(ECreatureRank::Basic, false).Chance < 0.5f);
 
 	// Rolled: the mean comes out as the odds say, at the level's growth, every amount within the range at that level.

@@ -68,16 +68,18 @@ UCreatureRankSettings::UCreatureRankSettings()
 	Epic = MakeRank(TEXT("Gravebound"), LooterUI::Color::TierGravebound(), 1.15f, 3.f, 1.3f, 3.5f, 1, 0.2f, ECreatureRank::Epic);
 	Hallowed = MakeRank(TEXT("Hallowed"), LooterUI::Color::TierHallowed(), 1.22f, 3.5f, 1.45f, 6.f, 2, 0.28f, ECreatureRank::Hallowed);
 	Ethereal = MakeRank(TEXT("Ethereal"), LooterUI::Color::TierEthereal(), 1.3f, 4.f, 1.6f, 9.f, 2, 0.35f, ECreatureRank::Ethereal);
-	// Soulfed's and a boss's orange is the legendary loot beam's (UWeaponDefinition's rarity table, as sRGB).
-	Legendary = MakeRank(TEXT("Soulfed"), LooterUI::Hex(255, 204, 0), 1.4f, 12.f, 1.6f, 10.f, 2, 0.f, ECreatureRank::Legendary);
-	Boss = MakeRank(nullptr, LooterUI::Hex(255, 204, 0), 1.f, 1.f, 1.f, 20.f, 1, 0.f, ECreatureRank::Boss);
+	// Soulfed's and a boss's tag: the legendary orange, #FF9900 (Main's call, 2026-10-20: the old #FFCC00 gold sat too near
+	// Hallowed's saint-gold #F5C842).
+	Legendary = MakeRank(TEXT("Soulfed"), LooterUI::Color::TierSoulfed(), 1.4f, 12.f, 1.6f, 10.f, 2, 0.f, ECreatureRank::Legendary);
+	Boss = MakeRank(nullptr, LooterUI::Color::TierSoulfed(), 1.f, 1.f, 1.f, 20.f, 1, 0.f, ECreatureRank::Boss);
 
-	// Each tier: traits, silver against a Regular kill, its share of regular spawns on Ransom's Rest and by the late areas,
-	// and the most alive at once in an area for a roll to make another.
-	SetTier(Rare, 0, 1.5f, 0.08f, 0.12f, 0);
-	SetTier(Epic, 1, 2.5f, 0.02f, 0.04f, 4);
-	SetTier(Hallowed, 2, 4.f, 0.004f, 0.01f, 2);
-	SetTier(Ethereal, 3, 6.f, 0.0008f, 0.0025f, 1);
+	// Each tier: traits, silver (Restless and Gravebound pay their own amounts, as before the top tiers: 1; Hallowed and
+	// Ethereal Gravebound's times this: LooterEconomy::KillOdds), its share of regular spawns on Ransom's Rest and by the late
+	// areas, and the most alive at once in an area for a roll to make another.
+	SetTier(Rare, 0, 1.f, 0.08f, 0.12f, 0);
+	SetTier(Epic, 1, 1.f, 0.02f, 0.04f, 4);
+	SetTier(Hallowed, 2, 1.6f, 0.004f, 0.01f, 2);
+	SetTier(Ethereal, 3, 2.5f, 0.0008f, 0.0025f, 1);
 
 	// Gravebound and better spiders call every spider near them (Docs/Areas/RansomsRest.md, "Enemies by rank").
 	Epic.PackCallRadius = 3000.f;

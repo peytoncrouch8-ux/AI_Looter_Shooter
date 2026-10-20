@@ -8,6 +8,7 @@
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
+#include "Creatures/CreatureTierLook.h"
 #include "Player/PlayerSize.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
@@ -213,16 +214,17 @@ void AUnpaidCreature::PutOnHat()
 
 FLinearColor AUnpaidCreature::GetCoalColor() const
 {
+	// Its tier's glow (FCreatureRankInfo::GlowColor, the tag's colour unless set apart); a Regular one's dull red.
 	const ECreatureRank Rank = GetRank();
-	return Rank == ECreatureRank::Basic ? BasicCoalColor : UCreatureRankSettings::Get(Rank).Color;
+	return Rank == ECreatureRank::Basic ? BasicCoalColor : CreatureTierLook::GlowColor(Rank);
 }
 
 void AUnpaidCreature::ApplyCoalColor()
 {
 	// The coal and the ember edge both read it (M_Ghost), on every slot of the body and the hat: no material instance per
-	// creature.
+	// creature. The top tiers burn harder (CreatureTierLook::CoalGlow): Ethereal's red is a dark colour.
 	const FLinearColor Color = GetCoalColor();
-	const FVector4 RankColor(Color.R, Color.G, Color.B, Traits.CoalGlow);
+	const FVector4 RankColor(Color.R, Color.G, Color.B, CreatureTierLook::CoalGlow(GetRank(), Traits.CoalGlow));
 	GetMesh()->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, RankColor);
 	Hat->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, RankColor);
 	for (UPrimitiveComponent* Part : LookParts)

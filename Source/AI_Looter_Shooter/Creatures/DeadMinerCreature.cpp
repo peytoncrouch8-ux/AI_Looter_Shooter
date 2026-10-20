@@ -418,6 +418,13 @@ void ADeadMinerCreature::OnRankChanged()
 		bSwingTimingCaptured = true;
 		SwingRecovery = AttackRecovery;
 	}
+	// Its lamp in its tier's light (a promotion's, and back to the warm flame as it returns Regular). As play begins the
+	// glow is built once the lamp is placed (BeginPlay): until then there's nothing to colour.
+	if (HasActorBegunPlay())
+	{
+		BuildLampGlow();
+		ApplyLamp(0.f);
+	}
 }
 
 void ADeadMinerCreature::SetHitVolumesEnabled(bool bEnabled)

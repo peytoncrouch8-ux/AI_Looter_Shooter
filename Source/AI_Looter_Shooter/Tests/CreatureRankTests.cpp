@@ -7,6 +7,7 @@
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
+#include "Economy/EconomyRules.h"
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootTable.h"
 #include "Progression/ProgressionSettings.h"
@@ -151,7 +152,8 @@ bool FCreatureRanksTest::RunTest(const FString& Parameters)
 	// The ranks as decided (Docs/Story.md, "Enemy ranks and legendary drops"; the five tiers, 2026-10-20). Basic (Regular) is
 	// creatures as they always were; each tier up shows its word in its own colour (Restless and Gravebound happen to be the
 	// Rare and Epic loot beams' blue and purple; Hallowed's yellow and Ethereal's red are the tiers' alone), and is bigger,
-	// tougher and better paid than the one below; Soulfed sits above them in the legendary orange.
+	// tougher and better paid than the one below; Soulfed sits above them in the legendary orange (#FF9900, apart from
+	// Hallowed's yellow: Main's call, 2026-10-20).
 	const FCreatureRankInfo& Basic = UCreatureRankSettings::Get(ECreatureRank::Basic);
 	TestTrue(TEXT("Basic shows no word"), Basic.Word.IsEmpty());
 	TestTrue(TEXT("Basic is as its class made it"), Basic.Size == 1.f && Basic.HealthMultiplier == 1.f && Basic.DamageMultiplier == 1.f
@@ -170,8 +172,9 @@ bool FCreatureRanksTest::RunTest(const FString& Parameters)
 		{ ECreatureRank::Epic, TEXT("Gravebound"), Palette->GetRarityInfo(EWeaponRarity::Epic).Color },
 		{ ECreatureRank::Hallowed, TEXT("Hallowed"), LooterUI::Color::TierHallowed() },
 		{ ECreatureRank::Ethereal, TEXT("Ethereal"), LooterUI::Color::TierEthereal() },
-		{ ECreatureRank::Legendary, TEXT("Soulfed"), Palette->GetRarityInfo(EWeaponRarity::Legendary).Color } };
+		{ ECreatureRank::Legendary, TEXT("Soulfed"), LooterUI::Color::TierSoulfed() } };
 	const FCreatureRankInfo* Below = &Basic;
+	ECreatureRank BelowRank = ECreatureRank::Basic;
 	for (const FSoulLight& Light : Lights)
 	{
 		const FCreatureRankInfo& Info = UCreatureRankSettings::Get(Light.Rank);
@@ -184,11 +187,15 @@ bool FCreatureRanksTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s is worth more experience than the rank below"), Light.Word), Info.XPMultiplier > Below->XPMultiplier);
 		if (LooterRanks::IsTier(Light.Rank))
 		{
+			// Silver by what a kill pays (LooterEconomy::KillOdds), the Unpaid's and a beast's alike.
+			const bool bRicher = LooterEconomy::KillOdds(Light.Rank, true).Average() > LooterEconomy::KillOdds(BelowRank, true).Average()
+				&& LooterEconomy::KillOdds(Light.Rank, false).Average() > LooterEconomy::KillOdds(BelowRank, false).Average();
 			TestTrue(FString::Printf(TEXT("%s: more defense, silver and traits than the tier below, and rarer"), Light.Word),
-				Info.Defense > Below->Defense && Info.SilverMultiplier > Below->SilverMultiplier && Info.TraitCount >= Below->TraitCount
+				Info.Defense > Below->Defense && bRicher && Info.TraitCount >= Below->TraitCount
 				&& (Below == &Basic || (Info.SpawnChanceFirst < Below->SpawnChanceFirst && Info.SpawnChanceLate < Below->SpawnChanceLate)));
 		}
 		Below = &Info;
+		BelowRank = Light.Rank;
 		ECreatureRank ByWord = ECreatureRank::Basic;
 		TestTrue(FString::Printf(TEXT("%s names its rank, any case"), Light.Word),
 			UCreatureRankSettings::ParseRank(FString(Light.Word).ToLower(), ByWord) && ByWord == Light.Rank);
@@ -196,7 +203,7 @@ bool FCreatureRanksTest::RunTest(const FString& Parameters)
 	ECreatureRank ByRegular = ECreatureRank::Rare;
 	TestTrue(TEXT("\"Regular\" names Basic"), UCreatureRankSettings::ParseRank(TEXT("regular"), ByRegular) && ByRegular == ECreatureRank::Basic);
 	TestTrue(TEXT("A boss's name shows in orange"),
-		UCreatureRankSettings::Get(ECreatureRank::Boss).Color.Equals(Palette->GetRarityInfo(EWeaponRarity::Legendary).Color, 0.01f));
+		UCreatureRankSettings::Get(ECreatureRank::Boss).Color.Equals(LooterUI::Color::TierSoulfed(), 0.01f));
 	TestFalse(TEXT("A Legendary monster doesn't come back on its own"), UCreatureRankSettings::Get(ECreatureRank::Legendary).bRespawns);
 	TestFalse(TEXT("Nor does a boss"), UCreatureRankSettings::Get(ECreatureRank::Boss).bRespawns);
 	ECreatureRank ByName = ECreatureRank::Basic;

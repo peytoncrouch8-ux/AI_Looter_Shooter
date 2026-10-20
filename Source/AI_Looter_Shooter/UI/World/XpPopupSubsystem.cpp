@@ -1,5 +1,7 @@
 #include "UI/World/XpPopupSubsystem.h"
 #include "Combat/HealthComponent.h"
+#include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureTierLook.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/XpPopupActor.h"
 #include "Camera/PlayerCameraManager.h"
@@ -122,10 +124,14 @@ AXpPopupActor* UXpPopupSubsystem::ShowKill(int64 Amount, const AActor* Victim)
 	float Radius = 0.f;
 	float HalfHeight = 0.f;
 	Victim->GetSimpleCollisionCylinder(Radius, HalfHeight);
-	return ShowKillAt(Amount, Victim->GetActorLocation() + FVector(0.0, 0.0, HalfHeight * KillSpotHeight));
+	// A Hallowed or Ethereal kill's reward in its tier's colour (its rank is still the one it died at).
+	const ACreatureBase* Creature = Cast<ACreatureBase>(Victim);
+	const bool bTier = Creature && CreatureTierLook::TintsKillXP(Creature->GetRank());
+	const FLinearColor TierColor = bTier ? CreatureTierLook::TagColor(Creature->GetRank()) : FLinearColor::White;
+	return ShowKillAt(Amount, Victim->GetActorLocation() + FVector(0.0, 0.0, HalfHeight * KillSpotHeight), bTier, TierColor);
 }
 
-AXpPopupActor* UXpPopupSubsystem::ShowKillAt(int64 Amount, const FVector& Where)
+AXpPopupActor* UXpPopupSubsystem::ShowKillAt(int64 Amount, const FVector& Where, bool bTier, const FLinearColor& TierColor)
 {
 	if (Amount <= 0)
 	{
@@ -134,7 +140,7 @@ AXpPopupActor* UXpPopupSubsystem::ShowKillAt(int64 Amount, const FVector& Where)
 	AXpPopupActor* Popup = Take();
 	if (Popup)
 	{
-		Popup->Show(Amount, /*bBig*/ false, Where, KillDelay);
+		Popup->Show(Amount, /*bBig*/ false, Where, KillDelay, bTier, TierColor);
 	}
 	return Popup;
 }

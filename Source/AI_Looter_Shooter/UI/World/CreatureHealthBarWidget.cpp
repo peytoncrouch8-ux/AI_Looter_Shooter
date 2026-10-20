@@ -32,13 +32,29 @@ namespace
 	const FLinearColor RimColor(0.f, 0.f, 0.f, 0.8f);
 	constexpr float HighlightHeight = 1.5f;
 
-	USizeBox* AddFill(UWidgetTree* Tree, UOverlay* Bar, UWidget* Content)
+	/** The trait line's letter spacing (thousandths of an em): a spaced label, as the level's "LV". */
+	constexpr int32 TraitLetterSpacing = 90;
+
+	/** A top tier's sting: the word and the frame go this far toward white at its peak (a white-hot of their own colour). */
+	constexpr float TopTierFlashWhite = 0.7f;
+
+	USizeBox* AddFill(UWidgetTree* Tree, UOverlay* Bar, UWidget* Content, float Height = BarHeight)
 	{
-		USizeBox* Fill = MakeSized(Tree, Content, 0.f, BarHeight);
+		USizeBox* Fill = MakeSized(Tree, Content, 0.f, Height);
 		UOverlaySlot* FillSlot = Bar->AddChildToOverlay(Fill);
 		FillSlot->SetHorizontalAlignment(HAlign_Left);
 		FillSlot->SetVerticalAlignment(VAlign_Fill);
 		return Fill;
+	}
+
+	/** A clamp biting one end of the framed bar: a small block in the tier's colour (the image's tint) with a dark edge. */
+	UImage* AddClamp(UWidgetTree* Tree, UOverlay* Frame, EHorizontalAlignment Side)
+	{
+		UImage* Clamp = MakeImage(Tree, RectBrush(FLinearColor::White, Color::Outline(), 1.f));
+		UOverlaySlot* ClampSlot = Frame->AddChildToOverlay(MakeSized(Tree, Clamp, UCreatureHealthBarWidget::ClampWidth, 0.f));
+		ClampSlot->SetHorizontalAlignment(Side);
+		ClampSlot->SetVerticalAlignment(VAlign_Fill);
+		return Clamp;
 	}
 }
 
@@ -67,6 +83,32 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 		Box->AddChildToVerticalBox(Label)->SetHorizontalAlignment(HAlign_Center);
 		ApplyLabel();
 
+		// Gravebound and up: its traits in a small dim line under the name ("FLEET · WARDED"), collapsed without any.
+		TraitText = MakeFloatingText(WidgetTree, TraitTextSize, Color::TextDim(), TraitLetterSpacing, ETextJustify::Center);
+		UVerticalBoxSlot* TraitSlot = Box->AddChildToVerticalBox(TraitText);
+		TraitSlot->SetHorizontalAlignment(HAlign_Center);
+		TraitSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 0.f));
+
+		// A Warded creature's ward: a slim bar over the health's, back to front its dark track (faded by the UI transparency
+		// setting), the chip, the pale-cyan fill, the break's white flash and the rim; leaning as the health bar does, and
+		// collapsed (the tag as it always was) with no ward standing.
+		UOverlay* Ward = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		FLinearColor WardTrackColor = Color::Track();
+		WardTrackColor.A = 0.65f;
+		UImage* WardTrack = MakeImage(WidgetTree, RectBrush(WardTrackColor));
+		MarkBackground(WardTrack);
+		FillOverlaySlot(Ward->AddChildToOverlay(WardTrack));
+		WardChipBox = AddFill(WidgetTree, Ward, MakeImage(WidgetTree, RectBrush(WardChipColor())), WardHeight);
+		WardFillBox = AddFill(WidgetTree, Ward, MakeImage(WidgetTree, RectBrush(WardFillColor())), WardHeight);
+		WardFlashImage = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
+		FillOverlaySlot(Ward->AddChildToOverlay(WardFlashImage));
+		FillOverlaySlot(Ward->AddChildToOverlay(MakeImage(WidgetTree, RectBrush(FLinearColor::Transparent, RimColor, 1.f))));
+		WardBox = MakeSized(WidgetTree, Ward, BarWidth, WardHeight);
+		WardBox->SetRenderTransformPivot(FVector2D(0.5, 0.5));
+		UVerticalBoxSlot* WardSlot = Box->AddChildToVerticalBox(WardBox);
+		WardSlot->SetHorizontalAlignment(HAlign_Center);
+		WardSlot->SetPadding(FMargin(0.f, WardGap, 0.f, 0.f));
+
 		// The bar, back to front: a dark track (faded by the UI transparency setting), the chip, the health with its lit
 		// top edge, the quarter lines, then the rim.
 		UOverlay* Bar = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
@@ -93,15 +135,31 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 		FillOverlaySlot(Bar->AddChildToOverlay(Dividers));
 		FillOverlaySlot(Bar->AddChildToOverlay(MakeImage(WidgetTree, RectBrush(FLinearColor::Transparent, RimColor, 1.f))));
 
-		USizeBox* BarSize = MakeSized(WidgetTree, Bar, BarWidth, BarHeight);
-		BarSize->SetRenderShear(FVector2D(BarSlant, 0.f));
-		UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(BarSize);
+		// The bar in its frame, FramePad round it: for Hallowed and Ethereal a dark edge, a line in the tier's colour (the
+		// image's tint, so it flares without a new brush) and a clamp biting each end, like the HUD's metalwork. Every other
+		// tag leaves the frame out and looks as it always did (the pad stands for the bar's old 3 px under the name).
+		UOverlay* Frame = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		FrameEdge = MakeImage(WidgetTree, RectBrush(FLinearColor::Transparent, Color::Outline(), 1.f));
+		FillOverlaySlot(Frame->AddChildToOverlay(FrameEdge));
+		FrameTierLine = MakeImage(WidgetTree, RectBrush(FLinearColor::Transparent, FLinearColor::White, FrameLine));
+		FillOverlaySlot(Frame->AddChildToOverlay(FrameTierLine), FMargin(1.f));
+		UOverlaySlot* BarSlot = Frame->AddChildToOverlay(MakeSized(WidgetTree, Bar, BarWidth, BarHeight));
 		BarSlot->SetHorizontalAlignment(HAlign_Center);
-		BarSlot->SetPadding(FMargin(0.f, 3.f, 0.f, 0.f));
+		BarSlot->SetVerticalAlignment(VAlign_Center);
+		ClampLeft = AddClamp(WidgetTree, Frame, HAlign_Left);
+		ClampRight = AddClamp(WidgetTree, Frame, HAlign_Right);
+
+		FrameBox = MakeSized(WidgetTree, Frame, BarWidth + 2.f * FramePad, BarHeight + 2.f * FramePad);
+		FrameBox->SetRenderTransformPivot(FVector2D(0.5, 0.5));
+		UVerticalBoxSlot* FrameSlot = Box->AddChildToVerticalBox(FrameBox);
+		FrameSlot->SetHorizontalAlignment(HAlign_Center);
+		FrameSlot->SetPadding(FMargin(0.f, FMath::Max(3.f - FramePad, 0.f), 0.f, 0.f));
 
 		Box->SetVisibility(ESlateVisibility::HitTestInvisible);
 		WidgetTree->RootWidget = Box;
 		ApplyBar();
+		ApplyTier();
+		ApplyWard();
 	}
 	return Super::RebuildWidget();
 }
@@ -140,6 +198,76 @@ void UCreatureHealthBarWidget::ApplyLabel()
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Its tier: the frame, the trait line
+// ---------------------------------------------------------------------------
+
+void UCreatureHealthBarWidget::SetTier(bool bInThickFrame, const FLinearColor& InFrameColor, bool bInTopTierFlash)
+{
+	if (bThickFrame != bInThickFrame || bTopTierFlash != bInTopTierFlash || !FrameColor.Equals(InFrameColor))
+	{
+		bThickFrame = bInThickFrame;
+		FrameColor = InFrameColor;
+		bTopTierFlash = bInTopTierFlash;
+		ApplyTier();
+	}
+}
+
+void UCreatureHealthBarWidget::SetTraitLine(const FText& InLine)
+{
+	if (!TraitLine.EqualTo(InLine))
+	{
+		TraitLine = InLine;
+		ApplyTier();
+	}
+}
+
+void UCreatureHealthBarWidget::ApplyTier()
+{
+	if (TraitText)
+	{
+		TraitText->SetText(TraitLine);
+		TraitText->SetVisibility(TraitLine.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	const ESlateVisibility FrameShown = bThickFrame ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+	for (UImage* Part : { FrameEdge.Get(), FrameTierLine.Get(), ClampLeft.Get(), ClampRight.Get() })
+	{
+		if (Part)
+		{
+			Part->SetVisibility(FrameShown);
+		}
+	}
+	// The frame's colour and lean, flared if a top tier's sting is under way.
+	ApplyFrameFlare(bRankFlashing && bTopTierFlash ? FrameFlareAt(RankFlashClock) : 0.f);
+}
+
+void UCreatureHealthBarWidget::ApplyFrameFlare(float Flare)
+{
+	if (!FrameBox)
+	{
+		return;
+	}
+	// The bar and its frame lean as one, as the HUD's bars do; a top tier's sting swells them a little from the middle.
+	const float Scale = 1.f + (FrameFlareScale - 1.f) * Flare;
+	FWidgetTransform Transform;
+	Transform.Scale = FVector2D(Scale, Scale);
+	Transform.Shear = FVector2D(BarSlant, 0.f);
+	FrameBox->SetRenderTransform(Transform);
+	// The tier's line and clamps go white-hot with the flare and cool back to the tier's colour.
+	const FLinearColor Line = FMath::Lerp(FrameColor, FLinearColor::White, TopTierFlashWhite * Flare);
+	for (UImage* Part : { FrameTierLine.Get(), ClampLeft.Get(), ClampRight.Get() })
+	{
+		if (Part)
+		{
+			Part->SetColorAndOpacity(Line);
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The rank sting's pop (a top tier's: bigger, longer, its frame flaring)
+// ---------------------------------------------------------------------------
+
 float UCreatureHealthBarWidget::RankFlashScaleAt(float Seconds)
 {
 	if (Seconds < 0.f || Seconds >= RankFlashSeconds)
@@ -162,16 +290,56 @@ FLinearColor UCreatureHealthBarWidget::RankFlashColorAt(float Seconds, const FLi
 	return FMath::Lerp(Normal, Color::Accent(), Left * Left);
 }
 
+float UCreatureHealthBarWidget::TierFlashScaleAt(float Seconds, bool bTopTier)
+{
+	if (!bTopTier)
+	{
+		return RankFlashScaleAt(Seconds);
+	}
+	if (Seconds < 0.f || Seconds >= TopTierFlashSeconds)
+	{
+		return 1.f;
+	}
+	const float Left = 1.f - Seconds / TopTierFlashSeconds;
+	return FMath::Lerp(1.f, TopTierFlashPeakScale, Left * Left * Left);
+}
+
+FLinearColor UCreatureHealthBarWidget::TierFlashColorAt(float Seconds, const FLinearColor& Normal, bool bTopTier)
+{
+	if (!bTopTier)
+	{
+		return RankFlashColorAt(Seconds, Normal);
+	}
+	if (Seconds < 0.f || Seconds >= TopTierFlashSeconds)
+	{
+		return Normal;
+	}
+	// A white-hot of its own colour rather than the accent's orange (orange over saint-gold or red reads as neither).
+	const float Left = 1.f - Seconds / TopTierFlashSeconds;
+	return FMath::Lerp(Normal, FMath::Lerp(Normal, FLinearColor::White, TopTierFlashWhite), Left * Left);
+}
+
+float UCreatureHealthBarWidget::FrameFlareAt(float Seconds)
+{
+	if (Seconds < 0.f || Seconds >= TopTierFlashSeconds)
+	{
+		return 0.f;
+	}
+	const float Left = 1.f - Seconds / TopTierFlashSeconds;
+	return Left * Left;
+}
+
 void UCreatureHealthBarWidget::SetRankStingAge(float Seconds)
 {
-	const bool bPlaying = Seconds >= 0.f && Seconds < RankFlashSeconds;
+	const float Length = FlashSeconds();
+	const bool bPlaying = Seconds >= 0.f && Seconds < Length;
 	if (!bPlaying)
 	{
 		if (bRankFlashing)
 		{
 			// Over: the word settles back to its own size and color.
 			bRankFlashing = false;
-			RankFlashClock = RankFlashSeconds;
+			RankFlashClock = Length;
 			ApplyRankFlash();
 		}
 		return;
@@ -197,11 +365,16 @@ void UCreatureHealthBarWidget::ApplyRankFlash()
 	const bool bHasWord = !RankWord.IsEmpty();
 	UTextBlock* Popping = bHasWord ? RankText : NameText;
 	UTextBlock* Resting = bHasWord ? NameText : RankText;
-	const float Clock = bRankFlashing ? RankFlashClock : RankFlashSeconds;
-	const float Scale = RankFlashScaleAt(Clock);
+	const float Clock = bRankFlashing ? RankFlashClock : FlashSeconds();
+	const float Scale = TierFlashScaleAt(Clock, bTopTierFlash);
 	Popping->SetRenderScale(FVector2D(Scale, Scale));
-	Popping->SetColorAndOpacity(FSlateColor(RankFlashColorAt(Clock, RankColor)));
+	Popping->SetColorAndOpacity(FSlateColor(TierFlashColorAt(Clock, RankColor, bTopTierFlash)));
 	Resting->SetRenderScale(FVector2D(1.0, 1.0));
+	// A top tier's frame flares with its word.
+	if (bThickFrame)
+	{
+		ApplyFrameFlare(bTopTierFlash ? FrameFlareAt(Clock) : 0.f);
+	}
 }
 
 TArray<float> UCreatureHealthBarWidget::DividerPositions()
@@ -238,9 +411,10 @@ void UCreatureHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InD
 	{
 		// The pop runs on its own clock between the creature's calls, so it stays smooth at any update rate.
 		RankFlashClock += InDeltaTime;
-		bRankFlashing = RankFlashClock < RankFlashSeconds;
+		bRankFlashing = RankFlashClock < FlashSeconds();
 		ApplyRankFlash();
 	}
+	AdvanceWard(InDeltaTime);
 	if (GhostFraction <= Fraction)
 	{
 		return;

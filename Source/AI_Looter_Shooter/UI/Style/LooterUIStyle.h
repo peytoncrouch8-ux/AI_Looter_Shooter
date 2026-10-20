@@ -154,6 +154,8 @@ namespace LooterUI
 		FLinearColor TierHallowed();
 		/** #FF3B3B. */
 		FLinearColor TierEthereal();
+		/** #FF9900, the legendary orange: a Soulfed monster's tag and a boss's name (apart from Hallowed's yellow). */
+		FLinearColor TierSoulfed();
 	}
 
 	enum class EShape : uint8

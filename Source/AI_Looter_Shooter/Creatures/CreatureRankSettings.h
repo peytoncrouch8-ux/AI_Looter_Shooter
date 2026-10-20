@@ -68,8 +68,8 @@ struct FCreatureRankInfo
 	TSoftObjectPtr<ULootTable> LootTable;
 
 	/**
-	 * Its kill's silver against a Regular one of its kind (LooterEconomy::KillOdds): x1.5 Restless up to x6 Ethereal.
-	 * Legendary monsters and bosses keep amounts of their own and leave it at 1.
+	 * Hallowed and Ethereal: their kill's silver against a Gravebound one of its kind (LooterEconomy::KillOdds): x1.6, x2.5.
+	 * Regular, Restless, Gravebound, Legendary monsters and bosses pay amounts of their own and leave it at 1.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot", meta = (ClampMin = "0"))
 	float SilverMultiplier = 1.f;

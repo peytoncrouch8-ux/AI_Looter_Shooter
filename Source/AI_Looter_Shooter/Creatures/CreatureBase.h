@@ -102,6 +102,11 @@ public:
 	bool IsBossCreature() const { return KeepsBossRules(); }
 	/** Comes into the world its kind's way (the dead rise, a spider climbs out of the dirt, a slime swells) if a player can see it. */
 	bool PlayEntranceIfSeen();
+	/**
+	 * Its body set up afresh where it stands, as after a frozen spell (OnPoseThawed: feet put down under it, a shroud
+	 * hanging still, springs at rest): after a jump that moved it all at once (Phasing's blink, UCreatureTraitComponent).
+	 */
+	void SettleBody() { OnPoseThawed(); }
 
 	// --- Boss fights (UBossComponent; CreatureBaseRank.cpp) ---
 

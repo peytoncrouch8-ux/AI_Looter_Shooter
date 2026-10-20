@@ -1,6 +1,7 @@
 #include "Embers/Powers/EmberFX.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactSubsystem.h"
+#include "Creatures/CreatureTierLookComponent.h"
 #include "Player/SlideDust.h"
 #include "Weapons/WeaponFX.h"
 #include "World/WorldQueries.h"
@@ -211,7 +212,8 @@ namespace EmberFX
 		TInlineComponentArray<USkinnedMeshComponent*> Meshes(&Actor);
 		for (USkinnedMeshComponent* Mesh : Meshes)
 		{
-			if (!Mesh || !Mesh->IsVisible())
+			// Never a creature's tier shell (its body drawn again in its tier's glow): the body's tint shows through it.
+			if (!Mesh || !Mesh->IsVisible() || UCreatureTierLookComponent::IsTierShell(Mesh))
 			{
 				continue;
 			}

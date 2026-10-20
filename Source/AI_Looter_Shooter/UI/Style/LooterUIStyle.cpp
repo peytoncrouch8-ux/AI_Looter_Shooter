@@ -244,6 +244,7 @@ namespace LooterUI::Color
 	FLinearColor TierGravebound()    { return Hex(204, 124, 244); }
 	FLinearColor TierHallowed()      { return Hex(245, 200, 66); }
 	FLinearColor TierEthereal()      { return Hex(255, 59, 59); }
+	FLinearColor TierSoulfed()       { return Hex(255, 153, 0); }
 }
 
 // ---------------------------------------------------------------------------

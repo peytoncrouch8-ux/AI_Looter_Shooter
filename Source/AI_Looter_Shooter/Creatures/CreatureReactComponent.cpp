@@ -2,6 +2,7 @@
 #include "Combat/BulletSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureReactSubsystem.h"
+#include "Creatures/CreatureTierLookComponent.h"
 #include "Player/SlideDust.h"
 #include "Weapons/WeaponFX.h"
 #include "Components/MeshComponent.h"
@@ -161,11 +162,15 @@ void UCreatureReactComponent::WearFlash(bool bWear)
 	if (bWear && FlashMeshes.IsEmpty())
 	{
 		// Its skinned meshes: the body (and any body built on it). Its worn props (a hat, a pick) are small, and may be
-		// drawn by Nanite, which draws no overlay.
+		// drawn by Nanite, which draws no overlay. Never its tier shell (the body drawn again in its tier's glow): the
+		// body's own flash shows through it, and a second would double it.
 		TInlineComponentArray<USkinnedMeshComponent*> Skinned(Owner);
 		for (USkinnedMeshComponent* Mesh : Skinned)
 		{
-			FlashMeshes.Add(Mesh);
+			if (!UCreatureTierLookComponent::IsTierShell(Mesh))
+			{
+				FlashMeshes.Add(Mesh);
+			}
 		}
 	}
 	for (const TWeakObjectPtr<UMeshComponent>& Each : FlashMeshes)

@@ -250,22 +250,27 @@ bool FTierSpawnsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Restless is never capped"), UCreatureRankSettings::KeepUnderCaps(ECreatureRank::Rare, Alive(4, 2, 1)) == ECreatureRank::Rare);
 	TestTrue(TEXT("A Soulfed monster is never stepped down"), UCreatureRankSettings::KeepUnderCaps(ECreatureRank::Legendary, Alive(9, 9, 9)) == ECreatureRank::Legendary);
 
-	// Silver: a Regular kill's times the tier's multiplier, on average (x1.5, x2.5, x4, x6), more often as well as more.
+	// Silver (Main's call, 2026-10-20): Regular, Restless and Gravebound pay what they always did; Hallowed and Ethereal
+	// Gravebound's times their multiplier (x1.6, x2.5) on average; every tier more than the one below, never less often.
 	for (const bool bUnpaid : { true, false })
 	{
-		const LooterEconomy::FDropOdds Regular = LooterEconomy::KillOdds(ECreatureRank::Basic, bUnpaid);
-		float LastChance = Regular.Chance;
+		const LooterEconomy::FDropOdds Gravebound = LooterEconomy::KillOdds(ECreatureRank::Epic, bUnpaid);
+		LooterEconomy::FDropOdds Last = LooterEconomy::KillOdds(ECreatureRank::Basic, bUnpaid);
 		for (int32 Tier = 1; Tier < LooterRanks::NumTiers; ++Tier)
 		{
 			const ECreatureRank Rank = LooterRanks::Tiers[Tier];
+			const FString Name = FString::Printf(TEXT("%s %s"), *UCreatureRankSettings::GetTierName(Rank), bUnpaid ? TEXT("Unpaid") : TEXT("beast"));
 			const LooterEconomy::FDropOdds Odds = LooterEconomy::KillOdds(Rank, bUnpaid);
-			const float Wanted = Regular.Average() * UCreatureRankSettings::Get(Rank).SilverMultiplier;
-			TestTrue(FString::Printf(TEXT("%s %s: %.2f silver on average (x%.1f a Regular one's %.2f, within 12%%)"), *UCreatureRankSettings::GetTierName(Rank),
-				bUnpaid ? TEXT("Unpaid") : TEXT("beast"), Odds.Average(), UCreatureRankSettings::Get(Rank).SilverMultiplier, Regular.Average()),
-				FMath::Abs(Odds.Average() - Wanted) <= Wanted * 0.12f);
-			TestTrue(FString::Printf(TEXT("%s %s: drops it more often than the tier below"), *UCreatureRankSettings::GetTierName(Rank),
-				bUnpaid ? TEXT("Unpaid") : TEXT("beast")), Odds.Chance > LastChance);
-			LastChance = Odds.Chance;
+			if (Rank == ECreatureRank::Hallowed || Rank == ECreatureRank::Ethereal)
+			{
+				const float Wanted = Gravebound.Average() * UCreatureRankSettings::Get(Rank).SilverMultiplier;
+				TestTrue(FString::Printf(TEXT("%s: %.2f silver on average (x%.1f a Gravebound one's %.2f, within 5%%)"), *Name, Odds.Average(),
+					UCreatureRankSettings::Get(Rank).SilverMultiplier, Gravebound.Average()), FMath::Abs(Odds.Average() - Wanted) <= Wanted * 0.05f);
+			}
+			TestTrue(FString::Printf(TEXT("%s: more silver than the tier below (%.2f against %.2f)"), *Name, Odds.Average(), Last.Average()),
+				Odds.Average() > Last.Average());
+			TestTrue(FString::Printf(TEXT("%s: never less often than the tier below"), *Name), Odds.Chance >= Last.Chance);
+			Last = Odds;
 		}
 	}
 	return true;

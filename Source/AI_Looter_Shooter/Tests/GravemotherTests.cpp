@@ -24,6 +24,7 @@
 #include "Tests/BossTestWorld.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Tests/GravemotherTestWorld.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "Weapons/WeaponDefinition.h"
 #include "AIController.h"
 #include "Components/BoxComponent.h"
@@ -99,8 +100,8 @@ bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Her kind is Legendary, and her name stands for its word"), Defaults->StartingRank == ECreatureRank::Legendary
 		&& Defaults->bNameIsRankWord && Defaults->DisplayName.ToString() == TEXT("The Gravemother"));
 	TestTrue(TEXT("Spawned by her lair: Legendary"), Mother->GetRank() == ECreatureRank::Legendary);
-	TestTrue(TEXT("Her tag is orange: the legendary loot beam's color"),
-		Legendary.Color.Equals(GetDefault<UWeaponDefinition>()->GetRarityInfo(EWeaponRarity::Legendary).Color, 0.01f));
+	TestTrue(TEXT("Her tag is the legendary orange (#FF9900, apart from Hallowed's yellow)"),
+		Legendary.Color.Equals(LooterUI::Color::TierSoulfed(), 0.01f));
 	TestNearlyEqual(TEXT("1.8 times a brown spider's size, her rank's own included"), Mother->GetSizeScale(), Gravemother::Size, 0.001f);
 	TestNearlyEqual(TEXT("...her body with it"), Mother->GetCapsuleComponent()->GetScaledCapsuleRadius(),
 		Spider->GetCapsuleComponent()->GetScaledCapsuleRadius() * Gravemother::Size, 0.1f);

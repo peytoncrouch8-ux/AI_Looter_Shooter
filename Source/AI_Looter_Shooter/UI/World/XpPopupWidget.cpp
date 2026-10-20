@@ -26,10 +26,13 @@ FString UXpPopupWidget::Words(int64 Amount)
 	return FString::Printf(TEXT("+%s XP"), *FText::AsNumber(FMath::Max<int64>(Amount, 0)).ToString());
 }
 
-void UXpPopupWidget::SetAmount(int64 InAmount, bool bInBig)
+void UXpPopupWidget::SetAmount(int64 InAmount, bool bInBig, bool bInTier, const FLinearColor& TierColor)
 {
 	Amount = InAmount;
 	bBig = bInBig;
+	// A turn-in's is never a tier's: only a kill has a tier.
+	bTier = bInTier && !bInBig;
+	TextColor = bTier ? TierColor : LooterUI::Color::CyanText();
 	ApplyText();
 }
 
@@ -40,6 +43,9 @@ void UXpPopupWidget::ApplyText()
 		return;
 	}
 	AmountText->SetText(FText::FromString(Words(Amount)));
-	// The experience's cyan, as the frame's "+XP" and the mission banner's reward: outlined floating text, no plate.
-	LooterUI::StyleFloatingText(AmountText, bBig ? BigSize : SmallSize, LooterUI::Color::CyanText(), bBig ? XpPopupBigSpacing : XpPopupSmallSpacing);
+	// The experience's cyan, as the frame's "+XP" and the mission banner's reward: outlined floating text, no plate. A top
+	// tier's kill in its own colour, a size up.
+	const int32 Size = bBig ? BigSize : (bTier ? TierSize : SmallSize);
+	const FLinearColor Shown = bTier ? TextColor : LooterUI::Color::CyanText();
+	LooterUI::StyleFloatingText(AmountText, Size, Shown, bBig ? XpPopupBigSpacing : XpPopupSmallSpacing);
 }

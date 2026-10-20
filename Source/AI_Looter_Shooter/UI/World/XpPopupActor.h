@@ -21,8 +21,11 @@ class AI_LOOTER_SHOOTER_API AXpPopupActor : public AActor
 public:
 	AXpPopupActor();
 
-	/** Shows "+Amount XP" at Where after Delay seconds: small (a kill's) or big (a turn-in's). Restarts one showing. */
-	void Show(int64 Amount, bool bBig, const FVector& Where, float Delay);
+	/**
+	 * Shows "+Amount XP" at Where after Delay seconds: small (a kill's) or big (a turn-in's). Restarts one showing. bTier: a
+	 * Hallowed or Ethereal kill's, in TierColor, a size up, popping harder and staying a little longer (TierSeconds).
+	 */
+	void Show(int64 Amount, bool bBig, const FVector& Where, float Delay, bool bTier = false, const FLinearColor& TierColor = FLinearColor::White);
 
 	/** Keeps it at ViewOffset from the player's camera (cm: ahead, right, up) as the view moves: the turn-in's. */
 	void FollowView(const FVector& ViewOffset);
@@ -35,6 +38,8 @@ public:
 	/** It's in use (waiting out its delay, or on screen). */
 	bool IsShowing() const { return bShowing; }
 	bool IsBig() const { return bBig; }
+	/** A top tier's kill's (its colour, a size up). */
+	bool IsTier() const { return bTier; }
 	const FString& GetWords() const { return Words; }
 	/** Seconds since it was asked for, delay included. */
 	float GetAge() const { return Age; }
@@ -42,6 +47,8 @@ public:
 	/** How long each shows once it appears (s). */
 	static constexpr float SmallSeconds = 1.35f;
 	static constexpr float BigSeconds = 2.4f;
+	/** A top tier's kill's: a little longer than a kill's, so its colour is seen. */
+	static constexpr float TierSeconds = 1.6f;
 	/** A kill's sits this far right of its spot on the screen (px), beside the damage number. */
 	static constexpr float SmallBeside = 38.f;
 
@@ -52,7 +59,10 @@ public:
 		float Scale = 1.f;
 		float Opacity = 1.f;
 	};
-	static FLook LookAt(float Shown, bool bBig);
+	static FLook LookAt(float Shown, bool bBig, bool bTier = false);
+
+	/** How long one shows once it appears: a turn-in's, a top tier's kill's, a kill's. */
+	static float SecondsFor(bool bForBig, bool bForTier) { return bForBig ? BigSeconds : (bForTier ? TierSeconds : SmallSeconds); }
 
 private:
 	/** Back in the pool: hidden, not ticking. */
@@ -69,6 +79,8 @@ private:
 	float Age = 0.f;
 	float Delay = 0.f;
 	bool bBig = false;
+	bool bTier = false;
+	FLinearColor TierColor = FLinearColor::White;
 	bool bShowing = false;
 	bool bFollowView = false;
 };

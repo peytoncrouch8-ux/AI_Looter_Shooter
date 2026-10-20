@@ -11,13 +11,18 @@
 namespace
 {
 	/**
-	 * A kill's silver at level 1: a Regular one's, and a Soulfed monster's and a boss's, which keep their own. The tiers
-	 * between pay a Regular kill's times their SilverMultiplier (KillOdds, ScaledKillOdds).
+	 * A kill's silver at level 1, as it was before the top two tiers (the economy of 2026-10-13, kept exactly: Main's call,
+	 * 2026-10-20): Regular, Restless, Gravebound, and a Soulfed monster's and a boss's. Hallowed and Ethereal pay
+	 * Gravebound's times their SilverMultiplier (1.6 and 2.5: KillOdds, ScaledKillOdds).
 	 */
 	constexpr LooterEconomy::FDropOdds UnpaidRegular = { 0.55f, 3, 7 };
+	constexpr LooterEconomy::FDropOdds UnpaidRestless = { 0.85f, 9, 15 };
+	constexpr LooterEconomy::FDropOdds UnpaidGravebound = { 1.f, 18, 30 };
 	constexpr LooterEconomy::FDropOdds UnpaidSoulfed = { 1.f, 50, 80 };
 	constexpr LooterEconomy::FDropOdds UnpaidBoss = { 1.f, 100, 140 };
 	constexpr LooterEconomy::FDropOdds BeastRegular = { 0.2f, 2, 4 };
+	constexpr LooterEconomy::FDropOdds BeastRestless = { 0.5f, 5, 9 };
+	constexpr LooterEconomy::FDropOdds BeastGravebound = { 0.8f, 10, 18 };
 	constexpr LooterEconomy::FDropOdds BeastSoulfed = { 1.f, 40, 60 };
 	constexpr LooterEconomy::FDropOdds BeastBoss = { 1.f, 80, 120 };
 
@@ -70,12 +75,16 @@ LooterEconomy::FDropOdds LooterEconomy::KillOdds(ECreatureRank Rank, bool bUnpai
 {
 	switch (Rank)
 	{
+	case ECreatureRank::Rare: return bUnpaid ? UnpaidRestless : BeastRestless;
+	case ECreatureRank::Epic: return bUnpaid ? UnpaidGravebound : BeastGravebound;
+	// The top two tiers: Gravebound's, worth their multiplier times as much (more often, and more).
+	case ECreatureRank::Hallowed:
+	case ECreatureRank::Ethereal:
+		return ScaledKillOdds(bUnpaid ? UnpaidGravebound : BeastGravebound, UCreatureRankSettings::Get(Rank).SilverMultiplier);
 	case ECreatureRank::Legendary: return bUnpaid ? UnpaidSoulfed : BeastSoulfed;
 	case ECreatureRank::Boss: return bUnpaid ? UnpaidBoss : BeastBoss;
-	default: break;
+	default: return bUnpaid ? UnpaidRegular : BeastRegular;
 	}
-	const FDropOdds Regular = bUnpaid ? UnpaidRegular : BeastRegular;
-	return Rank == ECreatureRank::Basic ? Regular : ScaledKillOdds(Regular, UCreatureRankSettings::Get(Rank).SilverMultiplier);
 }
 
 LooterEconomy::FDropOdds LooterEconomy::ScaledKillOdds(const FDropOdds& Regular, float Multiplier)
@@ -84,8 +93,8 @@ LooterEconomy::FDropOdds LooterEconomy::ScaledKillOdds(const FDropOdds& Regular,
 	{
 		return { 0.f, 0, 0 };
 	}
-	// As if it had Multiplier kills' chances to drop: it drops more often (a Regular beast's 20% is an Ethereal's 74%), and
-	// the amount makes up the rest of the average, so the whole is Multiplier times a Regular kill's.
+	// As if it had Multiplier kills' chances to drop: it drops more often (a Gravebound beast's 80% is an Ethereal's 98%), and
+	// the amount makes up the rest of the average, so the whole is Multiplier times the odds it grows from.
 	const float Chance = 1.f - FMath::Pow(1.f - FMath::Clamp(Regular.Chance, 0.f, 1.f), Multiplier);
 	const float Grow = Multiplier * Regular.Chance / FMath::Max(Chance, UE_KINDA_SMALL_NUMBER);
 	const int32 Min = FMath::Max(1, FMath::RoundToInt32(static_cast<float>(Regular.Min) * Grow));

@@ -2,6 +2,7 @@
 #include "Areas/AreaRulesSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/CreatureTierLookComponent.h"
 #include "Creatures/CreatureTraitComponent.h"
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootLibrary.h"
@@ -171,6 +172,9 @@ void ACreatureBase::ApplyRank()
 	// Before OnRankChanged, so the subclass's own rank looks see its traits.
 	ApplyTraits();
 	OnRankChanged();
+	// Last, so its look sees the rank, size and traits as they are now: the tier's glow, ghost-rim and death (a Regular
+	// creature gets nothing; Creatures/CreatureTierLookComponent.h).
+	UCreatureTierLookComponent::Refresh(*this);
 }
 
 // ---------------------------------------------------------------------------

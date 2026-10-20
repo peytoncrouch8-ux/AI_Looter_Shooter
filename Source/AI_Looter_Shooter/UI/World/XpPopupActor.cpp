@@ -21,6 +21,10 @@ namespace
 	constexpr float XpBigFadeShare = 0.3f;
 	/** Both fade in over this long. */
 	constexpr float XpFadeIn = 0.06f;
+	/** A top tier's kill's: pops in harder and rises farther than a kill's, the rest the same. */
+	constexpr float XpTierPop = 1.6f;
+	constexpr float XpTierPopSeconds = 0.16f;
+	constexpr float XpTierRise = 58.f;
 
 	float XpEaseOut(float Alpha)
 	{
@@ -29,11 +33,11 @@ namespace
 	}
 }
 
-AXpPopupActor::FLook AXpPopupActor::LookAt(float Shown, bool bInBig)
+AXpPopupActor::FLook AXpPopupActor::LookAt(float Shown, bool bInBig, bool bInTier)
 {
 	FLook Look;
 	const float T = FMath::Max(Shown, 0.f);
-	const float Life = bInBig ? BigSeconds : SmallSeconds;
+	const float Life = SecondsFor(bInBig, bInTier);
 	const float Share = FMath::Clamp(T / Life, 0.f, 1.f);
 	const float FadeShare = bInBig ? XpBigFadeShare : XpSmallFadeShare;
 	Look.Opacity = FMath::Clamp(T / XpFadeIn, 0.f, 1.f) * FMath::Clamp((1.f - Share) / FadeShare, 0.f, 1.f);
@@ -43,6 +47,11 @@ AXpPopupActor::FLook AXpPopupActor::LookAt(float Shown, bool bInBig)
 			? FMath::Lerp(XpBigPop, XpBigUnder, XpEaseOut(T / XpBigSlamSeconds))
 			: FMath::Lerp(XpBigUnder, 1.f, XpEaseOut((T - XpBigSlamSeconds) / (XpBigSettleSeconds - XpBigSlamSeconds)));
 		Look.Offset = FVector2D(0.f, -XpBigRise * XpEaseOut(Share));
+	}
+	else if (bInTier)
+	{
+		Look.Scale = FMath::Lerp(XpTierPop, 1.f, XpEaseOut(T / XpTierPopSeconds));
+		Look.Offset = FVector2D(SmallBeside, -XpTierRise * XpEaseOut(Share));
 	}
 	else
 	{
@@ -72,10 +81,13 @@ AXpPopupActor::AXpPopupActor()
 	SetRootComponent(Widget);
 }
 
-void AXpPopupActor::Show(int64 InAmount, bool bInBig, const FVector& Where, float InDelay)
+void AXpPopupActor::Show(int64 InAmount, bool bInBig, const FVector& Where, float InDelay, bool bInTier, const FLinearColor& InTierColor)
 {
 	Amount = InAmount;
 	bBig = bInBig;
+	// Only a kill has a tier (a turn-in's is never one).
+	bTier = bInTier && !bInBig;
+	TierColor = InTierColor;
 	Words = UXpPopupWidget::Words(Amount);
 	Age = 0.f;
 	Delay = FMath::Max(InDelay, 0.f);
@@ -90,7 +102,7 @@ void AXpPopupActor::Show(int64 InAmount, bool bInBig, const FVector& Where, floa
 	}
 	if (UXpPopupWidget* Look = Cast<UXpPopupWidget>(Widget->GetUserWidgetObject()))
 	{
-		Look->SetAmount(Amount, bBig);
+		Look->SetAmount(Amount, bBig, bTier, TierColor);
 	}
 	SetActorTickEnabled(true);
 	Advance(0.f);
@@ -131,7 +143,7 @@ void AXpPopupActor::Advance(float DeltaSeconds)
 	}
 	Age += FMath::Max(DeltaSeconds, 0.f);
 	const float Shown = Age - Delay;
-	if (Shown >= (bBig ? BigSeconds : SmallSeconds))
+	if (Shown >= SecondsFor(bBig, bTier))
 	{
 		Hide();
 		return;
@@ -151,7 +163,7 @@ void AXpPopupActor::Advance(float DeltaSeconds)
 	{
 		return;
 	}
-	const FLook Frame = LookAt(Shown, bBig);
+	const FLook Frame = LookAt(Shown, bBig, bTier);
 	FWidgetTransform Transform;
 	Transform.Translation = Frame.Offset;
 	Transform.Scale = FVector2D(Frame.Scale);

@@ -268,11 +268,11 @@ Silver pops out as a small pile of coins (`ASilverPickup`) that flies to a livin
 
 | Source | Chance | Amount (level 1) | Average |
 |---|---:|---:|---:|
-| An Unpaid's kill: Regular / Restless / Gravebound / Hallowed / Ethereal / Soulfed / Boss | 55 / 70 / 86 / 96 / 99 / 100 / 100% | 3-7 / 4-8 / 5-11 / 7-16 / 10-23 / 50-80 / 100-140 | 2.75 / 4.2 / 6.9 / 11 / 16.4 / 65 / 120 |
-| A beast's kill (spiders, slimes): the same ranks | 20 / 28 / 43 / 59 / 74 / 100 / 100% | 2-4 / 2-4 / 2-5 / 3-5 / 3-7 / 40-60 / 80-120 | 0.6 / 0.85 / 1.5 / 2.4 / 3.7 / 50 / 100 |
+| An Unpaid's kill: Regular / Restless / Gravebound / Hallowed / Ethereal / Soulfed / Boss | 55 / 85 / 100 / 100 / 100 / 100 / 100% | 3-7 / 9-15 / 18-30 / 29-48 / 45-75 / 50-80 / 100-140 | 2.75 / 10.2 / 24 / 38.5 / 60 / 65 / 120 |
+| A beast's kill (spiders, slimes): the same ranks | 20 / 50 / 80 / 92 / 98 / 100 / 100% | 2-4 / 5-9 / 10-18 / 14-25 / 20-37 / 40-60 / 80-120 | 0.6 / 3.5 / 11.2 / 18 / 28 / 50 / 100 |
 
-The tiers' rows are a Regular kill's times their `SilverMultiplier` (x1.5 / 2.5 / 4 / 6; `LooterEconomy::ScaledKillOdds`,
-2026-10-20); before the tiers a Restless kill gave 10.2 (Unpaid) and a Gravebound 24.
+Regular, Restless and Gravebound pay what they did before the tiers (Main's call, 2026-10-20); Hallowed and Ethereal a
+Gravebound kill's times their `SilverMultiplier` (x1.6 / x2.5; `LooterEconomy::ScaledKillOdds`: more often, and more).
 | Ranger cache, camp crate (Supply Crate) | 90% | 10-20 | 13.5 |
 | The gang's Strongbox | 100% | 40-70 | 55 |
 | Coffin / grave | 70% / 75% | 6-14 / 6-16 | 7 / 8.25 |

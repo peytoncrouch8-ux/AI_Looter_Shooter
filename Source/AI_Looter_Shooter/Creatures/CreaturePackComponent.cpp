@@ -7,6 +7,7 @@
 #include "Creatures/EncounterSettings.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Creatures/PackRules.h"
+#include "Creatures/CreatureTierLook.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
@@ -273,22 +274,32 @@ void UCreaturePackComponent::TryRankSting()
 	}
 	// Once a life, whether it sounds or not: a Restless one losing the player and finding them again doesn't sting twice.
 	bRankStung = true;
+	const ECreatureRank Rank = Me->GetRank();
 	const double Now = World->GetTimeSeconds();
 	const float Rest = UEncounterSettings::Get().RankStingRest;
 	for (TActorIterator<ACreatureBase> It(World); It; ++It)
 	{
 		const UCreaturePackComponent* Other = *It != Me ? It->GetPack() : nullptr;
-		if (Other && Other->RankStings > 0 && Now - Other->LastRankStingTime < Rest)
+		if (Other && Other->RankStings > 0 && Now - Other->LastRankStingTime < Rest && CreatureTierLook::StingGivesWayTo(Rank, It->GetRank()))
 		{
-			// Another ranked creature just sounded it (two Restless turning together): one sting for both.
+			// Another ranked creature just sounded it (two Restless turning together): one sting for both. A Hallowed or
+			// Ethereal one never gives way to a lower tier's: its own notice is the warning that matters.
 			return;
 		}
 	}
 	++RankStings;
 	LastRankStingTime = Now;
-	// Heard by the player wherever the creature stands, as music would be: it says what just turned on them.
+	// Heard by the player wherever the creature stands, as music would be: it says what just turned on them. A Hallowed or
+	// Ethereal one's notice sting rings over it (its tag's word and frame flare with it, its glow too: the tier look reads
+	// GetRankStingAge).
 	LooterSound::Play2D(Me, RankStingCue);
-	UE_LOG(LogLooter, Log, TEXT("%s (%s) turns on the player: the rank sting."), *Me->GetName(), *UEnum::GetValueAsString(Me->GetRank()));
+	const FName TierNotice = CreatureTierLook::NoticeCue(Rank);
+	if (!TierNotice.IsNone())
+	{
+		LooterSound::Play2D(Me, TierNotice);
+	}
+	UE_LOG(LogLooter, Log, TEXT("%s (%s) turns on the player: the rank sting%s."), *Me->GetName(), *UEnum::GetValueAsString(Rank),
+		TierNotice.IsNone() ? TEXT("") : TEXT(" and the tier's notice"));
 }
 
 float UCreaturePackComponent::GetRankStingAge() const

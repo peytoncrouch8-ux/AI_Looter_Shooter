@@ -75,3 +75,6 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-20 | Powers: Pike Spyglass every 8 s, 8 spiders | d09573b8 | 1920x1080 | 7.8 | 128 | 8.4 | 5.1 | 7.8 | 1.7 | 6.5 | 1481 | 1783767 | 2.78 |
 | 2026-10-20 | Powers: Ellis Sundown every 6.5 s, 8 spiders | d09573b8 | 1920x1080 | 7.7 | 129 | 8.2 | 4.8 | 7.7 | 1.7 | 6.5 | 1471 | 1783713 | 2.83 |
 | 2026-10-20 | Gravemother Barrow fight at the RR spawn (her moves as they come) | d09573b8 | 1920x1080 | 7.7 | 130 | 8.2 | 4.1 | 7.7 | 1.7 | 6.4 | 1446 | 1636166 | 2.82 |
+| 2026-10-20 | Tiers: 8 Regular spiders (baseline) | b6fbda06 | 1920x1080 | 7.7 | 129 | 8.3 | 4.9 | 7.7 | 1.7 | 6.5 | 1463 | 1770817 | 2.96 |
+| 2026-10-20 | Tiers: 8 Hallowed spiders | b6fbda06 | 1920x1080 | 7.8 | 129 | 8.3 | 4.8 | 7.7 | 1.7 | 6.5 | 1473 | 1788075 | 2.83 |
+| 2026-10-20 | Tiers: 8 Ethereal spiders | b6fbda06 | 1920x1080 | 7.8 | 128 | 8.4 | 5.0 | 7.8 | 1.7 | 6.5 | 1472 | 1813687 | 2.80 |

@@ -7,6 +7,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
+#include "Creatures/CreatureTierLook.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Weapons/WeaponFX.h"
 #include "AnimationRuntime.h"
@@ -93,7 +94,10 @@ void ADeadMinerCreature::BuildLampGlow()
 	LampGlow->SetNumCustomDataFloats(5);
 	// The engine's plane lies flat in XY: one card flat, one standing along X, one along Y, so it reads from every side.
 	const FRotator Cards[] = { FRotator(0.0, 0.0, 0.0), FRotator(0.0, 0.0, 90.0), FRotator(90.0, 0.0, 0.0) };
-	const FLinearColor Color = DeadMinerRules::LampColor();
+	// A Regular miner's flame is the warm lamp's; Restless and up burn in their tier's light, and so does the light it
+	// throws round it (the budget's few, no new light).
+	const FLinearColor Color = CreatureTierLook::LampColor(GetRank(), DeadMinerRules::LampColor());
+	LampLight->SetLightColor(Color);
 	const float Data[] = { Color.R, Color.G, Color.B, Tuning.LampGlowStrength, 1.f };
 	for (const FRotator& Card : Cards)
 	{

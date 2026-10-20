@@ -12,6 +12,8 @@ class UPrimitiveComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnHealthDamaged, float, Damage, bool, bCritical, FVector, HitLocation, AController*, InstigatedBy, AActor*, DamageCauser);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChanged, float, NewHealth, float, MaxHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthDeath, AController*, Killer);
+/** A shield in front of the health (UHealthComponent::Shield): handed a hit's Damage, returns what's left for health. */
+DECLARE_DELEGATE_RetVal_ThreeParams(float, FHealthShield, float /*Damage*/, bool /*bCritical*/, const FVector& /*HitLocation*/);
 
 /**
  * Gives an actor health. Listens to the engine's damage events, so anything that calls
@@ -96,6 +98,13 @@ public:
 
 	/** What a hit for Damage leaves through Defense: Damage x (1 - Defense x (bCritical ? 0.5 : 1)) (the user's "crits pierce half"). */
 	static float AfterDefense(float Damage, float Defense, bool bCritical);
+
+	/**
+	 * A shield in front of its health (a creature's soul ward: UCreatureTraitComponent's Warded): handed each hit after every
+	 * scale and the defense, it takes what it can and returns what's left for health. The number shown and every listener
+	 * still get the whole hit (a ward hit is a hit). None bound: all of it comes off health.
+	 */
+	FHealthShield Shield;
 
 	/** What dealt the latest damage (the gun, for shots), so death handlers can tell what made the kill. */
 	UFUNCTION(BlueprintPure, Category = "Health")

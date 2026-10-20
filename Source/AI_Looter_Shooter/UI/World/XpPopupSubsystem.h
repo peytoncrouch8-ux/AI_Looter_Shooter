@@ -27,11 +27,14 @@ class AI_LOOTER_SHOOTER_API UXpPopupSubsystem : public UWorldSubsystem
 public:
 	static UXpPopupSubsystem* Get(const UObject* WorldContextObject);
 
-	/** A kill's experience at Victim (the small one). Null for none, or a victim whose damage numbers are hidden. */
+	/**
+	 * A kill's experience at Victim (the small one; a Hallowed or Ethereal creature's in its tier's colour, a size up:
+	 * CreatureTierLook::TintsKillXP). Null for none, or a victim whose damage numbers are hidden.
+	 */
 	AXpPopupActor* ShowKill(int64 Amount, const AActor* Victim);
 
-	/** The same at a spot (the tests; ShowKill works out the spot). */
-	AXpPopupActor* ShowKillAt(int64 Amount, const FVector& Where);
+	/** The same at a spot (the tests; ShowKill works out the spot and the tier). */
+	AXpPopupActor* ShowKillAt(int64 Amount, const FVector& Where, bool bTier = false, const FLinearColor& TierColor = FLinearColor::White);
 
 	/** A turn-in's experience before Player's view (the big one), Delay seconds from now. Null for none or no player. */
 	AXpPopupActor* ShowMission(int64 Amount, const APlayerController* Player, float Delay);

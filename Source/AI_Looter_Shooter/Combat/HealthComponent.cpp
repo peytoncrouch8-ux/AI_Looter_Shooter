@@ -86,7 +86,9 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float IncomingDamag
 
 	if (!bInvulnerable)
 	{
-		Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
+		// A shield in front of it (a creature's soul ward) takes what it can first; the rest comes off its health.
+		const float ToHealth = Shield.IsBound() ? FMath::Clamp(Shield.Execute(Damage, bCritical, HitLocation), 0.f, Damage) : Damage;
+		Health = FMath::Clamp(Health - ToHealth, 0.f, MaxHealth);
 	}
 
 	SpawnDamageNumber(Damage, bCritical, HitLocation, InstigatedBy);

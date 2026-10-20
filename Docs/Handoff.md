@@ -320,6 +320,13 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   (`git merge-file` against its patches/base), then `build_tier_material.py`; perf with `Looter.Perf.Horde Spider 8
   Ethereal`. To save time (the user: "multitask"): TIER-TRAITS stages ONE combined TRAITS+LOOK merge in
   `Saved/Tiers/Merged/` against CORE's working copy now, and does the single merge/build/test/PIE/perf after CORE.
+  TIER-CORE done and committed (b6fbda0, 753/753): area rise by the area's lowest creature level (1 = RR odds, 50+ =
+  late, `LateAreaLevel`), caps count living creatures of the tier and a roll past a cap steps down, no save change
+  (ranks aren't saved; version 3), trait seed CRC32(actor name) x the promotion roll (runtime spawns their UniqueID);
+  Looter.Tier.Odds legendary 0.30/2.19/5.51/13.33/21.38%, RR spawns 7.86/2.04/0.41/0.083%. Not done: bestiary defeats per
+  tier (needs a save field). Main's calls sent with the merge GO: silver restored for Regular/Restless/Gravebound (CORE
+  had cut it), Hallowed 1.6x and Ethereal 2.5x Gravebound's; the Legendary rank's tag to the legendary orange #FF9900
+  (Hallowed's #F5C842 was close to its #FFCC00). The ward bar (pale cyan over health) added to the staged tag.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases

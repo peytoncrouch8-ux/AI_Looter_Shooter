@@ -1,12 +1,13 @@
 // ACreatureBase: being hurt (its attention, a full update rate for a while), its pack's call on whoever hurt it, and the
-// tag over it (name, level, rank word, health, and its rank's sting flashing the word). Moved out of CreatureBase.cpp to keep
-// it under the size guide.
+// tag over it (name, level, rank word, health, its tier's frame and trait line, and its rank's sting flashing the word).
+// Moved out of CreatureBase.cpp to keep it under the size guide.
 
 #include "Creatures/CreatureBase.h"
 #include "AI_Looter_Shooter.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreaturePackComponent.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/CreatureTierLookComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/CreatureHealthBarWidget.h"
 #include "Components/WidgetComponent.h"
@@ -82,6 +83,8 @@ void ACreatureBase::UpdateHealthBar(float DeltaSeconds)
 			const FCreatureRankInfo& RankInfo = UCreatureRankSettings::Get(CurrentRank);
 			Bar->SetCreature(DisplayName, Level, bNameIsRankWord ? FText::GetEmpty() : RankInfo.Word, RankInfo.Color);
 			Bar->SetHealth(Health->GetHealth(), Health->GetMaxHealth());
+			// Its tier's frame and trait line (before the sting: a top tier's sting flashes bigger and longer).
+			UCreatureTierLookComponent::DressTag(*this, *Bar);
 			// A ranked one's sting (as it turns on a player) flashes its rank's word.
 			Bar->SetRankStingAge(Pack->GetRankStingAge());
 		}

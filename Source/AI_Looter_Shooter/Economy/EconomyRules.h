@@ -51,14 +51,14 @@ namespace LooterEconomy
 
 	/**
 	 * A kill's silver by the creature's rank: the Unpaid were townsfolk once and still have their pockets, so they drop it
-	 * more often and more of it than beasts (spiders, slimes), whose silver is whatever they swallowed. The tiers above
-	 * Regular pay a Regular kill's times their SilverMultiplier (x1.5 Restless to x6 Ethereal: ScaledKillOdds); a Soulfed
-	 * monster and a boss keep their own.
+	 * more often and more of it than beasts (spiders, slimes), whose silver is whatever they swallowed. Regular, Restless,
+	 * Gravebound, a Soulfed monster and a boss pay amounts of their own (as before the top tiers); Hallowed and Ethereal pay
+	 * Gravebound's times their SilverMultiplier (x1.6, x2.5: ScaledKillOdds).
 	 */
 	AI_LOOTER_SHOOTER_API FDropOdds KillOdds(ECreatureRank Rank, bool bUnpaid);
 
 	/**
-	 * Regular's odds worth Multiplier times as much on average: the chance it drops at all as if it had Multiplier tries
+	 * Odds worth Multiplier times as much on average: the chance it drops at all as if it had Multiplier tries
 	 * (1 - (1 - Chance)^Multiplier), the amount grown to make up the rest.
 	 */
 	AI_LOOTER_SHOOTER_API FDropOdds ScaledKillOdds(const FDropOdds& Regular, float Multiplier);
