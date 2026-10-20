@@ -13,6 +13,7 @@ from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
 import looter_garments as gm
+import looter_model as lm
 
 # the parts whose looks sew hems and seams from the 'Seams' attribute (looter_looks.construction)
 SEAMED = ('Coat', 'Skirt', 'Collar', 'Lapel', 'Pocket', 'Flap', 'Cuff', 'Kerchief', 'Waistcoat', 'Belt', 'Strap',
@@ -97,7 +98,7 @@ def face_out(ob, centre, z_band=None):
 
 def place_button(name, at, normal, mat, radius=0.0058, flat=0.55):
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=radius)
+    lm.uv_sphere(bm, 10, 6, radius)      # fixed face order: the bake must fit the next run
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -1081,7 +1082,7 @@ def build_kerchief(M, fig, under_obs):
 
 def ellipsoid(name, centre, radii, z_axis, mat, segments=14, rings=9):
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=rings, radius=1.0)
+    lm.uv_sphere(bm, segments, rings, 1.0)
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()

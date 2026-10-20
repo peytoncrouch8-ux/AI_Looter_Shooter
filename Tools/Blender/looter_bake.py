@@ -10,6 +10,13 @@ normal (Cycles' normal bake of the look's shading normal) and the occlusion (Cyc
 the scene, so a belt shades the coat under it). With sources, the passes are cast from the game parts onto detailed
 ones (selected to active): a light game mesh wears the detailed model's folds, creases and seams. Bakes are
 deterministic for a given Blender build.
+
+The UV guard: a set baked from other UVs than the export's scrambles in game, and nothing else shows it (2026-10-20:
+the thread count, bmesh's sphere face order and the cloth cache's rounding each moved the atlas between a bake and a
+later export). So bake_set also writes uv.digest beside the set's PNGs (a fingerprint of its packed atlas: every
+corner's UV with where it sits, in no order), pack() fingerprints the atlas it packs, and load_set right after a pack
+(every bake_all packs a set, then loads or bakes it) gives None when the two differ, so the model bakes the set again.
+A caller that packs several sets before deciding (fp_arms_paint) checks each with uvs_match(set, uv_digest(objects)).
 """
 import hashlib
 import os
@@ -21,6 +28,7 @@ import numpy as np
 import looter_textures as lt
 
 PASSES = (('COLOR', 'OUT_COLOR', 'sRGB'), ('ROUGH', 'OUT_ROUGH', 'Non-Color'), ('METAL', 'OUT_METAL', 'Non-Color'))
+_PACKED = [None]            # the last pack's atlas fingerprint, until a load_set or bake_set takes it
 
 
 def log(message):
@@ -74,6 +82,47 @@ def pack(objects, margin=0.004, weights=None):
     except TypeError:
         bpy.ops.uv.pack_islands(margin=margin)
     bpy.ops.object.mode_set(mode='OBJECT')
+    _PACKED[0] = uv_digest(objects)
+
+
+def uv_digest(objects):
+    """A fingerprint of objects' 'UVMap' as the texture sees it: every corner's UV (to a quarter texel at 8192) with
+    where it sits (world space, to 0.1 mm), as a set, so the same atlas on the same shape matches whatever order the
+    faces come in, and a moved island or a reshaped part doesn't."""
+    rows = []
+    for ob in objects:
+        me = ob.data
+        if not len(me.loops) or 'UVMap' not in me.uv_layers:
+            continue
+        co = np.empty(len(me.vertices) * 3, dtype=np.float64)
+        me.vertices.foreach_get('co', co)
+        mw = np.array(ob.matrix_world)
+        co = co.reshape(-1, 3) @ mw[:3, :3].T + mw[:3, 3]
+        lv = np.empty(len(me.loops), dtype=np.int64)
+        me.loops.foreach_get('vertex_index', lv)
+        uv = np.empty(len(me.loops) * 2, dtype=np.float64)
+        me.uv_layers['UVMap'].data.foreach_get('uv', uv)
+        rows.append(np.concatenate([np.round(co[lv] * 1e4), np.round(uv.reshape(-1, 2) * 32768.0)], 1).astype(np.int64))
+    if not rows:
+        return ''
+    return hashlib.sha1(np.unique(np.concatenate(rows), axis=0).tobytes()).hexdigest()
+
+
+def _uv_stamp(set_name):
+    return os.path.join(os.path.dirname(lt.texture_path(set_name, 'BC')), 'uv.digest')
+
+
+def uvs_match(set_name, uv):
+    """Whether the set on disk was baked on the atlas whose uv_digest is uv (no uv.digest: it wasn't, as far as anyone
+    knows). Logs why not."""
+    path = _uv_stamp(set_name)
+    stored = ''
+    if os.path.exists(path):
+        with open(path) as f:
+            stored = f.read().strip()
+    if stored != uv:
+        log(f'{set_name}: the packed UVs ' + ('differ from the ones it was baked on' if stored else 'have no uv.digest'))
+    return stored == uv
 
 
 def _image(name, size, colorspace, float_buffer=False):
@@ -134,8 +183,9 @@ def _pixels(img):
 
 
 def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance=0.1, margin=12, sources=None, hide=(),
-             cage=0.015, reach=0.04):
-    """Bakes a texture set onto objects (their 'UVMap', packed into one atlas) and writes its three PNGs. Returns
+             cage=0.015, reach=0.04, uv=None):
+    """Bakes a texture set onto objects (their 'UVMap', packed into one atlas) and writes its three PNGs and uv.digest
+    (uv: the atlas's uv_digest when the objects have moved since the pack, else it's taken from them now). Returns
     {'BC', 'N', 'ORM': path, 'images': {COLOR, ROUGH, METAL, NORMAL (OpenGL), AO, ORM}}.
 
     sources: the detailed parts the game parts are baked from. Then colour, roughness, metal and normal are cast from
@@ -143,6 +193,8 @@ def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance
     the sources' folds and creases land in the normal map; without sources the objects' own looks are baked. The
     occlusion is always baked on the objects themselves, with hide (the sources) out of the render so a detailed part
     lying on its game part doesn't shade it black."""
+    _PACKED[0] = None
+    uv = uv_digest(objects) if uv is None else uv
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'
     sc.cycles.device = 'CPU'
@@ -240,6 +292,8 @@ def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance
     paths['ORM'] = lt.texture_path(set_name, 'ORM')
     _save(orm, paths['ORM'], 'Non-Color')
     images['ORM'] = _from_pixels(f'{set_name}_ORMpacked', orm, 'Non-Color')
+    with open(_uv_stamp(set_name), 'w') as f:
+        f.write(uv + '\n')
     paths['images'] = images
     log(f'{set_name}: written to {os.path.dirname(paths["BC"])}')
     return paths
@@ -263,9 +317,13 @@ def _joined_copy(objects, name):
 
 def load_set(set_name):
     """A set baked before, read back from its PNGs into the images bake_set returns (the normal turned back to
-    OpenGL), for previews and glTF when the bake is skipped. None if a file is missing."""
+    OpenGL), for previews and glTF when the bake is skipped. None if a file is missing, or (called right after a pack)
+    if the set was baked on another atlas than the one just packed (the UV guard: the caller bakes it again)."""
+    packed, _PACKED[0] = _PACKED[0], None
     paths = {k: lt.texture_path(set_name, k) for k in ('BC', 'N', 'ORM')}
     if not all(os.path.exists(p) for p in paths.values()):
+        return None
+    if packed is not None and not uvs_match(set_name, packed):
         return None
     images = {}
     images['COLOR'] = bpy.data.images.load(paths['BC'], check_existing=False)

@@ -810,6 +810,17 @@ Ellis.py:
   Ellis.drape.<option>.json`); clay views in `Saved/Concepts/EllisOptions/<option>_<view>.png`.
 - Bake cache: `Art/Textures/EllisSkin/bake.digest` holds the digest of the scripts, the size and the Blender version the sets
   were baked from; a run with the same digest reads the PNGs back instead of baking (`--rebake` forces it).
+- **A bake and an export must build the same mesh** (2026-10-20: Crane's, Pike's and Odessa's Gear sets and Crane's FP
+  hand showed scrambled texture in game, 4-15% of their islands on unbaked background). Three causes, all fixed: (1) the
+  thread count: Decimate and the push-outs shape parts differently at another `-t`, and bakes ran at artrun's 6 while
+  exports ran through models.ps1 at all threads: now `Tools\models.ps1` and `Tools\artrun.ps1` both run Blender at
+  `LOOTER_BLENDER_THREADS` (default 6); (2) `bmesh.ops.create_uvsphere` (and `extrude_face_region`) order faces
+  differently each run: use `looter_model.uv_sphere` (fixed order, keeps UVs) and `looter_model.fixed_order(bm)` after an
+  extrude, for anything that reaches a game mesh; (3) `looter_garments.simulate` cached points rounded to 5 decimals but
+  kept full precision on the mesh: it rounds both now. Guard: `looter_bake.pack()` fingerprints each set's packed UVs
+  (`Art/Textures/<Set>/uv.digest`); `load_set` refuses a kept bake whose fingerprint differs, so the set rebakes instead
+  of drifting. Check tools: `Saved/BakeCheck/` (`analyze.py` paints an export's islands over its BC map: red on unbaked
+  background) and `Saved/BakeCheck/fix/` (`run_model.ps1`, `compare_fbx.py`). Every hero now exports bit-identically twice.
 - The cloud box can't push Git LFS: its PNGs are not committed (`.git/info/exclude` there). The PC baked them on
   2026-10-15 with Blender 4.4 (the cloud wrote the scripts against 5.2's module: they ran unchanged; ~25 min for build,
   simulation and four 2048 sets beside the editor) and they're committed. MakeHuman's base.obj (1.75 MB, gitignored) is

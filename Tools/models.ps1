@@ -12,6 +12,11 @@ if (-not $blender) {
     $blender = Get-ChildItem 'C:\Program Files\Blender Foundation\*\blender.exe' -ErrorAction SilentlyContinue | Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
 }
 if (-not $blender -or -not (Test-Path $blender)) { "Blender not found. Install it, or set BLENDER to blender.exe."; exit 1 }
+# Blender runs on a fixed thread count (LOOTER_BLENDER_THREADS, default 6; Tools\artrun.ps1 uses the same): Decimate and
+# the models' push-out steps shape parts a little differently at another thread count, the UV atlas packs round them
+# differently, and textures baked in one run no longer fit a mesh exported in another (2026-10-20: scrambled hero
+# textures in game). A bake and its export must run at the same count.
+$threads = if ($env:LOOTER_BLENDER_THREADS) { [int]$env:LOOTER_BLENDER_THREADS } else { 6 }
 
 $sourceRoot = if ($Source) { (Resolve-Path $Source).Path } else { Join-Path $root 'Art\Models' }
 $sources = @(Get-ChildItem $sourceRoot -Recurse -File -Include *.blend, *.py | Where-Object { -not $Only -or $Only -contains $_.BaseName })
@@ -35,11 +40,11 @@ foreach ($file in $sources) {
     $exportArgs = @('--python', $exporter, '--', '--out', $exportDir, '--category', $category, '--source', $relative)
     $setup = "import sys; sys.path.append('$helpers')"
     if ($file.Extension -eq '.blend') {
-        $blenderArgs = @('-b', $file.FullName, '--python-exit-code', '2', '--python-expr', $setup) + $exportArgs
+        $blenderArgs = @('-b', '-t', "$threads", $file.FullName, '--python-exit-code', '2', '--python-expr', $setup) + $exportArgs
     } else {
         # A scripted model starts from an empty scene.
         $setup += "; import bpy; bpy.ops.wm.read_factory_settings(use_empty=True)"
-        $blenderArgs = @('-b', '--factory-startup', '--python-exit-code', '2', '--python-expr', $setup, '--python', $file.FullName) + $exportArgs
+        $blenderArgs = @('-b', '--factory-startup', '-t', "$threads", '--python-exit-code', '2', '--python-expr', $setup, '--python', $file.FullName) + $exportArgs
     }
     $output = & $blender @blenderArgs 2>&1 | ForEach-Object { "$_" }
     $output | Where-Object { $_ -match '^LOOTER: |Error|Traceback|^\s+File "' } | ForEach-Object { "  $_" }

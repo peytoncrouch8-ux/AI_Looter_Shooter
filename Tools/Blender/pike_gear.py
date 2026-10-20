@@ -12,6 +12,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 import looter_garments as gm
+import looter_model as lm
 from pike_clothes import face_out, round_angle
 
 
@@ -99,7 +100,7 @@ def ring_tube(path, radius, n=6):
 def soft_box(name, centre, axes, half, mat, power=0.35, u=16, v=10):
     """A rounded box (a superellipsoid: a sphere's points raised to power), axes (ex, ey, ez) and half sizes."""
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=u, v_segments=v, radius=1.0)
+    lm.uv_sphere(bm, u, v, 1.0)      # fixed face order: the bake must fit the next run
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()

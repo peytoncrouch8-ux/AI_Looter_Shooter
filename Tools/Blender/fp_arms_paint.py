@@ -146,23 +146,38 @@ class BakedSet:
 def bake_sets(sets, all_objects, digest_path, sources, force=False, keep=False):
     """sets: [(set name, [objects])] (each object wearing its looks, UVs made). Packs each set's atlas (always: the UVs
     must match the files), then bakes them all raised, or keeps the files when the digest matches. Returns ({name:
-    BakedSet}, the digest to write once they're painted and saved), or (None, None) when the files were kept."""
+    BakedSet}, the digest to write once they're painted and saved), or (None, None) when the files were kept. The
+    files are kept only while every set's packed UVs match the ones it was baked on (looter_bake's UV guard;
+    'keep-textures' keeps them anyway, with a warning)."""
     for name, objs in sets:
         bk.pack(objs, margin=0.006)
+    # each atlas's fingerprint now, before the bake raises the arms
+    uvs = {name: bk.uv_digest(objs) for name, objs in sets}
     want = digest_of(sources, SIZE)
     have = open(digest_path).read().strip() if os.path.exists(digest_path) else ''
     files = all(os.path.exists(lt.texture_path(n, k)) for n, _ in sets for k in ('BC', 'N', 'ORM'))
-    if files and (keep or (want == have and not force)):
-        log(f'textures kept ({"keep-textures" if keep else "digest matches"}): {", ".join(n for n, _ in sets)}')
+    if files and keep:
+        if not all([bk.uvs_match(n, uvs[n]) for n, _ in sets]):
+            log('WARNING: keep-textures kept sets baked on other UVs: they will not fit this mesh')
+        log(f'textures kept (keep-textures): {", ".join(n for n, _ in sets)}')
         return None, None
+    if files and want == have and not force and all([bk.uvs_match(n, uvs[n]) for n, _ in sets]):
+        log(f'textures kept (digest and UVs match): {", ".join(n for n, _ in sets)}')
+        return None, None
+    # lowered again by putting back the very coordinates they had: raising and lowering in float32 moved most vertices
+    # by up to 0.08 micrometres, so a run that baked exported another mesh than a run that kept the files
+    rest = [(ob, np.array([v.co[:] for v in ob.data.vertices], dtype=np.float32)) for ob in all_objects]
     _raise(all_objects, RAISE)
     out = {}
     try:
         for name, objs in sets:
-            paths = bk.bake_set(name, objs, size=SIZE, samples=1, ao_samples=32, ao_distance=0.06, margin=12)
+            paths = bk.bake_set(name, objs, size=SIZE, samples=1, ao_samples=32, ao_distance=0.06, margin=12,
+                                uv=uvs[name])
             out[name] = BakedSet(name, paths)
     finally:
-        _raise(all_objects, -RAISE)
+        for ob, co in rest:
+            ob.data.vertices.foreach_set('co', co.ravel())
+            ob.data.update()
     return out, (digest_path, want)
 
 

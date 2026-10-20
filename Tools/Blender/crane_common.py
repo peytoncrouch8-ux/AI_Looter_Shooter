@@ -28,6 +28,7 @@ import bust  # noqa: E402
 import looter_garments as gm  # noqa: E402
 import looter_human as hu  # noqa: E402
 import looter_looks as lk  # noqa: E402
+import looter_model as lm  # noqa: E402
 import mh  # noqa: E402
 
 
@@ -216,7 +217,7 @@ def bake_transform(ob):
 
 def ellipsoid(name, centre, radii, z_axis, segments=16, rings=10):
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=rings, radius=1.0)
+    lm.uv_sphere(bm, segments, rings, 1.0)      # fixed face order: the bake must fit the next run
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()

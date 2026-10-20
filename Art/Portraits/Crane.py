@@ -19,6 +19,11 @@ from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+# looter_model's fixed-order sphere for the tin star (it reaches the game model through Tools/Blender/crane_gear.py)
+_TOOLS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "Tools", "Blender")
+if _TOOLS not in sys.path:
+	sys.path.append(_TOOLS)
+import looter_model as lm  # noqa: E402
 import mh  # noqa: E402
 import bust  # noqa: E402
 from bust import (  # noqa: E402
@@ -566,8 +571,9 @@ def tin_star(at, normal, polished):
 	bmesh.ops.translate(bm, verts=[e for e in ext["geom"] if isinstance(e, bmesh.types.BMVert)], vec=(0, 0, T))
 	bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
 	for a in ang[::2]:
-		bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=0.0042, matrix=Matrix.Translation((math.cos(a) * R, math.sin(a) * R, T * 0.5)))
+		lm.uv_sphere(bm, 12, 8, 0.0042, matrix=Matrix.Translation((math.cos(a) * R, math.sin(a) * R, T * 0.5)))
 	bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=r * 0.62, radius2=r * 0.5, depth=0.0016, matrix=Matrix.Translation((0, 0, T + 0.0008)))
+	lm.fixed_order(bm)     # the extrude's faces come in another order each call (the game's star is made from this)
 	me = bpy.data.meshes.new("Star")
 	bm.to_mesh(me)
 	bm.free()

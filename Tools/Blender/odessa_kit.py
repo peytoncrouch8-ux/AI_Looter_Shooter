@@ -13,6 +13,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 import looter_garments as gm
+import looter_model as lm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -59,25 +60,9 @@ def bake_transform(ob):
     ob.matrix_world = Matrix.Identity(4)
 
 
-def uv_sphere(bm, segments, rings, radius):
-    """bmesh's UV sphere in a fixed order. create_uvsphere's faces came out in another order (each starting at another
-    corner) from one Blender run to the next: Decimate then gave the same shape with its vertices in another order,
-    smart UV and the atlas packed round it moved, and a bake kept from an earlier run no longer fit the game mesh.
-    Rebuilt with each face from its lowest vertex, the faces sorted."""
-    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=rings, radius=radius)
-    bm.verts.index_update()
-    co = [v.co.copy() for v in bm.verts]
-    faces = []
-    for f in bm.faces:
-        idx = [v.index for v in f.verts]
-        k = idx.index(min(idx))
-        faces.append(tuple(idx[k:] + idx[:k]))
-    bm.clear()
-    verts = [bm.verts.new(c) for c in co]
-    for f in sorted(faces):
-        bm.faces.new([verts[i] for i in f])
-    bm.verts.index_update()
-    bm.faces.index_update()
+# bmesh's UV sphere in a fixed order: moved to looter_model (every hero's spheres use it now); on a fresh bmesh it
+# builds the very mesh this one did, so Odessa's model doesn't change.
+uv_sphere = lm.uv_sphere
 
 
 def ellipsoid(name, centre, radii, z_axis, segments=16, rings=10, material=None):

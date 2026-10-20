@@ -462,10 +462,13 @@ def simulate(objects, pins, colliders, cache_file, frames=80, stiff=(30.0, 30.0,
                 c.modifiers.remove(m)
     out = []
     for ob, off, s in zip(objects, offsets, starts):
-        pts = co[off:off + len(s)]
+        # rounded as the cache keeps them, before they go on the mesh: a run that simulates and a run that reads the
+        # cache must build the very same cloth (full-precision points made a different coat than the cached ones, so
+        # the bake of one run didn't fit the next run's mesh)
+        pts = np.round(co[off:off + len(s)], 5)
         ob.data.vertices.foreach_set('co', pts.astype(np.float32).ravel())
         ob.data.update()
-        out.append(np.round(pts, 5).tolist())
+        out.append(pts.tolist())
     with open(cache_file, 'w', encoding='utf-8', newline='\n') as f:
         json.dump({'about': note or 'A cloth simulation\'s settled points, kept so exports do not run it again.',
                    'digest': key, 'objects': out}, f, separators=(',', ':'))

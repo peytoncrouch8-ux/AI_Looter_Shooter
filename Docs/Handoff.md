@@ -233,6 +233,14 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   `UBodyFigureComponent::Wear` now calls ShowAllMaterialSections on every LOD of a new mesh. Checked in PIE: Ellis with a
   revolver, then `Looter.Hero Odessa`: her wine coat shows. Odessa's model needs no change (PIPE-FIX re-exports her for the
   textures only; told to wait, now free to go).
+- PIPE-FIX done and committed with this note: one thread count (6) for every model run, `looter_model.uv_sphere` and
+  `fixed_order`, rounded simulate points, the uv.digest guard (Pipeline "A bake and an export must build the same
+  mesh"); re-exported and reimported SK_Ellis, SK_Crane, SK_Pike, SK_Odessa, SK_FP_Arms and the Crane/Pike/Odessa arms
+  (Gauge's unchanged). Islands off: all sets 0-0.2% except Odessa's Gear 0.43% (one 12-face island at the start of her
+  watch-chain tube gets no bake source: `odessa_clothes.build_watch_chain`). Each export repeats bit-identically.
+- In-game front shots of all five after the reimport (`Saved/Screenshots/Tools/hero_front_<Hero>.png`): right, except
+  **Pike shows a dark patch low on his coat front at the right hip** (the spyglass frog's leather or the coat's inside
+  showing: look next).
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases
   + MI_PosterDecal/Scrap_<Id>, and the `hero_meshes`/`other_mesh` lines in `build_area_story.py` and
   `build_area_missionprops_valley.py` (run by Main after the merge).

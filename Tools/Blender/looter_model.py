@@ -43,6 +43,61 @@ def _new_bmesh():
     return bm
 
 
+def uv_sphere(bm, segments, rings, radius, matrix=None):
+    """bmesh.ops.create_uvsphere's sphere added to bm, its faces in a fixed order. create_uvsphere's faces come out in
+    another order (each starting at another corner) from one call to the next: Decimate then gives the same shape with
+    its vertices in another order, smart UV and the atlas packed round it move, and a bake kept from an earlier run no
+    longer fits the game mesh (2026-10-20: scrambled hero textures). Every sphere that reaches a game mesh is made here.
+    Built apart, then added with each face from its lowest vertex and the faces sorted; UVs come along when bm has a UV
+    layer (as create_uvsphere's calc_uvs would make them). Returns {'verts': the new vertices}."""
+    tmp = bmesh.new()
+    uv_out = bm.loops.layers.uv.active
+    uv_tmp = tmp.loops.layers.uv.new('UVMap') if uv_out is not None else None
+    kw = {} if matrix is None else {'matrix': matrix}
+    bmesh.ops.create_uvsphere(tmp, u_segments=segments, v_segments=rings, radius=radius,
+                              calc_uvs=uv_tmp is not None, **kw)
+    tmp.verts.index_update()
+    co = [v.co.copy() for v in tmp.verts]
+    faces = []
+    for f in tmp.faces:
+        idx = [v.index for v in f.verts]
+        k = idx.index(min(idx))
+        uvs = [lp[uv_tmp].uv.copy() for lp in f.loops] if uv_tmp is not None else None
+        faces.append((tuple(idx[k:] + idx[:k]), uvs[k:] + uvs[:k] if uvs else None))
+    tmp.free()
+    verts = [bm.verts.new(c) for c in co]
+    for f, uvs in sorted(faces, key=lambda t: t[0]):
+        face = bm.faces.new([verts[i] for i in f])
+        if uvs:
+            for lp, uv in zip(face.loops, uvs):
+                lp[uv_out].uv = uv
+    bm.verts.index_update()
+    bm.faces.index_update()
+    return {'verts': verts}
+
+
+def fixed_order(bm):
+    """bm rebuilt with its faces in a fixed order: each face from its lowest vertex, the faces sorted (uv_sphere's way,
+    for a whole bmesh). bmesh.ops.extrude_face_region, like create_uvsphere, gives its faces in another order from one
+    call to the next (2026-10-20: Crane's tin star), and the game mesh made from it came out with its faces reordered
+    whenever the run had allocated anything differently before. The vertices must already come in a fixed order; faces
+    keep their material and smooth flag. For a bmesh with no UV, colour or weight layers."""
+    bm.verts.index_update()
+    co = [v.co.copy() for v in bm.verts]
+    faces = []
+    for f in bm.faces:
+        idx = [v.index for v in f.verts]
+        k = idx.index(min(idx))
+        faces.append((tuple(idx[k:] + idx[:k]), f.material_index, f.smooth))
+    bm.clear()
+    verts = [bm.verts.new(c) for c in co]
+    for f, mat, smooth in sorted(faces):
+        face = bm.faces.new([verts[i] for i in f])
+        face.material_index, face.smooth = mat, smooth
+    bm.verts.index_update()
+    bm.faces.index_update()
+
+
 def _link(name, bm, mat, parent):
     mesh = bpy.data.meshes.new(name)
     bm.to_mesh(mesh)

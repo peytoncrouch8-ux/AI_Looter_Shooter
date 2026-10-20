@@ -10,7 +10,11 @@
 #   artrun.ps1 -Export Chapel,Graves -Family RR_Chapel                 export test (models.ps1 -NoImport) into
 #                                                                      Intermediate\ArtExport_<Family>
 #   artrun.ps1 -Script Tools\Blender\tangentcheck.py -ScriptArgs Intermediate\ArtExport_RR_Chapel,--where
-#   -Threads N    Blender's render and bake threads (default: all)
+#   -Threads N    Blender's threads (default LOOTER_BLENDER_THREADS, else 6: the count Tools\models.ps1 exports at; an
+#                 -Export run passes it on). Keep the default for model work: Decimate and the models' push-out steps
+#                 shape parts a little differently at another thread count, the UV atlas packs round them differently,
+#                 and textures baked in one run no longer fit a mesh exported in another (2026-10-20: scrambled hero
+#                 textures in game). A bake and its export must run at the same count.
 #   Quote script arguments that start with '-': -ScriptArgs '--audit,final' (unquoted, PowerShell binds --preview to -Preview
 #   and --audit to nothing).
 # Several agents share one PC (16 GB, 6 cores): at most LOOTER_BLENDER_SLOTS (default 2) runs go at once; the rest wait
@@ -19,6 +23,7 @@ param([string]$Script = '', [switch]$Preview, [string[]]$ScriptArgs = @(), [stri
     [int]$Threads = 0)
 
 $root = Split-Path $PSScriptRoot -Parent
+if ($Threads -le 0) { $Threads = if ($env:LOOTER_BLENDER_THREADS) { [int]$env:LOOTER_BLENDER_THREADS } else { 6 } }
 $flag = Join-Path $root 'Saved\ArtPause.flag'
 $waited = 0
 while (Test-Path $flag) {
@@ -48,6 +53,8 @@ Set-Location $root
 
 if ($Export) {
     if (-not $Family) { 'Give -Family: the export goes to Intermediate\ArtExport_<Family>.'; $lock.Dispose(); exit 1 }
+    # models.ps1 reads the thread count from here (the child inherits this process's environment)
+    $env:LOOTER_BLENDER_THREADS = "$Threads"
     & powershell -NoProfile -File (Join-Path $PSScriptRoot 'models.ps1') -Only ($Export -join ',') -Out "Intermediate\ArtExport_$Family" -NoImport
     $code = $LASTEXITCODE
     $lock.Dispose()
@@ -69,8 +76,7 @@ $setup = "import sys; sys.path.insert(0, '$helpers'); import bpy; bpy.ops.wm.rea
 $rest = @()
 if ($Preview) { $rest += '--preview' }
 $rest += $ScriptArgs
-$threadArgs = @(if ($Threads -gt 0) { '-t'; "$Threads" })
-$blenderArgs = @('-b', '--factory-startup') + $threadArgs + @('--python-exit-code', '2', '--python-expr', $setup, '--python', $path, '--') + $rest
+$blenderArgs = @('-b', '--factory-startup', '-t', "$Threads") + @('--python-exit-code', '2', '--python-expr', $setup, '--python', $path, '--') + $rest
 & $blender @blenderArgs 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -notmatch '^(Blender \d|Read prefs|Fra:\d|\s*$)' }
 $code = $LASTEXITCODE
 $lock.Dispose()

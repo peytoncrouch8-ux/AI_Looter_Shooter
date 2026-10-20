@@ -12,6 +12,7 @@ from mathutils import Matrix, Vector
 
 import crane_common as cc
 import looter_garments as gm
+import looter_model as lm
 from crane_common import CP, OPT, log, slot
 
 
@@ -91,7 +92,7 @@ def build_eyes(fig):
             c = c - fwd * 0.0035
             rad *= 0.9
         bm = bmesh.new()
-        bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=12, radius=rad)
+        lm.uv_sphere(bm, 20, 12, rad)      # fixed face order: the bake must fit the next run
         me = bpy.data.meshes.new(f'Eye_{side}')
         bm.to_mesh(me)
         bm.free()

@@ -234,7 +234,7 @@ def build_skin(fig):
         c, r = fig.balls[side]
         c = fig.head_point(c)
         bm = bmesh.new()
-        bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=12, radius=r * 0.1 * fig.b.scale)
+        lm.uv_sphere(bm, 20, 12, r * 0.1 * fig.b.scale)      # fixed face order: the bake must fit the next run
         me = bpy.data.meshes.new(f'Eye_{side}')
         bm.to_mesh(me)
         bm.free()
@@ -666,7 +666,7 @@ def build_vest(fig):
         if hit[0] is None:
             continue
         bm = bmesh.new()
-        bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=0.0058)
+        lm.uv_sphere(bm, 12, 8, 0.0058)
         me = bpy.data.meshes.new('VestButton')
         bm.to_mesh(me)
         bm.free()
@@ -1424,7 +1424,7 @@ def build_bandana(fig, under_obs):
 
 def lm_ellipsoid(name, centre, radii, z_axis, segments=16, rings=10):
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=rings, radius=1.0)
+    lm.uv_sphere(bm, segments, rings, 1.0)
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
