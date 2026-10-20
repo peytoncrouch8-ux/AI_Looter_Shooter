@@ -5598,6 +5598,22 @@
     "space": "3D",
     "max_concurrent": 3
   },
+  "Creature.Trait.WardHit": {
+    "files": [
+      "Creature_Trait_WardHit_01.wav",
+      "Creature_Trait_WardHit_02.wav",
+      "Creature_Trait_WardHit_03.wav",
+      "Creature_Trait_WardHit_04.wav",
+      "Creature_Trait_WardHit_05.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
   "Creature.Trait.Swell": {
     "files": [
       "Creature_Trait_Swell_01.wav",

@@ -18,6 +18,8 @@ ghostly red: low and cold, a minor second, embers and heat, a wail.
   a cold ring and a short ghost "ah"). Each take its own notes: the pieces come out one after another.
 - Creature.Trait.WardBreak (0.6 s): the soul ward shattering: a crack and a pop of air, a glass ring bending down as it
   breaks, a shower of shards tinkling (thick at first, thinning), a breath of the soul let out.
+- Creature.Trait.WardHit (0.25 s, 5 takes): a shot on the soul ward's cage: a small glass ping (soft mallet, low upper
+  partials), a round body, a faint cage knock and cold shimmer; a different pentatonic note per take. Frequent, quiet.
 - Creature.Trait.Swell (1 s): Grave-burst's warning: pressure building in the body: a tone climbing, a heartbeat running
   faster, the body straining, a whistle of pressure, all growing about 17 dB, then the world holds its breath (a hush over
   the last seventh).
@@ -288,6 +290,21 @@ def ward_break(v, r):
     # A soft clip takes the crack's edge down so the glass body under it is heard (a spike over a quiet shower is thin).
     x = D.drive(normalize(x), 4.0, 'tanh')
     return C._outside(x, r, -20.0)
+
+
+@cue('Creature.Trait.WardHit', variations=5, att='Near', jitter=0.04, conc=4, level=-16.0)
+def ward_hit(v, r):
+    # A shot strikes the soul ward's cage of light: one small glass ping (a soft mallet, the upper partials kept low so a
+    # whole fight of them stays off the 2-5 kHz band), a round sine body under it, a faint knock of the cage and a cold
+    # shimmer. Each take a different note of a pentatonic, so any order of them sounds right.
+    f = (880.0, 988.0, 1175.0, 1319.0, 740.0)[v] * jitter(r, 1, 0.01)
+    ping = kit.chime(f, child(r, 'ping'), 0.2, 0.65, 0.0002, 0.5, -26.0)
+    body = normalize(O.sine(f, n=ns(0.18)) * E.perc(0.18, 0.003, 0.12))
+    ping = C._cold(layers((ping, 0.0, 0.0), (body, 0.0, -8.0)), child(r, 'cold'), 37.0, 0.15)
+    knock = kit.thunk(520.0 * jitter(r, 1, 0.1), child(r, 'knock'), 0.03, 0.0004, 4, 0.1)
+    shimmer = kit.metal_click(child(r, 'shimmer'), 5000.0, 9000.0, 0.03, 0.00004, 3, -20.0)
+    x = layers((normalize(ping), 0.0, 0.0), (knock, 0.0, -11.0), (shimmer, 0.0, -15.0))
+    return F.filt(x, F.peak(3300.0, -5.0, 0.8), F.lp(9000.0, 0.7), extend=False)
 
 
 @cue('Creature.Trait.Swell', variations=2, att='Creature', jitter=0.03, conc=3, level=-7.0, swell=True)
