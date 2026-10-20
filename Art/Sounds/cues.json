@@ -5497,5 +5497,186 @@
     "loop": false,
     "space": "2D",
     "max_concurrent": 2
+  },
+  "Creature.Tier.Notice.Hallowed": {
+    "files": [
+      "Creature_Tier_Notice_Hallowed_01.wav",
+      "Creature_Tier_Notice_Hallowed_02.wav",
+      "Creature_Tier_Notice_Hallowed_03.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Tier.Notice.Ethereal": {
+    "files": [
+      "Creature_Tier_Notice_Ethereal_01.wav",
+      "Creature_Tier_Notice_Ethereal_02.wav",
+      "Creature_Tier_Notice_Ethereal_03.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Tier.Death.Hallowed": {
+    "files": [
+      "Creature_Tier_Death_Hallowed_01.wav",
+      "Creature_Tier_Death_Hallowed_02.wav",
+      "Creature_Tier_Death_Hallowed_03.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Tier.Death.Ethereal": {
+    "files": [
+      "Creature_Tier_Death_Ethereal_01.wav",
+      "Creature_Tier_Death_Ethereal_02.wav",
+      "Creature_Tier_Death_Ethereal_03.wav"
+    ],
+    "volume_db": -7.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Loot.Tier.Pop.Hallowed": {
+    "files": [
+      "Loot_Tier_Pop_Hallowed_01.wav",
+      "Loot_Tier_Pop_Hallowed_02.wav",
+      "Loot_Tier_Pop_Hallowed_03.wav",
+      "Loot_Tier_Pop_Hallowed_04.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Loot.Tier.Pop.Ethereal": {
+    "files": [
+      "Loot_Tier_Pop_Ethereal_01.wav",
+      "Loot_Tier_Pop_Ethereal_02.wav",
+      "Loot_Tier_Pop_Ethereal_03.wav",
+      "Loot_Tier_Pop_Ethereal_04.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Creature.Trait.WardBreak": {
+    "files": [
+      "Creature_Trait_WardBreak_01.wav",
+      "Creature_Trait_WardBreak_02.wav",
+      "Creature_Trait_WardBreak_03.wav"
+    ],
+    "volume_db": -7.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Trait.Swell": {
+    "files": [
+      "Creature_Trait_Swell_01.wav",
+      "Creature_Trait_Swell_02.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Trait.Burst": {
+    "files": [
+      "Creature_Trait_Burst_01.wav",
+      "Creature_Trait_Burst_02.wav",
+      "Creature_Trait_Burst_03.wav"
+    ],
+    "volume_db": -9.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Trait.Phase": {
+    "files": [
+      "Creature_Trait_Phase_01.wav",
+      "Creature_Trait_Phase_02.wav",
+      "Creature_Trait_Phase_03.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Trait.Enrage": {
+    "files": [
+      "Creature_Trait_Enrage_01.wav",
+      "Creature_Trait_Enrage_02.wav",
+      "Creature_Trait_Enrage_03.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Trait.Mend": {
+    "files": [
+      "Creature_Trait_Mend_01.wav"
+    ],
+    "volume_db": -30.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Creature.Trait.Rally": {
+    "files": [
+      "Creature_Trait_Rally_01.wav",
+      "Creature_Trait_Rally_02.wav",
+      "Creature_Trait_Rally_03.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
   }
 }
