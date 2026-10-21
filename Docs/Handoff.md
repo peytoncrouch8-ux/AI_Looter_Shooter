@@ -3,6 +3,27 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Direction (the user's answers, grill session 2026-10-21) — overrides "next" below
+
+- **Core-loop freeze:** no new regions, heroes or systems (the *Lily* stays on hold) until shooting, fights, loot and
+  pacing are fun in Ransom's Rest. The user played it through after the heroes: "something's off" in gunplay, pacing,
+  enemies, loot and art.
+  - Gunplay: enemy hit reactions, gun sound and kick, guns feel alike (not hit confirmation).
+  - Enemies: too easy, dumb AI, fights too small (variety not picked as the problem).
+  - Loot: all four wanted: more gun kinds, part effects that change behaviour, elements, bigger drop moments.
+  - Art: characters, samey world, weak VFX (not lighting).
+  - Pacing: story slows it down, nothing to find off the path, fetch-quest missions (walking not picked).
+  - Story delivery: cut dialogue roughly in half; most lines as short captions while walking or fighting
+    (Borderlands-radio style); long scenes only at big beats. Still no voice acting.
+- **Freeze ends when** the user and their one playtester friend each play Ransom's Rest start to finish on a packaged
+  build and both want to replay it with another hero.
+- **Sounds:** paid/free royalty-free libraries licensed for games are now allowed for guns and impacts (e.g. Sonniss
+  GDC bundle), processed through the script pipeline; script-made stays the rule elsewhere.
+- **Release plan:** single-player at launch (co-op not planned). 1.0 keeps 15–18 regions. A free Steam demo once the
+  game is 60–70% built, within a year (~Oct 2027). Store page ("Coming Soon") goes up once the core is fun, with a
+  Ransom's Rest trailer. Steam's AI-content survey answered plainly (made with AI tools, nothing generated live).
+- Playtesters: the user and one friend.
+
 ## Now (session "Small leftovers", 2026-10-15, local)
 
 **The saga (the user, 2026-10-15 night: a long-running Borderlands-like story; "Why is Ellis here? Where does the story

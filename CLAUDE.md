@@ -101,7 +101,8 @@ keep it short; details go in the pipeline.
 
 - Git LFS stores every binary. Prefixes: `SM_`, `SK_`, `M_`/`MI_`, `T_`, `DA_`, `BP_`, `UCX_` (collision), `SOCKET_`
   (attach points), `S_` (sound waves), `SC_`/`SMX_`/`ATT_` (sound classes, mix, attenuation).
-- Sounds are script-made only (the user's call): recipes in `Art/Sounds`, rendered by `Tools\sounds.ps1`, imported by
+- Sounds are script-made (the user's call), except guns and impacts may use royalty-free libraries licensed for games
+  (2026-10-21; keep each pack's licence with it): recipes in `Art/Sounds`, rendered by `Tools\sounds.ps1`, imported by
   `Tools/Unreal/build_sound_bank.py`; code plays them by cue (`Audio/LooterSound.h`, `LooterSoundCues.h`).
 - Never generate meshes while the game runs; bake them into assets.
 - Blender models in `Art/Models/<Category>/`; `Tools\models.ps1` imports them (rules: `Art/README.md`). Change the
