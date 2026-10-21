@@ -166,3 +166,56 @@ Cardsharp, Hollis Crane the Unpaid, Gauge the Iron Hand and Wendell Pike the Sur
 - [ ] Hero definitions, the hero select screen, and the session's hero and its saving.
 - [ ] Four new portraits for the player frame.
 - [ ] `Docs/Story.md` updated for the five; tests; `CODEMAP.md` updated.
+
+## Phase 12: Core loop (the freeze, 2026-10-21)
+
+The user's call (Handoff "Direction"): nothing new until Ransom's Rest's core is fun. Order (Main's, the user agreed):
+gunplay, enemies, loot, pacing and story; art alongside. Ends when the user and their friend both want to replay RR with
+another hero.
+
+### 12.1 Gunplay (plan written 2026-10-21, waiting on the user's OK)
+
+The user's picks: enemy hit reactions, gun sound and kick, guns feel alike (hit markers/numbers are fine).
+What's there now (why it feels weak):
+- `FHitReaction`: only a crit, a kill or a burst worth 20% of health inside 80 ms does anything (crit hit-stop 45 ms, kill
+  65/80; stagger 0.32 s Basic, 1.1 s cooldown). A plain body hit gets the 0.09 s hit flash and nothing else, so most
+  rifle and revolver hits show no reaction.
+- One `Weapon.<Kind>.Fire` cue per gun, played attached: no layers (mechanism, punch, low end, tail), no tail by
+  surroundings, same sound near and far, nothing for the last rounds in the magazine.
+- Recoil (`FWeaponRecoilProfile`) and view kicks (`ViewKicks::ForShot`) differ per kind but are small (rifle pitch
+  0.32 deg). No controller rumble anywhere.
+- The three guns differ in numbers but play the same way: aim, click, the target flashes.
+
+Steps (each tuned live by `Looter.Gunfeel.*` cvars so the user tunes by feel in PIE, then the numbers go into code):
+0. **Baseline:** package a test build of today's game (Pipeline "Packaging a test build") for the user's friend, before
+   anything changes; their notes are the yardstick.
+1. **Every hit reacts** (Combat/HitReaction, Creatures/*Pose/*React):
+   - A flinch on every hit: 60-150 ms, size by the hit's share of health, away from the shot, at the hit spot: a
+     spider's struck leg or body jerks, the slime dents and wobbles there, the Unpaid jolts and its coal flares, a miner
+     twists. Procedural, on each kind's existing pose code. Bosses flinch smaller (never interrupt their moves).
+   - Staggers come more often: heavy share 20% -> ~12%, cooldown 1.1 -> ~0.7 s, Basic 0.32 -> ~0.4 s (to tune).
+   - Kills by gun: a shotgun kill throws the body (bigger corpse knock), a revolver crit kill bursts the crit spot, a
+     rifle kill crumples. Bigger creature-hit spurts (blood, gel, ash) and an exit spray behind the target.
+2. **Gun sound and kick** (Art/Sounds, Weapons/WeaponBaseFiring, ViewKick, WeaponRecoil):
+   - Sound: a licensed royalty-free pack (asked before downloading: which pack, its size and licence). Each shot in
+     layers: mechanism (near, first person), punch, low thump, a tail chosen by surroundings (open valley, town between
+     walls, inside the mine), a distant version for shots far away; a rising click in the last quarter of the magazine.
+     Processed in the script pipeline; licence file kept with the pack.
+   - Kick: stronger per kind (shotgun shove and FOV punch, revolver snap, rifle climb you pull down), first-person gun
+     motion bigger, muzzle flash bigger in first person.
+   - Controller rumble per shot and per hit taken (new; scaled by a setting next to camera shake).
+3. **Each gun its own job:**
+   - Bullpup rifle, pressure: sustained hits build a stagger (e.g. 5 hits within 1 s), recoil climbs over a burst, spread
+     blooms on the hip.
+   - Ranchhand shotgun, power: close blasts shove and can knock small creatures back or down (`UCreatureKnockComponent`),
+     sharp falloff past its range, the pump's rhythm heard and felt.
+   - Drover revolver, precision: its own crit multiplier above the 1.5x rule (needs the user's OK; the per-gun
+     multiplier already exists in `LooterCombat::HitDamage`), longer crit hit-stop, a ring on a crit.
+   - Handling: aim speed, move speed while aiming, swap speed per kind.
+4. **Tune with the user:** they play with the cvars, Main bakes the numbers; then the friend plays a new build.
+
+Checks: tests for the new rules (`Looter.Gunfeel.*`), all tests pass; perf at RR spawn with 8 spiders on Medium before
+and after (target 8.3 ms); no capture runs (the user's 2026-10-20 call).
+Agents: GUNFEEL-REACT (Opus: Combat, Creatures), GUNFEEL-KICK (Sonnet: Weapons recoil/kick, rumble, Settings),
+GUNFEEL-SOUND (Opus: Art/Sounds, after the pack is approved); one shared contract (cvar names, events) from Main first.
+Open questions for the user, asked at their step: the sound pack; the revolver's crit multiplier.
