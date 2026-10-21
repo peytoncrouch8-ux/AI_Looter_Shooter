@@ -187,8 +187,7 @@ What's there now (why it feels weak):
 - The three guns differ in numbers but play the same way: aim, click, the target flashes.
 
 Steps (each tuned live by `Looter.Gunfeel.*` cvars so the user tunes by feel in PIE, then the numbers go into code):
-0. **Baseline:** package a test build of today's game (Pipeline "Packaging a test build") for the user's friend, before
-   anything changes; their notes are the yardstick.
+(No baseline or friend build in this plan: the user, 2026-10-21.)
 1. **Every hit reacts** (Combat/HitReaction, Creatures/*Pose/*React):
    - A flinch on every hit: 60-150 ms, size by the hit's share of health, away from the shot, at the hit spot: a
      spider's struck leg or body jerks, the slime dents and wobbles there, the Unpaid jolts and its coal flares, a miner
@@ -212,9 +211,9 @@ Steps (each tuned live by `Looter.Gunfeel.*` cvars so the user tunes by feel in 
    - Drover revolver, precision: its own crit multiplier above the 1.5x rule (needs the user's OK; the per-gun
      multiplier already exists in `LooterCombat::HitDamage`), longer crit hit-stop, a ring on a crit.
    - Handling: aim speed, move speed while aiming, swap speed per kind.
-4. **Tune with the user:** they play with the cvars, Main bakes the numbers; then the friend plays a new build.
+4. **Tune with the user:** they play with the cvars, Main bakes the numbers.
 
-Checks: tests for the new rules (`Looter.Gunfeel.*`), all tests pass; perf at RR spawn with 8 spiders on Medium before
+Checks: only the new rules' tests (`Looter.Gunfeel.*` and any changed group), once, at each commit (CLAUDE.md); perf at RR spawn with 8 spiders on Medium before
 and after (target 8.3 ms); no capture runs (the user's 2026-10-20 call).
 Agents: GUNFEEL-REACT (Opus: Combat, Creatures), GUNFEEL-KICK (Sonnet: Weapons recoil/kick, rumble, Settings),
 GUNFEEL-SOUND (Opus: Art/Sounds, after the pack is approved); one shared contract (cvar names, events) from Main first.

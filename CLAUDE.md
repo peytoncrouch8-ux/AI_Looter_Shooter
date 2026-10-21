@@ -55,7 +55,8 @@ keep it short; details go in the pipeline.
 - **Build** with the editor closed: `Tools\launch.ps1 -Build` closes it, builds, reopens, waits for the MCP server
   (full rebuild ~2.5 min). No unity build: every `.cpp` includes what it uses; anonymous-namespace names can't clash.
   For people: `Launch AI_Looter_Shooter.bat` plays; `Launch AI_Looter_Shooter Editor (backup).bat` builds and opens.
-- **Tests:** `Tools\runtests.ps1` runs every `Looter.*` test (editor open). Keep all passing.
+- **Tests** (the user, 2026-10-21): run only the new or changed work's tests, once, when it's committed:
+  `Tools\runtests.ps1 -Filter Looter.<Group>` (editor open). No full `Looter` run unless the user asks.
 - **Performance:** `Tools\perf.ps1 -Label "what changed" -Exec "Looter.Quality Medium"` (editor closed) before and
   after anything that could change cost; `Tools\tour.ps1` for every viewpoint. Options in the pipeline.
 - **Editor automation** over MCP, port 8000: `Tools\mcp.ps1 <toolset> <tool> '<json>'`, `Tools\runscript.ps1`
