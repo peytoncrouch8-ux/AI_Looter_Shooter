@@ -34,6 +34,7 @@ in the scene: a new part needs a model here and a row there, under the same key.
 The element tubes (EmberTube6, SaintTube6, SaltTube6: the Tube6's tube, cap and clamp)
 wear their element (2026-10-22, looter_guns' element pieces): Ember heat-scored metal and ember vents, Soul-light
 pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt salt crystals and cyan-white inlays.
+Each also dresses a plate on the receiver's left flank (flank_dress), the side first person sees, since the pump hides the tube.
 `-- --elements` renders Saved/ArtPreviews/Weapons/Ranchhand_Elements.png (a row per element: first person, side, the part
 alone).
 
@@ -532,6 +533,52 @@ EXPOSED = (47.6, 52.3)
 BEHIND = (20.4, 27.0)       # and from the receiver to the pump at rest (the racked pump covers it)
 
 
+FLANK = (5.8, 14.0)          # the left flank's plate: between the receiver's rear panel lines and its front vents
+FLANK_V = (-2.2, 1.3)        # (every body is flat sided here, the right side holds the ejection port, so the left only)
+PLATE_W = 1.62               # the plate's centre across the gun: its face a little proud of the narrowest body's side
+
+
+def flank_plate(m, mat):
+    """A slim plate on the receiver's left flank, where the first-person eye looks at the gun from above and behind (the
+    pump hid the tube's own dress there, 2026-10-22). Narrow bodies show its whole thickness, wide ones swallow it."""
+    a, b = FLANK
+    c, d = FLANK_V
+    g.add(m, lg.slab([(a + 0.3, c), (b - 0.3, c), (b, c + 0.3), (b, d - 0.3), (b - 0.3, d), (a + 0.3, d), (a, d - 0.3),
+                      (a, c + 0.3)], 0.5, w=PLATE_W, bevel=0.1, segments=1, mat=mat, round=0.2))
+
+
+def flank_dress(m, kind):
+    """The element's dress on that plate (and over the pump's flank above it), in first person's view."""
+    a, b = FLANK
+    c, d = FLANK_V
+    face = PLATE_W + 0.25                         # the plate's outer face
+    mid = (a + b) * 0.5
+    if kind == 'ember':
+        flank_plate(m, lg.SCORCHED)
+        for k in range(4):                        # glowing slits, slanted like the receiver's own vents
+            u = a + 0.9 + k * 1.6
+            g.add(m, lg.slab([(u, c + 0.45), (u + 0.5, c + 0.45), (u + 1.1, d - 0.45), (u + 0.6, d - 0.45)], 0.1,
+                             w=face + 0.03, bevel=0.0, segments=1, mat=lg.EMBER))
+        for v in (c + 0.1, d - 0.1):              # temper-blue edge strips
+            g.add(m, lg.box(a + 0.25, b - 0.25, v - 0.1, v + 0.1, 0.1, w=face + 0.04, bevel=0.0, mat=lg.TEMPER))
+    elif kind == 'saint':
+        flank_plate(m, lg.GILT)
+        g.add(m, *lg.medal((mid, (c + d) * 0.5 + 0.1, face), (0.0, 0.0, 1.0), 1.0, up=(0.0, 1.0, 0.0)))
+        for v in (c + 0.2, d - 0.2):              # gold-white glow bands above and below
+            g.add(m, lg.box(a + 0.35, b - 0.35, v - 0.07, v + 0.07, 0.08, w=face + 0.04, bevel=0.0, mat=lg.SOUL))
+        for u0, u1 in ((a + 0.5, mid - 1.4), (mid + 1.4, b - 0.5)):
+            g.add(m, *lg.vine((u0, (c + d) * 0.5 + 0.1, face), (u1, (c + d) * 0.5 + 0.1, face), (0.0, 0.0, 1.0), 0.28,
+                              waves=1.0, thick=0.05, curls=False))
+    else:
+        flank_plate(m, lg.STEEL)
+        for k, (u, v, n) in enumerate(((a + 0.9, c + 0.7, 0.4), (mid + 0.4, c + 0.5, 0.2), (b - 0.9, c + 0.8, 0.3),
+                                        (a + 1.1, d - 0.5, -0.4), (b - 1.3, d - 0.6, -0.3))):
+            g.add(m, *lg.salt_cluster(730 + k, (u, v, face), (0.0, n, 1.0), 0.9, 4, length=(0.7, 1.5),
+                                      r=(0.18, 0.32), up=(1.0, 0.0, 0.0), squash=0.5))
+        for v in (c + 1.45, d - 0.8):             # frosted cyan-white inlays between the crystals
+            g.add(m, lg.box(a + 0.5, b - 0.5, v - 0.07, v + 0.07, 0.08, w=face + 0.04, bevel=0.0, mat=lg.SALT_GLOW))
+
+
 def element_tubes(M):
     u0, v = MAG_AT
     end = u0 + 34.0
@@ -552,6 +599,7 @@ def element_tubes(M):
     g.add(m, lg.tube(end + 0.7, end + 0.95, 1.23, v=v, segments=16, mat=EMBER))                             # a hot ring
     for side in (-1.0, 1.0):
         g.add(m, lg.box(end - 1.2, end + 0.2, v + 0.6, v + 0.85, 0.06, w=side * 1.12, bevel=0.0, mat=EMBER))
+    flank_dress(m, 'ember')
 
     # Blued steel in pale gold: a gilt cap and clamp with a saint's medal each side, a gold-white glow band, filigree,
     # a little lantern hung under the clamp.
@@ -570,6 +618,7 @@ def element_tubes(M):
         g.add(m, *lg.vine((e0 - 0.2, v, side * 1.04), (e0 + 1.25, v, side * 1.04), (0.0, 0.0, side), 0.3, waves=0.5,
                           thick=0.05, curls=False))
     g.add(m, *lg.hanging_lantern(end - 0.5, v - 0.85, h=1.9))
+    flank_dress(m, 'saint')
 
     # Bare steel crusted with salt: crystals round the cap and the clamp's foot, frosted cyan-white rings, a salted cap.
     m = M('SaltTube6')
@@ -584,6 +633,7 @@ def element_tubes(M):
                                   length=(0.7, 1.4), r=(0.18, 0.3), up=(1.0, 0.0, 0.0), squash=0.5))
         g.add(m, *lg.salt_cluster(720 + int(side), (end + 1.0, v, side * 1.2), (0.3, -0.2, side), 0.5, 3,
                                   length=(0.61, 1.23), r=(0.15, 0.27)))
+    flank_dress(m, 'salt')
 
 
 def well(m, u_front=19.6, u_back=13.4, depth=-5.2):

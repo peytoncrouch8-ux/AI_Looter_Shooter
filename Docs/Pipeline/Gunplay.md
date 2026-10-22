@@ -173,6 +173,7 @@ moments. Code: CODEMAP "Elements", `Weapons/PartEffect*`, `Loot/LootDropMoments`
   0.5), NamePriority 39 (an effect's word names the gun over an element's): Caroming (Ricochet), BoreThrough/ThroughAndThrough
   (Piercing), Triplet (Burst), Twinport/TwinBore6 (Twin), Blasting* (Explosive), Thunder* (Overcharge). A gun's element and
   effect: its first part in slot order with one (`WeaponParts::ElementOf/EffectOf`). Never rename a key.
+- **Small fixes (2026-10-22)**: the SMG helix's GunAmmoGlow takes the fitted element part's `ElementRules::FxColor` (Ember orange, Soul-light gold-white, Grave-salt cyan; `MakeGauge(Slot, Source, Element)`, ammo gauge only; plain helixes keep the art's orange; test `HelixColor`); seen in PIE, Saintlit Rustler pale. The Ranchhand's element tubes sit under the pump, unseen in first person, so each also dresses a plate on the receiver's left flank (`flank_dress` in Ranchhand.py: Ember scorched with glowing slits, Saint gilt with a medal and gold-white bands, Salt steel with crystals; u 5.8-14, v -2.2..1.3, in the Magazine part; the right flank holds the ejection port). Seen in PIE (Saintlit Ranchhand).
 - **Weakness table** (`ElementRules`, by class: spiders incl. Spitter and Gravemother = chitin; slimes = gel; AUnpaidCreature =
   Unpaid; dead miners, Foreman, Bell-Ringer, Abel = the rest of the dead): Ember weak chitin+gel, resisted by the Unpaid;
   Soul-light weak Unpaid+dead, resisted by slimes; Grave-salt weak spirits (Warded or Phasing trait, Ethereal tier, an

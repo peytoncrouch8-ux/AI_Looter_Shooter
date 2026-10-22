@@ -1,5 +1,6 @@
 #include "Weapons/WeaponModelComponent.h"
 #include "AI_Looter_Shooter.h"
+#include "Elements/ElementRules.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Components/StaticMeshComponent.h"
@@ -50,7 +51,7 @@ UMaterialInterface* UWeaponModelComponent::FindGaugeMaster()
 	return Found.Get();
 }
 
-UMaterialInstanceDynamic* UWeaponModelComponent::MakeGauge(FName Slot, UMaterialInterface* Source)
+UMaterialInstanceDynamic* UWeaponModelComponent::MakeGauge(FName Slot, UMaterialInterface* Source, ELooterElement Element)
 {
 	UMaterialInterface* Master = FindGaugeMaster();
 	UMaterialInstanceDynamic* Gauge = UMaterialInstanceDynamic::Create(Master ? Master : Source, this);
@@ -62,6 +63,12 @@ UMaterialInstanceDynamic* UWeaponModelComponent::MakeGauge(FName Slot, UMaterial
 		{
 			Gauge->SetVectorParameterValue(TEXT("Color"), Color);
 		}
+	}
+	// An element helix glows in its element's hue (the round count only; the heat rings keep the art's): the art's ember orange
+	// drowned the Soul-light part's gold-white and the salt's cyan.
+	if (Slot == AmmoGlowSlot && Element != ELooterElement::None)
+	{
+		Gauge->SetVectorParameterValue(TEXT("Color"), ElementRules::FxColor(Element));
 	}
 	Paints.Add(Gauge);
 	if (Slot == AmmoGlowSlot)
@@ -152,4 +159,14 @@ void UWeaponModelComponent::SetAmmoGauge(float Fill, float Strength)
 void UWeaponModelComponent::SetHeatGauge(float Fill, float Strength)
 {
 	SetGauge(HeatGauge, Fill, Strength);
+}
+
+FLinearColor UWeaponModelComponent::GetAmmoGaugeColor() const
+{
+	FLinearColor Color = FLinearColor::Black;
+	if (AmmoGauge)
+	{
+		AmmoGauge->GetVectorParameterValue(FMaterialParameterInfo(FName(TEXT("Color"))), Color);
+	}
+	return Color;
 }

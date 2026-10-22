@@ -7,6 +7,16 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 Player shield, gun manufacturers (a concept sheet first for the user's pick), a bounty board, playtest builds; plus
 per-place ground detail and small fixes. Contract `Docs/Work/2026-10-22-Next/CONTRACT.md`. Lane: PERF first (quiet),
 then merges as jobs report; PLAYTEST packages last.
+Perf (quiet noon): tour worst 8.1 ms (Aerial, Aerial_Dusk, PointOverValley_FarShadow; render-thread bound); fights
+7.6-7.8 avg, p95 8.5-9.4; draws +250-400 since 10-14 (new dressing should be instanced). **The user approved the four
+makers as shown** (Roundhouse, Saint Maud, Windfall, Meridian; `Saved/ArtPreviews/Weapons/Concepts/Makers.png`,
+`Docs/Work/2026-10-22-Next/MAKERS.md`). SMALL-FIXES copied in and building. `Tools/hashcheck.sh <HASHES.txt>` checks a
+holding tree's originals (either column order) before Main copies it.
+GROUND-DETAIL phase 1 ready (place map `Art/Levels/area_places.py`, GroundPlaces set, M_Terrain branch; previews
+`Saved/ArtPreviews/Terrain/Place_RansomsRest_*.png`; phase 2: build_area dressing -> M_Terrain -> scatter -> grabs/perf).
+MAKERS phase 1 ready (`Saved/MakersCode`, ForMain patches for others' files: WeaponModelComponent after SMALL-FIXES,
+build_world_materials after GROUND-DETAIL, InkedIcons with SHIELD, LoadoutWidgetInspect, WeaponDevCommands; old saves
+load as Roundhouse). Lane: SMALL-FIXES (building) -> GROUND-DETAIL -> MAKERS -> SHIELD -> BOUNTY -> PLAYTEST.
 
 ## State at 2026-10-22 noon: the queue is empty
 Done since the morning list (all committed and pushed, last 2011943): VFX-2 (fire explosions, no white-ghost kill), FP

@@ -269,6 +269,7 @@ committed: its names are here). The session keeps the pick; the character takes 
   - Tune live: `Looter.Pose.Set <Hero> <Idle|Aim>.<Field> <Value>` (in memory), bake `Looter.Pose.Dump` lines into the
     script. Tests `Looter.Pose.Idle.Clock`, `.Curl`, `.Heroes`, `.HeadLift` (`Tests/PlayerIdleTests.cpp`),
     `Looter.Pose.Aim.Raise`, `.Data` (`Tests/PoseAimTests.cpp`).
+  - Gauge's revolver aim (2026-10-22): the two-hand aim splayed his arms over the pauldrons (5.5 cm wider than the mannequin's shoulders), so HERO_AIM Gauge has `elbow_in` 1.4 (elbows down 40 not 35, out 2) and `grip_ahead` 3 (arms straighter). Judged in PIE from behind-right (`Looter.ThirdPerson.ShoulderRight 70, ArmLength 110, ShoulderUp 15`; reset them to -1): hands and forearms a little lower and closer in, the arms under the pauldron cap; the difference is small from any camera, no front view aims. Not tuned further without the user's eye.
 - Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`);
   `Looter.Heroes.Stand` (`Tests/HeroStandTests.cpp`: the stand builds for each of the five with their own body and
   retargeter, turns, stops; the screen puts the chosen hero on it, the right stick turns them, a hero with no body gets

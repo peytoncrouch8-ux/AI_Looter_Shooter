@@ -18,6 +18,8 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	}
 	const FWeaponLook Look = WeaponParts::Pick(Instance);
 	const float Wear = WeaponParts::Wear(Instance);
+	// The element part fitted (if any) tints the helix glow, so the round count shows in its hue.
+	const ELooterElement GunElement = WeaponParts::ElementOf(Look);
 	ModelScale = ScaleFor(Definition->Kind);
 
 	// The parts share their materials; the ones this gun colors become one dynamic instance each, shared by every part.
@@ -38,7 +40,7 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		if (bGauge)
 		{
 			// The SMG's helix and the LMG's heat rings: this gun's own instance, which the game lights as it fires.
-			UMaterialInstanceDynamic* Gauge = MakeGauge(Slot, Material);
+			UMaterialInstanceDynamic* Gauge = MakeGauge(Slot, Material, GunElement);
 			Painted.Add(Slot, Gauge);
 			return Gauge;
 		}

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
+#include "Elements/LooterElement.h"
 #include "Weapons/WeaponTypes.h"
 #include "WeaponModelComponent.generated.h"
 
@@ -120,6 +121,8 @@ public:
 	void SetAmmoGauge(float Fill, float Strength);
 	void SetHeatGauge(float Fill, float Strength);
 	bool HasAmmoGauge() const { return AmmoGauge != nullptr; }
+	/** The round-count glow's color now (the element's hue on a gun with an element part); black without the gauge. */
+	FLinearColor GetAmmoGaugeColor() const;
 	bool HasHeatGauge() const { return HeatGauge != nullptr; }
 
 	/** A launcher's exhaust mouth (SOCKET_Backblast) and the way it faces, in the gun's space; false without one. */
@@ -187,8 +190,12 @@ private:
 	/** Puts the cylinder where its swing and its turn have it: turned about its own axis, swung about its crane. */
 	void PoseCylinder();
 
-	/** A gauge slot's material for this gun (WeaponModelKinds.cpp): the gauge master's instance in Source's color, else Source's own. */
-	UMaterialInstanceDynamic* MakeGauge(FName Slot, UMaterialInterface* Source);
+	/**
+	 * A gauge slot's material for this gun (WeaponModelKinds.cpp): the gauge master's instance in Source's color, else Source's own.
+	 * A gun with an element part fitted lights its round count (the ammo slot only) in that element's hue, so the orange count
+	 * does not drown a Soul-light or Grave-salt helix.
+	 */
+	UMaterialInstanceDynamic* MakeGauge(FName Slot, UMaterialInterface* Source, ELooterElement Element = ELooterElement::None);
 
 	/** The launcher's next rocket for its reload, beside the loaded one (WeaponModelKinds.cpp; none without a projectile mesh). */
 	void MakeRocketLoad(const UWeaponDefinition& Definition, UStaticMeshComponent& Loaded);

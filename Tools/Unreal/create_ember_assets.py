@@ -228,7 +228,10 @@ HERO_AIM = {
     'Ellis': dict(),
     'Odessa': dict(),
     'Crane': dict(head_down=9.0),
-    'Gauge': dict(eye_offset=(0.0, 6.0, 2.0), head_down=3.0, head_cant=2.0),
+    # elbow_in 1.4 (elbows drop 40 cm instead of 35 and stay tucked) and grip_ahead 3 (arms straighter): the revolver's two-hand
+    # aim splayed his upper arms out over the pauldrons, which stand 5.5 cm wider than the mannequin's shoulders. Untested
+    # in PIE (2026-10-22): tune with Looter.Pose.Set Gauge Aim.ElbowIn / Aim.GripAhead, bake with Looter.Pose.Dump.
+    'Gauge': dict(eye_offset=(0.0, 6.0, 2.0), head_down=3.0, head_cant=2.0, elbow_in=1.4, grip_ahead=3.0),
     'Pike': dict(),
 }
 
