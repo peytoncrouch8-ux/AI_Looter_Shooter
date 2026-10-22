@@ -166,7 +166,7 @@ def hang_apples(plant, rng, crowns, fewest, most):
     apple_uv = swatch('FruitRed', 0.7, 0.5)
     for center, radius in crowns[0]:
         # Twice the (least, most) asked for: an orchard tree reads as fruiting from the road only with a good few showing
-        # (the user, 2026-10-21: four a tree looked bare).
+        # (Main, 2026-10-21: about four a tree read bare in the previews).
         for _ in range(rng.randint(fewest * 2, most * 2)):
             d = (random_unit(rng) * Vector((1.0, 1.0, 0.5)) - UP * 0.35).normalized()
             plant.ball(center + d * (radius * 1.1 + 0.25), rng.uniform(0.09, 0.11), palette, apple_uv,
