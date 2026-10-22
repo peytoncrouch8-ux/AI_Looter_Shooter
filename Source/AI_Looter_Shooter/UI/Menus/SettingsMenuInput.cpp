@@ -113,6 +113,30 @@ void USettingsMenuWidget::HandleCameraShakeReleased()
 	SetKeyboardFocus();
 }
 
+void USettingsMenuWidget::HandleControllerRumbleChanged(float Value)
+{
+	// The next shot or hit taken on a gamepad rumbles at the new strength.
+	if (UControlSettingsSubsystem* Controls = GetControls())
+	{
+		Controls->SetControllerRumble(Value, /*bSave*/ false);
+	}
+	if (ControllerRumbleValue)
+	{
+		ControllerRumbleValue->SetText(FText::FromString(PercentText(UControlSettingsSubsystem::ClampControllerRumble(Value))));
+	}
+}
+
+void USettingsMenuWidget::HandleControllerRumbleReleased()
+{
+	if (UControlSettingsSubsystem* Controls = GetControls())
+	{
+		Controls->SaveSettings();
+		SetStatus(FString::Printf(TEXT("Controller rumble %s."), *PercentText(Controls->GetControllerRumble())), LooterUI::Color::TextDim());
+	}
+	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
+	SetKeyboardFocus();
+}
+
 void USettingsMenuWidget::HandleTransparencyChanged(float Value)
 {
 	// Every UI follows at once, this menu included, so the effect shows while dragging.

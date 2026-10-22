@@ -20,6 +20,16 @@ enum class ECreatureKnock : uint8
 	Dizzy,
 };
 
+/** How a knock looks (UCreatureKnockComponent::Knock). */
+UENUM()
+enum class ECreatureKnockStyle : uint8
+{
+	/** Head over heels along the throw, then reeling with sparks circling its head (the ember powers). */
+	Fling,
+	/** Rocked back along the throw and upright again as it lands, then a moment to gather itself: no stars (a shotgun blast). */
+	Shove,
+};
+
 /**
  * A creature knocked off its feet and left reeling (the ember powers: Dust Devil's fling; a trip or a drag later). While
  * knocked or dizzy its brain waits, as for a stagger (ACreatureBase::TickBrain asks HoldsBrain): it starts no attack and
@@ -30,6 +40,7 @@ enum class ECreatureKnock : uint8
  *    lands upright.
  *  - Dizzy: from the landing (ACharacter::LandedDelegate, or the movement finding the floor), for the seconds asked: a puff
  *    of dust where it came down, its body swaying, and three sparks circling over its head (FWeaponFX streaks).
+ * A close shotgun blast knocks a small one back in the Shove style (UCreatureHitReactionComponent): rocked back, no stars.
  * A boss is never knocked or dazed (its fight's rules); a Legendary monster goes a shorter way (FlingShare); a bigger body
  * shorter still. Death ends it at once, the body put back. Ticks only while knocked or dizzy.
  */
@@ -47,9 +58,15 @@ public:
 	/**
 	 * Flings it along Away (flattened) about Distance cm, the arc's top Height cm over where it leaves, then leaves it dizzy
 	 * DizzySeconds once it lands. Returns the launch velocity; zero when it isn't thrown (a boss, the dead, one held back,
-	 * no ground to land on: then it's only dazed where it stands, except a boss).
+	 * no ground to land on: then it's only dazed where it stands, except a boss). A Shove knock only rocks back (ShoveTip)
+	 * and gathers itself after, without the dizzy sway and sparks; with no ground for it, it only holds where it stands.
 	 */
-	FVector Knock(const FVector& Away, float Distance, float Height, float DizzySeconds);
+	FVector Knock(const FVector& Away, float Distance, float Height, float DizzySeconds, ECreatureKnockStyle InStyle = ECreatureKnockStyle::Fling);
+
+	/** How a shove knock looks: rocked back this far (degrees) at its arc's top. */
+	static constexpr float ShoveTip = 24.f;
+
+	ECreatureKnockStyle GetStyle() const { return Style; }
 
 	/** Dizzy where it stands for Seconds (a longer daze already on keeps its own). Nothing for a boss or the dead. */
 	void Daze(float Seconds);
@@ -106,6 +123,7 @@ private:
 	void DrawDizzySparks();
 
 	ECreatureKnock State = ECreatureKnock::None;
+	ECreatureKnockStyle Style = ECreatureKnockStyle::Fling;
 	/** Seconds in the current state. */
 	float StateTime = 0.f;
 	float DizzyLeft = 0.f;

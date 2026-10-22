@@ -244,6 +244,12 @@ private:
 
 	UFUNCTION()
 	void HandleCameraShakeReleased();
+
+	UFUNCTION()
+	void HandleControllerRumbleChanged(float Value);
+
+	UFUNCTION()
+	void HandleControllerRumbleReleased();
 	void HandleButton(ULooterButton* Button);
 	void StartListening(int32 BindingIndex);
 	void StopListening();
@@ -351,6 +357,9 @@ private:
 	/** How strongly the view kicks and shakes, 0-100%. */
 	UPROPERTY(Transient) TObjectPtr<USlider> CameraShakeSlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> CameraShakeValue;
+	/** How strongly a gamepad rumbles (shots, hits taken), 0-100%. */
+	UPROPERTY(Transient) TObjectPtr<USlider> ControllerRumbleSlider;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ControllerRumbleValue;
 	/** The volume sliders and their percentages, in EAudioVolume's order. */
 	UPROPERTY(Transient) TArray<TObjectPtr<USlider>> VolumeSliders;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> VolumeValues;

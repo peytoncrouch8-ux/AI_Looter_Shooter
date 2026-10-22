@@ -1702,6 +1702,80 @@ a whole build cycle).
 - Lesson: setting a USoundClass's `child_classes` all at once parents only the first new child; add them one at a time
   (`build_sound_bank.py` does).
 
+## Gunfeel: kick and handling (built 2026-10-21)
+
+Code: `Weapons/GunfeelKickTuning.h/.cpp` (cvars, accessors, plain rules; `GunfeelKick::Default::*` = shipped numbers),
+`GunfeelKickRumble.cpp`, `WeaponBaseKick.cpp`. Tests: `Tests/GunfeelKickTests.cpp`, `Looter.Gunfeel.Kick.*`. All cvars
+`Looter.Gunfeel.*`, read when asked (live in PIE), defaults in brackets.
+- View kick: `ViewKicks::ForShot(...)` x `Kick.Rifle/.Shotgun/.Revolver` [1.6/1.5/1.4] in `AddShotKick` (the pure function and
+  its tests are unchanged). The stack still holds 3 degrees and 5% FOV.
+- Gun model kick (back, flip, twist, roll) x `Recoil.<Kind>` [1.4/1.5/1.4] in `AWeaponBase::GetRecoilProfile`; aim kick untouched;
+  `Recoil.ShotgunSettle` [0.8] x its snappiness. Muzzle flash x `Muzzle.Scale1P` [1.4] when drawn first person.
+- Rifle: aim kick grows `Recoil.RifleClimb` [0.06] per shot of a burst up to `Recoil.RifleClimbMax` [1.8]x (a pause over 0.35 s
+  starts over; `FWeaponRecoil::GetClimb`). Hip bloom: `Spread.RifleBloom` [0.15] per shot (a quarter through the sight), cap
+  `Spread.BloomMax` [2.0]x, closes at `Spread.BloomRecovery` [3.0] as an exponential rate per second. Only a player's rifle blooms;
+  the crosshair follows `GetEffectiveSpread`.
+- Shotgun falloff (`BulletSubsystem::ResolveHit` via `GunfeelKick::DamageShareAtDistance`): full to `Shotgun.FalloffStart` [0.6] x
+  range, `FalloffFloor` [0.25] at `FalloffEnd` [1.6] x range. Every other gun keeps `FWeaponStats::DamageAtDistance` (full to range,
+  0.5 at 2x range). A pellet whose gun is gone before it lands falls off the gentle way.
+- Revolver crit `Crit.Revolver` [1.75]: `Shot.CritMultiplier = max(curse's, kind's)`; damage numbers need nothing.
+- Handling: sights up in `BaseAimSeconds` (0.2 s) / Handling x `Aim.Time.<Kind>` [1.0/1.1/0.8]; aimed walk = 0.65 x
+  `Aim.Move.<Kind>` [1.0/0.9/1.1] (`PlayerLocomotionComponent.cpp`); holster (`HolsterSeconds`, 0.14-0.32 s) and draw
+  (`ReadySeconds`, 0.35 s / Handling) x `Swap.<Kind>` [1.0/1.1/0.8].
+- Low ammo: after every shot `GunshotSound::PlayLowAmmo`; clicks for the last `LowAmmo.Share` [0.25] of the magazine (floor, at
+  least the last round), pitch 1.0 at the first click up to `LowAmmo.PitchTop` [1.35] at the last round; magazines under 4 never;
+  the player's own gun only; cue `Weapon.<Kind>.LowAmmo` (GUNFEEL-SOUND makes the sound).
+- Rumble: `Rumble.Rifle` [0.35 for 0.06 s], `.Shotgun` [0.9 / 0.18 s], `.Revolver` [0.7 / 0.12 s] (`.RifleSeconds` etc.), hit taken
+  `Rumble.Hurt` [0.6] at a quarter of health or more (a scratch a quarter of that, 0.1-0.3 s), all x `Rumble.Scale` [1.0] x the
+  "Controller rumble" setting (Settings > Controls, default 100%, `ULooterControlsSave::ControllerRumble`, old saves read 100%;
+  `Looter.ControllerRumble [0-1]`). Engine `PlayDynamicForceFeedback`, no assets. Only a local player whose last input was a
+  gamepad's: a Slate input pre-processor (`FLastInputWatch`, started by `UControlSettingsSubsystem::Initialize`) notes it.
+- Didn't check (needs a build and play): the feel numbers, rumble on a real pad, the extra settings row's layout, the first-person
+  gun motion size, the shotgun's settle.
+
+## Gunfeel: hit reactions (built 2026-10-21)
+
+Code: `Combat/GunfeelReactTuning.h/.cpp` (`FGunfeelReactTuning`: cvars, `Live()`, field values = defaults), `Combat/HitReaction`
+(`FHitReaction` rules, `FCreatureHit`), `Creatures/CreatureHitReactionComponent` (`TakeHit`), `CreatureKnockComponent` (Shove
+style), each kind's `OnHurt`, `Weapons/WeaponFXCreatures.cpp`. Tests: `Tests/GunfeelReactTests.cpp`, `Looter.Gunfeel.React.*`.
+Cvars `Looter.Gunfeel.*`, read at each hit (live in PIE), defaults in brackets.
+- Order of a hit: `ACreatureBase::HandleDamaged` -> `HitReaction->TakeHit` (the component no longer binds `OnDamaged` itself) ->
+  `LastHit` stored, `bFresh` -> the kind's `OnHurt`. A flinch a boss plays itself (the Gravemother's sink, stone jolts call
+  `ASpiderCreature::OnHurt` straight) isn't fresh: strength 1, the spider's old 7/14 cm, 5/7 degree bases.
+- Main's two fixes at the build: a boss flinches today's size x `Flinch.BossScale` (1) whatever the hit (share-sized, its
+  huge health made it ~0.24x); the killing hit flinches at strength 1 (`FCreatureHit::bKilled`): at 2.5x it fought the
+  spider's death rear (`Looter.Creatures.Anim.SpiderDeathCurl` reared 7 cm, needs 8+).
+- Bug seen at the first build: an anonymous-namespace `Defaults` in a .cpp breaks the build (C4459 as an error: hides
+  UnrealType.h's parameter of that name). Name file-private globals specifically (`ReactDefaults`).
+- Gun from the hit: `DamageCauser` cast to `AWeaponBase` -> `GetInstance().Definition->Kind` (`UCreatureHitReactionComponent::KindOf`).
+- Flinch: `Flinch.Scale` [1] x clamp(0.6 + `Flinch.DamageGain` [3] x burst share, 0.6, `Flinch.Max` [2.5]), crit x `CritScale`
+  [1.4], boss x `BossScale` [0.4]. Burst share: a blast's last pellet carries the blast's (kinds keep the strongest kick). Bases
+  raised so a rifle round reads at 20 m: spider kick 9/18 cm (was 7/14), tilt 7/10 degrees (5/7), caps 40 cm, 28 degrees, abdomen 22;
+  slime lean 10 (8), squash dent scaled (no lower than 0.55), core jiggle up to 2.5x; Unpaid flinch kick capped 3.8, arm fling up
+  to 2x, shroud up to 2x, a body hit stirs the coal 0.25 x strength. Miner, Bell-Ringer, Abel, Foreman: through the Unpaid's;
+  Spitter, Gravemother: the spider's. Numbers: a 300-health spider, rifle 12 = 0.72, revolver 52 = 1.12, a third = 1.6.
+- Slow: any non-boss hit, `Flinch.Slow` [0.55] for `SlowSeconds` [0.12] via `UMovementSlowComponent` (strongest wins, no stacking).
+  The creature's brain sets `MaxWalkSpeed` in its own frame (actor ticks PostPhysics), so the slow component made on a creature is
+  moved to `TG_PostPhysics` after its actor; otherwise the brain's speed won every frame.
+- Stagger: heavy = crit or burst >= `Stagger.HeavyShare` [0.12]; Basic `Stagger.Seconds` [0.4], ranks in the old proportions;
+  `Stagger.Cooldown` [0.7]; shove `Stagger.Shove` [420]. Hit-stops: `HitStop.Crit` [0.05], `.Heavy` [0.035] (shares the crit's
+  0.25 s cooldown), `.Kill` [0.075], `.CritKill` [0.1]; melee unchanged.
+- Rifle pressure: `Rifle.PressureHits` [5] within `PressureWindow` [1 s] = a stagger, same cooldown as any stagger.
+- Shotgun power: once a blast, burst >= `Shotgun.KnockShare` [0.35], shooter within `KnockRange` [600 cm]: size <= `KnockSize`
+  [1.2] knocked back (`UCreatureKnockComponent::Knock`, Shove style: rocked back 24 degrees, no stars; launch `KnockSpeed` [520]
+  across, `KnockHeight` [40] up = about 3 m, then `KnockHold` [0.25 s]), else staggered. Skips the stagger cooldown (each takes a
+  third of its health); a stagger the same blast began gives way to it. Never Legendary or boss.
+- Revolver: crit hit-stop `Revolver.CritHitStop` [0.09]; `GunshotSound::PlayCritRing` for a local player's revolver crit (bosses too).
+- Kills: corpse knock by gun (`CorpseKnockFor`): shotgun `Kill.ShotgunKnock` [650] lifted `ShotgunLift` [35 cm] in a sine arc
+  over the 0.35 s slide (ground rules go by the unlifted spot; set down when it stops), rifle `Kill.RifleKnock` [180], else 260;
+  a crit 380 where larger. Revolver crit kill: death burst x `Kill.RevolverBurst` [1.6] at the crit spot (within 2.5 m of the body)
+  plus a crit spurt there.
+- Spurts: x `Spurt.Scale` [1.5]; exit spray `Spurt.Exit` [0.6] of the entry's thrown along the shot from 8 cm in; pellets (mark
+  scale under 0.8) want half a hit each and share `Spurt.BlastBudget` [2] full hits per blast (80 ms, 6 m); past it, nothing but
+  a crit's pop. The spiders' ichor now spawns here (was `SpawnImpact`'s Flesh, which ignored pellet size).
+- Didn't check (needs a build and play): every feel number, the shove knock's look, the slow on a creature's steering, the corpse
+  lift on slopes, the exit spray's look through thin parts (legs), stagger frequency in packs (no stun-lock seen on paper).
+
 ## Packaging a test build
 
 - Run: close the editor (`Tools\close.ps1`; no game running either), then start `Tools\package.ps1` in the background.

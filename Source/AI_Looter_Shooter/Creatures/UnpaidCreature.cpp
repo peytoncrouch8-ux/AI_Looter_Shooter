@@ -3,6 +3,7 @@
 // UnpaidCreatureRig.cpp the body.
 
 #include "Creatures/UnpaidCreature.h"
+#include "Combat/GunfeelReactTuning.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/CreatureRankSettings.h"
@@ -41,6 +42,8 @@ namespace
 	/** A crit makes the coal flare this much, easing off at this rate. */
 	constexpr float CritFlare = 0.8f;
 	constexpr float FlareFade = 4.f;
+	/** Any body hit stirs the coal this much at a flinch strength of 1 (never past a crit's flare). */
+	constexpr float HitFlare = 0.25f;
 
 	/**
 	 * An asset made after this code (SK_Unpaid by Art/Models/Creatures/Unpaid.py, the clothes by
@@ -418,20 +421,27 @@ void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	{
 		return;
 	}
-	// A flinch away from the hit, its arms flung the other way (UnpaidCreatureArms.cpp); a shot on the coal makes it flare.
+	// A flinch away from the hit, its arms flung the other way (UnpaidCreatureArms.cpp), sized by the hit (Gunfeel); a shot
+	// on the coal makes it flare, and any hit stirs it a little.
+	const float Strength = GetLastHit().FlinchStrength(FGunfeelReactTuning::Live());
 	FlinchAway = GetActorRotation().UnrotateVector(GetActorLocation() - HitLocation).GetSafeNormal();
-	ReactToHit(bCritical);
+	ReactToHit(bCritical, Strength);
 	if (bCritical)
 	{
 		Heat = CritFlare;
 	}
+	else if (GetLastHit().bFresh)
+	{
+		Heat = FMath::Max(Heat, FMath::Min(HitFlare * Strength, CritFlare));
+	}
 	// The shroud jerks with it.
+	const float Jerk = (bCritical ? 160.f : 90.f) * FMath::Min(Strength, 2.f);
 	for (FShroudChain& Chain : Chains)
 	{
 		for (FShroudChain::FLink& Link : Chain.Links)
 		{
-			Link.BackSpeed += (bCritical ? 160.f : 90.f) * static_cast<float>(FlinchAway.X);
-			Link.SideSpeed += (bCritical ? 160.f : 90.f) * static_cast<float>(FlinchAway.Y);
+			Link.BackSpeed += Jerk * static_cast<float>(FlinchAway.X);
+			Link.SideSpeed += Jerk * static_cast<float>(FlinchAway.Y);
 		}
 	}
 }

@@ -144,7 +144,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool WantsToFire() const { return bWantsToFire; }
 
-	/** Spread half-angle (degrees) right now, including the holder's stance (crouching tightens it). */
+	/**
+	 * Spread half-angle (degrees) right now, including the holder's stance (crouching tightens it) and a rifle's bloom: each
+	 * shot of a burst opens the cone wider (GunfeelKick::BloomAfterShot) and it closes again once firing stops.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	float GetEffectiveSpread() const;
 
@@ -334,6 +337,10 @@ private:
 	void PlayReloadSteps(float Progress);
 	/** Moves the magazine or pump to where the reload has got to (back in place when not reloading). */
 	void UpdateReloadPart();
+	/** How much wider than its own the rifle's cone is open right now (0 closed; 1 is twice the spread), after recovering since the last shot. */
+	float GetSpreadBloom() const;
+	/** A shot opens the cone (rifle only; a quarter as much through the sight). */
+	void AddShotBloom();
 	/** Places the muzzle flash on the current model's muzzle and sets up its quads. */
 	void SetupMuzzleFlash();
 	void PlayMuzzleFlash();
@@ -384,6 +391,10 @@ private:
 	/** When it was last drawn, and how long it takes to come up (see GetReadyAlpha). */
 	double DrawnTime = -1000.0;
 	float ReadySeconds = 0.f;
+
+	/** The rifle's bloom as of BloomTime (it closes by itself; GetSpreadBloom). */
+	float SpreadBloom = 0.f;
+	double BloomTime = -1000.0;
 
 	/** Seconds the muzzle flash still shows, and how strong this shot's flash is. */
 	float FlashTimeLeft = 0.f;

@@ -419,8 +419,8 @@ private:
 	float ArmIntrusion(int32 Side, float* OutLever = nullptr) const;
 	/** Sets the arms' sway swinging (degrees a second, per side: back, and out from the body), for a hit or a twitch. */
 	void KickArm(int32 Side, float SwingSpeed, float OutSpeed);
-	/** A hit (its jolt along FlinchAway): the flinch kicked, both arms flung the other way, a crit harder. */
-	void ReactToHit(bool bCritical);
+	/** A hit (its jolt along FlinchAway): the flinch kicked, both arms flung the other way, a crit harder, all Strength times (Gunfeel). */
+	void ReactToHit(bool bCritical, float Strength = 1.f);
 	/** The flinch follows its fading kick on a stiff spring, so a hit jolts the body without a one-frame jump. */
 	void StepFlinch(float DeltaSeconds);
 

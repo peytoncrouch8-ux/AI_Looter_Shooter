@@ -8,6 +8,7 @@
 
 #include "Creatures/SpiderCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
+#include "Combat/GunfeelReactTuning.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
 #include "Components/CapsuleComponent.h"
@@ -18,9 +19,25 @@ namespace
 	/** A hit's kick holds this long (s) before it fades, at this share of its peak (the jolt's spring is SpiderCreature.cpp's). */
 	constexpr float HurtKickHold = 0.06f;
 	constexpr float HurtKickShare = 0.85f;
-	/** A hit tilts the body away from the shot this far at most (degrees; a crit half again): nose up from the front, rolled from the side. */
-	constexpr float HurtTiltPitch = 5.f;
-	constexpr float HurtTiltRoll = 7.f;
+	/**
+	 * A hit's kick at a flinch strength of 1 (cm at size 1; a crit's), and the most any is (Gunfeel's FlinchStrength runs
+	 * 0.6 to 3.5). 9 (it was 7 before every hit was sized) so a rifle round's reads at 20 m.
+	 */
+	constexpr float HurtKickBody = 9.f;
+	constexpr float HurtKickCrit = 18.f;
+	constexpr float HurtKickMost = 40.f;
+	/**
+	 * A hit tilts the body away from the shot this far at strength 1 (degrees; a crit half again): nose up from the front,
+	 * rolled from the side; never past HurtTiltMost. (5 and 7 before; the tilt is what reads farthest.)
+	 */
+	constexpr float HurtTiltPitch = 7.f;
+	constexpr float HurtTiltRoll = 10.f;
+	constexpr float HurtTiltMost = 28.f;
+	/** The abdomen's kick on a hit tops out here (degrees). */
+	constexpr float HurtAbdomenMost = 22.f;
+	/** A flinch not from a hit (a boss's own jolt calling OnHurt): the old kick (body, crit) and tilt (pitch, roll). */
+	constexpr float ScriptedKick[2] = { 7.f, 14.f };
+	constexpr float ScriptedTilt[2] = { 5.f, 7.f };
 
 	/** The notice beat: it rears this far (degrees, and cm at size 1), its fangs spread this wide, its front legs this share of the way to raised. */
 	constexpr float NoticeRear = 16.f;
@@ -71,9 +88,14 @@ void ASpiderCreature::OnAttackStarted()
 
 void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 {
-	// Flinch away from the hit; headshots rock it harder. A shotgun's pellets land together: the strongest kick stands, they
-	// don't add up.
-	const float Peak = (bCritical ? 14.f : 7.f) * GetSizeScale();
+	// Flinch away from the hit, sized by it (Gunfeel: a revolver round rocks it, a rifle round jerks it, a close blast
+	// throws its body back); headshots harder. A shotgun's pellets land together: the strongest kick stands (the last
+	// pellet carries the blast's whole share), they don't add up.
+	// A flinch the body plays itself (the Gravemother's sink and stone jolts call this straight) keeps its old size.
+	const bool bSized = GetLastHit().bFresh;
+	const float Strength = GetLastHit().FlinchStrength(FGunfeelReactTuning::Live());
+	const float Base = bSized ? (bCritical ? HurtKickCrit : HurtKickBody) : (bCritical ? ScriptedKick[1] : ScriptedKick[0]);
+	const float Peak = FMath::Min(Base * Strength, HurtKickMost) * GetSizeScale();
 	const FVector Away = (BodyFrame.GetLocation() - HitLocation).GetSafeNormal();
 	const FVector Kick = Away * (Peak * HurtKickShare);
 	if (Kick.SizeSquared() >= HurtKick.SizeSquared())
@@ -82,10 +104,13 @@ void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 		HurtHold = HurtKickHold;
 		// And tilted away from the shot: a hit on its front lifts its nose, one from the side rolls it over away from it.
 		const FVector Local = FRotator(0.f, GetActorRotation().Yaw, 0.f).UnrotateVector(Away);
-		const float Hard = bCritical ? 1.5f : 1.f;
-		HurtTiltKick = FVector(-Local.X * HurtTiltPitch * Hard, Local.Y * HurtTiltRoll * Hard, 0.f);
+		const float Hard = (bCritical ? 1.5f : 1.f) * Strength;
+		const float Pitch = bSized ? HurtTiltPitch : ScriptedTilt[0];
+		const float Roll = bSized ? HurtTiltRoll : ScriptedTilt[1];
+		HurtTiltKick = FVector(FMath::Clamp(-Local.X * Pitch * Hard, -HurtTiltMost, HurtTiltMost),
+			FMath::Clamp(Local.Y * Roll * Hard, -HurtTiltMost, HurtTiltMost), 0.f);
 	}
-	AbdomenKick = bCritical ? 10.f : 6.f;
+	AbdomenKick = FMath::Max(AbdomenKick, FMath::Min((bCritical ? 10.f : 6.f) * Strength, HurtAbdomenMost));
 }
 
 void ASpiderCreature::OnDied()

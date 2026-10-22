@@ -5,6 +5,8 @@
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/GunfeelKickTuning.h"
+#include "Weapons/GunshotSound.h"
 #include "Weapons/WeaponSounds.h"
 #include "Weapons/WeaponTrigger.h"
 #include "Affixes/WeaponRollLibrary.h"
@@ -164,6 +166,8 @@ void AWeaponBase::HandleFiring()
 	{
 		// A dud doesn't kick, and the crosshair doesn't bloom for it.
 		OnFired.Broadcast();
+		// The click of the magazine's last rounds (the last one is the reload's own, so none then).
+		GunshotSound::PlayLowAmmo(*this, CurrentMagazine, Instance.Stats.MagazineSize);
 	}
 
 	if (CurrentMagazine <= 0)
@@ -211,8 +215,9 @@ void AWeaponBase::FireShot()
 		Shot.Range = Instance.Stats.Range * FWeaponStats::MaxRangeFactor;
 		Shot.FalloffStats = Instance.Stats;
 		Shot.Damage = Instance.Stats.Damage;
-		// A cursed iron's critical hits (Unlucky's triple, Cold's extra); the game's 1.5x for the rest.
-		Shot.CritMultiplier = WeaponCurses::CritMultiplier(Instance);
+		// A cursed iron's critical hits (Unlucky's triple, Cold's extra) when larger than the kind's own: the revolver's
+		// 1.75x, the game's 1.5x for the rest.
+		Shot.CritMultiplier = GunfeelKick::CritMultiplier(Definition->Kind, WeaponCurses::CritMultiplier(Instance));
 		Shot.HitImpulse = Definition->HitImpulse;
 		Shot.Channel = TraceChannel;
 		Shot.TracerColor = Definition->TracerColor;
@@ -231,6 +236,8 @@ void AWeaponBase::FireShot()
 			Bullets->Fire(Shot);
 		}
 	}
+	// The next shot's cone is wider (a rifle's bloom).
+	AddShotBloom();
 
 	if (Definition->MuzzleFlashFX)
 	{
@@ -249,7 +256,7 @@ void AWeaponBase::FireShot()
 	{
 		PlayMuzzleFlash();
 	}
-	PlayCue(WeaponSounds::Fire(Definition->Kind), Definition->FireSound);
+	GunshotSound::PlayShot(*this);
 	// What a shot leaves: its brass, and heat in the barrel that smokes once firing stops.
 	EjectAfterShot();
 	NoteShotHeat();
@@ -291,20 +298,6 @@ void AWeaponBase::PlayAimIn() const
 void AWeaponBase::NotifyBulletHit(const FHitResult& Hit, float Damage, bool bCritical)
 {
 	OnHit.Broadcast(Hit, Damage, bCritical);
-}
-
-FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
-{
-	FWeaponRecoilProfile Profile = Instance.Definition ? Instance.Definition->Recoil : FWeaponRecoilProfile();
-	// The gun's Recoil stat (its parts) scales every kick, on the gun and on the aim alike; the springs stay the same.
-	const float Kick = Instance.Stats.Recoil;
-	Profile.KickBack *= Kick;
-	Profile.MuzzleFlip *= Kick;
-	Profile.MuzzleTwist *= Kick;
-	Profile.Roll *= Kick;
-	Profile.AimKick *= Kick;
-	Profile.AimKickSide *= Kick;
-	return Profile;
 }
 
 FVector AWeaponBase::GetVisibleMuzzleLocation() const
@@ -400,7 +393,8 @@ void AWeaponBase::PlayMuzzleFlash()
 	FlashTimeLeft = FlashDuration;
 	FlashStrength = FMath::FRandRange(0.8f, 1.15f);
 	MuzzleFlash->SetRelativeRotation(FRotator(0.f, 0.f, FMath::FRandRange(0.f, 360.f)));
-	MuzzleFlash->SetRelativeScale3D(FVector(FMath::FRandRange(0.85f, 1.2f)));
+	// Bigger in the player's own view (the first-person gun is drawn small and close); from behind it is as before.
+	MuzzleFlash->SetRelativeScale3D(FVector(FMath::FRandRange(0.85f, 1.2f) * (IsDrawnFirstPerson() ? GunfeelKick::Muzzle1PScale() : 1.f)));
 	MuzzleFlash->SetVisibility(true);
 	MuzzleLight->SetVisibility(true);
 	UpdateMuzzleFlash(0.f);
@@ -436,7 +430,8 @@ float AWeaponBase::GetEffectiveSpread() const
 	const AActor* Holder = GetOwner();
 	const UPlayerLocomotionComponent* Locomotion = Holder ? Holder->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
 	const UPlayerViewComponent* View = Holder ? Holder->FindComponentByClass<UPlayerViewComponent>() : nullptr;
-	return Instance.Stats.Spread * (Locomotion ? Locomotion->GetSpreadMultiplier() : 1.f) * (View ? View->GetAimSpreadMultiplier() : 1.f);
+	return Instance.Stats.Spread * (Locomotion ? Locomotion->GetSpreadMultiplier() : 1.f) * (View ? View->GetAimSpreadMultiplier() : 1.f)
+		* (1.f + GetSpreadBloom());
 }
 
 float AWeaponBase::GetOwnerTimeScale() const

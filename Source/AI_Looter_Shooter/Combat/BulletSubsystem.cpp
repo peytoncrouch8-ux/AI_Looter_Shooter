@@ -3,6 +3,7 @@
 #include "Combat/CombatRules.h"
 #include "Combat/CriticalSpotTarget.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Camera/PlayerCameraManager.h"
@@ -234,8 +235,8 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 	OnBulletLanding.Broadcast(Shot, Hit, Landing);
 	bCritical = Landing.bCritical;
 	const float Roll = FMath::FRand();
-	// Past the gun's range the damage falls off with the distance flown.
-	const float Falloff = Shot.FalloffStats.IsSet() ? Shot.FalloffStats->DamageAtDistance(Bullet.Traveled) : 1.f;
+	// Past the gun's range the damage falls off with the distance flown (a shotgun's pellets sooner and steeper).
+	const float Falloff = Shot.FalloffStats.IsSet() ? GunfeelKick::DamageShareAtDistance(GunfeelKick::KindOf(Weapon), *Shot.FalloffStats, Bullet.Traveled) : 1.f;
 	const float Damage = Shot.bBlank ? 0.f
 		: LooterCombat::HitDamage(Shot.Damage * Falloff * FMath::Max(Landing.DamageScale, 0.f), bCritical, Roll, Shot.CritMultiplier);
 	const FString Part = Hit.BoneName.IsNone() ? GetNameSafe(Hit.GetComponent())

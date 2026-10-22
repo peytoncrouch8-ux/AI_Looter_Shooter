@@ -76,6 +76,9 @@ namespace
 	constexpr float FlinchOmega = 40.f;
 	constexpr float FlinchKickFade = 6.f;
 	constexpr float FlinchKickGain = 1.54f;
+	/** A hit's flinch kick tops out here (the pelvis bends 8 degrees per unit of flinch), and its arm fling at this many times HitFling. */
+	constexpr float MaxFlinchKick = 3.8f;
+	constexpr float MaxFlingStrength = 2.f;
 
 	/**
 	 * The guard: points spread evenly all round each arm bone's hull (upper arm, forearm, hand); an upper arm's within this
@@ -281,16 +284,18 @@ void AUnpaidCreature::KickArm(int32 Side, float SwingSpeed, float OutSpeed)
 	}
 }
 
-void AUnpaidCreature::ReactToHit(bool bCritical)
+void AUnpaidCreature::ReactToHit(bool bCritical, float Strength)
 {
-	// The flinch: its kick (the spring's peak comes to about the old flinch's 0.6, 1 on a crit).
-	FlinchKick = FMath::Max(FlinchKick, (bCritical ? 1.f : 0.6f) * FlinchKickGain);
+	// The flinch: its kick (the spring's peak comes to about the old flinch's 0.6, 1 on a crit), sized by the hit (a
+	// revolver round jolts it hard, a rifle round less; never past MaxFlinchKick: about 20 degrees at the peak).
+	FlinchKick = FMath::Max(FlinchKick, FMath::Min((bCritical ? 1.f : 0.6f) * FlinchKickGain * Strength, MaxFlinchKick));
 	// The body jolts along FlinchAway; the arms lag the other way: pushed back, they fly forward; pushed right, they swing left.
+	const float Fling = HitFling * FMath::Min(Strength, MaxFlingStrength);
 	for (int32 Side = 0; Side < 2; ++Side)
 	{
 		const float ArmSide = Arms[Side].Side;
-		KickArm(Side, HitFling * static_cast<float>(FlinchAway.X),
-			-ArmSide * HitFling * static_cast<float>(FlinchAway.Y) + (bCritical ? CritStartle : 0.f));
+		KickArm(Side, Fling * static_cast<float>(FlinchAway.X),
+			-ArmSide * Fling * static_cast<float>(FlinchAway.Y) + (bCritical ? CritStartle : 0.f));
 	}
 }
 

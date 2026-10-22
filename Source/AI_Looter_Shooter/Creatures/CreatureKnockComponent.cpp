@@ -117,7 +117,7 @@ FVector UCreatureKnockComponent::LaunchVelocity(const FVector& Away, float Dista
 // Knocked and dazed
 // ---------------------------------------------------------------------------
 
-FVector UCreatureKnockComponent::Knock(const FVector& Away, float Distance, float Height, float DizzySeconds)
+FVector UCreatureKnockComponent::Knock(const FVector& Away, float Distance, float Height, float DizzySeconds, ECreatureKnockStyle InStyle)
 {
 	ACreatureBase* Creature = GetCreature();
 	UCharacterMovementComponent* Movement = Creature ? Creature->GetCharacterMovement() : nullptr;
@@ -130,9 +130,14 @@ FVector UCreatureKnockComponent::Knock(const FVector& Away, float Distance, floa
 	const float Size = FMath::Max(Creature->GetSizeScale(), 0.3f);
 	// A tougher rank and a bigger body give less ground.
 	float Length = Distance * FlingShare(Creature->GetRank()) / FMath::Sqrt(Size);
+	// A shove that has nowhere to go only holds where it stands (no stars: it was only rocked).
+	const bool bShove = InStyle == ECreatureKnockStyle::Shove;
 	if (Way.IsNearlyZero() || Length < 1.f)
 	{
-		Daze(DizzySeconds);
+		if (!bShove)
+		{
+			Daze(DizzySeconds);
+		}
 		return FVector::ZeroVector;
 	}
 
@@ -150,7 +155,10 @@ FVector UCreatureKnockComponent::Knock(const FVector& Away, float Distance, floa
 	}
 	if (Share <= 0.f)
 	{
-		Daze(DizzySeconds);
+		if (!bShove)
+		{
+			Daze(DizzySeconds);
+		}
 		return FVector::ZeroVector;
 	}
 	Length *= Share;
@@ -162,6 +170,7 @@ FVector UCreatureKnockComponent::Knock(const FVector& Away, float Distance, floa
 
 	CaptureRestPose();
 	State = ECreatureKnock::Knocked;
+	Style = InStyle;
 	StateTime = 0.f;
 	DizzyLeft = FMath::Max(DizzySeconds, 0.f);
 	DizzyTotal = DizzyLeft;
@@ -182,6 +191,8 @@ void UCreatureKnockComponent::Daze(float Seconds)
 	{
 		return;
 	}
+	// A daze always shows its stars, even on top of a shotgun's shove.
+	Style = ECreatureKnockStyle::Fling;
 	if (State != ECreatureKnock::None)
 	{
 		// In the air it reels once it lands; already reeling, the longer of the two.
@@ -225,6 +236,7 @@ void UCreatureKnockComponent::StartDizzy()
 void UCreatureKnockComponent::Recover()
 {
 	State = ECreatureKnock::None;
+	Style = ECreatureKnockStyle::Fling;
 	StateTime = 0.f;
 	DizzyLeft = 0.f;
 	DizzyTotal = 0.f;
@@ -247,8 +259,10 @@ void UCreatureKnockComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	if (State == ECreatureKnock::Knocked)
 	{
-		// Once head over heels across the planned flight, upright again as it comes down.
-		TumbleDegrees = 360.f * Ease(StateTime / PlannedAir);
+		// Once head over heels across the planned flight, upright again as it comes down; a shove only rocks it back and up.
+		TumbleDegrees = Style == ECreatureKnockStyle::Shove
+			? ShoveTip * FMath::Sin(UE_PI * FMath::Clamp(StateTime / PlannedAir, 0.f, 1.f))
+			: 360.f * Ease(StateTime / PlannedAir);
 		PoseBody(TumbleDegrees, 0.f);
 		// Its landing is heard through LandedDelegate; the movement finding the floor (or too long aloft) lands it too.
 		const UCharacterMovementComponent* Movement = Creature->GetCharacterMovement();
@@ -265,10 +279,15 @@ void UCreatureKnockComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	TumbleDegrees = FMath::Lerp(LandedTumble, Upright, Ease(StateTime / SettleSeconds));
 	const float SwayIn = FMath::Clamp(StateTime / 0.12f, 0.f, 1.f);
 	const float SwayOut = FMath::Clamp(DizzyLeft / 0.25f, 0.f, 1.f);
-	const float Sway = SwayDegrees * SwayIn * SwayOut * FMath::Sin(2.f * UE_PI * SwayHz * StateTime);
+	// A shove's moment after it lands is only gathering itself: no sway, no stars.
+	const bool bReels = Style != ECreatureKnockStyle::Shove;
+	const float Sway = bReels ? SwayDegrees * SwayIn * SwayOut * FMath::Sin(2.f * UE_PI * SwayHz * StateTime) : 0.f;
 	PoseBody(TumbleDegrees, Sway);
-	SparkPhase = FMath::Fmod(SparkPhase + DeltaTime * 2.f * UE_PI * SparkTurnsPerSecond, 2.f * UE_PI);
-	DrawDizzySparks();
+	if (bReels)
+	{
+		SparkPhase = FMath::Fmod(SparkPhase + DeltaTime * 2.f * UE_PI * SparkTurnsPerSecond, 2.f * UE_PI);
+		DrawDizzySparks();
+	}
 	if (DizzyLeft <= 0.f)
 	{
 		Recover();

@@ -262,7 +262,7 @@ bool FMeleeStaggerTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("A boss: nothing"), OnBoss.HitStopSeconds == 0.f && OnBoss.StaggerSeconds == 0.f);
 		FHitReaction Killed;
 		const FHitReaction::FResponse Kill = Killed.OnHit(0.0, 100.f, 100.f, false, true, ECreatureRank::Basic, true);
-		TestTrue(TEXT("The killing blow: the kill's hit-stop, no stagger"), Kill.HitStopSeconds >= FHitReaction::KillHitStop && Kill.StaggerSeconds == 0.f);
+		TestTrue(TEXT("The killing blow: the kill's hit-stop, no stagger"), Kill.HitStopSeconds >= FGunfeelReactTuning().HitStopKill && Kill.StaggerSeconds == 0.f);
 	}
 
 	// The scope says "a strike" to code that isn't told (the creature's hit reactions hear the health's OnDamaged).

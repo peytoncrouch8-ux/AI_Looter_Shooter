@@ -2,6 +2,7 @@
 #include "Player/CameraShakeModifier.h"
 #include "Player/ViewKick.h"
 #include "Combat/HealthComponent.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "GameFramework/Character.h"
@@ -23,7 +24,10 @@ void UPlayerViewComponent::AddShotKick(const AWeaponBase& Weapon)
 	}
 	const UWeaponDefinition* Definition = Weapon.GetInstance().Definition;
 	const EWeaponKind Kind = Definition ? Definition->Kind : EWeaponKind::Rifle;
-	UCameraShakeModifier::Kick(Player, ViewKicks::ForShot(Kind, Weapon.GetStats().Recoil, GetAimAlpha(), KickRandom));
+	// The kind's own weight on top: a shotgun shoves, a six-gun snaps (Looter.Gunfeel.Kick.*).
+	UCameraShakeModifier::Kick(Player, ViewKicks::ForShot(Kind, Weapon.GetStats().Recoil, GetAimAlpha(), KickRandom) * GunfeelKick::KickScale(Kind));
+	// And in the hands, on a gamepad.
+	GunfeelKick::RumbleShot(Player, Kind);
 }
 
 void UPlayerViewComponent::BindOwnerHealth(bool bBind)
@@ -70,4 +74,5 @@ void UPlayerViewComponent::HandleOwnerDamaged(float Damage, bool bCritical, FVec
 	}
 	const float Share = Damage / FMath::Max(Health->GetMaxHealth(), 1.f);
 	UCameraShakeModifier::Kick(Player, ViewKicks::ForHurt(Share, Side, Ahead));
+	GunfeelKick::RumbleHurt(Player, Share);
 }

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Combat/CriticalSpotTarget.h"
+#include "Combat/HitReaction.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/CreaturePursuit.h"
@@ -349,6 +350,11 @@ protected:
 	virtual void OnAttackStarted() {}
 	virtual void OnAttackStrike(bool bConnected) {}
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) {}
+	/**
+	 * The hit being taken (its share of health and its burst's, the gun, crit, way, spot), stored by HandleDamaged before
+	 * OnHurt: each kind sizes its flinch by GetLastHit().FlinchStrength (Gunfeel; fresh only during that OnHurt).
+	 */
+	const FCreatureHit& GetLastHit() const { return LastHit; }
 	virtual void OnDied() {}
 	virtual void OnRespawned() {}
 
@@ -444,6 +450,9 @@ protected:
 
 	/** The bones the code moves, set by the subclass every frame. */
 	TArray<FCreatureBonePose> BonePose;
+
+	/** The latest hit taken (GetLastHit; CreatureBaseHurt.cpp). */
+	FCreatureHit LastHit;
 
 private:
 	void SetState(ECreatureState NewState);

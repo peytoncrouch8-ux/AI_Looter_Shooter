@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Affixes/WeaponRollLibrary.h"
@@ -260,7 +261,8 @@ void AWeaponBase::OnEquipped(APawn* NewOwner, USceneComponent* AttachTo, FName S
 	if (const UWorld* World = GetWorld())
 	{
 		DrawnTime = World->GetTimeSeconds();
-		ReadySeconds = BaseReadySeconds / FMath::Max(Instance.Stats.Handling, 0.1f);
+		// The kind's own swap time on top (the shotgun a touch slower, the six-gun quicker: Looter.Gunfeel.Swap.*).
+		ReadySeconds = BaseReadySeconds / FMath::Max(Instance.Stats.Handling, 0.1f) * GunfeelKick::SwapScale(GunfeelKick::KindOf(this));
 		LastFireTime = FMath::Max(LastFireTime, DrawnTime + ReadySeconds - Instance.Stats.GetSecondsBetweenShots());
 	}
 

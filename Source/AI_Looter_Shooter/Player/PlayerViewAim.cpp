@@ -1,5 +1,6 @@
 #include "Player/PlayerViewComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "GameFramework/Character.h"
@@ -39,8 +40,10 @@ void UPlayerViewComponent::UpdateAim(float DeltaTime)
 	{
 		bAimWanted = false;
 	}
-	// Quicker with better handling: a Handling 1 gun takes BaseAimSeconds to come up to the eye.
-	const float Speed = (Weapon ? Weapon->GetStats().Handling : 1.f) / BaseAimSeconds;
+	// Quicker with better handling: a Handling 1 gun takes BaseAimSeconds to come up to the eye, times the kind's own
+	// (the shotgun's sights a touch slower, the six-gun's quicker: Looter.Gunfeel.Aim.Time.*).
+	const float AimSeconds = BaseAimSeconds * (Weapon ? GunfeelKick::AimTimeScale(GunfeelKick::KindOf(Weapon)) : 1.f);
+	const float Speed = (Weapon ? Weapon->GetStats().Handling : 1.f) / AimSeconds;
 	const float WasAimAlpha = AimAlpha;
 	AimAlpha = FMath::FInterpConstantTo(AimAlpha, bAimWanted && bCanAim ? 1.f : 0.f, DeltaTime, Speed);
 	AimZoom = Weapon ? FMath::Max(Weapon->GetStats().Zoom, MinAimZoom) : AimZoom;

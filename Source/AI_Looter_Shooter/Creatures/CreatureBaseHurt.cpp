@@ -5,6 +5,7 @@
 #include "Creatures/CreatureBase.h"
 #include "AI_Looter_Shooter.h"
 #include "Combat/HealthComponent.h"
+#include "Creatures/CreatureHitReactionComponent.h"
 #include "Creatures/CreaturePackComponent.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/CreatureTierLookComponent.h"
@@ -24,7 +25,13 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 	// OnHurt: a frozen body is set up afresh first.
 	FullRateTime = UpdateRate.HurtFullRateTime;
 	WakeUpdateRate();
+	// Its hit reactions first (hit-stop, stagger or knock, slow: they know the blast's pellets together), then its kind's
+	// flinch, sized by the hit (Gunfeel): LastHit is fresh only while OnHurt runs, so a flinch a boss plays itself keeps its
+	// own size.
+	LastHit = HitReaction->TakeHit(Damage, bCritical, HitLocation, InstigatedBy, DamageCauser);
+	LastHit.bFresh = true;
 	OnHurt(bCritical, HitLocation);
+	LastHit.bFresh = false;
 
 	if (State == ECreatureState::Dead)
 	{

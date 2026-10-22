@@ -81,6 +81,8 @@ public:
 	 * A bullet's hit on a creature in what it spills (WeaponFXCreatures.cpp; ECreatureBlood): a spider's ichor (SpawnImpact's
 	 * Flesh), the Gravemother's thick dark ichor, a slime's gel in its Tint, an Unpaid's embers in its coal's color with a
 	 * breath of grave dust, a dead miner's embers with rock dust and chips. Scale sizes it to the gun as SpawnSurfaceImpact.
+	 * Gunfeel: all of it Looter.Gunfeel.Spurt.Scale times, with an exit spray thrown on along the shot out behind the
+	 * target (Spurt.Exit of the entry's); a shotgun blast's pellets share one budget between them (Spurt.BlastBudget).
 	 */
 	void SpawnCreatureHit(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, ECreatureBlood Blood,
 		const FLinearColor& Tint, float Scale, bool bCritical);
@@ -261,6 +263,15 @@ private:
 	static constexpr double WaterLightSeconds = 1.0;
 	/** While an impact with a floor spawns (SpawnSurfaceImpact), the floor its chunks are given. */
 	TOptional<FPlane> SpawnFloor;
+	/**
+	 * A shotgun blast's pellets on creatures share one spurt budget (WeaponFXCreatures.cpp; Looter.Gunfeel.Spurt.BlastBudget):
+	 * when and where its first pellet landed, and how much of the budget (in full hits' worth) its pellets have spent.
+	 */
+	double SpurtBlastAt = -1.0e9;
+	FVector SpurtBlastWhere = FVector::ZeroVector;
+	float SpurtBlastSpent = 0.f;
+	/** The spurt a creature hit is given now (1: one full hit's), its blast's budget taken into account. */
+	float SpurtAmountFor(const FVector& Location, float Scale, float SpurtScale, float BlastBudget);
 	/** Instances drawn last frame, so an emptied component gets cleared exactly once. */
 	bool bDrawnAnything = false;
 	FRandomStream Random{ 0x5eed };

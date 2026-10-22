@@ -320,6 +320,17 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		CameraShakeSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeChanged);
 		CameraShakeSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeReleased);
 		CameraShakeSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeReleased);
+		// How hard a gamepad rumbles for shots and hits taken; 0% turns it off. (Nothing rumbles on a mouse and keys.)
+		USlider* RumbleSlider = nullptr;
+		UTextBlock* RumbleValueText = nullptr;
+		UWidget* RumbleRow = MakeSliderRow(TEXT("Controller rumble"), UControlSettingsSubsystem::MinControllerRumble,
+			UControlSettingsSubsystem::MaxControllerRumble, RumbleSlider, RumbleValueText, UControlSettingsSubsystem::ControllerRumbleStep);
+		AddRow(NavSlider(RumbleRow, RumbleSlider), 4.f);
+		ControllerRumbleSlider = RumbleSlider;
+		ControllerRumbleValue = RumbleValueText;
+		ControllerRumbleSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleChanged);
+		ControllerRumbleSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleReleased);
+		ControllerRumbleSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleReleased);
 		// The key list's own section for the bumpers, headed by how to change a key (RefreshNavLook words it per device).
 		KeyHintText = MakeText(WidgetTree, TEXT(""), 11, Color::TextDim());
 		KeyHintText->SetAutoWrapText(true);
@@ -458,6 +469,12 @@ void USettingsMenuWidget::RefreshControlSettings()
 		const float Shake = Controls->GetCameraShake();
 		CameraShakeSlider->SetValue(Shake);
 		CameraShakeValue->SetText(FText::FromString(PercentText(Shake)));
+	}
+	if (Controls && ControllerRumbleSlider && ControllerRumbleValue)
+	{
+		const float Rumble = Controls->GetControllerRumble();
+		ControllerRumbleSlider->SetValue(Rumble);
+		ControllerRumbleValue->SetText(FText::FromString(PercentText(Rumble)));
 	}
 }
 

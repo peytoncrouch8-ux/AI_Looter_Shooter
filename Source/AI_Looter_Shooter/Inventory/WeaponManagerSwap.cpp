@@ -10,6 +10,7 @@
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/WeaponSwapMotion.h"
 #include "UI/HUD/LooterHUD.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponSounds.h"
 #include "Engine/World.h"
@@ -170,7 +171,8 @@ void UWeaponManagerComponent::BeginSwap(AWeaponBase* Target, AWeaponBase* Pickup
 		}
 	}
 	const EWeaponKind Kind = WeaponSwapMotion::KindOf(InHand);
-	SwapClock.Lower(World->GetTimeSeconds(), From, WeaponSwapMotion::HolsterSeconds(Kind, InHand->GetStats().Handling));
+	// The kind's own swap time on top of its holster (Looter.Gunfeel.Swap.*; the draw's is the gun's ready time).
+	SwapClock.Lower(World->GetTimeSeconds(), From, WeaponSwapMotion::HolsterSeconds(Kind, InHand->GetStats().Handling) * GunfeelKick::SwapScale(Kind));
 	// A gun still below the view (just drawn) goes without a sound: the next one's draw is heard at once.
 	if (From < WeaponSwapMotion::QuietFrom)
 	{

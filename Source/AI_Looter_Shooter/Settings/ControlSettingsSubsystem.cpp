@@ -1,4 +1,5 @@
 #include "Settings/ControlSettingsSubsystem.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -13,6 +14,8 @@ void UControlSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	// Read once here: everything that turns or shakes the view asks for its value as it needs it, so nothing to apply.
 	SaveData = LoadControls(ControlsSaveSlot, this);
+	// Start telling a gamepad from keys and mouse now, so the first shot already knows which the player holds (rumble).
+	GunfeelKick::EnsureInputWatch();
 }
 
 ULooterControlsSave* UControlSettingsSubsystem::LoadControls(const FString& Slot, UObject* Outer)
@@ -102,6 +105,38 @@ void UControlSettingsSubsystem::SetCameraShake(float Shake, bool bSave)
 		return;
 	}
 	SaveData->CameraShake = ClampCameraShake(Shake);
+	if (bSave)
+	{
+		SaveSettings();
+	}
+}
+
+float UControlSettingsSubsystem::ClampControllerRumble(float Rumble)
+{
+	if (!FMath::IsFinite(Rumble))
+	{
+		return DefaultControllerRumble;
+	}
+	return FMath::Clamp(FMath::GridSnap(Rumble, ControllerRumbleStep), MinControllerRumble, MaxControllerRumble);
+}
+
+float UControlSettingsSubsystem::ControllerRumbleOf(const ULooterControlsSave* Controls)
+{
+	return Controls ? ClampControllerRumble(Controls->ControllerRumble) : DefaultControllerRumble;
+}
+
+float UControlSettingsSubsystem::GetControllerRumble() const
+{
+	return ControllerRumbleOf(SaveData);
+}
+
+void UControlSettingsSubsystem::SetControllerRumble(float Rumble, bool bSave)
+{
+	if (!SaveData)
+	{
+		return;
+	}
+	SaveData->ControllerRumble = ClampControllerRumble(Rumble);
 	if (bSave)
 	{
 		SaveSettings();

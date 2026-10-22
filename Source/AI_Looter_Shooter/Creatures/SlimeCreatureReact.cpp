@@ -6,6 +6,7 @@
 
 #include "Creatures/SlimeCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
+#include "Combat/GunfeelReactTuning.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
 #include "Creatures/CreatureUpdateRate.h"
@@ -15,10 +16,17 @@
 
 namespace
 {
-	/** A hit squashes it to this height (1 = rest). */
+	/** A hit squashes it to this height at a flinch strength of 1 (1 = rest; Gunfeel's FlinchStrength scales the dent), never under HurtSquashMost. */
 	constexpr float HurtSquash = 0.82f;
-	/** A hit leans the jelly away from it this far (degrees; a crit half again), and it wobbles back on a loose spring. */
-	constexpr float HurtLean = 8.f;
+	constexpr float HurtSquashMost = 0.55f;
+	/** The core's jiggle grows with the hit up to this many times its own. */
+	constexpr float HurtCoreMost = 2.5f;
+	/**
+	 * A hit leans the jelly away from it this far at strength 1 (degrees; a crit half again; 8 before every hit was sized,
+	 * 10 so a rifle round reads at 20 m), never past HurtLeanMost, and it wobbles back on a loose spring.
+	 */
+	constexpr float HurtLean = 10.f;
+	constexpr float HurtLeanMost = 30.f;
 	constexpr float LeanOmega = 18.f;
 	constexpr float LeanDamping = 0.3f;
 	constexpr float LeanKickFade = 9.f;
@@ -53,16 +61,18 @@ void ASlimeCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	{
 		return;
 	}
-	// A squash and a wobble; the core jiggles away from the hit (harder on a crit).
+	// A squash and a wobble, sized by the hit (Gunfeel: a revolver round dents it deep, a close blast flattens it); the
+	// core jiggles away from the hit (harder on a crit).
+	const float Strength = GetLastHit().FlinchStrength(FGunfeelReactTuning::Live());
 	if (Hop == EHop::Ground && !bTelegraph && !Squash.IsRamping())
 	{
-		Squash.Ramp(HurtSquash, 0.05f);
+		Squash.Ramp(FMath::Max(1.f - (1.f - HurtSquash) * Strength, HurtSquashMost), 0.05f);
 	}
 	const FVector Away = GetActorTransform().InverseTransformVector(GetActorLocation() - HitLocation).GetSafeNormal();
-	CoreVelocity += (Away + FMath::VRand() * 0.5f) * (bCritical ? 220.f : 130.f);
+	CoreVelocity += (Away + FMath::VRand() * 0.5f) * ((bCritical ? 220.f : 130.f) * FMath::Min(Strength, HurtCoreMost));
 	// The jelly leans away from the hit and wobbles back (ReactLean): a hit on its front tips it back, one from its left to
 	// its right. A shotgun's pellets land together: the strongest kick stands.
-	const float Hard = HurtLean * (bCritical ? 1.5f : 1.f);
+	const float Hard = FMath::Min(HurtLean * (bCritical ? 1.5f : 1.f) * Strength, HurtLeanMost);
 	const FVector2D Kick(static_cast<float>(Away.X) * Hard, static_cast<float>(Away.Y) * Hard);
 	if (Kick.SizeSquared() >= LeanKick.SizeSquared())
 	{

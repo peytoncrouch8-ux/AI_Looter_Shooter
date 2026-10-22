@@ -46,10 +46,24 @@ void FWeaponRecoil::AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& 
 	Yaw.Velocity += ImpulseFor(Random.FRandRange(-1.f, 1.f) * Profile.MuzzleTwist, Omega);
 	RollSpring.Velocity += ImpulseFor(Random.FRandRange(-1.f, 1.f) * Profile.Roll, Omega);
 
-	AimPending.Pitch += Profile.AimKick * Random.FRandRange(0.85f, 1.15f);
+	// A burst climbs: each shot in it kicks the aim a little harder than the last (up to the profile's most), and a pause
+	// of BurstGap starts it over.
+	if (SinceShot > BurstGap)
+	{
+		BurstShots = 0;
+	}
+	const float Climb = GetClimb(Profile);
+	BurstShots = FMath::Min(BurstShots + 1, 10000);
+
+	AimPending.Pitch += Profile.AimKick * Climb * Random.FRandRange(0.85f, 1.15f);
 	AimPending.Yaw += Random.FRandRange(-1.f, 1.f) * Profile.AimKickSide;
 	AimRecovery = Profile.AimRecovery;
 	SinceShot = 0.f;
+}
+
+float FWeaponRecoil::GetClimb(const FWeaponRecoilProfile& Profile) const
+{
+	return FMath::Clamp(1.f + Profile.ClimbPerShot * static_cast<float>(BurstShots), 1.f, FMath::Max(Profile.ClimbMax, 1.f));
 }
 
 FRotator FWeaponRecoil::Tick(float DeltaSeconds, float PlayerPitchInput)

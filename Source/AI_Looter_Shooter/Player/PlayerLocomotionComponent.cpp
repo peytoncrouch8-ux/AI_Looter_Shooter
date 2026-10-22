@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurses.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -442,9 +443,12 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 		bSprintInterrupted = !bSprinting && (bFiring || bWantsAim);
 		UE_LOG(LogLooter, Verbose, TEXT("Sprint %s%s"), bSprinting ? TEXT("on") : TEXT("off"), bSprintInterrupted ? TEXT(" (fired or aimed)") : TEXT(""));
 	}
-	// Aiming slows the walk as the sight comes up.
+	// Aiming slows the walk as the sight comes up, by the gun's kind (the shotgun's slower, the six-gun's quicker on its feet:
+	// Looter.Gunfeel.Aim.Move.*).
+	const UWeaponManagerComponent* Manager = WeaponManager.Get();
+	const float AimedWalk = AimWalkSpeedMultiplier * GunfeelKick::AimMoveScale(GunfeelKick::KindOf(Manager ? Manager->GetActiveWeapon() : nullptr));
 	const float WalkSpeed = bSprinting ? BaseWalkSpeed * SprintSpeedMultiplier
-		: BaseWalkSpeed * FMath::Lerp(1.f, AimWalkSpeedMultiplier, View ? View->GetAimAlpha() : 0.f);
+		: BaseWalkSpeed * FMath::Lerp(1.f, AimedWalk, View ? View->GetAimAlpha() : 0.f);
 	if (!FMath::IsNearlyEqual(Move->MaxWalkSpeed, WalkSpeed))
 	{
 		Move->MaxWalkSpeed = WalkSpeed;

@@ -79,29 +79,31 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHitStopRulesTest, "Looter.Feedback.HitStopRule
 bool FHitStopRulesTest::RunTest(const FString& Parameters)
 {
 	using FResponse = FHitReaction::FResponse;
-	// Only a crit or the kill stops a creature's clock, for 40-80 ms; a plain hit never does.
+	// The defaults of the Looter.Gunfeel.* cvars (never what the user has set).
+	const FGunfeelReactTuning Tuning;
+	// Only a crit, a heavy hit or the kill stops a creature's clock, for 35-100 ms; a plain hit never does.
 	{
 		FHitReaction Reaction;
 		TestEqual(TEXT("A plain hit: no hit-stop"), Reaction.OnHit(0.0, 5.f, 100.f, false, false, ECreatureRank::Basic).HitStopSeconds, 0.f);
 		const FResponse Crit = Reaction.OnHit(1.0, 5.f, 100.f, true, false, ECreatureRank::Basic);
-		TestEqual(TEXT("A crit: 45 ms"), Crit.HitStopSeconds, FHitReaction::CritHitStop);
-		TestTrue(TEXT("...and it's stopped meanwhile"), Reaction.IsHitStopped(1.02) && !Reaction.IsHitStopped(1.05));
+		TestEqual(TEXT("A crit: 50 ms"), Crit.HitStopSeconds, Tuning.HitStopCrit);
+		TestTrue(TEXT("...and it's stopped meanwhile"), Reaction.IsHitStopped(1.02) && !Reaction.IsHitStopped(1.06));
 		// The crit cooldown: a rifle on its head doesn't freeze it half the time...
 		TestEqual(TEXT("Another crit 0.1 s later: none"), Reaction.OnHit(1.1, 5.f, 100.f, true, false, ECreatureRank::Basic).HitStopSeconds, 0.f);
 		TestEqual(TEXT("...one after the cooldown: again"), Reaction.OnHit(1.3, 5.f, 100.f, true, false, ECreatureRank::Basic).HitStopSeconds,
-			FHitReaction::CritHitStop);
+			Tuning.HitStopCrit);
 		// ...but the kill always lands with weight.
 		TestEqual(TEXT("A kill in the cooldown still stops it"), Reaction.OnHit(1.35, 5.f, 100.f, false, true, ECreatureRank::Basic).HitStopSeconds,
-			FHitReaction::KillHitStop);
+			Tuning.HitStopKill);
 	}
 	{
 		FHitReaction Reaction;
-		TestEqual(TEXT("A critical kill: 80 ms"), Reaction.OnHit(0.0, 50.f, 100.f, true, true, ECreatureRank::Rare).HitStopSeconds,
-			FHitReaction::CritKillHitStop);
+		TestEqual(TEXT("A critical kill: 100 ms"), Reaction.OnHit(0.0, 50.f, 100.f, true, true, ECreatureRank::Rare).HitStopSeconds,
+			Tuning.HitStopCritKill);
 	}
-	for (const float Seconds : { FHitReaction::CritHitStop, FHitReaction::KillHitStop, FHitReaction::CritKillHitStop })
+	for (const float Seconds : { Tuning.HitStopCrit, Tuning.HitStopHeavy, Tuning.HitStopKill, Tuning.HitStopCritKill, Tuning.RevolverCritHitStop })
 	{
-		TestTrue(FString::Printf(TEXT("%.0f ms is within 40-80 ms"), Seconds * 1000.f), Seconds >= 0.04f - KINDA_SMALL_NUMBER && Seconds <= 0.08f + KINDA_SMALL_NUMBER);
+		TestTrue(FString::Printf(TEXT("%.0f ms is within 35-100 ms"), Seconds * 1000.f), Seconds >= 0.035f - KINDA_SMALL_NUMBER && Seconds <= 0.1f + KINDA_SMALL_NUMBER);
 	}
 	TestTrue(TEXT("Its clock all but stops (never quite 0)"), FHitReaction::HitStopDilation > 0.f && FHitReaction::HitStopDilation < 0.1f);
 	// A boss's own code runs its big moments: no hit-stop on one.
@@ -111,7 +113,7 @@ bool FHitStopRulesTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("A boss's death: none"), Reaction.OnHit(0.0, 5.f, 100.f, true, true, ECreatureRank::Boss).HitStopSeconds, 0.f);
 		FHitReaction Legendary;
 		TestEqual(TEXT("A Soulfed monster's crit: yes"), Legendary.OnHit(0.0, 5.f, 100.f, true, false, ECreatureRank::Legendary).HitStopSeconds,
-			FHitReaction::CritHitStop);
+			Tuning.HitStopCrit);
 	}
 	return true;
 }
@@ -121,31 +123,32 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStaggerCooldownTest, "Looter.Feedback.StaggerC
 
 bool FStaggerCooldownTest::RunTest(const FString& Parameters)
 {
-	// A heavy hit staggers (a crit, or a fifth of its health in one blast), then nothing staggers it again until its
-	// stagger is over and the cooldown has passed: no stun-lock.
+	// A heavy hit staggers (a crit, or an eighth of its health in one blast: Looter.Gunfeel.Stagger.HeavyShare), then nothing
+	// staggers it again until its stagger is over and the cooldown has passed: no stun-lock. (The cvars' defaults.)
+	const FGunfeelReactTuning Tuning;
 	FHitReaction Reaction;
 	TestEqual(TEXT("A light body shot: no stagger"), Reaction.OnHit(0.0, 10.f, 100.f, false, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
 	const float Basic = FHitReaction::StaggerSecondsFor(ECreatureRank::Basic);
 	TestEqual(TEXT("A crit staggers a Basic one"), Reaction.OnHit(1.0, 10.f, 100.f, true, false, ECreatureRank::Basic).StaggerSeconds, Basic);
 	TestTrue(TEXT("...staggered meanwhile"), Reaction.IsStaggered(1.0 + Basic * 0.5) && !Reaction.IsStaggered(1.0 + Basic + 0.01));
 	TestEqual(TEXT("Another crit during it: no more"), Reaction.OnHit(1.1, 10.f, 100.f, true, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
-	const double Ready = 1.0 + Basic + FHitReaction::StaggerCooldown;
+	const double Ready = 1.0 + Basic + Tuning.StaggerCooldown;
 	TestEqual(TEXT("Another just before the cooldown ends: none"), Reaction.OnHit(Ready - 0.05, 10.f, 100.f, true, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
 	TestEqual(TEXT("...once it has: staggered again"), Reaction.OnHit(Ready + 0.01, 10.f, 100.f, true, false, ECreatureRank::Basic).StaggerSeconds, Basic);
-	TestTrue(TEXT("The cooldown is longer than a stagger"), FHitReaction::StaggerCooldown > Basic);
+	TestTrue(TEXT("The cooldown is longer than a stagger"), Tuning.StaggerCooldown > Basic);
 
 	// A shotgun blast up close: its pellets land together and add up.
 	{
 		FHitReaction Blast;
-		TestEqual(TEXT("Pellet 1 (8%)"), Blast.OnHit(5.0, 8.f, 100.f, false, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
-		TestEqual(TEXT("Pellet 2 (16%)"), Blast.OnHit(5.0, 8.f, 100.f, false, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
-		const FHitReaction::FResponse Third = Blast.OnHit(5.01, 8.f, 100.f, false, false, ECreatureRank::Basic);
-		TestEqual(TEXT("Pellet 3 (24%) staggers"), Third.StaggerSeconds, Basic);
-		TestEqual(TEXT("...its burst's share"), Third.BurstShare, 0.24f, 0.001f);
+		TestEqual(TEXT("Pellet 1 (5%)"), Blast.OnHit(5.0, 5.f, 100.f, false, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
+		TestEqual(TEXT("Pellet 2 (10%)"), Blast.OnHit(5.0, 5.f, 100.f, false, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
+		const FHitReaction::FResponse Third = Blast.OnHit(5.01, 5.f, 100.f, false, false, ECreatureRank::Basic);
+		TestEqual(TEXT("Pellet 3 (15%) staggers"), Third.StaggerSeconds, Basic);
+		TestEqual(TEXT("...its burst's share"), Third.BurstShare, 0.15f, 0.001f);
 		FHitReaction Far;
-		Far.OnHit(5.0, 8.f, 100.f, false, false, ECreatureRank::Basic);
-		Far.OnHit(5.1, 8.f, 100.f, false, false, ECreatureRank::Basic);
-		TestEqual(TEXT("Pellets spread over time don't add up"), Far.OnHit(5.2, 8.f, 100.f, false, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
+		Far.OnHit(5.0, 5.f, 100.f, false, false, ECreatureRank::Basic);
+		Far.OnHit(5.1, 5.f, 100.f, false, false, ECreatureRank::Basic);
+		TestEqual(TEXT("Pellets spread over time don't add up"), Far.OnHit(5.2, 5.f, 100.f, false, false, ECreatureRank::Basic).StaggerSeconds, 0.f);
 	}
 
 	// Tougher ranks stagger less; a Soulfed monster or a boss never; nothing staggers on the killing blow.

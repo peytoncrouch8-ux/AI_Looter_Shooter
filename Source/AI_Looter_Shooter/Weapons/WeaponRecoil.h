@@ -40,6 +40,16 @@ struct FWeaponRecoilProfile
 	/** How fast the gun springs back into place (1 = normal; heavy guns are slower). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Recoil", meta = (ClampMin = "0.2", ClampMax = "3"))
 	float Snappiness = 1.f;
+
+	/**
+	 * The aim kick grows by this share of the first shot's for each shot of a burst (the rifle's climb you pull down against);
+	 * 0 = every shot kicks the same. Not data: AWeaponBase::GetRecoilProfile sets it from the Looter.Gunfeel.Recoil.RifleClimb
+	 * variables.
+	 */
+	float ClimbPerShot = 0.f;
+
+	/** ...and the most it grows to, as a multiple of the first shot's (1 = no climb). Set with ClimbPerShot. */
+	float ClimbMax = 1.f;
 };
 
 /**
@@ -88,4 +98,13 @@ private:
 	FRotator AimApplied = FRotator::ZeroRotator;
 	float AimRecovery = 7.f;
 	float SinceShot = 100.f;
+	/** Shots so far in this burst (a pause longer than BurstGap ends it), for the aim kick's climb. */
+	int32 BurstShots = 0;
+
+public:
+	/** A pause between shots longer than this (s) ends a burst, and the climb starts over. */
+	static constexpr float BurstGap = 0.35f;
+
+	/** The climb the next shot would kick with, as a multiple of the profile's AimKick (1 on the first shot of a burst). */
+	float GetClimb(const FWeaponRecoilProfile& Profile) const;
 };

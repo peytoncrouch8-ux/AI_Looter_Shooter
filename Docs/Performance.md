@@ -78,3 +78,4 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-20 | Tiers: 8 Regular spiders (baseline) | b6fbda06 | 1920x1080 | 7.7 | 129 | 8.3 | 4.9 | 7.7 | 1.7 | 6.5 | 1463 | 1770817 | 2.96 |
 | 2026-10-20 | Tiers: 8 Hallowed spiders | b6fbda06 | 1920x1080 | 7.8 | 129 | 8.3 | 4.8 | 7.7 | 1.7 | 6.5 | 1473 | 1788075 | 2.83 |
 | 2026-10-20 | Tiers: 8 Ethereal spiders | b6fbda06 | 1920x1080 | 7.8 | 128 | 8.4 | 5.0 | 7.8 | 1.7 | 6.5 | 1472 | 1813687 | 2.80 |
+| 2026-10-21 | Gunfeel baseline: 8 spiders | 41539fc7 | 1920x1080 | 7.9 | 127 | 9.0 | 5.9 | 6.7 | 1.8 | 6.5 | 1465 | 1762357 | 9.03 |

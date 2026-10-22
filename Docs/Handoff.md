@@ -24,6 +24,22 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
   Ransom's Rest trailer. Steam's AI-content survey answered plainly (made with AI tools, nothing generated live).
 - Playtesters: the user and one friend.
 
+**Gunplay, Phase 12.1 (running 2026-10-21; the user's start prompt: steps 1-3, then they tune in PIE; no friend build;
+tests only for new work at commit; perf once before and once after; no capture runs).** The user's calls: Sonniss GDC
+bundles for gun/impact sounds (only the zip parts with gun/impact recordings; licence: no resale, no AI training);
+the revolver's crit 1.75x. Baseline perf (RR, 8 spiders, Medium): 7.9 ms, p95 9.0. Contract
+`Saved/Gunfeel/CONTRACT.md` (not committed: read it on resume). Main wrote `Weapons/GunshotSound` (stub: today's Fire
+cue) and FireShot calls it. Running: GUNFEEL-REACT (Opus: hit reactions + the guns' jobs on the target) and
+GUNFEEL-KICK (Sonnet: kick, rumble, handling, rifle bloom, shotgun falloff, revolver crit), neither builds; Main
+builds once, checks in PIE, commits. GUNFEEL-SOUND starts once the pack parts are chosen and downloaded.
+- REACT + KICK built and committed (step 1-3 code, one batch): tests `Looter.Gunfeel` 17/17, Feedback 8, Melee 8,
+  Creatures.Anim 8, Weapons 44, all pass. PIE (RR, rifle/shotgun/revolver vs spider hordes, `play.py fight`): ~50 hits,
+  slows, heavy hits, rifle pressure, crits, no errors; not seen by eye (no screenshots, the user's rule), rumble not tried
+  on a pad. The sound pack: sonniss.com's host sits behind a bot check, so the files come from its listed mirror
+  ftpmirror.your.org/pub/misc/sonniss2016|2017; those bundles are samplers (~150 files a part), so only the 59 gun/impact
+  files were pulled by range requests (332 MB, `Saved/SoundPacks/Sonniss`, tool `/tmp/zx.js` pattern in Pipeline later).
+  GUNFEEL-SOUND running.
+
 ## Now (session "Small leftovers", 2026-10-15, local)
 
 **The saga (the user, 2026-10-15 night: a long-running Borderlands-like story; "Why is Ellis here? Where does the story

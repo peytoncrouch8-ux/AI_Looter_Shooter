@@ -26,7 +26,7 @@ keep it short; details go in the pipeline.
      signatures, palette, placements; `Docs/Pipeline.md`, "Who does what").
 3. **Ask the user first** before bringing in a new tool or program.
 4. **Unclear request: ask** with tap-to-answer choices (AskUserQuestion), not open questions.
-5. **Report briefly:** a few lines, not paragraphs.
+5. **Report briefly:** 3 short sentences or less (the user, 2026-10-21: saves tokens).
 6. **Two failures, then ask** the user how to go on.
 7. **Feedback matters:** every action (keys, shooting, hits, kills, pickups, menus) feels rewarding, with high-quality
    visual and sound effects.

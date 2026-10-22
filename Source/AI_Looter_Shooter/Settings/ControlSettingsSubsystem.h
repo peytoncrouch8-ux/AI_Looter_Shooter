@@ -26,6 +26,13 @@ public:
 	 */
 	UPROPERTY()
 	float CameraShake = 1.f;
+
+	/**
+	 * How strongly a gamepad rumbles (shots, hits taken), 0 (off) to 1 (as designed). Saves from before it existed load
+	 * with 1 (UControlSettingsSubsystem::DefaultControllerRumble).
+	 */
+	UPROPERTY()
+	float ControllerRumble = 1.f;
 };
 
 /**
@@ -34,7 +41,8 @@ public:
  * character's look (ALooterCharacter::Look, where a zoomed sight slows it further on top) and a scene's free look
  * (USceneSubsystem). Both read it as each input arrives, so a change applies from the next move. Camera shake scales
  * every shake and kick of the view, the boss fights' too: the one camera modifier that carries them all
- * (UCameraShakeModifier) reads it each frame, and the Looter.CameraShake command sets it for a run.
+ * (UCameraShakeModifier) reads it each frame, and the Looter.CameraShake command sets it for a run. Controller rumble scales
+ * the gamepad's rumble (GunfeelKick::PlayRumble reads it for each shot and hit taken; Looter.ControllerRumble sets it for a run).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UControlSettingsSubsystem : public ULocalPlayerSubsystem
@@ -89,6 +97,23 @@ public:
 
 	/** Applies from the next frame, to every shake and kick. bSave as for the sensitivity. */
 	void SetCameraShake(float Shake, bool bSave = true);
+
+	/** Controller rumble, from off (0) to as designed (1, the default), in the slider's steps of ControllerRumbleStep. */
+	static constexpr float MinControllerRumble = 0.f;
+	static constexpr float MaxControllerRumble = 1.f;
+	static constexpr float DefaultControllerRumble = 1.f;
+	static constexpr float ControllerRumbleStep = 0.05f;
+
+	/** Rounded to the slider's steps and kept within Min..Max; anything that isn't a number gives the default. */
+	static float ClampControllerRumble(float Rumble);
+
+	/** A save's controller rumble, clamped; the default without one (a save from before the setting existed reads 100%). */
+	static float ControllerRumbleOf(const ULooterControlsSave* Controls);
+
+	float GetControllerRumble() const;
+
+	/** Applies from the next rumble. bSave as for the sensitivity. */
+	void SetControllerRumble(float Rumble, bool bSave = true);
 
 	void SaveSettings() const;
 
