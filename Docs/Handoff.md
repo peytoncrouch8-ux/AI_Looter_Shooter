@@ -10,15 +10,16 @@ ward+health 69%; 7 Unpaid: 79%; a spider bite (22-30) breaks a Common ward on th
 scale (10.8 s at 1.5 no ward, 9.5 s at 1.8): 324 HP spiders, 3 biting at once (tokens) — a balance question for the
 user, not the scale. Marks: not mirrored; Thresher (24/-0.4/4.0) and Powderkeg (size 3.4) fixed in MARKS (DA_LMG,
 DA_Launcher changed). Bounty Strongbox opens by hand.
-Merged into Source (building, uncommitted): SHIELD-POLISH (boss shower throws wards, boss table on; cyan edges/portrait
-glint on ward hits, red+flinch on a break, `HudWardHit`, `Looter.Shield.Hud.*`; HudShotScene ward states; `Shield` cue
-namespace), BOUNTY-ART (sheets by kind + printed names `Art/Textures/Bounty`, BOUNTIES header plate, BOUNTY PAID banner by
-Id "Bounty_<serial>"; phase 2 runs `build_bounty_sheet_materials.py`), PACKAGE-NOISE (GameFeatureData rule editor-only;
-graphics/keybinding saves checked before loading; PSO compute errors left: RX 580 driver, `r.PSOPrecache.GlobalShaders=0`
-untried).
-BUGFIX running (Saved/BugfixCode): board still says "strongbox waits" after looting; card promises 2 guns (a ward may
-replace one); board sign reads NOTICES; gun/ward labels overlap; Launcher Salvager/Scrapper bodies ignore maker paint and
-hide the mark, marks never in third person, not in first person on Longhorn/Powderkeg.
+Committed: ed9c923 (SHIELD-POLISH, BOUNTY-ART, PACKAGE-NOISE), d158cfb (BUGFIX: paid line, "2 guns or wards",
+SM_NoticeBoard_Bounty, loot labels step apart `ULootLabelSubsystem`, salvage bodies take maker shell colour, Longhorn/
+Powderkeg marks forward), 8360ab7 (ward edges at 0.8 strength: at the red's 0.39 the cyan was invisible on the bright
+world; Powderkeg mark 3.0 cm). DEMO re-check passed: sheets, paid line, BOUNTY PAID banner, labels apart, FP marks,
+salvage paint.
+Open (small): the bounty board showed SM_NoticeBoard_Town in PIE before the editor restart (CDO built before the import;
+should be right after 8360ab7's restart, unverified); third-person view never shows a gun's side, so marks are first
+person only (framing, accepted); the "+242 XP" popup lands on the board's "[E] Read the bounties" prompt; 6 spiders kill a
+level-2 player at any DamageScale (324 HP, 3 biting at once): a balance question for the user; PSO compute errors in
+the packaged game on the RX 580 (`r.PSOPrecache.GlobalShaders=0` untried).
 
 ## Next builds (the user, 2026-10-22 noon: "Keep going!" and picked all four suggestions)
 Player shield, gun manufacturers (a concept sheet first for the user's pick), a bounty board, playtest builds; plus
