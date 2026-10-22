@@ -40,12 +40,12 @@
     "shade": ["washWillows", "creekWillows", "sinkRoadCottonwoods", "widowsPinesEdge"],
     "hayfields": [{"id": "hayfieldWest", "rows": 90}, {"id": "hayfieldEast", "rows": 0}],
     "zones": {
-      "home": 0.12,
+      "home": 0.2,
       "orchard": 0.15,
       "town": -0.15,
       "travel": -0.15,
       "graveyard": -0.15,
-      "chapel": 0.1,
+      "chapel": 0.25,
       "lookout": -0.1,
       "boss_arena": -0.12,
       "alpine": 0.3,
@@ -56,18 +56,19 @@
     },
     "blooms": {
       "alpine": { "hue": 0.04, "pull": 0.75, "more": 1.8 },
-      "chapel": { "hue": -0.6, "pull": 0.8, "more": 1.7 },
-      "fields": { "hue": 0.6, "pull": 0.6, "more": 1.4 }
+      "chapel": { "hue": -0.6, "pull": 0.9, "more": 2.4 },
+      "fields": { "hue": 0.6, "pull": 0.75, "more": 1.8 }
     },
     "tones": {
-      "town": { "color": "#b48f6c", "mix": 0.5, "patch": 0.55, "alpha": 0.22, "grass": 0.55 },
-      "travel": { "color": "#7a7670", "mix": 0.55, "patch": 0.45, "alpha": 0.32, "value": 0.92, "grass": 0.5 },
-      "pit": { "color": "#9a948e", "mix": 0.5, "patch": 0.4, "alpha": 0.2, "value": 0.93, "grass": 0.6 },
-      "quarry": { "color": "#d2cab6", "mix": 0.55, "patch": 0.45, "alpha": 0.32, "grass": 0.5 },
-      "mine": { "color": "#5f5a52", "mix": 0.55, "patch": 0.5, "alpha": 0.3, "value": 0.9, "grass": 0.6 },
-      "graveyard": { "color": "#c8bd9a", "mix": 0.3, "patch": 0.6, "alpha": 0.15, "grass": 0.75 },
-      "lookout": { "color": "#d0c8aa", "mix": 0.28, "patch": 0.6, "alpha": 0.12, "grass": 0.8 },
-      "boss_arena": { "color": "#c7c1b0", "mix": 0.28, "patch": 0.6, "grass": 0.8 }
+      "town": { "color": "#b07a52", "mix": 0.75, "patch": 0.3, "alpha": 0.28, "grass": 0.4 },
+      "travel": { "color": "#5f5c58", "mix": 0.75, "patch": 0.3, "alpha": 0.38, "value": 0.85, "grass": 0.35 },
+      "pit": { "color": "#8e8a88", "mix": 0.7, "patch": 0.3, "alpha": 0.25, "value": 0.9, "grass": 0.45 },
+      "quarry": { "color": "#dcd4c0", "mix": 0.75, "patch": 0.3, "alpha": 0.38, "grass": 0.35 },
+      "mine": { "color": "#46423c", "mix": 0.75, "patch": 0.35, "alpha": 0.36, "value": 0.82, "grass": 0.45 },
+      "graveyard": { "color": "#cfc3a0", "mix": 0.5, "patch": 0.45, "alpha": 0.2, "grass": 0.6 },
+      "lookout": { "color": "#d6cfb2", "mix": 0.45, "patch": 0.45, "alpha": 0.16, "grass": 0.7 },
+      "boss_arena": { "color": "#cdc7b6", "mix": 0.45, "patch": 0.45, "grass": 0.7 },
+      "chapel": { "color": "#6f8f4f", "mix": 0.45, "patch": 0.4 }
     }
   },
   "scatter": {
@@ -75,7 +76,7 @@
     "roadside": "pebbles",
     "steep": "bare",
     "layers": {"grass": {"cell": 80, "cull": 1.5}, "flowers": {"cull": 1.4}},
-    "blooms": { "alpine": 1.8, "chapel": 1.7, "fields": 1.4 }
+    "blooms": { "alpine": 1.8, "chapel": 2.4, "fields": 1.8 }
   },
   "region": {
     "about": "The regional height field around the core (Art/Levels/area_region.py), in cm: the valley floor's noise and tilt (meters of rise per meter north and east) and its benches (a polygon raised or lowered by height, easing out over blend), the ridges (each from its foot: height, crest = how far behind the foot the crest is, back = the outer slope's reach, band = the cliff band at the foot; a saddle lowers the crest near a pass), the escarpment (its lip, the drop to the canyon floor, how deep the cliff kit's stacked courses reach, the far wall; calm keeps the lip from wandering where a model is fitted to it), the surround ring and the backdrop. The core's outer seamBand fades into the field; no feature may enter it. floors raises a hanging valley's ground to a level inside a polygon (the higher of the two, round: the smooth maximum's width; levels: four corners' heights over a rectangle, held past it; relief: rolling swells): Larkspur Bench behind Larkspur Ridge's crest, +44 m in the south-west to +58.5 m in the north-east; ridges marked onFloor stand on the floors (Larkspur High, the East Shoulder), and bandGaps leaves a ridge's band undressed where the Old Quarry cuts through it.",

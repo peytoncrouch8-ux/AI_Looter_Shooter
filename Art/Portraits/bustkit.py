@@ -1,4 +1,4 @@
-"""The kit the hero portrait scripts share beyond bust.py's stage (Docs/Pipeline.md, "Character portraits"): bust.py is the
+"""The kit the hero portrait scripts share beyond bust.py's stage (Docs/Pipeline/Heroes.md, "Character portraits"): bust.py is the
 machinery (body, eyes, base materials, hair curves, drape, lights, render, the runner); this is what heroes built for
 themselves and now share: shader shorthands, props and primitives, wires and chains, hair tufts, posing hooks. A hero
 script imports from both and keeps only its look: FACE, MACRO, OPTIONS, the "# PAINT" lines and its costume builders.

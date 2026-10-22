@@ -27,6 +27,14 @@ hero (Ellis keeps his weary idle), the hero value and hair pass, the Gravemother
 **every hero needs a third-person aim-down-sights pose** (today none aims in when ADS in third person).
 Running: CHAR-MAT (materials: ghost, Gauge enamel, hero value, Gravemother/Sexton), CHAR-POSE (stances, hand curl,
 Gauge's head, 3P ADS aim; C++ holding tree), CHAR-FACE (Blender: Crane's hair/mustache, faces).
+VFX-2 committed (4486136): M_FX_Fire explosions, the white-ghost kill fixed, Slag Bomb cheaper, impacts that read at
+30 m; a white spider still showed once in the Slag Bomb after-shot (watch); final p95 not re-measured on a quiet PC.
+CHAR-POSE tree ready (`Saved/CharPoseCode`, MERGE.md; Odessa's card is a small cube: make it a flat card at merge; the
+stand's capture can't show steam). Lane queue: FP pull-in (running) -> LOOT-POLISH merge -> CHAR-POSE -> tones import ->
+element parts import -> CHAR-MAT -> CHAR-FACE import; then build_sound_bank for Hero.Gauge.Vent.
+FP pull-in committed (056cea5); Hero.Gauge.Vent rendered (6aec834). LOOT-POLISH's copy into Source was refused by the
+permission system for the agent; **the user approved and Main copied it** (hashes matched); the agent builds/tests now.
+Bolder tones repaint done (`Saved/ArtPreviews/Terrain/RansomsRest/macro.png`), import waits for the lane (WORLD-ART).
 
 ## Direction (the user's answers, grill session 2026-10-21) — overrides "next" below
 

@@ -191,6 +191,58 @@ THIRD_PERSON_HOLD = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (0.0, 0.0, -4.5), 'Cran
 THIRD_PERSON_CAMERA = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (-5.0, 0.0, -3.0), 'Crane': (20.0, 8.0, 16.0),
                        'Gauge': (45.0, 12.0, 4.0), 'Pike': (-10.0, -4.0, -8.0)}
 
+# How each hero stands still unarmed (UHeroDefinition::Idle, FHeroIdle in Player/Animation/HeroPoseTypes.h; only the
+# fields that differ from its defaults, which are Ellis's weary idle). The user's stances of 2026-10-22 (CharArt sheet 2):
+# Ellis keeps the weary revenant; Crane stooped, head low and forward, his left hand on the toll chain at his chest; Odessa
+# hip cocked, right hand on the hip, a card walking over her left knuckles, chin up; Gauge wide and planted, arms clear of
+# the boiler, a slow piston sway, steam every few breaths, his head up (the user: "looking down all the time"); Pike
+# upright, weight back, thumbs in his pack straps, looking off. Degrees and cm on the full-size body; rests' offsets
+# (ahead, out, up) move the mannequin's hand onto this body (its hands are pinned to the mannequin's: Crane's chest ~14 cm
+# higher, Pike's ~6 and Odessa's ~4 lower, the THIRD_PERSON_HOLD numbers). Gauge's steam leaves his stack mouths
+# (gauge_parts.py: 14 back, 19.7 out, 191 up). Rests are FHeroIdle's EHeroIdleRest names. Tune live with
+# Looter.Pose.Set <Hero> Idle.<Field> <Value>; Looter.Pose.Dump prints these lines back.
+HERO_IDLE = {
+    'Ellis': dict(),
+    'Odessa': dict(chest_slump=-1.0, shoulder_round=-1.0, neck_down=1.0, head_up=5.0, hip_cock=1.8, weight_shift=0.3,
+                   glances=0.7, left_rest='CardHand', right_rest='HipHand', left_rest_offset=(0.0, 0.0, -4.0),
+                   right_rest_offset=(0.0, 1.0, -2.0)),
+    'Crane': dict(chest_slump=8.0, shoulder_round=9.0, neck_down=16.0, head_up=8.0, lean=7.0, weight_shift=0.6,
+                  glances=0.6, breath_period=5.0, left_rest='ChainHand', right_rest='Hang',
+                  left_rest_offset=(0.0, 0.0, 14.0)),
+    'Gauge': dict(chest_slump=0.0, shoulder_round=0.0, neck_down=2.0, head_up=4.0, head_lift=6.0, weight_shift=0.3,
+                  stance_width=7.0, sway_depth=1.5, sway_period=5.5, breath_period=5.5, breath_depth=0.6, glances=0.7,
+                  steam_every=3, steam_vent=(-14.0, 19.7, 191.0), right_rest='Hang', left_rest_offset=(2.0, 14.0, 0.0),
+                  right_rest_offset=(2.0, 14.0, 0.0)),
+    'Pike': dict(chest_slump=-2.0, shoulder_round=-3.0, neck_down=1.0, head_up=3.0, lean=-3.0, hips_back=3.0,
+                 head_yaw=28.0, head_pitch=3.0, glances=0.4, weight_shift=0.6, left_rest='StrapThumb',
+                 right_rest='StrapThumb', left_rest_offset=(0.0, 0.0, -6.0), right_rest_offset=(0.0, 0.0, -6.0)),
+}
+
+# How each hero aims down the sights in third person (UHeroDefinition::Aim, FHeroAim; fields that differ from the defaults:
+# the gun to the eye line, head 7 down and 6 canted onto it, elbows tucked). The eye is the mannequin's moved by
+# THIRD_PERSON_HOLD; EyeOffset (ahead, right, up) moves it further for a body that needs it: Gauge's lamp-eye sits in a
+# helm wider than a head, so his sight comes up beside it, and a machine's head barely bows. Tune live with
+# Looter.Pose.Set <Hero> Aim.<Field> <Value>.
+HERO_AIM = {
+    'Ellis': dict(),
+    'Odessa': dict(),
+    'Crane': dict(head_down=9.0),
+    'Gauge': dict(eye_offset=(0.0, 6.0, 2.0), head_down=3.0, head_cant=2.0),
+    'Pike': dict(),
+}
+
+
+def pose_struct(struct_type, fields):
+    """A FHeroIdle / FHeroAim with fields set by their Python names (vectors as tuples, rests by EHeroIdleRest's names)."""
+    value = struct_type()
+    for name, field in fields.items():
+        if isinstance(field, tuple):
+            field = unreal.Vector(*field)
+        elif isinstance(field, str):
+            field = getattr(unreal.HeroIdleRest, ''.join('_' + c if c.isupper() and i else c for i, c in enumerate(field)).upper())
+        value.set_editor_property(name, field)
+    return value
+
 
 def hero(id, name, role, story, color, powers):
     arms = 'SK_FP_Arms' if id == 'Ellis' else f'SK_FP_Arms_{id}'
@@ -199,7 +251,7 @@ def hero(id, name, role, story, color, powers):
                 mesh=f'/Game/Art/Characters/SK_{id}.SK_{id}',
                 retargeter=f'/Game/Player/Retarget/RTG_MannyTo{id}.RTG_MannyTo{id}',
                 arms=f'/Game/Art/Characters/{arms}.{arms}', arms_scale=ARMS_SCALE[id], hold=THIRD_PERSON_HOLD[id],
-                camera=THIRD_PERSON_CAMERA[id])
+                camera=THIRD_PERSON_CAMERA[id], idle=HERO_IDLE[id], aim=HERO_AIM[id])
 
 
 # The roster's order (UHeroDefinition::RosterIds); each hero's first power is equipped in a new game.
@@ -333,6 +385,9 @@ def setup_hero(spec, cls, made):
     asset.set_editor_property('third_person_hold', unreal.Vector(*spec['hold']))
     # And the over-the-shoulder camera fitted to this body's size (the hat or pack clear of the aimed view).
     asset.set_editor_property('third_person_camera', unreal.Vector(*spec['camera']))
+    # Their own stance standing still, and their aim down the sights in third person.
+    asset.set_editor_property('idle', pose_struct(unreal.HeroIdle, spec['idle']))
+    asset.set_editor_property('aim', pose_struct(unreal.HeroAim, spec['aim']))
     asset.set_editor_property('powers', powers)
     save(asset, path)
     there = [what for what, object_path in looks.items() if object_path]

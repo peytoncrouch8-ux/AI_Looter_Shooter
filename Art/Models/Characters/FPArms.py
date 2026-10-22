@@ -72,7 +72,9 @@ HAND_TRIS = 1950                           # one glove's hand after decimation
 # per-channel factor (lv, ov below), so the creases, scuffs, wax and wear keep their contrast. GAUNTLET_TONE darkens
 # the cuff alone: Ellis's cuff is a touch darker than his hand, where the painted cuff (no creases, tooled border,
 # suede inside) came out lighter.
-LEATHER, OILSKIN = 0x7d5f42, 0x5c4b39
+# OILSKIN follows CHAR-ART's value pass (2026-10-22: Ellis.py's DUSTER lighter and warmer): his whole coat's mean went
+# (63.4, 50.9, 38.6) -> (80.5, 61.0, 43.2), so the old 0x5C4B39 is scaled by the same per-channel factor.
+LEATHER, OILSKIN = 0x7d5f42, 0x755a40
 LEATHER_PAINTED, OILSKIN_PAINTED = 0xa47c56, 0x8f7052   # the tones the layers were first mixed around (older Ellis)
 GAUNTLET_TONE = np.array([0.93, 0.91, 0.88])
 

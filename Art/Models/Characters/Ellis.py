@@ -148,18 +148,27 @@ def slot(key):
     return SLOTS[key]
 
 
+# The value pass (CHAR-ART item 3, the user's OK 2026-10-22: "out of one dark mass"): in game the duster, waistcoat and
+# trousers all read near black and he was one dark shape with a red bandana. Three value groups now, warmer: the duster
+# the big mid-dark warm brown (lighter than the portrait's (0.12, 0.085, 0.06)/(0.30, 0.235, 0.17), redder), its seams'
+# thread paler; the waistcoat the darkest (charcoal, under the bandana and the face, so they pop); the trousers a warm
+# dark grey a step over it; the shirt's V the light note by the face; the belt a lighter tan band between top and
+# bottom; the hat a warm dark brown over all of it.
+DUSTER = ((0.17, 0.115, 0.075), (0.41, 0.30, 0.20))
+DUSTER_THREAD = (0.66, 0.54, 0.38)
+
 LOOKS = {
     'Skin': lambda n: lk.skin(n, OPT['skin']),
     'Scalp': lambda n: lk.scalp(n, (0.07, 0.06, 0.055)),
     'EyeGlow': lambda n: lk.glow(n, OPT['glow'], 6.0),
-    'Felt': lambda n: lk.felt(n, (0.11, 0.095, 0.085), (0.30, 0.255, 0.21), band_z=HAT.get('band_z')),
+    'Felt': lambda n: lk.felt(n, (0.13, 0.10, 0.08), (0.33, 0.265, 0.205), band_z=HAT.get('band_z')),
     'HatBand': lambda n: lk.leather(n, (0.14, 0.08, 0.05), grain=280.0, dust_amt=0.2, dust_height=0.001),
     'Hair': lambda n: ellis_hair.material(n),         # the hair cards' strand atlas (script-made, not baked)
     'Bandana': lambda n: lk.bandana(n, (0.52, 0.06, 0.05), (0.66, 0.17, 0.12)),
-    'Duster': lambda n: lk.oilskin(n, OPT['coat']['cloth'][0], OPT['coat']['cloth'][1], hem=HEM),
-    'Vest': lambda n: lk.brocade(n, (0.045, 0.045, 0.05), (0.12, 0.115, 0.115)),
-    'Shirt': lambda n: lk.linen(n, (0.31, 0.33, 0.36)),
-    'Trousers': lambda n: lk.wool(n, (0.19, 0.18, 0.19)),
+    'Duster': lambda n: lk.oilskin(n, DUSTER[0], DUSTER[1], hem=HEM, thread=DUSTER_THREAD),
+    'Vest': lambda n: lk.brocade(n, (0.07, 0.066, 0.07), (0.17, 0.16, 0.155)),
+    'Shirt': lambda n: lk.linen(n, (0.44, 0.45, 0.47)),
+    'Trousers': lambda n: lk.wool(n, (0.25, 0.225, 0.205)),
     # leather grain under the bake's limit (~300/m at ~1000 px/m): at 900-1100/m it aliased into a fuzz that read as
     # suede and fur from a few metres (the gauntlets, 2026-10-15). The toe cap stitched 5.5 cm behind the toe (its tip
     # at y -0.244), the welt 5 mm over the sole
@@ -168,7 +177,7 @@ LOOKS = {
     'Soles': lambda n: lk.stacked(n, (0.12, 0.08, 0.055)),
     'Gloves': lambda n: lk.leather(n, (0.50, 0.36, 0.23), grain=280.0, dust_amt=0.25, dust_height=0.001,
                                    scuff=(0.68, 0.53, 0.38), rough=(0.5, 0.75)),
-    'Belt': lambda n: lk.leather(n, (0.25, 0.145, 0.085), grain=280.0, dust_amt=0.25, dust_height=0.001),
+    'Belt': lambda n: lk.leather(n, (0.36, 0.215, 0.12), grain=280.0, dust_amt=0.25, dust_height=0.001),
     'Brass': lambda n: lk.metal(n, (0.58, 0.42, 0.19), (0.86, 0.68, 0.36)),
     'Lead': lambda n: lk.metal(n, (0.38, 0.37, 0.36), (0.58, 0.56, 0.54), rough=(0.4, 0.6), tarnish=(0.2, 0.2, 0.2)),
     'Iron': lambda n: lk.metal(n, (0.05, 0.055, 0.065), (0.17, 0.18, 0.20), rough=(0.3, 0.55), tarnish=(0.05, 0.04, 0.03)),

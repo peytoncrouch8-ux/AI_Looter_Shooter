@@ -14,19 +14,18 @@ import numpy as np
 import looter_garments as gm
 import mh
 
-LID = (0.235, 0.15)      # the lids' ellipse round each eye's centre (dm, x and y): left as built
-LID_FADE = 0.06          # ... carving fades in over this beyond it
-LID_TOP = (0.24, 0.29)   # carving fades out between these heights over the eyes (dm): the hat's band sits higher
+LID = (0.20, 0.115)      # the lids' ellipse round each eye's centre (dm, x and y): left as built
+LID_FADE = 0.07          # ... carving fades in over this beyond it (dm; a feature reaching the lids ends before them)
+LID_TOP = (0.25, 0.32)   # carving fades out between these heights over the eyes (dm): the hat's band sits higher
 
 
 def landmarks(h, hf, used):
     """The head's landmarks at rest (dm): eyes, eye_y, nose tip, mouth (middle and corner half-width), chin's front,
     the jaw's width a little under the mouth, and the face's front z."""
     rest = h['morphed']
-    hw = h['weights']('head')
-    head = rest[np.intersect1d(used, np.nonzero(hw > 0.5)[0])]
+    w_face, w_oris = _face_weights(h)
+    head = rest[np.intersect1d(used, np.nonzero(w_face > 0.5)[0])]
     nose = head[np.argmax(head[:, 2])]
-    w_oris = _oris_weight(len(rest))
     lips = rest[np.intersect1d(used, np.nonzero(w_oris > 0.3)[0])]
     mouth = np.array([0.0, float(np.median(lips[:, 1])), float(lips[:, 2].max())])
     corner = float(np.abs(lips[:, 0]).max())
@@ -40,17 +39,31 @@ def landmarks(h, hf, used):
                 corner=corner, chin=chin, jaw=np.array([abs(jaw[0]), jaw[1], jaw[2]]), front=float(nose[2]))
 
 
-def _oris_weight(n):
-    """The lips' share: MakeHuman's orbicularis oris bones' weights summed (its weights file read once)."""
-    import json
-    import os
-    weights = json.load(open(os.path.join(mh.DATA, 'rigs', 'default_weights.mhw')))['weights']
-    w = np.zeros(n)
-    for bone, lst in weights.items():
-        if bone.startswith('oris'):
+def _face_weights(h):
+    """Per MakeHuman vertex: the head's share (the head bone and every bone under it: the face's, eyes', jaw's and
+    tongue's, which the game's rig gives the head) and the lips' (the orbicularis oris bones'). Cached on h."""
+    if '_face_w' not in h:
+        import json
+        import os
+        weights = json.load(open(os.path.join(mh.DATA, 'rigs', 'default_weights.mhw')))['weights']
+        bones = h['bones']
+
+        def under_head(b):
+            while b:
+                if b == 'head':
+                    return True
+                b = bones[b]['parent'] if b in bones else None
+            return False
+        n = len(h['verts'])
+        face, oris = np.zeros(n), np.zeros(n)
+        for bone, lst in weights.items():
             for i, x in lst:
-                w[i] += x
-    return w
+                if under_head(bone):
+                    face[i] += x
+                if bone.startswith('oris'):
+                    oris[i] += x
+        h['_face_w'] = (face, oris)
+    return h['_face_w']
 
 
 def _seg_dist(P, a, b, scale):
@@ -76,7 +89,7 @@ def carve(h, hf, used, features, scale, log=print, name='face'):
     R = g[:3, :3]
     rest = h['morphed']
     loc = rest[used]
-    hw = h['weights']('head')[used]
+    hw = _face_weights(h)[0][used]
     # where carving may reach: the face (the head's own), round the lids not in them, under the band's line
     mask = _smooth((hw - 0.55) / 0.3)
     for e in L['eyes']:

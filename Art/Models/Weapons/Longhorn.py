@@ -33,6 +33,12 @@ Each option's display name, name word, lowest rarity and stat ranges live in Lon
 (Magazine = rounds, Zoom = magnification), which Tools/Unreal/setup_gun_parts.py reads into the sniper's definition.
 A new part needs a model here and a row there, under the same key; never rename or reuse a key.
 
+The element boxes (Ember5, Saint5, Salt5: the 5's box)
+wear their element (2026-10-22, looter_guns' element pieces): Ember heat-scored metal and ember vents, Soul-light
+pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt salt crystals and cyan-white inlays.
+`-- --elements` renders Saved/ArtPreviews/Weapons/Longhorn_Elements.png (a row per element: first person, side, the part
+alone).
+
     blender -b --factory-startup --python Art/Models/Weapons/Longhorn.py -- --preview
 """
 import math
@@ -519,6 +525,49 @@ def magazines():
     for v in (-6.0, -9.9):
         shift = 0.8 * (-3.4 - v) / 7.0                         # the box rakes 0.8 cm forward over its height
         g.add(m, lg.box(32.65 + shift, 38.55 + shift, v - 0.3, v + 0.3, 2.8, bevel=0.08, mat=lg.BRASS))
+    element_magazines(M)
+
+
+def element_magazines(M):
+    """The element boxes (2026-10-22): the 5's box (u 32.8..38.4, v -3.4 to -7.2 over its floor, 2.5 wide), dressed in
+    their element. Only its lower half shows under the chassis, so the dress sits there and on the floor."""
+    half, uc = 1.25, 35.6
+
+    # Heat-scored steel, two ember vents a side with the heat behind, a temper-blued floor with a hot seam.
+    m = M('Ember5')
+    boxmag(m, -7.2, lg.SCORCHED, floor=lg.TEMPER)
+    cuts = []
+    for u in (33.7, 36.0):
+        slot = [(u, -6.75), (u + 0.9, -6.75), (u + 1.6, -4.9), (u + 0.7, -4.9)]
+        cuts += [lg.cslab(slot, half - 0.28, half + 1.0, round=0.2), lg.cslab(slot, -half - 1.0, -half + 0.28,
+                                                                             round=0.2)]
+    g.parts[m][0] = lg.cut(g.parts[m][0], cuts)
+    for side in (-1.0, 1.0):
+        g.add(m, lg.box(33.4, 37.9, -6.95, -4.4, 0.04, w=side * (half - 0.24), bevel=0.0, mat=EMBER))
+        g.add(m, lg.box(33.0, 38.2, -7.48, -7.32, 0.05, w=side * 1.42, bevel=0.0, mat=EMBER))
+
+    # Blued steel in pale gold: a saint's medal each side between gilt curls, a gilt floor, a gold-white glow band.
+    m = M('Saint5')
+    boxmag(m, -7.2, lg.BLUED, floor=lg.GILT)
+    for side in (-1.0, 1.0):
+        w = side * half
+        g.add(m, *lg.medal((uc, -5.85, w), (0.0, 0.0, side), 0.85, bail=False))
+        for flip, cu in ((1.0, 33.6), (-1.0, 37.6)):
+            g.add(m, lg.curl((cu, -5.8, w), (0.0, 0.0, side), 0.7, flip=flip * side, turns=1.4, thick=0.05))
+        g.add(m, lg.box(32.95, 38.25, -6.95, -6.75, 0.08, w=w + side * 0.03, bevel=0.0, mat=lg.SOUL))
+
+    # Smoke polymer crusted with salt: crystals from its floor and its lower corners, cyan-white frost veins.
+    m = M('Salt5')
+    boxmag(m, -7.2, lg.POLY_GREY, floor=lg.STEEL)
+    g.add(m, *lg.salt_cluster(1001, (uc, -7.75, 0.0), (0.1, -1.0, 0.0), 2.0, 6, length=(0.88, 2.1), r=(0.22, 0.42),
+                              up=(1.0, 0.0, 0.0), squash=0.5))
+    for side in (-1.0, 1.0):
+        w = side * half
+        g.add(m, *lg.salt_cluster(1010 + int(side), (38.0, -6.6, w), (0.4, -0.3, side), 0.7, 3, length=(0.7, 1.4),
+                                  r=(0.18, 0.3)))
+        g.add(m, lg.pipe([(33.4, -4.6, w), (34.6, -5.6, w), (34.0, -6.4, w), (35.6, -6.9, w)], 0.07,
+                         mat=lg.SALT_GLOW, sides=4))
+        g.add(m, lg.pipe([(36.4, -4.7, w), (37.0, -5.8, w), (36.6, -6.6, w)], 0.06, mat=lg.SALT_GLOW, sides=4))
 
 
 # --- Scopes: around the middle of the rail ---
@@ -702,7 +751,7 @@ SLOTS = {
     'Body': ['Standard', 'Heritage', 'Carbon', 'Salvager', 'Skeleton', 'Ranger', 'Armored', 'Gilded'],
     'Barrel': ['Short', 'Fluted', 'Heavy', 'Long', 'Shrouded', 'Finned', 'Tensioned', 'Engraved'],
     'Muzzle': ['Crown', 'Brake', 'Hood', 'Compensator', 'Radial', 'Suppressor', 'LongSuppressor', 'Forge'],
-    'Magazine': ['5', '5Flush', '5Window', '6', '7', '8', 'Coupled5', '8Brass'],
+    'Magazine': ['5', '5Flush', '5Window', '6', '7', '8', 'Coupled5', '8Brass', 'Ember5', 'Saint5', 'Salt5'],
     'Sight': ['Scout', 'Longhorn', 'Ranger', 'Tactical', 'Variable', 'Seeker', 'Marshal', 'Deadeye'],
     'Stock': ['Pad', 'Recoil', 'Cheek', 'Spacers', 'Hook', 'Adjustable', 'Monopod', 'Engraved'],
     'Bolt': ['Standard'],
@@ -846,3 +895,8 @@ if lt.want_preview():
         bpy.context.view_layer.update()
         lt.preview(objs, out(f'Longhorn_Parts_{slot}'), view=(-1.0, -0.15, 0.12), ground=False, lens=60.0, fit=0.8)
     layout()
+
+if lg.want_elements():   # -- --elements: Longhorn_Elements.png, the plain 5 and its element boxes
+    lg.element_preview('Longhorn_Elements', assemble, DEFAULT, 'Magazine', ['5', 'Ember5', 'Saint5', 'Salt5'], built,
+                       fp=dict(view=(0.3, 1.0, 0.25), lens=35.0, fit=0.5),
+                       side=dict(view=(-1.0, -0.12, 0.12), lens=60.0, fit=0.62))

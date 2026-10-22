@@ -545,4 +545,11 @@ own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
   rooted along the upper lip's arch, combed mostly down and out by how far out the root is, 3-9 cm, each card puffing
   4 mm off the skin toward its tip and tapering to 30%: the portrait's walrus to the jaw. 660 triangles.
   **Brows** (`BROWS`): 16 narrow cards a side in three layers, roots jittered, up and out at the inner end, drooping at
-  the outer; 192 triangles. Crane 34.2k triangles (hair 3.65k).
+  the outer; 192 triangles.
+- Results (exports repeat bit-identically, the rebake byte-identical): SK_Crane 33,758 triangles (was 33,511), 144
+  bones, names unchanged; the hair chain's joints follow the cards (hair_end 4.3 cm, hair_02 2.2, the front locks' ends
+  0.6-1.1). Every Crane set rebaked and repacked: the coin rests on the new brow (Gear), the shirt band and collar sit
+  off the new neck by about 1 mm (Garb, Coat), a sleeve's Decimate shifted one vertex (Coat), the hair lies on the cape.
+  SK_Odessa 34,823 (was 34,821), 92 bones unmoved, only skin and hair shell changed; OdessaCoat/Garb/Gear differ only in
+  occlusion near the face (0.03-0.16% of pixels). Crane.py and crane_common.py are in FPArmsCrane's digest: its next
+  export rebakes (same looks). Before/after: `Saved/ArtPreviews/Characters/Face_<Hero>_compare.png`.

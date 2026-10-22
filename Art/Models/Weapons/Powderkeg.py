@@ -34,6 +34,12 @@ Each option's display name, name word, lowest rarity and stat ranges live in Pow
 (Magazine = rockets, Zoom = magnification), which Tools/Unreal/setup_gun_parts.py reads into the launcher's definition.
 A new part needs a model here and a row there, under the same key; never rename or reuse a key.
 
+The element rockets (Saintfire, Saltburst: the frag nose; Incendiary is the Ember one)
+wear their element (2026-10-22, looter_guns' element pieces): Ember heat-scored metal and ember vents, Soul-light
+pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt salt crystals and cyan-white inlays.
+`-- --elements` renders Saved/ArtPreviews/Weapons/Powderkeg_Elements.png (a row per element: first person, side, the part
+alone).
+
     blender -b --factory-startup --python Art/Models/Weapons/Powderkeg.py -- --preview
 """
 import math
@@ -404,17 +410,17 @@ FRAG_NOSE = [(-12.0, 1.9), (-7.0, 2.0), (-6.0, 3.2), (-4.2, 4.0), (-0.6, 4.0), (
              (7.0, 1.6)]
 
 
-def glow_tip(m, u, r, length=0.9):
+def glow_tip(m, u, r, length=0.9, mat=None):
     """The rocket's lit fuze cap, glowing at the nose (what the player sees in the bell's mouth)."""
     g.add(m, lg.turned([(0.0, r), (length * 0.45, r * 0.8), (length * 0.85, r * 0.38), (length, 0.0)], u, segments=20,
-                       mat=EMBER))
+                       mat=mat or EMBER))
 
 
-def frag(m, u0, body=WARHEAD, band=lg.BRASS, tip=True):
+def frag(m, u0, body=WARHEAD, band=lg.BRASS, tip=True, tip_mat=None):
     g.add(m, lg.turned(FRAG_NOSE, u0, segments=28, mat=body))
     g.add(m, lg.tube(u0 + 0.4, u0 + 1.3, 4.0, segments=28, mat=band))      # the fuze band, just out of the mouth
     if tip:
-        glow_tip(m, u0 + 6.95, 1.62, length=2.1)
+        glow_tip(m, u0 + 6.95, 1.62, length=2.1, mat=tip_mat)
 
 
 def mini(m, u0, w=0.0, r=1.9, length=6.6, body=WARHEAD):
@@ -485,6 +491,52 @@ def rockets():
     g.add(m, hollow([(0.0, 1.5), (2.0, 1.95)], u0 - 40.0, 0.0, 20, lg.STEEL, wall=0.3))   # the nozzle
     g.add(m, lg.turned([(0.0, 1.3), (0.4, 0.0)], u0 - 38.6, segments=16, mat=EMBER))   # the burn inside the nozzle
     g.socket(m, 'Exhaust', (u0 - 40.4, 0.0), rotation=(0.0, 0.0, 180.0))
+    element_rockets(M)
+
+
+# --- Element rockets (2026-10-22): the frag nose (so they seat and show like it), dressed in their element. The nose
+# shows from the mouth (du 0) forward, through the muzzle device, whose bore is 4.4 cm or more across: the dress stays
+# inside 4.3 cm. (Incendiary, the Ember rocket, had its own look already.) ---
+
+PEARL = lg.material('GunPearl', 'Polymer', 0xece8de)   # the Drover's pearl: Saintfire's nose
+
+
+def nose_r(du):
+    """The frag nose's radius du cm ahead of where it seats."""
+    for (a, ra), (b, rb) in zip(FRAG_NOSE, FRAG_NOSE[1:]):
+        if a <= du <= b:
+            return ra + (rb - ra) * (du - a) / (b - a)
+    return FRAG_NOSE[-1][1]
+
+
+def element_rockets(M):
+    u0 = ROCKET_AT[0]
+
+    # A pearl-white nose with gilt bands, a gold-white glow ring, three saint's medals round the cone, a saint-lit tip.
+    m = M('Saintfire')
+    frag(m, u0, body=PEARL, band=lg.GILT, tip_mat=lg.SOUL)
+    for du in (2.2, 5.0):
+        g.add(m, lg.tube(u0 + du, u0 + du + 0.32, nose_r(du + 0.16) + 0.05, segments=28, mat=lg.GILT))
+    g.add(m, lg.tube(u0 + 1.45, u0 + 1.8, nose_r(1.6) + 0.06, segments=28, mat=lg.SOUL))
+    slope = (nose_r(4.2) - nose_r(2.8)) / 1.4
+    for a in (60.0, 180.0, 300.0):
+        for p in lg.medal((u0 + 3.55, nose_r(3.55) - 0.06, 0.0), (-slope, 1.0, 0.0), 0.8, up=(1.0, slope, 0.0),
+                          bail=False):
+            g.add(m, about_bore(p, a))
+
+    # A bare steel nose split by salt: crystals bursting out of the cone and round the tip, a salt-white fuze band, a
+    # cyan-white glow ring and tip.
+    m = M('Saltburst')
+    frag(m, u0, body=lg.STEEL, band=lg.SALT, tip_mat=lg.SALT_GLOW)
+    g.add(m, lg.tube(u0 + 1.45, u0 + 1.8, nose_r(1.6) + 0.06, segments=28, mat=lg.SALT_GLOW))
+    for k, a in enumerate(range(0, 360, 60)):
+        du = 3.0 if k % 2 == 0 else 4.6
+        slope = (nose_r(du + 0.5) - nose_r(du - 0.5))
+        for p in lg.salt_cluster(1100 + k, (u0 + du, nose_r(du) - 0.05, 0.0), (0.6 - slope, 1.0, 0.0), 0.7, 3,
+                                 length=(0.8, 1.4), r=(0.22, 0.36), lean=22.0, up=(1.0, 0.0, 0.0), glow_every=2):
+            g.add(m, about_bore(p, a + 15.0))
+    g.add(m, *lg.salt_cluster(1120, (u0 + 8.4, 0.0, 0.0), (1.0, 0.0, 0.0), 0.6, 6, length=(1.2, 2.2),
+                              r=(0.2, 0.36), lean=40.0, glow_every=2))
 
 
 # --- Sights: around the middle of the rail ---
@@ -649,7 +701,7 @@ SLOTS = {
     'Body': ['Standard', 'Carbon', 'Salvager', 'Armored', 'Ribbed', 'Lattice', 'Gilded'],
     'Barrel': ['Bell', 'Stub', 'Long', 'Flared', 'Vented', 'Guided', 'Siege'],
     'Muzzle': ['Ring', 'Lip', 'Crown', 'Deflector', 'Baffle', 'Coil', 'Gilded'],
-    'Magazine': ['Frag', 'Slammer', 'Cluster', 'Hornet', 'Twin', 'Incendiary', 'Thunder'],
+    'Magazine': ['Frag', 'Slammer', 'Cluster', 'Hornet', 'Twin', 'Incendiary', 'Thunder', 'Saintfire', 'Saltburst'],
     'Sight': ['Ladder', 'Optic', 'Reflex', 'Rangefinder', 'Tracker', 'Longeye'],
     'Stock': ['Pad', 'Rubber', 'Skeleton', 'Brace', 'Quilted', 'Monopod', 'Brass'],
 }
@@ -792,8 +844,13 @@ if lt.want_preview():
             obj.rotation_euler = (0.0, 0.0, 0.0)
             objs.append(obj)
         if slot == 'Magazine':
-            ROCKET.location = Vector((0.0, -0.1, -4 * h))
+            ROCKET.location = Vector((0.0, -0.1, -((len(SLOTS[slot]) + 1) // 2) * h))
             objs.append(ROCKET)
         bpy.context.view_layer.update()
         lt.preview(objs, out(f'Powderkeg_Parts_{slot}'), view=(-1.0, -0.3, 0.2), ground=False, lens=60.0, fit=0.8)
     layout()
+
+if lg.want_elements():   # -- --elements: Powderkeg_Elements.png, the plain Frag, Incendiary (Ember) and the element rockets
+    lg.element_preview('Powderkeg_Elements', assemble, DEFAULT, 'Magazine', ['Frag', 'Incendiary', 'Saintfire', 'Saltburst'],
+                       built, fp=dict(view=(0.3, 1.0, 0.25), lens=35.0, fit=0.5),
+                       side=dict(view=(-1.0, -0.12, 0.12), lens=60.0, fit=0.62))

@@ -4,9 +4,11 @@ built by Spider.py itself, its bones by their names, so ASpiderCreature's gait, 
 unchanged), in her own hide and dressing. The game draws her at 1.8x, as it drew SK_Spider for her.
 
 What's hers (Tools/Blender/looter_barrow.py has the shared pieces):
-  - The hide, texture set Gravemother (2048 px, Spider.py's atlas): Spider.py's painter in a mud-grey palette (#8C8070;
-    the brown spider's marks in dark greys, strongly ringed legs, the heart a ghost outline), grave dust settled on her
-    back, old scars, earth smeared on her belly, grave mud on her lower legs and splashed up her knees. Under where the
+  - The hide, texture set Gravemother (2048 px, Spider.py's atlas): her own look since CHAR-ART (2026-10-22; GRAVE
+    below): Spider.py's painter in a pale corpse-bone palette (#C2B9A6) with the spider's marks only faded ghosts, the
+    hide crazed like old bone, dark root veins spreading from where the stone's roots go in, lichen round the stone,
+    grave earth climbing her from below (her belly, every leg's underside, the lower legs dark and wet), old scars and
+    grave dust. (Until then a mud-grey palette, #8C8070, that read as a grey re-tint of the spider.) Under where the
     headstone sits her back is the pale Bone hide (#BAB2A1), bald and pressed, with dark puckers where the roots go in:
     hidden by the stone and the mud round its foot, bare once the stone cracks off.
   - The abdomen has a slot of its own, GravemotherAbdomen (the same maps). GravemotherBare (texture set GravemotherBare,
@@ -14,7 +16,7 @@ What's hers (Tools/Blender/looter_barrow.py has the shared pieces):
     pale print) is for that slot once the stone is off: Tools/Unreal/build_grave_fight_materials.py makes
     MI_GravemotherBare; the game may swap it in (SetMaterialByName GravemotherAbdomen). Without the swap the bare print
     shows alone.
-  - Grave mud (GravemotherMud, #C9B392 dry) caked on every lower leg: a crusted sleeve thickening toward the claw, its
+  - Grave earth (GravemotherMud, dark and wet since CHAR-ART: looter_barrow.paint_mud) caked on every lower leg: a crusted sleeve thickening toward the claw, its
     top ragged, clods stuck on it.
   - Root stubs: where the roots that bind the stone go into her hide (looter_barrow.ROOTS), their last few cm stand out
     of her back, snapped and splintered: hidden inside the roots while the stone is on (GraveRoots, the oak bark tinted
@@ -61,19 +63,71 @@ STONE_INV = STONE.inverted()
 
 # --- The hides ---
 
-# Mud-grey: the brown spider's structure in dark greys on #8C8070, its legs ringed hard (as the user's concept D).
-MUD_GREY = dict(
-    base=lt.rgb(0x857a6a), light=lt.rgb(0x988d7a), belly=lt.rgb(0x645b50),
-    field=lt.rgb(0x574f45), field_k=0.6, heart=lt.rgb(0x37322c), heart_k=0.95, heart_shape=(0.15, 0.76, 0.23),
-    heart_outline=True, chevron=lt.rgb(0x3d3832), chevron_k=0.75, speck=lt.rgb(0x4a433b), speck_k=0.35,
-    lateral=lt.rgb(0x4b443c), lateral_k=0.7, stripe=lt.rgb(0xaca18d), stripe_k=(0.65, 0.45),
-    margin=lt.rgb(0x9b907d), margin_k=0.5,
-    ring=lt.rgb(0x2b2621), ring_k=0.82, palp=lt.rgb(0x453f37), palp_k=0.6, joint=lt.rgb(0x3a342e), joint_k=0.5,
-    solid={'eye': 0x070606, 'bristle': 0x3f3831, 'fang': 0x1b1714, 'misc': 0x3c352f},
-    face=lt.rgb(0x3d3832), face_k=0.6,
-    scar=lt.rgb(0x5a4f46), scar_core=lt.rgb(0xaaa08d), scar_k=0.85,
-    dust=lt.rgb(0x9e8b6c), dust_k=0.55)
 EARTH_SMEAR = lt.rgb(0x5f4f3e)
+
+# Her own look (CHAR-ART item 4b, the user's OK 2026-10-22: "not a grey spider re-tint: her own material/texture identity,
+# the headstone, earth and pale hide"). The mud-grey hide above read as the spider's pattern in grey. GRAVE: a pale,
+# corpse-bone hide (#C2B9A6, under 0.75 so the sun still shades it) whose spider marks are only faded ghosts (rings
+# kept as dark knuckles at the joints), crazed like old bone, dark root veins spreading from where the stone's roots go
+# in, lichen near the stone; grave earth climbing her from below (her belly and the underside of every leg dark, wet
+# earth on the lower legs: looter_barrow.paint_mud), so she reads pale on top and dark at the ground from across the Sink.
+GRAVE = dict(
+    base=lt.rgb(0xc2b9a6), light=lt.rgb(0xd3ccbc), belly=lt.rgb(0x5e5042),
+    field=lt.rgb(0xa39a8a), field_k=0.35, heart=lt.rgb(0x6b6359), heart_k=0.6, heart_shape=(0.15, 0.76, 0.23),
+    heart_outline=True, chevron=lt.rgb(0x7b7368), chevron_k=0.35, speck=lt.rgb(0x8f877b), speck_k=0.3,
+    lateral=lt.rgb(0x968e80), lateral_k=0.4, stripe=lt.rgb(0xd6cfc0), stripe_k=(0.4, 0.3),
+    margin=lt.rgb(0xcbc4b4), margin_k=0.4,
+    ring=lt.rgb(0x5d554b), ring_k=0.45, palp=lt.rgb(0x6e665b), palp_k=0.55, joint=lt.rgb(0x4a4239), joint_k=0.6,
+    solid={'eye': 0x070606, 'bristle': 0x6b6258, 'fang': 0x1e1a16, 'misc': 0x5a534a},
+    face=lt.rgb(0x5e574e), face_k=0.65,
+    scar=lt.rgb(0x8a7d72), scar_core=lt.rgb(0xe2dccf), scar_k=0.8,
+    dust=lt.rgb(0x8a7556), dust_k=0.5)
+GRAVE_EARTH = lt.rgb(0x4f4134)       # wet grave earth on her belly and under her legs
+VEIN = lt.rgb(0x3e3128)              # the roots' dark veins under the pale hide
+LICHEN = lt.rgb(0x7d8466)            # grey-green lichen near the stone
+CRAZE = lt.rgb(0x7d7364)             # the fine crazing of old bone
+
+
+def grave_marks(region, U, V, seed, col, rough, height, occl):
+    """What makes her the Gravemother and not a pale spider (GRAVE): the hide crazed like old bone on top, earth
+    climbing from below (the belly, the undersides, the lower legs), the knuckles dark."""
+    shape = U.shape
+    if region in ('abdomen', 'carapace', 'head'):
+        d, s = lc.body_axes(U, V)
+        cells = lt.worley(shape, (int(shape[1] / 18), int(shape[0] / 18)), seed + 950)
+        craze = (1.0 - lt.smooth(0.3, 1.3, cells['edge'])) * lt.smooth(-0.1, 0.5, d) * \
+            lt.smooth(-0.3, 0.6, lt.noise(shape, seed + 951, 20.0))
+        col = lt.mix(col, CRAZE, craze * 0.45)
+        height = height - 0.0003 * craze
+        earth = lt.smooth(0.05, -0.65, d + 0.12 * lt.noise(shape, seed + 952, 10.0, octaves=2))
+        crumbs = lt.specks(shape, seed + 953, 0.15, 1.6) * lt.smooth(0.25, -0.1, d)
+        col = lt.mix(col, GRAVE_EARTH, np.clip(earth * 0.85 + crumbs * 0.5, 0.0, 1.0))
+        rough = mix1(rough, 0.92, earth)
+        occl = occl * (1.0 - 0.15 * earth)
+    elif region in ('femur', 'tibia', 'coxa', 'palp', 'chel'):
+        along, top = lc.limb_axes(U, V)
+        low = lt.smooth(0.3, -0.7, top + 0.15 * lt.noise(shape, seed + 954, 8.0, octaves=2))      # the underside
+        reach = {'femur': lt.smooth(0.45, 1.0, along), 'tibia': lt.smooth(0.0, 0.45, along)}.get(region, 0.0)
+        earth = np.clip(low * 0.6 + reach * 0.7, 0.0, 1.0)
+        col = lt.mix(col, GRAVE_EARTH, earth * 0.8)
+        rough = mix1(rough, 0.92, earth)
+    return col, rough, height, occl
+
+
+def root_veins(U, V, shape, seed):
+    """Dark veins under the abdomen's pale hide, spreading from where each of the stone's roots goes in (fading by about
+    45 cm), forked and wandering: 0..1."""
+    P = AB.from_uv(U, V)
+    near = np.zeros(shape, np.float32)
+    for root in lb.ROOTS:
+        p, _ = lb.root_anchor(S, root)
+        dist = np.linalg.norm(P - np.array(p, np.float32), axis=-1)
+        near = np.maximum(near, lt.smooth(45.0, 6.0, dist))
+    n = lt.noise(shape, seed + 960, 9.0, 18.0, octaves=2)
+    slope = np.abs(np.roll(n, -1, axis=1) - np.roll(n, 1, axis=1)) * 0.5 + np.abs(np.roll(n, -1, axis=0) - np.roll(n, 1, axis=0)) * 0.5 + 1e-4
+    line = 1.0 - lt.smooth(0.0, 1.1, np.abs(n) / slope)
+    fork = lt.smooth(-0.2, 0.6, lt.noise(shape, seed + 961, 30.0))
+    return line * fork * near
 
 
 def mix1(a, b, t):
@@ -118,8 +172,8 @@ def overlay(region, U, V, seed, col, rough, height, occl, bare):
         caked = lt.smooth(edge - 0.04, edge + 0.08, along)
         cracks = lt.worley(shape, (int(shape[1] / 24), int(shape[0] / 16)), seed + 902)
         crack = (1.0 - lt.smooth(0.25, 1.1, cracks["edge"])) * lt.smooth(-0.5, 0.5, lt.noise(shape, seed + 910, 12.0))
-        mud = lt.mix(lt.rgb(0xc9b392), lt.rgb(0xa58f6d), lt.smooth(-1.0, 1.0, n))
-        mud = lt.mix(mud, lt.rgb(0x6c5a45), crack * 0.6)
+        mud = lt.mix(lt.rgb(0x7c6650), lt.rgb(0x5f4c3b), lt.smooth(-1.0, 1.0, n))
+        mud = lt.mix(mud, lt.rgb(0x33281f), crack * 0.6)
         splash = lt.specks(shape, seed + 903, 0.18, 2.5) * lt.smooth(edge - 0.25, edge, along)
         col = lt.mix(col, mud, np.clip(caked + splash * 0.8, 0.0, 1.0))
         height = height + caked * (0.0012 * lt.noise(shape, seed + 904, 3.0, octaves=2) - 0.0008 * crack)
@@ -128,10 +182,10 @@ def overlay(region, U, V, seed, col, rough, height, occl, bare):
         along, top = lc.limb_axes(U, V)
         splash = lt.specks(shape, seed + 905, 0.22, 2.2) * lt.smooth(0.65, 0.95, along)
         smear = lt.smooth(0.8, 1.0, along) * lt.smooth(-0.6, 0.6, n)
-        col = lt.mix(col, lt.rgb(0xb59f7c), np.clip(splash * 0.8 + smear * 0.5, 0.0, 1.0))
+        col = lt.mix(col, lt.rgb(0x6e5a46), np.clip(splash * 0.8 + smear * 0.5, 0.0, 1.0))
         rough = mix1(rough, 0.9, splash)
     elif region == 'coxa':
-        col = lt.mix(col, lt.rgb(0x9d8869), lt.specks(shape, seed + 906, 0.25, 2.0) * 0.6)
+        col = lt.mix(col, lt.rgb(0x6e5a46), lt.specks(shape, seed + 906, 0.25, 2.0) * 0.6)
     if region in ('abdomen', 'carapace', 'head'):
         d, s = lc.body_axes(U, V)
         belly = lt.smooth(-0.15, -0.6, d) * lt.smooth(-0.2, 0.9, n)
@@ -149,6 +203,13 @@ def overlay(region, U, V, seed, col, rough, height, occl, bare):
             col = lt.mix(col, lt.rgb(0x8c8274), edge * 0.5)
         col = lt.mix(col, lt.rgb(0xa79f8f), foot * 0.6)
         col = lt.mix(col, lt.rgb(0x7a6f63), ring * 0.7)
+        # The roots' veins under the hide, and grey-green lichen round the stone's foot (GRAVE).
+        veins = root_veins(U, V, shape, seed) * (1.0 - foot)
+        col = lt.mix(col, VEIN, veins * 0.75)
+        height = height - 0.0005 * veins
+        lichen = lt.specks(shape, seed + 962, 0.22, 2.4) * lt.smooth(0.6, 0.05, pr) * (pr > 0.01) * \
+            lt.smooth(-0.2, 0.6, lt.noise(shape, seed + 963, 16.0))
+        col = lt.mix(col, LICHEN, np.clip(lichen * 0.8, 0.0, 1.0))
         col = lt.mix(col, lt.rgb(0x2a231d), pucker)
         # Grave earth crumbs left round the print.
         crumbs = lt.specks(shape, seed + 909, 0.12, 1.8) * (pr > 0.02) * (1.0 - pr) * 2.0
@@ -161,10 +222,11 @@ def overlay(region, U, V, seed, col, rough, height, occl, bare):
 
 def hide_painter(bare):
     paint = S['paint']
-    palette = S['BONE'] if bare else MUD_GREY
+    palette = S['BONE'] if bare else GRAVE
 
     def painter(region, U, V, seed):
         col, rough, height, occl = paint(region, U, V, seed, palette)
+        col, rough, height, occl = grave_marks(region, U, V, seed, col, rough, height, occl)
         col, rough, height, occl = overlay(region, U, V, seed, col, rough, height, occl, bare)
         return np.clip(col, 0.0, 1.0), np.clip(rough, 0.0, 1.0), height, np.clip(occl, 0.0, 1.0)
     return painter

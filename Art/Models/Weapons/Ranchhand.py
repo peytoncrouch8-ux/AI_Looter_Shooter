@@ -31,6 +31,12 @@ Tools/Unreal/setup_gun_parts.py reads into DA_PumpShotgun; barrels give their le
 needs a barrel of at least 46 cm to clamp to (Needs). PARTS below was its first draft and now only lays the parts out
 in the scene: a new part needs a model here and a row there, under the same key.
 
+The element tubes (EmberTube6, SaintTube6, SaltTube6: the Tube6's tube, cap and clamp)
+wear their element (2026-10-22, looter_guns' element pieces): Ember heat-scored metal and ember vents, Soul-light
+pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt salt crystals and cyan-white inlays.
+`-- --elements` renders Saved/ArtPreviews/Weapons/Ranchhand_Elements.png (a row per element: first person, side, the part
+alone).
+
     blender -b --factory-startup --python Art/Models/Weapons/Ranchhand.py -- --preview
 """
 import math
@@ -504,17 +510,80 @@ def lp_move(obj, du):
 
 # --- Magazines: from under the barrel nut ---
 
-def tube(m, length, clamp, window=False, cap=lg.BLUED):
+def tube(m, length, clamp, window=False, cap=lg.BLUED, body=lg.BLUED, clamp_mat=SAND, cuts=()):
+    """cuts: cutters for the tube itself (an element tube's vents)."""
     u0, v = MAG_AT
-    t = lg.tube(u0, u0 + length, 1.05, v=v, segments=16, mat=lg.BLUED)
+    t = lg.tube(u0, u0 + length, 1.05, v=v, segments=16, mat=body)
     if window:
         t = lg.cut(t, [lg.cbox(u0 + length - 14, u0 + length - 4, v - 0.5, v + 0.5, -3, -0.5)])
         g.add(m, lg.tube(u0, u0 + length - 0.5, 0.88, v=v, segments=12, mat=SHELL))
+    if cuts:
+        t = lg.cut(t, list(cuts))
     g.add(m, t)
     g.add(m, lg.turned([(0, 1.2), (1.6, 1.2), (2.0, 0.9)], u0 + length, v=v, segments=16, mat=cap))
     if clamp:
         g.add(m, lg.slab([(u0 + length - 1.5, v - 0.9), (u0 + length + 0.5, v - 0.9), (u0 + length + 0.5, 0.9),
-                          (u0 + length - 1.5, 0.9)], 2.2, bevel=0.3, mat=SAND, round=0.4))   # a sand clamp
+                          (u0 + length - 1.5, 0.9)], 2.2, bevel=0.3, mat=clamp_mat, round=0.4))   # a sand clamp
+
+
+# Element tubes (2026-10-22): the Tube6's tube, cap and clamp, dressed in their element. The pump covers the tube from
+# 27.3 to 47.2 cm and racks 7 cm back, so the dress sits ahead of it (EXPOSED) and on the cap and clamp.
+EXPOSED = (47.6, 52.3)
+BEHIND = (20.4, 27.0)       # and from the receiver to the pump at rest (the racked pump covers it)
+
+
+def element_tubes(M):
+    u0, v = MAG_AT
+    end = u0 + 34.0
+    e0, e1 = EXPOSED
+    b0, b1 = BEHIND
+
+    # Heat-scored steel with ember vents through it and the heat glowing inside, temper rings, an ember-lit cap.
+    m = M('EmberTube6')
+    vents = [lg.cbox(u, u + 0.75, v - 0.32, v + 0.32, -2.0, 2.0) for u in (e0 + 0.6, e0 + 1.9, e0 + 3.2)]
+    vents += [lg.cbox(u, u + 0.75, v - 2.0, v + 2.0, -0.3, 0.3) for u in (e0 + 1.25, e0 + 2.55)]   # and from below
+    vents += [lg.cbox(u, u + 0.75, v - 0.32, v + 0.32, -2.0, 2.0) for u in (b0 + 0.8, b0 + 2.4, b0 + 4.0, b0 + 5.6)]
+    tube(m, 34, True, cap=lg.TEMPER, body=lg.SCORCHED, cuts=vents)
+    g.add(m, lg.tube(e0 + 0.2, e1 - 0.3, 0.8, v=v, segments=12, mat=EMBER))
+    g.add(m, lg.tube(b0 + 0.4, b1 - 0.2, 0.8, v=v, segments=12, mat=EMBER))
+    for u in (e0 - 0.1, e1 - 0.2):
+        g.add(m, lg.tube(u, u + 0.4, 1.1, v=v, segments=16, mat=lg.TEMPER))
+    g.add(m, lg.turned([(0.0, 0.62), (0.1, 0.62), (0.16, 0.45)], end + 2.0, v=v, segments=16, mat=EMBER))   # cap face
+    g.add(m, lg.tube(end + 0.7, end + 0.95, 1.23, v=v, segments=16, mat=EMBER))                             # a hot ring
+    for side in (-1.0, 1.0):
+        g.add(m, lg.box(end - 1.2, end + 0.2, v + 0.6, v + 0.85, 0.06, w=side * 1.12, bevel=0.0, mat=EMBER))
+
+    # Blued steel in pale gold: a gilt cap and clamp with a saint's medal each side, a gold-white glow band, filigree,
+    # a little lantern hung under the clamp.
+    m = M('SaintTube6')
+    tube(m, 34, True, cap=lg.GILT)
+    g.add(m, lg.tube(e0 + 1.6, e0 + 2.4, 1.11, v=v, segments=16, mat=lg.SOUL))
+    g.add(m, lg.tube(b0 + 2.6, b0 + 3.6, 1.11, v=v, segments=16, mat=lg.SOUL))
+    for u in (b0 + 2.3, b0 + 3.65):
+        g.add(m, lg.tube(u, u + 0.25, 1.14, v=v, segments=16, mat=lg.GILT))
+    for u in (e0 + 1.35, e0 + 2.4):
+        g.add(m, lg.tube(u, u + 0.25, 1.14, v=v, segments=16, mat=lg.GILT))
+    for side in (-1.0, 1.0):
+        g.add(m, *lg.medal((end - 0.5, -1.0, side * 1.1), (0.0, 0.0, side), 0.8, up=(0.0, 1.0, 0.0)))
+        g.add(m, *lg.vine((e0 + 2.8, v, side * 1.04), (e1 - 0.2, v, side * 1.04), (0.0, 0.0, side), 0.32, waves=1.0,
+                          thick=0.05, curls=False))
+        g.add(m, *lg.vine((e0 - 0.2, v, side * 1.04), (e0 + 1.25, v, side * 1.04), (0.0, 0.0, side), 0.3, waves=0.5,
+                          thick=0.05, curls=False))
+    g.add(m, *lg.hanging_lantern(end - 0.5, v - 0.85, h=1.9))
+
+    # Bare steel crusted with salt: crystals round the cap and the clamp's foot, frosted cyan-white rings, a salted cap.
+    m = M('SaltTube6')
+    tube(m, 34, True, cap=lg.SALT, body=lg.STEEL)
+    for u in (e0 + 0.6, e0 + 2.8, b0 + 1.0, b0 + 5.4):
+        g.add(m, lg.tube(u, u + 0.35, 1.1, v=v, segments=16, mat=lg.SALT_GLOW))
+    g.add(m, *lg.salt_cluster(701, (end + 2.0, v, 0.0), (1.0, 0.0, 0.0), 0.7, 5, length=(0.88, 1.75), r=(0.21, 0.36)))
+    g.add(m, *lg.salt_cluster(702, (end - 0.5, v - 0.9, 0.0), (0.0, -1.0, 0.0), 0.9, 5, length=(0.88, 2.1),
+                              r=(0.21, 0.39), up=(1.0, 0.0, 0.0)))
+    for side in (-1.0, 1.0):
+        g.add(m, *lg.salt_cluster(710 + int(side), (e0 + 1.8, v - 0.5, side * 0.9), (0.0, -0.6, side), 1.2, 4,
+                                  length=(0.7, 1.4), r=(0.18, 0.3), up=(1.0, 0.0, 0.0), squash=0.5))
+        g.add(m, *lg.salt_cluster(720 + int(side), (end + 1.0, v, side * 1.2), (0.3, -0.2, side), 0.5, 3,
+                                  length=(0.61, 1.23), r=(0.15, 0.27)))
 
 
 def well(m, u_front=19.6, u_back=13.4, depth=-5.2):
@@ -536,6 +605,7 @@ def magazines():
     tube(M('Tube6'), 34, True)
     tube(M('Tube6Window'), 34, True, window=True, cap=lg.BRASS)
     tube(M('Tube8'), 44, True, cap=lg.BRASS)
+    element_tubes(M)
 
     m = M('Box5')
     well(m)
@@ -853,6 +923,9 @@ PARTS = {
         p('Box8', '8-shell box', 'Magazine', R_RARE, magazine=8, reload=-25, handling=-5),
         p('Drum12', '12-shell drum', 'Drummer', R_EPIC, magazine=12, reload=-10, handling=-12),
         p('Drum20', '20-shell drum', 'Endless', R_EPIC, magazine=20, reload=15, handling=-20),
+        p('EmberTube6', '6 ember shells', 'Smoldering', R_UNCOMMON, magazine=6, damage=-4),
+        p('SaintTube6', "6 saint's shells", 'Saintlit', R_UNCOMMON, magazine=6, damage=-4),
+        p('SaltTube6', '6 rock-salt shells', 'Salted', R_UNCOMMON, magazine=6, damage=-4),
     ],
     'Sight': [
         p('Flip', 'Flip-up rear sight', '', R_COMMON, zoom=1.0, handling=8),
@@ -930,3 +1003,9 @@ if lt.want_preview():
     lt.preview(assemble(DEFAULT), out('Ranchhand_Side'), view=(-1.0, -0.02, 0.05), ground=False, lens=80.0, fit=0.9)
     lt.preview(assemble(DEFAULT), out('Ranchhand_FP'), view=(0.42, 1.0, 0.32), ground=False, lens=45.0, fit=0.8)
     assemble(DEFAULT)
+
+if lg.want_elements():   # -- --elements: Ranchhand_Elements.png, the plain Tube6 and its element tubes
+    lg.element_preview('Ranchhand_Elements', assemble, DEFAULT, 'Magazine',
+                       ['Tube6', 'EmberTube6', 'SaintTube6', 'SaltTube6'], built,
+                       fp=dict(view=(0.35, 1.0, 0.28), lens=35.0, fit=0.55),
+                       close=dict(view=(0.8, -0.6, 0.15), lens=60.0, fit=0.75))

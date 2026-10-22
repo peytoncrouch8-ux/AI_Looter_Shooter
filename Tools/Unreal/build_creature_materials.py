@@ -94,10 +94,10 @@ DEFAULTS = dict(RimStrength=1.5, RimPower=2.8, GlowStrength=0.1, EmberStrength=3
 # bigger). COAL_AT: the coal's middle at rest (Unpaid.py, DeadMiner.py, Abel.py, Amos.py, Foreman.py: 1.32-1.33 m up,
 # 0.24-0.3 rad round to his left from the front), within a few cm on every ghost; SK_Unpaid's coal bone, read back
 # from its FBX (Unreal's x forward, y right).
-PAINTED = dict(ClothScale=1.25, ClothWeave=0.30, SkinCloth=0.35, ClothFolds=0.22, ClothStains=0.45,
-               TopLightLow=0.80, TopLightHigh=1.15, TopLightFrom=95.0, TopLightTo=170.0, PropSize=60.0, PropTopLight=1.08,
-               CavityStrength=0.95, CavityPower=0.6, ColdRim=0.55, InnerGlow=0.6, InnerGlowRadius=22.0,
-               StreakAcross=3.0, StreakAlong=0.45, FadeBand=0.16)
+PAINTED = dict(ClothScale=1.25, ClothWeave=0.18, SkinCloth=0.35, ClothFolds=0.40, ClothStains=0.45,
+               TopLightLow=0.72, TopLightHigh=1.18, TopLightFrom=90.0, TopLightTo=165.0, PropSize=60.0, PropTopLight=1.10,
+               CavityStrength=0.95, CavityPower=0.6, ColdRim=0.7, InnerGlow=1.0, InnerGlowRadius=26.0,
+               StreakAcross=3.0, StreakAlong=0.35, FadeBand=0.28)
 COAL_AT = (10.9, -5.9, 131.3)
 # Read from the creature's custom primitive data (UnpaidLook in Creatures/UnpaidCreature.h): never an instance's.
 PRIMITIVE_DATA = {'RankColor': 0, 'Phase': 4, 'Heat': 5}

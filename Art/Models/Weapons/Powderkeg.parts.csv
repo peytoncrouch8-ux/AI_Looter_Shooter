@@ -40,5 +40,5 @@ Stock,Brace,Shoulder brace,Braced,Uncommon,1,10,,,,,,,3,7,,,,,,,-10,-4,,
 Stock,Quilted,Quilted rest,Padded,Rare,1,20,,,,,,,,,,,,,,,-21,-9,-7,-3
 Stock,Monopod,Monopod rest,Anchored,Rare,1,20,,,,,,,7,17,,,,,,,,,-17,-7
 Stock,Brass,Brass-framed rest,Heirloom,Epic,1,30,,,,,,,,,,,,,-8,-4,-18,-8,,
-Magazine,Saintfire,Saint's rocket,Saintlit,Uncommon,0.35,38,1,,,,-6,-2,,,,,,,,,,,,,,SoulLight,Frag
-Magazine,Saltburst,Salt rocket,Salted,Uncommon,0.35,38,1,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,Frag
+Magazine,Saintfire,Saint's rocket,Saintlit,Uncommon,0.35,38,1,,,,-6,-2,,,,,,,,,,,,,,SoulLight,Saintfire
+Magazine,Saltburst,Salt rocket,Salted,Uncommon,0.35,38,1,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,Saltburst

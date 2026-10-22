@@ -19,7 +19,7 @@ The card in her hand stays in the portrait: her hands hold the game's guns.
 Rig: the UE5 mannequin's 63 deform bones on MakeHuman's joints, the forearms' twist bones, the tails' six swing chains
 (skirt_sl, bl, bli, bri, br, sr: each tail's outer edge, middle and inner edge, each ending in an unweighted _end) and
 `hat`, which the game tips back while aiming. Built facing -Y, exported turned to face -X: +Y in Unreal, as the mannequin.
-Ellis.py is the worked example (its notes and lessons: Docs/Pipeline.md "Character models"); the builders are in
+Ellis.py is the worked example (its notes and lessons: Docs/Pipeline/CharacterModels.md "Character models"); the builders are in
 Tools/Blender/odessa_*.py.
 
     blender -b --factory-startup --python Art/Models/Characters/Odessa.py -- [--shape] [--stats] [--preview]
@@ -43,6 +43,7 @@ for p in (os.path.join(REPO, 'Tools', 'Blender'), os.path.join(REPO, 'Art', 'Por
         sys.path.insert(0, p)
 import bust  # noqa: E402
 import looter_bake as bk  # noqa: E402
+import looter_face as lf  # noqa: E402
 import looter_garments as gm  # noqa: E402
 import looter_human as hu  # noqa: E402
 import looter_model as lm  # noqa: E402
@@ -70,6 +71,25 @@ def load_portrait():
 
 
 # ------------------------------------------------------------------------------------------------------ the body
+
+# The face's planes (looter_face.carve; the portrait's: high cheekbones over slight hollows, a defined jaw to a narrow
+# chin, a fine straight nose with a clear bridge, drawn lips; MakeHuman's smooth base read as a mannequin's):
+# (kind, from, to, reach dm (x, y, z), depth m). Points: ('side'|'mid', landmark, (dx, dy)) from looter_face.landmarks.
+FACE_PLANES = [
+    ('ridge', ('side', 'eye', (-0.06, 0.19)), ('side', 'eye', (0.17, 0.16)), (0.14, 0.06, 0.3), 0.0022),     # brow bone
+    ('ridge', ('side', 'eye', (0.03, -0.22)), ('side', 'eye', (0.27, -0.15)), (0.15, 0.09, 0.3), 0.0040),    # cheekbone
+    ('blob', ('side', 'eye', (0.15, -0.47)), None, (0.16, 0.14, 0.35), -0.0038),                            # its hollow
+    ('blob', ('side', 'mouth', (0.38, -0.10)), None, (0.14, 0.18, 0.35), -0.0032),                          # lower cheek
+    ('ridge', ('mid', 'nose', (0.0, 0.27)), ('mid', 'nose', (0.0, 0.05)), (0.04, 0.16, 0.3), 0.0018),       # nose bridge
+    ('ridge', ('side', 'nose', (0.085, 0.25)), ('side', 'nose', (0.095, 0.05)), (0.032, 0.12, 0.3), -0.0010),  # its sides
+    ('ridge', ('side', 'mouth', (0.035, 0.13)), ('side', 'mouth', (0.045, 0.05)), (0.02, 0.045, 0.2), 0.0007),  # philtrum
+    ('ridge', ('side', 'mouth', (0.0, 0.045)), ('side', 'mouth', (0.20, 0.01)), (0.10, 0.022, 0.2), 0.0013),   # lip line
+    ('blob', ('side', 'mouth', (0.07, -0.06)), None, (0.10, 0.04, 0.2), 0.0012),                            # lower lip
+    ('ridge', ('side', 'mouth', (0.0, -0.15)), ('side', 'mouth', (0.13, -0.13)), (0.11, 0.035, 0.25), -0.0013),  # its groove
+    ('blob', ('mid', 'chin', (0.0, 0.03)), None, (0.10, 0.09, 0.3), 0.0022),                                # chin
+    ('ridge', ('side', 'chin', (0.12, 0.0)), ('side', 'jaw', (-0.03, -0.03)), (0.08, 0.06, 0.15), 0.0020),  # jaw line
+]
+
 
 def shape_face(fig, op, opt):
     """The portrait's face touches that come after mh.build (MakeHuman space, at rest): the high brows (its
@@ -152,6 +172,7 @@ class Figure:
         stretch_arms(self.b, ARM_STRETCH)
         self.balls = bust.close_lids(h, self.opt['lids'])
         self.hf = bust.head_frame(h)
+        lf.carve(h, self.hf, self.b.used, FACE_PLANES, self.b.scale, log, 'face planes')
         self.wv = self.b.world_verts()
         self.names, self.Wv = self.b.vertex_weights()
         self.col = {n: i for i, n in enumerate(self.names)}
@@ -453,8 +474,8 @@ def prepare_uvs(objects):
 
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
-    ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'bust.py'),
-    ('Art', 'Portraits', 'bustkit.py'), ('Art', 'Portraits', 'Odessa.py'), ('Tools', 'Blender', 'odessa_kit.py'), ('Tools', 'Blender', 'odessa_looks.py'),
+    ('Tools', 'Blender', 'looter_bake.py'), ('Tools', 'Blender', 'looter_face.py'), ('Art', 'Portraits', 'mh.py'),
+    ('Art', 'Portraits', 'bust.py'), ('Art', 'Portraits', 'bustkit.py'), ('Art', 'Portraits', 'Odessa.py'), ('Tools', 'Blender', 'odessa_kit.py'), ('Tools', 'Blender', 'odessa_looks.py'),
     ('Tools', 'Blender', 'odessa_head.py'), ('Tools', 'Blender', 'odessa_clothes.py'),
     ('Tools', 'Blender', 'odessa_coat.py'))]
 

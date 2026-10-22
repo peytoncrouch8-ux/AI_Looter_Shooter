@@ -114,3 +114,16 @@ the grabs; look at them when item 1 lands, they use M_Ghost if they're Unpaid).
 3. Then item 1 once OK'd (and 10 with it), then 3, then 5/6 hero by hero, each with a before/after for the user.
 Agents: material and C++ work (1, 3, 4, 13) on Opus; model scripts (6, 7, 12) on Sonnet against a contract; Main checks
 each in PIE.
+
+## CHAR-MAT (materials; items 1, 4, 5's materials, 8/9 as looks, 11) — written, editor steps wait for Main's GO
+
+Notes: `Docs/Pipeline/CharacterModels.md` "Materials pass". Renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
+At GO, in order (editor open): (1) `build_world_materials.py M_Character M_CharacterGlow`; (2)
+`build_creature_materials.py M_Ghost`; (3) `Looter.ImportModels` of `Intermediate/ArtExport_CharMat_Gauge`, `_Ellis`,
+`_FPArms`, `_Gravemother`, `_Sexton`; (4) `build_character_glows.py` (Pike's, Crane's and Odessa's eyes). Then PIE
+(the select stand, RR in daylight and in the mine) and a perf run (M_Character's change reaches every hero).
+Left: Crane's and Odessa's skins bake with their next export, after CHAR-FACE (crane_looks.dead_skin,
+odessa_looks.painted_light). Not done here: item 10 (ghost hands/patches/hem: model scripts), item 12 (the slime core is
+faceted geometry: Slime.py's 14x9 ellipsoid): Main queues a small Blender job for both. Sexton's crows: dropped (his Toll
+Gate form, not this model; Main, 2026-10-22). Editor lane order: LOOT-POLISH -> CHAR-POSE -> tones -> element parts ->
+CHAR-MAT -> CHAR-FACE.

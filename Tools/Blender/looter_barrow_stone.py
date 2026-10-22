@@ -616,9 +616,11 @@ def _granite(shape, seed, finish):
     'dressed' (the chiselled edges: fine, low relief), 'pitched' (the rough back)."""
     g = lt.worley(shape, (int(shape[1] / 3.2), int(shape[0] / 3.2)), seed, jitter=1.0)
     kind = lt.per_cell(g['id'], g['count'], seed + 1)
-    base = lt.mix(lt.rgb(0x84817b), lt.rgb(0x8d887f), lt.smooth(-1.0, 1.2, lt.noise(shape, seed + 2, 60.0, octaves=2)))
-    color = lt.mix(base, lt.rgb(0x47443f), (kind < 0.12).astype(np.float32) * 0.5)
-    color = lt.mix(color, lt.rgb(0xc8c4bb), (kind > 0.9).astype(np.float32) * 0.35)
+    # Dark weathered granite (CHAR-ART item 4b, 2026-10-22: her own look): a step darker than the pale hide it rides,
+    # so the headstone reads as hers from across the Sink (#84817B-#8D887F before: it merged with the pale hide).
+    base = lt.mix(lt.rgb(0x605d59), lt.rgb(0x6a6661), lt.smooth(-1.0, 1.2, lt.noise(shape, seed + 2, 60.0, octaves=2)))
+    color = lt.mix(base, lt.rgb(0x383531), (kind < 0.12).astype(np.float32) * 0.5)
+    color = lt.mix(color, lt.rgb(0xa8a49b), (kind > 0.9).astype(np.float32) * 0.35)
     color = lt.mix(color, lt.rgb(0xa39488), ((kind > 0.74) & (kind <= 0.9)).astype(np.float32) * 0.25)
     fine = lt.noise(shape, seed + 3, 0.7)
     color = color * (1.0 + 0.05 * fine)[..., None]
@@ -664,12 +666,12 @@ def _paint_face(region, front, cracked):
         groove = np.maximum(groove, lt.smooth(0.5, 0.2, rule) * 0.85)
         groove *= (0.75 + 0.25 * lt.smooth(-1.0, 1.0, lt.noise(shape, 602, 6.0)))
         height -= 0.0018 * groove
-        color = lt.mix(color, lt.rgb(0x5b5852), groove * 0.55)
+        color = lt.mix(color, lt.rgb(0x3d3a36), groove * 0.6)
         # Dirt and moss settled in the grooves' bottoms.
         color = lt.mix(color, lt.rgb(0x5f6046), groove * lt.smooth(0.2, 1.0, lt.noise(shape, 603, 8.0)) * 0.3)
     # Rain streaks running down from the top, the face darker toward its foot where soil splashed it.
     streak = lt.smooth(-0.2, 1.3, lt.noise(shape, seed + 10, 4.0, 90.0, octaves=2)) * lt.smooth(20.0, 95.0, zs)
-    color = lt.mix(color, lt.rgb(0x625f59), streak * 0.25)
+    color = lt.mix(color, lt.rgb(0x4c4945), streak * 0.25)
     soil = lt.smooth(26.0, 2.0, zs + 6.0 * lt.noise(shape, seed + 11, 20.0))
     color = lt.mix(color, lt.rgb(0x6d5b47), soil * 0.7)
     color = lt.mix(color, lt.rgb(0x8d7a60), soil * lt.specks(shape, seed + 12, 0.2, 2.0) * 0.6)
@@ -683,7 +685,7 @@ def _paint_face(region, front, cracked):
     # The worn edge rounded off: the face falls away over its last 1.5 cm.
     round_off = lt.smooth(1.6, 0.0, inside_d)
     height -= 0.004 * round_off ** 2
-    color = lt.mix(color, lt.rgb(0xa7a298), round_off * 0.25)
+    color = lt.mix(color, lt.rgb(0x8d8880), round_off * 0.25)
     if cracked:
         color, height = _cracks_on(color, height, xs, zs, shape, seed + 30, chips=16 if front else 8)
     rough = np.full(shape, 0.66 if front else 0.86, np.float32) + 0.05 * fine + 0.2 * groove + 0.12 * lichen + 0.15 * soil

@@ -1,7 +1,7 @@
 """SK_Crane: Hollis Crane, the Unpaid (Docs/Story.md: a marshal dead forty years, his town's saint gone dark; Sexton
 promised him a fare), the player's body when he's the hero picked, built from the portrait the user picked on
 2026-10-19: option A "The Marshal" of Art/Portraits/Crane.py (its OPTIONS["A"], FACE and MACRO are the spec), the way
-Ellis.py builds SK_Ellis (Saved/Heroes/CONTRACT.md; Docs/Pipeline.md "Character models"). Boots to hat:
+Ellis.py builds SK_Ellis (Saved/Heroes/CONTRACT.md; Docs/Pipeline/CharacterModels.md "Character models"). Boots to hat:
   - the body: MakeHuman's CC0 base shaped as the portrait's old man, gaunt, 1.92 m barefoot (1.95 in his boots), the
     head and shoulders carried forward (crane_common.STOOP: a shape, not a posture); grey-green dead skin, the cheeks
     and temples sunken, the sockets dark; the right eye a cyan slit burning, the left under the ferryman's coin
@@ -54,8 +54,13 @@ from crane_common import ARGS, OPT, arg_value, log, slot  # noqa: E402
 
 COAT = ((0.05, 0.065, 0.08), (0.19, 0.23, 0.27))        # the slate coat's dark and light (sRGB; the portrait's, lifted)
 
+# His skin (CHAR-ART item 3, the user's OK 2026-10-22: warmer, less flat): the portrait's grey-green (0.50, 0.58, 0.48)
+# with the yellow cut (in daylight's warm sun it read yellow-green), light painted in and the zones turned warm
+# (crane_looks.dead_skin).
+SKIN = (0.48, 0.565, 0.53)
+
 cc.LOOKS.update({
-    'Skin': lambda n: lk.skin(n, OPT['skin']),
+    'Skin': lambda n: cl.dead_skin(n, SKIN),
     'Scalp': lambda n: lk.scalp(n, (0.55, 0.55, 0.50)),
     'DeadEye': lambda n: cl.dead_eye(n),
     'EyeGlow': lambda n: lk.glow(n, OPT['glow'], 6.0),
@@ -198,8 +203,9 @@ GLOWS = {'EyeGlow': (0x5AD8FF, 4.0), 'Ember': (0x5AD8FF, 5.0)}
 # The game's material slots: (master, the looks on it, the master's parameters), several slots sharing a set
 GAME_MATERIALS = {
     # A dead man's skin scatters no blood red: a pale cool scatter keeps his grey-green face grey-green in warm light
-    # (M_CharacterSkin's own is the skin's colour pushed red, 2026-10-20)
-    'CraneSkin': ('CharacterSkin', ('Skin', 'Scalp', 'DeadEye'), {'ScatterAmount': 0.35, 'ScatterColor': '#D0DCC8'}),
+    # (M_CharacterSkin's own is the skin's colour pushed red, 2026-10-20); a neutral cool one since CHAR-ART (the green
+    # #D0DCC8 pushed the daylight's yellow-green further)
+    'CraneSkin': ('CharacterSkin', ('Skin', 'Scalp', 'DeadEye'), {'ScatterAmount': 0.3, 'ScatterColor': '#CCD4DA'}),
     'CraneCoat': ('CharacterCloth', ('Coat',), {'FuzzStrength': 0.3, 'FuzzLift': 0.1}),
     'CraneGarbCloth': ('CharacterCloth', ('Felt', 'Shirt', 'Trousers'), {'FuzzStrength': 0.3, 'FuzzLift': 0.12}),
     'CraneGarbLeather': ('Character', ('HatBand',), {'Specular': 0.3}),
@@ -504,7 +510,8 @@ def share_link_uvs(ob):
 
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
-    ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'Crane.py'),
+    ('Tools', 'Blender', 'looter_bake.py'), ('Tools', 'Blender', 'looter_face.py'), ('Art', 'Portraits', 'mh.py'),
+    ('Art', 'Portraits', 'Crane.py'),
     ('Art', 'Portraits', 'bust.py'), ('Art', 'Portraits', 'bustkit.py'), ('Tools', 'Blender', 'ellis_hat.py'), ('Tools', 'Blender', 'ellis_hair.py'),
     ('Tools', 'Blender', 'crane_common.py'), ('Tools', 'Blender', 'crane_head.py'), ('Tools', 'Blender', 'crane_clothes.py'),
     ('Tools', 'Blender', 'crane_gear.py'), ('Tools', 'Blender', 'crane_looks.py'), ('Tools', 'Blender', 'crane_hair.py'))]

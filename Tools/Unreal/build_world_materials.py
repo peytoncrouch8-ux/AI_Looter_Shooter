@@ -2187,10 +2187,10 @@ CHARACTER_USAGES = [unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH]
 
 # The painted reflection's defaults (CHARACTER_REFLECTION): every M_Character slot has it, gated by its gloss, so leather
 # and rough iron take nothing and the slots set nothing new. Colours linear, relative to a sunlit white surface.
-REFLECTION_DEFAULTS = dict(ReflectionStrength=1.0, GlossFrom=0.55, GlossFull=0.15, HorizonBand=0.6, HorizonWidth=0.08,
+REFLECTION_DEFAULTS = dict(ReflectionStrength=0.7, GlossFrom=0.55, GlossFull=0.15, HorizonBand=0.45, HorizonWidth=0.05,
                            ReflectionFloor=0.0)
-REFLECTION_COLORS = dict(ReflectSky=(0.42, 0.52, 0.66, 1.0), ReflectHorizon=(1.0, 0.94, 0.84, 1.0),
-                         ReflectGround=(0.16, 0.12, 0.085, 1.0))
+REFLECTION_COLORS = dict(ReflectSky=(0.20, 0.26, 0.34, 1.0), ReflectHorizon=(0.60, 0.56, 0.50, 1.0),
+                         ReflectGround=(0.10, 0.075, 0.05, 1.0))
 
 
 def build_character(orm_default):
@@ -2223,13 +2223,14 @@ def build_character(orm_default):
 
 # M_CharacterGlow (CHAR-ART items 4 and 11, 2026-10-22): the heroes' glowing eyes and Gauge's lamp, which burned out to flat
 # white ovals on M_StylizedGlow (one colour times Glow over the whole mesh). Unlit, opaque (the eyes sit in their sockets;
-# an emissive surface, as Nanite and the sorting want): Color x Glow shaped by where the surface faces in the mesh's own
-# space (pre-skinned: the head's turns don't move it). Forward (+Y, the heroes face it) is the iris: a hot core toward
-# white (Core, CorePower, CoreWhite), an iris ring a little out from it (Ring, RingAt, RingWidth), the rest of the ball
-# soft and dimmer (BodyShare, falling to Edge at the sides); Tint multiplies it. Gauge's lamp is a shallow lens facing forward: the same profile is
-# its hot core. The exporter maps the heroes' eye glows and the lamp onto it (looter_export.CHARACTER_GLOWS).
-CHARACTER_GLOW = """float3 Nl = normalize(LocalNormal);
-float Front = saturate(dot(Nl, normalize(Forward)));
+# an emissive surface, as Nanite and the sorting want): Color x Glow shaped by how squarely the surface faces the eye
+# (either side: a few of the parts' normals run inward): a hot core toward white where it faces the camera (Core,
+# CorePower, CoreWhite), an iris ring a little out from it (Ring, RingAt, RingWidth), the rest soft and dimmer (BodyShare,
+# falling to Edge at the silhouette); Tint multiplies it. An eyeball reads as a burning iris, Gauge's shallow lens as a
+# lamp with a hot middle. (Its pre-skinned normal along the heroes' forward was tried on paper: their exported eye balls
+# and the lamp's lens don't keep a clean forward normal.) The exporter maps the heroes' eye glows and the lamp onto it
+# (looter_export.CHARACTER_GLOWS); build_character_glows.py moves the instances already in the game.
+CHARACTER_GLOW = """float Front = abs(dot(normalize(N), normalize(V)));
 float Body = lerp(Edge, 1.0, Front * Front) * BodyShare;
 float Iris = Ring * exp(-((Front - RingAt) / max(RingWidth, 0.01)) * ((Front - RingAt) / max(RingWidth, 0.01)));
 float Hot = Core * pow(Front, CorePower);
@@ -2244,12 +2245,10 @@ def build_character_glow():
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
     mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_OPAQUE)
     g = Graph(mat)
-    normal = g.node(unreal.MaterialExpressionVertexInterpolator, -800, 300)
-    g.link(g.node(unreal.MaterialExpressionPreSkinnedNormal, -1100, 300), '', normal, 'VS')
     p = {key: g.scalar(key, value, -800, -400 + 60 * i) for i, (key, value) in enumerate(GLOW_DEFAULTS.items())}
     glow = g.custom(CHARACTER_GLOW, [
-        ('LocalNormal', normal, ''),
-        ('Forward', g.vector('Forward', (0.0, 1.0, 0.0, 0.0), -800, 400), 'RGB'),
+        ('N', g.node(unreal.MaterialExpressionVertexNormalWS, -800, 300), ''),
+        ('V', g.node(unreal.MaterialExpressionCameraVectorWS, -800, 400), ''),
         ('Color', g.vector('Color', (0.10, 0.70, 1.0, 1.0), -800, 500), 'RGB'),
         ('Tint', g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -800, 600), 'RGB'),
     ] + [(key, node, '') for key, node in p.items()], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 0, 'Glow')

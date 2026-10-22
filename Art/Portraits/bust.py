@@ -1,5 +1,5 @@
 """Painted-portrait busts in Blender (Cycles) from MakeHuman's CC0 base mesh: the machinery every hero's portrait
-script shares (Ellis's: EllisBlender.py). Docs/Pipeline.md, "Character portraits". bustkit.py is the second shared module:
+script shares (Ellis's: EllisBlender.py). Docs/Pipeline/Heroes.md, "Character portraits". bustkit.py is the second shared module:
 the building blocks (shader shorthands, primitives, wires, chains, hair tufts, posing hooks) and the garment parts and
 props (lapels, collar, tie, buttons, the sun pin) heroes dress their busts with.
 

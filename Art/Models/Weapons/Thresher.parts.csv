@@ -44,8 +44,8 @@ Stock,Cheek,Leather cheek riser,Steady,Uncommon,1,10,,,,,,,5,11,,,,,,,-6,-2,,
 Stock,Monopod,Monopod stock,Anchored,Rare,1,20,,,,,,,7,17,,,,,,,,,-17,-7
 Stock,RearGrip,Rear-grip stock,Braced,Rare,1,20,,,,,,,,,,,,,,,-21,-9,-7,-3
 Stock,Engraved,Engraved stock,Engraved,Epic,1,30,,,,,,,,,,,,,,,-10,-4,5,11
-Magazine,Ember100,100-round ember box,Smoldering,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,Ember,100
-Magazine,Saint100,100-round saint's box,Saintlit,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,SoulLight,100
-Magazine,Salt100,100-round salt box,Salted,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,100
+Magazine,Ember100,100-round ember box,Smoldering,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,Ember,Ember100
+Magazine,Saint100,100-round saint's box,Saintlit,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,SoulLight,Saint100
+Magazine,Salt100,100-round salt box,Salted,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,Salt100
 Magazine,Blasting80,80-round blasting box,Blasting,Epic,0.6,39,80,,,,-8,-4,,,,,,,6,12,,,,,Explosive,,80
 Barrel,BoreThrough,Bore-through barrel,Piercing,Epic,0.6,39,,,38,,3,7,,,6,14,,,,,,,-14,-6,Piercing,,Heavy

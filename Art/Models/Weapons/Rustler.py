@@ -30,13 +30,19 @@ Each option's display name, the word it can lend the gun's name, the lowest rari
 Tools/Unreal/setup_gun_parts.py reads into the SMG's definition. A new part needs a model here and a row there, under
 the same key; keys never change once guns drop.
 
+The element helixes (Ember40, Saint40, Salt40: the 40's helix and GunAmmoGlow core)
+wear their element (2026-10-22, looter_guns' element pieces): Ember heat-scored metal and ember vents, Soul-light
+pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt salt crystals and cyan-white inlays.
+`-- --elements` renders Saved/ArtPreviews/Weapons/Rustler_Elements.png (a row per element: first person, side, the part
+alone).
+
     blender -b --factory-startup --python Art/Models/Weapons/Rustler.py -- --preview
 """
 import math
 import sys
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 import looter_guns as lg
 import looter_textures as lt
@@ -447,6 +453,56 @@ def magazines():
     helix_mag(M('60Brass'), 30.0, band=SHELL, caps=lg.BRASS, rings=(7.5, 15.0, 22.5))  # sand and brass
     helix_mag(M('Gilded'), 28.0, band=lg.BRASS, caps=METAL, pitch=3.0, width=1.4, front_mat=lg.BRASS,
               rings=(1.75,))                                                         # 55, a brass coil
+    element_magazines(M)
+
+
+def element_magazines(M):
+    """The element helixes (2026-10-22): the 40's helix (22 cm, its GunAmmoGlow core and seat), dressed in their
+    element. Nothing grows on its top (the cradle) or under its middle, where the left hand holds it."""
+    u0, u1, v, w, r = MAG_U, MAG_U + 22.0, MAG_V, MAG_W, MAG_R
+
+    # Heat-scored coil and caps, temper rings, ember slits round the front cap and a glowing tip.
+    m = M('Ember40')
+    helix_mag(m, 22.0, band=lg.SCORCHED, caps=lg.TEMPER, front_mat=lg.SCORCHED, rings=(1.75, 19.7),
+              ring_mat=lg.TEMPER)
+    g.add(m, lg.tube(u1 - 2.0, u1 - 1.6, r + 0.12, v=v, w=w, segments=28, mat=lg.EMBER))
+    g.add(m, lg.turned([(0.0, 0.95), (0.08, 0.95), (0.16, 0.5), (0.2, 0.0)], u1 - 0.1, v=v, w=w, segments=16,
+                       mat=lg.EMBER))
+    for a in range(0, 360, 45):   # vents round the back cap, glowing
+        g.add(m, _about(lg.box(u0 + 0.45, u0 + 1.35, -0.12, 0.12, 0.24, bevel=0.0, mat=lg.EMBER), a, r + 0.04))
+
+    # A gilt coil (wider turns) and front cap, gold-white glow bands, a saint's medal on each flank of the back cap and
+    # one on the front cap's face.
+    m = M('Saint40')
+    helix_mag(m, 22.0, band=lg.GILT, caps=METAL, front_mat=lg.GILT, rings=(1.75, 19.6), ring_mat=lg.SOUL, width=1.6)
+    g.add(m, lg.tube(u1 - 2.0, u1 - 1.6, r + 0.12, v=v, w=w, segments=28, mat=lg.SOUL))
+    for side in (-1.0, 1.0):
+        g.add(m, *lg.medal((u0 + 0.85, v, w + side * (r + 0.06)), (0.0, 0.0, side), 0.62, up=(0.0, 1.0, 0.0),
+                           segments=12))
+    g.add(m, *lg.medal((u1 - 0.04, v, w), (1.0, 0.0, 0.0), 0.8, up=(0.0, 1.0, 0.0), bail=False))
+
+    # A salt-white coil and back cap (its turns wider, so the crystals' white outweighs the round count's orange), cyan-white
+    # glow rings, crystals pushing out on both flanks and from the steel front cap.
+    m = M('Salt40')
+    helix_mag(m, 22.0, band=lg.SALT, caps=lg.SALT, front_mat=lg.STEEL, width=1.6)
+    for du in (1.75, 19.6):
+        g.add(m, lg.tube(u0 + du, u0 + du + 0.45, r + 0.1, v=v, w=w, segments=28, mat=lg.SALT_GLOW))
+    for k, (du, a) in enumerate(((4.0, 20.0), (8.5, -30.0), (14.5, 25.0), (18.5, -20.0), (6.0, 160.0),
+                                 (11.0, 200.0), (16.5, 165.0))):
+        # a: degrees round the axis from the gun's left (0) up (90): the left flank and the right one (180)
+        ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
+        g.add(m, *lg.salt_cluster(800 + k, (u0 + du, v + sa * (r - 0.15), w + ca * (r - 0.15)), (0.0, sa, ca), 1.0, 4,
+                                  length=(1.1, 2.2), r=(0.24, 0.4), up=(1.0, 0.0, 0.0), squash=0.6))
+    g.add(m, *lg.salt_cluster(820, (u1 - 0.1, v, w), (1.0, 0.0, 0.0), 0.8, 5, length=(0.88, 1.93), r=(0.21, 0.36)))
+
+
+def _about(obj, degrees, radius):
+    """Moves a piece modeled on the axis out to radius and round it (degrees from the gun's left, up), about the
+    helix's axis (MAG_V, MAG_W)."""
+    a = math.radians(degrees)
+    obj.data.transform(Matrix.Translation(lg.at(0.0, MAG_V, MAG_W)) @ Matrix.Rotation(-a, 4, 'Y')
+                       @ Matrix.Translation(lg.at(0.0, 0.0, radius)))
+    return obj
 
 
 # --- Sights: on the rail (u 7..25), around its middle ---
@@ -551,7 +607,7 @@ SLOTS = {
     'Body': ['Standard', 'Ironside', 'Scrapper', 'Vented', 'Skeleton', 'Plated', 'Engraved', 'Emberheart'],
     'Barrel': ['Stub', 'Standard', 'Ported', 'Long', 'Heatsink', 'Shrouded', 'Carbine', 'Gilded'],
     'Muzzle': ['Cap', 'Cone', 'Brake', 'Comp', 'Glowcage', 'Can', 'LongCan'],
-    'Magazine': ['40', '45Quick', '50', '50Twin', '60', '60Brass', 'Gilded'],
+    'Magazine': ['40', '45Quick', '50', '50Twin', '60', '60Brass', 'Gilded', 'Ember40', 'Saint40', 'Salt40'],
     'Sight': ['Iron', 'Pip', 'Reflex', 'Holo', 'Prism', 'Scope', 'Gilded'],
     'Stock': ['Wire', 'Stub', 'Skeleton', 'Telescope', 'Cheek', 'Spring', 'Brass'],
 }
@@ -728,3 +784,6 @@ if lt.want_preview():
     lt.preview(lay_out(SLOTS), out('Rustler_Parts'), resolution=(2200, 1600), view=(-1.0, 0.0, 0.0), ground=False,
                lens=80.0, fit=0.75)
     assemble(DEFAULT)
+
+if lg.want_elements():   # -- --elements: Rustler_Elements.png, the plain 40 and its element helixes
+    lg.element_preview('Rustler_Elements', assemble, DEFAULT, 'Magazine', ['40', 'Ember40', 'Saint40', 'Salt40'], built)

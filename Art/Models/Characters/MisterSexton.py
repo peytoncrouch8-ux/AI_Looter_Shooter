@@ -37,11 +37,14 @@ The stand's pivot is the ground under the seat, its front his. Its sockets, so b
   SOCKET_Ledger   his own Ledger socket where he sits on the stand: SM_SextonLedger on his knee
 
 Materials (MI_<slot> on the textured masters; vertex alpha is baked occlusion everywhere):
-  SextonWool      M_World with no texture set: a flat warm near-black (#2A2826) on the master's default ORM,
-                  roughness 0.8 + RoughnessOffset 0.1, Specular 0.15: matte wool that reflects little. Coat, hat,
-                  bow tie, boots, the pen's holder. (In the game the cooler, more reflective wool caught the blue
-                  sky: the trousers read pale blue-grey and the coat navy.)
-  SextonTrousers  the same, warm charcoal (#343230): the trousers.
+  SextonWool      M_CharacterCloth with no texture set: a flat warm near-black (#37332F) on the master's default ORM,
+                  RoughnessOffset 0.1, Specular 0.15: matte wool that reflects little, with the Cloth shading's
+                  grey-green fibre sheen on the folds' flanks (FuzzStrength 0.45, FuzzLift 0.3, FuzzTint #8C9488).
+                  Coat, hat, bow tie, boots, the pen's holder. (In the game the cooler, more reflective wool caught
+                  the blue sky: the trousers read pale blue-grey and the coat navy. On M_World at #2A2826 he read as a
+                  flat black cut-out: CHAR-ART's value pass, 2026-10-22.)
+  SextonTrousers  the same, warm charcoal (#413C38): the trousers.
+  SextonGlint     Glow (#D4ECF2, 2.6): a bead of cold light in each eye socket, the glint in the shadow.
   SextonLinen     Polymer tinted #F4EFE2: the wing collar and the shirt cuffs.
   SextonSkin      Polymer tinted #C9B9AA (pale but alive), DiffuseAO 1: his lips, his chin and his hands. Toward
                   the shadow's edge its vertex alpha fades to black over 2 cm (measured across the edge), so with
@@ -482,12 +485,34 @@ def _shadow():
     return mat
 
 
+def _flat_cloth(name, tint, fuzz=0.45, fuzz_lift=0.3, fuzz_tint=0x8C9488):
+    """M_CharacterCloth without a texture set (CHAR-ART's value pass for him, the user's OK 2026-10-22: "not a black
+    cut-out: readable folds, a sheen on the black cloth"): the master's white base x Tint, the engine's Cloth shading's
+    fibre sheen at grazing angles (FuzzStrength, toward FuzzTint by FuzzLift: a grey-green bloom on old black wool), so
+    every fold's flank catches the light; the vertex alpha's occlusion as M_World's. The preview is _flat_world's with
+    Blender's sheen standing in."""
+    mat = _flat_world(name, tint, specular=0.15, roughness_offset=0.1)
+    mat['Master'] = 'CharacterCloth'
+    mat['FuzzStrength'] = float(fuzz)
+    mat['FuzzLift'] = float(fuzz_lift)
+    mat['FuzzTint'] = '#%06X' % fuzz_tint
+    bsdf = next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    bsdf.inputs['Sheen Weight'].default_value = fuzz
+    bsdf.inputs['Sheen Tint'].default_value = lt.hex_color(fuzz_tint)
+    return mat
+
+
+# His eyes' glints (head-local m and radians round from the front: the eye sockets' deepest point, FACE).
+GLINT_Z, GLINT_PHI, GLINT_R, GLINT_OUT = 0.008, 0.44, 0.0034, 0.0065
+
 MATERIALS = {
     # The wool reflects little (Specular 0.15) and is rough, and its tints are warm neutrals: in the game the
     # near-black wool caught the sky's reflection (4% dielectric specular under a bright blue sky), so the trousers
-    # read pale blue-grey and the coat navy.
-    'wool': lambda: _flat_world('SextonWool', 0x2A2826, specular=0.15, roughness_offset=0.1),
-    'trousers': lambda: _flat_world('SextonTrousers', 0x343230, specular=0.15, roughness_offset=0.1),
+    # read pale blue-grey and the coat navy. Since CHAR-ART (2026-10-22) on M_CharacterCloth, a step lighter (#2A2826 and
+    # #343230 read as a flat black cut-out in game): the fibres' grey-green sheen on the folds' flanks.
+    'wool': lambda: _flat_cloth('SextonWool', 0x37332F),
+    'trousers': lambda: _flat_cloth('SextonTrousers', 0x413C38),
+    'glint': lambda: bpy.data.materials.get('SextonGlint') or lm.material('SextonGlint', 0xD4ECF2, 'Glow', Glow=2.6),
     'linen': lambda: bpy.data.materials.get('SextonLinen') or lt.material('Polymer', name='SextonLinen', tint=0xF4EFE2),
     'skin': lambda: bpy.data.materials.get('SextonSkin') or lt.material('Polymer', name='SextonSkin', tint=0xC9B9AA,
                                                                           DiffuseAO=1.0),
@@ -500,7 +525,7 @@ MATERIALS = {
 }
 # Which texture set each slot's UVs are laid out for (box projection at the set's texel density).
 UV_SETS = {'SextonWool': 'Polymer', 'SextonTrousers': 'Polymer', 'SextonLinen': 'Polymer', 'SextonSkin': 'Polymer',
-           'SextonShadow': 'Polymer', 'SextonMetal': 'MetalWorn', 'SextonLedgerCover': 'Polymer',
+           'SextonShadow': 'Polymer', 'SextonGlint': 'Polymer', 'SextonMetal': 'MetalWorn', 'SextonLedgerCover': 'Polymer',
            'SextonLedgerPages': 'Polymer'}
 
 
@@ -1198,6 +1223,14 @@ def head(part):
     pole = bm.verts.new(sum((v.co for v in top), Vector()) / segs + (rot @ UP) * 0.006)
     faces += [bm.faces.new((top[j], top[(j + 1) % segs], pole)) for j in range(segs)]
     cut_shadow(part, faces, hf)
+    # A glint in each eye (CHAR-ART, the user's OK 2026-10-22: "his face in shadow with a glint"): a small bead of
+    # cold light in each socket, so the shadow has someone looking out of it. Its own glowing slot. It sits GLINT_OUT
+    # out from the true surface: the head's coarse facets bridge the deep socket about 5 mm in front of it.
+    for phi in (GLINT_PHI, -GLINT_PHI):
+        x, y = head_xy(GLINT_Z, phi)
+        surface = Vector((x, -y, GLINT_Z))
+        out = Vector((x, -y, 0.0)).normalized()
+        ellipsoid(part, hf @ (surface + out * GLINT_OUT), (GLINT_R, GLINT_R, GLINT_R), rot, segs=8, rings=5, mat='glint')
     # The ears, flat shells flaring from the head at the back.
     for s in (-1.0, 1.0):
         p = hf @ Vector((s * 0.067, 0.012, -0.004))

@@ -11,8 +11,9 @@ strand atlas, not baked.
     shoulder blades. Grown over the skin, the shirt's band, the collar, the cape and the coat (all of them surfaces it
     lies on: Ellis's collar and cape were walls his hair stayed inside). Pressed within the band's room under it; points
     the tipped brim would sweep moved in under the crown (ellis_hair.under_brim).
-  - The mustache: cards from under the nose drooping past the corners of the mouth to the jaw (the portrait's "droop");
-    the brows: short cards along the brow ridge, the outer ends drooping.
+  - The mustache: layered cards from under the nose drooping past the corners of the mouth to the jaw (the portrait's
+    "droop"), puffed off the lip and tapering to points (MUSTACHE); the brows: narrow cards along the brow ridge, up and
+    out at the inner end, the outer ends drooping (BROWS).
 """
 import math
 import os
@@ -32,13 +33,20 @@ SET = 'CraneHair'
 # sRGB: the roots greyer and dirtier, the lengths a yellowed white, the tips paler (ellis_hair's ROOT, MID, TIP, DUST)
 COLOURS = dict(ROOT=np.array([0.50, 0.49, 0.45]), MID=np.array([0.74, 0.72, 0.65]), TIP=np.array([0.80, 0.78, 0.71]),
                DUST=np.array([0.55, 0.52, 0.46]))
+# ellis_hair's strip kinds as Crane's lank hair wants them (overrides, swapped in for the call): the clumps end at
+# staggered lengths, so a card ends in uneven points (with Ellis's, most strands of a dense strip ran to its end and the
+# long cards read as slabs cut square, 2026-10-22), and the underlayer's fill a mid grey under white hair (at Ellis's
+# value it showed between the cards as dark slabs).
+KIND = {'dense': dict(clump_len=(0.52, 0.90)), 'clump': dict(clump_len=(0.42, 0.90)),
+        'wisp': dict(clump_len=(0.55, 0.95)), 'sheet': dict(value=1.0, fill=0.58, clump_len=(0.55, 0.92))}
 
 
 @contextmanager
 def _as_crane():
-    """ellis_hair's painter and material with Crane's set and colours (its globals, swapped back after)."""
-    keep = {k: getattr(eh, k) for k in ('SET',) + tuple(COLOURS)}
+    """ellis_hair's painter and material with Crane's set, colours and strip kinds (its globals, swapped back after)."""
+    keep = {k: getattr(eh, k) for k in ('SET', 'KIND') + tuple(COLOURS)}
     eh.SET = SET
+    eh.KIND = {k: dict(v, **KIND.get(k, {})) for k, v in keep['KIND'].items()}
     for k, v in COLOURS.items():
         setattr(eh, k, v)
     try:
@@ -72,12 +80,15 @@ CARDS = dict(
     seed=11,
     span=(40.0, 320.0),
     under=0.012,
-    sheet=dict(span=(96.0, 264.0), cols=30, rows=12, lift=(0.0015, 0.004), length=0.97),
+    # (the sheet ends above the cards' tips, hidden behind them: its even edge read as a cut)
+    sheet=dict(span=(96.0, 264.0), cols=30, rows=12, lift=(0.0015, 0.004), length=0.86),
     layers=(
-        ('main', 34, 0.046, 0.0025, 0.007, (0.90, 1.03), 'dense', 10, 2, 8.0, 0.03, (0.0, 0.0), 0.06),
-        ('outer', 40, 0.032, 0.0035, 0.010, (0.62, 0.98), 'clump', 10, 2, 14.0, 0.05, (0.0, 0.05), 0.10),
+        ('main', 34, 0.046, 0.0025, 0.007, (0.80, 1.03), 'dense', 10, 2, 8.0, 0.03, (0.0, 0.0), 0.06),
+        ('outer', 40, 0.032, 0.0035, 0.010, (0.55, 0.96), 'clump', 10, 2, 14.0, 0.05, (0.0, 0.05), 0.10),
         ('wisp', 22, 0.017, 0.0040, 0.012, (0.70, 1.06), 'wisp', 9, 1, 20.0, 0.05, (0.0, 0.0), 0.05),
     ),
+    # each layer's cards narrow to this share of their width toward the tip (as t^1.3): locks to points, not slabs
+    taper=dict(main=0.62, outer=0.70, wisp=0.72),
     # (no fly-aways: on the shoulders they lay out level, thin black lines across the cape)
     # below the jaw the hair parts over the shoulders: what grows from in front of SPLIT degrees falls forward in front
     # of the shoulder, what grows behind falls back over the cape (on the shoulders' top it slid out sideways and
@@ -215,7 +226,7 @@ def build(fig, under_obs, name, mat, pivot=None, **params):
                            side=min(deg, 360.0 - deg) < P['side'])
             tw = rng.uniform(-twist, twist)
             tang, side, out = eh.frames(st, head_c, tw)
-            w = width * rng.uniform(0.8, 1.2) * (1.0 - 0.3 * np.linspace(0.0, 1.0, rows))
+            w = width * rng.uniform(0.8, 1.2) * (1.0 - P['taper'][layer] * np.linspace(0.0, 1.0, rows) ** 1.3)
             cup = np.linalg.norm((st - head_c)[:, :2], axis=1)
             Pg, sfrac = eh.card_grid(st, side, out, w, across, cup)
             k = int(rng.choice(strips))
@@ -287,11 +298,26 @@ def _on_face(fig, tree, x, y, lift):
     return np.array(hit[0]) + np.array(hit[1]) * lift, np.array(hit[1])
 
 
+# The mustache's layers from the lip out: (name, cards a side, lift off the skin at the root (m), lengths (m: the
+# middle's, the outer ends'), width (m), strip kind, outer share of the lip it roots along (0 the middle, 1 the
+# corner)). The portrait's: a heavy white walrus from under the nose, over the mouth, its ends falling past the corners
+# of the mouth to the jaw. (Round 1's two thin layers of stiff straight cards read as a comb of spikes, 2026-10-22.)
+MUSTACHE = (
+    ('under', 13, 0.0014, (0.030, 0.078), 0.016, 'dense', (0.0, 1.0)),
+    ('mid', 11, 0.0034, (0.028, 0.072), 0.014, 'clump', (0.0, 1.0)),
+    ('over', 8, 0.0054, (0.024, 0.056), 0.012, 'clump', (0.05, 0.9)),
+    ('droop', 2, 0.0030, (0.080, 0.092), 0.011, 'wisp', (0.80, 1.0)),
+)
+MUSTACHE_ROWS = 6
+MUSTACHE_PUFF = 0.004    # each card stands this much further off the skin toward its tip (a full mustache, not paint)
+MUSTACHE_TAPER = 0.70    # ... and narrows to this share of its width (as t^1.2): its ends fall to points
+
+
 def build_mustache(fig, skin, mat, name='Mustache'):
-    """The white mustache drooping past the corners of the mouth to the jaw (the portrait's build_mustache "droop"): a
-    horseshoe of cards rooted along the upper lip's arch under the nose, the middle ones short over the lip, the outer
-    ones long and combed down past the mouth's corners along the jaw; two layers, the top one shorter; grown over the
-    skin a few millimetres off it."""
+    """The white mustache (the portrait's build_mustache "droop"): MUSTACHE's layers of cards rooted along the upper
+    lip's arch under the nose, combed down and out (the portrait's comb: outward by how far out the root is, down, a
+    little forward off the lip), the middle ones short over the mouth, the outer ones long past its corners to the jaw;
+    each card puffs off the skin and tapers to a point."""
     rng = np.random.default_rng(13)
     tree = gm.bvh_objects([skin])
     hv = fig.hf['verts']
@@ -299,58 +325,72 @@ def build_mustache(fig, skin, mat, name='Mustache'):
     centre = (fig.eyes[0] + fig.eyes[1]) * 0.5 - _head_dir(fig, (0.0, 0.0, 1.0)) * 0.09
     cards = eh._Cards()
     count = 0
-    for layer, n, lift, length, width in (('under', 10, 0.0012, (0.024, 0.060), 0.012), ('over', 7, 0.0028, (0.020, 0.045), 0.010)):
+    for layer, n, lift, length, width, kind, (a0, a1) in MUSTACHE:
         for c in range(2 * n):
             sx = 1.0 if c < n else -1.0
-            ax = ((c % n) + 0.5 + rng.uniform(-0.2, 0.2)) / n
-            x = sx * 0.30 * ax
-            y = nose[1] - 0.19 - 0.12 * ax ** 2 - 0.02 * rng.random()
+            ax = a0 + (a1 - a0) * ((c % n) + 0.5 + rng.uniform(-0.3, 0.3)) / n
+            x = sx * 0.31 * ax
+            y = nose[1] - 0.19 - 0.09 * rng.random() - 0.07 * ax ** 2
             got = _on_face(fig, tree, x, y, lift)
             if got is None:
                 continue
             root, _n = got
-            comb = _head_dir(fig, (sx * (0.15 + 0.35 * ax), -1.0, 0.30 - 0.20 * ax))
-            L = (length[0] + (length[1] - length[0]) * ax ** 1.6) * (0.9 + 0.2 * rng.random())
-            rows = 5
-            st = eh.grow(tree, root, L, rows, lambda t: lift + 0.0022 * t, 0.15, rng, 0.02, down=tuple(comb))
-            tang, side, out = eh.frames(st, centre, rng.uniform(-8.0, 8.0))
-            w = width * (0.9 + 0.2 * rng.random()) * (1.0 - 0.6 * np.linspace(0.0, 1.0, rows))
-            Pg, sfrac = eh.card_grid(st, side, out, w, 2, np.full(rows, 0.05))
-            k = int(rng.choice(eh.strips_of('dense' if layer == 'under' else 'clump')))
-            U, V = eh.strip_uv(k, sfrac[None, :].repeat(rows, 0), np.linspace(0.0, 1.0, rows)[:, None].repeat(3, 1))
-            cards.add_grid(Pg, U, V, np.repeat(out[:, None, :], 3, 1))
+            comb = _head_dir(fig, (sx * (0.12 + 0.45 * ax), -1.0, 0.35 - 0.25 * ax))
+            L = (length[0] + (length[1] - length[0]) * ax ** 1.5) * (0.88 + 0.24 * rng.random())
+            rows = MUSTACHE_ROWS
+            st = eh.grow(tree, root, L, rows, lambda t, lift=lift: lift + MUSTACHE_PUFF * t, 0.15, rng, 0.025,
+                         down=tuple(comb))
+            tang, side, out = eh.frames(st, centre, rng.uniform(-10.0, 10.0))
+            w = width * (0.85 + 0.3 * rng.random()) * (1.0 - MUSTACHE_TAPER * np.linspace(0.0, 1.0, rows) ** 1.2)
+            Pg, sfrac = eh.card_grid(st, side, out, w, 1, np.full(rows, 0.05))
+            k = int(rng.choice(eh.strips_of(kind)))
+            U, V = eh.strip_uv(k, sfrac[None, :].repeat(rows, 0), np.linspace(0.0, 1.0, rows)[:, None].repeat(2, 1))
+            cards.add_grid(Pg, U, V, np.repeat(out[:, None, :], 2, 1))
             count += 1
     ob = _object(name, cards, mat)
     log(f'{name}: {count} cards, {cc.tris_of(ob)} triangles')
     return ob
 
 
+# The brows' layers: (name, cards a side, lift (m), width (m), lengths (m), strip kind, droop (more down at the outer
+# end)). The portrait's: long wiry white hairs on the heavy ridge, the outer ends drooping. (Round 1's five short wide
+# cards a side read as two combs.)
+BROWS = (
+    ('under', 7, 0.0010, 0.009, (0.020, 0.028), 'dense', 0.35),
+    ('over', 5, 0.0022, 0.007, (0.018, 0.026), 'clump', 0.45),
+    ('wild', 4, 0.0032, 0.005, (0.024, 0.034), 'wisp', 0.75),
+)
+
+
 def build_brows(fig, skin, mat, name='Brows'):
-    """Long wiry white brows on the heavy ridge (the portrait's build_brows): two layers of short cards a side lying
-    along the brow from its inner end outward, the outer ends drooping as old men's do."""
+    """Long wiry white brows on the heavy ridge (the portrait's build_brows): BROWS' layers of narrow cards a side lying
+    along the brow from its inner end outward, combed out and down, tapering, the outer ends drooping."""
     rng = np.random.default_rng(3)
     tree = gm.bvh_objects([skin])
     cards = eh._Cards()
     for e in fig.hf['eyes']:
         sx = math.copysign(1.0, e[0])
         head_c = fig.head_point(np.array([0.0, e[1], e[2] - 0.9]))
-        for layer, n, lift, width in (('under', 3, 0.0010, 0.014), ('over', 2, 0.0022, 0.011)):
+        for layer, n, lift, width, length, kind, droop in BROWS:
             for k in range(n):
-                t = (k + 0.3 + 0.4 * rng.random()) / n
-                x = e[0] + sx * (-0.24 + 0.30 * t)
-                y = e[1] + 0.20 + 0.03 * math.sin(t * math.pi * 0.8) - 0.03 * (1 - t)
+                t = (k + 0.25 + 0.5 * rng.random()) / n
+                x = e[0] + sx * (-0.23 + 0.32 * t)
+                y = (e[1] + 0.205 + 0.04 * math.sin(t * math.pi * 0.8) - 0.03 * (1 - t) - 0.04 * t ** 3
+                     + rng.uniform(-0.012, 0.012))
                 got = _on_face(fig, tree, x, y, lift)
                 if got is None:
                     continue
                 root, _n = got
-                comb = _head_dir(fig, (sx * 1.0, -0.15 - 0.35 * t, 0.1))
-                L = 0.026 + 0.012 * rng.random()
+                # out along the brow, up at its inner end, drooping at the outer
+                comb = _head_dir(fig, (sx * 1.0, 0.35 * (1.0 - t) ** 2 - 0.1 - droop * t, 0.12))
+                L = length[0] + (length[1] - length[0]) * rng.random()
                 rows = 4
-                st = eh.grow(tree, root, L, rows, lambda tt: lift + 0.0015 * tt, 0.2, rng, 0.02, down=tuple(comb))
-                tang, side, out = eh.frames(st, head_c, 0.0)
-                w = width * (1.0 - 0.45 * np.linspace(0.0, 1.0, rows))
+                st = eh.grow(tree, root, L, rows, lambda tt, lift=lift: lift + 0.0018 * tt, 0.2, rng, 0.03,
+                             down=tuple(comb))
+                tang, side, out = eh.frames(st, head_c, rng.uniform(-6.0, 6.0))
+                w = width * (0.85 + 0.3 * rng.random()) * (1.0 - 0.65 * np.linspace(0.0, 1.0, rows) ** 1.2)
                 Pg, sfrac = eh.card_grid(st, side, out, w, 1, np.full(rows, 0.06))
-                kk = int(rng.choice(eh.strips_of('dense')))
+                kk = int(rng.choice(eh.strips_of(kind)))
                 U, V = eh.strip_uv(kk, sfrac[None, :].repeat(rows, 0), np.linspace(0.0, 1.0, rows)[:, None].repeat(2, 1))
                 cards.add_grid(Pg, U, V, np.repeat(out[:, None, :], 2, 1))
     ob = _object(name, cards, mat)

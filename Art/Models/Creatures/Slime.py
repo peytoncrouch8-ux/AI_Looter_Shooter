@@ -120,9 +120,19 @@ def gel_body():
 
 
 def core_part():
+    """The nucleus: a smooth, fixed-order sphere (24 x 14, ~620 triangles; the old 14 x 9 ellipsoid showed its facets in the
+    outline), squashed a little, all on the solid core swatch. The face order is fixed so every export is the same."""
     m = lc.Mesh(ATLAS)
     r = CORE['radius']
-    lc.ellipsoid(m, CORE['center'], (r, r, r * 0.9), 'core', segs=14, rings=9, patch=True)
+    lm.uv_sphere(m.bm, 24, 14, 1.0)
+    center = Vector(CORE['center'])
+    for v in m.bm.verts:
+        v.co = center + Vector((v.co.x * r, v.co.y * r, v.co.z * r * 0.9))
+    patch = m.at('core', 0.5, 0.5)
+    for f in m.bm.faces:
+        f.smooth = True
+        for loop in f.loops:
+            loop[m.uv].uv = patch
     return m
 
 

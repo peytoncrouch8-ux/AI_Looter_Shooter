@@ -78,7 +78,7 @@ SKIN, SHIRT, VEST, ACCENT = 0, 1, 2, 3  # tint zones (vertex color R = zone / 3)
 # approved 2026-10-06).
 ZONE_COLORS = ('#BAC4C6', '#93A5B2', '#6C5D50', '#A65E4C')
 RIM_COLOR = '#DCECEE'
-TRIANGLES = dict(shirt=700, sleeve=230, vest=820, arm=560, head=1050)   # the parts that are reduced to a budget
+TRIANGLES = dict(shirt=700, sleeve=230, vest=820, arm=680, head=1050)   # the parts that are reduced to a budget
 OUT = os.path.join(lt.REPO, 'Saved', 'ArtPreviews', 'RansomsRest', 'Unpaid')
 WORK = os.path.join(lt.REPO, 'Intermediate', 'UnpaidModel')
 
@@ -634,11 +634,13 @@ def jaw_turn(V, jw, angle):
     return out
 
 
-def hand_pieces(W, fwd, up, side, curl, spread, thumb=0.35, length=1.26, thin=0.82, claw=0.3, knuckle=1.3, scale=1.02,
-                rest_turn=None):
+def hand_pieces(W, fwd, up, side, curl, spread, thumb=0.35, length=1.26, thin=0.82, claw=0.3, knuckle=1.1, scale=1.02,
+                rest_turn=None, reach=1.22, bone=0.84):
     """A long-fingered hand from the wrist W (fwd along the fingers, up out of its back; side +1 left): closed pieces for
     a union, and each finger's line (name, points, radius) for its weights. rest_turn(finger, knuckle), if given, is a
-    rotation each finger is turned by about its knuckle (where its bone starts) after it's shaped."""
+    rotation each finger is turned by about its knuckle (where its bone starts) after it's shaped.
+    reach lengthens the fingers (the palm and the knuckles stay where they were, so the bones keep their heads) and bone
+    thins them toward bare bone, with a knob at each joint (2026-10-22: the hands read blocky and stubby)."""
     def turned(name, pts, at, lu):
         if rest_turn is None:
             return pts, lu
@@ -666,17 +668,20 @@ def hand_pieces(W, fwd, up, side, curl, spread, thumb=0.35, length=1.26, thin=0.
         d = f * math.cos(a) + t * math.sin(a)
         lu = u.copy()
         pts = [base]
-        L = lengths[k] * length * s
+        L = lengths[k] * length * s * reach
         for share, bendk in zip((0.45, 0.31, 0.24), (0.8, 1.05, 0.75)):
             b = curl[k] * bendk
             d, lu = d * math.cos(b) - lu * math.sin(b), lu * math.cos(b) + d * math.sin(b)
             pts.append(pts[-1] + d * L * share)
         pts, lu = turned(name, pts, 0, lu)
-        r0 = 0.0089 * s * thin
-        radii = [r0, r0 * 0.93, r0 * 0.84, r0 * (0.7 - 0.35 * claw)]
+        r0 = 0.0089 * s * thin * bone
+        radii = [r0, r0 * 0.9, r0 * 0.78, r0 * (0.62 - 0.3 * claw)]
         C = spline(pts, 14)
         rr = np.interp(np.linspace(0, 1, 14), [0, 0.45, 0.76, 1.0], radii)
         pieces.append(tube(C, rr, segs=12, up=lu, domes=3, pointed=claw))
+        for j, rj in ((1, 0.9), (2, 0.78)):       # the middle joints: bare knuckle bones
+            pieces.append(ellipsoid(pts[j] + lu * 0.0012 * s, (0.0115 * s * bone * rj * 0.8, 0.0105 * s * bone * rj * 0.8,
+                                                              0.0098 * s * bone * rj * 0.8), frame, 10, 6))
         pieces.append(ellipsoid(base + u * 0.003 * s, (0.0105 * s * knuckle, 0.0098 * s * knuckle, 0.0085 * s * knuckle),
                                 frame, 12, 8))
         lines.append((name, np.array(pts), r0))
@@ -687,11 +692,12 @@ def hand_pieces(W, fwd, up, side, curl, spread, thumb=0.35, length=1.26, thin=0.
     for share in (0.036, 0.03):
         towards = unit(f - d * np.dot(f, d))
         d = unit(d * math.cos(thumb) + towards * math.sin(thumb) - u * 0.25 * math.sin(thumb))
-        pts.append(pts[-1] + d * share * s * length ** 0.5)
+        pts.append(pts[-1] + d * share * s * length ** 0.5 * reach ** 0.6)
     pts, lu = turned('thumb', pts, 1, lu)
     C = spline(pts, 14)
     rr = np.interp(np.linspace(0, 1, 14), [0, 0.4, 0.75, 1.0],
-                   [0.0145 * s * thin, 0.0105 * s * thin, 0.0092 * s * thin, 0.0072 * s * thin * (1 - 0.4 * claw)])
+                   [0.0145 * s * thin * bone ** 0.5, 0.0105 * s * thin * bone ** 0.7, 0.0092 * s * thin * bone * 0.95,
+                    0.0072 * s * thin * bone * (1 - 0.4 * claw)])
     pieces.append(tube(C, rr, segs=12, up=lu, domes=3, pointed=claw))
     lines.append(('thumb', np.array(pts[1:]), 0.0125 * s * thin))
     return pieces, lines
@@ -736,8 +742,11 @@ def ribbon(path, width, n=8, cols=3, out=(0.0, 0.0, 1.0), curl=0.25, twist=0.0):
     return P.reshape(-1, 3), [grid_faces(n, cols, closed=False)]
 
 
-def shroud(rows=13, cols=24, strips=7, split=0.16, ends=(0.74, 1.0), spread=0.1, seed=4, fade_from=0.22, folds=0.34,
-           narrow=0.55, wave=0.035, harmonics=(5, 7, 9, 12), twist=0.8):
+TATTER = 0.2       # how much shorter the edge columns of a strip end than its middle ones (of the shroud's length)
+RAGGED = 0.045     # the small steps between neighbouring columns
+
+def shroud(rows=12, cols=35, strips=7, split=0.16, ends=(0.74, 1.0), spread=0.1, seed=4, fade_from=0.22, folds=0.34,
+           narrow=0.78, wave=0.035, harmonics=(5, 7, 9, 12), twist=0.8):
     """The shroud at game density: a tube from the waist along SHROUD_PATH tearing into strips past split. Returns the
     piece and, per vertex, how far down the shroud it is (t), its fade, how far down its strip (q), its strip's side
     (+1 left, -1 right, 0 the middle) and its UV makings (the angle round the shroud from the front, its radius there,
@@ -778,7 +787,10 @@ def shroud(rows=13, cols=24, strips=7, split=0.16, ends=(0.74, 1.0), spread=0.1,
         th_j = theta[js % cols] + 2.0 * np.pi * (js // cols)
         tc = th_j.mean()
         end = rng.uniform(*ends)
-        jag = end - 0.05 * np.abs(np.sin(js * 1.7 + k)) - 0.06 * smoothstep(0.0, 1.0, np.abs(js - js.mean()) / max(len(js) / 2.0, 1.0)) ** 2
+        # The hem tapers to a tatter: the middle columns reach furthest and the outer ones fall short along a curve, with
+        # small ragged steps between neighbours (no random draws, so the strips keep their places).
+        x = np.abs(js - js.mean()) / max(len(js) / 2.0, 1.0)
+        jag = end - TATTER * x ** 1.3 - RAGGED * np.abs(np.sin(js * 2.3 + k * 1.9)) * (0.4 + x)
         q = np.linspace(0.0, 1.0, srows)[:, None]
         tq = split + (jag[None, :] - split) * q
         ang = tc + (th_j[None, :] - tc) * (1.0 - narrow * q)
@@ -1031,7 +1043,7 @@ def build_arms():
         old_fingers[s] = hand_pieces(WRIST[s], HAND_DIR[s], HAND_UP[s], s, CURLS[s], SPREAD[s],
                                      rest_turn=lambda name, knuckle, s=s:
                                      code_finger_turn(name, knuckle, WRIST[s], s, IDLE_CURL, IDLE_SPLAY).T)[1]
-        low = reduce(union(pieces + hand, 0.0024, smooth=3), TRIANGLES['arm'])
+        low = reduce(union(pieces + hand, 0.002, smooth=3), TRIANGLES['arm'])
         part = Part(f'Arm_{sfx}', low, SKIN)
         V = low[0]
         u = ((V - E) @ dv) / np.linalg.norm(W - E)

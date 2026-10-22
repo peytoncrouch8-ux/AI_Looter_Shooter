@@ -131,6 +131,16 @@ def ink(name, color):
     return mat
 
 
+def painted_light(g, base, top=(0.80, 1.10), front=(0.90, 1.04)):
+    """Light painted into her skin (CHAR-ART item 3, the user's OK 2026-10-22: "warmer, less flat faces"; as
+    crane_looks.painted_light): by the detailed head's own normal, faces toward the sky a step lighter, those turned
+    down (under the brow, the cheekbones, the jaw) deeper, planes turning away from the front a little darker, so her
+    face keeps its planes in flat light (Medium, no Lumen) instead of the mannequin's smooth ones."""
+    x, y, z = g.xyz(g.geo().outputs['Normal'])
+    base = g.mix(1.0, base, g.ramp(z, -0.75, 0.85, top[0], top[1]), 'MULTIPLY')
+    return g.mix(1.0, base, g.ramp(g.mul(y, -1.0), 0.05, 0.9, front[0], front[1]), 'MULTIPLY')
+
+
 def skin_alive(name, color):
     """Her skin: olive, alive (an ember's revenant who still passes for living), the colour times painted zones (the
     'zones' attribute Odessa.py writes: the eyes' shadow, the lips, the brows and the lines of her lashes), mottled, a
@@ -145,6 +155,7 @@ def skin_alive(name, color):
     wrinkles = ridged(g, 60.0, stretch=(1.0, 1.0, 3.0), width=0.05, detail=3.0)
     base = g.mix(g.mul(wrinkles, 0.12), base, tuple(c * 0.7 for c in color))
     base = g.mix(grime(g, 0.1, 0.02), base, (0.36, 0.26, 0.22))
+    base = painted_light(g, base)
     pores = g.noise(400.0, 2.0, 0.5)
     n = g.bump(pores, 0.10, 0.0005)
     n = g.bump(g.mul(wrinkles, -1.0), 0.18, 0.0008, n)
@@ -184,7 +195,8 @@ COAT = ((0.115, 0.012, 0.045), (0.27, 0.035, 0.10))           # wine wool, dark 
 FACING = ((0.15, 0.018, 0.05), (0.30, 0.045, 0.11))           # its silk facings, a deeper wine: lapels, collar, cuffs
 
 LOOKS = {
-    'Skin': lambda n: skin_alive(n, (0.76, 0.66, 0.58)),
+    # a shade warmer than (0.76, 0.66, 0.58) (CHAR-ART item 3, 2026-10-22), with light painted in (skin_alive)
+    'Skin': lambda n: skin_alive(n, (0.77, 0.65, 0.555)),
     'Hair': lambda n: hair_combed(n),
     'EyeGlow': lambda n: lk.glow(n, (0.35, 0.85, 1.0), 6.0),
     'Felt': lambda n: felt_black(n),

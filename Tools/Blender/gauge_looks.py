@@ -27,7 +27,11 @@ def enamel(name, color=(0.016, 0.016, 0.019), rough=(0.10, 0.19)):
     sc = _swirls(g)
     base = g.mix(g.mul(sc, 0.4), base, tuple(min(1.0, c * 2.4 + 0.03) for c in color))
     edge = wear(g, 0.5, 0.54)
-    base = g.mix(g.mul(edge, 0.3), base, tuple(min(1.0, c * 1.8 + 0.015) for c in color))
+    # Edges rubbed a step paler (sheet 3, the pick C's enamel: the domes and rims catch, the faces stay deep).
+    base = g.mix(g.mul(edge, 0.55), base, tuple(min(1.0, c * 2.6 + 0.03) for c in color))
+    # A faint top light painted in (CHAR-ART item 4): faces toward the sky a little lighter, the undersides deeper, so
+    # the boiler and the pauldrons keep their shape on Medium, where the enamel has nothing real to reflect.
+    base = g.mix(1.0, base, g.ramp(g.up(), -0.6, 0.9, 0.72, 1.5), 'MULTIPLY')
     r = g.mixf(g.ramp(g.noise(15.0, 3.0, 0.5), 0.3, 0.75), rough[0], rough[1])
     r = g.mixf(g.mul(sc, 0.8), r, rough[1] + 0.16)
     r = g.mixf(edge, r, rough[0] * 0.8)

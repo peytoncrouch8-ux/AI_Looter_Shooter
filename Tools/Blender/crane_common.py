@@ -87,16 +87,16 @@ HAND_GIRTH = 1.07        # bare hands filled out a little (the user found Ellis'
 # cheeks, a long sharp nose, deep folds from the nose to the mouth's corners, a jutting chin and a hard jaw):
 # (kind, from, to, reach dm (x, y, z), depth m). Points: ('side'|'mid', landmark, (dx, dy)) from looter_face.landmarks.
 FACE_PLANES = [
-    ('ridge', ('side', 'eye', (-0.12, 0.17)), ('side', 'eye', (0.17, 0.12)), (0.16, 0.085, 0.3), 0.0035),   # brow ridge
-    ('ridge', ('side', 'eye', (-0.26, 0.08)), ('side', 'eye', (-0.27, 0.22)), (0.03, 0.07, 0.2), -0.0012),  # frown lines
-    ('ridge', ('side', 'eye', (0.02, -0.27)), ('side', 'eye', (0.22, -0.20)), (0.14, 0.08, 0.3), 0.0030),   # cheekbone
-    ('blob', ('side', 'eye', (0.10, -0.55)), None, (0.16, 0.16, 0.35), -0.0025),                            # its hollow
-    ('ridge', ('side', 'nose', (0.13, -0.12)), ('side', 'mouth', (0.30, -0.12)), (0.035, 0.035, 0.3), -0.0018),  # fold
+    ('ridge', ('side', 'eye', (-0.13, 0.195)), ('side', 'eye', (0.16, 0.17)), (0.15, 0.062, 0.3), 0.0035),  # brow ridge
+    ('ridge', ('side', 'eye', (-0.25, 0.12)), ('side', 'eye', (-0.26, 0.23)), (0.028, 0.06, 0.2), -0.0012), # frown lines
+    ('ridge', ('side', 'eye', (0.0, -0.27)), ('side', 'eye', (0.24, -0.20)), (0.14, 0.075, 0.3), 0.0035),   # cheekbone
+    ('blob', ('side', 'eye', (0.10, -0.55)), None, (0.17, 0.16, 0.35), -0.0030),                            # its hollow
+    ('ridge', ('side', 'nose', (0.13, -0.12)), ('side', 'mouth', (0.30, -0.12)), (0.04, 0.04, 0.3), -0.0022),    # fold
     ('ridge', ('side', 'nose', (0.19, -0.12)), ('side', 'mouth', (0.36, -0.10)), (0.05, 0.05, 0.3), 0.0012),     # pad
     ('ridge', ('mid', 'nose', (0.0, 0.42)), ('mid', 'nose', (0.0, 0.08)), (0.05, 0.2, 0.3), 0.0015),       # nose bridge
     ('ridge', ('side', 'nose', (0.10, 0.35)), ('side', 'nose', (0.11, 0.05)), (0.04, 0.15, 0.3), -0.0010), # its sides
     ('ridge', ('side', 'mouth', (0.0, -0.17)), ('side', 'mouth', (0.15, -0.14)), (0.12, 0.04, 0.25), -0.0015),   # lip groove
-    ('blob', ('mid', 'chin', (0.0, 0.05)), None, (0.15, 0.12, 0.3), 0.0020),                                # chin
+    ('blob', ('mid', 'chin', (0.0, 0.05)), None, (0.15, 0.12, 0.3), 0.0025),                                # chin
     ('ridge', ('side', 'chin', (0.15, 0.0)), ('side', 'jaw', (-0.04, -0.05)), (0.06, 0.06, 0.15), 0.0015),  # jaw line
 ]
 

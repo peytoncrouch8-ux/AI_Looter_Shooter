@@ -579,7 +579,7 @@ def frontier_sight(gun, m, kind, uc, v0, shell=POLY_SAND, metal=BLACK, trim=None
 SOUL = glow('GunSoulGlow', 0xffe4a8, 3.0)                  # Soul-light: the glow band, a medal's heart, a lantern's light
 SALT_GLOW = glow('GunSaltGlow', 0xc4f2ff, 3.0)             # Grave-salt: the light in the crystals and the inlays
 GILT = material('GunGilt', 'MetalWorn', 0xf6dfa0)          # Soul-light's pale gold (paler than brass)
-SALT = material('GunSaltCrystal', 'Polymer', 0xe4f2f3)     # Grave-salt's crystals
+SALT = lm.material('GunSaltCrystal', 0xe2f3f5, Variation=0.06)   # Grave-salt's crystals: flat, pale, untextured
 SCORCHED = material('GunScorched', 'MetalWorn', 0x4a3a36)  # Ember's heat-scored metal
 TEMPER = material('GunHeatTint', 'MetalWorn', 0x6b5682)    # the blue-violet temper colour where heat scored it
 
@@ -652,16 +652,16 @@ def _loop(space, cx, cy, r, z, thick, mat, sides=8):
     return mapped(lp.sweep(ring, lp.ngon(thick * CM, 4), up=_out_of(space)), mat)
 
 
-def medal(center, normal, r, up=(0.0, 1.0, 0.0), mat=None, heart=None, rays=8, bail=True, segments=14):
+def medal(center, normal, r, up=(0.0, 1.0, 0.0), mat=None, heart=None, rays=8, bail=True, segments=10):
     """A saint's medal on a face, r cm across: a gilt disc with a raised rim, a rayed star and a glowing heart, a small
     bail on top. Returns the pieces."""
     mat, heart = mat or GILT, heart or SOUL
     space = frame(center, normal, up)
     out = [disc(r, 0.0, 0.18, space, mat, segments, profile=[(0.0, r), (0.12, r), (0.18, r * 0.86), (0.18, 0.0)]),
            plate(star(rays, r * 0.74, r * 0.3), 0.14, 0.26, space, mat),
-           disc(r * 0.26, 0.2, 0.32, space, heart, 10)]
+           disc(r * 0.26, 0.2, 0.32, space, heart, 8)]
     if bail:
-        out.append(_loop(space, 0.0, r * 1.18, r * 0.2, 0.08, max(0.035, r * 0.07), mat))
+        out.append(_loop(space, 0.0, r * 1.18, r * 0.2, 0.08, max(0.035, r * 0.07), mat, sides=6))
     return out
 
 
@@ -707,7 +707,7 @@ def hanging_lantern(u, v_top, w=0.0, h=1.6, mat=None, light=None, segments=8):
 
 
 def curl(center, normal, r0, up=(0.0, 1.0, 0.0), turns=1.6, flip=1.0, start=0.0, mat=None, thick=0.06, lift=0.03,
-         steps=16):
+         steps=12):
     """A curl of filigree lying on a face (a scroll), r0 cm across at its outer end."""
     space = frame(center, normal, up)
     pts = []

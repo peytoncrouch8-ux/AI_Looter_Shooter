@@ -70,6 +70,51 @@ def dead_eye(name):
     return mat
 
 
+def painted_light(g, base, top=(0.78, 1.10), front=(0.90, 1.04)):
+    """Light painted into skin (CHAR-ART item 3, the user's OK 2026-10-22: "less flat faces"): by the detailed head's own
+    normal, faces toward the sky a step lighter and those turned down (under the brow, the nose, the cheekbones, the
+    jaw) deeper; planes turning away from the front a little darker. So the face keeps its cheek and brow structure in
+    flat light (Medium, no Lumen), as a painted face does. top, front: the multipliers at each end."""
+    x, y, z = g.xyz(g.geo().outputs['Normal'])
+    base = g.mix(1.0, base, g.ramp(z, -0.75, 0.85, top[0], top[1]), 'MULTIPLY')
+    return g.mix(1.0, base, g.ramp(g.mul(y, -1.0), 0.05, 0.9, front[0], front[1]), 'MULTIPLY')
+
+
+def dead_skin(name, color, warm=(0.92, 0.84, 0.80)):
+    """Crane's skin (CHAR-ART item 3): looter_looks.skin's dead skin (zones, mottle, veins, wrinkles, grave dirt, pores)
+    with light painted in (painted_light) and his zones turned warm: bust.zones darkens the sockets, the lips and the
+    nose's flush coolest in blue (bloodless); here each zone's darkening is mirrored (its red as its blue), so the
+    sockets read deep red-brown, the lips and nose a dead man's warm pink-grey (warm: the lips' tone over it) instead of
+    one flat green. color: the grey-green, with the daylight's yellow cut (Crane.py's SKIN)."""
+    mat, g = lk.new_material(name, 'skin')
+    zones = g.node('ShaderNodeAttribute', attribute_name='zones')
+    sep = g.node('ShaderNodeSeparateColor')
+    g.link(zones.outputs['Color'], sep.inputs['Color'])
+    mirrored = g.node('ShaderNodeCombineColor')
+    g.link(sep.outputs['Blue'], mirrored.inputs['Red'])
+    g.link(sep.outputs['Green'], mirrored.inputs['Green'])
+    g.link(sep.outputs['Red'], mirrored.inputs['Blue'])
+    mott = g.noise_col(38.0, 6.0, 0.6)
+    base = g.mix(0.22, color, mott, 'OVERLAY')
+    base = g.mix(1.0, base, mirrored.outputs['Color'], 'MULTIPLY')
+    # the lips and the nose's tip: where the zones darken least in blue and most in green (their flush), a warm tone
+    flush = g.ramp(g.math('SUBTRACT', sep.outputs['Blue'], sep.outputs['Green']), 0.02, 0.10)
+    base = g.mix(g.mul(flush, 0.45), base, warm, 'MULTIPLY')
+    veins = g.ramp(g.noise(55.0, 8.0, 0.75, dist=0.8), 0.48, 0.52)
+    base = g.mix(g.mul(veins, 0.10), base, (0.35, 0.42, 0.52))
+    wrinkles = ridged(g, 60.0, stretch=(1.0, 1.0, 3.0), width=0.06, detail=3.0)
+    base = g.mix(g.mul(wrinkles, 0.2), base, tuple(c * 0.6 for c in color))
+    base = g.mix(grime(g, 0.5, 0.02), base, (0.22, 0.16, 0.15))
+    base = g.mix(splatter(g, 0.25, top=3.0, scale=90.0), base, (0.30, 0.25, 0.21))
+    base = painted_light(g, base)
+    pores = g.noise(400.0, 2.0, 0.5)
+    n = g.bump(pores, 0.12, 0.0005)
+    n = g.bump(g.mul(wrinkles, -1.0), 0.25, 0.0008, n)
+    n = g.bump(g.noise(70.0, 4.0, 0.6), 0.1, 0.002, n)
+    g.finish(base, g.mixf(pores, 0.42, 0.6), 0.0, n, sss=0.25)
+    return mat
+
+
 def rusted_iron(name):
     """Wrought iron gone to rust: dark iron bright where links rub, orange-brown rust in the recesses and in patches,
     pitted."""

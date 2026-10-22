@@ -26,6 +26,12 @@ Each option's display name, the word it can lend the gun's name, the lowest rari
 Tools/Unreal/setup_gun_parts.py reads into the LMG's definition. A new part needs a model here and a row there, under
 the same key; keys never change once guns drop.
 
+The element boxes (Ember100, Saint100, Salt100: the 100's box and belt)
+wear their element (2026-10-22, looter_guns' element pieces): Ember heat-scored metal and ember vents, Soul-light
+pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt salt crystals and cyan-white inlays.
+`-- --elements` renders Saved/ArtPreviews/Weapons/Thresher_Elements.png (a row per element: first person, side, the part
+alone).
+
     blender -b --factory-startup --python Art/Models/Weapons/Thresher.py -- --preview
 """
 import math
@@ -384,11 +390,11 @@ BOX_U0, BOX_U1 = 15.4, 30.6
 BOX_W0, BOX_W1 = -2.4, 4.4
 
 
-def belt(m, rounds=3, case=lg.BRASS):
+def belt(m, rounds=3, case=lg.BRASS, tip=lg.COPPER):
     """The rounds climbing from the box's top-left corner into the feed tray, each held in a link."""
     for k in range(rounds):
         v = BOT + 0.6 + k * 1.05
-        g.add(m, *lg.cartridge(BELT_U, v, BELT_W, length=5.6, r=0.46, case=case))
+        g.add(m, *lg.cartridge(BELT_U, v, BELT_W, length=5.6, r=0.46, case=case, tip=tip))
         g.add(m, lg.tube(BELT_U + 1.3, BELT_U + 2.5, 0.56, v=v, w=BELT_W, segments=10, mat=DARK))
     for u in (BELT_U + 1.5, BELT_U + 2.2):   # the links' spine on the outside
         g.add(m, lg.box(u, u + 0.4, BOT + 0.1, BOT + 0.6 + (rounds - 1) * 1.05 + 0.4, 0.14, w=BELT_W + 0.56, bevel=0.0,
@@ -421,6 +427,69 @@ def count_window(m, v, w, u0=BOX_U0 + 1.4, u1=BOX_U1 - 1.4, frame=lg.BRASS):
     g.add(m, lg.box(u0 - 0.4, u1 + 0.4, v - 0.75, v + 0.75, 0.16, w=w + 0.02, bevel=0.05, mat=frame))
     for u in range(int(u0) + 2, int(u1), 3):   # tick marks over the glow
         g.add(m, lg.box(u, u + 0.12, v - 0.42, v + 0.42, 0.06, w=w + 0.18, bevel=0.0, mat=DARK))
+
+
+def element_boxes(M):
+    """The element boxes (2026-10-22): the 100's box and belt, dressed in their element (the belt's bullets too). The
+    strap handle crosses the left face at v -6.4..-7.4 and the ribs stand at -7.0 and -13.0: the dress sits between."""
+    bot = BOT - 10.0
+    faces = ((1.0, BOX_W1), (-1.0, BOX_W0))   # (side, w) of the left and right faces
+
+    # Heat-scored steel, a temper-blued lid and ribs, ember vents in both faces with the heat behind, ember-hot bullets.
+    m = M('Ember100')
+    box(m, 10.0, mat=lg.SCORCHED, lid=lg.TEMPER)
+    cuts = []
+    for u in (17.6, 20.6, 23.6, 26.6):
+        slot = [(u, bot + 2.4), (u + 1.1, bot + 2.4), (u + 2.2, BOT - 3.4), (u + 1.1, BOT - 3.4)]
+        cuts += [lg.cslab(slot, BOX_W1 - 0.35, BOX_W1 + 1.0, round=0.3), lg.cslab(slot, BOX_W0 - 1.0, BOX_W0 + 0.35,
+                                                                               round=0.3)]
+    g.parts[m][0] = lg.cut(g.parts[m][0], cuts)
+    for side, w in faces:
+        g.add(m, lg.box(17.0, 29.4, bot + 2.2, BOT - 3.0, 0.04, w=w - side * 0.31, bevel=0.0, mat=lg.EMBER))
+        g.add(m, lg.box(BOX_U0 + 0.6, BOX_U1 - 0.6, bot + 0.55, bot + 0.75, 0.05, w=w + side * 0.02, bevel=0.0,
+                        mat=lg.EMBER))                                           # a hot seam along the foot
+    belt(m, tip=lg.EMBER)
+
+    # Its own grey box in pale gold: gilt corner guards, a lantern on the left face between gilt curls, a saint's medal
+    # on the right, a gold-white glow band under the lid, saint-lit bullets.
+    m = M('Saint100')
+    box(m, 10.0, lid=lg.GILT)
+    for u in (BOX_U0 - 0.1, BOX_U1 - 1.5):
+        for v in (BOT - 2.0, bot + 0.2):
+            g.add(m, lg.box(u, u + 1.6, v, v + 1.8, BOX_W1 - BOX_W0 + 0.6, w=1.0, bevel=0.2, mat=lg.GILT))
+    for side, w in faces:
+        g.add(m, lg.box(BOX_U0 + 1.4, BOX_U1 - 1.4, BOT - 1.45, BOT - 1.05, 0.12, w=w + side * 0.03, bevel=0.0,
+                        mat=lg.SOUL))
+    g.add(m, *lg.lantern((23.0, BOT - 5.9, BOX_W1 + 0.02), (0.0, 0.0, 1.0), 4.6))
+    for flip, cu in ((1.0, 19.6), (-1.0, 26.4)):   # curls either side of the lantern, mirrored
+        g.add(m, lg.curl((cu, BOT - 6.6, BOX_W1), (0.0, 0.0, 1.0), 1.3, flip=flip, thick=0.08))
+        g.add(m, lg.curl((cu + flip * 0.3, BOT - 7.4, BOX_W1), (0.0, 0.0, 1.0), 0.6, flip=-flip, start=180.0,
+                         thick=0.07))
+    g.add(m, *lg.medal((23.0, BOT - 5.9, BOX_W0), (0.0, 0.0, -1.0), 1.9, up=(0.0, 1.0, 0.0)))
+    for flip, cu in ((1.0, 19.8), (-1.0, 26.2)):
+        g.add(m, lg.curl((cu, BOT - 6.0, BOX_W0), (0.0, 0.0, -1.0), 1.1, flip=flip, thick=0.08))
+    belt(m, tip=lg.SOUL)
+
+    # Bare steel crusted with salt: crystals along its foot and up its front corners, cyan-white frost veins, a salted
+    # lid, salt-white bullets.
+    m = M('Salt100')
+    box(m, 10.0, mat=lg.STEEL, lid=lg.SALT)
+    for k, (u, w, n) in enumerate(((17.0, BOX_W1, (0.0, -0.5, 1.0)), (24.0, BOX_W1, (0.0, -0.6, 1.0)),
+                                   (29.6, BOX_W1, (0.6, -0.5, 1.0)), (18.0, BOX_W0, (0.0, -0.5, -1.0)),
+                                   (27.5, BOX_W0, (0.4, -0.5, -1.0)))):
+        g.add(m, *lg.salt_cluster(900 + k, (u, bot + 0.9, w), n, 1.8, 6, length=(1.05, 2.62), r=(0.27, 0.51),
+                                  up=(1.0, 0.0, 0.0), squash=0.5))
+    for k, v in enumerate((BOT - 4.5, BOT - 8.0)):   # up the front corner
+        g.add(m, *lg.salt_cluster(910 + k, (BOX_U1 + 0.05, v, BOX_W1 - 0.4), (1.0, 0.0, 0.5), 0.9, 3,
+                                  length=(0.88, 1.75), r=(0.21, 0.39)))
+    g.add(m, *lg.salt_cluster(915, (23.0, bot - 0.05, 1.0), (0.0, -1.0, 0.0), 3.0, 6, length=(0.88, 2.1),
+                              r=(0.24, 0.45), up=(1.0, 0.0, 0.0), squash=0.6))
+    for side, w in faces:
+        vein = [(16.6, BOT - 3.2), (18.4, BOT - 4.8), (17.4, BOT - 6.6), (19.8, BOT - 8.4), (18.8, bot + 2.2)]
+        g.add(m, lg.pipe([(u, v, w + side * 0.02) for u, v in vein], 0.1, mat=lg.SALT_GLOW, sides=4))
+        vein = [(28.8, BOT - 3.4), (27.2, BOT - 5.6), (28.4, BOT - 7.6), (26.6, BOT - 9.4)]
+        g.add(m, lg.pipe([(u, v, w + side * 0.02) for u, v in vein], 0.08, mat=lg.SALT_GLOW, sides=4))
+    belt(m, tip=lg.SALT_GLOW)
 
 
 def magazines():
@@ -484,6 +553,7 @@ def magazines():
         scroll(m, 19.6, BOT - 10.0, 1.3, side, abs(w) + 0.05)
         scroll(m, 26.4, BOT - 10.0, 1.3, -side, abs(w) + 0.05)
     belt(m)
+    element_boxes(M)
 
 
 # --- Sights: on the carry handle's rail (u 11.4..26.6) ---
@@ -573,7 +643,7 @@ SLOTS = {
     'Body': ['Standard', 'Ironside', 'Scrapper', 'Vented', 'Skeleton', 'Armored', 'Engraved', 'Forge'],
     'Barrel': ['Standard', 'Short', 'Fluted', 'Jacketed', 'Finned', 'Heavy', 'Gilded', 'Furnace'],
     'Muzzle': ['Cap', 'Cone', 'Slotted', 'Booster', 'Brake', 'Can', 'Flare'],
-    'Magazine': ['80', '100', '100Window', '120', 'Pouch', '150', 'Drum', 'Brass'],
+    'Magazine': ['80', '100', '100Window', '120', 'Pouch', '150', 'Drum', 'Brass', 'Ember100', 'Saint100', 'Salt100'],
     'Sight': ['Iron', 'Pip', 'Reflex', 'Holo', 'Prism', 'Scope', 'Tracker'],
     'Stock': ['Fixed', 'Skeleton', 'Buffer', 'Cheek', 'Monopod', 'RearGrip', 'Engraved'],
 }
@@ -664,3 +734,7 @@ if lt.want_preview():
     lt.preview(lay_out(SLOTS), out('Thresher_Parts'), resolution=(2200, 1600), view=(-1.0, 0.0, 0.0), ground=False,
                lens=80.0, fit=0.75)
     assemble(DEFAULT)
+
+if lg.want_elements():   # -- --elements: Thresher_Elements.png, the plain 100 and its element boxes
+    lg.element_preview('Thresher_Elements', assemble, DEFAULT, 'Magazine', ['100', 'Ember100', 'Saint100', 'Salt100'],
+                       built)

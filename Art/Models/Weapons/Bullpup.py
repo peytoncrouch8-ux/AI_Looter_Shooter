@@ -25,6 +25,12 @@ rarity it appears on and its stat ranges live in Bullpup.parts.csv beside this f
 Tools/Unreal/setup_gun_parts.py reads into DA_AssaultRifle. PARTS below was its first draft and now only lays the parts
 out in the scene: a new part needs a model here and a row there, under the same key.
 
+The element magazines (Ember30, Saint30, Salt30: the 30's shape)
+wear their element (2026-10-22, looter_guns' element pieces): Ember heat-scored metal and ember vents, Soul-light
+pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt salt crystals and cyan-white inlays.
+`-- --elements` renders Saved/ArtPreviews/Weapons/Bullpup_Elements.png (a row per element: first person, side, the part
+alone).
+
     blender -b --factory-startup --python Art/Models/Weapons/Bullpup.py -- --preview
 """
 import math
@@ -473,6 +479,76 @@ def magazines():
         g.add(m, lg.pin(14.0, -14.5, cap, cap + 0.4, 2.2, segments=20, mat=BRASS))
 
 
+# --- Element magazines (2026-10-22): the 30-rounder's shape (so they seat like it), dressed in their element ---
+
+FRONT30 = [(17.6, MAG_AT[1]), (18.3, -15.0), (19.8, -24.0)]
+REAR30 = [(10.4, MAG_AT[1]), (10.9, -15.0), (12.0, -23.4)]
+HALF30 = 1.2   # its side faces
+
+
+def edge_u(curve, v):
+    """Where a magazine's edge curve [(u, v) start, control, end] is at height v (u)."""
+    pts = lg.bezier(*curve, n=40)
+    for (u0, v0), (u1, v1) in zip(pts, pts[1:]):
+        if min(v0, v1) <= v <= max(v0, v1) and v0 != v1:
+            return u0 + (u1 - u0) * (v - v0) / (v1 - v0)
+    return pts[-1][0]
+
+
+def mid_u(v):
+    return (edge_u(REAR30, v) + edge_u(FRONT30, v)) * 0.5
+
+
+def element_magazines():
+    M = lambda key: model('Magazine', key, MAG_AT)
+    rake = (-0.17, 1.0, 0.0)   # up along the magazine (it leans forward at its foot)
+
+    m = M('Ember30')                                           # heat-scored steel, ember vents a side, temper bands
+    mag(m, FRONT30, REAR30, 2.4, lg.SCORCHED, base=METAL)
+    cuts = []
+    for v in (-9.2, -12.2, -15.2, -18.2):
+        r, f = edge_u(REAR30, v), edge_u(FRONT30, v)
+        slot = [(r + 1.4, v - 0.45), (f - 1.6, v - 0.45), (f - 1.0, v + 0.45), (r + 2.0, v + 0.45)]
+        cuts += [lg.cslab(slot, -1.8, -HALF30 + 0.3, round=0.25), lg.cslab(slot, HALF30 - 0.3, 1.8, round=0.25)]
+    g.parts[m][0] = lg.cut(g.parts[m][0], cuts)
+    heat = [(edge_u(REAR30, -8.4) + 1.1, -8.4), (edge_u(FRONT30, -8.4) - 0.9, -8.4),
+            (edge_u(FRONT30, -19.2) - 0.9, -19.2), (edge_u(REAR30, -19.2) + 1.1, -19.2)]
+    for side in (-1.0, 1.0):   # the heat behind the vents, hidden inside the magazine elsewhere
+        g.add(m, lg.slab(heat, 0.04, w=side * (HALF30 - 0.26), bevel=0.0, mat=EMBER))
+        g.add(m, lg.strip([(12.5, -23.95), (19.6, -24.45)], 0.04, 0.24, w=side * 1.42, mat=EMBER))   # a slit in the base
+    for v in (-6.9, -21.4):                                    # temper-blued bands where the heat scored it
+        g.add(m, lg.box(edge_u(REAR30, v) - 0.2, edge_u(FRONT30, v) + 0.2, v - 0.4, v + 0.4, 2.7, bevel=0.12,
+                        mat=lg.TEMPER))
+
+    m = M('Saint30')                                           # blued steel in pale gold: a saint's medal a side,
+    mag(m, FRONT30, REAR30, 2.4, METAL, base=lg.GILT)          # filigree, a gold-white glow band down its front
+    for side in (-1.0, 1.0):
+        w = side * HALF30
+        g.add(m, *lg.medal((mid_u(-13.2), -13.2, w), (0.0, 0.0, side), 1.7, up=rake))
+        g.add(m, lg.curl((mid_u(-8.6), -8.6, w), (0.0, 0.0, side), 1.2, up=rake, flip=side, turns=1.5))
+        g.add(m, *lg.vine((mid_u(-15.6), -15.6, w), (mid_u(-22.0), -22.0, w), (0.0, 0.0, side), 0.5, waves=1.5,
+                          curls=False))
+        band = [(edge_u(FRONT30, v) - 0.6, v, w) for v in (-6.0, -9.0, -12.0, -15.0, -18.0, -21.0, -23.2)]
+        g.add(m, lg.pipe(band, 0.12, mat=lg.SOUL, sides=4))
+    g.add(m, lg.strip([(edge_u(FRONT30, v) + 0.04, v) for v in (-6.0, -10.0, -14.0, -18.0, -22.0, -23.6)], 0.9, 0.12,
+                      mat=lg.SOUL))                            # and down the front spine
+
+    m = M('Salt30')                                            # pale smoke polymer crusted with salt: crystals at its
+    mag(m, FRONT30, REAR30, 2.4, lg.POLY_GREY, 2, -19.5, base=lg.STEEL)   # foot and flanks, cyan-white veins
+    g.add(m, *lg.salt_cluster(301, (16.4, -24.6, 0.0), (0.08, -1.0, 0.0), 2.4, 7, length=(1.23, 2.8), r=(0.3, 0.54),
+                              up=(1.0, 0.0, 0.0)))
+    for side in (-1.0, 1.0):
+        w = side * HALF30
+        g.add(m, *lg.salt_cluster(311 + int(side), (17.4, -21.0, w), (0.25, -0.35, side), 1.5, 5, length=(0.88, 1.93),
+                                  r=(0.21, 0.39)))
+        g.add(m, *lg.salt_cluster(321 + int(side), (12.0, -12.0, w), (-0.3, 0.0, side), 0.8, 3, length=(0.61, 1.23),
+                                  r=(0.15, 0.27), glow_every=2))
+        vein = [(13.0, -6.4, w), (14.6, -9.0, w), (13.6, -11.6, w), (15.6, -14.6, w), (14.6, -17.4, w),
+                (16.8, -20.4, w)]
+        g.add(m, lg.pipe(vein, 0.09, mat=lg.SALT_GLOW, sides=5))
+        g.add(m, lg.pipe([(14.6, -9.0, w), (16.6, -10.4, w), (17.2, -12.4, w)], 0.07, mat=lg.SALT_GLOW, sides=5))
+
+
 # --- See-through sights: aiming down sights puts the eye 22 cm behind SOCKET_Aim, looking along the axis ---
 
 WALL = 0.12   # cm: thin tube walls keep the clear opening as wide as the tube
@@ -721,6 +797,9 @@ PARTS = {
         p('60', '60-round casket', 'Hungry', R_RARE, magazine=60, reload=20, handling=-10),
         p('Drum', '75-round drum', 'Drummer', R_EPIC, magazine=75, reload=35, handling=-15),
         p('TwinDrum', '100-round twin drum', 'Endless', R_EPIC, magazine=100, reload=50, handling=-25, accuracy=-5),
+        p('Ember30', '30-round ember rounds', 'Smoldering', R_UNCOMMON, magazine=30, damage=-4),
+        p('Saint30', "30-round saint's rounds", 'Saintlit', R_UNCOMMON, magazine=30, damage=-4),
+        p('Salt30', '30-round salt rounds', 'Salted', R_UNCOMMON, magazine=30, damage=-4),
     ],
     'Sight': [
         p('Iron', 'Flip-up irons', '', R_COMMON, zoom=1.0, handling=10),
@@ -751,6 +830,7 @@ bodies()
 barrels()
 muzzles()
 magazines()
+element_magazines()
 sights()
 stocks()
 lg.fill_uvs(g)   # glows and glass get UVs, so Unreal builds their tangents quietly
@@ -795,3 +875,6 @@ if lt.want_preview():
     lt.preview(assemble(DEFAULT), out('Bullpup_Side'), view=(-1.0, -0.02, 0.05), ground=False, lens=80.0, fit=0.9)
     lt.preview(assemble(DEFAULT), out('Bullpup_FP'), view=(0.42, 1.0, 0.32), ground=False, lens=45.0, fit=0.8)
     assemble(DEFAULT)
+
+if lg.want_elements():   # -- --elements: Bullpup_Elements.png, the plain 30 and its element magazines
+    lg.element_preview('Bullpup_Elements', assemble, DEFAULT, 'Magazine', ['30', 'Ember30', 'Saint30', 'Salt30'], built)

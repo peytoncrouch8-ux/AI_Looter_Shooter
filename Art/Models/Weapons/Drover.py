@@ -32,6 +32,12 @@ Each option's display name, the word it can lend the gun's name, the lowest rari
 reads into DA_Revolver. A new part needs a model here and a row there, under the same key; keys never change once guns
 drop.
 
+The element cylinders (Ember6, Saint6, Salt6: the Fluted6's chambers and flutes)
+wear their element (2026-10-22, looter_guns' element pieces): Ember heat-scored metal and ember vents, Soul-light
+pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt salt crystals and cyan-white inlays.
+`-- --elements` renders Saved/ArtPreviews/Weapons/Drover_Elements.png (a row per element: first person, side, the part
+alone).
+
     blender -b --factory-startup --python Art/Models/Weapons/Drover.py -- --preview
 """
 import math
@@ -461,8 +467,11 @@ def barrels():
 # --- Cylinders: modelled round the bore, then lowered onto their axis ---
 
 def cylinder(m, chambers, radius, body=lg.BLUED, flutes=True, flute_len=2.6, chamber_r=0.52, chamber_at=1.2,
-             rims=lg.BRASS, moon=False, notches=False, bands=None, ember=False, moon_mat=lg.STEEL):
-    """ember: a hot core just under the flutes' floors, seen glowing only through them."""
+             rims=lg.BRASS, moon=False, notches=False, bands=None, ember=False, moon_mat=lg.STEEL, core=None, tips=None,
+             band_mat=None, dress=None):
+    """ember: a hot core just under the flutes' floors, seen glowing only through them (core: its material, EMBER
+    unless given). tips: the loaded bullets' noses (copper); band_mat: the bands' (brass). dress(parts, angles): adds
+    the element parts' extras, modeled round the bore like the rest, before they're all lowered onto the axis."""
     u0, u1 = CYL_U0, CYL_U1
     length = u1 - u0
     obj = lg.turned([(0.0, radius - 0.22), (0.22, radius), (length - 0.3, radius), (length, radius - 0.3)], u0,
@@ -483,16 +492,19 @@ def cylinder(m, chambers, radius, body=lg.BLUED, flutes=True, flute_len=2.6, cha
     for a in angles:
         # A loaded round in each chamber: its bullet's nose in the mouth, its brass rim at the back.
         parts.append(about_bore(lg.turned([(0.0, chamber_r - 0.08), (0.25, chamber_r - 0.15), (0.42, 0.0)], u1 - 0.5,
-                                          v=chamber_at, segments=10, mat=COPPER), a))
+                                          v=chamber_at, segments=10, mat=tips or COPPER), a))
         parts.append(about_bore(lg.tube(u0 - 0.12, u0 + 0.02, chamber_r + 0.1, v=chamber_at, segments=12, mat=rims), a))
     if moon:   # a clip holding the rims together
         parts.append(lg.turned([(0.0, chamber_at + chamber_r + 0.05), (0.08, chamber_at + chamber_r + 0.05)],
                                u0 - 0.2, segments=chambers * 4, mat=moon_mat))
     if ember and flutes:
         start = u0 + (length - flute_len) * 0.5 + 0.2
-        parts.append(lg.tube(start + 0.3, start + flute_len - 0.3, radius - 0.24, segments=chambers * 4, mat=EMBER))
+        parts.append(lg.tube(start + 0.3, start + flute_len - 0.3, radius - 0.24, segments=chambers * 4,
+                             mat=core or EMBER))
     for at in (bands or ()):
-        parts.append(lg.tube(u0 + at, u0 + at + 0.25, radius + 0.03, segments=36, mat=lg.BRASS))
+        parts.append(lg.tube(u0 + at, u0 + at + 0.25, radius + 0.03, segments=36, mat=band_mat or lg.BRASS))
+    if dress:
+        dress(parts, angles)
     parts.append(lg.turned([(0.0, 0.5), (0.25, 0.5)], u0 - 0.25, segments=6, mat=lg.STEEL))           # the ratchet
     # The ejector rod and its knurled head, and the crane: its arm in front of the cylinder and its hinge low on the left.
     parts.append(lg.tube(u1, ROD_END - 0.9, 0.26, segments=10, mat=lg.STEEL))
@@ -520,6 +532,50 @@ def cylinders():
              ember=True)                                       # ember glowing up the flutes
     cylinder(C('Eight'), 8, 2.25, flute_len=2.0, chamber_r=0.42, chamber_at=1.2, body=lg.BLUED, bands=(0.35, 3.75),
              ember=True)
+    element_cylinders(C)
+
+
+# --- Element cylinders (2026-10-22): the Fluted6's six chambers and flutes, dressed in their element. The cylinder turns
+# in the frame's window with 0.13 cm to spare under the top strap, so nothing stands more than 0.12 cm proud of it ---
+
+FLUTE_U = CYL_U0 + (CYL_U1 - CYL_U0) * 0.5 + 0.2   # the flutes' middle
+R6 = 2.15
+
+
+def element_cylinders(C):
+    length = CYL_U1 - CYL_U0
+
+    def ember_slits(parts, angles):   # a glowing slit along the wall between each pair of flutes
+        for a in angles:
+            parts.append(about_bore(lg.box(FLUTE_U - 0.8, FLUTE_U + 0.8, R6 - 0.12, R6 + 0.03, 0.16, bevel=0.0,
+                                           mat=EMBER), a))
+
+    # Heat-scored steel, temper bands, ember up the flutes and in slits between them, ember-hot bullet noses.
+    cylinder(C('Ember6'), 6, R6, body=lg.SCORCHED, ember=True, tips=EMBER, bands=(0.3, length - 0.6),
+             band_mat=lg.TEMPER, dress=ember_slits)
+
+    def medals(parts, angles):        # a saint's medal inlaid on the wall over every other chamber
+        for a in angles[::2]:
+            for p in lg.medal((FLUTE_U, R6 - 0.2, 0.0), (0.0, 1.0, 0.0), 0.5, up=(1.0, 0.0, 0.0), bail=False,
+                              segments=12, rays=6):
+                parts.append(about_bore(p, a))
+
+    # Blued steel and pale gold: gilt bands and rims, gold-white light up the flutes, a medal over every other chamber.
+    cylinder(C('Saint6'), 6, R6, body=lg.BLUED, ember=True, core=lg.SOUL, tips=lg.SOUL, rims=lg.GILT,
+             bands=(0.3, length - 0.6), band_mat=lg.GILT, dress=medals)
+
+    def salt(parts, angles):          # salt crystals growing in each flute, frost veins between them
+        for k, a in enumerate(angles):
+            for p in lg.salt_cluster(600 + k, (FLUTE_U, 1.9, 0.0), (0.0, 1.0, 0.0), 1.0, 3, length=(0.26, 0.4),
+                                     r=(0.1, 0.16), lean=40.0, squash=0.2, glow_every=2, sides=5):
+                parts.append(about_bore(p, a + 30.0))
+            vein = [(FLUTE_U - 1.0, R6 - 0.02, 0.0), (FLUTE_U - 0.4, R6 - 0.02, 0.14), (FLUTE_U + 0.2, R6 - 0.02, -0.12),
+                    (FLUTE_U + 0.9, R6 - 0.02, 0.06)]
+            parts.append(about_bore(lg.pipe(vein, 0.06, mat=lg.SALT_GLOW, sides=4), a))
+
+    # Bare steel, a salt-white band, cyan-white light up the flutes among the crystals, salt-white bullet noses.
+    cylinder(C('Salt6'), 6, R6, body=lg.STEEL, ember=True, core=lg.SALT_GLOW, tips=lg.SALT_GLOW, rims=lg.STEEL,
+             bands=(0.3,), band_mat=lg.SALT, dress=salt)
 
 
 # --- Sights: on the top strap (u 1..7) ---
@@ -720,7 +776,7 @@ DEFAULT = {'Body': 'Blued', 'Barrel': 'Service', 'Cylinder': 'Fluted6', 'Sight':
 SLOTS = {
     'Body': ['Blued', 'Nickel', 'Homestead', 'Scrapper', 'Hollow', 'Ranger', 'Engraved', 'Ironclad'],
     'Barrel': ['Service', 'Snub', 'Vented', 'Comped', 'Lugged', 'Octagon', 'Long', 'Gilded'],
-    'Cylinder': ['Fluted6', 'Plain6', 'Bigbore5', 'Moon6', 'Seven', 'Eight'],
+    'Cylinder': ['Fluted6', 'Plain6', 'Bigbore5', 'Moon6', 'Seven', 'Eight', 'Ember6', 'Saint6', 'Salt6'],
     'Sight': ['Notch', 'Blade', 'Peep', 'Pip', 'Glass', 'Longeye'],
     'Grip': ['Plowhandle', 'Wrapped', 'Birdshead', 'Target', 'Stag', 'Coffin', 'Bone', 'Pearl'],
 }
@@ -792,3 +848,7 @@ if lt.want_preview():
     for name, choice in variants.items():
         lt.preview(assemble(choice), out(name), view=(-1.0, -0.25, 0.25), ground=False, lens=60.0, fit=0.95)
     assemble(DEFAULT)
+
+if lg.want_elements():   # -- --elements: Drover_Elements.png, the plain Fluted6 and its element cylinders
+    lg.element_preview('Drover_Elements', assemble, DEFAULT, 'Cylinder', ['Fluted6', 'Ember6', 'Saint6', 'Salt6'], built,
+                       close=dict(view=(0.9, -0.55, 0.45), lens=60.0, fit=1.0))
