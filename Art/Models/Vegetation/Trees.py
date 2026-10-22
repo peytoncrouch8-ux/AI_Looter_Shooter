@@ -159,25 +159,31 @@ def birch_b():
              limb_low=0.85)])
 
 
-def apple_a():
-    """A small orchard apple: a short trunk, a round crown and a few red apples, about 4.5 m."""
+def hang_apples(plant, rng, crowns, fewest, most):
+    """Fruit hung just outside each lower clump's leaf cards (the cards reach the clump surface and beyond, so fruit on
+    the surface is buried), big enough to read at orchard distances (about 20 cm across)."""
     palette = lt.material('FoliagePalette')
     apple_uv = swatch('FruitRed', 0.7, 0.5)
+    for center, radius in crowns[0]:
+        # Twice the (least, most) asked for: an orchard tree reads as fruiting from the road only with a good few showing
+        # (the user, 2026-10-21: four a tree looked bare).
+        for _ in range(rng.randint(fewest * 2, most * 2)):
+            d = (random_unit(rng) * Vector((1.0, 1.0, 0.5)) - UP * 0.35).normalized()
+            plant.ball(center + d * (radius * 1.1 + 0.25), rng.uniform(0.09, 0.11), palette, apple_uv,
+                       wind=0.8, occlusion=0.95, segments=6, rings=4)
 
+
+def apple_a():
+    """A small orchard apple: a short trunk, a round crown and a few red apples, about 4.5 m."""
     def apples(plant, rng, crowns):
-        # Fruit hangs at the surface of each clump's lower half, where it shows; a little oversized to read.
-        for center, radius in crowns[0]:
-            for _ in range(rng.randint(2, 4)):
-                d = (random_unit(rng) * Vector((1.0, 1.0, 0.5)) - UP * 0.35).normalized()
-                plant.ball(center + d * radius * rng.uniform(0.92, 1.02), rng.uniform(0.06, 0.07), palette, apple_uv,
-                           wind=0.8, occlusion=0.95, segments=5, rings=3)
+        hang_apples(plant, rng, crowns, 2, 4)
 
     return broadleaf('Apple_A', 53, [dict(
         bark=lt.material('BarkOak'), leaves=lt.material('LeavesBirch', name='LeavesApple', tint=0x9fb08a),
         fork=1.1, radius=0.15, fork_radius=0.11, lean=(0.12, 0.05), crown_center=(0.1, 0.0, 3.0),
         crown_radii=(2.3, 2.2, 1.5), clumps=7, clump_size=(1.0, 1.3), card_size=(1.0, 1.25), cards_per_clump=22,
         flare=0.5, trunk_sides=8, limb_sides=5, branch_sides=3, gnarl_amount=0.15, limb_rise=0.8, limb_low=0.9)],
-        hull_height=1.2, extra=apples)
+        hull_height=1.2, extra=apples, lods='70,30', lod_screens='0.3,0.1')
 
 
 # Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md), built after the originals (so those
@@ -186,21 +192,14 @@ def apple_a():
 def apple_tree(name, seed, fruit, **stem):
     """An orchard apple like Apple_A (its bark and its leaf material, so the area's amber swap reaches it too), with
     fruit (least, most) apples per clump."""
-    palette = lt.material('FoliagePalette')
-    apple_uv = swatch('FruitRed', 0.7, 0.5)
-
     def apples(plant, rng, crowns):
-        for center, radius in crowns[0]:
-            for _ in range(rng.randint(*fruit)):
-                d = (random_unit(rng) * Vector((1.0, 1.0, 0.5)) - UP * 0.35).normalized()
-                plant.ball(center + d * radius * rng.uniform(0.92, 1.02), rng.uniform(0.06, 0.07), palette, apple_uv,
-                           wind=0.8, occlusion=0.95, segments=5, rings=3)
+        hang_apples(plant, rng, crowns, *fruit)
 
     settings = dict(bark=lt.material('BarkOak'), leaves=lt.material('LeavesBirch', name='LeavesApple', tint=0x9fb08a),
                     flare=0.5, trunk_sides=8, limb_sides=5, branch_sides=3, gnarl_amount=0.15, limb_rise=0.8,
                     limb_low=0.9)
     settings.update(stem)
-    return broadleaf(name, seed, [settings], hull_height=1.2, extra=apples)
+    return broadleaf(name, seed, [settings], hull_height=1.2, extra=apples, lods='70,30', lod_screens='0.3,0.1')
 
 
 def apple_b():
