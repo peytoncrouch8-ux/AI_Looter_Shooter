@@ -1,13 +1,18 @@
 # Sounds
 
-Every sound in the game is synthesized from scratch by the scripts here: numpy in Blender's bundled Python, no
-recordings, no sample libraries, no generators. Change a sound by changing its recipe and rendering again; never edit a
-WAV by hand.
+Every sound in the game is made by the scripts here: numpy in Blender's bundled Python, no generators. All of them are
+synthesized from scratch except the guns' shots and the bullet impacts, which since 2026-10-21 (the user's call, after
+the synthesized shots played thin) are built from royalty-free recordings (`packs/`, the licence in `packs/README.md`)
+sliced, shaped and layered by their recipes. No other sound uses a recording. Change a sound by changing its recipe and
+rendering again; never edit a WAV by hand.
 
 ## Files
 
 ```
-Art/Sounds/lib/          the synthesis library (see lib/__init__.py for what each module holds)
+Art/Sounds/lib/          the synthesis library (see lib/__init__.py for what each module holds); lib/sample.py reads,
+                         resamples and slices the recordings
+Art/Sounds/packs/        the recordings used (Sonniss/, Git LFS), make_pack.py that cuts them from Saved/SoundPacks,
+                         README.md with each file's source and the licence (guns and impacts only)
 Art/Sounds/recipes/      one recipe per cue, by group (below); kit.py holds the shared building blocks (clicks, clacks,
                          whooshes, cloth, scrapes, creaks, bubbles, chimes, plucked strings...), band.py the score's
                          instruments and mixer
@@ -19,7 +24,8 @@ Saved/SoundCheck/        the check's output (not in git): index.html, <Cue>.png,
 ```
 
 Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__init__.py`'s `GROUPS` or it never renders):
-- guns; impacts (also a cue per surface: dirt, grass, gravel, sand, stone, sheet metal, glass, cloth, hay, bone; and the
+- guns (reloads, handling; guns_shots.py the shots and their layers on guns_rec.py's blocks, guns_impacts.py the recorded impact layers, all
+  imported by guns.py); impacts (also a cue per surface: dirt, grass, gravel, sand, stone, sheet metal, glass, cloth, hay, bone; and the
   ricochet layered on glancing hits); feedback; ui; loot (and the bench, the soul-motes); player (and the melee strike,
   the mantle and vault, a hard landing's thud, the splash in water); creatures (and the rank sting, the ambushes' entrances); world.
 - fauna (the ambient birds, insects, tumbleweeds, dust devils, washing); bosses (the boss fights' stings and voices); gravemother_barrow (the Gravemother's Barrow fight: clod, stone, furrow,
@@ -115,8 +121,21 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
 - **Ambience**: two loops per area and light (19 s and 13 s, played together, so nothing audibly repeats for minutes)
   and one-shot sweeteners placed round the listener; places that sound (creeks, ponds, falls, the windmill, the Rim's
   wind, the Sink) are 3D emitters placed by `Tools/Unreal/build_area_sound.py`.
-- **Guns** (heavy and punchy, the user's pick; round 2, 2026-10-08, made them less synthetic, after Borderlands' big,
-  punchy guns): modelled the way a real shot reaches a close microphone, not built from drum-machine parts.
+- **Guns, round 3 (2026-10-21, `recipes/guns_shots.py`)**: built from recordings. Each shot is layers the game plays
+  together (`Weapons/GunshotSound.cpp`): Core (the punch), Mech (the action, the shooter's own), Low (the chest thump, the
+  shooter's own), TailOpen/TailTown/TailInside (by the shooter's surroundings), Distant (past 30 m), LowAmmo, and Fire = Core
+  + Mech + Low + TailOpen in one sound (Abel's pump plays it). A Core lines up two or three takes on their onsets (the rifle:
+  a FAMAS on the ground for the front over an L85 or HK416 at 1 m; the shotgun: a Saiga's blast over a SPAS-12 or USAS-12
+  boom and a studio slug's weight; the revolver: an M29 .44 on a 1.5 m and a boundary microphone), gates the recording's own
+  field off, and shapes it: transient push, the gun's EQ (rifle mid crack at 1.6 kHz; shotgun lows +6 dB under 100 Hz and
+  its 320 Hz mud cut; revolver bark +4.5 dB at 700 Hz and a frame ring), the round-2 synthesized crack and heave under it,
+  overdrive, the round-2 master. Tails: round 2's `_land` (slaps, far echoes, rumble) from the Core, led by a near-field
+  scatter so it starts with the shot, with a recorded far take's field roll laid in (open), a flutter between two walls
+  (town), or a recorded warehouse or room (inside, the direct sound cut off, our shot in a synthesized room first). Each
+  layer's `level` is its loudness inside Fire's mix, so the shooter's layers add up to Fire (within 0.5 dB).
+- **Guns, round 2** (heavy and punchy, the user's pick; 2026-10-08, made them less synthetic, after Borderlands' big,
+  punchy guns; the synthesized parts the recorded shots still use): modelled the way a real shot reaches a close
+  microphone, not built from drum-machine parts.
   - A Friedlander pressure pulse (a near-instant rise, a positive phase of 1.3 ms for the rifle and 2.6 ms for the
     shotgun, a shallower negative phase, roughened per take) with the crack on its front.
   - The weight: one slow push and pull of air kept in its lows (no pitched sine sweep).
@@ -242,3 +261,13 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
   compares the join's jump with the median step, which the quiet between events keeps small.
 - Mix a loop's layers by loudness (`analysis.loudness_max`, `orelift._lv`), not by peak: a creak's peak says little about
   how it sits over a continuous hum.
+- Recordings (2026-10-21): an MKH416 at 1 m off axis saturates and sustains (crest 6-8 dB); a DPA on the
+  ground or on the gun keeps a clean front (crest 15-19 dB): take the front from the second, the body from the first. In a
+  burst the next shot comes before the tail falls, so shots are found in the bright band (over 2.5 kHz, `sample.onsets`)
+  and listed by hand per take (`guns_shots.SHOTS`), since echoes and the action's clacks are bright too.
+- A layer the game plays beside others must start with a sound at its first sample (the render trims silence off the
+  front): Mech opens on the sear's tick, the tails on a near-field scatter from 1 ms.
+- Layers that peak together add: the revolver's Low doubled the Core's own low pressure wave (both at 10-13 ms) and the
+  own-gun sum passed 0 dBFS; Low sits 9.5 dB under the Core there, and a denser Core (7.5 dB soft clip) needs less volume.
+- The mix references the rifle's Fire: keep its loudest 200 ms within 1 dB of -18 at its peak, or every other cue's
+  volume in cues.json shifts.

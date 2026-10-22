@@ -16,11 +16,12 @@ resonances, with breath, pitch wobble and roughness, so they sound alive rather 
 """
 import numpy as np
 
-from lib.core import SR, ns, times, layers, normalize, child, jitter, db2a, mono, reverse, smoothstep
+from lib.core import SR, ns, times, layers, normalize, child, jitter, db2a, mono, reverse, smoothstep, rng
 from lib import noise as N, env as E, osc as O, filters as F, dist as D, modal as M, reverb as R, stereo as S
 from lib import granular as G, voice as V
 from recipes import cue
 from recipes import kit
+from recipes import guns_impacts as REC
 
 
 def _outside(x, r, rel_db=-20.0, s1=0.07, s2=0.18, t60=0.5):
@@ -53,6 +54,8 @@ def creature_hit(v, r):
     crack = kit.grit_burst(0.04, child(r, 'crack'), 6000.0, 1800.0, 5500.0, 0.02)
     x = layers((snap, 0.0, -7.0), (punch, 0.0, -3.0), (normalize(slap), 0.0, 0.0), (normalize(wet), 0.0, -12.0),
                (squish, 0.004, -10.0), (crack, 0.0, -15.0))
+    # A recorded body thump (2026-10-21) for the meat of it; its own random stream, so the rest is unchanged.
+    x = layers(x, kit.set_level(REC.body(v, rng('Creature.Hit', v, 'rec')), x, -1.0, 0.01))
     return F.filt(x, F.peak(3200.0, -3.0, 0.8))
 
 
@@ -116,6 +119,8 @@ def spider_hit(v, r):
     for i in range(1 + int(r.integers(0, 2))):
         wet = layers(wet, (kit.bubble(r.uniform(500.0, 1200.0), r, 0.15), r.uniform(0.008, 0.03), r.uniform(-6.0, 0.0)))
     x = layers((shell, 0.0, 0.0), (punch, 0.0, -8.0), (splat, 0.004, -9.0), (normalize(wet), 0.0, -16.0))
+    # The body under the shell: a recorded body thump (2026-10-21), well under the chitin's crack.
+    x = layers(x, kit.set_level(REC.body(v, rng('Creature.Spider.Hit', v, 'rec')), x, -7.0, 0.01))
     return F.filt(x, F.peak(3300.0, -4.0, 0.8), F.highshelf(7000.0, -3.0), extend=False)
 
 
@@ -271,6 +276,8 @@ def slime_hit(v, r):
     bub = _bubbles(0.15, child(r, 'bub'), 18.0, 350.0, 1100.0, 0.02)
     x = layers((slap, 0.0, -2.0), (weight, 0.0, -6.0), (squelch, 0.002, 0.0), (squish, 0.004, -10.0),
                (bloop, 0.012, -3.0), (wob, 0.02, -11.0), (bub, 0.0, -14.0))
+    # A recorded wet, gritty slap (2026-10-21) under the squelch, for the weight of a round going in.
+    x = layers(x, kit.set_level(REC.wet(v, rng('Creature.Slime.Hit', v, 'rec')), x, -5.0, 0.01))
     return F.filt(x, F.lp(3500.0, 0.7), extend=False)
 
 

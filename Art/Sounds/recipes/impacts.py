@@ -12,10 +12,11 @@ soil spray, grass's muffled thud and tearing blades, sand's breathy puff and his
 """
 import numpy as np
 
-from lib.core import SR, ns, times, layers, normalize, child, jitter, db2a
+from lib.core import SR, ns, times, layers, normalize, child, jitter, db2a, rng
 from lib import noise as N, env as E, osc as O, filters as F, modal as M, reverb as R, granular as G
 from recipes import cue
 from recipes import kit
+from recipes import guns_impacts as REC
 
 
 def _slap(x, r, rel_db=-20.0, s1=0.07, s2=0.17):
@@ -56,6 +57,8 @@ def impact_world(v, r):
         chip = normalize(M.strike(M.parts(1700.0, 6500.0, child(r, 'chip'), 7, 0.03, 0.012), M.hammer(0.00005), 0.07))
         crack = kit.burst(0.02, child(r, 'crack'), 0.01, lo=900.0, hi=6000.0)
         parts += [(chip, 0.0, -6.0), (crack, 0.0, -6.0)]
+        # A recorded round into concrete under the chip (2026-10-21); its own random stream, so the rest is unchanged.
+        parts.append(kit.set_level(REC.stone(v, rng('Impact.World', v, 'rec')), layers(*parts), -3.0, 0.01))
     if v in (2, 5):
         _ricochet_taken_out(r)
     return _slap(layers(*parts), r, -21.0)
@@ -87,6 +90,8 @@ def impact_metal(v, r):
     ping = F.filt(ping, F.peak(3200.0, -9.0, 0.5), F.highshelf(6500.0, -4.0), extend=False)
     mass = kit.thunk(220.0 * jitter(r, 1, 0.15), child(r, 'mass'), 0.07, 0.0002)
     parts = [(tick, 0.0, -3.0), (normalize(ping), 0.0, 0.0), (mass, 0.0, -8.0)]
+    # A recorded round into heavy steel (2026-10-21): the clank's weight the synthesized plate lacks.
+    parts.append(kit.set_level(REC.metal(v, rng('Impact.Metal', v, 'rec')), layers(*parts), -2.0, 0.01))
     if v in (1, 3, 5):
         _ricochet_taken_out(r)
     return _slap(layers(*parts), r, -22.0)
@@ -206,6 +211,8 @@ def impact_stone(v, r):
     grit = _pebbles(0.35, r, 3 + int(r.integers(0, 4)), 0.05)
     x = layers((_strike(r, 2500.0, 14000.0), 0.0, -3.0), (crack, 0.0, -4.0), (chip, 0.0, -5.0), (mass, 0.0, -3.0),
                (thud, 0.0, -5.0), (dust, 0.002, -14.0), (grit, 0.0, -18.0))
+    # A recorded round into concrete and brick (2026-10-21) carries the crack; the synthesized chip and mass sit under it.
+    x = layers(x, kit.set_level(REC.stone(v, rng('Impact.Stone', v, 'rec')), x, -1.0, 0.01))
     return _slap(_ease(x, -5.0), r, -21.0)
 
 

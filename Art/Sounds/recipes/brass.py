@@ -26,10 +26,11 @@ Fly-bys (Weapon.NearMiss.*, played at the bullet's closest point to the player's
 """
 import numpy as np
 
-from lib.core import SR, ns, times, layers, normalize, child, jitter, db2a
+from lib.core import SR, ns, times, layers, normalize, child, jitter, db2a, rng
 from lib import noise as N, env as E, osc as O, filters as F, modal as M, granular as G
 from recipes import cue
 from recipes import kit
+from recipes import guns_impacts as REC
 
 # A brass case's bending modes against its lowest (a thin tube closed at one end: near-harmonic with strays).
 CASE = np.array([1.0, 2.04, 2.97, 3.95, 5.12])
@@ -196,6 +197,8 @@ def nearmiss_whiz(v, r):
     crack = F.filt(kit.nwave(0.0006 * jitter(r, 1, 0.15)), F.hp(500.0, 0.7), extend=False)
     shove = kit.whoosh(dur, child(r, 'shove'), 1100.0, 280.0, 0.8, 0.12, -3.0)
     x = layers((crack, 0.0, 0.0), (whine, 0.0, -7.0), (shove, 0.0, -15.0))
+    # A recorded bullet's pass and a recorded supersonic crack (2026-10-21) under the synthesized whine.
+    x = layers(x, kit.set_level(REC.flyby(v, rng('Weapon.NearMiss.Whiz', v, 'rec')), x, -3.0, 0.01))
     return F.filt(x, F.peak(3300.0, -4.0, 0.7), F.hp(350.0, 0.7), extend=False)
 
 

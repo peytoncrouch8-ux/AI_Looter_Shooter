@@ -91,6 +91,52 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* Equip = TEXT("Weapon.Revolver.Equip");
 		/** Put back in the holster as a swap begins: the hammer let down, the barrel into the leather, the gun seated. */
 		inline constexpr const TCHAR* Holster = TEXT("Weapon.Revolver.Holster");
+		/** 2D: a revolver crit landing, for its shooter: a short, bright steel ring (GunshotSound::PlayCritRing). */
+		inline constexpr const TCHAR* CritRing = TEXT("Weapon.Revolver.CritRing");
+	}
+
+	/**
+	 * A shot as layers (2026-10-21, built from recordings: Art/Sounds/recipes/guns_shots.py; GunshotSound::PlayShot picks
+	 * them, GunshotSound::CueFor names them "Weapon.<Kind>.<Layer>" for Rifle, Shotgun and Revolver): Mech (the action,
+	 * the shooter's own), Low (the chest thump, the shooter's own), TailOpen, TailTown, TailInside (the land answering by the
+	 * surroundings), Distant (the far shot), LowAmmo (the magazine's last quarter). Fire stays the whole shot in one sound.
+	 * The punch alone (Core) has no layer of its own in EGunshotLayer: these name it.
+	 */
+	namespace Gunshot
+	{
+		/** The shot's punch, close, with the ground's first answer: what everyone near hears. */
+		inline constexpr const TCHAR* RifleCore = TEXT("Weapon.Rifle.Core");
+		inline constexpr const TCHAR* ShotgunCore = TEXT("Weapon.Shotgun.Core");
+		inline constexpr const TCHAR* RevolverCore = TEXT("Weapon.Revolver.Core");
+		// The other layers (GunshotSound::CueFor builds the names; listed here so the bank's check finds them):
+		/** The action cycling, close to the ear (the shooter only). */
+		inline constexpr const TCHAR* RifleMech = TEXT("Weapon.Rifle.Mech");
+		inline constexpr const TCHAR* ShotgunMech = TEXT("Weapon.Shotgun.Mech");
+		inline constexpr const TCHAR* RevolverMech = TEXT("Weapon.Revolver.Mech");
+		/** The low thump in the chest (the shooter only). */
+		inline constexpr const TCHAR* RifleLow = TEXT("Weapon.Rifle.Low");
+		inline constexpr const TCHAR* ShotgunLow = TEXT("Weapon.Shotgun.Low");
+		inline constexpr const TCHAR* RevolverLow = TEXT("Weapon.Revolver.Low");
+		/** The land answering in the open. */
+		inline constexpr const TCHAR* RifleTailOpen = TEXT("Weapon.Rifle.TailOpen");
+		inline constexpr const TCHAR* ShotgunTailOpen = TEXT("Weapon.Shotgun.TailOpen");
+		inline constexpr const TCHAR* RevolverTailOpen = TEXT("Weapon.Revolver.TailOpen");
+		/** Between walls. */
+		inline constexpr const TCHAR* RifleTailTown = TEXT("Weapon.Rifle.TailTown");
+		inline constexpr const TCHAR* ShotgunTailTown = TEXT("Weapon.Shotgun.TailTown");
+		inline constexpr const TCHAR* RevolverTailTown = TEXT("Weapon.Revolver.TailTown");
+		/** Under a roof, walled in. */
+		inline constexpr const TCHAR* RifleTailInside = TEXT("Weapon.Rifle.TailInside");
+		inline constexpr const TCHAR* ShotgunTailInside = TEXT("Weapon.Shotgun.TailInside");
+		inline constexpr const TCHAR* RevolverTailInside = TEXT("Weapon.Revolver.TailInside");
+		/** A shot heard from far away. */
+		inline constexpr const TCHAR* RifleDistant = TEXT("Weapon.Rifle.Distant");
+		inline constexpr const TCHAR* ShotgunDistant = TEXT("Weapon.Shotgun.Distant");
+		inline constexpr const TCHAR* RevolverDistant = TEXT("Weapon.Revolver.Distant");
+		/** The rising click of the magazine's last quarter. */
+		inline constexpr const TCHAR* RifleLowAmmo = TEXT("Weapon.Rifle.LowAmmo");
+		inline constexpr const TCHAR* ShotgunLowAmmo = TEXT("Weapon.Shotgun.LowAmmo");
+		inline constexpr const TCHAR* RevolverLowAmmo = TEXT("Weapon.Revolver.LowAmmo");
 	}
 
 	// --- The player's own feedback (2D) ---

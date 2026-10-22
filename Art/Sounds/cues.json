@@ -1,37 +1,4 @@
 {
-  "Weapon.Rifle.Fire": {
-    "files": [
-      "Weapon_Rifle_Fire_01.wav",
-      "Weapon_Rifle_Fire_02.wav",
-      "Weapon_Rifle_Fire_03.wav",
-      "Weapon_Rifle_Fire_04.wav",
-      "Weapon_Rifle_Fire_05.wav",
-      "Weapon_Rifle_Fire_06.wav"
-    ],
-    "volume_db": -1.0,
-    "pitch_jitter": 0.03,
-    "class": "Effects",
-    "attenuation": "Gun",
-    "loop": false,
-    "space": "3D",
-    "max_concurrent": 8
-  },
-  "Weapon.Shotgun.Fire": {
-    "files": [
-      "Weapon_Shotgun_Fire_01.wav",
-      "Weapon_Shotgun_Fire_02.wav",
-      "Weapon_Shotgun_Fire_03.wav",
-      "Weapon_Shotgun_Fire_04.wav",
-      "Weapon_Shotgun_Fire_05.wav"
-    ],
-    "volume_db": -1.0,
-    "pitch_jitter": 0.03,
-    "class": "Effects",
-    "attenuation": "Gun",
-    "loop": false,
-    "space": "3D",
-    "max_concurrent": 4
-  },
   "Weapon.DryFire": {
     "files": [
       "Weapon_DryFire_01.wav",
@@ -159,23 +126,6 @@
     "space": "3D",
     "max_concurrent": 2
   },
-  "Weapon.Revolver.Fire": {
-    "files": [
-      "Weapon_Revolver_Fire_01.wav",
-      "Weapon_Revolver_Fire_02.wav",
-      "Weapon_Revolver_Fire_03.wav",
-      "Weapon_Revolver_Fire_04.wav",
-      "Weapon_Revolver_Fire_05.wav",
-      "Weapon_Revolver_Fire_06.wav"
-    ],
-    "volume_db": -1.0,
-    "pitch_jitter": 0.03,
-    "class": "Effects",
-    "attenuation": "Gun",
-    "loop": false,
-    "space": "3D",
-    "max_concurrent": 6
-  },
   "Weapon.Revolver.DryFire": {
     "files": [
       "Weapon_Revolver_DryFire_01.wav",
@@ -288,6 +238,436 @@
     "space": "3D",
     "max_concurrent": 2
   },
+  "Weapon.Rifle.Fire": {
+    "files": [
+      "Weapon_Rifle_Fire_01.wav",
+      "Weapon_Rifle_Fire_02.wav",
+      "Weapon_Rifle_Fire_03.wav",
+      "Weapon_Rifle_Fire_04.wav",
+      "Weapon_Rifle_Fire_05.wav",
+      "Weapon_Rifle_Fire_06.wav"
+    ],
+    "volume_db": -1.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Weapon.Rifle.Core": {
+    "files": [
+      "Weapon_Rifle_Core_01.wav",
+      "Weapon_Rifle_Core_02.wav",
+      "Weapon_Rifle_Core_03.wav",
+      "Weapon_Rifle_Core_04.wav",
+      "Weapon_Rifle_Core_05.wav",
+      "Weapon_Rifle_Core_06.wav"
+    ],
+    "volume_db": -3.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Weapon.Rifle.Mech": {
+    "files": [
+      "Weapon_Rifle_Mech_01.wav",
+      "Weapon_Rifle_Mech_02.wav",
+      "Weapon_Rifle_Mech_03.wav",
+      "Weapon_Rifle_Mech_04.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Rifle.Low": {
+    "files": [
+      "Weapon_Rifle_Low_01.wav",
+      "Weapon_Rifle_Low_02.wav",
+      "Weapon_Rifle_Low_03.wav",
+      "Weapon_Rifle_Low_04.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Rifle.TailOpen": {
+    "files": [
+      "Weapon_Rifle_TailOpen_01.wav",
+      "Weapon_Rifle_TailOpen_02.wav",
+      "Weapon_Rifle_TailOpen_03.wav",
+      "Weapon_Rifle_TailOpen_04.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Rifle.TailTown": {
+    "files": [
+      "Weapon_Rifle_TailTown_01.wav",
+      "Weapon_Rifle_TailTown_02.wav",
+      "Weapon_Rifle_TailTown_03.wav",
+      "Weapon_Rifle_TailTown_04.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Rifle.TailInside": {
+    "files": [
+      "Weapon_Rifle_TailInside_01.wav",
+      "Weapon_Rifle_TailInside_02.wav",
+      "Weapon_Rifle_TailInside_03.wav",
+      "Weapon_Rifle_TailInside_04.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Rifle.Distant": {
+    "files": [
+      "Weapon_Rifle_Distant_01.wav",
+      "Weapon_Rifle_Distant_02.wav",
+      "Weapon_Rifle_Distant_03.wav",
+      "Weapon_Rifle_Distant_04.wav",
+      "Weapon_Rifle_Distant_05.wav",
+      "Weapon_Rifle_Distant_06.wav"
+    ],
+    "volume_db": -7.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Shotgun.Fire": {
+    "files": [
+      "Weapon_Shotgun_Fire_01.wav",
+      "Weapon_Shotgun_Fire_02.wav",
+      "Weapon_Shotgun_Fire_03.wav",
+      "Weapon_Shotgun_Fire_04.wav",
+      "Weapon_Shotgun_Fire_05.wav"
+    ],
+    "volume_db": -1.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Shotgun.Core": {
+    "files": [
+      "Weapon_Shotgun_Core_01.wav",
+      "Weapon_Shotgun_Core_02.wav",
+      "Weapon_Shotgun_Core_03.wav",
+      "Weapon_Shotgun_Core_04.wav",
+      "Weapon_Shotgun_Core_05.wav"
+    ],
+    "volume_db": -4.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Shotgun.Mech": {
+    "files": [
+      "Weapon_Shotgun_Mech_01.wav",
+      "Weapon_Shotgun_Mech_02.wav",
+      "Weapon_Shotgun_Mech_03.wav",
+      "Weapon_Shotgun_Mech_04.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Shotgun.Low": {
+    "files": [
+      "Weapon_Shotgun_Low_01.wav",
+      "Weapon_Shotgun_Low_02.wav",
+      "Weapon_Shotgun_Low_03.wav",
+      "Weapon_Shotgun_Low_04.wav"
+    ],
+    "volume_db": -4.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Shotgun.TailOpen": {
+    "files": [
+      "Weapon_Shotgun_TailOpen_01.wav",
+      "Weapon_Shotgun_TailOpen_02.wav",
+      "Weapon_Shotgun_TailOpen_03.wav",
+      "Weapon_Shotgun_TailOpen_04.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Shotgun.TailTown": {
+    "files": [
+      "Weapon_Shotgun_TailTown_01.wav",
+      "Weapon_Shotgun_TailTown_02.wav",
+      "Weapon_Shotgun_TailTown_03.wav",
+      "Weapon_Shotgun_TailTown_04.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Shotgun.TailInside": {
+    "files": [
+      "Weapon_Shotgun_TailInside_01.wav",
+      "Weapon_Shotgun_TailInside_02.wav",
+      "Weapon_Shotgun_TailInside_03.wav",
+      "Weapon_Shotgun_TailInside_04.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Shotgun.Distant": {
+    "files": [
+      "Weapon_Shotgun_Distant_01.wav",
+      "Weapon_Shotgun_Distant_02.wav",
+      "Weapon_Shotgun_Distant_03.wav",
+      "Weapon_Shotgun_Distant_04.wav",
+      "Weapon_Shotgun_Distant_05.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Revolver.Fire": {
+    "files": [
+      "Weapon_Revolver_Fire_01.wav",
+      "Weapon_Revolver_Fire_02.wav",
+      "Weapon_Revolver_Fire_03.wav",
+      "Weapon_Revolver_Fire_04.wav",
+      "Weapon_Revolver_Fire_05.wav",
+      "Weapon_Revolver_Fire_06.wav"
+    ],
+    "volume_db": -2.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Revolver.Core": {
+    "files": [
+      "Weapon_Revolver_Core_01.wav",
+      "Weapon_Revolver_Core_02.wav",
+      "Weapon_Revolver_Core_03.wav",
+      "Weapon_Revolver_Core_04.wav",
+      "Weapon_Revolver_Core_05.wav",
+      "Weapon_Revolver_Core_06.wav"
+    ],
+    "volume_db": -3.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Revolver.Mech": {
+    "files": [
+      "Weapon_Revolver_Mech_01.wav",
+      "Weapon_Revolver_Mech_02.wav",
+      "Weapon_Revolver_Mech_03.wav",
+      "Weapon_Revolver_Mech_04.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Revolver.Low": {
+    "files": [
+      "Weapon_Revolver_Low_01.wav",
+      "Weapon_Revolver_Low_02.wav",
+      "Weapon_Revolver_Low_03.wav",
+      "Weapon_Revolver_Low_04.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Revolver.TailOpen": {
+    "files": [
+      "Weapon_Revolver_TailOpen_01.wav",
+      "Weapon_Revolver_TailOpen_02.wav",
+      "Weapon_Revolver_TailOpen_03.wav",
+      "Weapon_Revolver_TailOpen_04.wav"
+    ],
+    "volume_db": -14.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Revolver.TailTown": {
+    "files": [
+      "Weapon_Revolver_TailTown_01.wav",
+      "Weapon_Revolver_TailTown_02.wav",
+      "Weapon_Revolver_TailTown_03.wav",
+      "Weapon_Revolver_TailTown_04.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Revolver.TailInside": {
+    "files": [
+      "Weapon_Revolver_TailInside_01.wav",
+      "Weapon_Revolver_TailInside_02.wav",
+      "Weapon_Revolver_TailInside_03.wav",
+      "Weapon_Revolver_TailInside_04.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Weapon.Revolver.Distant": {
+    "files": [
+      "Weapon_Revolver_Distant_01.wav",
+      "Weapon_Revolver_Distant_02.wav",
+      "Weapon_Revolver_Distant_03.wav",
+      "Weapon_Revolver_Distant_04.wav",
+      "Weapon_Revolver_Distant_05.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Rifle.LowAmmo": {
+    "files": [
+      "Weapon_Rifle_LowAmmo_01.wav",
+      "Weapon_Rifle_LowAmmo_02.wav",
+      "Weapon_Rifle_LowAmmo_03.wav"
+    ],
+    "volume_db": -5.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Weapon.Shotgun.LowAmmo": {
+    "files": [
+      "Weapon_Shotgun_LowAmmo_01.wav",
+      "Weapon_Shotgun_LowAmmo_02.wav",
+      "Weapon_Shotgun_LowAmmo_03.wav"
+    ],
+    "volume_db": -6.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Weapon.Revolver.LowAmmo": {
+    "files": [
+      "Weapon_Revolver_LowAmmo_01.wav",
+      "Weapon_Revolver_LowAmmo_02.wav",
+      "Weapon_Revolver_LowAmmo_03.wav"
+    ],
+    "volume_db": -4.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Weapon.Revolver.CritRing": {
+    "files": [
+      "Weapon_Revolver_CritRing_01.wav",
+      "Weapon_Revolver_CritRing_02.wav",
+      "Weapon_Revolver_CritRing_03.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
   "Impact.World": {
     "files": [
       "Impact_World_01.wav",
@@ -297,7 +677,7 @@
       "Impact_World_05.wav",
       "Impact_World_06.wav"
     ],
-    "volume_db": -5.0,
+    "volume_db": -6.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -331,7 +711,7 @@
       "Impact_Metal_05.wav",
       "Impact_Metal_06.wav"
     ],
-    "volume_db": -5.5,
+    "volume_db": -9.5,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",
@@ -430,7 +810,7 @@
       "Impact_Stone_05.wav",
       "Impact_Stone_06.wav"
     ],
-    "volume_db": -1.5,
+    "volume_db": -5.5,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",
@@ -1317,7 +1697,7 @@
       "Creature_Hit_04.wav",
       "Creature_Hit_05.wav"
     ],
-    "volume_db": -6.5,
+    "volume_db": -10.0,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -1333,7 +1713,7 @@
       "Creature_Spider_Hit_04.wav",
       "Creature_Spider_Hit_05.wav"
     ],
-    "volume_db": -5.0,
+    "volume_db": -6.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -1407,7 +1787,7 @@
       "Creature_Slime_Hit_04.wav",
       "Creature_Slime_Hit_05.wav"
     ],
-    "volume_db": -9.5,
+    "volume_db": -10.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -4723,7 +5103,7 @@
       "Weapon_NearMiss_Whiz_05.wav",
       "Weapon_NearMiss_Whiz_06.wav"
     ],
-    "volume_db": -8.5,
+    "volume_db": -9.0,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Near",

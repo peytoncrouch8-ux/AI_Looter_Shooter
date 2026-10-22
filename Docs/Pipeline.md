@@ -1670,6 +1670,10 @@ a whole build cycle).
 
 - The user's rule: sounds are synthesized from scratch, like the scripted models: no recordings, libraries, AI generators or new
   programs. Blender 4.4's bundled Python has numpy (no system Python on this PC).
+- Exception (the user, 2026-10-21): royalty-free recordings for **guns and bullet impacts only**, always processed through the
+  recipes. Source: Sonniss GDC bundles 2016/2017 (games OK, edits OK, no attribution; no resale/redistribution as sounds, no AI
+  training). Raw packs in `Saved/SoundPacks/Sonniss` (outside git); the excerpts used in `Art/Sounds/packs/Sonniss/` (LFS, cut
+  by `packs/make_pack.py`; sources and licence in `packs/README.md`). Never publish `packs/`.
 - Make: `Art/Sounds/lib` (synthesis library), `Art/Sounds/recipes/<group>.py` (one recipe per cue, seeded takes). `Tools\sounds.ps1
   [cue patterns]` renders `Art/Sounds/Out/<Cue>_NN.wav` and `cues.json` (each cue's mix) and runs `check.py` (peaks, DC, clicks, loop
   seams, harsh bands; spectrograms and a listening page in `Saved/SoundCheck/`). Agents can't hear: they judge by numbers and
@@ -1775,6 +1779,38 @@ Cvars `Looter.Gunfeel.*`, read at each hit (live in PIE), defaults in brackets.
   a crit's pop. The spiders' ichor now spawns here (was `SpawnImpact`'s Flesh, which ignored pellet size).
 - Didn't check (needs a build and play): every feel number, the shove knock's look, the slow on a creature's steering, the corpse
   lift on slopes, the exit spray's look through thin parts (legs), stagger frequency in packs (no stun-lock seen on paper).
+
+## Gunfeel: gun sounds (GUNFEEL-SOUND, written 2026-10-21, unbuilt and untested in play)
+
+Code: `Weapons/GunshotSound.cpp` (`PlayShot`), `Weapons/GunfeelSoundTuning.h/.cpp` (cvars, `Default`, plain rules), cue names
+`LooterSoundCue::Gunshot::*Core`, `Revolver::CritRing`. Tests: `Tests/GunfeelSoundTests.cpp`, `Looter.Gunfeel.Sound.Variables`,
+`.Surroundings`, `.Layers`. Sounds: `Art/Sounds/recipes/guns_shots.py` (+ `guns_rec.py`), `guns_impacts.py`, `lib/sample.py`, `packs/`
+(Sounds section above; `Art/Sounds/README.md` "Guns, round 3").
+- Layers per kind, cue `Weapon.<Kind>.<Layer>` (Rifle 6 takes, Shotgun 5, Revolver 6; layers 4, Distant 6/5/5): Core, Mech, Low,
+  TailOpen, TailTown, TailInside, Distant, LowAmmo; Fire = Core + Mech + Low + TailOpen in one sound (Abel's pump, old banks).
+  `Weapon.Revolver.CritRing` 2D (a recorded steel plate's ring taken up half an octave under a struck ping).
+- `PlayShot`: definition's `FireSound` wins; bank without `Weapon.<Kind>.Core` -> Fire alone (as before). Own gun (locally and
+  player controlled) -> Core + Mech x `Sound.Mech` [1] + Low x `Sound.Low` [1] + tail x `Sound.Tail` [1], all on the gun.
+  Others -> Core (on the gun) + tail at the shot; past `Sound.DistantFrom` [3000 cm] from the first local player's ears ->
+  Distant alone at the shot.
+- Surroundings: per gun, every 0.25 s at most (`GunfeelSound::ProbeSeconds`): world-static line traces (`StaticGeometryParams`,
+  holder ignored, simple collision) of `Sound.ProbeRange` [800 cm] from the gun: straight up, then 70 degrees up ahead if that
+  missed (roof); level at the holder's yaw +0/90/180/270 (walls). Roof and walls on 2+ sides -> TailInside; walls on 2+ or a roof
+  alone -> TailTown (a porch, a ledge: a warehouse tail there would be wrong; the contract said roof = Inside); else TailOpen.
+- Levels (cues.json volume_db after the render; Fire level 0 / +1 / +0.5): each layer's `level` = its loudness inside Fire's mix,
+  so the own-gun sum = Fire within 0.5 dB (checked with the rendered files at their volumes). Own-gun sum peaks: rifle -1.8 dBFS,
+  shotgun -1.1, revolver -0.1 worst case (Inside tail). Town tail 0.5-1.5 dB over Open, Inside 4-5 dB over; Distant 2-3 dB
+  under Fire. Rifle Fire's L200 -18.1 (was -17.9): no other cue's volume moved.
+- Impacts: recorded layers under the synthesized ones (their own random stream, `rng(cue, v, 'rec')`, so the rest of each take
+  is unchanged): Impact.Stone (concrete, -1 dB), Impact.World stone takes (-3), Impact.Metal (heavy steel, -2), Creature.Hit
+  (body thump + punch, -1), Creature.Spider.Hit (body, -7 under the shell), Creature.Slime.Hit (wet punch, -5),
+  Weapon.NearMiss.Whiz (a recorded pass + a supersonic crack, -3). Impact.Ricochet, the soft surfaces, Unpaid's hit unchanged
+  (nothing in the packs suits them).
+- Check: `Tools\sounds.ps1 Weapon.*,Impact.*,Creature.Hit,Creature.Spider.Hit,Creature.Slime.Hit`: 0 flags. Presence (2-5 kHz)
+  shares: rifle Core 15-17%, shotgun Core 6-8%, revolver Core 6-8%, Revolver.TailOpen up to 18% (spike 7.9, under the 8 limit).
+  The new layer cues aren't in check.py's FREQUENT list yet (`Weapon.*.Core`, `.Mech`, `.Tail*` should be).
+- Didn't check (needs the bank built and play): how it sounds; the probe's choices in town, the mine and the barns; the far
+  shot's distance; concurrency in a long rifle burst (Core 8, tails 6).
 
 ## Packaging a test build
 
