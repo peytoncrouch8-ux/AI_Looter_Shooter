@@ -182,6 +182,12 @@ bool FVfxShapeRulesTest::RunTest(const FString& Parameters)
 	const FVfxExplosionLook Huge = VfxRules::ExplosionLook(5000.f);
 	TestTrue(TEXT("A bigger blast has more fireballs and embers"), Rocket.Fireballs >= Small.Fireballs && Rocket.Embers > Small.Embers);
 	TestTrue(TEXT("...never past the caps"), Huge.Fireballs <= 8 && Huge.Embers <= 32 && Huge.SmokeRing <= 16);
+
+	// VFX-2: a world hit's pieces drawn bigger far off, so they still read at 10-30 m, and never past that.
+	TestEqual(TEXT("A hit's pieces as they are within 10 m"), VfxRules::ImpactViewScale(500.f), 1.f);
+	TestTrue(TEXT("...bigger at 20 m"), VfxRules::ImpactViewScale(2000.f) > 1.2f);
+	TestTrue(TEXT("...held from 30 m on"), FMath::IsNearlyEqual(VfxRules::ImpactViewScale(3000.f), VfxRules::ImpactViewScale(9000.f))
+		&& VfxRules::ImpactViewScale(9000.f) <= 2.f);
 	return true;
 }
 
@@ -260,8 +266,21 @@ bool FVfxEffectsTest::RunTest(const FString& Parameters)
 	Effects.SpawnExplosion(Blast);
 	TestTrue(FString::Printf(TEXT("A rocket's blast (%d pieces, %d shapes)"), Effects.NumParticles(), Effects.NumShapes()),
 		Effects.NumParticles() > 40 && Effects.NumShapes() >= 6);
+	// VFX-2: its fire is flames (alpha-blended, they keep their colour in sun): a core, puffs rolling out and a soot column.
+	const FVfxExplosionLook RocketLook = VfxRules::ExplosionLook(350.f);
+	TestTrue(FString::Printf(TEXT("...its fire and smoke flames (%d)"), Effects.NumFlames()), Effects.NumFlames() >= RocketLook.Fireballs + 2);
 	RunEffects(Effects, 5.f, Camera);
 	TestEqual(TEXT("...gone a few seconds on"), Effects.NumParticles(), 0);
+
+	// A late flame waits its delay unseen, then lives its whole life.
+	FVfxFlame Late;
+	Late.Life = 0.5f;
+	Late.Delay = 0.5f;
+	Effects.SpawnFlame(Late);
+	RunEffects(Effects, 0.8f, Camera);
+	TestEqual(TEXT("A late flame still burning past its delay"), Effects.NumFlames(), 1);
+	RunEffects(Effects, 0.4f, Camera);
+	TestEqual(TEXT("...gone after its delay and its life"), Effects.NumFlames(), 0);
 
 	// Muzzles: each kind throws something; the sniper's ring is left out in the player's own view.
 	for (const EWeaponKind Kind : { EWeaponKind::Rifle, EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::SMG, EWeaponKind::Sniper,

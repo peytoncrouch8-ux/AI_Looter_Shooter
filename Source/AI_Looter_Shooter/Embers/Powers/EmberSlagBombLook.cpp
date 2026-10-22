@@ -41,14 +41,15 @@ namespace
 	const FLinearColor Cooling(0.75f, 0.12f, 0.02f);
 	/** The burst's ring of fire runs out over this long. */
 	constexpr float RingSeconds = 0.3f;
-	/** Sparks and smoke rising off the pool, a second. */
+	/** Sparks and smoke rising off the pool, a second (VFX-2: smoke 4 -> 2.5, haze 9 -> 5 and smaller: the player stands in it, and
+	 * its puffs round the eye were most of the pool's cost on Medium). */
 	constexpr float PoolSparksPerSecond = 22.f;
-	constexpr float PoolSmokePerSecond = 4.f;
+	constexpr float PoolSmokePerSecond = 2.5f;
 	/**
 	 * A low haze of molten light hanging over it (puffs in the slag's own colour, unlit, so they glow), a second: without it
 	 * the pool read in daylight as a thin ring with a few dots in it (2026-10-20 play check), not a pool of slag.
 	 */
-	constexpr float PoolHazePerSecond = 9.f;
+	constexpr float PoolHazePerSecond = 5.f;
 }
 
 void UEmberSlagBomb::DrawPool(float DeltaSeconds)
@@ -90,7 +91,7 @@ void UEmberSlagBomb::DrawPool(float DeltaSeconds)
 	{
 		const FVector& Spot = Blobs[Random.RandRange(0, Blobs.Num() - 1)];
 		FX->SpawnDustPuff(Spot + FVector(0.0, 0.0, 12.0), FVector(0.0, 0.0, Random.FRandRange(15.f, 35.f)) + Random.GetUnitVector() * 15.f, Hot * 0.9f,
-			0.3f * Fade, Random.FRandRange(70.f, 110.f), Random.FRandRange(150.f, 210.f), Random.FRandRange(1.f, 1.5f));
+			0.35f * Fade, Random.FRandRange(55.f, 85.f), Random.FRandRange(115.f, 160.f), Random.FRandRange(1.f, 1.5f));
 	}
 	// The first moments: the ring of fire racing out from the burst.
 	if (RingAge >= 0.f)

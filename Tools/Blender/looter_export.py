@@ -42,7 +42,19 @@ SKIPPED_PREFIXES = ('_', 'UCX_', 'SOCKET_')
 HIT_PREFIXES = ('USP_', 'UCP_', 'UCX_')
 # Textured materials (the art style of Docs/TutorialIsland.md) name one of these masters in their Master property.
 MASTERS = ('World', 'Gun', 'WorldFoliage', 'Terrain', 'Water', 'Waterfall', 'Smoke', 'Glass', 'Gel', 'Backdrop', 'Ghost',
-           'GravewindWisp', 'CanyonFog', 'WaterMist', 'Character', 'CharacterCloth', 'CharacterSkin', 'CharacterHair')
+           'GravewindWisp', 'CanyonFog', 'WaterMist', 'Character', 'CharacterCloth', 'CharacterSkin', 'CharacterHair',
+           'CharacterGlow')
+# The heroes' glowing eyes and Gauge's lamp (CHAR-ART items 4 and 11, 2026-10-22): their scripts make them Glow materials
+# (lm.material(..., 'Glow', Glow=...)), which burned out to flat white ovals on M_StylizedGlow; these go to
+# M_CharacterGlow instead (a hot core, an iris ring, a soft falloff: build_world_materials.py), keeping their colour and
+# Glow. Here, not in each hero's script, so no hero rebakes for it (the scripts are in their bakes' digests). Per slot:
+# the master's parameters to set; GlowScale multiplies the script's Glow (Pike's behind his lenses dimmer).
+CHARACTER_GLOWS = {
+    'EllisEyeGlow': {}, 'CraneEyeGlow': {}, 'OdessaEyeGlow': {},
+    'PikeEyeGlow': {'GlowScale': 0.7},
+    # the portrait's warm white #FFE2A8 with a hot core, toned down from the flat white it burned to at Glow 5
+    'GaugeLamp': {'Glow': 2.2, 'Core': 1.3, 'CoreWhite': 0.75, 'Ring': 0.15, 'BodyShare': 0.45},
+}
 # A texture set's files, by the material parameter that takes them.
 SET_MAPS = (('BaseColorMap', '_BC'), ('NormalMap', '_N'), ('ORMMap', '_ORM'))
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
@@ -156,11 +168,23 @@ def textured_look(material, master):
     return look
 
 
+def character_glow_look(material):
+    """A hero's eye glow or Gauge's lamp (CHARACTER_GLOWS) as an M_CharacterGlow look: its colour and Glow kept."""
+    params = dict(CHARACTER_GLOWS[material.name])
+    glow = float(material.get('Glow', 4.0)) * float(params.pop('GlowScale', 1.0))
+    scalars = {'Glow': float(params.pop('Glow', glow))}
+    scalars.update({key: float(value) for key, value in params.items()})
+    return {'Master': 'CharacterGlow', 'Textures': {}, 'Tint': [1.0, 1.0, 1.0, 1.0], 'UVScale': 1.0, 'Scalars': scalars,
+            'Colors': {'Color': base_color(material)}}
+
+
 def material_look(material):
     master = material.get('Master')
     if master is not None:
         return textured_look(material, str(master))
     kind = str(material.get('Kind', 'Surface'))
+    if kind == 'Glow' and material.name in CHARACTER_GLOWS:
+        return character_glow_look(material)
     if kind not in KINDS:
         fail(f"material {material.name}: Kind must be one of {', '.join(KINDS)}, not {kind}")
     look = {'Kind': kind, 'Color': base_color(material)}

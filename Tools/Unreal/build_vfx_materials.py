@@ -13,6 +13,10 @@ textures, so nothing to paint or import):
                    (below 0: a plain soft disc, the water rings' dashes), 5 erosion (0 fresh .. 1 thinned away: the noise
                    eats it into wisps as it ages). Two octaves of value noise drift with the erosion (the billow turning
                    over); denser parts a touch darker. Soft where it meets what's behind it (SoftDepth cm).
+  M_FX_Fire        /Game/Art/Materials/Masters (VFX-2, 2026-10-22): unlit, translucent (alpha-blended), two-sided,
+                   instanced static meshes (FWeaponFX's "Fire": FireFloats 10). Custom data 0-2 fire colour, 3-5 smoke colour
+                   (the light in it), 6 opacity, 7 heat (1 white-hot .. 0 smoke), 8 seed, 9 erosion. Fire rolling into soot
+                   that keeps its colour in full sun (additive fire washed out to a pale puff). Glow scales the fire.
   M_FX_SplatDecal  /Game/Art/Materials/Masters: a deferred decal, translucent (DBuffer colour and roughness: lit as the ground
                    it lies on, on Medium without Lumen as on High). A blob with a noisy edge out to Spread (0..1 of the
                    decal's radius; the code spreads it), a scatter of droplets past the edge, its colour and opacity the
@@ -29,6 +33,7 @@ It prints VFXMATS lines and "VFXMATS done".
 """
 import ast
 import os
+import sys
 import types
 
 import unreal
@@ -181,6 +186,37 @@ Dens = saturate(Dens * 1.35);
 float Shade = lerp(0.78, 1.06, N);
 return float4(Color * Shade, Dens * Opacity);"""
 
+# M_FX_Fire (VFX-2, 2026-10-22): a puff of fire rolling into soot, alpha-blended so its colour holds in full sun. Its noise
+# (one look, two octaves: a big blast costs its overdraw, so the shader stays light) eats it into wisps as it ages; it burns
+# hottest at the heart and in the thick of the billow and cools from the outside in: soot, deep red, its colour, white-yellow.
+FIRE_CODE = """float2 P = UV * 2.0 - 1.0;
+float R = length(P);
+float Seed01 = frac(Seed);
+float2 Q = P * 2.2 + float2(Seed01 * 37.1, Seed01 * 11.7) + float2(0.0, Erode * 0.9);
+float N1 = 0.0;
+{
+""" + NOISE + """N1 = N;
+}
+float Bill = N1;
+float Disc = saturate(1.0 - R);
+Disc = Disc * Disc * (3.0 - 2.0 * Disc);
+float Dens = saturate(Disc * (0.65 + Bill) - Erode * 0.42);
+Dens = saturate(Dens * 2.2);
+// Hottest at the heart, the billow's thick parts hotter; the rim burns dark first (a sooty edge round the fire).
+float Core = saturate(1.0 - R / 0.75);
+float T = Heat * (0.35 + 0.75 * Core) + (Bill - 0.5) * 0.5 * Heat - smoothstep(0.5, 0.95, R) * 0.35;
+T = saturate(T);
+float3 Soot = Smoke * lerp(0.5, 1.4, Bill);
+float3 Ember = Fire * float3(0.7, 0.22, 0.12) * 1.2;
+float3 Flame = Fire * 1.9 * Glow;
+float3 Hot = float3(1.0, 0.8, 0.45) * 4.0 * Glow;
+float3 C = lerp(Soot, Ember, smoothstep(0.06, 0.28, T));
+C = lerp(C, Flame, smoothstep(0.3, 0.6, T));
+C = lerp(C, Hot, smoothstep(0.78, 1.0, T));
+// Never a quad's edge.
+float A = saturate(Dens * Opacity * (1.0 + T)) * saturate((1.0 - R) * 6.0);
+return float4(C, A);"""
+
 SPLAT_OPACITY = """float2 P = UV * 2.0 - 1.0;
 float R = length(P);
 float A = atan2(P.y, P.x);
@@ -249,6 +285,43 @@ def build_puff():
     return mat
 
 
+def build_fire():
+    mat = master('M_FX_Fire')
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property('two_sided', True)
+    g = W.Graph(mat)
+    coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1900, 0, coordinate_index=0)
+
+    def rgb_at(first, x, y):
+        rg = g.node(unreal.MaterialExpressionAppendVector, x + 200, y)
+        rgb = g.node(unreal.MaterialExpressionAppendVector, x + 400, y)
+        g.link(custom_data(g, first, 1.0, x, y - 60), '', rg, 'A')
+        g.link(custom_data(g, first + 1, 0.5, x, y + 20), '', rg, 'B')
+        g.link(rg, '', rgb, 'A')
+        g.link(custom_data(g, first + 2, 0.1, x, y + 100), '', rgb, 'B')
+        return rgb
+
+    code = g.custom(FIRE_CODE, [
+        ('UV', coords, ''), ('Fire', rgb_at(0, -1900, 200), ''), ('Smoke', rgb_at(3, -1900, 450), ''),
+        ('Opacity', custom_data(g, 6, 1.0, -1900, 650), ''), ('Heat', custom_data(g, 7, 0.0, -1900, 750), ''),
+        ('Seed', custom_data(g, 8, 0.0, -1900, 850), ''), ('Erode', custom_data(g, 9, 0.0, -1900, 950), ''),
+        ('Glow', g.scalar('Glow', 1.0, -1900, 1050), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -1100, 300, 'Fire')
+    rgb = g.node(unreal.MaterialExpressionComponentMask, -800, 200, r=True, g=True, b=True, a=False)
+    g.link(code, '', rgb, '')
+    alpha = g.node(unreal.MaterialExpressionComponentMask, -800, 400, r=False, g=False, b=False, a=True)
+    g.link(code, '', alpha, '')
+    fade = W.depth_fade(g, g.scalar('SoftDepth', 40.0, -1100, 700), -600, 500)
+    g.link(alpha, '', fade, 'Opacity')
+    g.out(rgb, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    g.out(fade, '', unreal.MaterialProperty.MP_OPACITY)
+    W.finish(mat, [unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES])
+    log(f'{mat.get_path_name()} built (unlit, translucent, two-sided): {parameter_names(mat)}; custom data 0-2 fire, 3-5 smoke, '
+        f'6 opacity, 7 heat, 8 seed, 9 erosion')
+    return mat
+
+
 def build_splat():
     mat = master('M_FX_SplatDecal')
     mat.set_editor_property('material_domain', unreal.MaterialDomain.MD_DEFERRED_DECAL)
@@ -275,11 +348,13 @@ def build_splat():
     return mat
 
 
-def run():
-    build_shape()
-    build_puff()
-    build_splat()
+def run(only=None):
+    builders = {'shape': build_shape, 'puff': build_puff, 'fire': build_fire, 'splat': build_splat}
+    for name, build in builders.items():
+        if only is None or name in only:
+            build()
     log('done')
 
 
-run()
+# Arguments name the masters to build ("py .../build_vfx_materials.py fire"); none, all four.
+run(set(a.lower() for a in sys.argv[1:]) if len(sys.argv) > 1 else None)

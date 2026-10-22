@@ -18,7 +18,7 @@
 #include "Tests/AutomationCommon.h"
 #include "UObject/StrongObjectPtr.h"
 
-// The bestiary counts defeats by enemy tier (2026-10-20; Docs/Pipeline.md, "Enemy tiers"): the count kept per tier as the
+// The bestiary counts defeats by enemy tier (2026-10-20; Docs/Pipeline/Enemies.md, "Enemy tiers"): the count kept per tier as the
 // creature stood when it died, what a save keeps (and an older save, which has no split), and the line under a page's
 // defeat count. Looter.Tiers.* checks the tiers themselves.
 

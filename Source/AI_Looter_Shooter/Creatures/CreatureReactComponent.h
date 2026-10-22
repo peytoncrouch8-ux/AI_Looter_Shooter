@@ -12,7 +12,7 @@ class UMaterialInstanceDynamic;
 class UMeshComponent;
 
 /**
- * A creature's reactions besides its brain's and its body's own (the 2026-10-14 polish; Docs/Pipeline.md, "Creatures"):
+ * A creature's reactions besides its brain's and its body's own (the 2026-10-14 polish; Docs/Pipeline/Game.md, "Creatures"):
  *  - its notice beat (FCreatureNotice), which ACreatureBase's brain starts and holds it for (CreatureBaseReact.cpp);
  *  - the hit flash: a shot that lands flashes its body white (warmer on a crit) for under a tenth of a second, through
  *    M_FX_HitFlash worn as an overlay on its skinned meshes (as the training dummies and egg sacs flash), worn a moment
@@ -51,6 +51,19 @@ public:
 
 	/** M_FX_HitFlash, the flash's material. */
 	static const TCHAR* const FlashMaterialPath;
+
+	/**
+	 * While one of these lives, damage flashes no body white: a power's burn ticks (Slag Bomb's pool), whose own tint shows
+	 * the burn. A body flashed white on every tick of a pool read as white ghosts standing in it (2026-10-22).
+	 */
+	struct FQuietHits
+	{
+		FQuietHits() { ++QuietDepth; }
+		~FQuietHits() { --QuietDepth; }
+		FQuietHits(const FQuietHits&) = delete;
+		FQuietHits& operator=(const FQuietHits&) = delete;
+	};
+	static bool IsQuietNow() { return QuietDepth > 0; }
 
 	// --- Dust, ash and grave dirt ---
 
@@ -94,6 +107,8 @@ private:
 	TObjectPtr<UMaterialInstanceDynamic> FlashLook;
 	TArray<TWeakObjectPtr<UMeshComponent>> FlashMeshes;
 	bool bFlashWorn = false;
+	/** FQuietHits alive now. */
+	static int32 QuietDepth;
 
 	TWeakObjectPtr<UHealthComponent> Health;
 	FRandomStream Random;

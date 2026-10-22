@@ -27,6 +27,31 @@ enum class EVfxShape : uint8
 	Starburst = 2
 };
 
+/**
+ * One puff of fire rolling into smoke (FWeaponFX::SpawnFlame; M_FX_Fire, alpha-blended, VFX-2 2026-10-22): it burns for
+ * Burn of its life (white-yellow at the heart, its fire's colour, a deep red edge, cooling from the outside in), then is
+ * dark smoke for the rest, growing and eroding into wisps. Alpha-blended, its fire keeps its colour in full sun, where an
+ * additive fireball washed out to a pale cloud. Burn 0: smoke alone (a blast's rising soot column).
+ */
+struct FVfxFlame
+{
+	FVector Location = FVector::ZeroVector;
+	FVector Velocity = FVector::ZeroVector;
+	float StartSize = 50.f;
+	float EndSize = 150.f;
+	/** The fire's colour (a hue near 1: the shader brightens it) and its smoke's (as the light shows it: unlit). */
+	FLinearColor Fire = FLinearColor(1.f, 0.42f, 0.1f);
+	FLinearColor Smoke = FLinearColor(0.07f, 0.06f, 0.055f);
+	float Opacity = 0.95f;
+	/** Its whole life (s), the share of it on fire (0..1), and how long after the spawn it shows (s). */
+	float Life = 1.8f;
+	float Burn = 0.3f;
+	float Delay = 0.f;
+	/** Times gravity (negative rises: hot air and smoke), and air drag per second. */
+	float Gravity = -0.2f;
+	float Drag = 3.f;
+};
+
 /** A creature's kill as the effects see it: on top of its kind's death burst (FWeaponFX::SpawnKillLayers). */
 struct FVfxKill
 {

@@ -18,6 +18,15 @@ The overnight run built 12.2-12.5 (commits 4a84f74 ... d79e293). Try in this ord
 Open questions for the user: Boot Hill bandits (tone); the rifle/LMG first-person forearm still near-upright (fore-ends
 ~70 cm out): accept, or move the guns/hands further (a design call); world variety reads subtle: stronger place tones?
 VFX-2 (explosion fire, the white-ghost kill, Slag Bomb spikes, impacts) was still running at 05:40 (see below).
+**The user's answers (2026-10-22 morning):** keep the Boot Hill bandits; FP rifle/LMG: **pull the guns in** (closer and
+lower so the left hand sits low like Borderlands); world: **bolder per-area ground tones** (repaint).
+**Character art (the user, 2026-10-22, from CHAR-ART's sheets `Saved/ArtPreviews/Characters/Concepts/CharArt_1-3`;
+plan `Docs/Work/2026-10-22-CharArt/PLAN.md`):** approved all four: the painted ghost (every M_Ghost user), a stance per
+hero (Ellis keeps his weary idle), the hero value and hair pass, the Gravemother and Sexton looks; plus Gauge's enamel
+(back to his pick) and the no-OK items. **New asks:** Gauge looks down all the time: his head tilts up slightly; and
+**every hero needs a third-person aim-down-sights pose** (today none aims in when ADS in third person).
+Running: CHAR-MAT (materials: ghost, Gauge enamel, hero value, Gravemother/Sexton), CHAR-POSE (stances, hand curl,
+Gauge's head, 3P ADS aim; C++ holding tree), CHAR-FACE (Blender: Crane's hair/mustache, faces).
 
 ## Direction (the user's answers, grill session 2026-10-21) — overrides "next" below
 

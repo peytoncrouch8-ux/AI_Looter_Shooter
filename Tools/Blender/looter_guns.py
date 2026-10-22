@@ -568,3 +568,292 @@ def frontier_sight(gun, m, kind, uc, v0, shell=POLY_SAND, metal=BLACK, trim=None
         gun.socket(m, 'Aim', (u_eye + 0.2, h))
         return
     raise ValueError(f'frontier_sight: no kind {kind!r}')
+
+
+# --- Element parts (2026-10-22): each element part of the seven families wears its element ---
+# Ember (burn): heat-scored metal, temper colours, glowing ember vents. Soul-light (vs undead): pale gold filigree,
+# saint's medals and lanterns, a soft gold-white glow band. Grave-salt (slow): pale salt crystals growing out of the part,
+# cyan-white glow inlays. Each family's script builds an element part on the part it replaced (same slot, origin and
+# sockets, so it fits every body), then dresses it with these.
+
+SOUL = glow('GunSoulGlow', 0xffe4a8, 3.0)                  # Soul-light: the glow band, a medal's heart, a lantern's light
+SALT_GLOW = glow('GunSaltGlow', 0xc4f2ff, 3.0)             # Grave-salt: the light in the crystals and the inlays
+GILT = material('GunGilt', 'MetalWorn', 0xf6dfa0)          # Soul-light's pale gold (paler than brass)
+SALT = material('GunSaltCrystal', 'Polymer', 0xe4f2f3)     # Grave-salt's crystals
+SCORCHED = material('GunScorched', 'MetalWorn', 0x4a3a36)  # Ember's heat-scored metal
+TEMPER = material('GunHeatTint', 'MetalWorn', 0x6b5682)    # the blue-violet temper colour where heat scored it
+
+
+def gdir(du, dv, dw):
+    """A direction in gun space, in Blender's axes (as at() is for points)."""
+    return Vector((dw, -du, dv))
+
+
+def _basis(normal, up=None):
+    """Right, up and out axes (Blender's) for a face whose normal is given; up is squared to it (any, when None)."""
+    n = Vector(normal).normalized()
+    hint = Vector(up) if up is not None else (Vector((0.0, 0.0, 1.0)) if abs(n.z) < 0.9 else Vector((1.0, 0.0, 0.0)))
+    y = hint - n * hint.dot(n)
+    if y.length < 1e-6:
+        y = Vector((1.0, 0.0, 0.0)) - n * n.x
+    y.normalize()
+    return y.cross(n).normalized(), y, n
+
+
+def frame(center, normal, up=None):
+    """A face's own space in cm: x right, y up, z out of the face, centered on center (u, v, w); normal and up are
+    gun-space directions (du, dv, dw). Returns the matrix to Blender's space (meters)."""
+    x, y, n = _basis(gdir(*normal), gdir(*up) if up is not None else None)
+    rot = Matrix((x, y, n)).transposed().to_4x4()
+    return Matrix.Translation(at(*center)) @ rot @ Matrix.Diagonal((CM, CM, CM, 1.0))
+
+
+def _out_of(space):
+    return tuple(space.to_3x3().col[2].normalized())
+
+
+def plate(outline, z0, z1, space, mat=None):
+    """A flat outline [(x, y), ...] (cm, in a frame()'s space) standing from z0 to z1 out of the face: inlays, stars,
+    lantern panes."""
+    bm = lp.new_bmesh()
+    a = [bm.verts.new(space @ Vector((x, y, z0))) for x, y in outline]
+    b = [bm.verts.new(space @ Vector((x, y, z1))) for x, y in outline]
+    bm.faces.new(a)
+    bm.faces.new(list(reversed(b)))
+    n = len(outline)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((a[i], a[j], b[j], b[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    return mapped(lp.mesh_object(bm), mat)
+
+
+def disc(r, z0, z1, space, mat=None, segments=12, profile=None):
+    """A round boss standing out of a face from z0 to z1 (profile [(dz, r), ...] overrides the plain disc)."""
+    obj = _lathe(profile or [(0.0, r), (z1 - z0, r)], segments, 0.0)
+    obj.data.transform(space @ Matrix.Translation((0.0, 0.0, z0)) @ Matrix.Diagonal((1 / CM, 1 / CM, 1 / CM, 1.0)))
+    return mapped(obj, mat)
+
+
+def star(rays, r_out, r_in, rotate=0.0):
+    """A rayed star's outline (x, y) for plate(), a ray pointing up."""
+    pts = []
+    for k in range(rays * 2):
+        a = math.radians(rotate + 90.0) + math.pi * k / rays
+        r = r_out if k % 2 == 0 else r_in
+        pts.append((r * math.cos(a), r * math.sin(a)))
+    return pts
+
+
+def _loop(space, cx, cy, r, z, thick, mat, sides=8):
+    ring = [space @ Vector((cx + r * math.cos(2 * math.pi * k / sides), cy + r * math.sin(2 * math.pi * k / sides), z))
+            for k in range(sides + 1)]
+    return mapped(lp.sweep(ring, lp.ngon(thick * CM, 4), up=_out_of(space)), mat)
+
+
+def medal(center, normal, r, up=(0.0, 1.0, 0.0), mat=None, heart=None, rays=8, bail=True, segments=14):
+    """A saint's medal on a face, r cm across: a gilt disc with a raised rim, a rayed star and a glowing heart, a small
+    bail on top. Returns the pieces."""
+    mat, heart = mat or GILT, heart or SOUL
+    space = frame(center, normal, up)
+    out = [disc(r, 0.0, 0.18, space, mat, segments, profile=[(0.0, r), (0.12, r), (0.18, r * 0.86), (0.18, 0.0)]),
+           plate(star(rays, r * 0.74, r * 0.3), 0.14, 0.26, space, mat),
+           disc(r * 0.26, 0.2, 0.32, space, heart, 10)]
+    if bail:
+        out.append(_loop(space, 0.0, r * 1.18, r * 0.2, 0.08, max(0.035, r * 0.07), mat))
+    return out
+
+
+def lantern(center, normal, h, up=(0.0, 1.0, 0.0), mat=None, light=None):
+    """A lantern in relief on a face, h cm tall: a glowing pane in a gilt frame, a peaked cap, a foot and a ring on top.
+    Returns the pieces."""
+    mat, light = mat or GILT, light or SOUL
+    space = frame(center, normal, up)
+    w = h * 0.34
+    out = [plate([(-w, -h * 0.32), (w, -h * 0.32), (w * 1.1, h * 0.22), (-w * 1.1, h * 0.22)], 0.0, 0.14, space, light),
+           plate([(-w * 1.35, h * 0.2), (w * 1.35, h * 0.2), (w * 0.35, h * 0.46), (-w * 0.35, h * 0.46)], 0.0, 0.24,
+                 space, mat),                                                              # the cap
+           plate([(-w * 1.2, -h * 0.44), (w * 1.2, -h * 0.44), (w, -h * 0.3), (-w, -h * 0.3)], 0.0, 0.24, space, mat)]
+    bw = h * 0.035
+    for x in (-w * 1.08, 0.0, w * 1.08):                                                   # the frame's bars
+        out.append(plate([(x - bw, -h * 0.31), (x + bw, -h * 0.31), (x + bw, h * 0.21), (x - bw, h * 0.21)], 0.0, 0.22,
+                         space, mat))
+    out.append(_loop(space, 0.0, h * 0.55, h * 0.09, 0.1, max(0.035, h * 0.03), mat))
+    return out
+
+
+def hanging_lantern(u, v_top, w=0.0, h=1.6, mat=None, light=None, segments=8):
+    """A small lantern hung under a part, h cm tall from the ring at (u, v_top, w) down: a ring, a peaked cap, a
+    glowing body between four bars, a foot. Returns the pieces."""
+    mat, light = mat or GILT, light or SOUL
+    r = h * 0.24
+    ring_r = h * 0.09
+    ring = [(u + ring_r * math.sin(2 * math.pi * k / 8), v_top - ring_r + ring_r * math.cos(2 * math.pi * k / 8), w)
+            for k in range(9)]
+    top = v_top - ring_r * 2.0
+    cap0, body0, foot0 = top - h * 0.2, top - h * 0.68, top - h * 0.8
+    out = [pipe(ring, max(0.035, h * 0.03), mat=mat, sides=4),
+           upright(u, cap0, top, r, w=w, mat=mat, segments=segments, profile=[(0.0, r * 1.15), (h * 0.06, r * 1.15),
+                                                                              (h * 0.2, r * 0.25)]),
+           upright(u, body0, cap0, r * 0.82, w=w, mat=light, segments=segments),
+           upright(u, foot0, body0, r * 1.1, w=w, mat=mat, segments=segments,
+                   profile=[(0.0, r * 0.8), (h * 0.04, r * 1.1), (h * 0.12, r * 1.1)])]
+    for k in range(4):
+        a = math.pi * 0.25 + math.pi * 0.5 * k
+        du, dw = r * 0.9 * math.cos(a), r * 0.9 * math.sin(a)
+        out.append(box(u + du - h * 0.03, u + du + h * 0.03, body0, cap0, h * 0.06, w=w + dw, bevel=0.0, mat=mat))
+    return out
+
+
+def curl(center, normal, r0, up=(0.0, 1.0, 0.0), turns=1.6, flip=1.0, start=0.0, mat=None, thick=0.06, lift=0.03,
+         steps=16):
+    """A curl of filigree lying on a face (a scroll), r0 cm across at its outer end."""
+    space = frame(center, normal, up)
+    pts = []
+    for k in range(steps):
+        t = k / (steps - 1.0)
+        a = math.radians(start) + flip * 2.0 * math.pi * turns * t
+        r = r0 * (1.0 - 0.75 * t)
+        pts.append(space @ Vector((r * math.cos(a), r * math.sin(a), lift)))
+    return mapped(lp.sweep(pts, lp.ngon(thick * CM, 4), up=_out_of(space)), mat or GILT)
+
+
+def vine(p0, p1, normal, amp, waves=2.0, mat=None, thick=0.06, curls=True):
+    """Filigree along a face from p0 to p1 (u, v, w; normal (du, dv, dw) out of the face): a wave amp cm high with a
+    small curl tucked under every crest, alternating sides. Returns the pieces."""
+    a, b = at(*p0), at(*p1)
+    n = gdir(*normal).normalized()
+    along = b - a
+    length = along.length
+    along.normalize()
+    side = n.cross(along).normalized()
+    lift = n * 0.03 * CM
+    steps = max(int(waves * 10), 8)
+    pts = [a + along * length * (k / steps) + side * amp * CM * math.sin(2 * math.pi * waves * k / steps) + lift
+           for k in range(steps + 1)]
+    out = [mapped(lp.sweep(pts, lp.ngon(thick * CM, 4), up=tuple(n)), mat or GILT)]
+    if curls:
+        crests = int(round(waves * 2))
+        for c in range(crests):
+            s = 1.0 if c % 2 == 0 else -1.0
+            mid = a + along * length * ((c + 0.5) / crests) + side * amp * CM * s * 0.45 + lift
+            pts = []
+            for k in range(10):
+                q = k / 9.0
+                ang = math.pi * 0.5 + 2.0 * math.pi * 1.1 * q
+                r = amp * 0.5 * (1.0 - 0.7 * q) * CM
+                pts.append(mid + side * s * r * math.sin(ang) + along * r * math.cos(ang))
+            out.append(mapped(lp.sweep(pts, lp.ngon(thick * 0.8 * CM, 4), up=tuple(n)), mat or GILT))
+    return out
+
+
+def crystal(base, direction, length, r, mat=None, sides=6, tip=0.32, foot=0.7, sink=0.3, twist=0.0):
+    """A pointed salt crystal growing from base (u, v, w) along direction (du, dv, dw): a six-sided prism r cm across,
+    narrower at its foot (sunk sink cm into what it grows from), its last tip share drawn to a point."""
+    bm = lp.new_bmesh()
+    o = at(*base)
+    x, y, d = _basis(gdir(*direction))
+    angles = [math.radians(twist) + 2.0 * math.pi * k / sides for k in range(sides)]
+
+    def ring(rr, h):
+        return [bm.verts.new(o + d * h * CM + (x * math.cos(a) + y * math.sin(a)) * rr * CM) for a in angles]
+
+    lo = ring(r * foot, -sink)
+    hi = ring(r, length * (1.0 - tip))
+    apex = bm.verts.new(o + d * length * CM)
+    bm.faces.new(list(reversed(lo)))
+    for i in range(sides):
+        j = (i + 1) % sides
+        bm.faces.new((lo[i], lo[j], hi[j], hi[i]))
+        bm.faces.new((hi[i], hi[j], apex))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    return mapped(lp.mesh_object(bm), mat or SALT)
+
+
+def salt_cluster(seed, center, normal, spread, count, length=(0.5, 1.2), r=(0.12, 0.26), lean=32.0, glow_every=3,
+                 sides=6, up=None, squash=1.0):
+    """count crystals growing out of a face round center (u, v, w), within spread cm of it (squash scales the spread
+    along the face's up), leaning up to lean degrees off its normal (du, dv, dw); the first stands tallest in the
+    middle, and every glow_every-th is lit from within (GunSaltGlow). Seeded: the same every run. Returns the pieces."""
+    import random
+    rnd = random.Random(seed)
+    nb = gdir(*normal).normalized()
+    x, y, _ = _basis(nb, gdir(*up) if up is not None else None)
+    out = []
+    for k in range(count):
+        a = rnd.uniform(0.0, 2.0 * math.pi)
+        s = spread * math.sqrt(rnd.random()) if k else 0.0
+        p = at(*center) + (x * math.cos(a) + y * math.sin(a) * squash) * s * CM
+        tilt = math.radians(rnd.uniform(0.0, lean))
+        b = rnd.uniform(0.0, 2.0 * math.pi)
+        d = (nb * math.cos(tilt) + (x * math.cos(b) + y * math.sin(b)) * math.sin(tilt)).normalized()
+        big = 1.0 - 0.5 * s / max(spread, 1e-6)
+        length_k = rnd.uniform(*length) * (0.6 + 0.4 * big)
+        r_k = rnd.uniform(*r) * (0.75 + 0.25 * big)
+        twist = rnd.uniform(0.0, 60.0)
+        mat = SALT_GLOW if glow_every and k % glow_every == glow_every - 1 else SALT
+        out.append(crystal((-p.y / CM, p.z / CM, p.x / CM), (-d.y, d.z, d.x), length_k, r_k, mat=mat, sides=sides,
+                           twist=twist))
+    return out
+
+
+def want_elements():
+    """True when the script was started with --elements after '--' (the element sheet only)."""
+    import sys
+    return '--elements' in (sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
+
+
+def element_preview(name, assemble, default, slot, keys, built, fp=None, side=None, close=None, res=(960, 540)):
+    """Saved/ArtPreviews/Weapons/<name>.png: a row per key of slot (the plain part first, then the element ones), the
+    gun in first person (from behind, above and to its left, as the eye sees it), from its right side, and the part
+    alone close up from the front left. assemble(choice) puts a gun together and returns its objects."""
+    fp = fp or dict(view=(0.42, 1.0, 0.32), lens=45.0, fit=0.8)
+    side = side or dict(view=(-1.0, -0.02, 0.05), lens=80.0, fit=0.9)
+    close = close or dict(view=(0.8, -0.75, 0.3), lens=60.0, fit=1.0)
+    tiles = []
+    for key in keys:
+        choice = dict(default, **{slot: key})
+        for kwargs in (fp, side):
+            tiles.append((lambda c=choice: assemble(c), dict(kwargs, ground=False, resolution=res)))
+
+        def alone(c=choice):
+            assemble(c)
+            return [built[f'{slot}_{c[slot]}']]
+        tiles.append((alone, dict(close, ground=False, resolution=res)))
+    path = element_sheet(lt.preview_path('Weapons', name), tiles, cols=3)
+    assemble(default)
+    return path
+
+
+def element_sheet(out_png, tiles, cols=2, gap=8):
+    """Renders tiles [(objects or a function returning them, lt.preview keyword arguments), ...] and sets them side by
+    side, cols to a row, in one PNG on dark grey (the element previews: a row per element, first person and side).
+    Each tile's own PNG stays in an Elements folder beside it."""
+    import os
+    import numpy as np
+    folder = os.path.join(os.path.dirname(out_png), 'Elements')
+    stem = os.path.splitext(os.path.basename(out_png))[0]
+    images = []
+    for k, (objs, kwargs) in enumerate(tiles):
+        objs = objs() if callable(objs) else objs
+        path = lt.preview(objs, os.path.join(folder, f'{stem}_{k:02d}.png'), **kwargs)
+        image = bpy.data.images.load(path, check_existing=False)
+        image.colorspace_settings.name = 'Non-Color'
+        w, h = image.size
+        px = np.empty(w * h * 4, np.float32)
+        image.pixels.foreach_get(px)
+        bpy.data.images.remove(image)
+        images.append(px.reshape(h, w, 4)[::-1, :, :3])
+    th = max(t.shape[0] for t in images)
+    tw = max(t.shape[1] for t in images)
+    rows = (len(images) + cols - 1) // cols
+    sheet = np.full((rows * th + (rows + 1) * gap, cols * tw + (cols + 1) * gap, 3), 0.08, np.float32)
+    for i, t in enumerate(images):
+        r, c = divmod(i, cols)
+        y0, x0 = gap + r * (th + gap), gap + c * (tw + gap)
+        sheet[y0:y0 + t.shape[0], x0:x0 + t.shape[1]] = t
+    lt.write_png(out_png, lt.to8(np.clip(sheet, 0.0, 1.0)))
+    lt._log(f'element sheet: {out_png}')
+    return out_png

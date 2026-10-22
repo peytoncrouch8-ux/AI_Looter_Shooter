@@ -26,6 +26,7 @@ for _p in (HERE, os.path.join(REPO, 'Art', 'Portraits')):
         sys.path.insert(0, _p)
 import bust  # noqa: E402
 import looter_garments as gm  # noqa: E402
+import looter_face as lf  # noqa: E402
 import looter_human as hu  # noqa: E402
 import looter_looks as lk  # noqa: E402
 import looter_model as lm  # noqa: E402
@@ -82,6 +83,22 @@ STOOP = {
 }
 BOOT_LOOK = (-0.21, 0.0255)   # the boots' toe cap and welt (looter_looks.leather's boot=), measured by crane_clothes.boot_look
 HAND_GIRTH = 1.07        # bare hands filled out a little (the user found Ellis's thin hands "clawed"; Crane's stay bony)
+# The face's planes (looter_face.carve; the portrait's: a heavy brow over the sockets, high cheekbones over hollow
+# cheeks, a long sharp nose, deep folds from the nose to the mouth's corners, a jutting chin and a hard jaw):
+# (kind, from, to, reach dm (x, y, z), depth m). Points: ('side'|'mid', landmark, (dx, dy)) from looter_face.landmarks.
+FACE_PLANES = [
+    ('ridge', ('side', 'eye', (-0.12, 0.17)), ('side', 'eye', (0.17, 0.12)), (0.16, 0.085, 0.3), 0.0035),   # brow ridge
+    ('ridge', ('side', 'eye', (-0.26, 0.08)), ('side', 'eye', (-0.27, 0.22)), (0.03, 0.07, 0.2), -0.0012),  # frown lines
+    ('ridge', ('side', 'eye', (0.02, -0.27)), ('side', 'eye', (0.22, -0.20)), (0.14, 0.08, 0.3), 0.0030),   # cheekbone
+    ('blob', ('side', 'eye', (0.10, -0.55)), None, (0.16, 0.16, 0.35), -0.0025),                            # its hollow
+    ('ridge', ('side', 'nose', (0.13, -0.12)), ('side', 'mouth', (0.30, -0.12)), (0.035, 0.035, 0.3), -0.0018),  # fold
+    ('ridge', ('side', 'nose', (0.19, -0.12)), ('side', 'mouth', (0.36, -0.10)), (0.05, 0.05, 0.3), 0.0012),     # pad
+    ('ridge', ('mid', 'nose', (0.0, 0.42)), ('mid', 'nose', (0.0, 0.08)), (0.05, 0.2, 0.3), 0.0015),       # nose bridge
+    ('ridge', ('side', 'nose', (0.10, 0.35)), ('side', 'nose', (0.11, 0.05)), (0.04, 0.15, 0.3), -0.0010), # its sides
+    ('ridge', ('side', 'mouth', (0.0, -0.17)), ('side', 'mouth', (0.15, -0.14)), (0.12, 0.04, 0.25), -0.0015),   # lip groove
+    ('blob', ('mid', 'chin', (0.0, 0.05)), None, (0.15, 0.12, 0.3), 0.0020),                                # chin
+    ('ridge', ('side', 'chin', (0.15, 0.0)), ('side', 'jaw', (-0.04, -0.05)), (0.06, 0.06, 0.15), 0.0015),  # jaw line
+]
 
 
 # ------------------------------------------------------------------------------------------------------- the body
@@ -135,6 +152,7 @@ class Figure:
         self.balls = bust.close_lids(h, OPT['lids'])      # the narrowed lids slid over the balls (MakeHuman space)
         self.hf = bust.head_frame(h)
         self.zones = sunken(h, self.hf, OPT['sunken'])
+        lf.carve(h, self.hf, self.b.used, FACE_PLANES, self.b.scale, log, 'face planes')
         self.g_head = h['glob']['head']
         self.wv = self.b.world_verts()
         self.names, self.Wv = self.b.vertex_weights()

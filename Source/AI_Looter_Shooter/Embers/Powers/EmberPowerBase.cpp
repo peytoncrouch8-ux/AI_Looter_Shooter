@@ -4,6 +4,7 @@
 #include "Combat/GraveSaltBurst.h"
 #include "Core/LooterCharacter.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureReactComponent.h"
 #include "Embers/EmberDamageType.h"
 #include "Embers/EmberDefinition.h"
 #include "Embers/Powers/EmberVfx.h"
@@ -239,8 +240,10 @@ float UEmberPowerBase::Hurt(AActor& Target, float Damage, const FVector& Where, 
 	FHitResult Struck(&Target, Root, Where, -Way);
 	UGameplayStatics::ApplyPointDamage(&Target, Damage, Way, Struck, Instigator.Get(), nullptr, UEmberDamageType::StaticClass());
 	// The blow shows on the body it lands on: what it spills, as a gun's hit of its weight, and a pop of the power's colour
-	// (the VFX pass: before it, a power's damage left nothing on the body but its number).
-	if (FWeaponFX* FX = EffectsIn(Target.GetWorld()))
+	// (the VFX pass: before it, a power's damage left nothing on the body but its number). A burn tick (FQuietHits) shows
+	// none: its tint flaring is its look, and a spill on every body in a pool twice a second was overdraw (VFX-2).
+	FWeaponFX* FX = UCreatureReactComponent::IsQuietNow() ? nullptr : EffectsIn(Target.GetWorld());
+	if (FX)
 	{
 		EmberVfx::BodyHit(*FX, Target, Where, Way, Damage, Color);
 	}

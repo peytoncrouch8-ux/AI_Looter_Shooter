@@ -3,16 +3,14 @@
 #include "Weapons/VfxTuning.h"
 #include "Templates/UnrealTemplate.h"
 
-// FWeaponFX's kills and blasts (the VFX pass, Saved/Vfx/PLAN.md; Looter.Vfx.Kill.*, .Blast.*). Spawning only; WeaponFXDraw.cpp
+// FWeaponFX's kills (the VFX pass, Saved/Vfx/PLAN.md; Looter.Vfx.Kill.*). Spawning only; WeaponFXDraw.cpp
 // moves and draws every particle.
 //  - SpawnKillLayers: a creature's kill on top of its kind's death burst (SpawnDeathBurst, which the hit reaction plays):
 //    gore thrown with the killing shot by the gun (a shotgun's carries it, a sniper's crit blows it out the back), a mist of
 //    what it spilled hanging and settling, a skirt of dust rolling out where it drops, a soul-light's ring racing over the
 //    ground and its ash collapsing, a crit's gold flare, and its tier's rings, star and motes. Chunks land on the ground
 //    under it and lie a moment (the floor the kill found).
-//  - SpawnExplosion: a white crack, fireballs blooming and cooling (white-hot to the fire's colour to a dull ember), a ring
-//    racing over the ground and a faint one in the air, a smoke skirt and a rising column (pale for a soul blast), embers
-//    arcing, and the ground thrown up in its own look.
+//  The blasts (SpawnExplosion) are WeaponFXFire.cpp's.
 
 namespace
 {
@@ -23,9 +21,6 @@ namespace
 	const FLinearColor KillCritGold(1.f, 0.85f, 0.3f);
 	const FLinearColor KillWhiteHot(1.f, 0.95f, 0.85f);
 	const FLinearColor KillRockDust(0.6f, 0.57f, 0.52f);
-	/** A blast's smoke: a fire's soot, a soul blast's pale breath. */
-	const FLinearColor BlastSoot(0.24f, 0.22f, 0.2f);
-	const FLinearColor BlastPale(0.62f, 0.62f, 0.66f);
 
 	/** A random way across a surface whose up is Up. */
 	FVector AcrossSurface(const FVector& Up, FRandomStream& Random)
@@ -47,7 +42,9 @@ void FWeaponFX::SpawnKillLayers(const FVfxKill& Kill)
 	const float Carry = VfxRules::KillCarry(Kill.Gun);
 	const float Scale = FMath::Clamp(Kill.Size / 100.f, 0.3f, 4.f);
 	const float Reach = FMath::Sqrt(Scale);
-	const float Amount = Weight * DetailAt(Kill.Center);
+	// VFX-2: a crowd killed at once (a horde in a Slag Bomb's pool) is a stream of kills: each next one throws less (its mist and
+	// skirt over eight bodies at the feet were most of a blast's overdraw).
+	const float Amount = Weight * DetailAt(Kill.Center) * KillCrowdDetail(Kill.Center);
 	auto N = [Amount](int32 Full) { return VfxRules::Count(Full, Amount); };
 	const FVector Up = Kill.bGround ? Kill.GroundNormal.GetSafeNormal() : FVector::UpVector;
 	const FVector Ground = Kill.bGround ? Kill.Ground : Kill.Center - FVector(0.0, 0.0, 40.0 * Scale);
@@ -223,102 +220,5 @@ void FWeaponFX::SpawnKillLayers(const FVfxKill& Kill)
 		Mote.EndSize = 1.f;
 		Mote.Gravity = -0.2f;
 		Mote.Drag = 1.4f;
-	}
-}
-
-void FWeaponFX::SpawnExplosion(const FVfxExplosion& Blast)
-{
-	const FVfxTuning Vfx = FVfxTuning::Live();
-	if (Vfx.BlastScale <= 0.f)
-	{
-		return;
-	}
-	const float Radius = FMath::Max(Blast.Radius * Vfx.BlastScale, 50.f);
-	const FVfxExplosionLook Look = VfxRules::ExplosionLook(Radius);
-	const FVector Up = Blast.Up.IsNearlyZero() ? FVector::UpVector : Blast.Up.GetSafeNormal();
-	const FVector Center = Blast.Center;
-	const float Detail = DetailAt(Center);
-	auto N = [Detail](int32 Full) { return VfxRules::Count(Full, Detail); };
-	const FLinearColor Fire = Blast.Fire;
-	const FLinearColor SmokeColor = (Blast.bSoul ? BlastPale : BlastSoot) * Blast.DustLight;
-	TGuardValue<TOptional<FPlane>> FloorDuringSpawn(SpawnFloor, Blast.bOnGround ? TOptional<FPlane>(FPlane(Center, Up)) : TOptional<FPlane>());
-
-	// The crack: a white starburst and a flash, gone in a blink.
-	SpawnStarburst(Center + Up * Radius * 0.1f, Radius * 0.95f, KillWhiteHot, 18.f * Vfx.Glow, 0.09f, 14);
-	FParticle& Crack = AddParticle(EParticle::Flash, Center + Up * Radius * 0.1f, FVector::ZeroVector, 0.07f);
-	Crack.Color = KillWhiteHot;
-	Crack.Intensity = 18.f * Vfx.Glow;
-	Crack.StartSize = Radius * 0.35f;
-	Crack.EndSize = Radius * 0.8f;
-	Crack.Gravity = 0.f;
-
-	// The fireballs: a cluster blooming out and up from the heart, each cooling white to its colour to a dull ember.
-	for (int32 Index = 0; Index < Look.Fireballs; ++Index)
-	{
-		const FVector Out = (Up * Random.FRandRange(0.3f, 1.f) + Random.GetUnitVector() * 0.8f).GetSafeNormal();
-		const float Life = Look.FireballLife * Random.FRandRange(0.8f, 1.2f);
-		SpawnFireball(Center + Out * Radius * Random.FRandRange(0.05f, 0.25f), Out * Radius * Random.FRandRange(0.6f, 1.1f) + Up * Radius * 0.4f,
-			Radius * Random.FRandRange(0.18f, 0.28f), Radius * Look.FireballSize * Random.FRandRange(0.8f, 1.2f), Fire, 2.f * Vfx.Glow, Life);
-	}
-
-	// The ring racing over the ground, and a faint one in the air (the shock).
-	if (Blast.bOnGround)
-	{
-		SpawnShockRing(Center + Up * 5.f, Up, Radius * 0.15f, Radius * Look.RingReach, Radius * 0.07f, FMath::Lerp(Fire, KillWhiteHot, 0.3f),
-			(Blast.bSoul ? 18.f : 14.f) * Vfx.Glow, Look.RingLife);
-	}
-	SpawnShockRing(Center + Up * Radius * 0.2f, FVector::ZeroVector, Radius * 0.1f, Radius * 1.2f, Radius * 0.04f, KillWhiteHot, 6.f * Vfx.Glow,
-		0.18f, true);
-
-	// The smoke: a skirt rolling out over the ground and a column rising off the spot.
-	for (int32 Index = 0; Index < N(Look.SmokeRing); ++Index)
-	{
-		const FVector Out = AcrossSurface(Up, Random);
-		FParticle& Puff = AddParticle(EParticle::Smoke, Center + Out * Radius * 0.08f, Out * Radius * Random.FRandRange(0.9f, 1.6f) + Up * Radius * Random.FRandRange(0.1f, 0.3f),
-			Random.FRandRange(1.2f, 1.9f));
-		Puff.Color = SmokeColor;
-		Puff.Intensity = 0.6f * Vfx.Smoke;
-		Puff.StartSize = Radius * 0.12f;
-		Puff.EndSize = Radius * Random.FRandRange(0.45f, 0.65f);
-		Puff.Gravity = -0.02f;
-		Puff.Drag = 2.4f;
-	}
-	for (int32 Index = 0; Index < N(Blast.bSoul ? Look.SmokeColumn / 2 : Look.SmokeColumn); ++Index)
-	{
-		const FVector Drift = AcrossSurface(Up, Random) * Random.FRandRange(10.f, 40.f) + Up * Radius * Random.FRandRange(0.2f, 0.45f);
-		FParticle& Puff = AddParticle(EParticle::Smoke, Center + Up * Radius * Random.FRandRange(0.05f, 0.25f), Drift, Random.FRandRange(2.4f, 3.4f));
-		Puff.Color = SmokeColor;
-		Puff.Intensity = 0.45f * Vfx.Smoke;
-		Puff.StartSize = Radius * 0.25f;
-		Puff.EndSize = Radius * Random.FRandRange(0.7f, 0.95f);
-		Puff.Gravity = -0.05f;
-		Puff.Drag = 1.6f;
-	}
-
-	// Embers arcing out and down (a soul blast's motes rise instead).
-	for (int32 Index = 0; Index < N(Look.Embers); ++Index)
-	{
-		const FVector Out = (Up * Random.FRandRange(0.3f, 1.2f) + Random.GetUnitVector() * 0.9f).GetSafeNormal();
-		FParticle& Ember = AddParticle(EParticle::Spark, Center + Up * 10.f, Out * Radius * Random.FRandRange(1.5f, 3.f), Random.FRandRange(0.6f, 1.3f));
-		Ember.Color = FMath::Lerp(Fire, KillWhiteHot, Random.FRandRange(0.f, 0.5f));
-		Ember.Intensity = Random.FRandRange(18.f, 28.f) * Vfx.Glow;
-		Ember.StartSize = Random.FRandRange(1.f, 2.f);
-		Ember.Gravity = Blast.bSoul ? -0.2f : 0.9f;
-		Ember.Drag = 1.2f;
-	}
-
-	// The ground thrown up in its own look, and its debris raining back.
-	if (Blast.bOnGround && Blast.Ground != EImpactMaterial::Unknown)
-	{
-		const FPlane Floor(Center, Up);
-		SpawnSurfaceImpact(Center, Up, -Up, Blast.Ground, 1.6f, false, &Floor);
-		for (int32 Index = 0; Index < N(Look.Debris); ++Index)
-		{
-			const FVector Direction = (Up * Random.FRandRange(0.6f, 1.3f) + Random.GetUnitVector() * 0.8f).GetSafeNormal();
-			FParticle& Clod = AddParticle(EParticle::Chip, Center + Up * 6.f, Direction * Radius * Random.FRandRange(1.2f, 2.2f), Random.FRandRange(1.f, 1.6f));
-			Clod.StartSize = Random.FRandRange(3.f, 7.f);
-			Clod.Rotation = FQuat(Random.GetUnitVector(), Random.FRandRange(0.f, 2.f * UE_PI));
-			Clod.Spin = Random.GetUnitVector() * Random.FRandRange(5.f, 14.f);
-		}
 	}
 }

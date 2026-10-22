@@ -54,7 +54,7 @@ namespace
 	}
 
 	/**
-	 * Its walking movement given its capsule (a test level's movement takes none: Docs/Pipeline.md, "Tests"), in Mode,
+	 * Its walking movement given its capsule (a test level's movement takes none: Docs/Pipeline/Workflow.md, "Tests"), in Mode,
 	 * so the steering sees it walking or falling as in the game.
 	 */
 	void GiveMovement(ACreatureBase& Creature, EMovementMode Mode)

@@ -17,6 +17,7 @@
 #include "Misc/PackageName.h"
 
 const TCHAR* const UCreatureReactComponent::FlashMaterialPath = TEXT("/Game/Weapons/FX/M_FX_HitFlash.M_FX_HitFlash");
+int32 UCreatureReactComponent::QuietDepth = 0;
 
 namespace
 {
@@ -115,6 +116,14 @@ void UCreatureReactComponent::HandleStateChanged(ECreatureState OldState, ECreat
 		// Its hunt is over: the next one may have its beat.
 		Notice.EndHunt();
 	}
+	if (NewState == ECreatureState::Dead)
+	{
+		// Dead: its body shows its kind's death (ichor, gel, ash), not the killing shot's white flash. The kill's hit-stop
+		// held that flash at full on the whole body for a tenth of a second or more (all the slowed frames), a white ghost
+		// in place of the death (vfx_shotgun_kill, 2026-10-22).
+		Flash.Stop();
+		WearFlash(false);
+	}
 	else if (NewState != ECreatureState::Chase)
 	{
 		// Lost them, or at them already: the beat is over, the hunt goes on.
@@ -126,8 +135,9 @@ void UCreatureReactComponent::HandleDamaged(float Damage, bool bCritical, FVecto
 {
 	// A shot gets it going at once: no beat for a creature already hurt.
 	Notice.Stop();
-	// A burn's or the salt's piece (twice a second) doesn't flash the body white: its status shows on it instead.
-	if (!UElementStatusComponent::IsDealingNow())
+	// A burn's or the salt's piece (twice a second), or a power's burn tick (FQuietHits), doesn't flash the body white: its
+	// status or tint shows on it instead.
+	if (!UElementStatusComponent::IsDealingNow() && !IsQuietNow())
 	{
 		FlashHit(bCritical);
 	}

@@ -48,6 +48,10 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	bool bShapes = true;
 	/** Looter.Vfx.Puffs: smoke on M_FX_Puff (noise-broken, eroding) when it's in the game (0: M_FX_Smoke's soft discs). */
 	bool bPuffs = true;
+	/** Looter.Vfx.Fire: blasts' fire and soot on M_FX_Fire (alpha-blended) when it's in the game (0: heat-tinted puffs). */
+	bool bFire = true;
+	/** Looter.Vfx.BurnTint: a power's burn tint on bodies (Slag Bomb's pool: the body drawn again in an overlay). */
+	bool bBurnTint = true;
 	/** Looter.Vfx.Splats: the ground splats under kills and blasts (decals). */
 	bool bSplats = true;
 	/** Looter.Vfx.Splat.Max / .Hold (s) / .Fade (s): the splats' pool, how long one holds, how long it fades. */

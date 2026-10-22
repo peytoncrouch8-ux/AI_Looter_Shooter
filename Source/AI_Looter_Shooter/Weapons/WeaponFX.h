@@ -205,8 +205,17 @@ public:
 	/** A kill's layers on top of its kind's death burst (gore by the gun, a mist, a dust skirt, rings, its tier's flare). */
 	void SpawnKillLayers(const FVfxKill& Kill);
 
-	/** A blast: a white crack, fireballs blooming and cooling, a ring over the ground, a smoke skirt and column, embers, debris. */
+	/** A blast: a hot core, fire puffs rolling into soot (SpawnFlame), a faint ring, a dust skirt, a rising smoke column, embers, debris. */
 	void SpawnExplosion(const FVfxExplosion& Blast);
+
+	/**
+	 * A puff of fire rolling into dark smoke (FVfxFlame; WeaponFXFlames.cpp): alpha-blended on M_FX_Fire, so it keeps its colour
+	 * in daylight. Without the material, a smoke puff tinted by its heat.
+	 */
+	void SpawnFlame(const FVfxFlame& Flame);
+
+	/** Flames alive (fire or its smoke; tests). */
+	int32 NumFlames() const;
 
 	/** What a shot's muzzle throws round its flash, by the gun's kind (VfxRules::MuzzleLook): smoke, sparks, side jets, a ring. */
 	void SpawnMuzzleBurst(const FVfxMuzzle& Muzzle);
@@ -241,7 +250,7 @@ private:
 	 * Bit: a lit chunk of a color of its own (chitin, gel), drawn on its BitSet's component. Streak: a glowing line flying
 	 * on, growing to its length (a ricochet's tracer). Thread: a still line of smoke (a tracer's smoke thread).
 	 */
-	enum class EParticle : uint8 { Spark, Flash, Smoke, Chip, Droplet, Bit, Streak, Thread, Ring, Fireball, Star };
+	enum class EParticle : uint8 { Spark, Flash, Smoke, Chip, Droplet, Bit, Streak, Thread, Ring, Fireball, Star, Flame };
 
 	struct FParticle
 	{
@@ -276,6 +285,9 @@ private:
 		float Width = 0.f;
 		/** A Ring turned to face the eye each frame (else square to its axis). */
 		bool bFacing = false;
+		/** A Flame's smoke colour, and the share of its life it burns. */
+		FLinearColor Shade = FLinearColor::Black;
+		float Burn = 0.f;
 	};
 
 	/** How a set's chunks are drawn: thin plates (chitin, chips of paint or glass), round drops (gel, water), long splinters (wood, straw). */
@@ -309,6 +321,11 @@ private:
 	/** A chunk crossing its floor: a bounce, a skitter, then it lies still a moment (drops splat and are gone). WeaponFXDraw.cpp. */
 	void LandOnFloor(FParticle& Particle);
 	void Redraw(const FVector& CameraLocation);
+	/** A component's instances made these (WeaponFXInstances.cpp: kept in blocks, so a particle born or gone rarely rebuilds it). */
+	static void DrawInstances(UInstancedStaticMeshComponent* Instances, const TArray<FTransform>& Transforms, const TArray<float>& CustomData);
+	/** The flames' quads and data, far to near (WeaponFXFire.cpp): on FireQuads, or as tinted puffs on the smoke without it. */
+	void CollectFlames(const FVector& Camera, TArray<FTransform>& FireTransforms, TArray<float>& FireData, TArray<FTransform>& SmokeTransforms,
+		TArray<float>& SmokeData, bool bPuffData);
 	/** The set for chunks of this Color (round: spheres, else cubes) with Glow, made the first time it's asked for. */
 	uint8 BitSetFor(bool bRound, const FLinearColor& Color, float Glow);
 	uint8 BitSetFor(EBitShape Shape, const FLinearColor& Color, float Glow);
@@ -333,6 +350,17 @@ private:
 	FLinearColor WaterLight = FLinearColor::White;
 	double WaterLightAt = -1.0e9;
 	static constexpr double WaterLightSeconds = 1.0;
+	/**
+	 * The light a world hit's dust shows in (VFX-2): FDustLight's at the hit over its full sun's level (1 in sun, about a
+	 * third in shade), looked up again past ImpactLightSeconds or ImpactLightReach (a stream of fire into one spot asks once).
+	 */
+	FLinearColor ImpactShade(const FVector& Where);
+	FDustLight ImpactDustLight;
+	FLinearColor ImpactLight = FLinearColor::White;
+	FVector ImpactLightWhere = FVector::ZeroVector;
+	double ImpactLightAt = -1.0e9;
+	static constexpr double ImpactLightSeconds = 0.25;
+	static constexpr double ImpactLightReach = 400.0;
 	/** While an impact with a floor spawns (SpawnSurfaceImpact), the floor its chunks are given. */
 	TOptional<FPlane> SpawnFloor;
 	/**
@@ -348,6 +376,8 @@ private:
 	bool bDrawnAnything = false;
 	/** M_FX_Shape's quads (rings, fireballs, starbursts), when it's in the game and Looter.Vfx.Shapes is on (else stand-ins on Glows). */
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Shapes;
+	/** M_FX_Fire's quads (SpawnFlame), drawn far to near; null without it (the flames go on the smoke). */
+	TWeakObjectPtr<UInstancedStaticMeshComponent> FireQuads;
 	/** The camera last drawn from (DetailAt), once a Tick has said where it is. */
 	FVector LastCamera = FVector::ZeroVector;
 	bool bHasCamera = false;
@@ -355,6 +385,12 @@ private:
 	FVfxHitStream HitStream;
 	/** The share a hit at Location throws in its stream (1 alone), noting it. */
 	float StreamDetailFor(const FVector& Location);
+	/** Recent kills (VFX-2): a crowd killed at once, within KillCrowdWindow s and KillCrowdReach cm, throws less each. */
+	FVfxHitStream KillStream;
+	static constexpr float KillCrowdWindow = 0.6f;
+	static constexpr float KillCrowdReach = 800.f;
+	/** The share a kill at Location throws among the kills round it (1 alone), noting it. */
+	float KillCrowdDetail(const FVector& Location);
 	/** The pool's size (Looter.Vfx.MaxParticles as the effects started). */
 	int32 MaxParticleCount = 1000;
 	FRandomStream Random{ 0x5eed };

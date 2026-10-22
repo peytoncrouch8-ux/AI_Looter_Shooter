@@ -84,7 +84,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     nothing; the broadleaf stands' `DeadTree_A` 0.4 never grew either).
   - Ground per place: layout `macro.tones` {zone kind: color, mix, patch, alpha (stony ground, under 0.5), value, grass (share left)}
     (`area_mosaic._tones`; grass in `grass_density`): town red-ochre dust, travel cinders, pit ash, quarry pale dust, mine coal,
-    Boot Hill, the point and the deck paler; `macro.blooms` chapel white yarrow, fields yellow; `macro.zones` farm and chapel greener.
+    Boot Hill, the point and the deck paler, the chapel knoll green; `macro.blooms` chapel white yarrow, fields yellow; `macro.zones`
+    farm and chapel greener. Bolder since the user's call (2026-10-22 morning): the places' mix 0.7-0.75 with patch 0.3 (the
+    first pass's 0.5 / 0.5 read only faintly from the tour's views), the edges' 0.45-0.5, grass left 0.35-0.45 where trodden.
     Run `Art/Models/Terrain/RansomsRest.py -- --macro` (artrun; ~40 min, heights untouched), then import the macro maps without the
     terrain export: a materials-only manifest (`Intermediate/ArtExport_WV_Macro/macro.json`, `"models": []`; the importer updates
     MI_<set> and re-imports a changed texture), then `build_island_scatter.py` (re-imports the scatter mask by MD5).

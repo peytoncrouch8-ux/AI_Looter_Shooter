@@ -41,6 +41,12 @@ namespace VfxRules
 		return FMath::Clamp(0.25f + 0.85f * MarkScale, 0.6f, 1.7f);
 	}
 
+	float ImpactViewScale(float Distance)
+	{
+		const float Far = FMath::Clamp((Distance - 1000.f) / 2000.f, 0.f, 1.f);
+		return 1.f + 0.8f * Far;
+	}
+
 	bool IsHeavyRound(float MarkScale)
 	{
 		return MarkScale >= 1.2f;

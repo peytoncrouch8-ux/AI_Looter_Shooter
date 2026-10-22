@@ -4,7 +4,7 @@
 #include "Creatures/EncounterSpawner.h"
 
 /**
- * A set piece's feel numbers (ASetPieceSpawner; Docs/Pipeline.md "Fight: Layout"), as the Looter.Fight.SetPiece.* cvars
+ * A set piece's feel numbers (ASetPieceSpawner; Docs/Pipeline/Enemies.md "Fight: Layout"), as the Looter.Fight.SetPiece.* cvars
  * set them (FSetPieceTuning::Current), so the user tunes them live. Each set piece's own data (its pushes, beats, spots)
  * comes from the layout; these scale or override them for every set piece at once. A default-made one holds the defaults,
  * which the tests read.

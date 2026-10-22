@@ -84,7 +84,15 @@ int32 FWeaponFX::NumShapes() const
 	int32 Count = 0;
 	for (const FParticle& Particle : Particles)
 	{
-		Count += (Particle.Type == EParticle::Ring || Particle.Type == EParticle::Fireball || Particle.Type == EParticle::Star) ? 1 : 0;
+		Count += (Particle.Type == EParticle::Ring || Particle.Type == EParticle::Fireball || Particle.Type == EParticle::Star
+			|| Particle.Type == EParticle::Flame) ? 1 : 0;
 	}
 	return Count;
+}
+
+float FWeaponFX::KillCrowdDetail(const FVector& Location)
+{
+	const UWorld* World = Owner.IsValid() ? Owner->GetWorld() : nullptr;
+	const double Now = World ? World->GetTimeSeconds() : FPlatformTime::Seconds();
+	return VfxRules::StreamDetail(KillStream.Note(Location, Now, KillCrowdWindow, KillCrowdReach));
 }

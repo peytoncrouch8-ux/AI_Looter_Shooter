@@ -5,10 +5,28 @@
                 R picks one of four tint zones at 0, 1/3, 2/3 and 1 (Zone1Color, skin and shroud, to Zone4Color, the
                 accents), G darkens the cavities, B is the ember edge round the coal's hole, A fades the body into the
                 shroud (1 solid, 0 gone). The fade is broken up by the macro noise at two scales drifting up the strips
-                (UV 0's V runs down them: NoiseScale, NoiseSpeed, FadeSoftness). The Polymer grain (BaseColorMap on UV 0
-                times UVScale) runs through the cloth, and Tint multiplies it all. Emissive: a pale rim (RimColor,
-                RimStrength, and RimPower: how tightly it hugs the silhouette), a faint glow of its own (GlowStrength) and
-                the ember edge in the rank's color (EmberStrength).
+                (UV 0's V runs down them: NoiseScale, NoiseSpeed; FadeSoftness the phase-step's edge). The Polymer grain
+                (BaseColorMap on UV 0 times UVScale) runs through the cloth, and Tint multiplies it all. Emissive: a pale
+                rim (RimColor, RimStrength, and RimPower: how tightly it hugs the silhouette), a faint glow of its own
+                (GlowStrength) and the ember edge in the rank's color (EmberStrength).
+                The painted ghost (CHAR-ART item 1, the user's OK 2026-10-22, sheet Saved/ArtPreviews/Characters/
+                Concepts/CharArt_1): light painted in, so every ghost reads under any lighting, Medium included. Each
+                new parameter's default is the look and no instance sets them, so every M_Ghost user has it with no
+                re-import (PAINTED below):
+                  - cloth (ClothMap: T_GhostCloth_M from Art/Textures/GhostCloth/make_ghost_cloth.py, on UV 0 times
+                    ClothScale): the weave and seams (ClothWeave; SkinCloth of it on zone 1, the skin and shroud),
+                    hanging folds (ClothFolds) and grave-dirt stains (ClothStains toward StainTint) multiplying the tint;
+                  - top light by height on the body (its pre-skinned Z, cm): TopLightLow at TopLightFrom (the waist)
+                    to TopLightHigh at TopLightTo (the head); a small prop on the slot (the hat: its bounds' height under
+                    PropSize cm)
+                    takes PropTopLight;
+                  - the cavities harder (vertex G to the CavityPower, times CavityStrength);
+                  - the rim leaning cold (ColdRim of the way to ColdRimColor; the instances' RimColor stays the base);
+                  - inner glow: the rank's color lighting the body round the coal (InnerGlow, falling off over
+                    InnerGlowRadius cm from CoalAt, the coal's rest place in the mesh's own space), with the coal's heat;
+                  - the fade stretched into streaks along the strips (StreakAcross x StreakAlong) over a wider dithered
+                    band (FadeBand), so the shroud melts into the air instead of ending in shards.
+                One texture sample more than before (the cloth); the pre-skinned position is one interpolator.
                 Coal = 1 makes a slot the coal instead: a dark crust with glowing cracks in the rank's color, no grain and
                 no fade. Phase dissolves it for the phase-step: the solid body goes first and the shroud's ends last, and
                 coming back the ends come first; the coal goes with the body.
@@ -27,7 +45,8 @@ It never touches another asset: M_Ghost's graph is rebuilt in place (its instanc
 these paths that isn't what this makes is left alone. It reuses build_world_materials.py's graph helpers (without running
 that module's build). Run it in the open editor (it needs no C++):
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_creature_materials.py [M_Ghost MI_SpiderBody_Pale]"
-It prints a CREATUREMATS line per asset and "CREATUREMATS done".
+It prints a CREATUREMATS line per asset and "CREATUREMATS done". M_Ghost imports T_GhostCloth_M again whenever its PNG
+changes.
 """
 import ast
 import hashlib
@@ -47,6 +66,9 @@ PALE_FILE = os.path.normpath(os.path.join(HERE, '..', '..', 'Art', 'Textures', '
 PALE_MAP = '/Game/Art/Textures/SpiderBody_Pale/T_SpiderBody_Pale_BC'
 SPIDER_MAPS = '/Game/Art/Textures/SpiderBody/T_SpiderBody'
 WORLD_MASTER = '/Game/Art/Materials/Masters/M_World'
+# The painted ghost's cloth (linear data: R weave and seams, G folds, B stains).
+CLOTH_FILE = os.path.normpath(os.path.join(HERE, '..', '..', 'Art', 'Textures', 'GhostCloth', 'T_GhostCloth_M.png'))
+CLOTH_MAP = '/Game/Art/Textures/GhostCloth/T_GhostCloth_M'
 
 # The clothes they died in (Art/Backlog/Creatures/UnpaidConcepts.py's option A, the user's pick, 2026-10-06): skin and
 # shroud, then the shirt, the vest and hat, and the accents (bandana, hat band). A's are M_Ghost's defaults; MI_Ghost_A
@@ -59,12 +81,24 @@ CLOTHES = {
     'C': (SKIN, 0xa38f7e, 0x7b7f6e, 0xcfc095),   # harvest: dusty brown shirt (a rust one read as the legendary orange in sun), drab vest, straw
 }
 RIM = 0xdcecee            # pale and only barely cool, so no rarity color covers the body
+COLD_RIM = 0xa4e0ee       # the painted ghost's cold rim (sheet 1): a pale cyan, far from the rare blue
+STAIN = 0x9c8c78          # grave dirt: what a stain multiplies the cloth by at full strength (sRGB)
 BASIC_COAL = 0xb02a18     # a Basic coal's dull red: what a mesh no creature drives shows
 COAL_CRUST = 0x1d110c
 
 # The scalars on M_Ghost and their defaults: an instance that sets none of them looks right.
 DEFAULTS = dict(RimStrength=1.5, RimPower=2.8, GlowStrength=0.1, EmberStrength=3.0, NoiseScale=1.5, NoiseSpeed=0.06,
                 FadeSoftness=0.07, Coal=0.0, UVScale=1.0)
+# The painted ghost's (sheet 1). Heights are the mesh's own (pre-skinned) cm: every ghost is built standing on its origin,
+# the pelvis (the float height) at 100, the head at about 170 (Abel and the Foreman are scaled by their actors, not built
+# bigger). COAL_AT: the coal's middle at rest (Unpaid.py, DeadMiner.py, Abel.py, Amos.py, Foreman.py: 1.32-1.33 m up,
+# 0.24-0.3 rad round to his left from the front), within a few cm on every ghost; SK_Unpaid's coal bone, read back
+# from its FBX (Unreal's x forward, y right).
+PAINTED = dict(ClothScale=1.25, ClothWeave=0.30, SkinCloth=0.35, ClothFolds=0.22, ClothStains=0.45,
+               TopLightLow=0.80, TopLightHigh=1.15, TopLightFrom=95.0, TopLightTo=170.0, PropSize=60.0, PropTopLight=1.08,
+               CavityStrength=0.95, CavityPower=0.6, ColdRim=0.55, InnerGlow=0.6, InnerGlowRadius=22.0,
+               StreakAcross=3.0, StreakAlong=0.45, FadeBand=0.16)
+COAL_AT = (10.9, -5.9, 131.3)
 # Read from the creature's custom primitive data (UnpaidLook in Creatures/UnpaidCreature.h): never an instance's.
 PRIMITIVE_DATA = {'RankColor': 0, 'Phase': 4, 'Heat': 5}
 ZONES = ('Zone1Color', 'Zone2Color', 'Zone3Color', 'Zone4Color')
@@ -110,10 +144,21 @@ MEL = W.MEL
 GHOST_COLOR = """// Vertex R picks the tint zone: 0, 1/3, 2/3 and 1.
 float ZoneIndex = VertexColor.r * 3.0;
 float3 Cloth = ZoneIndex < 0.5 ? Zone1 : (ZoneIndex < 1.5 ? Zone2 : (ZoneIndex < 2.5 ? Zone3 : Zone4));
-// The Polymer grain runs through it by its brightness (about 0.8 on average, so the zone keeps its value), and the
-// cavities darken it (vertex G).
+// The Polymer grain runs through it by its brightness (about 0.8 on average, so the zone keeps its value).
 float Grain = clamp(dot(GrainColor, float3(0.299, 0.587, 0.114)) * 1.25, 0.5, 1.5);
-float3 Body = Cloth * Grain * Tint * (1.0 - 0.93 * VertexColor.g);
+// The painted cloth (T_GhostCloth_M): the weave and its seams mostly on the clothes (zone 1 is skin and shroud), the
+// hanging folds and the grave-dirt stains on everything. Each averages 1, so a zone keeps its value from afar.
+float OnCloth = ZoneIndex < 0.5 ? SkinCloth : 1.0;
+float Weave = 1.0 + ClothWeave * OnCloth * (Painted.r - 0.5) * 2.0;
+float Fold = 1.0 + ClothFolds * (Painted.g - 0.5) * 2.0;
+float3 Stain = lerp(float3(1.0, 1.0, 1.0), StainTint, saturate(Painted.b * ClothStains));
+// Top light painted in by height on the body (its own rest-pose cm): head and shoulders lit, darker toward the waist
+// and down the shroud. A small prop on the slot (the hat) has a small space of its own: it takes PropTopLight.
+float Up = smoothstep(TopFrom, TopTo, LocalPos.z);
+float Top = Bounds.z > PropSize ? lerp(TopLow, TopHigh, Up) : PropTop;
+// The cavities (vertex G) pushed harder than a straight darkening: sockets, mouth, under the vest.
+float Cavity = 1.0 - CavityStrength * pow(max(VertexColor.g, 1e-4), CavityPower);
+float3 Body = Cloth * Grain * Tint * Weave * Fold * Stain * (Top * Cavity);
 // The coal is a dark crust under its glow.
 return lerp(Body, Crust, saturate(CoalAmount));"""
 
@@ -122,27 +167,34 @@ GHOST_GLOW = """// The rank's color, which the creature sets in its custom primi
 float3 RankGlow = RankAlpha > 0.0 ? RankColor * RankAlpha : BasicColor * 1.8;
 float Burn = max(1.0 + Heat, 0.0);
 float Facing = abs(dot(normalize(Normal), normalize(CameraVector)));
-// RimPower keeps the rim to the silhouette: a low one covers a thin limb's whole face in daylight.
+// RimPower keeps the rim to the silhouette: a low one covers a thin limb's whole face in daylight. The rim leans cold
+// (ColdRim of the way to ColdRimColor): the light round a ghost against any ground.
 float RimAmount = pow(saturate(1.0 - Facing), RimPower);
-float Dark = 1.0 - 0.93 * VertexColor.g;
-// The body: a pale rim, a faint glow of its own (a ghost never goes fully dark) and the ember edge round the coal's hole
-// (vertex B).
-float3 BodyGlow = RimColor * (RimStrength * RimAmount * Dark) + BaseColor * GlowStrength
-    + RankGlow * (VertexColor.b * EmberStrength * Burn);
+float Dark = 1.0 - CavityStrength * pow(max(VertexColor.g, 1e-4), CavityPower);
+float3 Rim = lerp(RimColor, ColdRimColor, saturate(ColdRim));
+// The coal lights the body round it from inside, in the rank's color and as hot as it burns (a sunk ember: none).
+float Near = length(LocalPos - CoalAt) / max(InnerRadius, 1.0);
+float Inner = InnerGlow * exp(-Near * Near) * Burn;
+// The body: the rim, a faint glow of its own (a ghost never goes fully dark), the inner glow and the ember edge round
+// the coal's hole (vertex B).
+float3 BodyGlow = Rim * (RimStrength * RimAmount * Dark) + BaseColor * GlowStrength
+    + RankGlow * (VertexColor.b * EmberStrength * Burn + Inner * Dark);
 // The coal: glowing cracks in a dark crust, hottest in the middle where it faces the eye.
 float Crack = Texture2DSample(Noise, NoiseSampler, UV * 3.0 + float2(0.0, Time * 0.02)).r;
 float Cracks = lerp(0.25, 1.0, 1.0 - saturate(abs(Crack - 0.5) * 7.0));
 float3 CoalGlow = RankGlow * (EmberStrength * 1.6 * Burn * Cracks * lerp(0.45, 1.0, Facing));
 return lerp(BodyGlow, CoalGlow, saturate(CoalAmount));"""
 
-GHOST_OPACITY = """// Two scales of the noise drifting up the strips (UV 0's V runs down them).
+GHOST_OPACITY = """// Two scales of the noise drifting up the strips (UV 0's V runs down them), stretched along them into streaks, so the
+// shroud thins into the air in wisps.
 float2 Drift = float2(0.0, Time * NoiseSpeed);
-float N = Texture2DSample(Noise, NoiseSampler, (UV + Drift) * NoiseScale).r * 0.62
-        + Texture2DSample(Noise, NoiseSampler, (UV + Drift * 1.6) * (NoiseScale * 3.07) + float2(0.37, 0.11)).r * 0.38;
+float2 Streak = float2(StreakAcross, StreakAlong);
+float N = Texture2DSample(Noise, NoiseSampler, (UV + Drift) * NoiseScale * Streak).r * 0.62
+        + Texture2DSample(Noise, NoiseSampler, (UV + Drift * 1.6) * (NoiseScale * 3.07) * Streak + float2(0.37, 0.11)).r * 0.38;
 float Steep = 1.0 / max(FadeSoftness, 0.005);
-// The fade into the shroud (vertex A: 1 solid, 0 gone), broken up by the noise: mostly there or gone, with a thin
-// dithered band between. The coal never fades this way.
-float Shroud = lerp(saturate((Fade * 1.3 - 0.15 - N) * Steep + 0.5), 1.0, saturate(CoalAmount));
+// The fade into the shroud (vertex A: 1 solid, 0 gone), broken up by the streaks over a wide dithered band (FadeBand):
+// the strips melt away instead of ending in hard shards. The coal never fades this way.
+float Shroud = lerp(saturate((Fade * 1.3 - 0.15 - N) / max(FadeBand, 0.005) + 0.5), 1.0, saturate(CoalAmount));
 // The phase-step's dissolve, ordered by the same fade: the solid body goes first and the shroud's ends last, and coming
 // back the ends come first. The coal goes with the body.
 float Order = lerp(Fade * 0.75 + N * 0.25, 0.85, saturate(CoalAmount));
@@ -155,6 +207,43 @@ def noise_texture():
     if unreal.EditorAssetLibrary.does_asset_exist(W.MACRO_NOISE):
         return unreal.load_asset(W.MACRO_NOISE)
     return W.import_mask(W.MACRO_NOISE_FILE, W.MACRO_NOISE)
+
+
+def cloth_texture():
+    """T_GhostCloth_M: linear data (sRGB off, Masks compression), imported again whenever its PNG changes (its MD5 kept on
+    the texture as metadata). Its path, or a white stand-in (with a warning) until the PNG is made."""
+    if not os.path.exists(CLOTH_FILE):
+        unreal.log_warning(f'CREATUREMATS {CLOTH_FILE} is missing (run Art/Textures/GhostCloth/make_ghost_cloth.py): '
+                           'M_Ghost paints no cloth until it is made')
+        return W.WHITE
+    with open(CLOTH_FILE, 'rb') as f:
+        md5 = hashlib.md5(f.read()).hexdigest()
+    if unreal.EditorAssetLibrary.does_asset_exist(CLOTH_MAP):
+        if unreal.EditorAssetLibrary.get_metadata_tag(unreal.load_asset(CLOTH_MAP), 'SourceMD5') == md5:
+            return CLOTH_MAP
+    task = unreal.AssetImportTask()
+    task.set_editor_property('filename', CLOTH_FILE)
+    task.set_editor_property('destination_path', CLOTH_MAP.rsplit('/', 1)[0])
+    task.set_editor_property('replace_existing', True)
+    task.set_editor_property('automated', True)
+    task.set_editor_property('save', False)
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    texture = unreal.load_asset(CLOTH_MAP)
+    texture.set_editor_property('srgb', False)
+    texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_MASKS)
+    texture.set_editor_property('lod_group', unreal.TextureGroup.TEXTUREGROUP_WORLD_SPECULAR)
+    unreal.EditorAssetLibrary.set_metadata_tag(texture, 'SourceMD5', md5)
+    unreal.EditorAssetLibrary.save_loaded_asset(texture, only_if_is_dirty=False)
+    log(f'{CLOTH_MAP} imported (source {md5[:8]})')
+    return CLOTH_MAP
+
+
+def local_position(g, x, y):
+    """The mesh's own rest-pose position (pre-skinned, cm) handed from the vertex shader to the pixels, as M_Gun's notches
+    and M_CreatureTier's core read it: the top light and the coal's inner glow ride the body as it moves."""
+    local = g.node(unreal.MaterialExpressionVertexInterpolator, x, y)
+    g.link(g.node(unreal.MaterialExpressionPreSkinnedPosition, x - 300, y), '', local, 'VS')
+    return local
 
 
 def grain_texture():
@@ -181,6 +270,7 @@ def build_ghost():
     path = f'{W.FOLDER}/M_Ghost'
     if unreal.EditorAssetLibrary.does_asset_exist(path) and not isinstance(unreal.load_asset(path), unreal.Material):
         raise RuntimeError(f'{path} exists and is not a material: nothing was changed')
+    cloth_map = cloth_texture()
     mat = W.material('M_Ghost')
     mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_MASKED)
     mat.set_editor_property('two_sided', True)
@@ -189,20 +279,33 @@ def build_ghost():
     coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1800, 200, coordinate_index=0)
     grain_uv = g.mul(coords, '', g.scalar('UVScale', DEFAULTS['UVScale'], -1800, 320), '', -1600, 260)
     grain = g.texture('BaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, grain_texture(), grain_uv, -1400, 200)
+    cloth_uv = g.mul(coords, '', g.scalar('ClothScale', PAINTED['ClothScale'], -1800, 420), '', -1600, 400)
+    painted = g.texture('ClothMap', unreal.MaterialSamplerType.SAMPLERTYPE_MASKS, cloth_map, cloth_uv, -1400, 320)
     vertex = g.node(unreal.MaterialExpressionVertexColor, -1400, 500)
     noise = g.node(unreal.MaterialExpressionTextureObjectParameter, -1400, 700, parameter_name='NoiseMap', texture=noise_texture())
     time = g.node(unreal.MaterialExpressionTime, -1400, 850)
     coal = g.scalar('Coal', DEFAULTS['Coal'], -1400, 950)
     zones = [g.vector(name, linear(color), -1400, -600 + 100 * index) for index, (name, color) in enumerate(zip(ZONES, CLOTHES['A']))]
+    local = local_position(g, -1400, 1650)
+    bounds = g.node(unreal.MaterialExpressionObjectBounds, -1400, 1750)
+    p = {key: g.scalar(key, value, -2200, -900 + 60 * i) for i, (key, value) in enumerate(PAINTED.items()) if key != 'ClothScale'}
+    cavity = [('CavityStrength', p['CavityStrength'], ''), ('CavityPower', p['CavityPower'], '')]
 
     color = g.custom(GHOST_COLOR, [
         ('VertexColor', vertex, ''),
         ('GrainColor', grain, 'RGB'),
+        ('Painted', painted, 'RGB'),
         ('Zone1', zones[0], ''), ('Zone2', zones[1], ''), ('Zone3', zones[2], ''), ('Zone4', zones[3], ''),
         ('Tint', g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1400, -200), ''),
         ('Crust', g.node(unreal.MaterialExpressionConstant3Vector, -1400, -100, constant=unreal.LinearColor(*linear(COAL_CRUST))), ''),
         ('CoalAmount', coal, ''),
-    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -900, -300, 'Ghost color')
+        ('SkinCloth', p['SkinCloth'], ''), ('ClothWeave', p['ClothWeave'], ''), ('ClothFolds', p['ClothFolds'], ''),
+        ('ClothStains', p['ClothStains'], ''),
+        ('StainTint', g.vector('StainTint', linear(STAIN), -2200, 400), 'RGB'),
+        ('LocalPos', local, ''), ('Bounds', bounds, ''),
+        ('TopLow', p['TopLightLow'], ''), ('TopHigh', p['TopLightHigh'], ''), ('TopFrom', p['TopLightFrom'], ''),
+        ('TopTo', p['TopLightTo'], ''), ('PropSize', p['PropSize'], ''), ('PropTop', p['PropTopLight'], ''),
+    ] + cavity, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -900, -300, 'Ghost color')
 
     rank = g.node(unreal.MaterialExpressionVectorParameter, -1100, 1100, parameter_name='RankColor',
                   default_value=unreal.LinearColor(*linear(BASIC_COAL, 1.8)), use_custom_primitive_data=True,
@@ -221,7 +324,9 @@ def build_ghost():
         ('RankAlpha', rank, 'A'),
         ('BasicColor', g.node(unreal.MaterialExpressionConstant3Vector, -1100, 1500, constant=unreal.LinearColor(*linear(BASIC_COAL))), ''),
         ('Heat', heat, ''),
-        ('RimColor', g.vector('RimColor', linear(RIM), -1100, 600), ''),
+        ('RimColor', g.vector('RimColor', linear(RIM), -1100, 600), 'RGB'),
+        ('ColdRimColor', g.vector('ColdRimColor', linear(COLD_RIM), -2200, 500), 'RGB'),
+        ('ColdRim', p['ColdRim'], ''),
         ('RimStrength', g.scalar('RimStrength', DEFAULTS['RimStrength'], -1100, 700), ''),
         ('RimPower', g.scalar('RimPower', DEFAULTS['RimPower'], -1100, 750), ''),
         ('GlowStrength', g.scalar('GlowStrength', DEFAULTS['GlowStrength'], -1100, 800), ''),
@@ -230,7 +335,10 @@ def build_ghost():
         ('Noise', noise, ''),
         ('UV', coords, ''),
         ('Time', time, ''),
-    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, 300, 'Ghost glow')
+        ('LocalPos', local, ''),
+        ('CoalAt', g.vector('CoalAt', COAL_AT + (0.0,), -2200, 600), 'RGB'),
+        ('InnerGlow', p['InnerGlow'], ''), ('InnerRadius', p['InnerGlowRadius'], ''),
+    ] + cavity, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, 300, 'Ghost glow')
 
     opacity = g.custom(GHOST_OPACITY, [
         ('Fade', vertex, 'A'),
@@ -240,6 +348,7 @@ def build_ghost():
         ('NoiseScale', g.scalar('NoiseScale', DEFAULTS['NoiseScale'], -900, 1100), ''),
         ('NoiseSpeed', g.scalar('NoiseSpeed', DEFAULTS['NoiseSpeed'], -900, 1200), ''),
         ('FadeSoftness', g.scalar('FadeSoftness', DEFAULTS['FadeSoftness'], -900, 1300), ''),
+        ('StreakAcross', p['StreakAcross'], ''), ('StreakAlong', p['StreakAlong'], ''), ('FadeBand', p['FadeBand'], ''),
         ('Phase', phase, ''),
         ('CoalAmount', coal, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, 900, 'Ghost opacity')

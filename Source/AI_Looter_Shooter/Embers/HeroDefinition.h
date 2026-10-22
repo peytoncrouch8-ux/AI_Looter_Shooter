@@ -92,7 +92,7 @@ public:
 	 * from the hidden mannequin's hand, posed for its shoulders and eyes, and every hero's hands are pinned to its hands:
 	 * tall Crane held them at his chest, Pike had the sight above his eyes. The stance layer moves both hands by this
 	 * (LooterStancePoseDetail::ApplyHoldOffset), so the gun sits at the hero's own shoulder and eye line. Set by
-	 * create_ember_assets.py (THIRD_PERSON_HOLD), measured in play (Docs/Pipeline.md "The hero pick").
+	 * create_ember_assets.py (THIRD_PERSON_HOLD), measured in play (Docs/Pipeline/Heroes.md "The hero pick").
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
 	FVector ThirdPersonHold = FVector::ZeroVector;
@@ -104,7 +104,7 @@ public:
 	 * hat and broad Gauge's smokestacks filled the left of the view while aiming (2026-10-20). It is added to the view's
 	 * arm length and shoulder offset in the over-the-shoulder view only (the front view and first person don't use it), and
 	 * eases in when the hero changes mid-play. Set by create_ember_assets.py (THIRD_PERSON_CAMERA), tuned in play with the
-	 * Looter.ThirdPerson.* cvars (Docs/Pipeline.md "The hero pick").
+	 * Looter.ThirdPerson.* cvars (Docs/Pipeline/Heroes.md "The hero pick").
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
 	FVector ThirdPersonCamera = FVector::ZeroVector;

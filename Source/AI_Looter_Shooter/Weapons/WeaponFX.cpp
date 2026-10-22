@@ -26,11 +26,14 @@ namespace
 	 */
 	const TCHAR* ShapeMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Shape.M_FX_Shape");
 	const TCHAR* PuffMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Puff.M_FX_Puff");
+	/** VFX-2's alpha-blended fire rolling into soot (SpawnFlame): fire that keeps its colour in full sun. */
+	const TCHAR* FireMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Fire.M_FX_Fire");
 
 	constexpr int32 GlowFloats = 5;  // R, G, B, intensity, shape (0 = streak, 1 = round, 2 = six-pointed star)
 	constexpr int32 SmokeFloats = 4; // R, G, B, opacity
 	constexpr int32 PuffFloats = 6;  // R, G, B, opacity, seed (below 0: a plain soft disc), erosion (0 fresh .. 1 thinned away)
 	constexpr int32 ShapeFloats = 7; // R, G, B, intensity, shape (EVfxShape), param (thickness, heat or spikes), seed
+	constexpr int32 FireFloats = 10; // fire R, G, B, smoke R, G, B, opacity, heat (1 white-hot .. 0 smoke), seed, erosion
 
 	UMaterialInterface* LoadQuietly(const TCHAR* Path)
 	{
@@ -59,6 +62,10 @@ namespace
 		Instances->SetCastShadow(false);
 		Instances->SetCanEverAffectNavigation(false);
 		Instances->bReceivesDecals = false;
+		// Effects light nothing and are in no distance field or ray-traced scene (VFX-2: a rebuilt component was re-added there).
+		Instances->bAffectDistanceFieldLighting = false;
+		Instances->bAffectDynamicIndirectLighting = false;
+		Instances->bVisibleInRayTracing = false;
 		Instances->RegisterComponent();
 		return Instances;
 	}
@@ -133,6 +140,13 @@ void FWeaponFX::Initialize(UWorld* World)
 	}
 	// Rings, fireballs and starbursts on their own quads; without M_FX_Shape they're drawn on the glows (Redraw's stand-ins).
 	Shapes = ShapeMaterial ? MakeInstances(Actor, TEXT("Shapes"), Plane, ShapeMaterial, ShapeFloats) : nullptr;
+	// Fire and its soot, alpha-blended and drawn over the dust (a blast's skirt rolls out under its fire).
+	if (UMaterialInterface* FireMaterial = Tuning.bFire ? LoadQuietly(FireMaterialPath) : nullptr)
+	{
+		UInstancedStaticMeshComponent* FireInstances = MakeInstances(Actor, TEXT("Fire"), Plane, FireMaterial, FireFloats);
+		FireInstances->SetTranslucentSortPriority(1);
+		FireQuads = FireInstances;
+	}
 	Chips = MakeInstances(Actor, TEXT("Chips"), Cube, MakeSurface(Actor, StoneColor, 0.f), 0);
 	Droplets = MakeInstances(Actor, TEXT("Droplets"), Sphere, MakeSurface(Actor, IchorColor, 0.35f), 0);
 }
@@ -145,12 +159,14 @@ void FWeaponFX::Shutdown()
 	}
 	Owner.Reset();
 	Shapes.Reset();
+	FireQuads.Reset();
 	BitSets.Reset();
 	Particles.Reset();
 	Streaks.Reset();
 	WaterRings.Reset();
 	SpawnFloor.Reset();
 	HitStream.Reset();
+	KillStream.Reset();
 	bHasCamera = false;
 }
 

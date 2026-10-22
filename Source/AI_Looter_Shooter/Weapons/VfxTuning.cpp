@@ -46,6 +46,10 @@ namespace
 		TEXT("Rings, fireballs and starbursts on M_FX_Shape when it's in the game (read as a level's effects start)."), ECVF_Default);
 	TAutoConsoleVariable<bool> CVarVfxPuffs(TEXT("Looter.Vfx.Puffs"), VfxDefaults.bPuffs,
 		TEXT("Smoke on M_FX_Puff (noise-broken, eroding) when it's in the game (read as a level's effects start)."), ECVF_Default);
+	TAutoConsoleVariable<bool> CVarVfxFire(TEXT("Looter.Vfx.Fire"), VfxDefaults.bFire,
+		TEXT("Blasts' fire and soot on M_FX_Fire (alpha-blended) when it's in the game (read as a level's effects start)."), ECVF_Default);
+	TAutoConsoleVariable<bool> CVarVfxBurnTint(TEXT("Looter.Vfx.BurnTint"), VfxDefaults.bBurnTint,
+		TEXT("A power's burn tint on the bodies it burns (Slag Bomb's pool; an overlay: the body drawn again)."), ECVF_Default);
 	TAutoConsoleVariable<bool> CVarVfxSplats(TEXT("Looter.Vfx.Splats"), VfxDefaults.bSplats,
 		TEXT("Ground splats under kills and blasts."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarVfxSplatMax(TEXT("Looter.Vfx.Splat.Max"), VfxDefaults.SplatMax,
@@ -83,6 +87,8 @@ FVfxTuning FVfxTuning::Live()
 	Tuning.MaxParticles = FMath::Clamp(CVarVfxMaxParticles.GetValueOnGameThread(), 100, 4000);
 	Tuning.bShapes = CVarVfxShapes.GetValueOnGameThread();
 	Tuning.bPuffs = CVarVfxPuffs.GetValueOnGameThread();
+	Tuning.bFire = CVarVfxFire.GetValueOnGameThread();
+	Tuning.bBurnTint = CVarVfxBurnTint.GetValueOnGameThread();
 	Tuning.bSplats = CVarVfxSplats.GetValueOnGameThread();
 	Tuning.SplatMax = FMath::Clamp(CVarVfxSplatMax.GetValueOnGameThread(), 0, 64);
 	Tuning.SplatHold = VfxNotBelowZero(CVarVfxSplatHold);

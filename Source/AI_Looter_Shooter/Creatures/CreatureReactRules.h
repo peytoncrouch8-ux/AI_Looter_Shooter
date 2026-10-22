@@ -72,6 +72,8 @@ struct AI_LOOTER_SHOOTER_API FCreatureHitFlash
 
 	void Start(bool bCritical);
 	void Advance(float DeltaSeconds);
+	/** Over at once, linger and all (a death: the kind's death look shows, never a white body held by the kill's hit-stop). */
+	void Stop() { Time = Seconds + LingerSeconds; Strength = 0.f; }
 	bool IsOn() const { return Time < Seconds; }
 	/** The overlay is wanted: flashing, or lingering after one. */
 	bool IsWorn() const { return Time < Seconds + LingerSeconds; }

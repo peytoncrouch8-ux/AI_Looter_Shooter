@@ -2116,6 +2116,27 @@ CHARACTER_NORMAL = """// The map's normal toward flat by Strength (0 flat, 1 as 
 float3 N = float3(Map.xy * Strength, Map.z);
 return normalize(N);"""
 
+# The painted reflection (CHAR-ART item 4, 2026-10-22, sheet CharArt_3: Gauge's enamel and brass back to his pick C):
+# Medium has no Lumen and nothing near a character to reflect, so glossy enamel read as matte black plastic and polished
+# brass as flat yellow. A studio-style environment is painted instead, picked by the reflection vector's height: warm
+# ground below, a bright band at the horizon, sky above deepening toward the zenith; times Fresnel on the surface's own
+# specular colour (dielectric 8% x Specular, metal its base colour), the gloss (none from GlossFrom roughness up, full at
+# GlossFull: leather, cloth and rough metal take nothing), the occlusion, and the sun's own light (its illuminance over
+# pi: what a sunlit white surface sends back), so it dims with dusk and night as the lit parts do. Emissive: no capture,
+# no Lumen, one Custom node.
+CHARACTER_REFLECTION = """float3 Nn = normalize(N);
+float3 Vn = normalize(V);
+float3 R = reflect(-Vn, Nn);
+float3 Env = lerp(Ground, Horizon, smoothstep(-0.30, -0.02, R.z));
+Env = lerp(Env, Sky, smoothstep(0.03, 0.75, R.z));
+Env += Horizon * (Band * exp(-(R.z / max(BandWidth, 0.01)) * (R.z / max(BandWidth, 0.01))));
+float3 F0 = lerp(float3(0.08, 0.08, 0.08) * Specular, BaseColor, saturate(Metal));
+float NoV = saturate(dot(Nn, Vn));
+float3 F = F0 + (1.0 - F0) * pow(1.0 - NoV, 5.0);
+float Gloss = smoothstep(GlossFrom, GlossFull, Rough);
+float Light = max(dot(max(SunLight, 0.0), float3(0.2126, 0.7152, 0.0722)), Floor) / 3.14159;
+return Env * F * (Gloss * saturate(Occlusion) * Light * Strength);"""
+
 CLOTH_FUZZ = """// Fibres catch the light paler and less saturated than the dyed cloth under them.
 float Luma = dot(Color, float3(0.299, 0.587, 0.114));
 float3 Pale = lerp(Color, float3(Luma, Luma, Luma), 0.35);
@@ -2158,10 +2179,18 @@ def character_surface(g, orm_default, uv_x=-1600):
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
     g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    g.surface = dict(rough=rough, orm=orm, ao=ao, normal=normal)
     return color, bc
 
 
 CHARACTER_USAGES = [unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH]
+
+# The painted reflection's defaults (CHARACTER_REFLECTION): every M_Character slot has it, gated by its gloss, so leather
+# and rough iron take nothing and the slots set nothing new. Colours linear, relative to a sunlit white surface.
+REFLECTION_DEFAULTS = dict(ReflectionStrength=1.0, GlossFrom=0.55, GlossFull=0.15, HorizonBand=0.6, HorizonWidth=0.08,
+                           ReflectionFloor=0.0)
+REFLECTION_COLORS = dict(ReflectSky=(0.42, 0.52, 0.66, 1.0), ReflectHorizon=(1.0, 0.94, 0.84, 1.0),
+                         ReflectGround=(0.16, 0.12, 0.085, 1.0))
 
 
 def build_character(orm_default):
@@ -2169,8 +2198,62 @@ def build_character(orm_default):
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
     g = Graph(mat)
     color, _ = character_surface(g, orm_default)
+    specular = g.scalar('Specular', 0.5, -400, -150)
     g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
-    g.out(g.scalar('Specular', 0.5, -400, -150), '', unreal.MaterialProperty.MP_SPECULAR)
+    g.out(specular, '', unreal.MaterialProperty.MP_SPECULAR)
+    s = g.surface
+    r = {key: g.scalar(key, value, -800, 1300 + 60 * i) for i, (key, value) in enumerate(REFLECTION_DEFAULTS.items())}
+    c = {key: g.vector(key, value, -800, 1700 + 80 * i) for i, (key, value) in enumerate(REFLECTION_COLORS.items())}
+    # The pixel normal: the normal map's (Normal is wired above), in world space.
+    reflection = g.custom(CHARACTER_REFLECTION, [
+        ('N', g.node(unreal.MaterialExpressionPixelNormalWS, -400, 1300), ''),
+        ('V', g.node(unreal.MaterialExpressionCameraVectorWS, -400, 1400), ''),
+        ('BaseColor', color, ''), ('Metal', s['orm'], 'B'), ('Rough', s['rough'], ''), ('Occlusion', s['ao'], ''),
+        ('Specular', specular, ''),
+        ('SunLight', g.node(unreal.MaterialExpressionSkyAtmosphereLightIlluminance, -400, 1500), ''),
+        ('Sky', c['ReflectSky'], 'RGB'), ('Horizon', c['ReflectHorizon'], 'RGB'), ('Ground', c['ReflectGround'], 'RGB'),
+        ('Band', r['HorizonBand'], ''), ('BandWidth', r['HorizonWidth'], ''),
+        ('GlossFrom', r['GlossFrom'], ''), ('GlossFull', r['GlossFull'], ''),
+        ('Floor', r['ReflectionFloor'], ''), ('Strength', r['ReflectionStrength'], ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 0, 1300, 'Painted reflection')
+    g.out(reflection, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    finish(mat, CHARACTER_USAGES)
+    return mat
+
+
+# M_CharacterGlow (CHAR-ART items 4 and 11, 2026-10-22): the heroes' glowing eyes and Gauge's lamp, which burned out to flat
+# white ovals on M_StylizedGlow (one colour times Glow over the whole mesh). Unlit, opaque (the eyes sit in their sockets;
+# an emissive surface, as Nanite and the sorting want): Color x Glow shaped by where the surface faces in the mesh's own
+# space (pre-skinned: the head's turns don't move it). Forward (+Y, the heroes face it) is the iris: a hot core toward
+# white (Core, CorePower, CoreWhite), an iris ring a little out from it (Ring, RingAt, RingWidth), the rest of the ball
+# soft and dimmer (BodyShare, falling to Edge at the sides); Tint multiplies it. Gauge's lamp is a shallow lens facing forward: the same profile is
+# its hot core. The exporter maps the heroes' eye glows and the lamp onto it (looter_export.CHARACTER_GLOWS).
+CHARACTER_GLOW = """float3 Nl = normalize(LocalNormal);
+float Front = saturate(dot(Nl, normalize(Forward)));
+float Body = lerp(Edge, 1.0, Front * Front) * BodyShare;
+float Iris = Ring * exp(-((Front - RingAt) / max(RingWidth, 0.01)) * ((Front - RingAt) / max(RingWidth, 0.01)));
+float Hot = Core * pow(Front, CorePower);
+float3 C = Color * (Body + Iris) + lerp(Color, float3(1.0, 1.0, 1.0), CoreWhite) * Hot;
+return C * Tint * Glow;"""
+GLOW_DEFAULTS = dict(Glow=4.0, BodyShare=0.32, Edge=0.25, Ring=0.45, RingAt=0.72, RingWidth=0.10, Core=0.9,
+                     CorePower=10.0, CoreWhite=0.55)
+
+
+def build_character_glow():
+    mat = material('M_CharacterGlow')
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_OPAQUE)
+    g = Graph(mat)
+    normal = g.node(unreal.MaterialExpressionVertexInterpolator, -800, 300)
+    g.link(g.node(unreal.MaterialExpressionPreSkinnedNormal, -1100, 300), '', normal, 'VS')
+    p = {key: g.scalar(key, value, -800, -400 + 60 * i) for i, (key, value) in enumerate(GLOW_DEFAULTS.items())}
+    glow = g.custom(CHARACTER_GLOW, [
+        ('LocalNormal', normal, ''),
+        ('Forward', g.vector('Forward', (0.0, 1.0, 0.0, 0.0), -800, 400), 'RGB'),
+        ('Color', g.vector('Color', (0.10, 0.70, 1.0, 1.0), -800, 500), 'RGB'),
+        ('Tint', g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -800, 600), 'RGB'),
+    ] + [(key, node, '') for key, node in p.items()], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 0, 'Glow')
+    g.out(glow, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     finish(mat, CHARACTER_USAGES)
     return mat
 
@@ -2319,7 +2402,7 @@ def build_character_hair(orm_default):
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
             'M_Character': lambda: build_character(DEFAULT_ORM), 'M_CharacterCloth': lambda: build_character_cloth(DEFAULT_ORM),
             'M_CharacterSkin': lambda: build_character_skin(DEFAULT_ORM),
-            'M_CharacterHair': lambda: build_character_hair(DEFAULT_ORM),
+            'M_CharacterHair': lambda: build_character_hair(DEFAULT_ORM), 'M_CharacterGlow': build_character_glow,
             'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
             'M_Waterfall': build_waterfall, 'M_WaterMist': build_water_mist, 'M_Smoke': build_smoke,

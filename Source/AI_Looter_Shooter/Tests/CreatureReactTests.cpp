@@ -353,6 +353,21 @@ bool FCreatureReactHitFlashTest::RunTest(const FString& Parameters)
 	{
 		TestTrue(TEXT("...off its body"), Spider->GetMesh()->OverlayMaterial.Get() == nullptr);
 	}
+
+	// A power's burn tick flashes nothing (its tint shows the burn).
+	{
+		UCreatureReactComponent::FQuietHits Quiet;
+		BossTestWorld::Hurt(Spider, 1.f);
+	}
+	TestFalse(TEXT("A quiet burn tick: no flash"), React->GetFlash().IsOn() || React->IsFlashWorn());
+
+	// The killing shot: the body shows its death, never a white flash held through the kill's hit-stop (the white ghost).
+	BossTestWorld::Kill(Spider);
+	TestTrue(TEXT("Killed: no flash on the corpse"), !React->GetFlash().IsOn() && !React->IsFlashWorn());
+	if (Look)
+	{
+		TestTrue(TEXT("...its overlay off at once"), Spider->GetMesh()->OverlayMaterial.Get() == nullptr);
+	}
 	return true;
 }
 

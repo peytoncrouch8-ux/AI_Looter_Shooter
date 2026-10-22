@@ -16,7 +16,8 @@
 
 namespace
 {
-	// Dust, spray and smoke as the unlit smoke material shows them: about as the afternoon light shows each.
+	// Dust, spray and smoke as the unlit smoke material shows them: about as the afternoon sun shows each (times ImpactShade:
+	// darker in shade).
 	const FLinearColor ImpactDirtDust(0.5f, 0.41f, 0.31f);
 	const FLinearColor ImpactGrassDust(0.5f, 0.48f, 0.37f);
 	const FLinearColor ImpactSandDust(0.74f, 0.65f, 0.5f);
@@ -46,14 +47,21 @@ namespace
 	const FLinearColor ImpactFlashColor(1.f, 0.72f, 0.4f);
 	const FLinearColor ImpactGlintColor(0.85f, 0.95f, 1.f);
 	const FLinearColor ImpactCritColor(1.f, 0.85f, 0.3f);
-	/** A geyser's thrown soil and stone dust: darker than the hanging dust, so the column reads against the ground it rose from. */
-	const FLinearColor ImpactGeyserDirt(0.2f, 0.15f, 0.1f);
-	const FLinearColor ImpactGeyserStone(0.3f, 0.28f, 0.25f);
+	/** A geyser's thrown soil and stone grit: darker than the hanging dust, so the column reads against the ground it rose from. */
+	const FLinearColor ImpactGeyserDirt(0.17f, 0.105f, 0.055f);
+	const FLinearColor ImpactGeyserStone(0.22f, 0.2f, 0.18f);
+	/** A stone hit's dust jet: pale, against the dark of the rock (VFX-2). */
+	const FLinearColor ImpactStoneJet(0.7f, 0.67f, 0.62f);
+	/** Soil crumbs (lit, round) thrown in a fan with the clods; pale stone flakes with the dark chips (VFX-2). */
+	const FLinearColor ImpactCrumbColor(0.085f, 0.06f, 0.038f);
+	const FLinearColor ImpactFlakeStoneColor(0.55f, 0.52f, 0.47f);
 
 	// The pass's numbers (a rifle round's, at Looter.Vfx.Impact.Scale 1).
 	/** A geyser's puffs: how many, how fast the first leaves (cm/s; each next a little slower), their sizes and life. */
 	constexpr int32 GeyserPuffs = 3;
 	constexpr float GeyserSpeed = 340.f;
+	/** A dense geyser's billows (VFX-2): thrown harder, so the column stands about a metre tall before it slumps. */
+	constexpr float GeyserDenseSpeed = 520.f;
 	/** A skirt's puffs rolling out over the surface, their speed (cm/s). */
 	constexpr int32 SkirtPuffs = 3;
 	constexpr float SkirtSpeed = 240.f;
@@ -104,6 +112,10 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 	const float Weight = VfxRules::HitWeight(Scale);
 	FVector SideA, SideB;
 	Up.FindBestAxisVectors(SideA, SideB);
+	// VFX-2 (2026-10-22): puffs and chunks drawn bigger far off (a hit at 10-30 m read as a few pale pixels), and the dust
+	// in the light where it is (darker in shade; the colours below are as full sun shows them).
+	const float Seen = Size * VfxRules::ImpactViewScale(bHasCamera ? static_cast<float>(FVector::Dist(Location, LastCamera)) : 0.f);
+	const FLinearColor Shade = ImpactShade(Location);
 
 	auto Flash = [this, &Point, Size](const FLinearColor& Color, float Intensity, float From, float To, float Life)
 	{
@@ -127,7 +139,7 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 			Spark.Drag = 1.5f;
 		}
 	};
-	auto Puffs = [this, &Point, &Up, &Bounce, Size, Reach](int32 Count, const FLinearColor& Color, float Opacity, float From, float To,
+	auto Puffs = [this, &Point, &Up, &Bounce, Seen, Reach, &Shade](int32 Count, const FLinearColor& Color, float Opacity, float From, float To,
 		float MinRise, float MaxRise, float Life, float Along)
 	{
 		for (int32 Index = 0; Index < Count; ++Index)
@@ -135,32 +147,32 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 			const FVector Velocity = (Up * Random.FRandRange(MinRise, MaxRise) + Bounce * Along * Random.FRandRange(60.f, 140.f)) * Reach
 				+ Random.GetUnitVector() * 30.f;
 			FParticle& Puff = AddParticle(EParticle::Smoke, Point, Velocity, Life * Random.FRandRange(0.8f, 1.2f));
-			Puff.Color = Color;
+			Puff.Color = Color * Shade;
 			Puff.Intensity = Opacity;
-			Puff.StartSize = From * Size * Random.FRandRange(0.8f, 1.2f);
-			Puff.EndSize = To * Size * Random.FRandRange(0.85f, 1.15f);
+			Puff.StartSize = From * Seen * Random.FRandRange(0.8f, 1.2f);
+			Puff.EndSize = To * Seen * Random.FRandRange(0.85f, 1.15f);
 			Puff.Gravity = -0.04f;
 			Puff.Drag = 2.5f;
 		}
 	};
-	auto Throw = [this, &Point, &Up, &Bounce, &Shot, Size, Reach](int32 Count, uint8 Set, float MinSize, float MaxSize, float MinSpeed,
+	auto Throw = [this, &Point, &Up, &Bounce, &Shot, Seen, Reach](int32 Count, uint8 Set, float MinSize, float MaxSize, float MinSpeed,
 		float MaxSpeed, float Life, float Along, float Drag)
 	{
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const FVector Direction = (Up * 0.9f + (Along >= 0.f ? Bounce : Shot) * FMath::Abs(Along) + Random.GetUnitVector() * 0.55f).GetSafeNormal();
-			FParticle& Bit = AddBit(Set, Point, Direction * Random.FRandRange(MinSpeed, MaxSpeed) * Reach, Random.FRandRange(MinSize, MaxSize) * Size,
+			FParticle& Bit = AddBit(Set, Point, Direction * Random.FRandRange(MinSpeed, MaxSpeed) * Reach, Random.FRandRange(MinSize, MaxSize) * Seen,
 				Life * Random.FRandRange(0.8f, 1.25f));
 			Bit.Drag = Drag;
 		}
 	};
-	auto StoneChips = [this, &Point, &Up, Size, Reach](int32 Count, float MinSize, float MaxSize, float MinSpeed, float MaxSpeed)
+	auto StoneChips = [this, &Point, &Up, Seen, Reach](int32 Count, float MinSize, float MaxSize, float MinSpeed, float MaxSpeed)
 	{
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const FVector Direction = (Up * 0.9f + Random.GetUnitVector() * 0.6f).GetSafeNormal();
-			FParticle& Chip = AddParticle(EParticle::Chip, Point, Direction * Random.FRandRange(MinSpeed, MaxSpeed) * Reach, Random.FRandRange(0.5f, 0.8f));
-			Chip.StartSize = Random.FRandRange(MinSize, MaxSize) * Size;
+			FParticle& Chip = AddParticle(EParticle::Chip, Point, Direction * Random.FRandRange(MinSpeed, MaxSpeed) * Reach, Random.FRandRange(0.6f, 1.f));
+			Chip.StartSize = Random.FRandRange(MinSize, MaxSize) * Seen;
 			Chip.Rotation = FQuat(Random.GetUnitVector(), Random.FRandRange(0.f, 2.f * UE_PI));
 			Chip.Spin = Random.GetUnitVector() * Random.FRandRange(8.f, 20.f);
 		}
@@ -168,26 +180,44 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 	// --- The pass's layers ---
 	// A geyser: puffs shot up the normal (a little along the bounce), each slower than the last, so they stack into a column
 	// that hangs and spreads: the dirt kicked up by a round, readable at range.
-	auto Geyser = [this, &Point, &Up, &Bounce, Size, Reach, Extra, &Vfx](int32 Full, const FLinearColor& Color, float Opacity, float From,
-		float To, float Life)
+	// VFX-2: a dense geyser (bDense) is thrown as billows of M_FX_Fire with no heat (soot's shading, alpha-blended and thick):
+	// the soft round puffs read as pale blobs on a sunlit road; the billows read as dirt thrown up.
+	auto Geyser = [this, &Point, &Up, &Bounce, Seen, Reach, Extra, &Vfx, &Shade](int32 Full, const FLinearColor& Color, float Opacity, float From,
+		float To, float Life, bool bDense = false)
 	{
 		const int32 Count = VfxRules::Count(Full, Extra);
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const float Slower = 1.f - 0.55f * static_cast<float>(Index) / FMath::Max(Count, 1);
 			const FVector Way = (Up + Bounce * 0.15f + Random.GetUnitVector() * 0.12f).GetSafeNormal();
+			if (bDense)
+			{
+				FVfxFlame Billow;
+				Billow.Location = Point;
+				Billow.Velocity = Way * GeyserDenseSpeed * Slower * Reach;
+				Billow.StartSize = From * Seen * (1.f - 0.3f * (1.f - Slower));
+				Billow.EndSize = To * Seen * Random.FRandRange(0.85f, 1.15f);
+				Billow.Smoke = Color * Shade;
+				Billow.Opacity = FMath::Min(Opacity * Vfx.Smoke, 1.f);
+				Billow.Life = Life * Random.FRandRange(0.85f, 1.15f);
+				Billow.Burn = 0.f;
+				Billow.Gravity = 0.35f;
+				Billow.Drag = 3.2f;
+				SpawnFlame(Billow);
+				continue;
+			}
 			FParticle& Puff = AddParticle(EParticle::Smoke, Point, Way * GeyserSpeed * Slower * Reach, Life * Random.FRandRange(0.85f, 1.15f));
-			Puff.Color = Color;
+			Puff.Color = Color * Shade;
 			Puff.Intensity = FMath::Min(Opacity * Vfx.Smoke, 1.f);
-			Puff.StartSize = From * Size * (1.f - 0.3f * (1.f - Slower));
-			Puff.EndSize = To * Size * Random.FRandRange(0.85f, 1.15f);
+			Puff.StartSize = From * Seen * (1.f - 0.3f * (1.f - Slower));
+			Puff.EndSize = To * Seen * Random.FRandRange(0.85f, 1.15f);
 			// Thrown dirt falls back: the column slumps as it spreads.
 			Puff.Gravity = 0.35f;
 			Puff.Drag = 3.2f;
 		}
 	};
 	// A skirt: low puffs rolling out over the surface round the hit.
-	auto Skirt = [this, &Point, &Up, &SideA, &SideB, Size, Reach, Extra, &Vfx](int32 Full, const FLinearColor& Color, float Opacity, float From,
+	auto Skirt = [this, &Point, &Up, &SideA, &SideB, Seen, Reach, Extra, &Vfx, &Shade](int32 Full, const FLinearColor& Color, float Opacity, float From,
 		float To, float Life)
 	{
 		const int32 Count = VfxRules::Count(Full, Extra);
@@ -195,12 +225,12 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		{
 			const float Angle = UE_TWO_PI * (static_cast<float>(Index) + Random.FRandRange(-0.3f, 0.3f)) / FMath::Max(Count, 1);
 			const FVector Out = SideA * FMath::Cos(Angle) + SideB * FMath::Sin(Angle);
-			FParticle& Puff = AddParticle(EParticle::Smoke, Point + Out * 6.f * Size, (Out * SkirtSpeed + Up * 30.f) * Reach,
+			FParticle& Puff = AddParticle(EParticle::Smoke, Point + Out * 6.f * Seen, (Out * SkirtSpeed + Up * 30.f) * Reach,
 				Life * Random.FRandRange(0.85f, 1.15f));
-			Puff.Color = Color;
+			Puff.Color = Color * Shade;
 			Puff.Intensity = FMath::Min(Opacity * Vfx.Smoke, 1.f);
-			Puff.StartSize = From * Size;
-			Puff.EndSize = To * Size * Random.FRandRange(0.85f, 1.15f);
+			Puff.StartSize = From * Seen;
+			Puff.EndSize = To * Seen * Random.FRandRange(0.85f, 1.15f);
 			Puff.Gravity = -0.02f;
 			Puff.Drag = 4.f;
 		}
@@ -215,13 +245,13 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		SpawnStarburst(Point, HardPopSize * Weight * (bPellet ? 0.6f : 1.f), Color, HardPopGlow * Strength * Vfx.Glow, HardPopLife, Spikes);
 	};
 	// A few big pieces of what it struck, thrown high (a hit's weight: the chunk you watch fall).
-	auto BigChunks = [this, &Point, &Up, &Bounce, Size, Reach, Extra](int32 Full, uint8 Set, float MinSize, float MaxSize)
+	auto BigChunks = [this, &Point, &Up, &Bounce, Seen, Reach, Extra](int32 Full, uint8 Set, float MinSize, float MaxSize)
 	{
 		const int32 Count = VfxRules::Count(Full, Extra);
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const FVector Direction = (Up * 1.2f + Bounce * 0.3f + Random.GetUnitVector() * 0.5f).GetSafeNormal();
-			FParticle& Chunk = AddBit(Set, Point, Direction * Random.FRandRange(320.f, 560.f) * Reach, Random.FRandRange(MinSize, MaxSize) * Size,
+			FParticle& Chunk = AddBit(Set, Point, Direction * Random.FRandRange(320.f, 560.f) * Reach, Random.FRandRange(MinSize, MaxSize) * Seen,
 				Random.FRandRange(0.9f, 1.3f));
 			Chunk.Drag = 0.2f;
 		}
@@ -232,27 +262,29 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 	case EImpactMaterial::Dirt:
 	{
 		// A dull hit: soil thrown up in a column and a wider brown puff, clods tossed out that fall back. The pass: a geyser of
-		// soil up the normal, a skirt of dust rolling out over the ground, two big clods thrown high.
-		Flash(ImpactFlashColor, 5.f, 10.f, 18.f, 0.05f);
-		Puffs(1, ImpactDirtDust, 0.6f, 10.f, 50.f, 180.f, 260.f, 0.9f, 0.2f);
-		Puffs(Many(2), ImpactDirtDust, 0.5f, 14.f, 70.f, 50.f, 110.f, 1.1f, 0.5f);
+		// soil up the normal, a skirt of dust rolling out over the ground, two big clods thrown high. VFX-2: the geyser dark
+		// soil and denser (it read as a pale puff on the sunlit road), a fan of soil spray, more and chunkier clods.
+		Puffs(1, ImpactDirtDust, 0.6f, 20.f, 90.f, 200.f, 300.f, 0.9f, 0.2f);
+		Puffs(Many(2), ImpactDirtDust, 0.5f, 24.f, 115.f, 50.f, 110.f, 1.1f, 0.5f);
 		const uint8 Clods = BitSetFor(EBitShape::Plate, ImpactClodColor, 0.f);
-		Throw(Many(7), Clods, 1.6f, 3.6f, 250.f, 650.f, 0.9f, 0.3f, 0.3f);
-		Geyser(GeyserPuffs, ImpactGeyserDirt, 0.95f, 20.f, 80.f, 1.2f);
-		Skirt(SkirtPuffs, ImpactDirtDust, 0.45f, 14.f, 60.f, 1.2f);
-		BigChunks(2, Clods, 3.5f, 5.5f);
+		const uint8 Crumbs = BitSetFor(EBitShape::Round, ImpactCrumbColor, 0.f);
+		Throw(Many(9), Clods, 3.5f, 6.5f, 280.f, 720.f, 1.f, 0.3f, 0.3f);
+		Throw(Many(12), Crumbs, 2.4f, 4.4f, 420.f, 950.f, 0.75f, 0.15f, 0.6f);
+		Geyser(GeyserPuffs + 2, ImpactGeyserDirt, 1.f, 30.f, 130.f, 1.3f, true);
+		Skirt(SkirtPuffs, ImpactDirtDust, 0.5f, 24.f, 110.f, 1.3f);
+		BigChunks(3, Clods, 7.f, 11.f);
 		break;
 	}
 	case EImpactMaterial::Grass:
 	{
 		// Softer: shreds of green and a little soil, a lighter puff; a short geyser and torn turf thrown high.
 		Flash(ImpactFlashColor, 4.f, 9.f, 16.f, 0.05f);
-		Puffs(Many(2), ImpactGrassDust, 0.42f, 12.f, 55.f, 60.f, 140.f, 0.9f, 0.4f);
+		Puffs(Many(2), ImpactGrassDust, 0.42f, 20.f, 90.f, 60.f, 140.f, 0.9f, 0.4f);
 		const uint8 Turf = BitSetFor(EBitShape::Splinter, ImpactTurfColor, 0.f);
-		Throw(Many(6), Turf, 1.2f, 2.4f, 200.f, 500.f, 0.8f, 0.3f, 1.2f);
-		Throw(Many(3), BitSetFor(EBitShape::Plate, ImpactClodColor, 0.f), 1.2f, 2.6f, 200.f, 480.f, 0.8f, 0.2f, 0.3f);
-		Geyser(2, ImpactGeyserDirt, 0.75f, 12.f, 56.f, 1.f);
-		BigChunks(2, Turf, 3.f, 4.5f);
+		Throw(Many(6), Turf, 2.f, 3.6f, 200.f, 500.f, 0.8f, 0.3f, 1.2f);
+		Throw(Many(3), BitSetFor(EBitShape::Plate, ImpactClodColor, 0.f), 2.2f, 4.f, 200.f, 480.f, 0.8f, 0.2f, 0.3f);
+		Geyser(3, ImpactGeyserDirt, 0.85f, 22.f, 100.f, 1.1f, true);
+		BigChunks(2, Turf, 5.f, 7.5f);
 		break;
 	}
 	case EImpactMaterial::Gravel:
@@ -260,16 +292,16 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		Flash(ImpactFlashColor, 9.f, 12.f, 24.f, 0.06f);
 		HardPop(ImpactSparkColor, 0.6f, 6);
 		Sparks(Many(3), ImpactSparkColor, 22.f, 400.f, 1000.f, 0.1f, 0.22f);
-		Puffs(Many(2), ImpactStoneDust, 0.5f, 10.f, 55.f, 60.f, 130.f, 0.8f, 0.5f);
-		Geyser(2, ImpactStoneDust, 0.55f, 8.f, 38.f, 0.7f);
-		StoneChips(Many(7), 1.2f, 2.6f, 300.f, 750.f);
+		Puffs(Many(2), ImpactStoneDust, 0.5f, 16.f, 85.f, 60.f, 130.f, 0.8f, 0.5f);
+		Geyser(2, ImpactStoneDust, 0.55f, 14.f, 70.f, 0.8f);
+		StoneChips(Many(7), 2.f, 3.8f, 300.f, 750.f);
 		break;
 	case EImpactMaterial::Sand:
 		// No hard edge to it: a pale spray that hangs, and fine grains thrown with the shot; a tall spray column and a skirt.
-		Puffs(Many(3), ImpactSandDust, 0.55f, 16.f, 80.f, 70.f, 170.f, 1.2f, 0.9f);
-		Geyser(4, ImpactSandDust, 0.6f, 10.f, 52.f, 1.1f);
-		Skirt(SkirtPuffs, ImpactSandDust, 0.4f, 14.f, 64.f, 1.3f);
-		StoneChips(Many(5), 0.6f, 1.2f, 200.f, 520.f);
+		Puffs(Many(3), ImpactSandDust, 0.55f, 24.f, 120.f, 70.f, 170.f, 1.2f, 0.9f);
+		Geyser(4, ImpactSandDust, 0.6f, 16.f, 90.f, 1.2f);
+		Skirt(SkirtPuffs, ImpactSandDust, 0.4f, 22.f, 105.f, 1.3f);
+		StoneChips(Many(5), 1.f, 2.f, 200.f, 520.f);
 		break;
 	case EImpactMaterial::Stone:
 		// The classic: a hot flash, sparks, stone dust and chips. The pass: a hard starburst, a jet of stone dust off the face,
@@ -277,10 +309,14 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		Flash(ImpactFlashColor, 16.f, 16.f, 32.f, 0.07f);
 		HardPop(ImpactFlashColor, 1.f, 8);
 		Sparks(Many(7), ImpactSparkColor, 26.f, 450.f, 1300.f, 0.12f, 0.3f);
-		Puffs(Many(2), ImpactStoneDust, 0.55f, 10.f, 60.f, 50.f, 120.f, 0.75f, 0.4f);
-		Geyser(3, ImpactGeyserStone, 0.9f, 16.f, 70.f, 1.1f);
-		StoneChips(Many(5), 1.4f, 2.8f, 250.f, 650.f);
-		StoneChips(VfxRules::Count(2, Extra), 3.f, 4.5f, 300.f, 520.f);
+		// VFX-2: contrast both ways, so it reads on dark rock and light: a pale dust jet off the face with a dark grit core,
+		// dark chips and pale flakes thrown out, a couple big enough to watch fall.
+		Puffs(Many(2), ImpactStoneDust, 0.6f, 20.f, 100.f, 50.f, 120.f, 0.8f, 0.4f);
+		Geyser(4, ImpactStoneJet, 0.95f, 26.f, 120.f, 1.2f, true);
+		Geyser(2, ImpactGeyserStone, 0.9f, 18.f, 70.f, 0.7f, true);
+		StoneChips(Many(7), 3.5f, 6.5f, 280.f, 700.f);
+		Throw(Many(5), BitSetFor(EBitShape::Plate, ImpactFlakeStoneColor, 0.f), 2.4f, 4.4f, 260.f, 640.f, 0.9f, 0.3f, 0.4f);
+		StoneChips(VfxRules::Count(3, Extra), 7.f, 10.f, 300.f, 560.f);
 		break;
 	case EImpactMaterial::Wood:
 	{
@@ -411,6 +447,26 @@ FLinearColor FWeaponFX::WaterTint(const FVector& Where)
 		WaterLightAt = Now;
 	}
 	return FWaterRings::FoamAlbedo() * WaterLight;
+}
+
+FLinearColor FWeaponFX::ImpactShade(const FVector& Where)
+{
+	const AActor* Actor = Owner.Get();
+	const UWorld* World = Actor ? Actor->GetWorld() : nullptr;
+	if (!World)
+	{
+		return FLinearColor::White;
+	}
+	// One trace toward the sun per spot and moment: a stream of fire into one place asks once.
+	const double Now = World->GetTimeSeconds();
+	if (Now - ImpactLightAt >= ImpactLightSeconds || Now < ImpactLightAt || FVector::DistSquared(Where, ImpactLightWhere) > FMath::Square(ImpactLightReach))
+	{
+		// FDustLight's full sun is twice the dust's own colour; the colours here are as full sun shows them already.
+		ImpactLight = ImpactDustLight.At(*World, Where + FVector(0.0, 0.0, 40.0), *Actor) * 0.5f;
+		ImpactLightWhere = Where;
+		ImpactLightAt = Now;
+	}
+	return ImpactLight;
 }
 
 int32 FWeaponFX::SpawnWaterRings(const FVector& Location, const FVector& Normal, float Size, const FLinearColor* Light)

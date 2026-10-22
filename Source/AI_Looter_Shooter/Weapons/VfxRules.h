@@ -34,6 +34,13 @@ namespace VfxRules
 	AI_LOOTER_SHOOTER_API bool IsHeavyRound(float MarkScale);
 
 	/**
+	 * How much bigger a world hit's puffs and chunks are drawn Distance cm from the camera (VFX-2, 2026-10-22): 1 within
+	 * 10 m, growing to 1.8 by 30 m and held there, so a round's dirt or stone dust still reads as a hit at 10-30 m instead of
+	 * a few pale pixels (the pieces keep roughly their screen size; their counts are DetailAt's).
+	 */
+	AI_LOOTER_SHOOTER_API float ImpactViewScale(float Distance);
+
+	/**
 	 * How big a kill's layers are (1 a rifle's body kill): by the gun (a shotgun's or a rocket's throws more, an SMG's a
 	 * little less), a crit (more), and how far past dead the killing hit went (Share over 1 adds up to 0.3).
 	 */

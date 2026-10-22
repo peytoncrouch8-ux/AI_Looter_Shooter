@@ -53,40 +53,6 @@ namespace
 		return FTransform(Rotation, Location, FVector(Size / 100.f, Size / 100.f, 1.f));
 	}
 
-	/** Replaces a component's instances with these (moved in place when the count is unchanged). */
-	void Draw(UInstancedStaticMeshComponent* Instances, const TArray<FTransform>& Transforms, const TArray<float>& CustomData)
-	{
-		if (!Instances)
-		{
-			return;
-		}
-		bool bCountChanged = false;
-		if (Instances->GetInstanceCount() != Transforms.Num())
-		{
-			bCountChanged = true;
-			Instances->ClearInstances();
-			if (Transforms.Num() > 0)
-			{
-				Instances->AddInstances(Transforms, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true, /*bUpdateNavigation*/ false);
-			}
-		}
-		else if (Transforms.Num() > 0)
-		{
-			Instances->BatchUpdateInstancesTransforms(0, Transforms, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ false, /*bTeleport*/ true);
-		}
-		if (Transforms.Num() > 0 && CustomData.Num() == Transforms.Num() * Instances->NumCustomDataFloats)
-		{
-			Instances->SetCustomData(0, Transforms.Num() - 1, CustomData, false);
-		}
-		// Moved instances need no render state rebuild: the instance data tracks its own changes and sends them at the end of the
-		// frame (FPrimitiveInstanceDataManager), and rebuilding the proxy every frame while any particle lives was the cost. A
-		// changed count (a spark born or gone) still takes the full refresh.
-		if (bCountChanged)
-		{
-			Instances->MarkRenderStateDirty();
-		}
-	}
-
 	void AddGlowData(TArray<float>& Data, const FLinearColor& Color, float Intensity, float Shape)
 	{
 		Data.Append({ Color.R, Color.G, Color.B, Intensity, Shape });
@@ -129,9 +95,9 @@ void FWeaponFX::Tick(float DeltaSeconds, const FVector& CameraLocation)
 			Particles.RemoveAtSwap(Index, 1, EAllowShrinking::No);
 			continue;
 		}
-		if (Particle.bResting)
+		if (Particle.bResting || Particle.Age < 0.f)
 		{
-			// Lying where it landed until it shrinks away.
+			// Lying where it landed until it shrinks away; or not begun yet (a blast's late puff: SpawnFlame's delay).
 			continue;
 		}
 		Particle.Velocity += FVector(0.f, 0.f, -FXGravity * Particle.Gravity * Dt);
@@ -230,8 +196,8 @@ float FWeaponFX::LowestOverFloor() const
 
 void FWeaponFX::Redraw(const FVector& Camera)
 {
-	TArray<FTransform> GlowTransforms, SmokeTransforms, ChipTransforms, DropTransforms, ShapeTransforms;
-	TArray<float> GlowData, SmokeData, ShapeData;
+	TArray<FTransform> GlowTransforms, SmokeTransforms, ChipTransforms, DropTransforms, ShapeTransforms, FireTransforms;
+	TArray<float> GlowData, SmokeData, ShapeData, FireData;
 	TArray<TArray<FTransform>, TInlineAllocator<MaxBitSets>> BitTransforms;
 	BitTransforms.SetNum(BitSets.Num());
 
@@ -270,11 +236,22 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		return FMath::Clamp((Particle.Life - Particle.Age) / Window, 0.f, 1.f);
 	};
 
+	// The flames, far to near (alpha-blended); without M_FX_Fire they go on the smoke.
+	CollectFlames(Camera, FireTransforms, FireData, SmokeTransforms, SmokeData, bPuffData);
+
 	for (const FParticle& Particle : Particles)
 	{
+		if (Particle.Age < 0.f)
+		{
+			// Not begun yet (a delayed spawn).
+			continue;
+		}
 		const float T = Particle.Age / Particle.Life;
 		switch (Particle.Type)
 		{
+		case EParticle::Flame:
+			// Drawn by CollectFlames.
+			break;
 		case EParticle::Spark:
 		{
 			// A short streak trailing behind the spark, fading as it cools.
@@ -304,10 +281,18 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		case EParticle::Smoke:
 		{
 			const float Size = FMath::Lerp(Particle.StartSize, Particle.EndSize, 1.f - FMath::Square(1.f - T));
-			SmokeTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
 			// Thinned as the camera gets into it: a puff drifting past the eye (a slide's dust) would otherwise fill the view.
-			const float Near = FMath::Clamp((static_cast<float>(FVector::Dist(Particle.Location, Camera)) - Size * 0.25f) / 40.f, 0.f, 1.f);
-			const float Opacity = Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * FMath::Clamp(T * 12.f, 0.f, 1.f) * Near;
+			const float Distance = static_cast<float>(FVector::Dist(Particle.Location, Camera));
+			const float Near = FMath::Clamp((Distance - Size * 0.25f) / 40.f, 0.f, 1.f);
+			// VFX-2: and faded as it grows past most of the view (a blast's skirt at the feet): a haze there, and all overdraw.
+			const float Fill = 1.f - FMath::Clamp((Size / FMath::Max(Distance, 1.f) - 1.f) / 0.8f, 0.f, 1.f);
+			const float Opacity = Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * FMath::Clamp(T * 12.f, 0.f, 1.f) * Near * Fill;
+			if (Opacity <= 0.001f)
+			{
+				// Not seen (not begun, or filling the view): not drawn either.
+				break;
+			}
+			SmokeTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
 			// Its own noise (its roll as the seed) and how far it has thinned: M_FX_Puff erodes it into wisps as it goes.
 			AddSmokeData(Particle.Color, Opacity, Particle.Roll / UE_TWO_PI, T);
 			break;
@@ -456,21 +441,22 @@ void FWeaponFX::Redraw(const FVector& Camera)
 	}
 
 	bool bAnything = !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty()
-		|| !ShapeTransforms.IsEmpty();
+		|| !ShapeTransforms.IsEmpty() || !FireTransforms.IsEmpty();
 	for (const TArray<FTransform>& Set : BitTransforms)
 	{
 		bAnything |= !Set.IsEmpty();
 	}
 	if (bAnything || bDrawnAnything)
 	{
-		Draw(Glows.Get(), GlowTransforms, GlowData);
-		Draw(Smoke.Get(), SmokeTransforms, SmokeData);
-		Draw(Shapes.Get(), ShapeTransforms, ShapeData);
-		Draw(Chips.Get(), ChipTransforms, {});
-		Draw(Droplets.Get(), DropTransforms, {});
+		DrawInstances(Glows.Get(), GlowTransforms, GlowData);
+		DrawInstances(Smoke.Get(), SmokeTransforms, SmokeData);
+		DrawInstances(Shapes.Get(), ShapeTransforms, ShapeData);
+		DrawInstances(FireQuads.Get(), FireTransforms, FireData);
+		DrawInstances(Chips.Get(), ChipTransforms, {});
+		DrawInstances(Droplets.Get(), DropTransforms, {});
 		for (int32 Index = 0; Index < BitSets.Num(); ++Index)
 		{
-			Draw(BitSets[Index].Instances.Get(), BitTransforms[Index], {});
+			DrawInstances(BitSets[Index].Instances.Get(), BitTransforms[Index], {});
 		}
 	}
 	bDrawnAnything = bAnything;

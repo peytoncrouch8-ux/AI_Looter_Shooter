@@ -3,11 +3,13 @@
 #include "Audio/LooterSound.h"
 #include "Core/LooterCharacter.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureReactComponent.h"
 #include "Embers/EmberDefinition.h"
 #include "Embers/Powers/EmberVfx.h"
 #include "Embers/Powers/EmberPropActor.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponFX.h"
+#include "Weapons/VfxTuning.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
 #include "Components/AudioComponent.h"
@@ -30,10 +32,13 @@ namespace
 	/** The slag's colours: white-hot, molten (the look's cooling crust is EmberSlagBombLook.cpp's). */
 	const FLinearColor WhiteHot(1.f, 0.85f, 0.55f);
 	const FLinearColor Molten(1.f, 0.42f, 0.05f);
-	/** The burn's orange on a body, and its flare on each burn. */
+	/**
+	 * The burn's orange on a body, and its flare on each burn. VFX-2: only a warm pulse on each burn, fading out between (at
+	 * 0.35 + 0.9 the horde in the pool read as glowing ghosts).
+	 */
 	const FLinearColor BurnOrange(1.f, 0.38f, 0.06f);
-	constexpr float BurnTintBase = 0.35f;
-	constexpr float BurnTintFlare = 0.9f;
+	constexpr float BurnTintBase = 0.f;
+	constexpr float BurnTintFlare = 0.22f;
 	/** The pool laid out: hot blobs on it, its edge's points (drawn in EmberSlagBombLook.cpp). */
 	constexpr int32 BlobCount = 36;
 	constexpr int32 EdgePoints = 40;
@@ -316,10 +321,11 @@ void UEmberSlagBomb::Burst(const FVector& At)
 	LooterSound::PlayAt(World, LooterSoundCue::Ember::SlagBombBurst, Heart);
 	if (FWeaponFX* FX = Effects())
 	{
-		FX->SpawnFlash(Heart, FVector::UpVector, 2.4f);
-		FX->SpawnDirt(At, FVector::UpVector, 1.f);
+		// A small additive flash only: at 2.4 it washed the blast's fire out to a white disc in daylight (VFX-2).
+		FX->SpawnFlash(Heart, FVector::UpVector, 1.1f);
 		// (The VFX pass) the burst as a blast of molten fire: fireballs cooling white to slag orange, a ring racing over the
-		// ground to the outer reach, soot rolling out and up, embers arcing.
+		// ground to the outer reach, soot rolling out and up, embers arcing. VFX-2: the fire on M_FX_Fire (it keeps its
+		// colour in sun), and no grave dirt on top (the blast throws the ground's own; its puffs were overdraw for nothing).
 		EmberVfx::Blast(*FX, World, At, FVector::UpVector, Radius, Molten, /*bSoul*/ false, EImpactMaterial::Dirt);
 	}
 	// Molten globs flung out, arcing down.
@@ -396,9 +402,17 @@ void UEmberSlagBomb::BurnTick()
 			continue;
 		}
 		const FVector Middle = Creature->GetActorLocation();
-		Hurt(*Creature, BurnDamage * Random.FRandRange(0.9f, 1.1f), Middle, FVector::UpVector);
+		{
+			// The burn shows as its orange tint flaring (Burning), not the white hit flash on every tick.
+			UCreatureReactComponent::FQuietHits Quiet;
+			Hurt(*Creature, BurnDamage * Random.FRandRange(0.9f, 1.1f), Middle, FVector::UpVector);
+		}
 		++Burns;
-		Burning.Wear(*Creature);
+		// The burn's tint is the body drawn again (an overlay): Looter.Vfx.BurnTint 0 leaves it off where that costs too much.
+		if (FVfxTuning::Live().bBurnTint)
+		{
+			Burning.Wear(*Creature);
+		}
 		LooterSound::PlayAt(Creature, LooterSoundCue::Ember::SlagBombSear, Middle, 0.7f, Random.FRandRange(0.94f, 1.06f));
 		for (int32 Index = 0; Index < 5; ++Index)
 		{

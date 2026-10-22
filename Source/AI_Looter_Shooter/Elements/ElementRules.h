@@ -54,7 +54,7 @@ enum class EElementCue : uint8
 
 /**
  * The elements' plain rules (numbers in, numbers out; the tests drive them without a world): the weakness table, the
- * chance a hit sets its status, the words and colours, and the damage types. The table (Docs/Pipeline.md "Loot: elements"):
+ * chance a hit sets its status, the words and colours, and the damage types. The table (Docs/Pipeline/Gunplay.md "Loot: elements"):
  *   Ember      weak: spiders, the Spitter, slimes, the Gravemother        resists: the Unpaid
  *   Soul-light weak: the Unpaid, dead miners, the Bell-Ringer, Abel's risen  resists: slimes
  *   Grave-salt weak: spirits (Warded, Phasing, Ethereal), an Unpaid's coal   resists: spiders
