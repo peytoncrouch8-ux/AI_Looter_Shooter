@@ -3,6 +3,11 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Next builds (the user, 2026-10-22 noon: "Keep going!" and picked all four suggestions)
+Player shield, gun manufacturers (a concept sheet first for the user's pick), a bounty board, playtest builds; plus
+per-place ground detail and small fixes. Contract `Docs/Work/2026-10-22-Next/CONTRACT.md`. Lane: PERF first (quiet),
+then merges as jobs report; PLAYTEST packages last.
+
 ## State at 2026-10-22 noon: the queue is empty
 Done since the morning list (all committed and pushed, last 2011943): VFX-2 (fire explosions, no white-ghost kill), FP
 rifle/LMG/sniper pulled in, loot polish (element numbers, element deaths, WEAK/RESIST), hero stances + 3P aim-in +
