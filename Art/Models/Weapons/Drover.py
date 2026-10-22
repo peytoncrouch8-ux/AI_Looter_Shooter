@@ -1,7 +1,11 @@
 """The Drover, the game's six-gun (2026-10-09): a swing-out revolver on pistol ammo with interchangeable parts, the third
 non-legendary gun family beside the Bullpup rifle and the Ranchhand shotgun. Every revolver in the game is built from these
-(DA_Revolver). Blued steel and walnut at heart, a working gun of the Reaches; rarer parts bring nickel, case colours,
-engraving, ebony, bone and pearl.
+(DA_Revolver). Restyled 2026-10-21 to the frontier-tech look of the four new families (concept B): a molded sand
+polymer frame shell and grip panels (tinted per gun) carrying gunmetal hardware (strap cap, window bar, hammer, guard,
+cylinder, barrel), brass fittings, ember glow on every frame (heat vents in the commons' lug; windows, slits and
+pinstripes on the rarer ones; flutes and ports on rarer cylinders and barrels), sand rib and underlug shrouds on the
+barrels, cyan front-sight dots and optics. Heritage finishes stay on a few rare options only: the Octagon and Gilded
+barrels, the Stag, Bone and Pearl grips, and the Engraved frame's silver plates.
 
 How the parts fit (gun space, cm: u along the gun from the back of the frame, v up from the bore; see looter_guns):
 
@@ -41,16 +45,14 @@ import looter_textures as lt
 
 ACCENT = lg.glow('GunAccentGlow', 0xe8e8e8, 2.0)   # glows in the gun's rarity color in the game
 RETICLE = lg.glow('GunReticle', 0xff3b2e, 6.0)
-CASE = lg.material('GunCaseColored', 'MetalWorn', 0x9a8f80)
-OLIVE = lg.material('GunOlivePaint', 'PaintWorn', 0x6f7550)
-WALNUT_DARK = lg.material('GunWalnutDark', 'GunWood', 0xa48670)
-NICKEL = lg.material('GunNickel', 'MetalWorn', 0xc9ccd1)
 SILVER = lg.material('GunSilverEngraved', 'MetalWorn', 0xb3b6ba)
 COPPER = lg.material('GunCopper', 'MetalWorn', 0xc9794a)
-EBONY = lg.material('GunEbony', 'GunWood', 0x5c4a40)
 STAG = lg.material('GunStag', 'Polymer', 0xb49a78)
 BONE = lg.material('GunBone', 'Polymer', 0xe6dcc6)
 PEARL = lg.material('GunPearl', 'Polymer', 0xece8de)
+SAND = lg.POLY_SAND        # panels and ribs: tinted per gun
+EMBER = lg.EMBER           # fixed heat glow
+CYAN = lg.CYAN             # sight dots and optics
 
 # The layout (gun space, cm).
 CYL_V = -1.2                 # the cylinder's axis, under the bore by its chambers' offset
@@ -166,11 +168,11 @@ def screw(m, u, v, side, mat=lg.STEEL, r=0.2):
     g.add(m, lg.pin(u, v, w0, w1, r, mat=mat, segments=10))
 
 
-def screws(m, mat=lg.STEEL):
+def screws(m, mat=lg.STEEL, crane_lock=(8.1, -2.2)):
     for u, v in ((0.4, -2.9), (1.4, -1.0), (0.0, -0.6)):
         screw(m, u, v, -1.0, mat)
     screw(m, 0.0, -0.6, 1.0, mat)   # the hammer's pivot shows on both sides
-    screw(m, 8.1, -2.2, 1.0, mat)   # the crane's lock
+    screw(m, *crane_lock, 1.0, mat)   # the crane's lock
 
 
 def accent(m, u0=2.4, u1=7.0, v=-3.62, half=HALF):
@@ -185,22 +187,39 @@ def frame_sockets(m):
     g.socket(m, 'Foregrip', rk(*SUPPORT[:2]), SUPPORT[2])
 
 
-def fittings(m, mat, hammer_mat=lg.STEEL, guard=lg.BLUED, trigger=lg.STEEL, screw_mat=lg.STEEL, plate=True, half=HALF):
-    """What every frame has besides its body: side plate, hammer, trigger and guard, latch, screws, accent, sockets
-    (half: the frame's half width, for the accent line on its sides)."""
+LEFT_PANEL = [(-0.25, -3.45), (1.8, -3.45), (1.8, -1.85), (-0.25, -2.15)]   # under the latch, on the left
+LUG_PANEL = [(7.6, -3.3), (8.5, -3.0), (8.8, -1.6), (7.6, -1.6)]              # the front lug, each side
+
+
+def panel(m, outline, mat, side, lift=0.03, thick=0.12, round=0.25):
+    g.add(m, lg.slab(outline, thick, w=side * (HALF + lift), bevel=0.03, mat=mat, round=round))
+
+
+def strap_line(m, mat, v=1.48, r=0.05):
+    """A thin inlaid line along each side of the top strap (brass trim, an ember pinstripe)."""
+    for side in (-1.0, 1.0):
+        w = side * (HALF + 0.02)
+        g.add(m, lg.pipe([(1.4, v, w), (5.0, v - 0.08, w), (8.5, v, w)], r, mat=mat, sides=5))
+
+
+def fittings(m, mat, hammer_mat=lg.STEEL, guard=lg.BLUED, trigger=lg.STEEL, screw_mat=lg.STEEL, plate=True, half=HALF,
+             plate_mat=None, crane_lock=(8.1, -2.2)):
+    """What every frame has besides its body: side plate (plate_mat: its own material, else the frame's), hammer,
+    trigger and guard, latch, screws, accent, sockets (half: the frame's half width, for the accent line on its sides;
+    crane_lock: where the crane's lock screw sits, clear of the lug's vents on frames that have them)."""
     if plate:
-        side_plate(m, mat)
+        side_plate(m, plate_mat or mat)
     hammer(m, hammer_mat)
     trigger_group(m, guard, trigger)
     latch(m)
-    screws(m, screw_mat)
+    screws(m, screw_mat, crane_lock)
     accent(m, half=half)
     frame_sockets(m)
 
 
-def scroll(m, cu, cv, r0, side, turns=1.6, mat=lg.BRASS):
-    """A curl of inlaid engraving on a side face."""
-    w = side * (HALF + 0.02)
+def scroll(m, cu, cv, r0, side, turns=1.6, mat=lg.BRASS, lift=0.02):
+    """A curl of inlaid engraving on a side face (lift: how far out from the frame's side)."""
+    w = side * (HALF + lift)
     pts = []
     for k in range(18):
         t = k / 17.0
@@ -210,81 +229,131 @@ def scroll(m, cu, cv, r0, side, turns=1.6, mat=lg.BRASS):
     g.add(m, lg.pipe(pts, 0.05, mat=mat, sides=5))
 
 
+# The frontier-tech frame: a molded sand polymer shell carrying gunmetal hardware: a cap over the top strap, a bar under
+# the cylinder's window (the accent line glows on it), and slanted heat vents through the front lug onto an ember core.
+STRAP_CAP = [(0.55, 1.12), (9.24, 1.12), (9.24, 1.33), (8.72, 1.85), (1.18, 1.85), (0.55, 1.52)]
+VENT_CORE = [(7.42, -2.95), (8.2, -2.95), (8.5, -1.95), (7.72, -1.95)]
+BAR_HALF = HALF + 0.03        # the accent line's half width on frames with the bar
+VENTED_LOCK = (8.62, -1.68)   # the crane's lock screw on vented frames, above and ahead of the vents
+
+
+def vent_cuts():
+    """Two slanted vents through the front lug (fresh cutters each call: cut() uses them up)."""
+    return [lg.cslab([(7.46 + d, -2.92), (7.74 + d, -2.92), (8.04 + d, -1.98), (7.76 + d, -1.98)], -3.0, 3.0, round=0.08)
+            for d in (0.0, 0.42)]
+
+
+def vent_core(m):
+    g.add(m, lg.slab(VENT_CORE, 2 * HALF - 0.3, bevel=0.0, mat=EMBER))   # just under the sides, so the vents glow bright
+
+
+def shell_frame(m, shell=SAND, hardware=lg.BLUED, cap=True, bar=None, vents=True, extra_cuts=(), cap_cuts=()):
+    """The frame in its shell material, the strap cap and window bar in hardware (bar: its own material), the vents."""
+    frame(m, shell, extra_cuts=(vent_cuts() if vents else []) + list(extra_cuts))
+    if vents:
+        vent_core(m)
+    if cap:
+        obj = lg.slab(STRAP_CAP, 2 * HALF + 0.04, bevel=0.1, segments=1, mat=hardware, round=0.15)
+        g.add(m, lg.cut(obj, list(cap_cuts)) if cap_cuts else obj)
+    g.add(m, lg.box(2.0, 7.4, -3.95, -3.35, 2 * HALF + 0.04, bevel=0.1, segments=1, mat=bar or hardware))
+
+
 def frames():
     B = lambda key: model('Body', key, (0.0, 0.0))
 
-    m = B('Blued')                                             # the Drover's: blued steel, a plain working gun
-    frame(m, lg.BLUED)
-    fittings(m, lg.BLUED)
+    m = B('Blued')                                             # the Drover's: sand shell, gunmetal hardware, ember vents
+    shell_frame(m)
+    fittings(m, SAND, hammer_mat=lg.BLUED, screw_mat=lg.BRASS, plate_mat=lg.BLACK, half=BAR_HALF,
+             crane_lock=VENTED_LOCK)
 
-    m = B('Nickel')                                            # nickel-plated, blued hammer and trigger
-    frame(m, NICKEL)
-    fittings(m, NICKEL, hammer_mat=lg.BLUED, guard=NICKEL, trigger=lg.BLUED)
+    m = B('Nickel')                                            # sand shell, bright steel hardware
+    shell_frame(m, hardware=lg.STEEL)
+    fittings(m, SAND, hammer_mat=lg.STEEL, guard=lg.STEEL, trigger=lg.BLUED, plate_mat=lg.STEEL, half=BAR_HALF,
+             crane_lock=VENTED_LOCK)
 
-    m = B('Homestead')                                         # case-hardened, with a brass guard and screws
-    frame(m, CASE)
-    fittings(m, CASE, hammer_mat=CASE, guard=lg.BRASS, screw_mat=lg.BRASS)
+    m = B('Homestead')                                         # sand shell, brass bar, guard, screws and strap trim
+    shell_frame(m, bar=lg.BRASS)
+    strap_line(m, lg.BRASS)                                   # on the strap cap
+    fittings(m, SAND, hammer_mat=lg.BLUED, guard=lg.BRASS, screw_mat=lg.BRASS, plate_mat=lg.BLUED, half=BAR_HALF,
+             crane_lock=VENTED_LOCK)
 
-    m = B('Scrapper')                                          # scrap iron, patched plates riveted on
-    frame(m, lg.SALVAGE, width=2 * HALF + 0.2)
+    m = B('Scrapper')                                          # scrap iron, patched plates riveted on, copper wire
+    frame(m, lg.SALVAGE, width=2 * HALF + 0.2, extra_cuts=vent_cuts())
+    vent_core(m)
     for side in (-1.0, 1.0):
         g.add(m, lg.slab([(-0.4, -3.7), (1.9, -3.7), (1.9, -0.2), (-0.4, -0.6)], 0.25, w=side * (HALF + 0.2), bevel=0.04,
                          mat=lg.SALVAGE))
-        g.add(m, lg.slab([(7.5, -3.6), (8.9, -3.2), (9.0, -1.2), (7.5, -1.2)], 0.25, w=side * (HALF + 0.2), bevel=0.04,
-                         mat=lg.SALVAGE))
-        for u, v in ((-0.1, -3.4), (1.6, -3.4), (1.6, -0.5), (-0.1, -0.9), (7.8, -3.3), (8.6, -1.5)):
+        patch = lg.slab([(7.5, -3.6), (8.9, -3.2), (9.0, -1.2), (7.5, -1.2)], 0.25, w=side * (HALF + 0.2), bevel=0.04,
+                        mat=lg.SALVAGE)
+        g.add(m, lg.cut(patch, vent_cuts()))
+        for u, v in ((-0.1, -3.4), (1.6, -3.4), (1.6, -0.5), (-0.1, -0.9), (7.65, -3.3), (8.75, -1.45)):
             g.add(m, lg.rivet(u, v, side * (HALF + 0.33), side, r=0.24, mat=lg.STEEL))
         g.add(m, lg.pipe([(2.2, -3.75, side * (HALF + 0.12)), (4.6, -3.8, side * (HALF + 0.12)),
                           (7.1, -3.75, side * (HALF + 0.12))], 0.1, mat=lg.STEEL, sides=6))   # a weld bead
-    fittings(m, lg.SALVAGE, guard=lg.STEEL, plate=False, half=HALF + 0.1)
+    for u in (3.0, 5.4):   # copper wire bound round the top strap, holding it together
+        w, top, bot = HALF + 0.16, STRAP_TOP + 0.07, 1.0
+        g.add(m, lg.pipe([(u, bot, -w), (u, top, -w), (u + 0.3, top, w), (u + 0.3, bot, w)], 0.07, mat=COPPER, sides=5))
+    fittings(m, lg.SALVAGE, guard=lg.STEEL, plate=False, half=HALF + 0.1, crane_lock=VENTED_LOCK)
 
-    m = B('Hollow')                                            # lightened: windows through the frame, a slotted strap
-    holes = [lg.cslab([(-0.3, -3.3), (1.6, -3.3), (1.6, -2.0), (-0.3, -2.3)], -3.0, 3.0, round=0.4),
-             lg.cslab([(7.6, -3.1), (8.5, -2.9), (8.8, -1.4), (7.6, -1.4)], -3.0, 3.0, round=0.3),
-             lg.cslab([(2.8, 1.25), (5.9, 1.25), (5.9, 1.55), (2.8, 1.55)], -3.0, 3.0, round=0.12)]
-    frame(m, lg.BLACK, extra_cuts=holes)
-    fittings(m, lg.BLACK, guard=lg.BLACK, plate=False)
+    m = B('Hollow')                                            # lightened sand shell: windows onto a glowing core
+    windows = ([(-0.3, -3.3), (1.6, -3.3), (1.6, -2.0), (-0.3, -2.3)], [(7.6, -3.1), (8.5, -2.9), (8.8, -1.4), (7.6, -1.4)],
+               [(2.8, 1.25), (5.9, 1.25), (5.9, 1.55), (2.8, 1.55)])
+    holes = lambda: [lg.cslab(o, -3.0, 3.0, round=r) for o, r in zip(windows, (0.4, 0.3, 0.12))]
+    shell_frame(m, vents=False, extra_cuts=holes(), cap_cuts=[lg.cslab(windows[2], -3.0, 3.0, round=0.12)])
+    for o in windows:   # the hot core the windows look onto: a thin plate down the frame's middle
+        g.add(m, lg.slab(o, 0.3, bevel=0.0, mat=EMBER))
+    fittings(m, SAND, hammer_mat=lg.BLACK, guard=lg.BLACK, screw_mat=lg.BRASS, plate=False, half=BAR_HALF)
 
-    m = B('Ranger')                                            # matte black with painted side panels, like the Rim's
-    frame(m, lg.BLACK)
+    m = B('Ranger')                                            # the dark one: gunmetal, sand panels, cyan tell-tales
+    shell_frame(m, shell=lg.BLACK, hardware=lg.BLUED, vents=False)
     for side in (-1.0, 1.0):
-        g.add(m, lg.slab([(-0.25, -3.45), (1.8, -3.45), (1.8, -1.9), (-0.25, -2.2)], 0.12, w=side * (HALF + 0.03),
-                         bevel=0.03, mat=lg.POLY_SAND, round=0.25))
-        g.add(m, lg.slab([(7.6, -3.3), (8.5, -3.0), (8.8, -1.6), (7.6, -1.6)], 0.12, w=side * (HALF + 0.03), bevel=0.03,
-                         mat=lg.POLY_SAND, round=0.2))
-    fittings(m, lg.BLACK, hammer_mat=lg.BLACK, guard=lg.BLACK, plate=False)
+        panel(m, [(-0.25, -3.45), (1.8, -3.45), (1.8, -1.9), (-0.25, -2.2)], SAND, side)
+        panel(m, LUG_PANEL, SAND, side, round=0.2)
+        g.add(m, lg.pin(8.25, -2.35, side * (HALF + 0.1) - 0.04, side * (HALF + 0.1) + 0.04, 0.2, mat=CYAN, segments=10))
+    strap_line(m, EMBER, r=0.045)                             # an ember pinstripe along the cap
+    fittings(m, lg.BLACK, hammer_mat=lg.BLACK, guard=lg.BLACK, screw_mat=lg.BRASS, plate=False, half=BAR_HALF)
 
-    m = B('Engraved')                                          # bright steel scrolled with gold
-    frame(m, SILVER)
+    m = B('Engraved')                                          # sand shell, engraved silver plates and hardware, gold
+    shell_frame(m, hardware=SILVER, vents=False)
     for side in (-1.0, 1.0):
-        for cu, cv, r in ((0.6, -2.4, 0.75), (8.0, -1.9, 0.5)):
-            scroll(m, cu, cv, r, side)
-        g.add(m, lg.pipe([(1.4, 1.48, side * (HALF + 0.02)), (5.0, 1.4, side * (HALF + 0.02)),
-                          (8.5, 1.48, side * (HALF + 0.02))], 0.05, mat=lg.BRASS, sides=5))
-    fittings(m, SILVER, hammer_mat=SILVER, guard=lg.BRASS, trigger=lg.BRASS, screw_mat=lg.BRASS, plate=False)
+        panel(m, SIDE_PLATE, SILVER, side, lift=0.03, round=0.0)
+        panel(m, LUG_PANEL, SILVER, side, lift=0.03, round=0.0)
+        for cu, cv, r in ((0.6, -2.4, 0.75), (8.0, -2.3, 0.5)):
+            scroll(m, cu, cv, r, side, lift=0.1)
+        g.add(m, lg.box(1.6, 8.4, 1.22, 1.3, 0.06, w=side * (HALF + 0.04), bevel=0.0, mat=EMBER))   # ember pinstripe
+    strap_line(m, lg.BRASS, v=1.6)
+    fittings(m, SAND, hammer_mat=SILVER, guard=lg.BRASS, trigger=lg.BRASS, screw_mat=lg.BRASS, plate=False,
+             half=BAR_HALF)
 
-    m = B('Ironclad')                                          # thick olive armor bolted over the frame
-    frame(m, lg.BLUED, width=2 * HALF + 0.2)
+    m = B('Ironclad')                                          # sand shell under gunmetal armor, brass rivets, ember slits
+    shell_frame(m, vents=False)
     for side in (-1.0, 1.0):
         w = side * (HALF + 0.35)
-        g.add(m, lg.slab([(-0.5, -3.8), (1.95, -3.8), (1.95, -0.2), (0.6, 1.2), (-0.5, 0.3)], 0.5, w=w, bevel=0.12,
-                         mat=OLIVE, round=0.3))
-        g.add(m, lg.slab([(7.35, -3.75), (8.5, -3.2), (9.1, -1.1), (7.35, -1.1)], 0.5, w=w, bevel=0.12, mat=OLIVE,
-                         round=0.25))
+        rear = lg.slab([(-0.5, -3.8), (1.95, -3.8), (1.95, -0.2), (0.6, 1.2), (-0.5, 0.3)], 0.5, w=w, bevel=0.12,
+                       mat=lg.BLACK, round=0.3)
+        g.add(m, lg.cut(rear, [lg.cbox(0.1, 1.5, -2.15, -1.85, w - 0.6, w + 0.6)]))
+        front = lg.slab([(7.35, -3.75), (8.5, -3.2), (9.1, -1.1), (7.35, -1.1)], 0.5, w=w, bevel=0.12, mat=lg.BLACK,
+                        round=0.25)
+        g.add(m, lg.cut(front, [lg.cbox(7.6, 8.7, -2.15, -1.85, w - 0.6, w + 0.6)]))
+        for u0, u1 in ((0.0, 1.6), (7.5, 8.8)):   # the glow behind the slits
+            g.add(m, lg.box(u0, u1, -2.25, -1.75, 0.06, w=side * (HALF + 0.14), bevel=0.0, mat=EMBER))
         for u, v in ((0.0, -3.3), (1.5, -3.3), (1.5, -0.6), (7.7, -3.2), (8.5, -1.5)):
-            g.add(m, lg.rivet(u, v, side * (HALF + 0.6), side, r=0.26, mat=lg.STEEL))
-    fittings(m, lg.BLUED, guard=lg.BLACK, plate=False, half=HALF + 0.1)
+            g.add(m, lg.rivet(u, v, side * (HALF + 0.6), side, r=0.26, mat=lg.BRASS))
+    fittings(m, SAND, hammer_mat=lg.BLUED, guard=lg.BLACK, screw_mat=lg.BRASS, plate=False, half=HALF + 0.1)
 
 
 # --- Barrels: from the frame's front, each with its front sight and the rod's latch ---
 
 def front_blade(m, tip, base, mat=lg.BLUED, bead=None):
-    """A ramped blade whose top is on the sight line; a bead (a material) caps it."""
+    """A ramped blade whose top is on the sight line; a bead (a material) caps it, or else a cyan insert glows just
+    under its top on the ramp the eye sees."""
     top = SIGHT_LINE - (0.2 if bead else 0.0)
     g.add(m, lg.slab([(tip - 1.9, base), (tip - 0.3, base), (tip - 0.3, top), (tip - 0.9, top)], 0.34, bevel=0.06,
                      mat=mat, round=0.1))
     if bead:
         g.add(m, lg.upright(tip - 0.6, top - 0.05, SIGHT_LINE, 0.18, mat=bead, segments=10))
+    else:
+        g.add(m, lg.box(tip - 1.05, tip - 0.85, top - 0.32, top - 0.08, 0.36, bevel=0.0, mat=CYAN))
 
 
 def rod_latch(m, mat=lg.BLUED):
@@ -293,14 +362,16 @@ def rod_latch(m, mat=lg.BLUED):
                       (ROD_END - 0.05, -1.7)], 0.85, bevel=0.1, mat=mat, round=0.15))
 
 
-def barrel(m, length, mat=lg.BLUED, rib=True, r=0.9, segments=20, spin=0.0, blade=True, bead=None, latch_mat=None):
-    """The tube with its shank collar and crowned muzzle, a top rib, the front blade and the rod's latch."""
+def barrel(m, length, mat=lg.BLUED, rib=True, r=0.9, segments=20, spin=0.0, blade=True, bead=None, latch_mat=None,
+           rib_mat=None):
+    """The tube with its shank collar and crowned muzzle, a top rib (rib_mat: sand polymer on most), the front blade and
+    the rod's latch."""
     u0 = BARREL_AT[0]
     tip = u0 + length
     g.add(m, lg.turned([(0.0, 1.08), (0.9, 1.08), (1.1, r), (length - 0.25, r), (length, r - 0.14)], u0,
                        segments=segments, mat=mat, spin=spin))
     if rib:
-        g.add(m, lg.box(u0 + 0.6, tip - 0.1, 0.5, 1.4, 0.7, bevel=0.12, mat=mat))
+        g.add(m, lg.box(u0 + 0.6, tip - 0.1, 0.5, 1.4, 0.7, bevel=0.12, mat=rib_mat or mat))
     if blade:
         front_blade(m, tip, 1.35 if rib else r - 0.1, mat, bead)
     rod_latch(m, latch_mat or mat)
@@ -308,54 +379,90 @@ def barrel(m, length, mat=lg.BLUED, rib=True, r=0.9, segments=20, spin=0.0, blad
     return tip
 
 
+def vine(m, u0, u1, radius, mat=lg.BRASS, amp=0.35, n=7):
+    """Engraving: a wavy inlaid line along each side of a barrel of the given radius (at its side faces)."""
+    for side in (-1.0, 1.0):
+        pts = []
+        for k in range(n):
+            u = u0 + (u1 - u0) * k / (n - 1)
+            v = amp * math.sin(k * 1.4) - 0.05
+            pts.append((u, v, side * (math.sqrt(max(radius * radius - v * v, 0.0)) + 0.02)))
+        g.add(m, lg.pipe(pts, 0.05, mat=mat, sides=4))
+
+
+def underlug(m, tip, mat=SAND, glow=False):
+    """A molded underlug from the rod's latch to near the muzzle (with the sand rib, a shroud round the gunmetal tube);
+    glow: an ember slit along each side."""
+    u = ROD_END + 0.95
+    g.add(m, lg.slab([(u, -0.4), (tip - 0.5, -0.4), (tip - 0.5, -1.35), (tip - 1.1, -1.75), (u, -1.75)], 1.3, bevel=0.12,
+                     segments=1, mat=mat, round=0.2))
+    if glow:
+        g.add(m, lg.box(u + 0.8, tip - 1.6, -1.12, -0.98, 1.34, bevel=0.0, mat=EMBER))
+
+
 def barrels():
     B = lambda key: model('Barrel', key, BARREL_AT)
     u0 = BARREL_AT[0]
 
-    barrel(B('Service'), 14.0)                                 # the Drover's: a ribbed 14 cm barrel
+    m = B('Service')                                           # the Drover's: sand rib and underlug round gunmetal
+    underlug(m, barrel(m, 14.0, rib_mat=SAND))
 
-    barrel(B('Snub'), 6.0)                                     # a stubby belly gun
+    m = B('Snub')                                              # a stubby belly gun
+    underlug(m, barrel(m, 6.0, rib_mat=SAND))
 
-    m = B('Vented')                                            # a ventilated rib on posts
+    m = B('Vented')                                            # a ventilated rib on posts, the hot barrel between them
     tip = barrel(m, 15.0, rib=False, blade=False)
-    g.add(m, lg.box(u0 + 0.6, tip - 0.1, 1.0, 1.4, 0.7, bevel=0.1, mat=lg.BLUED))
+    g.add(m, lg.box(u0 + 0.6, tip - 0.1, 1.1, 1.4, 0.7, bevel=0.08, mat=SAND))
     for k in range(int((tip - u0 - 1.6) // 1.4) + 1):
         u = u0 + 0.8 + k * 1.4
-        g.add(m, lg.box(u, u + 0.55, 0.5, 1.05, 0.6, bevel=0.05, mat=lg.BLUED))
+        g.add(m, lg.box(u, u + 0.55, 0.5, 1.15, 0.6, bevel=0.05, mat=lg.BLUED))
+    g.add(m, lg.box(u0 + 0.8, tip - 0.4, 0.78, 1.08, 0.36, bevel=0.0, mat=EMBER))
     front_blade(m, tip, 1.35)
+    underlug(m, tip)
 
-    m = B('Comped')                                            # ports cut through the top near the muzzle
+    m = B('Comped')                                            # ports cut through the top near the muzzle glow within
     tip = u0 + 14.0
     tube = lg.turned([(0.0, 1.08), (0.9, 1.08), (1.1, 0.9), (13.75, 0.9), (14.0, 0.76)], u0, segments=20, mat=lg.BLUED)
-    rib = lg.box(u0 + 0.6, tip - 0.1, 0.5, 1.4, 0.7, bevel=0.12, mat=lg.BLUED)
+    rib = lg.box(u0 + 0.6, tip - 0.1, 0.5, 1.4, 0.7, bevel=0.12, mat=SAND)
     ports = lambda: [lg.cbox(tip - 3.4 + k * 0.85, tip - 3.0 + k * 0.85, 0.1, 2.0, -0.28, 0.28) for k in range(3)]
     g.add(m, lg.cut(tube, ports()), lg.cut(rib, ports()))
+    g.add(m, lg.box(tip - 3.5, tip - 1.1, -0.1, 0.2, 0.5, bevel=0.0, mat=EMBER))
     front_blade(m, tip - 3.25, 1.35)   # the blade sits just behind the ports
     rod_latch(m)
+    underlug(m, tip)
     g.socket(m, 'Muzzle', (tip, 0.0))
 
-    m = B('Lugged')                                            # a full-length underlug, two cheeks round the rod
+    m = B('Lugged')                                            # a full-length underlug, two sand cheeks round the rod
     tip = barrel(m, 15.0)
     for side in (-1.0, 1.0):
         g.add(m, lg.slab([(u0 + 0.2, -0.5), (tip - 0.3, -0.5), (tip - 0.3, -1.6), (tip - 1.3, -2.05), (u0 + 0.2, -2.05)],
-                         0.42, w=side * 0.62, bevel=0.1, mat=lg.BLUED, round=0.3))
+                         0.42, w=side * 0.62, bevel=0.1, mat=SAND, round=0.3))
 
-    m = B('Octagon')                                           # a long octagonal barrel and a brass bead
-    tip = barrel(m, 20.0, rib=False, r=0.95, segments=8, spin=22.5, bead=lg.BRASS)
+    m = B('Octagon')                                           # a long octagonal barrel, brass bands, vines, a cyan bead
+    tip = barrel(m, 20.0, rib=False, r=0.95, segments=8, spin=22.5, bead=CYAN)
+    for u in (u0 + 1.3, tip - 1.4):
+        g.add(m, lg.tube(u, u + 0.5, 1.0, segments=8, spin=22.5, mat=lg.BRASS))
+    vine(m, u0 + 3.0, tip - 3.0, 0.95 * math.cos(math.radians(22.5)), n=6)
 
-    barrel(B('Long'), 25.0)                                    # a long ribbed reach
+    m = B('Long')                                              # a long reach: sand rib and lug, an ember slit, brass
+    tip = barrel(m, 25.0, rib_mat=SAND)
+    g.add(m, lg.tube(u0 + 0.9, u0 + 1.5, 0.98, segments=20, mat=lg.BRASS))
+    underlug(m, tip, glow=True)
 
-    m = B('Gilded')                                            # brass bands, a brass crown and bead
-    tip = barrel(m, 18.0, bead=lg.BRASS, latch_mat=lg.BRASS)
+    m = B('Gilded')                                            # brass bands, crown and vines, ember lines, a cyan bead
+    tip = barrel(m, 18.0, bead=CYAN, latch_mat=lg.BRASS)
     for u in (u0 + 1.2, tip - 1.6):
         g.add(m, lg.tube(u, u + 0.6, 0.98, segments=20, mat=lg.BRASS))
     g.add(m, lg.turned([(0.0, 0.92), (0.35, 0.92), (0.45, 0.8)], tip - 0.45, segments=20, mat=lg.BRASS))
+    vine(m, u0 + 2.2, tip - 2.2, 0.9, n=8)
+    g.add(m, lg.box(u0 + 2.0, tip - 2.0, 0.92, 1.0, 0.72, bevel=0.0, mat=EMBER))   # a pinstripe each side of the rib
 
 
 # --- Cylinders: modelled round the bore, then lowered onto their axis ---
 
 def cylinder(m, chambers, radius, body=lg.BLUED, flutes=True, flute_len=2.6, chamber_r=0.52, chamber_at=1.2,
-             rims=lg.BRASS, moon=False, notches=False, bands=None):
+             rims=lg.BRASS, moon=False, notches=False, bands=None, ember=False, moon_mat=lg.STEEL):
+    """ember: a hot core just under the flutes' floors, seen glowing only through them."""
     u0, u1 = CYL_U0, CYL_U1
     length = u1 - u0
     obj = lg.turned([(0.0, radius - 0.22), (0.22, radius), (length - 0.3, radius), (length, radius - 0.3)], u0,
@@ -378,9 +485,12 @@ def cylinder(m, chambers, radius, body=lg.BLUED, flutes=True, flute_len=2.6, cha
         parts.append(about_bore(lg.turned([(0.0, chamber_r - 0.08), (0.25, chamber_r - 0.15), (0.42, 0.0)], u1 - 0.5,
                                           v=chamber_at, segments=10, mat=COPPER), a))
         parts.append(about_bore(lg.tube(u0 - 0.12, u0 + 0.02, chamber_r + 0.1, v=chamber_at, segments=12, mat=rims), a))
-    if moon:   # a steel clip holding the rims together
+    if moon:   # a clip holding the rims together
         parts.append(lg.turned([(0.0, chamber_at + chamber_r + 0.05), (0.08, chamber_at + chamber_r + 0.05)],
-                               u0 - 0.2, segments=chambers * 4, mat=lg.STEEL))
+                               u0 - 0.2, segments=chambers * 4, mat=moon_mat))
+    if ember and flutes:
+        start = u0 + (length - flute_len) * 0.5 + 0.2
+        parts.append(lg.tube(start + 0.3, start + flute_len - 0.3, radius - 0.24, segments=chambers * 4, mat=EMBER))
     for at in (bands or ()):
         parts.append(lg.tube(u0 + at, u0 + at + 0.25, radius + 0.03, segments=36, mat=lg.BRASS))
     parts.append(lg.turned([(0.0, 0.5), (0.25, 0.5)], u0 - 0.25, segments=6, mat=lg.STEEL))           # the ratchet
@@ -403,10 +513,13 @@ def cylinders():
     C = lambda key: model('Cylinder', key, CYL_AT)
     cylinder(C('Fluted6'), 6, 2.15)                            # the Drover's: six rounds, fluted
     cylinder(C('Plain6'), 6, 2.15, flutes=False, notches=True)  # unfluted, heavier, with its stop notches showing
-    cylinder(C('Bigbore5'), 5, 2.3, flute_len=2.8, chamber_r=0.62, chamber_at=1.2)
-    cylinder(C('Moon6'), 6, 2.15, moon=True, rims=lg.BRASS)
-    cylinder(C('Seven'), 7, 2.2, flute_len=2.4, chamber_r=0.47, chamber_at=1.2)
-    cylinder(C('Eight'), 8, 2.25, flute_len=2.0, chamber_r=0.42, chamber_at=1.2, body=lg.BLUED, bands=(0.35, 3.75))
+    cylinder(C('Bigbore5'), 5, 2.3, flute_len=2.8, chamber_r=0.62, chamber_at=1.2,
+             bands=(0.3, CYL_U1 - CYL_U0 - 0.6))               # brass-banded big bore
+    cylinder(C('Moon6'), 6, 2.15, moon=True, rims=lg.BRASS, moon_mat=lg.BRASS)   # a brass moon clip
+    cylinder(C('Seven'), 7, 2.2, flute_len=2.4, chamber_r=0.47, chamber_at=1.2, bands=(0.3,),
+             ember=True)                                       # ember glowing up the flutes
+    cylinder(C('Eight'), 8, 2.25, flute_len=2.0, chamber_r=0.42, chamber_at=1.2, body=lg.BLUED, bands=(0.35, 3.75),
+             ember=True)
 
 
 # --- Sights: on the top strap (u 1..7) ---
@@ -419,6 +532,8 @@ def sights():
     block = lg.slab([(1.0, v0), (2.7, v0), (2.7, SIGHT_LINE), (1.3, SIGHT_LINE)], 1.2, bevel=0.08, mat=lg.BLUED,
                     round=0.1)
     g.add(m, lg.cut(block, [lg.cbox(0.5, 3.2, SIGHT_LINE - 0.32, SIGHT_LINE + 0.5, -0.24, 0.24)]))
+    for w in (-0.42, 0.42):   # a cyan dot each side of the notch: with the front blade's, three in a row
+        g.add(m, lg.box(1.12, 1.24, SIGHT_LINE - 0.24, SIGHT_LINE - 0.1, 0.14, w=w, bevel=0.0, mat=CYAN))
     g.socket(m, 'Aim', (1.8, SIGHT_LINE))   # the rear's shoulders: the front blade's top shows in the notch
 
     m = S('Blade')                                             # an adjustable target rear
@@ -426,43 +541,56 @@ def sights():
     blade = lg.slab([(1.0, v0 + 0.3), (1.9, v0 + 0.3), (1.9, SIGHT_LINE), (1.0, SIGHT_LINE)], 1.6, bevel=0.05,
                     mat=lg.BLACK, round=0.05)
     g.add(m, lg.cut(blade, [lg.cbox(0.5, 2.4, SIGHT_LINE - 0.3, SIGHT_LINE + 0.5, -0.24, 0.24)]))
-    g.add(m, lg.upright(2.6, v0 + 0.3, v0 + 0.5, 0.16, mat=lg.STEEL, segments=10))     # elevation screw
+    for w in (-0.5, 0.5):     # cyan dots each side of the notch
+        g.add(m, lg.box(0.96, 1.02, SIGHT_LINE - 0.24, SIGHT_LINE - 0.08, 0.16, w=w, bevel=0.0, mat=CYAN))
+    g.add(m, lg.upright(2.6, v0 + 0.3, v0 + 0.5, 0.16, mat=lg.BRASS, segments=10))     # elevation screw
     g.add(m, lg.pin(1.45, v0 + 0.4, -0.95, 0.95, 0.08, mat=lg.STEEL, segments=8))      # windage screw
     g.socket(m, 'Aim', (1.45, SIGHT_LINE))
 
-    m = S('Peep')                                              # an aperture on a post
-    g.add(m, lg.box(1.0, 3.4, v0, v0 + 0.25, 1.0, bevel=0.06, mat=lg.BLACK))
+    m = S('Peep')                                              # a brass aperture on a post, a sand base
+    g.add(m, lg.box(1.0, 3.4, v0, v0 + 0.25, 1.0, bevel=0.06, mat=SAND))
     g.add(m, lg.slab([(1.4, v0 + 0.25), (2.2, v0 + 0.25), (2.1, SIGHT_LINE - 0.42), (1.5, SIGHT_LINE - 0.42)], 0.5,
                      bevel=0.05, mat=lg.BLACK))
-    g.add(m, hollow([(0.0, 0.55), (0.5, 0.55)], 1.55, SIGHT_LINE, 18, lg.BLACK, wall=0.22))
+    g.add(m, hollow([(0.0, 0.55), (0.5, 0.55)], 1.55, SIGHT_LINE, 18, lg.BRASS, wall=0.22))
     g.socket(m, 'Aim', (1.8, SIGHT_LINE))   # the ring: the front blade's top shows in its middle
 
-    m = S('Pip')                                               # a little open dot sight
+    m = S('Pip')                                               # a little open dot sight in a sand hood, a cyan LED
     g.add(m, lg.box(1.0, 6.6, v0, v0 + 0.35, 1.4, bevel=0.1, mat=lg.BLACK))
     housing = lg.slab([(3.8, v0 + 0.35), (6.4, v0 + 0.35), (6.4, v0 + 2.3), (5.6, v0 + 2.9), (4.4, v0 + 2.9),
-                       (3.8, v0 + 2.3)], 1.8, bevel=0.15, mat=lg.BLACK, round=0.25)
+                       (3.8, v0 + 2.3)], 1.8, bevel=0.15, mat=SAND, round=0.25)
     g.add(m, lg.cut(housing, [lg.cbox(3.0, 7.2, v0 + 0.8, v0 + 2.5, -0.65, 0.65)]))
     g.add(m, lg.box(5.9, 6.0, v0 + 0.8, v0 + 2.5, 1.3, bevel=0.0, mat=lg.LENS))
     g.add(m, lg.pin(5.85, v0 + 1.65, -0.07, 0.07, 0.07, mat=RETICLE, segments=10))
+    g.add(m, lg.box(5.2, 6.2, v0 + 0.36, v0 + 0.5, 1.0, bevel=0.0, mat=CYAN))           # the emitter's strip
+    g.add(m, lg.pin(4.5, v0 + 1.6, 0.88, 1.08, 0.26, mat=CYAN, segments=10))             # an LED on the left
     g.socket(m, 'Aim', (5.85, v0 + 1.65))   # the dot
 
-    def scope(m, u_eye, profile, v, rings, turret):
+    def scope(m, u_eye, profile, v, rings, turret, trim=lg.BRASS, shade=False, ember=False):
+        """A tube scope on rings (trim: the rings' and turret cap's material) with a cyan ring round its objective;
+        shade: a sand sunshade ahead of it; ember: a glowing line along the tube's top, either side of the rings."""
         g.add(m, lg.box(1.0, 6.6, v0, v0 + 0.4, 1.3, bevel=0.1, mat=lg.BLACK))
         g.add(m, hollow(profile, u_eye, v, 22, lg.BLACK))
         r_tube = min(r for _, r in profile)
         for u in rings:   # rings round the tube, open in the middle like it, on posts to the base
-            g.add(m, hollow([(0.0, r_tube + 0.2), (1.0, r_tube + 0.2)], u - 0.5, v, 20, lg.BLACK, wall=0.22))
+            g.add(m, hollow([(0.0, r_tube + 0.2), (1.0, r_tube + 0.2)], u - 0.5, v, 20, trim, wall=0.22))
             g.add(m, lg.box(u - 0.5, u + 0.5, v0 + 0.4, v - r_tube - 0.05, 1.0, bevel=0.1, mat=lg.BLACK))
-        g.add(m, lg.upright(turret, v + r_tube, v + r_tube + 0.8, 0.6, mat=lg.BLACK, segments=14))
+        g.add(m, lg.upright(turret, v + r_tube, v + r_tube + 0.8, 0.6, mat=trim, segments=14))
         g.add(m, lg.pin(turret, v, -r_tube - 0.8, -r_tube + 0.05, 0.6, mat=lg.BLACK, segments=14))
         u_obj = u_eye + profile[-1][0]
-        optics(m, u_eye, u_obj, v, profile[0][1], profile[-1][1])
+        r_obj = profile[-1][1]
+        g.add(m, hollow([(0.0, r_obj + 0.06), (0.3, r_obj + 0.06)], u_obj - 0.3, v, 16, CYAN, wall=0.2))
+        if shade:
+            g.add(m, hollow([(0.0, r_obj + 0.05), (0.9, r_obj + 0.1)], u_obj, v, 16, SAND, wall=0.15))
+        if ember:
+            for a, b in ((u_eye + profile[2][0] + 0.2, rings[0] - 0.6), (rings[-1] + 0.6, u_eye + profile[3][0] - 0.2)):
+                g.add(m, lg.box(a, b, v + r_tube - 0.08, v + r_tube + 0.05, 0.24, bevel=0.0, mat=EMBER))
+        optics(m, u_eye, u_obj, v, profile[0][1], r_obj)
         g.socket(m, 'Aim', (u_eye + 0.2, v))   # the eyepiece lens
 
     scope(S('Glass'), -4.0, [(0.0, 1.15), (2.2, 1.15), (3.0, 0.85), (12.0, 0.85), (13.0, 1.15), (15.0, 1.15)],
-          v0 + 2.5, (2.0, 5.6), 3.8)                           # a 2x long-eye-relief scope
+          v0 + 2.5, (2.0, 5.6), 3.8)                           # a 2x long-eye-relief scope, brass rings
     scope(S('Longeye'), -5.0, [(0.0, 1.25), (2.6, 1.25), (3.4, 0.9), (13.0, 0.9), (14.4, 1.55), (18.0, 1.55)],
-          v0 + 2.8, (2.0, 5.6), 3.8)                           # a 3x scope with a wide objective
+          v0 + 2.8, (2.0, 5.6), 3.8, shade=True, ember=True)   # a 3x scope: wide objective, sunshade, ember lines
 
 
 # --- Grips: the grip frame and its panels, below and behind the recoil shield ---
@@ -510,15 +638,17 @@ COFFIN, COFFIN_FRONT, COFFIN_BACK, COFFIN_TANG = (raked(p) for p in (COFFIN, COF
 
 
 def grip(m, outline, mat, width=3.3, strap=lg.BLUED, front=PLOW_FRONT, back=PLOW_BACK, butt=None, tang=PLOW_TANG,
-         round=0.7, hand=HAND, support=SUPPORT):
+         round=0.7, hand=HAND, support=SUPPORT, cap=None):
     """The panels (outline, width wide) and, with a strap material, the grip frame: its tang behind the recoil shield and
-    its straps along the panels' edges."""
+    its straps along the panels' edges; cap: a material for a butt cap wrapping the panels' foot (on the butt edge)."""
     g.add(m, lg.slab(outline, width, bevel=0.55, segments=3, mat=mat, round=round))
     if strap is not None:
         g.add(m, lg.slab(tang, 1.6, bevel=0.2, mat=strap, round=0.3))
-        for edge in (front, back, butt):
+        for edge in (front, back) + (() if cap else (butt,)):
             if edge:
                 g.add(m, lg.strip(edge, 1.7, 0.42, mat=strap))
+    if cap and butt:
+        g.add(m, lg.strip(butt, width + 0.2, 0.5, mat=cap))
     g.socket(m, 'Grip', rk(*hand))
     g.socket(m, 'Foregrip', rk(*support[:2]), support[2])
 
@@ -534,53 +664,53 @@ def escutcheon(m, u, v, mat=lg.BRASS, r=0.42):
 def grips():
     G = lambda key: model('Grip', key, GRIP_AT)
 
-    m = G('Plowhandle')                                        # the Drover's: smooth walnut on a blued frame
-    grip(m, PLOW, lg.WALNUT, butt=PLOW_BUTT)
+    m = G('Plowhandle')                                        # the Drover's: sand panels on a gunmetal frame and cap
+    grip(m, PLOW, SAND, butt=PLOW_BUTT, cap=lg.BLACK)
 
     m = G('Wrapped')                                           # a wrap-around rubber grip with finger grooves
     grip(m, WRAP, lg.POLY_GREY, width=3.5, strap=None, round=0.5, hand=(-1.6, -7.6))
 
-    m = G('Birdshead')                                         # a short bird's-head grip with a lanyard ring
-    grip(m, BIRD, WALNUT_DARK, front=BIRD_FRONT, back=BIRD_BACK, hand=(-1.4, -6.8), support=(-0.6, -7.6, 3.2))
+    m = G('Birdshead')                                         # a short sand bird's-head grip, a brass lanyard ring
+    grip(m, BIRD, SAND, front=BIRD_FRONT, back=BIRD_BACK, hand=(-1.4, -6.8), support=(-0.6, -7.6, 3.2))
     ring = raked([(-3.0 + 0.55 * math.sin(2 * math.pi * k / 12), -11.2 - 0.55 * math.cos(2 * math.pi * k / 12))
                   for k in range(13)])
-    g.add(m, lg.pipe(ring, 0.1, mat=lg.STEEL, sides=6))
+    g.add(m, lg.pipe(ring, 0.1, mat=lg.BRASS, sides=6))
     eye_u, eye_v = rk(-3.0, -10.6)
-    g.add(m, lg.box(eye_u - 0.3, eye_u + 0.3, eye_v - 0.15, eye_v + 0.15, 0.5, bevel=0.05, mat=lg.STEEL))
+    g.add(m, lg.box(eye_u - 0.3, eye_u + 0.3, eye_v - 0.15, eye_v + 0.15, 0.5, bevel=0.05, mat=lg.BRASS))
 
-    m = G('Target')                                            # a big target grip with a thumb rest on the left
-    grip(m, TARGET, WALNUT_DARK, width=3.6, strap=None, round=0.6, hand=(-1.6, -7.8), support=(-0.8, -8.6, 3.3))
+    m = G('Target')                                            # a big polymer target grip, a thumb rest on the left
+    grip(m, TARGET, lg.POLY_GREY, width=3.6, strap=None, round=0.6, hand=(-1.6, -7.8), support=(-0.8, -8.6, 3.3))
     g.add(m, lg.slab(raked([(-1.6, -3.4), (1.6, -3.9), (1.2, -5.0), (-1.8, -4.7)]), 0.6, w=2.0, bevel=0.2,
-                     mat=WALNUT_DARK, round=0.4))
+                     mat=lg.POLY_GREY, round=0.4))
     for side in (-1.0, 1.0):   # grooves across the panels, for purchase
         for v in (-8.0, -8.7, -9.4, -10.1, -10.8):
             u = rk(0.0, v)[0]
             g.add(m, lg.box(u - 3.6, u + 0.2, v - 0.05, v + 0.05, 0.08, w=side * 1.78, bevel=0.0, mat=lg.BLACK))
 
-    m = G('Stag')                                              # stag horn, knobbly, on a blued frame
-    grip(m, PLOW, STAG, butt=PLOW_BUTT)
+    m = G('Stag')                                              # stag horn, knobbly, on a brass frame
+    grip(m, PLOW, STAG, strap=lg.BRASS, butt=PLOW_BUTT)
     knobs = ((-0.6, -5.0, 0.26), (-1.8, -5.6, 0.2), (-0.9, -6.6, 0.3), (-2.4, -7.0, 0.22), (-1.2, -8.2, 0.24),
              (-2.9, -8.6, 0.28), (-1.6, -9.6, 0.2), (-0.4, -10.2, 0.22), (-2.6, -10.6, 0.26), (-3.2, -9.7, 0.18))
     for side in (-1.0, 1.0):
         for u, v, r in knobs:
             g.add(m, lg.rivet(*rk(u, v), side * 1.6, side, r=r, mat=STAG))
 
-    m = G('Coffin')                                            # a coffin-shaped grip in ebony, a brass diamond
-    grip(m, COFFIN, EBONY, front=COFFIN_FRONT, back=COFFIN_BACK, tang=COFFIN_TANG, round=0.35)
+    m = G('Coffin')                                            # a coffin-shaped sand grip on brass, a brass diamond
+    grip(m, COFFIN, SAND, strap=lg.BRASS, front=COFFIN_FRONT, back=COFFIN_BACK, tang=COFFIN_TANG, round=0.35)
     escutcheon(m, -0.9, -4.6)
 
-    m = G('Bone')                                              # bone, scrimshawed with an inked vine
-    grip(m, PLOW, BONE, butt=PLOW_BUTT)
+    m = G('Bone')                                              # bone on brass, a vine inlaid in ember
+    grip(m, PLOW, BONE, strap=lg.BRASS, butt=PLOW_BUTT, cap=lg.BRASS)
     for side in (-1.0, 1.0):
         w = side * 1.66
         g.add(m, lg.pipe(raked([(-0.2, -4.6, w), (-1.0, -6.0, w), (-1.6, -7.6, w), (-2.6, -9.4, w), (-3.0, -10.8, w)]),
-                         0.05, mat=lg.BLACK, sides=5))
+                         0.05, mat=EMBER, sides=5))
         for u, v in ((-0.7, -5.3), (-1.4, -6.9), (-2.1, -8.5), (-2.8, -10.1)):
-            g.add(m, lg.pipe(raked([(u, v, w), (u + 0.6, v - 0.2, w), (u + 0.9, v - 0.7, w)]), 0.04, mat=lg.BLACK,
+            g.add(m, lg.pipe(raked([(u, v, w), (u + 0.6, v - 0.2, w), (u + 0.9, v - 0.7, w)]), 0.04, mat=EMBER,
                              sides=5))
 
     m = G('Pearl')                                             # mother-of-pearl on gilt straps
-    grip(m, PLOW, PEARL, strap=lg.BRASS, butt=PLOW_BUTT)
+    grip(m, PLOW, PEARL, strap=lg.BRASS, butt=PLOW_BUTT, cap=lg.BRASS)
     escutcheon(m, -0.8, -4.5, r=0.32)
 
 
@@ -601,6 +731,7 @@ barrels()
 cylinders()
 sights()
 grips()
+lg.fill_uvs(g)   # glows and glass get UVs, so Unreal builds their tangents quietly
 built = g.build(origins)
 
 
