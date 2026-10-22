@@ -485,7 +485,8 @@ own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
   light by pre-skinned Z (0.72 at 90 cm to 1.18 at 165 cm; a slot on a small prop, bounds under PropSize 60, takes
   PropTopLight 1.10: the hat); cavity 1 - 0.95 x G^0.6; rim lerped ColdRim 0.7 toward ColdRimColor #A4E0EE; inner glow
   in the rank colour round CoalAt (10.9, -5.9, 131.3) cm (SK_Unpaid's coal bone; every ghost's coal is within a few cm),
-  InnerGlow 1.0 over 26 cm, times the coal's heat; the shroud's fade noise stretched StreakAcross 3 x StreakAlong 0.35
+  InnerGlow 0.22 over 10 cm, times the coal's heat (1.0 over 26 cm flooded every torso orange-red in daylight and in the
+  mine: a soft halo round the coal only, ART-FIX 2026-10-22); the shroud's fade noise stretched StreakAcross 3 x StreakAlong 0.35
   over FadeBand 0.28 (dithered). Cost: one texture sample and one interpolator more. The Polymer grain stays (Amos's hat
   reads Hay through BaseColorMap). `Looter.ImportModels` of a ghost keeps it (it sets none of these).
 - **Painted reflection** (M_Character, `CHARACTER_REFLECTION`): emissive = a painted sky/horizon/ground gradient picked
@@ -512,7 +513,9 @@ own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
   `looter_barrow_stone._granite`): a pale corpse-bone hide (#C2B9A6) with the spider's marks faded to ghosts and the
   rings to dark knuckles, crazed like old bone, root veins from the stone's roots, lichen round its foot, grave earth
   climbing from below (belly, every leg's underside, the lower legs: wet earth #7C6650/#4A3B2E); the headstone's
-  granite darker (#605D59-#6A6661) so it reads against the pale hide. MUD_GREY is gone.
+  granite dark and a little cool (#3B3E42-#45484C: the warm sun leaves it grey; rougher face 0.74; #605D59-#6A6661 still read pale tan in the low sun, ART-FIX); the earth
+  on the legs a step darker (GRAVE_EARTH #433629 over every lower leg, deepest at the claw, and the undersides; mud
+  #67543F/#3A2E24). MUD_GREY is gone.
 - **Sexton** (`MisterSexton.py`): wool and trousers on M_CharacterCloth (#37332F, #413C38; FuzzStrength 0.45, FuzzLift
   0.3, FuzzTint #8C9488: the folds' flanks catch a grey-green sheen), his face still in shadow with a glint: a bead of
   cold light (SextonGlint, Glow #D4ECF2 2.6, r 3.4 mm) in each eye socket.
@@ -550,6 +553,15 @@ own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
   bones, names unchanged; the hair chain's joints follow the cards (hair_end 4.3 cm, hair_02 2.2, the front locks' ends
   0.6-1.1). Every Crane set rebaked and repacked: the coin rests on the new brow (Gear), the shirt band and collar sit
   off the new neck by about 1 mm (Garb, Coat), a sleeve's Decimate shifted one vertex (Coat), the hair lies on the cape.
-  SK_Odessa 34,823 (was 34,821), 92 bones unmoved, only skin and hair shell changed; OdessaCoat/Garb/Gear differ only in
+  SK_Odessa 34,823 (was 34,821), 92 bones unmoved, only skin and hair shell changed;
+- **Odessa's side hair** (ART-FIX 2026-10-22; the temples and above the ears read bald on the stand and in third
+  person): not the face carve (the FBX before and after has the same hair shell, 71% of its mid-side points under the
+  game skin, and the 2026-10-20 previews were bald there too). The portrait's `above_hairline` takes every point at the
+  head's sides (|x| > 0.66 dm) below 2.5 cm over the eyes for the ears, so no hair shell and no dark scalp there; the
+  side hair you see is the skin's bake of the hair shell over it. `odessa_head.above_hairline` is the game's line: the
+  brow's high line falls to `TEMPLE_Y` 1.2 cm over the eyes by 44 degrees round (`TEMPLE`), to a `SIDEBURN` (0.4 cm)
+  in front of the ear (55-72 degrees), up to the ear's top (`EAR_TOP` 0.8 cm, 76-86 degrees), the ear itself cut out
+  only past 76 degrees; the nape as the portrait's. Paint (dark scalp) and shell both read it. Check:
+  scratchpad-style Workbench clay of skin/hair/hat with back faces culled, then the exported FBX with its BC. OdessaCoat/Garb/Gear differ only in
   occlusion near the face (0.03-0.16% of pixels). Crane.py and crane_common.py are in FPArmsCrane's digest: its next
   export rebakes (same looks). Before/after: `Saved/ArtPreviews/Characters/Face_<Hero>_compare.png`.

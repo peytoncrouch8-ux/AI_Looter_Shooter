@@ -41,7 +41,7 @@ def paint_zones(fig, op, opt):
     lip = front[np.argmax(front[:, 2])] + np.array([0.0, -0.37, -0.20])     # under the nose's tip
     k = np.clip(1.0 - np.linalg.norm((verts - lip) * np.array([0.75, 2.4, 1.2]), axis=1) / 0.30, 0.0, 1.0) ** 0.6
     c[:, :3] *= 1.0 - k[:, None] * (1.0 - np.array(LIPS))
-    sc = np.clip(op.above_hairline(hf, h['morphed']) / 0.06 + 0.7, 0, 1) * (hw > 0.5)
+    sc = np.clip(above_hairline(hf, h['morphed']) / 0.06 + 0.7, 0, 1) * (hw > 0.5)
     c[:, :3] *= 1.0 - sc[:, None] * (1.0 - np.array([0.10, 0.07, 0.06]))
     for bone in ('orbicularis03.L', 'orbicularis03.R'):
         c[:, :3] *= 1.0 - (np.clip((h['weights'](bone) - 0.35) / 0.4, 0, 1) * 0.6)[:, None]
@@ -151,6 +151,37 @@ HAIR_OFF = 0.0045       # the combed hair's depth over the scalp (m): inside the
 HAIR_EDGE = 0.0006      # ... at its edge (the hairline), feathered over the first 2.5 cm
 HAIR_TUCK = 0.0015      # the hairline's edge tucked under the skin (the reduced skin's chords sit inside the detailed)
 KNOT = (0.032, 0.030, 0.030)    # the knot's half sizes (m): across, up, out from the nape
+# The game's hairline. The portrait's (Art/Portraits/Odessa.py above_hairline) takes every point at the head's sides
+# (|x| > 0.66 dm) lower than 2.5 cm over the eyes for the ears: under the game's hat brim that left the sides of her head
+# bald from the temples round over the ears (2026-10-22: hair only behind the ears and a few tips at the temples).
+# Here only the ear itself is cut out (its top sits ~0.5 cm over the eyes) and the line comes down in front of it to a
+# short sideburn; the brow's high line and the nape are the portrait's.
+EAR_SIDE = 0.66         # dm off the middle: the head's sides (the ear sticks out past it)
+EAR_TOP = 0.08          # dm over the eyes: the ear's cut-out ends here; above it the sides are scalp
+TEMPLE = (20.0, 44.0)   # degrees round from the front over which the brow's high line falls to the temple
+TEMPLE_Y = 0.12         # dm over the eyes: the line at the temples
+SIDEBURN = 0.04         # dm over the eyes: where the line meets the ear's front
+SIDEBURN_FROM = (55.0, 72.0)    # degrees round from the front over which the line drops to the sideburn
+EAR_FROM = (76.0, 86.0)         # ... and over which it rises again to the ear's top (the ear: from ~78 degrees round)
+
+
+def above_hairline(hf, v):
+    """How far each rest-space point v sits above Odessa's game hairline (decimetres; negative below it, -1 on the
+    ears): the portrait's line, the sides filled down to the ear and a sideburn in front of it."""
+    ey = hf['eye_y']
+    cz = (hf['verts'][:, 2].max() + hf['verts'][:, 2].min()) * 0.5
+    a = np.abs(np.degrees(np.arctan2(v[:, 0], v[:, 2] - cz)))
+    # high on the brow, low at the temples (the portrait's 28-58 degrees to ey + 0.14 left the temples under the brim
+    # bare: the line reaches the temple sooner and lower)
+    s = gm.smoothstep(TEMPLE[0], TEMPLE[1], a)
+    line = ey + 0.58 - (0.58 - TEMPLE_Y) * s
+    t = gm.smoothstep(SIDEBURN_FROM[0], SIDEBURN_FROM[1], a)
+    line = line + t * (ey + SIDEBURN - line)
+    t = gm.smoothstep(EAR_FROM[0], EAR_FROM[1], a)
+    line = line + t * (ey + EAR_TOP - line)
+    line = np.where(a < 105, line, ey - 0.50)
+    ear = (np.abs(v[:, 0]) > EAR_SIDE) & (v[:, 1] < ey + EAR_TOP) & (a > EAR_FROM[0])
+    return np.where(ear, -1.0, v[:, 1] - line)
 
 
 def to_mh(fig, P):
@@ -179,7 +210,7 @@ def build_hair(fig, op):
     'Strand' UV the comb's lines (meridians round the axis from the head's middle to the knot); and the knot, coiled,
     its strands round its own axis."""
     h, hf = fig.b.h, fig.hf
-    ah = op.above_hairline(hf, h['morphed'])            # decimetres above the hairline (negative below, the ears -1)
+    ah = above_hairline(hf, h['morphed'])            # decimetres above the hairline (negative below, the ears -1)
     hw = h['weights']('head')
     # MakeHuman's scalp is coarse (its faces ~1.5 cm: the hairline came out in steps): a shell over the scalp and a
     # margin below the hairline, subdivided twice, then cut at the hairline at the finer faces and feathered to it
@@ -191,7 +222,7 @@ def build_hair(fig, op):
     m.uv_smooth = 'PRESERVE_BOUNDARIES'
     gm.apply_modifiers(ob, keep=())
     co = gm._object_coords(ob)
-    ahv = op.above_hairline(hf, to_mh(fig, co))
+    ahv = above_hairline(hf, to_mh(fig, co))
     ears = ahv <= -0.99
     bm = bmesh.new()
     bm.from_mesh(ob.data)
@@ -216,7 +247,7 @@ def build_hair(fig, op):
     bm.free()
     ob.data.update()
     co = gm._object_coords(ob)
-    ahv = op.above_hairline(hf, to_mh(fig, co))
+    ahv = above_hairline(hf, to_mh(fig, co))
     edge_mask = gm.boundary([list(p.vertices) for p in ob.data.polygons], len(co))
     tree = skin_tree(fig)
     feather = gm.smoothstep(0.0, 0.25, np.maximum(ahv, 0.0))

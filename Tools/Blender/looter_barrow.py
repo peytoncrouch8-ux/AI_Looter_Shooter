@@ -35,7 +35,7 @@ FAMILY_DIR = os.path.join(REPO, 'Intermediate', 'ArtExport_Gravemother')
 
 # The contract's colour key (sRGB).
 HIDE = 0x8c8070          # mud-grey hide
-GRANITE = 0x65625d       # headstone granite (dark weathered since CHAR-ART, 2026-10-22; was #8E8B86)
+GRANITE = 0x44413d       # headstone granite (dark weathered since CHAR-ART, 2026-10-22; was #8E8B86, then #65625D)
 BONE = 0xbab2a1          # the bare Bone abdomen
 MUD = 0x7c6650           # grave earth caked on her legs (dry; pale #C9B392 until CHAR-ART, 2026-10-22)
 ROOT_BROWN = 0x5b4330    # roots binding the stone on
@@ -444,7 +444,8 @@ SET_PX_M = 1.0 / 512.0           # both: 1024 px, 2 m a repeat
 def paint_mud():
     """GravemotherMud: grave earth caked on her legs in a crust, broken into curling plates by cracks, darker and
     smoother where it's still damp, grit and root hairs in it. 2 m a repeat. Her own look (CHAR-ART item 4b, the user's
-    OK 2026-10-22: "the headstone, earth and pale hide"): dark wet grave earth (about #7C6650 dry, #4A3B2E damp), so her
+    OK 2026-10-22: "the headstone, earth and pale hide"): dark wet grave earth (about #67543F dry, #3A2E24 damp; a step
+    darker after the first import read faint, ART-FIX), so her
     legs go dark toward the ground under the pale hide; it was a pale dry crust (#C9B392) that read as more of the
     grey-tan spider."""
     shape = (1024, 1024)
@@ -463,12 +464,12 @@ def paint_mud():
     rim = lt.smooth(6.0, 1.5, edge) * (1.0 - crack)
     grain = lt.noise(shape, 308, 0.9)
     lumps = lt.noise(shape, 309, 6.0, octaves=3)
-    base = lt.mix(lt.rgb(0x86705a), lt.rgb(0x6c5845), lt.smooth(-1.0, 1.2, lt.noise(shape, 310, 60.0, octaves=2)))
-    base = lt.mix(base, lt.rgb(0x9a8467), lt.smooth(0.3, 1.0, lift) * 0.35)
-    color = lt.mix(base, lt.rgb(0x4a3b2e), damp * 0.6)
+    base = lt.mix(lt.rgb(0x6f5b49), lt.rgb(0x57473a), lt.smooth(-1.0, 1.2, lt.noise(shape, 310, 60.0, octaves=2)))
+    base = lt.mix(base, lt.rgb(0x827058), lt.smooth(0.3, 1.0, lift) * 0.35)
+    color = lt.mix(base, lt.rgb(0x3a2e24), damp * 0.6)
     broken = lt.smooth(-0.4, 0.5, lt.noise(shape, 314, 26.0))         # the cracks come and go
     color = lt.mix(color, lt.rgb(0x33281f), np.clip(crack * broken + fine_crack * 0.3, 0.0, 1.0) * (0.5 - 0.2 * damp))
-    color = lt.mix(color, lt.rgb(0xa8937a), rim * 0.25 * (1.0 - damp))
+    color = lt.mix(color, lt.rgb(0x8f7c66), rim * 0.25 * (1.0 - damp))
     grit = lt.specks(shape, 311, 0.035, 0.9)
     color = lt.mix(color, lt.rgb(0x6f675b), grit * 0.5)
     color = lt.mix(color, lt.rgb(0x9a958a), lt.specks(shape, 312, 0.01, 1.6) * 0.6)

@@ -82,7 +82,7 @@ GRAVE = dict(
     face=lt.rgb(0x5e574e), face_k=0.65,
     scar=lt.rgb(0x8a7d72), scar_core=lt.rgb(0xe2dccf), scar_k=0.8,
     dust=lt.rgb(0x8a7556), dust_k=0.5)
-GRAVE_EARTH = lt.rgb(0x4f4134)       # wet grave earth on her belly and under her legs
+GRAVE_EARTH = lt.rgb(0x433629)       # wet grave earth on her belly and under her legs (#4F4134 read faint, ART-FIX)
 VEIN = lt.rgb(0x3e3128)              # the roots' dark veins under the pale hide
 LICHEN = lt.rgb(0x7d8466)            # grey-green lichen near the stone
 CRAZE = lt.rgb(0x7d7364)             # the fine crazing of old bone
@@ -106,10 +106,14 @@ def grave_marks(region, U, V, seed, col, rough, height, occl):
         occl = occl * (1.0 - 0.15 * earth)
     elif region in ('femur', 'tibia', 'coxa', 'palp', 'chel'):
         along, top = lc.limb_axes(U, V)
-        low = lt.smooth(0.3, -0.7, top + 0.15 * lt.noise(shape, seed + 954, 8.0, octaves=2))      # the underside
-        reach = {'femur': lt.smooth(0.45, 1.0, along), 'tibia': lt.smooth(0.0, 0.45, along)}.get(region, 0.0)
-        earth = np.clip(low * 0.6 + reach * 0.7, 0.0, 1.0)
-        col = lt.mix(col, GRAVE_EARTH, earth * 0.8)
+        # (ART-FIX 2026-10-22: the earth read faint in game: the whole lower leg darkens, deepest toward the claw, the
+        # earth wraps more of every underside and covers fully; a ragged edge round the knee.)
+        ragged = 0.12 * lt.noise(shape, seed + 955, 14.0, 4.0, octaves=2)
+        low = lt.smooth(0.45, -0.5, top + 0.15 * lt.noise(shape, seed + 954, 8.0, octaves=2))      # the underside
+        reach = {'femur': 0.6 * lt.smooth(0.6, 1.0, along + ragged),
+                 'tibia': 0.55 + 0.45 * lt.smooth(0.0, 0.5, along + ragged)}.get(region, 0.0)
+        earth = np.clip(low * 0.75 + reach, 0.0, 1.0)
+        col = lt.mix(col, GRAVE_EARTH, earth * 0.92)
         rough = mix1(rough, 0.92, earth)
     return col, rough, height, occl
 
@@ -172,7 +176,7 @@ def overlay(region, U, V, seed, col, rough, height, occl, bare):
         caked = lt.smooth(edge - 0.04, edge + 0.08, along)
         cracks = lt.worley(shape, (int(shape[1] / 24), int(shape[0] / 16)), seed + 902)
         crack = (1.0 - lt.smooth(0.25, 1.1, cracks["edge"])) * lt.smooth(-0.5, 0.5, lt.noise(shape, seed + 910, 12.0))
-        mud = lt.mix(lt.rgb(0x7c6650), lt.rgb(0x5f4c3b), lt.smooth(-1.0, 1.0, n))
+        mud = lt.mix(lt.rgb(0x66533f), lt.rgb(0x4d3e31), lt.smooth(-1.0, 1.0, n))
         mud = lt.mix(mud, lt.rgb(0x33281f), crack * 0.6)
         splash = lt.specks(shape, seed + 903, 0.18, 2.5) * lt.smooth(edge - 0.25, edge, along)
         col = lt.mix(col, mud, np.clip(caked + splash * 0.8, 0.0, 1.0))
