@@ -15,10 +15,13 @@ How the parts fit (gun space, cm: u along the gun from the back of the receiver,
   RustlerBarrel_<Key>    origin at the barrel nut: its shroud and barrel; SOCKET_Muzzle at its tip.
   RustlerMuzzle_<Key>    origin at its back face (on a barrel's SOCKET_Muzzle); SOCKET_Muzzle at its own tip.
   RustlerMagazine_<Key>  the helix: origin at its rear top, where it seats in the cradle; it runs forward under the
-                         barrel on the axis MAG_V and slides out downward (-Z) to reload. Its glowing core is GunAmmoGlow,
-                         whose UV0.x runs 0 at the feed end (the back) to 1 at the front: the game lights it from 0 up
-                         to the share of rounds left. Its length is its capacity; the long ones need a barrel long
-                         enough to reach over them (the CSV's Needs).
+                         barrel on the axis (MAG_V, MAG_W) and slides out downward (-Z) to reload. Its glowing core is
+                         GunAmmoGlow, whose UV0.x runs 0 at the feed end (the back) to 1 at the front: the game lights it
+                         from 0 up to the share of rounds left. Its length is its capacity; the long ones need a barrel
+                         long enough to reach over them (the CSV's Needs). The axis sits off to the gun's left (MAG_W)
+                         and the glow nearly flush with the coil (2026-10-22): the first-person eye is up and to the left
+                         of the gun, looking almost along it, so a centered helix hid behind the upper and a deep coil
+                         hid its glow; now its glowing flank shows low on the right of the view.
   RustlerSight_<Key>     origin on top of the rail, at its middle; SOCKET_Aim on its line of sight.
   RustlerStock_<Key>     origin at the middle of the back face; extends backward.
 
@@ -30,6 +33,7 @@ the same key; keys never change once guns drop.
     blender -b --factory-startup --python Art/Models/Weapons/Rustler.py -- --preview
 """
 import math
+import sys
 
 import bpy
 from mathutils import Vector
@@ -51,12 +55,15 @@ TOP, BOT, HALF = 3.4, -2.6, 2.0     # the upper's top, bottom and half width
 STOCK_AT = (0.0, 0.4)
 BARREL_AT = (31.0, 0.0)
 MAG_U = 15.0                        # the helix's back face
-MAG_V, MAG_R = -5.4, 2.45           # its axis and radius: its top touches the cradle
-MAG_AT = (MAG_U, MAG_V + MAG_R)
+MAG_SEAT = -2.95                    # the cradle's underside, where the helix seats (SOCKET_Magazine)
+MAG_R = 2.75                        # its radius: as tall as the concept's, wider than the upper
+MAG_W = 1.2                         # its axis off to the gun's left, the side the first-person eye sees
+MAG_V = MAG_SEAT - MAG_R            # its axis: its top touches the cradle
+MAG_AT = (MAG_U, MAG_SEAT)
 SIGHT_AT = (16.0, TOP + 0.95)       # on the rail's teeth
 MUZZLE_AT = (100.0, 0.0)            # muzzle devices are modeled here, around their own origin
 HAND = (5.4, -8.6)
-SUPPORT = (25.0, MAG_V - MAG_R)     # the left hand under the helix
+SUPPORT = (25.0, MAG_V - MAG_R, MAG_W)   # the left hand under the helix
 EJECT = (16.0, 1.0, -HALF)
 
 g = lg.Gun('Rustler')
@@ -118,7 +125,8 @@ def fittings(m, housing=METAL, bolt=DARK, knob=METAL, knob_tip=lg.STEEL, guard=M
     g.add(m, lg.pin(26.6, 1.2, HALF - 0.6, HALF + 0.9, 0.36, mat=knob, segments=12))
     g.add(m, lg.pin(26.6, 1.2, HALF + 0.9, HALF + 1.25, 0.55, mat=knob_tip, segments=14,
                     profile=[(0.0, 0.42), (0.1, 0.55), (0.3, 0.55), (0.35, 0.4)]))
-    g.add(m, lg.box(MAG_U, 30.6, MAG_V + MAG_R, BOT + 0.3, 3.0, bevel=0.15, mat=housing))       # the cradle
+    c0, c1 = MAG_W - MAG_R - 0.05, MAG_W + 1.5                   # the cradle: over the helix's right edge to past its top
+    g.add(m, lg.box(MAG_U, 30.6, MAG_SEAT, BOT + 0.3, c1 - c0, w=(c0 + c1) * 0.5, bevel=0.15, mat=housing))
     g.add(m, lg.rail(7.0, 25.0, TOP, mat=rail))
     g.add(m, lg.box(-0.5, 0.6, -1.8, 3.0, 3.4, bevel=0.25, mat=housing))                         # the back plate
     g.add(m, lg.tube(30.4, BARREL_AT[0], 1.35, segments=20, mat=DARK))
@@ -129,7 +137,7 @@ def fittings(m, housing=METAL, bolt=DARK, knob=METAL, knob_tip=lg.STEEL, guard=M
         g.add(m, lg.box(u0, u1, v - 0.13, v + 0.13, 0.08, w=side * (HALF + 0.01), bevel=0.0, mat=ACCENT))
     for name, uv in (('Stock', STOCK_AT), ('Barrel', BARREL_AT), ('Magazine', MAG_AT), ('Sight', SIGHT_AT),
                      ('Grip', HAND), ('Foregrip', SUPPORT)):
-        g.socket(m, name, uv)
+        g.socket(m, name, uv[:2], uv[2] if len(uv) > 2 else 0.0)
     g.socket(m, 'Eject', EJECT[:2], EJECT[2])
 
 
@@ -397,32 +405,34 @@ def muzzles():
 
 # --- Magazines: the helix, around where it seats ---
 
-def helix_mag(m, length, band=METAL, caps=DARK, pitch=2.6, width=1.8, starts=1, keel=None, rings=(), ring_mat=lg.BRASS,
+def helix_mag(m, length, band=METAL, caps=DARK, pitch=2.6, width=1.3, starts=1, keel=None, rings=(), ring_mat=lg.BRASS,
               pull=False, front_mat=None):
-    """The helical magazine: a glowing core (GunAmmoGlow, lit from the back by the rounds left) inside a coil band
-    whose gaps are the spiral window, a back cap with its feed tower up into the cradle, a domed front cap."""
-    u0, u1, v, r = MAG_U, MAG_U + length, MAG_V, MAG_R
-    core = lg.tube(u0 + 1.4, u1 - 1.4, r - 0.38, v=v, segments=24, mat=lg.AMMO_GLOW)
-    g.add(m, lg.along_uv(core, u0 + 1.4, u1 - 1.4, v=v))
+    """The helical magazine: a glowing core (GunAmmoGlow, lit from the back by the rounds left) wound with a coil band
+    whose gaps are the spiral window, a back cap with its feed tower up into the cradle, a domed front cap. The core
+    stands nearly flush with the coil and the gaps are wider than the band, so the glow still shows when the helix is
+    seen almost end-on, as the first-person eye sees it."""
+    u0, u1, v, w, r = MAG_U, MAG_U + length, MAG_V, MAG_W, MAG_R
+    core = lg.tube(u0 + 1.4, u1 - 1.4, r - 0.1, v=v, w=w, segments=28, mat=lg.AMMO_GLOW)
+    g.add(m, lg.along_uv(core, u0 + 1.4, u1 - 1.4, v=v, w=w))
     for k in range(starts):
-        g.add(m, lg.helix(u0 + 1.2, u1 - 1.5, r - 0.45, r, pitch * starts, width, v=v, steps=20,
+        g.add(m, lg.helix(u0 + 1.2, u1 - 1.5, r - 0.5, r + 0.03, pitch * starts, width, v=v, w=w, steps=20,
                           phase=360.0 * k / starts + 90.0, mat=band))
-    g.add(m, lg.turned([(0, r - 0.35), (0.3, r + 0.08), (1.5, r + 0.08), (1.75, r - 0.1)], u0, v=v, segments=28,
+    g.add(m, lg.turned([(0, r - 0.35), (0.3, r + 0.08), (1.5, r + 0.08), (1.75, r - 0.1)], u0, v=v, w=w, segments=28,
                        mat=caps))                                                   # back cap
     g.add(m, lg.slab([(u0 + 0.1, v + r - 0.4), (u0 + 1.55, v + r - 0.4), (u0 + 1.55, MAG_AT[1]), (u0 + 0.1, MAG_AT[1])],
-                     2.0, bevel=0.15, mat=caps))                                    # feed tower
+                     2.0, w=w * 0.5, bevel=0.15, mat=caps))                         # feed tower
     g.add(m, lg.turned([(0, r + 0.08), (0.9, r + 0.08), (1.5, r - 0.3), (2.0, r - 1.1), (2.25, 0.9), (2.3, 0.0)],
-                       u1 - 2.3, v=v, segments=28, mat=front_mat or caps))          # domed front cap
+                       u1 - 2.3, v=v, w=w, segments=28, mat=front_mat or caps))     # domed front cap
     if keel:
-        g.add(m, lg.box(u0 + 1.2, u1 - 1.4, v - r - 0.2, v - r + 0.6, 1.3, bevel=0.2, mat=keel))
+        g.add(m, lg.box(u0 + 1.2, u1 - 1.4, v - r - 0.2, v - r + 0.6, 1.3, w=w, bevel=0.2, mat=keel))
     for du in rings:
-        g.add(m, lg.tube(u0 + du, u0 + du + 0.45, r + 0.1, v=v, segments=28, mat=ring_mat))
+        g.add(m, lg.tube(u0 + du, u0 + du + 0.45, r + 0.1, v=v, w=w, segments=28, mat=ring_mat))
     if pull:   # a loop on the front cap to tear it out fast
-        g.add(m, lg.pipe(lg.bezier((u1 - 0.6, v - 1.6, 0.0), (u1 + 2.4, v - 2.6, 0.0), (u1 + 0.8, v - 3.6, 0.0)) +
-                         lg.bezier((u1 + 0.8, v - 3.6, 0.0), (u1 - 0.6, v - 3.4, 0.0), (u1 - 1.6, v - 2.2, 0.0))[1:],
+        g.add(m, lg.pipe(lg.bezier((u1 - 0.6, v - 1.6, w), (u1 + 2.4, v - 2.6, w), (u1 + 0.8, v - 3.6, w)) +
+                         lg.bezier((u1 + 0.8, v - 3.6, w), (u1 - 0.6, v - 3.4, w), (u1 - 1.6, v - 2.2, w))[1:],
                          0.22, mat=lg.STEEL, sides=8))
     # The latch tab under its back, which the thumb presses to drop it.
-    g.add(m, lg.box(u0 + 0.2, u0 + 1.4, v - r - 0.35, v - r + 0.3, 1.6, bevel=0.15, mat=caps))
+    g.add(m, lg.box(u0 + 0.2, u0 + 1.4, v - r - 0.35, v - r + 0.3, 1.6, w=w, bevel=0.15, mat=caps))
 
 
 def magazines():
@@ -432,10 +442,10 @@ def magazines():
     helix_mag(M('40'), 22.0)                                                         # the Helix's, 40 rounds
     helix_mag(M('45Quick'), 24.0, band=SHELL, caps=METAL, pull=True)                 # 45, a pull loop
     helix_mag(M('50'), 26.0, keel=METAL)                                             # 50, a keel beneath
-    helix_mag(M('50Twin'), 26.0, starts=2, pitch=2.8, width=1.9, caps=lg.BRASS)     # twin spirals, brass caps
+    helix_mag(M('50Twin'), 26.0, starts=2, pitch=2.8, width=1.3, caps=lg.BRASS)     # twin spirals, brass caps
     helix_mag(M('60'), 30.0, keel=DARK, rings=(10.0, 20.0), ring_mat=DARK)          # 60, banded
     helix_mag(M('60Brass'), 30.0, band=SHELL, caps=lg.BRASS, rings=(7.5, 15.0, 22.5))  # sand and brass
-    helix_mag(M('Gilded'), 28.0, band=lg.BRASS, caps=METAL, pitch=3.0, width=1.7, front_mat=lg.BRASS,
+    helix_mag(M('Gilded'), 28.0, band=lg.BRASS, caps=METAL, pitch=3.0, width=1.4, front_mat=lg.BRASS,
               rings=(1.75,))                                                         # 55, a brass coil
 
 
@@ -622,6 +632,88 @@ VARIANTS = {
     'Rustler_Ironside': {'Body': 'Ironside', 'Barrel': 'Shrouded', 'Muzzle': 'Brake', 'Magazine': '50',
                          'Sight': 'Pip', 'Stock': 'Wire'},
 }
+
+def view_from(objs, eye, lens, out_png, resolution=(1280, 720)):
+    """Renders objs from a camera at eye (scene space) looking along the gun (+u), level, as the game's first-person
+    camera does; lens 18 mm is its 90 degree view, a sight's zoom multiplies it."""
+    scene = bpy.context.scene
+    cam = bpy.data.objects.new('_View', bpy.data.cameras.new('_View'))
+    cam.data.lens = lens
+    cam.data.sensor_fit = 'HORIZONTAL'
+    cam.data.clip_start = 0.002
+    scene.collection.objects.link(cam)
+    cam.location = eye
+    cam.rotation_euler = Vector((0.0, -1.0, 0.0)).to_track_quat('-Z', 'Y').to_euler()
+    sun = bpy.data.objects.new('_ViewSun', bpy.data.lights.new('_ViewSun', 'SUN'))
+    sun.data.energy = 4.0
+    sun.data.color = (1.0, 0.9, 0.78)
+    sun.rotation_euler = Vector((-0.45, -0.55, -0.7)).to_track_quat('-Z', 'Y').to_euler()
+    scene.collection.objects.link(sun)
+    hidden = {o: o.hide_render for o in scene.objects}
+    for o in scene.objects:
+        if o.type == 'MESH' and o not in objs:
+            o.hide_render = True
+    saved = (scene.camera, scene.world, scene.render.filepath)
+    scene.camera, scene.world = cam, lt._preview_world(scene)
+    scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    scene.render.resolution_x, scene.render.resolution_y = resolution
+    scene.render.resolution_percentage = 100
+    scene.render.image_settings.file_format = 'PNG'
+    scene.render.filepath = out_png
+    scene.view_settings.view_transform = 'AgX'
+    bpy.ops.render.render(write_still=True)
+    world = scene.world
+    scene.camera, scene.world, scene.render.filepath = saved
+    bpy.data.worlds.remove(world)
+    for o, h in hidden.items():
+        o.hide_render = h
+    for o in (cam, sun):
+        data = o.data
+        bpy.data.objects.remove(o)
+        (bpy.data.cameras if isinstance(data, bpy.types.Camera) else bpy.data.lights).remove(data)
+
+
+# The game's view of the SMG (Source: WeaponHipHold.cpp, PlayerLocomotionViewModel.cpp, WeaponModelComponent ScaleFor):
+# the grip 44 cm ahead of the eye, 22 right and 22.5 down, the gun level and drawn at 1.1x; aiming puts SOCKET_Aim 22 cm
+# ahead of the eye. In the gun's own units (the camera moved instead of the gun scaled):
+HIP_EYE = Vector((HAND[0] - 44.0 / 1.1, HAND[1] + 22.5 / 1.1, 22.0 / 1.1))   # (u, v, w): the eye on the gun's left
+AIM_RELIEF = 22.0 / 1.1
+ZOOM = {'Iron': 1.0, 'Pip': 1.25, 'Reflex': 1.25, 'Holo': 1.5, 'Prism': 2.0, 'Scope': 3.0, 'Gilded': 1.5}
+
+
+def hip_view(choice, out_png):
+    view_from(assemble(choice), lg.at(*HIP_EYE), 18.0, out_png)
+
+
+def aimed_view(choice, out_png):
+    shown = assemble(choice)
+    eye = socket_at(built['Sight_' + choice['Sight']], 'Aim') + Vector((0.0, AIM_RELIEF * lg.CM, 0.0))
+    view_from(shown, eye, 18.0 * ZOOM[choice['Sight']], out_png)
+
+
+def fix_previews(prefix):
+    """The first-person checks: from the hip, and aimed through every sight."""
+    out = lambda name: lt.preview_path('Weapons', prefix + name)
+    hip_view(DEFAULT, out('Hip'))
+    hip_view(VARIANTS['Rustler_Legendary'], out('Hip_Legendary'))
+    hip_view(VARIANTS['Rustler_Heavy'], out('Hip_Heavy'))
+    lt.preview(assemble(DEFAULT), out('Side'), view=(-1.0, -0.02, 0.05), ground=False, lens=80.0, fit=0.9)
+    lt.preview(assemble(DEFAULT), out('SideLeft'), view=(1.0, -0.02, 0.05), ground=False, lens=80.0, fit=0.9)
+    lt.preview(assemble(VARIANTS['Rustler_Rare']), out('ThreeQuarter_Rare'), view=(-1.0, -0.35, 0.3), ground=False,
+               lens=60.0, fit=0.95)
+    lt.preview(assemble(VARIANTS['Rustler_Heavy']), out('Front_Heavy'), view=(-0.35, -1.0, 0.25), ground=False,
+               lens=60.0, fit=0.95)
+    for key in SLOTS['Sight']:
+        aimed_view(dict(DEFAULT, Sight=key), out('Aim_' + key))
+    for model, obj in sorted(built.items()):
+        tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
+        lt._log(f'tris {model} {tris}')
+    assemble(DEFAULT)
+
+
+for arg in (sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []):
+    if arg.startswith('--fix'):   # --fix renders Rustler_Fix_*.png, --fix=Name_ renders Name_*.png
+        fix_previews(arg[6:] or 'Rustler_Fix_')
 
 if lt.want_preview():
     out = lambda name: lt.preview_path('Weapons', name)

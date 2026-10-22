@@ -462,7 +462,7 @@ def frontier_sight(gun, m, kind, uc, v0, shell=POLY_SAND, metal=BLACK, trim=None
       Iron    folding irons span cm apart: a peep ring at the back, a post with a brass bead and a cyan dot in front
       Pip     a 1x tube dot with a cyan LED knob and a sand sunshade
       Reflex  an open window in a sand hood, a cyan strip under the glass
-      Holo    a boxy holographic sight, a sand cap with a cyan bar along its top
+      Holo    a holographic sight: an open hood over the front of a long base, a ringed dot, a sand cap with a cyan bar
       Prism   a compact 2x prism, a cyan ring round its objective
       Scope   a tube scope (zoom 3-8 makes it longer and wider at the objective), two rings, turrets, an ember line
               along the top and a cyan objective ring"""
@@ -508,16 +508,24 @@ def frontier_sight(gun, m, kind, uc, v0, shell=POLY_SAND, metal=BLACK, trim=None
         gun.socket(m, 'Aim', (uc + 2.3, v0 + 3.25))
         return
     if kind == 'Holo':
+        # The hood covers only the front of the base, so the eye sees a short window, not down a tunnel; behind it a low
+        # control block stays under the line of sight (2026-10-22: the full-length hood had solid ends and hid the view).
         gun.add(m, box(uc - 5.4, uc + 5.4, v0, v0 + 1.3, 3.0, bevel=0.25, mat=metal))
-        hood = slab([(uc - 5.4, v0 + 1.2), (uc + 5.4, v0 + 1.2), (uc + 5.4, v0 + 5.5), (uc + 4.0, v0 + 6.4),
-                     (uc - 4.0, v0 + 6.4), (uc - 5.4, v0 + 5.5)], 3.4, bevel=0.35, segments=3, mat=metal, round=0.4)
-        gun.add(m, cut(hood, [cbox(uc - 6.4, uc + 6.4, v0 + 1.9, v0 + 5.6, -1.25, 1.25)]))
-        gun.add(m, box(uc - 3.0, uc + 3.0, v0 + 6.3, v0 + 6.75, 1.9, bevel=0.15, mat=shell))
-        gun.add(m, box(uc - 2.6, uc + 2.6, v0 + 6.7, v0 + 6.85, 0.5, bevel=0.0, mat=CYAN))
-        for u in (uc - 5.45, uc + 5.3):   # bands round the window's ends
-            gun.add(m, box(u, u + 0.15, v0 + 1.2, v0 + 6.4, 3.5, bevel=0.05, mat=trim))
+        hood = slab([(uc - 1.0, v0 + 1.2), (uc + 5.4, v0 + 1.2), (uc + 5.4, v0 + 5.5), (uc + 4.2, v0 + 6.4),
+                     (uc + 0.2, v0 + 6.4), (uc - 1.0, v0 + 5.5)], 3.4, bevel=0.35, segments=3, mat=metal, round=0.4)
+        gun.add(m, cut(hood, [cbox(uc - 2.0, uc + 6.4, v0 + 1.9, v0 + 5.6, -1.25, 1.25)]))
+        gun.add(m, slab([(uc - 5.2, v0 + 1.2), (uc - 1.0, v0 + 1.2), (uc - 1.0, v0 + 1.85), (uc - 4.6, v0 + 1.85)], 2.8,
+                        bevel=0.2, mat=metal, round=0.2))                                     # the control block
+        for u in (uc - 4.2, uc - 2.8):   # its two buttons
+            gun.add(m, upright(u, v0 + 1.8, v0 + 1.95, 0.4, mat=shell, segments=12))
+        gun.add(m, box(uc + 0.6, uc + 3.8, v0 + 6.3, v0 + 6.75, 1.9, bevel=0.15, mat=shell))
+        gun.add(m, box(uc + 0.9, uc + 3.5, v0 + 6.7, v0 + 6.85, 0.5, bevel=0.0, mat=CYAN))
+        for u in (uc - 1.15, uc + 5.15):   # frames round the window's ends, open like it
+            frame = box(u, u + 0.45, v0 + 1.2, v0 + 6.4, 3.5, bevel=0.05, mat=trim)
+            gun.add(m, cut(frame, [cbox(u - 0.5, u + 0.95, v0 + 1.9, v0 + 5.6, -1.25, 1.25)]))
         gun.add(m, box(uc + 3.9, uc + 4.05, v0 + 1.9, v0 + 5.6, 2.5, bevel=0.0, mat=LENS))
         gun.add(m, pin(uc + 3.8, v0 + 3.75, -0.12, 0.12, 0.12, mat=RETICLE))
+        gun.add(m, hollow([(0.0, 0.62), (0.03, 0.62)], uc + 3.78, v0 + 3.75, 24, RETICLE, wall=0.06))   # its ring
         gun.socket(m, 'Aim', (uc + 3.8, v0 + 3.75))
         return
     if kind == 'Prism':
