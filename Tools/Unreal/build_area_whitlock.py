@@ -17,15 +17,16 @@ Side 2:
 - Amos (AAmosWhitlock tagged Speaker_Amos) leaning on his fence by his gate: in the middle of the first span past the gate
   (its post at his right), on the fence's line, facing across it into his hayfield, the span the kit's true 1.5 m so his
   pose (fitted to FenceRail) meets its rail. There from Main 4's finish; on the rail after Side 2. Talked to: the first
-  meeting (Side 2's first step), the bales (its second), the hands (its third), his thanks (its last), and after it,
+  meeting (Side 2's offer), the bales (its first step), the hands (its second), his thanks (its last), and after it,
   sitting, waiting for the saint.
-- Six hay bales (AHayBale tagged HayBale) lying out in the west field, each with its place in a stack of six under the
-  hoist by the Whitlock barn's big doors (three, two, one, along the barn's front): loaded by holding Interact from Side 2's
-  second step, all in the stack once it's done. Amos remarks on the first and the last, Hob on the third.
+- Three hay bales (AHayBale tagged HayBale; BALES_USED of FIELD_BALES) lying out in the west field, each with its place in
+  the stack's bottom row under the hoist by the Whitlock barn's big doors: loaded by holding Interact from Side 2's first
+  step, all in the stack once it's done. Amos remarks on the first and the last (the last: "...Who's that out on the
+  road?"), Hob on the second.
 - His old hired hands (AEncounterSpawner WhitlockHands) in the barn yard: seven Unpaid and a Restless one, tagged
-  Unpaid_WhitlockHands, on during Side 2's third step only, appearing round the barn as the player comes within 22 m of
+  Unpaid_WhitlockHands, on during Side 2's second step only, appearing round the barn as the player comes within 22 m of
   the yard's middle (its gate is 20 m off) and coming for them, hunting only inside the yard's fence (and its 2 m margin),
-  so the fight stays in the yard.
+  so the fight stays in the yard. As the last falls Amos says who they were (DA_Lines_AmosRoad, its cleared_lines).
 Hob has no Side 2 perches: side missions don't move him (Side 1 and Side 3 have none either; his perches follow the main
 mission), so he has his word as a remark on the third bale.
 
@@ -50,10 +51,16 @@ BALE_TAG = 'HayBale'
 HANDS = 'WhitlockHands'
 HANDS_TAG = 'Unpaid_WhitlockHands'
 
-# Side 2's steps, counted from 0: load the bales, the road talk, drive off the hands, talk to Amos (the missions' data).
+# Side 2's steps, counted from 0: load the bales, drive off the hands, talk to Amos (the missions' data; the road talk
+# went into the fight's end on 2026-10-21: the hands' spawner says DA_Lines_AmosRoad as the last of them falls).
 LOAD_STEP = 0
-FIGHT_STEP = 2
-THANKS_STEP = 3
+FIGHT_STEP = 1
+THANKS_STEP = 2
+# Three of the field's bales are loaded now (the user's cut of the chores): only these many are placed, in the stack's
+# bottom row. The rest of FIELD_BALES stays written down for a longer chore another time.
+BALES_USED = 3
+# Who the hands were, said once they're beaten (AEncounterSpawner::ClearedLines; STORY phase 2).
+HANDS_CLEARED_LINES = 'DA_Lines_AmosRoad'
 
 # Amos's span (Fences.py's FenceRail): posts 1.5 m apart, the first on the section's pivot.
 SPAN = 150.0
@@ -195,9 +202,10 @@ def place_bales(build, ground):
             build.warn('no HayBale class (build the game module first): no hay to load')
         return
     spots = stack_spots(build, ground, barn)
-    remarks = [each for each in (remark(build, 1, 'DA_Lines_AmosBaleFirst'), remark(build, 3, 'DA_Lines_HobBaleThird'),
-                                 remark(build, len(FIELD_BALES), 'DA_Lines_AmosBaleLast')) if each is not None]
-    for index, ((x, y, yaw), (stacked_at, stacked_yaw)) in enumerate(zip(FIELD_BALES, spots)):
+    bales = FIELD_BALES[:BALES_USED]
+    remarks = [each for each in (remark(build, 1, 'DA_Lines_AmosBaleFirst'), remark(build, 2, 'DA_Lines_HobBaleThird'),
+                                 remark(build, len(bales), 'DA_Lines_AmosBaleLast')) if each is not None]
+    for index, ((x, y, yaw), (stacked_at, stacked_yaw)) in enumerate(zip(bales, spots)):
         bale = build.place(cls, (x, y, ground(x, y)), yaw, label=f'Whitlock_HayBale_{index + 1}', folder='Gameplay',
                            tags=(BALE_TAG,))
         bale.set_editor_property('load_when', story.condition(during=SIDE2, from_step=LOAD_STEP))
@@ -205,8 +213,8 @@ def place_bales(build, ground):
         bale.set_editor_property('load_remarks', remarks)
         stacked = bale.get_editor_property('stacked')
         stacked.set_world_location_and_rotation(stacked_at, unreal.Rotator(roll=0.0, pitch=0.0, yaw=stacked_yaw), False, True)
-    build.log(f'{len(FIELD_BALES)} hay bales in the west field, their stack by the Whitlock barn\'s doors, loaded from '
-              f'{SIDE2}\'s second step ({len(remarks)} remarks)')
+    build.log(f'{len(bales)} hay bales in the west field, their stack by the Whitlock barn\'s doors, loaded from '
+              f'{SIDE2}\'s first step ({len(remarks)} remarks)')
 
 
 def barn_actor(build):
@@ -242,15 +250,24 @@ def place_hands(build, ground):
     # Seven Basic and a Restless one, all in one wave (the design's "6, one of them Restless" until 2026-10-21).
     hands.set_editor_property('groups', [story.group(unpaid, HANDS_BASIC, 'BASIC'), story.group(unpaid, 1, 'RARE')])
     hands.set_editor_property('creature_tags', [unreal.Name(HANDS_TAG)])
-    # Side 2's third step only (from 0: from 2, before 3): a fight already won doesn't come back on a later load.
+    # Side 2's second step only (from 0: from 1, before 2): they come up the road as the last bale goes in, and a fight
+    # already won doesn't come back on a later load.
     hands.set_editor_property('active_when', story.condition(during=SIDE2, from_step=FIGHT_STEP, before_step=THANKS_STEP))
+    # Who they were, said as the last of them falls, after the fight's noise (Main's call, 2026-10-21). Guarded: a game
+    # module from before AEncounterSpawner::ClearedLines places them without it.
+    said = story.lines(build, HANDS_CLEARED_LINES)
+    if said is not None:
+        try:
+            hands.set_editor_property('cleared_lines', said)
+        except Exception as error:
+            build.warn(f'no EncounterSpawner.cleared_lines ({error}): build the game module; Amos says nothing as they fall')
     hands.set_editor_property('spawn_points', [unreal.Vector(x - hx, y - hy, 0.0) for x, y in spots])
     hands.set_editor_property('activation_radius', HANDS_ACTIVATION)
     hands.set_editor_property('hunt_on_spawn', True)
     # "Lives on the barn yard; gives up at the barn yard fence."
     hands.set_editor_property('ground_corners', [unreal.Vector(x, y, hz) for x, y in yard['polygon']])
     build.log(f'the hired hands ({HANDS}: {HANDS_BASIC} Unpaid and a Restless one) in the barn yard at ({hx:.0f}, {hy:.0f}), '
-              f'during {SIDE2}\'s third step')
+              f'during {SIDE2}\'s second step')
 
 
 def place(build):

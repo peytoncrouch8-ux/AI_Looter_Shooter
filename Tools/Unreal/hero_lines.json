@@ -186,8 +186,8 @@
      "at": "SETS['DA_Lines_SextonDeal'][3]"
     }
    ],
-   "current": "Seven of your old friends carry seven embers that aren't theirs. Bring each one here, to this rail, at the new moon.",
-   "neutral": "Seven of the Deacon's gang carry seven embers that aren't theirs. Bring each one here, to this rail, at the new moon.",
+   "current": "Seven old friends of yours carry embers that aren't theirs. Bring each to this rail at the new moon.",
+   "neutral": "Seven of the Deacon's gang carry embers that aren't theirs. Bring each to this rail at the new moon.",
    "note": "Says nothing of the hero having ridden with them, so it holds whichever way the cold-open question goes."
   },
   {
@@ -385,21 +385,9 @@
      "at": "SETS['DA_Lines_AldanaWaiting']"
     }
    ],
-   "current": "If the saint still knows you, she'll answer her bell. Ring it. Then look at what was done to her.",
-   "neutral": "If the saint will hear you, she'll answer her bell. Ring it. Then look at what was done to her.",
+   "current": "Ring her bell. If the saint still knows you, she'll answer.",
+   "neutral": "Ring her bell. If the saint will hear you, she'll answer.",
    "note": "The saint never knew a stranger."
-  },
-  {
-   "id": "lines.AldanaBell.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_AldanaBell'][0]"
-    }
-   ],
-   "current": "The rope's inside the door. Ring her, Ellis. Then go and look at her. I can't.",
-   "neutral": "The rope's inside the door. Ring her. Then go and look at her. I can't."
   },
   {
    "id": "lines.AldanaMain4.1",
@@ -440,90 +428,6 @@
    "neutral": "Abel's fell in the dark, whole."
   },
   {
-   "id": "lines.AldanaAfterMain4.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_AldanaAfterMain4'][0]"
-    }
-   ],
-   "current": "The Sink, Ellis. Your father's lantern. I'll pray it's still whole.",
-   "neutral": "The Sink. Abel's lantern. I'll pray it's still whole."
-  },
-  {
-   "id": "lines.HobMain5Way.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_HobMain5Way'][0]"
-    }
-   ],
-   "current": "Keepers walk the dead to the boards by lantern light. Your Pa's is down there, sunshine, somewhere under the webs. Ramp's on the west side, by the gap in the fence.",
-   "neutral": "Keepers walk the dead to the boards by lantern light. The Keeper's is down there, sunshine, somewhere under the webs. Ramp's on the west side, by the gap in the fence."
-  },
-  {
-   "id": "lines.HobMain5Lantern.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_HobMain5Lantern'][0]"
-    }
-   ],
-   "current": "That's the last of them. There, in the webbing by the north wall. Brass and glass. That's your Pa's.",
-   "neutral": "That's the last of them. There, in the webbing by the north wall. Brass and glass. That's the Keeper's."
-  },
-  {
-   "id": "lines.HobMain5.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_HobMain5'][0]"
-    }
-   ],
-   "current": "Spiders hoard anything a saint has touched. Your Pa's lantern was lit from her every night he kept her. To them it smells like supper, sunshine.",
-   "neutral": "Spiders hoard anything a saint has touched. The Keeper's lantern was lit from her every night he kept her. To them it smells like supper, sunshine."
-  },
-  {
-   "id": "lines.AldanaAfterMain5.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_AldanaAfterMain5'][0]"
-    }
-   ],
-   "current": "Take it home, Ellis. Your grandmother will know what's owed a keeper.",
-   "neutral": "Take it up to Delia Ransom. A keeper's mother knows what's owed a keeper."
-  },
-  {
-   "id": "lines.HobMain6Way.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_HobMain6Way'][0]"
-    }
-   ],
-   "current": "Keeper's grave. Every Ransom who ever sat up with the dead is under that board, sunshine. Your Pa's the first one who won't stay there.",
-   "neutral": "Keeper's grave. Every Ransom who ever sat up with the dead is under that board, sunshine. Abel's the first one who won't stay there."
-  },
-  {
-   "id": "lines.HobMain6Bridge.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_HobMain6Bridge'][0]"
-    }
-   ],
-   "current": "Every Ransom for sixty years walked the dead this way at sundown. Your Pa walked it the night before they shot him.",
-   "neutral": "Every Ransom for sixty years walked the dead this way at sundown. Abel walked it the night before they shot him."
-  },
-  {
    "id": "lines.AbelOnBoard.0",
    "kind": "line",
    "where": [
@@ -536,18 +440,6 @@
    "neutral": "Sun goes down the same every night. I never once got tired of it."
   },
   {
-   "id": "lines.AbelOnBoard.1",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_AbelOnBoard'][1]"
-    }
-   ],
-   "current": "Your grandmother still setting a plate? Eat it, even if you can't taste it. She needs to see it gone.",
-   "neutral": "My mother still setting a plate for you? Eat it, even if you can't taste it. She needs to see it gone."
-  },
-  {
    "id": "lines.AbelAfterMain7.1",
    "kind": "line",
    "where": [
@@ -558,18 +450,6 @@
    ],
    "current": "Go on, El. I'll keep the boards.",
    "neutral": "Go on. I'll keep the boards."
-  },
-  {
-   "id": "lines.HobMain7Lean.1",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_HobMain7Lean'][1]"
-    }
-   ],
-   "current": "Go home first, sunshine. Your grandmother's been keeping something back.",
-   "neutral": "Back to the farm first, sunshine. Delia's been keeping something back."
   },
   {
    "id": "lines.AgentWindowLily.0",
@@ -653,35 +533,11 @@
      "at": "MISSIONS Side2 offer lines"
     }
    ],
-   "current": "What's left of him. And you're Abel's young'un. I heard the shooting from the Sundown Road the night the saint went out. I'm sorry for it.",
-   "neutral": "What's left of him. And you'd be the one the Deacon shot on the Point. I heard it from the Sundown Road the night the saint went out. I'm sorry for it.",
+   "current": "What's left of him. And you're Abel's young'un. I'm sorry for it.",
+   "neutral": "What's left of him. And you'd be the one the Deacon shot on the Point. I'm sorry for it.",
    "heroes": {
-    "Gauge": "What's left of him. And you're the iron fella the Deacon shot on the Point. Heard it ring from the Sundown Road the night the saint went out. I'm sorry for it."
+    "Gauge": "What's left of him. And you're the iron fella the Deacon shot on the Point. I'm sorry for it."
    }
-  },
-  {
-   "id": "lines.AmosRoad.3",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_AmosRoad'][3]"
-    }
-   ],
-   "current": "Drive them off, Ellis. Gently, if there's a gently. They were good boys.",
-   "neutral": "Drive them off. Gently, if there's a gently. They were good boys."
-  },
-  {
-   "id": "lines.AmosAfterMain6.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_AmosAfterMain6'][0]"
-    }
-   ],
-   "current": "Saw a light out on Gravewind Point at dusk. Your Pa's, I'd wager. Good to know a keeper's still keeping.",
-   "neutral": "Saw a light out on Gravewind Point at dusk. Abel's, I'd wager. Good to know a keeper's still keeping."
   },
   {
    "id": "lines.HobBaleThird.0",
@@ -751,24 +607,12 @@
    "note": "Ellis's 1.80 m; the heroes' heights from Saved/Heroes/CONTRACT.md (1.72, 1.95, 1.92, 1.68 m)."
   },
   {
-   "id": "lines.ThaddeusAfter.1",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_ThaddeusAfter'][1]"
-    }
-   ],
-   "current": "I remember them all, Ransom's child. Somebody has to.",
-   "neutral": "I remember them all. Somebody has to."
-  },
-  {
    "id": "lines.AldanaAda.5",
    "kind": "line",
    "where": [
     {
-     "file": "Tools/Unreal/create_story_lines.py",
-     "at": "SETS['DA_Lines_AldanaAda'][5]"
+     "file": "Tools/Unreal/story_texts.py",
+     "at": "READABLES['AldanaPage'] lines[0]"
     }
    ],
    "current": "Sixty years at the edge of the world.",
@@ -865,8 +709,8 @@
      "at": "READABLES['HeadboardEllis'] lines[1]"
     }
    ],
-   "current": "Your grandmother. Took her all night, sunshine. She did the letters twice.",
-   "neutral": "Delia Ransom. Copied your name off your own wanted poster, sunshine. Did the letters twice."
+   "current": "Your grandmother. She did the letters twice.",
+   "neutral": "Delia Ransom. Copied your name off your wanted poster. Did the letters twice."
   },
   {
    "id": "readable.LookoutStains.line0",
@@ -1315,18 +1159,6 @@
    "neutral": "Father Aldana blessed the Keeper's lantern every spring and sat up with his body the night he died. He has barred himself in the chapel's vestry since the dead came home, and the chapel yard is full of them."
   },
   {
-   "id": "mission.Main4.offer.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_mission_assets.py",
-     "at": "MISSIONS Main4 offer lines[0]"
-    }
-   ],
-   "current": "Father Aldana sat up with your Pa the night they brought him down.",
-   "neutral": "Father Aldana sat up with the Keeper the night they brought him down."
-  },
-  {
    "id": "mission.Main4.briefing",
    "kind": "text",
    "where": [
@@ -1351,18 +1183,6 @@
    "neutral": "The gang smashed the keeper's lantern in every town they robbed, but Abel's fell in the dark, whole. Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg sacs."
   },
   {
-   "id": "mission.Main5.offer.1",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_mission_assets.py",
-     "at": "MISSIONS Main5 offer lines[1]"
-    }
-   ],
-   "current": "Go down and bring it back, Ellis. I'd stake the chapel on it being whole.",
-   "neutral": "Go down and bring it back. I'd stake the chapel on it being whole."
-  },
-  {
    "id": "mission.Main5.briefing",
    "kind": "text",
    "where": [
@@ -1373,18 +1193,6 @@
    ],
    "current": "The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. Spiders hoard anything a saint has touched. Go down into the Sink and bring it back.",
    "neutral": "The gang smashed the keeper's lantern in every town they robbed, but Abel's fell in the dark, whole. Spiders hoard anything a saint has touched. Go down into the Sink and bring it back."
-  },
-  {
-   "id": "mission.Main5.turnin.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_mission_assets.py",
-     "at": "MISSIONS Main5 turn_in lines[0]"
-    }
-   ],
-   "current": "You found it. Dark, but whole. Hold it to the altar candle, Ellis.",
-   "neutral": "You found it. Dark, but whole. Hold it to the altar candle."
   },
   {
    "id": "mission.Main5.turnin.2",
@@ -1414,8 +1222,8 @@
      "at": "MISSIONS Main5 turn_in lines[3]"
     }
    ],
-   "current": "I don't know. Take it home to your grandmother, Ellis. She'll know what's owed a keeper.",
-   "neutral": "I don't know. Take it up to Delia Ransom. She'll know what's owed a keeper."
+   "current": "I don't know. Your grandmother will know what's owed a keeper.",
+   "neutral": "I don't know. Delia Ransom will know what's owed a keeper."
   },
   {
    "id": "mission.Main6.summary",
@@ -1455,8 +1263,8 @@
      "at": "main6_steps step 0 collect_items text"
     }
    ],
-   "current": "Bring Pa's lantern bail from Tilly's window sill.",
-   "neutral": "Bring the Keeper's lantern bail from Tilly's window sill."
+   "current": "Bring Pa's lantern bail. Tilly handed it over.",
+   "neutral": "Bring the Keeper's lantern bail. Tilly handed it over."
   },
   {
    "id": "mission.Main6.obj.bail.short",
@@ -1544,8 +1352,8 @@
      "at": "MISSIONS Main7 offer lines[1]"
     }
    ],
-   "current": "Your grandmother's kept something back for you. Go home and get it before you go.",
-   "neutral": "My mother's kept something back for you. Go up to the farm and get it before you go."
+   "current": "Your grandmother's kept something back for you. Go home first.",
+   "neutral": "My mother's kept something back for you. Go up to the farm first."
   },
   {
    "id": "mission.Main7.briefing",
@@ -1652,18 +1460,6 @@
    "heroes": {
     "Gauge": "Who's there? ...Lord. The iron one from the Ransom plot."
    }
-  },
-  {
-   "id": "side.Knocking.offer.0",
-   "kind": "line",
-   "where": [
-    {
-     "file": "Tools/Unreal/create_side_mission_assets.py",
-     "at": "MISSIONS KnockingBelow offer lines[0]"
-    }
-   ],
-   "current": "You've been in a grave and out of it, Ellis, so you'll understand me.",
-   "neutral": "You've been in a grave and out of it, so you'll understand me."
   },
   {
    "id": "voice.DeadLift.offer.1",

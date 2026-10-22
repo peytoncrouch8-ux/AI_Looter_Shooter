@@ -225,16 +225,61 @@ bool FSessionStepMigrationDataTest::RunTest(const FString& Parameters)
 			&& StepHas<UMissionReachObjective>(MainThree, 2,
 				[](const UMissionReachObjective& Reach) { return Reach.Place.Actor.ActorTag == FName(TEXT("Speaker_Tilly")); }));
 	}
+	// Side 2 through both moves: 2026-10-13's (MapOldStep), then 2026-10-21's (MapStepBeforeTalkCut).
+	auto SideTwoNow = [](int32 Old) { return CampaignStepMigration::MapStepBeforeTalkCut(Side2, CampaignStepMigration::MapOldStep(Side2, Old)); };
 	const UMissionDefinition* SideTwo = LoadMission(TEXT("DA_Mission_Side2"));
 	if (SideTwo)
 	{
-		TestTrue(TEXT("Side 2's old bales land on the bales"), StepHas<UMissionLastingInteractObjective>(SideTwo,
-			CampaignStepMigration::MapOldStep(Side2, 1),
+		TestTrue(TEXT("Side 2's old bales land on the bales"), StepHas<UMissionLastingInteractObjective>(SideTwo, SideTwoNow(1),
 			[](const UMissionLastingInteractObjective& Load) { return Load.Target.ActorTag == FName(TEXT("HayBale")); }));
-		TestTrue(TEXT("...its old hands on the hands"), StepHas<UMissionClearObjective>(SideTwo, CampaignStepMigration::MapOldStep(Side2, 2),
+		TestTrue(TEXT("...its old hands on the hands"), StepHas<UMissionClearObjective>(SideTwo, SideTwoNow(2),
 			[](const UMissionClearObjective& Fight) { return Fight.SpawnerId == FName(TEXT("WhitlockHands")); }));
-		TestEqual(TEXT("...and its old waiting one past today's last"), CampaignStepMigration::MapOldStep(Side2, 3), SideTwo->Steps.Num());
+		TestEqual(TEXT("...and its old waiting one past today's last"), SideTwoNow(3), SideTwo->Steps.Num());
 	}
+	const UMissionDefinition* Knocking = LoadMission(TEXT("DA_Mission_KnockingBelow"));
+	if (Knocking)
+	{
+		const FName KnockingId(TEXT("KnockingBelow"));
+		TestTrue(TEXT("Knocking Below's old slate step lands on the way into the cellar (the slate's optional with it)"),
+			StepHas<UMissionReachObjective>(Knocking, CampaignStepMigration::MapStepBeforeTalkCut(KnockingId, 2),
+				[](const UMissionReachObjective& Down) { return Down.Place.Actor.ActorTag == FName(TEXT("Place_CellarFloor")); }));
+		TestTrue(TEXT("...its old fight on the fight"), StepHas<UMissionClearObjective>(Knocking,
+			CampaignStepMigration::MapStepBeforeTalkCut(KnockingId, 3),
+			[](const UMissionClearObjective& Fight) { return Fight.SpawnerId == FName(TEXT("TillyCellar")); }));
+		TestEqual(TEXT("...and its old waiting one past today's last"), CampaignStepMigration::MapStepBeforeTalkCut(KnockingId, 7),
+			Knocking->Steps.Num());
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSessionStepMigrationTalkCutTest, "Looter.Session.StepMigration.TalkCut",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSessionStepMigrationTalkCutTest::RunTest(const FString& Parameters)
+{
+	// A version 3 session read after 2026-10-21's cut of the fetches: the moved missions' optionals move with their steps,
+	// Dead Lift's first-step optional goes, the retired crank and coal leave the carried, and it's brought up to date.
+	ULooterSessionSave* Old = MakeOld(3, FDateTime(2026, 10, 21, 12, 0, 0), 2);
+	Old->Campaign.OptionalDone = { TEXT("Side2.2.1"), TEXT("KnockingBelow.2.1"), TEXT("DeadLift.0.1"), TEXT("Main4.4.1") };
+	Old->Campaign.CarriedItems = { TEXT("WinchCrank"), TEXT("CoalSack"), TEXT("ClampPin") };
+	const ULooterSessionSave* Read = WriteAndRead(Old);
+	if (!TestNotNull(TEXT("Read back"), Read))
+	{
+		return false;
+	}
+	const TArray<FName>& Done = Read->Campaign.OptionalDone;
+	TestTrue(TEXT("Side 2's wages chalk: with the hands' step now"), Done.Contains(FName(TEXT("Side2.1.1"))) && !Done.Contains(FName(TEXT("Side2.2.1"))));
+	TestTrue(TEXT("Knocking Below's slate: with the way into the cellar"), Done.Contains(FName(TEXT("KnockingBelow.1.1"))));
+	TestFalse(TEXT("Dead Lift's old report optional: gone"), Done.Contains(FName(TEXT("DeadLift.0.1"))));
+	TestTrue(TEXT("...a main mission's: as it was"), Done.Contains(FName(TEXT("Main4.4.1"))) && Done.Num() == 3);
+	TestTrue(TEXT("The crank and the coal no longer carried, the pin still"), !Read->Campaign.IsCarrying(TEXT("WinchCrank"))
+		&& !Read->Campaign.IsCarrying(TEXT("CoalSack")) && Read->Campaign.IsCarrying(TEXT("ClampPin")));
+	TestEqual(TEXT("Main 4's step: as it was (its list didn't move)"), Read->Campaign.ActiveMissionStep, 2);
+	TestEqual(TEXT("Brought up to date"), Read->Version, ULooterSessionSave::CurrentVersion);
+	TestEqual(TEXT("Side 2's old road talk: the hands"), CampaignStepMigration::MapStepBeforeTalkCut(Side2, 1), 1);
+	TestEqual(TEXT("Knocking Below's old workshop door: the key"), CampaignStepMigration::MapStepBeforeTalkCut(TEXT("KnockingBelow"), 0), 0);
+	TestEqual(TEXT("...its old tape: Thaddeus's step"), CampaignStepMigration::MapStepBeforeTalkCut(TEXT("KnockingBelow"), 6), 4);
+	TestEqual(TEXT("A mission that didn't move"), CampaignStepMigration::MapStepBeforeTalkCut(TEXT("DeadLift"), 3), 3);
 	return true;
 }
 

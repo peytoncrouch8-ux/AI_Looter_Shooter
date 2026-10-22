@@ -507,6 +507,8 @@ class AreaBuild:
         # The saga's seeds (build_area_seeds.py): the Ledger's loose pages, the Deacon's letters, the post rack, the
         # Reliquary's lid, the Reaches map, the second light and the Seven, after the valley's pieces and the posters.
         importlib.reload(importlib.import_module('build_area_seeds')).place(self)
+        # Things to find off the path (build_area_secrets.py, 2026-10-21): the secrets' chests and finds, Aldana's page.
+        importlib.reload(importlib.import_module('build_area_secrets')).place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.
         rng = random.Random(self.settings.get('seed', 7))

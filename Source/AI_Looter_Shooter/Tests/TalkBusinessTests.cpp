@@ -63,8 +63,8 @@ namespace
 		TEXT("So are you, friend."),
 	};
 	const TCHAR* const WaitingWords = TEXT("The spiders first, friend. I'll keep.");
-	const TCHAR* const HobClimb = TEXT("Up the bluff path, sunshine. Mind the fallen pine. He doesn't like to be kept waiting.");
-	const TCHAR* const HobBlue = TEXT("See the blue on that one? Fed longer on the dark. Hits harder, and its iron's better.");
+	// (Hob's climb line went 2026-10-21: he flies to the path's foot and says nothing; the objective says where.)
+	const TCHAR* const HobBlue = TEXT("See the blue one? Fed longer on the dark. Hits harder, drops better.");
 
 	FStoryLine Said(const TCHAR* Speaker, const TCHAR* Words, float Seconds = 3.f)
 	{
@@ -93,14 +93,14 @@ namespace
 	}
 
 	/**
-	 * The words as Main 2 is turned in to Sexton (create_mission_assets.py's): his two, then Ellis asks after Pa's lantern
-	 * and he sends Ellis to Delia, whose offer is Main 3's.
+	 * The words as Main 2 is turned in to Sexton (create_mission_assets.py's): his one, then Ellis asks after Pa's lantern
+	 * and he sends Ellis to Delia, whose offer is Main 3's; Hob's word on the Mooring Ledge as Ellis leaves (2026-10-21).
 	 */
 	const TCHAR* const SextonsTurnIn[] = {
-		TEXT("You've read them, then. Good."),
 		TEXT("Seven names, friend. The new moon won't wait."),
 		TEXT("Pa's lantern. Where is it?"),
 		TEXT("I attend deaths, friend, not lost property. Ask your grandmother what he ran out with."),
+		TEXT("South-face stairs go down to where the gang tied up, sunshine."),
 	};
 	/** Hob, who offers Main 2 from the porch (the mission's offer). */
 	const FName HobTag(TEXT("Speaker_Hob"));
@@ -155,7 +155,7 @@ namespace
 		FSpeakerTopic Reading;
 		Reading.When.DuringMission = MainTwo;
 		Reading.When.FromStep = 3;
-		Reading.Lines = { Said(TEXT(""), TEXT("The names are in the ledger, friend. Do read them.")) };
+		Reading.Lines = { Said(TEXT(""), TEXT("Do read them, friend.")) };
 		FSpeakerTopic Deal;
 		Deal.When.DuringMission = MainTwo;
 		Deal.When.FromStep = 2;
@@ -450,10 +450,6 @@ bool FTalkBusinessLinesTest::RunTest(const FString& Parameters)
 	{
 		return Line.Speaker.IsEmpty() && Line.Text.ToString() == TEXT("So are you, friend.");
 	}));
-	if (const UStoryLineSet* Climb = LoadLines(TEXT("DA_Lines_HobMain2Climb")))
-	{
-		TestTrue(TEXT("Hob sends Ellis up top"), !Climb->Lines.IsEmpty() && Climb->Lines[0].Text.ToString() == HobClimb);
-	}
 	if (const UStoryLineSet* Blue = LoadLines(TEXT("DA_Lines_HobMain2Blue")))
 	{
 		TestTrue(TEXT("Hob on the blue one"), !Blue->Lines.IsEmpty() && Blue->Lines[0].Text.ToString() == HobBlue);

@@ -1505,6 +1505,53 @@ folder). The pieces:
   `Looter.ImportModels` resolves a relative folder against the editor's working directory, so pass the absolute path.
   Look sheets for the user: `Saved/Concepts/Seeds/` (`Tools/Blender/seeds_sheet.py`).
 
+## The story's talk cut, and things to find (STORY, built 2026-10-22)
+
+The user's calls (2026-10-21): cut dialogue about half, most lines short captions said on the move, long scenes only at big
+beats, fetch steps into fights or finds, things to find off the path, every beat, character and seed kept. Main's rulings:
+no new canon, Fenn's fare (the Old Fare) word for word, "never a priest's to do" kept, Amos's twist after the hands' fight.
+The line-by-line plan and its numbers: `Saved/Story/PLAN.md` (not committed). Spoken words 4,132 -> about 2,650 (-36%); the
+talk at givers -44%.
+- **How words reach the player:** every line is a caption (non-blocking); what holds the player is an offer card, which waits
+  until its giver's words are said and the player still stands there, and the walk between givers. So offers are two or
+  three lines, turn-ins three; Hob's perch arrivals (said as a step starts, wherever the player is) carry the story on the
+  move; a perch that only gave directions is silent now (Hob still flies there). Hob's taps: Main 1's, the Old Fare's and
+  the catch-all only (`story_texts.TOPICS['Speaker_Hob']`).
+- **New hooks:** `AEncounterSpawner::ClearedLines` (a line set queued once the fight is won: `DA_Lines_AmosRoad` on
+  WhitlockHands); `FMissionTurnIn::HandItems` (a later mission's items carried from the turn-in: Tilly hands Main 6's
+  `LanternBail` over at Main 3's; the sill pickup goes as it's carried); save version 4
+  (`CampaignStepMigration::UpgradeTalkCut`: Side 2's and Knocking Below's optional keys, Dead Lift's retired items).
+- **Missions changed:** Side 1 tears 4 posters (Hob's remark at 4). Side 2: 3 bales, then the hands (the road talk went: the
+  twist is said as the last falls). Knocking Below: the key off the hook is the first step; Thaddeus's talk and his tape are
+  one. Dead Lift: only Abe's pin to get (a fight); the boiler takes the quarry's coal bin; the crank stands on its shaft
+  (`LiftCrank_OnShaft`); items WinchCrank and CoalSack retired (never reuse the ids). The Old Fare: a second push
+  (DepotReturn: 4 Unpaid and a Restless one) as the coins come down the stair, during its lay step. Main 7: the orchard's
+  edge camp comes back at dusk (`build_area_camps.DUSK_RETURNS`: Camp_OrchardEdgeDusk, kept out of the layout's camps,
+  whose tests want every camp on for good). What Ada gave up is Father Aldana's page slid under the vestry door
+  (READABLES `AldanaPage`, sets `Ada.Told`).
+- **Things to find off the path** (`build_area_secrets.py`, `story_texts.SECRETS`; `Gameplay/Secrets`): the Widow's
+  strongbox under the middle Widow (2 guns at Luck 1.3, the legendary chance), the gang's locker on the Mooring Ledge (Hob's
+  hint at Main 2's turn-in), the surveyor's tin and W. Pike's bench mark on Coffin Rock's top (a vista), the Averys' tin in
+  the Burnt Homestead's hearth (town mutter after the gate), Thaddeus's bottle in the springhouse (his word after Knocking
+  Below), the keepers' stores in the old lantern house, a spiders' hoard under the hanging tree, Teague's powder box on
+  Larkspur Bench (Odell's report's proof), a crate fallen in the quarry blocks. Each readable sets `Secret.<Id>`.
+- **Retired line sets** (deleted after the rebuild that stopped pointing at them): HobMain2Climb, HobMain2, HobMain3,
+  HobMain4Road/Bell/Aldana, HobMain4, HobMain5Sacs/Lantern, HobMain5, HobMain6Bridge/Post, HobMain6, HobMain7Depot/Board,
+  HobMain7, HobSide1, HobCaches, AgentWindowCoal, HobKnocking, HobSide3, HobDeadLift, HobLastWatch, HobBackPay, AldanaAda.
+- **Run order:** build; `create_story_lines.py` -> `create_mission_assets.py` -> `create_side_mission_assets.py` ->
+  `create_hero_lines.py`; `build_area.py RansomsRest gameplay`; then delete a retired set's asset (never before: a placed
+  actor still pointing at it opens a modal force-delete dialog); tests `Looter.Lines`, `.Missions`, `.Story`,
+  `.Session.StepMigration`, `.World.TownLife`, `.Roost`, `.Poster`, `.Progression.Pacing`.
+- Checked in PIE (2026-10-22): the gate, the Main Street set piece (walked into: a teleport into its ground doesn't spring
+  it), Tilly's turn-in hands the bail over, Side 2's twist after the fight, the Widow's strongbox (read and opened), Coffin
+  Rock's tin. **Not working yet:** Coffin Rock's boulder steps (scaled `SM_Boulder_A`, 125 cm rises): the climb fails on
+  the rounded tops twice; give it a real ramp or ledges in the world-variety pass.
+- Lessons: `SystemLibrary.box_overlap_actors` always returns the PCG scatter actor (its bounds span the area) and the
+  terrain tile on a slope: judge a spot by down-traces at its corners (each on a `Ground`-tagged actor or the ruin it stands
+  in, within 18 cm) and ignore actors named `*Scatter`. A `delete_asset` that logs "deleted" can leave the file on disk (one
+  of 25 came back on the next editor start): check the file is gone. A layout obstacle's centroid lands on the rock's top:
+  trace the ground at the spot itself, not at the anchor.
+
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 
 - The user's call (2026-10-08): "I don't want to change the style." The look stays as it is; no style work unless the user asks.

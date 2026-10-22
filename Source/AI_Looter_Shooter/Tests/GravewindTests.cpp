@@ -85,8 +85,9 @@ bool FGravewindMissionTest::RunTest(const FString& Parameters)
 	{
 		AddWarning(TEXT("DA_Mission_Main6 isn't made yet: run Tools/Unreal/create_mission_assets.py. The flow below runs on a copy."));
 	}
-	const TCHAR* const LineSets[] = { TEXT("DA_Lines_DeliaMain6"), TEXT("DA_Lines_HobMain6Way"), TEXT("DA_Lines_HobMain6Post"),
-		TEXT("DA_Lines_HobMain6Fight"), TEXT("DA_Lines_HobMain6"), TEXT("DA_Lines_AbelOnBoard") };
+	// (The post's perch went silent 2026-10-21, and Hob's Main 6 tap went.)
+	const TCHAR* const LineSets[] = { TEXT("DA_Lines_DeliaMain6"), TEXT("DA_Lines_HobMain6Way"), TEXT("DA_Lines_HobMain6Fight"),
+		TEXT("DA_Lines_AbelOnBoard") };
 	int32 LinesMade = 0;
 	for (const TCHAR* Name : LineSets)
 	{

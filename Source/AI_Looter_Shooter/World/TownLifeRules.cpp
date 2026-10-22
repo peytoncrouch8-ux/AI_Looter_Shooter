@@ -39,21 +39,22 @@ namespace
 	// Townsfolk behind their doors as the corpse walks past (original lines, written for the game). Nobody is seen, and
 	// nobody here is a named character of the story: the storekeeper's family, a couple and an old father, a mother and
 	// her child. They know only what a town would: Tilly dressed Ellis, the gate was fought, the bell rang, Abel is quiet.
+	// One line a house and stage since 2026-10-21 (the user's cut of the story's talk; the Pruitts' fright keeps its two),
+	// and the old man's word on the Averys' chimney once the gate is won (a thing to find off the path:
+	// build_area_secrets.py, the Burnt Homestead).
 	const FMutter Mutters[] = {
 		{ Pruitt, EStage::Afraid, TEXT("A woman, inside"), TEXT("Bar the door, Harlan. It's coming up the street.") },
 		{ Pruitt, EStage::Afraid, TEXT("A man, inside"), TEXT("Lord. That's the Ransom child. Was the Ransom child.") },
 		{ Pruitt, EStage::GateWon, TEXT("A man, inside"), TEXT("Tilly Bright says it put down the ones at the gate.") },
-		{ Pruitt, EStage::GateWon, TEXT("A woman, inside"), TEXT("Still a corpse, Harlan. Grateful don't change that.") },
 		{ Pruitt, EStage::BellRung, TEXT("A woman, inside"), TEXT("That was the chapel bell. First time in a week.") },
 		{ Pruitt, EStage::AbelAtRest, TEXT("A man, inside"), TEXT("They say Abel sits quiet out on Gravewind Point now. The child did that.") },
 
-		{ CottageNorth, EStage::Afraid, TEXT("A woman, inside"), TEXT("Away from the window, Walt. It goes by if you let it.") },
 		{ CottageNorth, EStage::Afraid, TEXT("An old man, inside"), TEXT("Ransoms. Always did come home at the wrong hour.") },
 		{ CottageNorth, EStage::GateWon, TEXT("An old man, inside"), TEXT("Dead shooting the dead at the gate. Never thought I'd live to see it.") },
+		{ CottageNorth, EStage::GateWon, TEXT("An old man, inside"), TEXT("Avery kept his savings up the chimney. Fire took the house, not the chimney.") },
 		{ CottageNorth, EStage::BellRung, TEXT("A woman, inside"), TEXT("Father Aldana says it's helping. Father Aldana says a lot of things.") },
 		{ CottageNorth, EStage::AbelAtRest, TEXT("A woman, inside"), TEXT("Set a plate on the step tonight, Walt. Like Delia does.") },
 
-		{ CottageSouth, EStage::Afraid, TEXT("A woman, inside"), TEXT("Hush now. The dead hear their names.") },
 		{ CottageSouth, EStage::Afraid, TEXT("A child, inside"), TEXT("Mama, is that the one Miss Tilly dressed?") },
 		{ CottageSouth, EStage::GateWon, TEXT("A child, inside"), TEXT("It's fighting the bad ones, Mama. I watched.") },
 		{ CottageSouth, EStage::BellRung, TEXT("A child, inside"), TEXT("Did the bell send them home, Mama?") },

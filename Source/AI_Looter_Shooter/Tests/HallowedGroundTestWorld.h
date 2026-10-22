@@ -198,7 +198,7 @@ namespace HallowedGroundTestWorld
 	/** His words at the vestry door (Docs/Areas/RansomsRest.md, Main 4), in order. */
 	inline const TCHAR* const AldanaWords[] = {
 		TEXT("A keeper's lantern can find an ember."),
-		TEXT("In every town they robbed, the gang shot the keeper first and smashed his lantern."),
+		TEXT("They shot the keeper first in every town, and smashed his lantern."),
 		TEXT("Your father's fell in the dark, whole."),
 		TEXT("Spiders hoard anything a saint has touched."),
 		TEXT("Look in the Sink."),
@@ -206,9 +206,9 @@ namespace HallowedGroundTestWorld
 	inline constexpr int32 AldanaWordCount = static_cast<int32>(UE_ARRAY_COUNT(AldanaWords));
 
 	/** His other words, the story script's first drafts (create_story_lines.py): barred, waiting, after Main 4. */
-	inline const TCHAR* const AldanaBarred = TEXT("Stay back from that door. I've no comfort left for the dead, and the yard is full of them.");
+	inline const TCHAR* const AldanaBarred = TEXT("Stay back from that door. I've no comfort left for the dead.");
 	inline const TCHAR* const AldanaWaiting = TEXT("They're quiet. Ring her bell, then look at what was done to her. Then we'll talk.");
-	inline const TCHAR* const AldanaAfter = TEXT("The Sink, Ellis. Your father's lantern. I'll pray it's still whole.");
+	inline const TCHAR* const AldanaAfter = TEXT("The Sink. I'll pray it's whole.");
 
 	inline FStoryLine Said(const TCHAR* Speaker, const TCHAR* Words, float Seconds = 3.f)
 	{
@@ -266,7 +266,7 @@ namespace HallowedGroundTestWorld
 		}
 		else
 		{
-			Doc.Lines = { Said(TEXT(""), TEXT("You rang her bell, and she didn't answer. Now you've seen why.")),
+			Doc.Lines = { Said(TEXT(""), TEXT("She didn't answer. Now you've seen why.")),
 				Said(TEXT("Ellis"), TEXT("How do I find them?")) };
 			for (const TCHAR* Words : AldanaWords)
 			{

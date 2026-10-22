@@ -21,8 +21,10 @@ The Old Fare, at the depot (the station actor's SM_RR_Depot):
   the two coins on the landing outside the agent's door, from the step that asks for them), the baggage room's place
   (Place_BaggageRoom) and the waiting room's fight (AEncounterSpawner DepotWaiting: four Unpaid, a Restless one and a
   Bell-Ringer standing where the dead wait, SOCKET_Wait_1..4 and the platform; on during The Old Fare until it's cleared).
-Dead Lift: the coal sack under the coal stage's chute (AMissionItem CoalSack on SOCKET_Sack, also tagged CoalStage: "Fill a
-  coal sack", a tap), the winch crank in the sheriff's cell (WinchCrank) and Sheriff Odell's report beside it (OdellReport).
+Dead Lift: Sheriff Odell's report in the sheriff's cell (OdellReport), a free read now (the crank and the coal stage's
+  sack went with Dead Lift's fetches, 2026-10-21).
+The Old Fare's second push (AEncounterSpawner DepotReturn: the waiting room fills again as Fenn's coins come down the
+  stair, during its lay step: "every soul for a mile hears about it").
 Knocking Below, at Tilly's workshop (SM_RR_Workshop_Bright): the workshop door's place (Place_WorkshopDoor), the cellar key
   on the measuring hook (CellarKey), the orders slate (OrdersSlate), the cellar door locked until the key is carried
   (ALockedDoor CellarDoor on SOCKET_CellarDoor, SM_RR_CellarDoor), the cellar floor's place (Place_CellarFloor), the
@@ -103,9 +105,6 @@ LINES = {
         (SLOANE, "I only borrowed it. Against a debt."))),
     'AgentWindow': ('DA_Lines_AgentWindow', say(
         (SLOANE, "Waiting room's quiet. First night in a week I've slept."))),
-    'AgentWindowCoal': ('DA_Lines_AgentWindowCoal', say(
-        (SLOANE, "That's railroad coal you're after!"),
-        (SLOANE, "...Oh, take it. Nothing's running."))),
     'AgentWindowLily': ('DA_Lines_AgentWindowLily', say(
         (SLOANE, "Line's open to the Lily, kid. Your car's coupled."),
         (SLOANE, "Highwater Landing, end of the line. The Lily's tied up there, over the canyon."),
@@ -118,7 +117,7 @@ LINES = {
         (THADDEUS, "Shut that door behind you. They get out when it's open."))),
     'ThaddeusTalk': ('DA_Lines_ThaddeusTalk', say(
         (THADDEUS, "Ransom's child. I measured you, you know. You've stood up since."),
-        (THADDEUS, "I kept them in their boxes a week. They got past me when the door opened. A cellar wants keeping."),
+        (THADDEUS, "They got past me when the door opened. A cellar wants keeping."),
         (THADDEUS, "Give her my tape. Tell her the brass was too much. And that I liked it."))),
     'ThaddeusAfter': ('DA_Lines_ThaddeusAfter', say(
         (THADDEUS, "A cellar wants keeping. I'll keep it."))),
@@ -164,8 +163,6 @@ READABLES = {
 # The mission items: id -> (models to try, what the prompt calls it).
 ITEMS = {
     'LanternBail': (('LanternBail',), "Pa's lantern bail"),
-    'WinchCrank': (('WinchCrank',), "the winch crank"),
-    'CoalSack': (('CoalSack',), "a coal sack"),
     'CellarKey': (('CellarKey',), "the cellar key"),
     'ThaddeusTape': (('TapeMeasure',), "Thaddeus's tape"),
     'FennsFare': (('GraveCoins',), "Fenn's fare"),
@@ -556,11 +553,9 @@ def place_depot(build, meshes, steps, found):
                   ])
     window = socket(station, 'TicketWindow') or socket(station, 'Speaker')
     if window is not None:
-        coal = story.condition(after=[OLD_FARE], during=DEAD_LIFT)
         speaker_point(build, window.translation, window.rotation.rotator().yaw, 'Speaker_AgentWindow',
                       ('Speaker_AgentWindow',), SLOANE, 'Talk', story.TALK_REACH, True, [
                           topic(build, story.condition(after=[OLD_FARE, MAIN7]), 'AgentWindowLily'),
-                          topic(build, coal, 'AgentWindowCoal'),
                           topic(build, story.condition(after=[OLD_FARE]), 'AgentWindow'),
                       ])
     else:
@@ -621,6 +616,15 @@ def place_depot(build, meshes, steps, found):
               DEPOT_ACTIVATION, 250.0)
     build.log(f'the waiting room\'s fight (DepotWaiting: {DEPOT_BASIC} Unpaid, a Restless one, a Bell-Ringer) during The Old Fare, '
               f'before step {clear_step + 1}')
+    # Its second push (STORY phase 2, the plan's request, Main's go-ahead 2026-10-21): as Fenn's coins come down the stair
+    # the dead fill the waiting room again (Hob at the coffin: "every soul for a mile hears about it"), during the lay step
+    # only, so a fight won or walked out of doesn't come back. The waiting room's own Unpaid and its Restless one; no
+    # Bell-Ringer this time.
+    encounter(build, middle, 'DepotReturn', [group(unpaid, DEPOT_BASIC, 'BASIC'), group(unpaid, 1, 'RARE')],
+              ('Unpaid_DepotReturn',), story.condition(during=OLD_FARE, from_step=lay_step, before_step=lay_step + 1),
+              waits, corners, DEPOT_ACTIVATION, 250.0, hunt=True)
+    build.log(f'the waiting room\'s second push (DepotReturn: {DEPOT_BASIC} Unpaid, a Restless one) during The Old Fare\'s '
+              f'step {lay_step}')
 
 
 def story_prop(build, model, transform, label, shown=(), hidden=()):
@@ -663,18 +667,6 @@ def place_fenn_story(build, meshes, fenn, look_step, lay_step):
                    shown=[story.condition(during=OLD_FARE, from_step=lay_step + 1), story.condition(after=[OLD_FARE])])
     else:
         build.warn('no SM_GraveCoins or SOCKET_Eyes: Fenn\'s fare isn\'t seen back on his eyes')
-
-
-def place_coal(build, meshes, found):
-    stage = found.get('coalStage')
-    sack = socket(stage, 'Sack') if stage is not None else None
-    if sack is None:
-        build.warn('no coal stage placed with its SOCKET_Sack (patches/town.json coalStage): no coal for Dead Lift')
-        return
-    # Under the chute, ready to fill: a tap fills and takes it (Dead Lift's "Fill a coal sack": Collect CoalSack, or
-    # Interact CoalStage without a hold).
-    item(build, meshes, 'CoalSack', sack.translation, sack.rotation.rotator().yaw, extra_tags=('CoalStage',),
-         prompt='Fill a coal sack')
 
 
 # ---------------------------------------------------------------------------
@@ -803,7 +795,6 @@ def place_sheriff(build, meshes, steps, found):
         return top
 
     yaw = office.get_actor_rotation().yaw
-    item(build, meshes, 'WinchCrank', on_office(CELL_CRANK, 'crank'), yaw + 90.0, prompt='Take the winch crank')
     readable(build, meshes, 'OdellReport', on_office(CELL_REPORT, 'report'), yaw + 180.0)
     # The open book turned to whoever comes in at the door (SM_PostLog: its reader's side its +X).
     readable(build, meshes, 'OdellDaybook', on_office(DESK_BOOK, 'daybook'), yaw)
@@ -1031,7 +1022,6 @@ def place(build):
     place_artifacts(build, found)
     place_barn_chalk(build, meshes, found)
     place_depot(build, meshes, steps, found)
-    place_coal(build, meshes, found)
     place_workshop(build, meshes, steps, found)
     place_bridge_place(build, found)
     band_main_street(build, found)

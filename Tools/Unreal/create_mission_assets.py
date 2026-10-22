@@ -48,8 +48,8 @@ everything about 6.8; Looter.Progression.Pacing checks both).
   DA_Mission_Main3 "Cold Welcome", offered by Delia after Main 2: 0 the farm road to the town gate (Place_TownGate),
                    1 the gate's Unpaid (TownGate, 7), 2 Bright & Daughter (within 8 m of Speaker_Tilly). Turned in to Tilly
                    at her window, her whole talk (DA_Lines_TillyMain3 the same, her topic "during Main3 from step 3"):
-                   Pa's lantern bail out on the sill (Main 6's item LanternBail, lying there from Main 3's end) and the box
-                   of effects. 1,000 XP, an Uncommon gun or better, her purse (40). Its id must stay "Main3" (Main Street's
+                   she hands Pa's lantern bail over (Main 6's item LanternBail, carried from the turn-in: hand_items; the
+                   sill's pickup only while the game module lacks FMissionTurnIn::HandItems); the reward gun drops. 1,000 XP, an Uncommon gun or better, her purse (40). Its id must stay "Main3" (Main Street's
                    safe ground and shutters, Pruitt's hatch follow it).
   DA_Mission_Main4 "Hallowed Ground", offered by Tilly after Main 3: 0 the chapel (Place_Chapel), 1 the chapel yard
                    (ChapelYard, 16), 2 the knock at the vestry door (Speaker_Aldana: "ring her bell"), 3 the bell held
@@ -280,7 +280,7 @@ def rewards(experience=0, experience_share=0.0, unlock_areas=(), gun=False, gun_
     return made
 
 
-def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), question=''):
+def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), question='', hand_items=()):
     """FMissionTurnIn: who the mission is turned in to once its objectives are done (their speaker tag and their name for
     "Turn in to <giver>"), and what they say then (lines of (speaker, words); an empty speaker is the giver's speaker
     point's name; none: what they'd say there anyway, for a talk the story already wrote). automatic: it finishes by
@@ -298,6 +298,14 @@ def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), questio
     # A choice as a dict of choice()'s fields, or one made already.
     made.set_editor_property('choices', [choice(**each) if isinstance(each, dict) else each for each in choices])
     made.set_editor_property('choice_question', unreal.Text(question))
+    if hand_items:
+        # Carried from the turn-in on (a later mission's items: Tilly hands Pa's bail over at Main 3's). Guarded, so a game
+        # module from before FMissionTurnIn::HandItems still makes the mission (the item then lies where it's placed).
+        try:
+            made.set_editor_property('hand_items', [unreal.Name(each) for each in hand_items])
+        except Exception as error:
+            unreal.log_warning(f'MISSIONS: no MissionTurnIn.hand_items ({error}): {", ".join(hand_items)} stay where '
+                               'they lie (build the game module)')
     return made
 
 
@@ -529,7 +537,7 @@ def main6_steps(asset):
              objective(asset, unreal.MissionReachObjective,
                        "Take the keeper's path over Keeper's Bridge, the way the Ransoms walked their dead.",
                        short="Take the keeper's path", place=place(tag='Place_KeepersBridge', radius=600.0), optional=True),
-             collect_items(asset, "Bring Pa's lantern bail from Tilly's window sill.", ['LanternBail'],
+             collect_items(asset, "Bring Pa's lantern bail. Tilly handed it over.", ['LanternBail'],
                            short="Bring Pa's lantern bail")),
         step(objective(asset, unreal.MissionInteractObjective, "Hang the Keeper's Lantern on the keeper's post.",
                        target=actor_filter(tag='LanternPost_Keeper'), count=1)),
@@ -619,8 +627,8 @@ MISSIONS = [
          turn_in=dict(speaker='Speaker_Delia', giver='Delia', lines=[
              ('', "I was to lay you on the boards tonight."),
              ('', "Your Pa got up Wednesday night, came up through the dirt like it was fog."),
-             ('', "A keeper doesn't lie still while his saint is dark. He walks the boards at dusk."),
-             ('', "And eat what's on that plate. I'll know if you don't."),
+             ('', "A keeper doesn't lie still while his saint is dark."),
+             ('', "And eat what's on that plate."),
          ]),
          rewards=dict(experience=450)),
     dict(asset='DA_Mission_Main2', id='Main2', title='Shall We Talk Business?',
@@ -636,10 +644,10 @@ MISSIONS = [
          # Back to him once his ledger is read; he's still on the rail (shown all through Main 2). Asked about Pa's
          # lantern, he sends Ellis to Delia, whose offer is Main 3's.
          turn_in=dict(speaker='Speaker_Sexton', giver='Mister Sexton', lines=[
-             ('', "You've read them, then. Good."),
              ('', "Seven names, friend. The new moon won't wait."),
              (ELLIS, "Pa's lantern. Where is it?"),
              ('', "I attend deaths, friend, not lost property. Ask your grandmother what he ran out with."),
+             (HOB, "South-face stairs go down to where the gang tied up, sunshine."),
          ]),
          rewards=dict(experience=550)),
     dict(asset='DA_Mission_Main3', id='Main3', title='Cold Welcome',
@@ -649,44 +657,38 @@ MISSIONS = [
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main2'], sort_order=3, steps=main3_steps,
          offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', lines=[
              ('', "You've been up there. I can smell the cold on you."),
-             (ELLIS, "Pa's lantern. Where is it?"),
-             ('', "He ran out with it lit. They carried him down without it."),
-             ('', "Tilly Bright laid him out. Whatever came home with him, she has."),
-             ('', "Go by the farm road. They'll shutter up at you. Let them."),
+             ('', "He ran out with his lantern lit. They carried him down without it."),
+             ('', "Tilly Bright laid him out. Ask her."),
          ], briefing="Pa ran up the bluff path with his keeper's lantern lit, and nobody has seen it since. Tilly Bright, "
                      "the undertaker's daughter, laid him out. Go into town and ask her what came home with him."),
          # Her whole talk is the turn-in (DA_Lines_TillyMain3 says the same, her topic from step 3): the doc's lines, the
          # bail out onto the sill (Main 6's item: Main 3's own would vanish as it's turned in), the box of effects on the
          # step (the reward gun); then Tilly offers Main 4.
          turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', lines=[
-             ('', "Well. They said you might be up and about."),
              ('', "I laid you out, you know. You and your Pa, the same morning."),
              ('', "You've ruined my collar, by the way."),
              (ELLIS, "Pa's lantern. Was it with him?"),
-             ('', "No. A keeper goes in the ground with his lantern, and his wasn't on him. I looked."),
-             ('', "Only its bail, the ring it hangs by, snapped off in his fist. I couldn't open his hand till morning."),
-             ('', "It's on the sill. Take it. A lantern's no use to anyone if it can't be hung."),
-             ('', "There's a box of unclaimed effects on the step. Take what's useful. Nobody's coming back for it."),
-         ]),
+             ('', "No. It wasn't on him. I looked."),
+             ('', "Only its bail, snapped off in his fist. I couldn't open his hand till morning."),
+             ('', "Here. A lantern's no use if it can't be hung."),
+         ], hand_items=['LanternBail']),
          rewards=dict(experience=1000, gun=True, gun_rarity_floor='UNCOMMON')),
     dict(asset='DA_Mission_Main4', id='Main4', title='Hallowed Ground',
          summary="Father Aldana blessed Pa's lantern every spring and sat up with his body the night he died. He has barred "
                  "himself in the chapel's vestry since the dead came home, and the chapel yard is full of them.",
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main3'], sort_order=4, steps=main4_steps,
          offer=dict(giver_tag='Speaker_Tilly', giver='Tilly', lines=[
-             ('', "Father Aldana sat up with your Pa the night they brought him down."),
-             ('', "If anyone knows where a keeper's lantern goes, it's the man who blessed it."),
-             ('', "He's barred himself in the vestry since the dead came home. Knock loud."),
+             ('', "Father Aldana blessed that lantern every spring. He's barred in the vestry. Knock loud."),
          ], briefing="Father Aldana blessed your father's lantern every spring and sat up with his body the night he died. "
                      "Since the dead came home he has barred himself in the chapel's vestry. The chapel yard is full of "
                      "them."),
          # The doc's words, word for word (DA_Lines_AldanaMain4 holds the same); his offer of Main 5 follows them as one
          # conversation.
          turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana', lines=[
-             ('', "You rang her bell, and she didn't answer. Now you've seen why."),
+             ('', "She didn't answer. Now you've seen why."),
              (ELLIS, 'How do I find them?'),
              ('', "A keeper's lantern can find an ember."),
-             ('', "In every town they robbed, the gang shot the keeper first and smashed his lantern."),
+             ('', "They shot the keeper first in every town, and smashed his lantern."),
              ('', "Your father's fell in the dark, whole."),
              ('', "Spiders hoard anything a saint has touched."),
              ('', "Look in the Sink."),
@@ -698,16 +700,15 @@ MISSIONS = [
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main4'], sort_order=5, steps=main5_steps,
          # Said straight after Main 4's turn-in ("...Look in the Sink."), as one conversation.
          offer=dict(giver_tag='Speaker_Aldana', giver='Father Aldana', lines=[
-             ('', "His was lit from her every night for thirty years. To a spider it would shine like a lamp."),
-             ('', "Go down and bring it back, Ellis. I'd stake the chapel on it being whole."),
+             ('', "Bring it back. I'd stake the chapel on it."),
          ], briefing="The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. "
                      "Spiders hoard anything a saint has touched. Go down into the Sink and bring it back."),
          # The twist: the altar candle won't light it. Delia's word starts Main 6 (her offer).
          turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana', lines=[
-             ('', "You found it. Dark, but whole. Hold it to the altar candle, Ellis."),
-             ('', "...It won't take. A keeper's lantern is lit from the saint, and the saint is out."),
+             ('', "Dark, but whole. Let me try the altar candle."),
+             ('', "...It won't take. It's lit from the saint, and the saint is out."),
              (ELLIS, 'Then how do I light it?'),
-             ('', "I don't know. Take it home to your grandmother, Ellis. She'll know what's owed a keeper."),
+             ('', "I don't know. Your grandmother will know what's owed a keeper."),
          ]),
          rewards=dict(experience=2200)),
     dict(asset='DA_Mission_Main6', id='Main6', title='The Gravewind',
@@ -737,8 +738,8 @@ MISSIONS = [
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main6'], sort_order=7, steps=main7_steps,
          offer=dict(giver_tag='Speaker_Abel', giver='Pa', lines=[
              ('', "She leans north-east, El. Over the ridges. That's Ned Purcell."),
-             ('', "Your grandmother's kept something back for you. Go home and get it before you go."),
-             ('', "And she still sets a plate, I'd wager. Eat it, even if you can't taste it. She needs to see it gone."),
+             ('', "Your grandmother's kept something back for you. Go home first."),
+             ('', "Eat what's on her plate, even if you can't taste it."),
          ], briefing="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned "
                      "Purcell and the Gilded Lily. Go home to Delia first: she has kept something back. Tilly's hearse "
                      "car waits at the depot."),

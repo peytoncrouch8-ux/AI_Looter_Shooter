@@ -391,7 +391,8 @@ bool FPosterMissionTest::RunTest(const FString& Parameters)
 	const UMissionInteractObjective* AssetRead = Cast<UMissionInteractObjective>(Asset->GetObjective(1, 0));
 	TestTrue(TEXT("Side 1 is a side mission after Main 3 on Ransom's Rest"), Asset->Kind == EMissionKind::Side
 		&& Asset->Prerequisites.Contains(FName(TEXT("Main3"))) && Asset->Area == FName(TEXT("RansomsRest")) && Asset->Steps.Num() == 2);
-	TestTrue(TEXT("Its first step: hold to tear down 6 wanted posters, counted from the world"), AssetTear && AssetTear->Count == 6
+	TestTrue(TEXT("Its first step: hold to tear down 4 wanted posters, counted from the world (6 until 2026-10-21)"),
+		AssetTear && AssetTear->Count == 4
 		&& AssetTear->bHold && AssetTear->Target.ActorTag == AWantedPoster::WantedTag);
 	TestTrue(TEXT("Its second: read Calder's note"), AssetRead && !AssetRead->IsA<UMissionLastingInteractObjective>()
 		&& AssetRead->Target.ActorTag == AWantedPoster::NoteTag);

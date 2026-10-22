@@ -423,6 +423,18 @@ bool UMissionRunner::RecordCompletion(const UMissionDefinition& Mission, bool bG
 	}
 	// Its things go with it: the items carried and dropped, the optional objectives kept (their bonus is paid above).
 	ForgetMissionThings(Mission);
+	// What its giver hands over with it: a later mission's items, carried from now (Tilly's bail at Main 3's turn-in).
+	if (bFirstTime && bGiveRewards)
+	{
+		for (const FName ItemId : Mission.TurnIn.HandItems)
+		{
+			if (!GiveItem(ItemId, nullptr))
+			{
+				UE_LOG(LogLooter, Warning, TEXT("Mission %s: %s can't be handed over (no running mission has it, or it's carried)."),
+					*MissionId.ToString(), *ItemId.ToString());
+			}
+		}
+	}
 	AskToSave();
 	UE_LOG(LogLooter, Log, TEXT("Mission %s finished%s"), *MissionId.ToString(),
 		!bFirstTime ? TEXT(" again (no rewards)") : bGiveRewards ? TEXT(", rewards given") : TEXT(" (recorded)"));

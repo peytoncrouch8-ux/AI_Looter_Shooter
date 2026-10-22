@@ -241,8 +241,10 @@ public:
 	 * 3: the same fields; the campaign record is on 2026-10-13's missions (CampaignStepMigration: Main 4's steps, the side
 	 *    missions that used to start by themselves). An older save is brought up to date as it's read (Upgrade), before
 	 *    anything can save it again.
+	 * 4: the same fields; the campaign record is on 2026-10-21's missions (CampaignStepMigration::UpgradeTalkCut: Side 2's
+	 *    and Knocking Below's steps, Dead Lift's retired crank and coal).
 	 */
-	static constexpr int32 CurrentVersion = 3;
+	static constexpr int32 CurrentVersion = 4;
 
 	/** Every version 1 session was played on the tutorial island: a version 1 world with no map is filed under it. */
 	static constexpr const TCHAR* Version1Map = TEXT("/Game/Maps/Lvl_TutorialIsland");

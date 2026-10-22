@@ -241,6 +241,14 @@ struct AI_LOOTER_SHOOTER_API FMissionTurnIn
 	/** The choice card's question over the two ("Their wages, or the company's silver?"). Empty: the card's own words. */
 	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic", MultiLine = true))
 	FText ChoiceQuestion;
+
+	/**
+	 * What the giver hands over as it's turned in: items of a later mission (their ids, FMissionItemInfo::Id), carried
+	 * from then on as if picked up (UMissionRunner::GiveItem), so nobody walks back for them. Tilly hands Pa's lantern bail
+	 * (Main 6's) over at Main 3's turn-in (2026-10-21, the user's cut of the fetches); its sill pickup goes as it's carried.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in")
+	TArray<FName> HandItems;
 };
 
 /**

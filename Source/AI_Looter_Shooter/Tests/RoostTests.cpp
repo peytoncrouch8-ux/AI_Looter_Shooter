@@ -187,7 +187,8 @@ bool FRoostLinesRulesTest::RunTest(const FString& Parameters)
 	// Hob's words when his crows bring Ellis home: his, all said once before any again, never the same twice running.
 	using namespace RoostRules;
 	const int32 Count = NumDeathLines();
-	TestTrue(TEXT("A good handful of lines after a death"), Count >= 8);
+	// Four since 2026-10-21 (the user's cut of the story's talk), each said once in a round before any again.
+	TestTrue(TEXT("A handful of lines after a death"), Count >= 4);
 	TArray<FString> Seen;
 	for (int32 Index = 0; Index < Count; ++Index)
 	{

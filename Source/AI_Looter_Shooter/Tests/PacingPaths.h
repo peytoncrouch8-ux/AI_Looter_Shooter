@@ -190,11 +190,14 @@ namespace PacingPaths
 		TArray<FPathStop> Path = { MainOneStop(), MainTwoStop(Foes), MainThreeStop(Foes) };
 		Path.Add({ TEXT("Side 1, Wanted: Already Dead"), TEXT("Side1"), {}, 300 });
 		Path.Add({ TEXT("Calder's Caches"), TEXT("CaldersCaches"), {}, 250 });
-		// The depot's waiting room (the valley's 2-3): four Unpaid, a Restless one and a Bell-Ringer.
+		// The depot's waiting room (the valley's 2-3): four Unpaid, a Restless one and a Bell-Ringer; and its second push as
+		// Fenn's coins come down the stair (DepotReturn, 2026-10-21): four Unpaid and a Restless one.
 		Path.Add({ TEXT("The Old Fare"), TEXT("OldFare"),
 			{ PlannedKills(Foes.Unpaid, EPathRank::Basic, 4, TEXT("DepotWaiting"), 465.0, 11150.0),
 			  PlannedKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("DepotWaiting"), 465.0, 11150.0),
-			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("DepotWaiting"), 465.0, 11150.0) }, 450 });
+			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("DepotWaiting"), 465.0, 11150.0),
+			  PlannedKills(Foes.Unpaid, EPathRank::Basic, 4, TEXT("DepotReturn"), 465.0, 11150.0),
+			  PlannedKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("DepotReturn"), 465.0, 11150.0) }, 450 });
 		Path.Add(MainFourStop(Foes));
 		// Amos's old hands: seven Unpaid and a Restless one (build_area_whitlock.py, WhitlockHands).
 		Path.Add({ TEXT("Side 2, Unfinished Business"), TEXT("Side2"),

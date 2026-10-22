@@ -187,6 +187,15 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   spiders; bosses take statuses at half duration; the Grave-salt grenade becomes the element's damage type. Drop
   moments: rarity beams taller, stingers, Epic+ spin and ground ring, Legendary a 0.25 s slow-down and a 60 m column.
 - Rocket ammo is a new class (1-3 per kill drop leaning to the kill gun); the LMG uses rifle ammo.
+- ROSTER (Story.md "Creature roster", marked † in the Areas table): Coffin Rat (rat), Bone Hound (the story's coyote) /
+  Whiteback Wolf (wolf), Knocker (goblin), Gravepicker and Lookout (human bandits), Slagback / Cairn Walker /
+  Spikedriver (golems), Pallbearer (giant), Mesa Stinger (scorpion), Gloam Bat (big bat), Sallow (vampire), Cinder
+  Drake (dragon), Sexton Beetle / Bog Mantis (big insects), extras Rattler, Dust Wight, Strawman. RR placeholders: 4
+  rats in Tilly's cellar + 4 in the depot baggage room, 4+1 Bone Hounds on the keeper's road (after Main 4, before
+  Main 6), 5+1 Knockers at the Bench ore tramway (after Dead Lift), **4 Gravepickers + 2 Lookouts on Boot Hill (after
+  Main 3, before Main 4): the Rest's first living human enemies — a tone call for the user to confirm.** Code in
+  `Saved/RosterCode` (merge after STORY and VFX; `Saved/Roster/PLAN.md` has the run order, CODEMAP and Pipeline text);
+  placeholder hits splash ichor until CreatureBlood gets a clay kind.
 - 12.3 C++ agents write into holding trees (`Saved/GunsCode`, `Saved/LootCode`, `Saved/GunsSound`) while 12.2 owns the
   build; each then gets the editor lane in turn (GUNS-CODE first) to merge, build, import, test.
 - Progress (newest last): gun models committed (c0a1f3c Rustler/Thresher, 1415246 Longhorn/Powderkeg; previews
@@ -243,6 +252,16 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   phase-2 agent is writing it).
   More calls (2026-10-22): FP-HANDS may look up Borderlands gameplay screenshots online to compare framing (nothing copied
   into the game); placeholders show "<in-world name> (<type>)", e.g. "Tommyknocker (goblin)" (told ROSTER).
+  **New guns committed (62bf264)** and checked in PIE (grabs `Saved/Screenshots/Tools/newguns_*`): sniper scope picture
+  `UI/HUD/HudScopeWidget`, rocket self-damage capped at 35% (`Looter.Gunfeel.Launcher.SelfCap`). Art follow-ups: the
+  Rustler's Holo sight has no cut window (aiming shows its solid back); the Rustler's helix (its signature, the
+  rounds-left glow) can't be seen in first person (under the gun): show it (move it to the side, angle the hip hold, or a
+  side window). LOOT-CODE phase 2 running (owns the lane).
+  **Loot committed (64c6128):** elements, part effects, drop moments; all seven families' parts set up; tests pass;
+  8 burning spiders 7.6 ms. Left: a status kill still plays the gun's kill knock; element damage numbers not coloured;
+  element parts reuse other parts' models (art later). Restyle: Bullpup and Drover round 2 done (sand/gunmetal/ember,
+  sockets identical; Drover renames in `Saved/Guns/RESTYLE_RENAMES.md`), Ranchhand fork still working; commit + import
+  in the lane after it lands. STORY phase 3 (merge/build/run) now owns the lane.
   Order of the build lane next: FIGHT-AI perf -> GUNS-CODE phase 2 (merge `Saved/GunsCode`, then `Saved/GunsSound`, import
   the four models) -> LOOT-CODE phase 2 -> STORY merge -> WORLD-ART phase 2.
 

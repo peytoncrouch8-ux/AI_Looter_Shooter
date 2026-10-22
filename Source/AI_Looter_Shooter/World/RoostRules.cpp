@@ -4,25 +4,18 @@
 
 namespace
 {
-	/** How many lines Hob has after a death (DeathWords). */
-	constexpr int32 DeathLineCount = 12;
+	/** How many lines Hob has after a death (DeathWords): four since 2026-10-21 (the user's cut of the story's talk; the
+	 * ones every hero has a voice for in DA_HeroLines kept). */
+	constexpr int32 DeathLineCount = 4;
 
 	/** Hob after a death, sardonic and secretly kind (Docs/Story.md: he comments every time). Drafts in the doc's voice. */
 	FText DeathWords(int32 Index)
 	{
 		switch (Index)
 		{
-		case 0:  return LOCTEXT("Death0", "Up you get, sunshine. Dead's no excuse for lying about.");
-		case 1:  return LOCTEXT("Death1", "Heavier than you look. My lads want feeding for that one.");
-		case 2:  return LOCTEXT("Death2", "The debt's still owed. You don't get to stay down till it's paid.");
-		case 3:  return LOCTEXT("Death3", "Mind the feathers. Next time, duck.");
-		case 4:  return LOCTEXT("Death4", "Dragged you by the collar the whole way. Don't thank us.");
-		case 5:  return LOCTEXT("Death5", "Sexton gives no refunds on the dead, sunshine. On your feet.");
-		case 6:  return LOCTEXT("Death6", "The worms can wait. Seven embers can't.");
-		case 7:  return LOCTEXT("Death7", "Shake it off. You've been deader than that.");
-		case 8:  return LOCTEXT("Death8", "Saw that one coming three fence posts off. Next time, so will you.");
-		case 9:  return LOCTEXT("Death9", "Back on your feet, all your bits attached. Mostly.");
-		case 10: return LOCTEXT("Death10", "If you're going to keep dying, die nearer a roost. My lads' wings are tired.");
+		case 0:  return LOCTEXT("Death1", "Heavier than you look. My lads want feeding for that one.");
+		case 1:  return LOCTEXT("Death4", "Dragged you by the collar the whole way. Don't thank us.");
+		case 2:  return LOCTEXT("Death9", "Back on your feet, all your bits attached. Mostly.");
 		default: return LOCTEXT("Death11", "Easy. Breathe. Well, pretend to.");
 		}
 	}
@@ -90,17 +83,17 @@ namespace RoostRules
 
 	FStoryLine FirstDeathLine()
 	{
-		return HobSays(LOCTEXT("FirstDeath", "Told you, sunshine. You can't stay dead with the debt unpaid. Wherever you drop, my crows drag you home."));
+		return HobSays(LOCTEXT("FirstDeath", "Told you, sunshine. You can't stay dead with the debt unpaid."));
 	}
 
 	FStoryLine FirstRoostLine()
 	{
-		return HobSays(LOCTEXT("FirstRoost", "That post's one of mine. Find my roosts and my crows'll carry you between them. Drop dead, and they'll fetch you back to the last one you touched."));
+		return HobSays(LOCTEXT("FirstRoost", "One of my roosts. My crows carry you between them, and back to the last one when you drop."));
 	}
 
 	FStoryLine FirstTravelLine()
 	{
-		return HobSays(LOCTEXT("FirstTravel", "Don't wriggle. My lads have never dropped anyone. Not on purpose."));
+		return HobSays(LOCTEXT("FirstTravel", "Don't wriggle. My lads have never dropped anyone."));
 	}
 
 	int32 NextLine(TArray<int32>& Order, int32& Last, int32 Count, FRandomStream& Random)

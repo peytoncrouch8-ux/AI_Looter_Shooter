@@ -21,6 +21,7 @@
 #include "Story/CaptionQueue.h"
 #include "Story/CaptionSubsystem.h"
 #include "Story/SpeakerPointComponent.h"
+#include "Story/StoryLineSet.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Tests/MissionTestWorld.h"
 #include "Tests/UnfinishedBusinessTestWorld.h"
@@ -236,10 +237,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnfinishedBusinessMissionTest, "Looter.Story.U
 
 bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 {
-	// Side 2 as its asset has it: offered by Amos at his fence (his meet lines) after Main 4 on Ransom's Rest; load six bales
-	// (held, counted from the world), ask him who's on the road (the twist: his unpaid hands), drive off the hands (their
-	// encounter cleared: eight; what he owed them chalked in the barn, optional); turned in to Amos (his thanks: the topic from
-	// step 3); 8 experience and a guaranteed Epic gun. (The flows below play the order it had before the givers: AddStep's.)
+	// Side 2 as its asset has it (2026-10-21, the user's cut of the chores and the talk): offered by Amos at his fence (his
+	// meet lines) after Main 4 on Ransom's Rest; load three bales (held, counted from the world), drive off the hands (their
+	// encounter cleared: eight; who they were is said as the last falls, the spawner's ClearedLines; what he owed them
+	// chalked in the barn, optional); turned in to Amos (his thanks: the topic from step 2); a guaranteed Epic gun. (The
+	// flows below play the order it had before the givers, AddStep's: the system's, not today's data.)
+	constexpr int32 AssetSteps = 2;
+	constexpr int32 AssetBales = 3;
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Side2")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Side2.DA_Mission_Side2"));
@@ -249,18 +253,16 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 				&& Asset->Kind == EMissionKind::Side && Asset->Start == EMissionStart::Offered
 				&& Asset->Offer.GiverTag == AAmosWhitlock::SpeakerTag && !Asset->Offer.Lines.IsEmpty()
 				&& Asset->Area == FName(TEXT("RansomsRest")) && Asset->Prerequisites == TArray<FName>({ MainFour }));
-			TestEqual(TEXT("Three steps"), Asset->Steps.Num(), SideTwoSteps);
+			TestEqual(TEXT("Two steps"), Asset->Steps.Num(), AssetSteps);
 			const UMissionLastingInteractObjective* Load = Cast<UMissionLastingInteractObjective>(Asset->GetObjective(0, 0));
-			const UMissionTalkObjective* Road = Cast<UMissionTalkObjective>(Asset->GetObjective(1, 0));
-			const UMissionClearObjective* Hands = Cast<UMissionClearObjective>(Asset->GetObjective(2, 0));
-			const UMissionObjective* Chalk = Asset->GetObjective(2, 1);
-			TestTrue(TEXT("1: six hay bales loaded, held, counted from the world"), Load && Load->Count == BaleCount && Load->bHold
+			const UMissionClearObjective* Hands = Cast<UMissionClearObjective>(Asset->GetObjective(1, 0));
+			const UMissionObjective* Chalk = Asset->GetObjective(1, 1);
+			TestTrue(TEXT("1: three hay bales loaded, held, counted from the world"), Load && Load->Count == AssetBales && Load->bHold
 				&& Load->Target.ActorTag == AHayBale::BaleTag);
-			TestTrue(TEXT("2: ask Amos who's on the road"), Road && Road->SpeakerTag == AAmosWhitlock::SpeakerTag);
-			TestTrue(TEXT("3: the hands driven off (their encounter cleared, eight)"), Hands && Hands->SpawnerId == HandsId
+			TestTrue(TEXT("2: the hands driven off (their encounter cleared, eight)"), Hands && Hands->SpawnerId == HandsId
 				&& Hands->Count == HandsBasic + 1);
 			TestTrue(TEXT("...and, optional, the wages chalked in the barn"), Chalk && Chalk->bOptional);
-			TestTrue(TEXT("Turned in to Amos (his thanks: the topic from its fourth step)"), Asset->NeedsTurnIn()
+			TestTrue(TEXT("Turned in to Amos (his thanks: the topic from its third step)"), Asset->NeedsTurnIn()
 				&& Asset->TurnIn.SpeakerTag == AAmosWhitlock::SpeakerTag);
 			TestTrue(TEXT("Its reward: 600 experience and a guaranteed Epic gun"),
 				Asset->Rewards.Experience == 600 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Epic);  // (trimmed 2026-10-21; 800)
@@ -672,10 +674,11 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("...tagged for the missions"), Amos->ActorHasTag(AAmosWhitlock::SpeakerTag));
 		TestTrue(TEXT("...there from Main 4's finish, on the rail after Side 2"), Amos->ShownWhen.AfterMissions.Contains(MainFour)
 			&& Amos->SitWhen.AfterMissions.Contains(SideTwo));
-		// The bales first (from step 0), the road's talk (from 1), the hands (from 2), his thanks at the turn-in (from 3).
+		// The bales first (from step 0), the hands (from 1), his thanks at the turn-in (from 2; the road's talk went into the
+		// fight's end, 2026-10-21).
 		TestTrue(TEXT("...his words at each of Side 2's steps"), Amos->SpeakerPoint->Topics.ContainsByPredicate([](const FSpeakerTopic& Topic)
 		{
-			return Topic.When.DuringMission == SideTwo && Topic.When.FromStep == 3 && Topic.LineSet != nullptr;
+			return Topic.When.DuringMission == SideTwo && Topic.When.FromStep == 2 && Topic.LineSet != nullptr;
 		}) && Amos->SpeakerPoint->Topics.ContainsByPredicate([](const FSpeakerTopic& Topic)
 		{
 			return Topic.When.DuringMission == SideTwo && Topic.When.FromStep == 1 && Topic.LineSet != nullptr;
@@ -694,8 +697,10 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 			AddWarning(TEXT("Amos stands in plain shapes: SK_Amos isn't in this checkout (Art/Models/Creatures/Amos.py)."));
 		}
 	}
-	TestEqual(TEXT("Six hay bales"), Bales.Num(), BaleCount);
-	if (Bales.Num() == BaleCount)
+	// Three placed since 2026-10-21 (build_area_whitlock.py BALES_USED).
+	constexpr int32 PlacedBales = 3;
+	TestEqual(TEXT("Three hay bales"), Bales.Num(), PlacedBales);
+	if (Bales.Num() == PlacedBales)
 	{
 		// Where each one's place in the stack is, from the level as saved (relative transforms: a level loaded only to look
 		// at has no world ones).
@@ -725,8 +730,10 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 	{
 		TestEqual(TEXT("...seven Basic Unpaid"), CountBrought(*Hands, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), HandsBasic);
 		TestEqual(TEXT("...and one Restless"), CountBrought(*Hands, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
-		TestTrue(TEXT("...on Side 2's third step only"), Hands->ActiveWhen.DuringMission == SideTwo && Hands->ActiveWhen.FromStep == 2
-			&& Hands->ActiveWhen.BeforeStep == 3);
+		TestTrue(TEXT("...on Side 2's second step only"), Hands->ActiveWhen.DuringMission == SideTwo && Hands->ActiveWhen.FromStep == 1
+			&& Hands->ActiveWhen.BeforeStep == 2);
+		TestTrue(TEXT("...and Amos says who they were as the last falls"), Hands->ClearedLines != nullptr
+			&& !Hands->ClearedLines->Lines.IsEmpty());
 		TestTrue(TEXT("...coming for the player as they appear, inside the yard's fence"), Hands->bHuntOnSpawn
 			&& Hands->GroundCorners.Num() >= 3 && Hands->SpawnPoints.Num() >= HandsBasic + 1);
 		TestTrue(TEXT("...tagged for the fight"), Hands->CreatureTags.Contains(HandsTag));

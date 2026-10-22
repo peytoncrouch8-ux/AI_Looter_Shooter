@@ -11,9 +11,10 @@ The names are the wave 4 contract's (the missions' data, Tools/Unreal/create_sid
   a trace from above finds the Bench over them).
 - Hiram Coyle (AHiramCoyle, Speaker_Hiram) on the winch house's SOCKET_HiramStool, his seat on the stool's top, the
   speaking tube's side (TubeSide) from SOCKET_SpeakingTube.
-- Dead Lift's fittings (AMissionFitting, tagged LiftFitting and LiftFitting_Crank / _Boiler / _Pin): held 1.5 s at the
-  house's SOCKET_Crank, SOCKET_Boiler (the firebox door) and SOCKET_ClampPin (the bottom sheave), only in the fittings'
-  step; the crank, the emptied coal sack (by SOCKET_CoalBin) and the pin show once done, and stay from the next step on.
+- Dead Lift's fittings (AMissionFitting, tagged LiftFitting and LiftFitting_Boiler / _Pin): held 1.5 s at the house's
+  SOCKET_Boiler (the firebox door, stoked from the quarry's own coal bin) and SOCKET_ClampPin (the bottom sheave), only
+  in the fittings' step; the emptied coal sack (by SOCKET_CoalBin) and the pin show once done, and stay from the next step
+  on. The crank stands on SOCKET_Crank from the start (the crank fetch went, 2026-10-21).
   Smoke from the stack (an AStoryProp, SOCKET_Smoke) once she raises steam, and for good after.
 - The Last Watch at Ruth's cabin: its board (ANoticeBoard tagged NoticeBoard_CalderPost) at SOCKET_NoticeBoard, the lamp
   oil (AMissionItem LampOil) on SOCKET_LampOil, Ruth's journal (RuthJournal), the post's log (PostLog), and the code book
@@ -332,7 +333,6 @@ def place_fittings(build, house):
     # The pin goes into the bottom sheave's clamp, about 4.2 m up the gantry (OreLift.py): reached from the landing under
     # it, so its reach is the Interact key's longest (InteractionComponentFocus's 4 m).
     for name, socket_name, prompt, model_name, model_at, reach in (
-            ('Crank', 'Crank', 'Fit the winch crank', 'SM_WinchCrank', None, READ_REACH),
             ('Boiler', 'Boiler', 'Stoke the boiler', 'SM_CoalSack', 'CoalBin', READ_REACH),
             ('Pin', 'ClampPin', 'Drive the clamp pin', 'SM_ClampPin', None, 390.0)):
         spot = at_socket(build, house, socket_name)
@@ -353,6 +353,14 @@ def place_fittings(build, house):
                 part = made.get_editor_property('mesh')
                 part.set_world_location_and_rotation(lies.translation, lies.rotation.rotator(), False, True)
         placed += 1
+    # The winch's crank never left her (2026-10-21: Dead Lift's crank fetch went, the user's cut): it stands on its shaft
+    # from the start, a plain model, nothing to fit.
+    crank_at = at_socket(build, house, 'Crank')
+    crank = mesh(build, 'SM_WinchCrank')
+    if crank_at is not None and crank is not None:
+        x, y, z = xyz(crank_at.translation)
+        shaft = build.place(crank, (x, y, z), crank_at.rotation.rotator().yaw, label='LiftCrank_OnShaft', folder=FOLDER)
+        shaft.set_actor_rotation(crank_at.rotation.rotator(), False)
     build.log(f'Dead Lift\'s fittings: {placed} (held, in its step {fit}; done from step {fit + 1} and after)')
 
 

@@ -311,9 +311,11 @@ Unpaid family. XP held by trimming the missions' (`Docs/Progression.md`). Code: 
 | Whitlock's hands | Side 2 | 7 Unpaid, 1 Restless (5+1) | `build_area_whitlock.py` HANDS_BASIC |
 | Sink floor | Main 5 | 6 spiders, area ranks (4); the sacs' 6 unchanged | `build_area_sink.py` FLOOR_COUNT |
 | Depot waiting room | The Old Fare | 4 Unpaid, 1 Restless, a Bell-Ringer (3+1+1) | `build_area_missionprops_valley.py` DEPOT_BASIC |
+| Depot's second push (DepotReturn) | The Old Fare, its lay step (2026-10-22) | 4 Unpaid, 1 Restless (new) | the same script, after DepotWaiting |
 | Tilly's cellar | Knocking Below | 5 Unpaid, 1 Restless (3+1) | CELLAR_BASIC |
 | Camp SheepFold | after Main 4 | 5 Unpaid, 1 Restless (2+1) | layout `camps` |
 | Camp OrchardEdge | after Main 3 | 5 Unpaid, 1 Restless, a Bell-Ringer (3+1+1) | layout `camps` |
+| Camp OrchardEdgeDusk | during Main 7, at dusk (2026-10-22) | the same as OrchardEdge, no crate (new) | `build_area_camps.py` DUSK_RETURNS |
 | Camp MillCreek | after Main 3 | 5 slimes, 1 Restless (3+1) | layout `camps` |
 | Patrol WestRoad | after Main 4 | 5 Unpaid, area ranks (3) | layout `patrols` |
 | Patrol QuarryTrack | after Main 3 | 5 spiders, a Spitter, area ranks (3+1) | layout `patrols` |
@@ -355,6 +357,13 @@ Webwood's 2) are left, or 30 s after the last. Won: Hob's line and a loot shower
 `Docs/Areas/RansomsRest_Expansion.md` §2 (the flow table), §3 (the seven mains and three old sides, reworked) and §4 (the new
 sides). Every mission but Main 1 is picked up from a giver under a ? and turned in under a ! (expansion §1). XP:
 `Docs/Progression.md`. The old list: the archive.
+
+**The talk cut and the fetches (2026-10-21 calls, built 2026-10-22; overrides the expansion's lines and steps where they
+differ; Pipeline "The story's talk cut"):** offers two or three lines, turn-ins three, Hob's arrivals one line, his taps
+gone but Main 1's, the Old Fare's and his catch-all. Side 1 tears 4 posters. Side 2: 3 bales, then the hands; Amos's twist
+is said as the last falls (no road talk). Knocking Below: the key off the hook first, Thaddeus's talk and tape one step.
+Dead Lift: only Abe's pin (the crank stays on the winch, the boiler takes the quarry's coal). Tilly hands Pa's bail over
+at Main 3's turn-in. The Old Fare is kept word for word, with a second push in the waiting room as the coins come down.
 
 Still true here (the expansion keeps these where it says "today's"):
 - Sexton's deal comes early, about 15 minutes in, on the lookout where Ellis died (decided at step 1), so the seven names are
@@ -558,6 +567,11 @@ he is a friend (a separate, non-hostile actor). His adds use the Basic table.
   - Three Supply Crates as Ruth's Ranger caches (under the windmill, on the Sink's rim, on the bluff path): 1 gun each at
     Luck 0.5 (3.7% legendary).
   - The gang's Strongbox in the sheriff's office: 2 guns at Luck 1.0 (15.5% legendary).
+- **Things to find off the path** (2026-10-22, `build_area_secrets.py`, `story_texts.SECRETS`; chest ids never renamed):
+  the Widow's strongbox under the middle Widow (2 guns at Luck 1.3: the legendary chance), the gang's locker on the Mooring
+  Ledge, the surveyor's tin on Coffin Rock's top (its boulder steps don't climb yet), the Averys' tin in the Burnt
+  Homestead, Thaddeus's bottle in the springhouse, the keepers' stores in the old lantern house, a spiders' hoard under the
+  hanging tree, Teague's powder box on Larkspur Bench, a crate in the quarry blocks; footlockers 1 gun at Luck 0.5-1.0.
 - The smashed Reliquary in the chapel is a story prop, dark and empty, from the backlog Reliquary design (step 18).
 
 ## The exit and the unlock

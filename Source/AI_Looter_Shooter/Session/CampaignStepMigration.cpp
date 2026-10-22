@@ -13,6 +13,8 @@ namespace
 	const FName Side1(TEXT("Side1"));
 	const FName Side2(TEXT("Side2"));
 	const FName Side3(TEXT("Side3"));
+	const FName KnockingBelow(TEXT("KnockingBelow"));
+	const FName DeadLift(TEXT("DeadLift"));
 
 	/** A mission whose steps moved: where each old step is in today's list, the last entry one past the old last step. */
 	struct FMovedSteps
@@ -63,6 +65,78 @@ namespace
 		OutIndex = FCString::Atoi(*Parts[2]);
 		return true;
 	}
+}
+
+int32 CampaignStepMigration::MapStepBeforeTalkCut(FName Mission, int32 OldStep)
+{
+	// Each old step's place in today's list, the last entry one past the old last step (waiting for the turn-in).
+	static const TArray<int32> SideTwo = { 0, 1, 1, 2 };
+	static const TArray<int32> Knocking = { 0, 0, 1, 2, 3, 4, 4, 5 };
+	const TArray<int32>* Moved = Mission == Side2 ? &SideTwo : Mission == KnockingBelow ? &Knocking : nullptr;
+	if (!Moved || OldStep < 0)
+	{
+		return OldStep;
+	}
+	if (Moved->IsValidIndex(OldStep))
+	{
+		return (*Moved)[OldStep];
+	}
+	const int32 Last = Moved->Num() - 1;
+	return OldStep + ((*Moved)[Last] - Last);
+}
+
+FString CampaignStepMigration::UpgradeTalkCut(FCampaignRecord& Campaign)
+{
+	TArray<FString> Moved;
+	if (!Campaign.ActiveMission.IsNone())
+	{
+		const int32 Old = Campaign.ActiveMissionStep;
+		const int32 New = MapStepBeforeTalkCut(Campaign.ActiveMission, Old);
+		if (New != Old)
+		{
+			Campaign.ActiveMissionStep = New;
+			Moved.Add(FString::Printf(TEXT("%s step %d is step %d now"), *Campaign.ActiveMission.ToString(), Old + 1, New + 1));
+		}
+	}
+	TArray<FName> Optionals;
+	for (const FName Key : Campaign.OptionalDone)
+	{
+		FName Mission;
+		int32 Step = 0;
+		int32 Index = 0;
+		if (!ParseOptionalKey(Key, Mission, Step, Index))
+		{
+			Optionals.AddUnique(Key);
+			continue;
+		}
+		// Dead Lift's first step had Odell's report as its optional (objective 1); it has none now.
+		if (Mission == DeadLift && Step == 0)
+		{
+			Moved.Add(FString::Printf(TEXT("optional %s gone (no longer an objective)"), *Key.ToString()));
+			continue;
+		}
+		const FName Now = FCampaignRecord::OptionalKey(Mission, MapStepBeforeTalkCut(Mission, Step), Index);
+		if (Now != Key)
+		{
+			Moved.Add(FString::Printf(TEXT("optional %s is %s now"), *Key.ToString(), *Now.ToString()));
+		}
+		Optionals.AddUnique(Now);
+	}
+	Campaign.OptionalDone = MoveTemp(Optionals);
+	// The retired items: never a mission's again (their ids are never reused).
+	for (const TCHAR* Retired : { TEXT("WinchCrank"), TEXT("CoalSack") })
+	{
+		if (Campaign.CarriedItems.Remove(FName(Retired)) > 0)
+		{
+			Moved.Add(FString::Printf(TEXT("%s no longer carried"), Retired));
+		}
+	}
+	const FString Said = FString::Join(Moved, TEXT("; "));
+	if (!Said.IsEmpty())
+	{
+		UE_LOG(LogLooter, Log, TEXT("Campaign record from before 2026-10-21's cut of the fetches: %s."), *Said);
+	}
+	return Said;
 }
 
 FDateTime CampaignStepMigration::GiversSince()

@@ -9,6 +9,8 @@
 #include "Creatures/EncounterRules.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Session/SessionSubsystem.h"
+#include "Story/CaptionSubsystem.h"
+#include "Story/StoryLineSet.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Components/LineBatchComponent.h"
 #include "Components/SceneComponent.h"
@@ -293,6 +295,14 @@ void AEncounterSpawner::UpdateEncounter(float DeltaSeconds)
 		{
 			SetState(EEncounterState::Cleared);
 			UE_LOG(LogLooter, Log, TEXT("Encounter %s: cleared (%d killed)."), *GetSpawnerId().ToString(), Killed);
+			// Won, its words (if it has any) on the move: after the last of them, never over a line being said.
+			if (ClearedLines && !ClearedLines->Lines.IsEmpty())
+			{
+				if (UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this))
+				{
+					Captions->Play(ClearedLines->Lines, ECaptionPlay::Queue);
+				}
+			}
 		}
 		else if (Remaining == 0 && !HasTimedWaves())
 		{

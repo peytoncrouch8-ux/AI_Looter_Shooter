@@ -115,13 +115,13 @@ namespace
 		return {
 			FStoryLine::Make(Calder, NSLOCTEXT("LooterPoster", "NoteCaches",
 				"Rangers: three caches laid on the Rest. Under the windmill, the Sink rim, the bluff path.")),
-			FStoryLine::Make(Calder, NSLOCTEXT("LooterPoster", "NoteTake", "Take what you need.")),
 			FStoryLine::Make(HobName(), NSLOCTEXT("LooterPoster", "NoteHob",
-				"Calder. Same hand that signed your poster, sunshine. She shoots first and reads the small print after.")),
+				"Calder. Same hand that signed your poster. She shoots first, sunshine.")),
 		};
 	}
 
-	/** Hob's remarks as the posters come down: the first, the third, and the sixth (Side 1's count), pointing to the board. */
+	/** Hob's remarks as the posters come down: the first, the third, and the fourth (Side 1's count since 2026-10-21, the
+	 * user's cut of the chores), pointing to the board. */
 	TArray<FWantedPosterRemark> HobRemarks()
 	{
 		auto Remark = [](int32 TornCount, const FText& Words)
@@ -133,10 +133,10 @@ namespace
 		};
 		return {
 			Remark(1, NSLOCTEXT("LooterPoster", "RemarkFirst",
-				"Somebody wrote 'already' under 'dead or alive'. This town has a sense of humor after all.")),
+				"Somebody wrote 'already' under 'dead or alive'. The town has a sense of humor.")),
 			Remark(3, NSLOCTEXT("LooterPoster", "RemarkThird", "Nobody collects on a corpse, sunshine. You could leave a few up.")),
-			Remark(6, NSLOCTEXT("LooterPoster", "RemarkSixth",
-				"That's most of them. The Rangers' board by the sheriff's has a note on it, if you want more news of yourself.")),
+			Remark(4, NSLOCTEXT("LooterPoster", "RemarkSixth",
+				"That's most of them. There's a note for you on the Rangers' board.")),
 		};
 	}
 }

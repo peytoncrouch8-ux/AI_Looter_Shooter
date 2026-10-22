@@ -717,6 +717,8 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
     hob = build.place(cls, (x, y, z), yaw, label='Hob', folder='Gameplay', tags=('Speaker_Hob',))
     # The first that holds is his, so a mission's later steps come before its earlier ones, and each mission's perches
     # before the ones after the missions before it (steps counted from 0).
+    # Where only the objective's arrow had words (the way up, the bell, the knock, the sacs, the post, the depot), he flies
+    # there and says nothing: the user's cut of the story's talk (2026-10-21).
     perches = [
         # Main 1: on the board saying his piece once Ellis is out (step 2), on it silently while Ellis claws out (step 1).
         perch(board, condition(during=MAIN1, from_step=2), 'DA_Lines_HobWakes'),
@@ -724,7 +726,7 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         # Main 2: beside Sexton for the deal and the Ledger; on the rock for the fight; at the path's foot for the climb.
         perch(spots['rail'], condition(during=MAIN2, from_step=2)),
         perch(spots['rock'], condition(during=MAIN2, from_step=1), 'DA_Lines_HobMain2Blue'),
-        perch(spots['path'], condition(during=MAIN2), 'DA_Lines_HobMain2Climb'),
+        perch(spots['path'], condition(during=MAIN2)),
         # Main 3: on the sign once the gate is won; on the gate's post for the fight (no flight: the same spot) and the road.
         perch(spots['sign'], condition(during=MAIN3, from_step=2), 'DA_Lines_HobMain3Tilly'),
         perch(spots['gate'], condition(during=MAIN3, from_step=1), 'DA_Lines_HobMain3Gate'),
@@ -732,26 +734,26 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         # Main 4: on the door hood for the Reliquary and the bell; on the vestry lantern's bracket for the knock at
         # Aldana's door (step 2); on the door hood again for the yard's fight and the way up.
         perch(spots['hood'], condition(during=MAIN4, from_step=4), 'DA_Lines_HobMain4Reliquary'),
-        perch(spots['hood'], condition(during=MAIN4, from_step=3), 'DA_Lines_HobMain4Bell'),
-        perch(spots['lantern'], condition(during=MAIN4, from_step=2), 'DA_Lines_HobMain4Aldana'),
+        perch(spots['hood'], condition(during=MAIN4, from_step=3)),
+        perch(spots['lantern'], condition(during=MAIN4, from_step=2)),
         perch(spots['hood'], condition(during=MAIN4, from_step=1), 'DA_Lines_HobMain4Yard'),
-        perch(spots['hood'], condition(during=MAIN4), 'DA_Lines_HobMain4Road'),
+        perch(spots['hood'], condition(during=MAIN4)),
         # Main 5: on the Sink road's tree by the ramp head once the lantern is taken; on the floor's block for the
         # lantern and the sacs (no flight between them: a word at each); on Den Rock over the den for the way down.
         perch(spots['roadTree'], condition(during=MAIN5, from_step=3), 'DA_Lines_HobMain5Out'),
-        perch(spots['block'], condition(during=MAIN5, from_step=2), 'DA_Lines_HobMain5Lantern'),
-        perch(spots['block'], condition(during=MAIN5, from_step=1), 'DA_Lines_HobMain5Sacs'),
+        perch(spots['block'], condition(during=MAIN5, from_step=2)),
+        perch(spots['block'], condition(during=MAIN5, from_step=1)),
         perch(spots['denRock'], condition(during=MAIN5), 'DA_Lines_HobMain5Way'),
         # Main 6: on the bier beside Pa's for the scene (his word is the scene's own); on the gate's north rock for the fight
         # and the lantern (no flight between them: a word at each); on the keeper's grave's board for the way there.
         perch(spots['deckBier'], condition(during=MAIN6, from_step=3)),
         perch(spots['gateRock'], condition(during=MAIN6, from_step=2), 'DA_Lines_HobMain6Fight'),
-        perch(spots['gateRock'], condition(during=MAIN6, from_step=1), 'DA_Lines_HobMain6Post'),
+        perch(spots['gateRock'], condition(during=MAIN6, from_step=1)),
         # (story_texts.PERCHES' keepersBridge isn't one: it holds when this does, so it would take him off the main way.)
         perch(spots['keeperGrave'], condition(during=MAIN6), 'DA_Lines_HobMain6Way'),
         # Main 7: on the hearse car's roof for the depot and the board (a word at each); on the keeper's post by the lantern.
-        perch(spots['hearse'], condition(during=MAIN7, from_step=2), 'DA_Lines_HobMain7Board'),
-        perch(spots['hearse'], condition(during=MAIN7, from_step=1), 'DA_Lines_HobMain7Depot'),
+        perch(spots['hearse'], condition(during=MAIN7, from_step=2)),
+        perch(spots['hearse'], condition(during=MAIN7, from_step=1)),
         perch(spots['keeperPost'], condition(during=MAIN7), 'DA_Lines_HobMain7Lean'),
         # Back Pay's first step, while no main mission holds him: on the Providence's tag board.
         perch(spots['mineMouth'], texts.condition(texts.PERCHES['mineMouth'][0]), texts.PERCHES['mineMouth'][1]),

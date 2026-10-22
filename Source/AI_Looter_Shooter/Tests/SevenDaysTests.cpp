@@ -46,7 +46,7 @@ namespace
 	const TCHAR* const DeliasWords[] = {
 		TEXT("I was to lay you on the boards tonight."),
 		TEXT("Your Pa got up Wednesday night, came up through the dirt like it was fog."),
-		TEXT("A keeper doesn't lie still while his saint is dark. He walks the boards at dusk."),
+		TEXT("A keeper doesn't lie still while his saint is dark."),  // (cut 2026-10-21: the boards at dusk are Main 6's offer)
 	};
 	const TCHAR* HobsMorning = TEXT("Morning, sunshine. Most folks who get up do it after dark.");
 

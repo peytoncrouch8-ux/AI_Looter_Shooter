@@ -20,6 +20,12 @@ int32 ULooterSessionSave::Upgrade()
 	{
 		CampaignStepMigration::Upgrade(Campaign, Saved);
 	}
+	// Version 2 and 3 records are on 2026-10-13's step lists: moved onto 2026-10-21's (Side 2's road talk and Knocking
+	// Below's walks went into the fights and talks round them; Dead Lift's crank and coal went).
+	if (ReadVersion == 2 || ReadVersion == 3)
+	{
+		CampaignStepMigration::UpgradeTalkCut(Campaign);
+	}
 
 	// Before version 2 a session kept one world: the level it was saved in, which Map names. It becomes that map's world.
 	// The old fields are emptied so nothing reads them twice; they stay in the class so older saves can still be read.

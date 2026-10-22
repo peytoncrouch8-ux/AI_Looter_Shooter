@@ -112,8 +112,8 @@ bool FKeepersLanternMissionTest::RunTest(const FString& Parameters)
 		AddInfo(TEXT("DA_Mission_Side3 isn't made yet: its prerequisite (Main5) isn't checked."));
 	}
 	// Hob's words through Main 5 and Aldana's after it, as the story script makes them (create_story_lines.py).
-	const TCHAR* const LineSets[] = { TEXT("DA_Lines_HobMain5Way"), TEXT("DA_Lines_HobMain5Sacs"), TEXT("DA_Lines_HobMain5Lantern"),
-		TEXT("DA_Lines_HobMain5Out"), TEXT("DA_Lines_HobMain5"), TEXT("DA_Lines_AldanaAfterMain5") };
+	// (The sacs' and the lantern's perches went silent 2026-10-21, and Hob's Main 5 tap went.)
+	const TCHAR* const LineSets[] = { TEXT("DA_Lines_HobMain5Way"), TEXT("DA_Lines_HobMain5Out"), TEXT("DA_Lines_AldanaAfterMain5") };
 	int32 LinesMade = 0;
 	for (const TCHAR* Name : LineSets)
 	{

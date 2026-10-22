@@ -311,6 +311,27 @@ def place_crates(build, camps):
             build.log(f'{where}, level within {spread:.0f} cm')
 
 
+# A camp that comes back while a mission runs, even if it was cleared this visit (STORY phase 2, Main's go-ahead
+# 2026-10-21): the orchard's edge in The Lantern Leans, at dusk, so Heirloom's first shots land on the farm road on the
+# way to the depot. Its own spawner (Camp_<id>Dusk), the camp's groups, spots and ground exactly, no second crate; on only
+# during that mission. Kept out of the layout's camps: the camp tests want every layout camp on for good after its
+# mission, and on its own ground.
+DUSK_RETURNS = {'OrchardEdge': 'Main7'}
+
+
+def place_dusk_return(build, camp, during):
+    label = f'Camp_{camp["id"]}Dusk'
+    x, y = camp['center']
+    made, z = spawner(build, SPAWNER, label, x, y, camp, label)
+    if made is None:
+        return
+    made.set_editor_property('active_when', story.condition(during=during))
+    made.set_editor_property('spawn_points', relative(build, camp['spots'], x, y, z))
+    made.set_editor_property('hunt_on_spawn', False)
+    set_ground(build, made, camp['ground'], z)
+    build.log(f'{label}: {camp["id"]}\'s camp again during {during}')
+
+
 def place(build):
     """Every camp, patrol and ambush of the layout's gameplay.encounters, then the camps' crates. A layout without any
     places nothing."""
@@ -331,5 +352,8 @@ def place(build):
         if not fights.is_mountains(entry):
             fights.place_one(build, entry, None)
     place_crates(build, camps)
+    for camp in encounters.get('camps', []):
+        if camp['id'] in DUSK_RETURNS:
+            place_dusk_return(build, camp, DUSK_RETURNS[camp['id']])
     build.log(f'between the fights: {len(encounters.get("camps", []))} camps, {len(encounters.get("patrols", []))} patrols, '
               f'{len(encounters.get("ambushes", []))} ambushes')

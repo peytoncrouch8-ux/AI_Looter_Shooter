@@ -38,4 +38,20 @@ namespace CampaignStepMigration
 	 * predates the givers. Returns what it moved, for the log (empty: nothing).
 	 */
 	AI_LOOTER_SHOOTER_API FString Upgrade(FCampaignRecord& Campaign, const FDateTime& Saved);
+
+	/**
+	 * The step OldStep of Mission in a list from before 2026-10-21's cut of the fetches (save version 3), in today's: Side 2
+	 * lost its road talk (step 1: the hands' fight says it now), Knocking Below its walk to the workshop door (step 0: the
+	 * key off the hook is the first) and its tape step (into Thaddeus's talk). The main missions' lists didn't move, and
+	 * neither did the Old Fare's or Dead Lift's (Dead Lift lost objectives, not steps).
+	 */
+	AI_LOOTER_SHOOTER_API int32 MapStepBeforeTalkCut(FName Mission, int32 OldStep);
+
+	/**
+	 * Moves a version 3 record onto 2026-10-21's missions (ULooterSessionSave::Upgrade, version 3 to 4): the optional
+	 * objectives done (kept by their step) of the missions whose steps moved, Dead Lift's optional on its first step gone
+	 * (Odell's report is a free read now), and the retired items (the winch crank, the coal sack) out of the carried. A side
+	 * mission's own step isn't kept (it starts again from its first), so only these move. Returns what moved (empty: none).
+	 */
+	AI_LOOTER_SHOOTER_API FString UpgradeTalkCut(FCampaignRecord& Campaign);
 }

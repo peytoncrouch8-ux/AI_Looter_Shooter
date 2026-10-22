@@ -25,6 +25,8 @@ line sets the topics below name are Tools/Unreal/create_story_lines.py's.
   MUTTERS     lines a speaker point says unasked as the player passes, with when.
   PERCHES     Hob's new perches' arrival lines (the spot is the placing script's), with when.
   ENCOUNTERS  when each mission fight is on (an encounter spawner's active_when), by its spawner id.
+  SECRETS     the things to find off the path (2026-10-21): each one's chest, its loot, its anchor and its readable
+              (build_area_secrets.py places them).
 
 A condition is a dict of build_area_story.condition()'s words (after, before, during, from_step, before_step; steps
 counted from 0, as the missions' are) plus with_flags and without_flags (story flags); condition() below makes the
@@ -47,7 +49,7 @@ READABLES = {
         title="Ellis's headboard", heading='Fresh pine, in the family plot', prompt='Read',
         text='ELLIS RANSOM.\nCAME HOME AT THE LAST.',
         lines=[(ELLIS, 'Who carved this?'),
-               (HOB, 'Your grandmother. Took her all night, sunshine. She did the letters twice.')]),
+               (HOB, 'Your grandmother. She did the letters twice.')]),
     # Main 2, optional: the lookout's boards where the Deacon shot Ellis (Ransom's Point).
     'LookoutStains': dict(
         title='The boards where it happened', heading="Ransom's Point, the lookout's deck", prompt='Look', text='',
@@ -69,28 +71,26 @@ READABLES = {
     # Side 3, optional: his badge, deep in the Gravemother's den (SM_SheriffBadge).
     'SheriffBadge': dict(
         title="Sheriff Odell's badge", heading='Caught in the webbing, deep in her den', prompt='Look', text='',
-        lines=[(ELLIS, "Wade Odell's badge. He gave me a hiding once, for stealing apples."),
-               (HOB, "Somebody at Pruitt's will want that back, sunshine.")]),
+        lines=[(ELLIS, "Wade Odell's badge. He gave me a hiding once, for stealing apples.")]),
     # Dead Lift, optional: pinned up in the sheriff's lockup, by the winch crank.
     'OdellReport': dict(
         title="Sheriff Odell's report", heading='Pinned up in the lockup', prompt='Read',
         text=('PROVIDENCE MINING CO. THE FALL, LOWER DRIFT.\n\n'
               "Eleven men. Teague swears the roof gave on its own. Then why'd he have powder burns on his cuffs?\n\n"
               'My brother Jory was one of the eleven.\n\n' + DASH + ' W.O.'),
-        lines=[(HOB, 'A lawman with a hunch and no proof. Sounds about right for the Rest, sunshine.')]),
+        lines=[]),
     # Side 1, optional: the sheriff's daybook, open on his desk in the office.
     'OdellDaybook': dict(
         title="The sheriff's daybook", heading='Open on his desk', prompt='Read',
         text=('Haskett mule gone. Tracks to the Sink.\n'
               'My dog gone. Same tracks.\n'
               'Gone down the Sink after the big one. Back by supper.\n\n' + DASH + ' W.O.'),
-        lines=[(HOB, "That was a month ago. Supper's cold, sunshine.")]),
+        lines=[]),
     # Side 2, optional: chalked inside the Whitlock barn's door (SM_RR_Barn_Whitlock's WagesChalk socket).
     'WagesChalk': dict(
         title='What Amos owed', heading='Chalked inside the barn door', prompt='Read',
         text='OWED\n\nMERRITT  14.00\nMERRITT  14.00\nTANNER  11.50',
-        lines=[(ELLIS, 'Three names. Nothing crossed out.'),
-               (HOB, "An honest man's ledger, sunshine. Nobody else round here keeps one.")]),
+        lines=[(ELLIS, 'Three names. Nothing crossed out.')]),
     # Knocking Below, optional: the coffin orders on the slate by the workshop door (OrdersSlate socket).
     'OrdersSlate': dict(
         title='Coffin orders', heading='Chalk on the slate by the workshop door', prompt='Read',
@@ -127,8 +127,7 @@ READABLES = {
               'T. ABERNATHY. Post held. Cough no better.\n'
               'R. CALDER. Tom buried by the cabin. Post held.\n'
               'R. CALDER. Post unmanned. Gone south after the Dunne Gang.'),
-        lines=[(ELLIS, 'Larkspur stands.'),
-               (HOB, 'Use your own name, sunshine. Bold.')]),
+        lines=[(ELLIS, 'Larkspur stands.')]),
     # Back Pay: reading it is the step (SM_RR_Mine_Office's PayrollBook socket).
     'PayrollBook': dict(
         title="The Foreman's payroll", heading='Providence Mining Co.', prompt='Read',
@@ -139,7 +138,7 @@ READABLES = {
               'COMPANY ORDER: Break the strike.\n\n'
               "They've barricaded the lower drift. Say they'll come up when they're paid. A small charge on the drift "
               'mouth will bring them up.\n' + DASH + ' C. Teague'),
-        lines=[(HOB, "That's the trouble with small charges.")]),
+        lines=[]),
     # Back Pay, optional: chalk on the upper gallery's wall (SM_RR_Mine_Gallery's ChalkTally socket).
     'ChalkTally': dict(
         title='Chalk on the gallery wall', heading='The upper gallery', prompt='Read',
@@ -150,7 +149,7 @@ READABLES = {
         title="The eleven's barricade", heading='Timbers across the lower drift', prompt='Take the tags',
         text='Chalked across the timbers:\n\nPAY US AND WE COME UP.\n\nEleven brass tags hang from a nail.',
         lines=[(ELLIS, 'Eleven tags.'),
-               (HOB, 'And a Foreman who never paid them. Listen, sunshine. Digging.')]),
+               (HOB, 'A Foreman who never paid them. Listen. Digging.')]),
     # Calder's Caches: reading it is the step; it lies with the gang's strongbox in the sheriff's lockup (on the banknotes
     # inside, or on the shelf beside it), there from the start, so it can be read again once the mission asks.
     'DeaconsSlip': dict(
@@ -169,7 +168,7 @@ READABLES = {
               "Six towns now, and he wants yours worst of all. I can't tell you why. I'm afraid I'll find out.\n"
               "When we're done here, take your share and ride. Don't come looking for me.\n\n" + DASH + ' A.D.'),
         lines=[(ELLIS, 'Six towns. Then mine.'),
-               (HOB, 'Never sent. Left where you tied up, though. Make of that what you like, sunshine.')]),
+               (HOB, 'Never sent. Left where you tied up, though.')]),
     # The Deacon's letter to Delia in the saloon's post rack, mailed before the robbery and never collected: his warning.
     'DeaconLetter_Saloon': dict(
         title='A letter in the post rack', heading='To Mrs. D. Ransom, Ransom Farm. Postmarked Halfway Junction, 9 August. '
@@ -187,8 +186,7 @@ READABLES = {
     'ReliquaryLid': dict(
         title="The Reliquary's lid", heading='Prised up at one edge', prompt='Look', text='',
         shown_when=dict(after=['Main4']),
-        lines=[(ELLIS, "There's a mark cut on the underside of the lid. Scratched out, a long time ago."),
-               (ELLIS, 'A coin, with a line through it.'),
+        lines=[(ELLIS, 'A mark under the lid. A coin, with a line through it.'),
                (HOB, 'The old toll mark. Somebody made sure she never paid it. Or anyone after her, sunshine.')]),
     # The railroad's map on the ticket office's wall over the agent's desk (SM_ReachesMap).
     'ReachesMap': dict(
@@ -199,7 +197,54 @@ READABLES = {
               "HIGHWATER LANDING: END OF THE LINE.\n"
               "DUSTWATER MESA. SAINT AGNES MIRE. FURNACE HOLLOW. THE NEEDLES. STONEWEIGHT QUARRY.\n\n"
               "Seven towns, each with a little sun inked by its name: a saint."),
-        lines=[(HOB, 'Seven saints and one railroad. Every line runs to the Junction, sunshine. Remember that.')]),
+        lines=[(HOB, 'Seven saints, one railroad. Every line runs to the Junction, sunshine.')]),
+    # What Ada gave up (the Rest's seeds; a page since 2026-10-21, the user's cut of the story's talk): Father Aldana's
+    # words, slid out under the vestry door after Hallowed Ground (build_area_secrets.py places it); reading it sets
+    # Ada.Told as his talk did.
+    'AldanaPage': dict(
+        title="A page in Father Aldana's hand", heading='Slid out under the vestry door', prompt='Read',
+        sets_flag='Ada.Told', shown_when=dict(after=['Main4']),
+        text=("There's a thing the Rest has forgotten.\n\n"
+              "The first winter, nobody on the Rest had coin for the old fare. Their dead lay unpaid.\n\n"
+              "Ada lay down on the first board on Gravewind Point and asked the wind to take her. It carried her to the "
+              "edge of the world.\n\n"
+              "And there she stopped, and held up her light, so nobody of this valley would pay to cross again.\n\n"
+              "She never crossed herself. No saint does. Every one of them is somebody who stayed behind.\n\n"
+              + DASH + ' M.A.'),
+        lines=[(ELLIS, 'Sixty years at the edge of the world.'),
+               (HOB, 'Some debts you pay standing up, sunshine.')]),
+
+    # --- Things to find off the path (2026-10-21; SECRETS below places their chests): each found readable sets its
+    # Secret.<Id> flag. Only facts the story already has (Docs/Story.md): strongboxes are the gang's old bank jobs'
+    # safes, spiders hoard what a saint has touched, Pike surveyed the Reaches (the map's "W. PIKE, SURVEYOR"), Teague's
+    # powder burns (Odell's report) and his small charge (the payroll), Thaddeus's own habits.
+    'Secret_WidowsBox': dict(
+        title='A strongbox in the rock', heading='Wedged under the middle Widow', prompt='Look', text='',
+        sets_flag='Secret.WidowsBox',
+        lines=[(HOB, "A bank job's strongbox. Somebody meant to come back for it, sunshine.")]),
+    'Secret_BenchMark': dict(
+        title='A brass bench mark', heading="Set in the rock on Coffin Rock's top", prompt='Read',
+        sets_flag='Secret.CoffinRock',
+        text='REACHES RAILROAD SURVEY.\nBENCH MARK 112.\nW. PIKE, SURVEYOR.',
+        lines=[(ELLIS, 'You can see the whole Rest from up here.'),
+               (HOB, 'Every map starts with somebody standing on a rock, sunshine.')]),
+    'Secret_Bottle': dict(
+        title='A bottle under a stone', heading='In the springhouse, under the flat stone', prompt='Look',
+        text='EMBALMING FLUID, says the label.', sets_flag='Secret.Bottle',
+        lines=[(HOB, "Rye, by the smell. Don't tell her.")]),
+    'Secret_Hoard': dict(
+        title="A spider's hoard", heading='Webbed up under the hanging tree', prompt='Look', text='',
+        sets_flag='Secret.Hoard',
+        lines=[(HOB, 'Spiders hoard what a saint has touched, sunshine. Even a graveyard\'s leavings.')]),
+    'Secret_Powder': dict(
+        title='A powder slip', heading="In the company's powder box", prompt='Read', sets_flag='Secret.Powder',
+        text='PROVIDENCE MINING CO. POWDER DRAWN.\n6 STICKS. FOR THE LOWER DRIFT.\n\n' + DASH + ' C.T.',
+        lines=[(ELLIS, "Six sticks. The roof didn't give on its own."),
+               (HOB, 'Somebody tell Wade, sunshine.')]),
+    'Secret_Crate': dict(
+        title='A fallen crate', heading='In the quarry blocks, under the derrick', prompt='Look', text='',
+        sets_flag='Secret.Crate',
+        lines=[(HOB, 'Fell off the boom. The company never came for it.')]),
 }
 
 # The seven towns the Dunne Gang robbed, in the order the Keeper's Lantern finds their embers (the seven names' order),
@@ -221,8 +266,7 @@ LEDGER_TOWNS = {
               'Collected 3 March, by the Dunne Gang. Keeper settled first.\n'
               'Carried by N. Purcell.\n\n'
               'In the margin: Purcell will keep it by the cards and call it luck. Let him.'),
-        lines=[(HOB, 'Highwater Landing. End of the line, where the Lily ties up. Purcell\'s luck lives there now, '
-                     'sunshine.')]),
+        lines=[(HOB, "End of the line, where the Lily ties up. Purcell's luck lives there now.")]),
     'DustwaterMesa': dict(
         name='Dustwater Mesa', saint='Saint Ezra', carrier='Whistling Ira Gale',
         habitat='Wind-scoured mesas joined by rope bridges',
@@ -325,6 +369,8 @@ READABLE_MODELS = {
     'DeaconsSlip': 'SM_DeaconsSlip',
     # The Rest's seeds (the props art's; build_area_seeds.py falls back to SM_DeaconsSlip while one isn't imported).
     'DeaconLetter_Cleft': 'SM_DeaconLetter', 'DeaconLetter_Saloon': 'SM_DeaconLetter', 'ReachesMap': 'SM_ReachesMap',
+    # Slips (build_area_secrets.py falls back to SM_DeaconsSlip, the slip it is): Aldana's page, Teague's powder slip.
+    'AldanaPage': 'SM_DeaconsSlip', 'Secret_Powder': 'SM_DeaconsSlip',
 }
 READABLE_MODELS.update({'LedgerPage_' + town: 'SM_LedgerPage' for town, page in LEDGER_TOWNS.items() if page['found']})
 
@@ -382,11 +428,8 @@ ITEMS = {
     'CellarKey': dict(mission='KnockingBelow', where="on Thaddeus's measuring hook (SM_RR_Workshop_Bright's MeasuringHook)",
                       prompt='Take the cellar key', shown_when=None),
     'ThaddeusTape': dict(mission='KnockingBelow', where="on Thaddeus's bench in the cold room (ThaddeusBench socket)",
-                         prompt="Take Thaddeus's tape measure", shown_when=dict(during='KnockingBelow', from_step=6)),
-    'WinchCrank': dict(mission='DeadLift', where="in the sheriff's lockup, by Odell's report", prompt='Take the winch crank',
-                       shown_when=None),
-    'CoalSack': dict(mission='DeadLift', where="at the depot's coal stage (SM_RR_CoalStage's Sack socket)",
-                     prompt='Fill a coal sack', shown_when=None),
+                         prompt="Take Thaddeus's tape measure", shown_when=dict(during='KnockingBelow', from_step=4)),
+    # (WinchCrank and CoalSack went with Dead Lift's fetches, 2026-10-21: never reuse their ids.)
     'ClampPin': dict(mission='DeadLift', where="dropped where Abe Haskett falls (the lift crew's Restless brakeman, tagged "
                                                'AbeHaskett)', prompt='Take the clamp pin', shown_when=None),
     'LampOil': dict(mission='LastWatch', where="in Ruth's cabin (SM_RR_RangerCabin's LampOil socket)",
@@ -420,39 +463,26 @@ TOPICS = {
     'Speaker_Aldana': dict(default='DA_Lines_AldanaBarred', topics=[
         (dict(during='Main4', from_step=3), 'DA_Lines_AldanaBell'),
         (dict(during='Main4', from_step=2), 'DA_Lines_AldanaWaiting'),
-        # What Ada gave up (the Rest's seeds): the first keeper's story, once, after Hallowed Ground; then his words as
-        # before. Above the after-topics, as the first that holds is said.
-        (dict(after=['Main4'], without_flags=['Ada.Told'], sets_flag='Ada.Told'), 'DA_Lines_AldanaAda'),
+        # (What Ada gave up is a page slid under his door now: READABLES AldanaPage.)
         (dict(after=['Main5']), 'DA_Lines_AldanaAfterMain5'),
         (dict(after=['Main4']), 'DA_Lines_AldanaAfterMain4'),
     ]),
-    # build_area_whitlock: the bales are Side 2's first step now (LOAD_STEP 0, their load_when from_step 0), the road talk
-    # its second (1), the hands its third (FIGHT_STEP 2, as before), the thanks the turn-in (THANKS_STEP 3).
+    # build_area_whitlock: the bales are Side 2's first step (LOAD_STEP 0), the hands its second (FIGHT_STEP 1; the road
+    # talk went into the fight's end, the hands' spawner's cleared_lines DA_Lines_AmosRoad), the thanks the turn-in
+    # (THANKS_STEP 2).
     'Speaker_Amos': dict(default='DA_Lines_AmosMeet', topics=[
-        (dict(during='Side2', from_step=3), 'DA_Lines_AmosThanks'),
-        (dict(during='Side2', from_step=2), 'DA_Lines_AmosHands'),
-        (dict(during='Side2', from_step=1), 'DA_Lines_AmosRoad'),
+        (dict(during='Side2', from_step=2), 'DA_Lines_AmosThanks'),
+        (dict(during='Side2', from_step=1), 'DA_Lines_AmosHands'),
         (dict(during='Side2'), 'DA_Lines_AmosBales'),
         (dict(after=['Side2', 'Main6']), 'DA_Lines_AmosAfterMain6'),
         (dict(after=['Side2']), 'DA_Lines_AmosFence'),
     ]),
     # build_area_story.place_hob: his talk, the side missions after the main ones (the story first).
+    # (2026-10-21, the user's cut of the story's talk: his perch arrivals carry the story; talked to, he has Main 1's word,
+    # the Old Fare's, kept whole as that mission is, and his catch-all.)
     'Speaker_Hob': dict(default=None, topics=[
-        (dict(during='Main7'), 'DA_Lines_HobMain7'),
-        (dict(during='Main6'), 'DA_Lines_HobMain6'),
-        (dict(during='Main5'), 'DA_Lines_HobMain5'),
-        (dict(during='Main4'), 'DA_Lines_HobMain4'),
-        (dict(during='Main3'), 'DA_Lines_HobMain3'),
-        (dict(during='Main2'), 'DA_Lines_HobMain2'),
         (dict(during='Main1'), 'DA_Lines_HobMain1'),
-        (dict(during='BackPay'), 'DA_Lines_HobBackPay'),
-        (dict(during='LastWatch'), 'DA_Lines_HobLastWatch'),
-        (dict(during='DeadLift'), 'DA_Lines_HobDeadLift'),
-        (dict(during='Side3'), 'DA_Lines_HobSide3'),
-        (dict(during='KnockingBelow'), 'DA_Lines_HobKnocking'),
         (dict(during='OldFare'), 'DA_Lines_HobOldFare'),
-        (dict(during='CaldersCaches'), 'DA_Lines_HobCaches'),
-        (dict(during='Side1'), 'DA_Lines_HobSide1'),
         (dict(after=['Main1']), 'DA_Lines_HobAfterMain1'),
     ]),
     # The Old Fare's speakers, as build_area_missionprops_valley.py places them (its LINES names; it finds the steps from
@@ -468,7 +498,6 @@ TOPICS = {
     'Speaker_AgentWindow': dict(default='DA_Lines_AgentWindow', name='Mr. Sloane', shown_when=dict(after=['OldFare']),
                                 topics=[
         (dict(after=['OldFare', 'Main7']), 'DA_Lines_AgentWindowLily'),
-        (dict(after=['OldFare'], during='DeadLift'), 'DA_Lines_AgentWindowCoal'),
         (dict(after=['OldFare']), 'DA_Lines_AgentWindow'),
     ]),
     # Josiah Fenn's coffin in the baggage room (BaggageCoffin socket): one tap actor (tagged Speaker_Fenn and FennCoffin),
@@ -483,7 +512,7 @@ TOPICS = {
     'Speaker_Thaddeus': dict(default='DA_Lines_ThaddeusAfter', name='Thaddeus Bright', topics=[
         (dict(after=['KnockingBelow', 'Main7']), 'DA_Lines_ThaddeusAfterMain7'),
         (dict(after=['KnockingBelow']), 'DA_Lines_ThaddeusAfter'),
-        (dict(during='KnockingBelow', from_step=5), 'DA_Lines_ThaddeusTalk'),
+        (dict(during='KnockingBelow', from_step=4), 'DA_Lines_ThaddeusTalk'),
     ]),
     # AHiramCoyle on his stool in the winch house (shown after Main 5).
     'Speaker_Hiram': dict(default='DA_Lines_HiramAfter', name='Hiram Coyle', topics=[
@@ -504,7 +533,7 @@ TOPICS = {
 }
 
 MUTTERS = {
-    # (Mr. Sloane's word about the coal is his window's topic during Dead Lift now: DA_Lines_AgentWindowCoal.)
+    # (Mr. Sloane's coal line went with Dead Lift's coal fetch, 2026-10-21.)
     # Hiram from the winch house as the lift crew rise (Dead Lift's first step).
     'Speaker_Hiram': [(dict(during='DeadLift', before_step=1), 'DA_Lines_HiramCrew')],
     # Hob's feathers (the Rest's seeds): three lines that only make sense later, one a pass as the player comes near him,
@@ -516,8 +545,6 @@ MUTTERS = {
 }
 
 PERCHES = {
-    # On Keeper's Bridge as Main 6 begins, for a player taking the keeper's path (its optional).
-    'keepersBridge': (dict(during='Main6', before_step=1), 'DA_Lines_HobMain6Bridge'),
     # On the Providence's tag board as Back Pay begins.
     'mineMouth': (dict(during='BackPay', before_step=1), 'DA_Lines_HobBackPayTags'),
     # On the bier beside Pa's once The Gravewind is done (the scene's spot: he lands there again with no flight, so this
@@ -530,7 +557,10 @@ PERCHES = {
 # cleared before its step began still counts.
 ENCOUNTERS = {
     'DepotWaiting': dict(during='OldFare', before_step=1),
-    'TillyCellar': dict(during='KnockingBelow', from_step=2, before_step=4),
+    # "Rob a dead man's eyes and every soul for a mile hears about it": the waiting room fills again as Fenn's coins come
+    # down the stair (the Old Fare's lay step, from 0: 5), until they're back on his eyes (build_area_missionprops_valley).
+    'DepotReturn': dict(during='OldFare', from_step=5, before_step=6),
+    'TillyCellar': dict(during='KnockingBelow', from_step=1, before_step=3),
     'QuarryCrew': dict(during='DeadLift', before_step=1),
     # Abe Haskett, the crew's Restless brakeman with the clamp pin, risen with them.
     'AbeHaskett': dict(during='DeadLift', before_step=1),
@@ -544,6 +574,51 @@ ENCOUNTERS = {
     'MineUpper': dict(),
     'MineLower': dict(),
     'Foreman': dict(),
+}
+
+
+# Things to find off the path (2026-10-21): each an AChest (its chest_id kept by the session: never rename one), its kind,
+# its loot (FChestLootOverride's fields; none: the kind's own) and the readable found with it (READABLES; None: the chest
+# alone). build_area_secrets.py finds each spot from its anchor (a placed actor's label, a layout obstacle's middle, or
+# a layout cm spot) and the search ring round it; widows and buttes are layout obstacles.
+SECRETS = {
+    # The legendary chance: a strongbox from the gang's old bank jobs (Docs/Story.md, Loot) under the middle Widow, on its
+    # north side, away from the keeper's path. The Gravemother's odds: two guns at Luck 1.3.
+    'WidowsBox': dict(chest_id='Secret_WidowsStrongbox', kind='Strongbox', anchor=('obstacle', 'widow2Rock'),
+                      prefer=(1.0, 0.0), ring=(260.0, 420.0),
+                      loot=dict(guns=2, gun_chance=1.0, luck=1.3, ammo_pickups=2, mote_chance=0.0),
+                      readable='Secret_WidowsBox'),
+    # The skiff's locker on the Mooring Ledge, by the Deacon's letter and the Mire's page (Hob's hint at Main 2's end).
+    'Mooring': dict(chest_id='Secret_MooringLocker', kind='Footlocker', anchor=('ledge', 'mooringPost'),
+                    loot=dict(guns=1, gun_chance=1.0, luck=0.5, ammo_pickups=2, mote_chance=0.0), readable=None),
+    # Coffin Rock's top (a vista): the surveyor's tin and his bench mark, reached by stepping rocks up its north face.
+    'CoffinRock': dict(chest_id='Secret_SurveyorsTin', kind='Footlocker', anchor=('top', 'coffinRock'),
+                       loot=dict(guns=1, gun_chance=1.0, luck=0.6, ammo_pickups=1, mote_chance=0.0),
+                       readable='Secret_BenchMark', steps=('north', 6, 125.0)),
+    # The Burnt Homestead's chimney (the town's mutter after the gate: "Avery kept his savings up the chimney").
+    'Chimney': dict(chest_id='Secret_AveryTin', kind='Footlocker', anchor=('obstacle', 'burntHomestead'),
+                    prefer=(0.0, 1.0), ring=(120.0, 300.0),
+                    loot=dict(guns=1, gun_chance=1.0, luck=0.5, ammo_pickups=1, mote_chance=0.0), readable=None),
+    # Thaddeus's bottle in the springhouse (his word after Knocking Below).
+    'Bottle': dict(chest_id='Secret_ThaddeusBottle', kind='Footlocker', anchor=('obstacle', 'springhouse'), inside=True,
+                   prefer=(0.0, 0.0), ring=(0.0, 200.0),
+                   loot=dict(guns=1, gun_chance=1.0, luck=0.8, ammo_pickups=1, mote_chance=0.0), readable='Secret_Bottle'),
+    # The keepers' stores in the old lantern house by the keeper's grave: oil and shells for nights on the boards.
+    'LanternHouse': dict(chest_id='Secret_KeepersStores', kind='Footlocker', anchor=('obstacle', 'lanternHouse'), inside=True,
+                         prefer=(0.0, 0.0), ring=(0.0, 200.0),
+                         loot=dict(guns=1, gun_chance=0.5, luck=0.5, ammo_pickups=2, mote_chance=0.0), readable=None),
+    # A spiders' hoard under boot hill's hanging tree (spiders nest in graveyards and hoard what a saint has touched).
+    'Hoard': dict(chest_id='Secret_SpiderHoard', kind='Footlocker', anchor=('actor', 'hangingTree'),
+                  prefer=(0.0, 0.0), ring=(180.0, 320.0),
+                  loot=dict(guns=1, gun_chance=1.0, luck=0.7, ammo_pickups=1, mote_chance=0.0), readable='Secret_Hoard'),
+    # Teague's powder box on Larkspur Bench, behind granite G (Odell's report, the payroll's small charge).
+    'Powder': dict(chest_id='Secret_PowderBox', kind='Footlocker', anchor=('obstacle', 'benchGraniteGRock'),
+                   prefer=(-1.0, 0.0), ring=(260.0, 420.0),
+                   loot=dict(guns=1, gun_chance=1.0, luck=1.0, ammo_pickups=2, mote_chance=0.0), readable='Secret_Powder'),
+    # A crate fallen off the old derrick's boom, among the quarry blocks.
+    'Crate': dict(chest_id='Secret_DerrickCrate', kind='Footlocker', anchor=('obstacle', 'quarryBlocks'),
+                  prefer=(0.0, 1.0), ring=(260.0, 480.0),
+                  loot=dict(guns=1, gun_chance=1.0, luck=0.5, ammo_pickups=2, mote_chance=0.0), readable='Secret_Crate'),
 }
 
 

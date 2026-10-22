@@ -16,6 +16,7 @@ class APawn;
 class UAreaDefinition;
 class UEncounterSubsystem;
 class ULineBatchComponent;
+class UStoryLineSet;
 
 /** Where an encounter spawner stands. */
 UENUM(BlueprintType)
@@ -204,6 +205,15 @@ public:
 	/** Seconds between its looks at the player and its waves while it's on. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Waves", meta = (ClampMin = "0.1", Units = "s"))
 	float CheckSeconds = 0.5f;
+
+	/**
+	 * Said once, on the move, as the last of its creatures falls (a fight won: not one sent away), queued after whatever
+	 * is being said: a line set of /Game/Data/Story (Tools/Unreal/create_story_lines.py). None: nothing. Unfinished
+	 * Business's twist is its first (Amos naming his old hands as they go down; the user's call, 2026-10-21: story said
+	 * on the move, after the fight's noise, not at a giver).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Story")
+	TObjectPtr<UStoryLineSet> ClearedLines;
 
 	// --- Playing it ---
 

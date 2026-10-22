@@ -140,9 +140,9 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 	}
 
 	// The words, as the story script makes them (create_story_lines.py): Delia's line word for word, Hob's at the lean.
+	// (The depot's and the board's perches went silent 2026-10-21, and Hob's Main 7 tap went.)
 	const TCHAR* const LineSets[] = { TEXT("DA_Lines_DeliaMain7"), TEXT("DA_Lines_DeliaMain7After"), TEXT("DA_Lines_HobMain7Lean"),
-		TEXT("DA_Lines_HobMain7Depot"), TEXT("DA_Lines_HobMain7Board"), TEXT("DA_Lines_HobMain7"), TEXT("DA_Lines_TillyMain7"),
-		TEXT("DA_Lines_TillyAfterMain7") };
+		TEXT("DA_Lines_TillyMain7"), TEXT("DA_Lines_TillyAfterMain7") };
 	int32 LinesMade = 0;
 	for (const TCHAR* Name : LineSets)
 	{

@@ -172,7 +172,7 @@ AOreLift::AOreLift()
 	TopRest = FTransform(FVector(3200.0, 700.0, 4600.0));
 
 	ClosedColdLine = LOCTEXT("ClosedCold", "Nothing answers. The lift's boiler has been cold for years.");
-	ClosedSteamLine = LOCTEXT("ClosedSteam", "No steam in her yet. Hiram needs her crank, coal and clamp pin first.");
+	ClosedSteamLine = LOCTEXT("ClosedSteam", "No steam in her yet. Hiram needs her clamp pin first.");
 	FirstRideLines = { FStoryLine::Make(LOCTEXT("Hiram", "Hiram Coyle"), LOCTEXT("HoldTheRail", "Hold the rail."), 2.4f) };
 }
 

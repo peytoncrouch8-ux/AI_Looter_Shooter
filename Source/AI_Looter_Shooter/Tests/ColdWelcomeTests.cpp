@@ -202,8 +202,8 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 3 as its asset has it: id exactly Main3 (Side 1 opens after it), offered by Delia after Main 2 on Ransom's Rest;
 	// the farm road to the gate, the gate's fight cleared (seven), Bright & Daughter; turned in to Tilly at her window, her
-	// whole talk (the bail out on the sill, Main 6's item now; the box of effects); 1,000 experience and an Uncommon gun or
-	// better.
+	// whole talk (she hands Pa's bail over, Main 6's item, carried from the turn-in: HandItems); 1,000 experience and an
+	// Uncommon gun or better.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main3")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main3.DA_Mission_Main3"));
@@ -220,11 +220,12 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("1: the farm road into town, to the gate"), Road && Road->Place.Actor.ActorTag == GatePlace);
 			TestTrue(TEXT("2: the Unpaid at the gate fought off, all seven"), Gate && Gate->SpawnerId == GateId && Gate->Count == 7);  // (fights enlarged 2026-10-21; 4)
 			TestTrue(TEXT("3: Bright & Daughter found (Tilly's window)"), Shop && Shop->Place.Actor.ActorTag == TillyTag);
-			TestTrue(TEXT("...no items of its own: the bail on her sill is Main 6's (Main 3's would vanish at its turn-in)"),
+			TestTrue(TEXT("...no items of its own: the bail is Main 6's (Main 3's would vanish at its turn-in)"),
 				Asset->FindItem(TEXT("LanternBail")) == nullptr);
-			TestTrue(TEXT("Turned in to Tilly at the window, her whole talk"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag
+			TestTrue(TEXT("Turned in to Tilly at the window, her whole talk, and she hands the bail over (2026-10-21)"),
+				Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag
 				&& Asset->TurnIn.Lines.ContainsByPredicate([](const FStoryLine& Line) { return Line.Text.ToString() == Collar; })
-				&& Asset->TurnIn.Lines.ContainsByPredicate([](const FStoryLine& Line) { return Line.Text.ToString().Contains(TEXT("on the sill")); }));
+				&& Asset->TurnIn.HandItems.Contains(FName(TEXT("LanternBail"))));
 			TestEqual(TEXT("Its reward: 1,000 experience"), Asset->Rewards.Experience, 1000);  // (trimmed 2026-10-21; 1,200)
 			TestTrue(TEXT("...and a gun, Uncommon or better"), Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Uncommon);
 			TestTrue(TEXT("...said so on the Missions page"), MissionRewards::Describe(Asset->Rewards).Contains(TEXT("Gun: Uncommon or better")));

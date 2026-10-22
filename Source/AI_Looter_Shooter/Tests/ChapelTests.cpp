@@ -256,9 +256,10 @@ bool FHallowedGroundAldanaTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("His Main 4 set holds the doc's words, in order, in his own voice"), HoldsAldanasWords(Main->Lines, /*bNamed*/ false));
 		TestTrue(TEXT("...ending \"Look in the Sink.\""), !Main->Lines.IsEmpty()
 			&& Main->Lines.Last().Text.ToString() == AldanaWords[AldanaWordCount - 1]);
+		// (Hob's road, bell and knock perches went silent 2026-10-21, and his Main 4 tap went: the yard's and the Reliquary's
+		// words carry it.)
 		const TCHAR* const Others[] = { TEXT("DA_Lines_AldanaBarred"), TEXT("DA_Lines_AldanaWaiting"), TEXT("DA_Lines_AldanaAfterMain4"),
-			TEXT("DA_Lines_HobMain4Road"), TEXT("DA_Lines_HobMain4Yard"), TEXT("DA_Lines_HobMain4Bell"), TEXT("DA_Lines_HobMain4Reliquary"),
-			TEXT("DA_Lines_HobMain4Aldana"), TEXT("DA_Lines_HobMain4") };
+			TEXT("DA_Lines_HobMain4Yard"), TEXT("DA_Lines_HobMain4Reliquary") };
 		for (const TCHAR* Name : Others)
 		{
 			TestNotNull(*FString::Printf(TEXT("%s is made"), Name), LoadLines(Name));
