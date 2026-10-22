@@ -6,6 +6,7 @@
   Rock_A, Rock_B   1.0 m and 0.7 m granite rocks, like small boulders
   Rock_C, Rock_D   0.9 m slab and 0.35 m chunk of the cliffs' layered rock (RockCliff), for the foot of the plateau
   PebbleCluster_A  fifteen pebbles in a 1.2 x 0.6 m patch, for road edges (no collision, no Nanite)
+  Boulder_D-F, Rock_E, Rock_F: Ransom's Rest's variants (see the end of the file)
 
 Rocks are weathered blocks, not blobs: a rounded box cut by a few worn planes (the joints granite splits along), lumpy
 at a large scale, with a flat bottom that sinks a few centimetres below the pivot so it sits in uneven ground. The
@@ -214,6 +215,30 @@ models = [
     build('Rock_D', Shape((0.4, 0.34, 0.26), 707, roundness=2.4, cuts=5, soft=0.05, lumps=0.03, cut_depth=(0.55, 0.8),
                           top_cut=0.65, tilt=8.0), CLIFF, 'RockCliff', source=600, fallback=50, sink=0.03, uv_seed=7),
     pebbles('PebbleCluster_A', 808),
+]
+
+# Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md): built after the originals, so those
+# export byte-identical. Each has a shape of its own, not a scaled copy, so a heap or a field of them never repeats.
+#   Boulder_D   3.4 m tabular granite block, low and flat-topped (a bedding plane), for fields, the Tumble's foot
+#   Boulder_E   2.4 m tall leaning erratic, narrow and upright, for skylines and road edges
+#   Boulder_F   2.1 m glacier-rounded erratic, smooth and egg-shaped among the jointed blocks (meadows, the creek)
+#   Rock_E      1.3 m flat granite flag, for path edges and grave mounds
+#   Rock_F      0.6 m blocky layered-rock chunk (RockCliff), for screes beside Rock_C and Rock_D
+models += [
+    build('Boulder_D', Shape((3.4, 2.3, 1.05), 909, roundness=3.2, cuts=5, soft=0.07, lumps=0.03, cut_depth=(0.62, 0.82),
+                             top_cut=0.55, tilt=5.0, bottom=0.1),
+          GRANITE, 'RockGranite', source=3600, fallback=26, sink=0.1, uv_seed=8),
+    build('Boulder_E', Shape((1.7, 1.45, 2.5), 1010, roundness=2.6, cuts=6, soft=0.09, lumps=0.05, cut_depth=(0.6, 0.85),
+                             tilt=14.0, bottom=0.08),
+          GRANITE, 'RockGranite', source=3200, fallback=28, sink=0.14, uv_seed=9),
+    build('Boulder_F', Shape((2.1, 1.75, 1.35), 1111, roundness=2.15, cuts=3, soft=0.28, lumps=0.065,
+                             cut_depth=(0.7, 0.9), bottom=0.14, tilt=8.0),
+          GRANITE, 'RockGranite', source=3600, fallback=26, sink=0.1, uv_seed=10),
+    build('Rock_E', Shape((1.35, 0.95, 0.38), 1212, roundness=2.9, cuts=5, soft=0.07, lumps=0.03, top_cut=0.62,
+                          tilt=4.0, bottom=0.1),
+          GRANITE, 'RockGranite', source=1400, fallback=30, uv_seed=11),
+    build('Rock_F', Shape((0.62, 0.52, 0.5), 1313, roundness=3.0, cuts=6, soft=0.03, lumps=0.025, cut_depth=(0.55, 0.78),
+                          top_cut=0.6, tilt=10.0), CLIFF, 'RockCliff', source=900, fallback=40, sink=0.04, uv_seed=12),
 ]
 
 

@@ -1,5 +1,6 @@
 """The island's conifers (Docs/TutorialIsland.md): Pine_A, a full cone of a pine, and Pine_B, taller and ragged, its
-lower trunk bare but for a few dead stubs. Scripted models (Art/README.md), built with Tools/Blender/looter_plants.py:
+lower trunk bare but for a few dead stubs; for Ransom's Rest's stands also Pine_C (young), Pine_D (old, dead-topped) and
+Pine_E (tall bole), at the end of the file. Scripted models (Art/README.md), built with Tools/Blender/looter_plants.py:
 the trunk's foot is the origin, one convex hull around the lower trunk is the collision, and there are no Nanite
 meshes (the importer gives them classic LODs).
 
@@ -29,14 +30,15 @@ def rotate_about(v, axis, angle):
 
 def conifer(name, seed, height, radius, crown_base, crown_radius, whorl_gap, per_whorl, card_size, lean=(0.0, 0.0),
             droop=0.25, gaps=0.0, cards_per_meter=1.3, dead_stubs=0, flare=0.5, hull_height=3.0, lods=None,
-            lod_screens=None):
+            lod_screens=None, bare_top=0.0, needles=None):
     """A conifer: a trunk of height meters, whorls of branches from crown_base up whose length follows a cone of
     crown_radius at the bottom, needle cards along each branch. gaps is the chance a branch is missing (a ragged
-    crown); dead_stubs adds bare broken branches below the crown."""
+    crown); dead_stubs adds bare broken branches below the crown; bare_top (m) leaves the leader's top bare, a dead
+    spike over the live crown; needles is another needle material (a tinted instance)."""
     rng = random.Random(seed)
     plant = Plant(name, seed)
     bark = lt.material('BarkPine')
-    needles = lt.material('NeedlesPine')
+    needles = needles or lt.material('NeedlesPine')
 
     base = Vector((0.0, 0.0, -0.35))
     top = Vector((lean[0], lean[1], height))
@@ -87,7 +89,7 @@ def conifer(name, seed, height, radius, crown_base, crown_radius, whorl_gap, per
     # Whorls from the crown's base to near the top, closer together as the tree narrows.
     z = crown_base
     turn = rng.uniform(0.0, 2.0 * math.pi)
-    while z < height - 0.8:
+    while z < height - 0.8 - bare_top:
         f = (z - crown_base) / span
         start, trunk_r, trunk_wind, _ = trunk.at(trunk.param_at_height(z))
         turn += GOLDEN_ANGLE
@@ -104,7 +106,7 @@ def conifer(name, seed, height, radius, crown_base, crown_radius, whorl_gap, per
 
     # The leader's tuft: a few cards standing up around the tip.
     tip_shade = crown_shade(top - UP * 1.2, crown_mid, 0.5)
-    for j in range(3):
+    for j in range(3 if bare_top <= 0.0 else 0):
         a = turn + 2.0 * math.pi * j / 3
         s = card_size[0] * 1.1
         plant.card(top - UP * (s * 0.85), horizontal(a), UP + horizontal(a + 1.2, 0.25), s * 0.7, s, needles,
@@ -140,7 +142,34 @@ def pine_b():
                    cards_per_meter=2.4, hull_height=3.5)
 
 
+# Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md), built after the originals (so those
+# export byte-identical): stands of four or five shapes, young to dead-topped, instead of two.
+
+def pine_c():
+    """A young pine, about 6.5 m: a dense, narrow cone branched to the ground, for stand edges and clearings."""
+    return conifer('Pine_C', 73, height=6.5, radius=0.16, crown_base=0.5, crown_radius=1.9, whorl_gap=0.7,
+                   per_whorl=5, card_size=(0.8, 1.4), droop=0.18, cards_per_meter=2.6, flare=0.35, hull_height=2.0)
+
+
+def pine_d():
+    """An old, wind-worn pine, about 12 m, its needles sun-bleached: a crown thinned to a few heavy tiers high on a
+    leaning trunk, many dead stubs below, the top two meters a bare silver spike (the alpine bench, the crest)."""
+    return conifer('Pine_D', 79, height=12.0, radius=0.36, crown_base=5.0, crown_radius=3.3, whorl_gap=1.3,
+                   per_whorl=5, card_size=(1.2, 2.0), lean=(0.9, -0.3), droop=0.36, gaps=0.42, dead_stubs=8,
+                   cards_per_meter=2.2, flare=0.8, hull_height=4.0, bare_top=2.0,
+                   needles=lt.material('NeedlesPine', name='NeedlesPineOld', tint=0xd2c8a4))
+
+
+def pine_e():
+    """A tall, slim pine, about 15 m: a long bare bole and a short, narrow crown at the top, for the thick of a stand
+    (over the others' heads)."""
+    return conifer('Pine_E', 83, height=15.0, radius=0.3, crown_base=8.0, crown_radius=2.2, whorl_gap=0.95,
+                   per_whorl=6, card_size=(1.0, 1.7), lean=(-0.25, 0.3), droop=0.26, gaps=0.15, dead_stubs=7,
+                   cards_per_meter=2.4, hull_height=4.0)
+
+
 if __name__ == '__main__':
     models = [pine_a(), pine_b()]
+    models += [pine_c(), pine_d(), pine_e()]
     report(models)
     preview_all(models)

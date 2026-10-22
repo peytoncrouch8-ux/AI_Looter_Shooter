@@ -1,5 +1,5 @@
 """DeadTree_A (Docs/TutorialIsland.md): a gnarled, bare dead tree whose limbs fork upward like a candelabra, some
-snapped off, its top broken. A scripted model (Art/README.md) built with Tools/Blender/looter_plants.py: the trunk's
+snapped off, its top broken; DeadTree_B (tall snag) and DeadTree_C (squat) at the end of the file. A scripted model (Art/README.md) built with Tools/Blender/looter_plants.py: the trunk's
 foot is the origin, a convex hull around the lower trunk is the collision, no Nanite (the importer makes LODs).
 
 Branches grow recursively: each wanders with a few sharp elbows, forks two or three times, and ends in a point or a
@@ -90,7 +90,23 @@ def dead_tree_a():
     return dead_tree('DeadTree_A', 71, height=5.0, radius=0.34, lean=(0.35, 0.2), limbs=5)
 
 
+# Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md), built after DeadTree_A (so it exports
+# byte-identical): the churchyard, the hanging tree and the Webwood each had the same dead tree.
+
+def dead_tree_b():
+    """About 8.5 m: a taller, straighter snag, broken at 7 m, three long limbs high up (a lightning-killed pine
+    shape: the hanging tree, the Webwood)."""
+    return dead_tree('DeadTree_B', 89, height=7.0, radius=0.38, lean=(-0.2, 0.25), limbs=3, hull_height=3.5)
+
+
+def dead_tree_c():
+    """About 4 m: a squat, heavily leaning stump of a tree, six short crooked limbs (field corners, the yard, the
+    graveyards)."""
+    return dead_tree('DeadTree_C', 97, height=3.2, radius=0.42, lean=(0.9, -0.4), limbs=6, hull_height=2.5)
+
+
 if __name__ == '__main__':
     models = [dead_tree_a()]
+    models += [dead_tree_b(), dead_tree_c()]
     report(models)
     preview_all(models)

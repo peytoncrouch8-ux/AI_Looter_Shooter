@@ -7,6 +7,8 @@ Art/README.md); the props are built from parts, UV-mapped on the house trim shee
                 front; the player can jump the gap
   StoneWall     3 m dry-stone wall segment, 0.9 m tall, with upright coping stones along the top
   StoneWallEnd  0.9 m finished end of a wall
+  FenceRail_B, FenceRail_C, StoneWall_B, StoneWall_C: Ransom's Rest's variants (three rails; sagging; coping fallen;
+                another wall's stones), at the end of the file; each chains like its original
 
 Chaining: every segment's pivot is on the ground at its start (x = 0, the middle of the post or of the wall's
 width) and it runs along +X to x = 3 m, where the next segment starts. Turn the next segment at the joint for a
@@ -21,6 +23,7 @@ import math
 import random
 
 import bmesh
+import bpy
 from mathutils import Vector, noise
 
 import looter_textures as lt
@@ -132,16 +135,18 @@ def wall_profile(width_scale=1.0):
     return [(a * width_scale, b) for a, b in pts]
 
 
-def stones(x, y, z):
+def stones(x, y, z, shift=0.0):
     """How far the wall's face bulges at (x, y, z): lumpy, not flat (the texture draws the stones themselves).
-    Periodic along x (every wall length), so a wall's end matches the next one's start."""
+    Periodic along x (every wall length), so a wall's end matches the next one's start. shift moves the lumps' pattern
+    across and up (another wall's stones), never along."""
     def lumps(px):
-        return noise.noise(Vector((px * 2.6, y * 2.6 + 11.0, z * 3.0))) + 0.5 * noise.noise(Vector((px * 6.0, y * 6.0, z * 6.0 + 5.0)))
+        return (noise.noise(Vector((px * 2.6, y * 2.6 + 11.0 + shift, z * 3.0 + shift * 0.5)))
+                + 0.5 * noise.noise(Vector((px * 6.0, y * 6.0 + shift, z * 6.0 + 5.0))))
     blend = min(max((x - (WALL_LENGTH - 0.6)) / 0.6, 0.0), 1.0)
     return 0.03 * (lumps(x) * (1.0 - blend) + lumps(x - WALL_LENGTH) * blend)
 
 
-def wall_body(x0, x1, end_round=None):
+def wall_body(x0, x1, end_round=None, shift=0.0):
     """The body of a wall from x0 to x1, its sides pushed out where the stones are; end_round (x) rounds the wall off
     in plan after that point."""
     steps = max(2, int(round((x1 - x0) / 0.1)))
@@ -160,7 +165,7 @@ def wall_body(x0, x1, end_round=None):
             if b > -0.1:
                 # Stones stand out sideways on the faces and upward on the top.
                 n = Vector((0.0, a, (b - 0.3) * 0.6 if b > BODY_TOP - 0.1 else 0.0)).normalized()
-                p = Vector((x, a, b)) + n * stones(x, a, b)
+                p = Vector((x, a, b)) + n * stones(x, a, b, shift)
             else:
                 p = Vector((x, a, b))
             ring.append(bm.verts.new(p))
@@ -176,8 +181,9 @@ def wall_body(x0, x1, end_round=None):
     return lp.mesh_object(bm)
 
 
-def coping(x0, x1, seed, end_stone=False):
-    """Coping: flat stones set on edge along the top, tall and short in turn ("cock and hen"), leaning a little."""
+def coping(x0, x1, seed, end_stone=False, missing=None):
+    """Coping: flat stones set on edge along the top, tall and short in turn ("cock and hen"), leaning a little.
+    missing (x from, x to): a stretch where the coping has fallen off."""
     rnd = random.Random(seed)
     parts = []
     x = x0 + 0.08
@@ -190,6 +196,11 @@ def coping(x0, x1, seed, end_stone=False):
         lp.rough(stone, 0.02, 8.0, rnd.randint(0, 999))
         lp.place(stone, (x, rnd.uniform(-0.03, 0.03), BODY_TOP - 0.06),
               (rnd.uniform(-5.0, 5.0), rnd.uniform(-12.0, 12.0), rnd.uniform(-8.0, 8.0)))
+        if missing and missing[0] <= x <= missing[1]:
+            bpy.data.objects.remove(stone)
+            x += thick + rnd.uniform(0.02, 0.05)
+            count += 1
+            continue
         parts.append(stone)
         x += thick + rnd.uniform(0.02, 0.05)
         count += 1
@@ -201,10 +212,20 @@ def coping(x0, x1, seed, end_stone=False):
     return parts
 
 
-def stone_wall(name, seed, end=False):
+def stone_wall(name, seed, end=False, shift=0.0, missing=None, fallen=0):
     length = 0.9 if end else WALL_LENGTH
-    body = wall_body(0.0, length, end_round=0.45 if end else None)
-    parts = [body] + coping(0.0, length - (0.12 if end else 0.0), seed, end_stone=end)
+    body = wall_body(0.0, length, end_round=0.45 if end else None, shift=shift)
+    parts = [body] + coping(0.0, length - (0.12 if end else 0.0), seed, end_stone=end, missing=missing)
+    rnd = random.Random(seed + 3)
+    for _ in range(fallen):
+        # Coping stones that fell off, lying in the grass at the wall's foot.
+        thick, width, height = rnd.uniform(0.07, 0.1), rnd.uniform(0.34, 0.44), rnd.uniform(0.14, 0.24)
+        stone = lp.block((width, height, thick), (0.0, 0.0, thick * 0.5))
+        lp.rough(stone, 0.02, 8.0, rnd.randint(0, 999))
+        side = rnd.choice((-1.0, 1.0))
+        lp.place(stone, (rnd.uniform(0.4, length - 0.4), side * rnd.uniform(0.48, 0.7), -0.02),
+                 (rnd.uniform(-8.0, 8.0), rnd.uniform(-8.0, 8.0), rnd.uniform(0.0, 180.0)))
+        parts.append(stone)
     for part in parts:
         lt.assign(part, STONE)
     obj = lp.join(name, parts)
@@ -222,6 +243,46 @@ models = [
     fence_broken('FenceBroken', 30),
     stone_wall('StoneWall', 40),
     stone_wall('StoneWallEnd', 50, end=True),
+]
+
+
+# --- Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md) ---
+# Built after the originals, so those export byte-identical. Each chains exactly like its original (pivot at the
+# start, 3 m along +X, posts at 0 and 1.5 m; the wall's ends match any wall's), so a run can mix them freely.
+
+def fence_rail_three(name, seed):
+    """FenceRail_B: a stock fence of three rails, its posts leaning a little more (the pens, the Whitlock yard)."""
+    rnd = random.Random(seed)
+    parts = [post(0.0, seed + 1, lean=2.5), post(1.5, seed + 2, lean=2.5)]
+    for k, z in enumerate((0.36, 0.7, 1.04)):
+        z += rnd.uniform(-0.025, 0.025)
+        parts.append(rail((-0.03, 0.0, z), (3.03, 0.0, z), seed + 10 + k, sag=0.03, posts=(0.0, 1.5, 3.0)))
+    obj = lp.join(name, parts)
+    lp.hull_box(obj, (3.07, 0.16, POST_HEIGHT), (1.5, 0.0, POST_HEIGHT * 0.5))
+    return lp.finish(obj, ao=0.4, nanite=False)
+
+
+def fence_rail_sagging(name, seed):
+    """FenceRail_C: an old, tired run: the middle post leans hard, both rails sag in the middle, the top rail's end has
+    slipped off its post and rests on the bottom rail's (the farm's back field, the west road)."""
+    parts = [post(0.0, seed + 1, lean=1.0)]
+    leaning = post(0.0, seed + 2, lean=0.0, height=POST_HEIGHT - 0.06)
+    lp.place(leaning, (0.0, 0.0, 0.0), (-6.0, 9.0, 0.0))
+    lp.place(leaning, (1.5, 0.0, 0.0))
+    parts.append(leaning)
+    low, high = RAIL_HEIGHTS
+    parts.append(rail((-0.03, 0.0, low), (3.03, 0.0, low - 0.04), seed + 10, sag=0.07, posts=(0.0, 1.5, 3.0)))
+    parts.append(rail((-0.03, 0.0, high), (3.03, 0.04, low + 0.1), seed + 11, sag=0.05, posts=(0.0, 1.5)))
+    obj = lp.join(name, parts)
+    lp.hull_box(obj, (3.07, 0.16, POST_HEIGHT), (1.5, 0.0, POST_HEIGHT * 0.5))
+    return lp.finish(obj, ao=0.4, nanite=False)
+
+
+models += [
+    fence_rail_three('FenceRail_B', 60),
+    fence_rail_sagging('FenceRail_C', 70),
+    stone_wall('StoneWall_B', 80, shift=23.0, missing=(1.1, 1.9), fallen=3),
+    stone_wall('StoneWall_C', 90, shift=41.0),
 ]
 
 if lt.want_preview():

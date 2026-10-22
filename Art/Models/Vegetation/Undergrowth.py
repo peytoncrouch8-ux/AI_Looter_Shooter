@@ -1,5 +1,6 @@
 """Undergrowth (Docs/TutorialIsland.md): Bush_A, Bush_B, Bush_C (0.9-1.8 m), Fern_A, Reeds_A (the pond's edge), Stump_A
-and Log_A (fallen, mossy). Scripted models (Art/README.md) built with Tools/Blender/looter_plants.py (bark tubes, leaf
+and Log_A (fallen, mossy); Ransom's Rest's variants Bush_D (russet sumac), Bush_E (open, pale), Stump_B (snapped) and
+Log_B (bleached), at the end of the file. Scripted models (Art/README.md) built with Tools/Blender/looter_plants.py (bark tubes, leaf
 cards, fronds and reeds); each model's origin is where it meets the ground.
 
 Bushes, ferns and reeds are walk-through: no collision hulls (Collision 'none'). The stump and the log have one convex
@@ -277,7 +278,69 @@ def log_a():
     return finish(plant, hull_points, ao_distance=0.5, ao_blend=0.4, lods=WOOD_LODS[0], lod_screens=WOOD_LODS[1])
 
 
+# --- Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md) ---
+# Built after the originals, so those export byte-identical. The leaves of the two new bushes have materials of their
+# own (LeavesRusset, LeavesDusty: instances of the oak's leaf set), so an area can push them warmer than a hex tint
+# reaches (a Tint over 1 in level.materials, as the amber orchard's), and the bleached wood its own grey (BarkWeathered).
+
+def bush_d():
+    """A skunkbush sumac turning in late summer, about 1.1 m tall and 2 m across: a flat-topped, spreading mound of
+    russet leaves (field edges, the creek bottom, under the bluffs: the warm accent among the green bushes)."""
+    return bush('Bush_D', 229, lt.material('LeavesOak', name='LeavesRusset', tint=0xffb48c), (0.0, 0.0, 0.5),
+                (1.0, 0.85, 0.42), 9, (0.32, 0.44), (0.5, 0.66), 34, low=-0.6)
+
+
+def bush_e():
+    """A dry, open serviceberry, about 1.5 m: a few upright clumps of pale leaves on bare stems, the ground showing
+    through (the dry slopes and the town's back lots)."""
+    return bush('Bush_E', 239, lt.material('LeavesBirch', name='LeavesDusty', tint=0xdcd6bc), (0.0, 0.0, 0.85),
+                (0.7, 0.6, 0.62), 6, (0.26, 0.36), (0.45, 0.6), 18, low=-0.9)
+
+
+def stump_b():
+    """A tree snapped by the wind, not felled: a 0.9 m stump with a jagged, splintered top and three roots."""
+    rng = random.Random(271)
+    plant = Plant('Stump_B', 271)
+    bark = lt.material('BarkOak')
+    radius = 0.27
+    points = [Vector((0.0, 0.0, z)) for z in (-0.3, -0.1, 0.1, 0.3, 0.5, 0.7, 0.9)]
+    points = gnarl(points, 0.04, 1.2, 271)
+    trunk = Limb(points, radius * 1.05, radius * 0.8, 9, (0.0, 0.0))
+    plant.tube(trunk, bark, root_flare(1.15, 4, 1.1, 0.4))     # no cap: the kit's jagged break
+    for i in range(3):
+        a = (2.0 * math.pi * i + 0.6) / 3 + rng.uniform(-0.2, 0.2)
+        start = horizontal(a, radius * 0.5) + UP * 0.16
+        end = horizontal(a, radius * rng.uniform(1.8, 2.4)) - UP * 0.15
+        root = curved_limb(start, end, horizontal(a) - UP * 0.1, 0.05, 6, rng.uniform(0.1, 0.13), 0.03, (0.0, 0.0),
+                           rng, 0.03, 0.18, 0.3, 271 + i)
+        plant.tube(root, bark)
+    hull_points = cylinder_points(Vector((0.0, 0.0, 0.0)), Vector((0.0, 0.0, 0.85)), radius * 1.15)
+    return finish(plant, hull_points, ao_distance=0.4, ao_blend=0.4, lods=WOOD_LODS[0], lod_screens=WOOD_LODS[1])
+
+
+def log_b():
+    """A sun-bleached log, 2.6 m long and 0.4 m thick, long dead on dry ground: no moss, snapped at both ends, one
+    stub of a branch, lying along X and sunk a little."""
+    plant = Plant('Log_B', 281)
+    bark = lt.material('BarkOak', name='BarkWeathered', tint=0xd6d0c4)
+    r0, r1 = 0.21, 0.17
+    points = [Vector((x, 0.0, lerp(r0, r1, (x + 1.3) / 2.6) * 0.8)) for x in [-1.3 + 0.26 * i for i in range(11)]]
+    points = gnarl(points, 0.06, 0.7, 281)
+    log = Limb(points, r0, r1, 9, (0.0, 0.0))
+    plant.tube(log, bark)
+    back = Limb([points[0], points[0] + (points[0] - points[1]).normalized() * 0.04], r0, r0 * 0.9, 9, (0.0, 0.0))
+    plant.tube(back, bark)                                  # the other snapped end: a jagged break too
+    p, r, _, d = log.at(0.55)
+    out = (Vector((0.0, 0.5, 0.86)) + d * 0.4).normalized()
+    plant.tube(Limb([p, p + out * r * 1.5, p + out * r * 2.4], r * 0.35, r * 0.2, 5, (0.0, 0.0)), bark)
+    hull_points = []
+    for p, r in zip(log.points, log.radii):
+        hull_points += cylinder_points(p - Vector((0.005, 0.0, 0.0)), p + Vector((0.005, 0.0, 0.0)), r * 1.02)
+    return finish(plant, hull_points, ao_distance=0.5, ao_blend=0.4, lods=WOOD_LODS[0], lod_screens=WOOD_LODS[1])
+
+
 if __name__ == '__main__':
     models = [bush_a(), bush_b(), bush_c(), fern_a(), reeds_a(), stump_a(), log_a()]
+    models += [bush_d(), bush_e(), stump_b(), log_b()]
     report(models)
     preview_all(models, view=(-0.8, -1.6, 0.55), fit=0.85)

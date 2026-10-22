@@ -1,5 +1,5 @@
 """The island's broadleaf trees (Docs/TutorialIsland.md): Oak_A, Oak_B, Oak_C (the lone meadow landmark), Birch_A,
-Birch_B and Apple_A (the conifers are in Pines.py, the dead tree in DeadTree.py). Scripted models (Art/README.md) built
+Birch_B and Apple_A, with Ransom's Rest's orchard variants Apple_B and Apple_C at the end (the conifers are in Pines.py, the dead tree in DeadTree.py). Scripted models (Art/README.md) built
 with Tools/Blender/looter_plants.py: a tree's origin is where its trunk meets the ground, and one convex hull around the
 trunk is its collision. They aren't Nanite: the importer gives them classic LODs.
 
@@ -180,8 +180,49 @@ def apple_a():
         hull_height=1.2, extra=apples)
 
 
+# Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md), built after the originals (so those
+# export byte-identical): the orchard avenue had one apple tree, eighteen times over.
+
+def apple_tree(name, seed, fruit, **stem):
+    """An orchard apple like Apple_A (its bark and its leaf material, so the area's amber swap reaches it too), with
+    fruit (least, most) apples per clump."""
+    palette = lt.material('FoliagePalette')
+    apple_uv = swatch('FruitRed', 0.7, 0.5)
+
+    def apples(plant, rng, crowns):
+        for center, radius in crowns[0]:
+            for _ in range(rng.randint(*fruit)):
+                d = (random_unit(rng) * Vector((1.0, 1.0, 0.5)) - UP * 0.35).normalized()
+                plant.ball(center + d * radius * rng.uniform(0.92, 1.02), rng.uniform(0.06, 0.07), palette, apple_uv,
+                           wind=0.8, occlusion=0.95, segments=5, rings=3)
+
+    settings = dict(bark=lt.material('BarkOak'), leaves=lt.material('LeavesBirch', name='LeavesApple', tint=0x9fb08a),
+                    flare=0.5, trunk_sides=8, limb_sides=5, branch_sides=3, gnarl_amount=0.15, limb_rise=0.8,
+                    limb_low=0.9)
+    settings.update(stem)
+    return broadleaf(name, seed, [settings], hull_height=1.2, extra=apples)
+
+
+def apple_b():
+    """An old orchard apple, about 5 m: a stout, gnarled trunk leaning off the row, forking low into a broad, uneven
+    crown that hangs to one side, only a few apples left on it."""
+    return apple_tree('Apple_B', 59, (0, 2), fork=0.9, radius=0.21, fork_radius=0.15, lean=(0.45, -0.15),
+                      crown_center=(0.55, -0.2, 3.2), crown_radii=(2.9, 2.4, 1.6), clumps=9, clump_size=(1.0, 1.35),
+                      card_size=(1.0, 1.25), cards_per_clump=20, gnarl_amount=0.32, limb_rise=0.55, limb_low=0.8,
+                      flare=0.7)
+
+
+def apple_c():
+    """A young apple, about 3.3 m: a slim straight trunk and a small, upright crown, heavy with fruit (a replanted
+    gap in the row)."""
+    return apple_tree('Apple_C', 67, (3, 5), fork=1.2, radius=0.09, fork_radius=0.07, lean=(-0.05, 0.08),
+                      crown_center=(0.0, 0.05, 2.35), crown_radii=(1.4, 1.35, 1.15), clumps=5, clump_size=(0.8, 1.05),
+                      card_size=(0.85, 1.1), cards_per_clump=22, limb_rise=1.0, limb_low=0.95, flare=0.35)
+
+
 if __name__ == '__main__':
     models = [oak_a(), oak_b(), birch_a(), birch_b(), apple_a(), oak_c()]
+    models += [apple_b(), apple_c()]
     report(models)
     if '--overview' in sys.argv:
         # Every tree side by side for scale (Saved/ArtPreviews/Vegetation/overview.png).

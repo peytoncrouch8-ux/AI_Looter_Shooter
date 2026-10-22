@@ -26,6 +26,8 @@ on the ground; fronts face -Y (a headboard's lettered face, a fence's outside).
                             carved lantern, an iron lantern hook, a fieldstone kerb round a sunken mound; a respawn grave
   Fence_IronSection         2 m of the churchyard's iron fence: a post at x = 0, rails and spear-topped pickets to x = 2
   Fence_IronPost            the heavy corner post (corners, run ends, beside the gate)
+  Fence_IronSection_Leaning the same section shoved over (Ransom's Rest's variants, with Grave_Headboard_OldE and
+                            OldF, are at the end of the kit)
   Fence_IronGate            a 2 m gate: heavy posts at x = 0 and x = 2, the two leaves standing open inward (+Y)
   Fence_PicketSection       2 m of the family plot's picket fence: a post at x = 0, rails, whitewashed pickets to x = 2
   Fence_PicketGate          a 2 m unit: a gate leaf hung on the post at x = 0, standing ajar inward, then pickets
@@ -1301,6 +1303,51 @@ GRAVE = next(o for o in models if o.name == 'Grave_Ellis')
 HEADBOARDS = [hero_headboard(hero, GRAVE, 41 + 20) for hero in HEADBOARD_NAMES]
 models += HEADBOARDS
 
+
+# --- Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md) ---
+# Built after everything above, so those come out exactly as before. Churchyard and Boot Hill rows had four old boards
+# between them, 72 times over, and one iron section for the whole churchyard fence (55).
+
+def fence_iron_section_leaning(name, seed):
+    """Fence_IronSection_Leaning: a section of the churchyard's iron fence shoved over by frost and years: its pickets and
+    rails lean 9 degrees outward (-Y) off the ground line, two pickets gone, one bent back; the post stands. Chains like
+    Fence_IronSection (post at x = 0, to x = 2)."""
+    rnd = random.Random(seed)
+    parts = iron_post(0.0, 1.18, 0.055, seed)
+    lean = Matrix.Rotation(math.radians(-9.0), 4, 'X')
+    for z in (0.14, 0.98):
+        rail = lp.mesh_object(kit._box((1.94, 0.014, 0.04), drop=('-x', '+x')))
+        rail.data.transform(lean @ Matrix.Translation((1.03, 0.0, z)))
+        parts.append(tile(rail, IRON, seed))
+    gone = {4, 9}
+    for k in range(14):
+        if k in gone:
+            continue
+        x = (k + 0.5) * 2.0 / 14
+        picket = [rod(x, 0.0, -0.05, 1.08, 0.017, IRON, seed + 3 + k), spear(x, 1.08, 0.017, seed + 3 + k)]
+        turn = lean
+        if k == 11:   # bent back at the bottom rail, its top toward the churchyard
+            base = Vector((x, 0.0, 0.14))
+            turn = lean @ Matrix.Translation(base) @ Matrix.Rotation(math.radians(24.0), 4, 'X') @ Matrix.Translation(-base)
+        else:
+            turn = lean @ Matrix.Rotation(math.radians(rnd.uniform(-2.0, 2.0)), 4, 'X')
+        for part in picket:
+            part.data.transform(turn)
+        parts += picket
+    obj = lp.join(name, parts)
+    lp.hull_box(obj, (2.0, 0.24, 1.2), (1.0, -0.08, 0.6))
+    return finish(obj, ao=0.25)
+
+
+VARIANTS = [
+    headboard('Grave_Headboard_OldE', 17, peak_top(0.4, 0.95, 0.22, 0.18), lean=(-11.0, 6.0), turn=5.0, cleat=True,
+              strip='Beams', marks=3),
+    headboard('Grave_Headboard_OldF', 18, round_top(0.56, 0.62, 0.22, crown=0.35), lean=(4.0, -12.0), turn=-7.0,
+              split=True, marks=1, nails=False),
+    fence_iron_section_leaning('Fence_IronSection_Leaning', 54),
+]
+models += VARIANTS
+
 HEADBOARDS_ONLY = '--headboards' in (sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
 
 
@@ -1395,3 +1442,10 @@ else:
         print(f'GRAVES: {obj.name}: {lp.tri_count(obj)} triangles, '
               f'{len([c for c in obj.children if c.name.startswith("UCX_")])} hulls, '
               f'materials {", ".join(m.name for m in obj.data.materials)}', flush=True)
+
+if lt.want_preview() and not HEADBOARDS_ONLY:
+    for obj in VARIANTS:
+        obj.location = (0.0, 0.0, 0.0)
+    bpy.context.view_layer.update()
+    for obj in VARIANTS:
+        lt.preview([obj], lt.preview_path(PREVIEW, obj.name), view=(-0.5, -1.6, 0.45), fit=0.8, ground_at='origin')

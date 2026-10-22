@@ -14,6 +14,8 @@ sits on a slope.
                  from knee height up, on twisted limbs, and a dead silver limb out of one side (for creases and gullies)
   Juniper_B      a squat, wind-sheared one, about 1.5 m, leaning, its crown swept to one side and flat on top (for
                  ridge lines)
+  Juniper_C      an upright, columnar one, about 3.2 m, on one straight trunk (skylines, crests)
+  Juniper_D      a creeping one, about 0.8 m tall and 2.6 m across, three sprawling stems (lips, rims, between rocks)
   DryTuft_A      straw-golden bunchgrass, a fountain of blades about 35 cm with seed stalks to about 50 cm
   DryTuft_B      a low, older tuft, about 30 cm, part flattened, grey weathered blades among the straw
 
@@ -846,9 +848,32 @@ def dry_tuft_b():
                      ('GrassDry', (0.65, 0.9), 1)], 4, 0.35, flattened=0.33)
 
 
+# Variants for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md), built after the originals (so those
+# export byte-identical): the ridges, creases and rims had two junipers between them, 250 times.
+
+def juniper_c():
+    """About 3.2 m tall and 1.8 m across: an upright, narrow juniper on one straight trunk, its crown a rough column of
+    shaggy clumps from waist height, the dead limb high on it (a skyline tree for crests, the bench, the gate rocks)."""
+    return juniper('Juniper_C', 371, [
+        dict(root=(0.0, 0.0), lean=(0.08, -0.05), fork=0.9, radius=0.15, fork_radius=0.1, gnarl=0.1)],
+        (0.0, 0.0, 1.95), (0.8, 0.75, 1.35), 16, (0.32, 0.46), 26, (1.3, 40.0), outliers=1, low=-0.8, floor=0.55,
+        hull_height=1.4)
+
+
+def juniper_d():
+    """About 0.8 m tall and 2.6 m across: a creeping juniper, three low stems sprawling over the ground, its pads
+    flat-topped and close (cliff lips, the Sink's rim, between rocks)."""
+    return juniper('Juniper_D', 383, [
+        dict(root=(0.05, 0.0), lean=(0.55, 0.1), fork=0.18, radius=0.08, fork_radius=0.06, gnarl=0.2),
+        dict(root=(-0.05, 0.04), lean=(-0.5, 0.3), fork=0.16, radius=0.07, fork_radius=0.05, gnarl=0.2),
+        dict(root=(0.0, -0.05), lean=(0.05, -0.55), fork=0.14, radius=0.065, fork_radius=0.05, gnarl=0.2)],
+        (0.0, 0.0, 0.4), (1.3, 1.15, 0.32), 19, (0.24, 0.34), 22, (0.15, 120.0), flat_top=0.75, outliers=2,
+        hull_height=0.4, low=-0.6, floor=0.1)
+
+
 def build():
     return [sagebrush_a(), sagebrush_b(), sagebrush_c(), rabbitbrush_a(), juniper_a(), juniper_b(), dry_tuft_a(),
-            dry_tuft_b()]
+            dry_tuft_b(), juniper_c(), juniper_d()]
 
 
 # --- Previews ---

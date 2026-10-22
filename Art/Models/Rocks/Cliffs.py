@@ -12,6 +12,7 @@ of the width and the depth.
   CliffFace_B   10 m    8 m    3.6 m   a lower plateau face
   CliffFace_C   15 m    6 m    3.2 m   wide and low: ramp sides, the rim, the lower course of a stack
   CliffFace_D    8 m   12 m    4.2 m   a tall buttress: corners, the highest spots
+  CliffFace_A2 .. CliffFace_D2          twins of A to D: the same sizes, their own rock (see TWINS below)
 
 What makes it read as rock rather than masonry: columns of uneven width (1-5 m) between leaning, wandering joints,
 some jutting out and some set back, joints that die out part way down; thick massive beds with a few thin soft
@@ -683,6 +684,18 @@ for name, width, height, depth, seed, material_seed, options in PANELS:
     area = options.pop('area', width * height)
     models.append(build(name, width, height, depth, seed, material_seed, kind=Panel,
                         source=int(round(SOURCE_TRIS * area / 120.0)), **options))
+
+# Twins for Ransom's Rest's variety pass (2026-10-21, Saved/World/PLAN.md): the faces' sizes and the shared beds, so a
+# twin fits wherever its original does and carries its neighbours' ledges on, but their own columns, joints, fractures,
+# top and fallen blocks (their own seeds) and texture offsets. A run that alternates original and twin never shows the
+# same 8-15 m rock twice in a row. Built after the originals, so those export byte-identical.
+TWINS = [
+    ('CliffFace_A2', 12.0, 10.0, 4.0, 113, 9),
+    ('CliffFace_B2', 10.0, 8.0, 3.6, 127, 10),
+    ('CliffFace_C2', 15.0, 6.0, 3.2, 139, 11),
+    ('CliffFace_D2', 8.0, 12.0, 4.2, 151, 12),
+]
+models += [build(*piece) for piece in TWINS]
 
 
 def preview_as_placed(model, path, **options):
