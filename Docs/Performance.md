@@ -98,3 +98,4 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-22 | World variety BEFORE, RR spawn | 37636b49 | 1920x1080 | 7.7 | 130 | 8.2 | 3.9 | 7.7 | 1.7 | 6.4 | 1441 | 1661795 | 3.38 |
 | 2026-10-22 | World variety AFTER, RR spawn | 37636b49 | 1920x1080 | 7.8 | 128 | 8.4 | 4.6 | 7.8 | 1.9 | 6.5 | 1705 | 1739014 | 3.92 |
 | 2026-10-22 | World variety AFTER (repeat), RR spawn | 37636b49 | 1920x1080 | 7.7 | 129 | 8.3 | 3.9 | 7.7 | 1.7 | 6.4 | 1704 | 1736720 | 3.50 |
+| 2026-10-22 | World variety bolder tones, RR spawn | c64525df | 1920x1080 | 7.8 | 129 | 8.4 | 4.7 | 7.7 | 1.9 | 6.5 | 1703 | 1736594 | 9.57 |
