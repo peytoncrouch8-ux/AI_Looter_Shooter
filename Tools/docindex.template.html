@@ -1,0 +1,121 @@
+<title>Project Library</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a field manual of the project's docs: summary strip, organisation notes, then one panel per shelf. Dark-first (the game's Concept C UI). */
+:root {
+	--bg: #14161a; --panel: #1d2026; --panel-2: #242830; --line: #343a44; --fg: #e8e4dc; --muted: #9aa0a8;
+	--accent: #ff8a2a; --cyan: #5fd6ff; --warn: #f2c14e; --bad: #ff6b5a;
+	--display: "Chakra Petch", "Segoe UI", system-ui, sans-serif; --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+	--mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+	color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+	--bg: #f2efe9; --panel: #ffffff; --panel-2: #f7f4ee; --line: #ddd6ca; --fg: #23211d; --muted: #6a6560;
+	--accent: #c95f0c; --cyan: #127a9e; --warn: #9a6a00; --bad: #b8322a; color-scheme: light; } }
+:root[data-theme="light"] {
+	--bg: #f2efe9; --panel: #ffffff; --panel-2: #f7f4ee; --line: #ddd6ca; --fg: #23211d; --muted: #6a6560;
+	--accent: #c95f0c; --cyan: #127a9e; --warn: #9a6a00; --bad: #b8322a; color-scheme: light; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-block: 28px 56px;
+	padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+	display: grid; gap: 22px; }
+header { display: grid; gap: 6px; border-bottom: 2px solid var(--accent); padding-bottom: 14px; }
+.eyebrow { font: 600 12px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+h1 { margin: 0; font: 700 clamp(28px, 5vw, 40px)/1.1 var(--display); letter-spacing: .02em; text-wrap: balance; }
+.sub { color: var(--muted); max-width: 70ch; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--cyan); padding: 10px 12px; }
+.stat b { display: block; font: 700 24px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
+.stat.flag { border-left-color: var(--warn); }
+@media (max-width: 640px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.notes { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; display: grid; gap: 8px; }
+.notes h2, .shelf h2 { margin: 0; font: 600 18px/1.2 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.notes ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 78ch; }
+.notes li b { color: var(--accent); font-weight: 600; }
+.tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.tools input { flex: 1 1 260px; min-width: 0; font: 15px var(--body); color: var(--fg); background: var(--panel); border: 1px solid var(--line);
+	padding: 9px 12px; border-radius: 2px; }
+.tools input:focus-visible, .tools button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.tools button { font: 600 13px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); background: var(--panel-2);
+	border: 1px solid var(--line); padding: 9px 12px; cursor: pointer; }
+.tools button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.shelf { display: grid; gap: 8px; }
+.shelf header { border: 0; padding: 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.shelf header p { margin: 0; color: var(--muted); }
+.count { font: 600 12px var(--display); color: var(--cyan); letter-spacing: .08em; }
+.rows { background: var(--panel); border: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 4px 16px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row .p { font: 500 13px var(--mono); color: var(--cyan); overflow-wrap: anywhere; min-width: 0; }
+.row .a { grid-column: 1; color: var(--fg); min-width: 0; }
+.row .m { grid-column: 2; grid-row: 1 / span 2; display: grid; gap: 4px; align-content: start; justify-items: end; font-size: 12px; color: var(--muted);
+	font-variant-numeric: tabular-nums; }
+.bar { width: 120px; height: 4px; background: var(--panel-2); position: relative; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.chip { font: 600 11px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border: 1px solid currentColor; color: var(--warn); }
+.chip.local { color: var(--muted); }
+@media (max-width: 560px) { .row { grid-template-columns: minmax(0, 1fr); } .row .m { grid-column: 1; grid-row: auto; justify-items: start;
+	grid-auto-flow: column; justify-content: start; gap: 10px; align-items: center; } }
+footer { color: var(--muted); font-size: 13px; }
+.empty { padding: 14px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .row { transition: background .15s; } .row:hover { background: var(--panel-2); } }
+</style>
+
+<div class="wrap">
+	<header>
+		<div class="eyebrow">AI Looter Shooter · Revenant</div>
+		<h1>Project Library</h1>
+		<p class="sub">Every Markdown document in the project, shelved by what it's for. The docs are written for the AI; this page is the map of them for you. Rebuilt with <code>node Tools/docindex.js</code>.</p>
+	</header>
+	<section class="stats" id="stats" aria-label="Totals"></section>
+	<section class="notes" aria-labelledby="org">
+		<h2 id="org">Keeping it organised</h2>
+		<ol>
+			<li><b>Move working notes into git.</b> Contracts and plans in <code>Saved/</code> hold real decisions but aren't backed up. Proposal: a <code>Docs/Work/&lt;date&gt;-&lt;job&gt;/</code> folder per job, moved to the archive once the job is committed.</li>
+			<li><b>Split the long living docs.</b> <code>Pipeline.md</code> (over 2,000 lines) becomes a folder of topic files with a short index; <code>Areas/RansomsRest.md</code> splits by sub-area.</li>
+			<li><b>Keep the handoff short.</b> Only "now" and "next" in <code>Handoff.md</code>; finished sessions go to <code>Archive/Handoff_history.md</code> at each session swap.</li>
+			<li><b>Retire finished research.</b> The Style Lab trials are over (you kept today's look): its brief, catalog and research (about 2,000 lines) can move to the archive.</li>
+			<li><b>One map.</b> This page and <code>Docs/INDEX.md</code> are rebuilt at every session end, so new files never get lost.</li>
+		</ol>
+	</section>
+	<div class="tools">
+		<input id="q" type="search" placeholder="Filter by name or description" aria-label="Filter documents">
+		<button id="flagged" type="button" aria-pressed="false">Needs attention</button>
+	</div>
+	<main id="shelves"></main>
+	<footer id="foot"></footer>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+const fmt = (n) => n.toLocaleString('en-US');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const max = Math.max(...DATA.files.map((f) => f.lines));
+const total = DATA.files.length, inGit = DATA.files.filter((f) => f.tracked).length;
+const flagged = DATA.files.filter((f) => f.flags.length).length;
+const lines = DATA.files.filter((f) => f.tracked).reduce((s, f) => s + f.lines, 0);
+document.getElementById('stats').innerHTML = [
+	[fmt(total), 'documents'], [fmt(inGit), 'in git'], [fmt(lines), 'lines in git'], [fmt(flagged), 'need attention', 'flag'],
+].map(([b, s, c]) => `<div class="stat ${c || ''}"><b>${b}</b><span>${s}</span></div>`).join('');
+document.getElementById('foot').textContent = `Generated ${DATA.generated} UTC. "Need attention" = a living doc over 1,000 lines, or decisions kept outside git.`;
+let onlyFlagged = false;
+function render() {
+	const q = document.getElementById('q').value.trim().toLowerCase();
+	const out = DATA.groups.map((g) => {
+		const list = DATA.files.filter((f) => f.group === g.id && (!onlyFlagged || f.flags.length)
+			&& (!q || (f.path + ' ' + f.about).toLowerCase().includes(q)));
+		if (!list.length) return '';
+		const rows = list.map((f) => `<div class="row"><div class="p">${esc(f.path)}</div><div class="a">${esc(f.about)}</div>
+			<div class="m"><span>${fmt(f.lines)} lines · ${esc(f.changed)}</span><div class="bar" aria-hidden="true"><i style="width:${Math.max(2, Math.round(100 * f.lines / max))}%"></i></div>
+			${f.flags.map((x) => `<span class="chip">${esc(x)}</span>`).join('')}${f.tracked ? '' : '<span class="chip local">not in git</span>'}</div></div>`).join('');
+		return `<section class="shelf"><header><h2>${esc(g.name)}</h2><span class="count">${list.length}</span><p>${esc(g.blurb)}</p></header><div class="rows">${rows}</div></section>`;
+	}).join('');
+	document.getElementById('shelves').innerHTML = out || '<div class="empty">No document matches that filter.</div>';
+}
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('flagged').addEventListener('click', (e) => { onlyFlagged = !onlyFlagged; e.currentTarget.setAttribute('aria-pressed', String(onlyFlagged)); render(); });
+render();
+</script>

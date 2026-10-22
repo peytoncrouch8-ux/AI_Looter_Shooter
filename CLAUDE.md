@@ -6,7 +6,8 @@ Stylized first/third-person looter shooter, Unreal Engine 5.8, C++-first. Game: 
 the tutorial island `/Game/Maps/Lvl_TutorialIsland` (menu backdrop; `Docs/TutorialIsland.md`); `/Game/Maps/Lvl_Skyreach`
 (old sky-island style, kept).
 
-Read first: `Docs/Handoff.md` (state, next steps), `Docs/Pipeline.md` (tools, workflows, lessons, bug fixes),
+Read first: `Docs/Handoff.md` (state, next steps), `Docs/Pipeline.md` (tools, workflows, lessons, bug fixes), `Docs/INDEX.md` (every doc;
+`node Tools/docindex.js` rebuilds it and the user's Project Library page https://claude.ai/artifact/1yHV6GGJvvcwxWwZqi4T4s, republish at each session end),
 `CODEMAP.md` (every source file, one line each). As needed: `Docs/Plan.md`, `Docs/Performance.md`, `Docs/Story.md`,
 `Docs/Progression.md`, `Docs/Areas/`; `Docs/Release.md` only when preparing a release. History and background (`Docs/Archive`, `Docs/Art`, `Docs/Handoffs`,
 `Docs/Polish`, `*Concepts.md`, `*_Review.md`): only when pointed to. This file rides with every request and every agent:
