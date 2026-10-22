@@ -80,6 +80,9 @@ public:
 	ABountyFight* GetFight() const { return Fight.Get(); }
 	ABountyChest* GetChest(int32 Serial) const;
 
+	/** The bounty's strongbox is still owed: won and not looted yet (the board's paid line says whether it waits). */
+	bool IsChestOwed(int32 Serial) const;
+
 	/** An arena of the level by id (the open ones and the rest), or null. */
 	ABountyArena* FindArena(FName ArenaId) const;
 
@@ -158,7 +161,6 @@ private:
 	void EnsureChests();
 	ABountyChest* SpawnChest(const FBountyChestOwed& Owed, const FVector& Spot, float Yaw, bool bDrop);
 	void HandleChestLooted(ABountyChest& Chest);
-	bool IsChestOwed(int32 Serial) const;
 	void UpdateTracker();
 	void ClearTracker();
 	/** The mission-complete banner for a bounty paid (a side job's, its title the bounty's). */

@@ -27,7 +27,9 @@
 #define LOCTEXT_NAMESPACE "LooterBounty"
 
 const FName ABountyBoard::BoardTag(TEXT("BountyBoard"));
-const TCHAR* const ABountyBoard::ModelPath = TEXT("/Game/Art/Props/SM_NoticeBoard_Town.SM_NoticeBoard_Town");
+// BOUNTIES on its header (Art/Models/Props/Boardwalk.py NoticeBoard_Bounty); the NOTICES board until that is imported.
+const TCHAR* const ABountyBoard::ModelPath = TEXT("/Game/Art/Props/SM_NoticeBoard_Bounty.SM_NoticeBoard_Bounty");
+const TCHAR* const ABountyBoard::FallbackModelPath = TEXT("/Game/Art/Props/SM_NoticeBoard_Town.SM_NoticeBoard_Town");
 
 namespace
 {
@@ -142,7 +144,8 @@ ABountyBoard::ABountyBoard()
 	Root->SetMobility(EComponentMobility::Static);
 	RootComponent = Root;
 
-	static UStaticMesh* const Model = FindIfMade<UStaticMesh>(ModelPath);
+	static UStaticMesh* const BountiesModel = FindIfMade<UStaticMesh>(ModelPath);
+	static UStaticMesh* const Model = BountiesModel ? BountiesModel : FindIfMade<UStaticMesh>(FallbackModelPath);
 	static UStaticMesh* const Plane = FindIfMade<UStaticMesh>(PlanePath);
 	static UStaticMesh* const Cylinder = FindIfMade<UStaticMesh>(CylinderPath);
 	static UStaticMesh* const Cube = FindIfMade<UStaticMesh>(CubePath);

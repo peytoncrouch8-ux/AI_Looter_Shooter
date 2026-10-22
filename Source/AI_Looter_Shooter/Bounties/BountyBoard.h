@@ -16,7 +16,7 @@ class UStaticMeshComponent;
 
 /**
  * The bounty board in a town (Docs/Work/2026-10-22-Next/BOUNTY.md): Ransom's Rest's stands beside the Rim Rangers' board
- * in front of the sheriff's office (Tools/Unreal/build_area_bounties.py). A notice board (SM_NoticeBoard_Town, NOTICES on
+ * in front of the sheriff's office (Tools/Unreal/build_area_bounties.py). A notice board (SM_NoticeBoard_Bounty, BOUNTIES on
  * its header) with a sheet on its face for each posting up (the art's decals, Tools/Blender/looter_bounty_sheets.py: WANTED BY THE
  * RIM RANGERS, the mark's kind inked in a frame, its name printed on its band; plain paper until they are imported), sealed in its mark's tier colour; a taken or won one's sheet
  * is gone (the player carries it). Over it floats its own mark: ? while a posting is up the player hasn't read here, !
@@ -105,7 +105,9 @@ public:
 	enum class EShownMark : uint8 { None, Offer, TurnIn };
 	EShownMark GetShownMark() const { return ShownMark; }
 
+	/** The board with BOUNTIES on its header, and the NOTICES one it stands in with until that is imported. */
 	static const TCHAR* const ModelPath;
+	static const TCHAR* const FallbackModelPath;
 
 protected:
 	virtual void BeginPlay() override;

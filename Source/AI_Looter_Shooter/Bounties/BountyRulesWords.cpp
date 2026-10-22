@@ -215,6 +215,21 @@ FText BountyRules::ClearedLine(const FBountyPosting& Posting)
 	return LOCTEXT("Cleared", "That's the lot. The box is yours; the purse waits at the board.");
 }
 
+FText BountyRules::StrongboxWords(int32 Guns)
+{
+	// The Strongbox's table drops wards: each gun pick may come as a ward (the play-test's box gave a gun and a ward).
+	return Guns == 1 ? LOCTEXT("RewardBoxOneOrWard", "Strongbox, 1 gun or ward")
+		: FText::Format(LOCTEXT("RewardBoxOrWards", "Strongbox, {0} guns or wards"), FText::AsNumber(Guns));
+}
+
+FText BountyRules::PaidLine(int64 Experience, int32 Silver, bool bStrongboxWaits)
+{
+	const FText Paid = FText::Format(LOCTEXT("PaidLine", "Paid: +{0} XP · +{1} silver."), FText::AsNumber(Experience),
+		FText::FromString(LooterEconomy::Format(Silver)));
+	// Only while the box is still shut out there: once looted, the line never sends the player back for it.
+	return bStrongboxWaits ? FText::Format(LOCTEXT("PaidLineBoxWaits", "{0} Your strongbox waits where it fell."), Paid) : Paid;
+}
+
 FBountyCardView BountyRules::MakeCard(const FBountyCardInput& In)
 {
 	FBountyCardView Card;
@@ -242,8 +257,7 @@ FBountyCardView BountyRules::MakeCard(const FBountyCardInput& In)
 	Card.Flavour = Flavour(Posting->Kind, Posting->Serial);
 	Card.Where = FText::Format(LOCTEXT("Where", "Last seen: {0}"), In.ArenaName.IsEmpty() ? FText::FromName(Posting->Arena) : In.ArenaName);
 	TArray<FText> Parts;
-	Parts.Add(In.Guns == 1 ? LOCTEXT("RewardBoxOne", "Strongbox, 1 gun")
-		: FText::Format(LOCTEXT("RewardBox", "Strongbox, {0} guns"), FText::AsNumber(In.Guns)));
+	Parts.Add(StrongboxWords(In.Guns));
 	if (In.Purse > 0)
 	{
 		Parts.Add(FText::Format(LOCTEXT("RewardSilver", "+{0} silver"), FText::FromString(LooterEconomy::Format(In.Purse))));

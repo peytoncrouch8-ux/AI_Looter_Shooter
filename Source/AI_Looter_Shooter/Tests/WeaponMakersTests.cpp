@@ -98,6 +98,13 @@ bool FWeaponMakersTableTest::RunTest(const FString& Parameters)
 		{
 			return Paint.Slot == FName(TEXT("GunPolymerSand")) && !Paint.Colors.IsEmpty();
 		}));
+		// A salvage body (all GunSalvage rust, no shell slot) wears the maker's shell colour over its rust, so its paint and
+		// its mark show (PIE 2026-10-22: a Saint Maud Salvager launcher stayed rust-teal, the mark lost in the rust).
+		FWeaponLook Painted;
+		WeaponMakers::PaintLook(*Maker, 1234, Painted);
+		const FLinearColor* PaintedShell = Painted.Colors.Find(TEXT("GunPolymerSand"));
+		const FLinearColor* PaintedSalvage = Painted.Colors.Find(TEXT("GunSalvage"));
+		TestTrue(FString::Printf(TEXT("%s paints a salvage body as its shell"), Key), PaintedShell && PaintedSalvage && *PaintedShell == *PaintedSalvage);
 		TestTrue(FString::Printf(TEXT("%s's mark is a cell of the atlas"), Key), Maker->MarkCell >= 1 && Maker->MarkCell <= 4);
 		Cells.Add(Maker->MarkCell);
 		TestEqual(FString::Printf(TEXT("%s's mark icon"), Key), Maker->MarkIcon, FName(*FString::Printf(TEXT("Maker%s"), Key)));

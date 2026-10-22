@@ -35,6 +35,12 @@ namespace
 	const TCHAR* const BlackMetal = TEXT("GunBlackMetal");
 	const TCHAR* const BluedMetal = TEXT("GunSteelBlued");
 	const TCHAR* const Trim = TEXT("GunBrass");
+	/**
+	 * The salvage bodies' rusted metal (every family's Salvager / Scrapper body is all GunSalvage, looter_guns.SALVAGE): it
+	 * takes the maker's shell colour as its tint, so such a gun still wears its maker's paint over the rust, and the mark
+	 * isn't lost in rust of its own colour (Saint Maud's antique gold on rust-teal, PIE 2026-10-22).
+	 */
+	const TCHAR* const Salvage = TEXT("GunSalvage");
 
 	FWeaponMaker Make(const TCHAR* Key, FText Name, FText FullName, FText Place, FText Fiction, FText QuirkName, TArray<FWeaponPaint> Paints,
 		int32 MarkCell, uint32 MarkHex)
@@ -293,6 +299,12 @@ void WeaponMakers::PaintLook(const FWeaponMaker& Maker, int32 Seed, FWeaponLook&
 		{
 			InOutLook.Colors.Add(MakerPaint.Slot, Color->Color);
 		}
+	}
+	// A salvage body has none of the slots above: its rust takes the shell's colour (no draw of its own, so no paint moves).
+	if (const FLinearColor* ShellColor = InOutLook.Colors.Find(FName(Shell)))
+	{
+		const FLinearColor Copied = *ShellColor;
+		InOutLook.Colors.Add(FName(Salvage), Copied);
 	}
 }
 

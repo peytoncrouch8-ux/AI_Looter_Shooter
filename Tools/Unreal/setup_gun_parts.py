@@ -71,9 +71,15 @@ MARKS = {
     # The receiver's side ahead of the belt box, a little smaller and higher: at 5 cm, Z -0.8 the belt's rounds covered
     # its lower half on the -Y side, the side first person sees (PIE 2026-10-22; at X 4.5 first person never saw it).
     'Thresher': ('Body', 24.0, -0.4, 4.0, 2.2),
-    'Longhorn': ('Body', -6.0, -3.6, 4.0, 1.4),       # the butt stock behind the thumbhole
-    # The rear sleeve's empty window cell: at 4.5 cm the glowing windows above and below cut into it (PIE 2026-10-22).
-    'Powderkeg': ('Body', 24.0, 0.0, 3.4, 3.1),
+    # First person sees a gun from a little behind its grip forward (the Thresher's mark 4.5 cm behind its grip never
+    # showed): the Longhorn's butt (X -6, 26 cm behind its grip at 19.8) and the Powderkeg's rear sleeve (X 24, 25 cm behind
+    # its grip at 48.6) never did (PIE 2026-10-22). Both moved ahead of the grip; check them in PIE.
+    # The chassis flank under the action, between the trigger and the magazine well (32.8), clear of the screws (21, 39)
+    # and the accent strips at Z -3.25; depth 1.6 keeps it off the round receiver above (it reaches 1.49 out at Z -0.7).
+    'Longhorn': ('Body', 29.5, -1.9, 2.4, 1.6),
+    # The front sleeve's upper flank ahead of the grip, over the ember side line (Z 0), clear of the straps (55, 66) and
+    # rivets (58, 64) of the Salvager; the Armored's side plates reach Z 1.8, the Salvager's side pipe runs at Z 3.3.
+    'Powderkeg': ('Body', 61.0, 2.6, 2.2, 2.9),
 }
 
 # Each gun's shell is tinted per gun (sRGB hex, weight): mostly field colors, sometimes a bright one.

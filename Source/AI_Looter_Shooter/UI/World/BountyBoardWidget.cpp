@@ -339,10 +339,12 @@ bool UBountyBoardWidget::ActOnSelected()
 	{
 		FMissionRewardsGiven Given;
 		APlayerController* PC = Player.Get();
+		// Its serial before the pay clears the slot: the line says the box waits only while it's still owed (unlooted).
+		const FBountyPosting* Won = Bounties->GetActive();
+		const int32 Serial = Won ? Won->Serial : 0;
 		if (Bounties->Collect(PC ? PC->GetPawn() : nullptr, &Given))
 		{
-			SetStatus(FText::Format(LOCTEXT("Paid", "Paid: +{0} XP · +{1} silver. Your strongbox waits where it fell."),
-				FText::AsNumber(Given.Experience), FText::FromString(LooterEconomy::Format(Given.Silver))), false);
+			SetStatus(BountyRules::PaidLine(Given.Experience, Given.Silver, Serial > 0 && Bounties->IsChestOwed(Serial)), false);
 			ShowCards(/*bForce*/ true);
 			return true;
 		}

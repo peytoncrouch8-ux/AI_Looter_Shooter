@@ -104,6 +104,9 @@ public:
 	/** Shows/hides the floating label. Focused adds stats and the pickup prompt. */
 	void SetLabelState(bool bVisible, bool bFocused);
 
+	/** Its floating label (ULootLabelSubsystem keeps it clear of the other loot labels on screen). */
+	UWidgetComponent* GetLabelComponent() const { return Label; }
+
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	const FWeaponInstanceData& GetInstance() const { return Instance; }
 

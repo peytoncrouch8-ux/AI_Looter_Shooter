@@ -40,6 +40,9 @@ public:
 
 	const FShieldInstanceData& GetWard() const { return Ward; }
 
+	/** Its floating label (ULootLabelSubsystem keeps it clear of the other loot labels on screen). */
+	UWidgetComponent* GetLabelComponent() const { return Label; }
+
 	/** Seconds left before it's gone; the session save keeps them and a ward put back goes on with them (at least 10). */
 	float GetLifeLeft() const { return LifeLeft; }
 	void ContinueLife(float Seconds) { LifeLeft = FMath::Max(Seconds, 10.f); }

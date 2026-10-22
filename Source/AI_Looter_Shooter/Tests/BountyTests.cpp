@@ -331,8 +331,15 @@ bool FBountyViewTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Its traits"), Card.Traits.ToString().Contains(CreatureTraitRules::Word(ECreatureTrait::Warded).ToString()));
 	TestTrue(TEXT("Its pack twist"), Card.Posse.ToString().Contains(TEXT("Swift posse")));
 	TestEqual(TEXT("Where"), Card.Where.ToString(), FString(TEXT("Last seen: the Webwood")));
-	TestTrue(TEXT("What it pays"), Card.Reward.ToString().Contains(TEXT("Strongbox, 2 guns")) && Card.Reward.ToString().Contains(TEXT("+77 silver"))
+	TestTrue(TEXT("What it pays"), Card.Reward.ToString().Contains(TEXT("Strongbox, 2 guns or wards")) && Card.Reward.ToString().Contains(TEXT("+77 silver"))
 		&& Card.Reward.ToString().Contains(TEXT("XP")));
+	// The box's gun picks may come as wards (a Strongbox's table drops them): the words never promise guns alone.
+	TestEqual(TEXT("One pick: a gun or a ward"), StrongboxWords(1).ToString(), FString(TEXT("Strongbox, 1 gun or ward")));
+	TestEqual(TEXT("Three picks"), StrongboxWords(3).ToString(), FString(TEXT("Strongbox, 3 guns or wards")));
+	// Paid: the box is only said to wait while it's still owed (the play-test's board said so after it was looted).
+	TestTrue(TEXT("Paid, box still shut"), PaidLine(242, 41, true).ToString().Contains(TEXT("strongbox waits")));
+	TestTrue(TEXT("Paid, box looted"), !PaidLine(242, 41, false).ToString().Contains(TEXT("strongbox"))
+		&& PaidLine(242, 41, false).ToString().Contains(TEXT("+242 XP")) && PaidLine(242, 41, false).ToString().Contains(TEXT("+41 silver")));
 	TestTrue(TEXT("New, to take"), Card.bNew && Card.bCanTake && !Card.bCanCollect && !Card.bCanGiveUp);
 	In.bSeen = true;
 	In.bOtherTaken = true;

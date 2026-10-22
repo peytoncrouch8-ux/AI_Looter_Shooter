@@ -16,6 +16,8 @@ edge, the Rim Rangers' notice board and the town memorial.
                               SOCKET_Decal at the middle of the face.
   NoticeBoard_Town            the same board with NOTICES on its header, for Skyreach's Crossroads Town (the Rim
                               Rangers are Ransom's Rest's story group). Its own seed; same sockets and hull.
+  NoticeBoard_Bounty          the same board with BOUNTIES on its header: the bounty board (ABountyBoard) beside the
+                              Rim Rangers' on Main Street. Its own seed; same sockets and hull.
   TownMemorial                two hats on a post, a black felt and a straw, and a mourning wreath, on a little cairn
                               with larkspur laid at its foot.
 
@@ -394,11 +396,12 @@ models = [
     notice_board('NoticeBoard', 509),
     memorial('TownMemorial', 510),
     notice_board('NoticeBoard_Town', 511, header='NOTICES'),
+    notice_board('NoticeBoard_Bounty', 512, header='BOUNTIES'),
 ]
 
 if lt.want_preview():
     views = {'HitchRail': (-0.6, -1.6, 0.45), 'NoticeBoard': (-0.7, -1.6, 0.3), 'TownMemorial': (-0.6, -1.6, 0.35),
-             'NoticeBoard_Town': (-0.7, -1.6, 0.3), 'Awning_Post': (-1.0, -1.6, 0.4)}
+             'NoticeBoard_Town': (-0.7, -1.6, 0.3), 'NoticeBoard_Bounty': (-0.7, -1.6, 0.3), 'Awning_Post': (-1.0, -1.6, 0.4)}
     for obj in models:
         lt.preview([obj], lt.preview_path(PREVIEW, obj.name), view=views.get(obj.name, (-1.0, -1.6, 0.7)), fit=0.9,
                    ground_at='origin')

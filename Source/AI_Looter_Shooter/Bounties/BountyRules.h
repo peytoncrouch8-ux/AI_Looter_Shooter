@@ -100,7 +100,7 @@ struct AI_LOOTER_SHOOTER_API FBountyCardView
 	FText Flavour;
 	/** "Last seen: the Scatter". */
 	FText Where;
-	/** "Strongbox, 2 guns · +41 silver · +242 XP". */
+	/** "Strongbox, 2 guns or wards · +41 silver · +242 XP". */
 	FText Reward;
 	/** "TAKEN", "CLAIM IT", "NEW"; empty for a posting read before. */
 	FText StateWord;
@@ -233,6 +233,18 @@ namespace BountyRules
 
 	/** A card of the board's screen. */
 	AI_LOOTER_SHOOTER_API FBountyCardView MakeCard(const FBountyCardInput& In);
+
+	/**
+	 * What the strongbox holds, in words: "Strongbox, 2 guns or wards". A Strongbox's table drops wards (ULootTable::
+	 * bDropsShields), so any of its gun picks may come as a ward: the card never promises guns alone.
+	 */
+	AI_LOOTER_SHOOTER_API FText StrongboxWords(int32 Guns);
+
+	/**
+	 * The board's line once a bounty is paid: "Paid: +242 XP · +41 silver.", and "Your strongbox waits where it fell." only
+	 * while its strongbox is still owed (not looted yet).
+	 */
+	AI_LOOTER_SHOOTER_API FText PaidLine(int64 Experience, int32 Silver, bool bStrongboxWaits);
 
 	/** A posting for logs: "#4 Wanted Unpaid 'Hatless Gideon' at Scatter (2-3), twists Fleet, traits Fleet, Mending: Taken". */
 	AI_LOOTER_SHOOTER_API FString Describe(const FBountyPosting& Posting);
