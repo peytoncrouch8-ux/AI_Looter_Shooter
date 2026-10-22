@@ -156,6 +156,15 @@ namespace LooterUI
 		FLinearColor TierEthereal();
 		/** #FF9900, the legendary orange: a Soulfed monster's tag and a boss's name (apart from Hallowed's yellow). */
 		FLinearColor TierSoulfed();
+
+		// --- The story elements a gun's part gives it (Phase 12.3): its card's and label's element line ---
+
+		/** #FF5E2E, Ember's orange-red (redder than the legendary orange and the ember powers' own). */
+		FLinearColor ElementEmber();
+		/** #FFE6A6, Soul-light's pale gold (paler than Hallowed's #F5C842). */
+		FLinearColor ElementSoulLight();
+		/** #CCF0F6, Grave-salt's pale cyan-white (paler than the ward bar and the kit's cyan lines). */
+		FLinearColor ElementGraveSalt();
 	}
 
 	enum class EShape : uint8

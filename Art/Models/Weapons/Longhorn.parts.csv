@@ -1,4 +1,4 @@
-Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax
+Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax,Effect,Element,Model
 Body,Standard,Standard chassis,,Common,1,0,,,,,,,,,,,,,,,,,,
 Body,Heritage,Heritage chassis,Vintage,Uncommon,1,13,,,,,2,4,2,6,,,,,,,,,,
 Body,Carbon,Carbon chassis,Carbon,Uncommon,1,13,,,,,,,,,,,,,,,2,6,5,11
@@ -48,3 +48,10 @@ Stock,Adjustable,Adjustable stock,Fitted,Rare,1,20,,,,,,,6,12,,,,,,,-10,-4,-5,-2
 Stock,Monopod,Monopod stock,Anchored,Rare,1,20,,,,,,,7,17,,,,,,,,,-17,-7
 Stock,Engraved,Engraved butt plate,Heirloom,Epic,1,30,,,,,2,5,,,,,,,,,-18,-8,,
 Bolt,Standard,Bolt,,Common,1,0,,,,,,,,,,,,,,,,,,
+Magazine,Ember5,5 ember rounds,Smoldering,Uncommon,0.35,38,5,,,,-6,-2,,,,,,,,,,,,,,Ember,5
+Magazine,Saint5,5 saint's rounds,Saintlit,Uncommon,0.35,38,5,,,,-6,-2,,,,,,,,,,,,,,SoulLight,5
+Magazine,Salt5,5 salt rounds,Salted,Uncommon,0.35,38,5,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,5
+Magazine,Blasting5,5 blasting rounds,Blasting,Epic,0.6,39,5,,,,,,,,,,,,6,12,,,,,Explosive,,5
+Barrel,BoreThrough,Bore-through barrel,Piercing,Rare,0.5,39,,,48,,3,7,,,6,14,,,,,,,-14,-6,Piercing,,Heavy
+Barrel,Caromer,Caroming barrel,Caroming,Epic,0.6,39,,,50,,,,2,6,,,,,,,,,,,Ricochet,,Fluted
+Body,Thunder,Thunder chassis,Charged,Epic,0.6,39,,,,,3,7,,,,,,,,,-14,-6,,,Overcharge,,Armored

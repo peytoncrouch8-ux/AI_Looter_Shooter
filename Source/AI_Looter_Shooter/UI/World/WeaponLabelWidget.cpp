@@ -47,6 +47,7 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 
 		NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Name"));
 		FlavorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Flavor"));
+		TraitText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Trait"));
 		StatsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Stats"));
 		PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Prompt"));
 
@@ -63,6 +64,7 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 
 		AddLine(NameText);
 		AddLine(CurseRow);
+		AddLine(TraitText);
 		AddLine(FlavorText);
 		AddLine(StatsText);
 		AddLine(PromptText);
@@ -90,7 +92,46 @@ void UWeaponLabelWidget::SetWeapon(const AWeaponBase* Weapon)
 	Stats = FText::FromString(FString::Printf(TEXT("LV %d   %s DMG   %.0f RPM   %d MAG"),
 		Instance.Level, *LooterWeaponText::DamageString(S), S.FireRate, S.MagazineSize));
 	NameColor = LooterWeaponText::Color(Instance);
+	// Its element and effect ("EMBER · RICOCHET"), in the element's colour: what makes it worth walking over to.
+	Trait = FText::FromString(LooterWeaponText::TraitLine(Instance));
+	TraitColor = LooterWeaponText::TraitColor(Instance);
 	ApplyContent();
+}
+
+FText UWeaponLabelWidget::GetTraitText() const
+{
+	return TraitText ? TraitText->GetText() : FText::GetEmpty();
+}
+
+float UWeaponLabelWidget::PopScaleAt(float Age)
+{
+	// Up from small past its size in a blink, then settling: 0.3 -> 1.25 over 0.12 s, back to 1 by 0.32 s.
+	constexpr float RiseSeconds = 0.12f;
+	constexpr float SettleSeconds = 0.2f;
+	if (Age <= RiseSeconds)
+	{
+		return FMath::Lerp(0.3f, 1.25f, FMath::Clamp(Age / RiseSeconds, 0.f, 1.f));
+	}
+	return FMath::Lerp(1.25f, 1.f, FMath::SmoothStep(0.f, 1.f, FMath::Clamp((Age - RiseSeconds) / SettleSeconds, 0.f, 1.f)));
+}
+
+float UWeaponLabelWidget::PopOpacityAt(float Age, float Seconds)
+{
+	// Full until its last 0.8 s, then fading out.
+	constexpr float FadeSeconds = 0.8f;
+	return FMath::Clamp((Seconds - Age) / FadeSeconds, 0.f, 1.f);
+}
+
+void UWeaponLabelWidget::SetPop(float Age, float Seconds)
+{
+	if (!bPop)
+	{
+		bPop = true;
+		bIsFocused = false;
+		ApplyContent();
+	}
+	SetRenderScale(FVector2D(PopScaleAt(Age)));
+	SetRenderOpacity(PopOpacityAt(Age, Seconds));
 }
 
 FText UWeaponLabelWidget::GetNameText() const
@@ -142,7 +183,12 @@ void UWeaponLabelWidget::ApplyContent()
 	PlateLine->SetVisibility(bIsFocused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 
 	NameText->SetText(Name);
-	StyleFloatingText(NameText, bIsFocused ? 17 : 14, NameColor, 80);
+	StyleFloatingText(NameText, bPop ? 24 : (bIsFocused ? 17 : 14), NameColor, bPop ? 120 : 80);
+
+	// Its element and effect, from afar as up close (a pop's bigger): the reason to walk over.
+	TraitText->SetText(Trait);
+	StyleFloatingText(TraitText, bPop ? 15 : (bIsFocused ? 13 : 11), TraitColor, 120);
+	TraitText->SetVisibility(Trait.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 
 	// A cursed iron: the coin and the curse's name under the name, from afar as up close (it is the warning), the coin
 	// a size up when the label opens.
@@ -167,4 +213,11 @@ void UWeaponLabelWidget::ApplyContent()
 	PromptText->SetText(FText::FromString(FString::Printf(TEXT("[%s] PICK UP  |  HOLD EQUIP"), *Key)));
 	StyleFloatingText(PromptText, 13, Color::Accent(), 150);
 	PromptText->SetVisibility(Detail);
+
+	// A drop's name pop: the name and its line alone (no curse row: the gun's own label carries the warning).
+	if (bPop)
+	{
+		CurseRow->SetVisibility(ESlateVisibility::Collapsed);
+		FlavorText->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }

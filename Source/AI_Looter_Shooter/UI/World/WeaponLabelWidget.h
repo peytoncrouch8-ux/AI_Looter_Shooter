@@ -35,6 +35,20 @@ public:
 	FText GetCurseText() const;
 	bool IsCurseShown() const;
 
+	/** Its element and effect line ("EMBER · RICOCHET"; empty for a gun with neither), shown from afar in its colour. */
+	FText GetTraitText() const;
+
+	/**
+	 * Makes it a drop's name pop (a Legendary's, ULootFanfareSubsystem): the name alone, big, with its element and effect
+	 * line, popping up (overshooting, settling) and fading out over its last moment. Age and Seconds: how long it has
+	 * shown, of how long it shows.
+	 */
+	void SetPop(float Age, float Seconds);
+
+	/** The pop's size and opacity at Age of Seconds (tests). */
+	static float PopScaleAt(float Age);
+	static float PopOpacityAt(float Age, float Seconds);
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 
@@ -58,6 +72,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CurseText;
 
+	/** Its element and effect, under its name (and its curse); collapsed for a gun with neither. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TraitText;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> StatsText;
 
@@ -75,6 +93,10 @@ private:
 	FText Flavor;
 	FText Curse;
 	FText Stats;
+	FText Trait;
 	FLinearColor NameColor = FLinearColor::White;
+	FLinearColor TraitColor = FLinearColor::White;
 	bool bIsFocused = false;
+	/** A drop's name pop (SetPop): name and trait line only, bigger. */
+	bool bPop = false;
 };

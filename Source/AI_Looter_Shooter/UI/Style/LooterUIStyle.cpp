@@ -245,6 +245,11 @@ namespace LooterUI::Color
 	FLinearColor TierHallowed()      { return Hex(245, 200, 66); }
 	FLinearColor TierEthereal()      { return Hex(255, 59, 59); }
 	FLinearColor TierSoulfed()       { return Hex(255, 153, 0); }
+
+	// The story elements on guns (Phase 12.3), apart from the rarities' and the tiers' colours.
+	FLinearColor ElementEmber()      { return Hex(255, 94, 46); }
+	FLinearColor ElementSoulLight()  { return Hex(255, 230, 166); }
+	FLinearColor ElementGraveSalt()  { return Hex(204, 240, 246); }
 }
 
 // ---------------------------------------------------------------------------

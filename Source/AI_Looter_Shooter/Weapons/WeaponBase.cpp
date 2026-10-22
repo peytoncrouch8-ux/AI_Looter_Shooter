@@ -11,7 +11,9 @@
 #include "UI/World/WeaponLabelWidget.h"
 #include "UI/HUD/HudScopeWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Loot/LootDropMoments.h"
 #include "Weapons/NamedWeaponDefinition.h"
+#include "Weapons/PartEffectComponent.h"
 #include "Weapons/WeaponModelComponent.h"
 #include "Weapons/WeaponParts.h"
 #include "Weapons/WeaponSounds.h"
@@ -312,6 +314,11 @@ void AWeaponBase::OnHolstered()
 {
 	// Put away mid-strike: back in its hold, and nothing the swing held back follows (else it could never fire again).
 	EndMeleeSwing(false);
+	// A wind-up under way is let go, never fired as the gun goes away (StopFire would fire it).
+	if (UPartEffectComponent* Parts = UPartEffectComponent::Find(this))
+	{
+		Parts->CancelCharge();
+	}
 	StopFire();
 	GetWorldTimerManager().ClearTimer(FireTimer);
 	CancelReload();
@@ -406,18 +413,17 @@ void AWeaponBase::SetPickupState(bool bPickup)
 
 void AWeaponBase::RefreshLootBeam()
 {
-	// Commons stay subtle; every tier above throws a taller pillar of its color into the sky.
-	// LOOT-CODE hook (Phase 12.3): the drop moments' beam (taller by rarity, Epic+ ring, Legendary column) reads
-	// LootDropMoments here in place of these numbers.
-	static const float Heights[] = { 0.f, 350.f, 650.f, 1000.f, 1600.f };
-	const float Height = Heights[FMath::Clamp(static_cast<int32>(Instance.Rarity), 0, 4)];
+	// Commons stay subtle; every tier above throws a taller pillar of its color into the sky (the drop moments' numbers,
+	// LootDropMoments: Looter.Loot.Drop.Beam.*; a Legendary's landing adds its column, ULootFanfareSubsystem).
+	const FDropMoment Moment = LootDropMoments::For(Instance.Rarity);
+	const float Height = Moment.BeamHeight;
 	const bool bShow = bIsPickup && Height > 0.f && Instance.Definition;
 	LootBeam->SetVisibility(bShow);
 	if (bShow)
 	{
-		BeamGlow = Instance.Rarity >= EWeaponRarity::Epic ? 3.f : 2.f;
+		BeamGlow = Moment.BeamGlow;
 		BeamHeight = Height;
-		BeamRadius = Instance.Rarity >= EWeaponRarity::Epic ? 9.f : 6.f;
+		BeamRadius = Moment.BeamRadius;
 		LightBeams::Setup(LootBeam, UWeaponRollLibrary::GetRarityColor(Instance.Definition, Instance.Rarity), BeamGlow, BeamHeight, BeamRadius);
 	}
 	// A cursed one's beam gutters, which takes ticking while it lies there.

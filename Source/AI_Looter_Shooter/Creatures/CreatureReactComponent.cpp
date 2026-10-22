@@ -3,6 +3,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureReactSubsystem.h"
 #include "Creatures/CreatureTierLookComponent.h"
+#include "Elements/ElementStatusComponent.h"
 #include "Player/SlideDust.h"
 #include "Weapons/WeaponFX.h"
 #include "Components/MeshComponent.h"
@@ -125,7 +126,11 @@ void UCreatureReactComponent::HandleDamaged(float Damage, bool bCritical, FVecto
 {
 	// A shot gets it going at once: no beat for a creature already hurt.
 	Notice.Stop();
-	FlashHit(bCritical);
+	// A burn's or the salt's piece (twice a second) doesn't flash the body white: its status shows on it instead.
+	if (!UElementStatusComponent::IsDealingNow())
+	{
+		FlashHit(bCritical);
+	}
 }
 
 // ---------------------------------------------------------------------------

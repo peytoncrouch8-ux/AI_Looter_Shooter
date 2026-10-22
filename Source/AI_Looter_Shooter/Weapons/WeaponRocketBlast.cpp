@@ -4,8 +4,11 @@
 #include "Combat/GraveSaltBurst.h"
 #include "Combat/GraveSaltRules.h"
 #include "Combat/HealthComponent.h"
+#include "Combat/BulletSubsystem.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Elements/ElementStatusComponent.h"
 #include "Weapons/GunshotSound.h"
+#include "Weapons/PartEffectComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "CollisionQueryParams.h"
 #include "Components/PrimitiveComponent.h"
@@ -154,8 +157,23 @@ FRocketBlastResult WeaponRocketBlast::Detonate(UWorld* World, const FVector& Cen
 		// The gun's damage, the launcher its causer: the kill is its notch, and the creature's reaction knows the launcher.
 		AActor* Causer = Weapon ? static_cast<AActor*>(Weapon) : BurstSource;
 		UGameplayStatics::ApplyPointDamage(Actor, Target.Damage, Direction, BodyHit, Instigator, Causer, UWeaponDamageType::StaticClass());
-		// LOOT-CODE hook (Phase 12.3): an element on the launcher applies here, per body hurt (its TryApply with Weapon, Actor,
-		// Target.Damage), as UBulletSubsystem's landing does for bullets: rockets never pass through OnBulletLanding.
+		// The launcher's element (its rocket's kind: Incendiary, Saint's, Salt) on each body it hurt, as a bullet's hit sets
+		// it (UPartEffectSubsystem): rockets never pass the bullets' hooks.
+		if (Weapon && !Health->IsDead())
+		{
+			UPartEffectComponent* Parts = UPartEffectComponent::For(*Weapon);
+			const ELooterElement Element = Parts->GetElement();
+			if (Element != ELooterElement::None
+				&& UElementStatusComponent::TryApply(*Actor, Element, Parts->GetElementChance(), Target.Damage, false, FMath::FRand(), Target.Point,
+					Weapon, Instigator))
+			{
+				if (UBulletSubsystem* Bullets = World->GetSubsystem<UBulletSubsystem>())
+				{
+					Bullets->GetEffects().Initialize(World);
+					Bullets->GetEffects().SpawnElementHit(Element, Target.Point, -Direction, Direction, 1.5f, true, false);
+				}
+			}
+		}
 		++Result.Hits;
 		if (Weapon)
 		{

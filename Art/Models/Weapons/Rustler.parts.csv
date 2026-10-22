@@ -1,4 +1,4 @@
-Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax
+Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax,Effect,Element,Model
 Body,Standard,Standard upper,,Common,1,0,,,,,,,,,,,,,,,,,,
 Body,Ironside,Ironside upper,Ironside,Uncommon,1,13,,,,,2,4,,,,,,,,,-9,-3,-6,-2
 Body,Scrapper,Scrapper upper,Scrapped,Uncommon,1,13,,,,,4,8,-6,-2,,,,,,,,,,
@@ -43,3 +43,9 @@ Stock,Telescope,Telescoping stock,Measured,Uncommon,1,10,,,,,,,4,8,,,,,,,-6,-2,,
 Stock,Cheek,Leather cheek wrap,Steady,Rare,1,20,,,,,,,5,11,,,,,,,-6,-2,,
 Stock,Spring,Buffered wire stock,Cushioned,Rare,1,20,,,,,,,,,,,,,,,-21,-9,-7,-3
 Stock,Brass,Brass wire stock,Brassbound,Epic,1,30,,,,,,,,,,,,,,,-14,-6,5,11
+Magazine,Ember40,40-round ember helix,Smoldering,Uncommon,0.35,38,40,,,,-6,-2,,,,,,,,,,,,,,Ember,40
+Magazine,Saint40,40-round saint's helix,Saintlit,Uncommon,0.35,38,40,,,,-6,-2,,,,,,,,,,,,,,SoulLight,40
+Magazine,Salt40,40-round salt helix,Salted,Uncommon,0.35,38,40,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,40
+Barrel,Caromer,Caroming shroud,Caroming,Epic,0.6,39,,,9,,,,2,6,,,,,,,,,,,Ricochet,,Ported
+Body,Triplet,Triplet upper,Triple,Rare,0.5,39,,,,,,,4,8,,,,,,,,,,,Burst,,Vented
+Muzzle,Twinport,Twin-port brake,Twinbore,Epic,0.6,39,,,,,,,,,,,,,,,6,12,,,Twin,,Brake

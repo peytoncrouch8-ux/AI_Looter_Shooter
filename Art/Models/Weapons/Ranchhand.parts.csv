@@ -1,4 +1,4 @@
-Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax
+Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax,Effect,Element,Model
 Body,Standard,Standard receiver,,Common,1,0,,,,,,,,,,,,,,,,,,
 Body,Classic,Classic receiver,Old,Common,1,3,,,,,,,,,,,,,,,3,7,3,7
 Body,Heritage,Heritage receiver,Vintage,Uncommon,1,13,,,,,2,4,2,6,,,,,,,,,,
@@ -48,3 +48,9 @@ Stock,Folding,Folding stock,Folding,Rare,1,20,,,,,,,,,,,,,,,5,11,7,17
 Stock,Saddle,Saddle stock,Saddled,Rare,1,20,,,,,,,2,6,,,,,,,-17,-7,,
 Stock,Mule,Mule stock,Mule,Epic,1,30,,,,,,,4,8,,,,,,,-35,-15,-17,-7
 Pump,Walnut,Walnut pump,,Common,1,0,,,,,,,,,,,,,,,,,,
+Magazine,EmberTube6,6 ember shells,Smoldering,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,Ember,Tube6
+Magazine,SaintTube6,6 saint's shells,Saintlit,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,SoulLight,Tube6
+Magazine,SaltTube6,6 rock-salt shells,Salted,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,Tube6
+Magazine,BlastingTube6,6 blasting shells,Blasting,Epic,0.6,39,6,,,,-8,-4,,,,,,,,,,,,,Explosive,,Tube6
+Muzzle,CaromChoke,Caroming choke,Caroming,Epic,0.6,39,,,,,,,4,8,,,,,,,,,,,Ricochet,,Choke
+Body,Thunder,Thunder receiver,Charged,Epic,0.6,39,,,,,2,6,,,,,,,,,,,,,Overcharge,,Shell

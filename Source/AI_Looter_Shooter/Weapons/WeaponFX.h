@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Elements/LooterElement.h"
 #include "Player/DustLight.h"
 #include "Weapons/CreatureBlood.h"
 #include "Weapons/ImpactSurface.h"
@@ -148,6 +149,38 @@ public:
 	 * (the killing shot's way). Tint is the shell's chitin, the slime's gel, or the soul-light's color. 25 to 30 particles.
 	 */
 	void SpawnDeathBurst(EDeathBurst Kind, const FVector& Center, const FVector& ShotDirection, float Size, const FLinearColor& Tint);
+
+	// --- The elements, the part effects and the loot's drop moments (WeaponFXElements.cpp; Phase 12.3) ---
+
+	/**
+	 * An element gun's round landing on a creature, on top of its splash: Ember a spit of embers and a lick of flame,
+	 * Soul-light white-gold motes and a few short rays, Grave-salt pale crystal glints and a puff of frost. bSet: its status
+	 * was just set (a fuller burst); bWeak: the creature is weak to it (fuller again, brighter). Scale sizes it to the gun.
+	 */
+	void SpawnElementHit(ELooterElement Element, const FVector& Location, const FVector& Normal, const FVector& ShotDirection,
+		float Scale, bool bSet, bool bWeak);
+
+	/**
+	 * Count pieces of a status's look on a body (its Center, Radius and HalfHeight): a burn's embers and flame licks rising,
+	 * a smite's motes gathering in, the salt's crystals dropping off with a breath of frost. Strength: more of it (a third
+	 * burn, a smite near bursting). The status component spawns them at its own rate.
+	 */
+	void SpawnElementAura(ELooterElement Element, const FVector& Center, float Radius, float HalfHeight, int32 Count, float Strength);
+
+	/** A status's burst over a body Size cm across: a smite's light (rays and a flash), a burn's or salt's kill. */
+	void SpawnElementBurst(ELooterElement Element, const FVector& Center, float Size, bool bKill);
+
+	/** A line of the element's light from From to To (a smite leaping to the next of the dead), fading in a moment. */
+	void SpawnElementArc(ELooterElement Element, const FVector& From, const FVector& To);
+
+	/** An Explosive round's burst at Location (Normal its surface's): a hot flash, sparks, a ring of smoke Radius cm out. */
+	void SpawnSplashPop(const FVector& Location, const FVector& Normal, float Radius);
+
+	/** A ring of light flat on the ground round Center, Radius cm out, drawn this frame only (a drop's landing ring). */
+	void AddGroundRing(const FVector& Center, float Radius, float Width, const FLinearColor& Color, float Intensity, int32 Segments = 32);
+
+	/** Count motes of Color rising round Center within Radius (a Legendary's landing). */
+	void SpawnLootMotes(const FVector& Center, float Radius, const FLinearColor& Color, int32 Count);
 
 	/** Advances the particles and redraws everything, turned to face the camera. */
 	void Tick(float DeltaSeconds, const FVector& CameraLocation);

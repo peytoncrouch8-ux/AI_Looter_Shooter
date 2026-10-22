@@ -1865,6 +1865,60 @@ nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in
   person only). GUNS-CODE ran only the new guns' part setup: LOOT-CODE reruns the full `setup_gun_parts.py` after its C++.
 - Packaged builds: `M_GunGauge` is read by path: keep /Game/Art/Materials/Masters cooked.
 
+## Loot: elements, part effects, drop moments (LOOT-CODE, built 2026-10-22)
+
+The user's calls (2026-10-21 night): story elements Ember (burn), Soul-light (vs undead), Grave-salt (slow, vs spirits),
+each status dealing damage and stronger on the monsters weakest to it; part effects that change behaviour; bigger drop
+moments. Code: CODEMAP "Elements", `Weapons/PartEffect*`, `Loot/LootDropMoments`, `LootFanfareShows.cpp`.
+- **Parts**: the parts CSVs gained `Effect`, `Element`, `Model` (Model = an existing key of the same slot whose mesh the row
+  wears until it has its own; `setup_gun_parts.py` reads all three, empty = none). Element parts are Uncommon, weight 0.35,
+  word Smoldering / Saintlit / Salted, NamePriority 38, damage -6..-2%: magazines on Bullpup (Ember30/Saint30/Salt30), Ranchhand
+  (EmberTube6/SaintTube6/SaltTube6), Rustler (Ember40...), Thresher (Ember100...), Longhorn (Ember5...); cylinders on the Drover
+  (Ember6/Saint6/Salt6); Powderkeg rockets (Incendiary = Ember, Saintfire, Saltburst). Effect parts Epic weight 0.6 (a few Rare
+  0.5), NamePriority 39 (an effect's word names the gun over an element's): Caroming (Ricochet), BoreThrough/ThroughAndThrough
+  (Piercing), Triplet (Burst), Twinport/TwinBore6 (Twin), Blasting* (Explosive), Thunder* (Overcharge). A gun's element and
+  effect: its first part in slot order with one (`WeaponParts::ElementOf/EffectOf`). Never rename a key.
+- **Weakness table** (`ElementRules`, by class: spiders incl. Spitter and Gravemother = chitin; slimes = gel; AUnpaidCreature =
+  Unpaid; dead miners, Foreman, Bell-Ringer, Abel = the rest of the dead): Ember weak chitin+gel, resisted by the Unpaid;
+  Soul-light weak Unpaid+dead, resisted by slimes; Grave-salt weak spirits (Warded or Phasing trait, Ethereal tier, an
+  Unpaid's coal = a crit on it), resisted by chitin. A weakness wins. Weak x1.75, Resist x0.5 to the status's damage and
+  chance. The bestiary page shows `WeaknessLine` (accent, under the tier line).
+- **Chance a hit sets it** (per bullet, `Looter.Element.Chance.*`): rifle 0.20, shotgun pellet 0.07, revolver 0.28, SMG 0.15,
+  sniper 0.35, LMG 0.17, rocket 0.5 a body; +0.02 a rarity step past Uncommon; at most 0.9.
+- **Statuses** (`FElementStatus`, pieces every 0.5 s, the last as it ends, so the share is exact): Ember 40% of the hit over 3 s,
+  up to 3 burns (a 4th replaces the weakest if stronger); Soul-light 60% of the hit 1 s later, up to 4 waiting (more gathers into
+  the last), leaps for half to the nearest of the dead within 4 m; Grave-salt 25% over 4 s and speed x0.7 (UMovementSlowComponent),
+  one salting (the stronger and longer kept); a bullet on a salted creature's standing ward x1.5. Bosses: half the time (half a
+  smite), never slowed. Damage types `UEmberElementDamageType`, `USoulLightElementDamageType`, salt deals the grenade's
+  `UGraveSaltDamageType`; the causer is the gun that set it (its notch). A piece never flashes the body white
+  (`IsDealingNow`, CreatureReactComponent): the status's look shows instead.
+- **Looks** (FWeaponFX, no lights): every element hit spits its colour (embers and a flame lick / white-gold motes and rays /
+  salt crystals and frost), fuller when the status is set, fuller and brighter on a weak creature; tracers lean 55% to the
+  element's colour. Burning: embers and licks (24/s x sqrt(burns)) and a flickering fire-glow; smiting: motes drawn in, a
+  pulsing heart-glow, then a burst; salted: crystals dropping and a pale sheen. Body glows sit on the body's near side
+  (at the heart the body hid them, 2026-10-22).
+- **Effects** (`UPartEffectSubsystem` on the bullet hooks; `Looter.PartEffect.*`): Ricochet: any hit bounces once to the
+  nearest creature in sight within 8 m (3 looks), 60% damage, gen 1 makes no more. Piercing: on through 1 creature, 85% after.
+  Explosive: 60% to what it hit, 40% splashed r 150 (edge 0.3 of the middle; what it hit too, never the shooter, never through
+  walls), a pop (`Weapon.Launcher.Explosion` at 0.3 volume, pitch 1.6, 80 ms apart). Twin: two bullets 0.8° apart, 65% each,
+  one round. Burst: 3 rounds 0.6x the interval apart, 1.8x between pulls. Overcharge: semi-auto, a pull winds 0.6 s and fires
+  x2 (let go early: what it reached), cycling at half rate; holster or reload drops the charge. Trigger side:
+  `WeaponTrigger::PlanFor` in AWeaponBase (StartFireAt, StopFire, HandleFiring).
+- **Drop moments** (`LootDropMoments`, `Looter.Loot.Drop.*`): beams 450 / 900 / 1400 / 2200 cm (was 350 / 650 / 1000 / 1600),
+  glow 2/2/3/3, radius 6/6/9/11; Rare+ stinger at landing (Epic+ flat); Epic+ spin 900°/s easing over 0.9 s and a ground ring
+  (Epic 260, Legendary 420 cm, 0.7 s); Legendary: `Loot.Drop.Legendary` the moment it drops, the world at 0.3 for 0.25 s (only
+  from full speed: never in Sundown or a boss's death slow), and on landing `Loot.Drop.Legendary.Land`, a 45 m column (r 30,
+  glow 3, stays while it lies there), its name popping up 150 cm over it for 4.5 s (the label's `SetPop`), 24 motes.
+- **Dev**: `Looter.Element.Apply <Ember|SoulLight|GraveSalt|off> [radius m] [every s] [hit damage]`; `Looter.GiveWeapon
+  Revolver Epic 5 Cylinder=Salt6` picks parts; `Looter.Feedback.Drop <Rarity>`.
+- **Checked in PIE (2026-10-22)**: Ember on spiders (weak, burns read, ticks 9), Grave-salt on a Warded Unpaid (weak), Soul-light
+  on the Unpaid (weak, smite killed one), Ember on a slime (weak), Soul-light on slimes never came up in ~8 hits (resist: 0.15);
+  Ricochet bounced off a wall into a spider; Explosive splash hurt a second spider; Twin SMG; Rare/Epic/Legendary drops.
+  Perf RR town, 8 spiders all burning (re-applied every 2 s): 7.6 ms, p95 8.2.
+- **Not done**: a status kill gets the gun's kill knock (CreatureHitReactionComponent::KindOf reads the causer); element
+  damage numbers aren't element-coloured; element parts wear other parts' models (the gun's glow isn't tinted by element).
+  Tests: `Looter.Elements.*`, `Looter.PartEffects.*`, `Looter.Loot.DropMoments.*`.
+
 ## Fight: AI (FIGHT-AI, written 2026-10-21, unbuilt and untested in play)
 
 The user's calls (Saved/Fight/CONTRACT.md): packs surround and take turns, ranged kinds use their range, Borderlands-normal

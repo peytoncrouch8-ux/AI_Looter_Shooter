@@ -7,6 +7,7 @@
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/GunshotSound.h"
+#include "Weapons/PartEffectComponent.h"
 #include "Weapons/WeaponSounds.h"
 #include "Weapons/WeaponTrigger.h"
 #include "Affixes/WeaponRollLibrary.h"
@@ -81,22 +82,33 @@ void AWeaponBase::StartFireAt(double Now)
 	// comes just before the gun is ready, and only once (WeaponTrigger::Decide): clicks made earlier are lost, so spamming
 	// never stacks shots that go off after the clicking has stopped.
 	FTimerManager& Timers = GetWorldTimerManager();
+	// A part effect's say over the trigger (Phase 12.3, WeaponTrigger::PlanFor): a Burst part's three rounds and pause, an
+	// Overcharge part's wind-up at half the rate; any other gun's plan is its definition's.
+	const WeaponTrigger::FTriggerPlan Trigger = WeaponTrigger::PlanFor(Instance);
 	// In the world's seconds: a shooter living faster than the world (Sundown) cycles the gun in fewer of them. An LMG
 	// still spinning up fires slower (GetShotInterval).
-	const double Interval = GetShotInterval() / GetOwnerTimeScale();
+	const double Interval = GetShotInterval() * Trigger.PullIntervalScale / GetOwnerTimeScale();
 	const double SecondsUntilReady = Interval - (Now - LastFireTime);
-	const WeaponTrigger::EPress Press = WeaponTrigger::Decide(Instance.Definition->FireMode, SecondsUntilReady, Timers.IsTimerActive(FireTimer));
-	if (Press == WeaponTrigger::EPress::Ignore)
+	const WeaponTrigger::EPress Press = WeaponTrigger::Decide(Trigger.FireMode, SecondsUntilReady, Timers.IsTimerActive(FireTimer));
+	// An Overcharge pull winds up from the press itself: one made before the gun is ready is lost, never a charge that
+	// starts late on its own.
+	if (Press == WeaponTrigger::EPress::Ignore || (Trigger.ChargeSeconds > 0.f && Press != WeaponTrigger::EPress::FireNow))
 	{
 		return;
 	}
 
-	if (Instance.Definition->FireMode == EWeaponFireMode::Burst)
+	if (Trigger.FireMode == EWeaponFireMode::Burst)
 	{
-		BurstShotsRemaining = Instance.Definition->BurstCount;
+		BurstShotsRemaining = Trigger.BurstCount;
 	}
 
-	if (Press == WeaponTrigger::EPress::FireNow)
+	if (Press == WeaponTrigger::EPress::FireNow && Trigger.ChargeSeconds > 0.f)
+	{
+		// Held, it fires charged (x2) when the wind-up is done; let go sooner, it fires what it has (StopFire).
+		UPartEffectComponent::For(*this)->BeginCharge();
+		Timers.SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, Trigger.ChargeSeconds / GetOwnerTimeScale(), false);
+	}
+	else if (Press == WeaponTrigger::EPress::FireNow)
 	{
 		HandleFiring();
 	}
@@ -122,7 +134,19 @@ void AWeaponBase::StopFire()
 	// Without a world (its holder ending play as the world is collected) there's no timer left to clear: asking for the
 	// timer manager then crashed the editor between test batches.
 	UWorld* World = GetWorld();
-	if (World && Instance.Definition && Instance.Definition->FireMode == EWeaponFireMode::FullAuto)
+	if (!World || !Instance.Definition)
+	{
+		return;
+	}
+	// An Overcharge gun let go mid wind-up fires at the charge it reached (UPartEffectComponent::TakeChargeScale).
+	UPartEffectComponent* Parts = UPartEffectComponent::Find(this);
+	if (Parts && Parts->IsCharging() && World->GetTimerManager().IsTimerActive(FireTimer))
+	{
+		World->GetTimerManager().ClearTimer(FireTimer);
+		HandleFiring();
+		return;
+	}
+	if (WeaponTrigger::PlanFor(Instance).FireMode == EWeaponFireMode::FullAuto)
 	{
 		World->GetTimerManager().ClearTimer(FireTimer);
 	}
@@ -143,8 +167,9 @@ void AWeaponBase::HandleFiring()
 		return;
 	}
 
-	// LOOT-CODE hook (Phase 12.3): a part effect's plan for this pull (its PlanFor: Burst's three rounds, Overcharge's held charge,
-	// x2 damage at half the rate) goes here, beside the curse's plan below, before the shot is fired.
+	// A part effect's plan for this pull (WeaponTrigger::PlanFor: a Burst part's rounds and their gap; StartFireAt winds an
+	// Overcharge's charge, which the bullets take as the shot goes: UPartEffectSubsystem).
+	const WeaponTrigger::FTriggerPlan Trigger = WeaponTrigger::PlanFor(Instance);
 	// A cursed iron's drawback acts on the trigger: Greedy spends two rounds a shot (or the last one alone), and Unlucky
 	// now and then drops the hammer on a dud. Either way the shot takes its time and its rounds.
 	const WeaponCurseEffects::FShotPlan Plan = WeaponCurseEffects::PlanShot(Instance, CurrentMagazine, ShotRolls);
@@ -155,6 +180,11 @@ void AWeaponBase::HandleFiring()
 	else
 	{
 		FireShot();
+	}
+	// The wind-up is spent with the shot (a bullet took its charge; a dud or a rocket lets it go).
+	if (UPartEffectComponent* Parts = UPartEffectComponent::Find(this))
+	{
+		Parts->CancelCharge();
 	}
 	CurrentMagazine = FMath::Max(CurrentMagazine - Plan.Rounds, 0);
 	// A six-gun keeps its empties (a dud's too) until a reload tips them out.
@@ -186,7 +216,7 @@ void AWeaponBase::HandleFiring()
 	}
 
 	bool bContinue = false;
-	switch (Instance.Definition->FireMode)
+	switch (Trigger.FireMode)
 	{
 	case EWeaponFireMode::FullAuto:
 		bContinue = bWantsToFire;
@@ -200,7 +230,8 @@ void AWeaponBase::HandleFiring()
 
 	if (bContinue)
 	{
-		GetWorldTimerManager().SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, GetShotInterval() / GetOwnerTimeScale(), false);
+		const float Gap = Trigger.FireMode == EWeaponFireMode::Burst ? Trigger.BurstIntervalScale : 1.f;
+		GetWorldTimerManager().SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, GetShotInterval() * Gap / GetOwnerTimeScale(), false);
 	}
 }
 

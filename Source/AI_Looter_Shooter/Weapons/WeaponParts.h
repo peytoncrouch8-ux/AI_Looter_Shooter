@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Elements/LooterElement.h"
+#include "Weapons/PartEffect.h"
 #include "Weapons/WeaponTypes.h"
 #include "WeaponParts.generated.h"
 
@@ -130,6 +132,17 @@ struct AI_LOOTER_SHOOTER_API FWeaponPartOption
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
 	int32 NamePriority = 0;
+
+	/**
+	 * What it makes the gun do beyond its numbers (a bounce, a burst, a blast, a round through, a charge, two bullets):
+	 * Epic parts and a few Rare (the spreadsheet's Effect column). A gun has one at most: its first part with one.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	EPartEffect Effect = EPartEffect::None;
+
+	/** The story element it gives the gun's rounds (Ember, Soul-light, Grave-salt; the spreadsheet's Element column). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	ELooterElement Element = ELooterElement::None;
 };
 
 /** A place on the gun that one part fills: the roll's seed picks one of the options the gun's rarity allows. */
@@ -261,6 +274,14 @@ namespace WeaponParts
 	 */
 	AI_LOOTER_SHOOTER_API float Wear(const FWeaponInstanceData& Instance);
 	inline constexpr int32 WearDataIndex = 0;
+
+	/** The gun's part effect: its first part (in slot order) that carries one; None when none does. */
+	AI_LOOTER_SHOOTER_API EPartEffect EffectOf(const FWeaponLook& Look);
+	AI_LOOTER_SHOOTER_API EPartEffect EffectOf(const FWeaponInstanceData& Instance);
+
+	/** The gun's element: its first part (in slot order) that carries one; None when none does. */
+	AI_LOOTER_SHOOTER_API ELooterElement ElementOf(const FWeaponLook& Look);
+	AI_LOOTER_SHOOTER_API ELooterElement ElementOf(const FWeaponInstanceData& Instance);
 
 	/** How strongly a gun's rarity parts glow: commons faintly. */
 	AI_LOOTER_SHOOTER_API float RarityGlow(EWeaponRarity Rarity);

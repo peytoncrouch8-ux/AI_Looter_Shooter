@@ -76,6 +76,7 @@ void UBulletSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UBulletSubsystem::Deinitialize()
 {
 	Bullets.Reset();
+	HeldShots.Reset();
 	const UWorld* World = GetWorld();
 	if (!World || !World->bIsTearingDown)
 	{
@@ -127,6 +128,38 @@ void UBulletSubsystem::Fire(const FBulletShot& FiredShot)
 		// Instant: the whole flight happens now (the tracer still flashes along it this frame).
 		Advance(Bullet, 0.f);
 	}
+	// What its hit's listeners fired meanwhile (a ricochet's bounce off an instant shot) goes now.
+	if (AdvanceDepth == 0)
+	{
+		FireHeld();
+	}
+}
+
+void UBulletSubsystem::FireSoon(const FBulletShot& Shot)
+{
+	// While bullets are being moved the list may not grow under them: held until their move is done.
+	if (AdvanceDepth > 0)
+	{
+		HeldShots.Add(Shot);
+		return;
+	}
+	Fire(Shot);
+}
+
+void UBulletSubsystem::FireHeld()
+{
+	// A held shot's own hit may hold another (each effect makes only one more generation, so this ends at once); the cap
+	// is only a guard.
+	for (int32 Round = 0; Round < 4 && !HeldShots.IsEmpty(); ++Round)
+	{
+		TArray<FBulletShot> Shots = MoveTemp(HeldShots);
+		HeldShots.Reset();
+		for (const FBulletShot& Shot : Shots)
+		{
+			Fire(Shot);
+		}
+	}
+	HeldShots.Reset();
 }
 
 void UBulletSubsystem::EjectCasing(const FCasingLaunch& Launch)
@@ -150,6 +183,8 @@ void UBulletSubsystem::Tick(float DeltaTime)
 			Advance(Bullet, DeltaTime * (Shooter ? FMath::Max(Shooter->CustomTimeDilation, 0.f) : 1.f));
 		}
 	}
+	// Bounces and the like their hits fired fly from this frame on.
+	FireHeld();
 
 	// Nothing flying, nothing drawn and no brass about: most of the game, at no cost.
 	if (Bullets.IsEmpty() && Effects.IsIdle() && Brass.IsIdle())
@@ -173,51 +208,86 @@ void UBulletSubsystem::Tick(float DeltaTime)
 
 void UBulletSubsystem::Advance(FBullet& Bullet, float DeltaSeconds)
 {
+	// A hit's listeners may fire more bullets meanwhile (FireSoon holds them till this is done).
+	TGuardValue<int32> Moving(AdvanceDepth, AdvanceDepth + 1);
 	UWorld* World = GetWorld();
-	const FBulletShot& Shot = Bullet.Shot;
-	const float Step = Shot.Speed > 0.f ? Shot.Speed * DeltaSeconds : Shot.Range;
-	const float Distance = FMath::Min(Step, Shot.Range - Bullet.Traveled);
-	const FVector From = Bullet.Position;
-	const FVector To = From + Shot.Direction * Distance;
+	const float Step = Bullet.Shot.Speed > 0.f ? Bullet.Shot.Speed * DeltaSeconds : Bullet.Shot.Range;
+	float Left = FMath::Min(Step, Bullet.Shot.Range - Bullet.Traveled);
 
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(BulletTrace), /*bTraceComplex*/ true);
-	Params.bReturnPhysicalMaterial = true;
-	// The face it hits names the material there, which picks the impact's sound (ImpactCueOf).
-	Params.bReturnFaceIndex = true;
-	if (AActor* Shooter = Shot.Shooter.Get())
+	// Most bullets take one trace and stop at what they hit. A round flying on through (Piercing) traces on from there for
+	// the rest of its step, past what it went through.
+	for (int32 Pass = 0; Pass < 4; ++Pass)
 	{
-		Params.AddIgnoredActor(Shooter);
-	}
-	if (AWeaponBase* Weapon = Shot.Weapon.Get())
-	{
-		Params.AddIgnoredActor(Weapon);
-	}
+		const FBulletShot& Shot = Bullet.Shot;
+		const FVector From = Bullet.Position;
+		const FVector To = From + Shot.Direction * Left;
 
-	FHitResult Hit;
-	const bool bHit = World && Distance > 0.f && World->LineTraceSingleByChannel(Hit, From, To, Shot.Channel, Params);
-	if (Shot.bDrawDebug && World)
-	{
-		DrawDebugLine(World, From, bHit ? Hit.ImpactPoint : To, bHit ? FColor::Red : FColor::Green, false, 1.f, 0, 0.5f);
-		if (bHit)
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(BulletTrace), /*bTraceComplex*/ true);
+		Params.bReturnPhysicalMaterial = true;
+		// The face it hits names the material there, which picks the impact's sound (ImpactCueOf).
+		Params.bReturnFaceIndex = true;
+		if (AActor* Shooter = Shot.Shooter.Get())
 		{
-			DrawDebugPoint(World, Hit.ImpactPoint, 8.f, FColor::Red, false, 1.f);
+			Params.AddIgnoredActor(Shooter);
+		}
+		if (AWeaponBase* Weapon = Shot.Weapon.Get())
+		{
+			Params.AddIgnoredActor(Weapon);
+		}
+		if (AActor* Ignored = Shot.IgnoreActor.Get())
+		{
+			Params.AddIgnoredActor(Ignored);
+		}
+		for (const TWeakObjectPtr<AActor>& Through : Bullet.Passed)
+		{
+			if (AActor* Actor = Through.Get())
+			{
+				Params.AddIgnoredActor(Actor);
+			}
+		}
+
+		FHitResult Hit;
+		const bool bHit = World && Left > 0.f && World->LineTraceSingleByChannel(Hit, From, To, Shot.Channel, Params);
+		if (Shot.bDrawDebug && World)
+		{
+			DrawDebugLine(World, From, bHit ? Hit.ImpactPoint : To, bHit ? FColor::Red : FColor::Green, false, 1.f, 0, 0.5f);
+			if (bHit)
+			{
+				DrawDebugPoint(World, Hit.ImpactPoint, 8.f, FColor::Red, false, 1.f);
+			}
+		}
+
+		if (!bHit)
+		{
+			Bullet.Position = To;
+			Bullet.Traveled += Left;
+			Bullet.bSpent = Bullet.Traveled >= Shot.Range - UE_KINDA_SMALL_NUMBER;
+			return;
+		}
+		const float Moved = (Hit.ImpactPoint - From).Size();
+		Bullet.Position = Hit.ImpactPoint;
+		Bullet.Traveled += Moved;
+		Left = FMath::Max(Left - Moved, 0.f);
+		Bullet.bSpent = true;
+		const FBulletStrike Strike = ResolveHit(Bullet, Hit);
+		AActor* Struck = Hit.GetActor();
+		if (!Strike.bPassThrough || !Struck)
+		{
+			return;
+		}
+		// On through it, weaker for it, and never into it again (the rest of its step now, or next frame).
+		Bullet.bSpent = Bullet.Traveled >= Bullet.Shot.Range - UE_KINDA_SMALL_NUMBER;
+		Bullet.Passed.Add(Struck);
+		Bullet.Shot.PierceLeft = FMath::Max(Bullet.Shot.PierceLeft - 1, 0);
+		Bullet.Shot.Damage *= FMath::Max(Strike.PassDamageScale, 0.f);
+		if (Bullet.bSpent || Left <= 0.f)
+		{
+			return;
 		}
 	}
-
-	if (bHit)
-	{
-		Bullet.Position = Hit.ImpactPoint;
-		Bullet.Traveled += (Hit.ImpactPoint - From).Size();
-		Bullet.bSpent = true;
-		ResolveHit(Bullet, Hit);
-		return;
-	}
-	Bullet.Position = To;
-	Bullet.Traveled += Distance;
-	Bullet.bSpent = Bullet.Traveled >= Shot.Range - UE_KINDA_SMALL_NUMBER;
 }
 
-void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
+FBulletStrike UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 {
 	const FBulletShot& Shot = Bullet.Shot;
 	AActor* HitActor = Hit.GetActor();
@@ -292,6 +362,14 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 		Weapon->NotifyBulletHit(Hit, Damage, bCritical);
 	}
 	OnBulletHit.Broadcast(Hit, Damage, bCritical);
+
+	// The gun's parts have their say last (its element's status, a bounce, a splash, flying on through).
+	FBulletStrike Strike;
+	Strike.Damage = Damage;
+	Strike.bCritical = bCritical;
+	Strike.Traveled = Bullet.Traveled;
+	OnBulletStruck.Broadcast(Shot, Hit, Strike);
+	return Strike;
 }
 
 void UBulletSubsystem::LayThread(FBullet& Bullet)

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Elements/ElementRules.h"
 #include "Weapons/NamedWeaponDefinition.h"
+#include "Weapons/PartEffectRules.h"
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponNotches.h"
@@ -95,6 +97,39 @@ namespace LooterWeaponText
 	inline FString FireModeName(const FWeaponInstanceData& Instance)
 	{
 		return Instance.Definition ? UEnum::GetDisplayValueAsText(Instance.Definition->FireMode).ToString() : FString();
+	}
+
+	// --- Its element and part effect (Phase 12.3): cards and labels ---
+
+	/** "EMBER", "SOUL-LIGHT", "GRAVE-SALT"; empty for a gun without one. */
+	inline FString ElementString(const FWeaponInstanceData& Instance)
+	{
+		return ElementRules::Word(WeaponParts::ElementOf(Instance));
+	}
+
+	/** "RICOCHET", "BURST"...; empty for a gun without one. */
+	inline FString EffectString(const FWeaponInstanceData& Instance)
+	{
+		return PartEffectRules::Word(WeaponParts::EffectOf(Instance));
+	}
+
+	/** Both, for a label's one line: "EMBER · RICOCHET", "GRAVE-SALT", "TWIN"; empty for a gun with neither. */
+	inline FString TraitLine(const FWeaponInstanceData& Instance)
+	{
+		const FString Element = ElementString(Instance);
+		const FString Effect = EffectString(Instance);
+		if (Element.IsEmpty() || Effect.IsEmpty())
+		{
+			return Element + Effect;
+		}
+		return Element + TEXT(" · ") + Effect;
+	}
+
+	/** The line's colour: its element's (LooterUI::Color::Element*), or the kit's accent for an effect alone. */
+	inline FLinearColor TraitColor(const FWeaponInstanceData& Instance)
+	{
+		const ELooterElement Element = WeaponParts::ElementOf(Instance);
+		return Element == ELooterElement::None ? LooterUI::Color::Accent() : ElementRules::UiColor(Element);
 	}
 
 	/** 0-1 ratings for stat bars (rough scale across all weapon types). */

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Weapons/PartEffect.h"
+#include "Weapons/PartEffectTuning.h"
 #include "Weapons/WeaponTypes.h"
 
 /**
@@ -30,4 +32,29 @@ namespace WeaponTrigger
 	 * whether a shot is already on its way (a buffered press, auto fire or the rest of a burst).
 	 */
 	EPress Decide(EWeaponFireMode FireMode, double SecondsUntilReady, bool bShotWaiting);
+
+	/**
+	 * How a gun's trigger works once its part effect has its say (Phase 12.3): a Burst part makes any gun fire bursts
+	 * (BurstCount rounds BurstIntervalScale times its interval apart, PullIntervalScale times it between pulls); an
+	 * Overcharge part makes it semi-auto, each pull winding up ChargeSeconds before it fires, the gun cycling at
+	 * OverchargeFireRate of its rate. Any other gun works as its definition says (scales 1, no charge).
+	 * AWeaponBase uses it in place of its definition's FireMode and BurstCount (StartFireAt, HandleFiring, StopFire).
+	 */
+	struct FTriggerPlan
+	{
+		EWeaponFireMode FireMode = EWeaponFireMode::SemiAuto;
+		int32 BurstCount = 0;
+		/** Times the gun's interval between pulls (a burst's pause; an Overcharge's slower cycle). */
+		float PullIntervalScale = 1.f;
+		/** Times the gun's interval between a burst's rounds. */
+		float BurstIntervalScale = 1.f;
+		/** A pull winds up this long before it fires (0: it fires at once). */
+		float ChargeSeconds = 0.f;
+	};
+
+	/** The plan for a gun of DefinitionMode (and DefinitionBurst rounds a burst) with Effect on its parts. */
+	FTriggerPlan PlanFor(EWeaponFireMode DefinitionMode, int32 DefinitionBurst, EPartEffect Effect, const FPartEffectTuning& Tuning);
+
+	/** The plan for a rolled gun, with the live tuning. */
+	FTriggerPlan PlanFor(const FWeaponInstanceData& Instance);
 }

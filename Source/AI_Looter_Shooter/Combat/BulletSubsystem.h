@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Combat/CombatRules.h"
+#include "Elements/LooterElement.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Weapons/PartEffect.h"
 #include "Weapons/BulletMarks.h"
 #include "Weapons/ImpactSurface.h"
 #include "Weapons/WeaponBrass.h"
@@ -58,6 +60,34 @@ struct FBulletShot
 	 * OnBulletHit still reports where it struck, with 0 damage (the fauna scatter at a shot's landing all the same).
 	 */
 	bool bBlank = false;
+
+	// --- The gun's parts' say (UPartEffectSubsystem stamps these as the shot is fired, from the gun's parts) ---
+
+	/** The story element its rounds carry, and the chance (before the target's weakness) each hit sets its status. */
+	ELooterElement Element = ELooterElement::None;
+	float ElementChance = 0.f;
+	/** What its gun's part makes it do (a bounce, a blast, a round through...). */
+	EPartEffect Effect = EPartEffect::None;
+	/** 0: a gun's own round; 1: one an effect made (a ricochet's bounce, a twin's second), which makes no more. */
+	uint8 EffectGeneration = 0;
+	/** Creatures it may still fly on through (Piercing). */
+	int32 PierceLeft = 0;
+	/** An actor it never hits: the creature a ricochet bounced off. */
+	TWeakObjectPtr<AActor> IgnoreActor;
+};
+
+/** A bullet has dealt its hit (UBulletSubsystem::OnBulletStruck): what it dealt, and whether it flies on. */
+struct FBulletStrike
+{
+	/** The damage it dealt (before the target's own defense), critical or not; 0 for a blank. */
+	float Damage = 0.f;
+	bool bCritical = false;
+	/** How far it had flown (cm). */
+	float Traveled = 0.f;
+	/** A listener says it flies on through what it hit (a Piercing round through a creature). */
+	bool bPassThrough = false;
+	/** And with this share of its damage from here on. */
+	float PassDamageScale = 1.f;
 };
 
 /** A bullet landing, before its damage is dealt (UBulletSubsystem::OnBulletLanding): what a power may change. */
@@ -75,6 +105,8 @@ struct FBulletLanding
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBulletFiring, FBulletShot& /*Shot*/);
 /** A bullet has met something and its damage is about to be rolled: the shot, the hit and what may change. */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnBulletLanding, const FBulletShot& /*Shot*/, const FHitResult& /*Hit*/, FBulletLanding& /*Landing*/);
+/** A bullet's hit has been dealt: the shot, the hit and what it dealt; a listener may let it fly on (FBulletStrike::bPassThrough). */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnBulletStruck, const FBulletShot& /*Shot*/, const FHitResult& /*Hit*/, FBulletStrike& /*Strike*/);
 
 /**
  * Bullets in flight. Each fired bullet is a real projectile: it travels along the shooter's aim at its gun's bullet
@@ -100,6 +132,12 @@ class AI_LOOTER_SHOOTER_API UBulletSubsystem : public UTickableWorldSubsystem
 
 public:
 	void Fire(const FBulletShot& Shot);
+
+	/**
+	 * Fires Shot as soon as it's safe: now, or (asked while the bullets are being moved: a hit's listener firing a
+	 * ricochet's bounce) the moment their move is done, the same frame.
+	 */
+	void FireSoon(const FBulletShot& Shot);
 
 	int32 NumBulletsInFlight() const;
 
@@ -149,6 +187,13 @@ public:
 	FOnBulletFiring OnBulletFiring;
 	FOnBulletLanding OnBulletLanding;
 
+	/**
+	 * The guns' parts' say after a hit is dealt (UPartEffectSubsystem: elements, ricochets, splashes, rounds flying on):
+	 * every hit passes it, a blank's too (with 0 damage). A listener may let the bullet fly on through (bPassThrough);
+	 * one that fires more bullets fires them with FireSoon.
+	 */
+	FOnBulletStruck OnBulletStruck;
+
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UBulletSubsystem, STATGROUP_Tickables); }
@@ -173,6 +218,8 @@ private:
 		/** One of its volley's first pellets: it leaves a smoke thread, laid as far as ThreadLaid (cm along its flight). */
 		bool bThread = false;
 		float ThreadLaid = 0.f;
+		/** What it has flown on through (Piercing): never hit again. */
+		TArray<TWeakObjectPtr<AActor>, TInlineAllocator<2>> Passed;
 	};
 
 	/** How many marks one volley has left so far. */
@@ -183,7 +230,10 @@ private:
 	};
 
 	void Advance(FBullet& Bullet, float DeltaSeconds);
-	void ResolveHit(const FBullet& Bullet, const FHitResult& Hit);
+	/** Deals the hit; returns what the hit's listeners said (it flies on, and how strongly). */
+	FBulletStrike ResolveHit(const FBullet& Bullet, const FHitResult& Hit);
+	/** Fires what FireSoon held back while the bullets were being moved. */
+	void FireHeld();
 	// BulletSubsystemImpacts.cpp: how a hit looks and sounds.
 	/** A glancing hit off stone, gravel or metal that goes off (about half of those under RicochetSquare). */
 	static bool RollRicochet(const FHitResult& Hit, EImpactMaterial Material, const FVector& ShotDirection);
@@ -198,6 +248,9 @@ private:
 	FVector GetCameraLocation() const;
 
 	TArray<FBullet> Bullets;
+	/** Moving bullets now (Advance, however deep): FireSoon holds its shots back until it's done (the array may grow). */
+	int32 AdvanceDepth = 0;
+	TArray<FBulletShot> HeldShots;
 	FWeaponFX Effects;
 	FBulletMarks Marks;
 	FWeaponBrass Brass;

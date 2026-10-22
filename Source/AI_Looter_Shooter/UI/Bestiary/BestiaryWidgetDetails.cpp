@@ -5,6 +5,7 @@
 #include "Bestiary/BestiaryEntry.h"
 #include "Bestiary/BestiaryTiers.h"
 #include "Bestiary/Ledger.h"
+#include "Elements/ElementRules.h"
 #include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressData.h"
 #include "Session/CampaignRecord.h"
@@ -190,6 +191,14 @@ void UBestiaryWidget::RefreshDetails()
 			UVerticalBoxSlot* TierSlot = DetailsBox->AddChildToVerticalBox(MakeTierLine(WidgetTree, Tiers));
 			TierSlot->SetHorizontalAlignment(HAlign_Right);
 			TierSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+		}
+		// Which story elements bite it and which it shrugs off (the elements' weakness table, ElementRules).
+		const FString Weakness = ElementRules::WeaknessLine(Entry->ActorClass.LoadSynchronous());
+		if (!Weakness.IsEmpty())
+		{
+			UTextBlock* WeaknessText = Label(WidgetTree, Weakness, 9, Color::Accent(), 120);
+			WeaknessText->SetAutoWrapText(true);
+			DetailsBox->AddChildToVerticalBox(WeaknessText)->SetPadding(FMargin(0.f, 4.f, 0.f, 4.f));
 		}
 	}
 

@@ -1,13 +1,19 @@
 #include "Loot/LootFanfareSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
+#include "Loot/LootDropMoments.h"
 #include "Loot/LootTossComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurses.h"
 #include "World/LightBeam.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/WorldSettings.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+
+// ULootFanfareSubsystem: a drop's sounds, its beam's flare, its announcement and a Legendary's slow-down. The landing
+// shows (spin, ring, column, name pop) are in LootFanfareShows.cpp.
 
 bool ULootFanfareSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
@@ -15,12 +21,24 @@ bool ULootFanfareSubsystem::DoesSupportWorldType(const EWorldType::Type WorldTyp
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE || WorldType == EWorldType::EditorPreview;
 }
 
+void ULootFanfareSubsystem::Deinitialize()
+{
+	EndSlowDown();
+	ClearShows();
+	Super::Deinitialize();
+}
+
 void ULootFanfareSubsystem::ExpectLanding(AWeaponBase* Weapon)
 {
 	UWorld* World = Weapon ? Weapon->GetWorld() : nullptr;
 	if (ULootFanfareSubsystem* Fanfare = World ? World->GetSubsystem<ULootFanfareSubsystem>() : nullptr)
 	{
-		Fanfare->Expected.Add({ Weapon, 0.f });
+		FExpected& Each = Fanfare->Expected.AddDefaulted_GetRef();
+		Each.Weapon = Weapon;
+		bool bStung = false;
+		Fanfare->Dropped(*Weapon, bStung);
+		// (Dropped adds nothing to Expected, so Each still stands.)
+		Fanfare->Expected.Last().bStung = bStung;
 	}
 }
 
@@ -53,10 +71,28 @@ bool ULootFanfareSubsystem::IsAnnounced(EWeaponRarity Rarity)
 
 void ULootFanfareSubsystem::Tick(float DeltaTime)
 {
-	if (Expected.IsEmpty() && Flaring.IsEmpty())
+	Advance(DeltaTime);
+}
+
+void ULootFanfareSubsystem::Advance(float DeltaTime)
+{
+	// A drop's breath of slow ends on the world's real clock (the slowed one would stretch it).
+	const UWorld* World = GetWorld();
+	if (SlowEndsAt >= 0.0)
+	{
+		SlowLeft -= DeltaTime / FMath::Max(SlowDilation, 0.05f);
+		if (!World || World->GetRealTimeSeconds() >= SlowEndsAt || SlowLeft <= 0.f)
+		{
+			EndSlowDown();
+		}
+	}
+	if (Expected.IsEmpty() && Flaring.IsEmpty() && Spins.IsEmpty() && Rings.IsEmpty() && Columns.IsEmpty() && NamePops.IsEmpty())
 	{
 		return;
 	}
+
+	// The shows under way first, so one a landing starts below begins at its start this frame.
+	AdvanceShows(DeltaTime);
 
 	// Drops in the air: landed once their toss has stopped (it lets go of the gun then).
 	for (int32 Index = Expected.Num() - 1; Index >= 0; --Index)
@@ -73,8 +109,9 @@ void ULootFanfareSubsystem::Tick(float DeltaTime)
 		const ULootTossComponent* Toss = Weapon->FindComponentByClass<ULootTossComponent>();
 		if (!Toss || !Toss->UpdatedComponent || Each.Waited >= LandingTimeout)
 		{
+			const bool bStung = Each.bStung;
 			Expected.RemoveAtSwap(Index);
-			Land(*Weapon);
+			Land(*Weapon, bStung);
 		}
 	}
 
@@ -97,15 +134,61 @@ void ULootFanfareSubsystem::Tick(float DeltaTime)
 	}
 }
 
-void ULootFanfareSubsystem::Land(AWeaponBase& Weapon)
+void ULootFanfareSubsystem::Dropped(AWeaponBase& Weapon, bool& bOutStung)
+{
+	bOutStung = false;
+	const FDropMoment Moment = LootDropMoments::For(Weapon.GetRarity());
+	if (!Moment.bStingerAtDrop)
+	{
+		return;
+	}
+	// A Legendary is felt before it's seen: its sting now, wherever the player looks...
+	if (!Moment.Stinger.IsNone())
+	{
+		LooterSound::Play2D(this, Moment.Stinger);
+		bOutStung = true;
+		LastCueTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+		LastCueRarity = Weapon.GetRarity();
+	}
+	// ...and the world holds its breath a moment, unless something else has the clock (a boss's death, Sundown).
+	UWorld* World = GetWorld();
+	if (World && Moment.SlowSeconds > 0.f && SlowEndsAt < 0.0 && World->GetWorldSettings()
+		&& LootDropMoments::MaySlowWorld(UGameplayStatics::GetGlobalTimeDilation(World)))
+	{
+		SlowDilation = Moment.SlowDilation;
+		SlowEndsAt = World->GetRealTimeSeconds() + Moment.SlowSeconds;
+		SlowLeft = Moment.SlowSeconds;
+		UGameplayStatics::SetGlobalTimeDilation(World, SlowDilation);
+	}
+	UE_LOG(LogLooter, Verbose, TEXT("%s dropped (Legendary): sting%s"), *Weapon.GetName(), SlowEndsAt >= 0.0 ? TEXT(", slow") : TEXT(""));
+}
+
+void ULootFanfareSubsystem::EndSlowDown()
+{
+	if (SlowEndsAt < 0.0)
+	{
+		return;
+	}
+	SlowEndsAt = -1.0;
+	UWorld* World = GetWorld();
+	// Only the speed this set: a slow something else began meanwhile is theirs to end.
+	if (World && World->GetWorldSettings() && FMath::IsNearlyEqual(UGameplayStatics::GetGlobalTimeDilation(World), SlowDilation, 0.001f))
+	{
+		UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
+	}
+}
+
+void ULootFanfareSubsystem::Land(AWeaponBase& Weapon, bool bStung)
 {
 	const UWorld* World = GetWorld();
 	const EWeaponRarity Rarity = Weapon.GetRarity();
 	const double Now = World ? World->GetTimeSeconds() : 0.0;
+	const FDropMoment Moment = LootDropMoments::For(Rarity);
 
-	// Heard by rarity; a chest's guns landing together sound once, for the rarest of them.
-	const FName Cue = DropCue(Rarity);
-	if (!Cue.IsNone() && (Now - LastCueTime >= CueGap || Rarity > LastCueRarity))
+	// Heard by rarity; a chest's guns landing together sound once, for the rarest of them. A Legendary stung as it dropped
+	// lands with its impact.
+	const FName Cue = bStung ? Moment.LandCue : DropCue(Rarity);
+	if (!Cue.IsNone() && (bStung || Now - LastCueTime >= CueGap || Rarity > LastCueRarity))
 	{
 		if (IsDropCueFlat(Rarity))
 		{
@@ -122,7 +205,8 @@ void ULootFanfareSubsystem::Land(AWeaponBase& Weapon)
 	// A Rare or better's beam shoots up and flashes. A cursed iron's beam gutters like a dying flame instead (its own
 	// tick drives it), and that's its whole show.
 	UStaticMeshComponent* Beam = Weapon.GetLootBeam();
-	if (FlaresBeam(Rarity) && !WeaponCurses::Of(Weapon.GetInstance()) && Beam && Beam->IsVisible())
+	const bool bCursed = WeaponCurses::Of(Weapon.GetInstance()) != nullptr;
+	if (FlaresBeam(Rarity) && !bCursed && Beam && Beam->IsVisible())
 	{
 		FFlaring& Flare = Flaring.AddDefaulted_GetRef();
 		Flare.Beam = Beam;
@@ -134,6 +218,13 @@ void ULootFanfareSubsystem::Land(AWeaponBase& Weapon)
 		UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Beam->GetMaterial(0));
 		Flare.Glow = Material ? Material->K2_GetScalarParameterValue(TEXT("Glow")) : 2.f;
 		LightBeams::Flare(Beam, 0.f, Flare.bGrand, Flare.Glow, Flare.Height, Flare.Radius);
+	}
+
+	// Its rarity's show: the spin and ring (Epic and up), a Legendary's column, name and motes. A cursed one keeps to its
+	// own guttering.
+	if (!bCursed)
+	{
+		StartShows(Weapon);
 	}
 
 	if (IsAnnounced(Rarity))

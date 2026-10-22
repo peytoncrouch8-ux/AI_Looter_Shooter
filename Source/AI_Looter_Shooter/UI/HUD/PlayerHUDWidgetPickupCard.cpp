@@ -7,9 +7,15 @@
 #include "Interaction/InteractionComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponBase.h"
+#include "Elements/ElementRules.h"
+#include "Weapons/PartEffectRules.h"
+#include "Weapons/WeaponParts.h"
+#include "Blueprint/WidgetTree.h"
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Components/Widget.h"
 #include "Layout/Geometry.h"
 
@@ -44,6 +50,39 @@ namespace
 		}
 		Text->SetText(FText::FromString(Line));
 		Text->SetColorAndOpacity(FSlateColor(LineColor));
+	}
+
+	/**
+	 * The loot card's lines for a gun's element and part effect (Phase 12.3): the word in its colour (the element's own,
+	 * the accent for an effect), what it does under it, dim and wrapping. Null for a gun with neither.
+	 */
+	UWidget* MakeTraitRows(UWidgetTree* Tree, const FWeaponInstanceData& Gun, int32 FontSize)
+	{
+		const ELooterElement Element = WeaponParts::ElementOf(Gun);
+		const EPartEffect Effect = WeaponParts::EffectOf(Gun);
+		if (Element == ELooterElement::None && Effect == EPartEffect::None)
+		{
+			return nullptr;
+		}
+		UVerticalBox* Rows = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		auto AddRow = [Tree, Rows, FontSize](const FString& Word, const FString& Words, const FLinearColor& WordColor)
+		{
+			const bool bFirst = Rows->GetChildrenCount() == 0;
+			Rows->AddChildToVerticalBox(MakeText(Tree, Word, FontSize + 1, WordColor, true, 120))
+				->SetPadding(FMargin(0.f, bFirst ? 0.f : 5.f, 0.f, 0.f));
+			UTextBlock* Body = MakeText(Tree, Words, FontSize, Color::TextDim());
+			Body->SetAutoWrapText(true);
+			Rows->AddChildToVerticalBox(Body)->SetPadding(FMargin(0.f, 1.f, 0.f, 0.f));
+		};
+		if (Element != ELooterElement::None)
+		{
+			AddRow(ElementRules::Word(Element), ElementRules::Description(Element), ElementRules::UiColor(Element));
+		}
+		if (Effect != EPartEffect::None)
+		{
+			AddRow(PartEffectRules::Word(Effect), PartEffectRules::Description(Effect), Color::Accent());
+		}
+		return Rows;
 	}
 }
 
@@ -94,9 +133,19 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 		IdeasKills = New.Kills;
 		IdeasCurse = New.Curse;
 		bIdeasLifted = New.bCurseLifted;
+		// Its element and part effect first (what it does that no other gun does), then its notches and curse.
 		UWidget* Ideas = LoadoutParts::MakeGunIdeasRows(WidgetTree, New, 12);
-		PickupIdeas->SetContent(Ideas);
-		PickupIdeas->SetVisibility(Ideas ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		UWidget* Traits = MakeTraitRows(WidgetTree, New, 12);
+		UWidget* Shown = Traits ? Traits : Ideas;
+		if (Traits && Ideas)
+		{
+			UVerticalBox* Both = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+			Both->AddChildToVerticalBox(Traits);
+			Both->AddChildToVerticalBox(Ideas)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+			Shown = Both;
+		}
+		PickupIdeas->SetContent(Shown);
+		PickupIdeas->SetVisibility(Shown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
 	// Damage shows the weapon's damage, compared on total per-shot damage so shotguns and rifles line up fairly.

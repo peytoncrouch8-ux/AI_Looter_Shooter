@@ -193,6 +193,40 @@ FString WeaponParts::BaseName(const FWeaponInstanceData& Instance)
 	return Prefix.IsEmpty() ? Weapon : FString::Printf(TEXT("%s %s"), *Prefix.ToString(), *Weapon);
 }
 
+EPartEffect WeaponParts::EffectOf(const FWeaponLook& Look)
+{
+	for (const FWeaponPartOption* Part : Look.Parts)
+	{
+		if (Part && Part->Effect != EPartEffect::None)
+		{
+			return Part->Effect;
+		}
+	}
+	return EPartEffect::None;
+}
+
+EPartEffect WeaponParts::EffectOf(const FWeaponInstanceData& Instance)
+{
+	return Instance.Definition ? EffectOf(Pick(Instance)) : EPartEffect::None;
+}
+
+ELooterElement WeaponParts::ElementOf(const FWeaponLook& Look)
+{
+	for (const FWeaponPartOption* Part : Look.Parts)
+	{
+		if (Part && Part->Element != ELooterElement::None)
+		{
+			return Part->Element;
+		}
+	}
+	return ELooterElement::None;
+}
+
+ELooterElement WeaponParts::ElementOf(const FWeaponInstanceData& Instance)
+{
+	return Instance.Definition ? ElementOf(Pick(Instance)) : ELooterElement::None;
+}
+
 float WeaponParts::Wear(const FWeaponInstanceData& Instance)
 {
 	// A named gun's own wear, the same on every copy (Heirloom's: a keeper's gun, worn but cared for).

@@ -1,4 +1,4 @@
-Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax
+Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax,Effect,Element,Model
 Body,Standard,Standard receiver,,Common,1,0,,,,,,,,,,,,,,,,,,
 Body,Ironside,Ironside receiver,Ironside,Uncommon,1,13,,,,,2,4,,,,,,,,,-9,-3,-6,-2
 Body,Scrapper,Scrapper receiver,Scrapped,Uncommon,1,13,,,,,4,8,-6,-2,,,,,,,,,,
@@ -44,3 +44,8 @@ Stock,Cheek,Leather cheek riser,Steady,Uncommon,1,10,,,,,,,5,11,,,,,,,-6,-2,,
 Stock,Monopod,Monopod stock,Anchored,Rare,1,20,,,,,,,7,17,,,,,,,,,-17,-7
 Stock,RearGrip,Rear-grip stock,Braced,Rare,1,20,,,,,,,,,,,,,,,-21,-9,-7,-3
 Stock,Engraved,Engraved stock,Engraved,Epic,1,30,,,,,,,,,,,,,,,-10,-4,5,11
+Magazine,Ember100,100-round ember box,Smoldering,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,Ember,100
+Magazine,Saint100,100-round saint's box,Saintlit,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,SoulLight,100
+Magazine,Salt100,100-round salt box,Salted,Uncommon,0.35,38,100,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,100
+Magazine,Blasting80,80-round blasting box,Blasting,Epic,0.6,39,80,,,,-8,-4,,,,,,,6,12,,,,,Explosive,,80
+Barrel,BoreThrough,Bore-through barrel,Piercing,Epic,0.6,39,,,38,,3,7,,,6,14,,,,,,,-14,-6,Piercing,,Heavy

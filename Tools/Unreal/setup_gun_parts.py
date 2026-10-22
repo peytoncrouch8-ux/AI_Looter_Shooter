@@ -14,6 +14,18 @@ One row per part option (the model is SM_<Gun><Slot>_<Key>, made by Art/Models/W
   Needs              a rule like barrel>=46: only with an earlier slot's part at least that long.
   <Stat>Min, Max     its change to Damage, Accuracy, Range, FireRate, Reload, Recoil and Handling in percent; each gun
                      rolls its own amount between the two. A gun's percentages add up per stat, capped (WeaponParts.h).
+  Effect             what the part makes the gun do (EPartEffect: Ricochet, Burst, Explosive, Piercing, Overcharge,
+                     Twin); empty = nothing. A gun has one at most: its first part with one (Phase 12.3).
+  Element            the story element it gives the gun's rounds (ELooterElement: Ember, SoulLight, GraveSalt); empty =
+                     none.
+  Model              the key of another part of the same slot whose model it wears (SM_<Gun><Slot>_<Model>): an
+                     element or effect part before it has a model of its own (the gun's glow says which); empty = its own.
+Older sheets without the last three columns read as empty there.
+
+The new families (Phase 12.3): the Rustler SMG, Thresher LMG, Longhorn sniper (its fixed Bolt on the body's Bolt socket)
+and Powderkeg launcher (its Magazine slot, the loaded rocket, hangs on the barrel's Rocket socket). Their definitions
+(DA_SMG, DA_LMG, DA_Sniper, DA_Launcher) come from Tools/Unreal/create_new_guns.py: run that first; a family whose
+definition is missing yet is skipped with a warning.
 """
 import csv
 import os
@@ -33,7 +45,15 @@ STATS = {'Damage': 'damage', 'Accuracy': 'accuracy', 'Range': 'range', 'FireRate
 # Where each slot's part hangs: the socket on an earlier part (the latest one that has it); the body sits at the origin.
 # A revolver's grip hangs from GripMount, since its own Grip socket is where the hand holds it.
 SOCKETS = {'Body': None, 'Barrel': 'Barrel', 'Muzzle': 'Muzzle', 'Magazine': 'Magazine', 'Pump': 'Pump',
-           'Sight': 'Sight', 'Stock': 'Stock', 'Cylinder': 'Cylinder', 'Grip': 'GripMount'}
+           'Sight': 'Sight', 'Stock': 'Stock', 'Cylinder': 'Cylinder', 'Grip': 'GripMount', 'Bolt': 'Bolt'}
+# A family whose slot hangs elsewhere: the Powderkeg's loaded rocket sits in the barrel's mouth (SOCKET_Rocket).
+GUN_SOCKETS = {'Powderkeg': {'Magazine': 'Rocket'}}
+
+# Spreadsheet words -> the C++ enums (Python names them in capitals).
+EFFECTS = {'Ricochet': 'RICOCHET', 'Burst': 'BURST', 'Explosive': 'EXPLOSIVE', 'Piercing': 'PIERCING',
+           'Overcharge': 'OVERCHARGE', 'Twin': 'TWIN'}
+ELEMENTS = {'Ember': 'EMBER', 'SoulLight': 'SOUL_LIGHT', 'Soul-light': 'SOUL_LIGHT', 'GraveSalt': 'GRAVE_SALT',
+            'Grave-salt': 'GRAVE_SALT'}
 
 # Each gun's shell is tinted per gun (sRGB hex, weight): mostly field colors, sometimes a bright one.
 SHELL_PAINTS = [(0xe6d8b6, 3.0), (0xe8e8e4, 2.0), (0xc9ad84, 2.0), (0x8c7a5b, 1.5), (0x6f7550, 1.5), (0x5d6b78, 1.0),
@@ -66,15 +86,32 @@ def requirement(needs):
     return unreal.WeaponPartRequirement(slot=slot.strip().capitalize(), min_length=float(length))
 
 
+def cell(row, column):
+    """A cell that older sheets may not have (Effect, Element, Model): empty then."""
+    return (row.get(column) or '').strip()
+
+
+def enum_value(enum, table, word, what):
+    if not word:
+        return getattr(enum, 'NONE')
+    if word not in table:
+        raise RuntimeError(f'Unknown {what} "{word}" (one of {", ".join(sorted(table))})')
+    return getattr(enum, table[word])
+
+
 def option(gun, row):
     stats = unreal.WeaponPartStats(magazine=int(number(row['Magazine'])), zoom=number(row['Zoom']))
     for column, prop in STATS.items():
         stats.set_editor_property(prop, stat_range(row, column))
-    return unreal.WeaponPartOption(
-        key=row['Key'], display_name=unreal.Text(row['Name']), mesh=mesh(f"{gun}{row['Slot']}_{row['Key']}"),
+    model = cell(row, 'Model') or row['Key']
+    part = unreal.WeaponPartOption(
+        key=row['Key'], display_name=unreal.Text(row['Name']), mesh=mesh(f"{gun}{row['Slot']}_{model}"),
         weight=number(row['Weight'], 1.0), min_rarity=RARITIES[row['MinRarity']], stats=stats,
         length=number(row['Length']), requires=requirement(row['Needs']),
         name_prefix=unreal.Text(row['Word']), name_priority=int(number(row['NamePriority'])))
+    part.set_editor_property('effect', enum_value(unreal.PartEffect, EFFECTS, cell(row, 'Effect'), 'effect'))
+    part.set_editor_property('element', enum_value(unreal.LooterElement, ELEMENTS, cell(row, 'Element'), 'element'))
+    return part
 
 
 def slots(gun):
@@ -89,8 +126,9 @@ def slots(gun):
     result = []
     for name in order:
         part = unreal.WeaponPartSlot(name=name, options=options[name])
-        if SOCKETS[name]:
-            part.set_editor_property('socket', SOCKETS[name])
+        socket = GUN_SOCKETS.get(gun, {}).get(name, SOCKETS[name])
+        if socket:
+            part.set_editor_property('socket', socket)
         result.append(part)
     return result
 
@@ -126,7 +164,29 @@ def setup(asset, gun, kind, reload_slot, reload_part, full_damage_range, base_ha
     unreal.log(f'GUNPARTS {asset}: {", ".join(f"{p.name} {len(p.options)}" for p in parts)}')
 
 
+def reload_part(*names):
+    """The first of names the C++ has (the new kinds' reload parts are GUNS-CODE's), else the magazine's."""
+    for name in names:
+        if hasattr(unreal.WeaponReloadPart, name):
+            return getattr(unreal.WeaponReloadPart, name)
+    return unreal.WeaponReloadPart.MAGAZINE
+
+
+def setup_new(asset, gun, kind_name, reload_slot, reload_part_value, full_damage_range, base_handling):
+    """A new family: skipped (with a warning) until create_new_guns.py has made its definition."""
+    if unreal.load_asset(f'{DATA}/{asset}') is None:
+        unreal.log_warning(f'GUNPARTS {asset} missing: run Tools/Unreal/create_new_guns.py first; {gun} skipped')
+        return
+    setup(asset, gun, getattr(unreal.WeaponKind, kind_name), reload_slot, reload_part_value, full_damage_range, base_handling)
+
+
 setup('DA_AssaultRifle', 'Bullpup', unreal.WeaponKind.RIFLE, 'Magazine', unreal.WeaponReloadPart.MAGAZINE, 4000.0)
 setup('DA_PumpShotgun', 'Ranchhand', unreal.WeaponKind.SHOTGUN, 'Pump', unreal.WeaponReloadPart.PUMP, 1500.0)
 setup('DA_Revolver', 'Drover', unreal.WeaponKind.REVOLVER, 'Cylinder', unreal.WeaponReloadPart.CYLINDER, 3000.0, 1.3)
+# The four new kinds (Phase 12.3): full-damage ranges by role, handling the kind's (an SMG comes up quickest, an LMG and a
+# launcher slowest). GUNS-CODE's kick/aim tuning sits on top of these.
+setup_new('DA_SMG', 'Rustler', 'SMG', 'Magazine', reload_part('HELIX', 'MAGAZINE'), 2200.0, 1.25)
+setup_new('DA_LMG', 'Thresher', 'LMG', 'Magazine', reload_part('BOX', 'MAGAZINE'), 3500.0, 0.8)
+setup_new('DA_Sniper', 'Longhorn', 'SNIPER', 'Magazine', reload_part('BOLT', 'MAGAZINE'), 9000.0, 0.85)
+setup_new('DA_Launcher', 'Powderkeg', 'LAUNCHER', 'Magazine', reload_part('ROCKET', 'MAGAZINE'), 4000.0, 0.8)
 unreal.log('GUNPARTS done')
