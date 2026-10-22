@@ -5,6 +5,7 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Player/FirstPersonHandsComponent.h"
+#include "Player/FirstPersonHandsFraming.h"
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
@@ -31,6 +32,8 @@ namespace
 	constexpr float HandsPlayOnSpot = 1.f;
 	/** At the hip both grip points sit within this share of the frame's half-width and half-height from its middle. */
 	constexpr float HandsPlayInFrame = 0.85f;
+	/** The trigger hand's grip point may sit as low as the frame's edge (the framing lowers the long guns a little). */
+	constexpr float HandsPlayTriggerInFrame = 1.f;
 	/** Frames for a sight to come all the way up (a slow gun takes under half a second). */
 	constexpr int32 HandsPlayRaiseFrames = 40;
 
@@ -86,7 +89,8 @@ namespace
 			return;
 		}
 		const FTransform GunNow = Model->GetComponentTransform();
-		const FGunHands& Hold = FirstPersonHandsGrips::For(Player.Gun->GetInstance().Definition->Kind);
+		const EWeaponKind Kind = Player.Gun->GetInstance().Definition->Kind;
+		const FGunHands& Hold = FirstPersonHandsGrips::For(Kind);
 		const float Scale = Model->GetModelScale();
 		struct FHandsPlaySide
 		{
@@ -94,15 +98,25 @@ namespace
 			const TCHAR* Which;
 			FVector Spot;
 		};
+		// The spots with the framing's slides on them (FPHandsFraming: Looter.FPHands.<Kind>.Trigger*/Support*).
 		const FHandsPlaySide Sides[] = {
-			{ EFirstPersonHand::Right, TEXT("right hand on the grip"), GunNow.TransformPosition(Model->GetGrip() + Hold.GripHold * Scale) },
-			{ EFirstPersonHand::Left, TEXT("left hand on the foregrip"), GunNow.TransformPosition(Model->GetForegrip() + Hold.ForeHold * Scale) },
+			{ EFirstPersonHand::Right, TEXT("right hand on the grip"),
+				GunNow.TransformPosition(Model->GetGrip() + (Hold.GripHold + FPHandsFraming::TriggerNudge(Kind)) * Scale) },
+			{ EFirstPersonHand::Left, TEXT("left hand on the foregrip"),
+				GunNow.TransformPosition(Model->GetForegrip() + (Hold.ForeHold + FPHandsFraming::SupportNudge(Kind)) * Scale) },
 		};
 		// The view model's frame: its own field of view across, 16:9 (the setting widens the world, never it).
 		const float HalfWide = FMath::Tan(FMath::DegreesToRadians(Camera->FirstPersonFieldOfView > 1.f ? Camera->FirstPersonFieldOfView : Camera->FieldOfView) * 0.5f);
 		const float HalfHigh = HalfWide * 9.f / 16.f;
+		// A one-handed gun's support hand (the revolver's, Borderlands-style) is parked under the frame while it only holds:
+		// FPHandsTests' Looter.FPHands.Play.OnScreen checks it there.
+		const bool bOneHanded = FPHandsFraming::OneHandShare(Kind) >= 1.f;
 		for (const FHandsPlaySide& Side : Sides)
 		{
+			if (bOneHanded && Side.Hand == EFirstPersonHand::Left)
+			{
+				continue;
+			}
 			const FVector Target = Player.Hands->GetTargetHoldPoint(Side.Hand);
 			const FVector Held = Player.Hands->GetHoldPoint(Side.Hand);
 			const float OnSpot = static_cast<float>(FVector::Dist(Held, Target));
@@ -114,8 +128,10 @@ namespace
 				const FVector InView = Camera->GetComponentTransform().InverseTransformPosition(Held);
 				const float Across = InView.X > 1.0 ? static_cast<float>(InView.Y / InView.X) / HalfWide : 9.f;
 				const float Down = InView.X > 1.0 ? static_cast<float>(InView.Z / InView.X) / HalfHigh : 9.f;
+				// The trigger glove may sit on the frame's bottom edge (Borderlands': mostly under the gun, low on the right).
+				const float Limit = Side.Hand == EFirstPersonHand::Right ? HandsPlayTriggerInFrame : HandsPlayInFrame;
 				Test.TestTrue(FString::Printf(TEXT("%s: %s in view (%.2f across, %.2f up, of the frame's half)"), *Name, Side.Which, Across, Down),
-					FMath::Abs(Across) <= HandsPlayInFrame && FMath::Abs(Down) <= HandsPlayInFrame);
+					FMath::Abs(Across) <= Limit && FMath::Abs(Down) <= Limit);
 			}
 		}
 	}

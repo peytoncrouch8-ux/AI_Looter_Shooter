@@ -98,10 +98,17 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   sheet `Saved/Concepts/Hands/fp_arms_sheet.png`) at `ArmsScale` 0.88 (the user: hands looked big). The rig reads bone
   positions only (the import turns bone axes). Hip holds (`Weapons/WeaponHipHold.cpp`; the revolver's in
   `create_revolver.py`): grip cm ahead/right/up, rifle 50, 23, -23.5; shotgun 30, 22.5, -23; revolver 50, 22, -21 (the
-  user's Borderlands framing: low right, both gloves in view; `Looter.Player.Hands.OnGun` keeps the grip points inside
-  0.85 of the half-frame, but for the shotgun's trigger hand). Long guns level (no muzzle-down tilt: the user, "the AR is
+  user's Borderlands framing: low right, both gloves in view; `Looter.Player.Hands.OnGun` keeps the support grip point inside
+  0.85 of the half-frame, the trigger's inside 1.0 (but for the shotgun's); the Borderlands framing nudges these, below). Long guns level (no muzzle-down tilt: the user, "the AR is
   tilted forward"). Support hand palm up under the fore-end, forearms from below so the sleeve's cut end (SK_FP_Arms
   ends at the elbow in a capped cut) stays under the frame (`ForeForearm` in `FirstPersonHandsGrips.cpp`).
+- Long forearms (2026-10-22, `Saved/FPHands/PLAN.md` fix E): every SK_FP_Arms* forearm (elbow to wrist) is 1.25x Ellis's,
+  32.62 cm (`FPArms.py` `FOREARM_STRETCH`; 26.10 real), so the framing can slant it with the elbow out of the frame.
+  Shoulder, upper arm, elbow and the hand's rest turn are Ellis's; the wrist (hand with it) moves out along the forearm's
+  line. Hands, cuffs, gauntlets, upper arms unchanged in size. Triangles unchanged (8018; Odessa 11676, Crane 10724,
+  Gauge 10212, Pike 10412): the sleeves' upper-arm rings went 2.8 -> 6.2 cm apart (`UPPER_STEP`) to pay for the
+  forearm's. Rig jsons: `lowerarm_cm` 32.62, `lowerarm_body_cm` 26.1, `forearm_stretch`; the code reads the length
+  from the skeleton (`FFirstPersonHandsRig::GetForearmLength`). Preview: `Saved/ArtPreviews/Characters/FPArms_Long_<Hero>.png`.
 - The heroes' first-person arms (2026-10-20): SK_FP_Arms_Odessa, _Crane, _Gauge, _Pike from
   `Art/Models/Characters/FPArms<Hero>.py` on `Tools/Blender/fp_arms_heroes.py` (+ `fp_arms_base/hands/cloth/paint/gauge.py`;
   FPArms.py's definitions are run up to its build line, FPArms.py never edited). Every one is on SK_FP_Arms' skeleton bone
@@ -131,6 +138,24 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   The forearm switches barely move a far hand: past the upper arm's reach the shoulder comes to the elbow (90 cm at
   most), so move the hold instead. `Looter.GiveWeapon <gun> <rarity> <level> Slot=Key` picks parts; `play.py equip <n>`
   takes a slot in hand (number keys don't reach the game through input.ps1).
+- Borderlands framing (FP-HANDS, 2026-10-22; the user: "hands show too much of the arms, clip into the guns"):
+  `Player/FirstPersonHandsFraming` on top of the hip and grip tables; every number a live `Looter.FPHands.*` cvar,
+  `Looter.FPHands.Dump` prints bake lines, `Looter.FPHands.Enable 0` = as before. Borderlands at 16:9 (measured, sources
+  in `Saved/FPHands/PLAN.md`): muzzle 0.54-0.63 across, 0.52-0.64 down, gun to the bottom-right corner; only gloves and
+  wrists show (support glove 0.80-1.0 down; BL3 sometimes a 50-60 deg slanted gauntlet), never an elbow; pistols
+  one-handed. Ours now: forearms `FrameForearm` (most slanted way from 50 deg toward straight down whose elbow leaves the
+  frame by 0.06 of the half-frame, 0.6 of it turned back toward the eye's plane, at most 60 deg off the table's way);
+  per kind (baked in `MakeDefaults`): Rifle hip +1 right -2 up, trigger glove 2.5 cm right (no finger through the
+  Bullpup's thumbhole; its support can't slide back: grip loop at u 37.8); Shotgun -1.5 up, support -3; Revolver -5
+  right +1 up roll +6, one-handed (support parked at 20, -26, -38 cm, eased 0.15 s, back on the gun for reloads and
+  throws); SMG -1.5 up, support -2; Sniper -1 up, support -6; LMG +4 ahead +1 right -2.5 up, support -6 (to u 38); Launcher
+  +9 ahead +2 right -2 up. Limit: a support wrist high in the frame (Bullpup, Thresher fore-ends ~70 cm out) can only hide
+  its elbow by running near straight down even with the 1.25x forearms (FPArms.py `FOREARM_STRETCH`): rifle ~29% of the
+  height shows, LMG 22, sniper 19, shotgun/launcher 17, SMG 14 (`Looter.FPHands.Play.OnScreen` logs it). Lowering the
+  gun more puts the muzzle under BL's range; pitching it up gained little; `ViewFov` 75 (narrower view model, holds
+  pushed out by `DepthScale`) flattens the gun but not the arms: left off. Framing checks: `Looter.FPHands.PreviewAspect
+  1.7778` draws PIE at 16:9 inside the 2.17:1 editor viewport (bars at the sides; grab the middle: x 0.093-0.893, y
+  0.132-0.962 of the window); before/after sheet `Saved/FPHands/compare.png`.
 - Gun sizes (the user, 2026-10-14): drawn bigger than modelled, everywhere: rifle and shotgun 1.1, revolver 1.2
   (`UWeaponModelComponent::ScaleFor`; sockets scale with it). The pistol shows as "Revolver" (DA_Revolver's display name;
   Drover stays its parts' and files' name).

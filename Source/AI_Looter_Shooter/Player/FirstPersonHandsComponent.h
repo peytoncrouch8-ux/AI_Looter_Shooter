@@ -16,7 +16,8 @@ class UWeaponManagerComponent;
 /**
  * The player's first-person arms, the played hero's (UHeroDefinition::FirstPersonArms: Ellis's gloves and duster sleeves
  * SK_FP_Arms, or SK_FP_Arms_<Id>, every one on SK_FP_Arms' skeleton; Ellis's while a hero's aren't in the game), at that
- * hero's size (FirstPersonArmsScale, else ArmsScale), on the gun in hand like Borderlands':
+ * hero's size (FirstPersonArmsScale, else ArmsScale), on the gun in hand like Borderlands' (framed by FPHandsFraming: gloves
+ * and wrists low in the frame, elbows out of it, a pistol in one hand):
  * a child of the first-person camera drawn as first person (the gun's own field of view and scale, so they never clip a
  * wall), posed entirely by code (FFirstPersonHandsRig) from the gun as it is this frame. ALooterCharacter makes it.
  *
@@ -135,6 +136,18 @@ private:
 
 	/** The support hand's placement this frame (camera space), easing over when its job changed under it. */
 	FHandPlacement PlaceSupportHand(const FHandsGun& Gun, float DeltaTime);
+
+	/**
+	 * A one-handed gun's support hand (FPHandsFraming::OneHandShare: the revolver's) eased off the gun to its parked spot
+	 * under the frame while it only holds; back on the gun for a reload or a throw (camera space).
+	 */
+	FHandPlacement ParkSupportHand(const FHandsGun& Gun, const FHandPlacement& OnGun, float DeltaTime);
+
+	/** Each hand's forearm turned so it leaves the frame low on a slant, its elbow out of view (FPHandsFraming::FrameForearm). */
+	void FrameForearms(float Scale);
+
+	/** How far the support hand is toward its parked spot now (0 on the gun, 1 parked). */
+	float OneHandBlend = 0.f;
 
 	void Show(bool bShow);
 

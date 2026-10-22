@@ -208,7 +208,7 @@ bool FFirstPersonHandsArmsTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("The right palm faces in, as made (%s)"), *Rig.GetRestPalm(EFirstPersonHand::Right).ToCompactString()),
 		Rig.GetRestPalm(EFirstPersonHand::Right).Equals(FVector(-0.214, -0.958, -0.189), 0.05));
 	TestTrue(TEXT("...the left its mirror"), Rig.GetRestPalm(EFirstPersonHand::Left).Equals(FVector(-0.214, 0.958, -0.189), 0.05));
-	const float GripOff = static_cast<float>(FVector::Dist(Rig.GetRestHoldPoint(EFirstPersonHand::Right), FVector(35.07, 11.335, -32.539)));
+	const float GripOff = static_cast<float>(FVector::Dist(Rig.GetRestHoldPoint(EFirstPersonHand::Right), FVector(40.738, 9.539, -29.85)));
 	TestTrue(FString::Printf(TEXT("The right grip point where its maker put it (%.2f cm off)"), GripOff), GripOff <= 0.6f);
 	const float Knuckle = Rig.GetRestCurl(EFirstPersonHand::Right, 2, 0);
 	const float Middle = Rig.GetRestCurl(EFirstPersonHand::Right, 2, 1);

@@ -54,6 +54,9 @@ public:
 	int32 GetHandBone(EFirstPersonHand Hand) const { return Arms[FirstPersonHands::Index(Hand)].Hand; }
 	FVector GetHoldLocal(EFirstPersonHand Hand) const { return Arms[FirstPersonHands::Index(Hand)].HoldLocal; }
 
+	/** A forearm's length, elbow to wrist (the mesh's own cm: the component's scale on top). The framing keeps its elbow out of view. */
+	float GetForearmLength(EFirstPersonHand Hand) const { return bBound ? Arms[FirstPersonHands::Index(Hand)].LowerLength : 0.f; }
+
 	/** A finger joint's bone (INDEX_NONE where the skeleton has none). */
 	int32 GetFingerBone(EFirstPersonHand Hand, int32 Finger, int32 Joint) const;
 

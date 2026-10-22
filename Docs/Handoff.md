@@ -170,6 +170,9 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
 - A **daily bounty board** on Ransom's Rest using the set-piece machinery (a rotating hard fight with a chest): replay
   value before the next region exists. Small-medium.
 - **Quick playtest builds**: a nightly packaged build the user can play on the couch without the editor. Small.
+- **Stronger place tones** in Ransom's Rest: tonight's per-place ground colours read faintly; a bolder repaint (~46 min
+  of generation, no perf cost) would make each place read as its own. Small.
+- **A translucent fire material** for explosions (rockets, Slag Bomb): additive fire washes out in daylight. Small-medium.
 
 ### Decided unattended (2026-10-21 night), for the user's review
 (Main's calls while the user slept; newest last. Contracts: `Saved/Fight/CONTRACT.md` (+ AUDIT.md), `Saved/Guns/`,
@@ -187,6 +190,11 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   spiders; bosses take statuses at half duration; the Grave-salt grenade becomes the element's damage type. Drop
   moments: rarity beams taller, stingers, Epic+ spin and ground ring, Legendary a 0.25 s slow-down and a 60 m column.
 - Rocket ammo is a new class (1-3 per kill drop leaning to the kill gun); the LMG uses rifle ammo.
+- FP-HANDS (plan `Saved/FPHands/PLAN.md`, Borderlands measured from 10 BL2/BL3 shots: gloves/wrists only, low; gun on
+  a diagonal to the bottom-right; pistols one-handed; no hands in ADS): our support forearm stands upright (~30% of the
+  frame) because the FP forearm is 23 cm and the fore-end 65-75 cm out. **Main's call: lengthen the FP forearms ~1.25x
+  in the arms art** (all five heroes' FP arms; reversible) so the forearm can slant like Borderlands'; the revolver
+  becomes one-handed at the hip (support hand back for reloads/throws); `Looter.FPHands.*` cvars, `ViewFov` off by default.
 - ROSTER (Story.md "Creature roster", marked † in the Areas table): Coffin Rat (rat), Bone Hound (the story's coyote) /
   Whiteback Wolf (wolf), Knocker (goblin), Gravepicker and Lookout (human bandits), Slagback / Cairn Walker /
   Spikedriver (golems), Pallbearer (giant), Mesa Stinger (scorpion), Gloam Bat (big bat), Sallow (vampire), Cinder
@@ -276,6 +284,16 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   **Placeholders committed (37636b4):** 5 kinds fought in PIE (XP, loot, "Name (type)" labels, clay hits; grabs
   `roster_*`); the Bone Hounds moved 20 m in from the Rim (they followed the player over the edge). WORLD-ART phase 2
   now owns the lane (variants, scatter, terrain tones, apples reimport, Coffin Rock ramp).
+  **World variety committed (5cc096a)**: honest read: the differences are subtle in before/after (`Saved/World/
+  compare_*.png`); the ground tones read faintly; a stronger-tone repaint (~46 min) is the next lever (a suggestion for
+  the user). RESTYLE-IMPORT (Sonnet) owns the lane now; RUSTLER-FIX (Blender: open sights, visible helix) in parallel.
+  Then FP-HANDS, VFX-2, the Rustler import. RUSTLER-FIX done in Blender (open Holo sight in the shared kit, also on
+  the Thresher; helix moved 1.2 cm left and enlarged; Foregrip socket now (25, -1.2, -8.45)): reimport
+  `Tools\models.ps1 -Only Rustler,Thresher` in FP-HANDS phase 2 (its left-hand grip must follow the Foregrip move).
+  FP forearms lengthened (committed; FPArms.py FOREARM_STRETCH 1.25, 26.1 -> 32.6 cm): import SK_FP_Arms + the four
+  heroes' arms and texture sets in FP-HANDS phase 2; its tests need FirstPersonHandsTests.cpp:211 rest grip point
+  (40.738, 9.539, -29.85), FPHandsFramingTests.cpp:105 Length 23 -> 28.7, and the comment at
+  FirstPersonHandsFraming.cpp:358-359.
   Order of the build lane next: FIGHT-AI perf -> GUNS-CODE phase 2 (merge `Saved/GunsCode`, then `Saved/GunsSound`, import
   the four models) -> LOOT-CODE phase 2 -> STORY merge -> WORLD-ART phase 2.
 

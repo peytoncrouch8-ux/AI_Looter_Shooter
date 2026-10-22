@@ -1,4 +1,5 @@
 #include "Player/PlayerLocomotionComponent.h"
+#include "Player/FirstPersonHandsFraming.h"
 #include "Player/PlayerViewComponent.h"
 #include "Player/WeaponSwapMotion.h"
 #include "UI/HUD/LooterHUD.h"
@@ -347,7 +348,9 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	FTransform Hold = Manager->GetFirstPersonHold(Weapon);
 	if (Aim > 0.f)
 	{
-		const FVector AimLocation = FVector(AimSightDistance, 0.f, 0.f) - Weapon->GetAimPoint() * Hold.GetScale3D();
+		// Out with the hip holds when the view model is drawn narrower (FPHandsFraming::DepthScale), so a sight comes up the
+		// same size.
+		const FVector AimLocation = FVector(AimSightDistance * FPHandsFraming::DepthScale(), 0.f, 0.f) - Weapon->GetAimPoint() * Hold.GetScale3D();
 		Hold.SetLocation(FMath::Lerp(Hold.GetLocation(), AimLocation, Aim));
 		Hold.SetRotation(FQuat::Slerp(Hold.GetRotation(), FQuat::Identity, Aim));
 		const float Settle = 1.f - AimSteadiness * Aim;

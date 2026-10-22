@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Embers/HeroDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Player/FirstPersonHandsFraming.h"
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/PlayerLocomotionComponent.h"
@@ -245,7 +246,7 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 	const int32 Left = FirstPersonHands::Index(EFirstPersonHand::Left);
 	const int32 Right = FirstPersonHands::Index(EFirstPersonHand::Right);
 	Targets[Right] = FirstPersonHandsGrips::OnGrip(Gun);
-	Targets[Left] = PlaceSupportHand(Gun, Dt);
+	Targets[Left] = ParkSupportHand(Gun, PlaceSupportHand(Gun, Dt), Dt);
 
 	// The arms' size (a smaller hand holds the same spots: they're scaled into the mesh's space with it), then into the
 	// mesh's own space (the stand-in is turned and set back on the camera) and posed.
@@ -254,6 +255,9 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 	{
 		PlaceOnCamera(Scale);
 	}
+	// The forearms framed last, from where the hands ended up (a reload's or a throw's spot too): low on a slant, elbows
+	// out of the frame.
+	FrameForearms(Scale);
 	const FTransform CameraToMesh = GetRelativeTransform().Inverse();
 	FHandsRigTargets RigTargets;
 	RigTargets.Hands[Left] = Targets[Left].Moved(CameraToMesh);
@@ -381,6 +385,40 @@ FHandPlacement UFirstPersonHandsComponent::PlaceSupportHand(const FHandsGun& Gun
 	SupportOnGun = Wanted.Moved(Gun.ToCamera.Inverse());
 	bHaveSupport = true;
 	return Wanted;
+}
+
+FHandPlacement UFirstPersonHandsComponent::ParkSupportHand(const FHandsGun& Gun, const FHandPlacement& OnGun, float DeltaTime)
+{
+	// Borderlands holds a pistol in the right hand alone: the left leaves the gun while it only holds, and comes back for
+	// the work only it does (a reload, the jar), on PlaceSupportHand's job this frame.
+	const float Wanted = SupportJob == EHandsSupportJob::Foregrip ? FPHandsFraming::OneHandShare(Gun.Kind) : 0.f;
+	OneHandBlend = FMath::FInterpConstantTo(OneHandBlend, Wanted, DeltaTime, 1.f / FPHandsFraming::OneHandSeconds());
+	if (OneHandBlend <= 0.f)
+	{
+		return OnGun;
+	}
+	return FHandPlacement::Blend(OnGun, FPHandsFraming::ParkedSupport(), FMath::SmoothStep(0.f, 1.f, OneHandBlend));
+}
+
+void UFirstPersonHandsComponent::FrameForearms(float Scale)
+{
+	const UCameraComponent* Eye = Camera.Get();
+	if (!Eye || !FPHandsFraming::IsEnabled())
+	{
+		return;
+	}
+	// The frame the arms are drawn in: the view model's own field of view (UPlayerViewComponent::UpdateFieldOfView sets it).
+	const float Degrees = Eye->bEnableFirstPersonFieldOfView ? Eye->FirstPersonFieldOfView : Eye->FieldOfView;
+	const FPHandsFraming::FFrameView Frame = FPHandsFraming::FFrameView::FromFieldOfView(Degrees, FPHandsFraming::FrameAspect());
+	const EFirstPersonHand Hands[] = { EFirstPersonHand::Left, EFirstPersonHand::Right };
+	for (const EFirstPersonHand Hand : Hands)
+	{
+		FHandPlacement& Target = Targets[FirstPersonHands::Index(Hand)];
+		const FVector TableWay = Target.Forearm.IsNearlyZero() ? (Hand == EFirstPersonHand::Left ? LeftForearm : RightForearm) : Target.Forearm;
+		const float Length = Rig.GetForearmLength(Hand) * Scale;
+		Target.Forearm = FPHandsFraming::FrameForearm(Hand, FPHandsFraming::WristOf(Target, Scale), TableWay, Length, Frame,
+			FPHandsFraming::FForearmRules::For(Hand));
+	}
 }
 
 void UFirstPersonHandsComponent::Show(bool bShow)

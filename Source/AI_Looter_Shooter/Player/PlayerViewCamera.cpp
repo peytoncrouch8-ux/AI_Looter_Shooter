@@ -3,6 +3,7 @@
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "Player/Animation/LooterClimbPose.h"
 #include "Player/Animation/LooterStancePoseCarry.h"
+#include "Player/FirstPersonHandsFraming.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Weapons/WeaponBase.h"
@@ -170,12 +171,28 @@ void UPlayerViewComponent::UpdateFieldOfView()
 	UCameraComponent* Camera = FirstPersonCamera.Get();
 	if (Camera && IsFirstPerson())
 	{
-		const float ViewModel = SightFieldOfView(FirstPersonFieldOfView + Offset, AimZoom, Aim);
+		// Looter.FPHands.ViewFov may draw it narrower (less stretch near the eye); the holds go out to match
+		// (FPHandsFraming::DepthScale), so the gun keeps its place and size.
+		const float ViewModel = SightFieldOfView(FPHandsFraming::ViewModelFieldOfView(FirstPersonFieldOfView) + Offset, AimZoom, Aim);
 		Camera->SetEnableFirstPersonFieldOfView(true);
 		if (!FMath::IsNearlyEqual(Camera->FirstPersonFieldOfView, ViewModel, 0.01f))
 		{
 			Camera->SetFirstPersonFieldOfView(ViewModel);
 		}
+#if !UE_BUILD_SHIPPING
+		// Looter.FPHands.PreviewAspect: the editor's viewport is about 2.17:1, so framing checks draw the view at the game's
+		// 16:9 inside it (bars at the sides) instead (development only).
+		const float Preview = FPHandsFraming::PreviewAspect();
+		const bool bConstrain = Preview > 0.1f;
+		if (Camera->bConstrainAspectRatio != bConstrain || (bConstrain && !FMath::IsNearlyEqual(Camera->AspectRatio, Preview, 1.e-3f)))
+		{
+			Camera->SetConstraintAspectRatio(bConstrain);
+			if (bConstrain)
+			{
+				Camera->SetAspectRatio(Preview);
+			}
+		}
+#endif
 	}
 }
 

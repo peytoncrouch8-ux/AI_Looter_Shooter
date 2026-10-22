@@ -1,4 +1,5 @@
 #include "Inventory/WeaponManagerComponent.h"
+#include "Player/FirstPersonHandsFraming.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -446,9 +447,13 @@ FTransform UWeaponManagerComponent::GetFirstPersonHold(const AWeaponBase* Weapon
 			Hold.AddToTranslation(Hold.TransformVector(AttachGrip - Weapon->GetGripPoint()));
 			return Hold;
 		}
-		// Development builds: the Looter.HipHold.* console variables' nudges (nothing in shipping).
-		Hold.SetRotation(Hold.GetRotation() * (Turn + WeaponHipHold::TuningTurn(Kind)).Quaternion());
-		Hold.SetTranslation(Grip + WeaponHipHold::TuningNudge(Kind) - Hold.TransformVector(Weapon->GetGripPoint()));
+		// Development builds: the Looter.HipHold.* console variables' nudges (nothing in shipping). The Borderlands framing's
+		// per-kind nudge on top (Looter.FPHands.<Kind>.Hip*), then the grip pushed out along the view as far as a narrower
+		// view-model field of view needs to keep it where it was on screen (FPHandsFraming::DepthScale; 1 by default).
+		Hold.SetRotation(Hold.GetRotation() * (Turn + WeaponHipHold::TuningTurn(Kind) + FPHandsFraming::HipTurn(Kind)).Quaternion());
+		FVector Spot = Grip + WeaponHipHold::TuningNudge(Kind) + FPHandsFraming::HipNudge(Kind);
+		Spot.X *= FPHandsFraming::DepthScale();
+		Hold.SetTranslation(Spot - Hold.TransformVector(Weapon->GetGripPoint()));
 	}
 	return Hold;
 }

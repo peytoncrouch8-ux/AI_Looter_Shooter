@@ -1,5 +1,6 @@
 #include "Player/FirstPersonHandsGrips.h"
 #include "AI_Looter_Shooter.h"
+#include "Player/FirstPersonHandsFraming.h"
 #include "HAL/IConsoleManager.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponHipHold.h"
@@ -407,7 +408,9 @@ FHandPlacement FirstPersonHandsGrips::OnGrip(const FHandsGun& Gun)
 	{
 		Curls.Curl[FHandFingers::IndexFinger][Joint] = Hands.TriggerCurl[Joint];
 	}
-	const FHandPlacement OnTheGrip = InGun(Gun, Gun.Grip + Hands.GripHold * Gun.Scale, Fingers, Palm, Curls, Hands.GripForearm);
+	// The framing's nudge on top (FPHandsFraming: a trigger glove sunk in a stock brought out where it reads).
+	const FHandPlacement OnTheGrip = InGun(Gun, Gun.Grip + (Hands.GripHold + FPHandsFraming::TriggerNudge(Gun.Kind)) * Gun.Scale, Fingers, Palm, Curls,
+		Hands.GripForearm);
 	// A bolt gun's trigger hand leaves the grip to work the bolt (between shots and in its reload), riding its knob.
 	if (Gun.BoltHand > 0.f && !Hands.BoltPivot.IsZero())
 	{
@@ -423,8 +426,9 @@ FHandPlacement FirstPersonHandsGrips::OnForegrip(const FHandsGun& Gun, float Pum
 	FVector Palm;
 	OnHandle(EFirstPersonHand::Left, Hands.ForeHandle, Hands.ForePalm, Hands.ForeTilt, Fingers, Palm);
 	TurnHand(Hands.ForeTurn, Fingers, Palm);
-	// A racked pump slides back along the gun's -X, and the hand round it goes with it.
-	const FVector Hold = Gun.Foregrip + (Hands.ForeHold - FVector(PumpBack, 0.f, 0.f)) * Gun.Scale;
+	// A racked pump slides back along the gun's -X, and the hand round it goes with it. The framing's slide on top
+	// (FPHandsFraming: back along the fore-end, so the glove sits low in the frame as Borderlands' do).
+	const FVector Hold = Gun.Foregrip + (Hands.ForeHold + FPHandsFraming::SupportNudge(Gun.Kind) - FVector(PumpBack, 0.f, 0.f)) * Gun.Scale;
 	FHandFingers Curls = FHandFingers::Of(Hands.ForeGrip);
 #if !UE_BUILD_SHIPPING
 	NudgeSupportFingers(Gun.Kind, Curls);
