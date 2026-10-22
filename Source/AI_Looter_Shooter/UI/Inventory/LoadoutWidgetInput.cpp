@@ -29,22 +29,27 @@ namespace
 
 void ULoadoutWidget::MoveCursor(int32 Rows)
 {
-	// One list from the first slot to the last backpack gun: W / S walk straight through it.
+	// One list from the first slot through the wards to the last backpack gun: W / S walk straight through it.
 	const int32 NumSlotRows = SlotRows.Num();
-	const int32 Total = NumSlotRows + ListRows.Num();
+	const int32 NumWardRows = WardRows.Num();
+	const int32 Total = NumSlotRows + NumWardRows + ListRows.Num();
 	if (Total == 0)
 	{
 		return;
 	}
-	const int32 Here = Zone == EZone::Slots ? CursorIndex : NumSlotRows + CursorIndex;
+	const int32 Here = Zone == EZone::Slots ? CursorIndex : (Zone == EZone::Wards ? NumSlotRows : NumSlotRows + NumWardRows) + CursorIndex;
 	const int32 There = FMath::Clamp(Here + Rows, 0, Total - 1);
 	if (There < NumSlotRows)
 	{
 		MoveCursorTo(EZone::Slots, There, false, true);
 	}
+	else if (There < NumSlotRows + NumWardRows)
+	{
+		MoveCursorTo(EZone::Wards, There - NumSlotRows, false, true);
+	}
 	else
 	{
-		MoveCursorTo(EZone::Backpack, There - NumSlotRows, true, true);
+		MoveCursorTo(EZone::Backpack, There - NumSlotRows - NumWardRows, true, true);
 	}
 }
 
@@ -109,6 +114,11 @@ void ULoadoutWidget::PlayCue(const TCHAR* Cue) const
 
 void ULoadoutWidget::RunAction(EAction Action)
 {
+	// A ward's row takes its own (LoadoutWidgetWard.cpp); closing, cancelling and sorting are the screen's.
+	if (Zone == EZone::Wards && RunWardAction(Action))
+	{
+		return;
+	}
 	switch (Action)
 	{
 	case EAction::Activate: Activate(); break;

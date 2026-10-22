@@ -132,6 +132,10 @@ TArray<ULoadoutWidget::FPrompt> ULoadoutWidget::CurrentPrompts() const
 			Prompts.Add({ TEXT("E"), TEXT("Choose from backpack"), EAction::Activate });
 		}
 	}
+	else if (Zone == EZone::Wards)
+	{
+		Prompts.Append(WardPrompts());
+	}
 	else if (ListItem(CursorIndex))
 	{
 		const FString Equip = SlotItem(TargetSlot) ? FString::Printf(TEXT("Swap into slot %d"), TargetSlot + 1) : FString(TEXT("Equip"));

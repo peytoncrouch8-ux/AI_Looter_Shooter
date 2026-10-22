@@ -6,6 +6,7 @@
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudPlayerFrameShapes.h"
 #include "UI/HUD/HudPortraitWidget.h"
+#include "UI/HUD/HudShieldBarWidget.h"
 #include "UI/HUD/HudXpGainWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
@@ -130,6 +131,11 @@ TSharedRef<SWidget> UHudPlayerFrameWidget::RebuildWidget()
 		GainSlot->SetVerticalAlignment(VAlign_Center);
 		GainSlot->SetPadding(FMargin(XPGainGap, 0.f, 0.f, 0.f));
 		Place(XPLine, InFrame(XPNumbersX, XPNumbersY), FVector2D(0.f, 0.5f));
+
+		// The ward bar over the health bar (SHIELD, 2026-10-22), its left end behind the medallion like the bars under it.
+		// Hidden until a ward is worn; it follows the pawn's ward itself.
+		ShieldBar = WidgetTree->ConstructWidget<UHudShieldBarWidget>(UHudShieldBarWidget::StaticClass());
+		Place(ShieldBar, InFrame(UHudShieldBarWidget::BarX + UHudShieldBarWidget::BoxLeft, UHudShieldBarWidget::BarY + UHudShieldBarWidget::BoxTop));
 
 		// The medallion over the bars' ends: the horn and bezel, the portrait in the window, then the window's edges and
 		// the clamps over the portrait's rim.

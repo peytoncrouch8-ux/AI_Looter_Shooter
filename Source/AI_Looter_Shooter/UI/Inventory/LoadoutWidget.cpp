@@ -292,6 +292,7 @@ TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
 			Column->AddChildToVerticalBox(AmmoLine)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
 
 			ListColumn = Column;
+			BuildWardSection(Column);
 			Place(Column, FVector2D(LoadoutLayout::ListX, LoadoutLayout::ColumnTop),
 				FVector2D(LoadoutLayout::ListWidth, LoadoutLayout::ColumnBottom - LoadoutLayout::ColumnTop));
 		}
@@ -383,13 +384,14 @@ void ULoadoutWidget::Refresh()
 	TargetSlot = FMath::Clamp(TargetSlot, 0, FMath::Max(NumSlots() - 1, 0));
 
 	RebuildSlots();
+	RebuildWards();
 	RebuildList();
 	if (Zone == EZone::Backpack && ListRows.IsEmpty())
 	{
 		Zone = EZone::Slots;
 		CursorIndex = TargetSlot;
 	}
-	CursorIndex = FMath::Clamp(CursorIndex, 0, FMath::Max((Zone == EZone::Slots ? SlotRows.Num() : ListRows.Num()) - 1, 0));
+	CursorIndex = FMath::Clamp(CursorIndex, 0, FMath::Max((Zone == EZone::Slots ? SlotRows.Num() : (Zone == EZone::Wards ? WardRows.Num() : ListRows.Num())) - 1, 0));
 	MarkSeen();
 	Restyle();
 	RefreshCounts();
@@ -408,6 +410,7 @@ ULoadoutWidget::FView ULoadoutWidget::GetView() const
 {
 	FView View;
 	View.bOnSlot = Zone == EZone::Slots;
+	View.bOnWard = Zone == EZone::Wards;
 	View.Cursor = CursorIndex;
 	View.TargetSlot = TargetSlot;
 	View.bInspecting = bInspecting;
@@ -452,7 +455,7 @@ const FWeaponInstanceData* ULoadoutWidget::ListItem(int32 Row) const
 
 const FWeaponInstanceData* ULoadoutWidget::CursorItem() const
 {
-	return Zone == EZone::Slots ? SlotItem(CursorIndex) : ListItem(CursorIndex);
+	return Zone == EZone::Slots ? SlotItem(CursorIndex) : (Zone == EZone::Backpack ? ListItem(CursorIndex) : nullptr);
 }
 
 const FWeaponInstanceData* ULoadoutWidget::Baseline() const

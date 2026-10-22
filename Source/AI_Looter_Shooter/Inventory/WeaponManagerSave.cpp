@@ -3,6 +3,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "AI_Looter_Shooter.h"
 #include "Inventory/WeaponInventorySave.h"
+#include "Shields/PlayerShieldComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponPartSwap.h"
 
@@ -28,6 +29,11 @@ void UWeaponManagerComponent::SaveInventory(FWeaponInventorySave& OutSave) const
 		OutSave.Ammo[Type] = AmmoPool[Type];
 	}
 	OutSave.PartsBox = PartsBox;
+	// The wards ride with the guns (the session saves this struct as it is).
+	if (const UPlayerShieldComponent* Shield = UPlayerShieldComponent::Find(GetOwner()))
+	{
+		Shield->SaveWards(OutSave.Shields);
+	}
 }
 
 void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
@@ -35,6 +41,13 @@ void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
 	// Whatever it was given as play began (its starting weapons) makes way for what the session had.
 	const int32 Before = NumCarriedGuns();
 	EmptyInventory();
+
+	// The wards before the guns: a save that had them keeps its own (and its starting ward given), so the first gun coming
+	// back doesn't hand over another; an older save gets the starting ward as its guns come back.
+	if (UPlayerShieldComponent* Shield = UPlayerShieldComponent::Find(GetOwner()))
+	{
+		Shield->RestoreWards(Save.Shields);
+	}
 
 	// Guns whose kind no longer exists (their data asset gone) can't come back; the warning below counts them.
 	for (const FWeaponInstanceData& Instance : Save.Equipped)

@@ -7,6 +7,7 @@
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutRules.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/WeaponMakerRows.h"
 #include "UI/Style/WeaponText.h"
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
@@ -128,6 +129,12 @@ void ULoadoutWidget::RefreshCard()
 	{
 		return;
 	}
+	if (Zone == EZone::Wards)
+	{
+		// A ward's card is its own (LoadoutWidgetWard.cpp).
+		RefreshWardCard();
+		return;
+	}
 	CardBox->ClearChildren();
 	const FWeaponInstanceData* Gun = CursorItem();
 
@@ -210,6 +217,11 @@ void ULoadoutWidget::RefreshCard()
 	const FString Kind = Gun->Definition ? Gun->Definition->DisplayName.ToString() : FString();
 	CardBox->AddChildToVerticalBox(Label(WidgetTree, FString::Printf(TEXT("%s · Lv %d"), *Kind, Gun->Level), 9, Color::TextDim(), 160))
 		->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
+	// Its maker: the mark and name with its trade at a glance; on Inspect the maker's own line and story too.
+	if (UWidget* Maker = WeaponMakerRows::MakeRows(WidgetTree, *Gun, 9, bInspecting))
+	{
+		CardBox->AddChildToVerticalBox(Maker)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+	}
 	// A named gun's line under its name, as written: its voice, the card's one flourish.
 	const FString Flavor = LooterWeaponText::FlavorLine(*Gun);
 	if (!Flavor.IsEmpty())
@@ -430,6 +442,8 @@ void ULoadoutWidget::RefreshShowcase()
 	{
 		ShowcaseHint->SetVisibility(bShown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 	}
+	// On a ward's row the showcase holds the ward box's icon instead.
+	RefreshWardShowcase();
 }
 
 void ULoadoutWidget::ApplyMode()

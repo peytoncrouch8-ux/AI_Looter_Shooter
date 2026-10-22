@@ -245,4 +245,25 @@ struct FWeaponInstanceData
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	bool bJunk = false;
+
+	/**
+	 * Its maker's key (Affixes/WeaponMakers: Roundhouse, SaintMaud, Windfall, Meridian), rolled with the gun from its seed;
+	 * keys never change once guns drop. None in memory means no maker (a gun made by hand in a test or a dev scene: stock
+	 * numbers and look). A named gun ignores it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	FName Maker;
+
+	/**
+	 * After a load: a rolled gun saved before makers existed (no Maker in the save) takes the default maker
+	 * (WeaponMakers::DefaultKey), so every found gun has one. Defined in Affixes/WeaponMakers.cpp.
+	 */
+	AI_LOOTER_SHOOTER_API void PostSerialize(const FArchive& Ar);
+};
+
+template<>
+struct TStructOpsTypeTraits<FWeaponInstanceData> : public TStructOpsTypeTraitsBase2<FWeaponInstanceData>
+{
+	// Old saves get their guns a maker as they load (PostSerialize above).
+	enum { WithPostSerialize = true };
 };

@@ -1,5 +1,6 @@
 #include "Weapons/WeaponModelComponent.h"
 #include "AI_Looter_Shooter.h"
+#include "Affixes/WeaponMakers.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponParts.h"
@@ -20,6 +21,8 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	const float Wear = WeaponParts::Wear(Instance);
 	// The element part fitted (if any) tints the helix glow, so the round count shows in its hue.
 	const ELooterElement GunElement = WeaponParts::ElementOf(Look);
+	// Its maker's mark, on the one part that carries it (the gun master paints it from that part's custom primitive data).
+	const FWeaponMarkPaint Mark = WeaponMakers::MarkFor(Instance, Look);
 	ModelScale = ScaleFor(Definition->Kind);
 
 	// The parts share their materials; the ones this gun colors become one dynamic instance each, shared by every part.
@@ -106,6 +109,10 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		}
 		// How battered this gun is, for the gun master's scuffs and grime (custom primitive data: no material copies).
 		Part->SetCustomPrimitiveDataFloat(WeaponParts::WearDataIndex, Wear);
+		if (Index == Mark.PartIndex)
+		{
+			WeaponMakers::PaintMark(*Part, Mark);
+		}
 		const TArray<FName> MaterialSlots = Part->GetMaterialSlotNames();
 		for (int32 Material = 0; Material < MaterialSlots.Num(); ++Material)
 		{

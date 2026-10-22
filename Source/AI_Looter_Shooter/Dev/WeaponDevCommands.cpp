@@ -10,6 +10,7 @@
 #include "Weapons/WeaponNotches.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/AmmoPickup.h"
+#include "Affixes/WeaponMakers.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "AI_Looter_Shooter.h"
@@ -55,11 +56,12 @@ namespace
 		return nullptr;
 	}
 
-	/** What curse=<Key> and kills=<N> asked for: a cursed gun, and notches already cut. */
+	/** What curse=<Key>, kills=<N> and maker=<Key> asked for: a cursed gun, notches already cut, another maker. */
 	struct FGunIdeasAsked
 	{
 		TOptional<FName> Curse;
 		TOptional<int32> Kills;
+		TOptional<FName> Maker;
 	};
 
 	/** Takes curse=<Key> and kills=<N> out of the Slot=Key arguments (any case), so a slot is never looked up by those words. */
@@ -78,6 +80,10 @@ namespace
 			else if (Word.Equals(TEXT("kills"), ESearchCase::IgnoreCase))
 			{
 				Asked.Kills = FMath::Max(FCString::Atoi(*Value), 0);
+			}
+			else if (Word.Equals(TEXT("maker"), ESearchCase::IgnoreCase))
+			{
+				Asked.Maker = FName(*Value);
 			}
 			else
 			{
@@ -120,6 +126,19 @@ namespace
 		if (Asked.Kills.IsSet())
 		{
 			Instance.Kills = Asked.Kills.GetValue();
+		}
+		if (Asked.Maker.IsSet())
+		{
+			// Its paint, mark, name and trade change; the parts it rolled stay (a maker's leanings only weigh new rolls).
+			if (const FWeaponMaker* Maker = WeaponMakers::Find(Asked.Maker.GetValue()))
+			{
+				Instance.Maker = Maker->Key;
+			}
+			else
+			{
+				UE_LOG(LogLooter, Warning, TEXT("Looter.GiveWeapon: no maker %s (Roundhouse, SaintMaud, Windfall, Meridian)."),
+					*Asked.Maker.GetValue().ToString());
+			}
 		}
 		Instance.bCurseLifted = WeaponCurses::Of(Instance) && Instance.Kills >= WeaponNotches::CurseLiftKills;
 		Instance.Stats = UWeaponRollLibrary::ComputeInstanceStats(Instance);
@@ -191,7 +210,7 @@ namespace
 		{
 			UE_LOG(LogLooter, Warning, TEXT("Looter.GiveWeapon: %s: %s."), *Named.GetName(), *Problem);
 		}
-		if (Asked.Curse.IsSet() || Asked.Kills.IsSet())
+		if (Asked.Curse.IsSet() || Asked.Kills.IsSet() || Asked.Maker.IsSet())
 		{
 			ApplyGunIdeas(Instance, Asked);
 		}
@@ -243,7 +262,7 @@ namespace
 		{
 			ForceParts(Instance, Overrides);
 		}
-		if (Asked.Curse.IsSet() || Asked.Kills.IsSet())
+		if (Asked.Curse.IsSet() || Asked.Kills.IsSet() || Asked.Maker.IsSet())
 		{
 			ApplyGunIdeas(Instance, Asked);
 		}

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Shields/ShieldTypes.h"
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponTypes.h"
 #include "LootLibrary.generated.h"
@@ -32,6 +33,10 @@ struct FLootRoll
 
 	UPROPERTY(BlueprintReadOnly, Category = "Loot")
 	TArray<FAmmoDrop> Ammo;
+
+	/** The wards it drops (a share of its gun picks, when the table drops wards: ULootTable::bDropsShields). */
+	UPROPERTY(BlueprintReadOnly, Category = "Loot")
+	TArray<FShieldInstanceData> Shields;
 };
 
 /** One gun a roll drops, before its stats are rolled: which kind and how rare. */

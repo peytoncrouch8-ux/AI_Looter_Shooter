@@ -435,6 +435,27 @@ def grave_salt_grenade():
                 cut_width=1.1)
 
 
+# --- The ward box (SHIELD, 2026-10-22; UShieldDefinition::IconName), in the ammo icons' box ---
+
+def ward_box():
+    """The ward box (the player's shield as loot: Art/Models/Shields/WardBox.py), seen from the front in the ammo icons' box
+    and ink line: its iron case with the lid's band over it, the damper's wheel on the lid, and the coal window, its frame
+    and its four upright bars (a stove grate) cut in ink. Told apart from the ammo and the grenade by being a box with a
+    barred window (never by colour)."""
+    shapes = [
+        rrect(32, 41.5, 36, 31, 2.5),                                                              # the case
+        rect(12.5, 51.5, 20, 26),                                                                  # the lid, a little wider
+        rect(30.2, 33.8, 14.5, 20),                                                                # the damper's stem
+        circle(32, 9.6, 6.2, 24)]                                                                  # its wheel
+    holes = [circle(32, 9.6, 2.7, 16)]
+    cuts = [
+        closed(rect(20.5, 43.5, 31, 51.5)),                                                        # the window's frame
+        [(25.1, 31), (25.1, 51.5)], [(29.7, 31), (29.7, 51.5)], [(34.3, 31), (34.3, 51.5)],         # the grate
+        [(38.9, 31), (38.9, 51.5)],
+        [(12.5, 26), (51.5, 26)]]                                                                  # the lid's seam
+    return Icon('WardBox', shapes, holes=holes, cuts=cuts, shade=41, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
 # --- The ember powers (Embers/EmberDefinition.h IconName; the HUD's socket and the powers page), in the ammo icons' box ---
 
 def offset_band(centre, widths):
@@ -739,7 +760,8 @@ EMBER_ICONS = ('DustDevil', 'Sundown', 'BorrowedTime', 'LuckyStreak', 'FiftyTwoP
 
 def is_square(icon):
     """Drawn in the ammo icons' square box (the ammo, the grenade, the ember powers), as against a gun's own wide one."""
-    return icon.name.startswith('Ammo') or icon.name == 'GraveSaltGrenade' or icon.name in EMBER_ICONS
+    return (icon.name.startswith('Ammo') or icon.name in ('GraveSaltGrenade', 'WardBox') or icon.name in EMBER_ICONS
+            or icon.name.startswith('Maker'))
 
 
 def icons():
@@ -755,7 +777,12 @@ def icons():
     square = (cx - side / 2, cy - side / 2, cx + side / 2, cy + side / 2)
     embers = [dust_devil(), sundown(), borrowed_time(), lucky_streak(), fifty_two_pickup(), double_or_nothing(), toll_chain(),
               grave_ward(), last_rites(), slag_bomb(), iron_hide(), rail_spike(), spyglass(), tripwire(), long_shot()]
-    return guns + [r.place(square) for r in rounds] + [grave_salt_grenade().place(square)] + [e.place(square) for e in embers]
+    # The gun makers' marks (Art/Icons/MakerMarks.py: the same outlines make the guns' mark atlas), in the shared box.
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # Blender's python doesn't add the script's folder
+    import MakerMarks
+    return (guns + [r.place(square) for r in rounds] + [grave_salt_grenade().place(square)] + [e.place(square) for e in embers]
+            + [ward_box().place(square)] + MakerMarks.maker_marks(square))
 
 
 # --- The rules the game draws by (see the module's docstring), for the reference pictures ---

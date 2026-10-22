@@ -6,6 +6,7 @@
 #include "Creatures/FightTuning.h"
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
+#include "Shields/PlayerShieldComponent.h"
 #include "World/RespawnMarker.h"
 #include "World/RoostCarrySubsystem.h"
 #include "World/RoostVeil.h"
@@ -104,7 +105,11 @@ void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 			// takes no damage): the wait is kept, the ramp starts over after it. Dead and dying never reach here.
 			const USceneSubsystem* Scenes = USceneSubsystem::Get(this);
 			const bool bInScene = Scenes && (Scenes->IsPlaying() || Scenes->IsHoldingPlayer());
-			Vitals.Wounds.Tick(Recovery, *Health, DeltaTime, bInScene);
+			// The ward refills first (SHIELD, 2026-10-22): the wounds' wait counts on while it does, but their ramp holds
+			// until it's full (Looter.Shield.HealthWaits). A ward that fills inside the 7 s wait changes nothing.
+			const UPlayerShieldComponent* Ward = UPlayerShieldComponent::Find(Character);
+			const bool bWardFirst = Ward && Ward->HoldsHealthBack() && Vitals.Wounds.QuietSeconds >= Recovery.RegenDelaySeconds;
+			Vitals.Wounds.Tick(Recovery, *Health, DeltaTime, bInScene || bWardFirst);
 		}
 	}
 

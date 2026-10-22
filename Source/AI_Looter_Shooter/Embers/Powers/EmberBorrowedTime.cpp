@@ -211,8 +211,10 @@ void UEmberBorrowedTime::HandleDamaged(float Damage, bool bCritical, FVector Hit
 		return;
 	}
 	Life->Heal(Lost);
-	Debt += Damage;
-	UE_LOG(LogLooter, Verbose, TEXT("Borrowed Time: %.1f taken back, %.1f owed"), Damage, Debt);
+	// The debt is what reached health: a part the ward soaked was never a wound (GetLastHealthLoss: after the shield).
+	const float Owed = FMath::Min(Damage, Life->GetLastHealthLoss());
+	Debt += Owed;
+	UE_LOG(LogLooter, Verbose, TEXT("Borrowed Time: %.1f taken back, %.1f owed"), Owed, Debt);
 	if (FWeaponFX* Effects = EffectsIn(Life->GetWorld()))
 	{
 		// Where it landed, a puff of violet: the ledger took it.

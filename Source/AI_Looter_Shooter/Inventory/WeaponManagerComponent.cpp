@@ -1,10 +1,12 @@
 #include "Inventory/WeaponManagerComponent.h"
+#include "Combat/HealthComponent.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "Shields/PlayerShieldComponent.h"
 #include "AI_Looter_Shooter.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
@@ -27,6 +29,12 @@ void UWeaponManagerComponent::BeginPlay()
 	{
 		Pawn->ReceiveControllerChangedDelegate.AddDynamic(this, &UWeaponManagerComponent::HandleControllerChanged);
 		SetupInput(Pawn->GetController());
+		// A pawn that carries guns and has health wears a ward (SHIELD, 2026-10-22): ALooterCharacter makes the component,
+		// and a character class made before it gets one here, before the starting weapons below bring its starting ward.
+		if (Pawn->FindComponentByClass<UHealthComponent>())
+		{
+			UPlayerShieldComponent::FindOrAdd(*Pawn);
+		}
 	}
 
 	for (const FStartingWeapon& Starting : StartingWeapons)

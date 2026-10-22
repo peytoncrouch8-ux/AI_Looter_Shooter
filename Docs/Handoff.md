@@ -10,13 +10,16 @@ then merges as jobs report; PLAYTEST packages last.
 Perf (quiet noon): tour worst 8.1 ms (Aerial, Aerial_Dusk, PointOverValley_FarShadow; render-thread bound); fights
 7.6-7.8 avg, p95 8.5-9.4; draws +250-400 since 10-14 (new dressing should be instanced). **The user approved the four
 makers as shown** (Roundhouse, Saint Maud, Windfall, Meridian; `Saved/ArtPreviews/Weapons/Concepts/Makers.png`,
-`Docs/Work/2026-10-22-Next/MAKERS.md`). SMALL-FIXES copied in and building. `Tools/hashcheck.sh <HASHES.txt>` checks a
-holding tree's originals (either column order) before Main copies it.
-GROUND-DETAIL phase 1 ready (place map `Art/Levels/area_places.py`, GroundPlaces set, M_Terrain branch; previews
-`Saved/ArtPreviews/Terrain/Place_RansomsRest_*.png`; phase 2: build_area dressing -> M_Terrain -> scatter -> grabs/perf).
-MAKERS phase 1 ready (`Saved/MakersCode`, ForMain patches for others' files: WeaponModelComponent after SMALL-FIXES,
-build_world_materials after GROUND-DETAIL, InkedIcons with SHIELD, LoadoutWidgetInspect, WeaponDevCommands; old saves
-load as Roundhouse). Lane: SMALL-FIXES (building) -> GROUND-DETAIL -> MAKERS -> SHIELD -> BOUNTY -> PLAYTEST.
+`Docs/Work/2026-10-22-Next/MAKERS.md`). `Tools/hashcheck.sh <HASHES.txt>` checks a holding tree's originals.
+Landed: SMALL-FIXES (bc9a98c), GROUND-DETAIL (4a32212; also carries MAKERS' M_Gun mark code in build_world_materials).
+Evening: MAKERS + SHIELD code both copied into Source and built together (one compile fix in LoadoutWidgetWard); Main
+hand-merged MAKERS' WeaponModelComponent/LoadoutWidgetInspect hunks and InkedIcons (WardBox + Maker* regenerated);
+Main's SHIELD hooks done: `Looter.Fight.DamageScale` 1.5 -> 1.8 (SHIELD's retune, FightTests updated), no hurt grunt when
+the ward took the hit, Borrowed Time debt = health actually lost, `/Game/Art/Shields` cooked; CODEMAP lines added.
+Not done (SHIELD.md "For Main's files"): boss shower `Roll.Shields`, cyan hit edges for ward hits, HudShotScene ward
+state, wards in Lost Property. Uncommitted until each phase 2 passes. Lane now: MAKERS phase 2 (scripts, tests, PIE) ->
+SHIELD phase 2 (models.ps1 WardBox, create_shields.py, sound bank, tests Looter.Shields/Loot/Recovery/UI, hudshots) ->
+commit both -> BOUNTY (copy Saved/BountyCode, build_area hook, IsMenuOpen + LooterHUDMissionOffer edits) -> PLAYTEST.
 
 ## State at 2026-10-22 noon: the queue is empty
 Done since the morning list (all committed and pushed, last 2011943): VFX-2 (fire explosions, no white-ghost kill), FP

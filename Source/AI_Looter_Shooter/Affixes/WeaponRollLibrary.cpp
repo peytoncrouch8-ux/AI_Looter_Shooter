@@ -1,4 +1,5 @@
 #include "Affixes/WeaponRollLibrary.h"
+#include "Affixes/WeaponMakers.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurses.h"
@@ -112,6 +113,8 @@ FWeaponStats UWeaponRollLibrary::ComputeInstanceStats(const FWeaponInstanceData&
 	{
 		return Stats;
 	}
+	// Its maker's handling trade (none for a named gun or one made without a maker), outside the parts' caps.
+	WeaponMakers::ApplyToStats(Instance, Stats);
 	// Then what the gun has been through: its notches' damage, and its curse's perk and drawback. A gun with neither (every
 	// gun found before notches and curses) keeps exactly the numbers it had.
 	const float NotchDamage = WeaponNotches::DamageMultiplier(Instance.Kills);
@@ -135,12 +138,15 @@ FWeaponInstanceData UWeaponRollLibrary::RollWeaponWithRarity(UWeaponDefinition* 
 	Instance.Rarity = Rarity;
 	Instance.Level = FMath::Max(Level, 1);
 	Instance.Seed = FMath::Rand();
+	// Its maker first, from the seed (its own stream): the maker leans the parts' picks, so it must be known before them.
+	Instance.Maker = WeaponMakers::Roll(Definition, Instance.Seed, Instance.Rarity);
 	// The parts are picked once, here, and kept with the gun: parts added later never change it.
 	if (Definition)
 	{
-		Instance.Parts = WeaponParts::PartKeys(WeaponParts::Pick(*Definition, Instance.Seed, Instance.Rarity));
+		Instance.Parts = WeaponParts::PartKeys(WeaponParts::Pick(*Definition, Instance.Seed, Instance.Rarity, {}, WeaponMakers::Of(Instance)));
 	}
-	Instance.Stats = ComputeStatsWithParts(Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts);
+	// As a weapon rebuilds them (a new gun has no notches or curse yet): its parts', then its maker's.
+	Instance.Stats = ComputeInstanceStats(Instance);
 	return Instance;
 }
 

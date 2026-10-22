@@ -8,6 +8,7 @@
 
 class UStaticMesh;
 class UWeaponDefinition;
+struct FWeaponMaker;
 
 /** A part's change to one stat, in percent (+10 = 10% more): each gun rolls its own amount between Min and Max. */
 USTRUCT(BlueprintType)
@@ -87,6 +88,32 @@ struct AI_LOOTER_SHOOTER_API FWeaponPartRequirement
 	float MinLength = 0.f;
 };
 
+/**
+ * Where a part carries its gun's maker's mark (WeaponMakers::MarkFor): a square Size cm wide centred on (X, Z) in the
+ * part's own space (X along the gun toward the muzzle, Z up), painted by the gun master on both sides of the part where
+ * the surface is at least Depth cm out from its middle (its outside, not a window's insides). Size 0: no mark here.
+ * Set per gun family by Tools/Unreal/setup_gun_parts.py (MARKS).
+ */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FWeaponMarkPlace
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	float X = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	float Z = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part", meta = (ClampMin = "0"))
+	float Size = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part", meta = (ClampMin = "0"))
+	float Depth = 0.f;
+
+	bool IsSet() const { return Size > 0.f; }
+};
+
 /** One way a part slot can look: its mesh, how it changes the gun's stats, and the word it can give the gun's name. */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FWeaponPartOption
@@ -143,6 +170,10 @@ struct AI_LOOTER_SHOOTER_API FWeaponPartOption
 	/** The story element it gives the gun's rounds (Ember, Soul-light, Grave-salt; the spreadsheet's Element column). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
 	ELooterElement Element = ELooterElement::None;
+
+	/** Where it carries the maker's mark, if it does (bodies; the Drover's grips). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	FWeaponMarkPlace MarkPlace;
 };
 
 /** A place on the gun that one part fills: the roll's seed picks one of the options the gun's rarity allows. */
@@ -237,11 +268,13 @@ namespace WeaponParts
 	 * whatever has been added to the lists since; a saved part that no longer exists is picked again from the seed. Without
 	 * them the seed picks among the options the rarity allows that fit the parts already picked (a part's Requires names an
 	 * earlier slot). Every slot and paint takes one draw whatever it allows, so a slot's pick never shifts the ones after it.
+	 * With a Maker, its leanings weigh the picks (element or effect parts more likely: WeaponMakers::PartWeight; saved
+	 * parts never change) and its paints then recolour the look from a stream of their own (WeaponMakers::PaintLook).
 	 */
 	AI_LOOTER_SHOOTER_API FWeaponLook Pick(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity,
-		TConstArrayView<FName> SavedParts = {});
+		TConstArrayView<FName> SavedParts = {}, const FWeaponMaker* Maker = nullptr);
 
-	/** Pick for a rolled gun, with its saved parts. */
+	/** Pick for a rolled gun, with its saved parts and its maker (WeaponMakers::Of). */
 	AI_LOOTER_SHOOTER_API FWeaponLook Pick(const FWeaponInstanceData& Instance);
 
 	/** The look's parts by key, one per slot (none for an empty slot): what a gun saves. */
@@ -261,7 +294,8 @@ namespace WeaponParts
 	AI_LOOTER_SHOOTER_API FText NamePrefix(const FWeaponLook& Look);
 
 	/**
-	 * "Scoped Bullpup": the word its parts give it (if any) and its kind, or a named gun's own name ("Heirloom"); without
+	 * "Scoped Bullpup": the word its parts give it (if any) and its kind, or a named gun's own name ("Heirloom"). A gun no
+	 * part names takes its maker's word instead ("Meridian Longhorn"); without
 	 * its nickname (LooterWeaponText::Name adds that). Here rather than in the UI, so the gun rules can name a gun in their
 	 * messages too.
 	 */
@@ -269,7 +303,8 @@ namespace WeaponParts
 
 	/**
 	 * How worn a gun looks, 0 (factory fresh) to 1 (battered), rolled from its seed: commons come scuffed and grimy,
-	 * legendaries nearly clean. A named gun can set its own (Heirloom's: worn but cared for). The gun master (M_Gun) reads
+	 * legendaries nearly clean, then its maker's wear on top (Windfall's salvage comes battered). A named gun can set its
+	 * own (Heirloom's: worn but cared for). The gun master (M_Gun) reads
 	 * it from the parts' custom primitive data WearDataIndex.
 	 */
 	AI_LOOTER_SHOOTER_API float Wear(const FWeaponInstanceData& Instance);

@@ -17,6 +17,7 @@
 #include "Player/PlayerThrowRules.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/SessionSubsystem.h"
+#include "Shields/ShieldPickup.h"
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -73,6 +74,8 @@ ULootTable* AChest::MakeLootTable() const
 	{
 		Table->Entries = Default->Entries;
 		Table->AmmoTypes = Default->AmmoTypes;
+		// Its wards as the default table has them (SHIELD: a share of the guns come as wards).
+		Table->bDropsShields = Default->bDropsShields;
 	}
 	// Its guns at its chance (a Ranger cache's every time, a mailbox's rarely); none at all in a practice area the player
 	// has left (Skyreach on a return visit), as its creatures drop none there.
@@ -159,7 +162,7 @@ void AChest::DropLoot()
 	// move; none where guns don't drop.
 	FRandomStream SilverRoll(FMath::Rand());
 	const int32 Silver = SilverDrops::RollForContainer(this, Kind, Level, SilverRoll);
-	const int32 Count = Roll.Weapons.Num() + Roll.Ammo.Num() + (bGrenade ? 1 : 0) + (Silver > 0 ? 1 : 0);
+	const int32 Count = Roll.Weapons.Num() + Roll.Shields.Num() + Roll.Ammo.Num() + (bGrenade ? 1 : 0) + (Silver > 0 ? 1 : 0);
 	int32 Thrown = 0;
 	TArray<FString> Items;
 	for (const FWeaponInstanceData& Instance : Roll.Weapons)
@@ -174,6 +177,17 @@ void AChest::DropLoot()
 			ULootFanfareSubsystem::ExpectLanding(Gun);
 			DroppedLoot.Add(Gun);
 			Items.Add(FString::Printf(TEXT("%s %s"), *UEnum::GetDisplayValueAsText(Instance.Rarity).ToString(), *GetNameSafe(Instance.Definition)));
+		}
+	}
+	// Wards fly out with the guns, landing with their rarity's sting (AShieldPickup).
+	for (const FShieldInstanceData& Ward : Roll.Shields)
+	{
+		const FVector Velocity = TossVelocity(Thrown++, Count, Random);
+		if (AShieldPickup* Pickup = AShieldPickup::SpawnWard(World, Ward, From))
+		{
+			Pickup->Toss(Velocity);
+			DroppedLoot.Add(Pickup);
+			Items.Add(FString::Printf(TEXT("%s ward"), *UEnum::GetDisplayValueAsText(Ward.Rarity).ToString()));
 		}
 	}
 	for (const FAmmoDrop& Drop : Roll.Ammo)

@@ -126,7 +126,7 @@ void ULoadoutWidget::TickMotion(float DeltaTime)
 	if (FlashIndex != INDEX_NONE)
 	{
 		FlashAge += DeltaTime;
-		const TArray<FRow>& Rows = FlashZone == EZone::Slots ? SlotRows : ListRows;
+		const TArray<FRow>& Rows = FlashZone == EZone::Slots ? SlotRows : (FlashZone == EZone::Wards ? WardRows : ListRows);
 		if (Rows.IsValidIndex(FlashIndex) && Rows[FlashIndex].Flash)
 		{
 			const float Fade = FMath::Square(1.f - FMath::Clamp(FlashAge / LoadoutLayout::FlashSeconds, 0.f, 1.f));

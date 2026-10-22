@@ -497,5 +497,6 @@ void ULoadoutWidget::Restyle()
 			Card.NewMark->SetVisibility(IsNew(Card.Identity) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		}
 	}
+	RestyleWards();
 }
 

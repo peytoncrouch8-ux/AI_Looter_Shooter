@@ -22,6 +22,11 @@ One row per part option (the model is SM_<Gun><Slot>_<Key>, made by Art/Models/W
                      element or effect part before it has a model of its own (the gun's glow says which); empty = its own.
 Older sheets without the last three columns read as empty there.
 
+The gun makers' mark (Affixes/WeaponMakers, Docs/Work/2026-10-22-Next/MAKERS.md): MARKS gives each family the slot whose
+parts carry it and where on them (FWeaponMarkPlace, cm in the part's space: centre X along the gun, Z up, the mark's
+size, and Depth, how far out from the part's middle a surface must be to take it). Laid out from the Blender scripts'
+outlines; tune them by eye in PIE (a gun is marked by the first part in slot order with a place).
+
 The new families (Phase 12.3): the Rustler SMG, Thresher LMG, Longhorn sniper (its fixed Bolt on the body's Bolt socket)
 and Powderkeg launcher (its Magazine slot, the loaded rocket, hangs on the barrel's Rocket socket). Their definitions
 (DA_SMG, DA_LMG, DA_Sniper, DA_Launcher) come from Tools/Unreal/create_new_guns.py: run that first; a family whose
@@ -54,6 +59,19 @@ EFFECTS = {'Ricochet': 'RICOCHET', 'Burst': 'BURST', 'Explosive': 'EXPLOSIVE', '
            'Overcharge': 'OVERCHARGE', 'Twin': 'TWIN'}
 ELEMENTS = {'Ember': 'EMBER', 'SoulLight': 'SOUL_LIGHT', 'Soul-light': 'SOUL_LIGHT', 'GraveSalt': 'GRAVE_SALT',
             'Grave-salt': 'GRAVE_SALT'}
+
+# Where each family's parts carry the maker's mark: (slot, X, Z, size, depth), cm in that slot's part space. Clear of the
+# notch tally rows (Weapons/WeaponModelNotches.cpp) where there's room; the Drover's grips are small, so the tally is cut
+# over the mark once the gun has notches.
+MARKS = {
+    'Bullpup': ('Body', 29.0, -0.9, 5.0, 1.9),        # the shell's flank ahead of the trigger loop, behind the vents
+    'Ranchhand': ('Body', 16.5, -0.6, 2.8, 1.1),      # the receiver's flank ahead of the ejection port
+    'Drover': ('Grip', -1.9, -4.1, 2.6, 1.2),         # the grip panel, as a maker's medallion
+    'Rustler': ('Body', 20.0, 0.4, 4.0, 1.5),         # the upper's flank ahead of the grip
+    'Thresher': ('Body', 24.0, -0.8, 5.0, 2.2),       # the receiver's side ahead of the belt box
+    'Longhorn': ('Body', -6.0, -3.6, 4.0, 1.4),       # the butt stock behind the thumbhole
+    'Powderkeg': ('Body', 24.0, 0.0, 4.5, 3.1),       # the rear sleeve's side
+}
 
 # Each gun's shell is tinted per gun (sRGB hex, weight): mostly field colors, sometimes a bright one.
 SHELL_PAINTS = [(0xe6d8b6, 3.0), (0xe8e8e4, 2.0), (0xc9ad84, 2.0), (0x8c7a5b, 1.5), (0x6f7550, 1.5), (0x5d6b78, 1.0),
@@ -111,6 +129,10 @@ def option(gun, row):
         name_prefix=unreal.Text(row['Word']), name_priority=int(number(row['NamePriority'])))
     part.set_editor_property('effect', enum_value(unreal.PartEffect, EFFECTS, cell(row, 'Effect'), 'effect'))
     part.set_editor_property('element', enum_value(unreal.LooterElement, ELEMENTS, cell(row, 'Element'), 'element'))
+    mark = MARKS.get(gun)
+    # Before the makers' C++ is built the struct isn't there yet: the parts are set up without marks.
+    if mark and row['Slot'] == mark[0] and hasattr(unreal, 'WeaponMarkPlace'):
+        part.set_editor_property('mark_place', unreal.WeaponMarkPlace(x=mark[1], z=mark[2], size=mark[3], depth=mark[4]))
     return part
 
 

@@ -67,7 +67,7 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	/** Looter.Fight.ChaseScale: every regular kind chases this many times its own speed (never a boss or Legendary monster). */
 	float ChaseScale = 1.3f;
 	/** Looter.Fight.DamageScale: every regular creature's damage, times (bosses and Legendary monsters keep theirs). */
-	float DamageScale = 1.5f;
+	float DamageScale = 1.8f;
 	/** Looter.Fight.RegenDelay: seconds unhurt before the player's wounds start to close (was 6). */
 	float RegenDelay = 7.f;
 	/** Looter.Fight.RegenRate: the share of the player's most health healed a second at the ramp's top (was 0.12). */

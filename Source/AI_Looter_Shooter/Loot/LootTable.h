@@ -104,6 +104,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Weapons", meta = (ClampMin = "0"))
 	float Luck = 0.f;
 
+	/**
+	 * Some of the guns it drops come as wards instead (SHIELD, 2026-10-22: the weapon-drop share split): each gun it rolls is
+	 * a ward of the same rarity with Looter.Shield.Drop.Share's chance (0.2), so a kill's loot rate stays as it was. Off for
+	 * tables made in code (the tests' guns stay guns); create_shields.py turns it on for the game's kill tables (the chests
+	 * copy the default table's). The boss table keeps it off until the boss loot shower throws wards.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Weapons")
+	bool bDropsShields = false;
+
 	// --- Ammo ---
 
 	/** Ammo classes that can drop and how likely each is. Defaults to every class, equally likely. */

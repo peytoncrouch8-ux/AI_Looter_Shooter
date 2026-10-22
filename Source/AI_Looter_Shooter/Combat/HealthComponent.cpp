@@ -85,10 +85,19 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float IncomingDamag
 	// Hurting something counts as meeting it (the bestiary's unknown pages); only the player's hits count.
 	UPlayerProgressionSubsystem::RecordEncounter(InstigatedBy, GetOwner());
 
+	LastHealthLoss = 0.f;
 	if (!bInvulnerable)
 	{
-		// A shield in front of it (a creature's soul ward) takes what it can first; the rest comes off its health.
-		const float ToHealth = Shield.IsBound() ? FMath::Clamp(Shield.Execute(Damage, bCritical, HitLocation), 0.f, Damage) : Damage;
+		// A shield in front of it (a creature's soul ward, the player's ward) takes what it can first; the rest comes off its
+		// health. While it runs it can ask what dealt the hit (GetHitBeingTaken: the player's ward's traits answer a bite).
+		float ToHealth = Damage;
+		if (Shield.IsBound())
+		{
+			const FHealthHit Hit{ DamageType, InstigatedBy, DamageCauser };
+			TGuardValue<const FHealthHit*> Taking(HitBeingTaken, &Hit);
+			ToHealth = FMath::Clamp(Shield.Execute(Damage, bCritical, HitLocation), 0.f, Damage);
+		}
+		LastHealthLoss = FMath::Min(ToHealth, Health);
 		Health = FMath::Clamp(Health - ToHealth, 0.f, MaxHealth);
 	}
 

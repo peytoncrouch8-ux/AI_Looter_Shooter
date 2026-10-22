@@ -3,6 +3,7 @@
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterProgressRingWidget.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/WeaponMakerRows.h"
 #include "UI/Style/WeaponText.h"
 #include "Interaction/InteractionComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -133,16 +134,31 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 		IdeasKills = New.Kills;
 		IdeasCurse = New.Curse;
 		bIdeasLifted = New.bCurseLifted;
-		// Its element and part effect first (what it does that no other gun does), then its notches and curse.
+		// Its maker first (whose gun it is and the trade that comes with it), then its element and part effect (what it
+		// does that no other gun does), then its notches and curse.
 		UWidget* Ideas = LoadoutParts::MakeGunIdeasRows(WidgetTree, New, 12);
 		UWidget* Traits = MakeTraitRows(WidgetTree, New, 12);
-		UWidget* Shown = Traits ? Traits : Ideas;
-		if (Traits && Ideas)
+		UWidget* Maker = WeaponMakerRows::MakeRows(WidgetTree, New, 11, /*bFiction*/ false);
+		UWidget* Shown = nullptr;
+		UVerticalBox* All = nullptr;
+		for (UWidget* Part : { Maker, Traits, Ideas })
 		{
-			UVerticalBox* Both = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			Both->AddChildToVerticalBox(Traits);
-			Both->AddChildToVerticalBox(Ideas)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
-			Shown = Both;
+			if (!Part)
+			{
+				continue;
+			}
+			if (!Shown)
+			{
+				Shown = Part;
+				continue;
+			}
+			if (!All)
+			{
+				All = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+				All->AddChildToVerticalBox(Shown);
+				Shown = All;
+			}
+			All->AddChildToVerticalBox(Part)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 		}
 		PickupIdeas->SetContent(Shown);
 		PickupIdeas->SetVisibility(Shown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);

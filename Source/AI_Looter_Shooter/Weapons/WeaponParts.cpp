@@ -1,17 +1,21 @@
 #include "Weapons/WeaponParts.h"
+#include "Affixes/WeaponMakers.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponDefinition.h"
 
 namespace
 {
-	/** The option Roll (0-1) lands on among the allowed ones, by weight; null when none is allowed. */
-	template <typename TOption, typename TAllowed>
-	const TOption* PickByWeight(const TArray<TOption>& Options, float Roll, TAllowed IsAllowed)
+	/**
+	 * The option Roll (0-1) lands on among the allowed ones, by WeightOf (a maker's leanings can weigh a part up); null
+	 * when none is allowed.
+	 */
+	template <typename TOption, typename TAllowed, typename TWeight>
+	const TOption* PickByWeight(const TArray<TOption>& Options, float Roll, TAllowed IsAllowed, TWeight WeightOf)
 	{
 		float Total = 0.f;
 		for (const TOption& Option : Options)
 		{
-			Total += IsAllowed(Option) ? Option.Weight : 0.f;
+			Total += IsAllowed(Option) ? WeightOf(Option) : 0.f;
 		}
 		if (Total <= 0.f)
 		{
@@ -21,12 +25,13 @@ namespace
 		const TOption* Last = nullptr;
 		for (const TOption& Option : Options)
 		{
-			if (!IsAllowed(Option) || Option.Weight <= 0.f)
+			const float Weight = WeightOf(Option);
+			if (!IsAllowed(Option) || Weight <= 0.f)
 			{
 				continue;
 			}
 			Last = &Option;
-			Remaining -= Option.Weight;
+			Remaining -= Weight;
 			if (Remaining < 0.f)
 			{
 				return &Option;
@@ -59,7 +64,8 @@ namespace
 	}
 }
 
-FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity, TConstArrayView<FName> SavedParts)
+FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity, TConstArrayView<FName> SavedParts,
+	const FWeaponMaker* Maker)
 {
 	FWeaponLook Look;
 	// A stream of its own from the same seed: the stats' variance draws from FRandomStream(Seed), and sharing its
@@ -90,22 +96,29 @@ FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, E
 		Look.Parts.Add(PickByWeight(Slot.Options, Roll, [&](const FWeaponPartOption& Option)
 		{
 			return Option.Mesh && Option.MinRarity <= Rarity && Fits(Option, Definition, Look.Parts);
-		}));
+		}, [Maker](const FWeaponPartOption& Option) { return WeaponMakers::PartWeight(Maker, Option); }));
 	}
 	for (const FWeaponPaint& Paint : Definition.Paints)
 	{
 		const float Roll = Random.FRand();
-		if (const FWeaponColorOption* Color = PickByWeight(Paint.Colors, Roll, [](const FWeaponColorOption&) { return true; }))
+		if (const FWeaponColorOption* Color = PickByWeight(Paint.Colors, Roll, [](const FWeaponColorOption&) { return true; },
+			[](const FWeaponColorOption& Option) { return Option.Weight; }))
 		{
 			Look.Colors.Add(Paint.Slot, Color->Color);
 		}
+	}
+	// The maker's paints over the definition's, from their own stream: the definition's draws above never move.
+	if (Maker)
+	{
+		WeaponMakers::PaintLook(*Maker, Seed, Look);
 	}
 	return Look;
 }
 
 FWeaponLook WeaponParts::Pick(const FWeaponInstanceData& Instance)
 {
-	return Instance.Definition ? Pick(*Instance.Definition, Instance.Seed, Instance.Rarity, Instance.Parts) : FWeaponLook();
+	return Instance.Definition ? Pick(*Instance.Definition, Instance.Seed, Instance.Rarity, Instance.Parts, WeaponMakers::Of(Instance))
+		: FWeaponLook();
 }
 
 TArray<FName> WeaponParts::PartKeys(const FWeaponLook& Look)
@@ -188,7 +201,12 @@ FString WeaponParts::BaseName(const FWeaponInstanceData& Instance)
 	{
 		return TEXT("Unknown");
 	}
-	const FText Prefix = NamePrefix(Pick(Instance));
+	FText Prefix = NamePrefix(Pick(Instance));
+	// A gun no part names goes by its maker ("Meridian Longhorn" rather than a bare "Longhorn").
+	if (Prefix.IsEmpty())
+	{
+		Prefix = WeaponMakers::NameWord(Instance);
+	}
 	const FString Weapon = Instance.Definition->DisplayName.ToString();
 	return Prefix.IsEmpty() ? Weapon : FString::Printf(TEXT("%s %s"), *Prefix.ToString(), *Weapon);
 }
@@ -238,7 +256,9 @@ float WeaponParts::Wear(const FWeaponInstanceData& Instance)
 	static const FVector2f Ranges[] = { { 0.45f, 1.f }, { 0.3f, 0.85f }, { 0.15f, 0.65f }, { 0.05f, 0.45f }, { 0.f, 0.25f } };
 	const FVector2f Range = Ranges[FMath::Clamp(static_cast<int32>(Instance.Rarity), 0, static_cast<int32>(UE_ARRAY_COUNT(Ranges)) - 1)];
 	FRandomStream Random(static_cast<int32>(HashCombine(static_cast<uint32>(Instance.Seed), 0x57EA7u)));
-	return FMath::Lerp(Range.X, Range.Y, Random.FRand());
+	const float Rolled = FMath::Lerp(Range.X, Range.Y, Random.FRand());
+	// Its maker's on top (Windfall's salvage comes battered); no draw, so the roll above is the same with or without one.
+	return FMath::Clamp(Rolled + WeaponMakers::ExtraWear(Instance), 0.f, 1.f);
 }
 
 float WeaponParts::RarityGlow(EWeaponRarity Rarity)

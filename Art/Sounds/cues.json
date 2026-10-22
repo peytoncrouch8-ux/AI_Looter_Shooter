@@ -6988,5 +6988,212 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 2
+  },
+  "Bounty.Board.Open": {
+    "files": [
+      "Bounty_Board_Open_01.wav",
+      "Bounty_Board_Open_02.wav",
+      "Bounty_Board_Open_03.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Bounty.Board.Posted": {
+    "files": [
+      "Bounty_Board_Posted_01.wav",
+      "Bounty_Board_Posted_02.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Bounty.Take": {
+    "files": [
+      "Bounty_Take_01.wav",
+      "Bounty_Take_02.wav",
+      "Bounty_Take_03.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Bounty.Abandon": {
+    "files": [
+      "Bounty_Abandon_01.wav",
+      "Bounty_Abandon_02.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Bounty.Mark.Arrive": {
+    "files": [
+      "Bounty_Mark_Arrive_01.wav",
+      "Bounty_Mark_Arrive_02.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Bounty.Mark.Down": {
+    "files": [
+      "Bounty_Mark_Down_01.wav",
+      "Bounty_Mark_Down_02.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Bounty.Chest.Land": {
+    "files": [
+      "Bounty_Chest_Land_01.wav",
+      "Bounty_Chest_Land_02.wav",
+      "Bounty_Chest_Land_03.wav"
+    ],
+    "volume_db": -5.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Bounty.Paid": {
+    "files": [
+      "Bounty_Paid_01.wav",
+      "Bounty_Paid_02.wav",
+      "Bounty_Paid_03.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Shield.Hit": {
+    "files": [
+      "Shield_Hit_01.wav",
+      "Shield_Hit_02.wav",
+      "Shield_Hit_03.wav",
+      "Shield_Hit_04.wav",
+      "Shield_Hit_05.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 3
+  },
+  "Shield.Break": {
+    "files": [
+      "Shield_Break_01.wav",
+      "Shield_Break_02.wav",
+      "Shield_Break_03.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Shield.RechargeStart": {
+    "files": [
+      "Shield_RechargeStart_01.wav",
+      "Shield_RechargeStart_02.wav",
+      "Shield_RechargeStart_03.wav"
+    ],
+    "volume_db": -27.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Shield.Full": {
+    "files": [
+      "Shield_Full_01.wav",
+      "Shield_Full_02.wav",
+      "Shield_Full_03.wav"
+    ],
+    "volume_db": -24.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Shield.Nova": {
+    "files": [
+      "Shield_Nova_01.wav",
+      "Shield_Nova_02.wav",
+      "Shield_Nova_03.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Shield.Grace": {
+    "files": [
+      "Shield_Grace_01.wav",
+      "Shield_Grace_02.wav"
+    ],
+    "volume_db": -21.5,
+    "pitch_jitter": 0.01,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Shield.Pickup": {
+    "files": [
+      "Shield_Pickup_01.wav",
+      "Shield_Pickup_02.wav",
+      "Shield_Pickup_03.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.04,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
   }
 }

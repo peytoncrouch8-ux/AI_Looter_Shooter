@@ -7,6 +7,7 @@
 
 class UCanvasPanel;
 class UHudPortraitWidget;
+class UHudShieldBarWidget;
 class UHudXpGainWidget;
 class UImage;
 class UTextBlock;
@@ -74,6 +75,8 @@ enum class EHudFrameStretch : uint8
  *    floats up at the kill: UXpPopupSubsystem)
  *  - level-up: once the bar gets there the gem flashes, a ring spreads out of it, the portrait's eyes flare, and
  *    OnLevelUp tells the HUD to show the banner
+ *  - the ward (SHIELD, 2026-10-22): a slim cyan bar over the health bar (UHudShieldBarWidget), its own hits, break,
+ *    refill and number; a ward not full keeps the frame at full strength
  *  - full health and nothing happening: the whole frame steps back to the HUD's idle opacity
  * Its shapes are painted pictures drawn once into shared textures; per frame it only repaints what changed. Health comes
  * from the HUD (SetHealth), experience from UPlayerProgressionSubsystem's events.
@@ -139,6 +142,9 @@ public:
 
 	/** The "+XP" after the experience bar's numbers, for the tests; null before the frame is built. */
 	UHudXpGainWidget* GetXPGain() const { return XPGain; }
+
+	/** The ward bar over the health bar (UHudShieldBarWidget), for the tests; null before the frame is built. */
+	UHudShieldBarWidget* GetShieldBar() const { return ShieldBar; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -229,6 +235,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> XPValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> XPMax;
 	UPROPERTY(Transient) TObjectPtr<UHudXpGainWidget> XPGain;
+	/** The ward bar over the health bar, behind the medallion (it reads the pawn's ward itself; the frame's tick drives it). */
+	UPROPERTY(Transient) TObjectPtr<UHudShieldBarWidget> ShieldBar;
 	/** Per stretch (EHudFrameStretch): its cropped body, and its end piece moved along to the level. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> StretchBodies;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> StretchCaps;

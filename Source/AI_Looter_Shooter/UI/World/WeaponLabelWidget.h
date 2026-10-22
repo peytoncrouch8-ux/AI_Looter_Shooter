@@ -12,7 +12,8 @@ class UWidget;
 /**
  * Floating label over a weapon lying in the world: rarity-colored name, key stats, and a pickup prompt. A named gun
  * (Heirloom) shows its own name, and its flavor line under it while it's looked at. A cursed iron adds the cracked coin
- * and the curse's name under its name, from afar too (the name keeps its rarity color).
+ * and the curse's name under its name, from afar too (the name keeps its rarity color). Looked at, its maker's mark and
+ * name sit over its name (Affixes/WeaponMakers).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UWeaponLabelWidget : public UUserWidget
@@ -37,6 +38,10 @@ public:
 
 	/** Its element and effect line ("EMBER · RICOCHET"; empty for a gun with neither), shown from afar in its colour. */
 	FText GetTraitText() const;
+
+	/** Its maker line ("MERIDIAN"; empty for a named gun or one without a maker), shown over the name while looked at. */
+	FText GetMakerText() const;
+	bool IsMakerShown() const;
 
 	/**
 	 * Makes it a drop's name pop (a Legendary's, ULootFanfareSubsystem): the name alone, big, with its element and effect
@@ -76,6 +81,16 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> TraitText;
 
+	/** Its maker's mark and name, over its name while looked at; collapsed for a gun without a maker. */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> MakerRow;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> MakerGlyph;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> MakerText;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> StatsText;
 
@@ -94,6 +109,9 @@ private:
 	FText Curse;
 	FText Stats;
 	FText Trait;
+	FText Maker;
+	/** The maker's Inked mark's name (InkedIconData), none without a maker. */
+	FName MakerIcon;
 	FLinearColor NameColor = FLinearColor::White;
 	FLinearColor TraitColor = FLinearColor::White;
 	bool bIsFocused = false;

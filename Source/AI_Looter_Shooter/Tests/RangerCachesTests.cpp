@@ -8,6 +8,7 @@
 #include "Loot/LootOdds.h"
 #include "Loot/LootTable.h"
 #include "Loot/LostLootSubsystem.h"
+#include "Shields/ShieldPickup.h"
 #include "Session/SessionSave.h"
 #include "Session/SessionSubsystem.h"
 #include "Tests/InteractionTestWorld.h"
@@ -445,7 +446,9 @@ bool FRangerCachesSaveTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestEqual(TEXT("What it gave is kept as loot lying around"), Read->LootWeapons.Num() + Read->AmmoPickups.Num(), Given);
+	// A gun pick may come out as a ward (2026-10-22): those are kept lying around too.
+	TestEqual(TEXT("What it gave is kept as loot lying around"), Read->LootWeapons.Num() + Read->AmmoPickups.Num()
+		+ Read->ShieldPickups.Num(), Given);
 
 	// The level played again: its chests as built, all shut; the session puts back what was opened. (The second test level
 	// stands in for the same map, so its world is filed under that map's name.)
@@ -470,7 +473,13 @@ bool FRangerCachesSaveTest::RunTest(const FString& Parameters)
 	// (2026-10-13), never back on the ground.
 	const ULostLootSubsystem* LostLoot = ULostLootSubsystem::Get(Again);
 	const int32 Shelved = LostLoot ? LostLoot->GetStore().Num() : 0;
-	TestEqual(TEXT("...all of it back: the ammo lying there, the guns in Lost Property"), Shelved + FindAmmo(Again).Num(), Given);
+	int32 Wards = 0;
+	for (TActorIterator<AShieldPickup> It(Again); It; ++It)
+	{
+		++Wards;
+	}
+	TestEqual(TEXT("...all of it back: the ammo and wards lying there, the guns in Lost Property"), Shelved + FindAmmo(Again).Num()
+		+ Wards, Given);
 	TestEqual(TEXT("...no gun lying on the ground"), CountGuns(Again), 0);
 	TestFalse(TEXT("...and it gives nothing more"), OpenedAgain->Open(nullptr, /*bForce*/ true));
 	TestTrue(TEXT("The one never opened is shut and full"), UntouchedAgain->GetState() == EChestState::Closed && UntouchedAgain->CanOpen());

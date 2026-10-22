@@ -17,6 +17,7 @@
 #include "Loot/LostLootSubsystem.h"
 #include "Loot/WeaponRack.h"
 #include "Player/PlayerThrowComponent.h"
+#include "Shields/ShieldPickup.h"
 #include "Session/SessionSave.h"
 #include "Tutorial/TutorialDirector.h"
 #include "UI/Inventory/MapDiscoverySubsystem.h"
@@ -195,6 +196,18 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			Ammo.LifeLeft = It->GetLifeSpan();
 		}
 	}
+	// Wards lying around, with their time on the ground (put back where they lay: wards have no Lost Property yet).
+	Here.ShieldPickups.Reset();
+	for (TActorIterator<AShieldPickup> It(World); It; ++It)
+	{
+		if (!It->IsActorBeingDestroyed() && It->GetWard().Definition)
+		{
+			FSavedShieldPickup& Ward = Here.ShieldPickups.AddDefaulted_GetRef();
+			Ward.Ward = It->GetWard();
+			Ward.Location = It->GetActorLocation();
+			Ward.LifeLeft = It->GetLifeLeft();
+		}
+	}
 	// Silver lying around, as the ammo is (a pile on its way to the player is theirs in a moment: it's kept too).
 	Here.SilverPickups.Reset();
 	for (TActorIterator<ASilverPickup> It(World); It; ++It)
@@ -322,6 +335,10 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 		{
 			Stale.Add(*It);
 		}
+		for (TActorIterator<AShieldPickup> It(World); It; ++It)
+		{
+			Stale.Add(*It);
+		}
 		for (AActor* Actor : Stale)
 		{
 			Actor->Destroy();
@@ -366,6 +383,17 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			{
 				Pickup->Toss(FVector::ZeroVector);
 				ContinueLife(*Pickup, Ammo.LifeLeft);
+			}
+		}
+		for (const FSavedShieldPickup& Ward : Here->ShieldPickups)
+		{
+			if (!Ward.Ward.Definition)
+			{
+				continue;
+			}
+			if (AShieldPickup* Pickup = AShieldPickup::SpawnWard(World, Ward.Ward, Ward.Location))
+			{
+				Pickup->ContinueLife(Ward.LifeLeft);
 			}
 		}
 		for (const FSavedSilverPickup& Silver : Here->SilverPickups)

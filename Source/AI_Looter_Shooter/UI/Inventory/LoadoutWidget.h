@@ -20,7 +20,9 @@ class UMaterialInstanceDynamic;
 class UScrollBox;
 class UTextBlock;
 class UVerticalBox;
+class UPlayerShieldComponent;
 class UWeaponManagerComponent;
+struct FShieldInstanceData;
 struct FWeaponInstanceData;
 
 /** The loadout page's layout, on the inventory's 1600 x 900 page. */
@@ -33,6 +35,8 @@ namespace LoadoutLayout
 	inline constexpr float ColumnBottom = 836.f;
 	inline constexpr float SlotRowHeight = 80.f;
 	inline constexpr float BackpackRowHeight = 42.f;
+	/** The ward worn's row (SHIELD, 2026-10-22), between the slots and the backpack; the spares' are BackpackRowHeight. */
+	inline constexpr float WardRowHeight = 58.f;
 	inline constexpr float RowGap = 6.f;
 	/** Right: the card of the gun under the cursor, always in the same place. */
 	inline constexpr float CardX = 1144.f;
@@ -67,6 +71,9 @@ namespace LoadoutLayout
  * backpack, Q drops. Guns can also be dragged: onto a slot, a backpack gun, the backpack, or the showcase (in hand). W / S
  * browse, A / D jump between the slots and the backpack, Esc backs out (a drag, a move, Inspect) then closes; Tab and I
  * close; 2 and 3 (or the tabs) turn to the ledger and the missions.
+ * The WARD section between them (SHIELD, 2026-10-22; LoadoutWidgetWard.cpp): the ward worn, then the spares carried; the card
+ * shows a ward's numbers against the one worn, the showcase its Inked icon. E on a spare wears it (the worn one takes its
+ * place), E on the worn ward goes to the spares, C stows it, Q drops either.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULoadoutWidget : public UUserWidget
@@ -83,8 +90,10 @@ public:
 	/** What the screen shows, for tests. */
 	struct FView
 	{
-		/** The cursor is on an equip slot (else on a backpack row). */
+		/** The cursor is on an equip slot (else on a ward's row or a backpack row). */
 		bool bOnSlot = true;
+		/** The cursor is on a ward's row (Cursor 0 the ward worn, then the spares). */
+		bool bOnWard = false;
 		int32 Cursor = 0;
 		/** The slot a backpack gun goes into. */
 		int32 TargetSlot = 0;
@@ -113,7 +122,7 @@ protected:
 
 private:
 	/** The list's two parts. */
-	enum class EZone : uint8 { Slots, Backpack };
+	enum class EZone : uint8 { Slots, Backpack, Wards };
 
 	/** Where a dragged gun can be let go. */
 	enum class EDropKind : uint8 { None, Slot, BackpackRow, Backpack, Stage };
@@ -248,6 +257,28 @@ private:
 	/** The card sliding in, a row's flash fading, the rarity glow breathing. */
 	void TickMotion(float DeltaTime);
 
+	// --- The wards (LoadoutWidgetWard.cpp) ---
+	/** Puts the WARD header and its list into the column (between the slots and the backpack). */
+	void BuildWardSection(UVerticalBox* Column);
+	/** The ward rows (the one worn, then the spares), and the shield bound so its changes refresh the screen. */
+	void RebuildWards();
+	FRow MakeWardRow(int32 Row);
+	void RestyleWards();
+	void RefreshWardCard();
+	/** The ward showcase: its Inked icon, big, where the gun would turn. */
+	void RefreshWardShowcase();
+	TArray<FPrompt> WardPrompts() const;
+	/** An action on a ward's row; false when it isn't one the wards take (close, cancel, sort). */
+	bool RunWardAction(EAction Action);
+	void WardActivate();
+	void WardStow();
+	void WardDrop();
+	void HandleWardClicked(ULooterButton* Button);
+	void HandleWardHovered(ULooterButton* Button);
+	/** The ward on row Row (0 the one worn, then the spares), or null. */
+	const FShieldInstanceData* WardItem(int32 Row) const;
+	UPlayerShieldComponent* GetShield() const;
+
 	// --- Queries (LoadoutWidget.cpp) ---
 	const FWeaponInstanceData* SlotItem(int32 SlotIndex) const;
 	/** The backpack gun on a row of the list. */
@@ -294,9 +325,16 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> GhostBox;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GhostAction;
 	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> PromptBar;
+	UPROPERTY(Transient) TObjectPtr<UWidget> WardHeader;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WardCount;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> WardList;
+	UPROPERTY(Transient) TObjectPtr<UImage> WardShowcase;
 
 	TArray<FRow> SlotRows;
 	TArray<FRow> ListRows;
+	/** The ward rows: the one worn (always, "No ward" when none), then a row per spare. */
+	TArray<FRow> WardRows;
+	TWeakObjectPtr<UPlayerShieldComponent> BoundShield;
 	/** Backpack indices in the order the list shows them. */
 	TArray<int32> ListOrder;
 	/** How many of the listed guns are the target slot's kind (they come first when sorted best for slot). */

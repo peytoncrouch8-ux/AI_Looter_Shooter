@@ -176,6 +176,11 @@ void UPlayerSoundComponent::HandleDamaged(float Damage, bool bCritical, FVector 
 	{
 		return;
 	}
+	// A hit the ward took whole is no wound: the ward has its own crackle (Shield.Hit), so no grunt.
+	if (Body->GetLastHealthLoss() <= 0.f)
+	{
+		return;
+	}
 	const double Now = World->GetTimeSeconds();
 	if (Now < NextHurtTime)
 	{

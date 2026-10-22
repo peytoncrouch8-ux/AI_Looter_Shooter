@@ -63,7 +63,7 @@ bool FFightTuningDefaultsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...moving on after 6 shots in 10"), Tuning.RangedRelocate, 0.6f);
 	TestEqual(TEXT("...backing off inside 9 m"), Tuning.RangedBackOff, 900.f);
 	TestEqual(TEXT("Chase x1.3"), Tuning.ChaseScale, 1.3f);
-	TestEqual(TEXT("Damage x1.5"), Tuning.DamageScale, 1.5f);
+	TestEqual(TEXT("Damage x1.8 (raised from 1.5 for the player's ward, 2026-10-22)"), Tuning.DamageScale, 1.8f);
 	TestEqual(TEXT("Regen waits 7 s"), Tuning.RegenDelay, 7.f);
 	TestEqual(TEXT("...and heals 7% a second"), Tuning.RegenRate, 0.07f);
 	TestEqual(TEXT("Live() with nothing set gives the defaults (chase)"), FFightTuning::Live().ChaseScale, Tuning.ChaseScale);
@@ -354,7 +354,7 @@ bool FFightScalesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("A spider chases at 1.3 times its own"), Spider, GetDefault<ASpiderCreature>()->ChaseSpeed * 1.3f, 0.01f);
 	TestTrue(FString::Printf(TEXT("...%.0f: over the walk (%.0f), under the sprint (%.0f)"), Spider, Walk, Sprint), Spider > Walk && Spider < Sprint);
 	TestEqual(TEXT("A boss's chase is its own"), ChaseSpeedFor(430.f, true, Tuning.ChaseScale), 430.f);
-	TestEqual(TEXT("A regular creature hits 1.5 times as hard"), DamageScaleFor(false, Tuning.DamageScale), 1.5f);
+	TestEqual(TEXT("A regular creature hits 1.8 times as hard"), DamageScaleFor(false, Tuning.DamageScale), 1.8f);
 	TestEqual(TEXT("...a boss as it always did"), DamageScaleFor(true, Tuning.DamageScale), 1.f);
 	return true;
 }

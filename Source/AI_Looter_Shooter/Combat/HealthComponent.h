@@ -100,11 +100,32 @@ public:
 	static float AfterDefense(float Damage, float Defense, bool bCritical);
 
 	/**
-	 * A shield in front of its health (a creature's soul ward: UCreatureTraitComponent's Warded): handed each hit after every
-	 * scale and the defense, it takes what it can and returns what's left for health. The number shown and every listener
-	 * still get the whole hit (a ward hit is a hit). None bound: all of it comes off health.
+	 * A shield in front of its health (a creature's soul ward: UCreatureTraitComponent's Warded; the player's ward:
+	 * UPlayerShieldComponent): handed each hit after every scale and the defense, it takes what it can and returns what's
+	 * left for health. The number shown and every listener still get the whole hit (a ward hit is a hit). None bound: all
+	 * of it comes off health.
 	 */
 	FHealthShield Shield;
+
+	/** A hit as it's being taken: what dealt it and how (GetHitBeingTaken). */
+	struct FHealthHit
+	{
+		const UDamageType* DamageType = nullptr;
+		AController* InstigatedBy = nullptr;
+		AActor* DamageCauser = nullptr;
+	};
+
+	/**
+	 * The hit the shield is being handed right now, inside Shield's call (the player's ward's traits read who bit them);
+	 * null outside it.
+	 */
+	const FHealthHit* GetHitBeingTaken() const { return HitBeingTaken; }
+
+	/**
+	 * What the latest damage took off health itself, after the shield: 0 when a shield took all of it. A listener that
+	 * means a wound, not a hit (a hurt grunt, Borrowed Time's debt), reads this in OnDamaged.
+	 */
+	float GetLastHealthLoss() const { return LastHealthLoss; }
 
 	/** What dealt the latest damage (the gun, for shots), so death handlers can tell what made the kill. */
 	UFUNCTION(BlueprintPure, Category = "Health")
@@ -157,6 +178,10 @@ private:
 	/** SetDefense's. */
 	float Defense = 0.f;
 	TWeakObjectPtr<AActor> LastDamageCauser;
+	/** GetHitBeingTaken's: set only while Shield runs. */
+	const FHealthHit* HitBeingTaken = nullptr;
+	/** GetLastHealthLoss's. */
+	float LastHealthLoss = 0.f;
 
 	// The engine broadcasts point damage right before "any damage" in the same TakeDamage call,
 	// so the point handler stashes the hit location for the any-damage handler to use.

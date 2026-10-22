@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Shields/ShieldTypes.h"
 #include "Weapons/WeaponPartSwap.h"
 #include "Weapons/WeaponTypes.h"
 #include "WeaponInventorySave.generated.h"
@@ -32,4 +33,11 @@ struct AI_LOOTER_SHOOTER_API FWeaponInventorySave
 	 */
 	UPROPERTY()
 	TArray<FBoxedWeaponPart> PartsBox;
+
+	/**
+	 * The wards (SHIELD, 2026-10-22: the one worn, the spares, whether the first gun's starting ward was given;
+	 * UPlayerShieldComponent::SaveWards). A session saved before wards reads it empty, and gets the starting ward on load.
+	 */
+	UPROPERTY()
+	FShieldInventorySave Shields;
 };

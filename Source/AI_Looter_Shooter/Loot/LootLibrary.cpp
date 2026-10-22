@@ -2,6 +2,10 @@
 #include "Loot/AmmoPickup.h"
 #include "Loot/LootFanfareSubsystem.h"
 #include "Loot/LootTable.h"
+#include "Shields/ShieldDefinition.h"
+#include "Shields/ShieldPickup.h"
+#include "Shields/ShieldRules.h"
+#include "Shields/ShieldTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
@@ -139,8 +143,17 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 	{
 		return Roll;
 	}
+	// A table that drops wards turns some of its gun picks into a ward of the same rarity (the weapon-drop share split), drawn
+	// after the picks, so a table without wards rolls exactly as before.
+	const float WardShare = LootTable->bDropsShields ? FShieldTuning::Live().DropShare : 0.f;
 	for (const FLootWeaponPick& Pick : RollWeaponPicks(LootTable, ExtraLuck, Random))
 	{
+		if (WardShare > 0.f && ShieldRules::IsWardDrop(Random.FRand(), WardShare))
+		{
+			// Its own fresh seed, as a gun's is.
+			Roll.Shields.Add(ShieldRules::Make(UShieldDefinition::GetWardBox(), Pick.Rarity, Level, FMath::Rand()));
+			continue;
+		}
 		Roll.Weapons.Add(RollDroppedWeapon(Pick.Definition, Pick.Rarity, Level));
 	}
 	return Roll;
@@ -233,6 +246,10 @@ TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const U
 		{
 			Items.Add(FString::Printf(TEXT("%s %s"), *UEnum::GetDisplayValueAsText(Instance.Rarity).ToString(), *GetNameSafe(Instance.Definition)));
 		}
+		for (const FShieldInstanceData& Ward : Roll.Shields)
+		{
+			Items.Add(FString::Printf(TEXT("%s ward"), *UEnum::GetDisplayValueAsText(Ward.Rarity).ToString()));
+		}
 		for (const FAmmoDrop& Drop : Roll.Ammo)
 		{
 			Items.Add(FString::Printf(TEXT("%d %s"), Drop.Amount, LooterAmmo::GetInfo(Drop.Type).Name));
@@ -250,6 +267,16 @@ TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const U
 			// Its rarity is heard and seen as it lands.
 			ULootFanfareSubsystem::ExpectLanding(Weapon);
 			Spawned.Add(Weapon);
+		}
+	}
+
+	// Wards fly out as the guns do, and sting as they land by their rarity (AShieldPickup).
+	for (const FShieldInstanceData& Ward : Roll.Shields)
+	{
+		if (AShieldPickup* Pickup = AShieldPickup::SpawnWard(World, Ward, SpawnLocation))
+		{
+			Pickup->Toss(RandomTossVelocity());
+			Spawned.Add(Pickup);
 		}
 	}
 

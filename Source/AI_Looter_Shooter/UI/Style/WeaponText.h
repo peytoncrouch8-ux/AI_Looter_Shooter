@@ -8,6 +8,7 @@
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponNotches.h"
 #include "Weapons/WeaponParts.h"
+#include "Affixes/WeaponMakers.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Weapons/WeaponTypes.h"
@@ -130,6 +131,87 @@ namespace LooterWeaponText
 	{
 		const ELooterElement Element = WeaponParts::ElementOf(Instance);
 		return Element == ELooterElement::None ? LooterUI::Color::Accent() : ElementRules::UiColor(Element);
+	}
+
+	// --- Its maker (the user's call, 2026-10-22; Affixes/WeaponMakers): cards and labels ---
+
+	/** "MERIDIAN", the line over the gun's name on its cards and label; empty for a named gun or one without a maker. */
+	inline FString MakerString(const FWeaponInstanceData& Instance)
+	{
+		const FWeaponMaker* Maker = WeaponMakers::Of(Instance);
+		return Maker ? Maker->Name.ToString().ToUpper() : FString();
+	}
+
+	/** The maker line's colour: the kit's dim text, so the gun's own name (in its rarity's colour) leads. */
+	inline FLinearColor MakerColor()
+	{
+		return LooterUI::Color::TextDim();
+	}
+
+	/** The maker's mark as an Inked icon (drawn white beside the maker line), or null. */
+	inline const LooterUI::FInkedIcon* MakerMark(const FWeaponInstanceData& Instance)
+	{
+		const FWeaponMaker* Maker = WeaponMakers::Of(Instance);
+		return Maker ? LooterUI::FindInkedIcon(Maker->MarkIcon) : nullptr;
+	}
+
+	/** "Meridian Instrument Co. · Highwater Landing", for the inspect card; empty without a maker. */
+	inline FString MakerFullLine(const FWeaponInstanceData& Instance)
+	{
+		const FWeaponMaker* Maker = WeaponMakers::Of(Instance);
+		return Maker ? FString::Printf(TEXT("%s · %s"), *Maker->FullName.ToString(), *Maker->Place.ToString()) : FString();
+	}
+
+	/** The maker's one-line fiction, for the inspect card; empty without a maker. */
+	inline FString MakerFiction(const FWeaponInstanceData& Instance)
+	{
+		const FWeaponMaker* Maker = WeaponMakers::Of(Instance);
+		return Maker ? Maker->Fiction.ToString() : FString();
+	}
+
+	/**
+	 * "TRUE GLASS: accuracy +30%, range +20%, handling +10%, fire rate -10%, magazine -20%": the quirk's name and its live
+	 * numbers (a revolver's or launcher's leaves out the magazine; leanings read "element parts x3"). Empty without a maker.
+	 */
+	inline FString MakerQuirkLine(const FWeaponInstanceData& Instance)
+	{
+		const FWeaponMaker* Maker = WeaponMakers::Of(Instance);
+		if (!Maker)
+		{
+			return FString();
+		}
+		const FWeaponMakerQuirk Quirk = WeaponMakers::QuirkOf(*Maker);
+		const EWeaponKind Kind = Instance.Definition ? Instance.Definition->Kind : EWeaponKind::None;
+		TArray<FString> Parts;
+		auto Percent = [&Parts](const TCHAR* Word, float Value)
+		{
+			const int32 Rounded = FMath::RoundToInt(Value);
+			if (Rounded != 0)
+			{
+				Parts.Add(FString::Printf(TEXT("%s %s%d%%"), Word, Rounded > 0 ? TEXT("+") : TEXT("-"), FMath::Abs(Rounded)));
+			}
+		};
+		Percent(TEXT("damage"), Quirk.Damage);
+		Percent(TEXT("accuracy"), Quirk.Accuracy);
+		Percent(TEXT("range"), Quirk.Range);
+		Percent(TEXT("fire rate"), Quirk.FireRate);
+		Percent(TEXT("reload time"), Quirk.Reload);
+		Percent(TEXT("recoil"), Quirk.Recoil);
+		Percent(TEXT("handling"), Quirk.Handling);
+		if (WeaponMakers::ChangesMagazine(Kind))
+		{
+			Percent(TEXT("magazine"), Quirk.Magazine);
+		}
+		if (!FMath::IsNearlyEqual(Quirk.ElementPartBias, 1.f))
+		{
+			Parts.Add(FString::Printf(TEXT("element parts x%s"), *FString::SanitizeFloat(FMath::RoundToFloat(Quirk.ElementPartBias * 10.f) / 10.f, 0)));
+		}
+		if (!FMath::IsNearlyEqual(Quirk.EffectPartBias, 1.f))
+		{
+			Parts.Add(FString::Printf(TEXT("effect parts x%s"), *FString::SanitizeFloat(FMath::RoundToFloat(Quirk.EffectPartBias * 10.f) / 10.f, 0)));
+		}
+		const FString Name = Maker->QuirkName.ToString().ToUpper();
+		return Parts.IsEmpty() ? Name : FString::Printf(TEXT("%s: %s"), *Name, *FString::Join(Parts, TEXT(", ")));
 	}
 
 	/** 0-1 ratings for stat bars (rough scale across all weapon types). */

@@ -100,6 +100,23 @@ struct AI_LOOTER_SHOOTER_API FSavedGrenadePickup
 	float LifeLeft = 0.f;
 };
 
+/** A ward (the player's shield as loot) lying on the ground. Put back where it lay on load, unlike a gun (wards have no Lost Property yet). */
+USTRUCT()
+struct AI_LOOTER_SHOOTER_API FSavedShieldPickup
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FShieldInstanceData Ward;
+
+	UPROPERTY()
+	FVector Location = FVector::ZeroVector;
+
+	/** Seconds it had left on the ground. */
+	UPROPERTY()
+	float LifeLeft = 0.f;
+};
+
 /** What a weapon rack still offered. */
 USTRUCT()
 struct AI_LOOTER_SHOOTER_API FSavedWeaponRack
@@ -139,6 +156,10 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 
 	UPROPERTY()
 	TArray<FSavedAmmoPickup> AmmoPickups;
+
+	/** Wards lying here (2026-10-22): they go back on the ground with the life they had left. */
+	UPROPERTY()
+	TArray<FSavedShieldPickup> ShieldPickups;
 
 	UPROPERTY()
 	TArray<FSavedWeaponRack> Racks;

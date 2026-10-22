@@ -1,6 +1,7 @@
 #include "UI/World/WeaponLabelWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
+#include "Affixes/WeaponMakers.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
 #include "Blueprint/WidgetTree.h"
@@ -48,6 +49,17 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Name"));
 		FlavorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Flavor"));
 		TraitText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Trait"));
+
+		// The maker's line: its mark and name, over the gun's name. ApplyContent sizes the mark and shows the row only while
+		// the label is looked at, for a gun with a maker.
+		UHorizontalBox* MakerLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("MakerLine"));
+		MakerGlyph = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("MakerGlyph"));
+		MakerLine->AddChildToHorizontalBox(MakerGlyph)->SetVerticalAlignment(VAlign_Center);
+		MakerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Maker"));
+		UHorizontalBoxSlot* MakerTextSlot = MakerLine->AddChildToHorizontalBox(MakerText);
+		MakerTextSlot->SetVerticalAlignment(VAlign_Center);
+		MakerTextSlot->SetPadding(FMargin(5.f, 0.f, 0.f, 0.f));
+		MakerRow = MakerLine;
 		StatsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Stats"));
 		PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Prompt"));
 
@@ -62,6 +74,7 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		CurseTextSlot->SetPadding(FMargin(5.f, 0.f, 0.f, 0.f));
 		CurseRow = CurseLine;
 
+		AddLine(MakerRow);
 		AddLine(NameText);
 		AddLine(CurseRow);
 		AddLine(TraitText);
@@ -95,7 +108,22 @@ void UWeaponLabelWidget::SetWeapon(const AWeaponBase* Weapon)
 	// Its element and effect ("EMBER · RICOCHET"), in the element's colour: what makes it worth walking over to.
 	Trait = FText::FromString(LooterWeaponText::TraitLine(Instance));
 	TraitColor = LooterWeaponText::TraitColor(Instance);
+	// Its maker ("MERIDIAN") and mark: who made it, so its name and feel promise something.
+	Maker = FText::FromString(LooterWeaponText::MakerString(Instance));
+	const FWeaponMaker* Made = WeaponMakers::Of(Instance);
+	MakerIcon = Made && LooterWeaponText::MakerMark(Instance) ? Made->MarkIcon : NAME_None;
 	ApplyContent();
+}
+
+FText UWeaponLabelWidget::GetMakerText() const
+{
+	return MakerText ? MakerText->GetText() : FText::GetEmpty();
+}
+
+bool UWeaponLabelWidget::IsMakerShown() const
+{
+	const ESlateVisibility Shown = MakerRow ? MakerRow->GetVisibility() : ESlateVisibility::Collapsed;
+	return Shown != ESlateVisibility::Collapsed && Shown != ESlateVisibility::Hidden && !MakerText->GetText().IsEmpty();
 }
 
 FText UWeaponLabelWidget::GetTraitText() const
@@ -198,6 +226,18 @@ void UWeaponLabelWidget::ApplyContent()
 	CurseGlyph->SetBrush(CrackedCoinBrush(FVector2D(CoinSize, CoinSize)));
 	CurseRow->SetVisibility(Curse.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 
+	// Its maker over its name, with the details (from afar the name alone, which a gun no part names already takes from
+	// its maker): the mark white as every Inked icon, the name in dim text so the gun's own name leads.
+	MakerText->SetText(Maker);
+	StyleFloatingText(MakerText, 11, LooterWeaponText::MakerColor(), 160);
+	const LooterUI::FInkedIcon* MarkIcon = LooterUI::FindInkedIcon(MakerIcon);
+	MakerGlyph->SetVisibility(MarkIcon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	if (MarkIcon)
+	{
+		MakerGlyph->SetBrush(InkedIconBrush(MakerIcon, *MarkIcon, FVector2D(17.f, 17.f)));
+	}
+	MakerRow->SetVisibility(bIsFocused && !Maker.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
 	// A named gun's line under its name, with the details: the name alone floats over the loot from afar.
 	FlavorText->SetText(Flavor);
 	StyleFloatingText(FlavorText, 12, LooterWeaponText::FlavorColor(), 20);
@@ -219,5 +259,6 @@ void UWeaponLabelWidget::ApplyContent()
 	{
 		CurseRow->SetVisibility(ESlateVisibility::Collapsed);
 		FlavorText->SetVisibility(ESlateVisibility::Collapsed);
+		MakerRow->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }

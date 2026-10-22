@@ -4,6 +4,7 @@
 
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudPortraitWidget.h"
+#include "UI/HUD/HudShieldBarWidget.h"
 #include "UI/HUD/HudXpGainWidget.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -213,9 +214,19 @@ void UHudPlayerFrameWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 
 	TickXPEffects(InDeltaTime);
 
-	// Full health and nothing happening: step back. Hurt, or something just happened: full strength.
+	// Full health and nothing happening: step back. Hurt, or something just happened: full strength. The ward counts as
+	// health does: a hit on it, its break or refill wakes the frame, and a ward not full holds it awake.
+	if (ShieldBar)
+	{
+		ShieldBar->Update(InDeltaTime);
+		if (ShieldBar->ConsumeActivity())
+		{
+			Activity = ActivityHoldSeconds;
+		}
+	}
 	Activity = FMath::Max(0.f, Activity - InDeltaTime);
-	const float Wanted = Activity > 0.f || (LastFraction >= 0.f && LastFraction < 0.999f) ? 1.f : IdleOpacity;
+	const bool bWardDown = ShieldBar && ShieldBar->IsShowingLoss();
+	const float Wanted = Activity > 0.f || bWardDown || (LastFraction >= 0.f && LastFraction < 0.999f) ? 1.f : IdleOpacity;
 	const float Opacity = Cluster->GetRenderOpacity();
 	if (!FMath::IsNearlyEqual(Opacity, Wanted, 0.002f))
 	{

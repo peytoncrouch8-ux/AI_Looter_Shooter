@@ -11,7 +11,10 @@
                   from the same data: the tally (NotchMarks 1, NotchRow 2-5, NotchHeight 6, NotchDepth 7) cut dark into
                   the sides of one part along a row in the part's own space (its pre-skinned position, so the
                   first-person view's own field of view can't move it), and a soul-forged gun's faint rim glow in its
-                  rarity's color (SoulLight 8-11, emissive).
+                  rarity's color (SoulLight 8-11, emissive). Its maker's mark (Affixes/WeaponMakers::PaintMark, data 12-19:
+                  the cell of MakerMarks, T_GunMakerMarks's 2x2 atlas, 0 none; its centre X/Z, size and depth in the
+                  part's own space, cm; its colour) painted on both sides of the one part that carries it, scuffed with
+                  the wear (create_manufacturers.py imports the atlas first).
   M_WorldFoliage  masked, two-sided (back faces keep the front's normal), the same maps (opacity from the base
                   color's alpha) plus wind: vertex color R is how far a vertex sways, G offsets its phase;
                   WindStrength (cm), WindSpeed, WindDirection.
@@ -561,6 +564,21 @@ float Breath = 0.8 + 0.2 * sin(Time * 1.6);
 return Soul.rgb * Soul.a * (0.08 + Rim) * Breath;"""
 
 
+MARK_CODE = """// The gun maker's mark: a square of the atlas cell Cell (1-4; 0 none) Size cm wide, centred on Centre (X along the
+// gun, Z up, the part's own space), on the part's sides (|normal y| > 0.5) where they stand at least Depth cm out from its
+// middle (its outside, not a window's insides). Alpha is the mark's cover, rubbed through by the wear's scuffs.
+if (Cell < 0.5) return float4(0.0, 0.0, 0.0, 0.0);
+float2 P = (float2(Local.x, Local.z) - Centre) / max(Size, 0.01) + 0.5;
+if (any(P < 0.0) || any(P > 1.0) || abs(Local.y) < Depth || abs(LocalNormal.y) < 0.5) return float4(0.0, 0.0, 0.0, 0.0);
+// The same picture both sides: one side sees the gun's X run to the left, so it's turned round there (if a mark reads
+// mirrored in PIE, swap the sign test).
+P.x = LocalNormal.y > 0.0 ? 1.0 - P.x : P.x;
+float Index = round(Cell) - 1.0;
+float2 UV = (float2(fmod(Index, 2.0), floor(Index * 0.5)) + float2(P.x, 1.0 - P.y)) * 0.5;
+float Cover = Texture2DSampleLevel(Marks, MarksSampler, UV, 0.0).r;
+return float4(Colour, Cover * (1.0 - 0.75 * Scuff) * (1.0 - Tally.x));"""
+
+
 def build_gun(orm_default):
     mat = material('M_Gun')
     g = Graph(mat)
@@ -609,6 +627,32 @@ def build_gun(orm_default):
     carved = g.custom(CARVE_CODE, [
         ('Color', rgb, ''), ('Tally', tally, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 200, -300, 'Carved tally')
+    # The maker's mark (data 12-19) over the paint, under nothing: the tally is cut through it.
+    marks_texture = unreal.load_asset('/Game/Art/Weapons/Textures/T_GunMakerMarks')
+    if marks_texture is None:
+        unreal.log_warning('M_Gun: T_GunMakerMarks is missing (run create_manufacturers.py): the mark is left out')
+        marked = carved
+    else:
+        mark = g.custom(MARK_CODE, [
+            ('Local', local, ''),
+            ('LocalNormal', local_normal, ''),
+            ('Cell', cpd_scalar('MakerMark', 12, -800, 2300), ''),
+            ('Centre', g.custom('return float2(X, Z);', [('X', cpd_scalar('MakerMarkX', 13, -1100, 2400), ''),
+                                                         ('Z', cpd_scalar('MakerMarkZ', 14, -1100, 2500), '')],
+                                unreal.CustomMaterialOutputType.CMOT_FLOAT2, -800, 2400, 'Mark centre'), ''),
+            ('Size', cpd_scalar('MakerMarkSize', 15, -800, 2600), ''),
+            ('Depth', cpd_scalar('MakerMarkDepth', 16, -800, 2700), ''),
+            ('Colour', g.custom('return float3(R, G, B);', [('R', cpd_scalar('MakerMarkR', 17, -1100, 2800), ''),
+                                                            ('G', cpd_scalar('MakerMarkG', 18, -1100, 2900), ''),
+                                                            ('B', cpd_scalar('MakerMarkB', 19, -1100, 3000), '')],
+                                unreal.CustomMaterialOutputType.CMOT_FLOAT3, -800, 2800, 'Mark colour'), ''),
+            ('Scuff', scuff, ''),
+            ('Tally', tally, ''),
+            ('Marks', g.node(unreal.MaterialExpressionTextureObjectParameter, -800, 3100, parameter_name='MakerMarks',
+                             texture=marks_texture), ''),
+        ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, 200, 2400, 'Maker mark')
+        marked = g.custom('return lerp(Color, Mark.rgb, Mark.a);', [('Color', carved, ''), ('Mark', mark, '')],
+                          unreal.CustomMaterialOutputType.CMOT_FLOAT3, 500, -300, 'Marked')
     rough = g.custom('return lerp(saturate(Roughness + Wear * 0.12 + Scuff * 0.15), 0.95, Tally.x);', [
         ('Roughness', orm, 'G'), ('Wear', wear, ''), ('Scuff', scuff, ''), ('Tally', tally, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, 200, 100, 'Worn roughness')
@@ -621,7 +665,7 @@ def build_gun(orm_default):
         ('V', g.node(unreal.MaterialExpressionCameraVectorWS, -300, 2100), ''),
         ('Time', g.node(unreal.MaterialExpressionTime, -300, 2200), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 200, 600, 'Soul-light')
-    g.out(carved, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(marked, '', unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(nrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
