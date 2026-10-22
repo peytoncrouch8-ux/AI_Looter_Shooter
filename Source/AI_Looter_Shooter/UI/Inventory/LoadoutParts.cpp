@@ -70,13 +70,38 @@ namespace LoadoutParts
 		static const FInkedIcon Rifle = InkedIconData::Rifle();
 		static const FInkedIcon Shotgun = InkedIconData::Shotgun();
 		static const FInkedIcon Revolver = InkedIconData::Revolver();
-		return Kind == EWeaponKind::Shotgun ? Shotgun : (Kind == EWeaponKind::Revolver ? Revolver : Rifle);
+		static const FInkedIcon SMG = InkedIconData::SMG();
+		static const FInkedIcon Sniper = InkedIconData::Sniper();
+		static const FInkedIcon LMG = InkedIconData::LMG();
+		static const FInkedIcon Launcher = InkedIconData::Launcher();
+		switch (Kind)
+		{
+		case EWeaponKind::Shotgun: return Shotgun;
+		case EWeaponKind::Revolver: return Revolver;
+		case EWeaponKind::SMG: return SMG;
+		case EWeaponKind::Sniper: return Sniper;
+		case EWeaponKind::LMG: return LMG;
+		case EWeaponKind::Launcher: return Launcher;
+		case EWeaponKind::Rifle:
+		case EWeaponKind::None:
+		default: return Rifle;
+		}
 	}
 
 	FName GunIconName(EWeaponKind Kind)
 	{
-		return Kind == EWeaponKind::Shotgun ? FName(TEXT("InkedShotgun"))
-			: (Kind == EWeaponKind::Revolver ? FName(TEXT("InkedRevolver")) : FName(TEXT("InkedRifle")));
+		switch (Kind)
+		{
+		case EWeaponKind::Shotgun: return FName(TEXT("InkedShotgun"));
+		case EWeaponKind::Revolver: return FName(TEXT("InkedRevolver"));
+		case EWeaponKind::SMG: return FName(TEXT("InkedSMG"));
+		case EWeaponKind::Sniper: return FName(TEXT("InkedSniper"));
+		case EWeaponKind::LMG: return FName(TEXT("InkedLMG"));
+		case EWeaponKind::Launcher: return FName(TEXT("InkedLauncher"));
+		case EWeaponKind::Rifle:
+		case EWeaponKind::None:
+		default: return FName(TEXT("InkedRifle"));
+		}
 	}
 
 	const FInkedIcon& AmmoIcon(EAmmoType Type)
@@ -87,6 +112,7 @@ namespace LoadoutParts
 			InkedIconData::AmmoPistol(),
 			InkedIconData::AmmoSMG(),
 			InkedIconData::AmmoSniper(),
+			InkedIconData::AmmoRocket(),
 		};
 		static_assert(static_cast<int32>(UE_ARRAY_COUNT(Icons)) == LooterAmmo::NumTypes, "An Inked icon for every ammo type, in EAmmoType order.");
 		return Icons[FMath::Clamp(static_cast<int32>(Type), 0, static_cast<int32>(UE_ARRAY_COUNT(Icons)) - 1)];

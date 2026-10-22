@@ -32,8 +32,23 @@ enum class EWeaponKind : uint8
 	Rifle,
 	Shotgun,
 	/** The Drover: a six-gun on pistol ammo (DA_Revolver). Saved as its name, so the kinds above keep their numbers. */
-	Revolver
+	Revolver,
+	/**
+	 * The four frontier-tech kinds (Phase 12.3, 2026-10-21; appended, so the kinds above keep their numbers). The Rustler
+	 * SMG (DA_SMG, SMG ammo): fastest fire and swap, its helix magazine's glow the rounds left.
+	 */
+	SMG,
+	/** The Longhorn bolt-action sniper rifle (DA_Sniper, sniper rounds): the bolt cycles between shots, its crits hit hardest. */
+	Sniper,
+	/** The Thresher LMG (DA_LMG, rifle ammo): spins up as it fires, its barrel glows with the heat, slow to aim. */
+	LMG,
+	/** The Powderkeg rocket launcher (DA_Launcher, rockets): one rocket that flies and bursts (AWeaponRocket). */
+	Launcher
 };
+
+/** Every gun kind there is, None aside (tests, dumps and tuning lists walk it). */
+inline constexpr EWeaponKind AllGunKinds[] = { EWeaponKind::Rifle, EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::SMG,
+	EWeaponKind::Sniper, EWeaponKind::LMG, EWeaponKind::Launcher };
 
 /** The part of a gun a reload visibly works on. */
 UENUM(BlueprintType)
@@ -49,7 +64,28 @@ enum class EWeaponReloadPart : uint8
 	 * fresh rounds in and the cylinder is snapped home. The cylinder also turns a chamber with every shot.
 	 */
 	Cylinder,
+	/**
+	 * The sniper's bolt (the Bolt slot's part) and its box magazine (the reload slot's): the bolt is turned up and drawn
+	 * back, the box swapped, the bolt run home. The bolt also cycles between shots (LooterReload::BoltCycleOpen).
+	 */
+	Bolt,
+	/** The LMG's belt box: slides out along its -Z, a fresh one goes in and the belt is laid in the feed. */
+	Box,
+	/**
+	 * The launcher's rocket: the next one (the definition's ProjectileMesh) slides into the mouth along -X onto the
+	 * Rocket socket, where the magazine slot's part (the loaded rocket's nose) shows while a rocket is in.
+	 */
+	Rocket,
+	/** The SMG's helix magazine under the barrel: slides out along its -Z and a fresh one goes in, then the knob. */
+	Helix,
 };
+
+/** The reload parts that slide out of their well along -Z and are swapped as a magazine is (the bolt gun's box too). */
+inline bool IsMagazineLike(EWeaponReloadPart Part)
+{
+	return Part == EWeaponReloadPart::Magazine || Part == EWeaponReloadPart::Box || Part == EWeaponReloadPart::Helix
+		|| Part == EWeaponReloadPart::Bolt;
+}
 
 /** The final numbers a weapon fires with. Produced by rolling a UWeaponDefinition. */
 USTRUCT(BlueprintType)

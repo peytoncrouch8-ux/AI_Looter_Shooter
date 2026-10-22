@@ -167,7 +167,7 @@ TArray<FAmmoDrop> ULootLibrary::RollAmmo(const ULootTable* LootTable, FRandomStr
 		return Ammo;
 	}
 	// Most kills leave a pickup or two (ranked creatures more), each of a random class (more often the kill weapon's) and a
-	// random amount from the table's range, the same range for every class.
+	// random amount from the table's range, the same range for every class (rockets read it as one to three rockets).
 	if (Random.FRand() < LootTable->AmmoDropChance)
 	{
 		const int32 MinDrops = FMath::Max(LootTable->MinAmmoDrops, 0);
@@ -176,7 +176,7 @@ TArray<FAmmoDrop> ULootLibrary::RollAmmo(const ULootTable* LootTable, FRandomStr
 		{
 			FAmmoDrop& Drop = Ammo.AddDefaulted_GetRef();
 			Drop.Type = PickAmmoType(LootTable, Random, KillAmmo);
-			Drop.Amount = RollAmmoAmount(LootTable, Random);
+			Drop.Amount = LooterLoot::AmmoAmountFor(Drop.Type, RollAmmoAmount(LootTable, Random));
 		}
 	}
 	return Ammo;

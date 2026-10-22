@@ -7,6 +7,7 @@
 #include "WeaponModelComponent.generated.h"
 
 class UMaterialInstanceDynamic;
+class UMaterialInterface;
 class UStaticMesh;
 class UStaticMeshComponent;
 
@@ -97,6 +98,43 @@ public:
 	static constexpr float CylinderTurnDelay = 0.04f;
 	static constexpr float CylinderTurnSeconds = 0.12f;
 
+	// --- The frontier-tech guns' moving and glowing parts (Phase 12.3; WeaponModelKinds.cpp) ---
+
+	/** The sniper's bolt (its Bolt slot's part): Open 0 home, 1 turned up and drawn fully back (LooterReload::BoltPose). */
+	void SetBoltOpen(float Open);
+	bool HasBolt() const { return BoltMesh != nullptr; }
+
+	/**
+	 * The launcher's rocket: the next one (the definition's ProjectileMesh) Travel cm in front of its seat in the mouth,
+	 * shown while it's in the hand (bIncomingShown); the loaded rocket's nose (the magazine slot's part) shown while one is
+	 * in (bLoaded).
+	 */
+	void SetRocketLoad(float Travel, bool bIncomingShown, bool bLoaded);
+
+	/**
+	 * The glows the game drives (material slots GunAmmoGlow, the SMG helix's rounds left; GunHeatGlow, the LMG barrel's
+	 * heat): lit from the part's feed or breech end (its UV0.x 0) up to Fill (0-1), at Strength. On the gauge master
+	 * (M_GunGauge, Tools/Unreal/build_gun_gauge_material.py) the lit length follows Fill; without it the whole slot
+	 * glows at Strength times Fill's share, so it still dims and brightens.
+	 */
+	void SetAmmoGauge(float Fill, float Strength);
+	void SetHeatGauge(float Fill, float Strength);
+	bool HasAmmoGauge() const { return AmmoGauge != nullptr; }
+	bool HasHeatGauge() const { return HeatGauge != nullptr; }
+
+	/** A launcher's exhaust mouth (SOCKET_Backblast) and the way it faces, in the gun's space; false without one. */
+	bool GetBackblast(FVector& OutLocation, FVector& OutDirection) const
+	{
+		OutLocation = Backblast;
+		OutDirection = BackblastWay;
+		return bHasBackblast;
+	}
+
+	/** The material slots the game lights part of the way, and the gauge master that can (null until it's built). */
+	static const FName AmmoGlowSlot;
+	static const FName HeatGlowSlot;
+	static UMaterialInterface* FindGaugeMaster();
+
 	/** Draws the parts like first-person arms (own field of view, no clipping) or like the world. */
 	void SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType Type);
 	EFirstPersonPrimitiveType GetFirstPersonPrimitiveType() const { return FirstPersonType; }
@@ -149,6 +187,15 @@ private:
 	/** Puts the cylinder where its swing and its turn have it: turned about its own axis, swung about its crane. */
 	void PoseCylinder();
 
+	/** A gauge slot's material for this gun (WeaponModelKinds.cpp): the gauge master's instance in Source's color, else Source's own. */
+	UMaterialInstanceDynamic* MakeGauge(FName Slot, UMaterialInterface* Source);
+
+	/** The launcher's next rocket for its reload, beside the loaded one (WeaponModelKinds.cpp; none without a projectile mesh). */
+	void MakeRocketLoad(const UWeaponDefinition& Definition, UStaticMeshComponent& Loaded);
+
+	/** The back-blast socket's place and facing, from whichever part has it (the launcher's body). */
+	void FindBackblast();
+
 	/** The slot (or the socket it hangs from) whose part is the sight. */
 	const FName SightSocket = TEXT("Sight");
 	/** On a sight: the point the eye lines up with when aiming (the dot, an optic's center, the irons' notch). */
@@ -159,9 +206,29 @@ private:
 	const FName BodySlot = TEXT("Body");
 	/** On a revolver's cylinder: the crane's hinge it swings out on, in the cylinder's own space. */
 	const FName CraneSocket = TEXT("Crane");
+	/** The sniper's bolt slot. */
+	const FName BoltSlot = TEXT("Bolt");
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> Parts;
+
+	/** The sniper's bolt, and the launcher's next rocket (not one of Parts: it only shows through a reload). */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> BoltMesh;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> RocketLoadMesh;
+
+	/** This gun's instances of its gauge slots (null for a gun without them). */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> AmmoGauge;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> HeatGauge;
+
+	FVector Backblast = FVector::ZeroVector;
+	FVector BackblastWay = -FVector::ForwardVector;
+	bool bHasBackblast = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> ReloadPartMesh;

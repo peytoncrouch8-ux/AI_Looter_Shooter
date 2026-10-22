@@ -241,6 +241,8 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   archive), archive the Style Lab docs. Placeholders give XP and loot like real enemies (told ROSTER). Do the moves when
   no agent is reading those files (contracts of running jobs move after their commit; the Pipeline split when no
   phase-2 agent is writing it).
+  More calls (2026-10-22): FP-HANDS may look up Borderlands gameplay screenshots online to compare framing (nothing copied
+  into the game); placeholders show "<in-world name> (<type>)", e.g. "Tommyknocker (goblin)" (told ROSTER).
   Order of the build lane next: FIGHT-AI perf -> GUNS-CODE phase 2 (merge `Saved/GunsCode`, then `Saved/GunsSound`, import
   the four models) -> LOOT-CODE phase 2 -> STORY merge -> WORLD-ART phase 2.
 

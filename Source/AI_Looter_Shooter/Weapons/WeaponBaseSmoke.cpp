@@ -15,7 +15,8 @@ namespace
 {
 	/**
 	 * Heat a shot puts in the barrel, by kind: a rifle's round a little (about a second's burst smokes, a long one well), a
-	 * pump's blast or a six-gun's heavy round enough alone.
+	 * pump's blast or a six-gun's heavy round enough alone. The SMG's small rounds less than a rifle's (a long burst still
+	 * smokes), the LMG's about a rifle's (it fires long), the sniper's big round alone, the launcher's mouth most of all.
 	 */
 	float SmokeShotHeat(EWeaponKind Kind)
 	{
@@ -25,6 +26,16 @@ namespace
 			return 0.55f;
 		case EWeaponKind::Revolver:
 			return 0.45f;
+		case EWeaponKind::SMG:
+			return 0.06f;
+		case EWeaponKind::LMG:
+			return 0.08f;
+		case EWeaponKind::Sniper:
+			return 0.6f;
+		case EWeaponKind::Launcher:
+			return 1.4f;
+		case EWeaponKind::Rifle:
+		case EWeaponKind::None:
 		default:
 			return 0.09f;
 		}

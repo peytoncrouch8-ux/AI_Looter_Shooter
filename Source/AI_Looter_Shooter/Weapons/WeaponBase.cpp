@@ -9,6 +9,7 @@
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "UI/World/WeaponLabelWidget.h"
+#include "UI/HUD/HudScopeWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponModelComponent.h"
@@ -171,6 +172,7 @@ void AWeaponBase::Tick(float DeltaSeconds)
 	UpdateBeamGutter();
 	UpdateBrass(DeltaSeconds);
 	UpdateMuzzleSmoke(DeltaSeconds);
+	UpdateKinds(DeltaSeconds);
 	RefreshTick();
 }
 
@@ -178,7 +180,8 @@ void AWeaponBase::RefreshTick()
 {
 	const bool bAnimatingReload = bReloading && GetReloadPart() != EWeaponReloadPart::None;
 	const bool bAfterShot = PendingEjectSeconds >= 0.f || WispCheckSeconds >= 0.f || SmokeTimeLeft > 0.f;
-	const bool bWanted = bAnimatingReload || FlashTimeLeft > 0.f || IsBeamGuttering() || Model->IsCylinderTurning() || bAfterShot;
+	const bool bWanted = bAnimatingReload || FlashTimeLeft > 0.f || IsBeamGuttering() || Model->IsCylinderTurning() || bAfterShot
+		|| WantsKindTick();
 	if (IsActorTickEnabled() != bWanted)
 	{
 		SetActorTickEnabled(bWanted);
@@ -187,6 +190,11 @@ void AWeaponBase::RefreshTick()
 
 void AWeaponBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// A sniper's scope picture goes with it.
+	if (UHudScopeWidget* Scope = ScopeWidget.Get())
+	{
+		Scope->RemoveFromParent();
+	}
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearAllTimersForObject(this);
@@ -274,6 +282,8 @@ void AWeaponBase::OnEquipped(APawn* NewOwner, USceneComponent* AttachTo, FName S
 		PlayCue(WeaponSounds::Equip(Instance.Definition ? Instance.Definition->Kind : EWeaponKind::None));
 	}
 	WeaponCurseEffects::RefreshHolder(NewOwner);
+	// In a player's hand a sniper ticks for its scope's sway, a nearly dry SMG for its helix's pulse.
+	RefreshTick();
 }
 
 void AWeaponBase::AttachToHolder(USceneComponent* AttachTo, FName Socket, const FTransform& AttachOffset)
@@ -311,6 +321,16 @@ void AWeaponBase::OnHolstered()
 	// Put away: no hull pumped out of a gun on the back, no smoke from one in the holster.
 	PendingEjectSeconds = -1.f;
 	StopMuzzleSmoke();
+	// A bolt worked mid-swap is home by the time the gun's out again; the scope's sway gives the aim back; an LMG spins down.
+	bBoltCycling = false;
+	bBoltCaseOut = true;
+	if (bUsingModel)
+	{
+		Model->SetBoltOpen(0.f);
+	}
+	ApplyCyclePose(FVector::ZeroVector, FRotator::ZeroRotator);
+	ClearScopeSway();
+	StopKindTrigger();
 	RefreshTick();
 	SetActorHiddenInGame(true);
 	// Out of the hand (the manager may not have moved on yet): the holder's max health is the next gun's, or their own.
@@ -387,6 +407,8 @@ void AWeaponBase::SetPickupState(bool bPickup)
 void AWeaponBase::RefreshLootBeam()
 {
 	// Commons stay subtle; every tier above throws a taller pillar of its color into the sky.
+	// LOOT-CODE hook (Phase 12.3): the drop moments' beam (taller by rarity, Epic+ ring, Legendary column) reads
+	// LootDropMoments here in place of these numbers.
 	static const float Heights[] = { 0.f, 350.f, 650.f, 1000.f, 1600.f };
 	const float Height = Heights[FMath::Clamp(static_cast<int32>(Instance.Rarity), 0, 4)];
 	const bool bShow = bIsPickup && Height > 0.f && Instance.Definition;
@@ -425,6 +447,7 @@ void AWeaponBase::ApplyDefinitionVisuals()
 	StaticMesh->SetVisibility(bUseStatic);
 
 	UpdateReloadPart();
+	RefreshGauges();
 	SetupMuzzleFlash();
 	RefreshLootBeam();
 

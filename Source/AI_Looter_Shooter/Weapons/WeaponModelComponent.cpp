@@ -26,13 +26,21 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	{
 		const FLinearColor* Color = Look.Colors.Find(Slot);
 		const bool bGlow = Slot == Definition->RarityGlowSlot;
-		if (!Material || (!Color && !bGlow))
+		const bool bGauge = Slot == AmmoGlowSlot || Slot == HeatGlowSlot;
+		if (!Material || (!Color && !bGlow && !bGauge))
 		{
 			return Material;
 		}
 		if (UMaterialInterface** Existing = Painted.Find(Slot))
 		{
 			return *Existing;
+		}
+		if (bGauge)
+		{
+			// The SMG's helix and the LMG's heat rings: this gun's own instance, which the game lights as it fires.
+			UMaterialInstanceDynamic* Gauge = MakeGauge(Slot, Material);
+			Painted.Add(Slot, Gauge);
+			return Gauge;
 		}
 		UMaterialInstanceDynamic* Instanced = UMaterialInstanceDynamic::Create(Material, this);
 		if (bGlow)
@@ -117,6 +125,23 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 				CranePivot = Part->DoesSocketExist(CraneSocket) ? Part->GetSocketTransform(CraneSocket, RTS_Component).GetLocation()
 					: FVector(0.0, PartBounds.Min.Y * 0.65, PartBounds.Min.Z * 1.1);
 			}
+			else if (ReloadPart == EWeaponReloadPart::Rocket && Definition->ProjectileMesh)
+			{
+				// The launcher's next rocket, slid into the mouth by its reload: in this gun's paint like the loaded one.
+				MakeRocketLoad(*Definition, *Part);
+				if (RocketLoadMesh)
+				{
+					const TArray<FName> RocketSlots = RocketLoadMesh->GetMaterialSlotNames();
+					for (int32 Material = 0; Material < RocketSlots.Num(); ++Material)
+					{
+						RocketLoadMesh->SetMaterial(Material, Paint(RocketSlots[Material], RocketLoadMesh->GetMaterial(Material)));
+					}
+				}
+			}
+		}
+		if (Slot.Name == BoltSlot)
+		{
+			BoltMesh = Part;
 		}
 		if (Slot.Socket == SightSocket || Slot.Name == SightSocket)
 		{
@@ -140,6 +165,7 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	FindSocket(TEXT("Grip"), Grip);
 	FindSocket(TEXT("Foregrip"), Foregrip);
 	bHasEject = FindSocket(TEXT("Eject"), Eject);
+	FindBackblast();
 	FindAimPoint();
 	ChooseNotchPart(StockPart, BodyPart);
 	ShowNotches(Instance);
@@ -152,9 +178,16 @@ float UWeaponModelComponent::ScaleFor(EWeaponKind Kind)
 	{
 	case EWeaponKind::Rifle:
 	case EWeaponKind::Shotgun:
+	// The four frontier-tech families are modeled in proportion to the Bullpup (Saved/Guns/CONTRACT.md), so they're drawn
+	// at its size.
+	case EWeaponKind::SMG:
+	case EWeaponKind::Sniper:
+	case EWeaponKind::LMG:
+	case EWeaponKind::Launcher:
 		return 1.1f;
 	case EWeaponKind::Revolver:
 		return 1.2f;
+	case EWeaponKind::None:
 	default:
 		return 1.f;
 	}
@@ -191,6 +224,17 @@ void UWeaponModelComponent::Clear()
 		}
 	}
 	Parts.Reset();
+	if (RocketLoadMesh)
+	{
+		RocketLoadMesh->DestroyComponent();
+	}
+	RocketLoadMesh = nullptr;
+	BoltMesh = nullptr;
+	AmmoGauge = nullptr;
+	HeatGauge = nullptr;
+	Backblast = FVector::ZeroVector;
+	BackblastWay = -FVector::ForwardVector;
+	bHasBackblast = false;
 	Paints.Reset();
 	ReloadPartMesh = nullptr;
 	SightPart = nullptr;
@@ -342,5 +386,9 @@ void UWeaponModelComponent::SetFirstPersonPrimitiveType(EFirstPersonPrimitiveTyp
 	for (UStaticMeshComponent* Part : Parts)
 	{
 		Part->SetFirstPersonPrimitiveType(Type);
+	}
+	if (RocketLoadMesh)
+	{
+		RocketLoadMesh->SetFirstPersonPrimitiveType(Type);
 	}
 }

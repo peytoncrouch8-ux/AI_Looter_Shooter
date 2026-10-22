@@ -97,9 +97,10 @@ namespace LooterSoundCue
 
 	/**
 	 * A shot as layers (2026-10-21, built from recordings: Art/Sounds/recipes/guns_shots.py; GunshotSound::PlayShot picks
-	 * them, GunshotSound::CueFor names them "Weapon.<Kind>.<Layer>" for Rifle, Shotgun and Revolver): Mech (the action,
-	 * the shooter's own), Low (the chest thump, the shooter's own), TailOpen, TailTown, TailInside (the land answering by the
-	 * surroundings), Distant (the far shot), LowAmmo (the magazine's last quarter). Fire stays the whole shot in one sound.
+	 * them, GunshotSound::CueFor names them "Weapon.<Kind>.<Layer>" for Rifle, Shotgun, Revolver, SMG, Sniper, LMG and
+	 * Launcher): Mech (the action, the shooter's own), Low (the chest thump, the shooter's own), TailOpen, TailTown,
+	 * TailInside (the land answering by the surroundings), Distant (the far shot), LowAmmo (the magazine's last quarter).
+	 * Fire stays the whole shot in one sound.
 	 * The punch alone (Core) has no layer of its own in EGunshotLayer: these name it.
 	 */
 	namespace Gunshot
@@ -137,6 +138,91 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* RifleLowAmmo = TEXT("Weapon.Rifle.LowAmmo");
 		inline constexpr const TCHAR* ShotgunLowAmmo = TEXT("Weapon.Shotgun.LowAmmo");
 		inline constexpr const TCHAR* RevolverLowAmmo = TEXT("Weapon.Revolver.LowAmmo");
+
+		// The four new kinds (Phase 12.3; Art/Sounds/recipes/guns_smg.py, guns_sniper.py, guns_lmg.py, guns_launcher.py):
+		// the same layers, "Weapon.<KindWord>.<Layer>" with KindWord SMG, Sniper, LMG, Launcher (GunshotSound's KindWord).
+		inline constexpr const TCHAR* SMGFire = TEXT("Weapon.SMG.Fire");
+		inline constexpr const TCHAR* SniperFire = TEXT("Weapon.Sniper.Fire");
+		inline constexpr const TCHAR* LMGFire = TEXT("Weapon.LMG.Fire");
+		inline constexpr const TCHAR* LauncherFire = TEXT("Weapon.Launcher.Fire");
+		inline constexpr const TCHAR* SMGCore = TEXT("Weapon.SMG.Core");
+		inline constexpr const TCHAR* SniperCore = TEXT("Weapon.Sniper.Core");
+		inline constexpr const TCHAR* LMGCore = TEXT("Weapon.LMG.Core");
+		inline constexpr const TCHAR* LauncherCore = TEXT("Weapon.Launcher.Core");
+		inline constexpr const TCHAR* SMGMech = TEXT("Weapon.SMG.Mech");
+		inline constexpr const TCHAR* SniperMech = TEXT("Weapon.Sniper.Mech");
+		inline constexpr const TCHAR* LMGMech = TEXT("Weapon.LMG.Mech");
+		inline constexpr const TCHAR* LauncherMech = TEXT("Weapon.Launcher.Mech");
+		inline constexpr const TCHAR* SMGLow = TEXT("Weapon.SMG.Low");
+		inline constexpr const TCHAR* SniperLow = TEXT("Weapon.Sniper.Low");
+		inline constexpr const TCHAR* LMGLow = TEXT("Weapon.LMG.Low");
+		inline constexpr const TCHAR* LauncherLow = TEXT("Weapon.Launcher.Low");
+		inline constexpr const TCHAR* SMGTailOpen = TEXT("Weapon.SMG.TailOpen");
+		inline constexpr const TCHAR* SniperTailOpen = TEXT("Weapon.Sniper.TailOpen");
+		inline constexpr const TCHAR* LMGTailOpen = TEXT("Weapon.LMG.TailOpen");
+		inline constexpr const TCHAR* LauncherTailOpen = TEXT("Weapon.Launcher.TailOpen");
+		inline constexpr const TCHAR* SMGTailTown = TEXT("Weapon.SMG.TailTown");
+		inline constexpr const TCHAR* SniperTailTown = TEXT("Weapon.Sniper.TailTown");
+		inline constexpr const TCHAR* LMGTailTown = TEXT("Weapon.LMG.TailTown");
+		inline constexpr const TCHAR* LauncherTailTown = TEXT("Weapon.Launcher.TailTown");
+		inline constexpr const TCHAR* SMGTailInside = TEXT("Weapon.SMG.TailInside");
+		inline constexpr const TCHAR* SniperTailInside = TEXT("Weapon.Sniper.TailInside");
+		inline constexpr const TCHAR* LMGTailInside = TEXT("Weapon.LMG.TailInside");
+		inline constexpr const TCHAR* LauncherTailInside = TEXT("Weapon.Launcher.TailInside");
+		inline constexpr const TCHAR* SMGDistant = TEXT("Weapon.SMG.Distant");
+		inline constexpr const TCHAR* SniperDistant = TEXT("Weapon.Sniper.Distant");
+		inline constexpr const TCHAR* LMGDistant = TEXT("Weapon.LMG.Distant");
+		inline constexpr const TCHAR* LauncherDistant = TEXT("Weapon.Launcher.Distant");
+		inline constexpr const TCHAR* SMGLowAmmo = TEXT("Weapon.SMG.LowAmmo");
+		inline constexpr const TCHAR* SniperLowAmmo = TEXT("Weapon.Sniper.LowAmmo");
+		inline constexpr const TCHAR* LMGLowAmmo = TEXT("Weapon.LMG.LowAmmo");
+		inline constexpr const TCHAR* LauncherLowAmmo = TEXT("Weapon.Launcher.LowAmmo");
+	}
+
+	/** The Rustler SMG's own (its helix magazine's reload steps, EReloadStep HelixOut / HelixIn). */
+	namespace SMG
+	{
+		/** The helix unlatched and drawn off the receiver: a latch's click, polymer sliding, the spring's tick. */
+		inline constexpr const TCHAR* HelixOut = TEXT("Weapon.SMG.HelixOut");
+		/** A fresh helix slid on and seated, its spring whirring as it winds up against the first round. */
+		inline constexpr const TCHAR* HelixIn = TEXT("Weapon.SMG.HelixIn");
+	}
+
+	/** The Longhorn sniper's own: its bolt (the reload's BoltOpen / BoltClose, and the cycle between shots). */
+	namespace Sniper
+	{
+		/** The bolt lifted and drawn back (the case kicked out at its end). */
+		inline constexpr const TCHAR* BoltOpen = TEXT("Weapon.Sniper.BoltOpen");
+		/** The bolt shoved home and locked down. */
+		inline constexpr const TCHAR* BoltClose = TEXT("Weapon.Sniper.BoltClose");
+		/** Between shots: lift, back (the empty case ringing off), forward, lock, in about 0.6 s. */
+		inline constexpr const TCHAR* BoltCycle = TEXT("Weapon.Sniper.BoltCycle");
+	}
+
+	/** The Thresher LMG's own: its box and belt (BoxOut / BoxIn / BeltLay) and the spin-up as the trigger is held. */
+	namespace LMG
+	{
+		inline constexpr const TCHAR* BoxOut = TEXT("Weapon.LMG.BoxOut");
+		inline constexpr const TCHAR* BoxIn = TEXT("Weapon.LMG.BoxIn");
+		/** The belt laid on the feed tray and the cover slammed shut. */
+		inline constexpr const TCHAR* BeltLay = TEXT("Weapon.LMG.BeltLay");
+		/** The feed drum winding up over the first 0.35 s of a burst: a rising whir and ratchet, caught with a clack. */
+		inline constexpr const TCHAR* SpinUp = TEXT("Weapon.LMG.SpinUp");
+	}
+
+	/** The Powderkeg launcher's own: loading (RocketOut / RocketIn), the rocket in flight and its explosion. */
+	namespace Launcher
+	{
+		/** A rocket drawn from the back: canvas, the fins brushing, a hand on the steel. */
+		inline constexpr const TCHAR* RocketOut = TEXT("Weapon.Launcher.RocketOut");
+		/** The rocket slid down the tube, seated, the latch snapped over. */
+		inline constexpr const TCHAR* RocketIn = TEXT("Weapon.Launcher.RocketIn");
+		/** A loop on the rocket as it flies: the motor's roar and the fins' whistle. */
+		inline constexpr const TCHAR* Flight = TEXT("Weapon.Launcher.Flight");
+		/** The rocket bursting, near (GunshotSound::PlayExplosion picks this or the distant one by the listener's distance). */
+		inline constexpr const TCHAR* Explosion = TEXT("Weapon.Launcher.Explosion");
+		/** The rocket bursting far off: a dull boom and the land's long roll. */
+		inline constexpr const TCHAR* ExplosionDistant = TEXT("Weapon.Launcher.Explosion.Distant");
 	}
 
 	// --- The player's own feedback (2D) ---
@@ -342,6 +428,29 @@ namespace LooterSoundCue
 	/** 2D, like the Legendary's: an Epic or a Legendary landing is heard wherever the player is looking. */
 	inline constexpr const TCHAR* DropEpic = TEXT("Loot.Drop.Epic");
 	inline constexpr const TCHAR* DropLegendary = TEXT("Loot.Drop.Legendary");
+	/** 3D, heard across the field (Gun attenuation): a Legendary hitting the ground under its column of light, a deep boom
+	 *  and a bright ring (Phase 12.3 drop moments; the stinger above plays as it drops, this as it lands). */
+	inline constexpr const TCHAR* DropLegendaryLand = TEXT("Loot.Drop.Legendary.Land");
+
+	/**
+	 * The story elements' statuses on a creature (Phase 12.3, UElementStatusComponent; Art/Sounds/recipes/elements.py),
+	 * "Element.<Element>.<Event>", 3D at the creature: Apply as a hit sets the status, Tick at each damage tick (Soul-light:
+	 * the delayed smite bursting), Kill when the status's damage finishes a creature. Ember is fire (a whoomph catching,
+	 * crackling), Soul-light warm holy light (a choir's shimmer and a bell's ring), Grave-salt cold salt (a crystalline
+	 * crunch and a frosty hiss, the grave-salt grenade's salt).
+	 */
+	namespace Element
+	{
+		inline constexpr const TCHAR* EmberApply = TEXT("Element.Ember.Apply");
+		inline constexpr const TCHAR* EmberTick = TEXT("Element.Ember.Tick");
+		inline constexpr const TCHAR* EmberKill = TEXT("Element.Ember.Kill");
+		inline constexpr const TCHAR* SoulLightApply = TEXT("Element.SoulLight.Apply");
+		inline constexpr const TCHAR* SoulLightTick = TEXT("Element.SoulLight.Tick");
+		inline constexpr const TCHAR* SoulLightKill = TEXT("Element.SoulLight.Kill");
+		inline constexpr const TCHAR* GraveSaltApply = TEXT("Element.GraveSalt.Apply");
+		inline constexpr const TCHAR* GraveSaltTick = TEXT("Element.GraveSalt.Tick");
+		inline constexpr const TCHAR* GraveSaltKill = TEXT("Element.GraveSalt.Kill");
+	}
 	/** A creature's body as it dies (its death burst), under its death cry: a spider's shell, a slime's splat, an Unpaid's soul-light. */
 	inline constexpr const TCHAR* SpiderBurst = TEXT("Creature.Spider.Burst");
 	inline constexpr const TCHAR* SlimeSplat = TEXT("Creature.Slime.Splat");

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Weapons/AmmoTypes.h"
+#include "Weapons/GunKindsTuning.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponRecoil.h"
 #include "Weapons/WeaponTypes.h"
@@ -20,6 +21,7 @@ class USoundBase;
 class UWeaponModelComponent;
 class UWidgetComponent;
 class UWeaponManagerComponent;
+class UHudScopeWidget;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponAmmoChanged, int32, CurrentMagazine, int32, ReserveAmmo);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponFired);
@@ -243,6 +245,33 @@ public:
 	 */
 	void SetMeleePose(const FVector& Offset, const FRotator& Rotation);
 
+	// --- The frontier-tech kinds' own ways (Phase 12.3; WeaponBaseKinds.cpp, numbers in GunKindsTuning) ---
+
+	/** How far through its cycle between shots the sniper's bolt is (0 to 1), or -1 while it's home. */
+	float GetBoltCycle() const;
+
+	/** How open the sniper's bolt is now (0 home, 1 drawn back), by its cycle or its reload; 0 for any other gun. */
+	float GetBoltOpen() const;
+
+	/** How much of the trigger hand is on the bolt's knob now (0 on the grip, 1 on the knob); 0 for any other gun. */
+	float GetBoltHand() const;
+
+	/** The LMG's spin now (0 cold, 1 at its full rate). */
+	float GetSpin() const;
+
+	/** The LMG barrel's heat now (0 cold, 1 glowing its hottest). */
+	float GetBarrelHeat() const;
+
+	/** The sniper's shooter is holding their breath through the scope (the sprint key while aimed), and how much breath is left (0-1). */
+	bool IsHoldingBreath() const { return Breath.bHolding; }
+	float GetBreathLeft() const;
+
+	/** The sniper's scope is up in first person: the scope picture shows (UHudScopeWidget) and the gun and hands are hidden. */
+	bool IsScopedIn() const { return bScopeHidden; }
+
+	/** Seconds between this gun's shots right now: its fire rate's, slower while an LMG is still spinning up. */
+	float GetShotInterval() const;
+
 	/** Magazine changed (shots, reloads, equip). Reserve lives in the holder's pool: see UWeaponManagerComponent::OnAmmoChanged. */
 	UPROPERTY(BlueprintAssignable, Category = "Weapon")
 	FOnWeaponAmmoChanged OnAmmoChanged;
@@ -359,6 +388,37 @@ private:
 	void NoteShotHeat();
 	void UpdateMuzzleSmoke(float DeltaSeconds);
 	void StopMuzzleSmoke();
+	// WeaponBaseKinds.cpp: the frontier-tech kinds' own ways.
+	/** A shot (or a dud) went: the bolt's cycle starts, the LMG heats and spins on, the launcher's mouth is empty. */
+	void NoteKindShot(bool bMisfire);
+	/** The trigger went down: an LMG from cold spins up (heard). */
+	void StartKindTrigger();
+	/** Off the trigger (released, reloading, put away): the LMG spins down from here. */
+	void StopKindTrigger();
+	/** Each tick while a kind has something going: the bolt's cycle, the scope's sway, the glows. */
+	void UpdateKinds(float DeltaSeconds);
+	bool WantsKindTick() const;
+	/** The SMG helix's and the LMG barrel's glows, as the magazine and the heat have them now. */
+	void RefreshGauges();
+	void UpdateBoltCycle();
+	void UpdateScopeSway(float DeltaSeconds);
+	/** The scope picture and the hidden gun as the sights come up (the sniper's, in a local player's first-person hands). */
+	void UpdateScope();
+	/** Puts the scope down: the picture gone, the gun shown again. */
+	void HideScope();
+	/** Gives back the aim the scope's sway still holds (put away, dropped). */
+	void ClearScopeSway();
+	/** The launcher's shot: a rocket from the eye along the aim, seen leaving the muzzle (AWeaponRocket). */
+	void FireRocket(const FVector& ViewLocation, const FVector& Direction);
+	/** The first-person gun turned by the bolt's work (about its grip, like a strike's pose; zero puts it back). */
+	void ApplyCyclePose(const FVector& Offset, const FRotator& Rotation);
+	/** The holder's sprint key is down (a player's). */
+	bool IsSprintHeld() const;
+	/** The holder's sights (0 at the hip, 1 aimed); 0 for a holder without a view. */
+	float GetHolderAimAlpha() const;
+	/** The LMG's spin as of Now. */
+	float GetSpinAt(double Now) const;
+
 	/** Ticks only while there's something to animate. */
 	void RefreshTick();
 	void BroadcastAmmo();
@@ -423,6 +483,33 @@ private:
 
 	/** How far through the current reload its sounds have played. */
 	float ReloadSoundProgress = 0.f;
+
+	/** The sniper's bolt: when the shot it cycles after went, its timing, whether it's still cycling, heard, and the case out. */
+	double BoltShotTime = -1000.0;
+	GunKinds::FBoltTiming BoltTiming;
+	bool bBoltCycling = false;
+	bool bBoltHeard = false;
+	bool bBoltCaseOut = true;
+	/** The first-person gun is off its hold by the bolt's work (ApplyCyclePose), to put back. */
+	bool bCyclePoseApplied = false;
+
+	/** The LMG's spin as of SpinTime, and whether it was firing then (spinning up) or not (down). */
+	float Spin = 0.f;
+	double SpinTime = -1000.0;
+	bool bSpinFiring = false;
+
+	/** The LMG barrel's heat as of its last shot. */
+	float BarrelHeat = 0.f;
+	double BarrelHeatTime = -1000.0;
+
+	/** The scope's sway: seconds aimed, the turn it has put on the aim now, its scale (breath) eased, and the breath. */
+	float SwayTime = 0.f;
+	FRotator SwayApplied = FRotator::ZeroRotator;
+	float SwayScale = 1.f;
+	GunKinds::FScopeBreath Breath;
+	/** The scope's picture over the view, and whether the gun is hidden behind it. */
+	TWeakObjectPtr<UHudScopeWidget> ScopeWidget;
+	bool bScopeHidden = false;
 
 	/** The loot beam's steady numbers (RefreshLootBeam), which a cursed gun's beam gutters about. */
 	float BeamGlow = 0.f;

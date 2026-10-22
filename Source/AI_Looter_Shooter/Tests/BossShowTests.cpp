@@ -131,7 +131,7 @@ bool FBossLootShowerTest::RunTest(const FString& Parameters)
 				&& Ammo >= Table->MinAmmoDrops + Bonus && Ammo <= Table->MaxAmmoDrops + Bonus;
 			for (int32 Box = Ammo - Bonus; Box < Ammo; ++Box)
 			{
-				bBonusFull &= Planned.Ammo.IsValidIndex(Box) && Planned.Ammo[Box].Amount == LooterLoot::ChestAmmoAmount;
+				bBonusFull &= Planned.Ammo.IsValidIndex(Box) && Planned.Ammo[Box].Amount == LooterLoot::AmmoAmountFor(Planned.Ammo[Box].Type, LooterLoot::ChestAmmoAmount);
 			}
 		}
 		TestTrue(FString::Printf(TEXT("%s: every shower is its table's guns and ammo, and %d boxes more"), Name, Bonus), bCounts);

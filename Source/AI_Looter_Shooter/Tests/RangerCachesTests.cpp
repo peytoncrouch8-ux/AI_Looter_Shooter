@@ -337,9 +337,9 @@ bool FRangerCachesLootTest::RunTest(const FString& Parameters)
 		TestEqual(FString::Printf(TEXT("%s: its guns came out of it"), Design.Name), CountGuns(World) - GunsBefore, Design.Guns);
 		const TArray<AAmmoPickup*> Ammo = FindAmmo(World);
 		TestEqual(FString::Printf(TEXT("%s: its ammo pickups too"), Design.Name), Ammo.Num() - AmmoBefore, Info.AmmoPickups);
-		TestFalse(FString::Printf(TEXT("%s: each holding 36 rounds"), Design.Name), Ammo.ContainsByPredicate([](const AAmmoPickup* Pickup)
+		TestFalse(FString::Printf(TEXT("%s: each holding 36 rounds (rockets: three)"), Design.Name), Ammo.ContainsByPredicate([](const AAmmoPickup* Pickup)
 		{
-			return Pickup->GetAmount() != LooterLoot::ChestAmmoAmount;
+			return Pickup->GetAmount() != LooterLoot::AmmoAmountFor(Pickup->GetAmmoType(), LooterLoot::ChestAmmoAmount);
 		}));
 		TestEqual(FString::Printf(TEXT("%s: it knows what it gave"), Design.Name), Chest->GetDroppedLoot().Num(), Design.Guns + Info.AmmoPickups);
 		TestEqual(FString::Printf(TEXT("%s: at the area's level for the player (none here: 1)"), Design.Name), Chest->GetLootLevel(), 1);

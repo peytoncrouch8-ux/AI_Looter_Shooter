@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/GunfeelSoundTuning.h"
@@ -26,6 +27,10 @@ namespace
 		{
 		case EWeaponKind::Shotgun: return TEXT("Shotgun");
 		case EWeaponKind::Revolver: return TEXT("Revolver");
+		case EWeaponKind::SMG: return TEXT("SMG");
+		case EWeaponKind::Sniper: return TEXT("Sniper");
+		case EWeaponKind::LMG: return TEXT("LMG");
+		case EWeaponKind::Launcher: return TEXT("Launcher");
 		default: return TEXT("Rifle");
 		}
 	}
@@ -51,6 +56,10 @@ namespace
 		{
 		case EWeaponKind::Shotgun: return LooterSoundCue::Gunshot::ShotgunCore;
 		case EWeaponKind::Revolver: return LooterSoundCue::Gunshot::RevolverCore;
+		case EWeaponKind::SMG: return LooterSoundCue::Gunshot::SMGCore;
+		case EWeaponKind::Sniper: return LooterSoundCue::Gunshot::SniperCore;
+		case EWeaponKind::LMG: return LooterSoundCue::Gunshot::LMGCore;
+		case EWeaponKind::Launcher: return LooterSoundCue::Gunshot::LauncherCore;
 		default: return LooterSoundCue::Gunshot::RifleCore;
 		}
 	}
@@ -125,8 +134,8 @@ namespace
 		return Surroundings;
 	}
 
-	/** How far the shot is from whoever's listening (the first local player's ears); 0 with no one to ask. */
-	float DistanceToListener(const AWeaponBase& Weapon, UWorld& World)
+	/** How far a sound at Where is from whoever's listening (the first local player's ears); 0 with no one to ask. */
+	float DistanceToListener(const FVector& Where, UWorld& World)
 	{
 		APlayerController* Player = World.GetFirstPlayerController();
 		if (!Player)
@@ -137,8 +146,41 @@ namespace
 		FVector Front;
 		FVector Right;
 		Player->GetAudioListenerPosition(Ears, Front, Right);
-		return static_cast<float>(FVector::Dist(Ears, Weapon.GetActorLocation()));
+		return static_cast<float>(FVector::Dist(Ears, Where));
 	}
+
+	float DistanceToListener(const AWeaponBase& Weapon, UWorld& World)
+	{
+		return DistanceToListener(Weapon.GetActorLocation(), World);
+	}
+
+	// A rocket's burst carries much farther than a shot: past this the far boom (Weapon.Launcher.Explosion.Distant) plays
+	// instead of the near one (its debris and crack would be wrong out there).
+	TAutoConsoleVariable<float> CVarExplosionDistantFrom(
+		TEXT("Looter.Gunfeel.Sound.ExplosionDistantFrom"), 6000.f,
+		TEXT("Past this many cm from the listener a rocket's explosion plays its distant version."), ECVF_Default);
+}
+
+float GunshotSound::ExplosionDistantFrom()
+{
+	return FMath::Max(0.f, CVarExplosionDistantFrom.GetValueOnGameThread());
+}
+
+bool GunshotSound::IsExplosionDistant(float Distance, float DistantFrom)
+{
+	return DistantFrom > 0.f && Distance > DistantFrom;
+}
+
+void GunshotSound::PlayExplosion(const UObject* WorldContext, const FVector& Location)
+{
+	UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+	const bool bDistant = IsExplosionDistant(DistanceToListener(Location, *World), ExplosionDistantFrom());
+	LooterSound::PlayAt(WorldContext, bDistant ? FName(LooterSoundCue::Launcher::ExplosionDistant)
+		: FName(LooterSoundCue::Launcher::Explosion), Location);
 }
 
 FName GunshotSound::CueFor(EWeaponKind Kind, EGunshotLayer Layer)

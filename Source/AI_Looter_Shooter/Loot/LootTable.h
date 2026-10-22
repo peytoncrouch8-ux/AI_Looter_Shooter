@@ -34,8 +34,8 @@ struct FAmmoLootEntry
 };
 
 /**
- * How many rounds one dropped ammo pickup holds (the user's rules), the same for every ammo class. Each class's carry
- * limit still caps what the player takes from it.
+ * How many rounds one dropped ammo pickup holds (the user's rules), the same for every ammo class but rockets. Each
+ * class's carry limit still caps what the player takes from it.
  */
 namespace LooterLoot
 {
@@ -45,6 +45,24 @@ namespace LooterLoot
 
 	/** A loot chest's ammo pickups always hold this many, the most a kill's can. */
 	inline constexpr int32 ChestAmmoAmount = 36;
+
+	/**
+	 * Rockets come few (the contract, 2026-10-21: one to three a pickup): the rounds a pickup rolled, read as rockets, the
+	 * low third of a kill's range one, the middle two, the top three (a chest's 36: three).
+	 */
+	inline int32 RocketsFor(int32 Rounds)
+	{
+		return Rounds <= 24 ? 1 : (Rounds <= 30 ? 2 : 3);
+	}
+
+	/** What a pickup of Type that rolled Rounds holds: the rounds themselves, or rockets for rockets. */
+	inline int32 AmmoAmountFor(EAmmoType Type, int32 Rounds)
+	{
+		return Type == EAmmoType::Rocket ? RocketsFor(Rounds) : Rounds;
+	}
+
+	/** How likely rockets are against each other class in a table that lists every class (a launcher drops less often too). */
+	inline constexpr float RocketAmmoWeight = 0.5f;
 }
 
 /**

@@ -20,6 +20,14 @@ namespace WeaponSounds
 			return LooterSoundCue::ShotgunFire;
 		case EWeaponKind::Revolver:
 			return LooterSoundCue::Revolver::Fire;
+		case EWeaponKind::SMG:
+			return LooterSoundCue::Gunshot::SMGFire;
+		case EWeaponKind::Sniper:
+			return LooterSoundCue::Gunshot::SniperFire;
+		case EWeaponKind::LMG:
+			return LooterSoundCue::Gunshot::LMGFire;
+		case EWeaponKind::Launcher:
+			return LooterSoundCue::Gunshot::LauncherFire;
 		default:
 			return LooterSoundCue::RifleFire;
 		}
@@ -65,6 +73,26 @@ namespace WeaponSounds
 			return LooterSoundCue::Revolver::RoundsIn;
 		case EReloadStep::CylinderIn:
 			return LooterSoundCue::Revolver::CylinderIn;
+		// The frontier-tech kinds' own steps (Saved/Loot/CONTRACT.md: Weapon.<Kind>.<ReloadStep>; a cue with no sounds yet
+		// plays nothing). Their magazine steps and the SMG's knob share the rifle's.
+		case EReloadStep::BoltOpen:
+			return LooterSoundCue::Sniper::BoltOpen;
+		case EReloadStep::BoltClose:
+			return LooterSoundCue::Sniper::BoltClose;
+		case EReloadStep::BoxOut:
+			return LooterSoundCue::LMG::BoxOut;
+		case EReloadStep::BoxIn:
+			return LooterSoundCue::LMG::BoxIn;
+		case EReloadStep::BeltLay:
+			return LooterSoundCue::LMG::BeltLay;
+		case EReloadStep::RocketOut:
+			return LooterSoundCue::Launcher::RocketOut;
+		case EReloadStep::RocketIn:
+			return LooterSoundCue::Launcher::RocketIn;
+		case EReloadStep::HelixOut:
+			return LooterSoundCue::SMG::HelixOut;
+		case EReloadStep::HelixIn:
+			return LooterSoundCue::SMG::HelixIn;
 		default:
 			return NAME_None;
 		}

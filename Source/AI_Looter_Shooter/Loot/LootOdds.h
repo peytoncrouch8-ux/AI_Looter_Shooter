@@ -37,7 +37,7 @@ namespace LootOdds
 		/** Guns of each rarity, Common first. */
 		int32 Rarities[NumRarities] = {};
 		int32 AmmoPickups = 0;
-		/** The fewest and most rounds one ammo pickup held (0 when none dropped). */
+		/** The fewest and most rounds one ammo pickup held (0 when none dropped; rockets, one to three a pickup, aside). */
 		int32 FewestRounds = 0;
 		int32 MostRounds = 0;
 

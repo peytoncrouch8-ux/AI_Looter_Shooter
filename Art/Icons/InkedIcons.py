@@ -201,6 +201,118 @@ def drover():
                 cut_width=0.16)
 
 
+# --- The four frontier-tech guns (2026-10-21), traced from their models (Art/Models/Weapons/<Gun>.py) and side previews ---
+
+def rustler():
+    """The SMG: the Rustler (Standard upper, standard shroud, cap, the 40-round helix, a small optic, the wire stock).
+    The helix's spiral window reads as slanted cuts across the round magazine under the barrel."""
+    upper = [(0, 3.4), (29.0, 3.4), (31.1, 1.6), (31.1, -2.6), (0, -2.6)]
+    housing = [(1.5, -2.6), (14.8, -2.6), (14.8, -4.0), (2.5, -4.2)]
+    grip = [(2.6, -4.0), (9.5, -4.0), (8.4, -8.0), (7.3, -13.0), (5.6, -14.0), (2.0, -13.7), (1.5, -12.5), (3.0, -8.0)]
+    trigger = [(11.0, -4.2), (12.0, -4.2), (11.9, -5.2), (11.5, -6.2), (10.9, -6.6), (11.2, -5.4)]
+    helix = [(15.1, -2.85), (35.5, -2.85), (36.8, -3.6), (37.3, -5.4), (36.8, -7.2), (35.5, -7.95), (15.1, -7.95)]
+    optic = [(12.3, 5.5), (21.0, 5.5), (22.0, 6.2), (22.0, 7.9), (21.0, 8.6), (12.3, 8.6)]
+    shapes = [flip(p) for p in (
+        upper, housing, grip, trigger, helix, optic,
+        rect(31.1, 38.8, -1.75, 1.75), rect(38.8, 40.9, -0.75, 0.75), rect(40.9, 41.8, -0.55, 0.55),   # shroud, cap, tip
+        rect(7.2, 25.0, 3.4, 4.4), rect(13.5, 19.6, 4.4, 5.5),                                         # rail, mount
+        rect(-20.5, -18.5, -7.7, 2.75))]                                                               # the butt pad
+    strokes = [flip(p) for p in (
+        [(-18.6, 2.2), (0.2, 2.2)], [(-18.6, -6.6), (0.2, -1.8)],          # the wire stock's struts
+        [(9.5, -4.2), (9.8, -6.6), (12.5, -7.4), (14.5, -5.5), (15.0, -4.0)])]   # the trigger guard
+    cuts = [flip(p) for p in (
+        [(13.3, 0.15), (18.8, 0.15), (18.8, 1.85), (13.3, 1.85), (13.3, 0.15)],   # the ejection port
+        [(4.0, -1.25), (24.0, -1.25)],                                            # the accent line
+        [(31.1, -1.75), (31.1, 1.6)], [(38.8, -0.75), (38.8, 0.75)],              # shroud joints
+        [(19.0, 6.2), (19.0, 7.9)])]                                              # the optic's ring
+    cuts += [flip([(u, -2.85), (u + 1.6, -7.95)]) for u in (17.0, 19.6, 22.2, 24.8, 27.4, 30.0, 32.6)]   # the spiral
+    return Icon('SMG', shapes, [], strokes, cuts, shade=0.5, outline=OUTLINE['SMG'], stroke_width=0.7, cut_width=0.3)
+
+
+def longhorn():
+    """The sniper rifle: the Longhorn (Standard chassis with its thumbhole, fluted barrel, brake, 5-round box, the long
+    Longhorn scope, a pad on the butt, the bolt's knob)."""
+    chassis = [(-15.2, 2.6), (2.0, 2.6), (4.6, 0.3), (6.5, -1.0), (65.0, -1.1), (66.2, -2.2), (66.0, -4.6), (64.8, -5.4),
+               (26.6, -5.4), (25.4, -6.2), (22.9, -12.6), (21.6, -13.5), (17.6, -13.6), (16.8, -12.5), (14.0, -11.6),
+               (-15.2, -10.1)]
+    thumbhole = [(7.0, -4.2), (13.0, -3.6), (16.4, -4.8), (16.4, -7.2), (13.0, -8.0), (7.0, -7.4), (6.0, -5.8)]
+    scope = [(13.5, 8.3), (19.5, 8.3), (21.0, 7.4), (38.0, 7.4), (39.5, 8.4), (47.0, 8.4), (47.0, 3.8), (39.5, 3.8),
+             (38.0, 4.8), (21.0, 4.8), (19.5, 3.9), (13.5, 3.9)]
+    trigger = [(29.4, -5.4), (30.4, -5.4), (30.2, -6.6), (29.8, -7.6), (29.2, -7.8), (29.5, -6.6)]
+    shapes = [flip(p) for p in (
+        chassis, scope, trigger,
+        rect(-17.4, -15.2, -10.2, 2.8),                                       # the butt pad
+        rect(13.4, 44.0, -1.1, 1.2), rect(21.0, 42.0, 1.2, 2.3),             # the receiver and its rail
+        rect(24.0, 26.0, 2.3, 4.0), rect(36.0, 38.0, 2.3, 4.0),              # the scope's rings
+        rect(29.0, 33.0, 7.4, 9.6),                                           # its turret
+        rect(44.0, 60.0, -0.9, 0.9), rect(60.0, 101.5, -0.7, 0.7),           # the barrel, stepped
+        rect(101.5, 108.5, -1.0, 1.0), rect(108.5, 110.0, -0.8, 0.8),        # the brake and its brass tip
+        rect(34.5, 41.2, -8.4, -5.4),                                         # the box
+        rect(44.5, 62.0, -6.8, -6.0),                                         # the folded bipod
+        circle(17.95, 1.6, 0.95, 12))]                                        # the bolt's knob
+    holes = [flip(thumbhole)]
+    strokes = [flip([(27.5, -5.4), (27.8, -8.6), (31.5, -8.9), (33.4, -5.4)])]   # the trigger guard
+    cuts = [flip(p) for p in (
+        [(47.0, -3.6), (63.0, -3.6)],                                         # the accent line
+        [(-15.2, -10.1), (-15.2, 2.6)],                                       # the pad's seam
+        [(19.5, 3.9), (19.5, 8.3)], [(39.5, 3.8), (39.5, 8.4)],              # the scope's bells
+        [(102.8, -1.0), (102.8, 1.0)], [(104.5, -1.0), (104.5, 1.0)], [(106.2, -1.0), (106.2, 1.0)],   # the brake's ports
+        [(17.95, -0.6), (17.95, 1.2)])]                                       # the knob's stem
+    return Icon('Sniper', shapes, holes, strokes, cuts, shade=0.6, outline=OUTLINE['Sniper'], stroke_width=0.6, cut_width=0.45)
+
+
+def thresher():
+    """The LMG: the Thresher (Standard receiver under its sand top cover, carry handle with a reflex sight, the 100-round
+    belt box, standard barrel with its heat rings, bipod down, fixed stock)."""
+    stock = [(0, 2.4), (-21.5, 2.4), (-21.5, -7.6), (-14.0, -6.5), (0, -4.6)]
+    cover = [(0.4, 2.6), (0.9, 4.4), (2.0, 5.0), (34.6, 5.0), (36.4, 4.0), (36.8, 2.6)]
+    handle = [(11.0, 5.0), (13.0, 5.0), (13.0, 7.4), (25.0, 7.4), (25.0, 5.0), (27.0, 5.0), (27.0, 8.6), (11.0, 8.6)]
+    grip = [(3.5, -4.6), (9.5, -4.6), (8.6, -9.0), (7.8, -13.6), (6.2, -14.4), (3.0, -14.0), (2.4, -12.6), (4.0, -9.0)]
+    trigger = [(11.0, -4.6), (12.0, -4.6), (11.9, -5.6), (11.5, -6.6), (10.9, -7.0), (11.2, -5.8)]
+    box = [(15.0, -4.6), (27.0, -4.6), (27.0, -12.4), (26.2, -13.2), (15.8, -13.2), (15.0, -12.4)]
+    guard = [(38.0, -0.5), (50.0, -0.5), (50.5, -1.6), (50.0, -4.4), (38.0, -4.4)]
+    shapes = [flip(p) for p in (
+        stock, rect(-23.2, -21.5, -7.9, 2.7), rect(0, 38.0, -4.6, 3.0), cover, rect(36.8, 39.5, -4.6, 3.4), handle,
+        rect(17.0, 21.5, 8.6, 11.0), grip, trigger, box, guard,
+        rect(39.5, 72.0, -1.25, 1.25), rect(72.0, 76.0, -1.4, 1.4), rect(76.0, 77.0, -1.0, 1.0))]   # barrel, muzzle, tip
+    shapes += [flip(rect(u, u + 1.1, -1.9, 1.9)) for u in (53.0, 56.0, 59.0, 62.0)]                # the heat rings
+    strokes = [flip(p) for p in (
+        [(10.0, -4.6), (10.2, -7.2), (12.8, -7.8), (14.6, -6.2), (15.0, -4.6)],   # the trigger guard
+        [(46.5, -4.4), (50.5, -14.0)], [(47.5, -4.4), (54.0, -13.4)])]           # the bipod's legs
+    cuts = [flip(p) for p in (
+        [(0.4, 2.6), (36.8, 2.6)],                                              # the cover's seam
+        [(2.0, -1.0), (34.0, -1.0)],                                            # the accent line
+        [(16.0, -7.5), (26.0, -7.5)],                                           # the box's lid seam
+        [(0.0, -4.6), (0.0, 2.4)], [(-21.5, -7.6), (-21.5, 2.4)],             # stock seams
+        [(39.5, -1.25), (39.5, 1.25)], [(72.0, -1.4), (72.0, 1.4)])]            # barrel joints
+    return Icon('LMG', shapes, [], strokes, cuts, shade=0.5, outline=OUTLINE['LMG'], stroke_width=0.6, cut_width=0.4)
+
+
+def powderkeg():
+    """The launcher: the Powderkeg (Standard tube between its sand sleeves, the bell, the brass ring and a frag rocket's
+    nose in the mouth, the optic on its rail, the shoulder rest, pistol and front grips)."""
+    exhaust = [(0, 6.1), (4.0, 5.4), (10.0, 4.6), (13.9, 4.4), (13.9, -4.4), (10.0, -4.6), (4.0, -5.4), (0, -6.1)]
+    bell = [(77.8, 4.4), (85.0, 4.9), (94.4, 6.0), (94.4, -6.0), (85.0, -4.9), (77.8, -4.4)]
+    nose = [(95.6, 3.6), (99.5, 2.4), (102.0, 0.9), (103.0, 0), (102.0, -0.9), (99.5, -2.4), (95.6, -3.6)]
+    rest = [(18.5, -4.0), (37.8, -4.0), (37.8, -6.6), (36.2, -7.6), (20.4, -7.6), (18.5, -6.0)]
+    grip = [(47.0, -4.3), (53.6, -4.3), (52.0, -9.0), (50.6, -14.3), (49.4, -15.1), (46.2, -14.8), (45.6, -13.6), (47.4, -9.0)]
+    front = [(68.6, -4.3), (73.6, -4.3), (73.4, -13.6), (72.4, -14.6), (70.0, -14.6), (69.2, -13.6)]
+    trigger = [(54.8, -5.0), (55.8, -5.0), (55.6, -6.2), (55.2, -7.2), (54.6, -7.4), (54.9, -6.2)]
+    sight = [(38.0, 7.4), (46.6, 7.4), (47.6, 8.0), (47.6, 10.0), (46.6, 10.6), (38.0, 10.6)]
+    shapes = [flip(p) for p in (
+        exhaust, rect(13.5, 34.7, -5.0, 5.0), rect(34.4, 50.5, -4.3, 4.3), rect(50.5, 77.8, -5.0, 5.0), bell,
+        rect(94.4, 95.6, -6.1, 6.1), nose, rest, rect(20.0, 34.0, -8.4, -7.6), grip, front, trigger, sight,
+        rect(39.0, 47.0, 4.3, 7.4))]
+    strokes = [flip([(53.6, -5.2), (53.9, -7.7), (56.0, -8.6), (58.4, -7.4), (58.6, -5.2)])]   # the trigger guard
+    cuts = [flip(p) for p in (
+        [(16.0, -5.0), (16.0, 5.0)], [(33.0, -5.0), (33.0, 5.0)],             # the rear sleeve's rings
+        [(34.5, -4.3), (34.5, 4.3)], [(50.5, -4.3), (50.5, 4.3)],             # the tube's segment
+        [(53.0, -0.8), (72.0, -0.8)],                                          # the ember line
+        [(77.8, -4.4), (77.8, 4.4)], [(99.5, -2.4), (99.5, 2.4)],             # the bell's seat, the nose's band
+        [(42.0, 7.4), (42.0, 10.6)])]                                          # the optic's ring
+    return Icon('Launcher', shapes, [], strokes, cuts, shade=0.5, outline=OUTLINE['Launcher'], stroke_width=0.5, cut_width=0.4)
+
+
 # --- Ammo, drawn in a 64 x 64 box, told apart by shape and count (never color) ---
 
 def cartridge(cx, base, w, case_top, shoulder_top, neck_w, neck_top, tip, nose):
@@ -243,24 +355,57 @@ def shell(cx, base, w, top):
     return outline, cuts
 
 
-# Each ammo type's rounds in the 64 x 64 box: ('cartridge', its arguments) or ('shell', its arguments). The 3D ammo
-# pickups (Art/Models/Loot/Ammo.py) turn these same outlines round their axes, so the pickup is the icon.
+def rocket_body(cx, base, w, nose_base, tip):
+    """A rocket standing up (the launcher's, 2026-10-21): the motor's flared nozzle, the body, an ogive warhead to a
+    point, as one outline (right half from the nozzle up, then mirrored); its two fins apart (rocket_fins). Returns the
+    outline and its cut lines (the warhead's seam, the band under it, the nozzle's joint)."""
+    hw = w / 2
+    right = [(cx + 3.8, base), (cx + 3.0, base - 2.6), (cx + hw, base - 4.2), (cx + hw, nose_base)]
+    n = 10
+    for k in range(1, n + 1):
+        t = k / n
+        right.append((cx + hw * (1 - t) ** 0.7, nose_base - (nose_base - tip) * t))
+    left = [(2 * cx - x, y) for x, y in reversed(right)]
+    cuts = [[(cx - hw, nose_base), (cx + hw, nose_base)], [(cx - hw, nose_base + 5.0), (cx + hw, nose_base + 5.0)],
+            [(cx - hw, base - 4.2), (cx + hw, base - 4.2)]]
+    return right + left, cuts
+
+
+def rocket_fins(cx, base, w):
+    """The rocket's two tail fins seen edge-on either side of its body, swept back past the nozzle."""
+    hw = w / 2
+    right = [(cx + hw - 0.5, base - 15.0), (cx + hw + 7.0, base - 3.5), (cx + hw + 7.0, base + 0.5), (cx + hw - 0.5, base - 5.0)]
+    left = [(2 * cx - x, y) for x, y in right]
+    return [right, left]
+
+
+# Each ammo type's rounds in the 64 x 64 box: ('cartridge', its arguments), ('shell', its arguments) or ('rocket', its
+# arguments). The 3D ammo pickups (Art/Models/Loot/Ammo.py) turn these same outlines round their axes, so the pickup is
+# the icon. The rocket keeps inside the rounds' box, so adding it moved no other icon.
 ROUNDS = {
     'AssaultRifle': [('cartridge', (cx, 58, 11.0, 33, 29, 7.0, 25, 10, 'point')) for cx in (24.0, 40.0)],
     'Shotgun': [('shell', (32, 59, 21.0, 10))],
     'Pistol': [('cartridge', (32, 57, 17.0, 37, 37, 17.0, 37, 20, 'round'))],
     'SMG': [('cartridge', (cx, 57, 12.0, 40, 40, 12.0, 40, 28, 'flat')) for cx in (16.5, 32.0, 47.5)],
     'Sniper': [('cartridge', (32, 61, 12.0, 27, 21, 7.2, 15, 2.5, 'point'))],
+    'Rocket': [('rocket', (32, 58, 12.0, 21, 5))],
 }
-SHADE_LINE = {'AssaultRifle': 45, 'Shotgun': 49, 'Pistol': 48, 'SMG': 49, 'Sniper': 48}
+SHADE_LINE = {'AssaultRifle': 45, 'Shotgun': 49, 'Pistol': 48, 'SMG': 49, 'Sniper': 48, 'Rocket': 40}
 
 
 def ammo(kind):
     """EAmmoType's icon: two pointed rounds (assault rifle), a shell, one round-nosed round (pistol), three flat-nosed
-    rounds (SMG), one tall pointed round (sniper)."""
-    parts = [cartridge(*args) if what == 'cartridge' else shell(*args) for what, args in ROUNDS[kind]]
-    return Icon('Ammo' + kind, [p[0] for p in parts], cuts=[c for p in parts for c in p[1]], shade=SHADE_LINE[kind],
-                outline=OUTLINE['Ammo'], cut_width=1.1)
+    rounds (SMG), one tall pointed round (sniper), a finned rocket (rockets)."""
+    shapes, cuts = [], []
+    for what, args in ROUNDS[kind]:
+        if what == 'rocket':
+            outline, lines = rocket_body(*args)
+            shapes += [outline] + rocket_fins(args[0], args[1], args[2])
+        else:
+            outline, lines = cartridge(*args) if what == 'cartridge' else shell(*args)
+            shapes.append(outline)
+        cuts += lines
+    return Icon('Ammo' + kind, shapes, cuts=cuts, shade=SHADE_LINE[kind], outline=OUTLINE['Ammo'], cut_width=1.1)
 
 
 def star4(cx, cy, r, waist):
@@ -584,8 +729,9 @@ def long_shot():
 
 # The ink line's width in each icon's units: guns scale it with their length so every gun's line looks the same
 # when they're drawn the same width; the ammo icons, the grenade and the ember powers share one box and one width.
-OUTLINE = {'Rifle': 1.72, 'Shotgun': 2.56, 'Revolver': 0.72, 'Ammo': 3.2}
-AMMO_TYPES = ('AssaultRifle', 'Shotgun', 'Pistol', 'SMG', 'Sniper')   # EAmmoType order
+OUTLINE = {'Rifle': 1.72, 'Shotgun': 2.56, 'Revolver': 0.72, 'SMG': 1.51, 'Sniper': 3.08, 'LMG': 2.42, 'Launcher': 2.49,
+           'Ammo': 3.2}
+AMMO_TYPES = ('AssaultRifle', 'Shotgun', 'Pistol', 'SMG', 'Sniper', 'Rocket')   # EAmmoType order
 # The ember powers' icons by UEmberDefinition::IconName (the contract's names: the generated functions are named so).
 EMBER_ICONS = ('DustDevil', 'Sundown', 'BorrowedTime', 'LuckyStreak', 'FiftyTwoPickup', 'DoubleOrNothing', 'TollChain',
                'GraveWard', 'LastRites', 'SlagBomb', 'IronHide', 'RailSpike', 'Spyglass', 'Tripwire', 'LongShot')
@@ -599,7 +745,8 @@ def is_square(icon):
 def icons():
     """Every icon, placed in its view box: each gun in its own, the ammo types, the grenade and the ember powers all in
     one shared box (fitted to the ammo, so the others can't move the ammo icons)."""
-    guns = [bullpup().place(), ranchhand().place(), drover().place()]
+    guns = [bullpup().place(), ranchhand().place(), drover().place(), rustler().place(), longhorn().place(), thresher().place(),
+            powderkeg().place()]
     rounds = [ammo(kind) for kind in AMMO_TYPES]
     boxes = [r.bounds() for r in rounds]
     shared = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))

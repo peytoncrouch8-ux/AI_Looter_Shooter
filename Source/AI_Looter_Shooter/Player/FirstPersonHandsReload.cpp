@@ -95,11 +95,20 @@ namespace
 		return bShown ? Travel : FreshMagazineStart();
 	}
 
-	FHandPlacement MagazinePath(const FHandsGun& Gun, float P)
+	/**
+	 * The magazine's path, for the magazine-like reloads too (the SMG's helix, the LMG's box: the same beats, the knob
+	 * racked or the belt laid where the rifle's handle is; the sniper's box a little later, and no handle: its trigger
+	 * hand works the bolt). P is the reload's progress as the magazine's choreography counts it.
+	 */
+	FHandPlacement MagazinePath(const FHandsGun& Gun, float P, bool bHandle = true)
 	{
 		using namespace FirstPersonHandsMotion;
 		const FHandPlacement Home = FirstPersonHandsGrips::OnForegrip(Gun);
 		const float Seated = StepAt(EWeaponReloadPart::Magazine, EReloadStep::MagIn, 0, 0.62f);
+		if (!bHandle && P >= Seated)
+		{
+			return Ease(OnMagazine(Gun, 0.f), Home, Rise(P, Seated, MagazineHomeBy - 0.1f));
+		}
 		const float HandleOn = StepAt(EWeaponReloadPart::Magazine, EReloadStep::Bolt, 0, 0.72f) - HandleBefore;
 		const float HandleOff = HandleOn + HandleBefore + HandleAfter;
 		if (P < MagazineReach)
@@ -139,6 +148,55 @@ namespace
 			return OnHandle(Gun, Yank);
 		}
 		return Ease(OnHandle(Gun, 0.f), Home, Rise(P, HandleOff, MagazineHomeBy));
+	}
+
+	// The launcher's reload (ReloadMotion.cpp: the next rocket drawn on the RocketOut step, shown in front of the mouth, slid
+	// in until it seats on the RocketIn step): down to the pouch for it, up in front of the mouth with it, pushing it in.
+	/** Back up from the pouch with the rocket over this share of the reload, and home after it seats over this. */
+	constexpr float RocketBringUp = 0.14f;
+	constexpr float RocketLetGo = 0.06f;
+	constexpr float RocketHomeBy = 0.92f;
+
+	/** The support hand round the next rocket just behind its nose, Travel cm in front of its seat in the mouth. */
+	FHandPlacement OnRocket(const FHandsGun& Gun, float Travel)
+	{
+		const FGunHands& Hands = FirstPersonHandsGrips::For(Gun.Kind);
+		const FVector Seat = Gun.bHasMagazineSeat ? Gun.MagazineSeat : FVector(90.f, 0.f, 0.f) * Gun.Scale;
+		const FVector Hold = Seat + (Hands.RocketGrab + FVector(Travel, 0.f, 0.f)) * Gun.Scale;
+		return FirstPersonHandsGrips::InGun(Gun, Hold, FVector::ForwardVector, FVector::RightVector, FHandFingers::Of(EHandGrip::Wrap),
+			FVector(-0.55f, -0.5f, -0.65f));
+	}
+
+	FHandPlacement RocketPath(const FHandsGun& Gun, float P)
+	{
+		using namespace FirstPersonHandsMotion;
+		const EWeaponReloadPart Part = EWeaponReloadPart::Rocket;
+		const float Drawn = StepAt(Part, EReloadStep::RocketOut, 0, 0.14f);
+		const float Seated = StepAt(Part, EReloadStep::RocketIn, 0, 0.66f);
+		const FHandPlacement Home = FirstPersonHandsGrips::OnForegrip(Gun);
+		const FHandPlacement Pouch = AtPouch(OnRocket(Gun, LooterReload::RocketReach), MagazinePouch());
+		bool bShown = false;
+		bool bSeated = false;
+		const float Travel = LooterReload::RocketTravel(P, bShown, bSeated);
+		if (P < Drawn)
+		{
+			return Ease(Home, Pouch, Rise(P, 0.f, Drawn));
+		}
+		if (!bShown && !bSeated)
+		{
+			// Up from the pouch to in front of the mouth, the rocket in hand.
+			const float ShownAt = Seated - (Seated - Drawn) * 0.6f;
+			return Ease(Pouch, OnRocket(Gun, LooterReload::RocketReach), Rise(P, ShownAt - RocketBringUp, ShownAt));
+		}
+		if (!bSeated)
+		{
+			return OnRocket(Gun, Travel);
+		}
+		if (P < Seated + RocketLetGo)
+		{
+			return OnRocket(Gun, 0.f);
+		}
+		return Ease(OnRocket(Gun, 0.f), Home, Rise(P, Seated + RocketLetGo, RocketHomeBy));
 	}
 
 	// The pump gun's reload: a shell per ShellIn step, then the Pump step's rack (LooterReload::PumpTravel).
@@ -358,6 +416,15 @@ FHandPlacement FirstPersonHandsMotion::SupportInReload(const FHandsGun& Gun)
 		return PumpPath(Gun, FMath::Min(P, 1.f));
 	case EWeaponReloadPart::Cylinder:
 		return CylinderPath(Gun, FMath::Min(P, 1.f));
+	case EWeaponReloadPart::Helix:
+	case EWeaponReloadPart::Box:
+		return MagazinePath(Gun, FMath::Min(P, 1.f));
+	case EWeaponReloadPart::Bolt:
+		// The box's beats come a little later (the bolt opens first, by the trigger hand); the support hand only swaps it.
+		return MagazinePath(Gun, FMath::Min(P, 1.f) - LooterReload::BoltMagazineLag, false);
+	case EWeaponReloadPart::Rocket:
+		return RocketPath(Gun, FMath::Min(P, 1.f));
+	case EWeaponReloadPart::None:
 	default:
 		return FirstPersonHandsGrips::OnForegrip(Gun);
 	}

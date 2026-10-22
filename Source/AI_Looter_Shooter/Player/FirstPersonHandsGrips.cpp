@@ -1,6 +1,7 @@
 #include "Player/FirstPersonHandsGrips.h"
 #include "AI_Looter_Shooter.h"
 #include "HAL/IConsoleManager.h"
+#include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponHipHold.h"
 
 // The hands' holds on each gun kind, read off the gun models (Art/Models/Weapons/<Gun>.py; their u, v, w are X, Z and
@@ -103,6 +104,89 @@ namespace
 		return Hands;
 	}
 
+	// The four frontier-tech guns (Phase 12.3), first holds read off their models (Art/Models/Weapons/<Gun>.py) against
+	// the Bullpup's tuned one; Looter.Hands.Kind 4-7 tunes them in game and Looter.Hands.Dump prints what to bake.
+
+	/** A pistol grip raked back (the new guns' all are): the hand round it as the rifle's is, its forearm in from the lower right. */
+	FGunHands PistolGrip(float TriggerReach)
+	{
+		FGunHands Hands;
+		Hands.GripHandle = FVector(0.3f, 0.f, 0.95f);
+		Hands.GripPalm = FVector(0.1f, -1.f, 0.f);
+		Hands.GripTilt = -25.f;
+		Hands.GripForearm = FVector(-0.55f, 0.35f, -0.76f);
+		Hands.GripHold = FVector(0.f, 0.8f, 0.f);
+		// The farther the trigger from the grip, the straighter the finger (the rifle's 4 cm: well bent; the shotgun's 12: out).
+		const float Bend = FMath::Clamp(1.f - (TriggerReach - 4.f) / 8.f, 0.f, 1.f);
+		Hands.TriggerCurl[0] = FMath::Lerp(5.f, 30.f, Bend);
+		Hands.TriggerCurl[1] = FMath::Lerp(20.f, 50.f, Bend);
+		Hands.TriggerCurl[2] = FMath::Lerp(10.f, 25.f, Bend);
+		// Palm up under the fore-end, as on the rifle's handguard.
+		Hands.ForeHandle = FVector(0.92f, -0.4f, 0.f);
+		Hands.ForePalm = FVector(0.f, 0.1f, 1.f);
+		Hands.ForeForearm = FVector(-0.30f, -0.26f, -0.92f);
+		Hands.ForeHold = FVector(0.f, 0.6f, 0.f);
+		Hands.ForeGrip = EHandGrip::Forend;
+		return Hands;
+	}
+
+	/**
+	 * The Rustler (DA_SMG): the support hand cups the helix under the barrel (SOCKET_Foregrip, its underside), as one holds
+	 * a helical magazine; the charging knob is on the left of the upper, the helix taken at its middle.
+	 */
+	FGunHands MakeSMG()
+	{
+		FGunHands Hands = PistolGrip(6.f);
+		Hands.ForeHold = FVector(0.f, 0.4f, 1.5f);
+		Hands.Handle = FVector(26.6f, -3.f, 1.2f);
+		Hands.MagazineGrab = FVector(10.f, 0.8f, -2.5f);
+		return Hands;
+	}
+
+	/**
+	 * The Longhorn (DA_Sniper): the trigger hand round the thumbhole's grip, near upright; the support hand under the
+	 * fore-end ahead of the box. The bolt turns about the bore at the shroud's back (Longhorn.py's BOLT_AT), its brass knob
+	 * out on the right, under the bore.
+	 */
+	FGunHands MakeSniper()
+	{
+		FGunHands Hands = PistolGrip(5.f);
+		Hands.GripHandle = FVector(0.2f, 0.f, 0.98f);
+		Hands.BoltPivot = FVector(13.4f, 0.f, 0.f);
+		Hands.Handle = FVector(17.95f, 3.85f, -1.15f);
+		Hands.MagazineGrab = FVector(3.f, 1.f, -4.f);
+		return Hands;
+	}
+
+	/**
+	 * The Thresher (DA_LMG): the support hand under the handguard ahead of the belt box; the reload's last work is the belt
+	 * laid in the feed and the top cover slapped down (Handle: the cover over the feed tray). The box taken at its middle.
+	 */
+	FGunHands MakeLMG()
+	{
+		FGunHands Hands = PistolGrip(5.f);
+		Hands.ForeHold = FVector(0.f, 0.6f, 0.5f);
+		Hands.Handle = FVector(24.f, -1.5f, 5.2f);
+		Hands.MagazineGrab = FVector(6.f, 1.5f, -6.f);
+		return Hands;
+	}
+
+	/**
+	 * The Powderkeg (DA_Launcher): the support hand round the upright front grip (SOCKET_Foregrip), fingers wrapped from the
+	 * left, its forearm in from the lower left; the next rocket held just behind its nose as it goes into the mouth.
+	 */
+	FGunHands MakeLauncher()
+	{
+		FGunHands Hands = PistolGrip(6.f);
+		Hands.ForeHandle = FVector(0.15f, 0.f, 0.99f);
+		Hands.ForePalm = FVector(0.f, 1.f, 0.f);
+		Hands.ForeForearm = FVector(-0.4f, -0.45f, -0.8f);
+		Hands.ForeHold = FVector(0.f, -0.5f, 0.f);
+		Hands.ForeGrip = EHandGrip::Wrap;
+		Hands.RocketGrab = FVector(6.f, -1.f, -1.f);
+		return Hands;
+	}
+
 	/** A hand's frame (knuckles, palm) turned in its own frame by Turn (roll about the knuckles, pitch about the palm's facing). */
 	void TurnHand(const FRotator& Turn, FVector& InOutFingers, FVector& InOutPalm)
 	{
@@ -118,7 +202,7 @@ namespace
 #if !UE_BUILD_SHIPPING
 	// Live tuning in a development build (2026-10-14, Main's screenshot loop): every number nudges the table's.
 	TAutoConsoleVariable<int32> CVarHandsKind(TEXT("Looter.Hands.Kind"), 0,
-		TEXT("Which gun the Looter.Hands.* tuning moves: 0 every gun, 1 rifle, 2 shotgun, 3 revolver."));
+		TEXT("Which gun the Looter.Hands.* tuning moves: 0 every gun, 1 rifle, 2 shotgun, 3 revolver, 4 SMG, 5 sniper, 6 LMG, 7 launcher."));
 	TAutoConsoleVariable<float> CVarTriggerRoll(TEXT("Looter.Hands.TriggerPalmRoll"), 0.f, TEXT("Trigger hand: roll about its knuckles' line (degrees)."));
 	TAutoConsoleVariable<float> CVarTriggerPitch(TEXT("Looter.Hands.TriggerPalmPitch"), 0.f, TEXT("Trigger hand: turn about its palm's facing (degrees)."));
 	TAutoConsoleVariable<float> CVarTriggerYaw(TEXT("Looter.Hands.TriggerPalmYaw"), 0.f, TEXT("Trigger hand: turn about its third axis (degrees)."));
@@ -182,7 +266,9 @@ namespace
 	{
 		const TPair<EWeaponKind, const TCHAR*> Kinds[] = {
 			{ EWeaponKind::Rifle, TEXT("Rifle (MakeRifle)") }, { EWeaponKind::Shotgun, TEXT("Shotgun (MakeShotgun)") },
-			{ EWeaponKind::Revolver, TEXT("Revolver (MakeRevolver)") } };
+			{ EWeaponKind::Revolver, TEXT("Revolver (MakeRevolver)") }, { EWeaponKind::SMG, TEXT("SMG (MakeSMG)") },
+			{ EWeaponKind::Sniper, TEXT("Sniper (MakeSniper)") }, { EWeaponKind::LMG, TEXT("LMG (MakeLMG)") },
+			{ EWeaponKind::Launcher, TEXT("Launcher (MakeLauncher)") } };
 		for (const TPair<EWeaponKind, const TCHAR*>& Kind : Kinds)
 		{
 			const FGunHands Hands = FirstPersonHandsGrips::Tuned(Kind.Key);
@@ -222,15 +308,49 @@ const FGunHands& FirstPersonHandsGrips::For(EWeaponKind Kind)
 	static const FGunHands Rifle = MakeRifle();
 	static const FGunHands Shotgun = MakeShotgun();
 	static const FGunHands Revolver = MakeRevolver();
+	static const FGunHands SMG = MakeSMG();
+	static const FGunHands Sniper = MakeSniper();
+	static const FGunHands LMG = MakeLMG();
+	static const FGunHands Launcher = MakeLauncher();
 	switch (Kind)
 	{
 	case EWeaponKind::Shotgun:
 		return Shotgun;
 	case EWeaponKind::Revolver:
 		return Revolver;
+	case EWeaponKind::SMG:
+		return SMG;
+	case EWeaponKind::Sniper:
+		return Sniper;
+	case EWeaponKind::LMG:
+		return LMG;
+	case EWeaponKind::Launcher:
+		return Launcher;
+	case EWeaponKind::Rifle:
+	case EWeaponKind::None:
 	default:
 		return Rifle;
 	}
+}
+
+FVector FirstPersonHandsGrips::BoltKnobAt(const FGunHands& Hands, float Open)
+{
+	float Lift = 0.f;
+	float Back = 0.f;
+	LooterReload::BoltPose(Open, Lift, Back);
+	// As the gun's model turns and draws its bolt (UWeaponModelComponent::SetBoltOpen): about the bore through the pivot.
+	const FQuat Turn(FVector::ForwardVector, FMath::DegreesToRadians(Lift));
+	return Hands.BoltPivot + Turn.RotateVector(Hands.Handle - Hands.BoltPivot) - FVector(Back, 0.f, 0.f);
+}
+
+FHandPlacement FirstPersonHandsGrips::OnBoltKnob(const FHandsGun& Gun, float Open)
+{
+	// Thumb and forefinger pinched on the knob from its right and above, the palm toward the gun, the forearm in from the
+	// lower right as on the grip.
+	const FGunHands Hands = Tuned(Gun.Kind);
+	const FVector Knob = BoltKnobAt(Hands, Open) * Gun.Scale;
+	const FVector Hold = Knob + FVector(0.f, 1.2f, 0.6f);
+	return InGun(Gun, Hold, FVector(0.25f, -0.2f, -1.f), FVector(0.f, -1.f, 0.f), FHandFingers::Of(EHandGrip::Pinch), FVector(-0.5f, 0.55f, -0.65f));
 }
 
 FGunHands FirstPersonHandsGrips::Tuned(EWeaponKind Kind)
@@ -287,7 +407,13 @@ FHandPlacement FirstPersonHandsGrips::OnGrip(const FHandsGun& Gun)
 	{
 		Curls.Curl[FHandFingers::IndexFinger][Joint] = Hands.TriggerCurl[Joint];
 	}
-	return InGun(Gun, Gun.Grip + Hands.GripHold * Gun.Scale, Fingers, Palm, Curls, Hands.GripForearm);
+	const FHandPlacement OnTheGrip = InGun(Gun, Gun.Grip + Hands.GripHold * Gun.Scale, Fingers, Palm, Curls, Hands.GripForearm);
+	// A bolt gun's trigger hand leaves the grip to work the bolt (between shots and in its reload), riding its knob.
+	if (Gun.BoltHand > 0.f && !Hands.BoltPivot.IsZero())
+	{
+		return FHandPlacement::Blend(OnTheGrip, OnBoltKnob(Gun, Gun.BoltOpen), Gun.BoltHand);
+	}
+	return OnTheGrip;
 }
 
 FHandPlacement FirstPersonHandsGrips::OnForegrip(const FHandsGun& Gun, float PumpBack)

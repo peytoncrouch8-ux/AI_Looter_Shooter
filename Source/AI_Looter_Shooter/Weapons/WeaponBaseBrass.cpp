@@ -89,7 +89,13 @@ void AWeaponBase::EjectAfterShot()
 	{
 		return;
 	}
-	switch (FWeaponBrass::KindFor(Instance.Definition->Kind))
+	// A bolt gun's case comes out as its bolt is drawn back (UpdateBoltCycle); a rocket leaves no case.
+	const EWeaponKind Kind = Instance.Definition->Kind;
+	if (Kind == EWeaponKind::Sniper || Kind == EWeaponKind::Launcher)
+	{
+		return;
+	}
+	switch (FWeaponBrass::KindFor(Kind))
 	{
 	case ECasingKind::Rifle:
 		EjectCasing();

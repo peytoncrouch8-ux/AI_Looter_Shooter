@@ -45,7 +45,8 @@ FLootRoll ABossLootShower::Plan(const ULootTable* Table, int32 Level, float Luck
 	{
 		FAmmoDrop& Drop = Planned.Ammo.AddDefaulted_GetRef();
 		Drop.Type = ULootLibrary::PickAmmoType(Table, Random, KillAmmo);
-		Drop.Amount = LooterLoot::ChestAmmoAmount;
+		// Full boxes: a chest's rounds, or its three rockets (LooterLoot::AmmoAmountFor).
+		Drop.Amount = LooterLoot::AmmoAmountFor(Drop.Type, LooterLoot::ChestAmmoAmount);
 	}
 	return Planned;
 }

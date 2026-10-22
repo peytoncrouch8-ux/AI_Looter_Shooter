@@ -76,6 +76,10 @@ void AWeaponBase::Reload()
 
 	GetWorldTimerManager().ClearTimer(FireTimer);
 	BurstShotsRemaining = 0;
+	// An LMG spins down through it; a bolt still cycling is taken over by the reload's own (its case flies as it opens).
+	StopKindTrigger();
+	bBoltCycling = false;
+	ApplyCyclePose(FVector::ZeroVector, FRotator::ZeroRotator);
 	bReloading = true;
 	ReloadSoundProgress = 0.f;
 	RefreshTick();
@@ -113,6 +117,12 @@ void AWeaponBase::PlayReloadSteps(float Progress)
 			if (Step.Step == EReloadStep::Eject)
 			{
 				DumpEmpties();
+			}
+			// The bolt drawn back: the last shot's case, if its own cycle never got to throw it.
+			if (Step.Step == EReloadStep::BoltOpen && !bBoltCaseOut)
+			{
+				bBoltCaseOut = true;
+				EjectCasing();
 			}
 		}
 	}
@@ -160,6 +170,16 @@ void AWeaponBase::UpdateReloadPart()
 		return;
 	}
 	const float Progress = GetReloadProgress();
+	if (Part == EWeaponReloadPart::Rocket)
+	{
+		// The launcher: the loaded rocket's nose shows while one's in; through a reload the next one is brought up in front
+		// of the mouth and slid in, and once it seats the nose shows again.
+		bool bShown = false;
+		bool bSeated = false;
+		const float RocketOut = Progress >= 0.f ? LooterReload::RocketTravel(Progress, bShown, bSeated) : 0.f;
+		Model->SetRocketLoad(RocketOut, bShown, Progress >= 0.f ? bSeated : CurrentMagazine > 0);
+		return;
+	}
 	bool bVisible = true;
 	float Travel = 0.f;
 	if (Progress >= 0.f)
@@ -167,20 +187,31 @@ void AWeaponBase::UpdateReloadPart()
 		switch (Part)
 		{
 		case EWeaponReloadPart::Magazine:
-			Travel = LooterReload::MagazineTravel(Progress, bVisible);
+		case EWeaponReloadPart::Helix:
+		case EWeaponReloadPart::Box:
+		case EWeaponReloadPart::Bolt:
+			Travel = LooterReload::WellTravel(Part, Progress, bVisible);
 			break;
 		case EWeaponReloadPart::Cylinder:
 			Travel = LooterReload::CylinderSwing(Progress);
 			break;
+		case EWeaponReloadPart::Pump:
 		default:
 			Travel = LooterReload::PumpTravel(Progress);
 			break;
 		}
 	}
 	Model->SetReloadTravel(Travel, bVisible);
+	// The sniper's bolt: opened and run home by the reload; between reloads its own cycle moves it (UpdateBoltCycle).
+	if (Part == EWeaponReloadPart::Bolt && (Progress >= 0.f || !bBoltCycling))
+	{
+		Model->SetBoltOpen(Progress >= 0.f ? LooterReload::BoltOpenInReload(Progress) : 0.f);
+	}
 }
 
 void AWeaponBase::BroadcastAmmo()
 {
 	OnAmmoChanged.Broadcast(CurrentMagazine, GetReserveAmmo());
+	// The SMG's helix shows the rounds left.
+	RefreshGauges();
 }

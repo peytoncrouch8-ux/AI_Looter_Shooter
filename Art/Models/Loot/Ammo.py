@@ -10,6 +10,7 @@ stand on end round a middle one, the outer ones leaning out a little:
   AmmoPistol        five fat straight rounds with round-nosed bullets
   AmmoSMG           seven small short rounds with flat-nosed bullets
   AmmoSniper        four tall bottlenecked rounds
+  AmmoRocket        three finned rockets with red warheads (the launcher's, 2026-10-21)
 Each round wears the icons' ink line: an inverted hull, its faces turned inward, so a one-sided material shows only the
 rim behind the round. It joins the model after the ambient occlusion bake (baked with it, it would shade the round
 black).
@@ -37,7 +38,7 @@ import looter_props as lp
 sys.path.append(os.path.join(lt.REPO, 'Art', 'Icons'))
 import InkedIcons   # noqa: E402  (the icons' outlines)
 
-TYPES = ('AssaultRifle', 'Shotgun', 'Pistol', 'SMG', 'Sniper')
+TYPES = ('AssaultRifle', 'Shotgun', 'Pistol', 'SMG', 'Sniper', 'Rocket')
 UNIT = 0.0055        # metres per icon unit, before each bundle's own scale
 INK_WIDTH = 0.006    # the ink line's thickness
 SEGMENTS = 10        # round each round's axis (a shell: 12, for its six-fold crimp); the ink shell matches
@@ -49,6 +50,7 @@ BUNDLES = {
     'Pistol': (4, 0.8, 8.0),
     'SMG': (6, 0.72, 6.0),
     'Sniper': (3, 0.8, 5.0),
+    'Rocket': (2, 0.75, 9.0),
 }
 
 BRASS = lt.material('MetalWorn', name='AmmoCaseBrass', tint=0xf4c870)
@@ -57,6 +59,8 @@ HULL = lt.material('Polymer', name='AmmoShellHull', tint=0x9c4434)            # 
 INK_LINE = lt.material('Polymer', name='AmmoInkLine', tint=0x0a1218)
 INK_LINE.use_backface_culling = True          # as the game's one-sided material: only the rim behind the round shows
 INK_LINE.use_backface_culling_shadow = True   # and it casts no shadow over the round inside it
+ROCKET_BODY = lt.material('MetalWorn', name='AmmoRocketBody', tint=0x3b4048)   # the guns' gunmetal
+ROCKET_NOSE = lt.material('Polymer', name='AmmoRocketNose', tint=0xb8402f)     # a frag warhead's red (the Powderkeg's)
 
 
 def dedupe(points):
@@ -135,11 +139,47 @@ def ink_shell(whole, segments):
     return obj
 
 
+def rocket_profiles(args, scale):
+    """The launcher's rocket (2026-10-21): the gunmetal motor and body, the red warhead from its seam to the point, and
+    the outline for the ink line, from its icon's outline (InkedIcons.rocket_body)."""
+    cx, base, w, nose_base, tip = args
+    outline, _ = InkedIcons.rocket_body(*args)
+    right = dedupe(outline[:len(outline) // 2])   # from the nozzle's foot up to the point
+    k = UNIT * scale
+    m = lambda p: (max((p[0] - cx) * k, 0.0), (base - p[1]) * k)
+    seam = next(i for i, (x, y) in enumerate(right) if abs(y - nose_base) < 1e-9)
+    body = [(0.0, 0.0)] + [m(p) for p in right[:seam + 1]] + [(0.0, m(right[seam])[1])]
+    nose = [(0.0, m(right[seam])[1])] + [m(p) for p in right[seam:]]
+    if nose[-1][0] > 1e-9:
+        nose.append((0.0, nose[-1][1]))
+    whole = [(0.0, 0.0)] + [m(p) for p in right]
+    if whole[-1][0] > 1e-9:
+        whole.append((0.0, whole[-1][1]))
+    return [(body, ROCKET_BODY), (nose, ROCKET_NOSE)], whole, None
+
+
+def rocket_fins(args, scale):
+    """Four tail fins round the rocket's motor, swept back as the icon's: thin plates in the body's gunmetal."""
+    cx, base, w, nose_base, tip = args
+    k = UNIT * scale
+    hw = w / 2 * k
+    span, root, height = 7.0 * k, 11.0 * k, 0.6 * k
+    fins = []
+    for a in range(4):
+        fin = lp.block((span, height, root), center=(hw + span * 0.5 - 0.2 * k, 0.0, 5.5 * k))
+        fin.data.transform(Matrix.Rotation(math.radians(45.0 + 90.0 * a), 4, 'Z'))
+        fin.data.update()
+        lt.assign(fin, ROCKET_BODY)
+        fins.append(fin)
+    return fins
+
+
 def round_parts(kind, scale):
     """One round standing at the origin: its parts, its ink shell and its radius."""
     what, args = InkedIcons.ROUNDS[kind][0]
-    pieces, whole, crimp_at = (cartridge_profiles if what == 'cartridge' else shell_profiles)(args, scale)
-    segments = SEGMENTS if what == 'cartridge' else 12
+    profiles = {'cartridge': cartridge_profiles, 'shell': shell_profiles, 'rocket': rocket_profiles}
+    pieces, whole, crimp_at = profiles[what](args, scale)
+    segments = 12 if what == 'shell' else (16 if what == 'rocket' else SEGMENTS)
     parts = []
     for profile, mat in pieces:
         obj = lp.lathe(profile, segments=segments)[0]
@@ -148,6 +188,8 @@ def round_parts(kind, scale):
         if crimp_at and mat is HULL:
             crimp(obj, crimp_at[1], crimp_at[0], crimp_at[2])
         parts.append(obj)
+    if what == 'rocket':
+        parts += rocket_fins(args, scale)
     return parts, ink_shell(whole, segments), max(r for r, _ in pieces[0][0])
 
 

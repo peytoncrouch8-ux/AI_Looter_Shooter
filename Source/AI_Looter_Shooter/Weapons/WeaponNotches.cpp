@@ -57,6 +57,67 @@ namespace
 		TEXT("Whistling Widow"),
 	};
 
+	// The four frontier-tech kinds (Phase 12.3), in the same voice.
+	const TCHAR* const SMGNicknames[] = {
+		TEXT("Swarm Psalm"),
+		TEXT("Hornet Supper"),
+		TEXT("Tin Tambourine"),
+		TEXT("Gnat Sermon"),
+		TEXT("Quick Mercy"),
+		TEXT("Rattle Parade"),
+		TEXT("Locust Ledger"),
+		TEXT("Spur Jangle"),
+		TEXT("Cricket Waltz"),
+		TEXT("Penny Rain"),
+		TEXT("Stampede Hymn"),
+		TEXT("Copper Hail"),
+	};
+
+	const TCHAR* const SniperNicknames[] = {
+		TEXT("Far Sermon"),
+		TEXT("Long Goodnight"),
+		TEXT("Steeple Eye"),
+		TEXT("Distant Bell"),
+		TEXT("Last Light"),
+		TEXT("Mile Marker"),
+		TEXT("Vulture's Vigil"),
+		TEXT("Quiet Verdict"),
+		TEXT("Horizon Ledger"),
+		TEXT("Lonesome Star"),
+		TEXT("Ridge Psalm"),
+		TEXT("Patient Widow"),
+	};
+
+	const TCHAR* const LMGNicknames[] = {
+		TEXT("Brass Rain"),
+		TEXT("Mill Hymn"),
+		TEXT("Long Argument"),
+		TEXT("Barn Burner"),
+		TEXT("Granary Choir"),
+		TEXT("Steam Psalm"),
+		TEXT("Ox Chorus"),
+		TEXT("Hailstorm Deacon"),
+		TEXT("Belt Sermon"),
+		TEXT("Harvest Bell"),
+		TEXT("Iron Chorus"),
+		TEXT("Threshing Floor"),
+	};
+
+	const TCHAR* const LauncherNicknames[] = {
+		TEXT("Thunder Keg"),
+		TEXT("Good Riddance"),
+		TEXT("Quarry Psalm"),
+		TEXT("Dynamite Deacon"),
+		TEXT("Bonfire Hymn"),
+		TEXT("Big Amen"),
+		TEXT("Powder Prayer"),
+		TEXT("Canyon Maker"),
+		TEXT("Crater Ledger"),
+		TEXT("Undertaker's Bell"),
+		TEXT("Smoke Sermon"),
+		TEXT("Brimstone Waltz"),
+	};
+
 	/** The nickname the gun's seed picks from its kind's list, whatever its kills; empty for a named gun (it has a name). */
 	FString PickNickname(const FWeaponInstanceData& Gun)
 	{
@@ -169,11 +230,23 @@ TConstArrayView<const TCHAR*> WeaponNotches::Nicknames(EWeaponKind Kind)
 	{
 		return MakeArrayView(ShotgunNicknames);
 	}
-	if (Kind == EWeaponKind::Revolver)
+	switch (Kind)
 	{
+	case EWeaponKind::Revolver:
 		return MakeArrayView(RevolverNicknames);
+	case EWeaponKind::SMG:
+		return MakeArrayView(SMGNicknames);
+	case EWeaponKind::Sniper:
+		return MakeArrayView(SniperNicknames);
+	case EWeaponKind::LMG:
+		return MakeArrayView(LMGNicknames);
+	case EWeaponKind::Launcher:
+		return MakeArrayView(LauncherNicknames);
+	case EWeaponKind::Rifle:
+	case EWeaponKind::None:
+	default:
+		return MakeArrayView(RifleNicknames);
 	}
-	return MakeArrayView(RifleNicknames);
 }
 
 FText WeaponNotches::MilestoneMessage(const FWeaponInstanceData& Gun, ENotchTier Tier)

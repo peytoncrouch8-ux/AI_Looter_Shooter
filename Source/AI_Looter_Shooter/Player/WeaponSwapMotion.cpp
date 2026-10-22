@@ -40,6 +40,22 @@ namespace
 	const FWeaponSwapStyle RevolverSwap = MakeSwapStyle(0.24f, 0.5f, 0.12f, FVector(-3.f, 7.f, -33.f), FRotator(-55.f, 22.f, 40.f),
 		FRotator(0.f, -8.f, -45.f));
 
+	/** The SMG, the lightest long gun: snapped off and up again quickest, with a little flick of its own as it comes up. */
+	const FWeaponSwapStyle SMGSwap = MakeSwapStyle(0.18f, 0.6f, 0.08f, FVector(-5.f, 5.f, -34.f), FRotator(-38.f, 14.f, 30.f),
+		FRotator(0.f, -3.f, -12.f));
+
+	/** The sniper: long and front-heavy, swung down muzzle first and brought up level, steady past the hold. */
+	const FWeaponSwapStyle SniperSwap = MakeSwapStyle(0.24f, 0.7f, 0.06f, FVector(-8.f, 3.f, -38.f), FRotator(-46.f, 9.f, 20.f),
+		FRotator::ZeroRotator);
+
+	/** The LMG, the heaviest: slow away, slow up, its weight carried well past the hold before it settles. */
+	const FWeaponSwapStyle LMGSwap = MakeSwapStyle(0.27f, 0.74f, 0.11f, FVector(-9.f, 3.f, -40.f), FRotator(-42.f, 8.f, 18.f),
+		FRotator::ZeroRotator);
+
+	/** The launcher: lifted off the shoulder and dropped, heaved back up onto it. */
+	const FWeaponSwapStyle LauncherSwap = MakeSwapStyle(0.27f, 0.72f, 0.1f, FVector(-10.f, 4.f, -40.f), FRotator(-30.f, 10.f, 14.f),
+		FRotator::ZeroRotator);
+
 	/** The holster's ease: a third of its pace from the first frame (the key answered at once), quickening out of view. */
 	constexpr float HolsterAnswer = 0.35f;
 }
@@ -52,6 +68,16 @@ const FWeaponSwapStyle& WeaponSwapMotion::StyleOf(EWeaponKind Kind)
 		return ShotgunSwap;
 	case EWeaponKind::Revolver:
 		return RevolverSwap;
+	case EWeaponKind::SMG:
+		return SMGSwap;
+	case EWeaponKind::Sniper:
+		return SniperSwap;
+	case EWeaponKind::LMG:
+		return LMGSwap;
+	case EWeaponKind::Launcher:
+		return LauncherSwap;
+	case EWeaponKind::Rifle:
+	case EWeaponKind::None:
 	default:
 		return RifleSwap;
 	}

@@ -34,6 +34,23 @@ namespace
 		TEXT("...and how long it lasts (s)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarRumbleHurt(TEXT("Looter.Gunfeel.Rumble.Hurt"), Def::RumbleHurt,
 		TEXT("The rumble strength (0-1) of a hit taken for a quarter of the health bar or more (smaller hits less)."), ECVF_Default);
+	// The four frontier-tech kinds: the SMG a light buzz, the sniper a deep thump, the LMG a steady chug, the launcher the most.
+	TAutoConsoleVariable<float> CVarRumbleSMG(TEXT("Looter.Gunfeel.Rumble.SMG"), Def::RumbleSMG,
+		TEXT("An SMG shot's rumble strength (0-1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRumbleSMGSeconds(TEXT("Looter.Gunfeel.Rumble.SMGSeconds"), Def::RumbleSMGSeconds,
+		TEXT("...and how long it lasts (s)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRumbleSniper(TEXT("Looter.Gunfeel.Rumble.Sniper"), Def::RumbleSniper,
+		TEXT("A sniper shot's rumble strength (0-1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRumbleSniperSeconds(TEXT("Looter.Gunfeel.Rumble.SniperSeconds"), Def::RumbleSniperSeconds,
+		TEXT("...and how long it lasts (s)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRumbleLMG(TEXT("Looter.Gunfeel.Rumble.LMG"), Def::RumbleLMG,
+		TEXT("An LMG shot's rumble strength (0-1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRumbleLMGSeconds(TEXT("Looter.Gunfeel.Rumble.LMGSeconds"), Def::RumbleLMGSeconds,
+		TEXT("...and how long it lasts (s)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRumbleLauncher(TEXT("Looter.Gunfeel.Rumble.Launcher"), Def::RumbleLauncher,
+		TEXT("A rocket launch's rumble strength (0-1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRumbleLauncherSeconds(TEXT("Looter.Gunfeel.Rumble.LauncherSeconds"), Def::RumbleLauncherSeconds,
+		TEXT("...and how long it lasts (s)."), ECVF_Default);
 
 	/** A hit for this share of the player's health or more is the full rumble; a scratch a quarter of it. */
 	constexpr float FullHurtShare = 0.25f;
@@ -138,6 +155,24 @@ GunfeelKick::FRumble GunfeelKick::RumbleForShot(EWeaponKind Kind)
 		Rumble.Intensity = CVarRumbleRevolver.GetValueOnGameThread();
 		Rumble.Seconds = CVarRumbleRevolverSeconds.GetValueOnGameThread();
 		break;
+	case EWeaponKind::SMG:
+		Rumble.Intensity = CVarRumbleSMG.GetValueOnGameThread();
+		Rumble.Seconds = CVarRumbleSMGSeconds.GetValueOnGameThread();
+		break;
+	case EWeaponKind::Sniper:
+		Rumble.Intensity = CVarRumbleSniper.GetValueOnGameThread();
+		Rumble.Seconds = CVarRumbleSniperSeconds.GetValueOnGameThread();
+		break;
+	case EWeaponKind::LMG:
+		Rumble.Intensity = CVarRumbleLMG.GetValueOnGameThread();
+		Rumble.Seconds = CVarRumbleLMGSeconds.GetValueOnGameThread();
+		break;
+	case EWeaponKind::Launcher:
+		Rumble.Intensity = CVarRumbleLauncher.GetValueOnGameThread();
+		Rumble.Seconds = CVarRumbleLauncherSeconds.GetValueOnGameThread();
+		break;
+	case EWeaponKind::Rifle:
+	case EWeaponKind::None:
 	default:
 		Rumble.Intensity = CVarRumbleRifle.GetValueOnGameThread();
 		Rumble.Seconds = CVarRumbleRifleSeconds.GetValueOnGameThread();
@@ -189,8 +224,8 @@ void GunfeelKick::EnsureInputWatch()
 void GunfeelKick::RumbleShot(APlayerController* Player, EWeaponKind Kind)
 {
 	EnsureInputWatch();
-	// The rifle's quick tick only works the right-hand motors; the heavy guns shake the whole pad.
-	Play(Player, RumbleForShot(Kind), Kind != EWeaponKind::Rifle && Kind != EWeaponKind::None);
+	// The rifle's and the SMG's quick ticks only work the right-hand motors; the heavy guns shake the whole pad.
+	Play(Player, RumbleForShot(Kind), Kind != EWeaponKind::Rifle && Kind != EWeaponKind::SMG && Kind != EWeaponKind::None);
 }
 
 void GunfeelKick::RumbleHurt(APlayerController* Player, float DamageShare)

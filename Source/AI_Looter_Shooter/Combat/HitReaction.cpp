@@ -117,9 +117,9 @@ FHitReaction::FResponse FHitReaction::OnHit(double Now, const FHit& Hit)
 	Response.BurstShare = BurstDamage / FMath::Max(Hit.MaxHealth, 1.f);
 	const bool bHeavy = Hit.bCritical || Response.BurstShare >= Tuning.StaggerHeavyShare;
 
-	// The rifle's pressure: its hits on this one within the window, this one counted.
+	// The rifle's pressure (the LMG's too: it holds the line the same way): its hits on this one within the window, this one counted.
 	bool bPressure = false;
-	if (Hit.Kind == EWeaponKind::Rifle && !Hit.bKilled)
+	if ((Hit.Kind == EWeaponKind::Rifle || Hit.Kind == EWeaponKind::LMG) && !Hit.bKilled)
 	{
 		RifleHits.Add(Now);
 		while (RifleHits.Num() > 0 && Now - RifleHits[0] > Tuning.RiflePressureWindow)
@@ -143,8 +143,9 @@ FHitReaction::FResponse FHitReaction::OnHit(double Now, const FHit& Hit)
 		}
 		else if (Hit.bCritical && Now >= HitStopReady)
 		{
-			// The revolver is the precision gun: its crit holds longest.
-			Response.HitStopSeconds = Hit.Kind == EWeaponKind::Revolver ? Tuning.RevolverCritHitStop : Tuning.HitStopCrit;
+			// The precision guns (the revolver, the sniper): their crits hold longest.
+			const bool bPrecise = Hit.Kind == EWeaponKind::Revolver || Hit.Kind == EWeaponKind::Sniper;
+			Response.HitStopSeconds = bPrecise ? Tuning.RevolverCritHitStop : Tuning.HitStopCrit;
 			HitStopReady = Now + HitStopCooldown;
 		}
 		else if (bHeavy && Now >= HitStopReady && Tuning.HitStopHeavy > 0.f)

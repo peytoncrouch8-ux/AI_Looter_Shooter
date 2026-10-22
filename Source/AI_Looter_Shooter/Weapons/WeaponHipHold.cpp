@@ -28,11 +28,21 @@ namespace
 		// the frame past the bottom right, the left arm's reach to the pump is short and its sleeve's end stays under the
 		// frame. The trigger glove sits below the frame there, as a full stock hid it anyway.
 		{ EWeaponKind::Shotgun, FVector(30.f, 22.5f, -23.f), FRotator(0.f, -3.f, -5.f) },
+		// The frontier-tech guns (Phase 12.3), first holds from their models against the rifle's (tune with Looter.HipHold.*,
+		// kinds 4-7). The Rustler's grip is well back of its helix: in a little nearer than the rifle, so the support hand
+		// on the helix stays in view.
+		{ EWeaponKind::SMG, FVector(44.f, 22.f, -22.5f), FRotator::ZeroRotator },
+		// The Longhorn's grip is behind a long fore-end: nearer still, the barrel running out to the middle of the frame.
+		{ EWeaponKind::Sniper, FVector(34.f, 22.f, -22.f), FRotator(0.f, -1.5f, 0.f) },
+		// The Thresher is big and blocky: a touch lower and further out to the right, so its receiver doesn't fill the view.
+		{ EWeaponKind::LMG, FVector(40.f, 25.f, -25.f), FRotator(0.f, -1.f, -2.f) },
+		// The Powderkeg rides the shoulder: its grip under a tube that sits high, near the eye, out on the right.
+		{ EWeaponKind::Launcher, FVector(28.f, 24.f, -20.f), FRotator(0.f, -2.f, 0.f) },
 	};
 
 #if !UE_BUILD_SHIPPING
 	TAutoConsoleVariable<int32> CVarHipKind(TEXT("Looter.HipHold.Kind"), 0,
-		TEXT("Which gun the Looter.HipHold.* nudges move: 0 every gun, 1 rifle, 2 shotgun, 3 revolver (tuning only)."));
+		TEXT("Which gun the Looter.HipHold.* nudges move: 0 every gun, 1 rifle, 2 shotgun, 3 revolver, 4 SMG, 5 sniper, 6 LMG, 7 launcher (tuning only)."));
 	TAutoConsoleVariable<float> CVarHipAhead(TEXT("Looter.HipHold.Ahead"), 0.f, TEXT("Moves the first-person hip hold ahead (cm; tuning only)."));
 	TAutoConsoleVariable<float> CVarHipRight(TEXT("Looter.HipHold.Right"), 0.f, TEXT("Moves the first-person hip hold right (cm; tuning only)."));
 	TAutoConsoleVariable<float> CVarHipUp(TEXT("Looter.HipHold.Up"), 0.f, TEXT("Moves the first-person hip hold up (cm; tuning only)."));

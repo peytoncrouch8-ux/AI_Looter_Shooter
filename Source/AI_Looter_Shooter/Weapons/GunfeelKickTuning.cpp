@@ -75,17 +75,94 @@ namespace
 	TAutoConsoleVariable<float> CVarSwapRevolver(TEXT("Looter.Gunfeel.Swap.Revolver"), Def::SwapRevolver,
 		TEXT("The revolver's holster and draw times times this."), ECVF_Default);
 
-	/** Picks the variable for Kind (a gun with no kind of its own is the rifle). */
-	float ByKind(EWeaponKind Kind, const TAutoConsoleVariable<float>& Rifle, const TAutoConsoleVariable<float>& Shotgun,
-		const TAutoConsoleVariable<float>& Revolver)
+	// The four frontier-tech kinds (Phase 12.3), beside the three above.
+	TAutoConsoleVariable<float> CVarKickSMG(TEXT("Looter.Gunfeel.Kick.SMG"), Def::KickSMG,
+		TEXT("The SMG's view kick times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarKickSniper(TEXT("Looter.Gunfeel.Kick.Sniper"), Def::KickSniper,
+		TEXT("The sniper rifle's view kick times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarKickLMG(TEXT("Looter.Gunfeel.Kick.LMG"), Def::KickLMG,
+		TEXT("The LMG's view kick times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarKickLauncher(TEXT("Looter.Gunfeel.Kick.Launcher"), Def::KickLauncher,
+		TEXT("The launcher's view kick times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRecoilSMG(TEXT("Looter.Gunfeel.Recoil.SMG"), Def::RecoilSMG,
+		TEXT("The SMG's own kick times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRecoilSniper(TEXT("Looter.Gunfeel.Recoil.Sniper"), Def::RecoilSniper,
+		TEXT("The sniper rifle's own kick times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRecoilLMG(TEXT("Looter.Gunfeel.Recoil.LMG"), Def::RecoilLMG,
+		TEXT("The LMG's own kick times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRecoilLauncher(TEXT("Looter.Gunfeel.Recoil.Launcher"), Def::RecoilLauncher,
+		TEXT("The launcher's own kick times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimTimeSMG(TEXT("Looter.Gunfeel.Aim.Time.SMG"), Def::AimTimeSMG,
+		TEXT("Time to bring the SMG's sights up times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimTimeSniper(TEXT("Looter.Gunfeel.Aim.Time.Sniper"), Def::AimTimeSniper,
+		TEXT("Time to bring the sniper rifle's scope up times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimTimeLMG(TEXT("Looter.Gunfeel.Aim.Time.LMG"), Def::AimTimeLMG,
+		TEXT("Time to bring the LMG's sights up times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimTimeLauncher(TEXT("Looter.Gunfeel.Aim.Time.Launcher"), Def::AimTimeLauncher,
+		TEXT("Time to bring the launcher's sight up times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimMoveSMG(TEXT("Looter.Gunfeel.Aim.Move.SMG"), Def::AimMoveSMG,
+		TEXT("Walk speed while aiming the SMG times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimMoveSniper(TEXT("Looter.Gunfeel.Aim.Move.Sniper"), Def::AimMoveSniper,
+		TEXT("Walk speed while aiming the sniper rifle times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimMoveLMG(TEXT("Looter.Gunfeel.Aim.Move.LMG"), Def::AimMoveLMG,
+		TEXT("Walk speed while aiming the LMG times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimMoveLauncher(TEXT("Looter.Gunfeel.Aim.Move.Launcher"), Def::AimMoveLauncher,
+		TEXT("Walk speed while aiming the launcher times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwapSMG(TEXT("Looter.Gunfeel.Swap.SMG"), Def::SwapSMG,
+		TEXT("The SMG's holster and draw times times this (the quickest)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwapSniper(TEXT("Looter.Gunfeel.Swap.Sniper"), Def::SwapSniper,
+		TEXT("The sniper rifle's holster and draw times times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwapLMG(TEXT("Looter.Gunfeel.Swap.LMG"), Def::SwapLMG,
+		TEXT("The LMG's holster and draw times times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwapLauncher(TEXT("Looter.Gunfeel.Swap.Launcher"), Def::SwapLauncher,
+		TEXT("The launcher's holster and draw times times this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCritSniper(TEXT("Looter.Gunfeel.Crit.Sniper"), Def::CritSniper,
+		TEXT("What a sniper rifle's critical hit multiplies the damage by (a cursed iron's own wins when larger)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSMGClimb(TEXT("Looter.Gunfeel.Recoil.SMGClimb"), Def::SMGClimb,
+		TEXT("The SMG's aim kick grows by this share for each shot of a burst (to RifleClimbMax)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLMGClimb(TEXT("Looter.Gunfeel.Recoil.LMGClimb"), Def::LMGClimb,
+		TEXT("The LMG's aim kick grows by this share for each shot of a burst (to RifleClimbMax)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSMGBloom(TEXT("Looter.Gunfeel.Spread.SMGBloom"), Def::SMGBloom,
+		TEXT("Each SMG shot widens its spread by this share of the gun's own (a quarter as much through the sight)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLMGBloom(TEXT("Looter.Gunfeel.Spread.LMGBloom"), Def::LMGBloom,
+		TEXT("Each LMG shot widens its spread by this share of the gun's own (a quarter as much through the sight)."), ECVF_Default);
+
+	/** One number's variable for every kind (a gun with no kind of its own is the rifle). */
+	struct FByKind
 	{
-		switch (Kind)
+		const TAutoConsoleVariable<float>& Rifle;
+		const TAutoConsoleVariable<float>& Shotgun;
+		const TAutoConsoleVariable<float>& Revolver;
+		const TAutoConsoleVariable<float>& SMG;
+		const TAutoConsoleVariable<float>& Sniper;
+		const TAutoConsoleVariable<float>& LMG;
+		const TAutoConsoleVariable<float>& Launcher;
+
+		float Get(EWeaponKind Kind) const
 		{
-		case EWeaponKind::Shotgun: return Shotgun.GetValueOnGameThread();
-		case EWeaponKind::Revolver: return Revolver.GetValueOnGameThread();
-		default: return Rifle.GetValueOnGameThread();
+			switch (Kind)
+			{
+			case EWeaponKind::Shotgun: return Shotgun.GetValueOnGameThread();
+			case EWeaponKind::Revolver: return Revolver.GetValueOnGameThread();
+			case EWeaponKind::SMG: return SMG.GetValueOnGameThread();
+			case EWeaponKind::Sniper: return Sniper.GetValueOnGameThread();
+			case EWeaponKind::LMG: return LMG.GetValueOnGameThread();
+			case EWeaponKind::Launcher: return Launcher.GetValueOnGameThread();
+			case EWeaponKind::Rifle:
+			case EWeaponKind::None:
+			default: return Rifle.GetValueOnGameThread();
+			}
 		}
-	}
+	};
+
+	const FByKind Kicks{ CVarKickRifle, CVarKickShotgun, CVarKickRevolver, CVarKickSMG, CVarKickSniper, CVarKickLMG, CVarKickLauncher };
+	const FByKind Recoils{ CVarRecoilRifle, CVarRecoilShotgun, CVarRecoilRevolver, CVarRecoilSMG, CVarRecoilSniper, CVarRecoilLMG,
+		CVarRecoilLauncher };
+	const FByKind AimTimes{ CVarAimTimeRifle, CVarAimTimeShotgun, CVarAimTimeRevolver, CVarAimTimeSMG, CVarAimTimeSniper, CVarAimTimeLMG,
+		CVarAimTimeLauncher };
+	const FByKind AimMoves{ CVarAimMoveRifle, CVarAimMoveShotgun, CVarAimMoveRevolver, CVarAimMoveSMG, CVarAimMoveSniper, CVarAimMoveLMG,
+		CVarAimMoveLauncher };
+	const FByKind Swaps{ CVarSwapRifle, CVarSwapShotgun, CVarSwapRevolver, CVarSwapSMG, CVarSwapSniper, CVarSwapLMG, CVarSwapLauncher };
 }
 
 EWeaponKind GunfeelKick::KindOf(const AWeaponBase* Weapon)
@@ -100,12 +177,12 @@ EWeaponKind GunfeelKick::KindOf(const AWeaponBase* Weapon)
 
 float GunfeelKick::KickScale(EWeaponKind Kind)
 {
-	return FMath::Max(ByKind(Kind, CVarKickRifle, CVarKickShotgun, CVarKickRevolver), 0.f);
+	return FMath::Max(Kicks.Get(Kind), 0.f);
 }
 
 float GunfeelKick::RecoilScale(EWeaponKind Kind)
 {
-	return FMath::Max(ByKind(Kind, CVarRecoilRifle, CVarRecoilShotgun, CVarRecoilRevolver), 0.f);
+	return FMath::Max(Recoils.Get(Kind), 0.f);
 }
 
 float GunfeelKick::ShotgunSettle()
@@ -120,17 +197,17 @@ float GunfeelKick::Muzzle1PScale()
 
 float GunfeelKick::AimTimeScale(EWeaponKind Kind)
 {
-	return FMath::Max(ByKind(Kind, CVarAimTimeRifle, CVarAimTimeShotgun, CVarAimTimeRevolver), 0.1f);
+	return FMath::Max(AimTimes.Get(Kind), 0.1f);
 }
 
 float GunfeelKick::AimMoveScale(EWeaponKind Kind)
 {
-	return FMath::Max(ByKind(Kind, CVarAimMoveRifle, CVarAimMoveShotgun, CVarAimMoveRevolver), 0.1f);
+	return FMath::Max(AimMoves.Get(Kind), 0.1f);
 }
 
 float GunfeelKick::SwapScale(EWeaponKind Kind)
 {
-	return FMath::Max(ByKind(Kind, CVarSwapRifle, CVarSwapShotgun, CVarSwapRevolver), 0.1f);
+	return FMath::Max(Swaps.Get(Kind), 0.1f);
 }
 
 float GunfeelKick::RifleClimb()
@@ -143,19 +220,41 @@ float GunfeelKick::RifleClimbMax()
 	return FMath::Max(CVarRifleClimbMax.GetValueOnGameThread(), 1.f);
 }
 
+float GunfeelKick::ClimbPerShot(EWeaponKind Kind)
+{
+	switch (Kind)
+	{
+	case EWeaponKind::Rifle: return RifleClimb();
+	case EWeaponKind::SMG: return FMath::Max(CVarSMGClimb.GetValueOnGameThread(), 0.f);
+	case EWeaponKind::LMG: return FMath::Max(CVarLMGClimb.GetValueOnGameThread(), 0.f);
+	default: return 0.f;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Rules
 // ---------------------------------------------------------------------------
 
+float GunfeelKick::CritMultiplier(EWeaponKind Kind, float CurseMultiplier, float RevolverCrit, float SniperCrit)
+{
+	float OfKind = LooterCombat::CriticalHitMultiplier;
+	switch (Kind)
+	{
+	case EWeaponKind::Revolver: OfKind = RevolverCrit; break;
+	case EWeaponKind::Sniper: OfKind = SniperCrit; break;
+	default: break;
+	}
+	return FMath::Max(CurseMultiplier, OfKind);
+}
+
 float GunfeelKick::CritMultiplier(EWeaponKind Kind, float CurseMultiplier, float RevolverCrit)
 {
-	const float OfKind = Kind == EWeaponKind::Revolver ? RevolverCrit : LooterCombat::CriticalHitMultiplier;
-	return FMath::Max(CurseMultiplier, OfKind);
+	return CritMultiplier(Kind, CurseMultiplier, RevolverCrit, Default::CritSniper);
 }
 
 float GunfeelKick::CritMultiplier(EWeaponKind Kind, float CurseMultiplier)
 {
-	return CritMultiplier(Kind, CurseMultiplier, CVarCritRevolver.GetValueOnGameThread());
+	return CritMultiplier(Kind, CurseMultiplier, CVarCritRevolver.GetValueOnGameThread(), CVarCritSniper.GetValueOnGameThread());
 }
 
 float GunfeelKick::ShotgunFalloff(float Distance, float Range, float Start, float End, float Floor)
@@ -199,7 +298,8 @@ float GunfeelKick::LowAmmoPitch(int32 RoundsLeft, int32 Magazine)
 
 float GunfeelKick::BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha, float PerShot, float MaxMultiplier)
 {
-	if (Kind != EWeaponKind::Rifle)
+	// The automatic guns open up as they're held down; a single heavy shot (shotgun, six-gun, bolt, rocket) never does.
+	if (Kind != EWeaponKind::Rifle && Kind != EWeaponKind::SMG && Kind != EWeaponKind::LMG)
 	{
 		return Bloom;
 	}
@@ -209,7 +309,9 @@ float GunfeelKick::BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha,
 
 float GunfeelKick::BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha)
 {
-	return BloomAfterShot(Kind, Bloom, AimAlpha, CVarRifleBloom.GetValueOnGameThread(), CVarBloomMax.GetValueOnGameThread());
+	const float PerShot = Kind == EWeaponKind::SMG ? CVarSMGBloom.GetValueOnGameThread()
+		: (Kind == EWeaponKind::LMG ? CVarLMGBloom.GetValueOnGameThread() : CVarRifleBloom.GetValueOnGameThread());
+	return BloomAfterShot(Kind, Bloom, AimAlpha, PerShot, CVarBloomMax.GetValueOnGameThread());
 }
 
 float GunfeelKick::BloomRecovered(float Bloom, float Seconds, float Recovery)

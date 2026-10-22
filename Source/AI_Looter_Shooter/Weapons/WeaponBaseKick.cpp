@@ -27,10 +27,10 @@ FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 		// Heavy: it settles slower, so the shove is held a moment.
 		Profile.Snappiness *= GunfeelKick::ShotgunSettle();
 	}
-	else if (Kind == EWeaponKind::Rifle)
+	else if (Kind == EWeaponKind::Rifle || Kind == EWeaponKind::SMG || Kind == EWeaponKind::LMG)
 	{
-		// A burst climbs.
-		Profile.ClimbPerShot = GunfeelKick::RifleClimb();
+		// A burst climbs: the rifle's, the SMG's a little, the LMG's under its weight.
+		Profile.ClimbPerShot = GunfeelKick::ClimbPerShot(Kind);
 		Profile.ClimbMax = GunfeelKick::RifleClimbMax();
 	}
 	return Profile;

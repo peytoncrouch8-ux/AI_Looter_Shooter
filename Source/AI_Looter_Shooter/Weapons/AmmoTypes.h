@@ -16,6 +16,8 @@ enum class EAmmoType : uint8
 	Pistol,
 	SMG,
 	Sniper,
+	/** The launcher's rockets (2026-10-21; appended, so the classes above keep their numbers and saved pools their slots). */
+	Rocket,
 	Count UMETA(Hidden)
 };
 

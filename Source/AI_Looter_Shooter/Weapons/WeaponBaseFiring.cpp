@@ -74,13 +74,16 @@ void AWeaponBase::StartFireAt(double Now)
 	{
 		return;
 	}
+	// An LMG starts to spin (heard from cold).
+	StartKindTrigger();
 
 	// Respect the fire rate however the trigger is worked. A press while the gun is still cycling is remembered only if it
 	// comes just before the gun is ready, and only once (WeaponTrigger::Decide): clicks made earlier are lost, so spamming
 	// never stacks shots that go off after the clicking has stopped.
 	FTimerManager& Timers = GetWorldTimerManager();
-	// In the world's seconds: a shooter living faster than the world (Sundown) cycles the gun in fewer of them.
-	const double Interval = Instance.Stats.GetSecondsBetweenShots() / GetOwnerTimeScale();
+	// In the world's seconds: a shooter living faster than the world (Sundown) cycles the gun in fewer of them. An LMG
+	// still spinning up fires slower (GetShotInterval).
+	const double Interval = GetShotInterval() / GetOwnerTimeScale();
 	const double SecondsUntilReady = Interval - (Now - LastFireTime);
 	const WeaponTrigger::EPress Press = WeaponTrigger::Decide(Instance.Definition->FireMode, SecondsUntilReady, Timers.IsTimerActive(FireTimer));
 	if (Press == WeaponTrigger::EPress::Ignore)
@@ -112,6 +115,7 @@ bool AWeaponBase::HasShotPending() const
 void AWeaponBase::StopFire()
 {
 	bWantsToFire = false;
+	StopKindTrigger();
 
 	// Bursts finish on their own and semi-auto keeps its one remembered press (made just before the gun was ready), so only
 	// auto stops immediately.
@@ -139,6 +143,8 @@ void AWeaponBase::HandleFiring()
 		return;
 	}
 
+	// LOOT-CODE hook (Phase 12.3): a part effect's plan for this pull (its PlanFor: Burst's three rounds, Overcharge's held charge,
+	// x2 damage at half the rate) goes here, beside the curse's plan below, before the shot is fired.
 	// A cursed iron's drawback acts on the trigger: Greedy spends two rounds a shot (or the last one alone), and Unlucky
 	// now and then drops the hammer on a dud. Either way the shot takes its time and its rounds.
 	const WeaponCurseEffects::FShotPlan Plan = WeaponCurseEffects::PlanShot(Instance, CurrentMagazine, ShotRolls);
@@ -154,6 +160,8 @@ void AWeaponBase::HandleFiring()
 	// A six-gun keeps its empties (a dud's too) until a reload tips them out.
 	SpentInCylinder = FMath::Min(SpentInCylinder + Plan.Rounds, Instance.Stats.MagazineSize);
 	LastFireTime = GetWorld()->GetTimeSeconds();
+	// The frontier-tech kinds' after-shot: the sniper's bolt cycles (a dud's too), the LMG heats, the launcher's mouth empties.
+	NoteKindShot(Plan.bMisfire);
 	// A revolver's cylinder turns the next round under the hammer (a dud's too), as the gun settles from the kick.
 	if (bUsingModel && Model->GetCylinderChambers() > 0)
 	{
@@ -192,7 +200,7 @@ void AWeaponBase::HandleFiring()
 
 	if (bContinue)
 	{
-		GetWorldTimerManager().SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, Instance.Stats.GetSecondsBetweenShots() / GetOwnerTimeScale(), false);
+		GetWorldTimerManager().SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, GetShotInterval() / GetOwnerTimeScale(), false);
 	}
 }
 
@@ -204,9 +212,15 @@ void AWeaponBase::FireShot()
 	const FVector AimDirection = ViewRotation.Vector();
 	UE_LOG(LogLooter, VeryVerbose, TEXT("%s shot from %s along %s"), *GetName(), *ViewLocation.ToCompactString(), *AimDirection.ToCompactString());
 
-	// Every pellet is a real bullet that flies from the aim point along the aim (the tracer leaves from the muzzle).
+	// Every pellet is a real bullet that flies from the aim point along the aim (the tracer leaves from the muzzle). A
+	// launcher's shot is a rocket instead (AWeaponRocket), off the same aim, its cone the gun's spread as a pellet's.
 	const UWeaponDefinition* Definition = Instance.Definition;
-	if (UBulletSubsystem* Bullets = GetWorld()->GetSubsystem<UBulletSubsystem>())
+	if (Definition->Kind == EWeaponKind::Launcher)
+	{
+		const float SpreadRadians = FMath::DegreesToRadians(GetEffectiveSpread());
+		FireRocket(ViewLocation, SpreadRadians > 0.f ? FMath::VRandCone(AimDirection, SpreadRadians) : AimDirection);
+	}
+	else if (UBulletSubsystem* Bullets = GetWorld()->GetSubsystem<UBulletSubsystem>())
 	{
 		FBulletShot Shot;
 		Shot.Start = ViewLocation;
@@ -216,7 +230,7 @@ void AWeaponBase::FireShot()
 		Shot.FalloffStats = Instance.Stats;
 		Shot.Damage = Instance.Stats.Damage;
 		// A cursed iron's critical hits (Unlucky's triple, Cold's extra) when larger than the kind's own: the revolver's
-		// 1.75x, the game's 1.5x for the rest.
+		// 1.75x, the sniper's 2x, the game's 1.5x for the rest.
 		Shot.CritMultiplier = GunfeelKick::CritMultiplier(Definition->Kind, WeaponCurses::CritMultiplier(Instance));
 		Shot.HitImpulse = Definition->HitImpulse;
 		Shot.Channel = TraceChannel;
@@ -430,8 +444,11 @@ float AWeaponBase::GetEffectiveSpread() const
 	const AActor* Holder = GetOwner();
 	const UPlayerLocomotionComponent* Locomotion = Holder ? Holder->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
 	const UPlayerViewComponent* View = Holder ? Holder->FindComponentByClass<UPlayerViewComponent>() : nullptr;
-	return Instance.Stats.Spread * (Locomotion ? Locomotion->GetSpreadMultiplier() : 1.f) * (View ? View->GetAimSpreadMultiplier() : 1.f)
-		* (1.f + GetSpreadBloom());
+	// The sniper is a scope gun: its spread is its hip spread until the scope is up, then all but none (no halving mercy).
+	const bool bSniper = Instance.Definition && Instance.Definition->Kind == EWeaponKind::Sniper;
+	const float Aimed = !View ? 1.f : (bSniper ? GunKinds::AimSpreadScale(EWeaponKind::Sniper, View->GetAimAlpha(),
+		UPlayerViewComponent::AimSpreadMultiplier, GunKinds::SniperAimedSpread()) : View->GetAimSpreadMultiplier());
+	return Instance.Stats.Spread * (Locomotion ? Locomotion->GetSpreadMultiplier() : 1.f) * Aimed * (1.f + GetSpreadBloom());
 }
 
 float AWeaponBase::GetOwnerTimeScale() const

@@ -45,7 +45,7 @@ namespace WeaponSwapMotion
 	/** A swap called off this far down plays the gun's draw as it comes back up; less, and it never really went. */
 	inline constexpr float ReturnHeardFrom = 0.5f;
 
-	/** The kind's swap: the six-gun's, the pump shotgun's, or the bullpup's (which any other kind shares). */
+	/** The kind's swap: each kind's own (the six-gun's, the pump's, the SMG's, the sniper's, the LMG's, the launcher's), the bullpup's for a gun of no kind. */
 	AI_LOOTER_SHOOTER_API const FWeaponSwapStyle& StyleOf(EWeaponKind Kind);
 
 	/** A gun's kind by its definition (None without one). */

@@ -6,6 +6,8 @@ ULootTable::ULootTable()
 	{
 		FAmmoLootEntry Entry;
 		Entry.Type = Type;
+		// Rockets less often than the rest: one launcher's ammo shouldn't crowd out six other guns'.
+		Entry.Weight = Type == EAmmoType::Rocket ? LooterLoot::RocketAmmoWeight : 1.f;
 		AmmoTypes.Add(Entry);
 	}
 }

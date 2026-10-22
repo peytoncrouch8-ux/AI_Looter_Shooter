@@ -47,4 +47,16 @@ namespace GunshotSound
 
 	/** A revolver's critical hit landing: a bright ring for its shooter (2D). */
 	AI_LOOTER_SHOOTER_API void PlayCritRing(const UObject* WorldContext);
+
+	/**
+	 * A rocket bursting at Location (the Powderkeg's rocket calls this): the near explosion (crack, blast, debris, the
+	 * land's roll), or past Looter.Gunfeel.Sound.ExplosionDistantFrom [6000 cm] from the listener the far boom alone.
+	 */
+	AI_LOOTER_SHOOTER_API void PlayExplosion(const UObject* WorldContext, const FVector& Location);
+
+	/** Looter.Gunfeel.Sound.ExplosionDistantFrom (cm, never negative). */
+	AI_LOOTER_SHOOTER_API float ExplosionDistantFrom();
+
+	/** The plain rule: an explosion Distance cm from the listener plays far past DistantFrom (0 = always near). */
+	AI_LOOTER_SHOOTER_API bool IsExplosionDistant(float Distance, float DistantFrom);
 }

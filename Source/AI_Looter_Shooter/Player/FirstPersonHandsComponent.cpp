@@ -27,6 +27,7 @@
 namespace
 {
 	const FName MagazineSocket(TEXT("Magazine"));
+	const FName RocketSocket(TEXT("Rocket"));
 
 	TAutoConsoleVariable<int32> CVarHandsStandIn(
 		TEXT("Looter.Hands.StandIn"),
@@ -311,13 +312,21 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 	OutGun.Scale = Weapon.GetModelScale();
 	OutGun.ReloadPart = Weapon.GetReloadPart();
 	OutGun.ReloadProgress = Weapon.GetReloadProgress();
+	// The sniper's bolt, worked by the trigger hand between shots and in its reload (FirstPersonHandsGrips::OnGrip).
+	OutGun.BoltOpen = Weapon.GetBoltOpen();
+	OutGun.BoltHand = Weapon.GetBoltHand();
 	if (OutGun.ReloadProgress < 0.f || !bModel)
 	{
 		return;
 	}
-	if (OutGun.ReloadPart == EWeaponReloadPart::Magazine)
+	if (IsMagazineLike(OutGun.ReloadPart))
 	{
 		OutGun.bHasMagazineSeat = FindPartSocket(*Model, MagazineSocket, OutGun.MagazineSeat);
+	}
+	else if (OutGun.ReloadPart == EWeaponReloadPart::Rocket)
+	{
+		// The launcher's rocket seats in its barrel's mouth: the reload's hand works there.
+		OutGun.bHasMagazineSeat = FindPartSocket(*Model, RocketSocket, OutGun.MagazineSeat);
 	}
 	else if (OutGun.ReloadPart == EWeaponReloadPart::Cylinder)
 	{

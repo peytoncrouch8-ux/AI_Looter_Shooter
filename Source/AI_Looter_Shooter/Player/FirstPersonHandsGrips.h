@@ -39,6 +39,15 @@ struct FGunHands
 	FVector LoadingPort = FVector::ZeroVector;
 	/** Where on a magazine the hand takes it, from its seat (it slides out along the gun's -Z). */
 	FVector MagazineGrab = FVector::ZeroVector;
+
+	/**
+	 * A bolt gun's bolt (the sniper's): the point on the bore it turns about (its part's origin, the body's SOCKET_Bolt) and
+	 * its knob at rest, which the trigger hand takes to work it (Handle is the knob for such a gun).
+	 */
+	FVector BoltPivot = FVector::ZeroVector;
+
+	/** The launcher's next rocket: where the support hand holds it, ahead of its seat (it goes in tail first, nose out). */
+	FVector RocketGrab = FVector::ZeroVector;
 };
 
 /** The hands on the gun: the trigger hand on its grip, the support hand on its foregrip (FirstPersonHandsGrips.cpp). */
@@ -55,8 +64,17 @@ namespace FirstPersonHandsGrips
 	 */
 	AI_LOOTER_SHOOTER_API FGunHands Tuned(EWeaponKind Kind);
 
-	/** The trigger hand round the grip, index finger at the trigger (camera space). */
+	/**
+	 * The trigger hand round the grip, index finger at the trigger (camera space); a bolt gun's goes to the bolt's knob and
+	 * rides it as the bolt is worked (Gun.BoltHand of the way there, the knob where Gun.BoltOpen has it).
+	 */
 	AI_LOOTER_SHOOTER_API FHandPlacement OnGrip(const FHandsGun& Gun);
+
+	/** The trigger hand pinching a bolt gun's knob, the bolt Open (0-1) of the way (camera space). */
+	AI_LOOTER_SHOOTER_API FHandPlacement OnBoltKnob(const FHandsGun& Gun, float Open);
+
+	/** Where a bolt gun's knob is with the bolt Open (0-1) of the way, in the modeled gun's space (LooterReload::BoltPose). */
+	AI_LOOTER_SHOOTER_API FVector BoltKnobAt(const FGunHands& Hands, float Open);
 
 	/**
 	 * The support hand on the foregrip (camera space): under a rifle's handguard, round a shotgun's pump (PumpBack: how

@@ -119,6 +119,46 @@ FViewKick ViewKicks::ForShot(EWeaponKind Kind, float RecoilStat, float AimAlpha,
 		Kick.Frequency = 11.f;
 		Kick.Damping = 0.65f;
 	}
+	else if (Kind == EWeaponKind::Sniper)
+	{
+		// One big round: a hard punch up and a long settle (the bolt's work follows), the view thumped wider.
+		Kick.Pitch = 1.3f;
+		Kick.Roll = 0.4f * Lean;
+		Kick.Yaw = 0.1f * Side;
+		Kick.FieldOfView = 0.02f;
+		Kick.Frequency = 7.5f;
+		Kick.Damping = 0.55f;
+	}
+	else if (Kind == EWeaponKind::Launcher)
+	{
+		// The rocket leaving: a slower, heavier shove than the shotgun's, the shoulder pushed back and the view thrown wide.
+		Kick.Pitch = 1.4f;
+		Kick.Roll = 0.7f * Lean;
+		Kick.Yaw = 0.25f * Side;
+		Kick.FieldOfView = 0.03f;
+		Kick.Frequency = 5.f;
+		Kick.Damping = 0.45f;
+	}
+	else if (Kind == EWeaponKind::LMG)
+	{
+		// The rifle's tick with weight behind it: a deeper, slower chug, so a long burst rolls rather than rattles.
+		Kick.Pitch = 0.42f;
+		Kick.Roll = 0.28f * Lean;
+		Kick.Yaw = 0.09f * Side;
+		Kick.FieldOfView = 0.007f;
+		Kick.Frequency = 11.f;
+		Kick.Damping = 0.6f;
+	}
+	else if (Kind == EWeaponKind::SMG)
+	{
+		// A light, fast buzz: smaller than the rifle's tick and quicker to settle, so 900 rounds a minute read as a hum.
+		Kick.Pitch = 0.2f;
+		Kick.Roll = 0.16f * Lean;
+		Kick.Yaw = 0.07f * Side;
+		Kick.FieldOfView = 0.003f;
+		Kick.Frequency = 18.f;
+		Kick.Damping = 0.65f;
+	}
 	else
 	{
 		// A crisp tick per round: quick enough that a full-auto burst reads as a rattle, not a sway.

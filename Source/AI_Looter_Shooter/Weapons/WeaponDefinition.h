@@ -75,6 +75,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Firing", meta = (ClampMin = "0"))
 	float BulletSpeed = 30000.f;
 
+	/**
+	 * A launcher's rocket (SM_PowderkegRocket, from Art/Models/Weapons/Powderkeg.py): what flies when it fires (AWeaponRocket)
+	 * and what its reload slides into the mouth. Only a Launcher kind fires rockets; without one it flies as a plain shape.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Firing")
+	TObjectPtr<UStaticMesh> ProjectileMesh;
+
 	/** Glow color of the bullets' tracers (linear). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Firing")
 	FLinearColor TracerColor = FLinearColor(1.f, 0.62f, 0.25f);
@@ -136,7 +143,9 @@ public:
 
 	/**
 	 * The part slot a reload moves: a magazine slides out along the part's -Z, a pump back along its -X, a cylinder swings
-	 * out to the left on its crane (its SOCKET_Crane) and turns a chamber per shot.
+	 * out to the left on its crane (its SOCKET_Crane) and turns a chamber per shot. The SMG's helix, the LMG's box and the
+	 * sniper's box slide out as a magazine does (the sniper's bolt is its Bolt slot's part); the launcher's is the loaded
+	 * rocket on the Rocket socket (EWeaponReloadPart).
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
 	FName ReloadSlot;

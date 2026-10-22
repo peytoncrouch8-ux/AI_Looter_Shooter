@@ -14,6 +14,7 @@
 #include "Player/CameraShakeModifier.h"
 #include "Player/ViewKick.h"
 #include "Weapons/CreatureBlood.h"
+#include "Weapons/GunKindsTuning.h"
 #include "Weapons/GunshotSound.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -129,7 +130,12 @@ float UCreatureHitReactionComponent::CorpseKnockFor(EWeaponKind Kind, bool bCrit
 	switch (Kind)
 	{
 	case EWeaponKind::Shotgun: Speed = Tuning.KillShotgunKnock; break;
-	case EWeaponKind::Rifle: Speed = Tuning.KillRifleKnock; break;
+	// The automatic guns crumple it where it stands, as the rifle does.
+	case EWeaponKind::Rifle:
+	case EWeaponKind::SMG:
+	case EWeaponKind::LMG: Speed = Tuning.KillRifleKnock; break;
+	// A rocket's kill is thrown by the burst (Looter.Gunfeel.Kill.LauncherKnock).
+	case EWeaponKind::Launcher: Speed = GunKinds::KillLauncherKnock(); break;
 	default: break;
 	}
 	// A crit kill keeps its old knock where that's the larger (a rifle's headshot still rocks it).
@@ -138,7 +144,12 @@ float UCreatureHitReactionComponent::CorpseKnockFor(EWeaponKind Kind, bool bCrit
 
 float UCreatureHitReactionComponent::CorpseLiftFor(EWeaponKind Kind, const FGunfeelReactTuning& Tuning)
 {
-	return Kind == EWeaponKind::Shotgun ? Tuning.KillShotgunLift : 0.f;
+	switch (Kind)
+	{
+	case EWeaponKind::Shotgun: return Tuning.KillShotgunLift;
+	case EWeaponKind::Launcher: return GunKinds::KillLauncherLift();
+	default: return 0.f;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -172,9 +183,11 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 	const FVector Way = HitLocation - From;
 	Hit.Direction = Way.IsNearlyZero() ? (Creature->GetActorLocation() - From).GetSafeNormal() : Way.GetSafeNormal();
 
-	// The revolver's crit rings for its shooter, a boss too: it's the shot's reward, not the creature's reaction.
+	// The precision guns' crits (the revolver's, the sniper's) ring for their shooter, a boss too: it's the shot's reward,
+	// not the creature's reaction.
 	APlayerController* Player = Cast<APlayerController>(InstigatedBy);
-	if (bCritical && Hit.Kind == EWeaponKind::Revolver && Player && Player->IsLocalController())
+	const bool bPreciseGun = Hit.Kind == EWeaponKind::Revolver || Hit.Kind == EWeaponKind::Sniper;
+	if (bCritical && bPreciseGun && Player && Player->IsLocalController())
 	{
 		GunshotSound::PlayCritRing(Player);
 	}
@@ -385,15 +398,18 @@ void UCreatureHitReactionComponent::SpawnDeathBurst(ACreatureBase& Creature, con
 	FWeaponFX& Effects = Bullets->GetEffects();
 	Effects.Initialize(World);
 
-	// The revolver's precision: a crit kill bursts bigger, from the crit spot itself, with a last spurt out of it.
-	const bool bPrecise = LastHit.Kind == EWeaponKind::Revolver && LastHit.bCritical && !LastHit.Location.IsNearlyZero()
+	// The precision guns: a revolver's or a sniper's crit kill bursts bigger (the sniper's bigger still), from the crit spot
+	// itself, with a last spurt out of it.
+	const bool bPreciseGun = LastHit.Kind == EWeaponKind::Revolver || LastHit.Kind == EWeaponKind::Sniper;
+	const bool bPrecise = bPreciseGun && LastHit.bCritical && !LastHit.Location.IsNearlyZero()
 		&& FVector::Dist(LastHit.Location, Center) < CritSpotReach * FMath::Max(Creature.GetSizeScale(), 0.3f);
 	if (bPrecise)
 	{
+		const float Burst = Tuning.KillRevolverBurst * (LastHit.Kind == EWeaponKind::Sniper ? GunKinds::KillSniperBurst() : 1.f);
 		Center = LastHit.Location;
-		Size *= Tuning.KillRevolverBurst;
+		Size *= Burst;
 		Effects.SpawnCreatureHit(Center, -LastHit.Direction, LastHit.Direction, CreatureBlood::Of(&Creature), CreatureBlood::TintOf(&Creature),
-			Tuning.KillRevolverBurst, true);
+			Burst, true);
 	}
 	Effects.SpawnDeathBurst(Kind, Center, LastHit.Direction, Size, DeathBurstTint(Creature));
 	LooterSound::PlayAt(this, DeathBurstCue(Kind), Center, 1.f, LooterSoundRules::PitchForSize(Creature.GetSizeScale()));

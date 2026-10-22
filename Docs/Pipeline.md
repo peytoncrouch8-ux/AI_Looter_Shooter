@@ -1839,7 +1839,10 @@ nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in
   halving mercy). Scope sway moves the real aim (control rotation) in a figure eight (`Sniper.Sway` 0.3 deg, `SwayRate`
   0.35 Hz); sprint key held while aimed holds the breath (`BreathSeconds` 3, sway x`BreathSteady` 0.1), then winded
   (`WindedSeconds` 2.5, sway x`WindedSway` 1.8), refill x`BreathRefill` 1.5. Crit kill burst x`Kill.SniperBurst` 1.3 of the
-  revolver's; crit ring and crit hit-stop as the revolver's.
+  revolver's; crit ring and crit hit-stop as the revolver's. Scope picture: aim past 0.75 fades in `UHudScopeWidget`
+  (full at 0.95; local player, first person, zoom > 1.5; lens radius 0.46 of screen height) at viewport Z -1, under the
+  HUD. From 0.5 strength the gun hides itself (`bScopeHidden`); `UpdateScopeSway` must not bail on IsHidden then, or
+  the picture flickers on and off each frame.
 - LMG: rate from `LMG.SpinStart` [0.6] to full over `LMG.SpinUp` [0.35 s] of trigger (the SpinUp cue is cut to 0.35 s: keep
   them together), down over `SpinDown` [0.5]; spin-up heard below 0.35 spin. Heat +`HeatPerShot` [0.012] a shot, held
   `HeatDelay` [0.5 s], cools `HeatCool` [0.3/s]; GunHeatGlow at heat x `HeatGlow` [6]. Rifle pressure counts LMG hits.
@@ -1847,7 +1850,8 @@ nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in
   [4000], `RocketGravity` [120], `RocketLife` [5 s], sweeps the Weapon channel (r 7), flame + smoke puffs via FWeaponFX,
   `Weapon.Launcher.Flight` loop. Burst (`WeaponRocketBlast::Detonate`): reach `BlastRadius` [350] to a body's nearest side,
   full within `BlastCore` [80], `BlastEdgeShare` [0.2] at the edge, never through static geometry (GraveSaltBurst::CanSee),
-  what it struck takes it whole, shooter x`SelfScale` [0.5] (no other player), living within `KnockShare` [0.6] thrown
+  what it struck takes it whole, shooter x`SelfScale` [0.5] and at most `SelfCap` [0.35] of max health (a point-blank rocket killed a full
+  100-hp player before the cap; no other player), living within `KnockShare` [0.6] thrown
   (never bosses), physics shoved (HitImpulse 90000 radial), `GunshotSound::PlayExplosion`, view jolt. Kill knock
   `Kill.LauncherKnock` [900] + lift `Kill.LauncherLift` [140]. Back-blast from SOCKET_Backblast. The loaded rocket's nose
   (magazine part on SOCKET_Rocket) shows while loaded; the reload brings `SM_PowderkegRocket` up in front of the mouth and
@@ -1856,6 +1860,9 @@ nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in
   moments in `RefreshLootBeam`, element TryApply per body in `WeaponRocketBlast::Detonate` (rockets skip OnBulletLanding).
 - Icons: `Art/Icons/InkedIcons.py` rustler/longhorn/thresher/powderkeg + AmmoRocket (inside the rounds' box; no old icon
   moved); run with Blender's python. Rocket pickup `SM_AmmoRocket` from `Art/Models/Loot/Ammo.py` (three finned rockets).
+- Seen in PIE 2026-10-22: Rustler and Thresher aimed through the Holo sight see its solid back (art: open the
+  frontier_sight Holo window); the Rustler's helix sits under the gun, unseen in first person (its glow shows in third
+  person only). GUNS-CODE ran only the new guns' part setup: LOOT-CODE reruns the full `setup_gun_parts.py` after its C++.
 - Packaged builds: `M_GunGauge` is read by path: keep /Game/Art/Materials/Masters cooked.
 
 ## Fight: AI (FIGHT-AI, written 2026-10-21, unbuilt and untested in play)

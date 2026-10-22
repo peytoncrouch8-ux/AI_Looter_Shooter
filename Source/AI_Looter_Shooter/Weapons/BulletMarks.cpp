@@ -110,6 +110,15 @@ float FBulletMarks::GunScale(EWeaponKind Kind)
 		return 0.6f;
 	case EWeaponKind::Revolver:
 		return 1.25f;
+	// The SMG's small rounds leave small holes, the sniper's big round the biggest; the LMG's are the rifle's round. A
+	// rocket leaves no bullet's mark (its burst is its own).
+	case EWeaponKind::SMG:
+		return 0.8f;
+	case EWeaponKind::Sniper:
+		return 1.5f;
+	case EWeaponKind::LMG:
+		return 1.05f;
+	case EWeaponKind::Launcher:
 	case EWeaponKind::Rifle:
 	case EWeaponKind::None:
 	default:

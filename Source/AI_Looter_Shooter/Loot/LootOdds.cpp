@@ -93,8 +93,12 @@ LootOdds::FTally LootOdds::Simulate(const ULootTable* LootTable, int32 Kills, in
 		for (const FAmmoDrop& Drop : Ammo)
 		{
 			++Tally.AmmoPickups;
-			Fewest = FMath::Min(Fewest, Drop.Amount);
-			Tally.MostRounds = FMath::Max(Tally.MostRounds, Drop.Amount);
+			// Rounds only: rockets come one to three a pickup (LooterLoot::RocketsFor).
+			if (Drop.Type != EAmmoType::Rocket)
+			{
+				Fewest = FMath::Min(Fewest, Drop.Amount);
+				Tally.MostRounds = FMath::Max(Tally.MostRounds, Drop.Amount);
+			}
 		}
 		bool bLegendary = false;
 		for (const FLootWeaponPick& Pick : Picks)
@@ -106,7 +110,7 @@ LootOdds::FTally LootOdds::Simulate(const ULootTable* LootTable, int32 Kills, in
 		Tally.KillsWithWeapons += Picks.IsEmpty() ? 0 : 1;
 		Tally.KillsWithLegendary += bLegendary ? 1 : 0;
 	}
-	Tally.FewestRounds = Tally.AmmoPickups > 0 ? Fewest : 0;
+	Tally.FewestRounds = Fewest < MAX_int32 ? Fewest : 0;
 	return Tally;
 }
 

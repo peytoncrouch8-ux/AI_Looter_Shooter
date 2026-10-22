@@ -121,6 +121,12 @@ ECasingKind FWeaponBrass::KindFor(EWeaponKind Kind)
 		return ECasingKind::Hull;
 	case EWeaponKind::Revolver:
 		return ECasingKind::Pistol;
+	// The frontier-tech guns throw a bottlenecked case out of their port (the sniper's as its bolt is drawn back; the
+	// launcher throws none: AWeaponBase::EjectAfterShot).
+	case EWeaponKind::SMG:
+	case EWeaponKind::Sniper:
+	case EWeaponKind::LMG:
+	case EWeaponKind::Launcher:
 	case EWeaponKind::Rifle:
 	case EWeaponKind::None:
 	default:

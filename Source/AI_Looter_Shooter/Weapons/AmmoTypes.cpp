@@ -9,10 +9,13 @@ namespace
 		/* Pistol       */ { TEXT("Pistol Ammo"),    200, 24, TEXT("PS") },
 		/* SMG          */ { TEXT("SMG Ammo"),       360, 48, TEXT("SMG") },
 		/* Sniper       */ { TEXT("Sniper Rounds"),   36,  6, TEXT("SR") },
+		// Each rocket is a fight's answer: the pool stays small (kills drop one to three: LooterLoot::RocketsFor).
+		/* Rocket       */ { TEXT("Rockets"),         12,  2, TEXT("RKT") },
 	};
 	static_assert(UE_ARRAY_COUNT(Infos) == LooterAmmo::NumTypes, "One entry per ammo type");
 
-	const EAmmoType Types[] = { EAmmoType::AssaultRifle, EAmmoType::Shotgun, EAmmoType::Pistol, EAmmoType::SMG, EAmmoType::Sniper };
+	const EAmmoType Types[] = { EAmmoType::AssaultRifle, EAmmoType::Shotgun, EAmmoType::Pistol, EAmmoType::SMG, EAmmoType::Sniper,
+		EAmmoType::Rocket };
 	static_assert(UE_ARRAY_COUNT(Types) == LooterAmmo::NumTypes, "One entry per ammo type");
 }
 

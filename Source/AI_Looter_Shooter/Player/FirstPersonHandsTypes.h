@@ -122,6 +122,12 @@ struct AI_LOOTER_SHOOTER_API FHandsGun
 	/** 0..1 through a reload, or -1 when it isn't reloading (AWeaponBase::GetReloadProgress). */
 	float ReloadProgress = -1.f;
 	/**
+	 * The sniper's bolt: how open it is (0 home, 1 turned up and drawn back; LooterReload::BoltPose) and how much of the
+	 * trigger hand is on its knob (0 on the grip, 1 on the knob) between shots and through its reload.
+	 */
+	float BoltOpen = 0.f;
+	float BoltHand = 0.f;
+	/**
 	 * How much bigger than modeled the gun is drawn (UWeaponModelComponent::ScaleFor). The sockets below already are; the
 	 * hands' own numbers off the gun (FGunHands, the reload spots) are the modeled gun's and are scaled by it.
 	 */

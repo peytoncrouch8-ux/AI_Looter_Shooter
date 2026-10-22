@@ -62,6 +62,44 @@ namespace GunfeelKick
 		inline constexpr float SwapRifle = 1.f;
 		inline constexpr float SwapShotgun = 1.1f;
 		inline constexpr float SwapRevolver = 0.8f;
+
+		// The four frontier-tech kinds (Phase 12.3): the SMG a light, quick rattle; the sniper one heavy shove; the LMG a
+		// steady weight; the launcher the biggest shove of all.
+		inline constexpr float KickSMG = 1.f;
+		inline constexpr float KickSniper = 1.6f;
+		inline constexpr float KickLMG = 1.3f;
+		inline constexpr float KickLauncher = 1.8f;
+		inline constexpr float RecoilSMG = 1.f;
+		inline constexpr float RecoilSniper = 1.5f;
+		inline constexpr float RecoilLMG = 1.3f;
+		inline constexpr float RecoilLauncher = 1.6f;
+		inline constexpr float RumbleSMG = 0.25f;
+		inline constexpr float RumbleSMGSeconds = 0.04f;
+		inline constexpr float RumbleSniper = 0.85f;
+		inline constexpr float RumbleSniperSeconds = 0.16f;
+		inline constexpr float RumbleLMG = 0.45f;
+		inline constexpr float RumbleLMGSeconds = 0.07f;
+		inline constexpr float RumbleLauncher = 1.f;
+		inline constexpr float RumbleLauncherSeconds = 0.3f;
+		inline constexpr float AimTimeSMG = 0.75f;
+		inline constexpr float AimTimeSniper = 1.35f;
+		inline constexpr float AimTimeLMG = 1.4f;
+		inline constexpr float AimTimeLauncher = 1.2f;
+		inline constexpr float AimMoveSMG = 1.15f;
+		inline constexpr float AimMoveSniper = 0.85f;
+		inline constexpr float AimMoveLMG = 0.8f;
+		inline constexpr float AimMoveLauncher = 0.85f;
+		inline constexpr float SwapSMG = 0.7f;
+		inline constexpr float SwapSniper = 1.2f;
+		inline constexpr float SwapLMG = 1.35f;
+		inline constexpr float SwapLauncher = 1.3f;
+		/** The sniper's job is crits (Main's unattended call, 2026-10-21, as the revolver's role allowed above 1.5x). */
+		inline constexpr float CritSniper = 2.f;
+		/** A burst's climb and hip bloom per shot for the two automatic newcomers (the rifle's are above). */
+		inline constexpr float SMGClimb = 0.03f;
+		inline constexpr float LMGClimb = 0.04f;
+		inline constexpr float SMGBloom = 0.09f;
+		inline constexpr float LMGBloom = 0.12f;
 	}
 
 	/** The gun's kind by its definition (Rifle without one; the kinds with no numbers of their own take the rifle's). */
@@ -86,15 +124,21 @@ namespace GunfeelKick
 	/** The rifle's aim kick grows by this share per shot of a burst, up to RifleClimbMax times the first shot's (FWeaponRecoilProfile::ClimbPerShot, ClimbMax). */
 	AI_LOOTER_SHOOTER_API float RifleClimb();
 	AI_LOOTER_SHOOTER_API float RifleClimbMax();
+	/**
+	 * A burst's climb per shot for Kind: the rifle's RifleClimb, the SMG's and the LMG's own (Recoil.SMGClimb, LMGClimb),
+	 * none for the kinds that don't fire bursts (0).
+	 */
+	AI_LOOTER_SHOOTER_API float ClimbPerShot(EWeaponKind Kind);
 
 	// --- Rules over numbers ---
 
 	/**
-	 * The multiplier a critical hit from Kind deals: the revolver's own (Crit.Revolver), the game's 1.5x for the others, but
-	 * a cursed iron's own (CurseMultiplier, WeaponCurses::CritMultiplier) wins when larger.
+	 * The multiplier a critical hit from Kind deals: the revolver's own (Crit.Revolver), the sniper's (Crit.Sniper), the
+	 * game's 1.5x for the others, but a cursed iron's own (CurseMultiplier, WeaponCurses::CritMultiplier) wins when larger.
 	 */
 	AI_LOOTER_SHOOTER_API float CritMultiplier(EWeaponKind Kind, float CurseMultiplier);
 	AI_LOOTER_SHOOTER_API float CritMultiplier(EWeaponKind Kind, float CurseMultiplier, float RevolverCrit);
+	AI_LOOTER_SHOOTER_API float CritMultiplier(EWeaponKind Kind, float CurseMultiplier, float RevolverCrit, float SniperCrit);
 
 	/**
 	 * The share of its damage a pellet from Kind still does after flying Distance: the shotgun's sharper falloff (full to
@@ -113,8 +157,9 @@ namespace GunfeelKick
 	AI_LOOTER_SHOOTER_API float LowAmmoPitch(int32 RoundsLeft, int32 Magazine);
 
 	/**
-	 * The rifle's hip bloom after a shot: Bloom (the extra share of spread now) plus PerShot, a quarter of that through the
-	 * sight (AimAlpha 1), held to MaxMultiplier - 1. Only the rifle blooms; Bloom comes back unchanged for the others.
+	 * The hip bloom after a shot: Bloom (the extra share of spread now) plus PerShot (the kind's own), a quarter of that
+	 * through the sight (AimAlpha 1), held to MaxMultiplier - 1. The automatic guns bloom (the rifle, the SMG and the LMG:
+	 * Spread.RifleBloom, SMGBloom, LMGBloom in the live one); Bloom comes back unchanged for the others.
 	 */
 	AI_LOOTER_SHOOTER_API float BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha, float PerShot, float MaxMultiplier);
 	AI_LOOTER_SHOOTER_API float BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha);

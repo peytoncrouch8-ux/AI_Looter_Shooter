@@ -103,16 +103,23 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Legendaries still drop"), Tiers[NumTiers - 1] > 0);
 
-	// Ammo: every kill, every class, each pickup 18 to 36 rounds whatever its class (the user's rule), both ends reached.
+	// Ammo: every kill, every class at its weight (rockets half as often), each pickup 18 to 36 rounds whatever its class
+	// (the user's rule; rockets read as one to three, LooterLoot::RocketsFor), both ends reached.
+	float AmmoWeight = 0.f;
+	for (const FAmmoLootEntry& Listed : Table->AmmoTypes)
+	{
+		AmmoWeight += Listed.Weight;
+	}
 	TestEqual(TEXT("Every kill drops ammo"), KillsWithoutAmmo, 0);
 	for (const EAmmoType Type : LooterAmmo::AllTypes())
 	{
 		const int32 TypeIndex = static_cast<int32>(Type);
 		const TCHAR* Name = LooterAmmo::GetInfo(Type).Name;
 		const float Share = static_cast<float>(AmmoTypes[TypeIndex]) / FMath::Max(AmmoDrops, 1);
-		TestNearlyEqual(FString::Printf(TEXT("%s share of ammo drops"), Name), Share, 1.f / LooterAmmo::NumTypes, 0.02f);
-		TestEqual(FString::Printf(TEXT("Fewest %s in a kill's pickup"), Name), FewestRounds[TypeIndex], 18);
-		TestEqual(FString::Printf(TEXT("Most %s in a kill's pickup"), Name), MostRounds[TypeIndex], 36);
+		const FAmmoLootEntry* Listed = Table->AmmoTypes.FindByPredicate([Type](const FAmmoLootEntry& Candidate) { return Candidate.Type == Type; });
+		TestNearlyEqual(FString::Printf(TEXT("%s share of ammo drops"), Name), Share, (Listed ? Listed->Weight : 0.f) / FMath::Max(AmmoWeight, 0.01f), 0.02f);
+		TestEqual(FString::Printf(TEXT("Fewest %s in a kill's pickup"), Name), FewestRounds[TypeIndex], LooterLoot::AmmoAmountFor(Type, 18));
+		TestEqual(FString::Printf(TEXT("Most %s in a kill's pickup"), Name), MostRounds[TypeIndex], LooterLoot::AmmoAmountFor(Type, 36));
 	}
 
 	AddInfo(FString::Printf(TEXT("%d kills: weapons on %.1f%% (C/U/R/E/L %d/%d/%d/%d/%d), %.2f ammo drops per kill"), Kills, WeaponRate * 100.f,
@@ -138,11 +145,21 @@ bool FLootKillWeaponAmmoTest::RunTest(const FString& Parameters)
 	{
 		++Counts[static_cast<int32>(ULootLibrary::PickAmmoType(Table, Random, EAmmoType::Shotgun))];
 	}
-	const float TotalWeight = LooterAmmo::NumTypes - 1 + Bias;
+	// Each class at its table weight (rockets half), the kill gun's times the bias.
+	auto WeightOf = [Table](EAmmoType Type)
+	{
+		const FAmmoLootEntry* Listed = Table->AmmoTypes.FindByPredicate([Type](const FAmmoLootEntry& Candidate) { return Candidate.Type == Type; });
+		return Listed ? Listed->Weight : 0.f;
+	};
+	float TotalWeight = 0.f;
+	for (const EAmmoType Type : LooterAmmo::AllTypes())
+	{
+		TotalWeight += WeightOf(Type) * (Type == EAmmoType::Shotgun ? Bias : 1.f);
+	}
 	for (const EAmmoType Type : LooterAmmo::AllTypes())
 	{
 		const float Share = static_cast<float>(Counts[static_cast<int32>(Type)]) / Picks;
-		const float Expected = (Type == EAmmoType::Shotgun ? Bias : 1.f) / TotalWeight;
+		const float Expected = WeightOf(Type) * (Type == EAmmoType::Shotgun ? Bias : 1.f) / TotalWeight;
 		TestNearlyEqual(FString::Printf(TEXT("%s share after shotgun kills"), LooterAmmo::GetInfo(Type).Name), Share, Expected, 0.015f);
 	}
 
@@ -210,12 +227,12 @@ bool FLootAmmoAmountsTest::RunTest(const FString& Parameters)
 		const FLootRoll Roll = ULootLibrary::RollLoot(Chest, 1, 0.f, Random);
 		for (const FAmmoDrop& Drop : Roll.Ammo)
 		{
-			bChestFixed &= Drop.Amount == LooterLoot::ChestAmmoAmount;
+			bChestFixed &= Drop.Amount == LooterLoot::AmmoAmountFor(Drop.Type, LooterLoot::ChestAmmoAmount);
 			++ChestDrops;
 		}
 	}
 	TestEqual(TEXT("Every chest opening drops its ammo"), ChestDrops, 500 * 3);
-	TestTrue(TEXT("Every chest pickup holds 36"), bChestFixed);
+	TestTrue(TEXT("Every chest pickup holds 36 (rockets: three)"), bChestFixed);
 
 	// Odd settings stay sane: no table means a kill's range, a backwards range drops its Min, never less than a round.
 	bool bNoTableInRange = true;
