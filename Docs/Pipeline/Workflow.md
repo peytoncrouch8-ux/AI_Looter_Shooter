@@ -85,13 +85,22 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 ## Packaging a test build
 
-- Run: close the editor (`Tools\close.ps1`; no game running either), then start `Tools\package.ps1` in the background.
-  - Options: `-Clean` (full rebuild and recook), `-NoZip`, `-DebugInfo` (keep .pdb files), `-OutDir <folder>`.
+- Run: stop PIE, then `Tools\package.ps1 -CloseEditor` (closes the editor via `Tools\close.ps1`, like `launch.ps1 -Build`) in the
+  background. Without `-CloseEditor` it refuses while the editor is open (packaging fights it for files and CPU); it never closes a
+  running game (`-game`) or an `UnrealEditor-Cmd` cook. Stopping PIE first is the caller's job.
+  - Options: `-SmokeTest` (see below), `-Clean` (full rebuild and recook), `-Zip` (also zip it, to send to someone; opt-in),
+    `-DebugInfo` (keep .pdb files), `-OutDir <folder>`.
   - The first run is long (every shader compiles for D3D12 SM6 and D3D11 SM5); later ones reuse the derived data cache.
-  - Progress: `Saved\Logs\Package.log` (UAT's whole log). A failure prints the first errors.
-- It makes `Saved\Packaging\<date-time>\Windows\` (run `AI_Looter_Shooter.exe`) and beside it
-  `AI_Looter_Shooter_Test_<date-time>.zip`; the script prints the zip's path, size and time taken. A Windows Development build: logs
-  and the console (`~`, the `Looter.*` commands) stay in. `-prereqs` adds the Visual C++ runtime installer.
+  - Progress: `Saved\Logs\package_<yyyy-MM-dd_HHmm>.log` (UAT's whole log). A failure prints the first errors. Exit codes: 0 ok, 1 refused,
+    2 packaging failed, 3 smoke test failed. It prints the elapsed time and the archive's size.
+- Playtest builds land in `Builds\Playtest\<yyyy-MM-dd_HHmm>\Windows\` (git-ignored; run `AI_Looter_Shooter.exe`). `Play Latest Build.bat`
+  at the repo root starts the newest one fullscreen at the menu (it needs no editor, and says so if no build exists).
+- `-SmokeTest` starts the real game exe (`Windows\AI_Looter_Shooter\Binaries\Win64\`; the root exe is a stub) windowed 1280x720 twice:
+  once with no map (the menu: log must show `LoadMap(/Game/Maps/Lvl_TutorialIsland`) and once with `/Game/Maps/Lvl_RansomsRest` named
+  (log must show that LoadMap), each 6 s of play after the load with no `Fatal error`/`Assertion failed`, then closes it. Logs:
+  `Saved\Logs\package_<stamp>_smoke_menu.log` / `_smoke_ransomsrest.log`. Log checks only: look at a window with `Tools\grab.ps1` yourself.
+  A packaged Windows Development build: logs and the console (`~`, the `Looter.*` commands) stay in. `-prereqs` adds the Visual C++
+  runtime installer.
 - Cooked (`Config/DefaultGame.ini`, `[/Script/UnrealEd.ProjectPackagingSettings]`): `Lvl_TutorialIsland` (also the menu's map) and
   `Lvl_RansomsRest` with everything they refer to, plus the `DirectoriesToAlwaysCook`. Left out: `Lvl_Skyreach`, `Maps/Dev`,
   `Developers`, the Skyreach props, editor content. `LooterEditor` is an Editor module; the MCP plugins (`ModelContextProtocol`,
@@ -100,7 +109,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `TSoftObjectPtr(FSoftObjectPath(...))` or `TryLoadClass` on an asset nothing else refers to finds nothing in a package, and the
   `FindIfMade` ones quietly draw a cube instead. Keep such assets under a directory in `DirectoriesToAlwaysCook` (or add its
   directory). After a new package, look for stand-in shapes: the jetty, depot, train, egg sacs, lanterns, chests, fonts.
-- Share: a Drive, OneDrive or Dropbox link to the zip (no new upload tool without the user's OK). The friend unzips somewhere
+- Share: (`-Zip`) a Drive, OneDrive or Dropbox link to the zip (no new upload tool without the user's OK). The friend unzips somewhere
   writable (not Program Files) and runs `AI_Looter_Shooter.exe`; the first launch compiles pipeline states while the level loads. A
   GPU without D3D12 SM6 starts it with `-dx11`.
 - Saves and logs sit beside the game, not in AppData: a packaged Development build isn't an "installed" one, so they go to

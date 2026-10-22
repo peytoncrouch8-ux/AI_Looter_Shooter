@@ -219,7 +219,9 @@ bool FImpactSurfaceMapTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("A broken map answers nothing"), Map->KindAt(FVector2D(50.0, 50.0), Material));
 	Map->Kinds.SetNum(16);
 
-	// A material carries it, and its child instances find their parent's.
+#if WITH_EDITOR
+	// A material carries it, and its child instances find their parent's (editor builds only: a constant instance's parent
+	// is set through an editor-only call, and the packaged game's build compiles these tests too).
 	// Constant instances, as the terrain's window and its steep child are (a dynamic instance made from a dynamic one
 	// doesn't keep that one as its parent).
 	UMaterialInstanceConstant* Window = NewObject<UMaterialInstanceConstant>(GetTransientPackage(), TEXT("MI_TestMacroSW"));
@@ -231,6 +233,7 @@ bool FImpactSurfaceMapTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The window carries it"), UImpactSurfaceMapData::FindOn(Window) == Map);
 	TestTrue(TEXT("Its child finds it"), UImpactSurfaceMapData::FindOn(Steep) == Map);
 	TestNull(TEXT("No material, no map"), UImpactSurfaceMapData::FindOn(nullptr));
+#endif
 	return true;
 }
 

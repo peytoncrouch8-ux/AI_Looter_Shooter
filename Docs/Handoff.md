@@ -20,9 +20,18 @@ Lost Property), `/Game/Art/Shields` cooked. Saint Maud's mark darkened to #9a6a1
 Not done (SHIELD.md "For Main's files"): boss shower `Roll.Shields` (boss table off), cyan hit edges for ward hits,
 HudShotScene ward state, wards in Lost Property, `Shield.*`/`Bounty.*` cue names into LooterSoundCues.h (bank warns
 only); MAKERS: marks on Rustler/Thresher enlarged but unseen, far-side mirroring unchecked.
-BOUNTY code copied and built (Main's edits: IsMenuOpen + mission-offer refusals, build_area.py hook, CODEMAP); BOUNTY
-phase 2 running (place board/arenas, tests, PIE, docs). PLAYTEST phase 1 written (Toolspackage.ps1 extended: BuildsPlaytest<stamp>, -CloseEditor, -SmokeTest, -Zip; Play Latest Build.bat; Builds/ ignored), uncommitted; phase 2 = run
-`Toolspackage.ps1 -CloseEditor -SmokeTest` last.
+BOUNTY committed (811851f): board on Main Street + 5 arenas placed in Lvl_RansomsRest; Looter.Bounty 6/6, Pacing pass; one
+bounty played through in PIE (take, tracker, mark, Strongbox, +XP/silver, banner); Strongbox not opened by hand, other
+arenas/tiers untried. Status-line wording change in BountyBoardWidget.cpp built with the evening's last editor build.
+Later (BOUNTY.md item 6): real bounty sheet art, BOUNTIES header, a "BOUNTY PAID" banner.
+PLAYTEST done: `Toolspackage.ps1 -CloseEditor -SmokeTest` -> `BuildsPlaytest<stamp>WindowsAI_Looter_Shooter.exe`
+(first one 2026-10-22_1518, 1.26 GB, ~4 min incremental / ~20 min cold; smoke: menu and Ransom's Rest load PASS);
+`Play Latest Build.bat` starts the newest. Fixes on the way: package.ps1 missed the editor (PS 5.1: one pscustomobject has
+no .Count; Get-Process + @() now), ImpactSurfaceTests' SetParentEditorOnly inside #if WITH_EDITOR (the game target compiles
+the tests). Packaged-game log noise to look at later: a handled ensure at startup (GameFeatureData primary asset type
+without the GameFeatures plugin) and ~20 D3D12 compute pipeline creation errors (PSO precache; game runs).
+**The next-builds queue is done.** For the user: play the packaged build; judge a real fight's drain with the ward at
+DamageScale 1.8 (2.0 if soft); Saint Maud's darker mark; a bounty.
 
 ## State at 2026-10-22 noon: the queue is empty
 Done since the morning list (all committed and pushed, last 2011943): VFX-2 (fire explosions, no white-ghost kill), FP

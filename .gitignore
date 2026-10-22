@@ -37,3 +37,6 @@ Desktop.ini
 
 # Git worktrees that Claude Code agents work in.
 .claude/worktrees/
+
+# Packaged playtest builds (Tools/package.ps1): several GB each.
+Builds/
