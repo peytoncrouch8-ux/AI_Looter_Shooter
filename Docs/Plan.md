@@ -173,7 +173,7 @@ The user's call (Handoff "Direction"): nothing new until Ransom's Rest's core is
 gunplay, enemies, loot, pacing and story; art alongside. Ends when the user and their friend both want to replay RR with
 another hero.
 
-### 12.1 Gunplay (plan written 2026-10-21, waiting on the user's OK)
+### 12.1 Gunplay (steps 1-3 built 2026-10-21: 63062c3, 8dafc34; step 4, the user's tuning, next; Handoff has the state)
 
 The user's picks: enemy hit reactions, gun sound and kick, guns feel alike (hit markers/numbers are fine).
 What's there now (why it feels weak):

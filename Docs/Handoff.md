@@ -38,7 +38,15 @@ builds once, checks in PIE, commits. GUNFEEL-SOUND starts once the pack parts ar
   on a pad. The sound pack: sonniss.com's host sits behind a bot check, so the files come from its listed mirror
   ftpmirror.your.org/pub/misc/sonniss2016|2017; those bundles are samplers (~150 files a part), so only the 59 gun/impact
   files were pulled by range requests (332 MB, `Saved/SoundPacks/Sonniss`, tool `/tmp/zx.js` pattern in Pipeline later).
-  GUNFEEL-SOUND running.
+  GUNFEEL-SOUND done and committed (8dafc34): layered gunshots from 31 recorded excerpts (`Art/Sounds/packs/Sonniss`,
+  sources and licence in its README), shaped in script; 161 sounds imported; tests Gunfeel 20/20, Audio 14/14; PIE fight
+  clean. Perf after (RR, 8 spiders, Medium): 7.6 ms, p95 8.0 (baseline 7.9 / 9.0). Main added the layer cues to
+  LooterSoundCues.h (the bank's check) and `Weapon.*.Core/Mech/Tail*` to check.py's FREQUENT list.
+- **Steps 1-3 DONE. Next: step 4, the user tunes `Looter.Gunfeel.*` in PIE; Main bakes their values into the defaults
+  (React: `FGunfeelReactTuning` fields; Kick: `GunfeelKick::Default`; Sound: `GunfeelSoundTuning`) and the tests that
+  read them.** Not verified: the look by eye, rumble on a real pad, the surroundings probe's choices in town/mine, the
+  revolver's own layers can peak at -0.1 dBFS indoors (lower `Sound.Low`/`Sound.Mech` if it crackles). Over ~500 lines:
+  `CreatureHitReactionComponent.cpp` 504, `UnpaidCreatureArms.cpp` 506, `SettingsMenuWidget.cpp` 511.
 
 ## Now (session "Small leftovers", 2026-10-15, local)
 
