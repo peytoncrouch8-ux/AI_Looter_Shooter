@@ -202,7 +202,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs HudShotsCommandRegistration(
 		TEXT("Looter.HudShots"),
 		TEXT("Looter.HudShots [quit]: photographs the gameplay HUD through its states (calm, hit, low health, heal, experience, level-up, ")
-		TEXT("reload, empty magazine, two guns, boss bar, objective done) into Saved/Screenshots/HudShots/<NN>_<state>.png, each with the UI; ")
+		TEXT("reload, empty magazine, two guns, boss bar, objective done; the ward full, chipped, breaking, broken) into ")
+		TEXT("Saved/Screenshots/HudShots/<NN>_<state>.png, each with the UI; ")
 		TEXT("with quit, the game quits after the last one. Tools/hudshots.ps1 runs it standalone at 1920x1080."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&HudShotsCommand));
 }

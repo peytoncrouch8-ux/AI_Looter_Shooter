@@ -247,6 +247,8 @@ void UHudMissionCompleteWidget::BuildTree()
 		CompletePixelsPerUnit, RuleSize)))->SetVerticalAlignment(VAlign_Center);
 	UTextBlock* Words = MakeFloatingText(WidgetTree, TitleSize, Color::Accent(), TitleSpacing, ETextJustify::Center);
 	Words->SetText(NSLOCTEXT("LooterHUD", "MissionComplete", "MISSION COMPLETE"));
+	// Kept: a bounty paid changes it to BOUNTY PAID (HudMissionCompleteWidgetBounty.cpp).
+	TitleText = Words;
 	UHorizontalBoxSlot* WordsSlot = TitleRow->AddChildToHorizontalBox(Words);
 	WordsSlot->SetVerticalAlignment(VAlign_Center);
 	WordsSlot->SetPadding(FMargin(RuleGap, 0.f));

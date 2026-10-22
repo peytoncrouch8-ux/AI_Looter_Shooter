@@ -68,9 +68,12 @@ MARKS = {
     'Ranchhand': ('Body', 16.5, -0.6, 2.8, 1.1),      # the receiver's flank ahead of the ejection port
     'Drover': ('Grip', -1.9, -4.1, 2.6, 1.2),         # the grip panel, as a maker's medallion
     'Rustler': ('Body', 20.0, 0.4, 4.0, 1.5),         # the upper's flank ahead of the grip
-    'Thresher': ('Body', 24.0, -0.8, 5.0, 2.2),       # the receiver's side ahead of the belt box
+    # The receiver's side ahead of the belt box, a little smaller and higher: at 5 cm, Z -0.8 the belt's rounds covered
+    # its lower half on the -Y side, the side first person sees (PIE 2026-10-22; at X 4.5 first person never saw it).
+    'Thresher': ('Body', 24.0, -0.4, 4.0, 2.2),
     'Longhorn': ('Body', -6.0, -3.6, 4.0, 1.4),       # the butt stock behind the thumbhole
-    'Powderkeg': ('Body', 24.0, 0.0, 4.5, 3.1),       # the rear sleeve's side
+    # The rear sleeve's empty window cell: at 4.5 cm the glowing windows above and below cut into it (PIE 2026-10-22).
+    'Powderkeg': ('Body', 24.0, 0.0, 3.4, 3.1),
 }
 
 # Each gun's shell is tinted per gun (sRGB hex, weight): mostly field colors, sometimes a bright one.

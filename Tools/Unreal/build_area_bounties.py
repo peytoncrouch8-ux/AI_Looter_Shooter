@@ -5,7 +5,7 @@ Ellis's grave gets any of it. A class not built yet is warned of and left out.
 
 - The board (ABountyBoard, BountyBoard_RansomsRest, board id RansomsRest): BOARD_SIDE cm beside the Rim Rangers' board
   (NoticeBoard_Rangers, the sheriff's office's on Main Street) along its face, at its height and yaw; the other side when
-  a wall is in the way. Its own model (SM_NoticeBoard_Town, NOTICES on its header) is the C++ class's. Open after Main 3,
+  a wall is in the way. Its own model (SM_NoticeBoard_Bounty, BOUNTIES on its header; SM_NoticeBoard_Town until imported) is the C++ class's. Open after Main 3,
   Dangerous bounties after Main 5, Deadly after Main 6.
 - The arenas (ABountyArena, BountyArena_<id>, ARENAS): each a bounty fight's place, its ground (a radius or a layout
   obstacle's or polygon's corners), three spot rings round its middle (the first push ahead, the flank, the mark's push:

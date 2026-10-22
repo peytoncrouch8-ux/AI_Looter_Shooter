@@ -348,6 +348,8 @@ void UBountyBoardSubsystem::Announce(const FBountyPosting& Posting, const FMissi
 	UMissionDefinition* Announced = NewObject<UMissionDefinition>(this, NAME_None, RF_Transient);
 	Announced->Title = BountyRules::TitleFor(Posting);
 	Announced->Kind = EMissionKind::Side;
+	// The banner tells a bounty by its id ("Bounty_<serial>") and shows its purse (HudMissionCompleteWidgetBounty.cpp).
+	Announced->Id = FName(*FString::Printf(TEXT("Bounty_%d"), Posting.Serial));
 	Runner->OnMissionCompleted.Broadcast(*Announced, Given);
 }
 

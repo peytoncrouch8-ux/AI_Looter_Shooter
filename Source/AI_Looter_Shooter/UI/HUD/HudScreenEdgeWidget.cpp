@@ -1,6 +1,7 @@
 #include "UI/HUD/HudScreenEdgeWidget.h"
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/HUD/HudWardHit.h"
 #include "Combat/HealthComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -33,14 +34,12 @@ namespace
 	constexpr float EdgeLowHigh = 0.6f;
 	/** Scales those (the mockup's) to the strips, so a hit's peak tints the edges about a quarter red. */
 	constexpr float EdgeStrength = 0.39f;
-	/** Health falls by more than this (in points) for a hit. */
-	constexpr float EdgeHitStep = 0.01f;
 
 	/**
-	 * A strip's picture: the red fading from its edge inward. bAcrossX: the fade runs along x (the sides), else along y;
-	 * bEdgeAtEnd: the edge is at the picture's far end (the right side, the bottom).
+	 * A strip's picture: Tint (the red, or the ward's cyan) fading from its edge inward. bAcrossX: the fade runs along x (the
+	 * sides), else along y; bEdgeAtEnd: the edge is at the picture's far end (the right side, the bottom).
 	 */
-	FPaintedIcon EdgeStrip(bool bAcrossX, bool bEdgeAtEnd)
+	FPaintedIcon EdgeStrip(bool bAcrossX, bool bEdgeAtEnd, const FLinearColor& Tint)
 	{
 		FPaintedIcon Result;
 		Result.ViewBox = bAcrossX ? FVector2D(EdgeRamp, EdgeAlong) : FVector2D(EdgeAlong, EdgeRamp);
@@ -62,8 +61,8 @@ namespace
 		{
 			FPaintLayer Layer;
 			Layer.Fills.Add(Band(Ramp.Key));
-			Layer.Color = Color::Hurt().CopyWithNewOpacity(Ramp.Value);
-			Layer.GradientTo = Color::Hurt().CopyWithNewOpacity(0.f);
+			Layer.Color = Tint.CopyWithNewOpacity(Ramp.Value);
+			Layer.GradientTo = Tint.CopyWithNewOpacity(0.f);
 			Layer.GradientStart = Inward(0.f);
 			Layer.GradientEnd = Inward(Ramp.Key);
 			Result.Layers.Add(MoveTemp(Layer));
@@ -76,34 +75,70 @@ namespace
 		// Smooth ramps, stretched over hundreds of pixels: a texel a unit is plenty.
 		return PaintedIconBrush(Name, Picture, 1.f, Picture.ViewBox);
 	}
+
+	/** Fades Layer to Opacity, collapsing it when it's gone (it costs nothing so); Shown is what it shows now. */
+	void ShowEdgeLayer(UWidget* Layer, float Opacity, float& Shown)
+	{
+		if (!Layer || Opacity == Shown)
+		{
+			return;
+		}
+		Shown = Opacity;
+		if (Opacity <= 0.001f)
+		{
+			Layer->SetVisibility(ESlateVisibility::Collapsed);
+			return;
+		}
+		Layer->SetRenderOpacity(Opacity);
+		if (Layer->GetVisibility() != ESlateVisibility::HitTestInvisible)
+		{
+			Layer->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+	}
 }
 
 TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 {
 	if (WidgetTree && !WidgetTree->RootWidget)
 	{
-		static const FPaintedIcon Left = EdgeStrip(true, false);
-		static const FPaintedIcon Right = EdgeStrip(true, true);
-		static const FPaintedIcon Top = EdgeStrip(false, false);
-		static const FPaintedIcon Bottom = EdgeStrip(false, true);
+		static const FPaintedIcon Left = EdgeStrip(true, false, Color::Hurt());
+		static const FPaintedIcon Right = EdgeStrip(true, true, Color::Hurt());
+		static const FPaintedIcon Top = EdgeStrip(false, false, Color::Hurt());
+		static const FPaintedIcon Bottom = EdgeStrip(false, true, Color::Hurt());
+		// The ward's cyan: the ward bar's own light half.
+		static const FPaintedIcon WardLeft = EdgeStrip(true, false, Color::XPLight());
+		static const FPaintedIcon WardRight = EdgeStrip(true, true, Color::XPLight());
+		static const FPaintedIcon WardTop = EdgeStrip(false, false, Color::XPLight());
+		static const FPaintedIcon WardBottom = EdgeStrip(false, true, Color::XPLight());
 
-		UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-		// Each strip stretched between its anchors, whatever the screen's shape.
-		auto AddStrip = [this, Canvas](FName Name, const FPaintedIcon& Picture, const FAnchors& Anchors)
+		UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		// A set of four strips filling the screen, each strip stretched between its anchors, whatever the screen's shape.
+		auto AddSet = [this, Root](const TCHAR* Prefix, const FPaintedIcon& L, const FPaintedIcon& R, const FPaintedIcon& T, const FPaintedIcon& B)
 		{
-			UCanvasPanelSlot* StripSlot = Canvas->AddChildToCanvas(MakeImage(WidgetTree, EdgeStripBrush(Name, Picture)));
-			StripSlot->SetAnchors(Anchors);
-			StripSlot->SetOffsets(FMargin(0.f));
+			UCanvasPanel* Set = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+			UCanvasPanelSlot* SetSlot = Root->AddChildToCanvas(Set);
+			SetSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+			SetSlot->SetOffsets(FMargin(0.f));
+			auto AddStrip = [this, Set](const FString& Name, const FPaintedIcon& Picture, const FAnchors& Anchors)
+			{
+				UCanvasPanelSlot* StripSlot = Set->AddChildToCanvas(MakeImage(WidgetTree, EdgeStripBrush(FName(*Name), Picture)));
+				StripSlot->SetAnchors(Anchors);
+				StripSlot->SetOffsets(FMargin(0.f));
+			};
+			AddStrip(FString(Prefix) + TEXT("Left"), L, FAnchors(0.f, 0.f, EdgeDepth, 1.f));
+			AddStrip(FString(Prefix) + TEXT("Right"), R, FAnchors(1.f - EdgeDepth, 0.f, 1.f, 1.f));
+			AddStrip(FString(Prefix) + TEXT("Top"), T, FAnchors(0.f, 0.f, 1.f, EdgeDepth));
+			AddStrip(FString(Prefix) + TEXT("Bottom"), B, FAnchors(0.f, 1.f - EdgeDepth, 1.f, 1.f));
+			Set->SetVisibility(ESlateVisibility::Collapsed);
+			return Set;
 		};
-		AddStrip(TEXT("HudEdgeLeft"), Left, FAnchors(0.f, 0.f, EdgeDepth, 1.f));
-		AddStrip(TEXT("HudEdgeRight"), Right, FAnchors(1.f - EdgeDepth, 0.f, 1.f, 1.f));
-		AddStrip(TEXT("HudEdgeTop"), Top, FAnchors(0.f, 0.f, 1.f, EdgeDepth));
-		AddStrip(TEXT("HudEdgeBottom"), Bottom, FAnchors(0.f, 1.f - EdgeDepth, 1.f, 1.f));
+		// The cyan first, so a breaking hit's red lies over it.
+		WardEdges = AddSet(TEXT("HudWardEdge"), WardLeft, WardRight, WardTop, WardBottom);
+		Edges = AddSet(TEXT("HudEdge"), Left, Right, Top, Bottom);
 
-		Canvas->SetVisibility(ESlateVisibility::Collapsed);
-		WidgetTree->RootWidget = Canvas;
-		Edges = Canvas;
+		WidgetTree->RootWidget = Root;
 		ShownOpacity = 0.f;
+		ShownWardOpacity = 0.f;
 	}
 	return Super::RebuildWidget();
 }
@@ -118,34 +153,30 @@ void UHudScreenEdgeWidget::NativeConstruct()
 void UHudScreenEdgeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	if (!Edges)
+	if (!Edges || !WardEdges)
 	{
 		return;
 	}
 
 	const APlayerController* Player = GetOwningPlayer();
-	APawn* Pawn = Player ? Player->GetPawn() : nullptr;
-	if (Pawn != WatchedPawn.Get())
+	const HudWardHit::FReaction Hit = Watch.Look(Player ? Player->GetPawn() : nullptr);
+	const HudWardHit::FTuning Tuning = HudWardHit::FTuning::Live();
+	if (Hit.bWound)
 	{
-		// A new pawn (a respawn, or none): its health as it is, no flash.
-		WatchedPawn = Pawn;
-		WatchedHealth = Pawn ? Pawn->FindComponentByClass<UHealthComponent>() : nullptr;
-		LastHealth = -1.f;
+		FlashTime = EdgeHitSeconds;
 	}
-
-	bool bLow = false;
-	if (const UHealthComponent* Health = WatchedHealth.Get())
+	if (Hit.bWard)
 	{
-		const float Points = Health->GetHealth();
-		if (LastHealth >= 0.f && Points < LastHealth - EdgeHitStep)
-		{
-			FlashTime = EdgeHitSeconds;
-		}
-		LastHealth = Points;
+		WardFlashTime = Tuning.EdgeSeconds;
+		WardFlashLength = Tuning.EdgeSeconds;
+	}
+	bool bLow = false;
+	if (const UHealthComponent* Health = Watch.GetHealth())
+	{
 		bLow = !Health->IsDead() && Health->GetHealthPercent() <= UHudPlayerFrameWidget::LowFraction;
 	}
 
-	// A hit flashes and fades quickly; low health pulses on the frame's beat. The stronger of the two shows.
+	// A wound flashes and fades quickly; low health pulses on the frame's beat. The stronger of the two shows.
 	float Strength = 0.f;
 	if (FlashTime > 0.f)
 	{
@@ -156,21 +187,14 @@ void UHudScreenEdgeWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 	{
 		Strength = FMath::Max(Strength, FMath::Lerp(EdgeLowLow, EdgeLowHigh, UHudPlayerFrameWidget::LowBeat(GetWorld())));
 	}
+	// A ward hit: the same fall, lighter and quicker.
+	float WardStrength = 0.f;
+	if (WardFlashTime > 0.f)
+	{
+		WardStrength = Tuning.EdgePeak * (1.f - FMath::InterpEaseOut(0.f, 1.f, 1.f - WardFlashTime / WardFlashLength, 2.f));
+		WardFlashTime = FMath::Max(0.f, WardFlashTime - InDeltaTime);
+	}
 
-	const float Opacity = Strength * EdgeStrength;
-	if (Opacity == ShownOpacity)
-	{
-		return;
-	}
-	ShownOpacity = Opacity;
-	if (Opacity <= 0.001f)
-	{
-		Edges->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-	Edges->SetRenderOpacity(Opacity);
-	if (Edges->GetVisibility() != ESlateVisibility::HitTestInvisible)
-	{
-		Edges->SetVisibility(ESlateVisibility::HitTestInvisible);
-	}
+	ShowEdgeLayer(Edges, Strength * EdgeStrength, ShownOpacity);
+	ShowEdgeLayer(WardEdges, WardStrength * EdgeStrength, ShownWardOpacity);
 }

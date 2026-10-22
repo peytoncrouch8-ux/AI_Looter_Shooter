@@ -9,6 +9,7 @@
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootTable.h"
 #include "Scenes/SceneSubsystem.h"
+#include "Shields/ShieldPickup.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponFX.h"
@@ -58,15 +59,36 @@ TArray<int32> ABossLootShower::Order(const FLootRoll& Planned)
 	{
 		Pieces.Add(-1 - Box);
 	}
-	TArray<int32> Guns;
-	for (int32 Gun = 0; Gun < Planned.Weapons.Num(); ++Gun)
+	// The guns, then the wards after them (Weapons.Num() + the ward's index), sorted together by rarity.
+	const int32 NumGuns = Planned.Weapons.Num();
+	TArray<int32> Prizes;
+	for (int32 Prize = 0; Prize < NumGuns + Planned.Shields.Num(); ++Prize)
 	{
-		Guns.Add(Gun);
+		Prizes.Add(Prize);
 	}
-	// Stable, so guns of one rarity keep the roll's order.
-	Guns.StableSort([&Planned](int32 A, int32 B) { return Planned.Weapons[A].Rarity < Planned.Weapons[B].Rarity; });
-	Pieces.Append(Guns);
+	auto RarityOf = [&Planned, NumGuns](int32 Prize)
+	{
+		return Prize < NumGuns ? Planned.Weapons[Prize].Rarity : Planned.Shields[Prize - NumGuns].Rarity;
+	};
+	// Stable, so pieces of one kind and rarity keep the roll's order; at one rarity a ward flies before a gun.
+	Prizes.StableSort([&RarityOf, NumGuns](int32 A, int32 B)
+	{
+		const EWeaponRarity RarityA = RarityOf(A);
+		const EWeaponRarity RarityB = RarityOf(B);
+		if (RarityA != RarityB)
+		{
+			return RarityA < RarityB;
+		}
+		return A >= NumGuns && B < NumGuns;
+	});
+	Pieces.Append(Prizes);
 	return Pieces;
+}
+
+int32 ABossLootShower::WardIndexOf(const FLootRoll& Planned, int32 Piece)
+{
+	const int32 Ward = Piece - Planned.Weapons.Num();
+	return Piece >= 0 && Planned.Shields.IsValidIndex(Ward) ? Ward : INDEX_NONE;
 }
 
 ABossLootShower* ABossLootShower::Throw(AActor& Boss, const FVector& From, const FBossLootShowerSettings& Settings)
@@ -98,8 +120,8 @@ ABossLootShower* ABossLootShower::Throw(AActor& Boss, const FVector& From, const
 	Shower->Wait = Settings.Delay;
 	Shower->StartYaw = Random.FRandRange(0.f, 360.f);
 	Shower->SetLifeSpan(ShowerLifeSeconds);
-	UE_LOG(LogLooter, Log, TEXT("%s's loot shower: %d guns and %d ammo boxes (%d bonus)%s."), *Boss.GetActorNameOrLabel(), Shower->Roll.Weapons.Num(),
-		Shower->Roll.Ammo.Num(), Settings.BonusAmmo, Settings.bAfterScene ? TEXT(", after the scene") : TEXT(""));
+	UE_LOG(LogLooter, Log, TEXT("%s's loot shower: %d guns, %d wards and %d ammo boxes (%d bonus)%s."), *Boss.GetActorNameOrLabel(),
+		Shower->Roll.Weapons.Num(), Shower->Roll.Shields.Num(), Shower->Roll.Ammo.Num(), Settings.BonusAmmo, Settings.bAfterScene ? TEXT(", after the scene") : TEXT(""));
 	return Shower;
 }
 
@@ -139,7 +161,7 @@ void ABossLootShower::Advance(float DeltaSeconds)
 	++Thrown;
 	if (Thrown < Queue.Num())
 	{
-		// A gun waits a beat longer, so each one is seen leaving.
+		// A gun or a ward waits a beat longer, so each one is seen leaving.
 		Wait += Settings.Interval + (Queue[Thrown] >= 0 ? Settings.GunPause : 0.f);
 	}
 }
@@ -168,7 +190,18 @@ void ABossLootShower::ThrowPiece(int32 Piece, int32 Index)
 	const FVector Start = GetActorLocation() + FVector(0.0, 0.0, PopHeight);
 	const FVector Velocity = BossRules::ShowerThrow(Index, StartYaw, Settings, static_cast<float>(FMath::Abs(World->GetGravityZ())));
 	float Pitch = 1.f;
-	if (Piece >= 0 && Roll.Weapons.IsValidIndex(Piece))
+	const int32 WardIndex = WardIndexOf(Roll, Piece);
+	if (WardIndex != INDEX_NONE)
+	{
+		// A ward flies as a gun does, and stings as it lands by its rarity (AShieldPickup).
+		const FShieldInstanceData& Ward = Roll.Shields[WardIndex];
+		if (AShieldPickup* Pickup = AShieldPickup::SpawnWard(World, Ward, Start))
+		{
+			Pickup->Toss(Velocity);
+		}
+		Pitch = 1.f + 0.06f * static_cast<float>(Ward.Rarity);
+	}
+	else if (Piece >= 0 && Roll.Weapons.IsValidIndex(Piece))
 	{
 		const FWeaponInstanceData& Gun = Roll.Weapons[Piece];
 		const FTransform Placed(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f), Start);

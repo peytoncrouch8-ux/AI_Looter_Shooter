@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "UI/HUD/HudWardHit.h"
 #include "HudPortraitWidget.generated.h"
 
 class UCanvasPanel;
@@ -15,6 +16,8 @@ class UWidget;
  * window, clipped to the diamond, and reacts:
  *  - calm, by itself: it blinks every 5.2 s and breathes (the bust bobs 1.4 px over 4.2 s)
  *  - a hit: the content shakes, the window flashes red and the eyes squint
+ *  - a hit the ward soaked whole: only a cyan glint in the window (no shake, no squint, no red); a hit that breaks the ward
+ *    glints and flinches both (it watches the local pawn's ward itself: FHudWardHitWatch, HudWardHit::Decide)
  *  - low health: the squint holds and the window pulses red
  *  - a level-up: the eyes flare, then fade
  * The art is vector data (UI/Style/HudPortraitData[_<Hero>].inl, generated from the SVGs by Art/Icons/HudPortrait.py)
@@ -30,8 +33,14 @@ public:
 	/** The diamond window it fills, tip to tip; its box is this square, the diamond inscribed in it. */
 	static constexpr float WindowSize = 128.f;
 
-	/** A hit: the shake, the window's red flash, the squint (UHudPlayerFrameWidget calls it). */
+	/** A hit: the shake, the window's red flash, the squint (UHudPlayerFrameWidget calls it as health falls). */
 	void PlayHit();
+
+	/** A hit the ward took: the window glints cyan (its own tick calls it as the pawn's ward soaks one). */
+	void PlayWardHit();
+
+	/** The cyan glint's strength now (0: none), for the tests. */
+	float GetWardGlint() const;
 
 	/** Low health: the squint holds and the window pulses red on the frame's 0.9 s beat (LowBeat) until it's set false. */
 	void SetLowHealth(bool bLow);
@@ -86,7 +95,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> HurtGlows;
 	/** The open eyes and their glows, without the brows: they squash for the blink. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> BlinkingEyes;
-	/** The window's red, over the content (a hit's flash and the low-health pulse). */
+	/** The window's red, over the content (a hit's flash and the low-health pulse), and the ward's cyan glint under the red. */
 	UPROPERTY(Transient) TObjectPtr<UImage> Flash;
 
 	/** Seconds into each reaction, or below zero when it isn't playing. */
@@ -94,6 +103,12 @@ private:
 	float FlashTime = -1.f;
 	float SquintTime = -1.f;
 	float FlareTime = -1.f;
+	float GlintTime = -1.f;
+	/** The glint's length and strength as it began (their cvars may change while it plays). */
+	float GlintLength = 1.f;
+	float GlintPeak = 0.f;
+	/** The pawn's health and ward from frame to frame (a ward hit glints; a break flinches even when no health was lost). */
+	FHudWardHitWatch WardWatch;
 	/** The calm loops. The low-health beat has no clock of its own: it follows UHudPlayerFrameWidget::LowBeat. */
 	float BlinkClock = 0.f;
 	float BreathClock = 0.f;
@@ -110,4 +125,5 @@ private:
 	float ShownFlare = 0.f;
 	float ShownHurtGlow = 1.f;
 	float ShownFlash = 0.f;
+	float ShownGlint = 0.f;
 };

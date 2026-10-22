@@ -384,7 +384,14 @@ namespace
 		// from the completion; the next step's picture, 1.6 s after the completion, catches what follows sliding in (the board's
 		// main posting, tracked in its place, or the tracker fading out if none is).
 		{ TEXT("done"),        0.35f, &HudShotBeginObjectiveDone,  nullptr,                    nullptr,               0.1f },
-		{ TEXT("next"),        1.15f, nullptr,                     nullptr,                    nullptr,               LastGapSeconds },
+		{ TEXT("next"),        1.15f, nullptr,                     nullptr,                    nullptr,               DefaultGapSeconds },
+		// The ward's, last, so the pictures before keep their numbers. Chipped at 0.12 s: the cyan edges and glint near their
+		// peak, the pale chip held; the break at 0.1 s: both tints, the slivers flying; broken at 1.2 s: the empty track pulsing,
+		// inside the ward's 3.2 s wait.
+		{ TEXT("ward_full"),   1.2f, &HudShotScene::Wards::BeginFull,    nullptr,                    nullptr,               DefaultGapSeconds },
+		{ TEXT("ward_chipped"), 0.12f, &HudShotScene::Wards::BeginChipped, nullptr,                  nullptr,               DefaultGapSeconds },
+		{ TEXT("ward_break"),  0.1f, &HudShotScene::Wards::BeginBreak,   &HudShotScene::Wards::IsBroken, nullptr,          DefaultGapSeconds },
+		{ TEXT("ward_broken"), 1.2f, nullptr,                     &HudShotScene::Wards::IsBroken, &HudShotScene::Wards::End, LastGapSeconds },
 	};
 }
 
@@ -426,6 +433,8 @@ namespace HudShotScene
 		Player.Health->bInvulnerable = false;
 		Player.Health->ResetHealth();
 		HudShotGiveRifle(Player, RifleMagazineShare);
+		// The rifle is the first gun, which brings the starting ward: off again until the ward's own pictures.
+		HudShotScene::Wards::TakeOff(World);
 
 		if (ATutorialDirector* Director = HudShotFindDirector(World))
 		{

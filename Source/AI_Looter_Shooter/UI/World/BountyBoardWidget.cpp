@@ -213,7 +213,8 @@ void UBountyBoardWidget::BuildPanel()
 	const ABountyBoard* Here = Board.Get();
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 
-	// The board's line on the left; how many it has paid and when new postings go up on the right.
+	// The board's plate, then its line on the left; how many it has paid and when new postings go up on the right.
+	Content->AddChildToVerticalBox(MakeHeader());
 	UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	SubtitleText = MakeText(WidgetTree, Here ? Here->Subtitle.ToString() : FString(), 12, Color::TextDim());
 	UHorizontalBoxSlot* SubtitleSlot = Header->AddChildToHorizontalBox(SubtitleText);
@@ -227,7 +228,7 @@ void UBountyBoardWidget::BuildPanel()
 	UHorizontalBoxSlot* RotationSlot = Header->AddChildToHorizontalBox(RotationText);
 	RotationSlot->SetVerticalAlignment(VAlign_Center);
 	RotationSlot->SetPadding(FMargin(20.f, 0.f, 0.f, 0.f));
-	Content->AddChildToVerticalBox(Header);
+	Content->AddChildToVerticalBox(Header)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
 
 	// The cards.
 	CardRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -258,7 +259,7 @@ void UBountyBoardWidget::BuildPanel()
 	Bottom->AddChildToHorizontalBox(ButtonRow)->SetVerticalAlignment(VAlign_Center);
 	Content->AddChildToVerticalBox(Bottom)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
 
-	PanelBox->SetContent(MakePanel(WidgetTree, Here ? Here->Title.ToString() : LOCTEXT("BoardScreenTitle", "Bounties").ToString(), Content));
+	PanelBox->SetContent(MakePanel(WidgetTree, LOCTEXT("PanelTab", "Rim Rangers").ToString(), Content));
 	MakeButtons();
 	ShowCards(/*bForce*/ true);
 }

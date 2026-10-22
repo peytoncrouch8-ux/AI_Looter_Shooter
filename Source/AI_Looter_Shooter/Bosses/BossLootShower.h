@@ -14,8 +14,8 @@ class ULootTable;
  * A dead boss's loot thrown out Borderlands-style (FBossLootShowerSettings; UBossComponent throws it in place of its loot drop
  * component's toss): its table rolled at the death as the kill rolls it (the kill gun's ammo leaning, a Greedy iron's
  * luck, a practice area's guns held back), its bonus ammo added, then popped out one piece at a time from where it burst,
- * each in a high arc on its own heading round the ring (BossRules::ShowerThrow): the ammo first, quick, then the guns with
- * a beat before each, the rarest last. A flash and a burst cue as it starts, a pop at each piece. It waits out its delay
+ * each in a high arc on its own heading round the ring (BossRules::ShowerThrow): the ammo first, quick, then the guns and
+ * wards (a ward-dropping table's share of its gun picks, FLootRoll::Shields) with a beat before each, the rarest last. A flash and a burst cue as it starts, a pop at each piece. It waits out its delay
  * first, and with bAfterScene any scene that plays (Abel's loot comes after he sits with Ellis); it goes once it's thrown
  * everything. Nothing is thrown in a level that doesn't tick (a test level), so the tests check its plan (Plan, Order).
  */
@@ -33,15 +33,22 @@ public:
 	 */
 	static ABossLootShower* Throw(AActor& Boss, const FVector& From, const FBossLootShowerSettings& Settings);
 
-	/** What a shower throws: Table rolled as a kill's (RollLoot), then BonusAmmo chest-full boxes leaning to KillAmmo. */
+	/**
+	 * What a shower throws: Table rolled as a kill's (RollLoot: its guns, and its wards when the table drops them), then
+	 * BonusAmmo chest-full boxes leaning to KillAmmo.
+	 */
 	static FLootRoll Plan(const ULootTable* Table, int32 Level, float Luck, FRandomStream& Random, TOptional<EAmmoType> KillAmmo,
 		bool bWeapons, int32 BonusAmmo);
 
 	/**
 	 * The order its pieces fly: every ammo box first (as -1 - its index in Roll.Ammo), then the guns (their index in
-	 * Roll.Weapons) from the least rare to the rarest, so the best comes last.
+	 * Roll.Weapons) and the wards (Roll.Weapons.Num() + their index in Roll.Shields) together, from the least rare to the
+	 * rarest, so the best comes last; at one rarity the wards go before the guns (a gun is the bigger moment).
 	 */
 	static TArray<int32> Order(const FLootRoll& Roll);
+
+	/** Order's code Piece is a ward: its index in Roll.Shields, else INDEX_NONE (an ammo box or a gun). */
+	static int32 WardIndexOf(const FLootRoll& Roll, int32 Piece);
 
 	virtual void Tick(float DeltaSeconds) override;
 

@@ -121,7 +121,9 @@ void UGraphicsSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection
 {
 	Super::Initialize(Collection);
 
-	SaveData = Cast<ULooterGraphicsSave>(UGameplayStatics::LoadGameFromSlot(GraphicsSaveSlot, 0));
+	// A first run has no file yet: asking first keeps the log free of a load warning.
+	SaveData = UGameplayStatics::DoesSaveGameExist(GraphicsSaveSlot, 0)
+		? Cast<ULooterGraphicsSave>(UGameplayStatics::LoadGameFromSlot(GraphicsSaveSlot, 0)) : nullptr;
 	if (!SaveData)
 	{
 		SaveData = NewObject<ULooterGraphicsSave>(this);

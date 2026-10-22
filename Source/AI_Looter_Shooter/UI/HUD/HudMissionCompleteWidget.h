@@ -23,7 +23,12 @@ class UWidget;
  * It hears the level's mission runner (UMissionRunner::OnMissionCompleted) and announces every main and side mission's
  * end, one at a time in the order they came. It waits while a menu is open, a scene holds the player or the game is
  * paused, and while the level-up banner shows; and a level-up that comes during it (a turn-in's experience) waits for it
- * to finish (DeferLevelUp), so the two fanfares and banners never overlap. Floating outlined text and solid shapes: the
+ * to finish (DeferLevelUp), so the two fanfares and banners never overlap.
+ *
+ * A bounty paid at the board (UBountyBoardSubsystem::Announce, a side job's end under the title "Bounty: <mark>") is the same
+ * banner as "BOUNTY PAID": the mark's name under it, then the purse line (PURSE, the silver) and the experience, both counting
+ * up from nothing over the first second and a half. The board's own "paid" cue already sounded, so there's no fanfare of its
+ * own (HudMissionCompleteWidgetBounty.cpp). Floating outlined text and solid shapes: the
  * medal's dark glass is its one background (the UI transparency setting fades it).
  */
 UCLASS()
@@ -41,6 +46,13 @@ public:
 
 	/** The level-up banner it takes turns with: its level-ups wait for this, and this waits while it shows. */
 	void SetLevelUpBanner(UHudLevelUpBannerWidget* InLevelUpBanner);
+
+	/**
+	 * Whether an ending is a bounty's: its id starts "Bounty" (UBountyBoardSubsystem::Announce names it Bounty_<serial>), or it is
+	 * a made-up (transient) mission titled "Bounty: ...". The mark's name from its title ("Bounty: Old Stilts" -> "Old Stilts").
+	 */
+	static bool IsBountyMission(const UMissionDefinition& Mission);
+	static FText BountyMarkName(const UMissionDefinition& Mission);
 
 	/** Announces a mission's end (the runner's event calls it; tests may too): queued behind any being shown. */
 	void Announce(const UMissionDefinition& Mission, const FMissionRewardsGiven& Given);
@@ -64,6 +76,14 @@ public:
 	FString GetShownName() const;
 	TArray<FString> GetShownRewards() const;
 
+	/** The banner's title now ("MISSION COMPLETE" or "BOUNTY PAID") and whether the show is a bounty's, for the tests. */
+	FString GetShownTitle() const;
+	bool IsBountyShown() const { return Shown.bBounty; }
+
+	/** What the counting numbers of a bounty's show read now, for the tests ("" when not counted). */
+	FString GetCountedSilver() const;
+	FString GetCountedExperience() const;
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeOnInitialized() override;
@@ -77,6 +97,8 @@ private:
 	{
 		FText Name;
 		FMissionRewardsGiven Given;
+		/** A bounty paid: "BOUNTY PAID", the purse and the experience counting up. */
+		bool bBounty = false;
 	};
 
 	void HandleMissionCompleted(const UMissionDefinition& Mission, const FMissionRewardsGiven& Given);
@@ -91,8 +113,12 @@ private:
 	void EndShow();
 	/** The words of Shown in the texts and the rewards row. */
 	void ApplyTexts();
-	/** One reward on the rewards row, after a diamond when it isn't the first. */
-	void AddReward(const FString& Words, const FLinearColor& WordsColor);
+	/** One reward on the rewards row, after a diamond when it isn't the first; its text. */
+	UTextBlock* AddReward(const FString& Words, const FLinearColor& WordsColor);
+	/** A bounty's rewards: the purse line, then the experience, each starting at 0 (HudMissionCompleteWidgetBounty.cpp). */
+	void ApplyBountyRewards();
+	/** Moves a bounty's counting numbers on for Time seconds into the show (nothing for any other show). */
+	void PaintCounts();
 	/** Scales and fades it all for Time seconds into the show (hidden while covered). */
 	void PaintShow(bool bCovered);
 
@@ -102,7 +128,15 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> Banner;
 	UPROPERTY(Transient) TObjectPtr<UWidget> Rays;
 	UPROPERTY(Transient) TObjectPtr<UWidget> Title;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TitleText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> NameText;
+	/** A bounty's counting numbers on the rewards row (null for any other show), their targets and what they read last. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> SilverCountText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> XPCountText;
+	int64 XPTarget = 0;
+	int32 SilverTarget = 0;
+	int64 XPCounted = -1;
+	int64 SilverCounted = -1;
 	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> RewardsRow;
 	/** The rewards row's words, in order, as shown (for the tests). */
 	TArray<FString> RewardWords;

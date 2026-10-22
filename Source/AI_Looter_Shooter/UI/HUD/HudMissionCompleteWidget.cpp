@@ -130,7 +130,8 @@ void UHudMissionCompleteWidget::HandleMissionCompleted(const UMissionDefinition&
 void UHudMissionCompleteWidget::Announce(const UMissionDefinition& Mission, const FMissionRewardsGiven& Given)
 {
 	FAnnouncement& Added = Queue.AddDefaulted_GetRef();
-	Added.Name = Mission.Title;
+	Added.bBounty = IsBountyMission(Mission);
+	Added.Name = Added.bBounty ? BountyMarkName(Mission) : Mission.Title;
 	Added.Given = Given;
 }
 
@@ -212,7 +213,11 @@ void UHudMissionCompleteWidget::StartNext()
 	Queue.RemoveAt(0);
 	Time = 0.f;
 	ApplyTexts();
-	LooterSound::Play2D(this, LooterSoundCue::MissionComplete);
+	// A bounty's own "paid" cue sounded at the board; the mission fanfare is the story's.
+	if (!Shown.bBounty)
+	{
+		LooterSound::Play2D(this, LooterSoundCue::MissionComplete);
+	}
 	// The experience floats up big near the player as the rewards line comes in (UXpPopupSubsystem).
 	if (Shown.Given.Experience > 0)
 	{
@@ -244,14 +249,28 @@ void UHudMissionCompleteWidget::ApplyTexts()
 		return;
 	}
 	NameText->SetText(Shown.Name.ToUpper());
+	if (TitleText)
+	{
+		TitleText->SetText(Shown.bBounty ? NSLOCTEXT("LooterHUD", "BountyPaid", "BOUNTY PAID") : NSLOCTEXT("LooterHUD", "MissionComplete", "MISSION COMPLETE"));
+	}
 	RewardsRow->ClearChildren();
 	RewardWords.Reset();
+	SilverCountText = nullptr;
+	XPCountText = nullptr;
+	XPTarget = 0;
+	SilverTarget = 0;
+	XPCounted = -1;
+	SilverCounted = -1;
 	const FMissionRewardsGiven& Given = Shown.Given;
-	if (Given.Experience > 0)
+	if (Shown.bBounty)
+	{
+		ApplyBountyRewards();
+	}
+	else if (Given.Experience > 0)
 	{
 		AddReward(FString::Printf(TEXT("+%s XP"), *FText::AsNumber(Given.Experience).ToString()), Color::CyanText());
 	}
-	if (Given.Silver > 0)
+	if (!Shown.bBounty && Given.Silver > 0)
 	{
 		// The giver's purse, in the silver readout's white (the experience keeps the cyan).
 		AddReward(FString::Printf(TEXT("+%s SILVER"), *FText::AsNumber(Given.Silver).ToString()), Color::Text());
@@ -272,7 +291,7 @@ void UHudMissionCompleteWidget::ApplyTexts()
 	RewardsRow->SetVisibility(RewardWords.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 }
 
-void UHudMissionCompleteWidget::AddReward(const FString& Words, const FLinearColor& WordsColor)
+UTextBlock* UHudMissionCompleteWidget::AddReward(const FString& Words, const FLinearColor& WordsColor)
 {
 	if (!RewardWords.IsEmpty())
 	{
@@ -287,6 +306,7 @@ void UHudMissionCompleteWidget::AddReward(const FString& Words, const FLinearCol
 	Text->SetText(FText::FromString(Words));
 	RewardsRow->AddChildToHorizontalBox(Text)->SetVerticalAlignment(VAlign_Center);
 	RewardWords.Add(Words);
+	return Text;
 }
 
 void UHudMissionCompleteWidget::PaintShow(bool bCovered)
@@ -337,6 +357,7 @@ void UHudMissionCompleteWidget::PaintShow(bool bCovered)
 	{
 		Rays->SetRenderTransformAngle(Time * RaysTurn);
 	}
+	PaintCounts();
 }
 
 // ---------------------------------------------------------------------------

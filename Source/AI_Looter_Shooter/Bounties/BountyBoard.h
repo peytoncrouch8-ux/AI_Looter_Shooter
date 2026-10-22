@@ -8,6 +8,7 @@
 #include "BountyBoard.generated.h"
 
 class AGiverMarkActor;
+class UDecalComponent;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class USceneComponent;
@@ -16,7 +17,8 @@ class UStaticMeshComponent;
 /**
  * The bounty board in a town (Docs/Work/2026-10-22-Next/BOUNTY.md): Ransom's Rest's stands beside the Rim Rangers' board
  * in front of the sheriff's office (Tools/Unreal/build_area_bounties.py). A notice board (SM_NoticeBoard_Town, NOTICES on
- * its header) with a sheet on its face for each posting up, sealed in its mark's tier colour; a taken or won one's sheet
+ * its header) with a sheet on its face for each posting up (the art's decals, Tools/Blender/looter_bounty_sheets.py: WANTED BY THE
+ * RIM RANGERS, the mark's kind inked in a frame, its name printed on its band; plain paper until they are imported), sealed in its mark's tier colour; a taken or won one's sheet
  * is gone (the player carries it). Over it floats its own mark: ? while a posting is up the player hasn't read here, !
  * while a won bounty waits to be paid. A tap of Interact opens the board's screen (UBountyBoardWidget), once OpenWhen
  * holds (after Main 3: the town is safe).
@@ -68,6 +70,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty|Look")
 	float SheetSpacing = 44.f;
 
+	/** Where each wax seal sits on its sheet, from the sheet's middle: cm to the reader's right, cm up (the printed ring on the sheet, Tools/Blender/looter_bounty_sheets.py SEAL_AT). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty|Look")
+	FVector2D SealOffset = FVector2D(10.6, -17.3);
+
 	// --- IInteractable ---
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
@@ -80,6 +86,17 @@ public:
 
 	/** Its look for the record as it stands: a sheet per posting up, sealed in its tier's colour, and its mark (? or !). */
 	void ShowRecord(const FBountyBoardRecord& Record, bool bOpen);
+
+	/**
+	 * The sheet's rectangle in T_BountySheets_BC for a kind (U0, V0, U1, V1; V = 0 at the top), and a mark's printed name's in
+	 * T_BountyNames_BC (kind x 8 + name): M_PosterDecal's "Cell". An unknown kind shows the Unpaid's sheet. The numbers are the
+	 * art script's (Tools/Blender/looter_bounty_sheets.py logs them).
+	 */
+	static FVector4 SheetCell(FName Kind);
+	static FVector4 NameCell(FName Kind, int32 NameIndex);
+
+	/** The sheets are decals of the art (their assets made), else the plain paper planes. */
+	bool UsesDecals() const { return SheetDecalBase != nullptr; }
 
 	/** Whether a sheet shows now, for the tests. */
 	bool IsSheetShown(int32 Slot) const;
@@ -108,6 +125,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TArray<TObjectPtr<UStaticMeshComponent>> Seals;
 
+	/** The sheet's paper and picture, and the mark's printed name over its band, as decals on the board's face (as AWantedPoster's). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TArray<TObjectPtr<UDecalComponent>> SheetDecals;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TArray<TObjectPtr<UDecalComponent>> NameDecals;
+
 private:
 	/** The sheets and seals laid out on its face from FaceOffset and SheetSpacing (the build script may move them). */
 	void LayOutSheets();
@@ -121,6 +145,19 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> SurfaceBase;
+
+	/** MI_BountySheetDecal and MI_BountyNameDecal (build_bounty_sheet_materials.py), and a dynamic instance of each per slot. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> SheetDecalBase;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> NameDecalBase;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> SheetDecalMaterials;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> NameDecalMaterials;
 
 	EShownMark ShownMark = EShownMark::None;
 };

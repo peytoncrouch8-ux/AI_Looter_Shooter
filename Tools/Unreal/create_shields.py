@@ -5,8 +5,8 @@
                                          a 3.2 s wait, 28% a second, the rarity table): this script never writes them, so
                                          the C++ stays where they're tuned.
 and turns the wards on in the kill and chest loot tables (ULootTable::bDropsShields: Looter.Shield.Drop.Share of their gun
-picks come as wards): DA_LootTable_Default (the chests copy it) and the ranks' tables. The boss table stays off until the
-boss loot shower throws wards (Bosses/BossLootShower.cpp plans Roll.Weapons and Roll.Ammo only).
+picks come as wards): DA_LootTable_Default (the chests copy it), the ranks' tables and the boss's (the boss loot shower
+throws a dead boss's wards with its guns, the rarest last: Bosses/BossLootShower.cpp, SHIELD-POLISH 2026-10-22).
 Run it in the open editor once the C++ with Shields/ is built and the ward box's models are imported
 (Tools\\models.ps1 -Only WardBox):
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_shields.py"
@@ -19,9 +19,9 @@ ASSET = 'DA_Shield_WardBox'
 MODELS = '/Game/Art/Shields'
 RARITIES = (('COMMON', 'Common'), ('UNCOMMON', 'Uncommon'), ('RARE', 'Rare'), ('EPIC', 'Epic'), ('LEGENDARY', 'Legendary'))
 LOOT = '/Game/Weapons/Data'
-# The kill tables that drop wards (DA_LootTable_Boss stays off: see the docstring).
+# The kill tables that drop wards (the boss's too, since its shower throws them).
 WARD_TABLES = ('DA_LootTable_Default', 'DA_LootTable_Rare', 'DA_LootTable_Epic', 'DA_LootTable_Hallowed', 'DA_LootTable_Ethereal',
-               'DA_LootTable_Legendary')
+               'DA_LootTable_Legendary', 'DA_LootTable_Boss')
 
 
 def log(message):

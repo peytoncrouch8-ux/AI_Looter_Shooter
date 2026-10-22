@@ -37,6 +37,25 @@ namespace HudShotScene
 	/** The player has a character with a weapon manager and health, a progression, and a HUD: the scene can be set up. */
 	bool IsPlayerReady(UWorld& World);
 
-	/** The scene before the first picture: level 1 at full health, the rifle in hand, the tutorial on its notice board step. */
+	/**
+	 * The scene before the first picture: level 1 at full health, the rifle in hand (no ward: the health pictures stay as
+	 * they were before wards), the tutorial on its notice board step.
+	 */
 	void Prepare(UWorld& World);
+
+	/** The ward's pictures, last (HudShotSceneWards.cpp): full, chipped (a hit it took whole), the break, broken. */
+	namespace Wards
+	{
+		/** Nothing worn or carried, the starting ward counted as given (Prepare). */
+		void TakeOff(UWorld& World);
+		/** Full health and the starting ward worn full. */
+		void BeginFull(UWorld& World);
+		/** A hit for a share of its capacity: soaked whole. */
+		void BeginChipped(UWorld& World);
+		/** A hit past its charge: it breaks, a little reaches health. */
+		void BeginBreak(UWorld& World);
+		bool IsBroken(UWorld& World);
+		/** The starting ward full again and full health, for a run without quit that plays on. */
+		void End(UWorld& World);
+	}
 }

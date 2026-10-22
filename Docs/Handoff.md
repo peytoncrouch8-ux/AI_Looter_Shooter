@@ -4,11 +4,21 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
 ## Polish round (the user, 2026-10-22 evening: "Keep polishing")
-Contract `Docs/Work/2026-10-22-Polish/CONTRACT.md`. Running: DEMO (owns the editor: fight drain at DamageScale 1.8/2.0,
-maker marks every gun both sides, a bounty Strongbox by hand, bug list), SHIELD-POLISH (boss shower wards, cyan edges on
-ward hits, HudShotScene ward states, cue names; Saved/ShieldPolishCode), BOUNTY-ART (bounty sheet poster, BOUNTIES header,
-BOUNTY PAID banner; Saved/BountyArtCode), PACKAGE-NOISE (GameFeatureData ensure, PSO errors; Config only). Lane after
-DEMO: SHIELD-POLISH -> BOUNTY-ART -> next package to check the log.
+Contract `Docs/Work/2026-10-22-Polish/CONTRACT.md`.
+DEMO verdict (level 2, Common rifle, 40 ward): **keep DamageScale 1.8** (2.0 too harsh: 10 Unpaid left 45%). 4 spiders: lowest
+ward+health 69%; 7 Unpaid: 79%; a spider bite (22-30) breaks a Common ward on the second bite. 6 spiders kill at any
+scale (10.8 s at 1.5 no ward, 9.5 s at 1.8): 324 HP spiders, 3 biting at once (tokens) — a balance question for the
+user, not the scale. Marks: not mirrored; Thresher (24/-0.4/4.0) and Powderkeg (size 3.4) fixed in MARKS (DA_LMG,
+DA_Launcher changed). Bounty Strongbox opens by hand.
+Merged into Source (building, uncommitted): SHIELD-POLISH (boss shower throws wards, boss table on; cyan edges/portrait
+glint on ward hits, red+flinch on a break, `HudWardHit`, `Looter.Shield.Hud.*`; HudShotScene ward states; `Shield` cue
+namespace), BOUNTY-ART (sheets by kind + printed names `Art/Textures/Bounty`, BOUNTIES header plate, BOUNTY PAID banner by
+Id "Bounty_<serial>"; phase 2 runs `build_bounty_sheet_materials.py`), PACKAGE-NOISE (GameFeatureData rule editor-only;
+graphics/keybinding saves checked before loading; PSO compute errors left: RX 580 driver, `r.PSOPrecache.GlobalShaders=0`
+untried).
+BUGFIX running (Saved/BugfixCode): board still says "strongbox waits" after looting; card promises 2 guns (a ward may
+replace one); board sign reads NOTICES; gun/ward labels overlap; Launcher Salvager/Scrapper bodies ignore maker paint and
+hide the mark, marks never in third person, not in first person on Longhorn/Powderkeg.
 
 ## Next builds (the user, 2026-10-22 noon: "Keep going!" and picked all four suggestions)
 Player shield, gun manufacturers (a concept sheet first for the user's pick), a bounty board, playtest builds; plus

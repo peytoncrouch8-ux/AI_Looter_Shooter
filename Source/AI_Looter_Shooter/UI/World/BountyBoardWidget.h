@@ -22,7 +22,8 @@ class UTextBlock;
  * face button, a click on the chosen card) takes a posted one or collects a won one; R (the left face button) twice
  * gives the taken one up; Esc closes. A status line under the cards says what just happened or why not.
  *
- * It opens and closes itself (the board asks it to: OpenFor), holds the keyboard and shows the mouse while it's up, and
+ * Under the panel's tab sits the board's own plate (gunmetal, the ranger's star, BOUNTIES in display type, the three tiers' key,
+ * an orange rule). It opens and closes itself (the board asks it to: OpenFor), holds the keyboard and shows the mouse while it's up, and
  * closes on its own if the player walks off or dies. Its cards follow the board's subsystem (OnChanged, and its clock
  * once a second). Every background it paints follows the UI transparency setting (MarkBackground).
  */
@@ -80,6 +81,8 @@ private:
 	// --- The cards (BountyBoardWidgetCards.cpp) ---
 	/** The cards from the subsystem's view, made again only when their words or the choice changed. */
 	void ShowCards(bool bForce);
+	/** The BOUNTIES plate over the cards: medallion, title, tier legend (BountyBoardWidgetHeader.cpp). */
+	UWidget* MakeHeader();
 	UWidget* MakeCard(int32 CardIndex, const FBountyCardView& Card, bool bChosen);
 	UWidget* MakeCardHeader(const FBountyCardView& Card);
 	/** A card's words in a line, to tell when it changed. */

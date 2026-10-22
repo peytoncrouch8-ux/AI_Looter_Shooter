@@ -125,7 +125,8 @@ bool FBossLootShowerTest::RunTest(const FString& Parameters)
 		for (int32 Kill = 0; Kill < 40; ++Kill)
 		{
 			const FLootRoll Planned = ABossLootShower::Plan(Table, 9, 0.f, Random, {}, true, Bonus);
-			const int32 Guns = Planned.Weapons.Num();
+			// A table that drops wards turns some gun picks into wards (ULootTable::bDropsShields): they count as the picks.
+			const int32 Guns = Planned.Weapons.Num() + Planned.Shields.Num();
 			const int32 Ammo = Planned.Ammo.Num();
 			bCounts &= (Table->Entries.IsEmpty() || (Guns >= Table->MinWeaponDrops && Guns <= Table->MaxWeaponDrops))
 				&& Ammo >= Table->MinAmmoDrops + Bonus && Ammo <= Table->MaxAmmoDrops + Bonus;
@@ -134,14 +135,16 @@ bool FBossLootShowerTest::RunTest(const FString& Parameters)
 				bBonusFull &= Planned.Ammo.IsValidIndex(Box) && Planned.Ammo[Box].Amount == LooterLoot::AmmoAmountFor(Planned.Ammo[Box].Type, LooterLoot::ChestAmmoAmount);
 			}
 		}
-		TestTrue(FString::Printf(TEXT("%s: every shower is its table's guns and ammo, and %d boxes more"), Name, Bonus), bCounts);
+		TestTrue(FString::Printf(TEXT("%s: every shower is its table's guns (or wards) and ammo, and %d boxes more"), Name, Bonus), bCounts);
 		TestTrue(FString::Printf(TEXT("%s: the bonus boxes are full"), Name), bBonusFull);
 		if (Rank == ECreatureRank::Boss && !Table->Entries.IsEmpty())
 		{
-			TestEqual(TEXT("Boss: three guns, as Abel's design has them"), ABossLootShower::Plan(Table, 9, 0.f, Random, {}, true, Bonus).Weapons.Num(), 3);
+			const FLootRoll Planned = ABossLootShower::Plan(Table, 9, 0.f, Random, {}, true, Bonus);
+			TestEqual(TEXT("Boss: three guns (a ward may stand in for one), as Abel's design has them"), Planned.Weapons.Num() + Planned.Shields.Num(), 3);
 		}
 		const FLootRoll NoGuns = ABossLootShower::Plan(Table, 9, 0.f, Random, {}, false, Bonus);
-		TestTrue(FString::Printf(TEXT("%s: where guns don't drop, only the ammo"), Name), NoGuns.Weapons.IsEmpty() && NoGuns.Ammo.Num() >= Bonus);
+		TestTrue(FString::Printf(TEXT("%s: where guns don't drop, only the ammo"), Name), NoGuns.Weapons.IsEmpty() && NoGuns.Shields.IsEmpty()
+			&& NoGuns.Ammo.Num() >= Bonus);
 	}
 
 	// In a fight: the boss's shower takes over its loot drop's toss, and its death starts the shower (no NoLoot here).
@@ -170,7 +173,7 @@ bool FBossLootShowerTest::RunTest(const FString& Parameters)
 	if (TestEqual(TEXT("One shower starts"), Showers.Num(), 1))
 	{
 		const FLootRoll& Thrown = Showers[0]->GetRoll();
-		TestEqual(TEXT("...its pieces are the roll's guns and ammo"), Showers[0]->NumPieces(), Thrown.Weapons.Num() + Thrown.Ammo.Num());
+		TestEqual(TEXT("...its pieces are the roll's guns, wards and ammo"), Showers[0]->NumPieces(), Thrown.Weapons.Num() + Thrown.Shields.Num() + Thrown.Ammo.Num());
 		TestTrue(TEXT("...with its bonus ammo"), Thrown.Ammo.Num() >= Boss->LootShower.BonusAmmo);
 		TestEqual(TEXT("...nothing thrown before its delay"), Showers[0]->NumThrown(), 0);
 		Showers[0]->Destroy();

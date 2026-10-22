@@ -27,7 +27,9 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	SaveData = Cast<ULooterKeyBindingsSave>(UGameplayStatics::LoadGameFromSlot(KeyBindingsSaveSlot, 0));
+	// A first run has no file yet: asking first keeps the log free of a load warning.
+	SaveData = UGameplayStatics::DoesSaveGameExist(KeyBindingsSaveSlot, 0)
+		? Cast<ULooterKeyBindingsSave>(UGameplayStatics::LoadGameFromSlot(KeyBindingsSaveSlot, 0)) : nullptr;
 	if (!SaveData)
 	{
 		SaveData = NewObject<ULooterKeyBindingsSave>(this);

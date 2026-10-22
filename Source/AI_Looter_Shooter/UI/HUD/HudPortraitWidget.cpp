@@ -7,6 +7,7 @@
 #include "UI/Style/HudPortraitData_Gauge.inl"
 #include "UI/Style/HudPortraitData_Pike.inl"
 #include "Embers/HeroDefinition.h"
+#include "UI/HUD/HudWardHit.h"
 #include "Session/SessionSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -51,6 +52,8 @@ namespace
 	constexpr float SquintSeconds = 0.6f;
 	/** The squint holds for this share of its time; over the rest it fades back into the calm eyes. */
 	constexpr float SquintHold = 0.7f;
+	/** A ward hit's glint holds this share of its time (Looter.Shield.Hud.GlintSeconds) before it fades. */
+	constexpr float GlintHold = 0.15f;
 
 	// Low health: the window's red beats between these, on the frame's beat (UHudPlayerFrameWidget::LowBeat, the same clock
 	// as the bar's brightening and the screen's edges).
@@ -326,6 +329,7 @@ void UHudPortraitWidget::BuildPortrait()
 	ShownFlare = -1.f;
 	ShownHurtGlow = 1.f;
 	ShownFlash = 0.f;
+	ShownGlint = 0.f;
 	ShowOpacity(HurtEyes, 0.f, ShownHurt);
 	ShowOpacity(FlareEyes, 0.f, ShownFlare);
 }
@@ -363,6 +367,19 @@ void UHudPortraitWidget::PlayHit()
 	SquintTime = 0.f;
 }
 
+void UHudPortraitWidget::PlayWardHit()
+{
+	const HudWardHit::FTuning Tuning = HudWardHit::FTuning::Live();
+	GlintTime = 0.f;
+	GlintLength = Tuning.GlintSeconds;
+	GlintPeak = Tuning.GlintPeak;
+}
+
+float UHudPortraitWidget::GetWardGlint() const
+{
+	return GlintPeak * HoldThenFade(GlintTime, GlintLength, GlintHold);
+}
+
 void UHudPortraitWidget::SetLowHealth(bool bLow)
 {
 	if (bLow == bLowHealth)
@@ -390,12 +407,25 @@ void UHudPortraitWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 		return;
 	}
 
+	// The ward: a hit it took glints the window; a hit that broke it flinches as a wound does, even when the break let no
+	// health through (the frame's PlayHit comes only as health falls).
+	const HudWardHit::FReaction WardHit = WardWatch.Look(GetOwningPlayerPawn());
+	if (WardHit.bWard)
+	{
+		PlayWardHit();
+		if (WardHit.bWound)
+		{
+			PlayHit();
+		}
+	}
+
 	BlinkClock = FMath::Fmod(BlinkClock + InDeltaTime, BlinkPeriod);
 	BreathClock = FMath::Fmod(BreathClock + InDeltaTime, BreathPeriod);
 	AdvanceReaction(ShakeTime, InDeltaTime, ShakeSeconds);
 	AdvanceReaction(FlashTime, InDeltaTime, FlashSeconds);
 	AdvanceReaction(SquintTime, InDeltaTime, SquintSeconds);
 	AdvanceReaction(FlareTime, InDeltaTime, FlareSeconds);
+	AdvanceReaction(GlintTime, InDeltaTime, GlintLength);
 
 	// The shake moves everything in the window; the breath lifts the bust and eyes (up is negative on screen).
 	const FVector2D Shake = ShakeAt(ShakeTime);
@@ -434,11 +464,18 @@ void UHudPortraitWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 	const float HitRed = FlashTime >= 0.f ? FlashStart * (1.f - PortraitEaseOut(FlashTime / FlashSeconds)) : 0.f;
 	const float LowRed = bLowHealth ? FMath::Lerp(PulseLow, PulseHigh, UHudPlayerFrameWidget::LowBeat(GetWorld())) : 0.f;
 	const float Red = 1.f - (1.f - HitRed) * (1.f - LowRed);
-	if (Red != ShownFlash)
+	// The ward's glint, under the red: one picture shows both, the red laid over the cyan.
+	const float Glint = GetWardGlint();
+	if (Red != ShownFlash || Glint != ShownGlint)
 	{
 		ShownFlash = Red;
-		Flash->SetColorAndOpacity(Color::Hurt().CopyWithNewOpacity(Red));
-		const ESlateVisibility Wanted = Red > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden;
+		ShownGlint = Glint;
+		const float Shown = 1.f - (1.f - Red) * (1.f - Glint);
+		const FLinearColor Tint = Shown > 0.f
+			? (Color::Hurt() * Red + Color::XPLight() * (Glint * (1.f - Red))) / Shown
+			: Color::Hurt();
+		Flash->SetColorAndOpacity(Tint.CopyWithNewOpacity(Shown));
+		const ESlateVisibility Wanted = Shown > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden;
 		if (Flash->GetVisibility() != Wanted)
 		{
 			Flash->SetVisibility(Wanted);

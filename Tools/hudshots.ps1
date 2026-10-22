@@ -1,6 +1,6 @@
 # Runs the game standalone on a level, photographs the gameplay HUD through its states with Looter.HudShots (a screenshot
 # WITH the UI at each: calm, hit, low health, heal, experience, level-up, reload, empty magazine, two guns, an ember power used, boss bar,
-# objective done), and prints the pictures' paths. Pictures land in Saved\Screenshots\HudShots\<NN>_<state>.png.
+# objective done, then the ward full, chipped, breaking and broken), and prints the pictures' paths. Pictures land in Saved\Screenshots\HudShots\<NN>_<state>.png.
 # A map named on the command line plays a new game with no session, which is what this wants (level 1, unarmed start).
 # Screenshots work with the editor open or closed; the window is 1920x1080 by default, and the pictures' sizes are checked.
 # Usage: hudshots.ps1 [-Map /Game/Maps/Lvl_TutorialIsland] [-Quality Medium] [-ResX 1920] [-ResY 1080]

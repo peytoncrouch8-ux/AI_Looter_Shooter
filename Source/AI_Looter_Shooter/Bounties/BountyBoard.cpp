@@ -11,6 +11,7 @@
 #include "UI/World/BountyBoardWidget.h"
 #include "UI/World/GiverMarkActor.h"
 #include "UI/World/GiverMarkSubsystem.h"
+#include "Components/DecalComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -34,12 +35,71 @@ namespace
 	const TCHAR* const CylinderPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	const TCHAR* const CubePath = TEXT("/Engine/BasicShapes/Cube.Cube");
 	const TCHAR* const SurfacePath = TEXT("/Game/Environment/Materials/M_StylizedSurface.M_StylizedSurface");
+	/** What build_bounty_sheet_materials.py makes: M_PosterDecal's instances for the sheets' art and the printed names. */
+	const TCHAR* const SheetDecalPath = TEXT("/Game/Art/Materials/MI_BountySheetDecal.MI_BountySheetDecal");
+	const TCHAR* const NameDecalPath = TEXT("/Game/Art/Materials/MI_BountyNameDecal.MI_BountyNameDecal");
+	const FName CellParameter(TEXT("Cell"));
 
-	/** A sheet (cm): an upright poster, a little proud of the face; its seal near its top, and how far each leans. */
+	/**
+	 * The art's layout (Tools/Blender/looter_bounty_sheets.py: change both together). T_BountySheets_BC is 2048 square, a kind's
+	 * 1024 cell two to a row, its sheet 680 x 920 px centred in it. T_BountyNames_BC is 2048 x 512: 512 x 64 cells four to a row,
+	 * a name 480 x 60 px centred in its cell.
+	 */
+	constexpr float SheetAtlas = 2048.f;
+	constexpr float SheetCellPx = 1024.f;
+	constexpr float SheetPxW = 680.f;
+	constexpr float SheetPxH = 920.f;
+	constexpr float NameAtlasW = 2048.f;
+	constexpr float NameAtlasH = 512.f;
+	constexpr float NameCellW = 512.f;
+	constexpr float NameCellH = 64.f;
+	constexpr float NamePxW = 480.f;
+	constexpr float NamePxH = 60.f;
+	constexpr int32 NamesPerKind = 8;
+
+	/** A sheet is 34 x 46 cm; the printed name's band is 30 x 3.75 cm, its middle 8.5 cm under the sheet's (art: BAND_Y). */
+	constexpr double SheetWidth = 34.0;
+	constexpr double SheetHeight = 46.0;
+	constexpr double NameWidth = 30.0;
+	constexpr double NameHeight = 3.75;
+	constexpr double NameDown = 8.5;
+
+	/**
+	 * How the decals reach (cm, in the board's frame, +X out of its face): from ReachIn behind the face's surface to ReachOut in
+	 * front of it. The surface is taken a centimetre behind FaceOffset.X (the sheets float just above it); the reach is wide
+	 * enough for the model's face to be a centimetre either side of that.
+	 */
+	constexpr double SurfaceBehind = 1.0;
+	constexpr double ReachIn = 3.0;
+	constexpr double ReachOut = 6.0;
+
+	/** The decal's turn in the board's frame, as AWantedPoster's (DecalTurn): +X into the face, V down the picture, U to the reader's right. */
+	FQuat DecalTurn()
+	{
+		return FRotationMatrix::MakeFromXZ(FVector(-1.0, 0.0, 0.0), FVector(0.0, -1.0, 0.0)).ToQuat();
+	}
+
+	int32 KindIndex(FName Kind)
+	{
+		if (Kind == TEXT("Spider"))
+		{
+			return 1;
+		}
+		if (Kind == TEXT("Spitter"))
+		{
+			return 2;
+		}
+		if (Kind == TEXT("DeadMiner"))
+		{
+			return 3;
+		}
+		return 0;
+	}
+
+	/** A sheet (cm): an upright poster, a little proud of the face, and how far each leans. */
 	const FVector SheetSize(46.0, 34.0, 1.0);
 	constexpr double SheetProud = 0.6;
 	const FVector SealSize(5.0, 5.0, 1.2);
-	constexpr double SealUp = 15.0;
 	constexpr float SheetLean[] = { -2.5f, 1.5f, 3.f };
 
 	/** The board without its model (a test level, before the import): a plank face on two posts, cm. */
@@ -87,7 +147,11 @@ ABountyBoard::ABountyBoard()
 	static UStaticMesh* const Cylinder = FindIfMade<UStaticMesh>(CylinderPath);
 	static UStaticMesh* const Cube = FindIfMade<UStaticMesh>(CubePath);
 	static UMaterialInterface* const Surface = FindIfMade<UMaterialInterface>(SurfacePath);
+	static UMaterialInterface* const SheetDecalAsset = FindIfMade<UMaterialInterface>(SheetDecalPath);
+	static UMaterialInterface* const NameDecalAsset = FindIfMade<UMaterialInterface>(NameDecalPath);
 	SurfaceBase = Surface;
+	SheetDecalBase = SheetDecalAsset;
+	NameDecalBase = NameDecalAsset;
 
 	// Solid, so it's stood against and the Interact key's line finds it; world dynamic, so ground traces never take it for
 	// the ground.
@@ -113,6 +177,20 @@ ABountyBoard::ABountyBoard()
 		UStaticMeshComponent* Seal = MakeLookPart(this, Root, *FString::Printf(TEXT("Seal%d"), Slot + 1), Cylinder);
 		Seal->SetVisibility(false);
 		Seals.Add(Seal);
+		// The art's sheet and its printed name, projected onto the face (as the wall posters are); shown instead of the plain
+		// plane once the art is imported. The name over the sheet.
+		UDecalComponent* SheetDecal = CreateDefaultSubobject<UDecalComponent>(*FString::Printf(TEXT("SheetDecal%d"), Slot + 1));
+		SheetDecal->SetupAttachment(Root);
+		SheetDecal->SetMobility(EComponentMobility::Movable);
+		SheetDecal->SetVisibility(false);
+		SheetDecal->SetSortOrder(0);
+		SheetDecals.Add(SheetDecal);
+		UDecalComponent* NameDecal = CreateDefaultSubobject<UDecalComponent>(*FString::Printf(TEXT("NameDecal%d"), Slot + 1));
+		NameDecal->SetupAttachment(Root);
+		NameDecal->SetMobility(EComponentMobility::Movable);
+		NameDecal->SetVisibility(false);
+		NameDecal->SetSortOrder(1);
+		NameDecals.Add(NameDecal);
 	}
 	LayOutSheets();
 
@@ -135,7 +213,8 @@ void ABountyBoard::OnConstruction(const FTransform& Transform)
 void ABountyBoard::LayOutSheets()
 {
 	// The engine's plane faces up: turned to face the board's front (+X), its length up the face, each leaning a little as
-	// if pinned by hand; its seal near its top, a little proud of it.
+	// if pinned by hand; its seal on the ring printed for it, a little proud of it. (The plane is the plain paper shown until the
+	// art is imported; the art is a decal per sheet, below.)
 	for (int32 Slot = 0; Slot < Sheets.Num() && Slot < Seals.Num(); ++Slot)
 	{
 		const double Across = (Slot - (Sheets.Num() - 1) * 0.5) * SheetSpacing;
@@ -147,11 +226,37 @@ void ABountyBoard::LayOutSheets()
 			Sheet->SetRelativeRotation(Lean * FRotator(-90.f, 0.f, 0.f).Quaternion());
 			Sheet->SetRelativeScale3D(SheetSize / 100.0);
 		}
+		// The sheet's middle on the face, and a spot on the sheet (cm right and up) leant with it.
+		const FQuat LeanTurn(FVector::ForwardVector, FMath::DegreesToRadians(SheetLean[Slot % UE_ARRAY_COUNT(SheetLean)]));
+		const FVector Middle(FaceOffset.X, Across, FaceOffset.Z);
+		const auto OnSheet = [&](double Right, double Up) { return Middle + LeanTurn.RotateVector(FVector(0.0, -Right, Up)); };
 		if (UStaticMeshComponent* Seal = Seals[Slot])
 		{
-			Seal->SetRelativeLocation(FVector(FaceOffset.X + SheetProud + SealSize.Z * 0.5, Across, FaceOffset.Z + SealUp));
+			FVector SealAt = OnSheet(SealOffset.X, SealOffset.Y);
+			SealAt.X = FaceOffset.X + SheetProud + SealSize.Z * 0.5;
+			Seal->SetRelativeLocation(SealAt);
 			Seal->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
 			Seal->SetRelativeScale3D(SealSize / 100.0);
+		}
+		// The decals: their box from ReachIn behind the face to ReachOut before it, the picture across the other two axes
+		// (Y runs down it, Z across it: DecalTurn). The name's band is under the picture's middle.
+		const double HalfDepth = (ReachIn + ReachOut) * 0.5;
+		const double BoxX = FaceOffset.X - SurfaceBehind + (ReachOut - ReachIn) * 0.5;
+		if (SheetDecals.IsValidIndex(Slot) && SheetDecals[Slot])
+		{
+			SheetDecals[Slot]->DecalSize = FVector(HalfDepth, SheetHeight * 0.5, SheetWidth * 0.5);
+			SheetDecals[Slot]->SetRelativeLocation(FVector(BoxX, Middle.Y, Middle.Z));
+			SheetDecals[Slot]->SetRelativeRotation(LeanTurn * DecalTurn());
+			SheetDecals[Slot]->MarkRenderStateDirty();
+		}
+		if (NameDecals.IsValidIndex(Slot) && NameDecals[Slot])
+		{
+			FVector NameAt = OnSheet(0.0, -NameDown);
+			NameAt.X = BoxX;
+			NameDecals[Slot]->DecalSize = FVector(HalfDepth, NameHeight * 0.5, NameWidth * 0.5);
+			NameDecals[Slot]->SetRelativeLocation(NameAt);
+			NameDecals[Slot]->SetRelativeRotation(LeanTurn * DecalTurn());
+			NameDecals[Slot]->MarkRenderStateDirty();
 		}
 	}
 }
@@ -179,6 +284,24 @@ void ABountyBoard::BeginPlay()
 			Seals[Slot]->SetMaterial(0, Wax);
 			SealMaterials.Add(Wax);
 		}
+	}
+	// Each sheet's decals take an instance of their own, for the cell (the sheet's kind, the mark's name).
+	SheetDecalMaterials.Reset();
+	NameDecalMaterials.Reset();
+	for (int32 Slot = 0; Slot < SheetDecals.Num(); ++Slot)
+	{
+		UMaterialInstanceDynamic* SheetLook = SheetDecalBase ? UMaterialInstanceDynamic::Create(SheetDecalBase, this) : nullptr;
+		UMaterialInstanceDynamic* NameLook = NameDecalBase ? UMaterialInstanceDynamic::Create(NameDecalBase, this) : nullptr;
+		if (SheetLook)
+		{
+			SheetDecals[Slot]->SetDecalMaterial(SheetLook);
+		}
+		if (NameLook && NameDecals.IsValidIndex(Slot))
+		{
+			NameDecals[Slot]->SetDecalMaterial(NameLook);
+		}
+		SheetDecalMaterials.Add(SheetLook);
+		NameDecalMaterials.Add(NameLook);
 	}
 	// Its mark floats over the world in play (a test level has no screen to float it on).
 	UWorld* World = GetWorld();
@@ -268,8 +391,28 @@ void ABountyBoard::ShowRecord(const FBountyBoardRecord& Record, bool bOpen)
 		const FBountyPosting* Posting = Record.Slots.IsValidIndex(Slot) ? &Record.Slots[Slot] : nullptr;
 		// A posting up shows its sheet; a taken or won one is in the player's pocket.
 		const bool bUp = bOpen && Posting && Posting->IsPosting() && Posting->State == EBountyState::Posted;
-		Sheets[Slot]->SetVisibility(bUp);
+		// The art's decals when they're made, else the plain paper.
+		Sheets[Slot]->SetVisibility(bUp && !UsesDecals());
 		Seals[Slot]->SetVisibility(bUp);
+		if (SheetDecals.IsValidIndex(Slot) && SheetDecals[Slot])
+		{
+			SheetDecals[Slot]->SetVisibility(bUp && UsesDecals());
+			if (bUp && SheetDecalMaterials.IsValidIndex(Slot) && SheetDecalMaterials[Slot])
+			{
+				const FVector4 Cell = SheetCell(Posting->Kind);
+				SheetDecalMaterials[Slot]->SetVectorParameterValue(CellParameter, FLinearColor(Cell.X, Cell.Y, Cell.Z, Cell.W));
+			}
+		}
+		if (NameDecals.IsValidIndex(Slot) && NameDecals[Slot])
+		{
+			const bool bNamed = NameDecalMaterials.IsValidIndex(Slot) && NameDecalMaterials[Slot];
+			NameDecals[Slot]->SetVisibility(bUp && UsesDecals() && bNamed);
+			if (bUp && bNamed)
+			{
+				const FVector4 Cell = NameCell(Posting->Kind, Posting->NameIndex);
+				NameDecalMaterials[Slot]->SetVectorParameterValue(CellParameter, FLinearColor(Cell.X, Cell.Y, Cell.Z, Cell.W));
+			}
+		}
 		if (bUp && SealMaterials.IsValidIndex(Slot))
 		{
 			const ECreatureRank Rank = BountyRules::GetTier(Posting->Tier).MarkRank;
@@ -283,7 +426,28 @@ void ABountyBoard::ShowRecord(const FBountyBoardRecord& Record, bool bOpen)
 
 bool ABountyBoard::IsSheetShown(int32 Slot) const
 {
+	if (UsesDecals())
+	{
+		return SheetDecals.IsValidIndex(Slot) && SheetDecals[Slot] && SheetDecals[Slot]->IsVisible();
+	}
 	return Sheets.IsValidIndex(Slot) && Sheets[Slot]->IsVisible();
+}
+
+FVector4 ABountyBoard::SheetCell(FName Kind)
+{
+	const int32 Index = KindIndex(Kind);
+	const float X0 = (static_cast<float>(Index % 2) * SheetCellPx + (SheetCellPx - SheetPxW) * 0.5f) / SheetAtlas;
+	const float Y0 = (static_cast<float>(Index / 2) * SheetCellPx + (SheetCellPx - SheetPxH) * 0.5f) / SheetAtlas;
+	return FVector4(X0, Y0, X0 + SheetPxW / SheetAtlas, Y0 + SheetPxH / SheetAtlas);
+}
+
+FVector4 ABountyBoard::NameCell(FName Kind, int32 NameIndex)
+{
+	const int32 Index = KindIndex(Kind) * NamesPerKind + FMath::Clamp(NameIndex, 0, NamesPerKind - 1);
+	const int32 Columns = static_cast<int32>(NameAtlasW / NameCellW);
+	const float X0 = (static_cast<float>(Index % Columns) * NameCellW + (NameCellW - NamePxW) * 0.5f) / NameAtlasW;
+	const float Y0 = (static_cast<float>(Index / Columns) * NameCellH + (NameCellH - NamePxH) * 0.5f) / NameAtlasH;
+	return FVector4(X0, Y0, X0 + NamePxW / NameAtlasW, Y0 + NamePxH / NameAtlasH);
 }
 
 void ABountyBoard::ShowMark(EShownMark Mark)
