@@ -3,6 +3,16 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## State at 2026-10-22 noon: the queue is empty
+Done since the morning list (all committed and pushed, last 2011943): VFX-2 (fire explosions, no white-ghost kill), FP
+rifle/LMG/sniper pulled in, loot polish (element numbers, element deaths, WEAK/RESIST), hero stances + 3P aim-in +
+Gauge's head up + vent sound, bolder area tones (read from above only: suggestion "per-place ground detail"), element
+parts' own models, painted ghosts (glow fixed), Gauge enamel, Ellis value, Crane/Odessa faces + Crane hair (Odessa's
+side hair fixed), Gravemother granite, Sexton, ghost tatters/hands, smooth slime core. Next = the user's playtest and
+tuning (Looter.Fight.*, Looter.Gunfeel.*, Looter.FPHands.*, Looter.Pose.*, Looter.Element.*); open small items: Gauge's
+revolver aim splays over his pauldrons; the Rustler's orange count glow drowns its Soul-light part; Ranchhand element
+tube parts small in first person. The overnight heartbeat cron was stopped (queue empty).
+
 ## Morning of 2026-10-22: what to try first (for the user; tell them in 3 sentences)
 
 The overnight run built 12.2-12.5 (commits 4a84f74 ... d79e293). Try in this order, in Ransom's Rest (editor Play):
