@@ -90,6 +90,17 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     Run `Art/Models/Terrain/RansomsRest.py -- --macro` (artrun; ~40 min, heights untouched), then import the macro maps without the
     terrain export: a materials-only manifest (`Intermediate/ArtExport_WV_Macro/macro.json`, `"models": []`; the importer updates
     MI_<set> and re-imports a changed texture), then `build_island_scatter.py` (re-imports the scatter mask by MD5).
+  - Places at eye level (2026-10-22, the tones read only from above): layout `macro.places` layers (R town dust and ruts:
+    Main Street, yardRoad; G Sink ash and cinders; B quarry grit and chips; A coal: Diggings pads, tramway, rail bed,
+    depot) over zones, features (pads, hills, pits) and roads (`[weight, reach m]` trails a place out along a road).
+    `Art/Levels/area_places.py <Area>` (Blender's Python, 2 s, no terrain run) writes `T_<Area>Places_M` (M_Terrain's
+    PlaceMap) and `T_<Area>PlacesScatter_M` (R grass and flowers kept, G/B/A clutter). Then `build_area.py <Area> dressing`
+    (makes `MI_PlaceCinder/Chalk/Coal_Ransom`), `build_world_materials.py M_Terrain` (puts map, PlaceRect, ramps on the
+    `instances` named), `build_island_scatter.py <Area>` (thins grass, flowers, dry tufts; place clutter = PebbleCluster_A
+    and Rock_D in the place MIs; the chapel's white yarrow from `places.yarrow`), settle, save. Previews:
+    `ground_preview.py places`; eye-level tour views `Saved/GroundDetail/place_views.json`; sheet
+    `Saved/ArtPreviews/Terrain/Places_compare.png`. Perf: unchanged (RR spawn 7.7, tour worst Aerial_Dusk 8.2) only
+    because the pattern is read within 60 m and the map within 120 m; reading them everywhere cost wide views +0.3 ms.
   - Area MIs: `MI_LeavesRusset_Ransom` (Tint 3.2/1.0/0.7: the sumac red), `MI_LeavesDusty_Ransom`; a hex tint can't push past 1.
 - Path checks: `Tools/Unreal/path_probe.py <Area>` walks a player capsule down every road and ramp; `Tools/Unreal/width_probe.py`
   probes across one. Run them after cliff, dressing or scatter changes.

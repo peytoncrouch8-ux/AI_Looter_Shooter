@@ -106,3 +106,6 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-22 | PERF noon: 8 spiders in town | eea24a97 | 1920x1080 | 7.6 | 132 | 8.7 | 6.3 | 7.2 | 1.9 | 6.3 | 1786 | 1408106 | 3.56 |
 | 2026-10-22 | PERF noon: 8 Unpaid in town | eea24a97 | 1920x1080 | 7.7 | 129 | 9.4 | 7.1 | 6.5 | 2.0 | 6.3 | 1795 | 1313323 | 3.65 |
 | 2026-10-22 | PERF noon: 8 spiders + Slag Bomb every 4 s (Gauge) | eea24a97 | 1920x1080 | 7.8 | 128 | 9.4 | 6.9 | 7.1 | 1.9 | 6.4 | 1842 | 1450826 | 3.79 |
+| 2026-10-22 | GROUND-DETAIL places (M_Terrain places, clutter, yarrow), RR spawn | bc9a98cf | 1920x1080 | 8.0 | 125 | 9.1 | 6.4 | 7.8 | 2.3 | 6.6 | 1709 | 1736668 | 4.36 |
+| 2026-10-22 | GROUND-DETAIL places, place map mip by distance, RR spawn | bc9a98cf | 1920x1080 | 7.8 | 129 | 8.3 | 3.9 | 7.8 | 1.7 | 6.5 | 1708 | 1735934 | 3.64 |
+| 2026-10-22 | GROUND-DETAIL places final (pattern within 60 m, map within 120 m), RR spawn | bc9a98cf | 1920x1080 | 7.7 | 130 | 8.2 | 4.0 | 7.7 | 1.7 | 6.5 | 1709 | 1735518 | 3.74 |

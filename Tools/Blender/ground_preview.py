@@ -9,6 +9,14 @@ Writes Saved/ArtPreviews/Terrain/Ground_<Area>_<View>.png. Only the ground: it's
 and the terrain's baked occlusion is 1 (so the hollows' damp doesn't show); textures are filtered with mips and 4x
 anisotropy. What it's for: judging the layers' mix, contrast and repeats before an editor run.
 
+The places (PLACE_WEIGHTS, 2026-10-22: the town's dust, ash, quarry grit, coal; layout.json macro.places):
+
+    Tools\\artrun.ps1 -Script Tools\\Blender\\ground_preview.py -ScriptArgs places[,RansomsRest:MainStreet,...]
+
+renders PLACE_VIEWS (the tour's views standing in a place, and EXTRA_VIEWS of its own): above today's ground, below
+with the area's places (its map from Art/Levels/area_places.py), into Saved/ArtPreviews/Terrain/Place_<Area>_<View>.png.
+A split macro map (map.macroSplit) is read window by window.
+
 Steep faces (TERRAIN_CODE's steep part, STEEP_EDGE_CODE, SIDE_UV_CODE; 2026-10-14):
 
     Tools\\artrun.ps1 -Script Tools\\Blender\\ground_preview.py -ScriptArgs walls[,RansomsRest:bluffPath:16,...]
@@ -138,8 +146,10 @@ def layer_stats(name):
     return stats(s['meanLinear'] + [s['meanLuma']])
 
 
-def ground_after(C, macro, select, noise, occlusion, depth, grass, thatch, stony, rock, nG, nT, nS, nR):
-    """GROUND_WEIGHTS, then TERRAIN_CODE's ground and rock (no steep faces) and GROUND_NORMAL_CODE."""
+def ground_after(C, macro, select, noise, occlusion, depth, grass, thatch, stony, rock, nG, nT, nS, nR, places=None):
+    """GROUND_WEIGHTS, then TERRAIN_CODE's ground and rock (no steep faces) and GROUND_NORMAL_CODE; with places (a dict:
+    'w' the place map's weights times PlaceAmount, 'pat', 'na', 'nb' the GroundPlaces samples, 'v' the vectors,
+    'means'), PLACE_WEIGHTS and the places' part of them too."""
     D = C['GROUND_DEFAULTS']
     cues, cues2, damp_p, fade = (np.array(D[k], np.float32) for k in ('GroundCues', 'GroundCues2', 'GroundDamp', 'GroundFade'))
     layers, leaf_tint = np.array(D['GroundLayers'], np.float32), np.array(D['LeafTint'], np.float32)
@@ -185,14 +195,48 @@ def ground_after(C, macro, select, noise, occlusion, depth, grass, thatch, stony
     leaf_shade = 0.75 + 0.4 * np.clip((stony[..., 3] - 0.62) / 0.38, 0.0, 1.0)
     pat = pat + (leaf_tint * leaf_shade[..., None] - pat) * leaf[..., None]
     ground = macro * k[..., None] * (1.0 + (pat - 1.0) * fd[..., None]) * (1.0 + (damp_p[2] - 1.0) * damp)[..., None]
-    old = grass[..., :3] + (rock[..., :3] - grass[..., :3]) * select[..., None]
-    rock_color = macro * (1.0 + (luma(old) / np.maximum(0.3 + 0.05 * select, 0.05) - 1.0) * 0.6)[..., None]
-    color = ground + (rock_color - ground) * rock_amt[..., None]
     n = wt[..., 0:1] * nG + wt[..., 1:2] * nT + wt[..., 2:3] * nS
     up = np.array([0.0, 0.0, 1.0], np.float32)
     n = n + (up - n) * np.clip(leaf * 0.8 + damp * 0.5, 0.0, 1.0)[..., None]
+    if places is not None:
+        ground, n = place_ground(C, places, ground, n, macro, k, h, noise, rock_amt, fd, damp, damp_p, depth)
+    old = grass[..., :3] + (rock[..., :3] - grass[..., :3]) * select[..., None]
+    rock_color = macro * (1.0 + (luma(old) / np.maximum(0.3 + 0.05 * select, 0.05) - 1.0) * 0.6)[..., None]
+    color = ground + (rock_color - ground) * rock_amt[..., None]
     n = n + (nR - n) * rock_amt[..., None]
     return color, n, wt, damp, leaf
+
+
+def place_ground(C, places, ground, n, macro, k, h, noise, rock_amt, fd, damp, damp_p, depth):
+    """PLACE_WEIGHTS and the places' part of TERRAIN_CODE and GROUND_NORMAL_CODE (n in 0..1, as the maps)."""
+    v = places['v']
+    cues = np.array(v['PlaceCues'], np.float32)
+    w = places['w']
+    total = w.sum(-1)
+    psum = np.minimum(total, 1.0)
+    pv = w / np.maximum(total, 1e-4)[..., None]
+    pe = psum + ((noise[..., 0] - 0.5) * cues[0] - (h - 0.45) * cues[1]) * 4.0 * psum * (1.0 - psum)
+    pw = np.clip(pe, 0.0, 1.0) * (1.0 - rock_amt)
+    pw = pw * (1.0 - cues[3] * ss(0.55, 0.85, h))
+    pp = (pv * places['pat']).sum(-1)
+    pm = (pv * places['means']).sum(-1)
+    near = 1.0 - ss(4000.0, 6000.0, depth)     # PNear: the pattern read only within 60 m
+    pp = pm + (pp - pm) * fd * near
+    names = C['PLACES']
+    dark = sum(pv[..., i:i + 1] * np.array(v[f'Place{p}Dark'], np.float32) for i, p in enumerate(names))
+    light = sum(pv[..., i:i + 1] * np.array(v[f'Place{p}Light'][:3], np.float32) for i, p in enumerate(names))
+    own3 = dark[..., :3] + (light - dark[..., :3]) * pp[..., None]
+    mean3 = dark[..., :3] + (light - dark[..., :3]) * pm[..., None]
+    from_macro = macro * k[..., None] * own3 / np.maximum(mean3, 0.004)
+    place = (from_macro + (own3 - from_macro) * dark[..., 3:4]) * (1.0 + (damp_p[2] - 1.0) * damp * 0.5)[..., None]
+    ground = ground + (place - ground) * pw[..., None]
+    na, nb = places['na'], places['nb']
+    xy = (pv[..., 0:1] * na[..., 0:2] + pv[..., 1:2] * na[..., 2:4] + pv[..., 2:3] * nb[..., 0:2]
+          + pv[..., 3:4] * nb[..., 2:4]) * 2.0 - 1.0
+    z = np.sqrt(np.clip(1.0 - (xy * xy).sum(-1, keepdims=True), 0.0, 1.0))
+    pn = np.concatenate([xy, z], -1) * 0.5 + 0.5
+    n = n + (pn - n) * (pw * near)[..., None]
+    return ground, n
 
 
 def ground_before(macro, select, grass, rock, nG, nR):
@@ -227,18 +271,75 @@ def write_png(path, rgb):
     bpy.data.images.remove(image)
 
 
-def render(C, area, view_name, tex):
+def macro_at(computed, X, Y, tex):
+    """The macro map (linear RGB, alpha) under world points X, Y (meters): a split map's window under each (a window's
+    UV 0: U = (Y - its Y0) / its side, V up from its south edge), else the one map over the square. Windows are loaded
+    as needed (four 4096 px maps would take a gigabyte), and dropped when another is loaded."""
+    m = computed['macroMap']
+    windows = m.get('windows') or [dict(texture=m['texture'], covers=m['covers'])]
+    out = np.zeros(X.shape + (4,), np.float32)
+    for w in windows:
+        (x0, y0), (x1, y1) = w['covers']
+        inside = (X * 100.0 >= x0) & (X * 100.0 < x1) & (Y * 100.0 >= y0) & (Y * 100.0 < y1)
+        if not inside.any():
+            continue
+        path = os.path.join(REPO, *w['texture'].split('/'))
+        if path not in tex:
+            for key in [k for k in tex if isinstance(k, str) and k.endswith('_BC.png') and 'Macro' in k]:
+                del tex[key]
+            tex[path] = load(path, True)
+        a = tex[path]
+        n = a.shape[0]
+        out[inside] = bilinear(a, (Y[inside] * 100.0 - y0) / (y1 - y0) * n - 0.5,
+                               (x1 - X[inside] * 100.0) / (x1 - x0) * n - 0.5, wrap=False)
+    return out
+
+
+# The places' eye-level views (2026-10-22, `places`): the tour's where one stands in a place, and a few of the
+# preview's own (x, y cm, yaw degrees as views.json).
+PLACE_VIEWS = ('RansomsRest:MainStreet', 'RansomsRest:SinkFloor', 'RansomsRest:Depot', 'RansomsRest:Diggings',
+               'RansomsRest:QuarryFloor', 'RansomsRest:QuarryTrack', 'RansomsRest:TownGate', 'RansomsRest:PortalApron')
+EXTRA_VIEWS = {'RansomsRest': {'QuarryFloor': dict(x=9500, y=800, yaw=60.0),
+                               'QuarryTrack': dict(x=7400, y=1300, yaw=10.0),
+                               'TownGate': dict(x=0, y=-2600, yaw=90.0),
+                               'PortalApron': dict(x=21000, y=6600, yaw=20.0)}}
+
+
+def place_inputs(C, area, X, Y, u1, v1, noise, tex, depth):
+    """The places' inputs for ground_after at world points X, Y (meters): None when the area has none."""
+    with open(os.path.join(REPO, 'Art', 'Levels', area, 'layout.json'), encoding='utf-8') as f:
+        layout = json.load(f)
+    spec = layout.get('macro', {}).get('places')
+    path = os.path.join(TEXTURES, f'{area}Places', f'T_{area}Places_M.png')
+    if not spec or not os.path.exists(path):
+        return None
+    if path not in tex:
+        tex[path] = load(path, False)
+    pmap = tex[path]
+    half = layout['map']['half'] / 100.0
+    n = pmap.shape[0]
+    w = bilinear(pmap, (Y + half) / (2 * half) * n - 0.5, (half - X) / (2 * half) * n - 0.5, wrap=False)
+    w = np.clip((w - 0.004) / 0.996, 0.0, 1.0) * float(spec.get('amount', 1.0))
+    w = w * (1.0 - ss(9000.0, 12000.0, depth))[..., None]   # past 120 m the macro map carries the places
+    v = C['place_vectors'](spec)
+    tile = float(v['PlaceCues'][2])
+    slide = (noise[..., 3] - 0.5) * 1.4 * C['GROUND_DEFAULTS']['GroundWarp'] / tile
+    pu, pv = u1 / tile + slide + 0.71, v1 / tile + slide + 0.13
+    with open(os.path.join(TEXTURES, 'GroundPlaces', 'T_GroundPlaces_stats.json')) as f:
+        means = np.array(json.load(f)['meanPattern'], np.float32)
+    return dict(w=w, v=v, means=means, pat=sample(tex['PlaceM'], pu, pv), na=sample(tex['PlaceNA'], pu, pv),
+                nb=sample(tex['PlaceNB'], pu, pv))
+
+
+def render(C, area, view_name, tex, places=False):
+    """One view at eye height: before above, after below. With places: above today's ground (the layers), below with
+    the area's places (PLACE_WEIGHTS)."""
     with open(os.path.join(REPO, 'Art', 'Levels', area, 'views.json')) as f:
         views = {v['name']: v for v in json.load(f)['views']}
+    views.update(EXTRA_VIEWS.get(area, {}))
     with open(os.path.join(REPO, 'Art', 'Levels', area, 'layout_computed.json')) as f:
         computed = json.load(f)
     view = views[view_name]
-    (x0, _), (x1, _) = computed['macroMap']['covers']
-    half = (x1 - x0) / 200.0
-    macro_file = os.path.join(REPO, *computed['macroMap']['texture'].split('/'))
-    if macro_file not in tex:
-        tex[macro_file] = load(macro_file, True)
-    macro_map = tex[macro_file]
     yaw, pitch = math.radians(view['yaw']), math.radians(PITCH)
     f = (WIDTH * 0.5) / math.tan(math.radians(FOV) * 0.5)
     jj, ii = np.meshgrid(np.arange(WIDTH, dtype=np.float32), np.arange(HEIGHT, dtype=np.float32))
@@ -253,8 +354,7 @@ def render(C, area, view_name, tex):
     X = view['x'] / 100.0 + t * d[..., 0]
     Y = view['y'] / 100.0 + t * d[..., 1]
     depth = t * 100.0
-    n = macro_map.shape[0]
-    m = bilinear(macro_map, (Y + half) / (2 * half) * n - 0.5, (half - X) / (2 * half) * n - 0.5, wrap=False)
+    m = macro_at(computed, X, Y, tex)
     macro, select = m[..., :3], m[..., 3]
     D = C['GROUND_DEFAULTS']
     u1, v1 = Y, -X
@@ -279,13 +379,24 @@ def render(C, area, view_name, tex):
         az, el, sun_color, sky_color = 230.0, 35.0, (2.9, 2.6, 2.2), (0.42, 0.5, 0.66)
     sun = np.array([math.cos(math.radians(el)) * math.cos(math.radians(az)),
                     math.cos(math.radians(el)) * math.sin(math.radians(az)), math.sin(math.radians(el))], np.float32)
-    before, nb = ground_before(macro, select, grass, rock, grass_n[..., :3], rock_n[..., :3])
-    after, na, wt, damp, leaf = ground_after(C, macro, select, noise, occlusion, depth, grass, thatch, stony, rock,
-                                             grass_n[..., :3], thatch_n[..., :3], stony_n[..., :3], rock_n[..., :3])
+    maps = (grass_n[..., :3], thatch_n[..., :3], stony_n[..., :3], rock_n[..., :3])
+    if places:
+        place = place_inputs(C, area, X, Y, u1, v1, noise, tex, depth)
+        before, nb, _, _, _ = ground_after(C, macro, select, noise, occlusion, depth, grass, thatch, stony, rock, *maps)
+        after, na, wt, damp, leaf = ground_after(C, macro, select, noise, occlusion, depth, grass, thatch, stony, rock,
+                                                 *maps, places=place)
+        if place is not None:
+            share = place['w'].max(-1)[~sky]
+            print(f'LOOTER: {area} {view_name}: place weight over half on {(share > 0.5).mean():.0%} of the ground',
+                  flush=True)
+    else:
+        before, nb = ground_before(macro, select, grass, rock, grass_n[..., :3], rock_n[..., :3])
+        after, na, wt, damp, leaf = ground_after(C, macro, select, noise, occlusion, depth, grass, thatch, stony, rock,
+                                                 *maps)
     top = shade_and_tonemap(before, nb, sky, sun, sun_color, sky_color)
     bottom = shade_and_tonemap(after, na, sky, sun, sun_color, sky_color)
     os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, f'Ground_{area}_{view_name.replace(" ", "")}.png')
+    path = os.path.join(OUT, f'{"Place" if places else "Ground"}_{area}_{view_name.replace(" ", "")}.png')
     gap = np.ones((6, WIDTH, 3), np.float32)
     write_png(path, np.concatenate([top, gap, bottom], 0))
     ground = ~sky
@@ -545,8 +656,13 @@ def main():
     walls = 'walls' in wanted
     if walls:
         wanted = [w for w in wanted if w != 'walls'] or list(WALLS)
+    places = 'places' in wanted
+    if places:
+        wanted = [w for w in wanted if w != 'places'] or list(PLACE_VIEWS)
     C = material_constants()
     tex = {}
+    for key, kind in (('PlaceM', 'M'), ('PlaceNA', 'NA'), ('PlaceNB', 'NB')):
+        tex[key] = mips(load(os.path.join(TEXTURES, 'GroundPlaces', f'T_GroundPlaces_{kind}.png'), False))
     for key, set_name, kind, srgb in (('GrassBC', 'GroundGrass', 'BC', True), ('GrassN', 'GroundGrass', 'N', False),
                                       ('RockBC', 'RockCliff', 'BC', True), ('RockN', 'RockCliff', 'N', False),
                                       ('ThatchBC', 'GroundThatch', 'BC', True), ('ThatchN', 'GroundThatch', 'N', False),
@@ -558,7 +674,7 @@ def main():
             wall(C, item, tex)
             continue
         area, view = item.split(':', 1)
-        render(C, area, view, tex)
+        render(C, area, view, tex, places)
 
 
 main()

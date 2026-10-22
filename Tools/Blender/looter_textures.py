@@ -2551,6 +2551,291 @@ def make_ground_noise():
     _log(f'GroundNoise: {size} x {size} written')
 
 
+# --- M_Terrain's places (2026-10-22, the user: the world looks samey; the macro tones read only from above) ---
+# Each place's own ground at eye level: the town's red-ochre street dust with wheel ruts, hoof and boot prints; the
+# Sink's ash with black cinders; the quarry's pale limestone grit and chips; the mine's coal dust and lumps. Four
+# patterns packed in one tile (PLACES_TILE_M a repeat, on UV 1 at M_Terrain's PlaceCues.z): T_GroundPlaces_M holds each
+# place's ramp position (0 its PlaceDark colour .. 1 its PlaceLight; linear, R dust, G ash, B grit, A coal), _NA and _NB
+# their normals' x and y (DirectX, as normal_map writes: NA dust RG, ash BA; NB grit RG, coal BA; M_Terrain rebuilds z).
+# The colours are the area's (layout.json macro.places), so one tile serves any area's places.
+PLACES_TILE_M = 3.6     # meters a repeat (not the thatch's 3.2 or the stony ground's 2.8: no repeat lines up)
+PLACES = ('dust', 'ash', 'grit', 'coal')
+
+
+def _stamp(field, x, y, value):
+    """Lowers field (H, W) to value at pixel points (x, y) where value is lower (prints pressed into the ground)."""
+    h, w = field.shape
+    np.minimum.at(field, (np.floor(y).astype(np.int64) % h, np.floor(x).astype(np.int64) % w), value.astype(np.float32))
+
+
+def _wavy(width, seed, amplitudes, harmonics):
+    """A tileable wobble along x (width px): sines at whole harmonics plus a little tileable noise, px."""
+    rng = np.random.default_rng(seed)
+    x = np.arange(width, dtype=np.float32)
+    out = np.zeros(width, np.float32)
+    for amp, k in zip(amplitudes, harmonics):
+        out += amp * np.sin(2.0 * np.pi * k * x / width + rng.uniform(0.0, 2.0 * np.pi))
+    return out + 2.0 * noise((1, width), seed + 1, 18.0, 1.0)[0]
+
+
+def _chips(canvas, rng, cx, cy, radius, tone, px_m, ground, sides=(4, 7), tilt=0.35, sink=0.35):
+    """Angular chips (limestone flakes, coal lumps) at (cx, cy) px: each a convex polygon of a few sides turned its own
+    way, a flat face tilted a little (so each catches the light its own way), sunk `sink` of its height into `ground`.
+    tone: each chip's ramp value; the faces' slope shades it a little. Paints `p` and the canvas height."""
+    n = len(cx)
+    reach = (radius * 1.3).astype(np.float32)
+    x, y, i, _ = disc_points(cx.astype(np.float32), cy.astype(np.float32), reach)
+    ox, oy = x - cx[i], y - cy[i]
+    count = rng.integers(sides[0], sides[1] + 1, n)
+    turn = rng.uniform(0.0, 2.0 * np.pi, n).astype(np.float32)
+    squash = rng.uniform(0.55, 1.0, n).astype(np.float32)
+    # Distance to the polygon's sides, as a share of its radius: the largest projection on the sides' normals.
+    poly = np.zeros(len(x), np.float32)
+    for k in range(sides[1]):
+        a = turn[i] + 2.0 * np.pi * k / count[i] + rng.uniform(-0.25, 0.25, n).astype(np.float32)[i]
+        on = (k < count[i]).astype(np.float32)
+        poly = np.maximum(poly, on * (ox * np.cos(a) + oy * np.sin(a) / squash[i]) / radius[i])
+    keep = poly <= 1.0
+    x, y, i, ox, oy, poly = x[keep], y[keep], i[keep], ox[keep], oy[keep], poly[keep]
+    gx, gy = rng.normal(0.0, tilt, n).astype(np.float32), rng.normal(0.0, tilt, n).astype(np.float32)
+    tall = radius * px_m * 0.5
+    bevel = 1.0 - smooth(0.82, 1.0, poly)
+    depth = _at(ground, x, y) + tall[i] * (1.0 - sink) * (0.55 + 0.45 * bevel) + (ox * gx[i] + oy * gy[i]) * px_m * 0.5
+    shade = np.clip(1.0 + 0.6 * (-gx[i] * 0.6 + gy[i] * 0.5), 0.75, 1.2) * (0.8 + 0.2 * bevel)
+    canvas.paint(x, y, depth, p=np.clip(tone[i] * shade, 0.0, 1.0))
+
+
+def _place_dust(shape, px_m, rng):
+    """The town's street: fine red-ochre dust, two wagons' wheel ruts along U (Main Street and the rail bed run along
+    world Y, which UV 1's U follows) wandering a little, compacted dark in the groove with loose dust banked either side,
+    hoof prints down the middle of each pair, boot prints, a few pebbles, a faint crust cracked in patches."""
+    h, w = shape
+    x, y = coords(shape)
+    p = 0.62 + 0.07 * noise(shape, 401, 70.0, 70.0, octaves=2) + 0.035 * noise(shape, 402, 1.2, 1.2)
+    height = 0.0016 * noise(shape, 403, 30.0, 30.0, octaves=3) + 0.0003 * noise(shape, 404, 1.5, 1.5)
+    # Loose grit in the dust: specks a shade lighter and darker.
+    speck = noise(shape, 405, 0.7, 0.7)
+    p = p + 0.08 * smooth(1.6, 2.4, speck) - 0.08 * smooth(-1.6, -2.4, speck)
+    gauge = 1.45 / px_m        # a wagon's wheels apart
+    lanes = []
+    for k, (start, strength) in enumerate(((0.12, 1.0), (0.6, 0.3))):
+        for side in (0.0, gauge):
+            centre = start * h + side + _wavy(w, 410 + 7 * k, (10.0, 4.0), (1, 3))
+            depth = strength * (0.6 + 0.4 * smooth(-1.0, 1.0, noise((1, w), 420 + k, 60.0, 1.0)[0]))
+            lanes.append((centre, depth, 0.0))
+        mid = start * h + gauge * 0.5 + _wavy(w, 430 + k, (14.0,), (2,))
+        lanes.append((mid, None, strength))   # the horses' lane between the wheels: hoof prints, no groove
+    rut, berm = np.zeros(shape, np.float32), np.zeros(shape, np.float32)
+    for centre, depth, _ in lanes:
+        if depth is None:
+            continue
+        d = np.mod(y - centre[None, :] + h / 2.0, h) - h / 2.0
+        width = 13.0
+        rut = np.maximum(rut, depth[None, :] * np.exp(-(d / width) ** 2))
+        berm = np.maximum(berm, depth[None, :] * np.exp(-((np.abs(d) - 2.3 * width) / (1.1 * width)) ** 2))
+    height += -0.007 * rut + 0.0022 * berm
+    p = p - 0.22 * rut + 0.08 * berm
+    # Prints: hoof crescents along the horses' lanes, boot soles and heels anywhere, pressed into their own field and
+    # softened (dust slumps into a print's edge), so they read as hollows, not drawn outlines.
+    prints = np.zeros(shape, np.float32)
+    for centre, depth, hooves in lanes:
+        if depth is not None:
+            continue
+        count = int(70 * hooves)
+        hx = rng.uniform(0, w, count).astype(np.float32)
+        hy = (centre[hx.astype(np.int64) % w] + rng.normal(0.0, 0.18 / px_m, count)).astype(np.float32)
+        r = rng.uniform(15.0, 19.0, count).astype(np.float32)
+        px_, py_, i, rr = disc_points(hx, hy, r)
+        ang = np.arctan2(py_ - hy[i], px_ - hx[i]) - (np.pi * (rng.random(count) < 0.5))[i]
+        # A hoof's print: pressed deepest at the toe, the frog's notch open at the heel.
+        hoof = ~((np.cos(ang) < -0.55) & (np.abs(np.sin(ang)) < 0.5) & (rr > 0.25))
+        press = 0.0045 * hooves * (0.75 + 0.25 * np.cos(ang[hoof]) * rr[hoof])
+        _stamp(prints, px_[hoof], py_[hoof], -press)
+    count = 34
+    bx, by = rng.uniform(0, w, count).astype(np.float32), rng.uniform(0, h, count).astype(np.float32)
+    heading = rng.uniform(0.0, 2.0 * np.pi, count).astype(np.float32)
+    for part, (along, half_len, half_wide) in enumerate(((0.0, 34.0, 14.0), (-48.0, 13.0, 12.0))):
+        cx = bx + np.cos(heading) * along
+        cy = by + np.sin(heading) * along
+        px_, py_, i, _ = disc_points(cx, cy, np.full(count, half_len, np.float32))
+        u = ((px_ - cx[i]) * np.cos(heading[i]) + (py_ - cy[i]) * np.sin(heading[i])) / half_len
+        v = (-(px_ - cx[i]) * np.sin(heading[i]) + (py_ - cy[i]) * np.cos(heading[i])) / half_wide
+        inside = u * u + v * v <= 1.0
+        tread = 0.0006 * (np.sin(u[inside] * 18.0) > 0.3)
+        _stamp(prints, px_[inside], py_[inside], -0.0025 - tread)
+    # The prints' floors are packed darker; the dust kicked up round them lighter (from the height left after them).
+    prints = blur(prints, 2.0)
+    height = height + prints
+    pressed = smooth(0.0, 0.0025, -prints)
+    p = p - 0.12 * pressed
+    canvas = Canvas(shape, 0.0, p=p)
+    canvas.top[:] = height.ravel()
+    # A few pebbles (pale and dark) half sunk, and dried crust cracking in patches off the ruts.
+    for count, rmin, rmax in ((260, 2.0, 5.0), (40, 5.0, 11.0)):
+        cx, cy = rng.uniform(0, w, count).astype(np.float32), rng.uniform(0, h, count).astype(np.float32)
+        radius = rng.uniform(rmin, rmax, count).astype(np.float32)
+        tone = np.where(rng.random(count) < 0.5, rng.uniform(0.25, 0.4, count), rng.uniform(0.8, 0.95, count))
+        _chips(canvas, rng, cx, cy, radius, tone.astype(np.float32), px_m, height, sides=(5, 7), tilt=0.2, sink=0.5)
+    # Dung dropped down the horses' lanes, and straw blown in.
+    mids = [c for c, d, _ in lanes if d is None]
+    count = 10
+    cx = rng.uniform(0, w, count).astype(np.float32)
+    cy = np.array([mids[k % len(mids)][int(v) % w] for k, v in enumerate(cx)], np.float32) + rng.normal(0, 20.0, count)
+    _chips(canvas, rng, cx, cy.astype(np.float32), rng.uniform(9.0, 15.0, count).astype(np.float32),
+           rng.uniform(0.08, 0.16, count).astype(np.float32), px_m, height, sides=(8, 9), tilt=0.15, sink=0.2)
+    count = 70
+    x1, y1, t, i, across = stroke_points(rng.uniform(0, w, count).astype(np.float32),
+                                         rng.uniform(0, h, count).astype(np.float32),
+                                         rng.uniform(0, 2 * np.pi, count).astype(np.float32),
+                                         rng.uniform(15.0, 45.0, count).astype(np.float32),
+                                         np.full(count, 1.8, np.float32), taper=0.4)
+    canvas.paint(x1, y1, _at(height, x1, y1) + 0.0008, p=np.full(len(t), 0.92, np.float32))
+    p, height = canvas.get('p'), canvas.height()
+    # Trampled patches packed a little darker.
+    p = p - 0.06 * smooth(0.2, 1.2, noise(shape, 444, 35.0, 35.0, octaves=2))
+    crust = smooth(0.3, 0.9, noise(shape, 440, 90.0, 90.0, octaves=2)) * (1.0 - smooth(0.1, 0.4, rut))
+    cells = worley(shape, (18, 18), 441, x=x + 5.0 * noise(shape, 442, 8.0, 8.0), y=y + 5.0 * noise(shape, 443, 8.0, 8.0))
+    crack = (1.0 - smooth(0.2, 1.3, cells['edge'])) * crust
+    height -= 0.0012 * crack
+    p = p - 0.18 * crack + 0.04 * crust
+    return p, height
+
+
+def _place_ash(shape, px_m, rng):
+    """The Sink's floor: soft pale ash in drifts, greyer where it's packed or damp, black cinders (clinkers: porous lumps
+    from a few mm to 6 cm) gathered in drifts, charred twigs, bone-white flecks."""
+    h, w = shape
+    drift = noise(shape, 451, 80.0, 80.0, octaves=2)
+    p = 0.74 + 0.06 * drift + 0.04 * noise(shape, 452, 1.0, 1.0)
+    packed = smooth(0.4, 1.4, noise(shape, 453, 60.0, 60.0, octaves=2))
+    p = p - 0.2 * packed
+    height = 0.003 * drift + 0.0008 * noise(shape, 454, 8.0, 8.0, octaves=2) - 0.001 * packed
+    canvas = Canvas(shape, 0.0, p=p)
+    canvas.top[:] = height.ravel()
+    gather = smooth(-0.6, 1.0, noise(shape, 455, 50.0, 50.0, octaves=2))
+    pores = noise(shape, 456, 0.9, 0.9)
+    for count, rmin, rmax, floor, sink in ((1300, 2.5, 5.0, 0.1, 0.3), (420, 5.0, 11.0, 0.05, 0.35),
+                                           (70, 11.0, 22.0, 0.0, 0.45)):
+        cx, cy = rng.uniform(0, w, count).astype(np.float32), rng.uniform(0, h, count).astype(np.float32)
+        keep = rng.random(count) < floor + (1.0 - floor) * _at(gather, cx, cy)
+        cx, cy = cx[keep], cy[keep]
+        radius = (rmin + (rmax - rmin) * rng.random(len(cx)) ** 1.6).astype(np.float32)
+        tone = rng.uniform(0.03, 0.16, len(cx)).astype(np.float32)
+        _chips(canvas, rng, cx, cy, radius, tone, px_m, height, sides=(6, 9), tilt=0.45, sink=sink)
+    p, height = canvas.get('p'), canvas.height()
+    # Porous clinker: pits in the black lumps, a little lighter on the pits' rims.
+    clinker = (p < 0.25).astype(np.float32)
+    p = np.clip(p + clinker * (0.06 * pores - 0.03), 0.0, 1.0)
+    height = height - 0.0004 * np.clip(pores, 0.0, None) * clinker
+    canvas = Canvas(shape, 0.0, p=p)
+    canvas.top[:] = height.ravel()
+    # Charred twigs and bone-white flecks lying on the ash.
+    count = 26
+    x1, y1, t, i, across = stroke_points(rng.uniform(0, w, count).astype(np.float32),
+                                         rng.uniform(0, h, count).astype(np.float32),
+                                         rng.uniform(0, 2 * np.pi, count).astype(np.float32),
+                                         rng.uniform(30.0, 90.0, count).astype(np.float32),
+                                         rng.uniform(3.5, 6.0, count).astype(np.float32),
+                                         rng.normal(0.0, 0.08, count).astype(np.float32), taper=0.35)
+    round_ = np.sqrt(np.clip(1.0 - across ** 2, 0.0, 1.0))
+    canvas.paint(x1, y1, _at(height, x1, y1) + 0.0015 * round_, p=0.06 + 0.1 * round_)
+    count = 220
+    fx, fy, i, r = disc_points(rng.uniform(0, w, count).astype(np.float32), rng.uniform(0, h, count).astype(np.float32),
+                               rng.uniform(1.0, 2.6, count).astype(np.float32))
+    canvas.paint(fx, fy, _at(height, fx, fy) + 0.0006 * (1.0 - r), p=np.full(len(r), 0.97, np.float32))
+    return canvas.get('p'), canvas.height()
+
+
+def _place_grit(shape, px_m, rng):
+    """The Old Quarry's floor: pale limestone dust and grit, angular chips from a few mm to a hand's width lying every
+    way (each face tilted, so they sparkle light and dark), a few slabby flakes, grey dust in the hollows."""
+    h, w = shape
+    p = 0.8 + 0.05 * noise(shape, 461, 50.0, 50.0, octaves=2) + 0.05 * noise(shape, 462, 0.8, 0.8)
+    hollow = smooth(0.5, 1.5, noise(shape, 463, 70.0, 70.0, octaves=2))
+    p = p - 0.16 * hollow
+    height = 0.0015 * noise(shape, 464, 25.0, 25.0, octaves=3) - 0.0015 * hollow
+    canvas = Canvas(shape, 0.0, p=p)
+    canvas.top[:] = height.ravel()
+    gather = smooth(-0.8, 1.0, noise(shape, 465, 45.0, 45.0, octaves=2))
+    for count, rmin, rmax, floor in ((7000, 1.5, 4.0, 0.4), (1500, 4.0, 10.0, 0.3), (220, 10.0, 24.0, 0.2),
+                                     (14, 26.0, 42.0, 1.0)):
+        cx, cy = rng.uniform(0, w, count).astype(np.float32), rng.uniform(0, h, count).astype(np.float32)
+        keep = rng.random(count) < floor + (1.0 - floor) * _at(gather, cx, cy)
+        cx, cy = cx[keep], cy[keep]
+        radius = (rmin + (rmax - rmin) * rng.random(len(cx)) ** 1.8).astype(np.float32)
+        grey = rng.random(len(cx)) < 0.25
+        tone = np.where(grey, rng.uniform(0.5, 0.65, len(cx)), rng.uniform(0.78, 0.97, len(cx))).astype(np.float32)
+        _chips(canvas, rng, cx, cy, radius, tone, px_m, height, sides=(3, 6), tilt=0.4, sink=0.3)
+    return canvas.get('p'), canvas.height()
+
+
+def _place_coal(shape, px_m, rng):
+    """The diggings' ground: black coal dust over trodden spoil (dull grey-brown showing through in patches), faceted
+    coal lumps that catch the light (M_Terrain makes the high values glossy), fine coal grit."""
+    h, w = shape
+    spoil = smooth(0.3, 1.3, noise(shape, 471, 70.0, 70.0, octaves=2))
+    p = 0.12 + 0.04 * noise(shape, 472, 1.0, 1.0) + 0.18 * spoil
+    height = 0.0015 * noise(shape, 473, 25.0, 25.0, octaves=3) + 0.0004 * noise(shape, 474, 2.0, 2.0)
+    canvas = Canvas(shape, 0.0, p=p)
+    canvas.top[:] = height.ravel()
+    gather = smooth(-0.7, 1.0, noise(shape, 475, 50.0, 50.0, octaves=2))
+    for count, rmin, rmax, floor in ((5000, 1.5, 4.0, 0.35), (900, 4.0, 10.0, 0.25), (140, 10.0, 22.0, 0.15),
+                                     (10, 22.0, 34.0, 1.0)):
+        cx, cy = rng.uniform(0, w, count).astype(np.float32), rng.uniform(0, h, count).astype(np.float32)
+        keep = rng.random(count) < floor + (1.0 - floor) * _at(gather, cx, cy)
+        cx, cy = cx[keep], cy[keep]
+        radius = (rmin + (rmax - rmin) * rng.random(len(cx)) ** 1.8).astype(np.float32)
+        tone = rng.uniform(0.45, 0.85, len(cx)).astype(np.float32)
+        _chips(canvas, rng, cx, cy, radius, tone, px_m, height, sides=(4, 7), tilt=0.55, sink=0.3)
+    return canvas.get('p'), canvas.height()
+
+
+@generator('GroundPlaces')
+def make_ground_places():
+    """The places' four patterns packed (see PLACES_TILE_M): T_GroundPlaces_M, _NA, _NB, T_GroundPlaces_stats.json (each
+    pattern's mean, which M_Terrain's PlaceMeans takes), T_GroundPlacesNone_M (4 px of nothing: M_Terrain's default
+    PlaceMap) and a quick look of each in a stand-in ramp (Saved/ArtPreviews/Terrain/GroundPlaces_look.png). 1024 px
+    over 3.6 m. Every 8-bit value is at least 1: Unreal's PNG import fills the colour under a zero alpha (its infill)."""
+    import json
+    shape = (TILE, TILE)
+    px_m = PLACES_TILE_M / TILE
+    makers = {'dust': _place_dust, 'ash': _place_ash, 'grit': _place_grit, 'coal': _place_coal}
+    patterns, normals = [], []
+    for k, name in enumerate(PLACES):
+        p, height = makers[name](shape, px_m, np.random.default_rng(500 + k))
+        ao = occlusion(height, px_m, (2, 5, 12), 1.2)
+        p = np.clip(p * (0.62 + 0.38 * ao), 0.0, 1.0)
+        patterns.append(p)
+        normals.append(normal_map(height, px_m, 1.0))
+        _log(f'GroundPlaces {name}: mean {float(p.mean()):.3f}, spread {float(p.std()):.3f}')
+    folder = os.path.join(TEXTURE_DIR, 'GroundPlaces')
+    floor1 = lambda a: np.maximum(a, 1).astype(np.uint8)  # noqa: E731
+    write_png(os.path.join(folder, 'T_GroundPlaces_M.png'), floor1(to8(np.stack(patterns, axis=-1))))
+    write_png(os.path.join(folder, 'T_GroundPlaces_NA.png'),
+              floor1(np.concatenate([normals[0][..., :2], normals[1][..., :2]], axis=-1)))
+    write_png(os.path.join(folder, 'T_GroundPlaces_NB.png'),
+              floor1(np.concatenate([normals[2][..., :2], normals[3][..., :2]], axis=-1)))
+    write_png(os.path.join(folder, 'T_GroundPlacesNone_M.png'), np.ones((4, 4, 4), np.uint8))
+    means = [round(float(np.maximum(to8(p), 1).astype(np.float32).mean() / 255.0), 5) for p in patterns]
+    with open(os.path.join(folder, 'T_GroundPlaces_stats.json'), 'w', newline='\n') as f:
+        json.dump({'about': 'Each place pattern\'s mean (linear 0..1, as Unreal samples T_GroundPlaces_M: R dust, G ash, '
+                            'B grit, A coal); M_Terrain\'s PlaceMeans (Tools/Unreal/build_world_materials.py reads it).',
+                   'places': list(PLACES), 'meanPattern': means, 'tileMeters': PLACES_TILE_M}, f, indent=1)
+        f.write('\n')
+    # A quick look: each place in a stand-in ramp, lit from the upper left by its normal map.
+    ramps = {'dust': (0x6e432a, 0xc99a6c), 'ash': (0x1c1a19, 0xb3aea6), 'grit': (0x7a7366, 0xd9d1bf),
+             'coal': (0x121110, 0x6b665e)}
+    panels = []
+    for name, p, n in zip(PLACES, patterns, normals):
+        dark, light = (rgb(c) for c in ramps[name])
+        color = mix(dark, light, p)
+        nv = n.astype(np.float32) / 255.0 * 2.0 - 1.0
+        lit = np.clip(nv @ np.array([-0.45, -0.5, 0.74], np.float32), 0.0, 1.0) * 0.85 + 0.25
+        panels.append(to8(np.clip(color * lit[..., None], 0.0, 1.0))[::2, ::2])
+    write_png(os.path.join(PREVIEW_DIR, 'Terrain', 'GroundPlaces_look.png'), np.concatenate(panels, axis=1))
+    _log(f'GroundPlaces: {TILE} x {TILE} written, means {means}')
+
+
 def _layers(size, seed, thickness):
     """Horizontal layers around a loop of size px: per row, the layer index and the position within it (0 top ..
     1 bottom); thickness = (min, max) px."""

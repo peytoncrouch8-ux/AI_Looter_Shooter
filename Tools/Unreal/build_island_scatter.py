@@ -101,6 +101,15 @@ class Area:
                 xs, ys = [p[0] for p in zone['polygon']], [p[1] for p in zone['polygon']]
                 self.pines_only.append(((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0, 0.0,
                                         (max(ys) - min(ys)) / 2.0, (max(xs) - min(xs)) / 2.0, False))
+        # Each place's own ground (layout.json macro.places, 2026-10-22; Art/Levels/area_places.py): its scatter map
+        # (R the grass and flowers kept, G cinders, B quarry chips, A coal lumps), the yarrow's zones and the roads it
+        # keeps off. None without places, or before the map is made.
+        self.places = layout.get('macro', {}).get('places')
+        self.places_mask = f'Art/Textures/{name}Places/T_{name}PlacesScatter_M.png'
+        if not self.places or not os.path.exists(os.path.join(PROJECT, self.places_mask)):
+            self.places_mask = None
+        self.zones = layout.get('zones', [])
+        self.roads = layout.get('roads', [])
         self.graph = level.get('scatterGraph', f'PCG_{name}Scatter')
         self.volume = level.get('scatterVolume', f'{name}Scatter')
         self.folder = level.get('folder', name)
@@ -342,12 +351,13 @@ def overrides(asset):
     return swapped if any(a is not b for a, b in zip(swapped, worn)) else None
 
 
-def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=False, wind=True, tree=False):
+def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=False, wind=True, tree=False, material=None):
     d = unreal.PCGSoftISMComponentDescriptor()
     d.set_editor_property('static_mesh', asset)
     # The area's look on the scattered meshes as on the placed ones: a slot wearing a shared material the area swaps
-    # (level.swaps) wears the area's instance of it (build_area.py's swap_materials() skips PCG's components).
-    swapped = overrides(asset)
+    # (level.swaps) wears the area's instance of it (build_area.py's swap_materials() skips PCG's components). A place's
+    # clutter (material) wears its own on every slot: the pebbles as cinders, chalk chips or coal.
+    swapped = overrides(asset) if material is None else [material] * len(asset.get_editor_property('static_materials'))
     if swapped:
         d.set_editor_property('override_materials', swapped)
     # PCG's instances don't collide unless told to: say which way, both ways. Colliding ones block like the buildings
@@ -378,7 +388,7 @@ def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=Fals
 class Scatter:
     """The shared inputs (obstacles, the mask's channels) and one chain per layer."""
 
-    def __init__(self, b, mask, half, lift=4000.0, ray=12000.0, dressing=(), scrub_mask=None):
+    def __init__(self, b, mask, half, lift=4000.0, ray=12000.0, dressing=(), scrub_mask=None, places_mask=None):
         self.b = b
         self.half = half
         self.lift, self.ray = lift, ray  # how high over the ground the rays start, and how far down they reach (cm)
@@ -409,7 +419,8 @@ class Scatter:
         transform = unreal.Transform(location=unreal.Vector(0, 0, 0), rotation=unreal.Rotator(roll=0, pitch=0, yaw=90),
                                      scale=unreal.Vector(half, half, 1))
         self.channels = {}
-        masks = [('', mask)] + ([('Scrub ', scrub_mask)] if scrub_mask else [])
+        masks = ([('', mask)] + ([('Scrub ', scrub_mask)] if scrub_mask else [])
+                 + ([('Places ', places_mask)] if places_mask else []))
         for m, (prefix, texture) in enumerate(masks):
             for i, (name, channel) in enumerate(CHANNELS.items()):
                 self.channels[prefix + name], _ = b.node(unreal.PCGTextureSamplerSettings, f'Mask {prefix}{name}', 3,
@@ -438,12 +449,13 @@ class Scatter:
         return node
 
     def layer(self, title, cell, channel, keep, flat=0.85, trees=False, flat_max=1.0, dressing='all', jitter=0.5,
-              avoid=()):
+              avoid=(), thin=()):
         """Points on the ground every `cell` cm (moved up to `jitter` of a cell either way) where the mask's channel
         ('R', or 'Scrub R' for the scrub mask's) wins a random draw against `keep`, on ground whose flatness (the up
         component of its normal) is from `flat` to `flat_max` (below 1: steep ground only), off the obstacles, the
         dressing's boxes (`dressing`: 'all', or 'solid' for a layer that grows up to fences) and what the spawners in
-        `avoid` placed (their meshes' bounds)."""
+        `avoid` placed (their meshes' bounds). `thin`: more channels the density is multiplied by (the places' grass
+        kept: 'Places R'), those missing skipped."""
         b, y = self.b, self.row * 3
         self.row += 1
         grid, _ = b.node(unreal.PCGCreatePointsGridSettings, f'{title}: ray origins', 0, y,
@@ -486,6 +498,12 @@ class Scatter:
             b.link(spawner, clear, b_pin='Differences')
         b.link(clear, sample, b_pin='Point')
         b.link(self.channels[channel], sample, b_pin='BaseTexture')
+        for k, other in enumerate(c for c in thin if c in self.channels):
+            times, _ = b.node(unreal.PCGSampleTextureSettings, f'x Mask {other}', 6.5, y + 0.3 * (k + 1),
+                              density_merge_function=unreal.PCGDensityMergeOperation.MULTIPLY)
+            b.link(sample, times, b_pin='Point')
+            b.link(self.channels[other], times, b_pin='BaseTexture')
+            sample = times
         b.link(sample, draw)
         b.link(draw, kept)
         return kept, y
@@ -609,7 +627,7 @@ def layer_settings(area, name, cell):
     return own.get('cell', cell), (lambda cull: int(round(cull * factor))) if factor else (lambda cull: cull)
 
 
-def build_graph(area, mask, scrub_mask=None):
+def build_graph(area, mask, scrub_mask=None, places_mask=None):
     path = f'{GRAPH_FOLDER}/{area.graph}'
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         unreal.EditorAssetLibrary.delete_asset(path)
@@ -621,7 +639,8 @@ def build_graph(area, mask, scrub_mask=None):
     if SWAPS:
         unreal.log(f'Island scatter: the area\'s materials on its meshes: '
                    + ', '.join(f'{k} -> {v.get_name()}' for k, v in sorted(SWAPS.items())))
-    s = Scatter(b, mask, area.half, area.lift, area.ray, area.dressing, scrub_mask)
+    s = Scatter(b, mask, area.half, area.lift, area.ray, area.dressing, scrub_mask, places_mask)
+    thin = ('Places R',) if places_mask else ()
     veg = lambda name, required=True: mesh(VEGETATION, name, required)  # noqa: E731
     rock = lambda name: mesh(ROCKS, name)  # noqa: E731
     has_rock = lambda name: mesh(ROCKS, name, False) is not None  # noqa: E731
@@ -689,7 +708,7 @@ def build_graph(area, mask, scrub_mask=None):
     # reach (layout.json scatter.layers.grass): Ransom's Rest's grass reaches farther, so its meadows don't turn to
     # bare ground a few dozen meters out (2026-10-08).
     grass_cell, grass_cull = layer_settings(area, 'grass', 90.0)
-    grass, y = s.layer('Grass', grass_cell, 'G', 0.12, dressing='solid')
+    grass, y = s.layer('Grass', grass_cell, 'G', 0.12, dressing='solid', thin=thin)
     s.spawn(grass, 'Grass', 11, y, [entry(veg('GrassClump_A'), 4, grass_cull(4500), density_scaling=True),
                                     entry(veg('GrassClump_B'), 3, grass_cull(4500), density_scaling=True),
                                     entry(veg('GrassClump_C'), 3, grass_cull(5000), density_scaling=True),
@@ -698,7 +717,7 @@ def build_graph(area, mask, scrub_mask=None):
             scale=(0.8, 1.25), upright=False, fit=45.0)
 
     flower_cell, flower_cull = layer_settings(area, 'flowers', 230.0)
-    flowers, y = s.layer('Flowers', flower_cell, 'B', 0.3, dressing='solid')
+    flowers, y = s.layer('Flowers', flower_cell, 'B', 0.3, dressing='solid', thin=thin)
     s.spawn(flowers, 'Flowers', 11, y, [entry(veg(n), 1, flower_cull(4500), density_scaling=True)
                                         for n in ('Flowers_Yellow', 'Flowers_White', 'Flowers_Purple')],
             scale=(0.85, 1.2), upright=False, fit=35.0)
@@ -718,7 +737,9 @@ def build_graph(area, mask, scrub_mask=None):
 
     pines = crease_pines(s, veg) if area.steep else None
     if area.scrub and scrub_mask:
-        scrub_layers(s, veg, area, pines)
+        scrub_layers(s, veg, area, pines, thin)
+    if places_mask:
+        place_layers(s, veg, rock, area, flower_cull)
 
     unreal.EditorAssetLibrary.save_loaded_asset(graph)
     return graph
@@ -733,7 +754,7 @@ def crease_pines(s, veg):
                                                     for n, w, cull in CREASE_PINE_MESHES], sink=40.0)
 
 
-def scrub_layers(s, veg, area, pines=None):
+def scrub_layers(s, veg, area, pines=None, thin=()):
     """A grounded area's dry scrub (Art/Levels/area_scrub.py; the art session's kit, Art/Models/Vegetation/Scrub.py):
     the scrub mask's layers, each on its slopes (the sagebrush to 35 degrees, the big sagebrush from there to 50, the
     rest to 50), and the computed layout's listed points. Each later layer keeps off what the earlier ones placed (their
@@ -747,12 +768,12 @@ def scrub_layers(s, veg, area, pines=None):
     scrub, layers = area.scrub, area.scrub['layers']
     lift = area.lift
 
-    def mask_layer(name, title, avoid, dressing='all'):
+    def mask_layer(name, title, avoid, dressing='all', thin=()):
         spec = layers[name]
         lo, hi = spec.get('slopes', [0.0, 50.2])  # degrees, as flatness (the up component of the ground's normal)
         return s.layer(title, spec['cell'], 'Scrub ' + spec['channel'], spec['keep'],
                        flat=math.cos(math.radians(hi)), flat_max=math.cos(math.radians(lo)) if lo > 0.0 else 1.0,
-                       dressing=dressing, jitter=spec.get('jitter', 0.5), avoid=avoid)
+                       dressing=dressing, jitter=spec.get('jitter', 0.5), avoid=avoid, thin=thin)
 
     def entries(table, **kw):
         return [entry(veg(n), w, cull, **kw) for n, w, cull in table]
@@ -794,12 +815,90 @@ def scrub_layers(s, veg, area, pines=None):
         pit_sage, y = listed('Pit sage', scrub['pitSage'])
         placed.append(s.spawn(pit_sage, 'Pit sage', 11, y, entries(PIT_SAGE_MESHES, shadow=True), scale=(0.8, 1.25),
                               sink=SCRUB_SINK))
-    tufts, y = mask_layer('tufts', 'Dry tufts', list(placed), dressing='solid')
+    tufts, y = mask_layer('tufts', 'Dry tufts', list(placed), dressing='solid', thin=thin)
     s.spawn(tufts, 'Dry tufts', 11, y, entries(DRY_TUFT_MESHES, density_scaling=True), scale=(0.8, 1.25),
             sink=SCRUB_SINK)
     if scrub.get('pitTufts'):
         pit_tufts, y = listed('Pit tufts', scrub['pitTufts'])
         s.spawn(pit_tufts, 'Pit tufts', 11, y, entries(PIT_TUFT_MESHES), scale=(0.8, 1.25), sink=SCRUB_SINK)
+
+
+# Each place's clutter (2026-10-22; layout.json macro.places, the places' scatter map's G, B and A): pebble clusters and
+# small chunks in the place's own instance (level.materials, made by build_area.py): (channel, title, instance, the
+# spacing in cm, the keep, [(mesh, weight, cull cm, scale)]). Weights are whole numbers (PCG's int32).
+PLACE_CLUTTER = (
+    ('Places G', 'Cinders', 'MI_PlaceCinder_Ransom', 220.0, 0.3, (('PebbleCluster_A', 3, 3000), ('Rock_D', 1, 4500))),
+    ('Places B', 'Quarry chips', 'MI_PlaceChalk_Ransom', 200.0, 0.3, (('PebbleCluster_A', 3, 3000), ('Rock_D', 1, 4500))),
+    ('Places A', 'Coal lumps', 'MI_PlaceCoal_Ransom', 220.0, 0.3, (('PebbleCluster_A', 3, 3000), ('Rock_D', 1, 4500))),
+)
+CLUTTER_SCALE = {'PebbleCluster_A': (0.8, 1.3), 'Rock_D': (0.35, 0.7)}
+
+
+def yarrow_points(area):
+    """The chapel knoll's white yarrow (layout.json macro.places.yarrow: its zones, a candidate every `spacing` cm,
+    jittered, `keep` of them, none within `roadClear` cm of a road's or path's edge): [(x, y, z)]. Deterministic."""
+    spec = (area.places or {}).get('yarrow')
+    if not spec:
+        return []
+    rng = random.Random(61)
+    step = float(spec.get('spacing', 160.0))
+    clear = float(spec.get('roadClear', 80.0))
+    out = []
+
+    def inside(px, py, poly):
+        hit = False
+        for (ax, ay), (bx, by) in zip(poly, poly[1:] + poly[:1]):
+            if (ax <= px) != (bx <= px) and py < ay + (px - ax) / (bx - ax) * (by - ay):
+                hit = not hit
+        return hit
+
+    def near_road(px, py):
+        for road in area.roads:
+            half = road.get('width', 300) / 2.0 + clear
+            for (ax, ay), (bx, by) in zip(road['path'], road['path'][1:]):
+                dx, dy = bx - ax, by - ay
+                t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / max(dx * dx + dy * dy, 1e-6)))
+                if math.hypot(px - ax - t * dx, py - ay - t * dy) < half:
+                    return True
+        return False
+    for zone in area.zones:
+        if zone['id'] not in spec.get('zones', []) and zone.get('kind') not in spec.get('zones', []):
+            continue
+        poly = [tuple(p) for p in zone['polygon']]
+        xs, ys = [p[0] for p in poly], [p[1] for p in poly]
+        x = min(xs)
+        while x <= max(xs):
+            y = min(ys)
+            while y <= max(ys):
+                px, py = x + rng.uniform(-0.4, 0.4) * step, y + rng.uniform(-0.4, 0.4) * step
+                if rng.random() < spec.get('keep', 0.5) and inside(px, py, poly) and not near_road(px, py):
+                    out.append((px, py, area.lift))
+                y += step
+            x += step
+    return out
+
+
+def place_layers(s, veg, rock, area, flower_cull):
+    """The places' clutter (PLACE_CLUTTER, from the places' scatter map) and the chapel's yarrow (white flowers, listed
+    points kept off the obstacles and the dressing). An instance not made yet leaves its clutter out, with a warning."""
+    for channel, title, material, cell, keep, meshes in PLACE_CLUTTER:
+        path = f'{MATERIALS}/{material}'
+        if not unreal.EditorAssetLibrary.does_asset_exist(path):
+            unreal.log_warning(f'Island scatter: no {path} yet (build_area.py makes it): no {title.lower()}')
+            continue
+        worn = unreal.load_asset(path)
+        for name, weight, cull in meshes:
+            points, y = s.layer(f'{title} ({name})', cell * (2.5 if name == 'Rock_D' else 1.0), channel, keep,
+                                flat=0.75)
+            s.spawn(points, f'{title} {name}', 11, y,
+                    [entry(rock(name), weight, cull, collide=False, shadow=name == 'Rock_D', wind=False,
+                           material=worn)], scale=CLUTTER_SCALE[name], upright=False, sink=1.0)
+    yarrow = yarrow_points(area)
+    if yarrow and veg('Flowers_White', False):
+        points, y = s.listed('Yarrow', yarrow, clear=True, ray=area.ray)
+        s.spawn(points, 'Yarrow', 11, y, [entry(veg('Flowers_White'), 1, flower_cull(4500))], scale=(0.85, 1.25),
+                upright=False, fit=35.0)
+        unreal.log(f'Island scatter: {len(yarrow)} yarrow spots on the chapel knoll')
 
 
 def place_volume(area, graph):
@@ -822,6 +921,7 @@ def place_volume(area, graph):
 if __name__ == '__main__':
     AREA = Area(sys.argv[1] if len(sys.argv) > 1 else 'TutorialIsland')
     SCRUB = import_mask(AREA, AREA.scrub['texture']) if AREA.scrub else None
-    graph = build_graph(AREA, import_mask(AREA), SCRUB)
+    PLACES = import_mask(AREA, AREA.places_mask) if AREA.places_mask else None
+    graph = build_graph(AREA, import_mask(AREA), SCRUB, PLACES)
     volume = place_volume(AREA, graph)
     unreal.log(f'Island scatter: graph {graph.get_path_name()}, volume {volume.get_path_name()}; generating')

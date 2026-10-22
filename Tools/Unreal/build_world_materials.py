@@ -34,6 +34,10 @@
                   SteepBeds), SteepAOLift lifts their baked occlusion, SteepSharp, SteepBreakup and SteepPull move
                   their foot off the terrain's triangles onto the rock's layers and the macro's painted rock, and
                   StrataSmooth and StrataFlat keep the layers' bend long and low. No texture samples beyond the old.
+                  Places (2026-10-22, PLACE_WEIGHTS; off on the master, PlaceAmount 0): an area's PlaceMap (by world
+                  position, PlaceRect) lays each place's own ground over the layers (the town's street dust and ruts,
+                  ash and cinders, quarry grit, coal), each GroundPlaces pattern through its own colour ramp; read
+                  only inside the places (a branch). apply_places() sets them from layout.json macro.places.
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
                   the sun's side (the sky atmosphere's sun): a warm LitColor where it thins toward the sun, a cool
                   ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
@@ -756,8 +760,27 @@ float Leaf = saturate((Stony.a - 0.01) * 1.65) * Wt.z * saturate(Shade * Cues2.z
 // Rock and the steeper scree keep the rock detail.
 float RockAmt = smoothstep(0.55, 0.9, Select);
 """
+# Each place's own ground (2026-10-22, PLACE_WEIGHTS; Art/Levels/area_places.py, layout.json macro.places): the area's
+# PlaceMap (read by world position, PlaceRect) says how much of each place's ground lies there (Places: R the town's
+# dust, G ash, B quarry grit, A coal, times PlaceAmount, 0 on the master); the place's pattern (T_GroundPlaces_M, one
+# tile of four) runs through its own colour ramp (Place<Name>Dark to Light) and replaces the layers there, so a place
+# reads at eye level, where the macro map's tones barely did. Places never overlap, so Pv (the shares) picks one. Its
+# edge wanders with the ground noise and gives way to the old ground's tussocks and stones (PlaceCues.x and .y). The
+# texture reads happen only where a place is (the branch), so the rest of the ground costs what it did.
+PLACE_WEIGHTS = """float PSum = min(Places.x + Places.y + Places.z + Places.w, 1.0);
+float4 Pv = Places / max(Places.x + Places.y + Places.z + Places.w, 1e-4);
+float PE = PSum + ((Noise.r - 0.5) * PCues.x - (H - 0.45) * PCues.y) * 4.0 * PSum * (1.0 - PSum);
+float PW = saturate(PE) * (1.0 - RockAmt);
+// The old ground keeps some of its breakup inside a place too (PlaceCues.w): its highest stones and tussocks poke
+// through, so a street or a pit floor never reads as one flat sheet.
+PW *= 1.0 - PCues.w * smoothstep(0.55, 0.85, H);
+// The pattern's own reads only near the eye (within 60 m, faded out from 40 m): past it the place shows its
+// pattern's mean through its ramp, and the wide views pay only for the place map (measured 2026-10-22: the places'
+// reads everywhere cost the Aerial view 0.15 ms of GPU).
+float PNear = 1.0 - smoothstep(4000.0, 6000.0, Depth);
+"""
 
-TERRAIN_CODE = GROUND_WEIGHTS + """// From afar the ground keeps the brightness it always had: the old grass and rock detail at their true means
+TERRAIN_CODE = GROUND_WEIGHTS + PLACE_WEIGHTS + """// From afar the ground keeps the brightness it always had: the old grass and rock detail at their true means
 // (GrassStats.a, RockTrue: measured from the textures) over the means it was set against (GrassMean, RockMean).
 float K = lerp(1.0, lerp(GrassStats.a, RockTrue, Select) / max(lerp(GrassMean, RockMean, Select), 0.05), Strength);
 // Each layer's light and dark (Layers.xyz) and a little of its own color (Layers.w), around 1 from its own mean: the
@@ -774,6 +797,21 @@ float3 Pattern = Wt.x * PG + Wt.y * PT + Wt.z * PS;
 // The leaves: LeafTint (a fallen leaf's color over the ground's), lit by their own light and dark in the alpha.
 Pattern = lerp(Pattern, LeafTint * lerp(0.75, 1.15, saturate((Stony.a - 0.62) / 0.38)), Leaf);
 float3 Ground = Macro * K * lerp(One, Pattern, Fd) * lerp(1.0, DampP.z, Damp);
+// The place's ground (PLACE_WEIGHTS): its pattern through its ramp, Own of it in the place's own colours and the rest
+// the macro map's colour with the ramp's light and dark; its contrast fades with distance as the layers' does.
+[branch] if (PW > 0.001)
+{
+    float pm = dot(Pv, PMeans);
+    float pp = pm;
+    [branch] if (PNear > 0.001)
+        pp = lerp(pm, dot(Pv, Texture2DSampleGrad(PlaceTex, PlaceTexSampler, PUV, PDX, PDY)), Fd * PNear);
+    float4 Dark = Pv.x * PDustDark + Pv.y * PAshDark + Pv.z * PGritDark + Pv.w * PCoalDark;
+    float3 Light = Pv.x * PDustLight.rgb + Pv.y * PAshLight.rgb + Pv.z * PGritLight.rgb + Pv.w * PCoalLight.rgb;
+    float3 Own3 = lerp(Dark.rgb, Light, pp);
+    float3 FromMacro = Macro * K * Own3 / max(lerp(Dark.rgb, Light, pm), 0.004);
+    float3 PlaceGround = lerp(FromMacro, Own3, Dark.a) * lerp(1.0, DampP.z, Damp * 0.5);
+    Ground = lerp(Ground, PlaceGround, PW);
+}
 // Rock: the macro map with the rock detail's light and dark, as before.
 float3 Old = lerp(Grass, Rock, Select);
 float3 RockColor = Macro * lerp(1.0, dot(Old, Wl) / max(lerp(GrassMean, RockMean, Select), 0.05), Strength);
@@ -827,13 +865,29 @@ float H = saturate(dot(RockX * Facing.x + RockY * Facing.y, float3(0.299, 0.587,
 return saturate((Steep - 0.5) * Sharp + 0.5 + (H - 0.5) * Breakup + (Select - 0.5) * Pull);"""
 # The ground's detail normal: the layers' normals by the same weights, flattened under leaves and where it's damp (wet
 # soil is smooth), and the rock's where it's rock. The caller fades it on steep faces, as before.
-GROUND_NORMAL_CODE = GROUND_WEIGHTS + """float3 N = Wt.x * GrassN + Wt.y * ThatchN + Wt.z * StonyN;
+GROUND_NORMAL_CODE = GROUND_WEIGHTS + PLACE_WEIGHTS + """float3 N = Wt.x * GrassN + Wt.y * ThatchN + Wt.z * StonyN;
 N = lerp(N, float3(0.0, 0.0, 1.0), saturate(Leaf * 0.8 + Damp * 0.5));
+// A place's own relief (T_GroundPlaces_NA: dust xy, ash xy; _NB: grit xy, coal xy; z rebuilt).
+[branch] if (PW * PNear > 0.001)
+{
+    float4 NA = Texture2DSampleGrad(PlaceNA, PlaceNASampler, PUV, PDX, PDY);
+    float4 NB = Texture2DSampleGrad(PlaceNB, PlaceNBSampler, PUV, PDX, PDY);
+    float2 XY = (Pv.x * NA.rg + Pv.y * NA.ba + Pv.z * NB.rg + Pv.w * NB.ba) * 2.0 - 1.0;
+    N = lerp(N, float3(XY, sqrt(saturate(1.0 - dot(XY, XY)))), PW * PNear);
+}
 return lerp(N, RockN, RockAmt);"""
 # Roughness: dry grass and soil matte, stones a little smoother, damp ground glossier (GroundFade.w), rock and steep
 # faces 0.82 as before.
-GROUND_ROUGHNESS_CODE = GROUND_WEIGHTS + """float R = dot(Wt, float3(0.93, 0.92, lerp(0.95, 0.8, saturate(HS * 2.0 - 1.0))));
+GROUND_ROUGHNESS_CODE = GROUND_WEIGHTS + PLACE_WEIGHTS + """float R = dot(Wt, float3(0.93, 0.92, lerp(0.95, 0.8, saturate(HS * 2.0 - 1.0))));
 R = lerp(R, Fade.w, Damp);
+// A place's roughness from its ramp's dark end (PRough) to its light end (PGloss): the coal's lumps glint.
+[branch] if (PW > 0.001)
+{
+    float pp = dot(Pv, PMeans);
+    [branch] if (PNear > 0.001)
+        pp = lerp(pp, dot(Pv, Texture2DSampleGrad(PlaceTex, PlaceTexSampler, PUV, PDX, PDY)), PNear);
+    R = lerp(R, lerp(dot(Pv, PRough), dot(Pv, PGloss), pp), PW);
+}
 return lerp(R, 0.82, max(RockAmt, Steep));"""
 # The layers' UVs on UV 1 (meters) at their own repeats, slid by GroundNoise's slow drift (A, up to Warp meters, the
 # two layers opposite ways), so neither repeat lines up for long.
@@ -860,6 +914,25 @@ GROUND_DEFAULTS = {
     'GroundLayers': (0.45, 0.6, 0.7, 0.25),
     'LeafTint': (1.18, 0.96, 0.78),      # a fallen leaf's color over the ground's (luma about 1)
 }
+# The places' parameters (group Places) as the master sets them (off: PlaceAmount 0); an area's terrain instances get
+# theirs from its layout.json macro.places (apply_places). Tools/Blender/ground_preview.py reads this table too.
+PLACE_DEFAULTS = {
+    'PlaceAmount': 0.0,                  # 0 off .. 1 the place map as it is
+    'PlaceRect': (0.0, 0.0, 100.0),      # the place map's square: its X0 and Y0 (south-west corner) and side, cm
+    # x how far the edge wanders with the ground noise, y how much the old ground's relief holds out at the edge, z
+    # meters a repeat of the places' tile (looter_textures PLACES_TILE_M), w how much of the old ground's highest stones
+    # and tussocks still shows inside a place
+    'PlaceCues': (0.35, 0.5, 3.6, 0.6),
+    'PlaceRough': (0.96, 0.9, 0.92, 0.88),   # roughness at each place's ramp's dark end (dust, ash, grit, coal)
+    'PlaceGloss': (0.93, 0.97, 0.82, 0.32),  # at its light end
+}
+PLACES = ('Dust', 'Ash', 'Grit', 'Coal')  # T_GroundPlaces_M's channels R, G, B, A (looter_textures.PLACES)
+# A place's ramp until an area sets it (linear; Dark's w: how much of the ramp's own colour replaces the macro map's).
+PLACE_RAMPS = {'Dust': ((0.112, 0.048, 0.023, 0.45), (0.497, 0.292, 0.162)),
+               'Ash': ((0.01, 0.01, 0.011, 0.8), (0.332, 0.332, 0.352)),
+               'Grit': ((0.195, 0.171, 0.133, 0.65), (0.694, 0.638, 0.521)),
+               'Coal': ((0.004, 0.004, 0.004, 0.85), (0.068, 0.065, 0.06))}
+PLACE_TEXTURES = 'C:/Dev/AI_Looter_Shooter/Art/Textures/GroundPlaces'
 # The rock's relief on a steep face, from the same two side-laid projections as its color (the rock normal map sampled
 # with the X- and the Y-side UVs): each sample turned into the world (its red along the projection's U axis, its green up
 # the face by Green's sign, its blue out of the face), blended by the same side weights. The caller turns it back into
@@ -1069,7 +1142,7 @@ def build_terrain():
         ('Fade', svector(g, ground, 'GroundFade', GROUND_DEFAULTS['GroundFade'], -1300, -1120), 'RGBA'),
         ('GrassStats', svector(g, ground, 'GrassStats', layer_stats(mean=GRASS_MEAN), -1300, -1060), 'RGBA'),
         ('StonyStats', svector(g, ground, 'StonyStats', layer_stats('GroundStony'), -1300, -1000), 'RGBA'),
-    ]
+    ] + place_inputs(g, detail_coords, ground_noise, layer_warp, world)
     color = g.custom(TERRAIN_CODE, weights + [
         ('Rock', rock, 'RGB'), ('GrassMean', grass_mean, ''), ('RockMean', rock_mean, ''),
         ('Strength', g.scalar('DetailStrength', 0.6, -1000, 1100), ''),
@@ -1137,7 +1210,143 @@ def build_terrain():
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -600, 1100, 'Ambient occlusion')
     g.out(ambient, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE])
+    apply_places()
     return mat
+
+
+def place_texture(name, clamp=False):
+    """One of the places' maps (Tools/Blender/looter_textures.py GroundPlaces, or an area's place map from
+    Art/Levels/area_places.py: T_<Set>_<kind> in Art/Textures/<Set>), imported exact (uncompressed, linear); a place map
+    clamped at its edges (M_Terrain picks its mip by distance)."""
+    folder = name[2:].rsplit('_', 1)[0]
+    if folder == 'GroundPlacesNone':
+        folder = 'GroundPlaces'
+    texture = import_texture(f'C:/Dev/AI_Looter_Shooter/Art/Textures/{folder}/{name}.png',
+                             f'/Game/Art/Textures/{folder}/{name}', 'M')
+    if clamp:
+        texture.set_editor_property('address_x', unreal.TextureAddress.TA_CLAMP)
+        texture.set_editor_property('address_y', unreal.TextureAddress.TA_CLAMP)
+        texture.set_editor_property('mip_gen_settings', unreal.TextureMipGenSettings.TMGS_FROM_TEXTURE_GROUP)
+        unreal.EditorAssetLibrary.save_loaded_asset(texture)
+    return texture
+
+
+def place_inputs(g, detail_coords, ground_noise, warp, world):
+    """M_Terrain's places (PLACE_WEIGHTS): the inputs its colour, normal and roughness nodes share. Places: the place
+    map read by world position (its RGBA, less the PNG's floor of 1/255, times PlaceAmount); PUV the places' tile on
+    UV 1 (PlaceCues.z meters a repeat, slid by the ground noise's drift like the layers) and its screen derivatives
+    (PDX, PDY: the reads happen inside a branch, where the hardware can't take its own)."""
+    group = 'Places'
+    d = PLACE_DEFAULTS
+    cues = svector(g, group, 'PlaceCues', d['PlaceCues'], -3000, -1700)
+    rect = svector(g, group, 'PlaceRect', d['PlaceRect'], -3000, -1640)
+    amount = sparam(g, group, 'PlaceAmount', d['PlaceAmount'], -3000, -1580)
+    place_map = g.node(unreal.MaterialExpressionTextureObjectParameter, -3000, -1520, parameter_name='PlaceMap',
+                       texture=place_texture('T_GroundPlacesNone_M', clamp=True))
+    place_map.set_editor_property('group', group)
+    # The map's mip from how far off the ground is (a pixel at 1080p and 80 degrees spans about Depth / 1150 cm; the map's
+    # texel Rect.z / 1024), so a far view doesn't fetch the whole uncompressed map at its finest.
+    places = g.custom("""float2 UV = float2((P.y - Rect.y) / Rect.z, (Rect.x + Rect.z - P.x) / Rect.z);
+// Past 120 m (faded from 90 m) the macro map's own tones carry the places, and the map isn't read at all.
+float Far = 1.0 - smoothstep(9000.0, 12000.0, Depth);
+float4 V = float4(0.0, 0.0, 0.0, 0.0);
+[branch] if (Far * Amount > 0.0)
+{
+    float Lod = log2(max(Depth * 1024.0 / (1150.0 * Rect.z), 1.0));
+    V = saturate((Texture2DSampleLevel(Map, MapSampler, UV, Lod) - 0.004) / 0.996) * (Amount * Far);
+}
+return V;""", [('P', world, ''), ('Rect', rect, ''), ('Map', place_map, ''),
+                                                      ('Amount', amount, ''),
+                                                      ('Depth', g.node(unreal.MaterialExpressionPixelDepth, -3000, -1460),
+                                                       '')],
+                      unreal.CustomMaterialOutputType.CMOT_FLOAT4, -2600, -1600, 'Places')
+    uv = g.custom('return UV / Tile + (Noise.a - 0.5) * 1.4 * Warp / Tile + float2(0.71, 0.13);', [
+        ('UV', detail_coords, ''), ('Tile', cues, 'B'), ('Noise', ground_noise, 'RGBA'), ('Warp', warp, '')],
+        unreal.CustomMaterialOutputType.CMOT_FLOAT2, -2600, -1450, 'Places UV')
+    ddx = g.node(unreal.MaterialExpressionDDX, -2300, -1450)
+    g.link(uv, '', ddx, '')
+    ddy = g.node(unreal.MaterialExpressionDDY, -2300, -1400)
+    g.link(uv, '', ddy, '')
+
+    def texture_object(name, kind, y):
+        node = g.node(unreal.MaterialExpressionTextureObjectParameter, -2600, y, parameter_name=name,
+                      texture=place_texture(f'T_GroundPlaces_{kind}'))
+        node.set_editor_property('group', group)
+        return node
+    import json
+    with open(f'{PLACE_TEXTURES}/T_GroundPlaces_stats.json') as source:
+        means = json.load(source)['meanPattern']
+    inputs = [('Places', places, ''), ('PCues', cues, 'RGBA'), ('PUV', uv, ''), ('PDX', ddx, ''), ('PDY', ddy, ''),
+              ('PlaceTex', texture_object('PlacePatterns', 'M', -1350), ''),
+              ('PlaceNA', texture_object('PlaceNormalsA', 'NA', -1300), ''),
+              ('PlaceNB', texture_object('PlaceNormalsB', 'NB', -1250), ''),
+              ('PMeans', svector(g, group, 'PlaceMeans', means, -3000, -1200), 'RGBA'),
+              ('PRough', svector(g, group, 'PlaceRough', d['PlaceRough'], -3000, -1150), 'RGBA'),
+              ('PGloss', svector(g, group, 'PlaceGloss', d['PlaceGloss'], -3000, -1100), 'RGBA')]
+    for i, name in enumerate(PLACES):
+        dark, light = PLACE_RAMPS[name]
+        inputs.append((f'P{name}Dark', svector(g, group, f'Place{name}Dark', dark, -3300, -1700 + 100 * i), 'RGBA'))
+        inputs.append((f'P{name}Light', svector(g, group, f'Place{name}Light', light, -3300, -1650 + 100 * i), ''))
+    return inputs
+
+
+def srgb_linear(hex_color):
+    """'#rrggbb' (sRGB) as three linear floats."""
+    value = int(hex_color.lstrip('#'), 16)
+    c = [((value >> s) & 255) / 255.0 for s in (16, 8, 0)]
+    return [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+
+
+def place_vectors(spec):
+    """An area's places (layout.json macro.places) as M_Terrain's vector parameters (without PlaceRect)."""
+    vectors = {'PlaceCues': spec.get('cues', PLACE_DEFAULTS['PlaceCues'])}
+    rough = list(PLACE_DEFAULTS['PlaceRough'])
+    gloss = list(PLACE_DEFAULTS['PlaceGloss'])
+    for layer in spec['layers'].values():
+        k = 'RGBA'.index(layer['channel'])
+        title = PLACES[k]
+        vectors[f'Place{title}Dark'] = srgb_linear(layer['dark']) + [float(layer.get('own', 0.6))]
+        vectors[f'Place{title}Light'] = srgb_linear(layer['light'])
+        rough[k], gloss[k] = layer.get('rough', (rough[k], gloss[k]))
+    vectors['PlaceRough'], vectors['PlaceGloss'] = rough, gloss
+    return vectors
+
+
+def apply_places():
+    """Each area's places (layout.json macro.places; Art/Levels/area_places.py makes its map) on the terrain instances
+    it names: PlaceMap, PlaceRect (the map square), PlaceAmount, PlaceCues and each place's ramp and roughness. An
+    instance not made yet (build_area.py makes the *_Steep ones) is left out, with a warning: run M_Terrain again after."""
+    import glob
+    import json
+    import os
+    for path in sorted(glob.glob('C:/Dev/AI_Looter_Shooter/Art/Levels/*/layout.json')):
+        area = os.path.basename(os.path.dirname(path))
+        with open(path, encoding='utf-8') as source:
+            layout = json.load(source)
+        spec = layout.get('macro', {}).get('places')
+        if not spec:
+            continue
+        if not os.path.exists(f'C:/Dev/AI_Looter_Shooter/Art/Textures/{area}Places/T_{area}Places_M.png'):
+            unreal.log_warning(f'M_Terrain places: no place map for {area} (run Art/Levels/area_places.py {area})')
+            continue
+        texture = place_texture(f'T_{area}Places_M', clamp=True)
+        half = layout['map']['half']
+        vectors = dict(place_vectors(spec), PlaceRect=(-half, -half, 2.0 * half))
+        for name in spec.get('instances', []):
+            asset = f'/Game/Art/Materials/{name}'
+            if not unreal.EditorAssetLibrary.does_asset_exist(asset):
+                unreal.log_warning(f'M_Terrain places: no {asset} yet (build_area.py {area} makes it): left out')
+                continue
+            instance = unreal.load_asset(asset)
+            MEL.set_material_instance_texture_parameter_value(instance, 'PlaceMap', texture)
+            MEL.set_material_instance_scalar_parameter_value(instance, 'PlaceAmount', float(spec.get('amount', 1.0)))
+            for key, value in vectors.items():
+                values = [float(v) for v in value][:4]
+                MEL.set_material_instance_vector_parameter_value(
+                    instance, key, unreal.LinearColor(*(values + [1.0] * (4 - len(values)))))
+            MEL.update_material_instance(instance)
+            unreal.EditorAssetLibrary.save_loaded_asset(instance, only_if_is_dirty=False)
+            unreal.log(f'M_Terrain places: {area} on {name}')
 
 
 # --- Water (the shared water contract, 2026-10-14: clear teal water, falling water, spray) ---

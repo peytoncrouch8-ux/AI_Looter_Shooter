@@ -69,6 +69,21 @@
       "lookout": { "color": "#d6cfb2", "mix": 0.45, "patch": 0.45, "alpha": 0.16, "grass": 0.7 },
       "boss_arena": { "color": "#cdc7b6", "mix": 0.45, "patch": 0.45, "grass": 0.7 },
       "chapel": { "color": "#6f8f4f", "mix": 0.45, "patch": 0.4 }
+    },
+    "places": {
+      "about": "Each place's own ground at eye level (2026-10-22, the user: the world looks samey; the tones above read only from the air): Art/Levels/area_places.py rasterizes these layers into T_RansomsRestPlaces_M (M_Terrain's PlaceMap: how much of each place's ground lies where) and T_RansomsRestPlacesScatter_M (the grass kept, the cinders', chips' and coal lumps' density), straight from this file (no terrain run). Each layer is one of the four GroundPlaces patterns (Tools/Blender/looter_textures.py: R the town's red-ochre street dust with wheel ruts along U (Main Street and the rail bed run along Y), hoof and boot prints; G ash with black cinders; B pale limestone grit and chips; A coal dust and lumps, which also serves the rail bed's black cinder ballast and the depot's coal dust), laid over its zones, features and roads (a road with [weight, reach m] carries the place's ground out along it, fading over reach: the path edges where roads meet a place), frayed at the edges and in patches; dark and light are the ends of its ramp (sRGB), own how much of them replaces the macro map's colour (the rest keeps the macro's light and dark), rough the roughness at the ramp's dark and light ends (coal lumps glint). Tools/Unreal/build_world_materials.py M_Terrain puts the map, PlaceRect (the core square), PlaceAmount and the colours on the instances named here. The scatter (Tools/Unreal/build_island_scatter.py) thins the grass and flowers to each layer's grass share and lays its clutter (pebble clusters and small chunks in instances: level.materials MI_PlaceCinder/Chalk/Coal_Ransom); the chapel knoll's white yarrow is its own listed layer there (yarrow).",
+      "size": 1024,
+      "fray": 4,
+      "amount": 1.0,
+      "cues": [0.35, 0.5, 3.6, 0.7],
+      "instances": ["MI_RansomsRestMacroSW_Steep", "MI_RansomsRestMacroSE_Steep", "MI_RansomsRestMacroNW_Steep", "MI_RansomsRestMacroNE_Steep"],
+      "layers": {
+        "dust": { "channel": "R", "zones": { "mainStreet": 0.85 }, "roads": { "mainStreet": 1.0, "yardRoad": 0.9, "westRoad": [0.7, 30], "farmRoad": [0.6, 25], "northRoad": [0.6, 25] }, "soft": 6, "patch": 0.25, "grass": 0.3, "dark": "#5e3e2a", "light": "#bb9370", "own": 0.3, "rough": [0.96, 0.93] },
+        "ash": { "channel": "G", "zones": { "sink": 1.0 }, "roads": { "sinkRoad": [0.65, 20] }, "soft": 5, "patch": 0.2, "grass": 0.35, "clutter": 0.6, "dark": "#1a1a1b", "light": "#9c9ca0", "own": 0.8, "rough": [0.9, 0.97] },
+        "grit": { "channel": "B", "zones": { "oldQuarry": 1.0 }, "features": { "quarryFloor": 1.0, "quarryBench1": 0.9 }, "roads": { "quarryTrack": [0.8, 40] }, "soft": 6, "patch": 0.15, "grass": 0.25, "clutter": 0.7, "dark": "#7a7366", "light": "#d9d1bf", "own": 0.65, "rough": [0.92, 0.82] },
+        "coal": { "channel": "A", "zones": { "diggings": 0.35, "depot": 0.3 }, "features": { "portalApron": 1.0, "diggingsYard": 0.7, "oreBinBay": 1.0, "spoilHeap": 0.8, "smithyPad": 0.6 }, "roads": { "oreTramway": 0.85, "railBed": 0.8 }, "soft": 5, "patch": 0.3, "grass": 0.4, "clutter": 0.6, "dark": "#0e0d0c", "light": "#4a4845", "own": 0.85, "rough": [0.88, 0.32] }
+      },
+      "yarrow": { "zones": ["chapel"], "spacing": 160, "keep": 0.55, "roadClear": 80 }
     }
   },
   "scatter": {
@@ -2762,6 +2777,9 @@
       "MI_WindowGlow_Dark": { "parent": "MI_WindowGlow", "scalars": { "Glow": 0 } },
       "MI_RockCliffDen_Ransom": { "parent": "MI_RockCliffDen", "vectors": { "Tint": [0.473,0.39,0.309] } },
       "MI_RockGranite_Ransom": { "parent": "MI_RockGranite", "scalars": { "MossAmount": 0.12 }, "vectors": { "MossColor": [0.3,0.27,0.17] } },
+      "MI_PlaceCinder_Ransom": { "parent": "MI_RockGranite", "scalars": { "MossAmount": 0.0, "RoughnessOffset": 0.08 }, "vectors": { "Tint": [0.16,0.15,0.15] } },
+      "MI_PlaceChalk_Ransom": { "parent": "MI_RockGranite", "scalars": { "MossAmount": 0.0 }, "vectors": { "Tint": [1.3,1.24,1.1] } },
+      "MI_PlaceCoal_Ransom": { "parent": "MI_RockGranite", "scalars": { "MossAmount": 0.0, "RoughnessOffset": -0.4 }, "vectors": { "Tint": [0.07,0.068,0.066] } },
       "MI_LeavesOak_Ransom": { "parent": "MI_LeavesOak", "vectors": { "Tint": [2.2,1.2,2.1], "TintVariation": [2.6,1.3,1.0] }, "scalars": { "VariationAmount": 0.33 } },
       "MI_RansomsRestRingMacro_Steep": { "parent": "MI_RansomsRestRingMacro", "scalars": { "SteepStart": 40, "SteepFull": 55, "SteepDetail": 1.15, "SteepNormalStrength": 0.6, "StrataWarp": 1.5, "StrataWave": 45, "SteepVariation": 0.6 }, "vectors": { "SteepTint": [0.8,0.74,0.68] } },
       "MI_LeavesBirch_Ransom": { "parent": "MI_LeavesBirch", "vectors": { "Tint": [2.35,1.05,1.2], "TintVariation": [2.2,1.2,2.1] }, "scalars": { "VariationAmount": 0.35 } },

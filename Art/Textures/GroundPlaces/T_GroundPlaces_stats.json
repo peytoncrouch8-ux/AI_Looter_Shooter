@@ -1,0 +1,16 @@
+{
+ "about": "Each place pattern's mean (linear 0..1, as Unreal samples T_GroundPlaces_M: R dust, G ash, B grit, A coal); M_Terrain's PlaceMeans (Tools/Unreal/build_world_materials.py reads it).",
+ "places": [
+  "dust",
+  "ash",
+  "grit",
+  "coal"
+ ],
+ "meanPattern": [
+  0.60912,
+  0.61323,
+  0.73712,
+  0.23845
+ ],
+ "tileMeters": 3.6
+}

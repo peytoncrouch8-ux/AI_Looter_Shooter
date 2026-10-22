@@ -25,6 +25,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      the stony ground's leaf litter ride in the colour map's alpha). The master is rebuilt by `build_world_materials.py M_Terrain`;
      its numbers are `GROUND_DEFAULTS` (repeats, how far the borders wander, the damp, where the contrast fades out), and an area's
      instance may change any of them.
+   - Places (2026-10-22, `PLACE_WEIGHTS`; off on the master, `PlaceAmount` 0): `GroundPlaces` (looter_textures, 1024 px over
+     3.6 m) packs four patterns: `T_GroundPlaces_M` each place's ramp position (R dust, G ash, B grit, A coal), `_NA`/`_NB`
+     their normals' xy; `T_GroundPlaces_stats.json` their means (`PlaceMeans`). An area's PlaceMap (by world position)
+     picks the place; its pattern runs through `Place<Name>Dark`..`Light` (Dark.w: own colour vs the macro's), roughness
+     `PlaceRough`..`PlaceGloss` (coal lumps glint); `PlaceCues` x edge fray, y old relief at the edge, z tile m, w old
+     stones/tussocks kept inside. Reads inside branches with `DDX`/`DDY` grads (`Texture2DSampleGrad`; compiles, 815
+     instructions, 12 samplers). Every 8-bit value at least 1 (PNG infill under zero alpha).
    - Judge a change without Unreal first: `Tools\artrun.ps1 -Script Tools\Blender\ground_preview.py` renders the layers from tour
      viewpoints at eye height (before above, after below) into `Saved/ArtPreviews/Terrain/`. It is a numpy port of the master's code:
      keep it in step with `GROUND_WEIGHTS` and `GROUND_DEFAULTS`. It has no shadows, grass or hollows' damp, so look in the editor too.
