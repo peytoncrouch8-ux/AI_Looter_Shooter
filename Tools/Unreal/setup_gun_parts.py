@@ -79,7 +79,8 @@ MARKS = {
     'Longhorn': ('Body', 29.5, -1.9, 2.4, 1.6),
     # The front sleeve's upper flank ahead of the grip, over the ember side line (Z 0), clear of the straps (55, 66) and
     # rivets (58, 64) of the Salvager; the Armored's side plates reach Z 1.8, the Salvager's side pipe runs at Z 3.3.
-    'Powderkeg': ('Body', 61.0, 2.6, 2.2, 2.9),
+    # 2.2 cm was lost on the Salvager's rust (PIE 2026-10-22): 3.0, still clear of the straps.
+    'Powderkeg': ('Body', 61.0, 2.6, 3.0, 2.9),
 }
 
 # Each gun's shell is tinted per gun (sRGB hex, weight): mostly field colors, sometimes a bright one.

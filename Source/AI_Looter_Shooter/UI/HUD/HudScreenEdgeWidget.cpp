@@ -34,6 +34,9 @@ namespace
 	constexpr float EdgeLowHigh = 0.6f;
 	/** Scales those (the mockup's) to the strips, so a hit's peak tints the edges about a quarter red. */
 	constexpr float EdgeStrength = 0.39f;
+	// The ward's cyan is a light colour over a warm, bright world: at the red's strength it all but vanished (play-test
+	// 2026-10-22), so its layer shows at twice that.
+	constexpr float WardEdgeStrength = 0.8f;
 
 	/**
 	 * A strip's picture: Tint (the red, or the ward's cyan) fading from its edge inward. bAcrossX: the fade runs along x (the
@@ -196,5 +199,5 @@ void UHudScreenEdgeWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 	}
 
 	ShowEdgeLayer(Edges, Strength * EdgeStrength, ShownOpacity);
-	ShowEdgeLayer(WardEdges, WardStrength * EdgeStrength, ShownWardOpacity);
+	ShowEdgeLayer(WardEdges, WardStrength * WardEdgeStrength, ShownWardOpacity);
 }
