@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Player/Animation/HeroPoseTypes.h"
 #include "BodyFigureComponent.generated.h"
 
 class UHeroDefinition;
 class UIKRetargeter;
+class UStaticMeshComponent;
 class UWeaponManagerComponent;
+struct FLooterIdleStance;
 
 /**
  * The player's own body, the hero played (the session's pick: UHeroDefinition's FigureMesh and Retargeter; Ellis's,
@@ -60,6 +63,16 @@ public:
 	 */
 	FVector GetCameraOffset() const { return IsWorn() ? WornCamera : FVector::ZeroVector; }
 
+	/**
+	 * The worn hero's idle stance and third-person aim (UHeroDefinition::Idle, ::Aim; the defaults, Ellis's, when no body or
+	 * Ellis's standing in is worn): the mannequin's stance layer plays them, so the hero copies them.
+	 */
+	FHeroIdle GetIdle() const;
+	FHeroAim GetAim() const;
+
+	/** The hero whose body is worn (null: none, or Ellis's standing in for a hero without one). */
+	const UHeroDefinition* GetWornHero() const { return IsWorn() ? WornHero.Get() : nullptr; }
+
 	/** A material slot of a holstered gun: its name ends in HolsterGun ("EllisHolsterGun", "<Hero>HolsterGun"). */
 	static bool IsHolsterGunSlot(FName SlotName);
 
@@ -74,7 +87,16 @@ private:
 	 * The shown hero's (else the hero played's) mesh and retargeter when both are in the game, else Ellis's; OutHold that
 	 * body's gun hold and OutCamera its camera offset (zero for Ellis's standing in).
 	 */
-	void PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter, FVector& OutHold, FVector& OutCamera) const;
+	void PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter, FVector& OutHold, FVector& OutCamera, const UHeroDefinition*& OutHero) const;
+	/**
+	 * The idle's props on the worn body (BodyFigureIdleProps.cpp): steam out of the stacks every few breaths (FHeroIdle's
+	 * SteamEvery, through the bullets' wisps) and a card walking over a CardHand's knuckles (a small card mesh on this
+	 * body, so it shows on the hero select's stand too). Each tick, after the mannequin's pose.
+	 */
+	void TickIdleProps(float DeltaTime);
+	void VentSteam(const FHeroIdle& Style, const FVector& Forward);
+	void PlaceCard(const FHeroIdle& Style, const FLooterIdleStance& Idle, float Alpha);
+	void HideCard();
 	/** Puts on PickBody's body, hides the mannequin under it, ticks after it, and draws as it is drawn (FollowBody). */
 	void Wear();
 	/** Drawn as the mannequin would be: hidden to its owner in first person (a world-space stand-in for the shadow). */
@@ -103,6 +125,15 @@ private:
 	FVector WornHold = FVector::ZeroVector;
 	/** The worn body's camera offset (GetCameraOffset), from its hero as Wear put it on. */
 	FVector WornCamera = FVector::ZeroVector;
+	/** The hero whose body Wear put on (its idle and aim, read live so Looter.Pose.Set shows at once); null for Ellis's stand-in. */
+	UPROPERTY(Transient)
+	TObjectPtr<const UHeroDefinition> WornHero;
+
+	/** The card a CardHand walks over its knuckles (made the first time it's wanted), and the breath steam last went with. */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> IdleCard;
+	int32 LastVentBreath = INDEX_NONE;
+	FRandomStream SteamRandom = FRandomStream(1771);
 
 public:
 	/** SK_Ellis's slot of the holstered revolver (Art/Models/Characters/Ellis.py's GAME_MATERIALS). */

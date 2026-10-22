@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Player/Animation/HeroPoseTypes.h"
 #include "HeroDefinition.generated.h"
 
 class UEmberDefinition;
@@ -108,6 +109,22 @@ public:
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
 	FVector ThirdPersonCamera = FVector::ZeroVector;
+
+	/**
+	 * How this hero stands still unarmed (the user's stances of 2026-10-22, CharArt sheet 2): posture, hip, head, the hands'
+	 * rests and curl, a sway, steam. The defaults are Ellis's weary idle. Played by the hidden mannequin's stance layer
+	 * (LooterStancePoseIdle.cpp), so it shows on the hero select's stand and in third person. Set by create_ember_assets.py
+	 * (HERO_IDLE); tuned live with Looter.Pose.Set, printed for the script by Looter.Pose.Dump.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
+	FHeroIdle Idle;
+
+	/**
+	 * How this hero aims down the sights in third person (2026-10-22): the gun up to their eye line, the head down onto it,
+	 * the elbows in (LooterStancePoseAim.cpp). Set by create_ember_assets.py (HERO_AIM).
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
+	FHeroAim Aim;
 
 	/** The hero's three, in the order the powers page lists them; the first is equipped in a new game. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")

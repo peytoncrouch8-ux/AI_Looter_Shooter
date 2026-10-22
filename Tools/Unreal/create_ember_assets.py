@@ -197,8 +197,9 @@ THIRD_PERSON_CAMERA = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (-5.0, 0.0, -3.0), 'C
 # hip cocked, right hand on the hip, a card walking over her left knuckles, chin up; Gauge wide and planted, arms clear of
 # the boiler, a slow piston sway, steam every few breaths, his head up (the user: "looking down all the time"); Pike
 # upright, weight back, thumbs in his pack straps, looking off. Degrees and cm on the full-size body; rests' offsets
-# (ahead, out, up) move the mannequin's hand onto this body (its hands are pinned to the mannequin's: Crane's chest ~14 cm
-# higher, Pike's ~6 and Odessa's ~4 lower, the THIRD_PERSON_HOLD numbers). Gauge's steam leaves his stack mouths
+# (ahead, out, up) move the mannequin's hand onto this body (its hands are pinned to the mannequin's). Tuned on the hero
+# select's stand 2026-10-22: Crane's chain hand +2 (his stoop already lifts the chest anchor: +14, his chest's height over
+# the mannequin's, put the hand at his chin); Pike's strap hands +6 and 2 out (at -6 they sat on his belt). Gauge's steam leaves his stack mouths
 # (gauge_parts.py: 14 back, 19.7 out, 191 up). Rests are FHeroIdle's EHeroIdleRest names. Tune live with
 # Looter.Pose.Set <Hero> Idle.<Field> <Value>; Looter.Pose.Dump prints these lines back.
 HERO_IDLE = {
@@ -206,16 +207,16 @@ HERO_IDLE = {
     'Odessa': dict(chest_slump=-1.0, shoulder_round=-1.0, neck_down=1.0, head_up=5.0, hip_cock=1.8, weight_shift=0.3,
                    glances=0.7, left_rest='CardHand', right_rest='HipHand', left_rest_offset=(0.0, 0.0, -4.0),
                    right_rest_offset=(0.0, 1.0, -2.0)),
-    'Crane': dict(chest_slump=8.0, shoulder_round=9.0, neck_down=16.0, head_up=8.0, lean=7.0, weight_shift=0.6,
+    'Crane': dict(chest_slump=8.0, shoulder_round=9.0, neck_down=18.0, head_up=5.0, lean=8.0, weight_shift=0.6,
                   glances=0.6, breath_period=5.0, left_rest='ChainHand', right_rest='Hang',
-                  left_rest_offset=(0.0, 0.0, 14.0)),
+                  left_rest_offset=(0.0, 0.0, 2.0)),
     'Gauge': dict(chest_slump=0.0, shoulder_round=0.0, neck_down=2.0, head_up=4.0, head_lift=6.0, weight_shift=0.3,
                   stance_width=7.0, sway_depth=1.5, sway_period=5.5, breath_period=5.5, breath_depth=0.6, glances=0.7,
                   steam_every=3, steam_vent=(-14.0, 19.7, 191.0), right_rest='Hang', left_rest_offset=(2.0, 14.0, 0.0),
                   right_rest_offset=(2.0, 14.0, 0.0)),
     'Pike': dict(chest_slump=-2.0, shoulder_round=-3.0, neck_down=1.0, head_up=3.0, lean=-3.0, hips_back=3.0,
                  head_yaw=28.0, head_pitch=3.0, glances=0.4, weight_shift=0.6, left_rest='StrapThumb',
-                 right_rest='StrapThumb', left_rest_offset=(0.0, 0.0, -6.0), right_rest_offset=(0.0, 0.0, -6.0)),
+                 right_rest='StrapThumb', left_rest_offset=(0.0, 2.0, 6.0), right_rest_offset=(0.0, 2.0, 6.0)),
 }
 
 # How each hero aims down the sights in third person (UHeroDefinition::Aim, FHeroAim; fields that differ from the defaults:

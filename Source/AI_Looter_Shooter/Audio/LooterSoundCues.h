@@ -1043,6 +1043,13 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* DeathWake = TEXT("World.Roost.DeathWake");
 	}
 
+	// --- The heroes' idles (2026-10-22: UBodyFigureComponent's idle props, FHeroIdle) ---
+	namespace Hero
+	{
+		/** Gauge standing still lets steam out of his stacks every few breaths (3D, ~1.2 s, quiet): a soft hiss and a valve's tick. */
+		inline constexpr const TCHAR* GaugeVent = TEXT("Hero.Gauge.Vent");
+	}
+
 	// --- Ember powers (2026-10-15: Embers/Powers/*, UEmberComponent, the HUD's socket; Art/Sounds/recipes/embers.py). The
 	//     player's own, so 2D: Ellis's three (Dust Devil, Sundown, Borrowed Time) and the socket's two ---
 	namespace Ember

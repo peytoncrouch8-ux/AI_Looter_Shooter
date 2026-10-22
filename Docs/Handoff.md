@@ -35,6 +35,13 @@ element parts import -> CHAR-MAT -> CHAR-FACE import; then build_sound_bank for 
 FP pull-in committed (056cea5); Hero.Gauge.Vent rendered (6aec834). LOOT-POLISH's copy into Source was refused by the
 permission system for the agent; **the user approved and Main copied it** (hashes matched); the agent builds/tests now.
 Bolder tones repaint done (`Saved/ArtPreviews/Terrain/RansomsRest/macro.png`), import waits for the lane (WORLD-ART).
+Loot polish committed (142b647). Art scripts committed, not imported (ba175de): element parts' own models (20 rows;
+new kit materials need MIs), Unpaid tatters/hands + smooth slime core (`Intermediate/ArtExport_GhostSlime_after`),
+Crane/Odessa faces + Crane hair (`ArtExport_Crane/_Odessa`), CHAR-MAT scripts (its GO steps: build_world_materials
+M_Character M_CharacterGlow -> build_creature_materials M_Ghost -> ImportModels ArtExport_CharMat_Gauge/_Ellis/_FPArms/
+_Gravemother/_Sexton -> build_character_glows). **The user approved Main doing today's holding-tree copies** after hash
+checks. CHAR-POSE copied and building now. Remaining lane: tones import -> one IMPORT job (element parts + setup_gun_parts,
+ghost/slime, CHAR-MAT steps, faces) -> perf.
 
 ## Direction (the user's answers, grill session 2026-10-21) — overrides "next" below
 

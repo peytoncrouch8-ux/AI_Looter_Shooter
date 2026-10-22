@@ -13,7 +13,9 @@ using namespace LooterStancePoseDetail;
 // jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the left hand's grip on the gun (its turn and its
 // fingers) in LooterStancePoseGrip.cpp, the gun carried low or in a sprint in
 // LooterStancePoseCarry.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp, a grenade throw's in
-// LooterStancePoseThrow.cpp and a revolver's reload in LooterStancePoseReload.cpp.
+// LooterStancePoseThrow.cpp and a revolver's reload in LooterStancePoseReload.cpp; the idle in LooterStancePoseIdle.cpp (its
+// hands in LooterStancePoseIdleHands.cpp, the hand rig in LooterStancePoseHands.cpp) and the aim down the sights in
+// LooterStancePoseAim.cpp.
 
 bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Stance)
 {
@@ -86,10 +88,17 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 		}
 	}
 
-	// Standing still unarmed: the weary idle (it fades out as a step, a crouch or a gun comes in).
+	// Standing still unarmed: the hero's idle (it fades out as a step, a crouch or a gun comes in).
 	if (Stance.IdleAlpha > UE_KINDA_SMALL_NUMBER)
 	{
 		ApplyIdle(Pose, Bones, Stance, Legs, Pelvis, Forward, Right);
+	}
+
+	// A body whose head the retarget leaves looking down has it lifted in every stance (Gauge's); before the sights come up
+	// to the eye, which goes with it.
+	if (!FMath::IsNearlyZero(Stance.Idle.HeadLift))
+	{
+		RotateBone(Pose, Head, FQuat(Right, FMath::DegreesToRadians(-Stance.Idle.HeadLift)));
 	}
 
 	if (Crouch > UE_KINDA_SMALL_NUMBER || Slide > UE_KINDA_SMALL_NUMBER)
@@ -156,6 +165,13 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 		ApplyHoldReach(Pose, Bones, Stance, Right);
 	}
 
+	// Aiming down the sights: the gun comes up from the hold to the eye line, the head down onto it, the elbows in (the hero's
+	// eye: their hold is in the eye it lines up with). The carry, the kick and the left hand start from there.
+	if (Stance.bHandOnForegrip && Stance.AimDownSights > UE_KINDA_SMALL_NUMBER)
+	{
+		ApplyAimDownSights(Pose, Bones, Stance, Forward, Right);
+	}
+
 	// Carried rather than shouldered: lowered at ease, across the chest in a sprint (a six-gun low at the side), the hands
 	// turning with the gun; the strike, the throw, the kick and the left hand below all start from there.
 	FQuat PalmTurn = FQuat::Identity;
@@ -214,6 +230,12 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 	}
 
 	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MoveTemp(Pose), Output);
+
+	// The idle hands' fingers, curled at rest (or holding their rest), on the local pose wherever the stages above put them.
+	if (Stance.IdleAlpha > UE_KINDA_SMALL_NUMBER)
+	{
+		ApplyIdleFingers(Output, Stance);
+	}
 
 	// The left fingers close round the gun as the hand grips it, and open as it lets go (a reload, a one-handed carry, a
 	// throw, a climb): their own turns only, so on the local pose, wherever the stages above took the hand.

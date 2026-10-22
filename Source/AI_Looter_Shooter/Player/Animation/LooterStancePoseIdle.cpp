@@ -7,43 +7,37 @@
 
 using namespace LooterStancePoseDetail;
 
-// The weary revenant's idle, standing still unarmed (the user's picks, 2026-10-15: "Weary revenant" with breathing,
-// glances around and hand fidgets; the armed stance kept as it was). Code on top of the graph's idle: a dead man who has
-// been walking a long time, shoulders a little forward, head a little low, his weight shifting from leg to leg.
+// The idle standing still unarmed. Ellis's is the weary revenant (the user's picks, 2026-10-15: "Weary revenant" with
+// breathing, glances around and hand fidgets; the armed stance kept as it was): a dead man who has been walking a long
+// time, shoulders a little forward, head a little low, his weight shifting from leg to leg. Since 2026-10-22 every hero
+// has their own stance on the same clock (FHeroIdle, the user's picks from CharArt sheet 2): the posture and the hips here,
+// the hands' rests and their curl in LooterStancePoseIdleHands.cpp.
 
 namespace
 {
 	/** A full shift of his weight, one leg to the other and back (s). */
 	constexpr float ShiftPeriod = 18.f;
-	/** One breath (s). */
-	constexpr float BreathPeriod = 4.2f;
 	/** The spells the glances, the finger flexes and the thumb in the belt are drawn in (s). */
 	constexpr float GlanceSpell = 10.f;
 	constexpr float FlexSpell = 6.f;
 	constexpr float HookSpell = 24.f;
+	/** A card's walk: a knuckle every KnuckleSeconds, then passed back under the hand in the rest of the cycle. */
+	constexpr float KnuckleSeconds = 0.8f;
+	constexpr float CardKnuckles = 3.f;
 
 	/** The weight shift: the hips over the standing leg (cm), the free side's hip dropping (degrees), the chest's counter-tilt. */
 	constexpr float HipShift = 2.5f;
 	constexpr float HipRoll = 3.f;
 	constexpr float ChestRoll = 2.f;
-	/** The weary posture (degrees): the chest forward, the shoulders rounded, the head down (the neck down, the head back up a little). */
-	constexpr float ChestSlump = 4.f;
-	constexpr float ShoulderRound = 5.f;
-	constexpr float NeckDown = 7.f;
-	constexpr float HeadUp = 2.f;
 	/** The breath in (degrees): the chest up and back, the shoulders lifting. */
 	constexpr float BreathChest = 0.8f;
 	constexpr float BreathShoulders = 1.3f;
-	/** A glance's share in the neck (the head takes the rest). */
+	/** A glance's share in the neck (the head takes the rest); a held turn's too. */
 	constexpr float GlanceNeck = 0.4f;
-	/** A finger flex at each joint (degrees), the thumb's. */
-	constexpr float FlexDegrees = 22.f;
-	/**
-	 * The right wrist with the thumb hooked in the belt, from the hips (cm: out to his right, ahead, up), and where its elbow
-	 * points from the shoulder.
-	 */
-	const FVector HookWrist(15.f, 12.f, 8.f);
-	const FVector HookElbow(25.f, -10.f, -20.f);
+	/** A lean's share down the spine (spine_01, _03, _05), as the crouch's lean. */
+	constexpr float LeanShare[] = { 0.45f, 0.35f, 0.2f };
+	/** A wide stance's knees kept this little bent short of straight (the leg's reach this share of its length). */
+	constexpr float WideReach = 0.995f;
 
 	/** A number 0..1 for spell Index of a kind (Salt), the same every run. */
 	float Draw(int32 Index, uint32 Salt)
@@ -91,67 +85,18 @@ namespace
 		return Draw(Spell, Salt) > 0.4f ? Bump(Into, 0.5f + 3.f * Draw(Spell, Salt + 1), 0.4f, 0.5f, 0.6f) : 0.f;
 	}
 
-	/** Which way a hand's fingers point (the wrist to the middle knuckle) and which way they curl (toward the palm), in component space. */
-	bool HandFrame(FCSPose<FCompactPose>& Pose, FCompactPoseBoneIndex Hand, FCompactPoseBoneIndex Knuckle, FCompactPoseBoneIndex Tip,
-		FVector& OutFingers, FVector& OutPalm)
+	bool HasRest(const FHeroIdle& Style, EHeroIdleRest Rest)
 	{
-		if (!Hand.IsValid() || !Knuckle.IsValid() || !Tip.IsValid())
-		{
-			return false;
-		}
-		const FVector Knuckles = Pose.GetComponentSpaceTransform(Knuckle).GetLocation();
-		OutFingers = (Knuckles - Pose.GetComponentSpaceTransform(Hand).GetLocation()).GetSafeNormal();
-		// The fingers rest a little curled: the way their tips lean off the hand's line is the palm's side.
-		OutPalm = FVector::VectorPlaneProject(Pose.GetComponentSpaceTransform(Tip).GetLocation() - Knuckles, OutFingers);
-		return !OutFingers.IsNearlyZero() && OutPalm.Normalize(0.25);
-	}
-
-	/** The fingers of one hand (Suffix "_l" or "_r") curled further toward the palm by Degrees at each joint. */
-	void CurlFingers(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const TCHAR* Suffix, float Degrees)
-	{
-		if (Degrees <= UE_KINDA_SMALL_NUMBER)
-		{
-			return;
-		}
-		const FString Side(Suffix);
-		FVector Fingers;
-		FVector Palm;
-		if (!HandFrame(Pose, FindBone(Bones, *(TEXT("hand") + Side)), FindBone(Bones, *(TEXT("middle_01") + Side)),
-			FindBone(Bones, *(TEXT("middle_03") + Side)), Fingers, Palm))
-		{
-			return;
-		}
-		for (const TCHAR* Finger : { TEXT("index"), TEXT("middle"), TEXT("ring"), TEXT("pinky") })
-		{
-			FCompactPoseBoneIndex Joints[3];
-			for (int32 Joint = 0; Joint < 3; ++Joint)
-			{
-				Joints[Joint] = FindBone(Bones, *FString::Printf(TEXT("%s_%02d%s"), Finger, Joint + 1, Suffix));
-			}
-			for (int32 Joint = 0; Joint < 3; ++Joint)
-			{
-				if (!Joints[Joint].IsValid())
-				{
-					continue;
-				}
-				// About the line square to the bone and the palm's side: turning about it carries the finger toward the palm.
-				const FVector Here = Pose.GetComponentSpaceTransform(Joints[Joint]).GetLocation();
-				FVector Along = Fingers;
-				if (Joint + 1 < 3 && Joints[Joint + 1].IsValid())
-				{
-					Along = (Pose.GetComponentSpaceTransform(Joints[Joint + 1]).GetLocation() - Here).GetSafeNormal(UE_SMALL_NUMBER, Fingers);
-				}
-				const FVector Axis = FVector::CrossProduct(Along, Palm).GetSafeNormal();
-				if (!Axis.IsNearlyZero())
-				{
-					RotateBone(Pose, Joints[Joint], FQuat(Axis, FMath::DegreesToRadians(Degrees)));
-				}
-			}
-		}
+		return Style.LeftRest == Rest || Style.RightRest == Rest;
 	}
 }
 
 FLooterIdleStance LooterStancePose::DescribeIdle(float Time)
+{
+	return DescribeIdle(Time, FHeroIdle());
+}
+
+FLooterIdleStance LooterStancePose::DescribeIdle(float Time, const FHeroIdle& Style)
 {
 	FLooterIdleStance Idle;
 	const float T = FMath::Max(Time, 0.f);
@@ -159,22 +104,28 @@ FLooterIdleStance LooterStancePose::DescribeIdle(float Time)
 	// He leans on one leg a while, then the other: a sine held near its ends.
 	const float Sway = FMath::Sin(UE_TWO_PI * T / ShiftPeriod);
 	Idle.WeightShift = FMath::Sign(Sway) * FMath::Sqrt(FMath::Abs(Sway));
+	const float BreathPeriod = FMath::Max(Style.BreathPeriod, 0.5f);
 	Idle.Breath = 0.5f - 0.5f * FMath::Cos(UE_TWO_PI * T / BreathPeriod);
+	Idle.Breaths = FMath::FloorToInt(T / BreathPeriod);
+	if (Style.SwayDepth > 0.f)
+	{
+		Idle.Sway = 0.5f - 0.5f * FMath::Cos(UE_TWO_PI * T / FMath::Max(Style.SwayPeriod, 0.5f));
+	}
 
 	// Most spells, a look off to one side and back.
 	float Into = 0.f;
 	const int32 Glance = SpellOf(T, GlanceSpell, Into);
 	if (Draw(Glance, 1) > 0.25f)
 	{
-		const float Look = Bump(Into, 1.5f + 4.f * Draw(Glance, 2), 0.7f, 1.f + 1.2f * Draw(Glance, 3), 0.8f);
+		const float Look = Bump(Into, 1.5f + 4.f * Draw(Glance, 2), 0.7f, 1.f + 1.2f * Draw(Glance, 3), 0.8f) * FMath::Max(Style.Glances, 0.f);
 		const float Side = Draw(Glance, 4) > 0.5f ? 1.f : -1.f;
 		Idle.GlanceYaw = Look * Side * (18.f + 17.f * Draw(Glance, 5));
 		Idle.GlancePitch = Look * (-3.f + 6.f * Draw(Glance, 6));
 	}
 
-	// Some spells, the right thumb in the belt a few seconds.
+	// Some spells, the thumb in the belt a few seconds (a BeltThumb rest only: the others hold their rest).
 	const int32 Hook = SpellOf(T, HookSpell, Into);
-	if (Draw(Hook, 11) > 0.35f)
+	if (HasRest(Style, EHeroIdleRest::BeltThumb) && Draw(Hook, 11) > 0.35f)
 	{
 		Idle.ThumbHook = Bump(Into, 2.f + 6.f * Draw(Hook, 12), 0.9f, 5.f + 4.f * Draw(Hook, 13), 0.9f);
 	}
@@ -182,6 +133,27 @@ FLooterIdleStance LooterStancePose::DescribeIdle(float Time)
 	// The fingers flex now and then, each hand on its own (the right not while it's on the belt).
 	Idle.FlexLeft = Flex(T, 0.f, 7);
 	Idle.FlexRight = Flex(T, 2.7f, 9) * (1.f - Idle.ThumbHook);
+
+	// A card walks the knuckles index to pinky, turning over at each, and the thumb passes it back under to the index.
+	if (HasRest(Style, EHeroIdleRest::CardHand))
+	{
+		const float InCycle = FMath::Fmod(T, CardCycleSeconds);
+		const float Walk = KnuckleSeconds * CardKnuckles;
+		if (InCycle < Walk)
+		{
+			const float Steps = InCycle / KnuckleSeconds;
+			const float Step = FMath::FloorToFloat(Steps);
+			const float Eased = Step + FMath::SmoothStep(0.f, 1.f, Steps - Step);
+			Idle.Card = Eased;
+			Idle.CardSpin = UE_PI * Eased;
+		}
+		else
+		{
+			const float Back = FMath::SmoothStep(0.f, 1.f, (InCycle - Walk) / FMath::Max(CardCycleSeconds - Walk, 0.01f));
+			Idle.Card = CardKnuckles * (1.f - Back);
+			Idle.CardSpin = UE_PI * CardKnuckles;
+		}
+	}
 	return Idle;
 }
 
@@ -193,24 +165,42 @@ void LooterStancePoseDetail::ApplyIdle(FCSPose<FCompactPose>& Pose, const FBoneC
 	{
 		return;
 	}
-	const FLooterIdleStance Idle = LooterStancePose::DescribeIdle(Stance.IdleTime);
+	const FHeroIdle& Style = Stance.Idle;
+	const FLooterIdleStance Idle = LooterStancePose::DescribeIdle(Stance.IdleTime, Style);
 	const FVector Up = FVector::UpVector;
 	auto Radians = [Alpha](float Degrees) { return FMath::DegreesToRadians(Degrees * Alpha); };
-	const FCompactPoseBoneIndex Spine3 = FindBone(Bones, TEXT("spine_03"));
-	const FCompactPoseBoneIndex Spine5 = FindBone(Bones, TEXT("spine_05"));
+	const FCompactPoseBoneIndex Spine[] = { FindBone(Bones, TEXT("spine_01")), FindBone(Bones, TEXT("spine_03")), FindBone(Bones, TEXT("spine_05")) };
 	const FCompactPoseBoneIndex Neck = FindBone(Bones, TEXT("neck_01"));
 	const FCompactPoseBoneIndex Head = FindBone(Bones, TEXT("head"));
 
-	// The weight onto one leg: the hips over it, the free side's hip dropping, the legs bent back onto the planted feet.
+	// The weight onto one leg (a cocked hip held over it, the slow shift riding on that): the hips over it, the free side's
+	// hip dropping; back over the heels, dipping with a piston's sway, settling to reach feet set wide; the legs bent back
+	// onto the planted feet (moved out for a wide stance).
+	const float Shift = Style.HipCock + Style.WeightShift * Idle.WeightShift;
+	const float Wide = FMath::Max(Style.StanceWidth, 0.f) * Alpha;
 	FTransform Feet[UE_ARRAY_COUNT(Legs)];
+	FTransform Hips = Pose.GetComponentSpaceTransform(Pelvis);
+	float WideDrop = 0.f;
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Legs); ++Index)
 	{
 		Feet[Index] = Pose.GetComponentSpaceTransform(Legs[Index].Foot);
+		if (Wide > UE_KINDA_SMALL_NUMBER)
+		{
+			// How far the hips must come down for this leg, unstretched, to reach its foot set Wide further out.
+			const FVector Thigh = Pose.GetComponentSpaceTransform(Legs[Index].Thigh).GetLocation();
+			const FVector Reach = Feet[Index].GetLocation() - Thigh;
+			const double Length = Reach.Size() * WideReach;
+			const double Across = FMath::Abs(FVector::DotProduct(Reach, Right)) + Wide;
+			const double Ahead = FVector::DotProduct(Reach, Forward);
+			const double Down = FMath::Sqrt(FMath::Max(Length * Length - Across * Across - Ahead * Ahead, 0.0));
+			WideDrop = FMath::Max(WideDrop, static_cast<float>(-Reach.Z - Down));
+			Feet[Index].AddToTranslation(Right * (Legs[Index].Side * Wide));
+		}
 	}
-	FTransform Hips = Pose.GetComponentSpaceTransform(Pelvis);
-	Hips.AddToTranslation(Right * (Idle.WeightShift * HipShift * Alpha));
+	Hips.AddToTranslation(Right * (Shift * HipShift * Alpha) - Forward * (Style.HipsBack * Alpha)
+		- Up * (Style.SwayDepth * Idle.Sway * Alpha + WideDrop));
 	// Turning about Forward lowers his left side: weight on the right (+) drops the left hip.
-	Hips.SetRotation((FQuat(Forward, Radians(Idle.WeightShift * HipRoll)) * Hips.GetRotation()).GetNormalized());
+	Hips.SetRotation((FQuat(Forward, Radians(Shift * HipRoll)) * Hips.GetRotation()).GetNormalized());
 	SetBone(Pose, Pelvis, Hips);
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Legs); ++Index)
 	{
@@ -218,61 +208,43 @@ void LooterStancePoseDetail::ApplyIdle(FCSPose<FCompactPose>& Pose, const FBoneC
 		FTransform Thigh = Pose.GetComponentSpaceTransform(Leg.Thigh);
 		FTransform Calf = Pose.GetComponentSpaceTransform(Leg.Calf);
 		FTransform Foot = Pose.GetComponentSpaceTransform(Leg.Foot);
-		AnimationCore::SolveTwoBoneIK(Thigh, Calf, Foot, Calf.GetLocation() + Forward * 60.f, Feet[Index].GetLocation(),
+		AnimationCore::SolveTwoBoneIK(Thigh, Calf, Foot, Calf.GetLocation() + Forward * 60.f + Right * (Leg.Side * Wide), Feet[Index].GetLocation(),
 			/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
 		Foot.SetRotation(Feet[Index].GetRotation());
 		const FBoneTransform Chain[] = { FBoneTransform(Leg.Thigh, Thigh), FBoneTransform(Leg.Calf, Calf), FBoneTransform(Leg.Foot, Foot) };
 		Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f);
 	}
 
+	// A stoop (+) or a lean back (-) down the whole spine; the head goes with it (the posture below lifts it as it wants).
+	if (!FMath::IsNearlyZero(Style.Lean))
+	{
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Spine); ++Index)
+		{
+			RotateBone(Pose, Spine[Index], FQuat(Right, Radians(Style.Lean * LeanShare[Index])));
+		}
+	}
+
 	// The chest leans back the other way over the hips, forward a little (weary) and up with the breath; turning about
 	// Right tips forward.
-	RotateBone(Pose, Spine3, FQuat(Forward, Radians(-Idle.WeightShift * ChestRoll)) * FQuat(Right, Radians(-0.6f * BreathChest * Idle.Breath)));
-	RotateBone(Pose, Spine5, FQuat(Right, Radians(ChestSlump - BreathChest * Idle.Breath)));
+	const float Breath = Idle.Breath * Style.BreathDepth;
+	RotateBone(Pose, Spine[1], FQuat(Forward, Radians(-Shift * ChestRoll)) * FQuat(Right, Radians(-0.6f * BreathChest * Breath)));
+	RotateBone(Pose, Spine[2], FQuat(Right, Radians(Style.ChestSlump - BreathChest * Breath)));
 
 	// The shoulders rounded forward and lifting with the breath. About Up, a right shoulder comes forward the negative way and
 	// a left one the positive; about Forward, a right one rises the positive way.
 	for (const float Side : { -1.f, 1.f })
 	{
 		const FCompactPoseBoneIndex Clavicle = FindBone(Bones, Side > 0.f ? TEXT("clavicle_r") : TEXT("clavicle_l"));
-		RotateBone(Pose, Clavicle, FQuat(Forward, Radians(Side * BreathShoulders * Idle.Breath)) * FQuat(Up, Radians(-Side * ShoulderRound)));
+		RotateBone(Pose, Clavicle, FQuat(Forward, Radians(Side * BreathShoulders * Breath)) * FQuat(Up, Radians(-Side * Style.ShoulderRound)));
 	}
 
-	// The head a little low, and a glance aside (+ yaw to his right: about Up, Forward turns toward Right).
-	RotateBone(Pose, Neck, FQuat(Up, Radians(Idle.GlanceYaw * GlanceNeck)) * FQuat(Right, Radians(NeckDown - Idle.GlancePitch * GlanceNeck)));
-	RotateBone(Pose, Head, FQuat(Up, Radians(Idle.GlanceYaw * (1.f - GlanceNeck))) * FQuat(Right, Radians(-HeadUp - Idle.GlancePitch * (1.f - GlanceNeck))));
+	// The head as the stance holds it (a little low; a look off to the horizon) and a glance aside on it (+ yaw to his right:
+	// about Up, Forward turns toward Right).
+	const float Yaw = Idle.GlanceYaw + Style.HeadYaw;
+	const float Pitch = Idle.GlancePitch + Style.HeadPitch;
+	RotateBone(Pose, Neck, FQuat(Up, Radians(Yaw * GlanceNeck)) * FQuat(Right, Radians(Style.NeckDown - Pitch * GlanceNeck)));
+	RotateBone(Pose, Head, FQuat(Up, Radians(Yaw * (1.f - GlanceNeck))) * FQuat(Right, Radians(-Style.HeadUp - Pitch * (1.f - GlanceNeck))));
 
-	// The right thumb in the belt: the wrist to the belt's front at the hip, the elbow out and back, the fingers hanging
-	// down over the hip with the palm to the body.
-	const float Hook = Idle.ThumbHook * Alpha;
-	const FCompactPoseBoneIndex UpperArm = FindBone(Bones, TEXT("upperarm_r"));
-	const FCompactPoseBoneIndex LowerArm = FindBone(Bones, TEXT("lowerarm_r"));
-	const FCompactPoseBoneIndex Hand = FindBone(Bones, TEXT("hand_r"));
-	if (Hook > UE_KINDA_SMALL_NUMBER && UpperArm.IsValid() && LowerArm.IsValid() && Hand.IsValid())
-	{
-		const FVector HipsNow = Pose.GetComponentSpaceTransform(Pelvis).GetLocation();
-		const FVector Shoulder = Pose.GetComponentSpaceTransform(UpperArm).GetLocation();
-		const FVector Wrist = HipsNow + Right * HookWrist.X + Forward * HookWrist.Y + Up * HookWrist.Z;
-		const FVector Elbow = Shoulder + Right * HookElbow.X + Forward * HookElbow.Y + Up * HookElbow.Z;
-		SolveArm(Pose, UpperArm, LowerArm, Hand, Wrist, Elbow, Hook, /*bTurnHand*/ false);
-
-		FVector Fingers;
-		FVector Palm;
-		if (HandFrame(Pose, Hand, FindBone(Bones, TEXT("middle_01_r")), FindBone(Bones, TEXT("middle_03_r")), Fingers, Palm))
-		{
-			const FVector WantFingers = (-Up + Forward * 0.15f).GetSafeNormal();
-			const FVector WantPalm = FVector::VectorPlaneProject(-Right * 0.75f - Forward * 0.35f, WantFingers).GetSafeNormal();
-			const FQuat Point = FQuat::FindBetweenNormals(Fingers, WantFingers);
-			const FVector Turned = FVector::VectorPlaneProject(Point.RotateVector(Palm), WantFingers).GetSafeNormal();
-			const FQuat Roll = Turned.IsNearlyZero() || WantPalm.IsNearlyZero() ? FQuat::Identity : FQuat::FindBetweenNormals(Turned, WantPalm);
-			FTransform HandNow = Pose.GetComponentSpaceTransform(Hand);
-			const FQuat Hooked = (Roll * Point * HandNow.GetRotation()).GetNormalized();
-			HandNow.SetRotation(FQuat::Slerp(HandNow.GetRotation(), Hooked, Hook).GetNormalized());
-			SetBone(Pose, Hand, HandNow);
-		}
-	}
-
-	// The fingers flexing now and then.
-	CurlFingers(Pose, Bones, TEXT("_l"), FlexDegrees * Idle.FlexLeft * Alpha);
-	CurlFingers(Pose, Bones, TEXT("_r"), FlexDegrees * Idle.FlexRight * Alpha);
+	// The hands to their rests (LooterStancePoseIdleHands.cpp); the fingers are curled on the local pose after.
+	ApplyIdleRests(Pose, Bones, Stance, Idle, Pelvis, Forward, Right);
 }

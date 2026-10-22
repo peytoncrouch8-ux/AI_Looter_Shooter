@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Player/Animation/HeroPoseTypes.h"
 #include "Player/Animation/LooterClimbPose.h"
 #include "Player/Animation/LooterStancePoseCarry.h"
 #include "Weapons/WeaponTypes.h"
@@ -89,9 +90,27 @@ struct FLooterStanceInput
 	 */
 	float CylinderReload = -1.f;
 
-	/** Standing still unarmed: how far into the weary idle (eased, 0-1), and the idle's own clock (LooterStancePose::DescribeIdle). */
+	/** Standing still unarmed: how far into the idle (eased, 0-1), and the idle's own clock (LooterStancePose::DescribeIdle). */
 	float IdleAlpha = 0.f;
 	float IdleTime = 0.f;
+	/**
+	 * The worn hero's stance (UBodyFigureComponent::GetIdle, through HeroPoseTuning::Idle): the posture, the hands' rests and
+	 * curl, and HeadLift, which shows in every stance. The defaults are Ellis's weary idle.
+	 */
+	FHeroIdle Idle;
+
+	/**
+	 * Aiming down the sights in third person (UPlayerViewComponent::GetAimAlpha, eased over the gun's own aim time; 0 at the
+	 * hip): the gun raised to the eye line by the worn hero's Aim (LooterStancePoseAim.cpp).
+	 */
+	float AimDownSights = 0.f;
+	FHeroAim Aim;
+	/** The held gun's sight (where the eye lines up, AWeaponBase::GetAimPoint) from its grip, in the gun's own space (cm). */
+	FVector WeaponSight = FVector(10.f, 0.f, 8.f);
+	/** How far ahead of the eye the grip sits along the aim when sighted (cm; HeroPoseTuning::GripAhead for its kind, plus the hero's). */
+	float SightGripAhead = 14.f;
+	/** The mannequin's right eye from its head bone (cm: ahead, right, up; HeroPoseTuning::EyeFromHead). */
+	FVector EyeFromHead = FVector(9.f, 3.5f, 10.f);
 
 	/** Upper-body pose held over the locomotion (armed): the animation and where in its loop we are. */
 	const UAnimSequenceBase* UpperBodyPose = nullptr;
@@ -109,6 +128,7 @@ struct FLooterStanceInput
 	{
 		return CrouchAlpha > UE_KINDA_SMALL_NUMBER || SprintAlpha > UE_KINDA_SMALL_NUMBER || SlideAlpha > UE_KINDA_SMALL_NUMBER
 			|| Climb.IsActive() || bAimWithTorso || bHandOnForegrip || ReloadWeight > UE_KINDA_SMALL_NUMBER || UpperBodyPose
-			|| !FMath::IsNearlyZero(MeleeJab) || ThrowTime > 0.f || IdleAlpha > UE_KINDA_SMALL_NUMBER;
+			|| !FMath::IsNearlyZero(MeleeJab) || ThrowTime > 0.f || IdleAlpha > UE_KINDA_SMALL_NUMBER
+			|| !FMath::IsNearlyZero(Idle.HeadLift);
 	}
 };

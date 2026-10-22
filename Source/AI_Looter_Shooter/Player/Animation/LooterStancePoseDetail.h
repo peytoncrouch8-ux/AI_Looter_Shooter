@@ -168,12 +168,69 @@ namespace LooterStancePoseDetail
 		const FLooterCylinderReload& Reload, const FVector& Forward, const FVector& Right);
 
 	/**
-	 * The weary idle (Stance.IdleAlpha, LooterStancePoseIdle.cpp): the posture, the weight shift with the legs solved back
-	 * onto the planted feet, the breath, a glance, the fingers and the thumb in the belt. Before the crouch (it fades out as
-	 * a crouch comes in).
+	 * The idle (Stance.IdleAlpha, LooterStancePoseIdle.cpp) in the worn hero's stance (Stance.Idle): the posture, the weight
+	 * shift (and a cocked hip, a wide stance, a sway) with the legs solved back onto the planted feet, the breath, a glance
+	 * and a held look, then the hands to their rests (ApplyIdleRests). Before the crouch (it fades out as a crouch comes in).
 	 */
 	void ApplyIdle(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FLegBones (&Legs)[2],
 		FCompactPoseBoneIndex Pelvis, const FVector& Forward, const FVector& Right);
+
+	/**
+	 * Each idle hand to its rest (FHeroIdle::LeftRest/RightRest, LooterStancePoseIdleHands.cpp): the wrist by arm IK, the hand
+	 * turned there; a hanging hand only moved by its offset. Idle is the idle this moment (DescribeIdle).
+	 */
+	void ApplyIdleRests(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FLooterIdleStance& Idle,
+		FCompactPoseBoneIndex Pelvis, const FVector& Forward, const FVector& Right);
+
+	/**
+	 * The idle hands' fingers on the local pose, after the component-space work: every hand curled at rest (or its rest's
+	 * hold: a fist on a chain, fingers over a strap), the flexes on top, a card hand's ripple; with no rest curl
+	 * (Looter.Pose.On 0) only the flexes on the animation's open hand, as before 2026-10-22.
+	 */
+	void ApplyIdleFingers(FCompactPose& Pose, const FLooterStanceInput& Stance);
+
+	/**
+	 * A hand's fingers as bends from straight (degrees; LooterStancePoseHands.cpp): each finger's knuckle, middle and end
+	 * joints, a fist's spread toward the pinky (added at the first two), a finger's own extra (index to pinky), the thumb's
+	 * swing in across the palm and its two outer joints.
+	 */
+	struct FHandCurl
+	{
+		float Fingers[3] = { 0.f, 0.f, 0.f };
+		float Spread = 0.f;
+		float Thumb[3] = { 0.f, 0.f, 0.f };
+		float PerFinger[4] = { 0.f, 0.f, 0.f, 0.f };
+	};
+
+	/**
+	 * The hand bone's component-space turn that lays its fingers along Fingers and faces its palm along Palm (read off the
+	 * reference skeleton, so the same for any pose); false for a skeleton without the hand's bones.
+	 */
+	bool HandTurnFor(const FBoneContainer& Bones, bool bRight, const FVector& Fingers, const FVector& Palm, FQuat& OutTurn);
+
+	/** One hand's fingers set to Curl's bends from straight, Flex more at each finger joint, blended in by Weight (local pose). */
+	void CurlHand(FCompactPose& Pose, bool bRight, const FHandCurl& Curl, float Weight, float Flex);
+
+	/** One hand's four fingers bent Degrees more than the pose has them at each joint (local pose). */
+	void FlexHand(FCompactPose& Pose, bool bRight, float Degrees);
+
+	/**
+	 * How much of the aim down the sights shows (0-1): the view's aim (Stance.AimDownSights) times the hero's Raise, eased off
+	 * by a reload, a carry (a sprint, a swap), a climb's hands and a throw's dip, which all take the gun away from the eye.
+	 */
+	float AimShare(const FLooterStanceInput& Stance);
+
+	/**
+	 * Aiming down the sights in third person (LooterStancePoseAim.cpp): the head down onto the gun and canted to it, then both
+	 * hands moved (arm IK, the elbows in under the gun) until the gun's sight line runs through the eye with the grip
+	 * Stance.SightGripAhead ahead of it. After the hero's hold and a six-gun's reach, before the carry, the kick and the left
+	 * hand's foregrip.
+	 */
+	void ApplyAimDownSights(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Forward,
+		const FVector& Right);
+
+	/** The eye the sight lines up with (component space): the head bone and Stance.EyeFromHead, the hero's hold and EyeOffset. */
+	FVector AimEye(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Forward, const FVector& Right);
 
 	/** A revolver's reload, the left hand's part: on the cylinder, the rod, the belt; blended in by the reload's weight. */
 	void ApplyCylinderReloadHand(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance,

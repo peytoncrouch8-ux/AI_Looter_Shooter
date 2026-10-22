@@ -93,12 +93,14 @@ void UBodyFigureComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter, FVector& OutHold, FVector& OutCamera) const
+void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter, FVector& OutHold, FVector& OutCamera,
+	const UHeroDefinition*& OutHero) const
 {
 	// The hero a stand shows, or the hero played (the session's pick, or Looter.Hero's), when both their mesh and their
 	// retargeter are in the game.
 	OutHold = FVector::ZeroVector;
 	OutCamera = FVector::ZeroVector;
+	OutHero = nullptr;
 	if (const UHeroDefinition* Hero = ShownHero ? ShownHero.Get() : USessionSubsystem::FindPlayedHero(this))
 	{
 		USkeletalMesh* HeroMesh = Hero->LoadFigureMesh();
@@ -109,6 +111,7 @@ void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& Out
 			OutRetargeter = HeroRetargeter;
 			OutHold = Hero->ThirdPersonHold;
 			OutCamera = Hero->ThirdPersonCamera;
+			OutHero = Hero;
 			return;
 		}
 		if (Hero->Id != UHeroDefinition::DefaultId())
@@ -151,7 +154,9 @@ void UBodyFigureComponent::Wear()
 	// The body for the hero played; a change (another hero, or Ellis's remade) starts the animation over with it.
 	USkeletalMesh* Mesh = nullptr;
 	UIKRetargeter* NewRetargeter = nullptr;
-	PickBody(Mesh, NewRetargeter, WornHold, WornCamera);
+	const UHeroDefinition* Hero = nullptr;
+	PickBody(Mesh, NewRetargeter, WornHold, WornCamera, Hero);
+	WornHero = Hero;
 	if (Mesh != GetSkeletalMeshAsset() || NewRetargeter != Retargeter)
 	{
 		Retargeter = NewRetargeter;
@@ -201,6 +206,20 @@ void UBodyFigureComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 	FollowBody();
 	FollowHolster();
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	// After this body's pose: the card sits on its knuckles as they are this frame.
+	TickIdleProps(DeltaTime);
+}
+
+FHeroIdle UBodyFigureComponent::GetIdle() const
+{
+	const UHeroDefinition* Hero = GetWornHero();
+	return Hero ? Hero->Idle : FHeroIdle();
+}
+
+FHeroAim UBodyFigureComponent::GetAim() const
+{
+	const UHeroDefinition* Hero = GetWornHero();
+	return Hero ? Hero->Aim : FHeroAim();
 }
 
 void UBodyFigureComponent::FollowHolster()

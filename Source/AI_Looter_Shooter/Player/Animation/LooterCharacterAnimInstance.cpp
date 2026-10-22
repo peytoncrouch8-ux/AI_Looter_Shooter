@@ -1,6 +1,7 @@
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "AI_Looter_Shooter.h"
 #include "Player/Animation/BodyFigureComponent.h"
+#include "Player/Animation/HeroPoseTuning.h"
 #include "Player/Animation/LooterStancePose.h"
 #include "Player/Animation/LooterStancePoseCarry.h"
 #include "Player/Animation/LooterStancePoseDetail.h"
@@ -87,6 +88,16 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	StanceInput.IdleAlpha = FMath::SmoothStep(0.f, 1.f, IdleAlpha);
 	StanceInput.IdleTime = IdleTime;
 
+	// The hero worn over this body: their own idle stance and aim (their gun hold below), Ellis's without one.
+	if (!Figure.IsValid() && Pawn)
+	{
+		Figure = Pawn->FindComponentByClass<UBodyFigureComponent>();
+	}
+	const UBodyFigureComponent* Worn = Figure.Get();
+	StanceInput.Idle = HeroPoseTuning::Idle(Worn ? Worn->GetIdle() : FHeroIdle());
+	StanceInput.Aim = HeroPoseTuning::Aim(Worn ? Worn->GetAim() : FHeroAim());
+	StanceInput.EyeFromHead = HeroPoseTuning::EyeFromHead();
+
 	// Armed: aim the torso with the view and put the left hand on the gun actually held.
 	if (!WeaponManager.IsValid() && Pawn)
 	{
@@ -113,12 +124,14 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	StanceInput.WeaponKind = HeldDefinition ? HeldDefinition->Kind : EWeaponKind::None;
 	// The hero worn over this body holds the gun at their own shoulder and eye (a tall or short hero's hands are pinned
 	// to these hands, so these move for them).
-	if (!Figure.IsValid() && Pawn)
-	{
-		Figure = Pawn->FindComponentByClass<UBodyFigureComponent>();
-	}
 	StanceInput.HoldOffset = Weapon && Figure.IsValid() ? Figure->GetHoldOffset() : FVector::ZeroVector;
 	StanceInput.WeaponScale = Weapon ? Weapon->GetModelScale() : 1.f;
+	// Aiming down the sights raises the gun to the eye, over the gun's own aim time (the view's eased aim); the sight and
+	// the grip's reach ahead of the eye by its kind. (The sight is the gun's, the grip its model's: the same space but in a
+	// melee swing, which drops the aim anyway.)
+	StanceInput.AimDownSights = Weapon && View.IsValid() ? View->GetAimAlpha() : 0.f;
+	StanceInput.WeaponSight = Weapon ? Weapon->GetAimPoint() - Weapon->GetGripPoint() : FVector(10.f, 0.f, 8.f);
+	StanceInput.SightGripAhead = HeroPoseTuning::GripAhead(StanceInput.WeaponKind) + StanceInput.Aim.GripAhead;
 
 	// The hand socket the gun hangs from (the same one the weapon manager attaches to in third person).
 	const FName HoldSocket = WeaponManager.IsValid() ? WeaponManager->ThirdPersonAttachSocket : NAME_None;

@@ -236,6 +236,39 @@ committed: its names are here). The session keeps the pick; the character takes 
     `Looter.Heroes.CameraData`, `.CameraBoom` (`Tests/HeroCameraTests.cpp`).
   - Left as they were, Ellis's too: the Bullpup's reload tips its stock up across the face; the Ranchhand's reload swings
     the left arm out at the side; a flat white card by the Ranchhand's receiver in right-side views (seen, not looked into).
+- **Stances and the third-person aim** (the user, 2026-10-22; CharArt sheet 2, `Docs/Work/2026-10-22-CharArt/PLAN.md`
+  items 2-3): `UHeroDefinition::Idle` (`FHeroIdle`) and `::Aim` (`FHeroAim`, `Player/Animation/HeroPoseTypes.h`),
+  create_ember_assets.py `HERO_IDLE`/`HERO_AIM` (fields that differ from the defaults; the defaults are Ellis's weary idle)
+  -> `UBodyFigureComponent::GetIdle/GetAim` (the worn hero's; defaults when Ellis's body stands in) -> `HeroPoseTuning`
+  (the `Looter.Pose.*` cvars) -> `FLooterStanceInput::Idle/Aim` -> the hidden mannequin's stance layer; heroes copy it.
+  Their hands are pinned to the mannequin's, so each rest has a per-hero offset (ahead, out, up; ~ the THIRD_PERSON_HOLD
+  heights).
+  - Stances: Ellis keeps the weary revenant (thumb in the belt in spells, left hand loose). Crane stooped (lean 8), head low
+    and forward, left hand closed on the toll chain at his chest (`ChainHand`). Odessa hip cocked (`HipCock` 1.8 shifts),
+    chin up, right hand on the hip (`HipHand`), left raised with a card walking her knuckles (`CardHand`: a knuckle each
+    0.8 s, a half turn each, passed back under; the card is two engine planes back to back, ivory face and her red back on
+    M_StylizedSurface MIDs, set on the hero mesh's `*_01` knuckle bones each tick, owned by the body's actor so the select
+    stand's ShowOnly capture shows it). Gauge wide (feet 7 out each, hips settling to reach), hands hung 14 out clear of the
+    boiler, a 1.5 cm piston sway over 5.5 s, slow breath, steam from both stack mouths every 3rd breath out
+    (`SteamVent` (-14, 19.7, 191) from gauge_parts.py; FWeaponFX wisps, cue `Hero.Gauge.Vent`; in play only: the stand's
+    capture has translucency off), `HeadLift` 6 in every stance (the user: "looking down all the time"; the layer runs for
+    it alone). Pike upright, weight back (hips 3 back, lean -3), thumbs in both pack straps (`StrapThumb`), head 28 to his
+    right and a little up, few glances.
+  - Every idle hand rests curled (`LooterStancePoseIdleHands.cpp`, PLAN item 2): absolute bends from straight read off the
+    reference skeleton (`LooterStancePoseHands.cpp`, the grip's way for both hands): loose 35/45/30 with the thumb in
+    20/15/10; a rest's own hold (a fist on the chain 60/70/40, fingers over a strap 40/50/30); flexes on top; the card's
+    finger straightens under it. `RestCurl` scales it (`Looter.Pose.Curl`; `Looter.Pose.On 0` shows the old shared idle).
+  - Aim down the sights in third person (the user: "no aim-in animation in 3rd person"; `LooterStancePoseAim.cpp`): by
+    `UPlayerViewComponent::GetAimAlpha` (eased, so each kind's `Looter.Gunfeel.Aim.Time.*`), after the hold offset and a
+    six-gun's reach: the head 7 down (40% neck) and canted 6 to the gun (a six-gun 30% of it), then both hands moved (arm
+    IK, the elbows' hint down 20 -> 35 and out 10 -> 2) until the gun's sight line (`AWeaponBase::GetAimPoint` from the
+    grip) runs through the eye with the grip `GripAhead(Kind)` ahead of it (rifle 14, shotgun 15, six-gun 40, SMG 13,
+    sniper 14, LMG 14, launcher 12; `Looter.Pose.Aim.Grip.<Kind>`). The eye = the head bone + `EyeFromHead` (9 ahead, 3.5
+    right, 10 up; `Looter.Pose.Aim.Eye*`) in the body's frame pitched with the aim + the hero's hold + `FHeroAim::EyeOffset`
+    (Gauge (0, 6, 2): his sight beside the helm). Off in a reload, a carry (sprint, swap), a climb and a throw's dip.
+  - Tune live: `Looter.Pose.Set <Hero> <Idle|Aim>.<Field> <Value>` (in memory), bake `Looter.Pose.Dump` lines into the
+    script. Tests `Looter.Pose.Idle.Clock`, `.Curl`, `.Heroes`, `.HeadLift` (`Tests/PlayerIdleTests.cpp`),
+    `Looter.Pose.Aim.Raise`, `.Data` (`Tests/PoseAimTests.cpp`).
 - Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`);
   `Looter.Heroes.Stand` (`Tests/HeroStandTests.cpp`: the stand builds for each of the five with their own body and
   retargeter, turns, stops; the screen puts the chosen hero on it, the right stick turns them, a hero with no body gets

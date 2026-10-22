@@ -250,8 +250,10 @@ void LooterStancePoseDetail::ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose
 	const FQuat HandRotation = LeftHandOnGun(Bones, Stance, Stance.WeaponRotation, (PalmTurn * Wrist.GetRotation()).GetNormalized());
 	const FVector WristTarget = Foregrip - HandRotation.RotateVector(LeftPalmFromWrist());
 	// Keep the elbow bending down and out, the way it already is. Carried, it goes where the forearm turned with the palm
-	// would put it, so the wrist doesn't bend away from the gun.
-	const FVector UsualHint = Elbow.GetLocation() - FVector::UpVector * 20.f + Right * -10.f;
+	// would put it, so the wrist doesn't bend away from the gun. Aimed down the sights it tucks down and in under the gun
+	// (LooterStancePoseAim.cpp).
+	const float Tuck = FMath::Clamp(Stance.Aim.ElbowIn, 0.f, 1.f) * AimShare(Stance);
+	const FVector UsualHint = Elbow.GetLocation() - FVector::UpVector * FMath::Lerp(20.f, 35.f, Tuck) + Right * -FMath::Lerp(10.f, 2.f, Tuck);
 	const FVector TurnedHint = WristTarget - PalmTurn.RotateVector(Wrist.GetLocation() - Elbow.GetLocation());
 	const FVector ElbowHint = FMath::Lerp(UsualHint, TurnedHint, Stance.Carry.Weight());
 

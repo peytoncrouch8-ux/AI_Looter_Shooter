@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Player/Animation/HeroPoseTypes.h"
 
 struct FCompactPose;
 struct FLooterStanceInput;
@@ -61,8 +62,18 @@ struct FLooterIdleStance
 	/** Each hand's fingers flexing a little more (0-1). */
 	float FlexLeft = 0.f;
 	float FlexRight = 0.f;
-	/** The right thumb hooked in the gun belt (0 the arm hanging, 1 the hand on the belt). */
+	/** The right thumb hooked in the gun belt (0 the arm hanging, 1 the hand on the belt): a BeltThumb rest's spells. */
 	float ThumbHook = 0.f;
+	/** The piston sway's dip, 0 up to 1 down (FHeroIdle::SwayDepth; 0 without one). */
+	float Sway = 0.f;
+	/** Breaths begun since the idle's clock started (steam goes with some: FHeroIdle::SteamEvery). */
+	int32 Breaths = 0;
+	/**
+	 * A card walking over a CardHand's knuckles: where it is, 0 on the index's knuckle to 3 on the pinky's (negative: no
+	 * card hand), and how far it has turned over (radians: a half turn a knuckle).
+	 */
+	float Card = -1.f;
+	float CardSpin = 0.f;
 };
 
 /**
@@ -91,7 +102,10 @@ struct FLooterIdleStance
  *    (LooterStancePoseReload.cpp), on the gun's own reload steps (Weapons/ReloadMotion)
  *  - standing still unarmed (Stance.IdleAlpha): the weary idle; shoulders a little forward, head a little low, his
  *    weight shifting from leg to leg, breathing, now and then a glance aside, fingers flexing, the right thumb hooked in
- *    the belt a while (LooterStancePoseIdle.cpp)
+ *    the belt a while (LooterStancePoseIdle.cpp); each hero their own stance on that clock (Stance.Idle, FHeroIdle: the
+ *    posture, the hands' rests by arm IK and their rest curl, LooterStancePoseIdleHands.cpp)
+ *  - aiming down the sights (Stance.AimDownSights): the gun raised from the hip hold to the eye line, the head down onto
+ *    it, the elbows in (Stance.Aim, FHeroAim; LooterStancePoseAim.cpp)
  */
 namespace LooterStancePose
 {
@@ -132,4 +146,14 @@ namespace LooterStancePose
 	 * some 24-second spells. The same Time always gives the same idle (spells drawn from a hash of their number).
 	 */
 	FLooterIdleStance DescribeIdle(float Time);
+
+	/**
+	 * A hero's idle Time seconds in (FHeroIdle, the user's stances of 2026-10-22): the same clock with their breath's period,
+	 * their share of the shift and the glances, their piston sway, the thumb's belt spells only for a BeltThumb rest, and a
+	 * card walking over a CardHand's knuckles. DescribeIdle(Time) is this with the defaults (Ellis's).
+	 */
+	FLooterIdleStance DescribeIdle(float Time, const FHeroIdle& Style);
+
+	/** Seconds a card takes to walk the four knuckles and be passed back under the hand to the index again. */
+	inline constexpr float CardCycleSeconds = 3.2f;
 }
