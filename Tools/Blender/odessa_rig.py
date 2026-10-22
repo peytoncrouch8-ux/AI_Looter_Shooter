@@ -3,7 +3,7 @@ MakeHuman's joints, every part weighted by what it is (weights()), the forearms'
 swing chains the game's springs move (Player/Animation/BodySwing; names from its skirt ring: each tail's outer edge
 skirt_sl/sr, middle skirt_bl/br and inner edge by the split skirt_bli/bri, three bones each and an unweighted
 <chain>_end leaf where the cloth ends), the `hat` bone the game tips back while aiming, and the hit zones. Adapted from
-Ellis.py's rig (its lessons in Docs/Pipeline.md "Character models")."""
+Ellis.py's rig (its lessons in Docs/Pipeline/CharacterModels.md "Character models")."""
 import math
 import os
 

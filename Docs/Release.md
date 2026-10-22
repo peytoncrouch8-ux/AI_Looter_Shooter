@@ -15,7 +15,7 @@ Averages meet the target (Medium 120+ fps on the RX 580 at every tour view, 2026
   precaching is on, gather a bundled PSO cache from full playthroughs (`-logPSO`), and test a packaged Shipping build
   from a clean driver shader cache on a first run.
 - **Measure the Shipping build, not the editor binary:** every timing so far is `UnrealEditor.exe -game`. Package
-  (Pipeline "Packaging a test build") and re-time Medium/High/Epic; then 1% lows, not only averages.
+  (Pipeline/Workflow.md "Packaging a test build") and re-time Medium/High/Epic; then 1% lows, not only averages.
 - **Frame pacing options:** a frame rate cap, VSync, fullscreen modes (borderless vs exclusive) checked for even pacing.
 
 ## Expectations to state on the store page

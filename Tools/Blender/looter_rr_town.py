@@ -14,7 +14,7 @@ finishes, WindowGlow, the pivot moved to the front door at finish()), looter_tow
     views inside at eye height with the lamps lit, and a report per script that town_sheet.py lays out as the look sheet.
 
 Everything random comes from the model's seeded random.Random, and nothing iterates a set of mesh elements, so a building
-comes out the same on every run (Docs/Pipeline.md: export twice and compare).
+comes out the same on every run (Docs/Pipeline/Assets.md "Making an asset": export twice and compare).
 """
 import json
 import math

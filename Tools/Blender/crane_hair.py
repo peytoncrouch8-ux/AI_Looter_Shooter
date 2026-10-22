@@ -1,5 +1,5 @@
 """Hollis Crane's long white hair, drooping mustache and brows as hair cards (Art/Models/Characters/Crane.py), the way
-Ellis's hair is made (Tools/Blender/ellis_hair.py, Docs/Pipeline.md "Hair cards"): layered strips of a script-made
+Ellis's hair is made (Tools/Blender/ellis_hair.py, Docs/Pipeline/CharacterModels.md "Hair cards"): layered strips of a script-made
 strand atlas, not baked.
 
   - The atlas: ellis_hair's painter (make_textures: a sheet across the top quarter, eight strips below), run with

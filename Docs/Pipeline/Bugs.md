@@ -1,0 +1,219 @@
+# Pipeline: Bugs and lessons
+
+Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
+
+## Bugs and how they were fixed
+
+Each line: bug (date). Cause. Fix.
+
+- Coffin Rock's secret couldn't be climbed: the player slid off the stepping boulders after four steps (2026-10-22). Cause:
+  scaled SM_Boulder_A tops are rounded. Fix: a fallen slab (Boulder_D in three overlapping pieces, the butte's MI_RockCliff)
+  leaning up its north edge at 29 degrees, and a hidden collision plank (the engine cube, invisible) on the ramp's line
+  over it: the bare pieces had 80-96 cm dips at their joins (`build_area_secrets.py` RAMP_*). Walked in PIE: ground to top
+  in 4 s. Lesson: a stretched rock is no floor; walkways get a plain hidden collider.
+- `play.py press Move` walked sideways (2026-10-22). Cause: IA_Move's x is right, y forward (the docstring said the reverse).
+  Fix: the docstring; walk ahead with `press Move <s> 0 1`.
+
+- A `Looter.Hero` swap mid-play (Odessa to Crane) tripped "SK_Crane has incorrect BoneVisibilityStates" (93 against 145)
+  and the engine's bone-count check (2026-10-20). Cause: `UBodyFigureComponent::Wear` showed every material section
+  (which refreshes the bones) before `InitAnim` had sized the bone arrays for the new body. Fix: show them after InitAnim.
+
+- Red-and-green/white blotches on the heroes' bare skin (Pike's hand, Odessa's cheek, Crane's face; 2026-10-20). Cause:
+  M_CharacterSkin's Subsurface Profile goes through the Separable SSS filter on Medium/High (BaseScalability's
+  r.SSS.HalfRes 1 + r.SSS.HalfRes.ForceSeparable 1; only Epic runs Burley); its fitted kernel (~2.7 cm) smeared red into
+  blotches and left green, at any r.SSS.Scale, full res too. Not the textures, lights or SubsurfaceAmount. Fix:
+  Preintegrated Skin shading (Materials above). Also: build_world_materials.py run during PIE fails (EditorAssetLibrary
+  refuses in play mode, does_asset_exist says False, create_asset raises an "Overwrite Existing Object" dialog that blocks
+  the editor): cancel it (nothing changes) and build with PIE stopped. take_high_res_screenshot in PIE writes the file
+  twice ~0.35 s apart, and a background editor draws late: focus it and wait 1 s+ after the file appears.
+
+- The Bestiary's habitat line ("RANSOM'S REST: RANSOM'S POINT AT THE TOP OF THE BLUFF PATH, ...") ran past the details card's
+  right edge (2026-10-20). Cause: an unwrapped kit label. Fix: it wraps (BestiaryWidgetDetails.cpp), as the name above it.
+
+- Game crashed at start in Enhanced Input ("Unhandled tracking mode", 2026-10-09) though the build and every test passed. Cause: an
+  agent added members to `KeyBindingSubsystem.h` mid-build, so files compiled against the old header were never rebuilt and read
+  `CharacterContext` at the old offset (an input action). Fix: touch every changed header before the integration build; no builds
+  while agents edit headers; after each integration build start the game once (`menushots.ps1`/`hudshots.ps1`): tests don't add
+  input contexts.
+- The tutorial island's dressing build put 38 of Ransom's Rest's pieces on it (graves, dead trees, bales, fallen pines). Cause:
+  `build_area_dressing`'s `EXTRA_GRAVE_ROWS` and `SPOTS` applied to every layout. Fix: only on Ransom's Rest (`EXTRAS_AREA`).
+- Skyreach's scattered trees all vanished with the town. Cause: Web Hollow's no-tree clearing sits on the forest rise's middle, where
+  the scatter's woods grew densest. Fix: the concept's woods round the hollow placed as town pieces (`make_town.py`).
+- A bench blocked the forest road at the town square. Cause: the concept's two memorial benches were exempt from the road check (the
+  plaza core, 6.5 m). Fix: only the memorial itself is exempt (3 m); the path probe found it.
+- The view jerked at a slide's start and end (the user, 2026-10-08). Cause: the engine's crouch sets the body mesh's relative Z
+  without moving it, so the camera (on the body) sat ~24 cm off for a frame after a stand outside the movement tick; in the air a
+  crouch resizes the capsule about its middle; two added smoothsteps of different lengths; alphas that reversed speed in one frame.
+  Fix: `RefreshBodyTransform` each tick and after our own stand; the eye tracks its height above the feet on one minimum-jerk curve
+  (`FViewEase`, re-planned from speed and acceleration), as do the roll and stance blends; `Looter.Locomotion.Slide.View` checks
+  every frame of seven endings.
+- The slide stopped the player abruptly. Cause: a straight 0.2 s ease to crouch speed. Fix: a smooth ease to the next speed; forward
+  held goes back to the sprint (73aa50f).
+- The cloud session's commit with PNGs and a font would not push. Cause: the cloud refuses Git LFS uploads (`lfs.github.com` verify:
+  Forbidden). Fix: from the cloud, commit text only: inline small assets as data URIs (`Tools/StyleLab/web/hud/assets.js`), keep
+  generated binaries in `Saved/`.
+- The Style Lab's trees had black fringes, the valley's grass turned yellow-red. Cause: Pillow's `resize()` premultiplies RGBA, so
+  colour under alpha 0 was lost; lossy WebP drops it too. Fix: resize RGB and alpha separately, save cut-outs lossless with
+  `exact=True`, write macro maps as RGB with the alpha in its own file.
+- The Style Lab's aerial views had horizontal stripes on far terrain. Cause: GTAO read the depth buffer's coarse far steps as
+  terraces, and a fixed shadow bias drew acne in the wide far cascade. Fix: AO allows for the depth step and samples wider far away
+  (near plane 0.12 m); shadow lookups offset along the surface normal, more on slopes turned from the sun.
+- The editor crashed in the boss bar test (HUD upgrade). Cause: `Outline.Add(Outline[0])`; TArray asserts when it adds a reference
+  to its own element (the add may reallocate). Fix: add a copy, `Outline.Add(FVector2D(Outline[0]))`. Grep new code for `X.Add(X[`
+  before building, recursively: Windows PowerShell's `Select-String -Path Source\**\*.cpp` is not recursive and missed the cracked
+  coin's `Points.Add(Points[0])` (2026-10-08). Use `Get-ChildItem Source -Recurse -Include *.cpp,*.h |
+  Select-String '(\w+)\.(Add|Emplace)\(\s*\1\['`.
+- HUD text came out a third bigger than the mockup. Cause: Slate sets a font's Size in points at 96 DPI (Size 18 draws 24 px); the
+  mockups use CSS px. Kept: the user chose the larger text (2026-10-07), so mockup px stay the Slate Size; px × 0.75 would match.
+- Keycap corners drew twice their size; the boss hatch leaned 26°. Cause: Slate sizes a Box brush's ends and repeats a tiled brush in
+  the texture's own texels, not by `ImageSize`. Fix: make such textures at 1 texel per slate unit (`PaintedIconBrush` at
+  PixelsPerUnit 1).
+- The first test build failed to compile (11 errors). Cause: `ADirectionalLight::GetComponent()` and
+  `UStaticMesh::IsNaniteEnabled()` exist only in editor builds; the lighting code read the sun through the first, so a packaged game
+  would have broken. Fix: `Cast<UDirectionalLightComponent>(Sun->GetLightComponent())`; the test's Nanite check under `WITH_EDITOR`.
+  Editor builds never catch these: package to find them.
+- Editor automation plugins would have shipped in the game. Cause: `ModelContextProtocol` and `AllToolsets` had no `TargetAllowList`
+  (one is marked NoRedist). Fix: `"TargetAllowList": ["Editor"]` in the .uproject.
+- The first cook stopped: "Content is missing from cook". Cause: the engine's Landmass plugin loads startup materials that refer to
+  `/Engine/EditorMaterials`, which `-SkipCookingEditorContent` marks never-cook. Fix: the flag dropped from `package.ps1` and the ini
+  (`bSkipEditorContent=False`).
+- `Tools\close.ps1` said "EDITOR DID NOT CLOSE" with no dialog. Cause: a floating Content Browser held the process's main window, so
+  closing it only closed the panel. Fix: `close.ps1` asks the editor to `QUIT_EDITOR` when the main window isn't the editor.
+- A hit tinted the whole screen red. Cause: the old hurt camera fade (`PlayerVitalsSubsystem`, up to 55%) on top of the new red
+  edges. Fix: the fade on hits removed; the HUD shows hits (edges, portrait, chip); death and respawn fades kept.
+- The gun's name stopped short of the right edge, its gem far from it. Cause: a scale box fitted the name to the 24 px line's height
+  (shrinking every name) and centred the rest. Fix: no scale box; `FitWeaponName` measures a long name and sets it smaller.
+- The Gravemother spawned stuck in her den's wall. Cause: the den's floor is part of Den Rock, tagged Obstacle, so its spots were
+  refused; the fallback spot was checked with a man-sized capsule. Fix: room for the largest body; the floor inside a lair's own rock
+  counts as ground (`FEncounterGroundProbe`), f3e3579.
+- A giant rock blocked the tutorial island's lookout ramp. Cause: a cliff run's end piece, stretched to meet its one neighbour,
+  reached across the ramp. Fix: walkways cleared with a capsule test (8e0e50c, bd96147).
+- A lump came through the burial deck. Cause: the Rim's top cliff course stood under the deck's open end. Fix: `level.cliffs.under`
+  cuts pieces 40 cm under the boards (732b43d).
+- The Sink's walls became floating rock fragments. Cause: faces brought 50 cm proud through a noisy, curving wall. Fix: old placement
+  for theSink; then the art's narrow panels (de5a8fe).
+- The egg sacs couldn't be shot. Cause: a new sampling constant reused the name `SAC_STEP` (the mission step). Fix: renamed
+  `SAC_PROBE_STEP`; the Keeper's Lantern test caught it.
+- Hillside scrub read as even dots. Cause: thick patches asked for more plants than the candidate spacing held, so it drew a grid;
+  the 10 m patches averaged out at range. Fix: 1.5 m spacing, 15-40 m patches, varied sizes (7c305cc).
+- Spiders caught a walking player. Cause: the player got 15% slower and spider chase wasn't scaled with it. Fix: creature speeds
+  times `SpeedScale` (6b03dff).
+- Fence panels leaned on slopes. Cause: every section rolled to the slope. Fix: plumb level sections stepped down slopes (c49039f).
+- The scatter script failed in a fresh editor. Cause: it imported a neighbour module, relying on `build_area.py` having added its
+  folder to the path. Fix: it adds its own folder now.
+- Gravewind blades drew black. Cause: the material lacked the instanced-mesh usage flag. Fix: flag set (3a04a48).
+- Saves failed quietly. Cause: the user's standalone game held the content files. Fix: check for a running game before editor work.
+- After Save & Quit then Continue, no damage numbers, creature tags or loot labels (the user, 2026-10-13). Cause: they draw on the
+  engine's `WidgetComponentScreenLayer`, which the game viewport keeps per player for the whole run; the pause menu collapsed it,
+  Save & Quit left from there, and the next level's HUD remembered "shown" for itself (`bWorldLabelsVisible`) so never showed it
+  again. A trip from the map page or a station board did the same. Fix: `ALooterHUD::ShowWorldLabels` sets it from what the layer
+  shows now, every frame, and at BeginPlay/EndPlay (`Looter.LevelReload.WorldLabels`). Rule: anything kept by the viewport, local
+  player or game instance (layers, input mode, cursor, mixes) outlives the level; set it from its real state, never a per-level copy.
+- After Save & Quit, hostiles stopped showing on the minimap (2026-10-13). Cause: its 32 markers were handed out in drawing order
+  (ammo, loot, hostiles), and every Continue gave every ammo and silver pickup a fresh 5 minutes, so a player saving every few
+  minutes kept every drop round the fights (a log: 59 to 260 ammo pickups over six loads). Fix: hostiles get markers first
+  (`SplitMarkers`, `Looter.UI.Minimap.MarkerPool`); the session keeps each pickup's time left (`LifeLeft`,
+  `Looter.LevelReload.LootLife`).
+
+- Tilly's cellar's dead spawned on the yard over it (2026-10-14 play-through). Cause: an encounter's home was looked for
+  from 3 m over the spawner (over the vault's collision) and its spots from a step and a metre over home. Fix: both from
+  under any roof over the spawner (`FEncounterGroundProbe::FindRoofOver`), wander goals too; `Looter.Encounters.Cellar`.
+- 32 cliff slabs stood in a line on the valley floor, through the depot and over the rail line (2026-10-14). Cause: an
+  `onFloor` ridge's band ran on past its floor. Fix: `level.cliffs.walled` and `keepOut` (above); generator side done
+  the same day (`Region.band_height` x `floor_weight`).
+- Dead Lift's crank couldn't be reached (2026-10-14). Cause: the sheriff's cell was one solid collision box. Fix: hulls
+  for the cell's floor, walls, ceiling and bunk. Lesson: a model's hulls must leave every room a mission sends the
+  player into open; walk it in PIE.
+- Abel's beaten boss bar stayed on screen for good (2026-10-14). Cause: its 3 s hide counted down in the boss
+  component's tick, which seating him on his board turns off. Fix: a tick turned off hides the bar; a bar steps aside
+  100 m from its fight.
+- Every notice board posting read NO REWARD: IT'S PRACTICE (2026-10-14). Cause: the line only knew gun rewards. Fix:
+  the mission's own reward summary.
+- The player's guns vanished twice in the play-through (2026-10-14). Cause: play.py's teleport (see Play checks). Fix: the
+  tool; the game warns whenever guns go from some to none outside the player's own drop, sale, clear or load
+  (`Inventory/WeaponManagerWatch.cpp`, `Looter.Inventory.GunsLostAloud`).
+- From the Diggings' yard the mine's mouth showed daylight and floating trees (2026-10-14). Cause: outside, every mine
+  piece was hidden, so the mouth looked through the terrain's hole. Fix: the adit's first 29 m stay drawn from outside and
+  a black card across its far end (`AInteriorVisibility::VeilTag`) shows only while the view is outside.
+- Ruth Calder's note's card lost the Interact key to the paper under it (2026-10-14). Cause: `InteractionFocus::ScoreOf`
+  scores distance as a share of reach; both 250, the paper 0.7 cm nearer. Fix: artifact reach 3 m, the card 2 cm wider,
+  tagged CalderNote so Side 1 counts through it; the board offers a job pinned on its face ("pinned to this board").
+- Board turn-ins said nothing; Ellis's headboard was a speaker point (Main 1's optional never counted); the valley props
+  script skipped lasting-interact steps (2026-10-14). Fixes: `ANoticeBoard::TurnIn` plays the turn-in lines; the headboard
+  is an `AReadableProp`; the step finder counts `MissionLastingInteractObjective`.
+- Save version 3 (2026-10-14): a step-list change under live saves needs an entry in `CampaignStepMigration`'s
+  `MovedSteps` and a cutoff time (Main 4: old 0-4 -> 0,1,3,4,5; sides that had started by themselves count as taken).
+- A searching creature blocked fast travel and held the combat music (2026-10-14). Cause: both asked whether its target
+  was the player. Fix: `ACreatureBase::IsFightingWith` (Chase or Attack); a lair Legendary's boss mood still follows
+  'after the player'.
+- The ore bin's trestle end stood 3.1 m over the Diggings yard (2026-10-13). Cause: its model wants a 3.6 m step. Fix:
+  `oreBinBay`, an exact pad at +54 cut into the yard's south edge. Lesson: a model with a built-in step gets the step as a
+  pad in the terrain, not a placement Z (sinking it buries the model).
+- High and Epic "absolutely tanked" (the user, 2026-10-14): 1-22 fps with 1.3 s frames on the RX 580. Cause: Lumen's
+  surface cache kept recapturing the ~66k small scatter instances' cards (`LumenSceneUpdate`). Fix: `ULumenScatterSubsystem`
+  leaves instanced meshes under 1.5 m out of Lumen and the distance fields; High drops Lumen (the user's pick: a middle step
+  on their card). See `Docs/Performance.md`.
+- The mouse wheel changed guns the wrong way (the user, 2026-10-14). Cause: wheel up was the next slot (2 -> 3), but the
+  HUD's column puts slot 1 on top, so up went down the column. Fix: `KeyBindingSubsystem` defaults: wheel up = previous.
+- The crosshair showed while aiming down sights (2026-10-14). Fix: it fades out while aiming in every view
+  (`PlayerHUDWidgetCrosshair.cpp`); third person keeps a centre dot (no sight to look through).
+- Crouched, the sight sat off the line of fire (2026-10-14). Cause: the crouch's stance pose only settled to 15% under the
+  sight. Fix: stance poses fade out with the aim and the sight's aim point is held on the line of sight
+  (`Looter.Weapons.Aim.CrouchAligned`; its test needed `SpawnPlayerCameraManager`: a test level skips
+  `PostInitializeComponents`, where a controller makes its camera manager).
+- An ensure at editor exit on Hiram's figure ("SkinnedAsset property overwritten ... without a call to
+  NotifyIfSkinnedAssetChanged", 2026-10-14). Cause: six constructors (the dead friends, Amos, Abel on board, Hob, the barn
+  cat, the hens) set a poseable mesh's asset with the bare `SetSkinnedAsset`, which skips the editor's notice; an ensure
+  fires once per session, so only the first showed. Fix: `SetSkinnedAssetAndUpdate(Model, false)` (`SetSkeletalMeshAsset` on
+  a skeletal mesh): it notices, and does nothing more before the component registers. Never the bare setter.
+
+## What worked, and what didn't
+
+- Worked:
+  - Probes before fixes. A read-only script that logs real numbers (gap depths, overlaps, coverage) settled every look problem
+    faster than guessing.
+  - Dry runs in plain Python (a mocked `unreal` and the generator's heights) catch logic errors before the editor. They miss
+    everything that needs real geometry, so always tour after.
+  - Data-driven rules in `layout.json`, so another area can reuse them.
+  - One commit per step, and partial CODEMAP staging.
+  - Asking the art session for its call on looks, with in-game shots.
+  - Settings that preview live under the pause menu (2026-10-12): a paused world doesn't tick the player controller's camera
+    updates, so a camera setting set from the menu shows only once the game runs again.
+    - The field of view slider calls `UPlayerViewComponent::PreviewFieldOfView`, which sets the camera and locks
+      `APlayerCameraManager::SetFOV` to it until the first frame that runs.
+    - The menu's dimming is its own layer so the slider can fade it and ghost the panel (`SettingsMenuPreview.cpp`).
+    - The HUD's minimap is collapsed under the menu, so its zoom preview is a second `UHudMinimapWidget` (`SetPreview`) in the same
+      corner.
+    - The previews count a controller's capture and a held key's repeated moves as holding, so a slider stepped from the keyboard or
+      a gamepad shows its preview while it is held.
+  - Menus for a controller and the keyboard (2026-10-12), the main menu's and the settings menu's alike:
+    - `FMenuNavigator` (`UI/Menus/MenuNavigator.h`) keeps the focus over a menu's stops (a button, a slider, a row of choices) in
+      rows, which the menu hands it with `SetRows` each time it rebuilds.
+    - `MenuNav` has the keys as plain rules: arrows, W A S D, the D-pad and the left stick move; Enter, Space, E and A pick; Esc and
+      B back out; Page Up and Down or the bumpers turn the sections; a slider held steps faster.
+    - `SettingsMenuNav.cpp` and `MainMenuNav.cpp` wire each menu to it. A new menu gets the same by building its stops and calling
+      the navigator, not by handling keys itself.
+    - The focus look (`LooterUIFocus.h`: an orange outline doubled inside, a lit edge on the left, a faint wash on a row) is drawn
+      only while the last input in a menu was a key or the gamepad (`LooterUI::IsMenuFocusShown`); under the mouse the buttons keep
+      their hover look. The prompts along the bottom name the gamepad's buttons or the keyboard's keys by `IsMenuGamepad`. Give a new
+      row its look with `LooterUI::AddFocusFrame` while building.
+    - Tests: `MenuNavTests.cpp`.
+- Didn't work:
+  - Pushing generic cliff faces proud of a noisy pit wall: they poked through as fragments.
+  - Level-wide material swaps for one actor (use `swapsOn`).
+  - Judging scrub in stand-in renders at Blender culls; preview at the game's Medium cull distances instead.
+  - Line-by-line `perl -pi` or regex edits with `\n` in the pattern on CRLF source files: they match nothing and fail silently. Use
+    the Edit tool, or allow `\r?` before the newline, and check the result.
+  - A file-scope name in a test (`const FName Extra`) that an engine header also uses: C4459 fails the build.
+  - A foreground build or test run longer than the tool's 10 minutes is killed with no log: run them in the background.
+  - Chaining `git add -u && ... ; git commit`: when `git add` failed on the transient "Permission denied", the commit still ran with
+    whatever was staged. Stage, check, then commit. Commit scripts (`Tools/commitlib.py`) run in a retry loop: `git reset -q`,
+    wait 5 s, run again (up to 5 tries). They run on Blender's Python (`C:/Program Files/Blender Foundation/Blender
+    4.4/4.4/python/bin/python.exe`); `python` here is the Microsoft Store stub.
+  - Starting a build without checking whether the user was playing (step 1 of the loop).
+  - Keys sent with input.ps1 right after console.ps1 typed into the editor's console box (its autocomplete list stayed
+    open over the view): click into the game view first (`clickat 0.5 0.45`; it fires one shot) before keys.
+  - Every console.ps1 command leaves the editor's console box focused: click into the game (`clickat`) before each
+    burst of keys, or the keys type into the box. Watch short motions (swaps, reloads, deaths) at `slomo 0.2`.
+  - A floating Content Browser (opened by a script's import) takes the keyboard from PIE: close it with
+    `Tools\closemsglog.ps1 -Title "Content Browser"` before input.

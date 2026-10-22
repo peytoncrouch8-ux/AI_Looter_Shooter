@@ -1,4 +1,4 @@
-"""A hero's body retarget (Docs/Pipeline.md "Character models"; the user, 2026-10-15: "retarget live"): the mannequin stays
+"""A hero's body retarget (Docs/Pipeline/CharacterModels.md "Character models"; the user, 2026-10-15: "retarget live"): the mannequin stays
 the player's animated body, hidden, and the hero's figure copies its pose every frame through the IK retargeter this
 script makes (Source/AI_Looter_Shooter/Player/Animation/BodyFigureComponent, BodyRetargetAnimInstance). Every hero's
 skeleton carries the mannequin's 63 bone names (Art/Models/Characters/<Hero>.py), so one recipe serves all five.

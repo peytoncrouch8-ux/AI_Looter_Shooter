@@ -6,7 +6,7 @@ Stylized first/third-person looter shooter, Unreal Engine 5.8, C++-first. Game: 
 the tutorial island `/Game/Maps/Lvl_TutorialIsland` (menu backdrop; `Docs/TutorialIsland.md`); `/Game/Maps/Lvl_Skyreach`
 (old sky-island style, kept).
 
-Read first: `Docs/Handoff.md` (state, next steps), `Docs/Pipeline.md` (tools, workflows, lessons, bug fixes), `Docs/INDEX.md` (every doc;
+Read first: `Docs/Handoff.md` (state, next steps), `Docs/Pipeline.md` (index of the topic files in `Docs/Pipeline/`: tools, workflows, lessons, bug fixes; read those that bear on the work), `Docs/INDEX.md` (every doc;
 `node Tools/docindex.js` rebuilds it and the user's Project Library page https://claude.ai/artifact/1yHV6GGJvvcwxWwZqi4T4s, republish at each session end),
 `CODEMAP.md` (every source file, one line each). As needed: `Docs/Plan.md`, `Docs/Performance.md`, `Docs/Story.md`,
 `Docs/Progression.md`, `Docs/Areas/`; `Docs/Release.md` only when preparing a release. History and background (`Docs/Archive`, `Docs/Art`, `Docs/Handoffs`,
@@ -24,14 +24,14 @@ keep it short; details go in the pipeline.
    - The orchestrator picks each agent's model: strongest for design and tricky code; Sonnet/Haiku for reviews,
      mechanical edits, simple searches.
    - Parallel agents work on disjoint files against one shared contract the orchestrator writes first (names,
-     signatures, palette, placements; `Docs/Pipeline.md`, "Who does what").
+     signatures, palette, placements; `Docs/Pipeline/Workflow.md`, "Who does what").
 3. **Ask the user first** before bringing in a new tool or program.
 4. **Unclear request: ask** with tap-to-answer choices (AskUserQuestion), not open questions.
 5. **Report briefly:** 3 short sentences or less (the user, 2026-10-21: saves tokens).
 6. **Two failures, then ask** the user how to go on.
 7. **Feedback matters:** every action (keys, shooting, hits, kills, pickups, menus) feels rewarding, with high-quality
    visual and sound effects.
-8. **Keep `Docs/Pipeline.md` current:** bug fixes, how assets and terrain are made, what worked and didn't, theme and
+8. **Keep the pipeline notes (`Docs/Pipeline/<Topic>.md`, indexed in `Docs/Pipeline.md`) current:** bug fixes, how assets and terrain are made, what worked and didn't, theme and
    look, how work is divided. Update as work finishes.
 9. **Keep `Docs/Handoff.md` current:** what's finished, where we left off, where we're headed. Update as each request
    finishes.
@@ -39,6 +39,7 @@ keep it short; details go in the pipeline.
     make sure the handoff has what the next one needs.
 11. **Docs are for the AI** (the user never reads them; 2026-10-13): terse plain-English notes, each fact in one place,
     every name, number, rule and user decision kept; history goes to `Docs/Archive`.
+12. **Job notes in git:** a new job keeps its contract/plan in `Docs/Work/<date>-<job>/`; moved to `Docs/Archive/Work/` when committed.
 
 ## The game's flow
 

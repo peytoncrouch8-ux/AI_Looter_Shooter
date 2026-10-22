@@ -8,7 +8,7 @@
   *Gilded Lily* by a skylift. It keeps today's house set until its own rework.
 - Layout: Crossroads Town (the user's pick, 2026-10-03: concept 1 of `Docs/TutorialIslandConcepts.md`; plan in
   `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`); round 1 built 2026-10-08. How the island is built:
-  `Docs/Pipeline.md`, "The tutorial island and the older levels".
+  `Docs/Pipeline/Levels.md`, "The tutorial island and the older levels".
 - History (the first layout, the asset list, the 2026-09-29 performance capture, the work split):
   `Docs/Archive/TutorialIsland_history.md`.
 
@@ -47,7 +47,7 @@ docstring lists every master):
   mesh's vertex color alpha as baked ambient occlusion. Most buildings, rocks and props.
 - `M_WorldFoliage`: masked, two-sided, wind sway (off beyond a distance). Leaves and grass cards.
 - `M_Terrain`: the island's macro color map (one texture over the whole island) plus two tiled detail textures chosen by
-  the macro map's alpha (grass/soil, rock); the ground's layers inside it (2026-10-12): `Docs/Pipeline.md`, "Making an
+  the macro map's alpha (grass/soil, rock); the ground's layers inside it (2026-10-12): `Docs/Pipeline/Assets.md`, "Making an
   asset".
 - `M_Water`: opaque, cheap, stylized.
 
@@ -95,7 +95,7 @@ U repeats every 2048 px = 6.4 m at 320 px/m. Faces that need vertical boards rot
 The island (about 200 x 180 m) is built from one layout file, `Art/Levels/TutorialIsland/layout.json` (outline,
 heights, plateaus with cliff edges, hills, roads, a creek and pond, building pads, zones). A Blender script turns it into
 the terrain tiles and the macro color map, and an Unreal script places buildings and props from the same file, so the
-two always agree. Scripts and order: `Docs/Pipeline.md`.
+two always agree. Scripts and order: `Docs/Pipeline/Levels.md`.
 
 ## Performance plan
 

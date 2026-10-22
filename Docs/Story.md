@@ -196,7 +196,7 @@ The user: more enemies and creatures as the game goes on, the story reading as h
 Golems, Wolves, Giants, Scorpions, Big Flying Bats, Vampires, Dragons, Big Insects and More" ("subject to change"); where
 the story gives a reason for a different enemy in an area, a placeholder blob of clay with its name. Additions only: no
 story enemy, boss or beat replaced. The core-loop freeze holds: kinds of unbuilt regions wait for their regions.
-- **Placeholders** (`APlaceholderCreature`, Pipeline "Placeholder creatures"): a clay dome stretched to the kind's size, a
+- **Placeholders** (`APlaceholderCreature`, Pipeline/Enemies.md "Placeholder creatures"): a clay dome stretched to the kind's size, a
   clay head (the crit), its tag "Name (plain type)" and its bestiary page named the same, marked placeholder (the user's
   call, 2026-10-22). They fight on today's systems (director turns and ring, ranks, levels, traits, gunfeel) and pay kill XP
   and loot as real enemies by level, rank and role (the user's call, 2026-10-22). Each is swapped for a real model later.
@@ -320,7 +320,7 @@ The user's rule that Common is the most likely rarity and each tier up is rarer 
 
 - **Defense** takes its share of every hit (bullets, blows, grenades, ember powers: `UHealthComponent`, once); a crit pierces half of it (the user's call). Effective health against a Regular one at the valley's level 4: 2.4, 4.0, 5.5, 7.0 up the tiers (Soulfed about 13.6).
 - **Spawn odds** rise with the area's place in the campaign, read from its creatures' lowest level: 1 (Ransom's Rest) gives the first numbers, 50 and up the late ones, straight between (the Lily, from 9: 8/49 of the way). They roll for placed Basic creatures on arrival and for spawners rolling by area; a roll past a tier's cap of living ones steps down a tier. Areas' `RarePromotionChance`/`EpicPromotionChance` now only switch promotions on (Skyreach off).
-- **Traits** (Gravebound 1, Hallowed 2, Ethereal 3): Fleet, Mending, Warded, Grave-burst, Rallying, Vengeful, Phasing (Pipeline "Enemy tiers" has what each does), rolled from a seed of the creature's name in its level and its promotion roll, so a load rebuilds them with nothing saved.
+- **Traits** (Gravebound 1, Hallowed 2, Ethereal 3): Fleet, Mending, Warded, Grave-burst, Rallying, Vengeful, Phasing (Pipeline/Enemies.md "Enemy tiers" has what each does), rolled from a seed of the creature's name in its level and its promotion roll, so a load rebuilds them with nothing saved.
 - **Silver** a tier's kill gives: a Regular kill's × its multiplier on average, dropping more often (`LooterEconomy::ScaledKillOdds`); Soulfed and bosses keep their own.
 - **The tag**: word and name both in the tier's colour. Tier-only colours (the user's call): yellow and red are no gun rarity's; blue and purple happen to match the Rare and Epic beams.
 
@@ -445,7 +445,7 @@ READABLES and LEDGER_TOWNS, line sets in `create_story_lines.py`).
 - **The spark** (look): in the cold open's second shot the ember in the Deacon's hand flares and dims as he fires.
 - **Fenn's fare** (built): The Old Fare already shows grave gold on a dead man's eyes and Ned's marker; keep it exactly as it is.
 
-**How the Rest tells it** (the user's calls, 2026-10-21; built 2026-10-22, Pipeline "The story's talk cut"): every beat,
+**How the Rest tells it** (the user's calls, 2026-10-21; built 2026-10-22, Pipeline/Story.md "The story's talk cut"): every beat,
 character and seed above kept; the talk cut about in half (offers two or three lines, turn-ins three); most of what's left
 said on the move by Hob as each step starts; the long scenes are the big beats only (the cold open, Sexton's deal, Sit with
 Pa, Delia's Heirloom). Amos's twist (his unpaid hands) is said as the last of them falls; Tilly hands Pa's bail over at Main

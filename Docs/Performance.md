@@ -2,7 +2,7 @@
 
 **Target:** 120 fps (8.3 ms) at 1080p on the Medium preset, at the heaviest view, on the reference PC (Radeon RX 580, Core i7-8700,
 16 GB). It was 60 fps until 2026-09-30. Nanite is for High and Epic only and Lumen for Epic only, so everything must look right on the Nanite
-fallback. Per-pass budgets: `Docs/TutorialIsland.md`. How to measure: `Docs/Pipeline.md`, "Performance".
+fallback. Per-pass budgets: `Docs/TutorialIsland.md`. How to measure: `Docs/Pipeline/Workflow.md`, "Performance".
 
 Measured with `Tools\perf.ps1`: standalone game window, CSV profiler, first frames (loading) skipped; times are averages in ms.
 Run it before and after anything that could change cost; it appends a row to the table below. Keep the table to the latest runs;

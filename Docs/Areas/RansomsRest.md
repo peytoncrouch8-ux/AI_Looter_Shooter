@@ -299,7 +299,7 @@ Each group: where it lives; where it waits and watches.
 The user's calls (2026-10-21, Saved/Fight/CONTRACT.md): 6-10 enemies a normal fight (camps and patrols 5-8, the chapel yard
 and the mine at the top), plus a few hand-made set pieces an area, each announced and rewarded; no plain waves, no new mixed
 packs; each fight keeps its area's kinds and ranks. The fights escalate with the story. Caps: 20 near the player, 16 of the
-Unpaid family. XP held by trimming the missions' (`Docs/Progression.md`). Code: `Docs/Pipeline.md` "Fight: Layout".
+Unpaid family. XP held by trimming the missions' (`Docs/Progression.md`). Code: `Docs/Pipeline/Enemies.md` "Fight: Layout".
 
 | Fight | When | Now (was) | Where it's set |
 |---|---|---|---|
@@ -363,7 +363,7 @@ sides). Every mission but Main 1 is picked up from a giver under a ? and turned 
 `Docs/Progression.md`. The old list: the archive.
 
 **The talk cut and the fetches (2026-10-21 calls, built 2026-10-22; overrides the expansion's lines and steps where they
-differ; Pipeline "The story's talk cut"):** offers two or three lines, turn-ins three, Hob's arrivals one line, his taps
+differ; Pipeline/Story.md "The story's talk cut"):** offers two or three lines, turn-ins three, Hob's arrivals one line, his taps
 gone but Main 1's, the Old Fare's and his catch-all. Side 1 tears 4 posters. Side 2: 3 bales, then the hands; Amos's twist
 is said as the last falls (no road talk). Knocking Below: the key off the hook first, Thaddeus's talk and tape one step.
 Dead Lift: only Abe's pin (the crank stays on the winch, the boiler takes the quarry's coal). Tilly hands Pa's bail over
@@ -691,7 +691,7 @@ however strong the player comes back, so it is easy and low-XP to revisit. What 
 - **Effects:** ghost fade and phase-step, the coal glow, spectral buckshot pellets, the shriek ring, Gravewind wisps, unlit wisp
   cards along the Rim, fog rising out of the canyon at the deck, a grave-dirt burst, frost on Abel's grave.
 - **Lighting:** new data on the existing setup: golden late afternoon and dusk, sun low in the west-southwest over the canyon.
-- **World variety (2026-10-22; plan and counts `Saved/World/PLAN.md`, how: Pipeline "World variety"):** each place its own
+- **World variety (2026-10-22; plan and counts `Saved/World/PLAN.md`, how: Pipeline/Levels.md "World variety"):** each place its own
   ground (layout `macro.tones`): Main Street trampled red-ochre dust, the depot and Stage Gap cinders, the Sink ash grey, the Old
   Quarry pale dust, the Diggings coal, Boot Hill, Ransom's Point and Gravewind Point paler and sparser; the farm and the chapel
   knoll greener, white yarrow on the knoll, yellow drifts in Whitlock's fields. Twins for every cliff face (half the walls), the

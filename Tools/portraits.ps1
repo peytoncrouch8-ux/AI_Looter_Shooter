@@ -1,4 +1,4 @@
-# Renders, paints and sheets a hero's portrait concepts (Docs/Pipeline.md, "Character portraits").
+# Renders, paints and sheets a hero's portrait concepts (Docs/Pipeline/Heroes.md, "Character portraits").
 # Usage: portraits.ps1 <Hero> [-Keys A,B,C] [-Size 1024] [-Samples 80] [-Out <dir>] [-NoRender] [-AuxOnly] [-NoSheet]
 #   -AuxOnly redoes only the aux pass (ids and glow for paint.js; seconds a bust) and repaints; -NoRender only repaints.
 #   <Hero>: Ellis (script EllisBlender.py, Frame.svg) or Odessa | Crane | Gauge | Pike (<Hero>.py, Frame_<Hero>.svg).

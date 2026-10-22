@@ -6,7 +6,7 @@ hip belt with the card case on her right hip; and bridge(), which spans a garmen
 is odessa_coat.py's.
 
 Builders adapted from Ellis.py's (its trousers, stovepipe boots, gloves and gauntlets, waistcoat, belt): the lessons
-there hold here (Docs/Pipeline.md, "Character models")."""
+there hold here (Docs/Pipeline/CharacterModels.md, "Character models")."""
 import math
 
 import bpy  # first: bmesh and mathutils come with it

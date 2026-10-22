@@ -1,5 +1,5 @@
 """Photographs heroes holding guns in third person, for contact sheets (Tools/heroguns.ps1 runs it and tiles them;
-Docs/Pipeline.md "The hero pick", the third-person hold). Runs in a play session with the guns in slots 1-3.
+Docs/Pipeline/Heroes.md "The hero pick", the third-person hold). Runs in a play session with the guns in slots 1-3.
 Usage: Tools\\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/hero_guns.py @" -Until "HEROGUNS (done|failed)"
 The arguments are read from Saved/Screenshots/HeroGuns/args.txt (the console's box takes only so much), one line:
   <tag> <heroes Ellis,Odessa> <slots 1,2,3> <states hip,aim,reload,sprint,crouch,crouchaim> <views 330,270,180>

@@ -883,7 +883,7 @@ Left, step 6:
 6. **Checks**: every `Looter.*` test; tours with section 6's views, perf with the editor closed on the watchtower's
    view; HudShots (the offer card, the ? and !); a full play by the Demo agent from a new game to the station board, the
    mountain included; then `Docs/Story.md`, `Docs/Areas/RansomsRest.md`, `Docs/Progression.md` (section 11),
-   `CODEMAP.md`, `Docs/Pipeline.md` and the handoff. *The user approves:* Ransom's Rest, expanded.
+   `CODEMAP.md`, `Docs/Pipeline/` and the handoff. *The user approves:* Ransom's Rest, expanded.
 
 ## 13. Open questions
 

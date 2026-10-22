@@ -1,6 +1,6 @@
 # Photographs the heroes holding the guns in third person (Tools/Unreal/hero_guns.py) and tiles one contact sheet per
 # hero: rows gun x state, columns the views. Sheets: Saved\Screenshots\HeroGuns\<Hero>_<Tag>.png; the pictures in
-# Saved\Screenshots\HeroGuns\<Tag>\. Docs/Pipeline.md "The hero pick" (the third-person hold).
+# Saved\Screenshots\HeroGuns\<Tag>\. Docs/Pipeline/Heroes.md "The hero pick" (the third-person hold).
 # Usage: heroguns.ps1 [-Tag now] [-Heroes Ellis,Crane] [-Slots 1,2,3] [-States hip,aim] [-Views 330,270,180] [-Setup]
 # -Setup starts a play in Ransom's Rest when none runs (pie.ps1; check nobody is playing first: pie_check.py), gives the
 # Bullpup, Ranchhand and Drover (slots 1-3), fills the ammo and turns to third person. Every run stands the player in the
