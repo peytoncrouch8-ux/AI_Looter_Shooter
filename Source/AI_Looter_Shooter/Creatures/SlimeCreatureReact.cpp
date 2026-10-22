@@ -3,10 +3,12 @@
 // its death (the splat's shape is AnimateBody's), coming back, the notice beat (it squashes low and shudders), its entrance
 // in a player's view (welling up out of a puddle), idle life (it sways, and now and then a bubble rises through it), and the
 // ring of dust a hunting hop's landing kicks up. Moved here with the reactions it had, to keep SlimeCreature.cpp in size.
+// The VFX pass (Saved/Vfx/PLAN.md): its kill's own layers and its gel puddle splashed out on the ground (CreatureKillLook).
 
 #include "Creatures/SlimeCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
 #include "Combat/GunfeelReactTuning.h"
+#include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
 #include "Creatures/CreatureUpdateRate.h"
@@ -92,6 +94,8 @@ void ASlimeCreature::OnDied()
 		SetActorLocation(Ground + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), false, nullptr,
 			ETeleportType::TeleportPhysics);
 	}
+	// On the ground now: the kill's own layers (fat blobs with the shot, a gel mist and spray) and its puddle splashed out.
+	CreatureKillLook::Play(*this, GetLastHit(), /*bSplat*/ true);
 }
 
 void ASlimeCreature::OnRespawned()

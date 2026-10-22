@@ -1,8 +1,11 @@
 #include "Weapons/WeaponFX.h"
+#include "Weapons/VfxRules.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
 // FWeaponFX's moving and drawing: every particle advanced (falling, dragging, tumbling, landing on its impact's floor)
 // and drawn as instanced quads (turned to the camera) and lit chunks. The spawns are in WeaponFX.cpp and its topic files.
+// The VFX pass (Saved/Vfx/PLAN.md): rings, fireballs and starbursts on M_FX_Shape's quads (or stand-ins on the glows), the
+// puffs' seed and erosion for M_FX_Puff, and drops stretched by their speed into streaks of spray.
 
 namespace
 {
@@ -88,6 +91,22 @@ namespace
 	{
 		Data.Append({ Color.R, Color.G, Color.B, Intensity, Shape });
 	}
+
+	/** M_FX_Glow's shapes (its custom data's last float). */
+	constexpr float GlowStreak = 0.f;
+	constexpr float GlowRound = 1.f;
+	constexpr float GlowStar = 2.f;
+
+	/** A drop flying this fast (cm/s) is drawn this many times longer per cm/s, at most SprayMostStretch: a spurt reads as spray. */
+	constexpr float SprayStretch = 0.0012f;
+	constexpr float SprayMostStretch = 2.2f;
+
+	/** A quad square to Axis (the engine plane faces +Z), Size cm across, turned Roll about the axis. */
+	FTransform FlatTransform(const FVector& Location, const FVector& Axis, float Size, float Roll)
+	{
+		const FQuat Rotation = FRotationMatrix::MakeFromZ(Axis).ToQuat() * FQuat(FVector::UpVector, Roll);
+		return FTransform(Rotation, Location, FVector(Size / 100.f, Size / 100.f, 1.f));
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -97,6 +116,9 @@ namespace
 void FWeaponFX::Tick(float DeltaSeconds, const FVector& CameraLocation)
 {
 	const float Dt = FMath::Clamp(DeltaSeconds, 0.f, 0.1f);
+	// Where looks are seen from (DetailAt thins what's thrown far off).
+	LastCamera = CameraLocation;
+	bHasCamera = true;
 	WaterRings.Tick(Dt);
 	for (int32 Index = Particles.Num() - 1; Index >= 0; --Index)
 	{
@@ -208,10 +230,30 @@ float FWeaponFX::LowestOverFloor() const
 
 void FWeaponFX::Redraw(const FVector& Camera)
 {
-	TArray<FTransform> GlowTransforms, SmokeTransforms, ChipTransforms, DropTransforms;
-	TArray<float> GlowData, SmokeData;
+	TArray<FTransform> GlowTransforms, SmokeTransforms, ChipTransforms, DropTransforms, ShapeTransforms;
+	TArray<float> GlowData, SmokeData, ShapeData;
 	TArray<TArray<FTransform>, TInlineAllocator<MaxBitSets>> BitTransforms;
 	BitTransforms.SetNum(BitSets.Num());
+
+	// The puffs' floats: M_FX_Puff's six (its seed and how far it has thinned away) or the plain smoke's four.
+	UInstancedStaticMeshComponent* SmokeInstances = Smoke.Get();
+	const bool bPuffData = SmokeInstances && SmokeInstances->NumCustomDataFloats >= 6;
+	auto AddSmokeData = [&SmokeData, bPuffData](const FLinearColor& Color, float Opacity, float Seed, float Erode)
+	{
+		SmokeData.Append({ Color.R, Color.G, Color.B, Opacity });
+		if (bPuffData)
+		{
+			SmokeData.Append({ Seed, Erode });
+		}
+	};
+	// Rings, fireballs and starbursts: M_FX_Shape's quads when it's in the game, else stand-ins on the glows.
+	const bool bShapeQuads = Shapes.IsValid();
+	auto AddShape = [&ShapeTransforms, &ShapeData](const FTransform& Transform, const FLinearColor& Color, float Intensity, EVfxShape Shape,
+		float Param, float Seed)
+	{
+		ShapeTransforms.Add(Transform);
+		ShapeData.Append({ Color.R, Color.G, Color.B, Intensity, static_cast<float>(Shape), Param, Seed });
+	};
 
 	for (const FStreak& Streak : Streaks)
 	{
@@ -266,7 +308,8 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			// Thinned as the camera gets into it: a puff drifting past the eye (a slide's dust) would otherwise fill the view.
 			const float Near = FMath::Clamp((static_cast<float>(FVector::Dist(Particle.Location, Camera)) - Size * 0.25f) / 40.f, 0.f, 1.f);
 			const float Opacity = Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * FMath::Clamp(T * 12.f, 0.f, 1.f) * Near;
-			SmokeData.Append({ Particle.Color.R, Particle.Color.G, Particle.Color.B, Opacity });
+			// Its own noise (its roll as the seed) and how far it has thinned: M_FX_Puff erodes it into wisps as it goes.
+			AddSmokeData(Particle.Color, Opacity, Particle.Roll / UE_TWO_PI, T);
 			break;
 		}
 		case EParticle::Thread:
@@ -278,7 +321,87 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			SmokeTransforms.Add(StreakTransform(Tail, Head, Width, Camera));
 			const float Near = FMath::Clamp((static_cast<float>(FMath::PointDistToSegment(Camera, Tail, Head)) - 30.f) / 90.f, 0.f, 1.f);
 			const float Opacity = Particle.Intensity * FMath::Pow(1.f - T, 1.4f) * FMath::Clamp(T * 8.f, 0.f, 1.f) * Near;
-			SmokeData.Append({ Particle.Color.R, Particle.Color.G, Particle.Color.B, Opacity });
+			// A thread breaks into strands as it thins (half the erosion: it should hang, not crumble).
+			AddSmokeData(Particle.Color, Opacity, Particle.Roll / UE_TWO_PI, T * 0.5f);
+			break;
+		}
+		case EParticle::Ring:
+		{
+			// Out fast and easing, fading as it goes; square to its axis (on the ground) or turned to the eye.
+			const float Radius = FMath::Lerp(Particle.StartSize, Particle.EndSize, VfxRules::RingGrowth(T));
+			const float Strength = Particle.Intensity * VfxRules::RingFade(T);
+			FVector Axis = Particle.Extent;
+			if (Particle.bFacing)
+			{
+				Axis = Camera - Particle.Location;
+				if (!Axis.Normalize())
+				{
+					Axis = FVector::UpVector;
+				}
+			}
+			if (Radius <= 0.5f || Strength <= 0.f)
+			{
+				break;
+			}
+			if (bShapeQuads)
+			{
+				// The quad reaches the ring's outer edge; the band is its thickness's share of that radius.
+				const float Outer = Radius + Particle.Width * 0.5f;
+				AddShape(FlatTransform(Particle.Location, Axis, Outer * 2.f, Particle.Roll), Particle.Color, Strength, EVfxShape::Ring,
+					FMath::Clamp(Particle.Width / Outer, 0.02f, 1.f), Particle.Roll / UE_TWO_PI);
+			}
+			else
+			{
+				// Pieces of streak round it, each reaching a third past its ends (a streak's ends are soft: EmberFX::DrawRing's way).
+				FVector U, V;
+				Axis.FindBestAxisVectors(U, V);
+				const int32 Pieces = VfxRules::RingPieces(Radius);
+				const float Step = UE_TWO_PI / static_cast<float>(Pieces);
+				auto At = [&](float Angle) { return Particle.Location + (U * FMath::Cos(Angle) + V * FMath::Sin(Angle)) * Radius; };
+				for (int32 Piece = 0; Piece < Pieces; ++Piece)
+				{
+					const float From = Particle.Roll + Step * (static_cast<float>(Piece) - 0.33f);
+					GlowTransforms.Add(StreakTransform(At(From), At(From + Step * 1.66f), Particle.Width, Camera));
+					AddGlowData(GlowData, Particle.Color, Strength, GlowStreak);
+				}
+			}
+			break;
+		}
+		case EParticle::Fireball:
+		{
+			// Blooming fast, cooling from white-hot through its colour to a dull ember edge, then gone into its smoke.
+			const float Size = FMath::Lerp(Particle.StartSize, Particle.EndSize, VfxRules::FireballGrowth(T));
+			const float Heat = VfxRules::FireballHeat(T);
+			// Additive fire must stay near 1 to keep its colour in daylight (the tonemapper turns a bright orange white): the
+			// spawns keep strengths of 1-4. It dims as it cools (a cooled fireball at full strength burned out to a white cloud in daylight: 2026-10-22).
+			const float Strength = Particle.Intensity * (1.f - T * T) * (0.2f + 0.8f * Heat * Heat);
+			if (bShapeQuads)
+			{
+				AddShape(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera), Particle.Color, Strength, EVfxShape::Fireball, Heat,
+					Particle.Roll / UE_TWO_PI);
+			}
+			else
+			{
+				GlowTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
+				AddGlowData(GlowData, VfxRules::HeatColor(Particle.Color, Heat), Strength * (0.35f + 0.65f * Heat), GlowRound);
+			}
+			break;
+		}
+		case EParticle::Star:
+		{
+			// Snapped open, fading fast: a hit's pop.
+			const float Size = FMath::Lerp(Particle.StartSize, Particle.EndSize, FMath::Sqrt(T));
+			const float Strength = Particle.Intensity * FMath::Square(1.f - T);
+			if (bShapeQuads)
+			{
+				AddShape(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera), Particle.Color, Strength, EVfxShape::Starburst,
+					Particle.Width, Particle.Roll / UE_TWO_PI);
+			}
+			else
+			{
+				GlowTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
+				AddGlowData(GlowData, Particle.Color, Strength, GlowStar);
+			}
 			break;
 		}
 		case EParticle::Chip:
@@ -286,7 +409,9 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		{
 			// The engine cube and sphere are 100 across.
 			const float Size = Particle.StartSize * Shrink(Particle) / 100.f;
-			const FVector Scale = Particle.Type == EParticle::Droplet ? FVector(Size * 1.3f, Size, Size) : FVector(Size, Size * 0.7f, Size * 0.5f);
+			// A fast drop is drawn as a streak of spray along its flight, rounding up as it slows.
+			const float Stretch = 1.3f + FMath::Min(static_cast<float>(Particle.Velocity.Size()) * SprayStretch, SprayMostStretch);
+			const FVector Scale = Particle.Type == EParticle::Droplet ? FVector(Size * Stretch, Size, Size) : FVector(Size, Size * 0.7f, Size * 0.5f);
 			// Droplets stretch along their flight.
 			const FQuat Rotation = Particle.Type == EParticle::Droplet && !Particle.Velocity.IsNearlyZero()
 				? FRotationMatrix::MakeFromX(Particle.Velocity).ToQuat() : Particle.Rotation;
@@ -304,7 +429,8 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			const float Size = Particle.StartSize * Shrink(Particle) / 100.f;
 			const EBitShape Shape = BitSets[Particle.BitSet].Shape;
 			const bool bRound = Shape == EBitShape::Round;
-			const FVector Scale = bRound ? FVector(Size * 1.35f, Size, Size * 0.9f)
+			const float Stretch = bRound ? 1.35f + FMath::Min(static_cast<float>(Particle.Velocity.Size()) * SprayStretch, SprayMostStretch) : 1.f;
+			const FVector Scale = bRound ? FVector(Size * Stretch, Size, Size * 0.9f)
 				: (Shape == EBitShape::Splinter ? FVector(Size * 2.4f, Size * 0.3f, Size * 0.22f) : FVector(Size, Size * 0.8f, Size * 0.28f));
 			const FQuat Rotation = bRound && !Particle.Velocity.IsNearlyZero() ? FRotationMatrix::MakeFromX(Particle.Velocity).ToQuat() : Particle.Rotation;
 			BitTransforms[Particle.BitSet].Add(FTransform(Rotation, Particle.Location, Scale));
@@ -313,10 +439,24 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		}
 	}
 
-	// Rings and wakes on the water: flat dashes of the same soft smoke quad (WaterRings.h).
-	WaterRings.Draw(Camera, SmokeTransforms, SmokeData);
+	// Rings and wakes on the water: flat dashes of the same soft smoke quad (WaterRings.h). They write the plain smoke's four
+	// floats; on the puffs each gets a seed below 0 (M_FX_Puff's plain soft disc: no noise breaking a dash up).
+	if (bPuffData)
+	{
+		TArray<float> RingData;
+		WaterRings.Draw(Camera, SmokeTransforms, RingData);
+		for (int32 Index = 0; Index + 3 < RingData.Num(); Index += 4)
+		{
+			SmokeData.Append({ RingData[Index], RingData[Index + 1], RingData[Index + 2], RingData[Index + 3], -1.f, 0.f });
+		}
+	}
+	else
+	{
+		WaterRings.Draw(Camera, SmokeTransforms, SmokeData);
+	}
 
-	bool bAnything = !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty();
+	bool bAnything = !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty()
+		|| !ShapeTransforms.IsEmpty();
 	for (const TArray<FTransform>& Set : BitTransforms)
 	{
 		bAnything |= !Set.IsEmpty();
@@ -325,6 +465,7 @@ void FWeaponFX::Redraw(const FVector& Camera)
 	{
 		Draw(Glows.Get(), GlowTransforms, GlowData);
 		Draw(Smoke.Get(), SmokeTransforms, SmokeData);
+		Draw(Shapes.Get(), ShapeTransforms, ShapeData);
 		Draw(Chips.Get(), ChipTransforms, {});
 		Draw(Droplets.Get(), DropTransforms, {});
 		for (int32 Index = 0; Index < BitSets.Num(); ++Index)

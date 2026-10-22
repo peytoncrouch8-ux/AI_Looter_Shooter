@@ -2050,6 +2050,55 @@ packs. Counts and the set pieces: `Docs/Areas/RansomsRest.md` "Fights and set pi
   Webwood Spitters' high spots, Main Street's street-edge spots (the probe rings them if a boardwalk is in the way), the
   gallery's spots and the 13 m spring on both ways out, perf with 10 fighting.
 
+## VFX pass (12.5, built 2026-10-22)
+
+The user after playing: hits, deaths, muzzles and powers looked weak/cheap; asked for Borderlands-like punch inside 8.3 ms
+Medium. Plan and per-item notes: `Docs/Archive/Work` once archived (was `Saved/Vfx/PLAN.md`). All code-drawn on FWeaponFX, no
+particle assets, no lights, every new quad on the engine Plane (never Nanite). Cvars `Looter.Vfx.*` (`FVfxTuning`, `Live()`;
+field values = defaults): `Hit.Scale`, `Hit.Pop`, `Impact.Scale`, `Kill.Scale`, `Kill.Ring`, `Muzzle.Scale`, `Power.Scale`,
+`Blast.Scale`, `Glow`, `Smoke`, `Detail.Near` [1500 cm] / `.Far` [6000] / `.Min` [0.35], `Stream.Window` [0.3 s] / `.Reach`
+[150 cm], `MaxParticles` [1000], `Shapes`, `Puffs`, `Splats`, `Splat.Max` [12] / `.Hold` [9 s] / `.Fade` [3 s]. Tests
+`Looter.Vfx.*` (Rules.Detail/.Stream/.Kills/.Tiers/.Muzzles/.Shapes/.Splats, Effects).
+- **Masters** (`Tools/Unreal/build_vfx_materials.py`, /Game/Art/Materials/Masters; FWeaponFX uses them once they exist, stand-ins
+  before): `M_FX_Shape` additive, ISM custom data 0-2 colour, 3 strength, 4 shape (`EVfxShape`: 0 ring, 1 fireball, 2 starburst),
+  5 param (ring thickness share / fireball heat / spikes), 6 seed; `M_FX_Puff` translucent noise smoke, 0-2 colour, 3 opacity, 4
+  seed (<0 plain disc: the water rings' dashes), 5 erosion (age); `M_FX_SplatDecal` DBuffer decal, DecalColor = colour + opacity,
+  MID `Spread`/`Seed`/`Wet`. Its first run logs "DeferredDecal ... only Translucent" from the domain being set before the
+  blend mode; a second run is clean (harmless).
+- **Detail**: pieces x1 within 15 m to x0.35 at 60 m (`FWeaponFX::DetailAt`, the camera of the last Tick); a stream into one spot
+  thins 1/sqrt(n-1) to x0.25 (`FVfxHitStream`); a hit's pop is never thinned; pellets keep the Gunfeel blast budget.
+- **Hits** (`WeaponFXCreatures.cpp`): a splat puff of the spill, a starburst pop (pale for wet, hot for coal), 2-3 gobs, drops
+  drawn stretched by speed (spray); heavy rounds (mark scale >= 1.2) a ring and exit x1.6; crits a gold star and ring.
+- **Impacts** (`WeaponFXImpacts.cpp`): soft ground a geyser (puffs up the normal, each slower) + skirt + big clods; hard surfaces a
+  starburst pop (metal a ping ring and long-bouncing sparks); geyser colours darker than the hanging dust.
+- **Kills**: base bursts (`SpawnDeathBurst`, shared by powers, globs, Grave-burst) gained a wet pop/splat and big plates, a gel
+  crown, a soul-light starburst, two fireballs and a facing ring. Kill layers (`CreatureKillLook::Play` -> `SpawnKillLayers`:
+  Spider OnDied, Slime OnDied, Unpaid's first dead tick) by `KillWeight` (gun, crit, overkill) and `KillCarry` (shotgun 0.85 ..
+  rifle 0.35): gore landing on the ground, mist, dust skirt; the Unpaid's coal ring over the ground, ash, embers; tiers by
+  `TierLayers` (Restless 1 ring, Gravebound 2 + star + motes, the top two a star under their own show). Splats: spider ichor on
+  the body's landing (`LaySplat`), gel and ash at once. Bosses nothing.
+- **Muzzles** (`WeaponBaseMuzzle.cpp`, moved out of WeaponBaseFiring): quads per kind from `VfxRules::MuzzleLook` (core, star,
+  tongues spread 180/n, sniper brake jets, revolver gap spit; `FlashDuration` per kind) + `SpawnMuzzleBurst` (sparks, smoke 45 cm
+  out in first person, the sniper's and launcher's blast ring third person only; fast guns every 2nd/3rd shot,
+  `MuzzleShotsInBurst`, 0.35 s gap). Tracers per kind in `FireShot` (`VfxRules::TracerLook`: SMG thin, sniper wide and bright,
+  LMG every third round full, the rest half glow by rounds left).
+- **Rocket**: `WeaponRocketBlast::SpawnEffects` = `SpawnExplosion` (crack, fireballs, ground ring, air shock, soot, embers, the
+  ground's own impact, debris) + a scorch splat; the motor drops a small fireball each smoke puff.
+- **Powers** (`EmberVfx`): `Hurt` shows every blow (`BodyHit`: the creature's spill sized by damage/20 + a star of the power's
+  colour); activation ground rings (Dust Devil, Sundown, Borrowed Time, Lucky Streak, Double or Nothing, Grave Ward, Iron Hide),
+  strikes (Toll Chain, Tripwire, Lucky's ricochets, Fifty-Two's 3+ card hits, Long Shot 1.3x+, Spyglass pings, Rail Spike embed),
+  blasts (Slag Bomb fire, Last Rites soul), Last Rites' strike a falling column.
+- **Lessons**: additive fire over a daylight scene washes to a white cloud past a strength of ~2-3 (the tonemapper desaturates):
+  fireballs spawn at 1-3 and dim with their heat, the shader only whitens above heat 0.75; a true orange fireball in sunlight
+  would need a translucent fire material. Unlit puffs read paler than their colour suggests (a geyser's soil needs ~0.2 linear).
+  Grabbing effects: `slomo 0.04-0.1` before the shot, grab ~0.5-1 s after the console call (each call takes ~1.5 s real);
+  console overhead makes early-life grabs show effects smaller than they peak. `Looter.Tier.Hit <dmg>` sets up a kill;
+  `Looter.Hero Gauge` for Gauge's powers in a no-session play; 3 slots: restart PIE for more guns.
+- **Perf** (2026-10-22, quiet PC, ArtPause on, Medium 1080p, RR town horde `Looter.Perf.Horde Spider 8 Basic 0 -1400 90`): 7.5 ms
+  (p95 8.0, GPU 6.2); with `Looter.Hero Gauge` + `Looter.Embers.Repeat SlagBomb 4`: 7.9 ms (p95 8.6, GPU 6.7). Knobs if a scene
+  goes over: `Looter.Vfx.Smoke 0.7`, `Detail.Near 1000`, `Blast.Scale 0.8`, `Puffs 0`, `MaxParticles 700`.
+- Not checked by eye: tier kill rings, slimes' gel splat, Last Rites column, the stand-ins without the masters.
+
 ## Packaging a test build
 
 - Run: close the editor (`Tools\close.ps1`; no game running either), then start `Tools\package.ps1` in the background.

@@ -6,6 +6,7 @@
 #include "Combat/MovementSlowComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponFX.h"
 #include "Components/CapsuleComponent.h"
@@ -72,6 +73,11 @@ void UEmberIronHide::Activate(const FEmberContext& Context)
 
 	LooterSound::Play2D(Character, LooterSoundCue::Ember::IronHideLock);
 	Vent(12, 1.f);
+	// (The VFX pass) the plates slam shut: a forge-orange ring of heat thrown out over the ground from his feet.
+	if (FWeaponFX* FX = Effects())
+	{
+		EmberVfx::Activation(*FX, FeetOf(*Character), ForgeGlow, 1.f);
+	}
 	// The plates slammed shut: a heavy dip, the view drawing in a little.
 	FViewKick Lock;
 	Lock.Pitch = -0.8f;

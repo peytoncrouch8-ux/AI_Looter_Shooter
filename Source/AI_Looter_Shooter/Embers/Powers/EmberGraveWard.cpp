@@ -5,6 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Embers/Powers/EmberPropActor.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponFX.h"
@@ -106,6 +107,9 @@ void UEmberGraveWard::Activate(const FEmberContext& Context)
 				Random.FRandRange(50.f, 70.f), Random.FRandRange(0.6f, 0.9f));
 		}
 		FX->SpawnDeathBurst(EDeathBurst::SoulLight, Center + FVector(0.0, 0.0, 40.0), FVector::UpVector, 70.f, Color);
+		// (The VFX pass) the ward's light running out to its edge: a ring racing over the ground to the radius it holds.
+		FX->SpawnShockRing(Center + FVector(0.0, 0.0, 5.0), FVector::UpVector, 20.f, Radius, 16.f, Color, 16.f, 0.5f);
+		EmberVfx::Activation(*FX, Center, Color, 0.6f);
 	}
 	FViewKick Kneel;
 	Kneel.Pitch = -0.5f;

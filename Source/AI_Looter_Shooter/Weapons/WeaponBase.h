@@ -461,6 +461,11 @@ private:
 	float FlashStrength = 1.f;
 	/** Full glow of each muzzle flash quad, which fades with the flash. */
 	TArray<float, TInlineAllocator<8>> FlashGlow;
+	/** This kind's flash length (VfxRules::MuzzleLook; WeaponBaseMuzzle.cpp). */
+	float FlashDuration = 0.055f;
+	/** Shots in the burst so far (0 the first; a pause of MuzzleBurstGap starts over): a fast gun's smoke and sparks thin out. */
+	int32 MuzzleShotsInBurst = 0;
+	double LastMuzzleTime = -1000.0;
 
 	/** Seconds until a pumped hull flies out (negative: none waiting). */
 	float PendingEjectSeconds = -1.f;

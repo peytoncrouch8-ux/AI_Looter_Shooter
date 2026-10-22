@@ -5,6 +5,7 @@
 #include "Player/DustLight.h"
 #include "Weapons/CreatureBlood.h"
 #include "Weapons/ImpactSurface.h"
+#include "Weapons/VfxTypes.h"
 #include "Weapons/WaterRings.h"
 
 class AActor;
@@ -146,7 +147,8 @@ public:
 
 	/**
 	 * A creature's death burst round Center: its body about Size cm across, the burst thrown a little along ShotDirection
-	 * (the killing shot's way). Tint is the shell's chitin, the slime's gel, or the soul-light's color. 25 to 30 particles.
+	 * (the killing shot's way). Tint is the shell's chitin, the slime's gel, or the soul-light's color. 35 to 45 pieces since
+	 * the VFX pass (a wet pop and splat, big plates; a gel crown; a soul-light fireball, starburst and ring).
 	 */
 	void SpawnDeathBurst(EDeathBurst Kind, const FVector& Center, const FVector& ShotDirection, float Size, const FLinearColor& Tint);
 
@@ -182,6 +184,39 @@ public:
 	/** Count motes of Color rising round Center within Radius (a Legendary's landing). */
 	void SpawnLootMotes(const FVector& Center, float Radius, const FLinearColor& Color, int32 Count);
 
+	// --- The VFX pass (Saved/Vfx/PLAN.md, 2026-10-21 night): shapes (WeaponFXShapes.cpp), kills and blasts (WeaponFXKills.cpp),
+	// muzzles (WeaponFXShots.cpp). Their strength is Looter.Vfx.* (FVfxTuning). ---
+
+	/**
+	 * A shock ring growing from StartRadius to EndRadius over Life, Width cm thick, fading as it goes (VfxRules::RingGrowth,
+	 * RingFade): square to Axis (a ring on the ground: Axis its normal), or turned to face the eye each frame (bFacing).
+	 * One quad on M_FX_Shape; without it, pieces of streak on M_FX_Glow.
+	 */
+	void SpawnShockRing(const FVector& Center, const FVector& Axis, float StartRadius, float EndRadius, float Width, const FLinearColor& Color,
+		float Intensity, float Life, bool bFacing = false);
+
+	/** A ball of fire (or light) at Location drifting at Velocity, blooming from StartSize to EndSize and cooling over Life. */
+	void SpawnFireball(const FVector& Location, const FVector& Velocity, float StartSize, float EndSize, const FLinearColor& Color, float Intensity,
+		float Life);
+
+	/** A starburst of Spikes uneven spikes round a hot core, Size cm across, over Life (a hit's pop, a crit's flare). */
+	void SpawnStarburst(const FVector& Location, float Size, const FLinearColor& Color, float Intensity, float Life, int32 Spikes = 8);
+
+	/** A kill's layers on top of its kind's death burst (gore by the gun, a mist, a dust skirt, rings, its tier's flare). */
+	void SpawnKillLayers(const FVfxKill& Kill);
+
+	/** A blast: a white crack, fireballs blooming and cooling, a ring over the ground, a smoke skirt and column, embers, debris. */
+	void SpawnExplosion(const FVfxExplosion& Blast);
+
+	/** What a shot's muzzle throws round its flash, by the gun's kind (VfxRules::MuzzleLook): smoke, sparks, side jets, a ring. */
+	void SpawnMuzzleBurst(const FVfxMuzzle& Muzzle);
+
+	/** The share of a look's pieces thrown at Where (VfxRules::DetailAt from the camera last drawn from; 1 before any). */
+	float DetailAt(const FVector& Where) const;
+
+	/** Rings, fireballs and starbursts alive (tests). */
+	int32 NumShapes() const;
+
 	/** Advances the particles and redraws everything, turned to face the camera. */
 	void Tick(float DeltaSeconds, const FVector& CameraLocation);
 
@@ -206,7 +241,7 @@ private:
 	 * Bit: a lit chunk of a color of its own (chitin, gel), drawn on its BitSet's component. Streak: a glowing line flying
 	 * on, growing to its length (a ricochet's tracer). Thread: a still line of smoke (a tracer's smoke thread).
 	 */
-	enum class EParticle : uint8 { Spark, Flash, Smoke, Chip, Droplet, Bit, Streak, Thread };
+	enum class EParticle : uint8 { Spark, Flash, Smoke, Chip, Droplet, Bit, Streak, Thread, Ring, Fireball, Star };
 
 	struct FParticle
 	{
@@ -235,8 +270,12 @@ private:
 		bool bResting = false;
 		uint8 Bounces = 0;
 		FPlane Floor = FPlane(0.0, 0.0, 1.0, 0.0);
-		/** A Thread's half length along its line. */
+		/** A Thread's half length along its line; a Ring's axis (unit). */
 		FVector Extent = FVector::ZeroVector;
+		/** A Ring's thickness (cm); a Star's spikes. */
+		float Width = 0.f;
+		/** A Ring turned to face the eye each frame (else square to its axis). */
+		bool bFacing = false;
 	};
 
 	/** How a set's chunks are drawn: thin plates (chitin, chips of paint or glass), round drops (gel, water), long splinters (wood, straw). */
@@ -307,5 +346,16 @@ private:
 	float SpurtAmountFor(const FVector& Location, float Scale, float SpurtScale, float BlastBudget);
 	/** Instances drawn last frame, so an emptied component gets cleared exactly once. */
 	bool bDrawnAnything = false;
+	/** M_FX_Shape's quads (rings, fireballs, starbursts), when it's in the game and Looter.Vfx.Shapes is on (else stand-ins on Glows). */
+	TWeakObjectPtr<UInstancedStaticMeshComponent> Shapes;
+	/** The camera last drawn from (DetailAt), once a Tick has said where it is. */
+	FVector LastCamera = FVector::ZeroVector;
+	bool bHasCamera = false;
+	/** Recent hits, so a stream of fire into one spot is thinned (VfxRules::StreamDetail). */
+	FVfxHitStream HitStream;
+	/** The share a hit at Location throws in its stream (1 alone), noting it. */
+	float StreamDetailFor(const FVector& Location);
+	/** The pool's size (Looter.Vfx.MaxParticles as the effects started). */
+	int32 MaxParticleCount = 1000;
 	FRandomStream Random{ 0x5eed };
 };

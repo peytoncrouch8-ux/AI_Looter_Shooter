@@ -6,6 +6,7 @@
 #include "Creatures/CreatureBase.h"
 #include "Embers/EmberDamageType.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/PlayerViewComponent.h"
 #include "Player/ViewKick.h"
@@ -237,6 +238,12 @@ float UEmberPowerBase::Hurt(AActor& Target, float Damage, const FVector& Where, 
 	UPrimitiveComponent* Root = Cast<UPrimitiveComponent>(Target.GetRootComponent());
 	FHitResult Struck(&Target, Root, Where, -Way);
 	UGameplayStatics::ApplyPointDamage(&Target, Damage, Way, Struck, Instigator.Get(), nullptr, UEmberDamageType::StaticClass());
+	// The blow shows on the body it lands on: what it spills, as a gun's hit of its weight, and a pop of the power's colour
+	// (the VFX pass: before it, a power's damage left nothing on the body but its number).
+	if (FWeaponFX* FX = EffectsIn(Target.GetWorld()))
+	{
+		EmberVfx::BodyHit(*FX, Target, Where, Way, Damage, Color);
+	}
 	return Damage;
 }
 

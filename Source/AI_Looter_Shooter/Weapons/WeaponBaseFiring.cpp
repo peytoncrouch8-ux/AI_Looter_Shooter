@@ -10,6 +10,7 @@
 #include "Weapons/PartEffectComponent.h"
 #include "Weapons/WeaponSounds.h"
 #include "Weapons/WeaponTrigger.h"
+#include "Weapons/VfxRules.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
@@ -37,21 +38,6 @@
 
 namespace
 {
-	// Built-in muzzle flash (M_FX_Glow reads color, strength and shape from each quad's custom data;
-	// shapes: 0 = streak, 1 = round, 2 = six-pointed star).
-	constexpr float FlashDuration = 0.055f;
-	constexpr float FlashCoreSize = 11.f;
-	constexpr float FlashStarSize = 34.f;
-	constexpr float FlashTongueLength = 26.f;
-	constexpr float FlashTongueWidth = 9.f;
-	constexpr float FlashCoreGlow = 26.f;
-	constexpr float FlashStarGlow = 16.f;
-	constexpr float FlashTongueGlow = 14.f;
-	constexpr float FlashLightCandelas = 24.f;
-	const FLinearColor FlashCoreColor(1.f, 0.85f, 0.6f);
-	const FLinearColor FlashStarColor(1.f, 0.62f, 0.25f);
-	const FLinearColor FlashTongueColor(1.f, 0.58f, 0.22f);
-
 	/** How big a misfire's spit of sparks and smoke is beside a shot's flash in the open (FWeaponFX::SpawnFlash). */
 	constexpr float MisfirePuffScale = 0.25f;
 }
@@ -268,6 +254,11 @@ void AWeaponBase::FireShot()
 		Shot.TracerColor = Definition->TracerColor;
 		Shot.TracerWidth = Definition->TracerWidth;
 		Shot.TracerLength = Definition->TracerLength;
+		// The kind's tracer (the VFX pass): an SMG's needles, a sniper's bright line, an LMG's every third round.
+		const FVfxTracerLook Tracer = VfxRules::TracerLook(Definition->Kind, CurrentMagazine);
+		Shot.TracerColor *= Tracer.Glow;
+		Shot.TracerWidth *= Tracer.Width;
+		Shot.TracerLength *= Tracer.Length;
 		Shot.ImpactFX = Definition->ImpactFX.Get();
 		Shot.bDrawDebug = bDrawDebugTraces;
 		Shot.Weapon = this;
@@ -367,107 +358,6 @@ FVector AWeaponBase::GetVisibleLocation(const FVector& WorldLocation) const
 	View.FirstPersonScale = Camera->bEnableFirstPersonScale ? Camera->FirstPersonScale : 1.f;
 	View.bUseFirstPersonParameters = Camera->bEnableFirstPersonFieldOfView || Camera->bEnableFirstPersonScale;
 	return View.bUseFirstPersonParameters ? View.TransformWorldToFirstPerson(WorldLocation, false) : WorldLocation;
-}
-
-// ---------------------------------------------------------------------------
-// Muzzle flash
-// ---------------------------------------------------------------------------
-
-void AWeaponBase::SetupMuzzleFlash()
-{
-	const UWeaponDefinition* Definition = Instance.Definition;
-	USceneComponent* Mesh = GetActiveMesh();
-	if (!Definition || !Mesh)
-	{
-		return;
-	}
-
-	// Sit on the muzzle of whichever model shows, pointing down the barrel (+X).
-	const bool bSocket = !bUsingModel && Mesh->DoesSocketExist(Definition->MuzzleSocket);
-	const FName Socket = bSocket ? Definition->MuzzleSocket : NAME_None;
-	const FVector Offset = bUsingModel ? Model->GetMuzzle() : FVector::ZeroVector;
-	MuzzleFlash->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
-	MuzzleFlash->SetRelativeLocation(Offset);
-	MuzzleLight->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
-	MuzzleLight->SetRelativeLocation(Offset + FVector(10.f, 0.f, 0.f));
-
-	UMaterialInterface* Glow = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Weapons/FX/M_FX_Glow.M_FX_Glow"));
-	if (!Glow)
-	{
-		Glow = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Environment/Materials/M_StylizedGlow.M_StylizedGlow"));
-	}
-	MuzzleFlash->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
-	MuzzleFlash->SetMaterial(0, Glow);
-	MuzzleFlash->ClearInstances();
-	MuzzleFlash->SetNumCustomDataFloats(5);
-
-	// The engine plane is 100 x 100 in XY, facing +Z.
-	// A gun drawn bigger than modeled (UWeaponModelComponent::ScaleFor) flashes as much bigger.
-	const float Scale = Definition->MuzzleFlashScale * (bUsingModel ? Model->GetModelScale() : 1.f);
-	FlashGlow.Reset();
-	auto AddQuad = [this](const FTransform& Transform, const FLinearColor& Color, float Glow, float Shape)
-	{
-		const float Data[] = { Color.R, Color.G, Color.B, Glow, Shape };
-		MuzzleFlash->SetCustomData(MuzzleFlash->AddInstance(Transform), Data);
-		FlashGlow.Add(Glow);
-	};
-	// A hot round core and a spiky star just past the muzzle, facing back down the barrel at the shooter...
-	const FRotator FacingBack(-90.f, 0.f, 0.f);
-	AddQuad(FTransform(FacingBack, FVector(1.f, 0.f, 0.f), FVector(FlashCoreSize * Scale / 100.f, FlashCoreSize * Scale / 100.f, 1.f)), FlashCoreColor, FlashCoreGlow, 1.f);
-	AddQuad(FTransform(FacingBack, FVector(3.f, 0.f, 0.f), FVector(FlashStarSize * Scale / 100.f, FlashStarSize * Scale / 100.f, 1.f)), FlashStarColor, FlashStarGlow, 2.f);
-	// ...and three flame tongues along the barrel, 60 degrees apart, for side views (turned so the streak's bright
-	// head is at the muzzle end).
-	const float Length = FlashTongueLength * Scale;
-	for (int32 Tongue = 0; Tongue < 3; ++Tongue)
-	{
-		AddQuad(FTransform(FRotator(0.f, 180.f, Tongue * 60.f), FVector(Length * 0.5f, 0.f, 0.f), FVector(Length / 100.f, FlashTongueWidth * Scale / 100.f, 1.f)),
-			FlashTongueColor, FlashTongueGlow, 0.f);
-	}
-	FlashTimeLeft = 0.f;
-	MuzzleFlash->SetVisibility(false);
-	MuzzleLight->SetVisibility(false);
-}
-
-void AWeaponBase::PlayMuzzleFlash()
-{
-	if (MuzzleFlash->GetInstanceCount() == 0)
-	{
-		return;
-	}
-	// Every flash a little different: turned, sized and bright at random.
-	FlashTimeLeft = FlashDuration;
-	FlashStrength = FMath::FRandRange(0.8f, 1.15f);
-	MuzzleFlash->SetRelativeRotation(FRotator(0.f, 0.f, FMath::FRandRange(0.f, 360.f)));
-	// Bigger in the player's own view (the first-person gun is drawn small and close); from behind it is as before.
-	MuzzleFlash->SetRelativeScale3D(FVector(FMath::FRandRange(0.85f, 1.2f) * (IsDrawnFirstPerson() ? GunfeelKick::Muzzle1PScale() : 1.f)));
-	MuzzleFlash->SetVisibility(true);
-	MuzzleLight->SetVisibility(true);
-	UpdateMuzzleFlash(0.f);
-	RefreshTick();
-}
-
-void AWeaponBase::UpdateMuzzleFlash(float DeltaSeconds)
-{
-	if (FlashTimeLeft <= 0.f)
-	{
-		return;
-	}
-	FlashTimeLeft -= DeltaSeconds;
-	if (FlashTimeLeft <= 0.f)
-	{
-		FlashTimeLeft = 0.f;
-		MuzzleFlash->SetVisibility(false);
-		MuzzleLight->SetVisibility(false);
-		return;
-	}
-	// Full for the first part of the flash, then fading out.
-	const float Fade = FMath::Clamp(FlashTimeLeft / FlashDuration * 1.6f, 0.f, 1.f) * FlashStrength;
-	for (int32 Index = 0; Index < FlashGlow.Num() && Index < MuzzleFlash->GetInstanceCount(); ++Index)
-	{
-		MuzzleFlash->SetCustomDataValue(Index, 3, FlashGlow[Index] * Fade);
-	}
-	MuzzleFlash->MarkRenderStateDirty();
-	MuzzleLight->SetIntensity(FlashLightCandelas * Fade * (Instance.Definition ? Instance.Definition->MuzzleFlashScale : 1.f));
 }
 
 float AWeaponBase::GetEffectiveSpread() const

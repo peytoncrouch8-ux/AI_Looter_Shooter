@@ -5,6 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/PlayerViewComponent.h"
 #include "Player/ViewKick.h"
 #include "UI/World/EmberMarkActor.h"
@@ -217,6 +218,15 @@ void UEmberSpyglass::Mark(ACreatureBase& Creature)
 		Life->SetDamageTakenScale(ScaleSource, DamageScale);
 	}
 	Washed.Wear(Creature);
+	// (The VFX pass) a ping of its colour over each one as the sweep finds it.
+	if (FWeaponFX* FX = Effects())
+	{
+		FVector Middle;
+		float Radius = 0.f;
+		float HalfHeight = 0.f;
+		BodyOf(Creature, Middle, Radius, HalfHeight);
+		EmberVfx::Strike(*FX, Middle + FVector(0.0, 0.0, HalfHeight), Color, 0.5f);
+	}
 	// A soft ping as each is found, a little higher with each one.
 	if (PingClock <= 0.f)
 	{

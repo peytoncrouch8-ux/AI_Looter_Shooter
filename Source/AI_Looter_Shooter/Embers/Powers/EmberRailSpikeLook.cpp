@@ -7,6 +7,7 @@
 #include "Embers/Powers/EmberRailSpike.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/GroundCrack.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/ViewKick.h"
 #include "Weapons/CreatureBlood.h"
 #include "Weapons/WeaponFX.h"
@@ -313,6 +314,9 @@ void UEmberRailSpike::LookAtPierce(ACreatureBase& Creature, const FVector& At)
 	if (FWeaponFX* FX = Effects())
 	{
 		FX->SpawnFlash(At, Line.Direction, 0.8f);
+		// (The VFX pass) the iron punching through: a white-hot starburst and a ball of heat blown on out the far side.
+		FX->SpawnStarburst(At, 70.f, ShockWhite, 24.f, 0.08f, 10);
+		FX->SpawnFireball(At, Line.Direction * 500.f, 18.f, 64.f, IronGlow, 3.f, 0.22f);
 		FX->SpawnWisp(At, Line.Direction * 80.f + FVector(0.0, 0.0, 20.0), 0.3f, 8.f, 40.f, 0.7f);
 		// What it spills, thrown out the far side.
 		FVector Middle;
@@ -335,6 +339,9 @@ void UEmberRailSpike::LookAtEmbed()
 	if (FWeaponFX* FX = Effects())
 	{
 		FX->SpawnRicochet(Line.End, Line.EmbedNormal, 1.2f);
+		// (The VFX pass) the spike drives home: a strike of iron glow and a ring of it laid flat on what it struck.
+		EmberVfx::Strike(*FX, Line.End + Line.EmbedNormal * 4.f, IronGlow, 1.f);
+		FX->SpawnShockRing(Line.End + Line.EmbedNormal * 3.f, Line.EmbedNormal, 8.f, 120.f, 8.f, IronGlow, 12.f, 0.35f);
 		const FLinearColor Dust = EmberFX::DustColor(Body.Get());
 		for (int32 Index = 0; Index < 6; ++Index)
 		{

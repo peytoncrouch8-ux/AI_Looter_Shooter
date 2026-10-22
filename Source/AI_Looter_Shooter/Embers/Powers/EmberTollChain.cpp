@@ -5,6 +5,7 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureKnockComponent.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponFX.h"
 #include "CollisionQueryParams.h"
@@ -233,6 +234,11 @@ void UEmberTollChain::Bite()
 	{
 		const FVector Out = (Toward + Random.GetUnitVector()).GetSafeNormal();
 		Sparks.Spawn(Chest, Out * Random.FRandRange(200.f, 500.f), Random.FRandRange(0.15f, 0.35f), 1.3f, Color, 22.f, 900.f, 2.f);
+	}
+	// (The VFX pass) the hook bites: a strike of the toll's colour snapping out round it.
+	if (FWeaponFX* FX = Effects())
+	{
+		EmberVfx::Strike(*FX, Chest, Color, 1.f);
 	}
 	// A pull of the view toward it as the chain bites.
 	FViewKick Bitten;

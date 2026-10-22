@@ -1,8 +1,14 @@
 #include "Weapons/WeaponFX.h"
+#include "Weapons/VfxTuning.h"
 
 // FWeaponFX's effects that aren't a gun's: grave dirt (the wake-up's claws), the slide's dust and grit, and a creature's
 // death burst (a spider's shell, a slime's splat, an Unpaid's soul-light). Spawning only; WeaponFXDraw.cpp moves and draws
 // every particle.
+//
+// The VFX pass (Saved/Vfx/PLAN.md): the bursts got the layers that make a body give way (a wet pop and a splat of ichor
+// bursting and eroding, bigger chitin plates; a gel crown thrown out low round a slime; a soul-light fireball, a white
+// starburst and a shock ring). Every power's soul-light flare and the rocket's fireball use these bursts too, so they gain
+// the same. A kill's own layers (gore by the gun, mist, ground rings, tiers) are WeaponFXKills.cpp's, on top.
 
 namespace
 {
@@ -14,6 +20,9 @@ namespace
 	const FLinearColor SoulHeat(1.f, 0.95f, 0.85f);
 	/** A ghost's last breath: pale, cool smoke. */
 	const FLinearColor SoulWisp(0.5f, 0.55f, 0.6f);
+	/** The spiders' ichor as a bursting mist (unlit: as afternoon light shows it), and a wet flash's pale glint. */
+	const FLinearColor DeathIchorMist(0.5f, 0.6f, 0.1f);
+	const FLinearColor DeathWetGlint(0.95f, 1.f, 0.88f);
 
 	/** A random direction across the ground. */
 	FVector Across(FRandomStream& Random)
@@ -96,13 +105,27 @@ void FWeaponFX::SpawnDeathBurst(EDeathBurst Kind, const FVector& Center, const F
 		Flash.EndSize = To;
 		Flash.Gravity = 0.f;
 	};
+	const FVfxTuning Vfx = FVfxTuning::Live();
+	// A dense burst of what it spills, bursting out of the body and eroding at once (M_FX_Puff): the wet pop of a kill.
+	auto Splat = [this, &Center, &Up, &Shot, Scale, &Vfx](const FLinearColor& Color, float Opacity, float To, float Life)
+	{
+		FParticle& Burst = AddParticle(EParticle::Smoke, Center, (Up * 80.f + Shot * 60.f) * FMath::Sqrt(Scale), Life);
+		Burst.Color = Color;
+		Burst.Intensity = FMath::Min(Opacity * Vfx.Smoke, 1.f);
+		Burst.StartSize = 24.f * Scale;
+		Burst.EndSize = To * Scale;
+		Burst.Gravity = 0.15f;
+		Burst.Drag = 5.f;
+	};
 
 	switch (Kind)
 	{
 	case EDeathBurst::Shell:
 	{
-		// The shell gives with a wet crack of light...
+		// The shell gives with a wet crack of light (and, the pass, a pale wet pop and a splat of ichor bursting out)...
 		Glow(DeathIchorFlash, 9.f, 18.f * Scale, 70.f * Scale, 0.1f);
+		SpawnStarburst(Center, 70.f * Scale, FMath::Lerp(DeathIchorFlash, DeathWetGlint, 0.5f), 12.f * Vfx.Glow, 0.08f, 7);
+		Splat(DeathIchorMist, 0.85f, 120.f, 0.35f);
 		// ...the dust it was standing in rolls out round it...
 		for (int32 Index = 0; Index < 5; ++Index)
 		{
@@ -116,19 +139,21 @@ void FWeaponFX::SpawnDeathBurst(EDeathBurst Kind, const FVector& Center, const F
 			Puff.Gravity = -0.03f;
 			Puff.Drag = 2.4f;
 		}
-		// ...and plates of chitin fly, tumbling, with a splash of ichor.
+		// ...and plates of chitin fly, tumbling, with a splash of ichor (the pass: four of them big, thrown high).
 		const uint8 Chitin = BitSetFor(false, Tint, 0.f);
-		for (int32 Index = 0; Index < 14; ++Index)
+		for (int32 Index = 0; Index < 18; ++Index)
 		{
+			const bool bBig = Index < 4;
 			const FVector Direction = (Up * Random.FRandRange(0.6f, 1.2f) + Random.GetUnitVector() * 0.7f + Shot * 0.5f).GetSafeNormal();
-			FParticle& Plate = AddParticle(EParticle::Bit, Center, Direction * Random.FRandRange(280.f, 620.f) * Reach, Random.FRandRange(0.9f, 1.5f));
+			FParticle& Plate = AddParticle(EParticle::Bit, Center, Direction * Random.FRandRange(280.f, bBig ? 520.f : 620.f) * Reach,
+				Random.FRandRange(0.9f, bBig ? 1.8f : 1.5f));
 			Plate.BitSet = Chitin;
-			Plate.StartSize = Random.FRandRange(3.f, 7.5f) * Scale;
+			Plate.StartSize = (bBig ? Random.FRandRange(8.f, 12.f) : Random.FRandRange(3.f, 7.5f)) * Scale;
 			Plate.Rotation = FQuat(Random.GetUnitVector(), Random.FRandRange(0.f, 2.f * UE_PI));
 			Plate.Spin = Random.GetUnitVector() * Random.FRandRange(6.f, 18.f);
 			Plate.Drag = 0.2f;
 		}
-		for (int32 Index = 0; Index < 8; ++Index)
+		for (int32 Index = 0; Index < 12; ++Index)
 		{
 			const FVector Direction = (Up + Random.GetUnitVector() * 0.8f + Shot * 0.3f).GetSafeNormal();
 			FParticle& Drop = AddParticle(EParticle::Droplet, Center, Direction * Random.FRandRange(220.f, 560.f) * Reach, Random.FRandRange(0.45f, 0.8f));
@@ -138,9 +163,22 @@ void FWeaponFX::SpawnDeathBurst(EDeathBurst Kind, const FVector& Center, const F
 	}
 	case EDeathBurst::Gel:
 	{
-		// The jelly lets go all at once: a soft glow, gel flung out every way, and a wet spray low over the ground.
+		// The jelly lets go all at once: a soft glow, gel flung out every way, and a wet spray low over the ground; the pass: a
+		// splat of gel bursting and a crown of blobs thrown out low all round, as a dropped jelly splashes.
 		Glow(Tint, 6.f, 26.f * Scale, 100.f * Scale, 0.12f);
+		Splat(Tint * 0.9f, 0.7f, 140.f, 0.3f);
 		const uint8 Gel = BitSetFor(true, Tint, 0.45f);
+		constexpr int32 Crown = 10;
+		for (int32 Index = 0; Index < Crown; ++Index)
+		{
+			const float Angle = UE_TWO_PI * (static_cast<float>(Index) + Random.FRandRange(-0.25f, 0.25f)) / Crown;
+			const FVector Out(FMath::Cos(Angle), FMath::Sin(Angle), 0.f);
+			FParticle& Drop = AddParticle(EParticle::Bit, Center - Up * 15.f * Scale, (Out * Random.FRandRange(300.f, 460.f) + Up * Random.FRandRange(120.f, 220.f)) * Reach,
+				Random.FRandRange(0.5f, 0.8f));
+			Drop.BitSet = Gel;
+			Drop.StartSize = Random.FRandRange(2.f, 3.5f) * Scale;
+			Drop.Drag = 0.5f;
+		}
 		for (int32 Index = 0; Index < 18; ++Index)
 		{
 			const FVector Direction = (Across(Random) + Up * Random.FRandRange(0.35f, 1.1f) + Shot * 0.35f).GetSafeNormal();
@@ -169,6 +207,16 @@ void FWeaponFX::SpawnDeathBurst(EDeathBurst Kind, const FVector& Center, const F
 		const FLinearColor Hot = FMath::Lerp(Tint, SoulHeat, 0.45f);
 		Glow(Hot, 36.f, 26.f * Scale, 120.f * Scale, 0.13f);
 		Glow(Tint, 20.f, 60.f * Scale, 240.f * Scale, 0.32f);
+		// (The pass) a white starburst cracking out of it, a ball of its light blooming and cooling as it rises, and a shock
+		// ring snapping out round it, facing the eye (it reads on a floating ghost and on a burst in the air alike).
+		SpawnStarburst(Center, 90.f * Scale, SoulHeat, 22.f * Vfx.Glow, 0.1f, 12);
+		SpawnFireball(Center, Up * 70.f * Reach, 30.f * Scale, 110.f * Scale, Tint, 3.f * Vfx.Glow, 0.45f);
+		SpawnFireball(Center + Up * 20.f * Scale + Shot * 15.f * Scale, Up * 110.f * Reach + Shot * 40.f, 20.f * Scale, 80.f * Scale, Hot,
+			2.f * Vfx.Glow, 0.35f);
+		if (Scale >= 0.5f)
+		{
+			SpawnShockRing(Center, FVector::ZeroVector, 20.f * Scale, 150.f * Scale, 6.f * Reach, Tint, 12.f * Vfx.Glow, 0.3f, true);
+		}
 		// ...motes of it rising and drifting apart as they dwindle...
 		for (int32 Index = 0; Index < 16; ++Index)
 		{

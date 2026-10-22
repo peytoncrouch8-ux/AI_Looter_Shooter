@@ -4,6 +4,7 @@
 #include "Combat/BulletSubsystem.h"
 #include "Core/LooterCharacter.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponFX.h"
@@ -220,6 +221,8 @@ void UEmberSundown::ShowStart()
 	const float HalfHeight = Character->GetCapsuleComponent() ? Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
 	const FVector Feet = Character->GetActorLocation() - FVector(0.0, 0.0, HalfHeight);
 	Effects.SpawnDeathBurst(EDeathBurst::SoulLight, Feet + FVector(0.0, 0.0, 40.0), FVector::UpVector, 90.f, Dusk);
+	// (The VFX pass) the dusk sweeping out: a wide amber ring racing over the ground, and its slower echo.
+	EmberVfx::Activation(Effects, Feet, Dusk, 1.3f);
 	FRandomStream Random(static_cast<int32>(GetTypeHash(Feet)));
 	constexpr int32 Ring = 12;
 	for (int32 Index = 0; Index < Ring; ++Index)

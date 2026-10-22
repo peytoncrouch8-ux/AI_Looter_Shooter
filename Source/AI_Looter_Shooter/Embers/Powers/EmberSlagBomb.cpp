@@ -4,6 +4,7 @@
 #include "Core/LooterCharacter.h"
 #include "Creatures/CreatureBase.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Embers/Powers/EmberPropActor.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponFX.h"
@@ -317,6 +318,9 @@ void UEmberSlagBomb::Burst(const FVector& At)
 	{
 		FX->SpawnFlash(Heart, FVector::UpVector, 2.4f);
 		FX->SpawnDirt(At, FVector::UpVector, 1.f);
+		// (The VFX pass) the burst as a blast of molten fire: fireballs cooling white to slag orange, a ring racing over the
+		// ground to the outer reach, soot rolling out and up, embers arcing.
+		EmberVfx::Blast(*FX, World, At, FVector::UpVector, Radius, Molten, /*bSoul*/ false, EImpactMaterial::Dirt);
 	}
 	// Molten globs flung out, arcing down.
 	for (int32 Index = 0; Index < 44; ++Index)

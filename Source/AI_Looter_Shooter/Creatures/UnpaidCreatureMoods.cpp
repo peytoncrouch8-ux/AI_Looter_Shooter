@@ -3,10 +3,13 @@
 // round to its prey and its coal flares bright, it starts back with its jaw open), its rise out of the ground (it comes up
 // from under the dirt clawing, the dirt thrown up), its idle life (a slow sway, now and then a look over its shoulder, each
 // on its own dice), its crumple and the ash it breaks into as it dies, and the dust its shroud drags as it rushes on.
+// The VFX pass (Saved/Vfx/PLAN.md): its kill's own layers on its first dead frame (a ring of its coal's light racing over
+// the ground, its ash collapsing, embers fountaining, its tier's rings; CreatureKillLook) and the ash it leaves lying.
 
 #include "Creatures/UnpaidCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
 #include "Audio/LooterSound.h"
+#include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
 #include "Components/CapsuleComponent.h"
@@ -185,6 +188,12 @@ void AUnpaidCreature::TickReactions(float DeltaSeconds)
 	}
 	if (IsDead())
 	{
+		// Its first dead frame (Tick has just counted its DeathTime up from 0): the kill's own layers and its ash on the ground.
+		// Every kind on the Unpaid's rig that keeps this tick (the miners, the Bell-Ringer) gets them; a boss's plays nothing.
+		if (DeathTime > 0.f && DeathTime - DeltaSeconds <= UE_KINDA_SMALL_NUMBER)
+		{
+			CreatureKillLook::Play(*this, GetLastHit(), /*bSplat*/ true);
+		}
 		return;
 	}
 	// Its notice beat: its coal flares bright (the material's Heat, and the coal swells with it).

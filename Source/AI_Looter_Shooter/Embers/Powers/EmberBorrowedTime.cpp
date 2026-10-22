@@ -5,6 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Core/LooterCharacter.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/ViewKick.h"
 #include "Progression/PlayerProgressionSubsystem.h"
@@ -78,8 +79,9 @@ void UEmberBorrowedTime::Activate(const FEmberContext& Context)
 	LooterSound::Play2D(Character, LooterSoundCue::Ember::BorrowedTimeStart);
 	if (FWeaponFX* Effects = EffectsIn(Character->GetWorld()))
 	{
-		// The ledger opens: soul-light in its violet rising round the feet.
+		// The ledger opens: soul-light in its violet rising round the feet (and, the VFX pass, its ring racing out).
 		Effects->SpawnDeathBurst(EDeathBurst::SoulLight, FeetOf(*Character) + FVector(0.0, 0.0, 40.0), FVector::UpVector, 80.f, Color);
+		EmberVfx::Activation(*Effects, FeetOf(*Character), Color, 0.9f);
 	}
 	if (APlayerController* Owner = Cast<APlayerController>(Character->GetController()))
 	{
@@ -127,6 +129,11 @@ void UEmberBorrowedTime::End(const FEmberContext& Context, bool bInterrupted)
 	if (World && !World->bIsTearingDown)
 	{
 		LooterSound::Play2D(World, LooterSoundCue::Ember::BorrowedTimeSettle);
+		// (The VFX pass) the debt called in: the ledger's ring closing in a darker violet, short and heavy.
+		if (FWeaponFX* Effects = EffectsIn(World))
+		{
+			EmberVfx::Activation(*Effects, FeetOf(*Character), Color * 0.6f, 0.6f);
+		}
 		if (APlayerController* Player = Cast<APlayerController>(Character->GetController()))
 		{
 			// The debt called in: a heavy dip of the view.
@@ -233,8 +240,9 @@ float UEmberBorrowedTime::NoteKill(const AActor* Victim)
 	UE_LOG(LogLooter, Verbose, TEXT("Borrowed Time: a kill strikes %.1f off, %.1f owed"), Struck, Debt);
 	if (FWeaponFX* Effects = Victim ? EffectsIn(Victim->GetWorld()) : nullptr)
 	{
-		// A line struck through in the ledger: the soul-light of the one killed flares violet.
+		// A line struck through in the ledger: the soul-light of the one killed flares violet (the pass: and strikes out).
 		Effects->SpawnDeathBurst(EDeathBurst::SoulLight, Victim->GetActorLocation(), FVector::UpVector, 50.f, Color);
+		EmberVfx::Strike(*Effects, Victim->GetActorLocation(), Color, 0.9f);
 	}
 	return Struck;
 }

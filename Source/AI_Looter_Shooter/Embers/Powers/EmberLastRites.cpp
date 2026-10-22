@@ -6,6 +6,7 @@
 #include "Creatures/CreatureKnockComponent.h"
 #include "Embers/EmberComponent.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/ViewKick.h"
 #include "UI/World/EmberMarkActor.h"
 #include "Weapons/WeaponFX.h"
@@ -223,6 +224,10 @@ void UEmberLastRites::Burst(const FVector& At)
 	if (FWeaponFX* FX = Effects())
 	{
 		FX->SpawnDeathBurst(EDeathBurst::SoulLight, Heart, FVector::UpVector, 130.f, Color);
+		// (The VFX pass) its soul goes off like a blast of light: fireballs of its colour, a ring racing out to the burst's
+		// reach, motes rising (a soul blast: no soot).
+		EmberVfx::Blast(*FX, World, At, FVector::UpVector, Radius, Color, /*bSoul*/ true, EImpactMaterial::Unknown);
+		FX->SpawnShockRing(At + FVector(0.0, 0.0, 6.0), FVector::UpVector, 30.f, Radius * 1.1f, 18.f, Color, 18.f, 0.45f);
 	}
 	for (int32 Index = 0; Index < 36; ++Index)
 	{
@@ -251,6 +256,8 @@ void UEmberLastRites::Strike(ACreatureBase& Creature)
 	if (FWeaponFX* FX = Effects())
 	{
 		FX->SpawnFlash(Middle + FVector(0.0, 0.0, 40.0), -FVector::UpVector, 1.6f);
+		// (The VFX pass) the mark strikes from above: a shaft of its light coming down onto it, a ring where it lands.
+		EmberVfx::Column(*FX, FeetOf(Creature), 900.f, Color);
 		const FVector Feet = FeetOf(Creature);
 		const FLinearColor Dust = EmberFX::DustColor(&Creature);
 		for (int32 Index = 0; Index < 10; ++Index)

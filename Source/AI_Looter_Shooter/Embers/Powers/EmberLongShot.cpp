@@ -5,6 +5,7 @@
 #include "Combat/BulletSubsystem.h"
 #include "Creatures/CreatureBase.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/ViewKick.h"
 #include "UI/World/EmberMarkActor.h"
 #include "Weapons/WeaponFX.h"
@@ -228,6 +229,14 @@ void UEmberLongShot::NoteLanding(const FBulletShot& Shot, const FHitResult& Hit,
 	{
 		const FVector Out = (Hit.ImpactNormal + Random.GetUnitVector()).GetSafeNormal();
 		Sparks.Spawn(Hit.ImpactPoint, Out * Random.FRandRange(150.f, 380.f), Random.FRandRange(0.15f, 0.3f), 1.1f, Color, 20.f, 400.f, 3.f);
+	}
+	// (The VFX pass) a long hit lands like one: a strike of teal as big as the bonus (from a third more damage up).
+	if (Scale >= 1.3f)
+	{
+		if (FWeaponFX* FX = Effects())
+		{
+			EmberVfx::Strike(*FX, Hit.ImpactPoint, Color, FMath::Min(0.4f + 0.5f * (Scale - 1.f), 1.f));
+		}
 	}
 }
 

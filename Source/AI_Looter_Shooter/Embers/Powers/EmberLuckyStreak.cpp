@@ -5,6 +5,7 @@
 #include "Combat/BulletSubsystem.h"
 #include "Creatures/CreatureBase.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponFX.h"
@@ -117,11 +118,15 @@ void UEmberLuckyStreak::NoteFiring(FBulletShot& Shot)
 		if (bLuckyPull)
 		{
 			LooterSound::Play2D(Body.Get(), LooterSoundCue::Ember::LuckyStreakLucky, 0.8f);
-			// A glint of gold at the muzzle as the lucky round leaves it.
+			// A glint of gold at the muzzle as the lucky round leaves it (the pass: a gold starburst over the flash).
 			for (int32 Index = 0; Index < 6; ++Index)
 			{
 				const FVector Out = (Shot.Direction + Random.GetUnitVector() * 0.7).GetSafeNormal();
 				Sparks.Spawn(Shot.VisualStart, Out * Random.FRandRange(150.f, 380.f), Random.FRandRange(0.15f, 0.3f), 1.2f, LuckyGold, 20.f, 300.f, 4.f);
+			}
+			if (FWeaponFX* FX = Effects())
+			{
+				FX->SpawnStarburst(Shot.VisualStart + Shot.Direction * 8.f, 36.f, LuckyGold, 20.f, 0.08f, 8);
 			}
 		}
 	}
@@ -200,6 +205,8 @@ void UEmberLuckyStreak::LandRicochet(ACreatureBase& Target, const FVector& At, c
 	if (FWeaponFX* FX = Effects())
 	{
 		FX->SpawnRicochet(At, Along, 0.8f);
+		// (The VFX pass) the lucky bounce lands: a gold strike snapping out round it.
+		EmberVfx::Strike(*FX, At, LuckyGold, 0.8f);
 	}
 }
 
@@ -303,6 +310,11 @@ void UEmberLuckyStreak::ShowStart()
 	{
 		const FVector Out = (Aim * 0.6 + Random.GetUnitVector()).GetSafeNormal();
 		Sparks.Spawn(Hand, Out * Random.FRandRange(120.f, 320.f), Random.FRandRange(0.3f, 0.6f), 1.3f, LuckyGold, 18.f, 120.f, 2.f);
+	}
+	// (The VFX pass) luck turning: a gold ring racing out from her feet.
+	if (FWeaponFX* FX = Effects())
+	{
+		EmberVfx::Activation(*FX, FeetOf(*Character), LuckyGold, 0.7f);
 	}
 	FViewKick Deal;
 	Deal.Pitch = 0.35f;

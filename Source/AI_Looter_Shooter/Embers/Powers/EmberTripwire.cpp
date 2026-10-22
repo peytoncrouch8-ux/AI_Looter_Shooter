@@ -5,6 +5,7 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureKnockComponent.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Embers/Powers/EmberPropActor.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponFX.h"
@@ -287,6 +288,8 @@ void UEmberTripwire::Trip(ACreatureBase& Creature, const FVector& Going)
 			const FVector Out = (Going + Random.GetUnitVector() * 0.8 + FVector(0.0, 0.0, 0.5)).GetSafeNormal();
 			FX->SpawnDustPuff(At + Out * 10.f, Out * Random.FRandRange(120.f, 240.f), Dust, 0.4f, 14.f, Random.FRandRange(60.f, 90.f), Random.FRandRange(0.6f, 1.f));
 		}
+		// (The VFX pass) the wire snaps taut: a strike of its colour where it caught.
+		EmberVfx::Strike(*FX, At, Color, 0.8f);
 	}
 	for (int32 Index = 0; Index < 6; ++Index)
 	{

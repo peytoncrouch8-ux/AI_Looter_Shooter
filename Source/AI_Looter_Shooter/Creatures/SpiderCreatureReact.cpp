@@ -4,11 +4,13 @@
 // (it rears with its front legs up and its fangs flared, hissing), its entrance in a player's view (climbing out of the
 // dirt), idle life while it stands (a front leg tapped, the front legs groomed at its fangs, each spider on its own dice)
 // and the dust its feet kick up running. Moved here with the reactions it had, to keep SpiderCreature.cpp under the size
-// guide.
+// guide. The VFX pass (Saved/Vfx/PLAN.md): its kill's own layers as it dies (gore by the gun, mist, dust skirt, tier rings;
+// CreatureKillLook), and its ichor pooling out from under it once the body lands.
 
 #include "Creatures/SpiderCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
 #include "Combat/GunfeelReactTuning.h"
+#include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
 #include "Components/CapsuleComponent.h"
@@ -138,6 +140,9 @@ void ASpiderCreature::OnDied()
 		TwitchLeg[0] = Dice.RandRange(0, Count - 1);
 		TwitchLeg[1] = (TwitchLeg[0] + Dice.RandRange(2, 6)) % Count;
 	}
+	// The kill's own layers over its burst: gore thrown by the gun that killed it, a wet mist, the dust it drops in, its
+	// tier's rings. Its pool spreads once the body lands (TickReactions).
+	CreatureKillLook::Play(*this, GetLastHit(), /*bSplat*/ false);
 }
 
 void ASpiderCreature::OnRespawned()
@@ -279,6 +284,8 @@ void ASpiderCreature::TickReactions(float DeltaSeconds)
 		if (Time >= Lands && Time - DeltaSeconds < Lands)
 		{
 			LandDeadBody();
+			// Its ichor pools out from under the body as it lies (the VFX pass's splat).
+			CreatureKillLook::LaySplat(*this);
 		}
 		// Each twitch jolts the abdomen too, with a faint dry tick of chitin; its last shudder has a fainter one.
 		for (const float At : TwitchAt)

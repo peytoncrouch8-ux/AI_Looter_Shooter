@@ -4,6 +4,7 @@
 #include "Core/LooterCharacter.h"
 #include "Combat/BulletSubsystem.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponFX.h"
@@ -110,6 +111,11 @@ void UEmberDoubleOrNothing::NoteFiring(FBulletShot& Shot)
 				const FVector Out = (Shot.Direction + Random.GetUnitVector() * 0.6).GetSafeNormal();
 				Sparks.Spawn(Shot.VisualStart, Out * Random.FRandRange(180.f, 420.f), Random.FRandRange(0.15f, 0.3f), 1.2f, Color, 22.f, 300.f, 4.f);
 			}
+			// (The VFX pass) heads: a hard star of its colour over the flash, so a doubled shot reads as one.
+			if (FWeaponFX* FX = Effects())
+			{
+				FX->SpawnStarburst(Shot.VisualStart + Shot.Direction * 8.f, 40.f, Color, 22.f, 0.08f, 6);
+			}
 		}
 		else
 		{
@@ -160,10 +166,18 @@ bool UEmberDoubleOrNothing::Linger(float DeltaSeconds)
 		}
 		if (CoinAge >= CoinSeconds)
 		{
-			// Slapped down: a glint where it's caught.
+			// Slapped down: a glint where it's caught (the pass: a small gold star; and the bet's ring racing out from his feet).
 			for (int32 Index = 0; Index < 8; ++Index)
 			{
 				Sparks.Spawn(CoinAt, Random.GetUnitVector() * Random.FRandRange(120.f, 260.f), Random.FRandRange(0.15f, 0.3f), 1.1f, CoinGold, 18.f, 200.f, 3.f);
+			}
+			if (FX)
+			{
+				FX->SpawnStarburst(CoinAt, 26.f, CoinGold, 18.f, 0.08f, 6);
+				if (const ACharacter* Character = Body.Get())
+				{
+					EmberVfx::Activation(*FX, FeetOf(*Character), Color, 0.6f);
+				}
 			}
 			CoinAge = -1.f;
 		}

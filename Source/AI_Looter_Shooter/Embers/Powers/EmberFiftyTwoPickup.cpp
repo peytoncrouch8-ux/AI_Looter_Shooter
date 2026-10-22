@@ -4,6 +4,7 @@
 #include "Core/LooterCharacter.h"
 #include "Creatures/CreatureBase.h"
 #include "Embers/EmberDefinition.h"
+#include "Embers/Powers/EmberVfx.h"
 #include "Player/ViewKick.h"
 #include "Weapons/WeaponFX.h"
 #include "World/WorldQueries.h"
@@ -247,6 +248,11 @@ void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
 		{
 			const FVector Out = (-On.Along + Random.GetUnitVector()).GetSafeNormal();
 			Sparks.Spawn(On.At, Out * Random.FRandRange(150.f, 380.f), Random.FRandRange(0.15f, 0.35f), 1.2f, Index % 3 ? Color : CutRed, 14.f, 500.f, 3.f);
+		}
+		// (The VFX pass) a hand of cards landing together cuts deep: a strike of its colour, bigger the more cards.
+		if (FX && On.Count >= 3)
+		{
+			EmberVfx::Strike(*FX, On.At, Color, FMath::Min(0.45f + 0.06f * On.Count, 1.f));
 		}
 	}
 	Sparks.Tick(Dt, FX);

@@ -1,4 +1,6 @@
 #include "Weapons/WeaponFX.h"
+#include "Weapons/VfxRules.h"
+#include "Weapons/VfxTuning.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/StaticMesh.h"
@@ -17,10 +19,23 @@ namespace
 	/** Used until M_FX_Glow exists: the environment's glow (dimmer seen end-on). */
 	const TCHAR* FallbackGlowPath = TEXT("/Game/Environment/Materials/M_StylizedGlow.M_StylizedGlow");
 	const TCHAR* SurfaceMaterialPath = TEXT("/Game/Environment/Materials/M_StylizedSurface.M_StylizedSurface");
+	/**
+	 * The VFX pass's masters (Tools/Unreal/build_vfx_materials.py): M_FX_Shape draws rings, fireballs and starbursts on one
+	 * quad each (additive); M_FX_Puff is the smoke broken up by noise and eroding as it thins (translucent). Each is used
+	 * only once it's in the game, so the code runs before the script has.
+	 */
+	const TCHAR* ShapeMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Shape.M_FX_Shape");
+	const TCHAR* PuffMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Puff.M_FX_Puff");
 
-	constexpr int32 GlowFloats = 5;  // R, G, B, intensity, shape (0 = streak, 1 = round)
+	constexpr int32 GlowFloats = 5;  // R, G, B, intensity, shape (0 = streak, 1 = round, 2 = six-pointed star)
 	constexpr int32 SmokeFloats = 4; // R, G, B, opacity
-	constexpr int32 MaxParticles = 900;
+	constexpr int32 PuffFloats = 6;  // R, G, B, opacity, seed (below 0: a plain soft disc), erosion (0 fresh .. 1 thinned away)
+	constexpr int32 ShapeFloats = 7; // R, G, B, intensity, shape (EVfxShape), param (thickness, heat or spikes), seed
+
+	UMaterialInterface* LoadQuietly(const TCHAR* Path)
+	{
+		return LoadObject<UMaterialInterface>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	}
 
 	// Palette (linear). Glows are multiplied by their intensity, so they only need a hue.
 	const FLinearColor SparkColor(1.f, 0.5f, 0.16f);
@@ -99,10 +114,25 @@ void FWeaponFX::Initialize(UWorld* World)
 		GlowMaterial = LoadObject<UMaterialInterface>(nullptr, FallbackGlowPath);
 	}
 	UMaterialInterface* SmokeMaterial = LoadObject<UMaterialInterface>(nullptr, SmokeMaterialPath);
+	const FVfxTuning Tuning = FVfxTuning::Live();
+	MaxParticleCount = Tuning.MaxParticles;
+	// The noise-broken puffs once they're in the game (Looter.Vfx.Puffs); the plain soft smoke until then.
+	UMaterialInterface* PuffMaterial = Tuning.bPuffs ? LoadQuietly(PuffMaterialPath) : nullptr;
+	UMaterialInterface* ShapeMaterial = Tuning.bShapes ? LoadQuietly(ShapeMaterialPath) : nullptr;
 
 	Glows = MakeInstances(Actor, TEXT("Glows"), Plane, GlowMaterial, GlowFloats);
-	// Without its material, smoke would draw as solid squares: leave it out instead.
-	Smoke = SmokeMaterial ? MakeInstances(Actor, TEXT("Smoke"), Plane, SmokeMaterial, SmokeFloats) : nullptr;
+	// Without its material, smoke would draw as solid squares: leave it out instead. Redraw writes as many floats a puff as
+	// the component takes (the puffs' six, the plain smoke's four).
+	if (PuffMaterial)
+	{
+		Smoke = MakeInstances(Actor, TEXT("Smoke"), Plane, PuffMaterial, PuffFloats);
+	}
+	else
+	{
+		Smoke = SmokeMaterial ? MakeInstances(Actor, TEXT("Smoke"), Plane, SmokeMaterial, SmokeFloats) : nullptr;
+	}
+	// Rings, fireballs and starbursts on their own quads; without M_FX_Shape they're drawn on the glows (Redraw's stand-ins).
+	Shapes = ShapeMaterial ? MakeInstances(Actor, TEXT("Shapes"), Plane, ShapeMaterial, ShapeFloats) : nullptr;
 	Chips = MakeInstances(Actor, TEXT("Chips"), Cube, MakeSurface(Actor, StoneColor, 0.f), 0);
 	Droplets = MakeInstances(Actor, TEXT("Droplets"), Sphere, MakeSurface(Actor, IchorColor, 0.35f), 0);
 }
@@ -114,11 +144,14 @@ void FWeaponFX::Shutdown()
 		Actor->Destroy();
 	}
 	Owner.Reset();
+	Shapes.Reset();
 	BitSets.Reset();
 	Particles.Reset();
 	Streaks.Reset();
 	WaterRings.Reset();
 	SpawnFloor.Reset();
+	HitStream.Reset();
+	bHasCamera = false;
 }
 
 uint8 FWeaponFX::BitSetFor(bool bRound, const FLinearColor& Color, float Glow)
@@ -176,7 +209,7 @@ void FWeaponFX::AddGlow(const FVector& Location, float Size, const FLinearColor&
 
 FWeaponFX::FParticle& FWeaponFX::AddParticle(EParticle Type, const FVector& Location, const FVector& Velocity, float Life)
 {
-	if (Particles.Num() >= MaxParticles)
+	if (Particles.Num() >= MaxParticleCount)
 	{
 		Particles.RemoveAt(0, 1, EAllowShrinking::No); // the oldest is nearly gone anyway
 	}
@@ -252,9 +285,18 @@ void FWeaponFX::SpawnImpact(const FVector& Location, const FVector& Normal, cons
 		break;
 	}
 	case EImpactSurface::Target:
+	{
+		// The plated dummies ring: a hard starburst and a ping of light round the plate (the pass's hit pop, as on metal).
 		Flash(FlashColor, 20.f, 20.f, 40.f, 0.08f);
 		Sparks(10, TargetSparkColor, 30.f, 500.f, 1500.f);
+		const FVfxTuning Tuning = FVfxTuning::Live();
+		if (Tuning.ImpactScale > 0.f)
+		{
+			SpawnStarburst(Point, 34.f, TargetSparkColor, 26.f * Tuning.Glow, 0.07f, 6);
+			SpawnShockRing(Point, Up, 4.f, 26.f, 3.f, TargetSparkColor, 10.f * Tuning.Glow, 0.16f, true);
+		}
 		break;
+	}
 	case EImpactSurface::Flesh:
 	{
 		Flash(IchorFlashColor, 7.f, 14.f, 26.f, 0.06f);
@@ -291,6 +333,11 @@ void FWeaponFX::SpawnFlash(const FVector& Location, const FVector& Direction, fl
 {
 	const FVector Along = Direction.IsNearlyZero() ? FVector::ForwardVector : Direction.GetSafeNormal();
 	const float Size = FMath::Max(Scale, 0.1f);
+	// A hard star on top (the pass: a round glow alone read as a soft blob), turned at random, a shot's worth.
+	if (Size >= 0.5f)
+	{
+		SpawnStarburst(Location + Along * 6.f * Size, 40.f * Size, FlashColor, 22.f * FVfxTuning::Live().Glow, 0.06f, 7);
+	}
 	// The gun's own flash in round glows: a hot core at the muzzle and a wider burst a little ahead of it.
 	FParticle& Core = AddParticle(EParticle::Flash, Location, FVector::ZeroVector, 0.06f);
 	Core.Color = FlashColor;
