@@ -95,3 +95,6 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-22 | Loot 12.3: 8 spiders in town, Ember on all every 2 s | 62bf264c | 1920x1080 | 7.6 | 132 | 8.2 | 6.4 | 7.5 | 1.8 | 6.3 | 1596 | 1375535 | 3.38 |
 | 2026-10-22 | VFX pass: horde 8 spiders in town | 87262e96 | 1920x1080 | 7.5 | 133 | 8.0 | 5.8 | 7.5 | 1.7 | 6.2 | 1590 | 1378697 | 3.42 |
 | 2026-10-22 | VFX pass: horde 8 spiders + Slag Bomb every 4 s (Gauge) | 87262e96 | 1920x1080 | 7.9 | 126 | 8.6 | 6.4 | 7.9 | 1.8 | 6.7 | 1630 | 1406206 | 3.41 |
+| 2026-10-22 | World variety BEFORE, RR spawn | 37636b49 | 1920x1080 | 7.7 | 130 | 8.2 | 3.9 | 7.7 | 1.7 | 6.4 | 1441 | 1661795 | 3.38 |
+| 2026-10-22 | World variety AFTER, RR spawn | 37636b49 | 1920x1080 | 7.8 | 128 | 8.4 | 4.6 | 7.8 | 1.9 | 6.5 | 1705 | 1739014 | 3.92 |
+| 2026-10-22 | World variety AFTER (repeat), RR spawn | 37636b49 | 1920x1080 | 7.7 | 129 | 8.3 | 3.9 | 7.7 | 1.7 | 6.4 | 1704 | 1736720 | 3.50 |

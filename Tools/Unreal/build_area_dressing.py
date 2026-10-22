@@ -147,6 +147,31 @@ PIECES = {
     'Fence_PicketGate_Open': ((200, 100, 108), 'start', FENCE_CULL),
     'Grave_MoundSunken': ((100, 200, 25), 'middle', SMALL_CULL),
     'StoneWall_Half': ((150, 72, 95), 'start', WALL_CULL),
+    # The world variety's variants (2026-10-22; Fences.py, Graves.py, Rocks.py, Undergrowth.py, Trees.py, Pines.py,
+    # DeadTree.py), sized from their import bounds. Each fence or wall variant chains like its original.
+    'FenceRail_B': ((300, 20, 122), 'start', FENCE_CULL),
+    'FenceRail_C': ((300, 28, 122), 'start', FENCE_CULL),
+    'StoneWall_B': ((300, 165, 93), 'start', WALL_CULL),
+    'StoneWall_C': ((300, 75, 95), 'start', WALL_CULL),
+    'Fence_IronSection_Leaning': ((200, 45, 129), 'start', FENCE_CULL),
+    'Grave_Headboard_OldE': ((52, 27, 93), 'middle', SMALL_CULL),
+    'Grave_Headboard_OldF': ((70, 18, 62), 'middle', SMALL_CULL),
+    'DeadTree_B': ((80, 80, 1150), 'middle', TREE_CULL),
+    'DeadTree_C': ((90, 90, 503), 'middle', TREE_CULL),
+    'Apple_B': ((45, 45, 565), 'middle', TREE_CULL),
+    'Apple_C': ((30, 30, 422), 'middle', TREE_CULL),
+    'Pine_C': ((50, 50, 668), 'middle', TREE_CULL),
+    'Pine_D': ((70, 70, 1202), 'middle', TREE_CULL),
+    'Pine_E': ((60, 60, 1522), 'middle', TREE_CULL),
+    'Bush_D': ((236, 230, 140), 'middle', BUSH_CULL),
+    'Bush_E': ((170, 162, 156), 'middle', BUSH_CULL),
+    'Stump_B': ((110, 102, 110), 'middle', SMALL_CULL),
+    'Log_B': ((305, 47, 54), 'middle', SMALL_CULL),
+    'Rock_E': ((97, 98, 27), 'middle', SMALL_CULL),
+    'Rock_F': ((43, 62, 32), 'middle', SMALL_CULL),
+    'Boulder_D': ((315, 234, 65), 'middle', WALL_CULL),
+    'Boulder_E': ((151, 116, 219), 'middle', WALL_CULL),
+    'Boulder_F': ((196, 136, 109), 'middle', WALL_CULL),
     # The churchyard's dead trees (DeadTree.py, about 6.5 m): their box the trunk's foot, so the scatter's grass grows
     # round it; never culled, like the scatter's trees.
     'DeadTree_A': ((80, 80, 650), 'middle', TREE_CULL),
@@ -272,7 +297,9 @@ FOOTPRINT_RIGHT = {'EggSac_Burst': -16.0, 'Outcrop_TorA': 33.0, 'Outcrop_TorC': 
 # the knoll's 25-degree slope on the uphill side of every step): a section steps once its ends differ by 20 cm. The
 # churchyard now stands on a levelled yard (layout churchyardPad), so its sections stand whole and level.
 # clear_rock: a run stops this far (cm) short of a cliff piece or a rock it would run into (place() finds them:
-# Rocks). Walls keep following the ground.
+# Rocks). Walls keep following the ground. sections (2026-10-22 world variety): the whole sections' meshes by weight
+# (a line's own "sections" overrides its kit's), never the same variant twice in a row (section_mesh); a kit without
+# them stands its 'section' everywhere. Every variant chains like the section (Fences.py, Graves.py).
 KITS = {
     'rail': {'section': 'FenceRail', 'length': 300.0, 'broken': 'FenceBroken', 'end': 'FencePost',
              'bury': 35.0, 'hover': 20.0, 'shortest': 0.34, 'step_post': 'FencePost', 'hide': 20.0, 'step_down': True,
@@ -284,10 +311,11 @@ KITS = {
     'iron': {'section': 'Fence_IronSection', 'length': 200.0, 'end': 'Fence_IronPost', 'corner_post': 'Fence_IronPost',
              'gate': 'Fence_IronGate', 'gate_clear': (11.0, 189.0),
              'bury': 12.0, 'hover': 8.0, 'shortest': 0.5, 'step_post': 'Fence_IronPost', 'hide': 20.0,
-             'clear_rock': 100.0},
+             'clear_rock': 100.0, 'sections': [('Fence_IronSection', 4), ('Fence_IronSection_Leaning', 1)]},
     'stone': {'section': 'StoneWall', 'length': 300.0, 'broken': 'StoneWall_Broken', 'fallen': 'StoneWall_Fallen',
               'end': 'StoneWallEnd', 'end_length': 90.0, 'corner': 'StoneWall_Corner', 'arm': 150.0, 'wall': True,
-              'half': 'StoneWall_Half', 'half_length': 150.0},
+              'half': 'StoneWall_Half', 'half_length': 150.0,
+              'sections': [('StoneWall', 2), ('StoneWall_C', 2), ('StoneWall_B', 1)]},
 }
 
 # The fences and walls (layout obstacle ids). kit: KITS; broken, fallen, missing: the share of sections drawn so (never
@@ -307,13 +335,15 @@ LINES = {
     'churchyardFence': {'kit': 'iron', 'gates': [[5600, -1900, 200]]},
     # The empty stock pens: two pens, the gate into the east one from the street side, a gate between them, some rails
     # down.
-    'stockPens': {'kit': 'rail', 'broken': 0.2, 'gates': [[-2600, -150, 300]],
+    'stockPens': {'kit': 'rail', 'broken': 0.2, 'gates': [[-2600, -150, 300]], 'sections': [('FenceRail_B', 1)],
                   'inner': [{'path': [[-2600, -500], [-4100, -400]], 'gates': [[-3350, -450, 300]]}]},
     # The Sink's broken warning fences, either side of the ramp head's gap, each with its warning sign by the gap
     # (where the Sink road comes up), standing out in front of the fence, its face away from the Sink.
     'sinkFenceSouth': {'kit': 'rail', 'broken': 0.35, 'missing': 0.12, 'inside': 'zone:sink',
+                       'sections': [('FenceRail_C', 2), ('FenceRail', 1)],
                        'signs': [['SinkWarning', [4480, 4250], 120.0, 70.0]]},
     'sinkFenceNorth': {'kit': 'rail', 'broken': 0.35, 'missing': 0.12, 'inside': 'zone:sink',
+                       'sections': [('FenceRail_C', 2), ('FenceRail', 1)],
                        'signs': [['SinkWarning', [4480, 4250], 120.0, 70.0]]},
     # The glebe wall, mostly down; the old pound wall, broken.
     'glebeWall': {'kit': 'stone', 'fallen': 0.7, 'broken': 0.1},
@@ -327,7 +357,8 @@ LINES = {
     # FenceRail. Its order is the layout's (east along it), so its front faces south, into his hayfield.
     'amosFence': {'kit': 'rail', 'first_after_gate': 300.0},
     # The barn yard's fence round the Whitlock barn and the windmill, its gate where the fields path ends.
-    'barnYardFence': {'kit': 'rail', 'gates': [[-6000, 4800, 300]]},
+    'barnYardFence': {'kit': 'rail', 'gates': [[-6000, 4800, 300]],
+                      'sections': [('FenceRail_B', 3), ('FenceRail_C', 1)]},
     # The low stone field wall with larkspur splitting the hay, finished at both ends.
     'fieldWall': {'kit': 'stone'},
 }
@@ -359,12 +390,12 @@ ROCK_MESHES = ('SM_Cliff', 'SM_Outcrop_', 'SM_DenRock', 'SM_Boulder_')
 GRAVE_STYLES = {
     # The town's own, a few of them fresh (a town in mourning), as the art session's chapel vignette mixes them.
     'churchyard': {'mix': [('Grave_Headboard_OldA', 3), ('Grave_Headboard_OldB', 3), ('Grave_Headboard_OldC', 2),
-                           ('Grave_Headboard_OldD', 3), ('Grave_Cross_A', 2), ('Grave_Cross_B', 2),
-                           ('Grave_Headboard_FreshA', 1), ('Grave_Headboard_FreshB', 1)],
+                           ('Grave_Headboard_OldD', 3), ('Grave_Cross_A', 2), ('Grave_Cross_B', 3),
+                           ('Grave_Headboard_FreshA', 1), ('Grave_Headboard_FreshB', 1), ('Grave_Headboard_OldE', 1)],
                    'spacing': 170.0, 'along': 12.0, 'across': 8.0, 'turn': 5.0, 'lean': 3.0, 'missing': 0.06},
     # The Ransoms' old dead: weathered boards and a wooden cross, kept in line, each over its settled mound.
     'family': {'mix': [('Grave_Headboard_OldA', 2), ('Grave_Headboard_OldB', 2), ('Grave_Headboard_OldC', 1),
-                       ('Grave_Headboard_OldD', 2), ('Grave_Cross_A', 1)],
+                       ('Grave_Headboard_OldD', 2), ('Grave_Cross_A', 1), ('Grave_Headboard_OldE', 1)],
                'spacing': 200.0, 'along': 8.0, 'across': 6.0, 'turn': 4.0, 'lean': 2.5, 'missing': 0.0,
                'mound': 'Grave_MoundSunken'},
     # The churchyard's short rows on the knoll's south face (EXTRA_GRAVE_ROWS), seen from boot hill, the north road and
@@ -377,7 +408,8 @@ GRAVE_STYLES = {
     # Boot hill's: ragged rows, more crosses, each over its settled mound (turned a little less than its looks would
     # like, so the 1 m mounds 1.65 m apart don't run into each other).
     'bootHill': {'mix': [('Grave_Headboard_OldA', 2), ('Grave_Headboard_OldB', 2), ('Grave_Headboard_OldC', 3),
-                         ('Grave_Headboard_OldD', 1), ('Grave_Cross_A', 4)],
+                         ('Grave_Headboard_OldD', 1), ('Grave_Cross_A', 4), ('Grave_Headboard_OldE', 2),
+                         ('Grave_Headboard_OldF', 3)],
                  'spacing': 165.0, 'along': 25.0, 'across': 25.0, 'turn': 7.0, 'lean': 6.0, 'missing': 0.15,
                  'mound': 'Grave_MoundSunken'},
 }
@@ -472,7 +504,10 @@ SPOTS = {
     # scatter keeps its trees out of the chapel's zone): one over the respawn grave on the face boot hill and the north
     # road see, one inside the fence's south-west corner, one past the west rows' far end against the sky; each 2 m and
     # more from the fight's spots, the graves and the fence.
-    'churchyardDeadTrees': {'mesh': 'DeadTree_A', 'at': [(5850, -900, 205), (5720, -3100, 60), (7650, -3150, 330)]},
+    # Each its own tree (meshes: one per spot, 2026-10-22): the tall snag over the respawn grave, the old one in the
+    # corner, the squat one against the sky.
+    'churchyardDeadTrees': {'mesh': 'DeadTree_A', 'meshes': ['DeadTree_B', 'DeadTree_A', 'DeadTree_C'],
+                            'at': [(5850, -900, 205), (5720, -3100, 60), (7650, -3150, 330)]},
 }
 
 # Cairns along a path: the meshes in turn and the spacing (cm); placements: layout placements that already stand there.
@@ -500,7 +535,7 @@ RUINS = {
 # (its front: +X), cm to its right (+Y), turn from its yaw] (a lean-to on a false front's back wall, beside its back
 # door). A path's items: [mesh, from, to (shares of the path), stretched to fit (default yes)].
 # Pieces in UPRIGHT stand plumb (a shed against a wall, on its posts), sunk to their lowest corner, never tilted.
-UPRIGHT = ('Woodshed', 'LeanTo', 'DeadTree_A')
+UPRIGHT = ('Woodshed', 'LeanTo', 'DeadTree_A', 'DeadTree_B', 'DeadTree_C')
 UPRIGHT_SINK = 40.0
 GROUPS = {
     # A hitch rail and a trough at the town gate, by the street.
@@ -565,7 +600,8 @@ SAG = 25.0
 # A town (the layout's level.town: town.json in the layout's folder under LEVELS; layout_computed.json beside it gives
 # the ponds' water).
 LEVELS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Art', 'Levels'))
-TREES = ('Oak_A', 'Oak_B', 'Oak_C', 'Birch_A', 'Birch_B', 'Pine_A', 'Pine_B', 'Apple_A', 'DeadTree_A')
+TREES = ('Oak_A', 'Oak_B', 'Oak_C', 'Birch_A', 'Birch_B', 'Pine_A', 'Pine_B', 'Apple_A', 'DeadTree_A',
+         'Pine_C', 'Pine_D', 'Pine_E', 'Apple_B', 'Apple_C', 'DeadTree_B', 'DeadTree_C')
 # How a town piece stands when it doesn't say ("kind": "prop", "upright" or "flat"): plumb (trees, plants, posts, lamps,
 # stacks, sheds, rocks sunk to their lowest side, sacs, what hangs), flat on the ground (tilted with it up to FLAT_TILT:
 # lily pads on the water, web mats, the lying cocoon, the burst sac), or else a prop tilted a little (MAX_TILT).
@@ -600,6 +636,10 @@ TREE_CROWNS = {
     'Birch_B': (-211.1, 258.5, -319.3, 313.1), 'Pine_A': (-359.6, 367.6, -353.8, 348.9),
     'Pine_B': (-364.1, 336.1, -371.1, 349.8), 'Apple_A': (-268.5, 263.5, -242.8, 258.8),
     'DeadTree_A': (-198.8, 133.9, -292.8, 175.4),
+    'Pine_C': (-257.1, 242.4, -253.1, 254.9), 'Pine_D': (-380.8, 384.0, -412.8, 334.4),
+    'Pine_E': (-306.9, 246.0, -253.6, 319.6), 'Apple_B': (-291.7, 354.0, -377.6, 263.5),
+    'Apple_C': (-199.8, 174.9, -186.2, 200.6), 'DeadTree_B': (-232.1, 212.4, -272.2, 291.8),
+    'DeadTree_C': (-161.4, 142.7, -228.0, 53.8),
 }
 CROWN_CLEAR = 250.0
 # A town's noTrees circle is kept as a cross of two boxes (its width and NO_TREE_CROSS of it, both ways), which covers
@@ -830,11 +870,12 @@ class Plan:
                 texts = [self.graves(oid, {'path': path}, style, face, spacing) for style, face, path, spacing in rows]
                 self.notes[oid] = f'{len(self.pieces) - before} pieces; ' + '; '.join(texts)
             for oid, spot in SPOTS.items():
-                for x, y, yaw in spot.get('at', ()):
-                    self.pieces.append(Piece(spot['mesh'], oid, (x, y), yaw, kind=piece_kind(spot['mesh'])))
+                for n, (x, y, yaw) in enumerate(spot.get('at', ())):
+                    mesh = spot['meshes'][n] if n < len(spot.get('meshes', ())) else spot['mesh']
+                    self.pieces.append(Piece(mesh, oid, (x, y), yaw, kind=piece_kind(mesh)))
                 if 'from' in spot:
                     self.pieces.append(Piece(spot['mesh'], oid, tuple(spot['from']), b=tuple(spot['to']), kind='log'))
-                self.notes[oid] = f"{len(spot.get('at', ())) + (1 if 'from' in spot else 0)} {spot['mesh']}"
+                self.notes[oid] = f"{len(spot.get('at', ())) + (1 if 'from' in spot else 0)} " +                     ', '.join(spot.get('meshes') or [spot['mesh']])
         self.mound_boards()
         self.town()
 
@@ -1110,12 +1151,19 @@ class Plan:
                 # The kit has no broken or fallen half: a half always stands.
                 e['state'] = 'H'
         meshes = {'S': kit['section'], 'B': kit.get('broken'), 'F': kit.get('fallen'), 'H': kit.get('half')}
+        mix = spec.get('sections') or kit.get('sections')
+        last = None
+        for k, e in enumerate(sections):
+            if e['state'] == 'S' and mix:
+                e['mesh'] = section_mesh(mix, random.Random(f'{oid} {index} {k} section'), last)
+                last = e['mesh']
         for e in elements:
             if e['type'] == 'corner':
                 self.pieces.append(Piece(kit['corner'], oid, e['a'], kit_yaw(*e['dir']), kind='corner',
                                          extra=(e['v'], e['b'])))
             elif e['state'] != 'M':
-                self.pieces.append(Piece(meshes[e['state']], oid, e['a'], b=e['b'], stretch=True, kind='span'))
+                self.pieces.append(Piece(e.get('mesh') or meshes[e['state']], oid, e['a'], b=e['b'], stretch=True,
+                                         kind='span'))
         if not elements:
             return
         if kit.get('wall'):
@@ -1373,7 +1421,8 @@ class Plan:
             self.warnings.append(f'{oid}: kit {entry.get("kit")} with {len(points)} points: left out')
             return
         spec = {'kit': entry['kit'], 'gates': [list(g[:3]) for g in entry.get('gates', [])]}
-        for key in ('broken', 'missing', 'fallen', 'inside', 'corners', 'halves', 'gate_width', 'first_after_gate'):
+        for key in ('broken', 'missing', 'fallen', 'inside', 'corners', 'halves', 'gate_width', 'first_after_gate',
+                    'sections'):
             if key in entry:
                 spec[key] = entry[key]
         before = len(self.pieces)
@@ -1733,9 +1782,27 @@ def downhill_yaw(at, ground, toward):
 
 
 def fence_kit(mesh):
-    """The fence kit (one of KITS that steps) whose section, broken section or gate unit mesh is, or None."""
+    """The fence kit (one of KITS that steps) whose section (or a section variant: its own "sections" or any line's
+    whose names start with its section's), broken section or gate unit mesh is, or None."""
+    variants = {m for spec in LINES.values() for m, _ in spec.get('sections', ())}
     return next((kit for kit in KITS.values() if kit.get('bury') is not None
-                 and mesh in (kit['section'], kit.get('broken'), kit.get('gate'))), None)
+                 and (mesh in (kit['section'], kit.get('broken'), kit.get('gate'))
+                      or mesh in {m for m, _ in kit.get('sections', ())}
+                      or (mesh in variants and mesh.startswith(kit['section'])))), None)
+
+
+def section_mesh(mix, rnd, last):
+    """A whole section's mesh from mix ([(mesh, weight)]), drawn with rnd; never the same variant (any but the mix's
+    first) twice in a row: the first again instead."""
+    total = sum(w for _, w in mix)
+    draw = rnd.uniform(0.0, total)
+    mesh = mix[-1][0]
+    for name, weight in mix:
+        draw -= weight
+        if draw <= 0.0:
+            mesh = name
+            break
+    return mix[0][0] if mesh == last and mesh != mix[0][0] else mesh
 
 
 def fence_steps(a, b, ground, kit, split=True):

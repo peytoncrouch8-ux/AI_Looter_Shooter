@@ -297,6 +297,25 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
     move.
 - Materials per area: `level.materials` makes area instances of shared MIs; `level.swaps` puts them on everything the build placed,
   and on the scatter; `level.swapsOn` swaps on named actors only (the windmill's steel).
+- World variety (2026-10-22; the user: RR "looks samey", anything allowed; measured and planned in `Saved/World/PLAN.md`): one nature
+  kit everywhere was the sameness (4 cliff faces for every wall, 204 of them in one view; 2 pines, 3 bushes, 2 junipers, one apple,
+  one fence rail, one iron section). Rule: a variant replaces its original's instances (weights split, places kept), never adds.
+  - Cliffs: `CLIFF_TWINS` (Cliffs.py's A2-D2: same sizes and beds, own rock); a piece is picked among the originals exactly as
+    before, then stands as its twin when `cliff_twin` (crc32 of group, point, course) says so: half the faces, no placement moved.
+  - Orchard: `ORCHARD_APPLES` (A x3, B x2, C) by crc32 of row and tree. Without a full build: `Saved/World/scripts/orchard_swap.py`.
+  - Dressing: fence and wall `sections` by weight (kit or line; `section_mesh`, never the same variant twice running): the stock pens
+    and the Whitlock yard three-rail (B), the Sink's fences tired (C), the churchyard 1 in 5 leaning, walls B/C mixed; grave mixes
+    take OldE/OldF; `SPOTS` `meshes` (one per spot: the churchyard's dead trees A/B/C). Amos's fence stays FenceRail (his pose).
+  - Scatter: `VALLEY_PINES`, `MOUNTAIN_PINES` (up the mountain), `BUSHES`, `FLOOR_WOOD`, `ROCKS_MIX`, `BOULDERS_MIX`; junipers
+    A-D, crest ones B and C. A variant not imported is left out. Weights must be whole numbers (PCG's int32: 0.6 spawned
+    nothing; the broadleaf stands' `DeadTree_A` 0.4 never grew either).
+  - Ground per place: layout `macro.tones` {zone kind: color, mix, patch, alpha (stony ground, under 0.5), value, grass (share left)}
+    (`area_mosaic._tones`; grass in `grass_density`): town red-ochre dust, travel cinders, pit ash, quarry pale dust, mine coal,
+    Boot Hill, the point and the deck paler; `macro.blooms` chapel white yarrow, fields yellow; `macro.zones` farm and chapel greener.
+    Run `Art/Models/Terrain/RansomsRest.py -- --macro` (artrun; ~40 min, heights untouched), then import the macro maps without the
+    terrain export: a materials-only manifest (`Intermediate/ArtExport_WV_Macro/macro.json`, `"models": []`; the importer updates
+    MI_<set> and re-imports a changed texture), then `build_island_scatter.py` (re-imports the scatter mask by MD5).
+  - Area MIs: `MI_LeavesRusset_Ransom` (Tint 3.2/1.0/0.7: the sumac red), `MI_LeavesDusty_Ransom`; a hex tint can't push past 1.
 - Path checks: `Tools/Unreal/path_probe.py <Area>` walks a player capsule down every road and ramp; `Tools/Unreal/width_probe.py`
   probes across one. Run them after cliff, dressing or scatter changes.
   - Both areas use `"scatter": {"roadside": "pebbles"}`, so no rock or boulder lands on a road (the tutorial island had a boulder in
@@ -2215,6 +2234,14 @@ The user's roster ask (Docs/Story.md "Creature roster"): a named clay blob where
 ## Bugs and how they were fixed
 
 Each line: bug (date). Cause. Fix.
+
+- Coffin Rock's secret couldn't be climbed: the player slid off the stepping boulders after four steps (2026-10-22). Cause:
+  scaled SM_Boulder_A tops are rounded. Fix: a fallen slab (Boulder_D in three overlapping pieces, the butte's MI_RockCliff)
+  leaning up its north edge at 29 degrees, and a hidden collision plank (the engine cube, invisible) on the ramp's line
+  over it: the bare pieces had 80-96 cm dips at their joins (`build_area_secrets.py` RAMP_*). Walked in PIE: ground to top
+  in 4 s. Lesson: a stretched rock is no floor; walkways get a plain hidden collider.
+- `play.py press Move` walked sideways (2026-10-22). Cause: IA_Move's x is right, y forward (the docstring said the reverse).
+  Fix: the docstring; walk ahead with `press Move <s> 0 1`.
 
 - A `Looter.Hero` swap mid-play (Odessa to Crane) tripped "SK_Crane has incorrect BoneVisibilityStates" (93 against 145)
   and the engine's bone-count check (2026-10-20). Cause: `UBodyFigureComponent::Wear` showed every material section

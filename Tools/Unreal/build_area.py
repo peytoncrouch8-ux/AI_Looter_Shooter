@@ -42,6 +42,7 @@ import math
 import os
 import random
 import sys
+import zlib
 
 import unreal
 
@@ -84,6 +85,13 @@ CLIFF_MIN_SHARE = 0.5
 # D. CLIFF_INSET puts every pivot 1.2 m behind the wall's foot: a D's face on the wall, an A's, B's and C's 10, 30 and
 # 50 cm behind it, and a leaning piece tan(lean) times its sink further back again, its pivot being sunk under the foot.
 CLIFF_FRONT = {'CliffFace_A': 110.0, 'CliffFace_B': 90.0, 'CliffFace_C': 70.0, 'CliffFace_D': 120.0}
+# The orchard's trees by share (a list: each entry one share; build_area.models() picks by a hash of the tree's place).
+ORCHARD_APPLES = ('Apple_A', 'Apple_A', 'Apple_A', 'Apple_B', 'Apple_B', 'Apple_C')
+# Each kit piece's twin (Cliffs.py TWINS, 2026-10-22 world variety): the same size, front plane and beds, its own rock.
+# A piece is picked among the originals exactly as before (every draw kept), then stood as its twin where a hash of its
+# place says so (cliff_twin), so no placement, stretch or turn moves and a wall shows eight rocks instead of four.
+CLIFF_TWINS = {'CliffFace_A': 'CliffFace_A2', 'CliffFace_B': 'CliffFace_B2', 'CliffFace_C': 'CliffFace_C2',
+               'CliffFace_D': 'CliffFace_D2'}
 # A leaning group's wall (level.cliffs.lean) is checked at these shares of its height, highest first, for where it falls
 # back from the plane its pieces lean in by no more than LIP_RECESS (cm): no piece's top ends between that share and the
 # wall's top (a group's level.cliffs.leanTop spreads its tops under it; without one, a top drawn in there comes down to
@@ -242,6 +250,11 @@ def varied_piece(pieces, group, points, i, k, course, last, gap, top=None, cap=N
         (ex, ey), yaw = ends[0], math.radians(points[i]['yaw'])
         turn = -math.copysign(abs(turn), ex * math.sin(yaw) - ey * math.cos(yaw))
     return mesh, piece_height, piece_width, reach, sink, turn, mirror
+
+
+def cliff_twin(group, i, k):
+    """Whether course k of group's point i stands as its piece's twin: half of them, from the place alone (no draws)."""
+    return zlib.crc32(f'{group} {i} {k} twin'.encode()) % 2 == 1
 
 
 def cliff_gap(group, i, count, share):
@@ -625,13 +638,17 @@ class AreaBuild:
             placed += 1
 
         apple = unreal.load_asset(meshes['Apple_A']) if 'Apple_A' in meshes else None
+        # The orchard's own trees (2026-10-22 world variety): mostly the Apple_A of its planting, old ones (Apple_B) and
+        # replanted young ones (Apple_C) among them, by a hash of the tree's place (no draws: the yaws stay).
+        apples = [unreal.load_asset(meshes[n]) if n in meshes else apple for n in ORCHARD_APPLES]
         rng = random.Random(11)
         for r, row in enumerate(self.layout.get('orchardRows', [])):
             for t, tree in enumerate(row['trees']):
                 if apple:
                     # Not Obstacles: the scatter keeps every layer out of an obstacle's bounds, and the crowns, 4.5 m
                     # apart, would leave the orchard's whole floor bare.
-                    self.place(apple, tree, rng.uniform(-180.0, 180.0), label=f'AppleTree_{r + 1}_{t + 1}',
+                    pick = apples[zlib.crc32(f'orchard {r} {t}'.encode()) % len(apples)]
+                    self.place(pick, tree, rng.uniform(-180.0, 180.0), label=f'AppleTree_{r + 1}_{t + 1}',
                                folder='Orchard', tags=('Tree',))
                     placed += 1
         self.log(f'placed {placed} models')
@@ -746,12 +763,18 @@ class AreaBuild:
         piece mirrored (VARY_SWAP), and a piece whose neighbours were all left out goes too (LONE_REACH)."""
         pieces = []
         front_of = {}
+        twins = {}   # an original's path: (its twin, the twin's height and width)
         for name in CLIFF_PIECES:
             if name in meshes:
                 mesh = unreal.load_asset(meshes[name])
                 box = mesh.get_bounding_box()
                 pieces.append((mesh, box.max.z, box.max.y - box.min.y))
                 front_of[mesh.get_path_name()] = CLIFF_FRONT.get(name, CLIFF_INSET)
+                twin_name = CLIFF_TWINS.get(name)
+                if twin_name in meshes:
+                    twin = unreal.load_asset(meshes[twin_name])
+                    tbox = twin.get_bounding_box()
+                    twins[mesh.get_path_name()] = (twin, tbox.max.z, tbox.max.y - tbox.min.y)
         if not pieces:
             self.warn('no cliff pieces yet')
             return
@@ -888,9 +911,14 @@ class AreaBuild:
                         squashed += 1
                         continue
                     suffix = f'_{k + 1}' if len(courses) > 1 else ''
-                    piece = self.place(mesh, (cx + inward[0], cy + inward[1], cz - sink), yaw + turn,
+                    # Its twin where the place's hash says so: the same reach and width from its own measures.
+                    stand, stand_height, stand_width = mesh, piece_height, piece_width
+                    if mesh.get_path_name() in twins and cliff_twin(group, i, k):
+                        stand, stand_height, stand_width = twins[mesh.get_path_name()]
+                    piece = self.place(stand, (cx + inward[0], cy + inward[1], cz - sink), yaw + turn,
                                        label=f'Cliff_{group}_{i + 1:02d}{suffix}', folder=f'Cliffs/{group}',
-                                       scale=(1.0, mirror * width, reach / piece_height), tags=('Obstacle',))
+                                       scale=(1.0, mirror * width * piece_width / stand_width, reach / stand_height),
+                                       tags=('Obstacle',))
                     if lean > 0.0:
                         # Pitched up its top tilts back, away from its face (+X, out of the wall), into the slope.
                         piece.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=lean, yaw=yaw + turn), False)

@@ -591,7 +591,8 @@ SECRETS = {
     # The skiff's locker on the Mooring Ledge, by the Deacon's letter and the Mire's page (Hob's hint at Main 2's end).
     'Mooring': dict(chest_id='Secret_MooringLocker', kind='Footlocker', anchor=('ledge', 'mooringPost'),
                     loot=dict(guns=1, gun_chance=1.0, luck=0.5, ammo_pickups=2, mote_chance=0.0), readable=None),
-    # Coffin Rock's top (a vista): the surveyor's tin and his bench mark, reached by stepping rocks up its north face.
+    # Coffin Rock's top (a vista): the surveyor's tin and his bench mark, reached up the fallen slab on its north face
+    # (steps: only the direction is read now, build_area_secrets.place_steps).
     'CoffinRock': dict(chest_id='Secret_SurveyorsTin', kind='Footlocker', anchor=('top', 'coffinRock'),
                        loot=dict(guns=1, gun_chance=1.0, luck=0.6, ammo_pickups=1, mote_chance=0.0),
                        readable='Secret_BenchMark', steps=('north', 6, 125.0)),

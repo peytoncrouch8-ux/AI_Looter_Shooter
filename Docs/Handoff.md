@@ -273,6 +273,9 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   puddle, Last Rites column; sniper vapour trail not done (BulletSubsystem.cpp). Restyle scripts + renames committed
   (1f30423, 87262e9). ROSTER phase 2 now owns the lane; then trees reimport + WORLD-ART phase 2 (+ Coffin Rock steps),
   restyle import (setup_gun_parts.py after), VFX-2, FP-HANDS, Rustler sight/helix fixes.
+  **Placeholders committed (37636b4):** 5 kinds fought in PIE (XP, loot, "Name (type)" labels, clay hits; grabs
+  `roster_*`); the Bone Hounds moved 20 m in from the Rim (they followed the player over the edge). WORLD-ART phase 2
+  now owns the lane (variants, scatter, terrain tones, apples reimport, Coffin Rock ramp).
   Order of the build lane next: FIGHT-AI perf -> GUNS-CODE phase 2 (merge `Saved/GunsCode`, then `Saved/GunsSound`, import
   the four models) -> LOOT-CODE phase 2 -> STORY merge -> WORLD-ART phase 2.
 

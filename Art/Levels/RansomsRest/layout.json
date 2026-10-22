@@ -40,12 +40,12 @@
     "shade": ["washWillows", "creekWillows", "sinkRoadCottonwoods", "widowsPinesEdge"],
     "hayfields": [{"id": "hayfieldWest", "rows": 90}, {"id": "hayfieldEast", "rows": 0}],
     "zones": {
-      "home": 0.05,
+      "home": 0.12,
       "orchard": 0.15,
       "town": -0.15,
       "travel": -0.15,
-      "graveyard": -0.05,
-      "chapel": -0.05,
+      "graveyard": -0.15,
+      "chapel": 0.1,
       "lookout": -0.1,
       "boss_arena": -0.12,
       "alpine": 0.3,
@@ -54,14 +54,28 @@
       "quarry": -0.25,
       "crest": -0.05
     },
-    "blooms": { "alpine": { "hue": 0.04, "pull": 0.75, "more": 1.8 } }
+    "blooms": {
+      "alpine": { "hue": 0.04, "pull": 0.75, "more": 1.8 },
+      "chapel": { "hue": -0.6, "pull": 0.8, "more": 1.7 },
+      "fields": { "hue": 0.6, "pull": 0.6, "more": 1.4 }
+    },
+    "tones": {
+      "town": { "color": "#b48f6c", "mix": 0.5, "patch": 0.55, "alpha": 0.22, "grass": 0.55 },
+      "travel": { "color": "#7a7670", "mix": 0.55, "patch": 0.45, "alpha": 0.32, "value": 0.92, "grass": 0.5 },
+      "pit": { "color": "#9a948e", "mix": 0.5, "patch": 0.4, "alpha": 0.2, "value": 0.93, "grass": 0.6 },
+      "quarry": { "color": "#d2cab6", "mix": 0.55, "patch": 0.45, "alpha": 0.32, "grass": 0.5 },
+      "mine": { "color": "#5f5a52", "mix": 0.55, "patch": 0.5, "alpha": 0.3, "value": 0.9, "grass": 0.6 },
+      "graveyard": { "color": "#c8bd9a", "mix": 0.3, "patch": 0.6, "alpha": 0.15, "grass": 0.75 },
+      "lookout": { "color": "#d0c8aa", "mix": 0.28, "patch": 0.6, "alpha": 0.12, "grass": 0.8 },
+      "boss_arena": { "color": "#c7c1b0", "mix": 0.28, "patch": 0.6, "grass": 0.8 }
+    }
   },
   "scatter": {
     "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in Main Street, the yards, on the rail bed or across a junction; steep bare keeps every stone off ground too steep to walk up (the rock past the boundary, the cliffs' faces), where it would hang on the slope. layers: the meadow layers' own spacing (cm) and a factor on their shared cull distances (Tools/Unreal/build_island_scatter.py): the grass a little denser and reaching about 40 m on Medium instead of 27-33 m, the flowers 38 m, so the meadows don't turn to bare ground a few dozen meters out (2026-10-08; the macro map carries the grass's color past that). blooms: more flowers by zone kind (times): Larkspur Bench's larkspur drifts. The Bench's forest zones are lodgepole stands: pines only (Tools/Unreal/build_island_scatter.py's split should keep them to Pine_A and Pine_B).",
     "roadside": "pebbles",
     "steep": "bare",
     "layers": {"grass": {"cell": 80, "cull": 1.5}, "flowers": {"cull": 1.4}},
-    "blooms": { "alpine": 1.8 }
+    "blooms": { "alpine": 1.8, "chapel": 1.7, "fields": 1.4 }
   },
   "region": {
     "about": "The regional height field around the core (Art/Levels/area_region.py), in cm: the valley floor's noise and tilt (meters of rise per meter north and east) and its benches (a polygon raised or lowered by height, easing out over blend), the ridges (each from its foot: height, crest = how far behind the foot the crest is, back = the outer slope's reach, band = the cliff band at the foot; a saddle lowers the crest near a pass), the escarpment (its lip, the drop to the canyon floor, how deep the cliff kit's stacked courses reach, the far wall; calm keeps the lip from wandering where a model is fitted to it), the surround ring and the backdrop. The core's outer seamBand fades into the field; no feature may enter it. floors raises a hanging valley's ground to a level inside a polygon (the higher of the two, round: the smooth maximum's width; levels: four corners' heights over a rectangle, held past it; relief: rolling swells): Larkspur Bench behind Larkspur Ridge's crest, +44 m in the south-west to +58.5 m in the north-east; ridges marked onFloor stand on the floors (Larkspur High, the East Shoulder), and bandGaps leaves a ridge's band undressed where the Old Quarry cuts through it.",
@@ -2840,6 +2854,16 @@
           "StrataFlat": 0.85
         },
         "vectors": { "SteepTint": [0.8,0.74,0.68], "SteepRockTint": [0.66,0.58,0.5], "SteepBeds": [1.7,0.1,0.3,0.07] }
+      },
+      "MI_LeavesRusset_Ransom": {
+        "parent": "MI_LeavesRusset",
+        "vectors": { "Tint": [3.2,1.0,0.7], "TintVariation": [2.8,1.3,0.7] },
+        "scalars": { "VariationAmount": 0.4 }
+      },
+      "MI_LeavesDusty_Ransom": {
+        "parent": "MI_LeavesDusty",
+        "vectors": { "Tint": [2.0,1.35,1.6], "TintVariation": [2.2,1.4,1.2] },
+        "scalars": { "VariationAmount": 0.3 }
       }
     },
     "swaps": {
@@ -2853,7 +2877,9 @@
       "MI_RansomsRestMacroSW": "MI_RansomsRestMacroSW_Steep",
       "MI_RansomsRestMacroSE": "MI_RansomsRestMacroSE_Steep",
       "MI_RansomsRestMacroNW": "MI_RansomsRestMacroNW_Steep",
-      "MI_RansomsRestMacroNE": "MI_RansomsRestMacroNE_Steep"
+      "MI_RansomsRestMacroNE": "MI_RansomsRestMacroNE_Steep",
+      "MI_LeavesRusset": "MI_LeavesRusset_Ransom",
+      "MI_LeavesDusty": "MI_LeavesDusty_Ransom"
     },
     "swapsOn": { "windmill": { "MI_MetalRust": "MI_MetalWorn_Windmill" } },
     "props": [

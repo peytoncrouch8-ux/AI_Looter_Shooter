@@ -231,7 +231,8 @@ def look(world, yaw, pitch=0.0):
 
 def press(world, name, seconds=0.0, x=1.0, y=0.0):
     """Feeds the game's own input action (IA_<name>: Interact, Fire, Jump, Reload, Move...) as if its key were pressed:
-    a tap for one frame, or held for the seconds given (a Move held walks: x forward, y right). Needs no window focus."""
+    a tap for one frame, or held for the seconds given (a Move held walks: x right, y forward: "press Move 3 0 1" walks
+    ahead; checked 2026-10-22). Needs no window focus."""
     pawn, controller = player(world)
     if pawn is None:
         return

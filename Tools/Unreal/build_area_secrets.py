@@ -10,8 +10,9 @@ READABLES); each find's readable sets its Secret.<Id> story flag when read (ARea
   The spot: round its anchor (a layout obstacle's middle, a placed actor, the Mooring Ledge, Coffin Rock's top) on a ring
   (story_texts SECRETS 'ring', cm), the side 'prefer' (layout x north, y east) tried first, on ground within
   MAX_RISE of the anchor's own and with nothing solid in the chest's box (WorldStatic and WorldDynamic overlaps).
-- Coffin Rock's way up: STEP_COUNT boulders (SM_Boulder_A, scaled so each top is STEP_RISE over the last) climbing to its
-  north edge, each in mantle reach (TraversalRules::MaxMantleHeight 150 cm). Tagged Obstacle. Not yet walked in PIE.
+- Coffin Rock's way up: a fallen slab (SM_Boulder_D, flat-topped, stretched) leaning against its north edge, a walkable
+  ramp (RAMP_*) from the ground onto the top; the stepping boulders before it had rounded tops the player slid off.
+  Tagged Obstacle.
 - What Ada gave up: Father Aldana's page (READABLES AldanaPage, sets Ada.Told; shown after Main 4) on the vestry door's
   step, on the other side of the door from the Ledger's Rest page (build_area_seeds.py VESTRY_*).
 
@@ -24,6 +25,7 @@ import importlib
 import json
 import math
 import os
+import random
 import sys
 
 import unreal
@@ -52,18 +54,39 @@ READ_REACH = 250.0
 # Traces for the ground: from this high to this low over the anchor (cm).
 TRACE_TOP = 30000.0
 TRACE_BOTTOM = -30000.0
-# Coffin Rock's way up (layout features coffinRock: an 8 m butte, cliff kit 2.5 m wide all round): steps from beyond the
-# cliff kit at its north edge, each STEP_SPACING further out and STEP_RISE lower than the one before it.
-STEP_MESH = 'SM_Boulder_A'
-STEP_COUNT = 6
-STEP_RISE = 125.0
-STEP_SPACING = 200.0
-STEP_OUT = 250.0
-# How far over a step's wanted top its highest point stands (its rounded crown; the walkable top is lower).
-STEP_CROWN = 45.0
-STEP_SIZE = 0.75        # the boulder's footprint (3.0 x 2.4 m) at this share
-STEP_MESH_HEIGHT = 165.0
-STEP_SINK = 30.0
+# Coffin Rock's way up (2026-10-22): one tabular slab (Rocks.py's Boulder_D, flat-topped: a slab fallen off the butte)
+# stretched along its long side and leaning against the north edge, its top a walkable ramp (the player walks floors up
+# to 44 degrees): RAMP_SLOPE degrees, RAMP_WIDTH and RAMP_THICK its width's and thickness's scale, its upper end
+# RAMP_INTO (cm) in past the edge's point over the top and RAMP_OVER above it (the cliff pieces' broken tops reach 20 cm
+# over the wall), its toe RAMP_TOE longer into the ground, met RAMP_BURY over the ground.
+RAMP_MESH = 'SM_Boulder_D'
+RAMP_SLOPE = 29.0
+RAMP_WIDTH = 2.1           # x the slab's 2.34 m: about 4.9 m wide
+RAMP_WIDTH_CM = 490.0
+RAMP_THICK = 3.0
+RAMP_INTO = 150.0
+RAMP_OVER = 25.0
+RAMP_TOE = 120.0
+RAMP_BURY = 10.0
+RAMP_PIECES = 3            # the slab broke in three as it fell: each piece's texture stretched less
+RAMP_LAP = 180.0           # cm the pieces overlap along the run (each one's rounded ends under its neighbour)
+RAMP_STEP = 6.0            # cm each lower piece's top stands under the one above it (a walkable lip, no shared plane)
+RAMP_TURN = 5.0            # degrees each piece turns its own way
+# The butte's own sandstone: the area's instance when it exists (this script also runs on its own, without the swaps).
+RAMP_MATERIALS = ('/Game/Art/Materials/MI_RockCliff_Ransom', '/Game/Art/Materials/MI_RockCliff')
+# The fallen blocks either side of the ramp's lower half: (share of the run out from the edge, cm out past the ramp's
+# side, scale of Rocks.py's Rock_F, a 0.6 m layered chunk), sunk RAMP_BLOCK_SINK of their height x scale (cm per unit).
+RAMP_BLOCK_MESH = 'SM_Rock_F'
+RAMP_BLOCKS = ((0.85, 40.0, 3.2), (0.65, 60.0, 2.6), (0.95, 120.0, 2.0), (0.45, 30.0, 2.2))
+RAMP_BLOCK_SINK = 8.0
+# The walk: the slab's pieces have rounded ends and a crown, so a hidden plank (the engine's cube, its own collision
+# only) lies RAMP_WALK_LIFT over the ramp's line, RAMP_WALK_WIDTH wide (inside the rock's sides), from the ground to
+# RAMP_INTO in over the top: the player walks a smooth 29 degrees over the rock (2026-10-22: the bare pieces had 80-96 cm
+# dips at their joins and 44 degree stretches).
+RAMP_WALK_MESH = '/Engine/BasicShapes/Cube'
+RAMP_WALK_LIFT = 6.0
+RAMP_WALK_WIDTH = 360.0
+RAMP_WALK_THICK = 20.0
 # Aldana's page on the vestry step: the chapel's SOCKET_Speaker frame, out and to the door's left (the Ledger page lies
 # 40 cm to its right).
 VESTRY_OUT = 45.0
@@ -262,41 +285,118 @@ def readable(build, readable_id, x, y, z, yaw):
 
 
 def place_steps(build, spec):
-    """Coffin Rock's way up its north edge: boulders, each STEP_RISE over the last, the last at the top's edge."""
+    """Coffin Rock's way up (spec 'steps': the edge's direction, 'north' or 'east'): a slab fallen off its face, broken in
+    RAMP_PIECES, leaning against it as a walkable ramp (RAMP_*) from the ground out there up over the cliff kit's lip
+    onto the top, in the butte's own rock, with fallen blocks either side of its lower half (RAMP_BLOCKS: they read as
+    the rockfall it came down in and keep the eye off its edges). The stepping boulders before it (2026-10-21) had
+    rounded tops: the player slid off after four steps."""
     entry = story.layout_entry(build, 'features', spec['anchor'][1])
-    step_mesh = find_mesh(STEP_MESH)
-    if entry is None or step_mesh is None:
-        build.warn(f'no {spec["anchor"][1]} feature or no {STEP_MESH}: no way up (its secret waits on top regardless)')
+    slab = find_mesh(RAMP_MESH)
+    block = find_mesh(RAMP_BLOCK_MESH)
+    rock = next((unreal.load_asset(m) for m in RAMP_MATERIALS if unreal.EditorAssetLibrary.does_asset_exist(m)), None)
+    if entry is None or slab is None:
+        build.warn(f'no {spec["anchor"][1]} feature or no {RAMP_MESH}: no way up (its secret waits on top regardless)')
         return
-    direction, count, rise = spec['steps']
-    # The edge's point furthest that way (layout x north).
+    direction = spec['steps'][0]
+    # The edge's point furthest that way (layout x north), and outward from there.
     edge = max(entry['polygon'], key=lambda p: p[0]) if direction == 'north' else max(entry['polygon'], key=lambda p: p[1])
     out = (1.0, 0.0) if direction == 'north' else (0.0, 1.0)
+    side = (-out[1], out[0])
     top = trace_down(*story.centroid(entry['polygon']))
     if top is None:
         return
-    # The boulder's own box (unscaled): its long side along X, its walkable top a little under its highest point.
-    box = step_mesh.get_bounding_box()
-    low, high = box.get_editor_property('min'), box.get_editor_property('max')
-    height_of = max(high.z - low.z, 1.0)
-    placed = 0
-    for k in range(count):
-        # From the top's edge outward, each overlapping the next a little (no gap to fall through): the k-th step's top
-        # is (k + 1) rises under the butte's top, its long side pointing at the butte.
-        reach = STEP_OUT + STEP_SPACING * k
-        x, y = edge[0] + out[0] * reach, edge[1] + out[1] * reach
-        ground = trace_down(x, y, top - 50.0, top - 3000.0)
-        if ground is None:
-            continue
-        wanted = top - rise * (k + 1) + STEP_CROWN
-        if wanted <= ground + 20.0:
+    # The upper end: RAMP_INTO in from the edge's point over the top, RAMP_OVER above it (over the cliff pieces' lip).
+    upper_z = top + RAMP_OVER
+    rise = math.tan(math.radians(RAMP_SLOPE))
+    # The lower end: where the ramp's line, falling outward at RAMP_SLOPE, meets the ground.
+    reach = None
+    for k in range(1, 120):
+        d = 25.0 * k
+        ground = trace_down(edge[0] + out[0] * d, edge[1] + out[1] * d, top - 50.0, top - 3000.0)
+        if ground is not None and upper_z - rise * (d + RAMP_INTO) <= ground + RAMP_BURY:
+            reach = d
             break
-        scale_z = (wanted - ground + STEP_SINK) / height_of
-        z = ground - STEP_SINK - low.z * scale_z
-        build.place(step_mesh, (x, y, z), 0.0 if direction == 'north' else 90.0, label=f'Secret_CoffinRockStep_{k + 1}',
-                    folder=FOLDER, scale=(STEP_SIZE, STEP_SIZE, scale_z), tags=('Obstacle', SECRET_TAG))
+    if reach is None:
+        build.warn('Coffin Rock: the ramp never meets the ground: no way up')
+        return
+    box = slab.get_bounding_box()
+    low, high = box.get_editor_property('min'), box.get_editor_property('max')
+    # The run from the upper end (-RAMP_INTO, behind the edge's point) to the toe (reach + RAMP_TOE), in RAMP_PIECES
+    # pieces overlapping RAMP_LAP; each piece's top on the ramp's line, a lower one RAMP_STEP under the one above it
+    # (no two tops in one plane), each turned a little its own way.
+    span = reach + RAMP_TOE + RAMP_INTO
+    piece_run = (span + RAMP_LAP * (RAMP_PIECES - 1)) / RAMP_PIECES
+    rnd = random.Random('coffinRock ramp')
+    placed = 0
+    for k in range(RAMP_PIECES):
+        a = -RAMP_INTO + k * (piece_run - RAMP_LAP)      # its upper end, along the run from the edge's point
+        mid = a + piece_run * 0.5
+        length = piece_run / math.cos(math.radians(RAMP_SLOPE))
+        scale = (RAMP_WIDTH * rnd.uniform(0.92, 1.05), length / max(high.y - low.y, 1.0), RAMP_THICK)
+        cx, cy = edge[0] + out[0] * mid, edge[1] + out[1] * mid
+        cz = upper_z - rise * (mid + RAMP_INTO) - RAMP_STEP * k
+        yaw = math.degrees(math.atan2(-out[0], out[1])) + rnd.uniform(-RAMP_TURN, RAMP_TURN)
+        rot, lift = slab_pose(slab, low, high, scale, yaw)
+        piece = build.place(slab, (cx - lift.x, cy - lift.y, cz - lift.z), yaw, label=f'Secret_CoffinRockRamp_{k + 1}',
+                            folder=FOLDER, scale=scale, tags=('Obstacle', SECRET_TAG))
+        piece.set_actor_rotation(rot, False)
+        if rock is not None:
+            piece.static_mesh_component.set_material(0, rock)
         placed += 1
-    build.log(f'Coffin Rock\'s way up: {placed} steps of {rise:.0f} cm up its {direction} edge (walk it in PIE)')
+    # The walk over it: a hidden plank, collision only, on the ramp's line from the ground to the top.
+    walk_mesh = unreal.load_asset(RAMP_WALK_MESH)
+    if walk_mesh is not None:
+        run_from, run_to = -RAMP_INTO, reach
+        mid = (run_from + run_to) * 0.5
+        length = (run_to - run_from) / math.cos(math.radians(RAMP_SLOPE))
+        scale = (RAMP_WALK_WIDTH / 100.0, length / 100.0, RAMP_WALK_THICK / 100.0)
+        yaw = math.degrees(math.atan2(-out[0], out[1]))
+        cube_low, cube_high = unreal.Vector(-50.0, -50.0, -50.0), unreal.Vector(50.0, 50.0, 50.0)
+        rot, lift = slab_pose(walk_mesh, cube_low, cube_high, scale, yaw)
+        cx, cy = edge[0] + out[0] * mid, edge[1] + out[1] * mid
+        cz = upper_z - rise * (mid + RAMP_INTO) + RAMP_WALK_LIFT
+        walk = build.place(walk_mesh, (cx - lift.x, cy - lift.y, cz - lift.z), yaw, label='Secret_CoffinRockWalk',
+                           folder=FOLDER, scale=scale, tags=(SECRET_TAG,))
+        walk.set_actor_rotation(rot, False)
+        component = walk.static_mesh_component
+        component.set_visibility(False)
+        component.set_cast_shadow(False)
+        walk.set_actor_hidden_in_game(True)
+    # The fallen blocks beside its lower half, either side, sunk into the ground.
+    if block is not None:
+        for k, (along, across, size) in enumerate(RAMP_BLOCKS):
+            d = reach * along
+            for sign in (-1.0, 1.0) if k % 2 == 0 else (1.0, -1.0):
+                off = (RAMP_WIDTH_CM * 0.5 + across) * sign
+                x = edge[0] + out[0] * d + side[0] * off
+                y = edge[1] + out[1] * d + side[1] * off
+                ground = trace_down(x, y, top - 50.0, top - 3000.0)
+                if ground is None:
+                    continue
+                s_ = size * rnd.uniform(0.85, 1.15)
+                rock_block = build.place(block, (x, y, ground - RAMP_BLOCK_SINK * s_), rnd.uniform(0.0, 360.0),
+                                         label=f'Secret_CoffinRockBlock_{k + 1}{"ab"[sign > 0]}', folder=FOLDER,
+                                         scale=(s_, s_, s_ * rnd.uniform(0.8, 1.1)), tags=('Obstacle', SECRET_TAG))
+                rock_block.set_actor_rotation(unreal.Rotator(roll=rnd.uniform(-12.0, 12.0), pitch=rnd.uniform(-12.0, 12.0),
+                                                             yaw=rock_block.get_actor_rotation().yaw), False)
+                placed += 1
+                break   # one block a row, on alternate sides
+    build.log(f"Coffin Rock's way up: a fallen slab in {RAMP_PIECES} pieces at {RAMP_SLOPE:.0f} degrees up its "
+              f'{direction} edge from {reach:.0f} cm out, {placed} pieces with its blocks (walk it in PIE)')
+
+
+def slab_pose(slab, low, high, scale, yaw):
+    """The rotation tilting the slab's long side (its local +Y, turned outward by yaw) down RAMP_SLOPE outward, and
+    where its top surface's middle lands from its pivot (both rolls tried: the one whose outer end is lower)."""
+    best = None
+    for roll in (RAMP_SLOPE, -RAMP_SLOPE):
+        rot = unreal.Rotator(roll=roll, pitch=0.0, yaw=yaw)
+        probe = unreal.Transform(unreal.Vector(0.0, 0.0, 0.0), rot, unreal.Vector(*scale))
+        drop = (probe.transform_location(unreal.Vector(0.0, low.y, high.z)).z
+                - probe.transform_location(unreal.Vector(0.0, high.y, high.z)).z)
+        if best is None or drop > best[0]:
+            best = (drop, rot, probe.transform_location(unreal.Vector(0.0, 0.0, high.z)))
+    return best[1], best[2]
 
 
 def place_aldana_page(build, found):

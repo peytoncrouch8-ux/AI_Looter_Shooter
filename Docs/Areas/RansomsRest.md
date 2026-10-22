@@ -691,6 +691,14 @@ however strong the player comes back, so it is easy and low-XP to revisit. What 
 - **Effects:** ghost fade and phase-step, the coal glow, spectral buckshot pellets, the shriek ring, Gravewind wisps, unlit wisp
   cards along the Rim, fog rising out of the canyon at the deck, a grave-dirt burst, frost on Abel's grave.
 - **Lighting:** new data on the existing setup: golden late afternoon and dusk, sun low in the west-southwest over the canyon.
+- **World variety (2026-10-22; plan and counts `Saved/World/PLAN.md`, how: Pipeline "World variety"):** each place its own
+  ground (layout `macro.tones`): Main Street trampled red-ochre dust, the depot and Stage Gap cinders, the Sink ash grey, the Old
+  Quarry pale dust, the Diggings coal, Boot Hill, Ransom's Point and Gravewind Point paler and sparser; the farm and the chapel
+  knoll greener, white yarrow on the knoll, yellow drifts in Whitlock's fields. Twins for every cliff face (half the walls), the
+  orchard old (Apple_B) and replanted (Apple_C), pines young, old dead-topped and tall, creeping junipers on the rims, a russet
+  sumac and a pale serviceberry among the bushes, new rocks and boulders, three-rail stock fences (pens, Whitlock's yard), tired
+  rails at the Sink, a leaning iron section in five round the churchyard, three different dead trees there, two new old boards.
+  Coffin Rock's way up is a fallen slab up its north edge (secret: the surveyor's tin).
 
 ## Tech needs
 

@@ -19,6 +19,9 @@ What it paints, each from world position and the heights only, so the core's map
   the living tree stands;
 - the hayfields (layout openGround polygons named in "hayfields"): pale stubble mowed in swaths, raked windrows, an
   uncut headland round each field;
+- each place's own ground (the layout's "tones" by zone kind, 2026-10-22 world variety): a color worked in in patches
+  (the town's trampled red-ochre dust, the depot's cinders, the Sink's ash, the quarry's pale dust, the diggings' coal),
+  stony ground showing through (the macro alpha) and the scatter's grass thinned there;
 - on the ring: a darker forest floor under the far trees (area_fartrees.py), so the woods read as masses from afar.
 
 Colors are the map's own (no season's grade follows them) and chosen for the golden hour's warm light, which pushes
@@ -255,7 +258,11 @@ def grass_density(area, grid):
         raise RuntimeError('the scatter mask follows the macro map: paint it first (area_macro.paint)')
     m, half = area.mosaic_moisture
     x, y = grid.mesh()
-    return (GRASS_THIN + (1.0 - GRASS_THIN) * _ss(0.08, 0.38, sample(m, x, y, half))).astype(np.float32)
+    density = GRASS_THIN + (1.0 - GRASS_THIN) * _ss(0.08, 0.38, sample(m, x, y, half))
+    # A place's own ground (tones' "grass": the share of the grass left there: trampled, dusted, cindered).
+    for tone, w in _zone_weights(area, grid, {k: v for k, v in spec(area).get('tones', {}).items() if 'grass' in v}):
+        density *= 1.0 - (1.0 - float(tone['grass'])) * w
+    return density.astype(np.float32)
 
 
 def _shade(area, grid, settings):
@@ -306,7 +313,50 @@ def core(area, grid, fine, grain, log=print):
     rgb *= (1.0 - 0.1 * under_up)[..., None]
     del under_up
     _hayfields(area, grid, rgb, alpha, settings, fine)
+    if settings.get('tones'):
+        _tones(area, grid, rgb, alpha, settings['tones'], fine, grain)
     return rgb, alpha
+
+
+def _zone_weights(area, grid, specs):
+    """(spec, weight) for each zone whose kind (or id) specs names: 1 inside, softened over about 12 m across its edge
+    and frayed as the moisture's zones are, so no outline shows."""
+    fray = None
+    out = []
+    for zone in area.layout.get('zones', []):
+        spec = specs.get(zone.get('kind', zone['id']))
+        if not spec:
+            continue
+        if fray is None:
+            fray = 6.0 * fbm_raster(grid, 20.0, seed=861, octaves=2)
+        sd = signed_distance(grid, catmull_rom(to_m(zone['polygon']), closed=True, step=0.5), 24.0)
+        out.append((spec, 1.0 - _ss(-10.0, 12.0, sd + fray)))
+    return out
+
+
+def _tones(area, grid, rgb, alpha, tones, fine, grain):
+    """Each place's own ground (settings "tones": {kind: {"color": "#rrggbb", "mix": how far toward it, "patch": 0 even
+    .. 1 only in patches, "alpha": the stony ground's share it shows (macro alpha, under the rock's 0.55), "value": a
+    light multiplier}}), worked in patchily (a few meters' noise plus the map's fine noise), so it reads as trampled or
+    dusted ground, not paint."""
+    weights = _zone_weights(area, grid, tones)
+    if not weights:
+        return
+    jag = 0.0 if fine is None else fine
+    speck = 0.0 if grain is None else grain
+    blotch = fbm_raster(grid, 7.0, seed=881, octaves=2) + 0.35 * jag + 0.15 * speck
+    for spec, w in weights:
+        patch = float(spec.get('patch', 0.5))
+        p = (1.0 - patch) + patch * _ss(-0.15, 0.25, blotch)
+        k = np.clip(float(spec.get('mix', 0.4)) * w * p, 0.0, 1.0)
+        color = _c(int(spec['color'].lstrip('#'), 16))
+        _mix(rgb, color, k)
+        if spec.get('value'):
+            rgb *= (1.0 + (float(spec['value']) - 1.0) * w)[..., None]
+        if spec.get('alpha'):
+            a = min(float(spec['alpha']), 0.5)
+            stony = w * p * _ss(0.0, 0.35, blotch + 0.2)
+            alpha += (np.maximum(alpha, a) - alpha) * np.clip(stony, 0.0, 1.0)
 
 
 def core_fields(area, log=print):

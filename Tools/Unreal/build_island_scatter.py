@@ -206,7 +206,19 @@ def shore_points(data, town=()):
 # the view distance quality (r.ViewDistanceScale, 0.6 on Medium): each is the distance wanted on Medium / 0.6. The
 # level's CullDistanceVolume leaves PCG's components alone: it judges a component by its bounds, and each spawner's
 # component per mesh spans tens of meters or the whole scatter, past the volume's largest culled size (6 m).
-CREASE_PINE_MESHES = (('Pine_A', 1, 0), ('Pine_B', 1, 0))
+CREASE_PINE_MESHES = (('Pine_A', 5, 0), ('Pine_B', 5, 0), ('Pine_C', 3, 0), ('Pine_E', 3, 0))
+# The world variety's variants (2026-10-22, Saved/World PLAN): each layer's meshes by weight, the originals' shares split
+# so the instance counts stay. The valley's stands: the two old pines, young ones (C) at the edges' share, tall boles
+# (E), a few old dead-topped (D); up the mountain more of the old and the tall, fewer of the dense A. A mesh that isn't
+# imported yet is left out (optional), so an older project still builds. Weights are whole numbers: PCG's are int32, and a
+# 0.6 came out 0 (2026-10-22: no Bush_D, and the broadleaf stands' DeadTree_A 0.4 never grew).
+VALLEY_PINES = (('Pine_A', 3), ('Pine_B', 3), ('Pine_C', 2), ('Pine_E', 2), ('Pine_D', 1))
+MOUNTAIN_PINES = (('Pine_A', 2), ('Pine_B', 1), ('Pine_C', 2), ('Pine_D', 2), ('Pine_E', 2))
+BUSHES = (('Bush_A', 5), ('Bush_B', 5), ('Bush_C', 5), ('Bush_D', 3), ('Bush_E', 2))
+FLOOR_WOOD = (('Stump_A', 3), ('Log_A', 3), ('Stump_B', 2), ('Log_B', 2))
+ROCKS_MIX = (('Rock_A', 1), ('Rock_B', 1), ('Rock_C', 1), ('Rock_D', 1), ('Rock_E', 1), ('Rock_F', 1))
+BOULDERS_MIX = (('Boulder_A', 3), ('Boulder_B', 3), ('Boulder_C', 3), ('Boulder_D', 3), ('Boulder_E', 2),
+                ('Boulder_F', 3))
 # The zones where the tree stands are all pines (layout.json zones: these kinds, and ids starting so).
 PINE_ZONE_KINDS = ('alpine', 'outpost', 'mine', 'crest')
 PINE_ZONE_PREFIX = 'benchPines'
@@ -221,8 +233,9 @@ SAGE_MESHES = (('Sagebrush_A', 4, 27000), ('Sagebrush_B', 3, 27000), ('Sagebrush
 BIG_SAGE_MESHES = (('Sagebrush_A', 1, 42000), ('Sagebrush_B', 1, 42000))  # the steep faces' (252 m on Medium)
 RABBITBRUSH_MESHES = (('Rabbitbrush_A', 1, 27000),)
 DRY_TUFT_MESHES = (('DryTuft_A', 1, 6700), ('DryTuft_B', 1, 6700))  # 40 m on Medium
-JUNIPER_MESHES = (('Juniper_A', 2, 42000), ('Juniper_B', 1, 42000))  # creases, benches, bands' tops, pits' rims
-CREST_JUNIPER_MESHES = (('Juniper_B', 1, 42000),)  # wind-sheared: its crown sweeps toward -Y, west at yaw 0
+# Creases, benches, bands' tops, pits' rims (2026-10-22: the upright C and the creeping D among them).
+JUNIPER_MESHES = (('Juniper_A', 3, 42000), ('Juniper_B', 2, 42000), ('Juniper_C', 2, 42000), ('Juniper_D', 2, 42000))
+CREST_JUNIPER_MESHES = (('Juniper_B', 2, 42000), ('Juniper_C', 1, 42000))  # B wind-sheared: crown toward -Y, west at yaw 0
 PIT_TUFT_MESHES = (('DryTuft_A', 1, 6700), ('DryTuft_B', 3, 6700))  # the pit floors' (B-heavy)
 PIT_SAGE_MESHES = (('Sagebrush_C', 1, 27000),)
 SCRUB_SINK = 4.0        # cm the scrub sinks into the ground
@@ -611,17 +624,21 @@ def build_graph(area, mask, scrub_mask=None):
     s = Scatter(b, mask, area.half, area.lift, area.ray, area.dressing, scrub_mask)
     veg = lambda name, required=True: mesh(VEGETATION, name, required)  # noqa: E731
     rock = lambda name: mesh(ROCKS, name)  # noqa: E731
+    has_rock = lambda name: mesh(ROCKS, name, False) is not None  # noqa: E731
 
     # Trees: stands of pines and of broadleaf trees, upright, colliding, shadowed, never culled.
     trees, y = s.layer('Trees', 600.0, 'R', 0.12, flat=0.8, trees=True)
     pines, broadleaf = s.split(trees, y, 2.5, 311.0, 0.5)
-    pine_entries = [entry(veg('Pine_A'), 1, 0, collide=True, shadow=True, tree=True),
-                    entry(veg('Pine_B'), 1, 0, collide=True, shadow=True, tree=True)]
+    def mix(table, cull, **kw):
+        # The table's meshes that exist (the originals are required), each with its weight.
+        return [entry(m, w, cull, **kw) for m, w in ((veg(n, n.endswith(('_A', '_B'))), w) for n, w in table) if m]
+    pine_entries = mix(VALLEY_PINES, 0, collide=True, shadow=True, tree=True)
+    mountain_entries = mix(MOUNTAIN_PINES, 0, collide=True, shadow=True, tree=True)
     mountain = s.boxes(b, 'Pines only', -5.0, area.pines_only, margin=PINE_ZONE_MARGIN)
     if mountain is not None:
         # Up the mountain the broadleaf draw's points are pines too: they leave the broadleaf and spawn as pines.
         up, broadleaf = s.up_the_mountain(broadleaf, mountain, 'Broadleaf', y)
-        s.spawn(up, 'Mountain pines', 11, y + 1.2, pine_entries, sink=15.0)
+        s.spawn(up, 'Mountain pines', 11, y + 1.2, mountain_entries, sink=15.0)
     s.spawn(pines, 'Pines', 11, y - 0.5, pine_entries, sink=15.0)
     s.spawn(broadleaf, 'Broadleaf', 11, y + 0.5, [entry(veg(n), w, 0, collide=True, shadow=True, tree=True)
                                                   for n, w in (('Oak_A', 3), ('Oak_B', 3), ('Birch_A', 3),
@@ -635,7 +652,7 @@ def build_graph(area, mask, scrub_mask=None):
         # Up the mountain a lone tree is a pine too (the Bench's grass stays under this layer's keep today, so none
         # grows there yet; a greener mask must not bring oaks up).
         up, meadow = s.up_the_mountain(meadow, mountain, 'Meadow trees', y)
-        s.spawn(up, 'Meadow pines', 11, y + 1.2, pine_entries, scale=(0.9, 1.25), sink=15.0)
+        s.spawn(up, 'Meadow pines', 11, y + 1.2, mountain_entries, scale=(0.9, 1.25), sink=15.0)
     s.spawn(meadow, 'Meadow trees', 11, y, [entry(m, w, 0, collide=True, shadow=True, tree=True) for m, w in lone if m],
             scale=(0.9, 1.25), sink=15.0)
 
@@ -660,15 +677,13 @@ def build_graph(area, mask, scrub_mask=None):
 
     # Bushes at the forest's edges and in its gaps, and a few out in the meadow.
     bushes, y = s.layer('Bushes', 420.0, 'R', 0.1)
-    s.spawn(bushes, 'Bushes', 11, y, [entry(veg(n), 1, 9000, shadow=True) for n in ('Bush_A', 'Bush_B', 'Bush_C')],
-            scale=(0.75, 1.25), sink=5.0)
+    s.spawn(bushes, 'Bushes', 11, y, mix(BUSHES, 9000, shadow=True), scale=(0.75, 1.25), sink=5.0)
 
     # Under the trees: ferns, with stumps and fallen logs.
     floor, y = s.layer('Forest floor', 260.0, 'R', 0.3)
-    s.spawn(floor, 'Forest floor', 11, y, [entry(veg('Fern_A'), 8, 5000, density_scaling=True),
-                                           entry(veg('Stump_A'), 1, 8000, collide=True, shadow=True, wind=False),
-                                           entry(veg('Log_A'), 1, 8000, collide=True, shadow=True, wind=False)],
-            scale=(0.8, 1.2), upright=False)
+    # Fern 40 to the wood's 10: the 8 to 2 it always had (FLOOR_WOOD's weights are whole numbers, so the fern's went up).
+    s.spawn(floor, 'Forest floor', 11, y, [entry(veg('Fern_A'), 40, 5000, density_scaling=True)]
+            + mix(FLOOR_WOOD, 8000, collide=True, shadow=True, wind=False), scale=(0.8, 1.2), upright=False)
 
     # Grass: a patch about every 0.8 m², tall grass among it, clover in the gaps. An area may set its own spacing and
     # reach (layout.json scatter.layers.grass): Ransom's Rest's grass reaches farther, so its meadows don't turn to
@@ -693,12 +708,12 @@ def build_graph(area, mask, scrub_mask=None):
     s.spawn(pebbles, 'Pebbles', 11, y, [entry(rock('PebbleCluster_A'), 1, 3000, density_scaling=True, wind=False)],
             scale=(0.8, 1.3), upright=False)
     rocks, y = s.layer('Rocks', 500.0, 'A', 0.15, flat=0.7)
-    s.spawn(rocks, 'Rocks', 11, y, [entry(rock(n), 1, 9000, collide=True, shadow=True, wind=False)
-                                    for n in ('Rock_A', 'Rock_B', 'Rock_C', 'Rock_D')],
+    s.spawn(rocks, 'Rocks', 11, y, [entry(rock(n), w, 9000, collide=True, shadow=True, wind=False)
+                                    for n, w in ROCKS_MIX if n < 'Rock_E' or has_rock(n)],
             scale=(0.7, 1.4), sink=4.0)
     boulders, y = s.layer('Boulders', 1200.0, 'A', 0.15, flat=0.7)
-    s.spawn(boulders, 'Boulders', 11, y, [entry(rock(n), 1, 0, collide=True, shadow=True, wind=False)
-                                          for n in ('Boulder_A', 'Boulder_B', 'Boulder_C')],
+    s.spawn(boulders, 'Boulders', 11, y, [entry(rock(n), w, 0, collide=True, shadow=True, wind=False)
+                                          for n, w in BOULDERS_MIX if n < 'Boulder_D' or has_rock(n)],
             scale=(0.8, 1.3), sink=10.0)
 
     pines = crease_pines(s, veg) if area.steep else None
