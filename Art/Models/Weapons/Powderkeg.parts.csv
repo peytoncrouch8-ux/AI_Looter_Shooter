@@ -1,0 +1,42 @@
+Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax
+Body,Standard,Standard tube,,Common,1,0,,,,,,,,,,,,,,,,,,
+Body,Carbon,Carbon tube,Carbon,Uncommon,1,13,,,,,,,,,,,,,,,2,6,5,11
+Body,Salvager,Salvager tube,Scrapped,Uncommon,1,13,,,,,4,8,-6,-2,,,,,,,,,,
+Body,Armored,Armored tube,Armored,Rare,1,23,,,,,3,7,,,,,,,,,-21,-9,-14,-6
+Body,Ribbed,Ribbed tube,Cooled,Rare,1,23,,,,,,,,,,,4,8,-14,-6,,,,
+Body,Lattice,Lattice tube,Kindled,Rare,1,23,,,,,4,8,,,,,,,-8,-4,,,,
+Body,Gilded,Gilded tube,Gilded,Epic,1,33,,,,,5,9,4,10,,,,,-12,-6,,,,
+Barrel,Bell,Bell,,Common,1,0,,,13,,,,,,,,,,,,,,,
+Barrel,Stub,Stub bell,Snub,Common,1,5,,,8,,,,-10,-4,-25,-10,,,,,,,9,21
+Barrel,Long,Long tube,Long,Uncommon,1,15,,,24,,,,5,11,15,35,,,,,,,-12,-6
+Barrel,Flared,Flared bell,Flared,Uncommon,1,15,,,15.4,,,,,,,,,,-6,-2,-14,-6,,
+Barrel,Vented,Vented tube,Vented,Rare,1,25,,,18,,,,,,,,4,8,,,-21,-9,,
+Barrel,Guided,Guided bell,Guided,Rare,1,25,,,14,,,,14,26,10,20,,,,,,,,
+Barrel,Siege,Siege tube,Siege,Epic,1,35,,,24.6,,8,16,,,20,40,,,,,,,-18,-8
+Muzzle,Ring,Brass ring,,Common,1,0,,,,,,,,,,,,,,,,,,
+Muzzle,Lip,Plain lip,,Common,1,0,,,,,,,,,,,,,,,,,2,6
+Muzzle,Crown,Toothed crown,Toothed,Uncommon,1,11,,,,,2,5,,,,,,,,,,,,
+Muzzle,Deflector,Blast deflector,Deflected,Uncommon,1,11,,,,,,,,,,,,,,,-15,-7,,
+Muzzle,Baffle,Baffle cage,Caged,Rare,1,21,,,,,,,6,12,,,,,,,-8,-4,,
+Muzzle,Coil,Ember coil,Coiled,Epic,1,31,,,,,4,8,,,,,,,-10,-4,,,,
+Muzzle,Gilded,Gilded crown,Gilded,Epic,1,31,,,,,3,6,4,8,,,,,,,-10,-4,,
+Magazine,Frag,Frag rocket,,Common,1,0,1,,,,,,,,,,,,,,,,,
+Magazine,Slammer,Slammer rocket,Slammer,Common,1,4,1,,,,6,12,,,5,11,,,,,,,,
+Magazine,Cluster,Cluster rocket,Cluster,Uncommon,1,12,1,,,,-6,-2,,,,,,,4,8,,,,
+Magazine,Hornet,Hornet rockets,Hornet,Uncommon,1,12,3,,,,-20,-14,,,,,,,8,16,,,,
+Magazine,Twin,Twin rockets,Twin,Rare,1,22,2,,,,-14,-8,,,,,,,4,10,,,,
+Magazine,Incendiary,Incendiary rocket,Firebrand,Rare,1,22,1,,,,4,8,,,,,,,,,,,,
+Magazine,Thunder,Thunder rocket,Thunder,Epic,1,32,1,,,,10,20,6,12,,,,,6,12,,,,
+Sight,Ladder,Ladder sight,,Common,1,0,,1.0,,,,,,,,,,,,,,,6,14
+Sight,Optic,1.5x optic,,Common,1,0,,1.5,,,,,3,7,,,,,,,,,,
+Sight,Reflex,Reflex sight,Reflex,Uncommon,1,14,,1.25,,,,,4,8,,,,,,,,,3,7
+Sight,Rangefinder,2x rangefinder,Ranging,Uncommon,1,14,,2.0,,,,,6,14,6,14,,,,,,,,
+Sight,Tracker,Tracker screen,Tracking,Rare,1,24,,1.5,,,,,10,20,,,,,,,,,-6,-2
+Sight,Longeye,3x long optic,Longeye,Epic,1,34,,3.0,,,,,14,28,15,35,,,,,,,-14,-6
+Stock,Pad,Shoulder pad,,Common,1,0,,,,,,,,,,,,,,,,,,
+Stock,Rubber,Rubber rest,Cushioned,Common,1,0,,,,,,,,,,,,,,,-14,-6,,
+Stock,Skeleton,Skeleton rest,Light,Uncommon,1,10,,,,,,,,,,,,,,,3,7,7,15
+Stock,Brace,Shoulder brace,Braced,Uncommon,1,10,,,,,,,3,7,,,,,,,-10,-4,,
+Stock,Quilted,Quilted rest,Padded,Rare,1,20,,,,,,,,,,,,,,,-21,-9,-7,-3
+Stock,Monopod,Monopod rest,Anchored,Rare,1,20,,,,,,,7,17,,,,,,,,,-17,-7
+Stock,Brass,Brass-framed rest,Heirloom,Epic,1,30,,,,,,,,,,,,,-8,-4,-18,-8,,
