@@ -76,8 +76,8 @@ namespace
 	/**
 	 * Each hand on its spot, and each spot on the gun's grip or foregrip socket (and the hold table's offset from it) as the
 	 * gun is this frame. bOnScreen: both hands in the view model's frame too (its field of view, 16:9), clear of its edges;
-	 * bTriggerOffScreen leaves the trigger hand out of that (the shotgun, held close: its stock goes out past the frame's
-	 * corner and the trigger glove under it, the user's call of 2026-10-15).
+	 * bTriggerOffScreen leaves the trigger hand out of that (guns held close, their trigger glove under the frame: the
+	 * shotgun, its stock out past the frame's corner, the user's call of 2026-10-15; the Bullpup, pulled in on 2026-10-22).
 	 */
 	void HandsPlayCheck(FAutomationTestBase& Test, const FHandsPlayPlayer& Player, const FString& Name, bool bOnScreen,
 		bool bTriggerOffScreen = false)
@@ -161,7 +161,7 @@ bool FFirstPersonHandsOnGunTest::RunTest(const FString& Parameters)
 		bool bTriggerOffScreen;
 	};
 	const FHandsPlayGun Guns[] = {
-		{ TEXT("Bullpup"), TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"), false },
+		{ TEXT("Bullpup"), TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"), true },
 		{ TEXT("Ranchhand"), TEXT("/Game/Weapons/Data/DA_PumpShotgun.DA_PumpShotgun"), true },
 		{ TEXT("Drover"), TEXT("/Game/Weapons/Data/DA_Revolver.DA_Revolver"), false },
 	};

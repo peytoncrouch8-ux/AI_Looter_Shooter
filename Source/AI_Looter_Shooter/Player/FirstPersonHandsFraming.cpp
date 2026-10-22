@@ -27,8 +27,11 @@ namespace
 	 * the gun runs down to the bottom right): the Ranchhand's pump, the Rustler's helix, the Longhorn's fore-end ahead of its box
 	 * (52 to 46; the box is at 35.6), the Thresher's handguard (44 to 38; it starts at 37.6). Never the Bullpup's: 6 cm back is
 	 * the front of its grip loop (37.8); its trigger glove goes 2.5 cm to the right instead, so no finger shows through the
-	 * thumbhole. The big ones (LMG, launcher) further out so they fill less of the frame; the revolver one-handed, brought in
-	 * toward the middle and stood nearly upright, as Borderlands holds a pistol.
+	 * thumbhole. The rifle, LMG and sniper pulled in (the user's call, 2026-10-22: closer and lower, the muzzle tipped up a
+	 * little about the grip, never down: the user rejected a muzzle-down tilt on 2026-10-14), so the support hand sits low in
+	 * the frame; the guns read a bit shorter. The launcher further out so it fills less of the frame; the revolver
+	 * one-handed, brought in toward the middle and stood nearly upright, as Borderlands holds a pistol. Aiming isn't
+	 * touched: the sight slerps to the line of sight from wherever the hip hold is.
 	 */
 	FPHandsFraming::FKindFrame MakeDefaults(int32 Index)
 	{
@@ -36,8 +39,13 @@ namespace
 		switch (static_cast<EWeaponKind>(Index))
 		{
 		case EWeaponKind::Rifle:
-			Frame.HipRight = 1.f;
-			Frame.HipUp = -2.f;
+			// Pulled in (the user, 2026-10-22: "pull the guns in"): 12 cm nearer, 7 lower and 2 in toward the middle, the
+			// muzzle tipped up 5 degrees about the grip so it stays at Borderlands' height (0.63 down) while the fore-end and
+			// the support glove under it come down the frame (0.78 down; was 0.70). Tuned in PIE at 16:9.
+			Frame.HipAhead = -12.f;
+			Frame.HipRight = -2.f;
+			Frame.HipUp = -7.f;
+			Frame.HipPitch = 5.f;
 			Frame.TriggerRight = 2.5f;
 			break;
 		case EWeaponKind::Shotgun:
@@ -55,13 +63,19 @@ namespace
 			Frame.SupportAhead = -2.f;
 			break;
 		case EWeaponKind::Sniper:
-			Frame.HipUp = -1.f;
+			// Pulled in a little (glove 0.84, muzzle 0.60).
+			Frame.HipAhead = -6.f;
+			Frame.HipUp = -3.5f;
+			Frame.HipPitch = 2.f;
 			Frame.SupportAhead = -6.f;
 			break;
 		case EWeaponKind::LMG:
-			Frame.HipAhead = 4.f;
-			Frame.HipRight = 1.f;
-			Frame.HipUp = -2.5f;
+			// Pulled in 14 cm from its last hold (the support hand on the handguard was ~86 cm out), lower, the muzzle tipped up
+			// 4 degrees (glove 0.80 down, muzzle 0.64).
+			Frame.HipAhead = -10.f;
+			Frame.HipRight = 0.f;
+			Frame.HipUp = -3.5f;
+			Frame.HipPitch = 4.f;
 			Frame.SupportAhead = -6.f;
 			break;
 		case EWeaponKind::Launcher:

@@ -167,7 +167,10 @@ bool FFPHandsKindsTest::RunTest(const FString& Parameters)
 		const FPHandsFraming::FKindFrame KindFrame = FPHandsFraming::Defaults(Kind);
 		const FString Name = UEnum::GetValueAsString(Kind);
 		// Nudges, not new holds: the tables (WeaponHipHold, FirstPersonHandsGrips) stay the holds.
-		TestTrue(Name + TEXT(": the hip nudge is under 10 cm (the launcher goes 9 further out)"), FVector(KindFrame.HipAhead, KindFrame.HipRight, KindFrame.HipUp).GetAbsMax() <= 10.f);
+		TestTrue(Name + TEXT(": the hip nudge is under 15 cm (the rifle comes 12 nearer, the launcher goes 9 further out)"),
+			FVector(KindFrame.HipAhead, KindFrame.HipRight, KindFrame.HipUp).GetAbsMax() <= 15.f);
+		// Never muzzle-down (the user, 2026-10-14: "the AR is tilted forward"); pulled-in guns tip up a little instead.
+		TestTrue(Name + TEXT(": the muzzle never tips down"), KindFrame.HipPitch >= 0.f);
 		TestTrue(Name + TEXT(": ...and a few degrees"), FVector(KindFrame.HipPitch, KindFrame.HipYaw, KindFrame.HipRoll).GetAbsMax() <= 10.f);
 		TestTrue(Name + TEXT(": the support hand slides along the gun, never off it"),
 			FMath::Abs(KindFrame.SupportAhead) <= 8.f && FMath::Abs(KindFrame.SupportRight) <= 2.f && FMath::Abs(KindFrame.SupportUp) <= 2.f);

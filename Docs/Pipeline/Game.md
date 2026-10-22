@@ -144,14 +144,16 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   wrists show (support glove 0.80-1.0 down; BL3 sometimes a 50-60 deg slanted gauntlet), never an elbow; pistols
   one-handed. Ours now: forearms `FrameForearm` (most slanted way from 50 deg toward straight down whose elbow leaves the
   frame by 0.06 of the half-frame, 0.6 of it turned back toward the eye's plane, at most 60 deg off the table's way);
-  per kind (baked in `MakeDefaults`): Rifle hip +1 right -2 up, trigger glove 2.5 cm right (no finger through the
-  Bullpup's thumbhole; its support can't slide back: grip loop at u 37.8); Shotgun -1.5 up, support -3; Revolver -5
-  right +1 up roll +6, one-handed (support parked at 20, -26, -38 cm, eased 0.15 s, back on the gun for reloads and
-  throws); SMG -1.5 up, support -2; Sniper -1 up, support -6; LMG +4 ahead +1 right -2.5 up, support -6 (to u 38); Launcher
-  +9 ahead +2 right -2 up. Limit: a support wrist high in the frame (Bullpup, Thresher fore-ends ~70 cm out) can only hide
-  its elbow by running near straight down even with the 1.25x forearms (FPArms.py `FOREARM_STRETCH`): rifle ~29% of the
-  height shows, LMG 22, sniper 19, shotgun/launcher 17, SMG 14 (`Looter.FPHands.Play.OnScreen` logs it). Lowering the
-  gun more puts the muzzle under BL's range; pitching it up gained little; `ViewFov` 75 (narrower view model, holds
+  per kind (baked in `MakeDefaults`): Rifle -12 ahead -2 right -7 up pitch +5, trigger glove 2.5 cm right (no finger
+  through the Bullpup's thumbhole; its support can't slide back: grip loop at u 37.8); Shotgun -1.5 up, support -3;
+  Revolver -5 right +1 up roll +6, one-handed (support parked at 20, -26, -38 cm, eased 0.15 s, back on the gun for
+  reloads and throws); SMG -1.5 up, support -2; Sniper -6 ahead -3.5 up pitch +2, support -6; LMG -10 ahead -3.5 up pitch
+  +4, support -6 (to u 38); Launcher +9 ahead +2 right -2 up. "Pull the guns in" (the user, 2026-10-22): a support wrist
+  high in the frame (fore-ends ~70 cm out) could only hide its elbow by running straight down, so the rifle, LMG and
+  sniper sit nearer and lower with the muzzle tipped up about the grip (never down: the user's 2026-10-14 call), muzzle
+  0.60-0.64 down, support glove 0.78-0.84; forearm on screen rifle 20% of the height (was 29), LMG 18 (22), sniper 12
+  (19), shotgun/launcher 17, SMG 14 (`Looter.FPHands.Play.OnScreen` logs it); ADS unchanged (sight on the crosshair:
+  the aim slerps from the hip hold); sheet `Saved/FPHands/compare2.png`. `ViewFov` 75 (narrower view model, holds
   pushed out by `DepthScale`) flattens the gun but not the arms: left off. Framing checks: `Looter.FPHands.PreviewAspect
   1.7778` draws PIE at 16:9 inside the 2.17:1 editor viewport (bars at the sides; grab the middle: x 0.093-0.893, y
   0.132-0.962 of the window); before/after sheet `Saved/FPHands/compare.png`.
