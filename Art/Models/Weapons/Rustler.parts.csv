@@ -1,0 +1,45 @@
+Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax
+Body,Standard,Standard upper,,Common,1,0,,,,,,,,,,,,,,,,,,
+Body,Ironside,Ironside upper,Ironside,Uncommon,1,13,,,,,2,4,,,,,,,,,-9,-3,-6,-2
+Body,Scrapper,Scrapper upper,Scrapped,Uncommon,1,13,,,,,4,8,-6,-2,,,,,,,,,,
+Body,Vented,Vented upper,Vented,Uncommon,1,13,,,,,,,,,,,4,8,,,2,4,,
+Body,Skeleton,Skeleton upper,Light,Rare,1,23,,,,,,,,,,,,,,,4,8,7,17
+Body,Plated,Plated upper,Armored,Rare,1,23,,,,,3,7,,,,,,,,,-21,-9,-14,-6
+Body,Engraved,Engraved upper,Engraved,Epic,1,33,,,,,4,8,5,11,,,,,,,,,,
+Body,Emberheart,Emberheart upper,Emberheart,Legendary,1,43,,,,,5,9,,,,,9,15,,,,,3,7
+Barrel,Stub,Stub shroud,Snub,Common,1,5,,,6,,-8,-4,-14,-6,-30,-15,,,,,,,9,21
+Barrel,Standard,Slotted shroud,,Common,1,0,,,9,,,,,,,,,,,,,,,
+Barrel,Ported,Ported shroud,Ported,Uncommon,1,15,,,9,,,,,,,,3,7,,,-14,-6,,
+Barrel,Long,Long shroud,Reaching,Uncommon,1,15,,,13,,,,5,11,12,28,,,,,,,-9,-3
+Barrel,Heatsink,Heatsink barrel,Cooled,Rare,1,25,,,11,,,,,,,,9,21,,,,,-6,-2
+Barrel,Shrouded,Perforated jacket,Jacketed,Rare,1,25,,,14,,,,7,13,9,21,,,,,-8,-4,-8,-4
+Barrel,Carbine,Carbine handguard,Carbine,Epic,1,35,,,16,,5,11,10,20,20,40,,,,,,,-17,-7
+Barrel,Gilded,Gilded shroud,Gilded,Legendary,1,45,,,12,,6,12,6,12,10,20,4,8,,,,,,
+Muzzle,Cap,Brass thread cap,,Common,1,0,,,,,,,,,,,,,,,,,,
+Muzzle,Cone,Flash cone,,Common,1,1,,,,,,,2,6,,,,,,,-4,-2,,
+Muzzle,Brake,Two-port brake,Braced,Uncommon,1,11,,,,,,,2,4,,,,,,,-21,-9,,
+Muzzle,Comp,Compensator,Steady,Uncommon,1,11,,,,,,,4,8,,,,,,,-15,-7,,
+Muzzle,Glowcage,Ember cage,Flashless,Rare,1,21,,,,,,,5,11,,,2,6,,,,,,
+Muzzle,Can,Suppressor,Silent,Rare,1,21,,,,,-4,-2,4,8,3,7,,,,,,,,
+Muzzle,LongCan,Long suppressor,Whisper,Epic,1,31,,,,,-6,-2,8,16,10,20,,,,,,,-12,-6
+Magazine,40,40-round helix,,Common,1,0,40,,,,,,,,,,,,,,,,,
+Magazine,45Quick,45-round quick-pull helix,Quickdraw,Uncommon,1,12,45,,,barrel>=9,,,,,,,,,-28,-12,,,,
+Magazine,50,50-round helix,Extended,Uncommon,1,12,50,,,barrel>=9,,,,,,,,,5,11,,,,
+Magazine,50Twin,50-round twin helix,Twinned,Rare,1,22,50,,,barrel>=9,,,,,,,,,-21,-9,,,,
+Magazine,60,60-round helix,Hungry,Rare,1,22,60,,,barrel>=13,,,,,,,,,12,28,,,-14,-6
+Magazine,60Brass,60-round brass helix,Brassbound,Epic,1,32,60,,,barrel>=13,,,,,,,,,-7,-3,,,,
+Magazine,Gilded,55-round gilded helix,Gilded,Legendary,1,42,55,,,barrel>=11,,,,,,,3,7,-21,-9,,,,
+Sight,Iron,Folding irons,,Common,1,0,,1.0,,,,,,,,,,,,,,,6,14
+Sight,Pip,Pip dot,Dotted,Common,1,4,,1.25,,,,,3,7,,,,,,,,,,
+Sight,Reflex,Reflex sight,Reflex,Uncommon,1,14,,1.25,,,,,4,8,,,,,,,,,3,7
+Sight,Holo,Holographic sight,Holo,Uncommon,1,14,,1.5,,,,,6,14,,,,,,,,,,
+Sight,Prism,2x prism,Prism,Rare,1,24,,2.0,,,,,7,17,,,,,,,,,-7,-3
+Sight,Scope,3x scope,Scoped,Epic,1,34,,3.0,,,,,11,25,6,14,,,,,,,-14,-6
+Sight,Gilded,Gilded reflex,Gilded,Legendary,1,44,,1.5,,,,,8,16,,,,,,,,,5,11
+Stock,Wire,Wire stock,,Common,1,0,,,,,,,,,,,,,,,,,,
+Stock,Stub,Buffer cap,Stockless,Common,1,3,,,,,,,-8,-4,,,,,,,6,12,12,24
+Stock,Skeleton,Skeleton stock,Nimble,Uncommon,1,10,,,,,,,,,,,,,,,3,7,7,17
+Stock,Telescope,Telescoping stock,Measured,Uncommon,1,10,,,,,,,4,8,,,,,,,-6,-2,,
+Stock,Cheek,Leather cheek wrap,Steady,Rare,1,20,,,,,,,5,11,,,,,,,-6,-2,,
+Stock,Spring,Buffered wire stock,Cushioned,Rare,1,20,,,,,,,,,,,,,,,-21,-9,-7,-3
+Stock,Brass,Brass wire stock,Brassbound,Epic,1,30,,,,,,,,,,,,,,,-14,-6,5,11

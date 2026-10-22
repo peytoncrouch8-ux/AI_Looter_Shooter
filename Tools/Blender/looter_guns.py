@@ -330,3 +330,233 @@ class Gun:
             owner = built[model]
             lm.socket(owner, name, location - owner.location, rotation)
         return built
+
+
+# --- Frontier-tech pieces (2026-10-21: the Rustler SMG, Thresher LMG, Longhorn sniper and Powderkeg launcher) ---
+# The look the user picked: sand polymer shells (POLY_SAND, tinted per gun), gunmetal (BLUED, BLACK), brass fittings,
+# ember-orange glow and cyan optics. The two glows the game drives carry UV0.x along their part (along_uv), so the game
+# can light them part of the way: GunAmmoGlow (the rounds left) and GunHeatGlow (barrel heat).
+
+RETICLE = glow('GunReticle', 0xff3b2e, 6.0)          # as every gun's: sight dots and crosses
+EMBER = glow('GunEmberGlow', 0xff7a24, 4.0)          # fixed ember glow: vents, lines, a loaded rocket's tip
+CYAN = glow('GunCyanGlow', 0x56dcff, 5.0)            # optics: LEDs, objective rings
+AMMO_GLOW = glow('GunAmmoGlow', 0xff8a2e, 4.0)       # the rounds left: lit from UV0.x 0 up to the share left
+HEAT_GLOW = glow('GunHeatGlow', 0xff5a1e, 3.0)       # barrel heat: lit by the game as the gun heats
+COPPER = material('GunCopper', 'MetalWorn', 0xc9794a)   # bullet jackets (the Drover's)
+
+
+def along_uv(obj, u0, u1, v=0.0, w=0.0):
+    """UV0 for a part the game lights part of the way (GunAmmoGlow, GunHeatGlow): x runs from 0 at u0 to 1 at u1 (u0
+    may lie past u1: a magazine counts from its feed end), y once round the axis along u through (v, w), so no face is
+    without UV area. Call it on the part in gun space, before Gun.build moves it to its origin."""
+    me = obj.data
+    if not me.uv_layers:
+        me.uv_layers.new(name='UVMap')
+    uv = me.uv_layers.active.data
+    span = (u1 - u0) or 1.0
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            # A hair's offset by the distance from the axis gives end caps (all at one u) some UV area.
+            x = min(max((-co.y / CM - u0) / span, 0.0), 1.0) + 0.001 * math.hypot(co.z / CM - v, co.x / CM - w)
+            y = (math.atan2(co.z / CM - v, co.x / CM - w) / (2.0 * math.pi)) % 1.0
+            uv[li].uv = (x, y)
+    obj['KeepUV'] = 1   # fill_uvs leaves it be
+    return obj
+
+
+def fill_uvs(gun):
+    """Box-projects UV0 onto the gun's parts that have none worth the name (glows, glass: materials without a texture
+    set, which mapped() leaves at zero), so Unreal's tangent build doesn't warn on them. Parts along_uv mapped keep
+    theirs. Call it before gun.build()."""
+    for parts in gun.parts.values():
+        for obj in parts:
+            me = obj.data
+            if obj.get('KeepUV'):
+                del obj['KeepUV']   # not a property the model should carry
+                continue
+            if not me.materials or SET_OF.get(me.materials[0].name if me.materials[0] else ''):
+                continue
+            if not me.uv_layers:
+                me.uv_layers.new(name='UVMap')
+            uv = me.uv_layers.active.data
+            for poly in me.polygons:
+                n = poly.normal
+                a = max(range(3), key=lambda i: abs(n[i]))
+                i, j = [k for k in range(3) if k != a]
+                for li in poly.loop_indices:
+                    co = me.vertices[me.loops[li].vertex_index].co
+                    uv[li].uv = (co[i] * 10.0, co[j] * 10.0)
+
+
+def bezier(p0, p1, p2, n=8):
+    """A quadratic curve from p0 to p2 pulled toward p1, as n + 1 points (any number of coordinates)."""
+    return [tuple((1 - t) ** 2 * a + 2 * (1 - t) * t * b + t * t * c for a, b, c in zip(p0, p1, p2))
+            for t in (k / n for k in range(n + 1))]
+
+
+def helix(u0, u1, r_in, r_out, pitch, band, v=0.0, w=0.0, steps=24, phase=0.0, mat=None):
+    """A coil band wound round an axis along u through (v, w), from u0 to u1: band cm wide along u, between radii r_in
+    and r_out, advancing pitch cm a turn (a helical magazine's frame, a spring, a cooling coil). The gaps between its
+    turns (pitch - band wide) show what lies inside. phase (degrees) turns where it starts."""
+    bm = lp.new_bmesh()
+    hb = band * 0.5
+    turns = max((u1 - u0 - band) / pitch, 0.0)
+    n = max(int(math.ceil(turns * steps)), 1)
+    rings = []
+    for i in range(n + 1):
+        t = turns * i / n
+        a = 2.0 * math.pi * t + math.radians(phase)
+        c = u0 + hb + pitch * t
+        ca, sa = math.cos(a), math.sin(a)
+        rings.append([bm.verts.new(at(c + du, v + r * sa, w + r * ca))
+                      for du, r in ((-hb, r_in), (hb, r_in), (hb, r_out), (-hb, r_out))])
+    for r0, r1 in zip(rings, rings[1:]):
+        for j in range(4):
+            bm.faces.new((r0[j], r0[(j + 1) % 4], r1[(j + 1) % 4], r1[j]))
+    bm.faces.new(rings[0])
+    bm.faces.new(list(reversed(rings[-1])))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return mapped(lp.mesh_object(bm), mat)
+
+
+def hollow(profile, u0, v=0.0, segments=20, mat=None, wall=0.12, w=0.0):
+    """A tube turned round an axis along u (profile [(du, r), ...] as turned) but open at both ends: a thin wall that
+    follows the outline inside, so the eye looks down it (scope tubes, sight rings)."""
+    outer = [(r * CM, du * CM) for du, r in profile]
+    inner = [((r - wall) * CM, du * CM) for du, r in reversed(profile)]
+    obj = lp.lathe(outer + inner, segments=segments, closed=True)[0]
+    obj.data.transform(Matrix.Translation(at(u0, v, w)) @ Matrix.Rotation(math.radians(90.0), 4, 'X'))
+    return mapped(obj, mat)
+
+
+def cartridge(u, v, w=0.0, length=5.6, r=0.5, case=BRASS, tip=COPPER, segments=10):
+    """A round lying along u with its base at u (a belt's rounds, a magazine's window): a necked brass case and a copper
+    bullet. Returns the two pieces."""
+    body = length * 0.62
+    return [turned([(0.0, r * 1.05), (0.12, r * 1.05), (0.16, r * 0.9), (0.3, r), (body, r), (body + 0.35, r * 0.62),
+                    (body + 0.6, r * 0.62)], u, v, w, segments=segments, mat=case),
+            turned([(0.0, r * 0.6), (length * 0.2, r * 0.6), (length * 0.32, r * 0.42), (length * 0.38 - 0.02, 0.06)],
+                   u + body + 0.55, v, w, segments=segments, mat=tip)]
+
+
+# --- Frontier-tech sights (each family builds its own copies on its own rail) ---
+
+def scope_glass(gun, m, u_eye, u_obj, v, r_eye, r_obj, dot=False, wall=0.12):
+    """A tube sight's glass: a lens just inside each end, and a reticle just behind the objective (a dot, or a fine
+    cross), tiny because it sits over the screen's crosshair."""
+    gun.add(m, tube(u_eye + 0.15, u_eye + 0.25, r_eye - wall - 0.03, v=v, segments=20, mat=LENS))
+    gun.add(m, tube(u_obj - 0.25, u_obj - 0.15, r_obj - wall - 0.03, v=v, segments=24, mat=LENS))
+    u = u_obj - 0.4
+    if dot:
+        gun.add(m, pin(u, v, -0.06, 0.06, 0.06, mat=RETICLE, segments=10))
+    else:
+        gun.add(m, box(u, u + 0.02, v - 0.075, v + 0.075, 0.02, bevel=0.0, mat=RETICLE))
+        gun.add(m, box(u, u + 0.02, v - 0.01, v + 0.01, 0.15, bevel=0.0, mat=RETICLE))
+
+
+def frontier_sight(gun, m, kind, uc, v0, shell=POLY_SAND, metal=BLACK, trim=None, span=14.0, zoom=4.0):
+    """One of the frontier-tech sights on a rail whose teeth top out at v0, centered on uc; adds its SOCKET_Aim (where
+    the eye lines up: the irons' rear ring, the dot, the eyepiece). trim: a material for its rings and caps (BRASS on
+    rarer ones). Kinds:
+      Iron    folding irons span cm apart: a peep ring at the back, a post with a brass bead and a cyan dot in front
+      Pip     a 1x tube dot with a cyan LED knob and a sand sunshade
+      Reflex  an open window in a sand hood, a cyan strip under the glass
+      Holo    a boxy holographic sight, a sand cap with a cyan bar along its top
+      Prism   a compact 2x prism, a cyan ring round its objective
+      Scope   a tube scope (zoom 3-8 makes it longer and wider at the objective), two rings, turrets, an ember line
+              along the top and a cyan objective ring"""
+    trim = trim or metal
+    if kind == 'Iron':
+        ur, uf = uc - span * 0.5, uc + span * 0.5
+        h = v0 + 2.5
+        gun.add(m, box(ur - 1.4, ur + 1.4, v0, v0 + 0.6, 2.2, bevel=0.15, mat=metal))
+        blade = slab([(ur - 1.0, v0 + 0.6), (ur + 1.0, v0 + 0.6), (ur + 0.7, h + 0.9), (ur - 0.7, h + 0.9)], 1.8,
+                     bevel=0.15, mat=metal, round=0.3)
+        gun.add(m, cut(blade, [tube(ur - 2.0, ur + 2.0, 0.42, v=h, segments=16)]))
+        gun.add(m, hollow([(0.0, 0.62), (0.5, 0.62)], ur - 0.25, h, 16, trim, wall=0.2))
+        gun.add(m, box(uf - 1.2, uf + 1.2, v0, v0 + 0.6, 2.0, bevel=0.15, mat=metal))
+        gun.add(m, slab([(uf - 0.9, v0 + 0.6), (uf + 0.9, v0 + 0.6), (uf + 0.4, h - 0.2), (uf - 0.4, h - 0.2)], 1.6,
+                        bevel=0.12, mat=metal, round=0.2))
+        gun.add(m, upright(uf, h - 0.3, h - 0.05, 0.16, mat=BRASS, segments=10))
+        gun.add(m, pin(uf - 0.17, h - 0.18, -0.07, 0.07, 0.08, mat=CYAN, segments=8))
+        for w in (-1.05, 1.05):   # wings guarding the front post
+            gun.add(m, slab([(uf - 0.7, v0 + 0.6), (uf + 0.7, v0 + 0.6), (uf + 0.4, h + 0.2), (uf - 0.4, h + 0.2)], 0.3,
+                            w=w, bevel=0.06, mat=metal, round=0.2))
+        gun.socket(m, 'Aim', (ur, h))
+        return
+    if kind == 'Pip':
+        h = v0 + 2.7
+        gun.add(m, box(uc - 3.6, uc + 3.6, v0, v0 + 1.2, 2.2, bevel=0.25, mat=metal))
+        gun.add(m, hollow([(0, 1.4), (0.8, 1.4), (1.2, 1.2), (6.0, 1.2), (6.4, 1.4), (7.4, 1.4)], uc - 3.7, h, 20, metal))
+        gun.add(m, hollow([(0, 1.5), (2.2, 1.55)], uc + 3.7, h, 20, shell))                  # sunshade
+        gun.add(m, hollow([(0, 1.43), (0.3, 1.43)], uc - 3.75, h, 20, trim, wall=0.18))     # eyepiece ring
+        gun.add(m, pin(uc, h, 1.0, 1.9, 0.6, mat=metal, segments=14))                       # LED knob on the left
+        gun.add(m, pin(uc, h, 1.9, 2.0, 0.34, mat=CYAN, segments=12))
+        scope_glass(gun, m, uc - 3.7, uc + 3.7, h, 1.4, 1.4, dot=True)
+        gun.socket(m, 'Aim', (uc - 3.5, h))
+        return
+    if kind == 'Reflex':
+        gun.add(m, box(uc - 3.6, uc + 3.4, v0, v0 + 1.0, 2.6, bevel=0.25, mat=metal))
+        hood = slab([(uc - 1.8, v0 + 1.0), (uc + 3.4, v0 + 1.0), (uc + 3.4, v0 + 4.6), (uc + 2.2, v0 + 5.6),
+                     (uc - 0.4, v0 + 5.6), (uc - 1.8, v0 + 4.4)], 2.6, bevel=0.25, mat=shell, round=0.4)
+        gun.add(m, cut(hood, [cbox(uc - 2.8, uc + 4.4, v0 + 1.7, v0 + 4.8, -1.0, 1.0)]))
+        gun.add(m, box(uc + 2.4, uc + 2.55, v0 + 1.7, v0 + 4.8, 2.0, bevel=0.0, mat=LENS))
+        gun.add(m, box(uc + 1.9, uc + 2.9, v0 + 1.05, v0 + 1.25, 1.6, bevel=0.0, mat=CYAN))
+        gun.add(m, box(uc - 3.4, uc - 1.6, v0 + 1.0, v0 + 1.7, 2.0, bevel=0.15, mat=trim))   # the emitter
+        gun.add(m, pin(uc + 2.3, v0 + 3.25, -0.1, 0.1, 0.1, mat=RETICLE))
+        gun.socket(m, 'Aim', (uc + 2.3, v0 + 3.25))
+        return
+    if kind == 'Holo':
+        gun.add(m, box(uc - 5.4, uc + 5.4, v0, v0 + 1.3, 3.0, bevel=0.25, mat=metal))
+        hood = slab([(uc - 5.4, v0 + 1.2), (uc + 5.4, v0 + 1.2), (uc + 5.4, v0 + 5.5), (uc + 4.0, v0 + 6.4),
+                     (uc - 4.0, v0 + 6.4), (uc - 5.4, v0 + 5.5)], 3.4, bevel=0.35, segments=3, mat=metal, round=0.4)
+        gun.add(m, cut(hood, [cbox(uc - 6.4, uc + 6.4, v0 + 1.9, v0 + 5.6, -1.25, 1.25)]))
+        gun.add(m, box(uc - 3.0, uc + 3.0, v0 + 6.3, v0 + 6.75, 1.9, bevel=0.15, mat=shell))
+        gun.add(m, box(uc - 2.6, uc + 2.6, v0 + 6.7, v0 + 6.85, 0.5, bevel=0.0, mat=CYAN))
+        for u in (uc - 5.45, uc + 5.3):   # bands round the window's ends
+            gun.add(m, box(u, u + 0.15, v0 + 1.2, v0 + 6.4, 3.5, bevel=0.05, mat=trim))
+        gun.add(m, box(uc + 3.9, uc + 4.05, v0 + 1.9, v0 + 5.6, 2.5, bevel=0.0, mat=LENS))
+        gun.add(m, pin(uc + 3.8, v0 + 3.75, -0.12, 0.12, 0.12, mat=RETICLE))
+        gun.socket(m, 'Aim', (uc + 3.8, v0 + 3.75))
+        return
+    if kind == 'Prism':
+        h = v0 + 2.7
+        body = slab([(uc - 5.0, v0), (uc + 5.0, v0), (uc + 5.0, v0 + 4.1), (uc + 3.5, v0 + 4.8), (uc - 3.5, v0 + 4.8),
+                     (uc - 5.0, v0 + 4.1)], 3.0, bevel=0.35, segments=3, mat=metal, round=0.5)
+        gun.add(m, cut(body, [tube(uc - 6.0, uc + 6.0, 1.05, v=h, segments=20)]))
+        gun.add(m, slab([(uc - 3.2, v0 + 4.6), (uc + 3.2, v0 + 4.6), (uc + 2.6, v0 + 5.3), (uc - 2.6, v0 + 5.3)], 2.4,
+                        bevel=0.2, mat=shell, round=0.3))
+        gun.add(m, hollow([(0, 1.3), (0.35, 1.3)], uc + 4.9, h, 20, CYAN, wall=0.25))
+        gun.add(m, hollow([(0, 1.3), (0.35, 1.3)], uc - 5.25, h, 20, trim, wall=0.25))
+        gun.add(m, box(uc + 4.55, uc + 4.57, h - 0.075, h + 0.075, 0.02, bevel=0.0, mat=RETICLE))
+        gun.add(m, box(uc + 4.55, uc + 4.57, h - 0.01, h + 0.01, 0.15, bevel=0.0, mat=RETICLE))
+        for u in (uc - 4.9, uc + 5.0):
+            gun.add(m, tube(u, u + 0.12, 1.1, v=h, segments=20, mat=LENS))
+        gun.socket(m, 'Aim', (uc - 4.9, h))
+        return
+    if kind == 'Scope':
+        k = (zoom - 3.0) / 5.0                        # 0 at 3x, 1 at 8x
+        length = 17.0 + 9.0 * k
+        r_eye, r_tube, r_obj = 1.8, 1.25 + 0.1 * k, 2.0 + 0.7 * k
+        h = v0 + r_obj + 1.6
+        u_eye = uc - length * 0.45
+        u_obj = u_eye + length
+        bell = min(5.5 + 3.0 * k, length * 0.35)
+        gun.add(m, hollow([(0, r_eye), (3.6, r_eye), (5.0, r_tube), (length - bell, r_tube), (length - bell + 2.0, r_obj),
+                           (length, r_obj)], u_eye, h, 24, metal))
+        for u in (uc - 4.4, uc + 4.4):   # rings round the tube on their bases, open in the middle like it
+            gun.add(m, hollow([(0.0, r_tube + 0.22), (1.3, r_tube + 0.22)], u - 0.65, h, 20, trim, wall=0.24))
+            gun.add(m, box(u - 0.9, u + 0.9, v0, h - r_tube - 0.05, 2.1, bevel=0.2, mat=metal))
+        gun.add(m, upright(uc, h + r_tube - 0.1, h + r_tube + 1.2, 0.85, mat=metal, segments=16))
+        gun.add(m, upright(uc, h + r_tube + 1.2, h + r_tube + 1.45, 0.65, mat=trim, segments=16))
+        gun.add(m, pin(uc, h, -r_tube - 1.2, -r_tube + 0.1, 0.85, mat=metal, segments=16))
+        gun.add(m, box(u_eye + 5.4, u_obj - bell - 0.3, h + r_tube - 0.05, h + r_tube + 0.12, 0.3, bevel=0.0, mat=EMBER))
+        gun.add(m, box(u_eye + 5.2, u_obj - bell - 0.1, h + r_tube - 0.2, h + r_tube + 0.05, 0.8, bevel=0.05,
+                       mat=shell))
+        gun.add(m, hollow([(0, r_obj + 0.06), (0.35, r_obj + 0.06)], u_obj - 0.35, h, 24, CYAN, wall=0.22))
+        gun.add(m, hollow([(0, r_eye + 0.08), (0.9, r_eye + 0.08)], u_eye, h, 24, RUBBER, wall=0.25))   # eyecup
+        scope_glass(gun, m, u_eye, u_obj, h, r_eye, r_obj)
+        gun.socket(m, 'Aim', (u_eye + 0.2, h))
+        return
+    raise ValueError(f'frontier_sight: no kind {kind!r}')

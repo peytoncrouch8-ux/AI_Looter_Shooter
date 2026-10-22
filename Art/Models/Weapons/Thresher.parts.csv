@@ -1,0 +1,46 @@
+Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax
+Body,Standard,Standard receiver,,Common,1,0,,,,,,,,,,,,,,,,,,
+Body,Ironside,Ironside receiver,Ironside,Uncommon,1,13,,,,,2,4,,,,,,,,,-9,-3,-6,-2
+Body,Scrapper,Scrapper receiver,Scrapped,Uncommon,1,13,,,,,4,8,-6,-2,,,,,,,,,,
+Body,Vented,Vented receiver,Vented,Uncommon,1,13,,,,,,,,,,,4,8,,,2,4,,
+Body,Skeleton,Skeleton receiver,Light,Rare,1,23,,,,,,,,,,,,,,,4,8,7,17
+Body,Armored,Armored receiver,Armored,Rare,1,23,,,,,3,7,,,,,,,,,-21,-9,-14,-6
+Body,Engraved,Engraved receiver,Engraved,Epic,1,33,,,,,4,8,5,11,,,,,,,,,,
+Body,Forge,Forge receiver,Forged,Legendary,1,43,,,,,5,9,,,,,9,15,,,-9,-3,,
+Barrel,Standard,Ringed barrel,,Common,1,0,,,34,,,,,,,,,,,,,,,
+Barrel,Short,Short barrel,Assault,Common,1,5,,,26,,-8,-4,-10,-4,-25,-10,,,,,,,9,21
+Barrel,Fluted,Fluted barrel,Fluted,Uncommon,1,15,,,34,,,,5,11,6,14,,,,,,,3,7
+Barrel,Jacketed,Jacketed barrel,Jacketed,Uncommon,1,15,,,34,,,,,,,,6,14,,,-7,-3,,
+Barrel,Finned,Finned barrel,Cooled,Rare,1,25,,,32,,,,,,,,9,21,,,,,-6,-2
+Barrel,Heavy,Heavy barrel,Heavy,Rare,1,25,,,38,,5,11,7,17,,,,,,,-14,-6,-21,-9
+Barrel,Gilded,Gilded barrel,Gilded,Epic,1,35,,,36,,7,13,10,20,15,30,,,,,,,,
+Barrel,Furnace,Furnace barrel,Furnace,Legendary,1,45,,,36,,8,14,,,,,10,20,,,,,-8,-4
+Muzzle,Cap,Brass cap,,Common,1,0,,,,,,,,,,,,,,,,,,
+Muzzle,Cone,Flash cone,,Common,1,1,,,,,,,2,6,,,,,,,-4,-2,,
+Muzzle,Slotted,Slotted flash hider,Flashless,Uncommon,1,11,,,,,,,4,8,,,,,,,,,,
+Muzzle,Booster,Recoil booster,Boosted,Uncommon,1,11,,,,,,,,,,,6,12,,,3,7,,
+Muzzle,Brake,Box brake,Thumping,Rare,1,21,,,,,,,,,,,,,,,-30,-15,-8,-4
+Muzzle,Can,Suppressor,Silent,Rare,1,21,,,,,-4,-2,4,8,3,7,,,,,,,,
+Muzzle,Flare,Brass flare,Flared,Epic,1,31,,,,,,,5,11,,,3,7,,,-15,-7,,
+Magazine,80,80-round box,Light,Common,1,2,80,,,,,,,,,,,,-21,-9,,,3,7
+Magazine,100,100-round box,,Common,1,0,100,,,,,,,,,,,,,,,,,
+Magazine,100Window,100-round windowed box,Ready,Uncommon,1,12,100,,,,,,,,,,,,-14,-6,,,,
+Magazine,120,120-round box,Extended,Uncommon,1,12,120,,,,,,,,,,,,5,11,,,,
+Magazine,Pouch,100-round pouch,Ripcord,Rare,1,22,100,,,,,,,,,,,,-35,-20,,,,
+Magazine,150,150-round box,Hungry,Rare,1,22,150,,,,,,,,,,,,12,28,,,-14,-6
+Magazine,Drum,140-round drum,Drummer,Epic,1,32,140,,,,,,,,,,,,5,11,,,-10,-4
+Magazine,Brass,150-round brass box,Brassbound,Legendary,1,42,150,,,,,,,,,,,,-14,-6,,,,
+Sight,Iron,Handle irons,,Common,1,0,,1.0,,,,,,,,,,,,,,,6,14
+Sight,Pip,Pip dot,Dotted,Common,1,4,,1.25,,,,,3,7,,,,,,,,,,
+Sight,Reflex,Reflex sight,Reflex,Uncommon,1,14,,1.25,,,,,4,8,,,,,,,,,3,7
+Sight,Holo,Holographic sight,Holo,Uncommon,1,14,,1.5,,,,,6,14,,,,,,,,,,
+Sight,Prism,2x prism,Prism,Rare,1,24,,2.0,,,,,7,17,,,,,,,,,-7,-3
+Sight,Scope,3x scope,Scoped,Rare,1,24,,3.0,,,,,11,25,6,14,,,,,,,-14,-6
+Sight,Tracker,4x tracker scope,Tracker,Epic,1,34,,4.0,,,,,15,31,12,28,,,,,,,-21,-9
+Stock,Fixed,Fixed stock,,Common,1,0,,,,,,,,,,,,,,,,,,
+Stock,Skeleton,Skeleton stock,Nimble,Common,1,3,,,,,,,,,,,,,,,3,7,7,17
+Stock,Buffer,Buffer stock,Cushioned,Uncommon,1,10,,,,,,,,,,,,,,,-14,-6,,
+Stock,Cheek,Leather cheek riser,Steady,Uncommon,1,10,,,,,,,5,11,,,,,,,-6,-2,,
+Stock,Monopod,Monopod stock,Anchored,Rare,1,20,,,,,,,7,17,,,,,,,,,-17,-7
+Stock,RearGrip,Rear-grip stock,Braced,Rare,1,20,,,,,,,,,,,,,,,-21,-9,-7,-3
+Stock,Engraved,Engraved stock,Engraved,Epic,1,30,,,,,,,,,,,,,,,-10,-4,5,11
