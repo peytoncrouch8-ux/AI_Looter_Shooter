@@ -54,3 +54,43 @@ windows of a long take joined by 0.25 s of silence) and prints each excerpt's sh
 | `Bullet_FlyBy.wav` | 2017 Gamemaster Audio - Bullet Impact Sounds: `bullet_flyby_fast_05.wav` | Weapon.NearMiss.Whiz |
 | `Bullet_Cracks.wav` | 2017 Pole Position - The Warfare Library: `warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav` 129.95-131.35 | Weapon.NearMiss.Whiz (supersonic crack) |
 | `Licensing.pdf` | 2016/2017 bundles' licence (identical) | |
+
+The four new guns, their rocket and the reload foley (Phase 12.3, GUNS-SOUND, 2026-10-21 night; PP = 2016 Pole Position
+Production, GM = 2017 Gamemaster Audio, BZ = 2017 Bluezone Corporation - War Zone (Designed Explosions)):
+
+| Excerpt (`Sonniss/`) | Source (library: file; seconds used) | Used for |
+|---|---|---|
+| `SMG_MP7_Gun.wav` | PP HK MP7: `HK_MP7_4.6mm_on_gun_DPA4062_clean_Four_shots_x_1.wav` 0-0.9 | SMG Core (the front) |
+| `SMG_MP7_1m.wav` | PP HK MP7: `HK_MP7_4.6mm_1m_left_off_axis_MKH416_clean_Four_shots_x_1.wav` 0-0.9 | SMG Core (bark) |
+| `SMG_Uzi_1m.wav` | PP Uzi: `Uzi_9mm_1m_right_MKH8040_1_clean_Five_shots_x_1.wav` 0.15-1.6 | SMG Core (bark), Low, Distant |
+| `SMG_MP5_2m.wav` | PP HK MP5: `HK_MP5_9mm_2m_behind_clean_Double_shots_x_1.wav` 0-1.2 | SMG Core (bark), Low, Distant |
+| `SMG_Vz61_1m5.wav` | PP Vz61: `Vz61_Scorpion_9mm_1.5m_behind_right_clean_Double_shots_x_1.wav` 0-1.2 | SMG Core (bark), Low |
+| `SMG_MP5_75m.wav` | PP HK MP5: `HK_MP5_9mm_75m_behind_Schoeps_A_clean_Double_shots_x_1.wav` 0.1-2.6 | SMG Distant, TailOpen roll |
+| `SMG_Uzi_75m.wav` | PP Uzi: `Uzi_9mm_75m_behind_Ehrlund_R1_clean_Five_shots_x_1.wav` 0.25-3.2 | SMG Distant, TailOpen roll |
+| `SMG_Vz61_50m.wav` | PP Vz61: `Vz61_Scorpion_9mm_50m_behind_Ehrlund_R1_clean_Double_shots_x_1.wav` 0-2.2 | SMG Distant |
+| `SMG_P90_75m.wav` | PP FN P90: `FN_P90_5.7mm_75m_behind_Ehrlund_R1_clean_Double_shots_x_1.wav` 0.15-2.9 | SMG Distant |
+| `SMG_TMP_Bolt.wav` | PP Gun Foley: `Steyr_TMP_9mm_foley_distant_MKH418S_S_cocking_&_dry_fire.wav` six 0.7-1.4 s windows | SMG Mech (bolt home) |
+| `Foley_G36C_Mag.wav` | PP Gun Foley: `Heckler_&_Koch_G36C_5.56mm_foley_close_up_MKH60_mag_in_&_out.wav` eight 0.6-0.9 s windows | SMG HelixOut, HelixIn |
+| `Sniper_Barrett_Gun.wav` | PP Barrett M98B: `Barrett_M98B_.338_Lapua_on_gun_DPA4062_clean_Single_shots_x_17.wav` six 1.05 s windows from 3.0 s | Sniper Core (front) |
+| `Sniper_Barrett_2m.wav` | PP Barrett M98B: `Barrett_M98B_.338_Lapua_2m_right_MKH60_clean_Single_shots_x_17.wav` six 3.45 s windows from 2.96 s | Sniper Core (bark), Low, TailOpen roll, Distant |
+| `Sniper_R700_1m.wav` | PP Remington 700: `Remington_700_7.62x51mm_1m_right_MKH8040_1_clean_Single_shots_x_14.wav` four windows 0-14.7 | Sniper Core (bark) |
+| `Sniper_R700_50m.wav` | PP Remington 700: `Remington_700_7.62x51mm_50m_behind_788_Schoeps_B_clean_Single_shots_x_14.wav` four windows 0-15.5 | Sniper Distant |
+| `Sniper_Sako_1m.wav` | PP Sako TRG 22: `Sako_TRG_22_TRG_1m_left_off_axis_MKH416_clean_Single_shots_x_5.wav` three windows | Sniper Core (bark) |
+| `Sniper_GM_Shot.wav` | GM Gun Sound Pack: `gun_rifle_sniper_shot_01.wav` whole | Sniper Core (weight), Low |
+| `Sniper_FAL_25m.wav` | PP FN FAL: `FN_FAL_7.62x51mm_25m_in_front_Holophone_Ls_clean_2_shots.wav` 0-3.4 | Sniper Distant |
+| `LMG_L7A2_1m.wav` | PP L7A2 GPMG: `L7A2_GPMG_7.62x51mm_belt_fed_1m_in_front_RE20_clean_Single_shots_tracer_x_2.wav` 3.95-6.4 | LMG Core (chug), Low |
+| `LMG_L110_1m.wav` | PP L110A2: `L110A2_LMG_5.56mm_belt_fed_1m_right_MKH8040_1_clean_Single_shots_x_2.wav` 0.05-1.7, 3.95-5.49 | LMG Core, Low |
+| `LMG_AKM_Ground.wav` | PP AKM: `AKM_7.62x39mm_1m_left_on_ground_DPA4062_clean_Triple_shots_x_1.wav` 0.05-1.4 | LMG Core (front) |
+| `LMG_MG_Field.wav` | 2017 Pole Position - The Warfare Library: `warfare_t2_mg_firing_close_projectile_tail_large_field_Telinga_w_MKH8020_or_MKH8060.wav` 0-1.24, 4.4-9, 23.4-26.45, 40.15-41.25, 44.3-52 | LMG Core, TailOpen roll, Distant |
+| `LMG_L110_50m.wav` | PP L110A2: `L110A2_LMG_5.56mm_belt_fed_50m_behind_788_Schoeps_A_clean_Single_shots_x_2.wav` 0.05-3.9, 4.03-5.49 | LMG Distant |
+| `LMG_L7A2_50m.wav` | PP L7A2 GPMG: `L7A2_GPMG_7.62x51mm_belt_fed_50m_behind_Schoeps_B_clean_Single_shots_tracer_x_2.wav` 0.08-4, 4.08-7.4 | LMG Distant |
+| `LMG_M2_Warehouse.wav` | 2016 Audiobeast: `Audiobeast_Medium_Warehouse_Browning_M2_.50_Machine_Gun_03m_RSM191_MS_Raw_002_Burst_x2.wav` 19.4-23, 24.6-30 | LMG TailInside (after a burst) |
+| `Launcher_MK44.wav` | 2016 Fascinated Sound - The Gun Locker: `Automatic Cannon - MK44 - 03 - Single Shot with Report 03.wav` 0.2-6.5 | Launcher Core (thump), Low, TailOpen roll, Distant |
+| `Launcher_Whoosh.wav` | BZ: `Bluezone-BC0214-explosion-whooshe-003.wav` 0-2.33 (the whoosh before its blast, played reversed) | Launcher Core (the rocket leaving), Distant |
+| `Explosion_Large.wav` | GM Explosion Sound Pack: `explosion_large_08.wav` whole | Launcher.Explosion (body) |
+| `Explosion_NoTail.wav` | GM Explosion Sound Pack: `explosion_large_no_tail_03.wav` whole | Launcher.Explosion (front) |
+| `Explosion_MedTail.wav` | GM Explosion Sound Pack: `explosion_med_long_tail_01.wav` whole | Launcher.Explosion (body) |
+| `Explosion_Mine2.wav` | BZ: `Bluezone-BC0214-beep-mine-explosion-002.wav` 0.35-6 (after its beep) | Launcher.Explosion (body) |
+| `Explosion_Whoosh.wav` | BZ: `Bluezone-BC0214-explosion-whooshe-020.wav` 2.55-8.9 (its blast) | Launcher.Explosion (body) |
+| `Explosion_Far.wav` | GM Explosion Sound Pack: `explosion_far_distant_02.wav` whole | Launcher.Explosion.Distant |
+| `Explosion_Cannon_Far.wav` | 2017 Pole Position - The Warfare Library: `warfare_t1b_cannon_firing_forest_distant_MKH8060_2.wav` 0.4-2.7, 2.65-7, 16.15-17.95, 17.95-22 | Launcher.Explosion.Distant |

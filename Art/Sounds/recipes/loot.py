@@ -338,3 +338,44 @@ def soul_mote_pickup(v, r):
     x = layers((chime, 0.0, -5.0), (pad, 0.0, 0.0), (draw, 0.0, -12.0), (shimmer, 0.0, -22.0))
     x = F.filt(x, F.peak(3300.0, -4.0, 0.8), F.hp(80.0), extend=False)
     return _outside(x, r, -22.0)
+
+
+# --- The Legendary's landing (Phase 12.3 drop moments) -----------------------------------------------------------------
+
+@cue('Loot.Drop.Legendary.Land', variations=2, att='Gun', jitter=0.0, conc=1, level=-6.0)
+def drop_legendary_land(v, r):
+    # A Legendary hitting the ground under its column of light: a deep boom (a big drum's low head and a thud of air),
+    # the gun's steel ringing out bright as it lands, a burst of dust and grit thrown up, and the stinger's E major
+    # glinting up in three soft bells, ringing out in the open.
+    from recipes import band as B
+    drum = B.big_drum(child(r, 'drum'), 1.0, f0=[44.0, 40.0][v], t60=0.9)
+    drum = F.filt(drum, F.lp(900.0, 0.7), extend=False)
+    air = kit.noise_thump(0.35, child(r, 'air'), 700.0, 55.0, 0.18, 1.1, 0.1, 0.002)
+    f0 = [620.0, 580.0][v]
+    steel = M.strike(M.parts(f0, f0 * 4.2, child(r, 'steel'), 10, 0.7, 0.25, 0.4), M.hammer(0.00012), 1.1)
+    shine = M.strike(M.parts(5600.0, 8400.0, child(r, 'shine'), 4, 0.3, 0.15, 0.25), M.hammer(0.00004), 0.5)
+    n = ns(0.9)
+    t = times(n)
+    dust = G.grit(0.9, child(r, 'dust'), 3000.0 * np.exp(-t / 0.18) + 300.0, 400.0, 3000.0, 1.5, 4)
+    dust = F.filt(dust, F.lp(3500.0), extend=False) * E.end_fade(E.perc(0.9, 0.003, 0.6), 0.02)
+    bells = np.zeros(1)
+    for i, nm in enumerate(['E5', 'G#5', 'B5']):
+        bells = layers(bells, (_glint(nm, child(r, 'b', i), 1.2 - 0.2 * i, 0.6, -9.0, 0.0002, -16.0), 0.09 + 0.07 * i,
+                               -1.5 * i))
+    x = layers((normalize(drum), 0.0, 0.0), (kit.set_level(air, drum, -3.0, 0.02), 0.0, 0.0),
+               (_loud_l(steel), 0.002, -9.0), (_loud_l(shine), 0.003, -18.0), (kit.set_level(dust, drum, -14.0, 0.02), 0.004, 0.0),
+               (normalize(bells), 0.0, -12.0))
+    x = F.filt(x, F.peak(3300.0, -4.0, 0.8), F.hp(30.0), extend=False)
+    ir = R.outdoor(child(r, 'ir'), dur=1.6, slaps=((0.12, -9.0), (0.3, -14.0)), tail_t60=1.2, tail_db=-14.0)
+    x = R.apply(x, ir, wet_db=-14.0, pre_hp=150.0)
+    return Y.limit(normalize(D.drive(normalize(x), 3.0, 'tanh'), 0.0), -1.0, 0.002, 0.08)
+
+
+def _loud_l(x, win=0.005):
+    p = kit.env_peak(x, win)
+    return x / p if p > 0 else x
+
+
+# The story elements' statuses (recipes/elements.py) render with the loot group until 'elements' is listed in
+# recipes/__init__.py's GROUPS (importing it there too is harmless).
+from recipes import elements  # noqa: E402,F401

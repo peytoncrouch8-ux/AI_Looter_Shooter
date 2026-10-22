@@ -429,3 +429,8 @@ def revolver_crit_ring(v, r):
                (_loud(tick, 0.005), 0.0, -8.0))
     x = F.filt(x, F.peak(3300.0, -5.0, 0.8), extend=False)
     return ST.widen(x, child(r, 'wide'), 0.35)
+
+
+# The four new kinds (Phase 12.3, 2026-10-21 night): each module adds its kind to KINDS and MIX and registers its cues
+# with _register above, plus its own (reloads, the bolt, the spin-up, the rocket).
+from recipes import guns_smg, guns_sniper, guns_lmg, guns_launcher  # noqa: E402,F401
