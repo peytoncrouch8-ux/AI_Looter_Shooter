@@ -206,7 +206,7 @@ bool FBellRingerStatsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Worth killing first"), Defaults->XPReward > Unpaid->XPReward);
 	TestTrue(TEXT("It trails the pack"), Defaults->ChaseSpeed < Unpaid->ChaseSpeed);
 	TestEqual(TEXT("The Unpaid's pack"), Defaults->PackTag, Unpaid->PackTag);
-	TestEqual(TEXT("It counts as one of the 12 Unpaid"), UEncounterSettings::Get().FindClassCap(ABellRingerCreature::StaticClass()), 12);
+	TestEqual(TEXT("It counts as one of the 16 Unpaid"), UEncounterSettings::Get().FindClassCap(ABellRingerCreature::StaticClass()), 16);  // (fights enlarged 2026-10-21; 12)
 	TestTrue(TEXT("Its phase-steps never bring it nearer than it holds"), Defaults->PhaseStep.NearestToTarget >= 800.f);
 	TestFalse(TEXT("Bare-headed"), Defaults->GetHat()->GetStaticMesh() != nullptr && Defaults->GetHat()->IsVisible());
 

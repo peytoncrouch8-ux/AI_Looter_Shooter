@@ -48,7 +48,7 @@ namespace UnfinishedBusinessTestWorld
 	 */
 	inline constexpr int32 SideTwoSteps = 3;
 	inline constexpr int32 BaleCount = 6;
-	inline constexpr int32 HandsBasic = 5;
+	inline constexpr int32 HandsBasic = 7; // (fights enlarged 2026-10-21; 5)
 
 	/**
 	 * The barn yard round the hands' spawner, as the build script places it (cm, from the spawner; build_area_whitlock.py's
@@ -143,7 +143,7 @@ namespace UnfinishedBusinessTestWorld
 	}
 
 	/**
-	 * The hired hands' fight as the build script sets it up: five Unpaid and a Restless one in the yard, Side 2's third step.
+	 * The hired hands' fight as the build script sets it up: seven Unpaid and a Restless one in the yard, Side 2's third step.
 	 * Its spots are the spawner's own (relative), its ground the yard's fence in the world, round wherever it stands.
 	 */
 	inline void SetUpHands(AEncounterSpawner& Setup)

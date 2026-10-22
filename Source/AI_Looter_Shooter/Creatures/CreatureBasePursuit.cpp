@@ -274,7 +274,7 @@ void ACreatureBase::TickSearch(float DeltaSeconds)
 	{
 	case EPursuitStep::Track:
 		// Where it last knew them to be, at a run (one that hangs back stops at its distance from it: its look says).
-		MoveToward(Pursuit.GetLastKnown(), ChaseSpeed, DeltaSeconds);
+		MoveToward(Pursuit.GetLastKnown(), GetChaseSpeedNow(), DeltaSeconds);
 		break;
 	case EPursuitStep::Sniff:
 		TickSniff(DeltaSeconds);

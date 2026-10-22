@@ -4,6 +4,8 @@
 
 #include "Bosses/AbelKeeper.h"
 #include "Creatures/BellRingerCreature.h"
+#include "Creatures/FightRules.h"
+#include "Creatures/FightTuning.h"
 #include "Creatures/GravemotherCreature.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
@@ -90,7 +92,13 @@ bool FPlayerPaceChasesTest::RunTest(const FString& Parameters)
 		TestEqual(FString::Printf(TEXT("%s chases at the same share of the player's walk"), Chase.Who), Chase.Speed / Walk,
 			Chase.FullSize / LooterPlayerSize::FullSizeWalkSpeed, 1.e-4f);
 	}
-	TestTrue(TEXT("A walking player still just outpaces a brown spider"), GetDefault<ASpiderCreature>()->ChaseSpeed < Walk);
+	// Its own chase is still just under the walk, but in play a regular kind chases Looter.Fight.ChaseScale faster (the fight
+	// contract, 2026-10-21: Borderlands normal): a walking player is caught, a sprinting one gets away.
+	const float Sprint = Walk * GetDefault<UPlayerLocomotionComponent>()->SprintSpeedMultiplier;
+	const float SpiderInPlay = FightRules::ChaseSpeedFor(GetDefault<ASpiderCreature>()->ChaseSpeed, false, FFightTuning().ChaseScale);
+	TestTrue(TEXT("A brown spider's own chase is just under the walk"), GetDefault<ASpiderCreature>()->ChaseSpeed < Walk);
+	TestTrue(FString::Printf(TEXT("...in play it catches a walking player (%.0f against %.0f)"), SpiderInPlay, Walk), SpiderInPlay > Walk);
+	TestTrue(FString::Printf(TEXT("...and a sprinting one gets away (%.0f)"), Sprint), SpiderInPlay < Sprint);
 
 	// The slimes were never slowed with the player (the user's call, 2026-10-08), and the pace leaves them be too.
 	TestEqual(TEXT("A slime keeps its own chase"), GetDefault<ASlimeCreature>()->ChaseSpeed, 220.f, 0.01f);

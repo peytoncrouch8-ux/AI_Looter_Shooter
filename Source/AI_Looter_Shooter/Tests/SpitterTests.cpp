@@ -9,6 +9,7 @@
 
 #include "Bestiary/BestiaryEntry.h"
 #include "Combat/HealthComponent.h"
+#include "Creatures/FightTuning.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/SpitterGlob.h"
 #include "Creatures/SpitterPuddle.h"
@@ -153,8 +154,10 @@ bool FSpitterRulesTest::RunTest(const FString& Parameters)
 	const ASpiderCreature* Spider = GetDefault<ASpiderCreature>();
 	TestEqual(TEXT("A kill pays as a spider's does"), Spitter->XPReward, Spider->XPReward);
 	TestTrue(TEXT("Its head and its sac are critical"), Spitter->CriticalSpotBones.Contains(FName(TEXT("head"))) && Spitter->CriticalSpotBones.Contains(SpitterLook::SacBone));
-	TestTrue(TEXT("It keeps 10 to 16 m off, inside its 22 m spit"), Spitter->BackOffWithin == 1000.f && Spitter->CloseInTo <= 1800.f
+	// 9 m since the fight contract (2026-10-21; was 10): Looter.Fight.RangedBackOff stands for it in play, with the same default.
+	TestTrue(TEXT("It keeps 9 to 16 m off, inside its 22 m spit"), Spitter->BackOffWithin == 900.f && Spitter->CloseInTo <= 1800.f
 		&& Spitter->CloseInTo > Spitter->BackOffWithin && Spitter->SpitMaxDistance > Spitter->CloseInTo);
+	TestEqual(TEXT("...the fight's back-off the same"), FFightTuning().RangedBackOff, Spitter->BackOffWithin);
 	TestTrue(TEXT("Its brain's chase stops where its band begins"), FMath::IsNearlyEqual(Spitter->AttackRange * 0.75f, Spitter->CloseInTo, 1.f));
 	TestTrue(TEXT("A spit every 3 s after a tell of most of a second"), FMath::IsNearlyEqual(Spitter->SpitEvery, 3.f) && Spitter->SpitTell >= 0.7f);
 	TestTrue(TEXT("Its bite is softer than a spider's"), Spitter->AttackDamage < Spider->AttackDamage);

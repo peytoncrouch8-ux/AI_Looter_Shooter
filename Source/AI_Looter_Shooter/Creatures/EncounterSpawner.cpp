@@ -145,11 +145,14 @@ void AEncounterSpawner::SetRandomSeed(int32 Seed)
 
 void AEncounterSpawner::SetState(EEncounterState NewState)
 {
-	if (State != NewState)
+	if (State == NewState)
 	{
-		UE_LOG(LogLooter, Verbose, TEXT("Encounter %s: %s -> %s"), *GetSpawnerId().ToString(), *GetStateName(State), *GetStateName(NewState));
+		return;
 	}
+	UE_LOG(LogLooter, Verbose, TEXT("Encounter %s: %s -> %s"), *GetSpawnerId().ToString(), *GetStateName(State), *GetStateName(NewState));
+	const EEncounterState From = State;
 	State = NewState;
+	OnStateChanged(From, NewState);
 }
 
 void AEncounterSpawner::RefreshStory()

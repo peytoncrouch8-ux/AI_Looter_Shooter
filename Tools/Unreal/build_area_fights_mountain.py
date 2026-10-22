@@ -2,7 +2,8 @@
 build_area_missionprops_mountain.py: layout.json's gameplay.encounters.fights, the story's fights a script stands from data
 (the valley's are build_area_story.py's and its neighbours'; the camps, patrols and ambushes between them are
 build_area_camps.py's, whose tests ask every one to be on by Main 4, which nothing up the lift is). Each entry:
-    {"id": "MineUpper", "spawner": "DeadMinerShiftSpawner" | "EncounterSpawner" | "AmbushSpawner" | "PatrolSpawner",
+    {"id": "MineUpper", "spawner": "DeadMinerShiftSpawner" | "EncounterSpawner" | "AmbushSpawner" | "PatrolSpawner" |
+                    "SetPieceSpawner" (an ambush with a "setPiece" block: build_area_setpieces.py),
      "frame": "level" (layout cm) | "mine" (the mine's metres: build_area_mine.py),
      "when": {"after": [...], "before": [...], "during": "", "fromStep": 0, "beforeStep": 0, "withFlags": [],
               "withoutFlags": []},
@@ -14,7 +15,9 @@ build_area_camps.py's, whose tests ask every one to be on by Main 4, which nothi
      "waves": {"count": 2, "interval": 22, "waitForClear": false, "maxAlive": 0},
      "trigger": {"polygon" | "zone", "maxRise"}, "entrance": "Rise" (an ambush),
      "route": [[X, Y], ...], "corridor": cm, "pause": s, "loop": false (a patrol),
-     "crate": [[X, Y, yaw, tucked], ...] (a Supply Crate, as a camp's), "conditionOf": "QuarryCrew"}
+     "crate": [[X, Y, yaw, tucked], ...] (a Supply Crate, as a camp's), "conditionOf": "QuarryCrew",
+     "pass": "valley" (a valley fight: Main Street's set piece, placed by build_area_camps.py in Gameplay; else the
+              mountain's, placed here in Gameplay/Mountain)}
 When each is on is the missions' data's first (Tools/Unreal/story_texts.py ENCOUNTERS by its id, or its conditionOf's),
 else its own "when"; its own withoutFlags stay on top of either. Each stands as Encounter_<id> (SpawnerId <id>; the Foreman's vigil stone finds Encounter_Foreman), its creatures tagged
 with its tags (a mission's KillNamed or an item's carrier finds them: AbeHaskett carries the clamp pin). In the mine
@@ -29,7 +32,9 @@ import unreal
 import build_area_story as story
 
 FOLDER = 'Gameplay/Mountain'
-SPAWNERS = ('EncounterSpawner', 'AmbushSpawner', 'PatrolSpawner', 'DeadMinerShiftSpawner')
+SPAWNERS = ('EncounterSpawner', 'AmbushSpawner', 'PatrolSpawner', 'DeadMinerShiftSpawner', 'SetPieceSpawner')
+# The kinds sprung as an ambush is (a trigger's ground, an entrance); a set piece is one, with its own data on top.
+AMBUSHES = ('AmbushSpawner', 'SetPieceSpawner')
 RANKS = {'Basic': 'BASIC', 'Rare': 'RARE', 'Epic': 'EPIC', 'Legendary': 'LEGENDARY'}
 ENTRANCES = {'Appear': 'APPEAR', 'Rise': 'RISE', 'Drop': 'DROP'}
 # How far over and under an encounter's middle the ground of its spots and corners is looked for on the surface (cm).
@@ -159,7 +164,8 @@ def place_one(build, entry, mine):
     except ValueError:
         build.warn(f'{label} stands in the mine and there\'s no mine table: left out')
         return None
-    made = build.place(cls, (where.x, where.y, where.z + 50.0), 0.0, label=f'Encounter_{label}', folder=FOLDER)
+    folder = FOLDER if is_mountains(entry) else 'Gameplay'
+    made = build.place(cls, (where.x, where.y, where.z + 50.0), 0.0, label=f'Encounter_{label}', folder=folder)
     made.set_editor_property('spawner_id', unreal.Name(label))
     made.set_editor_property('groups', made_groups)
     made.set_editor_property('creature_tags', [unreal.Name(t) for t in entry.get('tags', [label])])
@@ -189,15 +195,17 @@ def place_one(build, entry, mine):
                                  'maxRise': entry.get('maxRise', 800.0)})
     else:
         set_ground(where, made, entry.get('ground', {}))
-    if kind == 'AmbushSpawner':
+    if kind in AMBUSHES:
         trigger = where.polygon(entry.get('trigger', {}))
         if trigger:
             made.set_editor_property('ambush_corners', [unreal.Vector(x, y, where.z) for x, y in trigger])
-        else:
+        elif not entry.get('setPiece', {}).get('springRadius'):
             build.warn(f'{label}: no trigger polygon: it springs on approach')
         if 'maxRise' in entry.get('trigger', {}):
             made.set_editor_property('ambush_max_rise', float(entry['trigger']['maxRise']))
         made.set_editor_property('entrance', getattr(unreal.AmbushEntrance, ENTRANCES[entry.get('entrance', 'Appear')]))
+    if kind == 'SetPieceSpawner':
+        importlib.reload(importlib.import_module('build_area_setpieces')).apply(build, made, entry, where)
     if not where.in_mine and entry.get('spots'):
         step = float(entry.get('ground', {}).get('maxStep', where.camps.DEFAULT_STEP))
         where.camps.check_levels(build, f'Encounter_{label}', (where.x, where.y, where.z),
@@ -206,6 +214,11 @@ def place_one(build, entry, mine):
               f'{", ".join(str(g["count"]) + " " + g["rank"] + " " + g["class"] for g in entry["groups"])} at '
               f'({where.x:.0f}, {where.y:.0f}, {where.z:.0f}); {condition_words(when)}')
     return (label, entry, where) if entry.get('crate') else None
+
+
+def is_mountains(entry):
+    """Whether a fight is the mountain pass's (placed here); a valley one ("pass": "valley") is build_area_camps.py's."""
+    return entry.get('pass', 'mountain') == 'mountain'
 
 
 def condition_words(when):
@@ -249,7 +262,7 @@ def place_crates(build, camps):
 def place(build, mine):
     """Every entry of gameplay.encounters.fights, then the camps' crates."""
     importlib.reload(importlib.import_module('build_area_camps'))
-    fights = build.settings.get('encounters', {}).get('fights', [])
+    fights = [entry for entry in build.settings.get('encounters', {}).get('fights', []) if is_mountains(entry)]
     if not fights:
         build.warn('layout.json has no gameplay.encounters.fights (apply Art/Levels/RansomsRest/patches/mountain.json): '
                    'the mountain has no fights')

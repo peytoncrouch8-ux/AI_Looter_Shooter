@@ -3069,7 +3069,7 @@
       { "id": "calderNote", "host": "noticeBoard", "socket": "Decal", "offset": [0, -40, 9], "variant": "CalderNote" }
     ],
     "encounters": {
-      "about": "What happens between the story's fights (Docs/Polish/BorderlandsComparison.md, item 7): camps (a few creatures, a Restless leader and a Supply Crate), patrols (a pack walking a stretch of road there and back) and ambushes (they spring as the player walks onto a landmark's ground). Placed by Tools/Unreal/build_area_camps.py, checked by Looter.Encounters.Camps.Placement and .Gating, counted by Looter.Progression.Pacing (Docs/Progression.md). Layout cm, X north, Y east. after: the missions turned in before it's on; like every encounter it starts over when the level loads (the crates stay opened: the session keeps them). keepOut and storyFights are what they keep off: the safe zones and arrivals, and the scripted fights' grounds while those fights can happen (a fight during a main mission is over once a later main mission is turned in; a roaming group's ground is shared, only its spots kept clear). budget: main (on the story's path, counted before countedBefore's own fights), roaming (with the few roaming kills a normal play makes), optional (an explorer's).",
+      "about": "What happens between the story's fights (Docs/Polish/BorderlandsComparison.md, item 7): camps (a few creatures, a Restless leader and a Supply Crate), patrols (a pack walking a stretch of road there and back) and ambushes (they spring as the player walks onto a landmark's ground). Placed by Tools/Unreal/build_area_camps.py, checked by Looter.Encounters.Camps.Placement and .Gating (since 2026-10-21 the user's bigger fights: camps and patrols 5-8, ambushes and fights 6-10; set pieces, a setPiece block: build_area_setpieces.py, ASetPieceSpawner, once a session by their story flag), counted by Looter.Progression.Pacing (Docs/Progression.md). Layout cm, X north, Y east. after: the missions turned in before it's on; like every encounter it starts over when the level loads (the crates stay opened: the session keeps them). keepOut and storyFights are what they keep off: the safe zones and arrivals, and the scripted fights' grounds while those fights can happen (a fight during a main mission is over once a later main mission is turned in; a roaming group's ground is shared, only its spots kept clear). budget: main (on the story's path, counted before countedBefore's own fights), roaming (with the few roaming kills a normal play makes), optional (an explorer's).",
       "keepOut": [
         { "zone": "farm", "note": "Delia's salt line: a safe zone, always" },
         { "zone": "mainStreet", "note": "safe after Main 3" },
@@ -3145,7 +3145,7 @@
           "budget": "main",
           "countedBefore": "Main6",
           "groups": [
-            { "class": "UnpaidCreature", "count": 2, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 5, "rank": "Basic" },
             { "class": "UnpaidCreature", "count": 1, "rank": "Rare" }
           ],
           "center": [2800, -7900],
@@ -3161,7 +3161,7 @@
           "budget": "optional",
           "countedBefore": "Side1",
           "groups": [
-            { "class": "UnpaidCreature", "count": 3, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 5, "rank": "Basic" },
             { "class": "UnpaidCreature", "count": 1, "rank": "Rare" },
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
@@ -3178,7 +3178,7 @@
           "budget": "optional",
           "countedBefore": "Side1",
           "groups": [
-            { "class": "SlimeCreature", "count": 3, "rank": "Basic" },
+            { "class": "SlimeCreature", "count": 5, "rank": "Basic" },
             { "class": "SlimeCreature", "count": 1, "rank": "Rare" }
           ],
           "center": [-7100, 7380],
@@ -3195,13 +3195,13 @@
           "after": ["Main4"],
           "budget": "roaming",
           "countedBefore": "Main5",
-          "groups": [{ "class": "UnpaidCreature", "count": 3, "rank": "Area" }],
+          "groups": [{ "class": "UnpaidCreature", "count": 5, "rank": "Area" }],
           "route": [[4800, -4650], [4700, -5100], [4100, -6500]],
           "loop": false,
           "pause": 3.0,
           "corridor": 800,
           "maxRise": 800,
-          "note": "Three of the Unpaid walking the road there and back, out with the rest of the dead after Main 4. Their ground is the road's corridor, 8 m either side: they give up at the churchyard's fence and short of the sheep fold's camp."
+          "note": "Five of the Unpaid (three until the bigger fights of 2026-10-21) walking the road there and back, out with the rest of the dead after Main 4. Their ground is the road's corridor, 8 m either side: they give up at the churchyard's fence and short of the sheep fold's camp."
         },
         {
           "id": "QuarryTrack",
@@ -3209,7 +3209,7 @@
           "after": ["Main3"],
           "budget": "optional",
           "countedBefore": "Side1",
-          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }, { "class": "SpitterSpider", "count": 1, "rank": "Area" }],
+          "groups": [{ "class": "SpiderCreature", "count": 5, "rank": "Area" }, { "class": "SpitterSpider", "count": 1, "rank": "Area" }],
           "route": [[7700, 930], [8100, 1050], [8900, 1700]],
           "loop": false,
           "pause": 4.0,
@@ -3226,7 +3226,7 @@
           "budget": "main",
           "countedBefore": "Main5",
           "groups": [
-            { "class": "UnpaidCreature", "count": 3, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 6, "rank": "Basic" },
             { "class": "UnpaidCreature", "count": 1, "rank": "Rare" },
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
@@ -3234,25 +3234,42 @@
           "entrance": "Rise",
           "spots": [[6350, -3150], [7050, -3150], [6700, -2850], [7300, -2850], [6500, -2460], [7050, -2460]],
           "ground": { "obstacle": "churchyardFence", "maxStep": 900, "maxRise": 1000 },
-          "note": "After Main 4 the yard is quiet until the player walks in through its fence again (on the way back to Father Aldana to turn in Main 5): four of the dead rise in front of their boards. A player respawning at the yard's grave, or standing inside as it comes on, has to walk out and back in. The knoll's slope is one level of ground here, as for the yard's own fight."
+          "note": "After Main 4 the yard is quiet until the player walks in through its fence again (on the way back to Father Aldana to turn in Main 5): seven of the dead and their Bell-Ringer rise in front of their boards (four until the bigger fights of 2026-10-21). A player respawning at the yard's grave, or standing inside as it comes on, has to walk out and back in. The knoll's slope is one level of ground here, as for the yard's own fight."
         },
         {
           "id": "Webwood",
-          "where": "the Webwood: spiders drop from the webbed dead trees north of the Sink",
+          "where": "the Webwood: spiders drop from the webbed dead trees round the player, two Venom Spitters on the high ground (a set piece)",
           "after": ["Main4"],
           "budget": "optional",
           "countedBefore": "Main5",
           "groups": [
-            { "class": "SpiderCreature", "count": 3, "rank": "Basic" },
-            { "class": "SpiderCreature", "count": 1, "rank": "Rare" },
-            { "class": "SpitterSpider", "count": 1, "rank": "Basic" }
+            { "class": "SpiderCreature", "count": 4, "rank": "Basic", "firstWave": 1, "lastWave": 1 },
+            { "class": "SpiderCreature", "count": 1, "rank": "Rare", "firstWave": 1, "lastWave": 1 },
+            { "class": "SpiderCreature", "count": 3, "rank": "Basic", "firstWave": 2, "lastWave": 2 }
           ],
           "trigger": { "obstacle": "webwood", "maxRise": 400 },
           "entrance": "Drop",
           "dropHeight": 350,
           "spots": [[6865, 4757], [7199, 6030], [7034, 7157], [6529, 8620], [5834, 9957]],
           "ground": { "obstacle": "webwood", "margin": 300, "maxRise": 400 },
-          "note": "Beside the five crowned trees (build_area_sink.py's WEBWOOD), on their outer side, clear of the warning fence and Den Rock. Sprung on the way to Ruth's crate on the Sink's rim, or round the rim to the den; the Sink's floor (12 m down) isn't its ground."
+          "setPiece": {
+            "doneFlag": "SetPiece.Webwood",
+            "waves": 2,
+            "pushWhenLeft": 2,
+            "pushAfter": 30,
+            "aroundPlayer": true,
+            "spread": 1300,
+            "placed": [
+              { "class": "SpitterSpider", "rank": "Basic", "wave": 1, "at": [7150, 6400], "high": 300 },
+              { "class": "SpitterSpider", "rank": "Basic", "wave": 1, "at": [6600, 8300], "high": 300 }
+            ],
+            "beats": [
+              { "wave": 1, "speaker": "Hob", "line": "Look up, sunshine. LOOK UP.", "sting": "Boss.Phase", "cue": "Creature.Spider.Drop", "shake": 0.25, "shakeSeconds": 0.6 },
+              { "wave": 2, "speaker": "Hob", "line": "More in the branches! They're coming down all round you!", "sting": "Creature.RankSting", "shake": 0.15, "shakeSeconds": 0.5 }
+            ],
+            "cleared": { "speaker": "Hob", "line": "Nothing up there now but webs. See what they were sitting on.", "cue": "Boss.Loot.Burst" }
+          },
+          "note": "A set piece (2026-10-21, the user's few hand-made fights an area): sprung on the Webwood's ground as before, once a session (SetPiece.Webwood), its spiders dropping round where the player stands in two pushes (five, then three once two are left), two Spitters on the highest ground near their spots; the shower bursts where it sprang. The listed spots are the band's old drop spots, kept as its levels' and the tests' spot. Sprung on the way to Ruth's crate on the Sink's rim, or round the rim to the den; the Sink's floor (12 m down) isn't its ground."
         }
       ],
       "fights": [
@@ -3263,7 +3280,7 @@
           "budget": "main",
           "where": "the Old Quarry's floor, south of the winch house: the lift crew rise as Ellis walks out after taking Dead Lift",
           "when": { "during": "DeadLift", "fromStep": 0, "beforeStep": 1 },
-          "groups": [{ "class": "DeadMinerCreature", "count": 4, "rank": "Basic" }],
+          "groups": [{ "class": "DeadMinerCreature", "count": 5, "rank": "Basic" }],
           "tags": ["DeadMiner_QuarryCrew"],
           "spots": [[10000,1300],[10350,1000],[9950,2650],[10300,3500]],
           "entrance": "Rise",
@@ -3310,7 +3327,7 @@
           "budget": "optional",
           "where": "the crest path from the lift head toward the Goat Steps' head, there and back (Patrol Crest)",
           "when": { "after": ["DeadLift"] },
-          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }],
+          "groups": [{ "class": "SpiderCreature", "count": 5, "rank": "Area" }],
           "tags": ["Spider_CrestPatrol"],
           "route": [[14650,2200],[14250,1600],[14050,600]],
           "corridor": 600,
@@ -3323,10 +3340,10 @@
           "spawner": "EncounterSpawner",
           "mission": "LastWatch",
           "budget": "main",
-          "where": "Calder's Post's yard: four dead miners and a Restless one, come up from the Bench since the post emptied (The Last Watch's first step counts them, cleared before it or not)",
+          "where": "Calder's Post's yard: five dead miners and a Restless one, come up from the Bench since the post emptied (The Last Watch's first step counts them, cleared before it or not)",
           "when": { "after": ["DeadLift"] },
           "groups": [
-            { "class": "DeadMinerCreature", "count": 4, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 5, "rank": "Basic" },
             { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" }
           ],
           "tags": ["DeadMiner_CalderPost"],
@@ -3341,9 +3358,9 @@
           "spawner": "EncounterSpawner",
           "mission": "LastWatch",
           "budget": "main",
-          "where": "three dead miners come up from the Bench at the post while the watch fire burns (45 s)",
+          "where": "six dead miners come up from the Bench at the post while the watch fire burns (45 s)",
           "when": { "during": "LastWatch", "fromStep": 3, "beforeStep": 4 },
-          "groups": [{ "class": "DeadMinerCreature", "count": 3, "rank": "Basic" }],
+          "groups": [{ "class": "DeadMinerCreature", "count": 6, "rank": "Basic" }],
           "tags": ["DeadMiner_Watch"],
           "spots": [[16400,-4400],[16900,-4000],[16200,-4900]],
           "huntOnSpawn": true,
@@ -3354,10 +3371,10 @@
           "id": "DinnerPail",
           "spawner": "EncounterSpawner",
           "budget": "optional",
-          "where": "Camp Dinner Pail on the Bench's middle round: three dead miners round a cold cookfire with their lunch pails, a Restless one and a Bell-Ringer",
+          "where": "Camp Dinner Pail on the Bench's middle round: four dead miners round a cold cookfire with their lunch pails, a Restless one and a Bell-Ringer",
           "when": { "after": ["DeadLift"] },
           "groups": [
-            { "class": "DeadMinerCreature", "count": 3, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 4, "rank": "Basic" },
             { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" },
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
@@ -3372,9 +3389,9 @@
           "id": "SpoilAmbush",
           "spawner": "AmbushSpawner",
           "budget": "main",
-          "where": "the Diggings: three dead miners rise out of the spoil heap's foot as Ellis crosses the yard to the mouth",
+          "where": "the Diggings: six dead miners rise out of the spoil heap's foot as Ellis crosses the yard to the mouth",
           "when": { "after": ["DeadLift"], "withoutFlags": ["BackPay.Paid"] },
-          "groups": [{ "class": "DeadMinerCreature", "count": 3, "rank": "Basic" }],
+          "groups": [{ "class": "DeadMinerCreature", "count": 6, "rank": "Basic" }],
           "tags": ["DeadMiner_SpoilAmbush"],
           "spots": [[20100,9350],[20550,9650],[20900,10050]],
           "entrance": "Rise",
@@ -3390,7 +3407,7 @@
           "where": "the upper gallery: dead miners swinging picks at the walls, working for no one; their Restless one by the lunch pails",
           "when": {},
           "groups": [
-            { "class": "DeadMinerCreature", "count": 4, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 7, "rank": "Basic" },
             { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" }
           ],
           "tags": ["DeadMiner_MineUpper"],
@@ -3407,10 +3424,10 @@
           "mission": "BackPay",
           "budget": "main",
           "frame": "mine",
-          "where": "the lower drift and its two side stopes, up to the eleven's barricade: four dead miners, a Restless one and a Bell-Ringer",
+          "where": "the lower drift and its two side stopes, up to the eleven's barricade: seven dead miners, a Restless one and a Bell-Ringer",
           "when": {},
           "groups": [
-            { "class": "DeadMinerCreature", "count": 4, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 7, "rank": "Basic" },
             { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" },
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
@@ -3439,6 +3456,80 @@
           "activation": 2600,
           "despawn": 6000,
           "ground": { "rooms": ["stope"], "maxRise": 300, "margin": 100 }
+        },
+        {
+          "id": "MainStreet",
+          "spawner": "SetPieceSpawner",
+          "pass": "valley",
+          "mission": "Main3",
+          "budget": "main",
+          "where": "Main Street after the town gate (a set piece, Main 3 on the way to Tilly): the Unpaid rise from the boardwalks' shadows round the Gilt Spur, ahead, then behind, ten in two pushes, a Bell-Ringer tolling from the saloon's balcony",
+          "when": { "during": "Main3", "fromStep": 2 },
+          "groups": [
+            { "class": "UnpaidCreature", "count": 4, "rank": "Basic", "firstWave": 1, "lastWave": 1 },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "firstWave": 1, "lastWave": 1 },
+            { "class": "UnpaidCreature", "count": 5, "rank": "Basic", "firstWave": 2, "lastWave": 2 }
+          ],
+          "tags": ["Unpaid_MainStreet"],
+          "center": [0, 3400],
+          "spots": [[400,3100],[-400,3500],[400,4100],[-400,4400],[0,4900],[800,3950],[400,1900],[-400,2200],[0,1600],[-400,1500],[400,2700],[-800,2250]],
+          "entrance": "Rise",
+          "huntOnSpawn": true,
+          "trigger": { "polygon": [[-1300,1950],[-1300,5000],[1300,5000],[1300,1950]], "maxRise": 600 },
+          "ground": { "zone": "mainStreet", "maxRise": 600, "maxStep": 400 },
+          "setPiece": {
+            "doneFlag": "SetPiece.MainStreet",
+            "waves": 2,
+            "pushWhenLeft": 3,
+            "pushAfter": 30,
+            "hush": ["Speaker_Tilly"],
+            "placed": [
+              { "class": "BellRingerCreature", "rank": "Basic", "wave": 1, "at": [300, 3400], "balcony": "FalseFront_Saloon" }
+            ],
+            "beats": [
+              { "wave": 1, "spots": [[400,3100],[-400,3500],[400,4100],[-400,4400],[0,4900],[800,3950]], "speaker": "Hob", "line": "Under the boardwalks, sunshine! The whole street's been waiting on you.", "sting": "Boss.Phase", "cue": "Creature.Unpaid.Shriek", "shake": 0.3, "shakeSeconds": 0.7 },
+              { "wave": 2, "spots": [[400,1900],[-400,2200],[0,1600],[-400,1500],[400,2700],[-800,2250]], "speaker": "Hob", "line": "Behind you! They're coming up out of the alleys!", "sting": "Creature.RankSting", "shake": 0.2, "shakeSeconds": 0.5 }
+            ],
+            "cleared": { "speaker": "Hob", "line": "Street's quiet. Go knock on Tilly's window, she'll open up now.", "cue": "Boss.Loot.Burst" },
+            "reward": [0, 3400]
+          },
+          "note": "Sprung as the player walks into the town's middle after the gate is won (Main 3 from its third step, counted from 0: 2), once a session (SetPiece.MainStreet). Main Street turns safe only after Main 3 is turned in, and Tilly (Speaker_Tilly) keeps her window shut while it's on, so Main 3 can't be turned in over the fight: the zone comes on after it, never during. The Bell-Ringer stands on the Gilt Spur's balcony deck (found by tracing down off its facade), in the street under it if no deck is found. Placed by build_area_camps.py (pass valley)."
+        },
+        {
+          "id": "CaveIn",
+          "spawner": "SetPieceSpawner",
+          "mission": "BackPay",
+          "budget": "main",
+          "frame": "mine",
+          "where": "the upper gallery on the way out with the payroll (the decline and the manway both come out there): the gallery shakes, dust falls from the roof, dead miners dig out of the walls ahead by the adit, then behind, ten in two pushes (a set piece)",
+          "when": { "during": "BackPay", "fromStep": 6 },
+          "groups": [
+            { "class": "DeadMinerCreature", "count": 4, "rank": "Basic", "firstWave": 1, "lastWave": 1 },
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare", "firstWave": 1, "lastWave": 1 },
+            { "class": "DeadMinerCreature", "count": 5, "rank": "Basic", "firstWave": 2, "lastWave": 2 }
+          ],
+          "tags": ["DeadMiner_CaveIn"],
+          "center": [0.0,42.0,0.0],
+          "spots": [[3.0,30.0],[7.0,31.0],[-1.0,29.5],[6.0,34.0],[8.0,36.5],[-8.0,50.0],[8.0,50.0],[-4.0,53.0],[4.0,52.0],[-8.0,44.0]],
+          "entrance": "Rise",
+          "huntOnSpawn": true,
+          "despawn": 7000,
+          "ground": { "rooms": ["gallery","office","office_door"], "maxRise": 300, "margin": 100 },
+          "setPiece": {
+            "doneFlag": "SetPiece.CaveIn",
+            "waves": 2,
+            "pushWhenLeft": 3,
+            "pushAfter": 30,
+            "springRadius": 1300,
+            "waitFor": ["MineUpper", "MineLower", "Foreman"],
+            "beats": [
+              { "wave": 1, "spots": [[3.0,30.0],[7.0,31.0],[-1.0,29.5],[6.0,34.0],[8.0,36.5]], "speaker": "Hob", "line": "The walls, sunshine! They're digging out of the walls!", "sting": "Boss.Phase", "cue": "Boss.Gravemother.Quake", "shake": 0.6, "shakeSeconds": 1.4, "dust": 16 },
+              { "wave": 2, "spots": [[-8.0,50.0],[8.0,50.0],[-4.0,53.0],[4.0,52.0],[-8.0,44.0]], "speaker": "Hob", "line": "Behind you! The whole shift's coming up!", "sting": "Creature.RankSting", "cue": "Boss.Foreman.Slam", "shake": 0.35, "shakeSeconds": 0.8, "dust": 8 }
+            ],
+            "cleared": { "speaker": "Hob", "line": "Shift's over for good. Now get us out before the roof makes up its mind.", "cue": "Boss.Loot.Burst" },
+            "reward": [0.0, 42.0]
+          },
+          "note": "Back Pay from its payroll step (counted from 0: 6, the Foreman down), once a session (SetPiece.CaveIn). It springs as the player comes within 13 m of the gallery's middle on the way out, whichever way they came up (the decline from the drift, or the manway the Foreman's step opens), and holds off while the gallery's or the drift's shift or the Foreman's lair is fighting, so no two fights stack under the Unpaid's 16."
         }
       ]
     },

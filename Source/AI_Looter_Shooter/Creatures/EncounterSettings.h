@@ -24,8 +24,9 @@ struct FEncounterClassCap
 
 /**
  * The encounters' caps, tunable without code: Project Settings > Game > Encounters, saved to Config/DefaultGame.ini under
- * [/Script/AI_Looter_Shooter.EncounterSettings]. The defaults are the area's performance plan (Docs/Areas/RansomsRest.md):
- * at most 16 creatures of any kind within 80 m of the player, and at most 12 Unpaid at once. Spawners keep to them before
+ * [/Script/AI_Looter_Shooter.EncounterSettings]. The defaults are the area's performance plan (Docs/Areas/RansomsRest.md),
+ * raised for the bigger fights (2026-10-21: the user's 6-10 a fight, the set pieces):
+ * at most 20 creatures of any kind within 80 m of the player, and at most 16 Unpaid at once. Spawners keep to them before
  * spawning (AEncounterSpawner); what a cap holds back waits its turn.
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Encounters"))
@@ -38,7 +39,7 @@ public:
 
 	/** At most this many creatures of any kind alive within NearPlayerRadius of the player; a spawn there waits for room. */
 	UPROPERTY(Config, EditAnywhere, Category = "Caps", meta = (ClampMin = "1"))
-	int32 MaxCreaturesNearPlayer = 16;
+	int32 MaxCreaturesNearPlayer = 20;
 
 	/** How near the player (cm) MaxCreaturesNearPlayer counts. */
 	UPROPERTY(Config, EditAnywhere, Category = "Caps", meta = (ClampMin = "100", Units = "cm"))
@@ -46,7 +47,7 @@ public:
 
 	/**
 	 * Kinds with a cap of their own across the level, whoever spawned them (spawners, a boss's adds, the console): the
-	 * Unpaid's 12. A spawner's group can set its own (FEncounterGroup::MaxAliveOfClass).
+	 * Unpaid's 16. A spawner's group can set its own (FEncounterGroup::MaxAliveOfClass).
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Caps")
 	TArray<FEncounterClassCap> ClassCaps;

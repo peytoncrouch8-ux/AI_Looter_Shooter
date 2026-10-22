@@ -116,7 +116,7 @@ namespace
 		Climb->Place.bIgnoreHeight = false;
 		UMissionClearObjective* Nest = MissionTestWorld::AddObjective<UMissionClearObjective>(Mission, 1);
 		Nest->SpawnerId = NestId;
-		Nest->Count = 5;
+		Nest->Count = 6; // (fights enlarged 2026-10-21; 5)
 		MissionTestWorld::AddObjective<UMissionTalkObjective>(Mission, 2)->SpeakerTag = SextonTag;
 		MissionTestWorld::AddObjective<UMissionOpenPageObjective>(Mission, 3)->Page = EMissionPage::Bestiary;
 		Mission->TurnIn.SpeakerTag = SextonTag;
@@ -129,11 +129,11 @@ namespace
 		return Mission;
 	}
 
-	/** The nest as the build script sets it up: four spiders and a Restless one, during Main 2's climb and fight. */
+	/** The nest as the build script sets it up: five spiders and a Restless one (fights enlarged 2026-10-21; four), during Main 2's climb and fight. */
 	void SetUpNest(AEncounterSpawner& Setup)
 	{
 		Setup.SpawnerId = NestId;
-		Setup.Groups = { EncounterTestWorld::MakeGroup(ASpiderCreature::StaticClass(), 4),
+		Setup.Groups = { EncounterTestWorld::MakeGroup(ASpiderCreature::StaticClass(), 5),
 			EncounterTestWorld::MakeGroup(ASpiderCreature::StaticClass(), 1, ECreatureRank::Rare) };
 		Setup.CreatureTags = { NestTag };
 		Setup.ActiveWhen.DuringMission = MainTwo;
@@ -201,7 +201,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTalkBusinessMissionTest, "Looter.Story.TalkBus
 bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 2 as its asset has it, once the mission script has made it: offered by Hob after Main 1, on Ransom's Rest, the
-	// climb (height counted), the nest cleared (five), Sexton (the boards where it happened beside him, optional), the Ledger
+	// climb (height counted), the nest cleared (six), Sexton (the boards where it happened beside him, optional), the Ledger
 	// (the step the Ledger's rule names); turned in to Sexton, for 550 experience.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main2")))
 	{
@@ -219,7 +219,7 @@ bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 			const UMissionOpenPageObjective* Open = Cast<UMissionOpenPageObjective>(Asset->GetObjective(Ledger::HandedOverStep, 0));
 			TestTrue(TEXT("1: up the bluff path onto Ransom's Point, height counted"), Climb && Climb->Place.Actor.ActorTag == PointPlace
 				&& !Climb->Place.bIgnoreHeight && Climb->Place.Radius >= 1000.f);
-			TestTrue(TEXT("2: the nest cleared, all five"), Nest && Nest->SpawnerId == NestId && Nest->Count == 5);
+			TestTrue(TEXT("2: the nest cleared, all six"), Nest && Nest->SpawnerId == NestId && Nest->Count == 6);  // (fights enlarged 2026-10-21; 5)
 			TestTrue(TEXT("3: talk to Mister Sexton"), Talk && Talk->SpeakerTag == SextonTag);
 			const UMissionObjective* Stains = Asset->GetObjective(2, 1);
 			TestTrue(TEXT("...and, optional, the boards where it happened"), Stains && Stains->bOptional);
@@ -280,8 +280,8 @@ bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 	Player->SetActorLocation(FVector(-2500.0, -1000.0, -1200.0));
 	Nest->UpdateEncounter(0.5f);
 	const TArray<ACreatureBase*> Out = Nest->GetAliveCreatures();
-	TestEqual(TEXT("The nest comes out as the player climbs: five"), Out.Num(), 5);
-	TestEqual(TEXT("...four Basic spiders"), EncounterTestWorld::CountOf(Out, ASpiderCreature::StaticClass(), ECreatureRank::Basic), 4);
+	TestEqual(TEXT("The nest comes out as the player climbs: six"), Out.Num(), 6);
+	TestEqual(TEXT("...five Basic spiders"), EncounterTestWorld::CountOf(Out, ASpiderCreature::StaticClass(), ECreatureRank::Basic), 5);
 	TestEqual(TEXT("...and a Restless one (the blue one)"), EncounterTestWorld::CountOf(Out, ASpiderCreature::StaticClass(), ECreatureRank::Rare), 1);
 	TestFalse(TEXT("...each tagged for the nest"), Out.ContainsByPredicate([](const ACreatureBase* Spider) { return !Spider->ActorHasTag(NestTag); }));
 	Runner->Update(0.2f);
@@ -299,7 +299,7 @@ bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 	Runner->Update(0.2f);
 	TestEqual(TEXT("On the top: the fight"), Runner->GetStep(MainTwo), 1);
 	TArray<FMissionObjectiveView> Views = Runner->GetObjectiveViews(MainTwo);
-	TestTrue(TEXT("The two shot from the path count: 2 / 5"), Views.Num() == 1 && Views[0].Progress == TEXT("2 / 5"));
+	TestTrue(TEXT("The two shot from the path count: 2 / 6"), Views.Num() == 1 && Views[0].Progress == TEXT("2 / 6"));
 
 	// Talked to mid-fight, Sexton puts the spiders first; the fight goes on.
 	TestTrue(TEXT("Sexton talked to mid-fight"), Sexton->SpeakerPoint->Talk(Player));
@@ -309,7 +309,7 @@ bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 	EncounterTestWorld::KillAll(*Nest);
 	Runner->Update(0.2f);
 	Views = Runner->GetObjectiveViews(MainTwo);
-	TestTrue(TEXT("All down, the nest not looked at again: one short, 4 / 5"), Views.Num() == 1 && Views[0].Progress == TEXT("4 / 5"));
+	TestTrue(TEXT("All down, the nest not looked at again: one short, 5 / 6"), Views.Num() == 1 && Views[0].Progress == TEXT("5 / 6"));
 	Nest->UpdateEncounter(0.5f);
 	Runner->Update(0.2f);
 	TestEqual(TEXT("The nest cleared: on to Sexton"), Runner->GetStep(MainTwo), 2);
@@ -469,7 +469,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTalkBusinessPlacedTest, "Looter.Story.TalkBusi
 bool FTalkBusinessPlacedTest::RunTest(const FString& Parameters)
 {
 	// Ransom's Rest as built (build_area_story.py): Sexton on the lookout's rail during Main 2, the bluff top's place, and
-	// the nest's four spiders and a Restless one on the bluff top's ground during the climb and the fight.
+	// the nest's five spiders and a Restless one on the bluff top's ground during the climb and the fight.
 	const ULevel* Level = LoadRansomsRest(*this);
 	if (!Level)
 	{
@@ -516,7 +516,7 @@ bool FTalkBusinessPlacedTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Ransom's Point's middle is marked for the climb"), bPlace);
 	if (TestNotNull(TEXT("The spider nest"), Nest))
 	{
-		TestEqual(TEXT("...four Basic spiders"), CountBrought(*Nest, ASpiderCreature::StaticClass(), ECreatureRank::Basic), 4);
+		TestEqual(TEXT("...five Basic spiders"), CountBrought(*Nest, ASpiderCreature::StaticClass(), ECreatureRank::Basic), 5);  // (fights enlarged 2026-10-21; 4)
 		TestEqual(TEXT("...and one Restless Meadow Wolf"), CountBrought(*Nest, ASpiderCreature::StaticClass(), ECreatureRank::Rare), 1);
 		TestTrue(TEXT("...during Main 2's climb and fight only"), Nest->ActiveWhen.DuringMission == MainTwo && Nest->ActiveWhen.FromStep == 0
 			&& Nest->ActiveWhen.BeforeStep == 2);

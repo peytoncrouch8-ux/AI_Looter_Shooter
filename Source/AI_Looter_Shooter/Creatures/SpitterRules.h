@@ -16,6 +16,8 @@ enum class ESpitterKeep : uint8
 	BackOff,
 	/** Too close with no way back: it stands its ground and bites whatever comes within reach. */
 	Cornered,
+	/** In its band: it walks round its target to its fight spot (UFightDirectorSubsystem), still facing it. */
+	Reposition,
 };
 
 /**

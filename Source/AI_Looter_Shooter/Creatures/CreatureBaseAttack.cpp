@@ -63,6 +63,8 @@ void ACreatureBase::TickAttack(float DeltaSeconds)
 	if (StateTime >= AttackWindup + AttackRecovery)
 	{
 		CooldownRemaining = AttackCooldown;
+		// Its turn is over: back to the ring (or its spot) while the next one comes in (CreatureBaseFight.cpp).
+		EndFightTurn();
 		ResumeHunt();
 	}
 }
@@ -90,9 +92,10 @@ void ACreatureBase::Strike()
 
 void ACreatureBase::HitWithAttack(APawn* Victim, const FVector& Push, float Strength)
 {
-	// Attacks roll in the same damage range as player weapons.
+	// Attacks roll in the same damage range as player weapons; a regular creature's hit harder by the fight's difficulty
+	// (Looter.Fight.DamageScale; a boss's own moves keep theirs).
 	const float Hardness = FMath::Max(Strength, 0.f);
-	const float Damage = LooterCombat::RollHitDamage(AttackDamage * Hardness, false);
+	const float Damage = LooterCombat::RollHitDamage(AttackDamage * Hardness * GetFightDamageScale(), false);
 	UGameplayStatics::ApplyDamage(Victim, Damage, GetController(), this, UCreatureAttackDamageType::StaticClass());
 	UE_LOG(LogLooter, Verbose, TEXT("%s hit %s for %.1f"), *GetName(), *GetNameSafe(Victim), Damage);
 	// Shove the victim back so the hit is felt, not just read on the health bar.

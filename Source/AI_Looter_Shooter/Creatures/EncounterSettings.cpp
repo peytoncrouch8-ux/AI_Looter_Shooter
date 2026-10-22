@@ -6,11 +6,12 @@ UEncounterSettings::UEncounterSettings()
 	CategoryName = TEXT("Game");
 	SectionName = TEXT("Encounters");
 
-	// The Unpaid's 12 at once (Docs/Areas/RansomsRest.md, "Performance plan"), by the class's path: AUnpaidCreature comes at
+	// The Unpaid's 16 at once (Docs/Areas/RansomsRest.md, "Performance plan"; 12 until the bigger fights of 2026-10-21, the
+	// user's 6-10 a fight and the set pieces' 10 with a Bell-Ringer), by the class's path: AUnpaidCreature comes at
 	// step 16, and the cap holds from the moment it exists. Until then the entry finds no class and caps nothing.
 	FEncounterClassCap Unpaid;
 	Unpaid.CreatureClass = TSoftClassPtr<ACreatureBase>(FSoftObjectPath(TEXT("/Script/AI_Looter_Shooter.UnpaidCreature")));
-	Unpaid.MaxAlive = 12;
+	Unpaid.MaxAlive = 16;
 	ClassCaps.Add(Unpaid);
 
 	// The kinds that may break off when hurt and alone: the animals. By path, as the Unpaid's cap is.

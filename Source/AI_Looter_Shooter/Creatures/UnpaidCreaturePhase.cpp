@@ -103,7 +103,8 @@ void AUnpaidCreature::ResetProgress()
 bool AUnpaidCreature::WantsToStep() const
 {
 	const APawn* Victim = GetTarget();
-	if (!Victim || bLunging || RetryIn > 0.f || GetCreatureState() != ECreatureState::Chase)
+	// Waiting its turn on the fight's ring it holds back on purpose: that's no stall to step out of (CreatureBaseFight.cpp).
+	if (!Victim || bLunging || RetryIn > 0.f || GetCreatureState() != ECreatureState::Chase || IsWaitingTurn())
 	{
 		return false;
 	}

@@ -116,7 +116,7 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 	// Main 4 as its asset has it: id exactly Main4 (Side 2 opens after it, Aldana's Ledger page is known after it), offered
 	// by Tilly after Main 3 on Ransom's Rest; up to the chapel, the yard cleared (13), the knock at the vestry door (Aldana
 	// sends Ellis to the bell), the bell rung (held), the Reliquary seen (its flash's event, the arrow on it; the keepers'
-	// roll beside it, optional); turned in to Aldana at the vestry door with the doc's words; 1,400 experience. (The flows
+	// roll beside it, optional); turned in to Aldana at the vestry door with the doc's words; 1,300 experience. (The flows
 	// below play the four steps it had before the knock: AddStep's.)
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main4")))
 	{
@@ -135,7 +135,7 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 			const UMissionEventObjective* Sight = Cast<UMissionEventObjective>(Asset->GetObjective(4, 0));
 			const UMissionObjective* Roll = Asset->GetObjective(4, 1);
 			TestTrue(TEXT("1: up to the Chapel of Saint Ada"), Up && Up->Place.Actor.ActorTag == ChapelPlace && Up->Place.Radius >= 1000.f);
-			TestTrue(TEXT("2: the chapel yard cleared, all thirteen"), Yard && Yard->SpawnerId == YardId && Yard->Count == 13);
+			TestTrue(TEXT("2: the chapel yard cleared, all sixteen"), Yard && Yard->SpawnerId == YardId && Yard->Count == 16);  // (fights enlarged 2026-10-21; 13)
 			TestTrue(TEXT("3: the knock at the vestry door"), Knock && Knock->SpeakerTag == AldanaTag);
 			TestTrue(TEXT("4: the chapel bell rung, held"), Bell && Bell->Target.ActorTag == AChapelBell::BellTag && Bell->bHold);
 			TestTrue(TEXT("5: the Reliquary seen: done at its flash's end, the arrow on it"), Sight && Sight->Event == AChapelReliquary::SightEvent
@@ -143,7 +143,7 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("...and, optional, the keepers' roll"), Roll && Roll->bOptional);
 			TestTrue(TEXT("Turned in to Father Aldana at the vestry door, with the doc's words"), Asset->NeedsTurnIn()
 				&& Asset->TurnIn.SpeakerTag == AldanaTag && HoldsAldanasWords(Asset->TurnIn.Lines, /*bNamed*/ false));
-			TestEqual(TEXT("Its reward: 1,400 experience"), Asset->Rewards.Experience, 1400);
+			TestEqual(TEXT("Its reward: 1,300 experience"), Asset->Rewards.Experience, 1300);  // (trimmed 2026-10-21; 1,400)
 		}
 	}
 	else
@@ -156,7 +156,7 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Side 2 opens after Main 4"), Side && Side->Prerequisites.Contains(MainFour));
 	}
 
-	// Played through in a test level: Main 4 waits for Main 3; the yard's fight waits for the chapel; six Unpaid, then six
+	// Played through in a test level: Main 4 waits for Main 3; the yard's fight waits for the chapel; eight Unpaid, then seven
 	// and a Restless one; the bell held; the Reliquary's flash; Aldana's words; the chapel yard's grave opens.
 	FCampaignRecord Campaign;
 	FTestWorldWrapper TestLevel;
@@ -215,8 +215,8 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the yard's fight is on"), Yard->IsStoryActive());
 	Yard->UpdateEncounter(0.5f);
 	const TArray<ACreatureBase*> First = Yard->GetAliveCreatures();
-	TestEqual(TEXT("The first wave: six Unpaid"), First.Num(), 6);
-	TestEqual(TEXT("...all of them Basic"), EncounterTestWorld::CountOf(First, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 6);
+	TestEqual(TEXT("The first wave: eight Unpaid"), First.Num(), 8);
+	TestEqual(TEXT("...all of them Basic"), EncounterTestWorld::CountOf(First, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 8);
 	TestFalse(TEXT("...each tagged for the yard"), First.ContainsByPredicate([](const ACreatureBase* Unpaid) { return !Unpaid->ActorHasTag(YardTag); }));
 	const TArray<FVector> FenceLine(Fence, UE_ARRAY_COUNT(Fence));
 	TestFalse(TEXT("...each inside the churchyard fence"), First.ContainsByPredicate([&FenceLine](const ACreatureBase* Unpaid)
@@ -244,13 +244,13 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...the second wave waits a moment"), Yard->GetWavesStarted(), 1);
 	Yard->UpdateEncounter(1.f);
 	const TArray<ACreatureBase*> Second = Yard->GetAliveCreatures();
-	TestEqual(TEXT("The second wave: seven"), Second.Num(), 7);
-	TestEqual(TEXT("...six Basic"), EncounterTestWorld::CountOf(Second, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 6);
+	TestEqual(TEXT("The second wave: eight"), Second.Num(), 8);
+	TestEqual(TEXT("...seven Basic"), EncounterTestWorld::CountOf(Second, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 7);
 	TestEqual(TEXT("...and one Restless"), EncounterTestWorld::CountOf(Second, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 	EncounterTestWorld::KillAll(*Yard);
 	Yard->UpdateEncounter(0.5f);
 	Runner->Update(0.2f);
-	TestTrue(TEXT("Thirteen down: the yard is clear"), Yard->GetState() == EEncounterState::Cleared && Yard->GetKilled() == 13);
+	TestTrue(TEXT("Sixteen down: the yard is clear"), Yard->GetState() == EEncounterState::Cleared && Yard->GetKilled() == 16);
 	TestEqual(TEXT("...ring the bell"), Runner->GetStep(MainFour), 2);
 	TestFalse(TEXT("...and the yard's fight is over"), Yard->IsStoryActive());
 
@@ -402,7 +402,7 @@ bool FHallowedGroundPlacedTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The chapel's middle is marked for the way up"), bPlace);
 	if (TestNotNull(TEXT("The chapel yard's fight"), Yard))
 	{
-		TestEqual(TEXT("...twelve Basic Unpaid over its waves"), CountBrought(*Yard, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 12);
+		TestEqual(TEXT("...fifteen Basic Unpaid over its waves"), CountBrought(*Yard, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 15);  // (fights enlarged 2026-10-21; 12)
 		TestEqual(TEXT("...and one Restless"), CountBrought(*Yard, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 		TestTrue(TEXT("...in two waves, the second once the first is down"), Yard->NumWaves == 2 && Yard->bWaitForClear);
 		TestTrue(TEXT("...on Main 4's second step only"), Yard->ActiveWhen.DuringMission == MainFour && Yard->ActiveWhen.FromStep == 1

@@ -43,6 +43,12 @@ public:
 	/** The bell is a weak spot of its own, besides the coal. */
 	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
 
+	/**
+	 * The support kind (UFightDirectorSubsystem): it takes no slot on the surround ring and keeps back behind it by its own
+	 * rules (its hold at 11 m is well outside the ring); its swipe, run down, still waits for a melee turn.
+	 */
+	virtual EFightRole GetFightRole() const override { return EFightRole::Support; }
+
 	// --- The toll (BellRingerCreatureToll.cpp) ---
 
 	/** What it's doing with the bell: nothing (carrying it), the tell, lowering it after a toll, or reeling from a shot. */

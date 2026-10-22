@@ -97,6 +97,8 @@ protected:
 	virtual void Strike() override;
 	virtual bool IsStuck(float Speed) const override;
 	virtual bool CanStartAttack() const override;
+	/** A leap called off in its telegraph (hit off its fight turn): it lets go of the squash. */
+	virtual void OnAttackCalledOff() override;
 	// --- Hits, death, coming back, the notice beat, its entrance (SlimeCreatureReact.cpp) ---
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) override;
 	virtual void OnDied() override;

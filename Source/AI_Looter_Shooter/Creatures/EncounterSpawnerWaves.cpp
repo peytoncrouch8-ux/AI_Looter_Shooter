@@ -71,6 +71,8 @@ void AEncounterSpawner::StartWave()
 	}
 	const int32 Wave = ++WavesStarted;
 	WaveClock = 0.f;
+	// Its kind's say first (a set piece's push comes from its own side, with its beat).
+	OnWaveStarted(Wave);
 	const UAreaDefinition* Area = FindArea();
 	const UWorld* World = GetWorld();
 	const UAreaRulesSubsystem* Rules = World ? World->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
@@ -185,7 +187,7 @@ int32 AEncounterSpawner::SpawnOwed()
 			continue;
 		}
 
-		// Its kind's cap across the level: its group's own, or the class's in the settings (the Unpaid's 12).
+		// Its kind's cap across the level: its group's own, or the class's in the settings (the Unpaid's 16).
 		int32* KindCount = nullptr;
 		if (!KindHasRoom(*Group, Settings, Encounters, KindAlive, KindCount))
 		{
@@ -194,7 +196,7 @@ int32 AEncounterSpawner::SpawnOwed()
 			continue;
 		}
 
-		// At most 16 of any kind near the player: a spot near them waits for room, one far off doesn't add to it.
+		// At most 20 of any kind near the player: a spot near them waits for room, one far off doesn't add to it.
 		const FVector Feet = Spots[NextSpot];
 		const bool bNear = Player && FVector::DistSquared(Feet, PlayerSpot) <= NearSquared;
 		if (bNear && EncounterRules::Room(NearAlive, Settings.MaxCreaturesNearPlayer) <= 0)

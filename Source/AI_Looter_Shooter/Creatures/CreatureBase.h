@@ -12,6 +12,7 @@
 #include "Creatures/CreatureTypes.h"
 #include "Creatures/CreatureUnstick.h"
 #include "Creatures/CreatureUpdateRate.h"
+#include "Creatures/FightRules.h"
 #include "Creatures/HuntingGround.h"
 #include "Templates/Function.h"
 #include "CreatureBase.generated.h"
@@ -65,6 +66,25 @@ public:
 	bool IsFightingWith(const APawn* Pawn) const;
 	/** The state half of it: Chase and Attack. */
 	static bool IsFightState(ECreatureState CreatureState);
+
+	// --- Its turn in a fight (CreatureBaseFight.cpp; UFightDirectorSubsystem runs the turns, the ring and the ranged spots) ---
+
+	/** Its place in a fight: Melee waits on the ring for its turn (the default), Ranged holds a spot in its band, Support keeps back its own way. */
+	virtual EFightRole GetFightRole() const { return EFightRole::Melee; }
+	/** The kind of turn the attack it would start now takes (Melee by default; the Spitter's spit is a Ranged one, its bite Melee). */
+	virtual EFightRole GetAttackTokenRole() const { return EFightRole::Melee; }
+	/** A ranged kind's band round its target (cm, near and far edge): where its spot may lie. False: it has none. */
+	virtual bool GetFightBand(float& OutNear, float& OutFar) const { return false; }
+	/** A boss or a Legendary monster: its own fight (no turns, no ring, its own speed and damage). */
+	bool KeepsOwnFight() const;
+	/** It takes turns and a place in fights: not its own fight, not held back. */
+	bool UsesFightDirector() const;
+	/** Its brain is held by a hit: staggered, knocked or dazed. */
+	bool IsHeldByHit() const;
+	/** Its chase speed now: ChaseSpeed, quickened by Looter.Fight.ChaseScale unless it keeps its own fight. */
+	float GetChaseSpeedNow() const;
+	/** Waiting its turn on the ring, at its slot or on its way round to it (an Unpaid then never phase-steps in). */
+	bool IsWaitingTurn() const { return bWaitingTurn; }
 
 	UFUNCTION(BlueprintPure, Category = "Creature")
 	bool IsDead() const { return State == ECreatureState::Dead; }
@@ -383,8 +403,14 @@ protected:
 	/** The attack lands, AttackWindup into it: bites whatever is in reach in front (and calls OnAttackStrike). The slime's leap overrides it. */
 	virtual void Strike();
 
-	/** Deals one attack's damage to Victim (rolled like a weapon hit) and shoves it along Push, both times Strength (a charge's 2). */
+	/** Deals one attack's damage to Victim (rolled like a weapon hit, times GetFightDamageScale) and shoves it along Push, both times Strength (a charge's 2). */
 	void HitWithAttack(APawn* Victim, const FVector& Push, float Strength = 1.f);
+
+	/** What every hit it deals is multiplied by now: Looter.Fight.DamageScale, or 1 for a boss or Legendary monster (CreatureBaseFight.cpp). */
+	float GetFightDamageScale() const;
+
+	/** Its attack was called off before its strike (hit off its turn, and no turn to be had when it came to): undo its kind's tell. */
+	virtual void OnAttackCalledOff() {}
 
 	/** Moving toward a goal at Speed but not getting anywhere (it then takes a detour). Hoppers stand still between hops. */
 	virtual bool IsStuck(float Speed) const;
@@ -485,6 +511,14 @@ private:
 	void TickSniff(float DeltaSeconds);
 	void TickProwl(float DeltaSeconds, const APawn& Prey);
 
+	// --- Its turn in a fight (CreatureBaseFight.cpp; UFightDirectorSubsystem) ---
+	void TickChaseFight(const APawn& Victim, float DeltaSeconds);
+	void SetWaitFacing(bool bFacing);
+	void EndFightTurn();
+	void LeaveFightTurn();
+	void LoseTurnToHit();
+	void ResumeAfterHit();
+
 	// --- Its notice beat (CreatureBaseReact.cpp) ---
 	void BeginNotice(ECreatureState From);
 	bool HoldForNotice(const APawn& Prey, float DeltaSeconds);
@@ -555,6 +589,14 @@ private:
 	bool bPassive = false;
 	/** Seconds its brain stays held for an entrance (HoldBrain). */
 	float BrainHold = 0.f;
+
+	// Its turn in a fight (CreatureBaseFight.cpp)
+	/** Waiting its turn on the ring (IsWaitingTurn). */
+	bool bWaitingTurn = false;
+	/** It faces its target as it moves round the ring (its walking movement doesn't turn it while this is on). */
+	bool bWaitFacing = false;
+	/** Hit off its turn in its wind-up: it must have a turn again when it comes to, or its attack is called off. */
+	bool bAttackNeedsTurn = false;
 
 	// Steering
 	FVector SteerDirection = FVector::ZeroVector;

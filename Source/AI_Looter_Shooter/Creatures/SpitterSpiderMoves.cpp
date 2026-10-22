@@ -7,6 +7,7 @@
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
 #include "Combat/EnemyProjectileSubsystem.h"
+#include "Creatures/FightTuning.h"
 #include "Creatures/SpitterGlob.h"
 #include "Weapons/WeaponFX.h"
 #include "Components/CapsuleComponent.h"
@@ -58,6 +59,40 @@ float ASpitterSpider::GetAttackStartRange() const
 		return SpitMaxDistance;
 	}
 	return 0.f;
+}
+
+EFightRole ASpitterSpider::GetAttackTokenRole() const
+{
+	// A bite up close is a melee turn like any spider's; a spit is one of the ranged turns, which keep spitters' shots apart.
+	return WantsToBite() ? EFightRole::Melee : EFightRole::Ranged;
+}
+
+bool ASpitterSpider::GetFightBand(float& OutNear, float& OutFar) const
+{
+	OutNear = GetBackOffDistance();
+	OutFar = FMath::Max(CloseInTo, OutNear + 100.f);
+	return true;
+}
+
+float ASpitterSpider::GetBackOffDistance() const
+{
+	const float FromFight = FFightTuning::LiveRangedBackOff();
+	return FromFight > 0.f ? FromFight : BackOffWithin;
+}
+
+void ASpitterSpider::OnAttackCalledOff()
+{
+	// The tell's glow at its fangs goes out with nothing thrown; its spit comes round again from its interval.
+	if (UEnemyProjectileSubsystem* Shots = GetWorld() ? GetWorld()->GetSubsystem<UEnemyProjectileSubsystem>() : nullptr)
+	{
+		Shots->ClearShotsFrom(this);
+	}
+	if (Move == ESpitterMove::Spit)
+	{
+		SpitReadyIn = FMath::Max(SpitReadyIn, GetSpitInterval() * 0.5f);
+	}
+	AttackWindup = OwnBiteWindup;
+	AttackRecovery = OwnBiteRecovery;
 }
 
 void ASpitterSpider::OnAttackStarted()
@@ -196,8 +231,10 @@ void ASpitterSpider::ReleaseSpit()
 	FSpitterGlobLaunch Launch;
 	Launch.Start = Start;
 	Launch.Radius = GlobRadius * FMath::Sqrt(Scale);
-	Launch.Damage = AttackDamage * GlobDamageShare;
-	Launch.SplashDamage = AttackDamage * SplashDamageShare;
+	// Its venom hits as hard as its bite does against the fight's difficulty (Looter.Fight.DamageScale).
+	const float Hurt = AttackDamage * GetFightDamageScale();
+	Launch.Damage = Hurt * GlobDamageShare;
+	Launch.SplashDamage = Hurt * SplashDamageShare;
 	Launch.SplashRadius = SplashRadius;
 	Launch.Size = Scale;
 	Launch.Color = SpitterLook::Venom;
@@ -205,7 +242,7 @@ void ASpitterSpider::ReleaseSpit()
 	Launch.Instigator = GetController();
 	Launch.Puddle.Radius = PuddleRadius * FMath::Sqrt(Scale);
 	Launch.Puddle.Seconds = PuddleSeconds;
-	Launch.Puddle.Damage = AttackDamage * PuddleDamageShare;
+	Launch.Puddle.Damage = Hurt * PuddleDamageShare;
 	Launch.Puddle.Every = PuddleEvery;
 	Launch.Puddle.Color = SpitterLook::Venom;
 	// One glob, or a Gravebound one's three side by side across its line (each lands as far from the middle one).

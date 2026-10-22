@@ -8,8 +8,9 @@ class isn't there yet is left out with a warning.
 - The chapel's place (a target point tagged Place_Chapel) at the chapel's middle: "Go up to the Chapel of Saint Ada" ends
   within 15 m of it.
 - The chapel yard's fight (AEncounterSpawner ChapelYard) on the chapel's spot, turned as the chapel is, its creatures'
-  spots round the chapel in the chapel's own frame (YARD_SPOTS): "12 Unpaid in two waves, and one Restless", two waves of
-  six, the second once the first is down (and 4 s more) and with the Restless one, tagged Unpaid_ChapelYard. On during
+  spots round the chapel in the chapel's own frame (YARD_SPOTS): two waves, eight Unpaid and then seven and a Restless one
+  (the user's bigger fights, 2026-10-21; the design's "12 Unpaid in two waves, and one Restless" until then), the second
+  once the first is down (and 4 s more), tagged Unpaid_ChapelYard. On during
   Main 4's second step only, coming for the player as they appear, hunting only inside the churchyard's iron fence (the
   obstacle churchyardFence) and its 2 m margin. The yard is levelled on the knoll's top (layout churchyardPad, 7.5 m;
   2026-10-12: before, the knoll fell about 8 m from the chapel's door to the fence's far corners and the limits were 9 m
@@ -28,7 +29,7 @@ class isn't there yet is left out with a warning.
   layout's gameplay.roosts ChapelYard, the same id and still open after Main 4. The fresh mound stays, as dressing.)
 - The roaming Unpaid after Main 4 ("From now on the Unpaid walk the north road and boot hill"): AEncounterSpawner BootHill
   on boot hill (the zone bootHill its ground) and NorthRoad between the hanging tree and the north road (25 m round it),
-  three each, their ranks the area's (8% Restless, 2% Gravebound), standing about until they notice the player, tagged
+  five each (three until 2026-10-21), their ranks the area's (8% Restless, 2% Gravebound), standing about until they notice the player, tagged
   Unpaid_<id>. On from Main 4's finish for good; like every encounter, a level loaded again starts them over.
 """
 import importlib
@@ -67,8 +68,10 @@ YARD_SPOTS = (
     (-950.0, 0.0), (-1000.0, 500.0), (-1000.0, -500.0), (150.0, -600.0), (-750.0, -700.0),
 )
 YARD_CLEAR = 150.0
-# Each wave's Basic Unpaid; the second comes this long after the first is down (s).
-YARD_WAVE = 6
+# Each wave's Basic Unpaid (the first eight, the second seven and the Restless one: the chapel yard is the valley's
+# biggest fight); the second comes this long after the first is down (s).
+YARD_WAVE = 8
+YARD_SECOND = 7
 YARD_WAVE_PAUSE = 4.0
 # The yard as one level of ground (cm): spots this far above or below the chapel's floor, players this far (the
 # spawner's defaults, now the yard is flat).
@@ -77,7 +80,7 @@ YARD_RISE = 600.0
 
 # The roaming Unpaid after Main 4: how many on each stretch, how far the north road's runs round its spawner, and how
 # far each spreads them out (cm).
-ROAMING_COUNT = 3
+ROAMING_COUNT = 5
 ROAD_STRETCH = 2500.0
 ROAD_SPREAD = 900.0
 HILL_SPREAD = 600.0
@@ -119,7 +122,7 @@ def place_chapel_marker(build, chapel):
 
 
 def place_yard(build, chapel):
-    """The chapel yard's fight: two waves of six Unpaid round the chapel, the Restless one with the second."""
+    """The chapel yard's fight: two waves of Unpaid round the chapel (eight, then seven), the Restless one with the second."""
     unpaid = story.actor_class('UnpaidCreature')
     cls = story.actor_class('EncounterSpawner')
     fence = story.layout_entry(build, 'obstacles', 'churchyardFence')
@@ -133,8 +136,9 @@ def place_yard(build, chapel):
     yard = build.place(cls, (at.x, at.y, at.z + 50.0), chapel.get_actor_rotation().yaw, label=f'Encounter_{YARD}',
                        folder='Gameplay')
     yard.set_editor_property('spawner_id', unreal.Name(YARD))
-    # "12 Unpaid in two waves, and one Restless": six Basic each wave, and the Restless one with the second.
-    yard.set_editor_property('groups', [story.group(unpaid, YARD_WAVE, 'BASIC'),
+    # Eight Basic in the first wave, seven in the second with the Restless one (the user's bigger fights, 2026-10-21).
+    yard.set_editor_property('groups', [story.group(unpaid, YARD_WAVE, 'BASIC', first_wave=1, last_wave=1),
+                                        story.group(unpaid, YARD_SECOND, 'BASIC', first_wave=2, last_wave=2),
                                         story.group(unpaid, 1, 'RARE', first_wave=2, last_wave=2)])
     yard.set_editor_property('num_waves', 2)
     yard.set_editor_property('wait_for_clear', True)
@@ -148,7 +152,7 @@ def place_yard(build, chapel):
     yard.set_editor_property('ground_corners', [unreal.Vector(x, y, at.z) for x, y in fence['polygon']])
     yard.set_editor_property('max_ground_step', YARD_STEP)
     yard.set_editor_property('ground_max_rise', YARD_RISE)
-    build.log(f'the chapel yard\'s fight ({YARD}: 2 waves of {YARD_WAVE} Unpaid, the Restless one with the second) round '
+    build.log(f'the chapel yard\'s fight ({YARD}: {YARD_WAVE} Unpaid, then {YARD_SECOND} and the Restless one) round '
               f'the chapel, inside the churchyard fence, during {MAIN4}\'s second step')
     check_yard_clear(build, chapel)
 
@@ -250,7 +254,7 @@ def place_aldana(build, chapel):
 # ---------------------------------------------------------------------------
 
 def roaming(build, cls, unpaid, spawner_id, x, y, z):
-    """A roaming stretch's spawner: three Unpaid of the area's ranks, on from Main 4's finish, standing about."""
+    """A roaming stretch's spawner: five Unpaid of the area's ranks, on from Main 4's finish, standing about."""
     made = build.place(cls, (x, y, z + 50.0), 0.0, label=f'Encounter_{spawner_id}', folder='Gameplay')
     made.set_editor_property('spawner_id', unreal.Name(spawner_id))
     made.set_editor_property('groups', [roaming_group(unpaid, ROAMING_COUNT)])

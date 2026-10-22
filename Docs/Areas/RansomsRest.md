@@ -278,11 +278,14 @@ Each group: where it lives; where it waits and watches.
 - Patrol WestRoad (after Main 4): the west road below the chapel knoll, 20 m there and back; the road's corridor.
 - Patrol QuarryTrack (after Main 3): the quarry track to the Old Quarry, 14 m; the track's corridor.
 - Ambush Churchyard (after Main 4): the lanes between the west grave rows, rising when the player walks back in; the fence.
-- Ambush Webwood (after Main 4): beside the five webbed trees, dropping 3.5 m; its own ground.
+- Ambush Webwood (after Main 4, a set piece since 2026-10-21): round the player in the webbed band, dropping 3.5 m; its own ground.
+- Main Street's set piece (Main 3, after the gate): the street between the boardwalks round the Gilt Spur, its Bell-Ringer on
+  the balcony a storey up (in reach of the street's ground, 6 m band); the town's zone.
+- The Providence's cave-in (Back Pay, on the way out): the upper gallery and the office, as the gallery's shift.
 - The mountain's and the expansion's new fights: expansion §4 and §6, "Encounters".
 
 - The camps, patrols and ambushes (2026-10-09, `layout.json` `gameplay.encounters`, `build_area_camps.py`) fill the walks
-  between the story's fights: 7 more kills on the main path, about 15 more for an explorer. Packs flank (the ends swing out up
+  between the story's fights: 14 more kills on the main path since the bigger fights (7 before), about 45 more for an explorer. Packs flank (the ends swing out up
   to 35°), a hurt Basic spider or slime may break off once with its pack gone, and a Restless or better creature's first turn
   on the player plays the rank sting.
 - Obstacles keep to this rule: inside every fight's ground they are cover standing on it (boulders, low walls, wagons, a rock
@@ -290,6 +293,61 @@ Each group: where it lives; where it waits and watches.
   fights, and nothing stands within 5 m of the bluff path.
 - Check: spawn each group with `Looter.SpawnCreature` and chase it. A navmesh with cliff and ramp links comes only if this
   proves too limiting.
+
+## Fights and set pieces
+
+The user's calls (2026-10-21, Saved/Fight/CONTRACT.md): 6-10 enemies a normal fight (camps and patrols 5-8, the chapel yard
+and the mine at the top), plus a few hand-made set pieces an area, each announced and rewarded; no plain waves, no new mixed
+packs; each fight keeps its area's kinds and ranks. The fights escalate with the story. Caps: 20 near the player, 16 of the
+Unpaid family. XP held by trimming the missions' (`Docs/Progression.md`). Code: `Docs/Pipeline.md` "Fight: Layout".
+
+| Fight | When | Now (was) | Where it's set |
+|---|---|---|---|
+| Bluff nest | Main 2 | 5 spiders, 1 Restless (4+1) | `build_area_story.py` NEST_BASIC |
+| Town gate | Main 3 step 1 | 6 Unpaid, 1 Restless, from the street's mouth and its south side (3+1) | GATE_BASIC, GATE_SPOTS |
+| **Main Street** (set piece) | Main 3 from step 2 | 4 Unpaid + 1 Restless, then 5; a Bell-Ringer on the saloon balcony (new) | layout `fights` MainStreet |
+| Chapel yard | Main 4 step 1 | 8 Unpaid, then 7 and a Restless (6, then 6+1) | `build_area_chapel.py` YARD_WAVE/YARD_SECOND |
+| Boot hill, north road | after Main 4 | 5 each, the area's ranks (3) | ROAMING_COUNT |
+| Whitlock's hands | Side 2 | 7 Unpaid, 1 Restless (5+1) | `build_area_whitlock.py` HANDS_BASIC |
+| Sink floor | Main 5 | 6 spiders, area ranks (4); the sacs' 6 unchanged | `build_area_sink.py` FLOOR_COUNT |
+| Depot waiting room | The Old Fare | 4 Unpaid, 1 Restless, a Bell-Ringer (3+1+1) | `build_area_missionprops_valley.py` DEPOT_BASIC |
+| Tilly's cellar | Knocking Below | 5 Unpaid, 1 Restless (3+1) | CELLAR_BASIC |
+| Camp SheepFold | after Main 4 | 5 Unpaid, 1 Restless (2+1) | layout `camps` |
+| Camp OrchardEdge | after Main 3 | 5 Unpaid, 1 Restless, a Bell-Ringer (3+1+1) | layout `camps` |
+| Camp MillCreek | after Main 3 | 5 slimes, 1 Restless (3+1) | layout `camps` |
+| Patrol WestRoad | after Main 4 | 5 Unpaid, area ranks (3) | layout `patrols` |
+| Patrol QuarryTrack | after Main 3 | 5 spiders, a Spitter, area ranks (3+1) | layout `patrols` |
+| Ambush Churchyard | after Main 4 | 6 Unpaid, 1 Restless, a Bell-Ringer (3+1+1) | layout `ambushes` |
+| **Webwood** (set piece) | after Main 4 | 4 spiders + 1 Restless, then 3; 2 Spitters on the high ground (3+1+1) | layout `ambushes` Webwood |
+| Quarry crew + Abe | Dead Lift | 5 miners + Abe (4+1) | layout `fights` |
+| Raising steam | Dead Lift | two waves of 2 spiders and a Spitter, 2 miners with the second (unchanged: 8) | layout `fights` |
+| Crest patrol | after Dead Lift | 5 spiders, area ranks (3) | layout `fights` |
+| Calder's Post / the watch | The Last Watch | 5 miners + 1 Restless (4+1) / 6 (3) | layout `fights` |
+| Dinner Pail camp | after Dead Lift | 4 miners, 1 Restless, a Bell-Ringer (3+1+1) | layout `fights` |
+| Spoil heap | Back Pay's way | 6 miners (3) | layout `fights` |
+| Upper gallery / lower drift | Back Pay | 7 miners + 1 Restless (4+1) / 7 + 1 Restless + a Bell-Ringer (4+1+1) | layout `fights` |
+| **Providence cave-in** (set piece) | Back Pay from step 6 | 4 miners + 1 Restless ahead, then 5 behind (new) | layout `fights` CaveIn |
+| Abel, the Gravemother, the Foreman | | unchanged (bosses keep their own fights) | |
+
+The three set pieces (`ASetPieceSpawner`, once a session: each sets its story flag when won, `SetPiece.MainStreet`,
+`SetPiece.Webwood`, `SetPiece.CaveIn`, kept in the campaign record; its condition holds only without it). Each push has its
+beat (Hob's caption line, a sting, a camera shake; the cave-in's dust from the roof); the next push comes once 3 (the
+Webwood's 2) are left, or 30 s after the last. Won: Hob's line and a loot shower where it ended (2 guns at a Strongbox's luck,
+2 chest-full ammo pickups and a bonus box; no silver).
+- **Main Street ambush** (Main 3, after the gate, on the way to Tilly): sprung walking into the town's middle (X -1300 to 1300,
+  Y 1950 to 5000) from Main 3's step 2 on. The first push rises from the street's edges by the boardwalks ahead of the player
+  round the Gilt Spur, with a Bell-Ringer on the saloon's balcony deck tolling over them; the second from the alleys and
+  boardwalks behind, back toward the gate. Hob: "Under the boardwalks, sunshine! The whole street's been waiting on you."
+  **Safe zone:** Main Street turns safe only after Main 3 is turned in, and Tilly keeps her window shut (`Speaker_Tilly`
+  hushed) from the first push until the street is won, so the turn-in, and with it the safe zone, can only come after the
+  fight. A player who stood in the middle as the gate was won has to walk out and back in (the ambush rule).
+- **Webwood drop** (optional, after Main 4): sprung on the Webwood's ground; the spiders drop round where the player stands
+  (13 m out), five then three, and two Venom Spitters stand on the highest ground near (7150, 6400) and (6600, 8300). Hob:
+  "Look up, sunshine. LOOK UP." The shower bursts where it sprang.
+- **Providence cave-in** (Back Pay, from the payroll step, the Foreman down): the upper gallery, where the decline and the
+  manway both come out. It springs within 13 m of the gallery's middle on the way out (not while the gallery's or the drift's
+  shift or the Foreman's lair is fighting): the view shakes, dust sifts from the roof, four dead miners and a Restless one dig
+  out of the walls ahead by the adit, then five behind. Hob: "The walls, sunshine! They're digging out of the walls!"
 
 ## Missions
 
@@ -349,9 +407,9 @@ Today's lines (word for word):
   barn, boss adds. 160 HP and 8 damage at level 1. Floats, no legs: no walk cycle, no navmesh. Its dull red coal is the crit
   spot, tested by how close the shot line passes, like the slime's core. Lunge and shriek. Stuck or far behind, it
   phase-steps: fades out and reappears 3–5 m closer. Three clothing tints. Ledger section: Enemies.
-- **Restless Unpaid** (Rare), rank variant: one in most scripted fights, plus 8% of spawns. Blue tag and coal, ×2.5 health,
-  faster lunge.
-- **Gravebound Unpaid** (Epic), rank variant: 2% of spawns. Purple tag and coal, ×5 health. Trait: its shriek slows the player
+- **Restless Unpaid** (Rare), rank variant: one in most scripted fights, plus 8% of spawns. Blue tag and coal, ×2 health
+  (the tiers, 2026-10-20: `UCreatureRankSettings`; Hallowed ×3.5, Ethereal ×4), faster lunge.
+- **Gravebound Unpaid** (Epic), rank variant: 2% of spawns. Purple tag and coal, ×3 health. Trait: its shriek slows the player
   for 2 s (a ring effect).
 - **Meadow Wolf spider** (Basic), existing (`ASpiderCreature`): the bluff top, the chapel yard's edge, the Sink floor. 300 HP
   at level 1, head crit.
@@ -709,7 +767,8 @@ however strong the player comes back, so it is easy and low-XP to revisit. What 
   the area's band instead of class-default level and XP, a page field that moves Abel's page from Enemies to Friends, and the
   seven-names page. The UI stays Concept C.
 - **Spawners:** `AEncounterSpawner`: groups and waves switched by mission state, alive caps, rank rolls, boss adds, safe zones
-  (the farm, and the town after Main 3). Nothing they spawn respawns.
+  (the farm, and the town after Main 3). Nothing they spawn respawns. Set pieces (`ASetPieceSpawner`, 2026-10-21): *Fights
+  and set pieces*.
 - **The Unpaid:** `AUnpaidCreature`, a child of `ACreatureBase`: floating, coal crit by shot-line distance, lunge, shriek,
   phase-step.
 - **Lighting states:** golden afternoon and dusk, on a sky made for the ground. `Looter.Light Day|Dusk`.
@@ -862,8 +921,8 @@ and 0.6 ms GPU at the heaviest view, inside the same totals.
   materials and have three LODs each; the track is instanced. At the depot view the train, depot, platform, water tower, signal
   and track take at most 15 draws; from Ransom's Point, about 240 m away, at most 8, inside Main Street's 160.
 - Ghosts use a masked, dithered material with an emissive rim and coal, never translucency.
-- Live creatures: at most 12 Unpaid at once, at most 10 adds plus Abel in the boss fight, at most 16 creatures of any kind
-  within 80 m. What Ransom's Point can see is covered by the existing rules: creatures beyond 60 m tick less often, spiders stop
+- Live creatures: at most 16 Unpaid at once, at most 10 adds plus Abel in the boss fight, at most 20 creatures of any kind
+  within 80 m (12 and 16 until the bigger fights of 2026-10-21). What Ransom's Point can see is covered by the existing rules: creatures beyond 60 m tick less often, spiders stop
   posing bones off screen, health tags show only nearby. View distance doesn't change the game thread.
 - No volumetric fog or clouds: height fog plus a few unlit wisp cards along the Rim. The fog stays thin (0.003) and the
   atmosphere's aerial perspective is stretched 3 times, so each backdrop layer fades more than the one before it (darker near,

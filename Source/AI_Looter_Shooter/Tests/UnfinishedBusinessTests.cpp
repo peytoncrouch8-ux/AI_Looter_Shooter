@@ -42,7 +42,7 @@
 #include "UObject/Package.h"
 
 // Side 2, "Unfinished Business" (Docs/Areas/RansomsRest.md): Amos at his fence (only Ellis can see him), six hay bales
-// loaded into his barn by holding Interact, his old hired hands driven off (6, one of them Restless), and Amos again, who
+// loaded into his barn by holding Interact, his old hired hands driven off (8, one of them Restless), and Amos again, who
 // sits on his fence to wait for the saint to come back. Amos himself (his topics, poses and the rail) is AmosTests.cpp's.
 
 using namespace UnfinishedBusinessTestWorld;
@@ -238,7 +238,7 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 {
 	// Side 2 as its asset has it: offered by Amos at his fence (his meet lines) after Main 4 on Ransom's Rest; load six bales
 	// (held, counted from the world), ask him who's on the road (the twist: his unpaid hands), drive off the hands (their
-	// encounter cleared: six; what he owed them chalked in the barn, optional); turned in to Amos (his thanks: the topic from
+	// encounter cleared: eight; what he owed them chalked in the barn, optional); turned in to Amos (his thanks: the topic from
 	// step 3); 8 experience and a guaranteed Epic gun. (The flows below play the order it had before the givers: AddStep's.)
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Side2")))
 	{
@@ -257,13 +257,13 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("1: six hay bales loaded, held, counted from the world"), Load && Load->Count == BaleCount && Load->bHold
 				&& Load->Target.ActorTag == AHayBale::BaleTag);
 			TestTrue(TEXT("2: ask Amos who's on the road"), Road && Road->SpeakerTag == AAmosWhitlock::SpeakerTag);
-			TestTrue(TEXT("3: the hands driven off (their encounter cleared, six)"), Hands && Hands->SpawnerId == HandsId
+			TestTrue(TEXT("3: the hands driven off (their encounter cleared, eight)"), Hands && Hands->SpawnerId == HandsId
 				&& Hands->Count == HandsBasic + 1);
 			TestTrue(TEXT("...and, optional, the wages chalked in the barn"), Chalk && Chalk->bOptional);
 			TestTrue(TEXT("Turned in to Amos (his thanks: the topic from its fourth step)"), Asset->NeedsTurnIn()
 				&& Asset->TurnIn.SpeakerTag == AAmosWhitlock::SpeakerTag);
-			TestTrue(TEXT("Its reward: 800 experience and a guaranteed Epic gun"),
-				Asset->Rewards.Experience == 800 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Epic);
+			TestTrue(TEXT("Its reward: 600 experience and a guaranteed Epic gun"),
+				Asset->Rewards.Experience == 600 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Epic);  // (trimmed 2026-10-21; 800)
 		}
 	}
 	else
@@ -378,14 +378,14 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 	Player->SetActorLocation(Hands->GetActorLocation() + FVector(1500.0, 800.0, 0.0));
 	Hands->UpdateEncounter(0.5f);
 	const TArray<ACreatureBase*> Out = Hands->GetAliveCreatures();
-	TestEqual(TEXT("In the yard: six of them"), Out.Num(), HandsBasic + 1);
-	TestEqual(TEXT("...five Unpaid"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), HandsBasic);
+	TestEqual(TEXT("In the yard: eight of them"), Out.Num(), HandsBasic + 1);
+	TestEqual(TEXT("...seven Unpaid"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), HandsBasic);
 	TestEqual(TEXT("...and one Restless"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 	TestFalse(TEXT("...coming for the player"), Out.ContainsByPredicate([Player](const ACreatureBase* Unpaid) { return Unpaid->GetTarget() != Player; }));
 	EncounterTestWorld::KillAll(*Hands);
 	Hands->UpdateEncounter(0.5f);
 	Runner->Update(UMissionRunner::UpdateInterval);
-	TestTrue(TEXT("Six down: the yard is clear"), Hands->GetState() == EEncounterState::Cleared && Hands->GetKilled() == HandsBasic + 1);
+	TestTrue(TEXT("Eight down: the yard is clear"), Hands->GetState() == EEncounterState::Cleared && Hands->GetKilled() == HandsBasic + 1);
 	TestEqual(TEXT("...talk to Amos (its step past the last)"), Runner->GetStep(SideTwo), 3);
 	TestTrue(TEXT("...ready to turn in to him"), Runner->IsReadyToTurnIn(SideTwo) && !Campaign.HasCompleted(SideTwo));
 	TestFalse(TEXT("...and the fight is over"), Hands->IsStoryActive());
@@ -553,7 +553,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnfinishedBusinessHandsTest, "Looter.Story.Unf
 
 bool FUnfinishedBusinessHandsTest::RunTest(const FString& Parameters)
 {
-	// "Drive off his old hired hands, Unpaid from the fever winter (6, one of them Restless)": on during Side 2's third step
+	// "Drive off his old hired hands, Unpaid from the fever winter (8, one of them Restless)": on during Side 2's third step
 	// only, appearing in the barn yard as the player comes within 22 m, inside its fence and coming for them, giving up at
 	// the fence; cleared, the step is done.
 	FCampaignRecord Campaign;
@@ -590,8 +590,8 @@ bool FUnfinishedBusinessHandsTest::RunTest(const FString& Parameters)
 	Player->SetActorLocation(FVector(1500.0, 800.0, 0.0));
 	Hands->UpdateEncounter(0.5f);
 	const TArray<ACreatureBase*> Out = Hands->GetAliveCreatures();
-	TestEqual(TEXT("In the yard: six"), Out.Num(), HandsBasic + 1);
-	TestEqual(TEXT("...five Basic"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), HandsBasic);
+	TestEqual(TEXT("In the yard: eight"), Out.Num(), HandsBasic + 1);
+	TestEqual(TEXT("...seven Basic"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), HandsBasic);
 	TestEqual(TEXT("...one Restless"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 	TestFalse(TEXT("...each tagged for the fight"), Out.ContainsByPredicate([](const ACreatureBase* Unpaid) { return !Unpaid->ActorHasTag(HandsTag); }));
 	const TArray<FVector> Fence(YardFence, UE_ARRAY_COUNT(YardFence));
@@ -612,7 +612,7 @@ bool FUnfinishedBusinessHandsTest::RunTest(const FString& Parameters)
 	EncounterTestWorld::KillAll(*Hands);
 	Hands->UpdateEncounter(0.5f);
 	Runner->Update(UMissionRunner::UpdateInterval);
-	TestTrue(TEXT("Six down: cleared, and Side 2 moves on to Amos"), Hands->GetState() == EEncounterState::Cleared
+	TestTrue(TEXT("Eight down: cleared, and Side 2 moves on to Amos"), Hands->GetState() == EEncounterState::Cleared
 		&& Runner->GetStep(SideTwo) == 3);
 	TestFalse(TEXT("...the fight is over"), Hands->IsStoryActive());
 	return true;
@@ -723,7 +723,7 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 	}
 	if (TestNotNull(TEXT("The hired hands' fight"), Hands))
 	{
-		TestEqual(TEXT("...five Basic Unpaid"), CountBrought(*Hands, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), HandsBasic);
+		TestEqual(TEXT("...seven Basic Unpaid"), CountBrought(*Hands, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), HandsBasic);
 		TestEqual(TEXT("...and one Restless"), CountBrought(*Hands, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 		TestTrue(TEXT("...on Side 2's third step only"), Hands->ActiveWhen.DuringMission == SideTwo && Hands->ActiveWhen.FromStep == 2
 			&& Hands->ActiveWhen.BeforeStep == 3);

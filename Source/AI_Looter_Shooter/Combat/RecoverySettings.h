@@ -24,10 +24,12 @@ struct AI_LOOTER_SHOOTER_API FRecoverySettings
 
 	/**
 	 * Seconds without being hurt before health starts to come back. Long enough that a fight in progress never regenerates
-	 * (a gap in the shooting is not a rest), short enough that the walk to the next camp restores the player.
+	 * (a gap in the shooting is not a rest), short enough that the walk to the next camp restores the player. 7 since the
+	 * fight contract (2026-10-21, Borderlands normal; was 6): in play Looter.Fight.RegenDelay sets it each frame
+	 * (UPlayerVitalsSubsystem::Tick), and this default matches it.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wounds That Close", meta = (ClampMin = "0", Units = "s"))
-	float RegenDelaySeconds = 6.f;
+	float RegenDelaySeconds = 7.f;
 
 	/**
 	 * Seconds the rate takes to rise from nothing to its full value once it starts. A ramp makes the first moment of healing
@@ -36,9 +38,12 @@ struct AI_LOOTER_SHOOTER_API FRecoverySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wounds That Close", meta = (ClampMin = "0", Units = "s"))
 	float RegenRampSeconds = 1.5f;
 
-	/** Share of the most health, per second, healed at the ramp's top: 0.12 takes a little over eight seconds to heal a bar. */
+	/**
+	 * Share of the most health, per second, healed at the ramp's top: 0.07 takes about fifteen seconds to heal a bar (0.12, a
+	 * little over eight, until the fight contract of 2026-10-21). In play Looter.Fight.RegenRate sets it each frame.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wounds That Close", meta = (ClampMin = "0", ClampMax = "1"))
-	float RegenRatePerSecond = 0.12f;
+	float RegenRatePerSecond = 0.07f;
 
 	// --- Soul-motes: how often they drop ---
 

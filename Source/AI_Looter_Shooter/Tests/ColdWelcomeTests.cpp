@@ -105,7 +105,7 @@ namespace
 		Road->Place.Radius = 1000.f;
 		UMissionClearObjective* Gate = MissionTestWorld::AddObjective<UMissionClearObjective>(Mission, 1);
 		Gate->SpawnerId = GateId;
-		Gate->Count = 4;
+		Gate->Count = 7; // (fights enlarged 2026-10-21; 4)
 		UMissionReachObjective* Shop = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, 2);
 		Shop->Place.Actor.ActorTag = TillyTag;
 		Shop->Place.Radius = 800.f;
@@ -115,11 +115,11 @@ namespace
 		return Mission;
 	}
 
-	/** The gate's fight as the build script sets it up: three Unpaid and a Restless one, on Main 3's second step only. */
+	/** The gate's fight as the build script sets it up: six Unpaid and a Restless one (fights enlarged 2026-10-21; three), on Main 3's second step only. */
 	void SetUpGate(AEncounterSpawner& Setup)
 	{
 		Setup.SpawnerId = GateId;
-		Setup.Groups = { EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 3),
+		Setup.Groups = { EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 6),
 			EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 1, ECreatureRank::Rare) };
 		Setup.CreatureTags = { GateTag };
 		Setup.ActiveWhen.DuringMission = MainThree;
@@ -201,8 +201,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColdWelcomeMissionTest, "Looter.Story.ColdWelc
 bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 3 as its asset has it: id exactly Main3 (Side 1 opens after it), offered by Delia after Main 2 on Ransom's Rest;
-	// the farm road to the gate, the gate's fight cleared (four), Bright & Daughter; turned in to Tilly at her window, her
-	// whole talk (the bail out on the sill, Main 6's item now; the box of effects); 1,200 experience and an Uncommon gun or
+	// the farm road to the gate, the gate's fight cleared (seven), Bright & Daughter; turned in to Tilly at her window, her
+	// whole talk (the bail out on the sill, Main 6's item now; the box of effects); 1,000 experience and an Uncommon gun or
 	// better.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main3")))
 	{
@@ -218,14 +218,14 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 			const UMissionClearObjective* Gate = Cast<UMissionClearObjective>(Asset->GetObjective(1, 0));
 			const UMissionReachObjective* Shop = Cast<UMissionReachObjective>(Asset->GetObjective(2, 0));
 			TestTrue(TEXT("1: the farm road into town, to the gate"), Road && Road->Place.Actor.ActorTag == GatePlace);
-			TestTrue(TEXT("2: the Unpaid at the gate fought off, all four"), Gate && Gate->SpawnerId == GateId && Gate->Count == 4);
+			TestTrue(TEXT("2: the Unpaid at the gate fought off, all seven"), Gate && Gate->SpawnerId == GateId && Gate->Count == 7);  // (fights enlarged 2026-10-21; 4)
 			TestTrue(TEXT("3: Bright & Daughter found (Tilly's window)"), Shop && Shop->Place.Actor.ActorTag == TillyTag);
 			TestTrue(TEXT("...no items of its own: the bail on her sill is Main 6's (Main 3's would vanish at its turn-in)"),
 				Asset->FindItem(TEXT("LanternBail")) == nullptr);
 			TestTrue(TEXT("Turned in to Tilly at the window, her whole talk"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag
 				&& Asset->TurnIn.Lines.ContainsByPredicate([](const FStoryLine& Line) { return Line.Text.ToString() == Collar; })
 				&& Asset->TurnIn.Lines.ContainsByPredicate([](const FStoryLine& Line) { return Line.Text.ToString().Contains(TEXT("on the sill")); }));
-			TestEqual(TEXT("Its reward: 1,200 experience"), Asset->Rewards.Experience, 1200);
+			TestEqual(TEXT("Its reward: 1,000 experience"), Asset->Rewards.Experience, 1000);  // (trimmed 2026-10-21; 1,200)
 			TestTrue(TEXT("...and a gun, Uncommon or better"), Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Uncommon);
 			TestTrue(TEXT("...said so on the Missions page"), MissionRewards::Describe(Asset->Rewards).Contains(TEXT("Gun: Uncommon or better")));
 		}
@@ -241,7 +241,7 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("An Uncommon floor raises a Common gun"), MissionRewards::ApplyFloor(EWeaponRarity::Common, EWeaponRarity::Uncommon) == EWeaponRarity::Uncommon);
 
-	// Played through in a test level: Main 3 waits for Main 2; the gate's fight waits for the gate; four Unpaid come, one
+	// Played through in a test level: Main 3 waits for Main 2; the gate's fight waits for the gate; seven Unpaid come, one
 	// Restless; once they're down, the shop; Tilly closed until then, her lines at the last step.
 	FCampaignRecord Campaign;
 	FTestWorldWrapper TestLevel;
@@ -282,8 +282,8 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the gate's fight is on"), Gate->IsStoryActive());
 	Gate->UpdateEncounter(0.5f);
 	const TArray<ACreatureBase*> Out = Gate->GetAliveCreatures();
-	TestEqual(TEXT("Four Unpaid at the gate"), Out.Num(), 4);
-	TestEqual(TEXT("...three of them Basic"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 3);
+	TestEqual(TEXT("Seven Unpaid at the gate"), Out.Num(), 7);
+	TestEqual(TEXT("...six of them Basic"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 6);
 	TestEqual(TEXT("...one of them Restless"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 	TestFalse(TEXT("...each tagged for the gate"), Out.ContainsByPredicate([](const ACreatureBase* Unpaid) { return !Unpaid->ActorHasTag(GateTag); }));
 	TestFalse(TEXT("...none of them in the farm's corner of the map (south-west of the gate)"), Out.ContainsByPredicate([](const ACreatureBase* Unpaid)
@@ -487,7 +487,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColdWelcomePlacedTest, "Looter.Story.ColdWelco
 
 bool FColdWelcomePlacedTest::RunTest(const FString& Parameters)
 {
-	// Ransom's Rest as built (build_area_story.py): the gate's place and its fight (three Unpaid and a Restless one, on
+	// Ransom's Rest as built (build_area_story.py): the gate's place and its fight (six Unpaid and a Restless one, on
 	// Main 3's second step only, coming as they appear, giving up 30 m out), Tilly's window, the store's shutters, and the
 	// safe zones (the farm always, Main Street after Main 3).
 	const ULevel* Level = LoadRansomsRest(*this);
@@ -536,17 +536,21 @@ bool FColdWelcomePlacedTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The town gate is marked for the farm road's end"), bPlace);
 	if (TestNotNull(TEXT("The gate's fight"), Gate))
 	{
-		TestEqual(TEXT("...three Basic Unpaid"), CountBrought(*Gate, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 3);
+		TestEqual(TEXT("...six Basic Unpaid"), CountBrought(*Gate, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 6);  // (fights enlarged 2026-10-21; 3)
 		TestEqual(TEXT("...and one Restless"), CountBrought(*Gate, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 		TestTrue(TEXT("...on Main 3's second step only"), Gate->ActiveWhen.DuringMission == MainThree && Gate->ActiveWhen.FromStep == 1
 			&& Gate->ActiveWhen.BeforeStep == 2);
 		TestTrue(TEXT("...coming for the player as they appear"), Gate->bHuntOnSpawn);
 		TestTrue(TEXT("...giving up 30 m from the gate"), FMath::IsNearlyEqual(Gate->GiveUpRadius, 3000.f) && Gate->GroundCorners.IsEmpty());
 		TestTrue(TEXT("...tagged for the fight"), Gate->CreatureTags.Contains(GateTag));
-		TestTrue(TEXT("...standing north-east of the gate"), !Gate->SpawnPoints.IsEmpty() && !Gate->SpawnPoints.ContainsByPredicate([](const FVector& Spot)
+		// (fights enlarged 2026-10-21: two ways at once, north-east of the gate and on the street's south side, all east of it)
+		TestTrue(TEXT("...standing east of the gate"), !Gate->SpawnPoints.IsEmpty() && !Gate->SpawnPoints.ContainsByPredicate([](const FVector& Spot)
 		{
-			return Spot.X < 0.0 || Spot.Y < 0.0;
+			return Spot.Y < 0.0;
 		}));
+		TestTrue(TEXT("...north-east and on the street's south side"),
+			Gate->SpawnPoints.ContainsByPredicate([](const FVector& Spot) { return Spot.X > 0.0; })
+			&& Gate->SpawnPoints.ContainsByPredicate([](const FVector& Spot) { return Spot.X < 0.0; }));
 	}
 	if (TestNotNull(TEXT("Tilly's window"), Tilly))
 	{

@@ -156,7 +156,7 @@ bool FDeadMinerStatsTest::RunTest(const FString& Parameters)
 	TestNearlyEqual(TEXT("A 0.8 s wind-up: the tell"), Defaults->AttackWindup, 0.8f, 0.01f);
 	TestTrue(TEXT("It works where it was put: no wandering"), Defaults->WanderRadius <= 0.f);
 	TestEqual(TEXT("The Unpaid's pack"), Defaults->PackTag, Unpaid->PackTag);
-	TestEqual(TEXT("It counts among the Unpaid's 12"), UEncounterSettings::Get().FindClassCap(ADeadMinerCreature::StaticClass()),
+	TestEqual(TEXT("It counts among the Unpaid's 16"), UEncounterSettings::Get().FindClassCap(ADeadMinerCreature::StaticClass()),
 		UEncounterSettings::Get().FindClassCap(AUnpaidCreature::StaticClass()));
 	const UCreatureVoiceComponent* Voice = Defaults->FindComponentByClass<UCreatureVoiceComponent>();
 	if (TestNotNull(TEXT("It has a voice"), Voice))

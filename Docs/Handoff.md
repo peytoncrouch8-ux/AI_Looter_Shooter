@@ -42,6 +42,32 @@ builds once, checks in PIE, commits. GUNFEEL-SOUND starts once the pack parts ar
   sources and licence in its README), shaped in script; 161 sounds imported; tests Gunfeel 20/20, Audio 14/14; PIE fight
   clean. Perf after (RR, 8 spiders, Medium): 7.6 ms, p95 8.0 (baseline 7.9 / 9.0). Main added the layer cues to
   LooterSoundCues.h (the bank's check) and `Weapon.*.Core/Mech/Tail*` to check.py's FREQUENT list.
+- **12.2 Enemies, the user's calls (2026-10-21, "keep going"; gunfeel tuning by the user still pending):**
+  difficulty = Borderlands normal (real damage, keep moving, a careless player dies now and then, a big fight drains
+  most of your health); smarter AI = packs surround and take turns + ranged enemies use their range (not dodging, not
+  reacting to the player); bigger fights = more enemies at once (6-10 in a normal fight) + a few hand-made set-piece
+  fights per area (not waves, not new mixed packs).
+- **Overnight run (the user, 2026-10-21 night: "keep working on all things throughout the night", going to bed).**
+  Their calls before bed: build enemies now (gunplay tuning by the user later; tune both together); single
+  `Tools\grab.ps1` window grabs allowed to check looks (no Python capture batches); new gun kinds **SMG, sniper rifle,
+  LMG, rocket launcher** (all four); elements = **story elements: Ember (burn), Soul-light (vs undead), Grave-salt
+  (slow, vs spirits)**; story: **cut and rework missions overnight, keep the plot** (cut lines ~half, most as
+  on-the-move captions, fetch steps into fights or finds; every story beat kept; list the changes here for review); art:
+  **VFX + world variety** (hit, death, muzzle, power effects; vary props, rocks, buildings and ground in RR).
+  Order: 12.2 enemies -> 12.3 loot (the four kinds, elements, part effects, bigger drop moments) -> 12.4 pacing/story
+  -> 12.5 VFX + world variety. Main's calls go under "Decided unattended (2026-10-21 night)" below.
+  **Gun look (the user, from concept sheets in `Saved/ArtPreviews/Weapons/Concepts/`):** concept B "frontier-tech"
+  (`NewGuns_ConceptB.png`: sand polymer shells, gunmetal, brass fittings, ember-orange heat glow, cyan optics) for the
+  Longhorn sniper, Thresher LMG and Powderkeg launcher; concept A (western walnut/blued) rejected as not sci-fi enough and
+  its SMG too like the LMG; the SMG is **option 7 "Helix"** (`SMG_Options2.png`: long round magazine under the barrel
+  with a glowing spiral showing the rounds left, wire stock, long and low). Names: Rustler (SMG), Longhorn (sniper),
+  Thresher (LMG), Powderkeg (rocket launcher).
+  **Last calls before bed:** world variety in RR: **anything** goes (terrain and buildings may change too); elements:
+  each element's effect (burn/ignite/damage over time and the like) **deals damage and is more effective against the
+  monsters weakest to it** (Main's mapping: Ember vs flesh = spiders, slimes; Soul-light vs undead = the Unpaid, miners;
+  Grave-salt vs spirits/wards/Ethereal; slows too); if the context fills overnight, **keep going** (the handoff is kept
+  current; this overrides CLAUDE.md rule 10 for tonight only); after a 5-hour usage limit, **continue at the reset**
+  (a session cron heartbeat at :17 every hour resumes the run; it dies if the app closes).
 - **Steps 1-3 DONE. Next: step 4, the user tunes `Looter.Gunfeel.*` in PIE; Main bakes their values into the defaults
   (React: `FGunfeelReactTuning` fields; Kick: `GunfeelKick::Default`; Sound: `GunfeelSoundTuning`) and the tests that
   read them.** Not verified: the look by eye, rumble on a real pad, the surroundings probe's choices in town/mine, the
@@ -135,6 +161,25 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
 2026-10-20 ~00:00: "No questions until 5am."** Main runs unattended until then, its calls under "Decided unattended
 (2026-10-20 night)" below. Clean-up later: the portrait scripts' shared helpers into `bust.py` (`tube`,
 `chain`, `turn`, `ramp`, `ball`, `tear`, `point_light`), and the hero model scripts' shared machinery out of Ellis.py.
+
+### Decided unattended (2026-10-21 night), for the user's review
+(Main's calls while the user slept; newest last. Contracts: `Saved/Fight/CONTRACT.md` (+ AUDIT.md), `Saved/Guns/`,
+`Saved/Loot/CONTRACT.md`; not committed.)
+- 12.2 numbers: 3 melee + 2 ranged attackers at once, a waiting ring at 4.8 m (8 slots, drifting, feints, biased to the
+  player's sides/back), chase x1.3 (a walking player gets caught, a sprinting one escapes), creature damage x1.5,
+  regen after 7 s at 7%/s (was 6 s, 12%). Fights 6-10, caps 20 near the player / 16 Unpaid. Set pieces: Main Street
+  ambush (Main 3), Webwood drop, Providence cave-in, each once per session with a sting, shake, caption and a reward.
+- FIGHT-AI's own call: an Unpaid waiting on the ring doesn't phase-step (it would step through the ring); boss adds
+  (spiderlings, Abel's risen) take turns too; the slime keeps its own hop rhythm (not faster).
+- 12.3: the Longhorn sniper crits x2.0 (its role; the revolver 1.75x was the user's); part effects Ricochet, Burst,
+  Explosive, Piercing, Overcharge, Twin (Epic+, a few Rare); elements on parts from Uncommon, ~20-35% a hit; weakness
+  x1.75 / resist x0.5: Ember strong vs spiders/Spitter/slimes/Gravemother, weak vs the Unpaid; Soul-light strong vs the
+  Unpaid/miners/Bell-Ringer/Abel's risen, weak vs slimes; Grave-salt strong vs Warded/Phasing/Ethereal/the coal, weak vs
+  spiders; bosses take statuses at half duration; the Grave-salt grenade becomes the element's damage type. Drop
+  moments: rarity beams taller, stingers, Epic+ spin and ground ring, Legendary a 0.25 s slow-down and a 60 m column.
+- Rocket ammo is a new class (1-3 per kill drop leaning to the kill gun); the LMG uses rifle ammo.
+- 12.3 C++ agents write into holding trees (`Saved/GunsCode`, `Saved/LootCode`, `Saved/GunsSound`) while 12.2 owns the
+  build; each then gets the editor lane in turn (GUNS-CODE first) to merge, build, import, test.
 
 ### Decided unattended (2026-10-20 night), for the user's review
 (Main's calls while the user slept; newest last.)

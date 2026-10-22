@@ -93,8 +93,8 @@ bool FUnpaidStatsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Level 1"), Defaults->Level, 1);
 	TestEqual(TEXT("8 damage at level 1"), Defaults->AttackDamage, 8.f);
 	TestTrue(TEXT("The Unpaid answer each other's calls"), !Defaults->PackTag.IsNone() && Defaults->PackAlertRadius > 0.f);
-	// The encounters' cap names it by its class's path: no more than 12 at once.
-	TestEqual(TEXT("12 Unpaid at once"), UEncounterSettings::Get().FindClassCap(AUnpaidCreature::StaticClass()), 12);
+	// The encounters' cap names it by its class's path: no more than 16 at once (fights enlarged 2026-10-21; 12).
+	TestEqual(TEXT("16 Unpaid at once"), UEncounterSettings::Get().FindClassCap(AUnpaidCreature::StaticClass()), 16);
 
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))

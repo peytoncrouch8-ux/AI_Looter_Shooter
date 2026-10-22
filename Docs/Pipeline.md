@@ -307,7 +307,8 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   Also from it (2026-10-09):
   - encounters between the story's fights (`gameplay.encounters`, `build_area_camps.py`): camps with a Supply Crate
     (`CampCache_<id>`), patrols on a road, ambushes that rise or drop when the player walks in. Each waits for a story step and keeps
-    off the safe zones and every scripted fight's ground;
+    off the safe zones and every scripted fight's ground; set pieces (a `setPiece` block, and the valley's `fights` with
+    `"pass": "valley"`): "Fight: Layout" below;
   - Skyreach's notice board (`build_area_board.py`): the practice postings' board on the town's NoticeBoard piece, and the lookout's
     marker.
 
@@ -1811,6 +1812,87 @@ Code: `Weapons/GunshotSound.cpp` (`PlayShot`), `Weapons/GunfeelSoundTuning.h/.cp
   The new layer cues aren't in check.py's FREQUENT list yet (`Weapon.*.Core`, `.Mech`, `.Tail*` should be).
 - Didn't check (needs the bank built and play): how it sounds; the probe's choices in town, the mine and the barns; the far
   shot's distance; concurrency in a long rifle burst (Core 8, tails 6).
+
+## Fight: AI (FIGHT-AI, written 2026-10-21, unbuilt and untested in play)
+
+The user's calls (Saved/Fight/CONTRACT.md): packs surround and take turns, ranged kinds use their range, Borderlands-normal
+difficulty. Code: `Creatures/FightDirectorSubsystem.h/.cpp` + `FightDirectorPlaces.cpp`, `FightRules`, `FightTuning`,
+`CreatureBaseFight.cpp` (the chase's ask; the old Chase block of `TickBrain` moved there). Tests `Tests/FightTests.cpp`,
+`Looter.Fight.*`. Cvars `Looter.Fight.*`, live in PIE, defaults in brackets; `Director` [1], 0 = the old free-for-all.
+- Who: every creature but a boss (`KeepsBossRules`) or a Legendary monster (`FightRules::KeepsOwnFight`) and a passive one.
+  Bosses' adds (spiderlings, Abel's risen) do take turns.
+- Turns (`FFightTokens`, per target): `MeleeTokens` [3], `RangedTokens` [2]. A melee creature asks once its cooldown is done
+  and it's within `RingApproach` [1.6] x its ring radius; a ranged or support one when it could attack this moment. The
+  longest waiter gets the next turn; one silent `TurnKeep` [0.5 s] leaves the line. Given back at the attack's end with
+  `TokenRest` [0.6 s] (`EndTurn` from `TickAttack`), on leaving Chase/Attack, on death (`ForgetCreature`, also `EndPlay`),
+  out of reach (1.5 approach distances, not mid-attack), and taken back after `TokenMaxSeconds` [3] with the rest. Ranged
+  turns begin `RangedGap` [0.35 s] apart.
+- Hits: staggered or knocked (`IsHeldByHit`), its turn goes back but it stays first in line for `TurnKeep`: a short stagger
+  costs nothing, a long knock lets the next one in. Hit in its wind-up, its attack goes on after only if it gets its turn back,
+  else it's called off (`OnAttackCalledOff`: the Spitter's glow out, the slime's squash let go) with a 0.4 s cooldown.
+- The ring (melee, `RingMinPack` [3]+ hunting one target): `RingSlots` [8] at `RingRadius` [480] or `RingMargin` [80] past the
+  creature's reach (slime 530); refreshed every `RingRefresh` [0.4 s], lazily at the first ask after (one walk of the
+  encounters' creature list, 2 traces a slot: a line from the target, ground within 1.6 m of its feet). Slots cost their
+  angle from the creature's bearing (180 degrees = 1) + `BehindBias` [0.35] x frontness in the player's view - `RingKeep`
+  [0.15] for its own; greedy, extras double up. Turns `RingDrift` [25 deg/s]; `FeintChance` [0.15] a look to step in to
+  `FeintDepth` [0.55] of its radius over `FeintSeconds` [0.5]. Waiting ones sidle round (`OrbitWay`, never across the
+  player) facing the player (`bOrientRotationToMovement` off while waiting), speed 2.5 x the gap. The flank fan still brings
+  them in to the ring. An Unpaid waiting on the ring never phase-steps (`IsWaitingTurn`, UnpaidCreaturePhase.cpp).
+- Ranged (`GetFightRole` Ranged: the Spitter; Support: the Bell-Ringer, no ring slot, its own keep-back at 11 m): a spot at
+  `RangedOffAngle` [50] or more round from the melee pack's mean bearing (another spitter within 40 degrees costs 1), its
+  distance kept in the band (`GetFightBand`: back-off to CloseInTo, 15% in from the near edge, 10% from the far), ground
+  within 3.2 m of the target's feet and a clear line from 1.2 m over it; 4 tries. After a shot `RangedRelocate` [0.6] picks
+  one 30+ degrees round; its lob blocked 1.5 s at its spot asks for another. It walks there round the target at
+  `RangedMoveShare` [0.7] of its chase; backs off inside `RangedBackOff` [900] (BackOffWithin 900 too, was 1000).
+- Difficulty: `ChaseScale` [1.3] on chase and track speed (`GetChaseSpeedNow`; the `ChaseSpeed` field is unchanged, so the
+  traits' and rally's x/÷ stay exact; the slime hops at its own rhythm, unchanged); spider 413 -> 537 (walk 459, sprint 711).
+  `DamageScale` [1.5] on `HitWithAttack` and the Spitter's glob, splash and puddle (`GetFightDamageScale`). Regen
+  `RegenDelay` [7 s] and `RegenRate` [0.07] set into `UPlayerVitalsSubsystem::Recovery` each frame (`FRecoverySettings`
+  defaults 7 and 0.07 too). Not scaled: the Grave-burst trait's blast (CreatureTraitComponentBurst.cpp) and the bestiary's
+  shown damage.
+- Didn't check (needs a build and play): every feel number; ring slots in the mine and town alleys; the sidle with the
+  spider's gait; perf with 10 fighting.
+
+## Fight: Layout (FIGHT-LAYOUT, written 2026-10-21, unbuilt and untested in play)
+
+The user's calls (Saved/Fight/CONTRACT.md): 6-10 enemies a normal fight, camps and patrols 5-8, the chapel yard and the
+mine at the top; a few hand-made set pieces an area, announced and rewarded, once a session; not plain waves, not new mixed
+packs. Counts and the set pieces: `Docs/Areas/RansomsRest.md` "Fights and set pieces"; the pacing: `Docs/Progression.md`.
+- Caps (`UEncounterSettings`): 20 creatures within 80 m of the player (was 16), the Unpaid family 16 (was 12; Bell-Ringers
+  and dead miners count). A set piece's placed creatures skip the caps (one or two).
+- Where the counts live: the story's fights in their scripts (`build_area_story.py` NEST_BASIC, GATE_BASIC and GATE_SPOTS,
+  `build_area_chapel.py` YARD_WAVE/YARD_SECOND/ROAMING_COUNT, `build_area_whitlock.py` HANDS_BASIC, `build_area_sink.py`
+  FLOOR_COUNT, `build_area_missionprops_valley.py` DEPOT_BASIC/CELLAR_BASIC); the rest in `layout.json`
+  gameplay.encounters (camps, patrols, ambushes, fights). More creatures than spots: the spawner rings its spots (a
+  spacing out, then two), so spots weren't added where the tests check them.
+- Set pieces: `ASetPieceSpawner` (an `AAmbushSpawner`; `Creatures/SetPieceSpawner*.cpp`, rules `SetPieceRules`), data in a
+  layout entry's `setPiece` block (`Tools/Unreal/build_area_setpieces.py`'s docstring lists every key). An ambush with one
+  is placed by `build_area_camps.py`; a fight of spawner `SetPieceSpawner` by `build_area_fights_mountain.place_one`, from
+  `build_area_camps.py` when it says `"pass": "valley"` (Main Street, folder Gameplay), else in the mountain pass.
+  - Springs on walking onto its ground, or with `springRadius` near its spot; not while a `waitFor` spawner is Engaged.
+  - Pushes: each wave a beat (`FSetPieceBeat`: its spots, a caption line, a 2D sting, a world cue, a shake through
+    `BossCameraShake::Kick`, dust puffs sifting from the roof: one up-trace each, once, none without a roof); the next push
+    comes once `pushWhenLeft` or fewer are left (alive and owed), `pushAfter` s at the latest. `aroundPlayer`: its pushes
+    round where the player stood as it sprang (`GetSpawnCenter`), and its shower bursts there.
+  - `placed`: creatures at spots of their own (`FSetPiecePlaced`, world spots found by the build: a balcony's deck traced
+    down off its facade, `high` the highest terrain within so far inside its ground); taken away with the rest when the
+    player goes far, owed back; given up (removed) if they outlive the fight with the player gone.
+  - `hush`: speaker points (by tag) shut (`bEnabled` off) from the first push until it's done or off; only the ones it shut
+    are opened again.
+  - Done (`SetPieceRules::IsDone`: Cleared after a wave, placed ones down): the cleared beat, a loot shower
+    (`ABossLootShower::Throw` with the spawner's own `ULootDropComponent`: a transient table, the default table's guns,
+    `RewardGuns` [2] at `RewardLuck` [1], `RewardAmmo` [2] chest-full, `RewardBonusAmmo` [1]; no silver), then the story flag
+    (`UMissionRunner::SetFlag`; saved in the campaign record) last. `DoneFlag` is added to `ActiveWhen.WithoutFlags` as play
+    begins, so a later load finds it off.
+  - Cvars `Looter.Fight.SetPiece.*` [defaults]: `ShakeScale` [1], `PushWhenLeft` [-1: each set piece's own], `DustScale` [1],
+    `RewardGuns` [2], `RewardLuck` [1], `RewardAmmo` [2], `RewardBonusAmmo` [1]. Tests `Looter.SetPiece.Rules`, `.Play`.
+  - Hooks added to `AEncounterSpawner` for it: `OnStateChanged(From, To)` (from `SetState`) and `OnWaveStarted(Wave)`
+    (from `StartWave`, before the wave is queued).
+- Sounds: the beats use existing cues (Boss.Phase, Creature.RankSting, Creature.Unpaid.Shriek, Creature.Spider.Drop,
+  Boss.Gravemother.Quake, Boss.Foreman.Slam, Boss.Loot.Burst); own SetPiece.* stings would be a sound task.
+- Didn't check (needs a build and play): the Gilt Spur's deck trace (else the Bell-Ringer stands in the street), the
+  Webwood Spitters' high spots, Main Street's street-edge spots (the probe rings them if a boardwalk is in the way), the
+  gallery's spots and the 13 m spring on both ways out, perf with 10 fighting.
 
 ## Packaging a test build
 

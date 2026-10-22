@@ -86,7 +86,24 @@ namespace
 				{
 					continue;
 				}
-				for (const TSharedPtr<FJsonValue>& GroupValue : *Groups)
+				// A set piece's placed creatures (the Webwood's Spitters on the high ground) are kills of it too, one each.
+				TArray<TSharedPtr<FJsonValue>> Counted = *Groups;
+				const TSharedPtr<FJsonObject>* SetPiece = nullptr;
+				const TArray<TSharedPtr<FJsonValue>>* Placed = nullptr;
+				if (Entry->TryGetObjectField(TEXT("setPiece"), SetPiece) && (*SetPiece)->TryGetArrayField(TEXT("placed"), Placed))
+				{
+					for (const TSharedPtr<FJsonValue>& PlacedValue : *Placed)
+					{
+						const TSharedPtr<FJsonObject> One = MakeShared<FJsonObject>();
+						One->SetStringField(TEXT("class"), PlacedValue->AsObject()->GetStringField(TEXT("class")));
+						FString PlacedRank = TEXT("Basic");
+						PlacedValue->AsObject()->TryGetStringField(TEXT("rank"), PlacedRank);
+						One->SetStringField(TEXT("rank"), PlacedRank);
+						One->SetNumberField(TEXT("count"), 1.0);
+						Counted.Add(MakeShared<FJsonValueObject>(One));
+					}
+				}
+				for (const TSharedPtr<FJsonValue>& GroupValue : Counted)
 				{
 					const TSharedPtr<FJsonObject> Group = GroupValue->AsObject();
 					const FString ClassName = Group->GetStringField(TEXT("class"));
@@ -443,8 +460,11 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("Ransom's Rest's story alone ends about level 5.5 (%.2f, 5.3 to 5.8)"), Reached), Reached >= 5.3 && Reached <= 5.8);
 	TestTrue(FString::Printf(TEXT("...and level 5 even without the roaming kills (%.2f)"), LevelOf(Curve, Played.WithoutRoaming)),
 		LevelOf(Curve, Played.WithoutRoaming) >= 5.0);
-	TestTrue(TEXT("Most of a level's worth is the turn-ins', not the kills': the missions give at least two thirds"),
-		Played.FromMissions >= Played.Total * 2.0 / 3.0);
+	// The turn-ins carry most of a level, as in Borderlands. At least three fifths since the user's bigger fights (2026-10-21:
+	// 6-10 a fight and the set pieces put about 94 kills on the story's way, near 7,300 XP, and the missions were trimmed to
+	// hold the ends, so their share fell from 73% to about 66%); two thirds before.
+	TestTrue(FString::Printf(TEXT("Most of a level's worth is the turn-ins', not the kills': the missions give at least three fifths (%.0f%%)"),
+		Played.Total > 0.0 ? 100.0 * Played.FromMissions / Played.Total : 0.0), Played.FromMissions >= Played.Total * 3.0 / 5.0);
 
 	// Everything once: every mission (the valley's side missions, the Gravemother, the mountain's three), every optional
 	// camp, patrol and ambush, the roaming dead once.

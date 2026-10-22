@@ -22,7 +22,7 @@ Side 2:
 - Six hay bales (AHayBale tagged HayBale) lying out in the west field, each with its place in a stack of six under the
   hoist by the Whitlock barn's big doors (three, two, one, along the barn's front): loaded by holding Interact from Side 2's
   second step, all in the stack once it's done. Amos remarks on the first and the last, Hob on the third.
-- His old hired hands (AEncounterSpawner WhitlockHands) in the barn yard: five Unpaid and a Restless one, tagged
+- His old hired hands (AEncounterSpawner WhitlockHands) in the barn yard: seven Unpaid and a Restless one, tagged
   Unpaid_WhitlockHands, on during Side 2's third step only, appearing round the barn as the player comes within 22 m of
   the yard's middle (its gate is 20 m off) and coming for them, hunting only inside the yard's fence (and its 2 m margin),
   so the fight stays in the yard.
@@ -77,7 +77,8 @@ STACK_SLOTS = ((0.0, -97.0, 0.0), (0.0, 0.0, 0.0), (0.0, 97.0, 0.0), (0.0, -48.5
 HANDS_AT = (-7300.0, 3300.0)
 HANDS_SPOTS = ((-5700.0, 2700.0), (-5700.0, 3600.0), (-5700.0, 4400.0), (-6300.0, 4450.0), (-7300.0, 2700.0),
                (-8000.0, 2600.0), (-7400.0, 3400.0), (-8000.0, 3500.0), (-8000.0, 4450.0), (-7050.0, 4450.0))
-HANDS_BASIC = 5
+# Seven and a Restless one since the user's bigger fights (2026-10-21; five until then).
+HANDS_BASIC = 7
 HANDS_ACTIVATION = 2200.0
 # Amos's own barn (SM_RR_Barn_Whitlock, 2026-10-13, patches/town.json): 15 x 8 m, its pivot the middle of the hay bay's
 # open front at (-6150, 3600) facing east, so its walls stand at x -7150 to -5650, y 2800 to 3600 and the yard opens in
@@ -221,7 +222,7 @@ def barn_actor(build):
 
 
 def place_hands(build, ground):
-    """The hired hands' fight in the barn yard: five Unpaid and a Restless one, during Side 2's third step."""
+    """The hired hands' fight in the barn yard: seven Unpaid and a Restless one, during Side 2's third step."""
     unpaid = story.actor_class('UnpaidCreature')
     cls = story.actor_class('EncounterSpawner')
     yard = story.layout_entry(build, 'obstacles', 'barnYardFence')
@@ -238,7 +239,7 @@ def place_hands(build, ground):
     hz = ground(hx, hy)
     hands = build.place(cls, (hx, hy, hz + 50.0), 0.0, label=f'Encounter_{HANDS}', folder='Gameplay')
     hands.set_editor_property('spawner_id', unreal.Name(HANDS))
-    # "6, one of them Restless": five Basic and a Restless one, all in one wave.
+    # Seven Basic and a Restless one, all in one wave (the design's "6, one of them Restless" until 2026-10-21).
     hands.set_editor_property('groups', [story.group(unpaid, HANDS_BASIC, 'BASIC'), story.group(unpaid, 1, 'RARE')])
     hands.set_editor_property('creature_tags', [unreal.Name(HANDS_TAG)])
     # Side 2's third step only (from 0: from 2, before 3): a fight already won doesn't come back on a later load.

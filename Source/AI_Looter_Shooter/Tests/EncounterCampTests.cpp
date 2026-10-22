@@ -52,7 +52,9 @@ bool FEncounterCampPlacementTest::RunTest(const FString& Parameters)
 	// Every camp, patrol and ambush between the story's fights stands where the route passes but no fight happens: inside
 	// the boundary, out of the safe zones and arrivals, off every scripted fight's ground while that fight can happen, on
 	// walkable ground (off rocks, ruins, trees, fences and walls, out of the Dry Wash, the creek's water, Coffin Rock and
-	// the Nose), its spots on its own ground, and no two sharing ground. Camps have a Restless leader among 3-5 creatures.
+	// the Nose), its spots on its own ground, and no two sharing ground. Camps have a Restless leader. Sizes since the user's
+	// bigger fights (2026-10-21; 3-5 each until then): camps and patrols 5-8 creatures, ambushes 6-10 (a set piece's
+	// placed creatures come on top of its groups: the Webwood's two Spitters).
 	FAreaLayout Layout;
 	if (!ReadLayout(*this, Layout))
 	{
@@ -64,7 +66,10 @@ bool FEncounterCampPlacementTest::RunTest(const FString& Parameters)
 	{
 		const FString Name = FString::Printf(TEXT("%s (%s)"), *Each.Id, *Each.Section);
 		TestTrue(FString::Printf(TEXT("%s waits for the story (after a mission)"), *Name), Each.After.Num() > 0);
-		TestTrue(FString::Printf(TEXT("%s has 3-5 creatures (%d)"), *Name, Each.Creatures), Each.Creatures >= 3 && Each.Creatures <= 5);
+		const bool bAmbush = Each.Section == TEXT("ambushes");
+		const int32 Fewest = bAmbush ? 6 : 5;
+		const int32 Most = bAmbush ? 10 : 8;
+		TestTrue(FString::Printf(TEXT("%s has %d-%d creatures (%d)"), *Name, Fewest, Most, Each.Creatures), Each.Creatures >= Fewest && Each.Creatures <= Most);
 		if (Each.Section == TEXT("camps"))
 		{
 			TestTrue(FString::Printf(TEXT("%s has a Restless or better leader, and a crate"), *Name), Each.bLeader && Each.Crates.Num() > 0);

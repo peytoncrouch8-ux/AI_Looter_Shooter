@@ -21,14 +21,15 @@ Main 2:
   Main 2. Talked to: the spiders first; the deal once they're cleared; the Ledger; and a word after, before he's gone.
 - Ransom's Point's middle (a target point tagged Place_RansomsPoint, at the middle of the layout's zone ransomsPoint): where
   the climb ends.
-- The spider nest (AEncounterSpawner BluffNest) in the middle of the nest ring: four spiders and a Restless one, tagged
+- The spider nest (AEncounterSpawner BluffNest) in the middle of the nest ring: five spiders and a Restless one, tagged
   Spider_BluffNest, on during Main 2's climb and fight (its steps 1-2), appearing as the player comes up the bluff path
   (30 m), hunting only on the bluff top (the zone ransomsPoint as their ground), so the fight stays on one level.
 Main 3:
 - The town gate (a target point tagged Place_TownGate) between its posts (the obstacles townGateNorth and townGateSouth).
-- The gate's fight (AEncounterSpawner TownGate) on the same spot: three Unpaid and a Restless one, tagged Unpaid_TownGate,
-  on during Main 3's second step only, standing north-east of the gate (clear of the farm fence), coming for the player as
-  they appear, and giving up 30 m from the gate (or at Delia's salt line, the farm's safe zone).
+- The gate's fight (AEncounterSpawner TownGate) on the same spot: six Unpaid and a Restless one, tagged Unpaid_TownGate,
+  on during Main 3's second step only, standing north-east of the gate and on the street's south side (two ways at once,
+  clear of the farm fence), coming for the player as they appear, and giving up 30 m from the gate (or at Delia's salt
+  line, the farm's safe zone). Main Street's set piece follows it (layout gameplay.encounters.fights MainStreet).
 - Tilly's window (ASpeakerPoint tagged Speaker_Tilly) on Bright & Daughter's SOCKET_Speaker: the shop closed until Main 3's
   last step, then her lines, then a word after.
 - The shutters (AWindowShutter) on every SOCKET_Shutter_<L|R><n> of Pruitt's store (FalseFronts.py: eight), open until the
@@ -119,8 +120,13 @@ MARKER_UP = 90.0
 NEST_ACTIVATION = 3000.0
 NEST_SPREAD = 900.0
 # The gate's fight (Main 3): the Unpaid stand north-east of the gate, in the street's mouth and the field north of it,
-# 9-19 m out (cm, from the gate, X north and Y east); they give up 30 m from the gate.
-GATE_SPOTS = ((600.0, 900.0), (1100.0, 400.0), (300.0, 1500.0), (1300.0, 1300.0))
+# and on the street's south side, so they come two ways at once, 8-20 m out (cm, from the gate, X north and Y east); they
+# give up 30 m from the gate. Six and a Restless one since the user's bigger fights (2026-10-21; three until then).
+GATE_SPOTS = ((600.0, 900.0), (1100.0, 400.0), (300.0, 1500.0), (1300.0, 1300.0), (-400.0, 700.0), (-1300.0, 300.0),
+              (-200.0, 2000.0))
+GATE_BASIC = 6
+# The spider nest (Main 2): five and a Restless one (four until 2026-10-21).
+NEST_BASIC = 5
 GATE_GIVE_UP = 3000.0
 
 # Shutters (FalseFronts.py's Shutter_Left and _Right, hung on the store's sockets).
@@ -464,8 +470,8 @@ def place_bluff_top(build):
     nz = ground_at(nx, ny)
     nest = build.place(cls, (nx, ny, nz + 50.0), 0.0, label=f'Encounter_{NEST}', folder='Gameplay')
     nest.set_editor_property('spawner_id', unreal.Name(NEST))
-    # "4, and one Restless Meadow Wolf": four Basic spiders and a Restless one.
-    nest.set_editor_property('groups', [group(spider, 4, 'BASIC'), group(spider, 1, 'RARE')])
+    # Five Basic spiders and a Restless one (the design's "4, and one Restless Meadow Wolf" until the bigger fights).
+    nest.set_editor_property('groups', [group(spider, NEST_BASIC, 'BASIC'), group(spider, 1, 'RARE')])
     nest.set_editor_property('creature_tags', [unreal.Name(NEST_TAG)])
     # The climb and the fight (Main 2's steps 1 and 2, from 0: before 2): a session loaded at the deal finds no spiders.
     nest.set_editor_property('active_when', condition(during=MAIN2, before_step=2))
@@ -473,7 +479,7 @@ def place_bluff_top(build):
     nest.set_editor_property('spawn_radius', NEST_SPREAD)
     # Their ground is the bluff top: nobody on the path below it, or on the farm, is hunted from up here.
     nest.set_editor_property('ground_corners', [unreal.Vector(x, y, nz) for x, y in top['polygon']])
-    build.log(f'the spider nest ({NEST}: 4 spiders and a Restless one) at ({nx:.0f}, {ny:.0f}, {nz:.0f}), during {MAIN2}\'s '
+    build.log(f'the spider nest ({NEST}: {NEST_BASIC} spiders and a Restless one) at ({nx:.0f}, {ny:.0f}, {nz:.0f}), during {MAIN2}\'s '
               f'climb and fight')
     return nx, ny, nz
 
@@ -500,8 +506,8 @@ def place_town_gate(build):
         return gx, gy, gz
     gate = build.place(cls, (gx, gy, gz + 50.0), 0.0, label=f'Encounter_{GATE}', folder='Gameplay')
     gate.set_editor_property('spawner_id', unreal.Name(GATE))
-    # "4, one of them Restless": three Basic Unpaid and a Restless one.
-    gate.set_editor_property('groups', [group(unpaid, 3, 'BASIC'), group(unpaid, 1, 'RARE')])
+    # Six Basic Unpaid and a Restless one (the design's "4, one of them Restless" until the bigger fights).
+    gate.set_editor_property('groups', [group(unpaid, GATE_BASIC, 'BASIC'), group(unpaid, 1, 'RARE')])
     gate.set_editor_property('creature_tags', [unreal.Name(GATE_TAG)])
     # Main 3's second step only (from 0: from 1, before 2): a fight already won doesn't come back on a later load.
     gate.set_editor_property('active_when', condition(during=MAIN3, from_step=1, before_step=2))
@@ -509,7 +515,7 @@ def place_town_gate(build):
     gate.set_editor_property('spawn_points', [unreal.Vector(x, y, 0.0) for x, y in GATE_SPOTS])
     gate.set_editor_property('hunt_on_spawn', True)
     gate.set_editor_property('give_up_radius', GATE_GIVE_UP)
-    build.log(f'the gate\'s fight ({GATE}: 3 Unpaid and a Restless one) at ({gx:.0f}, {gy:.0f}), during {MAIN3}\'s second '
+    build.log(f'the gate\'s fight ({GATE}: {GATE_BASIC} Unpaid and a Restless one) at ({gx:.0f}, {gy:.0f}), during {MAIN3}\'s second '
               f'step')
     return gx, gy, gz
 

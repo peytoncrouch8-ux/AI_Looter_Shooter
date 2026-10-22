@@ -3,9 +3,14 @@
 // nearer than BackOffWithin, sidestepping round one in its band in bursts, always facing it (its walking movement stops
 // turning it to where it walks, and never steps it off a ledge it can't see behind it). Its ways are the steering's own
 // looks (LookAlong: something in the way, or no ground ahead), kept to its hunting ground; with no way back it's cornered.
+// In a played fight the director gives it a spot in its band (off the melee pack's side, a clear line at its target, a new
+// one after a shot now and then): it walks round to it and holds there instead of strafing (TickToSpot).
 
 #include "Creatures/SpitterSpider.h"
 #include "Creatures/CreaturePackComponent.h"
+#include "Creatures/FightDirectorSubsystem.h"
+#include "Creatures/FightRules.h"
+#include "Creatures/FightTuning.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 
@@ -13,6 +18,9 @@ namespace
 {
 	/** Its ways are looked for again this often (s), at once when it's newly too close. */
 	constexpr float KeepLookEvery = 0.2f;
+	/** At its fight spot within this (cm, at size 1); its lob blocked there this long (s) with its spit ready, it asks for another. */
+	constexpr float SpotArrive = 120.f;
+	constexpr float LobBlockedMove = 1.5f;
 	/** A strafe's burst and the pause after it (s, each rolled between these). */
 	constexpr float StrafeMin = 1.f;
 	constexpr float StrafeMax = 2.2f;
@@ -57,11 +65,24 @@ void ASpitterSpider::TickKeepAway(float DeltaSeconds)
 	Away.Z = 0.0;
 	Away = Away.IsNearlyZero() ? -GetActorForwardVector().GetSafeNormal2D() : Away.GetSafeNormal();
 	const FVector Side = FVector(-Away.Y, Away.X, 0.0) * StrafeSign;
-	const bool bTooClose = Distance < BackOffWithin;
+	const float BackOff = GetBackOffDistance();
+	const bool bTooClose = Distance < BackOff;
 	const bool bWasBacking = Keep == ESpitterKeep::BackOff || Keep == ESpitterKeep::Cornered;
 
+	// Its spot in the fight (off the melee pack's side, a clear line at its target): in its band it walks round to it and
+	// holds there, rather than strafing about (with no director, or no spot to be had, it strafes as it always did).
+	UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this);
+	FVector Spot;
+	const bool bHasSpot = !bTooClose && Director && Director->GetWaitSpot(*this, *Victim, Spot);
+	if (bHasSpot)
+	{
+		TickToSpot(*Victim, Spot, DeltaSeconds, *Director);
+		return;
+	}
+	LobBlockedFor = 0.f;
+
 	KeepLookIn -= DeltaSeconds;
-	if (KeepLookIn <= 0.f || bTooClose != bWasBacking)
+	if (KeepLookIn <= 0.f || bTooClose != bWasBacking || Keep == ESpitterKeep::Reposition)
 	{
 		KeepLookIn = KeepLookEvery;
 		if (bTooClose)
@@ -89,13 +110,52 @@ void ASpitterSpider::TickKeepAway(float DeltaSeconds)
 	}
 
 	const bool bHasWay = !KeepWay.IsNearlyZero();
-	Keep = SpitterRules::ChooseKeep(Distance, BackOffWithin, Hold, !bTooClose || bHasWay, bStrafing && bHasWay);
+	Keep = SpitterRules::ChooseKeep(Distance, BackOff, Hold, !bTooClose || bHasWay, bStrafing && bHasWay);
 	CorneredFor = Keep == ESpitterKeep::Cornered ? CorneredFor + DeltaSeconds : 0.f;
 	if (Keep == ESpitterKeep::BackOff || Keep == ESpitterKeep::Strafe)
 	{
 		GetCharacterMovement()->MaxWalkSpeed = ChaseSpeed * (Keep == ESpitterKeep::BackOff ? BackOffSpeedShare : StrafeSpeedShare);
 		AddMovementInput(KeepWay);
 	}
+}
+
+void ASpitterSpider::TickToSpot(const APawn& Victim, const FVector& Spot, float DeltaSeconds, UFightDirectorSubsystem& Director)
+{
+	CorneredFor = 0.f;
+	const FVector Here = GetActorLocation();
+	const float Gap = static_cast<float>(FVector::Dist2D(Here, Spot));
+	if (Gap <= SpotArrive * GetSizeScale())
+	{
+		// There: it stands and watches. A spit that's ready but has no clear lob from here for a while: it asks for another spot.
+		Keep = ESpitterKeep::Hold;
+		KeepWay = FVector::ZeroVector;
+		LobBlockedFor = IsSpitReady() && !IsLobClear(Victim) ? LobBlockedFor + DeltaSeconds : 0.f;
+		if (LobBlockedFor >= LobBlockedMove)
+		{
+			LobBlockedFor = 0.f;
+			Director.RequestNewSpot(*this);
+		}
+		return;
+	}
+	LobBlockedFor = 0.f;
+	// Round its target to it (never across them), its way looked for a few times a second as the strafe's is: the way
+	// round, or a little either side of it.
+	KeepLookIn -= DeltaSeconds;
+	if (KeepLookIn <= 0.f || Keep != ESpitterKeep::Reposition)
+	{
+		KeepLookIn = KeepLookEvery;
+		const FVector Way = FightRules::OrbitWay(Here, Victim.GetActorLocation(), Spot);
+		const FVector Ways[] = { Way, Way.RotateAngleAxis(30.f, FVector::UpVector), Way.RotateAngleAxis(-30.f, FVector::UpVector) };
+		KeepWay = FirstClearWay(Ways);
+	}
+	if (KeepWay.IsNearlyZero())
+	{
+		Keep = ESpitterKeep::Hold;
+		return;
+	}
+	Keep = ESpitterKeep::Reposition;
+	GetCharacterMovement()->MaxWalkSpeed = ChaseSpeed * FFightTuning::LiveRangedMoveShare();
+	AddMovementInput(KeepWay);
 }
 
 FVector ASpitterSpider::FirstClearWay(TConstArrayView<FVector> Candidates) const

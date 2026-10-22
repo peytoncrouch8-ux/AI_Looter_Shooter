@@ -322,14 +322,15 @@ bool FEncounterCapsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Past it: none"), EncounterRules::Room(15, 12), 0);
 	TestTrue(TEXT("No cap: room for any number"), EncounterRules::Room(500, 0) > 100000);
 
-	// The area's numbers (Docs/Areas/RansomsRest.md, "Performance plan"): at most 16 creatures within 80 m of the player, and
-	// 12 Unpaid at once, by the class's path so the cap holds from the moment the Unpaid exist.
+	// The area's numbers (Docs/Areas/RansomsRest.md, "Performance plan"), raised for the bigger fights (2026-10-21: the user's
+	// 6-10 a fight and the set pieces' 10 with a Bell-Ringer): at most 20 creatures within 80 m of the player, and 16 Unpaid at
+	// once, by the class's path so the cap holds from the moment the Unpaid exist.
 	const UEncounterSettings& Settings = UEncounterSettings::Get();
-	TestEqual(TEXT("16 creatures near the player"), Settings.MaxCreaturesNearPlayer, 16);
+	TestEqual(TEXT("20 creatures near the player"), Settings.MaxCreaturesNearPlayer, 20);
 	TestNearlyEqual(TEXT("...within 80 m"), Settings.NearPlayerRadius, 8000.f, 1.f);
-	TestTrue(TEXT("12 Unpaid at once"), Settings.ClassCaps.ContainsByPredicate([](const FEncounterClassCap& Cap)
+	TestTrue(TEXT("16 Unpaid at once"), Settings.ClassCaps.ContainsByPredicate([](const FEncounterClassCap& Cap)
 	{
-		return Cap.MaxAlive == 12 && Cap.CreatureClass.ToSoftObjectPath().ToString().EndsWith(TEXT(".UnpaidCreature"));
+		return Cap.MaxAlive == 16 && Cap.CreatureClass.ToSoftObjectPath().ToString().EndsWith(TEXT(".UnpaidCreature"));
 	}));
 
 	// A kind's cap reaches its children, and the nearest kind's wins.
@@ -400,7 +401,7 @@ bool FEncounterCapsTest::RunTest(const FString& Parameters)
 	Pairs->UpdateEncounter(0.5f);
 	TestTrue(TEXT("Its own cap: two slimes out, four waiting"), Pairs->NumAlive() == 2 && Pairs->NumOwed() == 4);
 
-	// 16 near the player: a crowd fills the level to two short of it, and a wave of five brings only two.
+	// 20 near the player: a crowd fills the level to two short of it, and a wave of five brings only two.
 	const int32 NearCap = Settings.MaxCreaturesNearPlayer;
 	TArray<ACreatureBase*> Crowd;
 	for (int32 Index = 0; Index < 40 && Encounters->CountAliveNear(PlayerSpot, Settings.NearPlayerRadius) < NearCap - 2; ++Index)
@@ -425,16 +426,16 @@ bool FEncounterCapsTest::RunTest(const FString& Parameters)
 	}
 	Crowded->UpdateEncounter(0.5f);
 	TestTrue(TEXT("A wave of five near the crowd: two come, three wait"), Crowded->NumAlive() == 2 && Crowded->NumOwed() == 3);
-	TestEqual(TEXT("...16 round the player, no more"), Encounters->CountAliveNear(PlayerSpot, Settings.NearPlayerRadius), NearCap);
+	TestEqual(TEXT("...20 round the player, no more"), Encounters->CountAliveNear(PlayerSpot, Settings.NearPlayerRadius), NearCap);
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
 		BossTestWorld::Kill(Crowd[Index]);
 	}
 	Crowded->UpdateEncounter(0.5f);
 	TestTrue(TEXT("Three of the crowd killed: the three waiting come"), Crowded->NumAlive() == 5 && Crowded->NumOwed() == 0);
-	TestEqual(TEXT("...16 again"), Encounters->CountAliveNear(PlayerSpot, Settings.NearPlayerRadius), NearCap);
+	TestEqual(TEXT("...20 again"), Encounters->CountAliveNear(PlayerSpot, Settings.NearPlayerRadius), NearCap);
 
-	// Far from the player the near cap holds nothing back: two slimes 200 m off come, though 16 stand near the player.
+	// Far from the player the near cap holds nothing back: two slimes 200 m off come, though 20 stand near the player.
 	AEncounterSpawner* Far = EncounterTestWorld::SpawnSpawner(World, FVector(20000.0, 0.0, 0.0), [](AEncounterSpawner& Setup)
 	{
 		Setup.Groups = { EncounterTestWorld::MakeGroup(ASlimeCreature::StaticClass(), 2) };

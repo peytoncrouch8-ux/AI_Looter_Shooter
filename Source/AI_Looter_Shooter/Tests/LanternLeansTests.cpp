@@ -129,7 +129,7 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 				&& Plate->Event == FName(TEXT("PorchPlate.Eaten")));
 			TestTrue(TEXT("Turned in to Tilly at her window"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillysWindow);
 			const FMissionRewards& Rewards = Asset->Rewards;
-			TestTrue(TEXT("Its reward: 4,600 experience and the Lily opened"), Rewards.Experience == 4600
+			TestTrue(TEXT("Its reward: 4,100 experience and the Lily opened"), Rewards.Experience == 4100  // (trimmed 2026-10-21; 4,600)
 				&& Rewards.UnlockAreas == TArray<FName>({ LilyId }));
 			TestTrue(TEXT("...and Heirloom, handed over by Delia, never dropped"), Rewards.NamedGun == HeirloomId && Rewards.bNamedGunByHand && !Rewards.bGun);
 		}

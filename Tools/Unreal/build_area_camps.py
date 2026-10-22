@@ -18,6 +18,8 @@ places it all again; a piece whose class or model isn't there yet is left out wi
 - Ambushes (gameplay.encounters.ambushes): an AAmbushSpawner Ambush_<id> at the middle of its spots, sprung as the player
   walks onto its trigger (an obstacle's polygon: the churchyard's fence, the Webwood), its creatures arriving as its
   'entrance' says (Rise: the dead fade up out of the ground; Drop: from 'dropHeight' over their feet) and coming at once.
+  One with a 'setPiece' block is an ASetPieceSpawner (the Webwood's drop, once a session: build_area_setpieces.py); its
+  groups' 'firstWave'/'lastWave' say which push each comes with.
 
 Main runs it from build_area.py's gameplay(), after the story's pieces (the Webwood's trees and the caches stand first):
     importlib.reload(importlib.import_module('build_area_camps')).place(self)
@@ -34,6 +36,8 @@ import build_area_story as story
 SPAWNER = 'EncounterSpawner'
 PATROL = 'PatrolSpawner'
 AMBUSH = 'AmbushSpawner'
+# An ambush with a "setPiece" block is a set piece (ASetPieceSpawner; build_area_setpieces.py): the Webwood's drop.
+SETPIECE = 'SetPieceSpawner'
 CRATE_TAG = 'CampCache'
 CRATE_KIND = 'SupplyCrate'
 
@@ -52,8 +56,9 @@ LOOK_REACH = 1500.0
 # Helpers
 # ---------------------------------------------------------------------------
 
-def group(cls, count, rank):
-    """FEncounterGroup: count of cls, Fixed at a rank ('Basic', 'Rare'), or the area's promotions ('Area')."""
+def group(cls, count, rank, first_wave=1, last_wave=0):
+    """FEncounterGroup: count of cls, Fixed at a rank ('Basic', 'Rare'), or the area's promotions ('Area'), in the waves
+    from first_wave to last_wave (counted from 1; 0: every wave from the first: a set piece's pushes have their own)."""
     made = unreal.EncounterGroup()
     made.set_editor_property('creature_class', cls)
     made.set_editor_property('count', count)
@@ -62,6 +67,8 @@ def group(cls, count, rank):
     else:
         made.set_editor_property('rank_roll', unreal.EncounterRankRoll.FIXED)
         made.set_editor_property('rank', getattr(unreal.CreatureRank, RANKS[rank]))
+    made.set_editor_property('first_wave', first_wave)
+    made.set_editor_property('last_wave', last_wave)
     return made
 
 
@@ -73,7 +80,7 @@ def groups(build, entry):
         if cls is None:
             build.warn(f'no {each["class"]} class (build the game module first): no {entry["id"]}')
             return None
-        made.append(group(cls, each['count'], each['rank']))
+        made.append(group(cls, each['count'], each['rank'], int(each.get('firstWave', 1)), int(each.get('lastWave', 0))))
     return made
 
 
@@ -249,12 +256,13 @@ def place_patrol(build, patrol):
 
 
 def place_ambush(build, ambush):
-    """An ambush's encounter at the middle of its spots, sprung by the player walking onto its trigger's ground."""
+    """An ambush's encounter at the middle of its spots, sprung by the player walking onto its trigger's ground; with a
+    setPiece block, a set piece (its pushes, beats, placed creatures, flag and shower: build_area_setpieces.py)."""
     label = f'Ambush_{ambush["id"]}'
     spots = ambush['spots']
     x = sum(p[0] for p in spots) / len(spots)
     y = sum(p[1] for p in spots) / len(spots)
-    made, z = spawner(build, AMBUSH, label, x, y, ambush, label)
+    made, z = spawner(build, SETPIECE if ambush.get('setPiece') else AMBUSH, label, x, y, ambush, label)
     if made is None:
         return
     made.set_editor_property('spawn_points', relative(build, spots, x, y, z))
@@ -270,6 +278,9 @@ def place_ambush(build, ambush):
         made.set_editor_property('drop_height', float(ambush['dropHeight']))
     set_ground(build, made, ambush['ground'], z)
     check_levels(build, label, (x, y, z), spots, float(ambush['ground'].get('maxStep', DEFAULT_STEP)))
+    if ambush.get('setPiece'):
+        fights = importlib.reload(importlib.import_module('build_area_fights_mountain'))
+        importlib.reload(importlib.import_module('build_area_setpieces')).apply(build, made, ambush, fights.Where(build, ambush, None))
     build.log(f'{label} ({ambush["where"]}): {ambush.get("entrance", "Appear")}, sprung on its ground, after '
               f'{", ".join(ambush.get("after", ())) or "the start"}')
 
@@ -313,6 +324,12 @@ def place(build):
         place_patrol(build, patrol)
     for ambush in encounters.get('ambushes', []):
         place_ambush(build, ambush)
+    # The valley's mission fights written as data (gameplay.encounters.fights with "pass": "valley": Main Street's set
+    # piece), placed as the mountain's are (build_area_fights_mountain.place_one), in Gameplay.
+    fights = importlib.reload(importlib.import_module('build_area_fights_mountain'))
+    for entry in encounters.get('fights', []):
+        if not fights.is_mountains(entry):
+            fights.place_one(build, entry, None)
     place_crates(build, camps)
     build.log(f'between the fights: {len(encounters.get("camps", []))} camps, {len(encounters.get("patrols", []))} patrols, '
               f'{len(encounters.get("ambushes", []))} ambushes')

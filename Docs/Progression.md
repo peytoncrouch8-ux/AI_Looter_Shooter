@@ -144,51 +144,58 @@ and any mission they offer next is offered straight after, as one conversation. 
 |---|---|---|---|---:|---:|---|
 | Main 1, Seven Days | (a new game) | — | Delia, at her screen door | 450 | 20 | — |
 | Main 2, Shall We Talk Business? | Hob | Main 1 | Mister Sexton, on the rail | 550 | — | (the Ledger) |
-| Main 3, Cold Welcome | Delia | Main 2 | Tilly, at her window | 1,200 | 40 | Uncommon+ |
-| Side 1, Wanted: Already Dead | the poster on the town gate | Main 3 | Tilly | 400 | 50 | Rare |
+| Main 3, Cold Welcome | Delia | Main 2 | Tilly, at her window | 1,000 | 40 | Uncommon+ |
+| Side 1, Wanted: Already Dead | the poster on the town gate | Main 3 | Tilly | 300 | 50 | Rare |
 | Calder's Caches | Ruth Calder's note | Main 3 | the Rim Rangers' board | 250 | 30 | — |
-| The Old Fare | Mr. Sloane, through his door | Main 3 | Josiah Fenn, in his coffin | 600 | 30 | Rare Drover |
-| Main 4, Hallowed Ground | Tilly | Main 3 | Father Aldana, at the vestry door | 1,400 | 40 | — |
-| Side 2, Unfinished Business | Amos, at his fence | Main 4 | Amos | 800 | 60 | Epic |
-| Knocking Below | Tilly | Main 4 | Tilly | 800 | 40 | Rare |
-| Main 5, The Keeper's Lantern | Father Aldana | Main 4 | Father Aldana | 2,500 | 50 | — |
-| Side 3, The Gravemother | the sheriff's bounty on the Rangers' board | Main 5 | Mrs. Pruitt, at the store's hatch | 1,200 | 80 | (her Legendary table) |
-| Dead Lift | Hiram Coyle, in the winch house | Main 5 | Hiram, up the speaking tube | 1,500 | 40 | Rare rifle |
-| The Last Watch | the board at Calder's Post | Dead Lift | the post's board | 1,300 | 60 | (Calder's fourth cache) |
-| Back Pay | No. 7's brass tag | Dead Lift | the tag board: pay the eleven, or keep the payroll | 2,000 | 0 / 400 | Rare / — |
-| Main 6, The Gravewind | Delia | Main 5 | nobody: finishes as Pa sits down | 5,000 | — | (Abel's loot) |
-| Main 7, The Lantern Leans | Pa, on his board | Main 6 | Tilly | 4,600 | 60 | (Heirloom, by hand) |
+| The Old Fare | Mr. Sloane, through his door | Main 3 | Josiah Fenn, in his coffin | 450 | 30 | Rare Drover |
+| Main 4, Hallowed Ground | Tilly | Main 3 | Father Aldana, at the vestry door | 1,300 | 40 | — |
+| Side 2, Unfinished Business | Amos, at his fence | Main 4 | Amos | 600 | 60 | Epic |
+| Knocking Below | Tilly | Main 4 | Tilly | 600 | 40 | Rare |
+| Main 5, The Keeper's Lantern | Father Aldana | Main 4 | Father Aldana | 2,200 | 50 | — |
+| Side 3, The Gravemother | the sheriff's bounty on the Rangers' board | Main 5 | Mrs. Pruitt, at the store's hatch | 900 | 80 | (her Legendary table) |
+| Dead Lift | Hiram Coyle, in the winch house | Main 5 | Hiram, up the speaking tube | 1,000 | 40 | Rare rifle |
+| The Last Watch | the board at Calder's Post | Dead Lift | the post's board | 900 | 60 | (Calder's fourth cache) |
+| Back Pay | No. 7's brass tag | Dead Lift | the tag board: pay the eleven, or keep the payroll | 1,300 | 0 / 400 | Rare / — |
+| Main 6, The Gravewind | Delia | Main 5 | nobody: finishes as Pa sits down | 4,400 | — | (Abel's loot) |
+| Main 7, The Lantern Leans | Pa, on his board | Main 6 | Tilly | 4,100 | 60 | (Heirloom, by hand) |
 
-Main missions **15,700 XP** in all, side missions **8,850**. Each optional objective done adds 10 silver at the turn-in
-(at level 1, grown with the economy) and no experience, so the sums below hold.
+Main missions **14,000 XP** in all, side missions **6,300**. Trimmed on 2026-10-21 (FIGHT-LAYOUT) to hold the two ends
+when the user's bigger fights (6-10 a fight, three set pieces) put more kills on every path: they were 15,700 and 8,850
+(Main 3 1,200, Main 4 1,400, Main 5 2,500, Main 6 5,000, Main 7 4,600; Side 1 400, the Old Fare 600, Side 2 and Knocking
+Below 800, Side 3 1,200, Dead Lift 1,500, the Last Watch 1,300, Back Pay 2,000). The values live in
+`Tools/Unreal/create_mission_assets.py` and `create_side_mission_assets.py`; `Tests/PacingPaths.h` plans the same. Each
+optional objective done adds 10 silver at the turn-in (at level 1, grown with the economy) and no experience, so the sums
+below hold.
 
 ## Ransom's Rest, counted
 
 `Looter.Progression.Pacing` plays two paths on paper from the same data the game uses (`Tests/PacingPaths.h`): the
-mission assets' rewards, the creatures' own numbers, the layout's levels and encounters. Kills one at a time at the level
-the ones before left the player on, each averaged over the levels where it stands and the area's promotions (8%
-Restless, 2% Gravebound, 0.4% Hallowed, 0.08% Ethereal) as the game rolls them; then the turn-in. It fails outside **5.3-5.8** for the story alone and
-**6.6-7.0** for everything, or if the missions give under two thirds of the story's experience.
+mission assets' rewards, the creatures' own numbers, the layout's levels and encounters (a set piece's placed creatures
+counted with its groups). Kills one at a time at the level the ones before left the player on, each averaged over the
+levels where it stands and the area's promotions (8% Restless, 2% Gravebound, 0.4% Hallowed, 0.08% Ethereal) as the game
+rolls them; then the turn-in. It fails outside **5.3-5.8** for the story alone and **6.6-7.0** for everything, or if the
+missions give under three fifths of the story's experience (two thirds until the bigger fights: the kills carry more now).
 
 ### The story alone
 
-Every main mission, the fights on its way (the layout's "main" encounters: the churchyard's risen dead before Main 5, the
-sheep fold's camp before Main 6), and the roaming dead once (boot hill's, the north road's, the west road's walkers).
+Every main mission, the fights on its way (Main Street's set piece; the layout's "main" encounters: the churchyard's risen
+dead before Main 5, the sheep fold's camp before Main 6), and the roaming dead once (boot hill's, the north road's, the
+west road's walkers).
 
 | After | Kills on the way (their levels) | Kill XP | Turned in | XP in all | Level |
 |---|---|---:|---:|---:|---:|
 | Main 1, Seven Days | none | 0 | 450 | 450 | 1.42 |
-| Main 2 | the bluff nest (1-2): 4 spiders, 1 Restless | 126 | 550 | 1,126 | 2.02 |
-| Main 3 | the town gate (2-3): 3 Unpaid, 1 Restless | 180 | 1,200 | 2,507 | 2.54 |
-| Main 4 | the chapel yard (3-4): 12 Unpaid, 1 Restless | 662 | 1,400 | 4,569 | 3.18 |
-| (roaming) | boot hill, the north road (3-4): 6 Unpaid; the west road (4-5): 3 Unpaid | 551 | | 5,120 | 3.29 |
-| Main 5 | the churchyard (3-4): 3 Unpaid, 1 Restless, a Bell-Ringer; the Sink (4-5): 10 spiders | 984 | 2,500 | 8,605 | 4.01 |
-| Main 6 | the sheep fold (4-5): 3; about 12 of Abel's adds (5-6) and Abel (7: 2,066) | 3,273 | 5,000 | 16,878 | 5.07 |
-| Main 7, The Lantern Leans | none | 0 | 4,600 | **21,478** | **5.49** |
+| Main 2 | the bluff nest (1-2): 5 spiders, 1 Restless | 143 | 550 | 1,143 | 2.03 |
+| Main 3 | the town gate (2-3): 6 Unpaid, 1 Restless; Main Street (2-3): 9 Unpaid, 1 Restless, a Bell-Ringer | 676 | 1,000 | 2,819 | 2.66 |
+| Main 4 | the chapel yard (3-4): 15 Unpaid, 1 Restless | 797 | 1,300 | 4,916 | 3.25 |
+| (roaming) | boot hill, the north road (3-4): 10 Unpaid; the west road (4-5): 5 Unpaid | 944 | | 5,860 | 3.44 |
+| Main 5 | the churchyard (3-4): 6 Unpaid, 1 Restless, a Bell-Ringer; the Sink (4-5): 12 spiders | 1,278 | 2,200 | 9,338 | 4.10 |
+| Main 6 | the sheep fold (4-5): 6; about 12 of Abel's adds (5-6) and Abel (7: 2,066) | 3,456 | 4,400 | 17,194 | 5.10 |
+| Main 7, The Lantern Leans | none | 0 | 4,100 | **21,294** | **5.48** |
 
-**62 kills give about 5,800 XP, seven missions 15,700 (73%): about 21,500 XP, level 5.5** (5.44 without the roaming
+**94 kills give about 7,300 XP, seven missions 14,000 (66%): about 21,300 XP, level 5.5** (5.39 without the roaming
 dead). Each level-up lands on a turn-in: 2 at Main 2's, 3 at Main 4's, 4 at Main 5's, 5 at Main 6's. Each further
-visit's roaming kills add about 550.
+visit's roaming kills add about 940.
 
 ### Everything once
 
@@ -197,47 +204,48 @@ Every mission as soon as it opens (the valley's side missions before Main 5, the
 
 | After | Kills on the way | Kill XP | Turned in | XP in all | Level |
 |---|---|---:|---:|---:|---:|
-| Mains 1-3 | as above | 306 | 2,200 | 2,507 | 2.54 |
-| Side 1 | the optional camps and patrol counted before it: the orchard's edge (2-3), Mill Creek's slimes (3-4), the quarry track (5-6) | 852 | 400 | 3,759 | 3.01 |
-| Calder's Caches | none | 0 | 250 | 4,009 | 3.06 |
-| The Old Fare | the depot's waiting room (2-3): 3 Unpaid, 1 Restless, a Bell-Ringer | 218 | 600 | 4,828 | 3.23 |
-| Main 4 | the chapel yard | 662 | 1,400 | 6,890 | 3.66 |
-| Side 2; Knocking Below | Amos's hands (3-4): 6; Tilly's cellar (3-4): 4 | 604 | 1,600 | 9,094 | 4.07 |
-| (roaming) | as above | 538 | | 9,632 | 4.14 |
-| Main 5 | the Webwood's drop (5-6, optional), the churchyard, the Sink | 1,472 | 2,500 | 13,604 | 4.67 |
-| Side 3 | the Gravemother (6: 859) and about 6 of her brood (4) | 1,177 | 1,200 | 15,981 | 4.98 |
-| Dead Lift | the lift crew and Abe Haskett, the raising steam, the crest's spiders (5-6): 13 | 1,228 | 1,500 | 18,709 | 5.24 |
-| The Last Watch | Calder's Post's yard and the watch (5-6): 8; the Dinner Pail camp: 5 | 1,382 | 1,300 | 21,391 | 5.48 |
-| Back Pay | the spoil heap, the two shifts (5-6): 14; the Foreman (7: 1,136) and his 6 | 3,113 | 2,000 | 26,504 | 5.96 |
-| Main 6 | the sheep fold, Abel's adds and Abel | 3,220 | 5,000 | 34,724 | 6.53 |
-| Main 7 | none | 0 | 4,600 | **39,324** | **6.84** |
+| Mains 1-3 | as above | 819 | 2,000 | 2,819 | 2.66 |
+| Side 1 | the optional camps and patrol counted before it: the orchard's edge (2-3), Mill Creek's slimes (3-4), the quarry track (5-6): 19 | 1,201 | 300 | 4,320 | 3.12 |
+| Calder's Caches | none | 0 | 250 | 4,570 | 3.18 |
+| The Old Fare | the depot's waiting room (2-3): 4 Unpaid, 1 Restless, a Bell-Ringer | 247 | 450 | 5,267 | 3.32 |
+| Main 4 | the chapel yard | 797 | 1,300 | 7,364 | 3.75 |
+| Side 2; Knocking Below | Amos's hands (3-4): 8; Tilly's cellar (3-4): 6 | 782 | 1,200 | 9,345 | 4.10 |
+| (roaming) | as above | 922 | | 10,267 | 4.23 |
+| Main 5 | the Webwood's set piece (5-6, optional: 8 spiders, 2 Spitters), the churchyard, the Sink | 2,146 | 2,200 | 14,613 | 4.80 |
+| Side 3 | the Gravemother (6: 859) and about 6 of her brood (4) | 1,177 | 900 | 16,690 | 5.05 |
+| Dead Lift | the lift crew and Abe Haskett, the raising steam, the crest's spiders (5-6): 19 | 1,741 | 1,000 | 19,431 | 5.30 |
+| The Last Watch | Calder's Post's yard and the watch (5-6): 12; the Dinner Pail camp: 6 | 1,807 | 900 | 22,138 | 5.55 |
+| Back Pay | the spoil heap, the two shifts (5-6): 23; the Foreman (7: 1,136) and his 6; the cave-in: 10 | 4,851 | 1,300 | 28,289 | 6.09 |
+| Main 6 | the sheep fold, Abel's adds and Abel | 3,321 | 4,400 | 36,009 | 6.61 |
+| Main 7 | none | 0 | 4,100 | **40,109** | **6.89** |
 
-**About 149 kills give about 14,800 XP, sixteen missions 24,550: about 39,300 XP, level 6.8.** A side mission is worth
-about an eighth to a fifth of a level where it's met, Borderlands' share (Calder's Caches, a short errand, a twentieth).
-A player who does the mountain after Main 6 instead meets Abel at about 5 and ends about the same (the falloff takes a
-little more of the mountain's kills). The Gravemother's and the Foreman's Vigil Stones (a kill each again) add about 860
-and 1,140 a time.
+**About 227 kills give about 19,800 XP, sixteen missions 20,300 (51%): about 40,100 XP, level 6.9.** A side mission is
+now about a tenth to a seventh of a level where it's met (the fights round it carry the rest; Calder's Caches, a short
+errand, a twentieth). A player who does the mountain after Main 6 instead meets Abel at about 5 and ends about the same
+(the falloff takes a little more of the mountain's kills). The Gravemother's and the Foreman's Vigil Stones (a kill each
+again) add about 860 and 1,140 a time.
 
-These are the paper model's; the test's own sums, with the layout's levels, print in its log and may differ by a few
-hundredths. The mountain's zones come from `patches/missions.json`; without them its fights would count at the valley's
-2-3 and a full clear end about 6.7.
+These are the paper model's (FIGHT-LAYOUT's, 2026-10-21, before a build); the test's own sums, with the layout's levels,
+print in its log and may differ by a few hundredths. The mountain's zones come from `patches/missions.json`; without them
+its fights would count at the valley's 2-3.
 
 **The encounters between the fights** (`Art/Levels/RansomsRest/layout.json` gameplay.encounters, placed by
 `Tools/Unreal/build_area_camps.py`; the user's budget, 2026-10-08: about 15 more kills on the story's way at most, which
-the test checks). Each entry says its `budget`: **main** (met on the way, counted before `countedBefore`'s own fights),
-**roaming** (with the few roaming kills) or **optional** (the explorer's). The missions' own fights (the depot's, the
-cellar's, the mountain's) are the paths' own, counted once even when the layout lists them.
+the test checks: 14 since the bigger fights). Each entry says its `budget`: **main** (met on the way, counted before
+`countedBefore`'s own fights), **roaming** (with the few roaming kills) or **optional** (the explorer's). The missions' own
+fights (the depot's, the cellar's, the mountain's, Main Street's and the cave-in's set pieces) are the paths' own, counted
+once even when the layout lists them.
 
 | Encounter | Where | On after | Creatures | Budget |
 |---|---|---|---|---|
-| Camp SheepFold | the west field, round the sheep fold | Main 4 | 2 Unpaid, 1 Restless; a crate | main, before Main 6 |
-| Camp OrchardEdge | south of the orchard, under Coffin Rock | Main 3 | 3 Unpaid, 1 Restless, a Bell-Ringer; a crate | optional |
-| Camp MillCreek | the creek bottom above Mill Falls | Main 3 | 3 slimes, 1 Restless; a crate | optional |
-| Patrol WestRoad | the west road below the chapel knoll | Main 4 | 3 Unpaid (the area's ranks) | roaming |
-| Patrol QuarryTrack | the quarry track to the Old Quarry | Main 3 | 3 spiders, a Spitter (the area's ranks) | optional |
-| Ambush Churchyard | the churchyard's west grave rows | Main 4 | 3 Unpaid, 1 Restless, a Bell-Ringer | main, before Main 5 |
-| Ambush Webwood | the Webwood's crowned trees | Main 4 | 3 spiders, 1 Restless, a Spitter | optional |
-| (the mountain's) | the crest, the Bench, the Diggings | Dead Lift | CrestPatrol 3 spiders; DinnerPail 3 miners, 1 Restless, a Bell-Ringer; SpoilAmbush 3 miners | optional / Back Pay's way |
+| Camp SheepFold | the west field, round the sheep fold | Main 4 | 5 Unpaid, 1 Restless; a crate | main, before Main 6 |
+| Camp OrchardEdge | south of the orchard, under Coffin Rock | Main 3 | 5 Unpaid, 1 Restless, a Bell-Ringer; a crate | optional |
+| Camp MillCreek | the creek bottom above Mill Falls | Main 3 | 5 slimes, 1 Restless; a crate | optional |
+| Patrol WestRoad | the west road below the chapel knoll | Main 4 | 5 Unpaid (the area's ranks) | roaming |
+| Patrol QuarryTrack | the quarry track to the Old Quarry | Main 3 | 5 spiders, a Spitter (the area's ranks) | optional |
+| Ambush Churchyard | the churchyard's west grave rows | Main 4 | 6 Unpaid, 1 Restless, a Bell-Ringer | main, before Main 5 |
+| Ambush Webwood (set piece) | round the player in the Webwood | Main 4 | 4 spiders and 1 Restless, then 3; 2 Spitters on the high ground | optional |
+| (the mountain's) | the crest, the Bench, the Diggings | Dead Lift | CrestPatrol 5 spiders; DinnerPail 4 miners, 1 Restless, a Bell-Ringer; SpoilAmbush 6 miners | optional / Back Pay's way |
 
 ## Changing the numbers
 
@@ -352,3 +360,11 @@ earns, and a Basic kill is worth under a box of ammo: drops stay about the guns.
 every container and camp) earns about 2,000, and 400 more with the payroll kept. The test holds the normal play between
 1,000 and 1,800 and the guns of the day to "a few"; Lost Property's shelving upgrades (300 to 2,400 since 2026-10-14, the user's call: dearer as the world grows) are what the
 explorer's silver is for.
+
+**Since the bigger fights (2026-10-21, FIGHT-LAYOUT; not yet in the test).** A normal play now kills about 87 Basic and 8
+Restless Unpaid (Bell-Ringers among them), 17 spiders and a Restless one, and Abel (was 53, 7, 14 and 1): kills about 565
+silver (was 435), the playthrough about 1,550 (was 1,420); the set pieces' showers give guns and ammo, no silver. After
+supplies that's about 6.3 Uncommon guns of the day (the test's band is 3-6) or 3.0 Rare (under 3). `Looter.Economy.Balance`
+(`Tests/EconomyTests.cpp`) still counts the old kills, so it passes unchanged; Main's call: its counts to the new ones and
+a Regular Unpaid's silver chance from 55% to 40% (`LooterEconomy`), which keeps the playthrough about 1,470 (5.9 Uncommon,
+2.8 Rare).

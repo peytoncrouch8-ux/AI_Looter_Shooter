@@ -41,33 +41,33 @@ everything about 6.8; Looter.Progression.Pacing checks both).
                    salt; APorchPlate's take_when is "during Main1 from step 4"). Turned in to Delia at her door: the doc's
                    three lines and "eat what's on that plate". 450 XP, her purse (20).
   DA_Mission_Main2 "Shall We Talk Business?", offered by Hob (Speaker_Hob) after Main 1: 0 up onto Ransom's Point
-                   (Place_RansomsPoint, height counted), 1 the nest cleared (BluffNest, 5), 2 Mister Sexton
+                   (Place_RansomsPoint, height counted), 1 the nest cleared (BluffNest, 6), 2 Mister Sexton
                    (Speaker_Sexton) + optional the boards where it happened (LookoutStains), 3 the Ledger opened (it must
                    stay step 3: Ledger::HandedOverStep). Turned in to Sexton, who sends Ellis to Delia about the lantern.
                    550 XP and the Ledger.
   DA_Mission_Main3 "Cold Welcome", offered by Delia after Main 2: 0 the farm road to the town gate (Place_TownGate),
-                   1 the gate's Unpaid (TownGate, 4), 2 Bright & Daughter (within 8 m of Speaker_Tilly). Turned in to Tilly
+                   1 the gate's Unpaid (TownGate, 7), 2 Bright & Daughter (within 8 m of Speaker_Tilly). Turned in to Tilly
                    at her window, her whole talk (DA_Lines_TillyMain3 the same, her topic "during Main3 from step 3"):
                    Pa's lantern bail out on the sill (Main 6's item LanternBail, lying there from Main 3's end) and the box
-                   of effects. 1,200 XP, an Uncommon gun or better, her purse (40). Its id must stay "Main3" (Main Street's
+                   of effects. 1,000 XP, an Uncommon gun or better, her purse (40). Its id must stay "Main3" (Main Street's
                    safe ground and shutters, Pruitt's hatch follow it).
   DA_Mission_Main4 "Hallowed Ground", offered by Tilly after Main 3: 0 the chapel (Place_Chapel), 1 the chapel yard
-                   (ChapelYard, 13), 2 the knock at the vestry door (Speaker_Aldana: "ring her bell"), 3 the bell held
+                   (ChapelYard, 16), 2 the knock at the vestry door (Speaker_Aldana: "ring her bell"), 3 the bell held
                    (Bell_Chapel), 4 the Reliquary seen (GraveSight.Reliquary; its look_when "during Main4 from step 4") +
                    optional the keepers' roll (KeepersRoll). Turned in to Aldana: a keeper's lantern can find an ember, and
-                   Pa's fell whole. 1,400 XP, the poor box (40).
+                   Pa's fell whole. 1,300 XP, the poor box (40).
   DA_Mission_Main5 "The Keeper's Lantern", offered by Aldana after Main 4 (straight after its turn-in, one conversation):
                    0 into the Sink (Place_SinkFloor, height counted), 1 the three egg sacs, 2 the lantern taken (it must
                    stay step 2: AKeepersLantern::TakeStep), 3 out at the ramp head (Place_SinkRim) + optional the
                    sheriff's hat by the den (SheriffHat). Turned in to Aldana: the altar candle won't take; take it home.
-                   2,500 XP, his purse (50).
+                   2,200 XP, his purse (50).
   DA_Mission_Main6 "The Gravewind", offered by Delia after Main 5 (accepting fades the Rest to dusk): 0 Gravewind Point
                    (Place_GravewindPoint) + optional by the keeper's path (Place_KeepersBridge) + Pa's lantern bail carried
                    (its item LanternBail, off Tilly's sill since Main 3), 1 the lantern on the keeper's post, 2 Abel,
-                   3 sitting with Pa (Abel's steps: HangStep 1, FightStep 2, SceneStep 3). Finishes with the scene. 5,000 XP.
+                   3 sitting with Pa (Abel's steps: HangStep 1, FightStep 2, SceneStep 3). Finishes with the scene. 4,400 XP.
   DA_Mission_Main7 "The Lantern Leans", offered by Pa on his board (Speaker_Abel) after Main 6: 0 home to Delia (her step
                    must stay 0: ADoorHandoff) + optional eat what's on the porch plate (PorchPlate.Eaten). Turned in to
-                   Tilly (her father's car). 4,600 XP, the Gilded Lily opened, Heirloom by Delia's hand, her purse (60).
+                   Tilly (her father's car). 4,100 XP, the Gilded Lily opened, Heirloom by Delia's hand, her purse (60).
 
 The mission features (wave 2a, sections 3-4), each a helper below:
   - optional objectives: objective(..., optional=True) (or event_objective / read_objective / collect_items with
@@ -438,7 +438,7 @@ def main2_steps(asset):
         step(objective(asset, unreal.MissionReachObjective, "Climb the bluff path to Ransom's Point.",
                        place=place(tag='Place_RansomsPoint', radius=1800.0, ignore_height=False))),
         step(objective(asset, unreal.MissionClearObjective, 'Clear the spiders nesting at the top.',
-                       spawner_id=unreal.Name('BluffNest'), count=5)),
+                       spawner_id=unreal.Name('BluffNest'), count=6)),
         step(objective(asset, unreal.MissionTalkObjective, 'Talk to Mister Sexton.',
                        speaker_tag=unreal.Name('Speaker_Sexton')),
              read_objective(asset, 'Look at the boards where it happened.', 'LookoutStains', optional=True)),
@@ -458,7 +458,7 @@ def main3_steps(asset):
         step(objective(asset, unreal.MissionReachObjective, 'Follow the farm road through the orchard into town.',
                        place=place(tag='Place_TownGate', radius=1000.0))),
         step(objective(asset, unreal.MissionClearObjective, 'Fight off the Unpaid at the town gate.',
-                       spawner_id=unreal.Name('TownGate'), count=4)),
+                       spawner_id=unreal.Name('TownGate'), count=7)),
         step(objective(asset, unreal.MissionReachObjective, 'Find Bright & Daughter, Undertakers.',
                        place=place(tag='Speaker_Tilly', radius=800.0))),
     ]
@@ -475,7 +475,7 @@ def main4_steps(asset):
                        place=place(tag='Place_Chapel', radius=1500.0))),
         # "12 Unpaid in two waves, and one Restless": 13, counted from the spawner.
         step(objective(asset, unreal.MissionClearObjective, 'Clear the chapel yard.',
-                       spawner_id=unreal.Name('ChapelYard'), count=13)),
+                       spawner_id=unreal.Name('ChapelYard'), count=16)),
         step(objective(asset, unreal.MissionTalkObjective, 'Knock at the vestry door.',
                        speaker_tag=unreal.Name('Speaker_Aldana'))),
         step(objective(asset, unreal.MissionInteractObjective,
@@ -668,7 +668,7 @@ MISSIONS = [
              ('', "It's on the sill. Take it. A lantern's no use to anyone if it can't be hung."),
              ('', "There's a box of unclaimed effects on the step. Take what's useful. Nobody's coming back for it."),
          ]),
-         rewards=dict(experience=1200, gun=True, gun_rarity_floor='UNCOMMON')),
+         rewards=dict(experience=1000, gun=True, gun_rarity_floor='UNCOMMON')),
     dict(asset='DA_Mission_Main4', id='Main4', title='Hallowed Ground',
          summary="Father Aldana blessed Pa's lantern every spring and sat up with his body the night he died. He has barred "
                  "himself in the chapel's vestry since the dead came home, and the chapel yard is full of them.",
@@ -691,7 +691,7 @@ MISSIONS = [
              ('', "Spiders hoard anything a saint has touched."),
              ('', "Look in the Sink."),
          ]),
-         rewards=dict(experience=1400)),
+         rewards=dict(experience=1300)),
     dict(asset='DA_Mission_Main5', id='Main5', title="The Keeper's Lantern",
          summary="The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. "
                  "Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg sacs.",
@@ -709,7 +709,7 @@ MISSIONS = [
              (ELLIS, 'Then how do I light it?'),
              ('', "I don't know. Take it home to your grandmother, Ellis. She'll know what's owed a keeper."),
          ]),
-         rewards=dict(experience=2500)),
+         rewards=dict(experience=2200)),
     dict(asset='DA_Mission_Main6', id='Main6', title='The Gravewind',
          summary="At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the Keeper's "
                  "Lantern on his post and show him the way, even if he can't go.",
@@ -730,7 +730,7 @@ MISSIONS = [
                      mesh=PROPS + 'SM_LanternBail')],
          # It ends with sitting with Pa, its own hand-in: Pa on his board, the lantern lit and the train's steam all follow
          # Main 6 finished, so it finishes as that scene ends (and Pa offers Main 7 from his board).
-         steps=main6_steps, turn_in=dict(automatic=True), rewards=dict(experience=5000)),
+         steps=main6_steps, turn_in=dict(automatic=True), rewards=dict(experience=4400)),
     dict(asset='DA_Mission_Main7', id='Main7', title='The Lantern Leans',
          summary="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell "
                  "and the Gilded Lily. Go home to Delia first. Then Tilly's hearse car waits at the depot.",
@@ -743,7 +743,7 @@ MISSIONS = [
                      "Purcell and the Gilded Lily. Go home to Delia first: she has kept something back. Tilly's hearse "
                      "car waits at the depot."),
          turn_in=dict(speaker='Speaker_Tilly', giver='Tilly'),
-         rewards=dict(experience=4600, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
+         rewards=dict(experience=4100, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
 ]
 
 

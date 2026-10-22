@@ -77,7 +77,7 @@ bool FGravewindMissionTest::RunTest(const FString& Parameters)
 			// It finishes by itself as Pa sits down: that scene is its hand-in (his board, the lantern lit and the train's steam
 			// follow Main 6 finished), so there's no one to turn it in to.
 			TestTrue(TEXT("It finishes by itself, no turn-in"), Asset->TurnIn.bAutomatic && !Asset->NeedsTurnIn());
-			TestEqual(TEXT("Its reward: 5,000 experience"), Asset->Rewards.Experience, 5000);
+			TestEqual(TEXT("Its reward: 4,400 experience"), Asset->Rewards.Experience, 4400);  // (trimmed 2026-10-21; 5,000)
 			TestTrue(TEXT("Its steps are the ones Abel's story counts"), AAbelKeeper::HangStep == 1 && AAbelKeeper::FightStep == 2 && AAbelKeeper::SceneStep == 3);
 		}
 	}

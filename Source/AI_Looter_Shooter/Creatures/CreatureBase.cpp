@@ -10,6 +10,7 @@
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureTraitComponent.h"
+#include "Creatures/FightDirectorSubsystem.h"
 #include "Loot/LootDropComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/CreatureHealthBarWidget.h"
@@ -108,6 +109,11 @@ void ACreatureBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearAllTimersForObject(this);
+		// Gone from the level: nothing of it kept in a fight (no director when it's off or the world has none).
+		if (UFightDirectorSubsystem* Director = World->GetSubsystem<UFightDirectorSubsystem>())
+		{
+			Director->ForgetCreature(*this);
+		}
 	}
 	// AI controllers aren't cleaned up with their pawn; don't leave one behind per removed creature.
 	if (AController* Brain = GetController())
@@ -158,6 +164,19 @@ void ACreatureBase::SetState(ECreatureState NewState)
 	StateTime = 0.f;
 	StuckTime = 0.f;
 	SteerTimer = 0.f;
+	// Out of the fight (searching, home, calm, dead): any turn it held goes back; off the ring, it turns to where it walks again.
+	if (OldState != NewState)
+	{
+		if (!IsFightState(NewState))
+		{
+			LeaveFightTurn();
+		}
+		if (NewState != ECreatureState::Chase)
+		{
+			SetWaitFacing(false);
+			bWaitingTurn = false;
+		}
+	}
 	// Heard as it turns on a player, and at an attack's wind-up (its tell); a ranked one's sting, and its pack's flank.
 	Voice->HandleStateChanged(OldState, NewState);
 	Pack->HandleStateChanged(OldState, NewState);
@@ -193,8 +212,12 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 	if (HitReaction->IsStaggered() || Knock->HoldsBrain())
 	{
 		StateTime -= DeltaSeconds;
+		// Hit off its turn: it gives its turn back (keeping its place in line), and the next one may come (CreatureBaseFight.cpp).
+		LoseTurnToHit();
 		return;
 	}
+	// Come to after a hit that took its turn mid-wind-up: its attack goes on only with a turn again.
+	ResumeAfterHit();
 	// Coming into the world (rising, climbing out of the dirt: HoldBrain): it stands until it's out, its clock held too.
 	if (BrainHold > 0.f)
 	{
@@ -256,28 +279,9 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 		{
 			break;
 		}
-		const float Distance = FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation());
-		// Its pack: its flank among those chasing the same player, or breaking off once its pack is gone (it then runs and
-		// starts no attack: CreaturePackComponent).
-		Pack->TickChase(DeltaSeconds);
-		const bool bBreakingOff = Pack->IsRetreating();
-		// An attack of its own may start from farther out than its reach (a charge); otherwise it closes in to bite. Never at
-		// a player up on a rock over it, which its strike can't reach: it stands there instead, and soon finds them out of its
-		// reach (CreatureBasePursuit.cpp). A boss's attacks keep their own rules.
-		if (!bBreakingOff && Distance <= GetAttackStartRange() && CooldownRemaining <= 0.f && CanStartAttack()
-			&& (CanReachHeight(static_cast<float>(Victim->GetActorLocation().Z - GetActorLocation().Z)) || KeepsBossRules()))
-		{
-			SetState(ECreatureState::Attack);
-		}
-		else if (bBreakingOff || Distance > GetChaseHold())
-		{
-			MoveToward(Pack->GetChaseGoal(*Victim), bBreakingOff ? ChaseSpeed * Pack->GetRetreatSpeedShare() : ChaseSpeed, DeltaSeconds);
-		}
-		else
-		{
-			// Close but still recovering: square up for the next bite.
-			FaceToward(Victim->GetActorLocation(), DeltaSeconds);
-		}
+		// Its pack's flank and breaking off, its turn (or its wait on the ring, or its ranged spot), and its attack when it
+		// comes (CreatureBaseFight.cpp).
+		TickChaseFight(*Victim, DeltaSeconds);
 		break;
 	}
 
@@ -387,6 +391,11 @@ void ACreatureBase::HandleDeath(AController* Killer)
 	// once until the respawn resets it, so each kill gives its experience once.
 	UPlayerProgressionSubsystem::AwardKill(Killer, this);
 	Target.Reset();
+	// Its turn and its place in the fight go with it: the next one comes in.
+	if (UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this))
+	{
+		Director->ForgetCreature(*this);
+	}
 	SetState(ECreatureState::Dead);
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	Movement->StopMovementImmediately();

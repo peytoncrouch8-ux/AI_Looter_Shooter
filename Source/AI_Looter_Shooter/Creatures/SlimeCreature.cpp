@@ -353,6 +353,12 @@ bool ASlimeCreature::CanStartAttack() const
 	return Hop == EHop::Ground && GetCharacterMovement()->IsMovingOnGround();
 }
 
+void ASlimeCreature::OnAttackCalledOff()
+{
+	// No leap after all: the held squash springs back to its wobble.
+	bTelegraph = false;
+}
+
 // ---------------------------------------------------------------------------
 // The body (its springs and its fit to the ground: SlimeCreatureBody.cpp)
 // ---------------------------------------------------------------------------

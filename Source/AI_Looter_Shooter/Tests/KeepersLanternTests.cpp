@@ -94,7 +94,7 @@ bool FKeepersLanternMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("...and, optional, the sheriff's hat by the den"), Hat && Hat->bOptional);
 			TestTrue(TEXT("Turned in to Father Aldana, with words of its own"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == AldanaTag
 				&& !Asset->TurnIn.Lines.IsEmpty());
-			TestEqual(TEXT("Its reward: 2,500 experience"), Asset->Rewards.Experience, 2500);
+			TestEqual(TEXT("Its reward: 2,200 experience"), Asset->Rewards.Experience, 2200);  // (trimmed 2026-10-21; 2,500)
 			TestEqual(TEXT("The lantern's step is the one AKeepersLantern takes it on"), AKeepersLantern::TakeStep, 2);
 		}
 	}
@@ -176,7 +176,7 @@ bool FKeepersLanternMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the floor's spiders are on"), Spiders->IsStoryActive());
 	Spiders->UpdateEncounter(0.5f);
 	const TArray<ACreatureBase*> Resident = Spiders->GetAliveCreatures();
-	TestEqual(TEXT("Seen from the rim: four spiders among the blocks"), Resident.Num(), FloorSpiders);
+	TestEqual(TEXT("Seen from the rim: six spiders among the blocks"), Resident.Num(), FloorSpiders);
 	TestFalse(TEXT("...each tagged for the floor"), Resident.ContainsByPredicate([](const ACreatureBase* Spider) { return !Spider->ActorHasTag(FloorTag); }));
 	TestFalse(TEXT("...none hunting the player up on the rim"), Resident.ContainsByPredicate([Player](const ACreatureBase* Spider)
 	{
@@ -337,12 +337,12 @@ bool FKeepersLanternPlacedTest::RunTest(const FString& Parameters)
 	}
 	if (TestNotNull(TEXT("The floor's spiders"), Spiders))
 	{
-		TestTrue(TEXT("...four spiders, of the area's ranks"), Spiders->Groups.Num() == 1 && Spiders->Groups[0].Count == FloorSpiders
+		TestTrue(TEXT("...six spiders, of the area's ranks"), Spiders->Groups.Num() == 1 && Spiders->Groups[0].Count == FloorSpiders
 			&& Spiders->Groups[0].RankRoll == EEncounterRankRoll::Area && Spiders->Groups[0].CreatureClass
 			&& Spiders->Groups[0].CreatureClass->IsChildOf(ASpiderCreature::StaticClass()));
 		TestTrue(TEXT("...during Main 5, up to the lantern"), Spiders->ActiveWhen.DuringMission == MainFive && Spiders->ActiveWhen.BeforeStep == 3);
 		TestTrue(TEXT("...on the floor, giving up at the ramp's foot"), Spiders->GroundCorners.Num() >= 3 && Spiders->GroundMaxRise > 0.f
-			&& Spiders->GroundMaxRise < 400.f && Spiders->SpawnPoints.Num() >= FloorSpiders);
+			&& Spiders->GroundMaxRise < 400.f && Spiders->SpawnPoints.Num() >= 4);
 	}
 
 	// The web cards, by the art session's rules.

@@ -19,14 +19,14 @@ The Old Fare, at the depot (the station actor's SM_RR_Depot):
   his eyes once the coins are laid back.
 - The agent's desk (AReadableProp AgentDesk on SOCKET_AgentDesk: Ned Purcell's marker), Fenn's fare (AMissionItem FennsFare,
   the two coins on the landing outside the agent's door, from the step that asks for them), the baggage room's place
-  (Place_BaggageRoom) and the waiting room's fight (AEncounterSpawner DepotWaiting: three Unpaid, a Restless one and a
+  (Place_BaggageRoom) and the waiting room's fight (AEncounterSpawner DepotWaiting: four Unpaid, a Restless one and a
   Bell-Ringer standing where the dead wait, SOCKET_Wait_1..4 and the platform; on during The Old Fare until it's cleared).
 Dead Lift: the coal sack under the coal stage's chute (AMissionItem CoalSack on SOCKET_Sack, also tagged CoalStage: "Fill a
   coal sack", a tap), the winch crank in the sheriff's cell (WinchCrank) and Sheriff Odell's report beside it (OdellReport).
 Knocking Below, at Tilly's workshop (SM_RR_Workshop_Bright): the workshop door's place (Place_WorkshopDoor), the cellar key
   on the measuring hook (CellarKey), the orders slate (OrdersSlate), the cellar door locked until the key is carried
   (ALockedDoor CellarDoor on SOCKET_CellarDoor, SM_RR_CellarDoor), the cellar floor's place (Place_CellarFloor), the
-  cellar's fight (AEncounterSpawner TillyCellar: three Unpaid and a Restless one by the coffins, level 3, its ground the
+  cellar's fight (AEncounterSpawner TillyCellar: five Unpaid and a Restless one by the coffins, level 3, its ground the
   cellar alone), the cold room's door (AInteractableProp ColdRoomDoor on SOCKET_ColdRoomDoor), Thaddeus Bright at his bench
   (AThaddeusBright on SOCKET_ThaddeusBench, Speaker_Thaddeus) and his tape on the bench (ThaddeusTape, after his talk).
 Calder's Caches: Ruth's note on the Rangers' board offers it (AMissionArtifact Artifact_CalderNote over the note's paper,
@@ -190,6 +190,9 @@ COINS_OUT = 40.0
 LID_OPEN = 100.0
 PLATFORM_SPOT = (180.0, 120.0)
 # The waiting room's fight: it comes as the player nears the depot, its ground the depot and the platform in front.
+# Its Basic Unpaid: four, six with the Restless one and the Bell-Ringer (the user's bigger fights, 2026-10-21; three until
+# then).
+DEPOT_BASIC = 4
 DEPOT_ACTIVATION = 2600.0
 DEPOT_GROUND = ((-860.0, 520.0), (-860.0, -1000.0), (380.0, -1000.0), (380.0, 520.0))   # in the station's frame
 # The cellar's fight: its spawner at the cellar's middle, from the workshop's pivot; a player more than this above or
@@ -199,6 +202,8 @@ CELLAR_FLOOR = -330.0
 CELLAR_RISE = 250.0
 CELLAR_ACTIVATION = 1500.0
 CELLAR_LEVEL = 3
+# Its Basic Unpaid: five and the Restless one (three until the bigger fights, 2026-10-21).
+CELLAR_BASIC = 5
 # Thaddeus's tape: on his bench, this far in front of where he stands and to his right (cm).
 TAPE_AT = (60.0, 40.0)
 # The keepers' roll on the nave's front wall, left of the inner door (Chapel.py: the front wall's inner face 3.84 m in
@@ -611,10 +616,10 @@ def place_depot(build, meshes, steps, found):
     middle = unreal.Vector(sum(w.x for w in waits) / len(waits), sum(w.y for w in waits) / len(waits), waits[0].z)
     corners = [frame.transform_location(unreal.Vector(x, y, 40.0)) for x, y in DEPOT_GROUND]
     encounter(build, middle, 'DepotWaiting',
-              [group(unpaid, 3, 'BASIC'), group(unpaid, 1, 'RARE'), group(ringer, 1, 'BASIC')], ('Unpaid_DepotWaiting',),
+              [group(unpaid, DEPOT_BASIC, 'BASIC'), group(unpaid, 1, 'RARE'), group(ringer, 1, 'BASIC')], ('Unpaid_DepotWaiting',),
               story.condition(during=OLD_FARE, before_step=clear_step + 1), waits + [platform], corners,
               DEPOT_ACTIVATION, 250.0)
-    build.log(f'the waiting room\'s fight (DepotWaiting: 3 Unpaid, a Restless one, a Bell-Ringer) during The Old Fare, '
+    build.log(f'the waiting room\'s fight (DepotWaiting: {DEPOT_BASIC} Unpaid, a Restless one, a Bell-Ringer) during The Old Fare, '
               f'before step {clear_step + 1}')
 
 
@@ -737,10 +742,10 @@ def place_workshop(build, meshes, steps, found):
         spots = [unreal.Vector(c.translation.x, c.translation.y, floor.translation.z) for c in coffins if c is not None]
         corners = [frame.transform_location(unreal.Vector(x, y, CELLAR_FLOOR)) for x, y in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
         encounter(build, middle, 'TillyCellar',
-                  [group(unpaid, 3, 'BASIC', CELLAR_LEVEL), group(unpaid, 1, 'RARE', CELLAR_LEVEL)], ('Unpaid_TillyCellar',),
+                  [group(unpaid, CELLAR_BASIC, 'BASIC', CELLAR_LEVEL), group(unpaid, 1, 'RARE', CELLAR_LEVEL)], ('Unpaid_TillyCellar',),
                   story.condition(during=KNOCKING, from_step=down_step, before_step=clear_step + 1), spots, corners,
                   CELLAR_ACTIVATION, CELLAR_RISE)
-        build.log(f'the cellar\'s fight (TillyCellar: 3 Unpaid and a Restless one, level {CELLAR_LEVEL}) during Knocking '
+        build.log(f'the cellar\'s fight (TillyCellar: {CELLAR_BASIC} Unpaid and a Restless one, level {CELLAR_LEVEL}) during Knocking '
                   f'Below from step {down_step} to {clear_step}')
 
     # Thaddeus at his bench in the cold room, and his tape on the bench once he's talked.

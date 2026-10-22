@@ -3,6 +3,7 @@
 #include "Audio/LooterSound.h"
 #include "Audio/LooterSoundCues.h"
 #include "Combat/HealthComponent.h"
+#include "Creatures/FightTuning.h"
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
 #include "World/RespawnMarker.h"
@@ -40,6 +41,12 @@ bool UPlayerVitalsSubsystem::IsRegenerating(const APlayerController* PC) const
 
 void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 {
+	// The wait and the rate of wounds closing are the fight's difficulty (Looter.Fight.RegenDelay, RegenRate; Borderlands
+	// normal since 2026-10-21), read each frame so a change in PIE counts at once.
+	const FFightTuning Fight = FFightTuning::Live();
+	Recovery.RegenDelaySeconds = Fight.RegenDelay;
+	Recovery.RegenRatePerSecond = Fight.RegenRate;
+
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		APlayerController* PC = It->Get();

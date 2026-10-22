@@ -44,7 +44,7 @@ namespace KeepersLanternTestWorld
 	inline constexpr int32 MainFiveSteps = 4;
 
 	/** The floor's spiders: how many, and how far above their spawner a player is still on their ground (cm). */
-	inline constexpr int32 FloorSpiders = 4;
+	inline constexpr int32 FloorSpiders = 6; // (fights enlarged 2026-10-21; 4)
 	inline constexpr float FloorRise = 250.f;
 
 	/** How close counts as on the floor, and as out at the rim (cm, height counted: the mission script's). */
@@ -217,7 +217,7 @@ namespace KeepersLanternTestWorld
 		}
 	}
 
-	/** The floor's spiders as the build script sets them up: four of the area's ranks among the blocks, during Main 5 up to the lantern. */
+	/** The floor's spiders as the build script sets them up: six of the area's ranks among the blocks, during Main 5 up to the lantern. */
 	inline void SetUpFloor(AEncounterSpawner& Setup)
 	{
 		Setup.SpawnerId = FloorId;

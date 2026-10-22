@@ -4,6 +4,8 @@
 // story alone, and everything once. Each stop is a mission turned in with the kills on the way to it (the documented budget:
 // the counts the level's scripts place), or kills alone (the roaming dead). The mountain's and the new side missions'
 // fights carry the design's spot (Docs/Areas/RansomsRest_Expansion.md section 6) for while the layout doesn't name them.
+// The counts are the user's bigger fights' (2026-10-21: 6-10 a fight, the set pieces); the missions' experience was trimmed
+// to hold the two paths' ends (Docs/Progression.md).
 
 #include "CoreMinimal.h"
 
@@ -123,38 +125,42 @@ namespace PacingPaths
 
 	inline FPathStop MainTwoStop(const FPathCast& Foes)
 	{
-		// The bluff nest: four spiders and a Restless one (build_area_story.py, BluffNest).
+		// The bluff nest: five spiders and a Restless one (build_area_story.py, BluffNest).
 		return { TEXT("Main 2, Shall We Talk Business?"), TEXT("Main2"),
-			{ MakeKills(Foes.Spider, EPathRank::Basic, 4, TEXT("BluffNest")), MakeKills(Foes.Spider, EPathRank::Restless, 1, TEXT("BluffNest")) }, 550 };
+			{ MakeKills(Foes.Spider, EPathRank::Basic, 5, TEXT("BluffNest")), MakeKills(Foes.Spider, EPathRank::Restless, 1, TEXT("BluffNest")) }, 550 };
 	}
 
 	inline FPathStop MainThreeStop(const FPathCast& Foes)
 	{
-		// The town gate: three Unpaid and a Restless one (TownGate).
+		// The town gate: six Unpaid and a Restless one (TownGate); then Main Street's set piece on the way to Tilly (layout
+		// gameplay.encounters.fights MainStreet): nine Unpaid, a Restless one and the balcony's Bell-Ringer, at the valley's 2-3.
 		return { TEXT("Main 3, Cold Welcome"), TEXT("Main3"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 3, TEXT("TownGate")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("TownGate")) }, 1200 };
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 6, TEXT("TownGate")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("TownGate")),
+			  PlannedKills(Foes.Unpaid, EPathRank::Basic, 9, TEXT("MainStreet"), 0.0, 3400.0),
+			  PlannedKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("MainStreet"), 0.0, 3400.0),
+			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("MainStreet"), 0.0, 3400.0) }, 1000 };
 	}
 
 	inline FPathStop MainFourStop(const FPathCast& Foes)
 	{
-		// The chapel yard: twelve Unpaid in two waves and a Restless one (build_area_chapel.py, ChapelYard).
+		// The chapel yard: fifteen Unpaid in two waves (eight, then seven) and a Restless one (build_area_chapel.py, ChapelYard).
 		return { TEXT("Main 4, Hallowed Ground"), TEXT("Main4"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 12, TEXT("ChapelYard")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("ChapelYard")) }, 1400 };
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 15, TEXT("ChapelYard")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("ChapelYard")) }, 1300 };
 	}
 
 	inline FPathStop RoamingStop(const FPathCast& Foes)
 	{
-		// A few roaming creatures once: boot hill's and the north road's Unpaid, three each (build_area_chapel.py, after Main 4;
+		// A few roaming creatures once: boot hill's and the north road's Unpaid, five each (build_area_chapel.py, after Main 4;
 		// they're back on every level load). The layout's roaming encounters (the west road's walkers) join them.
 		return { RoamingLabel, NAME_None,
-			{ MakeKills(Foes.Unpaid, EPathRank::AreaRolled, 3, TEXT("BootHill")), MakeKills(Foes.Unpaid, EPathRank::AreaRolled, 3, TEXT("NorthRoad")) }, 0 };
+			{ MakeKills(Foes.Unpaid, EPathRank::AreaRolled, 5, TEXT("BootHill")), MakeKills(Foes.Unpaid, EPathRank::AreaRolled, 5, TEXT("NorthRoad")) }, 0 };
 	}
 
 	inline FPathStop MainFiveStop(const FPathCast& Foes)
 	{
-		// The Sink: its floor's four spiders and the egg sacs' six (build_area_sink.py, SinkFloor; two to a sac).
+		// The Sink: its floor's six spiders and the egg sacs' six (build_area_sink.py, SinkFloor; two to a sac).
 		return { TEXT("Main 5, The Keeper's Lantern"), TEXT("Main5"),
-			{ MakeKills(Foes.Spider, EPathRank::AreaRolled, 4, TEXT("sink")), MakeKills(Foes.Spider, EPathRank::Basic, 6, TEXT("sink")) }, 2500 };
+			{ MakeKills(Foes.Spider, EPathRank::AreaRolled, 6, TEXT("sink")), MakeKills(Foes.Spider, EPathRank::Basic, 6, TEXT("sink")) }, 2200 };
 	}
 
 	inline FPathStop MainSixStop(const FPathCast& Foes)
@@ -162,10 +168,10 @@ namespace PacingPaths
 		// The deck: about twelve of Abel's adds in a 3-4 minute fight (phase 1's two every 25 s, phase 2's two waves of four),
 		// then Abel.
 		return { TEXT("Main 6, The Gravewind"), TEXT("Main6"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 12, TEXT("Abel")), MakeKills(Foes.Abel, EPathRank::Own, 1, TEXT("Abel")) }, 5000 };
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 12, TEXT("Abel")), MakeKills(Foes.Abel, EPathRank::Own, 1, TEXT("Abel")) }, 4400 };
 	}
 
-	inline FPathStop MainSevenStop() { return { TEXT("Main 7, The Lantern Leans"), TEXT("Main7"), {}, 4600 }; }
+	inline FPathStop MainSevenStop() { return { TEXT("Main 7, The Lantern Leans"), TEXT("Main7"), {}, 4100 }; }
 
 	/** The story alone, as a player who only follows it meets it. */
 	inline TArray<FPathStop> StoryPath(const FPathCast& Foes)
@@ -182,54 +188,58 @@ namespace PacingPaths
 	inline TArray<FPathStop> EverythingPath(const FPathCast& Foes)
 	{
 		TArray<FPathStop> Path = { MainOneStop(), MainTwoStop(Foes), MainThreeStop(Foes) };
-		Path.Add({ TEXT("Side 1, Wanted: Already Dead"), TEXT("Side1"), {}, 400 });
+		Path.Add({ TEXT("Side 1, Wanted: Already Dead"), TEXT("Side1"), {}, 300 });
 		Path.Add({ TEXT("Calder's Caches"), TEXT("CaldersCaches"), {}, 250 });
-		// The depot's waiting room (the valley's 2-3): three Unpaid, a Restless one and a Bell-Ringer.
+		// The depot's waiting room (the valley's 2-3): four Unpaid, a Restless one and a Bell-Ringer.
 		Path.Add({ TEXT("The Old Fare"), TEXT("OldFare"),
-			{ PlannedKills(Foes.Unpaid, EPathRank::Basic, 3, TEXT("DepotWaiting"), 465.0, 11150.0),
+			{ PlannedKills(Foes.Unpaid, EPathRank::Basic, 4, TEXT("DepotWaiting"), 465.0, 11150.0),
 			  PlannedKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("DepotWaiting"), 465.0, 11150.0),
-			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("DepotWaiting"), 465.0, 11150.0) }, 600 });
+			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("DepotWaiting"), 465.0, 11150.0) }, 450 });
 		Path.Add(MainFourStop(Foes));
-		// Amos's old hands: five Unpaid and a Restless one (build_area_whitlock.py, WhitlockHands).
+		// Amos's old hands: seven Unpaid and a Restless one (build_area_whitlock.py, WhitlockHands).
 		Path.Add({ TEXT("Side 2, Unfinished Business"), TEXT("Side2"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 5, TEXT("WhitlockHands")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("WhitlockHands")) }, 800 });
-		// Tilly's cellar, under Main Street: three Unpaid and a Restless one, its spawner's own 3-4.
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 7, TEXT("WhitlockHands")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("WhitlockHands")) }, 600 });
+		// Tilly's cellar, under Main Street: five Unpaid and a Restless one, its spawner's own 3-4.
 		Path.Add({ TEXT("Knocking Below"), TEXT("KnockingBelow"),
-			{ KeptKills(Foes.Unpaid, EPathRank::Basic, 3, TEXT("TillyCellar"), -2400.0, 6200.0, 3, 4),
-			  KeptKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("TillyCellar"), -2400.0, 6200.0, 3, 4) }, 800 });
+			{ KeptKills(Foes.Unpaid, EPathRank::Basic, 5, TEXT("TillyCellar"), -2400.0, 6200.0, 3, 4),
+			  KeptKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("TillyCellar"), -2400.0, 6200.0, 3, 4) }, 600 });
 		Path.Add(RoamingStop(Foes));
 		Path.Add(MainFiveStop(Foes));
 		// The Gravemother (set 4, Soulfed's 2) and about six of her brood (spiderlings at her 4).
 		Path.Add({ TEXT("Side 3, The Gravemother"), TEXT("Side3"),
 			{ MakeKills(Foes.Gravemother, EPathRank::Own, 1, TEXT("sink")),
-			  KeptKills(Foes.Spider, EPathRank::Basic, 6, TEXT("sink"), 5550.0, 6500.0, 4, 4) }, 1200 });
-		// The quarry floor (the mountain's 5-6): the lift crew and Abe Haskett, their Restless brakeman with the pin, then the
-		// raising-steam fight; the crest's spiders after the first ride (optional).
+			  KeptKills(Foes.Spider, EPathRank::Basic, 6, TEXT("sink"), 5550.0, 6500.0, 4, 4) }, 900 });
+		// The quarry floor (the mountain's 5-6): the lift crew (five) and Abe Haskett, their Restless brakeman with the pin, then
+		// the raising-steam fight (two waves of two spiders and a Spitter, two dead miners with the second); the crest's five
+		// spiders after the first ride (optional).
 		Path.Add({ TEXT("Dead Lift"), TEXT("DeadLift"),
-			{ PlannedKills(Foes.Miner, EPathRank::Basic, 4, TEXT("QuarryCrew"), 10800.0, 2000.0),
+			{ PlannedKills(Foes.Miner, EPathRank::Basic, 5, TEXT("QuarryCrew"), 10800.0, 2000.0),
 			  PlannedKills(Foes.Miner, EPathRank::Restless, 1, TEXT("AbeHaskett"), 10800.0, 2000.0),
-			  PlannedKills(Foes.Spider, EPathRank::Basic, 2, TEXT("RaisingSteam"), 10500.0, 2500.0),
-			  PlannedKills(Foes.Spitter, EPathRank::Basic, 1, TEXT("RaisingSteam"), 10500.0, 2500.0),
+			  PlannedKills(Foes.Spider, EPathRank::Basic, 4, TEXT("RaisingSteam"), 10500.0, 2500.0),
+			  PlannedKills(Foes.Spitter, EPathRank::Basic, 2, TEXT("RaisingSteam"), 10500.0, 2500.0),
 			  PlannedKills(Foes.Miner, EPathRank::Basic, 2, TEXT("RaisingSteam"), 10500.0, 2500.0),
-			  PlannedKills(Foes.Spider, EPathRank::AreaRolled, 3, TEXT("CrestPatrol"), 14200.0, 1500.0) }, 1500 });
+			  PlannedKills(Foes.Spider, EPathRank::AreaRolled, 5, TEXT("CrestPatrol"), 14200.0, 1500.0) }, 1000 });
 		// Calder's Post's yard and the watch; the Bench's Dinner Pail camp on the way (optional).
 		Path.Add({ TEXT("The Last Watch"), TEXT("LastWatch"),
-			{ PlannedKills(Foes.Miner, EPathRank::Basic, 4, TEXT("CalderPost"), 16800.0, -6000.0),
+			{ PlannedKills(Foes.Miner, EPathRank::Basic, 5, TEXT("CalderPost"), 16800.0, -6000.0),
 			  PlannedKills(Foes.Miner, EPathRank::Restless, 1, TEXT("CalderPost"), 16800.0, -6000.0),
-			  PlannedKills(Foes.Miner, EPathRank::Basic, 3, TEXT("Watch"), 16800.0, -6000.0),
-			  PlannedKills(Foes.Miner, EPathRank::Basic, 3, TEXT("DinnerPail"), 17000.0, -500.0),
+			  PlannedKills(Foes.Miner, EPathRank::Basic, 6, TEXT("Watch"), 16800.0, -6000.0),
+			  PlannedKills(Foes.Miner, EPathRank::Basic, 4, TEXT("DinnerPail"), 17000.0, -500.0),
 			  PlannedKills(Foes.Miner, EPathRank::Restless, 1, TEXT("DinnerPail"), 17000.0, -500.0),
-			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("DinnerPail"), 17000.0, -500.0) }, 1300 });
-		// The spoil heap's ambush, the Providence's two shifts, and the Foreman (set 5, Soulfed's 2) with his two waves of three.
+			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("DinnerPail"), 17000.0, -500.0) }, 900 });
+		// The spoil heap's ambush, the Providence's two shifts, the Foreman (set 5, Soulfed's 2) with his two waves of three,
+		// and the gallery's cave-in on the way out with the payroll (the set piece: nine miners and a Restless one).
 		Path.Add({ TEXT("Back Pay"), TEXT("BackPay"),
-			{ PlannedKills(Foes.Miner, EPathRank::Basic, 3, TEXT("SpoilAmbush"), 20500.0, 8000.0),
-			  PlannedKills(Foes.Miner, EPathRank::Basic, 4, TEXT("MineUpper"), 26800.0, 7400.0),
+			{ PlannedKills(Foes.Miner, EPathRank::Basic, 6, TEXT("SpoilAmbush"), 20500.0, 8000.0),
+			  PlannedKills(Foes.Miner, EPathRank::Basic, 7, TEXT("MineUpper"), 26800.0, 7400.0),
 			  PlannedKills(Foes.Miner, EPathRank::Restless, 1, TEXT("MineUpper"), 26800.0, 7400.0),
-			  PlannedKills(Foes.Miner, EPathRank::Basic, 4, TEXT("MineLower"), 30000.0, 7400.0),
+			  PlannedKills(Foes.Miner, EPathRank::Basic, 7, TEXT("MineLower"), 30000.0, 7400.0),
 			  PlannedKills(Foes.Miner, EPathRank::Restless, 1, TEXT("MineLower"), 30000.0, 7400.0),
 			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("MineLower"), 30000.0, 7400.0),
 			  PlannedKills(Foes.Miner, EPathRank::Basic, 6, TEXT("Foreman"), 33000.0, 7400.0),
-			  PlannedKills(Foes.Foreman, EPathRank::Own, 1, TEXT("Foreman"), 33000.0, 7400.0) }, 2000 });
+			  PlannedKills(Foes.Foreman, EPathRank::Own, 1, TEXT("Foreman"), 33000.0, 7400.0),
+			  PlannedKills(Foes.Miner, EPathRank::Basic, 9, TEXT("CaveIn"), 27200.0, 7400.0),
+			  PlannedKills(Foes.Miner, EPathRank::Restless, 1, TEXT("CaveIn"), 27200.0, 7400.0) }, 1300 });
 		Path.Add(MainSixStop(Foes));
 		Path.Add(MainSevenStop());
 		return Path;

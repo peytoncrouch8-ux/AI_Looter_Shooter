@@ -74,7 +74,7 @@ namespace HallowedGroundTestWorld
 		{
 			UMissionClearObjective* Yard = MissionTestWorld::AddObjective<UMissionClearObjective>(Mission, 1);
 			Yard->SpawnerId = YardId;
-			Yard->Count = 13;
+			Yard->Count = 16; // (fights enlarged 2026-10-21; 13)
 			break;
 		}
 		case 2:
@@ -141,14 +141,20 @@ namespace HallowedGroundTestWorld
 		return Mission;
 	}
 
-	/** The yard's fight as the build script sets it up: two waves of six, the Restless one with the second, on Main 4's second step. */
+	/** The yard's fight as the build script sets it up: two waves, eight Unpaid and then seven with the Restless one (fights enlarged 2026-10-21; six and six before), on Main 4's second step. */
 	inline void SetUpYard(AEncounterSpawner& Setup)
 	{
 		Setup.SpawnerId = YardId;
 		FEncounterGroup Restless = EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 1, ECreatureRank::Rare);
 		Restless.FirstWave = 2;
 		Restless.LastWave = 2;
-		Setup.Groups = { EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 6), Restless };
+		FEncounterGroup First = EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 8);
+		First.FirstWave = 1;
+		First.LastWave = 1;
+		FEncounterGroup Second = EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 7);
+		Second.FirstWave = 2;
+		Second.LastWave = 2;
+		Setup.Groups = { First, Second, Restless };
 		Setup.NumWaves = 2;
 		Setup.bWaitForClear = true;
 		Setup.WaveInterval = 4.f;

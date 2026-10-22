@@ -56,8 +56,8 @@ enum class EEncounterState : uint8
  * Its first wave comes when the player comes within ActivationRadius (or on a trigger). Once the player is past
  * DespawnRadius, with none of its creatures in view or fighting, it takes away what's left alive: those are owed, not
  * killed, and come back when the player does. A killed one never comes back (ACreatureBase::SpawnAtRuntime): waves only
- * ever add new ones, up to their count. Every spawn keeps to the level's caps (UEncounterSubsystem): 16 creatures within
- * 80 m of the player, and a kind's own cap (the Unpaid's 12); what a cap holds back is owed, and comes as soon as there's
+ * ever add new ones, up to their count. Every spawn keeps to the level's caps (UEncounterSubsystem): 20 creatures within
+ * 80 m of the player, and a kind's own cap (the Unpaid's 16); what a cap holds back is owed, and comes as soon as there's
  * room. It never ticks: a timer looks twice a second while it's on, and an idle spawner has none.
  *
  * What it has done isn't saved: a level loaded again starts every encounter over, as a mission's objectives start their
@@ -304,6 +304,12 @@ protected:
 
 	/** Where its creatures appear round and the player's distance is measured from: its own spot, or a patrol's point on its route. */
 	virtual FVector GetSpawnCenter() const;
+
+	/** Its state just changed (a set piece's beats and its end, ASetPieceSpawner); nothing by default. */
+	virtual void OnStateChanged(EEncounterState From, EEncounterState To) {}
+
+	/** Wave Wave (counted from 1) is starting, before its creatures are queued and spawned: a set piece moves its spots. */
+	virtual void OnWaveStarted(int32 Wave) {}
 
 	/** The player within Distance (cm) of GetSpawnCenter. */
 	bool IsPlayerWithin(float Distance) const;

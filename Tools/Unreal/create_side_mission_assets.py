@@ -18,7 +18,7 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     seven wanted posters torn down (held; counted from the world, so the ones torn before count), 1 Ruth
                     Calder's note on the Rim Rangers' board read (anything tagged CalderNote: the AWantedPoster, or the
                     card over it while it offers Calder's Caches) + optional the sheriff's daybook (OdellDaybook). Turned
-                    in to Tilly: she wrote ALREADY. 400 XP, a Rare gun, her purse (50).
+                    in to Tilly: she wrote ALREADY. 300 XP, a Rare gun, her purse (50).
   DA_Mission_CaldersCaches "Calder's Caches", offered by Ruth's note (Artifact_CalderNote, pinned on the Rangers' board:
                     the board's screen offers it too): 0 the three caches' tags
                     (items CacheTag1-3, shown from Main 1 on, so the bluff path's can be taken in Main 2) + optional the
@@ -27,31 +27,31 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     (NoticeBoard_Rangers): the tags on Calder's tally, Hob's word, her fourth cache up the mountain. 250
                     XP, 30 silver.
   DA_Mission_OldFare "The Old Fare", offered by Mr. Sloane through his upstairs door (Speaker_Agent): 0 the depot's waiting
-                    room cleared (DepotWaiting, 5), 1 the baggage room (Place_BaggageRoom), 2 Fenn's coffin looked at
+                    room cleared (DepotWaiting, 6), 1 the baggage room (Place_BaggageRoom), 2 Fenn's coffin looked at
                     (FennCoffin, a tap: its words DA_Lines_FennLook), 3 Mr. Sloane asked about the coins (his talk: the
                     confession, DA_Lines_AgentCoins) + optional his desk (AgentDesk), 4 the coins under his door (item
                     FennsFare, shown from step 4), 5 laid back on Fenn's eyes (FennCoffin again, a tap: DA_Lines_FennCoins;
                     the look is its first Interact FennCoffin, the lay its last). Turned in to Josiah Fenn in his coffin
-                    (Speaker_Fenn, the same actor). 600 XP, a Rare Drover revolver, 30 silver.
+                    (Speaker_Fenn, the same actor). 450 XP, a Rare Drover revolver, 30 silver.
   The valley, after Main 4:
   DA_Mission_Side2  "Unfinished Business", offered by Amos at his fence (Speaker_Amos: his meet lines): 0 his six hay
                     bales loaded (held; counted from the world), 1 asked who's on the road (his talk: the Merritt brothers
-                    and Sol Tanner, his unpaid hands), 2 his old hired hands driven off (WhitlockHands, 6) + optional what
-                    he owed, chalked in the barn (WagesChalk). Turned in to Amos (his thanks, the topic from step 3). 800
+                    and Sol Tanner, his unpaid hands), 2 his old hired hands driven off (WhitlockHands, 8) + optional what
+                    he owed, chalked in the barn (WagesChalk). Turned in to Amos (his thanks, the topic from step 3). 600
                     XP, an Epic gun, his purse (60).
   DA_Mission_KnockingBelow "Knocking Below", offered by Tilly: 0 the workshop door in the undertaker's yard
                     (Place_WorkshopDoor), 1 the cellar key (item CellarKey), 2 down into the cellar (Place_CellarFloor,
                     height counted) + optional the coffin orders (OrdersSlate: by the cellar door, beside the key's hook,
                     so not on the key's step), 3 the cellar's dead quieted (TillyCellar,
-                    4), 4 the cold room's door (ColdRoomDoor), 5 Thaddeus at his bench (Speaker_Thaddeus: his words
-                    DA_Lines_ThaddeusTalk), 6 his tape (item ThaddeusTape, shown from step 6). Turned in to Tilly. 800 XP,
+                    6), 4 the cold room's door (ColdRoomDoor), 5 Thaddeus at his bench (Speaker_Thaddeus: his words
+                    DA_Lines_ThaddeusTalk), 6 his tape (item ThaddeusTape, shown from step 6). Turned in to Tilly. 600 XP,
                     a Rare gun, 40 silver.
   After Main 5:
   DA_Mission_Side3  "The Gravemother", offered by Sheriff Odell's bounty on the Rangers' board (NoticeBoard_Rangers):
                     0 where she hungers (entering the Sink: Place_SinkFloor within 19.5 m, height counted; the arrow on the
                     ramp head), 1 her lair cleared (Gravemother: a kill on an earlier visit counts while she's away), 2 her
                     fang (item GravemotherFang, dropped where she falls the first time) + optional the sheriff's badge in
-                    her den (SheriffBadge). Turned in to Mrs. Pruitt at the store's hatch (Speaker_Pruitt). 1,200 XP, 80
+                    her den (SheriffBadge). Turned in to Mrs. Pruitt at the store's hatch (Speaker_Pruitt). 900 XP, 80
                     silver; her Legendary table on every kill.
   DA_Mission_DeadLift "Dead Lift", offered by Hiram Coyle in the winch house (Speaker_Hiram): 0 the winch crank (item
                     WinchCrank, the sheriff's lockup) + optional Odell's report on the fall (OdellReport), a coal sack
@@ -60,23 +60,23 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     driven (held; each AMissionFitting counted done from the world: LiftFitting_Crank, LiftFitting_Boiler,
                     LiftFitting_Pin), 2 the quarry held for 60 s while she raises
                     steam (Place_OldQuarry; RaisingSteam), 3 the lift ridden up (Board.Lift: AOreLift opens at step 3).
-                    Turned in to Hiram through the speaking tube at the lift head (Speaker_LiftTube). 1,500 XP, a Rare
+                    Turned in to Hiram through the speaking tube at the lift head (Speaker_LiftTube). 1,000 XP, a Rare
                     rifle, 40 silver.
   After Dead Lift:
   DA_Mission_LastWatch "The Last Watch", offered by the board at Calder's Post (NoticeBoard_CalderPost): 0 the post's yard
-                    cleared (CalderPost, 5), 1 lamp oil in Ruth's cabin (item LampOil) + optional her journal
+                    cleared (CalderPost, 6), 1 lamp oil in Ruth's cabin (item LampOil) + optional her journal
                     (RuthJournal), 2 the watch fire lit (WatchFire, held: AWatchFire's LightStep 2), 3 the post kept for 45 s
                     (Place_CalderPost; Watch), 4 the far light's answer read with Ruth's code book (CodeBook: the far light
                     shows from step 4) + optional the post's log signed (PostLog). Turned in at the post's board (Ellis's
-                    and Hob's words). 1,300 XP, 60 silver (and Calder's fourth cache in the cabin opens, the placing
+                    and Hob's words). 900 XP, 60 silver (and Calder's fourth cache in the cabin opens, the placing
                     script's).
   DA_Mission_BackPay "Back Pay", offered by No. 7's tag on the Providence's tag board (Artifact_MinersTag): 0 into the
-                    Providence (Place_UpperGallery, height counted), 1 the upper gallery cleared (MineUpper, 5), 2 the
+                    Providence (Place_UpperGallery, height counted), 1 the upper gallery cleared (MineUpper, 8), 2 the
                     Foreman's payroll book read (PayrollBook) + optional the chalk on the wall (ChalkTally), 3 the lower
-                    drift cleared (MineLower, 6), 4 the eleven's tags from their barricade (Barricade), 5 the Foreman put
+                    drift cleared (MineLower, 9), 4 the eleven's tags from their barricade (Barricade), 5 the Foreman put
                     down (his lair, Foreman), 6 the payroll from the stope (item Payroll). Turned in at the tag board
                     (Speaker_TagBoard) with a choice: pay the eleven (story flag BackPay.Paid, a Rare gun) or keep the
-                    payroll (BackPay.Kept, 400 silver). 2,000 XP either way.
+                    payroll (BackPay.Kept, 400 silver). 1,300 XP either way.
 
 Objectives are instanced objects inside the asset, one class per kind, made with unreal.new_object(<class>, asset) and
 listed in each step's 'objectives'. Classes for actor filters are loaded by their script path
@@ -105,7 +105,7 @@ AMOS_TAG = 'Speaker_Amos'
 BALE_TAG = 'HayBale'
 BALES = 6
 HANDS = 'WhitlockHands'
-HANDS_COUNT = 6
+HANDS_COUNT = 8
 # The Sink's markers (Tools/Unreal/build_area_sink.py: the floor's middle, 90 cm over the floor 12 m under the rim, and
 # the ramp head on the west rim) and the Gravemother's lair (Creatures/GravemotherCreature.h: Gravemother::LairId; placed
 # by Tools/Unreal/build_area_den.py).
@@ -390,7 +390,7 @@ def old_fare_steps(asset):
     """The depot's waiting room cleared, the baggage room, Fenn's coffin, Mr. Sloane's confession through his door (his
     desk's marker, if Ellis looks), Fenn's coins under the door, the coins back on Fenn's eyes."""
     return [
-        step(clear(asset, "Clear the dead out of the depot's waiting room.", 'DepotWaiting', 5,
+        step(clear(asset, "Clear the dead out of the depot's waiting room.", 'DepotWaiting', 6,
                    short='Clear the waiting room')),
         step(reach(asset, 'Find what they were waiting on, in the baggage room.', 'Place_BaggageRoom', 450.0,
                    ignore_height=False, short='Search the baggage room')),
@@ -431,7 +431,7 @@ def knocking_steps(asset):
         # isn't down.
         step(reach(asset, 'Go down into the cellar.', 'Place_CellarFloor', 350.0, ignore_height=False),
              read_objective(asset, 'Read the coffin orders on the slate.', 'OrdersSlate', optional=True)),
-        step(clear(asset, 'Quiet the dead in the cellar.', 'TillyCellar', 4)),
+        step(clear(asset, 'Quiet the dead in the cellar.', 'TillyCellar', 6)),
         step(interact(asset, "Find what's still knocking: open the cold room.", 'ColdRoomDoor',
                       short="Find what's still knocking")),
         step(talk(asset, 'Talk to the man at the bench.', 'Speaker_Thaddeus')),
@@ -497,7 +497,7 @@ def last_watch_steps(asset):
     Ruth's code book (the far light shows from the fifth: AFarSignalLight's AnswerStep 4; the post's log signed, if
     Ellis will)."""
     return [
-        step(clear(asset, "Clear the post's yard.", 'CalderPost', 5)),
+        step(clear(asset, "Clear the post's yard.", 'CalderPost', 6)),
         step(collect_items(asset, "Find oil for the watch fire in Ruth's cabin.", ['LampOil'], short='Find lamp oil'),
              read_objective(asset, "Read Ruth Calder's journal.", 'RuthJournal', optional=True)),
         step(interact(asset, 'Light the watch fire on the tower: hold {Interact}.', 'WatchFire', hold=True,
@@ -515,10 +515,10 @@ def back_pay_steps(asset):
     from the stope; then the choice at the tag board."""
     return [
         step(reach(asset, 'Go into the Providence.', 'Place_UpperGallery', 1200.0, ignore_height=False)),
-        step(clear(asset, 'Clear the upper gallery.', 'MineUpper', 5)),
+        step(clear(asset, 'Clear the upper gallery.', 'MineUpper', 8)),
         step(read_objective(asset, "Search the Foreman's office.", 'PayrollBook'),
              read_objective(asset, 'Read the chalk on the gallery wall.', 'ChalkTally', optional=True)),
-        step(clear(asset, 'Go down the decline and clear the lower drift.', 'MineLower', 6, short='Clear the lower drift')),
+        step(clear(asset, 'Go down the decline and clear the lower drift.', 'MineLower', 9, short='Clear the lower drift')),
         step(read_objective(asset, "Take the eleven's tags from their barricade.", 'Barricade')),
         step(clear(asset, 'Put the Foreman down.', 'Foreman', 1, show_count=False)),
         step(collect_items(asset, 'Take the payroll from the stope.', ['Payroll'])),
@@ -543,7 +543,7 @@ MISSIONS = [
              ('', "A stranger left this with his effects and never came back for it. You'll get more use from it than he "
                   "did."),
          ]),
-         rewards=dict(experience=400, gun=True, gun_rarity_floor='RARE'),
+         rewards=dict(experience=300, gun=True, gun_rarity_floor='RARE'),
          expect=['MissionLastingInteractObjective', ['MissionInteractObjective', 'MissionEventObjective']]),
     dict(asset='DA_Mission_CaldersCaches', id='CaldersCaches', title="Calder's Caches",
          summary="Ruth Calder of the Rim Rangers laid three caches on Ransom's Rest for her Rangers, and left a riddle for "
@@ -596,7 +596,7 @@ MISSIONS = [
              ('', "Tell Sloane I forgive him. Don't tell him I said it like that."),
              ('', "There's a pistol under me. Never fired it once. Take it."),
          ]),
-         rewards=dict(experience=600, gun=True, gun_rarity_floor='RARE', gun_kind=REVOLVER, silver=30),
+         rewards=dict(experience=450, gun=True, gun_rarity_floor='RARE', gun_kind=REVOLVER, silver=30),
          expect=['MissionClearObjective', 'MissionReachObjective', 'MissionInteractObjective',
                  ['MissionTalkObjective', 'MissionEventObjective'], 'MissionCollectItemObjective',
                  'MissionInteractObjective']),
@@ -619,7 +619,7 @@ MISSIONS = [
                      "went dark, and drifted home to find it rotting in the field. He isn't angry yet. He'd like it in."),
          # His thanks are his topic at the turn-in's step (DA_Lines_AmosThanks, build_area_whitlock's THANKS_STEP 3).
          turn_in=dict(speaker=AMOS_TAG, giver='Amos'),
-         rewards=dict(experience=800, gun=True, gun_rarity_floor='EPIC'),
+         rewards=dict(experience=600, gun=True, gun_rarity_floor='EPIC'),
          expect=['MissionLastingInteractObjective', 'MissionTalkObjective', ['MissionClearObjective', 'MissionEventObjective']]),
     dict(asset='DA_Mission_KnockingBelow', id='KnockingBelow', title='Knocking Below',
          summary="Bright & Daughter keeps the Rest's dead in its cellar until their seven days are up. Since the saint went "
@@ -645,7 +645,7 @@ MISSIONS = [
              ('', "Brass handles. He'd have hated them."),
              ('', "There's a box of his under the counter. It's yours. Don't make me look at it."),
          ]),
-         rewards=dict(experience=800, gun=True, gun_rarity_floor='RARE', silver=40),
+         rewards=dict(experience=600, gun=True, gun_rarity_floor='RARE', silver=40),
          expect=['MissionReachObjective', 'MissionCollectItemObjective', ['MissionReachObjective', 'MissionEventObjective'],
                  'MissionClearObjective', 'MissionInteractObjective', 'MissionTalkObjective', 'MissionCollectItemObjective']),
 
@@ -666,7 +666,7 @@ MISSIONS = [
              ('', "That's the town's purse, what's left of it."),
              ('', "Wade was my brother. He always said he'd die with his boots on. Never said a word about his hat."),
          ]),
-         rewards=dict(experience=1200, silver=80),
+         rewards=dict(experience=900, silver=80),
          expect=['MissionReachObjective', 'MissionClearObjective', ['MissionCollectItemObjective', 'MissionEventObjective']]),
     dict(asset='DA_Mission_DeadLift', id='DeadLift', title='Dead Lift',
          summary="The Providence Mining Company's ore lift still hangs over the Old Quarry, and its engineman, Hiram Coyle, "
@@ -700,7 +700,7 @@ MISSIONS = [
              ('', "Tell the Rangers Hiram Coyle says they owe him for coal."),
              ('', "There's a carbine in the head's tool box. Company's. They'll never miss it."),
          ]),
-         rewards=dict(experience=1500, gun=True, gun_rarity_floor='RARE', gun_kind=RIFLE, silver=40),
+         rewards=dict(experience=1000, gun=True, gun_rarity_floor='RARE', gun_kind=RIFLE, silver=40),
          expect=[['MissionCollectItemObjective', 'MissionEventObjective', 'MissionCollectItemObjective',
                   'MissionCollectItemObjective'],
                  ['MissionLastingInteractObjective', 'MissionLastingInteractObjective', 'MissionLastingInteractObjective'],
@@ -725,7 +725,7 @@ MISSIONS = [
              (HOB, "Larkspur stands, sunshine. On a dead outlaw's word."),
              (HOB, "And her fourth cache in the cabin's open. Help yourself. She'd hate that."),
          ]),
-         rewards=dict(experience=1300, silver=60),
+         rewards=dict(experience=900, silver=60),
          expect=['MissionClearObjective', ['MissionCollectItemObjective', 'MissionEventObjective'], 'MissionInteractObjective',
                  'MissionDefendObjective', ['MissionEventObjective', 'MissionEventObjective']]),
     dict(asset='DA_Mission_BackPay', id='BackPay', title='Back Pay',
@@ -758,7 +758,7 @@ MISSIONS = [
                       (HOB, "Can't spend it in the ground, sunshine. Good thing you're not staying there."),
                   ], silver=400),
          ]),
-         rewards=dict(experience=2000),
+         rewards=dict(experience=1300),
          expect=['MissionReachObjective', 'MissionClearObjective', ['MissionEventObjective', 'MissionEventObjective'],
                  'MissionClearObjective', 'MissionEventObjective', 'MissionClearObjective', 'MissionCollectItemObjective']),
 ]

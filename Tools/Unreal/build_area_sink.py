@@ -41,7 +41,7 @@ below hold every number; Main changes them there after looking in the editor.
 - The places' markers: the floor's middle (a target point tagged Place_SinkFloor: "Climb down into the Sink", within
   9 m, height counted) and the ramp head on the west rim by the fence's gap (Place_SinkRim: "Climb out", within 6 m,
   height counted).
-- The floor's spiders (AEncounterSpawner SinkFloor, tagged Spider_SinkFloor): four of the area's ranks standing among
+- The floor's spiders (AEncounterSpawner SinkFloor, tagged Spider_SinkFloor): six of the area's ranks standing among
   the blocks, on during Main 5 until the lantern is taken (its steps 1-3), appearing as the player comes to the rim,
   hunting only on the floor (the zone sink, and no more than 2.5 m over the floor: they give up at the ramp's foot;
   nothing lives on the rim).
@@ -234,9 +234,10 @@ EDGE_OUT = 12.0
 # Den Rock's den mouth, where the funnel's pivot goes (Outcrops.py; Sink.py fits Web_Funnel to it).
 DEN_MOUTH = 'DenMouth'
 
-# The floor's spiders: four of the area's ranks, their spots round the Sink's middle among the piles (z ignored), and how
+# The floor's spiders: six of the area's ranks (four until the user's bigger fights, 2026-10-21; the spawner rings its four
+# spots for the rest), their spots round the Sink's middle among the piles (z ignored), and how
 # far over their spawner a player is still on their ground (cm): the ramp's first 10 m or so.
-FLOOR_COUNT = 4
+FLOOR_COUNT = 6
 FLOOR_SPOTS = ((350.0, -450.0), (1150.0, -450.0), (550.0, 100.0), (1300.0, 300.0))
 FLOOR_RISE = 250.0
 

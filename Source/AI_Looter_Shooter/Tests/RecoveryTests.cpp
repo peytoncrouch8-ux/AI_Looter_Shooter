@@ -5,6 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/RecoverySettings.h"
 #include "Combat/WoundsClose.h"
+#include "Creatures/FightTuning.h"
 #include "Tests/AutomationCommon.h"
 #include "Tests/RecoveryTestWorld.h"
 
@@ -19,6 +20,18 @@ namespace
 {
 	/** Quarter seconds are exact in floats, so the sums below add up to the closed form with no rounding to forgive. */
 	constexpr float Quarter = 0.25f;
+
+	/**
+	 * The arithmetic below runs on round numbers, the pace before the fight contract (2026-10-21): a 6 s wait and 12% a
+	 * second, whose sums come out whole. The decided numbers (7 s, 7%) are checked on their own at the top.
+	 */
+	FRecoverySettings RoundPace()
+	{
+		FRecoverySettings Settings;
+		Settings.RegenDelaySeconds = 6.f;
+		Settings.RegenRatePerSecond = 0.12f;
+		return Settings;
+	}
 
 	/** Steps a rule through Steps quarter seconds against a fixed health, adding up what it gave. */
 	float StepQuarters(FWoundsClose& Wounds, const FRecoverySettings& Settings, int32 Steps, float Health = 10.f, float MaxHealth = 100.f,
@@ -38,14 +51,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRecoveryWoundsRulesTest, "Looter.Recovery.Woun
 
 bool FRecoveryWoundsRulesTest::RunTest(const FString& Parameters)
 {
-	// The decided numbers: a 6 s wait, a 1.5 s ramp up to 12% of the most health a second.
-	const FRecoverySettings Settings;
-	TestEqual(TEXT("The wait is 6 s"), Settings.RegenDelaySeconds, 6.f);
-	TestEqual(TEXT("The ramp is 1.5 s"), Settings.RegenRampSeconds, 1.5f);
-	TestEqual(TEXT("The rate is 12% a second"), Settings.RegenRatePerSecond, 0.12f);
-	TestEqual(TEXT("A mote heals 15% of the most health"), Settings.MoteHealShare, 0.15f);
-	TestEqual(TEXT("...100 health: 15"), Settings.MoteHeal(100.f), 15.f, 0.0001f);
-	TestEqual(TEXT("...200 health: 30"), Settings.MoteHeal(200.f), 30.f, 0.0001f);
+	// The decided numbers (Borderlands normal, the fight contract of 2026-10-21; Looter.Fight.RegenDelay and RegenRate set them
+	// in play, with the same defaults): a 7 s wait, a 1.5 s ramp up to 7% of the most health a second. Motes unchanged.
+	const FRecoverySettings Decided;
+	const FFightTuning Fight;
+	TestEqual(TEXT("The wait is 7 s"), Decided.RegenDelaySeconds, 7.f);
+	TestEqual(TEXT("The ramp is 1.5 s"), Decided.RegenRampSeconds, 1.5f);
+	TestEqual(TEXT("The rate is 7% a second"), Decided.RegenRatePerSecond, 0.07f);
+	TestEqual(TEXT("...the fight's wait the same"), Fight.RegenDelay, Decided.RegenDelaySeconds);
+	TestEqual(TEXT("...and its rate"), Fight.RegenRate, Decided.RegenRatePerSecond);
+	TestEqual(TEXT("A mote heals 15% of the most health"), Decided.MoteHealShare, 0.15f);
+	TestEqual(TEXT("...100 health: 15"), Decided.MoteHeal(100.f), 15.f, 0.0001f);
+	TestEqual(TEXT("...200 health: 30"), Decided.MoteHeal(200.f), 30.f, 0.0001f);
+
+	// The rules on round numbers (RoundPace): a 6 s wait, 12% a second.
+	const FRecoverySettings Settings = RoundPace();
 
 	// The ramp's area, exactly: half the top rate over the ramp, then the full rate.
 	TestEqual(TEXT("The ramp heals 9% of the bar"), Settings.RegenShareBetween(0.f, 1.5f), 0.09f, 0.00001f);
@@ -144,7 +164,7 @@ bool FRecoveryWoundsRulesTest::RunTest(const FString& Parameters)
 
 	// Nothing a bad number can do: a zero ramp is the full rate at once, a zero rate heals nothing.
 	{
-		FRecoverySettings Odd;
+		FRecoverySettings Odd = RoundPace();
 		Odd.RegenRampSeconds = 0.f;
 		FWoundsClose Wounds;
 		Wounds.QuietSeconds = 6.f;
@@ -174,7 +194,7 @@ bool FRecoveryWoundsOnHealthTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	const FRecoverySettings Settings;
+	const FRecoverySettings Settings = RoundPace();
 	FWoundsClose Wounds;
 
 	// What counts as a hurt.

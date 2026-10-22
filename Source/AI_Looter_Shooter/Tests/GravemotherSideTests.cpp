@@ -429,7 +429,7 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...and, optional, the sheriff's badge in her den"), Asset->GetObjective(2, 1) && Asset->GetObjective(2, 1)->bOptional);
 	TestTrue(TEXT("Turned in to Mrs. Pruitt at the store's hatch"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == FName(TEXT("Speaker_Pruitt"))
 		&& !Asset->TurnIn.Lines.IsEmpty());
-	TestTrue(TEXT("Its experience (1,200), the town's purse (80 silver), no reward gun (her loot is her own)"), Asset->Rewards.Experience == 1200
+	TestTrue(TEXT("Its experience (900), the town's purse (80 silver), no reward gun (her loot is her own)"), Asset->Rewards.Experience == 900  // (trimmed 2026-10-21; 1,200)
 		&& Asset->Rewards.Silver == 80 && !Asset->Rewards.bGun);
 	return true;
 }

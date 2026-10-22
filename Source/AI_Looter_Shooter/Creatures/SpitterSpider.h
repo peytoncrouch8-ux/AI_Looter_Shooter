@@ -6,6 +6,7 @@
 #include "SpitterSpider.generated.h"
 
 class ASpitterGlob;
+class UFightDirectorSubsystem;
 class UMaterialInstanceDynamic;
 
 /** Which of its two attacks the Spitter is at (each is the creature's one attack, wound up, struck and recovered). */
@@ -101,11 +102,25 @@ public:
 	/** The globs its last spit threw (while they last). */
 	TArray<ASpitterGlob*> GetLastGlobs() const;
 
+	// --- Its place in a fight (UFightDirectorSubsystem; SpitterSpiderKeepAway.cpp) ---
+
+	/** A ranged kind: it holds a spot in its band, off the melee pack's side, and spits only with a ranged turn. */
+	virtual EFightRole GetFightRole() const override { return EFightRole::Ranged; }
+	/** Its spit takes a ranged turn, its bite (caught or cornered) a melee one. */
+	virtual EFightRole GetAttackTokenRole() const override;
+	/** Its band: from where it backs off to where its brain stops closing in (CloseInTo). */
+	virtual bool GetFightBand(float& OutNear, float& OutFar) const override;
+	/** It backs away from a target nearer than this (cm): Looter.Fight.RangedBackOff, or BackOffWithin with that at 0. */
+	float GetBackOffDistance() const;
+
 	// --- Settings (cm and seconds; distances at its target, not its size, unless they say so) ---
 
-	/** It backs away from a target nearer than this, and its brain brings it in to this from farther off. */
+	/**
+	 * It backs away from a target nearer than this, and its brain brings it in to this from farther off. 900 since the fight
+	 * contract (2026-10-21; was 1000); in play Looter.Fight.RangedBackOff stands for it while that's above 0 (GetBackOffDistance).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spitter|Range", meta = (ClampMin = "100", Units = "cm"))
-	float BackOffWithin = 1000.f;
+	float BackOffWithin = 900.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spitter|Range", meta = (ClampMin = "200", Units = "cm"))
 	float CloseInTo = 1600.f;
@@ -204,6 +219,8 @@ protected:
 	virtual float GetAttackStartRange() const override;
 	/** Its lob comes down on a player up on a rock or a roof as well as on the flat: never out of its reach for height. */
 	virtual bool CanReachHeight(float Rise) const override { return true; }
+	/** A spit called off before it flew (hit off its turn): its tell's glow goes out. */
+	virtual void OnAttackCalledOff() override;
 
 private:
 	// --- Its attacks (SpitterSpiderMoves.cpp) ---
@@ -223,6 +240,8 @@ private:
 	// --- Keeping its distance (SpitterSpiderKeepAway.cpp) ---
 	/** What it does about its distance, and moves itself inside its brain's hold. */
 	void TickKeepAway(float DeltaSeconds);
+	/** In its band with a fight spot (UFightDirectorSubsystem): round its target to Spot, then holding there facing it. */
+	void TickToSpot(const APawn& Victim, const FVector& Spot, float DeltaSeconds, UFightDirectorSubsystem& Director);
 	/** The first clear way among Candidates (flat directions), staying on its hunting ground; zero when none is. */
 	FVector FirstClearWay(TConstArrayView<FVector> Candidates) const;
 	/** Its walking movement as its brain's chase wants it (turning to where it walks), or as keeping its distance does (facing its target, never off a ledge). */
@@ -264,6 +283,8 @@ private:
 	FVector KeepWay = FVector::ZeroVector;
 	float KeepLookIn = 0.f;
 	bool bKeepingDistance = false;
+	/** Seconds it has stood at its fight spot with its spit ready and its lob blocked (it asks for a new spot after a while). */
+	float LobBlockedFor = 0.f;
 
 	// The sac
 	int32 SacPoseSlot = INDEX_NONE;
