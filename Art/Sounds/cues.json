@@ -2588,6 +2588,21 @@
     "space": "3D",
     "max_concurrent": 4
   },
+  "Hero.Gauge.Vent": {
+    "files": [
+      "Hero_Gauge_Vent_01.wav",
+      "Hero_Gauge_Vent_02.wav",
+      "Hero_Gauge_Vent_03.wav",
+      "Hero_Gauge_Vent_04.wav"
+    ],
+    "volume_db": -34.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
   "Creature.Hit": {
     "files": [
       "Creature_Hit_01.wav",

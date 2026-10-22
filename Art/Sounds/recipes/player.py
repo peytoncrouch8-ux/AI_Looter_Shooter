@@ -478,3 +478,22 @@ def melee_hit_gel(v, r):
     x = layers((slap, 0.0, -1.0), (weight, 0.0, -5.0), (squelch, 0.003, 0.0), (bloop, 0.03, -3.0), (boing, 0.02, -8.0),
                (squish, 0.005, -11.0), (bub, 0.0, -15.0))
     return F.filt(x, F.lp(3500.0, 0.7), F.hp(50.0), extend=False)
+
+
+@cue('Hero.Gauge.Vent', variations=4, att='Near', jitter=0.04, conc=1, level=-27.0)
+def gauge_vent(v, r):
+    # Gauge letting steam out of his stacks while he stands idle: a soft valve click, then a pressurised hiss (0.6-1.2 s)
+    # that swells and fades, with a little iron pipe ringing in it. Heard near the player, so well under footsteps.
+    dur = 0.6 + 0.6 * r.random()
+    n = ns(dur)
+    valve = kit.metal_click(child(r, 'valve'), 1400.0 * jitter(r, 1, 0.1), 5000.0, 0.03, 0.0002, 5, -12.0, 0.4)
+    knock = kit.thunk(260.0 * jitter(r, 1, 0.1), child(r, 'knock'), 0.05, 0.001, 4, 0.1)
+    hiss = N.band(n, child(r, 'hiss'), 1800.0, 9000.0) * kit.turbulence(n, child(r, 'tur'), 70.0, 0.4)
+    hiss = F.filt(hiss, F.highshelf(6500.0, -5.0), F.peak(3300.0, -4.0, 0.9), extend=False)
+    hiss = normalize(hiss * E.ar(dur, dur * 0.3, dur * 0.55, 1.6), 0.0)
+    # The stack as a pipe: the hiss pushed through a few narrow resonances, mixed in small.
+    pipe = N.band(n, child(r, 'pipe'), 600.0, 4000.0) * E.ar(dur, dur * 0.35, dur * 0.5, 1.6)
+    pipe = F.filt(pipe, F.bp(520.0 * jitter(r, 1, 0.08), 14.0), F.bp(1240.0 * jitter(r, 1, 0.08), 16.0), extend=False)
+    pipe = normalize(pipe, 0.0)
+    x = layers((valve, 0.0, -3.0), (knock, 0.0, -14.0), (hiss, 0.035, 0.0), (pipe, 0.05, -14.0))
+    return F.filt(x, F.hp(120.0), F.highshelf(7000.0, -3.0), extend=False)
