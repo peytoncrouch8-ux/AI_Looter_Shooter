@@ -43,6 +43,7 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
   under 0.05 ms; facing the player while circling the ring (`CreatureFace`) 0.3 ms for 10. The spawn horde
   (`Looter.Perf.Horde Spider 8 Basic`) stands in the farm's safe zone and never fights: measure fights in town.
 
+- Noon re-measure (2026-10-22, eea24a97, quiet PC, ArtPause on): 37-view RR tour all under 8.3 ms; heaviest Aerial 8.1, Aerial_Dusk 8.1, PointOverValley_FarShadow 8.1 (1,849 draws), Farm 7.8, Grave 7.7; render-thread bound. Worst-frame hitches only at Aerial_Dusk 32 ms and MineDrift 34 ms (as before). Spawn 7.8 (p95 8.5); 8 spiders in town 7.6 (p95 8.7); 8 Unpaid in town 7.7 (p95 9.4); Slag Bomb every 4 s 7.8 (p95 9.4). Draws up ~250-400 since 10-14 (world variety, char art): margin ~0.2 ms.
 - Ransom's Rest after the polish (2026-10-14, fc7363a: cliff life, town dressing with its clutter culled at ~30 m, animals,
   combat FX): 46 views, the heaviest 8.1 ms (PointOverValley_FarShadow 1,574 draws), Aerial 8.05, Aerial_Dusk 8.05, Farm
   8.0, PointOverValley 7.7; render thread = frame, GPU 6.8 at most. Margin ~0.2 ms: the next dressing must save draws first.
@@ -101,3 +102,7 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-22 | World variety bolder tones, RR spawn | c64525df | 1920x1080 | 7.8 | 129 | 8.4 | 4.7 | 7.7 | 1.9 | 6.5 | 1703 | 1736594 | 9.57 |
 | 2026-10-22 | Char art import: element parts, CHAR-MAT, ghosts/slime, Crane/Odessa faces; RR spawn, 8 spiders | 1ab00ccf | 1920x1080 | 7.9 | 126 | 9.0 | 6.2 | 6.5 | 2.0 | 6.5 | 1744 | 1845440 | 3.95 |
 | 2026-10-22 | Char art import: 8 Unpaid fighting in town (painted ghost) | 1ab00ccf | 1920x1080 | 7.5 | 133 | 8.1 | 6.8 | 7.5 | 1.9 | 6.3 | 1792 | 1323127 | 3.52 |
+| 2026-10-22 | PERF noon: RR spawn | eea24a97 | 1920x1080 | 7.8 | 128 | 8.5 | 5.1 | 7.8 | 2.0 | 6.5 | 1702 | 1735219 | 3.96 |
+| 2026-10-22 | PERF noon: 8 spiders in town | eea24a97 | 1920x1080 | 7.6 | 132 | 8.7 | 6.3 | 7.2 | 1.9 | 6.3 | 1786 | 1408106 | 3.56 |
+| 2026-10-22 | PERF noon: 8 Unpaid in town | eea24a97 | 1920x1080 | 7.7 | 129 | 9.4 | 7.1 | 6.5 | 2.0 | 6.3 | 1795 | 1313323 | 3.65 |
+| 2026-10-22 | PERF noon: 8 spiders + Slag Bomb every 4 s (Gauge) | eea24a97 | 1920x1080 | 7.8 | 128 | 9.4 | 6.9 | 7.1 | 1.9 | 6.4 | 1842 | 1450826 | 3.79 |
