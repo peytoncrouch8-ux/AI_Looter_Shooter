@@ -3,6 +3,13 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Polish round (the user, 2026-10-22 evening: "Keep polishing")
+Contract `Docs/Work/2026-10-22-Polish/CONTRACT.md`. Running: DEMO (owns the editor: fight drain at DamageScale 1.8/2.0,
+maker marks every gun both sides, a bounty Strongbox by hand, bug list), SHIELD-POLISH (boss shower wards, cyan edges on
+ward hits, HudShotScene ward states, cue names; Saved/ShieldPolishCode), BOUNTY-ART (bounty sheet poster, BOUNTIES header,
+BOUNTY PAID banner; Saved/BountyArtCode), PACKAGE-NOISE (GameFeatureData ensure, PSO errors; Config only). Lane after
+DEMO: SHIELD-POLISH -> BOUNTY-ART -> next package to check the log.
+
 ## Next builds (the user, 2026-10-22 noon: "Keep going!" and picked all four suggestions)
 Player shield, gun manufacturers (a concept sheet first for the user's pick), a bounty board, playtest builds; plus
 per-place ground detail and small fixes. Contract `Docs/Work/2026-10-22-Next/CONTRACT.md`. Lane: PERF first (quiet),
