@@ -333,7 +333,8 @@ def rig_json(arm, rest, hero):
                     'as SK_FP_Arms (Ellis). Curl a finger by turning each of its bones toward PalmNormal (about the axis '
                     'across the finger). A held handle runs along HandleAxis through GripPoint (the middle of a 4 cm '
                     'handle in the closed fist).',
-               bones=bones, hands=hands, upperarm_cm=round(rest.upper * 100, 2), lowerarm_cm=round(rest.fore * 100, 2))
+               bones=bones, hands=hands, upperarm_cm=round(rest.upper * 100, 2), lowerarm_cm=round(rest.fore * 100, 2),
+               lowerarm_body_cm=round(rest.fore_body * 100, 2), forearm_stretch=A['FOREARM_STRETCH'])
     os.makedirs(WORK, exist_ok=True)
     path = os.path.join(WORK, f'FPArms_{hero}_rig.json')
     with open(path, 'w') as fh:

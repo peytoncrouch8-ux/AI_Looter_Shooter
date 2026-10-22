@@ -20,6 +20,8 @@ from fp_arms_base import A, C, ellipse_r, log, smoothstep, unit, v3
 from fp_arms_hands import mesh_object
 
 sleeve_fold = A['sleeve_fold']
+PLAIN_STEP = 1.55                  # rings on the forearm between the cuff's folds and the elbow's (cm apart)
+ELBOW_STEP = (5.5, 0.72)           # the elbow's folds: how far either side of it, rings how far apart (cm)
 
 
 class SleevePath:
@@ -102,18 +104,20 @@ def sleeve_ring(spec, path, theta, v):
 
 
 def sleeve_rows(spec, path):
+    """The rings' arc lengths: close where the cloth folds; far apart on the upper arm (it changes slowly and stays under
+    the frame), which pays for the rings of FPArms.py's longer forearm (FOREARM_STRETCH) at the same triangle count."""
     vs = [0.0]
     while vs[-1] < path.length:
         v = vs[-1]
-        step = 1.4
+        step = PLAIN_STEP
         if v < spec.rim - 0.5:
             step = 1.2
         elif v < spec.rim + 7.0:
             step = 0.62
-        elif abs(v - path.elbow_v) < 5.5:
-            step = 0.72
-        elif v > path.elbow_v + 5.5:
-            step = 2.8
+        elif abs(v - path.elbow_v) < ELBOW_STEP[0]:
+            step = ELBOW_STEP[1]
+        elif v > path.elbow_v + ELBOW_STEP[0]:
+            step = A['UPPER_STEP']
         vs.append(min(v + step, path.length))
         if path.length - vs[-1] < 0.5:
             vs[-1] = path.length

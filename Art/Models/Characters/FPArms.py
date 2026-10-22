@@ -106,9 +106,16 @@ def rotate(v, axis, degrees):
 # ------------------------------------------------------------------------------------------------- Ellis's arm
 # Ellis.py's build: the shoulder and the bone lengths, measured from the eye (the middle of his eyes).
 ELLIS = lh.Build(height=1.80, shoulders=0.42, hips=0.21, head=1.12, neck=0.7, hand=1.12, foot=1.05, arm_angle=45.0)
-REST_WRIST = v3(-0.165, -0.305, -0.345)    # the right wrist at rest (Blender, m, from the eye)
+REST_WRIST = v3(-0.165, -0.305, -0.345)    # Ellis's own wrist at rest (Blender, m, from the eye): it sets the elbow
 REST_POLE = v3(-0.35, 0.3, -1.0)           # the elbow points down, back and out
 REST_TURN = -12.0                          # the thumb leans in from straight up: the palm a touch down
+# The forearm (elbow to wrist) is drawn 1.25 times Ellis's 26.1 cm (32.6 cm), the usual view-model trick (2026-10-22,
+# Saved/FPHands/PLAN.md gap 1): a gun's fore-end sits 65-75 cm out, and a real-length forearm could only get its elbow
+# (the sleeve's cut) out of the frame by standing straight up the screen; a longer one leaves it on a Borderlands-like
+# slant. The shoulder, the upper arm, the elbow and the hand's turn stay Ellis's: the wrist (and the hand with it) moves
+# out along the forearm's own line, so the hand bones keep their rest orientation. Hands, cuffs and upper arms keep
+# their sizes; only the sleeve over the forearm is longer. The code reads the length from the skeleton.
+FOREARM_STRETCH = 1.25
 
 
 def two_bone(S, W, L1, L2, pole):
@@ -132,9 +139,11 @@ class Rest:
         self.clavicle = sk.head('clavicle_r') - eye
         self.shoulder = sk.head('upperarm_r') - eye
         self.upper = float(np.linalg.norm(sk.tail('upperarm_r') - sk.head('upperarm_r')))
-        self.fore = float(np.linalg.norm(sk.tail('lowerarm_r') - sk.head('lowerarm_r')))
-        self.elbow, self.wrist = two_bone(self.shoulder, REST_WRIST, self.upper, self.fore, REST_POLE)
-        a = unit(self.wrist - self.elbow)
+        self.fore_body = float(np.linalg.norm(sk.tail('lowerarm_r') - sk.head('lowerarm_r')))   # Ellis's own
+        self.fore = self.fore_body * FOREARM_STRETCH
+        self.elbow, wrist = two_bone(self.shoulder, REST_WRIST, self.upper, self.fore_body, REST_POLE)
+        a = unit(wrist - self.elbow)
+        self.wrist = self.elbow + a * self.fore
         up = v3(0.0, 0.0, 1.0)
         s = rotate(unit(up - a * (up @ a)), a, REST_TURN)
         self.R = np.column_stack([a, s, np.cross(a, s)])     # hand frame (finger, thumb, back) -> Blender
@@ -669,6 +678,7 @@ def build_glove():
 # ------------------------------------------------------------------------------------------------- the sleeve
 SLEEVE_SEGS = 16
 SLEEVE_TUCK = -5.4                          # the sleeve's end inside the gauntlet (hand frame x, cm)
+UPPER_STEP = 6.2                            # the sleeve's rings on the upper arm, past the elbow's folds (cm apart)
 
 
 def sleeve_h(v):
@@ -773,7 +783,9 @@ def sleeve_ring(theta_g, v, path):
 
 
 def sleeve_rows(path):
-    """Arc lengths of the sleeve's rings: closer where it folds (above the gauntlet and at the elbow)."""
+    """Arc lengths of the sleeve's rings: closer where it folds (above the gauntlet and at the elbow). The upper arm's
+    rings are far apart (its radii and drape change slowly, and the framing keeps it under the frame): the rings the
+    longer forearm needs (FOREARM_STRETCH) come from there, so the mesh keeps its triangle count."""
     vs = [0.0]
     while vs[-1] < path.length:
         v = vs[-1]
@@ -783,7 +795,7 @@ def sleeve_rows(path):
         elif abs(v - path.elbow_v) < 5.5:
             step = 0.72
         elif v > path.elbow_v + 5.5:
-            step = 2.8
+            step = UPPER_STEP
         vs.append(min(v + step, path.length))
         if path.length - vs[-1] < 0.5:
             vs[-1] = path.length
@@ -1558,7 +1570,8 @@ def rig_json(arm, rest):
     out = dict(note='SK_FP_Arms rest (bind) pose, Unreal component space (cm), root at the eye. Curl a finger by '
                     'turning each of its bones toward PalmNormal (about the axis across the finger). A held handle '
                     'runs along HandleAxis through GripPoint (the middle of a 4 cm handle in the closed fist).',
-               bones=bones, hands=hands, upperarm_cm=round(rest.upper * 100, 2), lowerarm_cm=round(rest.fore * 100, 2))
+               bones=bones, hands=hands, upperarm_cm=round(rest.upper * 100, 2), lowerarm_cm=round(rest.fore * 100, 2),
+               lowerarm_body_cm=round(rest.fore_body * 100, 2), forearm_stretch=FOREARM_STRETCH)
     os.makedirs(WORK, exist_ok=True)
     path = os.path.join(WORK, 'FPArms_rig.json')
     with open(path, 'w') as fh:
