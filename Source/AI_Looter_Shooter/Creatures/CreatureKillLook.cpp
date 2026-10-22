@@ -2,10 +2,13 @@
 #include "Combat/BulletSubsystem.h"
 #include "Combat/GraveSaltBurst.h"
 #include "Combat/HitReaction.h"
+#include "Audio/LooterSound.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureHitReactionComponent.h"
 #include "Creatures/CreatureReactSubsystem.h"
 #include "Creatures/CreatureTierLook.h"
+#include "Elements/ElementDeathLook.h"
+#include "Elements/ElementRules.h"
 #include "Weapons/CreatureBlood.h"
 #include "Weapons/VfxSubsystem.h"
 #include "Weapons/WeaponFX.h"
@@ -15,6 +18,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 
 // CreatureKillLook: a kill's own layers and its ground splat (the VFX pass), for each kind's death to call.
 
@@ -49,6 +54,23 @@ namespace
 	{
 		const USkeletalMeshComponent* Body = Creature.GetMesh();
 		return Body ? FVector(Body->Bounds.Origin) : Creature.GetActorLocation();
+	}
+
+	/** An element status's kill: the element's own death over the body, with its sound (the gun's gore layers are already laid). */
+	void PlayElementDeath(const ACreatureBase& Creature, FWeaponFX& Effects, ELooterElement Element)
+	{
+		float Radius = 40.f;
+		float HalfHeight = 60.f;
+		Creature.GetSimpleCollisionCylinder(Radius, HalfHeight);
+		const APlayerController* Player = Creature.GetWorld() ? Creature.GetWorld()->GetFirstPlayerController() : nullptr;
+		const FVector Camera = Player && Player->PlayerCameraManager ? FVector(Player->PlayerCameraManager->GetCameraLocation()) : FVector::ZeroVector;
+		const FVector Middle = BodyMiddle(Creature);
+		ElementDeathLook::Play(Effects, Element, Middle, FMath::Max(Radius, 10.f), FMath::Max(HalfHeight, 10.f), Camera);
+		const FName Cue = ElementRules::Cue(Element, EElementCue::Kill);
+		if (!Cue.IsNone())
+		{
+			LooterSound::PlayAt(&Creature, Cue, Middle);
+		}
 	}
 }
 
@@ -120,6 +142,11 @@ namespace CreatureKillLook
 		FWeaponFX& Effects = Bullets->GetEffects();
 		Effects.Initialize(World);
 		Effects.SpawnKillLayers(Kill);
+		if (Hit.Element != ELooterElement::None)
+		{
+			// Killed by an element's status: the element's death on top (embers, light, crumbling salt), not the gun's.
+			PlayElementDeath(Creature, Effects, Hit.Element);
+		}
 		if (bSplat && Kill.bGround)
 		{
 			if (UVfxSubsystem* Vfx = UVfxSubsystem::Get(&Creature))

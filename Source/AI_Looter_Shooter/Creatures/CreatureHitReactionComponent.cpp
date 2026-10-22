@@ -11,6 +11,7 @@
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Elements/ElementStatusComponent.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/ViewKick.h"
 #include "Weapons/CreatureBlood.h"
@@ -173,6 +174,13 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 	Hit.Share = FMath::Max(Damage, 0.f) / MaxHealth;
 	Hit.BurstShare = Hit.Share;
 	Hit.Kind = KindOf(DamageCauser);
+	// A status's piece or smite (the gun that set it is the causer, for the notch) is no shot of that gun: not its kind's
+	// stagger, power or knock, and its kill is the element's death.
+	Hit.Element = UElementStatusComponent::DealingElement();
+	if (Hit.Element != ELooterElement::None)
+	{
+		Hit.Kind = EWeaponKind::None;
+	}
 	Hit.bCritical = bCritical;
 	Hit.Location = HitLocation;
 	Hit.bBoss = IsBoss(*Creature);
@@ -370,7 +378,10 @@ void UCreatureHitReactionComponent::HandleDeath(AController* Killer)
 		return;
 	}
 	const FGunfeelReactTuning Tuning = FGunfeelReactTuning::Live();
-	SpawnDeathBurst(*Creature, Tuning);
+	if (BurstsLikeItsKind(LastHit))
+	{
+		SpawnDeathBurst(*Creature, Tuning);
+	}
 
 	// The killer's view punches in: a crit kill, or a Gravebound or worse, harder.
 	APlayerController* Player = Cast<APlayerController>(Killer);
@@ -379,7 +390,10 @@ void UCreatureHitReactionComponent::HandleDeath(AController* Killer)
 		const bool bHeavy = LastHit.bCritical || LooterRanks::IsAtLeast(Creature->GetRank(), ECreatureRank::Epic);
 		UCameraShakeModifier::Kick(Player, ViewKicks::ForKill(bHeavy));
 	}
-	StartCorpseKnock(*Creature, Tuning);
+	if (KnocksCorpse(LastHit))
+	{
+		StartCorpseKnock(*Creature, Tuning);
+	}
 }
 
 void UCreatureHitReactionComponent::SpawnDeathBurst(ACreatureBase& Creature, const FGunfeelReactTuning& Tuning)

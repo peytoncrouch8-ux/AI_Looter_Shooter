@@ -473,3 +473,76 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   re-import). An import that reparents a bone (round 6: cape chains onto the collarbones) logs "Discarding existing
   LODs" and rebuilds them: check `get_lod_count` is 3 afterwards.
 - Looking at him: `Looter.ThirdPerson.FrontArmLength <cm>` brings the front view close (110-120); `play.py aim [0]`.
+
+## Materials pass (CHAR-MAT, 2026-10-22; plan `Docs/Work/2026-10-22-CharArt/PLAN.md`, sheets CharArt_1-3)
+
+The user's OKs (2026-10-22): the painted ghost, Gauge back to pick C, the hero value pass, the Gravemother's and Sexton's
+own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
+- **Painted ghost** (every M_Ghost user; `build_creature_materials.py` M_Ghost, `PAINTED`): new parameters only, master
+  defaults = the look, so no ghost re-imports. Cloth: `T_GhostCloth_M` (`Art/Textures/GhostCloth/make_ghost_cloth.py`,
+  numpy, 1024, linear: R weave + seams, G hanging folds, B stains) on UV 0 x ClothScale 1.25, multiplying the zone tint
+  (ClothWeave 0.18, SkinCloth 0.35 of it on zone 1, ClothFolds 0.40, ClothStains 0.45 toward StainTint #9C8C78); top
+  light by pre-skinned Z (0.72 at 90 cm to 1.18 at 165 cm; a slot on a small prop, bounds under PropSize 60, takes
+  PropTopLight 1.10: the hat); cavity 1 - 0.95 x G^0.6; rim lerped ColdRim 0.7 toward ColdRimColor #A4E0EE; inner glow
+  in the rank colour round CoalAt (10.9, -5.9, 131.3) cm (SK_Unpaid's coal bone; every ghost's coal is within a few cm),
+  InnerGlow 1.0 over 26 cm, times the coal's heat; the shroud's fade noise stretched StreakAcross 3 x StreakAlong 0.35
+  over FadeBand 0.28 (dithered). Cost: one texture sample and one interpolator more. The Polymer grain stays (Amos's hat
+  reads Hay through BaseColorMap). `Looter.ImportModels` of a ghost keeps it (it sets none of these).
+- **Painted reflection** (M_Character, `CHARACTER_REFLECTION`): emissive = a painted sky/horizon/ground gradient picked
+  by the reflection vector's Z x Schlick Fresnel on the surface's own F0 (8% x Specular, metal its base colour) x gloss
+  (smoothstep GlossFrom 0.55 -> GlossFull 0.15 roughness) x occlusion x the sun's illuminance / pi
+  (SkyAtmosphereLightIlluminance: dims with dusk; ReflectionFloor 0 = none without a sky atmosphere). Every M_Character
+  slot, gated by gloss: leather and rough iron take ~nothing. Not on the cloth, skin or hair masters, nor M_Gun yet.
+  Risk: emissive ignores shadow, so glossy parts keep it indoors (check the mine).
+- **Gauge**: `gauge_looks.enamel` bakes edges rubbed a step paler and a top light by normal Z (x0.72 down to x1.5 up).
+- **M_CharacterGlow** (unlit, opaque): the heroes' eye glows and Gauge's lamp, Color x Glow shaped by |N.V|: a hot core
+  toward white, an iris ring, a dimmer body. `looter_export.CHARACTER_GLOWS` maps those Glow slots (EllisEyeGlow,
+  CraneEyeGlow, OdessaEyeGlow, PikeEyeGlow x0.7, GaugeLamp Glow 2.2) to it at export, so no hero script changed for it;
+  `Tools/Unreal/build_character_glows.py` moves the instances already in the game. (Their pre-skinned normals were no
+  use for a forward core: the exported eye balls and the lens keep no clean forward normal.)
+- **Ellis's value pass** (`Ellis.py` LOOKS): three value groups: duster mid warm brown (DUSTER, thread paler), waistcoat
+  charcoal (darkest, under the bandana), trousers a warm dark grey a step over it, shirt light, belt a lighter tan, hat
+  warm dark brown. `FPArms.py`'s OILSKIN must follow the new sleeves (measure EllisDuster after the bake).
+- **Crane's skin** (`crane_looks.dead_skin`, Crane.py SKIN (0.48, 0.565, 0.53), ScatterColor #CCD4DA at 0.3): the
+  yellow cut, light painted in by the detailed head's normal (`painted_light`: down-facing planes x0.78, up x1.10,
+  turned-away x0.90), his zones' darkening mirrored warm (red <-> blue), the lips and nose flush warmed.
+  **Odessa** (`odessa_looks.skin_alive`, colour (0.77, 0.65, 0.555)): the same painted light. Both bake with their next
+  export (after CHAR-FACE's shape work).
+- **The Gravemother's own look** (`Gravemother.py` GRAVE, `grave_marks`, `root_veins`; `looter_barrow.paint_mud`;
+  `looter_barrow_stone._granite`): a pale corpse-bone hide (#C2B9A6) with the spider's marks faded to ghosts and the
+  rings to dark knuckles, crazed like old bone, root veins from the stone's roots, lichen round its foot, grave earth
+  climbing from below (belly, every leg's underside, the lower legs: wet earth #7C6650/#4A3B2E); the headstone's
+  granite darker (#605D59-#6A6661) so it reads against the pale hide. MUD_GREY is gone.
+- **Sexton** (`MisterSexton.py`): wool and trousers on M_CharacterCloth (#37332F, #413C38; FuzzStrength 0.45, FuzzLift
+  0.3, FuzzTint #8C9488: the folds' flanks catch a grey-green sheen), his face still in shadow with a glint: a bead of
+  cold light (SextonGlint, Glow #D4ECF2 2.6, r 3.4 mm) in each eye socket.
+
+## Face planes and Crane's hair cards (CHAR-FACE, 2026-10-22; plan items 5-6, the user's OK)
+
+- **Face planes** (`Tools/Blender/looter_face.py`, `carve`): soft bumps and grooves along the skin's normal, placed from
+  landmarks measured on the MakeHuman head at rest (eyes, nose tip, lips by the orbicularis oris weights, chin's front,
+  jaw's side; dm), mirrored, depths in game metres. Runs in each Figure after the sliders and lids, before
+  `world_verts` (Crane: `crane_common.FACE_PLANES`, after `sunken`; Odessa: `Odessa.py FACE_PLANES`, after
+  `head_frame`). Only the face moves: the head's own vertices (the head bone and every bone under it in MakeHuman's
+  skeleton), nothing within the lids' ellipse `LID` (0.20 x 0.115 dm round each eye, fading in over 0.07), nothing over
+  `LID_TOP` 0.25-0.32 dm above the eyes (the hats' bands sit 3.8-5 cm up: their seat and the hair's band line come out
+  the same), nothing behind the face's front 1.05 dm (ears, skull). The skeleton's joints are computed before it, so
+  no bone moves. Crane (out 3.5 mm, in 2.5): brow ridge, frown lines, cheekbones over hollows, nose-to-mouth folds with
+  the cheek pad beside, a sharper nose bridge, the groove under the lower lip, chin, jaw line. Odessa (out 4, in 3.8):
+  brow bone, cheekbones over hollows, lower cheeks slimmed, nose bridge and its sides, philtrum, lip lines, chin, jaw.
+  What didn't work: a ridge cut off by the lid mask drew a step (keep each feature's own falloff ending before the lids);
+  a long thin cheekbone ridge out to the ear read as a welt (broad, 0.09 dm tall, ending at the outer eye's line).
+  Check: `face_probe.py`-style clay of the skin alone (the session scratchpad's; landmarks printed).
+- The cloth caches (`Crane.drape.json`) take the whole body as a collider, so a face change re-simulates once: the
+  coat came out point for point the same (only the cache's digest changed).
+- **Crane's hair** (`crane_hair.py`; round 1 read as slab-ended cards and a thin stiff mustache): the atlas
+  (`CraneHair`, still ellis_hair's painter) takes Crane's own strip kinds (`crane_hair.KIND`, swapped in like the
+  colours): clumps end at 0.42-0.92 of a strip, so every card ends in uneven points, and the underlayer's fill a mid
+  grey (dark slabs between the cards before). Cards narrow toward the tip (`taper`: main 0.62, outer 0.70, wisps 0.72 of
+  their width, as t^1.3), main and outer lengths more varied, the sheet stops at 0.86 of the drop (its even edge showed).
+  The made set is made only when missing: delete `Art/Textures/CraneHair/*.png` after changing the painter or KIND.
+- **Crane's mustache** (`MUSTACHE`): four layers a side (under 13, mid 11, over 8, two long droops at the corners),
+  rooted along the upper lip's arch, combed mostly down and out by how far out the root is, 3-9 cm, each card puffing
+  4 mm off the skin toward its tip and tapering to 30%: the portrait's walrus to the jaw. 660 triangles.
+  **Brows** (`BROWS`): 16 narrow cards a side in three layers, roots jittered, up and out at the inner end, drooping at
+  the outer; 192 triangles. Crane 34.2k triangles (hair 3.65k).

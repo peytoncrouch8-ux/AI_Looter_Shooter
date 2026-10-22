@@ -1,5 +1,6 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Elements/ElementCallout.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/DamageNumberActor.h"
 #include "Engine/World.h"
@@ -91,7 +92,7 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float IncomingDamag
 		Health = FMath::Clamp(Health - ToHealth, 0.f, MaxHealth);
 	}
 
-	SpawnDamageNumber(Damage, bCritical, HitLocation, InstigatedBy);
+	SpawnDamageNumber(Damage, bCritical, HitLocation, InstigatedBy, DamageType);
 	OnDamaged.Broadcast(Damage, bCritical, HitLocation, InstigatedBy, DamageCauser);
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 
@@ -180,7 +181,8 @@ float UHealthComponent::Drain(float Amount)
 	return Taken;
 }
 
-void UHealthComponent::SpawnDamageNumber(float Damage, bool bCritical, const FVector& Location, AController* InstigatedBy) const
+void UHealthComponent::SpawnDamageNumber(float Damage, bool bCritical, const FVector& Location, AController* InstigatedBy,
+	const UDamageType* DamageType) const
 {
 	if (!bShowDamageNumbers || !DamageNumberClass)
 	{
@@ -194,10 +196,13 @@ void UHealthComponent::SpawnDamageNumber(float Damage, bool bCritical, const FVe
 		return;
 	}
 
+	// Its element (a status's piece, a smite, an element gun's crit) and, once a fight, the creature's weakness to it.
+	const FElementNumberLook Look = ElementCallout::LookFor(DamageType, GetOwner(), bCritical, GetWorld()->GetTimeSeconds());
+
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	if (ADamageNumberActor* Number = GetWorld()->SpawnActor<ADamageNumberActor>(DamageNumberClass, Location, FRotator::ZeroRotator, Params))
 	{
-		Number->Show(Damage, bCritical);
+		Number->Show(Damage, bCritical, Look);
 	}
 }

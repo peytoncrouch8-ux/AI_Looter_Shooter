@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
+#include "Combat/GraveSaltBurst.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/MovementSlowComponent.h"
 #include "Creatures/CreatureBase.h"
@@ -35,6 +36,7 @@ namespace
 }
 
 int32 UElementStatusComponent::DealingDepth = 0;
+ELooterElement UElementStatusComponent::DealingElementNow = ELooterElement::None;
 
 UElementStatusComponent::UElementStatusComponent()
 {
@@ -134,8 +136,13 @@ void UElementStatusComponent::Advance(float DeltaSeconds)
 	{
 		if (Deal(Tick))
 		{
-			PlayKillLook(Tick.Element);
-			PlayCue(Tick.Element, EElementCue::Kill, BodyPoint(0.3f));
+			// A creature's own kill look (CreatureKillLook, from its death) plays the element's death with the sound; what has
+			// none (a boss: its death is its own show) gets the burst here.
+			if (!Cast<ACreatureBase>(GetOwner()) || GraveSaltBurst::IsBoss(GetOwner()))
+			{
+				PlayKillLook(Tick.Element);
+				PlayCue(Tick.Element, EElementCue::Kill, BodyPoint(0.3f));
+			}
 			Status.Clear();
 			break;
 		}
@@ -195,6 +202,8 @@ bool UElementStatusComponent::SendDamage(AActor& Victim, ELooterElement Element,
 	}
 	const int32 Index = IndexOf(Element);
 	Dealt[Index] += Damage;
+	// Everything the damage sets off (the creature's hurt and death, its number) knows a status dealt it.
+	const FDealingScope DealingThis(Element);
 	// From the gun that set it, so that gun gets the notch (AWeaponBase::FindKillWeapon); its holder gets the XP. A gun gone
 	// since (sold, dropped and lost) leaves the holder as the causer: the gun in their hand gets it then.
 	AController* Instigator = Instigators[Index].Get();

@@ -23,7 +23,8 @@ class UHealthComponent;
  *  - its death: the kind's burst (a spider's shell, a slime's splat, an Unpaid's soul-light; FWeaponFX::SpawnDeathBurst;
  *    a revolver's crit kill bigger, at the crit spot, with a spurt) with the body's sound, the killer's view punched in
  *    (ViewKicks::ForKill), and the corpse knocked along the killing shot by the gun (a shotgun's thrown with a lift, a
- *    rifle's crumpling where it stands), never through a wall or off a drop.
+ *    rifle's crumpling where it stands), never through a wall or off a drop. A kill by an element's status (a burn, a smite,
+ *    the salt) has none of those: no gun dealt it, and the element's own death plays instead (KnocksCorpse).
  * A boss gets none of it but the smaller flinch (Boss rank, or a creature with a UBossComponent: the Gravemother): its
  * fight's show runs its big moments (its own stagger, its slow-motion death). Ticks only while a corpse slides.
  * ACreatureBase::HandleDamaged hands it each hit (TakeHit) before the kind's flinch, so the flinch knows the burst.
@@ -50,6 +51,9 @@ public:
 
 	const FHitReaction& GetReaction() const { return Reaction; }
 
+	/** The latest hit it took (the creature's GetLastHit is protected): the tests read what a kill was. */
+	const FCreatureHit& GetLastTakenHit() const { return LastHit; }
+
 	/** The gun that dealt a hit (a bullet's DamageCauser is the AWeaponBase that fired it); None for anything else. */
 	static EWeaponKind KindOf(const AActor* DamageCauser);
 
@@ -60,6 +64,13 @@ public:
 	static float CorpseKnockFor(EWeaponKind Kind, bool bCritical, const FGunfeelReactTuning& Tuning);
 	/** How high the corpse is lifted at its slide's middle (cm): a shotgun kill's Kill.ShotgunLift, else none. */
 	static float CorpseLiftFor(EWeaponKind Kind, const FGunfeelReactTuning& Tuning);
+
+	/**
+	 * A killing hit is played the gun's way (its corpse knock, the kind's own death burst) unless a status dealt it: the
+	 * element's own death is the whole of that kill (CreatureKillLook, ElementDeathLook), and a burn is not a shotgun blast.
+	 */
+	static bool KnocksCorpse(const FCreatureHit& Hit) { return Hit.Element == ELooterElement::None; }
+	static bool BurstsLikeItsKind(const FCreatureHit& Hit) { return Hit.Element == ELooterElement::None; }
 
 	/** The death burst a creature of Creature's kind shows (by class, most specific first: Abel is built on the Unpaid). */
 	static EDeathBurst DeathBurstOf(const ACreatureBase& Creature);

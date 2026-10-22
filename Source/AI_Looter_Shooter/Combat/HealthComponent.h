@@ -143,7 +143,8 @@ private:
 	UFUNCTION()
 	void HandleAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser);
 
-	void SpawnDamageNumber(float Damage, bool bCritical, const FVector& Location, AController* InstigatedBy) const;
+	/** DamageType: an element status's number takes the element's colour (ElementCallout::LookFor). */
+	void SpawnDamageNumber(float Damage, bool bCritical, const FVector& Location, AController* InstigatedBy, const UDamageType* DamageType) const;
 
 	float Health = 0.f;
 	bool bDead = false;

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Elements/ElementCallout.h"
 #include "DamageNumberActor.generated.h"
 
 class UWidgetComponent;
@@ -20,7 +21,8 @@ class AI_LOOTER_SHOOTER_API ADamageNumberActor : public AActor
 public:
 	ADamageNumberActor();
 
-	void Show(float Damage, bool bCritical);
+	/** Look: how it shows the element it carried (ElementCallout::LookFor): its colour, a WEAK or RESIST tag, a bigger number. */
+	void Show(float Damage, bool bCritical, const FElementNumberLook& Look = FElementNumberLook());
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -47,6 +49,8 @@ private:
 	FVector Velocity = FVector::ZeroVector;
 	float Age = 0.f;
 	bool bCritical = false;
+	/** A WEAK or RESIST tag is beside the number (it pops in over its first moments). */
+	bool bTagged = false;
 	/** A crit's lob goes this way across the screen (-1 left, 1 right). */
 	float Side = 1.f;
 };
@@ -65,6 +69,12 @@ namespace DamageNumberMotion
 
 	/** Its frame Age seconds in; Side: a crit's lob's way (-1 or 1). */
 	AI_LOOTER_SHOOTER_API FFrame At(float Age, bool bCritical, float Side);
+
+	/** The WEAK / RESIST tag's size Age seconds in: it pops in big and settles to 1 (TagPopScale, over TagPopSeconds). */
+	AI_LOOTER_SHOOTER_API float TagScaleAt(float Age);
+
+	inline constexpr float TagPopScale = 1.9f;
+	inline constexpr float TagPopSeconds = 0.14f;
 
 	/** A crit slams in at this size, and its lob rises this fast against this pull (px/s, px/s^2) while drifting this far sideways (px). */
 	inline constexpr float CritSlamScale = 2.2f;

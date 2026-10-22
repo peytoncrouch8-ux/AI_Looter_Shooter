@@ -39,6 +39,11 @@ DamageNumberMotion::FFrame DamageNumberMotion::At(float Age, bool bCritical, flo
 	return Frame;
 }
 
+float DamageNumberMotion::TagScaleAt(float Age)
+{
+	return FMath::Lerp(TagPopScale, 1.f, FMath::InterpEaseOut(0.f, 1.f, FMath::Clamp(Age / TagPopSeconds, 0.f, 1.f), 2.f));
+}
+
 ADamageNumberActor::ADamageNumberActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -53,9 +58,10 @@ ADamageNumberActor::ADamageNumberActor()
 	SetRootComponent(Widget);
 }
 
-void ADamageNumberActor::Show(float Damage, bool bInCritical)
+void ADamageNumberActor::Show(float Damage, bool bInCritical, const FElementNumberLook& Look)
 {
 	bCritical = bInCritical;
+	bTagged = Look.Callout != EElementAffinity::Neutral;
 	Age = 0.f;
 	Side = FMath::RandBool() ? 1.f : -1.f;
 
@@ -65,7 +71,7 @@ void ADamageNumberActor::Show(float Damage, bool bInCritical)
 
 	if (UDamageNumberWidget* NumberWidget = Cast<UDamageNumberWidget>(Widget->GetUserWidgetObject()))
 	{
-		NumberWidget->SetDamage(Damage, bCritical);
+		NumberWidget->SetDamage(Damage, bCritical, Look);
 	}
 
 	SetLifeSpan(Lifetime + (bCritical ? CriticalExtraLife : 0.f) + 0.1f);
@@ -97,11 +103,18 @@ void ADamageNumberActor::Tick(float DeltaSeconds)
 	Transform.Scale = FVector2D(Frame.Scale);
 	Transform.Angle = Frame.Angle;
 	UserWidget->SetRenderTransform(Transform);
-	if (bCritical)
+	if (bCritical || (bTagged && Age < DamageNumberMotion::TagPopSeconds + 0.1f))
 	{
 		if (UDamageNumberWidget* NumberWidget = Cast<UDamageNumberWidget>(UserWidget))
 		{
-			NumberWidget->SetHeat(Frame.Heat);
+			if (bCritical)
+			{
+				NumberWidget->SetHeat(Frame.Heat);
+			}
+			if (bTagged)
+			{
+				NumberWidget->SetTagScale(DamageNumberMotion::TagScaleAt(Age));
+			}
 		}
 	}
 }

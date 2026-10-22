@@ -6,6 +6,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/BulletSubsystem.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Elements/ElementCallout.h"
 #include "Elements/ElementStatusComponent.h"
 #include "Weapons/GunshotSound.h"
 #include "Weapons/PartEffectComponent.h"
@@ -156,13 +157,17 @@ FRocketBlastResult WeaponRocketBlast::Detonate(UWorld* World, const FVector& Cen
 		}
 		// The gun's damage, the launcher its causer: the kill is its notch, and the creature's reaction knows the launcher.
 		AActor* Causer = Weapon ? static_cast<AActor*>(Weapon) : BurstSource;
-		UGameplayStatics::ApplyPointDamage(Actor, Target.Damage, Direction, BodyHit, Instigator, Causer, UWeaponDamageType::StaticClass());
+		UPartEffectComponent* Parts = Weapon ? UPartEffectComponent::For(*Weapon) : nullptr;
+		const ELooterElement Element = Parts ? Parts->GetElement() : ELooterElement::None;
+		{
+			// The number over it knows the rocket's element, as a bullet's does (ElementCallout).
+			const FHitElementScope ElementOfThisHit(Element);
+			UGameplayStatics::ApplyPointDamage(Actor, Target.Damage, Direction, BodyHit, Instigator, Causer, UWeaponDamageType::StaticClass());
+		}
 		// The launcher's element (its rocket's kind: Incendiary, Saint's, Salt) on each body it hurt, as a bullet's hit sets
 		// it (UPartEffectSubsystem): rockets never pass the bullets' hooks.
 		if (Weapon && !Health->IsDead())
 		{
-			UPartEffectComponent* Parts = UPartEffectComponent::For(*Weapon);
-			const ELooterElement Element = Parts->GetElement();
 			if (Element != ELooterElement::None
 				&& UElementStatusComponent::TryApply(*Actor, Element, Parts->GetElementChance(), Target.Damage, false, FMath::FRand(), Target.Point,
 					Weapon, Instigator))

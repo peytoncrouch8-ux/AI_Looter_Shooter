@@ -210,8 +210,17 @@ moments. Code: CODEMAP "Elements", `Weapons/PartEffect*`, `Loot/LootDropMoments`
   on the Unpaid (weak, smite killed one), Ember on a slime (weak), Soul-light on slimes never came up in ~8 hits (resist: 0.15);
   Ricochet bounced off a wall into a spider; Explosive splash hurt a second spider; Twin SMG; Rare/Epic/Legendary drops.
   Perf RR town, 8 spiders all burning (re-applied every 2 s): 7.6 ms, p95 8.2.
-- **Not done**: a status kill gets the gun's kill knock (CreatureHitReactionComponent::KindOf reads the causer); element
-  damage numbers aren't element-coloured; element parts wear other parts' models (the gun's glow isn't tinted by element).
+- **Element feel (2026-10-22)**: damage numbers (`ElementCallout`): a burn/smite/salt piece is the element's colour; a crit of an
+  element gun settles 65% toward it (still white-hot first); a plain gun hit stays white. The first weak hit of a fight on a
+  creature pops a WEAK tag (element colour, 1.9x -> 1x over 0.14 s) beside a number 1.2x bigger; a resist pops a greyed RESIST
+  (size unchanged). Once per creature + element + side; a fight ends after 20 s with no element hit. The gun's element reaches
+  the number through `FHitElementScope` (BulletSubsystem::ResolveHit, WeaponRocketBlast); a status's through
+  `UElementStatusComponent::DealingElement()` (set in SendDamage). A status kill: `FCreatureHit::Element` set, Kind None (a burn
+  is no shotgun blast: no stagger/knock either), no corpse knock, no kind death burst; `CreatureKillLook::Play` lays
+  `ElementDeathLook` (Ember: embers and a fountain from the foot; Soul-light: burst of light; Grave-salt: crystals shed and
+  crumbling) and the `Element.<E>.Kill` cue; bosses/non-creatures keep the status component's own burst.
+  Tests: `Looter.UI.DamageNumbers.Element`, `Looter.Elements.Callout/.StatusKill/.DeathLook`.
+- **Not done**: element parts wear other parts' models (the gun's glow isn't tinted by element).
   Tests: `Looter.Elements.*`, `Looter.PartEffects.*`, `Looter.Loot.DropMoments.*`.
 
 ## VFX pass (12.5, built 2026-10-22)

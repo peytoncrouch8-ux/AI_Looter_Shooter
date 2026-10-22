@@ -3,6 +3,7 @@
 #include "Combat/CombatRules.h"
 #include "Combat/CriticalSpotTarget.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Elements/ElementCallout.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -348,6 +349,9 @@ FBulletStrike UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResu
 	{
 		// The damage type tells receivers (health, damage numbers) whether this was a critical hit.
 		const TSubclassOf<UDamageType> DamageType = bCritical ? UWeaponCritDamageType::StaticClass() : UWeaponDamageType::StaticClass();
+		// The number over it knows an element gun's hit (the damage type is the same for every gun): its crit shows tinted, and
+		// a creature weak to the element says so (ElementCallout).
+		const FHitElementScope ElementOfThisHit(Shot.Element);
 		UGameplayStatics::ApplyPointDamage(HitActor, Damage, Shot.Direction, Hit, Shot.Instigator.Get(), Weapon, DamageType);
 	}
 

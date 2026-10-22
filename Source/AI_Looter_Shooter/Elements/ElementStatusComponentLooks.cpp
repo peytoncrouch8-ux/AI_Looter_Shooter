@@ -1,4 +1,5 @@
 #include "Elements/ElementStatusComponent.h"
+#include "Elements/ElementDeathLook.h"
 #include "Elements/ElementRules.h"
 #include "Elements/ElementTuning.h"
 #include "Camera/PlayerCameraManager.h"
@@ -120,7 +121,6 @@ void UElementStatusComponent::PlayKillLook(ELooterElement Element) const
 	float Radius = 0.f;
 	float HalfHeight = 0.f;
 	GetBody(Center, Radius, HalfHeight);
-	const FVector Camera = CameraOf(GetWorld());
-	const FVector Front = Camera.IsZero() ? FVector::ZeroVector : (Camera - Center).GetSafeNormal() * Radius * 0.8f;
-	FX->SpawnElementBurst(Element, Center + Front + FVector(0.f, 0.f, HalfHeight * 0.2f), Radius * 2.5f, true);
+	// The element's own death (ElementDeathLook): the same one a creature's kill look lays over its kind's.
+	ElementDeathLook::Play(*FX, Element, Center, Radius, HalfHeight, CameraOf(GetWorld()));
 }

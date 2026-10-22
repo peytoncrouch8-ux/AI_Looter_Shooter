@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Combat/GunfeelReactTuning.h"
 #include "Creatures/CreatureRank.h"
+#include "Elements/LooterElement.h"
 #include "Weapons/WeaponTypes.h"
 
 /**
@@ -17,6 +18,12 @@ struct AI_LOOTER_SHOOTER_API FCreatureHit
 	float BurstShare = 0.f;
 	/** The gun that fired it (None: not a gun, or not known). */
 	EWeaponKind Kind = EWeaponKind::None;
+	/**
+	 * The element whose status dealt it (a burn's piece, a smite, the salt), None for anything else. Such a hit has no gun's
+	 * Kind (a burn is not a shotgun blast): a kill by it is the element's death (CreatureKillLook, ElementDeathLook), with
+	 * neither the gun's corpse knock nor the kind's own death burst.
+	 */
+	ELooterElement Element = ELooterElement::None;
 	bool bCritical = false;
 	/** The shot's way (from the shooter through the wound, unit), and where it landed. */
 	FVector Direction = FVector::ZeroVector;

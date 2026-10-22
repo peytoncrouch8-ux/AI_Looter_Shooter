@@ -92,6 +92,8 @@ a whole build cycle).
   still but still makes her moves, for a look), `slomo 0.3`. Placing the player near her in the Sink (a bowl) needs a
   ground trace kept level with her feet (`Saved/Gravemother/gm_place.py`). PIE hitches seen during her fight (0.3-0.7 s)
   were the PCG subsystem (90k raycasts in one frame) and Mass (`stat dumphitches`), not hers.
+- Her own look (pale hide, earth, dark headstone; 2026-10-22) and the painted ghost (every M_Ghost user): `Docs/Pipeline/
+  CharacterModels.md`, "Materials pass".
 - Bug fixed (2026-10-20): one long frame (0.4 s, the frame clamp; console typing, a hitch) on a plough's first frame read
   as "blocked" (she stood still through the heave) and she slammed down where she stood. The first frame now only sets
   her going; plough time counts from the next. Verbose `LogLooter` lines trace it: "ploughs", "plough ends <there|out

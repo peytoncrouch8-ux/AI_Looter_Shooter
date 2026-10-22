@@ -60,6 +60,27 @@ public:
 	 */
 	static bool IsDealingNow() { return DealingDepth > 0; }
 
+	/**
+	 * The element whose status is dealing damage right now (a burn's piece, a smite's burst or its leap, the salt's piece), None
+	 * otherwise: inside that damage's own events. The hit reaction reads it (a status's kill is the element's death, with
+	 * no gun's knock) and so does the damage number (it takes the element's colour).
+	 */
+	static ELooterElement DealingElement() { return DealingElementNow; }
+
+	/** Marks the damage dealt inside it as Element's status's (SendDamage's; the tests deal a status's damage the same way). */
+	struct FDealingScope
+	{
+		explicit FDealingScope(ELooterElement Element)
+			: Previous(DealingElementNow)
+		{
+			DealingElementNow = Element;
+		}
+		~FDealingScope() { DealingElementNow = Previous; }
+
+	private:
+		ELooterElement Previous;
+	};
+
 	/** Of the dead nearest Center within Radius (not Except, alive): where a smite leaps. Null for none. */
 	static AActor* FindNextOfTheDead(const UWorld* World, const FVector& Center, float Radius, const AActor* Except);
 
@@ -69,6 +90,8 @@ private:
 	static constexpr int32 NumElements = 4;
 	/** Pieces of damage over time being dealt now (IsDealingNow). */
 	static int32 DealingDepth;
+	/** SendDamage's element while it deals (DealingElement). */
+	static ELooterElement DealingElementNow;
 
 	/** Deals one piece to its owner (and a smite's leap); true if that killed it. */
 	bool Deal(const FElementTick& Tick);
