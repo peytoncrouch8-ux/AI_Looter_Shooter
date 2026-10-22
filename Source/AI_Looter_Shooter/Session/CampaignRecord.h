@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Bounties/BountyTypes.h"
 #include "CampaignRecord.generated.h"
 
 /**
@@ -119,6 +120,14 @@ struct AI_LOOTER_SHOOTER_API FCampaignRecord
 	/** The choice taken at each mission turned in with a choice of two (FMissionTurnIn::Choices), by mission id: 0 or 1. */
 	UPROPERTY()
 	TMap<FName, int32> TurnInChoices;
+
+	/**
+	 * The bounty boards' records, by board id (ABountyBoard::BoardId: "RansomsRest"): their postings, the bounty taken, the
+	 * strongboxes owed (UBountyBoardSubsystem). New within version 4 (2026-10-22): a save from before has none, which reads
+	 * as a fresh board.
+	 */
+	UPROPERTY()
+	TMap<FName, FBountyBoardRecord> Bounties;
 
 	bool HasFlag(FName Flag) const { return !Flag.IsNone() && StoryFlags.Contains(Flag); }
 

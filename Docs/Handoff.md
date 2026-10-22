@@ -12,14 +12,17 @@ Perf (quiet noon): tour worst 8.1 ms (Aerial, Aerial_Dusk, PointOverValley_FarSh
 makers as shown** (Roundhouse, Saint Maud, Windfall, Meridian; `Saved/ArtPreviews/Weapons/Concepts/Makers.png`,
 `Docs/Work/2026-10-22-Next/MAKERS.md`). `Tools/hashcheck.sh <HASHES.txt>` checks a holding tree's originals.
 Landed: SMALL-FIXES (bc9a98c), GROUND-DETAIL (4a32212; also carries MAKERS' M_Gun mark code in build_world_materials).
-Evening: MAKERS + SHIELD code both copied into Source and built together (one compile fix in LoadoutWidgetWard); Main
-hand-merged MAKERS' WeaponModelComponent/LoadoutWidgetInspect hunks and InkedIcons (WardBox + Maker* regenerated);
-Main's SHIELD hooks done: `Looter.Fight.DamageScale` 1.5 -> 1.8 (SHIELD's retune, FightTests updated), no hurt grunt when
-the ward took the hit, Borrowed Time debt = health actually lost, `/Game/Art/Shields` cooked; CODEMAP lines added.
-Not done (SHIELD.md "For Main's files"): boss shower `Roll.Shields`, cyan hit edges for ward hits, HudShotScene ward
-state, wards in Lost Property. Uncommitted until each phase 2 passes. Lane now: MAKERS phase 2 (scripts, tests, PIE) ->
-SHIELD phase 2 (models.ps1 WardBox, create_shields.py, sound bank, tests Looter.Shields/Loot/Recovery/UI, hudshots) ->
-commit both -> BOUNTY (copy Saved/BountyCode, build_area hook, IsMenuOpen + LooterHUDMissionOffer edits) -> PLAYTEST.
+Evening: MAKERS + SHIELD committed together (067ceca; built together, Main hand-merged the shared hunks). Main's SHIELD
+hooks done: `Looter.Fight.DamageScale` 1.5 -> 1.8 (SHIELD's retune; **no played-fight verdict yet**: spiders never reached
+the test player; the user's playtest decides, 2.0 if soft), no hurt grunt on a ward hit, Borrowed Time debt = health lost,
+wards lying on the ground kept in the map save (`FSavedMapWorld::ShieldPickups`, put back where they lay; guns still go to
+Lost Property), `/Game/Art/Shields` cooked. Saint Maud's mark darkened to #9a6a1c (faint on ivory; not yet seen in game).
+Not done (SHIELD.md "For Main's files"): boss shower `Roll.Shields` (boss table off), cyan hit edges for ward hits,
+HudShotScene ward state, wards in Lost Property, `Shield.*`/`Bounty.*` cue names into LooterSoundCues.h (bank warns
+only); MAKERS: marks on Rustler/Thresher enlarged but unseen, far-side mirroring unchecked.
+BOUNTY code copied and built (Main's edits: IsMenuOpen + mission-offer refusals, build_area.py hook, CODEMAP); BOUNTY
+phase 2 running (place board/arenas, tests, PIE, docs). PLAYTEST phase 1 written (Toolspackage.ps1 extended: BuildsPlaytest<stamp>, -CloseEditor, -SmokeTest, -Zip; Play Latest Build.bat; Builds/ ignored), uncommitted; phase 2 = run
+`Toolspackage.ps1 -CloseEditor -SmokeTest` last.
 
 ## State at 2026-10-22 noon: the queue is empty
 Done since the morning list (all committed and pushed, last 2011943): VFX-2 (fire explosions, no white-ghost kill), FP

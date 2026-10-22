@@ -200,7 +200,7 @@ fences, dark pines on Larkspur Ridge, the canyon's blue haze to the west and a l
     - Pruitt's General Store, a vendor: the Pruitts, heard and never seen, trade in silver through the hatch in their door
       once Main Street is safe, after Main 3 (`AVendor`, `build_area_vendors.py`).
     - The Gilt Spur saloon, boarded up (“CLOSED FOR MOURNING”).
-    - The empty sheriff's office with the Rim Rangers' notice board.
+    - The empty sheriff's office with the Rim Rangers' notice board, and the bounty board beside it (*The bounty board*).
     - The town memorial: two hats on a post with a wreath.
   - The existing log cabins and cottages fill the side lots (Ransom's Rest's own house kit since 2026-10-13: expansion §9).
   - Empty stock pens and the burnt livery behind the south side; cottonwoods behind the east end hide the Sink.
@@ -354,6 +354,27 @@ Webwood's 2) are left, or 30 s after the last. Won: Hob's line and a loot shower
   manway both come out. It springs within 13 m of the gallery's middle on the way out (not while the gallery's or the drift's
   shift or the Foreman's lair is fighting): the view shakes, dust sifts from the roof, four dead miners and a Restless one dig
   out of the walls ahead by the adit, then five behind. Hob: "The walls, sunshine! They're digging out of the walls!"
+
+## The bounty board
+
+The user's pick (2026-10-22): replayable hard fights on the Rest before new regions. How it works and its numbers:
+`Docs/Pipeline/Enemies.md` "Bounties" and `Docs/Work/2026-10-22-Next/BOUNTY.md`.
+- The board: NOTICES on its header, beside the Rangers' board in front of the sheriff's office (660, 1400 in layout cm),
+  "Posted by the Rim Rangers. Paid from the town's purse, on proof." Open after Main 3; three postings at most, one taken
+  at a time; Wanted (Gravebound mark) from Main 3, Dangerous (Hallowed) from Main 5, Deadly (Ethereal) from Main 6.
+- Arenas (`build_area_bounties.py` ARENAS; layout cm, X north, Y east; levels from their zones, never the player's):
+
+| Id | Name | Where | Opens | Kinds | Levels |
+|---|---|---|---|---|---|
+| Scatter | the Scatter | round the Scatter's boulders (-5160, 840), radius 13 m | after Main 3 | Unpaid | 2-3 |
+| WhitlockYard | Whitlock's barn yard | inside the barn yard fence (-6850, 3500) | after Side 2 | Unpaid | 3-4 |
+| Webwood | the Webwood | the webwood band, round the player, dropping | after Main 4 and SetPiece.Webwood | Spider, Spitter | 5-6 |
+| OldQuarry | the Old Quarry | the quarry floor (9725, 2050) | after Dead Lift | Spider, Spitter, DeadMiner | 5-6 |
+| GraniteMeadow | the Bench's granite meadow | between the Bench's granite D and E (20900, 700) | after Dead Lift | DeadMiner, Spider | 5-6 |
+
+- Left out on purpose: the Sink floor (the Gravemother's lair shares it), the town gate (Main Street's safe zone after
+  Main 3), the keeper's road (the sheep fold camp's ground).
+- Marks' names and lines are the game's own (8 a kind; none of the story's people or the Seven); Hob calls the pushes.
 
 ## Missions
 

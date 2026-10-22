@@ -225,6 +225,13 @@ errand, a twentieth). A player who does the mountain after Main 6 instead meets 
 (the falloff takes a little more of the mountain's kills). The Gravemother's and the Foreman's Vigil Stones (a kill each
 again) add about 860 and 1,140 a time.
 
+**Bounties** (the board in town, 2026-10-22; Docs/Pipeline/Enemies.md "Bounties") repeat, so they stay out of both paths, as
+the vigil stones do. A bounty's turn-in at the board pays the side-content share: 0.05 / 0.07 / 0.09 (Wanted / Dangerous /
+Deadly, `Looter.Bounty.XPShare*`) of the step from its arena's top level to the next, times the kills' falloff for a player
+above it: the Scatter (top 3) 242 for a Wanted; at 6 (the Webwood, the quarry, the Bench) 733 / 1,027 / 1,320. Its fight's
+kills add about as much again (8 / 12 / 13 creatures): all told at most 28.7% of the player's level (a Deadly at 6;
+`Looter.Bounty.Pacing` holds every turn-in to 4-10% of the level where it's met and the whole to 35%).
+
 These are the paper model's (FIGHT-LAYOUT's, 2026-10-21, before a build); the test's own sums, with the layout's levels,
 print in its log and may differ by a few hundredths. The mountain's zones come from `patches/missions.json`; without them
 its fights would count at the valley's 2-3.
@@ -286,8 +293,13 @@ Gravebound kill's times their `SilverMultiplier` (x1.6 / x2.5; `LooterEconomy::S
 | Coffin / grave | 70% / 75% | 6-14 / 6-16 | 7 / 8.25 |
 | Mailbox / footlocker | 80% / 90% | 4-10 / 8-18 | 5.6 / 11.7 |
 | Crate or barrel broken | 25% | 2-6 | 1 |
+| A bounty's Strongbox (2 / 2 / 3 guns at Luck 1) | 100% | 40-70 | 55 |
 
 Rolled apart from the loot tables (their own random streams), so the guns', ammo's, grenades' and motes' odds don't move.
+
+**Bounty purses** (paid at the board, 2026-10-22): 35 / 55 / 80 (Wanted / Dangerous / Deadly, `Looter.Bounty.Purse*`) at
+level 1, grown with the arena's top level (x1.16 at 3: the Scatter's Wanted 41; x1.4 at 6: 49 / 77 / 112), on top of the
+Strongbox's own roll. Repeatable: what an explorer's silver is for (Lost Property's shelving, the gun of the day).
 
 **Mission purses** (fixed, paid at the turn-in, shown on the MISSION COMPLETE banner): the older missions' are kept by id
 (`MissionRewards::SilverFor`), the newer ones' are their own (`FMissionRewards::Silver`, the mission scripts';

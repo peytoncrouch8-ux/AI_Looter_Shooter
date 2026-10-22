@@ -13,6 +13,6 @@ The notes live in `Docs/Pipeline/<Topic>.md`; cite them as `Docs/Pipeline/<Topic
 - `Docs/Pipeline/CharacterModels.md`: "Character models" (MakeHuman bodies, clothes, hair cards, rig, swing bones, the idle, the forearms, Ellis as the player's body, bake/export rules).
 - `Docs/Pipeline/EmberPowers.md`: "Ember powers" (the heroes' powers, their code and assets).
 - `Docs/Pipeline/Story.md`: "The heroes' words", "Seeds in Ransom's Rest", "The story's talk cut, and things to find".
-- `Docs/Pipeline/Enemies.md`: "Enemy tiers", "The Gravemother's Barrow fight", "Fight: AI", "Fight: Layout", "Placeholder creatures".
+- `Docs/Pipeline/Enemies.md`: "Enemy tiers", "The Gravemother's Barrow fight", "Fight: AI", "Fight: Layout", "Placeholder creatures", "Bounties".
 - `Docs/Pipeline/Gunplay.md`: "Gunfeel: kick and handling", "Gunfeel: hit reactions", "Gunfeel: gun sounds", "Loot: the four new guns", "Loot: elements, part effects, drop moments", "VFX pass".
 - `Docs/Pipeline/Bugs.md`: "Bugs and how they were fixed" and "What worked, and what didn't".

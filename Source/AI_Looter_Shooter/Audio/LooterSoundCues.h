@@ -1154,4 +1154,25 @@ namespace LooterSoundCue
 		/** A long shot landing (2D, short, on every hit: quiet): a distant bright tink, pitched up the farther it flew. */
 		inline constexpr const TCHAR* LongShotHit = TEXT("Ember.LongShot.Hit");
 	}
+
+	// --- The bounty board (Bounties/; Art/Sounds/recipes/bounties.py; Docs/Work/2026-10-22-Next/BOUNTY.md) ---
+	namespace Bounty
+	{
+		/** The board's screen opening (3D, near): paper sheets rustling against boards, a tack worked loose. */
+		inline constexpr const TCHAR* BoardOpen = TEXT("Bounty.Board.Open");
+		/** A new bounty posted while the player is near the board (2D, quiet): a tack tapped home twice, a sheet's flap. */
+		inline constexpr const TCHAR* BoardPosted = TEXT("Bounty.Board.Posted");
+		/** A bounty taken (2D): its sheet torn off the tack and folded twice. */
+		inline constexpr const TCHAR* Take = TEXT("Bounty.Take");
+		/** A bounty given up (2D): the sheet crumpled. */
+		inline constexpr const TCHAR* Abandon = TEXT("Bounty.Abandon");
+		/** The mark's push (2D sting, ~2 s): a struck iron bar over a low drum, a rattle rising under it. */
+		inline constexpr const TCHAR* MarkArrive = TEXT("Bounty.Mark.Arrive");
+		/** The mark down: the bounty won (2D sting, ~1.8 s): an iron clang falling away, a shimmer of coin. */
+		inline constexpr const TCHAR* MarkDown = TEXT("Bounty.Mark.Down");
+		/** The strongbox landing (3D): an iron-bound box into dirt, its hasp rattling, dirt pattering down. */
+		inline constexpr const TCHAR* ChestLand = TEXT("Bounty.Chest.Land");
+		/** A bounty paid at the board (2D): a heavy purse dropped on a counter, a stamp, a small till bell. */
+		inline constexpr const TCHAR* Paid = TEXT("Bounty.Paid");
+	}
 }

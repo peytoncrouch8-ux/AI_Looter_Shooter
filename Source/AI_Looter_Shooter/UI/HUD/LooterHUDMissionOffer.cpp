@@ -9,6 +9,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "UI/World/BossShrineWidget.h"
+#include "UI/World/BountyBoardWidget.h"
 #include "UI/World/MissionOfferWidget.h"
 #include "UI/World/NoticeBoardWidget.h"
 #include "World/ReadableProp.h"
@@ -29,7 +30,7 @@ bool ALooterHUD::OpenMissionOffer(const UMissionDefinition* Mission, AActor* Giv
 	// mission, it's something read (AReadableProp): the card in its reading mode.
 	const bool bReading = !Mission && Cast<AReadableProp>(Giver) != nullptr;
 	if (!PC || !PC->IsLocalController() || (!Mission && !bReading) || bPauseMenuOpen || bInventoryOpen || bStationBoardOpen || bBenchOpen
-		|| bVendorOpen || UBossShrineWidget::GetOpen() != nullptr)
+		|| bVendorOpen || UBossShrineWidget::GetOpen() != nullptr || UBountyBoardWidget::GetOpen() != nullptr)
 	{
 		return false;
 	}
@@ -84,7 +85,7 @@ bool ALooterHUD::OpenTurnInChoice(const UMissionDefinition* Mission, AActor* Giv
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC || !PC->IsLocalController() || !Mission || !Mission->HasTurnInChoice() || bPauseMenuOpen || bInventoryOpen || bStationBoardOpen
-		|| bBenchOpen || bVendorOpen || UBossShrineWidget::GetOpen() != nullptr)
+		|| bBenchOpen || bVendorOpen || UBossShrineWidget::GetOpen() != nullptr || UBountyBoardWidget::GetOpen() != nullptr)
 	{
 		return false;
 	}

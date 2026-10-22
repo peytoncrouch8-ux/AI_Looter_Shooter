@@ -1,0 +1,126 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Bounties/BountyTypes.h"
+#include "GameFramework/Actor.h"
+#include "Interaction/Interactable.h"
+#include "Story/StoryCondition.h"
+#include "BountyBoard.generated.h"
+
+class AGiverMarkActor;
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
+class USceneComponent;
+class UStaticMeshComponent;
+
+/**
+ * The bounty board in a town (Docs/Work/2026-10-22-Next/BOUNTY.md): Ransom's Rest's stands beside the Rim Rangers' board
+ * in front of the sheriff's office (Tools/Unreal/build_area_bounties.py). A notice board (SM_NoticeBoard_Town, NOTICES on
+ * its header) with a sheet on its face for each posting up, sealed in its mark's tier colour; a taken or won one's sheet
+ * is gone (the player carries it). Over it floats its own mark: ? while a posting is up the player hasn't read here, !
+ * while a won bounty waits to be paid. A tap of Interact opens the board's screen (UBountyBoardWidget), once OpenWhen
+ * holds (after Main 3: the town is safe).
+ *
+ * Its postings live in UBountyBoardSubsystem (the session's record, by BoardId); the board only shows them and opens the
+ * screen. One board per level (the first that begins is the level's).
+ */
+UCLASS()
+class AI_LOOTER_SHOOTER_API ABountyBoard : public AActor, public IInteractable
+{
+	GENERATED_BODY()
+
+public:
+	ABountyBoard();
+
+	/** The tag every bounty board carries (the console, the tests). */
+	static const FName BoardTag;
+
+	/** Its record's key in the session ("RansomsRest"). Never renamed: the session keeps its postings by it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty")
+	FName BoardId = TEXT("RansomsRest");
+
+	/** The screen's title and the line under it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty")
+	FText Title;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty")
+	FText Subtitle;
+
+	/** The prompt's words. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty")
+	FText Prompt;
+
+	/** It posts and opens only while this holds (after Main 3). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty")
+	FStoryCondition OpenWhen;
+
+	/** Dangerous bounties are drawn once this holds (after Main 5), Deadly ones once this does (after Main 6). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty")
+	FStoryCondition DangerousWhen;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty")
+	FStoryCondition DeadlyWhen;
+
+	/** Where the face's middle is, in its frame (the model's SOCKET_Decal: 8 cm out, 1.36 m up), and its sheets' spacing (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty|Look")
+	FVector FaceOffset = FVector(9.0, 0.0, 136.0);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty|Look")
+	float SheetSpacing = 44.f;
+
+	// --- IInteractable ---
+	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
+	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
+	virtual TOptional<FVector> GetInteractionLocation() const override;
+
+	virtual void OnConstruction(const FTransform& Transform) override;
+
+	/** It can be used now: OpenWhen holds (the subsystem says), and the board is on (Looter.Bounty.Enabled). */
+	bool IsOpen() const;
+
+	/** Its look for the record as it stands: a sheet per posting up, sealed in its tier's colour, and its mark (? or !). */
+	void ShowRecord(const FBountyBoardRecord& Record, bool bOpen);
+
+	/** Whether a sheet shows now, for the tests. */
+	bool IsSheetShown(int32 Slot) const;
+
+	/** The mark shown over it: none, an offer (?) or a turn-in (!). */
+	enum class EShownMark : uint8 { None, Offer, TurnIn };
+	EShownMark GetShownMark() const { return ShownMark; }
+
+	static const TCHAR* const ModelPath;
+
+protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<USceneComponent> Root;
+
+	/** The board, solid (stood against, found by the Interact key's line). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> Board;
+
+	/** A sheet per slot and its wax seal. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TArray<TObjectPtr<UStaticMeshComponent>> Sheets;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TArray<TObjectPtr<UStaticMeshComponent>> Seals;
+
+private:
+	/** The sheets and seals laid out on its face from FaceOffset and SheetSpacing (the build script may move them). */
+	void LayOutSheets();
+	void ShowMark(EShownMark Mark);
+
+	UPROPERTY(Transient)
+	TObjectPtr<AGiverMarkActor> MarkActor;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> SealMaterials;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> SurfaceBase;
+
+	EShownMark ShownMark = EShownMark::None;
+};

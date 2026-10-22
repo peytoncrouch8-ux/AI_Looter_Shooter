@@ -259,3 +259,39 @@ The user's roster ask (Docs/Story.md "Creature roster"): a named clay blob where
 - Check: `Looter.SpawnPlaceholder <Name> [rank] [count] [chase]`; `Looter.Encounter.Wave Placeholder_<Id> force`.
 - Replacing one: model it, make its real class, point the page's ActorClass at it, swap the class in
   `build_area_placeholders.py`, delete its DA/BP.
+
+## Bounties (BOUNTY, built 2026-10-22)
+
+The user's pick (2026-10-22): a bounty board so Ransom's Rest has replayable hard fights before new regions. Design and
+numbers: `Docs/Work/2026-10-22-Next/BOUNTY.md` (until archived). Code `Bounties/`, screen `UI/World/BountyBoardWidget*`,
+placing `Tools/Unreal/build_area_bounties.py` (gameplay pass after the placeholders; runs alone; `Gameplay/Bounties`).
+- **Board** `ABountyBoard` (`BountyBoard_RansomsRest`, id `RansomsRest`): SM_NoticeBoard_Town 2.8 m beside the Rangers'
+  board (the script takes the side without a wall: placed at (660, 1400), yaw 180). Open after Main 3; Dangerous after
+  Main 5, Deadly after Main 6 (`OpenWhen`, `DangerousWhen`, `DeadlyWhen`). Sheets are code stand-ins (engine plane, wax
+  seal cylinder in M_StylizedSurface, tier colour); a taken or won posting's sheet is gone. Own `AGiverMarkActor`: ? for
+  unread postings, ! for a won one.
+- **Subsystem** `UBountyBoardSubsystem` (0.5 s timer; tests call `Refresh`): record in `FCampaignRecord::Bounties` by
+  board id (the runner's campaign, else the session's); clock = session time played (`SetTestClock` in tests). Posts on a
+  fresh board, rotates every `RotateMinutes` [120], refills a paid slot after `RefillMinutes` [10], fills an empty slot
+  when the story opens an arena (runner `OnChanged`). Draw `BountyRules::Draw` seeded by board id + serial, saved whole.
+- **Fight** `ABountyFight` (an `ASetPieceSpawner`, spawned at the arena while a bounty is taken, every level start; never
+  saved). Mark = the group of the tier's rank (posse is Fixed Basic/Restless only), named via `DisplayName` (tag reads
+  "Gravebound Old Man Corrigan", traits line under it), traits set exactly to the posting's. Won on the mark's death
+  (saved); the Strongbox (`ABountyChest`) drops where the fight ends, or stands at the arena on a later visit until looted.
+  Paid at the board: XP + silver, the mission banner (a transient side-mission definition broadcast on the runner's
+  `OnMissionCompleted`; title "Bounty: <mark>"). Tracker = a `UMissionSubsystem` entry (steps Hunt, Put down, then turn-in
+  with "Open the bounty's strongbox" optional); the minimap arrow follows it.
+- **Arena waits** (`WaitForSpawners`): only the story's own fights on its ground. A camp, patrol or roaming group is
+  Engaged whenever the player is near (its creatures stand about), so waiting on one held the Scatter's bounty until the
+  orchard camp was cleared (PIE 2026-10-22): never wait on those.
+- Cvars `Looter.Bounty.*` (BOUNTY.md lists them). Dev: `Looter.Bounty.List`, `.Post`, `.Take <1-3>`, `.Abandon`, `.Win`,
+  `.Collect`, `.Make <slot> <Kind> <Tier> <Arena> [twist...]`, `.Forget`, `.Board` (by the board: the screen closes past
+  4.5 m), `.Clock [min]`, `.Arenas [off]`. Tests `Looter.Bounty.Rules`, `.Rewards`, `.Pacing`, `.View`, `.Play`, `.Save`.
+- **Checked in PIE** (2026-10-22, past Main 3 by `Looter.Mission.Complete`): the board screen (one Scatter posting, NEW,
+  Take), tracker and minimap arrow, the Scatter fight (Unpaid rising, the Gravebound mark named with Grave-burst ·
+  Fleet), won, strongbox dropped at its spot, paid +242 XP +41 silver, MISSION COMPLETE banner. Grabs
+  `Saved/Screenshots/Tools/bounty_*.png`. Not checked in play: the Webwood, quarry, yard and meadow arenas, Dangerous and
+  Deadly tiers, opening the strongbox by hand (the play test opens one).
+- Lessons: a `UUserWidget` member named `Slot` hides `UWidget::Slot`, an error here (C4458 is an error under
+  `BuildSettingsVersion.Latest`); `CreateWidget` runs `NativeOnInitialized` before `OpenFor` sets its fields, so bind
+  delegates in `OpenFor`; copy a card's words before an action that remakes the cards.
