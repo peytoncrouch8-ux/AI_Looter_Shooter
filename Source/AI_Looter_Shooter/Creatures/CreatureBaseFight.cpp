@@ -16,6 +16,7 @@
 #include "Creatures/FightTuning.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 namespace
 {
@@ -63,6 +64,7 @@ float ACreatureBase::GetFightDamageScale() const
 
 void ACreatureBase::TickChaseFight(const APawn& Victim, float DeltaSeconds)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CreatureFight);
 	const FVector Here = GetActorLocation();
 	const FVector Prey = Victim.GetActorLocation();
 	const float Distance = static_cast<float>(FVector::Dist2D(Here, Prey));
@@ -119,6 +121,8 @@ void ACreatureBase::TickChaseFight(const APawn& Victim, float DeltaSeconds)
 	const float Approach = Director->GetApproachDistance(*this);
 	const bool bAsks = Place == EFightRole::Melee ? bReady && Distance <= FMath::Max(StartRange, Approach) : bCanStart;
 	const bool bTurn = Director->HoldsToken(*this) || (bAsks && Director->TryTakeToken(*this, Victim, GetAttackTokenRole()));
+	FVector Spot;
+	const bool bHasSpot = !bTurn && Director->GetWaitSpot(*this, Victim, Spot);
 	if (bTurn && bCanStart)
 	{
 		bWaitingTurn = false;
@@ -127,8 +131,7 @@ void ACreatureBase::TickChaseFight(const APawn& Victim, float DeltaSeconds)
 		return;
 	}
 
-	FVector Spot;
-	if (!bTurn && Director->GetWaitSpot(*this, Victim, Spot))
+	if (bHasSpot)
 	{
 		if (Place == EFightRole::Ranged)
 		{

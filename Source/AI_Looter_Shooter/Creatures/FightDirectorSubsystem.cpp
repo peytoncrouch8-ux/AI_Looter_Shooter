@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 bool UFightDirectorSubsystem::bAllowInTestWorlds = false;
 
@@ -190,6 +191,7 @@ void UFightDirectorSubsystem::RefreshIfDue()
 
 void UFightDirectorSubsystem::Refresh(double Time)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FightRefresh);
 	const float Elapsed = LastRefresh < -1.0e8 ? 0.f : static_cast<float>(FMath::Max(Time - LastRefresh, 0.0));
 	LastRefresh = Time;
 	UWorld* World = GetWorld();

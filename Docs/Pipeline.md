@@ -1850,8 +1850,11 @@ difficulty. Code: `Creatures/FightDirectorSubsystem.h/.cpp` + `FightDirectorPlac
   `RegenDelay` [7 s] and `RegenRate` [0.07] set into `UPlayerVitalsSubsystem::Recovery` each frame (`FRecoverySettings`
   defaults 7 and 0.07 too). Not scaled: the Grave-burst trait's blast (CreatureTraitComponentBurst.cpp) and the bestiary's
   shown damage.
-- Didn't check (needs a build and play): every feel number; ring slots in the mine and town alleys; the sidle with the
-  spider's gait; perf with 10 fighting.
+- Perf (2026-10-21): 10 spiders fighting in town 7.5-7.7 ms (Docs/Performance.md). CSV stats `Exclusive/GameThread/CreatureTick`,
+  `CreatureBrain`, `CreatureFight`, `CreatureSteer`, `CreatureFace`, `CreatureSpacing`, `CreatureTag`, `FightRefresh` show a
+  creature's own share; the director is under 0.05 ms, facing while circling 0.3 ms. Measure with `Saved\ArtPause.flag` set
+  and nothing else running (a busy PC read 9.1-9.7 ms), and in town: the spawn horde sits in a safe zone.
+- Didn't check (needs play): every feel number; ring slots in the mine and town alleys; the sidle with the spider's gait.
 
 ## Fight: Layout (FIGHT-LAYOUT, written 2026-10-21, unbuilt and untested in play)
 

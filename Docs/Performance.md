@@ -36,6 +36,13 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 
 ## Current reference numbers (Medium, 1080p)
 
+- Fights after 12.2 (2026-10-21, re-measured with the PC quiet, `Saved\ArtPause.flag` set): 10 spiders fighting in town
+  (`Looter.Perf.Horde Spider 10 Basic 0 -1400 90`) 7.5-7.7 ms over 4 runs (game thread 6.4-6.9 including ~1 ms waiting on the
+  render thread); director off 7.6-8.2. The two 9.1/9.7 ms rows before were a busy PC: every game-thread bucket rose
+  together, UI and DebugHUD ~1.9x too. The director's own cost (CSV `Exclusive/GameThread/Creature*`, `FightRefresh`):
+  under 0.05 ms; facing the player while circling the ring (`CreatureFace`) 0.3 ms for 10. The spawn horde
+  (`Looter.Perf.Horde Spider 8 Basic`) stands in the farm's safe zone and never fights: measure fights in town.
+
 - Ransom's Rest after the polish (2026-10-14, fc7363a: cliff life, town dressing with its clutter culled at ~30 m, animals,
   combat FX): 46 views, the heaviest 8.1 ms (PointOverValley_FarShadow 1,574 draws), Aerial 8.05, Aerial_Dusk 8.05, Farm
   8.0, PointOverValley 7.7; render thread = frame, GPU 6.8 at most. Margin ~0.2 ms: the next dressing must save draws first.
@@ -82,3 +89,6 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-21 | Gunfeel 12.1 done: 8 spiders | 8dafc347 | 1920x1080 | 7.6 | 132 | 8.0 | 5.3 | 7.6 | 1.6 | 6.2 | 1450 | 1779561 | 3.22 |
 | 2026-10-21 | Fight 12.2: 8 spiders | 852087ea | 1920x1080 | 9.1 | 109 | 11.2 | 9.1 | 4.7 | 2.5 | 6.6 | 1469 | 1784185 | 3.74 |
 | 2026-10-21 | Fight 12.2: 10 spiders in town | 852087ea | 1920x1080 | 9.7 | 103 | 11.9 | 9.7 | 4.7 | 2.5 | 6.3 | 1592 | 1404293 | 3.54 |
+| 2026-10-21 | Fight 12.2 re-measured, quiet PC: 10 spiders fighting in town (director on) | 987ea592 | 1920x1080 | 7.7 | 129 | 9.6 | 6.9 | 6.7 | 1.8 | 6.3 | 1593 | 1386292 | n/a |
+| 2026-10-21 | ...same, Looter.Fight.Director 0 | 987ea592 | 1920x1080 | 7.6 | 132 | 8.1 | 6.4 | 7.6 | 1.7 | 6.3 | 1614 | 1445202 | n/a |
+| 2026-10-21 | ...8 spiders at the spawn (in the farm's safe zone: they don't fight) | 987ea592 | 1920x1080 | 7.7 | 130 | 8.2 | 5.0 | 7.7 | 1.6 | 6.4 | 1468 | 1761967 | n/a |

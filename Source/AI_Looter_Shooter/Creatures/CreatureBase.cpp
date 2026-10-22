@@ -24,6 +24,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "TimerManager.h"
 
 namespace
@@ -141,16 +142,27 @@ bool ACreatureBase::IsCriticalSpot(const FHitResult& Hit) const
 
 void ACreatureBase::Tick(float DeltaSeconds)
 {
+	// Its share of the game thread in a perf capture (Exclusive/GameThread/Creature*); a kind's own body work stays in TickActors.
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CreatureTick);
 	Super::Tick(DeltaSeconds);
 
 	// First, so the subclass knows whether to pose its body this update.
 	TickUpdateRate(DeltaSeconds);
 	// Its notice beat and hit flash, on its own clock (a hit-stop holds them), before the brain asks whether it's noticing.
 	React->Advance(DeltaSeconds);
-	TickBrain(DeltaSeconds);
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CreatureBrain);
+		TickBrain(DeltaSeconds);
+	}
 	// Standing still, it shuffles out of a neighbour's footprint (moving, its steering keeps clear: CreatureBaseSpacing.cpp).
-	KeepSpacing(DeltaSeconds);
-	UpdateHealthBar(DeltaSeconds);
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CreatureSpacing);
+		KeepSpacing(DeltaSeconds);
+	}
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CreatureTag);
+		UpdateHealthBar(DeltaSeconds);
+	}
 }
 
 void ACreatureBase::SetState(ECreatureState NewState)

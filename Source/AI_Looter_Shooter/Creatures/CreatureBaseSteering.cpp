@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 namespace
 {
@@ -27,6 +28,7 @@ namespace
 
 void ACreatureBase::MoveToward(const FVector& Goal, float Speed, float DeltaSeconds)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CreatureSteer);
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	Movement->MaxWalkSpeed = Speed;
 	// A fresh start (SetState zeroes StuckTime): the wall it was following and any glide free are over.
@@ -171,6 +173,7 @@ bool ACreatureBase::IsDirectionClear(const FVector& Direction) const
 
 void ACreatureBase::FaceToward(const FVector& Point, float DeltaSeconds)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CreatureFace);
 	const FVector To = Point - GetActorLocation();
 	if (To.SizeSquared2D() < 1.f)
 	{
