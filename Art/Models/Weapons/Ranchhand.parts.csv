@@ -40,14 +40,14 @@ Sight,Prism,1.5x prism,Prism,Rare,1,24,,1.5,,,,,6,14,3,7,,,,,,,,
 Sight,Scout,2.5x scout scope,Scout,Rare,1,24,,2.5,,,,,7,17,9,21,,,,,,,-11,-5
 Sight,Variable,1-4x scope,Hunter,Epic,1,34,,4.0,,,,,9,21,12,28,,,,,,,-17,-7
 Stock,Skeleton,Skeleton stock,,Common,1,0,,,,,,,,,,,,,,,,,,
-Stock,Field,Walnut field stock,Field,Common,1,0,,,,,,,2,6,,,,,,,,,-6,-2
+Stock,Field,Field stock,Field,Common,1,0,,,,,,,2,6,,,,,,,,,-6,-2
 Stock,Raider,Raider grip,Raider,Uncommon,1,10,,,,,,,-17,-7,,,,,,,15,35,12,28
 Stock,Collapsible,Collapsible stock,Carbine,Uncommon,1,10,,,,,,,,,,,,,,,3,7,6,14
 Stock,Thumbhole,Thumbhole stock,Steady,Uncommon,1,10,,,,,,,4,8,,,,,,,-6,-2,,
 Stock,Folding,Folding stock,Folding,Rare,1,20,,,,,,,,,,,,,,,5,11,7,17
 Stock,Saddle,Saddle stock,Saddled,Rare,1,20,,,,,,,2,6,,,,,,,-17,-7,,
 Stock,Mule,Mule stock,Mule,Epic,1,30,,,,,,,4,8,,,,,,,-35,-15,-17,-7
-Pump,Walnut,Walnut pump,,Common,1,0,,,,,,,,,,,,,,,,,,
+Pump,Walnut,Ribbed pump,,Common,1,0,,,,,,,,,,,,,,,,,,
 Magazine,EmberTube6,6 ember shells,Smoldering,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,Ember,Tube6
 Magazine,SaintTube6,6 saint's shells,Saintlit,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,SoulLight,Tube6
 Magazine,SaltTube6,6 rock-salt shells,Salted,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,Tube6

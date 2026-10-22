@@ -1,7 +1,7 @@
 Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax,Effect,Element,Model
-Body,Blued,Blued frame,,Common,1,0,,,,,,,,,,,,,,,,,,
-Body,Nickel,Nickel frame,Polished,Common,1,3,,,,,,,1,3,,,,,,,,,3,7
-Body,Homestead,Case-hardened frame,Homestead,Uncommon,1,13,,,,,2,4,2,6,,,,,,,,,,
+Body,Blued,Service frame,,Common,1,0,,,,,,,,,,,,,,,,,,
+Body,Nickel,Bright-trim frame,Polished,Common,1,3,,,,,,,1,3,,,,,,,,,3,7
+Body,Homestead,Homestead frame,Homestead,Uncommon,1,13,,,,,2,4,2,6,,,,,,,,,,
 Body,Scrapper,Scrap-iron frame,Patched,Uncommon,1,13,,,,,4,8,-6,-2,,,,,,,,,,
 Body,Hollow,Skeleton frame,Hollow,Rare,1,23,,,,,,,,,,,3,7,,,5,11,8,16
 Body,Ranger,Ranger frame,Ranger,Rare,1,23,,,,,,,5,11,6,14,,,,,,,,
@@ -27,7 +27,7 @@ Sight,Peep,Peep sight,Keen,Uncommon,1,14,,1.0,,,,,5,11,,,,,,,,,,
 Sight,Pip,Pip dot sight,Pipped,Uncommon,1,14,,1.25,,,,,4,8,,,,,,,,,2,6
 Sight,Glass,2x pistol scope,Glassed,Rare,1,24,,2.0,,,,,8,16,9,21,,,,,,,-10,-4
 Sight,Longeye,3x long-eye scope,Far-Sighted,Epic,1,34,,3.0,,,,,10,20,15,30,,,,,,,-16,-8
-Grip,Plowhandle,Walnut plow-handle grip,,Common,1,0,,,,,,,,,,,,,,,,,,
+Grip,Plowhandle,Plow-handle grip,,Common,1,0,,,,,,,,,,,,,,,,,,
 Grip,Wrapped,Rubber finger-groove grip,Firm,Common,1,0,,,,,,,,,,,,,,,-10,-4,-4,-1
 Grip,Birdshead,Bird's-head grip,Quickdraw,Uncommon,1,10,,,,,,,-8,-2,,,,,,,8,16,14,26
 Grip,Target,Target grip,Duelist,Uncommon,1,10,,,,,,,5,11,,,,,,,-6,-2,-6,-2
