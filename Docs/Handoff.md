@@ -15,9 +15,9 @@ SM_NoticeBoard_Bounty, loot labels step apart `ULootLabelSubsystem`, salvage bod
 Powderkeg marks forward), 8360ab7 (ward edges at 0.8 strength: at the red's 0.39 the cyan was invisible on the bright
 world; Powderkeg mark 3.0 cm). DEMO re-check passed: sheets, paid line, BOUNTY PAID banner, labels apart, FP marks,
 salvage paint.
-Open (small): the bounty board showed SM_NoticeBoard_Town in PIE before the editor restart (CDO built before the import;
+Open (small): the bounty board model (SM_NoticeBoard_Bounty seen in PIE 2026-10-22,
 the class default is SM_NoticeBoard_Bounty after the restart, checked 2026-10-22; the placed board follows it unless the level overrides it); third-person view never shows a gun's side, so marks are first
-person only (framing, accepted); the "+242 XP" popup lands on the board's "[E] Read the bounties" prompt; 6 spiders kill a
+person only (framing, accepted); turn-in "+XP" popup moved above the crosshair (MissionUp -28 -> 32; it sat on the Interact prompt); board title 34 -> 27 (its line fell onto the rule; not seen since); 6 spiders kill a
 level-2 player at any DamageScale (324 HP, 3 biting at once): a balance question for the user; PSO compute errors in
 the packaged game on the RX 580 (`r.PSOPrecache.GlobalShaders=0` untried).
 

@@ -55,7 +55,8 @@ public:
 	/** A turn-in's place before the camera (cm): ahead, right, up. */
 	static constexpr double MissionAhead = 220.0;
 	static constexpr double MissionRight = 0.0;
-	static constexpr double MissionUp = -28.0;
+	// Above the crosshair: below it sat on the Interact prompt of whoever paid out (the bounty board, play-test 2026-10-22).
+	static constexpr double MissionUp = 32.0;
 
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;

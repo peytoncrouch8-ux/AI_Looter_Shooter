@@ -37,7 +37,8 @@ namespace
 	constexpr float StarInner = 6.8f;
 	constexpr float MedalPixelsPerUnit = 3.f;
 
-	constexpr int32 WordSize = 34;
+	// 27, not 34: at 34 the title and its line stood taller than the plate and the line fell onto the rule (PIE 2026-10-22).
+	constexpr int32 WordSize = 27;
 	constexpr int32 WordSpacing = 420;
 	constexpr int32 LineSize = 11;
 	constexpr int32 KeySize = 11;
