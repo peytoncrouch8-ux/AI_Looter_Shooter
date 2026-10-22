@@ -99,3 +99,5 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-22 | World variety AFTER, RR spawn | 37636b49 | 1920x1080 | 7.8 | 128 | 8.4 | 4.6 | 7.8 | 1.9 | 6.5 | 1705 | 1739014 | 3.92 |
 | 2026-10-22 | World variety AFTER (repeat), RR spawn | 37636b49 | 1920x1080 | 7.7 | 129 | 8.3 | 3.9 | 7.7 | 1.7 | 6.4 | 1704 | 1736720 | 3.50 |
 | 2026-10-22 | World variety bolder tones, RR spawn | c64525df | 1920x1080 | 7.8 | 129 | 8.4 | 4.7 | 7.7 | 1.9 | 6.5 | 1703 | 1736594 | 9.57 |
+| 2026-10-22 | Char art import: element parts, CHAR-MAT, ghosts/slime, Crane/Odessa faces; RR spawn, 8 spiders | 1ab00ccf | 1920x1080 | 7.9 | 126 | 9.0 | 6.2 | 6.5 | 2.0 | 6.5 | 1744 | 1845440 | 3.95 |
+| 2026-10-22 | Char art import: 8 Unpaid fighting in town (painted ghost) | 1ab00ccf | 1920x1080 | 7.5 | 133 | 8.1 | 6.8 | 7.5 | 1.9 | 6.3 | 1792 | 1323127 | 3.52 |

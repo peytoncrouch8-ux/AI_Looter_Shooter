@@ -124,8 +124,9 @@ builds once, checks in PIE, commits. GUNFEEL-SOUND starts once the pack parts ar
 - A **daily bounty board** on Ransom's Rest using the set-piece machinery (a rotating hard fight with a chest): replay
   value before the next region exists. Small-medium.
 - **Quick playtest builds**: a nightly packaged build the user can play on the couch without the editor. Small.
-- **Stronger place tones** in Ransom's Rest: tonight's per-place ground colours read faintly; a bolder repaint (~46 min
-  of generation, no perf cost) would make each place read as its own. Small.
+- **Per-place ground detail** in Ransom's Rest: the bolder tone repaint (done 2026-10-22, the user's yes) reads from
+  above but barely at eye level, where roads, boardwalks and the close ground textures dominate; the lever is per-place
+  ground detail layers (town dust, Sink ash, quarry grit) or decals along the paths. Medium.
 - **A translucent fire material** for explosions (rockets, Slag Bomb): additive fire washes out in daylight. Small-medium.
 
 ### Decided unattended (2026-10-21 night), for the user's review
