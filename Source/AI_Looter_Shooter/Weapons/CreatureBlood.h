@@ -22,7 +22,9 @@ enum class ECreatureBlood : uint8
 	/** The Unpaid, the Bell-Ringer and Abel: embers in the coal's color and a breath of grave dust. */
 	Embers,
 	/** Dead miners and the Foreman: embers and grave dust, with rock dust and chips shaken out of them. */
-	MinerEmbers
+	MinerEmbers,
+	/** The placeholder creatures (APlaceholderCreature): wet clay in its kind's colour, clods and a puff of its dust. */
+	Clay
 };
 
 namespace CreatureBlood

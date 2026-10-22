@@ -127,6 +127,15 @@ void FWeaponFX::SpawnKillLayers(const FVfxKill& Kill)
 		Skirt(N(5), Kill.Tint * 0.8f, 0.4f, 100.f);
 		break;
 	}
+	case ECreatureBlood::Clay:
+	{
+		// A placeholder comes apart in clods of its clay (its spill's colour), a puff of its dust and a skirt of it on the ground.
+		const uint8 Clods = BitSetFor(EBitShape::Round, Kill.Spill, 0.15f);
+		Gore(N(9), Clods, 4.f, 9.f, 200.f, 480.f);
+		Mist(N(2), Kill.Spill * 0.8f, 0.45f, 130.f, 1.2f);
+		Skirt(N(5), Kill.Spill * 0.75f, 0.45f, 105.f);
+		break;
+	}
 	case ECreatureBlood::Embers:
 	case ECreatureBlood::MinerEmbers:
 	{

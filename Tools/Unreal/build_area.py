@@ -509,6 +509,9 @@ class AreaBuild:
         importlib.reload(importlib.import_module('build_area_seeds')).place(self)
         # Things to find off the path (build_area_secrets.py, 2026-10-21): the secrets' chests and finds, Aldana's page.
         importlib.reload(importlib.import_module('build_area_secrets')).place(self)
+        # Placeholder creatures where the story wants a kind not modelled yet (build_area_placeholders.py, 2026-10-22):
+        # rats with the cellar's and the depot's fights (placed above), hounds, knockers, grave robbers.
+        importlib.reload(importlib.import_module('build_area_placeholders')).place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.
         rng = random.Random(self.settings.get('seed', 7))

@@ -320,6 +320,20 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 		ExitBits(ExitMany(8), Gel, 1.8f, 4.f);
 		break;
 	}
+	case ECreatureBlood::Clay:
+	{
+		// A placeholder's wet clay in its kind's colour: a dull pop, clods knocked out of it, a puff of its dust; a clay
+		// splat and two heavy clods.
+		Glow(FMath::Lerp(Tint, BloodWetGlint, 0.3f), 3.f, 12.f, 26.f, 0.06f);
+		StarPop(FMath::Lerp(Tint, BloodWetGlint, 0.45f), 0.45f, 5);
+		Splat(Tint * 0.85f, SplatOpacity * 0.7f);
+		const uint8 Clods = BitSetFor(EBitShape::Round, Tint, 0.15f);
+		Fling(Many(6), Clods, 1.6f, 3.4f, 160.f, 420.f, 0.8f, 0.4f);
+		Gobs(Clods);
+		Puffs(Many(2), Tint * 0.75f, 0.5f, 12.f, 46.f, 0.7f, -0.02f);
+		ExitBits(ExitMany(5), Clods, 1.4f, 3.f);
+		break;
+	}
 	case ECreatureBlood::Embers:
 	{
 		// What burns in it flares where it's struck: embers and motes in the coal's color, and the grave dust it's made of;

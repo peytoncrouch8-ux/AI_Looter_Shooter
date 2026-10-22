@@ -262,6 +262,17 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   element parts reuse other parts' models (art later). Restyle: Bullpup and Drover round 2 done (sand/gunmetal/ember,
   sockets identical; Drover renames in `Saved/Guns/RESTYLE_RENAMES.md`), Ranchhand fork still working; commit + import
   in the lane after it lands. STORY phase 3 (merge/build/run) now owns the lane.
+  **Story committed (a43b80e):** talk 4,132 -> 2,670 words (-35%, givers -44%), 10 secrets (9 chests), bail at Main 3,
+  Amos after the fight, save v4; tests pass; PIE grabs `Saved/Screenshots/Tools/story_*`. **Coffin Rock's boulder steps
+  can't be climbed** (falls off the rounded tops after four): give it a ramp/ledges in WORLD-ART phase 2. VFX phase 2 now
+  owns the lane (may also do the muzzle-per-kind/rocket/tracer proposal in GUNS-CODE's files).
+  **VFX committed (5b573f3)**; grabs `Saved/Screenshots/Tools/vfx_*`. Weak and queued for a VFX-2 follow-up: the rocket
+  blast reads as a pale puff in a flat ring (additive fire washes out in daylight: needs a translucent fire material);
+  a shotgun-killed spider turns into a white ghost (a hit flash/overlay held through death); Slag Bomb p95 8.6 ms
+  (cvars Looter.Vfx.Blast.Scale / .Smoke); dirt and stone impacts small and pale; not seen: tier kill rings, slime gel
+  puddle, Last Rites column; sniper vapour trail not done (BulletSubsystem.cpp). Restyle scripts + renames committed
+  (1f30423, 87262e9). ROSTER phase 2 now owns the lane; then trees reimport + WORLD-ART phase 2 (+ Coffin Rock steps),
+  restyle import (setup_gun_parts.py after), VFX-2, FP-HANDS, Rustler sight/helix fixes.
   Order of the build lane next: FIGHT-AI perf -> GUNS-CODE phase 2 (merge `Saved/GunsCode`, then `Saved/GunsSound`, import
   the four models) -> LOOT-CODE phase 2 -> STORY merge -> WORLD-ART phase 2.
 

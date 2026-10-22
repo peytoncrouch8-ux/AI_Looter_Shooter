@@ -2099,6 +2099,37 @@ field values = defaults): `Hit.Scale`, `Hit.Pop`, `Impact.Scale`, `Kill.Scale`, 
   goes over: `Looter.Vfx.Smoke 0.7`, `Detail.Near 1000`, `Blast.Scale 0.8`, `Puffs 0`, `MaxParticles 700`.
 - Not checked by eye: tier kill rings, slimes' gel splat, Last Rites column, the stand-ins without the masters.
 
+## Placeholder creatures (ROSTER, built 2026-10-22)
+
+The user's roster ask (Docs/Story.md "Creature roster"): a named clay blob wherever the story wants a kind not modelled.
+- A kind = `/Game/Data/Placeholders/DA_Placeholder_<Name>` (`UPlaceholderCreatureDefinition`) + a data-only
+  `BP_Placeholder_<Name>` naming it (its own class: bestiary page, kill counts, encounter groups) + `DA_Bestiary_<Name>`,
+  all from `Tools/Unreal/create_placeholder_creatures.py` (no args: PLACED kinds only, so the bestiary lists no unmet
+  future silhouettes; `all`: every roster kind). The BP's defaults hold the numbers (`APlaceholderCreature::BakeDefinition`,
+  called on its CDO): rerun the script after editing a kind; `Looter.Creatures.Placeholder.Pages` catches drift.
+- Tag and page: "Name (plain type)" (the user, 2026-10-22). Pays like any creature (the user, 2026-10-22): `XPReward`
+  through the kill rules, the default/rank loot tables, ranks, levels from the zone, traits; nothing special-cased.
+- Body: SK_Slime with M_StylizedSurface on every slot (MID: `Color` the kind's clay, `Variation` 0.25). **The stretch rides on
+  the `body` bone's pose, never the mesh component's scale**: Unreal composes an attached part's (and a physics body's)
+  scale per axis in its parent's axes (FTransform has no shear), so a stretched component put the head 40 cm off and would
+  stretch the hit hulls along the bone's axes. Head ball (the crit, Weapon + Visibility) and two lumps on the bone, their
+  place and scale taken back through the bone's rest turn and stretch. Pose (breath, bob, tell, strike, hover/dive, slump,
+  sink, rise-in) is `PlaceholderRules::PoseAt` on that one bone. A test level never initialises actors: shape and look are
+  applied in BeginPlay when PostInitializeComponents was skipped.
+- Feedback: hits are `ECreatureBlood::Clay` (clods, dust and a splat in the clay's colour, WeaponFXCreatures/Kills), death
+  its own Gel burst plus `CreatureKillLook::Play`; cries borrowed by `EPlaceholderVoice` (Beast spider, Dead Unpaid, Clay
+  slime), hits the slime's. Elements: body Other (neutral).
+- Ranged: band BackOffWithin..CloseInTo (AttackRange = CloseInTo / 0.75), shoots within ShotRange with a clear world-static
+  line, `ShowCharge` glow as the tell, pellets via `UEnemyProjectileSubsystem`, bites within 2.3 m; keep-away as the
+  Spitter's without the strafe.
+- Placing: `Tools/Unreal/build_area_placeholders.py` (hooked after the secrets in build_area.py's gameplay): 'like' entries
+  copy another script's spawner (ground, roof band, level, spots, condition: the cellar's and depot's rats), 'center'
+  entries are camps. Keep camps 20 m in from the Rim: hounds placed 15 m from it followed the player to the lip and fell
+  (PIE 2026-10-22). A spawner sprung with the player standing on its spots finds nowhere to stand (by the player): normal.
+- Check: `Looter.SpawnPlaceholder <Name> [rank] [count] [chase]`; `Looter.Encounter.Wave Placeholder_<Id> force`.
+- Replacing one: model it, make its real class, point the page's ActorClass at it, swap the class in
+  `build_area_placeholders.py`, delete its DA/BP.
+
 ## Packaging a test build
 
 - Run: close the editor (`Tools\close.ps1`; no game running either), then start `Tools\package.ps1` in the background.

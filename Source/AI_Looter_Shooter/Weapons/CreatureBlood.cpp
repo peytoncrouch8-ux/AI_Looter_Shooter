@@ -2,6 +2,8 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/DeadMinerCreature.h"
 #include "Creatures/GravemotherCreature.h"
+#include "Creatures/PlaceholderCreature.h"
+#include "Creatures/PlaceholderCreatureDefinition.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
@@ -14,6 +16,8 @@ namespace
 	const FLinearColor BloodIchor(0.55f, 0.66f, 0.1f);
 	const FLinearColor BloodDarkIchor(0.13f, 0.17f, 0.025f);
 	const FLinearColor BloodGel(0.48f, 0.87f, 0.25f);
+	/** A placeholder's clay when its kind says nothing (its definition's default). */
+	const FLinearColor BloodClay(0.42f, 0.24f, 0.14f);
 	/** A Basic coal's dull red, for an Unpaid that can't say its own. */
 	const FLinearColor BloodEmber(1.f, 0.32f, 0.08f);
 
@@ -67,6 +71,10 @@ ECreatureBlood CreatureBlood::OfClass(const UClass* Class)
 	{
 		return ECreatureBlood::Embers;
 	}
+	if (Class->IsChildOf(APlaceholderCreature::StaticClass()))
+	{
+		return ECreatureBlood::Clay;
+	}
 	// A creature with no look of its own yet: the old splash.
 	return ECreatureBlood::Ichor;
 }
@@ -84,6 +92,8 @@ FLinearColor CreatureBlood::DefaultTint(ECreatureBlood Blood)
 		return BloodDarkIchor;
 	case ECreatureBlood::Gel:
 		return BloodGel;
+	case ECreatureBlood::Clay:
+		return BloodClay;
 	case ECreatureBlood::Embers:
 	case ECreatureBlood::MinerEmbers:
 		return BloodEmber;
@@ -101,6 +111,11 @@ FLinearColor CreatureBlood::TintOf(const AActor* Actor)
 	if (const AUnpaidCreature* Unpaid = Cast<AUnpaidCreature>(Actor))
 	{
 		return Unpaid->GetCoalColor();
+	}
+	// A placeholder's clay in its kind's colour.
+	if (const APlaceholderCreature* Placeholder = Cast<APlaceholderCreature>(Actor))
+	{
+		return Placeholder->Definition ? Placeholder->Definition->ClayColor : BloodClay;
 	}
 	FLinearColor Gel;
 	if (Blood == ECreatureBlood::Gel && GelTintOf(*CastChecked<ACreatureBase>(Actor), Gel))
@@ -124,6 +139,7 @@ const TCHAR* CreatureBlood::Name(ECreatureBlood Blood)
 	case ECreatureBlood::Gel: return TEXT("Gel");
 	case ECreatureBlood::Embers: return TEXT("Embers");
 	case ECreatureBlood::MinerEmbers: return TEXT("MinerEmbers");
+	case ECreatureBlood::Clay: return TEXT("Clay");
 	case ECreatureBlood::None:
 	default: return TEXT("None");
 	}

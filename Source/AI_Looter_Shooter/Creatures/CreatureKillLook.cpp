@@ -59,7 +59,9 @@ namespace CreatureKillLook
 		switch (Blood)
 		{
 		case ECreatureBlood::DarkIchor: return EVfxSplat::DarkIchor;
-		case ECreatureBlood::Gel: return EVfxSplat::Gel;
+		// A placeholder's clay lies as a gel splat does, in its clay's colour.
+		case ECreatureBlood::Gel:
+		case ECreatureBlood::Clay: return EVfxSplat::Gel;
 		case ECreatureBlood::Embers:
 		case ECreatureBlood::MinerEmbers: return EVfxSplat::Ash;
 		case ECreatureBlood::Ichor:

@@ -330,6 +330,10 @@ Unpaid family. XP held by trimming the missions' (`Docs/Progression.md`). Code: 
 | Upper gallery / lower drift | Back Pay | 7 miners + 1 Restless (4+1) / 7 + 1 Restless + a Bell-Ringer (4+1+1) | layout `fights` |
 | **Providence cave-in** (set piece) | Back Pay from step 6 | 4 miners + 1 Restless ahead, then 5 behind (new) | layout `fights` CaveIn |
 | Abel, the Gravemother, the Foreman | | unchanged (bosses keep their own fights) | |
+| Placeholders (roster, 2026-10-22): cellar rats / baggage rats | Knocking Below / The Old Fare, with those fights | 4 Coffin Rats each (on top of the fight) | `build_area_placeholders.py` |
+| Placeholders: keeper's road hounds | after Main 4, before Main 6 | 4 Bone Hounds, 1 Restless, at (2000, -10000) | `build_area_placeholders.py` |
+| Placeholders: tramway knockers | after Dead Lift | 5 Knockers, 1 Restless, at the Bench's ore tramway (17300, 3900) | `build_area_placeholders.py` |
+| Placeholders: Boot Hill diggers | after Main 3, before Main 4 | 4 Gravepickers, 2 Gravepicker Lookouts (rifles) | `build_area_placeholders.py` |
 
 The three set pieces (`ASetPieceSpawner`, once a session: each sets its story flag when won, `SetPiece.MainStreet`,
 `SetPiece.Webwood`, `SetPiece.CaveIn`, kept in the campaign record; its condition holds only without it). Each push has its
@@ -429,6 +433,10 @@ Today's lines (word for word):
   Gravemother's calls. Shares the Meadow Wolf's Ledger page. Uses the Basic table, so it can drop a legendary.
 - **Meadow slime** (Basic), existing (`ASlimeCreature`): Mill Creek's bottom. Wildlife, not part of the story. 120 HP,
   6 damage at level 1.
+- **Placeholders** (the user's roster ask, 2026-10-21; Docs/Story.md "Creature roster"; `APlaceholderCreature`): clay blobs named
+  "Name (plain type)", fighting and paying as real creatures until modelled: Coffin Rat (rat; swarm, 45 HP, 4 dmg), Bone
+  Hound (coyote; fast melee pack, 140 HP, 9), Knocker (goblin; swarm, 70 HP, 5), Gravepicker (bandit; melee, 170 HP, 10),
+  Gravepicker Lookout (bandit rifleman; ranged, 120 HP, 9 a shot). Where and when: the fights table above.
 - **Venom Spitter** (Basic), spider variant (`ASpitterSpider`, 2026-10-12): thinner legs, olive hide, a glowing venom sac. The
   QuarryTrack patrol and the Webwood ambush. The ranged kind: 200 HP, 10 bite at level 1; keeps its distance and lobs a glob
   of venom every 3 s (a clear tell first, then a puddle that burns). Head and sac crit; a shot to the sac in its tell chokes
