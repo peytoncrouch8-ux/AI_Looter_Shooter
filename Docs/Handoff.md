@@ -3,6 +3,22 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Morning of 2026-10-22: what to try first (for the user; tell them in 3 sentences)
+
+The overnight run built 12.2-12.5 (commits 4a84f74 ... d79e293). Try in this order, in Ransom's Rest (editor Play):
+1. **A fight**: the town gate (Main 3) and the Main Street ambush right after: enemies take turns, surround you, hit
+   harder (x1.5), chase faster (x1.3). Tune `Looter.Fight.*` / `Looter.Gunfeel.*` if it's too hard or too easy.
+2. **The new guns**: `Looter.GiveWeapon SMG|Sniper|LMG|Launcher Epic 5` (the Rustler's helix, the Longhorn's scope and
+   breath, the Thresher's spin-up, the Powderkeg's rockets) and the restyled Bullpup/Ranchhand/Drover.
+3. **Elements and drops**: an element gun on spiders (Ember) and the Unpaid (Soul-light); a Legendary drop
+   (`Looter.Element.Apply` to test statuses).
+4. **The story**: less talk, Hob on the move; find a secret (the Widow's strongbox, Coffin Rock's top).
+5. **The clay placeholders**: Knockers at the Bench tramway, Coffin Rats in Tilly's cellar, bandits on Boot Hill
+   (confirm you want living human bandits in the Rest).
+Open questions for the user: Boot Hill bandits (tone); the rifle/LMG first-person forearm still near-upright (fore-ends
+~70 cm out): accept, or move the guns/hands further (a design call); world variety reads subtle: stronger place tones?
+VFX-2 (explosion fire, the white-ghost kill, Slag Bomb spikes, impacts) was still running at 05:40 (see below).
+
 ## Direction (the user's answers, grill session 2026-10-21) — overrides "next" below
 
 - **Core-loop freeze:** no new regions, heroes or systems (the *Lily* stays on hold) until shooting, fights, loot and
