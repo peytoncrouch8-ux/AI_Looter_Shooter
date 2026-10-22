@@ -162,6 +162,15 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
 (2026-10-20 night)" below. Clean-up later: the portrait scripts' shared helpers into `bust.py` (`tube`,
 `chain`, `turn`, `ramp`, `ball`, `tear`, `point_light`), and the hero model scripts' shared machinery out of Ellis.py.
 
+### Suggestions for the user (Main's, newest last; none built without a go-ahead)
+- A **player shield** (Borderlands' core loop: a recharging shield over health, found as loot with rarity and
+  traits): harder fights then feel fair, and it adds a loot slot. Medium cost (HUD bar, a gear slot, drops, save).
+- **Gun manufacturers** (3-4 in-world makers with their own handling quirks and looks, like the parts' families):
+  makes every drop's name and feel promise something. Medium-large.
+- A **daily bounty board** on Ransom's Rest using the set-piece machinery (a rotating hard fight with a chest): replay
+  value before the next region exists. Small-medium.
+- **Quick playtest builds**: a nightly packaged build the user can play on the couch without the editor. Small.
+
 ### Decided unattended (2026-10-21 night), for the user's review
 (Main's calls while the user slept; newest last. Contracts: `Saved/Fight/CONTRACT.md` (+ AUDIT.md), `Saved/Guns/`,
 `Saved/Loot/CONTRACT.md`; not committed.)
@@ -180,6 +189,60 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
 - Rocket ammo is a new class (1-3 per kill drop leaning to the kill gun); the LMG uses rifle ammo.
 - 12.3 C++ agents write into holding trees (`Saved/GunsCode`, `Saved/LootCode`, `Saved/GunsSound`) while 12.2 owns the
   build; each then gets the editor lane in turn (GUNS-CODE first) to merge, build, import, test.
+- Progress (newest last): gun models committed (c0a1f3c Rustler/Thresher, 1415246 Longhorn/Powderkeg; previews
+  `Saved/ArtPreviews/Weapons/`); world variants phase 1 committed (852087e: 30 models, plan `Saved/World/PLAN.md`; phase 2
+  = import, swaps in build_area/dressing/scatter, terrain tone per zone); **12.2 committed (4a84f74)**: tests pass
+  (Fight 6, SetPiece 2, Encounters 15, Creatures 114, Story 47, Progression, Recovery, Locomotion, Gunfeel); PIE: at
+  most 3 attackers at once, spider hits 22, the Webwood set piece ran (caption, push 2 at 3 left, shower, flag). Perf: the 9.1 ms runs were a busy PC (agents rendering; Main forgot SavedArtPause.flag); quiet, 10 spiders
+  fighting in town 7.5-7.7 ms, the director under 0.05 ms (8ac1be7, CSV stats in Pipeline "Fight: AI"). Gun/element sounds committed (987ea59, not imported). LOOT-CODE phase 1 done
+  (`Saved/LootCode/README.md`: hooks other owners must add: WeaponBaseFiring `PlanFor` for Burst/Overcharge,
+  `RefreshLootBeam` from `LootDropMoments`, the rocket calling `TryApply`). STORY phase 2 running with Main's rulings
+  (no new canon: secrets 6-7 replaced; Fenn's fare exact; "Never a priest's to do" kept; Amos's twist after the fight).
+  GUNS-CODE phase 1 done (`Saved/GunsCode/PHASE2.txt`); Main approved its extra files (FirstPersonHandsReload/
+  Component/Types, Tests/LootTests.cpp); phase 2 must also: call LOOT-CODE's `TryApply` from the rocket's blast (rockets
+  carry elements and Explosive-style effects stay off), give rocket ammo 3 in `BossLootShower.cpp` (not 36), match the
+  LMG spin-up cue to its 0.35 s cvar, merge WeaponSounds.h with GUNS-SOUND's by hand.
+  STORY phase 2 written (unbuilt): spoken words 4,132 -> ~2,650 (-36%; town mutters cut only where two per stage);
+  Python/json changed in place (create_story_lines.py, story_texts.py, mission scripts, hero_lines.json 17 deleted/7
+  rewritten, new build_area_secrets.py + hook, build_area_whitlock/story/missionprops_mountain/valley/camps), C++ in
+  `Saved/StoryCode/Source` (WantedPoster, RoostRules, OreLift, TownLifeRules, EncounterSpawner `ClearedLines` for Amos's
+  twist after the fight, the bail at Main 3, save v4 migration, 13 tests). Secrets 6/7 now loot-only (keepers' stores
+  in the old lantern house, a spiders' hoard under the hanging tree); secret 1 = "the Widow's strongbox". Its run order:
+  merge+build, create_story_lines -> create_mission_assets -> create_side_mission_assets -> create_hero_lines,
+  build_area RansomsRest gameplay, THEN delete 25 retired `/Game/Data/Story` DA_Lines_* (list in its report, kept in
+  `Saved/Story/PLAN.md`; deleting first opens a modal), tests Lines/Missions/Story/Session.StepMigration/
+  World.TownLife/Roost/Poster/Progression.Pacing.
+  **The user, later that night (two art asks):** (1) apple trees' apples only show within ~5 ft (1.5 m) of the tree:
+  fix so they read at normal distances; (2) first-person hands: compare with Borderlands' first-person view and match it:
+  ours show too much of the arms, clip into the guns, or don't hold the weapons properly. Queued: APPLES investigation now
+  (read-only, the fix applied in the lane), FP-HANDS after GUNS-CODE phase 2 (it owns FirstPersonHands* tonight).
+  (3) **the existing guns (Bullpup, Ranchhand, Drover) must match the new frontier-tech style** (concept B). GUNS-RESTYLE
+  started: Blender scripts only, part keys and sockets unchanged (saved guns and hand holds keep working); import in the lane.
+  Apples fixed in Trees.py (bf9d42c, 020901b: buried inside the leaf cards and tiny; now hung outside, ~20 cm, twice as
+  many, LODs 70/30% at 0.3/0.1; `Saved/World/APPLES_FIX.md`): **reimport pending** (`Tools\models.ps1 -Only Trees`, then
+  check at 8/15 m with r.ForceLOD 0/1; if apples vanish at LOD1 use '100,40').
+  **The user, later still (creature roster):** add more enemies and creatures as the game goes on; future regions may
+  have **Goblins, Rats, Human Bandits, Golems, Wolves, Giants, Scorpions, Big Flying Bats, Vampires, Dragons, Big Insects
+  and more** ("subject to change, but the storyline should read as potentially having these creatures"); where the story
+  gives a reason for a different enemy in an area, place **a placeholder (a blob of clay or similar) with the enemy's
+  name**. ROSTER agent started: fits them into the Revenant saga per region (Story.md), then a placeholder creature in a
+  holding tree and placements where the story supports them.
+  VFX phase 1 written (`Saved/Vfx/PLAN.md`, `Saved/VfxCode/README.md`; base 8ac1be7, blob hashes in
+  `Saved/VfxCode/Originals/HASHES.txt`): bigger hit splats/starbursts, impacts by surface, kill gore by gun and tier,
+  every power showing on the body, `M_FX_Shape/Puff/SplatDecal` via `build_vfx_materials.py` (unrun), `Looter.Vfx.*`;
+  est. +0.2-0.4 ms; muzzle/rocket/tracers only as a proposal for GUNS-CODE's files; at merge split EmberDustDevil.cpp
+  (755 lines). Every holding-tree merge is a 3-way merge against the base its README names (others' merges land first).
+  Lane queue after GUNS-CODE phase 2: LOOT-CODE -> STORY -> VFX -> ROSTER -> trees reimport + WORLD-ART phase 2 ->
+  GUNS-RESTYLE import -> FP-HANDS.
+  **Docs organisation (the user, 2026-10-22):** the Project Library page (pinned; https://claude.ai/artifact/
+  1yHV6GGJvvcwxWwZqi4T4s, built by `node Tools/docindex.js` with `Docs/INDEX.md`; republish at each session end).
+  Their picks, all four: working notes into git (`Docs/Work/<date>-<job>/`, archived when the job is committed),
+  split Pipeline.md into a topic folder with a short index, keep Handoff.md to now/next (older sessions to the
+  archive), archive the Style Lab docs. Placeholders give XP and loot like real enemies (told ROSTER). Do the moves when
+  no agent is reading those files (contracts of running jobs move after their commit; the Pipeline split when no
+  phase-2 agent is writing it).
+  Order of the build lane next: FIGHT-AI perf -> GUNS-CODE phase 2 (merge `Saved/GunsCode`, then `Saved/GunsSound`, import
+  the four models) -> LOOT-CODE phase 2 -> STORY merge -> WORLD-ART phase 2.
 
 ### Decided unattended (2026-10-20 night), for the user's review
 (Main's calls while the user slept; newest last.)

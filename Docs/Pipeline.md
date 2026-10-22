@@ -1813,6 +1813,51 @@ Code: `Weapons/GunshotSound.cpp` (`PlayShot`), `Weapons/GunfeelSoundTuning.h/.cp
 - Didn't check (needs the bank built and play): how it sounds; the probe's choices in town, the mine and the barns; the far
   shot's distance; concurrency in a long rifle burst (Core 8, tails 6).
 
+## Loot: the four new guns (GUNS-CODE, built 2026-10-22)
+
+Kinds `EWeaponKind::SMG, Sniper, LMG, Launcher` (appended; saved by name), ammo `EAmmoType::Rocket` (appended: max 12, box 2),
+reload parts `Bolt, Box, Rocket, Helix`. Definitions `DA_SMG` (Rustler), `DA_Sniper` (Longhorn), `DA_LMG` (Thresher),
+`DA_Launcher` (Powderkeg) from `Tools/Unreal/create_new_guns.py` (stats, recoil, reload part, `ProjectileMesh` =
+`SM_PowderkegRocket`, default loot table weights 1.0/0.9/0.8/0.6, rockets in its ammo at 0.5). Order after a C++ build and
+the parts' import: `build_gun_gauge_material.py` -> `create_new_guns.py` -> `setup_gun_parts.py` -> `create_rank_assets.py`.
+Code: `Weapons/GunKindsTuning` (cvars + rules), `WeaponBaseKinds.cpp`, `WeaponModelKinds.cpp`, `WeaponRocket`,
+`WeaponRocketBlast(+Effects)`; kind switches everywhere (hip holds, swaps, view kicks, rumble, hands, marks, brass, smoke,
+nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in brackets, all `Looter.Gunfeel.*`, live.
+- Base stats (parts move them): SMG 11 dmg 900 rpm 1.4 deg mag 40-60 reload 2.1; Sniper 150 dmg 45 rpm 4.0 deg hip mag 5-8
+  reload 3.0; LMG 16 dmg 650 rpm 1.6 deg box 80-150 reload 4.2; Launcher 320 burst 40 rpm mag 1-3 reload 2.8. Rarity never
+  changes their capacity. Ranges and handling from setup_gun_parts (22/90/35/40 m; 1.25/0.85/0.8/0.8).
+- Kick by kind: `Kick.SMG/.Sniper/.LMG/.Launcher` [1.0/1.6/1.3/1.8], `Recoil.*` [1.0/1.5/1.3/1.6], rumble [0.25 0.04 s / 0.85
+  0.16 / 0.45 0.07 / 1.0 0.3], `Aim.Time.*` [0.75/1.35/1.4/1.2], `Aim.Move.*` [1.15/0.85/0.8/0.85], `Swap.*` [0.7/1.2/1.35/1.3].
+  SMG and LMG climb (`Recoil.SMGClimb` 0.03, `LMGClimb` 0.04) and bloom (`Spread.SMGBloom` 0.09, `LMGBloom` 0.12).
+- SMG: the helix's GunAmmoGlow lit by the rounds left (`SMG.Glow` 4, pulsing under `SMG.GlowLowShare` 0.25 at
+  `SMG.GlowPulse` 5 Hz). The slot gets a per-gun instance of `M_GunGauge` (Fill along UV0.x, Glow, the art's Color);
+  without the master it only dims.
+- Sniper: `Crit.Sniper` [2.0] (Main's unattended call, as the revolver's role allowed). Bolt cycles after every shot:
+  waits `Sniper.BoltDelay` [0.12 s], takes `BoltShare` [0.7] of the rest of the interval (at most `BoltMaxSeconds` 0.85), cue
+  `Weapon.Sniper.BoltCycle`, case out when fully back, the trigger hand rides the knob (`FHandsGun::BoltHand/BoltOpen`),
+  the 1P gun cants (`ApplyCyclePose` on the model). Spread: its hip spread whole, x`Sniper.AimedSpread` [0.04] scoped (no
+  halving mercy). Scope sway moves the real aim (control rotation) in a figure eight (`Sniper.Sway` 0.3 deg, `SwayRate`
+  0.35 Hz); sprint key held while aimed holds the breath (`BreathSeconds` 3, sway x`BreathSteady` 0.1), then winded
+  (`WindedSeconds` 2.5, sway x`WindedSway` 1.8), refill x`BreathRefill` 1.5. Crit kill burst x`Kill.SniperBurst` 1.3 of the
+  revolver's; crit ring and crit hit-stop as the revolver's.
+- LMG: rate from `LMG.SpinStart` [0.6] to full over `LMG.SpinUp` [0.35 s] of trigger (the SpinUp cue is cut to 0.35 s: keep
+  them together), down over `SpinDown` [0.5]; spin-up heard below 0.35 spin. Heat +`HeatPerShot` [0.012] a shot, held
+  `HeatDelay` [0.5 s], cools `HeatCool` [0.3/s]; GunHeatGlow at heat x `HeatGlow` [6]. Rifle pressure counts LMG hits.
+- Launcher: `AWeaponRocket` from the eye along the aim (seen from the muzzle, closing on its path at 12/s), `RocketSpeed`
+  [4000], `RocketGravity` [120], `RocketLife` [5 s], sweeps the Weapon channel (r 7), flame + smoke puffs via FWeaponFX,
+  `Weapon.Launcher.Flight` loop. Burst (`WeaponRocketBlast::Detonate`): reach `BlastRadius` [350] to a body's nearest side,
+  full within `BlastCore` [80], `BlastEdgeShare` [0.2] at the edge, never through static geometry (GraveSaltBurst::CanSee),
+  what it struck takes it whole, shooter x`SelfScale` [0.5] (no other player), living within `KnockShare` [0.6] thrown
+  (never bosses), physics shoved (HitImpulse 90000 radial), `GunshotSound::PlayExplosion`, view jolt. Kill knock
+  `Kill.LauncherKnock` [900] + lift `Kill.LauncherLift` [140]. Back-blast from SOCKET_Backblast. The loaded rocket's nose
+  (magazine part on SOCKET_Rocket) shows while loaded; the reload brings `SM_PowderkegRocket` up in front of the mouth and
+  slides it in. Rocket ammo: kill pickups 1-3 (`LooterLoot::RocketsFor`: <=24 rounds 1, <=30 2, else 3), chests/boss boxes 3.
+- Hooks for LOOT-CODE (marked `LOOT-CODE hook` in the code): part-effect PlanFor in `AWeaponBase::HandleFiring`, drop
+  moments in `RefreshLootBeam`, element TryApply per body in `WeaponRocketBlast::Detonate` (rockets skip OnBulletLanding).
+- Icons: `Art/Icons/InkedIcons.py` rustler/longhorn/thresher/powderkeg + AmmoRocket (inside the rounds' box; no old icon
+  moved); run with Blender's python. Rocket pickup `SM_AmmoRocket` from `Art/Models/Loot/Ammo.py` (three finned rockets).
+- Packaged builds: `M_GunGauge` is read by path: keep /Game/Art/Materials/Masters cooked.
+
 ## Fight: AI (FIGHT-AI, written 2026-10-21, unbuilt and untested in play)
 
 The user's calls (Saved/Fight/CONTRACT.md): packs surround and take turns, ranged kinds use their range, Borderlands-normal
@@ -1925,7 +1970,7 @@ packs. Counts and the set pieces: `Docs/Areas/RansomsRest.md` "Fights and set pi
 - `Tools/StyleLab/` (README there): a three.js rebuild of a piece of Ransom's Rest from the game's own sources with the in-game HUD
   over it, so art styles can be judged "in game" from a cloud session with no Unreal. Built 2026-10-08: ten styles, the user's picks
   3, 4, 5, 6 (3 and 6 were tried on the island). Style 0 is today's look.
-- `Docs/Art/StyleLab/Catalog.md`: all ten styles with Unreal-terms numbers, recipe, cost, refs; contact sheets in
+- `Docs/Archive/StyleLab/Catalog.md`: all ten styles with Unreal-terms numbers, recipe, cost, refs; contact sheets in
   `Docs/Art/StyleLab/Sheets/`; briefs and research beside it.
 - Export: `Tools/StyleLab/export/export_all.sh` (Blender's `bpy` 4.5 module under Python 3.11); `assemble.py` builds
   `Saved/StyleLab/site/`. The artifact host serves no `.glb` or `.bin`, so models and heights go as base64 JSON (`--b64-glb`; packs

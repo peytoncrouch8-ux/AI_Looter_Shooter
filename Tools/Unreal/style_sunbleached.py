@@ -1,5 +1,5 @@
 """Sunbleached (Style Lab style 6: Tools/StyleLab/web/styles/06_bleached.js with lib/bleached_glsl.js and
-lib/bleached_sky.js; Docs/Art/StyleLab/Catalog.md section 6) in Unreal's terms: the numbers its static switch's
+lib/bleached_sky.js; Docs/Archive/StyleLab/Catalog.md section 6) in Unreal's terms: the numbers its static switch's
 parameters take on the masters (Tools/Unreal/build_world_materials.py) and on the tutorial island's instances
 (Tools/Unreal/build_island_style.py sunbleached). Plain Python with no unreal import.
 

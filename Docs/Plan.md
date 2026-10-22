@@ -92,7 +92,7 @@ the others are not started.
 ## Phase 6: The art style
 
 Closed. The user asked on 2026-10-08 for ten very different art styles previewed in the game's scene (the Style Lab,
-`Tools/StyleLab/`; <https://claude.ai/artifact/WhmxkTia9qvvhqGLWDSDbr>; catalog with Unreal recipes: `Docs/Art/StyleLab/Catalog.md`),
+`Tools/StyleLab/`; <https://claude.ai/artifact/WhmxkTia9qvvhqGLWDSDbr>; catalog with Unreal recipes: `Docs/Archive/StyleLab/Catalog.md`),
 and picked 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp and 6 Sunbleached (all ten kept in the catalog). Trials on the tutorial
 island only, reversible:
 - Style 3 (`build_island_painted.py apply|undo`): the user: "I dont like style 3, lets try the sunbleached style instead". Undone
