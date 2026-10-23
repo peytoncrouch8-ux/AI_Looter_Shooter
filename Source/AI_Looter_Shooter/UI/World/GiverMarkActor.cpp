@@ -142,7 +142,9 @@ void AGiverMarkActor::Advance(float DeltaSeconds)
 	const APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
 	const APawn* Player = Controller ? Controller->GetPawn() : nullptr;
 	const float Distance = Player ? static_cast<float>(FVector::Dist(Player->GetActorLocation(), GetActorLocation())) : 0.f;
-	const bool bGiverShown = Owner && !Owner->IsHidden();
+	// The giver it hangs over (the actor's own Owner is never set: checking that hid every mark, play-test 2026-10-22).
+	const AActor* Shown = Giver.Get();
+	const bool bGiverShown = Shown && !Shown->IsHidden();
 	const float Alpha = bGiverShown ? AlphaAt(Distance) * Presence : 0.f;
 	const float Time = World ? static_cast<float>(World->GetTimeSeconds()) : 0.f;
 	const float Scale = ScaleAt(Distance) * (bRetired ? 1.f : PopAt(Age));

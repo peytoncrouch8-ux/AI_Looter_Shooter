@@ -27,6 +27,7 @@
 #include "Tests/UnfinishedBusinessTestWorld.h"
 #include "World/HayBale.h"
 #include "World/InstancedProps.h"
+#include "Algo/AnyOf.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Dom/JsonObject.h"
 #include "Engine/Level.h"
@@ -194,16 +195,17 @@ namespace
 		return Best;
 	}
 
-	/** Where every instance of a mesh the level's dressing (AInstancedProps) places stands, relative to the level: a level
-	 * loaded only to look at has no world transforms. A section's is its pivot, its first post. */
-	TArray<FVector> DressingPivots(const ULevel& Level, const TCHAR* MeshName)
+	/** Where every instance of the meshes the level's dressing (AInstancedProps) places stands, relative to the level: a level
+	 * loaded only to look at has no world transforms. A section's is its pivot, its first post. A kind's look-alikes count
+	 * as it (World variety 12.5: the barn yard's rails are SM_FenceRail_B and _C, the walls mixed). */
+	TArray<FVector> DressingPivots(const ULevel& Level, std::initializer_list<const TCHAR*> MeshNames)
 	{
 		TArray<FVector> Pivots;
 		for (const AActor* Actor : Level.Actors)
 		{
 			const AInstancedProps* Props = Cast<AInstancedProps>(Actor);
 			const UStaticMesh* Mesh = Props && Props->Instances ? Props->Instances->GetStaticMesh() : nullptr;
-			if (!Mesh || Mesh->GetName() != MeshName)
+			if (!Mesh || !Algo::AnyOf(MeshNames, [Mesh](const TCHAR* Name) { return Mesh->GetName() == Name; }))
 			{
 				continue;
 			}
@@ -665,10 +667,10 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 		return Line ? Pivots.FilterByPredicate([Line](const FVector& Pivot) { return DistanceToLine(Pivot, *Line) < 50.0; })
 			: TArray<FVector>();
 	};
-	const TArray<FVector> Rails = DressingPivots(*Level, TEXT("SM_FenceRail"));
+	const TArray<FVector> Rails = DressingPivots(*Level, { TEXT("SM_FenceRail"), TEXT("SM_FenceRail_B"), TEXT("SM_FenceRail_C") });
 	const TArray<FVector> AmosRails = StandingOn(Rails, TEXT("amosFence"));
 	const int32 YardRails = StandingOn(Rails, TEXT("barnYardFence")).Num();
-	const int32 Walls = StandingOn(DressingPivots(*Level, TEXT("SM_StoneWall")), TEXT("fieldWall")).Num();
+	const int32 Walls = StandingOn(DressingPivots(*Level, { TEXT("SM_StoneWall"), TEXT("SM_StoneWall_B"), TEXT("SM_StoneWall_C") }), TEXT("fieldWall")).Num();
 	if (TestNotNull(TEXT("Amos at his fence"), Amos))
 	{
 		TestTrue(TEXT("...tagged for the missions"), Amos->ActorHasTag(AAmosWhitlock::SpeakerTag));

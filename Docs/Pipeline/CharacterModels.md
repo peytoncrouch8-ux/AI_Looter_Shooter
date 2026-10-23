@@ -498,7 +498,7 @@ own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
 - **Gauge**: `gauge_looks.enamel` bakes edges rubbed a step paler and a top light by normal Z (x0.72 down to x1.5 up).
 - **M_CharacterGlow** (unlit, opaque): the heroes' eye glows and Gauge's lamp, Color x Glow shaped by |N.V|: a hot core
   toward white, an iris ring, a dimmer body. `looter_export.CHARACTER_GLOWS` maps those Glow slots (EllisEyeGlow,
-  CraneEyeGlow, OdessaEyeGlow, PikeEyeGlow x0.7, GaugeLamp Glow 2.2) to it at export, so no hero script changed for it;
+  CraneEyeGlow, OdessaEyeGlow, PikeEyeGlow x0.7, GaugeLamp Glow 2.2, SextonGlint) to it at export, so no hero script changed for it;
   `Tools/Unreal/build_character_glows.py` moves the instances already in the game. (Their pre-skinned normals were no
   use for a forward core: the exported eye balls and the lens keep no clean forward normal.)
 - **Ellis's value pass** (`Ellis.py` LOOKS): three value groups: duster mid warm brown (DUSTER, thread paler), waistcoat
@@ -518,7 +518,8 @@ own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
   #67543F/#3A2E24). MUD_GREY is gone.
 - **Sexton** (`MisterSexton.py`): wool and trousers on M_CharacterCloth (#37332F, #413C38; FuzzStrength 0.45, FuzzLift
   0.3, FuzzTint #8C9488: the folds' flanks catch a grey-green sheen), his face still in shadow with a glint: a bead of
-  cold light (SextonGlint, Glow #D4ECF2 2.6, r 3.4 mm) in each eye socket.
+  cold light (SextonGlint, Glow #D4ECF2 2.6, r 3.4 mm) in each eye socket, on M_CharacterGlow (opaque): on the additive
+  M_StylizedGlow it kept his body from wearing the objective highlight (any see-through slot rules a mesh out).
 
 ## Face planes and Crane's hair cards (CHAR-FACE, 2026-10-22; plan items 5-6, the user's OK)
 

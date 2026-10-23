@@ -6,6 +6,16 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
+- Flat bright tan patches on level ground (Ransom's Rest's street by the boards, Whitlock Fields' path; 2026-10-22).
+  Cause: M_Terrain's SIDE_NORMAL_CODE normalized 0 where the vertex normals pack to straight up (Facing 0): NaN, and the
+  steep-relief lerp's weight 0 keeps a NaN (WorldNormal buffer black there; shadows, local lights, places, Nanite all
+  ruled out). Fix: it returns the face's own normal when the blend is ~0 (build_world_materials.py M_Terrain rebuilt).
+- Giver ? and ! marks never drew (2026-10-22). Cause: AGiverMarkActor checked AActor::Owner (never set). Fix: its Giver.
+- Sexton couldn't wear the objective highlight (Looter.Missions.Highlight.Figure, 2026-10-22). Cause: SextonGlint
+  (CHAR-MAT) on additive M_StylizedGlow; any see-through slot rules a mesh out. Fix: on M_CharacterGlow (CHARACTER_GLOWS).
+- Looter.Story.UnfinishedBusiness.Placed counted only SM_FenceRail; the barn yard's rails are SM_FenceRail_B/_C since
+  World variety 12.5 (2026-10-22). Fix: the test counts the look-alikes (walls too).
+
 - Coffin Rock's secret couldn't be climbed: the player slid off the stepping boulders after four steps (2026-10-22). Cause:
   scaled SM_Boulder_A tops are rounded. Fix: a fallen slab (Boulder_D in three overlapping pieces, the butte's MI_RockCliff)
   leaning up its north edge at 29 degrees, and a hidden collision plank (the engine cube, invisible) on the ramp's line

@@ -988,7 +988,11 @@ float SX = N.x >= 0.0 ? 1.0 : -1.0;
 float SY = N.y >= 0.0 ? 1.0 : -1.0;
 float3 FromX = float3(NX.z * SX, NX.x, NX.y * Green);
 float3 FromY = float3(NY.x, NY.z * SY, NY.y * Green);
-return normalize(FromX * Facing.x + FromY * Facing.y);"""
+// Level ground faces neither side (its vertex normals pack to straight up: Facing 0): it keeps its own normal (the
+// caller weighs this by the steepness, 0 there). normalize(0) is NaN, and a NaN times 0 is still NaN: flat stretches of
+// road (Ransom's Rest's street, Whitlock Fields' path) lit up as bright tan patches (play-test 2026-10-22).
+float3 S = FromX * Facing.x + FromY * Facing.y;
+return dot(S, S) > 1e-8 ? normalize(S) : N;"""
 # The rock map laid on from one side (A: world X or Y, across the face) in world meters times Scale, its layers lifted
 # and dropped a little along the face (two long, low waves, and a slight lean), so they never run dead level for long.
 # StrataWarp (meters; 0 on the island) bends them further by the macro noise over StrataWave meters, so the layers

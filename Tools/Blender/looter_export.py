@@ -54,6 +54,9 @@ CHARACTER_GLOWS = {
     'PikeEyeGlow': {'GlowScale': 0.7},
     # the portrait's warm white #FFE2A8 with a hot core, toned down from the flat white it burned to at Glow 5
     'GaugeLamp': {'Glow': 2.2, 'Core': 1.3, 'CoreWhite': 0.75, 'Ring': 0.15, 'BodyShare': 0.45},
+    # Sexton's eye glints (CHAR-MAT, 2026-10-22): on M_StylizedGlow (additive) his body couldn't wear the objective
+    # highlight (an overlay covers every slot, so a see-through slot rules the mesh out: Looter.Missions.Highlight.Figure).
+    'SextonGlint': {},
 }
 # A texture set's files, by the material parameter that takes them.
 SET_MAPS = (('BaseColorMap', '_BC'), ('NormalMap', '_N'), ('ORMMap', '_ORM'))
