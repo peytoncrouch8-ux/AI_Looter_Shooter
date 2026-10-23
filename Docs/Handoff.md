@@ -10,6 +10,17 @@ forward on long guns, glove low on the rifle's handguard — a thumb-over C-clam
 code jobs + sound art merged by GF-MERGE; sound bank 532 cues; M_BulletMark rebuilt; tests green). Next: DEMO play-check
 of the gun feel, then a perf run (tour + fights; impacts/hit markers added cost), then RR play-check rounds.
 
+Gun feel after play-check: 180dd68 impact fixes (shotgun disc gone, legs stay coloured, rifle drift 0.1 visible); perf
+RR spawn 7.8 / 8 spiders 7.9 (unchanged). Still failing after two fixes: yellow diamond chips on creature hits, a white
+blob behind hit numbers, the sniper ground ring (FX-DIAG now diagnosing by switching layers off in PIE; rule 6: if this
+third, diagnosis-led try fails, ask the user).
+RR play-check (01:30) **for the user**: early fights kill a standing-still player (bluff nest 6 spiders, town gate,
+Main Street ambush: 7-10 hits of 21-26 in 5 s) — balance call is the user's (DamageScale 1.8 stays until they say);
+deaths respawn at the farm plot far from town (BUGS-UI reports two options). Being fixed: Main 2's "[Tab], then 2" (Ledger
+is tab 3), inventory under the HUD tracker/loot card, first Interact missing with the prompt showing, a gate Unpaid
+straying and holding 6/7, the sniper held one-handed after pickup (FP-GRIP), Tilly not visible at her window and the
+Sexton flat dark / gold when highlighted (NPC-LOOK).
+
 ## Night of 2026-10-22 (the user went to bed; their calls)
 - Extra sound bundle download: "Do what you feel is best" — Main's call: no download overnight (the download rule needs
   the exact file/source/size shown first); use the recordings on disk; show the user the file in the morning if needed.
