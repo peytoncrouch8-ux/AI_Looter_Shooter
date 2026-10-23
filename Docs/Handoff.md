@@ -41,7 +41,12 @@ Round 3 (Main 6-7, Abel, Gravemother, Dead Lift, Last Watch, Back Pay; God mode)
 needing pixel-exact aim (Abel's lantern posts, watch fire, Dead Lift boiler and pin), Back Pay barricade with no gap,
 Rangers' board shows Side 3 with no accept, board/choice cards ignoring E, Main 7 turn-in moving to Tilly with no hint,
 15+ beams after the Gravemother's shower. Hiram/Sloane glowing ghosts in dark rooms = the painted ghost look (by design).
-**Morning questions for the user**: (1) early fights' difficulty (deaths at the bluff nest, gate, Main Street ambush);
+**The user's answers (2026-10-23 morning)**: early fights "Soften early only" (bluff nest, town gate, Main Street; later
+fights unchanged); respawn "Town roost" (a roost by the sheriff's office); sound files "Yes, download" (the three named
+Sonniss files, ~12.6 MB, licence kept); FP hip hold "Lift slightly" (sniper/rifle/LMG trigger hand shows at the bottom
+edge). Round 3 fixes committed (see git). Still open from earlier: Tilly silhouette (not asked), sniper ground ring (three
+failed fixes, not asked yet).
+**Morning questions (asked)**: (1) early fights' difficulty (deaths at the bluff nest, gate, Main Street ambush);
 (2) respawn: town roost vs wake near the fight; (3) the sniper/rifle/LMG trigger glove below the frame at the hip
 (pull-in framing) — lift it?; (4) Tilly a silhouette at her window?; (5) the sound pack download (three files, ~12.6 MB);
 (6) the sniper ground ring: keep trying or drop it.
