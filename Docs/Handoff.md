@@ -24,6 +24,17 @@ highlight's 0.03 unlit fill on his near-black coat — NPC-LOOK's fix in build_h
 FigureRimOpacity 0.9, FigureRimPower 5) changes every objective highlight to rim-only: uncommitted, to verify in the
 editor against other highlighted things before keeping.
 
+Committed overnight after that: 9e36d62 (FX diagnosis: white blob = hit-flash rim, fixed; "yellow diamonds" = tall grass
+seed heads), 0274c0e (UI/mission/interact/straggler fixes; tall grass crossed spikelets; figure highlight rim-only —
+verified: the Sexton's gold rim reads at 5 m). Play-checked PASS: grass, tracker/loot card, Ledger tab, interact 6/6,
+sustained fire. Still open: **sniper ground ring/column failed three fixes (rule 6: ask the user)**; small/flat mission
+items (the gate poster: a decal, which can't wear the overlay) barely highlight at 5 m and not past 7 m — only the ?
+marks them (later: a decal-friendly highlight or a world marker).
+**Morning questions for the user**: (1) early fights' difficulty (deaths at the bluff nest, gate, Main Street ambush);
+(2) respawn: town roost vs wake near the fight; (3) the sniper/rifle/LMG trigger glove below the frame at the hip
+(pull-in framing) — lift it?; (4) Tilly a silhouette at her window?; (5) the sound pack download (three files, ~12.6 MB);
+(6) the sniper ground ring: keep trying or drop it.
+
 ## Night of 2026-10-22 (the user went to bed; their calls)
 - Extra sound bundle download: "Do what you feel is best" — Main's call: no download overnight (the download rule needs
   the exact file/source/size shown first); use the recordings on disk; show the user the file in the morning if needed.
