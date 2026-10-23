@@ -151,6 +151,8 @@ FInteractionCandidate* UInteractionComponent::AddInteractable(const FInteraction
 		Candidate.Middle = Middle;
 	}
 	Candidate.Box = Box;
+	// Met by the crosshair's line (2), or its box gone through (1: the box's point then lies on the line itself).
+	Candidate.LineRank = AtPoint ? 2 : (bOnBox && FMath::PointDistToLine(Point, View.Direction, View.Location) < 1.0 ? 1 : 0);
 	return &Candidate;
 }
 
@@ -183,6 +185,7 @@ void UInteractionComponent::AddLookedAt(const FInteractionView& View, TArray<FIn
 	{
 		Existing->Location = Point;
 		Existing->bCheckSight = false;
+		Existing->LineRank = 2;
 		return;
 	}
 	// One that never joined the registry is still found this way.

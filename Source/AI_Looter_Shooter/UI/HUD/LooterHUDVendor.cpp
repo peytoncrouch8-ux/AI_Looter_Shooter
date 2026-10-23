@@ -50,6 +50,7 @@ bool ALooterHUD::OpenVendor(AVendor* Vendor)
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
+	ScreenAnchor = IsWithinScreenReach(Vendor) ? Vendor : nullptr;
 	bVendorOpen = true;
 	return true;
 }

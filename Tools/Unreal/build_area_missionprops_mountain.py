@@ -8,7 +8,7 @@ socket, model or class is warned of and left out. Only a level with the mountain
 The names are the wave 4 contract's (the missions' data, Tools/Unreal/create_side_mission_assets.py, finds them by these):
 - Places (target points, a player's middle over the floor): Place_OldQuarry, Place_LiftHead, Place_CalderPost,
   Place_Bench, Place_MineMouth, Place_UpperGallery, Place_LowerDrift, Place_Stope (the mine's from its frame, never traced:
-  a trace from above finds the Bench over them).
+  a trace from above finds the Bench over them); Place_PinSpot, the landing Dead Lift's clamp pin is driven from (PIN_SPOT).
 - Hiram Coyle (AHiramCoyle, Speaker_Hiram) on the winch house's SOCKET_HiramStool, his seat on the stool's top, the
   speaking tube's side (TubeSide) from SOCKET_SpeakingTube.
 - Dead Lift's fittings (AMissionFitting, tagged LiftFitting and LiftFitting_Boiler / _Pin): held 1.5 s at the house's
@@ -89,6 +89,11 @@ READABLES = {
     'Barricade': dict(model='', title="The eleven's barricade", prompt='Take the tags'),
 }
 READ_REACH = 250.0
+# Where a player stands to drive Dead Lift's clamp pin (Place_PinSpot, the pin objective's waypoint): on the winch house's
+# landing about 2 m back from the gallows, in SM_RR_LiftHouse's own frame (cm; its ClampPin socket is at (-720, 402, 417)).
+# Under the clamp the gallows' arm (its collision hull, 3.5-3.9 m up) hides it; from here the line to it is clear and 3.1 m
+# long (the 2026-10-23 play-check: the pin was out of reach from the spot the arrow led to). Measured in the editor.
+PIN_SPOT = (-520.0, 390.0)
 TALK_REACH = 300.0
 
 # Hiram's seat (Hiram.py): the seat of his trousers 56 cm over his origin, the stool's middle 3 cm behind it.
@@ -344,7 +349,8 @@ def place_fittings(build, house):
         made = fitting(build, cls, xyz(spot.translation), spot.rotation.rotator().yaw, f'LiftFitting_{name}',
                        ('LiftFitting', f'LiftFitting_{name}'), prompt, usable, done, model=model, cue=CUES[name],
                        reach=reach)
-        if spot.translation.z - house.get_actor_location().z > 300.0:
+        if spot.translation.z - house.get_actor_location().z > 300.0 and name != 'Pin':
+            # (The pin's high on purpose: it's driven from Place_PinSpot on the landing, checked in play 2026-10-23.)
             build.warn(f'LiftFitting_{name} is {(spot.translation.z - house.get_actor_location().z) / 100.0:.1f} m over the '
                        'winch house\'s ground: check it can be reached from the landing in play')
         if model_at and model is not None:
@@ -353,6 +359,9 @@ def place_fittings(build, house):
                 part = made.get_editor_property('mesh')
                 part.set_world_location_and_rotation(lies.translation, lies.rotation.rotator(), False, True)
         placed += 1
+    # Where the pin is driven from (its objective's arrow leads here, not under the arm).
+    spot = house.get_actor_transform().transform_location(unreal.Vector(PIN_SPOT[0], PIN_SPOT[1], 0.0))
+    story.marker(build, spot.x, spot.y, 'Place_PinSpot')
     # The winch's crank never left her (2026-10-21: Dead Lift's crank fetch went, the user's cut): it stands on its shaft
     # from the start, a plain model, nothing to fit.
     crank_at = at_socket(build, house, 'Crank')

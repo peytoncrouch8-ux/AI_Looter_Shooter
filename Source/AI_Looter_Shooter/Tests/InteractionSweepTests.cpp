@@ -52,6 +52,28 @@ bool FInteractionSweepRulesTest::RunTest(const FString& Parameters)
 		InteractionFocus::DoesHitHide(Fire, nullptr, nullptr, Fire.Location - FVector(65.0, 0.0, 0.0)));
 	TestTrue(TEXT("...but a wall a metre short still does"),
 		InteractionFocus::DoesHitHide(Fire, nullptr, nullptr, Fire.Location - FVector(100.0, 0.0, 0.0)));
+
+	// Met by the crosshair's line beats gone through by it beats near it: Dead Lift's pin, met by the line 3.2 m off, over
+	// the bell pull's rope box the line clips 1.1 m off (the 2026-10-23 play-check: the rope took the key from the pin's
+	// landing).
+	FInteractionView View;
+	View.Direction = FVector::ForwardVector;
+	FInteractionCandidate Pin;
+	Pin.Location = FVector(320.0, 0.0, 0.0);
+	Pin.Reach = 390.f;
+	Pin.LineRank = 2;
+	FInteractionCandidate Rope;
+	Rope.Location = FVector(110.0, 3.0, 0.0);
+	Rope.Reach = 250.f;
+	Rope.LineRank = 1;
+	const TArray<FInteractionCandidate> Both = { Rope, Pin };
+	TestEqual(TEXT("The pin the line meets, not the rope box it clips"),
+		InteractionFocus::Select(View, Both, 0.8f, [](const FInteractionCandidate&) { return true; }), 1);
+	TArray<FInteractionCandidate> Neither = Both;
+	Neither[0].LineRank = 0;
+	Neither[1].LineRank = 0;
+	TestEqual(TEXT("...neither on it: the nearer, about as centred"),
+		InteractionFocus::Select(View, Neither, 0.8f, [](const FInteractionCandidate&) { return true; }), 0);
 	return true;
 }
 

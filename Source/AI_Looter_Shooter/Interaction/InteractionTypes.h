@@ -104,6 +104,13 @@ struct AI_LOOTER_SHOOTER_API FInteractionCandidate
 	 */
 	TOptional<FInteractionBox> Box;
 
+	/**
+	 * How squarely the crosshair's line is on it (InteractionFocus::ScoreOf): 2, the line met its part first (what's seen
+	 * there); 1, the line goes through its box; 0, the line only passes near. Higher always wins: Dead Lift's pin, met by the
+	 * line, over the bell pull's rope box the line clips on its way there (the 2026-10-23 play-check, from the pin's landing).
+	 */
+	int32 LineRank = 0;
+
 	FInteractionOptions Options;
 
 	/** How far from the eyes it can be (cm). */

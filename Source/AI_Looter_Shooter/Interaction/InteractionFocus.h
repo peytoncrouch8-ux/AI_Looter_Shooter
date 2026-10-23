@@ -21,6 +21,12 @@ namespace InteractionFocus
 	 */
 	inline constexpr float DistanceWeight = 0.02f;
 
+	/**
+	 * What each step of being on the crosshair's line (FInteractionCandidate::LineRank) adds to a candidate's standing: more
+	 * than aim and distance ever take.
+	 */
+	inline constexpr float OnLineBonus = 1.f;
+
 	/** Nearer than this to the eyes (cm), a level's interactable takes its widest cone. */
 	inline constexpr float ConeCloseDistance = 100.f;
 

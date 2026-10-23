@@ -163,7 +163,9 @@ FInteractionBox InteractionFocus::BoxAround(const FVector& Middle, const FVector
 float InteractionFocus::ScoreOf(const FInteractionView& View, const FInteractionCandidate& Candidate)
 {
 	const float Distance = static_cast<float>(FVector::Dist(Candidate.Location, View.ReachOrigin));
-	return AimOf(View, Candidate) - DistanceWeight * Distance / FMath::Max(Candidate.Reach, 1.f);
+	// Met by the line beats gone through by it beats near it, whatever their distances; among the same, aim decides and
+	// nearer wins near-ties.
+	return AimOf(View, Candidate) - DistanceWeight * Distance / FMath::Max(Candidate.Reach, 1.f) + OnLineBonus * static_cast<float>(Candidate.LineRank);
 }
 
 int32 InteractionFocus::Select(const FInteractionView& View, TConstArrayView<FInteractionCandidate> Candidates, float MinAim,

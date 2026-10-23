@@ -273,6 +273,22 @@ private:
 
 	bool bMissionOfferOpen = false;
 
+	/**
+	 * What the open world screen belongs to (the station board's jetty or station, the bench, the notice board, the vendor,
+	 * the offer card's giver): a player beyond ScreenStayRadius of it has walked (or been carried) away, and the screen
+	 * closes, as the bounty board's does (the 2026-10-23 play-check: the Rangers' board stayed open after a teleport). Null:
+	 * opened from afar (the console, a test), never closed by distance. LooterHUDReach.cpp.
+	 */
+	TWeakObjectPtr<AActor> ScreenAnchor;
+
+	static constexpr float ScreenStayRadius = 450.f;
+
+	/** The player stands within ScreenStayRadius of where Anchor is used (false without either). */
+	bool IsWithinScreenReach(const AActor* Anchor) const;
+
+	/** Closes the world screens when the player is beyond ScreenStayRadius of their ScreenAnchor (each tick). */
+	void CloseScreensOutOfReach();
+
 	/** The captions sit over the offer card while it's open in its offer mode (LiftCaptions), back over the HUD after. */
 	bool bCaptionsOverCard = false;
 

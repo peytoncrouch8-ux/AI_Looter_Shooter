@@ -57,6 +57,7 @@ bool ALooterHUD::OpenBench(AActor* Bench)
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
+	ScreenAnchor = IsWithinScreenReach(Bench) ? Bench : nullptr;
 	bBenchOpen = true;
 	return true;
 }

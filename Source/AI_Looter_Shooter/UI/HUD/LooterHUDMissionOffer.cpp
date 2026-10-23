@@ -99,6 +99,10 @@ bool ALooterHUD::OpenMissionOffer(const UMissionDefinition* Mission, AActor* Giv
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
+	if (IsWithinScreenReach(Giver))
+	{
+		ScreenAnchor = Giver;
+	}
 	bMissionOfferOpen = true;
 	// Someone's offer: their words go on beside the card (CoversCaptions), over its dimming.
 	LiftCaptions(!bReading && !bNoticeBoardOpen);
@@ -149,6 +153,10 @@ bool ALooterHUD::OpenTurnInChoice(const UMissionDefinition* Mission, AActor* Giv
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
+	if (IsWithinScreenReach(Giver))
+	{
+		ScreenAnchor = Giver;
+	}
 	bMissionOfferOpen = true;
 	LiftCaptions(false);
 	UE_LOG(LogLooter, Log, TEXT("Choice card: %s%s."), *Mission->GetMissionId().ToString(),

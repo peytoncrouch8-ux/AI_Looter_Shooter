@@ -18,7 +18,7 @@ namespace
 	 * What's looked at to pull it: the handle and the rope up to the bell (OreLift.py: the rope 1.15-1.35 m from the bell down
 	 * to the handle), a hand's room round them (cm, from the handle): pulled looked at anywhere along it.
 	 */
-	constexpr double CordHalfWidth = 30.0;
+	constexpr double CordHalfWidth = 20.0;
 	constexpr double CordBelow = 25.0;
 	constexpr double CordAbove = 150.0;
 }

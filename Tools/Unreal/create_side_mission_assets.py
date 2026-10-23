@@ -486,8 +486,11 @@ def dead_lift_steps(asset):
         step(interact(asset, 'Stoke the boiler from the coal bin: hold {Interact}.', 'LiftFitting_Boiler', hold=True,
                       lasting=True,
                       short='Stoke the boiler'),
+             # Its arrow leads to the landing it's driven from (Place_PinSpot, build_area_missionprops_mountain.py): under
+             # the clamp, the gallows' arm hides it.
              interact(asset, 'Drive the clamp pin at the bottom sheave: hold {Interact}.', 'LiftFitting_Pin', hold=True,
-                      lasting=True, short='Drive the clamp pin')),
+                      lasting=True, short='Drive the clamp pin', waypoint=unreal.MissionWaypoint.ACTOR,
+                      waypoint_tag='Place_PinSpot')),
         step(defend(asset, 'Hold the quarry while she raises steam.', 'Place_OldQuarry', 2500.0, 60.0,
                     short='Hold the quarry')),
         step(objective(asset, unreal.MissionBoardObjective, 'Ride the lift to the top: hold {Interact} on the bell pull.',

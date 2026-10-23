@@ -50,6 +50,7 @@ bool ALooterHUD::OpenNoticeBoard(ANoticeBoard* Board)
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
+	ScreenAnchor = IsWithinScreenReach(Board) ? Board : nullptr;
 	bNoticeBoardOpen = true;
 	return true;
 }

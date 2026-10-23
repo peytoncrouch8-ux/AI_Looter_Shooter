@@ -153,6 +153,7 @@ void ALooterHUD::Tick(float DeltaSeconds)
 	const bool bHideHUD = IsMenuOpen() || USceneSubsystem::HidesGameplayHUD(this);
 	HUDWidget->SetVisibility(bHideHUD ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	SetWorldLabelsVisible(!bHideHUD);
+	CloseScreensOutOfReach();
 }
 
 bool ALooterHUD::IsMenuOpen() const
@@ -387,6 +388,7 @@ bool ALooterHUD::OpenStationBoard(AActor* From, const FStationBoardWords& Words)
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
+	ScreenAnchor = IsWithinScreenReach(From) ? From : nullptr;
 	bStationBoardOpen = true;
 	return true;
 }
