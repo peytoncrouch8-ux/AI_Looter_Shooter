@@ -3,6 +3,16 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Missions flow (the user, 2026-10-22 night)
+Verbatim: "The main missions shouldn't have to be accepted and should automatically be added to the missions list. The
+side missions are all automatically placed in the world and should only be available after progression is made. Lastly;
+I shouldn't have to listen to dialogue before being able to accept a quest. Once I accept a quest it should move or skip
+to the dialogue that plays once you accept, borderlands style." Main's calls: main missions auto-start when available
+(previous turned in / new game), talk as captions on the move, tracked at once, old saves start them on load; every side
+mission gated by a main step (no "?" or offer before it); offer cards take Accept at once, Accept cuts to the accept
+lines. MISSIONS agent (Opus) writing Saved/MissionsCode + Docs/Work/2026-10-22-Missions/MISSIONS.md. Also running: spider
+fangs floating (since the slim chelicerae, a7bc507) + "skin blurry, lacks texture" (art agent, Spider.py).
+
 ## Spiders (the user, 2026-10-22 late: "Soften the spiders" + "they look almost see through... not correctly stylized")
 Done and pushed: Brown Spider 300 -> 230 health, bite 12 -> 11 (92d89ed; Gravemother keeps 300/12, spiderlings 60). Look
 (b956124): the "see-through" was the hit flash (M_FX_HitFlash overlay, a whole-body white wash re-fired by every bullet);
