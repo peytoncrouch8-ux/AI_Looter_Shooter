@@ -51,6 +51,9 @@ Morning results (2026-10-23): early fights softened 4460136 (play-check at level
 hip lift (sniper/LMG glove shows; rifle can't — the bullpup body hides it); recorded impact layers imported 1ff8114 +
 bank; Main 7 turn-in line fixed (Tilly's shop). Open: Dead Lift pin unreachable + boards close on walk-away (R2-OBJECTS
 in the editor); sniper ground ring (3 failed fixes, not asked); Tilly silhouette (not asked).
+Test build 2026-10-23_0658 packaged (BuildsPlaytest, 1.27 GB, smoke menu+RR PASS; Play Latest Build.bat): everything
+through 94699b1. Packaged log: the GameFeatureData ensure and the missing-save warnings are gone; the ~66 D3D12 PSO
+compute errors (RX 580 driver) remain. Next: the user plays it.
 **Morning questions (asked)**: (1) early fights' difficulty (deaths at the bluff nest, gate, Main Street ambush);
 (2) respawn: town roost vs wake near the fight; (3) the sniper/rifle/LMG trigger glove below the frame at the hip
 (pull-in framing) — lift it?; (4) Tilly a silhouette at her window?; (5) the sound pack download (three files, ~12.6 MB);
