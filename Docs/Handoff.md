@@ -3,6 +3,11 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Gun feel pass (next; plan Docs/Work/2026-10-22-Gunfeel/PLAN.md, user's 4 answers at its end: recorded reload
+foley yes, one more bundle part yes (name file+size first), shotgun shell-by-shell + rack yes, slower empty reloads, no
+fast-reload window). Jobs GF-SOUND-ART, GF-RELOAD, GF-KICK, GF-SOUND-CODE, GF-IMPACT start after the muzzle fix commit.
+FP-GRIP (user: "hands grip the gun ... like an actual military officer", AR first) in phase 1 (Docs/Work/2026-10-22-FPGrip).
+
 ## User's answers (2026-10-22 late)
 Muzzle flash: "Rework it" (MUZZLE agent, Opus, Saved/MuzzleCode: layered burst, star feel, never over the target).
 Spider read at range: "Darker coat" (darker cooler brown, pale bands; art agent). Next push after this round: **gun feel
