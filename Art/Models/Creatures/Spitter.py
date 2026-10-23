@@ -36,8 +36,10 @@ RIG_MARK = '# --- The rig ---'
 LEG_LINE = 'LEG_RADIUS = 7.8'
 LEG_RADIUS = 6.2
 
-# The hide: the brown spider's atlas, tinted to a dry olive (its browns go mossy, its pale marks khaki).
-HIDE_TINT = 0x9CC07C
+# The hide: the brown spider's atlas, tinted to a dry olive (its browns go mossy, its pale marks khaki). 0x9CC07C until
+# the spider's coat went darker and cooler (2026-10-22): raised so the Spitter keeps its own olive (its pale leg
+# bands come out khaki).
+HIDE_TINT = 0xD8E08A
 # The sac's gel: venom green, mostly see-through facing the eye and dense at its edges, glowing a little at rest.
 SAC_TINT, SAC_OPACITY, SAC_EDGE, SAC_GLOW = 0x8FE83A, 0.55, 0.93, 0.6
 # Creature space as the spider's (cm, x forward, y left), z over the ride height (Spider.py's lifted()).

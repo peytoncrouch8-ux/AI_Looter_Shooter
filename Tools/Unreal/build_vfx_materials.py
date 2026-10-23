@@ -22,9 +22,20 @@ textures, so nothing to paint or import):
                    decal's radius; the code spreads it), a scatter of droplets past the edge, its colour and opacity the
                    decal's colour (UDecalComponent::DecalColor, RGB and A), Wet (0 matte .. 1 glossy: lower roughness),
                    Seed (0..1, its shape), faded by the decal's lifetime (the pool's hold and fade).
+  M_FX_Muzzle      /Game/Art/Materials/Masters (the muzzle rework, 2026-10-22): unlit, additive, two-sided, instanced static
+                   meshes (AWeaponBase's MuzzleFlash on the engine Plane; the old M_FX_Glow's flat-filled streaks washed to
+                   flat yellow cards). Custom data (WeaponBaseMuzzle.cpp, 8 floats): 0-2 colour, 3 strength, 4 shape
+                   (EVfxFlashShape, M_FX_Glow's numbers: 0 streak, 1 round, 2 star), 5 param (a streak's length share this
+                   shot; a round's softness, 0 tight white-hot core .. 1 wide bloom; a star's spikes 3-16), 6 seed (each
+                   shot's), 7 the crosshair's hole (a share of the screen's width round its middle where nothing shows; 0
+                   none: third person). Every shape falls off softly (gaussian), whitens toward its heart, never shows the
+                   quad's edge, and fades as the quad turns edge-on (never a hard line). Shapes drawn by LocalPosition (the
+                   Plane is -50..50; its UVs aren't the obvious axes). No depth fade (the first-person flash is drawn pulled
+                   in toward the eye).
 
 FWeaponFX (WeaponFX.cpp) loads the first two at the start of a level's effects and draws today's stand-ins until they exist;
-FDeathSplats (DeathSplats.cpp) lays no splats until the third exists. It never touches another asset: the masters' graphs
+FDeathSplats (DeathSplats.cpp) lays no splats until the third exists; guns flash on M_FX_Glow until M_FX_Muzzle exists
+(its shape numbers match). It never touches another asset: the masters' graphs
 are rebuilt in place, and an asset at one of these paths that isn't a material is left alone. It reuses
 build_world_materials.py's graph helpers (without running that module's build), as build_grave_fight_materials.py does.
 Run it in the open editor (no C++ needed):
@@ -233,6 +244,70 @@ float Drop = Lit > 0.78 ? 1.0 - smoothstep(0.12, 0.22, length(frac(G) - 0.5)) : 
 Drop *= step(Edge, R) * step(R, min(Spread, 0.98));
 return saturate(Blob + Drop) * saturate(Code.a) * Life;"""
 
+# M_FX_Muzzle (the muzzle rework, 2026-10-22): soft light, never a card. The core burns white; the thin spikes and tongues
+# saturate only at their hearts, their soft edges keeping the colour (strengths in VfxRulesMuzzle.cpp).
+MUZZLE_CODE = """float2 P = Local.xy / 50.0;
+float R = length(P);
+float S = floor(Shape + 0.5);
+float Seed01 = frac(Seed);
+float3 Hot = float3(1.0, 0.95, 0.85);
+float3 C = Color;
+float M = 0.0;
+float Facing = abs(dot(normalize(Normal), normalize(ToCamera)));
+float Turn = 1.0;
+if (S < 0.5)
+{
+    // A tapered tongue of flame: its hot head at +X (the muzzle end), thinning to a soft point Param of the way along.
+    float Len = clamp(Param, 0.2, 1.0);
+    float T = saturate((1.0 - P.x) / (2.0 * Len));
+    float Half = lerp(0.85, 0.06, T);
+    float Across = abs(P.y) / Half;
+    float Body = exp(-Across * Across * 2.5);
+    float Along = pow(1.0 - T, 1.6) * saturate((1.0 - P.x) * 8.0);
+    M = Body * Along;
+    C = lerp(Color, Hot, saturate(Body * Body * (1.0 - T) * (1.0 - T)));
+    // Edge-on a streak is a hard line: gone as it turns away.
+    Turn = smoothstep(0.08, 0.45, Facing);
+}
+else if (S < 1.5)
+{
+    // A round glow: Param 0 a tight white-hot core, 1 a wide soft bloom.
+    float K = lerp(14.0, 3.2, saturate(Param));
+    M = exp(-R * R * K);
+    float Heart = exp(-R * R * K * 4.0);
+    C = lerp(Color, Hot, Heart * (1.0 - saturate(Param)));
+    Turn = smoothstep(0.05, 0.35, Facing);
+}
+else
+{
+    // Thin tapered spikes round a hot point, each its own length (and a little its own strength) by the seed, turned by it.
+    float K = clamp(floor(Param + 0.5), 3.0, 16.0);
+    float A = atan2(P.y, P.x) + Seed01 * 6.2831853;
+    float Step = 6.2831853 / K;
+    float N = floor(A / Step + 0.5);
+    float D = A - N * Step;
+    float Jitter = frac(sin(N * 12.9898 + Seed01 * 78.233) * 43758.5453);
+    float Len = lerp(0.5, 1.0, Jitter);
+    float Run = saturate(R / Len);
+    float Perp = R * abs(sin(D)) / lerp(0.09, 0.006, Run);
+    float Spike = exp(-Perp * Perp) * pow(1.0 - Run, 1.5) * lerp(0.7, 1.0, Jitter);
+    float Core = exp(-R * R * 60.0);
+    float Halo = exp(-R * R * 10.0) * 0.25;
+    M = Spike + Core * 1.5 + Halo;
+    C = lerp(Color, Hot, saturate(Core + Spike * (1.0 - Run) * 0.5));
+    Turn = smoothstep(0.1, 0.45, Facing);
+}
+// Never a quad's edge.
+M *= saturate((1.0 - max(abs(P.x), abs(P.y))) * 10.0);
+// The crosshair's hole: nothing within Clear (a share of the screen's width) of the screen's middle.
+float Hole = 1.0;
+if (Clear > 0.0)
+{
+    float2 Off = (Screen - 0.5) * float2(1.0, ViewSize.y / max(ViewSize.x, 1.0));
+    Hole = smoothstep(Clear * 0.7, Clear, length(Off));
+}
+return C * M * Strength * Glow * Turn * Hole;"""
+
 SPLAT_COLOR = """float2 P = UV * 2.0 - 1.0;
 // A little deeper toward its middle, where it's thickest.
 return Code.rgb * (0.85 + 0.3 * saturate(1.0 - length(P)));"""
@@ -348,13 +423,38 @@ def build_splat():
     return mat
 
 
+def build_muzzle():
+    mat = master('M_FX_Muzzle')
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_ADDITIVE)
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property('two_sided', True)
+    g = W.Graph(mat)
+    local = g.node(unreal.MaterialExpressionLocalPosition, -1900, 0)
+    screen = g.node(unreal.MaterialExpressionScreenPosition, -1900, 1000)
+    code = g.custom(MUZZLE_CODE, [
+        ('Local', local, ''), ('Color', instance_color(g, -1900, 200), ''),
+        ('Strength', custom_data(g, 3, 1.0, -1900, 450), ''), ('Shape', custom_data(g, 4, 1.0, -1900, 550), ''),
+        ('Param', custom_data(g, 5, 0.0, -1900, 650), ''), ('Seed', custom_data(g, 6, 0.0, -1900, 750), ''),
+        ('Clear', custom_data(g, 7, 0.0, -1900, 850), ''),
+        ('Normal', g.node(unreal.MaterialExpressionVertexNormalWS, -1900, 920), ''),
+        ('ToCamera', g.node(unreal.MaterialExpressionCameraVectorWS, -1900, 960), ''),
+        ('Screen', screen, 'ViewportUV'), ('ViewSize', g.node(unreal.MaterialExpressionViewSize, -1900, 1100), ''),
+        ('Glow', g.scalar('Glow', 1.0, -1900, 1200), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -1000, 300, 'Muzzle')
+    g.out(code, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    W.finish(mat, [unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES])
+    log(f'{mat.get_path_name()} built (unlit, additive, two-sided): {parameter_names(mat)}; custom data 0-2 colour, '
+        f'3 strength, 4 shape, 5 param, 6 seed, 7 clear')
+    return mat
+
+
 def run(only=None):
-    builders = {'shape': build_shape, 'puff': build_puff, 'fire': build_fire, 'splat': build_splat}
+    builders = {'shape': build_shape, 'puff': build_puff, 'fire': build_fire, 'splat': build_splat, 'muzzle': build_muzzle}
     for name, build in builders.items():
         if only is None or name in only:
             build()
     log('done')
 
 
-# Arguments name the masters to build ("py .../build_vfx_materials.py fire"); none, all four.
+# Arguments name the masters to build ("py .../build_vfx_materials.py muzzle"); none, all five.
 run(set(a.lower() for a in sys.argv[1:]) if len(sys.argv) > 1 else None)

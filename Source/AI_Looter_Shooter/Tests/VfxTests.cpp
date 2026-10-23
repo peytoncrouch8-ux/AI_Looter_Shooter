@@ -158,6 +158,148 @@ bool FVfxMuzzleRulesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVfxMuzzleFlashRulesTest, "Looter.Vfx.Rules.MuzzleFlash", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FVfxMuzzleFlashRulesTest::RunTest(const FString& Parameters)
+{
+	// The muzzle rework (2026-10-22, the user: flat yellow diamonds up close covered the target): layered light, short, small
+	// in the player's own view and clear of the crosshair.
+	const EWeaponKind Kinds[] = { EWeaponKind::Rifle, EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::SMG, EWeaponKind::Sniper,
+		EWeaponKind::LMG, EWeaponKind::Launcher };
+	for (const EWeaponKind Kind : Kinds)
+	{
+		const FVfxMuzzleLook Look = VfxRules::MuzzleLook(Kind);
+		TArray<FVfxFlashQuad> Quads;
+		VfxRules::MuzzleQuads(Look, Quads);
+		const FString Name = FString::Printf(TEXT("Kind %d"), static_cast<int32>(Kind));
+		const FVfxFlashQuad* Core = Quads.FindByPredicate([](const FVfxFlashQuad& Quad) { return Quad.Layer == EVfxFlashLayer::Core; });
+		const FVfxFlashQuad* Bloom = Quads.FindByPredicate([](const FVfxFlashQuad& Quad) { return Quad.Layer == EVfxFlashLayer::Bloom; });
+		const FVfxFlashQuad* Star = Quads.FindByPredicate([](const FVfxFlashQuad& Quad) { return Quad.Layer == EVfxFlashLayer::Star; });
+		if (!TestTrue(Name + TEXT(": a core, a bloom and a star"), Core && Bloom && Star))
+		{
+			continue;
+		}
+		TestTrue(Name + TEXT(": the core white-hot and small, the bloom soft and wider"), Core->Param == 0.f && Bloom->Param == 1.f
+			&& Bloom->Length > Core->Length && Core->Shape == EVfxFlashShape::Round && Bloom->Shape == EVfxFlashShape::Round);
+		TestTrue(Name + TEXT(": the star's spikes are its param"), Star->Shape == EVfxFlashShape::Star && Star->Param >= 3.f && Star->Param <= 16.f);
+		bool bOnlyCoreHot = true;
+		for (const FVfxFlashQuad& Quad : Quads)
+		{
+			bOnlyCoreHot &= Quad.Glow > 0.f && (Quad.Layer == EVfxFlashLayer::Core || Quad.Glow < Core->Glow);
+		}
+		TestTrue(Name + TEXT(": the core burns hottest"), bOnlyCoreHot);
+		TestEqual(Name + TEXT(": a tongue a quad"), Quads.FilterByPredicate([](const FVfxFlashQuad& Quad) { return Quad.Layer == EVfxFlashLayer::Tongue; }).Num(),
+			Look.Tongues);
+		TestTrue(Name + TEXT(": gone in about two to four frames at 60 fps"), Look.Duration > 0.f && Look.Duration <= 0.07f);
+	}
+	const FVfxMuzzleLook Rifle = VfxRules::MuzzleLook(EWeaponKind::Rifle);
+	const FVfxMuzzleLook Shotgun = VfxRules::MuzzleLook(EWeaponKind::Shotgun);
+	const FVfxMuzzleLook Smg = VfxRules::MuzzleLook(EWeaponKind::SMG);
+	const FVfxMuzzleLook Sniper = VfxRules::MuzzleLook(EWeaponKind::Sniper);
+	const FVfxMuzzleLook Launcher = VfxRules::MuzzleLook(EWeaponKind::Launcher);
+	TestTrue(TEXT("The shotgun's flash is bigger than the rifle's, the SMG's smaller"), Shotgun.BloomSize > Rifle.BloomSize && Shotgun.StarSize > Rifle.StarSize
+		&& Smg.BloomSize < Rifle.BloomSize && Smg.StarSize < Rifle.StarSize);
+	TestTrue(TEXT("The SMG's the quickest, the launcher's puff the longest"), Smg.Duration < Rifle.Duration && Launcher.Duration > Shotgun.Duration);
+	TestTrue(TEXT("The sniper's a sharp flash: bright spikes, a tight bloom"), Sniper.StarGlow > 1.f && Sniper.BloomSize < Rifle.BloomSize);
+	TestTrue(TEXT("The launcher's a puff: the broadest bloom, a faint star"), Launcher.BloomSize > Shotgun.BloomSize && Launcher.StarGlow < 0.5f);
+
+	// Views: from behind as built; in the player's own view the tongues short (along the barrel is toward the crosshair);
+	// aimed, smaller and dimmer still.
+	const FVfxTuning Tuning;
+	const FVfxMuzzleView Behind = VfxRules::MuzzleView(false, 1.f, Tuning);
+	TestTrue(TEXT("From behind every layer as built"), Behind.Core == 1.f && Behind.Bloom == 1.f && Behind.Star == 1.f && Behind.Tongue == 1.f
+		&& Behind.Jet == 1.f && Behind.Size == 1.f && Behind.Glow == 1.f);
+	const FVfxMuzzleView Hip = VfxRules::MuzzleView(true, 0.f, Tuning);
+	const FVfxMuzzleView Aimed = VfxRules::MuzzleView(true, 1.f, Tuning);
+	TestTrue(TEXT("First person: the star smaller, the tongues shortest"), Hip.Star < 1.f && Hip.Tongue < Hip.Star && Hip.Jet < 1.f);
+	TestTrue(TEXT("Aimed: smaller and dimmer than from the hip"), Aimed.Size < Hip.Size && Aimed.Glow < Hip.Glow);
+	TestEqual(TEXT("The tongue's layer scale is the view's"), VfxRules::MuzzleLayerScale(EVfxFlashLayer::Tongue, Hip), Hip.Tongue);
+	TestEqual(TEXT("A spit is sized as a jet"), VfxRules::MuzzleLayerScale(EVfxFlashLayer::Spit, Hip), Hip.Jet);
+
+	TArray<FVfxFlashQuad> RifleQuads;
+	VfxRules::MuzzleQuads(Rifle, RifleQuads);
+	TestEqual(TEXT("From behind the rifle's flash reaches its tongues' length along the barrel"), VfxRules::MuzzleReach(RifleQuads, Behind, true),
+		Rifle.TongueLength, 0.1f);
+	TestEqual(TEXT("...and its star's half across"), VfxRules::MuzzleReach(RifleQuads, Behind, false), Rifle.StarSize * 0.5f, 0.1f);
+	TestTrue(TEXT("In the player's own view it reaches under a third as far along the barrel"),
+		VfxRules::MuzzleReach(RifleQuads, Hip, true) < Rifle.TongueLength / 3.f);
+	TArray<FVfxFlashQuad> SniperQuads;
+	VfxRules::MuzzleQuads(Sniper, SniperQuads);
+	TestEqual(TEXT("A brake's jets reach across as far as they're long"), VfxRules::MuzzleReach(SniperQuads, Behind, false), Sniper.SideJets, 0.1f);
+
+	// A short tongue starts at the muzzle and stays a lick of flame: its length by its scale, its width by the root.
+	const FVfxFlashQuad* Tongue = RifleQuads.FindByPredicate([](const FVfxFlashQuad& Quad) { return Quad.Layer == EVfxFlashLayer::Tongue; });
+	if (TestNotNull(TEXT("The rifle has a tongue"), Tongue))
+	{
+		const FTransform Short = VfxRules::MuzzleQuadTransform(*Tongue, 0.25f, 2.f);
+		TestEqual(TEXT("...its length a quarter, at twice the gun's scale"), static_cast<float>(Short.GetScale3D().X), Tongue->Length * 0.5f / 100.f, 0.0001f);
+		TestEqual(TEXT("...its width by the root"), static_cast<float>(Short.GetScale3D().Y), Tongue->Width * 0.5f * 2.f / 100.f, 0.0001f);
+		TestEqual(TEXT("...its near end at the muzzle"), static_cast<float>(Short.TransformPosition(FVector(50.0, 0.0, 0.0)).X), 0.f, 0.01f);
+	}
+
+	// The fade: full at once, (1 - share) ^ power, gone at the end.
+	TestEqual(TEXT("Full when fired"), VfxRules::MuzzleFade(0.f, 0.04f, 2.f), 1.f);
+	TestEqual(TEXT("A quarter halfway (power 2)"), VfxRules::MuzzleFade(0.02f, 0.04f, 2.f), 0.25f, 0.001f);
+	TestEqual(TEXT("Gone at its end"), VfxRules::MuzzleFade(0.04f, 0.04f, 2.f), 0.f);
+	TestEqual(TEXT("Nothing without a length"), VfxRules::MuzzleFade(0.f, 0.f, 2.f), 0.f);
+	TestTrue(TEXT("A frame in at 120 fps it's already under two thirds"), VfxRules::MuzzleFade(1.f / 120.f, Rifle.Duration * Tuning.MuzzleTime,
+		Tuning.MuzzleFadePower) < 0.67f);
+
+	// The crosshair's clearance.
+	TestEqual(TEXT("Already clear: full size"), VfxRules::MuzzleClearScale(12.f, 4.f, 3.5f, 0.25f), 1.f);
+	TestEqual(TEXT("Reaching in: shrunk to keep out"), VfxRules::MuzzleClearScale(12.f, 2.f, 3.5f, 0.25f), 0.85f, 0.001f);
+	TestEqual(TEXT("A muzzle inside the clearance: the least size"), VfxRules::MuzzleClearScale(3.f, 1.f, 3.5f, 0.25f), 0.25f);
+	TestEqual(TEXT("Reaching away from the middle: full size"), VfxRules::MuzzleClearScale(12.f, 13.f, 3.5f, 0.25f), 1.f);
+	TestEqual(TEXT("No clearance: no hole"), VfxRules::MuzzleClearShare(0.f, 90.f), 0.f);
+	TestEqual(TEXT("3.5 degrees at a 90 degree view: 3% of the width"), VfxRules::MuzzleClearShare(3.5f, 90.f),
+		0.5f * FMath::Tan(FMath::DegreesToRadians(3.5f)), 0.0001f);
+	TestTrue(TEXT("...a smaller share of a wider view"), VfxRules::MuzzleClearShare(3.5f, 110.f) < VfxRules::MuzzleClearShare(3.5f, 90.f));
+	TestTrue(TEXT("The defaults keep the crosshair clear, less so aimed"), Tuning.MuzzleClear > Tuning.MuzzleAimClear && Tuning.MuzzleAimClear > 0.f);
+
+	TestEqual(TEXT("A streak's shortest share"), VfxRules::MuzzleStreakShare(0.f), 0.55f);
+	TestEqual(TEXT("...and its longest"), VfxRules::MuzzleStreakShare(1.f), 1.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVfxMuzzleBurst1PTest, "Looter.Vfx.MuzzleBurst1P", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FVfxMuzzleBurst1PTest::RunTest(const FString& Parameters)
+{
+	// In the player's own view a shot's sparks are small glints thrown away from the crosshair and its smoke a fainter wisp;
+	// all of it gone soon after.
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	FWeaponFX Effects;
+	Effects.Initialize(WorldWrapper.GetTestWorld());
+	const FVector Camera(-60.0, 0.0, 0.0);
+	for (const EWeaponKind Kind : { EWeaponKind::Rifle, EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::SMG, EWeaponKind::Sniper,
+		EWeaponKind::LMG, EWeaponKind::Launcher })
+	{
+		RunEffects(Effects, 4.f, Camera);
+		FVfxMuzzle Muzzle;
+		Muzzle.Kind = Kind;
+		Muzzle.Location = FVector(0.0, 12.0, -10.0);
+		Muzzle.bFirstPerson = true;
+		Muzzle.Away = FVector(0.0, 0.7, -0.7);
+		Effects.SpawnMuzzleBurst(Muzzle);
+		const int32 FirstPerson = Effects.NumParticles();
+		TestTrue(FString::Printf(TEXT("Kind %d: something in the player's own view"), static_cast<int32>(Kind)), FirstPerson > 0);
+		TestEqual(FString::Printf(TEXT("Kind %d: no ring there"), static_cast<int32>(Kind)), Effects.NumShapes(), 0);
+		RunEffects(Effects, 4.f, Camera);
+		Muzzle.bFirstPerson = false;
+		Effects.SpawnMuzzleBurst(Muzzle);
+		TestTrue(FString::Printf(TEXT("Kind %d: no more thrown than from behind (%d, %d)"), static_cast<int32>(Kind), FirstPerson, Effects.NumParticles()),
+			FirstPerson <= Effects.NumParticles());
+	}
+	RunEffects(Effects, 4.f, Camera);
+	TestEqual(TEXT("All gone a few seconds on"), Effects.NumParticles(), 0);
+	Effects.Shutdown();
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVfxShapeRulesTest, "Looter.Vfx.Rules.Shapes", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FVfxShapeRulesTest::RunTest(const FString& Parameters)

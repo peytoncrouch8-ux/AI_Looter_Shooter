@@ -172,19 +172,21 @@ def lifted(point):
 # (BROWN, BONE, Gravemother.py's GRAVE; 2026-10-22); a hide without it takes the older painter. Only color comes
 # from BONE's; roughness, height and occlusion are BROWN's (MI_SpiderBody_Pale uses SpiderBody's normal and ORM maps).
 
-_DARK, _LIGHT = lt.rgb(0x2a190c), lt.rgb(0xbc9a6c)
-# The Meadow Wolf: warm brown, a dark field round a light heart mark and light chevrons, dark leg bands and joints, a
-# dark face round the eyes.
+_DARK, _LIGHT = lt.rgb(0x17130f), lt.rgb(0xcbbb9c)
+# The Meadow Wolf: a dark, cool brown (the user's pick, 2026-10-22: the warm brown sank into the ochre ground at 15 m),
+# a near-black field round a pale heart mark and pale chevrons, pale bands on the legs, dark joints, a dark face round
+# the eyes; the pale marks pop the silhouette against warm ground.
 BROWN = dict(
     painted=True,
-    base=lt.rgb(0x654633), light=_LIGHT, belly=lt.rgb(0x46321f),
-    field=_DARK, field_k=0.82, heart=lt.rgb(0xcaa26f), heart_k=1.0, heart_shape=(0.15, 0.76, 0.22),
+    base=lt.rgb(0x3d332b), light=_LIGHT, belly=lt.rgb(0x2a241f),
+    field=_DARK, field_k=0.82, heart=lt.rgb(0xd4c4a4), heart_k=1.0, heart_shape=(0.15, 0.76, 0.22),
     heart_outline=False, chevron=_LIGHT, chevron_k=0.85, speck=_LIGHT * 0.9, speck_k=0.5,
-    lateral=_DARK, lateral_k=0.85, stripe=lt.rgb(0xcfa872), stripe_k=(0.92, 0.7), margin=_LIGHT * 0.95, margin_k=0.7,
-    ring=lt.rgb(0x2b1a0d), ring_k=0.78, membrane=lt.rgb(0x1d120a), palp=lt.rgb(0x3b2615), palp_k=0.55,
+    lateral=_DARK, lateral_k=0.85, stripe=lt.rgb(0xd6c6a6), stripe_k=(0.92, 0.7), margin=_LIGHT * 0.95, margin_k=0.7,
+    ring=lt.rgb(0x15110e), ring_k=0.78, band=lt.rgb(0xb8a888), membrane=lt.rgb(0x100d0b), palp=lt.rgb(0x2a231d),
+    palp_k=0.55,
     joint=_DARK, joint_k=0.3,
-    face=lt.rgb(0x1e130b), face_k=0.8, groove=lt.rgb(0x2a190c),
-    solid={'eye': 0x070606, 'bristle': 0x24170c, 'fang': 0x1a120c, 'misc': 0x4a3220})
+    face=lt.rgb(0x100d0b), face_k=0.8, groove=lt.rgb(0x17130f),
+    solid={'eye': 0x070606, 'bristle': 0x1a1612, 'fang': 0x16120f, 'misc': 0x2e2722})
 # The Gravemother: bone, the user's pick (2026-10-07) of three looks (Art/Backlog/Creatures/GravemotherConcepts.py, A).
 # A chalky bone white, kept under about 0.75 so direct sun still shades it; the brown spider's marks faded to grey
 # ghost-lines (the heart drawn as an outline), its leg rings kept dark; a darker face round the eyes, since black eyes
@@ -409,7 +411,7 @@ def paint_painted(region, U, V, seed, hide):
     rim = np.exp(-((s - 0.9) / 0.03) ** 2)                # the plate's edge, faint
     for k, at in LIMB_BANDS.get(region, ()):
         band = (index == k) * (1.0 - lt.smooth(0.07, 0.12, np.abs(s - at) + 0.03 * fine + 0.02 * hairy))
-        col = lt.mix(col, hide['ring'], band * hide['ring_k'])
+        col = lt.mix(col, hide.get('band', hide['ring']), band * hide['ring_k'])
     if region == 'tibia':
         col = lt.mix(col, hide['ring'], (index == 0) * 0.22 * hide['ring_k'])                    # the patella
         col = lt.mix(col, hide['ring'], (index == 3) * lt.smooth(0.2, 1.0, s) * 0.8)            # dark to the tip

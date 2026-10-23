@@ -22,6 +22,39 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	float KillRing = 1.f;
 	/** Looter.Vfx.Muzzle.Scale: the smoke, sparks, side jets and rings round a shot's flash. */
 	float MuzzleScale = 1.f;
+
+	// --- The muzzle flash itself (AWeaponBase's quads on M_FX_Muzzle; the rework, 2026-10-22) ---
+	/** Looter.Vfx.Muzzle.Flash / .Glow / .Time: the flash's size, strength and how long it shows, times. */
+	float MuzzleFlash = 1.f;
+	float MuzzleGlow = 1.f;
+	float MuzzleTime = 1.f;
+	/** Looter.Vfx.Muzzle.FadePower: how fast it fades over its time ((1 - age share) ^ this; higher is quicker). */
+	float MuzzleFadePower = 2.f;
+	/** Looter.Vfx.Muzzle.Jitter: each shot's flash this share bigger or smaller at random. */
+	float MuzzleJitter = 0.15f;
+	/**
+	 * Looter.Vfx.Muzzle.Star1P / .Tongue1P / .Bloom1P / .Jets1P: the layers' sizes in the player's own view (on top of
+	 * Looter.Gunfeel.Muzzle.Scale1P). Anything reaching along the barrel runs toward the crosshair there, so the tongues are short.
+	 */
+	float MuzzleStar1P = 0.6f;
+	float MuzzleTongue1P = 0.3f;
+	float MuzzleBloom1P = 0.75f;
+	float MuzzleJets1P = 0.35f;
+	/** Looter.Vfx.Muzzle.Aim / .AimGlow: the flash's size and strength aimed down the sights (first person). */
+	float MuzzleAim = 0.55f;
+	float MuzzleAimGlow = 0.6f;
+	/**
+	 * Looter.Vfx.Muzzle.Clear / .AimClear (degrees): round the crosshair nothing of the flash shows, from the hip / aimed (the
+	 * flash shrinks to keep out, down to Looter.Vfx.Muzzle.ClearMin of its size, and M_FX_Muzzle fades what still reaches in).
+	 */
+	float MuzzleClear = 3.5f;
+	float MuzzleAimClear = 2.f;
+	float MuzzleClearMin = 0.25f;
+	/** Looter.Vfx.Muzzle.Sparks1P / .Smoke1P: the share of a shot's sparks, and its smoke's opacity, in the player's own view. */
+	float MuzzleSparks1P = 0.67f;
+	float MuzzleSmoke1P = 0.75f;
+	/** Looter.Vfx.Muzzle.Light: the flash's point light (the one it always had; 0 none). */
+	float MuzzleLight = 1.f;
 	/** Looter.Vfx.Power.Scale: the ember powers' new punch (activation rings, body hits, blasts, strikes). */
 	float PowerScale = 1.f;
 	/** Looter.Vfx.Blast.Scale: explosions (a rocket's, Slag Bomb's, Last Rites'). */

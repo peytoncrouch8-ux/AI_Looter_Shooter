@@ -1,7 +1,8 @@
 #include "Weapons/VfxRules.h"
 #include "Weapons/VfxTuning.h"
 
-// The VFX pass's plain rules (Saved/Vfx/PLAN.md): detail, weights, tiers, muzzles, blasts and the shapes' curves.
+// The VFX pass's plain rules (Saved/Vfx/PLAN.md): detail, weights, tiers, tracers, blasts and the shapes' curves (the
+// muzzle's in VfxRulesMuzzle.cpp).
 
 namespace VfxRules
 {
@@ -126,107 +127,6 @@ namespace VfxRules
 			break;
 		}
 		return Layers;
-	}
-
-	FVfxMuzzleLook MuzzleLook(EWeaponKind Kind)
-	{
-		FVfxMuzzleLook Look;
-		switch (Kind)
-		{
-		case EWeaponKind::Shotgun:
-			// A wide, short, angry bloom: a cone of tongues and a cloud of unburnt powder.
-			Look.CoreSize = 16.f;
-			Look.StarSize = 46.f;
-			Look.StarSpikes = 9;
-			Look.Tongues = 5;
-			Look.TongueLength = 30.f;
-			Look.TongueWidth = 14.f;
-			Look.Duration = 0.07f;
-			Look.Sparks = 9;
-			Look.SmokePuffs = 3;
-			Look.SmokeSize = 46.f;
-			break;
-		case EWeaponKind::Revolver:
-			// A hard star, the cylinder gap's spit to both sides.
-			Look.CoreSize = 13.f;
-			Look.StarSize = 40.f;
-			Look.StarSpikes = 8;
-			Look.Tongues = 3;
-			Look.TongueLength = 30.f;
-			Look.Duration = 0.06f;
-			Look.GapSpit = 9.f;
-			Look.Sparks = 5;
-			Look.SmokePuffs = 2;
-			Look.SmokeSize = 36.f;
-			break;
-		case EWeaponKind::SMG:
-			// Small, quick, flickering: a cross of four, every other shot's sparks, every third's smoke.
-			Look.CoreSize = 8.f;
-			Look.StarSize = 24.f;
-			Look.StarSpikes = 4;
-			Look.Tongues = 2;
-			Look.TongueLength = 18.f;
-			Look.TongueWidth = 7.f;
-			Look.Duration = 0.035f;
-			Look.Sparks = 1;
-			Look.SmokePuffs = 1;
-			Look.SmokeSize = 20.f;
-			Look.Every = 3;
-			break;
-		case EWeaponKind::Sniper:
-			// The brake's two side jets, a big star, a ring of dust and air thrown out round the muzzle, hanging smoke.
-			Look.CoreSize = 16.f;
-			Look.StarSize = 42.f;
-			Look.StarSpikes = 10;
-			Look.Tongues = 3;
-			Look.TongueLength = 34.f;
-			Look.TongueWidth = 10.f;
-			Look.Duration = 0.08f;
-			Look.SideJets = 34.f;
-			Look.Sparks = 6;
-			Look.SmokePuffs = 4;
-			Look.SmokeSize = 52.f;
-			Look.Ring = 150.f;
-			break;
-		case EWeaponKind::LMG:
-			// Heavy and steady: a big uneven star, four tongues, its smoke building over a long burst.
-			Look.CoreSize = 13.f;
-			Look.StarSize = 34.f;
-			Look.StarSpikes = 7;
-			Look.Tongues = 4;
-			Look.TongueLength = 30.f;
-			Look.TongueWidth = 10.f;
-			Look.Duration = 0.055f;
-			Look.Sparks = 3;
-			Look.SmokePuffs = 1;
-			Look.SmokeSize = 34.f;
-			Look.Every = 2;
-			break;
-		case EWeaponKind::Launcher:
-			// The rocket's motor is the flash: a gout out of the bell, a ring of dust, a lot of smoke (the back-blast is the rocket's own).
-			Look.CoreSize = 15.f;
-			Look.StarSize = 42.f;
-			Look.StarSpikes = 12;
-			Look.Tongues = 4;
-			Look.TongueLength = 34.f;
-			Look.TongueWidth = 18.f;
-			Look.Duration = 0.09f;
-			Look.Sparks = 10;
-			Look.SmokePuffs = 5;
-			Look.SmokeSize = 70.f;
-			Look.Ring = 200.f;
-			break;
-		case EWeaponKind::Rifle:
-		case EWeaponKind::None:
-		default:
-			// Today's rifle flash (FlashCoreSize, FlashStarSize, three tongues), a spark or three and a breath of smoke.
-			Look.Sparks = 3;
-			Look.SmokePuffs = 1;
-			Look.SmokeSize = 28.f;
-			Look.Every = 2;
-			break;
-		}
-		return Look;
 	}
 
 	FVfxTracerLook TracerLook(EWeaponKind Kind, int32 RoundsLeft)

@@ -5,6 +5,7 @@
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/GunKindsTuning.h"
 #include "Weapons/ReloadMotion.h"
+#include "Weapons/VfxTypes.h"
 #include "Weapons/WeaponRecoil.h"
 #include "Weapons/WeaponTypes.h"
 #include "WeaponBase.generated.h"
@@ -322,7 +323,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UWeaponModelComponent> Model;
 
-	/** Built-in muzzle flash: a hot core, a spiky star and three flame tongues at the muzzle, shown for a moment after each shot. */
+	/** Built-in muzzle flash (M_FX_Muzzle): a white-hot core, a soft bloom, a star of thin spikes and short tongues, about two frames a shot. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> MuzzleFlash;
 
@@ -462,10 +463,15 @@ private:
 	/** Seconds the muzzle flash still shows, and how strong this shot's flash is. */
 	float FlashTimeLeft = 0.f;
 	float FlashStrength = 1.f;
-	/** Full glow of each muzzle flash quad, which fades with the flash. */
-	TArray<float, TInlineAllocator<8>> FlashGlow;
-	/** This kind's flash length (VfxRules::MuzzleLook; WeaponBaseMuzzle.cpp). */
-	float FlashDuration = 0.055f;
+	/** The flash's quads at scale 1 (VfxRules::MuzzleQuads), one instance each, in order; placed again each shot for its view. */
+	TArray<FVfxFlashQuad> FlashQuads;
+	/** The gun's flash scale (its definition's MuzzleFlashScale x its model's scale). */
+	float FlashGunScale = 1.f;
+	/** This kind's flash length (VfxRules::MuzzleLook; WeaponBaseMuzzle.cpp) and this shot's (times Looter.Vfx.Muzzle.Time). */
+	float FlashBaseDuration = 0.04f;
+	float FlashDuration = 0.04f;
+	/** The frame the flash was fired on: it isn't aged that frame, so even a slow frame shows it once at full. */
+	uint64 FlashFrame = 0;
 	/** Shots in the burst so far (0 the first; a pause of MuzzleBurstGap starts over): a fast gun's smoke and sparks thin out. */
 	int32 MuzzleShotsInBurst = 0;
 	double LastMuzzleTime = -1000.0;

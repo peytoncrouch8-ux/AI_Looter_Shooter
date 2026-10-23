@@ -119,23 +119,35 @@ struct FVfxMuzzle
 	int32 InBurst = 0;
 	/** The light its smoke shows in (white without one). */
 	FLinearColor DustLight = FLinearColor::White;
+	/**
+	 * In the player's own view: the way from the middle of the screen (the crosshair) out to the muzzle, square to the eye's
+	 * line (zero: not known). Sparks and smoke go this way there, so nothing a shot throws crosses the crosshair (the
+	 * muzzle rework, 2026-10-22: forward-flying sparks near the eye drew as big yellow diamonds over the target).
+	 */
+	FVector Away = FVector::ZeroVector;
 };
 
 /**
  * A gun kind's muzzle look (VfxRules::MuzzleLook): both what SpawnMuzzleBurst throws round the flash and the flash quads
- * AWeaponBase draws (the proposal for GUNS-CODE in Saved/Vfx/PLAN.md reads the same numbers).
+ * AWeaponBase draws (VfxRules::MuzzleQuads).
  */
 struct FVfxMuzzleLook
 {
-	/** The flash: core and star sizes (cm at scale 1), the star's spikes, tongues along the barrel and their length. */
+	/**
+	 * The flash (cm across at scale 1): a small white-hot core, a soft orange bloom round it, a star of thin tapered spikes
+	 * (StarGlow times the usual strength: the sniper's sharp, the launcher's faint under its puff), tongues along the barrel
+	 * for side views.
+	 */
 	float CoreSize = 11.f;
+	float BloomSize = 26.f;
 	float StarSize = 34.f;
 	int32 StarSpikes = 6;
+	float StarGlow = 1.f;
 	int32 Tongues = 3;
 	float TongueLength = 26.f;
 	float TongueWidth = 9.f;
-	/** How long it shows (s); two quads' turns differ shot to shot. */
-	float Duration = 0.055f;
+	/** How long it shows (s; times Looter.Vfx.Muzzle.Time): about two frames at 60 fps, fading fast (VfxRules::MuzzleFade). */
+	float Duration = 0.04f;
 	/** A muzzle brake's two side jets (cm long; 0 none) and a revolver's cylinder-gap spit (cm; 0 none). */
 	float SideJets = 0.f;
 	float GapSpit = 0.f;
@@ -147,6 +159,62 @@ struct FVfxMuzzleLook
 	float Ring = 0.f;
 	/** The first shot in this many of a burst throws its sparks and smoke (a fast gun's every round would be a cloud). */
 	int32 Every = 1;
+};
+
+/** A muzzle flash's layers (AWeaponBase's quads), each sized for the view on its own (FVfxMuzzleView). */
+enum class EVfxFlashLayer : uint8
+{
+	Core,
+	Bloom,
+	Star,
+	Tongue,
+	/** A muzzle brake's side jets. */
+	Jet,
+	/** A revolver's cylinder-gap spit. */
+	Spit
+};
+
+/** What M_FX_Muzzle draws on a quad, by its custom data's shape float (the same numbers as M_FX_Glow's, its stand-in). */
+enum class EVfxFlashShape : uint8
+{
+	/** A tapered tongue of flame, its hot head at the quad's +X; Param the share of its length this shot shows. */
+	Streak = 0,
+	/** A soft round glow; Param its softness (0 a tight hot core .. 1 a wide soft bloom). */
+	Round = 1,
+	/** Thin tapered spikes round a hot point, uneven by its seed; Param the spikes (3-16). */
+	Star = 2
+};
+
+/** One quad of a muzzle flash (VfxRules::MuzzleQuads) on the engine Plane (100 x 100 cm in XY, facing +Z), at scale 1. */
+struct FVfxFlashQuad
+{
+	EVfxFlashLayer Layer = EVfxFlashLayer::Core;
+	EVfxFlashShape Shape = EVfxFlashShape::Round;
+	/** Its middle (cm: +X out along the barrel, +Y its side, +Z up) and its turn. */
+	FVector Location = FVector::ZeroVector;
+	FRotator Rotation = FRotator::ZeroRotator;
+	/** Its size, cm: Length along the quad's X, Width along its Y. */
+	float Length = 10.f;
+	float Width = 10.f;
+	FLinearColor Color = FLinearColor::White;
+	/** Its strength at full (before the shot's fade, its view and Looter.Vfx.Muzzle.Glow). */
+	float Glow = 1.f;
+	/** The shape's param (EVfxFlashShape); a streak's is drawn again each shot (VfxRules::MuzzleStreakShare). */
+	float Param = 0.f;
+};
+
+/** How each layer of a flash is drawn for one view (VfxRules::MuzzleView): all 1 from behind (third person). */
+struct FVfxMuzzleView
+{
+	float Core = 1.f;
+	float Bloom = 1.f;
+	float Star = 1.f;
+	float Tongue = 1.f;
+	/** A brake's jets and a cylinder's spit. */
+	float Jet = 1.f;
+	/** The whole flash's size and strength (aimed down the sights they shrink and dim). */
+	float Size = 1.f;
+	float Glow = 1.f;
 };
 
 /** The extra kill layers a tier earns over a Regular's (VfxRules::TierLayers). */

@@ -52,8 +52,54 @@ namespace VfxRules
 	/** What a tier adds to a kill (none for a Regular; Restless a ring; Gravebound two and a star; the top two small under their show). */
 	AI_LOOTER_SHOOTER_API FVfxTierLayers TierLayers(ECreatureRank Rank);
 
-	/** A gun kind's muzzle (SpawnMuzzleBurst's layers, and the flash GUNS-CODE draws: the proposal). */
+	// --- The muzzle (VfxRulesMuzzle.cpp; the flash reworked 2026-10-22) ---
+
+	/** A gun kind's muzzle: SpawnMuzzleBurst's layers and the flash's (shotgun big, SMG small and quick, sniper sharp, launcher a puff). */
 	AI_LOOTER_SHOOTER_API FVfxMuzzleLook MuzzleLook(EWeaponKind Kind);
+
+	/**
+	 * A look's flash quads at scale 1 (appended to Out): a white-hot core and a soft orange bloom facing back down the barrel,
+	 * a star of thin spikes, tongues along the barrel for side views, a brake's jets, a cylinder's spit.
+	 */
+	AI_LOOTER_SHOOTER_API void MuzzleQuads(const FVfxMuzzleLook& Look, TArray<FVfxFlashQuad>& Out);
+
+	/**
+	 * Each layer's size for a view: from behind as built; in the player's own view the star, bloom and jets smaller and the
+	 * tongues short (along the barrel is toward the crosshair), and all of it smaller and dimmer aimed down the sights
+	 * (AimAlpha 0 hip .. 1 aimed).
+	 */
+	AI_LOOTER_SHOOTER_API FVfxMuzzleView MuzzleView(bool bFirstPerson, float AimAlpha, const FVfxTuning& Tuning);
+
+	/** A layer's size in a view (its FVfxMuzzleView field). */
+	AI_LOOTER_SHOOTER_API float MuzzleLayerScale(EVfxFlashLayer Layer, const FVfxMuzzleView& View);
+
+	/**
+	 * A quad's place on the flash at its layer's scale and the gun's flash scale (the Plane is 100 cm): it grows from the
+	 * muzzle; a tongue's or jet's width only by the root of its scale (a short tongue stays a lick of flame, not a sliver).
+	 */
+	AI_LOOTER_SHOOTER_API FTransform MuzzleQuadTransform(const FVfxFlashQuad& Quad, float LayerScale, float GunScale);
+
+	/**
+	 * How far the flash reaches from the muzzle (cm at scale 1 in that view): out along the barrel (the tongues' tips) or
+	 * across it (the star's, bloom's and jets' edges).
+	 */
+	AI_LOOTER_SHOOTER_API float MuzzleReach(const TArray<FVfxFlashQuad>& Quads, const FVfxMuzzleView& View, bool bAlongBarrel);
+
+	/** The flash's strength Age s into its Duration: full at once, falling as (1 - share) ^ Power, nothing at the end. */
+	AI_LOOTER_SHOOTER_API float MuzzleFade(float Age, float Duration, float Power);
+
+	/**
+	 * The share of its size a first-person flash keeps so it stays clear of the crosshair: the muzzle MuzzleDegrees off the
+	 * view's middle, the flash's nearest edge NearestDegrees off it at full size; 1 when it already keeps ClearDegrees away,
+	 * else shrunk to keep out (at the least MinScale).
+	 */
+	AI_LOOTER_SHOOTER_API float MuzzleClearScale(float MuzzleDegrees, float NearestDegrees, float ClearDegrees, float MinScale);
+
+	/** ClearDegrees round the view's middle as a share of the screen's width (M_FX_Muzzle's hole), for a horizontal field of view. */
+	AI_LOOTER_SHOOTER_API float MuzzleClearShare(float ClearDegrees, float HorizontalFovDegrees);
+
+	/** The share of a streak's length one shot shows (Random 0..1): each flash's tongues a little different, never under 0.55. */
+	AI_LOOTER_SHOOTER_API float MuzzleStreakShare(float Random);
 
 	/**
 	 * A gun kind's tracer for the round RoundsLeft in its magazine: an SMG's thin short needles, a sniper's thick bright line,

@@ -20,6 +20,40 @@ namespace
 		TEXT("A kill's shock rings (soul-light, tiers), times their strength (0: none)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxMuzzleScale(TEXT("Looter.Vfx.Muzzle.Scale"), VfxDefaults.MuzzleScale,
 		TEXT("The smoke, sparks, side jets and rings round a shot's flash, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleFlash(TEXT("Looter.Vfx.Muzzle.Flash"), VfxDefaults.MuzzleFlash,
+		TEXT("The muzzle flash's size, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleGlow(TEXT("Looter.Vfx.Muzzle.Glow"), VfxDefaults.MuzzleGlow,
+		TEXT("The muzzle flash's strength, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleTime(TEXT("Looter.Vfx.Muzzle.Time"), VfxDefaults.MuzzleTime,
+		TEXT("How long the muzzle flash shows, times (each kind's own, about two frames at 60 fps)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleFadePower(TEXT("Looter.Vfx.Muzzle.FadePower"), VfxDefaults.MuzzleFadePower,
+		TEXT("How fast the flash fades over its time ((1 - age share) ^ this)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleJitter(TEXT("Looter.Vfx.Muzzle.Jitter"), VfxDefaults.MuzzleJitter,
+		TEXT("Each shot's flash this share bigger or smaller at random."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleStar1P(TEXT("Looter.Vfx.Muzzle.Star1P"), VfxDefaults.MuzzleStar1P,
+		TEXT("The flash's star in the player's own view, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleTongue1P(TEXT("Looter.Vfx.Muzzle.Tongue1P"), VfxDefaults.MuzzleTongue1P,
+		TEXT("The flash's tongues along the barrel in the player's own view (they run toward the crosshair), times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleBloom1P(TEXT("Looter.Vfx.Muzzle.Bloom1P"), VfxDefaults.MuzzleBloom1P,
+		TEXT("The flash's soft bloom in the player's own view, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleJets1P(TEXT("Looter.Vfx.Muzzle.Jets1P"), VfxDefaults.MuzzleJets1P,
+		TEXT("A brake's jets and a cylinder's spit in the player's own view, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleAim(TEXT("Looter.Vfx.Muzzle.Aim"), VfxDefaults.MuzzleAim,
+		TEXT("The flash's size aimed down the sights, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleAimGlow(TEXT("Looter.Vfx.Muzzle.AimGlow"), VfxDefaults.MuzzleAimGlow,
+		TEXT("The flash's strength aimed down the sights, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleClear(TEXT("Looter.Vfx.Muzzle.Clear"), VfxDefaults.MuzzleClear,
+		TEXT("Degrees round the crosshair the flash keeps out of, from the hip (0: none)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleAimClear(TEXT("Looter.Vfx.Muzzle.AimClear"), VfxDefaults.MuzzleAimClear,
+		TEXT("...and aimed down the sights."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleClearMin(TEXT("Looter.Vfx.Muzzle.ClearMin"), VfxDefaults.MuzzleClearMin,
+		TEXT("The least share of its size the flash shrinks to keeping clear of the crosshair."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleSparks1P(TEXT("Looter.Vfx.Muzzle.Sparks1P"), VfxDefaults.MuzzleSparks1P,
+		TEXT("The share of a shot's sparks thrown in the player's own view (small, flying out away from the crosshair)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleSmoke1P(TEXT("Looter.Vfx.Muzzle.Smoke1P"), VfxDefaults.MuzzleSmoke1P,
+		TEXT("A shot's smoke opacity in the player's own view, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLight(TEXT("Looter.Vfx.Muzzle.Light"), VfxDefaults.MuzzleLight,
+		TEXT("The muzzle flash's point light, times (0: none)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxPowerScale(TEXT("Looter.Vfx.Power.Scale"), VfxDefaults.PowerScale,
 		TEXT("The ember powers' new punch (activation rings, body hits, blasts, strikes), times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxBlastScale(TEXT("Looter.Vfx.Blast.Scale"), VfxDefaults.BlastScale,
@@ -74,6 +108,23 @@ FVfxTuning FVfxTuning::Live()
 	Tuning.KillScale = VfxNotBelowZero(CVarVfxKillScale);
 	Tuning.KillRing = VfxNotBelowZero(CVarVfxKillRing);
 	Tuning.MuzzleScale = VfxNotBelowZero(CVarVfxMuzzleScale);
+	Tuning.MuzzleFlash = VfxNotBelowZero(CVarVfxMuzzleFlash);
+	Tuning.MuzzleGlow = VfxNotBelowZero(CVarVfxMuzzleGlow);
+	Tuning.MuzzleTime = FMath::Max(CVarVfxMuzzleTime.GetValueOnGameThread(), 0.1f);
+	Tuning.MuzzleFadePower = FMath::Clamp(CVarVfxMuzzleFadePower.GetValueOnGameThread(), 0.25f, 8.f);
+	Tuning.MuzzleJitter = FMath::Clamp(CVarVfxMuzzleJitter.GetValueOnGameThread(), 0.f, 0.9f);
+	Tuning.MuzzleStar1P = VfxNotBelowZero(CVarVfxMuzzleStar1P);
+	Tuning.MuzzleTongue1P = VfxNotBelowZero(CVarVfxMuzzleTongue1P);
+	Tuning.MuzzleBloom1P = VfxNotBelowZero(CVarVfxMuzzleBloom1P);
+	Tuning.MuzzleJets1P = VfxNotBelowZero(CVarVfxMuzzleJets1P);
+	Tuning.MuzzleAim = VfxNotBelowZero(CVarVfxMuzzleAim);
+	Tuning.MuzzleAimGlow = VfxNotBelowZero(CVarVfxMuzzleAimGlow);
+	Tuning.MuzzleClear = FMath::Clamp(CVarVfxMuzzleClear.GetValueOnGameThread(), 0.f, 30.f);
+	Tuning.MuzzleAimClear = FMath::Clamp(CVarVfxMuzzleAimClear.GetValueOnGameThread(), 0.f, 30.f);
+	Tuning.MuzzleClearMin = FMath::Clamp(CVarVfxMuzzleClearMin.GetValueOnGameThread(), 0.f, 1.f);
+	Tuning.MuzzleSparks1P = VfxNotBelowZero(CVarVfxMuzzleSparks1P);
+	Tuning.MuzzleSmoke1P = VfxNotBelowZero(CVarVfxMuzzleSmoke1P);
+	Tuning.MuzzleLight = VfxNotBelowZero(CVarVfxMuzzleLight);
 	Tuning.PowerScale = VfxNotBelowZero(CVarVfxPowerScale);
 	Tuning.BlastScale = VfxNotBelowZero(CVarVfxBlastScale);
 	Tuning.Glow = VfxNotBelowZero(CVarVfxGlow);

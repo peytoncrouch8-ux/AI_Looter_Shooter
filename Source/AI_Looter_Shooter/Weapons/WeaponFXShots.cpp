@@ -29,8 +29,29 @@ namespace
 	const FLinearColor MuzzleHotColor(1.f, 0.82f, 0.55f);
 	/** Gun smoke for a burst's breath, a little warmer than the wisp's. */
 	const FLinearColor MuzzleSmoke(0.66f, 0.65f, 0.63f);
-	/** In the player's own view, smoke starts this far out along the barrel (cm): nearer, it fills the screen. */
-	constexpr float FirstPersonSmokeOut = 45.f;
+	/**
+	 * In the player's own view, smoke starts this far out along the barrel and this far aside, away from the crosshair (cm):
+	 * nearer, it fills the screen; straight on along the barrel, it hangs over the target.
+	 */
+	constexpr float FirstPersonSmokeOut = 22.f;
+	constexpr float FirstPersonSmokeAside = 8.f;
+	/** ...and drifts off that way (cm/s), as big as this share of its size from behind. */
+	constexpr float FirstPersonSmokeDrift = 45.f;
+	constexpr float FirstPersonSmokeSize = 0.7f;
+	/**
+	 * In the player's own view, sparks are small glints thrown out away from the crosshair, not forward: a spark is a world
+	 * particle drawn at the muzzle as the eye sees it (half a metre off), where a forward spark's streak drew as a big yellow
+	 * diamond over the target (the user, 2026-10-22). Width and longest length (cm), speed (cm/s), life (s).
+	 */
+	constexpr float FirstPersonSparkGlow = 14.f;
+	constexpr float FirstPersonSparkWidth = 0.3f;
+	constexpr float FirstPersonSparkLength = 3.5f;
+	constexpr float FirstPersonSparkSlow = 350.f;
+	constexpr float FirstPersonSparkFast = 700.f;
+	constexpr float FirstPersonSparkShort = 0.05f;
+	constexpr float FirstPersonSparkLong = 0.09f;
+	/** How much of a first-person spark's way is along the barrel (the rest out from the middle). */
+	constexpr float FirstPersonSparkForward = 0.35f;
 }
 
 void FWeaponFX::SpawnRicochet(const FVector& Location, const FVector& Direction, float Scale)
@@ -113,8 +134,30 @@ void FWeaponFX::SpawnMuzzleBurst(const FVfxMuzzle& Muzzle)
 	// A fast gun throws its sparks and smoke on every so many rounds of a burst: every round's would be a cloud.
 	const bool bThrows = Look.Every <= 1 || Muzzle.InBurst % Look.Every == 0;
 
-	// Unburnt powder: hot sparks thrown out with the shot in a cone.
-	if (bThrows)
+	// In the player's own view, the way out from the crosshair to the muzzle (else the barrel's up): the sparks and smoke go off
+	// that way, the side jets and spit are smaller.
+	const FVector Away = Muzzle.bFirstPerson && !Muzzle.Away.IsNearlyZero() ? Muzzle.Away.GetSafeNormal() : Up;
+	const float Jets = Muzzle.bFirstPerson ? Vfx.MuzzleJets1P : 1.f;
+
+	// Unburnt powder: in the player's own view a few small glints flying out from the crosshair...
+	if (bThrows && Muzzle.bFirstPerson)
+	{
+		const int32 Glints = VfxRules::Count(Look.Sparks, Vfx.MuzzleSparks1P);
+		for (int32 Index = 0; Index < Glints; ++Index)
+		{
+			const FVector Out = (Away + Forward * FirstPersonSparkForward + Random.GetUnitVector() * 0.3f).GetSafeNormal();
+			FParticle& Spark = AddParticle(EParticle::Streak, From, Out * Random.FRandRange(FirstPersonSparkSlow, FirstPersonSparkFast),
+				Random.FRandRange(FirstPersonSparkShort, FirstPersonSparkLong));
+			Spark.Color = MuzzleSparkColor;
+			Spark.Intensity = FirstPersonSparkGlow * Vfx.Glow;
+			Spark.StartSize = FirstPersonSparkWidth;
+			Spark.EndSize = FirstPersonSparkLength * Scale;
+			Spark.Drag = 4.f;
+			Spark.Gravity = 0.2f;
+		}
+	}
+	// ...from behind, hot sparks thrown out with the shot in a cone.
+	else if (bThrows)
 	{
 		for (int32 Index = 0; Index < Look.Sparks; ++Index)
 		{
@@ -133,11 +176,11 @@ void FWeaponFX::SpawnMuzzleBurst(const FVfxMuzzle& Muzzle)
 		for (const float Sign : { -1.f, 1.f })
 		{
 			const FVector Out = (Side * Sign + Forward * 0.25f).GetSafeNormal();
-			FParticle& Jet = AddParticle(EParticle::Streak, From - Forward * 4.f * Scale, Out * 2400.f * Scale, 0.05f);
+			FParticle& Jet = AddParticle(EParticle::Streak, From - Forward * 4.f * Scale, Out * 2400.f * Scale * Jets, 0.05f);
 			Jet.Color = MuzzleHotColor;
 			Jet.Intensity = 22.f * Vfx.Glow;
-			Jet.StartSize = 7.f * Scale;
-			Jet.EndSize = Look.SideJets * Scale;
+			Jet.StartSize = 7.f * Scale * Jets;
+			Jet.EndSize = Look.SideJets * Scale * Jets;
 			Jet.Gravity = 0.f;
 			Jet.Drag = 18.f;
 			if (!Muzzle.bFirstPerson)
@@ -161,24 +204,29 @@ void FWeaponFX::SpawnMuzzleBurst(const FVfxMuzzle& Muzzle)
 			FParticle& Spit = AddParticle(EParticle::Flash, Gap + Side * (Sign * 2.f * Scale), Side * (Sign * 120.f), 0.04f);
 			Spit.Color = MuzzleHotColor;
 			Spit.Intensity = 16.f * Vfx.Glow;
-			Spit.StartSize = Look.GapSpit * 0.5f * Scale;
-			Spit.EndSize = Look.GapSpit * Scale;
+			Spit.StartSize = Look.GapSpit * 0.5f * Scale * Jets;
+			Spit.EndSize = Look.GapSpit * Scale * Jets;
 			Spit.Gravity = 0.f;
 		}
 	}
-	// Smoke left hanging where it fired, drifting on along the shot and rising as it spreads (clear of the eye in first person).
+	// Smoke left hanging where it fired, drifting on along the shot and rising as it spreads (in first person a smaller,
+	// fainter wisp clear of the eye, set aside and drifting off away from the crosshair).
 	if (bThrows)
 	{
-		const float Out = Muzzle.bFirstPerson ? FirstPersonSmokeOut : 10.f * Scale;
+		const bool bAside = Muzzle.bFirstPerson;
+		const float Out = bAside ? FirstPersonSmokeOut : 10.f * Scale;
+		const FVector Aside = bAside ? Away * FirstPersonSmokeAside : FVector::ZeroVector;
+		const FVector Drift = bAside ? Away * FirstPersonSmokeDrift : FVector::ZeroVector;
+		const float Size = bAside ? FirstPersonSmokeSize : 1.f;
 		for (int32 Index = 0; Index < Look.SmokePuffs; ++Index)
 		{
 			const float Along = Out + static_cast<float>(Index) * 8.f * Scale;
-			FParticle& Puff = AddParticle(EParticle::Smoke, From + Forward * Along, Forward * Random.FRandRange(90.f, 220.f) * Scale + Up * 25.f
-				+ Random.GetUnitVector() * 20.f, Random.FRandRange(0.8f, 1.4f));
+			FParticle& Puff = AddParticle(EParticle::Smoke, From + Forward * Along + Aside, Forward * Random.FRandRange(90.f, 220.f) * Scale * Size
+				+ Up * 25.f + Drift + Random.GetUnitVector() * 20.f, Random.FRandRange(0.8f, 1.4f));
 			Puff.Color = MuzzleSmoke * Muzzle.DustLight;
-			Puff.Intensity = (Muzzle.bFirstPerson ? 0.2f : 0.34f) * Vfx.Smoke;
-			Puff.StartSize = Look.SmokeSize * 0.3f * Scale;
-			Puff.EndSize = Look.SmokeSize * Scale * Random.FRandRange(0.85f, 1.15f);
+			Puff.Intensity = (bAside ? 0.2f * Vfx.MuzzleSmoke1P : 0.34f) * Vfx.Smoke;
+			Puff.StartSize = Look.SmokeSize * 0.3f * Scale * Size;
+			Puff.EndSize = Look.SmokeSize * Scale * Size * Random.FRandRange(0.85f, 1.15f);
 			Puff.Gravity = -0.06f;
 			Puff.Drag = 2.6f;
 		}
