@@ -765,7 +765,7 @@ MISSIONS = [
                      "Purcell and the Gilded Lily. Go home to Delia first: she has kept something back. Tilly's hearse "
                      "car waits at the depot."),
          # Turned in at Tilly's, not Delia's, whose step it was: the tracker says why (round 3 of 2026-10-23: no hint).
-         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', why="Tilly's hearse car waits at the depot"),
+         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', why="Tilly is readying her hearse car: see her at her shop"),
          rewards=dict(experience=4100, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
 ]
 
