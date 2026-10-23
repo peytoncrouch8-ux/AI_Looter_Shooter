@@ -18,7 +18,7 @@ RR play-check (01:30) **for the user**: early fights kill a standing-still playe
 Main Street ambush: 7-10 hits of 21-26 in 5 s) — balance call is the user's (DamageScale 1.8 stays until they say);
 deaths respawn at the farm plot far from town (BUGS-UI reports two options). Being fixed: Main 2's "[Tab], then 2" (Ledger
 is tab 3), inventory under the HUD tracker/loot card, first Interact missing with the prompt showing, a gate Unpaid
-straying and holding 6/7, the sniper held one-handed after pickup (FP-GRIP), Tilly not visible at her window and the
+straying and holding 6/7, the sniper "one-handed" (FP-GRIP: not a bug — the trigger glove sits ~6 cm below the frame at the hip because of the user's pull-in framing; rifle and LMG too; an unapplied option in Saved/FPGrip2Code: sniper HipAhead 0, HipUp 1, partly undoing the pull-in — **ask the user**), Tilly not visible at her window and the
 Sexton flat dark / gold when highlighted (NPC-LOOK).
 
 ## Night of 2026-10-22 (the user went to bed; their calls)
