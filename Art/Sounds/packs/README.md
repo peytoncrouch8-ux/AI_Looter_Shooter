@@ -117,3 +117,23 @@ with the event the same time in (`guns_foley._FOLEY`):
 
 `SMG_TMP_Bolt.wav` (above) also makes Weapon.SMG.Charge; `Impact_Concrete.wav` Impact.Heavy, Impact.Scatter and
 Creature.Crit.Shell; `Impact_Body.wav` and `Impact_PunchWet.wav` Creature.Hit.Heavy and Creature.Crit.Gel.
+
+Wood, dirt and flesh (2026-10-23, the user's yes, relayed by Main, to one more part of the same bundles). Downloaded from the
+bundles' mirror `ftpmirror.your.org/pub/misc/sonniss2016|2017/individual/` into `Saved/SoundPacks/Sonniss/<year>/<library>/`
+(each with its year's `Licensing.pdf`): 2017 Double Trouble Audio - Wood Impacts and Debris (4 files, 1.3 MB), 2017
+Mechanical Wave - Rock,Brick and Dirt - Part 02 (4 files, 9.1 MB), 2016 SoundBits - Just Gore | Add On (folder `SoundBits -
+Just Gore - Add On`, 4 files, 2.6 MB). Played faster and cut short in `recipes/guns_impacts.py` (wood, dirt, flesh):
+
+| Excerpt (`Sonniss/`) | Source (library: file; seconds used) | Used for |
+|---|---|---|
+| `Impact_WoodHard.wav` | Double Trouble: `Impacts Hard - Short Wobbly Tail 01.wav` 0.25-0.63 | Impact.Wood |
+| `Impact_WoodCrack.wav` | Double Trouble: `Impacts Soft - Short, Crack.wav` 0.06-0.45 | Impact.Wood |
+| `Impact_WoodPlank.wav` | Double Trouble: `Drop Soft - Single Plank, Drop 02.wav` 0.14-0.33, 0.31-0.55 | Impact.Wood |
+| `Impact_DirtRock.wav` | Mechanical Wave: `Multiple Rock Hit Dirt_RBDII 07.wav` six 0.43 s windows from 0.615, 1.23, 2.935, 4.66, 6.205, 8.585 | Impact.Dirt, Impact.Grass |
+| `Impact_GravelRock.wav` | Mechanical Wave: `Hit Rock into Gravel_RBDII 06.wav` 0.06-0.6 | Impact.Dirt (take 7) |
+| `Flesh_Stab.wav` | SoundBits: `Stab_Punch_Hit_136.wav` 0.02-0.5 | Creature.Hit, Creature.Hit.Heavy |
+| `Flesh_Splat.wav` | SoundBits: `Splatter_Splat_153.wav` 0-0.45 | Creature.Hit, Creature.Hit.Heavy |
+| `Flesh_Crunch.wav` | SoundBits: `Crunch_Rip_024.wav` 0.1-0.45, 1.75-2.15 | Creature.Hit, Creature.Hit.Heavy |
+
+Not used yet (on disk only): `Rustles - Pile, Debris 22.wav`, `Crumbling Rock Slide_RBDII 07.wav`, `Rock Hit and Bounce
+Dirt_RBDII 06.wav`, `Blood-Squeeze_Drip_045.wav`.

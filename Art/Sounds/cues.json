@@ -1677,7 +1677,7 @@
       "Creature_Hit_Heavy_04.wav",
       "Creature_Hit_Heavy_05.wav"
     ],
-    "volume_db": -17.0,
+    "volume_db": -16.0,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",
@@ -1756,7 +1756,7 @@
       "Impact_Wood_05.wav",
       "Impact_Wood_06.wav"
     ],
-    "volume_db": -1.5,
+    "volume_db": -4.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -1807,7 +1807,7 @@
       "Impact_Dirt_05.wav",
       "Impact_Dirt_06.wav"
     ],
-    "volume_db": -5.0,
+    "volume_db": -6.0,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -1824,7 +1824,7 @@
       "Impact_Grass_05.wav",
       "Impact_Grass_06.wav"
     ],
-    "volume_db": -6.0,
+    "volume_db": -7.0,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -2976,7 +2976,7 @@
       "Creature_Hit_04.wav",
       "Creature_Hit_05.wav"
     ],
-    "volume_db": -10.0,
+    "volume_db": -4.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",

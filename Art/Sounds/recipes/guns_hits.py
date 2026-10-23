@@ -94,8 +94,9 @@ def creature_hit_heavy(v, r):
     punch = F.filt(punch, F.hp(60.0), F.lpn(5000.0, 2), extend=False)
     body = varispeed(REC.body(v, child(r, 'body')), 0.8)
     wet = REC.wet(v, child(r, 'wet'))
+    flesh = varispeed(REC.flesh(v, child(r, 'flesh')), 0.85)
     x = layers((_loud(sub, 0.005), 0.0, -1.0), (_loud(punch, 0.005), 0.0, 0.0), (_loud(body, 0.005), 0.0, -4.0),
-               (_loud(wet, 0.005), 0.012, -12.0))
+               (_loud(wet, 0.005), 0.012, -12.0), (_loud(flesh, 0.005), 0.002, -5.0))
     x = D.drive(normalize(x), 3.0, 'tanh')
     return _ease(F.filt(x, F.hp(35.0), extend=False), -6.0, -4.0)
 

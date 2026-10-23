@@ -75,6 +75,8 @@ def impact_wood(v, r):
     fibers = kit.creak(0.08, child(r, 'fibers'), 900.0, 300.0, (1300.0, 2600.0, 4200.0), 4.0)
     parts = [(crack, 0.0, -4.0), (knock, 0.0, 0.0), (hollow, 0.0, -9.0), (splinters, 0.002, -13.0),
              (fibers, 0.004, -20.0), (_pebbles(0.35, r, 3, 0.07, 1200.0, 3500.0), 0.0, -26.0)]
+    # A recorded board's crack and knock (2026-10-23); its own random stream, so the rest is unchanged.
+    parts.append(kit.set_level(REC.wood(v, rng('Impact.Wood', v, 'rec')), layers(*parts), -2.0, 0.01))
     return _slap(layers(*parts), r, -21.0)
 
 
@@ -147,6 +149,8 @@ def impact_dirt(v, r):
     clods = _clods(0.4, child(r, 'fall'), 4 + int(r.integers(0, 4)), 0.09)
     x = layers((_strike(r, 1800.0, 9000.0), 0.0, -6.0), (thud, 0.0, 0.0), (puff, 0.001, -8.0), (spray, 0.003, -10.0),
                (clods, 0.0, -19.0))
+    # A recorded rock into dirt (2026-10-23): the real thud and soil; its own random stream.
+    x = layers(x, kit.set_level(REC.dirt(v, rng('Impact.Dirt', v, 'rec')), x, -2.0, 0.01))
     return _slap(_ease(x), r, -22.0)
 
 
@@ -163,6 +167,9 @@ def impact_grass(v, r):
     soil = kit.grit_burst(0.22, child(r, 'soil'), 3500.0, 700.0, 3200.0, 0.12)
     x = layers((_strike(r, 1500.0, 7000.0), 0.0, -12.0), (thud, 0.0, 0.0), (tear, 0.001, -9.0), (swish, 0.002, -14.0),
                (soil, 0.004, -14.0), (_clods(0.3, child(r, 'fall'), 2 + int(r.integers(0, 2)), 0.08), 0.0, -24.0))
+    # The soil under the turf: a recorded dirt hit, muffled, well under the thud (2026-10-23).
+    soil_rec = F.filt(REC.dirt(v + 1, rng('Impact.Grass', v, 'rec')), F.lpn(3000.0, 2), extend=False)
+    x = layers(x, kit.set_level(soil_rec, x, -7.0, 0.01))
     return _slap(_ease(F.filt(x, F.lp(7000.0, 0.7), extend=False), -6.0), r, -23.0)
 
 

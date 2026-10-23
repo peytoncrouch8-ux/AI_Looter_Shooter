@@ -92,3 +92,42 @@ def flyby(v, r):
     c = F.filt(c, F.hpn(1800.0, 4), extend=False)
     out = layers((normalize(x), 0.0, 0.0), (normalize(c), 0.0, -4.0))
     return F.filt(out, F.peak(3300.0, -6.0, 0.7), F.hp(350.0, 0.7), extend=False)
+
+
+# --- Wood, dirt and flesh (2026-10-23: the user's yes to one more part of the same bundles) -----------------------------
+# Boards struck and dropped, rocks thrown into dirt, a stab, a splat and a crunch: none of them a bullet, so each is played
+# faster (a smaller, quicker thing hitting) and cut short. Their hits (s into each excerpt; make_pack.py prints them):
+_TAKES = {
+    'wood': [('Impact_WoodHard.wav', 0.051), ('Impact_WoodCrack.wav', 0.040), ('Impact_WoodPlank.wav', 0.038),
+             ('Impact_WoodPlank.wav', 0.477)],
+    'dirt': [('Impact_DirtRock.wav', t) for t in (0.035, 0.714, 1.396, 2.073, 2.754, 3.434)] +
+            [('Impact_GravelRock.wav', 0.038)],
+    'flesh': [('Flesh_Stab.wav', 0.032), ('Flesh_Splat.wav', 0.039), ('Flesh_Crunch.wav', 0.069),
+              ('Flesh_Crunch.wav', 0.653)],
+}
+
+
+def _take(kind, v, r, length, speed):
+    """Take v of a kind's list from its hit, length seconds, played speed times faster (jittered a little)."""
+    name, at = _TAKES[kind][v % len(_TAKES[kind])]
+    y = S.slice_at(S.load(name), at, length, fade_out=0.03, search=0.008)
+    y = varispeed(y, speed * jitter(r, 1.0, 0.06))
+    return E.end_fade(y, 0.01)
+
+
+def wood(v, r):
+    """A board or a post taking a round: a recorded board's crack and knock, played faster, its fizz and 3 kHz eased."""
+    x = S.gate_tail(_take('wood', v, child(r, 'wood'), 0.3, [1.35, 1.2, 1.5, 1.3, 1.25, 1.45][v % 6]), 0.05, 0.12)
+    return _ease(F.filt(x, F.hp(100.0), extend=False), -6.0, -4.0)
+
+
+def dirt(v, r):
+    """A round into packed earth: a recorded rock thrown into dirt (the thud and the soil it throws), played faster."""
+    x = S.gate_tail(_take('dirt', v, child(r, 'dirt'), 0.35, [1.3, 1.4, 1.25, 1.35, 1.45, 1.3][v % 6]), 0.06, 0.15)
+    return _ease(F.filt(x, F.hp(70.0), F.lpn(8000.0, 2), extend=False), -5.0, -3.0)
+
+
+def flesh(v, r):
+    """A round into flesh: a recorded stab, splat or crunch, short and meaty, its top eased."""
+    x = S.gate_tail(_take('flesh', v, child(r, 'flesh'), 0.25, [1.1, 1.0, 1.15, 1.05, 1.0][v % 5]), 0.04, 0.1)
+    return _ease(F.filt(x, F.hp(60.0), F.lpn(7000.0, 2), extend=False), -6.0, -4.0)

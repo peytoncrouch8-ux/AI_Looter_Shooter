@@ -56,6 +56,8 @@ def creature_hit(v, r):
                (squish, 0.004, -10.0), (crack, 0.0, -15.0))
     # A recorded body thump (2026-10-21) for the meat of it; its own random stream, so the rest is unchanged.
     x = layers(x, kit.set_level(REC.body(v, rng('Creature.Hit', v, 'rec')), x, -1.0, 0.01))
+    # A recorded stab, splat or crunch of flesh (2026-10-23) for the wound itself; its own random stream.
+    x = layers(x, kit.set_level(REC.flesh(v, rng('Creature.Hit', v, 'flesh')), x, -4.0, 0.01))
     return F.filt(x, F.peak(3200.0, -3.0, 0.8))
 
 

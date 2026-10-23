@@ -29,6 +29,9 @@ PP = '2016/Pole Position Production - '
 GM = '2017/Gamemaster Audio -  '
 AB = '2016/Audiobeast - The London Warehouse Firearms Library/'
 TS = '2016/TS Sound - 12 Gauge Shotgun/'
+DT = '2017/Double Trouble Audio - Wood Impacts and Debris/'
+MW = '2017/Mechanical Wave - Rock,Brick and Dirt - Part 02/'
+GB = '2016/SoundBits - Just Gore - Add On/'
 
 # Excerpt name: (source under Saved/SoundPacks/Sonniss, windows (start, end) in seconds, channels: 'keep' or 'mono').
 EXCERPTS = {
@@ -175,6 +178,17 @@ EXCERPTS = {
     # A round dropped on a board (the revolver's empties landing) and a heavy, distorted body punch (a big round's thump).
     'Foley_Brass_Drop.wav': ('2016/Stuart Duffield - Bullet SFX/Bullet_Drop_Wood_04.wav', [(0.1, 0.72)], 'mono'),
     'Impact_PunchHeavy.wav': (GM + 'Punch Sound Pack/punch_heavy_huge_distorted_01.wav', [(0.0, 0.48)], 'mono'),
+    # Wood, dirt and flesh (2026-10-23, the user's yes to one more part of the same bundles): boards struck and dropped,
+    # rocks thrown into dirt and gravel, a stab, a splat and a crunch. Each window starts a little before its hit.
+    'Impact_WoodHard.wav': (DT + 'Impacts Hard - Short Wobbly Tail 01.wav', [(0.25, 0.63)], 'mono'),
+    'Impact_WoodCrack.wav': (DT + 'Impacts Soft - Short, Crack.wav', [(0.06, 0.45)], 'mono'),
+    'Impact_WoodPlank.wav': (DT + 'Drop Soft - Single Plank, Drop 02.wav', [(0.14, 0.33), (0.31, 0.55)], 'mono'),
+    'Impact_DirtRock.wav': (MW + 'Multiple Rock Hit Dirt_RBDII 07.wav',
+                            [(p - 0.03, p + 0.4) for p in (0.645, 1.26, 2.965, 4.69, 6.235, 8.615)], 'mono'),
+    'Impact_GravelRock.wav': (MW + 'Hit Rock into Gravel_RBDII 06.wav', [(0.06, 0.6)], 'mono'),
+    'Flesh_Stab.wav': (GB + 'Stab_Punch_Hit_136.wav', [(0.02, 0.5)], 'mono'),
+    'Flesh_Splat.wav': (GB + 'Splatter_Splat_153.wav', [(0.0, 0.45)], 'mono'),
+    'Flesh_Crunch.wav': (GB + 'Crunch_Rip_024.wav', [(0.1, 0.45), (1.75, 2.15)], 'mono'),
 }
 
 
