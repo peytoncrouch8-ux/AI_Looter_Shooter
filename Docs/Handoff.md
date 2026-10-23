@@ -6,6 +6,10 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 ## Night of 2026-10-22 (the user went to bed; their calls)
 - Extra sound bundle download: "Do what you feel is best" — Main's call: no download overnight (the download rule needs
   the exact file/source/size shown first); use the recordings on disk; show the user the file in the morning if needed.
+- **Ask the user in the morning** (download rule: file, source, size): three more parts of the same Sonniss GDC
+  bundle licence, from ftpmirror.your.org/pub/misc/sonniss2016|2017/individual/, for wood/dirt/flesh impacts:
+  2017 Double Trouble Audio "Wood Impacts and Debris" (4 files, ~1.3 MB); 2017 Mechanical Wave "Rock, Brick and Dirt
+  Part 02" (4 files, ~8.8 MB); 2016 SoundBits "Just Gore | Add On" (4 files, ~2.5 MB). Not downloaded.
 - Overnight: "Polish + play-checks": finish, play-check and fix the gun feel and grips, then keep fixing what play-checks
   find in Ransom's Rest.
 - FP grip: modern tactical (high grip, support hand far forward, thumb over / C-clamp on rifles) "but not so much hand
