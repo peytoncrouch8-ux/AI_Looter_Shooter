@@ -258,6 +258,32 @@ bool FVfxMuzzleFlashRulesTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("A streak's shortest share"), VfxRules::MuzzleStreakShare(0.f), 0.55f);
 	TestEqual(TEXT("...and its longest"), VfxRules::MuzzleStreakShare(1.f), 1.f);
+
+	// The play-check (2026-10-22): a revolver drawn big and close flashed over half the screen; the first-person flash is capped.
+	TestEqual(TEXT("A flash inside the cap keeps its size"), VfxRules::MuzzleSizeCap(6.f, 8.f), 1.f);
+	TestEqual(TEXT("...one twice past it is halved"), VfxRules::MuzzleSizeCap(16.f, 8.f), 0.5f, 0.0001f);
+	TestEqual(TEXT("...no cap at 0"), VfxRules::MuzzleSizeCap(40.f, 0.f), 1.f);
+	TestTrue(TEXT("The default cap is a few degrees"), Tuning.MuzzleMax1P > 3.f && Tuning.MuzzleMax1P < 15.f);
+	TestTrue(TEXT("First person the bloom no bigger than the star"), Hip.Bloom <= Hip.Star);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVfxSoftStreakRulesTest, "Looter.Vfx.Rules.SoftStreaks", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FVfxSoftStreakRulesTest::RunTest(const FString& Parameters)
+{
+	// The play-check (2026-10-22): sparks and tracer heads by a close target drew as flat yellow diamonds over it. As soft
+	// streaks they are never bigger on screen than their cvars allow.
+	const FVfxTuning Tuning;
+	const float Near = VfxRules::StreakWidthAt(1.2f, 150.f, Tuning.SparkWidth);
+	TestTrue(FString::Printf(TEXT("A spark 1.5 m off is a thin line (%.2f cm)"), Near), Near <= 150.f * Tuning.SparkWidth + 0.001f && Near < 1.2f);
+	TestEqual(TEXT("...far off it keeps its width"), VfxRules::StreakWidthAt(1.2f, 3000.f, Tuning.SparkWidth), 1.2f);
+	TestTrue(TEXT("...and a spark's length is held too"), VfxRules::StreakWidthAt(30.f, 150.f, Tuning.SparkLength) < 10.f);
+	TestEqual(TEXT("No cap: as given"), VfxRules::StreakWidthAt(5.f, 10.f, 0.f), 5.f);
+	TestTrue(TEXT("Right at the eye still a hair, not nothing"), VfxRules::StreakWidthAt(1.f, 0.f, Tuning.SparkWidth) > 0.f);
+	TestTrue(TEXT("A tracer may be wider on screen than a spark, and wider than the bullets' least (0.0024 rad)"),
+		Tuning.TracerWidth > Tuning.SparkWidth && Tuning.TracerWidth > 0.0024f);
+	TestTrue(TEXT("Soft streaks are on by default"), Tuning.bSoftStreaks);
 	return true;
 }
 

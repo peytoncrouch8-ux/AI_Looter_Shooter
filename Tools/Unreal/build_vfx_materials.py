@@ -23,8 +23,8 @@ textures, so nothing to paint or import):
                    decal's colour (UDecalComponent::DecalColor, RGB and A), Wet (0 matte .. 1 glossy: lower roughness),
                    Seed (0..1, its shape), faded by the decal's lifetime (the pool's hold and fade).
   M_FX_Muzzle      /Game/Art/Materials/Masters (the muzzle rework, 2026-10-22): unlit, additive, two-sided, instanced static
-                   meshes (AWeaponBase's MuzzleFlash on the engine Plane; the old M_FX_Glow's flat-filled streaks washed to
-                   flat yellow cards). Custom data (WeaponBaseMuzzle.cpp, 8 floats): 0-2 colour, 3 strength, 4 shape
+                   meshes (AWeaponBase's MuzzleFlash on the engine Plane, and FWeaponFX's SoftStreaks: sparks and tracers as
+                   its streak; the old M_FX_Glow's flat-filled streaks washed to flat yellow cards). Custom data (WeaponBaseMuzzle.cpp, 8 floats): 0-2 colour, 3 strength, 4 shape
                    (EVfxFlashShape, M_FX_Glow's numbers: 0 streak, 1 round, 2 star), 5 param (a streak's length share this
                    shot; a round's softness, 0 tight white-hot core .. 1 wide bloom; a star's spikes 3-16), 6 seed (each
                    shot's), 7 the crosshair's hole (a share of the screen's width round its middle where nothing shows; 0
@@ -260,10 +260,11 @@ if (S < 0.5)
     // A tapered tongue of flame: its hot head at +X (the muzzle end), thinning to a soft point Param of the way along.
     float Len = clamp(Param, 0.2, 1.0);
     float T = saturate((1.0 - P.x) / (2.0 * Len));
-    float Half = lerp(0.85, 0.06, T);
+    // Its glow is gone well inside the quad: across (about half its width) and before its head's end.
+    float Half = lerp(0.45, 0.04, T);
     float Across = abs(P.y) / Half;
-    float Body = exp(-Across * Across * 2.5);
-    float Along = pow(1.0 - T, 1.6) * saturate((1.0 - P.x) * 8.0);
+    float Body = exp(-Across * Across * 2.0);
+    float Along = pow(1.0 - T, 1.6) * (1.0 - smoothstep(0.8, 1.0, P.x));
     M = Body * Along;
     C = lerp(Color, Hot, saturate(Body * Body * (1.0 - T) * (1.0 - T)));
     // Edge-on a streak is a hard line: gone as it turns away.
@@ -272,8 +273,9 @@ if (S < 0.5)
 else if (S < 1.5)
 {
     // A round glow: Param 0 a tight white-hot core, 1 a wide soft bloom.
-    float K = lerp(14.0, 3.2, saturate(Param));
-    M = exp(-R * R * K);
+    // (Its falloff is gone by 0.95 of its radius: a soft bloom once ended in a cut-off wedge of light.)
+    float K = lerp(14.0, 5.0, saturate(Param));
+    M = exp(-R * R * K) * (1.0 - smoothstep(0.5, 0.95, R));
     float Heart = exp(-R * R * K * 4.0);
     C = lerp(Color, Hot, Heart * (1.0 - saturate(Param)));
     Turn = smoothstep(0.05, 0.35, Facing);
@@ -287,24 +289,25 @@ else
     float N = floor(A / Step + 0.5);
     float D = A - N * Step;
     float Jitter = frac(sin(N * 12.9898 + Seed01 * 78.233) * 43758.5453);
-    float Len = lerp(0.5, 1.0, Jitter);
+    float Len = lerp(0.45, 0.9, Jitter);
     float Run = saturate(R / Len);
     float Perp = R * abs(sin(D)) / lerp(0.09, 0.006, Run);
     float Spike = exp(-Perp * Perp) * pow(1.0 - Run, 1.5) * lerp(0.7, 1.0, Jitter);
     float Core = exp(-R * R * 60.0);
     float Halo = exp(-R * R * 10.0) * 0.25;
-    M = Spike + Core * 1.5 + Halo;
+    M = (Spike + Core * 1.5 + Halo) * (1.0 - smoothstep(0.7, 0.95, R));
     C = lerp(Color, Hot, saturate(Core + Spike * (1.0 - Run) * 0.5));
     Turn = smoothstep(0.1, 0.45, Facing);
 }
-// Never a quad's edge.
-M *= saturate((1.0 - max(abs(P.x), abs(P.y))) * 10.0);
-// The crosshair's hole: nothing within Clear (a share of the screen's width) of the screen's middle.
+// Never a quad's edge (a last guard: every shape is already gone inside it).
+M *= 1.0 - smoothstep(0.85, 1.0, max(abs(P.x), abs(P.y)));
+// The crosshair's hole: nothing at the screen's middle, feathered out to twice Clear (a share of the screen's width) so it
+// never shows as a disc in the bloom (the flash is also shrunk to keep clear: WeaponBaseMuzzle.cpp).
 float Hole = 1.0;
 if (Clear > 0.0)
 {
     float2 Off = (Screen - 0.5) * float2(1.0, ViewSize.y / max(ViewSize.x, 1.0));
-    Hole = smoothstep(Clear * 0.7, Clear, length(Off));
+    Hole = smoothstep(Clear * 0.15, Clear * 2.2, length(Off));
 }
 return C * M * Strength * Glow * Turn * Hole;"""
 

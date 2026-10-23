@@ -430,7 +430,8 @@ void UBulletSubsystem::DrawTracer(const FBullet& Bullet, const FVector& Camera)
 	{
 		Width = FMath::Max(Width, FVector::Dist(Camera, Head) * MinTracerAngularWidth);
 	}
-	Effects.AddStreak(From, Head, Width, Shot.TracerColor, TracerGlow);
+	// On the soft tapered streak (FWeaponFX::EStreakLook::Tracer): seen end-on by a close target its head was a flat diamond.
+	Effects.AddStreak(From, Head, Width, Shot.TracerColor, TracerGlow, FWeaponFX::EStreakLook::Tracer);
 
 	// Its hot head: the round itself, white-hot at the front of the streak.
 	const FVector Along = Head - From;
@@ -439,7 +440,7 @@ void UBulletSubsystem::DrawTracer(const FBullet& Bullet, const FVector& Camera)
 	{
 		const float HeadLength = FMath::Min(Length * TracerHeadShare, TracerHeadMax);
 		Effects.AddStreak(Head - Along * (HeadLength / Length), Head, Width * TracerHeadWidth,
-			FMath::Lerp(Shot.TracerColor, TracerHeadHeat, TracerHeadWhite), TracerGlow * TracerHeadGlow);
+			FMath::Lerp(Shot.TracerColor, TracerHeadHeat, TracerHeadWhite), TracerGlow * TracerHeadGlow, FWeaponFX::EStreakLook::Tracer);
 	}
 
 	if (CVarDebugTracers.GetValueOnGameThread())

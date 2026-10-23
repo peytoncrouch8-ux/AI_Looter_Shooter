@@ -53,8 +53,16 @@ public:
 	void Initialize(UWorld* World);
 	void Shutdown();
 
+	/**
+	 * How a streak is drawn: a plain glow (M_FX_Glow's streak), or a tracer on the soft tapered streak (SoftStreaks, M_FX_Muzzle:
+	 * a hot head thinning to its tail, never wider on screen than Looter.Vfx.Tracer.Width; the play-check, 2026-10-22: a tracer's
+	 * head seen end-on near a close target was a flat yellow diamond over it).
+	 */
+	enum class EStreakLook : uint8 { Glow, Tracer };
+
 	/** A glowing streak drawn this frame only; bullets redraw their tracers every frame as they move. */
-	void AddStreak(const FVector& Tail, const FVector& Head, float Width, const FLinearColor& Color, float Intensity);
+	void AddStreak(const FVector& Tail, const FVector& Head, float Width, const FLinearColor& Color, float Intensity,
+		EStreakLook Look = EStreakLook::Glow);
 
 	/**
 	 * A round glow Size cm across at Location, facing the camera, drawn this frame only (a flash's soft disc): what reads of
@@ -315,6 +323,7 @@ private:
 		float Intensity;
 		/** A round glow at Head, Width across (AddGlow), not a line. */
 		bool bRound = false;
+		EStreakLook Look = EStreakLook::Glow;
 	};
 
 	FParticle& AddParticle(EParticle Type, const FVector& Location, const FVector& Velocity, float Life);
@@ -378,6 +387,11 @@ private:
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Shapes;
 	/** M_FX_Fire's quads (SpawnFlame), drawn far to near; null without it (the flames go on the smoke). */
 	TWeakObjectPtr<UInstancedStaticMeshComponent> FireQuads;
+	/**
+	 * Sparks and tracers as soft tapered streaks on M_FX_Muzzle (8 floats: colour, strength, shape 0, length share 1, seed, no
+	 * hole), when it's in the game and Looter.Vfx.SoftStreaks is on; else they go on the glows (the old flat diamonds).
+	 */
+	TWeakObjectPtr<UInstancedStaticMeshComponent> SoftStreaks;
 	/** The camera last drawn from (DetailAt), once a Tick has said where it is. */
 	FVector LastCamera = FVector::ZeroVector;
 	bool bHasCamera = false;

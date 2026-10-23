@@ -154,9 +154,13 @@ void AWeaponBase::PlayMuzzleFlash()
 			const float Across = VfxRules::MuzzleReach(FlashQuads, Unit, false) * World;
 			const float Along = VfxRules::MuzzleReach(FlashQuads, Unit, true) * World;
 			const float MuzzleDegrees = DegreesOff(EyeAt, Axis, Seen);
-			const float Nearest = FMath::Min(DegreesOff(EyeAt, Axis, GetVisibleLocation(Muzzle + Toward * Across)),
-				DegreesOff(EyeAt, Axis, GetVisibleLocation(Muzzle + MuzzleFlash->GetForwardVector() * Along)));
-			const float Fit = VfxRules::MuzzleClearScale(MuzzleDegrees, Nearest, Clear, Vfx.MuzzleClearMin);
+			const FVector Edge = GetVisibleLocation(Muzzle + Toward * Across);
+			const FVector Tip = GetVisibleLocation(Muzzle + MuzzleFlash->GetForwardVector() * Along);
+			const float Nearest = FMath::Min(DegreesOff(EyeAt, Axis, Edge), DegreesOff(EyeAt, Axis, Tip));
+			// ...and never bigger on screen than Looter.Vfx.Muzzle.Max1P from its muzzle (a gun drawn big and close).
+			const float Spread = FMath::Max(DegreesOff(EyeAt, Ray, Edge), DegreesOff(EyeAt, Ray, Tip));
+			const float Fit = FMath::Min(VfxRules::MuzzleClearScale(MuzzleDegrees, Nearest, Clear, Vfx.MuzzleClearMin),
+				VfxRules::MuzzleSizeCap(Spread, Vfx.MuzzleMax1P));
 			if (Fit < 1.f)
 			{
 				Size *= Fit;

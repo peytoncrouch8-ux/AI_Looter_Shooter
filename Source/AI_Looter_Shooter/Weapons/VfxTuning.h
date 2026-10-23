@@ -36,9 +36,9 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	 * Looter.Vfx.Muzzle.Star1P / .Tongue1P / .Bloom1P / .Jets1P: the layers' sizes in the player's own view (on top of
 	 * Looter.Gunfeel.Muzzle.Scale1P). Anything reaching along the barrel runs toward the crosshair there, so the tongues are short.
 	 */
-	float MuzzleStar1P = 0.6f;
+	float MuzzleStar1P = 0.5f;
 	float MuzzleTongue1P = 0.3f;
-	float MuzzleBloom1P = 0.75f;
+	float MuzzleBloom1P = 0.5f;
 	float MuzzleJets1P = 0.35f;
 	/** Looter.Vfx.Muzzle.Aim / .AimGlow: the flash's size and strength aimed down the sights (first person). */
 	float MuzzleAim = 0.55f;
@@ -49,12 +49,29 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	 */
 	float MuzzleClear = 3.5f;
 	float MuzzleAimClear = 2.f;
-	float MuzzleClearMin = 0.25f;
+	float MuzzleClearMin = 0.15f;
 	/** Looter.Vfx.Muzzle.Sparks1P / .Smoke1P: the share of a shot's sparks, and its smoke's opacity, in the player's own view. */
 	float MuzzleSparks1P = 0.67f;
 	float MuzzleSmoke1P = 0.75f;
 	/** Looter.Vfx.Muzzle.Light: the flash's point light (the one it always had; 0 none). */
 	float MuzzleLight = 1.f;
+	/**
+	 * Looter.Vfx.Muzzle.Max1P (degrees): in the player's own view the flash never reaches farther than this from its muzzle
+	 * on screen (a revolver drawn big and close flashed over half the screen; the play-check, 2026-10-22).
+	 */
+	float MuzzleMax1P = 8.f;
+
+	// --- Sparks and tracers as soft streaks (FWeaponFX's SoftStreaks on M_FX_Muzzle; the play-check, 2026-10-22: their flat
+	// M_FX_Glow diamonds covered close targets) ---
+	/** Looter.Vfx.SoftStreaks: sparks and tracers on M_FX_Muzzle's soft tapered streak when it's in the game (read as a level's effects start). */
+	bool bSoftStreaks = true;
+	/** Looter.Vfx.Spark.Glow / .Width / .Length: a spark's strength there, times; its greatest width and length on screen (radians). */
+	float SparkGlow = 0.6f;
+	float SparkWidth = 0.004f;
+	float SparkLength = 0.06f;
+	/** Looter.Vfx.Tracer.Glow / .Width: a tracer's strength there, times; its greatest width on screen (radians; the least is the bullets'). */
+	float TracerGlow = 1.f;
+	float TracerWidth = 0.006f;
 	/** Looter.Vfx.Power.Scale: the ember powers' new punch (activation rings, body hits, blasts, strikes). */
 	float PowerScale = 1.f;
 	/** Looter.Vfx.Blast.Scale: explosions (a rocket's, Slag Bomb's, Last Rites'). */

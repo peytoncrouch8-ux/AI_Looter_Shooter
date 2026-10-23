@@ -54,6 +54,20 @@ namespace
 		TEXT("A shot's smoke opacity in the player's own view, times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxMuzzleLight(TEXT("Looter.Vfx.Muzzle.Light"), VfxDefaults.MuzzleLight,
 		TEXT("The muzzle flash's point light, times (0: none)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleMax1P(TEXT("Looter.Vfx.Muzzle.Max1P"), VfxDefaults.MuzzleMax1P,
+		TEXT("In the player's own view the flash reaches at most this many degrees from its muzzle on screen (0: no cap)."), ECVF_Default);
+	TAutoConsoleVariable<bool> CVarVfxSoftStreaks(TEXT("Looter.Vfx.SoftStreaks"), VfxDefaults.bSoftStreaks,
+		TEXT("Sparks and tracers as M_FX_Muzzle's soft tapered streaks when it's in the game (read as a level's effects start)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxSparkGlow(TEXT("Looter.Vfx.Spark.Glow"), VfxDefaults.SparkGlow,
+		TEXT("A spark's strength as a soft streak, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxSparkWidth(TEXT("Looter.Vfx.Spark.Width"), VfxDefaults.SparkWidth,
+		TEXT("A spark's greatest width on screen (radians; 0: as thrown)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxSparkLength(TEXT("Looter.Vfx.Spark.Length"), VfxDefaults.SparkLength,
+		TEXT("A spark's greatest length on screen (radians; 0: as thrown)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxTracerGlow(TEXT("Looter.Vfx.Tracer.Glow"), VfxDefaults.TracerGlow,
+		TEXT("A tracer's strength as a soft streak, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxTracerWidth(TEXT("Looter.Vfx.Tracer.Width"), VfxDefaults.TracerWidth,
+		TEXT("A tracer's greatest width on screen (radians; 0: as drawn)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxPowerScale(TEXT("Looter.Vfx.Power.Scale"), VfxDefaults.PowerScale,
 		TEXT("The ember powers' new punch (activation rings, body hits, blasts, strikes), times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxBlastScale(TEXT("Looter.Vfx.Blast.Scale"), VfxDefaults.BlastScale,
@@ -125,6 +139,13 @@ FVfxTuning FVfxTuning::Live()
 	Tuning.MuzzleSparks1P = VfxNotBelowZero(CVarVfxMuzzleSparks1P);
 	Tuning.MuzzleSmoke1P = VfxNotBelowZero(CVarVfxMuzzleSmoke1P);
 	Tuning.MuzzleLight = VfxNotBelowZero(CVarVfxMuzzleLight);
+	Tuning.MuzzleMax1P = FMath::Clamp(CVarVfxMuzzleMax1P.GetValueOnGameThread(), 0.f, 60.f);
+	Tuning.bSoftStreaks = CVarVfxSoftStreaks.GetValueOnGameThread();
+	Tuning.SparkGlow = VfxNotBelowZero(CVarVfxSparkGlow);
+	Tuning.SparkWidth = VfxNotBelowZero(CVarVfxSparkWidth);
+	Tuning.SparkLength = VfxNotBelowZero(CVarVfxSparkLength);
+	Tuning.TracerGlow = VfxNotBelowZero(CVarVfxTracerGlow);
+	Tuning.TracerWidth = VfxNotBelowZero(CVarVfxTracerWidth);
 	Tuning.PowerScale = VfxNotBelowZero(CVarVfxPowerScale);
 	Tuning.BlastScale = VfxNotBelowZero(CVarVfxBlastScale);
 	Tuning.Glow = VfxNotBelowZero(CVarVfxGlow);

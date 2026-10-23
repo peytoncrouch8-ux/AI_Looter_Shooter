@@ -102,6 +102,18 @@ namespace VfxRules
 	AI_LOOTER_SHOOTER_API float MuzzleStreakShare(float Random);
 
 	/**
+	 * The share of its size a first-person flash keeps so it never looks bigger than MaxDegrees from its muzzle to its
+	 * farthest edge (a revolver drawn big and close flashed over half the screen; the play-check, 2026-10-22).
+	 */
+	AI_LOOTER_SHOOTER_API float MuzzleSizeCap(float FlashDegrees, float MaxDegrees);
+
+	/**
+	 * A soft streak's width or length (a spark's, a tracer's: FWeaponFX's SoftStreaks) Distance cm from the eye: never bigger on
+	 * screen than MaxRadians (0: as given), so a spark or tracer head right by a close target is a thin line, not a card over it.
+	 */
+	AI_LOOTER_SHOOTER_API float StreakWidthAt(float Width, float Distance, float MaxRadians);
+
+	/**
 	 * A gun kind's tracer for the round RoundsLeft in its magazine: an SMG's thin short needles, a sniper's thick bright line,
 	 * a revolver's a little wider, a pellet's short; an LMG's every third round a full tracer and the rest half as bright (the
 	 * belt's read). Times the definition's width, length and colour.

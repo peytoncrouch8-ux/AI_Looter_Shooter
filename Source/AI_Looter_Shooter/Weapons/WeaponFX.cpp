@@ -28,12 +28,15 @@ namespace
 	const TCHAR* PuffMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Puff.M_FX_Puff");
 	/** VFX-2's alpha-blended fire rolling into soot (SpawnFlame): fire that keeps its colour in full sun. */
 	const TCHAR* FireMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Fire.M_FX_Fire");
+	/** The muzzle rework's master: its soft tapered streak draws sparks and tracers (SoftStreaks; the play-check, 2026-10-22). */
+	const TCHAR* SoftStreakMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Muzzle.M_FX_Muzzle");
 
 	constexpr int32 GlowFloats = 5;  // R, G, B, intensity, shape (0 = streak, 1 = round, 2 = six-pointed star)
 	constexpr int32 SmokeFloats = 4; // R, G, B, opacity
 	constexpr int32 PuffFloats = 6;  // R, G, B, opacity, seed (below 0: a plain soft disc), erosion (0 fresh .. 1 thinned away)
 	constexpr int32 ShapeFloats = 7; // R, G, B, intensity, shape (EVfxShape), param (thickness, heat or spikes), seed
 	constexpr int32 FireFloats = 10; // fire R, G, B, smoke R, G, B, opacity, heat (1 white-hot .. 0 smoke), seed, erosion
+	constexpr int32 SoftStreakFloats = 8; // R, G, B, intensity, shape (0 streak), length share, seed, crosshair hole (0)
 
 	UMaterialInterface* LoadQuietly(const TCHAR* Path)
 	{
@@ -147,6 +150,11 @@ void FWeaponFX::Initialize(UWorld* World)
 		FireInstances->SetTranslucentSortPriority(1);
 		FireQuads = FireInstances;
 	}
+	// Sparks and tracers as soft tapered streaks once M_FX_Muzzle is in the game (else on the glows).
+	if (UMaterialInterface* SoftMaterial = Tuning.bSoftStreaks ? LoadQuietly(SoftStreakMaterialPath) : nullptr)
+	{
+		SoftStreaks = MakeInstances(Actor, TEXT("SoftStreaks"), Plane, SoftMaterial, SoftStreakFloats);
+	}
 	Chips = MakeInstances(Actor, TEXT("Chips"), Cube, MakeSurface(Actor, StoneColor, 0.f), 0);
 	Droplets = MakeInstances(Actor, TEXT("Droplets"), Sphere, MakeSurface(Actor, IchorColor, 0.35f), 0);
 }
@@ -160,6 +168,7 @@ void FWeaponFX::Shutdown()
 	Owner.Reset();
 	Shapes.Reset();
 	FireQuads.Reset();
+	SoftStreaks.Reset();
 	BitSets.Reset();
 	Particles.Reset();
 	Streaks.Reset();
@@ -213,9 +222,9 @@ bool FWeaponFX::IsIdle() const
 // Spawning
 // ---------------------------------------------------------------------------
 
-void FWeaponFX::AddStreak(const FVector& Tail, const FVector& Head, float Width, const FLinearColor& Color, float Intensity)
+void FWeaponFX::AddStreak(const FVector& Tail, const FVector& Head, float Width, const FLinearColor& Color, float Intensity, EStreakLook Look)
 {
-	Streaks.Add({ Tail, Head, Width, Color, Intensity });
+	Streaks.Add({ Tail, Head, Width, Color, Intensity, false, Look });
 }
 
 void FWeaponFX::AddGlow(const FVector& Location, float Size, const FLinearColor& Color, float Intensity)

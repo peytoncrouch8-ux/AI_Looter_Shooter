@@ -91,13 +91,14 @@ namespace VfxRules
 			Look.Every = 3;
 			break;
 		case EWeaponKind::Sniper:
+			// (Toned down 2026-10-22 after the play-check: its hip starburst was large.)
 			// A sharp flash: a tight bloom, a big star of many thin bright spikes, the brake's two side jets, a ring of dust and
 			// air thrown out round the muzzle, hanging smoke.
 			Look.CoreSize = 14.f;
 			Look.BloomSize = 22.f;
-			Look.StarSize = 44.f;
+			Look.StarSize = 36.f;
 			Look.StarSpikes = 10;
-			Look.StarGlow = 1.3f;
+			Look.StarGlow = 1.1f;
 			Look.Tongues = 3;
 			Look.TongueLength = 34.f;
 			Look.TongueWidth = 10.f;
@@ -320,5 +321,24 @@ namespace VfxRules
 	float MuzzleStreakShare(float Random)
 	{
 		return FMath::Lerp(MuzzleStreakShortest, 1.f, FMath::Clamp(Random, 0.f, 1.f));
+	}
+
+	float MuzzleSizeCap(float FlashDegrees, float MaxDegrees)
+	{
+		if (MaxDegrees <= 0.f || FlashDegrees <= MaxDegrees)
+		{
+			return 1.f;
+		}
+		return MaxDegrees / FlashDegrees;
+	}
+
+	float StreakWidthAt(float Width, float Distance, float MaxRadians)
+	{
+		if (MaxRadians <= 0.f)
+		{
+			return Width;
+		}
+		// Never under a hair (a spark right at the eye is still a spark, not nothing).
+		return FMath::Min(Width, FMath::Max(Distance * MaxRadians, 0.05f));
 	}
 }

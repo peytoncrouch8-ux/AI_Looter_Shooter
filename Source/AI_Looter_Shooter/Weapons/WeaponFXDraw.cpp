@@ -1,5 +1,6 @@
 #include "Weapons/WeaponFX.h"
 #include "Weapons/VfxRules.h"
+#include "Weapons/VfxTuning.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
 // FWeaponFX's moving and drawing: every particle advanced (falling, dragging, tumbling, landing on its impact's floor)
@@ -57,6 +58,12 @@ namespace
 	{
 		Data.Append({ Color.R, Color.G, Color.B, Intensity, Shape });
 	}
+
+	/**
+	 * A soft streak's quad is this many times its width: M_FX_Muzzle's streak falls off well inside its quad (no hard edge),
+	 * so the light shows about as wide as asked.
+	 */
+	constexpr float SoftStreakWiden = 2.f;
 
 	/** M_FX_Glow's shapes (its custom data's last float). */
 	constexpr float GlowStreak = 0.f;
@@ -221,8 +228,35 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		ShapeData.Append({ Color.R, Color.G, Color.B, Intensity, static_cast<float>(Shape), Param, Seed });
 	};
 
+	// Sparks and tracers as soft tapered streaks on M_FX_Muzzle (the play-check, 2026-10-22: their flat diamonds on M_FX_Glow
+	// covered close targets), never bigger on screen than their cvars allow; on the glows without it.
+	const FVfxTuning Vfx = FVfxTuning::Live();
+	const bool bSoft = SoftStreaks.IsValid();
+	TArray<FTransform> SoftTransforms;
+	TArray<float> SoftData;
+	auto AddSoft = [&SoftTransforms, &SoftData, &Camera](const FVector& Tail, const FVector& Head, float Width, const FLinearColor& Color,
+		float Intensity, float MaxWidth, float MaxLength)
+	{
+		const float Distance = static_cast<float>(FVector::Dist(Camera, Head));
+		FVector From = Tail;
+		const FVector Way = Head - Tail;
+		const float Length = static_cast<float>(Way.Size());
+		const float Kept = VfxRules::StreakWidthAt(Length, Distance, MaxLength);
+		if (Length > UE_KINDA_SMALL_NUMBER && Kept < Length)
+		{
+			From = Head - Way * (Kept / Length);
+		}
+		SoftTransforms.Add(StreakTransform(From, Head, VfxRules::StreakWidthAt(Width, Distance, MaxWidth) * SoftStreakWiden, Camera));
+		SoftData.Append({ Color.R, Color.G, Color.B, Intensity, 0.f, 1.f, 0.f, 0.f });
+	};
+
 	for (const FStreak& Streak : Streaks)
 	{
+		if (bSoft && Streak.Look == EStreakLook::Tracer && !Streak.bRound)
+		{
+			AddSoft(Streak.Tail, Streak.Head, Streak.Width, Streak.Color, Streak.Intensity * Vfx.TracerGlow, Vfx.TracerWidth, 0.f);
+			continue;
+		}
 		// A round one is a flash's soft disc (the glow material's shape 1), a line the streak's.
 		GlowTransforms.Add(Streak.bRound ? SpriteTransform(Streak.Head, Streak.Width, 0.f, Camera)
 			: StreakTransform(Streak.Tail, Streak.Head, Streak.Width, Camera));
@@ -257,6 +291,12 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			// A short streak trailing behind the spark, fading as it cools.
 			const float Length = FMath::Clamp(Particle.Velocity.Size() * 0.025f, 3.f, 40.f);
 			const FVector Tail = Particle.Location - Particle.Velocity.GetSafeNormal() * Length;
+			if (bSoft)
+			{
+				AddSoft(Tail, Particle.Location, Particle.StartSize, Particle.Color, Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * Vfx.SparkGlow,
+					Vfx.SparkWidth, Vfx.SparkLength);
+				break;
+			}
 			GlowTransforms.Add(StreakTransform(Tail, Particle.Location, Particle.StartSize, Camera));
 			AddGlowData(GlowData, Particle.Color, Particle.Intensity * FMath::Pow(1.f - T, 1.5f), 0.f);
 			break;
@@ -267,6 +307,12 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			const float Speed = Particle.Velocity.Size();
 			const float Length = FMath::Min(Speed * Particle.Age + 2.f, Particle.EndSize);
 			const FVector Tail = Particle.Location - Particle.Velocity.GetSafeNormal() * Length;
+			if (bSoft)
+			{
+				AddSoft(Tail, Particle.Location, Particle.StartSize, Particle.Color, Particle.Intensity * FMath::Pow(1.f - T, 1.2f) * Vfx.SparkGlow,
+					Vfx.TracerWidth, 0.f);
+				break;
+			}
 			GlowTransforms.Add(StreakTransform(Tail, Particle.Location, Particle.StartSize, Camera));
 			AddGlowData(GlowData, Particle.Color, Particle.Intensity * FMath::Pow(1.f - T, 1.2f), 0.f);
 			break;
@@ -440,7 +486,7 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		WaterRings.Draw(Camera, SmokeTransforms, SmokeData);
 	}
 
-	bool bAnything = !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty()
+	bool bAnything = !SoftTransforms.IsEmpty() || !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty()
 		|| !ShapeTransforms.IsEmpty() || !FireTransforms.IsEmpty();
 	for (const TArray<FTransform>& Set : BitTransforms)
 	{
@@ -449,6 +495,7 @@ void FWeaponFX::Redraw(const FVector& Camera)
 	if (bAnything || bDrawnAnything)
 	{
 		DrawInstances(Glows.Get(), GlowTransforms, GlowData);
+		DrawInstances(SoftStreaks.Get(), SoftTransforms, SoftData);
 		DrawInstances(Smoke.Get(), SmokeTransforms, SmokeData);
 		DrawInstances(Shapes.Get(), ShapeTransforms, ShapeData);
 		DrawInstances(FireQuads.Get(), FireTransforms, FireData);
