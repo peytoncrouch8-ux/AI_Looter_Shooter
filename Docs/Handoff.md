@@ -18,8 +18,11 @@ RR play-check (01:30) **for the user**: early fights kill a standing-still playe
 Main Street ambush: 7-10 hits of 21-26 in 5 s) — balance call is the user's (DamageScale 1.8 stays until they say);
 deaths respawn at the farm plot far from town (BUGS-UI reports two options). Being fixed: Main 2's "[Tab], then 2" (Ledger
 is tab 3), inventory under the HUD tracker/loot card, first Interact missing with the prompt showing, a gate Unpaid
-straying and holding 6/7, the sniper "one-handed" (FP-GRIP: not a bug — the trigger glove sits ~6 cm below the frame at the hip because of the user's pull-in framing; rifle and LMG too; an unapplied option in Saved/FPGrip2Code: sniper HipAhead 0, HipUp 1, partly undoing the pull-in — **ask the user**), Tilly not visible at her window and the
-Sexton flat dark / gold when highlighted (NPC-LOOK).
+straying and holding 6/7, the sniper "one-handed" (FP-GRIP: not a bug — the trigger glove sits ~6 cm below the frame at the hip because of the user's pull-in framing; rifle and LMG too; an unapplied option in Saved/FPGrip2Code: sniper HipAhead 0, HipUp 1, partly undoing the pull-in — **ask the user**), Tilly: by design a "talking window" (only the Sexton and Hob have bodies) — **ask the user** whether she gets a
+silhouette behind the curtain. Sexton: flat dark by design (Sexton.py flat coat colour); the gold when highlighted is the
+highlight's 0.03 unlit fill on his near-black coat — NPC-LOOK's fix in build_highlight_material.py (FigureFill 0,
+FigureRimOpacity 0.9, FigureRimPower 5) changes every objective highlight to rim-only: uncommitted, to verify in the
+editor against other highlighted things before keeping.
 
 ## Night of 2026-10-22 (the user went to bed; their calls)
 - Extra sound bundle download: "Do what you feel is best" — Main's call: no download overnight (the download rule needs
