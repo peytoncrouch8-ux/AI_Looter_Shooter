@@ -409,9 +409,19 @@ def paint_painted(region, U, V, seed, hide):
         joint = joint * (index != 0)                      # the patella's near end is the knee's knob, on show
     shoulder = lt.smooth(0.92, 1.0, s)                    # rolling off into the next joint
     rim = np.exp(-((s - 0.9) / 0.03) ** 2)                # the plate's edge, faint
-    for k, at in LIMB_BANDS.get(region, ()):
-        band = (index == k) * (1.0 - lt.smooth(0.07, 0.12, np.abs(s - at) + 0.03 * fine + 0.02 * hairy))
-        col = lt.mix(col, hide.get('band', hide['ring']), band * hide['ring_k'])
+    banded = 'band' in hide
+    if banded:
+        # Pale rings (BROWN, 2026-10-22): a clean soft-edged ring just before each joint and a faint stripe where the
+        # older hides have their dark bands; ragged pale blotches read as birch bark.
+        ring = lt.smooth(0.72, 0.79, s + 0.004 * fine) * (1.0 - lt.smooth(0.91, 0.95, s))
+        stripe = np.zeros_like(s)
+        for k, at in LIMB_BANDS.get(region, ()):
+            stripe = np.maximum(stripe, (index == k) * (1.0 - lt.smooth(0.03, 0.07, np.abs(s - at) + 0.004 * fine)))
+        col = lt.mix(col, hide['band'], np.clip(ring * 0.85 + stripe * 0.45, 0.0, 1.0) * hide['ring_k'])
+    else:
+        for k, at in LIMB_BANDS.get(region, ()):
+            band = (index == k) * (1.0 - lt.smooth(0.07, 0.12, np.abs(s - at) + 0.03 * fine + 0.02 * hairy))
+            col = lt.mix(col, hide['ring'], band * hide['ring_k'])
     if region == 'tibia':
         col = lt.mix(col, hide['ring'], (index == 0) * 0.22 * hide['ring_k'])                    # the patella
         col = lt.mix(col, hide['ring'], (index == 3) * lt.smooth(0.2, 1.0, s) * 0.8)            # dark to the tip
@@ -420,14 +430,14 @@ def paint_painted(region, U, V, seed, hide):
     if region == 'femur' and 'dust' in hide:
         col = lt.mix(col, hide['dust'], lt.smooth(0.3, 0.9, top) * 0.25 * hide['dust_k'])
     # Dark mottling, crisp spots.
-    col = lt.mix(col, hide['ring'], lt.specks(shape, seed + 21, 0.1, 2.5 * K) * 0.3)
+    col = lt.mix(col, hide['ring'], lt.specks(shape, seed + 21, 0.1, 2.5 * K) * (0.12 if banded else 0.3))
     gloss = lt.smooth(0.45, 0.95, top) * crown            # a faint painted light along the top of the plate
     col = lt.mix(col, light, gloss * 0.1)
     col = lt.mix(col, light, rim * 0.1 * lit)
     col = lt.mix(col, hide.get('membrane', hide['ring']), np.clip(joint * 0.7 + shoulder * 0.15, 0.0, 1.0))
     # Pale hairs flecked along the leg (lit side), so it reads furred, not polished.
     flecks = lt.specks(shape, seed + 17, 0.07, 1.2 * K) * lt.smooth(0.0, 0.3, lt.noise(shape, seed + 19, 6.0 * K, 1.0 * K))
-    col = lt.mix(col, light * 1.08, flecks * 0.4 * (0.4 + 0.6 * lit))
+    col = lt.mix(col, light * 1.08, flecks * (0.15 if banded else 0.4) * (0.4 + 0.6 * lit))
     # Short hairs in small tufts lying toward the claw, dark roots and light tips.
     tip, tuft, dome, tone = fur_tufts(shape, seed + 27, 5.0, 3.5, 0.0, 0.0, jitter=0.35)
     grain = hairy
