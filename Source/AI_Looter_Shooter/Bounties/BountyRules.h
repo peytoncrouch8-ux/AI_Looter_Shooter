@@ -66,6 +66,13 @@ struct AI_LOOTER_SHOOTER_API FBountyDrawInput
 	int32 PerArena = 3;
 	/** Names up already, as "<Kind>.<Index>" (BountyRules::NameKey): never drawn twice at once. */
 	TArray<FName> BusyNames;
+	/**
+	 * The other postings' mixes, as "<Arena>.<Kind>.<Tier>" (BountyRules::MixKey): a posting is drawn with a mix none of
+	 * them has when its arena allows one (the board mixes tiers and kinds), and repeats one only when every mix is up.
+	 */
+	TArray<FName> BusyMixes;
+	/** The board has no posting of the highest open tier yet and this is its last slot to fill: this one is of it. */
+	bool bNeedHighest = false;
 	/** The hardest tier the story allows now. */
 	EBountyTier HighestTier = EBountyTier::Wanted;
 	/** Its seed (BountyRules::SeedFor: the board's id and the serial) and its serial. */
@@ -163,6 +170,9 @@ namespace BountyRules
 
 	/** A name's key in FBountyDrawInput::BusyNames. */
 	AI_LOOTER_SHOOTER_API FName NameKey(FName Kind, int32 NameIndex);
+
+	/** A posting's mix in FBountyDrawInput::BusyMixes: its arena, kind and tier. */
+	AI_LOOTER_SHOOTER_API FName MixKey(FName Arena, FName Kind, EBountyTier Tier);
 
 	/**
 	 * A posting from In: an arena not busy (or none: an empty posting, Serial 0), a kind it hosts, a tier up to

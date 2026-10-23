@@ -333,9 +333,25 @@ bool UBountyBoardSubsystem::FillSlot(FBountyBoardRecord& Record, int32 Slot, dou
 			// Once for each posting: the draw spreads over the arenas and doubles up only when it has to.
 			In.BusyArenas.Add(Each.Arena);
 			In.BusyNames.AddUnique(BountyRules::NameKey(Each.Kind, Each.NameIndex));
+			In.BusyMixes.Add(BountyRules::MixKey(Each.Arena, Each.Kind, Each.Tier));
 		}
 	}
 	In.HighestTier = GetHighestTier();
+	// The board shows the hardest tier open at least once: the last slot to fill takes it when none of the others has it.
+	if (In.HighestTier != EBountyTier::Wanted)
+	{
+		int32 Others = 0;
+		bool bHasHighest = false;
+		for (int32 Other = 0; Other < Record.Slots.Num(); ++Other)
+		{
+			if (Other != Slot && Record.Slots[Other].IsPosting())
+			{
+				++Others;
+				bHasHighest |= Record.Slots[Other].Tier == In.HighestTier;
+			}
+		}
+		In.bNeedHighest = !bHasHighest && Others >= BountyRules::SlotCount - 1;
+	}
 	In.Serial = FMath::Max(Record.NextSerial, 1);
 	In.Seed = BountyRules::SeedFor(GetBoardId(), In.Serial);
 	In.Now = Now;

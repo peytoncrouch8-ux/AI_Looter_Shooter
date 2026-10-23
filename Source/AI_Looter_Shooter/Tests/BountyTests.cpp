@@ -124,6 +124,47 @@ bool FBountyRulesTest::RunTest(const FString& Parameters)
 	Single.BusyArenas.Add(TEXT("Scatter"));
 	TestFalse(TEXT("...a fourth is not (PerArena)"), Draw(Single).IsPosting());
 
+	// Variety (R3 play-check: three Wanted Unpaid at the Scatter after Main 5): one arena, one kind, Dangerous open. A mix
+	// another posting has is passed over (every serial), and a slot told the board needs the hardest tier is of it.
+	{
+		FBountyDrawInput Mix = DrawInput(20, EBountyTier::Dangerous);
+		Mix.Arenas = { Arena(TEXT("Scatter"), { TEXT("Unpaid") }, 2, 3) };
+		bool bAvoidsWanted = true;
+		bool bAvoidsDangerous = true;
+		bool bForced = true;
+		for (int32 Serial = 20; Serial < 60; ++Serial)
+		{
+			Mix.Serial = Serial;
+			Mix.Seed = SeedFor(TEXT("TestBoard"), Serial);
+			Mix.BusyMixes = { MixKey(TEXT("Scatter"), TEXT("Unpaid"), EBountyTier::Wanted) };
+			bAvoidsWanted &= Draw(Mix).Tier == EBountyTier::Dangerous;
+			Mix.BusyMixes = { MixKey(TEXT("Scatter"), TEXT("Unpaid"), EBountyTier::Dangerous) };
+			bAvoidsDangerous &= Draw(Mix).Tier == EBountyTier::Wanted;
+			Mix.BusyMixes.Reset();
+			Mix.bNeedHighest = true;
+			bForced &= Draw(Mix).Tier == EBountyTier::Dangerous;
+			Mix.bNeedHighest = false;
+		}
+		TestTrue(TEXT("A Wanted Unpaid up: the next is Dangerous"), bAvoidsWanted);
+		TestTrue(TEXT("A Dangerous Unpaid up: the next is Wanted"), bAvoidsDangerous);
+		TestTrue(TEXT("The board needs the hardest tier: Dangerous"), bForced);
+		// Every mix up (one arena, one kind, two tiers): it repeats one rather than leave the card empty.
+		Mix.BusyMixes = { MixKey(TEXT("Scatter"), TEXT("Unpaid"), EBountyTier::Wanted), MixKey(TEXT("Scatter"), TEXT("Unpaid"), EBountyTier::Dangerous) };
+		TestTrue(TEXT("Every mix up: one repeats"), Draw(Mix).IsPosting());
+		// More kinds at the arena: a kind not up there is the likelier (twice the weight), and an up mix is never repeated.
+		FBountyDrawInput Kinds = DrawInput(21, EBountyTier::Wanted);
+		Kinds.Arenas = { Arena(TEXT("Quarry"), { TEXT("Spider"), TEXT("DeadMiner") }) };
+		bool bOtherMix = true;
+		for (int32 Serial = 30; Serial < 70; ++Serial)
+		{
+			Kinds.Serial = Serial;
+			Kinds.Seed = SeedFor(TEXT("TestBoard"), Serial);
+			Kinds.BusyMixes = { MixKey(TEXT("Quarry"), TEXT("Spider"), EBountyTier::Wanted) };
+			bOtherMix &= Draw(Kinds).Kind == FName(TEXT("DeadMiner"));
+		}
+		TestTrue(TEXT("Wanted Spider up (only tier open): the next is the other kind"), bOtherMix);
+	}
+
 	// Over many draws: tiers only up to the story's, each tier's twists, the mark's traits as its rank gives them.
 	bool bWantedOnly = true;
 	bool bSawEach[3] = { false, false, false };

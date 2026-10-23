@@ -259,6 +259,11 @@ FName BountyRules::NameKey(FName Kind, int32 NameIndex)
 	return FName(*FString::Printf(TEXT("%s.%d"), *Kind.ToString(), NameIndex));
 }
 
+FName BountyRules::MixKey(FName Arena, FName Kind, EBountyTier Tier)
+{
+	return FName(*FString::Printf(TEXT("%s.%s.%d"), *Arena.ToString(), *Kind.ToString(), static_cast<int32>(Tier)));
+}
+
 // ---------------------------------------------------------------------------
 // The draw
 // ---------------------------------------------------------------------------
@@ -340,7 +345,9 @@ FBountyPosting BountyRules::Draw(const FBountyDrawInput& In)
 	}
 	const FBountyArenaChoice& Arena = *Free[Random.RandRange(0, Free.Num() - 1)];
 
-	// The mark's kind: one the arena hosts.
+	// The mark's kind (one the arena hosts) and the tier (among those the story allows, by weight), drawn together so the
+	// board mixes: a mix (arena, kind, tier) another posting has is passed over while any other is left, and a kind none of
+	// the others shows here counts double. A board missing the highest open tier gets it in its last slot.
 	TArray<const FBountyKindInfo*> Hosted;
 	for (const FName Kind : Arena.Kinds)
 	{
@@ -349,15 +356,54 @@ FBountyPosting BountyRules::Draw(const FBountyDrawInput& In)
 			Hosted.AddUnique(Info);
 		}
 	}
-	const FBountyKindInfo& Kind = *Hosted[Random.RandRange(0, Hosted.Num() - 1)];
-
-	// The tier, by weight among those the story allows.
-	TArray<float, TInlineAllocator<3>> Weights;
-	for (const EBountyTier Tier : AllTiers)
+	struct FMix
 	{
-		Weights.Add(static_cast<int32>(Tier) <= static_cast<int32>(In.HighestTier) ? GetTier(Tier).Weight : 0.f);
+		const FBountyKindInfo* Kind = nullptr;
+		EBountyTier Tier = EBountyTier::Wanted;
+		float Weight = 0.f;
+	};
+	const auto Candidates = [&](bool bAvoidBusy)
+	{
+		TArray<FMix, TInlineAllocator<12>> Out;
+		for (const FBountyKindInfo* Info : Hosted)
+		{
+			bool bKindUp = false;
+			for (const EBountyTier Each : AllTiers)
+			{
+				bKindUp |= In.BusyMixes.Contains(MixKey(Arena.Id, Info->Id, Each));
+			}
+			for (const EBountyTier Tier : AllTiers)
+			{
+				const bool bAllowed = In.bNeedHighest ? Tier == In.HighestTier : static_cast<int32>(Tier) <= static_cast<int32>(In.HighestTier);
+				if (!bAllowed || (bAvoidBusy && In.BusyMixes.Contains(MixKey(Arena.Id, Info->Id, Tier))))
+				{
+					continue;
+				}
+				FMix& Mix = Out.AddDefaulted_GetRef();
+				Mix.Kind = Info;
+				Mix.Tier = Tier;
+				Mix.Weight = GetTier(Tier).Weight * (bKindUp ? 1.f : 2.f);
+			}
+		}
+		return Out;
+	};
+	TArray<FMix, TInlineAllocator<12>> Mixes = Candidates(true);
+	if (Mixes.IsEmpty())
+	{
+		Mixes = Candidates(false);
 	}
-	const EBountyTier Tier = AllTiers[PickWeighted(Weights, Random)];
+	if (Mixes.IsEmpty())
+	{
+		return Made;
+	}
+	TArray<float, TInlineAllocator<12>> Weights;
+	for (const FMix& Mix : Mixes)
+	{
+		Weights.Add(Mix.Weight);
+	}
+	const FMix& Picked = Mixes[PickWeighted(Weights, Random)];
+	const FBountyKindInfo& Kind = *Picked.Kind;
+	const EBountyTier Tier = Picked.Tier;
 	const FBountyTierInfo& TierInfo = GetTier(Tier);
 
 	// Its twists: the mark's for sure, then perhaps one more (a pack twist, or another on the mark), each fitting its kind.
