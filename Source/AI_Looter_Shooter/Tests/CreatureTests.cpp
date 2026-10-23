@@ -126,7 +126,7 @@ bool FSpiderCriticalSpotTest::RunTest(const FString& Parameters)
 	}
 	if (TestNotNull(TEXT("Spider has health"), Health))
 	{
-		TestEqual(TEXT("Spider max health"), Health->MaxHealth, 300.f);
+		TestEqual(TEXT("Spider max health (230 since 2026-10-22)"), Health->MaxHealth, 230.f);
 	}
 	return true;
 }

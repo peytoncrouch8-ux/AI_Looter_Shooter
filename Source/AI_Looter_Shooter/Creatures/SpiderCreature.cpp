@@ -60,7 +60,9 @@ float ASpiderCreature::StepThresholdAt(float Speed)
 ASpiderCreature::ASpiderCreature()
 {
 	DisplayName = FText::FromString(TEXT("Brown Spider"));
-	Health->MaxHealth = 300.f;
+	// 230, was 300; its bite 11, was 12 (the spitter's spit stays softer at 10) (the user, 2026-10-22: "soften the spiders"): six at level 2 killed a player with a
+	// Common rifle and ward at any damage scale (three biting at once, 324 health each). The Gravemother keeps 300 and 12.
+	Health->MaxHealth = 230.f;
 	// The head is the critical spot; legs, thorax, abdomen, fangs and feelers take base damage.
 	CriticalSpotBones = { TEXT("head") };
 
@@ -70,7 +72,7 @@ ASpiderCreature::ASpiderCreature()
 	// call, 2026-10-08), and the slower pace (2026-10-13) keeps the same odds.
 	ChaseSpeed = 540.f * LooterPlayerSize::MoveScale;
 	AttackRange = 220.f;
-	AttackDamage = 12.f;
+	AttackDamage = 11.f;
 	HealthBarHeight = 120.f;
 	// Its body lies curled about ten seconds (a twitch or two), then sinks away (the polish's "deaths with weight").
 	CorpseTime = 10.f;

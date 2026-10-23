@@ -108,7 +108,8 @@ bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("She never comes back on her own (her lair says when)"), Mother->WillRespawn());
 
 	// Twelve spiders' health at her level: about 5,600 at level 8.
-	const float SpiderHealth = Spider->FindComponentByClass<UHealthComponent>()->GetMaxHealth();
+	// Her own base: the spider's 300 before spiders were softened (2026-10-22); her fight was tuned on it.
+	const float SpiderHealth = 300.f;
 	Mother->SetLevel(8);
 	const float Health = Mother->FindComponentByClass<UHealthComponent>()->GetMaxHealth();
 	const float Wanted = SpiderHealth * GetDefault<UProgressionSettings>()->GetLevelRules().EnemyScale(8) * Legendary.HealthMultiplier;

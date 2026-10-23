@@ -45,6 +45,9 @@ AGravemotherCreature::AGravemotherCreature()
 	DisplayName = FText::FromString(TEXT("The Gravemother"));
 	bNameIsRankWord = true;
 	StartingRank = ECreatureRank::Legendary;
+	// The spider's numbers before they were softened (2026-10-22): her fight was tuned on them.
+	Health->MaxHealth = 300.f;
+	AttackDamage = 12.f;
 	// 1.8 times a spider as seen, her rank's own growth (x1.4) included.
 	BodyScale = Gravemother::Size / Gravemother::RankSize;
 	// Her head, and her abdomen (IsCriticalSpot narrows it to the soft rear while the stone stands).

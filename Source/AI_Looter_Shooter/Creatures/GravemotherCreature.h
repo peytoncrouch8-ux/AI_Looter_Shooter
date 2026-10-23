@@ -26,7 +26,8 @@ namespace Gravemother
 
 	/** Her brood: spiderlings, a brown spider at this size with this share of its health (60 at level 1), Basic. */
 	inline constexpr float SpiderlingSize = 0.45f;
-	inline constexpr float SpiderlingHealthShare = 0.2f;
+	// 60 health at level 1, as tuned: 0.2 of the spider's 300 before spiders were softened to 230 (2026-10-22).
+	inline constexpr float SpiderlingHealthShare = 60.f / 230.f;
 
 	/** Spiderlings one call brings, and the shares of her health at which she calls, each once a life: 66%, then 33%. */
 	inline constexpr int32 BroodSize = 4;

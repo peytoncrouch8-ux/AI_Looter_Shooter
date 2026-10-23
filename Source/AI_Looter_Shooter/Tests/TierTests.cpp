@@ -344,7 +344,7 @@ bool FTierSaveTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestEqual(TEXT("Still version 3: the tiers add nothing to a save"), Read->Upgrade(), 3);
+	TestEqual(TEXT("The current version: the tiers add nothing to a save"), Read->Upgrade(), ULooterSessionSave::CurrentVersion);
 	const FSavedMapWorld* Valley = Read->FindWorld(TEXT("/Game/Maps/Lvl_RansomsRest"));
 	TestTrue(TEXT("When the valley's promotions rolled is kept"), Valley && FMath::IsNearlyEqual(Valley->PromotionsRolledAt, 600.0));
 	TestFalse(TEXT("Five minutes of play later, a load rolls no promotions"),

@@ -445,7 +445,7 @@ Today's lines (word for word):
   (the tiers, 2026-10-20: `UCreatureRankSettings`; Hallowed ×3.5, Ethereal ×4), faster lunge.
 - **Gravebound Unpaid** (Epic), rank variant: 2% of spawns. Purple tag and coal, ×3 health. Trait: its shriek slows the player
   for 2 s (a ring effect).
-- **Meadow Wolf spider** (Basic), existing (`ASpiderCreature`): the bluff top, the chapel yard's edge, the Sink floor. 300 HP
+- **Meadow Wolf spider** (Basic), existing (`ASpiderCreature`): the bluff top, the chapel yard's edge, the Sink floor. 230 HP (300 until 2026-10-22: "soften the spiders"; bite 12 -> 11)
   at level 1, head crit.
 - **Restless or Gravebound Meadow Wolf** (Rare or Epic), rank variants: a placed Restless on the bluff top in Main 2;
   promotions. Epic trait: calls every spider within 30 m (the pack call, made wider and matched by a pack tag, not the exact
