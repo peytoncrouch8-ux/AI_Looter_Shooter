@@ -64,18 +64,22 @@ namespace
 			Frame.SupportAhead = -2.f;
 			break;
 		case EWeaponKind::Sniper:
-			// Pulled in a little (glove 0.84, muzzle 0.60).
-			Frame.HipAhead = -6.f;
-			Frame.HipUp = -3.5f;
+			// Pulled in a little (glove 0.84, muzzle 0.60) until the play-check of 2026-10-23 ("the Sniper is held one-handed":
+			// its trigger glove sat ~6 cm under the frame's bottom edge). The user's "lift slightly": back out to the table's
+			// distance and 2.5 up, tuned in PIE so the trigger glove's knuckles show at the bottom edge.
+			Frame.HipAhead = 0.f;
+			Frame.HipUp = 2.5f;
 			Frame.HipPitch = 2.f;
 			Frame.SupportAhead = -6.f;
 			break;
 		case EWeaponKind::LMG:
 			// Pulled in 14 cm from its last hold (the support hand on the handguard was ~86 cm out), lower, the muzzle tipped up
-			// 4 degrees (glove 0.80 down, muzzle 0.64).
-			Frame.HipAhead = -10.f;
+			// 4 degrees (glove 0.80 down, muzzle 0.64). The user's "lift slightly" (2026-10-23, the trigger glove was under the
+			// frame): back out to the table's distance and 3 up, tuned in PIE till its fingers show under the receiver (5 out and
+			// 2 up still hid them).
+			Frame.HipAhead = 0.f;
 			Frame.HipRight = 0.f;
-			Frame.HipUp = -3.5f;
+			Frame.HipUp = 3.f;
 			Frame.HipPitch = 4.f;
 			Frame.SupportAhead = -6.f;
 			break;

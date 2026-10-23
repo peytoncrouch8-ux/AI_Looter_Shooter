@@ -147,7 +147,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   per kind (baked in `MakeDefaults`): Rifle -12 ahead -2 right -7 up pitch +5, trigger glove 2.5 cm right until FPGRIP (no finger
   through the Bullpup's thumbhole; its support can't slide back: grip loop at u 37.8); Shotgun -1.5 up, support -3;
   Revolver -5 right +1 up roll +6, one-handed (support parked at 20, -26, -38 cm, eased 0.15 s, back on the gun for
-  reloads and throws); SMG -1.5 up, support -2; Sniper -6 ahead -3.5 up pitch +2, support -6; LMG -10 ahead -3.5 up pitch
+  reloads and throws); SMG -1.5 up, support -2; Sniper 0 ahead +2.5 up pitch +2, support -6; LMG 0 ahead +3 up pitch
   +4, support -6 (to u 38); Launcher +9 ahead +2 right -2 up. "Pull the guns in" (the user, 2026-10-22): a support wrist
   high in the frame (fore-ends ~70 cm out) could only hide its elbow by running straight down, so the rifle, LMG and
   sniper sit nearer and lower with the muzzle tipped up about the grip (never down: the user's 2026-10-14 call), muzzle
@@ -174,7 +174,10 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   (CODEMAP), `Looter.Hands.Grip.Report` (each hand in gun cm: palm gap, touched fingers, curls, gaps, trigger miss),
   `Looter.Hands.Grip.Debug 1` (boxes; drawn in world, off the view model's projection), `Looter.Hands.ThumbFlexToFingers`
   (read at bind: `Looter.Hero Ellis` rebinds). Inspecting a grip: the `Looter.HipHold.*` nudges turn the gun (Yaw -80
-  shows its left side). Known: the Ranchhand's trigger is 13 cm ahead of its wrist (finger can't reach; hand under the
+  shows its left side). "Lift slightly" (the user, 2026-10-23; play-check "the Sniper is held one-handed": the trigger
+  glove sat under the frame): sniper and LMG back out to the table's distance and 2.5 / 3 up, so the trigger glove shows
+  at the bottom edge; the Bullpup's trigger hand stays hidden behind its shell at any lift (13 cm up still showed none),
+  so the rifle keeps its pull-in. Known: the Ranchhand's trigger is 13 cm ahead of its wrist (finger can't reach; hand under the
   frame); a thumb pushed further forward on the Bullpup's post sinks its root in. Grabs `Saved/Screenshots/Tools/fp_grip_<Kind>_hip|ads.png`.
 - Gun sizes (the user, 2026-10-14): drawn bigger than modelled, everywhere: rifle and shotgun 1.1, revolver 1.2
   (`UWeaponModelComponent::ScaleFor`; sockets scale with it). The pistol shows as "Revolver" (DA_Revolver's display name;
