@@ -35,6 +35,12 @@ Round 2 (Main 3-5, Old Fare, a bounty) fixed and committed fa2ef14 — incl. **c
 longer starts (R2-FIGHTS fixing in the editor), bounty postings all identical (R2-BOUNTY: variety), Fenn's ghost stands in
 the player's spot at Old Fare's turn-in (R2-OBJECTS). Bluff nest still kills a strafing level-2 player (7 bites of 20-27
 in ~3 s; town gate cleared with no damage).
+Round 3 (Main 6-7, Abel, Gravemother, Dead Lift, Last Watch, Back Pay; God mode): all finish. Fixed+committed since:
+0da79f8 (fights sent away when their story moves on; the Main Street ambush was fine — it springs on a walk-in),
+17cf676 (bounty variety, partial: only the Scatter arena (Unpaid) is open after Main 5). Being fixed: more objectives
+needing pixel-exact aim (Abel's lantern posts, watch fire, Dead Lift boiler and pin), Back Pay barricade with no gap,
+Rangers' board shows Side 3 with no accept, board/choice cards ignoring E, Main 7 turn-in moving to Tilly with no hint,
+15+ beams after the Gravemother's shower. Hiram/Sloane glowing ghosts in dark rooms = the painted ghost look (by design).
 **Morning questions for the user**: (1) early fights' difficulty (deaths at the bluff nest, gate, Main Street ambush);
 (2) respawn: town roost vs wake near the fight; (3) the sniper/rifle/LMG trigger glove below the frame at the hip
 (pull-in framing) — lift it?; (4) Tilly a silhouette at her window?; (5) the sound pack download (three files, ~12.6 MB);
