@@ -84,6 +84,8 @@ void UMissionRunner::Deinitialize()
 	SpawnHandle.Reset();
 	bActive = false;
 	Runs.Reset();
+	Meetings.Reset();
+	StartTalks.Reset();
 	Watches.Reset();
 	WatchedActors.Reset();
 	TestCampaign = nullptr;
@@ -262,9 +264,10 @@ EMissionStatus UMissionRunner::GetStatus(const UMissionDefinition& Mission) cons
 		return EMissionStatus::Completed;
 	}
 	// One picked up from a giver: under way once taken (waiting in its own area), else offered once what comes first is done.
+	// A main mission waiting for its giver to be met is under way already: the Missions page lists it, "Talk to <giver>".
 	if (Mission.IsOffered())
 	{
-		if (IsAccepted(MissionId))
+		if (IsAccepted(MissionId) || IsMeeting(MissionId))
 		{
 			return EMissionStatus::Active;
 		}
@@ -282,6 +285,13 @@ TArray<FMissionObjectiveView> UMissionRunner::GetObjectiveViews(FName MissionId)
 	TArray<FMissionObjectiveView> Views;
 	const FRun* Run = FindRun(MissionId);
 	const UMissionDefinition* Mission = Run ? Run->Mission.Get() : nullptr;
+	// A main mission whose giver is still to be met: that talk is all it asks for now.
+	const UMissionDefinition* ToMeet = !Run && IsMeeting(MissionId) ? FindDefinition(MissionId) : nullptr;
+	if (ToMeet)
+	{
+		Views.AddDefaulted_GetRef().Text = MeetText(*ToMeet).ToString();
+		return Views;
+	}
 	// Ready to turn in, it has no objectives left (the Missions page says who to turn it in to).
 	if (!Mission || Run->bReady)
 	{
@@ -327,7 +337,14 @@ FName UMissionRunner::GetTrackedMission() const
 	const UMissionSubsystem* Display = GetWorld() ? GetWorld()->GetSubsystem<UMissionSubsystem>() : nullptr;
 	const int32 Tracked = Display ? Display->GetTrackedMission() : INDEX_NONE;
 	const FRun* Run = Tracked == INDEX_NONE ? nullptr : Runs.FindByPredicate([Tracked](const FRun& Each) { return Each.BookId == Tracked; });
-	return Run ? Run->Id : NAME_None;
+	if (Run)
+	{
+		return Run->Id;
+	}
+	// A meeting's line (a main mission whose giver is still to be met) is followed as a running mission's is.
+	const FMeeting* Meeting = Tracked == INDEX_NONE ? nullptr
+		: Meetings.FindByPredicate([Tracked](const FMeeting& Each) { return Each.BookId == Tracked; });
+	return Meeting ? Meeting->Id : NAME_None;
 }
 
 void UMissionRunner::TrackMission(FName MissionId)
@@ -338,8 +355,9 @@ void UMissionRunner::TrackMission(FName MissionId)
 		return;
 	}
 	const FRun* Run = FindRun(MissionId);
+	const FMeeting* Meeting = Run ? nullptr : Meetings.FindByPredicate([MissionId](const FMeeting& Each) { return Each.Id == MissionId; });
 	const int32 Before = Display->GetTrackedMission();
-	Display->TrackMission(Run ? Run->BookId : INDEX_NONE);
+	Display->TrackMission(Run ? Run->BookId : Meeting ? Meeting->BookId : INDEX_NONE);
 	if (Display->GetTrackedMission() != Before)
 	{
 		OnChanged.Broadcast();

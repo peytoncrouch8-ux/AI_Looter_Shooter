@@ -136,6 +136,14 @@ void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus
 	const bool bReady = MissionRunner && MissionRunner->IsReadyToTurnIn(MissionId);
 	const int32 NumSteps = Mission.Steps.Num();
 
+	// A main mission whose giver is still to be met: that talk is its one objective so far (the rest is a surprise).
+	if (MissionRunner && MissionRunner->IsMeeting(MissionId))
+	{
+		StepsBox->AddChildToVerticalBox(Label(WidgetTree, TEXT("Objectives"), 10, Color::Accent(), 300))->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+		AddObjectiveLine(UMissionRunner::MeetText(Mission).ToString(), FString(), 1, 0.f, false);
+		return;
+	}
+
 	// Up to the step being played: the steps before it done. A finished mission shows every step done, and so does one
 	// waiting for its turn-in (with the turn-in after them); one not begun, none (what it asks is a surprise until it
 	// starts).
@@ -340,10 +348,10 @@ void UMissionsWidget::RefreshPrompts()
 
 bool UMissionsWidget::CanTrackSelected() const
 {
-	// Only a mission running in this level has a waypoint for the minimap to guide to.
+	// Only a mission running in this level has a waypoint for the minimap to guide to (a main mission's giver to meet too).
 	const UMissionRunner* MissionRunner = GetRunner();
 	const UMissionDefinition* Mission = GetSelected();
-	return MissionRunner && Mission && MissionRunner->IsRunning(Mission->GetMissionId());
+	return MissionRunner && Mission && (MissionRunner->IsRunning(Mission->GetMissionId()) || MissionRunner->IsMeeting(Mission->GetMissionId()));
 }
 
 void UMissionsWidget::ToggleTrack()
@@ -465,6 +473,11 @@ FString UMissionsWidget::DescribeStanding(const UMissionDefinition& Mission, EMi
 		if (MissionRunner && MissionRunner->IsRunning(MissionId))
 		{
 			return FString::Printf(TEXT("Step %d of %d"), MissionRunner->GetStep(MissionId) + 1, Mission.Steps.Num());
+		}
+		// A main mission whose giver is still to be met: the talk that starts it.
+		if (MissionRunner && MissionRunner->IsMeeting(MissionId))
+		{
+			return UMissionRunner::MeetText(Mission, /*bShort*/ true).ToString();
 		}
 		// The campaign's mission, waiting in its own area.
 		return Mission.Area.IsNone() ? FString(TEXT("Waiting")) : FString::Printf(TEXT("Continue in %s"), *AreaName(Mission.Area));

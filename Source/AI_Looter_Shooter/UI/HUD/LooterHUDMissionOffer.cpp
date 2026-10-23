@@ -8,6 +8,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
+#include "UI/HUD/HudCaptionWidget.h"
 #include "UI/World/BossShrineWidget.h"
 #include "UI/World/BountyBoardWidget.h"
 #include "UI/World/MissionOfferWidget.h"
@@ -21,6 +22,30 @@ namespace
 {
 	/** Over every other screen of the HUD (25), under the pause menu (40). */
 	constexpr int32 OfferZOrder = 30;
+
+	/** The captions while an offer card is open in its offer mode: over its dimming, so the giver's words read beside it. */
+	constexpr int32 CaptionsOverCardZOrder = OfferZOrder + 1;
+}
+
+bool ALooterHUD::CoversCaptions() const
+{
+	// The offer card alone (not over a board's screen, the inventory or the pause menu): the giver talks on beside it.
+	const bool bOfferTalks = bMissionOfferOpen && MissionOfferWidget && MissionOfferWidget->GetMode() == EMissionCardMode::Offer
+		&& !bNoticeBoardOpen && !bInventoryOpen && !bPauseMenuOpen;
+	return IsMenuOpen() && !bOfferTalks;
+}
+
+void ALooterHUD::LiftCaptions(bool bOver)
+{
+	if (!CaptionWidget || bCaptionsOverCard == bOver)
+	{
+		return;
+	}
+	// A viewport widget keeps the order it was added with: taken off and put back at the new one (its words and clock live
+	// in the caption subsystem, so nothing said is lost).
+	bCaptionsOverCard = bOver;
+	CaptionWidget->RemoveFromParent();
+	CaptionWidget->AddToViewport(bOver ? CaptionsOverCardZOrder : UHudCaptionWidget::ViewportZOrder);
 }
 
 bool ALooterHUD::OpenMissionOffer(const UMissionDefinition* Mission, AActor* Giver)
@@ -75,6 +100,8 @@ bool ALooterHUD::OpenMissionOffer(const UMissionDefinition* Mission, AActor* Giv
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
 	bMissionOfferOpen = true;
+	// Someone's offer: their words go on beside the card (CoversCaptions), over its dimming.
+	LiftCaptions(!bReading && !bNoticeBoardOpen);
 	UE_LOG(LogLooter, Log, TEXT("%s: %s%s."), bReading ? TEXT("Reading card") : TEXT("Offer card"),
 		bReading ? *Giver->GetActorNameOrLabel() : *Mission->GetMissionId().ToString(),
 		Giver && !bReading ? *FString::Printf(TEXT(" from %s"), *Giver->GetActorNameOrLabel()) : TEXT(""));
@@ -123,6 +150,7 @@ bool ALooterHUD::OpenTurnInChoice(const UMissionDefinition* Mission, AActor* Giv
 	PC->SetInputMode(InputMode);
 	PC->SetShowMouseCursor(true);
 	bMissionOfferOpen = true;
+	LiftCaptions(false);
 	UE_LOG(LogLooter, Log, TEXT("Choice card: %s%s."), *Mission->GetMissionId().ToString(),
 		Giver ? *FString::Printf(TEXT(" at %s"), *Giver->GetActorNameOrLabel()) : TEXT(""));
 	return true;
@@ -141,6 +169,7 @@ void ALooterHUD::CloseMissionOffer()
 		MissionOfferWidget->RemoveFromParent();
 	}
 	bMissionOfferOpen = false;
+	LiftCaptions(false);
 
 	// Taken from a notice board's screen (or a choice made over it): back to the board, which shows the posting as it stands.
 	APlayerController* PC = GetOwningPlayerController();

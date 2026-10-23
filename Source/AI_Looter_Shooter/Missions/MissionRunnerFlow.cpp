@@ -78,7 +78,9 @@ void UMissionRunner::StartRun(UMissionDefinition& Mission, int32 Step)
 void UMissionRunner::StartDue(FName StartedBy)
 {
 	// Automatic missions whenever they're due, and missions taken from their givers (in their area's level again); OnEvent
-	// ones only on their event. One offered and not taken waits at its giver (AcceptMission starts it).
+	// ones only on their event. One offered and not taken waits at its giver (AcceptMission starts it). A main mission is
+	// never offered: due, it's taken there and then (an old save's one left at its giver too), and once the display has it
+	// it's tracked and its giver's words are said on the move (SayStartTalks).
 	for (UMissionDefinition* Mission : Definitions)
 	{
 		const bool bDue = Mission && (StartedBy.IsNone()
@@ -86,6 +88,13 @@ void UMissionRunner::StartDue(FName StartedBy)
 			: Mission->Start == EMissionStart::OnEvent && Mission->StartEvent == StartedBy);
 		if (bDue && !Mission->Steps.IsEmpty() && !IsRunning(Mission->GetMissionId()) && CanStart(*Mission))
 		{
+			const FName MissionId = Mission->GetMissionId();
+			if (Mission->IsMainByItself() && GetCampaign().Accept(MissionId))
+			{
+				AskToSave();
+				StartTalks.AddUnique(MissionId);
+				UE_LOG(LogLooter, Log, TEXT("Mission %s: a main mission, taken by itself (never offered)."), *MissionId.ToString());
+			}
 			StartRun(*Mission, 0);
 		}
 	}

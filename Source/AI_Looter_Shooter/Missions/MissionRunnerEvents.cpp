@@ -209,6 +209,8 @@ void UMissionRunner::AfterChange()
 {
 	Settle();
 	SyncDisplay();
+	// A main mission that just started by itself is in the display now: it's tracked, and its giver's words are said.
+	SayStartTalks();
 	if (bChanged)
 	{
 		bChanged = false;
@@ -287,6 +289,8 @@ void UMissionRunner::SyncDisplay()
 		// to repeat.
 		Display->SetObjective(Run.BookId, FText::FromString(Line), Target, Tracker);
 	}
+	// After the runs, so a meeting that just turned into its run hands the display over to it (MissionRunnerMeetings.cpp).
+	SyncMeetings(*Display);
 }
 
 void UMissionRunner::RemoveFromDisplay(FRun& Run)

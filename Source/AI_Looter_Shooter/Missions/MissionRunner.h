@@ -83,7 +83,10 @@ struct FMissionObjectiveView
  *
  * A mission picked up from a giver (EMissionStart::Offered) is offered, not started, once it's due: available at its giver
  * (a speaker point, a notice board, a mission artifact), it starts when the player accepts it on the offer card
- * (AcceptMission) and from then on in every level of its area, as an automatic one does.
+ * (AcceptMission) and from then on in every level of its area, as an automatic one does. A main mission is never offered
+ * (the user's call, 2026-10-22): it's taken and started the moment it's due, tracked, its giver's words said on the move;
+ * one whose giver must be met first (FMissionOffer::bMeetFirst) is listed and tracked as "Talk to <giver>" until the talk
+ * that starts it (MissionRunnerMeetings.cpp).
  *
  * Optional objectives (UMissionObjective::bOptional) never hold a step and pay a bonus at the turn-in; mission items
  * (FMissionItemInfo) are carried in the campaign while their mission runs; a turn-in may ask the player to choose between
@@ -236,7 +239,8 @@ public:
 
 	/**
 	 * Offered at its giver now: it's picked up from a giver (UMissionDefinition::IsOffered), its prerequisites are finished,
-	 * it's played in this level's area, and it hasn't been accepted, finished or started.
+	 * it's played in this level's area, and it hasn't been accepted, finished or started. A main mission that starts by
+	 * itself (IsMainByItself) never is; one met first (IsMetFirst) is, at its giver, until they're talked to.
 	 */
 	bool IsAvailable(FName MissionId) const;
 
@@ -251,10 +255,22 @@ public:
 
 	/**
 	 * The player takes a mission from its giver: it's recorded accepted (FCampaignRecord::Accept), then started here; the
-	 * minimap and the tracker follow it when nothing else was tracked. One already running is only recorded. False when it
-	 * can't be taken now (finished, its prerequisites not finished, another area's, no steps).
+	 * minimap and the tracker follow it when nothing else was tracked (a main mission always). One already running is only
+	 * recorded. False when it can't be taken now (finished, its prerequisites not finished, another area's, no steps).
 	 */
 	bool AcceptMission(FName MissionId);
+
+	// --- Main missions met first (MissionRunnerMeetings.cpp) ---
+
+	/**
+	 * A main mission due whose giver is still to be met (UMissionDefinition::IsMetFirst, available here): on the Missions
+	 * page and the tracker as "Talk to <giver>" with the arrow on them, under way (EMissionStatus::Active) though not
+	 * running, so the story's "during" conditions don't hold yet. Talking to them starts it (USpeakerPointComponent::Talk).
+	 */
+	bool IsMeeting(FName MissionId) const;
+
+	/** "Talk to Grandma Delia.": a meeting's objective (bShort: the tracker's line, no stop), the giver as the played hero names them. */
+	static FText MeetText(const UMissionDefinition& Mission, bool bShort = false);
 
 	/** Where a mission's offering giver stands, nearest the player: a shown actor carrying its Offer.GiverTag. Unset when none is in the level. */
 	TOptional<FVector> FindOfferGiver(const UMissionDefinition& Mission) const;
@@ -327,11 +343,28 @@ private:
 	bool IsInArea(const UMissionDefinition& Mission) const;
 	bool CanStart(const UMissionDefinition& Mission) const;
 
+	/** A meeting's line in the display: the mission's title, "Talk to <giver>", the arrow on them. */
+	struct FMeeting
+	{
+		FName Id;
+		TWeakObjectPtr<UMissionDefinition> Mission;
+		int32 BookId = INDEX_NONE;
+	};
+
 	// MissionRunnerOffers.cpp
-	/** Due to start without a word from anyone: an automatic one, or one picked up from its giver and already accepted. */
+	/**
+	 * Due to start without a word from anyone: an automatic one, one picked up from its giver and already accepted, or a
+	 * main mission that is never offered (IsMainByItself).
+	 */
 	bool StartsByItself(const UMissionDefinition& Mission) const;
 	/** Records a mission played before offers existed as accepted, so an old save's mission stays taken. */
 	void UpgradeAccepted(const UMissionDefinition& Mission);
+
+	// MissionRunnerMeetings.cpp
+	/** The meetings' lines in the display, added as they come due and taken away once started (or no longer due). */
+	void SyncMeetings(UMissionSubsystem& Display);
+	/** Main missions just started by themselves: tracked, their giver's words said on the move (StartTalks). */
+	void SayStartTalks();
 
 	// MissionRunnerFlow.cpp
 	/** Starts (or restarts) a run at Step; a mission the campaign keeps ready to turn in starts ready instead. */
@@ -414,6 +447,12 @@ private:
 	TSet<FObjectKey> WatchedActors;
 
 	TArray<FRun> Runs;
+
+	/** Main missions due whose giver is still to be met, as the display shows them (IsMeeting decides; this is their lines). */
+	TArray<FMeeting> Meetings;
+
+	/** Main missions started by themselves since the last change was settled: their words and tracking come after it. */
+	TArray<FName> StartTalks;
 
 	/** Kept here when there's no session to keep it (a level played with another game mode). */
 	mutable FCampaignRecord LocalCampaign;

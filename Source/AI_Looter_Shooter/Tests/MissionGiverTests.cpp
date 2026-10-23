@@ -165,8 +165,11 @@ bool FMissionGiverOffersAtTest::RunTest(const FString& Parameters)
 	}
 	UPackage* Scratch = CreatePackage(nullptr);
 	UMissionDefinition* Side = MakeOffered(Scratch, TEXT("TestSide"), EMissionKind::Side, WrenTag);
+	// Main missions are never offered on a card: the ones a giver still has are met first (the talk starts them).
 	UMissionDefinition* Main = MakeOffered(Scratch, TEXT("TestMain"), EMissionKind::Main, WrenTag);
+	Main->Offer.bMeetFirst = true;
 	UMissionDefinition* Locked = MakeOffered(Scratch, TEXT("TestLocked"), EMissionKind::Main, WrenTag);
+	Locked->Offer.bMeetFirst = true;
 	Locked->Prerequisites = { FName(TEXT("TestNever")) };
 	UMissionDefinition* Theirs = MakeOffered(Scratch, TEXT("TestTheirs"), EMissionKind::Side, OtherTag);
 	Runner->BeginForTesting({ Side, Main, Locked, Theirs }, Campaign, Player);
@@ -306,8 +309,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMissionGiverTalkTest, "Looter.Missions.Givers.
 
 bool FMissionGiverTalkTest::RunTest(const FString& Parameters)
 {
-	// Someone with a job offers it as they talk: the offer's lines, then the card once they're said. A mission waiting to
-	// be turned in to them comes first: that talk turns it in, and the job is offered after its words.
+	// Someone with a job offers it as they talk: the offer's lines, and the card at once beside them (2026-10-22). A mission
+	// waiting to be turned in to them comes first: that talk turns it in, and the job is offered once its words are said. The
+	// main mission the turn-in opens is never offered: it starts there and then, its giver's words queued behind the turn-in.
 	FCampaignRecord Campaign;
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
@@ -332,30 +336,39 @@ bool FMissionGiverTalkTest::RunTest(const FString& Parameters)
 	Job->Offer.Lines = { Said(TEXT("While you're here: the well's gone foul.")) };
 	UMissionDefinition* Next = MakeOffered(Scratch, TEXT("TestNext"), EMissionKind::Main, WrenTag);
 	Next->Prerequisites = { FName(TEXT("TestErrand")) };
+	Next->Offer.Lines = { Said(TEXT("The well next. Down you go.")) };
 	Runner->BeginForTesting({ Errand, Job, Next }, Campaign, Player);
 	Runner->Update(0.f);
 
-	// A turn-in waits and a job is offered: the talk turns in first, with the turn-in's words, and offers after.
+	// A turn-in waits and a job is offered: the talk turns in first, with the turn-in's words.
 	Runner->CompleteStep(TEXT("TestErrand"));
 	TestTrue(TEXT("Ready to turn in to Wren, and a job of hers offered"), Runner->IsReadyToTurnIn(TEXT("TestErrand")) && Runner->IsAvailable(TEXT("TestJob")));
 	TestTrue(TEXT("Talked to"), Wren->SpeakerPoint->Talk(Player));
 	TestEqual(TEXT("...the turn-in's words first"), OnScreen(*Captions), FString(TEXT("Wren|That's the lot. Here's your due.")));
 	TestTrue(TEXT("...turned in"), Campaign.HasCompleted(TEXT("TestErrand")));
-	TestTrue(TEXT("...what it opened is offered after its words, the story first"), Wren->SpeakerPoint->GetPendingOffer() == FName(TEXT("TestNext")));
-	TestTrue(TEXT("...offered, not started"), !Runner->IsRunning(TEXT("TestNext")) && Runner->IsAvailable(TEXT("TestNext")));
+	TestTrue(TEXT("...the story mission it opened is under way by itself, taken and tracked"), Runner->IsRunning(TEXT("TestNext"))
+		&& Campaign.IsAccepted(TEXT("TestNext")) && Runner->GetTrackedMission() == FName(TEXT("TestNext")));
+	TestFalse(TEXT("...never offered"), Runner->IsAvailable(TEXT("TestNext")));
+	TestEqual(TEXT("...the job offered next"), Wren->SpeakerPoint->GetPendingOffer(), FName(TEXT("TestJob")));
 	TestFalse(TEXT("...nor talked to again before the words are said"), Wren->SpeakerPoint->CanTalk());
+	TestTrue(TEXT("...its card waits for the turn-in's words"), !Wren->SpeakerPoint->UpdatePendingOffer()
+		&& Wren->SpeakerPoint->GetPendingOffer() == FName(TEXT("TestJob")));
+	Captions->Update(3.1f);
+	TestEqual(TEXT("...then the story mission's words, on the move"), OnScreen(*Captions), FString(TEXT("Wren|The well next. Down you go.")));
+	TestTrue(TEXT("...and the job's card waits for them too (its Accept never cuts them short)"), !Wren->SpeakerPoint->UpdatePendingOffer()
+		&& Wren->SpeakerPoint->GetPendingOffer() == FName(TEXT("TestJob")));
 
 	// The words said and nobody's HUD to show the card (a test level): it's left for the next talk.
 	Captions->Update(30.f);
 	TestFalse(TEXT("No card without a HUD"), Wren->SpeakerPoint->UpdatePendingOffer());
-	TestTrue(TEXT("...left for the next talk"), Wren->SpeakerPoint->GetPendingOffer().IsNone() && Runner->IsAvailable(TEXT("TestNext")));
+	TestTrue(TEXT("...left for the next talk"), Wren->SpeakerPoint->GetPendingOffer().IsNone() && Runner->IsAvailable(TEXT("TestJob")));
 
-	// Taken (as the card would), the side job is next: offered with its own lines.
-	Runner->AcceptMission(TEXT("TestNext"));
+	// Talked to again: the job with its own lines, and its card at once (Accept never waits for the words).
 	TestTrue(TEXT("Talked to again"), Wren->SpeakerPoint->Talk(Player));
 	TestEqual(TEXT("...the job's own lines"), OnScreen(*Captions), FString(TEXT("Wren|While you're here: the well's gone foul.")));
-	TestEqual(TEXT("...and the job offered once they're said"), Wren->SpeakerPoint->GetPendingOffer(), FName(TEXT("TestJob")));
-	TestTrue(TEXT("...still waiting for its words"), !Wren->SpeakerPoint->UpdatePendingOffer() && !Wren->SpeakerPoint->GetPendingOffer().IsNone());
+	TestEqual(TEXT("...and the job offered"), Wren->SpeakerPoint->GetPendingOffer(), FName(TEXT("TestJob")));
+	TestTrue(TEXT("...its card tried at once, its words still being said (no HUD here: left for the next talk)"),
+		!Wren->SpeakerPoint->UpdatePendingOffer() && Wren->SpeakerPoint->GetPendingOffer().IsNone() && Wren->SpeakerPoint->IsTalking());
 
 	// Nothing to offer, nothing to turn in: just her words.
 	Runner->AcceptMission(TEXT("TestJob"));

@@ -128,6 +128,12 @@ public:
 	bool IsMissionOfferOpen() const { return bMissionOfferOpen; }
 
 	/**
+	 * A menu covers the game for the captions: IsMenuOpen, except the offer card in its offer mode alone, whose giver's
+	 * words go on beside it, the captions lifted over its dimming (the user's call, 2026-10-22). LooterHUDMissionOffer.cpp.
+	 */
+	bool CoversCaptions() const;
+
+	/**
 	 * Opens the card in its choice mode for a mission turned in with a choice of two rewards (Back Pay: pay the eleven, or
 	 * keep the payroll), at Giver. False when another menu is open or the mission has no choice waiting.
 	 * LooterHUDMissionOffer.cpp; bMissionOfferOpen covers it.
@@ -266,4 +272,10 @@ private:
 	TObjectPtr<UMissionOfferWidget> MissionOfferWidget;
 
 	bool bMissionOfferOpen = false;
+
+	/** The captions sit over the offer card while it's open in its offer mode (LiftCaptions), back over the HUD after. */
+	bool bCaptionsOverCard = false;
+
+	/** Puts the caption widget over the offer card (bOver) or back in its place over the gameplay HUD. LooterHUDMissionOffer.cpp. */
+	void LiftCaptions(bool bOver);
 };

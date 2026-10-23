@@ -88,6 +88,8 @@ bool FMissionGiverMapPinsTest::RunTest(const FString& Parameters)
 	UPackage* Scratch = CreatePackage(nullptr);
 	UMissionDefinition* Story = MakeOffered(Scratch, TEXT("TestStory"), EMissionKind::Main, WrenTag);
 	Story->Offer.GiverName = FText::FromString(TEXT("Wren"));
+	// A main mission is never offered: one waiting for its giver to be met is the one that still shows at her.
+	Story->Offer.bMeetFirst = true;
 	UMissionDefinition* Chore = MakeOffered(Scratch, TEXT("TestChore"), EMissionKind::Side, WrenTag);
 	UMissionDefinition* Locked = MakeOffered(Scratch, TEXT("TestLocked"), EMissionKind::Side, TillyTag);
 	Locked->Prerequisites = { FName(TEXT("TestNever")) };
@@ -159,6 +161,8 @@ bool FMissionGiverMarksTest::RunTest(const FString& Parameters)
 	}
 	UPackage* Scratch = CreatePackage(nullptr);
 	UMissionDefinition* Story = MakeOffered(Scratch, TEXT("TestStory"), EMissionKind::Main, WrenTag);
+	// A main mission is never offered: one waiting for its giver to be met still has her gold mark.
+	Story->Offer.bMeetFirst = true;
 	UMissionDefinition* Chore = MakeOffered(Scratch, TEXT("TestChore"), EMissionKind::Side, WrenTag);
 	UMissionDefinition* TillyJob = MakeOffered(Scratch, TEXT("TestTillyJob"), EMissionKind::Side, TillyTag);
 	UMissionDefinition* Errand = MakeErrand(Scratch, TEXT("TestErrand"));

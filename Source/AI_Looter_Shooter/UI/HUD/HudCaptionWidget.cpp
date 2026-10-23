@@ -148,7 +148,8 @@ bool UHudCaptionWidget::IsMenuOpen() const
 {
 	const APlayerController* Player = GetOwningPlayer();
 	const ALooterHUD* LooterHUD = Player ? Cast<ALooterHUD>(Player->GetHUD()) : nullptr;
-	if (LooterHUD && LooterHUD->IsMenuOpen())
+	// Every menu but an offer card on its own: there the giver's words go on beside the card (2026-10-22).
+	if (LooterHUD && LooterHUD->CoversCaptions())
 	{
 		return true;
 	}

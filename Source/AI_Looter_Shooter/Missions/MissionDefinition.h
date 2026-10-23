@@ -35,16 +35,20 @@ enum class EMissionStart : uint8
 	Manual,
 	/**
 	 * Picked up from its giver (Offer), Borderlands' way: someone at a speaker point, a notice board or an artifact found in
-	 * the world offers it once its prerequisites are finished, with a ! over them, and it starts only when the player accepts
+	 * the world offers it once its prerequisites are finished, with a ? over them, and it starts only when the player accepts
 	 * it on the offer card. Accepted, it runs from then on wherever the session goes on (FCampaignRecord::AcceptedMissions).
+	 * A main mission is never offered (the user's call, 2026-10-22): it starts by itself the moment it's due, its giver's
+	 * words said on the move, or, with FMissionOffer::bMeetFirst, it's listed with "Talk to <giver>" and starts as they're
+	 * talked to (no card either way).
 	 */
 	Offered,
 };
 
 /**
  * Who offers a mission picked up from its giver (EMissionStart::Offered) and what the offer says: the giver is found by a
- * tag its actor carries (someone's speaker point, a notice board, a mission artifact), as turn-ins find theirs. A speaker
- * says Lines first, then the offer card opens with the Briefing; a board or an artifact opens the card at once.
+ * tag its actor carries (someone's speaker point, a notice board, a mission artifact), as turn-ins find theirs. The offer
+ * card opens at once with the Briefing, a speaker saying Lines beside it; Accept goes to AcceptLines (2026-10-22). Who
+ * offers it nothing before its prerequisites (its story gate) are finished: no mark, no card, no pin.
  */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FMissionOffer
@@ -60,11 +64,30 @@ struct AI_LOOTER_SHOOTER_API FMissionOffer
 	FText GiverName;
 
 	/**
-	 * What a speaker says as they offer it, before the card opens, said instead of their lines at this point in the story. A
-	 * line with no speaker is said in their speaker point's name. Empty: their own lines (boards and artifacts say nothing).
+	 * What a speaker says as they offer it, said instead of their lines at this point in the story, while the card is open
+	 * beside them (the card opens at once: Accept never waits for the words). A line with no speaker is said in their speaker
+	 * point's name. Empty: their own lines (boards and artifacts say nothing). A main mission's are said on the move as it
+	 * starts by itself, or are the talk that starts it (bMeetFirst).
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Offer")
 	TArray<FStoryLine> Lines;
+
+	/**
+	 * What the giver says once it's taken, Borderlands' way: Accept on the card cuts the offer's Lines short and goes
+	 * straight to these. A main mission says them after its Lines. A line with no speaker is said in the giver's name. Empty:
+	 * nothing more (the offer's words stop as it's accepted).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Offer")
+	TArray<FStoryLine> AcceptLines;
+
+	/**
+	 * A main mission whose story needs the player at its giver first (Main 3 and Main 6: Delia's word): from the moment it's
+	 * due it's on the Missions page and tracked with "Talk to <giver>" (the arrow on them), and talking to them says Lines and
+	 * starts it, no card. Off, a main mission starts by itself the moment it's due, Lines said on the move. Side missions
+	 * ignore it: they're always offered on the card.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Offer")
+	bool bMeetFirst = false;
 
 	/** The offer card's story, two to four sentences in the giver's voice; an artifact's own words when it's one. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Offer", meta = (MultiLine = true))
@@ -323,7 +346,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mission")
 	EMissionKind Kind = EMissionKind::Main;
 
-	/** Missions to finish first, by id. */
+	/**
+	 * Missions to finish first, by id: a side mission's story gate (Side 1 after Main 3; the "After" column of
+	 * Docs/Areas/RansomsRest_Expansion.md section 2). Until they're done nobody offers it: no mark, no card, no pin.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mission")
 	TArray<FName> Prerequisites;
 
@@ -383,6 +409,12 @@ public:
 
 	/** It's picked up from a giver: it starts Offered and names its giver's tag. */
 	bool IsOffered() const { return Start == EMissionStart::Offered && !Offer.GiverTag.IsNone(); }
+
+	/** A main mission with a giver that starts by itself the moment it's due (main missions are never offered on a card). */
+	bool IsMainByItself() const { return Kind == EMissionKind::Main && IsOffered() && !Offer.bMeetFirst; }
+
+	/** A main mission that starts as its giver is talked to (Offer.bMeetFirst), listed with "Talk to <giver>" until then. */
+	bool IsMetFirst() const { return Kind == EMissionKind::Main && IsOffered() && Offer.bMeetFirst; }
 
 	/** Its turn-in asks the player to choose between two (FMissionTurnIn::Choices): it waits for a giver and has two. */
 	bool HasTurnInChoice() const { return NeedsTurnIn() && TurnIn.Choices.Num() >= 2; }

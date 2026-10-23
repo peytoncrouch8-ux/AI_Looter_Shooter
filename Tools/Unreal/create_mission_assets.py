@@ -11,7 +11,11 @@ it is turned in, a ? floats over its giver (someone at a speaker point, a notice
 to them says the offer's lines and opens the offer card with its briefing. Once every objective is done the mission is
 "ready to turn in" (a ! over whoever takes it, the tracker's "Turn in to <giver>"), and talking to them finishes it, with
 its turn-in lines and its rewards; a mission they offer next is offered straight after, as one conversation. Where a
-mission's last objective was talking to its giver, that talk is the turn-in. Experience is a fixed amount per mission,
+mission's last objective was talking to its giver, that talk is the turn-in. Since 2026-10-22 (the user's call) a main
+mission is never offered on the card: the data still says OFFERED with its giver and lines, and the game starts it the
+moment it's due, tracked, the offer's lines and accept_lines said on the move (Main 2, 4, 5, 7); one with
+meet_first=True (Main 3 and Main 6: Delia's word) is listed as "Talk to Grandma Delia" until that talk starts it. Side
+offers open the card at once beside the giver's lines; Accept goes to accept_lines. Experience is a fixed amount per mission,
 on the Borderlands-like curve of 2026-10-13: a main mission about a third to two thirds of a level where it's turned in, a
 side mission about an eighth to a fifth (Docs/Progression.md has the count: the story alone ends about level 5.5,
 everything about 6.8; Looter.Progression.Pacing checks both).
@@ -309,16 +313,21 @@ def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), questio
     return made
 
 
-def offer(giver_tag='', giver='', lines=(), briefing=''):
+def offer(giver_tag='', giver='', lines=(), briefing='', accept_lines=(), meet_first=False):
     """FMissionOffer: who offers a mission picked up from its giver (start='OFFERED'), by the tag their actor carries
     (Speaker_Delia, NoticeBoard_Rangers, Artifact_MinersTag), their name for people (empty: from the tag), what a speaker
     says as they offer it (lines of (speaker, words); an empty speaker is their speaker point's name; none: their own lines),
-    and the offer card's story, two to four sentences (an artifact's own words when it's one). Without a giver tag the
-    offer is empty, as every mission that isn't offered keeps it."""
+    what they say once it's taken (accept_lines: Accept on the card cuts the offer short and goes to these), and the offer
+    card's story, two to four sentences (an artifact's own words when it's one). A main mission is never offered on the
+    card (2026-10-22): it starts by itself as it's due, these lines said on the move, or with meet_first it's listed as
+    "Talk to <giver>" and the talk starts it. Without a giver tag the offer is empty, as every mission that isn't offered
+    keeps it."""
     made = unreal.MissionOffer()
     made.set_editor_property('giver_tag', unreal.Name(giver_tag))
     made.set_editor_property('giver_name', unreal.Text(giver))
     made.set_editor_property('lines', story_lines(lines))
+    made.set_editor_property('accept_lines', story_lines(accept_lines))
+    made.set_editor_property('meet_first', bool(meet_first))
     made.set_editor_property('briefing', unreal.Text(briefing))
     return made
 
@@ -655,7 +664,8 @@ MISSIONS = [
                  "farm road and ask Tilly Bright, who laid him out, what came home with him. The living shutter their "
                  "windows, and the Unpaid come for the corpse at the gate.",
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main2'], sort_order=3, steps=main3_steps,
-         offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', lines=[
+         # Sexton sends Ellis to Delia: met first (listed as "Talk to Grandma Delia"), her talk starts it, no card.
+         offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', meet_first=True, lines=[
              ('', "You've been up there. I can smell the cold on you."),
              ('', "He ran out with his lantern lit. They carried him down without it."),
              ('', "Tilly Bright laid him out. Ask her."),
@@ -715,8 +725,9 @@ MISSIONS = [
          summary="At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the Keeper's "
                  "Lantern on his post and show him the way, even if he can't go.",
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main5'], sort_order=6,
-         # Accepting it fades the Rest to dusk (AStoryLighting, during Main 6).
-         offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', lines=[
+         # Aldana sends Ellis to Delia: met first, her talk starts it (no card), and that fades the Rest to dusk
+         # (AStoryLighting, during Main 6).
+         offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', meet_first=True, lines=[
              (ELLIS, "Father Aldana couldn't light it."),
              ('', "No. That was never a priest's to do."),
              ('', "Take him the lantern. Show him the way, even if he can't go."),
@@ -846,6 +857,9 @@ def setup(spec):
               else f"turned in to {spec['turn_in'].get('giver')} ({giver})")
     start = (f"offered by {offered.get('giver')} ({offered.get('giver_tag')})" if spec['start'] == 'OFFERED'
              else f"starts {spec['start'].lower()}")
+    if spec['start'] == 'OFFERED' and spec['kind'] == 'MAIN':
+        start = (f"met first at {offered.get('giver')} ({offered.get('giver_tag')})" if offered.get('meet_first')
+                 else f"starts by itself, {offered.get('giver')}'s words on the move")
     unreal.log(f"MISSIONS {spec['asset']} {'made' if created else 'updated'}: id {spec['id']}, \"{spec['title']}\", "
                f"{spec['kind'].lower()}, {start}, area '{spec['area']}', {len(steps)} steps, "
                f"{finish}, {spec['rewards'].get('experience', 0)} XP")

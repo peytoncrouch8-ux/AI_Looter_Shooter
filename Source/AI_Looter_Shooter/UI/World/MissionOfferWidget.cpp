@@ -7,6 +7,7 @@
 #include "Audio/LooterSound.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
+#include "Missions/MissionTalk.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
@@ -140,6 +141,8 @@ bool UMissionOfferWidget::Accept()
 	}
 	// What the player just took is what they follow: the tracker shows it, the minimap points the way.
 	Runner->TrackMission(MissionId);
+	// Borderlands' way: the giver's offer stops where it is and they go straight to what they say once it's taken.
+	MissionTalk::SayAccepted(this, *Offered, Giver.Get());
 	bAccepted = true;
 	bClosing = true;
 	CloseAge = 0.f;
@@ -162,6 +165,11 @@ void UMissionOfferWidget::Decline()
 	CloseAge = 0.f;
 	Nav.SetShown(false);
 	EndHold();
+	// Not now: the giver stops offering it (the ? stays, and the next talk offers it again).
+	if (Mode == EMissionCardMode::Offer)
+	{
+		MissionTalk::StopGiver(Giver.Get());
+	}
 	// Put back: the paper set down (a choice left for later is the same mission card; a page read, its own).
 	LooterSound::Play2D(this, Mode == EMissionCardMode::Read ? FName(LooterSoundCue::MissionFeatures::ReadClose) : FName(LooterSoundCue::Giver::Decline));
 }

@@ -201,12 +201,14 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 		// Whoever the player turns to talk to has the floor: whatever was being said stops.
 		Conversation = Captions->Play(Said, ECaptionPlay::Interrupt);
 	}
-	// Someone with nothing waiting to be turned in offers the job once these words are said; a turn-in with a choice asks it
-	// then.
+	// Someone with nothing waiting to be turned in offers the job: the card opens at once, these words said beside it (the
+	// user's call, 2026-10-22: Accept never waits for them). A main mission met first gets no card: this talk starts it
+	// (below, after the Talk event). A turn-in with a choice asks it once these words are said.
 	ClearPendingOffer();
-	if (Offered)
+	const bool bMeets = Offered && Offered->IsMetFirst();
+	if (Offered && !bMeets)
 	{
-		QueueOffer(*Offered, Listener, Conversation);
+		QueueOffer(*Offered, Listener, Conversation, /*bWaitForWords*/ false);
 	}
 	else if (bChoice)
 	{
@@ -235,22 +237,39 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 		{
 			Runner->SetFlag(Topics[TopicIndex].SetsFlag);
 		}
+		// The main mission this talk was for: taken now, after the Talk event, so its first objective doesn't take this talk.
+		if (bMeets)
+		{
+			StartMet(*Offered);
+		}
 	}
-	// The turn-in came first; what they have next (a mission it opened, or one waiting behind it) is offered once its words
-	// are said, after its own words when it has any. A choice still to make comes before anything else they have.
+	// The turn-in came first; what they have next (a mission it opened, or one waiting behind it) comes after its words: its
+	// own words queued behind them, and the card once the turn-in's are said (beside the job's). A choice still to make comes
+	// before anything else they have. (A main mission the turn-in unlocked that starts by itself is under way already, its
+	// words queued by the runner.)
 	if (TurnedIn && !bChoice && Runner)
 	{
 		const TArray<const UMissionDefinition*> OffersAfter = Runner->GetOffersAt(Owner);
 		if (!OffersAfter.IsEmpty())
 		{
 			const UMissionDefinition& Next = *OffersAfter[0];
+			int32 NextWords = 0;
 			if (Captions && !Next.Offer.Lines.IsEmpty())
 			{
 				// Queued after the turn-in's words, as one conversation: no second talk until both are said.
-				const int32 Queued = Captions->Play(InOwnName(Next.Offer.Lines), ECaptionPlay::Queue);
-				Conversation = Queued != 0 ? Queued : Conversation;
+				NextWords = Captions->Play(InOwnName(Next.Offer.Lines), ECaptionPlay::Queue);
+				Conversation = NextWords != 0 ? NextWords : Conversation;
 			}
-			QueueOffer(Next, Listener, Conversation);
+			if (Next.IsMetFirst())
+			{
+				StartMet(Next);
+			}
+			else
+			{
+				// The card comes up with the job's own words (or the silence after everything before them), so its Accept
+				// never cuts the turn-in short.
+				QueueOffer(Next, Listener, NextWords, /*bWaitForWords*/ true);
+			}
 		}
 	}
 	OnTalked.Broadcast(*this, Listener);

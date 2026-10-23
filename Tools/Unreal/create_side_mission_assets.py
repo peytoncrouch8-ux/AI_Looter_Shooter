@@ -317,15 +317,19 @@ def choice(title, line, flag='', stamp='', lines=(), **reward_settings):
     return made
 
 
-def offer(giver_tag='', giver='', lines=(), briefing=''):
+def offer(giver_tag='', giver='', lines=(), briefing='', accept_lines=()):
     """FMissionOffer, as create_mission_assets.py makes it: who offers a mission picked up from its giver (start='OFFERED')
     by the tag their actor carries (Speaker_Agent, NoticeBoard_CalderPost, Artifact_MinersTag), their name for people
-    (empty: an artifact's own title), what a speaker says as they offer it (lines of (speaker, words)), and the offer
-    card's story. Without a giver tag the offer is empty, as every mission that isn't offered keeps it."""
+    (empty: an artifact's own title), what a speaker says as they offer it (lines of (speaker, words): said beside the card,
+    which opens at once), what they say once it's taken (accept_lines: Accept cuts the offer's lines short and goes
+    straight to these, Borderlands' way, 2026-10-22), and the offer card's story. Without a giver tag the offer is empty,
+    as every mission that isn't offered keeps it. Its prerequisites are its story gate: nobody offers it before."""
     made = unreal.MissionOffer()
     made.set_editor_property('giver_tag', unreal.Name(giver_tag))
     made.set_editor_property('giver_name', unreal.Text(giver))
     made.set_editor_property('lines', story_lines(lines))
+    made.set_editor_property('accept_lines', story_lines(accept_lines))
+    made.set_editor_property('meet_first', False)
     made.set_editor_property('briefing', unreal.Text(briefing))
     return made
 
@@ -572,10 +576,12 @@ MISSIONS = [
          summary="Mr. Sloane, the station agent, has locked himself upstairs in the depot. Every night the dead stand in his "
                  "waiting room as if for a train. Clear them out, and find out what they're waiting on.",
          kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main3'], sort_order=12, steps=old_fare_steps,
+         # His last line is what he says once it's taken (Accept goes straight to it, 2026-10-22).
          offer=dict(giver_tag='Speaker_Agent', giver='Mr. Sloane', lines=[
              ('', "Who's there? ...Lord. The Ransom kid."),
              ('', "Every night since Wednesday they come and stand in my waiting room like they've a train to catch. I "
                   "can hear them breathing."),
+         ], accept_lines=[
              ('', "If you're dead too, maybe they'll listen to you."),
          ], briefing="Mr. Sloane, the station agent, has locked himself upstairs. Every night since the saint went dark "
                      "the dead have stood in his waiting room as if for a train. Clear them out, and find out what "
@@ -606,6 +612,8 @@ MISSIONS = [
              ('', "What's left of him. And you're Abel's young'un. I'm sorry for it."),
              ('', "Died last harvest with the hay half in. Got turned back on the road."),
              ('', "My hands go through a bale like smoke. Load it for me?"),
+         ], accept_lines=[
+             ('', "Obliged. I'll be at the fence."),
          ], briefing="Amos Whitlock died last harvest with his hay half in. He was still on the Sundown Road when the saint "
                      "went dark, and drifted home to find it rotting in the field. He isn't angry yet. He'd like it in."),
          # His thanks are his topic at the turn-in's step (DA_Lines_AmosThanks, build_area_whitlock's THANKS_STEP 3).
@@ -619,6 +627,8 @@ MISSIONS = [
          offer=dict(giver_tag=TILLY_TAG, giver='Tilly', lines=[
              ('', "Something's knocked in my cellar every night since Wednesday. No keeper to walk them."),
              ('', "I'd go down myself, except I'd rather not."),
+         ], accept_lines=[
+             ('', "The key's on the hook in the workshop. Mind the steps."),
          ], briefing="Bright & Daughter keeps the Rest's dead in its cellar until their seven days are up. Since the saint "
                      "went dark something down there knocks all night, and Tilly hasn't been below since. The way in is "
                      "through her father's workshop, off the undertaker's yard."),
@@ -661,8 +671,10 @@ MISSIONS = [
                  "still waits by its cold boiler. Get its clamp pin back from Abe Haskett, and he'll take you up Larkspur "
                  "Ridge.",
          kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main5'], sort_order=31, steps=dead_lift_steps,
+         # Ellis's answer is the taking: Accept goes straight to it and his ask (2026-10-22).
          offer=dict(giver_tag='Speaker_Hiram', giver='Hiram Coyle', lines=[
              ('', "Ain't had a passenger in four years. Riding up?"),
+         ], accept_lines=[
              (ELLIS, 'Riding.'),
              ('', "Then I need her clamp pin back. Abe Haskett took it down the hill the day of the fall."),
          ], briefing="The old ore lift still hangs over the Old Quarry, and its engineman, Hiram Coyle, still waits by its "

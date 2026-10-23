@@ -1,7 +1,8 @@
 // UMissionRunner: missions picked up from their givers (EMissionStart::Offered), Borderlands' way. Once what comes first is
-// finished such a mission is offered, not started: a ! over its giver, and the offer card when the player talks to them,
+// finished such a mission is offered, not started: a ? over its giver, and the offer card when the player talks to them,
 // reads their board or picks up their artifact. Accepting it records it in the campaign and starts it; from then on it
-// starts in its area's level by itself, as an automatic mission does.
+// starts in its area's level by itself, as an automatic mission does. A main mission is never offered (the user's call,
+// 2026-10-22): it's taken the moment it's due (StartDue), or as its giver is talked to (IsMetFirst).
 
 #include "Missions/MissionRunner.h"
 #include "AI_Looter_Shooter.h"
@@ -31,7 +32,9 @@ bool UMissionRunner::IsAccepted(FName MissionId) const
 bool UMissionRunner::IsAvailable(FName MissionId) const
 {
 	const UMissionDefinition* Mission = FindDefinition(MissionId);
-	return Mission && Mission->IsOffered() && !Mission->Steps.IsEmpty() && !IsAccepted(MissionId) && CanStart(*Mission);
+	// A main mission that starts by itself is never up for the taking: it's under way the moment it could be.
+	return Mission && Mission->IsOffered() && !Mission->IsMainByItself() && !Mission->Steps.IsEmpty() && !IsAccepted(MissionId)
+		&& CanStart(*Mission);
 }
 
 TArray<const UMissionDefinition*> UMissionRunner::GetOffersAt(const AActor* Giver) const
@@ -133,6 +136,11 @@ bool UMissionRunner::AcceptMission(FName MissionId)
 	StartRun(*Mission, 0);
 	// Its line goes in the display now: with nothing tracked it's what the minimap and the tracker follow (FMissionBook).
 	AfterChange();
+	// The story's next step is always what the player follows (a main mission met first: its meeting's line just went).
+	if (Mission->Kind == EMissionKind::Main)
+	{
+		TrackMission(MissionId);
+	}
 	return true;
 }
 
@@ -142,7 +150,8 @@ bool UMissionRunner::AcceptMission(FName MissionId)
 
 bool UMissionRunner::StartsByItself(const UMissionDefinition& Mission) const
 {
-	return Mission.Start == EMissionStart::Automatic || (Mission.IsOffered() && GetCampaign().IsAccepted(Mission.GetMissionId()));
+	return Mission.Start == EMissionStart::Automatic || Mission.IsMainByItself()
+		|| (Mission.IsOffered() && GetCampaign().IsAccepted(Mission.GetMissionId()));
 }
 
 void UMissionRunner::UpgradeAccepted(const UMissionDefinition& Mission)

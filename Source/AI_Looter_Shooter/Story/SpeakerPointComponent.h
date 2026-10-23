@@ -56,11 +56,13 @@ struct AI_LOOTER_SHOOTER_API FSpeakerTopic
  * and the mission's own turn-in lines are said, when it has any). While its lines play it can't be talked to again.
  *
  * Someone with a mission to offer (FMissionOffer::GiverTag on the actor) offers it as they talk, Borderlands' way: they say
- * the offer's lines (else their own), and once those are said the offer card opens (ALooterHUD::OpenMissionOffer). A
- * mission waiting to be turned in to them comes first: that talk turns it in, and what they have next is offered after the
- * turn-in's words. Walking off before the words end leaves the offer for the next talk (its ! stays). A turn-in with a
- * choice of two (FMissionTurnIn::Choices) isn't finished by the talk: once its words are said the card opens in its choice
- * mode (ALooterHUD::OpenTurnInChoice), and the mission finishes when the player chooses.
+ * the offer's lines (else their own) and the offer card opens at once beside them (ALooterHUD::OpenMissionOffer), Accept
+ * usable without waiting for the words (the user's call, 2026-10-22); Accept cuts them short for the job's accept lines
+ * (SayInstead), Not now stops them (StopTalking). A main mission met first (FMissionOffer::bMeetFirst) gets no card: the
+ * talk says its lines and starts it, its accept lines after. A mission waiting to be turned in to them comes first: that
+ * talk turns it in, and what they have next is offered once the turn-in's words are said. A turn-in with a choice of two
+ * (FMissionTurnIn::Choices) isn't finished by the talk: once its words are said the card opens in its choice mode
+ * (ALooterHUD::OpenTurnInChoice), and the mission finishes when the player chooses.
  *
  * Anything can speak: a door, a window, a story character, a talking coffin, a speaking tube, a tag board, a store's hatch.
  * Place the point where the voice comes from (its owner's speaker socket); bMissionsOnly keeps a thing that speaks only for
@@ -96,6 +98,15 @@ public:
 	/** Its last lines are on screen or still to come. */
 	UFUNCTION(BlueprintPure, Category = "Speaker")
 	bool IsTalking() const;
+
+	/** Its words stop if they're still being said (the offer card's Not now): the line on screen fades out quickly. */
+	void StopTalking();
+
+	/**
+	 * Says Said now in its name, instead of whatever was being said (the offer card's Accept: the job's accept lines). Empty:
+	 * it only stops talking. Their conversation, or 0.
+	 */
+	int32 SayInstead(const TArray<FStoryLine>& Said);
 
 	/**
 	 * What a talk would say now, each line naming its speaker: the first topic that applies, else Lines (LineSet's when
@@ -170,8 +181,9 @@ public:
 	bool IsChoicePending() const { return bPendingChoice && !PendingOffer.IsNone(); }
 
 	/**
-	 * Opens the offer card on the pending offer if its words are said, the listener is still near and nothing covers the
-	 * game: true when it opened. A timer asks a few times a second while one waits; tests may ask.
+	 * Opens the offer card on the pending offer (an offer at once; a choice, or an offer after a turn-in, once the words
+	 * before it are said) if the listener is still near and nothing covers the game: true when it opened. A timer asks a
+	 * few times a second while one waits; tests may ask.
 	 */
 	bool UpdatePendingOffer();
 
@@ -221,10 +233,15 @@ private:
 	/** Lines in this point's speaker's name where they name none. */
 	TArray<FStoryLine> InOwnName(TArray<FStoryLine> Said) const;
 
-	/** Mission is offered once the conversation's words are said, to Listener. */
-	void QueueOffer(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation);
+	/**
+	 * Mission is offered to Listener on the card: at once, its words said beside it, or (bWaitForWords: after a turn-in)
+	 * once what's said before AfterConversation (the job's own words; 0: none) is over.
+	 */
+	void QueueOffer(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation, bool bWaitForWords);
 	/** Mission's turn-in choice card opens once the conversation's words are said, for Listener (SpeakerPointComponentOffers.cpp). */
 	void QueueChoice(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation);
+	/** A main mission met first, started by this talk (no card): taken, its accept lines after what's being said. */
+	void StartMet(const UMissionDefinition& Mission);
 	void ClearPendingOffer();
 	void TickPendingOffer();
 
@@ -234,6 +251,11 @@ private:
 	 */
 	FName PendingOffer;
 	bool bPendingChoice = false;
+	/**
+	 * The card waits: a choice for OfferConversation's words (the turn-in's) to be said; an offer after a turn-in for what
+	 * comes before OfferConversation (its own words) to be over. Off: it opens at once.
+	 */
+	bool bOfferWaitsForWords = true;
 	int32 OfferConversation = 0;
 	TWeakObjectPtr<AActor> OfferListener;
 	double OfferQueuedAt = 0.0;
