@@ -8,6 +8,12 @@
 #include "Creatures/EncounterSubsystem.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Missions/MissionDefinition.h"
+#include "Missions/MissionEventObjectives.h"
+#include "Missions/MissionRunner.h"
+#include "Session/CampaignRecord.h"
+#include "Tests/MissionTestWorld.h"
+#include "UObject/Package.h"
 #include "Tests/AutomationCommon.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Engine/World.h"
@@ -156,6 +162,77 @@ bool FEncounterRoomTest::RunTest(const FString& Parameters)
 		}
 	}
 	TestTrue(FString::Printf(TEXT("...a body apart at the least (closest %.0f cm)"), Closest), Closest >= 99.0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEncounterSentAwayTest, "Looter.Encounters.SentAway",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FEncounterSentAwayTest::RunTest(const FString& Parameters)
+{
+	// A fight the story moves past while its creatures are fighting (the play-check of 2026-10-23: Fenn's coins laid back
+	// mid-fight, and the depot's Unpaid clawed at the player through his lines): they break off, hunt nobody, leave its count,
+	// and go once nobody sees them; started again, it's a fresh fight.
+	FCampaignRecord Campaign;
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
+	if (!TestNotNull(TEXT("The level has a mission runner"), Runner))
+	{
+		return false;
+	}
+	const FName Valley(TEXT("TestValley"));
+	const FName FareId(TEXT("TestFare"));
+	UPackage* Scratch = CreatePackage(nullptr);
+	UMissionDefinition* Fare = MissionTestWorld::NewMission(Scratch, TEXT("TestFare"), EMissionKind::Side, EMissionStart::Automatic, Valley);
+	MissionTestWorld::AddObjective<UMissionEventObjective>(Fare, 0)->Event = TEXT("Fare.Laid");
+
+	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector(1500.0, 0.0, 0.0));
+	AEncounterSpawner* Return = EncounterTestWorld::SpawnSpawner(World, FVector::ZeroVector, [FareId](AEncounterSpawner& Setup)
+	{
+		Setup.SpawnerId = TEXT("TestReturn");
+		Setup.Groups = { EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 3) };
+		Setup.ActiveWhen.DuringMission = FareId;
+		Setup.SpawnRadius = 600.f;
+		Setup.ActivationRadius = 3000.f;
+		Setup.bHuntOnSpawn = true;
+	});
+	if (!TestNotNull(TEXT("Player stand-in"), Player) || !TestNotNull(TEXT("Spawner"), Return))
+	{
+		return false;
+	}
+	Runner->BeginForTesting({ Fare }, Campaign, Player, Valley);
+	Runner->Update(0.f);
+	Return->UpdateEncounter(0.5f);
+	TArray<TWeakObjectPtr<ACreatureBase>> Out;
+	for (ACreatureBase* Creature : Return->GetAliveCreatures())
+	{
+		Out.Add(Creature);
+	}
+	const bool bHunting = Out.Num() == 3 && !Out.ContainsByPredicate([Player](const TWeakObjectPtr<ACreatureBase>& One)
+	{
+		return !One.IsValid() || One->GetTarget() != Player;
+	});
+	TestTrue(TEXT("The step's fight: three out, every one after the player"), bHunting);
+
+	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Fare.Laid")));
+	TestTrue(TEXT("The step done: the fight is off"), Return->GetState() == EEncounterState::Off && !Return->IsStoryActive());
+	TestEqual(TEXT("...its creatures no longer its fight's"), Return->NumAlive(), 0);
+	const bool bBrokeOff = !Out.ContainsByPredicate([](const TWeakObjectPtr<ACreatureBase>& One)
+	{
+		return One.IsValid() && (!One->IsPassive() || One->GetTarget() != nullptr);
+	});
+	TestTrue(TEXT("...each one still about has broken off and hunts nobody"), bBrokeOff);
+	for (int32 Look = 0; Look < 2; ++Look)
+	{
+		Return->UpdateEncounter(0.5f);
+	}
+	TestFalse(TEXT("...and once nobody sees them, they're gone"),
+		Out.ContainsByPredicate([](const TWeakObjectPtr<ACreatureBase>& One) { return One.IsValid() && !One->IsActorBeingDestroyed(); }));
 	return true;
 }
 

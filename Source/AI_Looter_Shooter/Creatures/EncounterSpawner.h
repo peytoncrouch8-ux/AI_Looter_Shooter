@@ -387,7 +387,18 @@ private:
 	bool ShouldDespawn() const;
 	bool IsAnyInView() const;
 	bool IsAnyFighting() const;
+	/** Creature is in the player's view, or was drawn on screen a moment ago. */
+	bool IsInView(const ACreatureBase& Creature) const;
 	const UAreaDefinition* FindArea() const;
+
+	// --- Sent away (EncounterSpawnerLeaving.cpp) ---
+	/**
+	 * Its story moved on while its creatures were seen or fighting: each breaks off (ACreatureBase::SetPassive: it lets go
+	 * of the player and walks home) and leaves its fight for Leaving, so a later start of its story is a fresh encounter.
+	 */
+	void SendLivingAway();
+	/** Those sent away go once nobody sees them, or LeaveAtMostSeconds after they were sent. */
+	void UpdateLeaving(float DeltaSeconds);
 
 	// --- Stragglers (EncounterSpawnerStragglers.cpp) ---
 	/**
@@ -435,6 +446,9 @@ private:
 
 	TArray<FOwedCreature> Owed;
 	TArray<FLivingCreature> Living;
+	/** Creatures sent away when its story moved on (SendLivingAway), and how long since. */
+	TArray<TWeakObjectPtr<ACreatureBase>> Leaving;
+	float LeavingSeconds = 0.f;
 	FRandomStream Rolls;
 	FTimerHandle CheckTimer;
 };

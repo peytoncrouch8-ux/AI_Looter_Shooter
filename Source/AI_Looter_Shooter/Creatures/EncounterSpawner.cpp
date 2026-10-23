@@ -202,10 +202,16 @@ void AEncounterSpawner::GoOff()
 	TotalQueued = 0;
 	Killed = 0;
 	WaveClock = 0.f;
-	// What's out goes now, unless someone sees it or it's fighting: then as soon as that's over (UpdateEncounter).
+	// What's out goes now, unless someone sees it or it's fighting: then it breaks off and walks away, and goes once nobody
+	// sees it (SendLivingAway): a fight the story moved past never fights on through what comes next (Fenn's lines over his
+	// coffin with the depot's dead still clawing at the player, the play-check of 2026-10-23).
 	if (!IsAnyInView() && !IsAnyFighting())
 	{
 		RemoveLiving(/*bOweThem*/ false);
+	}
+	else
+	{
+		SendLivingAway();
 	}
 }
 
@@ -259,6 +265,7 @@ bool AEncounterSpawner::TriggerWave(bool bForce)
 void AEncounterSpawner::UpdateEncounter(float DeltaSeconds)
 {
 	PruneLiving();
+	UpdateLeaving(DeltaSeconds);
 	switch (State)
 	{
 	case EEncounterState::Off:
@@ -346,6 +353,11 @@ void AEncounterSpawner::HandleCheckTimer()
 
 bool AEncounterSpawner::WantsChecks() const
 {
+	// Those sent away are looked at until they've gone, whatever its state.
+	if (!Leaving.IsEmpty())
+	{
+		return true;
+	}
 	switch (State)
 	{
 	case EEncounterState::Off:

@@ -400,20 +400,25 @@ bool AEncounterSpawner::ShouldDespawn() const
 
 bool AEncounterSpawner::IsAnyInView() const
 {
-	const UWorld* World = GetWorld();
-	const UEncounterSubsystem* Encounters = GetEncounters();
 	for (const ACreatureBase* Creature : GetAliveCreatures())
 	{
-		const USkeletalMeshComponent* Body = Creature->GetMesh();
-		const float BodyRadius = Body ? static_cast<float>(Body->Bounds.SphereRadius) : 100.f;
-		const bool bInView = Encounters && Encounters->IsInPlayersView(Creature->GetActorLocation(), BodyRadius);
-		const bool bDrawnLately = World && Body && World->TimeSince(Body->GetLastRenderTimeOnScreen()) <= SeenLatelySeconds;
-		if (bInView || bDrawnLately)
+		if (IsInView(*Creature))
 		{
 			return true;
 		}
 	}
 	return false;
+}
+
+bool AEncounterSpawner::IsInView(const ACreatureBase& Creature) const
+{
+	const UWorld* World = GetWorld();
+	const UEncounterSubsystem* Encounters = GetEncounters();
+	const USkeletalMeshComponent* Body = Creature.GetMesh();
+	const float BodyRadius = Body ? static_cast<float>(Body->Bounds.SphereRadius) : 100.f;
+	const bool bInView = Encounters && Encounters->IsInPlayersView(Creature.GetActorLocation(), BodyRadius);
+	const bool bDrawnLately = World && Body && World->TimeSince(Body->GetLastRenderTimeOnScreen()) <= SeenLatelySeconds;
+	return bInView || bDrawnLately;
 }
 
 bool AEncounterSpawner::IsAnyFighting() const
