@@ -344,8 +344,11 @@ bool FCreatureReactHitFlashTest::RunTest(const FString& Parameters)
 			Pellets.Start(false);
 		}
 		TestNearlyEqual(TEXT("A shotgun's pellets: the first's flash stands, nothing adds up"), Pellets.GetIntensity(), First, 0.001f);
-		TestTrue(TEXT("The flash is a rim, barely a lift over the body"),
-			FCreatureHitFlash::Even < 0.15f && FCreatureHitFlash::Rim > 1.f && FCreatureHitFlash::RimPower >= 2.f);
+		// In the scene's light (a 7-lux sun) an overlay of 0.1 doubles a sunlit body: a crit's whole flash stays under that,
+		// and its rim no bigger than its lift (a rim of 1.3 made a white dome of the abdomen and cards of the bristles).
+		TestTrue(TEXT("The flash: a small lift, its rim no bigger"),
+			FCreatureHitFlash::Glow * FCreatureHitFlash::CriticalStrength * (FCreatureHitFlash::Even + FCreatureHitFlash::Rim) <= 0.15f
+			&& FCreatureHitFlash::Rim <= FCreatureHitFlash::Even + 0.001f && FCreatureHitFlash::RimPower >= 2.f);
 	}
 
 	// On a spider: the flash worn on its body, fading, then taken off.

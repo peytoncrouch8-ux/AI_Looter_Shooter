@@ -24,18 +24,28 @@ using namespace ImpactLooks;
 namespace
 {
 	// A punch (numbers at a sniper round's size; the ring and column grow with Size).
-	/** The ring of air over the surface: from, to (cm), thickness, strength (faint: air, not fire), life. */
-	constexpr float PunchRingFrom = 6.f;
-	constexpr float PunchRingTo = 70.f;
-	constexpr float PunchRingWidth = 6.f;
+	/**
+	 * The ring of air: from, to (cm), thickness, strength, life. It faces the eye, lifted off the ground by PunchRingLift of its
+	 * reach (FX-DIAG, 2026-10-23: laid flat on the surface it was seen edge-on from a standing eye at 40 m, half sunk in the
+	 * ground's bumps, a faint thin arc nobody saw); its size and thickness grow with distance as the hit's pieces do.
+	 */
+	constexpr float PunchRingFrom = 8.f;
+	constexpr float PunchRingTo = 80.f;
+	constexpr float PunchRingWidth = 9.f;
 	constexpr float PunchRingGlow = 5.f;
-	constexpr float PunchRingLife = 0.16f;
+	constexpr float PunchRingLife = 0.2f;
+	constexpr float PunchRingLift = 0.45f;
 	/** The dust ring rolling out over the surface: puffs and their speed (cm/s). */
 	constexpr int32 PunchSkirt = 8;
 	constexpr float PunchSkirtSpeed = 420.f;
-	/** The tall column: billows thrown up the normal (cm/s; a rifle's dense geyser is 520). */
-	constexpr int32 PunchColumn = 3;
-	constexpr float PunchColumnSpeed = 760.f;
+	/**
+	 * The tall column: billows thrown up the normal (cm/s; a rifle's dense geyser is 520), slowed by this drag (per s). At 760
+	 * with drag 3 it stopped about 2 m up, as low as the hit's own dust (FX-DIAG: the sniper's 40 m hit read as one brown
+	 * puff); now 4-5 m, stacked, and never thinned by distance (it's what reads the hit far off).
+	 */
+	constexpr int32 PunchColumn = 4;
+	constexpr float PunchColumnSpeed = 1150.f;
+	constexpr float PunchColumnDrag = 1.6f;
 	/** Big chunks thrown high, and their size (cm). */
 	constexpr int32 PunchChunks = 4;
 	constexpr float PunchChunkSize[2] = { 8.f, 12.f };
@@ -168,11 +178,12 @@ void FWeaponFX::SpawnImpactPunch(const FImpactSpot& Spot)
 {
 	const FVfxTuning Vfx = FVfxTuning::Live();
 	const float Amount = Vfx.ImpactScale * Spot.Detail;
-	// A ring of air snapping out over the surface (the round's blow, square to it; never thinned: it reads the hit far off).
-	// Its width as the impact pieces are drawn: wider far off (5 cm was a pixel at 35 m; the play-check, 2026-10-23).
-	SpawnShockRing(Spot.Point, Spot.Up, PunchRingFrom * Spot.Size, PunchRingTo * Spot.Size, PunchRingWidth * Spot.Seen / FMath::Max(Spot.Size, 0.1f),
-		ImpactPunchColor,
-		PunchRingGlow * Vfx.Glow * Vfx.ImpactScale, PunchRingLife);
+	// A ring of air snapping out round the hit (the round's blow; never thinned: it reads the hit far off), facing the eye and
+	// lifted off the ground so none of it sinks in; as big and as thick as the hit's pieces are drawn there (wider far off).
+	const float View = Spot.Seen / FMath::Max(Spot.Size, 0.1f);
+	const float RingReach = PunchRingTo * Spot.Seen;
+	SpawnShockRing(Spot.Point + Spot.Up * (RingReach * PunchRingLift), Spot.Up, PunchRingFrom * Spot.Seen, RingReach, PunchRingWidth * View,
+		ImpactPunchColor, PunchRingGlow * Vfx.Glow * Vfx.ImpactScale, PunchRingLife, true);
 	// ...and a ring of its dust rolling out after it.
 	const FLinearColor Dust = DustOf(Spot.Material) * Spot.Shade;
 	const int32 Skirt = VfxRules::Count(PunchSkirt, Amount);
@@ -190,7 +201,7 @@ void FWeaponFX::SpawnImpactPunch(const FImpactSpot& Spot)
 		Puff.Drag = 4.f;
 	}
 	// The column: off metal a fountain of sparks, off water a spout, off anything else billows of it thrown tall.
-	const int32 Column = VfxRules::Count(PunchColumn, Amount);
+	const int32 Column = VfxRules::Count(PunchColumn, Vfx.ImpactScale);
 	if (Spot.Material == EImpactMaterial::Metal || Spot.Material == EImpactMaterial::SheetMetal)
 	{
 		for (int32 Index = 0; Index < Column * 6; ++Index)
@@ -225,10 +236,10 @@ void FWeaponFX::SpawnImpactPunch(const FImpactSpot& Spot)
 			Billow.EndSize = 120.f * Spot.Seen * Random.FRandRange(0.85f, 1.15f);
 			Billow.Smoke = ThrownOf(Spot.Material) * Spot.Shade;
 			Billow.Opacity = FMath::Min(0.95f * Vfx.Smoke, 1.f);
-			Billow.Life = 1.4f * Random.FRandRange(0.9f, 1.1f);
+			Billow.Life = 1.6f * Random.FRandRange(0.9f, 1.1f);
 			Billow.Burn = 0.f;
 			Billow.Gravity = 0.35f;
-			Billow.Drag = 3.f;
+			Billow.Drag = PunchColumnDrag;
 			SpawnFlame(Billow);
 		}
 	}

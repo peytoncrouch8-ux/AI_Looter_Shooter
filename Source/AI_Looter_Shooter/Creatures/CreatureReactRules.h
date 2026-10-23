@@ -58,8 +58,13 @@ private:
 
 /**
  * The brief flash on a creature's body when a shot lands (warmer on a crit): full at once, gone in under a tenth of a
- * second (its own clock, so a hit-stop holds it at full). Mostly a rim of light round its silhouette, barely a lift over
- * the body (Even, Rim, RimPower on M_FX_HitFlash), so the creature stays solid and readable while it's hit.
+ * second (its own clock, so a hit-stop holds it at full). A small even lift over the body with as little again at the
+ * silhouette (Even, Rim, RimPower on M_FX_HitFlash), so the creature stays solid and readable while it's hit.
+ * Its scale is the scene's: under a 7-lux sun at EV100 ~1 a sunlit body is about 0.1-0.2 emissive, so an additive overlay
+ * of 0.1 already doubles it (FX-DIAG, 2026-10-23, measured on a spider in PIE). The old rim (1.3 x Intensity 1.2) was ten to
+ * twenty times the body: the abdomen's silhouette glowed as a white dome behind the hit numbers, and the bristles' and leg
+ * spines' flat faces (edge-on to the eye, so all rim; flat, so ThinFade's normal test never faded them) lit as cream or gold
+ * diamond cards on the legs.
  * Steady fire only nudges it: a hit soon after the last one flashes at RepeatShare of a fresh hit's strength, back to
  * full as the gap grows to QuietSeconds. Under full auto every shot flashed full and the overlay never went off: the
  * spider was a pale see-through ghost the whole fight (the user, 2026-10-22). Shots landing together (a shotgun's
@@ -70,8 +75,9 @@ struct AI_LOOTER_SHOOTER_API FCreatureHitFlash
 	static constexpr float Seconds = 0.09f;
 	static constexpr float NormalStrength = 0.65f;
 	static constexpr float CriticalStrength = 1.f;
-	/** How bright M_FX_HitFlash's Intensity goes at full strength (the dummies' is 1.8; 1.7 here washed the body white). */
-	static constexpr float Glow = 1.2f;
+	/** How bright M_FX_HitFlash's Intensity goes at full strength (times Even and Rim below: a fresh hit lifts the body by
+	 *  about 0.04 emissive, a crit 0.06, a hit in steady fire under 0.01). */
+	static constexpr float Glow = 1.f;
 	/** A hit within RepeatSeconds of the last flashes at RepeatShare (a crit at CriticalRepeatShare: crits still read in
 	 *  steady fire), rising to full as the gap grows to QuietSeconds (a rifle's full auto is 0.08-0.12 s a shot). */
 	static constexpr float RepeatSeconds = 0.15f;
@@ -79,9 +85,10 @@ struct AI_LOOTER_SHOOTER_API FCreatureHitFlash
 	static constexpr float RepeatShare = 0.2f;
 	static constexpr float CriticalRepeatShare = 0.65f;
 	/** The flash's shape on a creature (M_FX_HitFlash: Even + (1 - |N.V|)^RimPower x Rim). The material's defaults
-	 *  (0.35, 1.5, 2: an even glow, the dummies' and the powers' tints) lit thin legs and bristles all over. */
-	static constexpr float Even = 0.08f;
-	static constexpr float Rim = 1.3f;
+	 *  (0.35, 1.5, 2: an even glow, the dummies' and the powers' tints) lit thin legs and bristles all over. The rim is no
+	 *  bigger than the even lift: an edge-on bristle gets at most twice what the body facing the eye gets, never a card. */
+	static constexpr float Even = 0.06f;
+	static constexpr float Rim = 0.06f;
 	static constexpr float RimPower = 3.f;
 	/**
 	 * Thin parts' rim fades by this (M_FX_HitFlash's ThinFade: the rim times 1 - ThinFade x how fast the normal turns per pixel).

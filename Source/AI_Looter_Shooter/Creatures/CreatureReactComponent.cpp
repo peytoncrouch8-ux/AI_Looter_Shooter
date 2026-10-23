@@ -25,7 +25,7 @@ namespace
 	/** M_FX_HitFlash's parameters (the dummies' and egg sacs' flash). */
 	const FName CreatureFlashColorParam(TEXT("Color"));
 	const FName CreatureFlashIntensityParam(TEXT("Intensity"));
-	// Its shape: a rim round the silhouette, barely a lift over the body (FCreatureHitFlash::Even, Rim, RimPower). A
+	// Its shape: a small lift over the body, as little again at the silhouette (FCreatureHitFlash::Even, Rim, RimPower). A
 	// material without them (before build_hit_flash_material.py ran) keeps its even glow, only dimmer.
 	const FName CreatureFlashEvenParam(TEXT("Even"));
 	const FName CreatureFlashRimParam(TEXT("Rim"));
