@@ -3,6 +3,14 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Night of 2026-10-22 (the user went to bed; their calls)
+- Extra sound bundle download: "Do what you feel is best" — Main's call: no download overnight (the download rule needs
+  the exact file/source/size shown first); use the recordings on disk; show the user the file in the morning if needed.
+- Overnight: "Polish + play-checks": finish, play-check and fix the gun feel and grips, then keep fixing what play-checks
+  find in Ransom's Rest.
+- FP grip: modern tactical (high grip, support hand far forward, thumb over / C-clamp on rifles) "but not so much hand
+  showing" (compact, Borderlands-like amount of hand).
+
 ## Gun feel pass (next; plan Docs/Work/2026-10-22-Gunfeel/PLAN.md, user's 4 answers at its end: recorded reload
 foley yes, one more bundle part yes (name file+size first), shotgun shell-by-shell + rack yes, slower empty reloads, no
 fast-reload window). Jobs GF-SOUND-ART, GF-RELOAD, GF-KICK, GF-SOUND-CODE, GF-IMPACT start after the muzzle fix commit.
