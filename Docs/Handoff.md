@@ -30,6 +30,11 @@ verified: the Sexton's gold rim reads at 5 m). Play-checked PASS: grass, tracker
 sustained fire. Still open: **sniper ground ring/column failed three fixes (rule 6: ask the user)**; small/flat mission
 items (the gate poster: a decal, which can't wear the overlay) barely highlight at 5 m and not past 7 m — only the ?
 marks them (later: a decal-friendly highlight or a world marker).
+Round 2 (Main 3-5, Old Fare, a bounty) fixed and committed fa2ef14 — incl. **creature levels were rolled from (0,0) since
+2026-10-13** (all 2-3); now by zone (bluff 1-2/2, Sink 4-5, gallery 5-6). Re-check PASS except: Main Street ambush no
+longer starts (R2-FIGHTS fixing in the editor), bounty postings all identical (R2-BOUNTY: variety), Fenn's ghost stands in
+the player's spot at Old Fare's turn-in (R2-OBJECTS). Bluff nest still kills a strafing level-2 player (7 bites of 20-27
+in ~3 s; town gate cleared with no damage).
 **Morning questions for the user**: (1) early fights' difficulty (deaths at the bluff nest, gate, Main Street ambush);
 (2) respawn: town roost vs wake near the fight; (3) the sniper/rifle/LMG trigger glove below the frame at the hip
 (pull-in framing) — lift it?; (4) Tilly a silhouette at her window?; (5) the sound pack download (three files, ~12.6 MB);
