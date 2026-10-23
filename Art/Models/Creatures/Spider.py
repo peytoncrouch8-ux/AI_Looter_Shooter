@@ -12,9 +12,10 @@ body that read photographic and flat): stylized realism, a wolf spider in painte
     Spines in pairs under the tibia and metatarsus, a row on the femur, a tuft under the tarsus.
   - The pedipalps the same way: femur, patella, a slightly clubbed tibia and tarsus.
   - One painted atlas (PAINTED hides: BROWN): broad soft value shapes, crisp marks, fur in clumps (relief in the normal
-    map, darker crevices), a painted sheen along the top of every leg plate, pale rims and dark joints; the carapace's
-    fovea and the grooves radiating from it toward the legs; a dark face round the eyes; glossier chitin than fur
-    (roughness map). The old fine streak noise (it read as wood grain) is gone.
+    map, darker crevices), a faint painted light along the top of every leg plate, pale rims and dark joints; the
+    carapace's fovea and the grooves radiating from it toward the legs; a dark face round the eyes; matte, hairy chitin
+    (roughness 0.7-0.9: the user found it "too glossy", 2026-10-22), a faint sheen only on the carapace's plates. The
+    old fine streak noise (it read as wood grain) is gone. Chelicerae are tapered fang bases (ellipsoids read as balls).
   - Bones, rest pose, the body's shapes (CARAPACE, HEAD, ABDOMEN) and the atlas's layout (ATLAS) are as before.
 
 It has one material, MI_SpiderBody (the World master), whose texture set Art/Textures/SpiderBody (2048 px: color,
@@ -290,7 +291,8 @@ def paint_painted(region, U, V, seed, hide):
         shade = shade * (1.0 + 0.1 * lt.smooth(0.2, 1.0, d))            # painted top light
         col = col * shade[..., None]
         height = 0.0011 * tuft + 0.00012 * strokes
-        fur = 0.62 if region == 'abdomen' else 0.5
+        # Matte, hairy (the user, 2026-10-22: "reads too glossy"): only a faint sheen left on the carapace's plates.
+        fur = 0.86 if region == 'abdomen' else 0.74
         rough = fur - 0.08 * tuft + 0.04 * strokes + 0.12 * lt.smooth(-0.2, -0.8, d)
         occl = (1.0 - 0.22 * lt.smooth(-0.2, -0.85, d)) * (0.84 + 0.16 * tuft)
         if region == 'carapace':
@@ -309,13 +311,14 @@ def paint_painted(region, U, V, seed, hide):
             occl = occl * (1.0 - 0.25 * groove - 0.4 * fovea)
         return col, rough, height, occl
     if region == 'chel':
-        # The chelicerae: dark, glossy, hairy toward the front.
+        # The chelicerae: dark, hairy, darker toward the fang.
         along, top = lc.limb_axes(U, V)
         strokes = lt.noise(shape, seed + 13, 1.2 * K, 9.0 * K)
         col = lt.mix(base, hide['palp'], 0.85)
-        col = lt.mix(col, light, lt.smooth(0.5, 0.95, top) * 0.18)
+        col = lt.mix(col, light, lt.smooth(0.5, 0.95, top) * 0.12)
+        col = lt.mix(col, hide['membrane'], lt.smooth(0.55, 1.0, along) * 0.6)
         col = col * (1.0 + 0.04 * strokes)[..., None]
-        return col, 0.38 + 0.05 * strokes, 0.0001 * strokes, 1.0 - 0.2 * lt.smooth(0.0, -0.8, top)
+        return col, 0.68 + 0.05 * strokes, 0.0001 * strokes, 1.0 - 0.2 * lt.smooth(0.0, -0.8, top)
     along, top = lc.limb_axes(U, V)
     s, index = segment_coords(along, LIMB_SEGMENTS.get(region, ((0.0, 1.0),)))
     lit = lt.smooth(-0.8, 0.6, top)                       # 0 under the leg .. 1 on its top
@@ -337,8 +340,8 @@ def paint_painted(region, U, V, seed, hide):
     if region == 'coxa':
         col = lt.mix(col, belly, 0.3)
     gloss = lt.smooth(0.45, 0.95, top) * crown            # painted sheen along the top of the plate
-    col = lt.mix(col, light, gloss * 0.2)
-    col = lt.mix(col, light, rim * 0.2 * lit)
+    col = lt.mix(col, light, gloss * 0.1)
+    col = lt.mix(col, light, rim * 0.12 * lit)
     col = lt.mix(col, hide['membrane'], np.clip(joint * 0.85 + shoulder * 0.25, 0.0, 1.0))
     # Pale hairs flecked along the leg (lit side), so it reads furred, not polished.
     flecks = lt.specks(shape, seed + 17, 0.07, 1.2 * K) * lt.smooth(0.0, 0.3, lt.noise(shape, seed + 19, 6.0 * K, 1.0 * K))
@@ -346,7 +349,7 @@ def paint_painted(region, U, V, seed, hide):
     hairs = lt.noise(shape, seed + 13, 10.0 * K, 1.0 * K)   # fine hairs along the limb (U runs along the columns)
     col = col * (1.0 + 0.02 * hairs + 0.03 * n)[..., None]
     height = 0.0009 * crown + 0.0006 * rim - 0.0015 * joint - 0.0008 * shoulder + 0.00012 * hairs
-    rough = 0.56 - 0.1 * gloss + 0.08 * flecks + 0.25 * np.clip(joint + shoulder, 0.0, 1.0) + 0.04 * hairs
+    rough = 0.8 - 0.06 * gloss + 0.06 * flecks + 0.12 * np.clip(joint + shoulder, 0.0, 1.0) + 0.04 * hairs
     occl = 1.0 - 0.25 * lt.smooth(0.2, -0.8, top) - 0.3 * joint
     return col, rough, height, occl
 
@@ -359,7 +362,9 @@ def paint(region, U, V, seed, hide=BROWN):
     occl = np.ones(shape, np.float32)
     if region in ('eye', 'bristle', 'fang', 'misc'):
         color = hide['solid'][region]
-        rough[:] = {'eye': 0.06, 'bristle': 0.6, 'fang': 0.25, 'misc': 0.7}[region]
+        matte = hide.get('painted')     # the painted hide: matte hairs and fangs; the older hides keep theirs
+        rough[:] = ({'eye': 0.08, 'bristle': 0.82, 'fang': 0.45, 'misc': 0.85} if matte else
+                    {'eye': 0.06, 'bristle': 0.6, 'fang': 0.25, 'misc': 0.7})[region]
         return np.broadcast_to(lt.rgb(color), shape + (3,)).copy(), rough, np.zeros(shape, np.float32), occl
     if hide.get('painted'):
         col, r, height, ao = paint_painted(region, U, V, seed, hide)
@@ -552,9 +557,9 @@ for side, suffix in SIDES:
     up = Vector((0.0, 0.0, 1.0))
     upper = lambda t, a=start, b=elbow: a.lerp(b, t)
     lower = lambda t, a=elbow, b=tip: a.lerp(b, t)
-    segment(m, upper, -0.04, 1.0, lambda t, s: r * 0.94 * plate(s, 1.0, 0.85), 'palp', 0.0, 0.45, 8, 3, plane, up)
-    segment(m, lower, -0.06, 0.24, lambda t, s: r * 0.92 * plate(s, 1.05, 0.82), 'palp', 0.45, 0.6, 8, 2, plane, up)
-    segment(m, lower, 0.2, 1.0, lambda t, s: r * 0.8 * (0.84 + 0.3 * math.sin(math.pi * min(s * 0.62 + 0.1, 1.0))),
+    segment(m, upper, -0.04, 1.0, lambda t, s: r * 0.85 * plate(s, 1.0, 0.85), 'palp', 0.0, 0.45, 8, 3, plane, up)
+    segment(m, lower, -0.06, 0.24, lambda t, s: r * 0.82 * plate(s, 1.05, 0.82), 'palp', 0.45, 0.6, 8, 2, plane, up)
+    segment(m, lower, 0.2, 1.0, lambda t, s: r * 0.74 * (0.84 + 0.3 * math.sin(math.pi * min(s * 0.62 + 0.1, 1.0))),
             'palp', 0.6, 1.0, 8, 3, plane, up)
     hm = bristles(f'palp_{suffix}')
     for k in range(6):
@@ -562,13 +567,21 @@ for side, suffix in SIDES:
                  55.0, plane, up)
     bones.append((f'palp_{suffix}', start, elbow, 'head'))
 
-# Chelicerae, each with a curved fang hooking inward underneath. They spread open for a bite.
+# Chelicerae: stout, tapered fang bases hanging from the face (ellipsoids until 2026-10-22 read as two balls under the
+# eyes), a tuft of hairs on their fronts, each with a curved fang hooking inward underneath. They spread open for a bite.
 for side, suffix in SIDES:
     base = lifted((CHEL['x'], side * CHEL['y'], CHEL['z']))
     m = part(f'fang_{suffix}')
     radii = CHEL['radii']
-    lc.ellipsoid(m, base, radii, 'chel', fwd=(0.35, 0, -1), up=(1, 0, 0.3), segs=12, rings=8)
     tip0 = base + Vector((radii[1] * 0.3, -side * 2.0, -radii[0] * 0.85))
+    down = Vector((0.35, 0.0, -1.0)).normalized()
+    stem = [base - down * 8.0, base - down * 2.5 + Vector((0.8, 0.0, 0.0)), base + down * 3.5 + Vector((0.8, 0.0, 0.0)),
+            tip0 + Vector((0.0, 0.0, 1.5))]
+    lc.tube(m, stem, [5.4, 6.4, 5.4, 3.0], 'chel', sides=10, up=(1, 0, 0))
+    hm = bristles(f'fang_{suffix}')
+    for k in range(6):
+        p = stem[1].lerp(stem[2], k / 5.0) + Vector((5.6, side * rng.uniform(-2.5, 2.5), 0.0))
+        lc.bristle(hm, p, Vector((1.0, 0.0, -0.9)), HAIR_LENGTH * rng.uniform(0.35, 0.55), HAIR_RADIUS, 'bristle')
     lc.tube(m, [tip0, tip0 + Vector((4, -side * 3, -6)), tip0 + Vector((5, -side * 7, -9))],
             [radii[1] * 0.35, radii[1] * 0.22, 0.4], 'fang', sides=6, patch=True)
     bones.append((f'fang_{suffix}', base, base + Vector((4.0, 0.0, -15.0)), 'head'))
