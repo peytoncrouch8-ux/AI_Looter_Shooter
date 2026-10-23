@@ -46,6 +46,11 @@ fights unchanged); respawn "Town roost" (a roost by the sheriff's office); sound
 Sonniss files, ~12.6 MB, licence kept); FP hip hold "Lift slightly" (sniper/rifle/LMG trigger hand shows at the bottom
 edge). Round 3 fixes committed (see git). Still open from earlier: Tilly silhouette (not asked), sniper ground ring (three
 failed fixes, not asked yet).
+Morning results (2026-10-23): early fights softened 4460136 (play-check at level 2, strafing, no God: bluff nest lowest
+66%, town gate no damage, Main Street 67%); town roost works (death in town wakes at the Sheriff's Office roost);
+hip lift (sniper/LMG glove shows; rifle can't — the bullpup body hides it); recorded impact layers imported 1ff8114 +
+bank; Main 7 turn-in line fixed (Tilly's shop). Open: Dead Lift pin unreachable + boards close on walk-away (R2-OBJECTS
+in the editor); sniper ground ring (3 failed fixes, not asked); Tilly silhouette (not asked).
 **Morning questions (asked)**: (1) early fights' difficulty (deaths at the bluff nest, gate, Main Street ambush);
 (2) respawn: town roost vs wake near the fight; (3) the sniper/rifle/LMG trigger glove below the frame at the hip
 (pull-in framing) — lift it?; (4) Tilly a silhouette at her window?; (5) the sound pack download (three files, ~12.6 MB);
