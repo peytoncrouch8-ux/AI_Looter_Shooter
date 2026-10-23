@@ -136,9 +136,31 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool IsReloading() const { return bReloading; }
 
-	/** 0..1 through the current reload, or -1 when not reloading. */
+	/**
+	 * 0..1 through the current reload's choreography (LooterReload::ChoreographyProgress: a tactical magazine reload jumps
+	 * its handle), or -1 when not reloading. It runs on a beat past the moment the gun is ready again
+	 * (Looter.Gunfeel.Reload.ReadyEarly), so the motion ends smoothly, until the gun fires or is put away.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	float GetReloadProgress() const;
+
+	/** The current reload as planned (from empty or not; a pump gun's shells, re-planned when a trigger press cuts it short). */
+	const FReloadPlan& GetReloadPlan() const { return ReloadPlan; }
+
+	/** The current reload (or its last beat) is from empty: slower, the handle, the bolt or the pump worked too. False when not reloading. */
+	bool IsReloadEmpty() const { return (bReloading || bReloadTail) && ReloadPlan.bEmpty; }
+
+	/** The current reload's steps for its plan (LooterReload::StepsFor), in its choreography progress. */
+	TConstArrayView<FReloadStepAt> GetReloadSteps() const { return ReloadSteps; }
+
+	/**
+	 * A trigger press mid-reload (StartFireAt): a pump gun with Looter.Gunfeel.Reload.Shotgun.Interrupt finishes the shell
+	 * in hand (and the pump if it was empty), then fires. True if a shot will follow; any other reload ignores the press.
+	 */
+	bool InterruptReload();
+
+	/** How far through its rack between shots a pump gun's fore-end is (0 to 1), or -1 while it's still. WeaponBasePump.cpp. */
+	float GetPumpCycle() const;
 
 	/** How strongly reload animation should show right now: eases in at the start of a reload and out at the end. */
 	float GetReloadBlend() const;
@@ -192,7 +214,7 @@ public:
 	 */
 	bool GetEjectPort(FVector& OutLocation, FVector& OutDirection) const;
 
-	/** How long after a shot a pump gun's hull flies out (it's pumped out): a share of the time between its shots. */
+	/** How long after a shot a pump gun's hull flies out: at its rack's back point (ReloadTuning::RackTiming). WeaponBasePump.cpp. */
 	float GetHullDelay() const;
 
 	/** Rounds fired since the cylinder was last emptied: the empties a revolver's reload tips out. */
@@ -302,7 +324,7 @@ public:
 	bool bDrawDebugTraces = false;
 
 	/** Only ticks while it has something to animate: the magazine, pump or cylinder during a reload, a revolver's cylinder
-	 *  turning after a shot, the muzzle flash, a hull waiting to be pumped out, or the smoke curling from a hot muzzle. */
+	 *  turning after a shot, the muzzle flash, a pump racked after a shot, or the smoke curling from a hot muzzle. */
 	virtual void Tick(float DeltaSeconds) override;
 
 protected:
@@ -364,10 +386,23 @@ private:
 	void Misfire();
 	/** A sound cue on the gun, following it in hand; the definition's own sound in its place when it sets one. */
 	void PlayCue(FName Cue, USoundBase* Override = nullptr) const;
+	/** The gun is ready again (Looter.Gunfeel.Reload.ReadyEarly before its motion ends): rounds in if not yet, fire if asked. */
 	void FinishReload();
+	/** The reload's motion has run its last beat. */
+	void EndReloadTail();
 	void CancelReload();
-	/** The reload's sounds (LooterReload::Steps) whose moments it has passed since it last looked. */
+	/** The reload's sounds (its plan's steps) whose moments it has passed since it last looked, and what they do. */
 	void PlayReloadSteps(float Progress);
+	/** The magazine (helix, box, rocket, speedloader) seated: its rounds in from the pool, once. */
+	void CommitReloadRounds();
+	/** A shell seated: one round in from the pool. */
+	void SeatShell();
+	/** The reload's motion share so far (0 to 1: time over its motion), before the choreography's jumps; -1 when there's none. */
+	float GetReloadRawProgress() const;
+	/** The motion and ready times (world seconds) for ReloadPlan, from the gun's stats and the live numbers. */
+	void PlanReloadTimes();
+	/** A Looter.Gunfeel.Reload.Debug line. */
+	void LogReload(const TCHAR* What) const;
 	/** Moves the magazine or pump to where the reload has got to (back in place when not reloading). */
 	void UpdateReloadPart();
 	/** How much wider than its own the rifle's cone is open right now (0 closed; 1 is twice the spread), after recovering since the last shot. */
@@ -385,8 +420,13 @@ private:
 	void EjectCasing();
 	/** The revolver's rod punched: its spent empties tumble out of the chambers' backs. */
 	void DumpEmpties();
-	/** Counts down to a pumped hull. */
+	/** Moves a pump gun's rack on (WeaponBasePump.cpp). */
 	void UpdateBrass(float DeltaSeconds);
+	// WeaponBasePump.cpp: the pump racked between shots.
+	/** A shot from a pump gun: its rack starts (the hull flies as it bottoms). */
+	void StartPumpCycle();
+	/** A rack under way stops (a reload takes the gun); bThrowHull throws a hull still in the chamber. */
+	void EndPumpCycle(bool bThrowHull);
 	// WeaponBaseSmoke.cpp: the hot muzzle's smoke.
 	/** A shot heats the barrel; once firing stops a hot one smokes. */
 	void NoteShotHeat();
@@ -476,8 +516,13 @@ private:
 	int32 MuzzleShotsInBurst = 0;
 	double LastMuzzleTime = -1000.0;
 
-	/** Seconds until a pumped hull flies out (negative: none waiting). */
+	/** Seconds left of a pump gun's rack after a shot (negative: none; it ticks while there are): its hull flies at the back point. */
 	float PendingEjectSeconds = -1.f;
+	/** That rack's start after the shot and its length (seconds), whether its back point has passed, and a spent hull still in the chamber. */
+	float PumpRackStart = 0.f;
+	float PumpRackSeconds = 0.f;
+	bool bRackBeatDone = false;
+	bool bHullInChamber = false;
 	/** Rounds fired since a revolver's cylinder was last emptied (its next reload's empties). */
 	int32 SpentInCylinder = 0;
 
@@ -495,8 +540,21 @@ private:
 	/** The curses' rolls (Unlucky's misfires): a stream of its own, seeded afresh for each gun. */
 	FRandomStream ShotRolls;
 
-	/** How far through the current reload its sounds have played. */
+	/** How far through the current reload (its choreography) its sounds have played. */
 	float ReloadSoundProgress = 0.f;
+
+	/** The reload under way: its plan and steps, its motion and ready times (world seconds), the clock it ran before its timer was last set. */
+	FReloadPlan ReloadPlan;
+	TArray<FReloadStepAt> ReloadSteps;
+	float ReloadMotionSeconds = 0.f;
+	float ReloadReadySeconds = 0.f;
+	float ReloadClockOffset = 0.f;
+	/** Its rounds are in (CommitReloadRounds or a shell), a shot follows it (InterruptReload), its motion runs on past ready. */
+	bool bReloadCommitted = false;
+	bool bFireAfterReload = false;
+	bool bReloadTail = false;
+	/** When the gun was ready (world seconds): a shot after that ends the tail. */
+	double ReloadReadyTime = -1000.0;
 
 	/** The sniper's bolt: when the shot it cycles after went, its timing, whether it's still cycling, heard, and the case out. */
 	double BoltShotTime = -1000.0;

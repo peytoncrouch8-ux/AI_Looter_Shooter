@@ -1,6 +1,7 @@
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/FirstPersonHandsGrips.h"
 #include "Weapons/ReloadMotion.h"
+#include "Weapons/ReloadTuning.h"
 
 // The support hand's reloads: each path is a run of spots on the gun (or a belt pouch) eased between, timed by the gun's
 // own reload steps (LooterReload::Steps) and, while it holds a moving part, placed on that part's travel as the gun's
@@ -18,11 +19,19 @@ namespace
 		return FHandPlacement::Blend(From, To, Alpha);
 	}
 
-	/** When the Nth of a step comes in a reload of Part (its progress), or Fallback if the choreography has none. */
-	float StepAt(EWeaponReloadPart Part, EReloadStep Step, int32 Nth, float Fallback)
+	/** A reload of Part's steps as Plan has them (LooterReload::StepsFor: a pump gun's shells; a tactical one's skipped work). */
+	TArray<FReloadStepAt> PlannedSteps(EWeaponReloadPart Part, const FReloadPlan& Plan)
+	{
+		TArray<FReloadStepAt> Steps;
+		LooterReload::StepsFor(Part, Plan, Steps);
+		return Steps;
+	}
+
+	/** When the Nth of a step comes in a reload of Part as planned (its progress), or Fallback if the choreography has none. */
+	float StepAt(EWeaponReloadPart Part, const FReloadPlan& Plan, EReloadStep Step, int32 Nth, float Fallback)
 	{
 		int32 Seen = 0;
-		for (const FReloadStepAt& At : LooterReload::Steps(Part))
+		for (const FReloadStepAt& At : PlannedSteps(Part, Plan))
 		{
 			if (At.Step == Step)
 			{
@@ -104,12 +113,22 @@ namespace
 	{
 		using namespace FirstPersonHandsMotion;
 		const FHandPlacement Home = FirstPersonHandsGrips::OnForegrip(Gun);
-		const float Seated = StepAt(EWeaponReloadPart::Magazine, EReloadStep::MagIn, 0, 0.62f);
+		// The beats as the full reload has them: a tactical one keeps every beat but skips the handle's.
+		const FReloadPlan Full = { true, 0 };
+		const float Seated = StepAt(EWeaponReloadPart::Magazine, Full, EReloadStep::MagIn, 0, 0.62f);
 		if (!bHandle && P >= Seated)
 		{
 			return Ease(OnMagazine(Gun, 0.f), Home, Rise(P, Seated, MagazineHomeBy - 0.1f));
 		}
-		const float HandleOn = StepAt(EWeaponReloadPart::Magazine, EReloadStep::Bolt, 0, 0.72f) - HandleBefore;
+		// A tactical magazine or helix reload (a round chambered): the progress jumps the handle (LooterReload::
+		// ChoreographyProgress, HandleFrom to HandleTo), so the hand is home from the seat by HandleFrom.
+		const bool bSkipsHandle = !Gun.ReloadPlan.bEmpty
+			&& (Gun.ReloadPart == EWeaponReloadPart::Magazine || Gun.ReloadPart == EWeaponReloadPart::Helix);
+		if (bHandle && bSkipsHandle && P >= Seated)
+		{
+			return Ease(OnMagazine(Gun, 0.f), Home, Rise(P, Seated, LooterReload::HandleFrom));
+		}
+		const float HandleOn = StepAt(EWeaponReloadPart::Magazine, Full, EReloadStep::Bolt, 0, 0.72f) - HandleBefore;
 		const float HandleOff = HandleOn + HandleBefore + HandleAfter;
 		if (P < MagazineReach)
 		{
@@ -171,8 +190,8 @@ namespace
 	{
 		using namespace FirstPersonHandsMotion;
 		const EWeaponReloadPart Part = EWeaponReloadPart::Rocket;
-		const float Drawn = StepAt(Part, EReloadStep::RocketOut, 0, 0.14f);
-		const float Seated = StepAt(Part, EReloadStep::RocketIn, 0, 0.66f);
+		const float Drawn = StepAt(Part, Gun.ReloadPlan, EReloadStep::RocketOut, 0, 0.14f);
+		const float Seated = StepAt(Part, Gun.ReloadPlan, EReloadStep::RocketIn, 0, 0.66f);
 		const FHandPlacement Home = FirstPersonHandsGrips::OnForegrip(Gun);
 		const FHandPlacement Pouch = AtPouch(OnRocket(Gun, LooterReload::RocketReach), MagazinePouch());
 		bool bShown = false;
@@ -211,27 +230,39 @@ namespace
 	{
 		using namespace FirstPersonHandsMotion;
 		TArray<float, TInlineAllocator<8>> Shells;
-		for (const FReloadStepAt& At : LooterReload::Steps(EWeaponReloadPart::Pump))
+		const TArray<FReloadStepAt> Steps = PlannedSteps(EWeaponReloadPart::Pump, Gun.ReloadPlan);
+		bool bPumps = false;
+		for (const FReloadStepAt& At : Steps)
 		{
 			if (At.Step == EReloadStep::ShellIn)
 			{
 				Shells.Add(At.Progress);
 			}
+			bPumps |= At.Step == EReloadStep::Pump;
 		}
-		const float PumpAt = StepAt(EWeaponReloadPart::Pump, EReloadStep::Pump, 0, 0.8f);
+		const float PumpAt = StepAt(EWeaponReloadPart::Pump, Gun.ReloadPlan, EReloadStep::Pump, 0, 0.8f);
 		const FHandPlacement Home = FirstPersonHandsGrips::OnForegrip(Gun);
-		const FHandPlacement Pumping = FirstPersonHandsGrips::OnForegrip(Gun, LooterReload::PumpTravel(P));
+		const FHandPlacement Pumping = FirstPersonHandsGrips::OnForegrip(Gun, LooterReload::PumpTravel(P, Gun.ReloadPlan));
 		if (Shells.IsEmpty())
 		{
 			return P < PumpAt ? Home : Pumping;
 		}
-		const float Half = Shells.Num() > 1 ? (Shells[1] - Shells[0]) * 0.5f : 0.07f;
+		// Half a shell's turn: from the plan's seconds when it has them (one shell has no neighbour to measure by).
+		const ReloadTuning::FShellTiming Timing = ReloadTuning::ShellTiming();
+		const float PlannedSeconds = ReloadTuning::ShellReloadSeconds(Gun.ReloadPlan, Timing);
+		const float Half = Shells.Num() > 1 ? (Shells[1] - Shells[0]) * 0.5f
+			: Gun.ReloadPlan.Shells > 0 && PlannedSeconds > 0.f ? 0.5f * Timing.Shell / PlannedSeconds : 0.07f;
 		const FHandPlacement Belt = AtPouch(AtLoadingPort(Gun, 0.f), ShellBelt());
 		const float First = Shells[0] - Half;
 		const float Last = Shells.Last();
 		if (P < First)
 		{
 			return Ease(Home, Belt, Rise(P, 0.f, First));
+		}
+		if (!bPumps && P >= Last + PumpReachAfter)
+		{
+			// A round was chambered (tactical): no pump, the hand goes from the last shell back to the fore-end.
+			return Ease(AtLoadingPort(Gun, 1.f), Home, Rise(P, Last + PumpReachAfter, FMath::Min(Last + Half, 0.98f)));
 		}
 		if (P >= Last + PumpReachAfter)
 		{
@@ -285,10 +316,10 @@ namespace
 	{
 		using namespace FirstPersonHandsMotion;
 		const EWeaponReloadPart Part = EWeaponReloadPart::Cylinder;
-		const float Out = StepAt(Part, EReloadStep::CylinderOut, 0, 0.13f);
-		const float Eject = StepAt(Part, EReloadStep::Eject, 0, 0.30f);
-		const float RoundsIn = StepAt(Part, EReloadStep::RoundsIn, 0, 0.56f);
-		const float In = StepAt(Part, EReloadStep::CylinderIn, 0, 0.72f);
+		const float Out = StepAt(Part, Gun.ReloadPlan, EReloadStep::CylinderOut, 0, 0.13f);
+		const float Eject = StepAt(Part, Gun.ReloadPlan, EReloadStep::Eject, 0, 0.30f);
+		const float RoundsIn = StepAt(Part, Gun.ReloadPlan, EReloadStep::RoundsIn, 0, 0.56f);
+		const float In = StepAt(Part, Gun.ReloadPlan, EReloadStep::CylinderIn, 0, 0.72f);
 		const FHandPlacement Home = FirstPersonHandsGrips::OnForegrip(Gun);
 
 		const float OnCylinderBy = Out - CylinderReach;
@@ -406,7 +437,8 @@ FHandPlacement FirstPersonHandsMotion::SupportInReload(const FHandsGun& Gun)
 	const float P = Gun.ReloadProgress;
 	if (P < 0.f)
 	{
-		return FirstPersonHandsGrips::OnForegrip(Gun);
+		// A pump gun racked between shots: the hand rides the fore-end back and home.
+		return FirstPersonHandsGrips::OnForegrip(Gun, Gun.PumpCycle >= 0.f ? LooterReload::PumpCycleTravel(Gun.PumpCycle) : 0.f);
 	}
 	switch (Gun.ReloadPart)
 	{

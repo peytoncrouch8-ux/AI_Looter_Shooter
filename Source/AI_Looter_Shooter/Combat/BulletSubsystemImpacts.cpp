@@ -1,9 +1,12 @@
 #include "Combat/BulletSubsystem.h"
 #include "Audio/LooterSound.h"
+#include "Audio/LooterSoundCues.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Weapons/CreatureBlood.h"
+#include "Weapons/GunfeelSoundTuning.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
 #include "World/BreakableKinds.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
@@ -175,7 +178,8 @@ bool UBulletSubsystem::FindDebrisFloor(const FBullet& Bullet, const FHitResult& 
 	return bLastFloor;
 }
 
-void UBulletSubsystem::PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, bool bRicochet)
+void UBulletSubsystem::PlayImpactSound(const FBullet& Bullet, const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material,
+	bool bRicochet)
 {
 	const UWorld* World = GetWorld();
 	if (!World || Surface == EImpactSurface::Flesh)
@@ -198,7 +202,24 @@ void UBulletSubsystem::PlayImpactSound(const FHitResult& Hit, EImpactSurface Sur
 	LastImpactCue = Cue;
 	LastImpactSoundTime = Now;
 	LastImpactSoundAt = Hit.ImpactPoint;
-	LooterSound::PlayAt(this, Cue, Hit.ImpactPoint);
+
+	// The surface cue by the gun's weight (a revolver's slug and a sniper's round land harder than an SMG's), and a shotgun
+	// blast's one cue (its pellets merge above) louder, with one pepper of pellets on top. A big gun adds its heavy layer
+	// under the surface (sub-thump and debris). All of them go through the merge above, so a blast is one of each.
+	const AWeaponBase* Gun = Bullet.Shot.Weapon.Get();
+	const UWeaponDefinition* Definition = Gun ? Gun->GetInstance().Definition : nullptr;
+	const bool bBlast = Definition && Definition->Kind == EWeaponKind::Shotgun;
+	LooterSound::PlayAt(this, Cue, Hit.ImpactPoint, GunfeelSound::ImpactVolume(Bullet.MarkScale, bBlast));
+	const float Heavy = GunfeelSound::ImpactHeavyVolume();
+	if (Heavy > 0.f && GunfeelSound::IsHeavy(Bullet.MarkScale, GunfeelSound::ImpactHeavyFrom()))
+	{
+		LooterSound::PlayAt(this, LooterSoundCue::Gunfeel::ImpactHeavy, Hit.ImpactPoint, Heavy);
+	}
+	const float Scatter = GunfeelSound::ImpactScatterVolume();
+	if (bBlast && Scatter > 0.f)
+	{
+		LooterSound::PlayAt(this, LooterSoundCue::Gunfeel::ImpactScatter, Hit.ImpactPoint, Scatter);
+	}
 }
 
 void UBulletSubsystem::LeaveMark(const FBullet& Bullet, const FHitResult& Hit, EImpactMaterial Material)

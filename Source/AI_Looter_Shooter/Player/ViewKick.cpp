@@ -47,6 +47,19 @@ float FViewKickStack::Response(float Time, float Frequency, float Damping)
 	return FMath::Exp(-Decay * Time) * FMath::Sin(Ringing * Time) / Peak;
 }
 
+float FViewKickStack::GetShotPitch() const
+{
+	float Sum = 0.f;
+	for (const FActive& Each : Active)
+	{
+		if (Each.Kick.SustainCap > 0.f)
+		{
+			Sum += Each.Kick.Pitch * FMath::Max(Response(Each.Age, Each.Kick.Frequency, Each.Kick.Damping), 0.f);
+		}
+	}
+	return Sum;
+}
+
 void FViewKickStack::Add(const FViewKick& Kick)
 {
 	if (Active.Num() >= MaxKicks)
@@ -54,7 +67,16 @@ void FViewKickStack::Add(const FViewKick& Kick)
 		// The oldest has nearly settled anyway.
 		Active.RemoveAt(0, 1, EAllowShrinking::No);
 	}
-	Active.Add({ Kick, 0.f });
+	FViewKick Use = Kick;
+	if (Kick.SustainCap > 0.f && Kick.Pitch > 0.f)
+	{
+		// An automatic's shots pile up on each other: what room is left under the cap (the cap itself, or the kick's own size
+		// if that is bigger, so a lone heavy shot is never trimmed) is all the next one gets, but never less than the floor.
+		const float Room = FMath::Max(Kick.SustainCap, Kick.Pitch) - GetShotPitch();
+		const float Share = FMath::Clamp(Room / Kick.Pitch, FMath::Clamp(Kick.SustainFloor, 0.f, 1.f), 1.f);
+		Use = Kick * Share;
+	}
+	Active.Add({ Use, 0.f });
 }
 
 void FViewKickStack::Tick(float DeltaSeconds)
@@ -206,4 +228,17 @@ FViewKick ViewKicks::ForKill(bool bHeavy)
 	Kick.Frequency = 9.f;
 	Kick.Damping = 0.5f;
 	return bHeavy ? Kick * 1.4f : Kick;
+}
+
+FViewKick ViewKicks::ForRack(float AimAlpha)
+{
+	FViewKick Kick;
+	Kick.Pitch = -0.1f;
+	Kick.FieldOfView = -0.004f;
+	Kick.Frequency = 12.f;
+	Kick.Damping = 0.6f;
+	const float Aim = FMath::Clamp(AimAlpha, 0.f, 1.f);
+	Kick.Pitch *= FMath::Lerp(1.f, 0.5f, Aim);
+	Kick.FieldOfView *= FMath::Lerp(1.f, 0.6f, Aim);
+	return Kick;
 }

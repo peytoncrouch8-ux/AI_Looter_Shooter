@@ -123,6 +123,9 @@ void UBulletSubsystem::Fire(const FBulletShot& FiredShot)
 	Bullet.Position = Shot.Start;
 	Bullet.Volley = VolleyCount;
 	Bullet.MarkScale = FBulletMarks::GunScale(Definition ? Definition->Kind : EWeaponKind::None);
+	// How its hit lands (GF-IMPACT): by its gun's kind, and an LMG's by its round's place in the belt (its tracer's beat).
+	Bullet.Kind = Definition ? Definition->Kind : EWeaponKind::None;
+	Bullet.RoundsLeft = Gun ? Gun->GetCurrentMagazine() : 0;
 	Bullet.bThread = VolleyPellets++ < ThreadPellets;
 	if (Shot.Speed <= 0.f)
 	{
@@ -186,6 +189,12 @@ void UBulletSubsystem::Tick(float DeltaTime)
 	}
 	// Bounces and the like their hits fired fly from this frame on.
 	FireHeld();
+	// A shotgun blast's dust sheet once its last pellet is down (GF-IMPACT; FWeaponFX gathers them as they land).
+	if (const int32 SheetVolley = Effects.PendingSheetVolley())
+	{
+		const bool bStillFlying = Bullets.ContainsByPredicate([SheetVolley](const FBullet& Bullet) { return !Bullet.bSpent && Bullet.Volley == SheetVolley; });
+		Effects.SettleBlastSheet(bStillFlying);
+	}
 
 	// Nothing flying, nothing drawn and no brass about: most of the game, at no cost.
 	if (Bullets.IsEmpty() && Effects.IsIdle() && Brass.IsIdle())
@@ -334,11 +343,17 @@ FBulletStrike UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResu
 	}
 	else
 	{
+		// Its gun's kind decides how heavy it lands (GF-IMPACT: an SMG's small, a sniper's punch, a blast's one sheet).
+		FVfxRound Round;
+		Round.Kind = Bullet.Kind;
+		Round.RoundsLeft = Bullet.RoundsLeft;
+		Round.Volley = Bullet.Volley;
+		const FWeaponFX::FLandingScope LandingLook(Effects, Round);
 		ShowHit(Bullet, Hit, Surface, Material, bCritical, bRicochet);
 	}
 	if (!bOwnLook)
 	{
-		PlayImpactSound(Hit, Surface, Material, bRicochet);
+		PlayImpactSound(Bullet, Hit, Surface, Material, bRicochet);
 	}
 	if (!bOwnLook && Surface == EImpactSurface::World)
 	{

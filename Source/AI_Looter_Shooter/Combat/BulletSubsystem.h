@@ -212,6 +212,9 @@ private:
 		int32 Volley = 0;
 		/** How big its marks are (its gun's: FBulletMarks::GunScale), and its puff. */
 		float MarkScale = 1.f;
+		/** Its gun's kind and the rounds left in its magazine as it was fired: how its hit lands (FWeaponFX::FLandingScope; GF-IMPACT). */
+		EWeaponKind Kind = EWeaponKind::None;
+		int32 RoundsLeft = 0;
 		/** Hit something or flew its full range: drawn one last time, then removed. */
 		bool bSpent = false;
 		bool bDrawn = false;
@@ -240,7 +243,7 @@ private:
 	void ShowHit(const FBullet& Bullet, const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, bool bCritical, bool bRicochet);
 	/** The ground the chunks of a world hit land on: the surface itself if it's floor, else what's below the hit. */
 	bool FindDebrisFloor(const FBullet& Bullet, const FHitResult& Hit, FPlane& OutFloor);
-	void PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, bool bRicochet);
+	void PlayImpactSound(const FBullet& Bullet, const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, bool bRicochet);
 	void LeaveMark(const FBullet& Bullet, const FHitResult& Hit, EImpactMaterial Material);
 	/** Lays the smoke thread behind a bullet as far as it has flown (its first meters only). */
 	void LayThread(FBullet& Bullet);

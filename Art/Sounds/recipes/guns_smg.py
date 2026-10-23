@@ -153,7 +153,7 @@ GS.MIX['SMG'] = dict(mech=-14.5, low=-6.0)
 
 # Fire 2 dB under the rifle's (a smaller round, fired faster); the layers at their loudness inside Fire's mix.
 GS._register('SMG', 6, 6, dict(fire=-2.0, core=-2.6, mech=-15.0, low=-12.0, open=-18.5, town=-17.0, inside=-14.0,
-                               distant=-4.5, n_distant=6), 8)
+                               distant=-4.5, n_distant=6), 8, trim=1.0)
 
 
 @cue('Weapon.SMG.LowAmmo', variations=3, att='Near', jitter=0.02, conc=2, level=-12.0)

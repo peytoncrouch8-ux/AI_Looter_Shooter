@@ -130,7 +130,7 @@ GS.MIX['Sniper'] = dict(mech=-16.0, low=-5.0)
 
 # Fire 1.5 dB over the rifle's: the loudest gun, fired a shot at a time; a long valley tail.
 GS._register('Sniper', 6, 6, dict(fire=1.5, core=0.9, mech=-15.5, low=-7.5, open=-8.0, town=-7.5, inside=-5.0,
-                                  distant=-0.5, n_distant=6), 4)
+                                  distant=-0.5, n_distant=6), 4, trim=1.2)
 
 
 @cue('Weapon.Sniper.LowAmmo', variations=3, att='Near', jitter=0.02, conc=2, level=-12.0)

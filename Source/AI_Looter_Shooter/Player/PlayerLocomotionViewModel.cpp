@@ -314,7 +314,8 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	// Reloading brings the gun in to work the magazine or pump (the weapon moves the part itself, on the same timeline).
 	FVector ReloadOffset;
 	FRotator ReloadRotation;
-	LooterReload::ViewModelPose(Weapon->GetReloadPart(), Weapon->GetReloadProgress(), ReloadOffset, ReloadRotation);
+	LooterReload::ViewModelPose(Weapon->GetReloadPart(), Weapon->GetReloadProgress(), Weapon->GetReloadPlan(), ReloadOffset,
+		ReloadRotation);
 	Offset += ReloadOffset;
 	Rotation += ReloadRotation;
 

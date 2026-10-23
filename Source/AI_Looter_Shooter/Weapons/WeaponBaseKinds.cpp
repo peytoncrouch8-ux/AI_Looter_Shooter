@@ -101,7 +101,7 @@ float AWeaponBase::GetBoltOpen() const
 	const float Reload = GetReloadProgress();
 	if (Reload >= 0.f)
 	{
-		return LooterReload::BoltOpenInReload(Reload);
+		return LooterReload::BoltOpenInReload(Reload, ReloadPlan);
 	}
 	return LooterReload::BoltCycleOpen(GetBoltCycle());
 }
@@ -113,7 +113,7 @@ float AWeaponBase::GetBoltHand() const
 		return 0.f;
 	}
 	const float Reload = GetReloadProgress();
-	return Reload >= 0.f ? LooterReload::BoltHandInReload(Reload) : LooterReload::BoltHandInCycle(GetBoltCycle());
+	return Reload >= 0.f ? LooterReload::BoltHandInReload(Reload, ReloadPlan) : LooterReload::BoltHandInCycle(GetBoltCycle());
 }
 
 float AWeaponBase::GetBreathLeft() const

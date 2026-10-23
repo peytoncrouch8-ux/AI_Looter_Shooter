@@ -8,8 +8,8 @@ namespace
 	constexpr float MagGoneEnd = 0.40f;    // dropped out of sight
 	constexpr float MagInStart = 0.46f;    // the fresh one comes up
 	constexpr float MagSeated = 0.62f;     // slapped home
-	constexpr float BoltStart = 0.70f;     // charging handle
-	constexpr float BoltEnd = 0.82f;
+	constexpr float BoltStart = LooterReload::HandleFrom;     // charging handle
+	constexpr float BoltEnd = LooterReload::HandleTo;
 	constexpr float MagSlideOut = 12.f;    // cm out of the well before it falls
 	constexpr float MagDrop = 60.f;        // cm it falls, well out of view
 	constexpr float MagInFrom = 26.f;      // cm below the well the fresh one starts
@@ -21,7 +21,6 @@ namespace
 	constexpr float PumpStart = 0.80f;
 	constexpr float PumpBack = 0.86f;
 	constexpr float PumpEnd = 0.93f;
-	constexpr float PumpStroke = 7.f;
 
 	// Revolver reload: the cylinder flicks out, the gun tips up and the rod is punched, it tips down for the speedloader,
 	// and the cylinder is slapped home.
@@ -286,10 +285,24 @@ float LooterReload::PumpTravel(float Progress)
 
 void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, FVector& OutOffset, FRotator& OutRotation)
 {
+	// The whole choreography, from empty (a pump gun's the old four shells).
+	FReloadPlan FromEmpty;
+	FromEmpty.bEmpty = true;
+	ViewModelPose(Part, Progress, FromEmpty, OutOffset, OutRotation);
+}
+
+void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, const FReloadPlan& Plan, FVector& OutOffset, FRotator& OutRotation)
+{
 	OutOffset = FVector::ZeroVector;
 	OutRotation = FRotator::ZeroRotator;
 	if (Progress < 0.f || Part == EWeaponReloadPart::None)
 	{
+		return;
+	}
+	// A planned shell reload has its own beats (ReloadMotionPlan.cpp); no shells planned is the old four-shell one below.
+	if (Part == EWeaponReloadPart::Pump && Plan.Shells > 0)
+	{
+		PumpViewModelPose(Progress, Plan, OutOffset, OutRotation);
 		return;
 	}
 
@@ -316,14 +329,16 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, FVector
 	if (Part == EWeaponReloadPart::Bolt)
 	{
 		// The sniper: rolled to its right (the bolt) for the bolt, over to show the box under it, back for the bolt home.
-		const float BoltWork = Window(Progress, 0.f, BoltOpenStart, BoltOpenEnd, BoltOpenEnd + 0.08f)
-			+ Window(Progress, BoltCloseStart - 0.08f, BoltCloseStart, BoltCloseEnd, BoltCloseEnd + 0.06f);
+		// A tactical reload leaves the bolt home: the box only.
+		const float Worked = Plan.bEmpty ? 1.f : 0.f;
+		const float BoltWork = Worked * Window(Progress, 0.f, BoltOpenStart, BoltOpenEnd, BoltOpenEnd + 0.08f)
+			+ Worked * Window(Progress, BoltCloseStart - 0.08f, BoltCloseStart, BoltCloseEnd, BoltCloseEnd + 0.06f);
 		OutOffset = FVector(-2.f, -6.f, 6.f) * Pose + FVector(0.f, 1.f, -1.f) * BoltWork;
 		OutRotation = FRotator(3.f, -10.f, 24.f) * Pose + FRotator(0.f, 2.f, -30.f) * BoltWork;
 		const float Lag = BoltMagazineLag;
 		const float Slap = Pulse(Progress, MagSeated + Lag, 0.04f);
-		const float Yank = Pulse(Progress, BoltOpenEnd - 0.03f, 0.04f);
-		const float Home = Pulse(Progress, BoltCloseEnd - 0.04f, 0.04f);
+		const float Yank = Worked * Pulse(Progress, BoltOpenEnd - 0.03f, 0.04f);
+		const float Home = Worked * Pulse(Progress, BoltCloseEnd - 0.04f, 0.04f);
 		OutOffset += FVector(0.f, 0.f, 1.6f) * Slap + FVector(-1.5f, 0.f, 0.f) * Yank + FVector(1.f, 0.f, 0.f) * Home;
 		OutRotation += FRotator(3.f, 0.f, -2.f) * Slap + FRotator(1.f, 0.f, 3.f) * Yank + FRotator(-1.f, 0.f, -2.f) * Home;
 		return;

@@ -303,6 +303,21 @@ bool FRevolverReloadTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("The rod's punch is the revolver's"), WeaponSounds::ReloadStep(EReloadStep::Eject), FName(LooterSoundCue::Revolver::Eject));
 	TestEqual(TEXT("The long guns' steps keep theirs"), WeaponSounds::ReloadStep(EReloadStep::Pump), FName(LooterSoundCue::ShotgunPump));
+	// The gun feel pass: a six-gun's tactical reload is its empty one (all six come out), its rounds in with the speedloader.
+	for (const bool bEmpty : { false, true })
+	{
+		FReloadPlan Plan;
+		Plan.bEmpty = bEmpty;
+		TArray<FReloadStepAt> Planned;
+		LooterReload::StepsFor(EWeaponReloadPart::Cylinder, Plan, Planned);
+		TestEqual(TEXT("Tactical or empty: the same four steps"), Planned.Num(), Steps.Num());
+		for (const FReloadStepAt& Step : Planned)
+		{
+			TestEqual(TEXT("...each heard as before"), WeaponSounds::ReloadStep(EWeaponKind::Revolver, Step.Step), WeaponSounds::ReloadStep(Step.Step));
+		}
+	}
+	TestTrue(TEXT("Its rounds go in with the speedloader"), LooterReload::CommitsAt(EWeaponReloadPart::Cylinder, EReloadStep::RoundsIn)
+		&& !LooterReload::CommitsAt(EWeaponReloadPart::Cylinder, EReloadStep::Eject));
 
 	// The swing: closed at both ends, all the way out (and no further than a touch past) while the empties go and the
 	// rounds come in, home once it has latched; never a jump.

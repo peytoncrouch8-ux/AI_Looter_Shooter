@@ -40,6 +40,36 @@ namespace VfxRules
 	 */
 	AI_LOOTER_SHOOTER_API float ImpactViewScale(float Distance);
 
+	// --- A world hit's weight by its gun's kind (the gun feel pass, GF-IMPACT 2026-10-22) ---
+
+	/**
+	 * How heavy a gun kind's round lands on the world (Looter.Vfx.Impact.Weight.<Kind>): SMG 0.6, rifle 1, LMG 1.05, revolver
+	 * 1.3, sniper 1.8, a shotgun pellet 0.5 (its share of its blast); a rocket's or no gun's 1. The one-argument form reads the
+	 * cvars as set now.
+	 */
+	AI_LOOTER_SHOOTER_API float ImpactWeight(EWeaponKind Kind, const FVfxTuning& Tuning);
+	AI_LOOTER_SHOOTER_API float ImpactWeight(EWeaponKind Kind);
+
+	/**
+	 * How a round of Kind lands on Material, RoundsLeft in its magazine as it was fired: its pieces' count and size by its
+	 * weight; a pellet's count only (it keeps its mark's size; its blast's sheet carries the blast); an LMG's full round
+	 * every Impact.LMGFullEvery with a chunk burst, the rest Impact.LMGLight of it; a chunk burst from Impact.ChunkFrom on a
+	 * hard surface; a punch from Impact.PunchFrom. Kind None: today's look (all 1, nothing added).
+	 */
+	AI_LOOTER_SHOOTER_API FVfxImpactLook ImpactLook(EWeaponKind Kind, int32 RoundsLeft, EImpactMaterial Material, const FVfxTuning& Tuning);
+
+	/** A surface a heavy round chips and splits (stone, gravel, wood, metal, sheet metal, glass, bone), not one it sinks into. */
+	AI_LOOTER_SHOOTER_API bool IsHardSurface(EImpactMaterial Material);
+
+	/** What a blast's dust sheet adds there: sparks off what sparks (gravel, stone, metal), spray off water, a fan off the rest. */
+	AI_LOOTER_SHOOTER_API EVfxSheet SheetOf(EImpactMaterial Material);
+
+	/** A blast's sheet's radius (cm) for its pellets' Spread (their root-mean-square distance from their middle): 40 to 220. */
+	AI_LOOTER_SHOOTER_API float SheetRadius(float Spread);
+
+	/** The sheet's low puffs for its radius: 3 to 5 (wider patterns, more). */
+	AI_LOOTER_SHOOTER_API int32 SheetPuffs(float Radius);
+
 	/**
 	 * How big a kill's layers are (1 a rifle's body kill): by the gun (a shotgun's or a rocket's throws more, an SMG's a
 	 * little less), a crit (more), and how far past dead the killing hit went (Share over 1 adds up to 0.3).

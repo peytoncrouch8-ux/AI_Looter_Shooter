@@ -50,6 +50,15 @@ struct FWeaponRecoilProfile
 
 	/** ...and the most it grows to, as a multiple of the first shot's (1 = no climb). Set with ClimbPerShot. */
 	float ClimbMax = 1.f;
+
+	/**
+	 * The gun model's kick through the sight as a share of the hip's (GunfeelKick::AimedModelKick(1, ...)): the muzzle flip and
+	 * twist, the roll, and the push back along the sight line. 1 = the same as the hip. Not data: GetRecoilProfile sets them
+	 * from the Looter.Gunfeel.Recoil.Aimed* variables; AddShot blends them in by the shot's AimAlpha.
+	 */
+	float AimedBack = 1.f;
+	float AimedFlip = 1.f;
+	float AimedRoll = 1.f;
 };
 
 /**
@@ -61,6 +70,19 @@ class AI_LOOTER_SHOOTER_API FWeaponRecoil
 {
 public:
 	void AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& Random);
+
+	/**
+	 * The same shot taken with the sights up AimAlpha (0 hip, 1 raised): the gun model's back, flip, twist and roll are blended
+	 * toward the profile's Aimed* shares, so a sighted shot doesn't throw the sights off the target. The aim kick (what the
+	 * player pulls down against) is the profile's whole.
+	 */
+	void AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& Random, float AimAlpha);
+
+	/** Adds Degrees (+ right) to the aim kick still to come: the recoil pattern's sideways drift. */
+	void AddAimYaw(float Degrees) { AimPending.Yaw += Degrees; }
+
+	/** Where the last shot added sits in its burst (0 the first), for the pattern and the first shot's reward. */
+	int32 GetShotInBurst() const { return FMath::Max(BurstShots - 1, 0); }
 
 	/**
 	 * Advances the kick springs and the aim kick. PlayerPitchInput is how far the player moved the aim up (+) or down (-)

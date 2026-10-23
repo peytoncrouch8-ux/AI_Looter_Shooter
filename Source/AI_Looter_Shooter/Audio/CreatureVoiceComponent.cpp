@@ -2,6 +2,7 @@
 #include "Audio/CreatureVoiceDirector.h"
 #include "Audio/LooterSound.h"
 #include "Audio/LooterSoundRules.h"
+#include "Audio/LooterSoundSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/DeadMinerCreature.h"
@@ -12,6 +13,10 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "TimerManager.h"
+#include "Weapons/BulletMarks.h"
+#include "Weapons/CreatureBlood.h"
+#include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
 
 UCreatureVoiceComponent::UCreatureVoiceComponent()
 {
@@ -156,6 +161,10 @@ void UCreatureVoiceComponent::HandleDamaged(float Damage, bool bCritical, FVecto
 		NextHit = Now + HitInterval;
 		LooterSound::PlayAt(this, Cries.Hit, HitLocation, bCritical ? 1.f : 0.8f, GetPitch());
 	}
+	PlayHitLayers(Damage, bCritical, HitLocation, DamageCauser, *Creature);
+	// A critical kill's confirm (HandleDeath) asks whether the blow that dealt it was one.
+	LastHitTime = Now;
+	bLastHitCritical = bCritical;
 	// Its own cry now and then, never on the killing blow (the death cry follows at once).
 	const UHealthComponent* Health = Creature->FindComponentByClass<UHealthComponent>();
 	const bool bKilled = Health && Health->GetHealth() <= 0.f;
@@ -185,9 +194,57 @@ void UCreatureVoiceComponent::HandleDeath(AController* Killer)
 	{
 		Director->NotifyDeath(*this);
 	}
-	// The player's own confirmation of the kill, heard flat whatever the distance.
+	// The player's own confirmation of the kill, heard flat whatever the distance; a critical blow's is brighter (a status
+	// finishing it long after the last bullet is a plain kill).
 	if (Killer && Killer->IsLocalPlayerController())
 	{
-		LooterSound::Play2D(Killer, LooterSoundCue::Kill);
+		const UWorld* World = GetWorld();
+		const bool bCriticalKill = bLastHitCritical && World && World->GetTimeSeconds() - LastHitTime <= KillCritWindow;
+		const ULooterSoundSubsystem* Sounds = ULooterSoundSubsystem::Find(this);
+		const bool bBankHasCrit = Sounds && Sounds->HasSounds(LooterSoundCue::Gunfeel::KillCrit);
+		LooterSound::Play2D(Killer, GunfeelSound::KillConfirmCue(bCriticalKill, bBankHasCrit));
+	}
+}
+
+void UCreatureVoiceComponent::PlayHitLayers(float Damage, bool bCritical, const FVector& HitLocation, const AActor* DamageCauser,
+	const ACreatureBase& Creature)
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	const double Now = World->GetTimeSeconds();
+
+	// The gun that dealt it (a status's damage has none: no layers, only the plain hit).
+	const AWeaponBase* Gun = Cast<const AWeaponBase>(DamageCauser);
+	const UWeaponDefinition* Definition = Gun ? Gun->GetInstance().Definition : nullptr;
+	if (Definition)
+	{
+		const EWeaponKind Kind = Definition->Kind;
+		bool bHeavy = GunfeelSound::IsHeavy(FBulletMarks::GunScale(Kind), GunfeelSound::CreatureHeavyFrom());
+		// A shotgun's pellets each take little; together they are one blow, thumped once when they add up to a heavy share.
+		if (Kind == EWeaponKind::Shotgun)
+		{
+			const UHealthComponent* Health = Creature.FindComponentByClass<UHealthComponent>();
+			const float MaxHealth = Health ? Health->GetMaxHealth() : 0.f;
+			bHeavy |= MaxHealth > 0.f && GunfeelSound::BlastIsHeavy(Blast, Now, Damage / MaxHealth, GunfeelSound::CreatureBlastWindow(),
+				GunfeelSound::CreatureHeavyShare());
+		}
+		const float Volume = GunfeelSound::CreatureHeavyVolume();
+		if (bHeavy && Volume > 0.f && Now >= NextHeavy)
+		{
+			NextHeavy = Now + HitInterval;
+			LooterSound::PlayAt(this, LooterSoundCue::Gunfeel::CreatureHitHeavy, HitLocation, Volume, GetPitch());
+		}
+	}
+
+	// A critical cracks what the body is made of: a shell, jelly, coal.
+	const FName Crack = bCritical ? GunfeelSound::CritCueFor(CreatureBlood::Of(&Creature)) : FName(NAME_None);
+	const float CritVolume = GunfeelSound::CreatureCritVolume();
+	if (!Crack.IsNone() && CritVolume > 0.f && Now >= NextCrit)
+	{
+		NextCrit = Now + HitInterval;
+		LooterSound::PlayAt(this, Crack, HitLocation, CritVolume, GetPitch());
 	}
 }

@@ -24,6 +24,8 @@ The styles, in FBulletMarks' order (never reorder: the game sends the index):
     10 Cloth      a small frayed hole
     11 Hay        a dark puncture and broken straws strewn round it
     12 Bone       a pale ivory chip with fine cracks
+    13 StoneHeavy a heavy round's chip (revolver, sniper): the stone chip ringed by cracks running out to its edge
+    14 WoodHeavy  a heavy round's hole in timber: the scorched hole split along the grain, splinters lifted
 
 Run it with Blender's Python (numpy; Tools/Blender/looter_textures.py's helpers):
     Tools\\artrun.ps1 -Script Art\\Textures\\BulletMarks\\make_bullet_marks.py
@@ -46,17 +48,19 @@ CELL = 256
 COLUMNS, ROWS, VARIANTS = 8, 4, 2
 # A pixel in the cell's own units (it spans -1..1).
 AA = 2.0 / CELL
-STYLES = ('Hole', 'Dirt', 'Grass', 'Gravel', 'Sand', 'Stone', 'Wood', 'Metal', 'SheetMetal', 'Glass', 'Cloth', 'Hay', 'Bone')
+STYLES = ('Hole', 'Dirt', 'Grass', 'Gravel', 'Sand', 'Stone', 'Wood', 'Metal', 'SheetMetal', 'Glass', 'Cloth', 'Hay', 'Bone',
+          'StoneHeavy', 'WoodHeavy')
 # Each style's radius (cm) for a rifle round, as FBulletMarks' MarkLook has it: how big a cell is in the world.
 RADIUS_CM = dict(Hole=5.0, Dirt=9.0, Grass=8.0, Gravel=8.0, Sand=9.5, Stone=7.0, Wood=6.0, Metal=5.0, SheetMetal=5.5,
-                 Glass=11.0, Cloth=4.5, Hay=6.0, Bone=5.0)
+                 Glass=11.0, Cloth=4.5, Hay=6.0, Bone=5.0, StoneHeavy=8.5, WoodHeavy=7.5)
 # The preview's surface under each style (sRGB).
 BACKDROPS = dict(Hole=0x808080, Dirt=0x7a6248, Grass=0x5e6d38, Gravel=0x8c8578, Sand=0xc6ad84, Stone=0x837c72, Wood=0x8a6a48,
-                 Metal=0x46524a, SheetMetal=0x7a6c5e, Glass=0x1c2228, Cloth=0xb3aa96, Hay=0xc2a05a, Bone=0xd8cfbe)
+                 Metal=0x46524a, SheetMetal=0x7a6c5e, Glass=0x1c2228, Cloth=0xb3aa96, Hay=0xc2a05a, Bone=0xd8cfbe,
+                 StoneHeavy=0x837c72, WoodHeavy=0x8a6a48)
 OUT_DIR = HERE
 PREVIEW = os.path.join(REPO, 'Saved', 'ArtPreviews', 'BulletMarks', 'BulletMarks_sheet.png')
 # The styles the closer look (BulletMarks_zoom.png) shows.
-ZOOM = ('Dirt', 'Stone', 'Wood', 'Metal')
+ZOOM = ('Dirt', 'Stone', 'Wood', 'Metal', 'StoneHeavy', 'WoodHeavy')
 
 
 def rgb(value):
@@ -412,9 +416,57 @@ def style_bone(m, variant):
     style_stone(m, variant, fresh=0xd8cfbb, crack=0x5a5243, powder=0xe9e2d2, core=0x2a241c, chip=0.36, cracks=3)
 
 
+def ring_cracks(m, inner, outer, count, crack, depth):
+    """A heavy round's crack ring (the gun feel pass, 2026-10-22): radial cracks from the chip out to near the edge, joined
+    by broken arcs bowing outward round it (the face split by the blow). Laid in crack's colour, cut into the relief."""
+    lines = np.zeros((CELL, CELL), np.float32)
+    radials = []
+    for index in range(count):
+        angle = (index + m.rng.uniform(-0.35, 0.35)) / count * 2.0 * math.pi
+        points = m.path(angle, inner * 0.6, m.rng.uniform(outer * 0.85, outer), 8, 0.18)
+        radials.append(points)
+        m.stroke(points, 0.007, 0.0025, lines)
+    for step in (3, 6):
+        for index in range(count):
+            if m.rng.random() < 0.3:
+                continue
+            (ax, ay), (bx, by) = radials[index][step], radials[(index + 1) % count][step]
+            mid = (0.5 * (ax + bx) * 1.04, 0.5 * (ay + by) * 1.04)
+            m.stroke([(ax, ay), mid, (bx, by)], 0.0055, 0.0045, lines)
+    m.over(rgb(crack), 0.85 * lines, rough=0.85)
+    m.height -= lines * depth
+    return lines
+
+
+def style_stone_heavy(m, variant):
+    # The plain chip at the same size in the world (a wider cell: radius 8.5 cm, chip 0.34), a ring of pale crushed powder
+    # round it, and the cracks ringing it out to the edge.
+    m.over(rgb(0xcfc8bc), 0.28 * m.ring(0.3, 0.62, 0.06) * m.unit_noise(5), rough=0.9)
+    style_stone(m, variant, chip=0.34, cracks=3)
+    ring_cracks(m, 0.34, 0.95, 9 + variant, 0x24211d, 0.0005)
+
+
+def style_wood_heavy(m, variant):
+    # The scorched hole, split along the grain (across the cell) both ways nearly to the edge, raw wood lifted along the
+    # splits, a wider scorch.
+    m.over(rgb(0x2a1a10), 0.4 * lt.smooth(0.5, 0.2, m.r) * m.unit_noise(6), rough=0.9)
+    style_wood(m, variant)
+    splits = np.zeros((CELL, CELL), np.float32)
+    raw = np.zeros((CELL, CELL), np.float32)
+    for index in range(3 + variant):
+        angle = (0.0 if index % 2 == 0 else math.pi) + m.rng.normal(0.0, 0.12)
+        points = m.path(angle, 0.14, m.rng.uniform(0.7, 0.97), 8, 0.06)
+        m.stroke(points, 0.02, 0.006, raw)
+        m.stroke(points, 0.009, 0.002, splits)
+    m.over(rgb(0xc9a876), 0.8 * np.clip(raw - splits, 0.0, 1.0), rough=0.85)
+    m.height += (raw - splits) * 0.0008
+    m.over(rgb(0x1e120a), 0.9 * splits, rough=0.95)
+    m.height -= splits * 0.0012
+
+
 PAINTERS = dict(Hole=style_hole, Dirt=style_dirt, Grass=style_grass, Gravel=style_gravel, Sand=style_sand,
                 Stone=style_stone, Wood=style_wood, Metal=style_metal, SheetMetal=style_sheet_metal, Glass=style_glass,
-                Cloth=style_cloth, Hay=style_hay, Bone=style_bone)
+                Cloth=style_cloth, Hay=style_hay, Bone=style_bone, StoneHeavy=style_stone_heavy, WoodHeavy=style_wood_heavy)
 
 
 def finish(m):

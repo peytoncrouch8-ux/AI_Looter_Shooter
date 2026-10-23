@@ -75,6 +75,27 @@ bool FWeaponReloadMotionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Pump is racked"), MostRack > 5.f);
 	TestEqual(TEXT("Pump home at the start"), LooterReload::PumpTravel(0.f), 0.f);
 	TestEqual(TEXT("Pump home at the end"), LooterReload::PumpTravel(1.f), 0.f);
+
+	// A planned reload from empty is the choreography above (the gun feel pass's plans: Looter.Gunfeel.Reload.*), and a
+	// tactical one only leaves out the handle.
+	FReloadPlan FromEmpty;
+	FromEmpty.bEmpty = true;
+	TArray<FReloadStepAt> Planned;
+	LooterReload::StepsFor(EWeaponReloadPart::Magazine, FromEmpty, Planned);
+	TestEqual(TEXT("From empty: every step"), Planned.Num(), LooterReload::Steps(EWeaponReloadPart::Magazine).Num());
+	for (const float Progress : { 0.1f, 0.3f, 0.62f, 0.75f, 0.9f })
+	{
+		FVector Old;
+		FRotator OldTurn;
+		FVector New;
+		FRotator NewTurn;
+		LooterReload::ViewModelPose(EWeaponReloadPart::Magazine, Progress, Old, OldTurn);
+		LooterReload::ViewModelPose(EWeaponReloadPart::Magazine, Progress, FromEmpty, New, NewTurn);
+		TestTrue(*FString::Printf(TEXT("From empty: the same pose at %.2f"), Progress), Old.Equals(New, 0.001) && OldTurn.Equals(NewTurn, 0.001f));
+	}
+	FReloadPlan Tactical;
+	LooterReload::StepsFor(EWeaponReloadPart::Magazine, Tactical, Planned);
+	TestEqual(TEXT("Tactical: all but the handle"), Planned.Num(), LooterReload::Steps(EWeaponReloadPart::Magazine).Num() - 1);
 	return true;
 }
 

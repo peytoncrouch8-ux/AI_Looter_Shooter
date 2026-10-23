@@ -56,6 +56,12 @@ void AWeaponBase::StartFireAt(double Now)
 {
 	bWantsToFire = true;
 
+	// A pump gun mid-reload finishes the shell in hand, then fires (InterruptReload; others ignore the press).
+	if (bReloading)
+	{
+		InterruptReload();
+	}
+
 	// Mid-strike the trigger is only remembered: auto fire takes up again as the swing ends (EndMeleeSwing).
 	if (bReloading || bMeleeSwinging || !Instance.Definition)
 	{
@@ -112,6 +118,7 @@ bool AWeaponBase::HasShotPending() const
 
 void AWeaponBase::StopFire()
 {
+	GunshotSound::PlayBurstEnd(*this);
 	bWantsToFire = false;
 	StopKindTrigger();
 

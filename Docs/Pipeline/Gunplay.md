@@ -108,6 +108,43 @@ Code: `Weapons/GunshotSound.cpp` (`PlayShot`), `Weapons/GunfeelSoundTuning.h/.cp
 - Didn't check (needs the bank built and play): how it sounds; the probe's choices in town, the mine and the barns; the far
   shot's distance; concurrency in a long rifle burst (Core 8, tails 6).
 
+## Gun feel pass (2026-10-22/23; plan `Docs/Work/2026-10-22-Gunfeel/PLAN.md`; built, not yet play-checked)
+Per-kind identity in sound, kick, impacts, reloads. All numbers live cvars `Looter.Gunfeel.*` (defaults in the plan's
+contract and in each tuning header's `Default`).
+- **Kick** (`GunfeelKickPattern.cpp`): kick scales Rifle 1.3, Shotgun 1.9, Revolver 1.6, SMG 0.8, Sniper 2.0, LMG 1.2,
+  Launcher 2.0; aimed model kick flip x0.45, roll x0.4, back x1.2 applied at the shot (`FWeaponRecoil::AddShot(.., AimAlpha)`),
+  not at display; patterns: rifle straight 6 then drifts right 0.04/shot (`Recoil.RifleDrift`; raise to 0.1 if unseen),
+  SMG shimmy, LMG sway; side random x0.4; first shot x1.3; summed auto kicks capped `Kick.SustainCap` 1.2 deg; the rack's
+  view beat `Kick.Rack`. First-shot spread x0.6 after 0.35 s rest (rifle/SMG/LMG) through `GetSpreadBloom` going negative
+  (crosshair tightens eased). Launcher FOV kick clamped to the stack's 5%.
+- **Reload** (`ReloadTuning`, `ReloadMotionPlan.cpp`, `WeaponBasePump.cpp`): `FReloadPlan {bEmpty, Shells}` set at start;
+  tactical x0.9 / empty x1.1 (sniper 0.9/1.0, others 1/1); tactical magazine/helix skip the handle (progress jumps
+  `HandleFrom` 0.70 -> `HandleTo` 0.82), tactical sniper keeps the bolt home; rounds commit at the seat; ready 0.08 s
+  before the motion ends. Shotgun shell by shell (start 0.3, shell 0.42, pump 0.35 only from empty, x the gun's reload
+  scale); a trigger press finishes the shell in hand then fires (`InterruptReload` from `StartFireAt`). Pump racked between
+  shots: 0.45 of the shot interval (0.22-0.5 s); hull, `Weapon.Shotgun.Rack` and `GunfeelKick::RackBeat` at the rack's back
+  point (0.45 of it; move the sound to the rack's start if its first beat lands late). FP support hand rides the rack
+  (`FHandsGun::PumpCycle`) and follows the plan (`FHandsGun::ReloadPlan`; unset = the full reload, for tests).
+  Revolver's live rounds are not thrown at Eject (empties only). Debug: `Looter.Gunfeel.Reload.Debug 1`.
+- **Sound** (`GunshotSound`, `GunfeelSoundTuning`): automatics' tail every 2nd (rifle, LMG) / 3rd (SMG) shot of a burst,
+  one long tail at release (`PlayBurstEnd`, first line of `StopFire`); low-ammo ticks last N rounds by kind (Rifle 6,
+  SMG 10, LMG 15, Shotgun 2, Revolver 2, Sniper 1, Launcher 0), the last round its own `Weapon.<Kind>.LastRound`; LMG heat
+  hiss at release from heat 0.6; impact cue volume by mark scale, `Impact.Heavy` from 1.2, one `Impact.Scatter` per blast;
+  creature `Creature.Hit.Heavy` from 1.2 or a blast's share, crit cue by blood (`CritCueFor`); `UI.HitMarker.Crit`/`.Ward`,
+  `UI.WardBreak`, `UI.Kill.Crit`. A bank without the new cues falls back to the old ones. `Looter.Gunfeel.LowAmmo.Share`
+  (kick tuning) is no longer used by the game (kept for its test).
+- **Impacts and hits** (`WeaponFXImpactsKinds.cpp`, `WeaponFXCrits.cpp`, `HudHitMarker`): `Looter.Vfx.Impact.Weight.<Kind>`
+  Rifle 1, Shotgun 0.5 (a pellet), Revolver 1.3, SMG 0.6, Sniper 1.8, LMG 1.05; counts x weight, sizes x weight^0.5
+  (`.SizePower` 0.5), clamp 0.3-2.0; no gun handed in (dev command, rocket ground hit) = the old look. LMG full every 3rd
+  (`.LMGFullEvery`, rest `.LMGLight` 0.6); chunks from 1.2 on hard surfaces (`.ChunkFrom`); sniper punch from 1.5
+  (`.PunchFrom`); shotgun one dust sheet per blast (`.Sheet`, `.SheetWait` 0.12 s, `.SheetMin` 3). Wood 2 long splinters,
+  sheet metal a spark shower, hay a chaff skirt. Crit looks by blood (`Looter.Vfx.Hit.CritPop`). Marks: crack-ring styles
+  13/14 (StoneHeavy, WoodHeavy) from mark scale 1.2 (`Looter.BulletMarks.HeavyCracks`/`.HeavyFrom`; needs
+  `make_bullet_marks.py` + `build_world_materials.py M_BulletMark`). Marker: Kill > WardBreak > Crit > Ward > Body (a blast
+  shows its strongest, one sound unless stronger); ward = Warded trait's ward up after the hit, break = up before and gone
+  after (`FHudWardMemory`); colours white / CyanText / Accent / Hurt; size 1 + 0.4 x min(share / 0.25, 1)
+  (`Looter.UI.HitMarker.*`). No lights, no new materials. Cost: sniper ~25 pieces + 3 billows a shot; a blast's sheet ~15.
+
 ## Loot: the four new guns (GUNS-CODE, built 2026-10-22)
 
 Kinds `EWeaponKind::SMG, Sniper, LMG, Launcher` (appended; saved by name), ammo `EAmmoType::Rocket` (appended: max 12, box 2),

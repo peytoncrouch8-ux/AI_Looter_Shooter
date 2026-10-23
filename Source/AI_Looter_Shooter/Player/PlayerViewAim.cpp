@@ -92,7 +92,11 @@ void UPlayerViewComponent::HandleWeaponFired()
 {
 	if (const AWeaponBase* Weapon = FiringWeapon.Get())
 	{
-		Recoil.AddShot(Weapon->GetRecoilProfile(), RecoilRandom);
+		// The gun model kicks less through the sight (AddShot blends by how far the sights are up); the aim then takes the
+		// kind's pattern on top: a rifle's drift, an SMG's shimmy, an LMG's sway, by the shot's place in the burst.
+		const EWeaponKind Kind = GunfeelKick::KindOf(Weapon);
+		Recoil.AddShot(Weapon->GetRecoilProfile(), RecoilRandom, GetAimAlpha());
+		Recoil.AddAimYaw(GunfeelKick::PatternSide(Kind, Recoil.GetShotInBurst()) * Weapon->GetStats().Recoil);
 		// The view's own kick on top of the recoil (only what the player sees; the aim takes the recoil above).
 		AddShotKick(*Weapon);
 	}

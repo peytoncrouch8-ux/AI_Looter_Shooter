@@ -6,7 +6,7 @@
 #include "Engine/World.h"
 
 // AWeaponBase's spent brass (FWeaponBrass draws and lands it): a rifle's case flicked out of the port each shot, a
-// shotgun's hull as it's pumped, a revolver's empties tipped out on a reload's eject.
+// shotgun's hull as it's pumped (its rack: WeaponBasePump.cpp), a revolver's empties tipped out on a reload's eject.
 
 namespace
 {
@@ -31,11 +31,6 @@ namespace
 	constexpr float BrassRifleMaxSpin = 38.f;
 	constexpr float BrassHullMinSpin = 10.f;
 	constexpr float BrassHullMaxSpin = 18.f;
-
-	/** The pump's stroke after a shot: this share of the time between shots, within these bounds (seconds). */
-	constexpr float BrassHullShare = 0.35f;
-	constexpr float BrassHullSoonest = 0.15f;
-	constexpr float BrassHullLatest = 0.35f;
 
 	/** Empties sliding out of the chambers' backs (cm/s), tumbling lazily. */
 	constexpr float BrassEmptyMinSpeed = 60.f;
@@ -78,11 +73,6 @@ bool AWeaponBase::GetEjectPort(FVector& OutLocation, FVector& OutDirection) cons
 	return true;
 }
 
-float AWeaponBase::GetHullDelay() const
-{
-	return FMath::Clamp(Instance.Stats.GetSecondsBetweenShots() * BrassHullShare, BrassHullSoonest, BrassHullLatest);
-}
-
 void AWeaponBase::EjectAfterShot()
 {
 	if (!Instance.Definition)
@@ -101,32 +91,13 @@ void AWeaponBase::EjectAfterShot()
 		EjectCasing();
 		break;
 	case ECasingKind::Hull:
-		// The hull waits for the pump (a shot fired before it's out pumps the last one out first).
-		if (PendingEjectSeconds >= 0.f)
-		{
-			EjectCasing();
-		}
-		PendingEjectSeconds = GetHullDelay();
-		RefreshTick();
+		// The hull waits for the pump: it flies as the rack bottoms (WeaponBasePump.cpp).
+		StartPumpCycle();
 		break;
 	case ECasingKind::Pistol:
 	default:
 		// A six-gun keeps its empties until a reload.
 		break;
-	}
-}
-
-void AWeaponBase::UpdateBrass(float DeltaSeconds)
-{
-	if (PendingEjectSeconds < 0.f)
-	{
-		return;
-	}
-	PendingEjectSeconds -= DeltaSeconds;
-	if (PendingEjectSeconds < 0.f)
-	{
-		PendingEjectSeconds = -1.f;
-		EjectCasing();
 	}
 }
 

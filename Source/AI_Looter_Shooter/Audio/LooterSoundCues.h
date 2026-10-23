@@ -225,6 +225,51 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* ExplosionDistant = TEXT("Weapon.Launcher.Explosion.Distant");
 	}
 
+	/**
+	 * The gun feel pass (2026-10-22; Docs/Work/2026-10-22-Gunfeel/PLAN.md, sounds by Art/Sounds/recipes/guns*.py and
+	 * feedback.py): the last round, the shotgun's rack, the LMG's hot barrel, the SMG's charge, the sniper's own box, reload
+	 * cloth, equips by weight, the hit and kill confirms, the creatures' heavy and crit layers and the impacts' heavy layers.
+	 */
+	namespace Gunfeel
+	{
+		/** The last round gone, on the shooter's gun (GunshotSound::PlayLowAmmo at 0 rounds): "Weapon.<Kind>.LastRound". */
+		inline constexpr const TCHAR* RifleLastRound = TEXT("Weapon.Rifle.LastRound");
+		inline constexpr const TCHAR* SMGLastRound = TEXT("Weapon.SMG.LastRound");
+		inline constexpr const TCHAR* LMGLastRound = TEXT("Weapon.LMG.LastRound");
+		inline constexpr const TCHAR* ShotgunLastRound = TEXT("Weapon.Shotgun.LastRound");
+		inline constexpr const TCHAR* RevolverLastRound = TEXT("Weapon.Revolver.LastRound");
+		inline constexpr const TCHAR* SniperLastRound = TEXT("Weapon.Sniper.LastRound");
+		/** The fore-end racked back and home between the Ranchhand's shots (GunshotSound::PlayRack). */
+		inline constexpr const TCHAR* ShotgunRack = TEXT("Weapon.Shotgun.Rack");
+		/** A hot LMG barrel ticking and hissing as a burst ends (GunshotSound::PlayBurstEnd). */
+		inline constexpr const TCHAR* LMGHeatHiss = TEXT("Weapon.LMG.HeatHiss");
+		/** The Rustler's helix charged after an empty reload (the SMG's EReloadStep::Bolt). */
+		inline constexpr const TCHAR* SMGCharge = TEXT("Weapon.SMG.Charge");
+		/** The Longhorn's heavier box out and in (it used to play the rifle's). */
+		inline constexpr const TCHAR* SniperMagOut = TEXT("Weapon.Sniper.MagOut");
+		inline constexpr const TCHAR* SniperMagIn = TEXT("Weapon.Sniper.MagIn");
+		/** Glove and sling, at the start of every reload. */
+		inline constexpr const TCHAR* ReloadCloth = TEXT("Weapon.Reload.Cloth");
+		/** A light gun (the SMG) or a heavy one (sniper, LMG, launcher) taken in hand, and a heavy one put away. */
+		inline constexpr const TCHAR* EquipLight = TEXT("Weapon.Equip.Light");
+		inline constexpr const TCHAR* EquipHeavy = TEXT("Weapon.Equip.Heavy");
+		inline constexpr const TCHAR* HolsterHeavy = TEXT("Weapon.Holster.Heavy");
+		/** 2D hit confirms: a critical (bright two-tone ping), a ward taking the hit (glassy tick), a ward breaking (crack and shimmer). */
+		inline constexpr const TCHAR* HitMarkerCrit = TEXT("UI.HitMarker.Crit");
+		inline constexpr const TCHAR* HitMarkerWard = TEXT("UI.HitMarker.Ward");
+		inline constexpr const TCHAR* WardBreak = TEXT("UI.WardBreak");
+		/** 2D: a kill by a critical hit (UI.Kill stays the plain kill's). */
+		inline constexpr const TCHAR* KillCrit = TEXT("UI.Kill.Crit");
+		/** 3D at the wound: the heavy guns' thump under the body hit, and a critical's crack by what the body is made of. */
+		inline constexpr const TCHAR* CreatureHitHeavy = TEXT("Creature.Hit.Heavy");
+		inline constexpr const TCHAR* CritShell = TEXT("Creature.Crit.Shell");
+		inline constexpr const TCHAR* CritGel = TEXT("Creature.Crit.Gel");
+		inline constexpr const TCHAR* CritCoal = TEXT("Creature.Crit.Coal");
+		/** 3D at the strike: a big gun's sub-thump and debris under the surface cue, and a blast's pellets as one pepper. */
+		inline constexpr const TCHAR* ImpactHeavy = TEXT("Impact.Heavy");
+		inline constexpr const TCHAR* ImpactScatter = TEXT("Impact.Scatter");
+	}
+
 	// --- The player's own feedback (2D) ---
 	/** Every hit on something that can be hurt; a critical hit plays it pitched up (LooterSoundRules::CritPitch). */
 	inline constexpr const TCHAR* HitMarker = TEXT("UI.HitMarker");

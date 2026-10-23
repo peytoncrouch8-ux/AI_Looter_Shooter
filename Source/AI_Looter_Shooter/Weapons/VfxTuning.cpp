@@ -68,6 +68,36 @@ namespace
 		TEXT("A tracer's strength as a soft streak, times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxTracerWidth(TEXT("Looter.Vfx.Tracer.Width"), VfxDefaults.TracerWidth,
 		TEXT("A tracer's greatest width on screen (radians; 0: as drawn)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactWeightRifle(TEXT("Looter.Vfx.Impact.Weight.Rifle"), VfxDefaults.ImpactWeightRifle,
+		TEXT("How heavy a rifle round's world hit is drawn (the reference: 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactWeightShotgun(TEXT("Looter.Vfx.Impact.Weight.Shotgun"), VfxDefaults.ImpactWeightShotgun,
+		TEXT("Each shotgun pellet's share of a full hit's pieces (its blast's dust sheet carries the blast)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactWeightRevolver(TEXT("Looter.Vfx.Impact.Weight.Revolver"), VfxDefaults.ImpactWeightRevolver,
+		TEXT("How heavy a revolver slug's world hit is drawn."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactWeightSMG(TEXT("Looter.Vfx.Impact.Weight.SMG"), VfxDefaults.ImpactWeightSMG,
+		TEXT("How heavy an SMG round's world hit is drawn (small: a stream never hides the target)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactWeightSniper(TEXT("Looter.Vfx.Impact.Weight.Sniper"), VfxDefaults.ImpactWeightSniper,
+		TEXT("How heavy a sniper round's world hit is drawn (it punches from Impact.PunchFrom)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactWeightLMG(TEXT("Looter.Vfx.Impact.Weight.LMG"), VfxDefaults.ImpactWeightLMG,
+		TEXT("How heavy an LMG round's world hit is drawn (its full rounds; the rest Impact.LMGLight of it)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactSizePower(TEXT("Looter.Vfx.Impact.SizePower"), VfxDefaults.ImpactSizePower,
+		TEXT("A hit's pieces are sized by its weight to this power (0: weight sets their count only)."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarVfxImpactLMGFullEvery(TEXT("Looter.Vfx.Impact.LMGFullEvery"), VfxDefaults.ImpactLMGFullEvery,
+		TEXT("An LMG's every Nth round (its tracer's beat) lands full, with a chunk burst (1: every round)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactLMGLight(TEXT("Looter.Vfx.Impact.LMGLight"), VfxDefaults.ImpactLMGLight,
+		TEXT("...and the rounds between land this share of it."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactChunkFrom(TEXT("Looter.Vfx.Impact.ChunkFrom"), VfxDefaults.ImpactChunkFrom,
+		TEXT("From this weight a hit on a hard surface throws an extra burst of what it struck."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactPunchFrom(TEXT("Looter.Vfx.Impact.PunchFrom"), VfxDefaults.ImpactPunchFrom,
+		TEXT("From this weight a hit punches: a ring of air and dust over the surface, a tall column, big chunks."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactSheet(TEXT("Looter.Vfx.Impact.Sheet"), VfxDefaults.ImpactSheet,
+		TEXT("A shotgun blast's one dust sheet across its pattern, times (0: none)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactSheetWait(TEXT("Looter.Vfx.Impact.SheetWait"), VfxDefaults.ImpactSheetWait,
+		TEXT("The blast's sheet waits at most this long (s) for its last pellet."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarVfxImpactSheetMin(TEXT("Looter.Vfx.Impact.SheetMin"), VfxDefaults.ImpactSheetMin,
+		TEXT("Fewer of a blast's pellets than this on the world lay no sheet."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxHitCritPop(TEXT("Looter.Vfx.Hit.CritPop"), VfxDefaults.HitCritPop,
+		TEXT("A crit's own look by what the body spills (shards, gobs, a gel ring, a coal's flare, rock chips, clods), times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxPowerScale(TEXT("Looter.Vfx.Power.Scale"), VfxDefaults.PowerScale,
 		TEXT("The ember powers' new punch (activation rings, body hits, blasts, strikes), times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxBlastScale(TEXT("Looter.Vfx.Blast.Scale"), VfxDefaults.BlastScale,
@@ -146,6 +176,21 @@ FVfxTuning FVfxTuning::Live()
 	Tuning.SparkLength = VfxNotBelowZero(CVarVfxSparkLength);
 	Tuning.TracerGlow = VfxNotBelowZero(CVarVfxTracerGlow);
 	Tuning.TracerWidth = VfxNotBelowZero(CVarVfxTracerWidth);
+	Tuning.ImpactWeightRifle = VfxNotBelowZero(CVarVfxImpactWeightRifle);
+	Tuning.ImpactWeightShotgun = VfxNotBelowZero(CVarVfxImpactWeightShotgun);
+	Tuning.ImpactWeightRevolver = VfxNotBelowZero(CVarVfxImpactWeightRevolver);
+	Tuning.ImpactWeightSMG = VfxNotBelowZero(CVarVfxImpactWeightSMG);
+	Tuning.ImpactWeightSniper = VfxNotBelowZero(CVarVfxImpactWeightSniper);
+	Tuning.ImpactWeightLMG = VfxNotBelowZero(CVarVfxImpactWeightLMG);
+	Tuning.ImpactSizePower = FMath::Clamp(CVarVfxImpactSizePower.GetValueOnGameThread(), 0.f, 2.f);
+	Tuning.ImpactLMGFullEvery = FMath::Clamp(CVarVfxImpactLMGFullEvery.GetValueOnGameThread(), 1, 16);
+	Tuning.ImpactLMGLight = FMath::Clamp(CVarVfxImpactLMGLight.GetValueOnGameThread(), 0.f, 1.f);
+	Tuning.ImpactChunkFrom = VfxNotBelowZero(CVarVfxImpactChunkFrom);
+	Tuning.ImpactPunchFrom = VfxNotBelowZero(CVarVfxImpactPunchFrom);
+	Tuning.ImpactSheet = VfxNotBelowZero(CVarVfxImpactSheet);
+	Tuning.ImpactSheetWait = FMath::Clamp(CVarVfxImpactSheetWait.GetValueOnGameThread(), 0.f, 1.f);
+	Tuning.ImpactSheetMin = FMath::Clamp(CVarVfxImpactSheetMin.GetValueOnGameThread(), 1, 32);
+	Tuning.HitCritPop = VfxNotBelowZero(CVarVfxHitCritPop);
 	Tuning.PowerScale = VfxNotBelowZero(CVarVfxPowerScale);
 	Tuning.BlastScale = VfxNotBelowZero(CVarVfxBlastScale);
 	Tuning.Glow = VfxNotBelowZero(CVarVfxGlow);

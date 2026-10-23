@@ -20,9 +20,12 @@ namespace GunfeelKick
 	/** The numbers a variable starts at: what the rules use when a test asks for "the defaults". */
 	namespace Default
 	{
-		inline constexpr float KickRifle = 1.6f;
-		inline constexpr float KickShotgun = 1.5f;
-		inline constexpr float KickRevolver = 1.4f;
+		// The view kick by kind (gun feel pass, 2026-10-22): spread wider than before so the kinds read apart. Hip degrees of
+		// a shot (ViewKicks::ForShot pitch x this): rifle 0.42, SMG 0.16, LMG 0.5, revolver 1.44, shotgun 2.19, sniper 2.6,
+		// launcher 2.8; the sight halves them.
+		inline constexpr float KickRifle = 1.3f;
+		inline constexpr float KickShotgun = 1.9f;
+		inline constexpr float KickRevolver = 1.6f;
 		inline constexpr float RecoilRifle = 1.4f;
 		inline constexpr float RecoilShotgun = 1.5f;
 		inline constexpr float RecoilRevolver = 1.4f;
@@ -65,10 +68,10 @@ namespace GunfeelKick
 
 		// The four frontier-tech kinds (Phase 12.3): the SMG a light, quick rattle; the sniper one heavy shove; the LMG a
 		// steady weight; the launcher the biggest shove of all.
-		inline constexpr float KickSMG = 1.f;
-		inline constexpr float KickSniper = 1.6f;
-		inline constexpr float KickLMG = 1.3f;
-		inline constexpr float KickLauncher = 1.8f;
+		inline constexpr float KickSMG = 0.8f;
+		inline constexpr float KickSniper = 2.f;
+		inline constexpr float KickLMG = 1.2f;
+		inline constexpr float KickLauncher = 2.f;
 		inline constexpr float RecoilSMG = 1.f;
 		inline constexpr float RecoilSniper = 1.5f;
 		inline constexpr float RecoilLMG = 1.3f;
@@ -100,6 +103,32 @@ namespace GunfeelKick
 		inline constexpr float LMGClimb = 0.04f;
 		inline constexpr float SMGBloom = 0.09f;
 		inline constexpr float LMGBloom = 0.12f;
+
+		// Gun feel pass (GF-KICK, 2026-10-22). The sight: the gun model kicks less up and twisting, more back (the view kick
+		// already halves; the model's 11 degree revolver flip put the sights off target before the next pull).
+		inline constexpr float AimedFlip = 0.45f;
+		inline constexpr float AimedRoll = 0.4f;
+		inline constexpr float AimedBack = 1.2f;
+		/** The first shot of a burst (rifle, SMG) kicks the view this much harder: the pull is felt. */
+		inline constexpr float KickFirstShot = 1.3f;
+		/** The first shot after a rest (the rifle, SMG, LMG) has this share of the spread: tap fire is rewarded. */
+		inline constexpr float SpreadFirstShot = 0.6f;
+		inline constexpr float SpreadFirstShotRest = 0.35f;
+		inline constexpr float SpreadFirstShotEase = 0.25f;
+		/** The recoil pattern's strength (0 off, 1 as shipped), and the share of the old random sideways kick that stays with it. */
+		inline constexpr float RecoilPattern = 1.f;
+		inline constexpr float SideRandom = 0.4f;
+		/** An automatic's summed shot kicks (degrees of view pitch) are held under this; a stacked kick keeps at least the floor's share. */
+		inline constexpr float SustainCap = 1.2f;
+		inline constexpr float SustainFloor = 0.25f;
+		/** The rifle drifts right by RifleDrift degrees a shot from shot RifleDriftFrom on; the SMG shimmies +- SMGShimmy; the LMG sways. */
+		inline constexpr float RifleDrift = 0.04f;
+		inline constexpr float RifleDriftFrom = 6.f;
+		inline constexpr float SMGShimmy = 0.03f;
+		inline constexpr float LMGSway = 0.15f;
+		inline constexpr float LMGSwayShots = 7.f;
+		/** The shotgun's pump rack nudges the view this much (1 = ViewKicks::ForRack as it is). */
+		inline constexpr float RackKick = 1.f;
 	}
 
 	/** The gun's kind by its definition (Rifle without one; the kinds with no numbers of their own take the rifle's). */
@@ -180,6 +209,51 @@ namespace GunfeelKick
 	/** A hit taken for DamageShare of the player's health: the bigger the share, the stronger and longer (a quarter of the bar is the most). */
 	AI_LOOTER_SHOOTER_API FRumble RumbleForHurt(float DamageShare, float HurtBase);
 	AI_LOOTER_SHOOTER_API FRumble RumbleForHurt(float DamageShare);
+
+	// --- Gun feel pass: pattern, first shot, sustain, the sight (GF-KICK; GunfeelKickPattern.cpp) ---
+
+	/** The numbers of the recoil pattern (defaults are the shipped ones; tests pass their own). */
+	struct FPatternNumbers
+	{
+		float RifleDrift = Default::RifleDrift;
+		float RifleDriftFrom = Default::RifleDriftFrom;
+		float SMGShimmy = Default::SMGShimmy;
+		float LMGSway = Default::LMGSway;
+		float LMGSwayShots = Default::LMGSwayShots;
+	};
+	/**
+	 * The sideways aim kick (degrees, + right) a shot adds for its place in the burst (0 the first), so a burst has a shape to
+	 * learn: the rifle straight up for RifleDriftFrom shots, then right by RifleDrift a shot; the SMG a shimmy, +- SMGShimmy
+	 * alternating; the LMG a slow sway, LMGSway x sin over LMGSwayShots shots (its 11 shots a second make about 1.5 Hz). The
+	 * other kinds none. The live one is also times Recoil.Pattern (0 turns it off).
+	 */
+	AI_LOOTER_SHOOTER_API float PatternSide(EWeaponKind Kind, int32 ShotInBurst, const FPatternNumbers& Numbers);
+	AI_LOOTER_SHOOTER_API float PatternSide(EWeaponKind Kind, int32 ShotInBurst);
+	/** What stays of the old random sideways aim kick: Recoil.SideRandom for the kinds with a pattern (rifle, SMG, LMG), whole for the rest and when Recoil.Pattern is 0. */
+	AI_LOOTER_SHOOTER_API float SideRandomScale(EWeaponKind Kind);
+	/** The view kick of a burst's first shot (ShotInBurst 0) times FirstShot for the rifle and the SMG; 1 otherwise. */
+	AI_LOOTER_SHOOTER_API float FirstShotKick(EWeaponKind Kind, int32 ShotInBurst, float FirstShot);
+	AI_LOOTER_SHOOTER_API float FirstShotKick(EWeaponKind Kind, int32 ShotInBurst);
+	/** The cap on the summed shot kicks of an automatic (rifle, SMG, LMG): Kick.SustainCap degrees; 0 (none) for the single shots. */
+	AI_LOOTER_SHOOTER_API float SustainCapFor(EWeaponKind Kind);
+	AI_LOOTER_SHOOTER_API float SustainFloor();
+	/**
+	 * The gun model's kick through the sight: BackFlipRoll = (back, flip, roll) multipliers at AimAlpha (1 at the hip, easing
+	 * to AimedBack/AimedFlip/AimedRoll at 1). The flip's share also scales the sideways twist. AimedModelKick(1, ...) fills the
+	 * profile's full-sight numbers (AWeaponBase::GetRecoilProfile); FWeaponRecoil::AddShot blends them by the shot's AimAlpha.
+	 */
+	AI_LOOTER_SHOOTER_API void AimedModelKick(float AimAlpha, FVector& BackFlipRoll);
+	AI_LOOTER_SHOOTER_API void AimedModelKick(float AimAlpha, float Back, float Flip, float Roll, FVector& BackFlipRoll);
+	/**
+	 * The bloom the next shot's spread uses: Bloom (the raw one) until the gun has rested Rest seconds, then easing over Ease
+	 * seconds to FirstShot - 1 (negative: a tighter cone, 0.6 = 40% less) for the automatics (rifle, SMG, LMG). The first shot
+	 * of a burst lands where it was aimed; holding the trigger blooms as before.
+	 */
+	AI_LOOTER_SHOOTER_API float FirstShotBloom(EWeaponKind Kind, float Bloom, float SecondsSinceShot, float Rest, float Ease, float FirstShot);
+	AI_LOOTER_SHOOTER_API float FirstShotBloom(EWeaponKind Kind, float Bloom, float SecondsSinceShot);
+	/** The shotgun's pump, racked between shots, nudges the local player's view (ViewKicks::ForRack x Kick.Rack). GF-RELOAD's pump calls it once per rack. */
+	AI_LOOTER_SHOOTER_API void RackBeat(const AWeaponBase& Weapon);
+	AI_LOOTER_SHOOTER_API float RackKickScale();
 
 	// --- The gamepad ---
 

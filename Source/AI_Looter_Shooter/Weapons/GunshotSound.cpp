@@ -7,7 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
-#include "Weapons/GunfeelKickTuning.h"
+#include "TimerManager.h"
 #include "Weapons/GunfeelSoundTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -17,7 +17,9 @@
 // A shot as layers (Gunfeel step 2, GUNFEEL-SOUND): the shooter's own gun plays the punch (Core), its action (Mech), the
 // chest thump (Low) and the land's answer by its surroundings (a tail); anyone else's the punch and the tail, or the far
 // shot past Looter.Gunfeel.Sound.DistantFrom. The surroundings come from a few short traces round the shooter, looked at
-// again at most every quarter second per gun. The rules are GunfeelSoundTuning's.
+// again at most every quarter second per gun. An automatic's burst plays the tail on every Nth shot and one long at its end
+// (the gun feel pass: at 900 rpm every shot's tail was 60 voices a second, cutting each other, and no burst ended in a tail).
+// The rules are GunfeelSoundTuning's.
 
 namespace
 {
@@ -46,6 +48,9 @@ namespace
 		case EGunshotLayer::TailInside: return TEXT("TailInside");
 		case EGunshotLayer::Distant: return TEXT("Distant");
 		case EGunshotLayer::LowAmmo: return TEXT("LowAmmo");
+		case EGunshotLayer::LastRound: return TEXT("LastRound");
+		case EGunshotLayer::HeatHiss: return TEXT("HeatHiss");
+		case EGunshotLayer::Rack: return TEXT("Rack");
 		default: return TEXT("Fire");
 		}
 	}
@@ -64,14 +69,40 @@ namespace
 		}
 	}
 
-	/** A gun's last look at its surroundings: a burst fires many shots from the same spot. */
-	struct FProbeMemory
+	/**
+	 * What a gun remembers between shots: its last look at its surroundings (a burst fires many shots from the same spot)
+	 * and its burst (when it last fired, how many shots into the burst, how many since a tail last played).
+	 */
+	struct FShooterMemory
 	{
-		double At = -1.0;
+		double ProbeAt = -1.0;
 		GunfeelSound::ESurroundings Surroundings = GunfeelSound::ESurroundings::Open;
+		double LastShotAt = -1.0;
+		int32 BurstShots = 0;
+		int32 ShotsSinceTail = 0;
 	};
 
-	TMap<TWeakObjectPtr<const AWeaponBase>, FProbeMemory> GProbes;
+	TMap<TWeakObjectPtr<const AWeaponBase>, FShooterMemory> GMemories;
+
+	FShooterMemory& MemoryOf(const AWeaponBase& Weapon)
+	{
+		return GMemories.FindOrAdd(TWeakObjectPtr<const AWeaponBase>(&Weapon));
+	}
+
+	/** Guns come and go (drops, swaps, levels): the ones gone are let go of now and then. Invalidates every FShooterMemory&. */
+	void TrimMemories()
+	{
+		if (GMemories.Num() > 32)
+		{
+			for (auto It = GMemories.CreateIterator(); It; ++It)
+			{
+				if (!It.Key().IsValid())
+				{
+					It.RemoveCurrent();
+				}
+			}
+		}
+	}
 
 	/**
 	 * What's round the shot, from up to six short world-static traces (volumes and the playable area's walls left out):
@@ -109,29 +140,37 @@ namespace
 		return GunfeelSound::Classify(bRoof, Walls);
 	}
 
-	GunfeelSound::ESurroundings SurroundingsOf(const AWeaponBase& Weapon, UWorld& World)
+	GunfeelSound::ESurroundings SurroundingsOf(FShooterMemory& Memory, const AWeaponBase& Weapon, UWorld& World)
 	{
 		const double Now = World.GetTimeSeconds();
-		FProbeMemory& Memory = GProbes.FindOrAdd(TWeakObjectPtr<const AWeaponBase>(&Weapon));
-		if (GunfeelSound::ProbeStale(Now, Memory.At))
+		if (GunfeelSound::ProbeStale(Now, Memory.ProbeAt))
 		{
 			Memory.Surroundings = Probe(Weapon, World);
-			Memory.At = Now;
+			Memory.ProbeAt = Now;
 		}
-		const GunfeelSound::ESurroundings Surroundings = Memory.Surroundings;
-		// Guns come and go (drops, swaps, levels): the ones gone are let go of now and then (Memory isn't used past here:
-		// removing from the map moves its entries).
-		if (GProbes.Num() > 32)
+		return Memory.Surroundings;
+	}
+
+	/** One more shot of Kind's burst at Now; whether its tail plays (every Nth of an automatic's burst, else every one). */
+	bool NoteShot(FShooterMemory& Memory, EWeaponKind Kind, double Now)
+	{
+		if (GunfeelSound::NewBurst(Now, Memory.LastShotAt, GunfeelSound::BurstGap()))
 		{
-			for (auto It = GProbes.CreateIterator(); It; ++It)
-			{
-				if (!It.Key().IsValid())
-				{
-					It.RemoveCurrent();
-				}
-			}
+			Memory.BurstShots = 0;
+			Memory.ShotsSinceTail = 0;
 		}
-		return Surroundings;
+		const int32 ShotInBurst = Memory.BurstShots++;
+		Memory.LastShotAt = Now;
+		const bool bTail = GunfeelSound::TailPlays(ShotInBurst, GunfeelSound::AutoTailEvery(Kind));
+		Memory.ShotsSinceTail = bTail ? 0 : Memory.ShotsSinceTail + 1;
+		return bTail;
+	}
+
+	/** The player's own gun: a locally controlled, player-controlled holder's (an enemy's is heard, never felt). */
+	bool IsOwnGun(const AWeaponBase& Weapon)
+	{
+		const APawn* Holder = Cast<APawn>(Weapon.GetOwner());
+		return Holder && Holder->IsLocallyControlled() && Holder->IsPlayerControlled();
 	}
 
 	/** How far a sound at Where is from whoever's listening (the first local player's ears); 0 with no one to ask. */
@@ -152,6 +191,43 @@ namespace
 	float DistanceToListener(const AWeaponBase& Weapon, UWorld& World)
 	{
 		return DistanceToListener(Weapon.GetActorLocation(), World);
+	}
+
+	/** Plays Kind's tail by Surroundings: on the gun for the player's own (it stays with the view), else where the shot was. */
+	void PlayTail(const AWeaponBase& Weapon, EWeaponKind Kind, GunfeelSound::ESurroundings Surroundings, bool bOwnGun, float Volume)
+	{
+		const FName Cue = GunshotSound::CueFor(Kind, GunfeelSound::TailFor(Surroundings));
+		if (bOwnGun)
+		{
+			LooterSound::PlayAttached(Cue, Weapon.GetRootComponent(), NAME_None, Volume);
+		}
+		else
+		{
+			LooterSound::PlayAt(&Weapon, Cue, Weapon.GetActorLocation(), Volume);
+		}
+	}
+
+	/** The last round's sound, a moment after the shot (Looter.Gunfeel.Sound.LastRoundDelay) so the shot's own crack doesn't bury it. */
+	void PlayLastRound(const AWeaponBase& Weapon, EWeaponKind Kind)
+	{
+		UWorld* World = Weapon.GetWorld();
+		const FName Cue = GunshotSound::CueFor(Kind, EGunshotLayer::LastRound);
+		const float Volume = GunfeelSound::LastRoundVolume();
+		const float Delay = GunfeelSound::LastRoundDelay();
+		if (!World || Delay <= 0.f)
+		{
+			LooterSound::PlayAttached(Cue, Weapon.GetRootComponent(), NAME_None, Volume);
+			return;
+		}
+		const TWeakObjectPtr<const AWeaponBase> Gun(&Weapon);
+		FTimerHandle Handle;
+		World->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([Gun, Cue, Volume]()
+		{
+			if (const AWeaponBase* Held = Gun.Get())
+			{
+				LooterSound::PlayAttached(Cue, Held->GetRootComponent(), NAME_None, Volume);
+			}
+		}), Delay, false);
 	}
 
 	// A rocket's burst carries much farther than a shot: past this the far boom (Weapon.Launcher.Explosion.Distant) plays
@@ -216,17 +292,20 @@ void GunshotSound::PlayShot(const AWeaponBase& Weapon)
 		return;
 	}
 
-	const APawn* Holder = Cast<APawn>(Weapon.GetOwner());
-	const bool bOwnGun = Holder && Holder->IsLocallyControlled() && Holder->IsPlayerControlled();
+	const bool bOwnGun = IsOwnGun(Weapon);
 	const float Distance = bOwnGun ? 0.f : DistanceToListener(Weapon, *World);
-	const GunfeelSound::FShotLayers Layers =
-		GunfeelSound::Choose(bOwnGun, Distance, GunfeelSound::DistantFrom(), SurroundingsOf(Weapon, *World));
+	FShooterMemory& Memory = MemoryOf(Weapon);
+	const GunfeelSound::ESurroundings Surroundings = SurroundingsOf(Memory, Weapon, *World);
+	GunfeelSound::FShotLayers Layers = GunfeelSound::Choose(bOwnGun, Distance, GunfeelSound::DistantFrom(), Surroundings);
 
 	if (Layers.bDistant)
 	{
 		LooterSound::PlayAt(&Weapon, CueFor(Kind, EGunshotLayer::Distant), Weapon.GetActorLocation());
 		return;
 	}
+	// Which shot of its burst this is: an automatic skips the tails between its Nth shots (the burst's end plays the long one).
+	Layers.bTail = NoteShot(Memory, Kind, World->GetTimeSeconds()) && Layers.bTail;
+
 	// The player's own layers ride on the gun, so they stay with the view as it turns; someone else's tail stays where the
 	// shot was, as the land's answer does.
 	if (Layers.bCore)
@@ -246,29 +325,94 @@ void GunshotSound::PlayShot(const AWeaponBase& Weapon)
 	const float Tail = GunfeelSound::TailVolume();
 	if (Layers.bTail && Tail > 0.f)
 	{
-		if (bOwnGun)
-		{
-			LooterSound::PlayAttached(CueFor(Kind, Layers.Tail), Gun, NAME_None, Tail);
-		}
-		else
-		{
-			LooterSound::PlayAt(&Weapon, CueFor(Kind, Layers.Tail), Weapon.GetActorLocation(), Tail);
-		}
+		PlayTail(Weapon, Kind, Surroundings, bOwnGun, Tail);
+	}
+	TrimMemories();
+}
+
+void GunshotSound::PlayBurstEnd(const AWeaponBase& Weapon)
+{
+	const UWeaponDefinition* Definition = Weapon.GetInstance().Definition;
+	UWorld* World = Weapon.GetWorld();
+	FShooterMemory* Found = GMemories.Find(TWeakObjectPtr<const AWeaponBase>(&Weapon));
+	if (!Definition || !World || !Found)
+	{
+		return;
+	}
+	// The burst is over whether or not it sounds anything (a second call, or the release after a swap, finds nothing).
+	FShooterMemory& Memory = *Found;
+	const int32 BurstShots = Memory.BurstShots;
+	const int32 ShotsSinceTail = Memory.ShotsSinceTail;
+	const bool bLive = !GunfeelSound::NewBurst(World->GetTimeSeconds(), Memory.LastShotAt, GunfeelSound::BurstGap());
+	Memory.BurstShots = 0;
+	Memory.ShotsSinceTail = 0;
+	if (!bLive)
+	{
+		return;
+	}
+	const EWeaponKind Kind = Definition->Kind;
+	const bool bOwnGun = IsOwnGun(Weapon);
+	if (!bOwnGun && DistanceToListener(Weapon, *World) > GunfeelSound::DistantFrom())
+	{
+		return;
+	}
+	const float TailGain = GunfeelSound::BurstEndTailVolume() * GunfeelSound::TailVolume();
+	if (GunfeelSound::BurstEndTailPlays(BurstShots, ShotsSinceTail, TailGain))
+	{
+		PlayTail(Weapon, Kind, SurroundingsOf(Memory, Weapon, *World), bOwnGun, TailGain);
+	}
+	// A hot LMG barrel ticks and hisses once the firing stops; the hotter, the louder.
+	const float Heat = Kind == EWeaponKind::LMG ? Weapon.GetBarrelHeat() : 0.f;
+	const float Hiss = GunfeelSound::HissVolume();
+	if (bOwnGun && GunfeelSound::HeatHissPlays(Kind, Heat, GunfeelSound::HissFrom(), BurstShots, Hiss))
+	{
+		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::HeatHiss), Weapon.GetRootComponent(), NAME_None,
+			Hiss * GunfeelSound::HeatHissLoudness(Heat, GunfeelSound::HissFrom()));
+	}
+}
+
+void GunshotSound::PlayRack(const AWeaponBase& Weapon)
+{
+	const UWeaponDefinition* Definition = Weapon.GetInstance().Definition;
+	UWorld* World = Weapon.GetWorld();
+	const float Volume = GunfeelSound::RackVolume();
+	// Only the shotgun has a fore-end to rack.
+	if (!Definition || !World || Definition->Kind != EWeaponKind::Shotgun || Volume <= 0.f)
+	{
+		return;
+	}
+	const bool bOwnGun = IsOwnGun(Weapon);
+	if (GunfeelSound::RackAudible(bOwnGun, bOwnGun ? 0.f : DistanceToListener(Weapon, *World), GunfeelSound::DistantFrom()))
+	{
+		LooterSound::PlayAttached(CueFor(Definition->Kind, EGunshotLayer::Rack), Weapon.GetRootComponent(), NAME_None, Volume);
 	}
 }
 
 void GunshotSound::PlayLowAmmo(const AWeaponBase& Weapon, int32 RoundsLeft, int32 Magazine)
 {
-	// The share and the pitch are GunfeelKick::LowAmmoPitch's rule (Looter.Gunfeel.LowAmmo.*); GUNFEEL-SOUND makes the cue.
-	const float Pitch = GunfeelKick::LowAmmoPitch(RoundsLeft, Magazine);
 	const UWeaponDefinition* Definition = Weapon.GetInstance().Definition;
-	const APawn* Holder = Cast<APawn>(Weapon.GetOwner());
 	// The player's own gun only: nobody else hears their magazine.
-	if (Pitch <= 0.f || !Definition || !Holder || !Holder->IsLocallyControlled())
+	if (!Definition || !IsOwnGun(Weapon))
 	{
 		return;
 	}
-	LooterSound::PlayAttached(CueFor(Definition->Kind, EGunshotLayer::LowAmmo), Weapon.GetRootComponent(), NAME_None, 1.f, Pitch);
+	const EWeaponKind Kind = Definition->Kind;
+	if (RoundsLeft <= 0)
+	{
+		// The shot that emptied it: the last-round sound, and the burst ends here (the trigger may be held through the reload).
+		if (GunfeelSound::LastRoundPlays(Kind, RoundsLeft, Magazine, GunfeelSound::LastRoundVolume()))
+		{
+			PlayLastRound(Weapon, Kind);
+		}
+		PlayBurstEnd(Weapon);
+		return;
+	}
+	const int32 Window = GunfeelSound::LowAmmoWindow(GunfeelSound::LowAmmoRounds(Kind), Magazine);
+	const float Pitch = GunfeelSound::LowAmmoPitch(RoundsLeft, Window, GunfeelSound::LowAmmoPitchTop());
+	if (Pitch > 0.f)
+	{
+		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::LowAmmo), Weapon.GetRootComponent(), NAME_None, 1.f, Pitch);
+	}
 }
 
 void GunshotSound::PlayCritRing(const UObject* WorldContext)

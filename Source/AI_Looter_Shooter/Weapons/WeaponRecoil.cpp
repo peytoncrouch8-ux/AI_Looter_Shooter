@@ -39,12 +39,23 @@ void FWeaponRecoil::FSpring::Step(float DeltaSeconds, float AngularFrequency, fl
 
 void FWeaponRecoil::AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& Random)
 {
+	AddShot(Profile, Random, 0.f);
+}
+
+void FWeaponRecoil::AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& Random, float AimAlpha)
+{
 	Frequency = BaseFrequency * FMath::Max(Profile.Snappiness, 0.2f);
 	const float Omega = 2.f * UE_PI * Frequency;
-	Back.Velocity += ImpulseFor(Profile.KickBack, Omega);
-	Pitch.Velocity += ImpulseFor(Profile.MuzzleFlip, Omega);
-	Yaw.Velocity += ImpulseFor(Random.FRandRange(-1.f, 1.f) * Profile.MuzzleTwist, Omega);
-	RollSpring.Velocity += ImpulseFor(Random.FRandRange(-1.f, 1.f) * Profile.Roll, Omega);
+	// Through the sight the model kicks by the Aimed* shares (1 at the hip, so an old profile is unchanged).
+	const float Sight = FMath::Clamp(AimAlpha, 0.f, 1.f);
+	const float BackShare = FMath::Lerp(1.f, FMath::Max(Profile.AimedBack, 0.f), Sight);
+	const float FlipShare = FMath::Lerp(1.f, FMath::Max(Profile.AimedFlip, 0.f), Sight);
+	const float RollShare = FMath::Lerp(1.f, FMath::Max(Profile.AimedRoll, 0.f), Sight);
+	Back.Velocity += ImpulseFor(Profile.KickBack * BackShare, Omega);
+	Pitch.Velocity += ImpulseFor(Profile.MuzzleFlip * FlipShare, Omega);
+	// The random draws stay in the old order and count, so a profile with no sight shares kicks exactly as it did.
+	Yaw.Velocity += ImpulseFor(Random.FRandRange(-1.f, 1.f) * Profile.MuzzleTwist * FlipShare, Omega);
+	RollSpring.Velocity += ImpulseFor(Random.FRandRange(-1.f, 1.f) * Profile.Roll * RollShare, Omega);
 
 	// A burst climbs: each shot in it kicks the aim a little harder than the last (up to the profile's most), and a pause
 	// of BurstGap starts it over.

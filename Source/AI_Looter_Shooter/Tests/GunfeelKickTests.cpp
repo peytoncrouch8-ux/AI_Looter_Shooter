@@ -61,7 +61,12 @@ bool FGunfeelKickVariablesTest::RunTest(const FString& Parameters)
 		TEXT("Recoil.RifleClimbMax"), TEXT("Spread.RifleBloom"), TEXT("Spread.BloomMax"), TEXT("Spread.BloomRecovery"),
 		TEXT("Shotgun.FalloffStart"), TEXT("Shotgun.FalloffEnd"), TEXT("Shotgun.FalloffFloor"), TEXT("Crit.Revolver"),
 		TEXT("Aim.Time.Rifle"), TEXT("Aim.Time.Shotgun"), TEXT("Aim.Time.Revolver"), TEXT("Aim.Move.Rifle"), TEXT("Aim.Move.Shotgun"),
-		TEXT("Aim.Move.Revolver"), TEXT("Swap.Rifle"), TEXT("Swap.Shotgun"), TEXT("Swap.Revolver") };
+		TEXT("Aim.Move.Revolver"), TEXT("Swap.Rifle"), TEXT("Swap.Shotgun"), TEXT("Swap.Revolver"),
+		// The gun feel pass (2026-10-22): the sight, the pattern, the first shot, the sustained cap, the rack.
+		TEXT("Recoil.AimedFlip"), TEXT("Recoil.AimedRoll"), TEXT("Recoil.AimedBack"), TEXT("Kick.FirstShot"), TEXT("Spread.FirstShot"),
+		TEXT("Recoil.Pattern"), TEXT("Recoil.SideRandom"), TEXT("Kick.SustainCap"), TEXT("Kick.SustainFloor"), TEXT("Kick.Rack"),
+		TEXT("Recoil.RifleDrift"), TEXT("Recoil.RifleDriftFrom"), TEXT("Recoil.SMGShimmy"), TEXT("Recoil.LMGSway"),
+		TEXT("Recoil.LMGSwayShots"), TEXT("Spread.FirstShotRest"), TEXT("Spread.FirstShotEase") };
 	for (const TCHAR* Name : Names)
 	{
 		const FString Full = FString(TEXT("Looter.Gunfeel.")) + Name;
@@ -102,6 +107,10 @@ bool FGunfeelKickIdentityTest::RunTest(const FString& Parameters)
 		Def::RumbleShotgun > Def::RumbleRevolver && Def::RumbleRevolver > Def::RumbleRifle
 		&& Def::RumbleShotgunSeconds > Def::RumbleRevolverSeconds && Def::RumbleRevolverSeconds > Def::RumbleRifleSeconds);
 	TestEqual(TEXT("The user's call: the revolver's crit is 1.75x"), Def::CritRevolver, 1.75f);
+	// The gun feel pass spread the kinds apart (2026-10-22): heaviest first, the SMG a hum.
+	TestTrue(TEXT("The view kick runs launcher/sniper, shotgun, revolver, rifle, LMG, SMG"),
+		Def::KickLauncher >= Def::KickSniper && Def::KickSniper > Def::KickShotgun && Def::KickShotgun > Def::KickRevolver
+		&& Def::KickRevolver > Def::KickRifle && Def::KickRifle > Def::KickLMG && Def::KickLMG > Def::KickSMG);
 	return true;
 }
 

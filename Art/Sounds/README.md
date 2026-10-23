@@ -2,7 +2,8 @@
 
 Every sound in the game is made by the scripts here: numpy in Blender's bundled Python, no generators. All of them are
 synthesized from scratch except the guns' shots and the bullet impacts, which since 2026-10-21 (the user's call, after
-the synthesized shots played thin) are built from royalty-free recordings (`packs/`, the licence in `packs/README.md`)
+the synthesized shots played thin), and the guns' reload and handling foley since 2026-10-22, are built from royalty-free
+recordings (`packs/`, the licence in `packs/README.md`)
 sliced, shaped and layered by their recipes. No other sound uses a recording. Change a sound by changing its recipe and
 rendering again; never edit a WAV by hand.
 
@@ -24,8 +25,9 @@ Saved/SoundCheck/        the check's output (not in git): index.html, <Cue>.png,
 ```
 
 Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__init__.py`'s `GROUPS` or it never renders):
-- guns (reloads, handling; guns_shots.py the shots and their layers on guns_rec.py's blocks, guns_impacts.py the recorded impact layers, all
-  imported by guns.py); impacts (also a cue per surface: dirt, grass, gravel, sand, stone, sheet metal, glass, cloth, hay, bone; and the
+- guns (reloads, handling; guns_shots.py the shots and their layers on guns_rec.py's blocks, guns_impacts.py the recorded impact layers,
+  guns_foley.py the reloads on recorded foley, the shotgun's rack, the last rounds and handling by weight, guns_hits.py the heavy
+  hits and crits by blood (2026-10-22), all imported by guns.py); impacts (also a cue per surface: dirt, grass, gravel, sand, stone, sheet metal, glass, cloth, hay, bone; and the
   ricochet layered on glancing hits); feedback; ui; loot (and the bench, the soul-motes); player (and the melee strike,
   the mantle and vault, a hard landing's thud, the splash in water); creatures (and the rank sting, the ambushes' entrances); world.
 - fauna (the ambient birds, insects, tumbleweeds, dust devils, washing); bosses (the boss fights' stings and voices); gravemother_barrow (the Gravemother's Barrow fight: clod, stone, furrow,

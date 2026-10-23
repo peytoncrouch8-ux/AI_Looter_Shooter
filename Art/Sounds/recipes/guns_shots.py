@@ -148,19 +148,19 @@ def _shotgun_dry(v, r):
 
 
 def _shotgun_mech(v, r):
-    """The receiver ringing, the forend and action knocking steel-on-wood as the gun kicks, a faint pellet hiss; a
-    recorded steel clack from the Saiga's action on the knock."""
+    """The receiver ringing, the forend and action knocking steel-on-wood as the gun kicks, a faint pellet hiss. The
+    recorded steel clack it once carried went to the rack (Weapon.Shotgun.Rack, guns_foley.py, 2026-10-22): the pump's
+    beats are the rack's now, played between shots."""
     tick = _tick(r, 1600.0, 5200.0, -10.0)
     ring = _loud(M.strike(M.parts(500.0, 2500.0, child(r, 'ring'), 8, 0.25, 0.12, 0.4), M.hammer(0.0002), 0.4), 0.005)
     chunk = G._clank(child(r, 'chunk'), (700.0, 2600.0, 0.05), (260.0 * jitter(r, 1.0, 0.06), 0.07),
                      (110.0 * jitter(r, 1.0, 0.06), 0.07), (0.0, -1.0, -3.0), 0.0001, drive_db=5.0)
-    rec = _gated(_take('Shotgun_Saiga_Cocking.wav', v, 0.08), 0.03, 0.06, hp=200.0)
     n = ns(0.25)
     sizzle = GR.grit(0.25, child(r, 'sizzle'), 9000.0 * np.exp(-times(n) / 0.05), 3000.0, 9000.0, 2.0, 4)
     sizzle = _loud(sizzle * E.perc(0.25, 0.004, 0.14) * kit.turbulence(n, child(r, 'sflut'), 200.0, 0.6))
     t_chunk = 0.03 + 0.008 * r.random()
     x = layers((_loud(tick, 0.005), 0.0, -12.0), (ring, 0.002, -12.0), (chunk, t_chunk, 0.0),
-               (_loud(rec, 0.005), t_chunk + 0.002, -3.0), (sizzle, 0.003, -14.0))
+               (sizzle, 0.003, -14.0))
     return F.filt(x, F.peak(3200.0, -4.0, 0.8), extend=False)
 
 
@@ -315,7 +315,8 @@ KINDS = {
 MIX = {
     'Rifle': dict(mech=-15.5, low=-5.0),
     'Shotgun': dict(mech=-13.0, low=-3.0),
-    'Revolver': dict(mech=-16.0, low=-9.5),
+    # The revolver's Low and Mech 1 dB under their first mix (2026-10-22): its own-gun layers indoors peaked at -0.1 dBFS.
+    'Revolver': dict(mech=-17.0, low=-10.5),
 }
 
 
@@ -345,9 +346,13 @@ def _fire(kind, v, r):
     return _master(x, k['clip'], k['look'], k['rel'])
 
 
-def _register(kind, n_core, n_fire, levels, conc):
-    """The kind's cues. levels: Fire's and each layer's against the rifle's Fire (the mix's reference)."""
-    lv = levels
+def _register(kind, n_core, n_fire, levels, conc, trim=0.0):
+    """The kind's cues. levels: Fire's and each layer's against the rifle's Fire (the mix's reference). trim (dB) lowers
+    the shooter's whole set (Fire and the layers the game plays together, not Distant) alike, so the layers still add up
+    to Fire while their sum's peak stays under the contract's -1 dBFS (2026-10-22: the revolver's, the sniper's and the
+    SMG's own-gun sum reached -0.3 to +0.9 dBFS where a tail's or the Low's peak met the Core's)."""
+    own = ('fire', 'core', 'mech', 'low', 'open', 'town', 'inside')
+    lv = {k: (v - trim if k in own else v) for k, v in levels.items()}
 
     @cue(f'Weapon.{kind}.Fire', variations=n_fire, att='Gun', jitter=0.03, conc=conc, level=lv['fire'])
     def fire(v, r):
@@ -390,8 +395,8 @@ _register('Rifle', 6, 6, dict(fire=0.0, core=-0.6, mech=-14.1, low=-9.6, open=-1
                               distant=-3.0, n_distant=6), 8)
 _register('Shotgun', 5, 5, dict(fire=1.0, core=0.2, mech=-13.8, low=-5.9, open=-12.2, town=-11.0, inside=-7.5,
                                 distant=-2.0, n_distant=5), 4)
-_register('Revolver', 6, 6, dict(fire=0.5, core=0.2, mech=-16.6, low=-11.1, open=-10.0, town=-9.3, inside=-5.8,
-                                 distant=-2.5, n_distant=5), 6)
+_register('Revolver', 6, 6, dict(fire=0.5, core=0.2, mech=-17.6, low=-12.1, open=-10.0, town=-9.3, inside=-5.8,
+                                 distant=-2.5, n_distant=5), 6, trim=0.8)
 
 
 # --- Low ammo and the crit ring ----------------------------------------------------------------------------------------

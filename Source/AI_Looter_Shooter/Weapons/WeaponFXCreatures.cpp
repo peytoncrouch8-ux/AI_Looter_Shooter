@@ -16,7 +16,8 @@
 // a pale wet flash; a coal's hot starburst), throws a couple of heavy gobs that arc and land, and its drops fly as streaks of
 // spray (WeaponFXDraw.cpp); a crit adds a gold starburst and a ring snapping out round the wound; a heavy round (revolver,
 // sniper) a ring of its own and a fuller exit. Far hits and a stream of fire into one spot throw less (DetailAt,
-// StreamDetailFor); a hit's pop is never thinned (it's what reads a hit at 40 m).
+// StreamDetailFor); a hit's pop is never thinned (it's what reads a hit at 40 m). The gun feel pass adds each blood's own
+// crit on top (WeaponFXCrits.cpp, Looter.Vfx.Hit.CritPop).
 
 namespace
 {
@@ -389,6 +390,13 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 			SpawnStarburst(Point, 52.f * Weight, BloodCritColor, 24.f * Vfx.Glow * Vfx.HitPop, 0.09f, 10);
 			SpawnShockRing(Point, FVector::ZeroVector, CritRingFrom * Weight, CritRingTo * Weight, CritRingWidth, BloodCritColor,
 				CritRingGlow * Vfx.Glow, CritRingLife, true);
+			// The gun feel pass: the crit in what this body is made of (WeaponFXCrits.cpp): shell shards, gobs, a core's ring,
+			// a coal's flare. Its pieces thin far off and share a blast's budget (a pellet past it throws none).
+			const float Budget = Tuning.SpurtScale > 0.f ? FMath::Clamp(Amount / Tuning.SpurtScale, 0.f, 1.f) : 1.f;
+			if (Vfx.HitCritPop > 0.f)
+			{
+				SpawnBloodCrit(Blood, Point, Up, Shot, Tint, Size, Vfx.HitCritPop * Vfx.HitScale * Detail * Budget);
+			}
 		}
 	}
 }

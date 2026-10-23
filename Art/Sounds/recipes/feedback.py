@@ -1,4 +1,5 @@
-"""The player's own feedback (2D): the hit marker's tick (a critical hit plays it pitched up, from code), the kill,
+"""The player's own feedback (2D): the hit marker's tick, a critical hit's ping, a ward's glassy tick and its break
+(2026-10-22), the kill and the crit kill,
 the pings for a mission step and a mission's end, and the stingers for a level, a gun's notch milestone and a lifted
 curse.
 
@@ -26,36 +27,115 @@ def _space(x, r, kind='room', wet_db=-18.0, t60=0.25, width=0.25):
     return layers(dry, kit.set_level(wet, dry, wet_db, 0.02))
 
 
-@cue('UI.HitMarker', variations=3, space='2D', cls='Interface', jitter=0.02, conc=6, level=-11.0)
-def hit_marker(v, r):
-    # A crisp brass tick: its note sits under 2 kHz, the click's air above 5 kHz, little in between, so a hundred of
-    # them in a fight stay pleasant.
+def _tick(r):
+    """The hit marker's crisp brass tick: its note under 2 kHz, the click's air above 5 kHz, little in between."""
     tick = kit.brass_tick(child(r, 'tick'), 1650.0 * jitter(r, 1, 0.025), 0.028, 4, 0.00007, -10.0, -5.0, 0.2)
     tick = F.filt(tick, F.peak(3200.0, -5.0, 0.9), extend=False)
     air = kit.burst(0.006, child(r, 'air'), 0.0025, lo=6000.0, hi=12000.0)
     knock = kit.thump(300.0, 220.0, 0.02, 0.012, attack=0.0003)
-    x = layers((tick, 0.0, 0.0), (air, 0.0, -13.0), (knock, 0.0, -13.0))
-    return _space(x, r, 'room', -22.0, 0.15, 0.2)
+    return layers((tick, 0.0, 0.0), (air, 0.0, -13.0), (knock, 0.0, -13.0))
 
 
-@cue('UI.Kill', variations=3, space='2D', cls='Interface', jitter=0.0, conc=3, level=-6.0)
-def kill(v, r):
-    # The bounty paid: a deep punch, then two brass chimes climbing (ka-ching), and a sparkle of small ticks.
+# The gun feel pass (2026-10-22): the body tick a little softer (level -11 -> -13), so a crit's own ping, a ward's glass
+# and a kill stand out from it; the game plays the crit cue instead of the pitched-up tick.
+@cue('UI.HitMarker', variations=3, space='2D', cls='Interface', jitter=0.02, conc=6, level=-13.0)
+def hit_marker(v, r):
+    # A crisp brass tick, so a hundred of them in a fight stay pleasant.
+    return _space(_tick(r), r, 'room', -22.0, 0.15, 0.2)
+
+
+@cue('UI.HitMarker.Crit', variations=3, space='2D', cls='Interface', jitter=0.01, conc=4, level=-11.0)
+def hit_marker_crit(v, r):
+    # A critical hit: the tick with a bright two-tone ping on it, a brass bell's quick rising pair (its notes kept under
+    # 2 kHz, its shine above 5), and a hard little knock under, 2 dB over the body tick. The revolver's and the sniper's
+    # crit ring (Weapon.Revolver.CritRing) plays over it.
+    lo, hi = [('E6', 'B6'), ('D#6', 'A#6'), ('D6', 'A6')][v]
+    p1 = kit.chime(kit.note(lo), child(r, 'p1'), 0.16, 0.45, 0.00006, 0.4, -20.0)
+    p2 = kit.chime(kit.note(hi), child(r, 'p2'), 0.24, 0.45, 0.00006, 0.4, -20.0)
+    sparkle = kit.metal_click(child(r, 'sparkle'), 6500.0, 11000.0, 0.03, 0.00003, 4, -12.0)
+    knock = kit.thump(420.0, 260.0, 0.025, 0.012, attack=0.0003)
+    x = layers((_tick(r), 0.0, -3.0), (p1, 0.0, -2.0), (p2, 0.045, 0.0), (normalize(sparkle), 0.045, -12.0),
+               (knock, 0.0, -10.0))
+    x = F.filt(x, F.peak(3300.0, -6.0, 0.8), extend=False)
+    return _space(x, r, 'room', -20.0, 0.25, 0.3)
+
+
+@cue('UI.HitMarker.Ward', variations=3, space='2D', cls='Interface', jitter=0.03, conc=6, level=-14.0)
+def hit_marker_ward(v, r):
+    # A round spent on a Warded enemy's ward: a glassy tick (a thin pane's high, inharmonic modes, struck hard and
+    # damped at once) and a faint cold shimmer behind it, no brass knock, so it reads as "not through yet".
+    glass = M.strike(M.plate(5200.0 * jitter(r, 1.0, 0.04), child(r, 'glass'), 10, 0.05, 0.5, 1.41, 0.03),
+                     M.hammer(0.00003), 0.12)
+    glass = F.filt(glass, F.hp(1500.0), F.peak(3300.0, -8.0, 0.7), extend=False)
+    ping = kit.chime(kit.note(['G6', 'A6', 'F#6'][v]), child(r, 'ping'), 0.2, 0.3, 0.00005, 1.2, -24.0)
+    n = ns(0.25)
+    shimmer = N.band(n, child(r, 'shimmer'), 6000.0, 12000.0) * E.end_fade(E.perc(0.25, 0.01, 0.15))
+    x = layers((normalize(glass), 0.0, 0.0), (ping, 0.0, -8.0), (normalize(shimmer), 0.005, -22.0))
+    return _space(x, r, 'plate', -18.0, 0.4, 0.35)
+
+
+@cue('UI.WardBreak', variations=2, space='2D', cls='Interface', jitter=0.02, conc=2, level=-7.0)
+def ward_break(v, r):
+    # A ward shattering: a sharp crack (a pane giving all at once, a low knock of force under it), shards tinkling away
+    # across the ears, and a falling shimmer as the light goes out of it.
+    crack = layers(kit.burst(0.02, child(r, 'crack'), 0.008, lo=1200.0, hi=10000.0),
+                   (M.strike(M.plate(2400.0, child(r, 'pane'), 18, 0.12, 0.5, 1.37, 0.03), M.hammer(0.00004), 0.3), 0.0,
+                    -4.0))
+    crack = F.filt(normalize(crack), F.peak(3300.0, -6.0, 0.8), extend=False)
+    boom = kit.thump(120.0, 50.0, 0.25, 0.12, attack=0.0005, drive_db=3.0)
+    shards = np.zeros((2, 1))
+    sr = child(r, 'shards')
+    for i in range(14):
+        at = 0.02 + 0.45 * sr.random() ** 1.6
+        g = M.strike(M.parts(4500.0, 11000.0, child(sr, 'g', i), 4, 0.06, 0.03, 0.2), M.hammer(0.00003), 0.1)
+        shards = layers(shards, (S.pan(normalize(g), sr.uniform(-0.9, 0.9)), at, sr.uniform(-14.0, -4.0) - 8.0 * at))
+    dur = 0.9
+    n = ns(dur)
+    t = times(n)
+    f = 2600.0 * np.exp(-t / 0.5) + 900.0
+    fall = np.sin(2.0 * np.pi * np.cumsum(f) / SR) + 0.5 * np.sin(2.0 * np.pi * np.cumsum(f * 1.5) / SR)
+    fall = fall * E.end_fade(E.swell(dur, 0.04, 0.6))
+    x = layers((S.widen(crack, child(r, 'cw'), 0.3), 0.0, 0.0), (S.widen(boom, child(r, 'bw'), 0.05), 0.0, -4.0),
+               (normalize(shards), 0.0, -8.0), (S.widen(normalize(fall), child(r, 'fw'), 0.5), 0.02, -20.0))
+    ir = R.stereo_ir(R.plate, child(r, 'ir1'), child(r, 'ir2'), t60=0.9)
+    wet = F.convolve(F.filt(mono(x), F.hp(400.0), extend=False), ir)
+    return layers(x, kit.set_level(wet, x, -16.0, 0.05))
+
+
+def _kill(v, r, crit):
+    """The bounty paid: a deep punch with a low thump under it (2026-10-22: the kill louder, -12.5 -> about -8 dB, and
+    heavier), two brass chimes climbing (ka-ching), a sparkle of small ticks; a crit kill adds a bright third chime on
+    top, a longer ring and a deeper boom."""
     punch = kit.thump(115.0, 44.0, 0.28, 0.15, attack=0.0006, drive_db=4.0)
+    low = kit.thump(68.0 if not crit else 58.0, 32.0, 0.45, 0.24, attack=0.0015, drive_db=3.0)
     knock = kit.noise_thump(0.12, child(r, 'knock'), 2000.0, 220.0, 0.06, 1.0, 0.03)
     tick = kit.brass_tick(child(r, 'tick'), 1500.0, 0.03, 4, 0.00007, -10.0, -6.0, 0.2)
-    first, second = [('E5', 'A5'), ('D5', 'A5'), ('G5', 'C6')][v]
+    first, second, third = [('E5', 'A5', 'E6'), ('D5', 'A5', 'D6'), ('G5', 'C6', 'G6')][v]
     c1 = kit.chime(kit.note(first), child(r, 'c1'), 0.9, 0.8)
     c2 = kit.chime(kit.note(second), child(r, 'c2'), 1.3, 0.85)
     sparkle = np.zeros((2, 1))
     sr = child(r, 'sparkle')
-    for i in range(7):
-        t = 0.06 + 0.32 * sr.random() ** 1.4
+    for i in range(7 if not crit else 11):
+        t = 0.06 + (0.32 if not crit else 0.5) * sr.random() ** 1.4
         s = kit.metal_click(sr, 4200.0, 9500.0, 0.03, 0.00004, 3, -20.0)
         sparkle = layers(sparkle, (S.pan(s, sr.uniform(-0.8, 0.8)), t, sr.uniform(-10.0, -2.0)))
-    body = layers((punch, 0.0, -2.0), (knock, 0.0, -10.0), (tick, 0.0, -6.0), (c1, 0.0, -5.0), (c2, 0.075, -3.0))
-    x = layers(_space(body, r, 'plate', -15.0, 1.1, 0.3), (normalize(sparkle), 0.0, -22.0))
-    return x
+    body = [(punch, 0.0, -2.0), (low, 0.0, -3.0 if not crit else -1.0), (knock, 0.0, -10.0), (tick, 0.0, -6.0),
+            (c1, 0.0, -5.0), (c2, 0.075, -3.0)]
+    if crit:
+        c3 = kit.chime(kit.note(third), child(r, 'c3'), 1.7, 0.7)
+        body.append((c3, 0.15, -4.0))
+    return layers(_space(layers(*body), r, 'plate', -15.0, 1.1 if not crit else 1.5, 0.3), (normalize(sparkle), 0.0, -22.0))
+
+
+@cue('UI.Kill', variations=3, space='2D', cls='Interface', jitter=0.0, conc=3, level=-2.0)
+def kill(v, r):
+    return _kill(v, r, False)
+
+
+@cue('UI.Kill.Crit', variations=3, space='2D', cls='Interface', jitter=0.0, conc=3, level=-1.0)
+def kill_crit(v, r):
+    # A kill by a critical hit: the kill's ka-ching climbing a third chime higher, a deeper boom, a longer sparkle.
+    return _kill(v, r, True)
 
 
 @cue('UI.LevelUp', variations=1, space='2D', cls='Interface', jitter=0.0, conc=1, level=-4.0, swell=True)

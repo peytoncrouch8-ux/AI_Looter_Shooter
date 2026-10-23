@@ -84,6 +84,19 @@ public:
 	/** The mark a surface takes. */
 	static FBulletMarkLook LookOf(EImpactMaterial Material);
 
+	/**
+	 * The mark a round of SizeScale leaves on Material (the gun feel pass, 2026-10-22): a heavy round's (SizeScale from
+	 * Looter.BulletMarks.HeavyFrom, 1.2: the revolver's and the sniper's) on stone or wood is its crack-ring style
+	 * (HeavyLookOf), else LookOf's. Looter.BulletMarks.HeavyCracks 0 (or an atlas made before those styles): always LookOf's.
+	 */
+	static FBulletMarkLook LookFor(EImpactMaterial Material, float SizeScale);
+
+	/**
+	 * A heavy round's mark on Material: stone's chip ringed by cracks out to its edge (style 13, StoneHeavy), wood split
+	 * along its grain (14, WoodHeavy); Style below 0 for any other surface (it keeps LookOf's).
+	 */
+	static FBulletMarkLook HeavyLookOf(EImpactMaterial Material);
+
 	/** How big a gun's marks are against a rifle's: a revolver's heavy slug bigger, a shotgun's pellets smaller. */
 	static float GunScale(EWeaponKind Kind);
 

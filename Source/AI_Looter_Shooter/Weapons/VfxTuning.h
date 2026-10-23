@@ -72,6 +72,34 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	/** Looter.Vfx.Tracer.Glow / .Width: a tracer's strength there, times; its greatest width on screen (radians; the least is the bullets'). */
 	float TracerGlow = 1.f;
 	float TracerWidth = 0.006f;
+	// --- A world hit's weight by its gun's kind (the gun feel pass, 2026-10-22: impacts looked the same from every gun) ---
+	/**
+	 * Looter.Vfx.Impact.Weight.<Kind>: how heavy a round's world hit is drawn, a rifle round's 1: its pieces times this, their
+	 * size and throw times this ^ Impact.SizePower. The shotgun's is each pellet's share of its blast (its size stays the mark's).
+	 */
+	float ImpactWeightRifle = 1.f;
+	float ImpactWeightShotgun = 0.5f;
+	float ImpactWeightRevolver = 1.3f;
+	float ImpactWeightSMG = 0.6f;
+	float ImpactWeightSniper = 1.8f;
+	float ImpactWeightLMG = 1.05f;
+	/** Looter.Vfx.Impact.SizePower: how a weight sizes the pieces (0.5: a sniper's 1.8 throws them 1.34x as big). */
+	float ImpactSizePower = 0.5f;
+	/** Looter.Vfx.Impact.LMGFullEvery / .LMGLight: an LMG's every Nth round (its tracer's beat) a full hit with a chunk burst, the rest this share of it. */
+	int32 ImpactLMGFullEvery = 3;
+	float ImpactLMGLight = 0.6f;
+	/** Looter.Vfx.Impact.ChunkFrom: from this weight a hit on a hard surface throws an extra burst of it (the revolver's, the sniper's). */
+	float ImpactChunkFrom = 1.2f;
+	/** Looter.Vfx.Impact.PunchFrom: from this weight a hit punches (a ring of air and dust, a tall column, big chunks: the sniper's). */
+	float ImpactPunchFrom = 1.5f;
+	/** Looter.Vfx.Impact.Sheet: a shotgun blast's one dust sheet across its pattern, times (0 none). */
+	float ImpactSheet = 1.f;
+	/** Looter.Vfx.Impact.SheetWait (s) / .SheetMin: the sheet waits this long at most for the blast's last pellet; fewer pellets than this on the world, none. */
+	float ImpactSheetWait = 0.12f;
+	int32 ImpactSheetMin = 3;
+	/** Looter.Vfx.Hit.CritPop: a crit's own look by what the body spills (shell shards, gobs, a gel ring, a coal's flare, rock chips, clods), times. */
+	float HitCritPop = 1.f;
+
 	/** Looter.Vfx.Power.Scale: the ember powers' new punch (activation rings, body hits, blasts, strikes). */
 	float PowerScale = 1.f;
 	/** Looter.Vfx.Blast.Scale: explosions (a rocket's, Slag Bomb's, Last Rites'). */

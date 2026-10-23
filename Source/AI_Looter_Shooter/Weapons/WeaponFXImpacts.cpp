@@ -1,4 +1,4 @@
-#include "Weapons/WeaponFX.h"
+#include "Weapons/WeaponFXImpactLooks.h"
 #include "Weapons/VfxRules.h"
 #include "Weapons/VfxTuning.h"
 #include "Engine/World.h"
@@ -13,49 +13,15 @@
 // fast then slowing, so they read as a column) with a skirt of dust rolling out over the surface and a couple of big clods;
 // hard surfaces pop a starburst (stone dust jets, metal pings with a ring and long-bouncing sparks, glass glints); every
 // hit's pieces are thinned far off and in a stream of fire into one spot (an LMG's tenth round into a wall).
+//
+// The gun feel pass (GF-IMPACT, 2026-10-22): a gun's round lands by its kind (VfxRules::ImpactLook; FLandingScope hands the
+// round in): its pieces' count and size by its weight, then its kind's layers (WeaponFXImpactsKinds.cpp). The colours are
+// ImpactLooks' (WeaponFXImpactLooks.h), shared with those layers.
+
+using namespace ImpactLooks;
 
 namespace
 {
-	// Dust, spray and smoke as the unlit smoke material shows them: about as the afternoon sun shows each (times ImpactShade:
-	// darker in shade).
-	const FLinearColor ImpactDirtDust(0.5f, 0.41f, 0.31f);
-	const FLinearColor ImpactGrassDust(0.5f, 0.48f, 0.37f);
-	const FLinearColor ImpactSandDust(0.74f, 0.65f, 0.5f);
-	const FLinearColor ImpactStoneDust(0.6f, 0.57f, 0.52f);
-	const FLinearColor ImpactSawdust(0.66f, 0.55f, 0.41f);
-	const FLinearColor ImpactMetalSmoke(0.42f, 0.42f, 0.44f);
-	const FLinearColor ImpactWaterMist(0.82f, 0.86f, 0.9f);
-	const FLinearColor ImpactGlassDust(0.82f, 0.84f, 0.86f);
-	const FLinearColor ImpactLintDust(0.62f, 0.59f, 0.54f);
-	const FLinearColor ImpactHayDust(0.72f, 0.64f, 0.44f);
-	const FLinearColor ImpactBoneDust(0.78f, 0.75f, 0.68f);
-
-	// The lit chunks' base colours (linear).
-	const FLinearColor ImpactClodColor(0.11f, 0.075f, 0.045f);
-	const FLinearColor ImpactTurfColor(0.07f, 0.11f, 0.03f);
-	const FLinearColor ImpactSplinterColor(0.5f, 0.34f, 0.18f);
-	const FLinearColor ImpactStrawColor(0.62f, 0.5f, 0.2f);
-	const FLinearColor ImpactShardColor(0.55f, 0.7f, 0.78f);
-	const FLinearColor ImpactDropColor(0.5f, 0.62f, 0.7f);
-	const FLinearColor ImpactFlakeColor(0.28f, 0.22f, 0.17f);
-	const FLinearColor ImpactBoneColor(0.7f, 0.65f, 0.55f);
-	const FLinearColor ImpactLintColor(0.5f, 0.47f, 0.42f);
-
-	// The glows: only a hue (each is multiplied by its strength).
-	const FLinearColor ImpactSparkColor(1.f, 0.5f, 0.16f);
-	const FLinearColor ImpactHotSparkColor(1.f, 0.7f, 0.35f);
-	const FLinearColor ImpactFlashColor(1.f, 0.72f, 0.4f);
-	const FLinearColor ImpactGlintColor(0.85f, 0.95f, 1.f);
-	const FLinearColor ImpactCritColor(1.f, 0.85f, 0.3f);
-	/** A geyser's thrown soil and stone grit: darker than the hanging dust, so the column reads against the ground it rose from. */
-	const FLinearColor ImpactGeyserDirt(0.17f, 0.105f, 0.055f);
-	const FLinearColor ImpactGeyserStone(0.22f, 0.2f, 0.18f);
-	/** A stone hit's dust jet: pale, against the dark of the rock (VFX-2). */
-	const FLinearColor ImpactStoneJet(0.7f, 0.67f, 0.62f);
-	/** Soil crumbs (lit, round) thrown in a fan with the clods; pale stone flakes with the dark chips (VFX-2). */
-	const FLinearColor ImpactCrumbColor(0.085f, 0.06f, 0.038f);
-	const FLinearColor ImpactFlakeStoneColor(0.55f, 0.52f, 0.47f);
-
 	// The pass's numbers (a rifle round's, at Looter.Vfx.Impact.Scale 1).
 	/** A geyser's puffs: how many, how fast the first leaves (cm/s; each next a little slower), their sizes and life. */
 	constexpr int32 GeyserPuffs = 3;
@@ -98,18 +64,21 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 	// Sit just off the surface so nothing sinks into it; what's thrown glances off along the shot's bounce.
 	const FVector Point = Location + Up * 2.f;
 	const FVector Bounce = Shot.MirrorByVector(Up);
-	const float Size = FMath::Clamp(Scale, 0.4f, 1.6f);
-	const float Reach = FMath::Sqrt(Size);
-	const bool bPellet = Size < 0.8f;
-	// A shotgun's pellets throw about half as much each: nine of them land together.
-	const float Share = bPellet ? 0.5f : 1.f;
-	// Thinned far off and in a stream of fire into one spot (a blast's pellets are already halved).
 	const FVfxTuning Vfx = FVfxTuning::Live();
+	// The gun feel pass: a gun's round by its kind's weight (an SMG's small and few, a sniper's big); no gun, its mark alone.
+	const bool bKnownGun = LandingRound.Kind != EWeaponKind::None;
+	const FVfxImpactLook Look = VfxRules::ImpactLook(LandingRound.Kind, LandingRound.RoundsLeft, Material, Vfx);
+	const float Size = FMath::Clamp(FMath::Clamp(Scale, 0.4f, 1.6f) * Look.Size, 0.3f, 2.f);
+	const float Reach = FMath::Sqrt(Size);
+	const bool bPellet = bKnownGun ? Look.bPellet : Size < 0.8f;
+	// A shotgun's pellets throw about half as much each: nine of them land together.
+	const float Share = bKnownGun ? Look.Count : (bPellet ? 0.5f : 1.f);
+	// Thinned far off and in a stream of fire into one spot (a blast's pellets are already halved).
 	const float Detail = DetailAt(Location) * (bPellet ? 1.f : StreamDetailFor(Location));
 	auto Many = [Share, Detail](int32 Full) { return FMath::Max(1, FMath::RoundToInt32(Full * Share * Detail)); };
 	// The pass's own pieces (Looter.Vfx.Impact.Scale of them; a pellet's half).
 	const float Extra = Vfx.ImpactScale * Share * Detail;
-	const float Weight = VfxRules::HitWeight(Scale);
+	const float Weight = VfxRules::HitWeight(Scale) * Look.Size;
 	FVector SideA, SideB;
 	Up.FindBestAxisVectors(SideA, SideB);
 	// VFX-2 (2026-10-22): puffs and chunks drawn bigger far off (a hit at 10-30 m read as a few pale pixels), and the dust
@@ -327,6 +296,8 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		Puffs(Many(2), ImpactSawdust, 0.45f, 8.f, 45.f, 40.f, 100.f, 0.8f, 0.5f);
 		Geyser(2, ImpactSawdust, 0.5f, 8.f, 36.f, 0.7f);
 		BigChunks(2, Splinters, 5.f, 7.5f);
+		// The gun feel pass: a long splinter or two torn out along the bounce (15-25 cm), the timber's own read.
+		Throw(VfxRules::Count(2, Extra), Splinters, 6.5f, 10.f, 300.f, 620.f, 1.1f, 0.6f, 0.25f);
 		break;
 	}
 	case EImpactMaterial::Metal:
@@ -354,6 +325,8 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		Sparks(Many(10), ImpactHotSparkColor, 30.f, 500.f, 1400.f, 0.1f, 0.25f);
 		Throw(Many(4), BitSetFor(EBitShape::Plate, ImpactFlakeColor, 0.f), 1.f, 2.f, 150.f, 400.f, 1.f, 0.3f, 1.8f);
 		Puffs(1, ImpactMetalSmoke, 0.25f, 8.f, 30.f, 30.f, 70.f, 0.6f, 0.3f);
+		// The gun feel pass: a shower of slower sparks raining off the tin a moment after the burst.
+		Sparks(VfxRules::Count(6, Extra), ImpactSparkColor, 20.f, 150.f, 420.f, 0.55f, 0.95f);
 		break;
 	case EImpactMaterial::Glass:
 	{
@@ -404,6 +377,8 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		Puffs(Many(2), ImpactHayDust, 0.45f, 10.f, 50.f, 50.f, 120.f, 0.9f, 0.4f);
 		Geyser(2, ImpactHayDust, 0.5f, 10.f, 44.f, 1.f);
 		Throw(Many(8), BitSetFor(EBitShape::Splinter, ImpactStrawColor, 0.f), 2.f, 4.f, 150.f, 450.f, 1.1f, 0.3f, 1.2f);
+		// The gun feel pass: a puff of chaff that hangs, wider than the jet.
+		Skirt(SkirtPuffs, ImpactHayDust, 0.4f, 14.f, 70.f, 1.4f);
 		break;
 	case EImpactMaterial::Bone:
 		// Brittle: pale chips and a little bone dust; a small pale pop.
@@ -414,6 +389,28 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		break;
 	default:
 		break;
+	}
+
+	if (bKnownGun)
+	{
+		// The gun feel pass: what its kind adds (a sniper's punch, a heavy round's chunks, a pellet into its blast's sheet).
+		FImpactSpot Spot;
+		Spot.Location = Location;
+		Spot.Point = Point;
+		Spot.Up = Up;
+		Spot.Shot = Shot;
+		Spot.Bounce = Bounce;
+		Spot.SideA = SideA;
+		Spot.SideB = SideB;
+		Spot.Material = Material;
+		Spot.Size = Size;
+		Spot.Reach = Reach;
+		Spot.Seen = Seen;
+		Spot.Detail = Detail;
+		Spot.Shade = Shade;
+		Spot.bFloor = SpawnFloor.IsSet();
+		Spot.Floor = SpawnFloor.Get(FPlane(0.0, 0.0, 1.0, 0.0));
+		SpawnImpactKindLayers(Spot, Look);
 	}
 
 	if (bCritical)

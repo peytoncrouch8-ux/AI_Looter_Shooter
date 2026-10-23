@@ -18,6 +18,14 @@ struct AI_LOOTER_SHOOTER_API FViewKick
 	float Frequency = 10.f;
 	float Damping = 0.55f;
 
+	/**
+	 * Sustained-shot cap (degrees of view pitch; 0 = this is no automatic's shot kick, nothing capped). A kick with one
+	 * counts among the stack's shot kicks, and FViewKickStack::Add trims it so the shot kicks together stay under the cap
+	 * (a lone kick bigger than the cap is never trimmed), but never below SustainFloor of its size.
+	 */
+	float SustainCap = 0.f;
+	float SustainFloor = 0.25f;
+
 	/** The whole kick times Scale (its springs unchanged). */
 	FViewKick operator*(float Scale) const;
 };
@@ -39,6 +47,9 @@ public:
 
 	/** The field of view's change right now, as a share (0.02 = 2% wider), held within MaxFieldOfView. */
 	float GetFieldOfView() const;
+
+	/** The view pitch the shot kicks (those with a SustainCap) hold right now, upward swings only: what the cap measures. */
+	float GetShotPitch() const;
 
 	bool IsSettled() const { return Active.IsEmpty(); }
 	int32 Num() const { return Active.Num(); }
@@ -92,4 +103,10 @@ namespace ViewKicks
 
 	/** A kill by the player: a short punch in (1.6% narrower) with a nod; bHeavy (a crit kill, or a Gravebound and up) is 40% more. */
 	AI_LOOTER_SHOOTER_API FViewKick ForKill(bool bHeavy);
+
+	/**
+	 * The shotgun's pump racked between shots (gun feel pass): a small dip of the view (0.1 degrees down, a 0.4% narrower
+	 * field, settled in about 60 ms) so the rack is felt, not a second kick. Through the sight (AimAlpha 1) it halves.
+	 */
+	AI_LOOTER_SHOOTER_API FViewKick ForRack(float AimAlpha);
 }

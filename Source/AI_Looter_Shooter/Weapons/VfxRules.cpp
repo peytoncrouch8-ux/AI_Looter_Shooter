@@ -53,6 +53,108 @@ namespace VfxRules
 		return MarkScale >= 1.2f;
 	}
 
+	float ImpactWeight(EWeaponKind Kind, const FVfxTuning& Tuning)
+	{
+		switch (Kind)
+		{
+		case EWeaponKind::Rifle: return Tuning.ImpactWeightRifle;
+		case EWeaponKind::Shotgun: return Tuning.ImpactWeightShotgun;
+		case EWeaponKind::Revolver: return Tuning.ImpactWeightRevolver;
+		case EWeaponKind::SMG: return Tuning.ImpactWeightSMG;
+		case EWeaponKind::Sniper: return Tuning.ImpactWeightSniper;
+		case EWeaponKind::LMG: return Tuning.ImpactWeightLMG;
+		// A rocket's burst is its own look (SpawnExplosion); a hit with no gun keeps the look every hit had.
+		case EWeaponKind::Launcher:
+		case EWeaponKind::None:
+		default:
+			return 1.f;
+		}
+	}
+
+	float ImpactWeight(EWeaponKind Kind)
+	{
+		return ImpactWeight(Kind, FVfxTuning::Live());
+	}
+
+	FVfxImpactLook ImpactLook(EWeaponKind Kind, int32 RoundsLeft, EImpactMaterial Material, const FVfxTuning& Tuning)
+	{
+		FVfxImpactLook Look;
+		if (Kind == EWeaponKind::None || Kind == EWeaponKind::Launcher)
+		{
+			return Look;
+		}
+		float Weight = ImpactWeight(Kind, Tuning);
+		if (Kind == EWeaponKind::LMG)
+		{
+			// The belt's beat, as its tracers: a full round, then lighter ones, so a long burst reads as a saw with a rhythm,
+			// not a solid wall of dirt over the target.
+			const int32 Every = FMath::Max(Tuning.ImpactLMGFullEvery, 1);
+			const bool bFull = Every == 1 || RoundsLeft % Every == 0;
+			Look.bChunks = bFull;
+			if (!bFull)
+			{
+				Weight *= Tuning.ImpactLMGLight;
+			}
+		}
+		Look.Count = Weight;
+		Look.bPellet = Kind == EWeaponKind::Shotgun;
+		// A pellet's hit is sized by its mark already (nine land together; the sheet carries the blast); a round's by its weight.
+		Look.Size = Look.bPellet ? 1.f : FMath::Pow(FMath::Max(Weight, 0.f), Tuning.ImpactSizePower);
+		if (!Look.bPellet)
+		{
+			Look.bChunks |= IsHardSurface(Material) && Weight >= Tuning.ImpactChunkFrom;
+			Look.bPunch = Weight >= Tuning.ImpactPunchFrom;
+		}
+		return Look;
+	}
+
+	bool IsHardSurface(EImpactMaterial Material)
+	{
+		switch (Material)
+		{
+		case EImpactMaterial::Gravel:
+		case EImpactMaterial::Stone:
+		case EImpactMaterial::Wood:
+		case EImpactMaterial::Metal:
+		case EImpactMaterial::SheetMetal:
+		case EImpactMaterial::Glass:
+		case EImpactMaterial::Bone:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	EVfxSheet SheetOf(EImpactMaterial Material)
+	{
+		switch (Material)
+		{
+		case EImpactMaterial::Gravel:
+		case EImpactMaterial::Stone:
+		case EImpactMaterial::Metal:
+		case EImpactMaterial::SheetMetal:
+			return EVfxSheet::Hard;
+		case EImpactMaterial::Water:
+			return EVfxSheet::Splash;
+		case EImpactMaterial::Unknown:
+		case EImpactMaterial::Count:
+			return EVfxSheet::None;
+		default:
+			return EVfxSheet::Soft;
+		}
+	}
+
+	float SheetRadius(float Spread)
+	{
+		// A point-blank blast's pellets land in a fist; at 15 m they cover a door. The sheet spans a little past them.
+		return FMath::Clamp(40.f + 1.2f * FMath::Max(Spread, 0.f), 40.f, 220.f);
+	}
+
+	int32 SheetPuffs(float Radius)
+	{
+		return FMath::Clamp(FMath::RoundToInt32(Radius / 45.f), 3, 5);
+	}
+
 	float KillWeight(EWeaponKind Gun, bool bCritical, float Share)
 	{
 		float Weight = 1.f;

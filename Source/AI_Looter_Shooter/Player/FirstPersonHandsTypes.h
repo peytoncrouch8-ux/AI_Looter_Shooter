@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Math/RotationMatrix.h"
+#include "Weapons/ReloadTuning.h"
 #include "Weapons/WeaponTypes.h"
 
 // What the first-person hands' files share (UFirstPersonHandsComponent, FFirstPersonHandsRig, FirstPersonHandsGrips,
@@ -180,6 +181,13 @@ struct AI_LOOTER_SHOOTER_API FHandsGun
 	EWeaponReloadPart ReloadPart = EWeaponReloadPart::None;
 	/** 0..1 through a reload, or -1 when it isn't reloading (AWeaponBase::GetReloadProgress). */
 	float ReloadProgress = -1.f;
+	/**
+	 * The reload as planned (AWeaponBase::GetReloadPlan): from empty or not, a pump gun's shells. Unset (a test's own gun):
+	 * the full reload from empty, its part's own choreography (LooterReload::Steps).
+	 */
+	FReloadPlan ReloadPlan = { true, 0 };
+	/** 0..1 through a pump gun's rack between shots, or -1 while the fore-end is still (AWeaponBase::GetPumpCycle). */
+	float PumpCycle = -1.f;
 	/**
 	 * The sniper's bolt: how open it is (0 home, 1 turned up and drawn back; LooterReload::BoltPose) and how much of the
 	 * trigger hand is on its knob (0 on the grip, 1 on the knob) between shots and through its reload.

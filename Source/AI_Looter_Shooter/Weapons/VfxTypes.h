@@ -294,3 +294,117 @@ struct FVfxTracerLook
 	float Length = 1.f;
 	float Glow = 1.f;
 };
+
+// --- A world hit's weight by its gun's kind (the gun feel pass, GF-IMPACT 2026-10-22: every gun's hit looked alike) ---
+
+/**
+ * The round whose hit is being shown: UBulletSubsystem hands it to FWeaponFX round each hit's look (FWeaponFX::FLandingScope).
+ * Kind None (a dev command, a rocket's ground hit, a test): the hit is drawn by its mark scale alone, as before the pass.
+ */
+struct FVfxRound
+{
+	EWeaponKind Kind = EWeaponKind::None;
+	/** Rounds left in its gun's magazine as it was fired: the LMG's every-third full round, the same beat as its tracer. */
+	int32 RoundsLeft = 0;
+	/** Its volley (UBulletSubsystem's count): a shotgun blast's pellets share one, and so one dust sheet. */
+	int32 Volley = 0;
+};
+
+/** How heavy a round's world hit is drawn (VfxRules::ImpactLook): its pieces' share and size, and the layers it adds. */
+struct FVfxImpactLook
+{
+	/** Pieces thrown, times (a rifle round's 1; a pellet's its share of its blast). */
+	float Count = 1.f;
+	/** Sizes and throw speeds, times (a pellet keeps its mark's size: its blast's sheet carries the blast). */
+	float Size = 1.f;
+	/** A pellet: no stream thinning (its blast is one hit), gathered into its blast's dust sheet. */
+	bool bPellet = false;
+	/** A punch (the sniper's round): a ring of air and dust snapping out over the surface, a tall column, big chunks. */
+	bool bPunch = false;
+	/** An extra burst of what it struck, thrown high: a heavy round's on hard surfaces, an LMG's full round on anything. */
+	bool bChunks = false;
+};
+
+/** What a shotgun blast's dust sheet adds on a surface (VfxRules::SheetOf): soft ground a fan of it thrown up, hard a scatter of sparks, water a fan of spray. */
+enum class EVfxSheet : uint8
+{
+	None,
+	Soft,
+	Hard,
+	Splash
+};
+
+/**
+ * A shotgun blast's pellets on the world, gathered for one dust sheet across their pattern (FWeaponFX::SettleBlastSheet): where
+ * they landed (their middle and spread), the surfaces' facing, the shot's way, what most of them struck.
+ */
+struct FVfxBlastSheet
+{
+	int32 Volley = 0;
+	int32 Hits = 0;
+	/** When its first pellet landed (the effects' clock). */
+	double Started = 0.0;
+	FVector Sum = FVector::ZeroVector;
+	/** The pellets' squared distances from the origin, summed (with Sum: their spread round their middle). */
+	double SquareSum = 0.0;
+	FVector NormalSum = FVector::ZeroVector;
+	FVector ShotSum = FVector::ZeroVector;
+	/** Pellets per surface (the sheet is in what most struck). */
+	uint8 Votes[static_cast<int32>(EImpactMaterial::Count)] = {};
+	/** The ground its pieces land on (its first pellet's, when it had one). */
+	bool bFloor = false;
+	FPlane Floor = FPlane(0.0, 0.0, 1.0, 0.0);
+
+	void Add(const FVector& Point, const FVector& Normal, const FVector& Shot, EImpactMaterial Material)
+	{
+		++Hits;
+		Sum += Point;
+		SquareSum += Point.SizeSquared();
+		NormalSum += Normal.GetSafeNormal();
+		ShotSum += Shot.GetSafeNormal();
+		uint8& Vote = Votes[FMath::Clamp(static_cast<int32>(Material), 0, static_cast<int32>(EImpactMaterial::Count) - 1)];
+		Vote = static_cast<uint8>(FMath::Min(Vote + 1, 255));
+	}
+
+	FVector Centroid() const { return Hits > 0 ? Sum / static_cast<double>(Hits) : FVector::ZeroVector; }
+
+	/** The pattern's facing: the pellets' surfaces' mean (straight up when they cancel out). */
+	FVector Normal() const
+	{
+		const FVector Mean = NormalSum.GetSafeNormal();
+		return Mean.IsNearlyZero() ? FVector::UpVector : Mean;
+	}
+
+	FVector Shot() const
+	{
+		const FVector Mean = ShotSum.GetSafeNormal();
+		return Mean.IsNearlyZero() ? FVector::ForwardVector : Mean;
+	}
+
+	/** How far the pellets lie from their middle (cm, root mean square). */
+	float Spread() const
+	{
+		if (Hits <= 1)
+		{
+			return 0.f;
+		}
+		const double Mean = SquareSum / static_cast<double>(Hits) - Centroid().SizeSquared();
+		return static_cast<float>(FMath::Sqrt(FMath::Max(Mean, 0.0)));
+	}
+
+	/** What most of its pellets struck (the first such in the list on a tie). */
+	EImpactMaterial Material() const
+	{
+		int32 Best = 0;
+		for (int32 Index = 1; Index < static_cast<int32>(EImpactMaterial::Count); ++Index)
+		{
+			if (Votes[Index] > Votes[Best])
+			{
+				Best = Index;
+			}
+		}
+		return static_cast<EImpactMaterial>(Best);
+	}
+
+	void Reset() { *this = FVfxBlastSheet(); }
+};

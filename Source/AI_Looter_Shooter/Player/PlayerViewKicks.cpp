@@ -24,10 +24,30 @@ void UPlayerViewComponent::AddShotKick(const AWeaponBase& Weapon)
 	}
 	const UWeaponDefinition* Definition = Weapon.GetInstance().Definition;
 	const EWeaponKind Kind = Definition ? Definition->Kind : EWeaponKind::Rifle;
-	// The kind's own weight on top: a shotgun shoves, a six-gun snaps (Looter.Gunfeel.Kick.*).
-	UCameraShakeModifier::Kick(Player, ViewKicks::ForShot(Kind, Weapon.GetStats().Recoil, GetAimAlpha(), KickRandom) * GunfeelKick::KickScale(Kind));
+	// The kind's own weight on top: a shotgun shoves, a six-gun snaps (Looter.Gunfeel.Kick.*). The first shot of a rifle's or
+	// SMG's burst is felt harder (Recoil already counted it in HandleWeaponFired), and an automatic's kicks stack under a
+	// sustained cap (FViewKickStack::Add) so a long burst never shakes the view past what the sights can follow.
+	const float FirstShot = GunfeelKick::FirstShotKick(Kind, Recoil.GetShotInBurst());
+	FViewKick Kick = ViewKicks::ForShot(Kind, Weapon.GetStats().Recoil, GetAimAlpha(), KickRandom) * (GunfeelKick::KickScale(Kind) * FirstShot);
+	Kick.SustainCap = GunfeelKick::SustainCapFor(Kind);
+	Kick.SustainFloor = GunfeelKick::SustainFloor();
+	UCameraShakeModifier::Kick(Player, Kick);
 	// And in the hands, on a gamepad.
 	GunfeelKick::RumbleShot(Player, Kind);
+}
+
+void GunfeelKick::RackBeat(const AWeaponBase& Weapon)
+{
+	// The shotgun's pump: a small dip of the local player's view as the fore-end goes back and home (GF-RELOAD calls it).
+	const ACharacter* Holder = Cast<ACharacter>(Weapon.GetOwner());
+	APlayerController* Player = Holder ? Cast<APlayerController>(Holder->GetController()) : nullptr;
+	const UPlayerViewComponent* View = Holder ? Holder->FindComponentByClass<UPlayerViewComponent>() : nullptr;
+	const float Scale = RackKickScale();
+	if (!Player || !Player->IsLocalController() || !View || Scale <= 0.f)
+	{
+		return;
+	}
+	UCameraShakeModifier::Kick(Player, ViewKicks::ForRack(View->GetAimAlpha()) * Scale);
 }
 
 void UPlayerViewComponent::BindOwnerHealth(bool bBind)

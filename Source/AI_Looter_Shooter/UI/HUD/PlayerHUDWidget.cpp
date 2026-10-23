@@ -11,7 +11,6 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Audio/LooterSound.h"
-#include "Audio/LooterSoundRules.h"
 #include "Combat/HealthComponent.h"
 #include "Embers/EmberComponent.h"
 #include "Interaction/InteractionComponent.h"
@@ -80,17 +79,20 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	UpdatePlayerFrame(Health, InDeltaTime);
 	UpdatePickupCard(Manager, Interaction, InDeltaTime);
 
+	// The wards of the creatures last hit, as they are now (a burn may have broken one between the player's hits).
+	WardMemory.Refresh();
 	if (HitMarkerTime > 0.f)
 	{
 		HitMarkerTime -= InDeltaTime;
-		const float Alpha = FMath::Clamp(HitMarkerTime / (bKillMarker ? KillMarkerSeconds : HitMarkerSeconds), 0.f, 1.f);
+		const float Alpha = FMath::Clamp(HitMarkerTime / FMath::Max(HitMarkerShowFor, 0.01f), 0.f, 1.f);
 		HitMarker->SetRenderOpacity(Alpha);
-		// Pops in slightly large and settles; a kill's pops bigger, in red, and stays a moment longer.
-		HitMarker->SetRenderScale(FVector2D(1.f + (bKillMarker ? KillMarkerPop : 0.3f) * Alpha * Alpha));
+		// Pops in slightly large and settles, at its hit's size; a kill's and a ward break's pop bigger and stay a moment longer.
+		HitMarker->SetRenderScale(FVector2D(HitMarkerSize * (1.f + HitMarkerPop * Alpha * Alpha)));
 		if (HitMarkerTime <= 0.f)
 		{
 			HitMarker->SetVisibility(ESlateVisibility::Hidden);
-			bKillMarker = false;
+			ShownMark = EHudHitMark::Body;
+			HitMarkerSize = 1.f;
 		}
 	}
 
@@ -141,13 +143,13 @@ void UPlayerHUDWidget::BindToPawn(UWeaponManagerComponent* Manager)
 	{
 		if (AWeaponBase* Old = BoundWeapon.Get())
 		{
-			Old->OnHit.RemoveDynamic(this, &UPlayerHUDWidget::HandleHit);
+			Old->OnHit.RemoveDynamic(this, &UPlayerHUDWidget::HandleGunHit);
 			Old->OnFired.RemoveDynamic(this, &UPlayerHUDWidget::HandleFired);
 			Old->OnReloadStarted.RemoveDynamic(this, &UPlayerHUDWidget::HandleReloadStarted);
 		}
 		if (Active)
 		{
-			Active->OnHit.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleHit);
+			Active->OnHit.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleGunHit);
 			Active->OnFired.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleFired);
 			Active->OnReloadStarted.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleReloadStarted);
 		}
@@ -363,38 +365,6 @@ void UPlayerHUDWidget::HandleGrenadeHit(const FHitResult& Hit, float Damage, boo
 	bMuteHitSound = bSameBurst;
 	HandleHit(Hit, Damage, bCritical);
 	bMuteHitSound = false;
-}
-
-void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCritical)
-{
-	// Only confirm hits on things that can actually be hurt, not walls.
-	const AActor* HitActor = Hit.GetActor();
-	const UHealthComponent* TargetHealth = HitActor ? HitActor->FindComponentByClass<UHealthComponent>() : nullptr;
-	if (!TargetHealth)
-	{
-		return;
-	}
-	// Heard as well as seen. The hit lands before the HUD hears of it, so a dead target is a kill, which has its own sound
-	// (the creature's voice plays UI.Kill once per death), or a body already down, which confirms nothing more. A crate or
-	// a barrel that breaks isn't a kill: it's a hit like any other (the white marker, the tick), not the red confirm.
-	const bool bKill = TargetHealth->IsDead() && !HitActor->ActorHasTag(FName(LooterBreakables::Tag));
-	if (!bKill && !bMuteHitSound)
-	{
-		LooterSound::Play2D(this, LooterSoundCue::HitMarker, 1.f, bCritical ? LooterSoundRules::CritPitch : 1.f);
-	}
-
-	// The kill's confirm: the marker in red, bigger and longer, and no later pellet of the same blast takes it back.
-	if (bKill || !bKillMarker)
-	{
-		bKillMarker = bKill;
-		HitMarkerTime = bKill ? KillMarkerSeconds : HitMarkerSeconds;
-		const FLinearColor Tint = bKill ? Color::Hurt() : (bCritical ? Color::Accent() : FLinearColor::White);
-		for (UImage* Tick : HitMarkerTicks)
-		{
-			Tick->SetColorAndOpacity(Tint);
-		}
-	}
-	HitMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 void UPlayerHUDWidget::HandleReloadStarted(float Duration)

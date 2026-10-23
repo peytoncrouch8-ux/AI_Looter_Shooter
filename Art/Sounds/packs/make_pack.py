@@ -150,6 +150,31 @@ EXCERPTS = {
                                  [(0.4, 2.7), (2.65, 7.0), (16.15, 17.95), (17.95, 22.0)], 'mono'),
     'Bullet_Cracks.wav': ('2017/Pole Position - The Warfare Library/warfare_t3_mg_whizzes_ricochets_bullet_cracks_M10.wav',
                           [(129.95, 131.35)], 'mono'),
+    # Reload and handling foley (the gun feel pass, 2026-10-22: the user's yes to recorded reloads). Every window of an
+    # excerpt is the same length, its event (the loudest moment) the same time into it, so recipes/guns_foley.py finds
+    # take k at k x (length + GAP) + lead. The G36C's takes alternate magazine in (louder, brighter seat) and out.
+    'Foley_G36C_MagIn.wav': (PP + 'Various Gun Foley & Handling/Heckler_&_Koch_G36C_5.56mm_foley_close_up_MKH60_mag_in_&_out.wav',
+                             [(p - 0.2, p + 0.3) for p in (1.568, 6.612, 11.556, 16.124, 20.604, 25.376)], 'mono'),
+    'Foley_G36C_MagOut.wav': (PP + 'Various Gun Foley & Handling/Heckler_&_Koch_G36C_5.56mm_foley_close_up_MKH60_mag_in_&_out.wav',
+                              [(p - 0.5, p + 0.3) for p in (4.214, 9.486, 14.384, 18.340, 23.286, 28.696)], 'mono'),
+    # The Saiga's charging handle: two quick racks whole, then single pulls and single releases.
+    'Foley_Saiga_Rack.wav': (PP + 'Various Gun Foley & Handling/SAIGA-12_12g_solid_slug_foley_close_up_RSM191_R_cocking.wav',
+                             [(0.0, 0.8), (2.2, 3.0)], 'mono'),
+    'Foley_Saiga_Pull.wav': (PP + 'Various Gun Foley & Handling/SAIGA-12_12g_solid_slug_foley_close_up_RSM191_R_cocking.wav',
+                             [(p - 0.05, p + 0.3) for p in (4.460, 7.846, 10.562, 13.492, 16.866, 19.950)], 'mono'),
+    'Foley_Saiga_Release.wav': (PP + 'Various Gun Foley & Handling/SAIGA-12_12g_solid_slug_foley_close_up_RSM191_R_cocking.wav',
+                                [(p - 0.15, p + 0.35) for p in (6.194, 9.392, 12.274, 15.382, 18.580, 21.796)], 'mono'),
+    # The M29's cylinder swung out (softer) and snapped home (brighter, louder).
+    'Foley_M29_Open.wav': (PP + 'Various Gun Foley & Handling/Smith_&_Wesson_M29_.44_Magnum_foley_close_up_MKH416_cylinder_open_&_close.wav',
+                           [(p - 0.12, p + 0.2) for p in (0.470, 5.298, 10.574, 22.060, 26.660, 38.780)], 'mono'),
+    'Foley_M29_Close.wav': (PP + 'Various Gun Foley & Handling/Smith_&_Wesson_M29_.44_Magnum_foley_close_up_MKH416_cylinder_open_&_close.wav',
+                            [(p - 0.06, p + 0.25) for p in (2.556, 7.866, 15.010, 19.690, 28.772, 36.914)], 'mono'),
+    # A 12 gauge's shells thumbed into the tube, and its pump racked twice.
+    'Foley_TS_ShellLoad.wav': (TS + 'Shell Load_Round Eject.wav', [(2.55, 3.35), (4.05, 4.85)], 'mono'),
+    'Foley_TS_Pump.wav': (TS + 'Shotgun_Quick Pump_01.wav', [(0.0, 0.6), (0.98, 1.48)], 'mono'),
+    # A round dropped on a board (the revolver's empties landing) and a heavy, distorted body punch (a big round's thump).
+    'Foley_Brass_Drop.wav': ('2016/Stuart Duffield - Bullet SFX/Bullet_Drop_Wood_04.wav', [(0.1, 0.72)], 'mono'),
+    'Impact_PunchHeavy.wav': (GM + 'Punch Sound Pack/punch_heavy_huge_distorted_01.wav', [(0.0, 0.48)], 'mono'),
 }
 
 

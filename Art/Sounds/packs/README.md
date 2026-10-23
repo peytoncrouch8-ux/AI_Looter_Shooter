@@ -2,7 +2,9 @@
 
 The user's rule (2026-10-21): royalty-free recordings are allowed for **guns and bullet impacts only**, always processed
 through the recipes (`recipes/guns_shots.py`, `recipes/guns_impacts.py`, via `lib/sample.py`); every other sound stays
-synthesized. No new pack without the user's word.
+synthesized. 2026-10-22 (the gun feel pass): the user's yes to **reload and handling foley** from the same pack
+(`recipes/guns_foley.py`), and yes in principle to one more part of the same free bundles (Main asks before any download).
+No new pack without the user's word.
 
 ## Licence (Sonniss GDC Game Audio Bundles 2016 and 2017)
 
@@ -39,7 +41,7 @@ windows of a long take joined by 0.25 s of silence) and prints each excerpt's sh
 | `Shotgun_SPAS12_50m.wav` | 2016 Pole Position - SPAS-12: `SPAS-12_12g_solid_slug_50m_behind_Ehrlund_R1_clean_Double_shots_x_1.wav` 0-2.65 | shotgun Distant, TailOpen roll |
 | `Shotgun_USAS12_55m.wav` | 2016 Pole Position - USAS-12: `USAS-12_12g_solid_slug_55m_in_front_off_axis_clean_Double_shots_x_1.wav` 0-2.47 | shotgun Distant, TailOpen roll |
 | `Shotgun_870_Warehouse.wav` | 2016 Audiobeast: `Audiobeast_Medium_Warehouse_Remington_870_12g_Pump_Action_Shotgun_10m_U87_001_Single_Shot_x8.wav` 22.2-26.6, 28.9-33.3, 38.5-42.9, 52.8-57.2 | shotgun TailInside |
-| `Shotgun_Saiga_Cocking.wav` | 2016 Pole Position - Gun Foley: `SAIGA-12_12g_solid_slug_foley_close_up_RSM191_R_cocking.wav` 0-0.8, 2.25-3 | shotgun Mech |
+| `Shotgun_Saiga_Cocking.wav` | 2016 Pole Position - Gun Foley: `SAIGA-12_12g_solid_slug_foley_close_up_RSM191_R_cocking.wav` 0-0.8, 2.25-3 | shotgun Mech until 2026-10-22 (the rack took its clack); unused, kept |
 | `Revolver_M29_1m5.wav` | 2016 Pole Position - S&W M29 .44: `Smith_&_Wesson_M29_.44_Magnum_1.5m_behind_right_clean_Double_shots_x_4.wav` 0-1, 1-2.6, 4-5, 5-6.6, 8-9.6, 9.6-11.2 | revolver Core (bark), TailOpen roll, Distant |
 | `Revolver_M29_2m_PZM.wav` | 2016 Pole Position - S&W M29 .44: `Smith_&_Wesson_M29_.44_Magnum_2m_behind_right_PZM_clean_Double_shots_x_4.wav` same windows | revolver Core (weight), Low |
 | `Revolver_M66_50m.wav` | 2016 Pole Position - S&W M66 .357: `Smith_&_Wesson_M66_.357_Magnum_50m_behind_Ehrlund_L1_clean_Double_shots_x_2.wav` 0-3, 3.95-6 | revolver Distant |
@@ -94,3 +96,24 @@ Production, GM = 2017 Gamemaster Audio, BZ = 2017 Bluezone Corporation - War Zon
 | `Explosion_Whoosh.wav` | BZ: `Bluezone-BC0214-explosion-whooshe-020.wav` 2.55-8.9 (its blast) | Launcher.Explosion (body) |
 | `Explosion_Far.wav` | GM Explosion Sound Pack: `explosion_far_distant_02.wav` whole | Launcher.Explosion.Distant |
 | `Explosion_Cannon_Far.wav` | 2017 Pole Position - The Warfare Library: `warfare_t1b_cannon_firing_forest_distant_MKH8060_2.wav` 0.4-2.7, 2.65-7, 16.15-17.95, 17.95-22 | Launcher.Explosion.Distant |
+
+Reload and handling foley, heavy hits (the gun feel pass, GF-SOUND-ART, 2026-10-22; PP = 2016 Pole Position Production -
+Various Gun Foley & Handling, TS = 2016 TS Sound - 12 Gauge Shotgun). Each windowed excerpt's windows are the same length
+with the event the same time in (`guns_foley._FOLEY`):
+
+| Excerpt (`Sonniss/`) | Source (library: file; seconds used) | Used for |
+|---|---|---|
+| `Foley_G36C_MagIn.wav` | PP: `Heckler_&_Koch_G36C_5.56mm_foley_close_up_MKH60_mag_in_&_out.wav` six 0.5 s windows round the seats at 1.568, 6.612, 11.556, 16.124, 20.604, 25.376 | Rifle.MagIn, Sniper.MagIn (slowed) |
+| `Foley_G36C_MagOut.wav` | PP: the same file, six 0.8 s windows round the releases at 4.214, 9.486, 14.384, 18.340, 23.286, 28.696 | Rifle.MagOut, Sniper.MagOut (slowed) |
+| `Foley_Saiga_Rack.wav` | PP: `SAIGA-12_12g_solid_slug_foley_close_up_RSM191_R_cocking.wav` 0-0.8, 2.2-3.0 (two whole racks) | Rifle.Bolt |
+| `Foley_Saiga_Pull.wav` | PP: the same file, six 0.35 s windows at 4.46, 7.846, 10.562, 13.492, 16.866, 19.95 | Rifle.Bolt, Rifle.LastRound, Equip.Heavy |
+| `Foley_Saiga_Release.wav` | PP: the same file, six 0.5 s windows at 6.194, 9.392, 12.274, 15.382, 18.58, 21.796 | Rifle.Bolt |
+| `Foley_M29_Open.wav` | PP: `Smith_&_Wesson_M29_.44_Magnum_foley_close_up_MKH416_cylinder_open_&_close.wav` six 0.32 s windows at 0.47, 5.298, 10.574, 22.06, 26.66, 38.78 | Revolver.CylinderOut, RoundsIn |
+| `Foley_M29_Close.wav` | PP: the same file, six 0.31 s windows at 2.556, 7.866, 15.01, 19.69, 28.772, 36.914 | Revolver.CylinderIn, Revolver.LastRound |
+| `Foley_TS_ShellLoad.wav` | TS: `Shell Load_Round Eject.wav` 2.55-3.35, 4.05-4.85 | Shotgun.ShellIn |
+| `Foley_TS_Pump.wav` | TS: `Shotgun_Quick Pump_01.wav` 0-0.6, 0.98-1.48 | Shotgun.Pump, Shotgun.Rack |
+| `Foley_Brass_Drop.wav` | 2016 Stuart Duffield - Bullet SFX: `Bullet_Drop_Wood_04.wav` 0.1-0.72 | Revolver.Eject |
+| `Impact_PunchHeavy.wav` | 2017 Gamemaster Audio - Punch Sound Pack: `punch_heavy_huge_distorted_01.wav` whole | Creature.Hit.Heavy |
+
+`SMG_TMP_Bolt.wav` (above) also makes Weapon.SMG.Charge; `Impact_Concrete.wav` Impact.Heavy, Impact.Scatter and
+Creature.Crit.Shell; `Impact_Body.wav` and `Impact_PunchWet.wav` Creature.Hit.Heavy and Creature.Crit.Gel.

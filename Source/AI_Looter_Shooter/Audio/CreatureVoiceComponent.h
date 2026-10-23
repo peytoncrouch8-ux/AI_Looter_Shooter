@@ -6,8 +6,10 @@
 #include "Components/ActorComponent.h"
 #include "Engine/TimerHandle.h"
 #include "Math/RandomStream.h"
+#include "Weapons/GunfeelSoundTuning.h"
 #include "CreatureVoiceComponent.generated.h"
 
+class AActor;
 class AController;
 class ACreatureBase;
 enum class ECreatureState : uint8;
@@ -16,8 +18,13 @@ enum class ECreatureState : uint8;
  * A creature's voice (every ACreatureBase has one): a cry as it turns from calm to hunting (a pack's cries a moment
  * apart, not as one), its attack's cry at the wind-up, the sound of each bullet going into its body (its kind's own: a
  * spider's shell cracks, a slime squelches; Creature.Hit for a kind without one) under its hurt cry now and then, and its
- * death cry. A kill by a local player plays the player's kill sound (UI.Kill) here, once
- * per death, where the death is certain (the HUD only sees hits, the corpse's too).
+ * death cry. A kill by a local player plays the player's kill sound (UI.Kill; UI.Kill.Crit when the killing blow was a
+ * critical) here, once per death, where the death is certain (the HUD only sees hits, the corpse's too).
+ *
+ * Gun feel pass: on top of the hit thud, a heavy gun's hit (mark scale from Looter.Gunfeel.Sound.CreatureHeavyFrom: the
+ * revolver, the sniper) or a shotgun blast whose pellets together take CreatureHeavyShare of its health adds
+ * Creature.Hit.Heavy, and a critical adds the crack of what its body is made of (Creature.Crit.Shell, .Gel or .Coal by
+ * its CreatureBlood), both at the wound.
  *
  * The cries are its kind's (CriesFor: the spider's, the slime's, the Unpaid's) at a pitch for its size, so the Gravemother
  * is the spider's voice deep and slow, Abel the Unpaid's, a spiderling the spider's high. It never ticks.
@@ -61,6 +68,9 @@ public:
 	/** Hurt cries come at most this often (s), a little more or less each time; hits' thuds at most HitInterval apart. */
 	static constexpr float HurtCryInterval = 0.9f;
 	static constexpr float HitInterval = 0.06f;
+
+	/** A kill counts as critical when the critical hit that dealt it came within this long (s) of the death. */
+	static constexpr double KillCritWindow = 0.25;
 
 	/** Alerts wait up to this long (s), so a pack turning together is heard as several cries; then not again for AlertRest. */
 	static constexpr float AlertDelayMax = 0.35f;
@@ -120,6 +130,9 @@ private:
 	UFUNCTION()
 	void HandleDeath(AController* Killer);
 
+	/** The gun feel pass's layers over the hit thud: the heavy guns' thump and a critical's crack, at the wound (see the class note). */
+	void PlayHitLayers(float Damage, bool bCritical, const FVector& HitLocation, const AActor* DamageCauser, const ACreatureBase& Creature);
+
 	/** The alert's cry, a moment after it turned (unless it died or calmed down meanwhile). */
 	void CryAlert();
 
@@ -135,6 +148,13 @@ private:
 	double NextHurtCry = 0.0;
 	double NextHit = 0.0;
 	double NextAlert = 0.0;
+	/** The heavy thump and the crit crack keep the hit thud's spacing (HitInterval), each their own. */
+	double NextHeavy = 0.0;
+	double NextCrit = 0.0;
+	/** A shotgun blast's pellets adding up on this creature, and the last bullet hit (for a critical kill's confirm). */
+	GunfeelSound::FBlastTally Blast;
+	double LastHitTime = -1000.0;
+	bool bLastHitCritical = false;
 
 	// Barks
 	FTimerHandle BarkTimer;

@@ -11,6 +11,7 @@
 class AActor;
 class UInstancedStaticMeshComponent;
 class UWorld;
+struct FVfxTuning;
 
 /** What a bullet hit, which decides how the impact looks. */
 enum class EImpactSurface : uint8
@@ -228,6 +229,39 @@ public:
 	/** What a shot's muzzle throws round its flash, by the gun's kind (VfxRules::MuzzleLook): smoke, sparks, side jets, a ring. */
 	void SpawnMuzzleBurst(const FVfxMuzzle& Muzzle);
 
+	// --- A world hit by its gun's kind (the gun feel pass, GF-IMPACT 2026-10-22; WeaponFXImpactsKinds.cpp) ---
+
+	/**
+	 * The round whose hit is shown while this lives (UBulletSubsystem::ResolveHit round its ShowHit): SpawnSurfaceImpact draws
+	 * it by its gun's kind (VfxRules::ImpactLook: an SMG's small, a sniper's punch, an LMG's beat), and a shotgun's pellets
+	 * gather into their blast's one dust sheet. Without one a hit is drawn by its mark scale alone, as before.
+	 */
+	struct FLandingScope
+	{
+		FLandingScope(FWeaponFX& InEffects, const FVfxRound& Round)
+			: Effects(InEffects), Saved(InEffects.LandingRound)
+		{
+			Effects.LandingRound = Round;
+		}
+		~FLandingScope() { Effects.LandingRound = Saved; }
+		FLandingScope(const FLandingScope&) = delete;
+		FLandingScope& operator=(const FLandingScope&) = delete;
+
+	private:
+		FWeaponFX& Effects;
+		FVfxRound Saved;
+	};
+
+	/** The volley whose pellets are gathering into a dust sheet (0: none). */
+	int32 PendingSheetVolley() const { return Sheet.Hits > 0 ? Sheet.Volley : 0; }
+
+	/**
+	 * Lays the gathered blast's dust sheet across its pattern once its last pellet is down (bStillFlying false) or it has
+	 * waited Looter.Vfx.Impact.SheetWait (UBulletSubsystem's tick, after the bullets moved). True when it was laid (or let go:
+	 * too few pellets on the world).
+	 */
+	bool SettleBlastSheet(bool bStillFlying);
+
 	/** The share of a look's pieces thrown at Where (VfxRules::DetailAt from the camera last drawn from; 1 before any). */
 	float DetailAt(const FVector& Where) const;
 
@@ -405,6 +439,31 @@ private:
 	static constexpr float KillCrowdReach = 800.f;
 	/** The share a kill at Location throws among the kills round it (1 alone), noting it. */
 	float KillCrowdDetail(const FVector& Location);
+	// --- The gun feel pass (GF-IMPACT): a hit by its gun's kind, a blast's sheet, a crit by what the body spills ---
+
+	/** A world hit's place and sizes as SpawnSurfaceImpact worked them out (WeaponFXImpactLooks.h), for the kind's layers. */
+	struct FImpactSpot;
+	/** The round landing now (FLandingScope). */
+	FVfxRound LandingRound;
+	/** The shotgun blast gathering into its sheet. */
+	FVfxBlastSheet Sheet;
+	/** What a round of its kind adds to its hit (WeaponFXImpactsKinds.cpp): a punch, a chunk burst, a pellet into its blast's sheet. */
+	void SpawnImpactKindLayers(const FImpactSpot& Spot, const FVfxImpactLook& Look);
+	/** A burst of what it struck thrown high (Amount: its share, detail in), landing on the hit's floor. */
+	void SpawnImpactChunks(const FImpactSpot& Spot, float Amount);
+	/** The sniper's punch: a ring of air and dust over the surface, a tall column of it, big chunks. */
+	void SpawnImpactPunch(const FImpactSpot& Spot);
+	/** Lays Sheet across its pattern (its puffs, and a fan, sparks or spray by its surface). */
+	void SpawnBlastSheet(const FVfxTuning& Vfx);
+	/**
+	 * A crit's own look by what the body spills (WeaponFXCrits.cpp; Looter.Vfx.Hit.CritPop): a spider's shell shards, the
+	 * Gravemother's thick gobs, a slime core's flash ring, an Unpaid's coal flare and soul-light gleam, a miner's rock chips,
+	 * a placeholder's clods. Amount: its pieces' share (detail and a blast's budget in); Size the hit's.
+	 */
+	void SpawnBloodCrit(ECreatureBlood Blood, const FVector& Point, const FVector& Up, const FVector& Shot, const FLinearColor& Tint, float Size,
+		float Amount);
+	/** The effects' clock: their world's time (the wall clock without one). */
+	double EffectsNow() const;
 	/** The pool's size (Looter.Vfx.MaxParticles as the effects started). */
 	int32 MaxParticleCount = 1000;
 	FRandomStream Random{ 0x5eed };

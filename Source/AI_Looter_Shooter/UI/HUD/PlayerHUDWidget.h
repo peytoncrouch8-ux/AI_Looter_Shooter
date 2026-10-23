@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "UI/HUD/HudHitMarker.h"
 #include "PlayerHUDWidget.generated.h"
 
 class AWeaponBase;
@@ -58,8 +59,9 @@ enum class ESilverChange : uint8;
  *  - centre: thin tick crosshair sized by the weapon's spread, kicking out on every shot, round a centre dot (the ticks
  *    fade out while aiming down the sights, with any gun in any view, and come back as the gun comes down: the user's
  *    call, 2026-10-14; the dot goes too in first person, where the sight's reticle is the aim point, and stays as the aim
- *    point in third person, where no sight is seen), diagonal hit marker (orange on a crit; on a kill red, bigger and
- *    held longer), and round it the red arcs pointing to where hits came from (UHudDamageIndicatorWidget)
+ *    point in third person, where no sight is seen), diagonal hit marker (HudHitMarker: orange on a crit, cyan when a
+ *    creature's ward took it or broke, red on a kill; sized by the hit's share of its health, a blast's pellets one
+ *    marker; a kill and a break bigger and held longer), and round it the red arcs pointing to where hits came from (UHudDamageIndicatorWidget)
  *  - under the crosshair: what the Interact key does to the thing looked at (UHudInteractPromptWidget), for everything
  *    but loot, which has the comparison card (right-middle); lower, the message plate (the weapon manager's messages)
  *  - behind everything: the screen edges' red flash on a hit and pulse at low health (UHudScreenEdgeWidget)
@@ -132,8 +134,16 @@ private:
 	void UpdatePickupCard(UWeaponManagerComponent* Manager, const UInteractionComponent* Interaction, float DeltaTime);
 	FString BoundKeyName(FName BindingId, const TCHAR* Fallback) const;
 
+	/** A melee strike's or a grenade's hit: the marker with no gun (never part of a blast). */
 	UFUNCTION()
 	void HandleHit(const FHitResult& Hit, float Damage, bool bCritical);
+
+	/** The gun in hand's bullet hit: the marker, a pellet gun's pellets gathered into their blast's one. */
+	UFUNCTION()
+	void HandleGunHit(const FHitResult& Hit, float Damage, bool bCritical);
+
+	/** Shows a hit's marker and plays its sound (HudHitMarker's rules); Gun: the gun whose bullet it was (none: melee, grenade). */
+	void ShowHitMarker(const FHitResult& Hit, float Damage, bool bCritical, const AWeaponBase* Gun);
 
 	/** A melee strike landed: the hit marker for a fist (a gun's strike reports through the gun's OnHit). */
 	UFUNCTION()
@@ -294,10 +304,17 @@ private:
 	float PulseTime = 0.f;
 
 	float HitMarkerTime = 0.f;
-	/** The marker shows a kill (red, bigger, longer) until it fades. */
-	bool bKillMarker = false;
-	static constexpr float HitMarkerSeconds = 0.18f;
-	static constexpr float KillMarkerSeconds = 0.34f;
-	static constexpr float KillMarkerPop = 0.75f;
+	/** What the marker shows until it fades (a kill's red is never taken back by a later pellet), how long, its pop and size. */
+	EHudHitMark ShownMark = EHudHitMark::Body;
+	float HitMarkerShowFor = 0.18f;
+	float HitMarkerPop = 0.3f;
+	float HitMarkerSize = 1.f;
+	/** The pellet gun's blast whose hits are landing now: its first hit's time, its pellets on bodies, the strongest it sounded. */
+	TWeakObjectPtr<const AWeaponBase> BlastGun;
+	double BlastStarted = -1.0e9;
+	int32 BlastLanded = 0;
+	EHudHitMark BlastSounded = EHudHitMark::Body;
+	/** The wards of the creatures last hit, so a hit can tell it broke one. */
+	FHudWardMemory WardMemory;
 	float MessageTime = 0.f;
 };

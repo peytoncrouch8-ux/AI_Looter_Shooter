@@ -333,6 +333,8 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 	OutGun.Scale = Weapon.GetModelScale();
 	OutGun.ReloadPart = Weapon.GetReloadPart();
 	OutGun.ReloadProgress = Weapon.GetReloadProgress();
+	OutGun.ReloadPlan = Weapon.GetReloadPlan();
+	OutGun.PumpCycle = Weapon.GetPumpCycle();
 	// The sniper's bolt, worked by the trigger hand between shots and in its reload (FirstPersonHandsGrips::OnGrip).
 	OutGun.BoltOpen = Weapon.GetBoltOpen();
 	OutGun.BoltHand = Weapon.GetBoltHand();
@@ -371,7 +373,8 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 
 FHandPlacement UFirstPersonHandsComponent::PlaceSupportHand(const FHandsGun& Gun, float DeltaTime)
 {
-	const FHandPlacement OnGun = FirstPersonHandsGrips::OnForegrip(Gun);
+	// Not reloading, SupportInReload is the foregrip: riding the pump as it's racked between shots.
+	const FHandPlacement OnGun = Gun.ReloadProgress < 0.f ? FirstPersonHandsMotion::SupportInReload(Gun) : FirstPersonHandsGrips::OnForegrip(Gun);
 	const UPlayerThrowComponent* Thrower = Throw.Get();
 	EHandsSupportJob Job = EHandsSupportJob::Foregrip;
 	FHandPlacement Wanted = OnGun;

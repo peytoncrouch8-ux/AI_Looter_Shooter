@@ -24,6 +24,10 @@ namespace
 		TEXT("Seconds a bullet mark shows in full before it starts to fade."));
 	TAutoConsoleVariable<float> CVarBulletMarksFade(TEXT("Looter.BulletMarks.Fade"), 15.f,
 		TEXT("Seconds a bullet mark takes to fade away."));
+	TAutoConsoleVariable<bool> CVarBulletMarksHeavyCracks(TEXT("Looter.BulletMarks.HeavyCracks"), true,
+		TEXT("A heavy round's mark on stone or wood is ringed or split by cracks (needs the atlas with styles 13-14)."));
+	TAutoConsoleVariable<float> CVarBulletMarksHeavyFrom(TEXT("Looter.BulletMarks.HeavyFrom"), 1.2f,
+		TEXT("A round's mark scale from which it leaves the cracked marks (revolver 1.25, sniper 1.5)."));
 
 	/** A mark hurried out of the way under a long burst fades over this long. */
 	constexpr float MarkHurrySeconds = 1.2f;
@@ -39,7 +43,8 @@ namespace
 
 	/**
 	 * Each surface's mark: its style (the atlas's order, make_bullet_marks.py STYLES: 0 a plain hole, 1 dirt, 2 grass,
-	 * 3 gravel, 4 sand, 5 stone, 6 wood, 7 metal, 8 sheet metal, 9 glass, 10 cloth, 11 hay, 12 bone) and its radius in cm
+	 * 3 gravel, 4 sand, 5 stone, 6 wood, 7 metal, 8 sheet metal, 9 glass, 10 cloth, 11 hay, 12 bone; 13-14 a heavy round's
+	 * stone and wood, HeavyLookOf) and its radius in cm
 	 * for a rifle round: soft ground throws a wider puff than a hole punched in timber, glass cracks wide.
 	 */
 	FBulletMarkLook MarkLook(EImpactMaterial Material)
@@ -100,6 +105,31 @@ bool FBulletMarks::CanMark(const FHitResult& Hit, EImpactMaterial Material)
 FBulletMarkLook FBulletMarks::LookOf(EImpactMaterial Material)
 {
 	return MarkLook(Material);
+}
+
+FBulletMarkLook FBulletMarks::HeavyLookOf(EImpactMaterial Material)
+{
+	// The atlas's styles 13 and 14 (make_bullet_marks.py StoneHeavy, WoodHeavy), each a little wider than the plain one: the
+	// cracks run out past the chip.
+	switch (Material)
+	{
+	case EImpactMaterial::Stone: return { 13, 8.5f };
+	case EImpactMaterial::Wood: return { 14, 7.5f };
+	default: return { INDEX_NONE, 0.f };
+	}
+}
+
+FBulletMarkLook FBulletMarks::LookFor(EImpactMaterial Material, float SizeScale)
+{
+	if (CVarBulletMarksHeavyCracks.GetValueOnGameThread() && SizeScale >= CVarBulletMarksHeavyFrom.GetValueOnGameThread())
+	{
+		const FBulletMarkLook Heavy = HeavyLookOf(Material);
+		if (Heavy.Style >= 0)
+		{
+			return Heavy;
+		}
+	}
+	return LookOf(Material);
 }
 
 float FBulletMarks::GunScale(EWeaponKind Kind)
@@ -270,7 +300,7 @@ bool FBulletMarks::Add(UWorld& World, const FHitResult& Hit, const FVector& Shot
 	float Pick)
 {
 	const int32 Max = FMath::Clamp(CVarBulletMarksMax.GetValueOnGameThread(), 0, 256);
-	const FBulletMarkLook Look = LookOf(Material);
+	const FBulletMarkLook Look = LookFor(Material, SizeScale);
 	if (!CVarBulletMarks.GetValueOnGameThread() || Max == 0 || !CanMark(Hit, Material) || !Initialize(World))
 	{
 		return false;

@@ -20,8 +20,14 @@ enum class EGunshotLayer : uint8
 	TailInside,
 	/** A shot heard from far away (another shooter's). */
 	Distant,
-	/** The rising click of the magazine's last quarter. */
+	/** The rising click of the magazine's last rounds. */
 	LowAmmo,
+	/** The last round gone: the bolt locking back, the hammer falling on the empty chamber... (Gun feel pass). */
+	LastRound,
+	/** The hot barrel hissing as a burst ends (the LMG's). */
+	HeatHiss,
+	/** The fore-end racked between the shotgun's shots. */
+	Rack,
 };
 
 /**
@@ -36,12 +42,32 @@ namespace GunshotSound
 	/** The cue for Kind's Layer (Fire: WeaponSounds::Fire). */
 	AI_LOOTER_SHOOTER_API FName CueFor(EWeaponKind Kind, EGunshotLayer Layer);
 
-	/** Plays Weapon's shot. */
+	/**
+	 * Plays Weapon's shot. An automatic's burst (shots less than Looter.Gunfeel.Sound.BurstGap apart) plays the tail on
+	 * every Nth shot only (AutoTailEvery.Rifle/.SMG/.LMG), so a long burst doesn't cut its own voices; PlayBurstEnd plays
+	 * the long one at release.
+	 */
 	AI_LOOTER_SHOOTER_API void PlayShot(const AWeaponBase& Weapon);
 
 	/**
-	 * After a shot left RoundsLeft of Magazine: the last quarter's click, rising as it empties (none above the quarter, none
-	 * for magazines under 4). The share and pitch come from GunfeelKick's cvars (Looter.Gunfeel.LowAmmo.*).
+	 * The trigger let go (AWeaponBase::StopFire, and the shot that empties the magazine): when the burst skipped its last
+	 * shots' tails, the tail plays once, long, by the surroundings (Looter.Gunfeel.Sound.BurstEndTail); the LMG's hot
+	 * barrel hisses (Weapon.LMG.HeatHiss) above Looter.Gunfeel.Sound.HissFrom. Nothing for a single shot or a burst that
+	 * ended long ago; calling it twice plays once.
+	 */
+	AI_LOOTER_SHOOTER_API void PlayBurstEnd(const AWeaponBase& Weapon);
+
+	/**
+	 * The shotgun's fore-end racked between shots (GF-RELOAD's pump code calls it at the rack's back point): the shooter's
+	 * own, or someone's within Looter.Gunfeel.Sound.DistantFrom.
+	 */
+	AI_LOOTER_SHOOTER_API void PlayRack(const AWeaponBase& Weapon);
+
+	/**
+	 * After a shot left RoundsLeft of Magazine: the click of the magazine's last rounds, rising as it empties
+	 * (Looter.Gunfeel.Sound.LowAmmo.<Kind> rounds, at most half the magazine, none under 4), and at 0 rounds the kind's
+	 * last-round sound a moment after the shot (Looter.Gunfeel.Sound.LastRound, LastRoundDelay) and the burst's end. The
+	 * player's own gun only.
 	 */
 	AI_LOOTER_SHOOTER_API void PlayLowAmmo(const AWeaponBase& Weapon, int32 RoundsLeft, int32 Magazine);
 

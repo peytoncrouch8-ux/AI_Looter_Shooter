@@ -8,7 +8,8 @@
 /**
  * Which sound cue a gun plays, by its kind (its shot, its click on an empty chamber, its draw) and by its reload's steps.
  * One place, so a new kind of gun is heard everywhere at once; kinds without sounds of their own share the rifle's and the
- * game's general ones.
+ * game's general ones. The gun feel pass (2026-10-22) gave the sniper its own box, the SMG its own charge, every reload its
+ * cloth and the long guns their equips by weight (LooterSoundCue::Gunfeel).
  */
 namespace WeaponSounds
 {
@@ -38,19 +39,43 @@ namespace WeaponSounds
 		return Kind == EWeaponKind::Revolver ? FName(LooterSoundCue::Revolver::DryFire) : FName(LooterSoundCue::DryFire);
 	}
 
-	/** A six-gun comes out of its holster; long guns swing off the back. */
+	/** The heavy long guns, heard by their weight as they're taken up and put away. */
+	inline bool IsHeavy(EWeaponKind Kind)
+	{
+		return Kind == EWeaponKind::Sniper || Kind == EWeaponKind::LMG || Kind == EWeaponKind::Launcher;
+	}
+
+	/** A six-gun comes out of its holster; long guns swing off the back, by their weight (the SMG light, the heavy ones heavy). */
 	inline FName Equip(EWeaponKind Kind)
 	{
-		return Kind == EWeaponKind::Revolver ? FName(LooterSoundCue::Revolver::Equip) : FName(LooterSoundCue::Equip);
+		if (Kind == EWeaponKind::Revolver)
+		{
+			return LooterSoundCue::Revolver::Equip;
+		}
+		if (Kind == EWeaponKind::SMG)
+		{
+			return LooterSoundCue::Gunfeel::EquipLight;
+		}
+		return IsHeavy(Kind) ? FName(LooterSoundCue::Gunfeel::EquipHeavy) : FName(LooterSoundCue::Equip);
 	}
 
 	/** Put away as a swap begins (the weapon manager): a six-gun back into its holster; long guns swung onto the back. */
 	inline FName Holster(EWeaponKind Kind)
 	{
-		return Kind == EWeaponKind::Revolver ? FName(LooterSoundCue::Revolver::Holster) : FName(LooterSoundCue::Holster);
+		if (Kind == EWeaponKind::Revolver)
+		{
+			return LooterSoundCue::Revolver::Holster;
+		}
+		return IsHeavy(Kind) ? FName(LooterSoundCue::Gunfeel::HolsterHeavy) : FName(LooterSoundCue::Holster);
 	}
 
-	/** The sound of a reload's step. */
+	/** Glove and sling as any reload starts, under its steps. */
+	inline FName ReloadStart()
+	{
+		return LooterSoundCue::Gunfeel::ReloadCloth;
+	}
+
+	/** The sound of a reload's step, any gun's (the rifle's for the shared magazine and handle steps). */
 	inline FName ReloadStep(EReloadStep Step)
 	{
 		switch (Step)
@@ -74,7 +99,7 @@ namespace WeaponSounds
 		case EReloadStep::CylinderIn:
 			return LooterSoundCue::Revolver::CylinderIn;
 		// The frontier-tech kinds' own steps (Saved/Loot/CONTRACT.md: Weapon.<Kind>.<ReloadStep>; a cue with no sounds yet
-		// plays nothing). Their magazine steps and the SMG's knob share the rifle's.
+		// plays nothing).
 		case EReloadStep::BoltOpen:
 			return LooterSoundCue::Sniper::BoltOpen;
 		case EReloadStep::BoltClose:
@@ -96,5 +121,26 @@ namespace WeaponSounds
 		default:
 			return NAME_None;
 		}
+	}
+
+	/**
+	 * The sound of a reload's step on a gun of Kind: the sniper's heavier box, the SMG's helix charged where the rifle's
+	 * handle is (EReloadStep::Bolt); every other step as ReloadStep(Step).
+	 */
+	inline FName ReloadStep(EWeaponKind Kind, EReloadStep Step)
+	{
+		if (Kind == EWeaponKind::Sniper && Step == EReloadStep::MagOut)
+		{
+			return LooterSoundCue::Gunfeel::SniperMagOut;
+		}
+		if (Kind == EWeaponKind::Sniper && Step == EReloadStep::MagIn)
+		{
+			return LooterSoundCue::Gunfeel::SniperMagIn;
+		}
+		if (Kind == EWeaponKind::SMG && Step == EReloadStep::Bolt)
+		{
+			return LooterSoundCue::Gunfeel::SMGCharge;
+		}
+		return ReloadStep(Step);
 	}
 }
