@@ -3,6 +3,14 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## User's answers (2026-10-22 late)
+Muzzle flash: "Rework it" (MUZZLE agent, Opus, Saved/MuzzleCode: layered burst, star feel, never over the target).
+Spider read at range: "Darker coat" (darker cooler brown, pale bands; art agent). Next push after this round: **gun feel
+pass** (sounds, recoil, impacts, reloads per gun kind vs top shooters). Play-tests: a short in-game check by an agent
+after each feature (memory playtest-after-features). Missions flow committed a4f489f; DEMO walking its checklist; two
+older test failures to look at: Looter.Missions.Highlight.Figure (Sexton's "figure look"), Looter.Story.UnfinishedBusiness.
+Placed (Whitlock Fields fences).
+
 ## Missions flow (the user, 2026-10-22 night)
 Verbatim: "The main missions shouldn't have to be accepted and should automatically be added to the missions list. The
 side missions are all automatically placed in the world and should only be available after progression is made. Lastly;
