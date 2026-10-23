@@ -115,12 +115,17 @@ namespace
 		return Mission;
 	}
 
-	/** The gate's fight as the build script sets it up: six Unpaid and a Restless one (fights enlarged 2026-10-21; three), on Main 3's second step only. */
+	/**
+	 * The gate's fight as the build script sets it up: six Unpaid and a Restless one (fights enlarged 2026-10-21; three), at
+	 * most four out at once, the rest rising as they fall, the Restless last (the user's "Soften early only", 2026-10-23:
+	 * seven at once killed a player standing still), on Main 3's second step only.
+	 */
 	void SetUpGate(AEncounterSpawner& Setup)
 	{
 		Setup.SpawnerId = GateId;
 		Setup.Groups = { EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 6),
 			EncounterTestWorld::MakeGroup(AUnpaidCreature::StaticClass(), 1, ECreatureRank::Rare) };
+		Setup.MaxAlive = 4;
 		Setup.CreatureTags = { GateTag };
 		Setup.ActiveWhen.DuringMission = MainThree;
 		Setup.ActiveWhen.FromStep = 1;
@@ -282,18 +287,41 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("At the gate: the fight"), Runner->GetStep(MainThree), 1);
 	TestTrue(TEXT("...the gate's fight is on"), Gate->IsStoryActive());
 	Gate->UpdateEncounter(0.5f);
-	const TArray<ACreatureBase*> Out = Gate->GetAliveCreatures();
-	TestEqual(TEXT("Seven Unpaid at the gate"), Out.Num(), 7);
-	TestEqual(TEXT("...six of them Basic"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 6);
-	TestEqual(TEXT("...one of them Restless"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
-	TestFalse(TEXT("...each tagged for the gate"), Out.ContainsByPredicate([](const ACreatureBase* Unpaid) { return !Unpaid->ActorHasTag(GateTag); }));
-	TestFalse(TEXT("...none of them in the farm's corner of the map (south-west of the gate)"), Out.ContainsByPredicate([](const ACreatureBase* Unpaid)
+	// Seven come, four at a time: the rest rise as those fall, the Restless one last. Each look counts what's out before
+	// it's shot down.
+	int32 Brought = 0;
+	int32 MostOut = 0;
+	int32 Basic = 0;
+	int32 Restless = 0;
+	bool bAllTagged = true;
+	bool bNoneByTheFarm = true;
+	for (int32 Look = 0; Look < 8 && Gate->GetState() != EEncounterState::Cleared; ++Look)
 	{
-		return Unpaid->GetActorLocation().X < 0.0 && Unpaid->GetActorLocation().Y < 0.0;
-	}));
+		const TArray<ACreatureBase*> Out = Gate->GetAliveCreatures();
+		if (Look == 0)
+		{
+			TestEqual(TEXT("Four Unpaid at the gate at first"), Out.Num(), 4);
+			TestEqual(TEXT("...all Basic, the Restless one held back"), EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 4);
+		}
+		Brought += Out.Num();
+		MostOut = FMath::Max(MostOut, Out.Num());
+		Basic += EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Basic);
+		Restless += EncounterTestWorld::CountOf(Out, AUnpaidCreature::StaticClass(), ECreatureRank::Rare);
+		bAllTagged &= !Out.ContainsByPredicate([](const ACreatureBase* Unpaid) { return !Unpaid->ActorHasTag(GateTag); });
+		bNoneByTheFarm &= !Out.ContainsByPredicate([](const ACreatureBase* Unpaid)
+		{
+			return Unpaid->GetActorLocation().X < 0.0 && Unpaid->GetActorLocation().Y < 0.0;
+		});
+		EncounterTestWorld::KillAll(*Gate);
+		Gate->UpdateEncounter(0.5f);
+	}
+	TestEqual(TEXT("Seven Unpaid at the gate in all"), Brought, 7);
+	TestEqual(TEXT("...never more than four out"), MostOut, 4);
+	TestEqual(TEXT("...six of them Basic"), Basic, 6);
+	TestEqual(TEXT("...one of them Restless"), Restless, 1);
+	TestTrue(TEXT("...each tagged for the gate"), bAllTagged);
+	TestTrue(TEXT("...none of them in the farm's corner of the map (south-west of the gate)"), bNoneByTheFarm);
 
-	EncounterTestWorld::KillAll(*Gate);
-	Gate->UpdateEncounter(0.5f);
 	Runner->Update(0.2f);
 	TestEqual(TEXT("The Unpaid fought off: find Bright & Daughter"), Runner->GetStep(MainThree), 2);
 	TestTrue(TEXT("...and the gate's fight is over, cleared"), Gate->GetState() == EEncounterState::Cleared && !Gate->IsStoryActive());
@@ -539,6 +567,7 @@ bool FColdWelcomePlacedTest::RunTest(const FString& Parameters)
 	{
 		TestEqual(TEXT("...six Basic Unpaid"), CountBrought(*Gate, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 6);  // (fights enlarged 2026-10-21; 3)
 		TestEqual(TEXT("...and one Restless"), CountBrought(*Gate, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
+		TestEqual(TEXT("...four out at most (softened 2026-10-23)"), Gate->MaxAlive, 4);
 		TestTrue(TEXT("...on Main 3's second step only"), Gate->ActiveWhen.DuringMission == MainThree && Gate->ActiveWhen.FromStep == 1
 			&& Gate->ActiveWhen.BeforeStep == 2);
 		TestTrue(TEXT("...coming for the player as they appear"), Gate->bHuntOnSpawn);

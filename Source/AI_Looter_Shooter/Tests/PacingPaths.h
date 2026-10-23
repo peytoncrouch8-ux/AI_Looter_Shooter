@@ -125,18 +125,20 @@ namespace PacingPaths
 
 	inline FPathStop MainTwoStop(const FPathCast& Foes)
 	{
-		// The bluff nest: five spiders and a Restless one (build_area_story.py, BluffNest).
+		// The bluff nest: four spiders and a Restless one (build_area_story.py NEST_PUSHES; five and one until the user's
+		// "Soften early only", 2026-10-23).
 		return { TEXT("Main 2, Shall We Talk Business?"), TEXT("Main2"),
-			{ MakeKills(Foes.Spider, EPathRank::Basic, 5, TEXT("BluffNest")), MakeKills(Foes.Spider, EPathRank::Restless, 1, TEXT("BluffNest")) }, 550 };
+			{ MakeKills(Foes.Spider, EPathRank::Basic, 4, TEXT("BluffNest")), MakeKills(Foes.Spider, EPathRank::Restless, 1, TEXT("BluffNest")) }, 550 };
 	}
 
 	inline FPathStop MainThreeStop(const FPathCast& Foes)
 	{
 		// The town gate: six Unpaid and a Restless one (TownGate); then Main Street's set piece on the way to Tilly (layout
-		// gameplay.encounters.fights MainStreet): nine Unpaid, a Restless one and the balcony's Bell-Ringer, at the valley's 2-3.
+		// gameplay.encounters.fights MainStreet): six Unpaid, a Restless one and the balcony's Bell-Ringer, at the valley's 2-3
+		// (nine and one until the user's "Soften early only", 2026-10-23).
 		return { TEXT("Main 3, Cold Welcome"), TEXT("Main3"),
 			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 6, TEXT("TownGate")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("TownGate")),
-			  PlannedKills(Foes.Unpaid, EPathRank::Basic, 9, TEXT("MainStreet"), 0.0, 3400.0),
+			  PlannedKills(Foes.Unpaid, EPathRank::Basic, 6, TEXT("MainStreet"), 0.0, 3400.0),
 			  PlannedKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("MainStreet"), 0.0, 3400.0),
 			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("MainStreet"), 0.0, 3400.0) }, 1000 };
 	}

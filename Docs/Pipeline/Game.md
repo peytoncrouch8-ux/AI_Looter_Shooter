@@ -31,8 +31,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - The actor is still `ARespawnMarker` (save ids unchanged). Placed from `layout.json` `gameplay.roosts` by
     `Tools/Unreal/build_area_roosts.py` (run alone it replaces every roost in the level). `Looter.Grave.List`,
     `Looter.Grave.Mark <id> | forget <id|all>`.
-  - TWO a map at most (the user, 2026-10-14; `MOST_PER_MAP`): Ransom's Rest's are the Depot (train station) and Calder's Post
-    (mountain); the other nine were removed, not kept for saves.
+  - THREE a map at most (`MOST_PER_MAP`): the user cut them to two (2026-10-14: the Depot by the train station, Calder's Post
+    up the mountain; the other nine removed, not kept for saves), then added a town roost (2026-10-23, "Town roost": deaths in
+    town woke at the farm): SheriffsOffice ("Main Street"), in the street's north edge at the sheriff's office (layout cm
+    [300, 800], onRoad, facing east down the street), outside the Main Street ambush's trigger. New ids only (an old save's
+    find of a removed id must not find a new roost).
   - A death wakes at the roost last found on the map (never the nearest), before any at the level's own start (RR: the
     family plot's PlayerStart), Hob's crows carrying Ellis either way on a map with roosts. Arriving by fast travel finds
     the roost too (`MarkOnArrival`). Continue wakes at the same roost, before any where saved. One lookup:

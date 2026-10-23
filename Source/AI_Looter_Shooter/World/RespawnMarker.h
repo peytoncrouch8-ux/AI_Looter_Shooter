@@ -45,8 +45,8 @@ struct AI_LOOTER_SHOOTER_API FRespawnWakeSpot
 };
 
 /**
- * One of Hob's roosts (the user's call, 2026-10-13; two a map since 2026-10-14, Ransom's Rest's the Depot and Calder's
- * Post): the one save, respawn and fast-travel point on every map, the same everywhere: the Crow's Mast (the user's pick from look sheet 41: a mast on a cairn, its yard cockbilled, crosstrees, a
+ * One of Hob's roosts (the user's call, 2026-10-13; two a map since 2026-10-14 and a town roost on top since 2026-10-23,
+ * Ransom's Rest's Main Street's by the sheriff's office, the Depot and Calder's Post): the one save, respawn and fast-travel point on every map, the same everywhere: the Crow's Mast (the user's pick from look sheet 41: a mast on a cairn, its yard cockbilled, crosstrees, a
  * stork's nest round the topmast, a fire basket on top, an old bell, the crow's-foot mark burnt in a board; SM_HobRoost, its
  * bell SM_HobRoostBell; a greybox stand-in until they're imported), Hob's crows on its perches and, once found, circling its
  * beacon (ARoostCrows), and the beacon itself, a flame in the basket under a tall column of light in the roost's one colour

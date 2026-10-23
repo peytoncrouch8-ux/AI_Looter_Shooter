@@ -359,7 +359,7 @@ bool FHallowedGroundPlacedTest::RunTest(const FString& Parameters)
 {
 	// Ransom's Rest as built (build_area_chapel.py): the chapel's place, the yard's fight, the bell with its bell up in the
 	// belfry, the Reliquary on its plinth, Aldana's door, the Unpaid on boot hill and the north road after Main 4, and Hob's
-	// perches at the chapel. (The chapel yard's roost went with the cut to two a map, 2026-10-14: Looter.Roost.Placed.TwoAMap.)
+	// perches at the chapel. (The chapel yard's roost went with the cut to two a map, 2026-10-14: Looter.Roost.Placed.PerMap.)
 	const ULevel* Level = LoadRansomsRest(*this);
 	if (!Level)
 	{

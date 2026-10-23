@@ -296,16 +296,16 @@ Each group: where it lives; where it waits and watches.
 
 ## Fights and set pieces
 
-The user's calls (2026-10-21, Saved/Fight/CONTRACT.md): 6-10 enemies a normal fight (camps and patrols 5-8, the chapel yard
+The user's calls (2026-10-21, Saved/Fight/CONTRACT.md; the first three fights softened below it on 2026-10-23, "Soften early only": fewer or weaker, later ones unchanged): 6-10 enemies a normal fight (camps and patrols 5-8, the chapel yard
 and the mine at the top), plus a few hand-made set pieces an area, each announced and rewarded; no plain waves, no new mixed
 packs; each fight keeps its area's kinds and ranks. The fights escalate with the story. Caps: 20 near the player, 16 of the
 Unpaid family. XP held by trimming the missions' (`Docs/Progression.md`). Code: `Docs/Pipeline/Enemies.md` "Fight: Layout".
 
 | Fight | When | Now (was) | Where it's set |
 |---|---|---|---|
-| Bluff nest | Main 2 | 5 spiders, 1 Restless (4+1) | `build_area_story.py` NEST_BASIC |
-| Town gate | Main 3 step 1 | 6 Unpaid, 1 Restless, from the street's mouth and its south side (3+1) | GATE_BASIC, GATE_SPOTS |
-| **Main Street** (set piece) | Main 3 from step 2 | 4 Unpaid + 1 Restless, then 5; a Bell-Ringer on the saloon balcony (new) | layout `fights` MainStreet |
+| Bluff nest | Main 2 | 4 spiders, 1 Restless, two out at most: 2, a 3 s breath, then 2 + the Restless; health 0.7 / 0.6 of their class (5+1 at once; softened 2026-10-23) | `build_area_story.py` NEST_PUSHES, NEST_MAX_ALIVE, NEST_HEALTH |
+| Town gate | Main 3 step 1 | 6 Unpaid, 1 Restless, from the street's mouth and its south side, four out at most, the Restless last (all 7 at once; softened 2026-10-23) | GATE_BASIC, GATE_SPOTS, GATE_MAX_ALIVE |
+| **Main Street** (set piece) | Main 3 from step 2 | 4 Unpaid, then 2 + 1 Restless once 1 is left (or 40 s); a Bell-Ringer on the saloon balcony (4+1, then 5 at 3 left; softened 2026-10-23) | layout `fights` MainStreet |
 | Chapel yard | Main 4 step 1 | 8 Unpaid, then 7 and a Restless (6, then 6+1) | `build_area_chapel.py` YARD_WAVE/YARD_SECOND |
 | Boot hill, north road | after Main 4 | 5 each, the area's ranks (3) | ROAMING_COUNT |
 | Whitlock's hands | Side 2 | 7 Unpaid, 1 Restless (5+1) | `build_area_whitlock.py` HANDS_BASIC |

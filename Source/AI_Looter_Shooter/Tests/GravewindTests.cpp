@@ -269,7 +269,7 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 	// Ransom's Rest as built (Tools/Unreal/build_area_deck.py): Abel on the deck facing the sunset, its three lantern posts
 	// (one the keeper's), the eight biers, his board, the fog wall across the Keeper's Gate pointed to by his boss, the story's
 	// dusk, Gravewind Point's place, and Hob's perches in Main 6. (The keeper's crossroads roost went with the cut to two a
-	// map, 2026-10-14: Looter.Roost.Placed.TwoAMap.)
+	// map, 2026-10-14: Looter.Roost.Placed.PerMap.)
 	if (!FPackageName::DoesPackageExist(TEXT("/Game/Maps/Lvl_RansomsRest")))
 	{
 		AddInfo(TEXT("Lvl_RansomsRest isn't built: skipped."));

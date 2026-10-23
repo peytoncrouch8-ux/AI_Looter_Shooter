@@ -45,7 +45,7 @@ everything about 6.8; Looter.Progression.Pacing checks both).
                    salt; APorchPlate's take_when is "during Main1 from step 4"). Turned in to Delia at her door: the doc's
                    three lines and "eat what's on that plate". 450 XP, her purse (20).
   DA_Mission_Main2 "Shall We Talk Business?", offered by Hob (Speaker_Hob) after Main 1: 0 up onto Ransom's Point
-                   (Place_RansomsPoint, height counted), 1 the nest cleared (BluffNest, 6), 2 Mister Sexton
+                   (Place_RansomsPoint, height counted), 1 the nest cleared (BluffNest, 5), 2 Mister Sexton
                    (Speaker_Sexton) + optional the boards where it happened (LookoutStains), 3 the Ledger opened (it must
                    stay step 3: Ledger::HandedOverStep). Turned in to Sexton, who sends Ellis to Delia about the lantern.
                    550 XP and the Ledger.
@@ -463,7 +463,7 @@ def main2_steps(asset):
         step(objective(asset, unreal.MissionReachObjective, "Climb the bluff path to Ransom's Point.",
                        place=place(tag='Place_RansomsPoint', radius=1800.0, ignore_height=False))),
         step(objective(asset, unreal.MissionClearObjective, 'Clear the spiders nesting at the top.',
-                       spawner_id=unreal.Name('BluffNest'), count=6)),
+                       spawner_id=unreal.Name('BluffNest'), count=5)),  # four and a Restless one (softened 2026-10-23; 6)
         step(objective(asset, unreal.MissionTalkObjective, 'Talk to Mister Sexton.',
                        speaker_tag=unreal.Name('Speaker_Sexton')),
              read_objective(asset, 'Look at the boards where it happened.', 'LookoutStains', optional=True)),

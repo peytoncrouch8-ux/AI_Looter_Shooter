@@ -21,13 +21,15 @@ Main 2:
   Main 2. Talked to: the spiders first; the deal once they're cleared; the Ledger; and a word after, before he's gone.
 - Ransom's Point's middle (a target point tagged Place_RansomsPoint, at the middle of the layout's zone ransomsPoint): where
   the climb ends.
-- The spider nest (AEncounterSpawner BluffNest) in the middle of the nest ring: five spiders and a Restless one, tagged
-  Spider_BluffNest, on during Main 2's climb and fight (its steps 1-2), appearing as the player comes up the bluff path
-  (30 m), hunting only on the bluff top (the zone ransomsPoint as their ground), so the fight stays on one level.
+- The spider nest (AEncounterSpawner BluffNest) in the middle of the nest ring: four spiders and a Restless one, at most
+  two out at once, in two pushes (two, then two and the Restless as the first is cleared), lighter than their class
+  (NEST_HEALTH), tagged Spider_BluffNest, on during Main 2's climb and fight (its steps 1-2), appearing as the player
+  comes up the bluff path (30 m), hunting only on the bluff top (the zone ransomsPoint as their ground), so the fight
+  stays on one level.
 Main 3:
 - The town gate (a target point tagged Place_TownGate) between its posts (the obstacles townGateNorth and townGateSouth).
-- The gate's fight (AEncounterSpawner TownGate) on the same spot: six Unpaid and a Restless one, tagged Unpaid_TownGate,
-  on during Main 3's second step only, standing north-east of the gate and on the street's south side (two ways at once,
+- The gate's fight (AEncounterSpawner TownGate) on the same spot: six Unpaid and a Restless one, at most four out at once
+  (GATE_MAX_ALIVE: the rest rise as they fall, the Restless last), tagged Unpaid_TownGate, on during Main 3's second step only, standing north-east of the gate and on the street's south side (two ways at once,
   clear of the farm fence), coming for the player as they appear, and giving up 30 m from the gate (or at Delia's salt
   line, the farm's safe zone). Main Street's set piece follows it (layout gameplay.encounters.fights MainStreet).
 - Tilly's window (ASpeakerPoint tagged Speaker_Tilly) on Bright & Daughter's SOCKET_Speaker: the shop closed until Main 3's
@@ -125,8 +127,20 @@ NEST_SPREAD = 900.0
 GATE_SPOTS = ((600.0, 900.0), (1100.0, 400.0), (300.0, 1500.0), (1300.0, 1300.0), (-400.0, 700.0), (-1300.0, 300.0),
               (-200.0, 2000.0))
 GATE_BASIC = 6
-# The spider nest (Main 2): five and a Restless one (four until 2026-10-21).
-NEST_BASIC = 5
+# The user's call (2026-10-23, "Soften early only": fewer or weaker creatures in the first fights, later ones unchanged):
+# seven out at once killed a player standing still. At most four now; the rest rise as those fall, the Restless last.
+GATE_MAX_ALIVE = 4
+# The spider nest (Main 2). The 2026-10-23 play-check: six out at once (five and a Restless one, three biting at a time)
+# killed a level-2 player strafing with a Common rifle and ward, seven bites of 20-27 in about 3 s; the user's call that
+# morning, "Soften early only". Now four and a Restless one, never more than two out (spiders outrun a player walking
+# backwards, so two at a time is what a moving player can hold off), in two pushes: two from the nest, then, once they're
+# down and the player has had a breath (NEST_BREATH, the ward coming back), two more and the Restless one as the first
+# falls. Each lighter than its class (health shares, as spiderlings' 0.2 is): kills come quicker, bites as they were.
+NEST_PUSHES = ((2, 'BASIC', 1), (2, 'BASIC', 2), (1, 'RARE', 2))
+NEST_MAX_ALIVE = 2
+NEST_BREATH = 3.0
+NEST_HEALTH = {'BASIC': 0.7, 'RARE': 0.6}
+NEST_BASIC = sum(count for count, rank, _ in NEST_PUSHES if rank == 'BASIC')
 GATE_GIVE_UP = 3000.0
 
 # Shutters (FalseFronts.py's Shutter_Left and _Right, hung on the store's sockets).
@@ -310,9 +324,9 @@ def marker(build, x, y, tag):
     return z
 
 
-def group(cls, count, rank, first_wave=1, last_wave=0):
+def group(cls, count, rank, first_wave=1, last_wave=0, health_scale=1.0):
     """FEncounterGroup: count creatures of cls, all of one rank ('BASIC', 'RARE'), in each wave from first_wave to
-    last_wave (counted from 1; 0: every wave from the first)."""
+    last_wave (counted from 1; 0: every wave from the first), their health health_scale of their class's."""
     made = unreal.EncounterGroup()
     made.set_editor_property('creature_class', cls)
     made.set_editor_property('count', count)
@@ -320,6 +334,7 @@ def group(cls, count, rank, first_wave=1, last_wave=0):
     made.set_editor_property('rank', getattr(unreal.CreatureRank, rank))
     made.set_editor_property('first_wave', first_wave)
     made.set_editor_property('last_wave', last_wave)
+    made.set_editor_property('health_scale', health_scale)
     return made
 
 
@@ -470,8 +485,12 @@ def place_bluff_top(build):
     nz = ground_at(nx, ny)
     nest = build.place(cls, (nx, ny, nz + 50.0), 0.0, label=f'Encounter_{NEST}', folder='Gameplay')
     nest.set_editor_property('spawner_id', unreal.Name(NEST))
-    # Five Basic spiders and a Restless one (the design's "4, and one Restless Meadow Wolf" until the bigger fights).
-    nest.set_editor_property('groups', [group(spider, NEST_BASIC, 'BASIC'), group(spider, 1, 'RARE')])
+    # Four Basic spiders and a Restless one in two pushes, two out at most (NEST_PUSHES; softened 2026-10-23).
+    nest.set_editor_property('groups', [group(spider, count, rank, wave, wave, NEST_HEALTH[rank]) for count, rank, wave in NEST_PUSHES])
+    nest.set_editor_property('num_waves', max(wave for _, _, wave in NEST_PUSHES))
+    nest.set_editor_property('wait_for_clear', True)
+    nest.set_editor_property('wave_interval', NEST_BREATH)
+    nest.set_editor_property('max_alive', NEST_MAX_ALIVE)
     nest.set_editor_property('creature_tags', [unreal.Name(NEST_TAG)])
     # The climb and the fight (Main 2's steps 1 and 2, from 0: before 2): a session loaded at the deal finds no spiders.
     nest.set_editor_property('active_when', condition(during=MAIN2, before_step=2))
@@ -479,8 +498,8 @@ def place_bluff_top(build):
     nest.set_editor_property('spawn_radius', NEST_SPREAD)
     # Their ground is the bluff top: nobody on the path below it, or on the farm, is hunted from up here.
     nest.set_editor_property('ground_corners', [unreal.Vector(x, y, nz) for x, y in top['polygon']])
-    build.log(f'the spider nest ({NEST}: {NEST_BASIC} spiders and a Restless one) at ({nx:.0f}, {ny:.0f}, {nz:.0f}), during {MAIN2}\'s '
-              f'climb and fight')
+    build.log(f'the spider nest ({NEST}: {NEST_BASIC} spiders and a Restless one, {NEST_MAX_ALIVE} out at most) at ({nx:.0f}, '
+              f'{ny:.0f}, {nz:.0f}), during {MAIN2}\'s climb and fight')
     return nx, ny, nz
 
 
@@ -508,6 +527,8 @@ def place_town_gate(build):
     gate.set_editor_property('spawner_id', unreal.Name(GATE))
     # Six Basic Unpaid and a Restless one (the design's "4, one of them Restless" until the bigger fights).
     gate.set_editor_property('groups', [group(unpaid, GATE_BASIC, 'BASIC'), group(unpaid, 1, 'RARE')])
+    # Four out at once; the rest (the Restless last, the groups' order) rise as those fall (softened 2026-10-23).
+    gate.set_editor_property('max_alive', GATE_MAX_ALIVE)
     gate.set_editor_property('creature_tags', [unreal.Name(GATE_TAG)])
     # Main 3's second step only (from 0: from 1, before 2): a fight already won doesn't come back on a later load.
     gate.set_editor_property('active_when', condition(during=MAIN3, from_step=1, before_step=2))
@@ -515,8 +536,8 @@ def place_town_gate(build):
     gate.set_editor_property('spawn_points', [unreal.Vector(x, y, 0.0) for x, y in GATE_SPOTS])
     gate.set_editor_property('hunt_on_spawn', True)
     gate.set_editor_property('give_up_radius', GATE_GIVE_UP)
-    build.log(f'the gate\'s fight ({GATE}: {GATE_BASIC} Unpaid and a Restless one) at ({gx:.0f}, {gy:.0f}), during {MAIN3}\'s second '
-              f'step')
+    build.log(f'the gate\'s fight ({GATE}: {GATE_BASIC} Unpaid and a Restless one, {GATE_MAX_ALIVE} out at most) at ({gx:.0f}, '
+              f'{gy:.0f}), during {MAIN3}\'s second step')
     return gx, gy, gz
 
 

@@ -729,7 +729,9 @@ the one save, respawn and fast-travel point on every map, its beacon in Hob's Em
 | CaldersPost | Calder's Post | (−53, 163.5) | −100° | the post's yard entrance from the Bench trail | (the lift) |
 | Diggings | The Diggings | (57, 213) | 45° | between the miners' plot and the ore bin, facing the mine | (the lift) |
 
-The ids FamilyPlot, ChapelYard and KeepersGrave are the old graves' (saves keep them).
+The ids FamilyPlot, ChapelYard and KeepersGrave are the old graves' (saves keep them). Since the user's cut (2026-10-14) only the
+Depot and Calder's Post stand, and since 2026-10-23 ("Town roost") a third: SheriffsOffice, "Main Street", mast at (8, 3) m in the
+street's north edge by the sheriff's office, facing 90°, found any time (a new id: MainStreet was cut). Rules: `Docs/Pipeline/Game.md`.
 
 ## 9. Buildings
 

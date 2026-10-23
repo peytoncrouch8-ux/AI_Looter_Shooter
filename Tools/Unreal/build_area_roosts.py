@@ -6,9 +6,11 @@ layout's, and saves the level: run twice, it leaves the same ones.
 
 The user's call (2026-10-13): Hob's crow roosts replace the respawn graves as the one save, respawn and fast-travel point on
 every map, at landmarks and roads (the graves were "in odd locations"); the roost is the Crow's Mast (look sheet 41, design
-B: SM_HobRoost, its bell SM_HobRoostBell). The user's call (2026-10-14): two a map at most (MOST_PER_MAP; Ransom's Rest's
-the Depot by the train station and Calder's Post up the mountain), the others removed, not kept for old saves (the game
-reads a save naming a gone roost as its newest find still standing: ARespawnMarker::FindLastFound). A death wakes the
+B: SM_HobRoost, its bell SM_HobRoostBell). The user's call (2026-10-14): two a map at most (Ransom's Rest's the Depot by the
+train station and Calder's Post up the mountain), the others removed, not kept for old saves (the game reads a save
+naming a gone roost as its newest find still standing: ARespawnMarker::FindLastFound); and (2026-10-23, "Town roost", as
+deaths in town woke at the farm) a third in town by the sheriff's office (SheriffsOffice): three a map now (MOST_PER_MAP),
+a new id so no old save finds it (MainStreet was a removed one). A death wakes the
 player at the roost they last found, before any at the level's own start. Each roost comes from one entry of
 gameplay.roosts (level cm, X north, Y east, as every layout point is):
   { "id": "Depot", "name": "The Depot", "at": [750, 10250], "yaw": 135, "onRoad": false,
@@ -47,8 +49,9 @@ FOLDER = 'Gameplay/Roosts'
 ROOST_TAG = 'Roost'
 OBSTACLE_TAG = 'Obstacle'
 
-# The user's rule (2026-10-14): two roosts a map at most; a layout with more places its first two and warns.
-MOST_PER_MAP = 2
+# The user's rules: two roosts a map at most (2026-10-14), and a town roost on top (2026-10-23): three; a layout with more
+# places its first three and warns.
+MOST_PER_MAP = 3
 
 # The models (Art/Models/Props/HobRoost.py: the Crow's Mast and its bell); a roost without them stands as the C++ greybox.
 ROOST_MESH = '/Game/Art/Props/SM_HobRoost'
@@ -302,8 +305,8 @@ def choose(build, found, entry, wake):
 # ---------------------------------------------------------------------------
 
 def place(build):
-    """Every roost of the layout's gameplay.roosts, in the Gameplay/Roosts folder (a gameplay build clears it first); two at
-    most (MOST_PER_MAP)."""
+    """Every roost of the layout's gameplay.roosts, in the Gameplay/Roosts folder (a gameplay build clears it first); three
+    at most (MOST_PER_MAP)."""
     entries = build.settings.get('roosts', [])
     if not entries:
         return
@@ -368,7 +371,7 @@ def run(area):
     if cls is None:
         raise RuntimeError('no RespawnMarker class: build the game module first')
     # Every roost in the level goes, the build's (and the graves' markers before them, the same class) and any placed by
-    # hand, wherever they stood; the layout's are placed again below. Run twice, it leaves the same two (the cut to two a
+    # hand, wherever they stood; the layout's are placed again below. Run twice, it leaves the same ones (the cut to two a
     # map, 2026-10-14, removes the rest on its first run). A trip's landing tagged on a marker (Landing_...) is the travel's,
     # never a roost: it stays.
     old = [a for a in actors.get_all_level_actors()

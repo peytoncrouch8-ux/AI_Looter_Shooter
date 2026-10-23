@@ -3508,12 +3508,12 @@
           "pass": "valley",
           "mission": "Main3",
           "budget": "main",
-          "where": "Main Street after the town gate (a set piece, Main 3 on the way to Tilly): the Unpaid rise from the boardwalks' shadows round the Gilt Spur, ahead, then behind, ten in two pushes, a Bell-Ringer tolling from the saloon's balcony",
+          "where": "Main Street after the town gate (a set piece, Main 3 on the way to Tilly): the Unpaid rise from the boardwalks' shadows round the Gilt Spur, ahead, then behind, seven in two pushes (ten until the user softened the first fights, 2026-10-23), a Bell-Ringer tolling from the saloon's balcony",
           "when": { "during": "Main3", "fromStep": 2 },
           "groups": [
             { "class": "UnpaidCreature", "count": 4, "rank": "Basic", "firstWave": 1, "lastWave": 1 },
-            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "firstWave": 1, "lastWave": 1 },
-            { "class": "UnpaidCreature", "count": 5, "rank": "Basic", "firstWave": 2, "lastWave": 2 }
+            { "class": "UnpaidCreature", "count": 2, "rank": "Basic", "firstWave": 2, "lastWave": 2 },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "firstWave": 2, "lastWave": 2 }
           ],
           "tags": ["Unpaid_MainStreet"],
           "center": [0, 3400],
@@ -3525,8 +3525,8 @@
           "setPiece": {
             "doneFlag": "SetPiece.MainStreet",
             "waves": 2,
-            "pushWhenLeft": 3,
-            "pushAfter": 30,
+            "pushWhenLeft": 1,
+            "pushAfter": 40,
             "hush": ["Speaker_Tilly"],
             "placed": [
               { "class": "BellRingerCreature", "rank": "Basic", "wave": 1, "at": [300, 3400], "balcony": "FalseFront_Saloon" }
@@ -3538,7 +3538,7 @@
             "cleared": { "speaker": "Hob", "line": "Street's quiet. Go knock on Tilly's window, she'll open up now.", "cue": "Boss.Loot.Burst" },
             "reward": [0, 3400]
           },
-          "note": "Sprung as the player walks into the town's middle after the gate is won (Main 3 from its third step, counted from 0: 2), once a session (SetPiece.MainStreet). Main Street turns safe only after Main 3 is turned in, and Tilly (Speaker_Tilly) keeps her window shut while it's on, so Main 3 can't be turned in over the fight: the zone comes on after it, never during. The Bell-Ringer stands on the Gilt Spur's balcony deck (found by tracing down off its facade), in the street under it if no deck is found. Placed by build_area_camps.py (pass valley)."
+          "note": "Sprung as the player walks into the town's middle after the gate is won (Main 3 from its third step, counted from 0: 2), once a session (SetPiece.MainStreet). Main Street turns safe only after Main 3 is turned in, and Tilly (Speaker_Tilly) keeps her window shut while it's on, so Main 3 can't be turned in over the fight: the zone comes on after it, never during. The Bell-Ringer stands on the Gilt Spur's balcony deck (found by tracing down off its facade), in the street under it if no deck is found. Softened 2026-10-23 (the user: \"Soften early only\"; it had killed a player standing still): four Basic ahead, then two and the Restless one behind (its rank sting with the second beat), the second push only once one of the first is left (or 40 s), so the pushes never stack; was 4 and a Restless, then 5, pushed at 3 left or 30 s. Placed by build_area_camps.py (pass valley)."
         },
         {
           "id": "CaveIn",
@@ -3603,6 +3603,14 @@
       "places": {}
     },
     "roosts": [
+      {
+        "id": "SheriffsOffice",
+        "name": "Main Street",
+        "at": [300,800],
+        "yaw": 90,
+        "onRoad": true,
+        "note": "the town's roost (the user's call, 2026-10-23: deaths in town woke at the farm): in the street's north edge, 2 m off the boardwalk at the sheriff's office's west corner, the player waking in front of its door looking east down Main Street; outside the Main Street ambush's trigger (from y 1950). Found by walking up, any time. Its own id: MainStreet was the 2026-10-14 cut's, and an old save that found that one must not find this"
+      },
       {
         "id": "Depot",
         "name": "The Depot",

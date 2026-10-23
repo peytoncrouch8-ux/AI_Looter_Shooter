@@ -352,14 +352,16 @@ bool FRoostWakeRemovedRoostTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRoostPlacedTwoAMapTest, "Looter.Roost.Placed.TwoAMap",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRoostPlacedPerMapTest, "Looter.Roost.Placed.PerMap",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FRoostPlacedTwoAMapTest::RunTest(const FString& Parameters)
+bool FRoostPlacedPerMapTest::RunTest(const FString& Parameters)
 {
-	// The built maps (Tools/Unreal/build_area_roosts.py from each layout's gameplay.roosts): two of Hob's roosts a map at
-	// most; Ransom's Rest's are the Depot (by the train station) and Calder's Post (up the mountain). Each map has a start of
-	// its own (a player start that is no trip's landing), where a death wakes before any roost is found.
+	// The built maps (Tools/Unreal/build_area_roosts.py from each layout's gameplay.roosts): three of Hob's roosts a map at
+	// most (two since the user's cut, 2026-10-14, and a town roost on top, 2026-10-23: deaths in town woke at the farm);
+	// Ransom's Rest's are Main Street's by the sheriff's office (SheriffsOffice), the Depot (by the train station) and
+	// Calder's Post (up the mountain). Each map has a start of its own (a player start that is no trip's landing), where a
+	// death wakes before any roost is found.
 	struct FWakeMap
 	{
 		const TCHAR* Package;
@@ -367,7 +369,7 @@ bool FRoostPlacedTwoAMapTest::RunTest(const FString& Parameters)
 		TArray<FName> Expected;
 	};
 	const FWakeMap Maps[] = {
-		{ TEXT("/Game/Maps/Lvl_RansomsRest"), TEXT("/Game/Maps/Lvl_RansomsRest.Lvl_RansomsRest"), { FName(TEXT("Depot")), FName(TEXT("CaldersPost")) } },
+		{ TEXT("/Game/Maps/Lvl_RansomsRest"), TEXT("/Game/Maps/Lvl_RansomsRest.Lvl_RansomsRest"), { FName(TEXT("SheriffsOffice")), FName(TEXT("Depot")), FName(TEXT("CaldersPost")) } },
 		{ TEXT("/Game/Maps/Lvl_TutorialIsland"), TEXT("/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland"), {} },
 	};
 	for (const FWakeMap& Map : Maps)
@@ -397,8 +399,8 @@ bool FRoostPlacedTwoAMapTest::RunTest(const FString& Parameters)
 			}
 		}
 		const FString Names = FString::JoinBy(Roosts, TEXT(", "), [](const FName& Id) { return Id.ToString(); });
-		TestTrue(FString::Printf(TEXT("%s: two roosts at most (%s; run build_area_roosts.py after the layout changes)"), Map.Package, *Names),
-			Roosts.Num() <= 2);
+		TestTrue(FString::Printf(TEXT("%s: three roosts at most (%s; run build_area_roosts.py after the layout changes)"), Map.Package, *Names),
+			Roosts.Num() <= 3);
 		for (const FName& Wanted : Map.Expected)
 		{
 			TestTrue(FString::Printf(TEXT("%s: the %s roost stands (%s)"), Map.Package, *Wanted.ToString(), *Names), Roosts.Contains(Wanted));
