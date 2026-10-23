@@ -6,6 +6,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/SpiderCreature.h"
 #include "Missions/MissionRunner.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -16,6 +17,8 @@
 #include "GameFramework/DamageType.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "Misc/PackageName.h"
 #include "Templates/UnrealTemplate.h"
 #include "TimerManager.h"
@@ -33,6 +36,17 @@ namespace
 
 	/** A few shots from a gun of the area's band: it's a prop, not an enemy. */
 	constexpr float SacHealth = 120.f;
+
+	/**
+	 * The hit volume reaches this far past the sac's body (cm): over its fuzz of loose silk, a near miss at its edge counts.
+	 * Without a model, a 2 m drop 1.2 m across (Sink.py's EggSac_A).
+	 */
+	constexpr float HitMargin = 14.f;
+	constexpr float FallbackHitRadius = 60.f;
+	constexpr float FallbackHitHalfHeight = 100.f;
+
+	/** Bullets' trace channel (DefaultEngine.ini's Weapon). */
+	constexpr ECollisionChannel WeaponChannel = ECC_GameTraceChannel2;
 
 	/** The hit flash: the dummy's (ATargetDummy), a little warmer on the silk. */
 	constexpr float HitFlashDuration = 0.16f;
@@ -74,6 +88,20 @@ AEggSac::AEggSac()
 	Sac->SetCanEverAffectNavigation(false);
 	Sac->SetStaticMesh(IntactModel);
 
+	// Shots only (the body's own collision keeps pawns and the Interact key's line); world dynamic, so ground traces skip it.
+	HitVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("HitVolume"));
+	HitVolume->SetupAttachment(Sac);
+	HitVolume->SetMobility(EComponentMobility::Movable);
+	HitVolume->InitCapsuleSize(FallbackHitRadius + HitMargin, FallbackHitHalfHeight + HitMargin);
+	HitVolume->SetRelativeLocation(FVector(0.0, 0.0, FallbackHitHalfHeight));
+	HitVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	HitVolume->SetCollisionObjectType(ECC_WorldDynamic);
+	HitVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
+	HitVolume->SetCollisionResponseToChannel(WeaponChannel, ECR_Block);
+	HitVolume->SetGenerateOverlapEvents(false);
+	HitVolume->SetCanEverAffectNavigation(false);
+	HitVolume->SetHiddenInGame(true);
+
 	Burst = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Burst"));
 	Burst->SetupAttachment(Root);
 	Burst->SetMobility(EComponentMobility::Movable);
@@ -98,12 +126,14 @@ void AEggSac::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 	// Placed or edited: it shows hanging intact, as the level begins before Main 5.
 	bRestCaptured = false;
+	FitHitVolume();
 	ShowHanging();
 }
 
 void AEggSac::BeginPlay()
 {
 	Super::BeginPlay();
+	FitHitVolume();
 	CaptureRest();
 	Health->OnDamaged.AddDynamic(this, &AEggSac::HandleDamaged);
 	Health->OnDeath.AddDynamic(this, &AEggSac::HandleDeath);
@@ -265,6 +295,38 @@ void AEggSac::SetSolid(UStaticMeshComponent& Mesh, bool bSolid)
 	Mesh.SetCollisionEnabled(bSolid ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 }
 
+void AEggSac::SetSacSolid(bool bSolid)
+{
+	SetSolid(*Sac, bSolid);
+	// Falling or burst, shots pass where it hung.
+	HitVolume->SetCollisionEnabled(bSolid ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+}
+
+void AEggSac::FitHitVolume()
+{
+	// Round its body as its hulls hold it (Sink.py: one round each sac's body, C's two lobes; never its threads), else its
+	// whole model, in the sac's own frame.
+	const UStaticMesh* Model = Sac->GetStaticMesh();
+	FBox Body(ForceInit);
+	if (const UBodySetup* Setup = Model ? Model->GetBodySetup() : nullptr)
+	{
+		Body = Setup->AggGeom.CalcAABB(FTransform::Identity);
+	}
+	if ((!Body.IsValid || Body.GetVolume() <= 0.0) && Model)
+	{
+		Body = Model->GetBoundingBox();
+	}
+	if (!Body.IsValid || Body.GetVolume() <= 0.0)
+	{
+		Body = FBox(FVector(-FallbackHitRadius, -FallbackHitRadius, 0.0), FVector(FallbackHitRadius, FallbackHitRadius, 2.0 * FallbackHitHalfHeight));
+	}
+	const FVector Half = Body.GetExtent();
+	const float Radius = static_cast<float>(FMath::Max(Half.X, Half.Y)) + HitMargin;
+	const float HalfHeight = FMath::Max(static_cast<float>(Half.Z) + HitMargin, Radius);
+	HitVolume->SetCapsuleSize(Radius, HalfHeight);
+	HitVolume->SetRelativeLocationAndRotation(Body.GetCenter(), FRotator::ZeroRotator);
+}
+
 void AEggSac::CaptureRest()
 {
 	if (bRestCaptured)
@@ -280,7 +342,7 @@ void AEggSac::ShowHanging()
 	CaptureRest();
 	Sac->SetRelativeTransform(SacRest);
 	Sac->SetVisibility(true);
-	SetSolid(*Sac, true);
+	SetSacSolid(true);
 	Burst->SetVisibility(false);
 	SetSolid(*Burst, false);
 	Burst->SetRelativeTransform(FTransform::Identity);

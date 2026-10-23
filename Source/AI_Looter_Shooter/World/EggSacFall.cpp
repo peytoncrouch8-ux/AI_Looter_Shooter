@@ -73,7 +73,7 @@ void AEggSac::StartFall()
 	Fallen = 0.0;
 	FallSpeed = 0.0;
 	// It drops through nothing: no shots or bumps on the way down.
-	SetSolid(*Sac, false);
+	SetSacSolid(false);
 	SetActorTickEnabled(true);
 	if (FallStart.Z - LandZ <= 1.0)
 	{
@@ -106,7 +106,7 @@ void AEggSac::Land(bool bHatch)
 	SetActorTickEnabled(false);
 	State = EEggSacState::Burst;
 	Sac->SetVisibility(false);
-	SetSolid(*Sac, false);
+	SetSacSolid(false);
 	// The hatched sac on the ground under it, lying along the actor's front, its torn mouth away from the wall.
 	Burst->SetWorldLocationAndRotation(GetLandingSpot(), FRotator(0.0, GetActorRotation().Yaw, 0.0));
 	Burst->SetVisibility(true);

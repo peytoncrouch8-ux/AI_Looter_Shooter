@@ -172,7 +172,9 @@ int32 AEncounterSpawner::SpawnOwed()
 	}
 
 	// Spots for all of them at once, so they spread over its ground instead of piling on the first free one.
-	const TArray<FVector> Spots = ChooseSpawnSpots(Owed.Num(), Player);
+	int32 SpotTry = 0;
+	FString NoSpotWhy;
+	const TArray<FVector> Spots = ChooseSpawnSpots(Owed.Num(), Player, &SpotTry, &NoSpotWhy);
 	int32 NextSpot = 0;
 	int32 Spawned = 0;
 	int32 Index = 0;
@@ -220,11 +222,27 @@ int32 AEncounterSpawner::SpawnOwed()
 		}
 	}
 
-	if (Owed.Num() > 0 && Spots.IsEmpty() && !bWarnedNoRoom)
+	// Never silent: a fight that can't bring what it owes says why (once as a warning, then in the verbose log at each look),
+	// and one whose creatures came nearer the player or closer together than its rules ask says so once.
+	if (Owed.Num() > 0 && Spots.IsEmpty())
 	{
-		bWarnedNoRoom = true;
-		UE_LOG(LogLooter, Warning, TEXT("Encounter %s: its creatures find nowhere to stand (every spot is on another level, in a safe ")
-			TEXT("zone, off its ground or the playable area, on an obstacle, or by the player)."), *GetSpawnerId().ToString());
+		UE_LOG(LogLooter, Verbose, TEXT("Encounter %s: %d owed find nowhere to stand (%s)."), *GetSpawnerId().ToString(), Owed.Num(), *NoSpotWhy);
+		if (!bWarnedNoRoom)
+		{
+			bWarnedNoRoom = true;
+			UE_LOG(LogLooter, Warning, TEXT("Encounter %s: its creatures find nowhere to stand, not even near the player or close together (%s)."),
+				*GetSpawnerId().ToString(), *NoSpotWhy);
+		}
+	}
+	else if (Spawned > 0 && SpotTry > 0 && !bNotedCloseSpots)
+	{
+		bNotedCloseSpots = true;
+		const TArray<FEncounterSpotTry> Tries = SpawnSpotTries(Settings.MinSpawnDistanceFromPlayer, Spacing,
+			EncounterRules::LargestBody(Groups, FindArea()).Radius);
+		const FEncounterSpotTry& Used = Tries[FMath::Clamp(SpotTry, 0, Tries.Num() - 1)];
+		UE_LOG(LogLooter, Log, TEXT("Encounter %s: its ground has no spot %.0f m from the player and %.0f cm apart; its creatures come %.1f m ")
+			TEXT("off and %.0f cm apart."), *GetSpawnerId().ToString(), Settings.MinSpawnDistanceFromPlayer / 100.f, Spacing,
+			Used.ClearOfPlayer / 100.f, Used.Spacing);
 	}
 	if (Spawned > 0)
 	{

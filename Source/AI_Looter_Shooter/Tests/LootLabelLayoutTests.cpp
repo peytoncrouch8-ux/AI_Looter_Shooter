@@ -87,6 +87,11 @@ bool FLootLabelLayoutTest::RunTest(const FString& Parameters)
 		const TArray<FLootLabelBox> Apart = { Boxes[0], LabelBox(700.0, 304.0, 100.0, 30.0, 220.f, false, -48.f) };
 		TestEqual(TEXT("Home once clear"), LootLabelLayout::Arrange(Apart, Gap, Keep)[1], 0.f);
 	}
+
+	// The pickup feed's name flash for a rare drop is skipped only for the gun whose plate is up (looked at, label showing).
+	TestTrue(TEXT("Looked at, label up: the plate names it"), LootLabelLayout::PlateNamesGun(true, true));
+	TestFalse(TEXT("Not looked at: its name is not on a plate"), LootLabelLayout::PlateNamesGun(false, true));
+	TestFalse(TEXT("Its label down (out of range): no plate"), LootLabelLayout::PlateNamesGun(true, false));
 	return true;
 }
 

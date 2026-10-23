@@ -330,7 +330,8 @@ bool UBountyBoardSubsystem::FillSlot(FBountyBoardRecord& Record, int32 Slot, dou
 		const FBountyPosting& Each = Record.Slots[Other];
 		if (Other != Slot && Each.IsPosting())
 		{
-			In.BusyArenas.AddUnique(Each.Arena);
+			// Once for each posting: the draw spreads over the arenas and doubles up only when it has to.
+			In.BusyArenas.Add(Each.Arena);
 			In.BusyNames.AddUnique(BountyRules::NameKey(Each.Kind, Each.NameIndex));
 		}
 	}

@@ -23,8 +23,9 @@ class UStaticMeshComponent;
  * held Interact on the actor tagged Bell_Chapel: Main 4's third step).
  *
  * Tools/Unreal/build_area_story.py (build_area_chapel.py) places it at the grip, with the Bell component on the belfry
- * socket; the level keeps that place. A small box round the grip is what the Interact key's line finds (it blocks nothing
- * else). The bell has no collision: it hangs out of everyone's reach. It never ticks while still.
+ * socket; the level keeps that place. A box round the whole hanging rope is what the Interact key looks at (it blocks
+ * nothing else), so the rope is rung looked at anywhere along it. The bell has no collision: it hangs out of everyone's
+ * reach. It never ticks while still.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AChapelBell : public AActor, public IInteractable
@@ -41,6 +42,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** The whole rope as it hangs from the ceiling to its tail (the Grip box). */
+	virtual TOptional<FInteractionBox> GetInteractionBox() const override;
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -77,7 +80,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USceneComponent> Root;
 
-	/** Round the rope's grip at the actor's origin: what the Interact key's line finds; it blocks nothing else. */
+	/**
+	 * Round the hanging rope, from its tail under the grip (the actor's origin) up to the ceiling: what the Interact key
+	 * looks at; it blocks nothing else.
+	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UBoxComponent> Grip;
 

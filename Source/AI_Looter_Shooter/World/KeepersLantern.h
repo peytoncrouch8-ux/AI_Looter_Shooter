@@ -27,8 +27,8 @@ struct FCampaignRecord;
  *
  * Whether Ellis has it is read from the campaign record, not saved apart (IsTaken): Main 5 past its taking step, or
  * finished. So a session loaded on Main 5's last step, or any time after, finds the snare empty, and one loaded before the
- * lantern was taken finds it hanging there again; Main 6 carries it from there. A small box round the lantern is what the
- * Interact key's line finds (it blocks nothing else). It never ticks.
+ * lantern was taken finds it hanging there again; Main 6 carries it from there. A box round the lantern and the silk over it
+ * is what the Interact key looks at, from any side (GetInteractionBox; it blocks nothing else). It never ticks.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AKeepersLantern : public AActor, public IInteractable
@@ -58,6 +58,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** The lantern with the silk round it (the Grip box), while it hangs there. */
+	virtual TOptional<FInteractionBox> GetInteractionBox() const override;
 	/** Taken for good: the story keeps it so (IsTaken), and a lasting objective may count it. */
 	virtual bool IsUsedUp() const override { return bTaken; }
 
@@ -99,7 +101,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Lantern;
 
-	/** Round the lantern: what the Interact key's line finds; it blocks nothing else. */
+	/** Round the lantern and the silk over it: what the Interact key looks at (GetInteractionBox); it blocks nothing else. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UBoxComponent> Grip;
 
@@ -143,6 +145,9 @@ private:
 
 	/** Its glass lit or dark, as bLit says. */
 	void ApplyGlass();
+
+	/** The lantern's middle in its own frame: halfway up from its foot to its grip. */
+	FVector LanternMiddle() const;
 
 	/** Shows it in the snare (and findable), or puts it away for good. */
 	void ShowInSnare(bool bShown);

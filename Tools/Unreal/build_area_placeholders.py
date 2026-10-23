@@ -38,8 +38,10 @@ KINDS_FOLDER = '/Game/Data/Placeholders'
 PLACEMENTS = [
     dict(id='CellarRats', where="Bright & Daughter's cellar, among the coffins waiting out their seven days (Knocking Below)",
          like='Encounter_TillyCellar', groups=[('CoffinRat', 4, 'Basic')]),
+    # Its ring's four spots are 2 m apart: 'spacing' 1.5 m (an encounter's 2.5 m let two come at a time, 2026-10-23).
     dict(id='BaggageRats', where="the depot's baggage room, round the coffins bound for Gravesend (The Old Fare)",
-         like='Encounter_DepotWaiting', near='Place_BaggageRoom', near_ring=(140.0, 4), groups=[('CoffinRat', 4, 'Basic')]),
+         like='Encounter_DepotWaiting', near='Place_BaggageRoom', near_ring=(140.0, 4), spacing=150.0,
+         groups=[('CoffinRat', 4, 'Basic')]),
     # The hounds' camp stands 20 m in from the Rim (its edge runs diagonally past the lantern house: at (2900, -10600) they
     # chased the player to the lip and fell, PIE 2026-10-22).
     dict(id='KeepersRoadHounds', where="the keeper's road between the cairns and the old lantern house, raiding the boards "
@@ -138,6 +140,8 @@ def place_like(build, entry):
         radius, count = entry['near_ring']
         spots = [unreal.Vector(x - at.x, y - at.y, n.z - at.z) for x, y in ring_points(n.x, n.y, [(radius, count)])]
     made.set_editor_property('spawn_points', spots)
+    if entry.get('spacing'):
+        made.set_editor_property('spacing', float(entry['spacing']))
     build.log(f'{label} ({entry["where"]}): {", ".join(f"{c} {r} {k}" for k, c, r in entry["groups"])}, with '
               f'{entry["like"]}' + (f', level {level}' if level else ''))
     return True

@@ -125,11 +125,16 @@ bool FBountyPlayTest::RunTest(const FString& Parameters)
 	const FBountyPosting First = Record->Slots[0];
 	TestTrue(TEXT("A Wanted spider at the arena in the first slot"), First.IsPosting() && First.Arena == TestArenaId
 		&& First.Kind == FName(TEXT("Spider")) && First.Tier == EBountyTier::Wanted);
-	TestTrue(TEXT("...the others empty (no arena free)"), !Record->Slots[1].IsPosting() && !Record->Slots[2].IsPosting());
-	TestTrue(TEXT("Its sheet is up and the board shows ?"), Board->IsSheetShown(0) && !Board->IsSheetShown(1)
+	// One arena open, three slots: the board doubles up there rather than leave cards empty (R2 play-check 2026-10-23).
+	TestTrue(TEXT("...the others up at the same arena, the next serials, other names"), Record->Slots[1].IsPosting() && Record->Slots[2].IsPosting()
+		&& Record->Slots[1].Arena == TestArenaId && Record->Slots[2].Arena == TestArenaId
+		&& Record->Slots[1].Serial == First.Serial + 1 && Record->Slots[2].Serial == First.Serial + 2
+		&& Record->Slots[0].NameIndex != Record->Slots[1].NameIndex && Record->Slots[1].NameIndex != Record->Slots[2].NameIndex
+		&& Record->Slots[0].NameIndex != Record->Slots[2].NameIndex);
+	TestTrue(TEXT("Its sheet is up and the board shows ?"), Board->IsSheetShown(0) && Board->IsSheetShown(1) && Board->IsSheetShown(2)
 		&& Board->GetShownMark() == ABountyBoard::EShownMark::Offer);
 	const TArray<FBountyCardView> Cards = Bounties->MakeCards();
-	TestTrue(TEXT("Its card is new and takeable"), Cards.Num() == 3 && Cards[0].bNew && Cards[0].bCanTake && Cards[1].bEmpty);
+	TestTrue(TEXT("Its card is new and takeable"), Cards.Num() == 3 && Cards[0].bNew && Cards[0].bCanTake && !Cards[1].bEmpty && !Cards[2].bEmpty);
 
 	// Read: the ? goes.
 	Bounties->MarkRead();
@@ -213,15 +218,22 @@ bool FBountyPlayTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...its slot empty, one paid, the box still owed"), Record && !Record->Slots[0].IsPosting() && Record->Paid == 1
 		&& Record->OwedChests.Num() == 1);
 	TestNull(TEXT("...its fight gone"), Bounties->GetFight());
-	TestNull(TEXT("...no longer tracked"), FindTracked(World));
+	// The tracker says it's paid (not its old "Collect it at the board") for a moment, then the entry goes.
+	const FMission* PaidLine = FindTracked(World);
+	TestTrue(TEXT("...the tracker says it is paid, no arrow"), PaidLine && PaidLine->Tracker.Line == TEXT("Bounty paid") && !PaidLine->Tracker.bTurnIn
+		&& !PaidLine->Waypoint.IsSet());
+	Bounties->Refresh();
+	TestNotNull(TEXT("...still there a moment after"), FindTracked(World));
 	const double Refill = FBountyTuning().RefillMinutes * 60.0;
+	const int32 NextSerial = Campaign.Bounties.Find(TestBoardId)->NextSerial;
 	Bounties->SetTestClock(Refill - 1.0);
 	Bounties->Refresh();
+	TestNull(TEXT("...gone once its moment is over"), FindTracked(World));
 	TestFalse(TEXT("Not refilled before its time"), Campaign.Bounties.Find(TestBoardId)->Slots[0].IsPosting());
 	Bounties->SetTestClock(Refill);
 	Bounties->Refresh();
 	const FBountyPosting Second = Campaign.Bounties.Find(TestBoardId)->Slots[0];
-	TestTrue(TEXT("Refilled at its time, the next serial"), Second.IsPosting() && Second.Serial == First.Serial + 1);
+	TestTrue(TEXT("Refilled at its time, the next serial"), Second.IsPosting() && Second.Serial == NextSerial);
 
 	// The strongbox opened: no longer owed.
 	Chest->Open(nullptr, /*bForce*/ true);

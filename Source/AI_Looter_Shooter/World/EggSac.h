@@ -15,6 +15,7 @@ class UHealthComponent;
 class UMaterialInstanceDynamic;
 class UMissionRunner;
 class USceneComponent;
+class UCapsuleComponent;
 class UStaticMeshComponent;
 
 /** Where an egg sac stands. */
@@ -118,6 +119,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Burst;
 
+	/**
+	 * What shots hit while it hangs: a capsule round the intact sac's body with a hand's room over it (HitMargin), fitted to the
+	 * body as it's built (FitHitVolume). Its hulls alone missed shots that read as hits: the fuzz of loose silk, the narrow
+	 * foot of the drop (the 2026-10-23 play-check: a three-round burst at sac A's foot, none counted). Only the Weapon channel.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCapsuleComponent> HitVolume;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UHealthComponent> Health;
 
@@ -192,6 +201,12 @@ private:
 
 	/** A sac's body solid to shots, the Interact key's line and pawns, or not there for anything. */
 	static void SetSolid(UStaticMeshComponent& Mesh, bool bSolid);
+
+	/** The intact sac solid (its body, and its hit volume to shots), or not there for anything. */
+	void SetSacSolid(bool bSolid);
+
+	/** Fits the hit volume round the intact sac's body (its hulls' bounds, else its model's; a 2 m drop without one). */
+	void FitHitVolume();
 
 	/** Remembers where the sac hangs, the first time it's needed. */
 	void CaptureRest();

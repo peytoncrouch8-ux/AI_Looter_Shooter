@@ -27,6 +27,13 @@ namespace InteractionFocus
 	/** A sight line blocked this close to the point looked at still sees it (a poster's own wall, a board's backing). */
 	inline constexpr float SightTolerance = 15.f;
 
+	/**
+	 * The point of Box the crosshair's line (View, out to Length) means: where the line enters it when it passes through it
+	 * (the line's start when that's inside), else the box's point nearest the line ahead of it. A box behind the line's
+	 * start gives its point nearest the start (which lies behind: never looked at).
+	 */
+	FVector NearestOnBox(const FInteractionView& View, const FInteractionBox& Box, double Length);
+
 	/** How directly the candidate lies along the crosshair's line: the cosine of its angle off it. */
 	float AimOf(const FInteractionView& View, const FInteractionCandidate& Candidate);
 

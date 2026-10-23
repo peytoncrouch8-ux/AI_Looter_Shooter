@@ -106,8 +106,23 @@ bool FBountyRulesTest::RunTest(const FString& Parameters)
 	FBountyDrawInput Busy = DrawInput(8, EBountyTier::Wanted);
 	Busy.BusyArenas = { TEXT("Quarry"), TEXT("Webwood") };
 	TestEqual(TEXT("Only the free arena is drawn"), Draw(Busy).Arena, FName(TEXT("Scatter")));
+	// Every arena up once: an arena is shared rather than a card left empty (a free one always first), until each holds PerArena.
 	Busy.BusyArenas.Add(TEXT("Scatter"));
-	TestFalse(TEXT("Every arena busy: nothing posted"), Draw(Busy).IsPosting());
+	TestTrue(TEXT("Every arena busy once: one is shared"), Draw(Busy).IsPosting());
+	Busy.BusyArenas = { TEXT("Quarry"), TEXT("Quarry"), TEXT("Webwood") };
+	TestEqual(TEXT("The arena with the fewest is drawn (one posting beats two)"), Draw(Busy).Arena, FName(TEXT("Scatter")));
+	Busy.BusyArenas = { TEXT("Quarry"), TEXT("Webwood"), TEXT("Scatter"), TEXT("Webwood") };
+	TestTrue(TEXT("Shared: not the one with two"), Draw(Busy).Arena != FName(TEXT("Webwood")));
+	Busy.PerArena = 1;
+	Busy.BusyArenas = { TEXT("Quarry"), TEXT("Webwood"), TEXT("Scatter") };
+	TestFalse(TEXT("One to an arena (the old rule): every arena busy, nothing posted"), Draw(Busy).IsPosting());
+	// One arena open, three slots: all three filled there, and a fourth would find it full (the default PerArena is three).
+	FBountyDrawInput Single = DrawInput(9, EBountyTier::Wanted);
+	Single.Arenas = { Arena(TEXT("Scatter"), { TEXT("Unpaid") }, 2, 3) };
+	Single.BusyArenas = { TEXT("Scatter"), TEXT("Scatter") };
+	TestEqual(TEXT("One arena open: the third slot is drawn there"), Draw(Single).Arena, FName(TEXT("Scatter")));
+	Single.BusyArenas.Add(TEXT("Scatter"));
+	TestFalse(TEXT("...a fourth is not (PerArena)"), Draw(Single).IsPosting());
 
 	// Over many draws: tiers only up to the story's, each tier's twists, the mark's traits as its rank gives them.
 	bool bWantedOnly = true;

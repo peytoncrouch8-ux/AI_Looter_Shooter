@@ -21,9 +21,11 @@ namespace
 	}
 }
 
+bool UAreaRulesSubsystem::bAllowInTestWorlds = false;
+
 bool UAreaRulesSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
+	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE || (bAllowInTestWorlds && WorldType == EWorldType::EditorPreview);
 }
 
 void UAreaRulesSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -50,10 +52,13 @@ const UAreaDefinition* UAreaRulesSubsystem::GetArea() const
 int32 UAreaRulesSubsystem::RollLevelFor(const ACreatureBase& Creature, int32 OwnLevel)
 {
 	// A level other than its class's was chosen for it where it was placed (a spawned one asked for a level keeps it without
-	// asking). Where it stands: as it begins play its spot, as it comes back its home (it may have died far from it).
+	// asking). Where it stands: its home, which it sets to its spot before it asks as it begins play, and comes back to (it
+	// may have died far from it). Never "begun play or not": AActor::BeginPlay counts it begun before ACreatureBase's own
+	// start asks, when its home was still the world's origin, so from 2026-10-13 to 2026-10-23 every creature got the
+	// levels of the zone holding (0, 0) (the valley's 2-3: the Providence's dead miners 2, the bluff's spiders 2-3).
 	const ACreatureBase* Defaults = Creature.GetClass()->GetDefaultObject<ACreatureBase>();
 	const bool bOwnLevelChosen = Defaults && FMath::Max(OwnLevel, 1) != FMath::Max(Defaults->Level, 1);
-	const FVector Spot = Creature.HasActorBegunPlay() ? Creature.GetHome().GetLocation() : Creature.GetActorLocation();
+	const FVector Spot = Creature.GetHome().GetLocation();
 	LevelsGiven += Area && Area->HasLevelBand() ? 1 : 0;
 	return RollLevelIn(Area, Spot, Creature.GetClass(), OwnLevel, bOwnLevelChosen, Rolls);
 }

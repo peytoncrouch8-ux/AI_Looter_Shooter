@@ -32,9 +32,14 @@ namespace
 	const FVector FallbackHang(2.0, -6.0, -34.0);
 	const FVector FallbackGrip(0.0, 0.0, 42.7);
 
-	/** The box round the lantern, out past its iron guard (half sizes, cm); its height follows the lantern's. */
-	constexpr double BoxHalfWidth = 16.0;
-	constexpr double BoxPad = 4.0;
+	/**
+	 * The box round the lantern, well out past its iron guard into the silk round it (half sizes, cm), from under its foot
+	 * up past the cord's end into the tangle: what's looked at to take it, from any side and from above or below it (the
+	 * 2026-10-23 play-check took it from two spots of four with a box hugging the lantern).
+	 */
+	constexpr double BoxHalfWidth = 26.0;
+	constexpr double BoxPad = 6.0;
+	constexpr double BoxAboveHang = 22.0;
 
 	/** An asset found only once it's in this checkout, so the class works, and its tests run, without it. In a constructor. */
 	template <typename T>
@@ -180,11 +185,12 @@ void AKeepersLantern::HangLantern()
 	{
 		GripOffset = Lantern->GetSocketTransform(GripSocket, RTS_Component).GetLocation();
 	}
-	// Upright, its grip on the cord's end; the box round it from its foot to its grip.
+	// Upright, its grip on the cord's end; the box round it from under its foot up into the silk over the cord's end.
 	Lantern->SetRelativeLocationAndRotation(Hang - GripOffset, FRotator::ZeroRotator);
-	const double HalfHeight = FMath::Max(GripOffset.Z, 10.0) * 0.5 + BoxPad;
-	Grip->SetBoxExtent(FVector(BoxHalfWidth, BoxHalfWidth, HalfHeight));
-	Grip->SetRelativeLocationAndRotation(Hang - GripOffset + FVector(0.0, 0.0, GripOffset.Z * 0.5), FRotator::ZeroRotator);
+	const double Bottom = Hang.Z - FMath::Max(GripOffset.Z, 10.0) - BoxPad;
+	const double Top = Hang.Z + BoxAboveHang;
+	Grip->SetBoxExtent(FVector(BoxHalfWidth, BoxHalfWidth, (Top - Bottom) * 0.5));
+	Grip->SetRelativeLocationAndRotation(FVector(Hang.X - GripOffset.X, Hang.Y - GripOffset.Y, (Top + Bottom) * 0.5), FRotator::ZeroRotator);
 }
 
 int32 AKeepersLantern::FindGlassSlot() const
@@ -265,7 +271,28 @@ bool AKeepersLantern::Interact(UInteractionComponent& User, bool bHeld)
 TOptional<FVector> AKeepersLantern::GetInteractionLocation() const
 {
 	// The lantern's middle, where a hand closes on it.
-	return Grip ? TOptional<FVector>(Grip->GetComponentLocation()) : TOptional<FVector>();
+	return Lantern ? TOptional<FVector>(Lantern->GetComponentTransform().TransformPosition(LanternMiddle())) : TOptional<FVector>();
+}
+
+TOptional<FInteractionBox> AKeepersLantern::GetInteractionBox() const
+{
+	// The lantern with the silk round it, from any side: a hanging thing below the eyes or seen from beside the wall.
+	if (!Grip || !IsHanging())
+	{
+		return TOptional<FInteractionBox>();
+	}
+	return FInteractionBox(Grip->GetComponentTransform(), Grip->GetScaledBoxExtent());
+}
+
+FVector AKeepersLantern::LanternMiddle() const
+{
+	// Halfway up from its foot to its grip (Sink.py's cord holds it by the grip).
+	FVector GripOffset = FallbackGrip;
+	if (Lantern && Lantern->GetStaticMesh() && Lantern->DoesSocketExist(GripSocket))
+	{
+		GripOffset = Lantern->GetSocketTransform(GripSocket, RTS_Component).GetLocation();
+	}
+	return FVector(GripOffset.X, GripOffset.Y, GripOffset.Z * 0.5);
 }
 
 bool AKeepersLantern::CanTake() const

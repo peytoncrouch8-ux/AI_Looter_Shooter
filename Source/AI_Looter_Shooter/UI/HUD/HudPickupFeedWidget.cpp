@@ -1,4 +1,5 @@
 #include "UI/HUD/HudPickupFeedWidget.h"
+#include "UI/World/LootLabelSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/LootFanfareSubsystem.h"
 #include "UI/Style/WeaponText.h"
@@ -147,6 +148,16 @@ FString UHudPickupFeedWidget::AmmoLine(EAmmoType Type, int32 Amount)
 
 void UHudPickupFeedWidget::HandleLootAnnounced(const AWeaponBase* Weapon)
 {
+	// A gun whose own label plate already shows its name (the looked-at loot label) needs no second name in the feed: the
+	// two read as one name drawn twice (play-check 2026-10-23, a bounty Strongbox).
+	if (const UWorld* World = GetWorld())
+	{
+		const ULootLabelSubsystem* Labels = World->GetSubsystem<ULootLabelSubsystem>();
+		if (Weapon && Labels && Labels->PlateNamesGun(*Weapon))
+		{
+			return;
+		}
+	}
 	// Its name in its rarity's colour, as every gun's name is shown (no rarity word: the user's call).
 	if (Weapon)
 	{

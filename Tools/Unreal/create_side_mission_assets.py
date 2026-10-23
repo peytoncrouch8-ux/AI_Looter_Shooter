@@ -401,7 +401,10 @@ def old_fare_steps(asset):
     return [
         step(clear(asset, "Clear the dead out of the depot's waiting room.", 'DepotWaiting', 6,
                    short='Clear the waiting room')),
-        step(reach(asset, 'Find what they were waiting on, in the baggage room.', 'Place_BaggageRoom', 450.0,
+        # 2.5 m: inside the baggage room only (its middle is 2.8 m from the waiting room's partition and 2.7 m from the
+        # platform door; at 4.5 m the waiting room's east end counted, and a player who won the fight there skipped this
+        # step, the play-check of 2026-10-23).
+        step(reach(asset, 'Find what they were waiting on, in the baggage room.', 'Place_BaggageRoom', 250.0,
                    ignore_height=False, short='Search the baggage room')),
         step(interact(asset, 'Look at the coffin tagged for Gravesend.', 'FennCoffin', short='Look at the coffin')),
         step(talk(asset, "Ask Mr. Sloane about Fenn's coins.", 'Speaker_Agent'),

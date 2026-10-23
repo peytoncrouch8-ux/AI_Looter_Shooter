@@ -163,6 +163,11 @@ private:
 	void HandleChestLooted(ABountyChest& Chest);
 	void UpdateTracker();
 	void ClearTracker();
+	/**
+	 * Paid: the tracker's line turns to "Bounty paid" (no arrow) for PaidLineSeconds, then the entry goes and the tracker
+	 * ticks that line and fades. Going at once ticked "Collect the bounty at the board" (its old line), which read as unpaid.
+	 */
+	void ShowPaidTracker();
 	/** The mission-complete banner for a bounty paid (a side job's, its title the bounty's). */
 	void Announce(const FBountyPosting& Posting, const FMissionRewardsGiven& Given);
 
@@ -173,6 +178,8 @@ private:
 	FBountyBoardRecord LocalRecord;
 	FName LastBoardId = TEXT("RansomsRest");
 	int32 TrackerId = INDEX_NONE;
+	/** The board's clock when the paid line goes (0: none showing). */
+	double PaidLineUntil = 0.0;
 	FTimerHandle Timer;
 	FDelegateHandle RunnerHandle;
 	TOptional<double> TestClock;

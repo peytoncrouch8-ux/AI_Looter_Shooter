@@ -44,6 +44,12 @@ namespace
 	constexpr float BeamGlow = 2.2f;
 	/** The stand-in's size: a small knot of something, until the item's model is made. */
 	constexpr float StandInScale = 0.14f;
+	/**
+	 * What's looked at to take it is at least this big (half sizes, cm), from the surface it lies on up: a few coins (2 x 5 cm)
+	 * were found only with the crosshair dead on them, and a box no taller than a coin dips behind the ledge it lies on.
+	 */
+	constexpr double LookHalfWidth = 16.0;
+	constexpr double LookHalfHeight = 10.0;
 
 	APawn* PlayerPawnIn(const UWorld* World)
 	{
@@ -293,6 +299,20 @@ bool AMissionItem::Interact(UInteractionComponent& User, bool bHeld)
 TOptional<FVector> AMissionItem::GetInteractionLocation() const
 {
 	return Mesh && Mesh->GetStaticMesh() ? TOptional<FVector>(Mesh->Bounds.Origin) : TOptional<FVector>(GetActorLocation());
+}
+
+TOptional<FInteractionBox> AMissionItem::GetInteractionBox() const
+{
+	if (!Mesh || !Mesh->GetStaticMesh())
+	{
+		return TOptional<FInteractionBox>();
+	}
+	// Its own bounds, grown to a hand's size round it: wider about its middle, taller only upward from what it lies on.
+	const FBox Bounds = Mesh->Bounds.GetBox();
+	const FVector Half = Bounds.GetExtent();
+	const FVector Grown(FMath::Max(Half.X, LookHalfWidth), FMath::Max(Half.Y, LookHalfWidth), FMath::Max(Half.Z, LookHalfHeight));
+	const FVector Middle(Bounds.GetCenter().X, Bounds.GetCenter().Y, Bounds.Min.Z + Grown.Z);
+	return FInteractionBox(FTransform(Middle), Grown);
 }
 
 bool AMissionItem::Take(AActor* Player)

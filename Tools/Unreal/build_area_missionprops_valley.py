@@ -165,7 +165,7 @@ ITEMS = {
     'LanternBail': (('LanternBail',), "Pa's lantern bail"),
     'CellarKey': (('CellarKey',), "the cellar key"),
     'ThaddeusTape': (('TapeMeasure',), "Thaddeus's tape"),
-    'FennsFare': (('GraveCoins',), "Fenn's fare"),
+    'FennsFare': (('FennsFare', 'GraveCoins'), "Fenn's fare"),     # on its handkerchief (MissionProps.py), else bare
     'CacheTag1': (('CacheTag',), "a cache tag"),
     'CacheTag2': (('CacheTag',), "a cache tag"),
     'CacheTag3': (('CacheTag',), "a cache tag"),

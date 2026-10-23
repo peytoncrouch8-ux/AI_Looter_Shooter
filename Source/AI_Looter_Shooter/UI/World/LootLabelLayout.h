@@ -35,4 +35,11 @@ namespace LootLabelLayout
 
 	/** Two placed boxes (min, max corners) are too close: they overlap across, and come within Gap of each other up or down. */
 	AI_LOOTER_SHOOTER_API bool Crowds(const FBox2D& A, const FBox2D& B, float Gap);
+
+	/**
+	 * A gun's own label is already naming it: looked at (its plate shows) with its label up. Its name flashing in the
+	 * pickup feed beside the plate then says the same name twice (play-check 2026-10-23: a strongbox's Epic rifle, its
+	 * plate and the feed's flash a hand apart), so the feed skips the flash for it.
+	 */
+	AI_LOOTER_SHOOTER_API bool PlateNamesGun(bool bLookedAt, bool bLabelShowing);
 }

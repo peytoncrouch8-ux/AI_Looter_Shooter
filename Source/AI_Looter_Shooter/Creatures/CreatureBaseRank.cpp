@@ -22,6 +22,9 @@ void ACreatureBase::BeginRankAndLevel()
 {
 	// The level it was placed or spawned at is its own until its area says otherwise (and where the area has no band).
 	GivenLevel = FMath::Max(Level, 1);
+	// Its area reads its level off its home (UAreaRulesSubsystem::RollLevelFor): here first, where it stands, before
+	// BeginPlay settles it on the ground and keeps the settled spot as home.
+	Home = GetActorTransform();
 	const ECreatureRank ArrivalRank = RollArrivalRank();
 	TakeRankAndLevel(ArrivalRank, RollOwnLevel(ArrivalRank));
 }

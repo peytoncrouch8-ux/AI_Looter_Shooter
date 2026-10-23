@@ -4,6 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "LootLabelSubsystem.generated.h"
 
+class AWeaponBase;
 class UUserWidget;
 
 /**
@@ -23,6 +24,12 @@ public:
 	virtual TStatId GetStatId() const override;
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 	virtual void Deinitialize() override;
+
+	/**
+	 * The gun's label is up as the looked-at plate, which names it (LootLabelLayout::PlateNamesGun): the pickup feed's name
+	 * flash for a rare drop is skipped then, not the same name twice side by side.
+	 */
+	bool PlateNamesGun(const AWeaponBase& Weapon) const;
 
 private:
 	/** Puts a label back where its component draws it. */

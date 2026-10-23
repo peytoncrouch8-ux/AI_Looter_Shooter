@@ -32,6 +32,13 @@ enum class EEncounterState : uint8
 	Cleared,
 };
 
+/** One look for its creatures' spots (AEncounterSpawner::SpawnSpotTries): how far from the player, and how far apart (cm). */
+struct FEncounterSpotTry
+{
+	float ClearOfPlayer = 0.f;
+	float Spacing = 0.f;
+};
+
 /**
  * An encounter (Docs/Areas/RansomsRest.md, "Spawners"): creatures spawned in play when the player comes near, all on one
  * level of ground, switched on and off by the story. Placed where a group fights (the town gate, the chapel yard, the
@@ -290,6 +297,15 @@ public:
 
 	static FString GetStateName(EEncounterState InState);
 
+	/**
+	 * The looks it makes for its creatures' spots, in turn, until one finds any, so a fight never spawns nothing while its
+	 * ground has room: its rules' (ClearOfPlayer from the player, Spacing apart); then 3.5 m from the player, the farthest
+	 * spots first (a room the player stands in or over: the depot's waiting room lies within 8 m of Mr. Sloane's door
+	 * upstairs, and the waiting room's fights spawned nothing, 2026-10-23); then as close together as BodyRadius allows
+	 * (the baggage room's rats on a 1.4 m ring); then 2 m from the player. Repeats are left out.
+	 */
+	static TArray<FEncounterSpotTry> SpawnSpotTries(float ClearOfPlayer, float Spacing, float BodyRadius);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -387,8 +403,10 @@ private:
 	/**
 	 * Spots for Wanted creatures on its ground (EncounterRules::ChooseSpots): those with room for the largest body its
 	 * groups bring (EncounterRules::LargestBody) first, then the roomiest of the rest; fewer when its ground has fewer.
+	 * Looked for by SpawnSpotTries in turn: OutTry gets the one that found them (0: its own rules), OutWhy, when none
+	 * did, what ruled its candidates out.
 	 */
-	TArray<FVector> ChooseSpawnSpots(int32 Wanted, const APawn* Player) const;
+	TArray<FVector> ChooseSpawnSpots(int32 Wanted, const APawn* Player, int32* OutTry = nullptr, FString* OutWhy = nullptr) const;
 
 	/** One of its creatures died: a Legendary lair's monster is noted beaten in the session. */
 	UFUNCTION()
@@ -403,6 +421,8 @@ private:
 	bool bMenuWorld = false;
 	/** It warned once that its creatures found nowhere to stand. */
 	bool bWarnedNoRoom = false;
+	/** It said once that its creatures came nearer the player, or closer together, than its rules ask (SpawnSpotTries). */
+	bool bNotedCloseSpots = false;
 	/** Its Legendary monster is away this visit (SendLegendaryAway). */
 	bool bLegendaryAway = false;
 

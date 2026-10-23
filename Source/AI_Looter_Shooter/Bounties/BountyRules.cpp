@@ -299,8 +299,11 @@ FBountyPosting BountyRules::Draw(const FBountyDrawInput& In)
 	FBountyPosting Made;
 	FRandomStream Random(In.Seed);
 
-	// The arena: one not busy, never one that is (two postings at one arena would stack two fights there).
+	// The arena: one with the fewest postings up (a free one first), so the board spreads over the arenas the story has
+	// opened and, with fewer open than slots, doubles up rather than leaving a card empty. Only one bounty is taken at a
+	// time, so two postings at one arena never stack two fights. An arena at its PerArena is never drawn.
 	TArray<const FBountyArenaChoice*> Free;
+	int32 Fewest = MAX_int32;
 	for (const FBountyArenaChoice& Arena : In.Arenas)
 	{
 		bool bHostsAny = false;
@@ -308,7 +311,25 @@ FBountyPosting BountyRules::Draw(const FBountyDrawInput& In)
 		{
 			bHostsAny |= FindKind(Kind) != nullptr;
 		}
-		if (bHostsAny && !In.BusyArenas.Contains(Arena.Id))
+		if (!bHostsAny)
+		{
+			continue;
+		}
+		int32 Up = 0;
+		for (const FName Busy : In.BusyArenas)
+		{
+			Up += Busy == Arena.Id ? 1 : 0;
+		}
+		if (Up >= FMath::Max(In.PerArena, 1))
+		{
+			continue;
+		}
+		if (Up < Fewest)
+		{
+			Fewest = Up;
+			Free.Reset();
+		}
+		if (Up == Fewest)
 		{
 			Free.Add(&Arena);
 		}

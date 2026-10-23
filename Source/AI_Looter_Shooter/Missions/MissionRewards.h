@@ -79,6 +79,17 @@ namespace MissionRewards
 	AWeaponBase* DropInFront(UWorld* World, const FWeaponInstanceData& Instance, const AActor& Player);
 
 	/**
+	 * Lays a reward gun down on its side where it rests, its loot turn stopped: a gift set down (on Fenn's coffin lid, Tilly's
+	 * counter), not a gun stood on its grip turning (the 2026-10-23 play-check: Old Fare's revolver stood upright on the
+	 * coffin). Its model alone is turned and lowered onto GroundZ, the surface under it; picked up, it's put back as any
+	 * loot is. False when it isn't loot lying loose, or isn't a gun built from parts.
+	 */
+	bool LayFlat(AWeaponBase& Gun, double GroundZ);
+
+	/** Lays Gun flat (LayFlat) once its toss has come to rest, on the surface under it. DropInFront does it for every reward. */
+	void LayFlatOnLanding(AWeaponBase& Gun);
+
+	/**
 	 * Rolls the reward gun (its kind, or one from the default loot table) at Level, with the rarity floor, and drops it in
 	 * front of Player (DropInFront). Null when the rewards have no gun, there's no player, or no kind could be found.
 	 */

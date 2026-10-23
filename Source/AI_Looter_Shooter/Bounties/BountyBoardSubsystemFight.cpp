@@ -31,6 +31,8 @@ namespace
 {
 	/** A fight round the player (the Webwood's) drops its strongbox this far in front of where they stand (cm). */
 	constexpr double ChestAhead = 300.0;
+	/** How long "Bounty paid" shows before the tracker's entry goes (s of the board's clock). */
+	constexpr double PaidLineSeconds = 0.4;
 }
 
 // ---------------------------------------------------------------------------
@@ -267,10 +269,22 @@ void UBountyBoardSubsystem::UpdateTracker()
 	UWorld* World = GetWorld();
 	UMissionSubsystem* Missions = World ? World->GetSubsystem<UMissionSubsystem>() : nullptr;
 	const FBountyPosting* Active = GetActive();
+	// The paid line stands out its moment (the tracker sees it before the entry goes).
+	if (!Active && TrackerId != INDEX_NONE && PaidLineUntil > GetNow() && Missions && !bMenuWorld)
+	{
+		return;
+	}
 	if (!Missions || !Active || bMenuWorld)
 	{
+		PaidLineUntil = 0.0;
 		ClearTracker();
 		return;
+	}
+	// Another taken while the paid line still stood: its entry goes, the new one gets its own.
+	if (PaidLineUntil > 0.0)
+	{
+		PaidLineUntil = 0.0;
+		ClearTracker();
 	}
 	if (TrackerId == INDEX_NONE)
 	{
@@ -320,6 +334,25 @@ void UBountyBoardSubsystem::UpdateTracker()
 	Missions->SetObjective(TrackerId, Line, Waypoint, Parts);
 }
 
+void UBountyBoardSubsystem::ShowPaidTracker()
+{
+	UWorld* World = GetWorld();
+	UMissionSubsystem* Missions = World ? World->GetSubsystem<UMissionSubsystem>() : nullptr;
+	if (!Missions || TrackerId == INDEX_NONE)
+	{
+		ClearTracker();
+		return;
+	}
+	FMissionTrackerParts Parts;
+	Parts.StepCount = 2;
+	Parts.Step = Parts.StepCount;
+	Parts.bAnnouncedEnd = true;
+	Parts.Line = LOCTEXT("TrackPaid", "Bounty paid").ToString();
+	Missions->SetObjective(TrackerId, FText::FromString(Parts.Line), TOptional<FVector>(), Parts);
+	// Long enough for the tracker's next tick to read it (a frame or two), short enough to be gone before it's noticed.
+	PaidLineUntil = GetNow() + PaidLineSeconds;
+}
+
 void UBountyBoardSubsystem::ClearTracker()
 {
 	if (TrackerId == INDEX_NONE)
@@ -334,6 +367,7 @@ void UBountyBoardSubsystem::ClearTracker()
 		}
 	}
 	TrackerId = INDEX_NONE;
+	PaidLineUntil = 0.0;
 }
 
 void UBountyBoardSubsystem::Announce(const FBountyPosting& Posting, const FMissionRewardsGiven& Given)

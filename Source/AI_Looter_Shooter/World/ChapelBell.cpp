@@ -22,9 +22,14 @@ namespace
 	/** The chapel's bell (Art/Models/Buildings/Chapel.py's ChapelBell). */
 	const TCHAR* BellPath = TEXT("/Game/Art/Buildings/SM_ChapelBell.SM_ChapelBell");
 
-	/** The rope's grip: the woollen sally a hand closes on, about 40 cm long (half sizes, cm). */
-	constexpr double GripHalfWidth = 8.0;
-	constexpr double GripHalfHeight = 22.0;
+	/**
+	 * The rope as it hangs in the vestibule (Chapel.py: down through the ceiling 1.78 m over the woollen grip, its tail tied
+	 * off 0.41 m under it), with a hand's room round it (cm, from the grip): all of it is looked at to ring the bell. A box
+	 * round the grip alone took focus only in a narrow band of pitch (the 2026-10-23 play-check: missed 30 degrees up).
+	 */
+	constexpr double RopeHalfWidth = 11.0;
+	constexpr double RopeAbove = 178.0;
+	constexpr double RopeBelow = 45.0;
 
 	/** The shortest swing and ring it allows (s), whatever its settings say. */
 	constexpr float MinSwingSeconds = 0.2f;
@@ -58,7 +63,8 @@ AChapelBell::AChapelBell()
 	Grip = CreateDefaultSubobject<UBoxComponent>(TEXT("Grip"));
 	Grip->SetupAttachment(Root);
 	Grip->SetMobility(EComponentMobility::Movable);
-	Grip->InitBoxExtent(FVector(GripHalfWidth, GripHalfWidth, GripHalfHeight));
+	Grip->InitBoxExtent(FVector(RopeHalfWidth, RopeHalfWidth, (RopeAbove + RopeBelow) * 0.5));
+	Grip->SetRelativeLocation(FVector(0.0, 0.0, (RopeAbove - RopeBelow) * 0.5));
 	Grip->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	Grip->SetCollisionObjectType(ECC_WorldDynamic);
 	Grip->SetCollisionResponseToAllChannels(ECR_Ignore);
@@ -131,7 +137,13 @@ bool AChapelBell::Interact(UInteractionComponent& User, bool bHeld)
 TOptional<FVector> AChapelBell::GetInteractionLocation() const
 {
 	// The rope's grip, where a hand closes on it.
-	return Grip ? TOptional<FVector>(Grip->GetComponentLocation()) : TOptional<FVector>();
+	return TOptional<FVector>(GetActorLocation());
+}
+
+TOptional<FInteractionBox> AChapelBell::GetInteractionBox() const
+{
+	// The whole hanging rope, looked at anywhere along it: near the grip, up toward the ceiling, at its tail.
+	return Grip ? TOptional<FInteractionBox>(FInteractionBox(Grip->GetComponentTransform(), Grip->GetScaledBoxExtent())) : TOptional<FInteractionBox>();
 }
 
 bool AChapelBell::CanRing() const

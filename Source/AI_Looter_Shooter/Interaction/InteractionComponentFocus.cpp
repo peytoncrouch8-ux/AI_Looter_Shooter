@@ -111,13 +111,23 @@ FInteractionCandidate* UInteractionComponent::AddInteractable(const FInteraction
 		return nullptr;
 	}
 	FVector Point = Actor->GetActorLocation();
+	const TOptional<FVector> OwnPoint = Interactable->GetInteractionLocation();
+	if (OwnPoint.IsSet())
+	{
+		Point = OwnPoint.GetValue();
+	}
+	const FVector Middle = Point;
+	bool bOnBox = false;
 	if (AtPoint)
 	{
 		Point = *AtPoint;
 	}
-	else if (const TOptional<FVector> OwnPoint = Interactable->GetInteractionLocation(); OwnPoint.IsSet())
+	else if (const TOptional<FInteractionBox> Box = Interactable->GetInteractionBox(); Box.IsSet())
 	{
-		Point = OwnPoint.GetValue();
+		// Its whole part to use: judged by where the crosshair's line passes nearest it (a rope looked at near its top, a
+		// lantern hanging below the eyes, coins on a ledge), not by one point in its middle.
+		Point = InteractionFocus::NearestOnBox(View, Box.GetValue(), FVector::Dist(View.Location, View.ReachOrigin) + MaxReach);
+		bOnBox = true;
 	}
 	if (FVector::DistSquared(Point, View.ReachOrigin) > FMath::Square(static_cast<double>(MaxReach)))
 	{
@@ -135,6 +145,10 @@ FInteractionCandidate* UInteractionComponent::AddInteractable(const FInteraction
 		static_cast<float>(FVector::Dist(Point, View.ReachOrigin)), Candidate.Reach);
 	// Found by the crosshair's line, it's in sight already.
 	Candidate.bCheckSight = AtPoint == nullptr;
+	if (bOnBox && !Middle.Equals(Point, 1.0))
+	{
+		Candidate.Middle = Middle;
+	}
 	return &Candidate;
 }
 
@@ -182,12 +196,28 @@ bool UInteractionComponent::IsInSight(const FInteractionView& View, const FInter
 	}
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(InteractionSight), /*bTraceComplex*/ false);
 	IgnorePlayer(Params);
-	FHitResult Hit;
-	if (!World->LineTraceSingleByChannel(Hit, View.ReachOrigin, Candidate.Location, ECC_Visibility, Params))
+	auto Sees = [&](const FInteractionCandidate& Seen)
+	{
+		FHitResult Hit;
+		if (!World->LineTraceSingleByChannel(Hit, View.ReachOrigin, Seen.Location, ECC_Visibility, Params))
+		{
+			return true;
+		}
+		return !InteractionFocus::DoesHitHide(Seen, Hit.GetActor(), Hit.GetComponent(), Hit.ImpactPoint);
+	};
+	if (Sees(Candidate))
 	{
 		return true;
 	}
-	return !InteractionFocus::DoesHitHide(Candidate, Hit.GetActor(), Hit.GetComponent(), Hit.ImpactPoint);
+	// Its box's near point is hidden (dipping behind the ledge under it, round the frame beside it): its middle in plain
+	// sight still counts.
+	if (Candidate.Middle.IsSet())
+	{
+		FInteractionCandidate AtMiddle = Candidate;
+		AtMiddle.Location = Candidate.Middle.GetValue();
+		return Sees(AtMiddle);
+	}
+	return false;
 }
 
 void UInteractionComponent::IgnorePlayer(FCollisionQueryParams& Params) const

@@ -71,6 +71,16 @@ void ULootLabelSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+bool ULootLabelSubsystem::PlateNamesGun(const AWeaponBase& Weapon) const
+{
+	const UWorld* World = GetWorld();
+	const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	const APawn* Pawn = PC && PC->IsLocalController() ? PC->GetPawn() : nullptr;
+	const UInteractionComponent* Interaction = Pawn ? Pawn->FindComponentByClass<UInteractionComponent>() : nullptr;
+	const UWidgetComponent* Label = Weapon.GetLabelComponent();
+	return LootLabelLayout::PlateNamesGun(Interaction && Interaction->GetFocusedActor() == &Weapon, Label && Label->IsVisible());
+}
+
 void ULootLabelSubsystem::Release(UUserWidget* Widget)
 {
 	if (Widget)

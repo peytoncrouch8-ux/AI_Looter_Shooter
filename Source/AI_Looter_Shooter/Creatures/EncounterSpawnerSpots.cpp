@@ -18,9 +18,63 @@ namespace
 	/** Home's ground is looked for from this far over the spawner to this far under it (cm). */
 	constexpr double HomeLookAbove = 300.0;
 	constexpr double HomeLookBelow = 2000.0;
+
+	/**
+	 * When its rules find no spot: this far from the player (cm), a lunge and a step off, so they come round the room
+	 * rather than into the player's face; and at the last this far, out of reach of a first swing.
+	 */
+	constexpr float NearClearOfPlayer = 350.f;
+	constexpr float LastClearOfPlayer = 200.f;
+
+	/** Closest together its creatures come when its rules find no spot: their bodies apart, and never under this (cm). */
+	constexpr float BodyGap = 30.f;
+	constexpr float LeastSpacing = 100.f;
+
+	/** Why candidate spots were turned down, counted for the log when none was left. */
+	struct FTurnedDown
+	{
+		int32 SafeZone = 0;
+		int32 OffPlayable = 0;
+		int32 OffGround = 0;
+		int32 NearPlayer = 0;
+		int32 NoFloor = 0;
+		int32 NotStandable = 0;
+		int32 NoRoom = 0;
+		int32 OtherLevel = 0;
+
+		FString Describe(int32 Candidates) const
+		{
+			const int32 Left = Candidates - SafeZone - OffPlayable - OffGround - NearPlayer - NoFloor - NotStandable - NoRoom - OtherLevel;
+			return FString::Printf(TEXT("%d candidates: %d in a safe zone, %d off the playable area, %d off its ground, %d by the player, ")
+				TEXT("%d with no floor within a step, %d not standable (steep, or on an obstacle), %d with no room, %d on another level, %d ")
+				TEXT("too close to another"), Candidates, SafeZone, OffPlayable, OffGround, NearPlayer, NoFloor, NotStandable, NoRoom,
+				OtherLevel, FMath::Max(Left, 0));
+		}
+	};
 }
 
-TArray<FVector> AEncounterSpawner::ChooseSpawnSpots(int32 Wanted, const APawn* Player) const
+TArray<FEncounterSpotTry> AEncounterSpawner::SpawnSpotTries(float ClearOfPlayer, float Spacing, float BodyRadius)
+{
+	const float Near = FMath::Min(ClearOfPlayer, NearClearOfPlayer);
+	const float Last = FMath::Min(ClearOfPlayer, LastClearOfPlayer);
+	const float Close = FMath::Min(Spacing, FMath::Max(BodyRadius * 2.f + BodyGap, LeastSpacing));
+	TArray<FEncounterSpotTry> Tries;
+	for (const FEncounterSpotTry& Each : { FEncounterSpotTry{ ClearOfPlayer, Spacing }, FEncounterSpotTry{ Near, Spacing },
+		FEncounterSpotTry{ Near, Close }, FEncounterSpotTry{ Last, Close } })
+	{
+		const bool bRepeat = Tries.ContainsByPredicate([&Each](const FEncounterSpotTry& Other)
+		{
+			return FMath::IsNearlyEqual(Other.ClearOfPlayer, Each.ClearOfPlayer) && FMath::IsNearlyEqual(Other.Spacing, Each.Spacing);
+		});
+		if (!bRepeat)
+		{
+			Tries.Add(Each);
+		}
+	}
+	return Tries;
+}
+
+TArray<FVector> AEncounterSpawner::ChooseSpawnSpots(int32 Wanted, const APawn* Player, int32* OutTry, FString* OutWhy) const
 {
 	UWorld* World = GetWorld();
 	if (!World || Wanted <= 0)
@@ -63,20 +117,81 @@ TArray<FVector> AEncounterSpawner::ChooseSpawnSpots(int32 Wanted, const APawn* P
 	const FHuntingGround Turf = MakeHuntingGround();
 	const UEncounterSubsystem* Encounters = GetEncounters();
 	const APlayableArea* Playable = APlayableArea::Find(World);
-	const double ClearOfPlayerSquared = FMath::Square(static_cast<double>(UEncounterSettings::Get().MinSpawnDistanceFromPlayer));
-	auto GroundAt = [&Probe](const FVector& Spot)
+	const FVector PlayerSpot = Player ? Player->GetActorLocation() : FVector::ZeroVector;
+	// Each candidate's ground is looked at once, however many looks below ask about it.
+	TMap<FVector, FEncounterGroundHit> Grounds;
+	FTurnedDown TurnedDown;
+	auto GroundAt = [this, &Probe, &Grounds, &TurnedDown, HomeZ](const FVector& Spot)
 	{
-		return Probe.Look(Spot);
+		const FEncounterGroundHit* Known = Grounds.Find(Spot);
+		const FEncounterGroundHit Ground = Known ? *Known : Grounds.Add(Spot, Probe.Look(Spot));
+		TurnedDown.NoFloor += Ground.bFound ? 0 : 1;
+		TurnedDown.NotStandable += Ground.bFound && !Ground.bStandable ? 1 : 0;
+		TurnedDown.NoRoom += Ground.bFound && Ground.bStandable && Ground.Room <= 0.f ? 1 : 0;
+		TurnedDown.OtherLevel += Ground.bFound && Ground.bStandable && Ground.Room > 0.f && FMath::Abs(Ground.Point.Z - HomeZ) > MaxGroundStep
+			? 1 : 0;
+		return Ground;
 	};
-	auto IsBlocked = [Encounters, Playable, &Turf, &Here, Player, ClearOfPlayerSquared](const FVector& Spot)
+	double ClearOfPlayerSquared = 0.0;
+	auto IsBlocked = [Encounters, Playable, &Turf, &Here, Player, &PlayerSpot, &ClearOfPlayerSquared, &TurnedDown](const FVector& Spot)
 	{
-		return (Encounters && Encounters->IsInSafeZone(Spot))
-			|| (Playable && !Playable->Contains(Spot))
-			|| !Turf.ContainsSpot(Spot, Here)
-			|| (Player && FVector::DistSquared2D(Spot, Player->GetActorLocation()) < ClearOfPlayerSquared);
+		if (Encounters && Encounters->IsInSafeZone(Spot))
+		{
+			++TurnedDown.SafeZone;
+			return true;
+		}
+		if (Playable && !Playable->Contains(Spot))
+		{
+			++TurnedDown.OffPlayable;
+			return true;
+		}
+		if (!Turf.ContainsSpot(Spot, Here))
+		{
+			++TurnedDown.OffGround;
+			return true;
+		}
+		if (Player && FVector::DistSquared2D(Spot, PlayerSpot) < ClearOfPlayerSquared)
+		{
+			++TurnedDown.NearPlayer;
+			return true;
+		}
+		return false;
 	};
-	const TArray<FVector> Chosen = EncounterRules::ChooseSpots(Candidates, Wanted, HomeZ, MaxGroundStep, Spacing, Occupied, GroundAt,
-		IsBlocked);
+
+	// Its rules first; where they leave no spot at all, nearer the player (the farthest spots first), then closer together.
+	// Its ground, its level and the room for its bodies are never given up: a spot it can't stand on is no spot.
+	const TArray<FEncounterSpotTry> Tries = SpawnSpotTries(UEncounterSettings::Get().MinSpawnDistanceFromPlayer, Spacing, Largest.Radius);
+	TArray<FVector> FarFirst = Candidates;
+	if (Player)
+	{
+		FarFirst.StableSort([&PlayerSpot](const FVector& A, const FVector& B)
+		{
+			return FVector::DistSquared2D(A, PlayerSpot) > FVector::DistSquared2D(B, PlayerSpot);
+		});
+	}
+	TArray<FVector> Chosen;
+	int32 Used = 0;
+	for (int32 Try = 0; Try < Tries.Num() && Chosen.IsEmpty(); ++Try)
+	{
+		// Without a player only the spacing can give: none of the looks that only come nearer the player is needed.
+		if (Try > 0 && !Player && FMath::IsNearlyEqual(Tries[Try].Spacing, Tries[Try - 1].Spacing))
+		{
+			continue;
+		}
+		TurnedDown = FTurnedDown();
+		ClearOfPlayerSquared = FMath::Square(static_cast<double>(Tries[Try].ClearOfPlayer));
+		Chosen = EncounterRules::ChooseSpots(Try == 0 ? Candidates : FarFirst, Wanted, HomeZ, MaxGroundStep, Tries[Try].Spacing, Occupied,
+			GroundAt, IsBlocked);
+		Used = Try;
+	}
+	if (OutTry)
+	{
+		*OutTry = Chosen.IsEmpty() ? INDEX_NONE : Used;
+	}
+	if (OutWhy && Chosen.IsEmpty())
+	{
+		*OutWhy = TurnedDown.Describe(Candidates.Num());
+	}
 
 	// Nowhere on its ground fits the whole of its largest body: it stands in the roomiest spot, but the level should give it
 	// more room (or the spawner a better point).

@@ -27,6 +27,9 @@ hangs on the hook (CellarKey, MinersTag), the thing hanging plumb below. Sizes a
                     curled on the ground to its brass end ring. Pivot: the reel's middle on the ground.
   GraveCoins        Fenn's fare: two old gold coins (a worn profile; a sun with rays), 6.4 cm apart centre to centre, as
                     they lie on a dead man's eyes, so the same model goes on FennCoffin's SOCKET_Eyes.
+  FennsFare         Fenn's fare as it lies under the agent's door (the item FennsFare wears it): the two GraveCoins on a
+                    folded white linen handkerchief (17 x 15 cm, the near right corner turned back), the sun coin flat,
+                    the profile tipped on a crease, so it reads on dark boards from a few steps off.
   GravemotherFang   her fang, 0.4 m: a curved black fang on the stump of its bone-white chelicera, torn off at its root,
                     bristles. Lying on its side.
   LampOil           a coal-oil can (Calder's Post): oxide-red tin, a cream label band lettered COAL OIL, the spout's cap,
@@ -888,26 +891,36 @@ HEAD = [(0.35, -0.9), (0.3, -0.55), (0.4, -0.35), (0.55, -0.05), (0.55, 0.3), (0
         (-0.32, -0.42), (-0.22, -0.55), (-0.25, -0.9)]
 
 
-def grave_coins():
-    m = Model('GraveCoins', seed=SEED + 70)
-    R, T, RIM, SINK, RELIEF = 0.018, 0.0024, 0.0022, 0.0004, 0.00045
+COIN_R, COIN_T = 0.018, 0.0024        # a grave coin's radius and thickness (m)
+
+
+def grave_coin(side, k):
+    """One of Fenn's two coins at the origin, lying face up: the worn profile ('head') or the sun with rays ('sun'); k its
+    place among the two (its seeds)."""
+    R, T, RIM, SINK, RELIEF = COIN_R, COIN_T, 0.0022, 0.0004, 0.00045
     profile = [(0.0, SINK), (R - RIM, SINK), (R - RIM * 0.6, 0.0), (R, 0.0), (R, T), (R - RIM * 0.6, T),
                (R - RIM, T - SINK), (0.0, T - SINK)]
     face = T - SINK
+    coin = [paint(lp.lathe(profile, segments=22)[0], 'AmmoCaseBrass', density=2048.0, seed=SEED + 71 + k)]
+    if side == 'head':
+        coin.append(flat([[(px * 0.0118, py * 0.0118) for px, py in HEAD]], face, face + RELIEF, 'AmmoCaseBrass',
+                         density=2048.0, seed=SEED + 73))
+    else:
+        coin.append(flat([circle(0.0, 0.0, 0.0068, 14), circle(0.0, 0.0, 0.0047, 10, reverse=True)], face,
+                         face + RELIEF, 'AmmoCaseBrass', density=2048.0, seed=SEED + 74))
+        for j in range(8):
+            a = 2.0 * math.pi * j / 8
+            d, s = Vector((math.cos(a), math.sin(a), 0.0)), Vector((-math.sin(a), math.cos(a), 0.0))
+            tri = [tuple(d * 0.0076 - s * 0.0016)[:2], tuple(d * 0.0124)[:2], tuple(d * 0.0076 + s * 0.0016)[:2]]
+            coin.append(flat([tri], face, face + RELIEF, 'AmmoCaseBrass', density=2048.0, seed=SEED + 75 + j))
+    return coin
+
+
+def grave_coins():
+    m = Model('GraveCoins', seed=SEED + 70)
     parts = []
     for k, (x, y, yaw, side) in enumerate(((-0.032, 0.0015, 12.0, 'head'), (0.032, -0.002, -40.0, 'sun'))):
-        coin = [paint(lp.lathe(profile, segments=22)[0], 'AmmoCaseBrass', density=2048.0, seed=SEED + 71 + k)]
-        if side == 'head':
-            coin.append(flat([[(px * 0.0118, py * 0.0118) for px, py in HEAD]], face, face + RELIEF, 'AmmoCaseBrass',
-                             density=2048.0, seed=SEED + 73))
-        else:
-            coin.append(flat([circle(0.0, 0.0, 0.0068, 14), circle(0.0, 0.0, 0.0047, 10, reverse=True)], face,
-                             face + RELIEF, 'AmmoCaseBrass', density=2048.0, seed=SEED + 74))
-            for j in range(8):
-                a = 2.0 * math.pi * j / 8
-                d, s = Vector((math.cos(a), math.sin(a), 0.0)), Vector((-math.sin(a), math.cos(a), 0.0))
-                tri = [tuple(d * 0.0076 - s * 0.0016)[:2], tuple(d * 0.0124)[:2], tuple(d * 0.0076 + s * 0.0016)[:2]]
-                coin.append(flat([tri], face, face + RELIEF, 'AmmoCaseBrass', density=2048.0, seed=SEED + 75 + j))
+        coin = grave_coin(side, k)
         transform(coin, Matrix.Translation((x, y, 0.0)) @ Matrix.Rotation(math.radians(yaw), 4, 'Z'))
         parts += coin
     m.add_all(parts)
@@ -915,6 +928,45 @@ def grave_coins():
     m.hull((0.11, 0.05, 0.015), at=(0.0, 0.0, 0.0075))
     return m.done('midway between the two coins on the surface; the coins 6.4 cm apart along X (as on two eyes)',
                   ao=0.004, smooth=35.0, min_height=0.00012, crumb=0.0004, lods=False)
+
+
+def fenns_fare():
+    """Fenn's fare as it lies under Mr. Sloane's door (the Old Fare's item): the two coins on a folded white handkerchief,
+    one flat, one tipped against a crease, so the find reads on the landing's dark boards from a few steps off (the
+    2026-10-23 play-check: the two bare coins, 10 x 4 cm, were invisible there; only the prompt showed). The coins are
+    GraveCoins' own. 17 x 15 cm, the near right corner turned back."""
+    m = Model('FennsFare', seed=SEED + 760)
+    W, D = 0.17, 0.15
+    off = Vector((2.3, 5.1, 0.7))
+
+    def surface(x, y):
+        """The folded cloth's top over (x, y): soft creases, the hem curling up a little, the near right corner turned back."""
+        u, v = x / (W * 0.5), y / (D * 0.5)
+        hem = 0.005 * max(0.0, max(abs(u), abs(v)) - 0.6) ** 2 / 0.16
+        corner = max(0.0, (u - v) * 0.5 - 0.55) / 0.45
+        crumple = (0.0022 * noise.noise(Vector((x * 30.0, y * 30.0, 0.0)) + off)
+                   + 0.0011 * noise.noise(Vector((x * 70.0, y * 70.0, 1.0)) + off))
+        return Vector((x, y, 0.0035 + hem + 0.016 * corner ** 1.6 + crumple))
+
+    def resting(x, y, r):
+        """How high a coin of radius r lies over (x, y): on the highest point of the cloth under it."""
+        return max(surface(x + r * math.cos(a), y + r * math.sin(a)).z for a in (2.0 * math.pi * k / 10 for k in range(10)))
+    xs = [W * (k / 12.0 - 0.5) for k in range(13)]
+    ys = [D * (k / 10.0 - 0.5) for k in range(11)]
+    parts = [slab([[surface(x, y) for x in xs] for y in ys], 0.003, 'ClothLinen', seed=SEED + 761)]
+    # The sun coin flat on the cloth; the worn profile beside it, tipped up on a crease toward the eye.
+    for k, (x, y, yaw, tilt, side) in enumerate(((-0.022, 0.012, 28.0, 0.0, 'sun'), (0.026, -0.014, -52.0, 11.0, 'head'))):
+        coin = grave_coin(side, k)
+        z = resting(x, y, COIN_R) + COIN_R * math.sin(math.radians(tilt)) + 0.0002
+        transform(coin, Matrix.Translation((x, y, z)) @ Matrix.Rotation(math.radians(yaw), 4, 'Z')
+                  @ Matrix.Rotation(math.radians(tilt), 4, 'X'))
+        parts += coin
+    move, lo, hi = settle(parts)
+    m.add_all(parts)
+    m.socket('Interact', tuple(move @ Vector((0.0, 0.0, 0.04))), aim((0.0, -1.0, 0.0)))
+    box_hull(m, lo, hi, least=0.05)
+    return m.done('the middle of its footprint on the surface (lying flat, the near right corner turned back)', ao=0.02,
+                  smooth=35.0, min_height=0.00012, crumb=0.0004, lods=False)
 
 
 # --- The miner's tag ---
@@ -2094,7 +2146,9 @@ BUILDERS = [('LanternBail', lantern_bail), ('WinchCrank', winch_crank), ('CoalSa
             ('DeaconsSlip', deacons_slip), ('KeepersRoll', keepers_roll), ('LedgerPage', ledger_page),
             ('DeaconLetter', deacon_letter), ('PostRack', post_rack), ('ReachesMap', reaches_map),
             # 2026-10-20 (the hero pick): the roll every hero but Ellis sees. Last, so the others come out as before.
-            ('KeepersRoll_Bare', lambda: keepers_roll(bare=True))]
+            ('KeepersRoll_Bare', lambda: keepers_roll(bare=True)),
+            # 2026-10-23 (R2 play-check): Fenn's coins as they lie under the agent's door. Last, as above.
+            ('FennsFare', fenns_fare)]
 
 
 def build():
@@ -2121,6 +2175,7 @@ CAPTIONS = {
     'CellarKey': 'Cellar key on its cord and CELLAR fob (hangs)',
     'TapeMeasure': "Thaddeus's tape, run out to its end ring",
     'GraveCoins': "Fenn's fare: two old gold coins",
+    'FennsFare': "Fenn's fare under the agent's door: on a handkerchief",
     'MinersTag': "No. 7, J. Odell's tag (the board's disc)",
     'GravemotherFang': 'Her fang on its torn chelicera, 40 cm',
     'SheriffBadge': "Odell's star: a point bent, a ball bitten off",
@@ -2279,7 +2334,7 @@ def lineup(built):
     """Every model at one scale on the ground: the coffin, the roll and the chest at the back, the small things in front."""
     order = ['FennCoffin', 'KeepersRoll', 'PayrollChest', 'CoalSack', 'SheriffHat', 'LampOil', 'PostLog', 'PayrollBook',
              'WinchCrank', 'GravemotherFang', 'ClampPin', 'TapeMeasure', 'Journal', 'CodeBook', 'LanternBail',
-             'DeaconsSlip', 'SheriffBadge', 'GraveCoins', 'CacheTag', 'CellarKey', 'MinersTag']
+             'DeaconsSlip', 'SheriffBadge', 'GraveCoins', 'FennsFare', 'CacheTag', 'CellarKey', 'MinersTag']
     rows = [order[:5], order[5:11], order[11:]]
     y = 0.0
     shown = []

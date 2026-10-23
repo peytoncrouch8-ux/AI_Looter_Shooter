@@ -46,6 +46,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** Its model's bounds, grown to at least a hand's size round it (small things lying about are still easy to look at). */
+	virtual TOptional<FInteractionBox> GetInteractionBox() const override;
 
 	virtual void Tick(float DeltaSeconds) override;
 

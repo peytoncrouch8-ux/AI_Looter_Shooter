@@ -33,6 +33,12 @@ public:
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
+	/** Tests set it before they make a test level, so it gets area rules too (Tests/CreatureLevelSpotTests.cpp). */
+	static bool bAllowInTestWorlds;
+
+	/** A test level's area (it has no map to find one by): its creatures' levels come from InArea's zones. */
+	void SetAreaForTest(UAreaDefinition* InArea) { Area = InArea; }
+
 	/** The area played in this level, or null. */
 	const UAreaDefinition* GetArea() const;
 
@@ -43,8 +49,8 @@ public:
 
 	/**
 	 * Creature's own level here before its rank's (it asks as it begins play, and again each time it comes back): RollLevelIn
-	 * with this level's area and rolls, at the spot it stands on (its home, once it has one), a level of its own when it was
-	 * placed at another than its class's. Never the player's.
+	 * with this level's area and rolls, at its home (ACreatureBase sets it to where it stands before it asks as it begins
+	 * play), a level of its own when it was placed at another than its class's. Never the player's.
 	 */
 	int32 RollLevelFor(const ACreatureBase& Creature, int32 OwnLevel);
 

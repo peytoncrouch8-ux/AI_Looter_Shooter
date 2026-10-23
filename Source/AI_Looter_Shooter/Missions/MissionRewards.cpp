@@ -7,21 +7,27 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/LootFanfareSubsystem.h"
 #include "Loot/LootLibrary.h"
+#include "Loot/LootTossComponent.h"
 #include "Loot/LostLootSubsystem.h"
 #include "Missions/MissionDefinition.h"
 #include "Progression/XPCurve.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponModelComponent.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
 #include "CollisionShape.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/RotatingMovementComponent.h"
 #include "Math/RandomStream.h"
+#include "Templates/SharedPointer.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -35,6 +41,14 @@ namespace
 	/** How far short of a wall, window or fence ahead it keeps (cm), and the gun's size for the look (its loot sphere). */
 	constexpr float WallClearance = 45.f;
 	constexpr float GunRadius = 15.f;
+	/**
+	 * Laid down once it rests: how often it's looked at while its toss runs (s), how long before giving up on a toss that never
+	 * settles (s), how far over the surface its lowest point sits (cm), and how far down the surface is looked for (cm).
+	 */
+	constexpr float RestCheckSeconds = 0.1f;
+	constexpr float RestGiveUpSeconds = 6.f;
+	constexpr double RestLift = 0.3;
+	constexpr double RestSearch = 120.0;
 
 	FString RarityName(EWeaponRarity Rarity)
 	{
@@ -76,7 +90,93 @@ AWeaponBase* MissionRewards::DropInFront(UWorld* World, const FWeaponInstanceDat
 	Gun->Toss((bAllClear ? Ahead * TossOn : FVector::ZeroVector) + FVector(0.f, 0.f, TossUp));
 	// Its rarity heard and its beam flaring as it lands, as any dropped gun's (an Epic or better announced).
 	ULootFanfareSubsystem::ExpectLanding(Gun);
+	// Set down on its side where it comes to rest, as a gift is.
+	LayFlatOnLanding(*Gun);
 	return Gun;
+}
+
+bool MissionRewards::LayFlat(AWeaponBase& Gun, double GroundZ)
+{
+	// Only loot lying loose, built from parts: its model is what turns as loot (the spin), and what's put back when it's
+	// picked up or dropped again (AWeaponBase::SetPickupState), so turning and lowering it changes nothing else.
+	if (!Gun.IsPickup() || Gun.GetAttachParentActor())
+	{
+		return false;
+	}
+	UWeaponModelComponent* Model = Gun.FindComponentByClass<UWeaponModelComponent>();
+	URotatingMovementComponent* Spinner = Gun.FindComponentByClass<URotatingMovementComponent>();
+	if (!Model || !Spinner || Spinner->UpdatedComponent.Get() != Model)
+	{
+		return false;
+	}
+	// Still, on its side, turned the way it came to rest.
+	Spinner->Deactivate();
+	Model->SetRelativeRotation(FRotator(0.f, Model->GetRelativeRotation().Yaw, 90.f));
+
+	// Its parts as they lie now: their middle over the gun's own place, their lowest point on the surface.
+	FBox Parts(ForceInit);
+	TArray<USceneComponent*> Children;
+	Model->GetChildrenComponents(/*bIncludeAllDescendants*/ true, Children);
+	for (const USceneComponent* Child : Children)
+	{
+		const UPrimitiveComponent* Part = Cast<UPrimitiveComponent>(Child);
+		if (Part && Part->IsRegistered() && Part->IsVisible())
+		{
+			Parts += Part->Bounds.GetBox();
+		}
+	}
+	if (!Parts.IsValid)
+	{
+		Parts = FBox::BuildAABB(Model->GetComponentLocation(), FVector(3.0));
+	}
+	const FVector Place = Gun.GetActorLocation();
+	const FVector Shift(Place.X - Parts.GetCenter().X, Place.Y - Parts.GetCenter().Y, GroundZ + RestLift - Parts.Min.Z);
+	Model->SetWorldLocation(Model->GetComponentLocation() + Shift);
+	return true;
+}
+
+void MissionRewards::LayFlatOnLanding(AWeaponBase& Gun)
+{
+	UWorld* World = Gun.GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	// Looked at while its toss runs (the toss lets go of the gun as it comes to rest); laid down then, on what's under it.
+	const TSharedRef<FTimerHandle> Handle = MakeShared<FTimerHandle>();
+	const TSharedRef<float> Waited = MakeShared<float>(0.f);
+	const TWeakObjectPtr<AWeaponBase> Weak(&Gun);
+	World->GetTimerManager().SetTimer(*Handle, FTimerDelegate::CreateWeakLambda(&Gun, [Weak, Handle, Waited]()
+	{
+		AWeaponBase* Lying = Weak.Get();
+		UWorld* Here = Lying ? Lying->GetWorld() : nullptr;
+		if (!Here)
+		{
+			return;
+		}
+		*Waited += RestCheckSeconds;
+		const ULootTossComponent* Toss = Lying->FindComponentByClass<ULootTossComponent>();
+		const bool bResting = !Toss || !Toss->UpdatedComponent;
+		if (!bResting && *Waited < RestGiveUpSeconds)
+		{
+			return;
+		}
+		Here->GetTimerManager().ClearTimer(*Handle);
+		if (!bResting)
+		{
+			return;
+		}
+		// The surface it came to rest on (the toss's, world-static), else the bottom of its loot sphere.
+		const FVector Place = Lying->GetActorLocation();
+		double GroundZ = Place.Z - GunRadius;
+		FHitResult Hit;
+		const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(Here, TEXT("MissionRewardRest"), Lying, /*bTraceComplex*/ false);
+		if (Here->LineTraceSingleByObjectType(Hit, Place, Place - FVector(0.0, 0.0, RestSearch), FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+		{
+			GroundZ = Hit.ImpactPoint.Z;
+		}
+		LayFlat(*Lying, GroundZ);
+	}), RestCheckSeconds, /*bLoop*/ true);
 }
 
 int64 MissionRewards::ExperienceFor(float Share, int32 Level, const FXPCurve& Curve)

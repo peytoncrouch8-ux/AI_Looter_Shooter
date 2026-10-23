@@ -232,7 +232,7 @@ bool UBountyBoardSubsystem::Collect(APawn* Player, FMissionRewardsGiven* OutGive
 	UE_LOG(LogLooter, Log, TEXT("Bounty board: paid %s: +%lld XP, +%d silver (bounty %d paid here)."), *BountyRules::Describe(Paid),
 		Given.Experience, Given.Silver, Record.Paid);
 	DropFight();
-	ClearTracker();
+	ShowPaidTracker();
 	LooterSound::Play2D(this, LooterSoundCue::Bounty::Paid);
 	Announce(Paid, Given);
 	if (OutGiven)

@@ -43,6 +43,13 @@ public:
 	virtual TOptional<FVector> GetInteractionLocation() const { return TOptional<FVector>(); }
 
 	/**
+	 * The part of it the player may look at anywhere to use it (FInteractionBox: the bell's whole rope, a lantern with its
+	 * web, coins with room round them): the cone and the sight are judged by the box's point nearest the crosshair's line,
+	 * and the crosshair through the box is straight at it. Unset: just its point (GetInteractionLocation).
+	 */
+	virtual TOptional<FInteractionBox> GetInteractionBox() const { return TOptional<FInteractionBox>(); }
+
+	/**
 	 * Part (one of its own components, or one on an actor fixed to it) is the thing to use: the crosshair on it offers it,
 	 * and it never hides its own point from the eyes. False for what it only stands in or carries (the depot's walls round a
 	 * station's board, the jetty's deck and the moored skiff's hull round the gangplank): those are looked at as any wall

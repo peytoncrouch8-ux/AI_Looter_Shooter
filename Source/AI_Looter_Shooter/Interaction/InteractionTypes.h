@@ -6,6 +6,35 @@ class AActor;
 class UObject;
 
 /**
+ * The part of an interactable the player may look at anywhere to use it, as a box: the chapel bell's whole hanging rope,
+ * the Keeper's Lantern with the web round it, a few coins with room round them (IInteractable::GetInteractionBox). The
+ * crosshair's line passing through it is looking straight at it; passing beside it, it's judged by the box's nearest point,
+ * so a long rope looked at near its top, or a lantern hanging below the eyes, is still looked at (the 2026-10-23
+ * play-check: the rope took focus only in a narrow band of pitch, the lantern from two spots of four).
+ */
+struct AI_LOOTER_SHOOTER_API FInteractionBox
+{
+	/** Its middle and turn in the world (no scale). */
+	FTransform Transform = FTransform::Identity;
+
+	/** Half its size along its own axes (cm). */
+	FVector Extent = FVector::ZeroVector;
+
+	FInteractionBox() = default;
+	FInteractionBox(const FTransform& InTransform, const FVector& InExtent)
+		: Transform(InTransform.GetRotation(), InTransform.GetLocation()), Extent(InExtent.GetAbs())
+	{
+	}
+
+	/** World point Point is inside it (or on its face). */
+	bool Contains(const FVector& Point) const
+	{
+		const FVector Local = Transform.InverseTransformPositionNoScale(Point);
+		return FMath::Abs(Local.X) <= Extent.X && FMath::Abs(Local.Y) <= Extent.Y && FMath::Abs(Local.Z) <= Extent.Z;
+	}
+};
+
+/**
  * How the Interact key uses something right now, as it tells the interaction component (IInteractable, or the player's
  * component that offered it, IInteractionSource). A thing takes a tap, a hold, or both: with both, letting go before
  * HoldSeconds is the tap (loot: a tap picks it up, a hold equips it). With only a tap, it acts as the key goes down.
@@ -59,8 +88,14 @@ struct AI_LOOTER_SHOOTER_API FInteractionCandidate
 {
 	AActor* Actor = nullptr;
 
-	/** The point looked at to use it: its middle, or where the crosshair's line meets it. */
+	/** The point looked at to use it: its middle, its box's point nearest the crosshair's line, or where the line meets it. */
 	FVector Location = FVector::ZeroVector;
+
+	/**
+	 * Its own middle, when Location is its box's nearest point: the sight check tries it too before calling it hidden (the
+	 * box's near corner can dip behind the ledge the coins lie on, or round the door frame the rope hangs behind).
+	 */
+	TOptional<FVector> Middle;
 
 	FInteractionOptions Options;
 

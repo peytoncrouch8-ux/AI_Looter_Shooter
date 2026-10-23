@@ -57,8 +57,13 @@ struct AI_LOOTER_SHOOTER_API FBountyDrawInput
 {
 	/** The arenas open now (their story condition holds), in a fixed order (by id), so a draw is the same on every load. */
 	TArray<FBountyArenaChoice> Arenas;
-	/** Arenas the other slots and the taken bounty use: never drawn while another is free. */
+	/**
+	 * Arenas the other slots and the taken bounty use, once for each posting (a repeated id counts twice). An arena another
+	 * posting uses is drawn only when every arena has as many; one with PerArena postings is never drawn.
+	 */
 	TArray<FName> BusyArenas;
+	/** Postings one arena holds at once (only one bounty is taken at a time, so they never stack two fights). */
+	int32 PerArena = 3;
 	/** Names up already, as "<Kind>.<Index>" (BountyRules::NameKey): never drawn twice at once. */
 	TArray<FName> BusyNames;
 	/** The hardest tier the story allows now. */

@@ -90,3 +90,8 @@ TArray<float> LootLabelLayout::Arrange(TConstArrayView<FLootLabelBox> Boxes, flo
 	}
 	return Shifts;
 }
+
+bool LootLabelLayout::PlateNamesGun(bool bLookedAt, bool bLabelShowing)
+{
+	return bLookedAt && bLabelShowing;
+}
