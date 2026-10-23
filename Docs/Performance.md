@@ -109,3 +109,5 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-22 | GROUND-DETAIL places (M_Terrain places, clutter, yarrow), RR spawn | bc9a98cf | 1920x1080 | 8.0 | 125 | 9.1 | 6.4 | 7.8 | 2.3 | 6.6 | 1709 | 1736668 | 4.36 |
 | 2026-10-22 | GROUND-DETAIL places, place map mip by distance, RR spawn | bc9a98cf | 1920x1080 | 7.8 | 129 | 8.3 | 3.9 | 7.8 | 1.7 | 6.5 | 1708 | 1735934 | 3.64 |
 | 2026-10-22 | GROUND-DETAIL places final (pattern within 60 m, map within 120 m), RR spawn | bc9a98cf | 1920x1080 | 7.7 | 130 | 8.2 | 4.0 | 7.7 | 1.7 | 6.5 | 1709 | 1735518 | 3.74 |
+| 2026-10-23 | Gun feel pass + grips + arachnids, RR spawn | 7ea84f74 | 1920x1080 | 7.8 | 128 | 8.3 | 4.0 | 7.8 | 1.7 | 6.6 | 1709 | 1735289 | 3.66 |
+| 2026-10-23 | Gun feel pass: 8 spiders, RR spawn | 7ea84f74 | 1920x1080 | 7.9 | 127 | 8.4 | 4.0 | 7.9 | 1.7 | 6.6 | 1709 | 1735634 | 3.62 |
