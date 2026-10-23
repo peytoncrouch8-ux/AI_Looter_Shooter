@@ -64,6 +64,8 @@ public:
 	/** Where a hand's grip point is now, and where it was sent (world): the last frame's pose and its targets. */
 	FVector GetHoldPoint(EFirstPersonHand Hand) const;
 	FVector GetTargetHoldPoint(EFirstPersonHand Hand) const;
+	/** Where it was sent once its palm was seated on its handle (FFirstPersonHandsRig::Seated; world): where it should be. */
+	FVector GetSeatedHoldPoint(EFirstPersonHand Hand) const;
 
 	/** What the support hand did last frame. */
 	EHandsSupportJob GetSupportJob() const { return SupportJob; }
@@ -148,6 +150,28 @@ private:
 
 	/** How far the support hand is toward its parked spot now (0 on the gun, 1 parked). */
 	float OneHandBlend = 0.f;
+
+	/**
+	 * The trigger finger's way to the trigger this frame (FHandsGun::TriggerReady): on it while the trigger is pulled, the
+	 * sights are up or for Looter.Hands.TriggerHoldSeconds after a pull, else eased off to lie along the frame.
+	 */
+	float NextTriggerReady(const AWeaponBase& Weapon, float DeltaTime);
+	float TriggerReady = 1.f;
+	double LastTriggerTime = -1000.0;
+
+	/** Looter.Hands.Grip.Debug: the handles the hands close on, the trigger spot and the finger joints, drawn in the world. */
+	void DrawGripDebug() const;
+
+public:
+	/**
+	 * Looter.Hands.Grip.Report: each hand on the gun in numbers (the gun's own cm): where it was asked to hold and where it
+	 * got to, its palm's gap to its handle, which fingers touched, their curls and gaps, the trigger finger's miss.
+	 */
+	void ReportGrip() const;
+
+private:
+	/** The gun as the hands last saw it (for the report). */
+	FHandsGun LastGun;
 
 	void Show(bool bShow);
 

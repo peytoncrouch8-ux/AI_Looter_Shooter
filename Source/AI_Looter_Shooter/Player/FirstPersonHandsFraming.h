@@ -62,7 +62,7 @@ namespace FPHandsFraming
 		 */
 		float ScreenAngle = 50.f;
 		/** 0-1: how much of its way turns back toward the eye's plane (foreshortened; it pushes a low elbow further out). */
-		float Back = 0.6f;
+		float Back = 0.3f;
 		/** How far outside the frame the elbow stays (share of the half-frame), so the sleeve's cut end never shows. */
 		float ElbowMargin = 0.06f;
 		/** The most the way may swing off the grip table's (degrees): past it the wrist bends unlike a wrist. */

@@ -61,11 +61,18 @@ namespace FirstPersonHands
 	 */
 	inline constexpr float GripOffPalm = 3.6f;
 	inline constexpr float GripPastPalm = 2.2f;
+	/**
+	 * The grip point off the palm's skin (cm): GripOffPalm is measured from the hand's bones, inside the hand; the glove's
+	 * palm lies about 1.6 nearer, on the 4 cm handle's surface (its radius). A palm is seated on a handle by this point.
+	 */
+	inline constexpr float GripOffPalmSkin = 2.0f;
 }
 
 /**
  * Each finger's three joints bent toward the palm from straight (degrees): thumb, index, middle, ring, pinky; from the
  * knuckle out. Absolute: the rig takes off the bend the mesh is made with (SK_FP_Arms rests a little curled).
+ * Spread turns a finger's first joint about the palm's facing (degrees): a finger toward the index side (an indexed
+ * trigger finger lifted along the frame), the thumb toward the fingers' way (laid along a handguard) or, negative, out.
  */
 struct AI_LOOTER_SHOOTER_API FHandFingers
 {
@@ -75,6 +82,7 @@ struct AI_LOOTER_SHOOTER_API FHandFingers
 	static constexpr int32 IndexFinger = 1;
 
 	float Curl[Count][Joints] = {};
+	float Spread[Count] = {};
 
 	/** A grip's curls (FirstPersonHandsFingers.cpp). */
 	static FHandFingers Of(EHandGrip Grip);
@@ -83,10 +91,60 @@ struct AI_LOOTER_SHOOTER_API FHandFingers
 };
 
 /**
+ * A handle's solid as a hand closes on it (FPGRIP, 2026-10-22; the user: "the fingers and hand need to grip the gun
+ * better"): a box with rounded edges running along Axis through Center, HalfAcross along Across (square to Axis: a pistol
+ * grip's front to back, a handguard's height), HalfThrough along the third way (its width), the edges rounded by Corner
+ * (a corner as big as both halves: a round tube), endless along Axis unless HalfLength. Read off the gun models
+ * (Art/Models/Weapons/<Gun>.py); the hands' fingers close till they touch it, the palm is seated on it.
+ */
+struct AI_LOOTER_SHOOTER_API FHandleShape
+{
+	FVector Center = FVector::ZeroVector;
+	FVector Axis = FVector::UpVector;
+	FVector Across = FVector::ForwardVector;
+	float HalfAcross = 2.f;
+	float HalfThrough = 2.f;
+	float Corner = 1.f;
+	float HalfLength = 0.f;
+	bool bValid = false;
+
+	/** Signed distance from the surface (cm): negative inside. An invalid shape is far from everything. */
+	float Distance(const FVector& Point) const;
+
+	/** The same shape seen from another space (sizes scaled with it). */
+	FHandleShape Moved(const FTransform& Space) const;
+
+	/** Alpha of the way from From to To (one without a shape gives way to the one with). */
+	static FHandleShape Blend(const FHandleShape& From, const FHandleShape& To, float Alpha);
+};
+
+/**
+ * How a hand touches what it holds (FirstPersonHandsContact.cpp; the rig does it, after placing the hand): Share of the
+ * way its fingers close till they touch Handle instead of the placement's own curls; Seat of the way its palm slides along
+ * its facing till it rests on the handle SeatGap off; FingerRadius, a gloved finger's half thickness. A trigger hand's
+ * index finger instead goes to TriggerPoint (the trigger's face, where the pad of the finger rests) TriggerShare of the
+ * way, else it lies where its curls put it (indexed along the frame). Lengths in the placement's space (Moved scales them).
+ */
+struct AI_LOOTER_SHOOTER_API FHandContact
+{
+	FHandleShape Handle;
+	float Share = 0.f;
+	float Seat = 0.f;
+	float SeatGap = 0.15f;
+	float FingerRadius = 0.8f;
+	FVector TriggerPoint = FVector::ZeroVector;
+	float TriggerShare = 0.f;
+	bool bTrigger = false;
+
+	FHandContact Moved(const FTransform& Space) const;
+	static FHandContact Blend(const FHandContact& From, const FHandContact& To, float Alpha);
+};
+
+/**
  * Where one hand goes, in whatever space its maker works in: the middle of what it holds (the hand's grip point), how
  * it's turned (its frame: X from the wrist to the knuckles, Y out of the palm toward what it holds), which way its forearm
- * leaves the wrist (the elbow is put that way, so the wrist stays nearly straight; zero: the hand's usual way), and how
- * its fingers close.
+ * leaves the wrist (the elbow is put that way, so the wrist stays nearly straight; zero: the hand's usual way), how
+ * its fingers close, and what they close on (Contact; none: the curls as they are).
  */
 struct AI_LOOTER_SHOOTER_API FHandPlacement
 {
@@ -94,6 +152,7 @@ struct AI_LOOTER_SHOOTER_API FHandPlacement
 	FQuat Turn = FQuat::Identity;
 	FVector Forearm = FVector::ZeroVector;
 	FHandFingers Fingers;
+	FHandContact Contact;
 
 	static FHandPlacement Make(const FVector& InHold, const FVector& FingersDir, const FVector& PalmDir, const FHandFingers& InFingers,
 		const FVector& InForearm = FVector::ZeroVector);
@@ -127,6 +186,11 @@ struct AI_LOOTER_SHOOTER_API FHandsGun
 	 */
 	float BoltOpen = 0.f;
 	float BoltHand = 0.f;
+	/**
+	 * 0-1: the trigger finger on the trigger (1: firing, aiming, or just fired) or laid straight along the frame above the
+	 * guard (0), as a trained shooter keeps it (UFirstPersonHandsComponent eases it; Looter.Hands.TriggerDiscipline 0: always 1).
+	 */
+	float TriggerReady = 1.f;
 	/**
 	 * How much bigger than modeled the gun is drawn (UWeaponModelComponent::ScaleFor). The sockets below already are; the
 	 * hands' own numbers off the gun (FGunHands, the reload spots) are the modeled gun's and are scaled by it.

@@ -29,7 +29,11 @@ struct FHandsRigTargets
  * bArmsOnly (the mannequin stand-in): every bone that isn't an arm's (the body, the head, the legs) collapses to a point
  * between the shoulders, so only the arms show.
  *
- * FirstPersonHandsRig.cpp: binding and the arms; FirstPersonHandsFingers.cpp: the hands' frames, grip points and fingers.
+ * A placement with a contact (FHandContact) has its palm seated on its handle before the arm is solved, and its fingers
+ * closed till they touch it after (the trigger finger onto the trigger).
+ *
+ * FirstPersonHandsRig.cpp: binding and the arms; FirstPersonHandsFingers.cpp: the hands' frames, grip points and fingers;
+ * FirstPersonHandsContact.cpp: handles, seating and closing on them.
  */
 class AI_LOOTER_SHOOTER_API FFirstPersonHandsRig
 {
@@ -81,6 +85,36 @@ public:
 	bool IsCollapsed(int32 Bone) const { return Kept.IsValidIndex(Bone) && !Kept[Bone]; }
 
 	/**
+	 * A finger's joints and its tip (Out[0..2] the three joints, Out[3] the tip; component space) with the hand's bone at
+	 * HandSpace and the finger bent Curl (degrees from straight, knuckle out) and spread Spread (FirstPersonHandsContact.cpp).
+	 * False where the skeleton lacks the finger.
+	 */
+	bool FingerPoints(EFirstPersonHand Hand, const FTransform& HandSpace, int32 Finger, const float Curl[FHandFingers::Joints], float Spread,
+		FVector Out[4]) const;
+
+	/**
+	 * The fingers a placement ends with once its contact is worked (FirstPersonHandsContact.cpp): each finger closed till it
+	 * touches the handle, the trigger finger on the trigger, blended by the contact's shares onto the placement's own curls.
+	 * The hand's bone at HandSpace (component space, as Pose solves it). Cached: a hand held still on a gun reuses its answer.
+	 */
+	FHandFingers ContactFingers(EFirstPersonHand Hand, const FTransform& HandSpace, const FHandPlacement& Target) const;
+
+	/** A finger's tip in a posed component space (past its end joint, as the touch solve takes it). */
+	FVector FingerTipIn(EFirstPersonHand Hand, int32 Finger, const TArray<FTransform>& Space) const;
+
+	/** Which fingers touched their handle in the last solve (a bit per finger, thumb first), and their curls then. */
+	uint8 GetLastTouched(EFirstPersonHand Hand) const { return ContactCache[FirstPersonHands::Index(Hand)].Found; }
+	const FHandFingers& GetLastSolved(EFirstPersonHand Hand) const { return ContactCache[FirstPersonHands::Index(Hand)].Solved; }
+
+	/** The placement with its palm seated on its handle (Contact.Seat of the way, at most MaxSeat cm). */
+	FHandPlacement Seated(const FHandPlacement& Target) const;
+
+	/** The most a palm is slid to seat it (cm): past it the hold itself is wrong, and the table wants fixing. */
+	static constexpr float MaxSeat = 2.5f;
+	/** A finger's tip past its end joint, as a share of the joint before it (the skeleton has no tip bone). */
+	static constexpr float TipShare = 0.85f;
+
+	/**
 	 * The furthest a shoulder comes forward for a far hand (cm): a shotgun's pump is the longest reach, about 65 (more with
 	 * smaller arms). The arms never stretch (a stretched sleeve shows), so a hand further out than this falls short of its
 	 * spot.
@@ -113,7 +147,31 @@ private:
 		FVector CurlAxes[FHandFingers::Count][FHandFingers::Joints];
 		/** How bent each joint already is at rest (degrees): the curls asked for are from straight. */
 		float RestCurls[FHandFingers::Count][FHandFingers::Joints];
+		/** Each finger's spread axis (the palm's facing, signed: index-ward for a finger, the fingers' way for the thumb), in its first joint's space. */
+		FVector SpreadAxes[FHandFingers::Count];
+		/** Each finger's first joint's parent (its metacarpal, or the hand) at rest, in the hand bone's space. */
+		FTransform FingerBase[FHandFingers::Count];
+		/** Each finger's tip in its end joint's space. */
+		FVector TipLocal[FHandFingers::Count];
 	};
+
+	/** A finger joint's transform against its parent, bent Degrees from straight (and, the first joint, spread Spread). */
+	FTransform JointLocal(const FArm& Arm, int32 Finger, int32 Joint, float Degrees, float Spread) const;
+
+	/** What ContactFingers last worked out for a hand, and from what (a still hand on a gun reuses it). */
+	struct FContactCache
+	{
+		FHandleShape Handle;
+		FVector TriggerPoint = FVector::ZeroVector;
+		FHandFingers From;
+		FHandFingers Solved;
+		uint8 Found = 0;
+		bool bTrigger = false;
+		bool bValid = false;
+	};
+	/** The touch-closed fingers, uncached: Found has a bit set per finger that touched (else the placement's curls stand). */
+	FHandFingers SolveContact(EFirstPersonHand Hand, const FTransform& HandSpace, const FHandPlacement& Target, uint8& OutFound) const;
+	mutable FContactCache ContactCache[2];
 
 	/** Finds an arm's four bones; false without them. */
 	bool FindArm(FArm& Arm, EFirstPersonHand Side, const FReferenceSkeleton& Skeleton) const;
@@ -126,8 +184,8 @@ private:
 	void SolveArm(const FArm& Arm, const FHandPlacement& Target, const FVector& DefaultForearm, TArray<int32, TInlineAllocator<8>>& OutBones,
 		TArray<FTransform, TInlineAllocator<8>>& OutSpaces) const;
 
-	/** A finger joint's transform against its parent, curled as the hand's placement says (FirstPersonHandsFingers.cpp). */
-	FTransform CurledLocal(int32 Bone, const FHandsRigTargets& Targets) const;
+	/** A finger joint's transform against its parent, curled as Fingers (by hand) say (FirstPersonHandsFingers.cpp). */
+	FTransform CurledLocal(int32 Bone, const FHandFingers (&Fingers)[2]) const;
 
 	TArray<int32> Parents;
 	TArray<FTransform> RestLocal;

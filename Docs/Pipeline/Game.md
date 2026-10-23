@@ -143,8 +143,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   in `Saved/FPHands/PLAN.md`): muzzle 0.54-0.63 across, 0.52-0.64 down, gun to the bottom-right corner; only gloves and
   wrists show (support glove 0.80-1.0 down; BL3 sometimes a 50-60 deg slanted gauntlet), never an elbow; pistols
   one-handed. Ours now: forearms `FrameForearm` (most slanted way from 50 deg toward straight down whose elbow leaves the
-  frame by 0.06 of the half-frame, 0.6 of it turned back toward the eye's plane, at most 60 deg off the table's way);
-  per kind (baked in `MakeDefaults`): Rifle -12 ahead -2 right -7 up pitch +5, trigger glove 2.5 cm right (no finger
+  frame by 0.06 of the half-frame, 0.3 of it turned back toward the eye's plane (0.6 until FPGRIP), at most 60 deg off the table's way);
+  per kind (baked in `MakeDefaults`): Rifle -12 ahead -2 right -7 up pitch +5, trigger glove 2.5 cm right until FPGRIP (no finger
   through the Bullpup's thumbhole; its support can't slide back: grip loop at u 37.8); Shotgun -1.5 up, support -3;
   Revolver -5 right +1 up roll +6, one-handed (support parked at 20, -26, -38 cm, eased 0.15 s, back on the gun for
   reloads and throws); SMG -1.5 up, support -2; Sniper -6 ahead -3.5 up pitch +2, support -6; LMG -10 ahead -3.5 up pitch
@@ -157,6 +157,25 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   pushed out by `DepthScale`) flattens the gun but not the arms: left off. Framing checks: `Looter.FPHands.PreviewAspect
   1.7778` draws PIE at 16:9 inside the 2.17:1 editor viewport (bars at the sides; grab the middle: x 0.093-0.893, y
   0.132-0.962 of the window); before/after sheet `Saved/FPHands/compare.png`.
+- Grip contact (FPGRIP, 2026-10-22; the user: "grip the gun better and like an actual military officer"; style pick
+  "Modern tactical, not so much hand showing"): each gun kind's handles are rounded boxes (`AddContact`,
+  `FirstPersonHandsGripShapes.cpp`, numbers read off the default parts' .py); the rig seats each palm on its handle
+  (skin 2.0 cm off the grip point, `GripOffPalmSkin`; gap 0.15, at most 2.5 cm, fading out to 5) and closes every finger
+  till it touches (`FirstPersonHandsContact.cpp`, the look sheet's close_fingers; cached while the hand stays put on the
+  gun); thumbs: base swing and spread from the table, outer joints bend 80 degrees toward the fingers' way
+  (`ThumbFlexToFingers`; straight into the palm they stood off grips like pegs), their metacarpal not counted as touching.
+  Trigger finger: on the trigger (searched onto `TriggerAt`, may press its glove against the grip) while firing, aiming
+  or 0.6 s after a pull, else straight along the frame (`TriggerDiscipline` 1). Tuned in PIE: trigger thumbs swing 68
+  round the grip's back (rifle spread 20, rifle palm turned 15 about the post); support thumbs laid forward along the
+  fore-end toward the muzzle on rifle, sniper, LMG (swing -10, spread -45; swung over the top they stood up), pump thumb
+  swing 0 spread 8; rifle support palm on the handguard's lower left corner facing up-right (0, 0.55, 0.83), 1 cm back
+  of the socket (a full C-clamp, elbow out, showed far too much arm); the rifle's 2.5 cm `TriggerRight` dropped;
+  `Looter.FPHands.ForearmBack` 0.6 -> 0.3 (the sleeve's cuff hid the glove). Tune: `Looter.Hands.Kind`, the touch cvars
+  (CODEMAP), `Looter.Hands.Grip.Report` (each hand in gun cm: palm gap, touched fingers, curls, gaps, trigger miss),
+  `Looter.Hands.Grip.Debug 1` (boxes; drawn in world, off the view model's projection), `Looter.Hands.ThumbFlexToFingers`
+  (read at bind: `Looter.Hero Ellis` rebinds). Inspecting a grip: the `Looter.HipHold.*` nudges turn the gun (Yaw -80
+  shows its left side). Known: the Ranchhand's trigger is 13 cm ahead of its wrist (finger can't reach; hand under the
+  frame); a thumb pushed further forward on the Bullpup's post sinks its root in. Grabs `Saved/Screenshots/Tools/fp_grip_<Kind>_hip|ads.png`.
 - Gun sizes (the user, 2026-10-14): drawn bigger than modelled, everywhere: rifle and shotgun 1.1, revolver 1.2
   (`UWeaponModelComponent::ScaleFor`; sockets scale with it). The pistol shows as "Revolver" (DA_Revolver's display name;
   Drover stays its parts' and files' name).

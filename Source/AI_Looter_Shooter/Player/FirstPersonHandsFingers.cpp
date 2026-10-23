@@ -2,6 +2,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "ReferenceSkeleton.h"
+#include "HAL/IConsoleManager.h"
 
 // The hands themselves: each grip's finger curls (code, no animation assets), and FFirstPersonHandsRig's hands: their
 // frames and grip points read off the skeleton, and the finger joints curled toward the palm from straight (whatever
@@ -23,6 +24,24 @@ namespace
 	constexpr float HoldTowardPinky = 0.65f;
 	/** The fingers' end joints rest bent this share of their middle joints (the skeleton has no fingertip to measure it by). */
 	constexpr float EndJointRestShare = 0.6f;
+	/**
+	 * How far a thumb's outer joints bend toward the fingers' way rather than straight into the palm (degrees; tuned in PIE,
+	 * 2026-10-22: at 35 a thumb swung round a grip's back stood off its far side, at 80 it lies on it).
+	 */
+	constexpr float ThumbFlexToFingers = 80.f;
+#if !UE_BUILD_SHIPPING
+	TAutoConsoleVariable<float> CVarThumbFlex(TEXT("Looter.Hands.ThumbFlexToFingers"), ThumbFlexToFingers,
+		TEXT("Degrees a first-person thumb's outer joints bend toward the fingers' way rather than into the palm (read when the arms are bound: Looter.Hero <id> rebinds)."));
+#endif
+
+	float ThumbFlex()
+	{
+#if !UE_BUILD_SHIPPING
+		return CVarThumbFlex.GetValueOnAnyThread();
+#else
+		return ThumbFlexToFingers;
+#endif
+	}
 
 	void SetFinger(FHandFingers& Hand, int32 Finger, float Knuckle, float Middle, float Tip)
 	{
@@ -95,6 +114,7 @@ FHandFingers FHandFingers::Blend(const FHandFingers& From, const FHandFingers& T
 		{
 			Hand.Curl[Finger][Joint] = FMath::Lerp(From.Curl[Finger][Joint], To.Curl[Finger][Joint], Alpha);
 		}
+		Hand.Spread[Finger] = FMath::Lerp(From.Spread[Finger], To.Spread[Finger], Alpha);
 	}
 	return Hand;
 }
@@ -164,7 +184,17 @@ void FFirstPersonHandsRig::BindHand(FArm& Arm, EFirstPersonHand Side, const FRef
 				Along = At(Bone) - At(Before);
 			}
 			Along = Along.GetSafeNormal(UE_SMALL_NUMBER, FingersDir);
-			const FVector Axis = FVector::CrossProduct(Along, Palm).GetSafeNormal(UE_SMALL_NUMBER, Across);
+			FVector Axis = FVector::CrossProduct(Along, Palm).GetSafeNormal(UE_SMALL_NUMBER, Across);
+			if (Finger == FHandFingers::Thumb && Joint > 0)
+			{
+				// A thumb's outer joints bend its tip toward the palm and across toward the fingers (round a grip, over the
+				// fingers in a fist), not straight into the palm: bent only that way it could never lie along a grip's far
+				// side (FPGRIP, 2026-10-22: the thumbs stood off the guns like pegs).
+				const float Toward = FMath::DegreesToRadians(ThumbFlex());
+				FVector Bend = Palm * FMath::Cos(Toward) + FingersDir * FMath::Sin(Toward);
+				Bend = (Bend - Along * FVector::DotProduct(Bend, Along)).GetSafeNormal(UE_SMALL_NUMBER, Palm);
+				Axis = FVector::CrossProduct(Along, Bend).GetSafeNormal(UE_SMALL_NUMBER, Axis);
+			}
 			Arm.CurlAxes[Finger][Joint] = RestSpace[Bone].GetRotation().UnrotateVector(Axis).GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector);
 
 			// The rest bend: the knuckle against the metacarpal (or the hand's line), the middle joint against the first
@@ -183,21 +213,53 @@ void FFirstPersonHandsRig::BindHand(FArm& Arm, EFirstPersonHand Side, const FRef
 			Arm.RestCurls[Finger][Joint] = FMath::Clamp(Rest, -30.f, 90.f);
 		}
 		Arm.RestCurls[Finger][2] = Arm.RestCurls[Finger][1] * EndJointRestShare;
+
+		// For touching what the hand holds (FirstPersonHandsContact.cpp): the first joint's parent in the hand's space, the
+		// spread axis (about the palm's facing: a finger toward the index side, the thumb toward the fingers' way), and the
+		// tip past the end joint, along the joint before it.
+		const int32 First = Arm.Fingers[Finger][0];
+		const int32 End = Arm.Fingers[Finger][2];
+		const int32 BeforeEnd = Arm.Fingers[Finger][1];
+		if (First == INDEX_NONE || End == INDEX_NONE || BeforeEnd == INDEX_NONE)
+		{
+			continue;
+		}
+		const int32 Base = Parents[First] != INDEX_NONE ? Parents[First] : Arm.Hand;
+		Arm.FingerBase[Finger] = RestSpace[Base].GetRelativeTransform(RestSpace[Arm.Hand]);
+		const FVector FirstAlong = (At(BeforeEnd) - At(First)).GetSafeNormal(UE_SMALL_NUMBER, FingersDir);
+		const FVector Toward = Finger == FHandFingers::Thumb ? FingersDir : Across;
+		const FVector SpreadAxis = FVector::CrossProduct(FirstAlong, Toward).GetSafeNormal(UE_SMALL_NUMBER, Palm);
+		Arm.SpreadAxes[Finger] = RestSpace[First].GetRotation().UnrotateVector(SpreadAxis).GetSafeNormal(UE_SMALL_NUMBER, FVector::UpVector);
+		const FVector EndBone = At(End) - At(BeforeEnd);
+		Arm.TipLocal[Finger] = RestSpace[End].InverseTransformVector(EndBone * FFirstPersonHandsRig::TipShare);
 	}
 }
 
-FTransform FFirstPersonHandsRig::CurledLocal(int32 Bone, const FHandsRigTargets& Targets) const
+FTransform FFirstPersonHandsRig::JointLocal(const FArm& Arm, int32 Finger, int32 Joint, float Degrees, float Spread) const
+{
+	const int32 Bone = Arm.Fingers[Finger][Joint];
+	FTransform Local = RestLocal[Bone];
+	const float Turn = Degrees - Arm.RestCurls[Finger][Joint];
+	FQuat Bend = FQuat::Identity;
+	if (!FMath::IsNearlyZero(Turn))
+	{
+		// About the joint's own axis, so the bones beyond it follow it round.
+		Bend = FQuat(Arm.CurlAxes[Finger][Joint], FMath::DegreesToRadians(Turn));
+	}
+	if (Joint == 0 && !FMath::IsNearlyZero(Spread))
+	{
+		// Bent first, then swung about the palm's facing (as fp_arms_sheet.py's finger_fk).
+		Bend = FQuat(Arm.SpreadAxes[Finger], FMath::DegreesToRadians(Spread)) * Bend;
+	}
+	Local.SetRotation((Local.GetRotation() * Bend).GetNormalized());
+	return Local;
+}
+
+FTransform FFirstPersonHandsRig::CurledLocal(int32 Bone, const FHandFingers (&Fingers)[2]) const
 {
 	const int32 Slot = FingerSlot[Bone];
 	const int32 Side = Slot / 15;
 	const int32 Finger = (Slot % 15) / 3;
 	const int32 Joint = Slot % 3;
-	const float Degrees = Targets.Hands[Side].Fingers.Curl[Finger][Joint] - Arms[Side].RestCurls[Finger][Joint];
-	FTransform Local = RestLocal[Bone];
-	if (!FMath::IsNearlyZero(Degrees))
-	{
-		// About the joint's own axis, so the bones beyond it follow it round.
-		Local.SetRotation((Local.GetRotation() * FQuat(Arms[Side].CurlAxes[Finger][Joint], FMath::DegreesToRadians(Degrees))).GetNormalized());
-	}
-	return Local;
+	return JointLocal(Arms[Side], Finger, Joint, Fingers[Side].Curl[Finger][Joint], Fingers[Side].Spread[Finger]);
 }

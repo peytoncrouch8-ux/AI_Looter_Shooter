@@ -40,6 +40,11 @@ namespace
 		0.f,
 		TEXT("The first-person arms' size against the guns while tuning (0: the component's ArmsScale)."));
 
+	TAutoConsoleVariable<int32> CVarGripDebug(
+		TEXT("Looter.Hands.Grip.Debug"),
+		0,
+		TEXT("1 draws the handles the first-person hands close on (boxes), the trigger spot and every finger joint (development)."));
+
 	/** A mesh the component names, if its package is in this build (SK_FP_Arms waits for its import; no warning meanwhile). */
 	USkeletalMesh* LoadIfMade(const TSoftObjectPtr<USkeletalMesh>& Asset)
 	{
@@ -245,7 +250,13 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 
 	const int32 Left = FirstPersonHands::Index(EFirstPersonHand::Left);
 	const int32 Right = FirstPersonHands::Index(EFirstPersonHand::Right);
+	const UWeaponManagerComponent* Manager = Weapons.Get();
+	if (const AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr)
+	{
+		Gun.TriggerReady = NextTriggerReady(*Weapon, Dt);
+	}
 	Targets[Right] = FirstPersonHandsGrips::OnGrip(Gun);
+	LastGun = Gun;
 	Targets[Left] = ParkSupportHand(Gun, PlaceSupportHand(Gun, Dt), Dt);
 
 	// The arms' size (a smaller hand holds the same spots: they're scaled into the mesh's space with it), then into the
@@ -266,6 +277,12 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 	RigTargets.DefaultForearm[Right] = CameraToMesh.TransformVectorNoScale(RightForearm).GetSafeNormal();
 	Rig.Pose(RigTargets, BoneSpaceTransforms, PosedSpace);
 	MarkRefreshTransformDirty();
+#if ENABLE_DRAW_DEBUG
+	if (CVarGripDebug.GetValueOnGameThread() != 0)
+	{
+		DrawGripDebug();
+	}
+#endif
 	// Shown only once posed, so no frame ever shows the mesh's rest pose.
 	Show(true);
 	return true;
@@ -438,6 +455,19 @@ FVector UFirstPersonHandsComponent::GetHoldPoint(EFirstPersonHand Hand) const
 {
 	const int32 Bone = Rig.GetHandBone(Hand);
 	return Rig.IsBound() && Bone != INDEX_NONE ? GetBoneTransform(Bone).TransformPosition(Rig.GetHoldLocal(Hand)) : FVector::ZeroVector;
+}
+
+FVector UFirstPersonHandsComponent::GetSeatedHoldPoint(EFirstPersonHand Hand) const
+{
+	// The seat works in the arms mesh's space (the hand's own size), as the rig does.
+	const UCameraComponent* Eye = Camera.Get();
+	if (!Eye)
+	{
+		return FVector::ZeroVector;
+	}
+	const FTransform MeshToCamera = GetRelativeTransform();
+	const FHandPlacement Seated = Rig.Seated(Targets[FirstPersonHands::Index(Hand)].Moved(MeshToCamera.Inverse()));
+	return Eye->GetComponentTransform().TransformPosition(MeshToCamera.TransformPosition(Seated.Hold));
 }
 
 FVector UFirstPersonHandsComponent::GetTargetHoldPoint(EFirstPersonHand Hand) const

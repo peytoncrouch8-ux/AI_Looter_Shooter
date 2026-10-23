@@ -33,6 +33,9 @@ bool FFirstPersonHandsRig::FindArm(FArm& Arm, EFirstPersonHand Side, const FRefe
 			Arm.CurlAxes[Finger][Joint] = FVector::RightVector;
 			Arm.RestCurls[Finger][Joint] = 0.f;
 		}
+		Arm.SpreadAxes[Finger] = FVector::UpVector;
+		Arm.FingerBase[Finger] = FTransform::Identity;
+		Arm.TipLocal[Finger] = FVector::ZeroVector;
 	}
 	return Arm.UpperArm != INDEX_NONE && Arm.LowerArm != INDEX_NONE && Arm.Hand != INDEX_NONE;
 }
@@ -225,11 +228,21 @@ void FFirstPersonHandsRig::Pose(const FHandsRigTargets& Targets, TArray<FTransfo
 	OutLocal.SetNum(Count);
 	OutSpace.SetNum(Count);
 
+	// Each palm seated on what it holds first (the arm then reaches the seated spot), then its fingers closed on it from
+	// where the solved hand is (FirstPersonHandsContact.cpp); a placement without a contact keeps its curls.
 	TArray<int32, TInlineAllocator<8>> PlacedBones;
 	TArray<FTransform, TInlineAllocator<8>> PlacedSpaces;
+	FHandFingers Fingers[2];
 	for (int32 Side = 0; Side < 2; ++Side)
 	{
-		SolveArm(Arms[Side], Targets.Hands[Side], Targets.DefaultForearm[Side], PlacedBones, PlacedSpaces);
+		const FHandPlacement Target = Seated(Targets.Hands[Side]);
+		SolveArm(Arms[Side], Target, Targets.DefaultForearm[Side], PlacedBones, PlacedSpaces);
+		Fingers[Side] = Target.Fingers;
+		const int32 HandAt = PlacedBones.Find(Arms[Side].Hand);
+		if (Target.Contact.Share > 0.f && Target.Contact.Handle.bValid && HandAt != INDEX_NONE)
+		{
+			Fingers[Side] = ContactFingers(Side == 0 ? EFirstPersonHand::Left : EFirstPersonHand::Right, PlacedSpaces[HandAt], Target);
+		}
 	}
 
 	// Parents first: the arms' solved bones as they are, every other bone at rest under its parent (the fingers curled),
@@ -250,7 +263,7 @@ void FFirstPersonHandsRig::Pose(const FHandsRigTargets& Targets, TArray<FTransfo
 		}
 		else
 		{
-			const FTransform Local = FingerSlot[Bone] >= 0 ? CurledLocal(Bone, Targets) : RestLocal[Bone];
+			const FTransform Local = FingerSlot[Bone] >= 0 ? CurledLocal(Bone, Fingers) : RestLocal[Bone];
 			Space = Parent != INDEX_NONE ? Local * OutSpace[Parent] : Local;
 		}
 		OutSpace[Bone] = Space;

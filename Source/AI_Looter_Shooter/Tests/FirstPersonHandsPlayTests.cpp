@@ -117,9 +117,10 @@ namespace
 			{
 				continue;
 			}
+			// The spot as sent, and where the hand goes once its palm is seated on its handle (FPGRIP).
 			const FVector Target = Player.Hands->GetTargetHoldPoint(Side.Hand);
 			const FVector Held = Player.Hands->GetHoldPoint(Side.Hand);
-			const float OnSpot = static_cast<float>(FVector::Dist(Held, Target));
+			const float OnSpot = static_cast<float>(FVector::Dist(Held, Player.Hands->GetSeatedHoldPoint(Side.Hand)));
 			const float OffSpot = static_cast<float>(FVector::Dist(Target, Side.Spot));
 			Test.TestTrue(FString::Printf(TEXT("%s: %s (%.2f cm from its spot)"), *Name, Side.Which, OnSpot), OnSpot <= HandsPlayOnSpot);
 			Test.TestTrue(FString::Printf(TEXT("%s: ...its spot on the gun as it is this frame (%.2f cm off)"), *Name, OffSpot), OffSpot <= 0.1f);

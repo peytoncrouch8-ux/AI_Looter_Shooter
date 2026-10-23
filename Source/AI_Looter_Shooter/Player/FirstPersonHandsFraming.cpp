@@ -26,8 +26,8 @@ namespace
 	 * Long guns a touch lower, and the support hand slid back along the fore-end where the gun has room (lower on screen, as
 	 * the gun runs down to the bottom right): the Ranchhand's pump, the Rustler's helix, the Longhorn's fore-end ahead of its box
 	 * (52 to 46; the box is at 35.6), the Thresher's handguard (44 to 38; it starts at 37.6). Never the Bullpup's: 6 cm back is
-	 * the front of its grip loop (37.8); its trigger glove goes 2.5 cm to the right instead, so no finger shows through the
-	 * thumbhole. The rifle, LMG and sniper pulled in (the user's call, 2026-10-22: closer and lower, the muzzle tipped up a
+	 * the front of its grip loop (37.8); its trigger glove went 2.5 cm to the right so no finger showed through the thumbhole,
+	 * until FPGRIP placed the trigger finger (2026-10-22). The rifle, LMG and sniper pulled in (the user's call, 2026-10-22: closer and lower, the muzzle tipped up a
 	 * little about the grip, never down: the user rejected a muzzle-down tilt on 2026-10-14), so the support hand sits low in
 	 * the frame; the guns read a bit shorter. The launcher further out so it fills less of the frame; the revolver
 	 * one-handed, brought in toward the middle and stood nearly upright, as Borderlands holds a pistol. Aiming isn't
@@ -46,7 +46,8 @@ namespace
 			Frame.HipRight = -2.f;
 			Frame.HipUp = -7.f;
 			Frame.HipPitch = 5.f;
-			Frame.TriggerRight = 2.5f;
+			// FPGRIP (2026-10-22): no longer 2.5 cm right: the trigger finger is placed (on the trigger or along the frame),
+			// so none shows through the thumbhole, and the palm is seated on the post.
 			break;
 		case EWeaponKind::Shotgun:
 			Frame.HipUp = -1.5f;
@@ -147,7 +148,8 @@ namespace
 		TEXT("Degrees under the horizontal the support forearm runs on screen, down to the left."));
 	TAutoConsoleVariable<float> CVarTriggerAngle(TEXT("Looter.FPHands.TriggerForearmAngle"), 65.f,
 		TEXT("Degrees under the horizontal the trigger forearm runs on screen, down to the right."));
-	TAutoConsoleVariable<float> CVarBack(TEXT("Looter.FPHands.ForearmBack"), 0.6f,
+	// 0.3 since FPGRIP (2026-10-22): at 0.6 the support sleeve's cuff hid the glove holding the gun.
+	TAutoConsoleVariable<float> CVarBack(TEXT("Looter.FPHands.ForearmBack"), 0.3f,
 		TEXT("0-1: how much of a forearm's way turns back toward the eye's plane (foreshortened, coming from behind the view; it also pushes the elbow out of the frame)."));
 	TAutoConsoleVariable<float> CVarElbowMargin(TEXT("Looter.FPHands.ElbowMargin"), 0.06f,
 		TEXT("How far outside the frame the elbow (the sleeve's cut end) stays (share of the half-frame)."));

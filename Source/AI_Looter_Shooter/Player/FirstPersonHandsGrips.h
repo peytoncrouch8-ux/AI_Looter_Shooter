@@ -4,6 +4,24 @@
 #include "Player/FirstPersonHandsTypes.h"
 
 /**
+ * A handle's solid on a gun (FHandleShape in the modeled gun's space): its middle Offset from the hand's socket
+ * (SOCKET_Foregrip, or SOCKET_Grip with bFromGrip: a six-gun's support hand closes round the shooting hand there), its
+ * long way, the way its HalfAcross runs, its half width, the edges' rounding, cm of the modeled gun.
+ */
+struct FHandleSpec
+{
+	FVector Offset = FVector::ZeroVector;
+	FVector Axis = FVector::UpVector;
+	FVector Across = FVector::ForwardVector;
+	float HalfAcross = 2.f;
+	float HalfThrough = 1.7f;
+	float Corner = 0.9f;
+	float HalfLength = 0.f;
+	bool bFromGrip = false;
+	bool bValid = false;
+};
+
+/**
  * One gun kind's hold, in the modeled gun's own space (X to the muzzle, Y right, Z up; cm; the gun is drawn bigger,
  * FHandsGun::Scale, and these offsets grow with it), read off the models in Art/Models/Weapons/<Gun>.py and the approved
  * look sheet's poses (Tools/Blender/fp_arms_sheet.py). A hand is put on a handle: the way its index and thumb lie along it,
@@ -48,6 +66,28 @@ struct FGunHands
 
 	/** The launcher's next rocket: where the support hand holds it, ahead of its seat (it goes in tail first, nose out). */
 	FVector RocketGrab = FVector::ZeroVector;
+
+	// How the hands touch the gun (FPGRIP, 2026-10-22; FirstPersonHandsGripShapes.cpp fills these from the models).
+
+	/** The trigger hand's handle (the pistol grip) and the support hand's (handguard, pump, front grip, helix). */
+	FHandleSpec GripShape;
+	FHandleSpec ForeShape;
+	/** On the trigger's face, where the trigger finger's middle line rests (the modeled gun's own space; zero: no search). */
+	FVector TriggerAt = FVector::ZeroVector;
+	/** The trigger finger off the trigger: nearly straight along the frame above the guard, lifted toward the thumb. */
+	float IndexedCurl[FHandFingers::Joints] = { 4.f, 6.f, 4.f };
+	float IndexedSpread = 6.f;
+	/**
+	 * The thumbs' base swing in across the palm and spread toward the fingers' way (degrees; their outer joints close by
+	 * touch): on the grip swung round its back onto its far side (68: tuned in PIE on the rifle, revolver, SMG, sniper,
+	 * LMG, 2026-10-22), on the foregrip laid along the handguard toward the muzzle.
+	 */
+	float GripThumbSwing = 68.f;
+	float GripThumbSpread = 0.f;
+	float ForeThumbSwing = 10.f;
+	float ForeThumbSpread = 0.f;
+	/** 0-1: how much the support hand's fingers close by touch (the rest: its grip's own curls). */
+	float ForeContact = 1.f;
 };
 
 /** The hands on the gun: the trigger hand on its grip, the support hand on its foregrip (FirstPersonHandsGrips.cpp). */
@@ -92,4 +132,30 @@ namespace FirstPersonHandsGrips
 	 */
 	AI_LOOTER_SHOOTER_API void OnHandle(EFirstPersonHand Hand, const FVector& Handle, const FVector& Palm, float Tilt, FVector& OutFingers,
 		FVector& OutPalm);
+
+	/** A kind's handles, trigger and thumbs, read off its model (FirstPersonHandsGripShapes.cpp; For's tables get them). */
+	AI_LOOTER_SHOOTER_API void AddContact(EWeaponKind Kind, FGunHands& Hands);
+
+	/**
+	 * The touch tuning on a kind's hold (development builds; Looter.Hands.Kind picks the kind as for the rest):
+	 * Looter.Hands.GripShape* / ForeShape* (Ahead, Right, Up, HalfAcross, HalfThrough, Corner: cm of the modeled gun),
+	 * TriggerAtAhead / TriggerAtUp, TriggerThumbSwing / TriggerThumbSpread, SupportThumbSwing / SupportThumbSpread,
+	 * IndexedSpread (degrees). Looter.Hands.ContactDump prints the numbers to bake.
+	 */
+	AI_LOOTER_SHOOTER_API void TuneContact(EWeaponKind Kind, FGunHands& Hands);
+
+	/**
+	 * A hand's contact on the gun (camera space): Spec's handle on Socket (the modeled gun's: Gun.Grip or Gun.Foregrip,
+	 * already drawn to scale; Slide moves the handle with a racked pump, cm of the modeled gun), Share of the fingers closing
+	 * on it, the palm seated, and with a trigger point (TriggerAt non-zero, bTrigger) the trigger finger on it TriggerShare of
+	 * the way. Looter.Hands.Contact, .Seat, .SeatGap, .FingerRadius set the shares and sizes.
+	 */
+	AI_LOOTER_SHOOTER_API FHandContact ContactOnGun(const FHandsGun& Gun, const FVector& Socket, const FHandleSpec& Spec, float Share,
+		const FVector& TriggerAt, float TriggerShare, const FVector& Slide = FVector::ZeroVector);
+
+	/** Looter.Hands.TriggerDiscipline (default 1): the trigger finger lies along the frame when it isn't wanted on the trigger. */
+	AI_LOOTER_SHOOTER_API bool UseTriggerDiscipline();
+
+	/** Seconds the trigger finger stays on the trigger after the last pull (Looter.Hands.TriggerHoldSeconds). */
+	AI_LOOTER_SHOOTER_API float TriggerHoldSeconds();
 }

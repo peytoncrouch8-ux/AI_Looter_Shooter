@@ -30,16 +30,24 @@ namespace
 		Hands.GripPalm = FVector(0.15f, -1.f, 0.f);
 		Hands.GripTilt = -25.f;
 		Hands.GripForearm = FVector(-0.45f, 0.35f, -0.82f);
-		Hands.GripHold = FVector(0.f, 0.8f, 0.f);
+		// FPGRIP (2026-10-22, tuned in PIE): the palm turned 15 degrees about the post onto its back, seated on it (at 30 the
+		// trigger finger fell short of the trigger; further forward the thumb's root sank into the post).
+		Hands.GripTurn = FRotator(0.f, -15.f, 0.f);
+		Hands.GripHold = FVector::ZeroVector;
 		// The trigger is 4 cm ahead of the post: a short reach, the finger well bent.
 		Hands.TriggerCurl[0] = 30.f;
 		Hands.TriggerCurl[1] = 50.f;
 		Hands.TriggerCurl[2] = 25.f;
-		Hands.ForeHandle = FVector(0.92f, -0.4f, 0.f);
-		Hands.ForePalm = FVector(0.f, 0.1f, 1.f);
-		// Tuned in game (2026-10-14): steeper from below, so the sleeve's cut end stays under the frame's bottom edge.
+		// FPGRIP (the user, 2026-10-22: "Modern tactical", thumb over the handguard, but compact on screen; was palm up under
+		// it, ForePalm (0, 0.1, 1), ForeHold (0, 0.6, 4.5)): the palm on the handguard's lower left corner facing up and
+		// right, the thumb along its top-left edge toward the muzzle and over it (ForeThumbSwing), the fingers wrapped under
+		// its belly and up its far side (closed by touch); a full C-clamp (elbow out, forearm across the screen) showed far
+		// too much arm, so the forearm still comes up from the lower left. The grip point in the middle, 1 cm back (its thumb
+		// then ends on the handguard, not on the thinner barrel ahead of it).
+		Hands.ForeHandle = FVector(0.95f, -0.3f, 0.05f);
+		Hands.ForePalm = FVector(0.f, 0.55f, 0.83f);
 		Hands.ForeForearm = FVector(-0.30f, -0.26f, -0.92f);
-		Hands.ForeHold = FVector(0.f, 0.6f, 4.5f);
+		Hands.ForeHold = FVector(-1.f, 0.f, 4.25f);
 		Hands.ForeGrip = EHandGrip::Forend;
 		// The charging handle on the shell's left, ahead of the sight rail (Bullpup.py's fittings).
 		Hands.Handle = FVector(41.5f, -1.9f, 3.2f);
@@ -306,13 +314,19 @@ namespace
 
 const FGunHands& FirstPersonHandsGrips::For(EWeaponKind Kind)
 {
-	static const FGunHands Rifle = MakeRifle();
-	static const FGunHands Shotgun = MakeShotgun();
-	static const FGunHands Revolver = MakeRevolver();
-	static const FGunHands SMG = MakeSMG();
-	static const FGunHands Sniper = MakeSniper();
-	static const FGunHands LMG = MakeLMG();
-	static const FGunHands Launcher = MakeLauncher();
+	// Each with its handles, trigger and thumbs (FirstPersonHandsGripShapes.cpp).
+	auto WithContact = [](EWeaponKind Kind, FGunHands Hands)
+	{
+		AddContact(Kind, Hands);
+		return Hands;
+	};
+	static const FGunHands Rifle = WithContact(EWeaponKind::Rifle, MakeRifle());
+	static const FGunHands Shotgun = WithContact(EWeaponKind::Shotgun, MakeShotgun());
+	static const FGunHands Revolver = WithContact(EWeaponKind::Revolver, MakeRevolver());
+	static const FGunHands SMG = WithContact(EWeaponKind::SMG, MakeSMG());
+	static const FGunHands Sniper = WithContact(EWeaponKind::Sniper, MakeSniper());
+	static const FGunHands LMG = WithContact(EWeaponKind::LMG, MakeLMG());
+	static const FGunHands Launcher = WithContact(EWeaponKind::Launcher, MakeLauncher());
 	switch (Kind)
 	{
 	case EWeaponKind::Shotgun:
@@ -369,6 +383,7 @@ FGunHands FirstPersonHandsGrips::Tuned(EWeaponKind Kind)
 	Hands.ForeTurn += FRotator(CVarSupportPitch.GetValueOnGameThread(), CVarSupportYaw.GetValueOnGameThread(), CVarSupportRoll.GetValueOnGameThread());
 	Hands.ForeForearm = SwingForearm(Hands.ForeForearm, CVarSupportArmYaw.GetValueOnGameThread(), CVarSupportArmPitch.GetValueOnGameThread());
 	Hands.ForeHold += FVector(CVarSupportAhead.GetValueOnGameThread(), CVarSupportRight.GetValueOnGameThread(), CVarSupportUp.GetValueOnGameThread());
+	TuneContact(Kind, Hands);
 #endif
 	return Hands;
 }
@@ -403,14 +418,24 @@ FHandPlacement FirstPersonHandsGrips::OnGrip(const FHandsGun& Gun)
 	FVector Palm;
 	OnHandle(EFirstPersonHand::Right, Hands.GripHandle, Hands.GripPalm, Hands.GripTilt, Fingers, Palm);
 	TurnHand(Hands.GripTurn, Fingers, Palm);
+	// The trigger finger on the trigger as far as it's wanted there (Gun.TriggerReady), else laid straight along the frame
+	// (a trained shooter's indexed finger); the thumb's base swung round the grip's far side. The rest close by touch.
 	FHandFingers Curls = FHandFingers::Of(EHandGrip::Trigger);
+	const float Ready = FMath::Clamp(Gun.TriggerReady, 0.f, 1.f);
 	for (int32 Joint = 0; Joint < FHandFingers::Joints; ++Joint)
 	{
-		Curls.Curl[FHandFingers::IndexFinger][Joint] = Hands.TriggerCurl[Joint];
+		Curls.Curl[FHandFingers::IndexFinger][Joint] = FMath::Lerp(Hands.IndexedCurl[Joint], Hands.TriggerCurl[Joint], Ready);
+	}
+	Curls.Spread[FHandFingers::IndexFinger] = FMath::Lerp(Hands.IndexedSpread, 0.f, Ready);
+	if (Hands.GripShape.bValid)
+	{
+		Curls.Curl[FHandFingers::Thumb][0] = Hands.GripThumbSwing;
+		Curls.Spread[FHandFingers::Thumb] = Hands.GripThumbSpread;
 	}
 	// The framing's nudge on top (FPHandsFraming: a trigger glove sunk in a stock brought out where it reads).
-	const FHandPlacement OnTheGrip = InGun(Gun, Gun.Grip + (Hands.GripHold + FPHandsFraming::TriggerNudge(Gun.Kind)) * Gun.Scale, Fingers, Palm, Curls,
+	FHandPlacement OnTheGrip = InGun(Gun, Gun.Grip + (Hands.GripHold + FPHandsFraming::TriggerNudge(Gun.Kind)) * Gun.Scale, Fingers, Palm, Curls,
 		Hands.GripForearm);
+	OnTheGrip.Contact = ContactOnGun(Gun, Gun.Grip, Hands.GripShape, 1.f, Hands.TriggerAt, Ready);
 	// A bolt gun's trigger hand leaves the grip to work the bolt (between shots and in its reload), riding its knob.
 	if (Gun.BoltHand > 0.f && !Hands.BoltPivot.IsZero())
 	{
@@ -433,52 +458,14 @@ FHandPlacement FirstPersonHandsGrips::OnForegrip(const FHandsGun& Gun, float Pum
 #if !UE_BUILD_SHIPPING
 	NudgeSupportFingers(Gun.Kind, Curls);
 #endif
-	return InGun(Gun, Hold, Fingers, Palm, Curls, Hands.ForeForearm);
-}
-
-// ---------------------------------------------------------------------------
-// FHandPlacement
-// ---------------------------------------------------------------------------
-
-FHandPlacement FHandPlacement::Make(const FVector& InHold, const FVector& FingersDir, const FVector& PalmDir, const FHandFingers& InFingers,
-	const FVector& InForearm)
-{
-	FHandPlacement Placement;
-	Placement.Hold = InHold;
-	Placement.Turn = FirstPersonHands::Frame(FingersDir, PalmDir);
-	Placement.Fingers = InFingers;
-	Placement.Forearm = InForearm.GetSafeNormal();
-	return Placement;
-}
-
-FHandPlacement FHandPlacement::Blend(const FHandPlacement& From, const FHandPlacement& To, float Alpha)
-{
-	const float Share = FMath::Clamp(Alpha, 0.f, 1.f);
-	FHandPlacement Placement;
-	Placement.Hold = FMath::Lerp(From.Hold, To.Hold, Share);
-	Placement.Turn = FQuat::Slerp(From.Turn, To.Turn, Share).GetNormalized();
-	Placement.Fingers = FHandFingers::Blend(From.Fingers, To.Fingers, Share);
-	// A way only one end has is kept whole (the other's "the hand's usual way" is only known to the rig).
-	if (From.Forearm.IsNearlyZero() || To.Forearm.IsNearlyZero())
+	if (Hands.ForeShape.bValid && Hands.ForeContact > 0.f)
 	{
-		Placement.Forearm = Share < 0.5f && !From.Forearm.IsNearlyZero() ? From.Forearm : To.Forearm;
-		if (Placement.Forearm.IsNearlyZero())
-		{
-			Placement.Forearm = From.Forearm;
-		}
+		Curls.Curl[FHandFingers::Thumb][0] = Hands.ForeThumbSwing;
+		Curls.Spread[FHandFingers::Thumb] = Hands.ForeThumbSpread;
 	}
-	else
-	{
-		Placement.Forearm = FMath::Lerp(From.Forearm, To.Forearm, Share).GetSafeNormal(UE_SMALL_NUMBER, To.Forearm);
-	}
-	return Placement;
-}
-
-FHandPlacement FHandPlacement::Moved(const FTransform& Space) const
-{
-	FHandPlacement Placement = *this;
-	Placement.Hold = Space.TransformPosition(Hold);
-	Placement.Turn = (Space.GetRotation() * Turn).GetNormalized();
-	Placement.Forearm = Space.GetRotation().RotateVector(Forearm);
-	return Placement;
+	FHandPlacement OnTheForegrip = InGun(Gun, Hold, Fingers, Palm, Curls, Hands.ForeForearm);
+	// The handle under the hand: the pump racks back with it; a six-gun's support hand closes round the shooting hand.
+	const FVector Socket = Hands.ForeShape.bFromGrip ? Gun.Grip : Gun.Foregrip;
+	OnTheForegrip.Contact = ContactOnGun(Gun, Socket, Hands.ForeShape, Hands.ForeContact, FVector::ZeroVector, 0.f, FVector(-PumpBack, 0.f, 0.f));
+	return OnTheForegrip;
 }
