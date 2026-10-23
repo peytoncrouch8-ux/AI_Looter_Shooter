@@ -2,8 +2,8 @@
 // rifle round's hit where the player's view meets the world, once or on a repeat, so a look can be grabbed the same way
 // twice and a performance capture (Tools\perf.ps1 -Exec runs once, before the capture) always has a blast going.
 //   Looter.Vfx.Blast [seconds | off]   a rocket's blast (WeaponRocketBlast::SpawnEffects) at the aim; again every <seconds>
-//   Looter.Vfx.Impact [scale] [surface]  a round's hit on what the aim meets, in its own look (1 a rifle's, 0.6 a pellet's) or
-//                                       the named surface's (Stone, Dirt, Metal...)
+//   Looter.Vfx.Impact [scale] [surface] [kind]  a round's hit on what the aim meets, in its own look (1 a rifle's, 0.6 a pellet's) or
+//                                       the named surface's (Stone, Dirt, Metal...), as the named gun kind's round lands (Sniper...)
 
 #include "CoreMinimal.h"
 
@@ -22,6 +22,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
+#include "UObject/Class.h"
 
 namespace
 {
@@ -128,11 +129,23 @@ namespace
 		{
 			Material = Named;
 		}
+		// A gun kind named third (Sniper, SMG...): its round's look (the gun feel pass: weight, punch, chunks), as a shot of it lands.
+		FVfxRound Round;
+		if (Args.Num() > 2)
+		{
+			const int64 Kind = StaticEnum<EWeaponKind>()->GetValueByNameString(Args[2]);
+			Round.Kind = Kind == INDEX_NONE ? EWeaponKind::None : static_cast<EWeaponKind>(Kind);
+			Round.RoundsLeft = 30;
+			Round.Volley = -1;
+		}
 		FWeaponFX& Effects = Bullets->GetEffects();
 		Effects.Initialize(World);
 		// What it throws lands on the surface it struck (a wall's chunks would want the ground under it: near enough here).
 		const FPlane Floor(Hit.ImpactPoint, FVector(Hit.ImpactNormal));
-		Effects.SpawnSurfaceImpact(Hit.ImpactPoint, Hit.ImpactNormal, Direction, Material, Scale, false, Hit.ImpactNormal.Z > 0.6 ? &Floor : nullptr);
+		{
+			const FWeaponFX::FLandingScope Landing(Effects, Round);
+			Effects.SpawnSurfaceImpact(Hit.ImpactPoint, Hit.ImpactNormal, Direction, Material, Scale, false, Hit.ImpactNormal.Z > 0.6 ? &Floor : nullptr);
+		}
 		UE_LOG(LogLooter, Log, TEXT("Looter.Vfx.Impact: surface %d at %s, %.0f m away."), static_cast<int32>(Material), *Hit.ImpactPoint.ToCompactString(),
 			Hit.Distance / 100.f);
 	}
@@ -141,7 +154,7 @@ namespace
 		TEXT("A rocket's blast where the view's aim meets the world; Looter.Vfx.Blast <seconds> repeats it, Looter.Vfx.Blast off stops."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&VfxBlast));
 	FAutoConsoleCommandWithWorldAndArgs VfxImpactCommand(TEXT("Looter.Vfx.Impact"),
-		TEXT("A round's hit where the view's aim meets the world, in that surface's look: [scale, 1 a rifle's] [surface, e.g. Stone]."),
+		TEXT("A round's hit where the view's aim meets the world, in that surface's look: [scale, 1 a rifle's] [surface, e.g. Stone] [gun kind, e.g. Sniper]."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&VfxImpact));
 }
 

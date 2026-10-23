@@ -76,13 +76,18 @@ struct AI_LOOTER_SHOOTER_API FCreatureHitFlash
 	 *  steady fire), rising to full as the gap grows to QuietSeconds (a rifle's full auto is 0.08-0.12 s a shot). */
 	static constexpr float RepeatSeconds = 0.15f;
 	static constexpr float QuietSeconds = 0.45f;
-	static constexpr float RepeatShare = 0.3f;
+	static constexpr float RepeatShare = 0.2f;
 	static constexpr float CriticalRepeatShare = 0.65f;
 	/** The flash's shape on a creature (M_FX_HitFlash: Even + (1 - |N.V|)^RimPower x Rim). The material's defaults
 	 *  (0.35, 1.5, 2: an even glow, the dummies' and the powers' tints) lit thin legs and bristles all over. */
 	static constexpr float Even = 0.08f;
-	static constexpr float Rim = 1.6f;
+	static constexpr float Rim = 1.3f;
 	static constexpr float RimPower = 3.f;
+	/**
+	 * Thin parts' rim fades by this (M_FX_HitFlash's ThinFade: the rim times 1 - ThinFade x how fast the normal turns per pixel).
+	 * A leg is mostly silhouette: under steady crits its rim washed every leg pale (the play-check, 2026-10-23). 0: as before.
+	 */
+	static constexpr float ThinFade = 6.f;
 	/** The overlay stays on (at nothing) this long after a flash, so steady fire doesn't put it on and off every shot. */
 	static constexpr float LingerSeconds = 0.4f;
 
@@ -103,6 +108,8 @@ private:
 	float Time = 1000.f;
 	float Strength = 0.f;
 	bool bCritical = false;
+	/** The last hit was a crit: crits streaming into a head flash at RepeatShare too (they whitened the legs), one among body hits at CriticalRepeatShare. */
+	bool bLastHitCritical = false;
 };
 
 /**

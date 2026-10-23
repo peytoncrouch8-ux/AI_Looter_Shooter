@@ -5,8 +5,10 @@ it was made by hand (2026-09-28) as unlit, additive, used with skeletal meshes, 
 
 Its new parameters keep that look by default (Even 0.35, Rim 1.5, RimPower 2), so the dummies, egg sacs and the powers'
 tints are unchanged; UCreatureReactComponent sets a creature's to a rim of light with barely a lift over the body
-(FCreatureHitFlash::Even 0.08, Rim 1.6, RimPower 3): under full auto the even glow washed a spider into a pale
-see-through ghost. Color and Intensity as before (every user sets both).
+(FCreatureHitFlash::Even 0.08, Rim 1.3, RimPower 3, live as Looter.Creatures.HitFlash.*): under full auto the even glow
+washed a spider into a pale see-through ghost. ThinFade (default 0, creatures 6) fades the rim on thin parts, whose normal
+turns fast across few pixels (2026-10-23: a spider's legs, nearly all silhouette, still washed pale under steady crits).
+Color and Intensity as before (every user sets both).
 
 Run it in the open editor (no C++ needed; the creatures' code sets the new parameters whether or not they exist yet):
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_hit_flash_material.py"
@@ -22,8 +24,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PATH = '/Game/Weapons/FX/M_FX_HitFlash'
 
 CODE = """// Hit flash over a body: Even everywhere, plus a rim toward the silhouette.
-float facing = saturate(abs(dot(normalize(N), normalize(V))));
-return Even + pow(1.0 - facing, max(RimPower, 0.5)) * Rim;"""
+float3 n = normalize(N);
+float facing = saturate(abs(dot(n, normalize(V))));
+float rim = pow(1.0 - facing, max(RimPower, 0.5)) * Rim;
+// Thin parts (legs, bristles) are nearly all silhouette: their normal turns fast across few pixels, so their rim fades by
+// ThinFade (0: as before). Under steady fire a spider's legs washed pale (the play-check, 2026-10-23).
+float bend = length(fwidth(n));
+rim *= saturate(1.0 - bend * ThinFade);
+return Even + rim;"""
 
 
 def log(message):
@@ -65,6 +73,7 @@ def build():
         ('Even', g.scalar('Even', 0.35, -1200, 240), ''),
         ('Rim', g.scalar('Rim', 1.5, -1200, 340), ''),
         ('RimPower', g.scalar('RimPower', 2.0, -1200, 440), ''),
+        ('ThinFade', g.scalar('ThinFade', 0.0, -1200, 540), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -800, 200, 'Hit flash shape')
     color = g.vector('Color', (1.0, 1.0, 1.0, 1.0), -800, -100)
     tinted = g.mul(color, '', g.scalar('Intensity', 1.0, -800, 0), '', -500, -50)

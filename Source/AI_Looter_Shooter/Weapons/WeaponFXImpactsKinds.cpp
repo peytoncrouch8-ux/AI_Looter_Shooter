@@ -1,4 +1,5 @@
 #include "Weapons/WeaponFXImpactLooks.h"
+#include "AI_Looter_Shooter.h"
 #include "Weapons/VfxRules.h"
 #include "Weapons/VfxTuning.h"
 #include "Engine/World.h"
@@ -26,8 +27,8 @@ namespace
 	/** The ring of air over the surface: from, to (cm), thickness, strength (faint: air, not fire), life. */
 	constexpr float PunchRingFrom = 6.f;
 	constexpr float PunchRingTo = 70.f;
-	constexpr float PunchRingWidth = 5.f;
-	constexpr float PunchRingGlow = 3.f;
+	constexpr float PunchRingWidth = 6.f;
+	constexpr float PunchRingGlow = 5.f;
 	constexpr float PunchRingLife = 0.16f;
 	/** The dust ring rolling out over the surface: puffs and their speed (cm/s). */
 	constexpr int32 PunchSkirt = 8;
@@ -58,6 +59,11 @@ double FWeaponFX::EffectsNow() const
 
 void FWeaponFX::SpawnImpactKindLayers(const FImpactSpot& Spot, const FVfxImpactLook& Look)
 {
+	// What landed how (log LogLooter Verbose): the play-check's way to tell a missing look from one grabbed too late.
+	UE_LOG(LogLooter, Verbose, TEXT("Impact: kind %d on %s, %.0f m off, pieces x%.2f, size x%.2f, detail %.2f%s%s%s"),
+		static_cast<int32>(LandingRound.Kind), ImpactSurface::Name(Spot.Material),
+		bHasCamera ? static_cast<float>(FVector::Dist(Spot.Location, LastCamera)) / 100.f : 0.f, Look.Count, Look.Size, Spot.Detail,
+		Look.bPunch ? TEXT(", punch") : TEXT(""), Look.bChunks ? TEXT(", chunks") : TEXT(""), Look.bPellet ? TEXT(", pellet") : TEXT(""));
 	if (Look.bPellet)
 	{
 		// One blast at a time: a new blast's first pellet lays the last one's sheet (its last pellet is long down).
@@ -163,7 +169,9 @@ void FWeaponFX::SpawnImpactPunch(const FImpactSpot& Spot)
 	const FVfxTuning Vfx = FVfxTuning::Live();
 	const float Amount = Vfx.ImpactScale * Spot.Detail;
 	// A ring of air snapping out over the surface (the round's blow, square to it; never thinned: it reads the hit far off).
-	SpawnShockRing(Spot.Point, Spot.Up, PunchRingFrom * Spot.Size, PunchRingTo * Spot.Size, PunchRingWidth, ImpactPunchColor,
+	// Its width as the impact pieces are drawn: wider far off (5 cm was a pixel at 35 m; the play-check, 2026-10-23).
+	SpawnShockRing(Spot.Point, Spot.Up, PunchRingFrom * Spot.Size, PunchRingTo * Spot.Size, PunchRingWidth * Spot.Seen / FMath::Max(Spot.Size, 0.1f),
+		ImpactPunchColor,
 		PunchRingGlow * Vfx.Glow * Vfx.ImpactScale, PunchRingLife);
 	// ...and a ring of its dust rolling out after it.
 	const FLinearColor Dust = DustOf(Spot.Material) * Spot.Shade;

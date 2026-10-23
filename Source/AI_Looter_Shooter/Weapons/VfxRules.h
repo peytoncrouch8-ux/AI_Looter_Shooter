@@ -64,6 +64,21 @@ namespace VfxRules
 	/** What a blast's dust sheet adds there: sparks off what sparks (gravel, stone, metal), spray off water, a fan off the rest. */
 	AI_LOOTER_SHOOTER_API EVfxSheet SheetOf(EImpactMaterial Material);
 
+	/**
+	 * What a known gun's hit on a surface nothing names is drawn as (the play-check, 2026-10-23: a sniper round into unmapped
+	 * ground showed the old puff alone): ground facing up (Normal.Z from 0.6) as dirt, anything else as stone. A named surface
+	 * stays itself.
+	 */
+	AI_LOOTER_SHOOTER_API EImpactMaterial GuessSurface(EImpactMaterial Material, const FVector& Normal);
+
+	// --- A creature hit's glows (the play-check, 2026-10-23: never a white disc over the target) ---
+
+	/** The share of its light a glow at one wound gives when RecentHits (this one too) landed there together: 1 / n. */
+	AI_LOOTER_SHOOTER_API float GlowShare(int32 RecentHits);
+
+	/** A glow's size (cm across) Distance cm from the eye, never wider on screen than MaxRadians (0: as given). */
+	AI_LOOTER_SHOOTER_API float HitFlashSizeAt(float Size, float Distance, float MaxRadians);
+
 	/** A blast's sheet's radius (cm) for its pellets' Spread (their root-mean-square distance from their middle): 40 to 220. */
 	AI_LOOTER_SHOOTER_API float SheetRadius(float Spread);
 

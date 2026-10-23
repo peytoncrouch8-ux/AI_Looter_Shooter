@@ -458,10 +458,17 @@ private:
 	/**
 	 * A crit's own look by what the body spills (WeaponFXCrits.cpp; Looter.Vfx.Hit.CritPop): a spider's shell shards, the
 	 * Gravemother's thick gobs, a slime core's flash ring, an Unpaid's coal flare and soul-light gleam, a miner's rock chips,
-	 * a placeholder's clods. Amount: its pieces' share (detail and a blast's budget in); Size the hit's.
+	 * a placeholder's clods. Amount: its pieces' share (detail and a blast's budget in); Size the hit's; Light its glows' share of
+	 * the wound's light (WoundGlowFor). Its glows are soft discs no wider on screen than a hit's may be (WoundFlashSize).
 	 */
 	void SpawnBloodCrit(ECreatureBlood Blood, const FVector& Point, const FVector& Up, const FVector& Shot, const FLinearColor& Tint, float Size,
-		float Amount);
+		float Amount, float Light);
+	/** Recent creature hits' glows (the play-check, 2026-10-23): glows at one wound share their light (VfxRules::GlowShare). */
+	FVfxHitStream WoundGlowStream;
+	/** The share of its light a creature hit's glows at Location give among the glows there (1 alone), noting it. */
+	float WoundGlowFor(const FVector& Location);
+	/** A creature hit's glow Size cm across at Location, as big as it may look from the camera (Looter.Vfx.Hit.FlashMax). */
+	float WoundFlashSize(const FVector& Location, float Size) const;
 	/** The effects' clock: their world's time (the wall clock without one). */
 	double EffectsNow() const;
 	/** The pool's size (Looter.Vfx.MaxParticles as the effects started). */

@@ -144,6 +144,27 @@ namespace VfxRules
 		}
 	}
 
+	EImpactMaterial GuessSurface(EImpactMaterial Material, const FVector& Normal)
+	{
+		if (Material != EImpactMaterial::Unknown)
+		{
+			return Material;
+		}
+		return Normal.GetSafeNormal().Z >= 0.6 ? EImpactMaterial::Dirt : EImpactMaterial::Stone;
+	}
+
+	float GlowShare(int32 RecentHits)
+	{
+		// Additive light piles up: two glows at one spot are twice as bright. Sharing it keeps a stream or a blast about as
+		// bright as two hits, never a white disc.
+		return 1.f / static_cast<float>(FMath::Max(RecentHits, 1));
+	}
+
+	float HitFlashSizeAt(float Size, float Distance, float MaxRadians)
+	{
+		return StreakWidthAt(Size, Distance, MaxRadians);
+	}
+
 	float SheetRadius(float Spread)
 	{
 		// A point-blank blast's pellets land in a fist; at 15 m they cover a door. The sheet spans a little past them.

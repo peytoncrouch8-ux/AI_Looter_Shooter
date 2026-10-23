@@ -122,7 +122,8 @@ namespace GunfeelKick
 		inline constexpr float SustainCap = 1.2f;
 		inline constexpr float SustainFloor = 0.25f;
 		/** The rifle drifts right by RifleDrift degrees a shot from shot RifleDriftFrom on; the SMG shimmies +- SMGShimmy; the LMG sways. */
-		inline constexpr float RifleDrift = 0.04f;
+		// 0.1, was 0.04: at 0.04 twenty shots drifted 0.11 deg, too little to see (play-check 2026-10-23).
+		inline constexpr float RifleDrift = 0.1f;
 		inline constexpr float RifleDriftFrom = 6.f;
 		inline constexpr float SMGShimmy = 0.03f;
 		inline constexpr float LMGSway = 0.15f;

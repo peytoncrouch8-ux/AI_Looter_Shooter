@@ -98,6 +98,16 @@ namespace
 		TEXT("Fewer of a blast's pellets than this on the world lay no sheet."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxHitCritPop(TEXT("Looter.Vfx.Hit.CritPop"), VfxDefaults.HitCritPop,
 		TEXT("A crit's own look by what the body spills (shards, gobs, a gel ring, a coal's flare, rock chips, clods), times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxHitFlashMax(TEXT("Looter.Vfx.Hit.FlashMax"), VfxDefaults.HitFlashMax,
+		TEXT("A creature hit's glows never look wider than this on screen (radians; 0: no cap)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxHitGlowWindow(TEXT("Looter.Vfx.Hit.GlowWindow"), VfxDefaults.HitGlowWindow,
+		TEXT("Glows at one wound within this long (s) and Hit.GlowReach share their light (each 1/n)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxHitGlowReach(TEXT("Looter.Vfx.Hit.GlowReach"), VfxDefaults.HitGlowReach,
+		TEXT("...and this close (cm)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxHitPelletGlow(TEXT("Looter.Vfx.Hit.PelletGlow"), VfxDefaults.HitPelletGlow,
+		TEXT("A shotgun pellet's glows on a creature, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxHitDropGlow(TEXT("Looter.Vfx.Hit.DropGlow"), VfxDefaults.HitDropGlow,
+		TEXT("How much the spiders' ichor drops glow (read as a level's effects start)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxPowerScale(TEXT("Looter.Vfx.Power.Scale"), VfxDefaults.PowerScale,
 		TEXT("The ember powers' new punch (activation rings, body hits, blasts, strikes), times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxBlastScale(TEXT("Looter.Vfx.Blast.Scale"), VfxDefaults.BlastScale,
@@ -191,6 +201,11 @@ FVfxTuning FVfxTuning::Live()
 	Tuning.ImpactSheetWait = FMath::Clamp(CVarVfxImpactSheetWait.GetValueOnGameThread(), 0.f, 1.f);
 	Tuning.ImpactSheetMin = FMath::Clamp(CVarVfxImpactSheetMin.GetValueOnGameThread(), 1, 32);
 	Tuning.HitCritPop = VfxNotBelowZero(CVarVfxHitCritPop);
+	Tuning.HitFlashMax = FMath::Clamp(CVarVfxHitFlashMax.GetValueOnGameThread(), 0.f, 1.f);
+	Tuning.HitGlowWindow = VfxNotBelowZero(CVarVfxHitGlowWindow);
+	Tuning.HitGlowReach = VfxNotBelowZero(CVarVfxHitGlowReach);
+	Tuning.HitPelletGlow = VfxNotBelowZero(CVarVfxHitPelletGlow);
+	Tuning.HitDropGlow = VfxNotBelowZero(CVarVfxHitDropGlow);
 	Tuning.PowerScale = VfxNotBelowZero(CVarVfxPowerScale);
 	Tuning.BlastScale = VfxNotBelowZero(CVarVfxBlastScale);
 	Tuning.Glow = VfxNotBelowZero(CVarVfxGlow);

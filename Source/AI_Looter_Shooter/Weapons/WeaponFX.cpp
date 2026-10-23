@@ -156,7 +156,8 @@ void FWeaponFX::Initialize(UWorld* World)
 		SoftStreaks = MakeInstances(Actor, TEXT("SoftStreaks"), Plane, SoftMaterial, SoftStreakFloats);
 	}
 	Chips = MakeInstances(Actor, TEXT("Chips"), Cube, MakeSurface(Actor, StoneColor, 0.f), 0);
-	Droplets = MakeInstances(Actor, TEXT("Droplets"), Sphere, MakeSurface(Actor, IchorColor, 0.35f), 0);
+	// The spiders' ichor drops: lit, barely glowing (Looter.Vfx.Hit.DropGlow; at 0.35 they read as lime chips, 2026-10-23).
+	Droplets = MakeInstances(Actor, TEXT("Droplets"), Sphere, MakeSurface(Actor, IchorColor, Tuning.HitDropGlow), 0);
 }
 
 void FWeaponFX::Shutdown()

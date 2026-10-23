@@ -53,6 +53,12 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 {
 	// What it throws lands on the ground under the hit, when it has one (AddParticle gives it to the chunks and sparks).
 	TGuardValue<TOptional<FPlane>> FloorDuringSpawn(SpawnFloor, Floor ? TOptional<FPlane>(*Floor) : TOptional<FPlane>());
+	// A gun's round into a surface nothing names lands as its guess (ground as dirt, the rest as stone; the play-check,
+	// 2026-10-23: a sniper round into unmapped ground showed the old puff alone, none of its kind's look).
+	if (LandingRound.Kind != EWeaponKind::None)
+	{
+		Material = VfxRules::GuessSurface(Material, Normal);
+	}
 	if (Material == EImpactMaterial::Unknown)
 	{
 		// Nothing says what it is: the old sparks, dust and chips.

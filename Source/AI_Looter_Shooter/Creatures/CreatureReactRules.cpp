@@ -84,7 +84,11 @@ float FCreatureHitFlash::ShareFor(float GapSeconds, bool bInCritical)
 void FCreatureHitFlash::Start(bool bInCritical)
 {
 	// Time is the gap since the last hit: steady fire only nudges the flash, a shot after a pause flashes in full.
-	const float New = (bInCritical ? CriticalStrength : NormalStrength) * ShareFor(Time, bInCritical);
+	// Crits streaming into a head (a rifle on a spider's eyes: every round a crit) are steady fire too; only a crit among body
+	// hits keeps its stronger repeat (the play-check, 2026-10-23: a crit stream washed the legs pale).
+	const bool bCritRun = bInCritical && bLastHitCritical;
+	bLastHitCritical = bInCritical;
+	const float New = (bInCritical ? CriticalStrength : NormalStrength) * ShareFor(Time, bInCritical && !bCritRun);
 	// A shotgun's pellets land together: the strongest flash stands, they don't add up.
 	Strength = IsOn() ? FMath::Max(Strength * FMath::Square(1.f - Time / Seconds), New) : New;
 	bCritical = bInCritical || (IsOn() && bCritical);

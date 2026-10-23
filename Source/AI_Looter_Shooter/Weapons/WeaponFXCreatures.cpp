@@ -55,17 +55,20 @@ namespace
 	constexpr float SplatTo = 46.f;
 	constexpr float SplatOpacity = 0.85f;
 	constexpr float SplatLife = 0.22f;
-	/** The hit's pop (a starburst; cm across at a rifle round), its strength and life. */
+	/** The hit's pop (a soft disc since 2026-10-23; cm across at a rifle round), its strength and life. */
 	constexpr float PopSize = 30.f;
 	constexpr float PopGlow = 14.f;
 	constexpr float PopLife = 0.06f;
+	/** Every glow at a wound lives at most this long (s), sits this share of its size off the wound's middle (the play-check, 2026-10-23). */
+	constexpr float WoundGlowLife = 0.07f;
+	constexpr float WoundGlowOffset = 0.2f;
 	/** Gobs a hit throws (heavy, arcing, splatting on the ground), and their size (cm). */
 	constexpr int32 HitGobs = 2;
-	constexpr float GobSize[2] = { 3.5f, 6.f };
+	constexpr float GobSize[2] = { 2.5f, 4.5f };
 	/** A crit's ring round the wound: from, to (cm at a rifle round), thickness, strength, life. */
 	constexpr float CritRingFrom = 6.f;
-	constexpr float CritRingTo = 55.f;
-	constexpr float CritRingWidth = 5.f;
+	constexpr float CritRingTo = 34.f;
+	constexpr float CritRingWidth = 3.f;
 	constexpr float CritRingGlow = 16.f;
 	constexpr float CritRingLife = 0.18f;
 	/** A heavy round's exit spray, times its usual share. */
@@ -128,14 +131,31 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 	const float Extra = Amount > 0.f ? Vfx.HitScale * Detail : 0.f;
 	const FVector ExitPoint = Location + Shot * (ExitDepth * Size);
 
-	auto Pop = [this, &Point, Size](const FLinearColor& Color, float Intensity, float From, float To, float Life)
+	// The play-check (2026-10-23: a shotgun blast's crit flashes made a white disc over the spider at 6 m): every glow at the
+	// wound is a soft disc, never wider on screen than Looter.Vfx.Hit.FlashMax, a little off the wound's middle and short;
+	// glows landing together at one wound share their light (a blast's pellets, steady fire), so they never stack into white.
+	const float Light = WoundGlowFor(Location) * (bPellet ? Vfx.HitPelletGlow : 1.f);
+	FVector Across, Over;
+	Shot.FindBestAxisVectors(Across, Over);
+	auto SoftFlash = [this, &Point, &Across, &Over, Light](const FLinearColor& Color, float Intensity, float From, float To, float Life)
 	{
-		FParticle& Flash = AddParticle(EParticle::Flash, Point, FVector::ZeroVector, Life);
+		if (Intensity * Light <= 0.f || To <= 0.f)
+		{
+			return;
+		}
+		const float Big = WoundFlashSize(Point, To);
+		const float Angle = Random.FRandRange(0.f, UE_TWO_PI);
+		const FVector Off = (Across * FMath::Cos(Angle) + Over * FMath::Sin(Angle)) * (WoundGlowOffset * Big);
+		FParticle& Flash = AddParticle(EParticle::Flash, Point + Off, FVector::ZeroVector, FMath::Min(Life, WoundGlowLife));
 		Flash.Color = Color;
-		Flash.Intensity = Intensity;
-		Flash.StartSize = From * Size;
-		Flash.EndSize = To * Size;
+		Flash.Intensity = Intensity * Light;
+		Flash.StartSize = From * Big / To;
+		Flash.EndSize = Big;
 		Flash.Gravity = 0.f;
+	};
+	auto Pop = [&SoftFlash, Size](const FLinearColor& Color, float Intensity, float From, float To, float Life)
+	{
+		SoftFlash(Color, Intensity, From * Size, To * Size, Life);
 	};
 	// The wound's own flash: none for a pellet past its blast's budget.
 	auto Glow = [&Pop, Amount](const FLinearColor& Color, float Intensity, float From, float To, float Life)
@@ -175,14 +195,16 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 		Burst.Gravity = 0.25f;
 		Burst.Drag = 6.f;
 	};
-	// The pop that reads at range: a starburst (never thinned by distance; a blast's spent pellets have none).
-	auto StarPop = [this, &Point, Weight, Amount, &Vfx, bPellet](const FLinearColor& Color, float Strength, int32 Spikes)
+	// The pop that reads at range (never thinned by distance; a blast's spent pellets have none). A soft disc since the
+	// play-check (2026-10-23): a starburst's spikes read as small yellow-green diamonds on the spiders.
+	auto StarPop = [&SoftFlash, Weight, Amount, &Vfx, bPellet](const FLinearColor& Color, float Strength)
 	{
 		if (Amount <= 0.f || Vfx.HitPop <= 0.f)
 		{
 			return;
 		}
-		SpawnStarburst(Point, PopSize * Weight * (bPellet ? 0.6f : 1.f), Color, PopGlow * Strength * Vfx.HitPop * Vfx.Glow, PopLife, Spikes);
+		const float Wide = PopSize * Weight * (bPellet ? 0.6f : 1.f);
+		SoftFlash(Color, PopGlow * Strength * Vfx.HitPop * Vfx.Glow, Wide * 0.35f, Wide, PopLife);
 	};
 	// Lit chunks or drops flung out of the wound, a little back along the shot (they come out the side it went in).
 	auto Fling = [this, &Point, &Up, &Shot, Size, Reach](int32 Count, uint8 Set, float MinSize, float MaxSize, float MinSpeed, float MaxSpeed,
@@ -216,7 +238,7 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 		{
 			const FVector Direction = (Way + Random.GetUnitVector() * Spread).GetSafeNormal();
 			FParticle& Drop = AddParticle(EParticle::Droplet, From, Direction * Random.FRandRange(200.f, MaxSpeed) * Reach, Random.FRandRange(0.45f, 0.7f));
-			Drop.StartSize = Random.FRandRange(1.6f, 2.8f) * Size;
+			Drop.StartSize = Random.FRandRange(1.1f, 2.f) * Size;
 			Drop.Spin = Random.GetUnitVector() * Random.FRandRange(4.f, 10.f);
 		}
 	};
@@ -252,13 +274,14 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 		}
 	};
 	// A coal's flare where it's struck: a small fireball of its colour blooming and cooling in a blink.
-	auto CoalFlare = [this, &Point, &Up, &Tint, Weight, Extra, &Vfx]()
+	auto CoalFlare = [this, &Point, &Up, &Tint, Weight, Extra, &Vfx, Light]()
 	{
 		if (Extra <= 0.f)
 		{
 			return;
 		}
-		SpawnFireball(Point + Up * 4.f, Up * 40.f, 10.f * Weight, 34.f * Weight, FMath::Lerp(Tint, BloodEmberHeat, 0.25f), 3.f * Vfx.Glow,
+		SpawnFireball(Point + Up * 4.f, Up * 40.f, 10.f * Weight, WoundFlashSize(Point, 34.f * Weight), FMath::Lerp(Tint, BloodEmberHeat, 0.25f),
+			3.f * Vfx.Glow * Light,
 			0.16f);
 	};
 	// The exit spray: thrown on along the shot out of the body's far side, fast and in a narrow cone.
@@ -281,10 +304,10 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 		// A spider's yellow-green splash: a wet flash, drops thrown out of the wound, a breath of ichor mist; a splat bursting
 		// out of the wound and a couple of heavy gobs (the pass).
 		Glow(BloodIchorFlash, 7.f, 14.f, 26.f, 0.06f);
-		StarPop(FMath::Lerp(BloodIchorFlash, BloodWetGlint, 0.5f), 0.6f, 5);
+		StarPop(FMath::Lerp(BloodIchorFlash, BloodWetGlint, 0.5f), 0.6f);
 		Splat(BloodIchorMist, SplatOpacity);
 		IchorDrops(Many(7), Point, Up - Shot * 0.2f, 0.7f, bCritical ? 750.f : 550.f);
-		Gobs(BitSetFor(EBitShape::Round, BloodIchorGob, 0.3f));
+		Gobs(BitSetFor(EBitShape::Round, BloodIchorGob, 0.08f));
 		Puffs(Many(1), BloodIchorMist, 0.65f, 10.f, bCritical ? 50.f : 36.f, 0.38f, 0.15f);
 		IchorDrops(ExitMany(7), ExitPoint, Shot, 0.35f, 700.f);
 		break;
@@ -293,7 +316,7 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 	{
 		// Thick and dark: a dull wet flash, heavy drops that fall fast, a dark mist; a dark splat and heavier gobs.
 		Glow(BloodDarkIchorFlash, 5.f, 16.f, 30.f, 0.07f);
-		StarPop(BloodDarkIchorFlash, 0.5f, 5);
+		StarPop(BloodDarkIchorFlash, 0.5f);
 		Splat(BloodDarkIchorMist, SplatOpacity);
 		const uint8 Dark = BitSetFor(EBitShape::Round, Tint, 0.12f);
 		Fling(Many(9), Dark, 2.2f, 4.2f, 220.f, 620.f, 0.7f, 0.15f);
@@ -306,7 +329,7 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 	{
 		// Gel in the slime's own color: a soft glow of it, blobs flung wide and low, a wet spray; a gel splat, two fat blobs.
 		Glow(Tint, 6.f, 16.f, 34.f, 0.08f);
-		StarPop(FMath::Lerp(Tint, BloodWetGlint, 0.6f), 0.55f, 5);
+		StarPop(FMath::Lerp(Tint, BloodWetGlint, 0.6f), 0.55f);
 		Splat(Tint * 0.9f, SplatOpacity * 0.8f);
 		const uint8 Gel = BitSetFor(EBitShape::Round, Tint, 0.45f);
 		for (int32 Index = 0; Index < Many(8); ++Index)
@@ -326,7 +349,7 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 		// A placeholder's wet clay in its kind's colour: a dull pop, clods knocked out of it, a puff of its dust; a clay
 		// splat and two heavy clods.
 		Glow(FMath::Lerp(Tint, BloodWetGlint, 0.3f), 3.f, 12.f, 26.f, 0.06f);
-		StarPop(FMath::Lerp(Tint, BloodWetGlint, 0.45f), 0.45f, 5);
+		StarPop(FMath::Lerp(Tint, BloodWetGlint, 0.45f), 0.45f);
 		Splat(Tint * 0.85f, SplatOpacity * 0.7f);
 		const uint8 Clods = BitSetFor(EBitShape::Round, Tint, 0.15f);
 		Fling(Many(6), Clods, 1.6f, 3.4f, 160.f, 420.f, 0.8f, 0.4f);
@@ -340,7 +363,7 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 		// What burns in it flares where it's struck: embers and motes in the coal's color, and the grave dust it's made of;
 		// the coal's hot starburst and a blink of fire (the pass).
 		Glow(FMath::Lerp(Tint, BloodEmberHeat, 0.4f), 14.f, 10.f, 26.f, 0.07f);
-		StarPop(FMath::Lerp(Tint, BloodEmberHeat, 0.5f), 1.f, 7);
+		StarPop(FMath::Lerp(Tint, BloodEmberHeat, 0.5f), 1.f);
 		CoalFlare();
 		Embers(Many(9), Point, EmberWay, true);
 		Puffs(Many(2), BloodGraveDust, 0.5f, 12.f, 55.f, 0.8f, -0.03f);
@@ -354,7 +377,7 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 	{
 		// A dead miner: the same embers and grave dust, and the mine's rock dust and grit shaken out of his clothes.
 		Glow(FMath::Lerp(Tint, BloodEmberHeat, 0.4f), 12.f, 10.f, 24.f, 0.07f);
-		StarPop(FMath::Lerp(Tint, BloodEmberHeat, 0.5f), 0.9f, 7);
+		StarPop(FMath::Lerp(Tint, BloodEmberHeat, 0.5f), 0.9f);
 		CoalFlare();
 		Embers(Many(7), Point, EmberWay, true);
 		Puffs(Many(1), BloodGraveDust, 0.5f, 12.f, 50.f, 0.8f, -0.03f);
@@ -375,27 +398,34 @@ void FWeaponFX::SpawnCreatureHit(const FVector& Location, const FVector& Normal,
 		break;
 	}
 
+	// The rings round the wound: thin, no wider on screen than a glow may be (half its cap: a ring's radius), their light shared.
+	auto WoundRing = [this, &Point, Light](float From, float To, float Width, const FLinearColor& Color, float Intensity, float Life)
+	{
+		const float RingReach = WoundFlashSize(Point, To * 2.f) * 0.5f;
+		SpawnShockRing(Point, FVector::ZeroVector, FMath::Min(From, RingReach * 0.5f), RingReach, Width, Color, Intensity * Light, Life, true);
+	};
 	if (Amount > 0.f && Extra > 0.f && bHeavy && !bCritical)
 	{
 		// A heavy round's thump: a pale ring snapping out round the wound, facing the eye.
-		SpawnShockRing(Point, FVector::ZeroVector, 4.f * Weight, 34.f * Weight, 3.5f, BloodWetGlint, 7.f * Vfx.Glow, 0.14f, true);
+		WoundRing(4.f * Weight, 34.f * Weight, 3.f, BloodWetGlint, 7.f * Vfx.Glow, 0.12f);
 	}
 	if (bCritical)
 	{
-		// Critical hits get a bright pop on top, whatever they hit (even a pellet past its blast's budget)...
-		Pop(BloodCritColor, 28.f, 26.f, 60.f, 0.1f);
-		// ...and (the pass) a gold starburst and a ring snapping out round the wound: the crit reads at any range.
+		// Critical hits get a warm pop on top, whatever they hit (even a pellet past its blast's budget): small, soft and
+		// short (a white-gold disc 60 cm across hid the target, 2026-10-23)...
+		Pop(BloodCritColor, 22.f, 12.f, 34.f, 0.06f);
+		// ...and (the pass) a thin ring snapping out round the wound: the crit reads at any range. No starburst: its spikes read
+		// as diamonds over the target.
 		if (Vfx.HitScale > 0.f)
 		{
-			SpawnStarburst(Point, 52.f * Weight, BloodCritColor, 24.f * Vfx.Glow * Vfx.HitPop, 0.09f, 10);
-			SpawnShockRing(Point, FVector::ZeroVector, CritRingFrom * Weight, CritRingTo * Weight, CritRingWidth, BloodCritColor,
-				CritRingGlow * Vfx.Glow, CritRingLife, true);
+			WoundRing(CritRingFrom * Weight, CritRingTo * Weight, CritRingWidth, BloodCritColor, CritRingGlow * Vfx.Glow * Vfx.HitPop, CritRingLife);
 			// The gun feel pass: the crit in what this body is made of (WeaponFXCrits.cpp): shell shards, gobs, a core's ring,
-			// a coal's flare. Its pieces thin far off and share a blast's budget (a pellet past it throws none).
+			// a coal's flare. Its pieces thin far off and share a blast's budget (a pellet past it throws none); its glows share
+			// the wound's light.
 			const float Budget = Tuning.SpurtScale > 0.f ? FMath::Clamp(Amount / Tuning.SpurtScale, 0.f, 1.f) : 1.f;
 			if (Vfx.HitCritPop > 0.f)
 			{
-				SpawnBloodCrit(Blood, Point, Up, Shot, Tint, Size, Vfx.HitCritPop * Vfx.HitScale * Detail * Budget);
+				SpawnBloodCrit(Blood, Point, Up, Shot, Tint, Size, Vfx.HitCritPop * Vfx.HitScale * Detail * Budget, Light);
 			}
 		}
 	}

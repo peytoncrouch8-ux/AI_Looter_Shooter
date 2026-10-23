@@ -440,9 +440,9 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		{
 			// The engine cube and sphere are 100 across.
 			const float Size = Particle.StartSize * Shrink(Particle) / 100.f;
-			// A fast drop is drawn as a streak of spray along its flight, rounding up as it slows.
+			// A fast drop is drawn as a thin streak of spray along its flight (thinner as it stretches), rounding up as it slows.
 			const float Stretch = 1.3f + FMath::Min(static_cast<float>(Particle.Velocity.Size()) * SprayStretch, SprayMostStretch);
-			const FVector Scale = Particle.Type == EParticle::Droplet ? FVector(Size * Stretch, Size, Size) : FVector(Size, Size * 0.7f, Size * 0.5f);
+			const FVector Scale = Particle.Type == EParticle::Droplet ? FVector(Size * Stretch, Size / FMath::Sqrt(Stretch), Size / FMath::Sqrt(Stretch)) : FVector(Size, Size * 0.7f, Size * 0.5f);
 			// Droplets stretch along their flight.
 			const FQuat Rotation = Particle.Type == EParticle::Droplet && !Particle.Velocity.IsNearlyZero()
 				? FRotationMatrix::MakeFromX(Particle.Velocity).ToQuat() : Particle.Rotation;
@@ -461,7 +461,7 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			const EBitShape Shape = BitSets[Particle.BitSet].Shape;
 			const bool bRound = Shape == EBitShape::Round;
 			const float Stretch = bRound ? 1.35f + FMath::Min(static_cast<float>(Particle.Velocity.Size()) * SprayStretch, SprayMostStretch) : 1.f;
-			const FVector Scale = bRound ? FVector(Size * Stretch, Size, Size * 0.9f)
+			const FVector Scale = bRound ? FVector(Size * Stretch, Size / FMath::Sqrt(Stretch), Size * 0.9f / FMath::Sqrt(Stretch))
 				: (Shape == EBitShape::Splinter ? FVector(Size * 2.4f, Size * 0.3f, Size * 0.22f) : FVector(Size, Size * 0.8f, Size * 0.28f));
 			const FQuat Rotation = bRound && !Particle.Velocity.IsNearlyZero() ? FRotationMatrix::MakeFromX(Particle.Velocity).ToQuat() : Particle.Rotation;
 			BitTransforms[Particle.BitSet].Add(FTransform(Rotation, Particle.Location, Scale));

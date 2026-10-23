@@ -99,6 +99,18 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	int32 ImpactSheetMin = 3;
 	/** Looter.Vfx.Hit.CritPop: a crit's own look by what the body spills (shell shards, gobs, a gel ring, a coal's flare, rock chips, clods), times. */
 	float HitCritPop = 1.f;
+	/**
+	 * Looter.Vfx.Hit.FlashMax (radians): a creature hit's glows (its pop, a crit's flash and ring) never look wider than this on
+	 * screen (the play-check, 2026-10-23: a shotgun blast's crit flashes at 6 m made a white disc over the spider; 0: no cap).
+	 */
+	float HitFlashMax = 0.03f;
+	/** Looter.Vfx.Hit.GlowWindow (s) / .GlowReach (cm): glows at one wound this close share their light (each 1/n): steady fire and a blast never stack into white. */
+	float HitGlowWindow = 0.2f;
+	float HitGlowReach = 60.f;
+	/** Looter.Vfx.Hit.PelletGlow: a pellet's glows, times (nine land together). */
+	float HitPelletGlow = 0.5f;
+	/** Looter.Vfx.Hit.DropGlow: how much the spiders' ichor drops glow (read as a level's effects start; 0.35 read as lime chips). */
+	float HitDropGlow = 0.1f;
 
 	/** Looter.Vfx.Power.Scale: the ember powers' new punch (activation rings, body hits, blasts, strikes). */
 	float PowerScale = 1.f;

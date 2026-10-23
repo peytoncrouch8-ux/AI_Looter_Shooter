@@ -15,6 +15,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
+#include "HAL/IConsoleManager.h"
 
 const TCHAR* const UCreatureReactComponent::FlashMaterialPath = TEXT("/Game/Weapons/FX/M_FX_HitFlash.M_FX_HitFlash");
 int32 UCreatureReactComponent::QuietDepth = 0;
@@ -29,6 +30,16 @@ namespace
 	const FName CreatureFlashEvenParam(TEXT("Even"));
 	const FName CreatureFlashRimParam(TEXT("Rim"));
 	const FName CreatureFlashRimPowerParam(TEXT("RimPower"));
+	const FName CreatureFlashThinFadeParam(TEXT("ThinFade"));
+	/** The shape live (Looter.Creatures.HitFlash.*; defaults FCreatureHitFlash's), set at each flash: tuned in PIE against a spider's legs. */
+	TAutoConsoleVariable<float> CVarCreatureFlashEven(TEXT("Looter.Creatures.HitFlash.Even"), FCreatureHitFlash::Even,
+		TEXT("A creature's hit flash over its whole body (M_FX_HitFlash Even)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCreatureFlashRim(TEXT("Looter.Creatures.HitFlash.Rim"), FCreatureHitFlash::Rim,
+		TEXT("...its rim round the silhouette (Rim)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCreatureFlashRimPower(TEXT("Looter.Creatures.HitFlash.RimPower"), FCreatureHitFlash::RimPower,
+		TEXT("...how tight the rim hugs the silhouette (RimPower)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCreatureFlashThinFade(TEXT("Looter.Creatures.HitFlash.ThinFade"), FCreatureHitFlash::ThinFade,
+		TEXT("...how much the rim fades on thin parts, legs and bristles (ThinFade; 0: not at all)."), ECVF_Default);
 	/** White with a little warmth; a crit's warmer, toward the coal. */
 	const FLinearColor CreatureFlashColor(1.f, 0.94f, 0.86f);
 	const FLinearColor CreatureCritFlashColor(1.f, 0.78f, 0.48f);
@@ -163,10 +174,12 @@ void UCreatureReactComponent::FlashHit(bool bCritical)
 			return;
 		}
 		FlashLook = UMaterialInstanceDynamic::Create(Base, this);
-		FlashLook->SetScalarParameterValue(CreatureFlashEvenParam, FCreatureHitFlash::Even);
-		FlashLook->SetScalarParameterValue(CreatureFlashRimParam, FCreatureHitFlash::Rim);
-		FlashLook->SetScalarParameterValue(CreatureFlashRimPowerParam, FCreatureHitFlash::RimPower);
 	}
+	// Its shape, as the cvars say now (a thin leg's rim fades: ThinFade; the play-check, 2026-10-23).
+	FlashLook->SetScalarParameterValue(CreatureFlashEvenParam, FMath::Max(CVarCreatureFlashEven.GetValueOnGameThread(), 0.f));
+	FlashLook->SetScalarParameterValue(CreatureFlashRimParam, FMath::Max(CVarCreatureFlashRim.GetValueOnGameThread(), 0.f));
+	FlashLook->SetScalarParameterValue(CreatureFlashRimPowerParam, FMath::Max(CVarCreatureFlashRimPower.GetValueOnGameThread(), 0.5f));
+	FlashLook->SetScalarParameterValue(CreatureFlashThinFadeParam, FMath::Max(CVarCreatureFlashThinFade.GetValueOnGameThread(), 0.f));
 	FlashLook->SetVectorParameterValue(CreatureFlashColorParam, Flash.IsCritical() ? CreatureCritFlashColor : CreatureFlashColor);
 	FlashLook->SetScalarParameterValue(CreatureFlashIntensityParam, Flash.GetIntensity());
 	if (!bFlashWorn)

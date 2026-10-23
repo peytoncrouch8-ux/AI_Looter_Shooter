@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Audio/LooterSoundCues.h"
+#include "Creatures/CreatureReactRules.h"
 #include "UI/HUD/HudHitMarker.h"
 #include "Weapons/BulletMarks.h"
 #include "Weapons/VfxRules.h"
@@ -117,6 +118,22 @@ bool FGunfeelImpactRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...a huge one: the most"), VfxRules::SheetRadius(1000.f), 220.f);
 	TestTrue(TEXT("Puffs 3 to 5"), VfxRules::SheetPuffs(40.f) == 3 && VfxRules::SheetPuffs(220.f) == 5);
 
+	// The play-check's fixes (2026-10-23).
+	TestTrue(TEXT("An unnamed floor lands as dirt, an unnamed wall as stone"),
+		VfxRules::GuessSurface(EImpactMaterial::Unknown, FVector::UpVector) == EImpactMaterial::Dirt
+		&& VfxRules::GuessSurface(EImpactMaterial::Unknown, FVector::ForwardVector) == EImpactMaterial::Stone);
+	TestTrue(TEXT("...a named one stays itself"), VfxRules::GuessSurface(EImpactMaterial::Wood, FVector::UpVector) == EImpactMaterial::Wood);
+	TestEqual(TEXT("A wound's lone glow: all its light"), VfxRules::GlowShare(1), 1.f);
+	float Summed = 0.f;
+	for (int32 Hit = 1; Hit <= 9; ++Hit)
+	{
+		Summed += VfxRules::GlowShare(Hit);
+	}
+	TestTrue(FString::Printf(TEXT("...nine together: about three glows' light, not nine (%.2f)"), Summed), Summed < 3.f);
+	TestEqual(TEXT("A wound's flash at 6 m: never wider than the cap"), VfxRules::HitFlashSizeAt(60.f, 600.f, Tuning.HitFlashMax), 600.f * Tuning.HitFlashMax,
+		0.01f);
+	TestEqual(TEXT("...far off as big as thrown"), VfxRules::HitFlashSizeAt(30.f, 5000.f, Tuning.HitFlashMax), 30.f);
+
 	FVfxBlastSheet Sheet;
 	Sheet.Add(FVector(0.0, -30.0, 0.0), FVector::UpVector, FVector::ForwardVector, EImpactMaterial::Dirt);
 	Sheet.Add(FVector(0.0, 30.0, 0.0), FVector::UpVector, FVector::ForwardVector, EImpactMaterial::Dirt);
@@ -157,6 +174,17 @@ bool FGunfeelImpactKindsTest::RunTest(const FString& Parameters)
 		return Effects.NumParticles() - Before;
 	}();
 	TestTrue(FString::Printf(TEXT("No gun handed in: a rifle round's look (%d, %d)"), NoGun, RifleStone), FMath::Abs(NoGun - RifleStone) <= 3);
+	// A sniper round into ground nothing names still punches (it lands as dirt), where no gun's keeps the old puff.
+	const int32 SniperUnknown = ImpactPieces(Effects, Camera, EWeaponKind::Sniper, EImpactMaterial::Unknown, FVector(-300.0, 0.0, 1.0));
+	const int32 NoGunUnknown = [&]()
+	{
+		RunImpactEffects(Effects, 4.f, Camera);
+		const int32 Before = Effects.NumParticles();
+		Effects.SpawnSurfaceImpact(FVector(-300.0, 600.0, 1.0), FVector::UpVector, FVector(1.0, 0.0, -0.5), EImpactMaterial::Unknown, 1.f, false);
+		return Effects.NumParticles() - Before;
+	}();
+	TestTrue(FString::Printf(TEXT("A sniper into unnamed ground lands as its guess (%d > 2 x %d)"), SniperUnknown, NoGunUnknown),
+		SniperUnknown > NoGunUnknown * 2);
 
 	// A blast: its pellets gather, its sheet waits for the last, then lays once.
 	RunImpactEffects(Effects, 4.f, Camera);
@@ -311,6 +339,43 @@ bool FHudHitMarkerRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...the oldest forgotten"), Memory.Before(First), 1.f);
 	Memory.Refresh();
 	TestEqual(TEXT("One with no ward to read is let go"), Memory.Num(), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelHitFlashStreamTest, "Looter.Vfx.Hit.FlashStream", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelHitFlashStreamTest::RunTest(const FString& Parameters)
+{
+	// The play-check (2026-10-23): a rifle's crits streaming into a spider's head washed its legs pale. A stream of crits only
+	// nudges the body's flash, as steady body hits do; a crit among body hits still stands out; thin parts' rim fades.
+	FCreatureHitFlash Crits;
+	Crits.Start(true);
+	const float First = Crits.GetIntensity();
+	float Steady = 0.f;
+	for (int32 Shot = 0; Shot < 10; ++Shot)
+	{
+		Crits.Advance(0.1f);
+		Crits.Start(true);
+		Steady = FMath::Max(Steady, Crits.GetIntensity());
+	}
+	TestNearlyEqual(TEXT("The first crit flashes in full"), First, FCreatureHitFlash::Glow * FCreatureHitFlash::CriticalStrength, 0.001f);
+	TestTrue(FString::Printf(TEXT("...a stream of them at the repeat share (%.2f)"), Steady),
+		Steady <= FCreatureHitFlash::Glow * FCreatureHitFlash::CriticalStrength * FCreatureHitFlash::RepeatShare + 0.001f);
+
+	FCreatureHitFlash Mixed;
+	Mixed.Start(false);
+	float Body = 0.f;
+	for (int32 Shot = 0; Shot < 5; ++Shot)
+	{
+		Mixed.Advance(0.1f);
+		Mixed.Start(false);
+		Body = FMath::Max(Body, Mixed.GetIntensity());
+	}
+	Mixed.Advance(0.1f);
+	Mixed.Start(true);
+	TestTrue(TEXT("A crit among body hits still stands out"), Mixed.GetIntensity() > Body * 1.5f);
+	TestTrue(TEXT("Thin parts' rim fades on a creature"), FCreatureHitFlash::ThinFade > 0.f);
+	TestNotNull(TEXT("Looter.Creatures.HitFlash.ThinFade exists"), IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Creatures.HitFlash.ThinFade")));
 	return true;
 }
 
