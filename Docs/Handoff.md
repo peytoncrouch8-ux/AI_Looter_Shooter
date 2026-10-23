@@ -3,6 +3,13 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Overnight 2026-10-23 (done so far)
+Committed: FP grips f6bef3d (palms seated, fingers close by touch, trigger finger on trigger when firing, support thumb
+forward on long guns, glove low on the rifle's handguard — a thumb-over C-clamp showed too much arm; ForearmBack 0.6 ->
+0.3; known: shotgun trigger finger can't reach its trigger, below frame at the hip). Gun feel pass 3b63cb0 (all four
+code jobs + sound art merged by GF-MERGE; sound bank 532 cues; M_BulletMark rebuilt; tests green). Next: DEMO play-check
+of the gun feel, then a perf run (tour + fights; impacts/hit markers added cost), then RR play-check rounds.
+
 ## Night of 2026-10-22 (the user went to bed; their calls)
 - Extra sound bundle download: "Do what you feel is best" — Main's call: no download overnight (the download rule needs
   the exact file/source/size shown first); use the recordings on disk; show the user the file in the morning if needed.
