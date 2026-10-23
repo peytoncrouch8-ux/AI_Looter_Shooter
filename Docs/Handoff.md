@@ -16,7 +16,7 @@ blob behind hit numbers, the sniper ground ring (FX-DIAG now diagnosing by switc
 third, diagnosis-led try fails, ask the user).
 RR play-check (01:30) **for the user**: early fights kill a standing-still player (bluff nest 6 spiders, town gate,
 Main Street ambush: 7-10 hits of 21-26 in 5 s) — balance call is the user's (DamageScale 1.8 stays until they say);
-deaths respawn at the farm plot far from town (BUGS-UI reports two options). Being fixed: Main 2's "[Tab], then 2" (Ledger
+deaths respawn at the farm plot far from town: the rule is "last roost found, else the farm start" and RR has only the Depot and Calder's Post roosts — **ask the user**: (A) a town roost (e.g. by the sheriff's office) or (B) a wake spot near the fight lost. Being fixed: Main 2's "[Tab], then 2" (Ledger
 is tab 3), inventory under the HUD tracker/loot card, first Interact missing with the prompt showing, a gate Unpaid
 straying and holding 6/7, the sniper "one-handed" (FP-GRIP: not a bug — the trigger glove sits ~6 cm below the frame at the hip because of the user's pull-in framing; rifle and LMG too; an unapplied option in Saved/FPGrip2Code: sniper HipAhead 0, HipUp 1, partly undoing the pull-in — **ask the user**), Tilly: by design a "talking window" (only the Sexton and Hob have bodies) — **ask the user** whether she gets a
 silhouette behind the curtain. Sexton: flat dark by design (Sexton.py flat coat colour); the gold when highlighted is the
