@@ -47,7 +47,9 @@ enum class EEncounterState : uint8
  *    tree), or too near the player. Spots with room for the largest body its groups bring come first; with too few of
  *    those, the roomiest of the rest (FEncounterGroundProbe);
  *  - its hunting ground (FHuntingGround): its creatures hunt only players within GiveUpRadius of it, or inside
- *    GroundCorners (a fence's line), and give up and go home when their target leaves it;
+ *    GroundCorners (a fence's line), and give up and go home when their target leaves it; in a fight that comes for the
+ *    player (bHuntOnSpawn), one out of the fight while the player is back on its ground is recalled, and brought back on
+ *    its ground out of sight if it doesn't come (UpdateStragglers), so none holds a mission's count short;
  *  - waves, if it has more than one: WaveInterval apart, or each once the last is dead (bWaitForClear), at most MaxAlive at
  *    once and MaxTotal in all;
  *  - when: ActiveWhen (FStoryCondition, with FromStep for a mission's step), read again whenever the missions change. A
@@ -338,6 +340,9 @@ private:
 	{
 		TWeakObjectPtr<ACreatureBase> Creature;
 		int32 Group = INDEX_NONE;
+		/** Seconds out of the fight while the player stands on its ground, and since it was last recalled (UpdateStragglers). */
+		float OutOfFightSeconds = 0.f;
+		float SinceRecallSeconds = 0.f;
 	};
 
 	// --- Its state, the story and its timer (EncounterSpawner.cpp) ---
@@ -367,6 +372,16 @@ private:
 	bool IsAnyInView() const;
 	bool IsAnyFighting() const;
 	const UAreaDefinition* FindArea() const;
+
+	// --- Stragglers (EncounterSpawnerStragglers.cpp) ---
+	/**
+	 * A fight that came for the player (bHuntOnSpawn), while the player is on its ground: each creature out of the fight is
+	 * recalled, and one that stays out of it out of sight is taken away and owed, to come again at once (EncounterRules::
+	 * StragglerCall). A creature never holds its fight's count short by standing somewhere out of the way.
+	 */
+	void UpdateStragglers(float DeltaSeconds);
+	/** The player can be fought here: alive, out of a safe zone, within ActivationRadius and on its hunting ground. */
+	bool IsPlayerOnFightGround(const APawn& Player) const;
 
 	// --- Where they stand (EncounterSpawnerSpots.cpp) ---
 	/**

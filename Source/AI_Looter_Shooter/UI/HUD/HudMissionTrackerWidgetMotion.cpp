@@ -54,29 +54,18 @@ bool UHudMissionTrackerWidget::IsCovered() const
 {
 	const APlayerController* Player = GetOwningPlayer();
 	const ALooterHUD* LooterHUD = Player ? Cast<ALooterHUD>(Player->GetHUD()) : nullptr;
-	if (LooterHUD && LooterHUD->IsMenuOpen())
-	{
-		// An objective done in the inventory (the tutorial's last step) keeps the tracker up over it, so the player sees it
-		// checked; every other menu covers it, the closing line's too.
-		const bool bOverInventory = LooterHUD->IsInventoryOpen() && !LooterHUD->IsStationBoardOpen() && Shown.bOverInventory
-			&& (Phase == EPhase::Showing || Phase == EPhase::Finishing);
-		if (!bOverInventory)
-		{
-			return true;
-		}
-	}
-	// A scene that holds the player (the skiff ride) puts the gameplay HUD away, and the tracker with it.
-	if (USceneSubsystem::HidesGameplayHUD(this))
-	{
-		return true;
-	}
-	// The pause menu pauses the game.
 	const UWorld* World = GetWorld();
-	if (World && World->IsPaused())
-	{
-		return true;
-	}
-	return IsMakingWay();
+	return CoveredBy(LooterHUD && LooterHUD->IsMenuOpen(), USceneSubsystem::HidesGameplayHUD(this), World && World->IsPaused(),
+		IsMakingWay());
+}
+
+bool UHudMissionTrackerWidget::CoveredBy(bool bMenuOpen, bool bSceneHidesHUD, bool bPaused, bool bMakingWay)
+{
+	// Every menu covers it, the inventory too, even on a step done there (Main 2's Ledger, the tutorial's last): over the
+	// pages it sat on their cards (the 2026-10-23 play-check). The check waits: time under a menu doesn't count, so the
+	// player sees it ticked as the menu closes. A scene that holds the player (the skiff ride) puts the gameplay HUD away,
+	// and the tracker with it; the pause menu pauses the game; the loot card has its corner while it's up.
+	return bMenuOpen || bSceneHidesHUD || bPaused || bMakingWay;
 }
 
 bool UHudMissionTrackerWidget::IsMakingWay() const

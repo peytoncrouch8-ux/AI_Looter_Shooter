@@ -1,5 +1,6 @@
 #include "Missions/MissionText.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "UI/Inventory/LoadoutParts.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -22,9 +23,21 @@ namespace
 		return Key.IsValid() ? Key.GetDisplayName(/*bLongDisplayName*/ false).ToString() : Id;
 	}
 
-	/** An action's key, or for Move the four movement keys, space apart ("W A S D"). */
+	/** Where a page of the inventory is named instead of an action: {Page.Bestiary}. */
+	const TCHAR* const PagePrefix = TEXT("Page.");
+
+	/**
+	 * An action's key, or for Move the four movement keys, space apart ("W A S D"), or for Page.<name> the number key that
+	 * turns to that inventory page ("3" for the bestiary), read from the tabs' own table (LoadoutParts::PageNumberKey) so
+	 * a step's words follow the tabs' order (Main 2's said "then 2" after the Embers tab came second: 2026-10-23).
+	 */
 	FString ActionKeyName(const UKeyBindingSubsystem* Keys, const FString& Id)
 	{
+		if (Id.StartsWith(PagePrefix, ESearchCase::CaseSensitive))
+		{
+			const FKey PageKey = LoadoutParts::PageNumberKey(LoadoutParts::PageNamed(Id.RightChop(FCString::Strlen(PagePrefix))));
+			return PageKey.IsValid() ? PageKey.GetDisplayName(/*bLongDisplayName*/ false).ToString() : Id;
+		}
 		if (Id == TEXT("Move"))
 		{
 			return FString::Printf(TEXT("%s %s %s %s"), *BoundKeyName(Keys, TEXT("MoveForward")), *BoundKeyName(Keys, TEXT("MoveLeft")),

@@ -258,3 +258,17 @@ bool EncounterRules::IsWaveDue(bool bWavesLeft, float WaveClock, float WaveInter
 	}
 	return WaveInterval > 0.f && WaveClock >= WaveInterval;
 }
+
+EncounterRules::EStragglerCall EncounterRules::StragglerCall(float OutSeconds, float SinceRecallSeconds, bool bInPlayersView)
+{
+	// Never popped away under the player's eyes: one in view is only ever called.
+	if (OutSeconds >= StragglerBringBackSeconds && !bInPlayersView)
+	{
+		return EStragglerCall::BringBack;
+	}
+	if (OutSeconds >= StragglerRecallSeconds && SinceRecallSeconds >= StragglerRecallEverySeconds)
+	{
+		return EStragglerCall::Recall;
+	}
+	return EStragglerCall::None;
+}

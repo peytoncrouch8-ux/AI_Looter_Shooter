@@ -71,8 +71,8 @@ void ALooterHUD::BeginPlay()
 	{
 		CaptionWidget->AddToViewport(UHudCaptionWidget::ViewportZOrder);
 	}
-	// The mission tracker is its own widget too, over the inventory's pages: it stays up on a step done in the inventory
-	// (the tutorial's last), and follows the tracked mission and the menus by itself.
+	// The mission tracker is its own widget too, under every menu (the inventory's pages too, even on a step done there:
+	// its check waits for the menu to close); it follows the tracked mission and the menus by itself.
 	MissionTracker = CreateWidget<UHudMissionTrackerWidget>(PC, UHudMissionTrackerWidget::StaticClass());
 	if (MissionTracker)
 	{

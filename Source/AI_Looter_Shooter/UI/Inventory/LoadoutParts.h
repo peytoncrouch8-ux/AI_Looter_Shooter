@@ -151,6 +151,16 @@ namespace LoadoutParts
 	int32 PageForNumberKey(const FKey& Key);
 
 	/**
+	 * The number key that turns to page Page (EKeys::Three for the bestiary), or an invalid key for no page. The one table
+	 * PageForNumberKey reads, so words naming a page's key ("{Page.Bestiary}" in a mission's step, MissionText) can't drift
+	 * from the tabs when their order changes.
+	 */
+	FKey PageNumberKey(int32 Page);
+
+	/** The page called Name, in any case: Loadout, Embers, Bestiary (or Ledger, its name once Sexton's), Missions, Map; else INDEX_NONE. */
+	int32 PageNamed(const FString& Name);
+
+	/**
 	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Embers, Bestiary, Missions, Map): each page's name with
 	 * its number key after it, the shown page bright over an orange underline, the others dim, all on one hairline. Each
 	 * tab is a button with ActionPage and its page's index; centered at the top of the page.

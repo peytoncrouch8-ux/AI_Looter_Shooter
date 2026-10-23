@@ -2,9 +2,21 @@
 // is ControlHintRules.cpp's.
 
 #include "Tutorial/ControlHintRules.h"
+#include "UI/HUD/LooterHUD.h"
+#include "UI/Inventory/LoadoutParts.h"
+#include "InputCoreTypes.h"
 
 // The same namespace as the words always had, so a translation keeps finding them.
 #define LOCTEXT_NAMESPACE "ControlHints"
+
+namespace
+{
+	/** The number key that turns the inventory to Page ("3"), from the tabs' own table. */
+	FText PageKeyText(EInventoryPage Page)
+	{
+		return LoadoutParts::PageNumberKey(static_cast<int32>(Page)).GetDisplayName(/*bLongDisplayName*/ false);
+	}
+}
 
 int32 FControlHintRules::MaxShows(EControlHint Hint)
 {
@@ -73,10 +85,12 @@ FText FControlHintRules::Words(EControlHint Hint, bool bToggle)
 	case EControlHint::Slide:     return LOCTEXT("Slide", "Crouch while sprinting to slide");
 	case EControlHint::Swap:      return LOCTEXT("Swap", "Swap guns");
 	case EControlHint::Inventory: return LOCTEXT("Inventory", "Inventory: compare and equip");
-	// After the inventory's keycap, the page's number inside it, as the missions' own words give them
-	// (UMissionOpenPageObjective: "{Inventory}, then 2").
-	case EControlHint::Ledger:    return LOCTEXT("Ledger", "Then 3: the Ledger");
-	case EControlHint::Missions:  return LOCTEXT("Missions", "Then 4: your missions, to choose which to follow");
+	// After the inventory's keycap, the page's number inside it from the tabs' own order, as the missions' words give it
+	// (UMissionOpenPageObjective: "{Inventory}, then {Page.Bestiary}"), so neither drifts when the tabs move.
+	case EControlHint::Ledger:
+		return FText::Format(LOCTEXT("Ledger", "Then {0}: the Ledger"), PageKeyText(EInventoryPage::Bestiary));
+	case EControlHint::Missions:
+		return FText::Format(LOCTEXT("Missions", "Then {0}: your missions, to choose which to follow"), PageKeyText(EInventoryPage::Missions));
 	case EControlHint::Map:       return LOCTEXT("Map", "Map: where you are, and where you're headed");
 	case EControlHint::Bench:     return LOCTEXT("Bench", "Use the bench: two guns of a kind can trade parts");
 	case EControlHint::Count:     break;

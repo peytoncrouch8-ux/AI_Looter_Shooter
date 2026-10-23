@@ -279,6 +279,8 @@ void AEncounterSpawner::UpdateEncounter(float DeltaSeconds)
 	case EEncounterState::Engaged:
 	{
 		WaveClock += DeltaSeconds;
+		// Before the owed come: one brought back from out of the way comes again in this same look.
+		UpdateStragglers(DeltaSeconds);
 		SpawnOwed();
 		const int32 Remaining = NumAlive() + Owed.Num();
 		// Waiting for a clear, the clock counts from the moment the last of them is gone.

@@ -459,7 +459,9 @@ def main2_steps(asset):
         step(objective(asset, unreal.MissionTalkObjective, 'Talk to Mister Sexton.',
                        speaker_tag=unreal.Name('Speaker_Sexton')),
              read_objective(asset, 'Look at the boards where it happened.', 'LookoutStains', optional=True)),
-        step(objective(asset, unreal.MissionOpenPageObjective, 'Open the Ledger: {Inventory}, then 2.',
+        # {Page.Bestiary}: the tab's number key from the inventory's own order (MissionText), never a digit written in
+        # ("then 2" went stale when the Embers tab came second).
+        step(objective(asset, unreal.MissionOpenPageObjective, 'Open the Ledger: {Inventory}, then {Page.Bestiary}.',
                        page=unreal.MissionPage.BESTIARY)),
     ]
 

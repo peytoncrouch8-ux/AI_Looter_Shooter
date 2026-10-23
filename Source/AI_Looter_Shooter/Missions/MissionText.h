@@ -9,7 +9,9 @@ namespace MissionText
 {
 	/**
 	 * Text with each {Action} replaced by the key the player has bound to it, in brackets ({Interact} is "[E]"), and {Move}
-	 * by the four movement keys. Without a player to ask (outside a game) each action shows its own name: "[Interact]".
+	 * by the four movement keys, and {Page.<tab>} by the number key of that inventory page in the tabs' order
+	 * ({Page.Bestiary} is "[3]"; LoadoutParts::PageNumberKey). Without a player to ask (outside a game) each action shows
+	 * its own name: "[Interact]" (a page's number needs no player).
 	 * Shared by the missions' objectives and the tracker's lines, so both name the same keys.
 	 */
 	FString ResolveKeys(const UWorld* World, const FString& Text);

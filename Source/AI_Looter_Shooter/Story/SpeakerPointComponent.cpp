@@ -100,7 +100,18 @@ TOptional<FVector> USpeakerPointComponent::GetInteractionLocation() const
 bool USpeakerPointComponent::CanTalk() const
 {
 	const AActor* Owner = GetOwner();
-	return bTalkable && bEnabled && Owner && !Owner->IsHidden() && !IsTalking() && (!bMissionsOnly || HasMissionBusiness());
+	if (!bTalkable || !bEnabled || !Owner || Owner->IsHidden())
+	{
+		return false;
+	}
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	const bool bTurnInWaiting = Runner && Runner->FindTurnInAt(Owner);
+	return MayTalkOver(IsTalking(), bTurnInWaiting, bTalkIsTurnIn) && (!bMissionsOnly || HasMissionBusiness());
+}
+
+bool USpeakerPointComponent::MayTalkOver(bool bTalking, bool bTurnInWaiting, bool bTalkingTurnIn)
+{
+	return !bTalking || (bTurnInWaiting && !bTalkingTurnIn);
 }
 
 bool USpeakerPointComponent::HasMissionBusiness() const
@@ -173,6 +184,8 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 	{
 		return false;
 	}
+	// Talked to over its own words still being said (a turn-in, MayTalkOver): what it says now follows them.
+	const bool bOverOwnWords = IsTalking();
 	AActor* Owner = GetOwner();
 	int32 TopicIndex = INDEX_NONE;
 	TArray<FStoryLine> Said = GetLinesNow(&TopicIndex);
@@ -198,9 +211,12 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 	UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this);
 	if (Captions)
 	{
-		// Whoever the player turns to talk to has the floor: whatever was being said stops.
-		Conversation = Captions->Play(Said, ECaptionPlay::Interrupt);
+		// Whoever the player turns to talk to has the floor: whatever was being said stops. Over its own words, these wait
+		// for them instead, so no line of the story is cut (one with no words keeps the conversation going on).
+		const int32 Now = Captions->Play(Said, bOverOwnWords ? ECaptionPlay::Queue : ECaptionPlay::Interrupt);
+		Conversation = bOverOwnWords && Now == 0 ? Conversation : Now;
 	}
+	bTalkIsTurnIn = TurnedIn != nullptr;
 	// Someone with nothing waiting to be turned in offers the job: the card opens at once, these words said beside it (the
 	// user's call, 2026-10-22: Accept never waits for them). A main mission met first gets no card: this talk starts it
 	// (below, after the Talk event). A turn-in with a choice asks it once these words are said.

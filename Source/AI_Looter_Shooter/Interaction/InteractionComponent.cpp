@@ -125,7 +125,13 @@ void UInteractionComponent::PressInteract()
 {
 	ResetPress();
 	AActor* Target = FocusedActor.Get();
-	if (!Target || !FocusedOptions.CanUse())
+	if (!Target)
+	{
+		// The prompt may still be fading out over what was just focused: the press is meant for it.
+		UseLostFocus();
+		return;
+	}
+	if (!FocusedOptions.CanUse())
 	{
 		return;
 	}
@@ -162,6 +168,8 @@ void UInteractionComponent::ReleaseInteract()
 
 void UInteractionComponent::UpdateInteraction(float DeltaSeconds)
 {
+	// Before the look, so a focus lost in it starts its grace at 0.
+	SinceFocusLost += DeltaSeconds;
 	RefreshFocus();
 	if (!bPressed)
 	{
@@ -205,12 +213,28 @@ void UInteractionComponent::ResetPress()
 
 bool UInteractionComponent::UseFocused(bool bHeld)
 {
-	AActor* Target = FocusedActor.Get();
+	return UseTarget(FocusedActor.Get(), FocusedSource.Get(), bHeld);
+}
+
+bool UInteractionComponent::UseLostFocus()
+{
+	AActor* Lost = LostFocus.Get();
+	if (!Lost || SinceFocusLost > FocusGraceSeconds)
+	{
+		return false;
+	}
+	// A tap only, at once (UseTarget asks again whether it can be used and takes a tap): a hold needs the thing looked at
+	// for its time, and loot's tap-or-hold has no look left to wait on.
+	return UseTarget(Lost, LostFocusSource.Get(), /*bHeld*/ false);
+}
+
+bool UInteractionComponent::UseTarget(AActor* Target, UObject* SourceObject, bool bHeld)
+{
 	if (!Target)
 	{
 		return false;
 	}
-	IInteractionSource* Source = Cast<IInteractionSource>(FocusedSource.Get());
+	IInteractionSource* Source = Cast<IInteractionSource>(SourceObject);
 	IInteractable* Interactable = Source ? nullptr : Cast<IInteractable>(Target);
 	if (!Source && !Interactable)
 	{
@@ -238,7 +262,9 @@ bool UInteractionComponent::UseFocused(bool bHeld)
 	OnInteracted.Broadcast(Target, bHeld);
 
 	// What was used may have changed (loot taken, a door that now closes, a lantern lit): look again at once, so the
-	// HUD never shows the old words for a frame.
+	// HUD never shows the old words for a frame. What was just used is never used again by the grace.
 	RefreshFocus();
+	LostFocus.Reset();
+	LostFocusSource.Reset();
 	return true;
 }

@@ -42,7 +42,7 @@ def spots(rng, count, radius):
 
 
 def tuft(plant, mat, rng, count, height, width, spread, lean, colors, segments=2, center=Vector((0.0, 0.0, 0.0)),
-         tips=None, dry=0.0):
+         tips=None, dry=0.0, occlusion=(0.7, 1.0)):
     """A tuft of count blades rooted in a disc of radius spread: taller in the middle, leaning out at the edge.
     colors are swatches picked at random; dry is the share of blades with a tips swatch on their top."""
     radius = spread + height * lean
@@ -56,17 +56,17 @@ def tuft(plant, mat, rng, count, height, width, spread, lean, colors, segments=2
         h = height * rng.uniform(0.65, 1.1) * lerp(1.0, 0.75, edge)
         blade(plant, mat, root, heading, h, width * rng.uniform(0.8, 1.2),
               lean * lerp(0.4, 1.3, edge) * rng.uniform(0.7, 1.2), rng.choice(colors), rng, segments, shade,
-              tip=tips if rng.random() < dry else None)
+              tip=tips if rng.random() < dry else None, occlusion=occlusion)
 
 
 def grass_patch(plant, mat, rng, radius, tufts, blades, height, width, lean, colors, segments=3, tips=None, dry=0.0,
-                spread=0.11):
+                spread=0.11, occlusion=(0.7, 1.0)):
     """A patch of grass radius meters across: blades split over tufts spread across it, each tuft a little taller or
     shorter than the next, so the patch's top is uneven."""
     for i, center in enumerate(spots(rng, tufts, radius - spread)):
         count = blades // tufts + (1 if i < blades % tufts else 0)
         tuft(plant, mat, rng, count, height * rng.uniform(0.75, 1.15), width, spread, lean, colors, segments, center,
-             tips, dry)
+             tips, dry, occlusion)
 
 
 def ground_cover(name, seed, build, lods=LODS, lod_screens=LOD_SCREENS):
@@ -127,16 +127,27 @@ def grass_clump_c():
 
 
 def tall_grass(plant, mat, rng):
-    grass_patch(plant, mat, rng, 0.45, 6, 28, 0.85, 0.036, 0.35, ['GrassOlive', 'GrassYellow', 'GrassFresh'],
-                segments=4, tips='GrassDry', dry=0.4, spread=0.12)
-    # Seed stalks standing above the blades, each with a slim seed head.
+    # Thin blades (2.2 cm at the root, 3.6 until 2026-10-23: up close each read as a flat yellow card), more of them for
+    # the same cover, darker at the root, mostly olive and green with a little yellow.
+    grass_patch(plant, mat, rng, 0.45, 6, 36, 0.85, 0.022, 0.35,
+                ['GrassOlive', 'GrassFresh', 'GrassOlive', 'GrassFresh', 'GrassYellow'],
+                segments=3, tips='GrassDry', dry=0.25, spread=0.12, occlusion=(0.5, 1.0))
+    # Seed stalks standing above the blades, each with a slim seed head: two narrow crossed spikelets (a single flat
+    # diamond read as a card face-on), swaying with their stalk (share_phase).
+    phases = []
     for spot in spots(rng, 6, 0.22):
         a = rng.uniform(0.0, 2.0 * math.pi)
+        first = len(plant.winds)
         top = blade(plant, mat, spot - UP * 0.02, horizontal(a), rng.uniform(0.85, 0.95), 0.013, rng.uniform(0.1, 0.2),
                     'Straw', rng, 2, up_normal(spot, 0.3), taper=0.2, wind=(0.0, 0.95))
         head_dir = (horizontal(a, 0.35) + UP).normalized()
-        petal(plant, mat, top - head_dir * 0.01, head_dir, rng.uniform(0.1, 0.14), 0.024, 'Straw',
-              horizontal(a + 1.57), occlusion=1.0)
+        length = rng.uniform(0.1, 0.14)
+        pieces = len(plant.winds)
+        for turn in (0.0, 1.57):
+            petal(plant, mat, top - head_dir * 0.01, head_dir, length, 0.011, 'Straw', horizontal(a + 1.57 + turn),
+                  wind=0.95, occlusion=1.0)
+        phases.append((first, pieces, len(plant.winds)))
+    return phases
 
 
 def tall_grass_a():

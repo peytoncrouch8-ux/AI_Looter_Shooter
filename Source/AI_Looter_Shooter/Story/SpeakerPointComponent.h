@@ -91,13 +91,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Speaker")
 	bool Talk(AActor* Listener);
 
-	/** It can be talked to now: on, its actor shown, and not still saying its last lines. */
+	/** It can be talked to now: on, its actor shown, and not still saying its last lines (unless a turn-in waits: MayTalkOver). */
 	UFUNCTION(BlueprintPure, Category = "Speaker")
 	bool CanTalk() const;
 
 	/** Its last lines are on screen or still to come. */
 	UFUNCTION(BlueprintPure, Category = "Speaker")
 	bool IsTalking() const;
+
+	/**
+	 * Whether it may be talked to while its last lines are still being said: only with a mission waiting to be turned in
+	 * here, and never over the turn-in's own words (one with a choice still waits through them). The player walking up
+	 * mid-sentence to turn in (Sexton's words held under the inventory, the 2026-10-23 play-check) sees the prompt and the
+	 * key works; the turn-in's words follow what's being said (Talk), so nothing of the story is cut.
+	 */
+	static bool MayTalkOver(bool bTalking, bool bTurnInWaiting, bool bTalkingTurnIn);
 
 	/** Its words stop if they're still being said (the offer card's Not now): the line on screen fades out quickly. */
 	void StopTalking();
@@ -263,6 +271,8 @@ private:
 
 	/** The captions' conversation of the last talk here. */
 	int32 Conversation = 0;
+	/** The last talk here was a turn-in (MayTalkOver: no second turn-in talk over its words). */
+	bool bTalkIsTurnIn = false;
 
 	/** Mutters said this visit (topic * 1000 + line), when the next may come, and the last line said. */
 	TSet<int32> SaidMutters;

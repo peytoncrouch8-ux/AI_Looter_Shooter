@@ -205,6 +205,18 @@ void UInteractionComponent::IgnorePlayer(FCollisionQueryParams& Params) const
 void UInteractionComponent::SetFocus(const FInteractionCandidate* Candidate)
 {
 	AActor* NewFocus = Candidate ? Candidate->Actor : nullptr;
+	if (NewFocus)
+	{
+		LostFocus.Reset();
+		LostFocusSource.Reset();
+	}
+	else if (AActor* OldFocus = FocusedActor.Get())
+	{
+		// Remembered a moment (FocusGraceSeconds): the prompt is still fading out over it, so a press now still means it.
+		LostFocus = OldFocus;
+		LostFocusSource = FocusedSource;
+		SinceFocusLost = 0.f;
+	}
 	FocusedSource = Candidate ? Candidate->Source : nullptr;
 	FocusedOptions = Candidate ? Candidate->Options : FInteractionOptions::None();
 	if (FocusedActor.Get() != NewFocus)

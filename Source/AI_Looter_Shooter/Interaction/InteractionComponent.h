@@ -38,6 +38,14 @@ class AI_LOOTER_SHOOTER_API UInteractionComponent : public UActorComponent
 public:
 	UInteractionComponent();
 
+	/**
+	 * How long (s) after the focus is lost a press still taps what was focused, when it takes a tap and can still be used:
+	 * the prompt under the crosshair fades out over about this long (UHudInteractPromptWidget), and a focus lost for a
+	 * frame (a body crossing the line of sight, a turn of the stick) must never eat a press made while the prompt shows
+	 * (the 2026-10-23 play-check: a showing prompt always means the key works).
+	 */
+	static constexpr float FocusGraceSeconds = 0.15f;
+
 	/** What the player would use now (an interactable, or loot), or null. */
 	UFUNCTION(BlueprintPure, Category = "Interaction")
 	AActor* GetFocusedActor() const { return FocusedActor.Get(); }
@@ -119,6 +127,12 @@ private:
 	/** Uses the focused thing: through the source that offered it, or the interactable itself. Tells the missions. */
 	bool UseFocused(bool bHeld);
 
+	/** Uses Target through SourceObject (the component that offered it), or Target itself as an interactable. Tells the missions. */
+	bool UseTarget(AActor* Target, UObject* SourceObject, bool bHeld);
+
+	/** A press with nothing focused: a tap on what was focused within FocusGraceSeconds, if it still takes one. */
+	bool UseLostFocus();
+
 	/** The hold ran its time on what the key went down on. */
 	void CompleteHold();
 
@@ -156,6 +170,10 @@ private:
 	TWeakObjectPtr<AActor> FocusedActor;
 	/** The source that offered the focused thing, or null for an interactable. */
 	TWeakObjectPtr<UObject> FocusedSource;
+	/** What was focused until a moment ago (and its source), for FocusGraceSeconds; reset by a new focus or a use. */
+	TWeakObjectPtr<AActor> LostFocus;
+	TWeakObjectPtr<UObject> LostFocusSource;
+	float SinceFocusLost = 0.f;
 	FInteractionOptions FocusedOptions = FInteractionOptions::None();
 
 	/** The key went down on PressedActor, which takes a hold: waiting for the hold's time or the release. */

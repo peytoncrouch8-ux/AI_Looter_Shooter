@@ -1,5 +1,6 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
+#include "UI/HUD/HudMissionTrackerWidget.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterProgressRingWidget.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -11,13 +12,16 @@
 #include "Elements/ElementRules.h"
 #include "Weapons/PartEffectRules.h"
 #include "Weapons/WeaponParts.h"
+#include "Settings/GraphicsSettingsSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Widget.h"
+#include "Engine/LocalPlayer.h"
 #include "Layout/Geometry.h"
 
 // What the interact key would do to the thing looked at: the loot comparison card for loot (the weapon, stat by stat
@@ -107,6 +111,22 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 		return;
 	}
 	PickupCard->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	// Clear of the minimap's frame: a tall card on the right edge's middle reached up over the place's name under a large
+	// minimap (the 2026-10-23 play-check). Its height is the last layout's, so a new gun's card settles a frame after it shows.
+	if (UCanvasPanelSlot* CardSlot = Cast<UCanvasPanelSlot>(PickupCard->Slot))
+	{
+		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+		const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+		const float ClearTop = UHudMissionTrackerWidget::TopFor(Settings ? Settings->GetMinimapScale() : 1.f, !Settings || Settings->IsMinimapShown());
+		const float Drop = LootCardDrop(static_cast<float>(GetCachedGeometry().GetLocalSize().Y), static_cast<float>(PickupCard->GetDesiredSize().Y),
+			ClearTop);
+		const FVector2D Wanted(CardSlot->GetPosition().X, Drop);
+		if (!CardSlot->GetPosition().Equals(Wanted, 0.5f))
+		{
+			CardSlot->SetPosition(Wanted);
+		}
+	}
 
 	const FWeaponInstanceData& New = Pickup->GetInstance();
 	const AWeaponBase* Current = Manager->GetActiveWeapon();
@@ -220,4 +240,18 @@ bool UPlayerHUDWidget::GetLootCardBounds(FVector2D& OutMin, FVector2D& OutMax) c
 	OutMin = CardGeometry.GetAbsolutePosition();
 	OutMax = OutMin + CardSize;
 	return true;
+}
+
+float UPlayerHUDWidget::LootCardDrop(float ScreenHeight, float CardHeight, float ClearTop, float BottomKeep)
+{
+	if (ScreenHeight <= 0.f || CardHeight <= 0.f)
+	{
+		return 0.f;
+	}
+	// Centred on the right edge's middle, its top is half the spare height down; it drops only as far as the minimap needs,
+	// and only as far as the screen's foot allows.
+	const float CentredTop = (ScreenHeight - CardHeight) * 0.5f;
+	const float Wanted = FMath::Max(0.f, ClearTop - CentredTop);
+	const float Room = FMath::Max(0.f, ScreenHeight - BottomKeep - (CentredTop + CardHeight));
+	return FMath::Min(Wanted, Room);
 }

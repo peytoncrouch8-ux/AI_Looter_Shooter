@@ -20,8 +20,8 @@ class UWidget;
  * star medal, a row of step circles (done ones checked, the current one an orange ring) after "4 / 6", the objective
  * row (the short line, its count and its circle under the medal) and a key hint under it (the bound key as a keycap and
  * what it does). It serves every mission, stays up through boss fights and takes no part in the idle fade; it steps
- * aside while a menu is open, except over the inventory for an objective done there (the tutorial's last step), and while
- * the loot card would cover it (the player looks at a gun on the ground).
+ * aside while any menu is open (the inventory too, even for an objective done there: its check waits for the menu to close),
+ * and while the loot card would cover it (the player looks at a gun on the ground).
  *
  * A rising count of things pops (a count of seconds held doesn't); a done objective's ring turns into a checked cyan
  * disc that pops in and its words dim (an objective is done when the objective or the step in the mission's parts moves
@@ -32,7 +32,7 @@ class UWidget;
  * until the step ends. Once every step is done a mission waiting for its turn-in shows "Turn in to <who>" under a full
  * row of checks, checked as it's turned in. The tutorial's closing line (ShowClosingLine, from ATutorialDirector through
  * ALooterHUD) shows as a last, checked objective for its seconds of play; then the next tracked mission slides in, or the
- * tracker fades out. ALooterHUD makes it as a viewport widget of its own, over the inventory's pages. Floating outlined
+ * tracker fades out. ALooterHUD makes it as a viewport widget of its own, under every menu. Floating outlined
  * text and solid shapes, no panels: only the medal's glass and the keycap's plate are backgrounds (the UI transparency
  * setting fades them). It repaints only when the mission changes, and does nothing per frame unless something is moving.
  */
@@ -42,8 +42,11 @@ class AI_LOOTER_SHOOTER_API UHudMissionTrackerWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	/** Over the inventory's pages (20), so it can stay up on a step done there; under the station board (25) and the pause menu (40). */
-	static constexpr int32 ViewportZOrder = 22;
+	/**
+	 * Under every menu (the inventory's pages 20, the boards 25, the offer card 30, the pause menu 40), so even its fade-out
+	 * as one opens is behind it; over the captions (2) and the boss bar (3).
+	 */
+	static constexpr int32 ViewportZOrder = 4;
 
 	/**
 	 * Its block's top-right corner in 1080p pixels: right-aligned to the minimap's column (the minimap's own margin from the
@@ -71,6 +74,12 @@ public:
 
 	/** A step's circle: checked once done (Index < DoneCount), the orange ring for the one being played, faint for those to come. */
 	static EHudTrackerMark StepMark(int32 Index, int32 DoneCount, int32 Current);
+
+	/**
+	 * Whether it steps aside: any menu open (the inventory too), a scene holding the player, the game paused, or the loot
+	 * card where it stands. Decided from those alone, so a test can run it without a widget.
+	 */
+	static bool CoveredBy(bool bMenuOpen, bool bSceneHidesHUD, bool bPaused, bool bMakingWay);
 
 	/** How long a done objective shows checked before the next one slides in. */
 	static constexpr float DoneHoldSeconds = 1.4f;
@@ -164,8 +173,8 @@ private:
 	/** A done objective or the closing line has shown long enough: what's next. */
 	void EndHold();
 	/**
-	 * A menu covers the game (but the inventory for an objective done there), a scene holds the player, it's paused, or the
-	 * loot card would cover it (IsMakingWay). Time covered doesn't count toward a hold.
+	 * CoveredBy, as things stand: a menu covers the game, a scene holds the player, it's paused, or the loot card would
+	 * cover it (IsMakingWay). Time covered doesn't count toward a hold.
 	 */
 	bool IsCovered() const;
 	/**

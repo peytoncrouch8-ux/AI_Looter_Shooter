@@ -379,13 +379,31 @@ namespace LoadoutParts
 		}
 	}
 
-	int32 PageForNumberKey(const FKey& Key)
+	FKey PageNumberKey(int32 Page)
 	{
 		const FKey Numbers[] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five };
 		static_assert(UE_ARRAY_COUNT(Numbers) == NumPages, "A number key per inventory page");
+		return Page >= 0 && Page < NumPages ? Numbers[Page] : FKey();
+	}
+
+	int32 PageForNumberKey(const FKey& Key)
+	{
 		for (int32 Page = 0; Page < NumPages; ++Page)
 		{
-			if (Key == Numbers[Page])
+			if (Key.IsValid() && Key == PageNumberKey(Page))
+			{
+				return Page;
+			}
+		}
+		return INDEX_NONE;
+	}
+
+	int32 PageNamed(const FString& Name)
+	{
+		// The tabs' own words (PageTabName, the bestiary's both ways), so a page is named as the player reads it.
+		for (int32 Page = 0; Page < NumPages; ++Page)
+		{
+			if (Name.Equals(PageTabName(Page, false), ESearchCase::IgnoreCase) || Name.Equals(PageTabName(Page, true), ESearchCase::IgnoreCase))
 			{
 				return Page;
 			}

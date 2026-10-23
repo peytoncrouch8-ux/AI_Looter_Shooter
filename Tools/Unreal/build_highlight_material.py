@@ -54,9 +54,9 @@ DEFAULTS = {
     # A character's look (Figure 1, the code sets it): over a dark coat even a fifth of orange reads as paint, and a
     # figure's folds turn edge-on all over it, so its fill is all but gone and its rim hugs the outline.
     'Figure': 0.0,               # 0: a thing's look, 1: a character's
-    'FigureFillOpacity': 0.03,   # its body, facing the eye: nearly clear
-    'FigureRimOpacity': 0.85,    # its outline: a plain orange line
-    'FigureRimPower': 3.0,       # tighter than a thing's rim (higher: a thinner line, and its folds catch less)
+    'FigureFillOpacity': 0.0,    # its body: clear (even 0.03 of this unlit orange tints a near-black coat gold: NPC-LOOK 2026-10-23)
+    'FigureRimOpacity': 0.9,     # its outline: a plain orange line
+    'FigureRimPower': 5.0,       # tighter than a thing's rim (higher: a thinner line, and its folds catch less)
 }
 
 SHARED = """// The rim: where the surface turns from the eye it glows most, so the thing's outline stands out; facing the eye it keeps

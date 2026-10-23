@@ -195,11 +195,12 @@ void UMissionOpenPageObjective::Update(const FMissionContext& Context, FMissionO
 
 FString UMissionOpenPageObjective::DescribeRule() const
 {
+	// The page's number key from the tabs' own order (MissionText's {Page.X}), never written in as a digit.
 	switch (Page)
 	{
 	case EMissionPage::Loadout:  return TEXT("Open your loadout ({Inventory})");
-	case EMissionPage::Bestiary: return TEXT("Open the bestiary ({Inventory}, then 2)");
-	case EMissionPage::Missions: return TEXT("Open your missions ({Inventory}, then 3)");
+	case EMissionPage::Bestiary: return TEXT("Open the bestiary ({Inventory}, then {Page.Bestiary})");
+	case EMissionPage::Missions: return TEXT("Open your missions ({Inventory}, then {Page.Missions})");
 	case EMissionPage::Any:      break;
 	}
 	return TEXT("Open the inventory ({Inventory})");

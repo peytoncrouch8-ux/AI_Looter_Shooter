@@ -101,6 +101,14 @@ public:
 	bool GetLootCardBounds(FVector2D& OutMin, FVector2D& OutMax) const;
 
 	/**
+	 * How far down (HUD pixels) the loot card moves from the right edge's middle, where it stands, so a tall card (a gun with
+	 * a maker's line, traits and notches) keeps its top at ClearTop: under the minimap's frame and the place's name (the
+	 * tracker's top, UHudMissionTrackerWidget::TopFor), but its bottom never goes past BottomKeep above the screen's foot (a
+	 * card too tall for the room between stops there). 0 for a card that fits, or before anything is laid out.
+	 */
+	static float LootCardDrop(float ScreenHeight, float CardHeight, float ClearTop, float BottomKeep = 36.f);
+
+	/**
 	 * How far the gun is raised toward the sight (UPlayerViewComponent::GetAimAlpha, eased) when the crosshair is gone: it
 	 * fades out over the first part of the raise, so it never shows beside the sight's own reticle.
 	 */

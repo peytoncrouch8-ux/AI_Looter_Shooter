@@ -112,4 +112,29 @@ namespace EncounterRules
 	 * nor a wait for the clear, later waves come only when something triggers them.
 	 */
 	AI_LOOTER_SHOOTER_API bool IsWaveDue(bool bWavesLeft, float WaveClock, float WaveInterval, bool bWaitForClear, int32 Remaining);
+
+	/**
+	 * What a fight that came for the player (bHuntOnSpawn) does with one of its creatures out of the fight while the player
+	 * stands on its ground (EncounterSpawnerStragglers.cpp): one that gave up (the player died, or went off its ground and
+	 * came back) and stands or wanders out of sight never held the count short (a town-gate Unpaid behind a cottage kept Main
+	 * 3 at 6/7, the 2026-10-23 play-check).
+	 */
+	enum class EStragglerCall : uint8
+	{
+		/** Nothing yet. */
+		None,
+		/** Told where the player is (ACreatureBase::AlertTo): it comes back into the fight. */
+		Recall,
+		/** Still out of it, and out of the player's view: taken away and brought back on its ground at once (owed, not killed). */
+		BringBack,
+	};
+
+	/** Out of the fight this long (s) before it's recalled, again every RecallEverySeconds while it stays out. */
+	inline constexpr float StragglerRecallSeconds = 2.f;
+	inline constexpr float StragglerRecallEverySeconds = 2.f;
+	/** Out of the fight this long (s), recalled and all, before it's brought back (only out of the player's view). */
+	inline constexpr float StragglerBringBackSeconds = 12.f;
+
+	/** The call for a creature OutSeconds out of the fight, SinceRecallSeconds after its last recall, seen by the player or not. */
+	AI_LOOTER_SHOOTER_API EStragglerCall StragglerCall(float OutSeconds, float SinceRecallSeconds, bool bInPlayersView);
 }
