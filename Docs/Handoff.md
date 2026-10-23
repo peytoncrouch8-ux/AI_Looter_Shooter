@@ -3,6 +3,16 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Spiders (the user, 2026-10-22 late: "Soften the spiders" + "they look almost see through... not correctly stylized")
+Done and pushed: Brown Spider 300 -> 230 health, bite 12 -> 11 (92d89ed; Gravemother keeps 300/12, spiderlings 60). Look
+(b956124): the "see-through" was the hit flash (M_FX_HitFlash overlay, a whole-body white wash re-fired by every bullet);
+now a rim (Even 0.08, Rim 1.6, RimPower 3; repeats within 0.15 s at 30%); Spider.py redone (jointed tapered legs, painted
+coat). Play-check (level 2, Common rifle + 40 ward, 1.8): 6 chasing spiders survived, 11 s, lowest 121/148; 8 chasing:
+lowest 75 (51%), 2 breaks; before, 6 killed in 9.5 s. Maybe now on the easy side: the user's playtest decides (knobs:
+spider health/bite in SpiderCreature.cpp, Looter.Fight.MeleeTokens). Notes: at 15 m in daylight the brown coat blends into
+the ochre ground (legs read; the Sink's ash reads well); hip-fire muzzle flash's star spikes read as flat yellow diamonds
+over close targets (flash_spider_burst.png) — the star flash was the user's pick, so ask before changing it.
+
 ## Polish round (the user, 2026-10-22 evening: "Keep polishing")
 Contract `Docs/Work/2026-10-22-Polish/CONTRACT.md`.
 DEMO verdict (level 2, Common rifle, 40 ward): **keep DamageScale 1.8** (2.0 too harsh: 10 Unpaid left 45%). 4 spiders: lowest
