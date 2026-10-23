@@ -24,6 +24,11 @@ namespace
 	/** M_FX_HitFlash's parameters (the dummies' and egg sacs' flash). */
 	const FName CreatureFlashColorParam(TEXT("Color"));
 	const FName CreatureFlashIntensityParam(TEXT("Intensity"));
+	// Its shape: a rim round the silhouette, barely a lift over the body (FCreatureHitFlash::Even, Rim, RimPower). A
+	// material without them (before build_hit_flash_material.py ran) keeps its even glow, only dimmer.
+	const FName CreatureFlashEvenParam(TEXT("Even"));
+	const FName CreatureFlashRimParam(TEXT("Rim"));
+	const FName CreatureFlashRimPowerParam(TEXT("RimPower"));
 	/** White with a little warmth; a crit's warmer, toward the coal. */
 	const FLinearColor CreatureFlashColor(1.f, 0.94f, 0.86f);
 	const FLinearColor CreatureCritFlashColor(1.f, 0.78f, 0.48f);
@@ -158,6 +163,9 @@ void UCreatureReactComponent::FlashHit(bool bCritical)
 			return;
 		}
 		FlashLook = UMaterialInstanceDynamic::Create(Base, this);
+		FlashLook->SetScalarParameterValue(CreatureFlashEvenParam, FCreatureHitFlash::Even);
+		FlashLook->SetScalarParameterValue(CreatureFlashRimParam, FCreatureHitFlash::Rim);
+		FlashLook->SetScalarParameterValue(CreatureFlashRimPowerParam, FCreatureHitFlash::RimPower);
 	}
 	FlashLook->SetVectorParameterValue(CreatureFlashColorParam, Flash.IsCritical() ? CreatureCritFlashColor : CreatureFlashColor);
 	FlashLook->SetScalarParameterValue(CreatureFlashIntensityParam, Flash.GetIntensity());

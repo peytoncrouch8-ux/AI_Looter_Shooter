@@ -75,9 +75,16 @@ float FCreatureNotice::GetStrength() const
 // The hit flash
 // ---------------------------------------------------------------------------
 
+float FCreatureHitFlash::ShareFor(float GapSeconds, bool bInCritical)
+{
+	const float Repeat = bInCritical ? CriticalRepeatShare : RepeatShare;
+	return FMath::Lerp(Repeat, 1.f, FMath::SmoothStep(RepeatSeconds, QuietSeconds, GapSeconds));
+}
+
 void FCreatureHitFlash::Start(bool bInCritical)
 {
-	const float New = bInCritical ? CriticalStrength : NormalStrength;
+	// Time is the gap since the last hit: steady fire only nudges the flash, a shot after a pause flashes in full.
+	const float New = (bInCritical ? CriticalStrength : NormalStrength) * ShareFor(Time, bInCritical);
 	// A shotgun's pellets land together: the strongest flash stands, they don't add up.
 	Strength = IsOn() ? FMath::Max(Strength * FMath::Square(1.f - Time / Seconds), New) : New;
 	bCritical = bInCritical || (IsOn() && bCritical);

@@ -57,18 +57,37 @@ private:
 };
 
 /**
- * The brief white flash on a creature's body when a shot lands (warmer on a crit): full at once, gone in under a tenth of
- * a second (its own clock, so a hit-stop holds it at full). Shots close together start it again, the stronger one standing.
+ * The brief flash on a creature's body when a shot lands (warmer on a crit): full at once, gone in under a tenth of a
+ * second (its own clock, so a hit-stop holds it at full). Mostly a rim of light round its silhouette, barely a lift over
+ * the body (Even, Rim, RimPower on M_FX_HitFlash), so the creature stays solid and readable while it's hit.
+ * Steady fire only nudges it: a hit soon after the last one flashes at RepeatShare of a fresh hit's strength, back to
+ * full as the gap grows to QuietSeconds. Under full auto every shot flashed full and the overlay never went off: the
+ * spider was a pale see-through ghost the whole fight (the user, 2026-10-22). Shots landing together (a shotgun's
+ * pellets) don't add up: the stronger flash stands.
  */
 struct AI_LOOTER_SHOOTER_API FCreatureHitFlash
 {
 	static constexpr float Seconds = 0.09f;
 	static constexpr float NormalStrength = 0.65f;
 	static constexpr float CriticalStrength = 1.f;
-	/** How bright M_FX_HitFlash's Intensity goes at full strength (the dummies' is 1.8). */
-	static constexpr float Glow = 1.7f;
+	/** How bright M_FX_HitFlash's Intensity goes at full strength (the dummies' is 1.8; 1.7 here washed the body white). */
+	static constexpr float Glow = 1.2f;
+	/** A hit within RepeatSeconds of the last flashes at RepeatShare (a crit at CriticalRepeatShare: crits still read in
+	 *  steady fire), rising to full as the gap grows to QuietSeconds (a rifle's full auto is 0.08-0.12 s a shot). */
+	static constexpr float RepeatSeconds = 0.15f;
+	static constexpr float QuietSeconds = 0.45f;
+	static constexpr float RepeatShare = 0.3f;
+	static constexpr float CriticalRepeatShare = 0.65f;
+	/** The flash's shape on a creature (M_FX_HitFlash: Even + (1 - |N.V|)^RimPower x Rim). The material's defaults
+	 *  (0.35, 1.5, 2: an even glow, the dummies' and the powers' tints) lit thin legs and bristles all over. */
+	static constexpr float Even = 0.08f;
+	static constexpr float Rim = 1.6f;
+	static constexpr float RimPower = 3.f;
 	/** The overlay stays on (at nothing) this long after a flash, so steady fire doesn't put it on and off every shot. */
 	static constexpr float LingerSeconds = 0.4f;
+
+	/** A fresh hit's share of its full strength, GapSeconds after the last hit. */
+	static float ShareFor(float GapSeconds, bool bCritical);
 
 	void Start(bool bCritical);
 	void Advance(float DeltaSeconds);

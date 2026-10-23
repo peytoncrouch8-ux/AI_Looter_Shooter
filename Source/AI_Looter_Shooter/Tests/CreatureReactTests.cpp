@@ -313,6 +313,41 @@ bool FCreatureReactHitFlashTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A crit flashes harder"), Flash.GetIntensity() > Full && Flash.IsCritical());
 	TestTrue(TEXT("Under a tenth of a second"), FCreatureHitFlash::Seconds <= 0.1f);
 
+	// Steady fire only nudges it (the see-through ghost under full auto, 2026-10-22); a pause and it flashes in full again.
+	{
+		FCreatureHitFlash Auto;
+		Auto.Advance(FCreatureHitFlash::LingerSeconds + 1.f);
+		Auto.Start(false);
+		const float First = Auto.GetIntensity();
+		float Loudest = 0.f;
+		for (int32 Shot = 0; Shot < 20; ++Shot)
+		{
+			Auto.Advance(0.1f);
+			Auto.Start(false);
+			Loudest = FMath::Max(Loudest, Auto.GetIntensity());
+		}
+		TestNearlyEqual(TEXT("Full auto: the first hit flashes in full"), First, FCreatureHitFlash::Glow * FCreatureHitFlash::NormalStrength, 0.001f);
+		TestTrue(FString::Printf(TEXT("...the rest only nudge it (%.2f of %.2f)"), Loudest, First),
+			Loudest <= First * FCreatureHitFlash::RepeatShare + 0.001f);
+		TestTrue(TEXT("...and the overlay stays on through it"), Auto.IsWorn());
+		Auto.Advance(0.1f);
+		Auto.Start(true);
+		TestTrue(TEXT("A crit in steady fire still stands out"), Auto.GetIntensity() > Loudest * 1.5f && Auto.IsCritical());
+		Auto.Advance(FCreatureHitFlash::QuietSeconds + 0.01f);
+		Auto.Start(false);
+		TestNearlyEqual(TEXT("A pause, then a hit: full again"), Auto.GetIntensity(), First, 0.001f);
+
+		FCreatureHitFlash Pellets;
+		Pellets.Start(false);
+		for (int32 Pellet = 0; Pellet < 7; ++Pellet)
+		{
+			Pellets.Start(false);
+		}
+		TestNearlyEqual(TEXT("A shotgun's pellets: the first's flash stands, nothing adds up"), Pellets.GetIntensity(), First, 0.001f);
+		TestTrue(TEXT("The flash is a rim, barely a lift over the body"),
+			FCreatureHitFlash::Even < 0.15f && FCreatureHitFlash::Rim > 1.f && FCreatureHitFlash::RimPower >= 2.f);
+	}
+
 	// On a spider: the flash worn on its body, fading, then taken off.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
