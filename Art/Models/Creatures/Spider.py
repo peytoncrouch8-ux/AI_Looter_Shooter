@@ -23,8 +23,8 @@ normal, occlusion-roughness-metal) is painted by this script every run (looter_c
 unchanged painter rewrites the same files). Every part maps onto a rectangle of that atlas (ATLAS); eyes, bristles and
 fangs sit on small solid patches of it, so the eyes' gloss comes from the roughness map.
 
-The Gravemother: BONE (MI_SpiderBody_Pale, the fallback before SK_Gravemother) and Gravemother.py's GRAVE are older hides
-(no 'painted' key): their bodies keep the old painter; their leg rings sit at the new joints. BONE writes
+The Gravemother: BONE (MI_SpiderBody_Pale, the fallback before SK_Gravemother) and Gravemother.py's GRAVE take the
+painted look too (2026-10-22, "the same for every arachnid"), in their own colours, scars and dust. BONE writes
 Art/Textures/SpiderBody_Pale/T_SpiderBody_Pale_BC.png, a color map only (its normal and ORM maps would be byte copies of
 SpiderBody's, so the game's MI_SpiderBody_Pale uses T_SpiderBody_N and T_SpiderBody_ORM). Spitter.py and
 looter_barrow.spider_parts (Gravemother.py, GravemotherStone.py) run this script's parts code (all above its rig's
@@ -61,7 +61,7 @@ SET = 'SpiderBody'
 PALE_SET = 'SpiderBody_Pale'
 SIZE = 2048
 K = SIZE / 1024.0                         # the painters' pixel sizes were set at 1024 px
-PX_M, NORMAL_STRENGTH = 0.0015, 1.2       # the atlas's metres per pixel (for the normal map) and the normals' strength
+PX_M, NORMAL_STRENGTH = 0.0015, 1.5       # the atlas's metres per pixel (for the normal map) and the normals' strength
 # Where each part lies in the atlas (u0, u1, v0, v1).
 ATLAS = {
     'abdomen': (0.0, 1.0, 0.5, 1.0), 'carapace': (0.0, 0.5, 0.25, 0.5), 'head': (0.5, 1.0, 0.25, 0.5),
@@ -168,9 +168,9 @@ def lifted(point):
 
 # --- The texture atlas ---
 # A hide is a palette for the painter: the colors of the base fur and of each mark, and how strongly each mark mixes in
-# (the _k values). A hide with 'painted' takes the painted look (paint_painted); the others (BONE, Gravemother.py's
-# GRAVE) the older painter. Only color comes from BONE's; roughness, height and occlusion are BROWN's (MI_SpiderBody_Pale
-# uses SpiderBody's normal and ORM maps).
+# (the _k values). A hide with 'painted' takes the painted look (paint_painted); every arachnid's hide has it
+# (BROWN, BONE, Gravemother.py's GRAVE; 2026-10-22); a hide without it takes the older painter. Only color comes
+# from BONE's; roughness, height and occlusion are BROWN's (MI_SpiderBody_Pale uses SpiderBody's normal and ORM maps).
 
 _DARK, _LIGHT = lt.rgb(0x2a190c), lt.rgb(0xbc9a6c)
 # The Meadow Wolf: warm brown, a dark field round a light heart mark and light chevrons, dark leg bands and joints, a
@@ -190,6 +190,7 @@ BROWN = dict(
 # ghost-lines (the heart drawn as an outline), its leg rings kept dark; a darker face round the eyes, since black eyes
 # alone on a pale head read as a toy's; a few old healed scars across her back and grave dust settled on it.
 BONE = dict(
+    painted=True,
     base=lt.rgb(0xbab2a1), light=lt.rgb(0xcfc8b8), belly=lt.rgb(0x968e80),
     field=lt.rgb(0x908a7f), field_k=0.6, heart=lt.rgb(0x524d46), heart_k=1.0, heart_shape=(0.15, 0.76, 0.23),
     heart_outline=True, chevron=lt.rgb(0x58524a), chevron_k=0.85, speck=lt.rgb(0x847d72), speck_k=0.4,
@@ -236,9 +237,11 @@ def segment_coords(along, segments):
 
 
 def body_marks(region, U, V, seed, shape, n, hide, col):
-    """The marks on the body regions (both painters): the abdomen's field, heart, chevrons and specks; the carapace's
-    and head's stripe, lateral bands and margins, the face round the eyes."""
+    """The marks on the body regions (the older painter; the painted hide's are crisp_marks): the abdomen's field,
+    heart, chevrons and specks; the carapace's and head's stripe, lateral bands and margins, the face round the eyes."""
     d, s = lc.body_axes(U, V)
+    if hide.get('painted'):
+        return crisp_marks(region, U, V, seed, shape, n, hide, col, d, s)
     if region == 'abdomen':
         field = lt.smooth(0.62, 0.42, np.abs(s) + 0.05 * n) * lt.smooth(-0.15, 0.25, d) * lt.smooth(0.02, 0.15, V)
         col = lt.mix(col, hide['field'], field * hide['field_k'])
@@ -250,13 +253,12 @@ def body_marks(region, U, V, seed, shape, n, hide, col):
             edge = np.clip(4.0 * soft * (1.0 - soft), 0, 1)
             col = lt.mix(col, hide['heart'], np.clip(edge * 0.95 + soft * 0.3, 0, 1) * hide['heart_k'])
         else:
-            col = lt.mix(col, hide['heart'], lt.blur(heart, 1.5 * (K if hide.get('painted') else 1.0)) * hide['heart_k'])
+            col = lt.mix(col, hide['heart'], lt.blur(heart, 1.5) * hide['heart_k'])
         for k in range(4):
             vk = 0.5 - k * 0.11
             line = 1 - lt.smooth(0.012, 0.03, np.abs(V - (vk - 0.22 * np.abs(s))))
             col = lt.mix(col, hide['chevron'], line * (np.abs(s) < 0.42) * (d > 0) * hide['chevron_k'])
-        speck_size = K if hide.get('painted') else 1.0
-        col = lt.mix(col, hide['speck'], lt.specks(shape, seed + 3, 0.04, speck_size) * hide['speck_k'] * (d > -0.2))
+        col = lt.mix(col, hide['speck'], lt.specks(shape, seed + 3, 0.04, 1.0) * hide['speck_k'] * (d > -0.2))
     else:
         stripe = lt.smooth(0.15, 0.08, np.abs(s)) * (d > 0)
         lateral = lt.smooth(0.12, 0.2, np.abs(s)) * lt.smooth(0.72, 0.55, np.abs(s)) * (d > 0)
@@ -269,32 +271,104 @@ def body_marks(region, U, V, seed, shape, n, hide, col):
     return col
 
 
+def hair_grain(shape, seed, across, along_rows):
+    """Fine hair, -1 (a dark gap between hairs) .. 1 (a lit hair): short strokes (a few px long) along the rows
+    (along_rows) or the columns, sharpened. No long streaks: those read as wood grain (2026-10-22)."""
+    g = lt.noise(shape, seed, across * K, 2.4 * K) if along_rows else lt.noise(shape, seed, 2.4 * K, across * K)
+    return lt.smooth(0.35, 1.3, g) - lt.smooth(-0.35, -1.3, g)
+
+
+def fur_tufts(shape, seed, across, along, heading, sway, jitter=0.6):
+    """Short clumped tufts of setae: worley cells (across x along px), each combed its own way round heading (radians
+    in the region's pixels, +x along the columns, +y down the rows; sway: an image of extra turn, the body's curve),
+    dark at the root and light at the tip. Returns (tip 0..1, inside 0..1, dome 0..1, tone -1..1)."""
+    cells = lt.worley(shape, (max(int(shape[1] / (across * K)), 4), max(int(shape[0] / (along * K)), 4)), seed,
+                      stretch=(1.0, across / along))
+    x, y = lt.coords(shape)
+    turn = heading + sway + lt.per_cell(cells['id'], cells['count'], seed + 1, -jitter, jitter)
+    reach = 0.5 * (across + along) * K
+    t = ((x - cells['px']) * np.cos(turn) + (y - cells['py']) * np.sin(turn)) / reach
+    tip = lt.smooth(-0.9, 0.9, t)
+    inside = lt.smooth(0.0, 3.0 * K, cells['edge'])
+    dome = lt.smooth(0.0, 0.45 * across * K, cells['edge'])
+    return tip, inside, dome, lt.per_cell(cells['id'], cells['count'], seed + 2, -1.0, 1.0)
+
+
+def crisp_marks(region, U, V, seed, shape, n, hide, col, d, s):
+    """The painted hide's marks, crisp-edged (a few pixels of edge, ragged by noise) where the older painter's blur:
+    the abdomen's dark field round a pale heart (a dark rim round it) and chevrons, specks; the carapace's pale stripe,
+    dark lateral bands and pale margins; the dark face round the eyes."""
+    rag = lt.noise(shape, seed + 61, 4.0 * K, 4.0 * K, octaves=2)          # ragged, painted edges
+    if region == 'abdomen':
+        field = lt.smooth(0.52, 0.48, np.abs(s) + 0.035 * n + 0.012 * rag) * lt.smooth(0.0, 0.06, d) * \
+            lt.smooth(0.06, 0.09, V)
+        col = lt.mix(col, hide['field'], field * hide['field_k'])
+        width, middle, half = hide['heart_shape']
+        edge = width * np.clip(1 - ((V - middle) / half) ** 2, 0, 1) - np.abs(s) + 0.006 * rag
+        heart = lt.smooth(-0.004, 0.004, edge) * (d > 0)
+        halo = lt.smooth(-0.035, -0.006, edge) * (1.0 - heart) * (d > 0)
+        if hide['heart_outline']:
+            # A ghost of the mark (the pale hides): its outline drawn crisp, its inside only washed.
+            ring = lt.smooth(-0.006, 0.0, edge) * lt.smooth(0.012, 0.006, edge) * (d > 0)
+            col = lt.mix(col, hide['heart'], np.clip(ring * 0.95 + heart * 0.3, 0, 1) * hide['heart_k'])
+        else:
+            col = lt.mix(col, hide['field'] * 0.7, halo * 0.6)
+            col = lt.mix(col, hide['heart'], heart * hide['heart_k'])
+        for k in range(4):
+            vk = 0.5 - k * 0.11
+            line = 1 - lt.smooth(0.015, 0.02, np.abs(V - (vk - 0.22 * np.abs(s))) + 0.002 * rag)
+            col = lt.mix(col, hide['chevron'], line * (np.abs(s) < 0.42) * (d > 0) * hide['chevron_k'])
+        col = lt.mix(col, hide['speck'], lt.specks(shape, seed + 3, 0.05, 0.8 * K) * hide['speck_k'] * (d > -0.2))
+    else:
+        a = np.abs(s) + 0.008 * rag
+        stripe = lt.smooth(0.125, 0.105, a) * (d > 0)
+        lateral = lt.smooth(0.14, 0.165, a) * lt.smooth(0.66, 0.63, a) * (d > 0)
+        col = lt.mix(col, hide['lateral'], lateral * hide['lateral_k'])
+        col = lt.mix(col, hide['stripe'], stripe * hide['stripe_k'][0 if region == 'carapace' else 1])
+        col = lt.mix(col, hide['margin'], lt.smooth(0.8, 0.83, a) * (d > -0.3) * hide['margin_k'])
+        if 'face' in hide and region == 'head':
+            face = lt.smooth(0.6, 0.63, V + 0.006 * rag) * lt.smooth(-0.45, -0.38, d)
+            col = lt.mix(col, hide['face'], face * hide['face_k'])
+    return col
+
+
 def paint_painted(region, U, V, seed, hide):
-    """The painted hide (BROWN): broad soft values and crisp marks, fur in clumps, sheen along the top of every chitin
-    plate, pale rims and dark joints; roughness low on chitin, higher on fur."""
+    """The painted hide (BROWN): values in crisp painted dabs, crisp marks, fur in clumps with a crisp hair grain (in
+    the colour and the normal map), matte chitin plates with pale rims, dark joints and broken leg bands."""
     shape = U.shape
     base, light, belly = hide['base'], hide['light'], hide['belly']
     n = lt.noise(shape, seed, 12.0 * K, 12.0 * K, octaves=3)
     if region in ('abdomen', 'carapace', 'head'):
         d, s = lc.body_axes(U, V)
         broad = lt.noise(shape, seed + 7, 60.0 * K, 60.0 * K, octaves=2)
-        col = lt.mix(base, light, np.clip(0.28 + 0.12 * broad, 0, 1))
+        col = lt.mix(base, light, np.clip(0.28 + 0.08 * broad, 0, 1))
         col = lt.mix(col, belly, lt.smooth(-0.1, -0.55, d))
-        col = body_marks(region, U, V, seed, shape, n, hide, col)
-        # Fur in clumps (longer along the body): each a little lighter or darker, dark in the crevices between them.
-        cells = lt.worley(shape, (max(int(shape[1] / (22.0 * K)), 4), max(int(shape[0] / (30.0 * K)), 4)), seed + 31,
-                          stretch=(1.0, 0.6))
-        tuft = lt.smooth(0.0, 8.0 * K, cells['edge'])
-        tone = lt.per_cell(cells['id'], cells['count'], seed + 32, -1.0, 1.0)
-        strokes = lt.noise(shape, seed + 11, 1.2 * K, 7.0 * K)          # hairs along the body (V runs along the rows)
-        shade = (1.0 + 0.05 * tone) * (0.86 + 0.14 * tuft) * (1.0 + 0.03 * strokes)
+        # Painted dabs: patches a shade lighter or darker, crisp-edged.
+        dabs = lt.worley(shape, (max(int(shape[1] / (70.0 * K)), 4), max(int(shape[0] / (60.0 * K)), 4)), seed + 41)
+        col = col * (1.0 + 0.07 * lt.per_cell(dabs['id'], dabs['count'], seed + 42, -1.0, 1.0))[..., None]
+        col = crisp_marks(region, U, V, seed, shape, n, hide, col, d, s)
+        if 'scar' in hide and region != 'head':
+            cut, core = scars(shape, U, V, seed + (41 if region == 'abdomen' else 43), 4 if region == 'abdomen' else 1)
+            col = lt.mix(col, hide['scar'], cut * hide['scar_k'])
+            col = lt.mix(col, hide['scar_core'], core * 0.75)
+        if 'dust' in hide:
+            # Grave dust settled on her back: blotchy, thickest along the top, gone down the sides.
+            blotch = np.clip(0.55 + 0.6 * lt.noise(shape, seed + 21, 14.0 * K, 9.0 * K, octaves=2), 0, 1)
+            grit = lt.specks(shape, seed + 23, 0.12, 1.2 * K)
+            col = lt.mix(col, hide['dust'], lt.smooth(0.2, 0.75, d) * (blotch * 0.8 + grit * 0.4) * hide['dust_k'])
+        # Fur in short clumped tufts, combed toward the rear and fanning out down the sides (the body's curve), dark at
+        # the roots and light at the tips, fine hairs in them: velvet on the abdomen, shorter on the carapace and head.
+        size = (7.0, 10.0) if region == 'abdomen' else (5.5, 7.5)
+        tip, tuft, dome, tone = fur_tufts(shape, seed + 31, size[0], size[1], np.pi / 2, 0.9 * s)
+        grain = hair_grain(shape, seed + 11, 0.7, True)
+        shade = (1.0 + 0.05 * tone) * (0.9 + 0.14 * tip) * (0.96 + 0.04 * tuft) * (1.0 + 0.13 * grain)
         shade = shade * (1.0 + 0.1 * lt.smooth(0.2, 1.0, d))            # painted top light
         col = col * shade[..., None]
-        height = 0.0011 * tuft + 0.00012 * strokes
+        height = 0.0016 * dome * (0.5 + 0.5 * tip) + 0.0004 * grain
         # Matte, hairy (the user, 2026-10-22: "reads too glossy"): only a faint sheen left on the carapace's plates.
         fur = 0.86 if region == 'abdomen' else 0.74
-        rough = fur - 0.08 * tuft + 0.04 * strokes + 0.12 * lt.smooth(-0.2, -0.8, d)
-        occl = (1.0 - 0.22 * lt.smooth(-0.2, -0.85, d)) * (0.84 + 0.16 * tuft)
+        rough = fur - 0.06 * tip + 0.03 * grain + 0.12 * lt.smooth(-0.2, -0.8, d)
+        occl = (1.0 - 0.22 * lt.smooth(-0.2, -0.85, d)) * (0.86 + 0.14 * np.maximum(tip, 1.0 - tuft * 0.5))
         if region == 'carapace':
             # The fovea, a dark dash behind the middle, and grooves from it toward the legs (cm over the carapace).
             dx = (U - 0.5) * 187.0
@@ -303,53 +377,61 @@ def paint_painted(region, U, V, seed, hide):
             angle = np.degrees(np.arctan2(np.abs(dx), dy))
             groove = np.zeros(shape, np.float32)
             for a in (40.0, 74.0, 106.0, 140.0):
-                groove = np.maximum(groove, np.exp(-((angle - a) / (5.5 + 40.0 / np.maximum(r, 1.0))) ** 2))
-            groove = groove * lt.smooth(4.0, 9.0, r) * lt.smooth(34.0, 20.0, r) * (d > 0.2)
-            fovea = np.exp(-(dx / 1.4) ** 2 - (dy / 5.0) ** 2)
-            col = lt.mix(col, hide['groove'], np.clip(groove * 0.45 + fovea * 0.9, 0, 1))
-            height = height - 0.0016 * groove - 0.003 * fovea
+                groove = np.maximum(groove, lt.smooth(1.0, 0.6, np.abs(angle - a) / (3.5 + 25.0 / np.maximum(r, 1.0))))
+            groove = groove * lt.smooth(4.0, 7.0, r) * lt.smooth(34.0, 26.0, r) * (d > 0.2)
+            fovea = lt.smooth(1.0, 0.7, np.sqrt((dx / 1.4) ** 2 + (dy / 5.0) ** 2))
+            col = lt.mix(col, hide.get('groove', hide['field']), np.clip(groove * 0.5 + fovea * 0.9, 0, 1))
+            height = height - 0.0025 * groove - 0.004 * fovea
             occl = occl * (1.0 - 0.25 * groove - 0.4 * fovea)
         return col, rough, height, occl
     if region == 'chel':
         # The chelicerae: dark, hairy, darker toward the fang.
         along, top = lc.limb_axes(U, V)
-        strokes = lt.noise(shape, seed + 13, 1.2 * K, 9.0 * K)
+        grain = hair_grain(shape, seed + 13, 0.9, True)
         col = lt.mix(base, hide['palp'], 0.85)
         col = lt.mix(col, light, lt.smooth(0.5, 0.95, top) * 0.12)
-        col = lt.mix(col, hide['membrane'], lt.smooth(0.55, 1.0, along) * 0.6)
-        col = col * (1.0 + 0.04 * strokes)[..., None]
-        return col, 0.68 + 0.05 * strokes, 0.0001 * strokes, 1.0 - 0.2 * lt.smooth(0.0, -0.8, top)
+        col = lt.mix(col, hide.get('membrane', hide['ring']), lt.smooth(0.55, 1.0, along) * 0.6)
+        col = col * (1.0 + 0.1 * grain)[..., None]
+        return col, 0.68 + 0.05 * grain, 0.0005 * grain, 1.0 - 0.2 * lt.smooth(0.0, -0.8, top)
     along, top = lc.limb_axes(U, V)
     s, index = segment_coords(along, LIMB_SEGMENTS.get(region, ((0.0, 1.0),)))
+    fine = lt.noise(shape, seed + 23, 3.0 * K, 3.0 * K)
+    hairy = hair_grain(shape, seed + 29, 0.6, False)     # short hairs breaking every painted edge
     lit = lt.smooth(-0.8, 0.6, top)                       # 0 under the leg .. 1 on its top
     col = lt.mix(belly, base, lit)
     if region == 'palp':
         col = lt.mix(col, hide['palp'], hide['palp_k'])
     crown = np.sin(np.pi * np.clip(s, 0.0, 1.0)) ** 0.7  # each plate's lit middle
-    joint = 1.0 - lt.smooth(0.0, 0.08, s)                 # the membrane after a joint
+    joint = 1.0 - lt.smooth(0.0, 0.05 + 0.02 * fine, s)    # the soft membrane after a joint, ragged with hair
     if region == 'tibia':
         joint = joint * (index != 0)                      # the patella's near end is the knee's knob, on show
-    shoulder = lt.smooth(0.93, 1.0, s)                    # rolling off into the next joint
-    rim = np.exp(-((s - 0.89) / 0.03) ** 2)               # the plate's hard edge
+    shoulder = lt.smooth(0.92, 1.0, s)                    # rolling off into the next joint
+    rim = np.exp(-((s - 0.9) / 0.03) ** 2)                # the plate's edge, faint
     for k, at in LIMB_BANDS.get(region, ()):
-        band = (index == k) * (1.0 - lt.smooth(0.07, 0.13, np.abs(s - at) + 0.01 * n))
+        band = (index == k) * (1.0 - lt.smooth(0.07, 0.12, np.abs(s - at) + 0.03 * fine + 0.02 * hairy))
         col = lt.mix(col, hide['ring'], band * hide['ring_k'])
     if region == 'tibia':
         col = lt.mix(col, hide['ring'], (index == 0) * 0.22 * hide['ring_k'])                    # the patella
         col = lt.mix(col, hide['ring'], (index == 3) * lt.smooth(0.2, 1.0, s) * 0.8)            # dark to the tip
     if region == 'coxa':
         col = lt.mix(col, belly, 0.3)
-    gloss = lt.smooth(0.45, 0.95, top) * crown            # painted sheen along the top of the plate
+    if region == 'femur' and 'dust' in hide:
+        col = lt.mix(col, hide['dust'], lt.smooth(0.3, 0.9, top) * 0.25 * hide['dust_k'])
+    # Dark mottling, crisp spots.
+    col = lt.mix(col, hide['ring'], lt.specks(shape, seed + 21, 0.1, 2.5 * K) * 0.3)
+    gloss = lt.smooth(0.45, 0.95, top) * crown            # a faint painted light along the top of the plate
     col = lt.mix(col, light, gloss * 0.1)
-    col = lt.mix(col, light, rim * 0.12 * lit)
-    col = lt.mix(col, hide['membrane'], np.clip(joint * 0.85 + shoulder * 0.25, 0.0, 1.0))
+    col = lt.mix(col, light, rim * 0.1 * lit)
+    col = lt.mix(col, hide.get('membrane', hide['ring']), np.clip(joint * 0.7 + shoulder * 0.15, 0.0, 1.0))
     # Pale hairs flecked along the leg (lit side), so it reads furred, not polished.
     flecks = lt.specks(shape, seed + 17, 0.07, 1.2 * K) * lt.smooth(0.0, 0.3, lt.noise(shape, seed + 19, 6.0 * K, 1.0 * K))
     col = lt.mix(col, light * 1.08, flecks * 0.4 * (0.4 + 0.6 * lit))
-    hairs = lt.noise(shape, seed + 13, 10.0 * K, 1.0 * K)   # fine hairs along the limb (U runs along the columns)
-    col = col * (1.0 + 0.02 * hairs + 0.03 * n)[..., None]
-    height = 0.0009 * crown + 0.0006 * rim - 0.0015 * joint - 0.0008 * shoulder + 0.00012 * hairs
-    rough = 0.8 - 0.06 * gloss + 0.06 * flecks + 0.12 * np.clip(joint + shoulder, 0.0, 1.0) + 0.04 * hairs
+    # Short hairs in small tufts lying toward the claw, dark roots and light tips.
+    tip, tuft, dome, tone = fur_tufts(shape, seed + 27, 5.0, 3.5, 0.0, 0.0, jitter=0.35)
+    grain = hairy
+    col = col * ((1.0 + 0.05 * tone) * (0.92 + 0.12 * tip) * (1.0 + 0.11 * grain + 0.03 * n))[..., None]
+    height = 0.0012 * crown + 0.0005 * rim - 0.0018 * joint - 0.0008 * shoulder + 0.0006 * dome * tip + 0.0003 * grain
+    rough = 0.8 - 0.06 * gloss + 0.06 * flecks + 0.12 * np.clip(joint + shoulder, 0.0, 1.0) + 0.04 * grain
     occl = 1.0 - 0.25 * lt.smooth(0.2, -0.8, top) - 0.3 * joint
     return col, rough, height, occl
 
@@ -470,10 +552,10 @@ def ring_frame(curve, t, plane, flip, dt=0.01):
 
 def segment(m, curve, t0, t1, radius, region, u0, u1, sides, stations, plane, up, tip=None, round_start=False):
     """A limb segment: a smooth tapered tube along curve(t) from t0 to t1 with radius(t, s) (s 0..1 along it), U from u0
-    to u1 of its region, V round it (0.5 its top). Its far end is rounded off (a shoulder ring, then a point a little
-    beyond), so no flat cap shows at a joint; its near end, inside the segment before, closes to a low point; tip: the far
-    end closes to that point instead (the claw); round_start: the near end is rounded as the far one (the knee's knob,
-    on top of the joint where it shows)."""
+    to u1 of its region, V round it (0.5 its top). Its far end is rounded off (a shoulder ring, then a point: about a
+    half sphere; a flatter cap read as a sawn log), so no flat cap shows at a joint; its near end, inside the segment
+    before, closes to a low point; tip: the far end closes to that point instead (the claw); round_start: the near end
+    is rounded as the far one (the knee's knob, on top of the joint where it shows)."""
     flip = -1.0 if plane.cross((curve(t1) - curve(t0)).normalized()).dot(up) < 0 else 1.0
     rows = []      # (centre, radius, u, frame)
     if isinstance(stations, int):
@@ -484,13 +566,13 @@ def segment(m, curve, t0, t1, radius, region, u0, u1, sides, stations, plane, up
     start_tan, end_tan = rows[0][3][0], rows[-1][3][0]
     r0, r1 = rows[0][1], rows[-1][1]
     if round_start:
-        rows.insert(0, (rows[0][0] - start_tan * r0 * 0.38, r0 * 0.8, u0, rows[0][3]))
-        hub0 = rows[0][0] - start_tan * r0 * 0.32
+        rows.insert(0, (rows[0][0] - start_tan * r0 * 0.62, r0 * 0.78, u0, rows[0][3]))
+        hub0 = rows[0][0] - start_tan * r0 * 0.36
     else:
         hub0 = rows[0][0] - start_tan * r0 * 0.5      # its neck sits inside the segment before: a low point will do
     if tip is None:
-        rows.append((rows[-1][0] + end_tan * r1 * 0.38, r1 * 0.8, u1, rows[-1][3]))
-        hub1 = rows[-1][0] + end_tan * r1 * 0.32
+        rows.append((rows[-1][0] + end_tan * r1 * 0.62, r1 * 0.78, u1, rows[-1][3]))
+        hub1 = rows[-1][0] + end_tan * r1 * 0.36
     else:
         hub1 = tip
     bm = m.bm
@@ -582,8 +664,13 @@ for side, suffix in SIDES:
     for k in range(6):
         p = stem[1].lerp(stem[2], k / 5.0) + Vector((5.6, side * rng.uniform(-2.5, 2.5), 0.0))
         lc.bristle(hm, p, Vector((1.0, 0.0, -0.9)), HAIR_LENGTH * rng.uniform(0.35, 0.55), HAIR_RADIUS, 'bristle')
-    lc.tube(m, [tip0, tip0 + Vector((4, -side * 3, -6)), tip0 + Vector((5, -side * 7, -9))],
-            [radii[1] * 0.35, radii[1] * 0.22, 0.4], 'fang', sides=6, patch=True)
+    # The fang grows out of the base's tip: rooted 2.5 cm inside it, curving forward, inward and down to its point
+    # (it began 1.5 cm below the slim base's end and floated, 2026-10-22).
+    end = stem[-1]
+    root = end - (stem[-1] - stem[-2]).normalized() * 2.5
+    lc.tube(m, [root, end + Vector((1.5, -side * 1.2, -3.0)), end + Vector((3.5, -side * 3.0, -7.0)),
+                tip0 + Vector((5, -side * 5, -9))],
+            [2.7, 2.2, 1.3, 0.4], 'fang', sides=6, patch=True)
     bones.append((f'fang_{suffix}', base, base + Vector((4.0, 0.0, -15.0)), 'head'))
 
 # The abdomen sways from a pivot at the pedicel; spinnerets at its back.

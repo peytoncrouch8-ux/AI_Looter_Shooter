@@ -72,6 +72,7 @@ EARTH_SMEAR = lt.rgb(0x5f4f3e)
 # in, lichen near the stone; grave earth climbing her from below (her belly and the underside of every leg dark, wet
 # earth on the lower legs: looter_barrow.paint_mud), so she reads pale on top and dark at the ground from across the Sink.
 GRAVE = dict(
+    painted=True,         # Spider.py's painted hide (SPIDER-LOOK, 2026-10-22: setae tufts, crisp marks, matte)
     base=lt.rgb(0xc2b9a6), light=lt.rgb(0xd3ccbc), belly=lt.rgb(0x5e5042),
     field=lt.rgb(0xa39a8a), field_k=0.35, heart=lt.rgb(0x6b6359), heart_k=0.6, heart_shape=(0.15, 0.76, 0.23),
     heart_outline=True, chevron=lt.rgb(0x7b7368), chevron_k=0.35, speck=lt.rgb(0x8f877b), speck_k=0.3,
