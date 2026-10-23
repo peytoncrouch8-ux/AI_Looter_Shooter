@@ -5,6 +5,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
@@ -280,3 +281,13 @@ bool APorchPlate::Eat(AActor* Player)
 }
 
 #undef LOCTEXT_NAMESPACE
+
+TOptional<FInteractionBox> APorchPlate::GetInteractionBox() const
+{
+	// The plate and what's left on it, at least a hand's size round it.
+	if (!Plate || !Plate->GetStaticMesh())
+	{
+		return TOptional<FInteractionBox>();
+	}
+	return InteractionFocus::GrownBox(Plate->Bounds.GetBox(), InteractionFocus::SmallThingHalfWidth, InteractionFocus::SmallThingHalfHeight);
+}

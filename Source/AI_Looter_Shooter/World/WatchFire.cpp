@@ -4,6 +4,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
@@ -286,6 +287,12 @@ bool AWatchFire::Interact(UInteractionComponent& User, bool bHeld)
 TOptional<FVector> AWatchFire::GetInteractionLocation() const
 {
 	return TOptional<FVector>(GetActorLocation() + FVector(0.0, 0.0, UseHeight));
+}
+
+TOptional<FInteractionBox> AWatchFire::GetInteractionBox() const
+{
+	// The basket from under its fire bed up into the first of the flames, its middle a little over the bed.
+	return InteractionFocus::BoxAround(GetActorLocation() + FVector(0.0, 0.0, LookHalfSize.Z * 0.2), LookHalfSize.GetAbs(), GetActorQuat());
 }
 
 bool AWatchFire::Light(AActor* User)

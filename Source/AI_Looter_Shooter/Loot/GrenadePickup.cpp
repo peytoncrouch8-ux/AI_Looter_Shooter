@@ -4,6 +4,7 @@
 #include "Combat/GraveSaltGrenade.h"
 #include "Loot/LootTossComponent.h"
 #include "Player/PlayerThrowComponent.h"
+#include "Loot/LootBeamCrowd.h"
 #include "World/LightBeam.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -88,6 +89,8 @@ AGrenadePickup* AGrenadePickup::SpawnGrenades(UWorld* World, int32 Count, const 
 void AGrenadePickup::BeginPlay()
 {
 	Super::BeginPlay();
+	// Among other drops, one beam stands for them all (LootBeamCrowd); a lone tin keeps its own.
+	ULootBeamCrowdSubsystem::Join(this, Beam);
 	// The tin, or the engine's cylinder until the model's been imported.
 	if (UStaticMesh* Mesh = AGraveSaltGrenade::FindJarMesh())
 	{

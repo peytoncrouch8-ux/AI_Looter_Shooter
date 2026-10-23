@@ -5,6 +5,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Bosses/AbelRules.h"
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionRunner.h"
 #include "World/KeepersLantern.h"
@@ -38,6 +39,8 @@ namespace
 
 	/** The box the Interact line finds: round the lantern and the hook under it, this much past them (cm). */
 	constexpr double BoxPad = 22.0;
+	/** The box looked at to use it reaches this far past the post and its lantern (cm). */
+	constexpr double PostLookPad = 10.0;
 
 	/** The lights: the post's (only with bCastsLight) and the lit Keeper's Lantern's, warm and small (candela, cm). */
 	constexpr float PostCandela = 8.f;
@@ -414,4 +417,21 @@ bool AKeeperLanternPost::Interact(UInteractionComponent& User, bool bHeld)
 TOptional<FVector> AKeeperLanternPost::GetInteractionLocation() const
 {
 	return Grip ? TOptional<FVector>(Grip->GetComponentLocation()) : TOptional<FVector>();
+}
+
+TOptional<FInteractionBox> AKeeperLanternPost::GetInteractionBox() const
+{
+	// The whole post, its arm and its lantern (and the hook under it): relit from wherever the fight leaves the player on the
+	// deck, looked at anywhere on it, not only at a lantern hanging out past the rail (the 2026-10-23 play-check: only from
+	// the canyon side).
+	if (!Grip)
+	{
+		return TOptional<FInteractionBox>();
+	}
+	FBox Whole = Grip->Bounds.GetBox();
+	if (Post && Post->GetStaticMesh() && Post->IsVisible())
+	{
+		Whole += Post->Bounds.GetBox();
+	}
+	return InteractionFocus::BoxAround(Whole.GetCenter(), Whole.GetExtent() + FVector(PostLookPad));
 }

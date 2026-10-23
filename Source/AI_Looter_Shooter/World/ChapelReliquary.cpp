@@ -3,6 +3,7 @@
 #include "World/ChapelReliquary.h"
 #include "AI_Looter_Shooter.h"
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
@@ -370,4 +371,14 @@ void AChapelReliquary::FinishLook()
 	{
 		Runner->NotifyEvent(FMissionEvent::Named(SightEvent, this));
 	}
+}
+
+TOptional<FInteractionBox> AChapelReliquary::GetInteractionBox() const
+{
+	// The smashed Reliquary as it stands: anywhere on it (without its model, a box where it would be).
+	if (HasModel())
+	{
+		return InteractionFocus::GrownBox(Mesh->Bounds.GetBox(), InteractionFocus::SmallThingHalfWidth, InteractionFocus::SmallThingHalfHeight);
+	}
+	return InteractionFocus::BoxAround(GetInteractionLocation().Get(GetActorLocation()), FVector(30.0), GetActorQuat());
 }

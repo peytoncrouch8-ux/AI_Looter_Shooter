@@ -47,6 +47,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** What it is, grown to at least a hand's size round it (InteractionFocus::GrownBox). */
+	virtual TOptional<FInteractionBox> GetInteractionBox() const override;
 
 	/**
 	 * Reads it for Player (their pawn or controller), as a tap of Interact does: the card (or only the lines), the event.

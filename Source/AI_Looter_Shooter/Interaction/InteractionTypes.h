@@ -97,6 +97,13 @@ struct AI_LOOTER_SHOOTER_API FInteractionCandidate
 	 */
 	TOptional<FVector> Middle;
 
+	/**
+	 * Its box (IInteractable::GetInteractionBox), when it has one: whatever the sight line meets inside it is the thing's own
+	 * surroundings (the brazier's basket round the fire bed, the gantry round the clamp, the post's arm over the lantern) and
+	 * never hides it.
+	 */
+	TOptional<FInteractionBox> Box;
+
 	FInteractionOptions Options;
 
 	/** How far from the eyes it can be (cm). */

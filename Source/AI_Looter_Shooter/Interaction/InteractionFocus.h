@@ -28,11 +28,27 @@ namespace InteractionFocus
 	inline constexpr float SightTolerance = 15.f;
 
 	/**
+	 * A small thing lying about (a page, a letter, coins, a plate) is looked at as at least this much round it (half sizes,
+	 * cm), from the surface it lies on up (GrownBox): found looked at near it, not only dead on its few centimetres.
+	 */
+	inline constexpr double SmallThingHalfWidth = 16.0;
+	inline constexpr double SmallThingHalfHeight = 10.0;
+
+	/**
 	 * The point of Box the crosshair's line (View, out to Length) means: where the line enters it when it passes through it
 	 * (the line's start when that's inside), else the box's point nearest the line ahead of it. A box behind the line's
 	 * start gives its point nearest the start (which lies behind: never looked at).
 	 */
 	FVector NearestOnBox(const FInteractionView& View, const FInteractionBox& Box, double Length);
+
+	/**
+	 * A box round world Bounds (axis-aligned) grown to at least MinHalfWidth across and MinHalfHeight up: wider about its
+	 * middle, taller only upward from its bottom (a small thing lying on a ledge is never looked for inside the ledge).
+	 */
+	FInteractionBox GrownBox(const FBox& Bounds, double MinHalfWidth, double MinHalfHeight);
+
+	/** A box Half each way round Middle, turned as Turn. */
+	FInteractionBox BoxAround(const FVector& Middle, const FVector& Half, const FQuat& Turn = FQuat::Identity);
 
 	/** How directly the candidate lies along the crosshair's line: the cosine of its angle off it. */
 	float AimOf(const FInteractionView& View, const FInteractionCandidate& Candidate);
@@ -59,7 +75,8 @@ namespace InteractionFocus
 
 	/**
 	 * A blocking hit at HitPoint on the line from the eyes to the candidate hides it. Its own part to use never does (a
-	 * door's leaf, the board's slate), nor what it stands against right at its point (SightTolerance); anything else does,
+	 * door's leaf, the board's slate), nor what it stands against right at its point (SightTolerance), nor anything inside its
+	 * own box (Candidate.Box, grown by SightTolerance: a brazier's basket, a gantry round its clamp); anything else does,
 	 * its own walls included (a station's board isn't read through the depot).
 	 */
 	bool DoesHitHide(const FInteractionCandidate& Candidate, const AActor* HitActor, const UPrimitiveComponent* Part, const FVector& HitPoint);

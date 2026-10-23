@@ -44,11 +44,21 @@ FText UMissionDefinition::GetGiverName() const
 
 FString UMissionDefinition::GetTurnInShortText() const
 {
+	// Why first, when the turn-in moves to someone the steps never named (Main 7's Tilly after Delia): "Tilly's hearse car
+	// waits at the depot: turn in to Tilly".
+	if (!TurnIn.Why.IsEmpty())
+	{
+		return FText::Format(LOCTEXT("TurnInShortWhy", "{0}: turn in to {1}"), HeroLines::Resolve(TurnIn.Why), GetGiverName()).ToString();
+	}
 	return FText::Format(LOCTEXT("TurnInShort", "Turn in to {0}"), GetGiverName()).ToString();
 }
 
 FString UMissionDefinition::GetTurnInText() const
 {
+	if (!TurnIn.Why.IsEmpty())
+	{
+		return FText::Format(LOCTEXT("TurnInFullWhy", "Ready to turn in: talk to {0}. {1}."), GetGiverName(), HeroLines::Resolve(TurnIn.Why)).ToString();
+	}
 	return FText::Format(LOCTEXT("TurnInFull", "Ready to turn in: talk to {0}"), GetGiverName()).ToString();
 }
 

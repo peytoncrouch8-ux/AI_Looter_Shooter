@@ -284,14 +284,15 @@ def rewards(experience=0, experience_share=0.0, unlock_areas=(), gun=False, gun_
     return made
 
 
-def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), question='', hand_items=()):
+def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), question='', hand_items=(), why=''):
     """FMissionTurnIn: who the mission is turned in to once its objectives are done (their speaker tag and their name for
     "Turn in to <giver>"), and what they say then (lines of (speaker, words); an empty speaker is the giver's speaker
     point's name; none: what they'd say there anyway, for a talk the story already wrote). automatic: it finishes by
     itself after its last objective (no one to turn it in to). Anyone at a speaker point can be the giver: a door, a
     window, a talking coffin, a speaking tube, a tag board (ASpeakerPoint, its bMissionsOnly keeping it quiet otherwise).
     choices: none, or two choice()s: the talk says lines, then the card asks the player to hold one of the two down
-    (question over them; empty: the card's own words); the mission finishes with that choice's rewards and flag."""
+    (question over them; empty: the card's own words); the mission finishes with that choice's rewards and flag. why: when
+    the turn-in moves to someone the steps never named, why (the tracker reads "<why>: turn in to <giver>")."""
     if len(choices) not in (0, 2):
         raise RuntimeError(f'a turn-in takes no choices or two, not {len(choices)}: nothing was changed')
     made = unreal.MissionTurnIn()
@@ -310,6 +311,13 @@ def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), questio
         except Exception as error:
             unreal.log_warning(f'MISSIONS: no MissionTurnIn.hand_items ({error}): {", ".join(hand_items)} stay where '
                                'they lie (build the game module)')
+    if why:
+        # Guarded, as hand_items: a game module from before FMissionTurnIn::Why still makes the mission ("Turn in to <giver>").
+        try:
+            made.set_editor_property('why', unreal.Text(why))
+        except Exception as error:
+            unreal.log_warning(f'MISSIONS: no MissionTurnIn.why ({error}): the tracker says only "Turn in to {giver}" '
+                               '(build the game module)')
     return made
 
 
@@ -756,7 +764,8 @@ MISSIONS = [
          ], briefing="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned "
                      "Purcell and the Gilded Lily. Go home to Delia first: she has kept something back. Tilly's hearse "
                      "car waits at the depot."),
-         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly'),
+         # Turned in at Tilly's, not Delia's, whose step it was: the tracker says why (round 3 of 2026-10-23: no hint).
+         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', why="Tilly's hearse car waits at the depot"),
          rewards=dict(experience=4100, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
 ]
 

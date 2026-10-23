@@ -137,7 +137,11 @@ PILLAR_TOP = 4.65                     # the pillar's cap top (wedges) above the 
 PROP_TOP = 6.3                        # the stope prop's head board top above the floor
 PILLARS = [(x, y) for y in (36.0, 42.0, 48.0) for x in (-4.0, 4.0)]
 PROPS = [(-25.0, 88.5), (-17.5, 88.5), (-10.0, 88.5), (-21.5, 93.0), (-14.0, 93.0), (-7.5, 93.0)]
-BARRICADE = (-21.0, 82.5, -8.0)
+# The barricade stands 0.65 m west of the drift's middle (x -21): its way through at the east end (barricade()'s GAP_X + 0.3
+# to its end) then opens 1.5 m to the drift's east wall at x -18. Centred, under a metre was left between its end and
+# the drift's rough east wall, which a player couldn't walk through (the 2026-10-23
+# play-check, r4_barricade_walk); its west end runs on into the rock.
+BARRICADE = (-21.65, 82.5, -8.0)
 GATE_HINGE = (-3.3, 86.25, -8.0)      # the manway gate's hinge foot (the leaf runs +Y from it when shut)
 FALL = (-17.0, 95.5, -8.0)            # the fall's foot line, middle
 WINCH = (-5.3, 34.5, 0.0)

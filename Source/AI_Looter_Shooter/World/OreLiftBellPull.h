@@ -29,6 +29,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** The handle and the rope up to the bell. */
+	virtual TOptional<FInteractionBox> GetInteractionBox() const override;
 
 	/** Pulls it as the player would (a tap, or a hold run to its end); True when something happened. */
 	bool Pull(AActor* User, bool bHeld);

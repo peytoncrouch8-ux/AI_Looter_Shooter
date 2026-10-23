@@ -5,6 +5,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
@@ -241,3 +242,14 @@ bool AReadableProp::Read(AActor* Player)
 }
 
 #undef LOCTEXT_NAMESPACE
+
+TOptional<FInteractionBox> AReadableProp::GetInteractionBox() const
+{
+	// What it is, at least a hand's size round it, from what it lies on up (a page, a letter, a badge on a desk).
+	if (!Mesh || !Mesh->GetStaticMesh())
+	{
+		// No model of its own (the barricade's tags on their nail, words on a wall): a hand's room round its spot.
+		return InteractionFocus::BoxAround(GetActorLocation(), FVector(InteractionFocus::SmallThingHalfWidth * 1.5), GetActorQuat());
+	}
+	return InteractionFocus::GrownBox(Mesh->Bounds.GetBox(), InteractionFocus::SmallThingHalfWidth, InteractionFocus::SmallThingHalfHeight);
+}

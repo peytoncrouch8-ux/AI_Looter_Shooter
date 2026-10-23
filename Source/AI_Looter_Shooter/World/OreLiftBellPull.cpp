@@ -4,6 +4,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Components/SphereComponent.h"
 
@@ -13,6 +14,13 @@ namespace
 {
 	/** The handle's size (cm): a hand's grip on the cord. */
 	constexpr float HandleRadius = 18.f;
+	/**
+	 * What's looked at to pull it: the handle and the rope up to the bell (OreLift.py: the rope 1.15-1.35 m from the bell down
+	 * to the handle), a hand's room round them (cm, from the handle): pulled looked at anywhere along it.
+	 */
+	constexpr double CordHalfWidth = 30.0;
+	constexpr double CordBelow = 25.0;
+	constexpr double CordAbove = 150.0;
 }
 
 AOreLiftBellPull::AOreLiftBellPull()
@@ -106,6 +114,12 @@ bool AOreLiftBellPull::Interact(UInteractionComponent& User, bool bHeld)
 TOptional<FVector> AOreLiftBellPull::GetInteractionLocation() const
 {
 	return TOptional<FVector>(GetActorLocation());
+}
+
+TOptional<FInteractionBox> AOreLiftBellPull::GetInteractionBox() const
+{
+	return InteractionFocus::BoxAround(GetActorLocation() + FVector(0.0, 0.0, (CordAbove - CordBelow) * 0.5),
+		FVector(CordHalfWidth, CordHalfWidth, (CordAbove + CordBelow) * 0.5), GetActorQuat());
 }
 
 bool AOreLiftBellPull::Pull(AActor* User, bool bHeld)

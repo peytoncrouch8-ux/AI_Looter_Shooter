@@ -44,6 +44,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** The basket and its wood (LookHalfSize round the fire bed, a little up). */
+	virtual TOptional<FInteractionBox> GetInteractionBox() const override;
 	virtual bool IsUsedUp() const override { return bLit; }
 
 	// --- The rules (apart from the world, for the tests) ---
@@ -134,9 +136,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = "WatchFire|Use", meta = (ClampMin = "0.05"))
 	float HoldSeconds = 1.5f;
 
-	/** How far from the player's eyes it can be used (cm); 0: the player's reach. */
+	/**
+	 * How far from the player's eyes it can be used (cm; 0: the player's reach): its basket hangs out past the deck's corner
+	 * and rail, so a little farther than hands reach.
+	 */
 	UPROPERTY(EditAnywhere, Category = "WatchFire|Use", meta = (ClampMin = "0"))
-	float Reach = 0.f;
+	float Reach = 320.f;
+
+	/**
+	 * Half the size of what's looked at to light it (cm): the whole basket and the wood laid in it (CalderPost.py: 0.36 m
+	 * across its rim, from 0.2 m under the fire bed to 0.27 m over it) and the first of the flames, so it's lit looked at
+	 * anywhere on it from anywhere on the deck (the 2026-10-23 play-check: only a low aim, from one spot of twelve).
+	 */
+	UPROPERTY(EditAnywhere, Category = "WatchFire|Use")
+	FVector LookHalfSize = FVector(55.0, 55.0, 50.0);
 
 	/** Raised over the socket to where the player looks to light it (cm): the brazier's rim. */
 	UPROPERTY(EditAnywhere, Category = "WatchFire|Use")

@@ -1368,7 +1368,7 @@
   {
    "asset": "SM_RR_Mine_Barricade",
    "mine_m": [
-    -21.0,
+    -21.65,
     82.5,
     -8.0
    ],
@@ -1379,7 +1379,7 @@
    ],
    "unreal_cm": [
     8250.0,
-    -2100.0,
+    -2165.0,
     -800.0
    ],
    "unreal_rotator_pitch_yaw_roll": [
@@ -1392,7 +1392,7 @@
   {
    "asset": "SM_RR_Mine_BarricadeTags",
    "mine_m": [
-    -21.0,
+    -21.65,
     82.5,
     -8.0
    ],
@@ -1403,7 +1403,7 @@
    ],
    "unreal_cm": [
     8250.0,
-    -2100.0,
+    -2165.0,
     -800.0
    ],
    "unreal_rotator_pitch_yaw_roll": [

@@ -4,6 +4,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
@@ -208,3 +209,13 @@ bool AMissionArtifact::Use(AActor* Player)
 }
 
 #undef LOCTEXT_NAMESPACE
+
+TOptional<FInteractionBox> AMissionArtifact::GetInteractionBox() const
+{
+	// What it is (a letter, a tag, a note's card over its paper), at least a hand's size round it, from what it lies on up.
+	if (!Mesh || !Mesh->GetStaticMesh())
+	{
+		return TOptional<FInteractionBox>();
+	}
+	return InteractionFocus::GrownBox(Mesh->Bounds.GetBox(), InteractionFocus::SmallThingHalfWidth, InteractionFocus::SmallThingHalfHeight);
+}

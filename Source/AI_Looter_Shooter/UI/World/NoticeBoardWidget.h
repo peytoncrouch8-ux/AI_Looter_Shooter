@@ -64,10 +64,17 @@ public:
 
 	/**
 	 * A click on card Index, as the mouse gives it: a card not chosen yet is chosen (as W and S choose); the chosen one is
-	 * acted on, as E acts (so a double click does both), or says why it can't be here (SayWhyNot). False when nothing was
-	 * chosen or done (no such card, or the chosen one can't be acted on here).
+	 * acted on, as E acts (so a double click does both), or says why it can't be here (SayWhyNot); a job up for the taking
+	 * here opens its offer card on the first click (OpensOnFirstClick). False when nothing was chosen or done (no such
+	 * card, or the chosen one can't be acted on here).
 	 */
 	bool ClickCard(int32 Index);
+
+	/**
+	 * Whether a click on a card not chosen yet acts at once: a job up for the taking that can be taken here (it only opens
+	 * the offer card, whose Accept or Not now decides), by the mouse; a key acts on the chosen card only.
+	 */
+	static bool OpensOnFirstClick(ENoticePosting State, bool bCanAct, bool bByKey);
 
 	/** The offer card opened from one of its postings closed (bAccepted: taken): the board reads its postings again and says so. */
 	void HandleOfferClosed(FName MissionId, bool bAccepted);

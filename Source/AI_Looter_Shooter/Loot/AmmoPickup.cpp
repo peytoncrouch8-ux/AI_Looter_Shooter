@@ -1,4 +1,5 @@
 #include "Loot/AmmoPickup.h"
+#include "Loot/LootBeamCrowd.h"
 #include "Loot/LootTossComponent.h"
 #include "Loot/PickupPullSubsystem.h"
 #include "Audio/LooterSound.h"
@@ -147,6 +148,8 @@ void AAmmoPickup::OnConstruction(const FTransform& Transform)
 void AAmmoPickup::BeginPlay()
 {
 	Super::BeginPlay();
+	// Among other drops, one beam stands for them all (LootBeamCrowd); a lone one keeps its own.
+	ULootBeamCrowdSubsystem::Join(this, Beam);
 	SpawnTime = GetWorld()->GetTimeSeconds();
 	SetLifeSpan(LifeSeconds);
 

@@ -77,9 +77,16 @@ bool UNoticeBoardWidget::ClickCard(int32 Index)
 	const FString Id = Postings[Index].MissionId.ToString();
 	if (Index != Selected)
 	{
-		// The first click chooses it, as W and S would; the next (or a double click's second) acts on it.
+		// The first click chooses it, as W and S would; the next (or a double click's second) acts on it. A job up for the
+		// taking opens its card at once: that only shows the job (Accept or Not now is the card's), and a second click on a
+		// card that looked done read as a board with no way to take it (the Gravemother's, 2026-10-23 round 3).
 		Select(Index);
-		UE_LOG(LogLooter, Verbose, TEXT("Notice board: card %d (%s) got a %s: chosen."), Index, *Id, By);
+		const bool bOfferNow = OpensOnFirstClick(Postings[Index].State, CanAct(Index), bKeyPress);
+		UE_LOG(LogLooter, Verbose, TEXT("Notice board: card %d (%s) got a %s: chosen%s."), Index, *Id, By, bOfferNow ? TEXT(", its card opened") : TEXT(""));
+		if (bOfferNow)
+		{
+			Act(Index);
+		}
 		return true;
 	}
 	if (!CanAct(Index))
@@ -93,6 +100,11 @@ bool UNoticeBoardWidget::ClickCard(int32 Index)
 	UE_LOG(LogLooter, Verbose, TEXT("Notice board: card %d (%s) got a %s: acted on (%s)."), Index, *Id, By, *StateWord(Postings[Index]).ToString());
 	Act(Index);
 	return true;
+}
+
+bool UNoticeBoardWidget::OpensOnFirstClick(ENoticePosting State, bool bCanAct, bool bByKey)
+{
+	return !bByKey && bCanAct && State == ENoticePosting::Offered;
 }
 
 void UNoticeBoardWidget::RebuildNav()

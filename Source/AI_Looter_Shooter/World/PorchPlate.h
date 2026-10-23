@@ -45,6 +45,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** The plate, grown to at least a hand's size round it (InteractionFocus::GrownBox). */
+	virtual TOptional<FInteractionBox> GetInteractionBox() const override;
 	virtual bool IsUsedUp() const override;
 
 	/** Takes the jars for Player (their pawn): the grenades, the slip, the event. False when it can't now. */

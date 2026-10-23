@@ -245,6 +245,14 @@ struct AI_LOOTER_SHOOTER_API FMissionTurnIn
 	FText GiverName;
 
 	/**
+	 * Why it's turned in to them, when that isn't plain from the steps (Main 7: home to Delia, then turned in at Tilly's
+	 * window: "Tilly's hearse car waits at the depot"): the tracker's line says it before "turn in to <giver>", and the
+	 * Missions page and the map's pin after "Ready to turn in". Empty: just "Turn in to <giver>".
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
+	FText Why;
+
+	/**
 	 * What they say as it's turned in, said instead of what they'd say there otherwise (their speaker point's lines at
 	 * this point in the story). Empty: their own lines, for a talk the story already wrote as the mission's end (Delia's,
 	 * Tilly's, Aldana's, Amos's). A line with no speaker is said in their speaker point's name.

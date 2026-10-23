@@ -6,6 +6,7 @@
 #include "Audio/LooterSoundCues.h"
 #include "Combat/HealthComponent.h"
 #include "Economy/WalletSubsystem.h"
+#include "Loot/LootBeamCrowd.h"
 #include "Loot/LootTossComponent.h"
 #include "Loot/SoulMotePickup.h"
 #include "World/LightBeam.h"
@@ -162,6 +163,8 @@ void ASilverPickup::OnConstruction(const FTransform& Transform)
 void ASilverPickup::BeginPlay()
 {
 	Super::BeginPlay();
+	// Among other drops, one beam stands for them all (LootBeamCrowd); a lone pile keeps its own.
+	ULootBeamCrowdSubsystem::Join(this, Beam);
 	SetLifeSpan(LifeSeconds);
 	TossMovement->OnProjectileStop.AddDynamic(this, &ASilverPickup::HandleTossStopped);
 	GetWorldTimerManager().SetTimer(LookTimer, this, &ASilverPickup::LookForPlayer, LookInterval, true, LookInterval);

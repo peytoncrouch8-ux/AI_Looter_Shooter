@@ -135,7 +135,29 @@ bool InteractionFocus::DoesHitHide(const FInteractionCandidate& Candidate, const
 			return false;
 		}
 	}
+	// Inside its own box (a little grown): the thing's own surroundings, which the player sees it among.
+	if (Candidate.Box.IsSet())
+	{
+		const FInteractionBox Grown(Candidate.Box->Transform, Candidate.Box->Extent + FVector(SightTolerance));
+		if (Grown.Contains(HitPoint))
+		{
+			return false;
+		}
+	}
 	return FVector::Dist(HitPoint, Candidate.Location) > SightTolerance;
+}
+
+FInteractionBox InteractionFocus::GrownBox(const FBox& Bounds, double MinHalfWidth, double MinHalfHeight)
+{
+	const FVector Half = Bounds.GetExtent();
+	const FVector Grown(FMath::Max(Half.X, MinHalfWidth), FMath::Max(Half.Y, MinHalfWidth), FMath::Max(Half.Z, MinHalfHeight));
+	const FVector Middle(Bounds.GetCenter().X, Bounds.GetCenter().Y, Bounds.Min.Z + Grown.Z);
+	return FInteractionBox(FTransform(Middle), Grown);
+}
+
+FInteractionBox InteractionFocus::BoxAround(const FVector& Middle, const FVector& Half, const FQuat& Turn)
+{
+	return FInteractionBox(FTransform(Turn, Middle), Half);
 }
 
 float InteractionFocus::ScoreOf(const FInteractionView& View, const FInteractionCandidate& Candidate)

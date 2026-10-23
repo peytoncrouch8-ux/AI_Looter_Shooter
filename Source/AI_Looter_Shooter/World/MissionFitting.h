@@ -38,6 +38,7 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	virtual TOptional<FInteractionBox> GetInteractionBox() const override;
 	virtual bool IsUsedUp() const override { return IsDone(); }
 
 	/** It can be used now: its story lets it and it isn't done. */
@@ -64,6 +65,15 @@ public:
 	/** The sound of the use, played at its spot (LooterSound cue name; none: silent). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission Fitting")
 	FName UseCue;
+
+	/**
+	 * Half the size of what's looked at to use it where its model is hidden until done (cm): the firebox door, the clamp
+	 * round the pin's hole, so it's used looked at anywhere there, from any spot the player stands (the 2026-10-23
+	 * play-check: the boiler from one spot of three, the pin from one of four, at 71 degrees up). A model always seen (a
+	 * gate) is looked at anywhere on it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission Fitting")
+	FVector LookHalfSize = FVector(35.0, 35.0, 35.0);
 
 protected:
 	virtual void BeginPlay() override;

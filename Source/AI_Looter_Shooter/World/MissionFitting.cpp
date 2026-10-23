@@ -5,6 +5,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionTypes.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
@@ -135,6 +136,16 @@ TOptional<FVector> AMissionFitting::GetInteractionLocation() const
 	// A model hidden until done (a crank, a pin) is fitted at the actor's own spot (the build script's socket), wherever the
 	// model lies; one always seen (a gate) is used where it is, its middle.
 	return bHideUntilDone ? TOptional<FVector>(GetActorLocation()) : Super::GetInteractionLocation();
+}
+
+TOptional<FInteractionBox> AMissionFitting::GetInteractionBox() const
+{
+	// A model always seen (a gate): anywhere on it. One hidden until done: the place the hand goes, a hand's room round it.
+	if (!bHideUntilDone && Mesh && Mesh->GetStaticMesh() && Mesh->IsVisible())
+	{
+		return InteractionFocus::GrownBox(Mesh->Bounds.GetBox(), LookHalfSize.X, LookHalfSize.Z);
+	}
+	return InteractionFocus::BoxAround(GetActorLocation(), LookHalfSize.GetAbs(), GetActorQuat());
 }
 
 void AMissionFitting::HandleUsed(AInteractableProp& /*Prop*/, AActor* /*User*/, bool /*bHeld*/)

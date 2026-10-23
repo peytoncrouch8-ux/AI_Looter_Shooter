@@ -118,11 +118,12 @@ FInteractionCandidate* UInteractionComponent::AddInteractable(const FInteraction
 	}
 	const FVector Middle = Point;
 	bool bOnBox = false;
+	const TOptional<FInteractionBox> Box = Interactable->GetInteractionBox();
 	if (AtPoint)
 	{
 		Point = *AtPoint;
 	}
-	else if (const TOptional<FInteractionBox> Box = Interactable->GetInteractionBox(); Box.IsSet())
+	else if (Box.IsSet())
 	{
 		// Its whole part to use: judged by where the crosshair's line passes nearest it (a rope looked at near its top, a
 		// lantern hanging below the eyes, coins on a ledge), not by one point in its middle.
@@ -149,6 +150,7 @@ FInteractionCandidate* UInteractionComponent::AddInteractable(const FInteraction
 	{
 		Candidate.Middle = Middle;
 	}
+	Candidate.Box = Box;
 	return &Candidate;
 }
 
