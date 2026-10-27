@@ -134,12 +134,19 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     off), `NameSize` (0.93 x font size per letter, measured off one screenshot: a wrong guess only moves a name a line or hides it
     early; check the map at zoom 1.1 and 1.8), `MapWidgetDraw.cpp` `LayoutPlaces` (gap 4 page units). Test
     `Looter.UI.Map.Places.Declutter`.
+  - A dead player could fire, reload and aim (death only blocked moving and looking): `AWeaponBase::StartFireAt`, `HandleFiring`,
+    `CanReload` and `UpdateAim` (`PlayerViewAim.cpp`) check the holder's health; a held trigger, a burst under way, a queued shot and
+    an Overcharge wind-up (dropped via `CancelCharge`, not fired) stop at death and the sights drop; all back at `ResetHealth` (the
+    respawn). Tests `Tests/DeadHandTests.cpp`. Checked in play: 28 -> 13 rounds after a death.
+  - Map place names also avoid pins and the player arrow (`MapPlaces::Declutter` takes `Blocked` boxes; tries vertical steps and a
+    slide to either side, `SideCost` 1.2 steps, `SideClear` 16 units past the half width).
   - The legendary name pop drawn twice (DEMO's shots `leg_burst1-3`; not reproduced, cause read from the code): (1) `SetPop(0)`
     ran on the frame the pooled widget was taken while its screen spot was still the last frame's, so it drew there and over the
     gun: the pop now stays at opacity 0 until `NamePopSettle` (0.05 s) of life; (2) the gun's own label carried the same name
     in the pile: it is held at opacity 0 while the pop shows (unless looked at) and restored when the pop ends, the gun is taken
     or `ClearShows` runs. If two names still show in the next play-check, a second `StartShows` for another gun of the same name is
-    the cause. Code `Loot/LootFanfareShows.cpp`.
+    the cause. Code `Loot/LootFanfareShows.cpp`. Round 2: the pop's label code is `Loot/LootFanfarePopLabel` (hides the gun's own
+    label while it shows; `KeepClearOfLevelUp` slides it clear of the LEVEL UP banner, `LevelUpClear` 14 px).
   - Ransom's Point bounty arena moved to (-8100, -8500) (a player fell ~14 m off it at (-8682,-7016,622)): hunting ground a
     polygon [[-6800,-10100],[-6800,-7750],[-8300,-7750],[-8950,-8350],[-8950,-10100]], at least 5.9 m inside the lip; every spot
     6.6 m+ from the lip, 2.2 m+ from the nest ring, 1.7 m+ from the two rocks, 7 m+ from the lookout (checked with node against

@@ -6,6 +6,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
+- A dead player could still fire, reload and aim (2026-10-27): death only blocked moving and looking (a trigger held or sent while
+  dying landed shots 2 s later). Fixed 2026-10-27: the weapon and the aim check the holder's health; back at respawn (Game.md).
+
 - A gameplay pass run right after the level opened placed things with no ground (2026-10-27): 4 of 7 bounty arenas, Calder's
   Post roost, Abel's vigil stone, caches, a bench left out, camps at z 0, and the level saved and committed that way. Cause:
   the terrain tiles' collision wasn't there yet (open_clean.py, then the pass at once). Fix: `AreaBuild.require_ground` stops

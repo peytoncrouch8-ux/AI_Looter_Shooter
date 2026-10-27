@@ -67,14 +67,17 @@ The user: "grenades are too strong to start with, projectiles are too small and 
 `Tests/GrenadeBlastTests.cpp` (`Looter.Grenade.Early`, `.Blast`, `.JarSize`), `GrenadeTests.cpp`, `GrenadePlayTests.cpp`.
 - Damage: heart at full strength 900 (1.5 Common rifle magazines of 600), radius 400 cm, core 100, edge share 0.2, Unpaid x1.5,
   boss cap 8% (`Damage`, `Radius`, `CoreRadius`, `EdgeShare`, `UnpaidScale`, `BossCap`, `KnockShare`). New early ramp: the burst
-  starts at `EarlyShare` [0.45] at player level 1 and grows straight to full at `FullLevel` [12] (x the player's `EnemyScale` as
-  before; `FGraveSaltRules::ThrowerScale`): level 1 heart 405 (0.68 of a Common magazine; was 900), level 7 (Ransom's Rest's top)
-  75%. It kills a Basic spider at the heart, not a pack at its edge.
+  is `EarlyShare` [0.1] of full through player level `Looter.Grenade.EarlyLevels` [3], then rises on a squared curve to full at
+  `FullLevel` [12] (x the player's `EnemyScale` as before; `FGraveSaltRules::ThrowerScale`): level 1 heart 90 (135 on an Unpaid,
+  x1.5), 11% at level 4, 20% at 6, 28% at 7 (Ransom's Rest's top), 50% at 9, full at 12. The first pass (0.45 straight up, heart
+  405) still killed a Basic Unpaid (160 health x 1.08 a level); at 0.1 a jar leaves each of a pack about a third and even its heart
+  at the top roll leaves one for a follow-up shot (the user, 2026-10-27: too strong at the start).
 - Jars: the first gun brings 1 (`Looter.Grenade.Starting`, was 2; `FThrowRules::MaxGrenades` 3 unchanged). The porch plate still
   gives its own jars.
 - The jar twice the size: the model x2 (15.7 x 24.1 cm; `SaltGrenade.py` SCALE 2 after the UVs, the socket scaled), the flight ball
   6 -> 9 cm. `FGraveSaltRules::JarMiddle` 10, `JarRadius` 7.5, `JarFuseTop` 24 feed the hand poses (`FirstPersonHandsThrow.cpp`,
-  `PlayerThrowMotion.cpp`, `HandJarComponent`), the pickup tin (`AGrenadePickup::ModelScale` 0.9 keeps the pickup's old size) and
+  `PlayerThrowMotion.cpp`, `HandJarComponent`; the first-person wind-up pose is held low in the left corner, offset (22, -19, -19):
+  by the cheek (20, -17, -11) the jar covered a third of the view), the pickup tin (`AGrenadePickup::ModelScale` 0.9 keeps the pickup's old size) and
   the fuse sparks (bigger). `JarModelScale` (`PlayerThrowRelease.cpp`) can shrink the first-person jar alone if a 15 cm tin covers
   the cheek pose's view. `Looter.Grenade.JarSize` checks the model's size and fails until `Tools\models.ps1 -Only SaltGrenade`
   has re-imported it.

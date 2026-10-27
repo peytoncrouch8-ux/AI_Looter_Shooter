@@ -166,6 +166,12 @@ before you can damage her", rim shots do nothing until the player comes down. Co
   `UBulletSubsystem::OnBulletLanding` and sets/clears the own-look tag on the part struck per shot. Her bar calls out "Break the
   headstone" / "Out of reach" (3 s apart at most, never over a stagger). After `.ShrugHintAfter` (3) shrugs of a kind, once per
   Gravemother, Hob says "That headstone's rooted to her back..." / "Waste of lead from up here...".
+- Rim shots, second pass (play-check 2026-10-27): the look grows with the shooter's distance (`ShrugLookScale`: 1x within 15 m up to
+  3x, more sparks from far off); from the rim the ricochet whine plays 2D (volume 0.55) so the shooter hears it, and she rears and
+  screeches up at them (`AnswerRimShot`: `SpiderAlert` cue, 4 s apart at most).
+- Clod headroom: before lifting a clod in her den she traces for a roof over her (the clod's full size above her middle); no room:
+  no clod (she bites or ploughs). A lob blocked within 0.25 s of leaving her grip (`ClodMinClearSeconds`) falls from her grip
+  harmlessly (it burst on the den's roof).
 - The stone is the target: M_ObjectiveHighlight overlay in `LooterUI::Color::Accent`, 2.5 Hz pulse, `.StoneMarkSeconds` 1.6 s
   after each stone shrug and `.StoneMarkAtFight` 3 s as the fight starts; Nanite forced off on the slab only while it glows.
   Crack stages, shatter, shards, stagger unchanged.
@@ -229,20 +235,24 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
 (`FUnpaidFightTuning`; 42 cvars `Looter.Unpaid.*`, defaults = field values; `UnpaidKitCue` names), tests `Tests/UnpaidFightTests.cpp`
 (`Looter.Creatures.Unpaid.Kit.Tuning`, `.Rules`, `.Moves`, `.Director`). Only plain Unpaid and BP children have the kit
 (`AUnpaidCreature::HasFightKit`); `Looter.Unpaid.Kit 0` = the old behaviour.
-- Lunge leads the target (`LeadShare` 0.7 of their run, at most `LeadMaxSeconds` 0.45 ahead), starts from 5.2 m (was 3.8), flies
-  up to 4.7 m (was 3.2), bends after a sidestep at most 40 deg/s.
+- Lunge (play-check fix 2026-10-27, DEMO: at the first numbers 11 of 13 lunges hit a walking strafe) leads the target a little
+  (`LeadShare` 0.25 of their run, at most `LeadMaxSeconds` 0.2 ahead), starts from 5.2 m (was 3.8), flies up to 4.7 m (was 3.2),
+  no homing (`LungeHoming` 0: the aim is fixed at the wind-up's end), lands on a target within `LungeHitRadius` 85 cm of its line
+  (was 130), hurts `LungeDamageShare` 0.85. A 400 cm/s strafe dodges a Regular's lunge from its farthest start (test).
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
-  arc, 0.65x damage each, drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
+  arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.
-- Flank: given its turn while in the middle of the player's view (frontness >= 0.75, 4.5-11 m), 50%: phase-fades and returns 3.3 m
+- Flank: readied while waiting on the ring (rolled once a wait, so its next turn opens with it; the first version rolled at the
+  turn and never fired): in the player's view (`FlankFront` 0.6, within about 78 deg; `FlankMinRange` 300 cm, was 450; to 11 m),
+  `FlankChance` 0.6: phase-fades and returns 3.3 m
   away at their side/behind (105, 145, 180, 75 deg off their view, its own side first; same ground/room/sight/safe-zone checks as
   the phase-step, `CanStandAt`); a whisper (`Creature.Unpaid.Flank`) plays at the arrival spot first. Cooldown 7 s.
 - Ring pressure: waiting on the ring 1.2 s+, 4.5-22 m, clear line: a cinder: 0.7 s tell (glow swelling at its chest via
-  `UEnemyProjectileSubsystem::ShowCharge` + `Creature.Unpaid.Cinder`), then a led pellet (1500 cm/s, 16 cm, 0.55x damage, coal
-  colour). One cinder per player per 1.4 s (director), one per Unpaid per ~6 s. A stagger or knock cancels the tell.
+  `UEnemyProjectileSubsystem::ShowCharge` + `Creature.Unpaid.Cinder`), then a led pellet (1500 cm/s, 16 cm, `CinderDamageShare` 0.4, coal
+  colour). One cinder per player per `CinderGap` 2 s (director), one per Unpaid per ~6 s. A stagger or knock cancels the tell.
 - Rally: 3+ Unpaid on one player, one waiting 2.5 s+ screams (`Creature.Unpaid.Rally`, 0.8 s, stands still, a 14 m ring of its
   coal's light via `AShriekRing`, no slow); then a 4 s frenzy: that pack may hold 4 melee turns at the player (usual 3) and chases
-  x1.3, coals glowing. One rally per player per 16 s.
+  x1.2 (`FrenzyChase`), coals glowing. One rally per player per 16 s.
 - Howl: the first Unpaid to notice a player howls (`Creature.Unpaid.Howl`, 'Gun' attenuation, about 60 m); once per player per 12 s.
 - Closing: chasing from over 9 m (not waiting on the ring): x1.2 chase.
 - Unchanged: Abel, dead miners, the Bell-Ringer (native subclasses), boss adds (found once a life via
@@ -258,8 +268,8 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
   0.3-0.5 s), a flank's spot search once a turn (7 spots x 3 queries at most); cinders are pellets (no actors); the rally ring is
   one `AShriekRing` actor per 16 s per player. Perf check to run: `Tools\perf.ps1 -Label "Unpaid kit" -Exec "Looter.Quality Medium"`
   with `Looter.Perf.Horde Unpaid 8 Basic 0 -1400 90` against 10 spiders' 7.5-7.7 ms.
-- Not checked in play: every number (frenzy 4 turns x DamageScale 1.8, cinder 0.55x, rake 2 x 0.65x are the dangerous ones, all
-  cvars). `Looter.Creatures.Anim.UnpaidArms` places the player 2.5 m off, so the rake may start there; other tests that tick an
+- Not checked in play: every number (frenzy 4 turns x DamageScale 1.8, cinder 0.4x, rake 2 x 0.5x are the dangerous ones, all
+  cvars; the lunge, flank and cinder numbers were retuned after DEMO's play-check, 2026-10-27). `Looter.Creatures.Anim.UnpaidArms` places the player 2.5 m off, so the rake may start there; other tests that tick an
   Unpaid 3.8-5.2 m from a player may see an attack sooner (lunge starts 5.2 m). `UnpaidCreature.h` 558, `.cpp` 514 and
   `UnpaidCreatureArms.cpp` 515 lines: over the ~500 rule, split next time.
 

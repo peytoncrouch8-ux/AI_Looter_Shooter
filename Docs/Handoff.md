@@ -13,10 +13,17 @@ Round 1 DONE and pushed (10843096, fdb7ab58+97223247, 696fea31 + level): cellar 
 Ammo, roost stations, Amos poster, Back Pay tags no card, Reliquary words, inventory pauses, no HUD money, no chest pins, gun
 pile labels fold, settings tabs + descriptions, legendary landing (no slow, pooled, burst), early legendary cap, vigil stones
 own countdowns (Save & Quit shortcut gone), apples on stems, M_Water two-sided, bounties pay at the board (+25% health, new
-arenas, board at the Depot). A DEMO play-check of all of it was running at this writing.
-Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where);
-round 2 (21/34 Gravemother: tombstone gate, rim-sniping aggro, harder; Abel harder; 23 Unpaid AI; 39 scarier mobs; 7
-grenades; 28 recoil; 29 idle sway; 38 mission gates); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
+arenas, board at the Depot). DEMO play-check: all PASS.
+Round 2 DONE and pushed (`CONTRACT2.md`; user calls in NOTES.md: steps unlock in order + hold, rim shots do nothing, bosses
+~1.6x, grenade classes later): bosses (1.6x health, 1.25x hits, Gravemother's stone gate + rim shrug), the Unpaid kit (led
+lunge, rake, flank, cinders, rally/frenzy; tuned fair after DEMO), grenades (10% strength to level 3, full at 12; jar 2x;
+real explosion), recoil by accuracy + aimed sway, mission gates (step-gated props, 0.6 s hold), polish (map declutter, pile
+dots, name pop, settings hover, Ransom's Point arena, Depot roost yaw), a dead player can't fire. DEMO round 2 PASS after
+fixes; perf RR spawn 7.8 ms / p95 8.4 (unchanged). Lesson: a gameplay pass right after opening the level found no ground
+(now refused: `require_ground`); always read its warning count (0) before committing.
+A test build was packaging at this writing (see the newest `Builds\Playtest\`); the user hasn't played rounds 1-2 yet.
+Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where;
+asked 2026-10-27, no answer yet); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
 two, 37 Lost Loot quest, 5 melee tools, 6 Odessa cards, 27 action skill anim, 35 iron sights, 16 roads, 26 chest spots, 25
 level scaling (after the Lily). Underwater/swimming effects: none exist (new system; not asked yet).
 
