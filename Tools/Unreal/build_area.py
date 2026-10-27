@@ -1323,6 +1323,27 @@ class AreaBuild:
             lit += 1
         self.log(f'lights in {lit} houses, {unlit} left dark')
 
+    def require_ground(self):
+        """Stops the gameplay pass when the world's traces don't meet the terrain yet. Run right after the level opened
+        (open_clean.py, then this at once), every ground check missed: roosts, arenas, caches and benches left out, camps
+        at height 0, and the level saved that way (2026-10-27). The middle of each terrain tile must answer a trace."""
+        tiles = [actor for actor in actors.get_all_level_actors()
+                 if unreal.Name('Ground') in actor.tags and isinstance(actor, unreal.StaticMeshActor)]
+        if not tiles:
+            return
+        missed = 0
+        for actor in tiles[:8]:
+            origin, extent = actor.get_actor_bounds(False)
+            # The tile's own collision, as terrain_hit traces it (a world trace meets the scatter's volume first).
+            top = unreal.Vector(origin.x, origin.y, origin.z + extent.z + 100.0)
+            bottom = unreal.Vector(origin.x, origin.y, origin.z - extent.z - 100.0)
+            if not actor.static_mesh_component.line_trace_component(top, bottom, True, False, False):
+                missed += 1
+        # All of them: one tile's middle may be a hole (a pit, a pond).
+        if missed == min(len(tiles), 8):
+            raise RuntimeError(f'none of {missed} terrain tiles answers a trace yet (the level only just opened?): '
+                               'wait a few seconds and run the gameplay pass again; nothing was placed')
+
     def run(self, mode=None):
         """Builds the whole level, or with mode "gameplay" only the gameplay actors, with "environment" only the light,
         sky and fog, with "beyond" only what lies past the boundary (a grounded area's ring, canyon wall and
@@ -1337,6 +1358,7 @@ class AreaBuild:
         self.posters = importlib.reload(build_area_posters)
         if mode == 'gameplay':
             self.open_level('Gameplay')
+            self.require_ground()
             self.gameplay(mesh_index())
             # The story's dressing (the Sink's blocks) wears the area's materials too.
             self.swap_materials()
