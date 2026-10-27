@@ -22,6 +22,22 @@ dots, name pop, settings hover, Ransom's Point arena, Depot roost yaw), a dead p
 fixes; perf RR spawn 7.8 ms / p95 8.4 (unchanged). Lesson: a gameplay pass right after opening the level found no ground
 (now refused: `require_ground`); always read its warning count (0) before committing.
 Test build `Builds\Playtest\2026-10-27_1006` (1.27 GB, smoke menu + RR PASS; `Play Latest Build.bat`) has rounds 1-2; the user hasn't played it yet.
+Round 3 DONE and pushed (dbf6cfa4 + camp fix + docs; `CONTRACT3.md`): melee tools per hero (user picks: Ellis Grave Spade,
+Odessa Razor Fan, Crane Ferry Gaff, Gauge Piston Fist, Pike Rock Pick; /Game/Art/Melee), cast pose, Odessa's card quads, iron
+sights, Cyrus as boss two (Dead Lift + Back Pay main; Foreman level 6), Lost and Found, roads (M_Terrain road term, signs,
+roads on maps), chest spots, startup logos (placeholder studio; engine card shows a wordmark until the official logo is in
+Art/UI/Logos/UnrealEngineLogo.png: the user asked Main to download it; the built-in browser's policy check failed 3x on
+2026-10-27, so not yet), Teropa menu (Lvl_MenuTeropa = GameDefaultMap; MenuMap() vs NewGameMap() fallback), new-game intro.
+DEMO round 3: all PASS; nits: intro in RR ignores Space (menu says HOLD SPACE), RR intro ends on white without a title card;
+Crane's fingers open beside the gaff, Ellis's spade reads like a spear edge-on; cards vanish 1 s after a body dies; road ruts
+faint; orchard overhang rock texture smeared. Perf RR 7.8 ms, p95 8.6.
+Round 4 (`CONTRACT4.md`, user picks: melee polish, boss cutscenes, swimming, grenade types Pitch/Scatter/Cinder): all four
+trees written (Saved/HANDS4Code, SCENES4Code, SWIM4Code, GRENADES4Code; READMEs list runs) and COPIED into Source/ (not
+built); a HOOKS agent was applying their cross-file hooks. Then: build; sounds.ps1 (Player.Melee.*, Boss*/Music.BossIntro.*,
+swim, Throwable.*Jar.*) + build_sound_bank; models GrenadeJars; build_underwater_assets + build_area_swimwater RansomsRest and
+TutorialIsland; create_story_lines; tests (Looter.Melee, Looter.Scenes.BossIntro, Looter.Swim, Looter.Grenade, Bosses,
+Gravemother, Foreman groups); DEMO play-check; commit; docs; perf. GRENADES' agent accidentally rendered every sound
+(untracked WAVs from unfinished recipes; cues.json rewritten): rerender after the merge.
 Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where;
 asked 2026-10-27, no answer yet); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
 two, 37 Lost Loot quest, 5 melee tools, 6 Odessa cards, 27 action skill anim, 35 iron sights, 16 roads, 26 chest spots, 25
