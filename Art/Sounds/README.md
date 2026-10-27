@@ -60,6 +60,12 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
   in `UnpaidKitCue`, `Creatures/UnpaidFightTuning.h`; the Howl uses the 'Gun' attenuation, about 60 m).
 - bossintro (2026-10-27, the boss intros, `Scenes/BossIntro.h` `BossIntroCue`: `Music.BossIntro.Gravemother`, `.Foreman`,
   `.Abel` (2D beds timed to each script's LiveAt), `Music.BossIntro.Reveal`, `Boss.Gravemother.Burrow`, `.Emerge` (3D)).
+- melee_tools (2026-10-27, round 4: `Player.Melee.<Spade|Fan|Gaff|Piston|Pick>.Swing` 2D and `.Hit` 3D Near, 4 takes each; named by
+  key in code: `MeleeFX::SwingCue/HitCue`, `Weapons/WeaponFXMelee.h`; played over the shared `Player.Melee.*` blow).
+- throwables_kinds (2026-10-27, the grenade kinds, `GrenadeKindCue` in `Combat/GrenadeKinds.h`: `Throwable.PitchJar.Stick|Burst`,
+  `.ScatterJar.Burst|Pop`, `.CinderJar.Burst|Bed` (loop), `Throwable.Jar.Swap` 2D; the burst layers play over the salt jar's).
+- swim (2026-10-27, swimming, `SwimCue` in `Player/UnderwaterView.h`: `Player.Swim.In|Out|Stroke|StrokeUnder|Gasp`,
+  `Player.Underwater.Loop|Enter|Exit|Bubbles`; the underwater ones are made dark and close, `SMX_Underwater` muffles the rest).
 
 ## Render
 

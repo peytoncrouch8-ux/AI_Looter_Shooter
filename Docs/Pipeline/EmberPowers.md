@@ -221,7 +221,8 @@ committed; its content is in this section once the round lands). The agents' not
   3; `.Glow` 0.6 lets them read in shade). They leave the left hand (`Looter.Embers.FiftyTwo.HandRight` -12 cm right of the eye;
   Lucky Streak's burst -10), stick edge-first in the world (1.4 s, `.WallStick`; sunk `.Sink` 0.35 of the half length) and in the
   bodies they cut (1.2 s, `.BodyStick`, riding the body), then shrink away over the last 0.35 s. `CardRadius` for the hit test
-  5 -> 6 cm (the bigger card). Lucky Streak's ricochet cards use the same deck at `Looter.Embers.LuckyStreak.CardSize` 0.7 (they
+  5 -> 6 cm (the bigger card). A card riding a body that dies or goes (round 4) is shaken loose: it falls like paper, lies where it
+  lands and shrinks away by `Looter.Embers.FiftyTwo.Fall` [2 s] (they used to pop out of sight a second after the kill). Lucky Streak's ricochet cards use the same deck at `Looter.Embers.LuckyStreak.CardSize` 0.7 (they
   burst close to the eye). Tests `Looter.Embers.Cards`, `Looter.Embers.Power.FiftyTwoPickup`, `.LuckyStreak`.
 - Not checked in play yet: every cast kind's pose, the cards at a spider and at a wall (hands' spots are camera-space guesses; tune
   with the cvars).

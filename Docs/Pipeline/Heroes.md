@@ -295,11 +295,35 @@ has the swing's clock and fallbacks). A set `DA_Hero_<Id>` `MeleeTool.Mesh` over
 - **Mesh convention** (`PlayerMeleeToolTypes.h`, `FHeroMeleeTool`): `SOCKET_Grip`: the grip point, X up the handle toward the
   head, Z the striking side, Y the way the right palm faces onto the handle. Gauge's `SOCKET_Forearm` on the forearm's axis at the
   front clamp ring, X toward the knuckles (the punch way), Z out of the back of the hand. Other sockets: `SOCKET_Tip` (striking
-  end; unused by code so far), `SOCKET_Hook` (the gaff's hook point), `SOCKET_Vent` (Gauge's steam vent: no steam yet). No socket:
+  end; its distance from the Grip is `ToolTipLength`, which aims a long tool's arc), `SOCKET_Hook` (the gaff's hook point),
+  `SOCKET_Vent` (Gauge's steam vent: the steam on a hit comes from it). No socket:
   the mesh's origin and axes stand in. Wrong socket axes hold the tool turned: check in play and tune with `Looter.Melee.*`.
 - The hands: the right hand leaves the gun's grip for the tool (`FirstPersonHandsActions.cpp` `RightOnTool`, `GetToolHold` gives the
-  grip point and `HandleRadius`); Gauge's fist stays bare inside the clamp. First person only: a third-person swing keeps the jab.
+  grip point and `HandleRadius`); Gauge's fist stays bare inside the clamp. Round 4: `ClosedRound` (`FirstPersonHandsCast.cpp`) shuts all four fingers round a slim handle (the gaff's pole 1.75 cm radius, the pick's 1.45, the spade's 1.55, the fan's pivot 1.2: `FHeroMeleeTool::HandleRadius`); round 3's looser curl left Crane's fingers open beside the gaff.
 - Swing styles by feel tag: `Heft` scales the arc (`Looter.Melee.Heft.Quick` 0.8, `.Heavy` 1.25). Same damage, clock and hit-stop for
   every tool, so a tool is look and feel, not a stat.
-- Not done: no third-person tool, no per-tool sounds, no steam puff on Gauge's hit, `SOCKET_Tip` unused; the arcs and cast spots are
-  camera-space guesses until played (the cvars tune them).
+- Round 4, melee polish (HANDS, the user's pick; a play-check fixed the rest):
+  - Sounds: each tool has its own swing (2D, replaces the shared `Player.Melee.Swing` for that hero) and hit (3D Near, on top of the
+    shared `Player.Melee.Hit` and the body layer; on walls at `MeleeMotion::WallVolume`): `Player.Melee.<Spade|Fan|Gaff|Piston|Pick>
+    .Swing/.Hit`, 4 takes each (`melee_tools.py`; named by key: `MeleeFX::SwingCue/HitCue`, `FHeroMeleeTool::Kind`). A tool set on
+    `DA_Hero_<Id>` keeps its pick's `Kind` unless it names its own. Ellis a ringing clang, Odessa a slicing snick, Crane the hook's
+    bite, Gauge a hiss-thump, Pike a bright chink.
+  - Effects (`Weapons/WeaponFXMelee`, `FWeaponFX`'s code-drawn effects, no assets; `Looter.Melee.FX` strength, `.Sparks`, `.Steam`):
+    sparks (`MeleeFX::Sparks`, world hits only, never on a body): spade, pick and gaff off stone, gravel, metal and sheet metal, the
+    fan off iron alone (weaker), the piston none (it meets a surface with steam). Spade: a flick of the cyan ember on a body; fan:
+    four edge glints, gold and white; gaff: grit and splinters dragged back toward Crane, a pale iron glint on a body; piston: a
+    ring of the kick and a burst of steam off the plate, and steam from the cylinder's vent (`FindToolSocket` finds where
+    `SOCKET_Vent` shows); pick: stone chips off rock, a teal glint on a body. The play-check made the sparks fuller.
+  - Third person: the tool rides the body's right hand (the gun's socket `HandGrip_R`: handle up, striking side forward, palm from the
+    right; a forearm tool with the punch forward) and shows only through the swing; the gun in hand is hidden for it
+    (`HideGunForSwing`, restored only if it is still the gun in hand) through the body's jab, whose wrist lays the tool back with the
+    coil and snaps it over at the blow (`LooterStancePose::MeleeWristDegrees`). Tune `Looter.Melee.ThirdPerson.Pitch/Yaw/Roll/
+    WristBack/LayBack/SnapOver`. No tool on the belt or back at rest; the basic-shape stand-in has no third-person tool.
+  - First person (play-check fixes): every tool part is born hidden, hidden at rest and on a hero change (Gauge's fist stayed in view
+    after `Looter.Hero Ellis`); a long tool's end crosses the view's middle at the blow, 4 cm under the crosshair, not its handle
+    (`AimAtTip`, for tools whose tip is 30 cm or more from the hand: the spade and the gaff; `Looter.Melee.AimTipFrom/AimTipDrop`);
+    the spade is rolled to show its blade, not its edge (`FaceView` 0.75 on its arc, `Looter.Melee.FaceView` scales all);
+    `Looter.Melee.WristBack` 9 -> 15 (the piston fist's clamp sits 6-7 cm behind the wrist, its front 19 cm ahead of it).
+  - Tests `Looter.Melee.Tool.Feel` (each tool's key, cues, and which surfaces throw sparks) beside Picks, Arcs, Hand.
+  - Not done: the arcs, cast spots and third-person turn are guesses until the user plays (the cvars tune them); the third-person tool's
+    turn depends on `HandGrip_R`'s axes.

@@ -184,6 +184,57 @@ before you can damage her", rim shots do nothing until the player comes down. Co
 - Not checked (no build when written): the overlay's strength on the slab, the shrug sounds' mix, the ricochet rate on fast
   guns. The HUD hit marker still flashes on a shrugged hit (PlayerHUDWidget): a "no damage" marker would help.
 
+### Boss intros (SCENES, playtest round 4, 2026-10-27; the user's pick: cutscenes as the boss fights start, short; rules and commands: `Game.md` round 4)
+
+Short in-engine entrances for the Gravemother, Cyrus Teague (the Foreman) and Abel, all C++ (`Scenes/BossIntro*`), played as each boss's
+first fight of a session starts. Camera, words, name card, music; the boss then does its own entrance on camera and the fight goes on.
+- Hook: each boss's `HandleFightStarted` ends with `BossIntro::PlayIfDue(*this)` (`GravemotherCreatureMoves.cpp`, `ForemanCreatureEvents.cpp`,
+  `AbelKeeperFight.cpp`). It plays only in a game world, scenes on, when `Looter.BossIntro` is 1, not a rematch (`UBossComponent::
+  IsRematch`) and `BossIntro.Seen.<Kind>` isn't set (set when it plays; a fight restarted after the player's death, the Gravemother's
+  lair return, a stand-down: no intro again).
+- Because the fight has already started, the scene (`USceneSubsystem`, so skippable) holds the player (no control), makes them
+  untouchable (`FBossIntroGuard`) and freezes the boss at once (`FBossIntroFreeze`: `CustomTimeDilation` 0.001, never 0, a tick of zero
+  is divided by in places; it carries the brain, moves, pose and the `UBossComponent` fight clock) and, at the scene's start, every
+  living `ACreatureBase` within 60 m of the boss or of the player (a first phase's adds, a second boss, a pack nearby; the play-check
+  added the player's radius). The boss bar is hidden and swept in again at the hand back. At `LiveAt` the boss alone runs again and
+  does its entrance on camera; the view eases back to the player's eyes over 0.8 s facing the boss, the letterbox goes, the rest wake.
+  Skipped: the same at once (the boss's entrance still plays, live).
+- Camera: shots in a frame from the boss's feet toward the player's eyes (`FBossIntroFrame`), eased (smootherstep); each frame the eye
+  is pulled in front of any world-static or dynamic thing between it and its mark (`BoomClip`: a 20 cm ball sweep, margin 40 cm, never
+  nearer than 1.5 m) and kept 60 cm over the floor traced under the shot's mark (`MinEyeOverFloor`), so the den's roof, the stope's walls,
+  the fog wall and Abel's deck never block it. Cuts dip to black 0.25 s each side. The scene camera's FOV and exposure are saved and put
+  back (it is shared with every later scene). Name card and letterbox: `UIntroWidget`; the card's epithet is the boss bar's own title
+  (`FBossShow::Title`), so they agree. Words: `DA_Lines_BossIntro<Kind>` (`create_story_lines.py`) when it has every line, else the
+  code's `ScriptLines`; no family words, the same for every hero. Music: each boss's 2D bed from 0 (`Music.BossIntro.<Kind>`), faded at
+  `LiveAt` under `Music.BossIntro.Reveal`; the bar's own `Boss.Intro` sting still plays at t=0.
+- **The Gravemother (10.2 s)**: "Den" 0-4.4 from over the player's shoulder on her among her graves; 0.6 Hob: "Every spider in the Rest
+  answers to her."; 2.6 she dives (dirt, `Boss.Gravemother.Burrow`, a jolt, hidden); 3.0-6.2 five bursts of dirt in a line toward the
+  burst spot (faint jolts); cut at 4.4 to "Floor", low and wide 10-12 m off the burst spot; 4.8 Hob: "Crack that headstone off her back
+  first, sunshine."; 6.6 LIVE: she is put at the burst spot facing the player (`BurstAlong`: 45% of the way to them, at least 10 m from
+  them, within 16 m of her home, on ground within 3 m of her level with room over it; else where she dived), climbs out (`DevPlayEntrance`,
+  0.8 s) with a big dirt burst, `Boss.Gravemother.Emerge` and a hard jolt, then roars; 6.9-9.9 card THE GRAVEMOTHER; her headstone's target glow is lit
+  again at the end (its fight-start glow ran out under the scene).
+- **Cyrus Teague (9.8 s)**: "Drift" 0-5.0 from the player's eyes pushing along the stope on his lamp at the fall, exposure -1.25 -> -0.5 EV
+  (-4 was black); 1.0 Teague: "Dig. Keep digging. It was the roof." (sets up his last word); cut at 5.0 to "Lamp", close from his
+  side, -0.5 -> 0; 5.6 LIVE: his entrance (turns from the fall, pick handle up 1.1 s, slam, his own "Nobody leaves till the drift's
+  cleared!"); 6.2-9.2 card CYRUS TEAGUE. He doesn't literally walk out of the dark (no scripted walk exists): the exposure brings the stope
+  out on his lamp.
+- **Abel (10.4 s)**: "Boards" 0-5.2 from over the player's shoulder at the Keeper's Gate down the deck to him among the lantern posts, the
+  sun behind him; his fight's own first line ("You brought them here, El. Right to our door.", `AbelRules::PhaseLine(0)`) is said once as
+  the fight starts (the first pass cleared and repeated it: said twice) and Hob's follows at 3.8 s (`FightLineSeconds` 3.4): "A keeper
+  doesn't lie still while his saint is dark."; cut at 5.2 to "Lantern", eye 130-150 cm up (a low eye went under the deck), looking up at
+  him; 5.6 LIVE: he raises his ghost lantern (`EAbelMove::Intro`); 5.8-9.0 card ABEL RANSOM.
+- Play-check fixes (DEMO, 2026-10-27): no repeated Abel line; the player untouchable through the scene and 1.5 s after (Abel's buckshot
+  landed 0.5 s after the hand back); hostiles within 60 m of the player held too; Abel's camera kept above the deck; the Foreman's shot
+  readable; card epithets from the bar.
+- Not checked in play: freezing assumes every creature system ticks on the actor's dilated time (anything on world time keeps running:
+  the Gravemother's headstone glow, Abel's intro charge glow `ShowCharge`, timers, a volley's pellets in flight); the Gravemother is
+  teleported to the burst spot, checked for ground and headroom but not for props or rubble; frames come from where boss and player
+  stand, so a fight started from an odd spot (the Sink's rim, 12 m up) frames from up there; the beds start 2D under the boss music the
+  fight's start may already play (the mix of the two isn't heard); captions use the HUD caption widget 118 px over the bottom and the
+  letterbox bar is 10% of the height (108 px at 1080p): check at 1080p and ultra-wide. `ACreatureBase::IsSceneHoldingPlayer` keeps
+  every non-boss creature from noticing the player during the scene, so nothing new wanders in.
+
 ## Fight: AI (FIGHT-AI, written 2026-10-21, unbuilt and untested in play)
 
 The user's calls (Saved/Fight/CONTRACT.md): packs surround and take turns, ranged kinds use their range, Borderlands-normal

@@ -19,7 +19,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `Art/Levels/<Area>/patches/<name>.json` (path, op set/merge/append, where {id}, unlessKind, comment; entries marked `file` are
   area_shape.py tables, edited by hand). Main applies them with `Tools/layout_patch.py <Area>` (keeps the file's formatting;
   `--check` first), deletes the patch files, and regenerates the terrain if they touch the ground.
-- Holding trees (rounds 1-3, 2026-10-27, `Docs/Work/2026-10-27-Playtest/CONTRACT*.md`): agents that change C++ work in
+- Sound recipes (round 4 lessons): render EVERY new recipe group's cues (`Tools\sounds.ps1 <patterns>`, then `build_sound_bank.py`) and
+  check each is in the bank: round 4's `Player.Underwater.*` cues were missed once (not rendered or in the bank until the play-check
+  fixes commit). A cue whose name lives in a header other than `LooterSoundCues.h` (`SwimCue`, `GrenadeKindCue`, `MeleeFX`'s names built
+  by key) is not on that list, so compare `cues.json` and `Content/Audio` with the recipe by hand.
+  An agent that renders ALL sounds to check its own recipe rewrites `cues.json` and leaves untracked WAVs for recipes still unfinished
+  (GRENADES did, round 4): tell agents to render only their own cues (`Tools\sounds.ps1 <their patterns>`), and rerender after a merge.
+- Holding trees (rounds 1-4, 2026-10-27, `Docs/Work/2026-10-27-Playtest/CONTRACT*.md`): agents that change C++ work in
   `Saved/<Job><Round>Code/Source/AI_Looter_Shooter/...` (copies of the changed files, the originals' hashes in `HASHES.txt`, new
   files beside them) and write a README there (files, what it does, CODEMAP lines, the exact hooks Main adds in files they don't
   own, run order, tests, risks); Python and art files an agent owns are edited in place. Main checks each `git hash-object`

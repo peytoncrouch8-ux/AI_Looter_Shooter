@@ -58,7 +58,7 @@ zoom in". Code: `Weapons/GunfeelKickTuning.h/.cpp`, `WeaponBaseKick.cpp`, `GunKi
 - Run: `Tools\runtests.ps1 -Filter Looter.Gunfeel.Steady`, then `Looter.GunIdeas.CurseShots` (Restless ratio) and
   `Looter.Weapons.NewGuns`. Play-check each kind ADS standing and crouched; fire a Common against a high-accuracy rifle.
 
-## Grenades: the grave-salt jar (GRENADES, 2026-10-27, note 7; grenade classes are for later)
+## Grenades: the grave-salt jar (GRENADES, 2026-10-27, note 7; the kinds came in round 4, below)
 
 The user: "grenades are too strong to start with, projectiles are too small and lack explosion visuals". Code: `Combat/GraveSaltTuning`
 (`FGraveSaltTuning`: every number a `Looter.Grenade.*` cvar; defaults = the field values; `Current()`), `GraveSaltRules` (functions take
@@ -86,6 +86,22 @@ The user: "grenades are too strong to start with, projectiles are too small and 
   `Look.Scorch` [0.6], `Look.GroundReach` [90], the flash `Look.Flash` [320 cd] / `.FlashRadius` [1100] / `.FlashTime` [0.25]
   (was 160 / 900 / 0.22). Cost: about 150 pieces + 11 flames a burst (the test caps it under 330), one unshadowed light for 0.25 s;
   run `Tools\perf.ps1` if a pack fight with grenades looks heavy.
+
+### Grenade kinds (GRENADES, round 4, 2026-10-27, the user's pick: "a few kinds found as loot"; drop and carry rule: `Game.md` round 4)
+
+Every jar is grave salt packed in a tin; three kinds beside it. Code: `Combat/GrenadeKinds` (`EGrenadeKind`, the rules, the looks), `GrenadeKindsTuning` (`FGrenadeKindTuning`, the cvars), `GraveSaltGrenadeKinds.cpp` (the flight's kind part), `GraveSaltCinderBed`; the burst functions take a kind's tuning and `FGrenadeBurstLook`. Every number is a SHARE of the salt jar's `FGraveSaltTuning`, so the early ramp (`EarlyShare` 0.1 through level 3, full at 12) holds for all of them: every kind's heart at levels 1-3 leaves a Basic Unpaid standing (`Looter.Grenade.Kinds.Early`). Models `Art/Models/Throwables/GrenadeJars.py` (`Assets.md`), sounds `throwables_kinds.py`.
+
+| Kind | Burst (heart / reach / core) | After | Boss cap | Knock |
+|---|---|---|---|---|
+| Grave salt | 900 / 4 m / 1 m | - | 8% | yes |
+| Pitch jar | x1.0 / x0.75 (3 m) / x1.5 (1.5 m) | sticks to the first thing it meets (a creature carries it; it bursts within 0.9 s of sticking); survivors slowed to 0.5 for 3 s (`UMovementSlowComponent`, never a boss) | 8% | no |
+| Scatter jar | x0.5 / x0.75 | flings 4 small jars (520 out, 380 up, fuses 0.45-0.8 s staggered), each x0.4 / x0.5 (2 m), a quick pop look | 4% + 4 x 1% | burst yes, brood no |
+| Cinder jar | x0.6 / x0.85 | a bed of cinders under it (2.6 m, 5 s): a burn every 0.5 s of 0.1 x heart a second as Ember (x1.75 spiders, slimes, Gravemother; x0.5 Unpaid); never the thrower or a player, never through a wall | 4% + bed 4% | no |
+
+- Cvars: `Looter.Grenade.Kinds.FromLevel` [2], `.Share` [0.35], `.PitchWeight/.ScatterWeight/.CinderWeight` [1]; `Looter.Grenade.Pitch.Damage/.Radius/.Core/.StuckFuse/.Slow/.SlowSeconds`; `Looter.Grenade.Scatter.Damage/.Radius/.Count/.BroodDamage/.BroodRadius/.Speed/.Lift/.FuseMin/.FuseMax`; `Looter.Grenade.Cinder.Damage/.Radius/.BedRadius/.BedSeconds/.BedShare/.BedTick`.
+- Looks (`GrenadeKinds::LookOf`): pitch = sootier fire, less salt, black tar globs flung and a glossy tar pool left by the scorch; scatter = a smaller, paler crack, each small jar a pop (~30 pieces; `DrawPop`); cinder = deep ember fire with a burst of Ember embers on top, then the bed's ring of light, flames, embers, a dim flickering light and a crackling loop (`Throwable.CinderJar.Bed`). Each kind's burst plays the salt jar's sound under its own layer.
+- Tests `Looter.Grenade.Kinds.Table`, `.Tuning`, `.Early`, `.Drop`, `.Carry`, `.Brood`, `.Bed`, `.Save`, `.Found` (rules) and `.Pitch`, `.Scatter`, `.Cinder` (play tests in a test level: `Bugs.md` "A pawn in a test level"). The pitch test throws at a block with health: a skinned body in a test level may lack the hit zones the jar's Weapon-channel sweep meets. The older grenade tests pass unchanged.
+- Open: a pitch jar stuck to a creature that is destroyed is detached by the engine and bursts where it is.
 
 ## Gunfeel: hit reactions (built 2026-10-21)
 

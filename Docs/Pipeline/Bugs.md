@@ -53,6 +53,31 @@ Each line: bug (date). Cause. Fix.
     name pop widget were built and `AWeaponBase` LoadObject'd the muzzle material and plane on every gun spawn (a chest legendary
     before the first shot also initialised `FWeaponFX` there). Fix: no slow; pooled column and name pop built at play start;
     muzzle lookups cached; a burst in its place (Gunplay.md).
+- Playtest 2026-10-27, round 4 (the play-check of melee, boss intros, swimming and grenade kinds, and the round 3 nits):
+  - A pawn in a test level takes no damage from `ApplyPointDamage`, and a test actor's health never fills (`Looter.Grenade.Kinds.
+    Cinder` failed on the first build). Cause: a test level has no game mode, and `APawn::ShouldTakeDamage` refuses
+    damage without one; a health component on a spawned actor binds to the actor's damage and fills its health only in its
+    `BeginPlay`, which a test level never runs. Fix: the test shows who the bed catches with spiders and where the burn lands with a
+    block that is not a pawn (`SpawnBlock` as `ECC_WorldDynamic`, since the burn's search looks for pawns and dynamic things, never the
+    world's static shapes) carrying a `UHealthComponent` (`AddInstanceComponent`, `RegisterComponent`, `Post->DispatchBeginPlay()`,
+    then `SetMaxHealth` and `ResetHealth`), and runs the burn inside an `FEditorScriptExecutionGuard` (the actors' own events need
+    letting through before play). Lesson: in a test world, damage to a pawn proves nothing; use a non-pawn with health, and call
+    `DispatchBeginPlay` on it (`SwimTests.cpp` does the same for its water).
+  - Gauge's piston fist stayed in view after `Looter.Hero Ellis` (melee HANDS). Cause: a tool part made while its root was already
+    hidden showed at rest, and a root's flag does not hide its children. Fix: every part born hidden and set hidden at rest and on a
+    hero change.
+  - Ellis's spade read like a spear edge-on, and its shaft rather than its head crossed the view at the blow; Crane's fingers stood
+    open beside the gaff; Odessa's cards popped out of sight a second after a kill (round 3 nits). Fix: `FaceView`, `AimAtTip`,
+    `ClosedRound`, and a card on a dying body falls, lies and shrinks away over `Looter.Embers.FiftyTwo.Fall` 2 s (`Heroes.md`,
+    `EmberPowers.md`).
+  - Boss intros: Abel's first line played twice (the scene cleared the captions and repeated the fight's own line); his buckshot landed
+    0.5 s after the hand back; the low "Lantern" eye went under the deck; the Foreman's shot at -4 EV was black; the card's epithet
+    differed from the boss bar's. Fixes in `Enemies.md` "Boss intros".
+  - The new game intro ignored Space in Ransom's Rest (the menu part said HOLD SPACE) and ended on white with no title. Fix:
+    `UIntroWidget::SetPollsKeys`; the intro ends on REVENANT (`Game.md` new game intro).
+  - Swimming started at 135 full-size cm of water (115 on the player): the island's 1.2 m pond swam. Fix: `Looter.Swim.StartDepth` 160
+    (136 on the player), and `SWIM_DEPTH` in `build_area_swimwater.py` kept equal. The `Player.Underwater.*` cues had not been rendered
+    into the bank (`Workflow.md` "Sound recipes").
 
 - Flat bright tan patches on level ground (Ransom's Rest's street by the boards, Whitlock Fields' path; 2026-10-22).
   Cause: M_Terrain's SIDE_NORMAL_CODE normalized 0 where the vertex normals pack to straight up (Facing 0): NaN, and the

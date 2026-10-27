@@ -52,6 +52,17 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
    through `Tools\models.ps1 -Only <Name>`. Code loads it by path (`AGraveSaltGrenade`, `AGrenadePickup`), and a path is not a
    reference: `/Game/Art/Throwables` is listed under `DirectoriesToAlwaysCook` in `Config/DefaultGame.ini`, so a packaged game has
    it. A new category folder needs the same line.
+   - `Art/Models/Throwables/GrenadeJars.py` (round 4, the grenade kinds): three tins in one script, each its own asset
+     (`SM_PitchJar`, `SM_ScatterJar`, `SM_CinderJar`; `Tools\models.ps1 -Only GrenadeJars`; the export was tested with `-NoImport`,
+     the preview `Saved/ArtPreviews/Throwables/GrenadeJars.png` via `--preview`). Each is the salt grenade's tin underneath, built at its
+     first size and scaled by `SCALE` 2 after the UVs (15 cm across, 24 cm to the fuse's top: `FGraveSaltRules` `JarMiddle` 10,
+     `JarRadius` 7.5, `JarFuseTop` 24), pivot at the middle of the foot, `SOCKET_Fuse` at the fuse tip, so they sit in the hand, fly and
+     lie exactly as the salt jar does. Pitch: dun tin, glossy pitch run down its shoulder in drips, tarred sacking tied round its foot,
+     the stopper sealed in pitch. Scatter: verdigris tin, two iron bands riveted round the waist between four small copper capsules
+     (the brood) with corks. Cinder: rusted iron tin, a vent band with slots glowing ember-orange, iron bands, soot-black wax.
+     Materials are the textured sets the game loads (`PitchTin`, `PitchCoat`, `ScatterTin`, `CinderGlow` flat Glow, ...); the salt
+     grenade's slots are shared by name. No collision, no Nanite, no LODs. Until a tin is imported its kind wears the salt tin
+     (`AGraveSaltGrenade::FindJarMesh`).
 
 Rules that saved time:
 9. Melee tools (round 3, 2026-10-27; the user's picks of `Art/Concepts/MeleeTools/`): `Art/Models/Weapons/Melee/MeleeTools.py`
@@ -77,6 +88,20 @@ Rules that saved time:
 10. The menu planet's maps are script-made too: `Art/Textures/MenuTeropa/make_teropa_maps.py` (six equirectangular PNGs, ~8 min
    for the 4096 x 2048 ones; `Tools\artrun.ps1 -Script ...`); `Tools/Unreal/build_menu_materials.py` imports them and builds the
    materials; `Game.md` "Main menu" has the scene.
+11. Swim waters and the underwater look (round 4; behaviour: `Game.md` round 4 "Swimming"). Both are scripts run in the open editor
+   (`Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/<script>"`), in this order:
+   - `build_underwater_assets.py`: `M_UnderwaterPost` (`/Game/Art/Materials/Masters`; a post-process material after the tonemapper, so
+     its tints read in any exposure; its graph is rebuilt in place, an asset of another kind at the path stops it) and the sound mix
+     `SMX_Underwater` (`/Game/Audio/Mix`; `LOW_PASS` 900 Hz on SC_Effects and SC_Ambience at volume 0.8, SC_Music 2600 Hz, the interface
+     clear; fades 0.12 s in, 0.3 s out). Needs `build_vfx_materials.py` (the bubbles' `M_FX_Shape`) and `build_sound_bank.py` (the
+     `SC_` classes the mix names) run first; needs no C++. The numbers to tune are its `DEFAULTS`. Prints `UNDERWATER` lines.
+   - `build_area_swimwater.py <RansomsRest|TutorialIsland>`: one `ASwimWater` per layout `pond` feature, replacing only the waters a
+     build placed before (folder `Water`, tag `SwimWater`), then saves the level. Needs the C++ built and the terrain in the level (the
+     bed is measured by traces: `DEEP_RAYS` 24 rays from the middle, `DEEP_STEP` 25 cm). Check its `SWIMWATER` log: Ransom's Rest's
+     larkspurTarn should get a deep zone (1.7 m deep); the island's pond (1.2 m) and the Wallow's pools none. `SWIM_DEPTH` 160 x 0.85 is
+     `Looter.Swim.StartDepth` at the player's size, kept equal by hand. A full `build_area.py` build clears the waters, so it calls the
+     script's `place` at the end of its gameplay part and in its `water` mode.
+
 - Exports must be repeatable. Never iterate BMesh sets (their order changes between runs). Export twice and compare; only FBX IDs
   and time stamps may differ.
 - Faces without UV area give tangent warnings; `Tools/Blender/tangentcheck.py` predicts them.
@@ -133,3 +158,16 @@ Rules that saved time:
   5 takes) and `intro.py` (`Music.Intro.Planet` 28 s one-shot, `.Rest` 50.5 s and a ringing tail, `.Card`, `.Whiteout`), both added to
   `recipes/__init__.py` `GROUPS`. Render with `Tools\sounds.ps1 UI.Startup.* UI.Menu.* Music.Intro.*`, then `build_sound_bank.py`. The
   intro music's lengths are tied to the script's constants (`PlanetSeconds`, `RestSeconds` in `NewGameIntro.h`): change both together.
+- Round 4 (2026-10-27) recipes, all appended to `recipes/__init__.py` `GROUPS`:
+  - `melee_tools.py`: `Player.Melee.<Spade|Fan|Gaff|Piston|Pick>.Swing` (2D, the player's own, crossing the ears the way the tool swings)
+    and `.Hit` (3D Near), 4 takes each, over the shared `Player.Melee.*` blow, so they carry what the tool is made of, not the blow's
+    weight. Named by key in code (`MeleeFX::SwingCue/HitCue`), not in `LooterSoundCues.h`.
+  - `bossintro.py`: `Music.BossIntro.Gravemother` (~7.8 s one-shot; drum hits at the script's five bursts 3.0-6.2 s, a riser into 6.6),
+    `.Foreman` (~6.8 s: drips, three slow knocks at 1.2/2.4/3.6 s, a riser at 5.6), `.Abel` (~6.8 s: the chapel bell, strings in D minor,
+    the Rest's reed theme slowed, a riser at 5.6), `.Reveal` (2 takes, ~3 s), and the 3D `Boss.Gravemother.Burrow` / `.Emerge`. The beds'
+    hits are tied to `BossIntro.cpp`'s times: change both together. Names in `LooterSoundCues.h`'s boss block and `BossIntroCue`.
+  - `throwables_kinds.py`: `Throwable.PitchJar.Stick` / `.Burst`, `.ScatterJar.Burst` / `.Pop`, `.CinderJar.Burst` / `.Bed` (a loop),
+    `Throwable.Jar.Swap` (2D); the bursts are LAYERS over the salt jar's (`throwables.py`), not whole explosions. Names: `GrenadeKindCue`.
+  - `swim.py` (9 cues): `Player.Swim.In`, `.Out`, `.Stroke`, `.StrokeUnder` (2D), `.Gasp` (2D), `Player.Underwater.Loop`, `.Enter`, `.Exit`,
+    `.Bubbles` (2D, made dark and close already: the mix low-passes the world). Names: `SwimCue` in `Player/UnderwaterView.h`.
+  - Render with `Tools\sounds.ps1 <patterns>` then `build_sound_bank.py`. Those cue names live in headers other than `LooterSoundCues.h`.

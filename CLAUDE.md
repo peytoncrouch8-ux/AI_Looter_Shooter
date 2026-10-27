@@ -3,7 +3,7 @@
 Stylized first/third-person looter shooter, Unreal Engine 5.8, C++-first. Game: runtime module
 `Source/AI_Looter_Shooter`. `Source/LooterEditor`: editor-only level tools, never ships. Levels: Ransom's Rest
 `/Game/Maps/Lvl_RansomsRest` (campaign area 1; `Docs/Areas/RansomsRest.md`, mountain in `RansomsRest_Expansion.md`);
-the tutorial island `/Game/Maps/Lvl_TutorialIsland` (menu backdrop; `Docs/TutorialIsland.md`); `/Game/Maps/Lvl_Skyreach`
+the tutorial island `/Game/Maps/Lvl_TutorialIsland` (a session's fallback; `Docs/TutorialIsland.md`); the menu: `/Game/Maps/Lvl_MenuTeropa` (Teropa from orbit); `/Game/Maps/Lvl_Skyreach`
 (old sky-island style, kept).
 
 Read first: `Docs/Handoff.md` (state, next steps), `Docs/Pipeline.md` (index of the topic files in `Docs/Pipeline/`: tools, workflows, lessons, bug fixes; read those that bear on the work), `Docs/INDEX.md` (every doc;
@@ -45,7 +45,7 @@ keep it short; details go in the pipeline.
 
 - `ALooterGameMode` (default) gives each player `ALooterPlayerController`, `ALooterHUD` and
   `/Game/Player/BP_LooterCharacter` (data-only child of `ALooterCharacter`).
-- Starts at the main menu: default map opened with `?game=Menu` (`LocalMapOptions` in DefaultEngine.ini;
+- Starts with the startup logos, then the main menu: default map (Lvl_MenuTeropa) opened with `?game=Menu` (`LocalMapOptions` in DefaultEngine.ini;
   `ALooterMenuGameMode`). Single Player picks one of three sessions (`USessionSubsystem`), opens the level with
   `?Session=N`; the session saves player and world; pause menu's Save & Quit returns to the menu.
 - PIE opens the menu too. `Looter.PlayLevel [map]` (`pie.ps1` runs it) or a map on the command line (`perf.ps1`,

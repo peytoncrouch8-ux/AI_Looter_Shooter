@@ -1,4 +1,4 @@
-﻿# Handoff
+# Handoff
 
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
@@ -31,13 +31,14 @@ Art/UI/Logos/UnrealEngineLogo.png: the user asked Main to download it; the built
 DEMO round 3: all PASS; nits: intro in RR ignores Space (menu says HOLD SPACE), RR intro ends on white without a title card;
 Crane's fingers open beside the gaff, Ellis's spade reads like a spear edge-on; cards vanish 1 s after a body dies; road ruts
 faint; orchard overhang rock texture smeared. Perf RR 7.8 ms, p95 8.6.
-Round 4 (`CONTRACT4.md`, user picks: melee polish, boss cutscenes, swimming, grenade types Pitch/Scatter/Cinder): all four
-trees written (Saved/HANDS4Code, SCENES4Code, SWIM4Code, GRENADES4Code; READMEs list runs) and COPIED into Source/ (not
-built); a HOOKS agent was applying their cross-file hooks. Then: build; sounds.ps1 (Player.Melee.*, Boss*/Music.BossIntro.*,
-swim, Throwable.*Jar.*) + build_sound_bank; models GrenadeJars; build_underwater_assets + build_area_swimwater RansomsRest and
-TutorialIsland; create_story_lines; tests (Looter.Melee, Looter.Scenes.BossIntro, Looter.Swim, Looter.Grenade, Bosses,
-Gravemother, Foreman groups); DEMO play-check; commit; docs; perf. GRENADES' agent accidentally rendered every sound
-(untracked WAVs from unfinished recipes; cues.json rewritten): rerender after the merge.
+Round 4 DONE and pushed (`CONTRACT4.md`; user picks: melee polish, boss cutscenes, swimming, grenade types Pitch/Scatter/Cinder;
+all play-checked, fixes in): per-tool melee sounds/sparks/steam + 3P tool; boss intros (skippable, name cards, player untouchable +
+1.5 s, hostiles within 60 m held); swimming (starts at 136 cm water; RR tarn + 6 island waters via build_area_swimwater.py;
+underwater tint/fog/mix/bubbles, stroke, breath carries you up, no shooting, creatures stay ashore); grenade kinds (35% special from
+level 2, a special swaps your kind and keeps the count). Round 3 nits fixed too. Lesson: a gameplay/swim pass needs the level
+open ~30 s first; render every new recipe's cues. Remaining small: spade/pick sparks tuning, chest logs still say grave-salt
+grenade, road ruts faint, a smeared rock texture, Unreal logo (browser policy check failing). A test build with rounds 1-4
+was packaging at this writing (newest `Builds\Playtest\`).
 Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where;
 asked 2026-10-27, no answer yet); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
 two, 37 Lost Loot quest, 5 melee tools, 6 Odessa cards, 27 action skill anim, 35 iron sights, 16 roads, 26 chest spots, 25
