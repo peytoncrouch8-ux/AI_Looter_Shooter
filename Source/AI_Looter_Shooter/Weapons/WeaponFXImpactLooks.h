@@ -40,8 +40,6 @@ namespace ImpactLooks
 	inline const FLinearColor ImpactFlashColor(1.f, 0.72f, 0.4f);
 	inline const FLinearColor ImpactGlintColor(0.85f, 0.95f, 1.f);
 	inline const FLinearColor ImpactCritColor(1.f, 0.85f, 0.3f);
-	/** A punch's ring of air: a pale warm shimmer, faint (it's air thrown off the surface, not fire). */
-	inline const FLinearColor ImpactPunchColor(0.95f, 0.9f, 0.8f);
 	/** A geyser's thrown soil and stone grit: darker than the hanging dust, so the column reads against the ground it rose from. */
 	inline const FLinearColor ImpactGeyserDirt(0.17f, 0.105f, 0.055f);
 	inline const FLinearColor ImpactGeyserStone(0.22f, 0.2f, 0.18f);

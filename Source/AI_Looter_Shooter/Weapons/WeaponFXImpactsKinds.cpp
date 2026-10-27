@@ -10,8 +10,8 @@
 // The gun feel pass (Docs/Work/2026-10-22-Gunfeel/PLAN.md, GF-IMPACT): what a gun's kind adds to its round's world hit, on
 // top of the surface's own look (WeaponFXImpacts.cpp, already sized by the kind's weight). The user found every gun's hit
 // alike; each kind now lands its own way:
-//  - a sniper's round punches (weight from Looter.Vfx.Impact.PunchFrom): a faint ring of air and a ring of dust snapping out
-//    over the surface, a tall column thrown up, big chunks you watch fall (sparks off metal) - it reads at 40 m;
+//  - a sniper's round punches (weight from Looter.Vfx.Impact.PunchFrom): a ring of dust rolling out over the surface and
+//    big chunks you watch fall;
 //  - a heavy round (a revolver's slug) on a hard surface, and an LMG's every third round on anything, throw an extra burst
 //    of what they struck;
 //  - a shotgun's pellets gather (Sheet) and their blast lays one dust sheet across its pattern's middle once its last
@@ -23,29 +23,11 @@ using namespace ImpactLooks;
 
 namespace
 {
-	// A punch (numbers at a sniper round's size; the ring and column grow with Size).
-	/**
-	 * The ring of air: from, to (cm), thickness, strength, life. It faces the eye, lifted off the ground by PunchRingLift of its
-	 * reach (FX-DIAG, 2026-10-23: laid flat on the surface it was seen edge-on from a standing eye at 40 m, half sunk in the
-	 * ground's bumps, a faint thin arc nobody saw); its size and thickness grow with distance as the hit's pieces do.
-	 */
-	constexpr float PunchRingFrom = 8.f;
-	constexpr float PunchRingTo = 80.f;
-	constexpr float PunchRingWidth = 9.f;
-	constexpr float PunchRingGlow = 5.f;
-	constexpr float PunchRingLife = 0.2f;
-	constexpr float PunchRingLift = 0.45f;
+	// A punch (numbers at a sniper round's size). Its air ring and tall column were dropped on 2026-10-27 (the user's call after
+	// three failed fixes: they never read right in play).
 	/** The dust ring rolling out over the surface: puffs and their speed (cm/s). */
 	constexpr int32 PunchSkirt = 8;
 	constexpr float PunchSkirtSpeed = 420.f;
-	/**
-	 * The tall column: billows thrown up the normal (cm/s; a rifle's dense geyser is 520), slowed by this drag (per s). At 760
-	 * with drag 3 it stopped about 2 m up, as low as the hit's own dust (FX-DIAG: the sniper's 40 m hit read as one brown
-	 * puff); now 4-5 m, stacked, and never thinned by distance (it's what reads the hit far off).
-	 */
-	constexpr int32 PunchColumn = 4;
-	constexpr float PunchColumnSpeed = 1150.f;
-	constexpr float PunchColumnDrag = 1.6f;
 	/** Big chunks thrown high, and their size (cm). */
 	constexpr int32 PunchChunks = 4;
 	constexpr float PunchChunkSize[2] = { 8.f, 12.f };
@@ -178,13 +160,7 @@ void FWeaponFX::SpawnImpactPunch(const FImpactSpot& Spot)
 {
 	const FVfxTuning Vfx = FVfxTuning::Live();
 	const float Amount = Vfx.ImpactScale * Spot.Detail;
-	// A ring of air snapping out round the hit (the round's blow; never thinned: it reads the hit far off), facing the eye and
-	// lifted off the ground so none of it sinks in; as big and as thick as the hit's pieces are drawn there (wider far off).
-	const float View = Spot.Seen / FMath::Max(Spot.Size, 0.1f);
-	const float RingReach = PunchRingTo * Spot.Seen;
-	SpawnShockRing(Spot.Point + Spot.Up * (RingReach * PunchRingLift), Spot.Up, PunchRingFrom * Spot.Seen, RingReach, PunchRingWidth * View,
-		ImpactPunchColor, PunchRingGlow * Vfx.Glow * Vfx.ImpactScale, PunchRingLife, true);
-	// ...and a ring of its dust rolling out after it.
+	// A ring of its dust rolling out over the surface.
 	const FLinearColor Dust = DustOf(Spot.Material) * Spot.Shade;
 	const int32 Skirt = VfxRules::Count(PunchSkirt, Amount);
 	for (int32 Index = 0; Index < Skirt; ++Index)
@@ -199,49 +175,6 @@ void FWeaponFX::SpawnImpactPunch(const FImpactSpot& Spot)
 		Puff.EndSize = 85.f * Spot.Seen * Random.FRandRange(0.85f, 1.15f);
 		Puff.Gravity = -0.02f;
 		Puff.Drag = 4.f;
-	}
-	// The column: off metal a fountain of sparks, off water a spout, off anything else billows of it thrown tall.
-	const int32 Column = VfxRules::Count(PunchColumn, Vfx.ImpactScale);
-	if (Spot.Material == EImpactMaterial::Metal || Spot.Material == EImpactMaterial::SheetMetal)
-	{
-		for (int32 Index = 0; Index < Column * 6; ++Index)
-		{
-			const FVector Way = (Spot.Up + Random.GetUnitVector() * 0.35f).GetSafeNormal();
-			FParticle& Spark = AddParticle(EParticle::Spark, Spot.Point, Way * Random.FRandRange(700.f, 1600.f), Random.FRandRange(0.25f, 0.6f));
-			Spark.Color = ImpactHotSparkColor;
-			Spark.Intensity = Random.FRandRange(26.f, 38.f);
-			Spark.StartSize = Random.FRandRange(1.f, 1.5f);
-			Spark.Drag = 1.2f;
-		}
-	}
-	else if (Spot.Material == EImpactMaterial::Water)
-	{
-		const uint8 Drops = BitSetFor(EBitShape::Round, ImpactDropColor, 0.15f);
-		for (int32 Index = 0; Index < Column * 4; ++Index)
-		{
-			const FVector Way = (Spot.Up + Random.GetUnitVector() * 0.12f).GetSafeNormal();
-			AddBit(Drops, Spot.Point, Way * Random.FRandRange(800.f, 1300.f) * Spot.Reach, Random.FRandRange(2.f, 3.4f) * Spot.Size,
-				Random.FRandRange(0.8f, 1.1f));
-		}
-	}
-	else
-	{
-		for (int32 Index = 0; Index < Column; ++Index)
-		{
-			const float Slower = 1.f - 0.4f * static_cast<float>(Index) / FMath::Max(Column, 1);
-			FVfxFlame Billow;
-			Billow.Location = Spot.Point;
-			Billow.Velocity = (Spot.Up + Random.GetUnitVector() * 0.1f).GetSafeNormal() * PunchColumnSpeed * Slower * Spot.Reach;
-			Billow.StartSize = 26.f * Spot.Seen;
-			Billow.EndSize = 120.f * Spot.Seen * Random.FRandRange(0.85f, 1.15f);
-			Billow.Smoke = ThrownOf(Spot.Material) * Spot.Shade;
-			Billow.Opacity = FMath::Min(0.95f * Vfx.Smoke, 1.f);
-			Billow.Life = 1.6f * Random.FRandRange(0.9f, 1.1f);
-			Billow.Burn = 0.f;
-			Billow.Gravity = 0.35f;
-			Billow.Drag = PunchColumnDrag;
-			SpawnFlame(Billow);
-		}
 	}
 	// Big chunks thrown high, a little along the bounce (stone and gravel as chips; the rest as the chunk burst's pieces, bigger).
 	const int32 Chunks = VfxRules::Count(PunchChunks, Amount);

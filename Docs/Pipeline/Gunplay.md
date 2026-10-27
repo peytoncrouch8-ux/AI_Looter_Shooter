@@ -137,7 +137,8 @@ contract and in each tuning header's `Default`).
   Rifle 1, Shotgun 0.5 (a pellet), Revolver 1.3, SMG 0.6, Sniper 1.8, LMG 1.05; counts x weight, sizes x weight^0.5
   (`.SizePower` 0.5), clamp 0.3-2.0; no gun handed in (dev command, rocket ground hit) = the old look. LMG full every 3rd
   (`.LMGFullEvery`, rest `.LMGLight` 0.6); chunks from 1.2 on hard surfaces (`.ChunkFrom`); sniper punch from 1.5
-  (`.PunchFrom`); shotgun one dust sheet per blast (`.Sheet`, `.SheetWait` 0.12 s, `.SheetMin` 3). Wood 2 long splinters,
+  (`.PunchFrom`: a dust skirt and big chunks; its air ring and tall column failed three fixes and were dropped, the
+  user's call 2026-10-27); shotgun one dust sheet per blast (`.Sheet`, `.SheetWait` 0.12 s, `.SheetMin` 3). Wood 2 long splinters,
   sheet metal a spark shower, hay a chaff skirt. Crit looks by blood (`Looter.Vfx.Hit.CritPop`). Marks: crack-ring styles
   13/14 (StoneHeavy, WoodHeavy) from mark scale 1.2 (`Looter.BulletMarks.HeavyCracks`/`.HeavyFrom`; needs
   `make_bullet_marks.py` + `build_world_materials.py M_BulletMark`). Marker: Kill > WardBreak > Crit > Ward > Body (a blast

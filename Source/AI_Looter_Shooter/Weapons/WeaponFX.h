@@ -451,7 +451,7 @@ private:
 	void SpawnImpactKindLayers(const FImpactSpot& Spot, const FVfxImpactLook& Look);
 	/** A burst of what it struck thrown high (Amount: its share, detail in), landing on the hit's floor. */
 	void SpawnImpactChunks(const FImpactSpot& Spot, float Amount);
-	/** The sniper's punch: a ring of air and dust over the surface, a tall column of it, big chunks. */
+	/** The sniper's punch: a ring of dust over the surface, big chunks. */
 	void SpawnImpactPunch(const FImpactSpot& Spot);
 	/** Lays Sheet across its pattern (its puffs, and a fan, sparks or spray by its surface). */
 	void SpawnBlastSheet(const FVfxTuning& Vfx);

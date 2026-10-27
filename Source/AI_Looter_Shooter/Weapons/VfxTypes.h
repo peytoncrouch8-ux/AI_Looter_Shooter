@@ -319,7 +319,7 @@ struct FVfxImpactLook
 	float Size = 1.f;
 	/** A pellet: no stream thinning (its blast is one hit), gathered into its blast's dust sheet. */
 	bool bPellet = false;
-	/** A punch (the sniper's round): a ring of air and dust snapping out over the surface, a tall column, big chunks. */
+	/** A punch (the sniper's round): a ring of dust rolling out over the surface, big chunks. */
 	bool bPunch = false;
 	/** An extra burst of what it struck, thrown high: a heavy round's on hard surfaces, an LMG's full round on anything. */
 	bool bChunks = false;

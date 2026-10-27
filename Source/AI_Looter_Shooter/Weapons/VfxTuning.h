@@ -90,7 +90,7 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	float ImpactLMGLight = 0.6f;
 	/** Looter.Vfx.Impact.ChunkFrom: from this weight a hit on a hard surface throws an extra burst of it (the revolver's, the sniper's). */
 	float ImpactChunkFrom = 1.2f;
-	/** Looter.Vfx.Impact.PunchFrom: from this weight a hit punches (a ring of air and dust, a tall column, big chunks: the sniper's). */
+	/** Looter.Vfx.Impact.PunchFrom: from this weight a hit punches (a ring of dust, big chunks: the sniper's). */
 	float ImpactPunchFrom = 1.5f;
 	/** Looter.Vfx.Impact.Sheet: a shotgun blast's one dust sheet across its pattern, times (0 none). */
 	float ImpactSheet = 1.f;
