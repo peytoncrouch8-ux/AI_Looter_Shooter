@@ -6,6 +6,7 @@
 
 #include "AI_Looter_Shooter.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Loot/LootLibrary.h"
 #include "Loot/LootOdds.h"
 #include "Loot/LootTable.h"
 #include "HAL/IConsoleManager.h"
@@ -22,6 +23,9 @@ namespace
 			return;
 		}
 		const int32 Kills = Args.Num() > 1 ? FMath::Clamp(FCString::Atoi(*Args[1]), 1, 10000000) : 100000;
+		// The guns' level: Ransom's Rest's 1 by default, where a legendary is capped (ULootLibrary::LegendaryCapFor); 0 the
+		// table's own odds, 9 and up a later area's.
+		const int32 Level = Args.Num() > 2 ? FMath::Clamp(FCString::Atoi(*Args[2]), 0, 100) : 1;
 		const ULootTable* Table = UCreatureRankSettings::GetLootTable(Rank);
 		if (!Table)
 		{
@@ -31,8 +35,9 @@ namespace
 
 		// Rolled from a new seed each time, the way kills roll, next to what the table's numbers work out to exactly.
 		const int32 Seed = FMath::Rand();
-		const LootOdds::FTally Tally = LootOdds::Simulate(Table, Kills, Seed);
-		const LootOdds::FExpected Expected = LootOdds::Expected(Table);
+		const LootOdds::FTally Tally = LootOdds::Simulate(Table, Kills, Seed, 0.f, Level);
+		const LootOdds::FExpected Expected = LootOdds::Expected(Table, 0.f, Level);
+		const float Cap = ULootLibrary::LegendaryCapFor(Table, Level);
 		double Shares[LootOdds::NumRarities];
 		for (int32 Tier = 0; Tier < LootOdds::NumRarities; ++Tier)
 		{
@@ -40,8 +45,10 @@ namespace
 		}
 		const double LegendaryRate = Tally.PerKill(Tally.KillsWithLegendary);
 
-		UE_LOG(LogLooter, Display, TEXT("Looter.Loot.SimulateDrops: %s, %s, %d kills (seed %d)"), *UCreatureRankSettings::GetRankName(Rank),
-			*Table->GetName(), Kills, Seed);
+		UE_LOG(LogLooter, Display, TEXT("Looter.Loot.SimulateDrops: %s, %s, %d kills at level %d (seed %d); %s"),
+			*UCreatureRankSettings::GetRankName(Rank), *Table->GetName(), Kills, Level, Seed,
+			Cap < 1.f ? *FString::Printf(TEXT("a legendary capped at %.2f%% of its guns (early area)"), Cap * 100.f)
+				: (Table->bKeepsLegendaryOdds ? TEXT("its legendary odds kept everywhere") : TEXT("full legendary odds")));
 		UE_LOG(LogLooter, Display, TEXT("  guns on %.1f%% of kills (table %.1f%%), %.2f a kill (table %.2f): %d to %d at luck %.2f"),
 			Tally.PerKill(Tally.KillsWithWeapons) * 100.0, Expected.KillsWithWeapons * 100.0, Tally.PerKill(Tally.Weapons),
 			Expected.WeaponsPerKill, Table->MinWeaponDrops, Table->MaxWeaponDrops, Table->Luck);
@@ -57,8 +64,8 @@ namespace
 
 	FAutoConsoleCommand SimulateDropsCommand(
 		TEXT("Looter.Loot.SimulateDrops"),
-		TEXT("Looter.Loot.SimulateDrops [Regular|Restless|Gravebound|Hallowed|Ethereal|Soulfed|Boss] [kills, 100000 by default]: ")
-		TEXT("rolls the rank's loot table ")
+		TEXT("Looter.Loot.SimulateDrops [Regular|Restless|Gravebound|Hallowed|Ethereal|Soulfed|Boss] [kills, 100000 by default] ")
+		TEXT("[level, 1 by default: Ransom's Rest's capped legendaries; 9+ a later area's; 0 the table alone]: rolls the rank's loot table ")
 		TEXT("for that many kills and prints how often guns drop, their rarities and legendaries per kill, and the ammo pickups, ")
 		TEXT("beside what the table's numbers work out to."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&SimulateDrops));

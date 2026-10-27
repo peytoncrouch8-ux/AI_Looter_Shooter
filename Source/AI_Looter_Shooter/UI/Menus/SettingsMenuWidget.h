@@ -5,6 +5,7 @@
 #include "Settings/AudioSettingsSubsystem.h"
 #include "UI/Menus/MenuNav.h"
 #include "UI/Menus/MenuNavigator.h"
+#include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuPreview.h"
 #include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -24,6 +25,7 @@ class USizeBox;
 class USlider;
 class UTextBlock;
 class UVerticalBox;
+class UWidgetSwitcher;
 
 /** Where the settings menu is open. */
 enum class ESettingsMenuMode : uint8
@@ -37,21 +39,24 @@ enum class ESettingsMenuMode : uint8
 DECLARE_DELEGATE(FOnSettingsMenuAction);
 
 /**
- * The settings menu: graphics, audio (the volumes) and interface options, and the controls (look sensitivity and key
- * bindings), one scrolling list between the header and the footer. Escape opens it over the game (ALooterHUD, which
- * pauses the game) and the main menu's Settings opens it there. The HUD hides under it, so some sliders preview what
- * they set while they move: the minimap size shows an outline of the minimap (the map's circle and the bezel round it)
- * where it sits, at the size chosen; the minimap zoom shows a live copy of the minimap there; and the first-person field
- * of view changes the view behind the menu, which fades back (the dimming goes, the panel ghosts) for as long as the
- * slider is held, and a moment after. Esc while one of the last two is held lets go of it with the setting as it was.
+ * The settings menu, in four tabbed pages (the user, 2026-10-27: tabs, not one long scroll): Graphics, Audio (the volumes),
+ * Interface, and Controls (the view's feel and the key bindings). Each page scrolls on its own if it must. Beside the page
+ * a description column says what the row pointed at (or with the keyboard or controller focus) does, in plain words, and
+ * for graphics what it costs (SettingsMenuHelp.h). Escape opens it over the game (ALooterHUD, which pauses the game) and
+ * the main menu's Settings opens it there. The HUD hides under it, so some sliders preview what they set while they move:
+ * the minimap size shows an outline of the minimap (the map's circle and the bezel round it) where it sits, at the size
+ * chosen; the minimap zoom shows a live copy of the minimap there; and the first-person field of view changes the view
+ * behind the menu, which fades back (the dimming goes, the panel ghosts) for as long as the slider is held, and a moment
+ * after. Esc while one of the last two is held lets go of it with the setting as it was.
  *
  * A controller or the keyboard drive all of it, Borderlands' way: the D-pad (or the left stick, arrows, W A S D) moves the
- * focus down the list, steps a slider (held, faster and faster) or a switch; A (Enter) presses or changes; LB / RB (Page
- * Up / Down) turn the sections; B (Esc) lets go of a held preview, then closes. The focus look (LooterUIFocus.h) and the
- * prompts along the bottom follow the device last used; the mouse works as it always did.
+ * focus down the page, steps a slider (held, faster and faster) or a switch; A (Enter) presses or changes; LB / RB (Page
+ * Up / Down) turn the tabs, round the ends; B (Esc) lets go of a held preview, then closes. The focus look
+ * (LooterUIFocus.h) and the prompts along the bottom follow the device last used; the mouse clicks the tabs.
  *
- * SettingsMenuWidget.cpp builds and fills it; SettingsMenuRows.cpp makes its rows and the key list;
- * SettingsMenuInput.cpp handles its buttons, sliders and keys; SettingsMenuAudio.cpp is the Audio section;
+ * SettingsMenuWidget.cpp builds the frame and fills it; SettingsMenuPages.cpp builds the Graphics, Interface and Controls
+ * pages; SettingsMenuRows.cpp makes their rows and the key list; SettingsMenuTabs.cpp is the tabs and the description
+ * column; SettingsMenuInput.cpp handles its buttons, sliders and keys; SettingsMenuAudio.cpp is the Audio page;
  * SettingsMenuPreview.cpp is the field of view and minimap zoom sliders and the previews; SettingsMenuNav.cpp is the
  * keyboard and controller focus, its look and the prompts.
  */
@@ -98,7 +103,7 @@ public:
 	/**
 	 * A key from the keyboard or a gamepad while the menu isn't waiting for a new key binding (every key comes here, and
 	 * the tests send theirs): the D-pad, arrows or W A S D move the focus, or step the slider or switch it's on; A or Enter
-	 * presses or changes; LB / RB or Page Up / Down turn the sections; B, Esc or Start let go of a held preview, then close
+	 * presses or changes; LB / RB or Page Up / Down turn the tabs; B, Esc or Start let go of a held preview, then close
 	 * the menu. The first move or press while the mouse drove the menu only brings the focus look up. bRepeat: the
 	 * platform's own repeat of a held key, ignored (held keys repeat on the menu's clock, AdvanceNav). True when it was
 	 * the menu's.
@@ -118,6 +123,20 @@ public:
 	TArray<MenuNav::FPrompt> GetPrompts() const;
 	ULooterButton* GetResumeButton() const;
 	USlider* GetMinimapSizeSlider() const;
+
+	// --- The tabs and the description column (SettingsMenuTabs.cpp) ---
+
+	/** The page on show (ESettingsPage). */
+	int32 GetPage() const { return CurrentPage; }
+	/** Turns to Page as a click on its tab does (the focus to its first setting). */
+	void SelectPage(int32 Page);
+	/** The tab of Page along the top (lit while it's the page on show). */
+	ULooterButton* GetTabButton(int32 Page) const;
+	/** The description column as it stands: the row's name and what it does. */
+	FString GetShownHelpTitle() const;
+	FString GetShownHelpText() const;
+	/** A frame of the description column: it follows the focus under keys, the pointer under the mouse (AdvanceNav runs it). */
+	void AdvanceHelp();
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -153,6 +172,36 @@ private:
 		float StepSize = 0.05f);
 	/** The outline of the HUD's minimap, in the same corner, for previewing its size. */
 	UWidget* MakeMinimapPreview();
+
+	// --- The pages (SettingsMenuPages.cpp; the Audio page is SettingsMenuAudio.cpp) ---
+
+	void MakeGraphicsPage();
+	void MakeInterfacePage();
+	/** The view's feel, then the key list's hint and Reset all keys, then the key list (RebuildControls fills it). */
+	void MakeControlsPage();
+
+	// --- The tabs and the description column (SettingsMenuTabs.cpp) ---
+
+	/** The tabs along the top, with the keys that turn them at each end. */
+	UWidget* MakeTabBar();
+	/** The description column beside the page. */
+	UWidget* MakeHelpColumn();
+	/** A new page's scrolling list, added to the switcher: the rows, stops and descriptions made after it are its own. */
+	UVerticalBox* BeginPage();
+	/** A row on the page being built (a gap above it). Returns Row. */
+	UWidget* AddPageRow(UWidget* Row, float Top = 4.f);
+	/** Shows Page: its tab lit, its list from the top, the focus to its first setting, its own words in the column. */
+	void ShowPage(int32 Page);
+	/** LB / RB: the page beside, round the ends, with the tab's sound. */
+	void StepPage(int32 Step);
+	/** Notes Target's words for the description column (on the page being built, or every page). Returns Target. */
+	UWidget* Describe(UWidget* Target, const SettingsMenu::FSettingHelp& Help, bool bEveryPage = false, bool bQuality = false, bool bKeyList = false);
+	/** The words for Widget (a row or a button), on the page on show or every page; null when it has none. */
+	const SettingsMenu::FHelpEntry* FindHelp(const UWidget* Widget) const;
+	/** Puts Help in the column (a no-op when it's already there). */
+	void ShowHelp(const SettingsMenu::FSettingHelp& Help);
+	/** The keys that turn the tabs, at each end of them, named for the device last used. */
+	void RefreshTabKeys();
 	void RebuildControls();
 	void RefreshKeyLabels();
 	void RefreshGraphics();
@@ -163,10 +212,10 @@ private:
 	/** The size shown beside the minimap slider and by the preview outline. */
 	void ShowMinimapScale(float Scale);
 
-	// --- The Audio section (SettingsMenuAudio.cpp) ---
+	// --- The Audio page (SettingsMenuAudio.cpp) ---
 
-	/** The four volume sliders (Master, Effects, Interface, Music), each a row with its percentage. */
-	UWidget* MakeAudioRows();
+	/** The page of the four volume sliders (Master, Effects, Interface, Music), each a row with its percentage. */
+	void MakeAudioPage();
 	void RefreshAudio();
 	/** A volume slider moved: heard at once, with a soft tick at each step; saved when it's let go. */
 	void ChangeVolume(EAudioVolume Which, float Value);
@@ -258,20 +307,24 @@ private:
 
 	// --- The keyboard and a controller (SettingsMenuNav.cpp) ---
 
-	/** A section's header as the list is built: the stops after it are that section's, and the bumpers bring it to the top. */
-	UWidget* NavSection(UWidget* Header);
-	/** A slider's row as the list is built: a stop of the current section, the row lit by its focus look. Returns Row. */
+	/** A slider's row as a page is built: a stop of that page, the row lit by its focus look. Returns Row. (These three: SettingsMenuTabs.cpp.) */
 	UWidget* NavSlider(UWidget* Row, USlider* Slider);
-	/** A row of choices (a switch, the quality presets) as the list is built. Returns Row. */
+	/** A row of choices (a switch, the quality presets) as a page is built. Returns Row. */
 	UWidget* NavChoices(UWidget* Row, const TArray<ULooterButton*>& Choices);
-	/** The stops, top to bottom: Resume, the sections, the key list, the footer. Prefer: where the focus goes (else it stays). */
+	/** A button on a page as it's built (Reset all keys), in Row (what scrolls into view for it). */
+	void NavButton(ULooterButton* Button, UWidget* Row);
+	/**
+	 * The stops, top to bottom: Resume, the page on show (and on Controls the key list), the footer. Prefer: where the focus
+	 * goes (else it stays, else the first stop).
+	 */
 	void RebuildNavigation(const UWidget* Prefer = nullptr);
 	/** The focus to where the menu starts: Resume over the game, the first setting from the main menu. */
 	void ResetNavigation();
+	/** The first stop of the page on show (null on an empty page). */
+	UWidget* FirstPageStop() const;
 	/** A direction pressed: one step now, then repeats while it's held. */
 	void PressNav(const FKey& Key, MenuNav::EMove Move);
 	void StepNav(MenuNav::EMove Move);
-	void JumpNav(int32 Step);
 	void ActivateNav();
 	/** Notes Key's device. False when the focus look wasn't showing before (that first press only brings it up). */
 	bool RevealNav(const FKey& Key);
@@ -291,18 +344,38 @@ private:
 	MenuNav::FRepeat NavRepeat;
 	FVector2D NavStick = FVector2D::ZeroVector;
 	MenuNav::EMove NavStickMove = MenuNav::EMove::None;
-	/** The stops as the list is built: its sections, and the key list (RebuildControls). */
-	TArray<FMenuNavRow> BodyNav;
+	/** Each page's stops, top to bottom, as the pages are built (by ESettingsPage), and the key list's (RebuildControls). */
+	TArray<TArray<FMenuNavRow>> PageNav;
 	TArray<FMenuNavRow> KeyNav;
-	/** The section the list's building has reached (NavSection). */
-	int32 BuildSection = INDEX_NONE;
+	/** The page the building has reached (BeginPage). */
+	int32 BuildPage = INDEX_NONE;
+	/** The page on show (ESettingsPage). */
+	int32 CurrentPage = 0;
 	/** The device the look was last set for (RefreshNavLook). */
 	LooterUI::EMenuDevice ShownDevice = LooterUI::EMenuDevice::Mouse;
 	bool bNavLookApplied = false;
 	/** The prompts on show, as one line: the bar is rebuilt only when they change. */
 	FString ShownPrompts;
-	/** The sections' headers, in order (the bumpers scroll each to the top). */
-	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> SectionHeaders;
+
+	/** The pages, one scrolling list each, of which the switcher shows the current one (Body is that one's list). */
+	UPROPERTY(Transient) TObjectPtr<UWidgetSwitcher> Pages;
+	UPROPERTY(Transient) TArray<TObjectPtr<UScrollBox>> PageLists;
+	/** The page being built's rows (BeginPage, AddPageRow). */
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> BuildRows;
+	/** The tabs along the top, by page. */
+	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> TabButtons;
+	/** The key caps at each end of the tabs: LB and RB, or PgUp and PgDn. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TabKeyPrevious;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TabKeyNext;
+
+	/** Every described row and button (Describe), and the description column's three lines. */
+	TArray<SettingsMenu::FHelpEntry> HelpEntries;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> HelpTitle;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> HelpBody;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> HelpDetail;
+	/** What the column shows: it's rewritten only when that changes. */
+	SettingsMenu::FSettingHelp ShownHelp;
+
 	/** Each key binding's Default button, beside its key. */
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> DefaultButtons;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> ResetAllButton;
@@ -313,7 +386,7 @@ private:
 
 	ESettingsMenuMode Mode = ESettingsMenuMode::Pause;
 
-	/** Everything between the header and the footer, scrolling as one: the sections and, last, the key list. */
+	/** The page on show's scrolling list (one of PageLists). */
 	UPROPERTY(Transient) TObjectPtr<UScrollBox> Body;
 	/** The key bindings' rows (RebuildControls fills it). */
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> KeyList;

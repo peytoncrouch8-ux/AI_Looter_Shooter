@@ -19,10 +19,20 @@ void StageStudio::SetupPrimitive(UPrimitiveComponent* Primitive)
 	Primitive->bReceivesDecals = false;
 	Primitive->LightingChannels.bChannel0 = false;
 	Primitive->LightingChannels.bChannel1 = true;
+	// A stand's model animates under its screen (the bestiary's creature), and the inventory pauses the game.
+	Primitive->PrimaryComponentTick.bTickEvenWhenPaused = true;
 }
 
 void StageStudio::SetupCapture(USceneCaptureComponent2D* Capture)
 {
+	// The stand that owns the camera turns, sways and asks for its picture on its own tick, and the inventory's pages show
+	// it over the paused game (the user's call, 2026-10-27). Called from the stand's constructor, where the component's
+	// owner is already the stand. The pictures themselves are drawn by the renderer, paused or not.
+	if (AActor* Stand = Capture->GetOwner())
+	{
+		Stand->PrimaryActorTick.bTickEvenWhenPaused = true;
+	}
+
 	Capture->bCaptureEveryFrame = false;
 	Capture->bCaptureOnMovement = false;
 	Capture->bAlwaysPersistRenderingState = false;

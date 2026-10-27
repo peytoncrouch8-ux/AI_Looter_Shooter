@@ -103,23 +103,6 @@ namespace
 		return Icon;
 	}
 
-	/** A chest, its lid apart from its body by a dark seam. */
-	const FVectorIcon& ChestIcon()
-	{
-		static const FVectorIcon Icon = []
-		{
-			FVectorIcon Result;
-			Result.Fills.Add(TArray<FVector2D>{FVector2D(5.0, 5.8), FVector2D(19.0, 5.8), FVector2D(20.5, 7.9), FVector2D(20.5, 10.2), FVector2D(3.5, 10.2),
-				FVector2D(3.5, 7.9) });
-			Result.Fills.Add(TArray<FVector2D>{FVector2D(3.5, 11.5), FVector2D(10.6, 11.5), FVector2D(10.6, 19.5), FVector2D(3.5, 19.5) });
-			Result.Fills.Add(TArray<FVector2D>{FVector2D(13.4, 11.5), FVector2D(20.5, 11.5), FVector2D(20.5, 19.5), FVector2D(13.4, 19.5) });
-			// The hasp between the body's halves.
-			Result.Fills.Add(TArray<FVector2D>{FVector2D(10.6, 12.6), FVector2D(13.4, 12.6), FVector2D(13.4, 15.6), FVector2D(10.6, 15.6) });
-			return Result;
-		}();
-		return Icon;
-	}
-
 	/** A five-pointed star, top point up, as fills (its five tips and the pentagon between them: each one convex). */
 	void AddStar(FVectorIcon& Icon, const FVector2D& Center, double Outer, double Inner)
 	{
@@ -193,10 +176,8 @@ namespace MapIcons
 		case EMapPinKind::Station:     return LooterUI::Color::Title();
 		case EMapPinKind::Vendor:      return LooterUI::Color::IconShade();
 		case EMapPinKind::Bench:       return LooterUI::Color::IconLight();
-		// The vigil stone's candlelit brass (the cursed irons' tarnished gold): apart from the chest's orange-gold and the bench's ivory.
+		// The vigil stone's candlelit brass (the cursed irons' tarnished gold): apart from the offers' gold and the bench's ivory.
 		case EMapPinKind::Shrine:      return LooterUI::Color::Curse();
-		case EMapPinKind::Chest:      return LooterUI::Color::AccentLight();
-		case EMapPinKind::ChestLooted: return LooterUI::Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.75f);
 		}
 		return LooterUI::Color::Text();
 	}
@@ -213,15 +194,13 @@ namespace MapIcons
 		case EMapPinKind::Vendor:      return 24.f;
 		case EMapPinKind::Bench:       return 22.f;
 		case EMapPinKind::Shrine:      return 26.f;
-		case EMapPinKind::Chest:       return 20.f;
-		case EMapPinKind::ChestLooted: return 13.f;
 		}
 		return 20.f;
 	}
 
 	bool HasBadge(EMapPinKind Kind)
 	{
-		return Kind != EMapPinKind::Objective && Kind != EMapPinKind::ChestLooted;
+		return Kind != EMapPinKind::Objective;
 	}
 
 	FSlateBrush IconBrush(EMapPinKind Kind, float IconSize, const FLinearColor& Tint)
@@ -237,8 +216,6 @@ namespace MapIcons
 		case EMapPinKind::Vendor:      return LooterUI::IconBrush(TEXT("MapVendor"), VendorIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Bench:       return LooterUI::IconBrush(TEXT("MapBench"), BenchIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Shrine:      return LooterUI::IconBrush(TEXT("MapShrine"), ShrineIcon(), PixelsPerUnit, Box, Tint);
-		case EMapPinKind::Chest:
-		case EMapPinKind::ChestLooted: return LooterUI::IconBrush(TEXT("MapChest"), ChestIcon(), PixelsPerUnit, Box, Tint);
 		}
 		return LooterUI::IconBrush(TEXT("MapObjective"), ObjectiveIcon(), PixelsPerUnit, Box, Tint);
 	}

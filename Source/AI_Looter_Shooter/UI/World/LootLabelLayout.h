@@ -19,9 +19,26 @@ struct FLootLabelBox
 	float Previous = 0.f;
 };
 
+/** One gun's label in a pile of loot, for PickShown (world units). */
+struct FLootPileLabel
+{
+	/** Where the gun lies (cm). */
+	FVector Location = FVector::ZeroVector;
+	/** From the eyes (cm): of two alike, the nearer shows. */
+	float Distance = 0.f;
+	/** How much it's worth reading: its rarity (EWeaponRarity as a number), the rarer first. */
+	int32 Rank = 0;
+	/** Looked at: always shown. */
+	bool bFocused = false;
+	/** Shown in full last time: it keeps its place against one just as good, so the names don't trade places as you walk. */
+	bool bWasShown = false;
+};
+
 /**
  * Keeps the loot labels lying near each other (guns' and wards' at an opened chest) from drawing over each other: a plain
- * rule (tests: Looter.Loot.Labels), played every frame by ULootLabelSubsystem.
+ * rule (tests: Looter.Loot.Labels), played every frame by ULootLabelSubsystem. A pile of guns (a boss's drop, a strongbox)
+ * shows a few names in full and folds the rest to their rarity's dot (PickShown), so no tower of names (playtest
+ * 2026-10-27).
  */
 namespace LootLabelLayout
 {
@@ -42,4 +59,12 @@ namespace LootLabelLayout
 	 * plate and the feed's flash a hand apart), so the feed skips the flash for it.
 	 */
 	AI_LOOTER_SHOOTER_API bool PlateNamesGun(bool bLookedAt, bool bLabelShowing);
+
+	/**
+	 * Which guns' labels show in full where many lie together; the others fold to a dot in their rarity's colour. Taken in
+	 * order (the looked-at one, then the rarer, then the one shown before, then the nearer), a label shows when fewer than
+	 * MaxShown labels already shown lie within PileRadius (cm) of its gun; the looked-at one and any of AlwaysRank or rarer
+	 * (the legendaries) show whatever the count. MaxShown 0 or less: every label shows.
+	 */
+	AI_LOOTER_SHOOTER_API TArray<bool> PickShown(TConstArrayView<FLootPileLabel> Labels, float PileRadius, int32 MaxShown, int32 AlwaysRank);
 }

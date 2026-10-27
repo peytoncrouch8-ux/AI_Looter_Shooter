@@ -1,4 +1,5 @@
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -18,12 +19,12 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/WidgetSwitcher.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 
@@ -69,7 +70,7 @@ void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 		MinimapZoomPreview->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	// The keyboard and controller focus starts at the top again.
+	// The keyboard and controller focus starts at the top again, on the first page.
 	NavStick = FVector2D::ZeroVector;
 	NavStickMove = MenuNav::EMove::None;
 	// Opened by the controller's Start (still down as the menu opens): the controller drives it from its first press.
@@ -77,12 +78,9 @@ void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 	{
 		LooterUI::SetMenuDevice(LooterUI::EMenuDevice::Gamepad);
 	}
+	ShowPage(static_cast<int32>(ESettingsPage::Graphics));
 	ResetNavigation();
 	RefreshNavLook();
-	if (LooterUI::IsMenuFocusShown() && Body)
-	{
-		Body->ScrollToStart();
-	}
 }
 
 void USettingsMenuWidget::ApplyMode()
@@ -181,177 +179,44 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		ResumeButton = MakeButton(ActionClose, 0, TEXT("Resume"), 16, EButtonKind::Primary);
 		Add(ResumeButton, 10.f);
 
-		// Every section in one list that scrolls between the header and the footer, so the key bindings at its end are in
-		// reach at any screen size, whatever the sections above them take.
-		Body = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
-		StyleScrollBox(Body);
-		Add(Body, 18.f, true);
-		UVerticalBox* Sections = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		Body->AddChild(Sections);
-		auto AddRow = [Sections](UWidget* Child, float Top)
-		{
-			Sections->AddChildToVerticalBox(Child)->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
-		};
+		// The tabs, then the page on show beside the description column. Every page is built now, each its own scrolling
+		// list in the switcher, so turning a tab only shows another (nothing is made then).
+		HelpEntries.Reset();
+		Add(MakeTabBar(), 14.f);
+		UHorizontalBox* Middle = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		Pages = WidgetTree->ConstructWidget<UWidgetSwitcher>(UWidgetSwitcher::StaticClass());
+		UHorizontalBoxSlot* PagesSlot = Middle->AddChildToHorizontalBox(Pages);
+		PagesSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		UHorizontalBoxSlot* HelpSlot = Middle->AddChildToHorizontalBox(MakeHelpColumn());
+		HelpSlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
+		HelpSlot->SetVerticalAlignment(VAlign_Fill);
+		Add(Middle, 12.f, true);
 
-		// The keyboard and controller stops are noted as the rows are made, section by section (SettingsMenuNav.cpp).
-		BodyNav.Reset();
-		SectionHeaders.Reset();
-		BuildSection = INDEX_NONE;
-
-		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Graphics"))), 0.f);
-		TArray<FString> QualityNames;
-		for (const EGraphicsQuality Quality : Qualities)
-		{
-			QualityNames.Add(UGraphicsSettingsSubsystem::QualityName(Quality));
-		}
-		TArray<ULooterButton*> Quality;
-		UWidget* QualityRow = MakeChoiceRow(TEXT("Quality"), QualityNames, ActionQuality, QualityColumnWidth, Quality);
-		AddRow(NavChoices(QualityRow, Quality), 4.f);
-		for (ULooterButton* Button : Quality)
-		{
-			QualityButtons.Add(Button);
-		}
-		ULooterButton* BlurOn = nullptr;
-		ULooterButton* BlurOff = nullptr;
-		UWidget* BlurRow = MakeToggleRow(TEXT("Motion blur"), TEXT("On"), TEXT("Off"), ActionMotionBlurOn, ActionMotionBlurOff, 0, false, BlurOn, BlurOff);
-		AddRow(NavChoices(BlurRow, { BlurOn, BlurOff }), 4.f);
-		MotionBlurOn = BlurOn;
-		MotionBlurOff = BlurOff;
-		// The first-person view only: third person keeps its own over-the-shoulder framing.
-		USlider* FovSlider = nullptr;
-		UTextBlock* FovText = nullptr;
-		UWidget* FovRow = MakeSliderRow(TEXT("Field of view (1st person)"), UGraphicsSettingsSubsystem::MinFieldOfView,
-			UGraphicsSettingsSubsystem::MaxFieldOfView, FovSlider, FovText, FieldOfViewStep);
-		AddRow(NavSlider(FovRow, FovSlider), 4.f);
-		FieldOfViewSlider = FovSlider;
-		FieldOfViewValue = FovText;
-		FieldOfViewSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewChanged);
-		// Taken and let go by the mouse or a controller (a controller's lock on a focused slider), the same to the preview.
-		FieldOfViewSlider->OnMouseCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewGrabbed);
-		FieldOfViewSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewReleased);
-		FieldOfViewSlider->OnControllerCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewGrabbed);
-		FieldOfViewSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewReleased);
-
-		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Audio"))), 18.f);
-		AddRow(MakeAudioRows(), 0.f);
-
-		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Interface"))), 18.f);
-		USlider* Transparency = nullptr;
-		UTextBlock* TransparencyText = nullptr;
-		UWidget* TransparencyRow = MakeSliderRow(TEXT("UI transparency"), 0.f, 1.f, Transparency, TransparencyText);
-		AddRow(NavSlider(TransparencyRow, Transparency), 4.f);
-		TransparencySlider = Transparency;
-		TransparencyValue = TransparencyText;
-		TransparencySlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyChanged);
-		// Let go by the mouse, or by the key or stick that stepped it (the menu's keys hold a slider as a controller does).
-		TransparencySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyReleased);
-		TransparencySlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyReleased);
-		ULooterButton* MapOn = nullptr;
-		ULooterButton* MapOff = nullptr;
-		UWidget* MapRow = MakeToggleRow(TEXT("Minimap"), TEXT("On"), TEXT("Off"), ActionMinimapOn, ActionMinimapOff, 0, false, MapOn, MapOff);
-		AddRow(NavChoices(MapRow, { MapOn, MapOff }), 4.f);
-		MinimapOn = MapOn;
-		MinimapOff = MapOff;
-		USlider* MinimapSize = nullptr;
-		UTextBlock* MinimapText = nullptr;
-		UWidget* MinimapSizeRow = MakeSliderRow(TEXT("Minimap size"), UGraphicsSettingsSubsystem::MinMinimapScale,
-			UGraphicsSettingsSubsystem::MaxMinimapScale, MinimapSize, MinimapText);
-		AddRow(NavSlider(MinimapSizeRow, MinimapSize), 4.f);
-		MinimapSlider = MinimapSize;
-		MinimapValue = MinimapText;
-		MinimapSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeChanged);
-		MinimapSlider->OnMouseCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeGrabbed);
-		MinimapSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeReleased);
-		MinimapSlider->OnControllerCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeGrabbed);
-		MinimapSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeReleased);
-		USlider* MinimapZoom = nullptr;
-		UTextBlock* MinimapZoomText = nullptr;
-		UWidget* MinimapZoomRow = MakeSliderRow(TEXT("Minimap zoom"), UGraphicsSettingsSubsystem::MinMinimapZoom,
-			UGraphicsSettingsSubsystem::MaxMinimapZoom, MinimapZoom, MinimapZoomText);
-		AddRow(NavSlider(MinimapZoomRow, MinimapZoom), 4.f);
-		MinimapZoomSlider = MinimapZoom;
-		MinimapZoomValue = MinimapZoomText;
-		MinimapZoomSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomChanged);
-		MinimapZoomSlider->OnMouseCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomGrabbed);
-		MinimapZoomSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomReleased);
-		MinimapZoomSlider->OnControllerCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomGrabbed);
-		MinimapZoomSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomReleased);
-		ULooterButton* RateOn = nullptr;
-		ULooterButton* RateOff = nullptr;
-		UWidget* RateRow = MakeToggleRow(TEXT("FPS counter"), TEXT("On"), TEXT("Off"), ActionFrameRateOn, ActionFrameRateOff, 0, false, RateOn, RateOff);
-		AddRow(NavChoices(RateRow, { RateOn, RateOff }), 4.f);
-		FrameRateOn = RateOn;
-		FrameRateOff = RateOff;
-		// A key and what it does, near the mission tracker, until the player has used that control.
-		ULooterButton* ShowHints = nullptr;
-		ULooterButton* HideHints = nullptr;
-		UWidget* HintsRow = MakeToggleRow(TEXT("Control hints"), TEXT("On"), TEXT("Off"), ActionHintsOn, ActionHintsOff, 0, false, ShowHints, HideHints);
-		AddRow(NavChoices(HintsRow, { ShowHints, HideHints }), 4.f);
-		HintsOn = ShowHints;
-		HintsOff = HideHints;
-		// The words of every spoken line, the captions low on the screen and a creature's over its head; the lines still play.
-		ULooterButton* ShowSubtitles = nullptr;
-		ULooterButton* HideSubtitles = nullptr;
-		UWidget* SubtitlesRow = MakeToggleRow(TEXT("Subtitles"), TEXT("On"), TEXT("Off"), ActionSubtitlesOn, ActionSubtitlesOff, 0, false, ShowSubtitles, HideSubtitles);
-		AddRow(NavChoices(SubtitlesRow, { ShowSubtitles, HideSubtitles }), 4.f);
-		SubtitlesOn = ShowSubtitles;
-		SubtitlesOff = HideSubtitles;
-
-		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Controls"))), 18.f);
-		// Mouse and stick alike; a zoomed sight still slows the turn by its zoom on top of it.
-		USlider* LookSlider = nullptr;
-		UTextBlock* LookValueText = nullptr;
-		UWidget* LookRow = MakeSliderRow(TEXT("Look sensitivity"), UControlSettingsSubsystem::MinLookSensitivity,
-			UControlSettingsSubsystem::MaxLookSensitivity, LookSlider, LookValueText, UControlSettingsSubsystem::LookSensitivityStep);
-		AddRow(NavSlider(LookRow, LookSlider), 4.f);
-		LookSensitivitySlider = LookSlider;
-		LookSensitivityValue = LookValueText;
-		LookSensitivitySlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityChanged);
-		LookSensitivitySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityReleased);
-		LookSensitivitySlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityReleased);
-		// Every kick and shake of the view (shots, hits, kills, a boss's slam); 0% keeps it still.
-		USlider* ShakeSlider = nullptr;
-		UTextBlock* ShakeValueText = nullptr;
-		UWidget* ShakeRow = MakeSliderRow(TEXT("Camera shake"), UControlSettingsSubsystem::MinCameraShake,
-			UControlSettingsSubsystem::MaxCameraShake, ShakeSlider, ShakeValueText, UControlSettingsSubsystem::CameraShakeStep);
-		AddRow(NavSlider(ShakeRow, ShakeSlider), 4.f);
-		CameraShakeSlider = ShakeSlider;
-		CameraShakeValue = ShakeValueText;
-		CameraShakeSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeChanged);
-		CameraShakeSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeReleased);
-		CameraShakeSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeReleased);
-		// How hard a gamepad rumbles for shots and hits taken; 0% turns it off. (Nothing rumbles on a mouse and keys.)
-		USlider* RumbleSlider = nullptr;
-		UTextBlock* RumbleValueText = nullptr;
-		UWidget* RumbleRow = MakeSliderRow(TEXT("Controller rumble"), UControlSettingsSubsystem::MinControllerRumble,
-			UControlSettingsSubsystem::MaxControllerRumble, RumbleSlider, RumbleValueText, UControlSettingsSubsystem::ControllerRumbleStep);
-		AddRow(NavSlider(RumbleRow, RumbleSlider), 4.f);
-		ControllerRumbleSlider = RumbleSlider;
-		ControllerRumbleValue = RumbleValueText;
-		ControllerRumbleSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleChanged);
-		ControllerRumbleSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleReleased);
-		ControllerRumbleSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleReleased);
-		// The key list's own section for the bumpers, headed by how to change a key (RefreshNavLook words it per device).
-		KeyHintText = MakeText(WidgetTree, TEXT(""), 11, Color::TextDim());
-		KeyHintText->SetAutoWrapText(true);
-		AddRow(NavSection(KeyHintText), 8.f);
-		KeyList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		AddRow(KeyList, 8.f);
+		// The keyboard and controller stops and the descriptions are noted as the rows are made, page by page
+		// (SettingsMenuNav.cpp, SettingsMenuTabs.cpp).
+		PageNav.Reset();
+		PageLists.Reset();
+		BuildPage = INDEX_NONE;
+		MakeGraphicsPage();
+		MakeAudioPage();
+		MakeInterfacePage();
+		MakeControlsPage();
+		BuildRows = nullptr;
 
 		StatusText = MakeText(WidgetTree, TEXT(""), 13, Color::TextDim());
 		StatusText->SetAutoWrapText(true);
 		Add(StatusText, 8.f);
 
-		// Reset all, then Save & Quit over the game or Back in the main menu (ApplyMode shows one of them).
+		// Save & Quit over the game or Back in the main menu (ApplyMode shows one of them), at the right.
 		UHorizontalBox* Footer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		ResetAllButton = MakeButton(ActionResetAll, 0, TEXT("Reset all"), 14);
-		UHorizontalBoxSlot* ResetSlot = Footer->AddChildToHorizontalBox(ResetAllButton);
-		ResetSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		ResetSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+		Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, nullptr, 0.f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		SaveQuitButton = MakeButton(ActionSaveQuit, 0, TEXT("Save & Quit"), 14, EButtonKind::Danger);
-		Footer->AddChildToHorizontalBox(SaveQuitButton)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, SaveQuitButton, HelpColumnWidth));
 		BackButton = MakeButton(ActionClose, 0, TEXT("Back"), 14, EButtonKind::Primary);
-		Footer->AddChildToHorizontalBox(BackButton)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, BackButton, HelpColumnWidth));
+		Describe(ResumeButton, RowHelp(ESettingRow::Resume), true);
+		Describe(SaveQuitButton, RowHelp(ESettingRow::SaveQuit), true);
+		Describe(BackButton, RowHelp(ESettingRow::Back), true);
 		Add(Footer, 10.f);
 
 		// What the keys or the controller's buttons do now, along the bottom (SettingsMenuNav.cpp fills it).
@@ -361,8 +226,8 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		// Close button in the frame corner does the same as Resume or Back.
 		UWidget* CloseSize = MakeSized(WidgetTree, MakeButton(ActionClose, 0, TEXT("X"), 15, EButtonKind::Normal), 34.f, 34.f);
 
-		Panel = MakeSized(WidgetTree, MakePanel(WidgetTree, TEXT("Settings"), Column, CloseSize), 640.f);
-		Panel->SetMaxDesiredHeight(860.f);
+		// One size for every page, so turning a tab never moves the frame (a long page scrolls inside it).
+		Panel = MakeSized(WidgetTree, MakePanel(WidgetTree, TEXT("Settings"), Column, CloseSize), PanelWidth, PanelHeight);
 		UOverlaySlot* PanelSlot = Root->AddChildToOverlay(Panel);
 		PanelSlot->SetHorizontalAlignment(HAlign_Center);
 		PanelSlot->SetVerticalAlignment(VAlign_Center);
@@ -395,6 +260,7 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		RefreshAudio();
 		RefreshControlSettings();
 		ApplyMode();
+		ShowPage(static_cast<int32>(ESettingsPage::Graphics));
 		ResetNavigation();
 		RefreshNavLook();
 	}

@@ -1,6 +1,7 @@
 // USettingsMenuWidget's rows: switches, choices, sliders, the key list, and the minimap's size preview.
 
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIFocus.h"
@@ -154,8 +155,11 @@ void USettingsMenuWidget::RebuildControls()
 	ModeButtons.Reset();
 	DefaultButtons.Reset();
 	KeyNav.Reset();
-	// The key list is the bumpers' last section: each key and its Default a row of two stops, each hold/toggle switch one.
-	constexpr int32 KeySection = NumNavSections - 1;
+	// The key list is the Controls page's, after its sliders: each key and its Default a row of two stops, each hold/toggle
+	// switch one. Each row has its words in the description column; the old rows' go with them.
+	const int32 KeySection = static_cast<int32>(ESettingsPage::Controls);
+	HelpEntries.RemoveAll([](const FHelpEntry& Entry) { return Entry.bKeyList; });
+	TGuardValue<int32> DescribeOnControls(BuildPage, KeySection);
 
 	const UKeyBindingSubsystem* Bindings = GetBindings();
 	if (!Bindings)
@@ -192,6 +196,8 @@ void USettingsMenuWidget::RebuildControls()
 		UWidget* KeyRow = MakeRow(WidgetTree, Line);
 		KeyList->AddChildToVerticalBox(KeyRow)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 		KeyNav.Add(FMenuNavRow{ FMenuNavItem::MakeButton(KeyButton, KeySection, KeyRow), FMenuNavItem::MakeButton(DefaultButton, KeySection, KeyRow) });
+		Describe(KeyRow, KeyHelp(Binding.Id, Binding.DisplayName.ToString(), Binding.DefaultKey.IsValid() ? Binding.DefaultKey.GetDisplayName().ToString() : FString()),
+			false, false, /*bKeyList*/ true);
 
 		if (Binding.bSupportsToggle)
 		{
@@ -203,6 +209,7 @@ void USettingsMenuWidget::RebuildControls()
 			ModeButtons.Add(ToggleButton);
 			KeyList->AddChildToVerticalBox(ModeRow)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 			KeyNav.Add(FMenuNavRow{ FMenuNavItem::MakeChoices({ HoldButton, ToggleButton }, LooterUI::AddFocusFrame(ModeRow), ModeRow, KeySection) });
+			Describe(ModeRow, KeyModeHelp(Binding.DisplayName.ToString()), false, false, /*bKeyList*/ true);
 		}
 	}
 	RefreshKeyLabels();

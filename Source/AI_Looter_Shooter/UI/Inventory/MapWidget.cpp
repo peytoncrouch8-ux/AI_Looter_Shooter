@@ -9,7 +9,6 @@
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutPaintLayer.h"
 #include "UI/Inventory/LoadoutParts.h"
-#include "UI/Inventory/MapDiscoverySubsystem.h"
 #include "UI/Inventory/MapCompass.h"
 #include "UI/Inventory/MapIcons.h"
 #include "UI/Style/LooterButton.h"
@@ -47,7 +46,7 @@ namespace
 	/** The legend's rows, top to bottom (the player's own arrow comes first, apart). */
 	const EMapPinKind LegendKinds[] = {
 		EMapPinKind::Objective, EMapPinKind::Offer, EMapPinKind::TurnIn, EMapPinKind::Grave, EMapPinKind::Station, EMapPinKind::Vendor, EMapPinKind::Bench,
-		EMapPinKind::Shrine, EMapPinKind::Chest, EMapPinKind::ChestLooted,
+		EMapPinKind::Shrine,
 	};
 
 	/** The legend's badge: a pin as the map draws it, small. */
@@ -183,11 +182,6 @@ void UMapWidget::RefreshPins()
 	Sources.Runner = Runner;
 	Sources.Campaign = Runner ? &Runner->GetCampaign() : nullptr;
 	Sources.Missions = World->GetSubsystem<UMissionSubsystem>();
-	if (UMapDiscoverySubsystem* Discovery = World->GetSubsystem<UMapDiscoverySubsystem>())
-	{
-		Discovery->LookAround();
-		Sources.FoundChests = &Discovery->GetFoundChests();
-	}
 	Pins = MapPins::Gather(Sources);
 	if (!Pins.IsValidIndex(Hovered))
 	{

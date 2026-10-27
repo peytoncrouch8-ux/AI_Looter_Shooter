@@ -12,7 +12,8 @@ class UTextureRenderTarget2D;
 /**
  * What the off-screen stands share (the loadout's showcase gun, the bestiary's model, the gunsmith's bench's gun): a spot
  * far outside any level, a camera that renders only its own actor into a picture the screen shows, and studio lights on
- * lighting channel 1 that light nothing else.
+ * lighting channel 1 that light nothing else. A stand runs while the game is paused (the inventory pauses it): SetupCapture
+ * sets its owner's tick so, SetupPrimitive its model's.
  */
 namespace StageStudio
 {
@@ -23,12 +24,13 @@ namespace StageStudio
 	 */
 	AI_LOOTER_SHOOTER_API FVector Location(int32 StandIndex);
 
-	/** Seen only by a stand's camera, lit only by its studio lights (channel 1), and never in the way of anything. */
+	/** Seen only by a stand's camera, lit only by its studio lights (channel 1), never in the way of anything, ticking while paused. */
 	AI_LOOTER_SHOOTER_API void SetupPrimitive(UPrimitiveComponent* Primitive);
 
 	/**
 	 * Renders on demand, into scene color with inverse opacity in alpha (so the screen can cut the model out; it tone maps
-	 * the color itself), and only the actors on its show-only list, without sky, fog or effects.
+	 * the color itself), and only the actors on its show-only list, without sky, fog or effects. Call from the stand's
+	 * constructor: the stand (the capture's owner) then ticks while the game is paused.
 	 */
 	AI_LOOTER_SHOOTER_API void SetupCapture(USceneCaptureComponent2D* Capture);
 

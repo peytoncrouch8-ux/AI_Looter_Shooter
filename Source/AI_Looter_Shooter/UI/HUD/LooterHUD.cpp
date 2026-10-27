@@ -21,7 +21,6 @@
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
-#include "Session/SessionSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/UserWidget.h"
@@ -31,7 +30,6 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "Kismet/GameplayStatics.h"
 #include "Slate/SGameLayerManager.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -235,6 +233,9 @@ void ALooterHUD::OpenInventory()
 	if (bInventoryOpen)
 	{
 		PlayPageSound(true);
+		// The game stands still under it (its pages' sounds are the Interface class's, which play over a pause; its stands
+		// tick while paused: StageStudio).
+		ApplyGamePause();
 	}
 }
 
@@ -251,6 +252,7 @@ void ALooterHUD::CloseInventory()
 	bInventoryOpen = false;
 	RestoreGameInput();
 	PlayPageSound(false);
+	ApplyGamePause();
 }
 
 void ALooterHUD::ShowInventoryPage(EInventoryPage Page)
@@ -275,6 +277,7 @@ void ALooterHUD::ShowInventoryPage(EInventoryPage Page)
 		bInventoryOpen = false;
 		RestoreGameInput();
 		PlayPageSound(false);
+		ApplyGamePause();
 		return;
 	}
 	// Turning to another page of the open inventory: the tab's own sound, not a whole screen's.
@@ -408,78 +411,7 @@ void ALooterHUD::CloseStationBoard()
 	PlayPageSound(false);
 }
 
-// The gunsmith's bench's screen: LooterHUDBench.cpp.
-
-// ---------------------------------------------------------------------------
-// Pause / settings
-// ---------------------------------------------------------------------------
-
-void ALooterHUD::OpenPauseMenu()
-{
-	APlayerController* PC = GetOwningPlayerController();
-	if (!PC || !PauseMenuWidget || bPauseMenuOpen)
-	{
-		return;
-	}
-
-	{
-		TGuardValue<bool> Quiet(bQuietClose, true);
-		CloseInventory();
-		CloseStationBoard();
-		CloseBench();
-		// An offer left open goes back to its giver unanswered (it's offered again), before the board under it closes.
-		CloseMissionOffer();
-		CloseNoticeBoard();
-	}
-	if (const APawn* Pawn = PC->GetPawn())
-	{
-		if (UWeaponManagerComponent* Manager = Pawn->FindComponentByClass<UWeaponManagerComponent>())
-		{
-			Manager->StopFire();
-		}
-	}
-
-	PauseMenuWidget->Open(ESettingsMenuMode::Pause);
-	PauseMenuWidget->AddToViewport(40);
-	// Before the pause, which holds the game's sounds.
-	PlayPageSound(true);
-
-	FInputModeUIOnly InputMode;
-	InputMode.SetWidgetToFocus(PauseMenuWidget->TakeWidget());
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	PC->SetInputMode(InputMode);
-	PC->SetShowMouseCursor(true);
-
-	UGameplayStatics::SetGamePaused(this, true);
-	bPauseMenuOpen = true;
-	// The HUD doesn't tick while the game is paused, so the world's labels go now (Tick brings them back after).
-	SetWorldLabelsVisible(false);
-}
-
-void ALooterHUD::ClosePauseMenu()
-{
-	if (!bPauseMenuOpen)
-	{
-		return;
-	}
-	if (PauseMenuWidget)
-	{
-		PauseMenuWidget->RemoveFromParent();
-	}
-	UGameplayStatics::SetGamePaused(this, false);
-	bPauseMenuOpen = false;
-	RestoreGameInput();
-	PlayPageSound(false);
-}
-
-void ALooterHUD::SaveAndQuit()
-{
-	// The game stays paused until the main menu replaces the level, so nothing changes after the save.
-	if (USessionSubsystem* Sessions = USessionSubsystem::Get(this))
-	{
-		Sessions->SaveAndQuitToMenu();
-	}
-}
+// The gunsmith's bench's screen: LooterHUDBench.cpp. The pause menu and the pause: LooterHUDPause.cpp.
 
 // ---------------------------------------------------------------------------
 // The mission tracker

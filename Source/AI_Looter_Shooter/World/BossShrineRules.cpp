@@ -7,11 +7,6 @@
 
 namespace BossShrineRules
 {
-	bool IsLoadedSince(int32 LoadsAtDefeat, int32 LoadsNow)
-	{
-		return LoadsNow > LoadsAtDefeat;
-	}
-
 	double SecondsLeft(double DefeatedAt, double PlayedNow)
 	{
 		// Not kept, or kept "after" now (a save whose time played went back): ready rather than waiting it out.
@@ -39,16 +34,12 @@ namespace BossShrineRules
 			Verdict.State = EBossShrineState::NotYet;
 			return Verdict;
 		}
-		// The user's rule: five minutes, or at once after a Save & Quit.
-		const double Left = IsLoadedSince(In.LoadsAtDefeat, In.LoadsNow) ? 0.0 : SecondsLeft(In.DefeatedAt, In.PlayedNow);
+		// Five minutes of play from this stone's own boss's death. A load doesn't shorten it: the time played is saved, so a
+		// Save & Quit leaves every stone's countdown where it was (the user: each stone has its own countdown).
+		const double Left = SecondsLeft(In.DefeatedAt, In.PlayedNow);
 		Verdict.State = Left > 0.0 ? EBossShrineState::Waiting : EBossShrineState::Ready;
 		Verdict.SecondsLeft = Left;
 		return Verdict;
-	}
-
-	bool ComesBackOnLoad(bool bAway, double DefeatedAt, int32 LoadsAtDefeat, int32 LoadsNow)
-	{
-		return bAway && (DefeatedAt < 0.0 || IsLoadedSince(LoadsAtDefeat, LoadsNow));
 	}
 
 	bool ShouldRise(bool bEverBeaten, bool bRisen, bool bScenePlaying, bool bBossPresent, float SinceDefeat, float PlayerDistance,
@@ -81,14 +72,14 @@ namespace BossShrineRules
 		}
 	}
 
-	FText LastKillText(double DefeatedAt, double PlayedNow, const FDateTime& DefeatedOn, const FDateTime& Now, bool bThisLoad)
+	FText LastKillText(double DefeatedAt, double PlayedNow, const FDateTime& DefeatedOn, const FDateTime& Now)
 	{
 		if (DefeatedAt < 0.0)
 		{
 			return LOCTEXT("LastKillUnknown", "Before the stones kept count");
 		}
 		const FText Clock = FText::FromString(USessionSubsystem::FormatSavedTime(DefeatedOn, Now));
-		if (!bThisLoad || PlayedNow < DefeatedAt)
+		if (PlayedNow < DefeatedAt)
 		{
 			return Clock;
 		}

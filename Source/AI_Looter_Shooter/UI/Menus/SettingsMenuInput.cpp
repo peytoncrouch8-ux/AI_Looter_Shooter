@@ -1,6 +1,7 @@
 // USettingsMenuWidget's input: its buttons and sliders, listening for a new key, and Escape.
 
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -14,22 +15,6 @@
 #include "InputCoreTypes.h"
 
 using namespace SettingsMenu;
-
-namespace
-{
-	/** What a preset gives, for the status line when it's picked. */
-	const TCHAR* QualityHint(EGraphicsQuality Quality)
-	{
-		switch (Quality)
-		{
-		case EGraphicsQuality::Low:    return TEXT("Fastest: no Lumen or Nanite, simple shadows, thinner grass.");
-		case EGraphicsQuality::Medium: return TEXT("120 fps at 1080p on a Radeon RX 580, the minimum spec.");
-		case EGraphicsQuality::High:   return TEXT("Nanite detail, sharp shadows, screen-space reflections.");
-		case EGraphicsQuality::Epic:   return TEXT("Lumen lighting and everything at its best, with TSR. For strong graphics cards.");
-		}
-		return TEXT("");
-	}
-}
 
 void USettingsMenuWidget::HandleMinimapSizeChanged(float Value)
 {
@@ -175,6 +160,14 @@ void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 		OnClose.ExecuteIfBound();
 		return;
 	}
+	if (Button->Action == ActionTab)
+	{
+		// The tab's own click is its sound (a tab button sounds UI.Tab).
+		StopListening();
+		ShowPage(Button->Index);
+		SetKeyboardFocus();
+		return;
+	}
 	if (Button->Action == ActionSaveQuit)
 	{
 		StopListening();
@@ -189,7 +182,7 @@ void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 		{
 			const EGraphicsQuality Quality = Qualities[Button->Index];
 			Graphics->SetQuality(Quality);
-			SetStatus(FString::Printf(TEXT("Quality: %s. %s"), *UGraphicsSettingsSubsystem::QualityName(Quality), QualityHint(Quality)),
+			SetStatus(FString::Printf(TEXT("Quality: %s. %s"), *UGraphicsSettingsSubsystem::QualityName(Quality), *QualityPresetHelp(Quality)),
 				LooterUI::Color::TextDim());
 		}
 		RefreshGraphics();
@@ -293,7 +286,7 @@ void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 	{
 		StopListening();
 		Bindings->ResetAll();
-		SetStatus(TEXT("All controls reset to defaults."), LooterUI::Color::TextDim());
+		SetStatus(TEXT("Every key and Hold / Toggle choice is back to its default."), LooterUI::Color::TextDim());
 	}
 
 	RefreshKeyLabels();

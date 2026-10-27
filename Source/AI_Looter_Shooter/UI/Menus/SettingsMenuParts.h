@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 
-/** What the settings menu's three .cpp files share: its buttons' actions, the key list's columns and value labels. */
+/** What the settings menu's .cpp files share: its buttons' actions, the key list's columns and value labels. */
 namespace SettingsMenu
 {
 	/** Resume or Back (and the corner's X). */
 	inline const FName ActionClose(TEXT("Close"));
+	/** A tab along the top; Index is its page (ESettingsPage, SettingsMenuHelp.h). */
+	inline const FName ActionTab(TEXT("Tab"));
 	inline const FName ActionSaveQuit(TEXT("SaveQuit"));
 	inline const FName ActionRebind(TEXT("Rebind"));
 	inline const FName ActionResetOne(TEXT("ResetOne"));
@@ -37,11 +39,13 @@ namespace SettingsMenu
 	/** The field of view slider moves a whole degree at a time. */
 	inline constexpr float FieldOfViewStep = 1.f;
 
-	/**
-	 * The sections the controller's bumpers (or Page Up / Down) turn through, in order: Graphics, Audio, Interface,
-	 * Controls and the key list (SettingsMenuNav.cpp). Resume is above the first, the footer below the last.
-	 */
-	inline constexpr int32 NumNavSections = 5;
+	/** The panel's size: wide enough for a page's rows beside the description column, and the same on every page. */
+	inline constexpr float PanelWidth = 940.f;
+	inline constexpr float PanelHeight = 840.f;
+	/** The description column beside the page. */
+	inline constexpr float HelpColumnWidth = 272.f;
+	/** A tab's width along the top. */
+	inline constexpr float TabWidth = 132.f;
 
 	/** "90°": an angle as the field of view slider shows it. */
 	inline FString DegreesText(float Degrees)

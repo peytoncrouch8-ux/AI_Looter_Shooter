@@ -118,7 +118,9 @@ UCreatureRankSettings::FRankLootOdds UCreatureRankSettings::DesignLootOdds(ECrea
 {
 	// The design (Docs/Story.md): the guns come more often and in greater numbers up the tiers, at most Luck 1.3, where
 	// Common is still the likeliest rarity (Uncommon passes it above 1.4). Each tier drops more ammo pickups, each still
-	// 18-36 rounds. Each: chance a kill drops guns, fewest and most guns, luck, fewest and most ammo pickups.
+	// 18-36 rounds. Each: chance a kill drops guns, fewest and most guns, luck, fewest and most ammo pickups, and whether its
+	// legendaries keep their odds in the early areas (the user, 2026-10-27: "Rarer, bosses still drop": Soulfed and bosses do;
+	// the tiers' are capped there, ULootLibrary::LegendaryCapFor).
 	switch (Rank)
 	{
 	case ECreatureRank::Rare:
@@ -130,9 +132,9 @@ UCreatureRankSettings::FRankLootOdds UCreatureRankSettings::DesignLootOdds(ECrea
 	case ECreatureRank::Ethereal:
 		return { 1.f, 2, 2, 1.3f, 4, 6 };
 	case ECreatureRank::Legendary:
-		return { 1.f, 2, 2, 1.3f, 4, 6 };
+		return { 1.f, 2, 2, 1.3f, 4, 6, true };
 	case ECreatureRank::Boss:
-		return { 1.f, 3, 3, 1.3f, 8, 10 };
+		return { 1.f, 3, 3, 1.3f, 8, 10, true };
 	default:
 		// DA_LootTable_Default's, which stays as it is.
 		return { 0.3f, 1, 1, 0.f, 1, 2 };
@@ -187,6 +189,7 @@ ULootTable* UCreatureRankSettings::GetLootTable(ECreatureRank Rank)
 	StandIn->Luck = Odds.Luck;
 	StandIn->MinAmmoDrops = Odds.MinAmmoDrops;
 	StandIn->MaxAmmoDrops = Odds.MaxAmmoDrops;
+	StandIn->bKeepsLegendaryOdds = Odds.bKeepsLegendaryOdds;
 	Settings->StandInTables[Index] = StandIn;
 	UE_LOG(LogLooter, Log, TEXT("Creature ranks: %s has no loot table asset yet (%s); using a stand-in with the same odds. ")
 		TEXT("Make the assets with Tools/Unreal/create_rank_assets.py."), *GetRankName(Rank), *Asset.ToString());

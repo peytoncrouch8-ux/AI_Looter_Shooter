@@ -31,6 +31,8 @@ def broadleaf(name, seed, stems, hull_height=2.6, lods=None, lod_screens=None, e
     collision hull around the lower trunks. extra(plant, rng, crowns) adds anything else (fruit)."""
     rng = random.Random(seed)
     plant = Plant(name, seed)
+    # Every limb and side branch grown, with the clump (its center) it reaches into: fruit hangs from these (hang_apples).
+    plant.branch_limbs = []
     trunks, crowns = [], []
     for index, stem in enumerate(stems):
         trunk, crown = grow_broadleaf(plant, rng, seed * 13 + index, **stem)
@@ -90,12 +92,17 @@ def grow_broadleaf(plant, rng, seed, bark, leaves, fork, radius, fork_radius, le
         limb = curved_limb(start, end, out, 0.12, limb_sides, trunk_r * rng.uniform(0.66, 0.85), 0.0,
                            (trunk_wind, 0.45), rng, gnarl_amount * 1.6, 0.5, 0.35, seed * 31 + index)
         plant.tube(limb, bark, occlusion=occlusion)
+        branch_limbs = getattr(plant, 'branch_limbs', None)
+        if branch_limbs is not None:
+            branch_limbs.append((center, limb))
         for b in range(side_branches):
             s_start, s_r, s_wind, s_dir = limb.at(rng.uniform(0.45, 0.8))
             target = center + (random_unit(rng) + UP * 0.4).normalized() * clump_radius * rng.uniform(0.45, 0.75)
             branch = curved_limb(s_start, target, s_dir + random_unit(rng) * 0.5, 0.05, branch_sides, s_r * 0.6, 0.0,
                                  (s_wind, 0.6), rng, gnarl_amount * 0.6, 0.45, 0.3, seed * 97 + index * 7 + b)
             plant.tube(branch, bark, occlusion=occlusion)
+            if branch_limbs is not None:
+                branch_limbs.append((center, branch))
 
     for index, (center, clump_radius) in enumerate(crown):
         others = [c for j, c in enumerate(crown) if j != index]
@@ -159,18 +166,52 @@ def birch_b():
              limb_low=0.85)])
 
 
+STEM_DROP = 0.12  # m, the visible stem between the twig's end and the top of the apple
+STEM_SINK = 0.7  # the stem ends this share of an apple's radius above its middle, so it enters the fruit
+APPLE_CANDIDATES = 6  # spots tried under a clump for each apple; the one nearest a real branch wins
+
+
 def hang_apples(plant, rng, crowns, fewest, most):
-    """Fruit hung just outside each lower clump's leaf cards (the cards reach the clump surface and beyond, so fruit on
-    the surface is buried), big enough to read at orchard distances (about 20 cm across)."""
+    """Fruit hung from the tree, big enough to read at orchard distances (about 20 cm across). Each apple hangs on a
+    short dark stem from a thin twig that grows out of one of the clump's real branches (plant.branch_limbs), and sits
+    on the underside of the leaf shell, where the lowest cards stop: the cards reach past the clump surface, so fruit
+    out in the open air floated (user playtest 2026-10-27: "apples floating around trees") and fruit in the middle of
+    the cards was buried (APPLES_FIX.md, 2026-10-21). The top clump has no limb of its own (the trunk carries on into
+    it), so it bears none."""
     palette = lt.material('FoliagePalette')
+    bark = lt.material('BarkOak')
     apple_uv = swatch('FruitRed', 0.7, 0.5)
     for center, radius in crowns[0]:
         # Twice the (least, most) asked for: an orchard tree reads as fruiting from the road only with a good few showing
         # (Main, 2026-10-21: about four a tree read bare in the previews).
-        for _ in range(rng.randint(fewest * 2, most * 2)):
-            d = (random_unit(rng) * Vector((1.0, 1.0, 0.5)) - UP * 0.35).normalized()
-            plant.ball(center + d * (radius * 1.1 + 0.25), rng.uniform(0.09, 0.11), palette, apple_uv,
-                       wind=0.8, occlusion=0.95, segments=6, rings=4)
+        count = rng.randint(fewest * 2, most * 2)
+        branches = [limb for c, limb in plant.branch_limbs if c is center]
+        if not branches:
+            continue
+        for _ in range(count):
+            apple_r = rng.uniform(0.09, 0.11)
+            best = None
+            for _ in range(APPLE_CANDIDATES):
+                d = (random_unit(rng) * Vector((1.0, 1.0, 0.5)) - UP * 0.6).normalized()
+                middle = center + d * (radius * 0.95 + 0.15)
+                top = middle + UP * (apple_r + STEM_DROP)
+                # The nearest point of any branch into this clump: where the twig leaves it.
+                for limb in branches:
+                    for step in range(8):
+                        point, branch_r, wind, direction = limb.at(0.3 + 0.1 * step)
+                        gap = (top - point).length
+                        if best is None or gap < best[0]:
+                            best = (gap, middle, top, point, branch_r, wind)
+            _, middle, top, point, branch_r, wind = best
+            # Out of the branch (a little inside it, so no seam shows), sagging toward the apple's stem, then straight down
+            # into the fruit.
+            sag = point.lerp(top, 0.5) - UP * 0.04 + random_unit(rng) * 0.03
+            stem_end = middle + UP * (apple_r * STEM_SINK)
+            # A side branch thins to nothing at its tip: the twig's base never goes under its own tip (a ring that thin
+            # collapses to one vertex and the tube's faces fail).
+            twig = Limb([point, sag, top, stem_end], max(min(0.02, branch_r * 0.7), 0.009), 0.007, 3, (wind, 0.8))
+            plant.tube(twig, bark, occlusion=lambda p: 0.85, cap=lambda plant, ring, tip, direction: None)
+            plant.ball(middle, apple_r, palette, apple_uv, wind=0.8, occlusion=0.95, segments=6, rings=4)
 
 
 def apple_a():

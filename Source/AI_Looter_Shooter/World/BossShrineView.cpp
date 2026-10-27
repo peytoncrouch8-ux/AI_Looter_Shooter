@@ -72,9 +72,8 @@ FBossShrineView ABossShrine::GetView() const
 	View.SecondsLeft = Now.SecondsLeft;
 	View.BossName = GetBossName();
 	View.Level = GetBossLevel();
-	const bool bThisLoad = Record && !BossShrineRules::IsLoadedSince(In.LoadsAtDefeat, In.LoadsNow);
 	View.LastKill = BossShrineRules::LastKillText(In.DefeatedAt, In.PlayedNow, Record ? Record->DefeatedOn : FDateTime(),
-		FDateTime::Now(), bThisLoad);
+		FDateTime::Now());
 	// How many times: the Ledger's count of its kind (every defeat since the first), else what the stone kept.
 	int32 Counted = 0;
 	const UWorld* World = GetWorld();

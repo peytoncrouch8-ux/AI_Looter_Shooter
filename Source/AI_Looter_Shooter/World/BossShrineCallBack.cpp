@@ -1,14 +1,12 @@
 // ABossShrine: bringing its boss back. A lair brings its boss anew; a placed boss is readied at its spot; Abel, whose fight
 // ends in a scene and a story that must not replay, has his own way (Pa leaves his board while the Keeper walks the boards
-// again, and is back on it before "Sit with Pa" could play a second time). And a lair's boss away for this visit coming back
-// as a level loaded from the session begins after a Save & Quit.
+// again, and is back on it before "Sit with Pa" could play a second time).
 
 #include "World/BossShrine.h"
 #include "AI_Looter_Shooter.h"
 #include "Bosses/AbelKeeper.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/HealthComponent.h"
-#include "Core/LooterMenuGameMode.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/EncounterSpawner.h"
 #include "Story/AbelOnBoard.h"
@@ -176,30 +174,4 @@ void ABossShrine::EndAbelRematch(bool bWon)
 	}
 	UE_LOG(LogLooter, Log, TEXT("%s: the Keeper's fight is over%s; Pa sits on his board."), *GetActorNameOrLabel(),
 		bWon ? TEXT(", won") : TEXT(" (the stone went)"));
-}
-
-bool ABossShrine::BringBackAfterLoad()
-{
-	AEncounterSpawner* Den = Lair.Get();
-	if (CallKind != EBossShrineCall::Lair || !Den || ALooterMenuGameMode::IsMenuWorld(GetWorld()) || !HasBossBeenBeaten())
-	{
-		return false;
-	}
-	const FBossRecallRecord* Record = GetRecord();
-	if (!BossShrineRules::ComesBackOnLoad(Den->IsLegendaryAway(), Record ? Record->DefeatedAt : -1.0, Record ? Record->LoadsAtDefeat : 0,
-		GetLoadsNow()))
-	{
-		return false;
-	}
-	// The user's rule: "or the boss respawns after a save and quit". Brought now, it's taken away while the player is far
-	// and back as they come (its lair's way), like any arrival's.
-	if (!Den->TriggerWave(/*bForce*/ true))
-	{
-		return false;
-	}
-	bLairCallOn = true;
-	MarkLairBosses();
-	UE_LOG(LogLooter, Log, TEXT("%s: %s is back after a Save & Quit (%s)."), *GetActorNameOrLabel(), *GetBossName().ToString(), *Den->Describe());
-	Refresh();
-	return true;
 }

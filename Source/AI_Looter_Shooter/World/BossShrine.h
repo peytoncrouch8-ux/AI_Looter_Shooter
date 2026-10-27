@@ -55,16 +55,16 @@ struct FBossShrineView
  *    is gone; the session remembers it risen, so later visits find it standing.
  *  - A tap of Interact ("Keep vigil") opens its menu (UBossShrineWidget): the boss's name and level, its last laying to
  *    rest, how many times it was beaten, what it drops, and "Call it back", ready while the boss isn't out there and five
- *    minutes of play have passed since its last death, or the session was loaded since (a Save & Quit). Otherwise the
- *    countdown (mm:ss) and the button refuses. Its candles burn while it's ready and are out otherwise.
+ *    minutes of play have passed since its own boss's last death (each stone counts its own; a Save & Quit shortens none).
+ *    Otherwise the countdown (mm:ss) and the button refuses. Its candles burn while it's ready and are out otherwise.
  *  - Calling it back rings the bell: the candles flare and go out, soul-light rises at the stone and in the arena, the boss
  *    answers from its arena. A lair brings its boss anew (AEncounterSpawner::TriggerWave); a placed boss is readied at its
  *    spot (UBossComponent::PrepareRematch). Either way its fight starts as the first did (its seal, intro, phases), its
  *    story kept as it is: no scene, no mission, no story reward again. Its loot shower rolls exactly as the first kill's
  *    did: the same table and luck (the user's call). Abel: Pa leaves his board while the Keeper walks the boards again; beaten, he
  *    kneels, and before "Sit with Pa" could play again he's back on his board (BossShrineCallBack.cpp).
- *  - A lair's boss away for this visit (the Gravemother's twenty-minute rule) comes back as a level loaded from the session
- *    begins after a Save & Quit (BossShrineRules::ComesBackOnLoad): the user's "or the boss respawns after a save and quit".
+ *  - A lair's boss away for this visit (the Gravemother's twenty-minute rule) comes back by its lair's own rule or the bell, never
+ *    by a load alone (2026-10-27: it did after a Save & Quit, which readied every stone together).
  *
  * Its models are Art/Models/Props/VigilStone.py's (SM_VigilStone, the bell SM_VigilStoneBell on its SOCKET_Bell, the candle
  * flames SM_VigilStoneFlames), found once imported; plain shapes stand in until then. Solid, tagged VigilStone (and Obstacle
@@ -214,23 +214,16 @@ public:
 	/** Stands now: with bShow it rises with its dirt and sound (the first time), else it's simply there. */
 	void Rise(bool bShow);
 
-	/**
-	 * A lair's boss away for this visit, beaten before the session was loaded (a Save & Quit since), comes back now as the
-	 * level begins (BeginPlay asks on its next frame). Whether it came.
-	 */
-	bool BringBackAfterLoad();
-
 	/** Moves its rise, bell, candles and a call back's moments on by DeltaSeconds (its tick does; the tests call it). */
 	void Advance(float DeltaSeconds);
 
 	/** The player it judges by: the first local player's pawn (a test level's player stand-in). */
 	APawn* FindPlayer() const;
 
-	/** For the tests (a test level has no session): the time played and the session's loads to judge by. Unset: the session's. */
+	/** For the tests (a test level has no session): the time played to judge by. Unset: the session's. */
 	struct FTestClock
 	{
 		TOptional<double> PlayedSeconds;
-		TOptional<int32> Loads;
 	};
 	FTestClock TestClock;
 
@@ -275,7 +268,6 @@ private:
 	/** The record the session keeps of its boss (or, with no session, the stone's own). */
 	const FBossRecallRecord* GetRecord() const;
 	double GetPlayedNow() const;
-	int32 GetLoadsNow() const;
 	bool StoryHolds(const FStoryCondition& Condition) const;
 	/** What its state is read from now (BossShrineRules::Evaluate's inputs). */
 	BossShrineRules::FInputs ReadInputs() const;
@@ -348,5 +340,4 @@ private:
 	FStoryCondition SavedShownWhen;
 
 	FDelegateHandle BossWonHandle;
-	FTimerHandle LoadCheckTimer;
 };

@@ -1,8 +1,9 @@
-// USettingsMenuWidget for the keyboard and a controller, Borderlands' way: the focus moves down the list, steps sliders
-// (held, faster and faster) and switches, presses buttons, turns the sections on the bumpers and backs out on B; the focus
+// USettingsMenuWidget for the keyboard and a controller, Borderlands' way: the focus moves down the page, steps sliders
+// (held, faster and faster) and switches, presses buttons, turns the tabs on the bumpers and backs out on B; the focus
 // look and the prompts along the bottom follow the device last used (LooterUIFocus.h, MenuNav.h, MenuNavigator.h).
 
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
@@ -41,67 +42,74 @@ USlider* USettingsMenuWidget::GetMinimapSizeSlider() const
 }
 
 // ---------------------------------------------------------------------------
-// The stops, as the list is built
+// The stops (each page's are noted as it's built: NavSlider, NavChoices, NavButton in SettingsMenuTabs.cpp)
 // ---------------------------------------------------------------------------
-
-UWidget* USettingsMenuWidget::NavSection(UWidget* Header)
-{
-	SectionHeaders.Add(Header);
-	BuildSection = SectionHeaders.Num() - 1;
-	return Header;
-}
-
-UWidget* USettingsMenuWidget::NavSlider(UWidget* Row, USlider* Slider)
-{
-	if (Row && Slider)
-	{
-		BodyNav.Add(FMenuNavRow{ FMenuNavItem::MakeSlider(Slider, LooterUI::AddFocusFrame(Row), Row, BuildSection) });
-	}
-	return Row;
-}
-
-UWidget* USettingsMenuWidget::NavChoices(UWidget* Row, const TArray<ULooterButton*>& Choices)
-{
-	if (Row && !Choices.IsEmpty() && !Choices.Contains(nullptr))
-	{
-		BodyNav.Add(FMenuNavRow{ FMenuNavItem::MakeChoices(Choices, LooterUI::AddFocusFrame(Row), Row, BuildSection) });
-	}
-	return Row;
-}
 
 void USettingsMenuWidget::RebuildNavigation(const UWidget* Prefer)
 {
-	if (!ResumeButton || !ResetAllButton)
+	if (!ResumeButton)
 	{
 		return;
 	}
-	// Top to bottom: Resume (over the game), the sections, the key list, then Reset all beside Save & Quit or Back (the
-	// one of the two the mode shows; the focus passes over what's hidden).
+	// Top to bottom: Resume (over the game), the page on show (on Controls, its key list after its sliders), then Save &
+	// Quit or Back (the one the mode shows; the focus passes over what's hidden). Only the page on show: the others' rows
+	// aren't on screen to move to.
 	TArray<FMenuNavRow> Rows;
 	Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(ResumeButton) });
-	Rows.Append(BodyNav);
-	Rows.Append(KeyNav);
-	Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(ResetAllButton, NumNavSections), FMenuNavItem::MakeButton(SaveQuitButton, NumNavSections),
-		FMenuNavItem::MakeButton(BackButton, NumNavSections) });
-	// A long list: the ends stop the focus rather than throw it to the far end.
+	if (PageNav.IsValidIndex(CurrentPage))
+	{
+		Rows.Append(PageNav[CurrentPage]);
+	}
+	if (CurrentPage == static_cast<int32>(ESettingsPage::Controls))
+	{
+		Rows.Append(KeyNav);
+	}
+	FMenuNavRow Footer;
+	for (ULooterButton* Button : { SaveQuitButton.Get(), BackButton.Get() })
+	{
+		if (Button)
+		{
+			Footer.Add(FMenuNavItem::MakeButton(Button, NumPages));
+		}
+	}
+	if (!Footer.IsEmpty())
+	{
+		Rows.Add(MoveTemp(Footer));
+	}
+	// A long page: the ends stop the focus rather than throw it to the far end.
 	Nav.SetWrap(false);
 	Nav.SetRows(MoveTemp(Rows), Prefer);
 	RefreshPrompts();
 }
 
+UWidget* USettingsMenuWidget::FirstPageStop() const
+{
+	auto FirstOf = [](const TArray<FMenuNavRow>& Rows) -> UWidget*
+	{
+		for (const FMenuNavRow& Row : Rows)
+		{
+			for (const FMenuNavItem& Item : Row)
+			{
+				if (Item.IsAvailable())
+				{
+					return Item.GetWidget();
+				}
+			}
+		}
+		return nullptr;
+	};
+	UWidget* First = PageNav.IsValidIndex(CurrentPage) ? FirstOf(PageNav[CurrentPage]) : nullptr;
+	if (!First && CurrentPage == static_cast<int32>(ESettingsPage::Controls))
+	{
+		First = FirstOf(KeyNav);
+	}
+	return First;
+}
+
 void USettingsMenuWidget::ResetNavigation()
 {
-	// Over the game the focus starts on Resume (A at once resumes); from the main menu on the first setting.
-	const UWidget* Start = nullptr;
-	if (Mode == ESettingsMenuMode::Pause)
-	{
-		Start = ResumeButton;
-	}
-	else if (!BodyNav.IsEmpty() && !BodyNav[0].IsEmpty())
-	{
-		Start = BodyNav[0][0].GetWidget();
-	}
-	RebuildNavigation(Start);
+	// Over the game the focus starts on Resume (A at once resumes); from the main menu on the page's first setting.
+	RebuildNavigation(Mode == ESettingsMenuMode::Pause ? static_cast<UWidget*>(ResumeButton.Get()) : FirstPageStop());
 }
 
 // ---------------------------------------------------------------------------
@@ -168,7 +176,7 @@ bool USettingsMenuWidget::HandleNavKey(const FKey& Key, bool bRepeat)
 	}
 	else if (SectionStep != 0)
 	{
-		JumpNav(SectionStep);
+		StepPage(SectionStep);
 	}
 	else
 	{
@@ -261,23 +269,6 @@ void USettingsMenuWidget::StepNav(EMove Move)
 	}
 }
 
-void USettingsMenuWidget::JumpNav(int32 Step)
-{
-	StopNavHold();
-	if (Nav.JumpSection(Step, NumNavSections) != EMenuNavResult::Moved)
-	{
-		return;
-	}
-	LooterSound::Play2D(this, LooterSoundCue::Tab);
-	// The section's header to the top of the list, its first setting under it with the focus.
-	const FMenuNavItem* Here = Nav.GetFocused();
-	if (Body && Here && SectionHeaders.IsValidIndex(Here->Section))
-	{
-		Body->ScrollWidgetIntoView(SectionHeaders[Here->Section], true, EDescendantScrollDestination::TopOrLeft, 0.f);
-	}
-	RefreshPrompts();
-}
-
 void USettingsMenuWidget::ActivateNav()
 {
 	StopNavHold();
@@ -298,6 +289,8 @@ void USettingsMenuWidget::AdvanceNav(float DeltaSeconds)
 		StepNav(NavRepeat.GetMove());
 	}
 	Nav.Tick(DeltaSeconds);
+	// The description column follows the focus or the pointer (SettingsMenuTabs.cpp).
+	AdvanceHelp();
 }
 
 void USettingsMenuWidget::StopNavHold()
@@ -406,6 +399,7 @@ void USettingsMenuWidget::RefreshNavLook()
 	ShownDevice = LooterUI::GetMenuDevice();
 	bNavLookApplied = true;
 	Nav.SetShown(LooterUI::IsMenuFocusShown());
+	RefreshTabKeys();
 	if (KeyHintText)
 	{
 		// The list is the keyboard's and the mouse's; a controller keeps its own buttons.
@@ -441,7 +435,7 @@ TArray<FPrompt> USettingsMenuWidget::GetPrompts() const
 			Prompts.Add(MakePrompt(EPromptKey::Select, bPad, KeyButtons.Contains(Here->Button.Get()) ? TEXT("Rebind") : TEXT("Select")));
 		}
 	}
-	Prompts.Add(MakePrompt(EPromptKey::Sections, bPad, TEXT("Sections")));
+	Prompts.Add(MakePrompt(EPromptKey::Sections, bPad, TEXT("Tabs")));
 	Prompts.Add(MakePrompt(EPromptKey::Back, bPad, Mode == ESettingsMenuMode::Pause ? TEXT("Resume") : TEXT("Back")));
 	return Prompts;
 }

@@ -20,7 +20,6 @@
 #include "Shields/ShieldPickup.h"
 #include "Session/SessionSave.h"
 #include "Tutorial/TutorialDirector.h"
-#include "UI/Inventory/MapDiscoverySubsystem.h"
 #include "Weapons/WeaponBase.h"
 #include "World/BreakableProp.h"
 #include "World/GraveTravelSubsystem.h"
@@ -154,12 +153,6 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 		{
 			Here.OpenedChests.Add(It->GetSaveKey());
 		}
-	}
-	// The chests found but not opened, so their map pins survive a Save & Quit. The map's discovery keeps the finds; a world
-	// without it (a kind of level that has no map page) leaves what the save had.
-	if (const UMapDiscoverySubsystem* Discovery = World->GetSubsystem<UMapDiscoverySubsystem>())
-	{
-		Here.FoundChests = Discovery->GetUnopenedFound();
 	}
 	// Broken crates and barrels by their ids (what they dropped is kept below, as any loot lying around).
 	Here.BrokenProps.Reset();
@@ -295,13 +288,6 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 				It->RestoreOpened();
 			}
 		}
-		// The chests found but not opened are found again, so their pins are on the map page (an opened one pins as looted by
-		// itself). Added to what this visit has found already, never replacing it.
-		if (UMapDiscoverySubsystem* Discovery = World->GetSubsystem<UMapDiscoverySubsystem>())
-		{
-			Discovery->RestoreFound(Here->FoundChests);
-		}
-
 		// The crates and barrels broken before stand as stumps: what they dropped comes back below with the rest of the loot.
 		for (TActorIterator<ABreakableProp> It(World); It; ++It)
 		{
@@ -491,7 +477,7 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			It->ResumeAtStep(Here->TutorialStep);
 		}
 	}
-	UE_LOG(LogLooter, Log, TEXT("Session restored in %s: %d guns carried, %d ground guns handed in to Lost Property (%d on its shelves), %d ammo pickups and %d grenade tins on the ground, %d chests found"),
+	UE_LOG(LogLooter, Log, TEXT("Session restored in %s: %d guns carried, %d ground guns handed in to Lost Property (%d on its shelves), %d ammo pickups and %d grenade tins on the ground"),
 		*FPackageName::GetShortName(MapPackage), Save.CountGuns(), HandedIn, LostLoot ? LostLoot->GetStore().Num() : Save.LostLoot.Num(),
-		Here ? Here->AmmoPickups.Num() : 0, Here ? Here->GrenadePickups.Num() : 0, Here ? Here->FoundChests.Num() : 0);
+		Here ? Here->AmmoPickups.Num() : 0, Here ? Here->GrenadePickups.Num() : 0);
 }

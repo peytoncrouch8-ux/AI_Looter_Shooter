@@ -9,7 +9,6 @@
 #include "Bosses/BossCameraShake.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/BulletSubsystem.h"
-#include "Core/LooterMenuGameMode.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/EncounterSpawner.h"
@@ -38,7 +37,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Math/RandomStream.h"
 #include "Misc/PackageName.h"
-#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "LooterBossShrine"
@@ -198,16 +196,6 @@ void ABossShrine::BeginPlay()
 	SetStanding(false);
 	// Standing at once when it rose on an earlier visit; else it waits for its boss's defeat and the player.
 	Refresh();
-	// A lair's boss away for this visit after a Save & Quit comes back once every actor has begun (its lair has decided
-	// whether it's away by then).
-	UWorld* World = GetWorld();
-	if (CallKind == EBossShrineCall::Lair && World && World->IsGameWorld() && !ALooterMenuGameMode::IsMenuWorld(World))
-	{
-		LoadCheckTimer = World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
-		{
-			BringBackAfterLoad();
-		}));
-	}
 }
 
 void ABossShrine::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -216,10 +204,6 @@ void ABossShrine::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UInteractionSubsystem* Registry = UInteractionSubsystem::Get(this))
 	{
 		Registry->Unregister(this);
-	}
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(LoadCheckTimer);
 	}
 	// Removed from a level that goes on (a build script, the console) during Abel's called-back fight: his story as it was.
 	if (bAbelRematch)
@@ -286,7 +270,6 @@ void ABossShrine::HandleAnyBossWon(UBossComponent& Boss)
 	{
 		LocalRecord.DefeatedAt = GetPlayedNow();
 		LocalRecord.DefeatedOn = FDateTime::Now();
-		LocalRecord.LoadsAtDefeat = GetLoadsNow();
 		LocalRecord.Level = Creature->Level;
 		++LocalRecord.Defeats;
 	}
@@ -315,16 +298,6 @@ double ABossShrine::GetPlayedNow() const
 	const USessionSubsystem* Sessions = USessionSubsystem::Get(this);
 	const UWorld* World = GetWorld();
 	return Sessions ? Sessions->GetPlayedSecondsNow(World) : (World ? World->GetTimeSeconds() : 0.0);
-}
-
-int32 ABossShrine::GetLoadsNow() const
-{
-	if (TestClock.Loads.IsSet())
-	{
-		return TestClock.Loads.GetValue();
-	}
-	const USessionSubsystem* Sessions = USessionSubsystem::Get(this);
-	return Sessions ? Sessions->GetSessionLoads() : 0;
 }
 
 bool ABossShrine::StoryHolds(const FStoryCondition& Condition) const
@@ -402,8 +375,6 @@ BossShrineRules::FInputs ABossShrine::ReadInputs() const
 	In.bBossPresent = IsBossPresent();
 	In.DefeatedAt = Record ? Record->DefeatedAt : -1.0;
 	In.PlayedNow = GetPlayedNow();
-	In.LoadsAtDefeat = Record ? Record->LoadsAtDefeat : 0;
-	In.LoadsNow = GetLoadsNow();
 	return In;
 }
 

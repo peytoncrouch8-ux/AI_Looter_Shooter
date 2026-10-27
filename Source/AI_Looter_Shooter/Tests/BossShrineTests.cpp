@@ -4,9 +4,10 @@
 
 // The vigil stones (World/BossShrine; the user's 2026-10-12 call: "a pedestal with a menu that spawns next to the boss arenas
 // after you kill the boss the first time so you can respawn the boss. 5 minute wait, or the boss respawns after a save and
-// quit"): the stone appears only after its boss's first defeat, the five-minute rule, the Save & Quit rule (and a lair's
-// boss back as the level loads), the call back starting the fight again with no story replayed (Abel: no second "Sit with
-// Pa"), and the session keeping it all through a save.
+// quit"; since 2026-10-27 "each one should have its own countdown", so the Save & Quit shortcut is gone): the stone appears
+// only after its boss's first defeat, the five-minute rule counted per stone (a Save & Quit readies none early), the call back
+// starting the fight again with no story replayed (Abel: no second "Sit with Pa"), and the session keeping it all through a
+// save.
 
 #include "Bosses/AbelKeeper.h"
 #include "Bosses/BossComponent.h"
@@ -14,7 +15,6 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/EncounterSpawner.h"
-#include "Creatures/GravemotherCreature.h"
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Scenes/SitWithPa.h"
@@ -24,7 +24,6 @@
 #include "Story/AbelOnBoard.h"
 #include "Tests/AbelTestWorld.h"
 #include "Tests/BossTestWorld.h"
-#include "Tests/EncounterTestWorld.h"
 #include "World/BossShrine.h"
 #include "World/BossShrineRules.h"
 #include "World/KeeperLanternPost.h"
@@ -223,69 +222,82 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBossShrineSaveAndQuitTest, "Looter.Bosses.Shri
 
 bool FBossShrineSaveAndQuitTest::RunTest(const FString& Parameters)
 {
-	// "Or the boss respawns after a save and quit": a death in an earlier load of the session is ready at once; a lair's
-	// boss away for this visit comes back as a level loaded from the session begins after one, but not on a trip's arrival.
-	BossShrineRules::FInputs In;
-	In.bEverBeaten = true;
-	In.DefeatedAt = 500.0;
-	In.PlayedNow = 510.0;
-	In.LoadsAtDefeat = 3;
-	In.LoadsNow = 3;
-	TestTrue(TEXT("10 s on, the same load: waiting 4:50"), BossShrineRules::Evaluate(In).State == EBossShrineState::Waiting
-		&& FMath::IsNearlyEqual(BossShrineRules::Evaluate(In).SecondsLeft, 290.0, 0.01));
-	In.LoadsNow = 4;
-	TestTrue(TEXT("Save & Quit, then Continue, 10 s of play on: ready at once"), BossShrineRules::Evaluate(In).State == EBossShrineState::Ready);
-	TestTrue(TEXT("A lair's boss away this visit after a Save & Quit: back"), BossShrineRules::ComesBackOnLoad(true, 500.0, 3, 4));
-	TestFalse(TEXT("...not on a trip's arrival in the same load"), BossShrineRules::ComesBackOnLoad(true, 500.0, 3, 3));
-	TestFalse(TEXT("...nothing to do when it isn't away"), BossShrineRules::ComesBackOnLoad(false, 500.0, 3, 4));
-	TestTrue(TEXT("...and a death the stone never kept (a save from before the stones) counts as before the load"),
-		BossShrineRules::ComesBackOnLoad(true, -1.0, 0, 0));
+	// The user, 2026-10-27: "vigil stones seem to be linked, each one should have its own countdown". Every stone counts five
+	// minutes of play from its own boss's death, in the time played (which a save keeps), so a Save & Quit then Continue
+	// readies none early and never all together. Rules: each death its own clock.
+	BossShrineRules::FInputs First;
+	First.bEverBeaten = true;
+	First.DefeatedAt = 500.0;
+	First.PlayedNow = 510.0;
+	TestTrue(TEXT("10 s on: waiting 4:50"), BossShrineRules::Evaluate(First).State == EBossShrineState::Waiting
+		&& FMath::IsNearlyEqual(BossShrineRules::Evaluate(First).SecondsLeft, 290.0, 0.01));
+	BossShrineRules::FInputs Second = First;
+	Second.DefeatedAt = 600.0;
+	First.PlayedNow = Second.PlayedNow = 700.0;
+	TestTrue(TEXT("Two stones, 100 s apart: the first has 100 s left, the second 200 s (each its own)"),
+		FMath::IsNearlyEqual(BossShrineRules::Evaluate(First).SecondsLeft, 100.0, 0.01)
+		&& FMath::IsNearlyEqual(BossShrineRules::Evaluate(Second).SecondsLeft, 200.0, 0.01));
+	First.PlayedNow = Second.PlayedNow = 800.0;
+	TestTrue(TEXT("...the first is ready while the second still waits"), BossShrineRules::Evaluate(First).State == EBossShrineState::Ready
+		&& BossShrineRules::Evaluate(Second).State == EBossShrineState::Waiting
+		&& FMath::IsNearlyEqual(BossShrineRules::Evaluate(Second).SecondsLeft, 100.0, 0.01));
 
-	// In a level: the Gravemother's lair, her death kept by her stone, her lair away (as the next arrival within 20 minutes
-	// has it); a trip's arrival leaves her away, a load after a Save & Quit brings her back as a called-back fight.
+	// In a level: two stones, two bosses beaten at different times. Reading each stone again after a "reload" (the time
+	// played carries over, as a save keeps it) leaves the later one counting its own time.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
 		return false;
 	}
 	UWorld* World = WorldWrapper.GetTestWorld();
-	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector(2000.0, 0.0, 0.0));
-	AEncounterSpawner* Lair = EncounterTestWorld::SpawnSpawner(World, FVector::ZeroVector, [](AEncounterSpawner& Setup)
-	{
-		Setup.SpawnerId = TEXT("TestShrineLair");
-		Setup.LegendaryId = TEXT("TestShrineMother");
-		Setup.Groups = { EncounterTestWorld::MakeGroup(AGravemotherCreature::StaticClass(), 1, ECreatureRank::Legendary) };
-		Setup.bSpawnOnApproach = false;
-		Setup.GiveUpRadius = 3600.f;
-	});
-	ABossShrine* Stone = Lair ? SpawnShrine(World, FVector(4500.0, 0.0, 0.0), [Lair](ABossShrine& Setup)
-	{
-		Setup.BossKey = TEXT("TestShrineMother");
-		Setup.BossClass = AGravemotherCreature::StaticClass();
-		Setup.CallKind = EBossShrineCall::Lair;
-		Setup.Lair = Lair;
-	}) : nullptr;
-	if (!TestNotNull(TEXT("Player stand-in"), Player) || !TestNotNull(TEXT("Her lair"), Lair) || !TestNotNull(TEXT("Her stone"), Stone))
+	ACharacter* Player = BossTestWorld::SpawnPlayer(World, FVector(600.0, 0.0, 0.0));
+	UBossComponent* BossA = BossTestSpider::Spawn(World, FVector::ZeroVector, 0.f);
+	UBossComponent* BossB = BossTestSpider::Spawn(World, FVector(0.0, 6000.0, 0.0), 0.f);
+	if (!TestNotNull(TEXT("Player stand-in"), Player) || !TestNotNull(TEXT("First boss"), BossA) || !TestNotNull(TEXT("Second boss"), BossB))
 	{
 		return false;
 	}
-	Stone->TestClock.PlayedSeconds = 100.0;
-	Stone->TestClock.Loads = 0;
-	TestTrue(TEXT("Her lair brings her"), Lair->TriggerWave(/*bForce*/ true) && Lair->NumAlive() == 1);
-	EncounterTestWorld::KillAll(*Lair);
-	Lair->UpdateEncounter(0.5f);
-	TestTrue(TEXT("Killed: her stone kept it"), Stone->HasBossBeenBeaten() && Lair->GetState() == EEncounterState::Cleared);
-	Lair->SendLegendaryAway();
-	TestFalse(TEXT("A trip's arrival in the same load: she stays away"), Stone->BringBackAfterLoad());
-	TestEqual(TEXT("...nothing in her den"), Lair->NumAlive(), 0);
-	Stone->TestClock.Loads = 1;
-	TestTrue(TEXT("Loaded again after a Save & Quit: she's back"), Stone->BringBackAfterLoad());
-	const TArray<ACreatureBase*> Back = Lair->GetAliveCreatures();
-	const UBossComponent* HerFight = Back.Num() == 1 ? Back[0]->FindComponentByClass<UBossComponent>() : nullptr;
-	TestTrue(TEXT("...the Gravemother, as a called-back fight"), Back.Num() == 1 && Back[0]->IsA<AGravemotherCreature>()
-		&& HerFight && HerFight->IsRematch());
-	Stone->Refresh();
-	TestTrue(TEXT("...and her stone says she's out there"), Stone->GetState() == EBossShrineState::Present);
+	BossTestWorld::NoLoot(BossA->GetOwner());
+	BossTestWorld::NoLoot(BossB->GetOwner());
+	ABossShrine* StoneA = SpawnShrine(World, FVector(0.0, 1500.0, 0.0), [BossA](ABossShrine& Setup)
+	{
+		Setup.BossKey = TEXT("TestBossA");
+		Setup.CallKind = EBossShrineCall::Placed;
+		Setup.PlacedBoss = BossA->GetCreature();
+		Setup.BossClass = BossA->GetCreature()->GetClass();
+	});
+	ABossShrine* StoneB = SpawnShrine(World, FVector(0.0, 7500.0, 0.0), [BossB](ABossShrine& Setup)
+	{
+		Setup.BossKey = TEXT("TestBossB");
+		Setup.CallKind = EBossShrineCall::Placed;
+		Setup.PlacedBoss = BossB->GetCreature();
+		Setup.BossClass = BossB->GetCreature()->GetClass();
+	});
+	if (!TestNotNull(TEXT("First stone"), StoneA) || !TestNotNull(TEXT("Second stone"), StoneB))
+	{
+		return false;
+	}
+	StoneA->TestClock.PlayedSeconds = 1000.0;
+	StoneB->TestClock.PlayedSeconds = 1000.0;
+	FEditorScriptExecutionGuard RunActorEvents;
+	BossA->StartFight(Player);
+	BossTestWorld::Kill(BossA->GetOwner());
+	StoneA->TestClock.PlayedSeconds = 1200.0;
+	StoneB->TestClock.PlayedSeconds = 1200.0;
+	BossB->StartFight(Player);
+	BossTestWorld::Kill(BossB->GetOwner());
+	TestTrue(TEXT("Both beaten, each stone knowing its own"), StoneA->HasBossBeenBeaten() && StoneB->HasBossBeenBeaten());
+
+	StoneA->TestClock.PlayedSeconds = 1300.0;
+	StoneB->TestClock.PlayedSeconds = 1300.0;
+	StoneA->Refresh();
+	StoneB->Refresh();
+	const FBossShrineView ViewA = StoneA->GetView();
+	const FBossShrineView ViewB = StoneB->GetView();
+	TestTrue(TEXT("First beaten 300 s ago: ready"), ViewA.State == EBossShrineState::Ready && ViewA.CanCall());
+	TestTrue(TEXT("Second beaten 100 s ago: still waiting its own 200 s, not readied with the first"),
+		ViewB.State == EBossShrineState::Waiting && FMath::IsNearlyEqual(ViewB.SecondsLeft, 200.0, 0.01) && !ViewB.CanCall());
+	TestFalse(TEXT("...its bell refuses"), StoneB->CallBack(Player));
 	return true;
 }
 
@@ -430,9 +442,11 @@ bool FBossShrineSaveTest::RunTest(const FString& Parameters)
 	In.bEverBeaten = Back != nullptr;
 	In.DefeatedAt = Back ? Back->DefeatedAt : -1.0;
 	In.PlayedNow = 1240.0;
-	In.LoadsAtDefeat = Back ? Back->LoadsAtDefeat : 0;
-	In.LoadsNow = ReadBack->SessionLoads + 1;
-	TestTrue(TEXT("Continued (one more load) 6 s of play after her death: ready"), BossShrineRules::Evaluate(In).State == EBossShrineState::Ready);
+	TestTrue(TEXT("Continued 6 s of play after her death: still waiting its own 4:54, the load changes nothing"),
+		BossShrineRules::Evaluate(In).State == EBossShrineState::Waiting
+		&& FMath::IsNearlyEqual(BossShrineRules::Evaluate(In).SecondsLeft, 294.5, 0.01));
+	In.PlayedNow = 1234.5 + BossShrineRules::CallBackSeconds;
+	TestTrue(TEXT("...ready five minutes of play after it"), BossShrineRules::Evaluate(In).State == EBossShrineState::Ready);
 
 	ULooterSessionSave* Plain = NewObject<ULooterSessionSave>();
 	Plain->Version = ULooterSessionSave::CurrentVersion;

@@ -237,8 +237,7 @@ void UBossShrineWidget::BuildPanel()
 	USizeBox* StatusBox = MakeSized(WidgetTree, StatusText, 0.f);
 	StatusBox->SetMinDesiredHeight(38.f);
 	Content->AddChildToVerticalBox(StatusBox)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
-	UTextBlock* Rule = MakeText(WidgetTree, LOCTEXT("Rule", "The bell answers five minutes after its last rest, or at once after a "
-		"Save & Quit.").ToString(), 10, Color::TextDim());
+	UTextBlock* Rule = MakeText(WidgetTree, LOCTEXT("Rule", "The bell answers five minutes of play after its last rest.").ToString(), 10, Color::TextDim());
 	Rule->SetAutoWrapText(true);
 	Rule->SetJustification(ETextJustify::Center);
 	Content->AddChildToVerticalBox(Rule)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));

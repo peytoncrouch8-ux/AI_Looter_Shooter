@@ -63,8 +63,6 @@ namespace
 	constexpr float EmberGap = 34.f;
 	/** The grenade counter sits this far above the column's top (slot 1's circle and the cartridge's tip). */
 	constexpr float GrenadeGap = 10.f;
-	/** The silver readout sits this far above the grenade counter (when there are grenades). */
-	constexpr float MoneyGap = 6.f;
 	/** The two lines under them: the status and fire mode, then the gun's name, each this far below the last. */
 	constexpr float LineGap = 4.f;
 	constexpr float ModeLineHeight = 20.f;
@@ -220,13 +218,10 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 				ChildSlot->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
 			};
 
-			// At the very top, right-aligned: the silver carried (collapsed until the player has had some).
-			AddRight(BuildMoneyReadout(), 0.f);
-
-			// Over the column, right-aligned: the grave-salt grenades carried (collapsed until the player has some), its
-			// count over the cartridge and its tin over the slots' circles.
+			// At the very top, right-aligned: the grave-salt grenades carried (collapsed until the player has some), its
+			// count over the cartridge and its tin over the slots' circles. No silver here (the user's call, 2026-10-27).
 			GrenadeCounter = WidgetTree->ConstructWidget<UHudGrenadeWidget>(UHudGrenadeWidget::StaticClass());
-			AddRight(GrenadeCounter, MoneyGap);
+			AddRight(GrenadeCounter, 0.f);
 
 			UHorizontalBox* Arms = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			WeaponSlots = WidgetTree->ConstructWidget<UHudWeaponSlotsWidget>(UHudWeaponSlotsWidget::StaticClass());

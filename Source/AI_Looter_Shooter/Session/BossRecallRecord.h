@@ -24,7 +24,7 @@ struct AI_LOOTER_SHOOTER_API FBossRecallRecord
 	UPROPERTY()
 	FDateTime DefeatedOn;
 
-	/** The session's load it was beaten in (ULooterSessionSave::SessionLoads then): any later load had a Save & Quit between. */
+	/** The session's load it was beaten in (ULooterSessionSave::SessionLoads then): kept for diagnostics, read by no rule since 2026-10-27. */
 	UPROPERTY()
 	int32 LoadsAtDefeat = 0;
 

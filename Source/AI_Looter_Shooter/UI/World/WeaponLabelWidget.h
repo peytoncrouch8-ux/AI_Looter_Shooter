@@ -13,7 +13,8 @@ class UWidget;
  * Floating label over a weapon lying in the world: rarity-colored name, key stats, and a pickup prompt. A named gun
  * (Heirloom) shows its own name, and its flavor line under it while it's looked at. A cursed iron adds the cracked coin
  * and the curse's name under its name, from afar too (the name keeps its rarity color). Looked at, its maker's mark and
- * name sit over its name (Affixes/WeaponMakers).
+ * name sit over its name (Affixes/WeaponMakers). One of many guns lying together may be folded to a dot in its rarity's
+ * colour (SetFolded).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UWeaponLabelWidget : public UUserWidget
@@ -24,6 +25,16 @@ public:
 	/** Safe to call before the widget has been built. */
 	void SetWeapon(const AWeaponBase* Weapon);
 	void SetFocused(bool bFocused);
+
+	/**
+	 * Folds it to a dot in its rarity's colour (one of many guns lying together: ULootLabelSubsystem shows a few names in
+	 * full and folds the rest, so they never stack into a tower), or opens it again. Looking at the gun opens it.
+	 */
+	void SetFolded(bool bInFolded);
+	bool IsFolded() const { return bFolded; }
+
+	/** The dot is on screen in place of the name (tests). */
+	bool IsDotShown() const;
 
 	/** What the label shows once built (for the tests): the name, and a named gun's line (empty for any other gun). */
 	FText GetNameText() const;
@@ -104,6 +115,14 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UImage> PlateLine;
 
+	/** Everything a label shows but the dot: its lines and the plate's. */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> Lines;
+
+	/** The folded label: a dot in the rarity's colour where the name would hang. */
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> FoldedDot;
+
 	FText Name;
 	FText Flavor;
 	FText Curse;
@@ -117,4 +136,6 @@ private:
 	bool bIsFocused = false;
 	/** A drop's name pop (SetPop): name and trait line only, bigger. */
 	bool bPop = false;
+	/** Folded to its dot (SetFolded); never while looked at or popping. */
+	bool bFolded = false;
 };

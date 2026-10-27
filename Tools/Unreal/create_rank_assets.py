@@ -10,22 +10,26 @@ a kill's 18-36 rounds each; ranks drop more of them. Running it again puts the t
 Basic (Regular) keeps DA_LootTable_Default, which this never changes.
 
 With the stock rarity weights (60/25/10/4/1), a kill drops a legendary 0.3% of the time from Regular, 2.2% Restless,
-5.5% Gravebound, 13.3% Hallowed, 21.3% Ethereal, 21.4% Soulfed and 30.3% Boss. In the game, Looter.Loot.SimulateDrops
-<rank> and Looter.Tier.Odds print them; Looter.Loot.RankOdds tests them.
+5.5% Gravebound, 13.3% Hallowed, 21.3% Ethereal, 21.4% Soulfed and 30.3% Boss. In the early areas (guns of level 8 and
+under: Ransom's Rest) the tiers' tables are capped at 1 legendary in 300 guns (ULootLibrary::LegendaryCapFor; the user,
+2026-10-27: "Rarer, bosses still drop"): Regular 0.1%, Restless 0.2%, Gravebound 0.3%, Hallowed 0.5%, Ethereal 0.67%.
+Soulfed and Boss keep their odds everywhere (keeps_legendary_odds). In the game, Looter.Loot.SimulateDrops <rank> [kills]
+[level] and Looter.Tier.Odds print them; Looter.Loot.RankOdds and Looter.Loot.EarlyLegendary.* test them.
 """
 import unreal
 
 DATA = '/Game/Weapons/Data'
 DEFAULT = f'{DATA}/DA_LootTable_Default'
 
-# Rank: (chance a kill drops guns, fewest guns, most guns, luck, fewest ammo pickups, most ammo pickups).
+# Rank: (chance a kill drops guns, fewest guns, most guns, luck, fewest ammo pickups, most ammo pickups, legendaries keep
+# their odds in the early areas). The same numbers as UCreatureRankSettings::DesignLootOdds.
 RANKS = {
-    'Rare': (0.6, 1, 1, 0.5, 2, 3),
-    'Epic': (0.9, 1, 1, 0.8, 2, 4),
-    'Hallowed': (1.0, 1, 2, 1.1, 3, 5),
-    'Ethereal': (1.0, 2, 2, 1.3, 4, 6),
-    'Legendary': (1.0, 2, 2, 1.3, 4, 6),
-    'Boss': (1.0, 3, 3, 1.3, 8, 10),
+    'Rare': (0.6, 1, 1, 0.5, 2, 3, False),
+    'Epic': (0.9, 1, 1, 0.8, 2, 4, False),
+    'Hallowed': (1.0, 1, 2, 1.1, 3, 5, False),
+    'Ethereal': (1.0, 2, 2, 1.3, 4, 6, False),
+    'Legendary': (1.0, 2, 2, 1.3, 4, 6, True),
+    'Boss': (1.0, 3, 3, 1.3, 8, 10, True),
 }
 
 # What every rank table takes from the default one: the gun pool and the ammo rules.
@@ -47,7 +51,7 @@ def make_tables():
     default = unreal.load_asset(DEFAULT)
     if default is None:
         raise RuntimeError(f'{DEFAULT} is missing')
-    for rank, (chance, fewest_guns, most_guns, luck, fewest_ammo, most_ammo) in RANKS.items():
+    for rank, (chance, fewest_guns, most_guns, luck, fewest_ammo, most_ammo, keeps_odds) in RANKS.items():
         asset, path = rank_table(rank)
         for name in SHARED:
             asset.set_editor_property(name, default.get_editor_property(name))
@@ -57,10 +61,12 @@ def make_tables():
         asset.set_editor_property('luck', luck)
         asset.set_editor_property('min_ammo_drops', fewest_ammo)
         asset.set_editor_property('max_ammo_drops', most_ammo)
+        # The bool is bKeepsLegendaryOdds in C++; Python names it without the b.
+        asset.set_editor_property('keeps_legendary_odds', keeps_odds)
         unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False)
         guns = len(asset.get_editor_property('entries'))
         unreal.log(f'RANKTABLES {path}: guns on {chance:.0%} of kills, {fewest_guns}-{most_guns} of {guns} kinds at luck {luck}, '
-                   f'{fewest_ammo}-{most_ammo} ammo pickups')
+                   f'{fewest_ammo}-{most_ammo} ammo pickups, legendary odds {"kept everywhere" if keeps_odds else "capped early"}')
     unreal.log('RANKTABLES done')
 
 

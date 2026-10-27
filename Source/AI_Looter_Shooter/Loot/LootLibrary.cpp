@@ -12,10 +12,21 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "AI_Looter_Shooter.h"
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
+#include "UObject/Package.h"
 
 namespace
 {
 	const TCHAR* DefaultLootTablePath = TEXT("/Game/Weapons/Data/DA_LootTable_Default.DA_LootTable_Default");
+
+	// Legendaries rarer early (the user, 2026-10-27: "Rarer, bosses still drop"; they'd found them "super easy to get").
+	// 1 in 300 a gun puts a Regular kill (a gun on 30% of kills) at 0.1% and a Strongbox (2 guns) at 0.67%, under 1%.
+	TAutoConsoleVariable<float> CVarEarlyLegendaryShare(TEXT("Looter.Loot.EarlyLegendary.Share"), 1.f / 300.f,
+		TEXT("In the early areas, the most a dropped gun's chance of being legendary may be (0-1; 1 = no cap). Soulfed, bosses and ")
+		TEXT("bounties keep their odds."), ECVF_Default);
+	// Ransom's Rest's creatures are level 1-6 before their ranks' (+1, +2) and its chests keep in its band; the Lily starts at 9.
+	TAutoConsoleVariable<int32> CVarEarlyLegendaryMaxLevel(TEXT("Looter.Loot.EarlyLegendary.MaxLevel"), 8,
+		TEXT("Guns of this level and under drop under the early legendary cap (0 = never capped)."), ECVF_Default);
 
 	/** Pops loot upward and outward in a random direction so several drops fan out around the body. */
 	FVector RandomTossVelocity()
@@ -144,9 +155,9 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 		return Roll;
 	}
 	// A table that drops wards turns some of its gun picks into a ward of the same rarity (the weapon-drop share split), drawn
-	// after the picks, so a table without wards rolls exactly as before.
+	// after the picks, so a table without wards rolls exactly as before. The level caps a legendary in the early areas.
 	const float WardShare = LootTable->bDropsShields ? FShieldTuning::Live().DropShare : 0.f;
-	for (const FLootWeaponPick& Pick : RollWeaponPicks(LootTable, ExtraLuck, Random))
+	for (const FLootWeaponPick& Pick : RollWeaponPicks(LootTable, ExtraLuck, Random, Level))
 	{
 		if (WardShare > 0.f && ShieldRules::IsWardDrop(Random.FRand(), WardShare))
 		{
@@ -195,16 +206,18 @@ TArray<FAmmoDrop> ULootLibrary::RollAmmo(const ULootTable* LootTable, FRandomStr
 	return Ammo;
 }
 
-TArray<FLootWeaponPick> ULootLibrary::RollWeaponPicks(const ULootTable* LootTable, float ExtraLuck, FRandomStream& Random)
+TArray<FLootWeaponPick> ULootLibrary::RollWeaponPicks(const ULootTable* LootTable, float ExtraLuck, FRandomStream& Random, int32 Level)
 {
 	TArray<FLootWeaponPick> Picks;
 	if (!LootTable)
 	{
 		return Picks;
 	}
-	// Only some kills. Rarity follows each weapon's own odds (Common most, Legendary least), shifted by luck.
+	// Only some kills. Rarity follows each weapon's own odds (Common most, Legendary least), shifted by luck, a legendary
+	// capped in the early areas (the same draws either way: only the odds move).
 	if (Random.FRand() < LootTable->WeaponDropChance)
 	{
+		const float LegendaryCap = LegendaryCapFor(LootTable, Level);
 		const int32 MinWeapons = FMath::Max(LootTable->MinWeaponDrops, 0);
 		const int32 Weapons = Random.RandRange(MinWeapons, FMath::Max(LootTable->MaxWeaponDrops, MinWeapons));
 		for (int32 Index = 0; Index < Weapons; ++Index)
@@ -213,11 +226,33 @@ TArray<FLootWeaponPick> ULootLibrary::RollWeaponPicks(const ULootTable* LootTabl
 			{
 				FLootWeaponPick& Pick = Picks.AddDefaulted_GetRef();
 				Pick.Definition = Definition;
-				Pick.Rarity = UWeaponRollLibrary::RollRarityWith(Definition, LootTable->Luck + ExtraLuck, Random);
+				Pick.Rarity = UWeaponRollLibrary::RollRarityWith(Definition, LootTable->Luck + ExtraLuck, Random, LegendaryCap);
 			}
 		}
 	}
 	return Picks;
+}
+
+float ULootLibrary::LegendaryCapFor(const ULootTable* LootTable, int32 Level)
+{
+	const int32 MaxLevel = CVarEarlyLegendaryMaxLevel.GetValueOnGameThread();
+	if (!LootTable || LootTable->bKeepsLegendaryOdds || Level <= NoLevel || Level > MaxLevel)
+	{
+		return 1.f;
+	}
+	return FMath::Clamp(CVarEarlyLegendaryShare.GetValueOnGameThread(), 0.f, 1.f);
+}
+
+ULootTable* ULootLibrary::KeepingLegendaryOdds(ULootTable* Table, UObject* Outer)
+{
+	if (!Table || Table->bKeepsLegendaryOdds)
+	{
+		return Table;
+	}
+	ULootTable* Copy = DuplicateObject<ULootTable>(Table, Outer ? Outer : GetTransientPackage());
+	Copy->SetFlags(RF_Transient);
+	Copy->bKeepsLegendaryOdds = true;
+	return Copy;
 }
 
 TArray<AActor*> ULootLibrary::SpawnLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level, float ExtraLuck)

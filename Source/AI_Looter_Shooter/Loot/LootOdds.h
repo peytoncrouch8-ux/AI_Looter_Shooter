@@ -8,7 +8,8 @@ class ULootTable;
 /**
  * A loot table's odds: worked out exactly from its numbers and its guns' rarity weights, and counted over many kills
  * rolled from a seed the way real kills roll (Looter.Loot.SimulateDrops prints both; Looter.Loot.RankOdds tests them).
- * Ammo doesn't lean toward a kill gun here: that changes which class drops, not how many.
+ * Ammo doesn't lean toward a kill gun here: that changes which class drops, not how many. Level: the guns' level, which caps
+ * a legendary in the early areas (ULootLibrary::LegendaryCapFor); 0 (ULootLibrary::NoLevel), the table's own odds.
  */
 namespace LootOdds
 {
@@ -48,10 +49,10 @@ namespace LootOdds
 		double RarityShare(int32 Tier) const { return Weapons > 0 ? static_cast<double>(Rarities[Tier]) / Weapons : 0.0; }
 	};
 
-	FExpected Expected(const ULootTable* LootTable, float ExtraLuck = 0.f);
+	FExpected Expected(const ULootTable* LootTable, float ExtraLuck = 0.f, int32 Level = 0);
 
 	/** Rolls Kills kills of the table from Seed, the same draws as ULootLibrary::RollLoot, without rolling the guns' stats. */
-	FTally Simulate(const ULootTable* LootTable, int32 Kills, int32 Seed, float ExtraLuck = 0.f);
+	FTally Simulate(const ULootTable* LootTable, int32 Kills, int32 Seed, float ExtraLuck = 0.f, int32 Level = 0);
 
 	/** "Common 43.2%, Uncommon 27.1%, ..." for logs. */
 	FString DescribeShares(const double (&Shares)[NumRarities]);

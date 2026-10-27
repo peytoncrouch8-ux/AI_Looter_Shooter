@@ -1,10 +1,13 @@
-// ULootLabelSubsystem: the loot labels on screen (guns' and wards') laid out every frame so none draws over another.
+// ULootLabelSubsystem: the loot labels on screen (guns' and wards') laid out every frame so none draws over another, and
+// a pile's guns past the first few folded to their rarity's dot.
 
 #include "UI/World/LootLabelSubsystem.h"
 #include "Interaction/InteractionComponent.h"
 #include "Shields/ShieldPickup.h"
 #include "UI/World/LootLabelLayout.h"
+#include "UI/World/WeaponLabelWidget.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponTypes.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/WidgetComponent.h"
@@ -24,27 +27,40 @@ namespace
 		TEXT("How fast a loot label slides to its place (per second; 0 jumps)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarLootLabelsKeep(TEXT("Looter.LootLabels.Keep"), 0.5f,
 		TEXT("How much a loot label prefers the side it is on to a smaller move (0 none)."), ECVF_Default);
+	// A pile of guns (a boss's drop, a strongbox's) once stacked a tower of names (playtest 2026-10-27): four names read at a
+	// glance, the looked-at one among them, and the rest fold to their rarity's dot until looked at.
+	TAutoConsoleVariable<int32> CVarLootLabelsPileShown(TEXT("Looter.LootLabels.PileShown"), 4,
+		TEXT("Gun names shown in full within one pile, the looked-at one included; the rest fold to a rarity dot (0: every name shows)."), ECVF_Default);
+	// About a strongbox's spill or a boss's drop: guns this close count as one pile.
+	TAutoConsoleVariable<float> CVarLootLabelsPileRadius(TEXT("Looter.LootLabels.PileRadius"), 300.f,
+		TEXT("Guns lying within this distance of each other (cm) count as one pile for Looter.LootLabels.PileShown."), ECVF_Default);
 
-	/** A label showing this frame: its widget, its component, and its box for the layout. */
+	/** A legendary's name always shows in full, however many lie with it: it's the find of the day. */
+	constexpr int32 AlwaysShownRank = static_cast<int32>(EWeaponRarity::Legendary);
+
+	/** A label showing this frame: its widget, its box for the layout, and for a gun's, its place in a pile. */
 	struct FShownLabel
 	{
 		UUserWidget* Widget = nullptr;
 		FLootLabelBox Box;
+		/** A gun's label (wards' never fold). */
+		UWeaponLabelWidget* GunLabel = nullptr;
+		FLootPileLabel Pile;
 	};
 
 	/** Adds Label when it's showing, on screen, with its widget made. */
-	void Gather(APlayerController& PC, const FVector& Eyes, const AActor& Owner, const AActor* Focused, UWidgetComponent* Label,
+	FShownLabel* Gather(APlayerController& PC, const FVector& Eyes, const AActor& Owner, const AActor* Focused, UWidgetComponent* Label,
 		TArray<FShownLabel>& OutLabels)
 	{
 		UUserWidget* Widget = Label && Label->IsVisible() ? Label->GetUserWidgetObject() : nullptr;
 		if (!Widget)
 		{
-			return;
+			return nullptr;
 		}
 		FVector2D Anchor;
 		if (!UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPosition(&PC, Label->GetComponentLocation(), Anchor, /*bPlayerViewportRelative*/ true))
 		{
-			return;
+			return nullptr;
 		}
 		FShownLabel& Shown = OutLabels.AddDefaulted_GetRef();
 		Shown.Widget = Widget;
@@ -52,6 +68,51 @@ namespace
 		Shown.Box.Size = Widget->GetDesiredSize();
 		Shown.Box.bFocused = &Owner == Focused;
 		Shown.Box.Distance = static_cast<float>(FVector::Dist(Eyes, Label->GetComponentLocation()));
+		return &Shown;
+	}
+
+	/**
+	 * Which gun names show in full in each pile (LootLabelLayout::PickShown); the rest fold to their dot and leave Labels,
+	 * so the layout never moves them (a dot sits on its gun, and a scatter of dots may touch). Folded: the labels folded
+	 * last frame, kept up to date.
+	 */
+	void FoldPiles(TArray<FShownLabel>& Labels, TSet<TWeakObjectPtr<UWeaponLabelWidget>>& Folded)
+	{
+		TArray<FLootPileLabel> Piled;
+		TArray<int32> GunIndices;
+		for (int32 Index = 0; Index < Labels.Num(); ++Index)
+		{
+			if (Labels[Index].GunLabel)
+			{
+				Labels[Index].Pile.bWasShown = !Labels[Index].GunLabel->IsFolded();
+				Piled.Add(Labels[Index].Pile);
+				GunIndices.Add(Index);
+			}
+		}
+		const TArray<bool> InFull = LootLabelLayout::PickShown(Piled, CVarLootLabelsPileRadius.GetValueOnGameThread(),
+			CVarLootLabelsPileShown.GetValueOnGameThread(), AlwaysShownRank);
+
+		TSet<TWeakObjectPtr<UWeaponLabelWidget>> NowFolded;
+		for (int32 Pick = 0; Pick < GunIndices.Num(); ++Pick)
+		{
+			UWeaponLabelWidget* GunLabel = Labels[GunIndices[Pick]].GunLabel;
+			GunLabel->SetFolded(!InFull[Pick]);
+			if (!InFull[Pick])
+			{
+				NowFolded.Add(GunLabel);
+			}
+		}
+		// Folded before and not now (opened, or no longer showing: picked up, out of range): opened, so it comes back whole.
+		for (const TWeakObjectPtr<UWeaponLabelWidget>& Was : Folded)
+		{
+			UWeaponLabelWidget* GunLabel = Was.Get();
+			if (GunLabel && !NowFolded.Contains(Was))
+			{
+				GunLabel->SetFolded(false);
+			}
+		}
+		Folded = MoveTemp(NowFolded);
+		Labels.RemoveAll([](const FShownLabel& Label) { return Label.GunLabel && Label.GunLabel->IsFolded(); });
 	}
 }
 
@@ -68,6 +129,7 @@ bool ULootLabelSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType)
 void ULootLabelSubsystem::Deinitialize()
 {
 	Shown.Reset();
+	Folded.Reset();
 	Super::Deinitialize();
 }
 
@@ -94,7 +156,7 @@ void ULootLabelSubsystem::Tick(float DeltaTime)
 	UWorld* World = GetWorld();
 	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
 	TArray<FShownLabel> Labels;
-	if (PC && PC->IsLocalController() && CVarLootLabelsSpread.GetValueOnGameThread() != 0)
+	if (PC && PC->IsLocalController())
 	{
 		const APawn* Pawn = PC->GetPawn();
 		const UInteractionComponent* Interaction = Pawn ? Pawn->FindComponentByClass<UInteractionComponent>() : nullptr;
@@ -103,15 +165,29 @@ void ULootLabelSubsystem::Tick(float DeltaTime)
 		// Guns lying as loot and wards on the ground: their labels show only near the player, so this stays a handful.
 		for (TActorIterator<AWeaponBase> It(World); It; ++It)
 		{
-			if (It->IsPickup())
+			if (!It->IsPickup())
 			{
-				Gather(*PC, Eyes, **It, Focused, It->GetLabelComponent(), Labels);
+				continue;
+			}
+			if (FShownLabel* Label = Gather(*PC, Eyes, **It, Focused, It->GetLabelComponent(), Labels))
+			{
+				Label->GunLabel = Cast<UWeaponLabelWidget>(Label->Widget);
+				Label->Pile.Location = It->GetActorLocation();
+				Label->Pile.Distance = Label->Box.Distance;
+				Label->Pile.Rank = static_cast<int32>(It->GetInstance().Rarity);
+				Label->Pile.bFocused = Label->Box.bFocused;
 			}
 		}
 		for (TActorIterator<AShieldPickup> It(World); It; ++It)
 		{
 			Gather(*PC, Eyes, **It, Focused, It->GetLabelComponent(), Labels);
 		}
+	}
+	FoldPiles(Labels, Folded);
+	// Spread off: every label where its component draws it (the folding above still holds).
+	if (CVarLootLabelsSpread.GetValueOnGameThread() == 0)
+	{
+		Labels.Reset();
 	}
 
 	// Each label's shift now (where it was eased to), so the layout keeps it to its side.

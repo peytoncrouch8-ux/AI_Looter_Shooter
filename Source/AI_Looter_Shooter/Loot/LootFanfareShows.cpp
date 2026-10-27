@@ -1,4 +1,5 @@
 #include "Loot/LootFanfareSubsystem.h"
+#include "AI_Looter_Shooter.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Combat/BulletSubsystem.h"
 #include "Loot/LootDropMoments.h"
@@ -6,14 +7,19 @@
 #include "Weapons/WeaponBase.h"
 #include "World/LightBeam.h"
 #include "World/WorldQueries.h"
+#include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "GameFramework/RotatingMovementComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 // ULootFanfareSubsystem's landing shows (Phase 12.3, LootDropMoments): an Epic's or Legendary's spin and ring of light
-// along the ground, a Legendary's column of light, name popping up over it and rising motes. Rings and motes draw
-// through the bullets' pooled effects; the column is the loot beam's own glow on a second, wider cylinder; nothing lights.
+// along the ground, a Legendary's column of light, name popping up over it and rising motes (its burst: LootFanfareBurst.cpp).
+// Rings and motes draw through the bullets' pooled effects; the column is the loot beam's own glow on a second, wider
+// cylinder; nothing lights. The column and the name pop are pooled (the user's hitch, 2026-10-27: both were built on the
+// frame the Legendary landed): made as play begins on the fanfare's own actor, hidden, then attached to a landed gun.
 
 namespace
 {
@@ -30,6 +36,10 @@ namespace
 	constexpr float MoteRadius = 120.f;
 	/** How far down the ground under a landed gun is looked for (cm). */
 	constexpr float GroundLook = 300.f;
+	/** A pooled column's stand-in numbers until it's taken (its colour, glow and size are set then). */
+	constexpr float PooledGlow = 1.f;
+	constexpr float PooledHeight = 100.f;
+	constexpr float PooledRadius = 10.f;
 
 	FVector GroundUnder(const AWeaponBase& Weapon)
 	{
@@ -44,6 +54,223 @@ namespace
 		return At - FVector(0.f, 0.f, 10.f);
 	}
 }
+
+// ---------------------------------------------------------------------------
+// The pools
+// ---------------------------------------------------------------------------
+
+USceneComponent* ULootFanfareSubsystem::PoolRoot()
+{
+	if (PoolHolder && IsValid(PoolHolder) && PoolHolder->GetRootComponent())
+	{
+		return PoolHolder->GetRootComponent();
+	}
+	UWorld* World = GetWorld();
+	if (!World || World->bIsTearingDown)
+	{
+		return nullptr;
+	}
+	FActorSpawnParameters Params;
+	Params.Name = MakeUniqueObjectName(World->PersistentLevel, AActor::StaticClass(), TEXT("LootFanfarePool"));
+	Params.ObjectFlags |= RF_Transient;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AActor* Holder = World->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, Params);
+	if (!Holder)
+	{
+		return nullptr;
+	}
+#if WITH_EDITOR
+	Holder->SetActorLabel(TEXT("LootFanfarePool"));
+#endif
+	// Movable: what it holds is lent to guns that move.
+	USceneComponent* Root = NewObject<USceneComponent>(Holder, TEXT("PoolRoot"), RF_Transient);
+	Root->SetMobility(EComponentMobility::Movable);
+	Holder->SetRootComponent(Root);
+	Root->RegisterComponent();
+	PoolHolder = Holder;
+	return Root;
+}
+
+UStaticMeshComponent* ULootFanfareSubsystem::MakeColumn()
+{
+	USceneComponent* Root = PoolRoot();
+	if (!Root)
+	{
+		return nullptr;
+	}
+	UStaticMeshComponent* Beam = NewObject<UStaticMeshComponent>(Root->GetOwner(), NAME_None, RF_Transient);
+	Beam->SetupAttachment(Root);
+	Beam->SetUsingAbsoluteRotation(true);
+	Beam->SetVisibility(false);
+	Beam->RegisterComponent();
+	// Its mesh and its own glow material instance, once: a landing only colours and sizes it.
+	LightBeams::Setup(Beam, FLinearColor::White, PooledGlow, PooledHeight, PooledRadius);
+	return Beam;
+}
+
+UWidgetComponent* ULootFanfareSubsystem::MakeNamePop()
+{
+	USceneComponent* Root = PoolRoot();
+	if (!Root)
+	{
+		return nullptr;
+	}
+	UWidgetComponent* Widget = NewObject<UWidgetComponent>(Root->GetOwner(), NAME_None, RF_Transient);
+	Widget->SetupAttachment(Root);
+	Widget->SetUsingAbsoluteRotation(true);
+	Widget->SetWidgetSpace(EWidgetSpace::Screen);
+	Widget->SetDrawAtDesiredSize(true);
+	Widget->SetPivot(FVector2D(0.5f, 1.f));
+	Widget->SetWidgetClass(UWeaponLabelWidget::StaticClass());
+	Widget->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Widget->SetVisibility(false);
+	Widget->RegisterComponent();
+	Widget->InitWidget();
+	// Its Slate built now as well (the label's panels and text), not as it first shows.
+	if (UUserWidget* Label = Widget->GetUserWidgetObject())
+	{
+		Label->TakeWidget();
+		Label->SetRenderOpacity(0.f);
+	}
+	return Widget;
+}
+
+void ULootFanfareSubsystem::WarmPools()
+{
+	// The code-drawn effects the burst, rings and motes draw with are made on their first use (their meshes and materials
+	// loaded then): a chest's Legendary before the first shot of the session would make them on its landing frame.
+	UWorld* World = GetWorld();
+	if (UBulletSubsystem* Bullets = World ? World->GetSubsystem<UBulletSubsystem>() : nullptr)
+	{
+		Bullets->GetEffects().Initialize(World);
+	}
+	while (FreeColumns.Num() < PoolSize)
+	{
+		UStaticMeshComponent* Beam = MakeColumn();
+		if (!Beam)
+		{
+			break;
+		}
+		FreeColumns.Add(Beam);
+	}
+	while (FreeNamePops.Num() < PoolSize)
+	{
+		UWidgetComponent* Widget = MakeNamePop();
+		if (!Widget)
+		{
+			break;
+		}
+		FreeNamePops.Add(Widget);
+	}
+	UE_LOG(LogLooter, Verbose, TEXT("Loot fanfare: %d columns and %d name pops ready"), FreeColumns.Num(), FreeNamePops.Num());
+}
+
+UStaticMeshComponent* ULootFanfareSubsystem::TakeColumn(AWeaponBase& Weapon, const FLinearColor& Color)
+{
+	USceneComponent* GunRoot = Weapon.GetRootComponent();
+	if (!GunRoot)
+	{
+		return nullptr;
+	}
+	UStaticMeshComponent* Beam = nullptr;
+	while (!Beam && !FreeColumns.IsEmpty())
+	{
+		Beam = FreeColumns.Pop(EAllowShrinking::No);
+		Beam = IsValid(Beam) ? Beam : nullptr;
+	}
+	// More Legendaries lying at once than the pool holds (a boss's shower): one more, kept in the pool after.
+	if (!Beam)
+	{
+		UE_LOG(LogLooter, Verbose, TEXT("Loot fanfare: the column pool ran dry; making one more"));
+		Beam = MakeColumn();
+	}
+	if (!Beam)
+	{
+		return nullptr;
+	}
+	Beam->AttachToComponent(GunRoot, FAttachmentTransformRules::KeepRelativeTransform);
+	if (UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Beam->GetMaterial(0)))
+	{
+		Material->SetVectorParameterValue(TEXT("Color"), Color);
+	}
+	Beam->SetVisibility(true);
+	return Beam;
+}
+
+UWidgetComponent* ULootFanfareSubsystem::TakeNamePop(AWeaponBase& Weapon)
+{
+	USceneComponent* GunRoot = Weapon.GetRootComponent();
+	if (!GunRoot)
+	{
+		return nullptr;
+	}
+	UWidgetComponent* Widget = nullptr;
+	while (!Widget && !FreeNamePops.IsEmpty())
+	{
+		Widget = FreeNamePops.Pop(EAllowShrinking::No);
+		Widget = IsValid(Widget) ? Widget : nullptr;
+	}
+	if (!Widget)
+	{
+		UE_LOG(LogLooter, Verbose, TEXT("Loot fanfare: the name pop pool ran dry; making one more"));
+		Widget = MakeNamePop();
+	}
+	if (!Widget)
+	{
+		return nullptr;
+	}
+	Widget->AttachToComponent(GunRoot, FAttachmentTransformRules::KeepRelativeTransform);
+	Widget->SetRelativeLocation(FVector(0.f, 0.f, NamePopHeight));
+	if (UWeaponLabelWidget* Label = Cast<UWeaponLabelWidget>(Widget->GetUserWidgetObject()))
+	{
+		Label->SetWeapon(&Weapon);
+	}
+	Widget->SetVisibility(true);
+	return Widget;
+}
+
+void ULootFanfareSubsystem::GiveBack(UStaticMeshComponent* Beam)
+{
+	if (!IsValid(Beam))
+	{
+		return;
+	}
+	Beam->SetVisibility(false);
+	USceneComponent* Root = PoolRoot();
+	if (!Root || Beam->GetOwner() != Root->GetOwner())
+	{
+		// The world is going (or it isn't the pool's): it goes with it.
+		Beam->DestroyComponent();
+		return;
+	}
+	Beam->AttachToComponent(Root, FAttachmentTransformRules::KeepRelativeTransform);
+	FreeColumns.AddUnique(Beam);
+}
+
+void ULootFanfareSubsystem::GiveBack(UWidgetComponent* Widget)
+{
+	if (!IsValid(Widget))
+	{
+		return;
+	}
+	Widget->SetVisibility(false);
+	if (UUserWidget* Label = Widget->GetUserWidgetObject())
+	{
+		Label->SetRenderOpacity(0.f);
+	}
+	USceneComponent* Root = PoolRoot();
+	if (!Root || Widget->GetOwner() != Root->GetOwner())
+	{
+		Widget->DestroyComponent();
+		return;
+	}
+	Widget->AttachToComponent(Root, FAttachmentTransformRules::KeepRelativeTransform);
+	FreeNamePops.AddUnique(Widget);
+}
+
+// ---------------------------------------------------------------------------
+// The shows
+// ---------------------------------------------------------------------------
 
 void ULootFanfareSubsystem::StartShows(AWeaponBase& Weapon)
 {
@@ -74,47 +301,42 @@ void ULootFanfareSubsystem::StartShows(AWeaponBase& Weapon)
 		Ring.Radius = Moment.RingRadius;
 	}
 
-	// A Legendary's column: a second, wider beam of its colour, shooting up as the first flares, standing while it lies there.
-	USceneComponent* Root = Weapon.GetRootComponent();
-	if (Root && Moment.ColumnHeight > 0.f && !Columns.ContainsByPredicate([&Weapon](const FColumn& Column) { return Column.Weapon.Get() == &Weapon; }))
+	// A Legendary's burst: the moment itself (LootFanfareBurst.cpp).
+	if (Moment.bBurst)
 	{
-		UStaticMeshComponent* Beam = NewObject<UStaticMeshComponent>(&Weapon, NAME_None, RF_Transient);
-		Beam->SetupAttachment(Root);
-		Beam->SetUsingAbsoluteRotation(true);
-		Beam->RegisterComponent();
-		LightBeams::Setup(Beam, Color, Moment.ColumnGlow, Moment.ColumnHeight, Moment.ColumnRadius);
-		FColumn& Column = Columns.AddDefaulted_GetRef();
-		Column.Weapon = &Weapon;
-		Column.Beam = Beam;
-		Column.Glow = Moment.ColumnGlow;
-		Column.Height = Moment.ColumnHeight;
-		Column.Radius = Moment.ColumnRadius;
-		LightBeams::Flare(Beam, 0.f, true, Column.Glow, Column.Height, Column.Radius);
+		StartBurst(Ground, Color, LootDropMoments::Burst());
 	}
 
-	// Its name pops up over it (a label of its own, apart from the one that shows when it's looked at).
-	if (Root && Moment.NamePopSeconds > 0.f && !NamePops.ContainsByPredicate([&Weapon](const FNamePop& Pop) { return Pop.Weapon.Get() == &Weapon; }))
+	// A Legendary's column: a second, wider beam of its colour from the pool, shooting up as the first flares, standing
+	// while it lies there.
+	if (Moment.ColumnHeight > 0.f && !Columns.ContainsByPredicate([&Weapon](const FColumn& Column) { return Column.Weapon.Get() == &Weapon; }))
 	{
-		UWidgetComponent* Widget = NewObject<UWidgetComponent>(&Weapon, NAME_None, RF_Transient);
-		Widget->SetupAttachment(Root);
-		Widget->SetUsingAbsoluteRotation(true);
-		Widget->SetRelativeLocation(FVector(0.f, 0.f, NamePopHeight));
-		Widget->SetWidgetSpace(EWidgetSpace::Screen);
-		Widget->SetDrawAtDesiredSize(true);
-		Widget->SetPivot(FVector2D(0.5f, 1.f));
-		Widget->SetWidgetClass(UWeaponLabelWidget::StaticClass());
-		Widget->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Widget->RegisterComponent();
-		Widget->InitWidget();
-		if (UWeaponLabelWidget* Label = Cast<UWeaponLabelWidget>(Widget->GetUserWidgetObject()))
+		if (UStaticMeshComponent* Beam = TakeColumn(Weapon, Color))
 		{
-			Label->SetWeapon(&Weapon);
-			Label->SetPop(0.f, Moment.NamePopSeconds);
+			FColumn& Column = Columns.AddDefaulted_GetRef();
+			Column.Weapon = &Weapon;
+			Column.Beam = Beam;
+			Column.Glow = Moment.ColumnGlow;
+			Column.Height = Moment.ColumnHeight;
+			Column.Radius = Moment.ColumnRadius;
+			LightBeams::Flare(Beam, 0.f, true, Column.Glow, Column.Height, Column.Radius);
 		}
-		FNamePop& Pop = NamePops.AddDefaulted_GetRef();
-		Pop.Weapon = &Weapon;
-		Pop.Widget = Widget;
-		Pop.Seconds = Moment.NamePopSeconds;
+	}
+
+	// Its name pops up over it (a pooled label of its own, apart from the one that shows when it's looked at).
+	if (Moment.NamePopSeconds > 0.f && !NamePops.ContainsByPredicate([&Weapon](const FNamePop& Pop) { return Pop.Weapon.Get() == &Weapon; }))
+	{
+		if (UWidgetComponent* Widget = TakeNamePop(Weapon))
+		{
+			if (UWeaponLabelWidget* Label = Cast<UWeaponLabelWidget>(Widget->GetUserWidgetObject()))
+			{
+				Label->SetPop(0.f, Moment.NamePopSeconds);
+			}
+			FNamePop& Pop = NamePops.AddDefaulted_GetRef();
+			Pop.Weapon = &Weapon;
+			Pop.Widget = Widget;
+			Pop.Seconds = Moment.NamePopSeconds;
+		}
 	}
 
 	if (Moment.Motes > 0 && World)
@@ -177,18 +399,17 @@ void ULootFanfareSubsystem::AdvanceShows(float DeltaTime)
 		FX.AddGroundRing(Ring.Center, Ring.Radius * Out * RingInnerShare, Width * 0.6f, Ring.Color, RingGlow * RingInnerGlow * Fade, 28);
 	}
 
+	AdvanceBurst(DeltaTime);
+
 	for (int32 Index = Columns.Num() - 1; Index >= 0; --Index)
 	{
 		FColumn& Column = Columns[Index];
 		const AWeaponBase* Weapon = Column.Weapon.Get();
 		UStaticMeshComponent* Beam = Column.Beam.Get();
-		// Taken up (or gone): its column goes with it.
+		// Taken up (or gone): its column goes back to the pool.
 		if (!Weapon || !Weapon->IsPickup() || !Beam)
 		{
-			if (Beam)
-			{
-				Beam->DestroyComponent();
-			}
+			GiveBack(Beam);
 			Columns.RemoveAtSwap(Index);
 			continue;
 		}
@@ -207,10 +428,7 @@ void ULootFanfareSubsystem::AdvanceShows(float DeltaTime)
 		Pop.Time += DeltaTime;
 		if (!Weapon || !Weapon->IsPickup() || !Widget || Pop.Time >= Pop.Seconds)
 		{
-			if (Widget)
-			{
-				Widget->DestroyComponent();
-			}
+			GiveBack(Widget);
 			NamePops.RemoveAtSwap(Index);
 			continue;
 		}
@@ -233,7 +451,12 @@ void ULootFanfareSubsystem::ClearShows()
 	}
 	Spins.Reset();
 	Rings.Reset();
-	// The column and name components belong to their guns, which go with the world.
+	ArmSparks.Reset();
+	FountainSparks.Reset();
+	// The pooled columns and name pops live on the fanfare's own actor, which goes with the world.
 	Columns.Reset();
 	NamePops.Reset();
+	FreeColumns.Reset();
+	FreeNamePops.Reset();
+	PoolHolder = nullptr;
 }

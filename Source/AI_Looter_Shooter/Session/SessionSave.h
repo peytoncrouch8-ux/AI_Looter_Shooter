@@ -210,14 +210,6 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 	UPROPERTY()
 	TArray<FSavedGrenadePickup> GrenadePickups;
 
-	/**
-	 * The loot chests the player has found but not opened (AChest::GetSaveKey; UMapDiscoverySubsystem), so their pins on the
-	 * map page survive a Save & Quit and Continue. An opened chest is kept in OpenedChests instead and pinned as looted. New
-	 * within version 2, as TornPosters: a save from before it reads as none found, which is right.
-	 */
-	UPROPERTY()
-	TArray<FName> FoundChests;
-
 	/** The tutorial step on screen, or INDEX_NONE when it wasn't running (on every map but the tutorial's). */
 	UPROPERTY()
 	int32 TutorialStep = INDEX_NONE;
@@ -396,7 +388,7 @@ public:
 
 	/**
 	 * Each vigil stone's boss by its boss key ("Gravemother", "Abel"): its last defeat, for its call back (five minutes of
-	 * play after it, or at once after a Save & Quit), and whether its stone has risen. New within version 2: a save from
+	 * play after it, each stone its own; a Save & Quit readies none since 2026-10-27), and whether its stone has risen. New within version 2: a save from
 	 * before it has none, which is right (a boss beaten then is ready at once), so it needs no upgrade.
 	 */
 	UPROPERTY()
@@ -404,7 +396,7 @@ public:
 
 	/**
 	 * How many times the session has been loaded from its slot (Continue, or a new game's first save read back; never a
-	 * trip's arrival): a boss beaten in an earlier load has had a Save & Quit since. New within version 2: a save from
+	 * trip's arrival): kept for diagnostics; no rule reads it since 2026-10-27 (each vigil stone counts its own time). New within version 2: a save from
 	 * before it reads as 0, which is right.
 	 */
 	UPROPERTY()

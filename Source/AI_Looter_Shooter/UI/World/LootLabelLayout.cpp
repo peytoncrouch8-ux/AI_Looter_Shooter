@@ -95,3 +95,57 @@ bool LootLabelLayout::PlateNamesGun(bool bLookedAt, bool bLabelShowing)
 {
 	return bLookedAt && bLabelShowing;
 }
+
+TArray<bool> LootLabelLayout::PickShown(TConstArrayView<FLootPileLabel> Labels, float PileRadius, int32 MaxShown, int32 AlwaysRank)
+{
+	TArray<bool> Shown;
+	Shown.Init(MaxShown <= 0, Labels.Num());
+	if (MaxShown <= 0)
+	{
+		return Shown;
+	}
+
+	// The looked-at one first, then what's most worth reading: the rarer, then the one already shown (no trading places
+	// between equals as the player moves), then the nearer.
+	TArray<int32> Order;
+	for (int32 Index = 0; Index < Labels.Num(); ++Index)
+	{
+		Order.Add(Index);
+	}
+	Order.StableSort([&Labels](int32 A, int32 B)
+	{
+		const FLootPileLabel& First = Labels[A];
+		const FLootPileLabel& Second = Labels[B];
+		if (First.bFocused != Second.bFocused)
+		{
+			return First.bFocused;
+		}
+		if (First.Rank != Second.Rank)
+		{
+			return First.Rank > Second.Rank;
+		}
+		if (First.bWasShown != Second.bWasShown)
+		{
+			return First.bWasShown;
+		}
+		return First.Distance < Second.Distance;
+	});
+
+	const double RadiusSquared = FMath::Square(static_cast<double>(FMath::Max(PileRadius, 0.f)));
+	TArray<int32> Placed;
+	for (const int32 Index : Order)
+	{
+		const FLootPileLabel& Label = Labels[Index];
+		int32 Near = 0;
+		for (const int32 Other : Placed)
+		{
+			Near += FVector::DistSquared(Labels[Other].Location, Label.Location) <= RadiusSquared ? 1 : 0;
+		}
+		if (Label.bFocused || Label.Rank >= AlwaysRank || Near < MaxShown)
+		{
+			Shown[Index] = true;
+			Placed.Add(Index);
+		}
+	}
+	return Shown;
+}

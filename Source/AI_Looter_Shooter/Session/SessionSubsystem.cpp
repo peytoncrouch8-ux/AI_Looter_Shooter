@@ -245,8 +245,8 @@ void USessionSubsystem::BeginPlayWorld(UWorld* World, const FString& Options)
 		}
 		else if (!bFromTrip)
 		{
-			// Loaded from its slot (Continue), not a trip's arrival: a vigil stone's boss beaten before this is ready again
-			// (BossShrineRules: the user's "or the boss respawns after a save and quit").
+			// Loaded from its slot (Continue), not a trip's arrival: counted for diagnostics (no vigil stone rule reads it
+			// since 2026-10-27: each stone counts its own five minutes).
 			++Current->SessionLoads;
 		}
 		AutosaveTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &USessionSubsystem::HandleAutosave), AutosaveInterval);

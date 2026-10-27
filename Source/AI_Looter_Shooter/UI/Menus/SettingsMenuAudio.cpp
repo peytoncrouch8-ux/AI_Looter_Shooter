@@ -1,15 +1,13 @@
-// USettingsMenuWidget's Audio section: the Master, Effects, Interface and Music volume sliders (UAudioSettingsSubsystem).
+// USettingsMenuWidget's Audio page: the Master, Effects, Interface and Music volume sliders (UAudioSettingsSubsystem).
 
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Audio/LooterSound.h"
 #include "Settings/AudioSettingsSubsystem.h"
-#include "Blueprint/WidgetTree.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
 
 using namespace SettingsMenu;
 
@@ -22,9 +20,9 @@ namespace
 	// shake's slider.
 }
 
-UWidget* USettingsMenuWidget::MakeAudioRows()
+void USettingsMenuWidget::MakeAudioPage()
 {
-	UVerticalBox* Rows = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	BeginPage();
 	VolumeSliders.Reset();
 	VolumeValues.Reset();
 	for (const EAudioVolume Which : Volumes)
@@ -32,7 +30,7 @@ UWidget* USettingsMenuWidget::MakeAudioRows()
 		USlider* Slider = nullptr;
 		UTextBlock* Value = nullptr;
 		UWidget* Row = MakeSliderRow(UAudioSettingsSubsystem::VolumeName(Which), 0.f, 1.f, Slider, Value, UAudioSettingsSubsystem::VolumeStep);
-		Rows->AddChildToVerticalBox(NavSlider(Row, Slider))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+		AddPageRow(Describe(NavSlider(Row, Slider), RowHelp(VolumeRow(Which))), Which == Volumes[0] ? 0.f : 4.f);
 		// Let go by the mouse, or by the key or stick that stepped it (held as a controller holds a slider).
 		Slider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleVolumeReleased);
 		Slider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleVolumeReleased);
@@ -43,7 +41,6 @@ UWidget* USettingsMenuWidget::MakeAudioRows()
 	VolumeSliders[static_cast<int32>(EAudioVolume::Effects)]->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleEffectsVolumeChanged);
 	VolumeSliders[static_cast<int32>(EAudioVolume::Interface)]->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleInterfaceVolumeChanged);
 	VolumeSliders[static_cast<int32>(EAudioVolume::Music)]->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleMusicVolumeChanged);
-	return Rows;
 }
 
 void USettingsMenuWidget::RefreshAudio()

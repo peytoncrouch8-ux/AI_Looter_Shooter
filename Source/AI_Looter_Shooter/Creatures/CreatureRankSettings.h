@@ -201,6 +201,8 @@ public:
 		float Luck = 0.f;
 		int32 MinAmmoDrops = 1;
 		int32 MaxAmmoDrops = 2;
+		/** Its legendaries at full odds in the early areas too (Soulfed and bosses: ULootTable::bKeepsLegendaryOdds). */
+		bool bKeepsLegendaryOdds = false;
 	};
 	static FRankLootOdds DesignLootOdds(ECreatureRank Rank);
 

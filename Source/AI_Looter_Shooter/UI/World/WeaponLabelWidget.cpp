@@ -17,6 +17,15 @@
 
 using namespace LooterUI;
 
+namespace
+{
+	/**
+	 * A folded label's dot (widget units): big enough to tell its colour at the label range's far end, small enough that
+	 * a pile's dots stay a scatter.
+	 */
+	constexpr float FoldedDotSize = 12.f;
+}
+
 TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 {
 	if (WidgetTree && !WidgetTree->RootWidget)
@@ -24,9 +33,21 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Root"));
 		WidgetTree->RootWidget = Root;
 
-		auto AddFill = [Root](UWidget* Child, const FMargin& ChildPadding)
+		// The card (plate and lines) and, in its place when folded, the dot: collapsing the card leaves the dot's size alone,
+		// so a folded label takes no more room than its dot.
+		UOverlay* Card = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Card"));
+		UOverlaySlot* CardSlot = Root->AddChildToOverlay(Card);
+		CardSlot->SetHorizontalAlignment(HAlign_Fill);
+		CardSlot->SetVerticalAlignment(VAlign_Fill);
+		Lines = Card;
+		FoldedDot = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("FoldedDot"));
+		UOverlaySlot* DotSlot = Root->AddChildToOverlay(FoldedDot);
+		DotSlot->SetHorizontalAlignment(HAlign_Center);
+		DotSlot->SetVerticalAlignment(VAlign_Bottom);
+
+		auto AddFill = [Card](UWidget* Child, const FMargin& ChildPadding)
 		{
-			UOverlaySlot* ChildSlot = Root->AddChildToOverlay(Child);
+			UOverlaySlot* ChildSlot = Card->AddChildToOverlay(Child);
 			ChildSlot->SetHorizontalAlignment(HAlign_Fill);
 			ChildSlot->SetVerticalAlignment(VAlign_Fill);
 			ChildSlot->SetPadding(ChildPadding);
@@ -198,6 +219,20 @@ void UWeaponLabelWidget::SetFocused(bool bFocused)
 	}
 }
 
+void UWeaponLabelWidget::SetFolded(bool bInFolded)
+{
+	if (bFolded != bInFolded)
+	{
+		bFolded = bInFolded;
+		ApplyContent();
+	}
+}
+
+bool UWeaponLabelWidget::IsDotShown() const
+{
+	return FoldedDot && FoldedDot->GetVisibility() == ESlateVisibility::HitTestInvisible;
+}
+
 void UWeaponLabelWidget::ApplyContent()
 {
 	if (!NameText)
@@ -260,5 +295,17 @@ void UWeaponLabelWidget::ApplyContent()
 		CurseRow->SetVisibility(ESlateVisibility::Collapsed);
 		FlavorText->SetVisibility(ESlateVisibility::Collapsed);
 		MakerRow->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// Folded (one of a pile): its rarity's dot where the name would hang, the card gone. Looked at or popping, never.
+	const bool bShowDot = bFolded && !bIsFocused && !bPop;
+	Lines->SetVisibility(bShowDot ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	FoldedDot->SetVisibility(bShowDot ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	if (bShowDot)
+	{
+		// The map's loot dot (white with its dark edge baked in), tinted the rarity's colour: it reads over any ground.
+		FSlateBrush Dot = MarkerBrush(EMarker::Dot, NameColor);
+		Dot.ImageSize = FVector2D(FoldedDotSize, FoldedDotSize);
+		FoldedDot->SetBrush(Dot);
 	}
 }

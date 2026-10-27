@@ -21,8 +21,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot")
 	static EWeaponRarity RollRarity(const UWeaponDefinition* Definition, float Luck = 0.f);
 
-	/** RollRarity from a given random stream (seeded rolls, tests). */
-	static EWeaponRarity RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random);
+	/**
+	 * RollRarity from a given random stream (seeded rolls, tests). LegendaryCap (0..1): the most a legendary's share of the
+	 * roll may be (an early area's drop: ULootLibrary::LegendaryCapFor); the weight taken off goes to the other tiers in
+	 * their own proportions. 1: the definition's odds as they are, drawn exactly as before the cap.
+	 */
+	static EWeaponRarity RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random, float LegendaryCap = 1.f);
+
+	/**
+	 * The legendary weight that holds a legendary's share to LegendaryCap, the other tiers weighing Others together:
+	 * Legendary as it is when its share is already at or under the cap (or the cap is 1 or more), else Cap x Others / (1 - Cap).
+	 * One rule for the rolls and the odds that describe them (LootOdds).
+	 */
+	static double CapLegendaryWeight(double Legendary, double Others, float LegendaryCap);
 
 	/**
 	 * Deterministically computes stats for a definition + rarity + level + seed: the base stats with random variance, the

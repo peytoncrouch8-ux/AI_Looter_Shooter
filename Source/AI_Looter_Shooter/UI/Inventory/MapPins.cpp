@@ -1,6 +1,5 @@
 #include "UI/Inventory/MapPins.h"
 #include "Economy/Vendor.h"
-#include "Loot/Chest.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionSubsystem.h"
@@ -34,29 +33,7 @@ namespace MapPins
 			return Pins;
 		}
 
-		// Chests: an opened one stays (dim), as the session keeps it open; a closed one once the player has come across it.
-		// Only the treasure (the caches, the strongboxes): not every grave, coffin and mailbox in the lootable world.
-		for (TActorIterator<AChest> It(World); It; ++It)
-		{
-			const AChest* Chest = *It;
-			if (!IsValid(Chest) || !Chest->ShowsOnMap())
-			{
-				continue;
-			}
-			const bool bLooted = Chest->GetState() != EChestState::Closed;
-			const bool bFound = Sources.FoundChests && Sources.FoundChests->Contains(Chest->GetSaveKey());
-			if (!bLooted && !bFound)
-			{
-				continue;
-			}
-			FMapPin& Pin = Pins.AddDefaulted_GetRef();
-			Pin.Kind = bLooted ? EMapPinKind::ChestLooted : EMapPinKind::Chest;
-			Pin.Location = Chest->GetActorLocation();
-			Pin.Name = AChest::KindName(Chest->Kind);
-			Pin.Detail = bLooted ? LOCTEXT("Looted", "Looted") : LOCTEXT("NotOpened", "Not opened yet");
-			Pin.Id = Chest->GetSaveKey();
-		}
-
+		// No chests, found or opened: the map shows where to go, not where the loot is (the user's call, 2026-10-27).
 		for (TActorIterator<AGunsmithBench> It(World); It; ++It)
 		{
 			FMapPin& Pin = Pins.AddDefaulted_GetRef();
@@ -127,11 +104,12 @@ namespace MapPins
 		}
 
 		// Hob's roosts found (or opened by the story) in this one: shown however far, a travel point each. One not found yet
-		// is the player's to find, and stays off the map.
+		// is the player's to find, and stays off the map. A roost that is only where the player rises after a death (the
+		// Sheriff's Office's: the user keeps two travel stations, 2026-10-27) is no travel point, so no pin either.
 		for (TActorIterator<ARespawnMarker> It(World); It; ++It)
 		{
 			const ARespawnMarker* Grave = *It;
-			if (!IsValid(Grave) || Grave->IsActorBeingDestroyed())
+			if (!IsValid(Grave) || Grave->IsActorBeingDestroyed() || !Grave->bFastTravelStation)
 			{
 				continue;
 			}
@@ -248,8 +226,6 @@ namespace MapPins
 	{
 		switch (Kind)
 		{
-		case EMapPinKind::ChestLooted: return LOCTEXT("KindLooted", "Looted chest");
-		case EMapPinKind::Chest:       return LOCTEXT("KindChest", "Chest");
 		case EMapPinKind::Bench:       return LOCTEXT("KindBench", "Gunsmith's bench");
 		case EMapPinKind::Shrine:      return LOCTEXT("KindShrine", "Vigil Stone");
 		case EMapPinKind::Vendor:     return LOCTEXT("KindVendor", "Store");

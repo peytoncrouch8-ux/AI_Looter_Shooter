@@ -8,12 +8,10 @@
 #include "World/LightBeam.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
-#include "GameFramework/WorldSettings.h"
-#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
-// ULootFanfareSubsystem: a drop's sounds, its beam's flare, its announcement and a Legendary's slow-down. The landing
-// shows (spin, ring, column, name pop) are in LootFanfareShows.cpp.
+// ULootFanfareSubsystem: a drop's sounds, its beam's flare and its announcement. The landing shows (spin, ring, column,
+// name pop) and their pools are in LootFanfareShows.cpp, a Legendary's burst in LootFanfareBurst.cpp.
 
 bool ULootFanfareSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
@@ -21,9 +19,15 @@ bool ULootFanfareSubsystem::DoesSupportWorldType(const EWorldType::Type WorldTyp
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE || WorldType == EWorldType::EditorPreview;
 }
 
+void ULootFanfareSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+	Super::OnWorldBeginPlay(InWorld);
+	// The column and the name pop are built now, as the level loads, not on the frame a Legendary lands.
+	WarmPools();
+}
+
 void ULootFanfareSubsystem::Deinitialize()
 {
-	EndSlowDown();
 	ClearShows();
 	Super::Deinitialize();
 }
@@ -76,17 +80,8 @@ void ULootFanfareSubsystem::Tick(float DeltaTime)
 
 void ULootFanfareSubsystem::Advance(float DeltaTime)
 {
-	// A drop's breath of slow ends on the world's real clock (the slowed one would stretch it).
-	const UWorld* World = GetWorld();
-	if (SlowEndsAt >= 0.0)
-	{
-		SlowLeft -= DeltaTime / FMath::Max(SlowDilation, 0.05f);
-		if (!World || World->GetRealTimeSeconds() >= SlowEndsAt || SlowLeft <= 0.f)
-		{
-			EndSlowDown();
-		}
-	}
-	if (Expected.IsEmpty() && Flaring.IsEmpty() && Spins.IsEmpty() && Rings.IsEmpty() && Columns.IsEmpty() && NamePops.IsEmpty())
+	if (Expected.IsEmpty() && Flaring.IsEmpty() && Spins.IsEmpty() && Rings.IsEmpty() && Columns.IsEmpty() && NamePops.IsEmpty()
+		&& ArmSparks.IsEmpty() && FountainSparks.IsEmpty())
 	{
 		return;
 	}
@@ -142,7 +137,8 @@ void ULootFanfareSubsystem::Dropped(AWeaponBase& Weapon, bool& bOutStung)
 	{
 		return;
 	}
-	// A Legendary is felt before it's seen: its sting now, wherever the player looks...
+	// A Legendary is felt before it's seen: its sting now, wherever the player looks. The world keeps its speed: the moment
+	// is the burst as it lands (the slow it once had read to the user as the game stuttering).
 	if (!Moment.Stinger.IsNone())
 	{
 		LooterSound::Play2D(this, Moment.Stinger);
@@ -150,32 +146,7 @@ void ULootFanfareSubsystem::Dropped(AWeaponBase& Weapon, bool& bOutStung)
 		LastCueTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 		LastCueRarity = Weapon.GetRarity();
 	}
-	// ...and the world holds its breath a moment, unless something else has the clock (a boss's death, Sundown).
-	UWorld* World = GetWorld();
-	if (World && Moment.SlowSeconds > 0.f && SlowEndsAt < 0.0 && World->GetWorldSettings()
-		&& LootDropMoments::MaySlowWorld(UGameplayStatics::GetGlobalTimeDilation(World)))
-	{
-		SlowDilation = Moment.SlowDilation;
-		SlowEndsAt = World->GetRealTimeSeconds() + Moment.SlowSeconds;
-		SlowLeft = Moment.SlowSeconds;
-		UGameplayStatics::SetGlobalTimeDilation(World, SlowDilation);
-	}
-	UE_LOG(LogLooter, Verbose, TEXT("%s dropped (Legendary): sting%s"), *Weapon.GetName(), SlowEndsAt >= 0.0 ? TEXT(", slow") : TEXT(""));
-}
-
-void ULootFanfareSubsystem::EndSlowDown()
-{
-	if (SlowEndsAt < 0.0)
-	{
-		return;
-	}
-	SlowEndsAt = -1.0;
-	UWorld* World = GetWorld();
-	// Only the speed this set: a slow something else began meanwhile is theirs to end.
-	if (World && World->GetWorldSettings() && FMath::IsNearlyEqual(UGameplayStatics::GetGlobalTimeDilation(World), SlowDilation, 0.001f))
-	{
-		UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
-	}
+	UE_LOG(LogLooter, Verbose, TEXT("%s dropped (Legendary): sting"), *Weapon.GetName());
 }
 
 void ULootFanfareSubsystem::Land(AWeaponBase& Weapon, bool bStung)

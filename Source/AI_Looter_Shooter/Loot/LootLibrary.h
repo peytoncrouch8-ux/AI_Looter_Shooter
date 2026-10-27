@@ -69,6 +69,7 @@ public:
 	 * curse, if any, from that seed: RollDroppedWeapon). KillAmmo,
 	 * when set, is the ammo class of the gun that made the kill: each box leans toward it (the table's KillWeaponAmmoBias).
 	 * Without bWeapons the guns aren't drawn at all, so the ammo is what the same stream would have dropped with them.
+	 * Level also caps a legendary in the early areas (LegendaryCapFor).
 	 */
 	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random,
 		TOptional<EAmmoType> KillAmmo = {}, bool bWeapons = true);
@@ -84,9 +85,28 @@ public:
 
 	/**
 	 * RollLoot's second half, drawn right after RollAmmo: the guns one kill drops (whether any, how many, which and how
-	 * rare), without rolling their stats. Cheap enough to simulate a million kills (LootOdds).
+	 * rare), without rolling their stats. Cheap enough to simulate a million kills (LootOdds). Level: the guns' level, which
+	 * caps a legendary in the early areas (LegendaryCapFor); NoLevel leaves the odds as the table has them.
 	 */
-	static TArray<FLootWeaponPick> RollWeaponPicks(const ULootTable* LootTable, float ExtraLuck, FRandomStream& Random);
+	static TArray<FLootWeaponPick> RollWeaponPicks(const ULootTable* LootTable, float ExtraLuck, FRandomStream& Random, int32 Level = 0);
+
+	/** A Level for RollWeaponPicks and LootOdds that names no area: the table's own odds (the tests' tables, the old odds). */
+	static constexpr int32 NoLevel = 0;
+
+	/**
+	 * The most a legendary's share of each gun may be, from LootTable at Level (1: no cap). The user's call (2026-10-27,
+	 * "Rarer, bosses still drop"): guns of level 1 to Looter.Loot.EarlyLegendary.MaxLevel (8: Ransom's Rest's creatures, 1-6
+	 * before their ranks' levels and 8 at most with them, and its chests, kept in its band; the Lily starts at 9) are legendary
+	 * at most Looter.Loot.EarlyLegendary.Share of the time (1 in 300: a Regular kill 0.1%, a Strongbox 0.67%); a table that
+	 * keeps its odds (ULootTable::bKeepsLegendaryOdds: Soulfed, bosses, bounties) and every later level are never capped.
+	 */
+	static float LegendaryCapFor(const ULootTable* LootTable, int32 Level);
+
+	/**
+	 * Table itself when it already keeps its legendary odds, else a transient copy of it that does (a bounty's mark carries
+	 * its rank's table: the board's fight swaps it for this one so a mark pays as a boss does). Outer: the copy's owner.
+	 */
+	static ULootTable* KeepingLegendaryOdds(ULootTable* Table, UObject* Outer);
 
 	/**
 	 * Rounds in one ammo pickup from the table: a random amount from its AmmoAmountMin to AmmoAmountMax, both included,

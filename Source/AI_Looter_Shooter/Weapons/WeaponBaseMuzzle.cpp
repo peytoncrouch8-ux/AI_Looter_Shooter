@@ -44,6 +44,37 @@ namespace
 		const FVector Ray = (Point - Eye).GetSafeNormal();
 		return FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(static_cast<float>(FVector::DotProduct(Ray, Axis)), -1.f, 1.f)));
 	}
+
+	// Every gun spawned (a dropped legendary too) looked these up by path; found once, kept (a legendary's landing hitched,
+	// the playtest of 2026-10-27).
+	UMaterialInterface* MuzzleMaterial()
+	{
+		static TWeakObjectPtr<UMaterialInterface> Cached;
+		if (!Cached.IsValid())
+		{
+			UMaterialInterface* Found = LoadObject<UMaterialInterface>(nullptr, MuzzleMaterialPath);
+			if (!Found)
+			{
+				Found = LoadObject<UMaterialInterface>(nullptr, MuzzleGlowFallbackPath);
+			}
+			if (!Found)
+			{
+				Found = LoadObject<UMaterialInterface>(nullptr, MuzzleEnvironmentGlowPath);
+			}
+			Cached = Found;
+		}
+		return Cached.Get();
+	}
+
+	UStaticMesh* FlashPlane()
+	{
+		static TWeakObjectPtr<UStaticMesh> Cached;
+		if (!Cached.IsValid())
+		{
+			Cached = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+		}
+		return Cached.Get();
+	}
 }
 
 void AWeaponBase::SetupMuzzleFlash()
@@ -64,17 +95,8 @@ void AWeaponBase::SetupMuzzleFlash()
 	MuzzleLight->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
 	MuzzleLight->SetRelativeLocation(Offset + FVector(10.f, 0.f, 0.f));
 
-	UMaterialInterface* Glow = LoadObject<UMaterialInterface>(nullptr, MuzzleMaterialPath);
-	if (!Glow)
-	{
-		Glow = LoadObject<UMaterialInterface>(nullptr, MuzzleGlowFallbackPath);
-	}
-	if (!Glow)
-	{
-		Glow = LoadObject<UMaterialInterface>(nullptr, MuzzleEnvironmentGlowPath);
-	}
-	MuzzleFlash->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
-	MuzzleFlash->SetMaterial(0, Glow);
+	MuzzleFlash->SetStaticMesh(FlashPlane());
+	MuzzleFlash->SetMaterial(0, MuzzleMaterial());
 	MuzzleFlash->ClearInstances();
 	MuzzleFlash->SetNumCustomDataFloats(FlashFloats);
 

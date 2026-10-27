@@ -72,7 +72,8 @@ namespace LooterLoot
  *  - Ammo: a few pickups, each of a random ammo class (weighted by AmmoTypes), leaning toward the class of the gun
  *    that made the kill (KillWeaponAmmoBias), each holding AmmoAmountMin to AmmoAmountMax rounds.
  *  - Weapons: only WeaponDropChance of kills drop one. Its rarity comes from the weapon's own rarity table
- *    (Common most often, Legendary least), shifted up by Luck.
+ *    (Common most often, Legendary least), shifted up by Luck; in the early areas a legendary is capped
+ *    (bKeepsLegendaryOdds).
  *
  * A loot chest's table drops a fixed amount of ammo per pickup instead: see UseChestAmmoAmount.
  */
@@ -103,6 +104,15 @@ public:
 	/** Shifts rarity odds upward. 0 = the weapon's own odds, 1 = each tier above Common is twice as likely per tier. Bosses want 1+. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Weapons", meta = (ClampMin = "0"))
 	float Luck = 0.f;
+
+	/**
+	 * Keeps its guns' own legendary odds in the early areas: a Soulfed monster's and a boss's table (create_rank_assets.py
+	 * sets it), a bounty's. Any other table rolled at an early level (Ransom's Rest's) gives a legendary at most
+	 * Looter.Loot.EarlyLegendary.Share of its guns (ULootLibrary::LegendaryCapFor; the user, 2026-10-27: "Rarer, bosses still
+	 * drop"). Later areas give every table its full odds.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Weapons")
+	bool bKeepsLegendaryOdds = false;
 
 	/**
 	 * Some of the guns it drops come as wards instead (SHIELD, 2026-10-22: the weapon-drop share split): each gun it rolls is

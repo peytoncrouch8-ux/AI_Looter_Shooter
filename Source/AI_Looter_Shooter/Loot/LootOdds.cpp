@@ -1,13 +1,18 @@
 #include "Loot/LootOdds.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
+#include "Affixes/WeaponRollLibrary.h"
 #include "Weapons/WeaponDefinition.h"
 
 namespace
 {
-	/** Each rarity's chance for one gun of this kind at this luck: its weights, tier n times (1 + luck)^n (RollRarityWith). */
-	void RarityChances(const UWeaponDefinition& Definition, float Luck, double (&OutChances)[LootOdds::NumRarities])
+	/**
+	 * Each rarity's chance for one gun of this kind at this luck: its weights, tier n times (1 + luck)^n, a legendary held
+	 * to LegendaryCap of it (RollRarityWith).
+	 */
+	void RarityChances(const UWeaponDefinition& Definition, float Luck, float LegendaryCap, double (&OutChances)[LootOdds::NumRarities])
 	{
+		constexpr int32 Top = LootOdds::NumRarities - 1;
 		double Total = 0.0;
 		for (int32 Tier = 0; Tier < LootOdds::NumRarities; ++Tier)
 		{
@@ -15,6 +20,9 @@ namespace
 			OutChances[Tier] = Definition.GetRarityInfo(static_cast<EWeaponRarity>(Tier)).Weight * TierScale;
 			Total += OutChances[Tier];
 		}
+		const double Others = Total - OutChances[Top];
+		OutChances[Top] = UWeaponRollLibrary::CapLegendaryWeight(OutChances[Top], Others, LegendaryCap);
+		Total = Others + OutChances[Top];
 		for (int32 Tier = 0; Tier < LootOdds::NumRarities; ++Tier)
 		{
 			// No weights at all rolls Common, as RollRarityWith does.
@@ -23,7 +31,7 @@ namespace
 	}
 }
 
-LootOdds::FExpected LootOdds::Expected(const ULootTable* LootTable, float ExtraLuck)
+LootOdds::FExpected LootOdds::Expected(const ULootTable* LootTable, float ExtraLuck, int32 Level)
 {
 	FExpected Result;
 	if (!LootTable)
@@ -36,7 +44,8 @@ LootOdds::FExpected LootOdds::Expected(const ULootTable* LootTable, float ExtraL
 	const int32 MaxAmmo = FMath::Max(LootTable->MaxAmmoDrops, MinAmmo);
 	Result.AmmoPickupsPerKill = AmmoChance * (MinAmmo + MaxAmmo) * 0.5;
 
-	// Each gun is a kind picked by weight, then a rarity from that kind's own odds shifted by the luck.
+	// Each gun is a kind picked by weight, then a rarity from that kind's own odds shifted by the luck (and capped early).
+	const float LegendaryCap = ULootLibrary::LegendaryCapFor(LootTable, Level);
 	double TotalWeight = 0.0;
 	for (const FLootTableEntry& Entry : LootTable->Entries)
 	{
@@ -53,7 +62,7 @@ LootOdds::FExpected LootOdds::Expected(const ULootTable* LootTable, float ExtraL
 			continue;
 		}
 		double Chances[NumRarities];
-		RarityChances(*Entry.Weapon, LootTable->Luck + ExtraLuck, Chances);
+		RarityChances(*Entry.Weapon, LootTable->Luck + ExtraLuck, LegendaryCap, Chances);
 		for (int32 Tier = 0; Tier < NumRarities; ++Tier)
 		{
 			Result.RarityShares[Tier] += Chances[Tier] * Entry.Weight / TotalWeight;
@@ -79,7 +88,7 @@ LootOdds::FExpected LootOdds::Expected(const ULootTable* LootTable, float ExtraL
 	return Result;
 }
 
-LootOdds::FTally LootOdds::Simulate(const ULootTable* LootTable, int32 Kills, int32 Seed, float ExtraLuck)
+LootOdds::FTally LootOdds::Simulate(const ULootTable* LootTable, int32 Kills, int32 Seed, float ExtraLuck, int32 Level)
 {
 	FTally Tally;
 	FRandomStream Random(Seed);
@@ -88,7 +97,7 @@ LootOdds::FTally LootOdds::Simulate(const ULootTable* LootTable, int32 Kills, in
 	{
 		// The ammo first and then the guns, as a real kill draws them (ULootLibrary::RollLoot).
 		const TArray<FAmmoDrop> Ammo = ULootLibrary::RollAmmo(LootTable, Random);
-		const TArray<FLootWeaponPick> Picks = ULootLibrary::RollWeaponPicks(LootTable, ExtraLuck, Random);
+		const TArray<FLootWeaponPick> Picks = ULootLibrary::RollWeaponPicks(LootTable, ExtraLuck, Random, Level);
 		++Tally.Kills;
 		for (const FAmmoDrop& Drop : Ammo)
 		{

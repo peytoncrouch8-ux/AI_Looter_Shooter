@@ -26,10 +26,10 @@ enum class EBossShrineState : uint8
  * quit"), apart from the world so the tests read them:
  *  - the stone appears once its boss has been beaten (the first defeat), and rises beside the arena the first time the player
  *    comes near it after that, once no scene is playing and the boss is gone;
- *  - its boss can be called back while it isn't out there, five minutes of play after its last death, or at once when the
- *    session has been loaded since that death (a Save & Quit, then Continue);
- *  - a lair's boss away for this visit (the Gravemother's twenty-minute rule) comes back on its own as a level loaded from the
- *    session begins after such a Save & Quit.
+ *  - its boss can be called back while it isn't out there, five minutes of play after its own last death. Each stone counts
+ *    from its own boss's death in the session's time played (which a save keeps), so a Save & Quit and Continue never readies
+ *    a stone early, nor the others with it (the user, 2026-10-27: "vigil stones seem to be linked, each one should have its
+ *    own countdown"; this replaced the 10-12 "or at once after a Save & Quit").
  */
 namespace BossShrineRules
 {
@@ -52,9 +52,6 @@ namespace BossShrineRules
 		double DefeatedAt = -1.0;
 		/** The session's time played now. */
 		double PlayedNow = 0.0;
-		/** The session's loads then and now (ULooterSessionSave::SessionLoads). */
-		int32 LoadsAtDefeat = 0;
-		int32 LoadsNow = 0;
 	};
 
 	struct FVerdict
@@ -66,17 +63,8 @@ namespace BossShrineRules
 
 	AI_LOOTER_SHOOTER_API FVerdict Evaluate(const FInputs& In);
 
-	/** The session has been loaded from its slot since a death in load LoadsAtDefeat: a Save & Quit came between. */
-	AI_LOOTER_SHOOTER_API bool IsLoadedSince(int32 LoadsAtDefeat, int32 LoadsNow);
-
 	/** Play left before a boss beaten at DefeatedAt can be called back at PlayedNow (0 once it can, or when not kept). */
 	AI_LOOTER_SHOOTER_API double SecondsLeft(double DefeatedAt, double PlayedNow);
-
-	/**
-	 * Whether a lair's boss away for this visit (bAway: beaten too lately for its own return) comes back as the level begins:
-	 * the session was loaded since its death, or its death wasn't kept by the stone (a save from before the stones).
-	 */
-	AI_LOOTER_SHOOTER_API bool ComesBackOnLoad(bool bAway, double DefeatedAt, int32 LoadsAtDefeat, int32 LoadsNow);
 
 	/**
 	 * Whether the stone rises now: its boss beaten, the stone not risen yet, no scene playing, the boss not out there,
@@ -93,9 +81,9 @@ namespace BossShrineRules
 	AI_LOOTER_SHOOTER_API FText StatusText(EBossShrineState State, const FText& BossName, double SecondsLeft);
 
 	/**
-	 * When it was last laid to rest, for people: the clock ("Today 14:32"), and how much play ago when it was in this load
-	 * ("Today 14:32, 3 min ago"); "Before the stones kept count" when not kept.
+	 * When it was last laid to rest, for people: the clock ("Today 14:32") and how much play ago ("Today 14:32, 3 min of play
+	 * ago"; the time played is kept through a save, so it reads the same after a Save & Quit); "Before the stones kept count"
+	 * when not kept.
 	 */
-	AI_LOOTER_SHOOTER_API FText LastKillText(double DefeatedAt, double PlayedNow, const FDateTime& DefeatedOn, const FDateTime& Now,
-		bool bThisLoad);
+	AI_LOOTER_SHOOTER_API FText LastKillText(double DefeatedAt, double PlayedNow, const FDateTime& DefeatedOn, const FDateTime& Now);
 }

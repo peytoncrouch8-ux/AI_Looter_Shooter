@@ -1,6 +1,7 @@
 // USessionSubsystem: what the vigil stones (World/BossShrine) keep of their bosses in the session: each one's last defeat,
-// for its call back five minutes of play after it, or at once once the session has been loaded again (a Save & Quit since,
-// counted by ULooterSessionSave::SessionLoads), and whether its stone has risen.
+// for its call back five minutes of play after it (each stone counts its own boss's, through a Save & Quit too: the time
+// played is saved), and whether its stone has risen. The session's load count and the record's LoadsAtDefeat are still kept
+// (a save's format, diagnostics) but no rule reads them since 2026-10-27.
 
 #include "Session/SessionSubsystem.h"
 #include "AI_Looter_Shooter.h"

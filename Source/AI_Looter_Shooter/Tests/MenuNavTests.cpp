@@ -5,6 +5,7 @@
 #include "UI/Menus/MainMenuWidget.h"
 #include "UI/Menus/MenuNav.h"
 #include "UI/Menus/MenuNavigator.h"
+#include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/Style/LooterButton.h"
@@ -304,8 +305,8 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The D-pad is the menu's"), Menu->HandleNavKey(EKeys::Gamepad_DPad_Down));
 	TestTrue(TEXT("Still on Resume, now lit"), Menu->GetFocusedWidget() == Menu->GetResumeButton() && Menu->IsFocusLookShown() && Menu->GetResumeButton()->IsFocusLit());
 	const FString PadPrompts = PromptsText(Menu->GetPrompts());
-	TestTrue(TEXT("Gamepad prompts: A Select, LB / RB Sections, B Resume"),
-		PadPrompts.StartsWith(TEXT("A Select")) && PadPrompts.Contains(TEXT("LB / RB Sections")) && PadPrompts.Contains(TEXT("B Resume")));
+	TestTrue(TEXT("Gamepad prompts: A Select, LB / RB Tabs, B Resume"),
+		PadPrompts.StartsWith(TEXT("A Select")) && PadPrompts.Contains(TEXT("LB / RB Tabs")) && PadPrompts.Contains(TEXT("B Resume")));
 	TestTrue(TEXT("Up from Resume: it stays (the list doesn't wrap)"), Menu->HandleNavKey(EKeys::Gamepad_DPad_Up) && Menu->GetFocusedWidget() == Menu->GetResumeButton());
 
 	// Down the list in order: the quality presets, motion blur, the field of view.
@@ -358,7 +359,7 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	HoldFor(*Menu, 1.f);
 	TestNearlyEqual(TEXT("...with nothing repeating after"), FieldOfView->GetValue(), LetGo, 1e-3f);
 
-	// The bumpers turn the sections: Graphics, Audio, Interface; the minimap's size two stops into Interface.
+	// The bumpers turn the tabs: Graphics (on show), Audio, Interface; the minimap's size two stops into Interface.
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Up);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Up);
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Up);
@@ -366,13 +367,14 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Up);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Up);
 	TestTrue(TEXT("Back up to Resume"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
-	Menu->HandleNavKey(EKeys::Gamepad_RightShoulder);
-	TestTrue(TEXT("RB: Graphics, its quality presets"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionQuality);
+	TestEqual(TEXT("...on the Graphics tab"), Menu->GetPage(), static_cast<int32>(SettingsMenu::ESettingsPage::Graphics));
 	Menu->HandleNavKey(EKeys::Gamepad_RightShoulder);
 	const UWidget* Master = Menu->GetFocusedWidget();
-	TestTrue(TEXT("RB: Audio, its first volume slider"), Cast<USlider>(Master) && Master != FieldOfView);
+	TestTrue(TEXT("RB: the Audio tab, its first volume slider"), Cast<USlider>(Master) && Master != FieldOfView
+		&& Menu->GetPage() == static_cast<int32>(SettingsMenu::ESettingsPage::Audio));
 	Menu->HandleNavKey(EKeys::Gamepad_RightShoulder);
-	TestTrue(TEXT("RB: Interface, a slider (the UI transparency)"), Cast<USlider>(Menu->GetFocusedWidget()) && Menu->GetFocusedWidget() != Master);
+	TestTrue(TEXT("RB: the Interface tab, a slider (the UI transparency)"), Cast<USlider>(Menu->GetFocusedWidget()) && Menu->GetFocusedWidget() != Master
+		&& Menu->GetPage() == static_cast<int32>(SettingsMenu::ESettingsPage::Interface));
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("Down: the minimap's switch"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionMinimapOn);
@@ -380,7 +382,7 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("Down: the minimap's size"), Menu->GetFocusedWidget() == Menu->GetMinimapSizeSlider());
 	Menu->HandleNavKey(EKeys::Gamepad_LeftShoulder);
-	TestTrue(TEXT("LB: back to the start of Audio"), Menu->GetFocusedWidget() == Master);
+	TestTrue(TEXT("LB: back to the start of the Audio tab"), Menu->GetFocusedWidget() == Master);
 
 	// The left stick moves like the D-pad, and its own direction keys never count twice.
 	Menu->HandleNavStick(FVector2D(0.f, -0.9f));
@@ -398,12 +400,13 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Under the mouse: no focus look"), Menu->IsFocusLookShown());
 	Menu->HandleNavKey(EKeys::Down);
 	TestTrue(TEXT("An arrow key: the look is back where the focus was"), Menu->IsFocusLookShown() && Menu->GetFocusedWidget() == StickedTo);
-	TestTrue(TEXT("...with the keyboard's prompts"), PromptsText(Menu->GetPrompts()).Contains(TEXT("PgUp / PgDn Sections")));
+	TestTrue(TEXT("...with the keyboard's prompts"), PromptsText(Menu->GetPrompts()).Contains(TEXT("PgUp / PgDn Tabs")));
 	Menu->HandleNavKeyUp(EKeys::Down);
 
-	// Back to Resume with the bumpers' wrap and up, then A resumes; B closes from anywhere else.
+	// Opened again: back on Resume and the first tab, then A resumes; B closes from anywhere else.
 	Menu->Open(ESettingsMenuMode::Pause);
 	TestTrue(TEXT("Opened again: back on Resume"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
+	TestEqual(TEXT("...on the Graphics tab"), Menu->GetPage(), static_cast<int32>(SettingsMenu::ESettingsPage::Graphics));
 	TestTrue(TEXT("Enter on Resume closes the menu"), Menu->HandleNavKey(EKeys::Enter) && Closed == 1);
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("B with nothing held closes it"), Menu->HandleNavKey(EKeys::Gamepad_FaceButton_Right) && Closed == 2);

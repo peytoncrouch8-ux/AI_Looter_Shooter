@@ -18,7 +18,7 @@ struct FBossShrineView;
  * a tap of Interact at the stone: its boss's name and level, when it was last laid to rest, how many times it was beaten,
  * what it drops (the same on a call back), and "Call it back". While the boss can't be called the button refuses
  * (the stone's refusal sound) and the panel says why: the countdown to its call back (mm:ss, running by the frame), the
- * boss out there now, or not yet; and the rule under it (five minutes, or at once after a Save & Quit).
+ * boss out there now, or not yet; and the rule under it (five minutes of play, each stone its own).
  *
  * E, Enter or the face button rings the bell; Esc or the other face button closes it; the mouse clicks either. It opens and
  * closes itself (the stone asks it to: OpenFor), holding the keyboard and showing the mouse while it's up, and closes on its

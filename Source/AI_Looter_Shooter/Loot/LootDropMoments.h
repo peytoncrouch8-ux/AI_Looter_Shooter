@@ -7,9 +7,11 @@
  * How a gun's drop plays out by its rarity (Phase 12.3: bigger drop moments; ULootFanfareSubsystem plays it, AWeaponBase's
  * beam takes its height from it). The rules: a taller beam in the rarity's colour each tier up; Rare and up a stinger
  * (Loot.Drop.<Rarity>) as it lands; Epic and up a spin and a ring of light along the ground as it lands; a Legendary's
- * stinger the moment it drops (felt before it's seen), a 0.25 s slow-down of the world then (never inside another slow:
- * a boss's death, Sundown), and as it lands a column of light seen from 60 m, its name popping up over it, motes rising,
- * and Loot.Drop.Legendary.Land. No lights (Medium's rule). Every number a Looter.Loot.Drop.* cvar (LootDropMoments.cpp).
+ * stinger the moment it drops (felt before it's seen), and as it lands its burst (FLegendaryBurst: the user, 2026-10-27,
+ * "There should be a galactic explosion instead of a game stutter"), a column of light seen from 60 m, its name popping up
+ * over it, motes rising, and Loot.Drop.Legendary.Land. The world's clock is never touched (the 0.25 s slow at 0.3 the drop
+ * had read to the user as the game stuttering). No lights (Medium's rule). Every number a Looter.Loot.Drop.* cvar
+ * (LootDropMoments.cpp).
  */
 struct AI_LOOTER_SHOOTER_API FDropMoment
 {
@@ -34,9 +36,8 @@ struct AI_LOOTER_SHOOTER_API FDropMoment
 	float RingRadius = 0.f;
 	float RingSeconds = 0.f;
 
-	/** The world slowed to SlowDilation for SlowSeconds of real time the moment it drops. 0 seconds: none. */
-	float SlowSeconds = 0.f;
-	float SlowDilation = 1.f;
+	/** Its burst as it lands (a Legendary's: LootDropMoments::Burst has its numbers). */
+	bool bBurst = false;
 
 	/** A column of light over it once it lands (as long as it lies there): cm tall, cm round, glow. 0 tall: none. */
 	float ColumnHeight = 0.f;
@@ -50,6 +51,63 @@ struct AI_LOOTER_SHOOTER_API FDropMoment
 	int32 Motes = 0;
 };
 
+/**
+ * A Legendary's landing burst, in its colour, all code-drawn light (FWeaponFX: shapes and streaks, no lights, nothing
+ * Nanite), read from 40 m: a white crack and a star of its colour over it, a glowing core, two rings racing out over the
+ * ground and a third tilted like a galaxy's disc, a shock facing the eye, and star sparks: spiral arms of them swirling out
+ * round it and a fountain of them thrown up and falling (ULootFanfareSubsystem draws the sparks each frame: a short trail
+ * and a twinkling head, never thinner on screen than SparkMinAngle). Sizes in cm and seconds; every one a
+ * Looter.Loot.Drop.Burst.* cvar.
+ */
+struct AI_LOOTER_SHOOTER_API FLegendaryBurst
+{
+	/** Every size times this (0: no burst), every strength times Glow; its heart this high over the ground. */
+	float Scale = 1.f;
+	float Glow = 1.f;
+	float Lift = 120.f;
+
+	/** The crack: a white star this wide, gone in this long. Then a star of its colour, wider and slower. */
+	float FlashSize = 700.f;
+	float FlashSeconds = 0.16f;
+	float StarSize = 1100.f;
+	float StarSeconds = 0.4f;
+
+	/** A ball of its light at the heart, blooming to this size and cooling over this long. */
+	float CoreSize = 420.f;
+	float CoreSeconds = 0.8f;
+
+	/** The rings over the ground: the first fast, the second wider and slower. */
+	float RingReach = 1400.f;
+	float RingSeconds = 0.9f;
+	float OuterReach = 2200.f;
+	float OuterSeconds = 1.5f;
+
+	/** The galaxy's disc: a ring tilted this far off the ground, and the shock in the air facing the eye. */
+	float TiltReach = 900.f;
+	float TiltSeconds = 0.75f;
+	float TiltDegrees = 25.f;
+	float ShockReach = 1000.f;
+	float ShockSeconds = 0.3f;
+
+	/** The spiral arms: how many, sparks in each, how far they swirl out, how far round they wind (turns), over how long. */
+	int32 Arms = 3;
+	int32 ArmSparks = 16;
+	float ArmReach = 1300.f;
+	float ArmTurns = 0.35f;
+	float ArmSeconds = 1.4f;
+
+	/** The fountain: sparks thrown up this fast (cm/s), falling back over this long. */
+	int32 Fountain = 24;
+	float FountainSpeed = 1500.f;
+	float FountainSeconds = 1.6f;
+
+	/** A spark: its trail's width (cm) and length (s of its flight), its head's size, and the least it shows (radians). */
+	float SparkWidth = 6.f;
+	float SparkTrail = 0.08f;
+	float SparkHead = 18.f;
+	float SparkMinAngle = 0.0025f;
+};
+
 namespace LootDropMoments
 {
 	/** The moment of a gun of Rarity, from the live cvars. */
@@ -58,8 +116,9 @@ namespace LootDropMoments
 	/** The moment of a gun of Rarity at the cvars' defaults (what the tests read). */
 	AI_LOOTER_SHOOTER_API FDropMoment Defaults(EWeaponRarity Rarity);
 
-	/** Whether a drop may slow the world now: only from full speed (CurrentDilation 1), never on top of another slow. */
-	AI_LOOTER_SHOOTER_API bool MaySlowWorld(float CurrentDilation);
+	/** A Legendary's landing burst, from the live cvars; and at their defaults. */
+	AI_LOOTER_SHOOTER_API FLegendaryBurst Burst();
+	AI_LOOTER_SHOOTER_API FLegendaryBurst DefaultBurst();
 
 	/** The Legendary's landing cue. */
 	inline constexpr const TCHAR* LegendaryLandCue = TEXT("Loot.Drop.Legendary.Land");

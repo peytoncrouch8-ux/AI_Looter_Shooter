@@ -6,6 +6,7 @@
 #include "Story/CaptionSubsystem.h"
 #include "Story/StoryLine.h"
 #include "UI/HUD/HudCaptionWidget.h"
+#include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/Style/LooterButton.h"
@@ -109,6 +110,10 @@ bool FSubtitlesRowTest::RunTest(const FString& Parameters)
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("The list starts at the quality presets"), SubtitleTestActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionQuality);
+	// Subtitles are on the Interface tab, two turns of RB from Graphics.
+	Menu->HandleNavKey(EKeys::Gamepad_RightShoulder);
+	Menu->HandleNavKey(EKeys::Gamepad_RightShoulder);
+	TestEqual(TEXT("RB twice: the Interface tab"), Menu->GetPage(), static_cast<int32>(SettingsMenu::ESettingsPage::Interface));
 	FName Before = NAME_None;
 	for (int32 Step = 0; Step < 40 && SubtitleTestActionOf(Menu->GetFocusedWidget()) != SettingsMenu::ActionSubtitlesOn; ++Step)
 	{
@@ -122,10 +127,10 @@ bool FSubtitlesRowTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("...right after the Interface section's control hints"), Before == SettingsMenu::ActionHintsOn);
 
-	// It is the last stop of Interface: the next one is Controls' look sensitivity slider; and back up lands on the hints.
+	// It is the last stop of the Interface tab: the next one is the footer's Back (the tab's last row), and back up lands on it.
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Down);
-	TestTrue(TEXT("Down: the Controls section's first slider"), Cast<USlider>(Menu->GetFocusedWidget()) != nullptr);
+	TestTrue(TEXT("Down: the footer's Back"), SubtitleTestActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionClose);
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Up);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Up);
 	TestTrue(TEXT("Up: back on the subtitles"), SubtitleTestActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionSubtitlesOn);

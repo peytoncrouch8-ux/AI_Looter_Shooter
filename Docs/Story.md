@@ -306,17 +306,20 @@ Legendary weapons can drop from anything that can die: rarer from basic creature
 
 The user's rule that Common is the most likely rarity and each tier up is rarer holds at every rank. Luck above 1.4 would make Uncommon guns more likely than Common ones (and Epic passes Common near 1.5), so the tables stop at Luck 1.3 and give the top ranks more guns instead.
 
+**Rarer early** (the user, 2026-10-27: legendaries were "super easy to get"; their call "Rarer, bosses still drop"): a gun of level 8 or under (Ransom's Rest: its creatures 1–6 before their ranks' +1/+2 levels, its chests kept in its band; the *Lily* starts at 9) is legendary at most 1 time in 300 (`ULootLibrary::LegendaryCapFor`; cvars `Looter.Loot.EarlyLegendary.Share` 1/300, `.MaxLevel` 8; the weight taken off goes to the other rarities in their proportions). Tables that keep their odds everywhere (`ULootTable::bKeepsLegendaryOdds`): Soulfed (the Gravemother, the Foreman) and Boss (Abel), set by `create_rank_assets.py`, and a bounty's (its mark's table copied by `ULootLibrary::KeepingLegendaryOdds`, its reward's flagged). From level 9 every table has the odds in the last column. Mission rewards and set rarities aren't rolled and don't change.
+
 **Five tiers** for every regular enemy (the user's ask and approval, 2026-10-20; the design with every number: `Saved/Tiers/DESIGN.md`, kept in `UCreatureRankSettings` for tuning): Regular, Restless, Gravebound, Hallowed, Ethereal, each harder, better paid and rarer; Soulfed monsters and bosses stand above them. Code names stay Basic/Rare/Epic; Hallowed and Ethereal were appended to `ECreatureRank` after Boss (saved numbers keep their meaning); order only through `LooterRanks` (`IsAbove`, `Order`).
 
-| Rank | Word and tag | Where it comes from | Stats, on top of level | Loot table | Legendary per kill |
+| Rank | Word and tag | Where it comes from | Stats, on top of level | Loot table | Legendary per kill: Ransom's Rest (level 8 and under) / later |
 |---|---|---|---|---|---|
-| Basic (Regular) | No word; the name tag as today | Default | ×1 | `DA_LootTable_Default` (unchanged, keeps its name): a gun on 30% of kills, 1 gun, Luck 0, ammo 1–2 | 0.3% (1 in 333) |
-| Rare (Restless) | “Restless”, blue (#7CAAFF) | 8% of regular spawns on Ransom's Rest, 12% by the late areas; no cap; plus one placed in most scripted fights | Health ×2.0, defense 10%, damage ×1.15, XP ×2, silver as before the tiers, size ×1.08, +1 level | `DA_LootTable_Rare`: 60%, 1 gun, Luck 0.5, ammo 2–3 | 2.2% (1 in 45) |
-| Epic (Gravebound) | “Gravebound”, purple (#CC7CF4) | 2% → 4%; at most 4 alive per area; plus placed ones | Health ×3.0, defense 20%, damage ×1.3, XP ×3.5, silver as before the tiers, size ×1.15, +1 level, 1 trait | `DA_LootTable_Epic`: 90%, 1 gun, Luck 0.8, ammo 2–4 | 5.5% (1 in 18) |
-| Hallowed | “Hallowed”, saint-gold yellow (#F5C842) | 0.4% (1 in 250) → 1%; at most 2 alive | Health ×3.5, defense 28%, damage ×1.45, XP ×6, silver ×1.6 a Gravebound kill's, size ×1.22, +2 levels, 2 traits | `DA_LootTable_Hallowed`: every kill, 1–2 guns, Luck 1.1, ammo 3–5 | 13.3% (1 in 7.5) |
-| Ethereal | “Ethereal”, red (#FF3B3B) | 0.08% (1 in 1,250) → 0.25% (1 in 400); at most 1 alive | Health ×4.0, defense 35%, damage ×1.6, XP ×9, silver ×2.5 a Gravebound kill's, size ×1.3, +2 levels, 3 traits (Phasing always one) | `DA_LootTable_Ethereal`: every kill, 2 guns, Luck 1.3, ammo 4–6 | 21.3% (1 in 4.7) |
-| Legendary | A name, or “Soulfed”; legendary orange (#FF9900, apart from Hallowed's yellow) | Hand-placed as an area's design names them (Ransom's Rest: the Gravemother and the Foreman); 0.5% of spawns later, at most one random Soulfed alive per area | Health ×12, damage ×1.6, XP ×10, size ×1.4–1.8, +2 levels, a lair and one unique move | `DA_LootTable_Legendary`: every kill, 2 guns, Luck 1.3 | 21.4% (about 1 in 5) |
-| Boss | Orange (#FF9900), plus a boss bar | Story fights | Health set per boss, XP ×20, +1 level | `DA_LootTable_Boss`: every kill, 3 guns, Luck 1.3 | 30.3% (about 1 in 3) |
+| Basic (Regular) | No word; the name tag as today | Default | ×1 | `DA_LootTable_Default` (unchanged, keeps its name): a gun on 30% of kills, 1 gun, Luck 0, ammo 1–2 | 0.1% (1 in 1,000) / 0.3% (1 in 333) |
+| Rare (Restless) | “Restless”, blue (#7CAAFF) | 8% of regular spawns on Ransom's Rest, 12% by the late areas; no cap; plus one placed in most scripted fights | Health ×2.0, defense 10%, damage ×1.15, XP ×2, silver as before the tiers, size ×1.08, +1 level | `DA_LootTable_Rare`: 60%, 1 gun, Luck 0.5, ammo 2–3 | 0.2% (1 in 500) / 2.2% (1 in 45) |
+| Epic (Gravebound) | “Gravebound”, purple (#CC7CF4) | 2% → 4%; at most 4 alive per area; plus placed ones | Health ×3.0, defense 20%, damage ×1.3, XP ×3.5, silver as before the tiers, size ×1.15, +1 level, 1 trait | `DA_LootTable_Epic`: 90%, 1 gun, Luck 0.8, ammo 2–4 | 0.3% (1 in 333) / 5.5% (1 in 18) |
+| Hallowed | “Hallowed”, saint-gold yellow (#F5C842) | 0.4% (1 in 250) → 1%; at most 2 alive | Health ×3.5, defense 28%, damage ×1.45, XP ×6, silver ×1.6 a Gravebound kill's, size ×1.22, +2 levels, 2 traits | `DA_LootTable_Hallowed`: every kill, 1–2 guns, Luck 1.1, ammo 3–5 | 0.5% (1 in 200) / 13.3% (1 in 7.5) |
+| Ethereal | “Ethereal”, red (#FF3B3B) | 0.08% (1 in 1,250) → 0.25% (1 in 400); at most 1 alive | Health ×4.0, defense 35%, damage ×1.6, XP ×9, silver ×2.5 a Gravebound kill's, size ×1.3, +2 levels, 3 traits (Phasing always one) | `DA_LootTable_Ethereal`: every kill, 2 guns, Luck 1.3, ammo 4–6 | 0.67% (1 in 150) / 21.3% (1 in 4.7) |
+| Legendary | A name, or “Soulfed”; legendary orange (#FF9900, apart from Hallowed's yellow) | Hand-placed as an area's design names them (Ransom's Rest: the Gravemother and the Foreman); 0.5% of spawns later, at most one random Soulfed alive per area | Health ×12, damage ×1.6, XP ×10, size ×1.4–1.8, +2 levels, a lair and one unique move | `DA_LootTable_Legendary`: every kill, 2 guns, Luck 1.3, keeps its odds | 21.4% (about 1 in 5) everywhere |
+| Boss | Orange (#FF9900), plus a boss bar | Story fights | Health set per boss, XP ×20, +1 level | `DA_LootTable_Boss`: every kill, 3 guns, Luck 1.3, keeps its odds | 30.3% (about 1 in 3) everywhere |
+| Bounty mark | Its tier's (Gravebound, Hallowed, Ethereal) | The bounty board's fights | Its tier's | Its tier's table, copied to keep its odds | Its tier's later odds everywhere (5.5% / 13.3% / 21.3%) |
 
 - **Defense** takes its share of every hit (bullets, blows, grenades, ember powers: `UHealthComponent`, once); a crit pierces half of it (the user's call). Effective health against a Regular one at the valley's level 4: 2.4, 4.0, 5.5, 7.0 up the tiers (Soulfed about 13.6).
 - **Spawn odds** rise with the area's place in the campaign, read from its creatures' lowest level: 1 (Ransom's Rest) gives the first numbers, 50 and up the late ones, straight between (the Lily, from 9: 8/49 of the way). They roll for placed Basic creatures on arrival and for spawners rolling by area; a roll past a tier's cap of living ones steps down a tier. Areas' `RarePromotionChance`/`EpicPromotionChance` now only switch promotions on (Skyreach off).
@@ -324,7 +327,7 @@ The user's rule that Common is the most likely rarity and each tier up is rarer 
 - **Silver** a tier's kill gives: a Regular kill's × its multiplier on average, dropping more often (`LooterEconomy::ScaledKillOdds`); Soulfed and bosses keep their own.
 - **The tag**: word and name both in the tier's colour. Tier-only colours (the user's call): yellow and red are no gun rarity's; blue and purple happen to match the Rare and Epic beams.
 
-Rarity of each dropped gun at each luck (Common / Uncommon / Rare / Epic / Legendary):
+Rarity of each dropped gun at each luck (Common / Uncommon / Rare / Epic / Legendary), level 9 and up and the tables that keep their odds (on Ransom's Rest the others' Legendary is 0.33% at every luck):
 
 | Luck | Used by | Shares |
 |---|---|---|
@@ -346,10 +349,11 @@ Rarity of each dropped gun at each luck (Common / Uncommon / Rare / Epic / Legen
 - **Tests and tools.**
   - `Looter.Loot.RankOdds` simulates 200,000 kills per rank with a fixed seed: the legendary rate rises up the tiers (and from Soulfed to Boss), sits within 10% of the table, and every rank table's rarity shares fall from Common to Legendary.
   - `Looter.Tiers.*`: the order, defense with and without crits, stats by tier, spawn odds and caps, traits, a save round trip.
-  - `Looter.Loot.SimulateDrops <rank> <kills>` and `Looter.Tier.Odds [kills]` print the counts.
+  - `Looter.Loot.RankOdds` reads the tables' own odds (no level); `Looter.Loot.EarlyLegendary.Rules` (the cap's arithmetic, where it applies, uncapped rolls drawn as before, a bounty's copy) and `.Odds` (every rank and chest kind on Ransom's Rest and later; Soulfed and Boss flagged) the early cap.
+  - `Looter.Loot.SimulateDrops <rank> [kills] [level, 1 by default]` and `Looter.Tier.Odds [kills]` print the counts (level 1: Regular about 0.10%, Restless 0.20%, Gravebound 0.30%, Hallowed 0.50%, Ethereal 0.67%, Soulfed 21.4%, Boss 30.3%; level 9: the later column).
   - The DropOdds, DefaultTable and WeaponRarityOrder tests stay.
 
-**Chests** (in the game since step 26, the user's OK 2026-10-07): a Supply Crate gives 1 gun at Luck 0.5 (3.7% legendary), a Strongbox 2 guns at Luck 1.0 (15.5%), and a saint's Reliquary opens after each Hollow falls.
+**Chests** (in the game since step 26, the user's OK 2026-10-07): a Supply Crate gives 1 gun at Luck 0.5, a Strongbox 2 guns at Luck 1.0, and a saint's Reliquary opens after each Hollow falls. A legendary from one on Ransom's Rest / later: Strongbox 0.67% (1 in 150) / 15.5%, Supply Crate 0.33% / 3.7%, Footlocker 0.12% / 0.73%, Coffin 0.05% / 0.27%, Grave 0.04% / 0.22%, Mailbox 0.03% / 0.08%. A bounty's reward box keeps its odds.
 
 ## Areas
 

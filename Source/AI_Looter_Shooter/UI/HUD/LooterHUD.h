@@ -40,11 +40,11 @@ enum class EInventoryPage : uint8
 };
 
 /**
- * Owns the player HUD, the mission tracker, the captions, inventory screen, the station board (a jetty's or a station's,
- * opened by holding Interact at it), the gunsmith's bench's screen (opened with Interact at a bench) and pause menu (the
- * settings menu over the paused game), plus the always-on menu hotkeys. Set as the HUD Class on the game mode. The gameplay
- * HUD hides while a menu is open (the mission tracker and the captions step aside by themselves). Its pages sound as they
- * open and close (LooterSoundCue::Open, Close; Tab between the inventory's pages).
+ * Owns the player HUD, the mission tracker, the captions, inventory screen (over the paused game), the station board (a
+ * jetty's or a station's, opened by holding Interact at it), the gunsmith's bench's screen (opened with Interact at a bench)
+ * and pause menu (the settings menu over the paused game), plus the always-on menu hotkeys. Set as the HUD Class on the game
+ * mode. The gameplay HUD hides while a menu is open (the mission tracker and the captions step aside by themselves). Its
+ * pages sound as they open and close (LooterSoundCue::Open, Close; Tab between the inventory's pages).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterHUD : public AHUD
@@ -75,6 +75,13 @@ public:
 	void ClosePauseMenu();
 
 	bool IsInventoryOpen() const { return bInventoryOpen; }
+
+	/**
+	 * The game stands still under the pause menu and under the inventory's pages, the map's too (the user's call, 2026-10-27:
+	 * the inventory pauses like the pause menu); the world's screens (a vendor, the bench, a board, the offer card) leave it
+	 * running. LooterHUDPause.cpp.
+	 */
+	static bool PausesGame(bool bPauseMenuIsOpen, bool bInventoryIsOpen);
 
 	/**
 	 * Opens the station board of From (a jetty, a station; null: the level's own) with its words, the mouse on it. False
@@ -186,6 +193,13 @@ private:
 
 	/** Gives input back to the game after closing a menu. */
 	void RestoreGameInput();
+
+	/**
+	 * Pauses the game or lets it run as the open menus want (PausesGame), after one opens or closes. The HUD doesn't tick
+	 * while the game is paused, so pausing puts the gameplay HUD and the world's labels away at once (Tick brings them back
+	 * after). LooterHUDPause.cpp.
+	 */
+	void ApplyGamePause();
 
 	/** A page opening or closing sounds (closing stays quiet while another page takes its place: bQuietClose). */
 	void PlayPageSound(bool bOpening) const;

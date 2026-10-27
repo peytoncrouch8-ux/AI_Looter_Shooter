@@ -14,8 +14,10 @@
 #include "Tests/AutomationCommon.h"
 
 // The bigger drop moments (Looter.Loot.DropMoments.*, Phase 12.3): what each rarity's drop does (taller beams each tier,
-// stingers, an Epic's spin and ring, a Legendary's sting at the drop, slow-down, column, name pop and landing impact), the
-// name pop's motion, and a Legendary dropped and landed in a test level. The rules read the cvars' defaults.
+// stingers, an Epic's spin and ring, a Legendary's sting at the drop, burst, column, name pop and landing impact), the
+// name pop's motion, and a Legendary dropped and landed in a test level: the world never slowed (the user, 2026-10-27: the
+// slow read as a stutter), its burst thrown, its column and name taken from the pools and given back. The rules read the
+// cvars' defaults.
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDropMomentRulesTest, "Looter.Loot.DropMoments.Rules",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -45,15 +47,23 @@ bool FDropMomentRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Epic and up spin as they land"), Epic.SpinRate > 0.f && Legendary.SpinRate > 0.f && Rare.SpinRate == 0.f);
 	TestTrue(TEXT("...and ring the ground, a Legendary's wider"), Epic.RingRadius > 0.f && Legendary.RingRadius > Epic.RingRadius
 		&& Rare.RingRadius == 0.f);
-	TestEqual(TEXT("A Legendary slows the world 0.25 s"), Legendary.SlowSeconds, 0.25f, 0.0001f);
-	TestTrue(TEXT("...to under half speed"), Legendary.SlowDilation > 0.f && Legendary.SlowDilation < 0.5f);
-	TestTrue(TEXT("Nothing else slows it"), Epic.SlowSeconds == 0.f && Rare.SlowSeconds == 0.f);
+	TestTrue(TEXT("A Legendary bursts as it lands, nothing else does"), Legendary.bBurst && !Epic.bBurst && !Rare.bBurst && !Common.bBurst);
 	TestTrue(TEXT("A Legendary's column stands 40 m and more (seen from 60 m)"), Legendary.ColumnHeight >= 4000.f && Legendary.ColumnRadius > 0.f);
 	TestTrue(TEXT("...its name pops up over it"), Legendary.NamePopSeconds > 0.f && Epic.NamePopSeconds == 0.f);
 	TestTrue(TEXT("...and motes rise"), Legendary.Motes > 0 && Epic.Motes == 0);
 
-	TestTrue(TEXT("A drop may slow the world from full speed"), LootDropMoments::MaySlowWorld(1.f));
-	TestFalse(TEXT("...never inside another slow (Sundown, a boss's death)"), LootDropMoments::MaySlowWorld(0.25f));
+	// The burst: big enough to read from 40 m (rings across 10 m and more, a star metres wide, sparks kept two pixels wide),
+	// a galaxy's arms of star sparks and a fountain, short (under 2 s), in budget (a few hundred sparks at most).
+	const FLegendaryBurst Burst = LootDropMoments::DefaultBurst();
+	TestTrue(TEXT("The burst is on"), Burst.Scale > 0.f && Burst.Glow > 0.f);
+	TestTrue(TEXT("...its rings run out 10 m and more"), Burst.RingReach >= 1000.f && Burst.OuterReach > Burst.RingReach);
+	TestTrue(TEXT("...its star is metres across"), Burst.StarSize >= 500.f && Burst.FlashSize > 0.f && Burst.CoreSize > 0.f);
+	TestTrue(TEXT("...a tilted ring: the galaxy's disc"), Burst.TiltReach > 0.f && Burst.TiltDegrees > 0.f && Burst.TiltDegrees < 90.f);
+	TestTrue(TEXT("...spiral arms of star sparks, winding"), Burst.Arms >= 2 && Burst.ArmSparks > 0 && Burst.ArmTurns > 0.f && Burst.ArmReach >= 1000.f);
+	TestTrue(TEXT("...a fountain of them"), Burst.Fountain > 0 && Burst.FountainSpeed > 0.f);
+	TestTrue(TEXT("...each spark at least about two pixels at 1080p"), Burst.SparkMinAngle >= 0.002f);
+	TestTrue(TEXT("...all of it over in under 2 s"), FMath::Max3(Burst.ArmSeconds * 1.15f, Burst.FountainSeconds * 1.15f, Burst.OuterSeconds) < 2.f);
+	TestTrue(TEXT("...a few hundred sparks at most"), Burst.Arms * Burst.ArmSparks + Burst.Fountain <= 200);
 	return true;
 }
 
@@ -101,14 +111,13 @@ bool FDropMomentLegendaryTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("It lies as loot"), Gun->IsPickup());
 	const FDropMoment Moment = LootDropMoments::Defaults(EWeaponRarity::Legendary);
 
-	ULootFanfareSubsystem::ExpectLanding(Gun);
-	TestTrue(TEXT("Its drop slows the world"), Fanfare->IsSlowingWorld());
-	TestEqual(TEXT("...to its speed"), UGameplayStatics::GetGlobalTimeDilation(World), Moment.SlowDilation, 0.001f);
+	// The pools, as play beginning builds them (a test level doesn't begin play).
+	Fanfare->WarmPools();
+	TestEqual(TEXT("Columns ready before anything lands"), Fanfare->NumPooledColumns(), ULootFanfareSubsystem::PoolSize);
+	TestEqual(TEXT("...and name pops"), Fanfare->NumPooledNamePops(), ULootFanfareSubsystem::PoolSize);
 
-	// Its ticks come slowed; a quarter second of real time ends it, the world back to full speed.
-	Fanfare->Advance(Moment.SlowSeconds * Moment.SlowDilation * 1.05f);
-	TestFalse(TEXT("The slow-down ends after its time"), Fanfare->IsSlowingWorld());
-	TestEqual(TEXT("...the world back to full speed"), UGameplayStatics::GetGlobalTimeDilation(World), 1.f, 0.001f);
+	ULootFanfareSubsystem::ExpectLanding(Gun);
+	TestEqual(TEXT("Its drop never slows the world (it read as a stutter)"), UGameplayStatics::GetGlobalTimeDilation(World), 1.f, 0.001f);
 
 	// Landed (its toss is done or it never had one): the shows begin.
 	for (int32 Frame = 0; Frame < 3 && Fanfare->NumExpected() > 0; ++Frame)
@@ -120,34 +129,51 @@ bool FDropMomentLegendaryTest::RunTest(const FString& Parameters)
 		Fanfare->Advance(ULootFanfareSubsystem::LandingTimeout);
 	}
 	TestEqual(TEXT("It landed"), Fanfare->NumExpected(), 0);
+	TestEqual(TEXT("...the world still at full speed"), UGameplayStatics::GetGlobalTimeDilation(World), 1.f, 0.001f);
 	TestEqual(TEXT("...a column stands over it"), Fanfare->NumColumns(), 1);
 	TestEqual(TEXT("...its name pops up"), Fanfare->NumNamePops(), 1);
+	TestEqual(TEXT("...both from the pools, none made"), Fanfare->NumPooledColumns() + Fanfare->NumPooledNamePops(),
+		2 * ULootFanfareSubsystem::PoolSize - 2);
 	TestEqual(TEXT("...it spins"), Fanfare->NumSpinning(), 1);
 	TestEqual(TEXT("...a ring runs out"), Fanfare->NumRings(), 1);
+	const FLegendaryBurst Burst = LootDropMoments::Burst();
+	TestTrue(FString::Printf(TEXT("...it bursts: %d star sparks flying"), Fanfare->NumBurstSparks()), Fanfare->NumBurstSparks() > 0
+		|| Burst.Scale <= 0.f);
 
 	Fanfare->Advance(FMath::Max(Moment.SpinSeconds, Moment.RingSeconds) + 0.1f);
 	TestEqual(TEXT("The spin settles"), Fanfare->NumSpinning(), 0);
 	TestEqual(TEXT("The ring fades"), Fanfare->NumRings(), 0);
 	TestEqual(TEXT("The column stands while it lies there"), Fanfare->NumColumns(), 1);
+	Fanfare->Advance(FMath::Max(Burst.ArmSeconds, Burst.FountainSeconds) * 1.2f);
+	TestEqual(TEXT("The burst's sparks are gone"), Fanfare->NumBurstSparks(), 0);
 
-	// Taken: its column and name go with it.
+	// Taken: its column and name go back to the pools, hidden.
 	Gun->Destroy();
 	Fanfare->Advance(1.f / 30.f);
 	TestEqual(TEXT("Taken, its column goes"), Fanfare->NumColumns(), 0);
 	TestEqual(TEXT("...and its name"), Fanfare->NumNamePops(), 0);
+	TestEqual(TEXT("...both back in the pools"), Fanfare->NumPooledColumns() + Fanfare->NumPooledNamePops(), 2 * ULootFanfareSubsystem::PoolSize);
 
-	// Inside another slow (Sundown's quarter speed), a drop leaves the clock alone.
-	UGameplayStatics::SetGlobalTimeDilation(World, 0.25f);
-	AWeaponBase* Second = UWeaponRollLibrary::SpawnWeapon(World, Instance, FTransform(FVector(300.0, 0.0, 50.0)));
-	if (Second)
+	// Three Legendaries lying at once: the pools lend what they have and make the one more.
+	TArray<AWeaponBase*> Shower;
+	for (int32 Index = 0; Index < ULootFanfareSubsystem::PoolSize + 1; ++Index)
 	{
-		Second->OnDropped();
-		ULootFanfareSubsystem::ExpectLanding(Second);
-		TestFalse(TEXT("No slow-down inside another"), Fanfare->IsSlowingWorld());
-		TestEqual(TEXT("...the other's speed kept"), UGameplayStatics::GetGlobalTimeDilation(World), 0.25f, 0.001f);
-		Second->Destroy();
+		if (AWeaponBase* Each = UWeaponRollLibrary::SpawnWeapon(World, Instance, FTransform(FVector(300.0 * (Index + 1), 0.0, 50.0))))
+		{
+			Each->OnDropped();
+			ULootFanfareSubsystem::ExpectLanding(Each);
+			Shower.Add(Each);
+		}
 	}
-	UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
+	Fanfare->Advance(ULootFanfareSubsystem::LandingTimeout);
+	TestEqual(TEXT("A shower of Legendaries: a column over each"), Fanfare->NumColumns(), Shower.Num());
+	for (AWeaponBase* Each : Shower)
+	{
+		Each->Destroy();
+	}
+	Fanfare->Advance(1.f / 30.f);
+	TestEqual(TEXT("...each given back"), Fanfare->NumPooledColumns(), Shower.Num());
+	TestEqual(TEXT("The world never slowed"), UGameplayStatics::GetGlobalTimeDilation(World), 1.f, 0.001f);
 	return true;
 }
 

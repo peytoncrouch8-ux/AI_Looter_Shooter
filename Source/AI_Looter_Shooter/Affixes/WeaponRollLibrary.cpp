@@ -15,7 +15,23 @@ EWeaponRarity UWeaponRollLibrary::RollRarity(const UWeaponDefinition* Definition
 	return RollRarityWith(Definition, Luck, Random);
 }
 
-EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random)
+double UWeaponRollLibrary::CapLegendaryWeight(double Legendary, double Others, float LegendaryCap)
+{
+	if (LegendaryCap >= 1.f || Legendary <= 0.0)
+	{
+		return Legendary;
+	}
+	const double Cap = FMath::Max(static_cast<double>(LegendaryCap), 0.0);
+	const double Total = Legendary + Others;
+	if (Total <= 0.0 || Legendary / Total <= Cap)
+	{
+		return Legendary;
+	}
+	// Share = L / (L + Others) = Cap  =>  L = Cap x Others / (1 - Cap).
+	return Cap * FMath::Max(Others, 0.0) / (1.0 - Cap);
+}
+
+EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random, float LegendaryCap)
 {
 	if (!Definition)
 	{
@@ -23,6 +39,7 @@ EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Defini
 	}
 
 	constexpr int32 NumTiers = static_cast<int32>(EWeaponRarity::Legendary) + 1;
+	constexpr int32 Top = NumTiers - 1;
 	float Weights[NumTiers];
 	float Total = 0.f;
 	for (int32 Tier = 0; Tier < NumTiers; ++Tier)
@@ -31,6 +48,13 @@ EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Defini
 		Weights[Tier] = Definition->GetRarityInfo(static_cast<EWeaponRarity>(Tier)).Weight * LuckScale;
 		Total += Weights[Tier];
 	}
+	// An early area's cap on a legendary (only then: an uncapped roll draws exactly as it always has, seeded tests too).
+	if (LegendaryCap < 1.f)
+	{
+		const float Others = Total - Weights[Top];
+		Weights[Top] = static_cast<float>(CapLegendaryWeight(Weights[Top], Others, LegendaryCap));
+		Total = Others + Weights[Top];
+	}
 
 	if (Total <= 0.f)
 	{
@@ -38,6 +62,7 @@ EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Defini
 	}
 
 	float Pick = Random.FRand() * Total;
+	int32 LastWeighted = 0;
 	for (int32 Tier = 0; Tier < NumTiers; ++Tier)
 	{
 		Pick -= Weights[Tier];
@@ -45,8 +70,10 @@ EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Defini
 		{
 			return static_cast<EWeaponRarity>(Tier);
 		}
+		LastWeighted = Weights[Tier] > 0.f ? Tier : LastWeighted;
 	}
-	return EWeaponRarity::Legendary;
+	// Float rounding left a sliver: the rarest tier that can come at all (never a legendary the cap took to nothing).
+	return static_cast<EWeaponRarity>(LastWeighted);
 }
 
 FWeaponStats UWeaponRollLibrary::ComputeStats(const UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, int32 Seed)
