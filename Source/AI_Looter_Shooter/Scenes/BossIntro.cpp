@@ -3,6 +3,10 @@
 
 #include "Scenes/BossIntro.h"
 #include "AI_Looter_Shooter.h"
+#include "Bosses/AbelRules.h"
+#include "Bosses/BossComponent.h"
+#include "Creatures/ForemanFight.h"
+#include "Creatures/GravemotherFight.h"
 #include "Session/CampaignRecord.h"
 #include "Story/StoryLineSet.h"
 #include "HAL/IConsoleManager.h"
@@ -87,7 +91,8 @@ namespace
 	FBossIntroScript MakeForeman()
 	{
 		// The stope out of the dark: from the player's eyes, pushing along the drift on his lamp at the fall, the exposure
-		// rising from near black (0-5.0), his mutter as he digs; then close from his side (5.0-9.8) as he turns from the fall
+		// rising from dim (0-5.0: his dark shape and his lamp read from the first frame; -4 EV was black, DEMO 2026-10-27),
+		// his mutter as he digs; then close from his side (5.0-9.8) as he turns from the fall
 		// into his lamp's light, the pick handle up and slammed (his own entrance from 5.6: 1.1 s up, the slam, 0.8 s back).
 		FBossIntroScript Script;
 		Script.Seconds = 9.8f;
@@ -99,9 +104,9 @@ namespace
 		Script.Shots = {
 			// His lamp on his bowler sits about 2.2 m up at his 1.5x.
 			Shot(TEXT("Drift"), 0.f, 5.0f, At(OnPlayer, 80.0, 40.0, 30.0), At(OnPlayer, -260.0, 30.0, 10.0),
-				At(OnBoss, 0.0, 0.0, 215.0), At(OnBoss, 0.0, 0.0, 215.0), 56.f, 46.f, false, -4.0f, -1.5f),
+				At(OnBoss, 0.0, 0.0, 215.0), At(OnBoss, 0.0, 0.0, 215.0), 56.f, 46.f, false, -1.25f, -0.5f),
 			Shot(TEXT("Lamp"), 5.0f, Script.Seconds - 5.0f, At(OnBoss, 520.0, 300.0, 150.0), At(OnBoss, 440.0, 250.0, 160.0),
-				At(OnBoss, 0.0, 0.0, 200.0), At(OnBoss, 0.0, 0.0, 175.0), 50.f, 54.f, /*bTrack*/ true, -1.0f, 0.f),
+				At(OnBoss, 0.0, 0.0, 200.0), At(OnBoss, 0.0, 0.0, 175.0), 50.f, 54.f, /*bTrack*/ true, -0.5f, 0.f),
 		};
 		Script.Captions = { { 1.0f, 0 } };
 		return Script;
@@ -110,23 +115,24 @@ namespace
 	FBossIntroScript MakeAbel()
 	{
 		// The burial boards at dusk from over the player's shoulder at the Keeper's Gate, down the deck to him among the
-		// lantern posts with the sun going behind him (0-5.2); then low before him, looking up at him against the sky
-		// (5.2-10.4) as he raises his ghost lantern (his own entrance from 5.6, 1.8 s) and says his fight's first line.
+		// lantern posts with the sun going behind him (0-5.2); then before him at chest height, looking a little up at him
+		// against the sky (5.2-10.4) as he raises his ghost lantern (his own entrance from 5.6, 1.8 s). His fight's first line
+		// is his fight's own, said once as it starts (t=0, 3.4 s): Hob's line follows it. (Clearing it and saying it again on
+		// camera played it twice, DEMO 2026-10-27; the low eye went under the deck, b_abel_9.)
 		FBossIntroScript Script;
 		Script.Seconds = 10.4f;
 		Script.LiveAt = 5.6f;
 		Script.CardAt = 5.8f;
 		Script.CardSeconds = 3.2f;
 		Script.HandBackAt = Script.Seconds - BossIntro::HandBackSeconds;
-		Script.bClearCaptions = true;
 		Script.Music = BossIntroCue::Abel;
 		Script.Shots = {
 			Shot(TEXT("Boards"), 0.f, 5.2f, At(OnPlayer, 260.0, -140.0, 280.0), At(OnPlayer, 120.0, -100.0, 230.0),
 				At(OnBoss, 0.0, 0.0, 150.0), At(OnBoss, 0.0, 0.0, 170.0), 60.f, 52.f),
-			Shot(TEXT("Lantern"), 5.2f, Script.Seconds - 5.2f, At(OnBoss, 480.0, -260.0, 30.0), At(OnBoss, 400.0, -210.0, 50.0),
+			Shot(TEXT("Lantern"), 5.2f, Script.Seconds - 5.2f, At(OnBoss, 480.0, -260.0, 130.0), At(OnBoss, 400.0, -210.0, 150.0),
 				At(OnBoss, 0.0, 0.0, 190.0), At(OnBoss, 0.0, 0.0, 205.0), 50.f, 46.f, /*bTrack*/ true),
 		};
-		Script.Captions = { { 0.8f, 0 }, { 6.4f, BossIntro::OwnLine } };
+		Script.Captions = { { 3.8f, 0 } };
 		return Script;
 	}
 
@@ -277,19 +283,28 @@ FText BossIntro::CardTitle(EBossIntro Kind)
 	}
 }
 
-FText BossIntro::CardSub(EBossIntro Kind)
+FText BossIntro::CardSub(EBossIntro Kind, const UBossComponent* Fight)
 {
-	switch (Kind)
+	// One source for the card and the bar (DEMO 2026-10-27: they differed): the bar's title, as this fight has it, else as
+	// each fight's show is made.
+	FText Title = Fight ? Fight->Show.Title : FText::GetEmpty();
+	if (Title.IsEmpty())
 	{
-	case EBossIntro::Gravemother:
-		return LOCTEXT("SubGravemother", "MOTHER OF THE SINK'S BROOD");
-	case EBossIntro::Foreman:
-		return LOCTEXT("SubForeman", "FOREMAN OF THE DEAD SHIFT");
-	case EBossIntro::Abel:
-	default:
-		// His headboard's own words (Docs/Story.md, the cold open's grave).
-		return LOCTEXT("SubAbel", "KEEPER OF SAINT ADA");
+		switch (Kind)
+		{
+		case EBossIntro::Gravemother:
+			Title = GravemotherFight::MakeShow().Title;
+			break;
+		case EBossIntro::Foreman:
+			Title = ForemanFight::MakeShow().Title;
+			break;
+		case EBossIntro::Abel:
+		default:
+			Title = AbelRules::MakeShow().Title;
+			break;
+		}
 	}
+	return Title.ToUpper();
 }
 
 const FBossIntroScript& BossIntro::Script(EBossIntro Kind)

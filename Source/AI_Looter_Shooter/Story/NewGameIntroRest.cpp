@@ -163,6 +163,9 @@ namespace
 				Widget->AddToViewport(UIntroWidget::ViewportZOrder);
 				// Under the white: the bars are already in when it thins.
 				Widget->SetLetterbox(true, /*bInstant*/ true);
+				// The scene skips on Interact and Escape; the widget adds the menu part's other hold keys (Space, Enter,
+				// the pad's A), so the same keys skip in both parts.
+				Widget->SetPollsKeys(Controller);
 				State->Widget = Widget;
 			}
 		}
@@ -195,6 +198,15 @@ FScenePlay NewGameIntro::MakeRest(USceneSubsystem& Scenes, const FIntroRestSetup
 	// The cold open takes the held player over under the white.
 	Scene.bHoldAfterEnd = true;
 	Scene.OnStart = [State]() { OnStart(State); };
+	Scene.OnTick = [State](float)
+	{
+		UIntroWidget* Widget = State->Widget.Get();
+		USceneSubsystem* Scenes = State->Scenes.Get();
+		if (Widget && Scenes && Widget->ConsumeSkip())
+		{
+			Scenes->SkipScene();
+		}
+	};
 
 	for (int32 Index = 0; Index < State->Moves.Num(); ++Index)
 	{
@@ -344,6 +356,13 @@ bool NewGameIntro::PlayRestIfDue(UWorld& World, TFunction<void()> Then)
 		if (Then)
 		{
 			Then();
+		}
+		// The intro ends on the game's title card: the cold open reveals the white with REVENANT as it starts. Should
+		// nothing have taken the white (no cold open here), the title rises through it now all the same.
+		if (UTransitionScreenSubsystem* White = UTransitionScreenSubsystem::Get(WeakWorld.Get()); White && White->IsHeld())
+		{
+			UE_LOG(LogLooter, Log, TEXT("Intro: nothing took the white; the title rises through it."));
+			White->Reveal(UTransitionScreenSubsystem::GameTitle());
 		}
 	});
 }

@@ -1,6 +1,5 @@
 // The boss intros' hooks and each boss's own moments: the Gravemother's dive, her line of bursts under the Sink's floor and
-// her burst out of it; the Foreman's and Abel's entrances are their own (the scene only lets them go), Abel's first line
-// said on camera.
+// her burst out of it; the Foreman's and Abel's entrances are their own (the scene only lets them go).
 
 #include "Scenes/BossIntro.h"
 #include "AI_Looter_Shooter.h"
@@ -8,7 +7,6 @@
 #include "Audio/LooterSound.h"
 #include "Audio/LooterSoundCues.h"
 #include "Bosses/AbelKeeper.h"
-#include "Bosses/AbelRules.h"
 #include "Bosses/BossCameraShake.h"
 #include "Bosses/BossComponent.h"
 #include "Creatures/CreatureReactComponent.h"
@@ -198,10 +196,8 @@ namespace
 
 	FBossIntroActs AbelActs()
 	{
-		// His fight's first line, said as he raises his lantern on camera (the one his first phase queued was cleared).
-		FBossIntroActs Acts;
-		Acts.OwnLine = AbelRules::PhaseLine(0);
-		return Acts;
+		// His entrance is his own (the lantern raised); his fight's first line is his fight's, said once as it starts.
+		return FBossIntroActs();
 	}
 
 	/** Plays Kind's intro on Body now when due (or whatever, with bEvenIfSeen) in a game world, and records it seen. */

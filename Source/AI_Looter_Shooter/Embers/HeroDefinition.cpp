@@ -151,13 +151,16 @@ FHeroMeleeTool UHeroDefinition::MeleeToolFor(FName HeroId)
 		EMeleeHeft Heft;
 		/** Its sounds' and effects' key (FHeroMeleeTool::Kind). */
 		const TCHAR* Kind;
+		/** The handle's radius under the fist (cm, MeleeTools.py): the spade's ash 1.55, the gaff's pole 1.75 (POLE_R), the
+		 * pick's hickory 1.45, the fan's pivot stack about 1.2. */
+		float HandleRadius;
 	};
 	static const FPick Picks[] = {
-		{ TEXT("Ellis"), TEXT("GraveSpade"), EMeleeGripKind::Held, EMeleeSwingStyle::Swat, EMeleeHeft::Steady, TEXT("Spade") },
-		{ TEXT("Odessa"), TEXT("RazorFan"), EMeleeGripKind::Held, EMeleeSwingStyle::Flick, EMeleeHeft::Quick, TEXT("Fan") },
-		{ TEXT("Crane"), TEXT("FerryGaff"), EMeleeGripKind::Held, EMeleeSwingStyle::Gaff, EMeleeHeft::Heavy, TEXT("Gaff") },
-		{ TEXT("Gauge"), TEXT("PistonFist"), EMeleeGripKind::Forearm, EMeleeSwingStyle::Jab, EMeleeHeft::Quick, TEXT("Piston") },
-		{ TEXT("Pike"), TEXT("RockPick"), EMeleeGripKind::Held, EMeleeSwingStyle::Peck, EMeleeHeft::Quick, TEXT("Pick") },
+		{ TEXT("Ellis"), TEXT("GraveSpade"), EMeleeGripKind::Held, EMeleeSwingStyle::Swat, EMeleeHeft::Steady, TEXT("Spade"), 1.55f },
+		{ TEXT("Odessa"), TEXT("RazorFan"), EMeleeGripKind::Held, EMeleeSwingStyle::Flick, EMeleeHeft::Quick, TEXT("Fan"), 1.2f },
+		{ TEXT("Crane"), TEXT("FerryGaff"), EMeleeGripKind::Held, EMeleeSwingStyle::Gaff, EMeleeHeft::Heavy, TEXT("Gaff"), 1.75f },
+		{ TEXT("Gauge"), TEXT("PistonFist"), EMeleeGripKind::Forearm, EMeleeSwingStyle::Jab, EMeleeHeft::Quick, TEXT("Piston"), 1.6f },
+		{ TEXT("Pike"), TEXT("RockPick"), EMeleeGripKind::Held, EMeleeSwingStyle::Peck, EMeleeHeft::Quick, TEXT("Pick"), 1.45f },
 	};
 	FHeroMeleeTool Tool;
 	for (const FPick& Pick : Picks)
@@ -169,6 +172,7 @@ FHeroMeleeTool UHeroDefinition::MeleeToolFor(FName HeroId)
 			Tool.Swing = Pick.Swing;
 			Tool.Heft = Pick.Heft;
 			Tool.Kind = FName(Pick.Kind);
+			Tool.HandleRadius = Pick.HandleRadius;
 			break;
 		}
 	}

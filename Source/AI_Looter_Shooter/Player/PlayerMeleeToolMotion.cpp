@@ -18,6 +18,13 @@ namespace
 		TEXT("A landed blow's bounce back off the body (a share of the wind-up's turn)."));
 	TAutoConsoleVariable<float> CVarPistonPush(TEXT("Looter.Melee.PistonPush"), 7.f,
 		TEXT("A forearm tool's piston kick past the fist at the blow (cm): Gauge's piston fist."));
+	TAutoConsoleVariable<float> CVarAimTipFrom(TEXT("Looter.Melee.AimTipFrom"), 30.f,
+		TEXT("A tool whose striking end is this far from the hand or more (cm) has its arc aimed so the end crosses the middle of "
+			 "the view at the blow (the spade, the gaff)."));
+	TAutoConsoleVariable<float> CVarAimTipDrop(TEXT("Looter.Melee.AimTipDrop"), 4.f,
+		TEXT("How far under the crosshair a long tool's end crosses at the blow (cm, camera space)."));
+	TAutoConsoleVariable<float> CVarFaceView(TEXT("Looter.Melee.FaceView"), 1.f,
+		TEXT("Scales each swing's roll of its tool toward the eye (Ellis's spade shows its blade, not its edge; 0: none)."));
 
 	/** The right shoulder the arm swings from (camera space): under the eye, a little back and out to the right. */
 	const FVector RightShoulder(-6.f, 20.f, -30.f);
@@ -106,6 +113,8 @@ FMeleeArc MeleeMotion::ArcFor(EMeleeSwingStyle Style, EMeleeHeft Heft)
 			FVector(0.f, -1.f, 0.f));
 		Arc.CockReach = 0.95f;
 		Arc.ThroughReach = 0.95f;
+		// Swung flat, the spade's blade showed only its edge (a spear point, DEMO round 3): mostly turned to the eye.
+		Arc.FaceView = 0.75f;
 		break;
 	}
 	Arc.Reach *= FMath::Clamp(CVarArcScale.GetValueOnAnyThread(), 0.5f, 1.5f);
@@ -122,8 +131,45 @@ FTransform MeleeMotion::ArcPose(const FMeleeArc& Arc, float Degrees, float Reach
 	const FQuat Arm(Axis, FMath::DegreesToRadians(Degrees));
 	const FVector Hand = Arc.Shoulder + Arm.RotateVector(Arc.ContactDir.GetSafeNormal()) * (Arc.Reach * ReachShare) + Drop;
 	// The wrist turns the tool about the same axis as the arm (through the hand): laid back it trails the hand.
-	const FQuat Turn = FQuat(Axis, FMath::DegreesToRadians(Degrees + Wrist)) * ContactFrame(Arc);
+	FQuat Turn = FQuat(Axis, FMath::DegreesToRadians(Degrees + Wrist)) * ContactFrame(Arc);
+	const float Face = FMath::Clamp(Arc.FaceView * CVarFaceView.GetValueOnAnyThread(), 0.f, 1.f);
+	if (Face > 0.f)
+	{
+		// Rolled about its handle so a face turns toward the eye at the camera's origin: the face nearer the eye at the blow,
+		// kept through the whole arc (picking the nearer one each frame would flip it half a turn mid-swing).
+		const FVector BlowHand = Arc.Shoulder + Arc.ContactDir.GetSafeNormal() * Arc.Reach;
+		const FQuat Blow = ContactFrame(Arc);
+		const float Which = FVector::DotProduct(Blow.GetAxisZ(), -BlowHand) >= 0.0 ? 1.f : -1.f;
+		const FVector Handle = Turn.GetAxisX();
+		FVector ToEye = (-Hand - Handle * FVector::DotProduct(-Hand, Handle)) * Which;
+		if (ToEye.Normalize())
+		{
+			const FVector Side = Turn.GetAxisZ();
+			const float Angle = static_cast<float>(FMath::Atan2(FVector::DotProduct(FVector::CrossProduct(Side, ToEye), Handle),
+				FVector::DotProduct(Side, ToEye)));
+			Turn = FQuat(Handle, Angle * Face) * Turn;
+		}
+	}
 	return FTransform(Turn, Hand);
+}
+
+void MeleeMotion::AimAtTip(FMeleeArc& Arc, float TipLength)
+{
+	if (TipLength < FMath::Max(CVarAimTipFrom.GetValueOnAnyThread(), 1.f))
+	{
+		return;
+	}
+	// The hand at the blow, and the point on the view's middle line (a little under it) TipLength away from it.
+	const FVector Hand = Arc.Shoulder + Arc.ContactDir.GetSafeNormal() * Arc.Reach;
+	const float Below = -CVarAimTipDrop.GetValueOnAnyThread();
+	const float Across = FMath::Square(static_cast<float>(Hand.Y)) + FMath::Square(Below - static_cast<float>(Hand.Z));
+	const float Ahead = FMath::Sqrt(FMath::Max(FMath::Square(TipLength) - Across, 0.f));
+	const FVector Target(Hand.X + Ahead, 0.f, Below);
+	const FVector Handle = (Target - Hand).GetSafeNormal();
+	if (!Handle.IsNearlyZero())
+	{
+		Arc.HandleAtContact = Handle;
+	}
 }
 
 FMeleeToolPose MeleeMotion::ToolPoseOnArc(const FMeleeArc& Arc, float SwingTime, bool bLanded)
@@ -197,7 +243,9 @@ FMeleeToolPose MeleeMotion::ToolPoseOnArc(const FMeleeArc& Arc, float SwingTime,
 	return Pose;
 }
 
-FMeleeToolPose MeleeMotion::ToolPose(EMeleeSwingStyle Style, EMeleeHeft Heft, float SwingTime, bool bLanded)
+FMeleeToolPose MeleeMotion::ToolPose(EMeleeSwingStyle Style, EMeleeHeft Heft, float SwingTime, bool bLanded, float TipLength)
 {
-	return ToolPoseOnArc(ArcFor(Style, Heft), SwingTime, bLanded);
+	FMeleeArc Arc = ArcFor(Style, Heft);
+	AimAtTip(Arc, TipLength);
+	return ToolPoseOnArc(Arc, SwingTime, bLanded);
 }

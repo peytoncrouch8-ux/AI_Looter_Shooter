@@ -14,6 +14,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Character.h"
 #include "HAL/IConsoleManager.h"
+#include "Math/RotationMatrix.h"
 
 namespace
 {
@@ -23,6 +24,9 @@ namespace
 
 	TAutoConsoleVariable<float> CVarWallStick(TEXT("Looter.Embers.FiftyTwo.WallStick"), 1.4f,
 		TEXT("Seconds a Fifty-Two Pickup card stays stuck in the world before it's gone (it shrinks away over the last 0.35)."));
+	TAutoConsoleVariable<float> CVarFall(TEXT("Looter.Embers.FiftyTwo.Fall"), 2.f,
+		TEXT("Seconds a card shaken loose from a body that died falls and lies where it lands before it's gone (it shrinks away "
+			 "over the last third)."));
 	TAutoConsoleVariable<float> CVarBodyStick(TEXT("Looter.Embers.FiftyTwo.BodyStick"), 1.2f,
 		TEXT("Seconds a Fifty-Two Pickup card stays stuck in the creature it cut (riding its body) before it's gone."));
 	TAutoConsoleVariable<float> CVarSink(TEXT("Looter.Embers.FiftyTwo.Sink"), 0.35f,
@@ -134,7 +138,7 @@ void UEmberFiftyTwoPickup::End(const FEmberContext& Context, bool bInterrupted)
 
 int32 UEmberFiftyTwoPickup::NumFlying() const
 {
-	return Cards.FilterByPredicate([](const FCard& Card) { return !Card.bDone && !Card.bStuck; }).Num();
+	return Cards.FilterByPredicate([](const FCard& Card) { return !Card.bDone && !Card.bStuck && !Card.bFalling; }).Num();
 }
 
 bool UEmberFiftyTwoPickup::Linger(float DeltaSeconds)
@@ -164,8 +168,15 @@ void UEmberFiftyTwoPickup::StepStuck(FCard& Card, float DeltaSeconds)
 	Card.StuckAge += DeltaSeconds;
 	const float Life = FMath::Max(Card.bOnBody ? CVarBodyStick.GetValueOnGameThread() : CVarWallStick.GetValueOnGameThread(), 0.05f);
 	ACreatureBase* RiddenBody = Card.StuckIn.Get();
-	// Gone once its time is up, or with the body it rode.
-	if (Card.StuckAge >= Life || (Card.bOnBody && !RiddenBody))
+	// The body it rode died or went: it's shaken loose and falls, rather than vanishing.
+	if (Card.bOnBody && (!RiddenBody || RiddenBody->IsDead()))
+	{
+		LooseCard(Card);
+		StepFalling(Card, 0.f);
+		return;
+	}
+	// Gone once its time is up.
+	if (Card.StuckAge >= Life)
 	{
 		Card.bDone = true;
 		return;
@@ -175,6 +186,62 @@ void UEmberFiftyTwoPickup::StepStuck(FCard& Card, float DeltaSeconds)
 	// Shrinks away over the last of its time (the cards are lit and solid: no fading them out).
 	const float Left = FMath::Clamp((Life - Card.StuckAge) / (Life * StuckFade), 0.f, 1.f);
 	Deck.Add(Card.Location, Place.GetRotation(), EmberFX::CardSize() * FMath::SmoothStep(0.f, 1.f, Left));
+}
+
+void UEmberFiftyTwoPickup::LooseCard(FCard& Card)
+{
+	// From where it last showed, turned as it was, with a little push off the body and up.
+	Card.bStuck = false;
+	Card.bOnBody = false;
+	Card.bFalling = true;
+	Card.bResting = false;
+	Card.FallAge = 0.f;
+	Card.StuckIn.Reset();
+	Card.Velocity = Random.GetUnitVector() * 60.f + FVector(0.0, 0.0, 80.0);
+	Card.SpinRate = Random.FRandRange(4.f, 9.f) * (Random.FRand() < 0.5f ? -1.f : 1.f);
+}
+
+void UEmberFiftyTwoPickup::StepFalling(FCard& Card, float DeltaSeconds)
+{
+	const float Life = FMath::Max(CVarFall.GetValueOnGameThread(), 0.1f);
+	Card.FallAge += DeltaSeconds;
+	if (Card.FallAge >= Life)
+	{
+		Card.bDone = true;
+		return;
+	}
+	if (!Card.bResting && DeltaSeconds > 0.f)
+	{
+		// Paper on the air: pulled down, held back hard (it drifts down at about a metre and a half a second), fluttering.
+		Card.Velocity.Z -= 980.0 * DeltaSeconds;
+		Card.Velocity *= FMath::Max(1.f - 4.f * DeltaSeconds, 0.f);
+		const FVector From = Card.Location;
+		const FVector To = From + Card.Velocity * DeltaSeconds;
+		Card.Spin += Card.SpinRate * DeltaSeconds;
+		Card.Flutter += Card.FlutterRate * DeltaSeconds;
+		FHitResult Ground;
+		UWorld* World = GetBodyWorld();
+		const FCollisionQueryParams Params = World ? LooterWorld::StaticGeometryParams(World, TEXT("FiftyTwoFall"), Body.Get())
+			: FCollisionQueryParams();
+		if (World && World->LineTraceSingleByObjectType(Ground, From, To, FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+		{
+			// Landed: it lies there, flat on what it fell on.
+			Card.bResting = true;
+			Card.Location = Ground.ImpactPoint + Ground.ImpactNormal * 0.3;
+			Card.StuckAt = FTransform(FRotationMatrix::MakeFromZX(Ground.ImpactNormal, FQuat(Ground.ImpactNormal, Card.Spin).RotateVector(
+				FVector::CrossProduct(Ground.ImpactNormal, FVector::RightVector).GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector))).ToQuat(),
+				Card.Location);
+		}
+		else
+		{
+			Card.Location = To;
+		}
+	}
+	const FQuat Turn = Card.bResting ? Card.StuckAt.GetRotation()
+		: EmberFX::FlyingCardTurn(Card.Velocity.IsNearlyZero() ? FVector::DownVector : Card.Velocity, Card.Spin, Card.Flutter, Card.Roll);
+	// Shrinks away over the last of its time.
+	const float Left = FMath::Clamp((Life - Card.FallAge) / (Life * 0.3f), 0.f, 1.f);
+	Deck.Add(Card.Location, Turn, EmberFX::CardSize() * FMath::SmoothStep(0.f, 1.f, Left));
 }
 
 void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
@@ -200,6 +267,11 @@ void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
 		if (Card.bStuck)
 		{
 			StepStuck(Card, Dt);
+			continue;
+		}
+		if (Card.bFalling)
+		{
+			StepFalling(Card, Dt);
 			continue;
 		}
 		const FVector From = Card.Location;

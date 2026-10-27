@@ -8132,5 +8132,60 @@
     "loop": false,
     "space": "2D",
     "max_concurrent": 1
+  },
+  "Player.Underwater.Loop": {
+    "files": [
+      "Player_Underwater_Loop_01.wav"
+    ],
+    "volume_db": -28.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Underwater.Enter": {
+    "files": [
+      "Player_Underwater_Enter_01.wav",
+      "Player_Underwater_Enter_02.wav",
+      "Player_Underwater_Enter_03.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Underwater.Exit": {
+    "files": [
+      "Player_Underwater_Exit_01.wav",
+      "Player_Underwater_Exit_02.wav",
+      "Player_Underwater_Exit_03.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Underwater.Bubbles": {
+    "files": [
+      "Player_Underwater_Bubbles_01.wav",
+      "Player_Underwater_Bubbles_02.wav",
+      "Player_Underwater_Bubbles_03.wav",
+      "Player_Underwater_Bubbles_04.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
   }
 }

@@ -9,6 +9,8 @@ namespace
 {
 	TAutoConsoleVariable<float> CVarMeleeFX(TEXT("Looter.Melee.FX"), 1.f,
 		TEXT("The melee tools' own impact effects' strength (sparks, glints, steam; 0: only the shared blow's dust and chips)."));
+	TAutoConsoleVariable<float> CVarSparks(TEXT("Looter.Melee.Sparks"), 1.f,
+		TEXT("How many sprays of sparks iron throws off stone or metal (1: two hard-target sprays for the spade and pick)."));
 	TAutoConsoleVariable<float> CVarSteam(TEXT("Looter.Melee.Steam"), 1.f,
 		TEXT("How much steam Gauge's piston fist blows on a hit (a share of a full burst)."));
 
@@ -19,18 +21,18 @@ namespace
 	const FLinearColor SteamWhite(0.92f, 0.94f, 0.96f);
 	const FLinearColor PickTeal(0.25f, 0.8f, 0.72f);
 
-	/** Off the surface the way a glancing blow bounces (the blow's way mirrored about the surface). */
-	FVector Bounce(const FVector& Along, const FVector& Normal)
-	{
-		const FVector N = Normal.GetSafeNormal(UE_SMALL_NUMBER, -Along);
-		return (Along - 2.0 * FVector::DotProduct(Along, N) * N).GetSafeNormal(UE_SMALL_NUMBER, N);
-	}
-
-	/** Iron off a hard surface: a hot spark where it struck and a few flung off. */
+	/**
+	 * Iron off a hard surface: a full spray of short, bright sparks (a hard target's bullet sparks, twice over, more for a
+	 * bigger Scale) and a hot flare where it struck. (Round 4 had a ricochet's one long streak: faint, DEMO said.)
+	 */
 	void SparkOff(FWeaponFX& Effects, const FVector& At, const FVector& Along, const FVector& Normal, float Scale)
 	{
-		Effects.SpawnRicochet(At, Bounce(Along, Normal), Scale);
-		Effects.SpawnStarburst(At + Normal * 1.5, 14.f * Scale, SparkHot, 18.f, 0.08f, 6);
+		const int32 Sprays = FMath::Clamp(FMath::RoundToInt(2.f * Scale * CVarSparks.GetValueOnGameThread()), 1, 6);
+		for (int32 Index = 0; Index < Sprays; ++Index)
+		{
+			Effects.SpawnImpact(At, Normal, Along, EImpactSurface::Target, false);
+		}
+		Effects.SpawnStarburst(At + Normal * 1.5, 22.f * Scale, SparkHot, 30.f, 0.09f, 8);
 	}
 
 	/** Stone chips knocked off, thrown off the surface and back along the blow. */
@@ -85,7 +87,7 @@ namespace MeleeFX
 		const bool bBody = Struck == EMeleeStruck::Body;
 		if (!bBody && Sparks(Kind, Material))
 		{
-			SparkOff(Effects, At, Along, Normal, (Kind == Fan() ? 0.4f : 0.75f) * Strength);
+			SparkOff(Effects, At, Along, Normal, (Kind == Fan() ? 0.4f : 1.f) * Strength);
 		}
 		if (Kind == Spade())
 		{

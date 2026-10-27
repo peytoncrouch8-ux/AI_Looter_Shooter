@@ -3,7 +3,10 @@
 #include "Scenes/SceneSubsystem.h"
 #include "Story/NewGameIntro.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "Settings/KeyBindingSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/PlayerController.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
@@ -47,26 +50,12 @@ namespace
 	/** A clear fades what shows out this fast. */
 	constexpr float ClearSeconds = 0.25f;
 
-	bool IsHoldKey(const FKey& Key)
+	/** The player's Interact key (the scene's skip key), E when the bindings can't say. */
+	FKey FindInteractKey(const ULocalPlayer* Player)
 	{
-		return Key == EKeys::E || Key == EKeys::Enter || Key == EKeys::SpaceBar || Key == EKeys::Gamepad_FaceButton_Bottom;
-	}
-
-	FString HoldKeyLabel(const FKey& Key)
-	{
-		if (Key == EKeys::Enter)
-		{
-			return TEXT("ENTER");
-		}
-		if (Key == EKeys::SpaceBar)
-		{
-			return TEXT("SPACE");
-		}
-		if (Key == EKeys::Gamepad_FaceButton_Bottom)
-		{
-			return TEXT("A");
-		}
-		return TEXT("E");
+		const UKeyBindingSubsystem* Bindings = Player ? Player->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
+		const FKey Key = Bindings ? Bindings->GetKey(TEXT("Interact")) : FKey();
+		return Key.IsValid() ? Key : EKeys::E;
 	}
 
 	UWidget* MakeRule(UWidgetTree* Tree)
@@ -293,9 +282,65 @@ void UIntroWidget::SetLetterbox(bool bShown, bool bInstant)
 void UIntroWidget::SetTakesKeys(bool bTakes)
 {
 	bTakesKeys = bTakes;
+	InteractKey = FindInteractKey(GetOwningLocalPlayer());
 	SetIsFocusable(bTakes);
 	// Taking the keys, it covers the screen for real: clicks don't reach the menu under it either.
 	SetVisibility(bTakes ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
+}
+
+void UIntroWidget::SetPollsKeys(APlayerController* Controller)
+{
+	PolledController = Controller;
+	PolledDown = FKey();
+	InteractKey = FindInteractKey(Controller ? Controller->GetLocalPlayer() : nullptr);
+}
+
+const TArray<FKey>& UIntroWidget::ExtraHoldKeys()
+{
+	static const TArray<FKey> Keys = { EKeys::Enter, EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Bottom };
+	return Keys;
+}
+
+FString UIntroWidget::HoldKeyLabel(const FKey& Key)
+{
+	// The scene's prompt names Interact by its short display name ("E"); the others as the keycaps say them.
+	if (Key == EKeys::SpaceBar)
+	{
+		return TEXT("SPACE");
+	}
+	if (Key == EKeys::Gamepad_FaceButton_Bottom)
+	{
+		return TEXT("A");
+	}
+	return Key.GetDisplayName(/*bLongDisplayName*/ false).ToString().ToUpper();
+}
+
+void UIntroWidget::PollKeys()
+{
+	const APlayerController* Controller = PolledController.Get();
+	if (!Controller)
+	{
+		return;
+	}
+	if (PolledDown.IsValid())
+	{
+		if (!Controller->IsInputKeyDown(PolledDown))
+		{
+			PolledDown = FKey();
+			Skip.HoldUp();
+		}
+		return;
+	}
+	for (const FKey& Key : ExtraHoldKeys())
+	{
+		// Interact is the scene's own skip key, with its own prompt: left to it.
+		if (Key != InteractKey && Controller->IsInputKeyDown(Key))
+		{
+			PolledDown = Key;
+			Skip.HoldDown(HoldKeyLabel(Key));
+			return;
+		}
+	}
 }
 
 bool UIntroWidget::ConsumeSkip()
@@ -313,13 +358,19 @@ void UIntroWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	UpdateLetterbox(MyGeometry, InDeltaTime);
 	UpdateWords(InDeltaTime);
-	if (bTakesKeys)
+	const bool bPolls = PolledController.IsValid();
+	if (bPolls)
+	{
+		PollKeys();
+	}
+	if (bTakesKeys || bPolls)
 	{
 		Skip.Tick(InDeltaTime);
 	}
 	if (SkipPrompt)
 	{
-		SkipPrompt->Update(bTakesKeys && Skip.IsPromptShown(), Skip.GetLead(), Skip.GetKey(), Skip.GetWords(), Skip.GetHold(), InDeltaTime);
+		SkipPrompt->Update((bTakesKeys || bPolls) && Skip.IsPromptShown(), Skip.GetLead(), Skip.GetKey(), Skip.GetWords(), Skip.GetHold(),
+			InDeltaTime);
 	}
 }
 
@@ -389,7 +440,7 @@ FReply UIntroWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEven
 		{
 			Skip.Escape();
 		}
-		else if (IsHoldKey(Key))
+		else if (Key == InteractKey || ExtraHoldKeys().Contains(Key))
 		{
 			Skip.HoldDown(HoldKeyLabel(Key));
 		}
@@ -404,7 +455,7 @@ FReply UIntroWidget::NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent&
 	{
 		return Super::NativeOnKeyUp(InGeometry, InKeyEvent);
 	}
-	if (IsHoldKey(InKeyEvent.GetKey()))
+	if (InKeyEvent.GetKey() == InteractKey || ExtraHoldKeys().Contains(InKeyEvent.GetKey()))
 	{
 		Skip.HoldUp();
 	}

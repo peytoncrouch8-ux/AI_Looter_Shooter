@@ -22,14 +22,16 @@ struct FCampaignRecord;
  *  - Cyrus Teague, the Foreman: the stope out of the dark (the scene camera's exposure rising), his carbide lamp the one
  *    light at the fall where he digs, his mutter; then he turns from the fall into its light, pick raised (his own entrance).
  *  - Abel Ransom, the Keeper: the burial boards at dusk from the Keeper's Gate, him at the far end among the lantern posts
- *    against the sunset; then low before him as he raises his ghost lantern (his own entrance), his fight's first line.
+ *    against the sunset; then before him as he raises his ghost lantern (his own entrance). His fight's first line is
+ *    its own, said once as it starts; Hob's caption follows it.
  *
  * How (BossIntroScene.cpp): the fight has already started (the hook is each boss's HandleFightStarted), so the scene
- * holds the player (no damage, no control: the scene's rules) and freezes the boss and every creature round it
- * (FBossIntroFreeze: their own clocks slowed to almost nothing, the boss's fight clock with them). At its Live moment the
+ * holds the player (no control: the scene's rules), makes them untouchable (FBossIntroGuard: through the scene and
+ * GraceSeconds after it) and freezes the boss and every creature round it and round the player (FBossIntroFreeze: their
+ * own clocks slowed to almost nothing, a boss's fight clock with it; a second boss nearby too). At its Live moment the
  * boss alone runs again and does its own entrance on camera (the Gravemother's climb out of the dirt, the Foreman's slam,
  * Abel's lantern); the scene ends as that entrance ends, the view eases back to the player's eyes facing the boss, the
- * boss bar sweeps in again, and the rest wake. Skipped, the same happens at once.
+ * boss bar sweeps in again, and the rest wake. Skipped, the same happens at once. The card's epithet is the bar's title.
  *
  * The words are /Game/Data/Story/DA_Lines_BossIntro<Kind>'s (create_story_lines.py) when the set has them all, else
  * ScriptLines' (the same words; Looter.Scenes.BossIntro.Lines checks they match). No family words: the same for every hero.
@@ -80,7 +82,7 @@ struct FBossIntroShot
 	bool bTrackBoss = false;
 };
 
-/** A caption: at At seconds, ScriptLines' Line (or BossIntro::OwnLine: the boss's own fight line, Abel's). */
+/** A caption: at At seconds, ScriptLines' Line. */
 struct FBossIntroCaption
 {
 	float At = 0.f;
@@ -105,8 +107,6 @@ struct FBossIntroScript
 	int32 TrailPuffs = 0;
 	float TrailFrom = 0.f;
 	float TrailTo = 0.f;
-	/** Clears whatever captions are queued as it starts (Abel's first phase line, said again at its OwnLine slot). */
-	bool bClearCaptions = false;
 	/** Its music (2D, from 0, faded out at LiveAt under the reveal's hit). */
 	const TCHAR* Music = nullptr;
 	/** Back to back from 0 to Seconds. */
@@ -155,8 +155,6 @@ struct FBossIntroActs
 	TFunction<void(bool /*bSkipping*/)> Live;
 	/** The scene has ended, played or skipped (after the player is given back). */
 	TFunction<void(bool /*bSkipped*/)> Ended;
-	/** What an OwnLine caption says (Abel's first phase line); empty: nothing. */
-	FStoryLine OwnLine;
 	/** Where it bursts out (the Burst anchor); without one, its feet. */
 	FVector BurstFeet = FVector::ZeroVector;
 	bool bHasBurst = false;
@@ -182,10 +180,11 @@ namespace BossIntro
 {
 	// --- Rules and numbers ---
 
-	/** A caption slot that says the boss's own line (FBossIntroActs::OwnLine) rather than a script line. */
-	inline constexpr int32 OwnLine = -2;
-	/** How long the boss's own line is up (Abel's first phase line, AbelRules::PhaseLine(0): 3.4 s), for the script's checks. */
-	inline constexpr float OwnLineSeconds = 3.4f;
+	/**
+	 * Abel's fight says its first line as it starts (AbelRules::PhaseLine(0), 3.4 s): his intro's words come after it, so
+	 * neither cuts the other off (Looter.Scenes.BossIntro.Script).
+	 */
+	inline constexpr float FightLineSeconds = 3.4f;
 	/** The user's ask: short. Every script is held to it (Looter.Scenes.BossIntro.Script). */
 	inline constexpr float ShortestSeconds = 8.f;
 	inline constexpr float LongestSeconds = 15.f;
@@ -206,6 +205,17 @@ namespace BossIntro
 	inline constexpr float BoomMargin = 40.f;
 	/** ...and never nearer than this to what it looks at, whatever is in the way. */
 	inline constexpr float BoomShortest = 150.f;
+	/** The eye is swept as a ball this wide (cm) so the lens's near plane never cuts into a board or a wall. */
+	inline constexpr float BoomRadius = 20.f;
+	/** The eye stays at least this high (cm) over the floor under what it looks at (Abel's deck, the stope's floor). */
+	inline constexpr float MinEyeOverFloor = 60.f;
+	/**
+	 * After an intro the player can't be hurt for this long (s): the view has only just come back, and a boss's first move
+	 * (Abel's buckshot) must not land before they can move. They can't be hurt during the intro either.
+	 */
+	inline constexpr float GraceSeconds = 1.5f;
+	/** Every hostile this near the player (cm) is held too: a second boss or a pack close by can't reach the held player. */
+	inline constexpr float PlayerFreezeRadius = 6000.f;
 
 	/** The Gravemother's burst: this share of the way from her to the player... */
 	inline constexpr float BurstShare = 0.45f;
@@ -242,9 +252,13 @@ namespace BossIntro
 	AI_LOOTER_SHOOTER_API const TArray<FStoryLine>& ScriptLines(EBossIntro Kind);
 	/** The words to say: the line set's when it has every line, else ScriptLines (the captions resolve them for the hero). */
 	AI_LOOTER_SHOOTER_API TArray<FStoryLine> Lines(EBossIntro Kind);
-	/** The name card: the boss's name and its epithet, in capitals. */
+	/** The name card: the boss's name, in capitals. */
 	AI_LOOTER_SHOOTER_API FText CardTitle(EBossIntro Kind);
-	AI_LOOTER_SHOOTER_API FText CardSub(EBossIntro Kind);
+	/**
+	 * Its epithet, in capitals: the boss bar's own title (FBossShow::Title, spelled under the bar as it sweeps in), so the
+	 * card and the bar say the same; Fight null or untitled: the same words as the bars have them (BossIntro.cpp).
+	 */
+	AI_LOOTER_SHOOTER_API FText CardSub(EBossIntro Kind, const UBossComponent* Fight = nullptr);
 	AI_LOOTER_SHOOTER_API const FBossIntroScript& Script(EBossIntro Kind);
 
 	// --- The camera's math (BossIntro.cpp) ---

@@ -28,6 +28,7 @@ namespace
 
 	const FName GripSocket(TEXT("Grip"));
 	const FName ForearmSocket(TEXT("Forearm"));
+	const FName TipSocket(TEXT("Tip"));
 	const TCHAR* const SurfacePath = TEXT("/Game/Environment/Materials/M_StylizedSurface.M_StylizedSurface");
 
 	/** The stand-in (no tool mesh in the game at all): a mallet, an ash handle and an iron head, in the tool's own space. */
@@ -58,6 +59,9 @@ namespace
 		}
 		Part->SetupAttachment(&Root);
 		Part->SetRelativeTransform(Place);
+		// Born hidden: a part made while the root is already hidden would otherwise show at rest (DEMO, round 4: Gauge's
+		// piston fist left in view after Looter.Hero Ellis).
+		Part->SetVisibility(false);
 		Part->RegisterComponent();
 		return Part;
 	}
@@ -88,6 +92,14 @@ void UPlayerMeleeComponent::PrepareTool()
 	if (!bOwnMesh)
 	{
 		Tool.Grip = EMeleeGripKind::Held;
+	}
+	// How far the striking end sits from the hand (SOCKET_Tip from SOCKET_Grip, drawn): a long tool's arc is aimed so its
+	// head, not its handle, crosses the middle of the view at the blow (DEMO, round 4: the spade's shaft did).
+	ToolTipLength = 0.f;
+	if (Mesh && Mesh->FindSocket(TipSocket) && !bForearmMesh)
+	{
+		const FVector Tip = SocketOn(*Mesh, TipSocket).GetLocation() - SocketOn(*Mesh, GripSocket).GetLocation();
+		ToolTipLength = static_cast<float>(Tip.Size()) * FMath::Max(Tool.Scale * CVarToolScale.GetValueOnGameThread(), 0.1f);
 	}
 	BuildTool(Mesh);
 	BuildThirdPersonTool(Mesh);
@@ -157,7 +169,7 @@ void UPlayerMeleeComponent::PlaceTool()
 		HideTool();
 		return;
 	}
-	ToolPose = MeleeMotion::ToolPose(Tool.Swing, Tool.Heft, SwingTime, bLanded);
+	ToolPose = MeleeMotion::ToolPose(Tool.Swing, Tool.Heft, SwingTime, bLanded, ToolTipLength);
 	const float Scale = FMath::Max(Tool.Scale * CVarToolScale.GetValueOnGameThread(), 0.1f);
 	FTransform Root = ToolPose.Grip;
 	if (bForearmMesh)
@@ -173,9 +185,17 @@ void UPlayerMeleeComponent::PlaceTool()
 void UPlayerMeleeComponent::HideTool()
 {
 	ToolPose = FMeleeToolPose();
-	if (ToolRoot && ToolRoot->IsVisible())
+	// Every part, whatever the root says: a root's flag doesn't hide its children by itself.
+	if (ToolRoot)
 	{
 		ToolRoot->SetVisibility(false, true);
+	}
+	for (UStaticMeshComponent* Part : ToolParts)
+	{
+		if (Part)
+		{
+			Part->SetVisibility(false);
+		}
 	}
 	// Third person: hidden too, unless a swing still runs (a switch to third person mid-swing shows it there).
 	if (ThirdPersonTool && ThirdPersonTool->IsVisible() && !(bSwinging && !IsFirstPersonView()))

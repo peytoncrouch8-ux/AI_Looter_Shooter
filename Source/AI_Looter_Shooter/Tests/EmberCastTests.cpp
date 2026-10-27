@@ -107,8 +107,17 @@ bool FEmberCardsTest::RunTest(const FString& Parameters)
 	{
 		Power->StepCards(Frame);
 	}
-	TestTrue(FString::Printf(TEXT("Cards stuck in the spider (%d)"), Power->NumInBodies()), Power->NumInBodies() >= 5);
-	TestEqual(TEXT("...all of the cuts at first"), Power->NumInBodies(), Power->NumCuts());
+	// Stuck in it while it lives; shaken loose to fall (not gone) once it dies (DEMO, round 3).
+	if (!Close->IsDead())
+	{
+		TestTrue(FString::Printf(TEXT("Cards stuck in the spider (%d)"), Power->NumInBodies()), Power->NumInBodies() >= 5);
+		TestEqual(TEXT("...all of the cuts at first"), Power->NumInBodies(), Power->NumCuts());
+	}
+	else
+	{
+		TestEqual(TEXT("Its cards shaken loose when it died, none left on it"), Power->NumInBodies(), 0);
+		TestTrue(TEXT("...still drawn as they fall"), Power->NumDrawn() >= Power->NumCuts());
+	}
 	for (int32 Step = 0; Step < 150; ++Step)
 	{
 		Power->StepCards(Frame);

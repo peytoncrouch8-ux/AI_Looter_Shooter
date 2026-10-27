@@ -79,7 +79,19 @@ private:
 		/** Where it sits stuck: in the world, or on the body it cut (StuckIn), relative to that body's actor. */
 		FTransform StuckAt = FTransform::Identity;
 		TWeakObjectPtr<ACreatureBase> StuckIn;
+		/**
+		 * Shaken loose (its body died or went): falling like paper, then lying where it lands, shrinking away by the end of
+		 * Looter.Embers.FiftyTwo.Fall (DEMO, round 3: they popped out of sight a second after the kill).
+		 */
+		bool bFalling = false;
+		bool bResting = false;
+		float FallAge = 0.f;
 	};
+
+	/** Shakes a card loose from the body it rode (falling from where it is now). */
+	void LooseCard(FCard& Card);
+	/** A loose card falling, then lying where it landed, then gone. */
+	void StepFalling(FCard& Card, float DeltaSeconds);
 
 	/** Sticks Card at At (the point it struck, flying along Way), edge first; on Body if it's one. */
 	void StickCard(FCard& Card, const FVector& At, const FVector& Way, ACreatureBase* Struck) const;

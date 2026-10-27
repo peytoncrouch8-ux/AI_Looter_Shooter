@@ -39,6 +39,23 @@ namespace
 		return Fingers;
 	}
 
+	/**
+	 * A fist closed round a slim handle (a 3-3.5 cm shaft): a gun grip's curls with the index finger closed like the rest.
+	 * The jar's loose Wrap left Crane's fingers open beside the gaff where touch found no shaft to close on (DEMO, round 3);
+	 * from these the contact only eases each finger onto the shaft's surface.
+	 */
+	FHandFingers ClosedRound()
+	{
+		FHandFingers Fist = FHandFingers::Of(EHandGrip::Trigger);
+		const int32 Middle = FHandFingers::IndexFinger + 1;
+		for (int32 Joint = 0; Joint < FHandFingers::Joints; ++Joint)
+		{
+			Fist.Curl[FHandFingers::IndexFinger][Joint] = Fist.Curl[Middle][Joint];
+		}
+		Fist.Spread[FHandFingers::IndexFinger] = 0.f;
+		return Fist;
+	}
+
 	/** The same placement for the other hand: mirrored across the view's middle. */
 	FHandPlacement Mirrored(const FHandPlacement& Placement)
 	{
@@ -163,7 +180,7 @@ FHandPlacement FirstPersonHandsMotion::OnMeleeTool(const FTransform& Grip, float
 	if (bForearm)
 	{
 		// A fist inside the forearm piece: the knuckles along the punch, the palm down, the forearm straight back behind it.
-		return FHandPlacement::Make(Grip.GetLocation(), Along, -Strike, FHandFingers::Of(EHandGrip::Wrap), -Along);
+		return FHandPlacement::Make(Grip.GetLocation(), Along, -Strike, ClosedRound(), -Along);
 	}
 	// Round the handle: the handle runs the index-and-thumb way across the palm, the palm onto it from the tool's -Y side,
 	// so the knuckles lead the striking side (a hammer grip).
@@ -172,7 +189,7 @@ FHandPlacement FirstPersonHandsMotion::OnMeleeTool(const FTransform& Grip, float
 	FirstPersonHandsGrips::OnHandle(EFirstPersonHand::Right, Along, Turn.GetAxisY(), 0.f, Fingers, Palm);
 	// The forearm behind the knuckles and down, out toward the right shoulder (the framing slants it out of view after).
 	const FVector Forearm = (-Fingers + FVector(-0.4f, 0.35f, -0.5f)).GetSafeNormal();
-	FHandPlacement Placement = FHandPlacement::Make(Grip.GetLocation(), Fingers, Palm, FHandFingers::Of(EHandGrip::Wrap), Forearm);
+	FHandPlacement Placement = FHandPlacement::Make(Grip.GetLocation(), Fingers, Palm, ClosedRound(), Forearm);
 	// The fingers close till they touch the handle, the palm seated on it.
 	FHandleShape Handle;
 	Handle.bValid = true;

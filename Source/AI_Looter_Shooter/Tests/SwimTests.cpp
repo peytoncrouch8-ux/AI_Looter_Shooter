@@ -57,7 +57,9 @@ bool FSwimRulesTest::RunTest(const FString& Parameters)
 	const float Scale = LooterPlayerSize::Scale;
 	const float Start = SwimRules::StartDepth(Scale);
 	const float Stand = SwimRules::StandDepth(Scale);
-	TestEqual(TEXT("Chest deep on the full-size body (135 cm), at the player's size"), Start, 135.f * Scale, 0.01f);
+	TestEqual(TEXT("Deeper than a floating body hangs (160 full-size cm), at the player's size"), Start, 160.f * Scale, 0.01f);
+	TestFalse(TEXT("The island's 1.2 m pond wades"), SwimRules::ShouldSwim(120.f, Scale));
+	TestTrue(TEXT("...the 1.7 m tarn swims"), SwimRules::ShouldSwim(170.f, Scale));
 	TestTrue(TEXT("Deeper than that swims"), SwimRules::ShouldSwim(Start + 1.f, Scale));
 	TestFalse(TEXT("...shallower wades"), SwimRules::ShouldSwim(Start - 1.f, Scale));
 	TestTrue(TEXT("The bed takes the body back a little shallower than the swim starts (no flicker at a pool's edge)"), Stand < Start - 1.f);

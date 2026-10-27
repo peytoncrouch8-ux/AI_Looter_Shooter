@@ -26,6 +26,7 @@
 #include "GameFramework/Pawn.h"
 #include "Misc/ScopeExit.h"
 #include "Tests/AutomationCommon.h"
+#include "UObject/Script.h"
 
 // The grenade kinds in a test level (their rules alone: GrenadeKindsTests.cpp): the pitch jar sticking and tarring, the
 // scatter jar's brood popping round it, the cinder jar's bed burning what stands in it (a boss no more than its cap),
@@ -267,18 +268,35 @@ bool FGrenadeKindsCinderTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...facing up"), Bed->GetUp().Z > 0.99);
 	TestEqual(TEXT("...its reach and life the tuning's"), Bed->GetRadius(), Kinds.BedRadius);
 
-	// It burns what stands in it, not what stands off it.
+	// It burns what stands in it, not what stands off it. A test level has no game mode, so a pawn ignores
+	// ApplyPointDamage (APawn::ShouldTakeDamage): the spiders show who it catches, a post with health (not a pawn: it
+	// takes the damage) shows the burn landing. Actors' own events need letting through before play.
 	ASpiderCreature* In = SpawnSpider(World, FVector(Kinds.BedRadius * 0.5f, 0.0, 0.0));
 	ASpiderCreature* Out = SpawnSpider(World, FVector(Kinds.BedRadius + 400.f, 0.0, 0.0));
-	if (TestNotNull(TEXT("Spiders"), In) && TestNotNull(TEXT("..."), Out))
+	AStaticMeshActor* Post = LocomotionTestWorld::SpawnBlock(World, FVector(-Kinds.BedRadius * 0.5f, 0.0, 60.0), FVector(60.0, 60.0, 120.0));
+	UHealthComponent* PostHealth = Post ? NewObject<UHealthComponent>(Post, TEXT("Health")) : nullptr;
+	if (PostHealth)
 	{
-		const UHealthComponent* InHealth = In->FindComponentByClass<UHealthComponent>();
-		const UHealthComponent* OutHealth = Out->FindComponentByClass<UHealthComponent>();
-		const float InBefore = InHealth ? InHealth->GetHealth() : 0.f;
-		const float OutBefore = OutHealth ? OutHealth->GetHealth() : 0.f;
-		TestEqual(TEXT("A burn catches the one in it"), Bed->Burn(Kinds.BedTick), 1);
-		TestTrue(FString::Printf(TEXT("...hurt by it (%.0f to %.0f)"), InBefore, InHealth ? InHealth->GetHealth() : 0.f), InHealth && InHealth->GetHealth() < InBefore);
-		TestTrue(TEXT("...never the one off it"), OutHealth && OutHealth->GetHealth() == OutBefore);
+		// A body the burn's search finds (it looks for pawns and dynamic things, never the world's static shapes).
+		Post->GetStaticMeshComponent()->SetCollisionObjectType(ECC_WorldDynamic);
+		PostHealth->bShowDamageNumbers = false;
+		Post->AddInstanceComponent(PostHealth);
+		PostHealth->RegisterComponent();
+		// Its health's BeginPlay fills it and binds it to the post's damage (the test level never begins play).
+		Post->DispatchBeginPlay();
+		PostHealth->SetMaxHealth(200.f);
+		PostHealth->ResetHealth();
+	}
+	if (TestNotNull(TEXT("Spiders"), In) && TestNotNull(TEXT("..."), Out) && TestNotNull(TEXT("A post with health"), PostHealth))
+	{
+		const float PostBefore = PostHealth->GetHealth();
+		int32 Caught = 0;
+		{
+			FEditorScriptExecutionGuard RunActorEvents;
+			Caught = Bed->Burn(Kinds.BedTick);
+		}
+		TestEqual(TEXT("A burn catches the two in it (the spider and the post), never the spider off it"), Caught, 2);
+		TestTrue(FString::Printf(TEXT("...and hurts them (the post %.1f to %.1f)"), PostBefore, PostHealth->GetHealth()), PostHealth->GetHealth() < PostBefore);
 	}
 
 	// A boss in it: never more of its bar from the whole bed than half the jar's cap.

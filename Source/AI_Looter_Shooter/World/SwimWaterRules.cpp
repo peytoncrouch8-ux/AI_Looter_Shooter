@@ -5,9 +5,11 @@
 
 namespace
 {
-	TAutoConsoleVariable<float> CVarStartDepth(TEXT("Looter.Swim.StartDepth"), 135.f,
-		TEXT("Water this deep over the feet swims (full-size cm; chest deep on the full-size body, 115 cm on the player)."));
-	TAutoConsoleVariable<float> CVarStandMargin(TEXT("Looter.Swim.StandMargin"), 20.f,
+	// Deeper than the floating body hangs (its feet about 128 cm under on the player), so wherever it swims a dive has room:
+	// the island's 1.2 m pond wades (2026-10-27 DEMO: it "swam" on the bed and couldn't dive); the 1.7 m tarn swims.
+	TAutoConsoleVariable<float> CVarStartDepth(TEXT("Looter.Swim.StartDepth"), 160.f,
+		TEXT("Water this deep over the feet swims (full-size cm; 136 cm on the player: deeper than a floating body hangs, so a dive has room)."));
+	TAutoConsoleVariable<float> CVarStandMargin(TEXT("Looter.Swim.StandMargin"), 15.f,
 		TEXT("A swimmer stands again where the bed is this much shallower than the swim's start (full-size cm): no flicker at a pool's edge."));
 	TAutoConsoleVariable<float> CVarBedReach(TEXT("Looter.Swim.BedReach"), 30.f,
 		TEXT("How far under the feet a swimmer feels for the bed to stand on (full-size cm)."));

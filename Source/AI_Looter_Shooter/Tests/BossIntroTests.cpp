@@ -3,7 +3,10 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Scenes/BossIntro.h"
+#include "Combat/HealthComponent.h"
 #include "Scenes/BossIntroFreeze.h"
+#include "Scenes/BossIntroGuard.h"
+#include "GameFramework/Pawn.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "Story/StoryLineSet.h"
@@ -80,12 +83,11 @@ namespace
 		return Words;
 	}
 
-	/** How long a caption slot is up: its line's reading time, or the boss's own line's. */
+	/** How long a caption slot is up: its line's reading time. */
 	float CaptionSeconds(EBossIntro Kind, const FBossIntroCaption& Caption)
 	{
 		const TArray<FStoryLine>& Lines = BossIntro::ScriptLines(Kind);
-		return Caption.Line == BossIntro::OwnLine ? BossIntro::OwnLineSeconds
-			: (Lines.IsValidIndex(Caption.Line) ? Lines[Caption.Line].GetSeconds() : 0.f);
+		return Lines.IsValidIndex(Caption.Line) ? Lines[Caption.Line].GetSeconds() : 0.f;
 	}
 }
 
@@ -160,10 +162,19 @@ bool FBossIntroScriptTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("The Gravemother's is the one that dives"), Script(EBossIntro::Gravemother).DiveAt >= 0.f && Script(EBossIntro::Foreman).DiveAt < 0.f
 		&& Script(EBossIntro::Abel).DiveAt < 0.f, true);
-	TestTrue(TEXT("The Foreman's comes out of the dark"), Script(EBossIntro::Foreman).Shots[0].FromExposure < -1.f
+	TestTrue(TEXT("The Foreman's comes out of the dark, his shape read from the first frame"), Script(EBossIntro::Foreman).Shots[0].FromExposure < -1.f
+		&& Script(EBossIntro::Foreman).Shots[0].FromExposure > -2.f
 		&& FMath::IsNearlyZero(Script(EBossIntro::Foreman).Shots.Last().ToExposure));
-	TestTrue(TEXT("Abel says his own line on camera"), Script(EBossIntro::Abel).bClearCaptions && Script(EBossIntro::Abel).Captions.ContainsByPredicate(
-		[](const FBossIntroCaption& Caption) { return Caption.Line == BossIntro::OwnLine; }));
+	// Abel's first line is his fight's own, said once as it starts: the scene neither clears nor repeats it, and its own
+	// words wait until it's said (DEMO 2026-10-27: it played twice).
+	const FBossIntroScript& AbelPlan = Script(EBossIntro::Abel);
+	TestTrue(TEXT("Abel's own line is left to his fight, and nothing interrupts it"), AbelPlan.Captions.Num() > 0
+		&& AbelPlan.Captions[0].At >= FightLineSeconds);
+	// The card and the bar say the same (one source).
+	for (const EBossIntro Kind : AllKinds)
+	{
+		TestFalse(FString::Printf(TEXT("%s's card has its bar's title"), KindName(Kind)), CardSub(Kind).IsEmpty());
+	}
 	return true;
 }
 
@@ -316,6 +327,23 @@ bool FBossIntroPlayTest::RunTest(const FString& Parameters)
 		Freeze.ReleaseAll();
 		TestEqual(TEXT("All let go"), Bystander->CustomTimeDilation, 0.5f);
 		Bystander->CustomTimeDilation = 1.f;
+	}
+
+	// The guard: untouchable while it holds, their own setting back after (DEMO 2026-10-27: hit while held, and just after).
+	if (APawn* Player = World->SpawnActor<APawn>())
+	{
+		UHealthComponent* Health = NewObject<UHealthComponent>(Player);
+		Health->RegisterComponent();
+		FBossIntroGuard Guard;
+		Guard.Begin(Player);
+		TestTrue(TEXT("Guarded: untouchable"), Guard.IsGuarding() && Health->bInvulnerable);
+		Guard.EndAfter(0.f);
+		TestFalse(TEXT("Let go: their own setting back"), Guard.IsGuarding() || Health->bInvulnerable);
+		Health->bInvulnerable = true;
+		FBossIntroGuard Again;
+		Again.Begin(Player);
+		Again.EndAfter(0.f);
+		TestTrue(TEXT("...an invulnerable player stays so"), Health->bInvulnerable);
 	}
 
 	// Played through: the boss held until its Live moment, then its own; the other moments in order; the end once.

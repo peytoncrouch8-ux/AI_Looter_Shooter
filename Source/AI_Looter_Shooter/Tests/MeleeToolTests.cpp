@@ -143,7 +143,15 @@ bool FMeleeToolArcTest::RunTest(const FString& Parameters)
 		ToolPose(EMeleeSwingStyle::Jab, EMeleeHeft::Steady, Contact, false).Grip.GetRotation().GetAxisZ().Z > 0.8f);
 	TestTrue(TEXT("Jab: the piston kicks out after the blow"), ToolPose(EMeleeSwingStyle::Jab, EMeleeHeft::Steady, Contact + 0.04f, true).Push > 3.f);
 	// The striking side leads at the blow: a swat's to the left, a chop's down.
-	TestTrue(TEXT("Swat strikes leftward"), ToolPose(EMeleeSwingStyle::Swat, EMeleeHeft::Steady, Contact, false).Grip.GetRotation().GetAxisZ().Y < -0.4f);
+	// The spade's blade turned to the eye through its swat (not edge on, DEMO round 3), and a long tool's head (not its
+	// handle) across the middle of the view at the blow (DEMO round 4).
+	const FTransform SwatBlowGrip = ToolPose(EMeleeSwingStyle::Swat, EMeleeHeft::Steady, Contact, false).Grip;
+	const FVector EyeWay = (-SwatBlowGrip.GetLocation()).GetSafeNormal();
+	TestTrue(TEXT("Swat: the blade's face toward the eye"), FMath::Abs(FVector::DotProduct(SwatBlowGrip.GetRotation().GetAxisZ(), EyeWay)) > 0.6f);
+	const FTransform Long = ToolPose(EMeleeSwingStyle::Swat, EMeleeHeft::Steady, Contact, false, 76.f).Grip;
+	const FVector LongTip = Long.GetLocation() + Long.GetRotation().GetAxisX() * 76.f;
+	TestTrue(FString::Printf(TEXT("A 76 cm spade's tip crosses the middle of the view (%.1f, %.1f)"), LongTip.Y, LongTip.Z),
+		FMath::Abs(LongTip.Y) < 3.f && FMath::Abs(LongTip.Z + 4.f) < 3.f && LongTip.X > 60.f);
 	TestTrue(TEXT("Chop strikes down"), ToolPose(EMeleeSwingStyle::Chop, EMeleeHeft::Steady, Contact, false).Grip.GetRotation().GetAxisZ().Z < -0.4f);
 	// A heavy tool winds up farther than a quick one.
 	TestTrue(TEXT("Heavy winds up farther"), FMath::Abs(ArcFor(EMeleeSwingStyle::Chop, EMeleeHeft::Heavy).CockDegrees)

@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "IntroWidget.generated.h"
 
+class APlayerController;
 class UOverlaySlot;
 class USceneSkipPromptWidget;
 class USizeBox;
@@ -81,6 +82,17 @@ public:
 
 	/** Takes the keyboard and pad for the skip keys (the menu world), shows the skip prompt when one is pressed. */
 	void SetTakesKeys(bool bTakes);
+
+	/**
+	 * Where a scene holds the keys (the Rest's part): reads the hold keys the scene doesn't (Enter, Space, the pad's
+	 * bottom face button, unless one is Interact, the scene's own) from Controller's key states, so the same keys skip in
+	 * both parts; its prompt shows as the menu's does. Null stops it.
+	 */
+	void SetPollsKeys(APlayerController* Controller);
+
+	/** The skip keys' hold keys besides the player's Interact key (Enter, Space, the pad's A), and how the prompt names one. */
+	static const TArray<FKey>& ExtraHoldKeys();
+	static FString HoldKeyLabel(const FKey& Key);
 	/** A skip was asked for (once). */
 	bool ConsumeSkip();
 
@@ -132,7 +144,15 @@ private:
 	float LetterboxTarget = 0.f;
 	float LastBarHeight = -1.f;
 
+	/** Reads Controller's held keys each frame (SetPollsKeys). */
+	void PollKeys();
+
 	bool bTakesKeys = false;
 	bool bSkipTaken = false;
+	TWeakObjectPtr<APlayerController> PolledController;
+	/** The player's Interact key: the menu's hold key, and in a scene the scene's own (left to it). */
+	FKey InteractKey;
+	/** The polled key being held (none: none). */
+	FKey PolledDown;
 	FIntroSkipKeys Skip;
 };

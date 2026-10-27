@@ -228,6 +228,8 @@ private:
 	TArray<TObjectPtr<UStaticMeshComponent>> ToolParts;
 	/** The tool's mesh is the hero's own forearm piece (else held: the placeholder and the stand-in are held). */
 	bool bForearmMesh = false;
+	/** The tool's striking end's distance from the hand as drawn (cm; 0 unknown): MeleeMotion aims a long tool's arc by it. */
+	float ToolTipLength = 0.f;
 	/** The tool in the body's right hand (third person), and the gun hidden for the swing meanwhile. */
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> ThirdPersonTool;

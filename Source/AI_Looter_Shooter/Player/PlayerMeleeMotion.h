@@ -36,6 +36,11 @@ struct FMeleeArc
 	FVector StrikeHint = FVector(0.f, -1.f, 0.f);
 	/** The striking side is StrikeHint always (a punch: the back of the fist up, whichever way the arm turns). */
 	bool bFaceHint = false;
+	/**
+	 * How much the tool is rolled about its handle to show its face to the eye through the arc (0: its striking side leads
+	 * the motion; 1: faces the eye): a flat blade swung flat reads edge on, a spear point (DEMO, round 4: Ellis's spade).
+	 */
+	float FaceView = 0.f;
 };
 
 /** The tool on the right arm at a moment of the swing (MeleeMotion::ToolPose). */
@@ -101,7 +106,14 @@ namespace MeleeMotion
 
 	/** The tool SwingTime seconds into a strike on Arc (the swing's own clock); bLanded: the blow met a body or a wall. */
 	AI_LOOTER_SHOOTER_API FMeleeToolPose ToolPoseOnArc(const FMeleeArc& Arc, float SwingTime, bool bLanded);
-	AI_LOOTER_SHOOTER_API FMeleeToolPose ToolPose(EMeleeSwingStyle Style, EMeleeHeft Heft, float SwingTime, bool bLanded);
+	/** TipLength: the tool's striking end from the hand (cm, drawn; AimAtTip), 0 for none known. */
+	AI_LOOTER_SHOOTER_API FMeleeToolPose ToolPose(EMeleeSwingStyle Style, EMeleeHeft Heft, float SwingTime, bool bLanded, float TipLength = 0.f);
+
+	/**
+	 * A long tool's arc aimed so its striking end (TipLength from the hand) crosses the middle of the view at the blow, a
+	 * little under the crosshair, rather than its handle (tools shorter than Looter.Melee.AimTipFrom keep their arc's).
+	 */
+	AI_LOOTER_SHOOTER_API void AimAtTip(FMeleeArc& Arc, float TipLength);
 
 	/** The gun held low and canted in the left hand while the right swings (its own frame, about the middle of the hands). */
 	AI_LOOTER_SHOOTER_API FMeleeSwingPose LowReadyPose();

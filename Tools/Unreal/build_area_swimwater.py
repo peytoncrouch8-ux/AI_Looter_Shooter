@@ -34,9 +34,9 @@ CLASSES = '/Script/AI_Looter_Shooter.'
 WATER_TAG = 'SwimWater'
 FOLDER = 'Water'
 
-# The player's swim start: Looter.Swim.StartDepth (135 full-size cm) at the player's size (Player/PlayerSize.h Scale 0.85),
+# The player's swim start: Looter.Swim.StartDepth (160 full-size cm) at the player's size (Player/PlayerSize.h Scale 0.85),
 # World/SwimWaterRules.cpp. Kept equal by hand: a bed deeper than this under the surface is deep water.
-SWIM_DEPTH = 135.0 * 0.85
+SWIM_DEPTH = 160.0 * 0.85
 # The shore drawn this much outside the layout's radii (the waterline wanders about 7% round the ellipse), with this many
 # corners.
 SHORE_GROW = 1.12

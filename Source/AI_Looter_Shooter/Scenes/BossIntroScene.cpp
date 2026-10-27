@@ -8,6 +8,7 @@
 #include "Audio/LooterSound.h"
 #include "Bosses/BossComponent.h"
 #include "Scenes/BossIntroFreeze.h"
+#include "Scenes/BossIntroGuard.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Story/CaptionSubsystem.h"
 #include "UI/HUD/HudBossBarWidget.h"
@@ -34,6 +35,9 @@ namespace
 	constexpr float NoPlayerDistance = 1500.f;
 	constexpr float NoPlayerEye = 170.f;
 
+	/** The floor under a shot's mark is looked for this far down (cm): past a tall boss's middle to the ground under it. */
+	constexpr float FloorProbe = 1500.f;
+
 	/** What the scene's moves and moments share; it outlives the call that made them. */
 	struct FIntroState
 	{
@@ -49,12 +53,17 @@ namespace
 		TWeakObjectPtr<UBossComponent> Fight;
 		TWeakObjectPtr<UIntroWidget> Widget;
 		TWeakObjectPtr<UAudioComponent> Music;
+		/** The epithet on its card: its bar's own title (one source for both). */
+		FText CardSub;
+
+		/** The held player, untouchable through the scene and GraceSeconds after it. */
+		TWeakObjectPtr<APawn> Player;
+		FBossIntroGuard Guard;
 
 		/** Where the boss stood once its entrance began (the tracking shots follow it from there; before, nothing moves). */
 		FVector TrackFrom = FVector::ZeroVector;
 		bool bLive = false;
 		bool bSkipped = false;
-		bool bOwnLineSaid = false;
 		/** The scene camera's own settings (it's shared by every scene), given back at the end. */
 		bool bCameraSaved = false;
 		float SavedFov = 90.f;
@@ -115,16 +124,28 @@ namespace
 			+ (Shot.bTrackBoss ? Shift : FVector::ZeroVector);
 		if (UWorld* World = Camera->GetWorld())
 		{
+			// Placed things too (the burial deck's boards, the stope's timbers), not only the land.
+			FCollisionObjectQueryParams Solid;
+			Solid.AddObjectTypesToQuery(ECC_WorldStatic);
+			Solid.AddObjectTypesToQuery(ECC_WorldDynamic);
+			const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("BossIntroBoom"), Boss);
 			FHitResult Hit;
-			const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("BossIntroBoom"));
-			// A mark inside the rock itself (a low stope roof over a tall boss) says nothing about the way to the eye: left as is.
-			if (World->LineTraceSingleByObjectType(Hit, Mark, View.Location, FCollisionObjectQueryParams(ECC_WorldStatic), Params)
+			// Swept as a ball, so the lens's near plane stops short of a board. A mark inside the rock itself (a low stope
+			// roof over a tall boss) says nothing about the way to the eye: left as is.
+			if (World->SweepSingleByObjectType(Hit, Mark, View.Location, FQuat::Identity, Solid, FCollisionShape::MakeSphere(BossIntro::BoomRadius), Params)
 				&& !Hit.bStartPenetrating)
 			{
 				View.Location = BossIntro::BoomClip(Mark, View.Location, Hit.Time);
-				View.Rotation = (Mark - View.Location).Rotation();
-				View.Rotation.Roll = 0.f;
 			}
+			// Never under the floor its mark stands over (Abel's low shot went under the deck, DEMO 2026-10-27: b_abel_9).
+			FHitResult Floor;
+			const FVector Down = Mark + FVector(0.0, 0.0, BossIntro::BoomRadius);
+			if (World->LineTraceSingleByObjectType(Floor, Down, Down - FVector(0.0, 0.0, FloorProbe), Solid, Params) && !Floor.bStartPenetrating)
+			{
+				View.Location.Z = FMath::Max(View.Location.Z, Floor.ImpactPoint.Z + BossIntro::MinEyeOverFloor);
+			}
+			View.Rotation = (Mark - View.Location).Rotation();
+			View.Rotation.Roll = 0.f;
 		}
 		Camera->SetActorLocationAndRotation(View.Location, View.Rotation);
 		if (UCameraComponent* Lens = Camera->GetCameraComponent())
@@ -164,20 +185,7 @@ namespace
 			return;
 		}
 		UCaptionSubsystem* Captions = UCaptionSubsystem::Get(State.Scenes.Get());
-		if (!Captions)
-		{
-			return;
-		}
-		if (Line == BossIntro::OwnLine)
-		{
-			if (!State.Acts.OwnLine.Text.IsEmpty())
-			{
-				Captions->Play({ State.Acts.OwnLine }, ECaptionPlay::Interrupt);
-				State.bOwnLineSaid = true;
-			}
-			return;
-		}
-		if (State.Lines.IsValidIndex(Line))
+		if (Captions && State.Lines.IsValidIndex(Line))
 		{
 			Captions->Play({ State.Lines[Line] }, ECaptionPlay::Interrupt);
 		}
@@ -216,6 +224,24 @@ namespace
 		State.bCameraSaved = false;
 	}
 
+	/**
+	 * Every hostile round the boss and round the player held still: a second boss close by (the Gravemother bit the held
+	 * player during the Foreman's intro, DEMO 2026-10-27), a pack, a wave the first phase raised.
+	 */
+	void HoldHostiles(FIntroState& State)
+	{
+		AActor* Boss = State.Boss.Get();
+		UWorld* World = Boss ? Boss->GetWorld() : nullptr;
+		if (!World)
+		{
+			return;
+		}
+		State.Freeze.HoldCreaturesNear(*World, Boss->GetActorLocation(), BossIntro::FreezeRadius, BossIntro::FreezeDilation);
+		const APawn* Player = State.Player.Get();
+		State.Freeze.HoldCreaturesNear(*World, Player ? Player->GetActorLocation() : State.Frame.Player, BossIntro::PlayerFreezeRadius,
+			BossIntro::FreezeDilation);
+	}
+
 	void OnStart(const FStateRef& State)
 	{
 		USceneSubsystem* Scenes = State->Scenes.Get();
@@ -224,9 +250,12 @@ namespace
 		{
 			return;
 		}
-		// Held at once, inside the fight's start: its first move never gets a frame.
+		// Held at once, inside the fight's start: its first move never gets a frame; nor does anything else's near.
 		State->Freeze.Hold(*Boss, BossIntro::FreezeDilation);
+		State->Player = Scenes->GetHeldPawn();
+		State->Guard.Begin(State->Player.Get());
 		State->Frame = MakeFrame(*State, *Boss);
+		HoldHostiles(*State);
 		State->TrackFrom = Boss->GetActorLocation();
 		if (UBossComponent* Fight = State->Fight.Get())
 		{
@@ -284,9 +313,9 @@ namespace
 		}
 		if (UIntroWidget* Widget = State.Widget.Get())
 		{
-			Widget->ShowCard(BossIntro::CardTitle(State.Kind), BossIntro::CardSub(State.Kind), State.Script.CardSeconds, /*bAccentSub*/ true);
+			Widget->ShowCard(BossIntro::CardTitle(State.Kind), State.CardSub, State.Script.CardSeconds, /*bAccentSub*/ true);
 		}
-		UE_LOG(LogLooter, Log, TEXT("Boss intro: [%s, %s]"), *BossIntro::CardTitle(State.Kind).ToString(), *BossIntro::CardSub(State.Kind).ToString());
+		UE_LOG(LogLooter, Log, TEXT("Boss intro: [%s, %s]"), *BossIntro::CardTitle(State.Kind).ToString(), *State.CardSub.ToString());
 	}
 
 	void HandBack(FIntroState& State)
@@ -334,8 +363,10 @@ namespace
 
 	void AfterEnd(FIntroState& State)
 	{
-		// Everything round it wakes; the camera is put back for the next scene; the screen goes.
+		// Everything round it wakes (the player still untouchable a moment); the camera is put back for the next scene; the
+		// screen goes.
 		State.Freeze.ReleaseAll();
+		State.Guard.EndAfter(BossIntro::GraceSeconds);
 		RestoreCamera(State);
 		if (UIntroWidget* Widget = State.Widget.Get())
 		{
@@ -345,16 +376,6 @@ namespace
 		if (State.bSkipped)
 		{
 			LooterSound::Stop(State.Music.Get(), MusicSkipSeconds);
-		}
-		// Its own line is the fight's: said still, after a skip passed it.
-		if (!State.bOwnLineSaid && !State.Acts.OwnLine.Text.IsEmpty() && State.Script.Captions.ContainsByPredicate(
-			[](const FBossIntroCaption& Caption) { return Caption.Line == BossIntro::OwnLine; }))
-		{
-			if (UCaptionSubsystem* Captions = UCaptionSubsystem::Get(State.Scenes.Get()))
-			{
-				Captions->Play({ State.Acts.OwnLine }, ECaptionPlay::Queue);
-			}
-			State.bOwnLineSaid = true;
 		}
 		if (State.Acts.Ended)
 		{
@@ -380,6 +401,7 @@ bool BossIntro::Play(EBossIntro Kind, AActor& Boss, UBossComponent* Fight, FBoss
 	State->Scenes = Scenes;
 	State->Boss = &Boss;
 	State->Fight = Fight;
+	State->CardSub = CardSub(Kind, Fight);
 	State->bUsesExposure = State->Script.Shots.ContainsByPredicate([](const FBossIntroShot& Shot)
 		{ return !FMath::IsNearlyZero(Shot.FromExposure) || !FMath::IsNearlyZero(Shot.ToExposure); });
 	const FBossIntroScript& Plan = State->Script;
@@ -390,23 +412,8 @@ bool BossIntro::Play(EBossIntro Kind, AActor& Boss, UBossComponent* Fight, FBoss
 	Scene.bLookOnly = false;
 	Scene.OnStart = [State]() { OnStart(State); };
 
-	// As its first frame plays (after the fight's first phase has begun): whatever that phase raised is held too, and the
-	// words queued at the fight's start make way for the scene's.
-	Scene.Timeline.AddMoment(TEXT("Freeze"), 0.f, [State]()
-	{
-		AActor* Held = State->Boss.Get();
-		if (UWorld* Here = Held ? Held->GetWorld() : nullptr)
-		{
-			State->Freeze.HoldCreaturesNear(*Here, Held->GetActorLocation(), FreezeRadius, FreezeDilation);
-		}
-		if (State->Script.bClearCaptions)
-		{
-			if (UCaptionSubsystem* Captions = UCaptionSubsystem::Get(State->Scenes.Get()))
-			{
-				Captions->Clear();
-			}
-		}
-	});
+	// As its first frame plays (after the fight's first phase has begun): whatever that phase raised is held too.
+	Scene.Timeline.AddMoment(TEXT("Freeze"), 0.f, [State]() { HoldHostiles(*State); });
 
 	for (int32 Index = 0; Index < Plan.Shots.Num(); ++Index)
 	{

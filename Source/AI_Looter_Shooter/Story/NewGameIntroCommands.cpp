@@ -63,7 +63,8 @@ namespace
 		{
 			if (USceneSubsystem* Scenes = USceneSubsystem::Get(WeakWorld.Get()))
 			{
-				Scenes->ReturnFromScene();
+				// It ends as a new game's does: the title rising through the white.
+				Scenes->ReturnFromScene(UTransitionScreenSubsystem::GameTitle());
 			}
 		});
 		if (!bPlays)
