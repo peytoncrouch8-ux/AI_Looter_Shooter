@@ -48,7 +48,7 @@ namespace VendorActions
  * world in the notice board's and the bench's way:
  *  - top: the shop's name on the panel's tab, its greeting, and on the right the player's silver (the purse), which counts
  *    up or down and flashes as it changes;
- *  - left, BUY: a box of each ammo the game's guns use (what fits, its price; FULL when carried to the limit), a jar of
+ *  - left, BUY: REFILL ALL AMMO first (every ammo type to its most for one price, the sum of the boxes; asks first), then a box of each ammo the game's guns use (what fits, its price; FULL when carried to the limit), a jar of
  *    grave salt (up to the three carried), and the GUN OF THE DAY's card (its picture, name in its rarity's colour, level,
  *    damage, rate and magazine, its price; SOLD until the next one, saying when);
  *  - right, SELL: every backpack gun with what a vendor pays (a named gun says it isn't for sale; equipped guns aren't
@@ -85,7 +85,7 @@ protected:
 
 private:
 	/** What a row on the screen is. */
-	enum class EEntry : uint8 { Ammo, Grenade, Offer, Sell, SellJunk };
+	enum class EEntry : uint8 { RefillAmmo, Ammo, Grenade, Offer, Sell, SellJunk };
 
 	/** One row: what it is, which side it's on, and the parts that restyle as it's chosen (the widgets live in the tree). */
 	struct FEntry
@@ -102,7 +102,7 @@ private:
 	};
 
 	/** What a confirm asks before it's done. */
-	enum class EConfirm : uint8 { None, Sell, SellJunk, BuyOffer };
+	enum class EConfirm : uint8 { None, Sell, SellJunk, BuyOffer, RefillAmmo };
 
 	// --- VendorWidget.cpp: the panel, choosing, keys ---
 
@@ -134,6 +134,8 @@ private:
 	UWidget* MakePrice(int32 Silver, bool bAffordable) const;
 	/** A word on a row's right instead of a price (FULL, SOLD, NOT FOR SALE). */
 	UWidget* MakeWord(const FString& Word, const FLinearColor& WordColor) const;
+	/** REFILL ALL AMMO, first in the Buy list: the total for every stocked type to its most (greyed, with why, when full or too dear). */
+	UWidget* MakeRefillAmmoRow();
 	UWidget* MakeAmmoRow(EAmmoType Type);
 	UWidget* MakeGrenadeRow();
 	UWidget* MakeOfferRow();
@@ -146,6 +148,8 @@ private:
 	/** Acts on the row at Index: buys or sells it (asking first where it must). */
 	void Act(int32 Index);
 	void BuyAmmo(EAmmoType Type);
+	/** Refills every ammo type: asks first (it's a big spend) unless it can't happen, which is said at once. */
+	void RefillAllAmmo();
 	void BuyGrenade();
 	void BuyOffer();
 	void SellGun(int32 BackpackIndex);

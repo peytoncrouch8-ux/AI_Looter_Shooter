@@ -1,4 +1,4 @@
-// UVendorWidget: acting on a row (buying, selling, the junk mark, selling all junk), the confirm before a big trade, and
+// UVendorWidget: acting on a row (buying, refilling all ammo, selling, the junk mark, selling all junk), the confirm before a big trade, and
 // what each trade says and sounds like.
 
 #include "UI/Vendor/VendorWidget.h"
@@ -58,6 +58,9 @@ void UVendorWidget::Act(int32 Index)
 	const FEntry Entry = Entries[Index];
 	switch (Entry.Kind)
 	{
+	case EEntry::RefillAmmo:
+		RefillAllAmmo();
+		break;
 	case EEntry::Ammo:
 		BuyAmmo(Entry.Ammo);
 		break;
@@ -89,6 +92,30 @@ void UVendorWidget::BuyAmmo(EAmmoType Type)
 	const FVendorTradeResult Result = VendorTrade::BuyAmmo(*Wallet, *Manager, Type, GetPlayerLevel());
 	Report(Result, FText::Format(LOCTEXT("BoughtAmmo", "Bought {0} {1} for {2} silver."), FText::AsNumber(Result.Count), Item,
 		FText::AsNumber(Result.Silver)), Item);
+}
+
+void UVendorWidget::RefillAllAmmo()
+{
+	UWalletSubsystem* Wallet = GetWallet();
+	UWeaponManagerComponent* Manager = GetManager();
+	if (!Wallet || !Manager)
+	{
+		PlayCue(LooterSoundCue::Denied);
+		return;
+	}
+	const int32 Level = GetPlayerLevel();
+	const FVendorRefillTally Tally = VendorTrade::TallyRefill(*Manager, Level);
+	const FText Item = LOCTEXT("AmmoItem", "ammo");
+	// What can't happen is said at once (all full; too dear); what can asks first, since it's a big spend.
+	if (Tally.IsFull() || !Wallet->CanAfford(Tally.Silver))
+	{
+		Report(VendorTrade::RefillAllAmmo(*Wallet, *Manager, Level), FText::GetEmpty(), Item);
+		return;
+	}
+	const FString Body = FText::Format(LOCTEXT("ConfirmRefillBody", "Refill all your ammo: {0} rounds across {1} kinds for {2} silver? You'll have {3} left."),
+		FText::AsNumber(Tally.Rounds), FText::AsNumber(Tally.Types), FText::AsNumber(Tally.Silver),
+		FText::AsNumber(Wallet->GetSilver() - Tally.Silver)).ToString();
+	OpenConfirm(EConfirm::RefillAmmo, INDEX_NONE, LOCTEXT("ConfirmRefillTitle", "Refill all ammo").ToString(), Body, LOCTEXT("Refill", "Refill"));
 }
 
 void UVendorWidget::BuyGrenade()
@@ -348,6 +375,13 @@ void UVendorWidget::AcceptConfirm()
 		const FVendorTradeResult Result = VendorTrade::SellAllJunk(*Wallet, *Manager);
 		Report(Result, FText::Format(LOCTEXT("SoldJunk", "Sold {0} junk guns for {1} silver."), FText::AsNumber(Result.Count),
 			FText::AsNumber(Result.Silver)), LOCTEXT("JunkItem", "junk"), /*bSale*/ true);
+		break;
+	}
+	case EConfirm::RefillAmmo:
+	{
+		const FVendorTradeResult Result = VendorTrade::RefillAllAmmo(*Wallet, *Manager, GetPlayerLevel());
+		Report(Result, FText::Format(LOCTEXT("RefilledAmmo", "Refilled all your ammo: {0} rounds for {1} silver."), FText::AsNumber(Result.Count),
+			FText::AsNumber(Result.Silver)), LOCTEXT("AmmoItem", "ammo"));
 		break;
 	}
 	case EConfirm::BuyOffer:

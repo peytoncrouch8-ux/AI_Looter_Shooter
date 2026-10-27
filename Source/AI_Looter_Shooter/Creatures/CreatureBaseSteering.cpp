@@ -14,6 +14,11 @@
 namespace
 {
 	constexpr float SteerInterval = 0.1f;
+
+	/** Settling on the ground lifts a creature no more than this (cm, or its half height if taller) from where it was put. */
+	constexpr float SettleMostRise = 120.f;
+	/** ...past that the ground is looked for from this far over its feet (cm): over the floor it was put on, under any ceiling. */
+	constexpr float SettleLookOverFeet = 50.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -229,10 +234,26 @@ void ACreatureBase::SnapToGround()
 	// above a roof over it. In the Gravemother's den the ceiling is lower than that.
 	const float Above = LookAboveUnderRoof(Middle, HalfHeight + 150.f);
 	FVector Ground;
-	if (FindGround(Middle, Above, 1500.f, Ground))
+	if (!FindGround(Middle, Above, 1500.f, Ground))
 	{
-		SetActorLocation(Ground + FVector(0.f, 0.f, HalfHeight + 2.f), false, nullptr, ETeleportType::TeleportPhysics);
+		return;
 	}
+	// A middle that starts inside a low ceiling or a stair's hull sees no roof (the look up starts inside it), so the look
+	// down starts over the floor upstairs: one of Tilly's cellar dead came up on the workshop's floor (the playtest of
+	// 2026-10-27). Settling never lifts it more than a step from where it was put; past that it looks again from just over
+	// its own feet.
+	const float Feet = static_cast<float>(Middle.Z) - HalfHeight;
+	const float MostRise = FMath::Max(SettleMostRise, HalfHeight);
+	if (Ground.Z - Feet > MostRise)
+	{
+		FVector Low;
+		if (!FindGround(FVector(Middle.X, Middle.Y, Feet), SettleLookOverFeet, 1500.f, Low))
+		{
+			return;
+		}
+		Ground = Low;
+	}
+	SetActorLocation(Ground + FVector(0.f, 0.f, HalfHeight + 2.f), false, nullptr, ETeleportType::TeleportPhysics);
 }
 
 /** How far over From (cm, up to Above) a look down for the ground may start: just under a roof over From, never over it. */

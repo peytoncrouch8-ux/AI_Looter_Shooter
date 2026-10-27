@@ -23,6 +23,8 @@ gameplay.roosts (level cm, X north, Y east, as every layout point is):
     World/RoostKit.h): 1.7 m out in front of the mast, facing away from it, so face the yaw out over the land.
   - openAfter (ActiveAfterMission), markAfter (MarkAfterMission), startOpen (bStartActive): optional; without them a roost
     opens when it's found, any time.
+  - fastTravel: false makes it a save point and death-respawn only, no fast-travel destination (default true; the Depot
+    and Calder's Post are the stations, the user's call 2026-10-27).
   - onRoad: the mast may stand in a road (as Main Street's did, beside the town memorial); every other keeps off roads.
 Each spot is checked: inside the playable boundary; the mast and the player's spot on walkable ground (tagged Ground) level
 enough under the cairn and the feet; clear of the layout's roads, obstacles, placements, the stand-ins' boxes, pits and rock
@@ -343,6 +345,8 @@ def place(build):
         roost.set_editor_property('start_active', bool(entry.get('startOpen', False)))
         roost.set_editor_property('active_after_mission', unreal.Name(entry.get('openAfter', 'None')))
         roost.set_editor_property('mark_after_mission', unreal.Name(entry.get('markAfter', 'None')))
+        # fastTravel false: a death-respawn and save point only (the town roost; ARespawnMarker.bFastTravelStation).
+        roost.set_editor_property('fast_travel_station', bool(entry.get('fastTravel', True)))
         if roost_mesh is not None:
             roost.set_editor_property('roost_mesh', roost_mesh)
         if bell_mesh is not None:

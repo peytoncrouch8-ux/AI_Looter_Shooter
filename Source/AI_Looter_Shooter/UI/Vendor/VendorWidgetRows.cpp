@@ -1,4 +1,4 @@
-// UVendorWidget: the rows: a box of each ammo, a jar of grave salt, the gun of the day's card, the backpack's guns with what
+// UVendorWidget: the rows: refill all ammo, a box of each ammo, a jar of grave salt, the gun of the day's card, the backpack's guns with what
 // they'd fetch, and selling all junk.
 
 #include "UI/Vendor/VendorWidget.h"
@@ -110,6 +110,38 @@ UWidget* UVendorWidget::MakeWord(const FString& Word, const FLinearColor& WordCo
 // ---------------------------------------------------------------------------
 // Supplies
 // ---------------------------------------------------------------------------
+
+UWidget* UVendorWidget::MakeRefillAmmoRow()
+{
+	const int32 Index = AddEntry(EEntry::RefillAmmo, false);
+	const UWeaponManagerComponent* Manager = GetManager();
+	const UWalletSubsystem* Wallet = GetWallet();
+	const FVendorRefillTally Tally = Manager ? VendorTrade::TallyRefill(*Manager, GetPlayerLevel()) : FVendorRefillTally();
+	const bool bFull = Tally.IsFull();
+	const bool bAffordable = Wallet && Wallet->CanAfford(Tally.Silver);
+	// Greyed when there's nothing to buy; a price too high still answers a click, with the reason (as the other rows do).
+	Entries[Index].bActive = !bFull;
+
+	const bool bUsable = !bFull && bAffordable;
+	UWidget* Name = LoadoutParts::Label(WidgetTree, LOCTEXT("RefillAll", "Refill all ammo").ToString(), 13, bUsable ? Color::Accent() : Color::TextDim(), 80);
+	FString Detail;
+	if (bFull)
+	{
+		Detail = LOCTEXT("RefillFull", "Every kind is full: you carry all you can").ToString();
+	}
+	else if (!bAffordable)
+	{
+		Detail = FText::Format(LOCTEXT("RefillTooDear", "Not enough silver: {0} needed, you carry {1}"), FText::AsNumber(Tally.Silver),
+			FText::AsNumber(Wallet ? Wallet->GetSilver() : 0)).ToString();
+	}
+	else
+	{
+		Detail = FText::Format(LOCTEXT("RefillDetail", "+{0} rounds across {1} kinds, to the most you carry"), FText::AsNumber(Tally.Rounds),
+			FText::AsNumber(Tally.Types)).ToString();
+	}
+	UWidget* Right = bFull ? MakeWord(LOCTEXT("Full", "Full").ToString(), Color::TextDim()) : MakePrice(Tally.Silver, bAffordable);
+	return MakeRow(Index, nullptr, Name, Detail, bFull || bAffordable ? Color::TextDim() : Color::Worse(), Right, VendorLayout::RowHeight);
+}
 
 UWidget* UVendorWidget::MakeAmmoRow(EAmmoType Type)
 {

@@ -99,6 +99,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost")
 	FName ActiveAfterMission;
 
+	/**
+	 * Fast travel may go here (the map lists it and the crows carry the player to it). Off (the user's call, 2026-10-27: the
+	 * town roost by the sheriff's office): it is still found by walking up, still a save point and still where a death wakes
+	 * the player, but it is no travel destination and the map's travel list leaves it out. The Depot and Calder's Post are
+	 * the stations.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost")
+	bool bFastTravelStation = true;
+
 	/** What the map and the banner call it ("Main Street"). Empty: its id in words ("Main Street" for MainStreet). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost")
 	FText DisplayName;

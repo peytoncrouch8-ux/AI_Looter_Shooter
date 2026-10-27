@@ -145,10 +145,11 @@ READABLES = {
         text='DAY 1. SHIFT OF 11.\nDAY 2. AIR BAD.\nDAY 4. WATER GONE.\nDAY 6. TEAGUE WILL DIG US OUT.',
         lines=[(HOB, "...He didn't, sunshine.")]),
     # Back Pay: reading it is the step (SM_RR_Mine_Barricade's Barricade socket): the eleven's tags come off its nail.
+    # No card (the user, 2026-10-27: taking tags shouldn't open a page to read): text is empty, so AReadableProp::Read opens
+    # nothing and the sound, captions and step event still fire. The chalk moved into Ellis's caption.
     'Barricade': dict(
-        title="The eleven's barricade", heading='Timbers across the lower drift', prompt='Take the tags',
-        text='Chalked across the timbers:\n\nPAY US AND WE COME UP.\n\nEleven brass tags hang from a nail.',
-        lines=[(ELLIS, 'Eleven tags.'),
+        title="The eleven's barricade", heading='Timbers across the lower drift', prompt='Take the tags', text='',
+        lines=[(ELLIS, 'Chalked on the timbers: pay us and we come up. Eleven tags.'),
                (HOB, 'A Foreman who never paid them. Listen. Digging.')]),
     # Calder's Caches: reading it is the step; it lies with the gang's strongbox in the sheriff's lockup (on the banknotes
     # inside, or on the shelf beside it), there from the start, so it can be read again once the mission asks.

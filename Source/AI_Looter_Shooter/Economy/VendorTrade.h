@@ -49,6 +49,20 @@ struct AI_LOOTER_SHOOTER_API FVendorAmmoOffer
 	bool IsFull() const { return Rounds <= 0; }
 };
 
+/** What topping off every stocked ammo type would cost, as the boxes would be bought one after another. */
+struct AI_LOOTER_SHOOTER_API FVendorRefillTally
+{
+	/** How many types are short of their most. */
+	int32 Types = 0;
+	/** The rounds it would add, over every type. */
+	int32 Rounds = 0;
+	/** The silver for all of it. */
+	int32 Silver = 0;
+
+	/** Nothing to buy: every type is carried to its most. */
+	bool IsFull() const { return Rounds <= 0; }
+};
+
 /** The junk-marked guns in the backpack that a vendor would buy. */
 struct AI_LOOTER_SHOOTER_API FVendorJunkTally
 {
@@ -60,7 +74,7 @@ struct AI_LOOTER_SHOOTER_API FVendorJunkTally
 
 /**
  * What a vendor does (Docs/Progression.md, "Economy"), apart from its screen so the tests drive it: sells ammo by the box
- * (LooterEconomy's prices at the player's level), grave salt by the jar (up to the three carried), and the gun of the day
+ * (LooterEconomy's prices at the player's level; or every type to its most in one payment, "Refill all ammo"), grave salt by the jar (up to the three carried), and the gun of the day
  * (UWalletSubsystem::GetOffer); buys guns from the backpack (never an equipped one, never a named one), one at a time or
  * every junk-marked one at once. Every trade pays or is paid through the wallet, all or nothing.
  */
@@ -74,6 +88,21 @@ namespace VendorTrade
 
 	/** Buys a box of Type (what fits of it): Full when nothing fits, NotEnoughSilver when it can't be paid. */
 	AI_LOOTER_SHOOTER_API FVendorTradeResult BuyAmmo(UWalletSubsystem& Wallet, UWeaponManagerComponent& Manager, EAmmoType Type, int32 PlayerLevel);
+
+	/**
+	 * The silver for Rounds of Type bought box by box: every whole box at the box price, then the last part box at
+	 * LooterEconomy::AmmoPrice's share (never cheaper or dearer than clicking Buy until it's full).
+	 */
+	AI_LOOTER_SHOOTER_API int32 RefillPrice(EAmmoType Type, int32 Rounds, int32 PlayerLevel);
+
+	/** What filling every stocked ammo type to its most would cost now (the sum of RefillPrice over the rounds each lacks). */
+	AI_LOOTER_SHOOTER_API FVendorRefillTally TallyRefill(const UWeaponManagerComponent& Manager, int32 PlayerLevel);
+
+	/**
+	 * Fills every stocked ammo type to its most, paying TallyRefill's total once: Full when nothing is short, NotEnoughSilver
+	 * (Silver = the total) when it can't be paid, with nothing bought. Count is the rounds added.
+	 */
+	AI_LOOTER_SHOOTER_API FVendorTradeResult RefillAllAmmo(UWalletSubsystem& Wallet, UWeaponManagerComponent& Manager, int32 PlayerLevel);
 
 	/** Buys one jar of grave salt into Throw's count (it unlocks the counter): Full at the most carried. */
 	AI_LOOTER_SHOOTER_API FVendorTradeResult BuyGrenade(UWalletSubsystem& Wallet, UPlayerThrowComponent& Throw, int32 PlayerLevel);

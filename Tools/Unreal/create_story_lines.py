@@ -158,7 +158,8 @@ SETS = {
     ],
     # While the bell and the Reliquary wait (from Main 4's fourth step).
     'DA_Lines_AldanaBell': [
-        ('', "Ring her. Then go and look at her."),
+        ('', "Ring her. Then go and look at the Reliquary."),
+        ('', "Saint Ada's light burned over it. Our dead steered home by that. Now it's smashed."),
     ],
     # Main 4's turn-in, the doc's words, word for word: the mission says them (its turn-in lines), and his offer of Main 5
     # follows them as one conversation.

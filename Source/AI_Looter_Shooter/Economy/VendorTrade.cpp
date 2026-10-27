@@ -64,6 +64,59 @@ FVendorTradeResult VendorTrade::BuyAmmo(UWalletSubsystem& Wallet, UWeaponManager
 	return Result;
 }
 
+int32 VendorTrade::RefillPrice(EAmmoType Type, int32 Rounds, int32 PlayerLevel)
+{
+	if (Rounds <= 0)
+	{
+		return 0;
+	}
+	// Buying box by box asks the full price for each whole box and a part box's share for the last, as BuyAmmo does.
+	const int32 Box = LooterEconomy::AmmoBoxRounds(Type);
+	return (Rounds / Box) * LooterEconomy::AmmoPrice(Type, Box, PlayerLevel) + LooterEconomy::AmmoPrice(Type, Rounds % Box, PlayerLevel);
+}
+
+FVendorRefillTally VendorTrade::TallyRefill(const UWeaponManagerComponent& Manager, int32 PlayerLevel)
+{
+	FVendorRefillTally Tally;
+	for (const EAmmoType Type : StockedAmmo())
+	{
+		const int32 Lacks = FMath::Max(Manager.GetMaxAmmo(Type) - Manager.GetAmmo(Type), 0);
+		if (Lacks > 0)
+		{
+			++Tally.Types;
+			Tally.Rounds += Lacks;
+			Tally.Silver += RefillPrice(Type, Lacks, PlayerLevel);
+		}
+	}
+	return Tally;
+}
+
+FVendorTradeResult VendorTrade::RefillAllAmmo(UWalletSubsystem& Wallet, UWeaponManagerComponent& Manager, int32 PlayerLevel)
+{
+	FVendorTradeResult Result;
+	const FVendorRefillTally Tally = TallyRefill(Manager, PlayerLevel);
+	if (Tally.IsFull())
+	{
+		Result.Result = EVendorTrade::Full;
+		return Result;
+	}
+	Result.Silver = Tally.Silver;
+	// One payment, all or nothing: the rounds go in only once it's paid.
+	if (!Wallet.Spend(Tally.Silver))
+	{
+		Result.Result = EVendorTrade::NotEnoughSilver;
+		return Result;
+	}
+	for (const EAmmoType Type : StockedAmmo())
+	{
+		const int32 Lacks = FMath::Max(Manager.GetMaxAmmo(Type) - Manager.GetAmmo(Type), 0);
+		Result.Count += Lacks > 0 ? Manager.AddAmmo(Type, Lacks) : 0;
+	}
+	Result.Result = EVendorTrade::Done;
+	UE_LOG(LogLooter, Log, TEXT("Vendors: refilled %d rounds over %d ammo types for %d silver."), Result.Count, Tally.Types, Result.Silver);
+	return Result;
+}
+
 FVendorTradeResult VendorTrade::BuyGrenade(UWalletSubsystem& Wallet, UPlayerThrowComponent& Throw, int32 PlayerLevel)
 {
 	FVendorTradeResult Result;

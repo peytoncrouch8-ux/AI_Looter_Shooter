@@ -62,7 +62,9 @@
                   meters: teal shallows (ShallowColor) deepening to blue-green (WaterColor), ripples flowing downstream
                   (a two-phase flow map; still water drifts), the sky's tint toward grazing angles (SkyColor), a broken,
                   lapping foam line at the shore (FoamColor); the sun's glints from its low roughness. Lit like the
-                  bank, so dusk dims it. A mesh without vertex colors reads as still water with no shore.
+                  bank, so dusk dims it. A mesh without vertex colors reads as still water with no shore. Two-sided
+                  since 2026-10-27: from below it is the water's underside, the same colors darkened (UnderDark) with a
+                  little glow (UnderGlow), no sky reflection or foam, so a pond stays there when the player swims in.
   M_Gel           lit translucent gel (the slime): Tint, mostly clear facing the eye (Opacity) and denser at grazing
                   edges (EdgeOpacity), a faint inner glow, and a sun highlight worked out in the material (the sky
                   atmosphere's sun direction), so the cheapest translucent lighting does. Casts a solid shadow.
@@ -1518,9 +1520,16 @@ return normalize(float3(XY, 1.0));"""
 WATER_COLOR = """float Legacy = step(1.98, Col.r + Col.g);
 float Depth = lerp(Col.g, 1.0, Legacy);
 float3 C = lerp(ShallowColor, WaterColor, pow(saturate(Depth), DepthPower));
-float F = 0.02 + 0.98 * pow(1.0 - saturate(dot(normalize(Normal), CameraVector)), 5.0);
-C = lerp(C, SkyColor, saturate(F * SkyTint));
-return lerp(C, FoamColor, Foam);"""
+// Seen from below (Sign is -1 on a back face; the water mesh is one layer) the surface is the underside of the water, so the
+// pond doesn't vanish when the player goes in (user playtest 2026-10-27): the same colours darkened (UnderDark), no sky
+// reflection and no foam. The tangent-to-world normal doesn't turn with the face, so Sign turns it toward the eye.
+float Front = Sign > 0.0 ? 1.0 : 0.0;
+float F = 0.02 + 0.98 * pow(1.0 - saturate(dot(normalize(Normal) * Sign, CameraVector)), 5.0);
+float3 Top = lerp(lerp(C, SkyColor, saturate(F * SkyTint)), FoamColor, Foam);
+return lerp(C * UnderDark, Top, Front);"""
+# The underside also glows a little (UnderGlow of its colour): lit from above, the back face would take no sun at all and
+# read black. Nothing on the top face.
+WATER_UNDER_GLOW = "return Sign > 0.0 ? float3(0.0, 0.0, 0.0) : Color * UnderGlow;"
 
 
 def build_water():
@@ -1533,6 +1542,8 @@ def build_water():
     mat = material('M_Water')
     mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_OPAQUE)
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    # Two-sided, so the surface is still there from underwater (an opaque two-sided plane costs no more to draw).
+    mat.set_editor_property('two_sided', True)
     g = Graph(mat)
     vertex = g.node(unreal.MaterialExpressionVertexColor, -1700, -100)
     common = [
@@ -1559,8 +1570,10 @@ def build_water():
                  ('IdleSpeed', 0.05)), -2000, 700),
         unreal.CustomMaterialOutputType.CMOT_FLOAT3, -900, 600, 'Ripples')
     g.out(ripples, '', unreal.MaterialProperty.MP_NORMAL)
+    face_sign = g.node(unreal.MaterialExpressionTwoSidedSign, -600, 650)
     color = g.custom(WATER_COLOR, [
-        ('Col', vertex, ''), ('Foam', foam, ''),
+        ('Col', vertex, ''), ('Foam', foam, ''), ('Sign', face_sign, ''),
+        ('UnderDark', g.scalar('UnderDark', 0.55, -900, -60), ''),
         ('Normal', tangent_to_world(g, ripples, -600, 450), ''),
         ('CameraVector', g.node(unreal.MaterialExpressionCameraVectorWS, -600, 350), ''),
         ('ShallowColor', g.vector('ShallowColor', srgb(WATER_SHALLOW), -900, -500), ''),
@@ -1571,6 +1584,10 @@ def build_water():
         ('DepthPower', g.scalar('DepthPower', 0.6, -900, -120), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, -200, 'Water color')
     g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    under_glow = g.custom(WATER_UNDER_GLOW, [
+        ('Color', color, ''), ('Sign', face_sign, ''), ('UnderGlow', g.scalar('UnderGlow', 0.6, -600, 700), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 700, 'Underside glow')
+    g.out(under_glow, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     rough = g.node(unreal.MaterialExpressionLinearInterpolate, -300, 300)
     g.link(g.scalar('Roughness', 0.12, -600, 250), '', rough, 'A')
     g.link(g.scalar('FoamRoughness', 0.55, -600, 300), '', rough, 'B')

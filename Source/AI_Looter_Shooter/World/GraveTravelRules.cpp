@@ -35,12 +35,17 @@ namespace GraveTravelRules
 		return EGraveTravelBlock::None;
 	}
 
-	EGraveTravelBlock CheckGrave(const FGraveTravelSenses& Senses, bool bGraveOpen, double DistanceToGrave)
+	EGraveTravelBlock CheckGrave(const FGraveTravelSenses& Senses, bool bGraveOpen, double DistanceToGrave, bool bStation)
 	{
 		const EGraveTravelBlock Now = CheckNow(Senses);
 		if (Now != EGraveTravelBlock::None)
 		{
 			return Now;
+		}
+		// Before open or near: a save point that is no station never offers travel, found or not.
+		if (!bStation)
+		{
+			return EGraveTravelBlock::NotAStation;
 		}
 		if (!bGraveOpen)
 		{
@@ -63,6 +68,7 @@ namespace GraveTravelRules
 		case EGraveTravelBlock::BossFight:    return LOCTEXT("BossFight", "Not in the middle of a boss fight.");
 		case EGraveTravelBlock::Hunted:       return LOCTEXT("Hunted", "Something is hunting you. Lose it or put it down first.");
 		case EGraveTravelBlock::Travelling:   return LOCTEXT("Travelling", "You're already on your way.");
+		case EGraveTravelBlock::NotAStation:  return LOCTEXT("NotAStation", "Hob's crows don't fly to this roost. It only keeps your place.");
 		case EGraveTravelBlock::GraveClosed:  return LOCTEXT("GraveClosed", "Hob's crows don't know this roost yet. Find it first.");
 		case EGraveTravelBlock::AlreadyThere: return LOCTEXT("AlreadyThere", "You're standing at it.");
 		case EGraveTravelBlock::None:         break;

@@ -509,7 +509,7 @@ def main4_steps(asset):
                        'Ring the chapel bell: hold {Interact} on the rope inside the door.',
                        target=actor_filter(tag='Bell_Chapel'), count=1, hold=True)),
         # Done as the flash ends, so the turn-in comes after the vision; the arrow on the Reliquary meanwhile.
-        step(objective(asset, unreal.MissionEventObjective, 'Look at the Reliquary.',
+        step(objective(asset, unreal.MissionEventObjective, "Examine Saint Ada's smashed Reliquary, where her light burned.",
                        waypoint=waypoint.ACTOR, waypoint_tag='Reliquary_Chapel', show_count=False,
                        event=unreal.Name('GraveSight.Reliquary'), count=1),
              read_objective(asset, "Read the keepers' roll in the nave.", 'KeepersRoll', optional=True)),

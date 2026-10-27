@@ -219,6 +219,7 @@ void UVendorWidget::BuildPanel()
 	{
 		UVerticalBox* Buy = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Buy->AddChildToVerticalBox(MakeSection(WidgetTree, LOCTEXT("Buy", "Buy").ToString()));
+		Buy->AddChildToVerticalBox(MakeRefillAmmoRow())->SetPadding(FMargin(0.f, VendorLayout::RowGap, 0.f, 0.f));
 		for (const EAmmoType Type : VendorTrade::StockedAmmo())
 		{
 			Buy->AddChildToVerticalBox(MakeAmmoRow(Type))->SetPadding(FMargin(0.f, VendorLayout::RowGap, 0.f, 0.f));

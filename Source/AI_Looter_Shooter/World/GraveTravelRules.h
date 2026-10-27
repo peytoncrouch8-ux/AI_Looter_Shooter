@@ -18,6 +18,8 @@ enum class EGraveTravelBlock : uint8
 	Hunted,
 	/** A trip to another level, or a fast travel, is already under way. */
 	Travelling,
+	/** The roost is a save point only, not a fast-travel station (ARespawnMarker::bFastTravelStation off). */
+	NotAStation,
 	/** The roost isn't open in this story (not found yet). */
 	GraveClosed,
 	/** The player is standing at it already. */
@@ -59,8 +61,12 @@ namespace GraveTravelRules
 	/** Whether the player may travel at all now, before a roost is chosen: the first block that holds, or None. */
 	AI_LOOTER_SHOOTER_API EGraveTravelBlock CheckNow(const FGraveTravelSenses& Senses);
 
-	/** Whether the player may travel to a roost: CheckNow first, then the roost itself (open, and not where they stand). */
-	AI_LOOTER_SHOOTER_API EGraveTravelBlock CheckGrave(const FGraveTravelSenses& Senses, bool bGraveOpen, double DistanceToGrave);
+	/**
+	 * Whether the player may travel to a roost: CheckNow first, then the roost itself (a station at all, open, and not where
+	 * they stand). bStation is false for a roost that is a save point only.
+	 */
+	AI_LOOTER_SHOOTER_API EGraveTravelBlock CheckGrave(const FGraveTravelSenses& Senses, bool bGraveOpen, double DistanceToGrave,
+		bool bStation = true);
 
 	/** The map's words for a block ("Something is hunting you..."); empty for None. */
 	AI_LOOTER_SHOOTER_API FText Reason(EGraveTravelBlock Block);

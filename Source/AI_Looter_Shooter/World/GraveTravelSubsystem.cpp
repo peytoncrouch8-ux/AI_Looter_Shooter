@@ -125,7 +125,7 @@ EGraveTravelBlock UGraveTravelSubsystem::CheckNow(const APawn* Player) const
 EGraveTravelBlock UGraveTravelSubsystem::CheckGrave(const APawn* Player, const ARespawnMarker& Grave) const
 {
 	const double Distance = Player ? FVector::Dist2D(Player->GetActorLocation(), Grave.GetActorLocation()) : TNumericLimits<double>::Max();
-	return GraveTravelRules::CheckGrave(Sense(Player), IsOpen(Grave), Distance);
+	return GraveTravelRules::CheckGrave(Sense(Player), IsOpen(Grave), Distance, Grave.bFastTravelStation);
 }
 
 bool UGraveTravelSubsystem::IsOpen(const ARespawnMarker& Grave) const
