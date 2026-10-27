@@ -1,13 +1,14 @@
 // UBountyBoardSubsystem: what the screen and the console do to the board (rotating now, a chosen posting, forgetting,
-// reading, taking, giving up, paying), its change notice and posting chime, and the cards.
+// reading, taking, giving up, paying and handing over an older save's strongboxes), its change notice and posting chime,
+// and the cards.
 
 #include "Bounties/BountyBoardSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Bounties/BountyArena.h"
 #include "Bounties/BountyBoard.h"
-#include "Bounties/BountyChest.h"
 #include "Bounties/BountyFight.h"
+#include "Bounties/BountyPayout.h"
 #include "Bounties/BountyTuning.h"
 #include "Economy/WalletSubsystem.h"
 #include "Missions/MissionRewards.h"
@@ -71,14 +72,6 @@ bool UBountyBoardSubsystem::PostChosen(int32 Slot, FBountyPosting Posting)
 void UBountyBoardSubsystem::Forget()
 {
 	DropFight();
-	for (const TPair<int32, TWeakObjectPtr<ABountyChest>>& Each : Chests)
-	{
-		if (ABountyChest* Chest = Each.Value.Get())
-		{
-			Chest->Destroy();
-		}
-	}
-	Chests.Reset();
 	if (FCampaignRecord* Campaign = FindCampaign())
 	{
 		Campaign->Bounties.Remove(GetBoardId());
@@ -225,14 +218,27 @@ bool UBountyBoardSubsystem::Collect(APawn* Player, FMissionRewardsGiven* OutGive
 	UWalletSubsystem* Wallet = UWalletSubsystem::Get(this);
 	Given.Silver = Wallet ? Wallet->Add(Purse, ESilverChange::Reward) : 0;
 
-	// The slot fills again later; the strongbox (if it's still shut) stays owed.
+	// The slot fills again later. A strongbox an older save still owes for this very bounty is paid with it, never twice.
+	Record.OwedChests.RemoveAll([&Paid](const FBountyChestOwed& Each) { return Each.Serial == Paid.Serial; });
 	Record.Slots[Slot] = FBountyPosting();
 	Record.RefillAt[Slot] = GetNow() + FBountyTuning::Current().RefillMinutes * 60.0;
 	++Record.Paid;
 	UE_LOG(LogLooter, Log, TEXT("Bounty board: paid %s: +%lld XP, +%d silver (bounty %d paid here)."), *BountyRules::Describe(Paid),
 		Given.Experience, Given.Silver, Record.Paid);
 	DropFight();
+
+	// The loot: thrown out of the board at the player's feet as they're paid (the user's playtest, 2026-10-27: no chest at
+	// the fight). Its best gun goes on the banner as a mission's reward gun does.
+	const FBountyHaul Haul = BountyPayout::HandOver(GetWorld(), Board.Get(), Player, Paid.Tier, FBountyTuning::Current());
+	if (Haul.bGun)
+	{
+		Given.bGun = true;
+		Given.GunRarity = Haul.BestGun;
+		Given.GunColor = Haul.BestGunColor;
+	}
 	ShowPaidTracker();
+	// After the paid line is up (handing them over redraws the tracker, which keeps that line its moment).
+	HandOverOwed(Player);
 	LooterSound::Play2D(this, LooterSoundCue::Bounty::Paid);
 	Announce(Paid, Given);
 	if (OutGiven)
@@ -241,6 +247,50 @@ bool UBountyBoardSubsystem::Collect(APawn* Player, FMissionRewardsGiven* OutGive
 	}
 	Changed(true);
 	return true;
+}
+
+int32 UBountyBoardSubsystem::HandOverOwed(APawn* Player)
+{
+	if (bMenuWorld || !Player)
+	{
+		return 0;
+	}
+	FBountyBoardRecord& Record = MutableRecord();
+	// The ones to hand over now: every one but a won, unpaid bounty's, which comes with its pay (Collect).
+	TArray<FBountyChestOwed> Owed;
+	for (const FBountyChestOwed& Each : Record.OwedChests)
+	{
+		const int32 Slot = Record.FindSerial(Each.Serial);
+		if (Slot == INDEX_NONE || Record.Slots[Slot].State != EBountyState::Won)
+		{
+			Owed.Add(Each);
+		}
+	}
+	if (Owed.IsEmpty())
+	{
+		return 0;
+	}
+	// Forgotten first: handing them over spawns loot, and nothing about that may find them owed still.
+	Record.OwedChests.RemoveAll([&Owed](const FBountyChestOwed& Each)
+	{
+		return Owed.ContainsByPredicate([&Each](const FBountyChestOwed& Given) { return Given.Serial == Each.Serial; });
+	});
+	const FBountyTuning Tuning = FBountyTuning::Current();
+	UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this);
+	for (const FBountyChestOwed& Each : Owed)
+	{
+		BountyPayout::HandOver(GetWorld(), Board.Get(), Player, Each.Tier, Tuning);
+		const ABountyArena* Arena = FindArena(Each.Arena);
+		if (Captions)
+		{
+			Captions->Play({ FStoryLine::Make(BountyRules::HobName(), BountyRules::OwedLine(Arena ? Arena->GetDisplayName() : FText::GetEmpty())) },
+				ECaptionPlay::Queue);
+		}
+		UE_LOG(LogLooter, Log, TEXT("Bounty board: bounty %d's strongbox, owed from an older save (%s, %s), handed over at the board."),
+			Each.Serial, *Each.Arena.ToString(), *BountyRules::TierName(Each.Tier));
+	}
+	Changed(true);
+	return Owed.Num();
 }
 
 // ---------------------------------------------------------------------------

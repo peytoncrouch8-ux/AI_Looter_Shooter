@@ -186,7 +186,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   level needs its `Ground` tags and nothing else. Kept by hand:
   - the places' names (`UI/Inventory/MapPlaces.cpp`, copied from the layout's `preview.labels`: change both together);
   - each grave's name (`ARespawnMarker::DisplayName` on the marker, else the map shows its id in words).
-  - Pins come from the level (open respawn graves, stations, benches, chests found or opened, turn-ins, the objective), so a new
+  - Pins come from the level (found roosts that are travel stations, stations, benches, open stores, risen vigil stones, givers,
+    turn-ins, the objective; never chests, the user 2026-10-27), so a new
     kind of pin is a `MapPins` change.
   - Check with `Looter.Map` (opens the page), `Looter.Map.Graves` (each grave and whether travel could go there),
     `Looter.Map.Travel <grave id>`; tests `Looter.UI.Map.*`.

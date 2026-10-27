@@ -1,13 +1,11 @@
-// UBountyBoardSubsystem: the taken bounty's fight (made, dropped, its mark down, its end), the strongboxes owed (dropped
-// where the fight ends, stood at their arena on a later visit, forgotten once looted), the mission tracker's entry, the
-// banner when one is paid.
+// UBountyBoardSubsystem: the taken bounty's fight (made, dropped, its mark down, its end), the mission tracker's entry, the
+// banner when one is paid. Nothing drops at the fight: the reward is handed over at the board (Collect).
 
 #include "Bounties/BountyBoardSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Bounties/BountyArena.h"
 #include "Bounties/BountyBoard.h"
-#include "Bounties/BountyChest.h"
 #include "Bounties/BountyFight.h"
 #include "Bounties/BountyTuning.h"
 #include "Combat/HealthComponent.h"
@@ -29,8 +27,6 @@
 
 namespace
 {
-	/** A fight round the player (the Webwood's) drops its strongbox this far in front of where they stand (cm). */
-	constexpr double ChestAhead = 300.0;
 	/** How long "Bounty paid" shows before the tracker's entry goes (s of the board's clock). */
 	constexpr double PaidLineSeconds = 0.4;
 }
@@ -50,7 +46,7 @@ void UBountyBoardSubsystem::EnsureFight()
 		DropFight();
 		Current = nullptr;
 	}
-	// Won, and the player gone far from what's left (its stragglers taken away): the fight goes, its strongbox stands.
+	// Won, and the player gone far from what's left (its stragglers taken away): the fight goes; the pay waits at the board.
 	if (Current && Active && Active->State == EBountyState::Won && !Current->IsDone() && Current->GetState() != EEncounterState::Engaged)
 	{
 		DropFight();
@@ -95,39 +91,9 @@ void UBountyBoardSubsystem::HandleMarkDown(ABountyFight& InFight)
 
 void UBountyBoardSubsystem::HandleFightDone(ABountyFight& InFight)
 {
-	const FBountyPosting Posting = InFight.GetPosting();
-	// Its mark lost off the world rather than killed still counts: everything it brought is down.
-	MarkWon(Posting.Serial);
-	if (!IsChestOwed(Posting.Serial) || GetChest(Posting.Serial))
-	{
-		return;
-	}
-	const ABountyArena* Arena = FindArena(Posting.Arena);
-	if (!Arena)
-	{
-		return;
-	}
-	// Where the fight ended: the arena's spot, or in front of the player for one that came round them.
-	FVector Spot = Arena->GetRewardLocation();
-	float Yaw = Arena->RewardYaw;
-	if (Arena->bAroundPlayer)
-	{
-		if (const APawn* Player = FindPlayer())
-		{
-			FVector Ahead = Player->GetActorForwardVector().GetSafeNormal2D();
-			Ahead = Ahead.IsNearlyZero() ? FVector::ForwardVector : Ahead;
-			Spot = Player->GetActorLocation() + Ahead * ChestAhead;
-			Yaw = static_cast<float>((-Ahead).Rotation().Yaw);
-		}
-	}
-	for (const FBountyChestOwed& Owed : GetRecord().OwedChests)
-	{
-		if (Owed.Serial == Posting.Serial)
-		{
-			SpawnChest(Owed, Spot, Yaw, /*bDrop*/ true);
-			break;
-		}
-	}
+	// Its mark lost off the world rather than killed still counts: everything it brought is down. No chest here (the user's
+	// playtest, 2026-10-27): the reward is handed over when the bounty is turned in at the board.
+	MarkWon(InFight.GetSerial());
 }
 
 void UBountyBoardSubsystem::MarkWon(int32 Serial)
@@ -140,14 +106,7 @@ void UBountyBoardSubsystem::MarkWon(int32 Serial)
 	}
 	FBountyPosting& Posting = Record.Slots[Slot];
 	Posting.State = EBountyState::Won;
-	if (!IsChestOwed(Serial))
-	{
-		FBountyChestOwed& Owed = Record.OwedChests.AddDefaulted_GetRef();
-		Owed.Serial = Serial;
-		Owed.Arena = Posting.Arena;
-		Owed.Tier = Posting.Tier;
-	}
-	UE_LOG(LogLooter, Log, TEXT("Bounty board: won %s; its strongbox owed."), *BountyRules::Describe(Posting));
+	UE_LOG(LogLooter, Log, TEXT("Bounty board: won %s; paid at the board."), *BountyRules::Describe(Posting));
 	Changed(true);
 }
 
@@ -171,93 +130,7 @@ bool UBountyBoardSubsystem::WinNow()
 	}
 	MarkWon(Active->Serial);
 	DropFight();
-	EnsureChests();
 	return true;
-}
-
-// ---------------------------------------------------------------------------
-// The strongboxes
-// ---------------------------------------------------------------------------
-
-bool UBountyBoardSubsystem::IsChestOwed(int32 Serial) const
-{
-	for (const FBountyChestOwed& Owed : GetRecord().OwedChests)
-	{
-		if (Owed.Serial == Serial)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-ABountyChest* UBountyBoardSubsystem::GetChest(int32 Serial) const
-{
-	const TWeakObjectPtr<ABountyChest>* Found = Chests.Find(Serial);
-	return Found ? Found->Get() : nullptr;
-}
-
-void UBountyBoardSubsystem::EnsureChests()
-{
-	if (bMenuWorld)
-	{
-		return;
-	}
-	// Copied: spawning one may change the record (never the list itself, but stay safe).
-	const TArray<FBountyChestOwed> Owed = GetRecord().OwedChests;
-	for (const FBountyChestOwed& Each : Owed)
-	{
-		if (ABountyChest* Standing = GetChest(Each.Serial))
-		{
-			// Looted between the board's looks (its own tick tells it too).
-			Standing->CheckLooted();
-			continue;
-		}
-		// Tried this visit and couldn't be made (kept as null): not again twice a second.
-		if (Chests.Contains(Each.Serial))
-		{
-			continue;
-		}
-		// Its fight still on: the box drops where it ends (HandleFightDone).
-		const ABountyFight* Current = Fight.Get();
-		if (Current && Current->GetSerial() == Each.Serial && !Current->IsDone())
-		{
-			continue;
-		}
-		const ABountyArena* Arena = FindArena(Each.Arena);
-		if (!Arena)
-		{
-			continue;
-		}
-		// Owed from before (a later visit, or the player left the fight): standing at the arena's spot.
-		if (!SpawnChest(Each, Arena->GetRewardLocation(), Arena->RewardYaw, /*bDrop*/ false))
-		{
-			UE_LOG(LogLooter, Warning, TEXT("Bounty %d: its strongbox couldn't be made at %s."), Each.Serial, *Each.Arena.ToString());
-		}
-	}
-}
-
-ABountyChest* UBountyBoardSubsystem::SpawnChest(const FBountyChestOwed& Owed, const FVector& Spot, float Yaw, bool bDrop)
-{
-	ABountyChest* Chest = ABountyChest::SpawnFor(GetWorld(), GetBoardId(), Owed, Spot, Yaw, bDrop);
-	// Kept even when it failed (null), so a box that can't be made isn't tried again twice a second.
-	Chests.Add(Owed.Serial, Chest);
-	if (Chest)
-	{
-		Chest->OnLooted.AddUObject(this, &UBountyBoardSubsystem::HandleChestLooted);
-	}
-	return Chest;
-}
-
-void UBountyBoardSubsystem::HandleChestLooted(ABountyChest& Chest)
-{
-	FBountyBoardRecord& Record = MutableRecord();
-	const int32 Removed = Record.OwedChests.RemoveAll([&Chest](const FBountyChestOwed& Each) { return Each.Serial == Chest.GetSerial(); });
-	if (Removed > 0)
-	{
-		UE_LOG(LogLooter, Log, TEXT("Bounty %d: its strongbox is looted."), Chest.GetSerial());
-		Changed(true);
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -307,11 +180,6 @@ void UBountyBoardSubsystem::UpdateTracker()
 		if (const ABountyBoard* Here = Board.Get())
 		{
 			Waypoint = Here->GetInteractionLocation().Get(Here->GetActorLocation());
-		}
-		if (IsChestOwed(Active->Serial))
-		{
-			FMissionTrackerOptional& Box = Parts.Optionals.AddDefaulted_GetRef();
-			Box.Line = LOCTEXT("TrackChest", "Open the bounty's strongbox").ToString();
 		}
 	}
 	else if (Current && Current->HasSprung())

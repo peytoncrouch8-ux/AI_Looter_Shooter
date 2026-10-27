@@ -91,6 +91,8 @@ struct AI_LOOTER_SHOOTER_API FBountyFightPlan
 	TSubclassOf<ACreatureBase> Mark;
 	/** Creatures in all, the mark among them. */
 	int32 Total = 0;
+	/** Every group's health against its class's (FBountyTuning::HealthScale: a bounty fight is a little harder). */
+	float HealthScale = 1.f;
 };
 
 /** One card of the board's screen, in words (BountyRules::MakeCard; UBountyBoardWidget draws it). */
@@ -112,7 +114,7 @@ struct AI_LOOTER_SHOOTER_API FBountyCardView
 	FText Flavour;
 	/** "Last seen: the Scatter". */
 	FText Where;
-	/** "Strongbox, 2 guns or wards · +41 silver · +242 XP". */
+	/** "2 guns or wards · +41 silver · +242 XP": all of it handed over at the board. */
 	FText Reward;
 	/** "TAKEN", "CLAIM IT", "NEW"; empty for a posting read before. */
 	FText StateWord;
@@ -134,7 +136,7 @@ struct AI_LOOTER_SHOOTER_API FBountyCardInput
 	bool bOtherTaken = false;
 	/** Read on the board before (no NEW). */
 	bool bSeen = false;
-	/** The purse and the experience it pays (at the player's level now), and its strongbox's guns. */
+	/** The purse and the experience it pays (at the player's level now), and the guns handed over with them. */
 	int32 Purse = 0;
 	int64 Experience = 0;
 	int32 Guns = 0;
@@ -185,8 +187,11 @@ namespace BountyRules
 	AI_LOOTER_SHOOTER_API TArray<ECreatureTrait> MarkTraitsFor(const FBountyKindInfo& Kind, EBountyTier Tier,
 		TConstArrayView<EBountyTwist> Twists, int32 Seed);
 
-	/** Its fight: the posse and support by push, the mark with the last push (its group first in that push). */
-	AI_LOOTER_SHOOTER_API FBountyFightPlan MakeGroups(const FBountyPosting& Posting);
+	/**
+	 * Its fight: the posse and support by push, the mark with the last push (its group first in that push), every group at
+	 * HealthScale of its class's health (the fight passes FBountyTuning::HealthScale; 1 leaves them as the area's).
+	 */
+	AI_LOOTER_SHOOTER_API FBountyFightPlan MakeGroups(const FBountyPosting& Posting, float HealthScale = 1.f);
 
 	// --- The timer (time played, s) ---
 
@@ -211,8 +216,11 @@ namespace BountyRules
 	AI_LOOTER_SHOOTER_API int64 ExperienceFor(EBountyTier Tier, int32 ArenaLevel, int32 PlayerLevel, const FXPCurve& Curve,
 		const FLevelRules& Rules, const FBountyTuning& Tuning);
 
-	/** The strongbox's loot: the tier's guns at the tuning's luck, its ammo pickups. */
-	AI_LOOTER_SHOOTER_API FChestLootOverride ChestLoot(EBountyTier Tier, const FBountyTuning& Tuning);
+	/**
+	 * The loot handed over at the board with the purse (BountyPayout::HandOver): the tier's guns for sure at the tuning's
+	 * luck, its ammo pickups, no soul-mote. As a chest's numbers, since the rolls are a Strongbox's.
+	 */
+	AI_LOOTER_SHOOTER_API FChestLootOverride RewardLoot(EBountyTier Tier, const FBountyTuning& Tuning);
 
 	// --- Words (BountyRulesWords.cpp) ---
 
@@ -250,16 +258,19 @@ namespace BountyRules
 	AI_LOOTER_SHOOTER_API FBountyCardView MakeCard(const FBountyCardInput& In);
 
 	/**
-	 * What the strongbox holds, in words: "Strongbox, 2 guns or wards". A Strongbox's table drops wards (ULootTable::
-	 * bDropsShields), so any of its gun picks may come as a ward: the card never promises guns alone.
+	 * The loot handed over at the board, in words: "2 guns or wards". The rolls are a Strongbox's, whose table drops wards
+	 * (ULootTable::bDropsShields), so any of its gun picks may come as a ward: the card never promises guns alone.
 	 */
-	AI_LOOTER_SHOOTER_API FText StrongboxWords(int32 Guns);
+	AI_LOOTER_SHOOTER_API FText RewardWords(int32 Guns);
+
+	/** The board's line once a bounty is paid: "Paid: +242 XP · +41 silver. The rest is at your feet." (with loot handed over). */
+	AI_LOOTER_SHOOTER_API FText PaidLine(int64 Experience, int32 Silver, bool bLootHandedOver);
 
 	/**
-	 * The board's line once a bounty is paid: "Paid: +242 XP · +41 silver.", and "Your strongbox waits where it fell." only
-	 * while its strongbox is still owed (not looted yet).
+	 * Hob's line as the board hands over a strongbox owed from before (a save from when won bounties dropped one at the
+	 * fight): "The box from the Scatter came in on the stage. It's yours." ArenaName empty: no place named.
 	 */
-	AI_LOOTER_SHOOTER_API FText PaidLine(int64 Experience, int32 Silver, bool bStrongboxWaits);
+	AI_LOOTER_SHOOTER_API FText OwedLine(const FText& ArenaName);
 
 	/** A posting for logs: "#4 Wanted Unpaid 'Hatless Gideon' at Scatter (2-3), twists Fleet, traits Fleet, Mending: Taken". */
 	AI_LOOTER_SHOOTER_API FString Describe(const FBountyPosting& Posting);

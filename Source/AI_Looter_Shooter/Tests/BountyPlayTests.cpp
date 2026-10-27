@@ -5,35 +5,65 @@
 #include "Bounties/BountyArena.h"
 #include "Bounties/BountyBoard.h"
 #include "Bounties/BountyBoardSubsystem.h"
-#include "Bounties/BountyChest.h"
 #include "Bounties/BountyFight.h"
 #include "Bounties/BountyRules.h"
 #include "Bounties/BountyTuning.h"
 #include "Creatures/CreatureTraitComponent.h"
 #include "Creatures/SpiderCreature.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loot/AmmoPickup.h"
+#include "Loot/Chest.h"
+#include "Loot/LootDropComponent.h"
+#include "Loot/LootTable.h"
 #include "Missions/MissionRewards.h"
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "Session/SessionSave.h"
 #include "Session/SessionSubsystem.h"
+#include "Shields/ShieldPickup.h"
 #include "Tests/EncounterTestWorld.h"
+#include "Weapons/WeaponBase.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Character.h"
 #include "Tests/AutomationCommon.h"
 
 // The bounty board played in a test level (Docs/Work/2026-10-22-Next/BOUNTY.md): a board, an arena and a test campaign;
-// posted, read, taken, its fight springing and pushing, the named mark with its traits, won, its strongbox dropped and
-// owed until looted, paid, its slot filling again later, the board rotating, a bounty given up; and its record saved.
+// posted, read, taken, its fight springing and pushing, the named mark with its traits, won with nothing dropped at the
+// fight, paid at the board with its loot thrown out of it, an older save's strongbox handed over there, its slot filling
+// again later, the board rotating, a bounty given up; and its record saved.
 
 namespace
 {
 	const FName TestArenaId(TEXT("TestArena"));
 	const FName TestBoardId(TEXT("TestBoard"));
 
-	/** A spiders' arena at Where: its ground, its spots (well clear of the player's way in), its strongbox's spot. */
+	/** Loot lying within Radius of At: guns lying loose, wards, ammo. */
+	int32 CountLootNear(UWorld* World, const FVector& At, double Radius)
+	{
+		int32 Count = 0;
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			const AWeaponBase* Gun = Cast<AWeaponBase>(*It);
+			const bool bLoot = (Gun && Gun->IsPickup()) || It->IsA<AShieldPickup>() || It->IsA<AAmmoPickup>();
+			Count += bLoot && !It->IsActorBeingDestroyed() && FVector::Dist(It->GetActorLocation(), At) <= Radius ? 1 : 0;
+		}
+		return Count;
+	}
+
+	/** Chests in the level (a bounty makes none now). */
+	int32 CountChests(UWorld* World)
+	{
+		int32 Count = 0;
+		for (TActorIterator<AChest> It(World); It; ++It)
+		{
+			++Count;
+		}
+		return Count;
+	}
+
+	/** A spiders' arena at Where: its ground, its spots (well clear of the player's way in). */
 	ABountyArena* SpawnArena(UWorld* World, const FVector& Where)
 	{
 		ABountyArena* Arena = World->SpawnActor<ABountyArena>(Where, FRotator::ZeroRotator);
@@ -47,7 +77,6 @@ namespace
 			Arena->PushSpots = { FVector(800.0, 600.0, 0.0), FVector(800.0, -600.0, 0.0), FVector(1100.0, 0.0, 0.0), FVector(600.0, 0.0, 0.0) };
 			Arena->FlankSpots = { FVector(0.0, 1200.0, 0.0), FVector(0.0, -1200.0, 0.0) };
 			Arena->MarkSpots = { FVector(1300.0, 0.0, 0.0), FVector(1300.0, 500.0, 0.0), FVector(1300.0, -500.0, 0.0) };
-			Arena->RewardSpot = FVector(400.0, 0.0, 0.0);
 		}
 		return Arena;
 	}
@@ -74,15 +103,8 @@ namespace
 		return Missions ? Missions->GetTracked() : nullptr;
 	}
 
-	/** Moves a strongbox's drop on for Seconds, a frame at a time (a test level never ticks). */
-	void RunDrop(ABountyChest& Chest, float Seconds)
-	{
-		constexpr float Frame = 1.f / 60.f;
-		for (float Done = 0.f; Done < Seconds; Done += Frame)
-		{
-			Chest.AdvanceDrop(Frame);
-		}
-	}
+	/** Loot is looked for this near the board (cm): a test level never ticks, so what it throws stays where it came out. */
+	constexpr double NearBoard = 800.0;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBountyPlayTest, "Looter.Bounty.Play", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -182,41 +204,46 @@ bool FBountyPlayTest::RunTest(const FString& Parameters)
 		bTraitsAsPosted &= Traits && Traits->HasTrait(Trait);
 	}
 	TestTrue(TEXT("...its traits exactly the posting's"), bTraitsAsPosted);
+	const ULootDropComponent* MarkLoot = Mark->FindComponentByClass<ULootDropComponent>();
+	TestTrue(TEXT("...its drop at full legendary odds (bounties keep them early)"), !MarkLoot || (MarkLoot->LootTable && MarkLoot->LootTable->bKeepsLegendaryOdds));
 
-	// The mark down: won (saved), its strongbox owed; the fight goes on with its posse.
+	// The mark down: won (saved), nothing owed out here; the fight goes on with its posse.
 	BossTestWorld::Kill(Mark);
 	Record = Campaign.Bounties.Find(TestBoardId);
 	TestTrue(TEXT("Won as the mark dies"), Record && Record->Slots[0].State == EBountyState::Won);
-	TestTrue(TEXT("...its strongbox owed"), Record && Record->OwedChests.Num() == 1 && Record->OwedChests[0].Serial == First.Serial);
-	TestNull(TEXT("...not dropped while the fight goes on"), Bounties->GetChest(First.Serial));
+	TestTrue(TEXT("...no strongbox owed"), Record && Record->OwedChests.IsEmpty());
 	Bounties->Refresh();
-	TestTrue(TEXT("The tracker: collect it at the board, open its box"), FindTracked(World) && FindTracked(World)->Tracker.bTurnIn
-		&& FindTracked(World)->Tracker.Optionals.Num() == 1);
+	TestTrue(TEXT("The tracker: collect it at the board, nothing to open"), FindTracked(World) && FindTracked(World)->Tracker.bTurnIn
+		&& FindTracked(World)->Tracker.Optionals.IsEmpty());
 	TestTrue(TEXT("The board shows !"), Board->GetShownMark() == ABountyBoard::EShownMark::TurnIn);
 	TestFalse(TEXT("A won bounty can't be given up"), Bounties->GiveUp());
 
-	// The posse down: the strongbox drops where the fight ended, and opens only once it has landed.
+	// The posse down: no chest at the fight (the user's playtest, 2026-10-27).
+	const int32 ChestsBefore = CountChests(World);
 	EncounterTestWorld::KillAll(*Fight);
 	Fight->UpdateEncounter(0.5f);
-	ABountyChest* Chest = Bounties->GetChest(First.Serial);
-	if (!TestNotNull(TEXT("The fight over: its strongbox"), Chest))
-	{
-		return false;
-	}
-	TestTrue(TEXT("...dropping in, at the arena's spot"), Chest->IsLanding()
-		&& FVector::Dist2D(Chest->GetActorLocation(), Arena->GetRewardLocation()) < 1.0);
-	TestTrue(TEXT("...a Strongbox with the bounty's loot"), Chest->Kind == EChestKind::Strongbox && Chest->LootOverride.bOverride
-		&& Chest->LootOverride.Guns == FBountyTuning().GunsFor(EBountyTier::Wanted));
-	RunDrop(*Chest, 2.f);
-	TestFalse(TEXT("...landed"), Chest->IsLanding());
+	Bounties->Refresh();
+	TestEqual(TEXT("The fight over: no chest made"), CountChests(World), ChestsBefore);
 
-	// Paid at the board: experience and silver; the slot fills again ten minutes of play later.
+	// A save from before may owe this very bounty's strongbox (won, never opened): it comes with the pay, never apart.
+	FBountyChestOwed& SameBox = Campaign.Bounties.FindChecked(TestBoardId).OwedChests.AddDefaulted_GetRef();
+	SameBox.Serial = First.Serial;
+	SameBox.Arena = TestArenaId;
+	SameBox.Tier = First.Tier;
+	TestEqual(TEXT("An older save's box for the won bounty: not handed over before its pay"), Bounties->HandOverOwed(Player), 0);
+
+	// Paid at the board: experience and silver, and the tier's loot thrown out of the board; the slot fills again ten
+	// minutes of play later.
+	const int32 LootBefore = CountLootNear(World, Board->GetActorLocation(), NearBoard);
 	FMissionRewardsGiven Given;
 	TestTrue(TEXT("Paid"), Bounties->Collect(Player, &Given));
 	TestTrue(TEXT("...its experience and purse"), Given.Experience > 0 && Given.Silver == BountyRules::PurseFor(EBountyTier::Wanted, First.LevelHigh, FBountyTuning()));
+	TestTrue(TEXT("...its loot out of the board: its guns or wards, its ammo"),
+		CountLootNear(World, Board->GetActorLocation(), NearBoard) - LootBefore >= FBountyTuning().GunsFor(EBountyTier::Wanted));
+	TestEqual(TEXT("...still no chest"), CountChests(World), ChestsBefore);
 	Record = Campaign.Bounties.Find(TestBoardId);
-	TestTrue(TEXT("...its slot empty, one paid, the box still owed"), Record && !Record->Slots[0].IsPosting() && Record->Paid == 1
-		&& Record->OwedChests.Num() == 1);
+	TestTrue(TEXT("...its slot empty, one paid, the older save's box paid with it"), Record && !Record->Slots[0].IsPosting() && Record->Paid == 1
+		&& Record->OwedChests.IsEmpty());
 	TestNull(TEXT("...its fight gone"), Bounties->GetFight());
 	// The tracker says it's paid (not its old "Collect it at the board") for a moment, then the entry goes.
 	const FMission* PaidLine = FindTracked(World);
@@ -235,14 +262,22 @@ bool FBountyPlayTest::RunTest(const FString& Parameters)
 	const FBountyPosting Second = Campaign.Bounties.Find(TestBoardId)->Slots[0];
 	TestTrue(TEXT("Refilled at its time, the next serial"), Second.IsPosting() && Second.Serial == NextSerial);
 
-	// The strongbox opened: no longer owed.
-	Chest->Open(nullptr, /*bForce*/ true);
-	for (int32 Frame = 0; Frame < 240; ++Frame)
-	{
-		Chest->Advance(1.f / 60.f);
-	}
+	// An older save's strongbox for a bounty paid long ago (from when won bounties dropped one at the fight): the board
+	// shows ! for it and hands its loot over as it's read, once.
+	FBountyChestOwed& OldBox = Campaign.Bounties.FindChecked(TestBoardId).OwedChests.AddDefaulted_GetRef();
+	OldBox.Serial = 99;
+	OldBox.Arena = TestArenaId;
+	OldBox.Tier = EBountyTier::Wanted;
 	Bounties->Refresh();
-	TestTrue(TEXT("Looted: no longer owed"), Chest->HasGivenLoot() && Campaign.Bounties.Find(TestBoardId)->OwedChests.IsEmpty());
+	TestTrue(TEXT("An older save's box owed: the board shows !"), Board->GetShownMark() == ABountyBoard::EShownMark::TurnIn);
+	const int32 OldLootBefore = CountLootNear(World, Board->GetActorLocation(), NearBoard);
+	TestEqual(TEXT("...handed over at the board"), Bounties->HandOverOwed(Player), 1);
+	TestTrue(TEXT("...its loot out of the board"), CountLootNear(World, Board->GetActorLocation(), NearBoard) > OldLootBefore);
+	TestTrue(TEXT("...no longer owed"), Campaign.Bounties.Find(TestBoardId)->OwedChests.IsEmpty());
+	TestEqual(TEXT("...never twice"), Bounties->HandOverOwed(Player), 0);
+	Bounties->Refresh();
+	TestTrue(TEXT("...the board's ! gone"), Board->GetShownMark() != ABountyBoard::EShownMark::TurnIn);
+	TestEqual(TEXT("No chest made for it"), CountChests(World), ChestsBefore);
 
 	// Given up: back on the board, its fight gone.
 	TestTrue(TEXT("The new one taken"), Bounties->Take(0) && Bounties->GetFight() != nullptr);

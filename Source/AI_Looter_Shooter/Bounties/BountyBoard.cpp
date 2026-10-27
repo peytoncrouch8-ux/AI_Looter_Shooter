@@ -1,4 +1,4 @@
-// ABountyBoard: the board in town: its model and sheets, its floating mark, and Interact opening its screen.
+// ABountyBoard: the board at the depot: its model and sheets, its floating mark, and Interact opening its screen.
 
 #include "Bounties/BountyBoard.h"
 #include "AI_Looter_Shooter.h"
@@ -372,10 +372,14 @@ bool ABountyBoard::Interact(UInteractionComponent& User, bool bHeld)
 		return false;
 	}
 	LooterSound::PlayAt(this, LooterSoundCue::Bounty::BoardOpen, GetInteractionLocation().Get(GetActorLocation()));
-	// Read: every posting up counts as seen (its ? goes).
+	// Read: every posting up counts as seen (its ? goes). A strongbox an older save still owes is handed over here, heard.
 	if (UBountyBoardSubsystem* Bounties = UBountyBoardSubsystem::Get(this))
 	{
 		Bounties->MarkRead();
+		if (Bounties->HandOverOwed(Pawn) > 0)
+		{
+			LooterSound::Play2D(this, LooterSoundCue::Bounty::Paid);
+		}
 	}
 	return true;
 }
@@ -424,6 +428,8 @@ void ABountyBoard::ShowRecord(const FBountyBoardRecord& Record, bool bOpen)
 		bNew |= bUp && Posting->Serial > Record.SeenUpTo;
 		bToPay |= bOpen && Posting && Posting->IsPosting() && Posting->State == EBountyState::Won;
 	}
+	// An older save's strongbox still owed waits here too (handed over as the board is read).
+	bToPay |= bOpen && !Record.OwedChests.IsEmpty();
 	ShowMark(bToPay ? EShownMark::TurnIn : (bNew ? EShownMark::Offer : EShownMark::None));
 }
 

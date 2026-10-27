@@ -6,6 +6,26 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
+- Playtest 2026-10-27, round 1 (the user's notes, `Docs/Work/2026-10-27-Playtest/NOTES.md`):
+  - Knocking Below's cellar dead spawned on the workshop floor (note 20). Cause: `SnapToGround` from a middle inside a stair's
+    hull or low ceiling saw no roof (the look up starts inside it), so the look down started over the floor upstairs. Fix: settling
+    never lifts a creature more than a step (`SettleMostRise`); past that it looks again from just over its own feet
+    (`CreatureBaseSteering.cpp`). Cellar replayed 3x, all on its floor.
+  - Vigil stones readied together after a Save & Quit (note 36). Cause: `Evaluate` and `BringBackAfterLoad` readied every stone
+    whose death was in an earlier load (the global `SessionLoads`). Fix: each stone counts 5 minutes of play from its own
+    `DefeatedAt` (play time is saved); the load rule and its fields removed. Reverses the 2026-10-12 "at once after a Save & Quit".
+  - Apples floated round the trees (note 11). Cause: `hang_apples` placed them outside the leaf cards, on nothing. Fix:
+    `Trees.py` keeps each limb and side branch (`plant.branch_limbs`) and hangs each apple on a 3-sided bark twig from the nearest
+    branch with a 12 cm stem into its top, on the underside of the leaf shell (+18 tris an apple; same names and counts).
+    Not previewed in Blender yet: `Trees.py -- --preview Apple_A Apple_B Apple_C`, then `Tools\models.ps1 -Only Trees`.
+  - The mountain pond vanished from below, no underwater look (note 30). Cause: `M_Water` was one-sided. Fix: two-sided; from
+    below the colours go x `UnderDark` 0.55 with no sky tint or foam plus an `UnderGlow` 0.6 emissive so the back face is not
+    black (`build_world_materials.py M_Water`). Underside brightness is a guess. The mountain farm house's floating fences (same note) were not in this round.
+  - The game stuttered when a legendary dropped (note 17). Cause: the 0.3x world slow, and on the landing frame the column and
+    name pop widget were built and `AWeaponBase` LoadObject'd the muzzle material and plane on every gun spawn (a chest legendary
+    before the first shot also initialised `FWeaponFX` there). Fix: no slow; pooled column and name pop built at play start;
+    muzzle lookups cached; a burst in its place (Gunplay.md).
+
 - Flat bright tan patches on level ground (Ransom's Rest's street by the boards, Whitlock Fields' path; 2026-10-22).
   Cause: M_Terrain's SIDE_NORMAL_CODE normalized 0 where the vertex normals pack to straight up (Facing 0): NaN, and the
   steep-relief lerp's weight 0 keeps a NaN (WorldNormal buffer black there; shadows, local lights, places, Nanite all
@@ -200,7 +220,7 @@ Each line: bug (date). Cause. Fix.
     - `FMenuNavigator` (`UI/Menus/MenuNavigator.h`) keeps the focus over a menu's stops (a button, a slider, a row of choices) in
       rows, which the menu hands it with `SetRows` each time it rebuilds.
     - `MenuNav` has the keys as plain rules: arrows, W A S D, the D-pad and the left stick move; Enter, Space, E and A pick; Esc and
-      B back out; Page Up and Down or the bumpers turn the sections; a slider held steps faster.
+      B back out; Page Up and Down or the bumpers turn the sections (the settings menu's four tabs since 2026-10-27); a slider held steps faster.
     - `SettingsMenuNav.cpp` and `MainMenuNav.cpp` wire each menu to it. A new menu gets the same by building its stops and calling
       the navigator, not by handling keys itself.
     - The focus look (`LooterUIFocus.h`: an orange outline doubled inside, a lit edge on the left, a faint wash on a row) is drawn

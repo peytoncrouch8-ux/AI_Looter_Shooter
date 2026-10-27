@@ -339,12 +339,11 @@ bool UBountyBoardWidget::ActOnSelected()
 	{
 		FMissionRewardsGiven Given;
 		APlayerController* PC = Player.Get();
-		// Its serial before the pay clears the slot: the line says the box waits only while it's still owed (unlooted).
-		const FBountyPosting* Won = Bounties->GetActive();
-		const int32 Serial = Won ? Won->Serial : 0;
-		if (Bounties->Collect(PC ? PC->GetPawn() : nullptr, &Given))
+		APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+		if (Bounties->Collect(Pawn, &Given))
 		{
-			SetStatus(BountyRules::PaidLine(Given.Experience, Given.Silver, Serial > 0 && Bounties->IsChestOwed(Serial)), false);
+			// Its loot came out of the board toward the player as it paid (BountyPayout): the line points them at it.
+			SetStatus(BountyRules::PaidLine(Given.Experience, Given.Silver, Pawn != nullptr), false);
 			ShowCards(/*bForce*/ true);
 			return true;
 		}

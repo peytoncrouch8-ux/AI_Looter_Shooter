@@ -1,6 +1,6 @@
 // UBountyBoardSubsystem: its life in the level, the board, the record and its clock, posting and rotating (Refresh).
-// Taking, giving up, paying and the cards are in BountyBoardSubsystemActions.cpp; the fight, the strongboxes and the
-// tracker in BountyBoardSubsystemFight.cpp.
+// Taking, giving up, paying and the cards are in BountyBoardSubsystemActions.cpp; the fight and the tracker in
+// BountyBoardSubsystemFight.cpp.
 
 #include "Bounties/BountyBoardSubsystem.h"
 #include "AI_Looter_Shooter.h"
@@ -440,7 +440,6 @@ void UBountyBoardSubsystem::Refresh()
 		bPosted = Record.NextSerial != SerialBefore;
 	}
 	EnsureFight();
-	EnsureChests();
 	if (Here)
 	{
 		Here->ShowRecord(GetRecord(), bOpen);

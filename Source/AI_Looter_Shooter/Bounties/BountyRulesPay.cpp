@@ -1,5 +1,5 @@
-// BountyRules: the timer (rotations, waits in words), the pay (purse, experience, the strongbox's loot) and the names in
-// code for logs and commands.
+// BountyRules: the timer (rotations, waits in words), the pay (purse, experience, the loot handed over at the board) and
+// the names in code for logs and commands.
 
 #include "Bounties/BountyRules.h"
 #include "Bounties/BountyTuning.h"
@@ -69,7 +69,7 @@ int64 BountyRules::ExperienceFor(EBountyTier Tier, int32 ArenaLevel, int32 Playe
 	return FMath::Max<int64>(FMath::RoundToInt64(Step * Share), 0);
 }
 
-FChestLootOverride BountyRules::ChestLoot(EBountyTier Tier, const FBountyTuning& Tuning)
+FChestLootOverride BountyRules::RewardLoot(EBountyTier Tier, const FBountyTuning& Tuning)
 {
 	FChestLootOverride Loot;
 	Loot.bOverride = true;

@@ -16,9 +16,10 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnBountyFightEvent, ABountyFight& /*Fight*/
 /**
  * A taken bounty's fight (Docs/Work/2026-10-22-Next/BOUNTY.md, "The fight"): a set piece (ASetPieceSpawner: pushes on top
  * of the last's stragglers, each with its beat) made at the bounty's arena from its posting (BountyRules::MakeGroups),
- * its ground and spots the arena's. The mark comes with the last push: named (its tag reads "<rank> <name>") and given
- * exactly the posting's traits; a Swift posse runs Fleet. Its mark's death is the bounty won (OnMarkDown); the fight over
- * (every push's creatures down), OnDone. No story flag (it repeats) and no loot shower (the board drops the strongbox).
+ * its ground and spots the arena's, every creature at Looter.Bounty.HealthScale of its health. The mark comes with the
+ * last push: named (its tag reads "<rank> <name>") and given exactly the posting's traits; a Swift posse runs Fleet. Its
+ * mark's death is the bounty won (OnMarkDown); the fight over (every push's creatures down), OnDone. No story flag (it
+ * repeats) and no loot shower (the reward is handed over at the board).
  *
  * Spawned in play by UBountyBoardSubsystem (SpawnFor) when a bounty is taken, and as each level begins while one is
  * taken; never saved, as no encounter is. Destroyed with what it has out when the bounty is given up or paid.

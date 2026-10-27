@@ -200,7 +200,8 @@ fences, dark pines on Larkspur Ridge, the canyon's blue haze to the west and a l
     - Pruitt's General Store, a vendor: the Pruitts, heard and never seen, trade in silver through the hatch in their door
       once Main Street is safe, after Main 3 (`AVendor`, `build_area_vendors.py`).
     - The Gilt Spur saloon, boarded up (“CLOSED FOR MOURNING”).
-    - The empty sheriff's office with the Rim Rangers' notice board, and the bounty board beside it (*The bounty board*).
+    - The empty sheriff's office with the Rim Rangers' notice board, and a roost by it (Main Street: a save and death-respawn
+      point only, not a fast-travel station since 2026-10-27). The bounty board is at the Depot now (*The bounty board*).
     - The town memorial: two hats on a post with a wreath.
   - The existing log cabins and cottages fill the side lots (Ransom's Rest's own house kit since 2026-10-13: expansion §9).
   - Empty stock pens and the burnt livery behind the south side; cottonwoods behind the east end hide the Sink.
@@ -359,14 +360,19 @@ Webwood's 2) are left, or 30 s after the last. Won: Hob's line and a loot shower
 
 The user's pick (2026-10-22): replayable hard fights on the Rest before new regions. How it works and its numbers:
 `Docs/Pipeline/Enemies.md` "Bounties" and `Docs/Work/2026-10-22-Next/BOUNTY.md`.
-- The board: NOTICES on its header, beside the Rangers' board in front of the sheriff's office (660, 1400 in layout cm),
+- The board: NOTICES on its header, at the Depot by the train station (-130, 10250 in layout cm, yaw -35, facing the Depot
+  roost and the yard road; moved from beside the Rangers' board at (660, 1400) on 2026-10-27, the user's note 12),
   "Posted by the Rim Rangers. Paid from the town's purse, on proof." Open after Main 3; three postings at most, one taken
   at a time; Wanted (Gravebound mark) from Main 3, Dangerous (Hallowed) from Main 5, Deadly (Ethereal) from Main 6.
+- No chest (the user's note 40): the reward is thrown out of the board when the bounty is turned in. Bounty creatures have +25%
+  health (note 33).
 - Arenas (`build_area_bounties.py` ARENAS; layout cm, X north, Y east; levels from their zones, never the player's):
 
 | Id | Name | Where | Opens | Kinds | Levels |
 |---|---|---|---|---|---|
 | Scatter | the Scatter | round the Scatter's boulders (-5160, 840), radius 13 m | after Main 3 | Unpaid | 2-3 |
+| RansomsPoint | Ransom's Point | (new 2026-10-27; spots in `build_area_bounties.py`) | after Main 3 | Spider | 1-2 |
+| QuarryMouth | the quarry's mouth | (new 2026-10-27; spots in `build_area_bounties.py`) | after Main 3, before Dead Lift | Spider, Spitter | 5-6 |
 | WhitlockYard | Whitlock's barn yard | inside the barn yard fence (-6850, 3500) | after Side 2 | Unpaid | 3-4 |
 | Webwood | the Webwood | the webwood band, round the player, dropping | after Main 4 and SetPiece.Webwood | Spider, Spitter | 5-6 |
 | OldQuarry | the Old Quarry | the quarry floor (9725, 2050) | after Dead Lift | Spider, Spitter, DeadMiner | 5-6 |
@@ -572,7 +578,7 @@ he is a friend (a separate, non-hostile actor). His adds use the Basic table.
   the player comes near: the Gravemother's at the Sink's ramp head, Abel's outside the Keeper's Gate (`build_area_shrines.py`).
 - A tap of Interact opens its menu: the boss's name and level, when it was last laid to rest, how many times it was beaten,
   what it drops.
-- “Call it back” works five minutes of play after the boss's last death, or at once after a Save & Quit; until then the menu
+- “Call it back” works five minutes of play after its own boss's last death (each stone its own countdown; a Save & Quit readies none, the user 2026-10-27); until then the menu
   shows the countdown.
 - The fight starts as the first did (seal, intro, phases) but with no scene, no mission and no story reward. Its loot shower
   rolls exactly as the first kill's (the same table and luck, the user's call 2026-10-13).

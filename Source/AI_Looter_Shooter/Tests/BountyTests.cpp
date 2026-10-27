@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Bounties/BountyPayout.h"
 #include "Bounties/BountyRules.h"
 #include "Bounties/BountyTuning.h"
 #include "Creatures/CreatureBase.h"
@@ -12,6 +13,8 @@
 #include "Creatures/UnpaidCreature.h"
 #include "Economy/EconomyRules.h"
 #include "Loot/Chest.h"
+#include "Loot/LootTable.h"
+#include "Math/RandomStream.h"
 #include "Progression/LevelRules.h"
 #include "Progression/XPCurve.h"
 
@@ -246,6 +249,25 @@ bool FBountyRulesTest::RunTest(const FString& Parameters)
 	Big.Twists = { EBountyTwist::BigPosse };
 	TestEqual(TEXT("A big posse: one more in each of three pushes"), MakeGroups(Big).Total, 16);
 
+	// A bounty fight is a little harder than the area's own (the user's playtest, 2026-10-27): every group, mark and posse,
+	// at the tuning's health (a quarter more by default); without a scale, the area's.
+	const float Tougher = FBountyTuning().HealthScale;
+	TestNearlyEqual(TEXT("A quarter more health by default"), Tougher, 1.25f, 0.001f);
+	const FBountyFightPlan Hard = MakeGroups(Deadly, Tougher);
+	bool bAllTougher = !Hard.Groups.IsEmpty();
+	for (const FEncounterGroup& Group : Hard.Groups)
+	{
+		bAllTougher &= FMath::IsNearlyEqual(Group.HealthScale, Tougher);
+	}
+	TestTrue(TEXT("...on every group, the mark's too"), bAllTougher && FMath::IsNearlyEqual(Hard.HealthScale, Tougher));
+	TestTrue(TEXT("...the same creatures, no level added"), Hard.Total == MakeGroups(Deadly).Total);
+	bool bAsArea = true;
+	for (const FEncounterGroup& Group : WantedPlan.Groups)
+	{
+		bAsArea &= FMath::IsNearlyEqual(Group.HealthScale, 1.f) && Group.Level == 0;
+	}
+	TestTrue(TEXT("Without a scale: the area's health, the zone's levels"), bAsArea);
+
 	// The timer: a fresh board posts at once; every two hours of play it rotates.
 	const float Rotate = FBountyTuning().RotateMinutes;
 	TestTrue(TEXT("A fresh board rotates (posts) at once"), IsRotationDue(-1.0, 0.0, Rotate));
@@ -288,15 +310,32 @@ bool FBountyRewardsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...less, never nothing"), Past < AtLevel && Past > 0);
 	TestEqual(TEXT("Nothing at the top level"), ExperienceFor(EBountyTier::Deadly, 6, Curve.MaxLevel, Curve, Rules, Tuning), static_cast<int64>(0));
 
-	// The strongbox: the tier's guns at a Strongbox's luck, two ammo pickups, no mote.
-	const FChestLootOverride Box = ChestLoot(EBountyTier::Deadly, Tuning);
+	// The loot handed over at the board: the tier's guns at a Strongbox's luck, two ammo pickups, no mote.
+	const FChestLootOverride Box = RewardLoot(EBountyTier::Deadly, Tuning);
 	TestTrue(TEXT("Deadly: three guns at luck 1"), Box.bOverride && Box.Guns == 3 && FMath::IsNearlyEqual(Box.Luck, 1.f) && Box.AmmoPickups == 2);
-	TestEqual(TEXT("Wanted: two"), ChestLoot(EBountyTier::Wanted, Tuning).Guns, 2);
+	TestEqual(TEXT("Wanted: two"), RewardLoot(EBountyTier::Wanted, Tuning).Guns, 2);
+	// Its table: those guns for sure (none where guns don't drop), the ammo at a chest's 36 rounds.
+	const ULootTable* Table = BountyPayout::MakeTable(EBountyTier::Deadly, Tuning, /*bGunsDropHere*/ true);
+	TestTrue(TEXT("Its table: three guns for sure at luck 1"), Table && Table->MinWeaponDrops == 3 && Table->MaxWeaponDrops == 3
+		&& FMath::IsNearlyEqual(Table->WeaponDropChance, 1.f) && FMath::IsNearlyEqual(Table->Luck, 1.f));
+	TestTrue(TEXT("...at its full legendary odds (bounties keep them early)"), Table && Table->bKeepsLegendaryOdds);
+	TestTrue(TEXT("...two ammo pickups of 36"), Table && Table->MinAmmoDrops == 2 && Table->MaxAmmoDrops == 2
+		&& Table->AmmoAmountMin == LooterLoot::ChestAmmoAmount && Table->AmmoAmountMax == LooterLoot::ChestAmmoAmount);
+	TestTrue(TEXT("...no guns where none drop"), FMath::IsNearlyEqual(BountyPayout::MakeTable(EBountyTier::Wanted, Tuning, false)->WeaponDropChance, 0.f));
+	// Thrown out of the board toward the player: up, and out their way, the lot fanned either side of them.
+	FRandomStream Random(7);
+	const FVector Toward(0.0, 1.0, 0.0);
+	const FVector Left = BountyPayout::TossVelocity(0, 3, Toward, Random);
+	const FVector Middle = BountyPayout::TossVelocity(1, 3, Toward, Random);
+	const FVector Right = BountyPayout::TossVelocity(2, 3, Toward, Random);
+	TestTrue(TEXT("Each thrown up and toward the player"), Left.Z > 0.0 && Middle.Z > 0.0 && Right.Z > 0.0 && Left.Y > 0.0 && Middle.Y > 0.0 && Right.Y > 0.0);
+	TestTrue(TEXT("...fanned: the first to one side, the last to the other"), Left.X * Right.X < 0.0);
 
 	// The cvars start at the tuning's defaults (a fresh game and the tests agree).
 	const FBountyTuning Now = FBountyTuning::Current();
 	TestTrue(TEXT("The cvars hold the defaults"), Now.bEnabled == Tuning.bEnabled && FMath::IsNearlyEqual(Now.RotateMinutes, Tuning.RotateMinutes)
-		&& Now.Purse[2] == Tuning.Purse[2] && FMath::IsNearlyEqual(Now.XPShare[1], Tuning.XPShare[1]) && Now.RewardGuns[2] == Tuning.RewardGuns[2]);
+		&& Now.Purse[2] == Tuning.Purse[2] && FMath::IsNearlyEqual(Now.XPShare[1], Tuning.XPShare[1]) && Now.RewardGuns[2] == Tuning.RewardGuns[2]
+		&& FMath::IsNearlyEqual(Now.HealthScale, Tuning.HealthScale));
 	return true;
 }
 
@@ -387,15 +426,20 @@ bool FBountyViewTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Its traits"), Card.Traits.ToString().Contains(CreatureTraitRules::Word(ECreatureTrait::Warded).ToString()));
 	TestTrue(TEXT("Its pack twist"), Card.Posse.ToString().Contains(TEXT("Swift posse")));
 	TestEqual(TEXT("Where"), Card.Where.ToString(), FString(TEXT("Last seen: the Webwood")));
-	TestTrue(TEXT("What it pays"), Card.Reward.ToString().Contains(TEXT("Strongbox, 2 guns or wards")) && Card.Reward.ToString().Contains(TEXT("+77 silver"))
+	TestTrue(TEXT("What it pays"), Card.Reward.ToString().StartsWith(TEXT("2 guns or wards")) && Card.Reward.ToString().Contains(TEXT("+77 silver"))
 		&& Card.Reward.ToString().Contains(TEXT("XP")));
-	// The box's gun picks may come as wards (a Strongbox's table drops them): the words never promise guns alone.
-	TestEqual(TEXT("One pick: a gun or a ward"), StrongboxWords(1).ToString(), FString(TEXT("Strongbox, 1 gun or ward")));
-	TestEqual(TEXT("Three picks"), StrongboxWords(3).ToString(), FString(TEXT("Strongbox, 3 guns or wards")));
-	// Paid: the box is only said to wait while it's still owed (the play-test's board said so after it was looted).
-	TestTrue(TEXT("Paid, box still shut"), PaidLine(242, 41, true).ToString().Contains(TEXT("strongbox waits")));
-	TestTrue(TEXT("Paid, box looted"), !PaidLine(242, 41, false).ToString().Contains(TEXT("strongbox"))
-		&& PaidLine(242, 41, false).ToString().Contains(TEXT("+242 XP")) && PaidLine(242, 41, false).ToString().Contains(TEXT("+41 silver")));
+	// No strongbox anywhere (the user's playtest, 2026-10-27): the reward is handed over at the board.
+	TestFalse(TEXT("...no strongbox promised"), Card.Reward.ToString().Contains(TEXT("trongbox")));
+	// The gun picks may come as wards (a Strongbox's table drops them): the words never promise guns alone.
+	TestEqual(TEXT("One pick: a gun or a ward"), RewardWords(1).ToString(), FString(TEXT("1 gun or ward")));
+	TestEqual(TEXT("Three picks"), RewardWords(3).ToString(), FString(TEXT("3 guns or wards")));
+	// Paid: the line points at the loot at the player's feet, never at a box waiting out there.
+	const FString PaidWords = PaidLine(242, 41, true).ToString();
+	TestTrue(TEXT("Paid: what it paid, the rest at their feet"), PaidWords.Contains(TEXT("+242 XP")) && PaidWords.Contains(TEXT("+41 silver"))
+		&& PaidWords.Contains(TEXT("at your feet")) && !PaidWords.Contains(TEXT("where it fell")));
+	TestFalse(TEXT("...nothing handed over, no feet"), PaidLine(242, 41, false).ToString().Contains(TEXT("feet")));
+	TestFalse(TEXT("Hob's last line sends nobody to a box"), ClearedLine(Posting).ToString().Contains(TEXT("box")));
+	TestTrue(TEXT("An older save's box handed over, named by its place"), OwedLine(FText::FromString(TEXT("the Scatter"))).ToString().Contains(TEXT("the Scatter")));
 	TestTrue(TEXT("New, to take"), Card.bNew && Card.bCanTake && !Card.bCanCollect && !Card.bCanGiveUp);
 	In.bSeen = true;
 	In.bOtherTaken = true;

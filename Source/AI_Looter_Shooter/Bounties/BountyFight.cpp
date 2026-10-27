@@ -11,6 +11,9 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureTraitComponent.h"
 #include "Creatures/CreatureTraitRules.h"
+#include "Loot/LootDropComponent.h"
+#include "Loot/LootLibrary.h"
+#include "Loot/LootTable.h"
 #include "Engine/World.h"
 
 const FName ABountyFight::MarkTag(TEXT("BountyMark"));
@@ -32,7 +35,7 @@ namespace
 
 ABountyFight::ABountyFight()
 {
-	// The strongbox is the reward (the board drops it); a set piece's shower would pay twice.
+	// The reward is handed over at the board as the bounty is paid; a set piece's shower here would pay twice.
 	bReward = false;
 	bHuntOnSpawn = true;
 	WaveInterval = PushAtLatest;
@@ -72,7 +75,8 @@ void ABountyFight::Setup(const ABountyArena& Arena, const FBountyPosting& InPost
 	Posting = InPosting;
 	const FBountyTuning Tuning = FBountyTuning::Current();
 	const FBountyKindInfo* Kind = BountyRules::FindKind(Posting.Kind);
-	const FBountyFightPlan Plan = BountyRules::MakeGroups(Posting);
+	// Every creature a little tougher than the area's own (Looter.Bounty.HealthScale; the user's playtest, 2026-10-27).
+	const FBountyFightPlan Plan = BountyRules::MakeGroups(Posting, Tuning.HealthScale);
 	Groups = Plan.Groups;
 	NumWaves = Plan.Pushes;
 	MarkClass = Plan.Mark;
@@ -143,7 +147,6 @@ void ABountyFight::Setup(const ABountyArena& Arena, const FBountyPosting& InPost
 	ClearedBeat = FSetPieceBeat();
 	ClearedBeat.Speaker = BountyRules::HobName();
 	ClearedBeat.Line = BountyRules::ClearedLine(Posting);
-	RewardSpot = Arena.RewardSpot;
 }
 
 bool ABountyFight::IsMarkCandidate(const ACreatureBase& Creature) const
@@ -169,6 +172,12 @@ void ABountyFight::OnCreatureSpawned(ACreatureBase& Creature)
 		if (UHealthComponent* Life = Creature.FindComponentByClass<UHealthComponent>())
 		{
 			Life->OnDeath.AddUniqueDynamic(this, &ABountyFight::HandleMarkDeath);
+		}
+		// Its rank's table (set as it spawned, its rank Fixed), kept at its full legendary odds: the early areas' cap is for
+		// the rank and file, and "bosses and their bounties still can" (the user, 2026-10-27).
+		if (ULootDropComponent* Loot = Creature.FindComponentByClass<ULootDropComponent>())
+		{
+			Loot->LootTable = ULootLibrary::KeepingLegendaryOdds(Loot->LootTable ? Loot->LootTable.Get() : ULootLibrary::GetDefaultLootTable(), Loot);
 		}
 		UE_LOG(LogLooter, Log, TEXT("Bounty fight %s: its mark %s is out (level %d)."), *GetSpawnerId().ToString(),
 			*Creature.DisplayName.ToString(), Creature.Level);

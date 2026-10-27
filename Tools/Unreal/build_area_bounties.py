@@ -1,17 +1,20 @@
 """The bounty board and its arenas on Ransom's Rest (Docs/Work/2026-10-22-Next/BOUNTY.md), for build_area.py's gameplay
-pass: the user's pick (2026-10-22) of a board offering a rotating hard fight with a strongbox, so the Rest has replayable
-fights before new regions. Everything goes in the area's Gameplay/Bounties folder; only the level whose layout has
-Ellis's grave gets any of it. A class not built yet is warned of and left out.
+pass: the user's pick (2026-10-22) of a board offering a rotating hard fight, paid at the board, so the Rest has
+replayable fights before new regions. Everything goes in the area's Gameplay/Bounties folder; only the level whose layout
+has Ellis's grave gets any of it. A class not built yet is warned of and left out.
 
-- The board (ABountyBoard, BountyBoard_RansomsRest, board id RansomsRest): BOARD_SIDE cm beside the Rim Rangers' board
-  (NoticeBoard_Rangers, the sheriff's office's on Main Street) along its face, at its height and yaw; the other side when
-  a wall is in the way. Its own model (SM_NoticeBoard_Bounty, BOUNTIES on its header; SM_NoticeBoard_Town until imported) is the C++ class's. Open after Main 3,
-  Dangerous bounties after Main 5, Deadly after Main 6.
+- The board (ABountyBoard, BountyBoard_RansomsRest, board id RansomsRest): at the depot (the user's playtest, 2026-10-27,
+  note 12: "by the train station"), BOARD_AT where the yard road meets the platform's west end, off the road's south
+  edge, its face (local +X) turned to BOARD_YAW: toward the Depot roost (where fast travel and deaths arrive, the player
+  waking facing the platform with the board 45 degrees to the right) and down the yard road (where walkers from Main
+  Street arrive). The build traces from its face to both (check_sights) and warns when something hides it. Its own model
+  (SM_NoticeBoard_Bounty, BOUNTIES on its header; SM_NoticeBoard_Town until imported) is the C++ class's. Open after
+  Main 3, Dangerous bounties after Main 5, Deadly after Main 6.
 - The arenas (ABountyArena, BountyArena_<id>, ARENAS): each a bounty fight's place, its ground (a radius or a layout
-  obstacle's or polygon's corners), three spot rings round its middle (the first push ahead, the flank, the mark's push:
-  the mark's own spot first, then its guards'), its strongbox's spot (the first candidate on clear ground: not inside a
-  layout obstacle, within its step of the middle's ground), when it's open, the kinds it hosts, and the spawners it waits
-  on (those of WAIT_FOR found in the level). Spots off its level of ground are warned of (the fight skips them in play).
+  obstacle's, zone's or polygon's corners), three spot rings round its middle (the first push ahead, the flank, the
+  mark's push: the mark's own spot first, then its guards'), when it's open, the kinds it hosts, and the spawners it waits
+  on (those of WAIT_FOR found in the level). Spots off its level of ground or inside a layout obstacle are warned of (the
+  fight skips them in play). Nothing drops at a fight: the reward is handed over at the board (note 40).
 
 Hook in build_area.py's gameplay(), after the placeholders (the camps, patrols and fights it waits on stand first):
     importlib.reload(importlib.import_module('build_area_bounties')).place(self)
@@ -33,61 +36,84 @@ import build_area_story as story  # noqa: E402
 FOLDER = 'Gameplay/Bounties'
 BOARD_LABEL = 'BountyBoard_RansomsRest'
 BOARD_ID = 'RansomsRest'
-RANGERS_BOARD = 'NoticeBoard_Rangers'
-# Beside the Rangers' board along its face (cm, its local Y), and how high a wall check looks (cm over its foot).
-BOARD_SIDE = 280.0
-BOARD_WALL_CHECK = 120.0
-# The Rangers' board's half width and a little (cm): the wall check starts past it.
-BOARD_CLEAR = 110.0
+# At the depot (layout cm, X north, Y east): 3.8 m south of the yard road's line where it meets the platform's west end
+# ramp (the road's centre at about (250, 10250)), 3.5 m short of the rail bed's end, 8.8 m from the Depot roost at
+# (750, 10250). Clear of the station house (its front wall on X 465 from Y 10450), the platform and its ramp (X 65-465
+# from Y 10660), the coal stage (-470, 10760) and the buffer stop (-100, 11000).
+BOARD_AT = (-130.0, 10250.0)
+# Its face's way (degrees; a notice board's face is its local +X): between the Depot roost (0 degrees from here) and the
+# yard road's way in from Main Street (about -76 degrees), so both see its face within about 40 degrees of square on.
+BOARD_YAW = -35.0
+# What must see its face (layout cm): the Depot roost (found by id in gameplay.roosts; this where it isn't) and the yard
+# road 12 m back toward town; the sight lines run at eye height (cm over the ground).
+DEPOT_ROOST = 'Depot'
+DEPOT_ROOST_AT = (750.0, 10250.0)
+ROAD_IN_AT = (180.0, 9000.0)
+BOARD_EYE = 150.0
 
 # Spawners an arena waits on when the level has them: only the story's own fights on its ground (no two fights stacked).
 # Never a camp, patrol or roaming group: they're Engaged whenever the player is near (their creatures stand about), so
 # waiting on one held the Scatter's bounty until the orchard's camp was cleared (PIE 2026-10-22).
 WAIT_FOR = {
     'OldQuarry': ['QuarryCrew', 'AbeHaskett', 'RaisingSteam'],
+    # Before Dead Lift is finished, so while it's played: its crew rises on this floor (Dead Lift's own fights first).
+    'QuarryMouth': ['QuarryCrew', 'AbeHaskett', 'RaisingSteam'],
     'WhitlockYard': ['WhitlockHands'],
+    # Main 2's nest (on during Main 2 only; the board opens after Main 3, so only a safeguard).
+    'RansomsPoint': ['BluffNest'],
 }
 
 # Each arena (layout cm, X north, Y east): its id (never renamed: saved postings name it), its name on a card, the kinds
-# it hosts, when it's open, its middle and ground, its rings (radius cm, how many, turn as a share of a step), the mark's
-# own spot (offset from the middle) and the strongbox's candidates (offsets, the first clear one wins).
+# it hosts, when it's open (after these missions, and before those), its middle and ground, its rings (radius cm, how
+# many, turn as a share of a step) and the mark's own spot (offset from the middle). Its levels are its zone's (layout
+# gameplay.levels; never the player's). Before Main 5 the board draws from the Scatter (Unpaid), Ransom's Point (spiders)
+# and the quarry's mouth (spiders and Venom Spitters), Whitlock's yard after Side 2 and the Webwood after its set piece:
+# the user's playtest (2026-10-27, note 22) saw only the Unpaid at the Scatter. The kinds are those the story already
+# puts there (Docs/Areas/RansomsRest.md, "Fights and set pieces"): the bluff's nest (Main 2), the quarry track's spiders
+# and Spitter (after Main 3).
 ARENAS = [
     dict(id='Scatter', name='the Scatter', kinds=['Unpaid'], after=['Main3'],
          where='round the Scatter\'s boulders between Coffin Rock and the barn yard (the boulders their cover)',
          center=(-5160.0, 840.0), ground={'radius': 1300.0, 'maxRise': 300.0, 'maxStep': 300.0},
-         push=(950.0, 4, 0.0), flank=(1100.0, 3, 0.5), guards=(450.0, 2, 0.25), mark=(800.0, 0.0),
-         reward=[(-850.0, -400.0), (-900.0, 300.0), (900.0, 500.0)]),
+         push=(950.0, 4, 0.0), flank=(1100.0, 3, 0.5), guards=(450.0, 2, 0.25), mark=(800.0, 0.0)),
+    # The bluff top, between the nest ring (east) and the two 3 m rocks (west), north of the lookout: about 14 m across of
+    # open ground, the ring and the rocks its cover (every spot 1.7 m or more from them, checked against the layout). Its
+    # zone's levels, 1-2: the Rest's gentlest bounty, a spider one for the board's first days.
+    dict(id='RansomsPoint', name='Ransom\'s Point', kinds=['Spider'], after=['Main3'],
+         where='the bluff top round Main 2\'s nest ring, north of the lookout (the ring and the bluff rocks their cover)',
+         center=(-8300.0, -8400.0), ground={'zone': 'ransomsPoint', 'margin': 100.0, 'maxRise': 300.0, 'maxStep': 300.0},
+         push=(750.0, 4, 0.25), flank=(1000.0, 3, 0.0), guards=(350.0, 2, 0.25), mark=(500.0, 500.0)),
+    # The quarry floor's south half where the track comes in, before Dead Lift: the quarry track's spiders and Spitter are
+    # the story's here from Main 3 (the dead miners only rise in Dead Lift). Its zone's levels, 5-6: ground to come back to,
+    # as the track's patrol is. From Dead Lift on the floor is the Old Quarry's (its miners join the kinds).
+    dict(id='QuarryMouth', name='the quarry\'s mouth', kinds=['Spider', 'Spitter'], after=['Main3'], before=['DeadLift'],
+         where='the Old Quarry\'s floor where the quarry track comes in, round the fallen derrick (before Dead Lift)',
+         center=(9725.0, 1400.0),
+         ground={'polygon': [[9000, 250], [9000, 3850], [10450, 3850], [10450, 250]], 'maxRise': 400.0, 'maxStep': 400.0},
+         push=(650.0, 4, 0.5), flank=(650.0, 3, 0.0), guards=(300.0, 2, 0.25), mark=(300.0, 1350.0)),
     dict(id='WhitlockYard', name='Whitlock\'s barn yard', kinds=['Unpaid'], after=['Side2'],
          where='inside the Whitlock barn yard\'s fence, round the barn and the windmill (Amos\'s hands put to rest first)',
          center=(-6850.0, 3500.0), ground={'obstacle': 'barnYardFence', 'margin': 200.0, 'maxRise': 300.0, 'maxStep': 300.0},
-         push=(800.0, 4, 0.0), flank=(1050.0, 3, 0.5), guards=(350.0, 2, 0.0), mark=(-600.0, 0.0),
-         reward=[(500.0, 900.0), (600.0, -800.0), (0.0, 1000.0)]),
+         push=(800.0, 4, 0.0), flank=(1050.0, 3, 0.5), guards=(350.0, 2, 0.0), mark=(-600.0, 0.0)),
     dict(id='Webwood', name='the Webwood', kinds=['Spider', 'Spitter'], after=['Main4'], with_flags=['SetPiece.Webwood'],
          where='the webbed band of dead trees north of the Sink: they drop round the player (its set piece won first)',
          center=None, ground={'obstacle': 'webwood', 'margin': 300.0, 'maxRise': 400.0, 'maxStep': 400.0},
-         around_player=True, drop=True, spring_on_ground=True,
-         reward_at=(7034.0, 7157.0)),
+         around_player=True, drop=True, spring_on_ground=True),
     dict(id='OldQuarry', name='the Old Quarry', kinds=['Spider', 'Spitter', 'DeadMiner'], after=['DeadLift'],
          where='the quarry floor at Larkspur Ridge\'s foot (Dead Lift\'s fights done)',
          center=(9725.0, 2050.0),
          ground={'polygon': [[9000, 250], [9000, 3850], [10450, 3850], [10450, 250]], 'maxRise': 400.0, 'maxStep': 400.0},
-         push=(900.0, 4, 0.0), flank=(1300.0, 3, 0.5), guards=(450.0, 2, 0.0), mark=(500.0, 900.0),
-         reward=[(-400.0, -600.0), (-500.0, 300.0), (300.0, -900.0)]),
+         push=(900.0, 4, 0.0), flank=(1300.0, 3, 0.5), guards=(450.0, 2, 0.0), mark=(500.0, 900.0)),
     dict(id='GraniteMeadow', name='the Bench\'s granite meadow', kinds=['DeadMiner', 'Spider'], after=['DeadLift'],
          where='Larkspur Bench\'s open ground between its granite outcrops D and E (clear of the Dinner Pail camp, the '
                'tramway and the spoil ambush)',
          center=(20900.0, 700.0), ground={'radius': 1300.0, 'maxRise': 300.0, 'maxStep': 300.0},
-         push=(950.0, 4, 0.0), flank=(1150.0, 3, 0.5), guards=(450.0, 2, 0.0), mark=(800.0, 300.0),
-         reward=[(-700.0, -500.0), (-700.0, 500.0), (600.0, -700.0)]),
+         push=(950.0, 4, 0.0), flank=(1150.0, 3, 0.5), guards=(450.0, 2, 0.0), mark=(800.0, 300.0)),
 ]
 
 
 def camps():
     return importlib.reload(importlib.import_module('build_area_camps'))
-
-
-def placeholders():
-    return importlib.reload(importlib.import_module('build_area_placeholders'))
 
 
 def ring(cx, cy, spec, turn_seed):
@@ -129,48 +155,46 @@ def spawner_ids():
     return ids
 
 
+def depot_roost_at(build):
+    """The Depot roost's spot (layout cm) from gameplay.roosts, else DEPOT_ROOST_AT."""
+    for roost in build.settings.get('roosts', []):
+        if roost.get('id') == DEPOT_ROOST:
+            return tuple(roost['at'])
+    build.warn(f'no {DEPOT_ROOST} roost in the layout: the bounty board\'s sight line is checked to {DEPOT_ROOST_AT}')
+    return DEPOT_ROOST_AT
+
+
+def check_sights(build, board, x, y, z):
+    """Warns when something stands between the board's face and where players arrive (BOARD_SIGHTS), at eye height."""
+    world = unreal.EditorLevelLibrary.get_editor_world()
+    face = unreal.Vector(x, y, z + BOARD_EYE)
+    hidden = []
+    for name, (tx, ty) in (('the Depot roost', depot_roost_at(build)), ('the yard road in', ROAD_IN_AT)):
+        tz = story.ground_at(tx, ty, z, warn=False)
+        hit = unreal.SystemLibrary.line_trace_single(world, face, unreal.Vector(tx, ty, tz + BOARD_EYE),
+                                                     unreal.TraceTypeQuery.ECC_VISIBILITY, False, [board],
+                                                     unreal.DrawDebugTrace.NONE, True)
+        if hit is not None:
+            hidden.append(f'{name} ({tx:.0f}, {ty:.0f})')
+    if hidden:
+        build.warn(f'something stands between the bounty board and {", ".join(hidden)}: move BOARD_AT')
+
+
 def place_board(build):
-    """The board beside the Rangers' board, the side without a wall; or at the layout's board spot with the offset."""
+    """The board at the depot (BOARD_AT, BOARD_YAW) on the ground, its sight lines to the arrivals checked."""
     cls = story.actor_class('BountyBoard')
     if cls is None:
         build.warn('no BountyBoard class (build the game module first): no bounty board')
         return None
-    rangers = placeholders().labelled(RANGERS_BOARD)
-    if rangers is not None:
-        at = rangers.get_actor_location()
-        yaw = rangers.get_actor_rotation().yaw
-    else:
-        boards = [b for b in build.settings.get('boards', []) if b.get('label') == RANGERS_BOARD]
-        if not boards:
-            build.warn(f'no {RANGERS_BOARD} in the level or the layout: no bounty board')
-            return None
-        x, y = boards[0]['at']
-        z = story.ground_at(x, y)
-        at = unreal.Vector(x, y, z)
-        yaw = float(boards[0].get('yaw', 0.0))
-        build.warn(f'no {RANGERS_BOARD} actor: the bounty board stands by the layout\'s spot')
-    side = unreal.Vector(-math.sin(math.radians(yaw)), math.cos(math.radians(yaw)), 0.0)
-    world = unreal.EditorLevelLibrary.get_editor_world()
-    chosen = None
-    for sign in (1.0, -1.0):
-        spot = unreal.Vector(at.x + side.x * BOARD_SIDE * sign, at.y + side.y * BOARD_SIDE * sign, at.z)
-        # From just past the Rangers' board's own edge (its model is the dressing's, not the actor's), out to the spot.
-        start = unreal.Vector(at.x + side.x * BOARD_CLEAR * sign, at.y + side.y * BOARD_CLEAR * sign, at.z + BOARD_WALL_CHECK)
-        end = unreal.Vector(spot.x, spot.y, spot.z + BOARD_WALL_CHECK)
-        hit = unreal.SystemLibrary.line_trace_single(world, start, end, unreal.TraceTypeQuery.ECC_VISIBILITY, False,
-                                                     [rangers] if rangers else [], unreal.DrawDebugTrace.NONE, True)
-        if hit is None:
-            chosen = spot
-            break
-    if chosen is None:
-        build.warn('a wall both sides of the Rangers\' board: the bounty board stands on its right side anyway')
-        chosen = unreal.Vector(at.x + side.x * BOARD_SIDE, at.y + side.y * BOARD_SIDE, at.z)
-    made = build.place(cls, (chosen.x, chosen.y, chosen.z), yaw, label=BOARD_LABEL, folder=FOLDER, tags=('BountyBoard',))
+    x, y = BOARD_AT
+    z = story.ground_at(x, y)
+    made = build.place(cls, (x, y, z), BOARD_YAW, label=BOARD_LABEL, folder=FOLDER, tags=('BountyBoard',))
     made.set_editor_property('board_id', unreal.Name(BOARD_ID))
     made.set_editor_property('open_when', story.condition(after=['Main3']))
     made.set_editor_property('dangerous_when', story.condition(after=['Main5']))
     made.set_editor_property('deadly_when', story.condition(after=['Main6']))
-    build.log(f'the bounty board beside {RANGERS_BOARD} at ({chosen.x:.0f}, {chosen.y:.0f}, {chosen.z:.0f}), yaw {yaw:.0f}')
+    check_sights(build, made, x, y, z)
+    build.log(f'the bounty board at the depot at ({x:.0f}, {y:.0f}, {z:.0f}), yaw {BOARD_YAW:.0f}')
     return made
 
 
@@ -199,7 +223,7 @@ def place_arena(build, entry, standing):
     made.set_editor_property('arena_id', unreal.Name(entry['id']))
     made.set_editor_property('display_name', unreal.Text(entry['name']))
     made.set_editor_property('kinds', [unreal.Name(k) for k in entry['kinds']])
-    when = story.condition(after=entry.get('after', ()))
+    when = story.condition(after=entry.get('after', ()), before=entry.get('before', ()))
     if entry.get('with_flags'):
         when.set_editor_property('with_flags', [unreal.Name(f) for f in entry['with_flags']])
     made.set_editor_property('open_when', when)
@@ -228,23 +252,10 @@ def place_arena(build, entry, standing):
             build.warn(f'{label}: spots inside obstacles (the fight skips them): {", ".join(blocked)}')
         helpers.check_levels(build, label, (x, y, z), spots, step)
 
-    # Its strongbox's spot: the first candidate on clear ground at its level.
-    candidates = [entry['reward_at']] if entry.get('reward_at') else [(x + dx, y + dy) for dx, dy in entry['reward']]
-    reward = None
-    for rx, ry in candidates:
-        rz = helpers.ground_z(build, rx, ry, z)
-        if rz is not None and abs(rz - z) <= step and not in_obstacle(build, rx, ry):
-            reward = (rx, ry, rz)
-            break
-    if reward is None:
-        build.warn(f'{label}: no clear spot for its strongbox: it drops at the middle')
-        reward = (x, y, z)
-    made.set_editor_property('reward_spot', unreal.Vector(reward[0] - x, reward[1] - y, reward[2] - (z + 50.0)))
-    made.set_editor_property('reward_yaw', math.degrees(math.atan2(y - reward[1], x - reward[0])))
     build.log(f'{label} ({entry["where"]}): {"/".join(entry["kinds"])}, after {", ".join(entry.get("after", ())) or "the start"}'
+              + (f', before {", ".join(entry["before"])}' if entry.get('before') else '')
               + (f' with {", ".join(entry["with_flags"])}' if entry.get('with_flags') else '')
-              + (f', waits on {", ".join(waits)}' if waits else '') + f'; {len(spots)} spots, strongbox at '
-              f'({reward[0]:.0f}, {reward[1]:.0f})')
+              + (f', waits on {", ".join(waits)}' if waits else '') + f'; {len(spots)} spots')
     return True
 
 

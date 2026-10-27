@@ -9,7 +9,6 @@
 #include "Bounties/BountyArena.h"
 #include "Bounties/BountyBoard.h"
 #include "Bounties/BountyBoardSubsystem.h"
-#include "Bounties/BountyChest.h"
 #include "Bounties/BountyFight.h"
 #include "Bounties/BountyRules.h"
 #include "Creatures/CreatureBase.h"
@@ -63,7 +62,7 @@ namespace
 		return Controller ? Controller->GetPawn() : nullptr;
 	}
 
-	/** Looter.Bounty.List: the board's slots, its clock, the bounty under way, the strongboxes owed. */
+	/** Looter.Bounty.List: the board's slots, its clock, the bounty under way, an older save's strongboxes owed. */
 	void List(const TArray<FString>& Args, UWorld* World)
 	{
 		UBountyBoardSubsystem* Bounties = FindBounties(World, TEXT("Looter.Bounty.List"));
@@ -90,8 +89,8 @@ namespace
 		}
 		for (const FBountyChestOwed& Owed : Record.OwedChests)
 		{
-			UE_LOG(LogLooter, Log, TEXT("  strongbox owed: bounty %d at %s (%s)"), Owed.Serial, *Owed.Arena.ToString(),
-				Bounties->GetChest(Owed.Serial) ? TEXT("standing") : TEXT("not out"));
+			UE_LOG(LogLooter, Log, TEXT("  strongbox owed from an older save: bounty %d at %s (%s), handed over at the board"), Owed.Serial,
+				*Owed.Arena.ToString(), *BountyRules::TierName(Owed.Tier));
 		}
 	}
 
@@ -229,7 +228,7 @@ namespace
 	}
 
 	FAutoConsoleCommandWithWorldAndArgs ListCommand(TEXT("Looter.Bounty.List"),
-		TEXT("Looter.Bounty.List: the bounty board's postings, clock, the fight under way and the strongboxes owed."),
+		TEXT("Looter.Bounty.List: the bounty board's postings, clock, the fight under way and an older save's strongboxes owed."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&List));
 	FAutoConsoleCommandWithWorldAndArgs PostCommand(TEXT("Looter.Bounty.Post"),
 		TEXT("Looter.Bounty.Post: rotates the bounty board now (the postings not taken come down, new ones go up)."),
@@ -241,7 +240,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs WinCommand(TEXT("Looter.Bounty.Win"),
 		TEXT("Looter.Bounty.Win: the taken bounty's mark dies (killed if it's out)."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Win));
 	FAutoConsoleCommandWithWorldAndArgs CollectCommand(TEXT("Looter.Bounty.Collect"),
-		TEXT("Looter.Bounty.Collect: pays the won bounty as the board does."), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Collect));
+		TEXT("Looter.Bounty.Collect: pays the won bounty as the board does (its loot thrown at the player's feet)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Collect));
 	FAutoConsoleCommandWithWorldAndArgs MakeCommand(TEXT("Looter.Bounty.Make"),
 		TEXT("Looter.Bounty.Make <slot> <Kind> <Tier> <Arena> [twist...]: posts a chosen bounty in a slot."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Make));

@@ -268,8 +268,8 @@ once even when the layout lists them.
 
 The money is **silver** (2026-10-09, Docs/Polish/BorderlandsComparison.md item 13): the living's coin on the frontier.
 Grave gold stays the story's (the old fare laid on dead men's eyes, Sexton's pay to the gang) and is never money: Fenn's
-two coins in The Old Fare are a mission item, never silver. The HUD shows the silver carried at the top of the weapon
-column (an Inked silver coin and the amount, "+N" on a find); the inventory's ammo line ends with it. Code: `Economy/`
+two coins in The Old Fare are a mission item, never silver. The gameplay HUD shows no silver (the user's call,
+2026-10-27); the inventory's ammo line ends with it and the vendor's screen shows the purse. Code: `Economy/`
 (`LooterEconomy` in `EconomyRules` holds every number below), `UI/Vendor/` (the vendor's screen), `Session`
 (`ULooterSessionSave::Silver`, `VendorOffer`, `FSavedMapWorld::SilverPickups`).
 

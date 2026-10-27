@@ -10,8 +10,8 @@ class USceneComponent;
 
 /**
  * A place in an area a bounty's fight can happen (Docs/Work/2026-10-22-Next/BOUNTY.md, "Arenas"): its ground, where each
- * push comes from, where the mark comes in and where its strongbox drops, when it's open (OpenWhen), the kinds of mark it
- * hosts. It does nothing itself: UBountyBoardSubsystem finds it and makes an ABountyFight from it (the fight copies its
+ * push comes from, where the mark comes in, when it's open (OpenWhen), the kinds of mark it hosts. Nothing drops here: a
+ * bounty's reward is handed over at the board (the user's playtest, 2026-10-27). It does nothing itself: UBountyBoardSubsystem finds it and makes an ABountyFight from it (the fight copies its
  * ground and spots) when a bounty here is taken. Placed by Tools/Unreal/build_area_bounties.py in Gameplay/Bounties, its
  * properties named as an encounter spawner's (build_area_camps.set_ground fills them). Never ticks.
  */
@@ -92,23 +92,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty|Spots", meta = (MakeEditWidget = true))
 	TArray<FVector> MarkSpots;
 
-	/** Where its strongbox drops, relative to it (on clear, level ground), and which way the box faces (degrees). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty|Spots", meta = (MakeEditWidget = true))
-	FVector RewardSpot = FVector::ZeroVector;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounty|Spots")
-	float RewardYaw = 0.f;
-
 	/** Its id, or the actor's name. */
 	FName GetArenaId() const { return ArenaId.IsNone() ? GetFName() : ArenaId; }
 
 	/** Its name for a card: DisplayName, or its id. */
 	FText GetDisplayName() const { return DisplayName.IsEmpty() ? FText::FromName(GetArenaId()) : DisplayName; }
 
-	/** Where its strongbox drops, in the world. */
-	FVector GetRewardLocation() const;
-
-	/** Draws its ground, its spots (push ahead orange, flank cyan, mark gold-white) and the reward's spot, as lines in BatchID. */
+	/** Draws its ground and its spots (push ahead orange, flank cyan, mark gold-white), as lines in BatchID. */
 	void DrawArena(ULineBatchComponent& Lines, uint32 BatchID) const;
 
 protected:

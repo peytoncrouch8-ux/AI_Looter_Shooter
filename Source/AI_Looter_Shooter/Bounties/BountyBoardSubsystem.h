@@ -9,7 +9,6 @@
 
 class ABountyArena;
 class ABountyBoard;
-class ABountyChest;
 class ABountyFight;
 class APawn;
 struct FCampaignRecord;
@@ -28,9 +27,11 @@ DECLARE_MULTICAST_DELEGATE(FOnBountyBoardChanged);
  *  - taking one (one at a time): its fight (ABountyFight) made at its arena, now and on every level start while it's
  *    taken, and a mission tracker entry (UMissionSubsystem: tracked, the minimap's arrow);
  *  - giving it up: back on the board, its fight gone;
- *  - won as its mark dies (saved): a strongbox (ABountyChest) owed, dropped where the fight ends, stood at its arena on a
- *    later visit until it's opened;
- *  - paid at the board: experience and silver (BountyRules::ExperienceFor, PurseFor), the mission-complete banner.
+ *  - won as its mark dies (saved): nothing drops at the fight (the user's playtest, 2026-10-27); the tracker sends the
+ *    player back to the board;
+ *  - paid at the board: experience and silver (BountyRules::ExperienceFor, PurseFor) and the tier's loot thrown out of the
+ *    board at the player's feet (BountyPayout::HandOver), the mission-complete banner. A strongbox an older save still
+ *    owes is handed over the same way on the next visit (HandOverOwed).
  * A timer looks twice a second (the tests call Refresh themselves). The board (ABountyBoard) shows what it says; the
  * screen (UBountyBoardWidget) reads its cards and acts through it. One board per level.
  */
@@ -72,16 +73,12 @@ public:
 	/** "New postings in 1 h 42 min". */
 	FText DescribeNextRotation() const;
 
-	/** What a posting pays now: the purse, the experience (at the player's level now), the strongbox's guns. */
+	/** What a posting pays now: the purse, the experience (at the player's level now). */
 	int32 GetPurse(const FBountyPosting& Posting) const;
 	int64 GetExperience(const FBountyPosting& Posting) const;
 
-	/** The taken bounty's fight while it's out, and a won one's strongbox while it stands. */
+	/** The taken bounty's fight while it's out. */
 	ABountyFight* GetFight() const { return Fight.Get(); }
-	ABountyChest* GetChest(int32 Serial) const;
-
-	/** The bounty's strongbox is still owed: won and not looted yet (the board's paid line says whether it waits). */
-	bool IsChestOwed(int32 Serial) const;
 
 	/** An arena of the level by id (the open ones and the rest), or null. */
 	ABountyArena* FindArena(FName ArenaId) const;
@@ -97,15 +94,21 @@ public:
 	bool GiveUp();
 
 	/**
-	 * Pays the won bounty to Player (the one at the board): experience, silver, the banner; its slot fills later. False when
-	 * none is won. OutGiven: what it gave.
+	 * Pays the won bounty to Player (the one at the board): experience, silver, the tier's loot thrown out of the board at
+	 * their feet, the banner; its slot fills later. False when none is won. OutGiven: what it gave (its best gun as bGun).
 	 */
 	bool Collect(APawn* Player, FMissionRewardsGiven* OutGiven = nullptr);
+
+	/**
+	 * Hands Player, at the board, the loot of every strongbox an older save still owes (FBountyChestOwed), each with Hob's
+	 * line, and forgets them; one whose bounty is still won and unpaid comes with its pay instead (Collect). How many.
+	 */
+	int32 HandOverOwed(APawn* Player);
 
 	/** The player read the board: every posting up counts as seen. */
 	void MarkRead();
 
-	/** Looks now: posts, rotates and fills, the fight and the strongboxes, the board's look, the tracker (its timer does). */
+	/** Looks now: posts, rotates and fills, the fight, the board's look, the tracker (its timer does). */
 	void Refresh();
 
 	/** Rotates now (the console's Looter.Bounty.Post). */
@@ -117,7 +120,7 @@ public:
 	/** The taken bounty's mark dies (the console): killed if it's out, else the bounty is won as if it had. */
 	bool WinNow();
 
-	/** Forgets the board's record (the console): every posting, the fight, the strongboxes owed. */
+	/** Forgets the board's record (the console): every posting, the fight, an older save's strongboxes owed. */
 	void Forget();
 
 	/** The board's clock: the session's time played (s); a test's own clock when one is set. */
@@ -151,16 +154,13 @@ private:
 	/** A new posting went up: a chime and a notice when the player is near the board. */
 	void AnnouncePosted();
 
-	// --- The fight, the strongboxes, the tracker (BountyBoardSubsystemFight.cpp) ---
+	// --- The fight, the tracker (BountyBoardSubsystemFight.cpp) ---
 	void EnsureFight();
 	void DropFight();
 	void HandleMarkDown(ABountyFight& InFight);
 	void HandleFightDone(ABountyFight& InFight);
 	/** The won bounty's state, as its mark's death or the fight's end says (both mean won). */
 	void MarkWon(int32 Serial);
-	void EnsureChests();
-	ABountyChest* SpawnChest(const FBountyChestOwed& Owed, const FVector& Spot, float Yaw, bool bDrop);
-	void HandleChestLooted(ABountyChest& Chest);
 	void UpdateTracker();
 	void ClearTracker();
 	/**
@@ -173,7 +173,6 @@ private:
 
 	TWeakObjectPtr<ABountyBoard> Board;
 	TWeakObjectPtr<ABountyFight> Fight;
-	TMap<int32, TWeakObjectPtr<ABountyChest>> Chests;
 	/** The record without a campaign (a test level with none). */
 	FBountyBoardRecord LocalRecord;
 	FName LastBoardId = TEXT("RansomsRest");

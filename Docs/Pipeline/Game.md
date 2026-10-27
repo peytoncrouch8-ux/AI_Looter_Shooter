@@ -36,6 +36,12 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     town woke at the farm): SheriffsOffice ("Main Street"), in the street's north edge at the sheriff's office (layout cm
     [300, 800], onRoad, facing east down the street), outside the Main Street ambush's trigger. New ids only (an old save's
     find of a removed id must not find a new roost).
+  - Fast-travel STATIONS are the Depot and Calder's Post only (the user, 2026-10-27, note 24: keep two, one in lower RR and one
+    on the mountain; Main's reading: the Sheriff's Office roost stays the death-respawn and save point). `ARespawnMarker::
+    bFastTravelStation` (default true; the layout roost entry's `fastTravel` false, `storyfix_2.json`, sets it off for
+    SheriffsOffice; `build_area_roosts.py` reads it). `GraveTravelRules::CheckGrave` refuses a non-station (`NotAStation`);
+    `MapPins::Gather` skips non-station roosts, so the map's pins, travel list and legend leave the town roost out (the
+    minimap's roost marker still shows it). Tests `Looter.Map.Station.Rules/.World`.
   - A death wakes at the roost last found on the map (never the nearest), before any at the level's own start (RR: the
     family plot's PlayerStart), Hob's crows carrying Ellis either way on a map with roosts. Arriving by fast travel finds
     the roost too (`MarkOnArrival`). Continue wakes at the same roost, before any where saved. One lookup:
@@ -72,6 +78,37 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   Health and XP bars 25% longer and thicker (`HudFrameShapes::BarScale`). Subtitles On/Off in Interface
   (`Looter.Subtitles`): off hides lines with a speaker (barks too); notices stay. The game has no voice acting, so off
   means NPC talk isn't shown at all.
+- Playtest round 1 (2026-10-27, the user's notes; `Docs/Work/2026-10-27-Playtest/NOTES.md`), the UI and world parts:
+  - The inventory pauses the game (note 8): `ALooterHUD::ApplyGamePause` (`LooterHUDPause.cpp`, with the pause menu) pauses
+    while the pause menu or any inventory page (the map key too) is open (`PausesGame`); called on every open/close path.
+    Vendor, bench, boards and the offer card don't pause (they `CloseInventory` first). Pausing collapses the HUD and world
+    labels at once (the HUD doesn't tick paused). Anything on a page that moves must tick while paused (`StageStudio` sets
+    `bTickEvenWhenPaused` on the stand and its model) and its sounds be class Interface (`bPlaysWhilePaused`; the test checks).
+    Music ducks and ambience pauses under the inventory as under the pause menu (not asked about). Test `Looter.UI.Inventory.Pause`.
+  - No silver on the gameplay HUD (note 19): the vendor's purse, the inventory's ammo line and the mission-complete purse stay.
+  - Chests are off the map (note 26; `EMapPinKind::Chest`/`ChestLooted` gone, `UMapDiscoverySubsystem` and
+    `FSavedMapWorld::FoundChests` removed; old saves load, the property is skipped). Unused leftovers: `AChest::bOnMap`,
+    `ShowsOnMap`. "More distinguished locations" for chests is not done.
+  - Loot piles (note 41): guns within `Looter.LootLabels.PileRadius` [300 cm] show only `.PileShown` [4] names in full (looked-at
+    first, then rarer, the one shown before, nearer); every Legendary always shows; the rest fold to a 12 px dot in their
+    rarity colour on the gun (`UWeaponLabelWidget::SetFolded`); looking at a dot opens its card. Wards never fold. 0 = old way.
+    `LootLabelLayout::PickShown`. Tests `Looter.Loot.Labels.Layout/.Pile/.Fold`. Dot size and the 4 not judged by eye yet.
+  - General store REFILL ALL AMMO (note 13): first row under BUY (`VendorTrade::RefillAllAmmo`, `TallyRefill`, `RefillPrice`):
+    every ammo type to its most for one payment, all or nothing; price per type = whole boxes x box price + the last part box
+    (`AmmoPrice`), equal to clicking Buy until full. The row shows "+N rounds across K kinds" and the price; FULL when full; red
+    "Not enough silver" when too dear; otherwise a confirm panel. It is the default selection (a confirm guards it); no hotkey.
+    Buy column ~66 px taller: check it fits at 1080p. Tests `Looter.Economy.Trade.RefillPrice/.RefillAll`.
+  - Settings menu (note 4): four tabs (Graphics, Audio, Interface, Controls; LB/RB or PgUp/PgDn wrap; each page its own
+    `UScrollBox` in a `UWidgetSwitcher`), panel fixed 940 x 840, and a 272 px description column right of the page (row name, what
+    it does, a dim range/default line; follows focus under keys and pad, the pointer under the mouse; words in
+    `SettingsMenuHelp.cpp`, written from the apply code and `Docs/Performance.md`'s preset costs). "Reset all" moved to Controls
+    ("Reset all keys"). Hover uses `IsHovered()` on each row's `MakeRow` overlay: check in play. Tests `Looter.UI.SettingsMenu.Help/.Tabs`.
+  - Vigil stones (note 36): each stone counts `CallBackSeconds` (5 min of play) from its own record's `DefeatedAt`; a Save & Quit
+    readies none. This reverses the user's 2026-10-12 "or at once after a Save & Quit". `SessionLoads` stays in the save only.
+  - Back Pay's tags open no reading card (note 31: the Barricade readable's text is empty; its sound, caption and step still
+    fire; the chalk line is in Ellis's caption). Main 4 step 5 says "Examine Saint Ada's smashed Reliquary, where her light
+    burned." and Aldana's bell line says what it held (note 18). Amos's house has its wanted poster (note 9,
+    `storyfix_1.json` posterAmos; position a guess, check the build log); Side 1 now has 8 posters, needs 4.
 - Lost Loot (the user's call, 2026-10-13, so ground guns don't pile up and cost frame time): a gun on the ground lasts 5 minutes
   (not while the player stands within 6 m), then goes to the depot's LOST PROPERTY window. Leaving a map or quitting sends every
   ground gun there; a load never puts one back. 30 spaces, +10 per upgrade (five, bought with silver); the oldest unnamed gun goes

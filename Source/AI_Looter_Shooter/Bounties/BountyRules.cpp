@@ -463,7 +463,7 @@ FBountyPosting BountyRules::Draw(const FBountyDrawInput& In)
 // The fight
 // ---------------------------------------------------------------------------
 
-FBountyFightPlan BountyRules::MakeGroups(const FBountyPosting& Posting)
+FBountyFightPlan BountyRules::MakeGroups(const FBountyPosting& Posting, float HealthScale)
 {
 	FBountyFightPlan Plan;
 	const FBountyKindInfo* Kind = FindKind(Posting.Kind);
@@ -471,6 +471,7 @@ FBountyFightPlan BountyRules::MakeGroups(const FBountyPosting& Posting)
 	{
 		return Plan;
 	}
+	Plan.HealthScale = FMath::Max(HealthScale, 0.01f);
 	const FBountyTierInfo& Tier = GetTier(Posting.Tier);
 	const bool bBigPosse = Posting.HasTwist(EBountyTwist::BigPosse);
 	const TArray<FPushPlan> Pushes = PossePushes(Posting.Tier);
@@ -483,6 +484,11 @@ FBountyFightPlan BountyRules::MakeGroups(const FBountyPosting& Posting)
 	Plan.Groups.Add(MakeGroup(Kind->Mark, 1, Tier.MarkRank, MarkWave));
 	Plan.Total += 1;
 	AddPush(Plan, *Kind, GuardsWithMark(Posting.Tier), MarkWave, bBigPosse);
+	// Every one of them, mark and posse alike: their health before their level and rank multiply it, as a spawner's group's.
+	for (FEncounterGroup& Group : Plan.Groups)
+	{
+		Group.HealthScale = Plan.HealthScale;
+	}
 	Plan.Pushes = MarkWave;
 	Plan.MarkRank = Tier.MarkRank;
 	Plan.Mark = Kind->Mark;

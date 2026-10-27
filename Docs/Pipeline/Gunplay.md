@@ -240,9 +240,27 @@ moments. Code: CODEMAP "Elements", `Weapons/PartEffect*`, `Loot/LootDropMoments`
   `WeaponTrigger::PlanFor` in AWeaponBase (StartFireAt, StopFire, HandleFiring).
 - **Drop moments** (`LootDropMoments`, `Looter.Loot.Drop.*`): beams 450 / 900 / 1400 / 2200 cm (was 350 / 650 / 1000 / 1600),
   glow 2/2/3/3, radius 6/6/9/11; Rare+ stinger at landing (Epic+ flat); Epic+ spin 900°/s easing over 0.9 s and a ground ring
-  (Epic 260, Legendary 420 cm, 0.7 s); Legendary: `Loot.Drop.Legendary` the moment it drops, the world at 0.3 for 0.25 s (only
-  from full speed: never in Sundown or a boss's death slow), and on landing `Loot.Drop.Legendary.Land`, a 45 m column (r 30,
-  glow 3, stays while it lies there), its name popping up 150 cm over it for 4.5 s (the label's `SetPop`), 24 motes.
+  (Epic 260, Legendary 420 cm, 0.7 s); Legendary: `Loot.Drop.Legendary` the moment it drops (the sting only: the 0.3x world
+  slow of 0.25 s is gone, the user's note 17, 2026-10-27: it stuttered), and on landing `Loot.Drop.Legendary.Land`, a 45 m column
+  (r 30, glow 3, stays while it lies there), its name popping up 150 cm over it for 4.5 s (the label's `SetPop`), 24 motes, and
+  the burst below.
+  - **Pools** (`LootFanfareShows.cpp`): `WarmPools` at play start makes 2 hidden columns (own MID) and 2 name pops (a
+    `UWidgetComponent` + `UWeaponLabelWidget`, widget built at warm) on a transient pool actor, and runs `FWeaponFX::Initialize`
+    (it LoadObjects on first use). A landing attaches one to the gun; pickup or destroy hands it back. Nothing is built on the
+    landing frame. `AWeaponBase` muzzle material and flash plane are cached too (`WeaponBaseMuzzle.cpp`).
+  - **Burst** (`LootFanfareBurst.cpp`, `FLegendaryBurst`, `Looter.Loot.Drop.Burst.*` 30 cvars): the "galactic explosion"
+    (note 17): white crack + colour starburst, glowing core, ground shock rings (14 and 22 m), a facing air shock, a ring tilted
+    25 degrees as a galaxy disc with 48 star sparks in 3 spiral arms plus 24 fountain sparks (streak + twinkling `AddGlow` head,
+    widened to >= 0.0025 rad on screen: reads from 40 m). Shapes shrink when the eye is inside (no whiteout). No lights, no
+    assets; ~10 shapes + ~150 instances for 1.8 s. Not yet seen in play or perf-measured: tune with the cvars.
+  - **Early legendary cap** (note 14: rarer early; the user: normal enemies and chests almost never in RR, bosses and their
+    bounties still can): `ULootLibrary::LegendaryCapFor` holds a legendary to `Looter.Loot.EarlyLegendary.Share` [1/300] of the
+    guns rolled at level <= `.MaxLevel` [8] (RR creatures 1-6 + rank +1/+2; chests clamp to their band; the Lily starts at 9).
+    Tables with `bKeepsLegendaryOdds` (Soulfed, Boss, bounty marks and rewards: `KeepingLegendaryOdds`) are never capped;
+    `create_rank_assets.py` sets it on `DA_LootTable_Legendary` and `_Boss`. Per kill on RR / later: Regular 0.10% / 0.3,
+    Restless 0.20 / 2.2, Gravebound 0.30 / 5.5, Hallowed 0.50 / 13.3, Ethereal 0.67 / 21.3; Soulfed 21.4 and Boss 30.3
+    everywhere; Strongbox 0.67% / 15.5, Supply Crate 0.33 / 3.7. Check: `Looter.Loot.SimulateDrops <rank> [kills] [level=1]`
+    (Regular x 1,000,000: about 0.10%). Tests `Looter.Loot.EarlyLegendary.Rules/.Odds`, `Looter.Loot.DropMoments`.
 - **Dev**: `Looter.Element.Apply <Ember|SoulLight|GraveSalt|off> [radius m] [every s] [hit damage]`; `Looter.GiveWeapon
   Revolver Epic 5 Cylinder=Salt6` picks parts; `Looter.Feedback.Drop <Rarity>`.
 - **Checked in PIE (2026-10-22)**: Ember on spiders (weak, burns read, ticks 9), Grave-salt on a Warded Unpaid (weak), Soul-light

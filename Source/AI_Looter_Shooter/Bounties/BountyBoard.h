@@ -15,13 +15,15 @@ class USceneComponent;
 class UStaticMeshComponent;
 
 /**
- * The bounty board in a town (Docs/Work/2026-10-22-Next/BOUNTY.md): Ransom's Rest's stands beside the Rim Rangers' board
- * in front of the sheriff's office (Tools/Unreal/build_area_bounties.py). A notice board (SM_NoticeBoard_Bounty, BOUNTIES on
+ * The bounty board in a town (Docs/Work/2026-10-22-Next/BOUNTY.md): Ransom's Rest's stands at the depot, where the yard
+ * road meets the platform, its face toward the Depot roost and the road in (the user's playtest, 2026-10-27, note 12;
+ * Tools/Unreal/build_area_bounties.py). A notice board (SM_NoticeBoard_Bounty, BOUNTIES on
  * its header) with a sheet on its face for each posting up (the art's decals, Tools/Blender/looter_bounty_sheets.py: WANTED BY THE
  * RIM RANGERS, the mark's kind inked in a frame, its name printed on its band; plain paper until they are imported), sealed in its mark's tier colour; a taken or won one's sheet
  * is gone (the player carries it). Over it floats its own mark: ? while a posting is up the player hasn't read here, !
- * while a won bounty waits to be paid. A tap of Interact opens the board's screen (UBountyBoardWidget), once OpenWhen
- * holds (after Main 3: the town is safe).
+ * while a won bounty waits to be paid (or an older save's strongbox waits to be handed over). A tap of Interact opens the
+ * board's screen (UBountyBoardWidget), once OpenWhen holds (after Main 3: the town is safe), and hands over any
+ * strongbox an older save still owes (UBountyBoardSubsystem::HandOverOwed).
  *
  * Its postings live in UBountyBoardSubsystem (the session's record, by BoardId); the board only shows them and opens the
  * screen. One board per level (the first that begins is the level's).

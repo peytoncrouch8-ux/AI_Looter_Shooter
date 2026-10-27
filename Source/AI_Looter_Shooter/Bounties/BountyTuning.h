@@ -24,11 +24,18 @@ struct AI_LOOTER_SHOOTER_API FBountyTuning
 	/** A bounty fight springs on the player coming this near its arena's middle (cm), where its ground doesn't spring it. */
 	float SpringRadius = 2200.f;
 
-	/** The strongbox's guns by tier, and their luck (a Strongbox's 1: 15.5% legendary each). */
+	/**
+	 * Every bounty creature's health (the posse, its support and the mark) against an area creature of the same kind, rank
+	 * and level: the user's playtest (2026-10-27, note 33) found the fights a little soft. Health, not levels: a level more
+	 * would raise their bite too and break the rule that levels come from the arena's zone, never anything else.
+	 */
+	float HealthScale = 1.25f;
+
+	/** The guns handed over at the board by tier, and their luck (a Strongbox's 1: 15.5% legendary each). */
 	int32 RewardGuns[3] = { 2, 2, 3 };
 	float RewardLuck = 1.f;
 
-	/** The strongbox's ammo pickups (36 rounds each, a chest's). */
+	/** The ammo pickups handed over with them (36 rounds each, a chest's). */
 	int32 RewardAmmo = 2;
 
 	/** The purse paid at the board by tier, at level 1 (grown with the arena's level as the economy grows). */
@@ -36,9 +43,6 @@ struct AI_LOOTER_SHOOTER_API FBountyTuning
 
 	/** The experience paid at the board by tier, as a share of the step from the arena's top level to the next. */
 	float XPShare[3] = { 0.05f, 0.07f, 0.09f };
-
-	/** The strongbox drops from this high over its spot (cm). */
-	float ChestDrop = 260.f;
 
 	/** A posting going up chimes when the player is this near the board (cm). */
 	float PostedChimeRange = 4000.f;

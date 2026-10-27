@@ -30,11 +30,6 @@ ABountyArena::ABountyArena()
 	Tags.Add(TEXT("BountyArena"));
 }
 
-FVector ABountyArena::GetRewardLocation() const
-{
-	return GetActorTransform().TransformPositionNoScale(RewardSpot);
-}
-
 void ABountyArena::DrawArena(ULineBatchComponent& Lines, uint32 BatchID) const
 {
 	const FVector Here = GetActorLocation();
@@ -72,7 +67,5 @@ void ABountyArena::DrawArena(ULineBatchComponent& Lines, uint32 BatchID) const
 	{
 		DrawCross(Lines, Frame.TransformPositionNoScale(Local) + FVector(0.0, 0.0, 50.0), 90.0, LooterUI::Color::Title(), BatchID);
 	}
-	const FVector Reward = GetRewardLocation();
-	Lines.DrawLine(Reward, Reward + FVector(0.0, 0.0, 250.0), LooterUI::Color::Better(), SDPG_World, 8.f, DrawForever, BatchID);
 	Lines.DrawLine(Here, Here + FVector(0.0, 0.0, 400.0), GroundTint, SDPG_World, 8.f, DrawForever, BatchID);
 }

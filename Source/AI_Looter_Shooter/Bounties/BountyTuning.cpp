@@ -18,16 +18,18 @@ namespace
 		TEXT("A bounty fight's next push comes once this many of the last are left standing."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarSpringRadius(TEXT("Looter.Bounty.SpringRadius"), BountyDefaults.SpringRadius,
 		TEXT("A bounty fight springs on the player coming this near (cm) its arena's middle."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarHealthScale(TEXT("Looter.Bounty.HealthScale"), BountyDefaults.HealthScale,
+		TEXT("Every bounty creature's health against an area creature of its kind, rank and level (1.25: a quarter more)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarGunsWanted(TEXT("Looter.Bounty.RewardGunsWanted"), BountyDefaults.RewardGuns[0],
-		TEXT("Guns in a Wanted bounty's strongbox."), ECVF_Default);
+		TEXT("Guns handed over at the board for a Wanted bounty."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarGunsDangerous(TEXT("Looter.Bounty.RewardGunsDangerous"), BountyDefaults.RewardGuns[1],
-		TEXT("Guns in a Dangerous bounty's strongbox."), ECVF_Default);
+		TEXT("Guns handed over at the board for a Dangerous bounty."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarGunsDeadly(TEXT("Looter.Bounty.RewardGunsDeadly"), BountyDefaults.RewardGuns[2],
-		TEXT("Guns in a Deadly bounty's strongbox."), ECVF_Default);
+		TEXT("Guns handed over at the board for a Deadly bounty."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarRewardLuck(TEXT("Looter.Bounty.RewardLuck"), BountyDefaults.RewardLuck,
-		TEXT("The luck of a bounty strongbox's guns (a Strongbox's is 1)."), ECVF_Default);
+		TEXT("The luck of a bounty's reward guns (a Strongbox's is 1)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarRewardAmmo(TEXT("Looter.Bounty.RewardAmmo"), BountyDefaults.RewardAmmo,
-		TEXT("Ammo pickups in a bounty's strongbox (36 rounds each)."), ECVF_Default);
+		TEXT("Ammo pickups handed over with a bounty's guns (36 rounds each)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarPurseWanted(TEXT("Looter.Bounty.PurseWanted"), BountyDefaults.Purse[0],
 		TEXT("A Wanted bounty's purse at level 1 (silver; grown with the arena's level)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarPurseDangerous(TEXT("Looter.Bounty.PurseDangerous"), BountyDefaults.Purse[1],
@@ -40,8 +42,6 @@ namespace
 		TEXT("A Dangerous bounty's experience share."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarXPDeadly(TEXT("Looter.Bounty.XPShareDeadly"), BountyDefaults.XPShare[2],
 		TEXT("A Deadly bounty's experience share."), ECVF_Default);
-	TAutoConsoleVariable<float> CVarChestDrop(TEXT("Looter.Bounty.ChestDrop"), BountyDefaults.ChestDrop,
-		TEXT("A bounty's strongbox drops from this high (cm)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarChimeRange(TEXT("Looter.Bounty.PostedChimeRange"), BountyDefaults.PostedChimeRange,
 		TEXT("A new posting chimes when the player is this near the board (cm)."), ECVF_Default);
 }
@@ -55,6 +55,8 @@ FBountyTuning FBountyTuning::Current()
 	Made.RefillMinutes = FMath::Max(CVarRefillMinutes.GetValueOnGameThread(), 0.f);
 	Made.PushWhenLeft = FMath::Clamp(CVarPushWhenLeft.GetValueOnGameThread(), 0, 8);
 	Made.SpringRadius = FMath::Max(CVarSpringRadius.GetValueOnGameThread(), 300.f);
+	// Never below a tenth: a bounty creature always has some health to take.
+	Made.HealthScale = FMath::Clamp(CVarHealthScale.GetValueOnGameThread(), 0.1f, 10.f);
 	Made.RewardGuns[0] = FMath::Clamp(CVarGunsWanted.GetValueOnGameThread(), 0, 6);
 	Made.RewardGuns[1] = FMath::Clamp(CVarGunsDangerous.GetValueOnGameThread(), 0, 6);
 	Made.RewardGuns[2] = FMath::Clamp(CVarGunsDeadly.GetValueOnGameThread(), 0, 6);
@@ -66,7 +68,6 @@ FBountyTuning FBountyTuning::Current()
 	Made.XPShare[0] = FMath::Max(CVarXPWanted.GetValueOnGameThread(), 0.f);
 	Made.XPShare[1] = FMath::Max(CVarXPDangerous.GetValueOnGameThread(), 0.f);
 	Made.XPShare[2] = FMath::Max(CVarXPDeadly.GetValueOnGameThread(), 0.f);
-	Made.ChestDrop = FMath::Clamp(CVarChestDrop.GetValueOnGameThread(), 0.f, 1000.f);
 	Made.PostedChimeRange = FMath::Max(CVarChimeRange.GetValueOnGameThread(), 0.f);
 	return Made;
 }

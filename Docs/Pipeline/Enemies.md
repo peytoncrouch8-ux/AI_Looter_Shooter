@@ -265,8 +265,10 @@ The user's roster ask (Docs/Story.md "Creature roster"): a named clay blob where
 The user's pick (2026-10-22): a bounty board so Ransom's Rest has replayable hard fights before new regions. Design and
 numbers: `Docs/Work/2026-10-22-Next/BOUNTY.md` (until archived). Code `Bounties/`, screen `UI/World/BountyBoardWidget*`,
 placing `Tools/Unreal/build_area_bounties.py` (gameplay pass after the placeholders; runs alone; `Gameplay/Bounties`).
-- **Board** `ABountyBoard` (`BountyBoard_RansomsRest`, id `RansomsRest`): SM_NoticeBoard_Town 2.8 m beside the Rangers'
-  board (the script takes the side without a wall: placed at (660, 1400), yaw 180). Open after Main 3; Dangerous after
+- **Board** `ABountyBoard` (`BountyBoard_RansomsRest`, id `RansomsRest`): SM_NoticeBoard_Town 2.8 m at the Depot (the user's
+  note 12, 2026-10-27, "by the train station"): (-130, 10250) yaw -35, facing the Depot roost and the yard road (chosen from the
+  layout only: look at it in the editor; the script warns if it is hidden). It stood beside the Rangers' board at (660, 1400)
+  before. Open after Main 3; Dangerous after
   Main 5, Deadly after Main 6 (`OpenWhen`, `DangerousWhen`, `DeadlyWhen`). Sheets are code stand-ins (engine plane, wax
   seal cylinder in M_StylizedSurface, tier colour); a taken or won posting's sheet is gone. Own `AGiverMarkActor`: ? for
   unread postings, ! for a won one.
@@ -277,10 +279,21 @@ placing `Tools/Unreal/build_area_bounties.py` (gameplay pass after the placehold
 - **Fight** `ABountyFight` (an `ASetPieceSpawner`, spawned at the arena while a bounty is taken, every level start; never
   saved). Mark = the group of the tier's rank (posse is Fixed Basic/Restless only), named via `DisplayName` (tag reads
   "Gravebound Old Man Corrigan", traits line under it), traits set exactly to the posting's. Won on the mark's death
-  (saved); the Strongbox (`ABountyChest`) drops where the fight ends, or stands at the arena on a later visit until looted.
-  Paid at the board: XP + silver, the mission banner (a transient side-mission definition broadcast on the runner's
-  `OnMissionCompleted`; title "Bounty: <mark>"). Tracker = a `UMissionSubsystem` entry (steps Hunt, Put down, then turn-in
-  with "Open the bounty's strongbox" optional); the minimap arrow follows it.
+  (saved). No chest (the user's note 40, 2026-10-27; `ABountyChest` and `Looter.Bounty.ChestDrop` deleted): the loot comes when
+  the bounty is turned in at the board. Paid at the board: XP + silver, the mission banner (a transient side-mission definition
+  broadcast on the runner's `OnMissionCompleted`; title "Bounty: <mark>"), and `BountyPayout::HandOver` throws the tier's loot
+  (the old strongbox's rolls: 2/2/3 guns-or-wards at luck 1, 2 ammo x36, a Strongbox's grenade chance, silver) out of the
+  board's face toward the player, fanned; the best gun on the banner ("RARE GUN"). The mark and the reward table keep their
+  legendary odds (`KeepingLegendaryOdds`, `bKeepsLegendaryOdds`: Gunplay.md, early cap). Old saves: `OwedChests` kept; handed
+  over at the board (Interact or Collect) with Hob's line, the board shows ! while owed, never twice (`HandOverOwed`).
+  Tracker = a `UMissionSubsystem` entry (steps Hunt, Put down, then turn-in); the minimap arrow follows it.
+- **Harder** (note 33): +25% health on every bounty creature (posse, support, mark), `Looter.Bounty.HealthScale` [1.25] (not +1
+  level: levels stay the zone's).
+- **Arenas** (note 22: all bounties were Unpaid at one grove): new Ransom's Point (Spider, after Main 3, levels 1-2) and the
+  quarry's mouth (Spider/Spitter, after Main 3, before Dead Lift, levels 5-6). Before Main 5 the draw has Scatter, Ransom's
+  Point, Quarry Mouth, Whitlock Yard (Side 2), Webwood (Main 4 + flag). Old saves keep their Scatter-only postings until the
+  rotation (`Looter.Bounty.Post` shows the new mix). QuarryMouth is next to the QuarryTrack patrol, which may join its fight.
+  Not seen in play yet.
 - **Arena waits** (`WaitForSpawners`): only the story's own fights on its ground. A camp, patrol or roaming group is
   Engaged whenever the player is near (its creatures stand about), so waiting on one held the Scatter's bounty until the
   orchard camp was cleared (PIE 2026-10-22): never wait on those.

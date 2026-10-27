@@ -65,7 +65,7 @@ struct AI_LOOTER_SHOOTER_API FBountyPosting
 {
 	GENERATED_BODY()
 
-	/** Its number on its board, from 1 (its draw's seed with the board's id; the strongbox's id). 0: an empty slot. */
+	/** Its number on its board, from 1 (its draw's seed with the board's id). 0: an empty slot. */
 	UPROPERTY()
 	int32 Serial = 0;
 
@@ -110,7 +110,12 @@ struct AI_LOOTER_SHOOTER_API FBountyPosting
 	bool HasTwist(EBountyTwist Twist) const { return Twists.Contains(Twist); }
 };
 
-/** A won bounty's strongbox not opened yet: it stands at its arena again on the next visit. */
+/**
+ * A strongbox owed from a save made before the playtest of 2026-10-27, when a won bounty dropped one at its fight and it
+ * waited there until opened. Nothing makes these now (the reward is handed over at the board as the bounty is paid); a
+ * save that still has one gets its loot at the board on the next visit (UBountyBoardSubsystem::HandOverOwed). Kept for
+ * those saves: never reuse the struct or the record's list for anything else.
+ */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FBountyChestOwed
 {
@@ -128,8 +133,9 @@ struct AI_LOOTER_SHOOTER_API FBountyChestOwed
 
 /**
  * A bounty board's record (FCampaignRecord::Bounties, by the board's id: "RansomsRest"): its slots' postings, when each
- * empty slot may be filled again, the next serial, its rotations, what the player has read, how many it has paid, the
- * strongboxes owed. New within session version 4: a session from before has none, which reads as a fresh board.
+ * empty slot may be filled again, the next serial, its rotations, what the player has read, how many it has paid, and an
+ * older save's strongboxes still owed. New within session version 4: a session from before has none, which reads as a
+ * fresh board.
  */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FBountyBoardRecord
@@ -163,6 +169,7 @@ struct AI_LOOTER_SHOOTER_API FBountyBoardRecord
 	UPROPERTY()
 	int32 Paid = 0;
 
+	/** An older save's strongboxes still owed (FBountyChestOwed): handed over at the board, then gone. Never added to now. */
 	UPROPERTY()
 	TArray<FBountyChestOwed> OwedChests;
 
