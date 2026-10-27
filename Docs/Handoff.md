@@ -1,4 +1,4 @@
-# Handoff
+﻿# Handoff
 
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
@@ -21,7 +21,7 @@ real explosion), recoil by accuracy + aimed sway, mission gates (step-gated prop
 dots, name pop, settings hover, Ransom's Point arena, Depot roost yaw), a dead player can't fire. DEMO round 2 PASS after
 fixes; perf RR spawn 7.8 ms / p95 8.4 (unchanged). Lesson: a gameplay pass right after opening the level found no ground
 (now refused: `require_ground`); always read its warning count (0) before committing.
-A test build was packaging at this writing (see the newest `Builds\Playtest\`); the user hasn't played rounds 1-2 yet.
+Test build `Builds\Playtest\2026-10-27_1006` (1.27 GB, smoke menu + RR PASS; `Play Latest Build.bat`) has rounds 1-2; the user hasn't played it yet.
 Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where;
 asked 2026-10-27, no answer yet); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
 two, 37 Lost Loot quest, 5 melee tools, 6 Odessa cards, 27 action skill anim, 35 iron sights, 16 roads, 26 chest spots, 25
@@ -55,8 +55,8 @@ session swap of 2026-10-27"):
 
 Open (ask or do next):
 1. The user plays the test build; fix what they find (play-check by an agent after each fix: memory playtest-after-features).
-2. Ask: the sniper's ground-impact ring/column failed three fixes (rule 6) — keep trying or drop it.
-3. Ask: Tilly (a "talking window" by design) — a silhouette behind her curtain?
+2. Ask: the sniper's ground-impact ring/column failed three fixes (rule 6) â€” keep trying or drop it.
+3. Ask: Tilly (a "talking window" by design) â€” a silhouette behind her curtain?
 4. Gunplay step 4 still pending: the user tunes `Looter.Gunfeel.*` in PIE, Main bakes their values into the defaults.
 5. Small, known: decal mission items (the gate poster) can't wear the highlight overlay (barely visible past 5 m);
    bounty variety after Main 5 is limited (only the Scatter/Unpaid open: proposal Webwood after Main 4 + a spider arena);
@@ -75,7 +75,7 @@ How the work ran (keep doing it): one editor lane; agents write C++ into holding
 the touched tests, commits and pushes; a DEMO agent play-checks in PIE with single `Tools\grab.ps1` shots (Slomo 0.1 to
 catch effects); fixes go back to the agent that knows the area.
 
-## Direction (the user's answers, grill session 2026-10-21) — overrides "next" below
+## Direction (the user's answers, grill session 2026-10-21) â€” overrides "next" below
 
 - **Core-loop freeze:** no new regions, heroes or systems (the *Lily* stays on hold) until shooting, fights, loot and
   pacing are fun in Ransom's Rest. The user played it through after the heroes: "something's off" in gunplay, pacing,
@@ -91,8 +91,8 @@ catch effects); fixes go back to the agent that knows the area.
   build and both want to replay it with another hero.
 - **Sounds:** paid/free royalty-free libraries licensed for games are now allowed for guns and impacts (e.g. Sonniss
   GDC bundle), processed through the script pipeline; script-made stays the rule elsewhere.
-- **Release plan:** single-player at launch (co-op not planned). 1.0 keeps 15–18 regions. A free Steam demo once the
-  game is 60–70% built, within a year (~Oct 2027). Store page ("Coming Soon") goes up once the core is fun, with a
+- **Release plan:** single-player at launch (co-op not planned). 1.0 keeps 15â€“18 regions. A free Steam demo once the
+  game is 60â€“70% built, within a year (~Oct 2027). Store page ("Coming Soon") goes up once the core is fun, with a
   Ransom's Rest trailer. Steam's AI-content survey answered plainly (made with AI tools, nothing generated live).
 - Playtesters: the user and one friend.
 
