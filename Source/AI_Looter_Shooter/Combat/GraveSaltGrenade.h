@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/GrenadeKinds.h"
 #include "GameFramework/Actor.h"
 #include "GraveSaltGrenade.generated.h"
 
@@ -9,6 +10,7 @@ class UAudioComponent;
 class UPointLightComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
+struct FGraveSaltBurstResult;
 struct FHitResult;
 
 /**
@@ -19,6 +21,14 @@ struct FHitResult;
  * creature it touches bursts it at once. Otherwise the fuse bursts it 1.5 s after it left the hand (GraveSaltBurst does
  * the damage, the look, the sound and the jolt). After the burst it lingers for its flash of light (FGraveSaltTuning's
  * Flash*), then goes.
+ *
+ * Its kind (GrenadeKinds, round 4) changes its tin (Art/Models/Throwables/GrenadeJars.py), its burst and what follows
+ * (GraveSaltGrenadeKinds.cpp):
+ *  - Pitch: sticks to the first thing it touches (a creature carries it, and it bursts within Pitch.StuckFuse), and tars
+ *    what its burst doesn't kill (UMovementSlowComponent; never a boss).
+ *  - Scatter: its burst flings a brood of small jars (this class too, IsBrood: half the size, a 5 cm ball, a short fuse,
+ *    their own small burst, no fizz loop) that bounce out and pop one after another.
+ *  - Cinder: its burst leaves a bed of burning cinders (AGraveSaltCinderBed).
  *
  * Nothing collides with it: it never blocks the player, a creature or a shot.
  */
@@ -36,14 +46,26 @@ public:
 	 */
 	static AGraveSaltGrenade* Throw(UWorld* World, const FVector& Start, const FVector& StartVelocity, APawn* By, float ByLevelScale);
 
+	/** The same for a jar of Kind. */
+	static AGraveSaltGrenade* Throw(UWorld* World, const FVector& Start, const FVector& StartVelocity, APawn* By, float ByLevelScale, EGrenadeKind Kind);
+
+	/** One of a scatter jar's brood, flung from Start at StartVelocity, bursting Fuse seconds on. */
+	static AGraveSaltGrenade* ThrowBrood(UWorld* World, const FVector& Start, const FVector& StartVelocity, APawn* By, float ByLevelScale, float Fuse);
+
 	/** The tin (SM_SaltGrenade), or null before it's been imported (then the engine's cylinder stands in). */
 	static UStaticMesh* FindJarMesh();
+
+	/** A kind's tin (GrenadeKinds::MeshPath), the salt tin until it's imported; null when neither is. */
+	static UStaticMesh* FindJarMesh(EGrenadeKind Kind);
 
 	/** The tin's socket at the fuse's tip, where the sparks and the fizz come from. */
 	static FName FuseSocket() { return TEXT("Fuse"); }
 
 	/** Sends it off at Velocity (what Throw does after spawning it). */
 	void Launch(const FVector& Velocity, APawn* InThrower, float InLevelScale);
+
+	/** Makes it a jar of Kind (bInBrood: one of a scatter jar's small jars); before Launch. Its tin follows. */
+	void SetKind(EGrenadeKind InKind, bool bInBrood = false);
 
 	/** One step of its life: flight, fuse and, after the burst, its light (Tick runs it; tests call it in their levels). */
 	void Step(float DeltaSeconds);
@@ -59,6 +81,13 @@ public:
 	/** Times it bounced off something hard enough to be heard. */
 	int32 GetBounces() const { return Bounces; }
 	APawn* GetThrower() const { return Thrower.Get(); }
+
+	EGrenadeKind GetKind() const { return Kind; }
+	/** One of a scatter jar's small jars. */
+	bool IsBrood() const { return bBrood; }
+	/** A pitch jar that has stuck (to a creature: GetStuckTo). */
+	bool IsStuck() const { return bStuck; }
+	AActor* GetStuckTo() const { return StuckTo.Get(); }
 
 protected:
 	virtual void BeginPlay() override;
@@ -77,6 +106,17 @@ private:
 	void TumbleJar(float Dt);
 	void StopFuseSound();
 
+	// --- GraveSaltGrenadeKinds.cpp ---
+
+	/** Its tin: the kind's model (a small jar: the salt tin at half size), or the engine's cylinder before any is imported. */
+	void ApplyJarMesh();
+	/** A pitch jar meets Hit: it stops there and holds on (to a creature's bone, or anything that moves). */
+	void StickTo(const FHitResult& Hit);
+	/** What a kind does after its burst: the pitch's tar on who's left, the scatter's brood, the cinder's bed. */
+	void AfterBurst(const FGraveSaltBurstResult& Result, const FVector& Up);
+	/** The way its burst faces: the surface it stuck to, else world up. */
+	FVector BurstUp() const;
+
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<USceneComponent> Root;
 
@@ -89,13 +129,21 @@ private:
 
 	TWeakObjectPtr<APawn> Thrower;
 	TWeakObjectPtr<UAudioComponent> FuseSound;
+	/** The creature (or moving thing) a pitch jar holds on to. */
+	TWeakObjectPtr<AActor> StuckTo;
 
 	FVector Velocity = FVector::ZeroVector;
+	/** The surface a pitch jar stuck to faces this way (world up on a creature or before it sticks). */
+	FVector StickNormal = FVector::UpVector;
 	/** The tumble: about this axis, at this many degrees a second. */
 	FVector SpinAxis = FVector::RightVector;
 	float SpinRate = 0.f;
 	float Age = 0.f;
 	float LevelScale = 1.f;
+	/** Its fuse (s from the hand): FGraveSaltRules::FuseSeconds; a small jar's own; cut short when a pitch jar sticks to a creature. */
+	float FuseSeconds = 1.5f;
+	/** The ball its flight sweeps (cm): FGraveSaltRules::CollisionRadius, a small jar's smaller. */
+	float BallRadius = 9.f;
 	float SinceBurst = 0.f;
 	/** The burst's flash as the tuning had it when it went off: its candelas and its fade (s). */
 	float FlashPeak = 0.f;
@@ -103,6 +151,9 @@ private:
 	/** When the last clink played (Age), so a skitter isn't a rattle of them. */
 	float LastClink = -1.f;
 	int32 Bounces = 0;
+	EGrenadeKind Kind = EGrenadeKind::Salt;
+	bool bBrood = false;
+	bool bStuck = false;
 	bool bLaunched = false;
 	bool bResting = false;
 	bool bBurst = false;

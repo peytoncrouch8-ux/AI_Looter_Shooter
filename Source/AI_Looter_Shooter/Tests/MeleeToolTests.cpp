@@ -3,7 +3,9 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Embers/HeroDefinition.h"
+#include "Player/Animation/LooterStancePose.h"
 #include "Player/FirstPersonHandsMotion.h"
+#include "Weapons/WeaponFXMelee.h"
 #include "Player/PlayerMeleeMotion.h"
 #include "Player/PlayerMeleeRules.h"
 #include "Engine/StaticMesh.h"
@@ -51,6 +53,7 @@ bool FMeleeToolPicksTest::RunTest(const FString& Parameters)
 		TestTrue(Name + TEXT(": held or on the forearm"), Tool.Grip == Case.Grip);
 		TestTrue(Name + TEXT(": their swing"), Tool.Swing == Case.Swing);
 		TestTrue(Name + TEXT(": its heft"), Tool.Heft == Case.Heft);
+		TestTrue(Name + TEXT(": a key for its sounds and effects"), !Tool.Kind.IsNone());
 		TestEqual(Name + TEXT(": the roster's hero"), UHeroDefinition::RosterIds().Contains(FName(Case.Hero)), true);
 		// The hero's data, where it's in the game, says the same unless it was set to its own.
 		if (const UHeroDefinition* Hero = UHeroDefinition::Load(FName(Case.Hero)))
@@ -171,6 +174,53 @@ bool FMeleeToolHandTest::RunTest(const FString& Parameters)
 	const FHandPlacement Left = FirstPersonHandsMotion::BareRest(EFirstPersonHand::Left);
 	const FHandPlacement Right = FirstPersonHandsMotion::BareRest(EFirstPersonHand::Right);
 	TestTrue(TEXT("Resting hands under the frame, either side"), Left.Hold.Z < -20.f && Right.Hold.Z < -20.f && Left.Hold.Y < 0.f && Right.Hold.Y > 0.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeleeToolFeelTest, "Looter.Melee.Tool.Feel",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FMeleeToolFeelTest::RunTest(const FString& Parameters)
+{
+	// Round 4 (2026-10-27): each hero's tool has its own cues, its own sparks, glints or steam, and swings in third person.
+	const TCHAR* const Heroes[] = { TEXT("Ellis"), TEXT("Odessa"), TEXT("Crane"), TEXT("Gauge"), TEXT("Pike") };
+	TSet<FName> Kinds;
+	for (const TCHAR* Hero : Heroes)
+	{
+		const FName Kind = UHeroDefinition::MeleeToolFor(Hero).Kind;
+		Kinds.Add(Kind);
+		TestEqual(FString(Hero) + TEXT(": its swing cue"), MeleeFX::SwingCue(Kind).ToString(), FString::Printf(TEXT("Player.Melee.%s.Swing"), *Kind.ToString()));
+		TestEqual(FString(Hero) + TEXT(": its hit cue"), MeleeFX::HitCue(Kind).ToString(), FString::Printf(TEXT("Player.Melee.%s.Hit"), *Kind.ToString()));
+	}
+	TestEqual(TEXT("Five tools, five sounds"), Kinds.Num(), 5);
+	TestTrue(TEXT("No key: the shared cues"), MeleeFX::SwingCue(NAME_None).IsNone() && MeleeFX::HitCue(NAME_None).IsNone());
+	TestTrue(TEXT("The keys the effects know"), Kinds.Contains(MeleeFX::Spade()) && Kinds.Contains(MeleeFX::Fan()) && Kinds.Contains(MeleeFX::Gaff())
+		&& Kinds.Contains(MeleeFX::Piston()) && Kinds.Contains(MeleeFX::Pick()));
+
+	// Sparks: the spade and the pick on stone and iron; never in dirt; the fan's edges on iron alone; the piston never.
+	TestTrue(TEXT("Spade on stone: sparks"), MeleeFX::Sparks(MeleeFX::Spade(), EImpactMaterial::Stone));
+	TestTrue(TEXT("Pick on stone: sparks"), MeleeFX::Sparks(MeleeFX::Pick(), EImpactMaterial::Stone));
+	TestTrue(TEXT("Gaff on iron: sparks"), MeleeFX::Sparks(MeleeFX::Gaff(), EImpactMaterial::Metal));
+	TestFalse(TEXT("Spade in dirt: none"), MeleeFX::Sparks(MeleeFX::Spade(), EImpactMaterial::Dirt));
+	TestFalse(TEXT("Pick in wood: none"), MeleeFX::Sparks(MeleeFX::Pick(), EImpactMaterial::Wood));
+	TestFalse(TEXT("Fan on stone: none"), MeleeFX::Sparks(MeleeFX::Fan(), EImpactMaterial::Stone));
+	TestTrue(TEXT("Fan on iron: sparks"), MeleeFX::Sparks(MeleeFX::Fan(), EImpactMaterial::SheetMetal));
+	TestFalse(TEXT("Piston: steam, not sparks"), MeleeFX::Sparks(MeleeFX::Piston(), EImpactMaterial::Metal));
+
+	// Third person: the wrist lays the tool back with the coil and snaps it over onto the blow, from and to rest.
+	TestEqual(TEXT("At rest: no turn"), LooterStancePose::MeleeWristDegrees(0.f), 0.f);
+	TestTrue(TEXT("Coiled: laid back"), LooterStancePose::MeleeWristDegrees(-0.3f) < -20.f);
+	TestTrue(TEXT("The blow: snapped over"), LooterStancePose::MeleeWristDegrees(1.f) > 10.f);
+	float Worst = 0.f;
+	float Last = LooterStancePose::MeleeWristDegrees(LooterStancePose::MeleeJab(0.f));
+	for (float Time = 0.001f; Time <= FMeleeRules::SwingSeconds + 0.01f; Time += 0.001f)
+	{
+		const float Now = LooterStancePose::MeleeWristDegrees(LooterStancePose::MeleeJab(Time));
+		Worst = FMath::Max(Worst, FMath::Abs(Now - Last));
+		Last = Now;
+	}
+	TestTrue(FString::Printf(TEXT("The wrist never jumps (%.2f degrees in a millisecond)"), Worst), Worst < 4.f);
+	TestEqual(TEXT("...and is back at rest after the swing"), Last, 0.f);
 	return true;
 }
 

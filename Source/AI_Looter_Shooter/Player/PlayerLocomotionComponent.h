@@ -16,15 +16,24 @@
 class AController;
 class ACharacter;
 class APawn;
+class ASwimWater;
 class UAudioComponent;
 class UCameraComponent;
 class UCharacterMovementComponent;
+class UInputAction;
 class UKeyBindingSubsystem;
 class UPlayerViewComponent;
 class UWeaponManagerComponent;
 
 /** A mantle or vault starting, or landing: its kind and the height climbed (the obstacle's top over the feet, cm). */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerTraversal, ETraversalKind /*Kind*/, float /*Height*/);
+
+/** How a swim ended: back on foot (the bed's shallow there), or into the air (a jump out, off the water's edge, control lost). */
+enum class ESwimExit : uint8
+{
+	Foot,
+	Air
+};
 
 /**
  * Sprint, crouch and slide for the player character, plus the first-person motion that sells them.
@@ -50,6 +59,13 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerTraversal, ETraversalKind /*Kind*/
  *    with a soft dip as it ends. The jump forgives (PlayerLocomotionJumpAssist.cpp): a late press off an edge still
  *    jumps (coyote time), an early one before landing jumps on landing (the buffer); a player hung on rocks or props is
  *    nudged free.
+ *  - Swimming (PlayerLocomotionSwim.cpp, World/SwimWaterRules.h): water more than chest deep (an ASwimWater's) swims. The
+ *    movement flies (no gravity) while this steers it up and down: floating with the eye just over the surface, the crouch
+ *    key diving, the jump key rising (at the surface, out onto a bank: a ledge in front is climbed), forward with the look
+ *    pitched past a dead zone going that way. The gun is lowered out of view and can't fire, aim, strike or throw (hooks in
+ *    those files ask IsSwimmingActor); the hands stroke (FirstPersonHandsSwim.cpp). Breath runs down with the head under and
+ *    never hurts: out of it the body is carried up. Shallow bed under the feet: back on foot. It makes the player's
+ *    UUnderwaterViewComponent (the view, sound and bubbles under water) as play begins.
  *
  * Speeds and heights here are for the full-size body (Player/PlayerSize.h): the character's scale shrinks the heights,
  * and the crouch speed default is already scaled (size and pace); the sprint, the slide and the walk with the sights up
@@ -141,6 +157,33 @@ public:
 
 	/** The dust the slide kicks up (for the tests). */
 	const FSlideDust& GetDust() const { return Dust; }
+
+	// --- Swimming (PlayerLocomotionSwim.cpp) ---
+
+	/** In deep water, swimming (the movement flies meanwhile). */
+	bool IsSwimming() const { return bSwimming; }
+	/** Whether Actor is a player swimming now: no gun, sights, strike, throw or cast then (those files' hooks ask this). */
+	static bool IsSwimmingActor(const AActor* Actor);
+	/** The water swum in (or the last one), null when none. */
+	const ASwimWater* GetSwimWater() const;
+	/** 0..1, eased: how far into swimming the body is (the body's slow kick, the view's float). */
+	float GetSwimAlpha() const { return SwimAlpha; }
+	/** 0..1, eased: how far the gun is lowered out of view for a swim (PlayerLocomotionViewModel.cpp). */
+	float GetSwimLower() const;
+	/** 0..1: how far the hands are into the stroke (they leave the gun once it's down: FirstPersonHandsSwim.cpp). */
+	float GetSwimHandsShare() const;
+	/** Where the stroke is (0..1, a cycle), and how hard it's swum (0 treading water .. 1 a full stroke). */
+	float GetSwimStrokePhase() const { return StrokePhase; }
+	float GetSwimEffort() const { return SwimEffort; }
+	/** Strokes pushed so far (the view's bubbles follow each one under water). */
+	int32 GetSwimStrokeCount() const { return StrokeCount; }
+	/** The eye is under the water's surface (swimming or not: crouched in a pond too). */
+	bool IsHeadUnderwater() const { return bHeadUnder; }
+	/** The breath left (1 full .. 0 out), and whether it ran out (carried up until it's back). */
+	float GetBreath() const { return Breath; }
+	bool IsOutOfBreath() const { return bBreathSpent; }
+	/** Starts swimming in Water now, if it's deep enough there (the tests; the update does it on its own). */
+	bool TrySwimIn(ASwimWater* Water);
 
 	// --- The keys (bound to the player's input; public so the tests can press them) ---
 
@@ -297,6 +340,34 @@ private:
 	/** Draws the probe's findings and the planned path (Looter.DebugTraversal). */
 	void DrawTraversalDebug(const FTraversalFind& Found) const;
 
+	// --- Swimming (PlayerLocomotionSwim.cpp) ---
+
+	/** Looks for deep water to start in, moves a swim on (float, dive, stroke, breath), and the lowering and breath out of it. */
+	void UpdateSwim(float DeltaTime);
+	/** Water under the feet, deep enough here (or falling into it): swims. */
+	void LookForSwim();
+	void StartSwim(ASwimWater& Water, bool bFromAir);
+	void EndSwim(ESwimExit Exit);
+	/** One frame of a swim: the up-and-down, the bed check, the stroke and the wake. */
+	void MoveSwim(float DeltaTime);
+	/** The keys while swimming (UpdateStance's place): the sprint key swims faster; no crouch, no sprint pose. */
+	void UpdateSwimStance(float DeltaTime);
+	/** The jump key while swimming: out of the water at the surface (onto a bank if there's a ledge), else nothing (held, it rises). */
+	void SwimJump();
+	/** Up (1) or down (-1) as the keys and the look ask, out of breath carried up. */
+	float GetSwimVerticalInput() const;
+	/** A swim key held now (the raw key, either binding mode): the jump key or the crouch key. */
+	bool IsSwimKeyHeld(bool bJumpKey) const;
+	/** The bed under the feet within Reach (its height), on what the body would stand on. */
+	bool FindSwimBed(float Reach, float& OutBedZ) const;
+	/** The breath and whether the head is under (in any water, swimming or not). */
+	void UpdateBreath(float DeltaTime);
+	/** A stroke's push: its sound (at the surface or under) and a ring on the water. */
+	void StrokePushed();
+	/** Splash going in or out (FX and sound at the surface). */
+	void SwimSplash(bool bIn, float Strength) const;
+	void EnsureUnderwaterView();
+
 	/** The movement keys held this frame (HandleMoveInput); zero once they stop coming. */
 	FVector2D GetHeldMoveInput() const;
 	bool IsMovingForward() const;
@@ -422,4 +493,31 @@ private:
 	float FallSpeed = 0.f;
 	/** 0..1 toward the lowered pose while a menu is open. */
 	float MenuLinear = 0.f;
+
+	// Swimming (PlayerLocomotionSwim.cpp)
+	TWeakObjectPtr<ASwimWater> SwimWater;
+	/** The jump key's action (the character binds it; read raw here for holding it to rise). */
+	TWeakObjectPtr<const UInputAction> JumpKeyAction;
+	bool bSwimming = false;
+	bool bSwimFast = false;
+	bool bHeadUnder = false;
+	bool bBreathSpent = false;
+	float SwimAlpha = 0.f;
+	/** 0..1 toward the gun lowered for a swim, linear (eased on the way out). */
+	float SwimLowerLinear = 0.f;
+	float StrokePhase = 0.f;
+	float SwimEffort = 0.f;
+	int32 StrokeCount = 0;
+	float Breath = 1.f;
+	/** Seconds to the next feel for the bed under a swimmer. */
+	float SwimBedClock = 0.f;
+	/** The movement's own flying numbers, given back when the swim ends. */
+	float SavedMaxFlySpeed = 0.f;
+	float SavedBrakingFlying = 0.f;
+	/** Ground covered at the surface since the last wake (cm). */
+	float SwimWakeTravel = 0.f;
+	/** The swim's own clock (s): the float's slow bob. */
+	float SwimClock = 0.f;
+	/** When the last swim ended (the component's Clock): a jump out doesn't fall straight back into one. */
+	double SwimEndedClock = -100.0;
 };

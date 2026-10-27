@@ -149,13 +149,15 @@ FHeroMeleeTool UHeroDefinition::MeleeToolFor(FName HeroId)
 		EMeleeGripKind Grip;
 		EMeleeSwingStyle Swing;
 		EMeleeHeft Heft;
+		/** Its sounds' and effects' key (FHeroMeleeTool::Kind). */
+		const TCHAR* Kind;
 	};
 	static const FPick Picks[] = {
-		{ TEXT("Ellis"), TEXT("GraveSpade"), EMeleeGripKind::Held, EMeleeSwingStyle::Swat, EMeleeHeft::Steady },
-		{ TEXT("Odessa"), TEXT("RazorFan"), EMeleeGripKind::Held, EMeleeSwingStyle::Flick, EMeleeHeft::Quick },
-		{ TEXT("Crane"), TEXT("FerryGaff"), EMeleeGripKind::Held, EMeleeSwingStyle::Gaff, EMeleeHeft::Heavy },
-		{ TEXT("Gauge"), TEXT("PistonFist"), EMeleeGripKind::Forearm, EMeleeSwingStyle::Jab, EMeleeHeft::Quick },
-		{ TEXT("Pike"), TEXT("RockPick"), EMeleeGripKind::Held, EMeleeSwingStyle::Peck, EMeleeHeft::Quick },
+		{ TEXT("Ellis"), TEXT("GraveSpade"), EMeleeGripKind::Held, EMeleeSwingStyle::Swat, EMeleeHeft::Steady, TEXT("Spade") },
+		{ TEXT("Odessa"), TEXT("RazorFan"), EMeleeGripKind::Held, EMeleeSwingStyle::Flick, EMeleeHeft::Quick, TEXT("Fan") },
+		{ TEXT("Crane"), TEXT("FerryGaff"), EMeleeGripKind::Held, EMeleeSwingStyle::Gaff, EMeleeHeft::Heavy, TEXT("Gaff") },
+		{ TEXT("Gauge"), TEXT("PistonFist"), EMeleeGripKind::Forearm, EMeleeSwingStyle::Jab, EMeleeHeft::Quick, TEXT("Piston") },
+		{ TEXT("Pike"), TEXT("RockPick"), EMeleeGripKind::Held, EMeleeSwingStyle::Peck, EMeleeHeft::Quick, TEXT("Pick") },
 	};
 	FHeroMeleeTool Tool;
 	for (const FPick& Pick : Picks)
@@ -166,6 +168,7 @@ FHeroMeleeTool UHeroDefinition::MeleeToolFor(FName HeroId)
 			Tool.Grip = Pick.Grip;
 			Tool.Swing = Pick.Swing;
 			Tool.Heft = Pick.Heft;
+			Tool.Kind = FName(Pick.Kind);
 			break;
 		}
 	}
@@ -174,7 +177,17 @@ FHeroMeleeTool UHeroDefinition::MeleeToolFor(FName HeroId)
 
 FHeroMeleeTool UHeroDefinition::GetMeleeTool() const
 {
-	return MeleeTool.Mesh.IsNull() ? MeleeToolFor(Id) : MeleeTool;
+	if (MeleeTool.Mesh.IsNull())
+	{
+		return MeleeToolFor(Id);
+	}
+	// A tool set on the data keeps the picks' sounds and effects unless it names its own.
+	FHeroMeleeTool Tool = MeleeTool;
+	if (Tool.Kind.IsNone())
+	{
+		Tool.Kind = MeleeToolFor(Id).Kind;
+	}
+	return Tool;
 }
 
 FSoftObjectPath UHeroDefinition::PlaceholderMeleeToolPath()

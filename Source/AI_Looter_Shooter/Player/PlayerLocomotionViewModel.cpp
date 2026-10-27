@@ -80,6 +80,12 @@ namespace
 	 */
 	const FVector ClimbPoseOffset(-3.f, 2.f, -12.f);
 	const FRotator ClimbPoseRotation(-14.f, 8.f, 14.f);
+	/**
+	 * Swimming: the gun goes down out of view (further than a menu's, so no muzzle shows over the stroking hands) and the hands
+	 * swim (FirstPersonHandsSwim.cpp); it comes back up as the player wades out.
+	 */
+	const FVector SwimPoseOffset(-6.f, 4.f, -52.f);
+	const FRotator SwimPoseRotation(-38.f, 6.f, 14.f);
 }
 
 void UPlayerLocomotionComponent::RefreshBodyTransform()
@@ -280,13 +286,13 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	const float BobDepth = FMath::Lerp(0.5f, 1.3f, Sprint) * MoveWeight;
 	const float BobSide = FMath::Lerp(0.7f, 2.f, Sprint) * MoveWeight;
 	const float BobRoll = FMath::Lerp(0.6f, 3.f, Sprint) * MoveWeight;
-	const float Breath = 1.f - FMath::Min(MoveWeight, 1.f);
+	const float IdleBreath = 1.f - FMath::Min(MoveWeight, 1.f);
 
 	FVector Offset(0.f, StepSide * BobSide, -StepDip * BobDepth);
 	FRotator Rotation(-StepDip * BobDepth * 0.6f, 0.f, StepSide * BobRoll);
 
-	Offset.Z += FMath::Sin(IdleTime * 1.6f) * 0.15f * Breath;
-	Rotation.Pitch += FMath::Sin(IdleTime * 1.6f + 0.6f) * 0.25f * Breath;
+	Offset.Z += FMath::Sin(IdleTime * 1.6f) * 0.15f * IdleBreath;
+	Rotation.Pitch += FMath::Sin(IdleTime * 1.6f + 0.6f) * 0.25f * IdleBreath;
 
 	Rotation.Yaw += LookSway.X;
 	Rotation.Pitch += LookSway.Y;
@@ -333,6 +339,10 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	const float Menu = FMath::SmoothStep(0.f, 1.f, MenuLinear);
 	Offset += MenuPoseOffset * Menu;
 	Rotation += MenuPoseRotation * Menu;
+	// Lowered away while swimming (no sights then either).
+	const float SwimDown = GetSwimLower();
+	Offset += SwimPoseOffset * SwimDown;
+	Rotation += SwimPoseRotation * SwimDown;
 
 	// A swap (WeaponSwapMotion, on the weapon manager's clock): the gun in hand drops and tips away out of view, and the
 	// next swings up into place, a touch past its hold, and settles over its ready time (quicker with better handling); a
@@ -345,7 +355,7 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	// Aiming: the hold moves from the hip to straight in front of the eye, with the sight's aim point on the line of
 	// sight; walking bob and look sway mostly settle so the sight stays on target. A gun going down for a swap leaves the
 	// eye with it (and one coming up rises into the aim).
-	const float Aim = (PlayerView.IsValid() ? PlayerView->GetAimAlpha() : 0.f) * (1.f - FMath::Clamp(Lowered, 0.f, 1.f));
+	const float Aim = (PlayerView.IsValid() ? PlayerView->GetAimAlpha() : 0.f) * (1.f - FMath::Clamp(Lowered, 0.f, 1.f)) * (1.f - SwimDown);
 	FTransform Hold = Manager->GetFirstPersonHold(Weapon);
 	if (Aim > 0.f)
 	{

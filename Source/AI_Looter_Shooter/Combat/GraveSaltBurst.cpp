@@ -3,6 +3,7 @@
 #include "Bosses/BossComponent.h"
 #include "Combat/GraveSaltDamageType.h"
 #include "Combat/GraveSaltTuning.h"
+#include "Combat/GrenadeKinds.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/HitReaction.h"
 #include "Creatures/CreatureBase.h"
@@ -20,7 +21,8 @@
 #include "Kismet/GameplayStatics.h"
 
 // The grave-salt burst: who it reaches, what it does to them and the knock. The look, the sound and the jolt are in
-// GraveSaltBurstEffects.cpp.
+// GraveSaltBurstEffects.cpp. Every grenade kind bursts through it (GrenadeKinds: its own tuning and look); what a kind
+// does after (the pitch's tar, the scatter's brood, the cinder's bed) is AGraveSaltGrenade's (GraveSaltGrenadeKinds.cpp).
 
 namespace
 {
@@ -167,6 +169,13 @@ FVector GraveSaltBurst::KnockAway(AActor& Target, const FVector& Center)
 
 FGraveSaltBurstResult GraveSaltBurst::Detonate(UWorld* World, const FVector& Center, const FVector& Up, APawn* Thrower, float LevelScale)
 {
+	// Read once for the whole burst, so a cvar changed mid-burst can't give two bodies two rules.
+	return Detonate(World, Center, Up, Thrower, LevelScale, FGraveSaltTuning::Current(), GrenadeKinds::LookOf(EGrenadeKind::Salt));
+}
+
+FGraveSaltBurstResult GraveSaltBurst::Detonate(UWorld* World, const FVector& Center, const FVector& Up, APawn* Thrower, float LevelScale,
+	const FGraveSaltTuning& Tuning, const FGrenadeBurstLook& Look)
+{
 	FGraveSaltBurstResult Result;
 	Result.Center = Center;
 	if (!World)
@@ -174,13 +183,11 @@ FGraveSaltBurstResult GraveSaltBurst::Detonate(UWorld* World, const FVector& Cen
 		return Result;
 	}
 	FRandomStream Random(static_cast<int32>(GetTypeHash(Center) ^ static_cast<uint32>(World->GetTimeSeconds() * 1000.0)));
-	// Read once for the whole burst, so a cvar changed mid-burst can't give two bodies two rules.
-	const FGraveSaltTuning Tuning = FGraveSaltTuning::Current();
 	const TArray<FGraveSaltTarget> Targets = FindTargets(World, Center, Thrower, LevelScale, Random, Tuning);
 
 	// Seen and heard first, as a bullet's impact is: the damage below may kill, and the deaths' own bursts go over it.
-	SpawnEffects(*World, Center, Up.IsNearlyZero() ? FVector::UpVector : Up.GetSafeNormal());
-	PlaySounds(*World, Center, Targets);
+	SpawnEffects(*World, Center, Up.IsNearlyZero() ? FVector::UpVector : Up.GetSafeNormal(), Tuning, Look);
+	PlaySounds(*World, Center, Targets, Look);
 
 	AController* Instigator = Thrower ? Thrower->GetController() : nullptr;
 	for (const FGraveSaltTarget& Target : Targets)
@@ -216,12 +223,12 @@ FGraveSaltBurstResult GraveSaltBurst::Detonate(UWorld* World, const FVector& Cen
 		{
 			++Result.Kills;
 		}
-		else if (Target.Distance <= Tuning.Radius * Tuning.KnockShare)
+		else if (Tuning.KnockShare > 0.f && Target.Distance <= Tuning.Radius * Tuning.KnockShare)
 		{
 			// A corpse goes with the kill's own knock; the living near the heart are thrown back out of it.
 			KnockAway(*Actor, Center);
 		}
 	}
-	KickViews(*World, Center, Random);
+	KickViews(*World, Center, Random, Look.Kick);
 	return Result;
 }

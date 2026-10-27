@@ -1409,6 +1409,8 @@ class AreaBuild:
                 actors.destroy_actors(old)
                 self.log(f'removed {len(old)} waterfall pieces from before Effects/Falls')
             self.falls(mesh_index())
+            # The swimmable ponds (build_area_swimwater.py): a full build clears the waters, so they are placed here too.
+            importlib.reload(importlib.import_module('build_area_swimwater')).place(self)
             levels.save_current_level()
             self.log('waterfalls placed and saved')
             return
@@ -1450,6 +1452,8 @@ class AreaBuild:
         importlib.reload(build_area_sound).place(self)
         self.no_tree_zones()
         self.gameplay(meshes)
+        # The swimmable ponds (build_area_swimwater.py), once the terrain stands to measure the bed.
+        importlib.reload(importlib.import_module('build_area_swimwater')).place(self)
         # The cliff life (build_area_cliff_life.py: drapes, ledge plants, crack junipers, scree fans, slabs, nests, stains),
         # once the cliffs, buildings and gameplay pieces it keeps off all stand.
         importlib.reload(importlib.import_module('build_area_cliff_life')).place(self, meshes)

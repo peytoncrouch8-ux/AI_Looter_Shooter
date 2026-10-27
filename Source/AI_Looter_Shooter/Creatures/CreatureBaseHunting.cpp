@@ -7,6 +7,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Scenes/SceneSubsystem.h"
+#include "World/SwimWaterSubsystem.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
@@ -33,6 +34,11 @@ ACreatureBase::EHuntCheck ACreatureBase::CheckHunt(const APawn* Pawn) const
 	if (UEncounterSubsystem::IsSheltered(this, Where))
 	{
 		return EHuntCheck::Sheltered;
+	}
+	// In deep water (a swimmer) is off every creature's ground: it's watched from the shore (World/SwimWaterSubsystem).
+	if (USwimWaterSubsystem::IsDeepAt(this, Where))
+	{
+		return EHuntCheck::OffGround;
 	}
 	// Off its ground the chase can't follow, so a fight never runs down a ramp or out over a fence.
 	return HuntingGround.Contains(Where, Home.GetLocation()) ? EHuntCheck::Huntable : EHuntCheck::OffGround;

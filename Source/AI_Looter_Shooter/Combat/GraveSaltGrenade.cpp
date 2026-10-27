@@ -5,6 +5,8 @@
 #include "Combat/GraveSaltBurst.h"
 #include "Combat/GraveSaltRules.h"
 #include "Combat/GraveSaltTuning.h"
+#include "Combat/GrenadeKinds.h"
+#include "Combat/GrenadeKindsTuning.h"
 #include "Combat/HealthComponent.h"
 #include "Player/PlayerThrowComponent.h"
 #include "Weapons/WeaponFX.h"
@@ -21,10 +23,6 @@
 
 namespace
 {
-	/** The tin, imported from Art/Models/Throwables/SaltGrenade.py; the engine's cylinder until it is (sized like it). */
-	const TCHAR* JarMeshPath = TEXT("/Game/Art/Throwables/SM_SaltGrenade.SM_SaltGrenade");
-	const TCHAR* StandInPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
-	const FVector StandInScale(FGraveSaltRules::JarRadius * 0.02f, FGraveSaltRules::JarRadius * 0.02f, FGraveSaltRules::JarMiddle * 0.02f);
 	/** The tin's middle sits this far above its base (the model's pivot), so it tumbles about its middle. */
 	constexpr float JarMiddle = FGraveSaltRules::JarMiddle;
 	/** Where the fuse's tip is with no socket to say (above the base). */
@@ -47,15 +45,22 @@ namespace
 	const FLinearColor FlashColor(1.f, 0.82f, 0.6f);
 	constexpr float LingerAfterFlash = 0.08f;
 
-	/** The fuse's sparks: a few short hot streaks a frame, spat out of the tip. */
+	/** The fuse's sparks: a few short hot streaks a frame, spat out of the tip (one for a small jar's stub of a fuse). */
 	const FLinearColor FuseSparkColor(1.f, 0.62f, 0.25f);
 	constexpr int32 FuseSparksPerFrame = 3;
+	constexpr int32 BroodSparksPerFrame = 1;
+	/** The flash's colour leans this far toward the kind's fire (the cinder's redder, the scatter's paler). */
+	constexpr float FlashFireShare = 0.35f;
+	/** A flash never reaches under this (cm), however small the jar's share of it. */
+	constexpr float MinFlashRadius = 200.f;
 }
 
 AGraveSaltGrenade::AGraveSaltGrenade()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
+	FuseSeconds = FGraveSaltRules::FuseSeconds;
+	BallRadius = FGraveSaltRules::CollisionRadius;
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
@@ -77,32 +82,26 @@ AGraveSaltGrenade::AGraveSaltGrenade()
 	Flash->SetVisibility(false);
 }
 
-UStaticMesh* AGraveSaltGrenade::FindJarMesh()
+AGraveSaltGrenade* AGraveSaltGrenade::Throw(UWorld* World, const FVector& Start, const FVector& StartVelocity, APawn* By, float ByLevelScale)
 {
-	// Looked up when first needed rather than in a constructor, so a build before the model's import only stands in a
-	// cylinder instead of failing to find it. /Game/Art/Throwables is cooked whole (DefaultGame.ini).
-	// Looked for again while it isn't there (once a throw at most), so an import during a session is picked up.
-	static TWeakObjectPtr<UStaticMesh> Mesh;
-	if (!Mesh.IsValid())
-	{
-		Mesh = LoadObject<UStaticMesh>(nullptr, JarMeshPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
-	}
-	return Mesh.Get();
+	return Throw(World, Start, StartVelocity, By, ByLevelScale, EGrenadeKind::Salt);
 }
 
-AGraveSaltGrenade* AGraveSaltGrenade::Throw(UWorld* World, const FVector& Start, const FVector& StartVelocity, APawn* By, float ByLevelScale)
+AGraveSaltGrenade* AGraveSaltGrenade::Throw(UWorld* World, const FVector& Start, const FVector& StartVelocity, APawn* By, float ByLevelScale,
+	EGrenadeKind Kind)
 {
 	if (!World)
 	{
 		return nullptr;
 	}
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	Params.Owner = By;
-	Params.Instigator = By;
-	AGraveSaltGrenade* Grenade = World->SpawnActor<AGraveSaltGrenade>(AGraveSaltGrenade::StaticClass(), Start, StartVelocity.Rotation(), Params);
+	// Made a kind before it begins play, so its tin is the kind's from its first frame.
+	const FTransform Transform(StartVelocity.Rotation(), Start);
+	AGraveSaltGrenade* Grenade = World->SpawnActorDeferred<AGraveSaltGrenade>(AGraveSaltGrenade::StaticClass(), Transform, By, By,
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (Grenade)
 	{
+		Grenade->SetKind(Kind);
+		Grenade->FinishSpawning(Transform);
 		Grenade->Launch(StartVelocity, By, ByLevelScale);
 	}
 	return Grenade;
@@ -111,19 +110,9 @@ AGraveSaltGrenade* AGraveSaltGrenade::Throw(UWorld* World, const FVector& Start,
 void AGraveSaltGrenade::BeginPlay()
 {
 	Super::BeginPlay();
-	if (UStaticMesh* Mesh = FindJarMesh())
-	{
-		Jar->SetStaticMesh(Mesh);
-	}
-	else
-	{
-		Jar->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, StandInPath));
-		Jar->SetRelativeScale3D(StandInScale);
-	}
-	// About its middle, not its base: the pivot is under the tin.
-	Jar->SetRelativeLocation(FVector(0.f, 0.f, -JarMiddle));
+	ApplyJarMesh();
 	// Never left lying about, whatever happens to its fuse.
-	SetLifeSpan(FGraveSaltRules::FuseSeconds + 5.f);
+	SetLifeSpan(FuseSeconds + 5.f);
 }
 
 void AGraveSaltGrenade::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -149,8 +138,8 @@ void AGraveSaltGrenade::Launch(const FVector& InVelocity, APawn* InThrower, floa
 	}
 	SpinAxis = (Side + Random.GetUnitVector() * 0.3f).GetSafeNormal();
 	SpinRate = FGraveSaltRules::TumbleDegrees * FMath::Clamp(static_cast<float>(InVelocity.Size()) / 1500.f, 0.3f, 1.5f);
-	// The fizz rides the fuse till the burst.
-	if (!FuseSound.IsValid())
+	// The fizz rides the fuse till the burst (a brood's small jars only spark: four fizzes at once would be a hiss).
+	if (!FuseSound.IsValid() && !bBrood)
 	{
 		FuseSound = LooterSound::Start(this, ThrowCue::Fuse, Jar, Jar->DoesSocketExist(FuseSocket()) ? FuseSocket() : NAME_None);
 	}
@@ -158,7 +147,7 @@ void AGraveSaltGrenade::Launch(const FVector& InVelocity, APawn* InThrower, floa
 
 float AGraveSaltGrenade::GetFuseLeft() const
 {
-	return FMath::Max(FGraveSaltRules::FuseSeconds - Age, 0.f);
+	return FMath::Max(FuseSeconds - Age, 0.f);
 }
 
 void AGraveSaltGrenade::Tick(float DeltaSeconds)
@@ -191,17 +180,20 @@ void AGraveSaltGrenade::Step(float DeltaSeconds)
 		return;
 	}
 	Age += Dt;
-	if (!bResting)
+	if (!bResting && !bStuck)
 	{
 		Fly(Dt);
 		if (bBurst)
 		{
 			return;
 		}
-		TumbleJar(Dt);
+		if (!bStuck)
+		{
+			TumbleJar(Dt);
+		}
 	}
 	DrawFuse();
-	if (Age >= FGraveSaltRules::FuseSeconds)
+	if (Age >= FuseSeconds)
 	{
 		Detonate();
 	}
@@ -224,7 +216,9 @@ void AGraveSaltGrenade::Fly(float Dt)
 		By->GetAttachedActors(Held);
 		Params.AddIgnoredActors(Held);
 	}
-	const FCollisionShape Ball = FCollisionShape::MakeSphere(FGraveSaltRules::CollisionRadius);
+	const FCollisionShape Ball = FCollisionShape::MakeSphere(BallRadius);
+	// A pitch jar holds on to the first thing it meets; a small jar of the scatter's brood bounces like any.
+	const bool bSticks = Kind == EGrenadeKind::Pitch && !bBrood;
 
 	FVector Location = GetActorLocation();
 	float Left = Dt;
@@ -241,6 +235,16 @@ void AGraveSaltGrenade::Fly(float Dt)
 			Location = Next;
 			Velocity = NextVelocity;
 			break;
+		}
+		if (bSticks)
+		{
+			// Pitch: it stops where it met it and holds on, a creature carrying it till it bursts.
+			if (Hit.bStartPenetrating)
+			{
+				Hit.Location = Location;
+			}
+			StickTo(Hit);
+			return;
 		}
 		if (BurstsOn(Hit))
 		{
@@ -339,8 +343,9 @@ void AGraveSaltGrenade::DrawFuse()
 	const FVector Tip = Jar->DoesSocketExist(FuseSocket()) ? Jar->GetSocketLocation(FuseSocket())
 		: GetActorTransform().TransformPosition(FVector(0.f, 0.f, FuseTipFallback - JarMiddle));
 	// Burning down: brighter and busier as the fuse runs out, so a glance says how long is left.
-	const float Burn = FMath::Clamp(Age / FGraveSaltRules::FuseSeconds, 0.f, 1.f);
-	for (int32 Index = 0; Index < FuseSparksPerFrame; ++Index)
+	const float Burn = FMath::Clamp(Age / FMath::Max(FuseSeconds, 0.05f), 0.f, 1.f);
+	const int32 Sparks = bBrood ? BroodSparksPerFrame : FuseSparksPerFrame;
+	for (int32 Index = 0; Index < Sparks; ++Index)
 	{
 		const FVector Out = (Random.GetUnitVector() + FVector::UpVector * 0.6f).GetSafeNormal();
 		// Sized to the jar (twice its first size since 2026-10-27, its fuse twice as thick): 3-9 cm streaks, 0.9 cm wide.
@@ -359,22 +364,36 @@ void AGraveSaltGrenade::Detonate()
 	SinceBurst = 0.f;
 	StopFuseSound();
 	Jar->SetVisibility(false);
-	// A moment of warm light on what's round it: brighter and wider since the burst became a real explosion.
-	const FGraveSaltTuning Tuning = FGraveSaltTuning::Current();
-	FlashPeak = Tuning.FlashCandelas;
+	// The kind's burst (the salt jar's numbers times its shares; a small jar's own), read once for the whole burst.
+	const FGraveSaltTuning Base = FGraveSaltTuning::Current();
+	const FGrenadeKindTuning Kinds = FGrenadeKindTuning::Current();
+	const FGraveSaltTuning Tuning = bBrood ? GrenadeKinds::BroodTuning(Base, Kinds) : GrenadeKinds::BurstTuning(Kind, Base, Kinds);
+	const FGrenadeBurstLook Look = GrenadeKinds::LookOf(Kind, bBrood);
+	// A moment of warm light on what's round it: brighter and wider since the burst became a real explosion; a small
+	// jar's a glint of it, tinted toward the kind's fire.
+	FlashPeak = Tuning.FlashCandelas * Look.Flash;
 	FlashFade = Tuning.FlashSeconds;
-	Flash->SetAttenuationRadius(Tuning.FlashRadius);
+	Flash->SetAttenuationRadius(FMath::Max(Tuning.FlashRadius * FMath::Min(Look.Flash, 1.f), MinFlashRadius));
+	Flash->SetLightColor(FMath::Lerp(FlashColor, Look.Fire, FlashFireShare));
 	Flash->SetIntensity(FlashPeak);
 	Flash->SetVisibility(FlashPeak > 0.f);
+	// Stuck to a creature, it may be dragged anywhere: off its body from here, the creature carried no further.
+	if (bStuck)
+	{
+		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
 
 	UWorld* World = GetWorld();
 	APawn* By = Thrower.Get();
-	const FGraveSaltBurstResult Result = GraveSaltBurst::Detonate(World, GetActorLocation(), FVector::UpVector, By, LevelScale);
+	const FVector Up = BurstUp();
+	const FGraveSaltBurstResult Result = GraveSaltBurst::Detonate(World, GetActorLocation(), Up, By, LevelScale, Tuning, Look);
 	if (UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(By))
 	{
 		Throw->NotifyBurst(Result);
 	}
-	UE_LOG(LogLooter, Verbose, TEXT("Grave salt: burst after %.2f s, %d bounces, %d hit, %d killed"), Age, Bounces, Result.Hits, Result.Kills);
+	AfterBurst(Result, Up);
+	UE_LOG(LogLooter, Verbose, TEXT("Grave salt (%s%s): burst after %.2f s, %d bounces, %d hit, %d killed"), *GrenadeKinds::Name(Kind).ToString(),
+		bBrood ? TEXT(", brood") : TEXT(""), Age, Bounces, Result.Hits, Result.Kills);
 }
 
 void AGraveSaltGrenade::StopFuseSound()

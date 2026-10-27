@@ -6,6 +6,7 @@
 #include "Player/PlayerThrowMotion.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
+#include "HAL/IConsoleManager.h"
 #include "TwoBoneIK.h"
 
 using namespace LooterStancePoseDetail;
@@ -23,6 +24,11 @@ namespace
 	constexpr float JabTwist = 22.f;
 	constexpr float JabLean = 10.f;
 	constexpr float JabReach = 28.f;
+
+	TAutoConsoleVariable<float> CVarJabWristBack(TEXT("Looter.Melee.ThirdPerson.LayBack"), 40.f,
+		TEXT("Third person: degrees the wrist lays the melee tool's head back at the swing's coil."));
+	TAutoConsoleVariable<float> CVarJabWristOver(TEXT("Looter.Melee.ThirdPerson.SnapOver"), 25.f,
+		TEXT("Third person: degrees the wrist snaps the melee tool's head over onto the blow."));
 
 	/**
 	 * A six-gun's support palm, past the spot its foregrip marks (cm): out to the grip's side and a little under. The
@@ -111,10 +117,22 @@ void LooterStancePoseDetail::ApplyMeleeJab(FCSPose<FCompactPose>& Pose, const FB
 
 	AnimationCore::SolveTwoBoneIK(Shoulder, Elbow, Wrist, ElbowHint, WristTarget,
 		/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
-	Wrist.SetRotation(HandRotation);
+	// The hero's tool rides this hand (round 4, 2026-10-27): the wrist lays its head back with the coil and snaps it over
+	// onto the blow (MeleeWristDegrees), so it swings rather than being pushed.
+	Wrist.SetRotation(FQuat(Right, FMath::DegreesToRadians(LooterStancePose::MeleeWristDegrees(Jab))) * HandRotation);
 
 	const FBoneTransform Chain[] = { FBoneTransform(UpperArm, Shoulder), FBoneTransform(LowerArm, Elbow), FBoneTransform(Hand, Wrist) };
 	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f);
+}
+
+float LooterStancePose::MeleeWristDegrees(float Jab)
+{
+	// Laid back (the head up and behind) by the full LayBack at the coil's JabCock, over by SnapOver at the blow's 1,
+	// through nothing at 0: so no pop as the swing starts or ends. About the body's right: positive tips the head forward
+	// and down onto the blow.
+	const float Back = CVarJabWristBack.GetValueOnAnyThread();
+	const float Over = CVarJabWristOver.GetValueOnAnyThread();
+	return Jab < 0.f ? -Back * FMath::Min(Jab / JabCock, 1.f) : Over * FMath::Min(Jab, 1.f);
 }
 
 void LooterStancePoseDetail::ApplyHoldReach(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right)

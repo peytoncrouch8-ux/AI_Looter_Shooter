@@ -21,7 +21,8 @@ GROUPS = ['guns', 'impacts', 'feedback', 'ui', 'loot', 'player', 'creatures', 'w
           'bosses', 'voices', 'throwables', 'props', 'economy', 'bells', 'shrines', 'givers', 'graves', 'holds',
           'lostloot', 'missions', 'orelift', 'watchfire', 'miners', 'foreman', 'roosts', 'fittings', 'windows', 'gusts',
           'animals', 'reactions', 'brass', 'embers', 'gravemother_barrow', 'embers_odessa', 'embers_crane', 'embers_gauge',
-          'embers_pike', 'tiers', 'elements', 'bounties', 'shields', 'unpaid_kit', 'opening', 'intro']
+          'embers_pike', 'tiers', 'elements', 'bounties', 'shields', 'unpaid_kit', 'opening', 'intro', 'melee_tools', 'bossintro', 'throwables_kinds',
+          'swim']
 
 
 class Cue:

@@ -96,6 +96,7 @@ void UPlayerMeleeComponent::HandleMeleePressed()
 
 bool UPlayerMeleeComponent::TryMelee()
 {
+	if (UPlayerLocomotionComponent::IsSwimmingActor(GetOwner())) { return false; }
 	const EMeleeBlock Block = GetBlock();
 	if (Block != EMeleeBlock::None)
 	{
@@ -155,8 +156,17 @@ void UPlayerMeleeComponent::StartSwing()
 	SwingWeapon = Gun;
 	const bool bCutReload = Gun && Gun->BeginMeleeSwing();
 
-	// Heard and felt the moment the key goes down: the whoosh, and the view drawn back with the coil.
-	LooterSound::Play2D(this, MeleeCue::Swing);
+	// In third person the tool takes the gun's place in the right hand for the swing (when there's a tool to show there).
+	const UPlayerViewComponent* View = GetOwner() ? GetOwner()->FindComponentByClass<UPlayerViewComponent>() : nullptr;
+	if (Gun && ThirdPersonTool && View && !View->IsFirstPerson())
+	{
+		HideGunForSwing(true);
+	}
+
+	// Heard and felt the moment the key goes down: the tool's own whoosh (the shared one without a key), and the view drawn
+	// back with the coil.
+	const FName ToolSwing = MeleeFX::SwingCue(Tool.Kind);
+	LooterSound::Play2D(this, ToolSwing.IsNone() ? FName(MeleeCue::Swing) : ToolSwing);
 	if (APlayerController* Player = GetPlayer())
 	{
 		UCameraShakeModifier::Kick(Player, MeleeMotion::WindUp(Tool.Swing, Tool.Heft));
@@ -228,6 +238,7 @@ void UPlayerMeleeComponent::EndSwing(bool bResume)
 
 void UPlayerMeleeComponent::ReleaseWeapon(bool bResume)
 {
+	HideGunForSwing(false);
 	if (AWeaponBase* Gun = SwingWeapon.Get())
 	{
 		Gun->EndMeleeSwing(bResume);

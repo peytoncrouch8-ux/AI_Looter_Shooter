@@ -10,6 +10,7 @@
 #include "Creatures/EncounterSettings.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "World/SwimWaterSubsystem.h"
 
 namespace
 {
@@ -337,7 +338,8 @@ void ACreatureBase::TickProwl(float DeltaSeconds, const APawn& Prey)
 		// Off its ground, it first comes up to its edge facing them: as far as a body's length short of leaving it, as near
 		// as it closes in to, or as far as it gets in a few seconds. Under one out of its reach it waits where it is.
 		Walk.ApproachTime += DeltaSeconds;
-		const bool bAtEdge = HuntingGround.IsSet() && !HuntingGround.Contains(Here + Toward * (ProwlEdgeLook * SizeScale), Home.GetLocation());
+		const FVector Ahead = Here + Toward * (ProwlEdgeLook * SizeScale);
+		const bool bAtEdge = (HuntingGround.IsSet() && !HuntingGround.Contains(Ahead, Home.GetLocation())) || USwimWaterSubsystem::IsDeepAt(this, Ahead);
 		if (bOffGround && !bAtEdge && Flat > GetChaseHold() && Walk.ApproachTime < ProwlApproachSeconds)
 		{
 			MoveToward(Spot, WalkSpeed * 1.5f, DeltaSeconds);
@@ -361,7 +363,7 @@ void ACreatureBase::TickProwl(float DeltaSeconds, const APawn& Prey)
 			Walk.PaceSign = -Walk.PaceSign;
 			const FVector Side(-Toward.Y, Toward.X, 0.0);
 			Walk.Goal = Walk.Anchor + Side * (Walk.PaceSign * ProwlPaceDistance * SizeScale);
-			if (HuntingGround.IsSet() && !HuntingGround.Contains(Walk.Goal, Home.GetLocation()))
+			if ((HuntingGround.IsSet() && !HuntingGround.Contains(Walk.Goal, Home.GetLocation())) || USwimWaterSubsystem::IsDeepAt(this, Walk.Goal))
 			{
 				Walk.Goal = Walk.Anchor;
 			}

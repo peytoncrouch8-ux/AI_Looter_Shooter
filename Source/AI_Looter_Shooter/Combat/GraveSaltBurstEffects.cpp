@@ -2,7 +2,9 @@
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
 #include "Combat/GraveSaltTuning.h"
+#include "Combat/GrenadeKinds.h"
 #include "Creatures/CreatureReactSubsystem.h"
+#include "Elements/LooterElement.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/PlayerThrowMotion.h"
 #include "Player/PlayerThrowRules.h"
@@ -25,12 +27,13 @@
 // visuals") it's a real explosion: the launcher's blast (FWeaponFX::SpawnExplosion: fire rolling into soot, a smoke
 // column, a dust skirt, embers, debris) sized to the burst's 4 m, a shock ring racing out over the ground to that reach
 // (so the player reads what it covered), a scorch left behind, and the salt's own white look on top. All drawn in code
-// through FWeaponFX (no particle assets); the flash of light is the jar's (AGraveSaltGrenade).
+// through FWeaponFX (no particle assets); the flash of light is the jar's (AGraveSaltGrenade). Each grenade kind draws
+// it in its own look (GrenadeKinds::LookOf: its fire, its tar or embers on top, a small jar's quick pop).
 
 namespace
 {
-	/** The fire: salt catching fire on the dead burns hotter and paler than black powder (the rocket's is 1, 0.42, 0.1). */
-	const FLinearColor SaltFire(1.f, 0.55f, 0.22f);
+	// The fire's colour is the kind's (GrenadeKinds::LookOf): the salt's hotter, paler than black powder's (the rocket's
+	// is 1, 0.42, 0.1).
 	/** The shock ring: a hot white with a warm cast, the crack of the burst running over the ground. */
 	const FLinearColor RingTint(1.f, 0.86f, 0.62f);
 	/** The salt: bone white with a warm cast, a little short of pure white so it never blooms out. */
@@ -62,6 +65,39 @@ namespace
 		const FVector Any = Random.GetUnitVector();
 		const FVector Flat = (Any - Up * FVector::DotProduct(Any, Up)).GetSafeNormal();
 		return Flat.IsNearlyZero() ? FVector::ForwardVector : Flat;
+	}
+
+	/** A kind's element burst on top of its blast (the cinder's embers): this share of the radius across. */
+	constexpr float KindBurstShare = 0.5f;
+	/** The pitch's tar pool left on the ground: this share of the radius across (the scorch round it is wider). */
+	constexpr float TarPoolShare = 0.35f;
+	/**
+	 * A small jar's pop (the scatter's brood, four or more in a second): an Explosive round's pop sized to it, one
+	 * fireball, a small ring and a few puffs of salt; about 30 pieces, so a whole brood costs less than one jar's blast.
+	 */
+	constexpr float PopFireballLife = 0.35f;
+	constexpr float PopFireballGlow = 5.f;
+	constexpr int32 PopPuffs = 3;
+	constexpr float PopRingGlow = 0.6f;
+
+	void DrawPop(FWeaponFX& Effects, const FGraveSaltBlast& Blast, const FVector& Base, const FVector& Up, float Radius,
+		const FGraveSaltTuning& Tuning, const FGrenadeBurstLook& Look, const FVfxTuning& Vfx, FRandomStream& Random)
+	{
+		const FVector Heart = Base + Up * (Blast.bOnGround ? FGraveSaltRules::JarMiddle * 0.5f : 0.f);
+		Effects.SpawnSplashPop(Heart, Up, Radius * 0.5f);
+		Effects.SpawnFireball(Heart, Up * 60.f, Radius * 0.1f, Radius * 0.3f, Look.Fire, PopFireballGlow * Vfx.Glow, PopFireballLife);
+		if (Tuning.RingGlow > 0.f && Blast.bOnGround)
+		{
+			Effects.SpawnShockRing(Base + Up * RingLift, Up, Radius * RingStartShare, Radius, Radius * Tuning.RingWidth, RingTint,
+				Tuning.RingGlow * PopRingGlow * Vfx.Glow, Tuning.RingLife * 0.7f);
+		}
+		const float Salt = Tuning.SaltLayer * Look.Salt;
+		for (int32 Index = 0; Salt > 0.f && Index < PopPuffs; ++Index)
+		{
+			const FVector Out = AcrossFrom(Up, Random);
+			Effects.SpawnDustPuff(Heart + Out * 10.f, Out * Random.FRandRange(150.f, 260.f) + Up * Random.FRandRange(30.f, 80.f), SaltCloud,
+				0.45f * Salt, 20.f, Random.FRandRange(80.f, 120.f) * Radius / 200.f, Random.FRandRange(0.9f, 1.3f));
+		}
 	}
 }
 
@@ -104,6 +140,11 @@ FGraveSaltBlast GraveSaltBurst::FindGround(const UWorld& World, const FVector& C
 
 void GraveSaltBurst::DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast, const FGraveSaltTuning& Tuning)
 {
+	DrawBlast(Effects, Blast, Tuning, GrenadeKinds::LookOf(EGrenadeKind::Salt));
+}
+
+void GraveSaltBurst::DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast, const FGraveSaltTuning& Tuning, const FGrenadeBurstLook& Look)
+{
 	const float Radius = Tuning.Radius * Tuning.LookScale;
 	const FVfxTuning Vfx = FVfxTuning::Live();
 	if (Radius <= 0.f || Vfx.BlastScale <= 0.f)
@@ -115,15 +156,20 @@ void GraveSaltBurst::DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast,
 	// where the jar was.
 	const FVector Base = Blast.bOnGround ? Blast.Ground : Blast.Center;
 	FRandomStream Random(static_cast<int32>(GetTypeHash(Blast.Center)));
+	if (Look.bSmall)
+	{
+		DrawPop(Effects, Blast, Base, Up, Radius, Tuning, Look, Vfx, Random);
+		return;
+	}
 
 	// The explosion: the launcher's (the white crack, a hot core and fire puffs rolling into soot, a smoke column after
 	// the fire, a dust skirt over the ground, embers arcing out, the ground thrown up in its own look and debris raining
-	// back), in the salt's hotter, paler fire.
+	// back), in the salt's hotter, paler fire (or the kind's own).
 	FVfxExplosion Explosion;
 	Explosion.Center = Base;
 	Explosion.Up = Up;
 	Explosion.Radius = Radius;
-	Explosion.Fire = SaltFire;
+	Explosion.Fire = Look.Fire;
 	Explosion.Ground = Blast.bOnGround ? Blast.Surface : EImpactMaterial::Unknown;
 	Explosion.bOnGround = Blast.bOnGround;
 	Explosion.DustLight = Blast.DustLight;
@@ -145,13 +191,23 @@ void GraveSaltBurst::DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast,
 		}
 	}
 
+	const FVector Heart = Base + Up * (Blast.bOnGround ? FGraveSaltRules::JarMiddle : 0.f);
+	// The kind's own on top: the pitch's black globs of tar flung out, the cinder's burst of embers.
+	if (Look.GlobSize > 0.f)
+	{
+		Effects.SpawnDeathBurst(EDeathBurst::Gel, Heart, Up, Look.GlobSize * Radius / 400.f, Look.GlobTint);
+	}
+	if (Look.Element != ELooterElement::None)
+	{
+		Effects.SpawnElementBurst(Look.Element, Heart, Radius * KindBurstShare, true);
+	}
+
 	// The salt on top: the crack of light as the tin gives, white clumps flung out every way with a glow on them...
-	const float Salt = Tuning.SaltLayer;
+	const float Salt = Tuning.SaltLayer * Look.Salt;
 	if (Salt <= 0.f)
 	{
 		return;
 	}
-	const FVector Heart = Base + Up * (Blast.bOnGround ? FGraveSaltRules::JarMiddle : 0.f);
 	Effects.SpawnFlash(Heart, Up, FlashScale * Salt);
 	Effects.SpawnDeathBurst(EDeathBurst::Gel, Heart, Up, SaltSize * Salt, SaltTint);
 	// ...a few puffs of salt rolling out with the dust...
@@ -180,6 +236,12 @@ void GraveSaltBurst::DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast,
 
 void GraveSaltBurst::SpawnEffects(UWorld& World, const FVector& Center, const FVector& Up)
 {
+	SpawnEffects(World, Center, Up, FGraveSaltTuning::Current(), GrenadeKinds::LookOf(EGrenadeKind::Salt));
+}
+
+void GraveSaltBurst::SpawnEffects(UWorld& World, const FVector& Center, const FVector& Up, const FGraveSaltTuning& Tuning,
+	const FGrenadeBurstLook& Look)
+{
 	UBulletSubsystem* Bullets = World.GetSubsystem<UBulletSubsystem>();
 	if (!Bullets)
 	{
@@ -187,7 +249,6 @@ void GraveSaltBurst::SpawnEffects(UWorld& World, const FVector& Center, const FV
 	}
 	FWeaponFX& Effects = Bullets->GetEffects();
 	Effects.Initialize(&World);
-	const FGraveSaltTuning Tuning = FGraveSaltTuning::Current();
 	FGraveSaltBlast Blast = FindGround(World, Center, Tuning.GroundReach);
 	if (!Blast.bOnGround && !Up.IsNearlyZero())
 	{
@@ -197,21 +258,40 @@ void GraveSaltBurst::SpawnEffects(UWorld& World, const FVector& Center, const FV
 	{
 		Blast.DustLight = Reacts->GetDustLight();
 	}
-	DrawBlast(Effects, Blast, Tuning);
-	// The scorch: a dark sooty star burned into the ground where it went off (the rocket's, sized to this burst).
-	if (Blast.bOnGround && Tuning.ScorchShare > 0.f)
+	DrawBlast(Effects, Blast, Tuning, Look);
+	// The scorch: a dark sooty star burned into the ground where it went off (the rocket's, sized to this burst); the
+	// pitch's tar left in a glossy black pool in it.
+	const float Scorch = Tuning.ScorchShare * Look.Scorch;
+	if (Blast.bOnGround && Scorch > 0.f)
 	{
 		if (UVfxSubsystem* Vfx = UVfxSubsystem::Get(&World))
 		{
-			Vfx->AddSplat(Blast.Ground, Blast.Up, EVfxSplat::Scorch, FLinearColor::Black, Tuning.Radius * Tuning.LookScale * Tuning.ScorchShare);
+			Vfx->AddSplat(Blast.Ground, Blast.Up, EVfxSplat::Scorch, FLinearColor::Black, Tuning.Radius * Tuning.LookScale * Scorch);
+			if (Look.GlobSize > 0.f)
+			{
+				Vfx->AddSplat(Blast.Ground, Blast.Up, EVfxSplat::Gel, Look.GlobTint, Tuning.Radius * Tuning.LookScale * TarPoolShare);
+			}
 		}
 	}
 }
 
 void GraveSaltBurst::PlaySounds(UWorld& World, const FVector& Center, const TArray<FGraveSaltTarget>& Targets)
 {
-	// The thump and the salt's crystalline crackle are one cue, carried far like a gunshot.
-	LooterSound::PlayAt(&World, ThrowCue::Burst, Center);
+	PlaySounds(World, Center, Targets, GrenadeKinds::LookOf(EGrenadeKind::Salt));
+}
+
+void GraveSaltBurst::PlaySounds(UWorld& World, const FVector& Center, const TArray<FGraveSaltTarget>& Targets, const FGrenadeBurstLook& Look)
+{
+	// The thump and the salt's crystalline crackle are one cue, carried far like a gunshot; a kind lays its own over it
+	// (the pitch's splatter, the scatter's split, the coals' whoomp), and a small jar's pop is its own alone.
+	if (Look.SaltVolume > 0.f)
+	{
+		LooterSound::PlayAt(&World, ThrowCue::Burst, Center, Look.SaltVolume);
+	}
+	if (Look.LayerCue)
+	{
+		LooterSound::PlayAt(&World, Look.LayerCue, Center);
+	}
 	int32 Sears = 0;
 	for (const FGraveSaltTarget& Target : Targets)
 	{
@@ -225,6 +305,15 @@ void GraveSaltBurst::PlaySounds(UWorld& World, const FVector& Center, const TArr
 
 void GraveSaltBurst::KickViews(UWorld& World, const FVector& Center, FRandomStream& Random)
 {
+	KickViews(World, Center, Random, 1.f);
+}
+
+void GraveSaltBurst::KickViews(UWorld& World, const FVector& Center, FRandomStream& Random, float Scale)
+{
+	if (Scale <= 0.f)
+	{
+		return;
+	}
 	for (FConstPlayerControllerIterator It = World.GetPlayerControllerIterator(); It; ++It)
 	{
 		APlayerController* Player = It->Get();
@@ -235,7 +324,7 @@ void GraveSaltBurst::KickViews(UWorld& World, const FVector& Center, FRandomStre
 		}
 		const UCameraComponent* Eye = UPlayerViewComponent::FindFirstPersonCamera(Pawn);
 		const FVector From = Eye ? Eye->GetComponentLocation() : Pawn->GetPawnViewLocation();
-		const float Share = FGraveSaltRules::KickShare(static_cast<float>(FVector::Dist(From, Center)));
+		const float Share = FGraveSaltRules::KickShare(static_cast<float>(FVector::Dist(From, Center))) * Scale;
 		if (Share <= 0.f)
 		{
 			continue;

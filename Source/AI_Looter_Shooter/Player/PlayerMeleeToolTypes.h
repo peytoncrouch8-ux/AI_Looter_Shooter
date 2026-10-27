@@ -79,6 +79,13 @@ struct AI_LOOTER_SHOOTER_API FHeroMeleeTool
 	UPROPERTY(EditDefaultsOnly, Category = "Melee")
 	EMeleeHeft Heft = EMeleeHeft::Steady;
 
+	/**
+	 * The tool's key for its sounds (Player.Melee.<Kind>.Swing, .Hit; MeleeFX::SwingCue, HitCue) and its impact effects
+	 * (MeleeFX::Spawn): Spade, Fan, Gaff, Piston, Pick (the user's picks, 2026-10-27). None: the shared swing and blow.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Melee")
+	FName Kind;
+
 	/** The mesh drawn this much bigger than modeled (as a gun is in first person). */
 	UPROPERTY(EditDefaultsOnly, Category = "Melee", meta = (ClampMin = "0.25", ClampMax = "3"))
 	float Scale = 1.f;

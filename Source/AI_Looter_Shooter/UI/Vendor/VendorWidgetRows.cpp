@@ -2,6 +2,7 @@
 // they'd fetch, and selling all junk.
 
 #include "UI/Vendor/VendorWidget.h"
+#include "Combat/GrenadeKinds.h"
 #include "Economy/EconomyRules.h"
 #include "Economy/WalletSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -183,8 +184,23 @@ UWidget* UVendorWidget::MakeGrenadeRow()
 	UWidget* Icon = MakeSized(WidgetTree, MakeImage(WidgetTree, InkedIconBrush(TEXT("GraveSaltGrenade"), UHudGrenadeWidget::Icon(), SupplyIcon,
 		bFull ? DimIcon : FLinearColor::White)), SupplySize, SupplySize);
 	UWidget* Name = LoadoutParts::Label(WidgetTree, LOCTEXT("GraveSalt", "Grave salt").ToString(), 14, bFull ? Color::TextDim() : Color::Text(), 60);
-	const FString Detail = FText::Format(bFull ? LOCTEXT("SaltFull", "Carrying all you can · {0} / {1}") : LOCTEXT("SaltJar", "+1 jar · carrying {0} / {1}"),
-		FText::AsNumber(Carried), FText::AsNumber(FThrowRules::MaxGrenades)).ToString();
+	// The store sells the plain salt jar; salt fills any jar, so with another kind carried it's one more of those
+	// (GrenadeKinds::Collect), and the row says so.
+	const EGrenadeKind Carrying = Throw ? Throw->GetKind() : EGrenadeKind::Salt;
+	FString Detail;
+	if (bFull)
+	{
+		Detail = FText::Format(LOCTEXT("SaltFull", "Carrying all you can · {0} / {1}"), FText::AsNumber(Carried), FText::AsNumber(FThrowRules::MaxGrenades)).ToString();
+	}
+	else if (GrenadeKinds::IsSpecial(Carrying))
+	{
+		Detail = FText::Format(LOCTEXT("SaltIntoKind", "+1 {2} (salt fills it) · carrying {0} / {1}"), FText::AsNumber(Carried),
+			FText::AsNumber(FThrowRules::MaxGrenades), GrenadeKinds::Name(Carrying)).ToString();
+	}
+	else
+	{
+		Detail = FText::Format(LOCTEXT("SaltJar", "+1 jar · carrying {0} / {1}"), FText::AsNumber(Carried), FText::AsNumber(FThrowRules::MaxGrenades)).ToString();
+	}
 	UWidget* Right = bFull ? MakeWord(LOCTEXT("Full", "Full").ToString(), Color::TextDim()) : MakePrice(Price, Wallet && Wallet->CanAfford(Price));
 	return MakeRow(Index, Icon, Name, Detail, Color::TextDim(), Right, VendorLayout::RowHeight);
 }

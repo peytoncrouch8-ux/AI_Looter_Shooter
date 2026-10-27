@@ -15,6 +15,9 @@ rest are drafts in the game's voice for the user (2026-10-13, the missions' data
 
   Intro    NewGameIntro (the new game's intro narration, Story/NewGameIntro.h: 11 lines, no speaker, in the
            captions' order; the code keeps the same words as its fallback and Looter.Intro.Lines checks they match)
+  Bosses   BossIntroGravemother, BossIntroForeman, BossIntroAbel (the boss intros' captions, Scenes/BossIntro.h: line N
+           fills the script's caption slot N; the code keeps the same words as its fallback and
+           Looter.Scenes.BossIntro.Lines checks they match)
 The main story (2026-10-21, the user's cut of the story's talk: offers two or three lines, Hob's perch arrivals one line,
 his taps only Main 1's, the Old Fare's and a catch-all; where a perch had only directions he lands silent):
   Main 1   DeliaMain1 (her door during Main 1, before the turn-in: take the plate first), DeliaPorch (after),
@@ -108,6 +111,23 @@ SETS = {
         ('', "You rode in with that gang."),
         ('', "Seven outlaws killed you."),
         ('', "Something sent you back to bring them in."),
+    ],
+
+    # --- The boss intros (SCENES, 2026-10-27, playtest round 4; Scenes/BossIntro.h, BossIntro::ScriptLines) ---
+    # Line N fills the intro's caption slot N, so the order and the count matter (a set with a line missing or extra is
+    # ignored, the code's own words play); Looter.Scenes.BossIntro.Lines checks they match. No family words (no hero
+    # rows). Abel's own fight line said on camera ("You brought them here, El. Right to our door.") is AbelRules' and
+    # isn't here. Teague's mutter sets up his last word ("...Tell the company it was the roof."); Hob's for Abel is
+    # Docs/Story.md's own phrase for why the Keeper walks.
+    'DA_Lines_BossIntroGravemother': [
+        (HOB, "Every spider in the Rest answers to her."),
+        (HOB, "Crack that headstone off her back first, sunshine."),
+    ],
+    'DA_Lines_BossIntroForeman': [
+        ('Cyrus Teague', "Dig. Keep digging. It was the roof."),
+    ],
+    'DA_Lines_BossIntroAbel': [
+        (HOB, "A keeper doesn't lie still while his saint is dark."),
     ],
 
     'DA_Lines_HobMain2Blue': [

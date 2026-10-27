@@ -98,6 +98,10 @@ struct AI_LOOTER_SHOOTER_API FSavedGrenadePickup
 	 */
 	UPROPERTY()
 	float LifeLeft = 0.f;
+
+	/** The jar's kind (EGrenadeKind as a byte; GrenadeKinds::FromSaved reads it back; 0 = grave salt, as an older save). */
+	UPROPERTY()
+	uint8 Kind = 0;
 };
 
 /** A ward (the player's shield as loot) lying on the ground. Put back where it lay on load, unlike a gun (wards have no Lost Property yet). */

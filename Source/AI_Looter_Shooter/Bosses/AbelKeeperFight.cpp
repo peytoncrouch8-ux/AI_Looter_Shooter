@@ -9,6 +9,7 @@
 #include "Bosses/BossComponent.h"
 #include "Combat/EnemyProjectileSubsystem.h"
 #include "Combat/HealthComponent.h"
+#include "Scenes/BossIntro.h"
 #include "Story/CaptionSubsystem.h"
 #include "World/ChapelBell.h"
 #include "World/KeeperLanternPost.h"
@@ -52,6 +53,8 @@ void AAbelKeeper::HandleFightStarted()
 	EndMove();
 	// He turns to the player and raises his lantern as his bar sweeps in.
 	BeginIntro();
+	// His first fight in this session: the boards and his lantern before it (Scenes/BossIntro; he's fought once).
+	BossIntro::PlayIfDue(*this);
 }
 
 void AAbelKeeper::HandleFightReset()

@@ -20,7 +20,7 @@
 
 // The component's lifetime, keys and stance. The first-person view and gun motion are in PlayerLocomotionViewModel.cpp,
 // the slide and the jump key in PlayerLocomotionSlide.cpp, mantles and vaults in PlayerLocomotionTraversal.cpp, the
-// jump's forgiveness and the unstick in PlayerLocomotionJumpAssist.cpp.
+// jump's forgiveness and the unstick in PlayerLocomotionJumpAssist.cpp, swimming in PlayerLocomotionSwim.cpp.
 
 namespace
 {
@@ -55,6 +55,8 @@ namespace
 	 * still pump the arms and twist the feet at the slide's speed; nearly stopped, it reads as one held pose.
 	 */
 	constexpr float SlideAnimRate = 0.2f;
+	/** And swimming: the legs' cycle slowed to read as a kick under the water (the third-person body). */
+	constexpr float SwimAnimRate = 0.4f;
 
 	/** The climbing pose (the gun lowered and turned in) comes in over this and goes out over that (s); a vault takes this share of it. */
 	constexpr float ClimbPoseInTime = 0.12f;
@@ -150,6 +152,7 @@ void UPlayerLocomotionComponent::BeginPlay()
 	LastFloorZ = static_cast<float>(GetFeetHeight());
 	bHaveFloor = true;
 	StuckAnchor = Owner->GetActorLocation();
+	EnsureUnderwaterView();
 }
 
 void UPlayerLocomotionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -175,6 +178,7 @@ void UPlayerLocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	// any mantle or vault (or start one caught in the air).
 	RefreshBodyTransform();
 	UpdateTraversal(DeltaTime);
+	UpdateSwim(DeltaTime);
 	UpdateSlide(DeltaTime);
 	UpdateStance(DeltaTime);
 	UpdateAlphas(DeltaTime);
@@ -268,6 +272,11 @@ void UPlayerLocomotionComponent::TeardownInput()
 		}
 		FinishTraversal();
 	}
+	if (bSwimming)
+	{
+		// The body lets go of the water's float (a death sinks to the bed).
+		EndSwim(ESwimExit::Air);
+	}
 	Intent.Reset();
 	EndSlide();
 	bSprinting = false;
@@ -303,6 +312,11 @@ void UPlayerLocomotionComponent::HandleSprintReleased()
 
 void UPlayerLocomotionComponent::HandleCrouchPressed()
 {
+	if (bSwimming)
+	{
+		// Swimming, the key dives while held (read raw); it never leaves a crouch waiting for the bank.
+		return;
+	}
 	RefreshModes();
 	Intent.Press(EStance::Crouch);
 	// Crouching out of a sprint slides (only on the ground: TryStartSlide checks).
@@ -394,6 +408,11 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 	{
 		RefreshModes();
 		ReleaseKeysNoLongerHeld();
+	}
+	if (bSwimming)
+	{
+		UpdateSwimStance(DeltaTime);
+		return;
 	}
 
 	const bool bFiring = IsWeaponFiring();
@@ -495,7 +514,8 @@ void UPlayerLocomotionComponent::UpdateAlphas(float DeltaTime)
 		{
 			GroundedAnimRate = FMath::Max(1.f, static_cast<float>(Owner->GetVelocity().Size2D()) / FMath::Max(GetRunCycleTopSpeed(), 1.f));
 		}
-		const float Rate = FMath::Lerp(GroundedAnimRate, SlideAnimRate, SlideAlpha);
+		// Swimming, the run cycle under the body slows to a lazy kick.
+		const float Rate = FMath::Lerp(FMath::Lerp(GroundedAnimRate, SlideAnimRate, SlideAlpha), SwimAnimRate, SwimAlpha);
 		Body->GlobalAnimRateScale = FMath::FInterpTo(Body->GlobalAnimRateScale, Rate, DeltaTime, 8.f);
 	}
 }

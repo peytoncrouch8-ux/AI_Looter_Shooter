@@ -21,8 +21,10 @@ namespace
 {
 	TAutoConsoleVariable<float> CVarToolScale(TEXT("Looter.Melee.ToolScale"), 1.f,
 		TEXT("Every melee tool's size in first person against its hero's own (1: as each hero's data says)."));
-	TAutoConsoleVariable<float> CVarWristBack(TEXT("Looter.Melee.WristBack"), 9.f,
-		TEXT("A forearm tool's clamp behind the fist (cm): where its Forearm socket sits, back from the knuckles."));
+	// MeleeTools.py: the piston fist's clamp ring is 6-7 cm behind the wrist, the fist's front about 19 cm ahead of it; the
+	// hands hold a fist by its middle, about 8 cm ahead of the wrist.
+	TAutoConsoleVariable<float> CVarWristBack(TEXT("Looter.Melee.WristBack"), 15.f,
+		TEXT("A forearm tool's clamp behind the middle of the fist (cm): where its Forearm socket sits."));
 
 	const FName GripSocket(TEXT("Grip"));
 	const FName ForearmSocket(TEXT("Forearm"));
@@ -88,6 +90,7 @@ void UPlayerMeleeComponent::PrepareTool()
 		Tool.Grip = EMeleeGripKind::Held;
 	}
 	BuildTool(Mesh);
+	BuildThirdPersonTool(Mesh);
 	UE_LOG(LogLooter, Log, TEXT("Melee: %s's tool %s (%s)"), Hero ? *Hero->Id.ToString() : TEXT("no hero"),
 		Mesh ? *Mesh->GetName() : TEXT("stand-in"), bOwnMesh ? TEXT("their own") : TEXT("until theirs is imported"));
 }
@@ -139,7 +142,17 @@ void UPlayerMeleeComponent::BuildTool(UStaticMesh* Mesh)
 
 void UPlayerMeleeComponent::PlaceTool()
 {
-	if (!bSwinging || !ToolRoot || ToolParts.IsEmpty() || !IsFirstPersonView())
+	// Third person: the tool rides the body's right hand through the swing (the stance layer's jab moves it).
+	const bool bFirstPerson = IsFirstPersonView();
+	if (ThirdPersonTool)
+	{
+		const bool bShow = bSwinging && !bFirstPerson;
+		if (ThirdPersonTool->IsVisible() != bShow)
+		{
+			ThirdPersonTool->SetVisibility(bShow);
+		}
+	}
+	if (!bSwinging || !ToolRoot || ToolParts.IsEmpty() || !bFirstPerson)
 	{
 		HideTool();
 		return;
@@ -163,6 +176,11 @@ void UPlayerMeleeComponent::HideTool()
 	if (ToolRoot && ToolRoot->IsVisible())
 	{
 		ToolRoot->SetVisibility(false, true);
+	}
+	// Third person: hidden too, unless a swing still runs (a switch to third person mid-swing shows it there).
+	if (ThirdPersonTool && ThirdPersonTool->IsVisible() && !(bSwinging && !IsFirstPersonView()))
+	{
+		ThirdPersonTool->SetVisibility(false);
 	}
 }
 

@@ -165,6 +165,8 @@ private:
 	bool CastSupport(const FHandPlacement& OnGun, FHandPlacement& OutPlacement) const;
 	/** No gun in hand: both hands for a strike or a cast (Targets), else false (hidden). */
 	bool PlaceBareHands();
+	/** Swimming (FirstPersonHandsSwim.cpp): both hands stroke once the gun is lowered away; false when not swimming. */
+	bool PlaceSwimHands(float DeltaTime);
 	/** A melee tool is in the right hand this frame (the gun, if any, is the left hand's alone). */
 	bool bToolInHand = false;
 

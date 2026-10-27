@@ -1,4 +1,6 @@
 #include "UI/HUD/HudGrenadeWidget.h"
+#include "Combat/GrenadeKinds.h"
+#include "Player/PlayerThrowComponent.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/InkedIconData.inl"
 #include "Blueprint/WidgetTree.h"
@@ -11,6 +13,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "GameFramework/Pawn.h"
 
 using namespace LooterUI;
 
@@ -36,6 +39,29 @@ namespace
 	constexpr float GainedPop = 0.35f;
 	constexpr float ThrownPop = 0.15f;
 	constexpr float DeniedShake = 4.f;
+	/** A new kind: a longer, bigger pop than a jar found, so the eye catches the word changing. */
+	constexpr float SwappedSeconds = 0.7f;
+	constexpr float SwappedPop = 0.45f;
+	/** The kind's word sits this far left of the key tab, with the count's own dark outline. */
+	constexpr float KindGap = 6.f;
+	constexpr int32 KindOutline = 2;
+
+	float FlashLength(EHudGrenadeFlash Kind)
+	{
+		switch (Kind)
+		{
+		case EHudGrenadeFlash::Gained: return GainedSeconds;
+		case EHudGrenadeFlash::Thrown: return ThrownSeconds;
+		case EHudGrenadeFlash::Swapped: return SwappedSeconds;
+		default: return DeniedSeconds;
+		}
+	}
+
+	/** The lit pips' colour: salt's pale blue as it always was, another kind's own. */
+	FLinearColor PipColor(EGrenadeKind Kind)
+	{
+		return GrenadeKinds::IsSpecial(Kind) ? GrenadeKinds::UiColor(Kind) : Color::XPLight();
+	}
 
 	/** None left: the icon dimmed (grey dims an Inked icon). */
 	const FLinearColor EmptyIcon(0.5f, 0.5f, 0.5f, 0.8f);
@@ -114,6 +140,17 @@ TSharedRef<SWidget> UHudGrenadeWidget::RebuildWidget()
 		WidgetTree->RootWidget = Line;
 		Row = Line;
 
+		// The kind carried's word, in its colour (collapsed for plain salt), left of the key tab.
+		KindText = MakeFloatingText(WidgetTree, KindSize, Color::Text(), 0, ETextJustify::Right);
+		FSlateFontInfo KindFont = FloatingFont(KindSize);
+		KindFont.OutlineSettings.OutlineSize = KindOutline;
+		KindText->SetFont(KindFont);
+		KindText->SetRenderTransformPivot(FVector2D(1.f, 0.5f));
+		KindText->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* KindSlot = Line->AddChildToHorizontalBox(KindText);
+		KindSlot->SetVerticalAlignment(VAlign_Center);
+		KindSlot->SetPadding(FMargin(0.f, 0.f, KindGap, 0.f));
+
 		// The key tab: dark glass (a background), its cyan edge, and the bound key.
 		UOverlay* Tab = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		const FVector2D TabSize(TabWidth, TabHeight);
@@ -168,6 +205,8 @@ TSharedRef<SWidget> UHudGrenadeWidget::RebuildWidget()
 		ShownCount = INDEX_NONE;
 		ShownMax = INDEX_NONE;
 		ShownKey.Reset();
+		ShownKind = EGrenadeKind::Salt;
+		bKindKnown = false;
 		bShown = false;
 		FlashLeft = 0.f;
 	}
@@ -176,9 +215,28 @@ TSharedRef<SWidget> UHudGrenadeWidget::RebuildWidget()
 
 void UHudGrenadeWidget::Update(int32 Count, int32 MaxCount, bool bUnlocked, const FString& KeyName, float DeltaTime)
 {
-	if (!Row || !CountText || !KeyText || !IconImage)
+	const UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(GetOwningPlayerPawn());
+	UpdateKind(Count, MaxCount, bUnlocked, KeyName, Throw ? Throw->GetKind() : EGrenadeKind::Salt, DeltaTime);
+}
+
+void UHudGrenadeWidget::UpdateKind(int32 Count, int32 MaxCount, bool bUnlocked, const FString& KeyName, EGrenadeKind Kind, float DeltaTime)
+{
+	if (!Row || !CountText || !KeyText || !IconImage || !KindText)
 	{
 		return;
+	}
+	if (!bKindKnown || Kind != ShownKind)
+	{
+		// A kind changed under a shown counter flashes; the first one seen (a load, the row coming up) just shows.
+		const bool bFlash = bKindKnown && bShown;
+		bKindKnown = true;
+		ShownKind = Kind;
+		PaintKind();
+		PaintPips();
+		if (bFlash)
+		{
+			Flash(EHudGrenadeFlash::Swapped);
+		}
 	}
 	if (bUnlocked != bShown)
 	{
@@ -209,10 +267,8 @@ void UHudGrenadeWidget::Update(int32 Count, int32 MaxCount, bool bUnlocked, cons
 			{
 				Box->SetVisibility(bUsed ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 			}
-			// Lit from the right, as the count reads: the last one thrown goes dark at the left.
-			const bool bLit = Index >= Max - Count;
-			Pips[Index]->SetColorAndOpacity(bLit ? Color::XPLight() : WithAlpha(Color::Track(), 0.8f));
 		}
+		PaintPips();
 		PaintState();
 	}
 
@@ -221,7 +277,7 @@ void UHudGrenadeWidget::Update(int32 Count, int32 MaxCount, bool bUnlocked, cons
 		return;
 	}
 	FlashLeft = FMath::Max(FlashLeft - DeltaTime, 0.f);
-	const float Length = FlashKind == EHudGrenadeFlash::Gained ? GainedSeconds : (FlashKind == EHudGrenadeFlash::Thrown ? ThrownSeconds : DeniedSeconds);
+	const float Length = FlashLength(FlashKind);
 	const float Alpha = FMath::Clamp(FlashLeft / Length, 0.f, 1.f);
 	FWidgetTransform Transform;
 	switch (FlashKind)
@@ -239,19 +295,29 @@ void UHudGrenadeWidget::Update(int32 Count, int32 MaxCount, bool bUnlocked, cons
 		Transform.Translation = FVector2D(FMath::Sin((Length - FlashLeft) * 55.f) * DeniedShake * Alpha, 0.f);
 		CountText->SetColorAndOpacity(FSlateColor(FMath::Lerp(Color::Worse(), Color::Hurt(), Alpha)));
 		break;
+	case EHudGrenadeFlash::Swapped:
+	{
+		// The whole row pops; the new word and the count flash white into the kind's colour.
+		Transform.Scale = FVector2D(1.f + SwappedPop * Alpha * Alpha);
+		const FLinearColor KindTone = PipColor(ShownKind);
+		KindText->SetColorAndOpacity(FSlateColor(FMath::Lerp(KindTone, FLinearColor::White, Alpha)));
+		CountText->SetColorAndOpacity(FSlateColor(FMath::Lerp(ShownCount > 0 ? Color::Text() : Color::Worse(), KindTone, Alpha)));
+		break;
+	}
 	}
 	Row->SetRenderTransform(Transform);
 	if (FlashLeft <= 0.f)
 	{
 		Row->SetRenderTransform(FWidgetTransform());
 		PaintState();
+		PaintKind();
 	}
 }
 
 void UHudGrenadeWidget::Flash(EHudGrenadeFlash Kind)
 {
 	FlashKind = Kind;
-	FlashLeft = Kind == EHudGrenadeFlash::Gained ? GainedSeconds : (Kind == EHudGrenadeFlash::Thrown ? ThrownSeconds : DeniedSeconds);
+	FlashLeft = FlashLength(Kind);
 }
 
 void UHudGrenadeWidget::PaintState()
@@ -259,4 +325,33 @@ void UHudGrenadeWidget::PaintState()
 	const bool bEmpty = ShownCount <= 0;
 	CountText->SetColorAndOpacity(FSlateColor(bEmpty ? Color::Worse() : Color::Text()));
 	IconImage->SetColorAndOpacity(bEmpty ? EmptyIcon : FLinearColor::White);
+}
+
+void UHudGrenadeWidget::PaintPips()
+{
+	const int32 Max = FMath::Max(ShownMax, 0);
+	const int32 Count = FMath::Max(ShownCount, 0);
+	const FLinearColor Lit = PipColor(ShownKind);
+	for (int32 Index = 0; Index < Pips.Num(); ++Index)
+	{
+		// Lit from the right, as the count reads: the last one thrown goes dark at the left.
+		const bool bLit = Index >= Max - Count;
+		Pips[Index]->SetColorAndOpacity(bLit ? Lit : WithAlpha(Color::Track(), 0.8f));
+	}
+}
+
+void UHudGrenadeWidget::PaintKind()
+{
+	if (!KindText)
+	{
+		return;
+	}
+	if (!GrenadeKinds::IsSpecial(ShownKind))
+	{
+		KindText->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+	KindText->SetText(GrenadeKinds::Tag(ShownKind));
+	KindText->SetColorAndOpacity(FSlateColor(GrenadeKinds::UiColor(ShownKind)));
+	KindText->SetVisibility(ESlateVisibility::HitTestInvisible);
 }

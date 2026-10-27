@@ -11,6 +11,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Audio/LooterSound.h"
+#include "Combat/GrenadeKinds.h"
 #include "Combat/HealthComponent.h"
 #include "Embers/EmberComponent.h"
 #include "Interaction/InteractionComponent.h"
@@ -348,7 +349,8 @@ void UPlayerHUDWidget::HandleGrenadesChanged(int32 Count, int32 Delta, EGrenadeC
 		if (PickupFeed && Delta > 0)
 		{
 			// Told where the eyes are, in the ammo pickups' words ("+36 AR Ammo"); a full count says nothing.
-			PickupFeed->AddLine(FString::Printf(TEXT("+%d Grave Salt"), Delta));
+			const UPlayerThrowComponent* Throw = BoundThrow.Get();
+			PickupFeed->AddLine(FString::Printf(TEXT("+%d %s"), Delta, *GrenadeKinds::Name(Throw ? Throw->GetKind() : EGrenadeKind::Salt).ToString()));
 		}
 		break;
 	default:

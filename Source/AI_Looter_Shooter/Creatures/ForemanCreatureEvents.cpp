@@ -9,6 +9,7 @@
 #include "Creatures/ForemanFuseStick.h"
 #include "Creatures/ForemanRockFall.h"
 #include "Creatures/ForemanTimberProp.h"
+#include "Scenes/BossIntro.h"
 #include "Components/SceneComponent.h"
 
 // ---------------------------------------------------------------------------
@@ -59,6 +60,8 @@ void AForemanCreature::HandleFightStarted()
 	{
 		Prop->Mend();
 	}
+	// His first fight in this session: the stope out of the dark before it (Scenes/BossIntro; once per session, never a rematch).
+	BossIntro::PlayIfDue(*this);
 }
 
 void AForemanCreature::HandleFightReset()

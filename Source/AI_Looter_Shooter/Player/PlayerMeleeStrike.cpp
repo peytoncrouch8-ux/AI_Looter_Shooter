@@ -13,6 +13,7 @@
 #include "Weapons/MeleeDamageType.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponFX.h"
+#include "Weapons/ImpactSurface.h"
 #include "World/BreakableKinds.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
@@ -211,6 +212,8 @@ bool UPlayerMeleeComponent::LandStrike(AActor& Target, const FMeleeContact& Cont
 	{
 		LooterSound::PlayAt(this, Layer, Contact.Point);
 	}
+	// The hero's tool on top: its own ring, snick, bite, hiss or chink, and its sparks, glints or steam.
+	ShowToolImpact(Contact.Point, -Away, Direction, EMeleeStruck::Body, EImpactMaterial::Unknown, 1.f);
 
 	{
 		// The creature's hit reactions hear the damage through its health, which doesn't say what dealt it: the scope tells
@@ -261,6 +264,7 @@ void UPlayerMeleeComponent::StrikeWorld(const FMeleeAim& Aim)
 		LooterSound::PlayAt(this, Surface, Wall.ImpactPoint, MeleeMotion::WallVolume);
 	}
 	LooterSound::PlayAt(this, MeleeCue::Hit, Wall.ImpactPoint, MeleeMotion::WallVolume);
+	ShowToolImpact(Wall.ImpactPoint, Wall.ImpactNormal, Aim.Forward, EMeleeStruck::World, ImpactSurface::Of(Wall), MeleeMotion::WallVolume);
 	FeelBlow(MeleeMotion::WallKnock(), 0.f, FMeleeRules::AttackerHitStop * 0.6f);
 }
 

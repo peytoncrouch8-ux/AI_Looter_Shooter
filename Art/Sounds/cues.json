@@ -7730,5 +7730,407 @@
     "loop": false,
     "space": "2D",
     "max_concurrent": 1
+  },
+  "Player.Melee.Spade.Swing": {
+    "files": [
+      "Player_Melee_Spade_Swing_01.wav",
+      "Player_Melee_Spade_Swing_02.wav",
+      "Player_Melee_Spade_Swing_03.wav",
+      "Player_Melee_Spade_Swing_04.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Player.Melee.Spade.Hit": {
+    "files": [
+      "Player_Melee_Spade_Hit_01.wav",
+      "Player_Melee_Spade_Hit_02.wav",
+      "Player_Melee_Spade_Hit_03.wav",
+      "Player_Melee_Spade_Hit_04.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Player.Melee.Fan.Swing": {
+    "files": [
+      "Player_Melee_Fan_Swing_01.wav",
+      "Player_Melee_Fan_Swing_02.wav",
+      "Player_Melee_Fan_Swing_03.wav",
+      "Player_Melee_Fan_Swing_04.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Player.Melee.Fan.Hit": {
+    "files": [
+      "Player_Melee_Fan_Hit_01.wav",
+      "Player_Melee_Fan_Hit_02.wav",
+      "Player_Melee_Fan_Hit_03.wav",
+      "Player_Melee_Fan_Hit_04.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Player.Melee.Gaff.Swing": {
+    "files": [
+      "Player_Melee_Gaff_Swing_01.wav",
+      "Player_Melee_Gaff_Swing_02.wav",
+      "Player_Melee_Gaff_Swing_03.wav",
+      "Player_Melee_Gaff_Swing_04.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Player.Melee.Gaff.Hit": {
+    "files": [
+      "Player_Melee_Gaff_Hit_01.wav",
+      "Player_Melee_Gaff_Hit_02.wav",
+      "Player_Melee_Gaff_Hit_03.wav",
+      "Player_Melee_Gaff_Hit_04.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Player.Melee.Piston.Swing": {
+    "files": [
+      "Player_Melee_Piston_Swing_01.wav",
+      "Player_Melee_Piston_Swing_02.wav",
+      "Player_Melee_Piston_Swing_03.wav",
+      "Player_Melee_Piston_Swing_04.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Player.Melee.Piston.Hit": {
+    "files": [
+      "Player_Melee_Piston_Hit_01.wav",
+      "Player_Melee_Piston_Hit_02.wav",
+      "Player_Melee_Piston_Hit_03.wav",
+      "Player_Melee_Piston_Hit_04.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Player.Melee.Pick.Swing": {
+    "files": [
+      "Player_Melee_Pick_Swing_01.wav",
+      "Player_Melee_Pick_Swing_02.wav",
+      "Player_Melee_Pick_Swing_03.wav",
+      "Player_Melee_Pick_Swing_04.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Player.Melee.Pick.Hit": {
+    "files": [
+      "Player_Melee_Pick_Hit_01.wav",
+      "Player_Melee_Pick_Hit_02.wav",
+      "Player_Melee_Pick_Hit_03.wav",
+      "Player_Melee_Pick_Hit_04.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Music.BossIntro.Gravemother": {
+    "files": [
+      "Music_BossIntro_Gravemother_01.wav"
+    ],
+    "volume_db": -20.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Music.BossIntro.Foreman": {
+    "files": [
+      "Music_BossIntro_Foreman_01.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Music.BossIntro.Abel": {
+    "files": [
+      "Music_BossIntro_Abel_01.wav"
+    ],
+    "volume_db": -23.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Music.BossIntro.Reveal": {
+    "files": [
+      "Music_BossIntro_Reveal_01.wav",
+      "Music_BossIntro_Reveal_02.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.Burrow": {
+    "files": [
+      "Boss_Gravemother_Burrow_01.wav",
+      "Boss_Gravemother_Burrow_02.wav"
+    ],
+    "volume_db": -8.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.Emerge": {
+    "files": [
+      "Boss_Gravemother_Emerge_01.wav",
+      "Boss_Gravemother_Emerge_02.wav"
+    ],
+    "volume_db": -9.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Throwable.PitchJar.Stick": {
+    "files": [
+      "Throwable_PitchJar_Stick_01.wav",
+      "Throwable_PitchJar_Stick_02.wav",
+      "Throwable_PitchJar_Stick_03.wav",
+      "Throwable_PitchJar_Stick_04.wav"
+    ],
+    "volume_db": -8.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Throwable.PitchJar.Burst": {
+    "files": [
+      "Throwable_PitchJar_Burst_01.wav",
+      "Throwable_PitchJar_Burst_02.wav",
+      "Throwable_PitchJar_Burst_03.wav",
+      "Throwable_PitchJar_Burst_04.wav"
+    ],
+    "volume_db": -2.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Throwable.ScatterJar.Burst": {
+    "files": [
+      "Throwable_ScatterJar_Burst_01.wav",
+      "Throwable_ScatterJar_Burst_02.wav",
+      "Throwable_ScatterJar_Burst_03.wav",
+      "Throwable_ScatterJar_Burst_04.wav"
+    ],
+    "volume_db": -2.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Throwable.ScatterJar.Pop": {
+    "files": [
+      "Throwable_ScatterJar_Pop_01.wav",
+      "Throwable_ScatterJar_Pop_02.wav",
+      "Throwable_ScatterJar_Pop_03.wav",
+      "Throwable_ScatterJar_Pop_04.wav",
+      "Throwable_ScatterJar_Pop_05.wav",
+      "Throwable_ScatterJar_Pop_06.wav"
+    ],
+    "volume_db": -1.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Throwable.CinderJar.Burst": {
+    "files": [
+      "Throwable_CinderJar_Burst_01.wav",
+      "Throwable_CinderJar_Burst_02.wav",
+      "Throwable_CinderJar_Burst_03.wav",
+      "Throwable_CinderJar_Burst_04.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Throwable.CinderJar.Bed": {
+    "files": [
+      "Throwable_CinderJar_Bed_01.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Throwable.Jar.Swap": {
+    "files": [
+      "Throwable_Jar_Swap_01.wav",
+      "Throwable_Jar_Swap_02.wav",
+      "Throwable_Jar_Swap_03.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Swim.In": {
+    "files": [
+      "Player_Swim_In_01.wav",
+      "Player_Swim_In_02.wav",
+      "Player_Swim_In_03.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Player.Swim.Out": {
+    "files": [
+      "Player_Swim_Out_01.wav",
+      "Player_Swim_Out_02.wav",
+      "Player_Swim_Out_03.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Player.Swim.Stroke": {
+    "files": [
+      "Player_Swim_Stroke_01.wav",
+      "Player_Swim_Stroke_02.wav",
+      "Player_Swim_Stroke_03.wav",
+      "Player_Swim_Stroke_04.wav",
+      "Player_Swim_Stroke_05.wav",
+      "Player_Swim_Stroke_06.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Player.Swim.StrokeUnder": {
+    "files": [
+      "Player_Swim_StrokeUnder_01.wav",
+      "Player_Swim_StrokeUnder_02.wav",
+      "Player_Swim_StrokeUnder_03.wav",
+      "Player_Swim_StrokeUnder_04.wav"
+    ],
+    "volume_db": -25.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Player.Swim.Gasp": {
+    "files": [
+      "Player_Swim_Gasp_01.wav",
+      "Player_Swim_Gasp_02.wav",
+      "Player_Swim_Gasp_03.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
   }
 }

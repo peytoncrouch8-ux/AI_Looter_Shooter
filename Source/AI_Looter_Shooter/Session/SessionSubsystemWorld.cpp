@@ -4,6 +4,7 @@
 #include "Session/SessionSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Affixes/WeaponRollLibrary.h"
+#include "Combat/GrenadeKinds.h"
 #include "Combat/HealthComponent.h"
 #include "Economy/SilverPickup.h"
 #include "Economy/WalletSubsystem.h"
@@ -223,6 +224,7 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			Tin.Amount = It->GetAmount();
 			Tin.Location = It->GetActorLocation();
 			Tin.LifeLeft = It->GetLifeSpan();
+			Tin.Kind = static_cast<uint8>(It->GetKind());
 		}
 	}
 
@@ -392,7 +394,7 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 		}
 		for (const FSavedGrenadePickup& Tin : Here->GrenadePickups)
 		{
-			if (AGrenadePickup* Pickup = AGrenadePickup::SpawnGrenades(World, Tin.Amount, Tin.Location))
+			if (AGrenadePickup* Pickup = AGrenadePickup::SpawnKind(World, Tin.Amount, Tin.Location, GrenadeKinds::FromSaved(Tin.Kind)))
 			{
 				Pickup->Toss(FVector::ZeroVector);
 				// Its own whole life is the cap, and the life when none was kept: set outright, so a tin put back before

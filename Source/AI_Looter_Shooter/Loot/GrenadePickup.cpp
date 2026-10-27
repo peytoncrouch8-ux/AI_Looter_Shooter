@@ -3,13 +3,19 @@
 #include "Audio/LooterSound.h"
 #include "Combat/GraveSaltGrenade.h"
 #include "Combat/GraveSaltRules.h"
+#include "Combat/GrenadeKinds.h"
+#include "Combat/GrenadeKindsTuning.h"
 #include "Loot/LootTossComponent.h"
 #include "Player/PlayerThrowComponent.h"
+#include "Player/PlayerThrowRules.h"
 #include "Loot/LootBeamCrowd.h"
+#include "Progression/PlayerProgressionSubsystem.h"
 #include "World/LightBeam.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -25,6 +31,15 @@ namespace
 	constexpr float BeamGlow = 1.2f;
 	/** The tin's height at the pickup's size, where the beam starts (the model's own is about 12 cm). */
 	constexpr float TinTop = FGraveSaltRules::JarFuseTop * AGrenadePickup::ModelScale;
+
+	/** The local player's level (1 without one: a test level), for the kind a dropped tin rolls. */
+	int32 PlayerLevel(const UWorld* World)
+	{
+		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		const ULocalPlayer* Player = GameInstance ? GameInstance->GetFirstGamePlayer() : nullptr;
+		const UPlayerProgressionSubsystem* Progression = Player ? Player->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
+		return Progression ? FMath::Max(Progression->GetLevel(), 1) : 1;
+	}
 }
 
 AGrenadePickup::AGrenadePickup()
@@ -72,6 +87,17 @@ AGrenadePickup::AGrenadePickup()
 
 AGrenadePickup* AGrenadePickup::SpawnGrenades(UWorld* World, int32 Count, const FVector& Location)
 {
+	if (!World)
+	{
+		return nullptr;
+	}
+	// The kind is rolled here, for whoever drops one (a kill, a chest, a bounty's haul), at the local player's level.
+	const EGrenadeKind Kind = GrenadeKinds::RollDrop(PlayerLevel(World), FMath::FRand(), FMath::FRand(), FGrenadeKindTuning::Current());
+	return SpawnKind(World, Count, Location, Kind);
+}
+
+AGrenadePickup* AGrenadePickup::SpawnKind(UWorld* World, int32 Count, const FVector& Location, EGrenadeKind InKind)
+{
 	if (!World || Count <= 0)
 	{
 		return nullptr;
@@ -82,7 +108,12 @@ AGrenadePickup* AGrenadePickup::SpawnGrenades(UWorld* World, int32 Count, const 
 	if (Pickup)
 	{
 		Pickup->Amount = Count;
+		Pickup->Kind = InKind;
 		Pickup->FinishSpawning(Transform);
+		if (GrenadeKinds::IsSpecial(InKind))
+		{
+			UE_LOG(LogLooter, Verbose, TEXT("%s: a %s dropped"), *Pickup->GetName(), *GrenadeKinds::Name(InKind).ToString());
+		}
 	}
 	return Pickup;
 }
@@ -92,8 +123,8 @@ void AGrenadePickup::BeginPlay()
 	Super::BeginPlay();
 	// Among other drops, one beam stands for them all (LootBeamCrowd); a lone tin keeps its own.
 	ULootBeamCrowdSubsystem::Join(this, Beam);
-	// The tin, or the engine's cylinder until the model's been imported.
-	if (UStaticMesh* Mesh = AGraveSaltGrenade::FindJarMesh())
+	// Its kind's tin (the salt tin until that one's imported), or the engine's cylinder until any is.
+	if (UStaticMesh* Mesh = AGraveSaltGrenade::FindJarMesh(Kind))
 	{
 		Model->SetStaticMesh(Mesh);
 	}
@@ -157,12 +188,19 @@ int32 AGrenadePickup::CollectInto(UPlayerThrowComponent& Throw)
 	// As the ammo drops do (AAmmoPickup::CollectInto): whatever fits goes in and the pickup is spent either way, so a full
 	// count clears the tin from the ground quietly. The counter's flash, the feed's "+N" line (both from the count changing)
 	// and the pickup sound come only with grenades actually added.
-	const int32 Taken = Throw.AddGrenades(Amount, EGrenadeChange::PickedUp);
-	if (Taken > 0)
+	// A special tin swaps the kind carried even when the count is full: that's heard too (and the new kind's clasp over it).
+	const FGrenadeCollect Made = Throw.CollectGrenades(Kind, Amount, EGrenadeChange::PickedUp);
+	const int32 Taken = Made.Taken;
+	if (Taken > 0 || Made.bSwapped)
 	{
 		LooterSound::PlayAt(this, ThrowCue::Pickup, GetActorLocation());
 	}
-	UE_LOG(LogLooter, Verbose, TEXT("%s: %d grave salt collected, %d added (now %d)"), *GetName(), Amount, Taken, Throw.GetGrenades());
+	if (Made.bSwapped)
+	{
+		LooterSound::Play2D(this, GrenadeKindCue::Swap);
+	}
+	UE_LOG(LogLooter, Verbose, TEXT("%s: %d %s collected, %d added (now %d of %s)"), *GetName(), Amount, *GrenadeKinds::Name(Kind).ToString(), Taken,
+		Throw.GetGrenades(), *GrenadeKinds::Name(Throw.GetKind()).ToString());
 	Amount = 0;
 	Destroy();
 	return Taken;

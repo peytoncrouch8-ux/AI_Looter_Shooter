@@ -3,6 +3,7 @@
 #include "Audio/LooterSound.h"
 #include "Combat/GraveSaltGrenade.h"
 #include "Combat/GraveSaltRules.h"
+#include "Combat/GrenadeKinds.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerThrowMotion.h"
@@ -119,7 +120,7 @@ void UPlayerThrowComponent::Release()
 		Start = Wall.bStartPenetrating ? Eye : Wall.Location;
 	}
 	const FVector Velocity = FThrowRules::LaunchVelocity(Look, Owner->GetVelocity());
-	if (!AGraveSaltGrenade::Throw(World, Start, Velocity, Owner, GetLevelScale()))
+	if (!AGraveSaltGrenade::Throw(World, Start, Velocity, Owner, GetLevelScale(), Kind))
 	{
 		return;
 	}
@@ -173,6 +174,12 @@ void UPlayerThrowComponent::UpdatePoses()
 	}
 	if (UStaticMeshComponent* Jar = GetOrMakeJarModel())
 	{
+		// The kind carried's tin (the kind may have changed since the last throw).
+		UStaticMesh* Tin = AGraveSaltGrenade::FindJarMesh(Kind);
+		if (Tin && Jar->GetStaticMesh() != Tin)
+		{
+			Jar->SetStaticMesh(Tin);
+		}
 		Jar->SetRelativeLocationAndRotation(Pose.Offset, Pose.Rotation);
 		Jar->SetVisibility(true);
 	}
@@ -186,7 +193,7 @@ UStaticMeshComponent* UPlayerThrowComponent::GetOrMakeJarModel()
 	}
 	AActor* Owner = GetOwner();
 	UCameraComponent* Camera = UPlayerViewComponent::FindFirstPersonCamera(Owner);
-	UStaticMesh* Mesh = AGraveSaltGrenade::FindJarMesh();
+	UStaticMesh* Mesh = AGraveSaltGrenade::FindJarMesh(Kind);
 	if (!Owner || !Camera || !Mesh)
 	{
 		// No tin yet (before the model's import) or no first-person camera: the throw still happens, unseen in the hand.

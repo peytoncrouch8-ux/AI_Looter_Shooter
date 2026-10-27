@@ -1,6 +1,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Combat/HealthComponent.h"
 #include "Interaction/InteractionComponent.h"
+#include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -130,7 +131,7 @@ void UWeaponManagerComponent::StartFire()
 {
 	// Mid-swap the gun in hand is on its way out of view (locked too): a press then is for the next gun, pressed again once
 	// it's up (its first shot waits for its draw).
-	if (IsSwapping())
+	if (IsSwapping() || UPlayerLocomotionComponent::IsSwimmingActor(GetOwner()))
 	{
 		return;
 	}
@@ -151,7 +152,7 @@ void UWeaponManagerComponent::StopFire()
 void UWeaponManagerComponent::Reload()
 {
 	// No reload of a gun being put away.
-	if (IsSwapping())
+	if (IsSwapping() || UPlayerLocomotionComponent::IsSwimmingActor(GetOwner()))
 	{
 		return;
 	}

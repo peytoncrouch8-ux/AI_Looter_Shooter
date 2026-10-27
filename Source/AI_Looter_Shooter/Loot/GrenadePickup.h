@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/GrenadeKinds.h"
 #include "GameFramework/Actor.h"
 #include "GrenadePickup.generated.h"
 
@@ -21,6 +22,12 @@ class UStaticMeshComponent;
  * The session keeps one lying on the ground like ammo and silver (FSavedMapWorld::GrenadePickups): it comes back where it
  * lay with the seconds it had left (GetLifeSpan; the same timer, so it vanishes when they run out), never a whole new life,
  * and never to Lost Property, which keeps only guns.
+ *
+ * Its kind (round 4, GrenadeKinds): SpawnGrenades rolls it for whoever drops one (GrenadeKinds::RollDrop at the local
+ * player's level: salt below level 2, then a pitch, scatter or cinder tin 35% of the time), so every kill, chest and
+ * bounty drop can be one without their own code knowing; SpawnKind makes a given kind (a session putting one back). It
+ * wears its kind's tin; taken (UPlayerThrowComponent::CollectGrenades), a special tin swaps the kind carried and a salt
+ * tin fills whatever is carried, and a swap is heard and collected even with the count full.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AGrenadePickup : public AActor
@@ -30,20 +37,25 @@ class AI_LOOTER_SHOOTER_API AGrenadePickup : public AActor
 public:
 	AGrenadePickup();
 
-	/** Spawns Count grenades at Location (not yet tossed). */
+	/** Spawns Count grenades at Location (not yet tossed), their kind rolled for the local player (GrenadeKinds::RollDrop). */
 	static AGrenadePickup* SpawnGrenades(UWorld* World, int32 Count, const FVector& Location);
+
+	/** Spawns Count grenades of Kind at Location (not yet tossed). */
+	static AGrenadePickup* SpawnKind(UWorld* World, int32 Count, const FVector& Location, EGrenadeKind Kind);
 
 	/** Throws the pickup with the given velocity; it bounces and settles on whatever is below. */
 	void Toss(const FVector& Velocity);
 
 	int32 GetAmount() const { return Amount; }
+	EGrenadeKind GetKind() const { return Kind; }
 
 	/** Gives the grenades to a player in reach now (the overlap and a timer call it; tests call it). */
 	void TryCollect();
 
 	/**
-	 * The player collects it: as many grenades as fit go into Throw's count (the sound and the feed's line only if any
-	 * did), and the pickup is spent and removed either way. Returns the grenades added (0 when the count was full).
+	 * The player collects it: as many grenades as fit go into Throw's count, a special kind swapping the kind carried
+	 * (the sound only if any went in or the kind changed), and the pickup is spent and removed either way. Returns the
+	 * grenades added (0 when the count was full).
 	 */
 	int32 CollectInto(UPlayerThrowComponent& Throw);
 
@@ -93,6 +105,7 @@ private:
 	TObjectPtr<URotatingMovementComponent> Spin;
 
 	int32 Amount = 1;
+	EGrenadeKind Kind = EGrenadeKind::Salt;
 	double SpawnTime = 0.0;
 	FTimerHandle RetryTimer;
 };

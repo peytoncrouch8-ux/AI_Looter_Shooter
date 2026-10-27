@@ -58,6 +58,8 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
   past the ear, a venom glob's hiss).
 - unpaid_kit (2026-10-27, the Unpaid's fighting kit: `Creature.Unpaid.Rake`, `.Cinder`, `.Flank`, `.Rally`, `.Howl`; 16 takes; names
   in `UnpaidKitCue`, `Creatures/UnpaidFightTuning.h`; the Howl uses the 'Gun' attenuation, about 60 m).
+- bossintro (2026-10-27, the boss intros, `Scenes/BossIntro.h` `BossIntroCue`: `Music.BossIntro.Gravemother`, `.Foreman`,
+  `.Abel` (2D beds timed to each script's LiveAt), `Music.BossIntro.Reveal`, `Boss.Gravemother.Burrow`, `.Emerge` (3D)).
 
 ## Render
 

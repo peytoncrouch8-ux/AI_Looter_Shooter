@@ -34,13 +34,15 @@ void UPlayerViewComponent::UpdateAim(float DeltaTime)
 	const UWeaponManagerComponent* Manager = WeaponManager.Get();
 	const AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr;
 	const bool bSprinting = Locomotion.IsValid() && Locomotion->GetSprintAlpha() > 0.5f;
+	// Swimming lowers the gun out of view: no sights.
+	const bool bSwimming = Locomotion.IsValid() && Locomotion->IsSwimming();
 	// No sights on a gun going down or coming up in a swap.
 	// Dead (until the respawn resets health) the sights drop and a toggled aim is let go.
 	const UHealthComponent* Health = OwnerHealth.Get();
 	const bool bDead = Health && Health->IsDead();
-	const bool bCanAim = Weapon && !bDead && !Weapon->IsReloading() && !bSprinting && !Manager->IsSwapping()
+	const bool bCanAim = Weapon && !bDead && !Weapon->IsReloading() && !bSprinting && !bSwimming && !Manager->IsSwapping()
 		&& Mode != EPlayerViewMode::ThirdPersonFront;
-	if (!Weapon || bDead)
+	if (!Weapon || bDead || bSwimming)
 	{
 		bAimWanted = false;
 	}

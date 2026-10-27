@@ -14,6 +14,7 @@
 #include "Creatures/GravemotherStone.h"
 #include "Creatures/GravemotherTuning.h"
 #include "Creatures/GroundCrack.h"
+#include "Scenes/BossIntro.h"
 #include "UI/HUD/HudBossBarWidget.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
@@ -371,6 +372,8 @@ void AGravemotherCreature::HandleFightStarted()
 	{
 		Slab->Mark(GravemotherTuning::MarkAtFightSeconds());
 	}
+	// Her first fight in this session: the burrow and burst before it (Scenes/BossIntro; once per session, never a rematch).
+	BossIntro::PlayIfDue(*this);
 }
 
 void AGravemotherCreature::HandleFightReset()

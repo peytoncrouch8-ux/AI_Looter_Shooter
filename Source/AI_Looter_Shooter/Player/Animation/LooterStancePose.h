@@ -120,6 +120,13 @@ namespace LooterStancePose
 	float MeleeJab(float SwingTime);
 
 	/**
+	 * The wrist's turn at a jab of Jab (degrees about the body's right; positive tips the hand's tool forward onto the
+	 * blow): laid back with the coil (Looter.Melee.ThirdPerson.LayBack), snapped over at the blow
+	 * (.SnapOver), 0 at rest. The hero's tool rides the right hand in third person (round 4, 2026-10-27).
+	 */
+	float MeleeWristDegrees(float Jab);
+
+	/**
 	 * A grenade throw ThrowTime seconds in, on FThrowRules' and ThrowMotion's clock: the arm comes up to the ear as the
 	 * first-person jar comes up to the cheek (ThrowMotion::DrawSeconds), is slung out to the release (ReleaseSeconds),
 	 * follows through across the body and goes back to what it was doing by the throw's end. Nothing at 0 or after.

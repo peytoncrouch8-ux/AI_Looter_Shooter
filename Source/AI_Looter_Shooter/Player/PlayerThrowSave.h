@@ -20,4 +20,11 @@ struct AI_LOOTER_SHOOTER_API FThrowablesSave
 	/** The player has been given grenades (the first gun's two, or one found): the HUD shows the counter from then on. */
 	UPROPERTY()
 	bool bUnlocked = false;
+
+	/**
+	 * The kind of jar carried (EGrenadeKind as a byte, GrenadeKinds::FromSaved reads it back; round 4). A save from before
+	 * the kinds reads 0: grave salt, as it was.
+	 */
+	UPROPERTY()
+	uint8 Kind = 0;
 };

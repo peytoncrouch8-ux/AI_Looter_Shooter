@@ -455,7 +455,15 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* GravemotherMoundBulge = TEXT("Boss.Gravemother.MoundBulge");
 	inline constexpr const TCHAR* GravemotherMoundBurst = TEXT("Boss.Gravemother.MoundBurst");
 	inline constexpr const TCHAR* GravemotherMoundPop = TEXT("Boss.Gravemother.MoundPop");
-	/** Abel: his moan as he raises his lantern, his wail at a phase, the lanterns guttering out, his flare in the fog. */
+	/** The boss intros (Scenes/BossIntro.h BossIntroCue; Art/Sounds/recipes/bossintro.py): each boss's 2D bed, the reveal's
+	 *  hit, the Gravemother's dive into the Sink's floor and her burst out of it (3D). */
+	inline constexpr const TCHAR* BossIntroGravemother = TEXT("Music.BossIntro.Gravemother");
+	inline constexpr const TCHAR* BossIntroForeman = TEXT("Music.BossIntro.Foreman");
+	inline constexpr const TCHAR* BossIntroAbel = TEXT("Music.BossIntro.Abel");
+	inline constexpr const TCHAR* BossIntroReveal = TEXT("Music.BossIntro.Reveal");
+	inline constexpr const TCHAR* GravemotherBurrow = TEXT("Boss.Gravemother.Burrow");
+	inline constexpr const TCHAR* GravemotherEmerge = TEXT("Boss.Gravemother.Emerge");
+	/** Abel: his moan as he raises his lantern,his wail at a phase, the lanterns guttering out, his flare in the fog. */
 	inline constexpr const TCHAR* AbelIntro = TEXT("Boss.Abel.Intro");
 	inline constexpr const TCHAR* AbelWail = TEXT("Boss.Abel.Wail");
 	inline constexpr const TCHAR* AbelLanternsOut = TEXT("Boss.Abel.LanternsOut");

@@ -7,6 +7,7 @@
 #include "Player/PlayerMeleeMotion.h"
 #include "Player/PlayerMeleeRules.h"
 #include "Player/PlayerMeleeToolTypes.h"
+#include "Weapons/WeaponFXMelee.h"
 #include "PlayerMeleeComponent.generated.h"
 
 class AActor;
@@ -48,9 +49,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPlayerMeleeHit, const FHitResu
  *
  *  - The swing: 0.5 s, the blow at 0.15 s on the best body within reach and cone (FindStrikeTarget), then 0.6 s from
  *    the press to the next. Never mid-mantle or vault, mid-cast (an ember power's hands), in a scene, behind a menu, or dead.
- *  - The tool (PlayerMeleeTool.cpp): its mesh on the first-person camera, shown through the swing in first person only
- *    (third person keeps the body's jab: LooterStancePose::MeleeJab); the first-person hands put the right hand on it
- *    (GetToolHold), with or without a gun.
+ *  - The tool (PlayerMeleeTool.cpp): its mesh on the first-person camera, shown through the swing in first person; the
+ *    first-person hands put the right hand on it (GetToolHold), with or without a gun. In third person its mesh rides the
+ *    body's right hand (the gun's socket, the gun hidden for the swing) through the body's jab (LooterStancePose::MeleeJab).
+ *  - Its own sounds and effects (round 4, 2026-10-27; MeleeFX): its swing, its hit on top of the blow's thud, its sparks,
+ *    glints or steam where it lands; Gauge's piston vents steam from its cylinder on a hit.
  *  - The blow: the damage (UMeleeDamageType, from the player, so the gun in hand counts the kill as guns do for their
  *    holder's blows), the creature's stagger and hit-stop (FHitReaction's melee rules, through an FMeleeScope), the knock
  *    back (never over a drop; none for a boss), impact effects, the thud by what it hit, the hit marker (through the
@@ -166,6 +169,15 @@ private:
 	void HideTool();
 	/** The owner's view is first person (the tool and hands are a first-person thing). */
 	bool IsFirstPersonView() const;
+	/** The tool's mesh in the body's right hand for third person (the gun's socket), hidden till a swing. */
+	void BuildThirdPersonTool(UStaticMesh* Mesh);
+	/** In third person the gun in hand steps out of the right hand for the swing (back at its end, or let go of). */
+	void HideGunForSwing(bool bHide);
+	/** Where a socket of the tool in view shows in the world (first person: as the view model's field of view draws it). */
+	bool FindToolSocket(FName Socket, FVector& OutLocation, FVector& OutForward) const;
+	/** The tool's own hit sound and effects where its blow landed (MeleeFX), and the piston's steam. */
+	void ShowToolImpact(const FVector& At, const FVector& Normal, const FVector& Along, EMeleeStruck Struck, EImpactMaterial Material,
+		float Volume);
 
 	/** The local player controlling the pawn, or null. */
 	APlayerController* GetPlayer() const;
@@ -216,6 +228,12 @@ private:
 	TArray<TObjectPtr<UStaticMeshComponent>> ToolParts;
 	/** The tool's mesh is the hero's own forearm piece (else held: the placeholder and the stand-in are held). */
 	bool bForearmMesh = false;
+	/** The tool in the body's right hand (third person), and the gun hidden for the swing meanwhile. */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> ThirdPersonTool;
+	TWeakObjectPtr<AWeaponBase> HiddenGun;
+	/** The tool's effects' randomness. */
+	FRandomStream ToolRandom{ 0x5ade };
 
 	/** Which way each landed blow's jolt rolls. */
 	FRandomStream KickRandom{ 0x3e1ee };

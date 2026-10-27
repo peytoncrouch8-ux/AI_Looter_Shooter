@@ -4,6 +4,7 @@
 #include "Combat/GraveSaltBurst.h"
 #include "Combat/GraveSaltRules.h"
 #include "Combat/GraveSaltTuning.h"
+#include "Combat/GrenadeKinds.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -127,6 +128,7 @@ void UPlayerThrowComponent::HandleInventoryChanged()
 
 bool UPlayerThrowComponent::TryThrow()
 {
+	if (UPlayerLocomotionComponent::IsSwimmingActor(GetOwner())) { return false; }
 	const EThrowBlock Block = GetBlock();
 	if (Block == EThrowBlock::Empty)
 	{
@@ -207,16 +209,36 @@ bool UPlayerThrowComponent::GiveStartingGrenades()
 	return true;
 }
 
+FGrenadeCollect UPlayerThrowComponent::CollectGrenades(EGrenadeKind Found, int32 Amount, EGrenadeChange Why)
+{
+	bUnlocked = true;
+	const FGrenadeCollect Made = GrenadeKinds::Collect(Kind, Grenades, Found, Amount, FThrowRules::MaxGrenades);
+	const EGrenadeKind Was = Kind;
+	// The kind first, so whoever hears of the count already sees the jars it's of.
+	Kind = Made.Kind;
+	if (Made.bSwapped)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Grenade: now carrying %s (was %s), %d"), *GrenadeKinds::Name(Kind).ToString(), *GrenadeKinds::Name(Was).ToString(),
+			Made.Count);
+		OnGrenadeKindChanged.Broadcast(Kind, Was);
+	}
+	SetGrenades(Made.Count, Why);
+	return Made;
+}
+
 void UPlayerThrowComponent::SaveThrowables(FThrowablesSave& OutSave) const
 {
 	OutSave.Grenades = Grenades;
 	OutSave.bUnlocked = bUnlocked;
+	OutSave.Kind = static_cast<uint8>(Kind);
 }
 
 void UPlayerThrowComponent::RestoreThrowables(const FThrowablesSave& Save)
 {
-	// What the session had, whatever play began with (the first gun's starting two included).
+	// What the session had, whatever play began with (the first gun's starting two included), and its kind (an old save's
+	// reads as salt). No kind change is told: the HUD's counter reads the kind as it stands.
 	bUnlocked = Save.bUnlocked;
+	Kind = GrenadeKinds::FromSaved(Save.Kind);
 	SetGrenades(Save.bUnlocked ? Save.Grenades : 0, EGrenadeChange::Restored);
 	// A save made before the first gun but loaded with guns carried (it can't, but an edited one could): the gun's gift.
 	HandleInventoryChanged();

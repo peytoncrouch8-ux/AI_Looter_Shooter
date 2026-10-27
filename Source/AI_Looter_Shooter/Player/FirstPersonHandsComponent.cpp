@@ -247,9 +247,11 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 {
 	const float Dt = FMath::Clamp(DeltaTime, 0.f, 0.1f);
 	FHandsGun Gun;
-	const bool bGun = Rig.IsBound() && FindGun(Dt, Gun);
+	// Swimming (FirstPersonHandsSwim.cpp): the gun is lowered away and both hands stroke; the gun's own path is skipped.
+	const bool bSwim = Rig.IsBound() && PlaceSwimHands(Dt);
+	const bool bGun = !bSwim && Rig.IsBound() && FindGun(Dt, Gun);
 	// No gun in hand: the arms still show for a melee strike's tool or an ember power's cast.
-	if (!bGun && !(Rig.IsBound() && PlaceBareHands()))
+	if (!bSwim && !bGun && !(Rig.IsBound() && PlaceBareHands()))
 	{
 		Show(false);
 		bHaveSupport = false;

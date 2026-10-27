@@ -39,6 +39,12 @@ void UPlayerLocomotionComponent::HandleJumpPressed()
 		// Mid-climb the key does nothing: a press mashed through it would hop the player off the top as it lands.
 		return;
 	}
+	if (bSwimming)
+	{
+		// In the water: out at the surface, onto a bank if there's one in front (PlayerLocomotionSwim.cpp).
+		SwimJump();
+		return;
+	}
 	if (!Owner->bIsCrouched && !Slide.IsActive())
 	{
 		// Standing: a ledge or fence in front is climbed or vaulted, else it's a jump (PlayerLocomotionTraversal.cpp).

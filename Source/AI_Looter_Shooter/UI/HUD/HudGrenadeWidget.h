@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Combat/GrenadeKinds.h"
 #include "HudGrenadeWidget.generated.h"
 
 class UImage;
@@ -18,7 +19,9 @@ enum class EHudGrenadeFlash : uint8
 	/** One thrown: a quick orange tick down. */
 	Thrown,
 	/** The key pressed with none left: red, and a shake. */
-	Denied
+	Denied,
+	/** A new kind of jar carried: its word pops in its colour and the pips flash it. */
+	Swapped
 };
 
 /**
@@ -30,6 +33,11 @@ enum class EHudGrenadeFlash : uint8
  *    for a press with none left
  *  - none left: the count and the icon go dim, the count red
  * The tin's icon is made by Art/Icons/InkedIcons.py (InkedIconData::GraveSaltGrenade), in the ammo icons' box.
+ *
+ * The kind carried (round 4, GrenadeKinds): a pitch, scatter or cinder jar's word ("PITCH") in floating outlined type
+ * in its colour, left of the key tab, and the lit pips in its colour; plain salt shows as it always has (no word, the
+ * pips pale blue). A new kind flashes it (Swapped). It reads the kind off the owning player's pawn itself, so the HUD
+ * that calls Update needn't know of kinds.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudGrenadeWidget : public UUserWidget
@@ -42,6 +50,15 @@ public:
 	 * changed, and runs the flash).
 	 */
 	void Update(int32 Count, int32 MaxCount, bool bUnlocked, const FString& KeyName, float DeltaTime);
+
+	/** The same with the kind carried given (Update reads it off the owning pawn's throw component). */
+	void UpdateKind(int32 Count, int32 MaxCount, bool bUnlocked, const FString& KeyName, EGrenadeKind Kind, float DeltaTime);
+
+	/** The kind shown now. */
+	EGrenadeKind GetShownKind() const { return ShownKind; }
+
+	/** The kind's word's type size. */
+	static constexpr int32 KindSize = 12;
 
 	/** The count changed (or the key was pressed with none left): flash it. */
 	void Flash(EHudGrenadeFlash Kind);
@@ -62,16 +79,24 @@ protected:
 private:
 	/** Colours for the count as it stands, before any flash. */
 	void PaintState();
+	/** The pips lit for the count, in the kind's colour. */
+	void PaintPips();
+	/** The kind's word and colour (none for salt). */
+	void PaintKind();
 
 	UPROPERTY(Transient) TObjectPtr<UWidget> Row;
 	UPROPERTY(Transient) TObjectPtr<UImage> IconImage;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> CountText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> KeyText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> KindText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> Pips;
 
 	int32 ShownCount = INDEX_NONE;
 	int32 ShownMax = INDEX_NONE;
 	FString ShownKey;
+	EGrenadeKind ShownKind = EGrenadeKind::Salt;
+	/** A kind has been shown since the row came up (the first one doesn't flash: it was there). */
+	bool bKindKnown = false;
 	bool bShown = false;
 
 	/** The flash running: its kind and seconds left. */

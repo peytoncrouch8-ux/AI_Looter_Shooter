@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/GraveSaltRules.h"
+#include "Combat/GrenadeKinds.h"
 #include "Weapons/ImpactSurface.h"
 #include "Engine/HitResult.h"
 
@@ -99,6 +100,13 @@ namespace GraveSaltBurst
 	 */
 	AI_LOOTER_SHOOTER_API FGraveSaltBurstResult Detonate(UWorld* World, const FVector& Center, const FVector& Up, APawn* Thrower, float LevelScale);
 
+	/**
+	 * A jar of another kind's burst (GrenadeKinds: its Tuning, the salt jar's times its shares, and its Look), the same
+	 * steps as the salt jar's.
+	 */
+	AI_LOOTER_SHOOTER_API FGraveSaltBurstResult Detonate(UWorld* World, const FVector& Center, const FVector& Up, APawn* Thrower, float LevelScale,
+		const FGraveSaltTuning& Tuning, const FGrenadeBurstLook& Look);
+
 	// --- GraveSaltBurstEffects.cpp ---
 
 	/**
@@ -115,12 +123,28 @@ namespace GraveSaltBurst
 	 */
 	AI_LOOTER_SHOOTER_API void DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast, const FGraveSaltTuning& Tuning);
 
+	/**
+	 * The same in a kind's Look (GrenadeKinds::LookOf): its fire's colour, its share of salt, its tar globs or embers on
+	 * top; a small jar's (Look.bSmall) a quick pop (a flash, a fireball, a puff of salt, a small ring), not the blast.
+	 */
+	AI_LOOTER_SHOOTER_API void DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast, const FGraveSaltTuning& Tuning, const FGrenadeBurstLook& Look);
+
 	/** The whole look of a burst at Center (Up: world up): its ground (FindGround), DrawBlast and the scorch left on the ground. */
 	AI_LOOTER_SHOOTER_API void SpawnEffects(UWorld& World, const FVector& Center, const FVector& Up);
+
+	/** The same for a kind's burst (its Tuning's reach, its Look; the pitch's tar pool left beside the scorch). */
+	AI_LOOTER_SHOOTER_API void SpawnEffects(UWorld& World, const FVector& Center, const FVector& Up, const FGraveSaltTuning& Tuning,
+		const FGrenadeBurstLook& Look);
 
 	/** The burst's sound at Center, and the salt searing each Unpaid it burned (at most a few, so it never smears). */
 	AI_LOOTER_SHOOTER_API void PlaySounds(UWorld& World, const FVector& Center, const TArray<FGraveSaltTarget>& Targets);
 
+	/** The same for a kind's burst: the salt burst at its Look's volume, its own layer over it, the sears. */
+	AI_LOOTER_SHOOTER_API void PlaySounds(UWorld& World, const FVector& Center, const TArray<FGraveSaltTarget>& Targets, const FGrenadeBurstLook& Look);
+
 	/** Every local player's view jolted and shaken by how far they are from Center (FGraveSaltRules::KickShare). */
 	AI_LOOTER_SHOOTER_API void KickViews(UWorld& World, const FVector& Center, FRandomStream& Random);
+
+	/** The same at Scale of the salt jar's jolt (a small jar's pop is a nudge). */
+	AI_LOOTER_SHOOTER_API void KickViews(UWorld& World, const FVector& Center, FRandomStream& Random, float Scale);
 }

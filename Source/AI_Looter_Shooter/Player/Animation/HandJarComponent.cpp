@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Combat/GraveSaltGrenade.h"
 #include "Combat/GraveSaltRules.h"
+#include "Combat/GrenadeKinds.h"
 #include "Player/Animation/LooterStancePoseDetail.h"
 #include "Player/PlayerSize.h"
 #include "Player/PlayerThrowComponent.h"
@@ -45,7 +46,8 @@ void UHandJarComponent::BeginPlay()
 	if (!GetStaticMesh())
 	{
 		// Null before the tin's import: then it never shows (the throw goes on all the same).
-		SetStaticMesh(AGraveSaltGrenade::FindJarMesh());
+		const UPlayerThrowComponent* Carried = UPlayerThrowComponent::Find(GetOwner());
+		SetStaticMesh(AGraveSaltGrenade::FindJarMesh(Carried ? Carried->GetKind() : EGrenadeKind::Salt));
 	}
 	USceneComponent* Body = GetAttachParent();
 	if (Body && !Body->DoesSocketExist(GetAttachSocketName()) && Body->DoesSocketExist(FallbackBone))

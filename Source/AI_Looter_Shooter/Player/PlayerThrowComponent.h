@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/GrenadeKinds.h"
 #include "Components/ActorComponent.h"
 #include "Engine/HitResult.h"
 #include "Player/PawnInputBinding.h"
@@ -38,6 +39,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGrenadeHit, const FHitResult&,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGrenadeBurst, int32, Hits, int32, Kills);
 /** The count changed: the new count, by how much (0 for Denied), and why. */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnGrenadesChanged, int32 /*Count*/, int32 /*Delta*/, EGrenadeChange /*Why*/);
+/** The kind of jar carried changed (a special tin found): the new kind and the old (not on a restore). */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGrenadeKindChanged, EGrenadeKind /*Kind*/, EGrenadeKind /*Was*/);
 
 /**
  * The player's grave-salt grenade (Docs/Polish/BorderlandsComparison.md, item 16): the Grenade key (G, or the right
@@ -56,6 +59,9 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnGrenadesChanged, int32 /*Count*/, int3
  *    found before that gives its own and unlocks the counter.
  *  - What it reports: OnGrenadesChanged (the HUD's counter), OnGrenadeHit (the hit marker) and OnGrenadeBurst; HasThrown
  *    and CountTargetsAhead serve the tutorial's hint.
+ *  - The kind (round 4, GrenadeKinds): one kind of jar is carried (salt to start). A pitch, scatter or cinder tin found
+ *    (CollectGrenades) swaps it, keeping the count; salt from anywhere (AddGrenades: the vendor, the porch plate, the
+ *    first gun, a plain tin) adds to the count of whatever kind is carried. Saved with the count; OnGrenadeKindChanged.
  *
  * PlayerThrowComponent.cpp: life, input, the gate and the count; PlayerThrowRelease.cpp: the throw's clock, its motion and
  * the jar's release.
@@ -102,6 +108,15 @@ public:
 	/** The starting one, once: when the first gun comes into the player's hands (or a test asks). False if already given. */
 	bool GiveStartingGrenades();
 
+	/** The kind of jar carried (salt until a special tin is found). */
+	EGrenadeKind GetKind() const { return Kind; }
+
+	/**
+	 * A tin of Found holding Amount jars taken (GrenadeKinds::Collect): a special kind becomes the kind carried, keeping the
+	 * count; salt keeps the kind. Unlocks the counter. Returns what it did (the jars taken, the kind now, whether it swapped).
+	 */
+	FGrenadeCollect CollectGrenades(EGrenadeKind Found, int32 Amount, EGrenadeChange Why = EGrenadeChange::PickedUp);
+
 	/** What the session keeps of the grenades, and putting it back (no fanfare). */
 	void SaveThrowables(FThrowablesSave& OutSave) const;
 	void RestoreThrowables(const FThrowablesSave& Save);
@@ -139,6 +154,9 @@ public:
 
 	/** Every change of the count (and a press with none left). */
 	FOnGrenadesChanged OnGrenadesChanged;
+
+	/** Every change of the kind carried but a restore's. */
+	FOnGrenadeKindChanged OnGrenadeKindChanged;
 
 protected:
 	virtual void BeginPlay() override;
@@ -207,6 +225,7 @@ private:
 	/** The jar has left the hand this throw. */
 	bool bReleased = false;
 	int32 Grenades = 0;
+	EGrenadeKind Kind = EGrenadeKind::Salt;
 	bool bUnlocked = false;
 	int32 ThrowCount = 0;
 };
