@@ -33,6 +33,57 @@ Code: `Weapons/GunfeelKickTuning.h/.cpp` (cvars, accessors, plain rules; `Gunfee
 - Didn't check (needs a build and play): the feel numbers, rumble on a real pad, the extra settings row's layout, the first-person
   gun motion size, the shotgun's settle.
 
+### Round 2 (GUNFEEL, 2026-10-27, notes 28 and 29): recoil by accuracy, every gun sways aimed
+
+The user: "more recoil so the higher the accuracy stat is, the more prominent the effect" (more kick on every gun; a high accuracy
+stat calms it a lot, so the stat clearly matters); "normal weapons should have an idle sway just like the sniper does when you
+zoom in". Code: `Weapons/GunfeelKickTuning.h/.cpp`, `WeaponBaseKick.cpp`, `GunKindsTuning.h/.cpp`, `WeaponBaseKinds.cpp`; tests
+`Tests/GunfeelSteadyTests.cpp` (`Looter.Gunfeel.Steady.Variables`, `.AccuracyCalm`, `.Profile`, `.Sway`).
+- `GunfeelKick::ShotRecoil` = the Recoil stat x `Recoil.More` [1.4] x `AccuracyCalm` (by numbers, by definition + stats, by gun).
+  `AccuracyCalm(BaseSpread, Spread, N)` = clamp((Base/Spread)^-1.5, 0.3, 1.4): Base is the definition's `BaseStats.Spread` (a gun is
+  judged within its kind), N = `Recoil.AccuracyCalm` [1.5], clamp `.AccuracyCalmLeast` [0.3] / `.AccuracyCalmMost` [1.4].
+  Kick vs the old: a base-accuracy gun 1.4x; +30% accuracy 0.94x; 1.5x tighter 0.76x; 2x tighter 0.49x; worst roll 1.96x.
+  `FeltRecoil` = stat x calm without More, for cards and displays.
+- Where it is used: `GetRecoilProfile` (aim kick, climb, model kick), `PlayerViewKicks.cpp` (`ViewKicks::ForShot`) and
+  `PlayerViewAim.cpp` (the pattern's side kick) all take `ShotRecoil`. Not done: the loadout/bench Recoil row still shows the
+  raw stat (`LoadoutRules` `StatValue`/`StatText` take only `FWeaponStats`); use `FeltRecoil` there or add "Higher accuracy also
+  steadies recoil" to the Accuracy row's help. Automatics' view kick still hits `Kick.SustainCap` 1.2 deg, so "more" shows mostly
+  on the aim and model kick there.
+- Sway: every kind runs `UpdateScopeSway` (`WeaponBaseKinds.cpp`), moving the real aim (control rotation) in a figure eight like
+  the sniper's; the breath meter and scope picture stay sniper-only. Peak degrees `Looter.Gunfeel.Sway.Rifle` [0.2], `.Shotgun`
+  [0.18], `.Revolver` [0.22], `.SMG` [0.18], `.LMG` [0.26], `.Launcher` [0.24]; `.Rate` [0.45 Hz]; `.Crouch` [0.5] share while
+  crouched (`SwayShare`). The sniper keeps `Sniper.Sway` 0.3 / `.SwayRate` 0.35 and its breath. `WantsKindTick` ticks a
+  player's gun in hand whenever its kind sways (the sniper always did). The sway pitch is read by `UpdateRecoil` as a tiny
+  player pull-down (as with the sniper's).
+- Run: `Tools\runtests.ps1 -Filter Looter.Gunfeel.Steady`, then `Looter.GunIdeas.CurseShots` (Restless ratio) and
+  `Looter.Weapons.NewGuns`. Play-check each kind ADS standing and crouched; fire a Common against a high-accuracy rifle.
+
+## Grenades: the grave-salt jar (GRENADES, 2026-10-27, note 7; grenade classes are for later)
+
+The user: "grenades are too strong to start with, projectiles are too small and lack explosion visuals". Code: `Combat/GraveSaltTuning`
+(`FGraveSaltTuning`: every number a `Looter.Grenade.*` cvar; defaults = the field values; `Current()`), `GraveSaltRules` (functions take
+`const FGraveSaltTuning&`), `GraveSaltBurst` (`FGraveSaltBlast`, `FindTargets`, `Detonate`), `GraveSaltBurstEffects.cpp` (`FindGround`,
+`DrawBlast`), `GraveSaltGrenade`, `PlayerThrowComponent`; model `Art/Models/Throwables/SaltGrenade.py`. Tests
+`Tests/GrenadeBlastTests.cpp` (`Looter.Grenade.Early`, `.Blast`, `.JarSize`), `GrenadeTests.cpp`, `GrenadePlayTests.cpp`.
+- Damage: heart at full strength 900 (1.5 Common rifle magazines of 600), radius 400 cm, core 100, edge share 0.2, Unpaid x1.5,
+  boss cap 8% (`Damage`, `Radius`, `CoreRadius`, `EdgeShare`, `UnpaidScale`, `BossCap`, `KnockShare`). New early ramp: the burst
+  starts at `EarlyShare` [0.45] at player level 1 and grows straight to full at `FullLevel` [12] (x the player's `EnemyScale` as
+  before; `FGraveSaltRules::ThrowerScale`): level 1 heart 405 (0.68 of a Common magazine; was 900), level 7 (Ransom's Rest's top)
+  75%. It kills a Basic spider at the heart, not a pack at its edge.
+- Jars: the first gun brings 1 (`Looter.Grenade.Starting`, was 2; `FThrowRules::MaxGrenades` 3 unchanged). The porch plate still
+  gives its own jars.
+- The jar twice the size: the model x2 (15.7 x 24.1 cm; `SaltGrenade.py` SCALE 2 after the UVs, the socket scaled), the flight ball
+  6 -> 9 cm. `FGraveSaltRules::JarMiddle` 10, `JarRadius` 7.5, `JarFuseTop` 24 feed the hand poses (`FirstPersonHandsThrow.cpp`,
+  `PlayerThrowMotion.cpp`, `HandJarComponent`), the pickup tin (`AGrenadePickup::ModelScale` 0.9 keeps the pickup's old size) and
+  the fuse sparks (bigger). `JarModelScale` (`PlayerThrowRelease.cpp`) can shrink the first-person jar alone if a 15 cm tin covers
+  the cheek pose's view. `Looter.Grenade.JarSize` checks the model's size and fails until `Tools\models.ps1 -Only SaltGrenade`
+  has re-imported it.
+- The explosion (`DrawBlast`, sized to the 4 m radius): `FWeaponFX::SpawnExplosion` (fireball and debris) + a ground shock ring +
+  a salt layer + a ground scorch. Cvars `Look.Scale` [1], `Look.Ring` [7] / `.RingLife` [0.45] / `.RingWidth` [0.07], `Look.Salt` [1],
+  `Look.Scorch` [0.6], `Look.GroundReach` [90], the flash `Look.Flash` [320 cd] / `.FlashRadius` [1100] / `.FlashTime` [0.25]
+  (was 160 / 900 / 0.22). Cost: about 150 pieces + 11 flames a burst (the test caps it under 330), one unshadowed light for 0.25 s;
+  run `Tools\perf.ps1` if a pack fight with grenades looks heavy.
+
 ## Gunfeel: hit reactions (built 2026-10-21)
 
 Code: `Combat/GunfeelReactTuning.h/.cpp` (`FGunfeelReactTuning`: cvars, `Live()`, field values = defaults), `Combat/HitReaction`

@@ -94,6 +94,18 @@ turn in shows a ! at whoever takes it.
 - "Optional:" objectives never hold a step; each done adds 10 silver (at level 1) to the turn-in, Borderlands' way, and
   no experience.
 - Giver tags follow the wave 1 contract: `Speaker_<Name>`, `NoticeBoard_<Name>`, `Artifact_<Name>`.
+- **Mission gates (2026-10-27, the user's note 38: "you can speed run quests and just spam click the use button"):** steps open
+  in order. A step's items, readings, artifacts and fittings appear or work only from their step (`FStoryCondition` DuringMission +
+  FromStep: `TakeWhen` on `AMissionItem`, `UsableWhen` on `AReadableProp`); the key actions (taking a mission item, a step's reading
+  or fitting) need a hold of `Looter.Missions.HoldSeconds` (0.6 s; 0 = taps) instead of a tap. Lore readables stay a tap any time.
+  Gated (steps counted from 0): Last Watch `Item_LampOil` taken from step 1, `Readable_CodeBook` step 4 only; Back Pay
+  `Item_Payroll` seen from step 5 and taken from step 6, `Readable_PayrollBook` read from step 2, `Readable_Barricade` ("Take the
+  tags", the prompt now goes once they are taken) step 4 only; Dead Lift `LiftFitting_Boiler`/`_Pin` step 1 only (1.5 s hold),
+  `ManwayGate` Back Pay from step 5 (1.0 s); Knocking Below `Item_CellarKey` from step 0, `Item_ThaddeusTape` step 4; Old Fare
+  `Item_FennsFare` step 4; Calder's Caches `Item_CacheTag1..3` from step 0, `Readable_DeaconsSlip` seen from step 1 and read from
+  step 2; the gang's strongbox opens only from Calder's Caches step 1. Hold only: `Item_LanternBail`, the dropped `ClampPin` and
+  `GravemotherFang`. Still taps (their own classes step-gate them): `AKeepersLantern`, `APorchPlate` jars, `Headboard_Abel`,
+  Fenn's coffin, `AChapelReliquary`; `ColdRoomDoor` is a plain door behind the key-locked cellar door.
 - Lines marked as today's are the pre-expansion ones, unchanged; the rest are this design's.
 
 ### Main 1: Seven Days (automatic, about 10 minutes)

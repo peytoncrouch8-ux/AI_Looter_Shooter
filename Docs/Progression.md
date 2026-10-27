@@ -96,7 +96,8 @@ areas". A creature's level is **where it stands**:
   Bell-Ringer's raised dead (the fallen's level) keep theirs;
 - its rank's levels on top (Restless and Gravebound +1, Soulfed +2, a boss +1).
 
-The player's own melee and grenade still grow with the player's level (`FLevelRules::EnemyScale` of theirs). Chests'
+The player's own melee and grenade still grow with the player's level (`FLevelRules::EnemyScale` of theirs; the grenade also starts
+weak, 0.45 of its strength at level 1 growing to full by level 12: `Looter.Grenade.EarlyShare`/`.FullLevel`, Pipeline/Gunplay.md). Chests'
 guns still follow the player inside the band (`AChest::GetLootLevel`).
 
 Data: the area's layout, `gameplay.levels` (`band`, `zones`, `kinds`), written into `DA_Area_<Area>` by

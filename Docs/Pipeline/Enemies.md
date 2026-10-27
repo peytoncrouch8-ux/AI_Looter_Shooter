@@ -145,6 +145,39 @@ a whole build cycle).
 - Test levels never tick: tests advance mounds, the furrow, rubble, the clod and the stone's shards themselves
   (`Tests/GravemotherTestWorld.h`); the stone's shards clamp a step to 0.1 s (advance in steps).
 
+### Playtest round 2 (BOSSES, 2026-10-27, notes 21 and 34): harder Gravemother and Abel, the stone gate, rim shrug
+
+The user: both bosses "way too easy", she could be shot from the Sink's rim without aggro, "break the tombstone on her back
+before you can damage her", rim shots do nothing until the player comes down. Code: `Creatures/GravemotherTuning` (cvars
+`Looter.Gravemother.*`), `GravemotherCreatureShrug.cpp`, `GravemotherStoneMark.cpp`, tests `Tests/GravemotherShrugTests.cpp`
+(`Looter.Creatures.Gravemother.Shrug.Stone`, `.Rim`, `.Tuning`).
+- Health x1.6 (`HealthScale`, class default 300 x 1.6) and hits x1.25 (`DamageScale`: bite, Furrow, Gravequake, Clod; class
+  default 12 x 1.25, the Ledger reads the class); cvars move the next spawn (`ApplyTuning`, before her rank). Level 6: about
+  8,060 health (was 5,040); her stone (20% of hers) about 1,610. Stagger crit share 0.07 -> 0.07/1.6 (same crit damage).
+- Stone gate: while the headstone stands nothing hurts her (`ShrugFor` -> `Stone`; `.StoneGuards` 1). The 33% auto-break stays
+  as a fallback (reachable only with the cvar off). An early break still staggers her: now always the fight's first big window.
+  Her total work is about 1.9x the old (stone 0.32 + body 1.6): if it plays long, lower `.HealthScale` or the stone's
+  `StoneSettings.HealthShare` (0.2).
+- Rim shrug: a shooter off her hunting ground (the lair's 36 m / 3 m rise + `.RimSlack` 300 cm so berm jumps and the ramp's
+  foot count; the rim is 12 m up) does her AND her stone no harm (`OffGround`; `.RimShrug` 1). She still turns to the shooter
+  (`AlertTo`: off her ground she goes to the edge and watches).
+- Shrug feedback: no damage, number, flinch or brood call. Her own look (pale glint, 1-3 glancing sparks, grave-mud puff, a
+  crumb) and sound (Impact.Dirt thud + Impact.Ricochet whine, throttled). A shrugged shot draws no wound: she listens to
+  `UBulletSubsystem::OnBulletLanding` and sets/clears the own-look tag on the part struck per shot. Her bar calls out "Break the
+  headstone" / "Out of reach" (3 s apart at most, never over a stagger). After `.ShrugHintAfter` (3) shrugs of a kind, once per
+  Gravemother, Hob says "That headstone's rooted to her back..." / "Waste of lead from up here...".
+- The stone is the target: M_ObjectiveHighlight overlay in `LooterUI::Color::Accent`, 2.5 Hz pulse, `.StoneMarkSeconds` 1.6 s
+  after each stone shrug and `.StoneMarkAtFight` 3 s as the fight starts; Nanite forced off on the slab only while it glows.
+  Crack stages, shatter, shards, stagger unchanged.
+- Abel (`Bosses/AbelRules`, `AbelKeeper`): health x1.6 (40 Unpaid x1.6: about 15,150 at his level 7, 16,800 at 9; `FightHealthScale`,
+  `Looter.Abel.HealthScale`), hits x1.25 (swing and buckshot pellets via AttackDamage; `.DamageScale`). Stagger crit share
+  0.05 -> 0.05/1.6. Every health-gated stretch is 1.6x longer at the same DPS: phase 1's adds (2 per 25 s, at most 4 alive)
+  kept; wind phase's walk-off/pull cycles and barrages kept; the bell phase's back half on the deck (35%) was a bare duel and is
+  now a trickle like phase 1 (2 every 25 s, at most 4 alive) from `BellRiseFrom` 49.5 s (after the second wave; none rise while
+  the bell's waves stand).
+- Not checked (no build when written): the overlay's strength on the slab, the shrug sounds' mix, the ricochet rate on fast
+  guns. The HUD hit marker still flashes on a shrugged hit (PlayerHUDWidget): a "no damage" marker would help.
+
 ## Fight: AI (FIGHT-AI, written 2026-10-21, unbuilt and untested in play)
 
 The user's calls (Saved/Fight/CONTRACT.md): packs surround and take turns, ranged kinds use their range, Borderlands-normal
@@ -187,6 +220,48 @@ difficulty. Code: `Creatures/FightDirectorSubsystem.h/.cpp` + `FightDirectorPlac
   creature's own share; the director is under 0.05 ms, facing while circling 0.3 ms. Measure with `Saved\ArtPause.flag` set
   and nothing else running (a busy PC read 9.1-9.7 ms), and in town: the spawn horde sits in a safe zone.
 - Didn't check (needs play): every feel number; ring slots in the mine and town alleys; the sidle with the spider's gait.
+
+### Fight: the Unpaid's kit (ENEMIES, 2026-10-27, notes 23 and 39)
+
+The user: "Unpaid have terrible ai, need better attacks and targeting sequences"; "mobs are not frightening enough". Code:
+`UnpaidCreatureMoves.cpp` (kit: lead, rake, flank, tells, pace), `UnpaidCreatureRing.cpp` (cinder and rally scream on the ring),
+`UnpaidFightRules` (`UnpaidFightRules`, `FUnpaidKitState`, `EUnpaidMove`, `EUnpaidAction`), `UnpaidFightTuning`
+(`FUnpaidFightTuning`; 42 cvars `Looter.Unpaid.*`, defaults = field values; `UnpaidKitCue` names), tests `Tests/UnpaidFightTests.cpp`
+(`Looter.Creatures.Unpaid.Kit.Tuning`, `.Rules`, `.Moves`, `.Director`). Only plain Unpaid and BP children have the kit
+(`AUnpaidCreature::HasFightKit`); `Looter.Unpaid.Kit 0` = the old behaviour.
+- Lunge leads the target (`LeadShare` 0.7 of their run, at most `LeadMaxSeconds` 0.45 ahead), starts from 5.2 m (was 3.8), flies
+  up to 4.7 m (was 3.2), bends after a sidestep at most 40 deg/s.
+- Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
+  arc, 0.65x damage each, drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
+- Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.
+- Flank: given its turn while in the middle of the player's view (frontness >= 0.75, 4.5-11 m), 50%: phase-fades and returns 3.3 m
+  away at their side/behind (105, 145, 180, 75 deg off their view, its own side first; same ground/room/sight/safe-zone checks as
+  the phase-step, `CanStandAt`); a whisper (`Creature.Unpaid.Flank`) plays at the arrival spot first. Cooldown 7 s.
+- Ring pressure: waiting on the ring 1.2 s+, 4.5-22 m, clear line: a cinder: 0.7 s tell (glow swelling at its chest via
+  `UEnemyProjectileSubsystem::ShowCharge` + `Creature.Unpaid.Cinder`), then a led pellet (1500 cm/s, 16 cm, 0.55x damage, coal
+  colour). One cinder per player per 1.4 s (director), one per Unpaid per ~6 s. A stagger or knock cancels the tell.
+- Rally: 3+ Unpaid on one player, one waiting 2.5 s+ screams (`Creature.Unpaid.Rally`, 0.8 s, stands still, a 14 m ring of its
+  coal's light via `AShriekRing`, no slow); then a 4 s frenzy: that pack may hold 4 melee turns at the player (usual 3) and chases
+  x1.3, coals glowing. One rally per player per 16 s.
+- Howl: the first Unpaid to notice a player howls (`Creature.Unpaid.Howl`, 'Gun' attenuation, about 60 m); once per player per 12 s.
+- Closing: chasing from over 9 m (not waiting on the ring): x1.2 chase.
+- Unchanged: Abel, dead miners, the Bell-Ringer (native subclasses), boss adds (found once a life via
+  `UBossComponent::GetAliveAdds`: Abel's risen keep the old shriek+lunge so his pacing holds). The Gravebound+ slowing shriek stays.
+- Director (`FightDirectorSubsystem`): `OpenFrenzy`/`GetFrenzyLeft`, `TryStartRally`, `TryHowl`, `TryTakeCinder`, `CountPack` (pack
+  tags counted at each look), `SetChaseBoost`/`GetChaseBoost` (forgotten in `ForgetCreature`). `ACreatureBase::GetChaseSpeedNow` and
+  `TickChaseFight` multiply by the creature's boost (1 for all but the Unpaid). Flank and cinder need the director
+  (`Looter.Fight.Director 0` turns them off).
+- Sounds: recipes group `unpaid_kit` (`Art/Sounds/recipes/unpaid_kit.py`): `Creature.Unpaid.Rake`, `.Cinder`, `.Flank`, `.Rally`,
+  `.Howl` (render with `Tools\sounds.ps1`, then `build_sound_bank.py`; the cue names live in `UnpaidKitCue`, not yet in
+  `Audio/LooterSoundCues.h`: move them there when next in that file).
+- Cost: per Unpaid a frame a few cvar reads, the director's maps, one LOS trace per ring look that passes the other checks (every
+  0.3-0.5 s), a flank's spot search once a turn (7 spots x 3 queries at most); cinders are pellets (no actors); the rally ring is
+  one `AShriekRing` actor per 16 s per player. Perf check to run: `Tools\perf.ps1 -Label "Unpaid kit" -Exec "Looter.Quality Medium"`
+  with `Looter.Perf.Horde Unpaid 8 Basic 0 -1400 90` against 10 spiders' 7.5-7.7 ms.
+- Not checked in play: every number (frenzy 4 turns x DamageScale 1.8, cinder 0.55x, rake 2 x 0.65x are the dangerous ones, all
+  cvars). `Looter.Creatures.Anim.UnpaidArms` places the player 2.5 m off, so the rake may start there; other tests that tick an
+  Unpaid 3.8-5.2 m from a player may see an attack sooner (lunge starts 5.2 m). `UnpaidCreature.h` 558, `.cpp` 514 and
+  `UnpaidCreatureArms.cpp` 515 lines: over the ~500 rule, split next time.
 
 ## Fight: Layout (FIGHT-LAYOUT, written 2026-10-21, unbuilt and untested in play)
 

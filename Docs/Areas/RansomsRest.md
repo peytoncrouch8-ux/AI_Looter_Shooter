@@ -371,7 +371,7 @@ The user's pick (2026-10-22): replayable hard fights on the Rest before new regi
 | Id | Name | Where | Opens | Kinds | Levels |
 |---|---|---|---|---|---|
 | Scatter | the Scatter | round the Scatter's boulders (-5160, 840), radius 13 m | after Main 3 | Unpaid | 2-3 |
-| RansomsPoint | Ransom's Point | (new 2026-10-27; spots in `build_area_bounties.py`) | after Main 3 | Spider | 1-2 |
+| RansomsPoint | Ransom's Point | (-8100, -8500) (new 2026-10-27; moved back off the lip after a player fell: hunting ground a polygon at least 5.9 m inside it; spots in `build_area_bounties.py`) | after Main 3 | Spider | 1-2 |
 | QuarryMouth | the quarry's mouth | (new 2026-10-27; spots in `build_area_bounties.py`) | after Main 3, before Dead Lift | Spider, Spitter | 5-6 |
 | WhitlockYard | Whitlock's barn yard | inside the barn yard fence (-6850, 3500) | after Side 2 | Unpaid | 3-4 |
 | Webwood | the Webwood | the webwood band, round the player, dropping | after Main 4 and SetPiece.Webwood | Spider, Spitter | 5-6 |
@@ -445,7 +445,11 @@ Today's lines (word for word):
 
 - **The Unpaid** (Basic), new: `AUnpaidCreature`, its own small rig. Town gate, chapel yard, boot hill, north road, Whitlock
   barn, boss adds. 160 HP and 8 damage at level 1. Floats, no legs: no walk cycle, no navmesh. Its dull red coal is the crit
-  spot, tested by how close the shot line passes, like the slime's core. Lunge and shriek. Stuck or far behind, it
+  spot, tested by how close the shot line passes, like the slime's core. Lunge and shriek; since 2026-10-27 a fighting kit (the
+  user's "terrible AI", "not frightening enough"): the lunge leads the target, a two-swipe rake up close, flankers that
+  phase in at the player's side or back, cinders thrown from the ring, a rally scream that sets a pack into a 4 s frenzy, a
+  howl on first notice, all telegraphed by the coal's flare (Pipeline/Enemies.md "Fight: the Unpaid's kit"; boss adds keep the
+  old shriek and lunge). Stuck or far behind, it
   phase-steps: fades out and reappears 3–5 m closer. Three clothing tints. Ledger section: Enemies.
 - **Restless Unpaid** (Rare), rank variant: one in most scripted fights, plus 8% of spawns. Blue tag and coal, ×2 health
   (the tiers, 2026-10-20: `UCreatureRankSettings`; Hallowed ×3.5, Ethereal ×4), faster lunge.
@@ -473,13 +477,20 @@ Today's lines (word for word):
   Hangs back behind its pack and tolls every 7 s (a clear tell): the toll raises one Unpaid fallen lately near it, or
   steadies its pack. The bell is a crit spot; a shot to it in the tell loses the toll. Gravebound's cracked bell slows the player.
 - **The Gravemother** (Legendary): spider subclass at 1.8× size (SK_Gravemother, Spider.py's rig in a mud-grey hide, once
-  imported; until then SK_Spider in the pale hide); the den is its own mesh. The Sink's den. Orange tag, ×12 health (about
-  5,000 at her set level 6). No climbing, no leaps. Its own Ledger page. Her fight is **Barrow** (the user's pick
+  imported; until then SK_Spider in the pale hide); the den is its own mesh. The Sink's den. Orange tag, ×12 health ×1.6 (the user's
+  2026-10-27 playtest call; about 8,060 at her set level 6, was 5,040) and hits ×1.25 (`Looter.Gravemother.HealthScale`,
+  `.DamageScale`). No climbing, no leaps. Its own Ledger page. Her fight is **Barrow** (the user's pick
   2026-10-15, built 2026-10-20; sheets `Saved/Concepts/Gravemother/Barrow_*.png`):
   - **Headstone** (the user's pick over plain armour): a granite headstone root-bound to her abdomen, its own health (20% of
-    hers), intact / cracked at 66% of it / shattered at 33%; shots on it hurt the stone, not her (sparks, chips). Broken it
-    cracks off (her long stagger, 2.5 s, not her last third); at her 33% it cracks off by itself (no stagger). A thin granite
-    bar under her boss bar while it stands.
+    hers, about 1,610 at level 6), intact / cracked at 66% of it / shattered at 33%; shots on it hurt the stone, not her (sparks,
+    chips). **The stone gate (2026-10-27, the user: "you need to break the tombstone on her back before you can damage her"):**
+    while it stands nothing hurts her; a shot on her body shrugs off (glancing sparks and whine, "Break the headstone" on her bar,
+    the stone glows as the target). Broken it cracks off (her long stagger, 2.5 s, always the fight's first big window); the
+    auto-break at her 33% (no stagger) is only a fallback when `Looter.Gravemother.StoneGuards` is 0. A thin granite bar under her
+    boss bar while it stands.
+  - **Rim shots do nothing (2026-10-27, the user):** a shooter off her hunting ground (the Sink's rim, 12 m up) harms neither her
+    nor her stone: her hide shrugs it off ("Out of reach"); she walks to the edge and watches. Hob after 3 such shots: the Sink is
+    where she feels it.
   - **Crits:** her head always; her abdomen's soft rear (under the stone's back edge) while the stone stands; all of her
     abdomen once it's off.
   - **Furrow** (was the charge): 5-16 m, a 2 s tell (head low, front legs in the floor; the ground heaves and splits along
@@ -535,7 +546,9 @@ with the 3 keeper's lantern posts. The sun sets behind him. A fog wall seals the
 **Numbers.**
 - Level: set at 7 (a 6 and the Boss rank's +1), whatever the player's level (2026-10-12). The story's hardest fight, over his
   adds (5–6) and the Gravemother (6).
-- Health: about 40× an Unpaid of his level, about 9,500 at 7. Tuned to a 3–4 minute fight with same-level Uncommon guns.
+- Health: about 40× an Unpaid of his level × 1.6 (the user's 2026-10-27 playtest call: "way too easy"), about 15,150 at 7 and 16,800
+  at 9 (`Looter.Abel.HealthScale`); his hits ×1.25 (swing, buckshot pellets; `.DamageScale`). Was about 9,500 at 7, tuned to a 3–4
+  minute fight with same-level Uncommon guns; now longer on purpose.
 - Crit spot: his coal heart, gold like every boss's (the Boss rank's color, clear of the legendary orange), at the standard
   1.5×. His lantern arm covers it while he fights; open only when he grieves.
 
@@ -547,7 +560,9 @@ with the 3 keeper's lantern posts. The sun sets behind him. A fog wall seals the
 
 **Phase 2, “The bell” (60–25%).**
 - He drifts out into the fog over the canyon and can't be targeted.
-- The chapel bell tolls across the valley, and 8 Unpaid rise through the deck in two waves.
+- The chapel bell tolls across the valley, and 8 Unpaid rise through the deck in two waves. From 49.5 s on (after the second wave)
+  two more rise every 25 s, at most 4 alive, so the back half on the deck is no bare duel (2026-10-27; none rise while the bell's
+  waves stand).
 - The three keeper's lanterns go dark. Relighting them (hold Interact for 1.5 s each, under pressure) drags him back.
 
 **Phase 3, “Let me go” (25–0%).**

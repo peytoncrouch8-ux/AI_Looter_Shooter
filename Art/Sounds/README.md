@@ -56,6 +56,8 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
   miner's and the Bell-Ringer's notice; imports the kinds' helpers from creatures, miners and bells).
 - brass (spent casings by surface: stone, wood, metal, dirt, water, a shotgun hull; and the fly-bys: a bullet's whiz-crack
   past the ear, a venom glob's hiss).
+- unpaid_kit (2026-10-27, the Unpaid's fighting kit: `Creature.Unpaid.Rake`, `.Cinder`, `.Flank`, `.Rally`, `.Howl`; 16 takes; names
+  in `UnpaidKitCue`, `Creatures/UnpaidFightTuning.h`; the Howl uses the 'Gun' attenuation, about 60 m).
 
 ## Render
 

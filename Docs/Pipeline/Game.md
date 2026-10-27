@@ -90,9 +90,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     `FSavedMapWorld::FoundChests` removed; old saves load, the property is skipped). Unused leftovers: `AChest::bOnMap`,
     `ShowsOnMap`. "More distinguished locations" for chests is not done.
   - Loot piles (note 41): guns within `Looter.LootLabels.PileRadius` [300 cm] show only `.PileShown` [4] names in full (looked-at
-    first, then rarer, the one shown before, nearer); every Legendary always shows; the rest fold to a 12 px dot in their
-    rarity colour on the gun (`UWeaponLabelWidget::SetFolded`); looking at a dot opens its card. Wards never fold. 0 = old way.
-    `LootLabelLayout::PickShown`. Tests `Looter.Loot.Labels.Layout/.Pile/.Fold`. Dot size and the 4 not judged by eye yet.
+    first, then rarer, the one shown before, nearer); every Legendary always shows; the rest fold to a dot on the gun
+    (`UWeaponLabelWidget::SetFolded`; round 2: a dark halo of 26 units under a rarity-coloured core of 18 with a light 2-unit rim,
+    since the old 12-unit tinted marker was lost in a legendary beam's glow); looking at a dot opens its card. Wards never fold.
+    0 = old way. `LootLabelLayout::PickShown`. Tests `Looter.Loot.Labels.Layout/.Pile/.Fold` (the Fold test's room 28, dot >= 20).
+    Dot size and the 4 not judged by eye yet.
   - General store REFILL ALL AMMO (note 13): first row under BUY (`VendorTrade::RefillAllAmmo`, `TallyRefill`, `RefillPrice`):
     every ammo type to its most for one payment, all or nothing; price per type = whole boxes x box price + the last part box
     (`AmmoPrice`), equal to clicking Buy until full. The row shows "+N rounds across K kinds" and the price; FULL when full; red
@@ -102,13 +104,47 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     `UScrollBox` in a `UWidgetSwitcher`), panel fixed 940 x 840, and a 272 px description column right of the page (row name, what
     it does, a dim range/default line; follows focus under keys and pad, the pointer under the mouse; words in
     `SettingsMenuHelp.cpp`, written from the apply code and `Docs/Performance.md`'s preset costs). "Reset all" moved to Controls
-    ("Reset all keys"). Hover uses `IsHovered()` on each row's `MakeRow` overlay: check in play. Tests `Looter.UI.SettingsMenu.Help/.Tabs`.
+    ("Reset all keys"). Hover uses `IsHovered()` on each row's `MakeRow` overlay. Round 2: the slider and choices row under the
+    mouse wears the keys' focus look (steady, no breath; `AdvanceHoverLook` in `SettingsMenuTabs.cpp`) and takes the Nav focus (the
+    next key press starts from it; keys taking over keep the look); buttons keep their own hover look; no automated test (needs a
+    pointer). Tests `Looter.UI.SettingsMenu.Help/.Tabs`.
   - Vigil stones (note 36): each stone counts `CallBackSeconds` (5 min of play) from its own record's `DefeatedAt`; a Save & Quit
     readies none. This reverses the user's 2026-10-12 "or at once after a Save & Quit". `SessionLoads` stays in the save only.
   - Back Pay's tags open no reading card (note 31: the Barricade readable's text is empty; its sound, caption and step still
-    fire; the chalk line is in Ellis's caption). Main 4 step 5 says "Examine Saint Ada's smashed Reliquary, where her light
+    fire; the chalk line is in Ellis's caption); round 2: its "Take the tags" prompt now goes once they are taken (a hold, step 4
+    only; see Mission gates below). Main 4 step 5 says "Examine Saint Ada's smashed Reliquary, where her light
     burned." and Aldana's bell line says what it held (note 18). Amos's house has its wanted poster (note 9,
     `storyfix_1.json` posterAmos; position a guess, check the build log); Side 1 now has 8 posters, needs 4.
+- Playtest round 2 (2026-10-27; contract `Docs/Work/2026-10-27-Playtest/CONTRACT2.md`), the game and UI parts. Bosses, the Unpaid's
+  kit: `Enemies.md`; grenades and recoil: `Gunplay.md`.
+  - Mission gates (note 38): steps open in order. `Missions/MissionGates` (`HoldSeconds` = `Looter.Missions.HoldSeconds` [0.6 s, 0 =
+    taps like before], `IsMet`, `AnyMet`, `SetUse` sets a key action's hold or tap and its prompt). `AMissionItem::TakeWhen`
+    (an `FStoryCondition`; empty = whenever shown; a dropped one ignores it): never focused before its step, always a hold,
+    `Take()` refuses early. `AReadableProp::UsableWhen` (any of the conditions; empty = always) and `bHoldToRead`: seen but never
+    focused outside its step. Lore stays a tap any time. The level scripts pass them: mountain `ITEM_GATES`/`READ_GATES` with
+    `gate_item`/`gate_reading`, valley `gate()`, `readable(usable_when=)`, `item(take_when=)` (steps found in the mission data; a
+    design fallback is logged); Python names `take_when`, `usable_when`, `hold_to_read` (an old module warns and places them
+    ungated). Every gated prop is listed in `RansomsRest_Expansion.md` §3 "Mission gates". Run `build_area.py RansomsRest gameplay`
+    (the mountain script alone drops the Foreman's vigil stone). The gang's strongbox (`build_area_caches.py`) has `open_when` =
+    Calder's Caches from step 1: it counts from the world as a lasting interact, so opening it early would skip the step. Still
+    taps (step-gated by their own classes; could call `SetUse(Options, Words, true)`): `AKeepersLantern`, `APorchPlate` jars,
+    `Headboard_Abel`, Fenn's coffin, `AChapelReliquary`. Tests `Looter.Missions.Gates.Item/.Readable`, `.ItemPrompt`.
+  - Map place names declutter (DEMO's find: WIDOW'S PINES and CHAPEL OF SAINT ADA overlapped): `MapPlaces::Declutter` (majors
+    first, then minors; a name that would overlap slides up or down by its own height, up to 3 steps either way, else is left
+    off), `NameSize` (0.93 x font size per letter, measured off one screenshot: a wrong guess only moves a name a line or hides it
+    early; check the map at zoom 1.1 and 1.8), `MapWidgetDraw.cpp` `LayoutPlaces` (gap 4 page units). Test
+    `Looter.UI.Map.Places.Declutter`.
+  - The legendary name pop drawn twice (DEMO's shots `leg_burst1-3`; not reproduced, cause read from the code): (1) `SetPop(0)`
+    ran on the frame the pooled widget was taken while its screen spot was still the last frame's, so it drew there and over the
+    gun: the pop now stays at opacity 0 until `NamePopSettle` (0.05 s) of life; (2) the gun's own label carried the same name
+    in the pile: it is held at opacity 0 while the pop shows (unless looked at) and restored when the pop ends, the gun is taken
+    or `ClearShows` runs. If two names still show in the next play-check, a second `StartShows` for another gun of the same name is
+    the cause. Code `Loot/LootFanfareShows.cpp`.
+  - Ransom's Point bounty arena moved to (-8100, -8500) (a player fell ~14 m off it at (-8682,-7016,622)): hunting ground a
+    polygon [[-6800,-10100],[-6800,-7750],[-8300,-7750],[-8950,-8350],[-8950,-10100]], at least 5.9 m inside the lip; every spot
+    6.6 m+ from the lip, 2.2 m+ from the nest ring, 1.7 m+ from the two rocks, 7 m+ from the lookout (checked with node against
+    the plateau polygon). The Depot roost's yaw 135 -> 180 (`polish_1.json`; it was 51 deg off the board; holds only while the
+    roost builder doesn't move the mast).
 - Lost Loot (the user's call, 2026-10-13, so ground guns don't pile up and cost frame time): a gun on the ground lasts 5 minutes
   (not while the player stands within 6 m), then goes to the depot's LOST PROPERTY window. Leaving a map or quitting sends every
   ground gun there; a load never puts one back. 30 spaces, +10 per upgrade (five, bought with silver); the oldest unnamed gun goes
