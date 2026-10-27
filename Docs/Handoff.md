@@ -37,7 +37,7 @@ all play-checked, fixes in): per-tool melee sounds/sparks/steam + 3P tool; boss 
 underwater tint/fog/mix/bubbles, stroke, breath carries you up, no shooting, creatures stay ashore); grenade kinds (35% special from
 level 2, a special swaps your kind and keeps the count). Round 3 nits fixed too. Lesson: a gameplay/swim pass needs the level
 open ~30 s first; render every new recipe's cues. Remaining small: spade/pick sparks tuning, chest logs still say grave-salt
-grenade, road ruts faint, a smeared rock texture, Unreal logo (browser policy check failing). Test build `Builds\Playtest\2026-10-27_1711` (1.29 GB, smoke menu + RR PASS) has rounds 1-4; the user hasn't played it yet. (A test build with rounds 1-4
+grenade, road ruts faint, a smeared rock texture, Unreal logo (browser policy check failing). Test build `Builds\Playtest\2026-10-27_1818` (smoke PASS) has rounds 1-4 + the Ledger-step fix (inventory pause hid it from missions/hints: HUD WasPageShownLastVisit) + melee (gun hidden, tool in view, smear, hit-stop 65/85 ms); round 5 (CONTRACT5: boss attack rules, Niagara Cinder trial) in progress; AR concept views for Tripo being drawn (Art/Concepts/Weapons/AR; Tripo: free-plan rights contested, paid plan for shipped parts). Earlier build 2026-10-27_1711 had rounds 1-4; the user hasn't played it yet. (A test build with rounds 1-4
 was packaging at this writing (newest `Builds\Playtest\`).
 Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where;
 asked 2026-10-27, no answer yet); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
