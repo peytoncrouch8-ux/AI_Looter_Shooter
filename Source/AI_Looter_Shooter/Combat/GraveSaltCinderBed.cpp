@@ -13,6 +13,7 @@
 #include "Elements/ElementTuning.h"
 #include "Elements/LooterElement.h"
 #include "Weapons/DeathSplats.h"
+#include "Weapons/NiagaraFX.h"
 #include "Weapons/VfxSubsystem.h"
 #include "Weapons/VfxTuning.h"
 #include "Weapons/VfxTypes.h"
@@ -28,6 +29,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "NiagaraComponent.h"
 
 namespace
 {
@@ -130,6 +132,8 @@ void AGraveSaltCinderBed::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	LooterSound::Stop(Crackle.Get(), 0.3f);
 	Crackle.Reset();
+	// Gone early (the level closing, a test's end): the Niagara fire burns out on its own rather than hanging there.
+	StopNiagara();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -148,6 +152,33 @@ float AGraveSaltCinderBed::GetBossDealt(const AActor* Boss) const
 {
 	const float* Dealt = BossDealt.Find(TWeakObjectPtr<AActor>(const_cast<AActor*>(Boss)));
 	return Dealt ? *Dealt : 0.f;
+}
+
+bool AGraveSaltCinderBed::IsDrawnByNiagara() const
+{
+	return bDrawnByNiagara;
+}
+
+void AGraveSaltCinderBed::StartNiagara()
+{
+	if (bNiagaraTried)
+	{
+		return;
+	}
+	// Decided once, as it starts: a cvar flipped mid-burn leaves this bed as it began (both looks never draw at once).
+	bNiagaraTried = true;
+	NiagaraFire = NiagaraFX::SpawnAt(GetWorld(), ENiagaraFX::CinderBed, GetActorLocation(), Up, Radius / NiagaraFX::BedDesignRadius);
+	bDrawnByNiagara = NiagaraFire.IsValid();
+}
+
+void AGraveSaltCinderBed::StopNiagara()
+{
+	if (UNiagaraComponent* Fire = NiagaraFire.Get())
+	{
+		// Its emitters stop spawning and let what's alive finish (EmitterState "Complete"); it destroys itself after.
+		Fire->Deactivate();
+	}
+	NiagaraFire.Reset();
 }
 
 void AGraveSaltCinderBed::Step(float DeltaSeconds)
@@ -254,6 +285,13 @@ void AGraveSaltCinderBed::DrawFire(float DeltaSeconds, float Strength)
 {
 	UWorld* World = GetWorld();
 	UBulletSubsystem* Bullets = World ? World->GetSubsystem<UBulletSubsystem>() : nullptr;
+	// The Niagara fire, when it's the look (Looter.Fx.Niagara): started on the first look, dying down with the bed's last
+	// second (its flames stop coming; those alive and their smoke finish after the bed is gone).
+	StartNiagara();
+	if (Strength < 1.f)
+	{
+		StopNiagara();
+	}
 	if (!Bullets || Strength <= 0.f)
 	{
 		Glow->SetIntensity(0.f);
@@ -267,8 +305,16 @@ void AGraveSaltCinderBed::DrawFire(float DeltaSeconds, float Strength)
 	const FVector Other = FVector::CrossProduct(Up, Across).GetSafeNormal();
 	const float Size = Radius / 260.f;
 
-	// Its edge: a ring of ember light lying on the ground, so the player reads at a glance how far it burns.
+	// Its edge: a ring of ember light lying on the ground, so the player reads at a glance how far it burns (in both looks:
+	// it's the rule, not the fire).
 	Effects.AddGroundRing(Ground + Up * EdgeLift, Radius, EdgeWidth, EdgeColor, EdgeGlow * Strength * Vfx.Glow);
+	// A dim warm flicker on what's round it (both looks: Niagara's light renderer would add a light per system).
+	const float Flicker = 0.75f + 0.25f * FMath::Sin(Age * 23.f) * FMath::Sin(Age * 7.3f + 1.f);
+	Glow->SetIntensity(GlowCandelas * Strength * Flicker);
+	if (bDrawnByNiagara)
+	{
+		return;
+	}
 
 	// Flames licking up off it, spread evenly over the bed (the root of a random share, so the middle isn't crowded).
 	FlamesOwed += DeltaSeconds * FlamesPerSecond * Size * Size * Strength;
@@ -298,7 +344,4 @@ void AGraveSaltCinderBed::DrawFire(float DeltaSeconds, float Strength)
 		EmbersOwed -= 1.f;
 		Effects.SpawnElementAura(ELooterElement::Ember, Ground + Up * 30.f, Radius * 0.8f, 30.f, EmberPieces, 0.6f);
 	}
-	// A dim warm flicker on what's round it.
-	const float Flicker = 0.75f + 0.25f * FMath::Sin(Age * 23.f) * FMath::Sin(Age * 7.3f + 1.f);
-	Glow->SetIntensity(GlowCandelas * Strength * Flicker);
 }

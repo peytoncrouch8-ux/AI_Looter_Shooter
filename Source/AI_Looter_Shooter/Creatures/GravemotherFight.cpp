@@ -148,6 +148,25 @@ namespace GravemotherFight
 	{
 		return Age <= 0.f ? 0.f : FMath::InterpEaseOut(0.f, 1.f, FMath::Clamp(Age / FMath::Max(RiseSeconds, 0.01f), 0.f, 1.f), 2.f);
 	}
+
+	FName AttackId(EGravemotherMove Move)
+	{
+		static const FName Bite(TEXT("Bite"));
+		static const FName Furrow(TEXT("Furrow"));
+		static const FName Roar(TEXT("Roar"));
+		static const FName Quake(TEXT("Quake"));
+		static const FName Clod(TEXT("Clod"));
+		static const FName Stomp(TEXT("Stomp"));
+		switch (Move)
+		{
+		case EGravemotherMove::Furrow: return Furrow;
+		case EGravemotherMove::Roar: return Roar;
+		case EGravemotherMove::Quake: return Quake;
+		case EGravemotherMove::Clod: return Clod;
+		case EGravemotherMove::Stomp: return Stomp;
+		default: return Bite;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

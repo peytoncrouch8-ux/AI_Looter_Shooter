@@ -6,6 +6,7 @@
 #include "Bosses/AbelKeeper.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
+#include "Bosses/BossAttackRules.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/EnemyProjectileSubsystem.h"
 #include "Combat/HealthComponent.h"
@@ -262,9 +263,15 @@ bool AAbelKeeper::StartFlare()
 	{
 		return false;
 	}
+	// The bosses' shared rules: a breath after his last attack, and never a third buckshot in a row (a lunge between, or none).
+	if (!BossAttackRules::IsGapOpen(Boss->AttackLog) || BossAttackRules::IsBlocked(AbelRules::BuckshotAttack(), Boss->AttackLog))
+	{
+		return false;
+	}
 	// The tell: his ghost light flares where he raises it, a full second before the shot.
 	BeginMove(EAbelMove::Flare);
 	HoldStill(false);
+	Boss->AttackLog.NoteStarted(AbelRules::BuckshotAttack());
 	if (UEnemyProjectileSubsystem* Shots = GetWorld() ? GetWorld()->GetSubsystem<UEnemyProjectileSubsystem>() : nullptr)
 	{
 		Shots->ShowCharge(this, AbelPoses::FlareGlobe() - FVector(0.0, 0.0, ModelOverMiddle), FlareSeconds, FlareGlow, FlareColor);

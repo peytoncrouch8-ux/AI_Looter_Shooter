@@ -35,6 +35,11 @@ enum class EGravemotherMove : uint8
 	Quake,
 	/** The Grave Clod: front legs dig in and tear a clod of grave earth overhead (the tell), then she lobs it. */
 	Clod,
+	/**
+	 * Rearing without a scream and slamming her forelegs down on whoever crowds her: the shared rules' run-breaker (round 5),
+	 * made when two bites in a row leave her nothing else in reach (her quake, from her second phase, when it's ready).
+	 */
+	Stomp,
 };
 
 /** Her headstone's state, by its share of health (GravemotherFight::StoneStateFor). */

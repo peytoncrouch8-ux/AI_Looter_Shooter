@@ -97,6 +97,8 @@ void AForemanCreature::LobFuse()
 	const float Flight = FuseFlightSeconds * FMath::Clamp(Meters * FlightPerMeter, ShortestFlight, LongestFlight);
 	Stick->Lob(Release, Aim, Flight);
 	++FusesThrown;
+	// Kept while it's out: its landing and burst are his hurt zones (Looter.Boss.HurtZones).
+	ThrownSticks.Add(Stick);
 	if (FusesThrown == 1 || (SinceFuseLine > FuseLineRest && FMath::FRand() < FuseLineChance))
 	{
 		Say(ForemanFight::FuseLine());

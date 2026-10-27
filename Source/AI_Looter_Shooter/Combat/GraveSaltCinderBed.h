@@ -6,6 +6,7 @@
 
 class APawn;
 class UAudioComponent;
+class UNiagaraComponent;
 class UPointLightComponent;
 
 /**
@@ -18,7 +19,9 @@ class UPointLightComponent;
  *
  * Seen and heard: a ring of ember light round its edge (where it burns, read at a glance), flames licking up off it,
  * embers rising, the bodies in it catching, a dim flickering light and a crackling loop; all of it dying down over its
- * last second. Drawn in code through FWeaponFX (no particle assets). Nothing collides with it.
+ * last second. Drawn in code through FWeaponFX, or (round 5, Looter.Fx.Niagara 1 once build_niagara_fx.py has made it)
+ * its flames, embers, smoke and the heat on the ground by NS_CinderBed (NiagaraFX); the edge ring, the light and the
+ * bodies catching stay the code's either way. Nothing collides with it.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AGraveSaltCinderBed : public AActor
@@ -47,6 +50,8 @@ public:
 	FVector GetUp() const { return Up; }
 	/** What it has dealt a boss so far (its cap's tally); 0 for anything else. */
 	float GetBossDealt(const AActor* Boss) const;
+	/** True while its fire is NS_CinderBed's (Looter.Fx.Niagara, the system built), not the code's flames. */
+	bool IsDrawnByNiagara() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -58,6 +63,10 @@ private:
 	void DrawFire(float DeltaSeconds, float Strength);
 	/** 1 while it burns, falling over its last second to 0. */
 	float GetStrength() const;
+	/** The Niagara fire (once, on its first look): started when Looter.Fx.Niagara is on and the system is built. */
+	void StartNiagara();
+	/** Lets the Niagara fire die down: no new flames, the last ones and their smoke finish on their own. */
+	void StopNiagara();
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<USceneComponent> Root;
@@ -68,6 +77,11 @@ private:
 
 	TWeakObjectPtr<APawn> Thrower;
 	TWeakObjectPtr<UAudioComponent> Crackle;
+	/** NS_CinderBed, spawned beside it (not attached: its smoke outlives the bed) and destroying itself once out. */
+	TWeakObjectPtr<UNiagaraComponent> NiagaraFire;
+	bool bNiagaraTried = false;
+	/** Its fire is the Niagara one for the whole of its life (dying down included): the code's flames stay off. */
+	bool bDrawnByNiagara = false;
 	/** What it has dealt each boss, held to its cap. */
 	TMap<TWeakObjectPtr<AActor>, float> BossDealt;
 

@@ -65,6 +65,10 @@ public:
 	FVector GetLanding() const { return Landing; }
 	bool HitPlayer() const { return bHitPlayer; }
 
+	/** On the floor: seconds left of its fuse; burst: seconds since (its thrower's hurt zones read them). */
+	float GetFuseLeft() const { return FuseLeft; }
+	float GetBurstAge() const { return BurstAge; }
+
 	/** Its fuse's end (world): the sparks' spot. */
 	FVector GetFuseEnd() const;
 

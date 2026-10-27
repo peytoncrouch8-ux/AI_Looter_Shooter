@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Bosses/BossAttackRules.h"
 #include "Bosses/BossTypes.h"
 #include "Engine/TimerHandle.h"
 #include "BossComponent.generated.h"
@@ -21,6 +22,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossCustomEvent, FName /*EventName*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossUntargetableChanged, bool /*bUntargetable*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossStaggered, bool /*bStaggered*/);
 DECLARE_DELEGATE_RetVal(bool, FBossCanStagger);
+DECLARE_DELEGATE_OneParam(FBossGatherHurtZones, TArray<FBossHurtZone>& /*Out*/);
 
 /**
  * Makes a creature a boss: put it on any ACreatureBase (a default subobject of a boss class, or added in play as the test
@@ -218,6 +220,14 @@ public:
 
 	/** Its creature's say on whether a stagger may start now (bound by a boss class; unbound: yes). */
 	FBossCanStagger CanStagger;
+
+	// --- Its attacks under the shared rules (BossAttackRules.h) ---
+
+	/** Its creature's attacks as the rules see them (its last, its run of one, its gap, its idle time); new each fight. */
+	FBossAttackLog AttackLog;
+
+	/** Its creature's hurt zones as they stand this frame (bound by a boss class): what Looter.Boss.HurtZones 1 draws. */
+	FBossGatherHurtZones GatherHurtZones;
 
 	/** Its death's slow beat is running (the world runs at the slowest any dying boss asks for; EndPlay lets its claim go). */
 	bool IsDeathSlowOn() const { return bDeathSlowOn; }

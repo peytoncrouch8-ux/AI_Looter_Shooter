@@ -173,6 +173,8 @@ void UBossComponent::StartFight(APawn* Player)
 	Phase = INDEX_NONE;
 	PhaseTime = 0.f;
 	Scheduled.Reset();
+	// Its attacks' memory starts with the fight: no run carried over, no gap held from before it.
+	AttackLog.Reset();
 	BindPlayer(Fighter);
 	// Its own tag steps aside for the bar at the top of the screen.
 	bSavedShowsTag = Creature->bShowsHealthTag;
@@ -255,6 +257,7 @@ void UBossComponent::ClearFight(bool bFightWon, bool bKeepAdds)
 	Scheduled.Reset();
 	FightPlayer.Reset();
 	NoTargetTime = 0.f;
+	AttackLog.Reset();
 	if (ACreatureBase* Creature = GetCreature())
 	{
 		Creature->bShowsHealthTag = bSavedShowsTag;

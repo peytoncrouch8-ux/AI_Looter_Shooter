@@ -21,6 +21,7 @@ void AForemanCreature::ClearFightState(bool bMendProps)
 	DropHeldStick(/*bPutOut*/ true);
 	EndDark(/*bAtOnce*/ true);
 	bIntroWanted = false;
+	bStampWanted = false;
 	bStaggeredNow = false;
 	Move = EForemanMove::Swing;
 	SinceRoofStrike = -1.f;

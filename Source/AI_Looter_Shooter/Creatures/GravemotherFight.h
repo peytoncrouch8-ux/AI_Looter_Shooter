@@ -73,4 +73,7 @@ namespace GravemotherFight
 
 	/** A berm's rise RiseSeconds long, Age seconds in: 0 under the ground to 1 standing, eased. */
 	AI_LOOTER_SHOOTER_API float BermRise(float Age, float RiseSeconds);
+
+	/** Her move's name in her boss's attack log (BossAttackRules: "Bite", "Furrow", "Roar", "Quake", "Clod", "Stomp"). */
+	AI_LOOTER_SHOOTER_API FName AttackId(EGravemotherMove Move);
 }

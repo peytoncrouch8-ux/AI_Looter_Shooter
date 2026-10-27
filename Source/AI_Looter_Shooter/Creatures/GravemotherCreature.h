@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Bosses/BossAttackRules.h"
 #include "Creatures/CreatureBodyHulls.h"
 #include "Creatures/GravemotherFight.h"
 #include "Creatures/GravemotherTypes.h"
@@ -205,6 +206,16 @@ public:
 	/** Whether a player at Where would be caught by her quake's burst (on her level, inside its ring). */
 	bool IsInQuake(const FVector& Where) const;
 
+	// --- Her attacks under the bosses' shared rules (GravemotherCreatureRules.cpp; Bosses/BossAttackRules.h) ---
+
+	/** The move she'd start now, in her own order, skipping one the rules forbid (a third in a row); false: none she may. */
+	bool ChooseMove(EGravemotherMove& OutMove) const;
+	/** Where her target must be for Move to start (its reach and facing, at her size). */
+	FBossAttackSpec SpecFor(EGravemotherMove Move) const;
+	/** Her hurt zones as they stand now (her boss's GatherHurtZones; Looter.Boss.HurtZones 1 draws them). */
+	void GatherHurtZones(TArray<FBossHurtZone>& Out) const;
+	/** Her stomp is her next attack (the rules break a run of bites with it). */
+	bool IsStompWanted() const { return bStompWanted; }
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UBossComponent> Boss;
 
@@ -238,6 +249,19 @@ public:
 	/** Its burst hits this many times as hard as her bite, damage and shove. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "0"))
 	float QuakeStrength = 1.5f;
+
+	/**
+	 * Her stomp (the run-breaker): rearing this long (longer than a bite's 0.55: a new tell to read), then her forelegs slam
+	 * down this far round the spot in front of her (cm at a spider's size), as hard as a bite this many times; then up again.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Stomp", meta = (ClampMin = "0.2", Units = "s"))
+	float StompWindup = 0.8f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Stomp", meta = (ClampMin = "0.1", Units = "s"))
+	float StompRecovery = 0.7f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Stomp", meta = (ClampMin = "50", Units = "cm"))
+	float StompRadius = 170.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Stomp", meta = (ClampMin = "0"))
+	float StompStrength = 1.2f;
 
 protected:
 	virtual void BeginPlay() override;
@@ -327,6 +351,15 @@ private:
 	/** Her bar's thin stone bar, as the stone stands. */
 	void UpdateStoneBar();
 
+	// --- The shared rules (GravemotherCreatureRules.cpp) ---
+	/** An attack of hers is under way: its frame, a furrow's heave, plough and rise, a clod in her grip. */
+	bool IsBusyWithAttack() const;
+	/** Her log's clocks; a run of bites broken (the stomp, or the quake), a long idle stretch ended (her moves readied). */
+	void TickAttackRules(float DeltaSeconds);
+	void BeginStomp();
+	void StompSlam();
+	/** Where her forelegs come down: in front of her, her body's width out. */
+	FVector StompSpot() const;
 	// --- Her poses and her stars (GravemotherCreaturePose.cpp) ---
 	/** Stars wheeling over her head while she's stunned. */
 	void DrawStunStars();
@@ -407,6 +440,7 @@ private:
 	// Her boss fight
 	EGravemotherMove Move = EGravemotherMove::Bite;
 	bool bRoarWanted = false;
+	bool bStompWanted = false;
 	float QuakeCooldownLeft = 0.f;
 	TWeakObjectPtr<AGroundCrack> QuakeCrack;
 	bool bReeling = false;

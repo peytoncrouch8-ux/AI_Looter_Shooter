@@ -1,4 +1,5 @@
-// AGravemotherCreature's boss fight (GravemotherFight has its phases and pace): which of her attacks she makes (her one
+// AGravemotherCreature's boss fight (GravemotherFight has its phases and pace; the move she may make is chosen under the
+// bosses' shared rules in GravemotherCreatureRules.cpp, with her stomp): which of her attacks she makes (her one
 // attack, wound up, struck and recovered, each move with its own timing: the roar, the Furrow, the Gravequake, the Grave
 // Clod, the bite), her roar (its slam raises her brood's mounds at 66% and 33%), the Gravequake, her reel when her boss is
 // staggered (and the clod's stun), her pace, her bar's stone bar, and her boss's events.
@@ -7,9 +8,11 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/CreatureVoiceComponent.h"
 #include "Audio/LooterSound.h"
+#include "Bosses/BossAttackRules.h"
 #include "Bosses/BossCameraShake.h"
 #include "Bosses/BossComponent.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/GravemotherFight.h"
 #include "Creatures/GravemotherFX.h"
 #include "Creatures/GravemotherStone.h"
 #include "Creatures/GravemotherTuning.h"
@@ -51,57 +54,82 @@ float AGravemotherCreature::GetAttackStartRange() const
 	{
 		return 0.f;
 	}
-	// A roar from anywhere; a furrow from well out; the quake at whoever hugs her; a clod at whoever keeps away; else she
-	// closes in to bite.
-	if (bRoarWanted)
+	// A roar from anywhere; a furrow from well out; the quake at whoever hugs her; a clod at whoever keeps away; her stomp up
+	// close; else she closes in to bite. The move is chosen under the bosses' shared rules (GravemotherCreatureRules.cpp):
+	// none she may make now, and she starts nothing (she closes in, or squares up, until one comes).
+	EGravemotherMove Next = EGravemotherMove::Bite;
+	if (!ChooseMove(Next))
 	{
-		return RoarFromAnywhere;
+		return 0.f;
 	}
 	const float Scale = GetSizeScale();
-	if (WantsToFurrow())
+	switch (Next)
 	{
+	case EGravemotherMove::Roar:
+		return RoarFromAnywhere;
+	case EGravemotherMove::Furrow:
 		return Furrows.Range * Scale;
-	}
-	if (WantsToQuake())
-	{
+	case EGravemotherMove::Quake:
 		return QuakeRange * Scale;
-	}
-	if (WantsToClod())
-	{
+	case EGravemotherMove::Clod:
 		return Clods.MaxDistance * Scale;
+	case EGravemotherMove::Stomp:
+		return SpecFor(EGravemotherMove::Stomp).MaxReach;
+	default:
+		return Super::GetAttackStartRange();
 	}
-	return Super::GetAttackStartRange();
 }
 
 bool AGravemotherCreature::CanStartAttack() const
 {
-	return !bReeling && FurrowState == EGravemotherFurrow::None && !HeldClod.IsValid() && Super::CanStartAttack();
+	if (bReeling || FurrowState != EGravemotherFurrow::None || HeldClod.IsValid() || !Super::CanStartAttack())
+	{
+		return false;
+	}
+	// The shared rules: a breath after her last attack, and her target where the move she'd make wants them (in front of her
+	// for a bite, a stomp or a furrow: else she turns to them first).
+	EGravemotherMove Next = EGravemotherMove::Bite;
+	const APawn* Victim = GetTarget();
+	if (!Boss || !Victim)
+	{
+		return true;
+	}
+	return ChooseMove(Next) && BossAttackRules::IsGapOpen(Boss->AttackLog)
+		&& BossAttackRules::IsPlaced(SpecFor(Next), GetActorForwardVector(), Victim->GetActorLocation() - GetActorLocation());
 }
 
 void AGravemotherCreature::OnAttackStarted()
 {
 	// The same attack, several ways, each with its own timing.
-	if (bRoarWanted)
+	EGravemotherMove Next = EGravemotherMove::Bite;
+	ChooseMove(Next);
+	switch (Next)
 	{
+	case EGravemotherMove::Roar:
 		BeginRoar();
-	}
-	else if (WantsToFurrow())
-	{
+		break;
+	case EGravemotherMove::Furrow:
 		BeginFurrow();
-	}
-	else if (WantsToQuake())
-	{
+		break;
+	case EGravemotherMove::Quake:
 		BeginQuake();
-	}
-	else if (WantsToClod())
-	{
+		break;
+	case EGravemotherMove::Clod:
 		BeginClod();
-	}
-	else
-	{
+		break;
+	case EGravemotherMove::Stomp:
+		BeginStomp();
+		break;
+	default:
 		Move = EGravemotherMove::Bite;
 		AttackWindup = BiteWindup;
 		AttackRecovery = BiteRecovery;
+		break;
+	}
+	// Her log: a run of one move, the gap after it, her idle time (the rules read it).
+	if (Boss)
+	{
+		Boss->AttackLog.NoteStarted(GravemotherFight::AttackId(Move));
 	}
 	Super::OnAttackStarted();
 }
@@ -123,6 +151,9 @@ void AGravemotherCreature::Strike()
 		return;
 	case EGravemotherMove::Clod:
 		ThrowClod();
+		return;
+	case EGravemotherMove::Stomp:
+		StompSlam();
 		return;
 	case EGravemotherMove::Furrow:
 		if (FurrowState == EGravemotherFurrow::Heave)
@@ -255,6 +286,8 @@ void AGravemotherCreature::QuakeSlam()
 
 void AGravemotherCreature::TickMoves(float DeltaSeconds)
 {
+	// Her attacks under the bosses' shared rules: her log's clocks, a run of bites broken, a long idle stretch ended.
+	TickAttackRules(DeltaSeconds);
 	// Their cooldowns run while she's after someone, not while she dozes in her den.
 	if (GetTarget())
 	{
@@ -380,6 +413,7 @@ void AGravemotherCreature::HandleFightReset()
 {
 	// The player fell: she's home and healed (her boss's reset; her brood went with it, her stone is whole: OnRespawned).
 	bRoarWanted = false;
+	bStompWanted = false;
 	bReeling = false;
 	bStunned = false;
 	ApplyPace(0);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Bosses/BossAttackRules.h"
 #include "Creatures/DeadMinerCreature.h"
 #include "Creatures/ForemanFight.h"
 #include "ForemanCreature.generated.h"
@@ -24,6 +25,11 @@ enum class EForemanMove : uint8
 	Fuse,
 	/** The pick handle hammered into a timber prop (or the floor), and the roof answers. */
 	Roof,
+	/**
+	 * The pick handle raised two-handed and driven into the floor at his feet (his entrance's slam, no line): it throws back
+	 * whoever crowds him. The shared rules' run-breaker (round 5), when two swings in a row leave him nothing else in reach.
+	 */
+	Stamp,
 };
 
 /**
@@ -101,6 +107,18 @@ public:
 	const ForemanFight::FPace& GetPace() const { return Pace; }
 	void ApplyPace(int32 Phase);
 
+	// --- His attacks under the bosses' shared rules (ForemanCreatureRules.cpp; Bosses/BossAttackRules.h) ---
+
+	/** His move's name in his boss's attack log ("Swing", "Intro", "Fuse", "Roof", "Stamp"). */
+	static FName AttackId(EForemanMove Which);
+	/** The move he'd start now, in his own order, skipping one the rules forbid (a third in a row); false: none he may. */
+	bool ChooseMove(EForemanMove& OutMove) const;
+	/** Where his target must be for a move to start (its reach and facing, at his size). */
+	FBossAttackSpec SpecFor(EForemanMove Which) const;
+	/** His hurt zones as they stand now (his boss's GatherHurtZones; Looter.Boss.HurtZones 1 draws them). */
+	void GatherHurtZones(TArray<FBossHurtZone>& Out) const;
+	bool IsStampWanted() const { return bStampWanted; }
+
 	// --- Fuse sticks (ForemanCreatureFuse.cpp) ---
 
 	bool IsFuseReady() const { return FuseCooldownLeft <= 0.f; }
@@ -166,6 +184,22 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Foreman|Intro", meta = (ClampMin = "0.1", Units = "s"))
 	float IntroRecovery = 0.8f;
+
+	/**
+	 * His stamp (the run-breaker): the handle up this long (longer than his swing's heave: a different tell), then driven
+	 * down; it reaches this far round the spot in front of him (cm at an Unpaid's size), this many times his swing's blow.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Foreman|Stamp", meta = (ClampMin = "0.2", Units = "s"))
+	float StampWindup = 0.95f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Foreman|Stamp", meta = (ClampMin = "0.1", Units = "s"))
+	float StampRecovery = 0.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Foreman|Stamp", meta = (ClampMin = "50", Units = "cm"))
+	float StampRadius = 200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Foreman|Stamp", meta = (ClampMin = "0"))
+	float StampStrength = 1.2f;
 
 	/** He lobs a fuse at a player between these distances (cm); nearer, the pick handle. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Foreman|Fuse", meta = (ClampMin = "0", Units = "cm"))
@@ -285,6 +319,14 @@ private:
 	/** A player come into his stope (EngageRadius, on his level) starts his fight; looked at a few times a second. */
 	void TickEngage(float DeltaSeconds);
 
+	// --- The shared rules (ForemanCreatureRules.cpp) ---
+	/** His log's clocks; a run of swings broken (the stamp), a long idle stretch ended (a fuse readied). */
+	void TickAttackRules(float DeltaSeconds);
+	void BeginStamp();
+	void StampSlam();
+	/** Where the handle comes down: in front of his feet. */
+	FVector StampSpot() const;
+
 	// --- Fuse sticks (ForemanCreatureFuse.cpp) ---
 	bool WantsFuse() const;
 	void BeginFuse();
@@ -307,6 +349,7 @@ private:
 
 	EForemanMove Move = EForemanMove::Swing;
 	bool bIntroWanted = false;
+	bool bStampWanted = false;
 	int32 PacePhase = 0;
 	ForemanFight::FPace Pace;
 	bool bOwnPaceCaptured = false;
@@ -320,6 +363,8 @@ private:
 	int32 FusesThrown = 0;
 	float SinceFuseLine = 1000.f;
 	TWeakObjectPtr<AForemanFuseStick> HeldStick;
+	/** The sticks he has lobbed, while they're out (their hurt zones). */
+	TArray<TWeakObjectPtr<AForemanFuseStick>> ThrownSticks;
 
 	// The roof
 	float RoofCooldownLeft = 0.f;

@@ -219,6 +219,7 @@ void AAbelKeeper::BeginPlay()
 	Boss->OnCustomEvent.AddUObject(this, &AAbelKeeper::HandleCustomEvent);
 	Boss->OnStaggered.AddUObject(this, &AAbelKeeper::HandleStaggered);
 	Boss->CanStagger.BindUObject(this, &AAbelKeeper::CanBeStaggered);
+	Boss->GatherHurtZones.BindUObject(this, &AAbelKeeper::GatherHurtZones);
 
 	if (!bPaceCaptured)
 	{
@@ -414,6 +415,7 @@ void AAbelKeeper::Tick(float DeltaSeconds)
 	}
 	RiseNewAdds();
 	TickMove(DeltaSeconds);
+	TickAttackRules(DeltaSeconds);
 	if (bWindBlowing)
 	{
 		TickWind(DeltaSeconds);
@@ -436,12 +438,6 @@ void AAbelKeeper::UpdateDeathLook(float DeltaSeconds)
 void AAbelKeeper::GetExtraRigBones(TArray<FName>& OutBones) const
 {
 	OutBones.Append(AbelPoses::ExtraBones());
-}
-
-bool AAbelKeeper::CanStartAttack() const
-{
-	// None of his own moments under way: they hold him.
-	return Super::CanStartAttack() && Move == EAbelMove::None;
 }
 
 void AAbelKeeper::SetLanternFlare(float Share)

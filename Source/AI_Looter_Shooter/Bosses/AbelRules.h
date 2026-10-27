@@ -182,6 +182,10 @@ namespace AbelRules
 	AI_LOOTER_SHOOTER_API FName WalkOffEvent();
 	AI_LOOTER_SHOOTER_API FName FogShotEvent();
 
+	/** His attacks' names in his boss's attack log (Bosses/BossAttackRules: never three of one in a row): the lunge, the buckshot. */
+	AI_LOOTER_SHOOTER_API FName LungeAttack();
+	AI_LOOTER_SHOOTER_API FName BuckshotAttack();
+
 	/**
 	 * His bar's show: "Waiting on a Dark Saint" spelled out under his name, his moan as it sweeps in, his wail at each later
 	 * phase, his gasp as he's staggered, his last breath; the bar's last word is "He kneels".

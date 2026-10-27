@@ -38,6 +38,16 @@ namespace AbelRules
 		return FName(TEXT("Buckshot"));
 	}
 
+	FName LungeAttack()
+	{
+		return FName(TEXT("Lunge"));
+	}
+
+	FName BuckshotAttack()
+	{
+		return FName(TEXT("Buckshot"));
+	}
+
 	FName GrieveEvent()
 	{
 		return FName(TEXT("Grieve"));

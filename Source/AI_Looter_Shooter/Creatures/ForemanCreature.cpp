@@ -1,7 +1,8 @@
 // AForemanCreature: construction (his size, rank, numbers and parts, his boss fight), his life in the stope, his engagement,
-// which move he makes, his entrance and his coal's windows. ForemanCreatureEvents.cpp has his boss's events, his death and
-// his coming back, ForemanCreatureFuse.cpp the fuse sticks, ForemanCreatureRoof.cpp the roof strikes,
-// ForemanCreatureShift.cpp the shift and the dark, ForemanCreaturePose.cpp his arms, his kneel and his death's look.
+// his entrance and his coal's windows. ForemanCreatureRules.cpp has which move he makes (under the bosses' shared rules),
+// his stamp and his hurt zones, ForemanCreatureEvents.cpp his boss's events, his death and his coming back,
+// ForemanCreatureFuse.cpp the fuse sticks, ForemanCreatureRoof.cpp the roof strikes, ForemanCreatureShift.cpp the shift and
+// the dark, ForemanCreaturePose.cpp his arms, his kneel and his death's look.
 
 #include "Creatures/ForemanCreature.h"
 #include "AI_Looter_Shooter.h"
@@ -41,9 +42,6 @@ const FName AForemanCreature::BarkKind(TEXT("Foreman"));
 
 namespace
 {
-	/** His entrance, the roof and the fuse start from anywhere they're wanted: they strike nobody where he stands. */
-	constexpr float FromAnywhere = 1.0e6f;
-
 	/** His coal: banked under his coat (M_Ghost's flare: -1 out), and open, throbbing. */
 	constexpr float CoalClosedHeat = -0.55f;
 	constexpr float CoalOpenHeat = 0.6f;
@@ -197,6 +195,8 @@ void AForemanCreature::BeginPlay()
 	Boss->OnPhaseChanged.AddUObject(this, &AForemanCreature::HandlePhaseChanged);
 	Boss->OnStaggered.AddUObject(this, &AForemanCreature::HandleStaggered);
 	Boss->CanStagger.BindWeakLambda(this, [this]() { return !IsDead(); });
+	// His hurt zones for Looter.Boss.HurtZones (ForemanCreatureRules.cpp).
+	Boss->GatherHurtZones.BindWeakLambda(this, [this](TArray<FBossHurtZone>& Out) { GatherHurtZones(Out); });
 	// A new arrival, or his vigil stone's call: his stope's props stand whole again.
 	for (AForemanTimberProp* Prop : GetProps(false))
 	{
@@ -210,6 +210,7 @@ void AForemanCreature::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (Boss)
 	{
 		Boss->CanStagger.Unbind();
+		Boss->GatherHurtZones.Unbind();
 		Boss->OnFightStarted.RemoveAll(this);
 		Boss->OnFightReset.RemoveAll(this);
 		Boss->OnPhaseChanged.RemoveAll(this);
@@ -238,85 +239,6 @@ bool AForemanCreature::IsCriticalSpot(const FHitResult& Hit) const
 {
 	// His coat covers his coal but in its windows: then a shot through it is critical, as through any Unpaid's.
 	return IsCoalOpen() && Super::IsCriticalSpot(Hit);
-}
-
-// ---------------------------------------------------------------------------
-// Which move
-// ---------------------------------------------------------------------------
-
-float AForemanCreature::GetAttackStartRange() const
-{
-	if (bStaggeredNow)
-	{
-		return 0.f;
-	}
-	// His entrance and the roof from anywhere; a fuse at a player who keeps off; else he closes in with the pick handle.
-	if (bIntroWanted || WantsRoof())
-	{
-		return FromAnywhere;
-	}
-	if (WantsFuse())
-	{
-		return FuseMaxDistance * GetSizeScale();
-	}
-	return Super::GetAttackStartRange();
-}
-
-bool AForemanCreature::CanStartAttack() const
-{
-	return !bStaggeredNow && !HeldStick.IsValid() && Super::CanStartAttack();
-}
-
-bool AForemanCreature::TracksTargetInWindup() const
-{
-	// The roof's blow is aimed at his prop, not the player: he turns to it himself (FaceStruckProp).
-	return Move != EForemanMove::Roof;
-}
-
-void AForemanCreature::OnAttackStarted()
-{
-	// The same attack, several ways, each with its own timing: the entrance, the roof, a fuse, or the pick handle.
-	if (bIntroWanted)
-	{
-		BeginIntro();
-	}
-	else if (WantsRoof())
-	{
-		BeginRoof();
-	}
-	else if (WantsFuse())
-	{
-		BeginFuse();
-	}
-	else
-	{
-		Move = EForemanMove::Swing;
-		// The dead miners' heave and its timing at his pace.
-		Super::OnAttackStarted();
-	}
-}
-
-void AForemanCreature::Strike()
-{
-	if (bStaggeredNow)
-	{
-		return;
-	}
-	switch (Move)
-	{
-	case EForemanMove::Intro:
-		IntroSlam();
-		return;
-	case EForemanMove::Fuse:
-		LobFuse();
-		return;
-	case EForemanMove::Roof:
-		RoofStrike();
-		return;
-	default:
-		break;
-	}
-	Super::Strike();
 }
 
 // ---------------------------------------------------------------------------
@@ -386,6 +308,8 @@ void AForemanCreature::TickEngage(float DeltaSeconds)
 void AForemanCreature::TickMoves(float DeltaSeconds)
 {
 	TickEngage(DeltaSeconds);
+	// His attacks under the bosses' shared rules: his log's clocks, a run of swings broken, a long idle stretch ended.
+	TickAttackRules(DeltaSeconds);
 	// Their cooldowns run while his fight is on.
 	if (Boss && Boss->IsFighting() && !IsDead())
 	{

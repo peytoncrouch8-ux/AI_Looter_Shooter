@@ -11,6 +11,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/DeathSplats.h"
 #include "Weapons/ImpactSurface.h"
+#include "Weapons/NiagaraFX.h"
 #include "Weapons/VfxSubsystem.h"
 #include "Weapons/VfxTuning.h"
 #include "Weapons/VfxTypes.h"
@@ -28,7 +29,8 @@
 // column, a dust skirt, embers, debris) sized to the burst's 4 m, a shock ring racing out over the ground to that reach
 // (so the player reads what it covered), a scorch left behind, and the salt's own white look on top. All drawn in code
 // through FWeaponFX (no particle assets); the flash of light is the jar's (AGraveSaltGrenade). Each grenade kind draws
-// it in its own look (GrenadeKinds::LookOf: its fire, its tar or embers on top, a small jar's quick pop).
+// it in its own look (GrenadeKinds::LookOf: its fire, its tar or embers on top, a small jar's quick pop). The one
+// exception (round 5): the cinder's embers on top are NS_CinderBurst when Looter.Fx.Niagara is on and it's built.
 
 namespace
 {
@@ -258,7 +260,21 @@ void GraveSaltBurst::SpawnEffects(UWorld& World, const FVector& Center, const FV
 	{
 		Blast.DustLight = Reacts->GetDustLight();
 	}
-	DrawBlast(Effects, Blast, Tuning, Look);
+	// The cinder jar's own layer (its burst of embers) in Niagara when that's the look (Looter.Fx.Niagara, NS_CinderBurst
+	// built): a fountain of embers, a fire flare, a plume and a flash of heat on the ground, in place of the code's ember
+	// burst; the salt jar's blast under it stays the code's (every kind shares it).
+	FGrenadeBurstLook Drawn = Look;
+	if (Look.Element == ELooterElement::Ember && !Look.bSmall && NiagaraFX::UseFor(ENiagaraFX::CinderBurst))
+	{
+		const FVector Up = Blast.Up.IsNearlyZero() ? FVector::UpVector : Blast.Up.GetSafeNormal();
+		const FVector Base = Blast.bOnGround ? Blast.Ground : Blast.Center;
+		const float Radius = Tuning.Radius * Tuning.LookScale;
+		if (NiagaraFX::SpawnAt(&World, ENiagaraFX::CinderBurst, Base, Up, Radius / NiagaraFX::BurstDesignRadius))
+		{
+			Drawn.Element = ELooterElement::None;
+		}
+	}
+	DrawBlast(Effects, Blast, Tuning, Drawn);
 	// The scorch: a dark sooty star burned into the ground where it went off (the rocket's, sized to this burst); the
 	// pitch's tar left in a glossy black pool in it.
 	const float Scorch = Tuning.ScorchShare * Look.Scorch;

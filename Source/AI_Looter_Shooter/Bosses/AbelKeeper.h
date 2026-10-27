@@ -16,6 +16,7 @@ class UMaterialInstanceDynamic;
 class UMissionRunner;
 class UPointLightComponent;
 class UStaticMeshComponent;
+struct FBossHurtZone;
 struct FFallRecoveryEvent;
 
 /** What Abel is doing besides fighting as an Unpaid does (his own moments; None: the creature's brain has him). */
@@ -145,6 +146,9 @@ public:
 
 	/** He's fighting faster between the dark saint's pulls (phase three). */
 	bool IsHastened() const { return bHastened; }
+
+	/** His hurt zones now: the lunge, the buckshot's cone (AbelKeeperRules.cpp; Looter.Boss.HurtZones 1 draws them). */
+	void GatherHurtZones(TArray<FBossHurtZone>& Out) const;
 
 	// --- The Gravewind (AbelKeeperWind.cpp) ---
 
@@ -343,6 +347,7 @@ protected:
 	virtual void OnDied() override;
 	virtual void OnRespawned() override;
 	virtual bool CanStartAttack() const override;
+	virtual void OnAttackStarted() override;
 	virtual void GetExtraRigBones(TArray<FName>& OutBones) const override;
 	virtual void LayerPose(float DeltaSeconds) override;
 	virtual void UpdateDeathLook(float DeltaSeconds) override;
@@ -380,6 +385,8 @@ private:
 	void TryWantedMoments(float DeltaSeconds);
 	/** Back at the player after a moment that held him. */
 	void Rejoin();
+	/** The bosses' shared attack rules (AbelKeeperRules.cpp): his log, a run of lunges broken by his flare, the idle cap. */
+	void TickAttackRules(float DeltaSeconds);
 	/** Where the lanterns have dragged him so far: between the fog and his spot. */
 	FVector DragTarget() const;
 	float SunsetYaw() const;

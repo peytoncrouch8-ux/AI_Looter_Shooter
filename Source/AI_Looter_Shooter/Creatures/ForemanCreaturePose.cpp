@@ -86,6 +86,8 @@ void AForemanCreature::WantedArms(FMinerArms& Out) const
 		switch (Move)
 		{
 		case EForemanMove::Intro:
+		case EForemanMove::Stamp:
+			// His entrance's slam; the stamp is the same blow without the line.
 			if (bWinding)
 			{
 				Set(Out, HighUpperR, HighForeR, HighUpperL, HighForeL, 6.f);
@@ -144,7 +146,7 @@ bool AForemanCreature::HoldsPickOnLine() const
 	{
 		return false;
 	}
-	return Move == EForemanMove::Swing || Move == EForemanMove::Intro || Move == EForemanMove::Roof;
+	return Move == EForemanMove::Swing || Move == EForemanMove::Intro || Move == EForemanMove::Roof || Move == EForemanMove::Stamp;
 }
 
 bool AForemanCreature::WantsToWork() const
@@ -156,7 +158,7 @@ bool AForemanCreature::WantsToWork() const
 float AForemanCreature::WantedLampFlare() const
 {
 	// His lamp flares with his entrance and his swing's heave (the tell), not with the fuse (its own sparks are the tell).
-	if (GetCreatureState() == ECreatureState::Attack && Move == EForemanMove::Intro)
+	if (GetCreatureState() == ECreatureState::Attack && (Move == EForemanMove::Intro || Move == EForemanMove::Stamp))
 	{
 		return FMath::Clamp(GetStateTime() / FMath::Max(AttackWindup, 0.01f), 0.f, 1.f);
 	}

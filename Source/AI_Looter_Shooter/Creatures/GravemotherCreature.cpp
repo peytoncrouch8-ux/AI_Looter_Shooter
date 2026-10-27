@@ -121,6 +121,8 @@ void AGravemotherCreature::BeginPlay()
 	Boss->OnPhaseChanged.AddUObject(this, &AGravemotherCreature::HandlePhaseChanged);
 	Boss->OnStaggered.AddUObject(this, &AGravemotherCreature::HandleStaggered);
 	Boss->CanStagger.BindWeakLambda(this, [this]() { return !IsDead(); });
+	// Her hurt zones for Looter.Boss.HurtZones (GravemotherCreatureRules.cpp).
+	Boss->GatherHurtZones.BindWeakLambda(this, [this](TArray<FBossHurtZone>& Out) { GatherHurtZones(Out); });
 
 	// Her headstone on her back, its health hers to scale (after her rank and level are applied).
 	ReadAbdomenZones();
@@ -141,6 +143,7 @@ void AGravemotherCreature::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (Boss)
 	{
 		Boss->CanStagger.Unbind();
+		Boss->GatherHurtZones.Unbind();
 	}
 	BindShrugLook(false);
 	if (AGravemotherClod* Clod = HeldClod.Get())
@@ -290,6 +293,7 @@ void AGravemotherCreature::OnRespawned()
 	QuakeCrack = nullptr;
 	Move = EGravemotherMove::Bite;
 	bRoarWanted = false;
+	bStompWanted = false;
 	bReeling = false;
 	bStunned = false;
 	OwnReelLeft = 0.f;
