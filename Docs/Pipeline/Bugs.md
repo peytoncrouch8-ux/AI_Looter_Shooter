@@ -79,6 +79,17 @@ Each line: bug (date). Cause. Fix.
     (136 on the player), and `SWIM_DEPTH` in `build_area_swimwater.py` kept equal. The `Player.Underwater.*` cues had not been rendered
     into the bank (`Workflow.md` "Sound recipes").
 
+- Playtest 2026-10-27, round 5 (lessons):
+  - Main 2's Ledger step never completed (the control hint reads the same sense). Cause: the inventory pauses the game (round 1), and mission
+    steps and control hints tick with the world, so they never saw the page open (they sampled `IsInventoryOpen` while it was open and paused).
+    Fix: the HUD remembers the pages shown during the last visit (`WasPageShownLastVisit`) and both senses read that after it closes
+    (`Game.md` round 1). Lesson: anything that watches UI state on a tick must allow for the world being paused while that UI is up;
+    remember what happened and read it afterwards, or tick while paused.
+  - The melee swing went off-screen: the tool and right hand were in view for about the first 0.1 s of a 0.5 s swing, then the arcs
+    carried the hand out of frame, so the swing read as nothing. Cause: arcs tuned by cvar guesses were never checked against the view
+    through the whole swing. Fix: arcs kept in view with the gun hidden through the swing (`Heroes.md` round 5). Lesson: a first-person
+    motion is checked frame by frame at `slomo` (is the tool in the view at every step?); `Looter.Melee.Tool.Shown` checks mid-swing.
+
 - Flat bright tan patches on level ground (Ransom's Rest's street by the boards, Whitlock Fields' path; 2026-10-22).
   Cause: M_Terrain's SIDE_NORMAL_CODE normalized 0 where the vertex normals pack to straight up (Facing 0): NaN, and the
   steep-relief lerp's weight 0 keeps a NaN (WorldNormal buffer black there; shadows, local lights, places, Nanite all

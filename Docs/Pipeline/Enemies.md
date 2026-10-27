@@ -235,6 +235,34 @@ first fight of a session starts. Camera, words, name card, music; the boss then 
   letterbox bar is 10% of the height (108 px at 1080p): check at 1080p and ultra-wide. `ACreatureBase::IsSceneHoldingPlayer` keeps
   every non-boss creature from noticing the player during the scene, so nothing new wanders in.
 
+### Boss attack rules and the hurt-zone view (BOSSRULES, round 5, 2026-10-27; the user's pick from a boss-fight video)
+
+Shared rules over each boss's own choice of move; the three bosses keep their identity and the round-2 rules (1.6x health,
+stone gate, rim shrug, intros). Code: `Bosses/BossAttackRules.h/.cpp` (`FBossAttackLog`, `FBossAttackSpec`, `FBossHurtZone`,
+`BossAttackRules::*`), the log is `UBossComponent::AttackLog` (reset as each fight starts); per boss `GravemotherCreatureRules.cpp`
+(`ChooseMove`, `SpecFor`), `ForemanCreatureRules.cpp`, `AbelKeeperRules.cpp`. Tests `Looter.Bosses.AttackRules.Rules/.Gravemother/
+.Foreman/.Abel` (`Tests/BossAttackRulesTests.cpp`).
+- The rules, each a cvar (`Looter.Boss.Attack.*`; `.Rules 0` = every boss chooses as before):
+  - Min gap `.MinGap` 0.6 s from the last attack's end (the recovery is the player's window, then a breath).
+  - Idle cap `.MaxIdle` 5 s free to attack without attacking: the boss readies a move it has (Gravemother: clod, furrow, quake
+    ready again; Foreman: a fuse; Abel: his lantern flare, so the buckshot).
+  - Never the same attack more than `.MaxRepeats` 2 in a row: the third is skipped for another; with nothing else in reach the
+    boss makes its run-breaker (Gravemother's stomp after bites, Foreman's stamp after swings, Abel's flare and buckshot after lunges).
+  - An attack starts only in reach and in facing: `.FrontDegrees` 70 each side for a frontal one (bite, furrow, stomp, handle,
+    lunge), `.AimedDegrees` 120 for a lob or shot it turns to aim through its wind-up (the clod); rings and roars from any way.
+    Her bite wedge is drawn at the bite's own dot 0.4 (66 degrees: `DegreesForDot`).
+  - Hurt zones live only in their window: wind-up (grey, the tell), active (red), recovery (nothing). A one-frame blow (a bite,
+    a slam) is drawn live `.ActiveSeconds` 0.15 s after it lands.
+- Move choice in each boss's own order, only skipping a blocked one: Gravemother roar (never held back), furrow, quake, clod, stomp,
+  bite; Foreman entrance, roof, fuse, stamp, swing (`AttackId`: Intro, Roof, Fuse, Stamp, Swing); Abel's lunge is the stock one
+  (`CanStartAttack`), his other beats (grief, drift, walk into the wind, the pull) stay his phases' own.
+- **Hurt-zone view** `Looter.Boss.HurtZones 1` (`Dev/BossHurtZoneDebug.h/.cpp`, a world subsystem; debug lines only, nothing when
+  off): every fighting boss's zones from its `GatherHurtZones`: discs on the ground (quake, stomp, burst, rock fall), wedges (bite,
+  swing, the buckshot's cone), lanes (furrow, lunge path), with height; a screen line per boss: last attack, streak, idle time.
+  Use it to tune fairness: a zone red where the player stood safe, or live before its tell, is a bug.
+- Not checked in play when written (Main builds and plays): the idle nudge and run-breaker timing against each fight's pace, and
+  whether the gap makes a fight feel slower than the 1.6x health already does (lower `.MinGap` if so).
+
 ## Fight: AI (FIGHT-AI, written 2026-10-21, unbuilt and untested in play)
 
 The user's calls (Saved/Fight/CONTRACT.md): packs surround and take turns, ranged kinds use their range, Borderlands-normal

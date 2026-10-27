@@ -327,3 +327,16 @@ has the swing's clock and fallbacks). A set `DA_Hero_<Id>` `MeleeTool.Mesh` over
   - Tests `Looter.Melee.Tool.Feel` (each tool's key, cues, and which surfaces throw sparks) beside Picks, Arcs, Hand.
   - Not done: the arcs, cast spots and third-person turn are guesses until the user plays (the cvars tune them); the third-person tool's
     turn depends on `HandGrip_R`'s axes.
+- Round 5, swing feel (HANDS, 2026-10-27, the user's pick from a video: "swing smear + hit feel"; test build `2026-10-27_1818`):
+  - The gun is out of the way: it drops out of the frame over `Looter.Melee.GunLowerSeconds` 0.08, is hidden while all the way down
+    (`MeleeMotion::GunAwayShare`/`IsGunAway`, `HideGunForSwing`) and returns over the swing's last `.GunRaiseSeconds` 0.08. Before this
+    the gun stayed in the left hand and the tool/arm left the view.
+  - The tool stays in view through the arc, with the right arm: the arcs had carried the hand off-screen for all but the first 0.1 s
+    of the swing (`Bugs.md`). `Looter.Melee.Tool.Shown` checks tool and arms visible mid-swing and hidden at rest.
+  - Smear: a code-drawn glowing band behind the tool's tip, laid from late in the wind-up through the follow-through, tinted per tool
+    (`MeleeFX::SmearColor`), fading in `Looter.Melee.Smear.Seconds` 0.12 (`.Inner`, `.Glow`, `.Width`); on `FWeaponFX`'s streaks, no
+    assets (`PlayerMeleeSmear.cpp`). Test `Looter.Melee.Tool.Smear`.
+  - Hit-stop on the attacker: `Looter.Melee.HitStop` 0.065 s (0.05 went by unseen), `.HitStop.Kill` 0.085 s, both held to
+    `FMeleeRules::AttackerHitStop` 0.09 so the swing still ends before the cooldown; a wall hit is 0.6 of the first. The struck creature's
+    own stagger/flinch is the existing `FHitReaction::MeleeHitStop` 0.06 and sparks per material are round 4's.
+  - The hit's view kick and shake (`MeleeMotion::Impact`, `KillShake`) are round 3's. Checked in PIE; `Looter.Melee` passes (13 tests).

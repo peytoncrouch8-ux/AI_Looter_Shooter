@@ -102,6 +102,10 @@ Every jar is grave salt packed in a tin; three kinds beside it. Code: `Combat/Gr
 - Looks (`GrenadeKinds::LookOf`): pitch = sootier fire, less salt, black tar globs flung and a glossy tar pool left by the scorch; scatter = a smaller, paler crack, each small jar a pop (~30 pieces; `DrawPop`); cinder = deep ember fire with a burst of Ember embers on top, then the bed's ring of light, flames, embers, a dim flickering light and a crackling loop (`Throwable.CinderJar.Bed`). Each kind's burst plays the salt jar's sound under its own layer.
 - Tests `Looter.Grenade.Kinds.Table`, `.Tuning`, `.Early`, `.Drop`, `.Carry`, `.Brood`, `.Bed`, `.Save`, `.Found` (rules) and `.Pitch`, `.Scatter`, `.Cinder` (play tests in a test level: `Bugs.md` "A pawn in a test level"). The pitch test throws at a block with health: a skinned body in a test level may lack the hit zones the jar's Weapon-channel sweep meets. The older grenade tests pass unchanged.
 - Open: a pitch jar stuck to a creature that is destroyed is detached by the engine and bursts where it is.
+- Round 5 (2026-10-27): the cinder jar's fire has a Niagara look beside the code-drawn one: `Looter.Fx.Niagara 1|0`, `NS_CinderBed` under the
+  bed (the code's flames and ember puffs skipped; its ring of light, point light flicker and bodies catching stay the code's) and
+  `NS_CinderBurst` on the burst (the shared salt-jar explosion under it unchanged). A bed keeps the look it started with. Built by script;
+  how, limits, cost estimate, commands: `Assets.md` "Niagara by script". Tests `Looter.Fx.Niagara`, `Looter.Grenade.Kinds.Cinder`, `.Blast`.
 
 ## Gunfeel: hit reactions (built 2026-10-21)
 

@@ -171,3 +171,51 @@ Rules that saved time:
   - `swim.py` (9 cues): `Player.Swim.In`, `.Out`, `.Stroke`, `.StrokeUnder` (2D), `.Gasp` (2D), `Player.Underwater.Loop`, `.Enter`, `.Exit`,
     `.Bubbles` (2D, made dark and close already: the mix low-passes the world). Names: `SwimCue` in `Player/UnderwaterView.h`.
   - Render with `Tools\sounds.ps1 <patterns>` then `build_sound_bank.py`. Those cue names live in headers other than `LooterSoundCues.h`.
+
+## Niagara by script (round 5, 2026-10-27; the user's pick from a video: "try Niagara effects")
+
+First Niagara effect: the cinder jar's fire. Script `Tools/Unreal/build_niagara_fx.py` makes `NS_CinderBed` (looping, CPU, world space: heat
+glows, flames, velocity-aligned tongues, curl-noise embers, smoke; ~85 live sprites), `NS_CinderBurst` (one shot: heat flash, 70 flung
+embers, fire puffs, a soot plume) and their materials (`M_NFX_Fire`, `MI_NFX_Tongue`, `MI_NFX_Smoke`, `M_NFX_Ember`, `M_NFX_Heat`,
+`MI_NFX_HeatFlash`) in `/Game/Art/Effects/Niagara` (already cooked: DefaultGame.ini cooks `/Game/Art/Effects`). Spawned by
+`Weapons/NiagaraFX` (`SpawnAt`), used by `Combat/GraveSaltCinderBed` and `GraveSaltBurstEffects.cpp`. `Looter.Fx.Niagara 1|0`
+(0 = the old code-drawn look everywhere, so both can be compared), `Looter.Fx.Niagara.Scale`. A system that isn't built = the code look.
+Test `Looter.Fx.Niagara`.
+- **How Python authors Niagara:** NiagaraEditor exposes no authoring functions to Python (only baker/upgrade helpers; the empty system
+  from `NiagaraSystemFactoryNew` has no settable emitter list). The one scripting API that adds emitters, modules, inputs and renderers
+  is the **Cascade To Niagara Converter** plugin's `unreal.FXConverterUtilitiesLibrary` (`create_system_conversion_context(system)` ->
+  `add_empty_emitter`, `find_or_add_module_script`, `set_parameter`, `set_parameter_directly`, `add_renderer`, `set_sim_target`,
+  `finalize`). Engine plugin, Editor module only (ships nothing), Beta, off by default: **enabled 2026-10-27 with the user's OK**
+  (`AI_Looter_Shooter.uproject`: `CascadeToNiagaraConverter`, `TargetAllowList` Editor). The script uses only its C++ library; every
+  module is the engine's `/Niagara/...`.
+- **What it can't do:** user parameters (so no per-spawn strength or radius parameters: the code scales the component and
+  deactivates it instead; a bed's last second, `EndPlay`), and no preview check from a script (eyes in PIE; if a system shows nothing,
+  open it once in the editor: a compile error lists there).
+- **Running it** (editor open, not in PIE: a material script can't save during PIE): `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_niagara_fx.py check"`
+  (plugin and engine modules present; builds nothing), then without `check` (or `materials`, `bed`, `burst`); look for `NIAGARAFX done`.
+  A wrong module input name shows as a conversion-context log line, not an exception. It refuses non-matching assets at its paths and
+  rebuilds a system by delete + create. Every look number is in its `BED`/`BURST` tables.
+- **Unverified input names** (taken from the converter's scripts and the module assets' strings): `curl` frequency 50 is a guess (drop
+  `curl` in `BED.embers` if the embers swirl wrong); velocity-aligned sprites assume SpriteSize.y is the length along velocity (swap
+  the tuples if streaks lie flat). Heat glows are flat quads like the code's ring: on bumpy ground parts hide under it or float.
+- **Cost estimate** (Main measures with `Tools\perf.ps1`, Niagara 1 vs 0, ArtPause on): code look per bed ~0.02-0.04 ms game thread,
+  0.05-0.15 ms GPU; Niagara bed ~0.04-0.08 ms game/worker thread, ~0.02 ms render thread, 0.15-0.35 ms GPU near it (smoke to ~3 m and
+  five overlapping 5.6 m additive glows are the overdraw); burst +0.1-0.2 ms GPU for ~2 s. Knobs: smoke `grow`/`rate`, heat `rate`.
+  The first spawn may hitch once (new shaders/PSOs). Nothing measured yet. Cinder test: `Looter.Grenade.Kinds.FromLevel 1`, `.Share 1`,
+  `.PitchWeight 0`, `.ScatterWeight 0` make found tins cinder (no give command).
+
+## Tools we looked at (round 5 research, 2026-10-27)
+
+Sources and the unconfirmed parts: `Docs/Work/2026-10-27-Playtest/RESEARCH_ANIMATION.md`. None is installed or used.
+- **Tripo** (AI model maker): a paid plan is needed for models that ship (the free plan's rights are contested). Concepts only so far.
+- **Suno** (AI music): free plan = non-commercial only, no downloads, Suno keeps ownership: not usable in a Steam game. Pro ($8/mo)
+  and Premier give commercial rights to songs made and downloaded while subscribed (perpetual; none retroactive for free-plan songs).
+  Voice Models only of your own voice; no NPC speech product. "Suno Sounds" effects: terms unconfirmed. Tension with rule 1 (original
+  content; sounds are script-made). Not used; the user decides.
+- **NVIDIA Kimodo** (text/pose to motion, 30-joint SOMA humanoid, 30 fps, 10 s max): code Apache-2.0, SOMA weights under the NVIDIA Open
+  Model License (commercial use ok, NVIDIA claims no rights in outputs; the SMPLX checkpoint is research-only). Needs an NVIDIA CUDA GPU
+  (~17 GB VRAM, under 3 GB with the text encoder on CPU) and a gated Llama 3 8B encoder: **not runnable on the RX 580**. Paths if wanted:
+  a rented NVIDIA GPU or the unofficial Replicate wrapper, BVH out, then Unreal's IK Retargeter. Humanoids only (not spiders or slimes).
+- **MediaPipe** Pose Landmarker (Google): Apache 2.0 code, `pip install mediapipe`, runs on Windows on the CPU, 33 body points (3D in
+  metres), no finger or spine detail; we'd write the landmarks-to-bone-rotations solver ourselves. The model bundle's own licence is
+  unconfirmed (we would ship only the animation, so low risk).

@@ -85,6 +85,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     labels at once (the HUD doesn't tick paused). Anything on a page that moves must tick while paused (`StageStudio` sets
     `bTickEvenWhenPaused` on the stand and its model) and its sounds be class Interface (`bPlaysWhilePaused`; the test checks).
     Music ducks and ambience pauses under the inventory as under the pause menu (not asked about). Test `Looter.UI.Inventory.Pause`.
+    Mission steps and control hints tick with the world, so while the inventory pauses the game they never see a page open
+    (Main 2's Ledger step stalled): the HUD keeps the pages shown during the last visit (`ALooterHUD::WasPageShownLastVisit`,
+    counted afresh as each visit opens) and the "page open" sense of the missions (`MissionPlayerObjectives.cpp`) and of the hints
+    (`ControlHintSubsystemSenses.cpp`) reads `IsInventoryOpen() && GetInventoryPage() == Wanted` OR that, so closing the inventory completes the step.
+    Any new "player opened X" check on a paused UI must do the same. Checked in PIE; Missions, Tutorial, TalkBusiness tests pass.
   - No silver on the gameplay HUD (note 19): the vendor's purse, the inventory's ammo line and the mission-complete purse stay.
   - Chests are off the map (note 26; `EMapPinKind::Chest`/`ChestLooted` gone, `UMapDiscoverySubsystem` and
     `FSavedMapWorld::FoundChests` removed; old saves load, the property is skipped). Unused leftovers: `AChest::bOnMap`,
@@ -213,8 +218,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     `.Due`, `.Framing`, `.SkipKeys`, `.Rest`, `.Lines`; `ColdOpenTests`' first-arrival test sets the `Intro.Seen` flag.
     Round 4 (the round 3 play-check's two nits): the intro ends on REVENANT, the title rising through the white (`ReturnFromScene(UTransitionScreenSubsystem::GameTitle())`; with no cold open to take the white it rises through it anyway, logged "nothing took the white").
     Not seen in the engine yet: the Rest's shot framing (an occluding cliff at Over the Rim's start, the chapel's height).
-  - Melee (note 5, the heroes' tools: `Heroes.md`): each hero swings their own tool on the right arm and the gun drops into the
-    left hand (`MeleeMotion::LowReadyPose`). The clock: swing 0.5 s, blow at 0.15 s (was 0.45/0.12; the third-person jab follows);
+  - Melee (note 5, the heroes' tools: `Heroes.md`): each hero swings their own tool on the right arm; the gun drops out of view and is
+    hidden through the swing (round 5; `Heroes.md` "Round 5, swing feel": smear, hit-stop 65 ms / 85 on a kill). The clock: swing 0.5 s, blow at 0.15 s (was 0.45/0.12; the third-person jab follows);
     draw from under the frame, wind-up, accelerating strike with a wrist snap, a landed bounce or a follow-through, return; hit-stop,
     impact and damage unchanged and the same for every tool (never a critical). Unarmed: the arms show for the strike. The tool's own
     sounds, effects and third-person hand (round 4): `Heroes.md` "Melee tools".
