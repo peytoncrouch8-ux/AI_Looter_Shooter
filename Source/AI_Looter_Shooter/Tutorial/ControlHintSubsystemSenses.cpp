@@ -55,12 +55,16 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 
 	// The menus the hints teach are seen whatever else holds the player: the loadout, the Ledger, the Missions page, the map.
 	const ALooterHUD* HUD = ALooterHUD::FindFor(Controller);
-	const bool bInventory = HUD && HUD->IsInventoryOpen();
-	const EInventoryPage Page = HUD ? HUD->GetInventoryPage() : EInventoryPage::Loadout;
-	In.bInventoryOpen = bInventory && Page == EInventoryPage::Loadout;
-	In.bLedgerOpen = bInventory && Page == EInventoryPage::Bestiary;
-	In.bMissionsOpen = bInventory && Page == EInventoryPage::Missions;
-	In.bMapOpen = bInventory && Page == EInventoryPage::Map;
+	// The inventory pauses the game and these looks only come while it runs: a page shown during the last visit counts as
+	// seen once it's shut (the playtest of 2026-10-27).
+	auto Seen = [HUD](EInventoryPage Wanted)
+	{
+		return HUD && ((HUD->IsInventoryOpen() && HUD->GetInventoryPage() == Wanted) || HUD->WasPageShownLastVisit(Wanted));
+	};
+	In.bInventoryOpen = Seen(EInventoryPage::Loadout);
+	In.bLedgerOpen = Seen(EInventoryPage::Bestiary);
+	In.bMissionsOpen = Seen(EInventoryPage::Missions);
+	In.bMapOpen = Seen(EInventoryPage::Map);
 	In.bBenchOpen = HUD && HUD->IsBenchOpen();
 
 	// What the Interact key used since the last look, menus or not.

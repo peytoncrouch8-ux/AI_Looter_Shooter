@@ -178,15 +178,22 @@ UMissionOpenPageObjective::UMissionOpenPageObjective()
 void UMissionOpenPageObjective::Update(const FMissionContext& Context, FMissionObjectiveState& State, float DeltaSeconds) const
 {
 	const ALooterHUD* HUD = Context.Controller ? Cast<ALooterHUD>(Context.Controller->GetHUD()) : nullptr;
-	if (!HUD || !HUD->IsInventoryOpen())
+	if (!HUD)
 	{
 		return;
 	}
-	const EInventoryPage Shown = HUD->GetInventoryPage();
-	const bool bOnPage = Page == EMissionPage::Any
-		|| (Page == EMissionPage::Loadout && Shown == EInventoryPage::Loadout)
-		|| (Page == EMissionPage::Bestiary && Shown == EInventoryPage::Bestiary)
-		|| (Page == EMissionPage::Missions && Shown == EInventoryPage::Missions);
+	// The inventory pauses the game, so this mostly runs after it's shut: a page looked at during the last visit counts
+	// (the playtest of 2026-10-27: Main 2's Ledger step never finished). Open, the page on show counts as before.
+	auto Seen = [HUD](EInventoryPage Wanted)
+	{
+		return (HUD->IsInventoryOpen() && HUD->GetInventoryPage() == Wanted) || HUD->WasPageShownLastVisit(Wanted);
+	};
+	const bool bAnyVisit = HUD->IsInventoryOpen() || Seen(EInventoryPage::Loadout) || Seen(EInventoryPage::Bestiary)
+		|| Seen(EInventoryPage::Missions) || Seen(EInventoryPage::Embers) || Seen(EInventoryPage::Map);
+	const bool bOnPage = (Page == EMissionPage::Any && bAnyVisit)
+		|| (Page == EMissionPage::Loadout && Seen(EInventoryPage::Loadout))
+		|| (Page == EMissionPage::Bestiary && Seen(EInventoryPage::Bestiary))
+		|| (Page == EMissionPage::Missions && Seen(EInventoryPage::Missions));
 	if (bOnPage)
 	{
 		State.Count = 1;

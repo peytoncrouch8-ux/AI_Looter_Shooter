@@ -68,6 +68,12 @@ public:
 	/** The page the inventory shows, or opens on next (the one last shown). */
 	EInventoryPage GetInventoryPage() const { return InventoryPage; }
 
+	/**
+	 * Whether the inventory showed this page during its last (or current) visit: kept after it closes, since the game is
+	 * paused while it's open and mission steps only look once it's shut (UMissionOpenPageObjective).
+	 */
+	bool WasPageShownLastVisit(EInventoryPage Page) const { return PagesShownLastVisit.Contains(Page); }
+
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void OpenPauseMenu();
 
@@ -249,6 +255,9 @@ private:
 	TObjectPtr<UMapWidget> MapWidget;
 
 	EInventoryPage InventoryPage = EInventoryPage::Loadout;
+
+	/** The pages the last (or current) inventory visit showed (WasPageShownLastVisit). */
+	TSet<EInventoryPage> PagesShownLastVisit;
 
 	/** The pause menu: the settings menu, over the paused game. */
 	UPROPERTY(Transient)

@@ -228,6 +228,8 @@ void ALooterHUD::OpenInventory()
 		TGuardValue<bool> Quiet(bQuietClose, true);
 		CloseBench();
 	}
+	// A new visit: the pages looked at are counted afresh (WasPageShownLastVisit).
+	PagesShownLastVisit.Reset();
 	// It opens on the page it was last closed on.
 	bInventoryOpen = OpenInventoryPage();
 	if (bInventoryOpen)
@@ -315,6 +317,9 @@ bool ALooterHUD::OpenInventoryPage()
 		break;
 	}
 	Page->AddToViewport(20);
+	// Kept past the close: the game is paused while the inventory is open, so a mission step that asks for a page (Main 2's
+	// Ledger) only gets to look once it's shut (the playtest of 2026-10-27: it never finished).
+	PagesShownLastVisit.Add(InventoryPage);
 	// Its tabs stand made (a page builds them as it's first shown): the bestiary's reads "Ledger" once Sexton has handed it over.
 	if (Page->WidgetTree)
 	{
