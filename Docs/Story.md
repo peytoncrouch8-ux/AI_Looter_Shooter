@@ -29,6 +29,7 @@ The before/after table against the stories branch's original is in the archive. 
 **Writing notes** (the game's voice):
 - The planet is **Teropa**. Name it in the docs, and on screen as the session picker's subtitle under each session (“Teropa · Ransom's Rest”, built at step 8); the main menu's subtitle says Teropa (2026-10-13). Characters rarely say it, just as people rarely say “Earth”.
 - Ransom's Rest is a high farm valley, and its town shares the name; locals call it “the Rest”. Write “Ransom's Rest” in prose, and never stack a second possessive on it: rephrase as “the Rest's”, “on Ransom's Rest” (as you would of a ranch) or “of Ransom's Rest”.
+- Teropa from orbit (the menu's planet, 2026-10-27): one sun, one moon (grey), pale dusty seas, polar ice; the great continent's settled east green and bright with towns at night; the mountain divide; the Reaches' rust mesas and gorges, swamp country south; the Rim's long scarp, pale empty plains past it. At night the railroad's lights end at the Rim.
 - Never call a story place an island but Skyreach, Teropa's one sky island.
 - The town's main street is just “Main Street”.
 - Ellis is “they” in all text.
@@ -235,7 +236,7 @@ story enemy, boss or beat replaced. The core-loop freeze holds: kinds of unbuilt
 ## Skyreach, area 3
 
 The user's call (2026-10-13): Skyreach becomes the story's third area.
-- In the game it is `/Game/Maps/Lvl_TutorialIsland`, called Skyreach in its text, with Crossroads Town. It is not the old sky-islands map (`Lvl_Skyreach`), which stays only for reference. It stays the main menu's backdrop.
+- In the game it is `/Game/Maps/Lvl_TutorialIsland`, called Skyreach in its text, with Crossroads Town. It is not the old sky-islands map (`Lvl_Skyreach`), which stays only for reference. It was the main menu's backdrop until 2026-10-27 (the menu is Teropa from orbit now); it stays the sessions' fallback map.
 - Teropa's one sky island, reached from the north side of the *Gilded Lily* by a skylift. Opens after a mission on the *Lily* (“The Salvage Line”, to design). Hob comes along.
 - Its story *(saga)*: the Gravewind is born in the Well at its heart and the island rides the updraft (*The world*). Crossroads Town is a sky-salvagers' town fishing grave gold from the wind. Marguerite Vane, the salvage boss, has been selling it to a polite buyer; she is the boss, living and going strange, and Sexton's crows gather for the first time. At the Well, with the Keeper's Lantern, Ellis sees the Sundown Road: thousands of lights walking west and seven dark gaps. Band 12–16. Legendary: Downdraft (a shotgun whose blast lifts). Mission name: “What the Wind Carries”.
 - Gone: the tutorial (the controls are taught by hints in Mains 1–3), “Skip the tutorial”, the skiff exit and the cloud match cut, practice trips, 0 XP and ammo-only drops on return visits.

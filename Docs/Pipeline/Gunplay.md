@@ -252,6 +252,32 @@ nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in
   person only). GUNS-CODE ran only the new guns' part setup: LOOT-CODE reruns the full `setup_gun_parts.py` after its C++.
 - Packaged builds: `M_GunGauge` is read by path: keep /Game/Art/Materials/Masters cooked.
 
+## Iron sights (SIGHTS, round 3, 2026-10-27, note 35: "gun iron sights need changed")
+
+- What was wrong, seen from the aim socket (ADS puts the eye 22 cm behind `SOCKET_Aim`: 20 cm in a 1.1x gun's units, 18.3 in the
+  1.2x Drover's; 90 degree FOV at zoom 1): the shared 'Iron' (Rustler, Thresher) and the Bullpup flip-ups were solid blades with
+  0.7-0.8 cm peep holes (a dark slab with a pinhole, the front post a speck); the Ranchhand Flip and GhostRing apertures sat 2-3 cm
+  above every barrel's bead (an empty ring, a speck below it); the Drover's hammer spur (top v 2.55) stood in the sight line
+  (2.25) and hid the rear notch.
+- **The sight-picture rule** (notes above `front_post` in `Tools/Blender/looter_guns.py`): a big clear rear (a ring 1.8-2 cm
+  across, or a 0.84 cm notch); a front post whose cyan dot sits ON the line of sight, at the crosshair where the shots go, its ears
+  under the line; nothing the sight stands on crosses the line. New helpers: `face()` (a plate shaped as the eye sees it),
+  `front_post()`, `rear_ring()`, `post_ears()`.
+- Per family: shared 'Iron' = a dark ghost ring with a brass lip and a dotted post between U ears on low clamps with brass hinge
+  pins (other kinds unchanged). Bullpup 'Iron' = a rounded flip leaf with a 1.8 cm aperture and a sand lip, an A-frame front
+  with the dotted post, sand hinges. Ranchhand 'Flip' = a brass-ringed aperture leaf plus its own front post on a tapered tower
+  at the rail's front (u 16.4); 'GhostRing' = a thick brass ring (ri 1.0) between wider wings plus a front post in a narrow-
+  trough U (u 16.6); each front body hides the barrel beads, the Defender's winged post included. Drover: `SIGHT_LINE` 2.25 ->
+  3.0 (clears the hammer), `front_blade()` on every barrel (0.56 wide, an upright face with a cyan insert or round bead centred
+  on the line; every barrel mesh changed), 'Notch' = a wide plate with a U notch, 'Blade' = a square notch with a cyan bar each
+  side, 'Peep' = a brass ring on a post. Powderkeg's 'Ladder' was not touched.
+- `Ranchhand.parts.csv`: Flip's Name "Flip-up rear sight" -> "Flip-up irons" (the key `Flip` unchanged: never rename a key). Run
+  `setup_gun_parts.py` for the name. Export check: `Tools\models.ps1 -Only <Gun> -NoImport`; Main imports with
+  `Tools\models.ps1 -Only Rustler,Thresher,Bullpup,Drover,Ranchhand`. Tests `Looter.Weapons.Revolver`, `WeaponPartsTests`,
+  `WeaponAimTests`, `NewGunsTests`.
+- Not seen in Unreal yet: the cyan dot's glow bloom, real lighting, third person. Suggestion left to the user (a stat change): iron
+  `Zoom` 1.0 -> 1.15 in the CSVs would make every iron read bigger.
+
 ## Loot: elements, part effects, drop moments (LOOT-CODE, built 2026-10-22)
 
 The user's calls (2026-10-21 night): story elements Ember (burn), Soul-light (vs undead), Grave-salt (slow, vs spirits),

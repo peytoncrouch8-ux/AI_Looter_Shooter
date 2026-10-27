@@ -47,12 +47,36 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      `create_rank_assets.py` (so the ranks' loot tables take the new gun).
    - The Drover's cylinder swings out on SOCKET_Crane; its chambers are the CSV's Magazine for that cylinder (rarity never changes
      the count). A short gun is held out by its definition's `HoldReach`.
+   - Iron sights follow one sight-picture rule and the Drover's `SIGHT_LINE` is 3.0 (round 3): `Gunplay.md` "Iron sights".
 8. Throwables: `Art/Models/Throwables/<Name>.py` (the grave-salt grenade, `SaltGrenade.py`) becomes `/Game/Art/Throwables/SM_<Name>`
    through `Tools\models.ps1 -Only <Name>`. Code loads it by path (`AGraveSaltGrenade`, `AGrenadePickup`), and a path is not a
    reference: `/Game/Art/Throwables` is listed under `DirectoriesToAlwaysCook` in `Config/DefaultGame.ini`, so a packaged game has
    it. A new category folder needs the same line.
 
 Rules that saved time:
+9. Melee tools (round 3, 2026-10-27; the user's picks of `Art/Concepts/MeleeTools/`): `Art/Models/Weapons/Melee/MeleeTools.py`
+   builds all five in one script, each its own asset (`Melee_<Tool>` -> `SM_Melee_<Tool>`: `GraveSpade`, `RazorFan`, `FerryGaff`,
+   `PistonFist`, `RockPick`; models.ps1 names the category from the folder, so they import to `/Game/Art/Melee`, which is always
+   cooked because code loads them by path). Hero wiring and the per-hero table: `Heroes.md` "Melee tools".
+   - Space: centimeters in tool space `(u, v, w)` = (+X up the handle to the head, +Z the striking side, +Y the way the right palm
+     faces = Blender -X); the origin is the grip point (the middle of the fist). Sockets `SOCKET_Grip` (the grip point, the hand's
+     frame), `SOCKET_Tip` (striking end), `SOCKET_Hook` (the gaff's hook point). The Piston Fist's origin is where it clamps on:
+     `SOCKET_Forearm` on the forearm's axis at the front clamp ring (X toward the knuckles, Z out of the back of the hand), its
+     two rings bored 4.7 cm to fit Gauge's first-person casings (radius 3.9-4.45 cm; `Tools/Blender/fp_arms_gauge.py`), the knuckle
+     plate's back face 20 cm ahead of the clamp, `SOCKET_Vent` the steam vent's mouth. No collision, no Nanite, no LODs (small, held
+     close); 1024 px/m texel density as the guns.
+   - Materials (tinted texture sets on the World master): `MI_MeleeIronBlack`, `MeleeSteelBright`, `MeleeSteelHead`, `MeleeGold`,
+     `MeleeCoin` (MetalWorn), `MeleeAsh`, `MeleeAshGrey`, `MeleeHickory` (ToolWood), `MeleeCardFace`/`Back`/`Ink`/`Red` (Polymer),
+     `MeleeTealPaint` (PaintWorn), brass shared (`BrassWorn`), and `MeleeEmberCyan`, `MeleeEmberOrange`: opaque emissive surfaces
+     (Glow; Nanite can't draw the additive kind anyway).
+   - `ToolWood` (`Art/Textures/ToolWood/make_tool_wood.py`, run with `Tools\artrun.ps1 -Script ...`): pale straight-grained
+     handle wood made to be tinted: `T_ToolWood_BC`/`_N`/`_ORM`, imported to `/Game/Art/Textures/ToolWood`.
+   - Preview without Unreal: `Tools\artrun.ps1 -Script Art\Models\Weapons\Melee\MeleeTools.py -Preview` renders each to
+     `Saved/TOOLS3/<Model>_A.png` and `_B.png`. Concept sheets are HTML drawn to PNG by Node + Playwright (`node
+     Art/Concepts/MeleeTools/sheets.js`, as `Tools\portraits.ps1`).
+10. The menu planet's maps are script-made too: `Art/Textures/MenuTeropa/make_teropa_maps.py` (six equirectangular PNGs, ~8 min
+   for the 4096 x 2048 ones; `Tools\artrun.ps1 -Script ...`); `Tools/Unreal/build_menu_materials.py` imports them and builds the
+   materials; `Game.md` "Main menu" has the scene.
 - Exports must be repeatable. Never iterate BMesh sets (their order changes between runs). Export twice and compare; only FBX IDs
   and time stamps may differ.
 - Faces without UV area give tangent warnings; `Tools/Blender/tangentcheck.py` predicts them.
@@ -105,3 +129,7 @@ Rules that saved time:
   republish it from the session's scratchpad copy after a render.
 - Lesson: setting a USoundClass's `child_classes` all at once parents only the first new child; add them one at a time
   (`build_sound_bank.py` does).
+- Round 3 (2026-10-27) recipes: `Art/Sounds/recipes/opening.py` (`UI.Startup.Studio`, `.Engine`, `UI.Menu.Reveal`, `.Select`: 4 cues,
+  5 takes) and `intro.py` (`Music.Intro.Planet` 28 s one-shot, `.Rest` 50.5 s and a ringing tail, `.Card`, `.Whiteout`), both added to
+  `recipes/__init__.py` `GROUPS`. Render with `Tools\sounds.ps1 UI.Startup.* UI.Menu.* Music.Intro.*`, then `build_sound_bank.py`. The
+  intro music's lengths are tied to the script's constants (`PlanetSeconds`, `RestSeconds` in `NewGameIntro.h`): change both together.

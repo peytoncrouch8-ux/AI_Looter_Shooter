@@ -6,6 +6,27 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
+- A modal "build lighting" message blocked every MCP call (2026-10-27, building Lvl_MenuTeropa). Cause: the menu-map script
+  (`build_menu_teropa.py`) set the World Settings' `force_no_precomputed_lighting` (bForceNoPrecomputedLighting); the editor
+  answered with a message box that waits for OK. Fix: find the window with `Tools\editorwindows.ps1` and click OK
+  (`Tools\dialogclick.ps1`; a one-line Message's OK is 535 127). The line is still in the script (try-guarded, around line 269; the
+  map has no lights and its materials are unlit): on a rerun watch for the dialog, or drop the line. Lesson: a script that sets a
+  World Settings flag can raise a modal; check the editor's windows when an MCP call hangs (`CLAUDE.md` Safety).
+- Moving the default map to the menu's own scene would have turned the session fallbacks into the menu (2026-10-27, caught before
+  the build). Cause: `USessionSubsystem::NewGameMap()` returned `GameDefaultMap`, and a session whose level is gone (Continue,
+  a legacy save) and `OpenMainMenu` both used it. Fix: `MenuMap()` is the default map (the menu, and Save & Quit), `NewGameMap()` is
+  a fixed `/Game/Maps/Lvl_TutorialIsland`. Lesson: a setting that names "the default map" is read by more than the menu.
+- `Looter.Encounters.Camps.Placement` failed on the OrchardEdge camp (2026-10-27): its crate spots tucked at Coffin Rock's foot
+  (the chest-spot move, `Levels.md` "Roads and chest spots") were too near the rock (the test judges the camp against Coffin Rock). Fix: the layout's crate
+  spots moved out to 4.4 m off the rock (`layout.json`, a `world_2` patch). Lesson: after moving a camp's chests run
+  `Looter.Encounters.Camps`.
+- The new game's intro would have played where the cold-open test expects the cold open (2026-10-27). Cause: `BeginIfDue` now
+  starts `NewGameIntro::PlayRestIfDue` first. Fix: `FColdOpenFirstArrivalTest` sets the `Intro.Seen` flag
+  (`NewGameIntro::SeenFlag()`) on its campaign record. Any new test of a new game's first arrival does the same.
+- Old saves already in Main 6 without the mine (2026-10-27, a known risk of promoting Dead Lift and Back Pay): Main 6 keeps running
+  and "Talk to Hiram Coyle" is listed too; talking to Hiram switches the campaign's active main mission (Main 6 then restarts
+  after Back Pay). Recommend a new game; no migration was written.
+
 - A dead player could still fire, reload and aim (2026-10-27): death only blocked moving and looking (a trigger held or sent while
   dying landed shots 2 s later). Fixed 2026-10-27: the weapon and the aim check the holder's health; back at respawn (Game.md).
 

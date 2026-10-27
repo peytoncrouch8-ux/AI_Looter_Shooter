@@ -6,7 +6,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 - Story: *Revenant* (`Docs/Story.md`), weird west on the planet Teropa. One area per Hollow, each designed in `Docs/Areas/`.
 - Areas, map order since 2026-10-13:
-  - 1 Ransom's Rest: a new game starts on its cold open; its first missions teach the controls by hints. Mountain expansion:
+  - 1 Ransom's Rest: a new game starts on the new game's intro, then its cold open; its first missions teach the controls by hints. Mountain expansion:
     `Docs/Areas/RansomsRest_Expansion.md`.
   - 2 the *Gilded Lily*: behind the north mountain, by train; not built.
   - 3 Skyreach (the old tutorial island): reached later from the Lily by skylift; off the station boards for now, test with
@@ -88,7 +88,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - No silver on the gameplay HUD (note 19): the vendor's purse, the inventory's ammo line and the mission-complete purse stay.
   - Chests are off the map (note 26; `EMapPinKind::Chest`/`ChestLooted` gone, `UMapDiscoverySubsystem` and
     `FSavedMapWorld::FoundChests` removed; old saves load, the property is skipped). Unused leftovers: `AChest::bOnMap`,
-    `ShowsOnMap`. "More distinguished locations" for chests is not done.
+    `ShowsOnMap`. "More distinguished locations" for chests: done in round 3 (`Levels.md` "Roads and chest spots").
   - Loot piles (note 41): guns within `Looter.LootLabels.PileRadius` [300 cm] show only `.PileShown` [4] names in full (looked-at
     first, then rarer, the one shown before, nearer); every Legendary always shows; the rest fold to a dot on the gun
     (`UWeaponLabelWidget::SetFolded`; round 2: a dark halo of 26 units under a rarity-coloured core of 18 with a light 2-unit rim,
@@ -152,10 +152,86 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     6.6 m+ from the lip, 2.2 m+ from the nest ring, 1.7 m+ from the two rocks, 7 m+ from the lookout (checked with node against
     the plateau polygon). The Depot roost's yaw 135 -> 180 (`polish_1.json`; it was 51 deg off the board; holds only while the
     roost builder doesn't move the mast).
+- Playtest round 3 (2026-10-27; contract `Docs/Work/2026-10-27-Playtest/CONTRACT3.md`), the game and UI parts. The user's calls:
+  startup logos = a placeholder studio card (renamable) + the Unreal Engine card per Epic's logo rules; Cyrus Teague the required
+  second boss (`Docs/Story.md`, `Docs/Progression.md`); menu backdrop = Teropa from orbit. Melee tools per hero: `Heroes.md`;
+  the cast pose and Odessa's cards: `EmberPowers.md`; iron sights: `Gunplay.md`; roads, signs, chest spots: `Levels.md`.
+  - Startup logos (note 1; `UStartupLogosWidget`, `FStartupLogos` clock): dark ground (`Color::Track`), lead-in 0.5 s, the studio
+    card (an original hexagon/diamond/horizon mark; name from `UStartupLogosSettings::StudioName` = "PLACEHOLDER STUDIO", Project
+    Settings > Game > Startup Logos or `[/Script/AI_Looter_Shooter.StartupLogosSettings]` in DefaultGame.ini), then "Powered by
+    Unreal Engine" (Epic's logo from `/Game/UI/Logos/T_UnrealEngineLogo`, unaltered, at its own aspect, 220 tall; a plain wordmark
+    until the user downloads it (white horizontal PNG from Epic's branding page, saved as `Art/UI/Logos/UnrealEngineLogo.png`, README
+    there; never recolored or stretched) and Main imports it: TextureGroup UI, no mips; a "Powered by" lockup leaves `bEngineCaption` off),
+    stings `UI.Startup.Studio`/`.Engine`, then the cover fades 0.9 s while the menu arrives. Any key or click skips one card
+    (`MinShown` 0.35 s); the first launch (no `[Looter.Startup] LogosSeen=True` in the user's GameUserSettings.ini; PIE uses the
+    editor's copy) shows all, unskippable. Once a run; never in tests, with `-NoLogos`, or in PIE unless `Looter.Startup.InEditor 1`.
+    `Looter.Startup.Replay` plays them on the menu. Cvars `Looter.Startup.Logos/InEditor/FirstLaunchSkips/LeadIn/FadeIn/Hold/
+    FadeOut/Gap/SkipFade/MinShown/Reveal`. Deliberate exception to the UI rules: the cover does not call `MarkBackground` (a full-
+    screen ground, not panel glass; faded, it would show the menu world loading under the logos). `/Game/UI` is always cooked, which
+    covers the logo path (nothing else names it).
+  - Main menu (note 2): no glass column; the menu and title live in the left 40% of a 16:9 screen (`ColumnWidth` 768 of 1920; a
+    dark shade thins out to 1000 px, `MarkBackground`); Teropa fills the right 60% (the menu camera keeps x < 768 clear:
+    `ColumnEdgeNdc` -0.2). Title lockup: painted mark (an ember through a coin's broken ring, cyan horizon), REVENANT
+    (`UTransitionScreenSubsystem::GameTitle`, DisplayFont 60/360), orange rule, TEROPA. Main buttons are Bare `ULooterButton`s
+    (numbers 01-04, words at 22): lit = a tick rising, an orange wash, orange words (Quit: Worse red), a step of 8 px; keys light
+    the focused one, the mouse the hovered one; press = `UI.Menu.Select`. Arrival: shade, title (slide 28), rule drawing out,
+    buttons staggered 0.07 s, footer; `UI.Menu.Reveal`; the ember glow breathes; pages fade in. The session picker is a page, not a
+    panel. Cvars `Looter.Menu.Reveal.Speed`, `.Lit.Rate`, `.Page.Fade`, `.Ember.Period`. Nav order unchanged: Single Player,
+    Multiplayer (disabled), Settings, Quit; the hero select (HeroSelect*) untouched. Tests `Looter.UI.MainMenu.Look`.
+  - The menu's world is `/Game/Maps/Lvl_MenuTeropa` (note 2; built by `Tools/Unreal/build_menu_materials.py` then
+    `build_menu_teropa.py`; maps by `Art/Textures/MenuTeropa/make_teropa_maps.py`): Teropa from orbit, `M_Planet` an unlit
+    translucent ray-traced sphere on a proxy (ground and relief, clouds on their own shell and speed, night-side lights, sea glint,
+    air rim and halo, the sun's glare), a grey moon, `M_Starfield` (stars, a galaxy band, the sun). It keeps turning (material time,
+    ignores pause). Actors: `Teropa` (tag `MenuPlanet`) centre (91281, 17877, -1437) cm, radius 20000 cm (`PlanetRadius` on the MI);
+    camera `MenuView` at the origin, FOV 50, yaw 11.08, pitch -0.88; the sun comes from the right of that view. The planet is never
+    closer than 22000 cm to the camera (inside the proxy it vanishes) nor the camera past 1.1e6 cm from the origin (the star
+    sphere). The map has no lights and no precomputed lighting; World Settings give `ALooterMenuGameMode`. The menu camera
+    (`ALooterMenuPlayerController`) looks through the `MenuView` camera (slow drift, cursor parallax, 5 s ease-in:
+    `Looter.Menu.Drift/.Parallax/.IntroSeconds`), else circles the island as before. Cost: aim under 4 ms Medium (a menu); not
+    measured here. Config: `GameDefaultMap` = Lvl_MenuTeropa (`LocalMapOptions=?game=Menu` kept), `MapsToCook` lists it beside the
+    island and Ransom's Rest. `USessionSubsystem::MenuMap()` is the default map (`OpenMainMenu` and Save & Quit open it);
+    `NewGameMap()` is the fixed fallback `/Game/Maps/Lvl_TutorialIsland`, where a session continues when its level is gone.
+    `package.ps1`'s smoke test checks `LoadMap(/Game/Maps/Lvl_MenuTeropa`. Tests `Looter.Menu.Teropa.Motion/.Framing/.Scene`.
+  - The new game's intro (note 3; the first pass, full cutscenes with animated characters later): ~78 s, once per session, skippable,
+    before control and before the cold open, narration captions (no speaker, so they show with Subtitles off; hero-neutral, no
+    family words; eleven lines, `DA_Lines_NewGameIntro` from `create_story_lines.py`, the code's `ScriptLines` play when the set
+    is missing or short). It ends on the white that the cold open's REVENANT rises through (that is the title card). Part 1 TEROPA
+    (28 s, `PlayPlanet`: in the menu world after the hero is picked, the menu's widgets fade aside, a pull-in on the planet then a
+    great circle toward the dusk line; cards TEROPA, THE REACHES; `Music.Intro.Planet`) opens the level at its white. Part 2 RANSOM'S
+    REST (50.5 s, `PlayRestIfDue`, a `USceneSubsystem` scene on the first level before the cold open; shots Over the Rim, Chapel,
+    Home, Grave; cards RANSOM'S REST and the hero's name and role; `Music.Intro.Rest`, whiteout `Music.Intro.Whiteout`). Fallback:
+    when the planet part didn't play (the menu isn't Lvl_MenuTeropa, a console new game, an old Skyreach cast-off) Part 2 opens with
+    28 s of WESTWARD over the canyon (78.5 s in all). Shots are in layout cm: move one by editing `RestMoves`
+    (`NewGameIntroShots.cpp`); `ClearanceLift` raises a shot whose eye path comes within 2.5 m of the ground. Letterbox 10% each
+    (`Looter.Intro.Letterbox`). Skips: Part 1: hold E/Enter/Space/pad A 1 s, or Esc (pad Start) twice within 3 s, none in the first
+    0.5 s (a skip brings the white up in 0.5 s, opens the level and skips Part 2 too, recorded seen); Part 2: the scene's usual
+    skip (hold Interact, Esc twice, `Looter.Scene.Skip`); `Looter.Intro.Skip` skips either. Seen = the campaign flag `Intro.Seen`
+    (saved with the cold open's end: a quit before that replays it). Hooks: `USessionSubsystem::StartNewGame` calls
+    `UNewGameIntroSubsystem::PlayPlanet` (its `Open` callback opens the level at the white); `UColdOpenSubsystem::BeginIfDue` calls
+    `NewGameIntro::PlayRestIfDue` first. The planet is found by tag `MenuPlanet` (else a name with Teropa/Planet, the smallest), the
+    sun is the scene's first directional light. Commands `Looter.Intro.Play [west]`, `Looter.Intro.Skip`. Tests `Looter.Intro.Script`,
+    `.Due`, `.Framing`, `.SkipKeys`, `.Rest`, `.Lines`; `ColdOpenTests`' first-arrival test sets the `Intro.Seen` flag.
+    Not seen in the engine yet: the Rest's shot framing (an occluding cliff at Over the Rim's start, the chapel's height).
+  - Melee (note 5, the heroes' tools: `Heroes.md`): each hero swings their own tool on the right arm and the gun drops into the
+    left hand (`MeleeMotion::LowReadyPose`). The clock: swing 0.5 s, blow at 0.15 s (was 0.45/0.12; the third-person jab follows);
+    draw from under the frame, wind-up, accelerating strike with a wrist snap, a landed bounce or a follow-through, return; hit-stop,
+    impact and damage unchanged and the same for every tool (never a critical). Unarmed: the arms show for the strike. First person
+    only (third person keeps the jab; the 3P gun stays in the right hand; no 3P tool, no per-tool sounds, no steam on Gauge's hit).
+    Melee waits while a cast is under way. Fallbacks: hero mesh missing -> `/Game/Art/Melee/SM_Melee_Placeholder` (a path; no such
+    asset is made) -> a code mallet (engine cylinder + cube). A forearm tool swings as held until its own mesh is in. Cvars
+    `Looter.Melee.GunLower/ArcScale/Wrist/DrawDrop/Recoil/PistonPush/ToolScale/WristBack/Heft.Quick/Heft.Heavy` (heft 0.8 / 1.25).
+    Tests `Looter.Melee` (`Tool.Picks`, `.Arcs`, `.Hand`, Gate, Motion, Strike, Reload, Key).
+  - Ember cast pose (note 27): `EmberComponent` waits `Looter.Embers.CastLead` before a power fires: `EmberPowers.md` "Cast pose".
+  - The main path is Main 1-5, Dead Lift, Back Pay (the second boss, Cyrus Teague the Foreman), Main 6, Main 7: `Docs/Story.md`,
+    `Docs/Progression.md`. Mr. Sloane's side mission Lost and Found (after the Old Fare) opens Lost Property (below).
+  - Perf after round 3 (road term and roadside included): RR spawn 7.8 ms, p95 8.6 (Medium 1080p). The menu map's cost is unmeasured.
 - Lost Loot (the user's call, 2026-10-13, so ground guns don't pile up and cost frame time): a gun on the ground lasts 5 minutes
   (not while the player stands within 6 m), then goes to the depot's LOST PROPERTY window. Leaving a map or quitting sends every
   ground gun there; a load never puts one back. 30 spaces, +10 per upgrade (five, bought with silver); the oldest unnamed gun goes
-  out when full. `Looter.LostLoot.*`.
+  out when full. `Looter.LostLoot.*`. Round 3 (note 37): the window is shut until Mr. Sloane's Lost and Found is turned in
+  (`ALostPropertyWindow::OpenWhen`; `IsShutIn` = a level with a window and none open); while it is shut the ground clock holds
+  (`ULostLootSubsystem::IsHeldShut`), so no gun vanishes into a locked window. Guns handed in by a quit-and-load or a trip before
+  then go to the (shut) shelves and are kept until it opens. Test `Looter.LostLoot.ShutWindow`.
 - The ore lift: `AOreLift` rides as a skippable look-only scene; the body is parked on the far landing at the start (a save,
   death or load mid-ride finds it there). `Looter.Lift.*`.
 - Look: stylized realism; the user rejected faceted low-poly. Golden-hour palettes on Ransom's Rest (ochre, olive, sandstone),

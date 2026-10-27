@@ -19,6 +19,15 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `Art/Levels/<Area>/patches/<name>.json` (path, op set/merge/append, where {id}, unlessKind, comment; entries marked `file` are
   area_shape.py tables, edited by hand). Main applies them with `Tools/layout_patch.py <Area>` (keeps the file's formatting;
   `--check` first), deletes the patch files, and regenerates the terrain if they touch the ground.
+- Holding trees (rounds 1-3, 2026-10-27, `Docs/Work/2026-10-27-Playtest/CONTRACT*.md`): agents that change C++ work in
+  `Saved/<Job><Round>Code/Source/AI_Looter_Shooter/...` (copies of the changed files, the originals' hashes in `HASHES.txt`, new
+  files beside them) and write a README there (files, what it does, CODEMAP lines, the exact hooks Main adds in files they don't
+  own, run order, tests, risks); Python and art files an agent owns are edited in place. Main checks each `git hash-object`
+  still matches HASHES.txt, copies the tree over `Source/`, builds once, runs the scripts, and writes CODEMAP and the pipeline
+  notes (a DOCS agent does that at the end of a round). Two agents never own one file: the second writes its exact edit in its
+  README for the owner (round 3: INTRO's story lines went to STORY's `create_story_lines.py`; WORLD's SECRETS anchors to STORY).
+- A script that sets editor state (World Settings flags, level properties) can raise a modal dialog that blocks every MCP call:
+  `Tools\editorwindows.ps1` lists the editor's windows; see `Bugs.md` ("A modal 'build lighting' message").
 - The art session (a separate session) models in Blender (`Art/Models/**`), never commits, never opens Unreal. It exports into
   `Intermediate\ArtExport_<Family>`, then messages Main with files, triangle counts, pivots, sockets. Main imports, commits, and
   sends back in-game shots to check.
@@ -61,6 +70,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 ## Play checks (playing a level through in PIE, 2026-10-14)
 
+- The editor's Play button opens the level that is open: to see the main menu (startup cards off unless `Looter.Startup.InEditor 1`,
+  the planet, the hero select, the new game's intro) open `Lvl_MenuTeropa` first; Play from any other map plays that map. Since
+  2026-10-27 the menu is `/Game/Maps/Lvl_MenuTeropa` (`Game.md` "Main menu"), not the island.
 - Start: `Tools\pie.ps1 -Map RansomsRest` (Looter.PlayLevel: a new game, no session, nothing saved; Main 1 starts at step 3
   with no gun: `Looter.GiveWeapon Rifle Common 1`, then `play.py ammo`; `God` keeps the player up).
 - `Tools\playstep.ps1` runs one step: `-Py "<play.py command>"`, `-Cmd "<console>"`, `-Keys` (input.ps1 steps),
@@ -96,13 +108,14 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 - Playtest builds land in `Builds\Playtest\<yyyy-MM-dd_HHmm>\Windows\` (git-ignored; run `AI_Looter_Shooter.exe`). `Play Latest Build.bat`
   at the repo root starts the newest one fullscreen at the menu (it needs no editor, and says so if no build exists).
 - `-SmokeTest` starts the real game exe (`Windows\AI_Looter_Shooter\Binaries\Win64\`; the root exe is a stub) windowed 1280x720 twice:
-  once with no map (the menu: log must show `LoadMap(/Game/Maps/Lvl_TutorialIsland`) and once with `/Game/Maps/Lvl_RansomsRest` named
+  once with no map (the menu: log must show `LoadMap(/Game/Maps/Lvl_MenuTeropa`) and once with `/Game/Maps/Lvl_RansomsRest` named
   (log must show that LoadMap), each 6 s of play after the load with no `Fatal error`/`Assertion failed`, then closes it. Logs:
   `Saved\Logs\package_<stamp>_smoke_menu.log` / `_smoke_ransomsrest.log`. Log checks only: look at a window with `Tools\grab.ps1` yourself.
   A packaged Windows Development build: logs and the console (`~`, the `Looter.*` commands) stay in. `-prereqs` adds the Visual C++
   runtime installer.
-- Cooked (`Config/DefaultGame.ini`, `[/Script/UnrealEd.ProjectPackagingSettings]`): `Lvl_TutorialIsland` (also the menu's map) and
-  `Lvl_RansomsRest` with everything they refer to, plus the `DirectoriesToAlwaysCook`. Left out: `Lvl_Skyreach`, `Maps/Dev`,
+- Cooked (`Config/DefaultGame.ini`, `[/Script/UnrealEd.ProjectPackagingSettings]`): `Lvl_MenuTeropa` (the menu's map, the
+  default map since 2026-10-27), `Lvl_TutorialIsland` (a session's fallback map) and `Lvl_RansomsRest` with everything they refer to,
+  plus the `DirectoriesToAlwaysCook` (`/Game/Art/Melee` for the heroes' tools, loaded by path; `/Game/UI` covers the Unreal logo). Left out: `Lvl_Skyreach`, `Maps/Dev`,
   `Developers`, the Skyreach props, editor content. `LooterEditor` is an Editor module; the MCP plugins (`ModelContextProtocol`,
   `AllToolsets`) are Editor-only in the .uproject.
 - Rule: a path in C++ is not a reference. The cooker follows references only. A `LoadObject`, `FindIfMade`,

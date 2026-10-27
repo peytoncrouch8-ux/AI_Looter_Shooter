@@ -143,7 +143,7 @@ committed; its content is in this section once the round lands). The agents' not
   - Lucky Streak: every 3rd pull (a pull = one frame's pellets of one gun) sure-critical with a gold tracer; each hit on a
     creature (one per frame) sends a homing gold ricochet to the nearest other creature within 12 m in sight, 14.
   - Fifty-Two Pickup: 52 cards over a 35 x 12 degree fan, 3600 cm/s, 14 m; a card's segment vs capsules each frame; a
-    creature's cuts in a frame summed into one hit (8 each); world hits stick 1.4 s.
+    creature's cuts in a frame summed into one hit (8 each); world hits stick 1.4 s (round 3: real cards, "Odessa's cards" below).
   - Double or Nothing: per pull, heads x2 (green tracer) or tails: every pellet turned 5-9 degrees and blank; never two
     tails running (`MissStreak` 1), so about 4/3 of the damage.
   - Toll Chain: 4-degree sights to 18 m (else refused); chain out 0.13 s, bite 20, `Daze` for the haul + 1.5 s, hauled
@@ -196,5 +196,32 @@ committed; its content is in this section once the round lands). The agents' not
   lingers. Tuned then: Slag Bomb's pool (it read as a thin ring: 36 bigger blobs, a 7 cm edge, a low unlit molten haze
   of puffs, more smoke); Iron Hide's body glows forge orange while locked (FEmberTint on the player, 0.12 breathing,
   flaring 0.6 on the lock, 0.45 per blow); Rail Spike leaves a 0.4 s fading glow line and a smoke thread; Tripwire's wire
-  1.6 cm at glow 7; Toll Chain's links 3 cm at 9; flying cards drawn x1.35. To see a quick power in a screenshot: `slomo
+  1.6 cm at glow 7; Toll Chain's links 3 cm at 9; flying cards drawn x1.35 (replaced on 2026-10-27: "Odessa's cards"). To see a quick power in a screenshot: `slomo
   0.03-0.15` before `Looter.Embers.Use`, `slomo 1` after (console.ps1 calls take ~1.5 s each).
+
+## Round 3 (playtest, 2026-10-27, notes 27 and 6)
+
+- **Cast pose** (note 27, "action skill activation animation"; `Embers/EmberComponentCast.cpp`, `Player/FirstPersonHandsCast.cpp`,
+  `FirstPersonHandsActions.cpp` `CastSupport`): in first person a press no longer fires at once. `UEmberComponent::BeginCast` makes
+  the power wait `Looter.Embers.CastLead` (0.1 s, never over `MaxCastLead` 0.15, so a power is never felt late; 0 fires at the
+  press) while the left hand raises (the gun stays in the right); the power fires at the release; the hand flares open (`.Flare`
+  0.07 s, fingers splayed `.Splay` 12 degrees), holds (`.Hold` 0.12 s, drifting on `.Drift` 3 cm), and returns (`.Back` 0.18 s).
+  Third person, or a body no local player controls, fires at the press, so every existing test's timing stands. The gate is run at
+  the press and again at the release: a power refused then clicks `Refused`. Melee waits while a cast is under way
+  (`IsCasting`); a cast can't be started in a melee. `GetCastTime` for tests.
+  - The hand by power (`FirstPersonHandsMotion::CastKindOf`, `EHandsCast`): Fling (Fifty-Two Pickup, Slag Bomb, Toll Chain: the
+    hand throws), Clench (Lucky Streak, Double or Nothing, Iron Hide, Borrowed Time, Sundown: a fist before the face), Plant (Grave
+    Ward, Tripwire: set down), Push (Dust Devil, Last Rites, Rail Spike, Spyglass, Long Shot: the palm presses out). A power not in
+    the table pushes. Tests `Looter.Embers.Cast.Pose`, `Looter.Embers.Component`, `.Keys`, `Looter.Player.Hands`.
+- **Odessa's cards** (note 6: "shoots tiny particles, needs better animations and bigger card like projectiles"): the
+  `EmberFX::FCardDeck` (`Embers/Powers/EmberFXCards.cpp`) draws real cards, not streaks: an ivory face with a red pip, the back
+  in the power's colour (Odessa's red), planes on `M_StylizedSurface` instanced meshes, drawn
+  `Looter.Embers.Cards.Size` 2.2 x a real card (8.9 x 6.4 cm), tipped back toward the thrower (`.Tilt` 50 degrees) and
+  fluttering (`.Flutter` 22 degrees, `FlyingCardTurn`), spinning, with a faint trail in her colour (`Looter.Embers.FiftyTwo.Trail`
+  3; `.Glow` 0.6 lets them read in shade). They leave the left hand (`Looter.Embers.FiftyTwo.HandRight` -12 cm right of the eye;
+  Lucky Streak's burst -10), stick edge-first in the world (1.4 s, `.WallStick`; sunk `.Sink` 0.35 of the half length) and in the
+  bodies they cut (1.2 s, `.BodyStick`, riding the body), then shrink away over the last 0.35 s. `CardRadius` for the hit test
+  5 -> 6 cm (the bigger card). Lucky Streak's ricochet cards use the same deck at `Looter.Embers.LuckyStreak.CardSize` 0.7 (they
+  burst close to the eye). Tests `Looter.Embers.Cards`, `Looter.Embers.Power.FiftyTwoPickup`, `.LuckyStreak`.
+- Not checked in play yet: every cast kind's pose, the cards at a spider and at a wall (hands' spots are camera-space guesses; tune
+  with the cvars).

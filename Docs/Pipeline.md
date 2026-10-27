@@ -5,14 +5,14 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
 The notes live in `Docs/Pipeline/<Topic>.md`; cite them as `Docs/Pipeline/<Topic>.md "<section>"` (section names are the
 `##` headings and bold lead-ins inside the files). Add new notes to the matching file; a new topic gets a file and a line here.
 
-- `Docs/Pipeline/Game.md` ("The game"): what the game is and how every runtime system works (player, HUD, weapons, creatures, loot, saves, UI kit, audio).
+- `Docs/Pipeline/Game.md` ("The game"): what the game is and how every runtime system works (player, HUD, weapons, creatures, loot, saves, UI kit, audio; round 3: startup logos, main menu, Teropa menu map, new game intro, melee, Lost Loot).
 - `Docs/Pipeline/Workflow.md`: "Who does what" (agents and contracts), "The everyday loop", "Play checks" (PIE), "Packaging a test build", "Performance" (measuring), "Tests".
-- `Docs/Pipeline/Levels.md`: "Making a level (grounded areas)" (terrain, scatter, ground fit, world variety), "The tutorial island and the older levels", "Island styles", "The Style Lab".
+- `Docs/Pipeline/Levels.md`: "Making a level (grounded areas)" (terrain, scatter, ground fit, world variety), "The tutorial island and the older levels", "Island styles", "The Style Lab"; roads, signposts and chest spots are a bullet under "Making a level".
 - `Docs/Pipeline/Assets.md`: "Making an asset" (Blender to Unreal, materials, textures) and "Sounds (script-made)".
-- `Docs/Pipeline/Heroes.md`: "Character portraits" (painted busts) and "The hero pick" (select screen, third-person hold, per-hero camera).
+- `Docs/Pipeline/Heroes.md`: "Character portraits" (painted busts) and "The hero pick" (select screen, third-person hold, per-hero camera), "Melee tools" (each hero's tool, round 3).
 - `Docs/Pipeline/CharacterModels.md`: "Character models" (MakeHuman bodies, clothes, hair cards, rig, swing bones, the idle, the forearms, Ellis as the player's body, bake/export rules).
-- `Docs/Pipeline/EmberPowers.md`: "Ember powers" (the heroes' powers, their code and assets).
+- `Docs/Pipeline/EmberPowers.md`: "Ember powers" (the heroes' powers, their code and assets; "Round 3": cast pose, Odessa's cards).
 - `Docs/Pipeline/Story.md`: "The heroes' words", "Seeds in Ransom's Rest", "The story's talk cut, and things to find".
 - `Docs/Pipeline/Enemies.md`: "Enemy tiers", "The Gravemother's Barrow fight", "Fight: AI", "Fight: Layout", "Placeholder creatures", "Bounties".
-- `Docs/Pipeline/Gunplay.md`: "Gunfeel: kick and handling", "Gunfeel: hit reactions", "Gunfeel: gun sounds", "Loot: the four new guns", "Loot: elements, part effects, drop moments", "VFX pass".
+- `Docs/Pipeline/Gunplay.md`: "Gunfeel: kick and handling", "Gunfeel: hit reactions", "Gunfeel: gun sounds", "Loot: the four new guns", "Iron sights", "Loot: elements, part effects, drop moments", "VFX pass".
 - `Docs/Pipeline/Bugs.md`: "Bugs and how they were fixed" and "What worked, and what didn't".

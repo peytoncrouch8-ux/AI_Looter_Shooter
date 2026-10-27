@@ -276,3 +276,30 @@ committed: its names are here). The session keeps the pick; the character takes 
   their painting, Close stops it).
   `.Playable` checks every power has code and a hero is playable exactly when body and retargeter load; `.Character`
   expects Toll Chain's own Refused on a bare actor. `.Screen` still says "Odessa is in the works": update it when SK_Odessa lands.
+
+## Melee tools (playtest round 3, 2026-10-27, note 5: "melee is jank, we want each character to have a specific tool they hit with the right hand")
+
+The user picked one tool per hero from Main's concept sheets (`Art/Concepts/MeleeTools/`: three options A/B/C per hero, README
+lists them all, `node sheets.js [Hero...]` redraws the PNGs; the unpicked options stay there as ideas). Modeled in
+`Art/Models/Weapons/Melee/MeleeTools.py` (`Assets.md` "Melee tools"), wired in `UHeroDefinition::MeleeToolFor` (`Game.md` "Melee"
+has the swing's clock and fallbacks). A set `DA_Hero_<Id>` `MeleeTool.Mesh` overrides the table (`SetMeleeTool` is callable from a Python script; no script sets it yet).
+
+| Hero | Pick | Mesh | Style, heft, grip | Idea (the sheet's) |
+|---|---|---|---|---|
+| Ellis | A Grave Spade | `SM_Melee_GraveSpade` (95 cm) | Swat, Steady, held | the Sexton's spare spade that filled their grave; flat-blade backhand swat, high right to low left; black iron blade worn bright, ash shaft and D-grip, a cyan ember crack |
+| Odessa | A Razor Fan | `SM_Melee_RazorFan` (5 cards, 7 x 9.4 cm) | Flick, Quick, held | her steel-edged trick cards (the deck Fifty-Two Pickup throws); backhand flick, low left to high right, the fan snaps open mid-cut; gold rims, ace of spades on top, oxblood backs |
+| Crane | A Ferry Gaff | `SM_Melee_FerryGaff` (120 cm) | Gaff (chop, then a yank back), Heavy, held | a ferryman's boat hook for the man owed his fare (rhymes with the toll chain); grey ash pole, black iron spike and hook, a fare coin nailed on |
+| Gauge | C Piston Fist | `SM_Melee_PistonFist` (a forearm attachment, no grip) | Jab, Quick, Forearm | the right forearm's piston (the one behind Rail Spike) drives a knuckle plate; the piston kicks at the blow (`Looter.Melee.PistonPush`); three firebox-hot knuckle caps, a steam vent |
+| Pike | A Rock Pick | `SM_Melee_RockPick` (35 cm) | Peck, Quick, held | the surveyor's field hammer; short overhand peck, pick first, down and left; steel head, hickory handle bound in brass wire, a teal band |
+
+- **Mesh convention** (`PlayerMeleeToolTypes.h`, `FHeroMeleeTool`): `SOCKET_Grip`: the grip point, X up the handle toward the
+  head, Z the striking side, Y the way the right palm faces onto the handle. Gauge's `SOCKET_Forearm` on the forearm's axis at the
+  front clamp ring, X toward the knuckles (the punch way), Z out of the back of the hand. Other sockets: `SOCKET_Tip` (striking
+  end; unused by code so far), `SOCKET_Hook` (the gaff's hook point), `SOCKET_Vent` (Gauge's steam vent: no steam yet). No socket:
+  the mesh's origin and axes stand in. Wrong socket axes hold the tool turned: check in play and tune with `Looter.Melee.*`.
+- The hands: the right hand leaves the gun's grip for the tool (`FirstPersonHandsActions.cpp` `RightOnTool`, `GetToolHold` gives the
+  grip point and `HandleRadius`); Gauge's fist stays bare inside the clamp. First person only: a third-person swing keeps the jab.
+- Swing styles by feel tag: `Heft` scales the arc (`Looter.Melee.Heft.Quick` 0.8, `.Heavy` 1.25). Same damage, clock and hit-stop for
+  every tool, so a tool is look and feel, not a stat.
+- Not done: no third-person tool, no per-tool sounds, no steam puff on Gauge's hit, `SOCKET_Tip` unused; the arcs and cast spots are
+  camera-space guesses until played (the cvars tune them).

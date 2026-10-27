@@ -12,7 +12,11 @@ in-place Python/Art you own, layout patches, no build/editor/git, Edit/Write onl
 Holding trees this round: `Saved/<Job>3Code/`. Read sources from Source/ (rounds 1-2 merged). Original names, art and text only
 (no copyrighted content; Borderlands/Gearbox are references for feel, never copied).
 
-## CONCEPTS (Opus): melee tool sheet (note 5)
+The user's melee tool picks (2026-10-27, sheets in `Art/Concepts/MeleeTools/`): Ellis A Grave Spade, Odessa A Razor Fan,
+Crane A Ferry Gaff, Gauge C Piston Fist (a forearm attachment, not a grip), Pike A Rock Pick. Modeled by TOOLS (Blender,
+`Art/Models/Weapons/Melee/`), wired by HANDS.
+
+## CONCEPTS (Opus): melee tool sheet (note 5) — done
 Owns: `Art/Concepts/MeleeTools/` (new). Read Docs/Story.md (the five heroes), Docs/Pipeline/Heroes.md, CharacterModels.md.
 For each hero, 2-3 original melee tool ideas that fit who they are (frontier-tech western on Teropa), each with a one-line why
 and how it swings (right hand). Draw one sheet per hero as clean vector/SVG concept art in an HTML page rendered to PNG with

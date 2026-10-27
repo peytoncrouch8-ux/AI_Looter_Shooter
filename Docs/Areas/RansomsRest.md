@@ -626,7 +626,10 @@ he is a friend (a separate, non-hostile actor). His adds use the Basic table.
 - Most legendaries come from Abel and the Gravemother. Common guns stay the most common at every rank.
 - **Chests** (built, step 26; the Calder's Caches mission: expansion §3):
   - Three Supply Crates as Ruth's Ranger caches (under the windmill, on the Sink's rim, on the bluff path): 1 gun each at
-    Luck 0.5 (3.7% legendary).
+    Luck 0.5 (3.7% legendary). Round 3 (2026-10-27, chests at "more distinguished locations"): the bluff-path cache stands on the
+    lookout's deck; the loose strongbox lies by Keeper's Bridge; the OrchardEdge camp's crate stands 4.4 m off Coffin Rock (its
+    first spots tucked right at the foot failed `Looter.Encounters.Camps.Placement`, so `layout.json` crate spots moved out) and
+    Dinner Pail's is tucked behind granite H (`Docs/Pipeline/Levels.md` "Roads and chest spots").
   - The gang's Strongbox in the sheriff's office: 2 guns at Luck 1.0 (15.5% legendary).
 - **Things to find off the path** (2026-10-22, `build_area_secrets.py`, `story_texts.SECRETS`; chest ids never renamed):
   the Widow's strongbox under the middle Widow (2 guns at Luck 1.3: the legendary chance), the gang's locker on the Mooring

@@ -101,6 +101,43 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     `ground_preview.py places`; eye-level tour views `Saved/GroundDetail/place_views.json`; sheet
     `Saved/ArtPreviews/Terrain/Places_compare.png`. Perf: unchanged (RR spawn 7.7, tour worst Aerial_Dusk 8.2) only
     because the pattern is read within 60 m and the map within 120 m; reading them everywhere cost wide views +0.3 ms.
+  - Roads and chest spots (round 3, 2026-10-27, notes 16 and 26: "the map doesn't really prompt the player to use roads, it feels
+    like a free for all"; "chests should be in more distinguished locations"):
+    - Ground: layout `macro.roads` -> `Art/Levels/area_places.py <Area>` also writes `Art/Textures/<Area>Places/T_<Area>Roads_M.png`
+      (R road, G across m/16 + 0.5, B half width/8, A ruts; 14 roads, 0.3 s). `M_Terrain`'s road term
+      (`build_world_materials.py`: `ROAD_WEIGHTS`, group Roads, `apply_roads`; `RoadAmount` 0 on the master, set on the area's
+      `MI_<Area>Macro*_Steep`) makes the bed stony and lighter, worn dark edges, wheel ruts (a path: one trodden line) with relief,
+      read within `look.reach` m (120). Cost: one more 4 MB map read within 120 m and three more on road pixels within 60 m; if
+      over budget lower `look.reach` to 80 in `macro.roads`, or `RoadRelief` 0. `place_texture` finds `<Area>Roads_M` in
+      `<Area>Places`. `ground_preview.py` doesn't preview roads. Perf after round 3: RR spawn 7.8 ms (`Game.md`).
+    - Roadside (layout `roadside`, `build_area_dressing.Plan.roadside`): named signposts (`ARoadSign`, `SM_Signpost`) at branches (13:
+      FarmRoad RANSOM FARM / MAIN STREET; NorthRoad CHAPEL / MAIN STREET; SinkRoad THE SINK / MAIN STREET; QuarryTrack OLD QUARRY /
+      MAIN STREET; WestRoadChapel and WestRoadGrave KEEPER'S GATE / CHAPEL; KeepersPath RANSOM FARM / KEEPER'S GRAVE; FieldsPath
+      WHITLOCK FIELDS / MAIN STREET; YardRoad DEPOT / MAIN STREET; BluffApproach RANSOM'S POINT / RANSOM FARM; BenchTrail CALDER'S
+      POST / LIFT HEAD; CrestPath GOAT STEPS / LIFT HEAD; OreTramway THE DIGGINGS / LIFT HEAD), 4 lantern posts (2 on the farm
+      road into the gate, 1 yard road, 1 fields path), marker posts (`FencePost`) every 22 m (west road 6, keeper's path 2, north
+      road 2, Sink road 2, quarry track 2, fields path 1) and cairns every 18 m (bench trail 4, crest path 1). `mapRoads` places an
+      `AMapRoad` per road (`MapRoad_<id>`, folder Dressing/Roadside), which `MinimapSubsystemRoads.cpp` paints into the bake: roads
+      sand with a dark edge, paths pale, rails steel; so the HUD minimap and the map page show them. Signposts: names read left to
+      right on the boards' faces; if one shows mirrored, swap the front/back `FacingYaw` in `RoadSign.cpp` `Face()`.
+    - Chests (`build_area_caches.py` dict spots with `perch`, `Site.perch_floor`: a perch spot stands on whatever blocks the player
+      there; `build_area_loot.py` `bridge:<id>` anchors). Old -> new: RangerCache_BluffPath (path top, by the east lip (-7450,-7380))
+      -> the lookout deck by the right rail (Lookout frame (210,-215) yaw +90, about (-8815,-10210), 6.5 m up, facing north; second
+      spot in front of the hut's bench (-8700,-10100)); the loose Strongbox (ring 2.5-5 m round Wagon_BurntA (-1950,-1950)) -> the Dry
+      Wash bed beside Keeper's Bridge (rings 2.8-4.2 m, prefers a pier or bank at its back; id `Strongbox_<x>_<y>` changes);
+      CampCache_OrchardEdge (open ground (-4700,-1750)) -> the crate spots at Coffin Rock (first tucked at its NE foot (-5195,-2335);
+      those failed `Looter.Encounters.Camps.Placement`, so `layout.json` now has (-5062,-2379), (-5122,-2559), (-4902,-1899), 4.4 m
+      off the rock, old open spots last); CampCache_DinnerPail (open camp (17600,-1050)) -> behind granite H (16452,-1518) facing 62,
+      2 more, old last. Each falls back to its old spots and the build log names the spot used. Kept: RangerCache_Windmill and
+      _SinkRim (Ruth's note names them), the gang's Strongbox (office), the saloon backlot strongbox, SheepFold's and MillCreek's
+      crates, every SECRETS chest.
+    - Rebuild order (after a layout patch with `layout_patch.py`): `area_places.py <Area>`; build; `build_world_materials.py
+      M_Terrain` (recompiles the road term, `apply_roads`); `build_area.py <Area> dressing` (signs, lanterns, markers, MapRoads; it
+      reruns `build_area_loot.py`); `build_area.py <Area> gameplay`, then `build_area_loot.py <Area>` again (keeps off the moved
+      chests), `build_area_fauna.py`; `build_island_scatter.py <Area>` (keeps off the new pieces); `path_probe.py`. Tests
+      `Looter.UI.Minimap`, `Looter.UI.Map`, `Looter.World.RoadSign`, `Looter.Encounters.Camps`.
+    - Not verified in play: the road term's look and shader compile cost on a low end card, the signs' TextRender facing, the deck
+      crate (it shows in the cold open's deck shots, beside the deck's own crate and rope).
   - Area MIs: `MI_LeavesRusset_Ransom` (Tint 3.2/1.0/0.7: the sumac red), `MI_LeavesDusty_Ransom`; a hex tint can't push past 1.
 - Path checks: `Tools/Unreal/path_probe.py <Area>` walks a player capsule down every road and ramp; `Tools/Unreal/width_probe.py`
   probes across one. Run them after cliff, dressing or scatter changes.
