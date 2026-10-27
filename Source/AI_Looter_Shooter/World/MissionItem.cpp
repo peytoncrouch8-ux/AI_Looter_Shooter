@@ -8,6 +8,7 @@
 #include "Interaction/InteractionSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Missions/MissionDefinition.h"
+#include "Missions/MissionGates.h"
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionText.h"
 #include "Story/HeroLines.h"
@@ -197,6 +198,12 @@ bool AMissionItem::ShouldShow() const
 	return Runner->GetStatus(*Mission) == EMissionStatus::Active;
 }
 
+bool AMissionItem::CanTake() const
+{
+	// Fallen from its carrier, it's the fight's: taken by a touch or a hold whatever the step.
+	return bDropped || MissionGates::IsMet(TakeWhen, this);
+}
+
 void AMissionItem::Refresh()
 {
 	SetShown(ShouldShow());
@@ -281,19 +288,22 @@ void AMissionItem::ApplyLook()
 FInteractionOptions AMissionItem::GetInteractionOptions(const UInteractionComponent& User) const
 {
 	FInteractionOptions Options;
-	Options.bUsable = bShownNow && !IsFalling();
-	Options.bTap = true;
-	Options.bHold = false;
+	// Before its step it's never focused: no prompt says it can be taken yet.
+	Options.bUsable = bShownNow && !IsFalling() && CanTake();
 	// Its name after the verb as in a sentence: "Take the clamp pin", though the data writes it as a title ("The clamp pin").
-	Options.TapPrompt = Prompt.IsEmpty() ? FText::Format(LOCTEXT("TakePrompt", "Take {0}"), MissionText::InSentence(GetItemName()))
+	const FText Words = Prompt.IsEmpty() ? FText::Format(LOCTEXT("TakePrompt", "Take {0}"), MissionText::InSentence(GetItemName()))
 		: HeroLines::Resolve(Prompt);
+	// A short hold, not a tap: a key action of its mission (MissionGates).
+	MissionGates::SetUse(Options, Words, /*bKeyAction*/ true);
 	Options.Reach = Reach;
 	return Options;
 }
 
-bool AMissionItem::Interact(UInteractionComponent& User, bool bHeld)
+bool AMissionItem::Interact(UInteractionComponent& User, bool /*bHeld*/)
 {
-	return !bHeld && Take(User.GetOwner());
+	// The interaction component has already matched the press to what GetInteractionOptions offers (a hold, or a tap with
+	// the hold turned off).
+	return Take(User.GetOwner());
 }
 
 TOptional<FVector> AMissionItem::GetInteractionLocation() const
@@ -318,7 +328,7 @@ TOptional<FInteractionBox> AMissionItem::GetInteractionBox() const
 bool AMissionItem::Take(AActor* Player)
 {
 	UMissionRunner* Runner = UMissionRunner::Get(this);
-	if (!Runner || !bShownNow)
+	if (!Runner || !bShownNow || !CanTake())
 	{
 		return false;
 	}

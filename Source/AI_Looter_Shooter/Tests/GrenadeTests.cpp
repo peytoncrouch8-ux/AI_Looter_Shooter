@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Combat/GraveSaltRules.h"
+#include "Combat/GraveSaltTuning.h"
 #include "Player/PlayerThrowMotion.h"
 #include "Player/PlayerThrowRules.h"
 #include "Player/PlayerThrowSave.h"
@@ -207,7 +208,7 @@ bool FGrenadeFuseTest::RunTest(const FString& Parameters)
 	// Three go in under two seconds when it all goes wrong; the first bursts before the last leaves the hand... nearly.
 	const float ThreeThrown = 2.f * FThrowRules::CooldownSeconds + FThrowRules::ReleaseSeconds;
 	TestTrue(FString::Printf(TEXT("All three thrown in under 2 s (%.2f)"), ThreeThrown), ThreeThrown < 2.f);
-	TestEqual(TEXT("A 6 cm ball"), FGraveSaltRules::CollisionRadius, 6.f);
+	TestEqual(TEXT("A 9 cm ball (the jar twice its first size)"), FGraveSaltRules::CollisionRadius, 9.f);
 	return true;
 }
 
@@ -216,51 +217,56 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGrenadeDamageTest, "Looter.Grenade.Damage",
 
 bool FGrenadeDamageTest::RunTest(const FString& Parameters)
 {
-	// 900 at the heart at level 1: one and a half Common rifle magazines (30 rounds of 20). +/-10% like every hit.
-	TestEqual(TEXT("One and a half magazines at the heart"), FGraveSaltRules::BaseDamage, 1.5f * 30.f * 20.f);
-	TestEqual(TEXT("900 at the heart"), FGraveSaltRules::BurstDamage(0.f, 1.f, 0.5f, false), 900.f, 0.01f);
-	TestEqual(TEXT("...810 at the low end"), FGraveSaltRules::BurstDamage(0.f, 1.f, 0.f, false), 810.f, 0.01f);
-	TestEqual(TEXT("...990 at the high end"), FGraveSaltRules::BurstDamage(0.f, 1.f, 1.f, false), 990.f, 0.01f);
+	// The shipped tuning (the Looter.Grenade.* cvars' defaults); the early share is Looter.Grenade.Early's.
+	const FGraveSaltTuning Tuning;
+
+	// 900 at the heart at full strength, level 1: one and a half Common rifle magazines (30 rounds of 20). +/-10% like every hit.
+	TestEqual(TEXT("One and a half magazines at the heart at full strength"), Tuning.BaseDamage, 1.5f * 30.f * 20.f);
+	TestEqual(TEXT("900 at the heart"), FGraveSaltRules::BurstDamage(0.f, 1.f, 0.5f, false, Tuning), 900.f, 0.01f);
+	TestEqual(TEXT("...810 at the low end"), FGraveSaltRules::BurstDamage(0.f, 1.f, 0.f, false, Tuning), 810.f, 0.01f);
+	TestEqual(TEXT("...990 at the high end"), FGraveSaltRules::BurstDamage(0.f, 1.f, 1.f, false, Tuning), 990.f, 0.01f);
 
 	// Full within a metre, straight down to a fifth at 4 m, nothing past.
-	TestEqual(TEXT("Full in the core"), FGraveSaltRules::Falloff(FGraveSaltRules::CoreRadius), 1.f);
-	TestEqual(TEXT("A fifth at the radius"), FGraveSaltRules::Falloff(FGraveSaltRules::Radius), FGraveSaltRules::EdgeShare, 0.001f);
-	TestEqual(TEXT("Nothing past it"), FGraveSaltRules::Falloff(FGraveSaltRules::Radius + 1.f), 0.f);
-	TestEqual(TEXT("Nothing past it: no damage"), FGraveSaltRules::BurstDamage(FGraveSaltRules::Radius + 1.f, 1.f, 0.5f, false), 0.f);
+	TestEqual(TEXT("A 4 m reach"), Tuning.Radius, 400.f);
+	TestEqual(TEXT("Full in the core"), FGraveSaltRules::Falloff(Tuning.CoreRadius, Tuning), 1.f);
+	TestEqual(TEXT("A fifth at the radius"), FGraveSaltRules::Falloff(Tuning.Radius, Tuning), Tuning.EdgeShare, 0.001f);
+	TestEqual(TEXT("Nothing past it"), FGraveSaltRules::Falloff(Tuning.Radius + 1.f, Tuning), 0.f);
+	TestEqual(TEXT("Nothing past it: no damage"), FGraveSaltRules::BurstDamage(Tuning.Radius + 1.f, 1.f, 0.5f, false, Tuning), 0.f);
 	float Last = 2.f;
 	bool bFalls = true;
-	for (float Distance = 0.f; Distance <= FGraveSaltRules::Radius; Distance += 10.f)
+	for (float Distance = 0.f; Distance <= Tuning.Radius; Distance += 10.f)
 	{
-		const float Share = FGraveSaltRules::Falloff(Distance);
+		const float Share = FGraveSaltRules::Falloff(Distance, Tuning);
 		bFalls &= Share <= Last + 1e-5f;
 		Last = Share;
 	}
 	TestTrue(TEXT("It only ever falls with distance"), bFalls);
 
 	// Salt burns the dead: half as much again.
-	TestEqual(TEXT("The Unpaid take half again"), FGraveSaltRules::BurstDamage(200.f, 1.f, 0.5f, true) / FGraveSaltRules::BurstDamage(200.f, 1.f, 0.5f, false),
-		FGraveSaltRules::UnpaidScale, 0.001f);
+	TestEqual(TEXT("The Unpaid take half again"), FGraveSaltRules::BurstDamage(200.f, 1.f, 0.5f, true, Tuning) / FGraveSaltRules::BurstDamage(200.f, 1.f, 0.5f, false, Tuning),
+		Tuning.UnpaidScale, 0.001f);
 
-	// Growing with the player's level as enemies do, it always takes the same share at equal levels: at the heart a Basic
-	// spider (300) and a Restless one go, a Gravebound spider (1500, a level up) is left about half; a Restless Unpaid goes
-	// even at the edge.
+	// At full strength (level 12 on), growing with the player's level as enemies do, it always takes the same share at
+	// equal levels: at the heart a Basic spider (300) and a Restless one go, a Gravebound spider (1500, a level up) is left
+	// about half; a Basic Unpaid goes even at the edge.
 	const FLevelRules Rules;
-	for (const int32 Level : { 1, 10, 30, 70 })
+	for (const int32 Level : { 12, 30, 70 })
 	{
-		const float Scale = Rules.EnemyScale(Level);
-		const float Heart = FGraveSaltRules::BurstDamage(0.f, Scale, 0.5f, false);
+		const float Scale = FGraveSaltRules::ThrowerScale(Level, Rules.EnemyScale(Level), Tuning);
+		TestEqual(FString::Printf(TEXT("Level %d: full strength"), Level), Scale, Rules.EnemyScale(Level), 0.0001f);
+		const float Heart = FGraveSaltRules::BurstDamage(0.f, Scale, 0.5f, false, Tuning);
 		TestTrue(FString::Printf(TEXT("Level %d: a Basic spider dies at the heart"), Level), Heart >= 300.f * Scale);
 		TestTrue(FString::Printf(TEXT("Level %d: a Restless spider dies at the heart"), Level), Heart >= 300.f * 2.5f * Rules.EnemyScale(Level + 1));
 		const float Gravebound = 300.f * 5.f * Rules.EnemyScale(Level + 1);
 		TestTrue(FString::Printf(TEXT("Level %d: a Gravebound spider lives, at about half"), Level), Heart < Gravebound && Heart > Gravebound * 0.4f);
-		const float Edge = FGraveSaltRules::BurstDamage(FGraveSaltRules::Radius, Scale, 0.5f, true);
+		const float Edge = FGraveSaltRules::BurstDamage(Tuning.Radius, Scale, 0.5f, true, Tuning);
 		TestTrue(FString::Printf(TEXT("Level %d: a Basic Unpaid dies even at the edge"), Level), Edge >= 160.f * Scale);
 	}
 
 	// A boss never takes more than 8% of its health from one burst, so three never take a quarter.
-	TestEqual(TEXT("A boss's cap"), FGraveSaltRules::CapForBoss(5000.f, 6400.f), 6400.f * FGraveSaltRules::BossShareCap, 0.01f);
-	TestEqual(TEXT("Under the cap: the damage as it was"), FGraveSaltRules::CapForBoss(100.f, 6400.f), 100.f, 0.01f);
-	TestTrue(TEXT("Three bursts under a quarter"), 3.f * FGraveSaltRules::BossShareCap < 0.25f);
+	TestEqual(TEXT("A boss's cap"), FGraveSaltRules::CapForBoss(5000.f, 6400.f, Tuning), 6400.f * Tuning.BossShareCap, 0.01f);
+	TestEqual(TEXT("Under the cap: the damage as it was"), FGraveSaltRules::CapForBoss(100.f, 6400.f, Tuning), 100.f, 0.01f);
+	TestTrue(TEXT("Three bursts under a quarter"), 3.f * Tuning.BossShareCap < 0.25f);
 
 	// Measured to the body's nearest side: a big body is caught by its edge.
 	FGraveSaltBody Body;
@@ -285,7 +291,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGrenadeCountTest, "Looter.Grenade.Count",
 bool FGrenadeCountTest::RunTest(const FString& Parameters)
 {
 	TestEqual(TEXT("Three at most"), FThrowRules::MaxGrenades, 3);
-	TestEqual(TEXT("Two to start"), FThrowRules::StartingGrenades, 2);
+	TestEqual(TEXT("One to start (two until the 2026-10-27 playtest)"), FGraveSaltTuning().StartingGrenades, 1);
 	int32 Taken = 0;
 	TestEqual(TEXT("One found with two: three"), FThrowRules::Add(2, 1, &Taken), 3);
 	TestEqual(TEXT("...one taken"), Taken, 1);

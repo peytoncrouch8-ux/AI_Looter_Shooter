@@ -59,8 +59,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grenade", meta = (ClampMin = "0"))
 	float CollectRadius = 180.f;
 
-	/** The tin shows this much bigger than it's held, so it reads at a distance (the ammo bundles are about 20 cm). */
-	static constexpr float ModelScale = 1.8f;
+	/** The tin shows at this share of its thrown size (the jar doubled on 2026-10-27; the pickup keeps its old size, about the ammo bundles' 20 cm). */
+	static constexpr float ModelScale = 0.9f;
 
 protected:
 	virtual void BeginPlay() override;

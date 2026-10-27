@@ -15,8 +15,10 @@ Gameplay folder; a piece whose class isn't built yet is left out with a warning.
   someone, tagged Gravemother (Side 3's "Kill the Gravemother" clears this encounter). On after Main 5 ("Side 3 opens
   after Main 5"); until Main 5 is made, the console brings her: Looter.Legendary.Return (or Looter.Encounter.Wave
   Gravemother force). She hunts the den and the Sink's floor (within 36 m of the mouth, and no more than 3 m above or
-  below it), so she gives up a little way up the ramp and never hunts the rim. She comes back on an arrival at least 20
-  minutes of play after her death: the lair (its LegendaryId) and the session keep that.
+  below it), so she gives up a little way up the ramp and never hunts the rim. The same ground decides whose hits count
+  (2026-10-27): a shooter off it (the rim) does her and her headstone no harm (AGravemotherCreature::ShrugFor), so keep
+  GIVE_UP and MAX_RISE covering the whole floor a fight can reach and leaving the rim out. She comes back on an arrival
+  at least 20 minutes of play after her death: the lair (its LegendaryId) and the session keep that.
 - The den's dressing (the art session's DenDressing kit, approved 2026-10-07): bones, the larder, cocoons hung from the
   brow, a coffin dragged in, the dead's hat and boot, at the places its placement table gives in SOCKET_DenMouth's space
   (Art/Models/Props/DenDressing.placement.json, written by DenDressing.py). Her clear way down the den's middle stays
@@ -56,7 +58,8 @@ LURK_IN = 350.0
 FLOOR_PROBE = 300.0
 
 # Her lair (cm): she appears as the player comes near the Sink; her ground is the den and the floor round the mouth, a
-# player more than MAX_RISE above or below the mouth's floor isn't on it (a little way up the ramp; the rim is 12 m up);
+# player more than MAX_RISE above or below the mouth's floor isn't on it (a little way up the ramp; the rim is 12 m up),
+# and hits from a player off it do her nothing (the C++ reads the spawner's ground: no rebuild needed for that rule);
 # her spots stay on the den's level.
 ACTIVATION = 4000.0
 GIVE_UP = 3600.0

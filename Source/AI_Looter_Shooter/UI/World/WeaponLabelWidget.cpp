@@ -20,10 +20,14 @@ using namespace LooterUI;
 namespace
 {
 	/**
-	 * A folded label's dot (widget units): big enough to tell its colour at the label range's far end, small enough that
-	 * a pile's dots stay a scatter.
+	 * A folded label's dot (widget units): the lit core and the dark halo round it. The playtest (2026-10-27) lost the old
+	 * 12-unit dot in a legendary beam's glow: a core this big with a light rim, in a dark halo, reads over bright and dark
+	 * ground alike, and a pile's dots still stay a scatter.
 	 */
-	constexpr float FoldedDotSize = 12.f;
+	constexpr float FoldedCoreSize = 18.f;
+	constexpr float FoldedHaloSize = 26.f;
+	/** The core's light rim (widget units), a little thicker than the kit's hairlines so it shows at the label range's far end. */
+	constexpr float FoldedRimWidth = 2.f;
 }
 
 TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
@@ -40,10 +44,19 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		CardSlot->SetHorizontalAlignment(HAlign_Fill);
 		CardSlot->SetVerticalAlignment(VAlign_Fill);
 		Lines = Card;
-		FoldedDot = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("FoldedDot"));
-		UOverlaySlot* DotSlot = Root->AddChildToOverlay(FoldedDot);
+		UOverlay* Dot = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("FoldedDot"));
+		FoldedDot = Dot;
+		UOverlaySlot* DotSlot = Root->AddChildToOverlay(Dot);
 		DotSlot->SetHorizontalAlignment(HAlign_Center);
 		DotSlot->SetVerticalAlignment(VAlign_Bottom);
+		FoldedHalo = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("FoldedHalo"));
+		UOverlaySlot* HaloSlot = Dot->AddChildToOverlay(FoldedHalo);
+		HaloSlot->SetHorizontalAlignment(HAlign_Center);
+		HaloSlot->SetVerticalAlignment(VAlign_Center);
+		FoldedCore = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("FoldedCore"));
+		UOverlaySlot* CoreSlot = Dot->AddChildToOverlay(FoldedCore);
+		CoreSlot->SetHorizontalAlignment(HAlign_Center);
+		CoreSlot->SetVerticalAlignment(VAlign_Center);
 
 		auto AddFill = [Card](UWidget* Child, const FMargin& ChildPadding)
 		{
@@ -303,9 +316,14 @@ void UWeaponLabelWidget::ApplyContent()
 	FoldedDot->SetVisibility(bShowDot ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	if (bShowDot)
 	{
-		// The map's loot dot (white with its dark edge baked in), tinted the rarity's colour: it reads over any ground.
-		FSlateBrush Dot = MarkerBrush(EMarker::Dot, NameColor);
-		Dot.ImageSize = FVector2D(FoldedDotSize, FoldedDotSize);
-		FoldedDot->SetBrush(Dot);
+		// A dark halo (the kit's outline colour) under a core in the rarity's colour with a light rim: the dark reads in a
+		// legendary beam's white glow, the light over dark ground, and the colour tells the rarity from either.
+		FSlateBrush Halo = CircleBrush(Color::Outline());
+		Halo.ImageSize = FVector2D(FoldedHaloSize, FoldedHaloSize);
+		FoldedHalo->SetBrush(Halo);
+		FSlateBrush Core = CircleBrush(NameColor, Color::Text(), FoldedRimWidth);
+		Core.ImageSize = FVector2D(FoldedCoreSize, FoldedCoreSize);
+		FoldedCore->SetBrush(Core);
 	}
+	ShownDotSize = bShowDot ? FVector2D(FoldedHaloSize, FoldedHaloSize) : FVector2D::ZeroVector;
 }

@@ -28,7 +28,7 @@ void UPlayerViewComponent::AddShotKick(const AWeaponBase& Weapon)
 	// SMG's burst is felt harder (Recoil already counted it in HandleWeaponFired), and an automatic's kicks stack under a
 	// sustained cap (FViewKickStack::Add) so a long burst never shakes the view past what the sights can follow.
 	const float FirstShot = GunfeelKick::FirstShotKick(Kind, Recoil.GetShotInBurst());
-	FViewKick Kick = ViewKicks::ForShot(Kind, Weapon.GetStats().Recoil, GetAimAlpha(), KickRandom) * (GunfeelKick::KickScale(Kind) * FirstShot);
+	FViewKick Kick = ViewKicks::ForShot(Kind, GunfeelKick::ShotRecoil(&Weapon), GetAimAlpha(), KickRandom) * (GunfeelKick::KickScale(Kind) * FirstShot);
 	Kick.SustainCap = GunfeelKick::SustainCapFor(Kind);
 	Kick.SustainFloor = GunfeelKick::SustainFloor();
 	UCameraShakeModifier::Kick(Player, Kick);

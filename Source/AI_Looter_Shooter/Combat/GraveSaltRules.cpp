@@ -53,37 +53,56 @@ bool FGraveSaltRules::ShouldRest(const FVector& Velocity, const FVector& Normal)
 	return Normal.GetSafeNormal().Z >= GroundMinUp && Velocity.Size() < RestSpeed;
 }
 
-float FGraveSaltRules::Falloff(float Distance)
+float FGraveSaltRules::Falloff(float Distance, const FGraveSaltTuning& Tuning)
 {
 	const float Out = FMath::Max(Distance, 0.f);
-	if (Out > Radius)
+	if (Out > Tuning.Radius)
 	{
 		return 0.f;
 	}
-	if (Out <= CoreRadius)
+	if (Out <= Tuning.CoreRadius || Tuning.Radius <= Tuning.CoreRadius)
 	{
 		return 1.f;
 	}
 	// Straight down from the core's edge to the radius: what's caught at the edge still feels it, and the heart is
 	// where it pays to land it.
-	return FMath::Lerp(1.f, EdgeShare, (Out - CoreRadius) / (Radius - CoreRadius));
+	return FMath::Lerp(1.f, Tuning.EdgeShare, (Out - Tuning.CoreRadius) / (Tuning.Radius - Tuning.CoreRadius));
 }
 
-float FGraveSaltRules::BurstDamage(float Distance, float LevelScale, float Roll, bool bUnpaid)
+float FGraveSaltRules::BurstDamage(float Distance, float LevelScale, float Roll, bool bUnpaid, const FGraveSaltTuning& Tuning)
 {
-	const float Share = Falloff(Distance);
+	const float Share = Falloff(Distance, Tuning);
 	if (Share <= 0.f)
 	{
 		return 0.f;
 	}
 	// Like any hit, a spread of numbers about the listed damage; a burst finds no critical spot.
-	const float Listed = BaseDamage * Share * FMath::Max(LevelScale, 0.f) * (bUnpaid ? UnpaidScale : 1.f);
+	const float Listed = Tuning.BaseDamage * Share * FMath::Max(LevelScale, 0.f) * (bUnpaid ? Tuning.UnpaidScale : 1.f);
 	return LooterCombat::HitDamage(Listed, false, Roll);
 }
 
-float FGraveSaltRules::CapForBoss(float Damage, float MaxHealth)
+float FGraveSaltRules::CapForBoss(float Damage, float MaxHealth, const FGraveSaltTuning& Tuning)
 {
-	return FMath::Min(Damage, FMath::Max(MaxHealth, 0.f) * BossShareCap);
+	return FMath::Min(Damage, FMath::Max(MaxHealth, 0.f) * Tuning.BossShareCap);
+}
+
+float FGraveSaltRules::EarlyShare(int32 Level, const FGraveSaltTuning& Tuning)
+{
+	const float Least = FMath::Clamp(Tuning.EarlyShare, 0.f, 1.f);
+	const int32 Full = FMath::Max(Tuning.FullStrengthLevel, 1);
+	if (Full <= 1)
+	{
+		return 1.f;
+	}
+	// Straight up from level 1 to the full level: each level the jar earns a little more, so a new player's first
+	// grenade is a help in a crowd, not the end of it, and by the mid game it's the panic button it was built as.
+	const float Grown = static_cast<float>(FMath::Clamp(Level, 1, Full) - 1) / static_cast<float>(Full - 1);
+	return FMath::Lerp(Least, 1.f, Grown);
+}
+
+float FGraveSaltRules::ThrowerScale(int32 Level, float EnemyScale, const FGraveSaltTuning& Tuning)
+{
+	return FMath::Max(EnemyScale, 0.f) * EarlyShare(Level, Tuning);
 }
 
 FVector FGraveSaltRules::NearestPoint(const FVector& Point, const FGraveSaltBody& Body)

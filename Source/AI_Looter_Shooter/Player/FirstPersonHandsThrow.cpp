@@ -1,4 +1,5 @@
 #include "Player/FirstPersonHandsMotion.h"
+#include "Combat/GraveSaltRules.h"
 #include "Player/PlayerThrowMotion.h"
 #include "Player/PlayerThrowRules.h"
 
@@ -9,8 +10,8 @@
 namespace
 {
 	/** The tin's middle above its foot, its pivot (PlayerThrowMotion.cpp's), and its radius (SaltGrenade.py's R_BODY). */
-	constexpr float JarMiddleUp = 5.f;
-	constexpr float JarRadius = 3.75f;
+	constexpr float JarMiddleUp = FGraveSaltRules::JarMiddle;
+	constexpr float JarRadius = FGraveSaltRules::JarRadius;
 	/** The throwing arm's forearm, leaving the wrist down, back and out to the left (camera space), as the jar comes up. */
 	const FVector JarForearm(-0.35f, -0.55f, -0.75f);
 	/** Off the gun and round the jar in this long (seconds), while it's still rising out of sight under the view. */

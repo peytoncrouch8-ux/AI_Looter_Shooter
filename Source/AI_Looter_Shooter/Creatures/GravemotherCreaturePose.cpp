@@ -154,12 +154,12 @@ bool AGravemotherCreature::GetPoseOverride(FSpiderPoseOverride& Out) const
 void AGravemotherCreature::DrawStunStars()
 {
 	UWorld* World = GetWorld();
-	UBulletSubsystem* Bullets = World && World->IsGameWorld() ? World->GetSubsystem<UBulletSubsystem>() : nullptr;
-	if (!Bullets || IsDead())
+	UBulletSubsystem* BulletWorld = World && World->IsGameWorld() ? World->GetSubsystem<UBulletSubsystem>() : nullptr;
+	if (!BulletWorld || IsDead())
 	{
 		return;
 	}
-	FWeaponFX& Effects = Bullets->GetEffects();
+	FWeaponFX& Effects = BulletWorld->GetEffects();
 	Effects.Initialize(World);
 	// Over her head, fading in as she's stunned and out as she comes to.
 	const float Scale = GetSizeScale();

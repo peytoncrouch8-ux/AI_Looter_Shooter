@@ -1,4 +1,5 @@
 #include "Player/PlayerThrowMotion.h"
+#include "Combat/GraveSaltRules.h"
 #include "Player/PlayerThrowRules.h"
 
 namespace
@@ -7,7 +8,7 @@ namespace
 	 * The tin's middle above its foot (cm; Art/Models/Throwables/SaltGrenade.py): the poses place its foot, its pivot,
 	 * while the flying jar (AGraveSaltGrenade) is held about its middle.
 	 */
-	constexpr float JarMiddleUp = 5.f;
+	constexpr float JarMiddleUp = FGraveSaltRules::JarMiddle;
 
 	FThrowPose Blend(const FThrowPose& From, const FThrowPose& To, float Alpha)
 	{

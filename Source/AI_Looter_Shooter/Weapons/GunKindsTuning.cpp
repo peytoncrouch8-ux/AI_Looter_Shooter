@@ -38,6 +38,23 @@ namespace
 	TAutoConsoleVariable<float> CVarBreathRefill(TEXT("Looter.Gunfeel.Sniper.BreathRefill"), Def::SniperBreathRefill,
 		TEXT("Seconds of held breath back for each second of breathing."), ECVF_Default);
 
+	TAutoConsoleVariable<float> CVarSwayRifle(TEXT("Looter.Gunfeel.Sway.Rifle"), Def::SwayRifle,
+		TEXT("The rifle's idle sway through its sights (degrees at its widest; 0 none)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwayShotgun(TEXT("Looter.Gunfeel.Sway.Shotgun"), Def::SwayShotgun,
+		TEXT("The shotgun's idle sway through its sights (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwayRevolver(TEXT("Looter.Gunfeel.Sway.Revolver"), Def::SwayRevolver,
+		TEXT("The revolver's idle sway through its sights (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwaySMG(TEXT("Looter.Gunfeel.Sway.SMG"), Def::SwaySMG,
+		TEXT("The SMG's idle sway through its sights (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwayLMG(TEXT("Looter.Gunfeel.Sway.LMG"), Def::SwayLMG,
+		TEXT("The LMG's idle sway through its sights (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwayLauncher(TEXT("Looter.Gunfeel.Sway.Launcher"), Def::SwayLauncher,
+		TEXT("The launcher's idle sway through its sight (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimSwayRate(TEXT("Looter.Gunfeel.Sway.Rate"), Def::SwayRate,
+		TEXT("Their sways' pace (Hz); the sniper's scope keeps Sniper.SwayRate."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSwayCrouch(TEXT("Looter.Gunfeel.Sway.Crouch"), Def::SwayCrouch,
+		TEXT("Crouched, every gun's sway (the scope's too) is this share of it."), ECVF_Default);
+
 	TAutoConsoleVariable<float> CVarSpinUp(TEXT("Looter.Gunfeel.LMG.SpinUp"), Def::LMGSpinUp,
 		TEXT("Seconds of firing for the LMG to spin up to its full rate."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarSpinStart(TEXT("Looter.Gunfeel.LMG.SpinStart"), Def::LMGSpinStart,
@@ -94,6 +111,29 @@ float GunKinds::SniperBoltMaxSeconds() { return Positive(CVarBoltMax, 0.1f); }
 float GunKinds::SniperAimedSpread() { return Positive(CVarAimedSpread); }
 float GunKinds::SniperSway() { return Positive(CVarSway); }
 float GunKinds::SniperSwayRate() { return Positive(CVarSwayRate, 0.01f); }
+
+float GunKinds::AimSway(EWeaponKind Kind)
+{
+	switch (Kind)
+	{
+	case EWeaponKind::Sniper: return SniperSway();
+	case EWeaponKind::Shotgun: return Positive(CVarSwayShotgun);
+	case EWeaponKind::Revolver: return Positive(CVarSwayRevolver);
+	case EWeaponKind::SMG: return Positive(CVarSwaySMG);
+	case EWeaponKind::LMG: return Positive(CVarSwayLMG);
+	case EWeaponKind::Launcher: return Positive(CVarSwayLauncher);
+	case EWeaponKind::Rifle:
+	case EWeaponKind::None:
+	default: return Positive(CVarSwayRifle);
+	}
+}
+
+float GunKinds::AimSwayRate(EWeaponKind Kind)
+{
+	return Kind == EWeaponKind::Sniper ? SniperSwayRate() : Positive(CVarAimSwayRate, 0.01f);
+}
+
+float GunKinds::SwayCrouch() { return Positive(CVarSwayCrouch); }
 
 GunKinds::FBreathRules GunKinds::BreathRules()
 {
@@ -204,6 +244,11 @@ FRotator GunKinds::SwayAt(float Time, float Amplitude, float Rate)
 	const float Yaw = Amplitude * (0.85f * FMath::Sin(Phase) + 0.15f * FMath::Sin(Phase * 0.37f + 1.3f));
 	const float Pitch = Amplitude * 0.67f * (0.85f * FMath::Sin(2.f * Phase + 0.7f) + 0.15f * FMath::Sin(Phase * 0.53f));
 	return FRotator(Pitch, Yaw, 0.f);
+}
+
+float GunKinds::SwayShare(float Breathing, bool bCrouched, float CrouchShare)
+{
+	return FMath::Max(Breathing, 0.f) * (bCrouched ? FMath::Max(CrouchShare, 0.f) : 1.f);
 }
 
 float GunKinds::FScopeBreath::Step(bool bWant, float Dt, const FBreathRules& Rules)

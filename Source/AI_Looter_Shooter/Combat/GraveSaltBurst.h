@@ -2,11 +2,28 @@
 
 #include "CoreMinimal.h"
 #include "Combat/GraveSaltRules.h"
+#include "Weapons/ImpactSurface.h"
 #include "Engine/HitResult.h"
 
 class AActor;
 class APawn;
+class FWeaponFX;
 class UWorld;
+
+/** Where a burst is drawn: on the ground under it (its ring, debris and scorch lie on it) or in the air. */
+struct FGraveSaltBlast
+{
+	/** The burst's heart. */
+	FVector Center = FVector::ZeroVector;
+	/** The point on the ground under it, and the ground's up (the heart and world up in the air). */
+	FVector Ground = FVector::ZeroVector;
+	FVector Up = FVector::UpVector;
+	/** What the ground is (its debris); Unknown in the air. */
+	EImpactMaterial Surface = EImpactMaterial::Unknown;
+	bool bOnGround = false;
+	/** The light the smoke shows in (UCreatureReactSubsystem's; white without one). */
+	FLinearColor DustLight = FLinearColor::White;
+};
 
 /** One body a burst reaches, and what it does to it. */
 struct FGraveSaltTarget
@@ -64,11 +81,11 @@ namespace GraveSaltBurst
 	AI_LOOTER_SHOOTER_API bool CanSee(const UWorld& World, const FVector& Center, const FGraveSaltBody& Body, const AActor* Target, const AActor* Thrower);
 
 	/**
-	 * Every body a burst at Center reaches, nearest first, with its damage at LevelScale (each rolled from Random in the
-	 * +/-10% spread). Nothing without a world.
+	 * Every body a burst at Center reaches (Tuning's radius), nearest first, with its damage at LevelScale (each rolled
+	 * from Random in the +/-10% spread). Nothing without a world.
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FGraveSaltTarget> FindTargets(const UWorld* World, const FVector& Center, const AActor* Thrower, float LevelScale,
-		FRandomStream& Random);
+		FRandomStream& Random, const FGraveSaltTuning& Tuning);
 
 	/**
 	 * Knocks Target away from Center with the melee strike's hop (UPlayerMeleeComponent::KnockBack: never over an edge,
@@ -84,7 +101,21 @@ namespace GraveSaltBurst
 
 	// --- GraveSaltBurstEffects.cpp ---
 
-	/** The white salt-and-ember burst, drawn in code through FWeaponFX: a flash, embers rising, salt flung, a salt cloud. */
+	/**
+	 * The ground under a burst at Center (the world's solid shapes only), within Reach cm: then the burst is drawn on it
+	 * (its ring, debris and scorch, its heart lifted off it a little); else in the air.
+	 */
+	AI_LOOTER_SHOOTER_API FGraveSaltBlast FindGround(const UWorld& World, const FVector& Center, float Reach);
+
+	/**
+	 * The explosion drawn in code through Effects (no particle assets), sized to Tuning's radius x LookScale: the
+	 * launcher's blast (FWeaponFX::SpawnExplosion: a white crack, a fireball rolling into soot, a smoke column, a dust
+	 * skirt, embers, the ground thrown up and debris raining back), a salt-white shock ring racing out over the ground to
+	 * the radius, and the salt's own look on top (white salt flung with embers, a salt haze left hanging).
+	 */
+	AI_LOOTER_SHOOTER_API void DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast, const FGraveSaltTuning& Tuning);
+
+	/** The whole look of a burst at Center (Up: world up): its ground (FindGround), DrawBlast and the scorch left on the ground. */
 	AI_LOOTER_SHOOTER_API void SpawnEffects(UWorld& World, const FVector& Center, const FVector& Up);
 
 	/** The burst's sound at Center, and the salt searing each Unpaid it burned (at most a few, so it never smears). */

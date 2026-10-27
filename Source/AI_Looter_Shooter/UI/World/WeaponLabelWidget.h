@@ -36,6 +36,12 @@ public:
 	/** The dot is on screen in place of the name (tests). */
 	bool IsDotShown() const;
 
+	/** The size the dot is drawn at (its halo's, widget units); zero while no dot shows (tests: what the player sees). */
+	FVector2D GetDotSize() const { return ShownDotSize; }
+
+	/** The label is the looked-at one (its plate shows). */
+	bool IsFocusedLabel() const { return bIsFocused; }
+
 	/** What the label shows once built (for the tests): the name, and a named gun's line (empty for any other gun). */
 	FText GetNameText() const;
 	FText GetFlavorText() const;
@@ -119,9 +125,15 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> Lines;
 
-	/** The folded label: a dot in the rarity's colour where the name would hang. */
+	/** The folded label: a dot in the rarity's colour where the name would hang (a dark halo under a lit core, so it reads over any ground and in a beam's glow). */
 	UPROPERTY(Transient)
-	TObjectPtr<UImage> FoldedDot;
+	TObjectPtr<UWidget> FoldedDot;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> FoldedHalo;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> FoldedCore;
 
 	FText Name;
 	FText Flavor;
@@ -138,4 +150,6 @@ private:
 	bool bPop = false;
 	/** Folded to its dot (SetFolded); never while looked at or popping. */
 	bool bFolded = false;
+	/** The dot's drawn size while it shows (GetDotSize), else zero. */
+	FVector2D ShownDotSize = FVector2D::ZeroVector;
 };

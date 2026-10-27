@@ -1,36 +1,59 @@
 #include "Combat/GraveSaltBurst.h"
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
+#include "Combat/GraveSaltTuning.h"
+#include "Creatures/CreatureReactSubsystem.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/PlayerThrowMotion.h"
 #include "Player/PlayerThrowRules.h"
 #include "Player/PlayerViewComponent.h"
+#include "Weapons/DeathSplats.h"
+#include "Weapons/ImpactSurface.h"
+#include "Weapons/VfxSubsystem.h"
+#include "Weapons/VfxTuning.h"
+#include "Weapons/VfxTypes.h"
 #include "Weapons/WeaponFX.h"
+#include "World/WorldQueries.h"
 #include "Camera/CameraComponent.h"
+#include "CollisionQueryParams.h"
+#include "Engine/HitResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
-// The grave-salt burst as it's seen, heard and felt: white salt and embers drawn through FWeaponFX (no particle assets),
-// the burst's sound and the salt searing the dead, and the jolt on the players' views by distance.
+// The grave-salt burst as it's seen, heard and felt. Since the user's playtest (2026-10-27, note 7: "lacks explosion
+// visuals") it's a real explosion: the launcher's blast (FWeaponFX::SpawnExplosion: fire rolling into soot, a smoke
+// column, a dust skirt, embers, debris) sized to the burst's 4 m, a shock ring racing out over the ground to that reach
+// (so the player reads what it covered), a scorch left behind, and the salt's own white look on top. All drawn in code
+// through FWeaponFX (no particle assets); the flash of light is the jar's (AGraveSaltGrenade).
 
 namespace
 {
-	/** The embers: hot orange going white at the heart, the colour of salt catching fire on the dead. */
-	const FLinearColor EmberTint(1.f, 0.45f, 0.14f);
+	/** The fire: salt catching fire on the dead burns hotter and paler than black powder (the rocket's is 1, 0.42, 0.1). */
+	const FLinearColor SaltFire(1.f, 0.55f, 0.22f);
+	/** The shock ring: a hot white with a warm cast, the crack of the burst running over the ground. */
+	const FLinearColor RingTint(1.f, 0.86f, 0.62f);
 	/** The salt: bone white with a warm cast, a little short of pure white so it never blooms out. */
 	const FLinearColor SaltTint(0.92f, 0.9f, 0.84f);
 	/** The salt cloud (unlit smoke: the colour it shows in afternoon light). */
 	const FLinearColor SaltCloud(0.86f, 0.84f, 0.79f);
 
-	/** How big each part of the burst reads, as FWeaponFX's sizes go (a body's width in cm for the death bursts). */
+	/** A surface facing up at least this much is ground the burst lies on (its ring, its scorch); a wall isn't. */
+	constexpr float GroundUp = 0.6f;
+	/** The ring starts this share of the radius out (the fire covers the heart) and lies this far over the ground (cm). */
+	constexpr float RingStartShare = 0.08f;
+	constexpr float RingLift = 8.f;
+	/**
+	 * The salt on top, as FWeaponFX's sizes go: the gel burst's white clumps flung out (a body's width, cm), the crack of
+	 * light as the tin gives, a few salt puffs rolling out with the dust skirt, a haze hanging over the spot after the
+	 * smoke, and shards of the tin. Counts kept low: the blast under it is most of the pieces, and three bursts in two
+	 * seconds must stay inside Looter.Vfx.MaxParticles.
+	 */
+	constexpr float SaltSize = 170.f;
 	constexpr float FlashScale = 3.f;
-	constexpr float EmberSize = 170.f;
-	constexpr float SaltSize = 150.f;
-	/** The ring of salt cloud rolling out along the ground, then the haze left hanging over the spot. */
-	constexpr int32 CloudPuffs = 10;
+	constexpr int32 CloudPuffs = 5;
 	constexpr int32 HazePuffs = 4;
-	constexpr int32 GritPieces = 10;
+	constexpr int32 ShardPieces = 6;
 	/** A burst sears at most this many of the dead at once: past it the sizzles only smear together. */
 	constexpr int32 MaxSears = 3;
 
@@ -39,6 +62,119 @@ namespace
 		const FVector Any = Random.GetUnitVector();
 		const FVector Flat = (Any - Up * FVector::DotProduct(Any, Up)).GetSafeNormal();
 		return Flat.IsNearlyZero() ? FVector::ForwardVector : Flat;
+	}
+}
+
+FGraveSaltBlast GraveSaltBurst::FindGround(const UWorld& World, const FVector& Center, float Reach)
+{
+	FGraveSaltBlast Blast;
+	Blast.Center = Center;
+	Blast.Ground = Center;
+	if (Reach <= 0.f)
+	{
+		return Blast;
+	}
+	// The world's solid shapes only (terrain, rocks, floors; never grass, volumes or bodies), traced as a bullet is so the
+	// ground's own surface comes back (its debris: dirt clods, stone chips, splinters).
+	FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(&World, TEXT("GraveSaltGround"));
+	Params.bReturnPhysicalMaterial = true;
+	Params.bReturnFaceIndex = true;
+	// From a little over the heart: a jar lying on the ground has its heart only its ball's radius up.
+	const FVector From = Center + FVector(0.f, 0.f, FGraveSaltRules::CollisionRadius);
+	const FVector To = Center - FVector(0.f, 0.f, Reach);
+	FHitResult Hit;
+	if (!World.LineTraceSingleByObjectType(Hit, From, To, FCollisionObjectQueryParams(ECC_WorldStatic), Params) || Hit.bStartPenetrating)
+	{
+		return Blast;
+	}
+	const FVector Normal = Hit.ImpactNormal.GetSafeNormal();
+	if (Normal.Z < GroundUp)
+	{
+		// A steep face: drawn in the air, nothing laid on a slope it would slide off.
+		return Blast;
+	}
+	Blast.Ground = Hit.ImpactPoint;
+	Blast.Up = Normal;
+	Blast.bOnGround = true;
+	const EImpactMaterial Surface = ImpactSurface::Of(Hit);
+	// Ground that doesn't say what it is still throws up dirt (SpawnExplosion throws no debris for Unknown).
+	Blast.Surface = Surface == EImpactMaterial::Unknown ? EImpactMaterial::Dirt : Surface;
+	return Blast;
+}
+
+void GraveSaltBurst::DrawBlast(FWeaponFX& Effects, const FGraveSaltBlast& Blast, const FGraveSaltTuning& Tuning)
+{
+	const float Radius = Tuning.Radius * Tuning.LookScale;
+	const FVfxTuning Vfx = FVfxTuning::Live();
+	if (Radius <= 0.f || Vfx.BlastScale <= 0.f)
+	{
+		return;
+	}
+	const FVector Up = Blast.Up.IsNearlyZero() ? FVector::UpVector : Blast.Up.GetSafeNormal();
+	// On the ground the blast stands on it (its fire rises off it, its debris and ring lie on it); in the air it opens
+	// where the jar was.
+	const FVector Base = Blast.bOnGround ? Blast.Ground : Blast.Center;
+	FRandomStream Random(static_cast<int32>(GetTypeHash(Blast.Center)));
+
+	// The explosion: the launcher's (the white crack, a hot core and fire puffs rolling into soot, a smoke column after
+	// the fire, a dust skirt over the ground, embers arcing out, the ground thrown up in its own look and debris raining
+	// back), in the salt's hotter, paler fire.
+	FVfxExplosion Explosion;
+	Explosion.Center = Base;
+	Explosion.Up = Up;
+	Explosion.Radius = Radius;
+	Explosion.Fire = SaltFire;
+	Explosion.Ground = Blast.bOnGround ? Blast.Surface : EImpactMaterial::Unknown;
+	Explosion.bOnGround = Blast.bOnGround;
+	Explosion.DustLight = Blast.DustLight;
+	Effects.SpawnExplosion(Explosion);
+
+	// The shock ring, racing out to the burst's reach and fading as it gets there: what the player reads as "this far it
+	// hurt". Flat on the ground; facing the eye in the air.
+	if (Tuning.RingGlow > 0.f)
+	{
+		const float Glow = Tuning.RingGlow * Vfx.Glow;
+		const float Width = Radius * Tuning.RingWidth;
+		if (Blast.bOnGround)
+		{
+			Effects.SpawnShockRing(Base + Up * RingLift, Up, Radius * RingStartShare, Radius, Width, RingTint, Glow, Tuning.RingLife);
+		}
+		else
+		{
+			Effects.SpawnShockRing(Base, FVector::ZeroVector, Radius * RingStartShare, Radius, Width, RingTint, Glow, Tuning.RingLife, true);
+		}
+	}
+
+	// The salt on top: the crack of light as the tin gives, white clumps flung out every way with a glow on them...
+	const float Salt = Tuning.SaltLayer;
+	if (Salt <= 0.f)
+	{
+		return;
+	}
+	const FVector Heart = Base + Up * (Blast.bOnGround ? FGraveSaltRules::JarMiddle : 0.f);
+	Effects.SpawnFlash(Heart, Up, FlashScale * Salt);
+	Effects.SpawnDeathBurst(EDeathBurst::Gel, Heart, Up, SaltSize * Salt, SaltTint);
+	// ...a few puffs of salt rolling out with the dust...
+	const float Reach = Radius / 400.f;
+	for (int32 Index = 0; Index < CloudPuffs; ++Index)
+	{
+		const FVector Out = AcrossFrom(Up, Random);
+		const FVector Velocity = (Out * Random.FRandRange(300.f, 480.f) + Up * Random.FRandRange(20.f, 70.f)) * Reach;
+		Effects.SpawnDustPuff(Heart + Out * 20.f, Velocity, SaltCloud, 0.5f * Salt, 30.f, Random.FRandRange(140.f, 200.f) * Reach,
+			Random.FRandRange(1.1f, 1.7f));
+	}
+	// ...a haze of it left hanging over the spot once the smoke's gone up, slow to clear, where the dead won't walk...
+	for (int32 Index = 0; Index < HazePuffs; ++Index)
+	{
+		const FVector Drift = AcrossFrom(Up, Random) * Random.FRandRange(10.f, 40.f) + Up * Random.FRandRange(8.f, 24.f);
+		Effects.SpawnDustPuff(Heart + AcrossFrom(Up, Random) * Random.FRandRange(40.f, 120.f) * Reach, Drift, SaltCloud, 0.3f * Salt, 80.f,
+			Random.FRandRange(240.f, 320.f) * Reach, Random.FRandRange(3.f, 3.8f));
+	}
+	// ...and shards of the tin.
+	for (int32 Index = 0; Index < ShardPieces; ++Index)
+	{
+		const FVector Out = (Up * Random.FRandRange(0.5f, 1.2f) + Random.GetUnitVector() * 0.8f).GetSafeNormal();
+		Effects.SpawnGrit(Heart, Out * Random.FRandRange(400.f, 800.f), Random.FRandRange(1.5f, 3.f), Random.FRandRange(0.6f, 1.1f));
 	}
 }
 
@@ -51,35 +187,24 @@ void GraveSaltBurst::SpawnEffects(UWorld& World, const FVector& Center, const FV
 	}
 	FWeaponFX& Effects = Bullets->GetEffects();
 	Effects.Initialize(&World);
-	FRandomStream Random(static_cast<int32>(GetTypeHash(Center)));
-
-	// The crack of light as the tin gives, then the embers: a white-hot heart in an orange halo, sparks flung and motes
-	// of fire rising off it (the death burst's soul-light, in salt-fire colours).
-	Effects.SpawnFlash(Center, Up, FlashScale);
-	Effects.SpawnDeathBurst(EDeathBurst::SoulLight, Center, Up, EmberSize, EmberTint);
-	// The salt itself: white clumps flung out every way with a glow on them, and a low white spray (the gel burst's
-	// shapes, in salt).
-	Effects.SpawnDeathBurst(EDeathBurst::Gel, Center, Up, SaltSize, SaltTint);
-
-	// A ring of salt cloud rolling out along the ground...
-	for (int32 Index = 0; Index < CloudPuffs; ++Index)
+	const FGraveSaltTuning Tuning = FGraveSaltTuning::Current();
+	FGraveSaltBlast Blast = FindGround(World, Center, Tuning.GroundReach);
+	if (!Blast.bOnGround && !Up.IsNearlyZero())
 	{
-		const FVector Out = AcrossFrom(Up, Random);
-		const FVector Velocity = Out * Random.FRandRange(260.f, 440.f) + Up * Random.FRandRange(20.f, 70.f);
-		Effects.SpawnDustPuff(Center + Out * 20.f, Velocity, SaltCloud, 0.55f, 30.f, Random.FRandRange(130.f, 190.f), Random.FRandRange(1.1f, 1.7f));
+		Blast.Up = Up.GetSafeNormal();
 	}
-	// ...a haze of it left hanging over the spot, slow to clear, where the dead won't want to walk...
-	for (int32 Index = 0; Index < HazePuffs; ++Index)
+	if (UCreatureReactSubsystem* Reacts = UCreatureReactSubsystem::Get(&World))
 	{
-		const FVector Drift = AcrossFrom(Up, Random) * Random.FRandRange(10.f, 40.f) + Up * Random.FRandRange(8.f, 24.f);
-		Effects.SpawnDustPuff(Center + AcrossFrom(Up, Random) * Random.FRandRange(30.f, 90.f), Drift, SaltCloud, 0.32f, 80.f,
-			Random.FRandRange(220.f, 300.f), Random.FRandRange(2.8f, 3.6f));
+		Blast.DustLight = Reacts->GetDustLight();
 	}
-	// ...and grit off the ground and shards of the tin.
-	for (int32 Index = 0; Index < GritPieces; ++Index)
+	DrawBlast(Effects, Blast, Tuning);
+	// The scorch: a dark sooty star burned into the ground where it went off (the rocket's, sized to this burst).
+	if (Blast.bOnGround && Tuning.ScorchShare > 0.f)
 	{
-		const FVector Out = (Up * Random.FRandRange(0.5f, 1.2f) + Random.GetUnitVector() * 0.8f).GetSafeNormal();
-		Effects.SpawnGrit(Center, Out * Random.FRandRange(300.f, 700.f), Random.FRandRange(1.2f, 3.f), Random.FRandRange(0.6f, 1.1f));
+		if (UVfxSubsystem* Vfx = UVfxSubsystem::Get(&World))
+		{
+			Vfx->AddSplat(Blast.Ground, Blast.Up, EVfxSplat::Scorch, FLinearColor::Black, Tuning.Radius * Tuning.LookScale * Tuning.ScorchShare);
+		}
 	}
 }
 

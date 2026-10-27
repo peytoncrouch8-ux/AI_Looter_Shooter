@@ -87,6 +87,8 @@ void AGravemotherStone::Break(bool bByHerThird)
 	}
 	// The cracks race across it and it splits: chips and dust burst off it, the roots snap, the slab is gone.
 	const FVector Middle = Slab->Bounds.Origin;
+	// Its target's glow goes with it.
+	ClearMark();
 	Shower(10, 18, 520.f);
 	LooterSound::PlayAt(this, LooterSoundCue::GravemotherStoneBreak, Middle);
 	BossCameraShake::Kick(this, Middle, 0.45f, 0.6f);
@@ -155,7 +157,7 @@ void AGravemotherStone::HideShards()
 		}
 	}
 	ShardTime = -1.f;
-	SetActorTickEnabled(false);
+	UpdateTickNeed();
 }
 
 void AGravemotherStone::Advance(float DeltaSeconds)
@@ -164,6 +166,7 @@ void AGravemotherStone::Advance(float DeltaSeconds)
 	{
 		TickShards(DeltaSeconds);
 	}
+	TickMark(DeltaSeconds);
 }
 
 void AGravemotherStone::TickShards(float DeltaSeconds)

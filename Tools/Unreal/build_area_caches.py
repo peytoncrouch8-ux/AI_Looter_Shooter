@@ -376,7 +376,10 @@ def place_strongbox(build, cls):
         return
     at = floor.translation
     yaw = floor.rotation.rotator().yaw
-    place_chest(build, cls, 'Strongbox', meshes, STRONGBOX_ID, (at.x, at.y, at.z), yaw, (STRONGBOX_ID,))
+    chest = place_chest(build, cls, 'Strongbox', meshes, STRONGBOX_ID, (at.x, at.y, at.z), yaw, (STRONGBOX_ID,))
+    # Mission steps unlock in order (the user, 2026-10-27): opened before Calder's Caches reaches it, it skipped step 1. Its
+    # step can't pass unopened, so it never stays shut for good.
+    chest.set_editor_property('open_when', story.condition(during='CaldersCaches', from_step=1))
     build.log(f'the gang\'s Strongbox ({STRONGBOX_ID}) on the sheriff\'s office\'s floor at ({at.x:.0f}, {at.y:.0f}, '
               f'{at.z:.0f}) facing {yaw % 360.0:.0f}')
 

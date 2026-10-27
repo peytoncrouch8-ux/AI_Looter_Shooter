@@ -6,6 +6,7 @@
 #include "Combat/GraveSaltBurst.h"
 #include "Combat/GraveSaltGrenade.h"
 #include "Combat/GraveSaltRules.h"
+#include "Combat/GraveSaltTuning.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/SpiderCreature.h"
@@ -29,7 +30,7 @@
 
 // The grave-salt grenade in a test level (its rules alone are GrenadeTests.cpp): the jar's flight, bounces and fuse, a
 // body bursting it on contact, what the burst reaches (falloff, walls, salt on the dead, a boss's cap, never the
-// thrower), the knock that never goes over an edge, and the player's count: the first gun's two, the most carried, and
+// thrower), the knock that never goes over an edge, and the player's count: the first gun's one, the most carried, and
 // the session's save.
 
 namespace
@@ -206,8 +207,9 @@ bool FGrenadeBurstPlayTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
+	const FGraveSaltTuning Tuning;
 	FRandomStream Random(7);
-	const TArray<FGraveSaltTarget> Targets = GraveSaltBurst::FindTargets(World, Center, nullptr, 1.f, Random);
+	const TArray<FGraveSaltTarget> Targets = GraveSaltBurst::FindTargets(World, Center, nullptr, 1.f, Random, Tuning);
 	auto Find = [&Targets](const AActor* Actor) -> const FGraveSaltTarget*
 	{
 		return Targets.FindByPredicate([Actor](const FGraveSaltTarget& Target) { return Target.Actor.Get() == Actor; });
@@ -225,32 +227,33 @@ bool FGrenadeBurstPlayTest::RunTest(const FString& Parameters)
 	// Each one's damage: the falloff at its nearest side, rolled within the +/-10% spread.
 	for (const FGraveSaltTarget& Target : Targets)
 	{
-		const float Low = FGraveSaltRules::BurstDamage(Target.Distance, 1.f, 0.f, Target.bUnpaid);
-		const float High = FGraveSaltRules::BurstDamage(Target.Distance, 1.f, 1.f, Target.bUnpaid);
+		const float Low = FGraveSaltRules::BurstDamage(Target.Distance, 1.f, 0.f, Target.bUnpaid, Tuning);
+		const float High = FGraveSaltRules::BurstDamage(Target.Distance, 1.f, 1.f, Target.bUnpaid, Tuning);
 		const float Listed = Target.bBoss ? FMath::Min(Low, Target.Damage) : Low;
 		TestTrue(FString::Printf(TEXT("%s takes its share (%.0f at %.0f cm)"), *GetNameSafe(Target.Actor.Get()), Target.Damage, Target.Distance),
 			Target.Damage >= Listed - 0.01f && Target.Damage <= High + 0.01f);
 	}
 	if (NearHit && FartherHit)
 	{
-		TestTrue(TEXT("Nearer takes more"), NearHit->Distance < FartherHit->Distance && FGraveSaltRules::Falloff(NearHit->Distance) > FGraveSaltRules::Falloff(FartherHit->Distance));
+		TestTrue(TEXT("Nearer takes more"), NearHit->Distance < FartherHit->Distance
+			&& FGraveSaltRules::Falloff(NearHit->Distance, Tuning) > FGraveSaltRules::Falloff(FartherHit->Distance, Tuning));
 	}
 	// Salt burns the dead; a boss takes no more than its cap.
 	if (TestNotNull(TEXT("The Unpaid is reached"), UnpaidHit))
 	{
 		TestTrue(TEXT("Salt burns the dead"), UnpaidHit->bUnpaid);
-		TestTrue(TEXT("...half again"), UnpaidHit->Damage >= FGraveSaltRules::BurstDamage(UnpaidHit->Distance, 1.f, 0.f, false) * FGraveSaltRules::UnpaidScale - 0.01f);
+		TestTrue(TEXT("...half again"), UnpaidHit->Damage >= FGraveSaltRules::BurstDamage(UnpaidHit->Distance, 1.f, 0.f, false, Tuning) * Tuning.UnpaidScale - 0.01f);
 	}
 	if (TestNotNull(TEXT("The boss is reached"), BossHit))
 	{
 		const UHealthComponent* BossHealth = Boss->FindComponentByClass<UHealthComponent>();
 		TestTrue(TEXT("Known for a boss"), BossHit->bBoss);
-		TestTrue(TEXT("A boss takes at most its cap"), BossHealth && BossHit->Damage <= BossHealth->GetMaxHealth() * FGraveSaltRules::BossShareCap + 0.01f);
+		TestTrue(TEXT("A boss takes at most its cap"), BossHealth && BossHit->Damage <= BossHealth->GetMaxHealth() * Tuning.BossShareCap + 0.01f);
 	}
 
 	// Never the thrower.
 	FRandomStream Again(7);
-	TestTrue(TEXT("The thrower is never hurt"), !GraveSaltBurst::FindTargets(World, Center, Near, 1.f, Again).ContainsByPredicate(
+	TestTrue(TEXT("The thrower is never hurt"), !GraveSaltBurst::FindTargets(World, Center, Near, 1.f, Again, Tuning).ContainsByPredicate(
 		[Near](const FGraveSaltTarget& Target) { return Target.Actor.Get() == Near; }));
 	TestFalse(TEXT("Nor anything it holds as itself"), GraveSaltBurst::CanHurt(Near, Near));
 
@@ -310,17 +313,18 @@ bool FGrenadeCarryPlayTest::RunTest(const FString& Parameters)
 		Throw->OnGrenadesChanged.Remove(Listening);
 	};
 
-	// The first gun in hand brings the starting two.
+	// The first gun in hand brings the starting one (Looter.Grenade.Starting).
+	const int32 Starting = FGraveSaltTuning::Current().StartingGrenades;
 	Weapons->GiveWeapon(UWeaponRollLibrary::RollWeaponWithRarity(Rifle, EWeaponRarity::Common, 1));
 	TestTrue(TEXT("The first gun unlocks them"), Throw->IsUnlocked());
-	TestEqual(TEXT("...two of them"), Throw->GetGrenades(), FThrowRules::StartingGrenades);
+	TestEqual(TEXT("...the starting count"), Throw->GetGrenades(), Starting);
 	TestTrue(TEXT("...said as given"), Changes == 1 && LastWhy == EGrenadeChange::Given);
 	TestFalse(TEXT("Given once only"), Throw->GiveStartingGrenades());
 	Weapons->GiveWeapon(UWeaponRollLibrary::RollWeaponWithRarity(Rifle, EWeaponRarity::Common, 1));
-	TestEqual(TEXT("A second gun gives none"), Throw->GetGrenades(), FThrowRules::StartingGrenades);
+	TestEqual(TEXT("A second gun gives none"), Throw->GetGrenades(), Starting);
 
 	// Found: up to three; what doesn't fit isn't taken.
-	TestEqual(TEXT("Five found: one taken"), Throw->AddGrenades(5), 1);
+	TestEqual(TEXT("Five found: only what fits taken"), Throw->AddGrenades(5), FThrowRules::MaxGrenades - Starting);
 	TestEqual(TEXT("...three carried"), Throw->GetGrenades(), FThrowRules::MaxGrenades);
 	TestEqual(TEXT("Full: none taken"), Throw->AddGrenades(1), 0);
 

@@ -93,9 +93,10 @@ AAbelKeeper::AAbelKeeper()
 	DisplayName = NSLOCTEXT("LooterAbel", "AbelDisplay", "Abel Ransom");
 	StartingRank = ECreatureRank::Boss;
 	BodyScale = AbelRules::BodyScale;
-	// 40 Unpaid of his level; his rank (Boss) adds no health, so it's all here.
-	Health->MaxHealth = UnpaidHealth * AbelRules::HealthScale;
-	AttackDamage = 12.f;
+	// 40 Unpaid of his level; his rank (Boss) adds no health, so it's all here. Then the playtest's 1.6x health and harder
+	// hits (2026-10-27; the cvars move him when he's next spawned: BeginPlay).
+	Health->MaxHealth = UnpaidHealth * AbelRules::HealthScale * AbelRules::DefaultFightHealthScale;
+	AttackDamage = 12.f * AbelRules::DefaultFightDamageScale;
 	// The bar at the top of the screen names him; no tag over him.
 	bShowsHealthTag = false;
 	bRespawns = false;
@@ -197,6 +198,11 @@ void AAbelKeeper::BeginPlay()
 	LookParts.Reset();
 	LookParts.Add(Lantern);
 	LookParts.Add(Pump);
+	// The playtest's tuning as the cvars stand now, over his class's defaults, before his rank and level take them as his base.
+	const float HealthRatio = AbelRules::FightHealthScale() / AbelRules::DefaultFightHealthScale;
+	const float DamageRatio = AbelRules::FightDamageScale() / AbelRules::DefaultFightDamageScale;
+	Health->MaxHealth = FMath::Max(1.f, Health->MaxHealth * HealthRatio);
+	AttackDamage *= DamageRatio;
 	// His rank, level, size and rig first (the Unpaid's start, which lays his pose over it once).
 	Super::BeginPlay();
 	WearProps();

@@ -50,7 +50,10 @@ bool ACreatureBase::IsHeldByHit() const
 
 float ACreatureBase::GetChaseSpeedNow() const
 {
-	return FightRules::ChaseSpeedFor(ChaseSpeed, KeepsOwnFight(), FFightTuning::LiveChaseScale());
+	// Its own boost on top (the Unpaid closing in, or its pack's frenzy: UFightDirectorSubsystem::SetChaseBoost); 1 for anyone else.
+	const UFightDirectorSubsystem* Director = !KeepsOwnFight() ? UFightDirectorSubsystem::Get(this) : nullptr;
+	const float Boost = Director ? Director->GetChaseBoost(*this) : 1.f;
+	return FightRules::ChaseSpeedFor(ChaseSpeed, KeepsOwnFight(), FFightTuning::LiveChaseScale()) * Boost;
 }
 
 float ACreatureBase::GetFightDamageScale() const
@@ -74,7 +77,10 @@ void ACreatureBase::TickChaseFight(const APawn& Victim, float DeltaSeconds)
 	const bool bBreakingOff = Pack->IsRetreating();
 	const bool bBossRules = KeepsBossRules();
 	const bool bOwnFight = FightRules::KeepsOwnFight(CurrentRank, bBossRules);
-	const float Chase = FightRules::ChaseSpeedFor(ChaseSpeed, bOwnFight, FFightTuning::LiveChaseScale());
+	UFightDirectorSubsystem* Director = !bOwnFight && !bPassive ? UFightDirectorSubsystem::Get(this) : nullptr;
+	// Its own boost rides on the fight's chase scale (the Unpaid closing in and its pack's frenzy: SetChaseBoost).
+	const float Chase = FightRules::ChaseSpeedFor(ChaseSpeed, bOwnFight, FFightTuning::LiveChaseScale())
+		* (Director ? Director->GetChaseBoost(*this) : 1.f);
 	// An attack of its own may start from farther out than its reach (a charge); otherwise it closes in to bite. Never at a
 	// player up on a rock over it, which its strike can't reach: it stands there instead, and soon finds them out of its
 	// reach (CreatureBasePursuit.cpp). A boss's attacks keep their own rules.
@@ -83,7 +89,6 @@ void ACreatureBase::TickChaseFight(const APawn& Victim, float DeltaSeconds)
 	const float StartRange = GetAttackStartRange();
 	const bool bCanStart = bReady && Distance <= StartRange && CanStartAttack();
 
-	UFightDirectorSubsystem* Director = !bOwnFight && !bPassive ? UFightDirectorSubsystem::Get(this) : nullptr;
 	if (!Director)
 	{
 		// Its own fight (a boss, a Legendary monster), or no director: it attacks whenever it can, as creatures always did.

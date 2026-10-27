@@ -7560,5 +7560,76 @@
     "loop": false,
     "space": "2D",
     "max_concurrent": 2
+  },
+  "Creature.Unpaid.Rake": {
+    "files": [
+      "Creature_Unpaid_Rake_01.wav",
+      "Creature_Unpaid_Rake_02.wav",
+      "Creature_Unpaid_Rake_03.wav",
+      "Creature_Unpaid_Rake_04.wav"
+    ],
+    "volume_db": -14.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Creature.Unpaid.Cinder": {
+    "files": [
+      "Creature_Unpaid_Cinder_01.wav",
+      "Creature_Unpaid_Cinder_02.wav",
+      "Creature_Unpaid_Cinder_03.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Unpaid.Flank": {
+    "files": [
+      "Creature_Unpaid_Flank_01.wav",
+      "Creature_Unpaid_Flank_02.wav",
+      "Creature_Unpaid_Flank_03.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Unpaid.Rally": {
+    "files": [
+      "Creature_Unpaid_Rally_01.wav",
+      "Creature_Unpaid_Rally_02.wav",
+      "Creature_Unpaid_Rally_03.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Unpaid.Howl": {
+    "files": [
+      "Creature_Unpaid_Howl_01.wav",
+      "Creature_Unpaid_Howl_02.wav",
+      "Creature_Unpaid_Howl_03.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
   }
 }

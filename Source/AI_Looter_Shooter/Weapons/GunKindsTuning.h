@@ -13,6 +13,7 @@
  *  - the Thresher LMG: it spins up as it fires (its rate climbs from a share to full) and its barrel glows with the heat
  *    of sustained fire;
  *  - the Powderkeg launcher: a rocket that flies and bursts (AWeaponRocket, WeaponRocketBlast), hurting its shooter a little.
+ * Every other gun sways through its sights too, smaller than the scope (Looter.Gunfeel.Sway.*; a crouch steadies any gun).
  *
  * Every number is a Looter.Gunfeel.* console variable read through an accessor here, each time it's asked, so the player
  * tunes it live in play; the rules are plain functions over numbers (Default holds the shipped ones) for the tests.
@@ -38,6 +39,20 @@ namespace GunKinds
 		inline constexpr float SniperWindedSeconds = 2.5f;
 		inline constexpr float SniperWindedSway = 1.8f;
 		inline constexpr float SniperBreathRefill = 1.5f;
+
+		// Every other gun's idle sway through its sights (playtest round 2, the user 2026-10-27, note 29: "an idle sway just
+		// like the sniper does when you zoom in"), smaller than the scope's 0.3 degrees: light guns least, the heavy ones
+		// more, the six-gun a little loose (held out at arm's length). Degrees at the widest, as SniperSway.
+		inline constexpr float SwayRifle = 0.2f;
+		inline constexpr float SwayShotgun = 0.18f;
+		inline constexpr float SwayRevolver = 0.22f;
+		inline constexpr float SwaySMG = 0.18f;
+		inline constexpr float SwayLMG = 0.26f;
+		inline constexpr float SwayLauncher = 0.24f;
+		/** Their pace (Hz): a touch quicker than the scope's 0.35, lighter guns in the hands. */
+		inline constexpr float SwayRate = 0.45f;
+		/** A crouch steadies every gun's sway (the sniper's too) to this share. */
+		inline constexpr float SwayCrouch = 0.5f;
 
 		// The LMG.
 		inline constexpr float LMGSpinUp = 0.35f;
@@ -81,6 +96,14 @@ namespace GunKinds
 	/** The scope's sway (degrees at its widest) and its pace (Hz). */
 	AI_LOOTER_SHOOTER_API float SniperSway();
 	AI_LOOTER_SHOOTER_API float SniperSwayRate();
+	/**
+	 * Kind's sway through its sights (degrees at its widest) and pace (Hz): the sniper's scope (Sniper.Sway, .SwayRate), every
+	 * other kind its own smaller one (Looter.Gunfeel.Sway.<Kind>, one pace Sway.Rate; a gun with no kind is the rifle). 0 = none.
+	 */
+	AI_LOOTER_SHOOTER_API float AimSway(EWeaponKind Kind);
+	AI_LOOTER_SHOOTER_API float AimSwayRate(EWeaponKind Kind);
+	/** A crouch's share of the sway (Sway.Crouch). */
+	AI_LOOTER_SHOOTER_API float SwayCrouch();
 
 	/** The rules a held breath follows (FScopeBreath). */
 	struct FBreathRules
@@ -171,6 +194,12 @@ namespace GunKinds
 	 * thirds of that up and down at twice the pace, at Rate (Hz).
 	 */
 	AI_LOOTER_SHOOTER_API FRotator SwayAt(float Time, float Amplitude, float Rate);
+
+	/**
+	 * The sway's scale the aim eases toward: Breathing (the sniper's held breath, FScopeBreath::Step; 1 for the other guns)
+	 * times CrouchShare while crouched. Never below 0.
+	 */
+	AI_LOOTER_SHOOTER_API float SwayShare(float Breathing, bool bCrouched, float CrouchShare);
 
 	/** A held breath through the scope: how long it's been held, and how long the shooter is still winded. */
 	struct AI_LOOTER_SHOOTER_API FScopeBreath

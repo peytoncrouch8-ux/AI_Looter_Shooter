@@ -330,6 +330,11 @@ private:
 	bool RevealNav(const FKey& Key);
 	/** The look for the device driving the menus: the focus look, the hidden pointer, the prompts, the key list's hint. */
 	void RefreshNavLook();
+	/**
+	 * Under the mouse, the slider or choices row the pointer is over wears the focus look (the keys' focus look, which the
+	 * mouse never lit: playtest 2026-10-27), and takes the focus so the keys carry on from it. AdvanceNav runs it.
+	 */
+	void AdvanceHoverLook();
 	void RefreshPrompts();
 	/** Brings the focused stop into the list's view (Resume: the list's top). */
 	void ScrollToFocus();
@@ -354,6 +359,8 @@ private:
 	/** The device the look was last set for (RefreshNavLook). */
 	LooterUI::EMenuDevice ShownDevice = LooterUI::EMenuDevice::Mouse;
 	bool bNavLookApplied = false;
+	/** The row's focus look lit by the pointer (AdvanceHoverLook), so it is put out when the pointer leaves or the keys take over. */
+	TWeakObjectPtr<UWidget> HoverLit;
 	/** The prompts on show, as one line: the bar is rebuilt only when they change. */
 	FString ShownPrompts;
 

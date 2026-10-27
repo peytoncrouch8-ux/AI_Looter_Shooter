@@ -15,12 +15,14 @@
 #include "EnhancedPlayerInput.h"
 #include "InputAction.h"
 #include "Engine/World.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
 // AWeaponBase's ways for the four frontier-tech kinds (Phase 12.3; GunKindsTuning has the numbers and the rules): the
-// SMG helix's glow, the sniper's bolt and scope, the LMG's spin and heat, the launcher's rocket. Every number is read
-// when it's used, so a change in play shows at once.
+// SMG helix's glow, the sniper's bolt and scope, the LMG's spin and heat, the launcher's rocket, and every gun's sway
+// through its sights (UpdateScopeSway; the scope's widest). Every number is read when it's used, so a change in play
+// shows at once.
 
 namespace
 {
@@ -250,21 +252,25 @@ bool AWeaponBase::WantsKindTick() const
 	}
 	const APawn* Holder = Cast<APawn>(GetOwner());
 	const bool bInPlayerHand = Holder && Holder->IsPlayerControlled() && !IsHidden();
-	switch (Instance.Definition->Kind)
+	const EWeaponKind Kind = Instance.Definition->Kind;
+	// Every gun's sway through its sights moves the aim, so a player's gun ticks while in hand (as the sniper always has), and
+	// until the aim it holds is given back.
+	const bool bSway = (bInPlayerHand && GunKinds::AimSway(Kind) > 0.f) || !SwayApplied.IsNearlyZero(0.001f);
+	switch (Kind)
 	{
 	case EWeaponKind::Sniper:
 		// The scope's sway needs every frame in a player's hand (it moves their aim); the bolt while it's being worked.
-		return bBoltCycling || bCyclePoseApplied || bInPlayerHand || bScopeHidden || !SwayApplied.IsNearlyZero(0.001f);
+		return bBoltCycling || bCyclePoseApplied || bInPlayerHand || bScopeHidden || bSway;
 	case EWeaponKind::LMG:
-		return GetBarrelHeat() > 0.f;
+		return GetBarrelHeat() > 0.f || bSway;
 	case EWeaponKind::SMG:
 	{
 		// Only the last rounds' pulse moves on its own.
 		const float Fill = GunKinds::AmmoGlowFill(CurrentMagazine, Instance.Stats.MagazineSize);
-		return bInPlayerHand && Fill > 0.f && Fill <= GunKinds::SMGGlowLowShare();
+		return (bInPlayerHand && Fill > 0.f && Fill <= GunKinds::SMGGlowLowShare()) || bSway;
 	}
 	default:
-		return false;
+		return bSway;
 	}
 }
 
@@ -274,7 +280,6 @@ void AWeaponBase::UpdateKinds(float DeltaSeconds)
 	{
 	case EWeaponKind::Sniper:
 		UpdateBoltCycle();
-		UpdateScopeSway(DeltaSeconds);
 		break;
 	case EWeaponKind::SMG:
 	case EWeaponKind::LMG:
@@ -282,6 +287,11 @@ void AWeaponBase::UpdateKinds(float DeltaSeconds)
 		break;
 	default:
 		break;
+	}
+	// Every kind sways through its sights (the sniper's scope widest).
+	if (Instance.Definition)
+	{
+		UpdateScopeSway(DeltaSeconds);
 	}
 }
 
@@ -381,21 +391,30 @@ void AWeaponBase::UpdateScopeSway(float DeltaSeconds)
 		ClearScopeSway();
 		return;
 	}
-	// Through the scope the aim drifts in a slow figure of eight; held breath steadies it for a few seconds, then the
-	// shooter is winded and it drifts wider a while. The sway moves the real aim (the view and the shot), eased in with
-	// the scope, so what the crosshair shows is where the round goes.
+	// Through the sights the aim drifts in a slow figure of eight: the sniper's scope widest, every other gun a smaller sway
+	// of its kind (playtest round 2). The sniper's held breath steadies it for a few seconds, then the shooter is winded and
+	// it drifts wider a while; a crouch steadies any gun. The sway moves the real aim (the view and the shot), eased in with
+	// the sights, so what the crosshair shows is where the round goes.
+	const EWeaponKind Kind = KindOfInstance(Instance);
+	const bool bScoped = Kind == EWeaponKind::Sniper;
 	const float Aim = GetHolderAimAlpha();
-	const float Breathing = Breath.Step(Aim >= BreathAimed && IsSprintHeld(), DeltaSeconds, GunKinds::BreathRules());
-	SwayScale = FMath::FInterpTo(SwayScale, Breathing, DeltaSeconds, SwayEase);
+	// Only the scope holds a breath (the sprint key while scoped; its picture shows the breath left).
+	const float Breathing = bScoped ? Breath.Step(Aim >= BreathAimed && IsSprintHeld(), DeltaSeconds, GunKinds::BreathRules()) : 1.f;
+	const ACharacter* Body = Cast<ACharacter>(Pawn);
+	const float Steady = GunKinds::SwayShare(Breathing, Body && Body->bIsCrouched, GunKinds::SwayCrouch());
+	SwayScale = FMath::FInterpTo(SwayScale, Steady, DeltaSeconds, SwayEase);
 	SwayTime += DeltaSeconds;
-	const FRotator Target = GunKinds::SwayAt(SwayTime, GunKinds::SniperSway(), GunKinds::SniperSwayRate()) * (SwayScale * Aim);
+	const FRotator Target = GunKinds::SwayAt(SwayTime, GunKinds::AimSway(Kind), GunKinds::AimSwayRate(Kind)) * (SwayScale * Aim);
 	const FRotator Delta = Target - SwayApplied;
 	if (!Delta.IsNearlyZero(0.0001f))
 	{
 		Player->SetControlRotation(Player->GetControlRotation() + Delta);
 	}
 	SwayApplied = Target;
-	UpdateScope();
+	if (bScoped)
+	{
+		UpdateScope();
+	}
 }
 
 void AWeaponBase::ClearScopeSway()

@@ -62,6 +62,52 @@ namespace
 
 namespace MapPlaces
 {
+	FVector2D NameSize(const TCHAR* Name, bool bMajor)
+	{
+		// The kit's floating text is about 0.93 of its size wide a letter (letter-spaced capitals; measured off the page's
+		// "CHAPEL OF SAINT ADA", 194 px at size 11) and about 1.4 of it tall.
+		constexpr double LetterShare = 0.93;
+		constexpr double LineShare = 1.4;
+		const double FontSize = bMajor ? 11.0 : 8.0;
+		return FVector2D(FCString::Strlen(Name) * FontSize * LetterShare, FontSize * LineShare);
+	}
+
+	void Declutter(TArray<FNameBox>& Boxes, double Gap)
+	{
+		// How far a name may slide: this many of its own heights either way.
+		constexpr int32 MaxSteps = 3;
+		TArray<FBox2D> Placed;
+		for (FNameBox& Box : Boxes)
+		{
+			Box.bShown = false;
+		}
+		for (int32 Pass = 0; Pass < 2; ++Pass)
+		{
+			const bool bMajorPass = Pass == 0;
+			for (FNameBox& Box : Boxes)
+			{
+				if (!Box.bWanted || Box.bMajor != bMajorPass)
+				{
+					continue;
+				}
+				const double Step = Box.Size.Y + Gap;
+				// In place first, then down and up a step at a time: the nearest free spot wins.
+				for (int32 Try = 0; Try <= MaxSteps * 2 && !Box.bShown; ++Try)
+				{
+					const int32 Steps = Try == 0 ? 0 : (Try % 2 == 1 ? (Try + 1) / 2 : -(Try / 2));
+					const FVector2D Center = Box.Center + FVector2D(0.0, Steps * Step);
+					const FBox2D Spot(Center - Box.Size * 0.5 - FVector2D(Gap * 0.5), Center + Box.Size * 0.5 + FVector2D(Gap * 0.5));
+					if (!Placed.ContainsByPredicate([&Spot](const FBox2D& Other) { return Spot.Intersect(Other); }))
+					{
+						Box.Center = Center;
+						Box.bShown = true;
+						Placed.Add(Spot);
+					}
+				}
+			}
+		}
+	}
+
 	TConstArrayView<FMapPlace> For(const FString& LevelName)
 	{
 		if (LevelName.Equals(TEXT("Lvl_RansomsRest"), ESearchCase::IgnoreCase))

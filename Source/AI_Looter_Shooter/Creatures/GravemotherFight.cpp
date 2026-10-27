@@ -1,6 +1,7 @@
 #include "Creatures/GravemotherFight.h"
 #include "Audio/LooterSoundCues.h"
 #include "Creatures/GravemotherCreature.h"
+#include "Creatures/GravemotherTuning.h"
 
 #define LOCTEXT_NAMESPACE "LooterGravemother"
 
@@ -66,7 +67,8 @@ namespace GravemotherFight
 	FBossStagger MakeStagger()
 	{
 		FBossStagger Stagger;
-		Stagger.CritShare = 0.07f;
+		// 7% of her health as first tuned: her health went up 1.6x (2026-10-27), her staggers didn't get harder to earn.
+		Stagger.CritShare = 0.07f / GravemotherTuning::DefaultHealthScale;
 		Stagger.DrainSeconds = 4.f;
 		Stagger.Seconds = 2.5f;
 		Stagger.Cooldown = 9.f;
@@ -88,6 +90,34 @@ namespace GravemotherFight
 	FText StunCallout()
 	{
 		return LOCTEXT("Stunned", "Stunned");
+	}
+
+	FText ShrugCallout(EGravemotherShrug Why)
+	{
+		switch (Why)
+		{
+		case EGravemotherShrug::Stone:
+			return LOCTEXT("ShrugStone", "Break the headstone");
+		case EGravemotherShrug::OffGround:
+			return LOCTEXT("ShrugRim", "Out of reach");
+		default:
+			return FText::GetEmpty();
+		}
+	}
+
+	FStoryLine ShrugLine(EGravemotherShrug Why)
+	{
+		// Hob, as he talks on the deck ("sunshine"): short, a plain instruction inside his voice.
+		const FText Hob = LOCTEXT("Hob", "Hob");
+		switch (Why)
+		{
+		case EGravemotherShrug::Stone:
+			return FStoryLine::Make(Hob, LOCTEXT("HintStone", "That headstone's rooted to her back. Crack it off, sunshine, or you're only tickling her."), 4.2f);
+		case EGravemotherShrug::OffGround:
+			return FStoryLine::Make(Hob, LOCTEXT("HintRim", "Waste of lead from up here. She only feels it down in the Sink with her."), 3.8f);
+		default:
+			return FStoryLine();
+		}
 	}
 
 	float ClodFlightSeconds(float Distance, float AtTwentyMetres)

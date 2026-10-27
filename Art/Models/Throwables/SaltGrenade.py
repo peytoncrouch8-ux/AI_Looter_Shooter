@@ -1,16 +1,20 @@
 """The grave-salt grenade (Docs/Polish/BorderlandsComparison.md, item 16): a stoppered tin of grave salt with a waxed
 fuse, the kind of thing Tilly Bright would sell over her counter for keeping the Unpaid off. The player lobs it
 (AGraveSaltGrenade flies it, UPlayerThrowComponent shows it in the off hand in first person) and finds it as loot
-(AGrenadePickup shows it 1.8 times as big, spinning, so it reads in the grass). A scripted model file (Art/README.md).
+(AGrenadePickup shows it oversized, spinning, so it reads in the grass). A scripted model file (Art/README.md).
 
-  SaltGrenade   a squat painted tin (dark iron-grey, chipped to the bare tin), 7.5 cm across and 9 cm to its lip: a
+  SaltGrenade   a squat painted tin (dark iron-grey, chipped to the bare tin), 15 cm across and 18 cm to its lip: a
                 rolled bead at its foot and under its shoulder, a pale parchment label round its middle with a grave
                 cross painted on the front (-Y), a conical shoulder up to a short neck. A cork stopper is pushed into the neck and sealed with oxblood
                 wax that has run down the neck in a couple of drips; the waxed fuse cord comes up out of the cork and
                 curls over to one side, its tip charred. A crust of salt crystals clings round the neck where it was
-                filled. 12 cm to the fuse's top.
+                filled. 24 cm to the fuse's top.
 
-Pivot: the middle of its foot. Its middle is 5 cm up (AGraveSaltGrenade tumbles it about there).
+Size: built at its first size (7.5 cm across) and scaled up by SCALE (2) as a whole: the user's playtest (2026-10-27,
+note 7) found the jar too small in the hand and in flight. Its textures scale with it (the same tin, bigger), so its
+look doesn't change. The game's numbers for it are FGraveSaltRules' Jar* (JarMiddle 10, JarRadius 7.5, JarFuseTop 24).
+
+Pivot: the middle of its foot. Its middle is 10 cm up (AGraveSaltGrenade tumbles it about there).
   SOCKET_Fuse   the fuse's tip, +X along the cord's last stretch: where the sparks and the fizz come from.
 No collision (the grenade sweeps its own ball; the pickup has its own sphere), no Nanite (small and held close), no
 LODs. Materials (7 slots), all from the textured sets the game already loads, tinted:
@@ -35,7 +39,8 @@ import looter_model as lm
 import looter_props as lp
 import looter_textures as lt
 
-# --- Sizes (metres) ---
+# --- Sizes (metres, at its first size; the finished model is scaled by SCALE) ---
+SCALE = 2.0              # the user's playtest (2026-10-27): twice as big, in hand and in flight
 R_BODY = 0.0375          # the tin's wall
 R_BEAD = 0.0392          # the rolled beads at its foot and under its shoulder
 H_FOOT = 0.007           # the foot bead's top
@@ -176,11 +181,15 @@ def crystals():
 def build():
     parts = [tin_body(), cork(), *label(), *wax(), *fuse(), *crystals()]
     model = lp.join('SaltGrenade', parts)
-    lp.finish(model, ao=0.02, nanite=False, smooth=40.0)
+    # Scaled about its pivot (the foot's middle) after the UVs are laid, so the tin's paint, label and wax read as they
+    # did, only bigger; the baked occlusion's reach grows with it.
+    model.data.transform(Matrix.Scale(SCALE, 4))
+    model.data.update()
+    lp.finish(model, ao=0.02 * SCALE, nanite=False, smooth=40.0)
     model['Collision'] = 'None'
     # The fuse's tip, +X along the cord's last stretch (a socket's front is its -Y: turned so -Y runs out of the tip).
-    tip = FUSE_PATH[-1]
-    out = (tip - FUSE_PATH[-2]).normalized()
+    tip = FUSE_PATH[-1] * SCALE
+    out = (FUSE_PATH[-1] - FUSE_PATH[-2]).normalized()
     yaw = math.degrees(math.atan2(out.y, out.x))
     lm.socket(model, 'Fuse', tip, (0.0, 0.0, yaw + 90.0))
     return model

@@ -14,6 +14,7 @@
 #include "Creatures/GravemotherCreature.h"
 #include "Creatures/GravemotherMound.h"
 #include "Creatures/GravemotherStone.h"
+#include "Creatures/GravemotherTuning.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Loot/LootDropComponent.h"
@@ -80,7 +81,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravemotherBodyTest, "Looter.Creatures.Gravemo
 bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 {
 	// As the design has her: a brown spider at 1.8 times its size, Legendary with her name in orange on her tag, twelve times
-	// a spider's health (about 5,600 at level 8), one of the spiders' pack, never back on her own; her headstone on her back.
+	// a spider's health and the playtest's 1.6x (about 9,000 at level 8), one of the spiders' pack, never back on her own;
+	// her headstone on her back.
 	// Crits: her head always; her abdomen's soft rear while the stone stands, all of it once it's off; never a leg or her
 	// thorax. Her own model once it's imported, else the spider's in the pale hide.
 	FTestWorldWrapper WorldWrapper;
@@ -107,15 +109,20 @@ bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 		Spider->GetCapsuleComponent()->GetScaledCapsuleRadius() * Gravemother::Size, 0.1f);
 	TestFalse(TEXT("She never comes back on her own (her lair says when)"), Mother->WillRespawn());
 
-	// Twelve spiders' health at her level: about 5,600 at level 8.
+	// Twelve spiders' health at her level, then the playtest's 1.6x (2026-10-27): about 9,000 at level 8.
 	// Her own base: the spider's 300 before spiders were softened (2026-10-22); her fight was tuned on it.
-	const float SpiderHealth = 300.f;
+	const float SpiderHealth = 300.f * GravemotherTuning::HealthScale();
 	Mother->SetLevel(8);
 	const float Health = Mother->FindComponentByClass<UHealthComponent>()->GetMaxHealth();
 	const float Wanted = SpiderHealth * GetDefault<UProgressionSettings>()->GetLevelRules().EnemyScale(8) * Legendary.HealthMultiplier;
-	TestNearlyEqual(*FString::Printf(TEXT("At level 8: %.0f health (a spider's %.0f, grown for level 8, times %.0f)"), Health, SpiderHealth,
-		Legendary.HealthMultiplier), Health, Wanted, 0.5f);
-	TestTrue(TEXT("...about 5,600"), Health > 5400.f && Health < 5800.f);
+	TestNearlyEqual(*FString::Printf(TEXT("At level 8: %.0f health (a spider's 300 x %.2f, grown for level 8, times %.0f)"), Health,
+		GravemotherTuning::HealthScale(), Legendary.HealthMultiplier), Health, Wanted, 0.5f);
+	if (FMath::IsNearlyEqual(GravemotherTuning::HealthScale(), GravemotherTuning::DefaultHealthScale))
+	{
+		TestTrue(TEXT("...about 9,000"), Health > 8600.f && Health < 9300.f);
+		TestNearlyEqual(TEXT("Her class carries the tuning (the Ledger's page reads it)"), Defaults->FindComponentByClass<UHealthComponent>()->MaxHealth,
+			300.f * GravemotherTuning::DefaultHealthScale, 0.01f);
+	}
 
 	// Her headstone is on her back, a piece of its own on her abdomen bone.
 	AGravemotherStone* Stone = Mother->GetStone();

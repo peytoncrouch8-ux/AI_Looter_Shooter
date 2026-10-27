@@ -206,8 +206,15 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Phase two: the bell as it starts"), Bell && Bell->Delay == 0.f && Bell->RepeatEvery == 0.f);
 	TestTrue(TEXT("...he can't be hurt until the lanterns drag him back (no time limit, not his adds)"), Spell && Spell->Untargetable.Seconds == 0.f
 		&& !Spell->Untargetable.bUntilAddsDie && Spell->Untargetable.bWithdraw && !Spell->Untargetable.Hint.IsEmpty());
-	TestTrue(TEXT("...8 Unpaid in two waves of four, the second later"), Waves.Num() == 2 && Waves[0]->Wave.Count + Waves[1]->Wave.Count == 8
-		&& Waves[1]->Delay > Waves[0]->Delay && Waves[0]->RepeatEvery == 0.f && Waves[1]->RepeatEvery == 0.f && Waves[0]->Wave.bAroundSpot);
+	TArray<const FBossPhaseEvent*> BellWaves = Waves.FilterByPredicate([](const FBossPhaseEvent* Event) { return Event->RepeatEvery == 0.f; });
+	const FBossPhaseEvent* const* StillRising = Waves.FindByPredicate([](const FBossPhaseEvent* Event) { return Event->RepeatEvery > 0.f; });
+	TestTrue(TEXT("...8 Unpaid in two waves of four, the second later"), BellWaves.Num() == 2 && BellWaves[0]->Wave.Count + BellWaves[1]->Wave.Count == 8
+		&& BellWaves[1]->Delay > BellWaves[0]->Delay && BellWaves[0]->Wave.bAroundSpot);
+	// His health 1.6x (2026-10-27): after the second wave the dead keep rising as in phase one, so the long back half on the
+	// deck isn't a bare duel; never over phase one's four alive.
+	TestTrue(TEXT("...then two every 25 s, at most 4, from after the second wave"), Waves.Num() == 3 && StillRising
+		&& (*StillRising)->Delay > BellWaves.Last()->Delay && (*StillRising)->RepeatEvery == AbelRules::RiseEvery
+		&& (*StillRising)->Wave.Count == AbelRules::RiseCount && (*StillRising)->Wave.MaxAlive == AbelRules::RiseMaxAlive);
 	TestEqual(TEXT("Never more than 10 adds at once"), BossRules::AddsToSpawn(8, 4, 0, 10), 6);
 
 	// "Let me go": the Gravewind at once, the walk into it every 10 s, the buckshot quicker.
@@ -223,16 +230,20 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 		&& Volley.WindupSeconds == 0.f && Volley.SpreadDegrees > 10.f && Volley.Muzzle.X > 60.0);
 	TestEqual(TEXT("...after a one-second flare"), GetDefault<AAbelKeeper>()->FlareSeconds, 1.f);
 
-	// His numbers: 40 Unpaid of his level (about 10,500 at level 9), Boss rank, 1.3 times, a 6 cm coal.
+	// His numbers: 40 Unpaid of his level and the playtest's 1.6x (about 16,800 at level 9), hits 1.25x, Boss rank, 1.3
+	// times, a 6 cm coal.
 	const AAbelKeeper* Defaults = GetDefault<AAbelKeeper>();
 	const UHealthComponent* Health = Defaults->FindComponentByClass<UHealthComponent>();
 	if (TestNotNull(TEXT("His health"), Health))
 	{
 		const float Nine = Health->MaxHealth * GetDefault<UProgressionSettings>()->GetLevelRules().EnemyScale(9)
 			* UCreatureRankSettings::Get(ECreatureRank::Boss).HealthMultiplier;
-		TestTrue(FString::Printf(TEXT("About 10,500 health at level 9 (%.0f)"), Nine), FMath::IsNearlyEqual(Nine, 10500.f, 300.f));
-		TestEqual(TEXT("...40 Unpaid at level 1"), Health->MaxHealth, 160.f * 40.f);
+		TestTrue(FString::Printf(TEXT("About 16,800 health at level 9 (%.0f)"), Nine), FMath::IsNearlyEqual(Nine, 16800.f, 480.f));
+		TestEqual(TEXT("...40 Unpaid at level 1, times 1.6"), Health->MaxHealth, 160.f * 40.f * AbelRules::DefaultFightHealthScale);
+		TestNearlyEqual(TEXT("His stagger takes the same crits as before his health went up (5% of 6,400 at level 1)"),
+			AbelRules::MakeStagger().CritShare * Health->MaxHealth, 0.05f * 160.f * 40.f, 1.f);
 	}
+	TestNearlyEqual(TEXT("His hits 1.25x the first tuning's 12"), Defaults->AttackDamage, 12.f * AbelRules::DefaultFightDamageScale, 0.001f);
 	TestTrue(TEXT("Boss rank, 1.3 times, a 6 cm coal, no tag"), Defaults->StartingRank == ECreatureRank::Boss
 		&& FMath::IsNearlyEqual(Defaults->BodyScale, 1.3f) && FMath::IsNearlyEqual(Defaults->CoalCritRadius, 6.f) && !Defaults->bShowsHealthTag);
 	TestTrue(TEXT("His fight starts by itself only once the lantern hangs, never from a hit"), Defaults->GetBoss()->EngageRadius == 0.f

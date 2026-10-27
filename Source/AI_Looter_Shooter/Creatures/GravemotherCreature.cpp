@@ -11,6 +11,7 @@
 #include "Creatures/GravemotherFurrow.h"
 #include "Creatures/GravemotherMound.h"
 #include "Creatures/GravemotherStone.h"
+#include "Creatures/GravemotherTuning.h"
 #include "Creatures/GroundCrack.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -45,9 +46,11 @@ AGravemotherCreature::AGravemotherCreature()
 	DisplayName = FText::FromString(TEXT("The Gravemother"));
 	bNameIsRankWord = true;
 	StartingRank = ECreatureRank::Legendary;
-	// The spider's numbers before they were softened (2026-10-22): her fight was tuned on them.
-	Health->MaxHealth = 300.f;
-	AttackDamage = 12.f;
+	// The spider's numbers before they were softened (2026-10-22): her fight was tuned on them. Then the playtest's (the
+	// user, 2026-10-27: "way too easy and die too quickly"): 1.6x her health, her hits harder (GravemotherTuning; the cvars
+	// move a Gravemother spawned after a change, ApplyTuning).
+	Health->MaxHealth = 300.f * GravemotherTuning::DefaultHealthScale;
+	AttackDamage = 12.f * GravemotherTuning::DefaultDamageScale;
 	// 1.8 times a spider as seen, her rank's own growth (x1.4) included.
 	BodyScale = Gravemother::Size / Gravemother::RankSize;
 	// Her head, and her abdomen (IsCriticalSpot narrows it to the soft rear while the stone stands).
@@ -97,6 +100,8 @@ AGravemotherCreature::AGravemotherCreature()
 
 void AGravemotherCreature::BeginPlay()
 {
+	// Before her rank and level are applied (ACreatureBase::BeginPlay keeps these as her base).
+	ApplyTuning();
 	Super::BeginPlay();
 	// Her bite's timing as her class (or the level) gave it: her moves borrow the attack's and give it back.
 	BiteWindup = AttackWindup;
@@ -120,6 +125,8 @@ void AGravemotherCreature::BeginPlay()
 	// Her headstone on her back, its health hers to scale (after her rank and level are applied).
 	ReadAbdomenZones();
 	ResetStone();
+	// A shot her hide will shrug off shows her own glancing look, not a wound's.
+	BindShrugLook(true);
 }
 
 void AGravemotherCreature::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -135,6 +142,7 @@ void AGravemotherCreature::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		Boss->CanStagger.Unbind();
 	}
+	BindShrugLook(false);
 	if (AGravemotherClod* Clod = HeldClod.Get())
 	{
 		Clod->Destroy();

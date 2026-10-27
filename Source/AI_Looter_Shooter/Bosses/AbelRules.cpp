@@ -5,6 +5,7 @@
 #include "Components/LightComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
+#include "HAL/IConsoleManager.h"
 
 #define LOCTEXT_NAMESPACE "LooterAbel"
 
@@ -12,10 +13,26 @@ namespace
 {
 	/** The model stands on the capsule's foot: its middle is this far over the ground at size 1 (AUnpaidCreature's capsule). */
 	constexpr float ModelOverMiddle = 90.f;
+
+	TAutoConsoleVariable<float> CVarAbelHealthScale(TEXT("Looter.Abel.HealthScale"), AbelRules::DefaultFightHealthScale,
+		TEXT("Abel's health against his first tuning (40 Unpaid of his level). Applies when he's next spawned."));
+
+	TAutoConsoleVariable<float> CVarAbelDamageScale(TEXT("Looter.Abel.DamageScale"), AbelRules::DefaultFightDamageScale,
+		TEXT("Abel's hits (his swing, his buckshot's pellets) against his first tuning. Applies when he's next spawned."));
 }
 
 namespace AbelRules
 {
+	float FightHealthScale()
+	{
+		return FMath::Max(CVarAbelHealthScale.GetValueOnGameThread(), 0.05f);
+	}
+
+	float FightDamageScale()
+	{
+		return FMath::Max(CVarAbelDamageScale.GetValueOnGameThread(), 0.05f);
+	}
+
 	FName BuckshotEvent()
 	{
 		return FName(TEXT("Buckshot"));
@@ -68,7 +85,8 @@ namespace AbelRules
 	FBossStagger MakeStagger()
 	{
 		FBossStagger Stagger;
-		Stagger.CritShare = 0.05f;
+		// 5% of his health as first tuned: his health went up 1.6x (2026-10-27), his staggers didn't get harder to earn.
+		Stagger.CritShare = 0.05f / DefaultFightHealthScale;
 		// His coal is open for seconds at a time: the build-up keeps a little longer than the windows between.
 		Stagger.DrainSeconds = 3.5f;
 		Stagger.Seconds = 2.5f;
@@ -144,8 +162,10 @@ namespace AbelRules
 		InTheFog.bWithdraw = true;
 		InTheFog.Hint = LOCTEXT("RelightHint", "Relight the keeper's lanterns");
 		Bell.Events.Add(FBossPhaseEvent::MakeUntargetable(InTheFog));
-		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), 2.5f));
-		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), 2.5f + SecondWaveAfter));
+		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), FirstWaveAt));
+		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), FirstWaveAt + SecondWaveAfter));
+		// Then the dead keep rising as in phase one (his health 1.6x, 2026-10-27: the back half on the deck is long).
+		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(RiseCount, RiseMaxAlive), BellRiseFrom, RiseEvery));
 		// Out in the fog his lantern flares, a beacon over the canyon, and he fires from it: the lanterns are relit under fire,
 		// from behind the biers.
 		Bell.Events.Add(FBossPhaseEvent::MakeCustom(FogShotEvent(), FogShotFirst, FogShotEvery));

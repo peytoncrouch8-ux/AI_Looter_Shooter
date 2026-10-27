@@ -7,6 +7,7 @@
 #include "Interaction/InteractionComponent.h"
 #include "Interaction/InteractionFocus.h"
 #include "Interaction/InteractionSubsystem.h"
+#include "Missions/MissionGates.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
 #include "Story/CaptionSubsystem.h"
@@ -103,6 +104,12 @@ bool AReadableProp::ShouldShow() const
 	return Runner && ShownWhen.IsMet(Runner->GetCampaign(), Runner);
 }
 
+bool AReadableProp::CanRead() const
+{
+	// Asked as the key looks (every focus pass), so a step's change opens or closes it at once without a hook.
+	return MissionGates::AnyMet(UsableWhen, this);
+}
+
 void AReadableProp::Refresh()
 {
 	SetShown(ShouldShow());
@@ -183,17 +190,19 @@ UStaticMesh* AReadableProp::PickMeshFor(FName HeroId) const
 FInteractionOptions AReadableProp::GetInteractionOptions(const UInteractionComponent& User) const
 {
 	FInteractionOptions Options;
-	Options.bUsable = bShownNow;
-	Options.bTap = true;
-	Options.bHold = false;
-	Options.TapPrompt = !Prompt.IsEmpty() ? Prompt : Text.IsEmpty() ? LOCTEXT("Look", "Look") : LOCTEXT("Read", "Read");
+	// Before its step (or after a step-only one: the eleven's tags once taken) it's never focused, so no prompt lingers.
+	Options.bUsable = bShownNow && CanRead();
+	const FText Words = !Prompt.IsEmpty() ? Prompt : Text.IsEmpty() ? LOCTEXT("Look", "Look") : LOCTEXT("Read", "Read");
+	// A step's reading is a short hold; lore a tap (MissionGates).
+	MissionGates::SetUse(Options, Words, bHoldToRead);
 	Options.Reach = Reach;
 	return Options;
 }
 
-bool AReadableProp::Interact(UInteractionComponent& User, bool bHeld)
+bool AReadableProp::Interact(UInteractionComponent& User, bool /*bHeld*/)
 {
-	return !bHeld && Read(User.GetOwner());
+	// The interaction component has already matched the press to what GetInteractionOptions offers (a tap or a hold).
+	return Read(User.GetOwner());
 }
 
 TOptional<FVector> AReadableProp::GetInteractionLocation() const
@@ -203,7 +212,7 @@ TOptional<FVector> AReadableProp::GetInteractionLocation() const
 
 bool AReadableProp::Read(AActor* Player)
 {
-	if (!bShownNow)
+	if (!bShownNow || !CanRead())
 	{
 		return false;
 	}

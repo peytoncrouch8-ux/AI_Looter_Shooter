@@ -30,6 +30,9 @@ The names are the wave 4 contract's (the missions' data, Tools/Unreal/create_sid
 Their words are the missions' data's (Tools/Unreal/story_texts.py: READABLES, ARTIFACTS, ITEMS, and the speakers' TOPICS
 and MUTTERS for Hiram and the tag board); a missing one is warned of. The missions' steps these follow (STEPS) are the
 design's order, counted from 0, as the data numbers them; layout.json's gameplay.mountain.steps overrides them.
+The mission gates (2026-10-27; ITEM_GATES, READ_GATES): the lamp oil is taken from The Last Watch's oil step, the payroll
+from Back Pay's last step (seen through the Foreman's fight); the payroll book is read from Back Pay's office step, the
+eleven's tags and the code book in their own step alone; each with a short hold.
 
 Hook in build_area.py's gameplay(), after self.story.place(self) and before the vigil stones (the Foreman's stone finds
 his lair, Encounter_Foreman):
@@ -60,6 +63,24 @@ STEPS = {
     DEAD_LIFT: {'items': 0, 'fittings': 1, 'steam': 2, 'ride': 3},
     LAST_WATCH: {'yard': 0, 'oil': 1, 'fire': 2, 'watch': 3, 'codeBook': 4},
     BACK_PAY: {'gallery': 0, 'upper': 1, 'office': 2, 'lower': 3, 'barricade': 4, 'foreman': 5, 'payroll': 6},
+}
+
+# The mission gates (2026-10-27, the user's playtest: "you can speed run quests and just spam click the use button"): a
+# mission's steps open in order. Its items are taken, and its steps' readings read, only from their own step (STEPS' key),
+# each with a short hold of Interact (every AMissionItem; AReadableProp.hold_to_read; Looter.Missions.HoldSeconds). Lore
+# (Ruth's journal, the post's log, the gallery's chalk) stays a tap, any time; a fitting has its own (fitting()).
+# An item: (mission, step key): seen as before (story_texts.py ITEMS' shown_when, else while its mission runs), taken from
+# that step (AMissionItem.take_when). A reading: (mission, step key, 'from' or 'only'): 'from' read from its step on and
+# after the mission (a document: the payroll book), 'only' in its step alone (an act: the eleven's tags, whose prompt goes
+# once they're taken; the code book, only on its shelf otherwise).
+ITEM_GATES = {
+    'LampOil': (LAST_WATCH, 'oil'),
+    'Payroll': (BACK_PAY, 'payroll'),
+}
+READ_GATES = {
+    'PayrollBook': (BACK_PAY, 'office', 'from'),
+    'Barricade': (BACK_PAY, 'barricade', 'only'),
+    'CodeBook': (LAST_WATCH, 'codeBook', 'only'),
 }
 
 # The places (the contract's Place_<Name>): ('level', [X, Y]) on the ground there, ('zone', id) at its middle, ('mine',
@@ -219,6 +240,7 @@ def readable(build, cls, readable_id, location, yaw, shown_when=None, label=None
     prop.set_editor_property('reach', READ_REACH)
     if shown_when is not None:
         prop.set_editor_property('shown_when', shown_when)
+    gate_reading(build, prop, readable_id)
     model = mesh(build, spec['model'])
     if model is not None:
         prop.get_editor_property('mesh').set_static_mesh(model)
@@ -227,9 +249,44 @@ def readable(build, cls, readable_id, location, yaw, shown_when=None, label=None
     return prop
 
 
+def gate_reading(build, prop, readable_id):
+    """A step's reading (READ_GATES): read only from its step (and after the mission, or in its step alone), with a hold.
+    Guarded, so a game module from before the gates still places it (read any time, with a tap)."""
+    gate = READ_GATES.get(readable_id)
+    if gate is None:
+        return
+    mission, key, kind = gate
+    at = step(build, mission, key)
+    usable = ([when(during=mission, from_step=at, before_step=at + 1)] if kind == 'only'
+              else [when(during=mission, from_step=at), when(after=[mission])])
+    try:
+        prop.set_editor_property('usable_when', usable)
+        prop.set_editor_property('hold_to_read', True)
+    except Exception as error:
+        build.warn(f'no ReadableProp.usable_when ({error}): {readable_id} is read any time with a tap (build the game module)')
+        return
+    build.log(f'{readable_id}: read with a hold, {"in" if kind == "only" else "from"} {mission}\'s step {at}'
+              f'{"" if kind == "only" else " and after it"}')
+
+
+def gate_item(build, made, item_id):
+    """A mission item of ITEM_GATES: taken only from its step (shown as before). Guarded as gate_reading is."""
+    gate = ITEM_GATES.get(item_id)
+    if gate is None:
+        return
+    mission, key = gate
+    at = step(build, mission, key)
+    try:
+        made.set_editor_property('take_when', when(during=mission, from_step=at))
+    except Exception as error:
+        build.warn(f'no MissionItem.take_when ({error}): {item_id} is taken whenever it lies there (build the game module)')
+        return
+    build.log(f'{item_id}: taken with a hold from {mission}\'s step {at}')
+
+
 def item(build, cls, item_id, location, yaw, model_name='', shown_when=None):
-    """An AMissionItem: its prompt and when it's there from story_texts.ITEMS when it has the item (its shown_when, none:
-    while its mission is taken), else the caller's shown_when."""
+    """An AMissionItem: its prompt and when it's there from story_texts.ITEMS when it has the item (its shown_when wins
+    over the caller's; none from either: while its mission is taken), and from when it's taken (ITEM_GATES)."""
     made = build.place(cls, location, yaw, label=f'Item_{item_id}', folder=FOLDER, tags=(f'Item_{item_id}',))
     made.set_editor_property('item_id', unreal.Name(item_id))
     words = texts()
@@ -237,9 +294,11 @@ def item(build, cls, item_id, location, yaw, model_name='', shown_when=None):
     if spec is not None:
         if spec.get('prompt'):
             made.set_editor_property('prompt', unreal.Text(spec['prompt']))
-        shown_when = spec_when(spec['shown_when']) if spec.get('shown_when') else None
+        if spec.get('shown_when'):
+            shown_when = spec_when(spec['shown_when'])
     if shown_when is not None:
         made.set_editor_property('shown_when', shown_when)
+    gate_item(build, made, item_id)
     model = mesh(build, model_name)
     if model is not None:
         made.get_editor_property('mesh').set_static_mesh(model)

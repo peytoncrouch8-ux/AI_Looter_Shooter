@@ -13,7 +13,7 @@ deaths in town woke at the farm) a third in town by the sheriff's office (Sherif
 a new id so no old save finds it (MainStreet was a removed one). A death wakes the
 player at the roost they last found, before any at the level's own start. Each roost comes from one entry of
 gameplay.roosts (level cm, X north, Y east, as every layout point is):
-  { "id": "Depot", "name": "The Depot", "at": [750, 10250], "yaw": 135, "onRoad": false,
+  { "id": "Depot", "name": "The Depot", "at": [750, 10250], "yaw": 180, "onRoad": false,
     "openAfter": "Main4", "markAfter": "Main3", "startOpen": false, "note": "..." }
   - id: its MarkerId, the save data's name; never change an id once a session may have saved it (the roosts that
     replaced graves kept the graves' ids, so old saves' marked graves were found roosts).

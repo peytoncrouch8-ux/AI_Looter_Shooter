@@ -6,8 +6,8 @@ has Ellis's grave gets any of it. A class not built yet is warned of and left ou
 - The board (ABountyBoard, BountyBoard_RansomsRest, board id RansomsRest): at the depot (the user's playtest, 2026-10-27,
   note 12: "by the train station"), BOARD_AT where the yard road meets the platform's west end, off the road's south
   edge, its face (local +X) turned to BOARD_YAW: toward the Depot roost (where fast travel and deaths arrive, the player
-  waking facing the platform with the board 45 degrees to the right) and down the yard road (where walkers from Main
-  Street arrive). The build traces from its face to both (check_sights) and warns when something hides it. Its own model
+  waking facing the board: the roost's yaw is 180, due at it, since the playtest of 2026-10-27 found it 45 degrees off,
+  patches/polish_1.json) and down the yard road (where walkers from Main Street arrive). The build traces from its face to both (check_sights) and warns when something hides it. Its own model
   (SM_NoticeBoard_Bounty, BOUNTIES on its header; SM_NoticeBoard_Town until imported) is the C++ class's. Open after
   Main 3, Dangerous bounties after Main 5, Deadly after Main 6.
 - The arenas (ABountyArena, BountyArena_<id>, ARENAS): each a bounty fight's place, its ground (a radius or a layout
@@ -76,13 +76,22 @@ ARENAS = [
          where='round the Scatter\'s boulders between Coffin Rock and the barn yard (the boulders their cover)',
          center=(-5160.0, 840.0), ground={'radius': 1300.0, 'maxRise': 300.0, 'maxStep': 300.0},
          push=(950.0, 4, 0.0), flank=(1100.0, 3, 0.5), guards=(450.0, 2, 0.25), mark=(800.0, 0.0)),
-    # The bluff top, between the nest ring (east) and the two 3 m rocks (west), north of the lookout: about 14 m across of
-    # open ground, the ring and the rocks its cover (every spot 1.7 m or more from them, checked against the layout). Its
-    # zone's levels, 1-2: the Rest's gentlest bounty, a spider one for the board's first days.
+    # The bluff top, between the nest ring (north) and the two 3 m rocks (south), east of the lookout: about 14 m across of
+    # open ground, the ring and the rocks its cover (every spot 2.2 m or more from the ring and 1.7 m or more from the
+    # rocks, checked against the layout). Its zone's levels, 1-2: the Rest's gentlest bounty, a spider one for the board's
+    # first days. Kept back from the drop (the user's playtest, 2026-10-27: a player fell about 14 m off the bluff mid-fight
+    # at (-8682, -7016), 2 m past the east lip): the hunting ground is no longer the whole plateau but a polygon at least
+    # 5.9 m inside its lip (its margin included, 5 m), and every spot 6.6 m or more from the lip (checked with the plateau's
+    # polygon in layout.json, zones.ransomsPoint). A target who leaves a hunting ground ends the chase at its edge, so the
+    # spiders never follow a player to the lip; the bluff path's top (-8000, -7300) is outside it, the fight starts as
+    # they walk in.
     dict(id='RansomsPoint', name='Ransom\'s Point', kinds=['Spider'], after=['Main3'],
-         where='the bluff top round Main 2\'s nest ring, north of the lookout (the ring and the bluff rocks their cover)',
-         center=(-8300.0, -8400.0), ground={'zone': 'ransomsPoint', 'margin': 100.0, 'maxRise': 300.0, 'maxStep': 300.0},
-         push=(750.0, 4, 0.25), flank=(1000.0, 3, 0.0), guards=(350.0, 2, 0.25), mark=(500.0, 500.0)),
+         where='the bluff top round Main 2\'s nest ring, east of the lookout (the ring and the bluff rocks their cover), '
+               'well back from the lip',
+         center=(-8100.0, -8500.0),
+         ground={'polygon': [[-6800, -10100], [-6800, -7750], [-8300, -7750], [-8950, -8350], [-8950, -10100]],
+                 'margin': 100.0, 'maxRise': 300.0, 'maxStep': 300.0},
+         push=(500.0, 4, 0.5), flank=(800.0, 3, 0.0), guards=(300.0, 2, 0.25), mark=(300.0, 300.0)),
     # The quarry floor's south half where the track comes in, before Dead Lift: the quarry track's spiders and Spitter are
     # the story's here from Main 3 (the dead miners only rise in Dead Lift). Its zone's levels, 5-6: ground to come back to,
     # as the track's patrol is. From Dead Lift on the floor is the Old Quarry's (its miners join the kinds).

@@ -5,6 +5,7 @@
 
 class AWeaponBase;
 class APlayerController;
+class UWeaponDefinition;
 
 /**
  * Gunfeel step 2 and 3, the kick side (Docs/Plan.md 12.1, Saved/Gunfeel/CONTRACT.md): how hard each gun kicks the view and
@@ -130,6 +131,20 @@ namespace GunfeelKick
 		inline constexpr float LMGSwayShots = 7.f;
 		/** The shotgun's pump rack nudges the view this much (1 = ViewKicks::ForRack as it is). */
 		inline constexpr float RackKick = 1.f;
+
+		// Playtest round 2 (the user, 2026-10-27, note 28): "more kick on every gun; a high accuracy stat calms it a lot".
+		/** Every gun's kick (aim, model, view, pattern) times this, before the accuracy's calm: the "more kick" for all. */
+		inline constexpr float RecoilMore = 1.4f;
+		/**
+		 * The accuracy's calm: a gun shooting Ratio times tighter than its kind's base (the definition's spread over its own)
+		 * kicks Ratio^-Exponent as hard, held between Least and Most. 1.5 so the stat clearly matters: a +30% accuracy gun
+		 * kicks 0.67x, a 1.5x tight one 0.54x, twice as tight 0.35x; a sloppy roll (0.8) 1.4x.
+		 */
+		inline constexpr float AccuracyCalm = 1.5f;
+		/** The calm's floor: a pinpoint gun still kicks this share (never a laser). */
+		inline constexpr float AccuracyCalmLeast = 0.3f;
+		/** The wild end's ceiling: the worst roll (about 0.64 of base accuracy) kicks at most this much (x RecoilMore = 1.96x the old kick). */
+		inline constexpr float AccuracyCalmMost = 1.4f;
 	}
 
 	/** The gun's kind by its definition (Rifle without one; the kinds with no numbers of their own take the rifle's). */
@@ -159,6 +174,34 @@ namespace GunfeelKick
 	 * none for the kinds that don't fire bursts (0).
 	 */
 	AI_LOOTER_SHOOTER_API float ClimbPerShot(EWeaponKind Kind);
+
+	// --- Recoil by accuracy (playtest round 2, note 28) ---
+
+	/** The accuracy-recoil numbers (defaults are the shipped ones; the live ones are Looter.Gunfeel.Recoil.More, .AccuracyCalm*). */
+	struct FAccuracyKick
+	{
+		float More = Default::RecoilMore;
+		float Exponent = Default::AccuracyCalm;
+		float Least = Default::AccuracyCalmLeast;
+		float Most = Default::AccuracyCalmMost;
+	};
+	AI_LOOTER_SHOOTER_API FAccuracyKick AccuracyKickNumbers();
+	/**
+	 * The accuracy's calm on the kick: (BaseSpread / Spread)^-Exponent, held to Least..Most; 1 when either spread is unknown
+	 * (0 or less). BaseSpread is the kind's own (the definition's BaseStats.Spread), Spread the gun's rolled one (rarity, parts,
+	 * maker, curse): the tighter it shoots against its kind, the calmer it kicks, so a shotgun isn't judged by a rifle's cone.
+	 */
+	AI_LOOTER_SHOOTER_API float AccuracyCalm(float BaseSpread, float Spread, const FAccuracyKick& Numbers);
+	/** The recoil a shot kicks with: the Recoil stat x More x AccuracyCalm. Every kick a shot makes reads this, not Stats.Recoil. */
+	AI_LOOTER_SHOOTER_API float ShotRecoil(float RecoilStat, float BaseSpread, float Spread, const FAccuracyKick& Numbers);
+	/** The live one for a gun's stats (Definition may be null: no calm, More only). */
+	AI_LOOTER_SHOOTER_API float ShotRecoil(const UWeaponDefinition* Definition, const FWeaponStats& Stats);
+	AI_LOOTER_SHOOTER_API float ShotRecoil(const AWeaponBase* Weapon);
+	/**
+	 * The recoil a card should show: the Recoil stat x the live AccuracyCalm, without More (so a plain gun still reads 100%
+	 * and the number moves with accuracy). For the loadout's/bench's Recoil row.
+	 */
+	AI_LOOTER_SHOOTER_API float FeltRecoil(const UWeaponDefinition* Definition, const FWeaponStats& Stats);
 
 	// --- Rules over numbers ---
 

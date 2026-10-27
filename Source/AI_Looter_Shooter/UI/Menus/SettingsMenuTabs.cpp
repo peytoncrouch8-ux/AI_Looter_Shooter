@@ -307,6 +307,58 @@ void USettingsMenuWidget::AdvanceHelp()
 	ShowHelp(Help);
 }
 
+void USettingsMenuWidget::AdvanceHoverLook()
+{
+	// Keys or a gamepad in charge (the focus look is the navigator's), or a key being waited for: no pointer look.
+	UWidget* Wanted = nullptr;
+	const FMenuNavItem* Hovered = nullptr;
+	if (!Nav.IsShown() && ListeningIndex == INDEX_NONE && PageNav.IsValidIndex(CurrentPage))
+	{
+		// Rows with a focus look of their own (sliders and choices): a button wears its own hover look already.
+		for (const FMenuNavRow& NavRow : PageNav[CurrentPage])
+		{
+			for (const FMenuNavItem& Item : NavRow)
+			{
+				const UWidget* Row = Item.Row.Get();
+				if (!Item.IsButton() && Item.Light.IsValid() && Row && Row->IsHovered())
+				{
+					Wanted = Item.Light.Get();
+					Hovered = &Item;
+					break;
+				}
+			}
+			if (Wanted)
+			{
+				break;
+			}
+		}
+	}
+
+	UWidget* Lit = HoverLit.Get();
+	if (Lit && Lit != Wanted)
+	{
+		// Keys that took over on the very row the pointer lit own its look now (the navigator lit it): it stays.
+		const FMenuNavItem* Here = Nav.GetFocused();
+		const bool bNavOwnsIt = Nav.IsShown() && Here && Here->Light.Get() == Lit;
+		if (!bNavOwnsIt)
+		{
+			LooterUI::SetFocusLit(Lit, false);
+		}
+	}
+	if (Wanted && (Wanted != Lit || !LooterUI::IsFocusLit(Wanted)))
+	{
+		LooterUI::SetFocusLit(Wanted, true);
+		// A steady look under the pointer: it doesn't breathe as the keys' does, which waits for a press.
+		LooterUI::SetFocusGlow(Wanted, 1.f);
+		// The keys carry on from here once they are used.
+		if (Nav.FocusOn(Hovered->GetWidget()))
+		{
+			RefreshPrompts();
+		}
+	}
+	HoverLit = Wanted;
+}
+
 void USettingsMenuWidget::ShowHelp(const FSettingHelp& Help)
 {
 	if (!HelpTitle || !HelpBody || !HelpDetail)

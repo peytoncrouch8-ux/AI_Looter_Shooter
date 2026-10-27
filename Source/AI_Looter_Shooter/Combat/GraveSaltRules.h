@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/GraveSaltTuning.h"
 
 /** A body as the burst sees it: an upright capsule (a creature's own, or the box round anything else). */
 struct FGraveSaltBody
@@ -15,17 +16,20 @@ struct FGraveSaltBody
  * engine state: AGraveSaltGrenade and GraveSaltBurst play them, and the tests drive them. The throw's own numbers are
  * FThrowRules' (Player/PlayerThrowRules.h).
  *
- *  - The flight: a 6 cm ball under the world's gravity. Off the ground and walls it bounces, keeping 30% of its speed
- *    into the surface and half its speed along it (a heavy tin of salt on dirt), so a throw clinks down two or three
- *    times and rolls a few metres to a stop: a level throw from the eye first lands about 11.5 m out and lies still
- *    about 4 m on, just as its fuse runs out. Slower than 60 cm/s on the ground it lies still. The fuse burns 1.5 s
- *    from the hand (a long lob bursts in the air); a creature (anything that can be hurt that isn't a player) bursts it
- *    on contact.
- *  - The burst: 900 at its heart at level 1 (a Common rifle's magazine is 30 rounds of 20: one and a half magazines),
- *    full within a metre, falling straight to a fifth at 4 m, nothing past. It grows with the player's level as enemies
- *    and guns do (FLevelRules::EnemyScale), so it takes the same share at equal levels: a pack of Basic creatures goes,
- *    a Gravebound spider (1620 at level 1) is left at half. +/-10% like every hit, never critical. Measured to the body's
- *    nearest side, so a big body is caught by its edge.
+ *  - The flight: a 9 cm ball (the jar, twice its first size since 2026-10-27, is 15 cm across) under the world's
+ *    gravity. Off the ground and walls it bounces, keeping 30% of its speed into the surface and half its speed along it
+ *    (a heavy tin of salt on dirt), so a throw clinks down two or three times and rolls a few metres to a stop: a level
+ *    throw from the eye first lands about 11.5 m out and lies still about 4 m on, just as its fuse runs out. Slower than
+ *    60 cm/s on the ground it lies still. The fuse burns 1.5 s from the hand (a long lob bursts in the air); a creature
+ *    (anything that can be hurt that isn't a player) bursts it on contact.
+ *  - The burst (its numbers are FGraveSaltTuning's, the Looter.Grenade.* cvars): 900 at its heart at full strength at
+ *    level 1 (a Common rifle's magazine is 30 rounds of 20: one and a half magazines), full within a metre, falling
+ *    straight to a fifth at 4 m, nothing past. It grows with the player's level as enemies and guns do
+ *    (FLevelRules::EnemyScale), and on top of that it starts weak (the user's playtest, 2026-10-27: "too strong to start
+ *    with"): 45% of its strength at level 1 (405 at the heart, two thirds of a magazine: a Basic spider there goes, a
+ *    pack at its edge doesn't), full by level 12 (EarlyShare). At full strength a pack of Basic creatures goes and a
+ *    Gravebound spider is left at half. +/-10% like every hit, never critical. Measured to the body's nearest side, so a
+ *    big body is caught by its edge.
  *  - Salt burns the dead: the Unpaid take half as much again and are staggered (the melee strike's heavy stagger).
  *  - A boss takes at most 8% of its health from one burst, so three grenades never take a quarter of its bar.
  *  - What a wall shields isn't hurt (the burst must see some of the body: middle, top or chest), and the thrower and
@@ -37,7 +41,18 @@ struct AI_LOOTER_SHOOTER_API FGraveSaltRules
 {
 	// --- The flight ---
 	static constexpr float FuseSeconds = 1.5f;
-	static constexpr float CollisionRadius = 6.f;
+	/**
+	 * The ball the flight sweeps (cm): between the jar's half width (7.5) and its middle's height over its foot (10), so a
+	 * jar lying on its side or standing barely floats or sinks.
+	 */
+	static constexpr float CollisionRadius = 9.f;
+
+	// --- The jar (Art/Models/Throwables/SaltGrenade.py, twice its first size since 2026-10-27: "projectiles are too small") ---
+	/** Its middle above its foot, the model's pivot (cm): it tumbles, and sits in the hand, about its middle. */
+	static constexpr float JarMiddle = 10.f;
+	/** Its tin's radius (R_BODY) and the fuse's top above its foot (cm). */
+	static constexpr float JarRadius = 7.5f;
+	static constexpr float JarFuseTop = 24.f;
 	/** The share of the speed into a surface it bounces back with, and the share of its speed along it it keeps. */
 	static constexpr float Restitution = 0.3f;
 	static constexpr float SlideKeep = 0.5f;
@@ -69,27 +84,31 @@ struct AI_LOOTER_SHOOTER_API FGraveSaltRules
 	/** After bouncing off a surface facing Normal at Velocity (the speed it leaves with), whether it now lies still. */
 	static bool ShouldRest(const FVector& Velocity, const FVector& Normal);
 
-	// --- The burst ---
-	static constexpr float BaseDamage = 900.f;
-	static constexpr float Radius = 400.f;
-	static constexpr float CoreRadius = 100.f;
-	static constexpr float EdgeShare = 0.2f;
-	static constexpr float UnpaidScale = 1.5f;
-	static constexpr float BossShareCap = 0.08f;
-	/** Bodies within this share of the radius are knocked away. */
-	static constexpr float KnockShare = 0.6f;
-
-	/** The share of the burst's damage at Distance (cm) from its heart to a body's side: 1 in the core, EdgeShare at the radius, 0 past it. */
-	static float Falloff(float Distance);
+	// --- The burst (its numbers: Tuning, FGraveSaltTuning::Current in play, a default-made one in the tests) ---
 
 	/**
-	 * One body's damage: BaseDamage times Falloff(Distance) times LevelScale, at Roll (0-1) in the +/-10% range, half
-	 * again for the Unpaid. 0 past the radius.
+	 * The share of the burst's damage at Distance (cm) from its heart to a body's side: 1 in the core, the tuning's
+	 * EdgeShare at its radius, 0 past it.
 	 */
-	static float BurstDamage(float Distance, float LevelScale, float Roll, bool bUnpaid);
+	static float Falloff(float Distance, const FGraveSaltTuning& Tuning);
 
-	/** A boss's share of Damage: at most BossShareCap of its MaxHealth. */
-	static float CapForBoss(float Damage, float MaxHealth);
+	/**
+	 * One body's damage: BaseDamage times Falloff(Distance) times LevelScale, at Roll (0-1) in the +/-10% range, the
+	 * tuning's UnpaidScale for the Unpaid. 0 past the radius. LevelScale is the thrower's (ThrowerScale).
+	 */
+	static float BurstDamage(float Distance, float LevelScale, float Roll, bool bUnpaid, const FGraveSaltTuning& Tuning);
+
+	/** A boss's share of Damage: at most the tuning's BossShareCap of its MaxHealth. */
+	static float CapForBoss(float Damage, float MaxHealth, const FGraveSaltTuning& Tuning);
+
+	/**
+	 * How strong the burst is for a player of Level, before the level growth: the tuning's EarlyShare at level 1, growing
+	 * straight to 1 at its FullStrengthLevel and staying there.
+	 */
+	static float EarlyShare(int32 Level, const FGraveSaltTuning& Tuning);
+
+	/** The burst's whole scale for a thrower of Level whose enemies grow by EnemyScale: EnemyScale x EarlyShare(Level). */
+	static float ThrowerScale(int32 Level, float EnemyScale, const FGraveSaltTuning& Tuning);
 
 	/** From Point to the nearest side of Body (cm; 0 inside it). */
 	static float DistanceToBody(const FVector& Point, const FGraveSaltBody& Body);

@@ -35,6 +35,15 @@ namespace
 	TAutoConsoleVariable<float> CVarLowAmmoPitchTop(TEXT("Looter.Gunfeel.LowAmmo.PitchTop"), Def::LowAmmoPitchTop,
 		TEXT("The click's pitch at the last round (1 at the first click of the last share)."), ECVF_Default);
 
+	TAutoConsoleVariable<float> CVarRecoilMore(TEXT("Looter.Gunfeel.Recoil.More"), Def::RecoilMore,
+		TEXT("Every gun's kick (aim, model, view, pattern) times this, before the accuracy's calm."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAccuracyCalm(TEXT("Looter.Gunfeel.Recoil.AccuracyCalm"), Def::AccuracyCalm,
+		TEXT("A gun shooting R times tighter than its kind's base kicks R^-this as hard (0: accuracy leaves the kick alone)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAccuracyCalmLeast(TEXT("Looter.Gunfeel.Recoil.AccuracyCalmLeast"), Def::AccuracyCalmLeast,
+		TEXT("...but never under this share of the kick (the most accurate guns)..."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAccuracyCalmMost(TEXT("Looter.Gunfeel.Recoil.AccuracyCalmMost"), Def::AccuracyCalmMost,
+		TEXT("...nor over this many times it (the sloppiest rolls)."), ECVF_Default);
+
 	TAutoConsoleVariable<float> CVarRifleClimb(TEXT("Looter.Gunfeel.Recoil.RifleClimb"), Def::RifleClimb,
 		TEXT("The rifle's aim kick grows by this share for each shot of a burst."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarRifleClimbMax(TEXT("Looter.Gunfeel.Recoil.RifleClimbMax"), Def::RifleClimbMax,
@@ -229,6 +238,53 @@ float GunfeelKick::ClimbPerShot(EWeaponKind Kind)
 	case EWeaponKind::LMG: return FMath::Max(CVarLMGClimb.GetValueOnGameThread(), 0.f);
 	default: return 0.f;
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Recoil by accuracy
+// ---------------------------------------------------------------------------
+
+GunfeelKick::FAccuracyKick GunfeelKick::AccuracyKickNumbers()
+{
+	FAccuracyKick Numbers;
+	Numbers.More = FMath::Max(CVarRecoilMore.GetValueOnGameThread(), 0.f);
+	Numbers.Exponent = FMath::Max(CVarAccuracyCalm.GetValueOnGameThread(), 0.f);
+	Numbers.Least = FMath::Max(CVarAccuracyCalmLeast.GetValueOnGameThread(), 0.f);
+	Numbers.Most = FMath::Max(CVarAccuracyCalmMost.GetValueOnGameThread(), Numbers.Least);
+	return Numbers;
+}
+
+float GunfeelKick::AccuracyCalm(float BaseSpread, float Spread, const FAccuracyKick& Numbers)
+{
+	if (BaseSpread <= 0.f || Spread <= 0.f)
+	{
+		return 1.f;
+	}
+	// Measured against the gun's own kind, so a shotgun's wide cone isn't a "bad" stat; the gun's rarity, parts, maker and
+	// curse all move it. Held both ways: a pinpoint gun still kicks, a sloppy one never throws the view off the screen.
+	const float Ratio = BaseSpread / Spread;
+	const float Least = FMath::Max(Numbers.Least, 0.f);
+	return FMath::Clamp(FMath::Pow(Ratio, -FMath::Max(Numbers.Exponent, 0.f)), Least, FMath::Max(Numbers.Most, Least));
+}
+
+float GunfeelKick::ShotRecoil(float RecoilStat, float BaseSpread, float Spread, const FAccuracyKick& Numbers)
+{
+	return RecoilStat * FMath::Max(Numbers.More, 0.f) * AccuracyCalm(BaseSpread, Spread, Numbers);
+}
+
+float GunfeelKick::ShotRecoil(const UWeaponDefinition* Definition, const FWeaponStats& Stats)
+{
+	return ShotRecoil(Stats.Recoil, Definition ? Definition->BaseStats.Spread : 0.f, Stats.Spread, AccuracyKickNumbers());
+}
+
+float GunfeelKick::ShotRecoil(const AWeaponBase* Weapon)
+{
+	return Weapon ? ShotRecoil(Weapon->GetInstance().Definition.Get(), Weapon->GetStats()) : 0.f;
+}
+
+float GunfeelKick::FeltRecoil(const UWeaponDefinition* Definition, const FWeaponStats& Stats)
+{
+	return Stats.Recoil * AccuracyCalm(Definition ? Definition->BaseStats.Spread : 0.f, Stats.Spread, AccuracyKickNumbers());
 }
 
 // ---------------------------------------------------------------------------

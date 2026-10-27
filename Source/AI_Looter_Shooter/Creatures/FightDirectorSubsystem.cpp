@@ -89,7 +89,7 @@ bool UFightDirectorSubsystem::TryTakeToken(const ACreatureBase& Creature, const 
 	}
 	const bool bRanged = Role == EFightRole::Ranged;
 	FFightTokens& Tokens = bRanged ? Fight.Ranged : Fight.Melee;
-	const bool bTaken = Tokens.TryTake(Id, Now(), bRanged ? Numbers.RangedTokens : Numbers.MeleeTokens, Numbers.TurnKeep,
+	const bool bTaken = Tokens.TryTake(Id, Now(), bRanged ? Numbers.RangedTokens : MeleeTokensFor(Creature, Fight), Numbers.TurnKeep,
 		bRanged ? Numbers.RangedGap : 0.f);
 	if (bTaken)
 	{
@@ -169,6 +169,91 @@ void UFightDirectorSubsystem::ForgetCreature(const ACreatureBase& Creature)
 		Each.Value.Ranged.Forget(Id);
 		Each.Value.Places.Remove(Id);
 	}
+	ChaseBoosts.Remove(Id);
+}
+
+// ---------------------------------------------------------------------------
+// A pack's moments (the Unpaid's kit)
+// ---------------------------------------------------------------------------
+
+int32 UFightDirectorSubsystem::MeleeTokensFor(const ACreatureBase& Creature, const FTargetFight& Fight) const
+{
+	const int32 Usual = const_cast<UFightDirectorSubsystem*>(this)->Tuning().MeleeTokens;
+	// Its pack's frenzy lets more of them in at once; anyone else at the same player keeps the usual count (they still count
+	// the frenzy's holders, so a spider can't add a fourth bite on top of a frenzy).
+	const bool bFrenzy = !Creature.PackTag.IsNone() && Creature.PackTag == Fight.FrenzyPack && Now() < Fight.FrenzyUntil;
+	return bFrenzy ? FMath::Max(Usual, Fight.FrenzyTokens) : Usual;
+}
+
+void UFightDirectorSubsystem::OpenFrenzy(const APawn& Target, FName PackTag, float Seconds, int32 Tokens)
+{
+	FTargetFight& Fight = Fights.FindOrAdd(&Target);
+	Fight.FrenzyPack = PackTag;
+	Fight.FrenzyUntil = Now() + FMath::Max(Seconds, 0.f);
+	Fight.FrenzyTokens = FMath::Max(Tokens, 1);
+	UE_LOG(LogLooter, Verbose, TEXT("%s's pack goes for %s together for %.1f s (%d turns)."), *PackTag.ToString(), *Target.GetName(),
+		Seconds, Fight.FrenzyTokens);
+}
+
+float UFightDirectorSubsystem::GetFrenzyLeft(const APawn& Target, FName PackTag) const
+{
+	const FTargetFight* Fight = Fights.Find(&Target);
+	if (!Fight || PackTag.IsNone() || Fight->FrenzyPack != PackTag)
+	{
+		return 0.f;
+	}
+	return static_cast<float>(FMath::Max(Fight->FrenzyUntil - Now(), 0.0));
+}
+
+namespace
+{
+	/** Once in Cooldown seconds at a target: true (and counted) when Last is far enough behind Time. */
+	bool TakeMoment(double& Last, double Time, float Cooldown)
+	{
+		if (Time - Last < FMath::Max(Cooldown, 0.f))
+		{
+			return false;
+		}
+		Last = Time;
+		return true;
+	}
+}
+
+bool UFightDirectorSubsystem::TryStartRally(const APawn& Target, float Cooldown)
+{
+	return TakeMoment(Fights.FindOrAdd(&Target).LastRally, Now(), Cooldown);
+}
+
+bool UFightDirectorSubsystem::TryHowl(const APawn& Target, float Cooldown)
+{
+	return TakeMoment(Fights.FindOrAdd(&Target).LastHowl, Now(), Cooldown);
+}
+
+bool UFightDirectorSubsystem::TryTakeCinder(const APawn& Target, float Gap)
+{
+	return TakeMoment(Fights.FindOrAdd(&Target).LastCinder, Now(), Gap);
+}
+
+int32 UFightDirectorSubsystem::CountPack(const APawn& Target, FName PackTag) const
+{
+	const FTargetFight* Fight = Fights.Find(&Target);
+	return Fight && !PackTag.IsNone() ? Fight->PackCounts.FindRef(PackTag) : 0;
+}
+
+void UFightDirectorSubsystem::SetChaseBoost(const ACreatureBase& Creature, float Boost)
+{
+	if (FMath::IsNearlyEqual(Boost, 1.f))
+	{
+		ChaseBoosts.Remove(Creature.GetUniqueID());
+		return;
+	}
+	ChaseBoosts.Add(Creature.GetUniqueID(), FMath::Max(Boost, 0.f));
+}
+
+float UFightDirectorSubsystem::GetChaseBoost(const ACreatureBase& Creature) const
+{
+	const float* Boost = ChaseBoosts.Find(Creature.GetUniqueID());
+	return Boost ? *Boost : 1.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -272,8 +357,13 @@ void UFightDirectorSubsystem::RefreshTarget(const APawn& Target, FTargetFight& F
 
 	TArray<ACreatureBase*> Melee;
 	TArray<ACreatureBase*> Ranged;
+	Fight.PackCounts.Reset();
 	for (ACreatureBase* Creature : Fighters)
 	{
+		if (!Creature->PackTag.IsNone())
+		{
+			++Fight.PackCounts.FindOrAdd(Creature->PackTag);
+		}
 		const EFightRole Role = Creature->GetFightRole();
 		// One breaking off runs: it holds no place in the ring.
 		if (Role == EFightRole::Melee && !Creature->GetPack()->IsRetreating())

@@ -1,6 +1,7 @@
 #include "Player/Animation/HandJarComponent.h"
 #include "AI_Looter_Shooter.h"
 #include "Combat/GraveSaltGrenade.h"
+#include "Combat/GraveSaltRules.h"
 #include "Player/Animation/LooterStancePoseDetail.h"
 #include "Player/PlayerSize.h"
 #include "Player/PlayerThrowComponent.h"
@@ -14,9 +15,9 @@ namespace
 	 * The tin's middle above its foot, its pivot (cm; Art/Models/Throwables/SaltGrenade.py): the middle sits in the fist.
 	 * The offset is in the body's space, which is the player's size, while the tin is full size: hence the divide.
 	 */
-	constexpr float JarMiddle = 5.f;
-	/** Off the grip point away from the palm (cm): the tin is twice as thick as the grip the socket was placed for. */
-	constexpr float OffPalm = 1.f;
+	constexpr float JarMiddle = FGraveSaltRules::JarMiddle;
+	/** Off the grip point away from the palm (cm): the tin (7.5 cm radius since 2026-10-27) is far thicker than the grip the socket was placed for. */
+	constexpr float OffPalm = 4.75f;
 	/** A body without the mannequin's grip sockets: the hand bone itself, and the palm's spot on it (LeftPalmFromWrist). */
 	const TCHAR* FallbackBone = TEXT("hand_l");
 }

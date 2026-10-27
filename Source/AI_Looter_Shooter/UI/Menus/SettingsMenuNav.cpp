@@ -289,6 +289,7 @@ void USettingsMenuWidget::AdvanceNav(float DeltaSeconds)
 		StepNav(NavRepeat.GetMove());
 	}
 	Nav.Tick(DeltaSeconds);
+	AdvanceHoverLook();
 	// The description column follows the focus or the pointer (SettingsMenuTabs.cpp).
 	AdvanceHelp();
 }

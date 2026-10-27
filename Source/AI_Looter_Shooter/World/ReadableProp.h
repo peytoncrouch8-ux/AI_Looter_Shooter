@@ -21,7 +21,9 @@ class UStaticMeshComponent;
  * so an optional objective counts it (an Event objective), and the Interact event as any use.
  *
  * Its model is the dressing's or its own Mesh (set by the build script); it's there while ShownWhen holds (empty: always),
- * hidden and off the Interact key otherwise. Never ticks. Painted words follow the played hero (Story/HeroLines): as play
+ * hidden and off the Interact key otherwise. A step's reading (the mission gates, 2026-10-27) is read only while UsableWhen
+ * holds (from its step; the eleven's tags in their step alone, so the prompt goes once they're taken), seen but never
+ * focused otherwise, and with bHoldToRead it takes a short hold (MissionGates::HoldSeconds), not a tap. Lore: neither. Never ticks. Painted words follow the played hero (Story/HeroLines): as play
  * begins its own Mesh becomes the hero's in HeroMeshes (the headboard carved with their name), else OtherMesh for any hero
  * but Ellis (the keepers' roll with no ELLIS under ABEL), else stays as placed. Its words are swapped where they're shown.
  *
@@ -52,13 +54,16 @@ public:
 
 	/**
 	 * Reads it for Player (their pawn or controller), as a tap of Interact does: the card (or only the lines), the event.
-	 * False when it isn't there to read, or a menu is up.
+	 * False when it isn't there to read, its step hasn't come (UsableWhen), or a menu is up.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Readable")
 	bool Read(AActor* Player);
 
 	/** It's there to read now (ShownWhen). */
 	bool ShouldShow() const;
+
+	/** Its step lets it be read now (UsableWhen; empty: always). Shown, it's read. */
+	bool CanRead() const;
 
 	bool IsShown() const { return bShownNow; }
 
@@ -118,6 +123,21 @@ public:
 	/** When it's there to read (the sheriff's hat once Main 5 reaches the den). Empty: always. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Readable")
 	FStoryCondition ShownWhen;
+
+	/**
+	 * When it can be read, while it's shown: any of these holds (a step's reading: Back Pay's payroll book from its step and
+	 * after the mission; the eleven's tags in their step alone). Empty: whenever it's shown (lore, any time). Before then
+	 * it's seen but never focused. Python: set_editor_property('usable_when', [condition, ...]).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Readable")
+	TArray<FStoryCondition> UsableWhen;
+
+	/**
+	 * A step's reading: a short hold of Interact (MissionGates::HoldSeconds), not a tap, so a stray press never does the
+	 * step. Off (lore): a tap. Python: set_editor_property('hold_to_read', True).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Readable")
+	bool bHoldToRead = false;
 
 	/**
 	 * The story flag reading it sets (FCampaignRecord::StoryFlags), after its event: a Ledger page's Ledger.Page.<Town> opens

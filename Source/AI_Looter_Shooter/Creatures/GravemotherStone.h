@@ -8,6 +8,7 @@
 class AController;
 class AGravemotherCreature;
 class UHealthComponent;
+class UMaterialInstanceDynamic;
 class USceneComponent;
 class USkeletalMeshComponent;
 class UStaticMeshComponent;
@@ -20,7 +21,10 @@ class UStaticMeshComponent;
  * crack with its sound and a shower of chips. Shots glance off it with sparks, chips and a hard crack, as their own look
  * (UBulletSubsystem::OwnLookTag: no world puff over it). Broken, it cracks off (GravemotherStoneBreak.cpp): the slab is
  * gone and its pieces slide off her back to the floor, lie a while and sink away; she's told (OnStoneBroken), and her
- * whole abdomen is a critical spot from then. It also cracks off by itself at her 33% (her Break(true)).
+ * whole abdomen is a critical spot from then. It also cracks off by itself at her 33% (her Break(true)), a fallback now:
+ * while it stands nothing hurts her (the user's call, 2026-10-27; AGravemotherCreature::ShrugFor), so it's the fight's first
+ * target, and it glows as one when she shrugs a hit off (Mark). A shot on it from off her ground (the Sink's rim) glances
+ * off doing nothing, as one on her would.
  *
  * Only the Weapon channel sees it: it never blocks her movement, her lane's sweeps or her sight. It's tagged Breakable,
  * so its break isn't a kill to the HUD (a white hit marker, never the red confirm). Until its meshes are imported it's a
@@ -69,6 +73,18 @@ public:
 	/** Its state's mesh index shown now (0 intact, 1 cracked, 2 shattered; -1 broken). */
 	int32 GetShownMesh() const { return ShownMesh; }
 
+	// --- The target's glow (GravemotherStoneMark.cpp) ---
+
+	/**
+	 * Glows as the target for Seconds (a hit her hide shrugged off while it stands, her fight starting): the objective
+	 * highlight's orange drawn over it (M_ObjectiveHighlight as its overlay), pulsing, fading at the end. Again while it
+	 * glows: the longer of the two. Nothing once it's broken.
+	 */
+	void Mark(float Seconds);
+	bool IsMarked() const { return MarkLeft > 0.f; }
+	/** The glow's strength now (0-1). */
+	float GetMarkStrength() const;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -84,6 +100,13 @@ private:
 	void PlayHitLook(const FVector& Where, const FVector& Normal, const FVector& ShotDirection);
 	/** A shower of chips and dust off the slab (a crack, the break). */
 	void Shower(int32 Chips, int32 Dust, float Speed);
+
+	// --- The target's glow (GravemotherStoneMark.cpp) ---
+	void TickMark(float DeltaSeconds);
+	/** Its glow off at once (broken, whole again for a new life). */
+	void ClearMark();
+	/** Ticks only while its pieces fall or it glows. */
+	void UpdateTickNeed();
 
 	// --- The crack-off (GravemotherStoneBreak.cpp) ---
 	void MakeShards();
@@ -127,4 +150,11 @@ private:
 	double LastHitSound = -1.0;
 	FVector LastHitSoundAt = FVector::ZeroVector;
 	uint64 LastFlashFrame = 0;
+
+	/** The target's glow: its overlay look (made once), its time left and how long it was asked for. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> MarkLook;
+	float MarkLeft = 0.f;
+	float MarkSeconds = 0.f;
+	bool bMarkTried = false;
 };

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Bosses/BossTypes.h"
 #include "Creatures/GravemotherTypes.h"
+#include "Story/StoryLine.h"
 
 /**
  * How the Gravemother fights in each phase of her boss fight (her UBossComponent's; Docs/Areas/RansomsRest.md, Side 3), the
@@ -40,7 +41,8 @@ namespace GravemotherFight
 	/** Her bar's show: her title, her death's cry and slow beat (her roars are her own moves, shaken by her own code). */
 	AI_LOOTER_SHOOTER_API FBossShow MakeShow();
 
-	/** Her weak spots stagger her: 7% of her health in crits within a few seconds. */
+	/** Her weak spots stagger her: crits within a few seconds worth 7% of her health as first tuned (a smaller share of her
+	 *  raised health, so a stagger takes the same shooting as before). */
 	AI_LOOTER_SHOOTER_API FBossStagger MakeStagger();
 
 	/** Her loot's shower (the Legendary table's two guns and ammo, two boxes more), bursting from her body. */
@@ -48,6 +50,12 @@ namespace GravemotherFight
 
 	/** What her bar calls out while a clod burst on her has her stunned. */
 	AI_LOOTER_SHOOTER_API FText StunCallout();
+
+	/** What her bar calls out as her hide shrugs a hit off (Why: the stone stands, or the shooter is off her ground). */
+	AI_LOOTER_SHOOTER_API FText ShrugCallout(EGravemotherShrug Why);
+
+	/** Hob's hint, once, after a few hits shrugged off for Why: come down into the Sink; crack the headstone off first. */
+	AI_LOOTER_SHOOTER_API FStoryLine ShrugLine(EGravemotherShrug Why);
 
 	/** Seconds she'll go with nobody to fight (the player off her ground) before her fight stands down. */
 	inline constexpr float StandDownSeconds = 6.f;

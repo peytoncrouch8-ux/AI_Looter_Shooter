@@ -4,6 +4,7 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureBodyHulls.h"
 #include "Creatures/ShroudChain.h"
+#include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidRigBones.h"
 #include "Creatures/UnpaidRules.h"
 #include "UnpaidCreature.generated.h"
@@ -35,6 +36,10 @@ namespace UnpaidLook
  *    coal is critical. From behind, or through an arm, a hand or the head in the way, it isn't.
  *  - It attacks with a shriek and a lunge (UnpaidCreatureAttack.cpp): the shriek is the wind-up (jaw dropped, arms
  *    spread), then it flies at its target and the strike lands if it reaches them. Back off and the lunge falls short.
+ *  - Its fighting kit (UnpaidCreatureMoves.cpp, Looter.Unpaid.*, round 2): the lunge leads its target, close in it rakes
+ *    twice, on the ring it throws cinders and screams its pack on together, given its turn in front of the player's eyes it
+ *    fades round to their side. Kinds on its rig with attacks of their own (the miners, the Bell-Ringer, Abel) and a boss's
+ *    adds keep the old way (HasFightKit).
  *  - Stuck, or fallen far behind, it phase-steps (UnpaidCreaturePhase.cpp): fades out and comes back 3 to 5 m nearer its
  *    target, never into a wall, off its level of ground or off its hunting ground.
  *  - Its rank shows in its coal and ember edge (custom primitive data, UnpaidLook): dull red Basic, the rank's tag color
@@ -94,6 +99,18 @@ public:
 
 	/** Whether it's in the middle of a lunge. */
 	bool IsLunging() const { return bLunging; }
+
+	// --- Its fighting kit (UnpaidCreatureMoves.cpp, UnpaidCreatureRing.cpp; FUnpaidFightTuning) ---
+
+	/** A plain Unpaid (its class or a data-only child), not a boss nor a boss's add, with Looter.Unpaid.Kit on. */
+	bool HasFightKit() const;
+	/** The attack it chose as its wind-up began (None outside one), and what it does on the ring between turns. */
+	EUnpaidMove GetKitMove() const { return Kit.Move; }
+	EUnpaidAction GetKitAction() const { return Kit.Action; }
+	/** Starts a cinder's tell or a rally scream now at its target, as its ring would (false when it can't). For the tests and dev tools. */
+	bool StartKitAction(EUnpaidAction Action);
+	/** Throws a cinder at its target now, led at where they'll be: the end of a cinder's tell. True when one left its hand. */
+	bool ThrowCinder();
 
 	// --- Its arms (UnpaidCreatureArms.cpp) ---
 
@@ -218,6 +235,8 @@ protected:
 	virtual void OnRankChanged() override;
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
 	virtual bool CanStartAttack() const override;
+	/** With its kit, a lunge starts from farther out (Looter.Unpaid.LungeStart). */
+	virtual float GetAttackStartRange() const override;
 	// --- The notice beat, its entrance, its ash (UnpaidCreatureMoods.cpp) ---
 	virtual void OnNoticed() override;
 	virtual void PlayEntrance() override;
@@ -320,8 +339,32 @@ private:
 	void StartPhaseStep();
 	/** Where a step lands now: the rules' first spot the level allows (ground, room, sight of its target, safe zones). */
 	bool FindPhaseSpot(FVector& OutFeet) const;
+	/** Whether it may come back at Candidate: walkable ground near it, room, its target in sight, no safe zone (the ground: OutGround). */
+	bool CanStandAt(const FVector& Candidate, FVector& OutGround) const;
+	/** Starts a step to Feet now: it fades out here and comes back there. */
+	void StartStepTo(const FVector& Feet);
 	/** Unseen at last: moves to the spot it chose and starts coming back. */
 	void Arrive();
+
+	// --- Its fighting kit (UnpaidCreatureMoves.cpp; on the ring, the cinder and the rally: UnpaidCreatureRing.cpp) ---
+	void TickFightKit(float DeltaSeconds);
+	/** As its wind-up begins: the rake or the lunge, and their timings. */
+	void ChooseKitMove();
+	/** The rake after its wind-up: the drift in, the second swipe. */
+	void TickRake();
+	/** One swipe of Arm (0 left, 1 right) across its front: whether it caught its target. */
+	bool Swipe(int32 Arm);
+	void TickKitAction(float DeltaSeconds, const APawn& Victim);
+	/** Its cinder or rally ended, or called off (bCalledOff: a cinder's tell put out). */
+	void EndKitAction(bool bCalledOff);
+	/** Waiting on the ring: a rally, or a cinder, if the moment's right. */
+	void ThinkOnRing(const APawn& Victim);
+	/** Its turn, in front of the player's eyes: fades round to their side (true when it went). */
+	bool TryFlank(const APawn& Victim);
+	/** Tells the fight director how much faster than its chase it comes now (closing in, its pack's frenzy). */
+	void UpdateChaseBoost(const APawn* Victim, bool bFrenzy);
+	/** Whether it rose as a boss's add (looked up once a life). */
+	bool IsBossAdd();
 
 	// --- The body (UnpaidCreatureRig.cpp) ---
 	struct FArm
@@ -357,6 +400,8 @@ private:
 		/** Dying, crumpling to the ground (0 to 1; not a boss); calm, its slow sway where it hangs (degrees of roll). */
 		float Crumple = 0.f;
 		float Sway = 0.f;
+		/** Each arm's rake (0 left, 1 right): -1 drawn back and out, 0 as it is, 1 swept forward across its front. */
+		float Rake[2] = { 0.f, 0.f };
 	};
 
 	/** One arm's lag behind the body's moves, on a spring: degrees swung back and out from the body, and their speeds. */
@@ -480,6 +525,9 @@ private:
 	FUnpaidRankTraits Traits;
 	bool bTimingCaptured = false;
 	float BaseWindup = 0.6f;
+
+	// Its fighting kit: its move, its actions on the ring, its clocks.
+	FUnpaidKitState Kit;
 
 	// Attack
 	bool bLunging = false;

@@ -23,6 +23,8 @@ class APawn;
  *    slowly (RingDrift) and waiting ones feint in now and then. Slots that are walled off or have no ground are skipped.
  *  - Ranged spots: a spot in its band at RangedOffAngle or more round from the melee pack, with a clear line at the target,
  *    a new one after a shot now and then (RangedRelocate).
+ *  - A pack's moments (the Unpaid's kit): a frenzy that lets one pack take more turns at once for a while after a rally
+ *    scream, one rally, howl and cinder at a time per target, and each creature's own chase boost.
  * Bosses and Legendary monsters never ask (ACreatureBase::UsesFightDirector). Looter.Fight.Director 0 turns it all off (Get
  * returns none). It is made in game and PIE worlds only, and in test levels a test lets it (bAllowInTestWorlds).
  */
@@ -75,6 +77,24 @@ public:
 	float GetRingReach(const ACreatureBase& Creature) const;
 	float GetApproachDistance(const ACreatureBase& Creature) const;
 
+	// --- A pack's moments (the Unpaid's kit, UnpaidCreatureMoves.cpp; round 2, 2026-10-27) ---
+
+	/** PackTag's pack goes for Target together: for Seconds its creatures may hold up to Tokens melee turns there (more than Looter.Fight.MeleeTokens). */
+	void OpenFrenzy(const APawn& Target, FName PackTag, float Seconds, int32 Tokens);
+	/** Seconds left of PackTag's frenzy at Target (0: none). */
+	float GetFrenzyLeft(const APawn& Target, FName PackTag) const;
+	/** One rally scream at Target in Cooldown seconds, whoever screams: true when this one may (it's counted as given). */
+	bool TryStartRally(const APawn& Target, float Cooldown);
+	/** One howl at Target in Cooldown seconds, whoever howls: true when this one may (counted). */
+	bool TryHowl(const APawn& Target, float Cooldown);
+	/** One cinder thrown at Target in Gap seconds, whoever throws: true when this one may (counted). */
+	bool TryTakeCinder(const APawn& Target, float Gap);
+	/** Creatures of PackTag fighting Target at the last look at the fights. */
+	int32 CountPack(const APawn& Target, FName PackTag) const;
+	/** A creature's own chase boost on top of Looter.Fight.ChaseScale (the Unpaid's closing and frenzy pace); 1 unless set. */
+	void SetChaseBoost(const ACreatureBase& Creature, float Boost);
+	float GetChaseBoost(const ACreatureBase& Creature) const;
+
 	// --- Tests and tools ---
 
 	/** Looks at every fight now, whenever it last did. */
@@ -108,7 +128,20 @@ private:
 		float RingTurn = 0.f;
 		int32 Slots = 8;
 		bool bRing = false;
+		/** A pack's frenzy: whose, until when, and its turns. */
+		FName FrenzyPack;
+		double FrenzyUntil = -1.0e9;
+		int32 FrenzyTokens = 0;
+		/** The last rally, howl and cinder at this target. */
+		double LastRally = -1.0e9;
+		double LastHowl = -1.0e9;
+		double LastCinder = -1.0e9;
+		/** Fighters by pack tag at the last look. */
+		TMap<FName, int32> PackCounts;
 	};
+
+	/** The melee turns at once for Creature at Fight now: Looter.Fight.MeleeTokens, or its pack's frenzy's if more. */
+	int32 MeleeTokensFor(const ACreatureBase& Creature, const FTargetFight& Fight) const;
 
 	/** The tuning for this frame (the cvars read once a frame). */
 	const FFightTuning& Tuning();
@@ -125,6 +158,8 @@ private:
 	bool IsRangedSpotUsable(const APawn& Target, const FVector& Spot) const;
 
 	TMap<TWeakObjectPtr<const APawn>, FTargetFight> Fights;
+	/** Creatures' own chase boosts by id (SetChaseBoost; none means 1). */
+	TMap<uint32, float> ChaseBoosts;
 	double LastRefresh = -1.0e9;
 	uint64 TuningFrame = MAX_uint64;
 	FFightTuning FrameTuning;

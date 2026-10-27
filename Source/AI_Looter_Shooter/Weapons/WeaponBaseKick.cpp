@@ -6,14 +6,17 @@
 
 // AWeaponBase's kick: what a shot does to the gun in the hand (its recoil profile, by kind) and to its cone (an automatic's
 // bloom, and the reward of a first shot after a rest). The numbers are GunfeelKickTuning's Looter.Gunfeel.* variables, read
-// per shot, so a change in play shows on the next one.
+// per shot, so a change in play shows on the next one. The kick's size is GunfeelKick::ShotRecoil (the Recoil stat, the
+// "more kick" for all, the accuracy's calm); the view's kick and the pattern read the same (PlayerViewKicks/PlayerViewAim).
 
 FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 {
 	FWeaponRecoilProfile Profile = Instance.Definition ? Instance.Definition->Recoil : FWeaponRecoilProfile();
 	const EWeaponKind Kind = GunfeelKick::KindOf(this);
-	// The gun's Recoil stat (its parts) scales every kick, on the gun and on the aim alike; the springs stay the same.
-	const float Kick = Instance.Stats.Recoil;
+	// The gun's Recoil stat (its parts) scales every kick, on the gun and on the aim alike; the springs stay the same. Since
+	// playtest round 2 every gun kicks harder (Recoil.More) and its accuracy calms it (the tighter it shoots against its
+	// kind, the steadier: the user's call, 2026-10-27), so the accuracy stat is felt on every shot.
+	const float Kick = GunfeelKick::ShotRecoil(Instance.Definition.Get(), Instance.Stats);
 	// The kind's own weight in the hand on top: its model kicks back, flips, twists and rolls that much more. The aim's
 	// kick (what the player pulls down against) is left alone.
 	const float Weight = Kick * GunfeelKick::RecoilScale(Kind);

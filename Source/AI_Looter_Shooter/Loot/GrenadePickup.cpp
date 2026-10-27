@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/GraveSaltGrenade.h"
+#include "Combat/GraveSaltRules.h"
 #include "Loot/LootTossComponent.h"
 #include "Player/PlayerThrowComponent.h"
 #include "Loot/LootBeamCrowd.h"
@@ -23,7 +24,7 @@ namespace
 	constexpr float BeamRadius = 4.f;
 	constexpr float BeamGlow = 1.2f;
 	/** The tin's height at the pickup's size, where the beam starts (the model's own is about 12 cm). */
-	constexpr float TinTop = 12.f * AGrenadePickup::ModelScale;
+	constexpr float TinTop = FGraveSaltRules::JarFuseTop * AGrenadePickup::ModelScale;
 }
 
 AGrenadePickup::AGrenadePickup()
@@ -99,7 +100,7 @@ void AGrenadePickup::BeginPlay()
 	else
 	{
 		Model->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));
-		Model->SetRelativeScale3D(FVector(0.07f, 0.07f, 0.1f) * ModelScale);
+		Model->SetRelativeScale3D(FVector(0.15f, 0.15f, 0.2f) * ModelScale);
 	}
 	LightBeams::Setup(Beam, FLinearColor::White, BeamGlow, BeamHeight, BeamRadius);
 	Beam->SetRelativeLocation(FVector(0.0, 0.0, Model->GetRelativeLocation().Z + TinTop + BeamHeight * 0.5));

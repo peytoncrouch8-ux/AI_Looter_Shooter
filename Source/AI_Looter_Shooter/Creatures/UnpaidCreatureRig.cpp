@@ -311,6 +311,12 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		Follow(Pose.Sway, Goal.Sway, 2.f);
 		// The arms come up as the hunt starts, not at once; the shriek's own channels take over quickly.
 		Follow(Pose.Hunt, Goal.Hunt, GetCreatureState() == ECreatureState::Attack ? Rate : 4.f);
+		// A rake's swipe snaps across quickly (about a third of the way a frame at 60: a blur, yet no bone leaps 45 cm in a
+		// frame, Looter.Creatures.Anim.UnpaidArms) and drifts back after.
+		for (int32 Side = 0; Side < 2; ++Side)
+		{
+			Follow(Pose.Rake[Side], Goal.Rake[Side], Goal.Rake[Side] > Pose.Rake[Side] + 0.3f ? 16.f : 8.f);
+		}
 	}
 	// A hit's flinch rises over a few frames and eases off (UnpaidCreatureArms.cpp).
 	StepFlinch(Dt);

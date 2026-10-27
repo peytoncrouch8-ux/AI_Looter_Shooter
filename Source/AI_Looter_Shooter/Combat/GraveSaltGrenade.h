@@ -13,11 +13,12 @@ struct FHitResult;
 
 /**
  * A grave-salt grenade in flight (UPlayerThrowComponent throws it): the stoppered tin (SM_SaltGrenade, from
- * Art/Models/Throwables/SaltGrenade.py) tumbling on its own arc, its waxed fuse fizzing and spitting sparks. It moves
- * itself (FGraveSaltRules: no physics body, no projectile component), sweeping a 6 cm ball through what bullets meet:
- * off the ground and walls it bounces and clinks, damped, then rolls and lies still; a creature it touches bursts it at
- * once. Otherwise the fuse bursts it 1.5 s after it left the hand (GraveSaltBurst does the damage, the look, the sound
- * and the jolt). After the burst it lingers a quarter second for its flash of light, then goes.
+ * Art/Models/Throwables/SaltGrenade.py, 15 cm across since 2026-10-27) tumbling on its own arc, its waxed fuse fizzing
+ * and spitting sparks. It moves itself (FGraveSaltRules: no physics body, no projectile component), sweeping a 9 cm ball
+ * through what bullets meet: off the ground and walls it bounces and clinks, damped, then rolls and lies still; a
+ * creature it touches bursts it at once. Otherwise the fuse bursts it 1.5 s after it left the hand (GraveSaltBurst does
+ * the damage, the look, the sound and the jolt). After the burst it lingers for its flash of light (FGraveSaltTuning's
+ * Flash*), then goes.
  *
  * Nothing collides with it: it never blocks the player, a creature or a shot.
  */
@@ -96,6 +97,9 @@ private:
 	float Age = 0.f;
 	float LevelScale = 1.f;
 	float SinceBurst = 0.f;
+	/** The burst's flash as the tuning had it when it went off: its candelas and its fade (s). */
+	float FlashPeak = 0.f;
+	float FlashFade = 0.25f;
 	/** When the last clink played (Age), so a skitter isn't a rattle of them. */
 	float LastClink = -1.f;
 	int32 Bounces = 0;

@@ -58,7 +58,9 @@ struct FThrowGateInput
  *  - The toss: 15 m/s along the look, lifted 8 degrees (an underarm lob reads as a throw, not a shot), with half the
  *    thrower's own speed on top, so a throw on the run lands ahead of them: a level throw from the eye comes down
  *    about 11 m out before it bounces; at 45 degrees it carries about 23 m.
- *  - The count: three at most; two once the tutorial puts the first gun in the player's hands (or the first one found).
+ *  - The count: three at most; one once the tutorial puts the first gun in the player's hands (or the first one found):
+ *    FGraveSaltTuning::StartingGrenades, Looter.Grenade.Starting (two until the user's playtest, 2026-10-27: "too strong
+ *    to start with").
  *  - Loot (the orchestrator's hook in Loot/LootDropComponent and Loot/ChestLoot): a kill drops one by rank (DropChance),
  *    twice as likely when the player has none, never when they're full.
  */
@@ -71,7 +73,6 @@ struct AI_LOOTER_SHOOTER_API FThrowRules
 
 	// --- The count ---
 	static constexpr int32 MaxGrenades = 3;
-	static constexpr int32 StartingGrenades = 2;
 
 	/**
 	 * Count plus up to Amount, held to MaxGrenades (and never under 0). OutTaken: how many of Amount went in (negative

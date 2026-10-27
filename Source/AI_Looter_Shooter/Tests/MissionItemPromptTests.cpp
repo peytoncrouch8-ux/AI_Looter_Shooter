@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionTypes.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionPlayerObjectives.h"
 #include "Missions/MissionRunner.h"
@@ -68,13 +69,19 @@ bool FMissionItemPromptTest::RunTest(const FString& Parameters)
 	Pin->DispatchBeginPlay();
 	Runner->Update(0.f);
 	TestTrue(TEXT("Its mission taken: the pin is there"), Runner->AcceptMission(Lift->GetMissionId()) && Pin->IsShown());
-	TestEqual(TEXT("Its prompt: \"Take the clamp pin\""), Pin->GetInteractionOptions(*Hands).TapPrompt.ToString(), FString(TEXT("Take the clamp pin")));
+	// Taken with a hold since the mission gates (2026-10-27): its words are the hold's prompt.
+	auto PromptOf = [Pin, Hands]()
+	{
+		const FInteractionOptions Options = Pin->GetInteractionOptions(*Hands);
+		return (Options.bHold ? Options.HoldPrompt : Options.TapPrompt).ToString();
+	};
+	TestEqual(TEXT("Its prompt: \"Take the clamp pin\""), PromptOf(), FString(TEXT("Take the clamp pin")));
 	TestEqual(TEXT("Its objective: \"Find the clamp pin\""), Collect->GetDisplayText(World), FString(TEXT("Find the clamp pin")));
 	TestEqual(TEXT("Its name, a title, as the data writes it"), Pin->GetItemName().ToString(), FString(TEXT("The clamp pin")));
 
 	// A prompt of its own is said as written.
 	Pin->Prompt = FText::FromString(TEXT("Pull the clamp pin"));
-	TestEqual(TEXT("Its own prompt as written"), Pin->GetInteractionOptions(*Hands).TapPrompt.ToString(), FString(TEXT("Pull the clamp pin")));
+	TestEqual(TEXT("Its own prompt as written"), PromptOf(), FString(TEXT("Pull the clamp pin")));
 	return true;
 }
 

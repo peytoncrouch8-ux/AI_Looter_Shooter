@@ -119,6 +119,16 @@ namespace AbelRules
 	/** His health against an Unpaid's of his level ("about 40x an Unpaid of his level, about 10,500 at level 9"). */
 	inline constexpr float HealthScale = 40.f;
 
+	/**
+	 * The playtest's tuning on top (the user, 2026-10-27: "way too easy and die too quickly as far as progression goes"):
+	 * 1.6x his health (about 16,800 at level 9), his hits (the swing, the buckshot's pellets) 1.25x. His class carries these
+	 * (the Ledger reads it); the cvars Looter.Abel.HealthScale and .DamageScale move him when he's next spawned.
+	 */
+	inline constexpr float DefaultFightHealthScale = 1.6f;
+	inline constexpr float DefaultFightDamageScale = 1.25f;
+	AI_LOOTER_SHOOTER_API float FightHealthScale();
+	AI_LOOTER_SHOOTER_API float FightDamageScale();
+
 	/** His size: the Unpaid's rig at 1.3 (his model is built at 1; the Boss rank adds none). */
 	inline constexpr float BodyScale = 1.3f;
 
@@ -133,9 +143,16 @@ namespace AbelRules
 	inline constexpr float GrieveEvery = 12.f;
 	inline constexpr float GrieveSeconds = 3.f;
 
-	/** Phase two: 8 Unpaid in two waves of four, the second this long after the first. */
+	/** Phase two: 8 Unpaid in two waves of four, the first this long into it, the second this long after the first. */
 	inline constexpr int32 BellWave = 4;
+	inline constexpr float FirstWaveAt = 2.5f;
 	inline constexpr float SecondWaveAfter = 22.f;
+	/**
+	 * Then (2026-10-27, his health 1.6x) the dead keep rising in phase two as in phase one, two every RiseEvery at most
+	 * RiseMaxAlive, from one rise after the second wave: back on the deck the bell's 35% of his health is the fight's longest
+	 * stretch, and it shouldn't turn into a long duel. While the bell's waves stand (up to the fight's ten) none rise.
+	 */
+	inline constexpr float BellRiseFrom = FirstWaveAt + SecondWaveAfter + RiseEvery;
 
 	/** The lanterns: three, each relit by holding Interact this long. */
 	inline constexpr int32 Lanterns = 3;
@@ -171,7 +188,8 @@ namespace AbelRules
 	 */
 	AI_LOOTER_SHOOTER_API FBossShow MakeShow();
 
-	/** His coal staggers him: 5% of his health in crits on it (open only while he grieves or is stunned) within a few seconds. */
+	/** His coal staggers him: crits on it (open only while he grieves or is stunned) within a few seconds worth 5% of his health
+	 *  as first tuned (a smaller share of his raised health: a stagger takes the same shooting as before). */
 	AI_LOOTER_SHOOTER_API FBossStagger MakeStagger();
 
 	/** His Boss table's loot (three guns and ammo, three boxes more) bursts from the deck's middle once he's sat with Ellis. */

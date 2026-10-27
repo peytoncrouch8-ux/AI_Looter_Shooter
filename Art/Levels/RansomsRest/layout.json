@@ -3623,7 +3623,7 @@
         "id": "Depot",
         "name": "The Depot",
         "at": [750,10250],
-        "yaw": 135,
+        "yaw": 180,
         "note": "the yard road's end at the platform's west end: the train station's roost"
       },
       {

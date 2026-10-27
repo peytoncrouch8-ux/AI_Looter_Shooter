@@ -30,6 +30,8 @@ namespace
 	constexpr float PulseRate = 4.f;
 	/** The share of a badge a giver's ! or ? fills: a tall, narrow glyph wants more of it than the pictures do. */
 	constexpr float GiverMarkShare = 0.8f;
+	/** The room kept between two place names on the page (page units). */
+	constexpr double NameGap = 4.0;
 
 	/** A page point for the painted lines (Slate draws in floats). */
 	FVector2f Point2f(double X, double Y)
@@ -139,15 +141,27 @@ void UMapWidget::LayoutMap(float DeltaTime)
 void UMapWidget::LayoutPlaces()
 {
 	const bool bMinor = View.Zoom >= MapPlaces::MinorZoom;
-	for (int32 Index = 0; Index < PlaceLabels.Num() && Index < Places.Num(); ++Index)
+	const int32 Count = FMath::Min(PlaceLabels.Num(), Places.Num());
+	// Names that would draw over each other slide apart or give way (the lesser one is left off): the Chapel of Saint Ada
+	// and Widow's Pines overlapped at the first zoom (playtest 2026-10-27).
+	TArray<MapPlaces::FNameBox> Boxes;
+	Boxes.SetNum(Count);
+	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		const FMapPlace& Place = Places[Index];
-		const FVector2D At = WorldToFrame(FVector(Place.At.X, Place.At.Y, 0.0));
-		const bool bShow = (Place.bMajor || bMinor) && InFrame(At, 40.0);
-		ShowIf(PlaceLabels[Index], bShow);
-		if (bShow)
+		MapPlaces::FNameBox& Box = Boxes[Index];
+		Box.Center = WorldToFrame(FVector(Place.At.X, Place.At.Y, 0.0));
+		Box.Size = MapPlaces::NameSize(Place.Name, Place.bMajor);
+		Box.bMajor = Place.bMajor;
+		Box.bWanted = (Place.bMajor || bMinor) && InFrame(Box.Center, 40.0);
+	}
+	MapPlaces::Declutter(Boxes, NameGap);
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		ShowIf(PlaceLabels[Index], Boxes[Index].bShown);
+		if (Boxes[Index].bShown)
 		{
-			PlaceAt(PlaceLabels[Index], At);
+			PlaceAt(PlaceLabels[Index], Boxes[Index].Center);
 		}
 	}
 }

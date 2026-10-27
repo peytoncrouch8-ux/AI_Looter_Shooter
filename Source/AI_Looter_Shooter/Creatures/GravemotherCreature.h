@@ -14,6 +14,9 @@ class AGravemotherStone;
 class AGroundCrack;
 class UAudioComponent;
 class UBossComponent;
+class UBulletSubsystem;
+struct FBulletLanding;
+struct FBulletShot;
 
 /** The Gravemother's numbers that never change in play (Docs/Areas/RansomsRest.md, "Enemies by rank" and Side 3). */
 namespace Gravemother
@@ -59,6 +62,10 @@ namespace Gravemother
  * Crits (GravemotherCreatureStone.cpp): her head always; her abdomen only on its soft rear (under the stone's back edge)
  * while the stone stands, all of it once the stone is off. Shots on the stone hurt the stone, not her. Broken early, it
  * staggers her (her boss's stagger); at her 33% it cracks off by itself, and from then she runs a quarter faster.
+ * Her hide shrugs off (GravemotherCreatureShrug.cpp; the user's calls, 2026-10-27) every hit while the stone stands (it must be
+ * shot off first: it glows as the target) and every hit from a shooter off her hunting ground (the Sink's rim), with a
+ * glancing look and sound, no number, a callout on her bar and, after a few, Hob's hint. Her health is 1.6x and her hits
+ * 1.25x the first tuning's (GravemotherTuning, cvars Looter.Gravemother.*).
  * Her lair (AEncounterSpawner with a LegendaryId) brings her, and back only on an arrival 20 minutes of play after her last
  * death. Her boss fight (UBossComponent, GravemotherFight) gives her the bar, phases, staggers (she reels:
  * GravemotherCreatureMoves.cpp), her brood as adds, the loot shower and the stand-down; her poses for her own moves lay over
@@ -75,6 +82,9 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void SetActorHiddenInGame(bool bNewHidden) override;
+	/** Every hit on her comes here first: one her hide shrugs off (ShrugFor) does nothing but its glancing look (GravemotherCreatureShrug.cpp). */
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, AController* EventInstigator,
+		AActor* DamageCauser) override;
 
 	/** Her abdomen's bone: the stone rides it, its soft rear is a crit. */
 	static const FName AbdomenBone;
@@ -152,6 +162,23 @@ public:
 	void OnStoneBroken(bool bByHerThird);
 	/** Her head always; her abdomen's soft rear while the stone stands, all of it once it's off. */
 	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
+
+	// --- Her hide shrugging hits off (GravemotherCreatureShrug.cpp; the user's calls, 2026-10-27) ---
+
+	/**
+	 * Why a hit from By would do her no harm now: By shoots from off her hunting ground (the Sink's rim: OffGround), or her
+	 * headstone still stands (Stone); None: it hurts. Off-ground first (it's the one to tell a rim shooter). Each rule has its
+	 * cvar (GravemotherTuning).
+	 */
+	EGravemotherShrug ShrugFor(const AController* By) const;
+	/** A hit shrugged off for Why (her TakeDamage; her stone's for a rim shot on it): she turns on By as a hit would turn
+	 *  her, her bar calls it out, the stone glows as the target (Stone), and after a few Hob says what to do. */
+	void NoteShrug(EGravemotherShrug Why, AController* By);
+	/** The glancing whine and thud of a shrugged hit at Where (not twice in a moment). */
+	void PlayShrugSound(const FVector& Where);
+	/** Hits shrugged off for Why since she came (the tests), and whether Hob has hinted at it. */
+	int32 GetShrugCount(EGravemotherShrug Why) const;
+	bool WasHinted(EGravemotherShrug Why) const;
 
 	// --- Her boss fight (GravemotherCreatureMoves.cpp) ---
 
@@ -301,6 +328,17 @@ private:
 	/** Stars wheeling over her head while she's stunned. */
 	void DrawStunStars();
 
+	// --- Shrugged hits (GravemotherCreatureShrug.cpp) ---
+	/** The playtest's health and hit scales as the cvars stand now, over the class's defaults (before her rank is applied). */
+	void ApplyTuning();
+	/** Listens to bullets landing on her, so a shot her hide will shrug off gets no flesh hit look (her own instead). */
+	void BindShrugLook(bool bOn);
+	void NoteBulletLanding(const FBulletShot& Shot, const FHitResult& Hit, FBulletLanding& Landing);
+	/** A shrugged hit's look at Where: a pale glint, a glancing spark or two, dried grave mud puffing off her hide. */
+	void PlayShrugLook(const FVector& Where, const FVector& Normal, const FVector& ShotDirection);
+	/** Hob's line for Why, once, after a few. */
+	void MaybeHint(EGravemotherShrug Why, const AController* By);
+
 	// The Furrow
 	EGravemotherFurrow FurrowState = EGravemotherFurrow::None;
 	float FurrowCooldownLeft = 0.f;
@@ -374,4 +412,15 @@ private:
 	bool bOwnPaceCaptured = false;
 	float OwnFurrowCooldown = 8.f;
 	float OwnChaseSpeed = 480.f;
+
+	// Shrugged hits
+	int32 ShrugCounts[static_cast<int32>(EGravemotherShrug::Count)] = {};
+	uint8 HintedKinds = 0;
+	double LastShrugSound = -1.0;
+	double LastShrugRicochet = -1.0;
+	FVector LastShrugSoundAt = FVector::ZeroVector;
+	uint64 LastShrugFlashFrame = 0;
+	double LastShrugCallout = -1.0;
+	TWeakObjectPtr<UBulletSubsystem> Bullets;
+	FDelegateHandle LandingHandle;
 };

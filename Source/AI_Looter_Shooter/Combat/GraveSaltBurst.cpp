@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/GraveSaltDamageType.h"
+#include "Combat/GraveSaltTuning.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/HitReaction.h"
 #include "Creatures/CreatureBase.h"
@@ -100,7 +101,7 @@ bool GraveSaltBurst::CanSee(const UWorld& World, const FVector& Center, const FG
 }
 
 TArray<FGraveSaltTarget> GraveSaltBurst::FindTargets(const UWorld* World, const FVector& Center, const AActor* Thrower, float LevelScale,
-	FRandomStream& Random)
+	FRandomStream& Random, const FGraveSaltTuning& Tuning)
 {
 	TArray<FGraveSaltTarget> Targets;
 	if (!World)
@@ -114,7 +115,7 @@ TArray<FGraveSaltTarget> GraveSaltBurst::FindTargets(const UWorld* World, const 
 	Objects.AddObjectTypesToQuery(ECC_PhysicsBody);
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(GraveSaltBurst), false, Thrower);
 	TArray<FOverlapResult> Overlaps;
-	World->OverlapMultiByObjectType(Overlaps, Center, FQuat::Identity, Objects, FCollisionShape::MakeSphere(FGraveSaltRules::Radius + SearchMargin), Params);
+	World->OverlapMultiByObjectType(Overlaps, Center, FQuat::Identity, Objects, FCollisionShape::MakeSphere(Tuning.Radius + SearchMargin), Params);
 
 	TArray<const AActor*, TInlineAllocator<16>> Weighed;
 	for (const FOverlapResult& Overlap : Overlaps)
@@ -131,7 +132,7 @@ TArray<FGraveSaltTarget> GraveSaltBurst::FindTargets(const UWorld* World, const 
 		}
 		const FGraveSaltBody Body = BodyOf(*Actor);
 		const float Distance = FGraveSaltRules::DistanceToBody(Center, Body);
-		if (Distance > FGraveSaltRules::Radius || !CanSee(*World, Center, Body, Actor, Thrower))
+		if (Distance > Tuning.Radius || !CanSee(*World, Center, Body, Actor, Thrower))
 		{
 			continue;
 		}
@@ -141,11 +142,11 @@ TArray<FGraveSaltTarget> GraveSaltBurst::FindTargets(const UWorld* World, const 
 		Target.Distance = Distance;
 		Target.bUnpaid = IsUnpaid(Actor);
 		Target.bBoss = IsBoss(Actor);
-		Target.Damage = FGraveSaltRules::BurstDamage(Distance, LevelScale, Random.FRand(), Target.bUnpaid);
+		Target.Damage = FGraveSaltRules::BurstDamage(Distance, LevelScale, Random.FRand(), Target.bUnpaid, Tuning);
 		if (Target.bBoss)
 		{
 			const UHealthComponent* Health = Actor->FindComponentByClass<UHealthComponent>();
-			Target.Damage = FGraveSaltRules::CapForBoss(Target.Damage, Health ? Health->GetMaxHealth() : 0.f);
+			Target.Damage = FGraveSaltRules::CapForBoss(Target.Damage, Health ? Health->GetMaxHealth() : 0.f, Tuning);
 		}
 	}
 	Targets.Sort([](const FGraveSaltTarget& A, const FGraveSaltTarget& B) { return A.Distance < B.Distance; });
@@ -173,7 +174,9 @@ FGraveSaltBurstResult GraveSaltBurst::Detonate(UWorld* World, const FVector& Cen
 		return Result;
 	}
 	FRandomStream Random(static_cast<int32>(GetTypeHash(Center) ^ static_cast<uint32>(World->GetTimeSeconds() * 1000.0)));
-	const TArray<FGraveSaltTarget> Targets = FindTargets(World, Center, Thrower, LevelScale, Random);
+	// Read once for the whole burst, so a cvar changed mid-burst can't give two bodies two rules.
+	const FGraveSaltTuning Tuning = FGraveSaltTuning::Current();
+	const TArray<FGraveSaltTarget> Targets = FindTargets(World, Center, Thrower, LevelScale, Random, Tuning);
 
 	// Seen and heard first, as a bullet's impact is: the damage below may kill, and the deaths' own bursts go over it.
 	SpawnEffects(*World, Center, Up.IsNearlyZero() ? FVector::UpVector : Up.GetSafeNormal());
@@ -213,7 +216,7 @@ FGraveSaltBurstResult GraveSaltBurst::Detonate(UWorld* World, const FVector& Cen
 		{
 			++Result.Kills;
 		}
-		else if (Target.Distance <= FGraveSaltRules::Radius * FGraveSaltRules::KnockShare)
+		else if (Target.Distance <= Tuning.Radius * Tuning.KnockShare)
 		{
 			// A corpse goes with the kill's own knock; the living near the heart are thrown back out of it.
 			KnockAway(*Actor, Center);

@@ -118,6 +118,7 @@ void AGravemotherStone::ResetStone(float InMaxHealth)
 	Health->ResetHealth();
 	Slab->SetHiddenInGame(false);
 	SetShootable(true);
+	ClearMark();
 	HideShards();
 	ShowState();
 }
@@ -201,10 +202,21 @@ float AGravemotherStone::TakeDamage(float DamageAmount, FDamageEvent const& Dama
 		return 0.f;
 	}
 	// A bullet's hit glances off with its own look (it carries the bullets' own-look tag); the damage goes to its health.
+	FVector Where = GetActorLocation();
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
 		const FPointDamageEvent& Point = static_cast<const FPointDamageEvent&>(DamageEvent);
 		PlayHitLook(Point.HitInfo.ImpactPoint, Point.HitInfo.ImpactNormal, Point.ShotDirection);
+		Where = Point.HitInfo.ImpactPoint;
+	}
+	// From off her ground (the Sink's rim) it does nothing, as a shot on her wouldn't (the user, 2026-10-27): she's fought
+	// down in the Sink. The granite's look, her glancing whine, her bar and Hob's hint all the same.
+	AGravemotherCreature* Her = Mother.Get();
+	if (Her && DamageAmount > 0.f && Her->ShrugFor(EventInstigator) == EGravemotherShrug::OffGround)
+	{
+		Her->PlayShrugSound(Where);
+		Her->NoteShrug(EGravemotherShrug::OffGround, EventInstigator);
+		return 0.f;
 	}
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }

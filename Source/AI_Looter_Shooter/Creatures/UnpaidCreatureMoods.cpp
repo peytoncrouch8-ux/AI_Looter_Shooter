@@ -12,6 +12,9 @@
 #include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
+#include "Creatures/FightDirectorSubsystem.h"
+#include "Creatures/UnpaidFightRules.h"
+#include "Creatures/UnpaidFightTuning.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Pawn.h"
@@ -88,11 +91,60 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 			Goal.Splay = FMath::Lerp(Goal.Splay, 16.f, Notice);
 			Goal.Hunt = 1.f - 0.6f * Notice;
 		}
+		// Its kit on the ring: the cinder's arm cocked back and flung, or the rally scream thrown back with every limb.
+		if (Kit.Action == EUnpaidAction::Cinder)
+		{
+			const float Tell = FUnpaidFightTuning::Live().CinderTell;
+			const float Draw = UnpaidEase(Kit.ActionTime / FMath::Max(Tell, 0.01f));
+			Goal.Rake[1] = Kit.bThrown ? 1.f : -Draw;
+			Goal.Rear = FMath::Max(Goal.Rear, 0.25f * Draw);
+			Goal.Lean = Kit.bThrown ? 14.f : FMath::Lerp(Goal.Lean, -4.f, Draw);
+			Goal.Jaw = FMath::Max(Goal.Jaw, 18.f * Draw);
+			Goal.Hunt = 1.f - 0.7f * Draw;
+		}
+		else if (Kit.Action == EUnpaidAction::Rally)
+		{
+			const float Rise = UnpaidEase(Kit.ActionTime / 0.25f);
+			Goal.Rear = Rise;
+			Goal.Spread = Rise;
+			Goal.Lean = -10.f * Rise;
+			Goal.Jaw = FMath::Lerp(12.f, JawOpenDegrees, Rise);
+			Goal.Curl = -5.f;
+			Goal.Splay = 18.f;
+			Goal.Hunt = 0.f;
+		}
 		break;
 	}
 
 	case ECreatureState::Attack:
-		if (InState < AttackWindup)
+		if (Kit.Move == EUnpaidMove::Rake)
+		{
+			// Its kit's rake: one arm drawn back and out, the other raised, then each swept across its front in turn.
+			const int32 Lead = FMath::Clamp(Kit.LeadArm, 0, 1);
+			const float Gap = FUnpaidFightTuning::Live().RakeGap;
+			const float After = InState - AttackWindup;
+			const float Draw = UnpaidEase(InState / FMath::Max(AttackWindup, 0.01f));
+			Goal.Curl = -5.f;
+			Goal.Splay = 18.f;
+			Goal.Jaw = FMath::Lerp(12.f, JawOpenDegrees * 0.8f, Draw);
+			if (After < 0.f)
+			{
+				Goal.Rake[Lead] = -Draw;
+				Goal.Rake[1 - Lead] = -0.3f * Draw;
+				Goal.Rear = 0.35f * Draw;
+				Goal.Lean = -6.f * Draw;
+			}
+			else
+			{
+				const bool bSecond = After >= Gap;
+				const float Done = UnpaidEase((After - Gap - 0.2f) / 0.4f);
+				Goal.Rake[Lead] = bSecond ? 0.6f * (1.f - Done) : 1.f;
+				Goal.Rake[1 - Lead] = bSecond ? 1.f - Done : -0.8f;
+				// Thrown into each swipe, not flown (the shroud's Snap stays the lunge's).
+				Goal.Lean = 6.f + 18.f * (1.f - Done);
+			}
+		}
+		else if (InState < AttackWindup)
 		{
 			// The shriek: it rears back with its arms flung wide and its fingers splayed, the jaw dropping as far as it goes.
 			const float Rise = UnpaidEase(InState / FMath::Max(AttackWindup, 0.01f));
@@ -253,6 +305,13 @@ void AUnpaidCreature::OnNoticed()
 {
 	// Its coal flares (TickReactions) with a breath drawn in, as its head snaps round to them (AnimateBody's quicker look).
 	Voice->Play(NoticeCue.IsNone() ? FName(CreatureReactCue::UnpaidNotice) : NoticeCue);
+	// With its kit, the first of its pack to see them howls, heard far off: the dead know you're here.
+	const APawn* Prey = GetTarget();
+	UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this);
+	if (Prey && Director && HasFightKit() && !IsBossAdd() && Director->TryHowl(*Prey, FUnpaidFightTuning::Live().HowlCooldown))
+	{
+		LooterSound::PlayAt(this, FName(UnpaidKitCue::Howl), GetActorLocation(), 1.f, Voice->GetPitch());
+	}
 }
 
 void AUnpaidCreature::PlayEntrance()

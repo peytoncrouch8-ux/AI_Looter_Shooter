@@ -12,6 +12,7 @@
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/GravemotherFX.h"
 #include "Creatures/GravemotherStone.h"
+#include "Creatures/GravemotherTuning.h"
 #include "Creatures/GroundCrack.h"
 #include "UI/HUD/HudBossBarWidget.h"
 #include "Components/CapsuleComponent.h"
@@ -365,6 +366,11 @@ void AGravemotherCreature::HandleFightStarted()
 {
 	// Her bar sweeps in as she rears and screams (her next attack).
 	bRoarWanted = true;
+	// Her headstone lights up as the target from the start: nothing hurts her until it's off (the user, 2026-10-27).
+	if (AGravemotherStone* Slab = Stone.Get(); Slab && GravemotherTuning::StoneGuards())
+	{
+		Slab->Mark(GravemotherTuning::MarkAtFightSeconds());
+	}
 }
 
 void AGravemotherCreature::HandleFightReset()

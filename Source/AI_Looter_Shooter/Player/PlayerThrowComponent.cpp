@@ -2,6 +2,8 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/GraveSaltBurst.h"
+#include "Combat/GraveSaltRules.h"
+#include "Combat/GraveSaltTuning.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -110,7 +112,7 @@ void UPlayerThrowComponent::BindWeaponManager()
 
 void UPlayerThrowComponent::HandleInventoryChanged()
 {
-	// The first gun in the player's hands brings the starting two: a new game's bullpup, Skyreach's rack rifle, or the guns
+	// The first gun in the player's hands brings the starting one: a new game's bullpup, Skyreach's rack rifle, or the guns
 	// of a session saved before grenades existed (a newer save puts its own count back afterwards, RestoreThrowables).
 	const UWeaponManagerComponent* Manager = BoundManager.Get();
 	if (!bUnlocked && Manager && Manager->GetWeapons().Num() > 0)
@@ -198,9 +200,9 @@ bool UPlayerThrowComponent::GiveStartingGrenades()
 	{
 		return false;
 	}
-	// Never fewer than the starting two (a pickup found before the first gun keeps what it gave on top, up to the most).
+	// Never fewer than the starting one (a pickup found before the first gun keeps what it gave on top, up to the most).
 	bUnlocked = true;
-	SetGrenades(FMath::Max(Grenades, FThrowRules::StartingGrenades), EGrenadeChange::Given);
+	SetGrenades(FMath::Max(Grenades, FGraveSaltTuning::Current().StartingGrenades), EGrenadeChange::Given);
 	UE_LOG(LogLooter, Log, TEXT("Grenade: given the starting %d"), Grenades);
 	return true;
 }
@@ -310,9 +312,11 @@ bool UPlayerThrowComponent::IsOwnerDead() const
 
 float UPlayerThrowComponent::GetLevelScale() const
 {
-	// The burst grows with the player as enemies and guns grow with theirs, so it takes the same share at equal levels.
+	// The burst grows with the player as enemies and guns grow with theirs, and it starts weak (FGraveSaltRules::EarlyShare:
+	// 45% at level 1, full by level 12), so a new player's jar helps in a crowd without ending it.
 	const APlayerController* Player = GetPlayer();
 	const ULocalPlayer* Local = Player ? Player->GetLocalPlayer() : nullptr;
 	const UPlayerProgressionSubsystem* Progression = Local ? Local->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
-	return UPlayerProgressionSubsystem::GetLevelRules().EnemyScale(Progression ? Progression->GetLevel() : 1);
+	const int32 Level = Progression ? Progression->GetLevel() : 1;
+	return FGraveSaltRules::ThrowerScale(Level, UPlayerProgressionSubsystem::GetLevelRules().EnemyScale(Level), FGraveSaltTuning::Current());
 }

@@ -1,6 +1,6 @@
 // AUnpaidCreature: construction, its look (clothes, the rank's color, the dissolve), its coal, and its frame, hits, death
-// and return. UnpaidCreatureAttack.cpp has the shriek and the lunge, UnpaidCreaturePhase.cpp the phase-step and
-// UnpaidCreatureRig.cpp the body.
+// and return. UnpaidCreatureAttack.cpp has the shriek and the lunge, UnpaidCreatureMoves.cpp its fighting kit,
+// UnpaidCreaturePhase.cpp the phase-step and UnpaidCreatureRig.cpp the body.
 
 #include "Creatures/UnpaidCreature.h"
 #include "Combat/GunfeelReactTuning.h"
@@ -292,6 +292,8 @@ void AUnpaidCreature::OnRankChanged()
 	{
 		bTimingCaptured = true;
 		BaseWindup = AttackWindup;
+		// The lunge's recovery, which its kit's rake replaces for a rake and puts back for the next lunge.
+		Kit.BaseRecovery = AttackRecovery;
 	}
 	AttackWindup = BaseWindup * Traits.WindupScale;
 	ApplyCoalColor();
@@ -373,9 +375,11 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 		{
 			TickLunge(DeltaSeconds);
 		}
-		if (IsPhasing())
+		// Its fighting kit: the rake's second swipe, cinders and rallies on the ring, the flank, its pace (UnpaidCreatureMoves.cpp).
+		TickFightKit(DeltaSeconds);
+		if (IsPhasing() || Kit.Action == EUnpaidAction::Rally)
 		{
-			// It hangs where it is while it fades: the brain's steering goes unused.
+			// It hangs where it is while it fades, or screams its pack on: the brain's steering goes unused.
 			ConsumeMovementInputVector();
 		}
 	}
@@ -448,6 +452,11 @@ void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 
 void AUnpaidCreature::OnDied()
 {
+	if (Kit.Action != EUnpaidAction::None)
+	{
+		EndKitAction(true);
+	}
+	Kit.Reset();
 	bLunging = false;
 	PhaseState = EPhaseState::None;
 	PhaseTime = 0.f;
@@ -468,6 +477,7 @@ void AUnpaidCreature::OnRespawned()
 	GlanceYaw = 0.f;
 	GlanceLeft = 0.f;
 	bLunging = false;
+	Kit.Reset();
 	SinceLastStep = 1000.f;
 	ResetProgress();
 	for (FShroudChain& Chain : Chains)

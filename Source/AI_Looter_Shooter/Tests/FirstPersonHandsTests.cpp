@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Embers/HeroDefinition.h"
+#include "Combat/GraveSaltRules.h"
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/FirstPersonHandsRig.h"
@@ -425,8 +426,8 @@ bool FFirstPersonHandsThrowTest::RunTest(const FString& Parameters)
 		// The jar's middle is inside the fist: within the tin's radius of the hand's grip point.
 		bool bShown = false;
 		const FThrowPose Jar = ThrowMotion::JarPose(Time, bShown);
-		const FVector Middle = Jar.Offset + Jar.Rotation.Quaternion().GetUpVector() * 5.f;
-		TestTrue(TEXT("...the jar in the fist"), FVector::Dist(OnJar(Time).Hold, Middle) < 3.75);
+		const FVector Middle = Jar.Offset + Jar.Rotation.Quaternion().GetUpVector() * FGraveSaltRules::JarMiddle;
+		TestTrue(TEXT("...the jar in the fist"), FVector::Dist(OnJar(Time).Hold, Middle) < FGraveSaltRules::JarRadius);
 	}
 	float Biggest = 0.f;
 	FVector Last = SupportInThrow(OnGun, 0.f).Hold;

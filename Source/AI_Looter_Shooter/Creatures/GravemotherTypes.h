@@ -50,6 +50,21 @@ enum class EGravemotherStone : uint8
 	Broken,
 };
 
+/**
+ * Why a hit does her no harm (the user's calls, 2026-10-27; AGravemotherCreature::ShrugFor): her hide shrugs it off with a
+ * glancing look and sound, no number, no flinch. Count is the number of kinds.
+ */
+enum class EGravemotherShrug : uint8
+{
+	/** It hurts. */
+	None,
+	/** Her headstone still stands: it must break before she can be hurt ("break the tombstone on her back first"). */
+	Stone,
+	/** The shooter stands off her hunting ground (the Sink's rim): she can't be fought from up there. */
+	OffGround,
+	Count,
+};
+
 /** Her Furrow (GravemotherCreatureFurrow.cpp; the timings are the user's). */
 USTRUCT(BlueprintType)
 struct FGravemotherFurrowSettings

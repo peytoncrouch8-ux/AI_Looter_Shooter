@@ -48,7 +48,11 @@ Main Street's safe ground gets a height band (ASafeGround), so nothing under the
 
 When a piece shows follows the missions' data (Tools/Unreal/create_mission_assets.py, create_side_mission_assets.py): a
 step is found in DA_Mission_<Id> by the objective that asks for it (a talk to Speaker_Agent, a Clear of TillyCellar...),
-else the design's step is used and the fallback is logged. Every word is a line set of /Game/Data/Story when
+else the design's step is used and the fallback is logged. The mission gates (2026-10-27, the user's call: steps open in
+order): every mission item is taken with a short hold, and only from the step that asks for it (take_when: the cellar key,
+Thaddeus's tape, Fenn's coins, the three cache tags; Pa's lantern bail is handed over at Main 3's turn-in); the Deacon's
+slip is read with a hold only from its step (usable_when); lore (the report, the daybook, the desk, the slate, the chalk,
+the roll, the stains, the hat, the badge) stays a tap, any time. Every word is a line set of /Game/Data/Story when
 create_story_lines.py has made it (the names in LINES), else the design's own words (Docs/Areas/RansomsRest_Expansion.md),
 written here; the readables' texts are here. Missing art, a missing socket or class: that piece warns and is left out.
 
@@ -434,7 +438,19 @@ def speaker_point(build, at, yaw, label, tags, name, prompt, reach, missions_onl
     return point
 
 
-def readable(build, meshes, readable_id, at, yaw, shown_when=None, pitch=0.0):
+def gate(build, made, label, **properties):
+    """Sets a mission gate's properties (AReadableProp.usable_when, hold_to_read; AMissionItem.take_when): guarded, so a game
+    module from before the gates (2026-10-27) still places the thing, worked any time with a tap."""
+    try:
+        for name, value in properties.items():
+            made.set_editor_property(name, value)
+    except Exception as error:
+        build.warn(f'no {name} on {label} ({error}): it works any time with a tap (build the game module)')
+
+
+def readable(build, meshes, readable_id, at, yaw, shown_when=None, pitch=0.0, usable_when=None):
+    """An AReadableProp with the design's words (READABLES). usable_when (a list of conditions, any holding): a step's
+    reading, read only then and with a hold (the mission gates); none: lore, read any time with a tap."""
     cls = actor_class('ReadableProp')
     if cls is None:
         build.warn('no ReadableProp class (build the game module first): no ' + readable_id)
@@ -454,6 +470,8 @@ def readable(build, meshes, readable_id, at, yaw, shown_when=None, pitch=0.0):
     prop.set_editor_property('prompt', unreal.Text(prompt))
     if shown_when is not None:
         prop.set_editor_property('shown_when', shown_when)
+    if usable_when is not None:
+        gate(build, prop, readable_id, usable_when=list(usable_when), hold_to_read=True)
     model = first_mesh(meshes, models)
     if model is not None:
         prop.get_editor_property('mesh').set_static_mesh(model)
@@ -474,7 +492,9 @@ def readable(build, meshes, readable_id, at, yaw, shown_when=None, pitch=0.0):
     return prop
 
 
-def item(build, meshes, item_id, at, yaw, shown_when=None, extra_tags=(), prompt=None, beam=False):
+def item(build, meshes, item_id, at, yaw, shown_when=None, extra_tags=(), prompt=None, beam=False, take_when=None):
+    """An AMissionItem (always taken with a hold: the mission gates). take_when: taken only from its step (seen as
+    shown_when says); none: whenever it lies there."""
     cls = actor_class('MissionItem')
     if cls is None:
         build.warn('no MissionItem class (build the game module first): no ' + item_id)
@@ -487,6 +507,8 @@ def item(build, meshes, item_id, at, yaw, shown_when=None, extra_tags=(), prompt
         made.set_editor_property('prompt', unreal.Text(prompt))
     if shown_when is not None:
         made.set_editor_property('shown_when', shown_when)
+    if take_when is not None:
+        gate(build, made, item_id, take_when=take_when)
     if beam:
         made.set_editor_property('show_beam', True)
     model = first_mesh(meshes, models)
@@ -592,8 +614,9 @@ def place_depot(build, meshes, steps, found):
     landing = door.translation + front * COINS_OUT
     floor = onto(station, landing.x, landing.y, door.translation.z, door.translation.z - 400.0)
     coins_at = unreal.Vector(landing.x, landing.y, floor.z if floor is not None else door.translation.z - 155.0)
-    item(build, meshes, 'FennsFare', coins_at, door.rotation.rotator().yaw,
-         shown_when=story.condition(during=OLD_FARE, from_step=coins_step), prompt='Pick up the coins')
+    coins_from = story.condition(during=OLD_FARE, from_step=coins_step)
+    item(build, meshes, 'FennsFare', coins_at, door.rotation.rotator().yaw, shown_when=coins_from, prompt='Pick up the coins',
+         take_when=coins_from)
     lost = socket(station, 'LostProperty')
     if rest is not None and lost is not None:
         middle = (rest.translation + lost.translation) * 0.5
@@ -691,7 +714,10 @@ def place_workshop(build, meshes, steps, found):
         marker(build, door.translation, 'Place_WorkshopDoor')
     hook = socket(shop, 'MeasuringHook')
     if hook is not None:
-        item(build, meshes, 'CellarKey', hook.translation, hook.rotation.rotator().yaw, prompt='Take the cellar key')
+        # Its step (the first: on the hook while Knocking Below runs, taken from the step that asks for it).
+        key_step = steps.find(KNOCKING, 'collect', 'CellarKey', 0)
+        item(build, meshes, 'CellarKey', hook.translation, hook.rotation.rotator().yaw, prompt='Take the cellar key',
+             take_when=story.condition(during=KNOCKING, from_step=key_step))
     slate = socket(shop, 'OrdersSlate')
     if slate is not None:
         readable(build, meshes, 'OrdersSlate', slate.translation, slate.rotation.rotator().yaw)
@@ -757,9 +783,9 @@ def place_workshop(build, meshes, steps, found):
     right = bench.rotation.rotator().get_right_vector()
     spot = bench.translation + ahead * TAPE_AT[0] + right * TAPE_AT[1]
     top = onto(shop, spot.x, spot.y, bench.translation.z + 150.0, bench.translation.z)
+    tape_from = story.condition(during=KNOCKING, from_step=tape_step)
     item(build, meshes, 'ThaddeusTape', unreal.Vector(spot.x, spot.y, top.z if top is not None else bench.translation.z + 85.0),
-         bench.rotation.rotator().yaw, shown_when=story.condition(during=KNOCKING, from_step=tape_step),
-         prompt="Take Thaddeus's tape")
+         bench.rotation.rotator().yaw, shown_when=tape_from, prompt="Take Thaddeus's tape", take_when=tape_from)
     build.log(f'Thaddeus Bright at his bench (talked to from step {talk_step}; his tape from step {tape_step})')
 
 
@@ -804,10 +830,13 @@ def place_sheriff(build, meshes, steps, found):
         right = box.rotation.rotator().get_right_vector()
         spot = box.translation + ahead * STRONGBOX_SLIP[0] + right * STRONGBOX_SLIP[1]
         floor = onto(office, spot.x, spot.y, box.translation.z + 60.0, box.translation.z - 40.0)
-        # Out of the box with the loot: there from the step that opens the strongbox, while Calder's Caches runs.
+        # Out of the box with the loot: there from the step that opens the strongbox, while Calder's Caches runs; read (a
+        # hold) only from the step that asks for it (the mission gates, 2026-10-27).
         open_step = steps.find(CALDERS, 'interact', 'GangStrongbox', 1)
+        read_step = steps.find(CALDERS, 'event', 'Readable.DeaconsSlip', open_step + 1)
         readable(build, meshes, 'DeaconsSlip', floor if floor is not None else spot, box.rotation.rotator().yaw + 160.0,
-                 shown_when=story.condition(during=CALDERS, from_step=open_step))
+                 shown_when=story.condition(during=CALDERS, from_step=open_step),
+                 usable_when=[story.condition(during=CALDERS, from_step=read_step)])
 
 
 def place_chapel_roll(build, meshes, found):
@@ -923,7 +952,9 @@ def place_bail(build, meshes, found):
          prompt="Take Pa's lantern bail")
 
 
-def place_cache_tags(build, meshes, found):
+def place_cache_tags(build, meshes, steps, found):
+    """A tag by each Ranger cache: there while Calder's Caches runs, taken (a hold) from the step that asks for them."""
+    tags_step = steps.find(CALDERS, 'collect', 'CacheTag1', 0)
     for number, label in ((1, 'RangerCache_Windmill'), (2, 'RangerCache_SinkRim'), (3, 'RangerCache_BluffPath')):
         crate = found.get(label)
         if crate is None:
@@ -933,7 +964,7 @@ def place_cache_tags(build, meshes, found):
         spot = crate.get_actor_location() + ahead * TAG_OUT
         ground = story.ground_at(spot.x, spot.y, crate.get_actor_location().z, warn=False)
         item(build, meshes, f'CacheTag{number}', unreal.Vector(spot.x, spot.y, ground), crate.get_actor_rotation().yaw,
-             prompt="Take Calder's tag")
+             prompt="Take Calder's tag", take_when=story.condition(during=CALDERS, from_step=tags_step))
 
 
 def place_artifact(build, poster, tag, title, prompt, extra_tags=()):
@@ -1018,7 +1049,7 @@ def place(build):
     place_chapel_roll(build, meshes, found)
     place_den_relics(build, meshes, found)
     place_sheriff(build, meshes, steps, found)
-    place_cache_tags(build, meshes, found)
+    place_cache_tags(build, meshes, steps, found)
     place_artifacts(build, found)
     place_barn_chalk(build, meshes, found)
     place_depot(build, meshes, steps, found)

@@ -4,6 +4,7 @@
 #include "Combat/BulletSubsystem.h"
 #include "Combat/GraveSaltBurst.h"
 #include "Combat/GraveSaltRules.h"
+#include "Combat/GraveSaltTuning.h"
 #include "Combat/HealthComponent.h"
 #include "Player/PlayerThrowComponent.h"
 #include "Weapons/WeaponFX.h"
@@ -23,11 +24,11 @@ namespace
 	/** The tin, imported from Art/Models/Throwables/SaltGrenade.py; the engine's cylinder until it is (sized like it). */
 	const TCHAR* JarMeshPath = TEXT("/Game/Art/Throwables/SM_SaltGrenade.SM_SaltGrenade");
 	const TCHAR* StandInPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
-	const FVector StandInScale(0.07f, 0.07f, 0.1f);
+	const FVector StandInScale(FGraveSaltRules::JarRadius * 0.02f, FGraveSaltRules::JarRadius * 0.02f, FGraveSaltRules::JarMiddle * 0.02f);
 	/** The tin's middle sits this far above its base (the model's pivot), so it tumbles about its middle. */
-	constexpr float JarMiddle = 5.f;
+	constexpr float JarMiddle = FGraveSaltRules::JarMiddle;
 	/** Where the fuse's tip is with no socket to say (above the base). */
-	constexpr float FuseTipFallback = 13.f;
+	constexpr float FuseTipFallback = FGraveSaltRules::JarFuseTop;
 
 	/**
 	 * What the jar sweeps through: the bullets' channel (Weapon in DefaultEngine.ini, AWeaponBase::TraceChannel), so it
@@ -39,12 +40,12 @@ namespace
 	/** No more than this many contacts in one step: a jar wedged in a corner can't loop forever. */
 	constexpr int32 MaxContactsPerStep = 4;
 
-	/** The burst's light: its candelas, reach, colour and how long it fades; then the actor goes. */
-	constexpr float FlashCandelas = 160.f;
-	constexpr float FlashRadius = 900.f;
-	const FLinearColor FlashColor(1.f, 0.86f, 0.66f);
-	constexpr float FlashSeconds = 0.22f;
-	constexpr float LingerSeconds = 0.3f;
+	/**
+	 * The burst's light's colour; its candelas, reach and fade are FGraveSaltTuning's (Looter.Grenade.Look.Flash*). The
+	 * actor lingers this much longer than the fade, then goes.
+	 */
+	const FLinearColor FlashColor(1.f, 0.82f, 0.6f);
+	constexpr float LingerAfterFlash = 0.08f;
 
 	/** The fuse's sparks: a few short hot streaks a frame, spat out of the tip. */
 	const FLinearColor FuseSparkColor(1.f, 0.62f, 0.25f);
@@ -70,7 +71,7 @@ AGraveSaltGrenade::AGraveSaltGrenade()
 	Flash->SetupAttachment(Root);
 	Flash->SetIntensityUnits(ELightUnits::Candelas);
 	Flash->SetIntensity(0.f);
-	Flash->SetAttenuationRadius(FlashRadius);
+	Flash->SetAttenuationRadius(FGraveSaltTuning().FlashRadius);
 	Flash->SetLightColor(FlashColor);
 	Flash->SetCastShadows(false);
 	Flash->SetVisibility(false);
@@ -173,13 +174,13 @@ void AGraveSaltGrenade::Step(float DeltaSeconds)
 	{
 		// The flash fades fast, as a burst's does; then nothing is left of it.
 		SinceBurst += Dt;
-		const float Left = FMath::Clamp(1.f - SinceBurst / FlashSeconds, 0.f, 1.f);
-		Flash->SetIntensity(FlashCandelas * Left * Left);
+		const float Left = FMath::Clamp(1.f - SinceBurst / FMath::Max(FlashFade, 0.02f), 0.f, 1.f);
+		Flash->SetIntensity(FlashPeak * Left * Left);
 		if (Left <= 0.f)
 		{
 			Flash->SetVisibility(false);
 		}
-		if (SinceBurst >= LingerSeconds)
+		if (SinceBurst >= FlashFade + LingerAfterFlash)
 		{
 			Destroy();
 		}
@@ -342,8 +343,9 @@ void AGraveSaltGrenade::DrawFuse()
 	for (int32 Index = 0; Index < FuseSparksPerFrame; ++Index)
 	{
 		const FVector Out = (Random.GetUnitVector() + FVector::UpVector * 0.6f).GetSafeNormal();
-		const float Length = Random.FRandRange(2.f, 6.f) * (1.f + Burn);
-		Effects.AddStreak(Tip, Tip + Out * Length, 0.6f, FuseSparkColor, Random.FRandRange(10.f, 22.f) * (0.7f + 0.6f * Burn));
+		// Sized to the jar (twice its first size since 2026-10-27, its fuse twice as thick): 3-9 cm streaks, 0.9 cm wide.
+		const float Length = Random.FRandRange(3.f, 9.f) * (1.f + Burn);
+		Effects.AddStreak(Tip, Tip + Out * Length, 0.9f, FuseSparkColor, Random.FRandRange(10.f, 22.f) * (0.7f + 0.6f * Burn));
 	}
 }
 
@@ -357,8 +359,13 @@ void AGraveSaltGrenade::Detonate()
 	SinceBurst = 0.f;
 	StopFuseSound();
 	Jar->SetVisibility(false);
-	Flash->SetIntensity(FlashCandelas);
-	Flash->SetVisibility(true);
+	// A moment of warm light on what's round it: brighter and wider since the burst became a real explosion.
+	const FGraveSaltTuning Tuning = FGraveSaltTuning::Current();
+	FlashPeak = Tuning.FlashCandelas;
+	FlashFade = Tuning.FlashSeconds;
+	Flash->SetAttenuationRadius(Tuning.FlashRadius);
+	Flash->SetIntensity(FlashPeak);
+	Flash->SetVisibility(FlashPeak > 0.f);
 
 	UWorld* World = GetWorld();
 	APawn* By = Thrower.Get();

@@ -21,7 +21,8 @@ struct FMissionItemInfo;
  * Missions page lists it under Carried until the mission finishes.
  *
  * Placed by a build script, it's there while its mission is taken and not finished (or while ShownWhen holds), and never
- * once carried. One a creature drops as it dies (FMissionItemInfo::DroppedBy, UMissionRunner) falls at the body with a
+ * once carried; it's taken only from its step (TakeWhen: the mission gates, 2026-10-27), with a short hold of Interact
+ * (MissionGates::HoldSeconds) so a mashed key never takes it. One a creature drops as it dies (FMissionItemInfo::DroppedBy, UMissionRunner) falls at the body with a
  * gold beam over it and lies there whatever its mission's state, until it's picked up or the level is left (then the
  * runner gives it, so the mission never sticks). Its model is its own Mesh, else its item's (by data), else a small stand-in.
  * Tagged MissionItem and Item_<Id> (TagFor) for missions and filters to find; never ticks but while it falls.
@@ -57,6 +58,9 @@ public:
 
 	/** It's in the world to take now (its mission's state, ShownWhen, not carried). */
 	bool ShouldShow() const;
+
+	/** Its step has come (TakeWhen holds; a dropped one always): shown, it can be taken. */
+	bool CanTake() const;
 
 	bool IsShown() const { return bShownNow; }
 
@@ -133,6 +137,14 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission Item")
 	FStoryCondition ShownWhen;
+
+	/**
+	 * When it can be taken, while it's shown: its step (the mission gates, 2026-10-27: Back Pay's payroll is seen in the
+	 * stope through the Foreman's fight and taken once he's down, its own step). Empty: whenever it's shown. A dropped one
+	 * ignores it. Python: set_editor_property('take_when', condition).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission Item")
+	FStoryCondition TakeWhen;
 
 	/** The gold beam over it even when placed (an item out in the open). A dropped one always has it. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mission Item")

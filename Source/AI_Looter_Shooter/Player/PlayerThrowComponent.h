@@ -24,7 +24,7 @@ enum class EGrenadeChange : uint8
 	Thrown,
 	/** Found: a pickup run over. */
 	PickedUp,
-	/** Given: the starting two with the first gun, or anything else that hands them out. */
+	/** Given: the starting one with the first gun, or anything else that hands them out. */
 	Given,
 	/** Put back from a saved session (no fanfare). */
 	Restored,
@@ -52,7 +52,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnGrenadesChanged, int32 /*Count*/, int3
  *    and dips the first-person gun out of the throw's way (AWeaponBase's melee swing state and pose, reused as they are).
  *    In first person the jar itself is seen coming up from under the view and slung (the arms are hidden).
  *  - The count: three at most, saved with the session (SaveThrowables, RestoreThrowables). The first gun that comes into
- *    the player's hands gives the starting two (the tutorial's rifle, the skip's bullpup, an old save's guns); a pickup
+ *    the player's hands gives the starting one (Looter.Grenade.Starting; the tutorial's rifle, the skip's bullpup, an old save's guns); a pickup
  *    found before that gives its own and unlocks the counter.
  *  - What it reports: OnGrenadesChanged (the HUD's counter), OnGrenadeHit (the hit marker) and OnGrenadeBurst; HasThrown
  *    and CountTargetsAhead serve the tutorial's hint.
@@ -99,7 +99,7 @@ public:
 	 */
 	int32 AddGrenades(int32 Amount, EGrenadeChange Why = EGrenadeChange::PickedUp);
 
-	/** The starting two, once: when the first gun comes into the player's hands (or a test asks). False if already given. */
+	/** The starting one, once: when the first gun comes into the player's hands (or a test asks). False if already given. */
 	bool GiveStartingGrenades();
 
 	/** What the session keeps of the grenades, and putting it back (no fanfare). */
@@ -183,7 +183,10 @@ private:
 	/** The gun in the pawn's hands, or null. */
 	AWeaponBase* GetWeaponInHand() const;
 	bool IsOwnerDead() const;
-	/** The burst's damage growth at the player's level (FLevelRules::EnemyScale; 1 at level 1 or with no player). */
+	/**
+	 * The burst's damage scale at the player's level (FGraveSaltRules::ThrowerScale: FLevelRules::EnemyScale times the
+	 * early share, 0.45 at level 1 or with no player, full by level 12).
+	 */
 	float GetLevelScale() const;
 
 	FPawnInputBinding InputBinding;

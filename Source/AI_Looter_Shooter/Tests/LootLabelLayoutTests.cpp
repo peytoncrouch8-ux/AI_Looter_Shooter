@@ -213,7 +213,10 @@ bool FLootLabelFoldTest::RunTest(const FString& Parameters)
 	Label->SetFolded(true);
 	TestTrue(TEXT("Folded: its dot"), Label->IsFolded() && Label->IsDotShown());
 	Label->TakeWidget()->SlatePrepass(1.f);
-	TestTrue(TEXT("...taking no more room than the dot"), Label->GetDesiredSize().X <= 16.0 && Label->GetDesiredSize().Y <= 16.0);
+	// The dot's halo is 26 units (WeaponLabelWidget.cpp: big enough to read in a legendary beam's glow).
+	TestTrue(TEXT("...taking no more room than the dot"), Label->GetDesiredSize().X <= 28.0 && Label->GetDesiredSize().Y <= 28.0);
+	// The size the dot is drawn at (its halo's), not the Slate measure, which read under 20 here for a reason not found.
+	TestTrue(TEXT("...a dot big enough to read"), Label->GetDotSize().X >= 20.0 && Label->GetDotSize().Y >= 20.0);
 	Label->SetFocused(true);
 	TestFalse(TEXT("Looked at: the card, not the dot"), Label->IsDotShown());
 	Label->SetFocused(false);

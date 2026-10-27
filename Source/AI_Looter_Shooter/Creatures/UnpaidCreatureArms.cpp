@@ -447,6 +447,15 @@ void AUnpaidCreature::PoseArms(float DeltaSeconds, float Time, float Speed, cons
 			+ 30.f * Pose.Spread - 6.f * Pose.Reach + 25.f * Pose.Death;
 		Wrist[Side] = Calm * DriftWrist + 15.f * Pose.Spread - 12.f * Pose.Reach - Hunt * 12.f * Claw;
 		Curl[Side] = Pose.Curl + Calm * DriftCurl + Hunt * 14.f * (Claw - 0.3f);
+		// Its kit's rake (and the cinder's throw): drawn back and out wide, then swept forward from out there, so the claw
+		// comes round across its front without crossing its own chest (the keep-out below holds it off anyway).
+		const float Cocked = FMath::Max(-Pose.Rake[Side], 0.f) * Alive;
+		const float Swept = FMath::Max(Pose.Rake[Side], 0.f) * Alive;
+		Swing[Side] += 45.f * Cocked - 90.f * Swept;
+		OutBeforeKeepOut[Side] += 45.f * Cocked;
+		Bend[Side] += 25.f * Cocked - 10.f * Swept;
+		Wrist[Side] += 20.f * Cocked - 18.f * Swept;
+		Curl[Side] += 20.f * Swept - 25.f * Cocked;
 		TurnArm(Arms[Side], Swing[Side] + Sway.KeepSwing, OutBeforeKeepOut[Side] + Sway.KeepOut, Bend[Side], Wrist[Side], Curl[Side]);
 	}
 

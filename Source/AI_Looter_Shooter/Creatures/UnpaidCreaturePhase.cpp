@@ -120,16 +120,33 @@ void AUnpaidCreature::StartPhaseStep()
 		RetryIn = RetrySeconds;
 		return;
 	}
+	UE_LOG(LogLooter, Verbose, TEXT("%s phase-steps %.1f m nearer its target (stuck %.1f s)."), *GetName(),
+		(FVector::Dist2D(GetActorLocation(), GetTarget()->GetActorLocation()) - FVector::Dist2D(Feet, GetTarget()->GetActorLocation())) / 100.0,
+		StallTime);
+	StartStepTo(Feet);
+}
+
+void AUnpaidCreature::StartStepTo(const FVector& Feet)
+{
 	PhaseDestination = Feet;
 	PhaseState = EPhaseState::Out;
 	PhaseTime = 0.f;
 	GetCharacterMovement()->StopMovementImmediately();
-	UE_LOG(LogLooter, Verbose, TEXT("%s phase-steps %.1f m nearer its target (stuck %.1f s)."), *GetName(),
-		(FVector::Dist2D(GetActorLocation(), GetTarget()->GetActorLocation()) - FVector::Dist2D(Feet, GetTarget()->GetActorLocation())) / 100.0,
-		StallTime);
 }
 
 bool AUnpaidCreature::FindPhaseSpot(FVector& OutFeet) const
+{
+	const APawn* Victim = GetTarget();
+	if (!GetWorld() || !Victim)
+	{
+		return false;
+	}
+	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	return UnpaidRules::ChoosePhaseSpot(PhaseStep, Feet, Victim->GetActorLocation(), HuntingGround, GetHome().GetLocation(),
+		[this](const FVector& Candidate, FVector& OutGround) { return CanStandAt(Candidate, OutGround); }, OutFeet);
+}
+
+bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround) const
 {
 	UWorld* World = GetWorld();
 	const APawn* Victim = GetTarget();
@@ -140,56 +157,50 @@ bool AUnpaidCreature::FindPhaseSpot(FVector& OutFeet) const
 	const UCapsuleComponent* Capsule = GetCapsuleComponent();
 	const float HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
 	const float Scale = GetSizeScale();
-	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, HalfHeight);
 	const FVector TargetEye = Victim->GetActorLocation() + FVector(0.f, 0.f, 50.f);
+	const float Reach = PhaseStep.MaxRise + 50.f;
 
 	// World-static ground only (terrain and solid props, never volumes); the room and sight checks see the trees and rocks
 	// too, and never itself or its target.
 	const FCollisionQueryParams GroundParams = LooterWorld::StaticGeometryParams(World, TEXT("UnpaidPhaseGround"), this);
 	FCollisionQueryParams OpenParams(SCENE_QUERY_STAT(UnpaidPhaseRoom), false, this);
 	OpenParams.AddIgnoredActor(Victim);
+
+	// Ground under it near its own level, walkable, and not the top of a rock, a wagon or a roof.
+	FHitResult Hit;
+	if (!World->LineTraceSingleByObjectType(Hit, Candidate + FVector(0.f, 0.f, Reach), Candidate - FVector(0.f, 0.f, Reach),
+		FCollisionObjectQueryParams(ECC_WorldStatic), GroundParams))
+	{
+		return false;
+	}
+	const AActor* Under = Hit.GetActor();
+	if (Hit.ImpactNormal.Z < WalkableGroundNormalZ || (Under && Under->ActorHasTag(StandingObstacleTag)))
+	{
+		return false;
+	}
+	const FVector Ground = Hit.ImpactPoint;
+	// Room for its body: never inside a wall, a rock, a tree or another creature.
 	const FCollisionShape Room = FCollisionShape::MakeCapsule(Capsule->GetScaledCapsuleRadius(), HalfHeight);
+	if (World->OverlapBlockingTestByChannel(Ground + FVector(0.f, 0.f, HalfHeight + RoomLift * Scale), FQuat::Identity, ECC_Pawn, Room,
+		OpenParams))
+	{
+		return false;
+	}
+	// In the open, with its target in sight: never shut in a room or behind a wall from them.
+	if (World->LineTraceTestByObjectType(Ground + FVector(0.f, 0.f, HalfHeight * EyeShare), TargetEye,
+		FCollisionObjectQueryParams(ECC_WorldStatic), OpenParams))
+	{
+		return false;
+	}
+	// Not into a safe zone (Delia's salt line), nor past the playable area's edge.
 	const UEncounterSubsystem* Encounters = UEncounterSubsystem::Get(this);
 	const APlayableArea* Playable = APlayableArea::Find(World);
-	const float Reach = PhaseStep.MaxRise + 50.f;
-
-	auto CanStand = [&](const FVector& Candidate, FVector& OutGround)
+	if ((Encounters && Encounters->IsInSafeZone(Ground)) || (Playable && !Playable->Contains(Ground)))
 	{
-		// Ground under it near its own level, walkable, and not the top of a rock, a wagon or a roof.
-		FHitResult Hit;
-		if (!World->LineTraceSingleByObjectType(Hit, Candidate + FVector(0.f, 0.f, Reach), Candidate - FVector(0.f, 0.f, Reach),
-			FCollisionObjectQueryParams(ECC_WorldStatic), GroundParams))
-		{
-			return false;
-		}
-		const AActor* Under = Hit.GetActor();
-		if (Hit.ImpactNormal.Z < WalkableGroundNormalZ || (Under && Under->ActorHasTag(StandingObstacleTag)))
-		{
-			return false;
-		}
-		const FVector Ground = Hit.ImpactPoint;
-		// Room for its body: never inside a wall, a rock, a tree or another creature.
-		if (World->OverlapBlockingTestByChannel(Ground + FVector(0.f, 0.f, HalfHeight + RoomLift * Scale), FQuat::Identity, ECC_Pawn, Room,
-			OpenParams))
-		{
-			return false;
-		}
-		// In the open, with its target in sight: never shut in a room or behind a wall from them.
-		if (World->LineTraceTestByObjectType(Ground + FVector(0.f, 0.f, HalfHeight * EyeShare), TargetEye,
-			FCollisionObjectQueryParams(ECC_WorldStatic), OpenParams))
-		{
-			return false;
-		}
-		// Not into a safe zone (Delia's salt line), nor past the playable area's edge.
-		if ((Encounters && Encounters->IsInSafeZone(Ground)) || (Playable && !Playable->Contains(Ground)))
-		{
-			return false;
-		}
-		OutGround = Ground;
-		return true;
-	};
-	return UnpaidRules::ChoosePhaseSpot(PhaseStep, Feet, Victim->GetActorLocation(), HuntingGround, GetHome().GetLocation(), CanStand,
-		OutFeet);
+		return false;
+	}
+	OutGround = Ground;
+	return true;
 }
 
 void AUnpaidCreature::Arrive()
