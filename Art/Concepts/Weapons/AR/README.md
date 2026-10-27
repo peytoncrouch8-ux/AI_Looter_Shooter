@@ -7,7 +7,7 @@ screws and rivets, edge wear, material breakup, a generic proof stamp). Silhouet
 them (`T_GunMakerMarks`).
 
 Rebuild: `node Art/Concepts/Weapons/AR/render.js [Body_Standard ...]` (Node + Playwright, as for `Tools\portraits.ps1`).
-Each folder holds `front.png`, `back.png`, `left.png`, `right.png` (1024 x 1024, orthographic, one scale across a
+Each folder holds `upload/` and `upload_white/` (the Tripo images; below), plus `front.png`, `back.png`, `left.png`, `right.png` (1024 x 1024, orthographic, one scale across a
 part's four views, grey #d9d9d9, soft even light, no text, no ground shadow) and `sheet.png` (the four views labelled,
 size, numbered attach points, materials; for the user).
 
@@ -39,8 +39,13 @@ What changed from the in-game parts (all inside the old silhouettes):
 - **Stock pad:** rubber with grip ribs, a molded eight-point star roundel, screw wells; a gunmetal backing plate.
 
 ## Uploading to Tripo
-1. Multi-view (image to 3D): one part at a time. Front slot = `front.png`, back = `back.png`, left = `left.png`, right =
-   `right.png`. If a long part (body, barrel, sight) comes back thin or warped, try again with `left.png` as the front
+**Upload the files from `<Part>/upload/` (transparent background).** The grey views beside `sheet.png` made Tripo build
+a backdrop slab (the user, 2026-10-27). `upload/` holds the part alone on full transparency: no markers, labels,
+scale bars, contact shadows or glow spill, edge wear clipped inside the outline, the part filling ~84% of the frame at
+one scale across its four views. `upload_white/` is the same on pure #ffffff, in case Tripo wants no alpha. Rebuild
+both with `node Art/Concepts/Weapons/AR/render.js --upload` (leaves the grey views and sheets alone).
+1. Multi-view (image to 3D): one part at a time. Front slot = `upload/front.png`, back = `upload/back.png`, left =
+   `upload/left.png`, right = `upload/right.png`. If a long part (body, barrel, sight) comes back thin or warped, try again with `left.png` as the front
    image (then right = `front.png`, back = `right.png`, left = `back.png`): some generators read the most detailed view
    best as the front.
 2. Settings (Main's brief): Smart Mesh on, about 10k quads, Smart UV, texture on (PBR if offered).

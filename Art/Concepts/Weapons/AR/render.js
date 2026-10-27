@@ -12,7 +12,10 @@ const { chromium } = require('playwright');
 
 const ROOT = path.resolve(__dirname, '../../../..');
 const FONT = p => 'file:///' + path.join(ROOT, p).replace(/\\/g, '/');
-const N = 1024, FILL = 0.8, BG = '#d9d9d9';
+// --upload: clean Tripo images only (upload/ transparent, upload_white/ on white): the part alone, filling ~84%, no
+// contact shadows or glow spill past its edge, no background-coloured touches; the grey views and sheets are left alone.
+const UPLOAD = process.argv.includes('--upload');
+const N = 1024, FILL = UPLOAD ? 0.84 : 0.8, BG = '#d9d9d9';
 
 // ---- geometry helpers (cm in, px out) -----------------------------------------------------------------------------
 function makeView(kind, b) {
@@ -49,8 +52,14 @@ const ring = (V, a, v, r, col, px, extra = '') => circ(V, a, v, r, 'none', null,
 const pl = (V, pts, col, px, extra = '') =>
 	`<path d="M${pts.map(([a, v]) => V.P(a, v).map(r2).join(',')).join('L')}" fill="none" stroke="${col}" stroke-width="${px}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
 // Edge wear: a broken light line along an outline; grime: a soft dark one.
-const wear = (d, col = '#fbf6ea', px = 1.2, op = 0.55, dash = '16 38 6 64 26 52 4 30') =>
-	`<path d="${d}" fill="none" stroke="${col}" stroke-width="${px}" stroke-dasharray="${dash}" opacity="${op}"/>`;
+// In upload images it is clipped to its own outline, so nothing pokes past the part's edge.
+let wearId = 0;
+const wear = (d, col = '#fbf6ea', px = 1.2, op = 0.55, dash = '16 38 6 64 26 52 4 30') => {
+	const line = `<path d="${d}" fill="none" stroke="${col}" stroke-width="${UPLOAD ? px * 2 : px}" stroke-dasharray="${dash}" opacity="${op}"`;
+	if (!UPLOAD) return line + '/>';
+	const id = 'wc' + wearId++;
+	return `<clipPath id="${id}"><path d="${d}"/></clipPath>${line} clip-path="url(#${id})"/>`;
+};
 function bez(c, t) {
 	const [[a, b], [p, q], [e, f]] = c;
 	return [(1 - t) ** 2 * a + 2 * (1 - t) * t * p + t * t * e, (1 - t) ** 2 * b + 2 * (1 - t) * t * q + t * t * f];
@@ -126,8 +135,8 @@ function defs(V) {
 	${B('mM', 0.18, 1.5, 6, 0.9, 28, 1.3, 0.05)}${B('mS', 0.07, 0.9, 3, 0.9, 28, 1.3, 0.05)}
 	${B('bM', 0.25, 1.5, 7, 1.2, 22, 1.1, 0.06)}${B('bS', 0.1, 1, 4, 1.2, 22, 1.1, 0.06)}
 	${B('rM', 0.35, 2, 8, 0.12, 10, 1.5, 0.09)}
-	<filter id="ao" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0.6" dy="1.2" stdDeviation="1.4" flood-color="#000" flood-opacity=".42"/></filter>
-	<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${r2(c(0.08, 1.2, 5))}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+	${UPLOAD ? '<filter id="ao"><feOffset dx="0" dy="0"/></filter><filter id="glow"><feOffset dx="0" dy="0"/></filter>' : `<filter id="ao" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0.6" dy="1.2" stdDeviation="1.4" flood-color="#000" flood-opacity=".42"/></filter>
+	<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${r2(c(0.08, 1.2, 5))}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`}
 	<pattern id="stip" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.05" fill="#6e6046" opacity=".55"/><circle cx="4" cy="3.8" r=".9" fill="#ffffff" opacity=".35"/></pattern>
 	<pattern id="stipDark" width="4" height="4" patternUnits="userSpaceOnUse"><circle cx="1.2" cy="1.2" r=".8" fill="#000" opacity=".4"/><circle cx="3.1" cy="3" r=".7" fill="#ffffff" opacity=".12"/></pattern>
 	</defs>`;
@@ -335,7 +344,7 @@ function capSide(V) {
 		s += pl(V, [[a, -0.92], [a + 1.84 * 0.55, 0.92]], '#6a4813', 1.1, 'opacity=".55"') + pl(V, [[a, 0.92], [a + 1.84 * 0.55, -0.92]], '#6a4813', 1.1, 'opacity=".55"');
 	}
 	s += `<rect x="0" y="0" width="${N}" height="${N}" fill="url(#brassCyl)" opacity=".25"/></g>`;
-	for (let a = 0.33; a < 1.2; a += 0.075) for (const v of [-0.92, 0.92]) s += circ(V, a, v, 0.018, BG);
+	if (!UPLOAD) for (let a = 0.33; a < 1.2; a += 0.075) for (const v of [-0.92, 0.92]) s += circ(V, a, v, 0.018, BG);
 	s += pl(V, [[1.33, -0.9], [1.33, 0.9]], '#5a3c0e', 1.6) + pl(V, [[1.36, -0.9], [1.36, 0.9]], '#fff0c0', 0.8, 'opacity=".7"');
 	return s + wear(pth(V, CAP, 0.04), '#fff6d8', 1.4, 0.85);
 }
@@ -527,7 +536,7 @@ const PARTS = [
 
 const VIEWS = ['front', 'back', 'left', 'right'];
 const LABEL = { front: 'FRONT · from the muzzle', back: 'BACK · from the butt', left: 'LEFT side', right: 'RIGHT side' };
-const viewPage = (svg) => `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:${BG}}svg{display:block}</style></head>
+const viewPage = (svg, bg = BG) => `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:${bg}}svg{display:block}</style></head>
 	<body><svg xmlns="http://www.w3.org/2000/svg" width="${N}" height="${N}" viewBox="0 0 ${N} ${N}">${svg}</svg></body></html>`;
 const dims = b => [b.u[1] - b.u[0], b.v[1] - b.v[0], b.w[1] - b.w[0]].map(n => Math.round(n * 10) / 10);
 
@@ -575,13 +584,29 @@ function sheetPage(p, dir) {
 }
 
 (async () => {
-	const want = process.argv.slice(2);
+	const want = process.argv.slice(2).filter(a => !a.startsWith('--'));
 	const browser = await chromium.launch();
 	const pg = await browser.newPage({ viewport: { width: N, height: N } });
 	for (const p of PARTS) {
 		if (want.length && !want.includes(p.dir)) continue;
 		const dir = path.join(__dirname, p.dir);
 		fs.mkdirSync(dir, { recursive: true });
+		if (UPLOAD) {
+			for (const [sub, bg] of [['upload', 'transparent'], ['upload_white', '#ffffff']]) {
+				fs.mkdirSync(path.join(dir, sub), { recursive: true });
+				for (const vk of VIEWS) {
+					const V = makeView(vk, p.b);
+					const file = path.join(dir, `.${vk}.html`);
+					fs.writeFileSync(file, viewPage(defs(V) + p.draw[vk](V), bg));
+					await pg.setViewportSize({ width: N, height: N });
+					await pg.goto('file:///' + file.split('\\').join('/'));
+					await pg.screenshot({ path: path.join(dir, sub, `${vk}.png`), omitBackground: bg === 'transparent' });
+					fs.unlinkSync(file);
+				}
+			}
+			console.log('wrote', dir, 'upload');
+			continue;
+		}
 		for (const vk of VIEWS) {
 			const V = makeView(vk, p.b);
 			const file = path.join(dir, `.${vk}.html`);
