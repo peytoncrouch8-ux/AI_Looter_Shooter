@@ -154,6 +154,29 @@ def box(u0, u1, v0, v1, width, w=0.0, bevel=0.2, mat=None, segments=2):
     return slab([(u0, v0), (u1, v0), (u1, v1), (u0, v1)], width, w, bevel, segments, mat)
 
 
+def face(outline, u0, u1, bevel=0.1, segments=2, mat=None, sharp=28.0, round=0.0):
+    """A plate seen face on by the aiming eye: an outline [(w, v), ...] (cm, as the eye sees it, the gun's left on the
+    left) extruded along the gun from u0 to u1, edges and corners rounded as slab's. Iron sights are drawn this way, so
+    their notches, apertures and ears are shaped where the player looks at them."""
+    outline = fillet(outline, round)
+    bm = lp.new_bmesh()
+    a = [bm.verts.new(at(u0, v, w)) for w, v in outline]
+    b = [bm.verts.new(at(u1, v, w)) for w, v in outline]
+    n = len(outline)
+    bm.faces.new(a)
+    bm.faces.new(list(reversed(b)))
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((a[i], a[j], b[j], b[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if bevel > 0.0:
+        edges = [e for e in bm.edges if len(e.link_faces) == 2 and e.calc_face_angle(0.0) > math.radians(sharp)]
+        bmesh.ops.bevel(bm, geom=edges, offset=bevel * CM, segments=segments, affect='EDGES', clamp_overlap=True,
+                        profile=0.5)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    return mapped(lp.mesh_object(bm), mat)
+
+
 def _lathe(profile, segments, spin):
     """A closed surface of revolution round Z from [(z cm, r cm), ...], ends capped."""
     pts = [(r * CM, z * CM) for z, r in profile]
@@ -455,11 +478,48 @@ def scope_glass(gun, m, u_eye, u_obj, v, r_eye, r_obj, dot=False, wall=0.12):
         gun.add(m, box(u, u + 0.02, v - 0.01, v + 0.01, 0.15, bevel=0.0, mat=RETICLE))
 
 
+# Iron sights (2026-10-27, the user: "gun iron sights need changed"). Aiming puts the eye 22 cm behind SOCKET_Aim (20 cm
+# of a gun drawn at 1.1x), level, at 90 degrees across: at 1080p a rear sight shows about 48 px per cm, a front sight
+# 14 cm further on about 28 px per cm. The old irons were peep holes 0.8 cm across in solid blades, so the player saw a
+# dark slab with a pinhole and the post a speck in it. Now every family's irons follow one sight picture: a big clear
+# rear (a ring 1.9 cm across, or a wide notch), and a front post whose cyan dot sits ON the line of sight (the
+# crosshair: where the shots go), its ears below the line so they frame the post and never cover the target. Whatever
+# the irons stand on stays under the line: only the sight itself crosses it.
+
+def front_post(gun, m, u, v_base, h, mat=BLACK, width=0.48, dot=None):
+    """An iron front post rising from v_base, its cyan dot (facing the eye, its center on the sight line h) just under
+    the post's rounded top."""
+    gun.add(m, slab([(u - 0.3, v_base), (u + 0.3, v_base), (u + 0.2, h + 0.27), (u - 0.2, h + 0.27)], width, bevel=0.06,
+                    mat=mat, round=0.08))
+    gun.add(m, tube(u - 0.27, u - 0.17, width * 0.42, v=h, segments=14, mat=dot or CYAN))
+
+
+def rear_ring(gun, m, u, v_base, h, r_in, r_out, mat=BLACK, lip=BRASS, depth=0.45, stem=0.9, stem_mat=None):
+    """An iron rear ring (ghost ring) centered on the sight line h at u, on a stem from v_base: open wide, so the front
+    post shows whole inside it with room round it; a thin lip round its opening on the eye's side (brass, or None)."""
+    gun.add(m, face([(-stem * 0.5, v_base), (stem * 0.5, v_base), (stem * 0.36, h - r_out + 0.15),
+                     (-stem * 0.36, h - r_out + 0.15)], u - 0.18, u + 0.18, bevel=0.06, mat=stem_mat or mat))
+    gun.add(m, hollow([(0.0, r_out), (depth, r_out)], u - depth * 0.5, h, 28, mat, wall=r_out - r_in))
+    if lip:
+        gun.add(m, hollow([(0.0, r_in + 0.08), (0.06, r_in + 0.08)], u - depth * 0.5 - 0.05, h, 28, lip, wall=0.08))
+
+
+def post_ears(gun, m, u, v_base, h, half=1.15, gap=0.55, drop=0.55, thick=1.2, mat=BLACK, slant=0.0):
+    """The guard round a front post, as the eye sees it a U: two ears half cm out from the middle with a gap cm trough
+    between them, their tips drop cm under the sight line h (they frame the post, never the target). slant leans the
+    ears' outsides in toward the tips (cm), for an A-frame."""
+    tip = h - drop
+    gun.add(m, face([(-half, v_base), (half, v_base), (half - slant, tip - 0.2), (gap + (half - slant - gap) * 0.5, tip),
+                     (gap, tip - 0.2), (gap, v_base + 0.45), (-gap, v_base + 0.45), (-gap, tip - 0.2),
+                     (-gap - (half - slant - gap) * 0.5, tip), (-half + slant, tip - 0.2)], u - thick * 0.5,
+                    u + thick * 0.5, bevel=0.08, mat=mat))
+
+
 def frontier_sight(gun, m, kind, uc, v0, shell=POLY_SAND, metal=BLACK, trim=None, span=14.0, zoom=4.0):
     """One of the frontier-tech sights on a rail whose teeth top out at v0, centered on uc; adds its SOCKET_Aim (where
     the eye lines up: the irons' rear ring, the dot, the eyepiece). trim: a material for its rings and caps (BRASS on
     rarer ones). Kinds:
-      Iron    folding irons span cm apart: a peep ring at the back, a post with a brass bead and a cyan dot in front
+      Iron    folding irons span cm apart: a ghost ring at the back, a post with its cyan dot on the line between ears
       Pip     a 1x tube dot with a cyan LED knob and a sand sunshade
       Reflex  an open window in a sand hood, a cyan strip under the glass
       Holo    a holographic sight: an open hood over the front of a long base, a ringed dot, a sand cap with a cyan bar
@@ -468,21 +528,16 @@ def frontier_sight(gun, m, kind, uc, v0, shell=POLY_SAND, metal=BLACK, trim=None
               along the top and a cyan objective ring"""
     trim = trim or metal
     if kind == 'Iron':
+        # A ghost ring and a dotted post (see front_post): through the ring the post stands in a U of ears, its cyan dot
+        # in the ring's middle. Each sits on a low clamp with a brass hinge pin, folded flat off the line when not used.
         ur, uf = uc - span * 0.5, uc + span * 0.5
         h = v0 + 2.5
-        gun.add(m, box(ur - 1.4, ur + 1.4, v0, v0 + 0.6, 2.2, bevel=0.15, mat=metal))
-        blade = slab([(ur - 1.0, v0 + 0.6), (ur + 1.0, v0 + 0.6), (ur + 0.7, h + 0.9), (ur - 0.7, h + 0.9)], 1.8,
-                     bevel=0.15, mat=metal, round=0.3)
-        gun.add(m, cut(blade, [tube(ur - 2.0, ur + 2.0, 0.42, v=h, segments=16)]))
-        gun.add(m, hollow([(0.0, 0.62), (0.5, 0.62)], ur - 0.25, h, 16, trim, wall=0.2))
-        gun.add(m, box(uf - 1.2, uf + 1.2, v0, v0 + 0.6, 2.0, bevel=0.15, mat=metal))
-        gun.add(m, slab([(uf - 0.9, v0 + 0.6), (uf + 0.9, v0 + 0.6), (uf + 0.4, h - 0.2), (uf - 0.4, h - 0.2)], 1.6,
-                        bevel=0.12, mat=metal, round=0.2))
-        gun.add(m, upright(uf, h - 0.3, h - 0.05, 0.16, mat=BRASS, segments=10))
-        gun.add(m, pin(uf - 0.17, h - 0.18, -0.07, 0.07, 0.08, mat=CYAN, segments=8))
-        for w in (-1.05, 1.05):   # wings guarding the front post
-            gun.add(m, slab([(uf - 0.7, v0 + 0.6), (uf + 0.7, v0 + 0.6), (uf + 0.4, h + 0.2), (uf - 0.4, h + 0.2)], 0.3,
-                            w=w, bevel=0.06, mat=metal, round=0.2))
+        for u, half in ((ur, 1.2), (uf, 1.1)):
+            gun.add(m, box(u - half, u + half, v0, v0 + 0.55, 2.2, bevel=0.15, mat=metal))
+            gun.add(m, pin(u + half - 0.45, v0 + 0.3, -1.18, 1.18, 0.16, mat=BRASS, segments=10))
+        rear_ring(gun, m, ur, v0 + 0.5, h, 0.95, 1.25, mat=metal, lip=BRASS if trim is metal else trim)
+        post_ears(gun, m, uf, v0 + 0.5, h, mat=metal)
+        front_post(gun, m, uf, v0 + 0.9, h, mat=metal)
         gun.socket(m, 'Aim', (ur, h))
         return
     if kind == 'Pip':

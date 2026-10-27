@@ -112,8 +112,13 @@ AREAS = {
             ('burntLivery', 'Crate_B', (300, 450, 600)), ('burntLivery', 'Barrel_A', (300, 450, 600)),
             ('quarryDerrick', 'Footlocker', (350, 500, 700)), ('quarryDerrick', 'Crate_A', (350, 500, 700)),
             ('quarryDerrick', 'Barrel_A', (350, 500, 700)),
-            # A strongbox thrown from the burnt wagons, and one behind the saloon by its woodshed.
-            ('wagonA', 'Strongbox', (250, 350, 500)),
+            # A strongbox dumped in the Dry Wash under Keeper's Bridge, found looking down from the bridge or walking the
+            # wash (the user's note 26, 2026-10-27: chests "in more distinguished locations"; it lay in the open by the
+            # farm road's burnt wagons until then, 'wagonA'), and one behind the saloon by its woodshed. The wash
+            # crosses the path at about 72 degrees, so the rings start where a spot along the wash clears the path's
+            # edge (ROAD_CLEAR: 2.3 m from its middle), at the deck's edge, and stay in the wash's 8 m bed; a pier or
+            # bank at its back is preferred.
+            ('bridge:keepersBridge', 'Strongbox', (280, 340, 420)),
             ('obstacle:saloonBacklot', 'Strongbox', (150, 250, 350)),
             # The coffin shed: two coffins lying behind it.
             ('coffinShed', 'Coffin', (250, 350, 450)), ('coffinShed', 'Coffin', (250, 350, 450)),
@@ -408,8 +413,12 @@ def find_spot(site, anchor, radii, half, seed, level=LEVEL, reach=None, facing=N
 
 
 def anchors_of(build, key):
-    """The anchors (x, y, yaw) a key names: a layout placement, 'obstacle:<id>' a layout obstacle's middle, '@<Class>'
-    every placed actor of that class, 'label:<prefix>' every placed actor whose label starts so (sorted)."""
+    """The anchors (x, y, yaw) a key names: a layout placement, 'obstacle:<id>' a layout obstacle's middle, 'bridge:<id>'
+    a bridge's middle (layout_computed.json bridges: the span's middle, turned along its road), '@<Class>' every placed
+    actor of that class, 'label:<prefix>' every placed actor whose label starts so (sorted)."""
+    if key.startswith('bridge:'):
+        bridge = build.layout.get('bridges', {}).get(key[7:])
+        return [] if not bridge else [(bridge['location'][0], bridge['location'][1], bridge.get('yaw', 0.0))]
     if key.startswith('obstacle:'):
         entry = next((o for o in build.source.get('obstacles', []) if o.get('id') == key[9:]), None)
         points = entry and (entry.get('polygon') or entry.get('path'))

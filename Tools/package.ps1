@@ -1,6 +1,6 @@
 # Packages a Windows Development build of the game for playtests. Unreal's BuildCookRun builds the game target (and the
 # editor target the cooker needs), cooks the shipped levels (Config\DefaultGame.ini, section
-# /Script/UnrealEd.ProjectPackagingSettings: Lvl_TutorialIsland, which is also the menu's map, and Lvl_RansomsRest, plus
+# /Script/UnrealEd.ProjectPackagingSettings: Lvl_MenuTeropa (the menu's map), Lvl_TutorialIsland (a session's fallback), and Lvl_RansomsRest, plus
 # the DirectoriesToAlwaysCook), stages, makes the compressed IoStore containers and archives the game to
 # Builds\Playtest\<yyyy-MM-dd_HHmm>\Windows\ (git-ignored; "Play Latest Build.bat" starts the newest). The first run is
 # long (every shader compiles for D3D12 SM6 and D3D11 SM5): start it in the background and watch the log.
@@ -208,7 +208,7 @@ if ($SmokeTest) {
     if (-not $gameExe) { "Smoke test: no Binaries\Win64\AI_Looter_Shooter.exe under $stage"; exit 3 }
     # A map named on the command line plays that level straight away (no menu, no session), as perf.ps1 does with -game.
     # No map: the game opens the default map with ?game=Menu (DefaultEngine.ini), the main menu over the tutorial island.
-    $menuOk = Invoke-SmokeRun 'menu' $gameExe.FullName '' 'LoadMap\(/Game/Maps/Lvl_TutorialIsland' 300
+    $menuOk = Invoke-SmokeRun 'menu' $gameExe.FullName '' 'LoadMap\(/Game/Maps/Lvl_MenuTeropa' 300
     $rrOk = Invoke-SmokeRun 'ransomsrest' $gameExe.FullName '/Game/Maps/Lvl_RansomsRest' 'LoadMap\(/Game/Maps/Lvl_RansomsRest' 300
     if (-not ($menuOk -and $rrOk)) { "SMOKE TEST FAILED after $($clock.Elapsed.ToString('hh\:mm\:ss'))."; exit 3 }
     "Smoke test passed."

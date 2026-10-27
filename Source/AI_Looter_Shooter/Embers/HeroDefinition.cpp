@@ -4,6 +4,7 @@
 #include "Embers/EmberDefinition.h"
 #include "Embers/EmberPower.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/PackageName.h"
@@ -135,6 +136,70 @@ USkeletalMesh* UHeroDefinition::LoadFirstPersonArms() const
 UTexture2D* UHeroDefinition::LoadPortrait() const
 {
 	return LoadIfThere<UTexture2D>(GetPortraitPath());
+}
+
+FHeroMeleeTool UHeroDefinition::MeleeToolFor(FName HeroId)
+{
+	// The user's picks (2026-10-27) with the sheets' swings and feel tags. Art/Models/Weapons/Melee/<Tool>.py imports to
+	// /Game/Art/Melee (models.ps1: the folder names the category).
+	struct FPick
+	{
+		const TCHAR* Hero;
+		const TCHAR* Tool;
+		EMeleeGripKind Grip;
+		EMeleeSwingStyle Swing;
+		EMeleeHeft Heft;
+	};
+	static const FPick Picks[] = {
+		{ TEXT("Ellis"), TEXT("GraveSpade"), EMeleeGripKind::Held, EMeleeSwingStyle::Swat, EMeleeHeft::Steady },
+		{ TEXT("Odessa"), TEXT("RazorFan"), EMeleeGripKind::Held, EMeleeSwingStyle::Flick, EMeleeHeft::Quick },
+		{ TEXT("Crane"), TEXT("FerryGaff"), EMeleeGripKind::Held, EMeleeSwingStyle::Gaff, EMeleeHeft::Heavy },
+		{ TEXT("Gauge"), TEXT("PistonFist"), EMeleeGripKind::Forearm, EMeleeSwingStyle::Jab, EMeleeHeft::Quick },
+		{ TEXT("Pike"), TEXT("RockPick"), EMeleeGripKind::Held, EMeleeSwingStyle::Peck, EMeleeHeft::Quick },
+	};
+	FHeroMeleeTool Tool;
+	for (const FPick& Pick : Picks)
+	{
+		if (HeroId == FName(Pick.Hero))
+		{
+			Tool.Mesh = TSoftObjectPtr<UStaticMesh>(NamedPath(TEXT("/Game/Art/Melee"), TEXT("SM_Melee_"), FName(Pick.Tool)));
+			Tool.Grip = Pick.Grip;
+			Tool.Swing = Pick.Swing;
+			Tool.Heft = Pick.Heft;
+			break;
+		}
+	}
+	return Tool;
+}
+
+FHeroMeleeTool UHeroDefinition::GetMeleeTool() const
+{
+	return MeleeTool.Mesh.IsNull() ? MeleeToolFor(Id) : MeleeTool;
+}
+
+FSoftObjectPath UHeroDefinition::PlaceholderMeleeToolPath()
+{
+	return FSoftObjectPath(TEXT("/Game/Art/Melee/SM_Melee_Placeholder.SM_Melee_Placeholder"));
+}
+
+UStaticMesh* UHeroDefinition::LoadMeleeTool() const
+{
+	// Modeled after the user's picks (TOOLS, 2026-10-27): every hero swings the one placeholder till theirs is imported.
+	if (UStaticMesh* Own = LoadIfThere<UStaticMesh>(GetMeleeTool().Mesh.ToSoftObjectPath()))
+	{
+		return Own;
+	}
+	return LoadIfThere<UStaticMesh>(PlaceholderMeleeToolPath());
+}
+
+void UHeroDefinition::SetMeleeTool(const FString& MeshPath, EMeleeGripKind Grip, EMeleeSwingStyle Swing, EMeleeHeft Heft, float Scale)
+{
+	MeleeTool.Mesh = TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(MeshPath));
+	MeleeTool.Grip = Grip;
+	MeleeTool.Swing = Swing;
+	MeleeTool.Heft = Heft;
+	MeleeTool.Scale = FMath::Clamp(Scale, 0.25f, 3.f);
+	MarkPackageDirty();
 }
 
 FName UHeroDefinition::DefaultId()

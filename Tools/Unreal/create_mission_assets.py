@@ -17,8 +17,13 @@ moment it's due, tracked, the offer's lines and accept_lines said on the move (M
 meet_first=True (Main 3 and Main 6: Delia's word) is listed as "Talk to Grandma Delia" until that talk starts it. Side
 offers open the card at once beside the giver's lines; Accept goes to accept_lines. Experience is a fixed amount per mission,
 on the Borderlands-like curve of 2026-10-13: a main mission about a third to two thirds of a level where it's turned in, a
-side mission about an eighth to a fifth (Docs/Progression.md has the count: the story alone ends about level 5.5,
-everything about 6.8; Looter.Progression.Pacing checks both).
+side mission about an eighth to a fifth (Docs/Progression.md has the count: since 2026-10-27, with the mine in the story,
+the story alone ends about level 6.9 and everything about 7.5; Looter.Progression.Pacing checks both).
+
+The main path since 2026-10-27 (the user's note 32: "Cyrus Teague should be a part of the main story line. Abel should be
+the final boss so that means Cyrus is the second boss fight"): Main 1-5, then Dead Lift and Back Pay (main missions now,
+made by create_side_mission_assets.py beside the Last Watch that follows Dead Lift; ids unchanged), then Main 6 (Abel) and
+Main 7. Main 5's turn-in says why the mine comes first and points at the lift; Main 6 waits for Back Pay.
 
   Skyreach's own missions (Docs/Polish/TutorialRework.md, 2026-10-08: no forced checklist; the town's notice board is the
   giver). None names anything of the story, and none gives experience: Skyreach's rewards are guns, handed out at the board.
@@ -63,15 +68,17 @@ everything about 6.8; Looter.Progression.Pacing checks both).
   DA_Mission_Main5 "The Keeper's Lantern", offered by Aldana after Main 4 (straight after its turn-in, one conversation):
                    0 into the Sink (Place_SinkFloor, height counted), 1 the three egg sacs, 2 the lantern taken (it must
                    stay step 2: AKeepersLantern::TakeStep), 3 out at the ramp head (Place_SinkRim) + optional the
-                   sheriff's hat by the den (SheriffHat). Turned in to Aldana: the altar candle won't take; take it home.
-                   2,200 XP, his purse (50).
-  DA_Mission_Main6 "The Gravewind", offered by Delia after Main 5 (accepting fades the Rest to dusk): 0 Gravewind Point
+                   sheriff's hat by the den (SheriffHat). Turned in to Aldana: the altar candle won't take; Delia will know
+                   what's owed a keeper, but not before Cyrus Teague's dead are settled (at dusk they'd follow Ellis to the
+                   boards); Hob points at the old lift. 3,000 XP, his purse (50).
+  (Dead Lift, met at Hiram's stool, and Back Pay, met at the lift head's speaking tube: create_side_mission_assets.py.)
+  DA_Mission_Main6 "The Gravewind", offered by Delia after Back Pay (accepting fades the Rest to dusk): 0 Gravewind Point
                    (Place_GravewindPoint) + optional by the keeper's path (Place_KeepersBridge) + Pa's lantern bail carried
                    (its item LanternBail, off Tilly's sill since Main 3), 1 the lantern on the keeper's post, 2 Abel,
-                   3 sitting with Pa (Abel's steps: HangStep 1, FightStep 2, SceneStep 3). Finishes with the scene. 4,400 XP.
+                   3 sitting with Pa (Abel's steps: HangStep 1, FightStep 2, SceneStep 3). Finishes with the scene. 5,000 XP.
   DA_Mission_Main7 "The Lantern Leans", offered by Pa on his board (Speaker_Abel) after Main 6: 0 home to Delia (her step
                    must stay 0: ADoorHandoff) + optional eat what's on the porch plate (PorchPlate.Eaten). Turned in to
-                   Tilly (her father's car). 4,100 XP, the Gilded Lily opened, Heirloom by Delia's hand, her purse (60).
+                   Tilly (her father's car). 4,500 XP, the Gilded Lily opened, Heirloom by Delia's hand, her purse (60).
 
 The mission features (wave 2a, sections 3-4), each a helper below:
   - optional objectives: objective(..., optional=True) (or event_objective / read_objective / collect_items with
@@ -723,20 +730,28 @@ MISSIONS = [
              ('', "Bring it back. I'd stake the chapel on it."),
          ], briefing="The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. "
                      "Spiders hoard anything a saint has touched. Go down into the Sink and bring it back."),
-         # The twist: the altar candle won't light it. Delia's word starts Main 6 (her offer).
+         # The twist: the altar candle won't light it. Delia's word starts Main 6 (her offer), but the mine comes first since
+         # 2026-10-27 (the user's note 32: Cyrus Teague the second boss): who he is is Hiram's to say (Back Pay's offer), why
+         # first is Aldana's here (at dusk the dead come to the boards, and Teague's would come too), and Hob points at the
+         # lift, where Dead Lift is met. Shared words: no "Pa", "Ellis" or "kid" (the hero lines' rule), so no new rows.
          turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana', lines=[
              ('', "Dark, but whole. Let me try the altar candle."),
              ('', "...It won't take. It's lit from the saint, and the saint is out."),
              (ELLIS, 'Then how do I light it?'),
              ('', "I don't know. Your grandmother will know what's owed a keeper."),
+             ('', "But not yet. Cyrus Teague still drives his dead shift in the Providence, and at dusk they'd come to the "
+                  "boards with you."),
+             (HOB, "The old ore lift's at the quarry, sunshine. Its engineman never left."),
          ]),
-         rewards=dict(experience=2200)),
+         rewards=dict(experience=3000)),
     dict(asset='DA_Mission_Main6', id='Main6', title='The Gravewind',
          summary="At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the Keeper's "
                  "Lantern on his post and show him the way, even if he can't go.",
-         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main5'], sort_order=6,
-         # Aldana sends Ellis to Delia: met first, her talk starts it (no card), and that fades the Rest to dusk
-         # (AStoryLighting, during Main 6).
+         # After the mine since 2026-10-27 (Back Pay: the Foreman, the second boss; Dead Lift sorts 6, Back Pay 7), so Abel is
+         # the last. The Old Quarry's lift and the Providence are create_side_mission_assets.py's (their ids unchanged).
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['BackPay'], sort_order=8,
+         # Aldana sends Ellis to Delia, by way of the mine: met first, her talk starts it (no card), and that fades the Rest
+         # to dusk (AStoryLighting, during Main 6).
          offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', meet_first=True, lines=[
              (ELLIS, "Father Aldana couldn't light it."),
              ('', "No. That was never a priest's to do."),
@@ -752,11 +767,11 @@ MISSIONS = [
                      mesh=PROPS + 'SM_LanternBail')],
          # It ends with sitting with Pa, its own hand-in: Pa on his board, the lantern lit and the train's steam all follow
          # Main 6 finished, so it finishes as that scene ends (and Pa offers Main 7 from his board).
-         steps=main6_steps, turn_in=dict(automatic=True), rewards=dict(experience=4400)),
+         steps=main6_steps, turn_in=dict(automatic=True), rewards=dict(experience=5000)),
     dict(asset='DA_Mission_Main7', id='Main7', title='The Lantern Leans',
          summary="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell "
                  "and the Gilded Lily. Go home to Delia first. Then Tilly's hearse car waits at the depot.",
-         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main6'], sort_order=7, steps=main7_steps,
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main6'], sort_order=9, steps=main7_steps,
          offer=dict(giver_tag='Speaker_Abel', giver='Pa', lines=[
              ('', "She leans north-east, El. Over the ridges. That's Ned Purcell."),
              ('', "Your grandmother's kept something back for you. Go home first."),
@@ -766,7 +781,7 @@ MISSIONS = [
                      "car waits at the depot."),
          # Turned in at Tilly's, not Delia's, whose step it was: the tracker says why (round 3 of 2026-10-23: no hint).
          turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', why="Tilly is readying her hearse car: see her at her shop"),
-         rewards=dict(experience=4100, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
+         rewards=dict(experience=4500, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
 ]
 
 

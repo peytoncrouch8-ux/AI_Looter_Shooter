@@ -20,7 +20,9 @@ enum class EHandsSupportJob : uint8
 {
 	Foregrip,
 	Reload,
-	Throw
+	Throw,
+	/** An ember power's cast (FirstPersonHandsMotion::SupportInCast). */
+	Cast
 };
 
 /** How a hand's fingers close round what it holds (FHandFingers::Of has each one's curls). */

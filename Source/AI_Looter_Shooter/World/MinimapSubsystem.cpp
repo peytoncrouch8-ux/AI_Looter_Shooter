@@ -239,6 +239,8 @@ void UMinimapSubsystem::FinishBake()
 	{
 		Colors.Init(FColor(0, 0, 0, 0), N * N);
 	}
+	// Roads under the trees (a crown at a road's edge stays whole) and before the boundary dims what lies outside.
+	PaintRoads(Colors);
 	PaintTrees(Colors);
 	// Last, so the trees outside are dimmed too and none covers the line.
 	if (Inside.Num() > 0)

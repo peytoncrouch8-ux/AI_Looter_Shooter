@@ -186,9 +186,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeleeGateTest, "Looter.Melee.Gate",
 
 bool FMeleeGateTest::RunTest(const FString& Parameters)
 {
-	// The swing's times: the blow 0.12 s into a 0.45 s swing, the next 0.6 s after the last began.
-	TestEqual(TEXT("A 0.45 s swing"), FMeleeRules::SwingSeconds, 0.45f);
-	TestEqual(TEXT("The blow at 0.12 s"), FMeleeRules::ContactSeconds, 0.12f);
+	// The swing's times: the blow 0.15 s into a 0.5 s swing (a wind-up the eye can catch, 2026-10-27), the next 0.6 s after
+	// the last began.
+	TestEqual(TEXT("A 0.5 s swing"), FMeleeRules::SwingSeconds, 0.5f);
+	TestEqual(TEXT("The blow at 0.15 s"), FMeleeRules::ContactSeconds, 0.15f);
+	TestTrue(TEXT("The tool wound up before the blow"), MeleeMotion::CockSeconds < FMeleeRules::ContactSeconds);
 	TestEqual(TEXT("A 0.6 s cooldown"), FMeleeRules::CooldownSeconds, 0.6f);
 	TestTrue(TEXT("The swing, its hit-stop and all, ends inside the cooldown"),
 		FMeleeRules::SwingSeconds + FMeleeRules::AttackerHitStop < FMeleeRules::CooldownSeconds);
@@ -317,20 +319,16 @@ bool FMeleeMotionTest::RunTest(const FString& Parameters)
 	using namespace MeleeMotion;
 	const float Contact = FMeleeRules::ContactSeconds;
 
-	// The gun starts and ends in its hold, and is at the strike pose as the blow lands.
+	// The gun starts and ends in its hold, and is down in the left hand (low, to the left, canted) through the blow while the
+	// tool swings (the user's note 5, 2026-10-27).
 	TestTrue(TEXT("In its hold at the start"), GunPose(0.f, false).Offset.IsNearlyZero() && GunPose(0.f, false).Rotation.IsNearlyZero());
 	TestTrue(TEXT("In its hold at the end"), GunPose(FMeleeRules::SwingSeconds, false).Rotation.IsNearlyZero());
-	TestTrue(TEXT("Nearly back just before the end"), FMath::Abs(GunPose(FMeleeRules::SwingSeconds - 0.01f, false).Rotation.Yaw) < 1.f);
-	TestTrue(TEXT("At the strike pose as the blow lands"), GunPose(Contact, true).Rotation.Equals(StrikePose().Rotation, 0.01f));
-	// The stock drives across: the muzzle swung right (the stock out left), after a coil the other way.
-	TestTrue(TEXT("The strike swings the muzzle well right"), StrikePose().Rotation.Yaw > 30.f);
-	TestTrue(TEXT("The coil turns it the other way"), CockedPose().Rotation.Yaw < 0.f);
-	TestTrue(TEXT("The strike drives forward"), StrikePose().Offset.X > CockedPose().Offset.X);
-
-	// A miss carries on past the strike; a landed blow stops dead and comes back.
-	const float Through = Contact + FollowThroughSeconds;
-	TestTrue(TEXT("A miss follows through past the strike"), GunPose(Through, false).Rotation.Yaw > StrikePose().Rotation.Yaw);
-	TestTrue(TEXT("A landed blow doesn't"), GunPose(Through, true).Rotation.Yaw < StrikePose().Rotation.Yaw);
+	TestTrue(TEXT("Nearly back just before the end"), FMath::Abs(GunPose(FMeleeRules::SwingSeconds - 0.01f, false).Rotation.Roll) < 1.f);
+	const FMeleeSwingPose Low = GunPose(Contact, false);
+	TestTrue(TEXT("At the blow: dropped low"), Low.Offset.Z < -5.f);
+	TestTrue(TEXT("...to the left"), Low.Offset.Y < -5.f);
+	TestTrue(TEXT("...canted over"), Low.Rotation.Roll < -15.f);
+	TestTrue(TEXT("Fully down by the wind-up's end"), GunPose(CockSeconds, false).Offset.Equals(LowReadyPose().Offset, 0.1f));
 
 	// Snappy but never a pop: no more than 2.5 degrees or 1 cm in a millisecond.
 	float WorstTurn = 0.f;
@@ -350,14 +348,18 @@ bool FMeleeMotionTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("No turn of over 2.5 degrees in a millisecond (%.2f)"), WorstTurn), WorstTurn < 2.5f);
 	TestTrue(FString::Printf(TEXT("No move of over 1 cm in a millisecond (%.2f)"), WorstMove), WorstMove < 1.f);
 
-	// The view: the coil one way, the lean into the blow the other; a landed blow jolts and punches in, a kill more.
-	for (const bool bArmed : { true, false })
+	// The view: the coil one way, the lean into the blow the other; a landed blow jolts and punches in, a kill more. Every
+	// swing, at its heaviest.
+	const EMeleeSwingStyle Styles[] = { EMeleeSwingStyle::Swat, EMeleeSwingStyle::Flick, EMeleeSwingStyle::Chop, EMeleeSwingStyle::Peck,
+		EMeleeSwingStyle::Gaff, EMeleeSwingStyle::Jab };
+	for (const EMeleeSwingStyle Style : Styles)
 	{
-		const FString Name = bArmed ? TEXT("Stock") : TEXT("Fist");
-		TestTrue(Name + TEXT(": the coil and the blow turn opposite ways"), WindUp(bArmed).Yaw * Strike(bArmed).Yaw < 0.f);
-		TestTrue(Name + TEXT(": the blow dips the view"), Strike(bArmed).Pitch < 0.f);
+		const FString Name = UEnum::GetValueAsString(Style);
+		const EMeleeHeft Heft = EMeleeHeft::Heavy;
+		TestTrue(Name + TEXT(": the coil and the blow turn opposite ways"), WindUp(Style, Heft).Yaw * Strike(Style, Heft).Yaw < 0.f);
+		TestTrue(Name + TEXT(": the blow dips the view"), Strike(Style, Heft).Pitch < 0.f);
 		// Played together, the kicks stay inside the stack's limits, so none is flattened.
-		const TArray<FTimedKick> Kicks = { { WindUp(bArmed), 0.f }, { Strike(bArmed), Contact }, { Impact(true, 1.f), Contact } };
+		const TArray<FTimedKick> Kicks = { { WindUp(Style, Heft), 0.f }, { Strike(Style, Heft), Contact }, { Impact(true, 1.f), Contact } };
 		const float Pitch = PeakSum(Kicks, [](const FViewKick& Kick) { return Kick.Pitch; });
 		const float Yaw = PeakSum(Kicks, [](const FViewKick& Kick) { return Kick.Yaw; });
 		const float Roll = PeakSum(Kicks, [](const FViewKick& Kick) { return Kick.Roll; });
@@ -367,8 +369,8 @@ bool FMeleeMotionTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s: roll within the limit (%.2f)"), *Name, Roll), Roll <= FViewKickStack::MaxTurn);
 		TestTrue(FString::Printf(TEXT("%s: the field of view within the limit (%.3f)"), *Name, Widen), Widen <= FViewKickStack::MaxFieldOfView);
 	}
-	// A fist has no model: its punch has to read in the view alone.
-	TestTrue(TEXT("The fist's punch pushes the view in at least 2%"), -Strike(false).FieldOfView >= 0.02f);
+	// A jab (Gauge's piston fist) punches the view in, as the old fist did.
+	TestTrue(TEXT("The jab pushes the view in at least 2%"), -Strike(EMeleeSwingStyle::Jab).FieldOfView >= 0.02f);
 	TestTrue(TEXT("A landed blow punches in"), Impact(false, 1.f).FieldOfView < 0.f);
 	TestTrue(TEXT("...a killing one harder"), Impact(true, 1.f).Pitch > Impact(false, 1.f).Pitch);
 	TestTrue(TEXT("The jolt rolls the way it's leaned"), Impact(false, -1.f).Roll < 0.f && Impact(false, 1.f).Roll > 0.f);

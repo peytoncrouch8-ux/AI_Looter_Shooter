@@ -72,18 +72,23 @@ turn in shows a ! at whoever takes it.
 | C | Calder's Caches | Ruth Calder's note on the Rangers' board | artifact | M3 | 12 | 30 silver, three caches and the gang's strongbox | the Rangers' board |
 | S1 | Wanted: Already Dead | the poster on the town gate's post | artifact | M3 | 10 | Rare gun, 50 silver | Tilly |
 | V2 | The Old Fare (new) | Mr. Sloane, the station agent, through his door upstairs in the depot | talk | M3 | 12 | Rare Drover revolver, 30 silver | Josiah Fenn, in his coffin |
+| V3 | Lost and Found (2026-10-27) | Mr. Sloane, at his ticket window | talk | V2 | 4 | 20 silver; Lost Property opens | Mr. Sloane |
 | M4 | Hallowed Ground | Tilly, at her window | talk | M3 | 12 | 40 silver | Father Aldana, at the vestry door |
 | S2 | Unfinished Business | Amos Whitlock, at his fence | talk | M4 | 12 | Epic gun, 60 silver | Amos |
 | V1 | Knocking Below (new) | Tilly, at her window | talk | M4 | 12 | Rare gun, 40 silver | Tilly |
 | M5 | The Keeper's Lantern | Father Aldana, at the vestry door | talk | M4 | 10 | 50 silver | Father Aldana |
 | S3 | The Gravemother | Sheriff Odell's bounty on the Rangers' board | board | M5 | 10 | 80 silver bounty; her Legendary table every kill | Mrs. Pruitt, at the store's hatch |
-| N1 | Dead Lift (new) | Hiram Coyle, the lift's dead engineman, in the winch house | talk | M5 | 15 | Rare gun, 40 silver, the ore lift | Hiram, through the speaking tube at the lift head |
+| N1 | Dead Lift (new; **main** since 2026-10-27) | Hiram Coyle, the lift's dead engineman, in the winch house | met (talk) | M5 | 15 | Rare gun, 40 silver, the ore lift | Hiram, through the speaking tube at the lift head |
 | N2 | The Last Watch (new) | the board at Calder's Post | board | N1 | 12 | Calder's fourth cache, 60 silver | the post's board |
-| N3 | Back Pay (new) | a brass tag on the Providence's tag board | artifact | N1 | 22 | the Foreman's Legendary table; pay the eleven (Rare gun) or keep the payroll (about 400 silver) | the tag board |
-| M6 | The Gravewind | Delia, at her door | talk | M5 | 12 | Abel's boss loot | none: the scene with Pa |
+| N3 | Back Pay (new; **main** since 2026-10-27) | Hiram, up the lift head's speaking tube (was No. 7's tag, an artifact) | met (talk) | N1 | 22 | the Foreman's Legendary table; pay the eleven (Rare gun) or keep the payroll (about 400 silver) | the tag board |
+| M6 | The Gravewind | Delia, at her door | talk | N3 (was M5) | 12 | Abel's boss loot | none: the scene with Pa |
 | M7 | The Lantern Leans | Pa, on his board | talk | M6 | 8 | Heirloom, 60 silver, the *Lily* on the station board | Tilly |
 
-- Main path about 74 minutes; the valley's six side missions about 68; the mountain (Dead Lift, The Last Watch, Back
+- **Since 2026-10-27 (the user's note 32):** the main path is M1–M5, N1, N3, M6, M7 (Cyrus Teague, the Foreman, the second
+  boss; Abel the last), about 110 minutes; N1 and N3 are met first (no card), N3 straight after N1's turn-in at the
+  speaking tube. V3 Lost and Found (note 37) opens the LOST PROPERTY window. Words and XP: `create_mission_assets.py`,
+  `create_side_mission_assets.py`, `Docs/Progression.md`; `Docs/Areas/RansomsRest.md` "Missions".
+- Main path about 74 minutes (before the mine joined it); the valley's six side missions about 68; the mountain (Dead Lift, The Last Watch, Back
   Pay, the walk and its camps) about 55, of which 35–40 on the mountain itself. About 3 hours 15 minutes for everything.
 - The Rim Rangers' board at the sheriff's office becomes a bounty board with two postings now (Calder's note, the
   sheriff's bounty); repeatable bounties come later with the Ledger's endgame. Calder's Post has its own board.
@@ -809,7 +814,9 @@ No house model is used more than twice; Skyreach keeps today's set and shares no
 
 ## 10. Experience and levels
 
-- **Targets** (the user's call, 2026-10-13): the story alone ends about level 5.5, a full clear about 6.8. Kill
+- **Targets** since 2026-10-27 (the mine in the story): the story alone about level 6.9, a full clear about 7.5, each boss
+  met near its level; the Foreman set 4 (6 with Soulfed), a level under Abel (`Docs/Progression.md`). Before: (the user's
+  call, 2026-10-13) the story alone ends about level 5.5, a full clear about 6.8. Kill
   experience and every mission's amount came down for it; most of a side mission's reward is silver and guns. The
   draft's sums (story 6, full clear 9.8) are superseded (archive).
 - **The curve** (built): reaching level L takes 180 × (L^2.8 − 1) experience in all, capped at level 65. The kill rules

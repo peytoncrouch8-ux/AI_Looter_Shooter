@@ -5,10 +5,10 @@
 #include "LooterMenuGameMode.generated.h"
 
 /**
- * The main menu's rules: no character, a camera circling the island behind the menu (ALooterMenuPlayerController) and
- * the menu itself (AMainMenuHUD). The game starts with it: DefaultEngine.ini's LocalMapOptions add ?game=Menu (its
- * alias in GameModeClassAliases) to the default map, so the level itself is the menu's backdrop. Its creatures roam;
- * the tutorial waits for a player.
+ * The main menu's rules: no character, the menu's camera on the backdrop (ALooterMenuPlayerController) and the menu itself
+ * (AMainMenuHUD: the startup cards first as the game starts, then the menu). The game starts with it: DefaultEngine.ini's
+ * LocalMapOptions add ?game=Menu (its alias in GameModeClassAliases) to the default map, so the level itself is the
+ * menu's backdrop. A level's creatures roam under it; a tutorial waits for a player.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterMenuGameMode : public AGameModeBase

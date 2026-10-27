@@ -16,6 +16,7 @@
 #include "Components/TextRenderComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
@@ -110,6 +111,25 @@ bool ALostPropertyWindow::IsOpen() const
 	// The session's record, as a vendor reads its own; without a mission runner there's no story to wait on, so it stays shut.
 	const UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
 	return Runner && OpenWhen.IsMet(Runner->GetCampaign(), Runner);
+}
+
+bool ALostPropertyWindow::IsShutIn(const UWorld* World)
+{
+	if (!World)
+	{
+		return false;
+	}
+	// Any window open is enough (one a map today); a map with none has nowhere to be shut.
+	bool bAnyWindow = false;
+	for (TActorIterator<ALostPropertyWindow> It(World); It; ++It)
+	{
+		if (It->IsOpen())
+		{
+			return false;
+		}
+		bAnyWindow = true;
+	}
+	return bAnyWindow;
 }
 
 FInteractionOptions ALostPropertyWindow::GetInteractionOptions(const UInteractionComponent& User) const

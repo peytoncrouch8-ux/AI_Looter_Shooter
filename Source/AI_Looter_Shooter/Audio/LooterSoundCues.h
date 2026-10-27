@@ -661,6 +661,12 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* StingElite = TEXT("Music.Sting.Elite");
 	inline constexpr const TCHAR* StingPhase = TEXT("Music.Sting.Phase");
 	inline constexpr const TCHAR* StingVictory = TEXT("Music.Sting.Victory");
+	/** The new game's intro (Story/NewGameIntro.h; Art/Sounds/recipes/intro.py): Teropa from orbit or Westward (28 s, one-shot),
+	 *  Ransom's Rest (50.5 s and a ringing tail), a card coming up, the white rising at a part's end. */
+	inline constexpr const TCHAR* IntroPlanet = TEXT("Music.Intro.Planet");
+	inline constexpr const TCHAR* IntroRest = TEXT("Music.Intro.Rest");
+	inline constexpr const TCHAR* IntroCard = TEXT("Music.Intro.Card");
+	inline constexpr const TCHAR* IntroWhiteout = TEXT("Music.Intro.Whiteout");
 
 	// --- Inventory (2D: the loadout screen's gun moves, ULoadoutWidget; LoadoutParts::Sounds is this namespace) ---
 	namespace Inventory

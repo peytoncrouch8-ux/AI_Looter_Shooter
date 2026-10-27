@@ -41,6 +41,11 @@
                   position, PlaceRect) lays each place's own ground over the layers (the town's street dust and ruts,
                   ash and cinders, quarry grit, coal), each GroundPlaces pattern through its own colour ramp; read
                   only inside the places (a branch). apply_places() sets them from layout.json macro.places.
+                  Roads (2026-10-27, ROAD_WEIGHTS; off on the master, RoadAmount 0): an area's RoadMap (by world
+                  position, RoadRect; Art/Levels/area_places.py) makes each road read at eye level: its bed stony,
+                  packed and lighter (RoadBed), worn darker edges (RoadVerge), wheel ruts drawn from the map's across
+                  coordinate (RoadRuts), sunk in by the relief (RoadRelief, two more reads near the eye only); read
+                  within RoadReach meters. apply_roads() sets them from layout.json macro.roads.
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
                   the sun's side (the sky atmosphere's sun): a warm LitColor where it thins toward the sun, a cool
                   ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
@@ -761,6 +766,39 @@ def build_foliage(orm_default):
 # its own mean (T_<Set>_stats.json), so from afar the ground has exactly the brightness and the color it had: the macro
 # map stays in charge, and the layers' contrast fades with distance (GroundFade). Rock (the macro alpha past 0.55) and
 # steep faces keep the rock detail as before.
+# The roads (2026-10-27, the user's note 16: "the map doesn't really prompt the player to use roads, it feels like a free
+# for all"): the macro map paints every road, but softly, and from eye level a road and the dry grass beside it were the
+# same tan. The area's road map (Art/Levels/area_places.py: how much road, meters across from its middle, its half width,
+# its ruts' strength) makes a road read as one: the bed stony, packed and a little lighter (RoadBed), a worn darker edge
+# (RoadVerge), wheel ruts drawn per pixel from the across coordinate (so they stay sharp on a half-meter map; RoadRuts),
+# darker and smoother, sunk in by RoadRelief. ROAD_WEIGHTS comes first in the color, normal and roughness nodes (GROUND_
+# WEIGHTS' stony share reads RdBed); with RoadAmount 0 (the master) RoadIn is 0 and nothing changes.
+ROAD_WEIGHTS = """// The roads (ROAD_WEIGHTS): RoadIn from the area's road map: x how much road lies here, y meters across from its middle,
+// z its half width (m), w its ruts' strength; 0 past RoadReach and on the master.
+float RdNear = 1.0 - smoothstep(4000.0, 6000.0, Depth);
+// Its side and its ruts wander a little with the ground noise (RoadBed.a meters at the side, a quarter of that for the
+// ruts), so neither runs ruler-straight.
+float RdA = abs(RoadIn.y + (Noise.g - 0.5) * 0.5 * RoadBed.a);
+float RdSide = RoadIn.z + (Noise.r - 0.5) * 2.0 * RoadBed.a;
+float RdBed = RoadIn.x * (1.0 - smoothstep(RdSide - 0.35, RdSide + 0.35, RdA));
+// The worn edge: a band from just inside the side out RoadVerge.y meters, trodden bare and darker.
+float RdVerge = RoadIn.x * smoothstep(RdSide - 0.5, RdSide, RdA) * (1.0 - smoothstep(RdSide + 0.2, RdSide + RoadVerge.y, RdA));
+// Wheel ruts: two tracks RoadRuts.x apart, and a second pair RoadRuts.w further out on a street wider than 3.5 m each
+// side; a path (under 1.6 m each side) has one trodden line down its middle instead.
+float RdPath = 1.0 - smoothstep(1.4, 1.7, RoadIn.z);
+float RdOff = RdA - RoadRuts.x * 0.5;
+float RdOut = RdOff - RoadRuts.w;
+RdOff = (RoadIn.z > 3.5 && abs(RdOut) < abs(RdOff)) ? RdOut : RdOff;
+RdOff = lerp(RdOff, RdA, RdPath);
+float RdW = RoadRuts.y * lerp(0.5, 0.8, RdPath);
+// A rut's profile: 1 at its bottom easing to 0 at its lip (Rut), and how steeply its side climbs there (RutSlope, signed
+// so it tilts the right way across the road: ROAD_TILT_CODE).
+float RdU = saturate(abs(RdOff) / max(RdW, 0.01));
+float RdStrength = RoadIn.w * RdBed * lerp(0.5, 1.0, RdNear);
+float Rut = (1.0 - RdU * RdU * (3.0 - 2.0 * RdU)) * RdStrength;
+float RutSlope = 6.0 * RdU * (1.0 - RdU) / max(RdW, 0.01) * (RdOff >= 0.0 ? 1.0 : -1.0) * (RoadIn.y >= 0.0 ? 1.0 : -1.0)
+    * RdStrength * RdNear;
+"""
 # GROUND_WEIGHTS is shared by the color, normal and roughness nodes (the shader compiler merges the repeats): it sets
 # Wt (the grass, thatch and stony weights), Damp, Leaf, RockAmt and Fd (the distance fade).
 GROUND_WEIGHTS = """const float3 Wl = float3(0.299, 0.587, 0.114);
@@ -778,8 +816,9 @@ float W = Warm + (Noise.r - 0.5) * Cues.z;
 float Lush = 1.0 - smoothstep(Cues.x - 0.05, Cues.x + 0.05, W);
 float Soil = smoothstep(Cues.y - 0.04, Cues.y + 0.04, W);
 // Stony ground: bare soil, roads, footpaths and scree (the macro alpha between grass and rock), bare spots in the dry
-// grass (Noise.g's highest), and the dark, dull ground under trees (Shade), which takes the leaf litter.
-float Road = smoothstep(0.1, 0.2, Select);
+// grass (Noise.g's highest), and the dark, dull ground under trees (Shade), which takes the leaf litter. A road's bed
+// from the road map (RdBed, ROAD_WEIGHTS) is stony too, where the macro map's soft paint let the grass layer creep in.
+float Road = max(smoothstep(0.1, 0.2, Select), RdBed);
 float Bare = smoothstep(1.0 - Cues.w, 1.0 - Cues.w + 0.05, Noise.g) * (1.0 - 0.7 * Lush);
 float Shade = (1.0 - smoothstep(Cues2.y * 0.65, Cues2.y, Lm)) * (1.0 - smoothstep(0.66, 0.76, Sat));
 float S = saturate(max(max(Soil, Road), max(Bare, Shade * 0.85)));
@@ -826,7 +865,7 @@ PW *= 1.0 - PCues.w * smoothstep(0.55, 0.85, H);
 float PNear = 1.0 - smoothstep(4000.0, 6000.0, Depth);
 """
 
-TERRAIN_CODE = GROUND_WEIGHTS + PLACE_WEIGHTS + """// From afar the ground keeps the brightness it always had: the old grass and rock detail at their true means
+TERRAIN_CODE = ROAD_WEIGHTS + GROUND_WEIGHTS + PLACE_WEIGHTS + """// From afar the ground keeps the brightness it always had: the old grass and rock detail at their true means
 // (GrassStats.a, RockTrue: measured from the textures) over the means it was set against (GrassMean, RockMean).
 float K = lerp(1.0, lerp(GrassStats.a, RockTrue, Select) / max(lerp(GrassMean, RockMean, Select), 0.05), Strength);
 // Each layer's light and dark (Layers.xyz) and a little of its own color (Layers.w), around 1 from its own mean: the
@@ -857,6 +896,14 @@ float3 Ground = Macro * K * lerp(One, Pattern, Fd) * lerp(1.0, DampP.z, Damp);
     float3 FromMacro = Macro * K * Own3 / max(lerp(Dark.rgb, Light, pm), 0.004);
     float3 PlaceGround = lerp(FromMacro, Own3, Dark.a) * lerp(1.0, DampP.z, Damp * 0.5);
     Ground = lerp(Ground, PlaceGround, PW);
+}
+// The roads (ROAD_WEIGHTS), over whatever ground or place is there: the packed bed lighter and warmer (RoadBed.rgb),
+// its worn edges darker (RoadVerge.x), the ruts darker still (RoadRuts.z).
+[branch] if (RoadIn.x > 0.001)
+{
+    Ground *= lerp(float3(1.0, 1.0, 1.0), RoadBed.rgb, RdBed);
+    Ground *= lerp(1.0, RoadVerge.x, RdVerge);
+    Ground *= lerp(1.0, RoadRuts.z, Rut);
 }
 // Rock: the macro map with the rock detail's light and dark, as before.
 float3 Old = lerp(Grass, Rock, Select);
@@ -911,7 +958,7 @@ float H = saturate(dot(RockX * Facing.x + RockY * Facing.y, float3(0.299, 0.587,
 return saturate((Steep - 0.5) * Sharp + 0.5 + (H - 0.5) * Breakup + (Select - 0.5) * Pull);"""
 # The ground's detail normal: the layers' normals by the same weights, flattened under leaves and where it's damp (wet
 # soil is smooth), and the rock's where it's rock. The caller fades it on steep faces, as before.
-GROUND_NORMAL_CODE = GROUND_WEIGHTS + PLACE_WEIGHTS + """float3 N = Wt.x * GrassN + Wt.y * ThatchN + Wt.z * StonyN;
+GROUND_NORMAL_CODE = ROAD_WEIGHTS + GROUND_WEIGHTS + PLACE_WEIGHTS + """float3 N = Wt.x * GrassN + Wt.y * ThatchN + Wt.z * StonyN;
 N = lerp(N, float3(0.0, 0.0, 1.0), saturate(Leaf * 0.8 + Damp * 0.5));
 // A place's own relief (T_GroundPlaces_NA: dust xy, ash xy; _NB: grit xy, coal xy; z rebuilt).
 [branch] if (PW * PNear > 0.001)
@@ -924,7 +971,7 @@ N = lerp(N, float3(0.0, 0.0, 1.0), saturate(Leaf * 0.8 + Damp * 0.5));
 return lerp(N, RockN, RockAmt);"""
 # Roughness: dry grass and soil matte, stones a little smoother, damp ground glossier (GroundFade.w), rock and steep
 # faces 0.82 as before.
-GROUND_ROUGHNESS_CODE = GROUND_WEIGHTS + PLACE_WEIGHTS + """float R = dot(Wt, float3(0.93, 0.92, lerp(0.95, 0.8, saturate(HS * 2.0 - 1.0))));
+GROUND_ROUGHNESS_CODE = ROAD_WEIGHTS + GROUND_WEIGHTS + PLACE_WEIGHTS + """float R = dot(Wt, float3(0.93, 0.92, lerp(0.95, 0.8, saturate(HS * 2.0 - 1.0))));
 R = lerp(R, Fade.w, Damp);
 // A place's roughness from its ramp's dark end (PRough) to its light end (PGloss): the coal's lumps glint.
 [branch] if (PW > 0.001)
@@ -934,7 +981,14 @@ R = lerp(R, Fade.w, Damp);
         pp = lerp(pp, dot(Pv, Texture2DSampleGrad(PlaceTex, PlaceTexSampler, PUV, PDX, PDY)), PNear);
     R = lerp(R, lerp(dot(Pv, PRough), dot(Pv, PGloss), pp), PW);
 }
+// A road's packed bed (RoadVerge.w) and its ruts, smoother still where wheels have polished them (RoadVerge.z).
+R = lerp(R, RoadVerge.w, RdBed);
+R = lerp(R, RoadVerge.z, Rut);
 return lerp(R, 0.82, max(RockAmt, Steep));"""
+# The ruts' relief (ROAD_WEIGHTS' RutSlope; RoadRelief: a rut's depth, m): the ground tilts across the road (Across: the
+# way across it in the world, from the road map's across coordinate) by how steeply the rut's side climbs there. A world
+# vector, which the graph turns into the tangent frame and adds to the ground's normal.
+ROAD_TILT_CODE = ROAD_WEIGHTS + 'return float3(-RutSlope * Relief * Across.xy, 0.0);'
 # The layers' UVs on UV 1 (meters) at their own repeats, slid by GroundNoise's slow drift (A, up to Warp meters, the
 # two layers opposite ways), so neither repeat lines up for long.
 LAYER_UV_CODE = 'return UV * Scale + (Noise.a - 0.5) * 2.0 * Warp * Scale * {sign} + {offset};'
@@ -979,6 +1033,22 @@ PLACE_RAMPS = {'Dust': ((0.112, 0.048, 0.023, 0.45), (0.497, 0.292, 0.162)),
                'Grit': ((0.195, 0.171, 0.133, 0.65), (0.694, 0.638, 0.521)),
                'Coal': ((0.004, 0.004, 0.004, 0.85), (0.068, 0.065, 0.06))}
 PLACE_TEXTURES = 'C:/Dev/AI_Looter_Shooter/Art/Textures/GroundPlaces'
+# The roads' parameters (group Roads, ROAD_WEIGHTS) as the master sets them: off (RoadAmount 0), and neutral if an
+# instance turns them on without a look; an area's terrain instances get theirs from layout.json macro.roads (apply_roads).
+ROAD_DEFAULTS = {
+    'RoadAmount': 0.0,                     # 0 off .. 1 the road map as it is
+    'RoadRect': (0.0, 0.0, 100.0),         # the road map's square: its X0 and Y0 (south-west corner) and side, cm
+    # x Art/Levels/area_places.ACROSS (the meters the map's across and half width are kept over), y the map's pixels
+    # across (its next texel for the relief's reads), z RoadReach: meters it's read to (faded over its last quarter;
+    # past it the macro map's painted roads carry them), w unused
+    'RoadMapInfo': (8.0, 1024.0, 120.0, 0.0),
+    'RoadBed': (1.0, 1.0, 1.0, 0.25),      # the bed's colour times this; a: meters its side wanders
+    'RoadRuts': (1.5, 0.45, 1.0, 1.9),     # x the wheels' gauge (m), y a rut's width (m), z its darkness (1 none), w a
+                                           # wide street's second pair, this far past the first (m)
+    'RoadVerge': (1.0, 1.2, 0.9, 0.95),    # x the worn edge's darkness (1 none), y its reach past the side (m), z the
+                                           # ruts' roughness, w the bed's
+    'RoadRelief': 0.0,                     # a rut's depth (m) for the relief; 0 flat
+}
 # The rock's relief on a steep face, from the same two side-laid projections as its color (the rock normal map sampled
 # with the X- and the Y-side UVs): each sample turned into the world (its red along the projection's U axis, its green up
 # the face by Green's sign, its blue out of the face), blended by the same side weights. The caller turns it back into
@@ -1193,6 +1263,10 @@ def build_terrain():
         ('GrassStats', svector(g, ground, 'GrassStats', layer_stats(mean=GRASS_MEAN), -1300, -1060), 'RGBA'),
         ('StonyStats', svector(g, ground, 'StonyStats', layer_stats('GroundStony'), -1300, -1000), 'RGBA'),
     ] + place_inputs(g, detail_coords, ground_noise, layer_warp, world)
+    shared = {name: node for name, node, _ in weights}
+    road_in, road_across, road_relief = road_inputs(g, world, shared['Depth'])
+    weights += road_in
+    shared.update({name: node for name, node, _ in road_in})
     color = g.custom(TERRAIN_CODE, weights + [
         ('Rock', rock, 'RGB'), ('GrassMean', grass_mean, ''), ('RockMean', rock_mean, ''),
         ('Strength', g.scalar('DetailStrength', 0.6, -1000, 1100), ''),
@@ -1250,7 +1324,21 @@ def build_terrain():
         ('Steep', steep, ''),
         ('Strength', g.scalar('SteepNormalStrength', STEEP_DEFAULTS['SteepNormalStrength'], -700, 2200), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -700, 2300, 'Steep relief'), '', relief, 'Alpha')
-    g.out(relief, '', unreal.MaterialProperty.MP_NORMAL)
+    # The roads' ruts sunk in (ROAD_TILT_CODE): a world tilt turned into the tangent frame and added; flat on steep faces
+    # and wherever there's no road (the tilt is 0 there).
+    road_tilt = g.custom(ROAD_TILT_CODE, [
+        ('RoadIn', shared['RoadIn'], ''), ('Noise', ground_noise, 'RGBA'), ('Depth', shared['Depth'], ''),
+        ('RoadBed', shared['RoadBed'], 'RGBA'), ('RoadRuts', shared['RoadRuts'], 'RGBA'),
+        ('RoadVerge', shared['RoadVerge'], 'RGBA'), ('Across', road_across, ''), ('Relief', road_relief, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -700, 2500, 'Road ruts tilt (world)')
+    road_tangent = g.node(unreal.MaterialExpressionTransform, -400, 2500,
+                          transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_WORLD,
+                          transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_TANGENT)
+    g.link(road_tilt, '', road_tangent, '')
+    ground_relief = g.custom('return normalize(N + T * (1.0 - Steep));', [
+        ('N', relief, ''), ('T', road_tangent, ''), ('Steep', steep, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -150, 600, 'Ground relief with the ruts')
+    g.out(ground_relief, '', unreal.MaterialProperty.MP_NORMAL)
     rough = g.custom(GROUND_ROUGHNESS_CODE, weights + [('Steep', steep, '')],
                      unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 950, 'Ground roughness')
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
@@ -1261,6 +1349,7 @@ def build_terrain():
     g.out(ambient, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE])
     apply_places()
+    apply_roads()
     return mat
 
 
@@ -1271,6 +1360,9 @@ def place_texture(name, clamp=False):
     folder = name[2:].rsplit('_', 1)[0]
     if folder == 'GroundPlacesNone':
         folder = 'GroundPlaces'
+    # An area's road map lives with its place maps (area_places.py writes T_<Area>Roads_M into <Area>Places).
+    if folder.endswith('Roads'):
+        folder = folder[:-len('Roads')] + 'Places'
     texture = import_texture(f'C:/Dev/AI_Looter_Shooter/Art/Textures/{folder}/{name}.png',
                              f'/Game/Art/Textures/{folder}/{name}', 'M')
     if clamp:
@@ -1360,6 +1452,106 @@ def place_vectors(spec):
         rough[k], gloss[k] = layer.get('rough', (rough[k], gloss[k]))
     vectors['PlaceRough'], vectors['PlaceGloss'] = rough, gloss
     return vectors
+
+
+# The road map's read (ROAD_WEIGHTS' RoadIn), by world position as the place map is: past RoadReach meters (faded over its
+# last quarter) it isn't read at all. Its across coordinate is decoded straight (0.5 is a road's middle), its other
+# channels less the PNG's floor of 1/255.
+ROAD_READ_CODE = """float2 UV = float2((P.y - Rect.y) / Rect.z, (Rect.x + Rect.z - P.x) / Rect.z);
+float Far = 1.0 - smoothstep(Info.z * 75.0, Info.z * 100.0, Depth);
+float4 V = float4(0.0, 0.0, 0.0, 0.0);
+[branch] if (Far * Amount > 0.0)
+{
+    float Lod = log2(max(Depth * Info.y / (1150.0 * Rect.z), 1.0));
+    float4 M = Texture2DSampleLevel(Map, MapSampler, UV, Lod);
+    float4 S = saturate((M - 0.004) / 0.996);
+    V = float4(S.x * Amount * Far, (M.y - 0.5) * 2.0 * Info.x, M.z * Info.x, S.w);
+}
+return V;"""
+# The way across the road in the world (the across coordinate's gradient, a unit XY vector) from two more reads a texel
+# aside, for the ruts' relief: only within 60 m and on a road.
+ROAD_ACROSS_CODE = """float3 G = float3(0.0, 0.0, 0.0);
+[branch] if (Road.x > 0.001 && Depth < 6000.0)
+{
+    float2 UV = float2((P.y - Rect.y) / Rect.z, (Rect.x + Rect.z - P.x) / Rect.z);
+    float T = 1.0 / max(Info.y, 1.0);
+    float L0 = Texture2DSampleLevel(Map, MapSampler, UV, 0).y;
+    float LU = Texture2DSampleLevel(Map, MapSampler, UV + float2(T, 0.0), 0).y;
+    float LV = Texture2DSampleLevel(Map, MapSampler, UV + float2(0.0, T), 0).y;
+    // U runs with world +Y, V against world +X.
+    float2 D = float2(L0 - LV, LU - L0);
+    float Len = length(D);
+    G = Len > 1e-5 ? float3(D / Len, 0.0) : G;
+}
+return G;"""
+
+
+def road_inputs(g, world, depth):
+    """M_Terrain's roads (ROAD_WEIGHTS): the inputs its colour, normal and roughness nodes share (RoadIn, RoadBed,
+    RoadRuts, RoadVerge), and the ruts' relief's own two (the way across, RoadRelief). The master's RoadMap is the places'
+    empty map (no road anywhere)."""
+    group = 'Roads'
+    d = ROAD_DEFAULTS
+    rect = svector(g, group, 'RoadRect', d['RoadRect'], -3600, -2300)
+    info = svector(g, group, 'RoadMapInfo', d['RoadMapInfo'], -3600, -2240)
+    amount = sparam(g, group, 'RoadAmount', d['RoadAmount'], -3600, -2180)
+    road_map = g.node(unreal.MaterialExpressionTextureObjectParameter, -3600, -2120, parameter_name='RoadMap',
+                      texture=place_texture('T_GroundPlacesNone_M', clamp=True))
+    road_map.set_editor_property('group', group)
+    road = g.custom(ROAD_READ_CODE, [('P', world, ''), ('Rect', rect, 'RGBA'), ('Info', info, 'RGBA'), ('Map', road_map, ''),
+                                     ('Amount', amount, ''), ('Depth', depth, '')],
+                    unreal.CustomMaterialOutputType.CMOT_FLOAT4, -3200, -2200, 'Roads')
+    across = g.custom(ROAD_ACROSS_CODE, [('Road', road, ''), ('P', world, ''), ('Rect', rect, 'RGBA'),
+                                         ('Info', info, 'RGBA'), ('Map', road_map, ''), ('Depth', depth, '')],
+                      unreal.CustomMaterialOutputType.CMOT_FLOAT3, -3200, -2050, 'Road across (world)')
+    inputs = [('RoadIn', road, ''),
+              ('RoadBed', svector(g, group, 'RoadBed', d['RoadBed'], -3600, -2000), 'RGBA'),
+              ('RoadRuts', svector(g, group, 'RoadRuts', d['RoadRuts'], -3600, -1940), 'RGBA'),
+              ('RoadVerge', svector(g, group, 'RoadVerge', d['RoadVerge'], -3600, -1880), 'RGBA')]
+    return inputs, across, sparam(g, group, 'RoadRelief', d['RoadRelief'], -3600, -1820)
+
+
+def apply_roads():
+    """Each area's roads (layout.json macro.roads; Art/Levels/area_places.py makes its road map) on the terrain instances
+    it names: RoadMap, RoadRect (the map square), RoadMapInfo, RoadAmount and its look (RoadBed, RoadRuts, RoadVerge,
+    RoadRelief). An instance not made yet is left out, with a warning: run M_Terrain again after."""
+    import glob
+    import json
+    import os
+    for path in sorted(glob.glob('C:/Dev/AI_Looter_Shooter/Art/Levels/*/layout.json')):
+        area = os.path.basename(os.path.dirname(path))
+        with open(path, encoding='utf-8') as source:
+            layout = json.load(source)
+        spec = layout.get('macro', {}).get('roads')
+        if not spec:
+            continue
+        if not os.path.exists(f'C:/Dev/AI_Looter_Shooter/Art/Textures/{area}Places/T_{area}Roads_M.png'):
+            unreal.log_warning(f'M_Terrain roads: no road map for {area} (run Art/Levels/area_places.py {area})')
+            continue
+        texture = place_texture(f'T_{area}Roads_M', clamp=True)
+        half = layout['map']['half']
+        look = spec.get('look', {})
+        vectors = {'RoadRect': (-half, -half, 2.0 * half),
+                   'RoadMapInfo': (8.0, float(spec.get('size', 1024)), float(look.get('reach', 120.0)), 0.0)}
+        for key in ('RoadBed', 'RoadRuts', 'RoadVerge'):
+            vectors[key] = look.get(key, ROAD_DEFAULTS[key])
+        for name in spec.get('instances', []):
+            asset = f'/Game/Art/Materials/{name}'
+            if not unreal.EditorAssetLibrary.does_asset_exist(asset):
+                unreal.log_warning(f'M_Terrain roads: no {asset} yet (build_area.py {area} makes it): left out')
+                continue
+            instance = unreal.load_asset(asset)
+            MEL.set_material_instance_texture_parameter_value(instance, 'RoadMap', texture)
+            MEL.set_material_instance_scalar_parameter_value(instance, 'RoadAmount', float(spec.get('amount', 1.0)))
+            MEL.set_material_instance_scalar_parameter_value(instance, 'RoadRelief',
+                                                             float(look.get('RoadRelief', ROAD_DEFAULTS['RoadRelief'])))
+            for key, value in vectors.items():
+                values = [float(v) for v in value][:4]
+                MEL.set_material_instance_vector_parameter_value(
+                    instance, key, unreal.LinearColor(*(values + [1.0] * (4 - len(values)))))
+            MEL.update_material_instance(instance)
+            unreal.EditorAssetLibrary.save_loaded_asset(instance, only_if_is_dirty=False)
+            unreal.log(f'M_Terrain roads: {area} on {name}')
 
 
 def apply_places():

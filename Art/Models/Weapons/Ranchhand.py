@@ -736,19 +736,37 @@ def sights():
     v0 = SIGHT_AT[1]
     S = lambda key: model('Sight', key, SIGHT_AT)
 
-    m = S('Flip')                                              # the Ranchhand's flip-up rear, a brass aperture
-    leaf = lg.slab([(3.4, v0), (6.4, v0), (6.0, v0 + 2.05), (4.4, v0 + 2.05)], 2.0, bevel=0.15, mat=lg.BLACK, round=0.3)
-    g.add(m, lg.cut(leaf, [lg.tube(2.4, 7.4, 0.3, v=v0 + 1.6, segments=16)]))   # the peep hole
-    g.add(m, hollow([(0.0, 0.5), (0.6, 0.5)], 4.9, v0 + 1.6, 16, lg.BRASS, wall=0.2))   # the aperture ring
-    g.socket(m, 'Aim', (5.2, v0 + 1.6))   # the aperture: the front bead is on the barrel, so the ring sets the eye
+    # Irons (2026-10-27 redesign: lg's iron sight notes). The barrels' beads sit 2-3 cm under any line a rear sight on
+    # the rail can have, so the irons bring their own front post at the rail's front end, on a body that hides the
+    # barrel's bead (and the Defender's winged post) beneath the line.
+    m = S('Flip')                                              # a flip-up brass aperture, a post on a tapered tower
+    h = v0 + 1.95
+    ur, uf = 4.9, 16.4
+    for u, half in ((ur, 1.1), (uf, 1.0)):
+        g.add(m, lg.box(u - half, u + half, v0, v0 + 0.5, 2.3, bevel=0.15, mat=lg.BLACK))
+        g.add(m, lg.pin(u + half - 0.4, v0 + 0.28, -1.2, 1.2, 0.15, mat=lg.BRASS, segments=10))
+    leaf = lg.face([(-1.1, v0 + 0.45), (1.1, v0 + 0.45), (1.3, h - 0.2), (1.3, h + 0.6), (0.85, h + 1.15),
+                    (-0.85, h + 1.15), (-1.3, h + 0.6), (-1.3, h - 0.2)], ur - 0.22, ur + 0.22, bevel=0.1,
+                   mat=lg.BLACK, round=0.25)
+    g.add(m, lg.cut(leaf, [lg.tube(ur - 1.0, ur + 1.0, 0.8, v=h, segments=28)]))   # the aperture
+    g.add(m, hollow([(0.0, 0.92), (0.5, 0.92)], ur - 0.3, h, 28, lg.BRASS, wall=0.14))   # its brass ring
+    g.add(m, lg.face([(-1.1, v0 + 0.45), (1.1, v0 + 0.45), (0.8, h - 0.5), (-0.8, h - 0.5)], uf - 0.6, uf + 0.6,
+                     bevel=0.1, mat=lg.BLACK, round=0.15))                     # the tower, its top under the line
+    lg.front_post(g, m, uf, h - 0.6, h)
+    g.socket(m, 'Aim', (ur, h))   # the aperture's center: the post's dot sits in its middle
 
-    m = S('GhostRing')                                         # a big brass aperture between protective wings
+    m = S('GhostRing')                                         # a thick brass ring between wings, a winged post
+    h = v0 + 2.2
+    ur, uf = 5.65, 16.6
     g.add(m, lg.box(3.4, 8.0, v0, v0 + 0.9, 2.6, bevel=0.2, mat=lg.BLACK))
-    for side in (-1.0, 1.0):
-        g.add(m, lg.slab([(3.6, v0 + 0.9), (7.6, v0 + 0.9), (7.0, v0 + 3.4), (4.2, v0 + 3.4)], 0.5, w=side * 1.05,
+    for side in (-1.0, 1.0):   # wings guarding the ring, out past its sides
+        g.add(m, lg.slab([(3.6, v0 + 0.9), (7.6, v0 + 0.9), (7.0, h + 0.55), (4.2, h + 0.55)], 0.4, w=side * 1.72,
                          bevel=0.1, mat=lg.BLACK, round=0.3))
-    g.add(m, hollow([(0, 0.85), (0.5, 0.85)], 5.4, v0 + 2.2, 20, lg.BRASS, wall=0.3))
-    g.socket(m, 'Aim', (5.65, v0 + 2.2))   # the ring: the front post is on the barrel
+    lg.rear_ring(g, m, ur, v0 + 0.85, h, 1.0, 1.35, mat=lg.BRASS, lip=None, depth=0.5, stem_mat=lg.BLACK)
+    g.add(m, lg.box(uf - 1.1, uf + 1.1, v0, v0 + 0.5, 2.4, bevel=0.15, mat=lg.BLACK))
+    lg.post_ears(g, m, uf, v0 + 0.45, h, half=1.2, gap=0.38, drop=0.3, thick=1.2)   # a narrow trough: no bead in it
+    lg.front_post(g, m, uf, v0 + 0.9, h)
+    g.socket(m, 'Aim', (ur, h))   # the ring's center: the post's dot sits in its middle
 
     m = S('RedDot')                                            # on a sand mount, a cyan LED on its knob
     g.add(m, lg.box(6.6, 13.8, v0, v0 + 1.3, 2.2, bevel=0.25, mat=SAND))
@@ -978,7 +996,7 @@ PARTS = {
         p('SaltTube6', '6 rock-salt shells', 'Salted', R_UNCOMMON, magazine=6, damage=-4),
     ],
     'Sight': [
-        p('Flip', 'Flip-up rear sight', '', R_COMMON, zoom=1.0, handling=8),
+        p('Flip', 'Flip-up irons', '', R_COMMON, zoom=1.0, handling=8),
         p('GhostRing', 'Ghost ring', 'Ghost', R_COMMON, zoom=1.0, accuracy=4, handling=6),
         p('RedDot', 'Red dot', 'Dotted', R_COMMON, zoom=1.25, accuracy=5),
         p('Reflex', 'Reflex sight', 'Reflex', R_UNCOMMON, zoom=1.25, accuracy=6, handling=4),

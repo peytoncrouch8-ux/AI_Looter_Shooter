@@ -168,7 +168,7 @@ void UPlayerMeleeComponent::Strike()
 	// The view leans into the swing at the blow, hit or miss.
 	if (APlayerController* Player = GetPlayer())
 	{
-		UCameraShakeModifier::Kick(Player, MeleeMotion::Strike(bArmedSwing));
+		UCameraShakeModifier::Kick(Player, MeleeMotion::Strike(Tool.Swing, Tool.Heft));
 	}
 	FMeleeContact Contact;
 	AActor* Target = FindStrikeTarget(World, Aim, FMeleeRules::Reach(), GetOwner(), Contact);
@@ -204,8 +204,7 @@ bool UPlayerMeleeComponent::LandStrike(AActor& Target, const FMeleeContact& Cont
 	// and on it what the body is made of (a spider's shell cracks, a slime squelches, a dummy rings).
 	const EImpactSurface Surface = UBulletSubsystem::SurfaceOf(&Target);
 	SpawnBlowImpact(*World, Contact.Point, -Away, Direction, Surface);
-	const float Pitch = bArmedSwing ? 1.f : MeleeMotion::FistSoundPitch;
-	LooterSound::PlayAt(this, MeleeCue::Hit, Contact.Point, 1.f, Pitch);
+	LooterSound::PlayAt(this, MeleeCue::Hit, Contact.Point);
 	const FName CreatureLayer = HitCueOf(&Target);
 	const FName Layer = CreatureLayer.IsNone() ? UBulletSubsystem::ImpactCueOf(Hit, Surface) : CreatureLayer;
 	if (!Layer.IsNone())
@@ -234,7 +233,7 @@ bool UPlayerMeleeComponent::LandStrike(AActor& Target, const FMeleeContact& Cont
 	const bool bFeltAsKill = bKilled && !Target.ActorHasTag(FName(LooterBreakables::Tag));
 	FeelBlow(MeleeMotion::Impact(bFeltAsKill, KickRandom.FRandRange(-1.f, 1.f)), bFeltAsKill ? MeleeMotion::KillShake : MeleeMotion::ImpactShake,
 		FMeleeRules::AttackerHitStop);
-	UE_LOG(LogLooter, Verbose, TEXT("Melee: %s hit %s for %.1f%s (knocked %.0f cm/s)"), bArmedSwing ? TEXT("stock") : TEXT("fist"),
+	UE_LOG(LogLooter, Verbose, TEXT("Melee: %s hit %s for %.1f%s (knocked %.0f cm/s)"), *UEnum::GetValueAsString(Tool.Swing),
 		*Target.GetName(), Damage, bKilled ? TEXT(", killed") : TEXT(""), Knock.Size2D());
 	return true;
 }
@@ -261,7 +260,7 @@ void UPlayerMeleeComponent::StrikeWorld(const FMeleeAim& Aim)
 	{
 		LooterSound::PlayAt(this, Surface, Wall.ImpactPoint, MeleeMotion::WallVolume);
 	}
-	LooterSound::PlayAt(this, MeleeCue::Hit, Wall.ImpactPoint, MeleeMotion::WallVolume, bArmedSwing ? 1.f : MeleeMotion::FistSoundPitch);
+	LooterSound::PlayAt(this, MeleeCue::Hit, Wall.ImpactPoint, MeleeMotion::WallVolume);
 	FeelBlow(MeleeMotion::WallKnock(), 0.f, FMeleeRules::AttackerHitStop * 0.6f);
 }
 

@@ -81,9 +81,14 @@ private:
 		FVector Velocity = FVector::ZeroVector;
 		float Spin = 0.f;
 		float SpinRate = 10.f;
+		/** Its flutter's phase and rate (radians, radians a second). */
+		float Flutter = 0.f;
+		float FlutterRate = 9.f;
 		float Age = 0.f;
 		float Life = 0.6f;
 	};
+	/** The cards drawn as real cards (EmberFX::FCardDeck; the user's note 6, 2026-10-27). */
+	EmberFX::FCardDeck Deck;
 
 	TWeakObjectPtr<UBulletSubsystem> Bullets;
 	FDelegateHandle FiringHandle;

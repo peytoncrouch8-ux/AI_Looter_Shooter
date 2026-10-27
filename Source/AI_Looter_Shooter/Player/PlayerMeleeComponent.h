@@ -4,7 +4,9 @@
 #include "Components/ActorComponent.h"
 #include "Engine/HitResult.h"
 #include "Player/PawnInputBinding.h"
+#include "Player/PlayerMeleeMotion.h"
 #include "Player/PlayerMeleeRules.h"
+#include "Player/PlayerMeleeToolTypes.h"
 #include "PlayerMeleeComponent.generated.h"
 
 class AActor;
@@ -12,8 +14,24 @@ class AController;
 class APawn;
 class APlayerController;
 class AWeaponBase;
+class UHeroDefinition;
+class USceneComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
 class UWorld;
 struct FViewKick;
+
+/** The tool on the right arm as the first-person hands see it this frame (UPlayerMeleeComponent::GetToolHold). */
+struct FMeleeToolHold
+{
+	/** Camera space: a held tool's grip point and turn (X up the handle, Z its striking side), a forearm tool's fist. */
+	FTransform Grip = FTransform::Identity;
+	/** How much of the right hand is on the tool (1) rather than on the gun's grip (0). */
+	float HandShare = 0.f;
+	/** The handle's radius as drawn (cm): the fingers close on it. */
+	float HandleRadius = 1.6f;
+	EMeleeGripKind Kind = EMeleeGripKind::Held;
+};
 
 /** A strike's blow came (hit or miss) on what it hit (null for a miss). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerMelee, bool, bHit, AActor*, Target);
@@ -22,12 +40,17 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPlayerMeleeHit, const FHitResu
 
 /**
  * The player's quick melee strike (Docs/Polish/BorderlandsComparison.md, item 16): the Melee key (V, or the right stick's
- * click) swings the gun's stock, or a fist with no gun in hand, at the creature in front. The panic button against a
- * lunging Unpaid or a biting spider: solid damage, a stagger and a hop back that buy room to shoot. FMeleeRules has the
- * numbers and rules, MeleeMotion the swing's motion.
+ * click) swings the played hero's own tool in the right hand (the user's note 5 and picks, 2026-10-27: Ellis's grave
+ * spade, Odessa's razor fan, Crane's ferry gaff, Gauge's piston fist on his forearm, Pike's rock pick;
+ * UHeroDefinition::GetMeleeTool) at the creature in front, the gun dropped into the left hand meanwhile. The panic button
+ * against a lunging Unpaid or a biting spider: solid damage, a stagger and a hop back that buy room to shoot. FMeleeRules
+ * has the numbers and rules, MeleeMotion the swing's motion (the same clock and damage for every tool).
  *
- *  - The swing: 0.45 s, the blow at 0.12 s on the best body within reach and cone (FindStrikeTarget), then 0.6 s from
- *    the press to the next. Never mid-mantle or vault, in a scene, behind a menu, or dead.
+ *  - The swing: 0.5 s, the blow at 0.15 s on the best body within reach and cone (FindStrikeTarget), then 0.6 s from
+ *    the press to the next. Never mid-mantle or vault, mid-cast (an ember power's hands), in a scene, behind a menu, or dead.
+ *  - The tool (PlayerMeleeTool.cpp): its mesh on the first-person camera, shown through the swing in first person only
+ *    (third person keeps the body's jab: LooterStancePose::MeleeJab); the first-person hands put the right hand on it
+ *    (GetToolHold), with or without a gun.
  *  - The blow: the damage (UMeleeDamageType, from the player, so the gun in hand counts the kill as guns do for their
  *    holder's blows), the creature's stagger and hit-stop (FHitReaction's melee rules, through an FMeleeScope), the knock
  *    back (never over a drop; none for a boss), impact effects, the thud by what it hit, the hit marker (through the
@@ -92,6 +115,15 @@ public:
 	/** The thud's layer for what a blow lands on: shell for a spider, gel for a slime, flesh for any other creature. */
 	static FName HitCueOf(const AActor* Target);
 
+	/**
+	 * The tool on the right arm this frame, for the first-person hands: false when none is out (no swing, third person, or
+	 * its mesh can't be shown).
+	 */
+	bool GetToolHold(FMeleeToolHold& OutHold) const;
+
+	/** The tool the swings use now (the played hero's; the picks' table without one). */
+	const FHeroMeleeTool& GetTool() const { return Tool; }
+
 	/** Each strike's blow, hit or miss (the tutorial's hint listens). */
 	UPROPERTY(BlueprintAssignable, Category = "Melee")
 	FOnPlayerMelee OnMelee;
@@ -120,8 +152,20 @@ private:
 	void EndSwing(bool bResume);
 	/** The gun the swing took leaves it (back in its hold); bResume as EndSwing. */
 	void ReleaseWeapon(bool bResume);
-	/** The first-person gun where the swing has it now. */
+	/** The first-person gun and the tool where the swing has them now. */
 	void UpdateGunPose();
+
+	// --- The tool (PlayerMeleeTool.cpp) ---
+
+	/** The played hero's tool (made again when the hero changed): its data, its mesh on the first-person camera. */
+	void PrepareTool();
+	/** Builds the tool's components on the camera: Mesh with its socket on the root, or the basic-shape stand-in without one. */
+	void BuildTool(UStaticMesh* Mesh);
+	/** The tool where the swing has it now (shown in first person through the swing), or hidden. */
+	void PlaceTool();
+	void HideTool();
+	/** The owner's view is first person (the tool and hands are a first-person thing). */
+	bool IsFirstPersonView() const;
 
 	/** The local player controlling the pawn, or null. */
 	APlayerController* GetPlayer() const;
@@ -156,9 +200,22 @@ private:
 	bool bStruck = false;
 	/** It met something (a body or a wall): the gun stops there instead of following through. */
 	bool bLanded = false;
-	/** There was a gun in hand as the swing began (the fist's swing feels different). */
+	/** There was a gun in hand as the swing began (it drops into the left hand). */
 	bool bArmedSwing = false;
 	int32 MeleeCount = 0;
+
+	/** The tool the swings use, for whom it was made, and its pose this frame. */
+	FHeroMeleeTool Tool;
+	TWeakObjectPtr<const UHeroDefinition> ToolHero;
+	bool bToolPrepared = false;
+	FMeleeToolPose ToolPose;
+	/** The tool's components: a root on the first-person camera (the pose), the mesh (or the stand-in's parts) on it. */
+	UPROPERTY(Transient)
+	TObjectPtr<USceneComponent> ToolRoot;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> ToolParts;
+	/** The tool's mesh is the hero's own forearm piece (else held: the placeholder and the stand-in are held). */
+	bool bForearmMesh = false;
 
 	/** Which way each landed blow's jolt rolls. */
 	FRandomStream KickRandom{ 0x3e1ee };

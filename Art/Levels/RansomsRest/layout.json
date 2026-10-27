@@ -84,6 +84,28 @@
         "coal": { "channel": "A", "zones": { "diggings": 0.35, "depot": 0.3 }, "features": { "portalApron": 1.0, "diggingsYard": 0.7, "oreBinBay": 1.0, "spoilHeap": 0.8, "smithyPad": 0.6 }, "roads": { "oreTramway": 0.85, "railBed": 0.8 }, "soft": 5, "patch": 0.3, "grass": 0.4, "clutter": 0.6, "dark": "#0e0d0c", "light": "#4a4845", "own": 0.85, "rough": [0.88, 0.32] }
       },
       "yarrow": { "zones": ["chapel"], "spacing": 160, "keep": 0.55, "roadClear": 80 }
+    },
+    "roads": {
+      "about": "The roads at eye level (2026-10-27, the user's note 16: \"the map doesn't really prompt the player to use roads, it feels like a free for all\"): Art/Levels/area_places.py writes T_RansomsRestRoads_M from the roads here (no terrain run): how much road, meters across from its middle, its half width, its ruts' strength; M_Terrain's road term (Tools/Unreal/build_world_materials.py ROAD_WEIGHTS, apply_roads) makes each road's bed stony, packed and a little lighter (RoadBed: colour times rgb, a: meters its side wanders), gives it a worn darker edge (RoadVerge: x darkness, y meters past its side, z the ruts' roughness, w the bed's) and wheel ruts drawn per pixel (RoadRuts: x the gauge m, y a rut's width m, z its darkness, w a wide street's second pair this far out m; a path one trodden line), sunk in by RoadRelief (a rut's depth, m), read within reach m. skip: Main Street (its dust has ruts of its own) and the rails (cinder ballast). ruts: each kind's strength.",
+      "size": 1024,
+      "verge": 1.5,
+      "skip": ["mainStreet","railBed","oreTramway"],
+      "ruts": { "dirt": 1.0, "path": 0.55 },
+      "weight": {},
+      "amount": 1,
+      "instances": [
+        "MI_RansomsRestMacroSW_Steep",
+        "MI_RansomsRestMacroSE_Steep",
+        "MI_RansomsRestMacroNW_Steep",
+        "MI_RansomsRestMacroNE_Steep"
+      ],
+      "look": {
+        "RoadBed": [1.14,1.07,0.96,0.3],
+        "RoadRuts": [1.5,0.42,0.62,1.9],
+        "RoadVerge": [0.8,1.3,0.78,0.97],
+        "RoadRelief": 0.05,
+        "reach": 120
+      }
     }
   },
   "scatter": {
@@ -3082,11 +3104,11 @@
       ],
       "kinds": [
         { "class": "GravemotherCreature", "level": 4, "note": "Side 3, after Main 5: the Sink's floor, with her Soulfed rank's two on top level 6, over the Sink and a player there (about 5)" },
-        { "class": "AbelKeeper", "level": 6, "note": "Main 6's boss: the deck's top, with his Boss rank's one on top level 7, the area's hardest fight, a level over a player who's done the story (about 6)" },
+        { "class": "AbelKeeper", "level": 6, "note": "Main 6's boss, the story's last on Ransom's Rest: the deck's top, with his Boss rank's one on top level 7, the area's hardest fight, over the Foreman's 6; a player who follows the story (the mine included since 2026-10-27) arrives about 6.1, one who does everything about 6.8" },
         {
           "class": "ForemanCreature",
-          "level": 5,
-          "note": "Back Pay's Legendary monster in the Providence's stope: his Soulfed rank's two on top, level 7, level with Abel (the user's call, 2026-10-13)"
+          "level": 4,
+          "note": "Back Pay's Legendary monster in the Providence's stope, the story's second boss since 2026-10-27 (the user's note 32): his Soulfed rank's two on top, level 6, a level under Abel, the last; a player who follows the story arrives about 5.3, one who does everything about 6.2"
         }
       ]
     },
@@ -3220,7 +3242,11 @@
           "center": [-4400, -2000],
           "spots": [[-4100, -1800], [-4600, -1500], [-4800, -2150], [-4350, -2350], [-3950, -2150]],
           "ground": { "radius": 1300, "maxRise": 300 },
-          "crate": [[-4700, -1750, 45, false], [-4250, -1600, 30, false], [-4600, -2400, 60, false]],
+          "crate": [
+            [-5195,-2335,-18,true],[-5243,-2319,-18,true],[-5138,-2354,-18,true],[-5115,-2095,-18,true],
+            [-5255,-2515,-18,true],[-5035,-1855,-18,true],[-4700,-1750,45,false],[-4250,-1600,30,false],
+            [-4600,-2400,60,false]
+          ],
           "note": "Once the Unpaid have come for the corpse at the gate, some wait at the salt line for it: they never cross it (the farm is a safe zone, so they give up at the line), and they stand looking in at the farm."
         },
         {
@@ -3435,7 +3461,10 @@
           "spots": [[17300,-300],[16750,-250],[16800,-800],[17250,-750],[17000,-50]],
           "huntOnSpawn": false,
           "ground": { "radius": 1300, "maxRise": 300 },
-          "crate": [[17600,-1050,138,false],[16400,100,-45,false],[17650,150,225,false]]
+          "crate": [
+            [16452,-1518,62,true],[16346,-1483,82,true],[16539,-1587,42,true],[17600,-1050,138,false],
+            [16400,100,-45,false],[17650,150,225,false]
+          ]
         },
         {
           "id": "SpoilAmbush",
@@ -3646,5 +3675,167 @@
         "note": "the sheriff's office's board on Main Street"
       }
     ]
+  },
+  "roadside": {
+    "about": "The roads' own dressing (2026-10-27, the user's note 16: roads should read and pull; Tools/Unreal/build_area_dressing.py Plan.roadside, placed with the dressing). markers: posts (or cairns, up the mountain) every 'every' cm along the roads out of town, 'out' cm past the road's side ('side' -1 its right going along its path, else the left), never in the town's zones. lanterns: lantern posts on the last 'length' cm into town, both sides in turn, the lantern over the road. signs: a Signpost (ARoadSign, the names painted on its boards) where a branch leaves: 'along' cm along the road from 'at' (start, end, or the index of a point of its path) the way 'dir' says, 'out' cm past its side; its upper board points on along the road (upper: the place it leads to), its lower board back (lower: where it came from); the names are the map page's place names. Every piece keeps off the other pieces, the buildings, the obstacles and the other roads' beds, trying the other side first. mapRoads: an AMapRoad per road, which the minimap's bake paints, so the HUD minimap and the map page draw the roads.",
+    "markers": [
+      {
+        "mesh": "FencePost",
+        "every": 2200,
+        "out": 110,
+        "side": -1,
+        "roads": ["westRoad","keepersPath","northRoad","sinkRoad","quarryTrack","fieldsPath","bluffApproach"]
+      },
+      {
+        "mix": ["Cairn_A","Cairn_B","Cairn_C"],
+        "every": 1800,
+        "out": 100,
+        "side": -1,
+        "roads": ["benchTrail","crestPath"]
+      }
+    ],
+    "lanterns": {
+      "mesh": "LanternPost",
+      "out": 90,
+      "runs": [
+        { "road": "farmRoad", "from": "end", "length": 2600, "every": 1300 },
+        { "road": "yardRoad", "from": "start", "length": 1800, "every": 900 },
+        { "road": "northRoad", "from": "start", "length": 1400, "every": 1400 },
+        { "road": "fieldsPath", "from": "start", "length": 1000, "every": 1000 }
+      ]
+    },
+    "signs": [
+      {
+        "id": "FarmRoad",
+        "road": "farmRoad",
+        "at": "end",
+        "dir": -1,
+        "along": 900,
+        "side": 1,
+        "upper": "RANSOM FARM",
+        "lower": "MAIN STREET"
+      },
+      {
+        "id": "NorthRoad",
+        "road": "northRoad",
+        "at": 1,
+        "dir": 1,
+        "along": 600,
+        "side": -1,
+        "upper": "CHAPEL",
+        "lower": "MAIN STREET"
+      },
+      {
+        "id": "SinkRoad",
+        "road": "sinkRoad",
+        "at": "start",
+        "dir": 1,
+        "along": 800,
+        "side": -1,
+        "upper": "THE SINK",
+        "lower": "MAIN STREET"
+      },
+      {
+        "id": "QuarryTrack",
+        "road": "quarryTrack",
+        "at": "start",
+        "dir": 1,
+        "along": 600,
+        "side": 1,
+        "upper": "OLD QUARRY",
+        "lower": "MAIN STREET"
+      },
+      {
+        "id": "WestRoadChapel",
+        "road": "westRoad",
+        "at": "start",
+        "dir": 1,
+        "along": 700,
+        "side": -1,
+        "upper": "KEEPER'S GATE",
+        "lower": "CHAPEL"
+      },
+      {
+        "id": "WestRoadGrave",
+        "road": "westRoad",
+        "at": 4,
+        "dir": 1,
+        "along": 500,
+        "side": 1,
+        "upper": "KEEPER'S GATE",
+        "lower": "CHAPEL"
+      },
+      {
+        "id": "KeepersPath",
+        "road": "keepersPath",
+        "at": "end",
+        "dir": -1,
+        "along": 500,
+        "side": 1,
+        "upper": "RANSOM FARM",
+        "lower": "KEEPER'S GRAVE"
+      },
+      {
+        "id": "FieldsPath",
+        "road": "fieldsPath",
+        "at": "start",
+        "dir": 1,
+        "along": 800,
+        "side": 1,
+        "upper": "WHITLOCK FIELDS",
+        "lower": "MAIN STREET"
+      },
+      {
+        "id": "YardRoad",
+        "road": "yardRoad",
+        "at": "start",
+        "dir": 1,
+        "along": 600,
+        "side": 1,
+        "upper": "DEPOT",
+        "lower": "MAIN STREET"
+      },
+      {
+        "id": "BluffApproach",
+        "road": "bluffApproach",
+        "at": "start",
+        "dir": 1,
+        "along": 400,
+        "side": 1,
+        "upper": "RANSOM'S POINT",
+        "lower": "RANSOM FARM"
+      },
+      {
+        "id": "BenchTrail",
+        "road": "benchTrail",
+        "at": "start",
+        "dir": 1,
+        "along": 500,
+        "side": 1,
+        "upper": "CALDER'S POST",
+        "lower": "LIFT HEAD"
+      },
+      {
+        "id": "CrestPath",
+        "road": "crestPath",
+        "at": "start",
+        "dir": 1,
+        "along": 400,
+        "side": -1,
+        "upper": "GOAT STEPS",
+        "lower": "LIFT HEAD"
+      },
+      {
+        "id": "OreTramway",
+        "road": "oreTramway",
+        "at": "end",
+        "dir": -1,
+        "along": 500,
+        "side": 1,
+        "upper": "THE DIGGINGS",
+        "lower": "LIFT HEAD"
+      }
+    ],
+    "mapRoads": true
   }
 }

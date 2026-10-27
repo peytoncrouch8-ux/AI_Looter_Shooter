@@ -73,7 +73,9 @@ struct FMeleeContact
  * The melee strike's rules (Docs/Polish/BorderlandsComparison.md, item 16), as plain numbers with no engine state:
  * UPlayerMeleeComponent plays them, and the tests drive them.
  *
- *  - The swing: 0.45 s from the press, the blow landing 0.12 s in; another can start 0.6 s after the last one did.
+ *  - The swing: 0.5 s from the press, the blow landing 0.15 s in; another can start 0.6 s after the last one did. (0.45 s
+ *    and 0.12 s until 2026-10-27: the hero's tool in the right hand needs a wind-up the eye can catch, the user's note 5,
+ *    "melee animation is jank"; still under Borderlands' quick melee.)
  *  - The reach: 1.7 m across the ground from the eye's line to the body's near side (2 m at full size, times the player's
  *    0.85), within a 50 degree cone; a body pressed against the player (35 cm) is hit anywhere in front.
  *  - The damage: 60 at level 1, a tenth of a Common rifle's 30-round magazine (20 a round), growing with the player's
@@ -86,8 +88,8 @@ struct FMeleeContact
 struct AI_LOOTER_SHOOTER_API FMeleeRules
 {
 	// --- The swing (seconds) ---
-	static constexpr float SwingSeconds = 0.45f;
-	static constexpr float ContactSeconds = 0.12f;
+	static constexpr float SwingSeconds = 0.5f;
+	static constexpr float ContactSeconds = 0.15f;
 	static constexpr float CooldownSeconds = 0.6f;
 	/** The swing's own clock holds this long as the blow lands (the striker's half of the hit-stop). */
 	static constexpr float AttackerHitStop = 0.05f;

@@ -22,9 +22,11 @@
 #include "UObject/Package.h"
 #include "UObject/TopLevelAssetPath.h"
 
-// Ransom's Rest's pacing (Docs/Progression.md; the user's levels of 2026-10-13): the story alone (every main mission turned
-// in, the fights on its way, the roaming dead once) ends about level 5.5, and everything there (every side mission too, the
-// mountain, the Gravemother, every optional camp once) about 6.8. Experience comes only from kills and turned-in missions.
+// Ransom's Rest's pacing (Docs/Progression.md; the user's levels of 2026-10-13, re-paced 2026-10-27 when the mine joined the
+// story): the story alone (every main mission turned in, Dead Lift and Back Pay among them, the fights on its way, the roaming
+// dead once) ends about level 6.9, and everything there (every side mission too, the rest of the mountain, the Gravemother,
+// every optional camp once) about 7.5; the story alone meets the Foreman and Abel about a level under their levels, an
+// explorer at most half a level over. Experience comes only from kills and turned-in missions.
 // This plays both paths (PacingPaths.h) on paper from the same data the game uses: the mission assets' rewards, the
 // creatures' own XPReward, the rank settings, the creatures' levels where each fight stands (layout.json gameplay.levels: its
 // zones and the set levels, never the player's) and Ransom's Rest's promotion odds, the progression settings' curve and kill
@@ -287,6 +289,19 @@ namespace
 		double WithoutRoaming = 0.0;
 		int32 Kills = 0;
 		bool bValid = true;
+		/** Each boss met (a kill of its own rank: Abel, the Foreman, the Gravemother): the player's level arriving, and its own. */
+		struct FArrival
+		{
+			const ACreatureBase* Boss = nullptr;
+			double PlayerLevel = 0.0;
+			int32 BossLevel = 0;
+		};
+		TArray<FArrival> Arrivals;
+
+		const FArrival* FindArrival(const ACreatureBase* Boss) const
+		{
+			return Arrivals.FindByPredicate([Boss](const FArrival& Each) { return Each.Boss == Boss; });
+		}
 	};
 
 	/** Plays a path on paper: kills one at a time at the level the ones before left the player on, then each turn-in. */
@@ -304,6 +319,15 @@ namespace
 				{
 					Result.bValid = false;
 					return Result;
+				}
+				if (Group.Rank == EPathRank::Own)
+				{
+					// A boss: where the player stands as the fight begins, against its set level and its rank's.
+					int32 Lowest = 1;
+					int32 Highest = 1;
+					LevelsOf(Group, Area, Lowest, Highest);
+					Result.Arrivals.Add({ Group.Creature, LevelOf(Curve, Result.Total),
+						Lowest + UCreatureRankSettings::Get(Group.Creature->StartingRank).LevelOffset });
 				}
 				for (int32 Each = 0; Each < Group.Count; ++Each)
 				{
@@ -457,7 +481,20 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 	const double Reached = LevelOf(Curve, Played.Total);
 	AddInfo(FString::Printf(TEXT("The story ends at level %.2f after %d kills: %.0f XP from kills, %.0f from missions, %.0f in all (level 5 at %lld, 6 at %lld)."),
 		Reached, Played.Kills, Played.FromKills, Played.FromMissions, Played.Total, Curve.TotalXPToReach(5), Curve.TotalXPToReach(6)));
-	TestTrue(FString::Printf(TEXT("Ransom's Rest's story alone ends about level 5.5 (%.2f, 5.3 to 5.8)"), Reached), Reached >= 5.3 && Reached <= 5.8);
+	// Since 2026-10-27 (the user's note 32) the story goes through the mine and the Foreman before Abel: about 6.9.
+	TestTrue(FString::Printf(TEXT("Ransom's Rest's story alone ends about level 6.9 (%.2f, 6.7 to 7.1)"), Reached), Reached >= 6.7 && Reached <= 7.1);
+	// The player arrives near each boss's level (Docs/Progression.md): following the story alone, about a level under the
+	// Foreman and Abel (the paper model: 5.3 for the Foreman's 6, 6.1 for Abel's 7; a quarter level's slack for the layout's
+	// own numbers) and never over them.
+	for (const ACreatureBase* Boss : { Foes.Foreman, Foes.Abel })
+	{
+		const FPathResult::FArrival* Arrived = Played.FindArrival(Boss);
+		if (TestNotNull(*FString::Printf(TEXT("The story meets %s"), *GetNameSafe(Boss ? Boss->GetClass() : nullptr)), Arrived))
+		{
+			TestTrue(FString::Printf(TEXT("...arriving at level %.2f for its %d (a level and a quarter under at most)"), Arrived->PlayerLevel,
+				Arrived->BossLevel), Arrived->PlayerLevel >= Arrived->BossLevel - 1.25 && Arrived->PlayerLevel <= Arrived->BossLevel);
+		}
+	}
 	TestTrue(FString::Printf(TEXT("...and level 5 even without the roaming kills (%.2f)"), LevelOf(Curve, Played.WithoutRoaming)),
 		LevelOf(Curve, Played.WithoutRoaming) >= 5.0);
 	// The turn-ins carry most of a level, as in Borderlands. At least three fifths since the user's bigger fights (2026-10-21:
@@ -474,7 +511,15 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 	const double Explorer = LevelOf(Curve, Explored.Total);
 	AddInfo(FString::Printf(TEXT("Everything once ends at level %.2f after %d kills: %.0f XP from kills, %.0f from missions, %.0f in all (level 7 at %lld)."),
 		Explorer, Explored.Kills, Explored.FromKills, Explored.FromMissions, Explored.Total, Curve.TotalXPToReach(7)));
-	TestTrue(FString::Printf(TEXT("...and everything once about level 6.8 (%.2f, 6.6 to 7.0)"), Explorer), Explored.bValid && Explorer >= 6.6 && Explorer <= 7.0);
+	TestTrue(FString::Printf(TEXT("...and everything once about level 7.5 (%.2f, 7.3 to 7.7)"), Explorer), Explored.bValid && Explorer >= 7.3 && Explorer <= 7.7);
+	// An explorer arrives at each boss about at its level: never more than half a level over (the user's 2026-10-27 call:
+	// the bosses were "way too easy" for where they come).
+	for (const FPathResult::FArrival& Arrived : Explored.Arrivals)
+	{
+		TestTrue(FString::Printf(TEXT("Everything once meets %s at level %.2f for its %d (half a level over at most)"),
+			*GetNameSafe(Arrived.Boss ? Arrived.Boss->GetClass() : nullptr), Arrived.PlayerLevel, Arrived.BossLevel),
+			Arrived.PlayerLevel <= Arrived.BossLevel + 0.5);
+	}
 
 	// The bluff's spiders stay level 1-2 whoever comes: a player back there at the story's end (level 7) gets a share of what
 	// a level 1 player gets, as the kill rules take it off a creature below the player (at the full XPReward, so the shipped

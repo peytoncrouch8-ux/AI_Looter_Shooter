@@ -347,10 +347,13 @@ private:
 	void GetPlayerProgress(FPlayerProgressData& OutProgress) const;
 
 	/**
-	 * The game's first level (the default map): the main menu's backdrop, where a session continues when its level is gone,
+	 * The game's first level (the default map): where a session continues when its level is gone (the menu has its own map, MenuMap),
 	 * and where a new game starts only while the story's first level isn't in the game.
 	 */
 	static FString NewGameMap();
+
+	/** The main menu's map: the default map (Lvl_MenuTeropa, Teropa from orbit, since 2026-10-27). */
+	static FString MenuMap();
 
 	/** Saves the session being played for Reason when the gate lets it; a save held back saves once the holds end. */
 	bool SaveFor(ESessionSaveReason Reason);

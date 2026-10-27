@@ -2,6 +2,7 @@
 // Ransom's Rest). Skyreach is no longer the start (the user's call, 2026-10-13): it comes later, from the Lily.
 
 #include "Session/SessionSubsystem.h"
+#include "Story/NewGameIntroSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Areas/AreaDefinition.h"
@@ -35,10 +36,15 @@ UWeaponDefinition* USessionSubsystem::LoadBullpup()
 
 FString USessionSubsystem::NewGameMap()
 {
-	// "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland" is the object; OpenLevel and the saves use the package. Still the
-	// menu's backdrop and the fallback, though a new game starts on the story's first level.
-	const FString DefaultMap = UGameMapsSettings::GetGameDefaultMap();
-	return FPackageName::ObjectPathToPackageName(DefaultMap);
+	// The fallback a session lands on when its level is gone (a new game starts on the story's first level). It was the
+	// default map until the menu moved to Teropa's own scene (2026-10-27), so it's named here now.
+	return TEXT("/Game/Maps/Lvl_TutorialIsland");
+}
+
+FString USessionSubsystem::MenuMap()
+{
+	// The default map is the menu's scene (Lvl_MenuTeropa since 2026-10-27); OpenLevel takes the package.
+	return FPackageName::ObjectPathToPackageName(UGameMapsSettings::GetGameDefaultMap());
 }
 
 bool USessionSubsystem::CanStartStory()
@@ -128,15 +134,31 @@ bool USessionSubsystem::StartNewGame(int32 Index, FName HeroId)
 		return false;
 	}
 
-	// Behind the white: the cold open takes it on the story's first level (UAreaTravelSubsystem), or, with scenes off, the
-	// title rises through it there.
-	if (UTransitionScreenSubsystem* White = GetGameInstance()->GetSubsystem<UTransitionScreenSubsystem>())
-	{
-		White->HoldWhite();
-	}
 	const FString Map = First->GetMapPackage();
 	UE_LOG(LogLooter, Log, TEXT("Session %d: new game as %s, the story begins in %s at %s"), Index + 1, *Save->HeroId.ToString(), *Map,
 		*StationBoard::FirstArrivalLanding().ToString());
-	UGameplayStatics::OpenLevel(World, FName(*Map), /*bAbsolute*/ true, FString::Printf(TEXT("Session=%d"), Index + 1));
+	// Behind the white: the cold open takes it on the story's first level (UAreaTravelSubsystem), or, with scenes off, the
+	// title rises through it there.
+	const TWeakObjectPtr<USessionSubsystem> WeakThis = this;
+	TFunction<void()> Open = [WeakThis, Map, Index]()
+	{
+		USessionSubsystem* Sessions = WeakThis.Get();
+		UWorld* Now = Sessions ? Sessions->GetGameInstance()->GetWorld() : nullptr;
+		if (!Now)
+		{
+			return;
+		}
+		if (UTransitionScreenSubsystem* White = Sessions->GetGameInstance()->GetSubsystem<UTransitionScreenSubsystem>())
+		{
+			White->HoldWhite();
+		}
+		UGameplayStatics::OpenLevel(Now, FName(*Map), /*bAbsolute*/ true, FString::Printf(TEXT("Session=%d"), Index + 1));
+	};
+	// The new game's intro first, when the menu is Teropa's scene (Story/NewGameIntroSubsystem): the level opens at its white.
+	UNewGameIntroSubsystem* Intro = GetGameInstance()->GetSubsystem<UNewGameIntroSubsystem>();
+	if (!Intro || !Intro->PlayPlanet(*World, Index, Open))
+	{
+		Open();
+	}
 	return true;
 }

@@ -28,13 +28,15 @@ stands on; a negative height is a drop.
   drop into Gravewind Canyon, with plains running to the sunset beyond.
 - Size (the valley): about 309 × 205 m with Gravewind Point and Stage Gap, about 42,800 m², about 1.5× the tutorial island
   (about 28,500 m²; both measured on their outlines). The mountain up the ore lift adds about +50%: expansion §6.
-- Missions, play time, XP: expansion §2 (7 main, 9 side; main path about 74 minutes, everything about 3 h 15) and §10
-  (story alone about level 5.5, a full clear about 6.8; `Docs/Progression.md`).
+- Missions, play time, XP: expansion §2 (9 main, 8 side since 2026-10-27: Dead Lift and Back Pay main, Lost and Found new;
+  main path about 110 minutes, everything about 3 h 20) and §10 (story alone about level 6.9, a full clear about 7.5;
+  `Docs/Progression.md`).
 - Enemy levels: by where they stand, never the player's level (2026-10-12): 1–6 before ranks, rising along the story from
-  the bluff (1–2) to the deck (5–6); the Gravemother set at 6, Abel 7 (`layout.json` `gameplay.levels`;
-  `Docs/Progression.md`, "Creature levels"). The mountain: zones 5–6, the Foreman a set 7 (expansion §10).
-- Boss: Abel Ransom, the Keeper (one of the Unpaid).
-- Legendary monsters: the Gravemother, in the Sink's den; the Foreman, in the Providence mine (expansion §6).
+  the bluff (1–2) to the deck (5–6); the Gravemother set at 6, the Foreman 6, Abel 7 (`layout.json` `gameplay.levels`;
+  `Docs/Progression.md`, "Creature levels"). The mountain: zones 5–6 (expansion §10).
+- Bosses on the story's path (the user's note 32, 2026-10-27): Cyrus Teague, the Foreman (Back Pay, in the Providence),
+  then Abel Ransom, the Keeper (one of the Unpaid), the last.
+- Legendary monsters: the Gravemother, in the Sink's den (optional); the Foreman, in the Providence mine (expansion §6).
 - New enemy family: the Unpaid.
 - Light: golden late afternoon, sun low in the west-southwest over the canyon; a scripted dusk for the cold open and the boss.
 - Arrival: a new game plays the cold open, then the grave (expansion §1, "The opening"; Skyreach's tutorial is retired).
@@ -395,6 +397,15 @@ gone but Main 1's, the Old Fare's and his catch-all. Side 1 tears 4 posters. Sid
 is said as the last falls (no road talk). Knocking Below: the key off the hook first, Thaddeus's talk and tape one step.
 Dead Lift: only Abe's pin (the crank stays on the winch, the boiler takes the quarry's coal). Tilly hands Pa's bail over
 at Main 3's turn-in. The Old Fare is kept word for word, with a second push in the waiting room as the coins come down.
+
+**The mine in the story, and Lost and Found (2026-10-27, playtest notes 32 and 37; STORY round 3):** Dead Lift and Back
+Pay are main missions after Main 5 (ids and steps unchanged; met first at Hiram's stool and at the lift head's speaking
+tube, no card); Main 6 waits for Back Pay, so Cyrus Teague is the second boss and Abel the last. Main 5's turn-in says why
+(Aldana: Teague still drives his dead shift, and at dusk they'd follow Ellis to the boards; Hob points at the lift); Hiram
+says who Teague was after Dead Lift's turn-in; Delia's door meanwhile (`DA_Lines_DeliaMine`); Hob sends Ellis to her
+door after Back Pay's choice. Lost and Found: Mr. Sloane's keys under the waiting room's benches, then the LOST
+PROPERTY window unlocked at its hatch; offered at his ticket window after the Old Fare; until it's turned in the window is
+shut and the ground's clock holds (no gun goes to the shelves while lying). XP: `Docs/Progression.md`.
 
 Still true here (the expansion keeps these where it says "today's"):
 - Sexton's deal comes early, about 15 minutes in, on the lookout where Ellis died (decided at step 1), so the seven names are

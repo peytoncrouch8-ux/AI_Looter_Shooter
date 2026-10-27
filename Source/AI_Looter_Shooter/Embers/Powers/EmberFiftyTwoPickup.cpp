@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Character.h"
+#include "HAL/IConsoleManager.h"
 
 namespace
 {
@@ -20,12 +21,19 @@ namespace
 	const FName ConeName(TEXT("ConeDegrees"));
 	const FName FanTallName(TEXT("FanTall"));
 
-	/** A card stuck in the world glints this long, then fades over the last of it. */
-	constexpr float StuckSeconds = 1.4f;
-	constexpr float StuckFade = 0.4f;
-	/** How bright a card is in the air, and how big it's drawn there (bigger than a real card, so a fan reads at range). */
-	constexpr float CardGlow = 16.f;
-	constexpr float FlyingCardSize = 1.35f;
+	TAutoConsoleVariable<float> CVarWallStick(TEXT("Looter.Embers.FiftyTwo.WallStick"), 1.4f,
+		TEXT("Seconds a Fifty-Two Pickup card stays stuck in the world before it's gone (it shrinks away over the last 0.35)."));
+	TAutoConsoleVariable<float> CVarBodyStick(TEXT("Looter.Embers.FiftyTwo.BodyStick"), 1.2f,
+		TEXT("Seconds a Fifty-Two Pickup card stays stuck in the creature it cut (riding its body) before it's gone."));
+	TAutoConsoleVariable<float> CVarSink(TEXT("Looter.Embers.FiftyTwo.Sink"), 0.35f,
+		TEXT("How far a stuck card is sunk in, edge first (a share of its half length)."));
+	TAutoConsoleVariable<float> CVarTrail(TEXT("Looter.Embers.FiftyTwo.Trail"), 3.f,
+		TEXT("The glow of the faint trail of Odessa's colour behind each flying card (0: none)."));
+	TAutoConsoleVariable<float> CVarHandRight(TEXT("Looter.Embers.FiftyTwo.HandRight"), -12.f,
+		TEXT("Where the deck leaves the body in first person, cm right of the eye (negative: left, the casting hand's side)."));
+
+	/** A stuck card shrinks away over this last share of its time. */
+	constexpr float StuckFade = 0.35f;
 	/** The red of a card's cut: a flick of its face's ink. */
 	const FLinearColor CutRed(0.9f, 0.12f, 0.15f);
 
@@ -55,12 +63,12 @@ void UEmberFiftyTwoPickup::Activate(const FEmberContext& Context)
 	Cuts = 0;
 	Random.Initialize(static_cast<int32>(GetTypeHash(Character->GetActorLocation())) ^ 0x52);
 
-	// The deck fanned out evenly over the fan (rows and columns, a little give in each card's place), from the hand.
+	// The deck fanned out evenly over the fan (rows and columns, a little give in each card's place), from the casting hand.
 	FVector Eye;
 	FVector Aim;
 	GetAim(*Character, Eye, Aim);
 	const FRotator AimRotation = Aim.Rotation();
-	const FVector Hand = HandPoint(*Character, 12.f, 12.f, 40.f);
+	const FVector Hand = HandPoint(*Character, CVarHandRight.GetValueOnGameThread(), 12.f, 40.f);
 	const int32 Rows = FMath::Max(1, FMath::RoundToInt(FMath::Sqrt(Count * Tall / Wide)));
 	const int32 Columns = FMath::DivideAndRoundUp(Count, Rows);
 	Cards.Reset(Count);
@@ -76,6 +84,10 @@ void UEmberFiftyTwoPickup::Activate(const FEmberContext& Context)
 		Card.Velocity = Way * CardSpeed * Random.FRandRange(0.9f, 1.1f);
 		Card.Spin = Random.FRandRange(0.f, UE_TWO_PI);
 		Card.SpinRate = Random.FRandRange(18.f, 30.f) * (Random.FRand() < 0.5f ? -1.f : 1.f);
+		Card.Flutter = Random.FRandRange(0.f, UE_TWO_PI);
+		Card.FlutterRate = Random.FRandRange(8.f, 14.f);
+		// The fan's cards slant with their place across it, as a fanned hand does.
+		Card.Roll = U * 0.9f + Random.FRandRange(-0.2f, 0.2f);
 	}
 
 	// Who may be cut: the living within its reach.
@@ -115,6 +127,8 @@ void UEmberFiftyTwoPickup::End(const FEmberContext& Context, bool bInterrupted)
 		{
 			Card.bDone = true;
 		}
+		Deck.Begin();
+		Deck.Flush(GetBodyWorld(), Color);
 	}
 }
 
@@ -130,6 +144,39 @@ bool UEmberFiftyTwoPickup::Linger(float DeltaSeconds)
 	return bShowing || !Sparks.IsEmpty();
 }
 
+void UEmberFiftyTwoPickup::StickCard(FCard& Card, const FVector& At, const FVector& Way, ACreatureBase* Struck) const
+{
+	// Edge first: its long side along the way it flew, sunk in a share of its half length; it stops spinning there.
+	const float Size = EmberFX::CardSize();
+	const FQuat Turn = EmberFX::FlyingCardTurn(Way, 0.f, Card.Flutter, Card.Roll);
+	const FVector Center = At - Way * (EmberFX::CardLong * Size * 0.5f * (1.f - FMath::Clamp(CVarSink.GetValueOnGameThread(), 0.f, 0.9f)));
+	const FTransform World(Turn, Center);
+	Card.bStuck = true;
+	Card.bOnBody = Struck != nullptr;
+	Card.StuckAge = 0.f;
+	Card.StuckIn = Struck;
+	Card.StuckAt = Struck ? World.GetRelativeTransform(Struck->GetActorTransform()) : World;
+	Card.Location = Center;
+}
+
+void UEmberFiftyTwoPickup::StepStuck(FCard& Card, float DeltaSeconds)
+{
+	Card.StuckAge += DeltaSeconds;
+	const float Life = FMath::Max(Card.bOnBody ? CVarBodyStick.GetValueOnGameThread() : CVarWallStick.GetValueOnGameThread(), 0.05f);
+	ACreatureBase* RiddenBody = Card.StuckIn.Get();
+	// Gone once its time is up, or with the body it rode.
+	if (Card.StuckAge >= Life || (Card.bOnBody && !RiddenBody))
+	{
+		Card.bDone = true;
+		return;
+	}
+	const FTransform Place = RiddenBody ? Card.StuckAt * RiddenBody->GetActorTransform() : Card.StuckAt;
+	Card.Location = Place.GetLocation();
+	// Shrinks away over the last of its time (the cards are lit and solid: no fading them out).
+	const float Left = FMath::Clamp((Life - Card.StuckAge) / (Life * StuckFade), 0.f, 1.f);
+	Deck.Add(Card.Location, Place.GetRotation(), EmberFX::CardSize() * FMath::SmoothStep(0.f, 1.f, Left));
+}
+
 void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
 {
 	UWorld* World = GetBodyWorld();
@@ -139,6 +186,9 @@ void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
 	{
 		return;
 	}
+	Deck.Begin();
+	const float Size = EmberFX::CardSize();
+	const float Trail = FMath::Max(CVarTrail.GetValueOnGameThread(), 0.f);
 	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("FiftyTwoPickup"), Body.Get());
 	TMap<TWeakObjectPtr<ACreatureBase>, FCutsOn> CutsOn;
 	for (FCard& Card : Cards)
@@ -149,23 +199,14 @@ void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
 		}
 		if (Card.bStuck)
 		{
-			// Stuck in the world: a glint that fades.
-			Card.StuckAge += Dt;
-			if (Card.StuckAge >= StuckSeconds)
-			{
-				Card.bDone = true;
-				continue;
-			}
-			if (FX)
-			{
-				const float Fade = 1.f - FMath::Clamp((Card.StuckAge - (StuckSeconds - StuckFade)) / StuckFade, 0.f, 1.f);
-				EmberFX::DrawCard(*FX, Card.Location, Card.StuckAlong, Card.Spin, Color, CardGlow * 0.5f * Fade);
-			}
+			StepStuck(Card, Dt);
 			continue;
 		}
 		const FVector From = Card.Location;
 		FVector To = From + Card.Velocity * Dt;
 		Card.Spin += Card.SpinRate * Dt;
+		Card.Flutter += Card.FlutterRate * Dt;
+		const FVector Way = Card.Velocity.GetSafeNormal();
 
 		// A body in its way first (the nearest along the card's path), then the world.
 		ACreatureBase* Cut = nullptr;
@@ -197,24 +238,25 @@ void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
 		if (bWall && (!Cut || static_cast<float>(Wall.Distance) < CutAlong))
 		{
 			// Into the world: it sticks there, edge first, with a puff of what it struck.
-			Card.bStuck = true;
-			Card.Location = Wall.ImpactPoint + Wall.ImpactNormal * 1.5;
-			Card.StuckAlong = Card.Velocity.GetSafeNormal();
+			StickCard(Card, Wall.ImpactPoint, Way, nullptr);
 			if (FX && Random.FRand() < 0.35f)
 			{
 				FX->SpawnGrit(Wall.ImpactPoint, (Wall.ImpactNormal + Random.GetUnitVector() * 0.5).GetSafeNormal() * 200.f, 0.6f, 0.4f);
 			}
+			StepStuck(Card, 0.f);
 			continue;
 		}
 		if (Cut)
 		{
-			Card.bDone = true;
+			// Into the body: it sticks there and rides it.
 			++Cuts;
 			FCutsOn& On = CutsOn.FindOrAdd(Cut);
 			On.Damage += Damage;
 			++On.Count;
 			On.At = CutAt;
-			On.Along = Card.Velocity.GetSafeNormal();
+			On.Along = Way;
+			StickCard(Card, CutAt, Way, Cut);
+			StepStuck(Card, 0.f);
 			continue;
 		}
 		Card.Location = To;
@@ -226,9 +268,11 @@ void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
 			Sparks.Spawn(To, Card.Velocity * 0.05f, 0.25f, 1.f, Color, 10.f, 200.f, 3.f);
 			continue;
 		}
-		if (FX)
+		Deck.Add(Card.Location, EmberFX::FlyingCardTurn(Card.Velocity, Card.Spin, Card.Flutter, Card.Roll), Size);
+		if (FX && Trail > 0.f)
 		{
-			EmberFX::DrawCard(*FX, Card.Location, Card.Velocity, Card.Spin, Color, CardGlow, FlyingCardSize);
+			// A faint streak of her colour behind it, so the fan's paths read against a bright sky.
+			FX->AddStreak(Card.Location - Way * (EmberFX::CardLong * Size * 1.5f), Card.Location, EmberFX::CardShort * Size * 0.25f, Color, Trail);
 		}
 	}
 
@@ -256,4 +300,5 @@ void UEmberFiftyTwoPickup::StepCards(float DeltaSeconds)
 		}
 	}
 	Sparks.Tick(Dt, FX);
+	Deck.Flush(World, Color);
 }

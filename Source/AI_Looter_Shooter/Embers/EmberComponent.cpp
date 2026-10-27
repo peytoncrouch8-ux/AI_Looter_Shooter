@@ -152,7 +152,7 @@ bool UEmberComponent::EquipIndex(int32 Index)
 	BindHero();
 	const TArray<TObjectPtr<UEmberDefinition>>& Owned = GetOwned();
 	// A running power finishes first: swapping mid-power would leave its world half changed.
-	if (!Owned.IsValidIndex(Index) || !Owned[Index] || Index == EquippedIndex || State == EEmberState::Active)
+	if (!Owned.IsValidIndex(Index) || !Owned[Index] || Index == EquippedIndex || State == EEmberState::Active || PendingIndex != INDEX_NONE)
 	{
 		return false;
 	}
@@ -211,7 +211,8 @@ EEmberDenied UEmberComponent::TryUse()
 		OnDenied.Broadcast(Why);
 		return Why;
 	}
-	Fire(EquippedIndex);
+	// The hands' cast first: the power fires at its release (at once without the first-person hands).
+	BeginCast(EquippedIndex);
 	return EEmberDenied::None;
 }
 
@@ -250,6 +251,11 @@ EEmberDenied UEmberComponent::GetBlock() const
 	{
 		return EEmberDenied::Busy;
 	}
+	// A press already taken, its cast's lead still running.
+	if (PendingIndex != INDEX_NONE)
+	{
+		return EEmberDenied::Busy;
+	}
 
 	if (State == EEmberState::Active)
 	{
@@ -276,6 +282,7 @@ void UEmberComponent::Fire(int32 Index)
 	{
 		EndActive(true);
 	}
+	NoteFired(Def->Id);
 
 	// Both clocks start at the use: the cooldown counts from now, not from the end of the duration.
 	ActiveIndex = Index;
@@ -332,6 +339,7 @@ void UEmberComponent::EndActive(bool bInterrupted)
 
 void UEmberComponent::Interrupt()
 {
+	CancelCast();
 	if (ActiveIndex != INDEX_NONE)
 	{
 		UE_LOG(LogLooter, Log, TEXT("Embers: the running power was cut short"));
@@ -353,6 +361,8 @@ void UEmberComponent::Finish()
 void UEmberComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	// A press waiting out its cast's lead fires at its end.
+	TickCast(DeltaTime);
 
 	// The cooldown counts from the use, through the power's own duration.
 	CooldownLeft = FMath::Max(CooldownLeft - DeltaTime, 0.f);
@@ -386,7 +396,7 @@ void UEmberComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 		LooterSound::Play2D(this, ReadyCue);
 	}
 
-	if (State == EEmberState::Ready)
+	if (State == EEmberState::Ready && PendingIndex == INDEX_NONE)
 	{
 		CooldownTotal = 0.f;
 		SetComponentTickEnabled(false);

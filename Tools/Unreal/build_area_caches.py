@@ -17,9 +17,11 @@ Art/Models/Loot/Chests.py) is left out with a warning, and so is everything whil
   - RangerCache_SinkRim, on the Sink's rim: on the east rim just outside the north warning fence, its back to the fence
     and the pit, across the pit from the ramp head and well off the Sink road (Den Rock's collision reaches past its
     rock, so the rim by its flank is out).
-  - RangerCache_BluffPath, on the bluff path: where the path tops out on Ransom's Point, tucked against the east lip a
-    few metres north of it, behind the right shoulder of a player coming up. The path itself climbs about 1 in 4, too
-    steep for a crate to stand level on.
+  - RangerCache_BluffPath, at the bluff path's end: up the lookout's stair on Ransom's Point, on its deck by the right
+    rail beside the deck's own crate and rope (the user's note 26, 2026-10-27: chests "in more distinguished locations",
+    found by a view or a little climb; the deck is the valley's great view), a perch spot (seated on the deck, PERCH).
+    Before that it stood where the path tops out, tucked against the east lip: those spots are its fallbacks. The path
+    itself climbs about 1 in 4, too steep for a crate to stand level on.
   Each has a few spots in order of preference (CACHES). The first where the crate stands level (the terrain under its
   corners within LEVEL cm, no drop within a hand of it) and clear wins: nothing solid in its footprint or a hand round
   it (traced against what blocks the player: a rock, a tree, a fence, a cliff piece, the windmill's hull), room behind
@@ -27,7 +29,9 @@ Art/Models/Loot/Chests.py) is left out with a warning, and so is everything whil
   the encounters' spots and of the playable boundary's edge. A spot tucked against something (the windmill's) needs no
   hand's room behind its back, only its lid's.
   Without such a spot, the level spot with the fewest problems is taken, else the flattest, with a warning naming them.
-  It stands level, its pivot on the terrain (the tiles alone, never a rock or the scatter).
+  It stands level, its pivot on the terrain (the tiles alone, never a rock or the scatter); a perch spot (a dict spot
+  with 'perch': cm over the terrain its trace starts from) stands on whatever blocks the player there instead (the
+  lookout's deck), judged the same way on that surface, and something higher than its seat round it counts as solid.
 - The gang's Strongbox (kind Strongbox: two guns at Luck 1.0; id GangStrongbox, tagged Chest, GangStrongbox and
   Obstacle) on the sheriff's office's floor at the placed FalseFront_Sheriff's SOCKET_Strongbox (FalseFronts.py's
   walk-in front office), facing as the socket faces (the open door). Without that socket, none: no spot outside stands
@@ -59,7 +63,11 @@ OBSTACLE_TAG = 'Obstacle'
 
 # What they stand on or by: the placements' kinds (layout.json) and the office's floor socket.
 WINDMILL = 'Windmill'
+LOOKOUT = 'Lookout'
 SHERIFF = 'FalseFront_Sheriff'
+# A perch spot's trace starts this far (cm) over the terrain under it: over the lookout's deck (6.5 m up its tower), under
+# nothing (the watch hut's roof stands back from the spots).
+PERCH = 900.0
 STRONGBOX_SOCKET = 'Strongbox'
 
 # A Supply Crate's footprint, halves in cm (Chests.py: 0.52 m deep along its X, its front +X; 1.15 m along its Y).
@@ -110,6 +118,15 @@ CACHES = (
         (7100.0, 7500.0, 90.0),
     )),
     ('RangerCache_BluffPath', 'on the bluff path', None, (
+        # The lookout's deck (Art/Models/Buildings/Lookout.py: FLOOR 6.5 m; deck x -2.3..3.0, y -4.4..2.6 in Blender, the
+        # watch hut at its back, y 0.2..2.4, its roof 0.5 m over; a crate at (2.45, -0.3) and a rope coil at (2.4, -1.05)
+        # by the right rail at x 2.94; Ellis's stain front right of middle, Mister Sexton's seat on the front rail left of
+        # middle; the stair arrives at the left edge). The actor's frame is Blender's turned: X = -Blender Y, Y = -Blender
+        # X (Art/README.md), cm. Its first spot: by the right rail in front of the coil, its back to the rail (the lid
+        # swings 0.17 m short of it), facing into the deck; its second: in front of the bench under the hut's window,
+        # facing the sunset.
+        dict(frame=LOOKOUT, at=(210.0, -215.0), yaw=90.0, perch=PERCH),
+        dict(frame=LOOKOUT, at=(100.0, -100.0), yaw=0.0, perch=PERCH),
         # Where the path tops out (-7882, -7208): 5 m north of it on the top, 2.4 m in from the east lip, facing in.
         (-7450.0, -7380.0, -95.0),
         # A little further north along the lip.
@@ -186,14 +203,19 @@ class Site:
         hit = build_area.terrain_hit(self.tiles, unreal.Vector(x, y, 20000.0), unreal.Vector(x, y, -20000.0))
         return None if hit is None else hit.z
 
-    def judge(self, x, y, yaw, tucked=False):
+    def judge(self, x, y, yaw, tucked=False, perch=None):
         """(the terrain's height at its pivot, how far its corners' ground differs, the problems in words) for a crate at
-        (x, y) facing yaw; tucked, its back may stand against something. The height is None off the terrain."""
+        (x, y) facing yaw; tucked, its back may stand against something. The height is None off the terrain. With perch
+        (cm), the crate stands on whatever blocks the player under perch cm over the terrain there (the lookout's deck)
+        instead of the terrain, and it's judged on that surface."""
         hx, hy = CRATE_HALF
-        under = [self.terrain(*frame(x, y, yaw, fx * hx, fy * hy)) for fx in (-1, 0, 1) for fy in (-1, 0, 1)]
-        if any(z is None for z in under):
+        floor = self.terrain if perch is None else self.perch_floor(x, y, perch)
+        if floor is None:
             return None, float('inf'), ['not on the terrain']
-        z = self.terrain(x, y)
+        under = [floor(*frame(x, y, yaw, fx * hx, fy * hy)) for fx in (-1, 0, 1) for fy in (-1, 0, 1)]
+        if any(z is None for z in under):
+            return None, float('inf'), ['not on the terrain' if perch is None else 'nothing to stand on']
+        z = floor(x, y)
         spread = max(under) - min(under)
         problems = []
         if spread > LEVEL:
@@ -206,9 +228,13 @@ class Site:
         solid = drops = 0
         for ax, ay in probes:
             px, py = frame(x, y, yaw, ax, ay)
-            ground = self.terrain(px, py)
+            ground = floor(px, py)
             if ground is None or ground < z - DROP:
                 drops += 1
+                continue
+            # On a perch, what the seat's trace finds higher than the seat round it (a rail, a crate) is in the way.
+            if perch is not None and ground > z + SOLID_OVER:
+                solid += 1
                 continue
             hit = blocking(unreal.Vector(px, py, ground + PROBE_FROM), unreal.Vector(px, py, ground - 50.0))
             if hit is not None and hit.z > ground + SOLID_OVER:
@@ -233,9 +259,23 @@ class Site:
         if self.boundary:
             if not build_area.inside((x, y), self.boundary):
                 problems.append('outside the playable boundary')
-            elif line_distance((x, y), self.boundary, closed=True) < EDGE_CLEAR:
+            # A perch (the lookout's railed deck, over the Rim's lip) is no fall: the edge's clearance is the ground's.
+            elif perch is None and line_distance((x, y), self.boundary, closed=True) < EDGE_CLEAR:
                 problems.append('by the playable boundary\'s edge')
         return z, spread, problems
+
+    def perch_floor(self, x, y, perch):
+        """For a perch spot at (x, y): the height of what blocks the player under perch cm over the terrain there, at any
+        point (a function of x, y; None where nothing is), or None off the terrain."""
+        base = self.terrain(x, y)
+        if base is None:
+            return None
+        top = base + perch
+
+        def floor(px, py):
+            hit = blocking(unreal.Vector(px, py, top), unreal.Vector(px, py, base - 200.0))
+            return None if hit is None else hit.z
+        return floor
 
     @staticmethod
     def lid_room(x, y, z, yaw):
@@ -321,8 +361,8 @@ def choose(site, spots):
     """The first spot that's level and clear, else the level one with the fewest problems, else the flattest: (index,
     x, y, z, yaw, spread, problems), or None when none is on the terrain."""
     judged = []
-    for i, (x, y, yaw, tucked) in enumerate(spots):
-        z, spread, problems = site.judge(x, y, yaw, tucked)
+    for i, (x, y, yaw, tucked, *perch) in enumerate(spots):
+        z, spread, problems = site.judge(x, y, yaw, tucked, perch[0] if perch else None)
         if z is None:
             judged.append((i, x, y, z, yaw, spread, problems))
             continue
@@ -343,14 +383,31 @@ def place_caches(build, cls, site):
     if meshes is None:
         return
     for cache_id, words, relative_to, spots in CACHES:
-        if relative_to:
-            base = anchor(build, relative_to)
-            if base is None:
-                build.warn(f'the layout has no {relative_to}: no cache {words}')
+        base = anchor(build, relative_to) if relative_to else None
+        if relative_to and base is None:
+            build.warn(f'the layout has no {relative_to}: no cache {words}')
+            continue
+        # Each spot as (x, y, yaw, tucked, perch) in the level: a tuple in the cache's frame (relative_to's, or the
+        # level's), or a dict in its own frame's (a placement kind) with its perch.
+        resolved = []
+        for spot in spots:
+            if isinstance(spot, dict):
+                own = anchor(build, spot['frame'])
+                if own is None:
+                    build.warn(f'the layout has no {spot["frame"]}: {cache_id} skips a spot on it')
+                    continue
+                ox, oy, oyaw = own
+                resolved.append(frame(ox, oy, oyaw, *spot['at']) + (oyaw + spot.get('yaw', 0.0),
+                                                                    bool(spot.get('tucked')), spot.get('perch')))
                 continue
-            bx, by, byaw = base
-            spots = [frame(bx, by, byaw, lx, ly) + (byaw + lyaw,) + tuple(rest) for lx, ly, lyaw, *rest in spots]
-        chosen = choose(site, [(sx, sy, syaw, bool(rest and rest[0])) for sx, sy, syaw, *rest in spots])
+            lx, ly, lyaw, *rest = spot
+            if base is not None:
+                bx, by, byaw = base
+                resolved.append(frame(bx, by, byaw, lx, ly) + (byaw + lyaw, bool(rest and rest[0]), None))
+            else:
+                resolved.append((lx, ly, lyaw, bool(rest and rest[0]), None))
+        spots = resolved
+        chosen = choose(site, resolved)
         if chosen is None:
             build.warn(f'no terrain under any of {cache_id}\'s spots: no cache {words}')
             continue

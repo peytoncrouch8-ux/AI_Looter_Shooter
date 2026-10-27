@@ -7631,5 +7631,104 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 2
+  },
+  "UI.Startup.Studio": {
+    "files": [
+      "UI_Startup_Studio_01.wav"
+    ],
+    "volume_db": -23.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.Startup.Engine": {
+    "files": [
+      "UI_Startup_Engine_01.wav"
+    ],
+    "volume_db": -24.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.Menu.Reveal": {
+    "files": [
+      "UI_Menu_Reveal_01.wav"
+    ],
+    "volume_db": -25.0,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.Menu.Select": {
+    "files": [
+      "UI_Menu_Select_01.wav",
+      "UI_Menu_Select_02.wav"
+    ],
+    "volume_db": -14.5,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Intro.Planet": {
+    "files": [
+      "Music_Intro_Planet_01.wav"
+    ],
+    "volume_db": -24.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Music.Intro.Rest": {
+    "files": [
+      "Music_Intro_Rest_01.wav"
+    ],
+    "volume_db": -22.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Music.Intro.Card": {
+    "files": [
+      "Music_Intro_Card_01.wav",
+      "Music_Intro_Card_02.wav",
+      "Music_Intro_Card_03.wav"
+    ],
+    "volume_db": -23.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Intro.Whiteout": {
+    "files": [
+      "Music_Intro_Whiteout_01.wav"
+    ],
+    "volume_db": -27.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
   }
 }

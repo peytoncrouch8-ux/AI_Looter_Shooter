@@ -591,6 +591,28 @@ SKIP = {
 }
 KINDS = ('fence', 'wall', 'ruin', 'graves', 'cairns', 'props')
 
+# The roadside (Plan.roadside, the layout's roadside block; the user's note 16, 2026-10-27). How far (cm) a roadside piece
+# keeps off another road's bed (past its half width), another piece, a placement (a building; a small one, its ROADSIDE_SMALL
+# kinds, less) and an obstacle's line; markers also stay out of these zones' kinds (the town has its own street dressing).
+ROADSIDE_ROAD_CLEAR = 150.0
+ROADSIDE_PIECE_CLEAR = 220.0
+ROADSIDE_BUILDING_CLEAR = 700.0
+ROADSIDE_SMALL_CLEAR = 250.0
+ROADSIDE_SMALL = ('Cairn_', 'DeadTree_', 'Grave_', 'Well', 'Signal', 'BufferStop', 'Track_', 'MooringPost', 'PlayerStart',
+                  'Landing', 'DepotPlatform_')
+ROADSIDE_OBSTACLE_CLEAR = 200.0
+ROADSIDE_ZONES = ('town', 'travel', 'home', 'graveyard', 'chapel', 'boss_arena')
+# The Signpost's upper board points this many degrees from the actor's front (ARoadSign::BoardYaw(0): VillageProps.py
+# turns it -12 degrees in Blender, whose -Y is the actor's +X and -X its +Y): the post is turned so it points down a branch.
+SIGN_UPPER_YAW = -78.0
+# The labels' folder under the area's Dressing folder for what the roadside places as actors: the signposts (ARoadSign)
+# and the map's roads (AMapRoad, one per layout road, which UMinimapSubsystem paints into the minimap and the map page).
+ROADSIDE_FOLDER = 'Roadside'
+MAP_ROAD_KINDS = {'dirt': 'ROAD', 'path': 'PATH', 'rail': 'RAIL'}
+# A road's middle line for the roadside and the map, smoothed as the terrain cuts it (area_math.catmull_rom: centripetal,
+# through the layout's points) every this many cm.
+SMOOTH_STEP = 200.0
+
 # Props tilt with the ground by at most this (degrees) and sink at most this (cm) so no corner hovers; sections sink
 # at most SAG under a dip in their middle (they reach 15 cm under their pivot).
 MAX_TILT = 4.0
@@ -858,6 +880,8 @@ class Plan:
         self.zones = {z['id']: z['polygon'] for z in source.get('zones', [])}
         self.where = {p['id']: p['location'] for p in source.get('placements', [])}
         self.pieces, self.ruins, self.notes, self.warnings, self.heads = [], [], {}, [], {}
+        # The roadside's signposts by owner ('roadside:sign:<id>'): (upper name, lower name), for place()'s ARoadSign.
+        self.signs = {}
         for entry in source.get('obstacles', []):
             if entry.get('kind') not in KINDS or (only and entry['id'] not in only):
                 continue
@@ -878,6 +902,7 @@ class Plan:
                 self.notes[oid] = f"{len(spot.get('at', ())) + (1 if 'from' in spot else 0)} " +                     ', '.join(spot.get('meshes') or [spot['mesh']])
         self.mound_boards()
         self.town()
+        self.roadside()
 
     def on_road(self, point, margin=GRAVE_CLEAR_ROAD):
         """Whether a point stands on a road (within its half width and margin, cm)."""
@@ -1341,6 +1366,141 @@ class Plan:
 
     # --- A town (town.json) ---
 
+    # --- The roadside (the user's note 16, 2026-10-27: "the map doesn't really prompt the player to use roads") ---
+
+    def roadside(self):
+        """The roads' own dressing from the layout's roadside block, so a road reads and leads from the ground: marker
+        posts (or cairns up the mountain) along the roads out of town, lantern posts on the last stretch into town, and a
+        signpost where a branch leaves, its upper board pointing down the branch with the place it leads to and the lower
+        one back the way it came (place() stands an ARoadSign there with the names). Every piece keeps off the other
+        pieces, the buildings, the obstacles, the other roads' beds and (markers) the town's zones (roadside_clear),
+        trying the road's other side before it gives up."""
+        spec = self.source.get('roadside')
+        if not spec:
+            return
+        roads = {r['id']: (smooth_path(r['path']), float(r.get('width', 400.0)))
+                 for r in self.source.get('roads', []) if len(r['path']) > 1}
+        taken = [p.a for p in self.pieces]
+        counts, skipped = {}, {}
+
+        def stand(owner, road_id, d, side, out, mesh, kind, yaw=None, facing_road=False, keep_zones=True):
+            """A piece d along a road (cm from its first point), out cm past its side (side 1 its left, -1 its right,
+            then the other), plumb; None when neither side is clear."""
+            path, width = roads[road_id]
+            a, b = point_at(path, max(d - 50.0, 0.0)), point_at(path, min(d + 50.0, length(path)))
+            ux, uy = unit(a, b)
+            middle = point_at(path, d)
+            for s in (side, -side):
+                at = (middle[0] - uy * s * (width * 0.5 + out), middle[1] + ux * s * (width * 0.5 + out))
+                why = self.roadside_clear(at, road_id, taken, keep_zones)
+                if why:
+                    skipped[why] = skipped.get(why, 0) + 1
+                    continue
+                if facing_road:
+                    turn = math.degrees(math.atan2(middle[1] - at[1], middle[0] - at[0]))
+                else:
+                    turn = math.degrees(math.atan2(uy, ux)) if yaw is None else yaw
+                self.pieces.append(Piece(mesh, owner, at, turn, kind=kind))
+                taken.append(at)
+                counts[owner.split(':')[1]] = counts.get(owner.split(':')[1], 0) + 1
+                return at, (ux, uy)
+            return None
+
+        # The signposts first (they matter most), then the lanterns, then the markers round them.
+        for sign in spec.get('signs', []):
+            road_id = sign['road']
+            if road_id not in roads:
+                self.warnings.append(f'roadside: no road {road_id} for the sign {sign["id"]}')
+                continue
+            path, _ = roads[road_id]
+            total = length(path)
+            start = {'start': 0.0, 'end': total}.get(sign.get('at', 'start'))
+            if start is None:
+                # A corner of the layout's path, by index: how far along the smoothed road it lies.
+                start = along(path, tuple(self.road_point(road_id, int(sign['at']))))
+            direction = 1.0 if float(sign.get('dir', 1)) >= 0.0 else -1.0
+            d = max(0.0, min(total, start + direction * float(sign.get('along', 600.0))))
+            owner = f'roadside:sign:{sign["id"]}'
+            stood = stand(owner, road_id, d, int(sign.get('side', 1)), float(sign.get('out', 130.0)), 'Signpost',
+                          'upright', keep_zones=False)
+            if stood is None:
+                self.warnings.append(f'roadside: no clear spot for the sign {sign["id"]} by {road_id}')
+                continue
+            # Its upper board points down the branch (the way along the road from where it starts): the post turned
+            # that bearing less the board's own yaw in its frame (ARoadSign::BoardYaw(0)).
+            ux, uy = stood[1]
+            self.pieces[-1].yaw = math.degrees(math.atan2(uy * direction, ux * direction)) - SIGN_UPPER_YAW
+            self.signs[owner] = (sign.get('upper', ''), sign.get('lower', ''))
+        lanterns = spec.get('lanterns', {})
+        for run in lanterns.get('runs', []):
+            road_id = run['road']
+            if road_id not in roads:
+                self.warnings.append(f'roadside: no road {road_id} for lanterns')
+                continue
+            total = length(roads[road_id][0])
+            every, reach = float(run.get('every', 1200.0)), min(float(run.get('length', 2400.0)), total)
+            for k in range(int(reach // every) + 1):
+                d = every * 0.5 + every * k
+                if d > reach:
+                    break
+                stand(f'roadside:lanterns:{road_id}', road_id, total - d if run.get('from') == 'end' else d,
+                      1 if k % 2 == 0 else -1, float(lanterns.get('out', 90.0)), lanterns.get('mesh', 'LanternPost'),
+                      'upright', facing_road=True, keep_zones=False)
+        for group in spec.get('markers', []):
+            mix = group.get('mix') or [group['mesh']]
+            every, out = float(group.get('every', 2200.0)), float(group.get('out', 110.0))
+            for road_id in group.get('roads', []):
+                if road_id not in roads:
+                    self.warnings.append(f'roadside: no road {road_id} for markers')
+                    continue
+                total = length(roads[road_id][0])
+                count = int((total - every * 0.5) // every) + 1 if total > every * 0.5 else 0
+                for k in range(count):
+                    rnd = random.Random(f'roadside {road_id} {k}')
+                    mesh = mix[k % len(mix)]
+                    kind = 'cairn' if mesh.startswith('Cairn_') else 'upright'
+                    yaw = rnd.uniform(-180.0, 180.0) if kind == 'cairn' else None
+                    stand(f'roadside:markers:{road_id}', road_id, every * 0.5 + every * k, int(group.get('side', -1)),
+                          out + rnd.uniform(-15.0, 15.0), mesh, kind, yaw)
+        self.notes['roadside'] = (', '.join(f'{n} {what}' for what, n in sorted(counts.items())) or 'nothing') + \
+            (f' (left out: {", ".join(f"{n} {why}" for why, n in sorted(skipped.items()))})' if skipped else '')
+
+    def road_point(self, road_id, index):
+        road = next(r for r in self.source.get('roads', []) if r['id'] == road_id)
+        return road['path'][max(0, min(index, len(road['path']) - 1))]
+
+    def roadside_clear(self, at, road_id, taken, keep_zones):
+        """Why a roadside piece can't stand at (x, y), in words, or None: on another road's bed, near another piece, a
+        building (a placement), an obstacle, or (keep_zones) inside a town zone (ROADSIDE_ZONES)."""
+        for other, path, width in self.roads_smooth():
+            if other != road_id and nearest_on(path, at)[1] < width * 0.5 + ROADSIDE_ROAD_CLEAR:
+                return 'on another road'
+        if any(math.dist(at, p) < ROADSIDE_PIECE_CLEAR for p in taken):
+            return 'by another piece'
+        for s in self.placed.values():
+            reach = ROADSIDE_SMALL_CLEAR if str(s.get('kind', '')).startswith(ROADSIDE_SMALL) else ROADSIDE_BUILDING_CLEAR
+            if math.dist(at, s['location'][:2]) < reach:
+                return 'by a building'
+        for entry in self.source.get('obstacles', []):
+            points = [tuple(p[:2]) for p in entry.get('polygon') or entry.get('path') or []]
+            if len(points) < 2:
+                continue
+            if 'polygon' in entry and inside_polygon(points, at):
+                return 'in an obstacle'
+            if nearest_on(points + ([points[0]] if 'polygon' in entry else []), at)[1] < ROADSIDE_OBSTACLE_CLEAR:
+                return 'by an obstacle'
+        if keep_zones:
+            for zone in self.source.get('zones', []):
+                if zone.get('kind') in ROADSIDE_ZONES and inside_polygon([tuple(p[:2]) for p in zone['polygon']], at):
+                    return f'in a {zone["kind"]} zone'
+        return None
+
+    def roads_smooth(self):
+        if not hasattr(self, '_roads_smooth'):
+            self._roads_smooth = [(r['id'], smooth_path(r['path']), float(r.get('width', 400.0)))
+                                  for r in self.source.get('roads', []) if len(r['path']) > 1]
+        return self._roads_smooth
+
     def town(self):
         """The town the layout's level.town names: its pieces, then its lines and webs (a strand ties into the trees
         among the pieces), each group's counted in notes. A town file that's named but missing or broken is a warning
@@ -1585,6 +1745,44 @@ def sheet_cards(web, owner, name):
         cards.append(Piece('Web_Ground', owner, at, (bearing - 90.0 + rnd.uniform(-15.0, 15.0)) % 360.0, kind='flat',
                            scale=(size,) * 3, town=True, extra={'rise': SHEET_STEP * step}))
     return cards
+
+
+def smooth_path(points, step=SMOOTH_STEP):
+    """A road's path (layout cm) as the terrain cuts it: a centripetal Catmull-Rom curve through its points (area_math's,
+    in plain Python), about step cm between points, its ends the path's own."""
+    p = [tuple(float(v) for v in q[:2]) for q in points]
+    if len(p) < 3:
+        return p
+    ext = [(2.0 * p[0][0] - p[1][0], 2.0 * p[0][1] - p[1][1])] + p + \
+          [(2.0 * p[-1][0] - p[-2][0], 2.0 * p[-1][1] - p[-2][1])]
+    out = []
+    for k in range(1, len(ext) - 2):
+        p0, p1, p2, p3 = ext[k - 1], ext[k], ext[k + 1], ext[k + 2]
+        t1 = max(math.dist(p0, p1), 1e-6) ** 0.5
+        t2 = t1 + max(math.dist(p1, p2), 1e-6) ** 0.5
+        t3 = t2 + max(math.dist(p2, p3), 1e-6) ** 0.5
+        count = max(2, int(math.dist(p1, p2) / step))
+        for i in range(count):
+            t = t1 + (t2 - t1) * i / count
+
+            def mix(a, b, ta, tb):
+                wa, wb = (tb - t) / (tb - ta), (t - ta) / (tb - ta)
+                return a[0] * wa + b[0] * wb, a[1] * wa + b[1] * wb
+            a1, a2, a3 = mix(p0, p1, 0.0, t1), mix(p1, p2, t1, t2), mix(p2, p3, t2, t3)
+            b1, b2 = mix(a1, a2, 0.0, t2), mix(a2, a3, t1, t3)
+            out.append(mix(b1, b2, t1, t2))
+    out.append(p[-1])
+    return out
+
+
+def inside_polygon(points, p):
+    """Whether p lies inside a closed polygon (even-odd)."""
+    x, y = p
+    hit = False
+    for (x0, y0), (x1, y1) in zip(points, points[1:] + points[:1]):
+        if (y0 > y) != (y1 > y) and x < x0 + (y - y0) * (x1 - x0) / (y1 - y0):
+            hit = not hit
+    return hit
 
 
 def piece_kind(mesh):
@@ -2306,6 +2504,53 @@ def place_town_lights(build, ground):
     build.log(f'dressing: {count} town lamps lit at dusk (of {len(lights)} in town.json)')
 
 
+def place_signs(build, plan, signs, cls, meshes):
+    """The roadside's signposts (Plan.roadside) as ARoadSigns: SM_Signpost with the places its boards point to painted on
+    them, in Dressing/Roadside, tagged Obstacle like a placed prop."""
+    if not signs:
+        return
+    post = unreal.load_asset(meshes['Signpost'])
+    for owner, location, yaw in signs:
+        upper, lower = plan.signs[owner]
+        sign_id = owner.split(':', 2)[2]
+        actor = build.place(cls, location, yaw, label=f'RoadSign_{sign_id}', folder=f'{FOLDER}/{ROADSIDE_FOLDER}',
+                            tags=(TAG, 'Obstacle'))
+        component = actor.get_editor_property('post')
+        component.set_static_mesh(post)
+        # Drawn as far as the instanced signposts are (PIECES' Signpost: a line of posts reads as far as a fence).
+        component.set_editor_property('ld_max_draw_distance', float(PIECES['Signpost'][2]))
+        # Set last, so the editor builds it again and lays the names on the boards.
+        actor.set_editor_property('upper_name', unreal.Text(upper))
+        actor.set_editor_property('lower_name', unreal.Text(lower))
+        build.log(f'dressing: signpost {sign_id} at ({location[0]:.0f}, {location[1]:.0f}) facing {yaw % 360.0:.0f}: '
+                  f'"{upper}" ahead, "{lower}" back')
+
+
+def place_map_roads(build):
+    """One AMapRoad per layout road (when the layout's roadside block asks for mapRoads): its smoothed middle line,
+    width and kind, which UMinimapSubsystem paints into the minimap's bake, so the HUD minimap and the map page show
+    the roads. In Dressing/Roadside, so a dressing build replaces them."""
+    if not build.source.get('roadside', {}).get('mapRoads'):
+        return
+    cls = unreal.load_class(None, CLASSES + 'MapRoad')
+    if cls is None:
+        build.warn('no MapRoad class (build the game module first): the maps show no roads')
+        return
+    count = 0
+    for road in build.source.get('roads', []):
+        if len(road['path']) < 2:
+            continue
+        points = smooth_path(road['path'])
+        x, y = points[len(points) // 2]
+        actor = build.place(cls, (x, y, 0.0), 0.0, label=f'MapRoad_{road["id"]}', folder=f'{FOLDER}/{ROADSIDE_FOLDER}',
+                            tags=(TAG,))
+        actor.set_editor_property('points', [unreal.Vector2D(px, py) for px, py in points])
+        actor.set_editor_property('width', float(road.get('width', 400.0)))
+        actor.set_editor_property('kind', getattr(unreal.MapRoadKind, MAP_ROAD_KINDS.get(road.get('kind', 'dirt'), 'ROAD')))
+        count += 1
+    build.log(f'dressing: {count} roads for the maps (MapRoad)')
+
+
 def place(build, meshes):
     """The dressing for build's layout: one AInstancedProps per mesh (two where some of its pieces are passable and
     some solid) in the Dressing folder, and any ruin whose placement is gone; logs what each obstacle and the town's
@@ -2317,9 +2562,17 @@ def place(build, meshes):
         build.warn(message)
     batches, absent, towns = {}, {}, set()
     stats = {}
+    # The roadside's signposts stand as ARoadSigns (their names on the boards); without the class, as plain posts.
+    sign_cls = unreal.load_class(None, CLASSES + 'RoadSign') if plan.signs else None
+    if plan.signs and sign_cls is None:
+        build.warn('no RoadSign class (build the game module first): the roadside\'s signposts stand without names')
+    signs = []
     for mesh, location, rotation, scale, owner, solid in poses(plan, ground, stats):
         if mesh not in meshes:
             absent.setdefault(mesh, set()).add(owner)
+            continue
+        if owner in plan.signs and sign_cls is not None:
+            signs.append((owner, location, rotation[2]))
             continue
         roll, pitch, yaw = rotation
         batches.setdefault((mesh, solid), []).append(unreal.Transform(
@@ -2347,6 +2600,8 @@ def place(build, meshes):
         build.place(unreal.load_asset(meshes[model]), (x, y, ground(x, y)), yaw, label=f'{owner}_{model}',
                     folder=FOLDER, tags=(TAG, 'Obstacle'))
     place_town_lights(build, ground)
+    place_signs(build, plan, signs, sign_cls, meshes)
+    place_map_roads(build)
     for oid, note in plan.notes.items():
         build.log(f'dressing {oid}: {note}')
     if ground.missed:

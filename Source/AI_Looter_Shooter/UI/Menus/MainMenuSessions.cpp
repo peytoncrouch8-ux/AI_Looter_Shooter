@@ -3,6 +3,7 @@
 #include "Session/SessionSubsystem.h"
 #include "UI/Menus/HeroSelectParts.h"
 #include "UI/Menus/HeroSelectWidget.h"
+#include "UI/Menus/MainMenuArt.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
@@ -116,11 +117,14 @@ namespace
 
 UWidget* UMainMenuWidget::MakePicker()
 {
+	// A page in the menu's side, not a framed window: its header, then the cards (the only boxes on it).
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Content->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Choose a session"), 12, Color::TextDim(), true, 150));
+	Content->AddChildToVerticalBox(MainMenuArt::MakePageHeader(WidgetTree, TEXT("Single Player")));
+	Content->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Choose a session"), 12, Color::TextDim(), true, 150))
+		->SetPadding(FMargin(15.f, 8.f, 0.f, 0.f));
 
 	SessionList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Content->AddChildToVerticalBox(SessionList)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
+	Content->AddChildToVerticalBox(SessionList)->SetPadding(FMargin(0.f, 16.f, 0.f, 0.f));
 
 	// The status line keeps its room when empty, so the Back button doesn't jump when a message shows.
 	StatusText = MakeText(WidgetTree, TEXT(""), 12, Color::TextDim());
@@ -134,9 +138,8 @@ UWidget* UMainMenuWidget::MakePicker()
 	BackSlot->SetHorizontalAlignment(HAlign_Left);
 	BackSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 
-	UWidget* Panel = MakePanel(WidgetTree, TEXT("Single Player"), Content);
-	Panel->SetVisibility(ESlateVisibility::Collapsed);
-	return Panel;
+	Content->SetVisibility(ESlateVisibility::Collapsed);
+	return Content;
 }
 
 void UMainMenuWidget::RefreshSessions()
@@ -427,6 +430,7 @@ void UMainMenuWidget::CloseHeroSelect()
 	{
 		ColumnBox->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
+	RestartPage();
 	// Back on the picker, the focus on the New Game it came from.
 	SetStatus(FString(), Color::TextDim());
 	RebuildNavigation(PlayButtons.IsValidIndex(Index) ? PlayButtons[Index].Get() : nullptr);

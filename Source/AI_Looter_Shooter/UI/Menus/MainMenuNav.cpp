@@ -274,6 +274,8 @@ void UMainMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	AdvanceNav(InDeltaTime);
+	// The arrival, the lit buttons, the ember's breath (MainMenuMotion.cpp), after the focus moved this frame.
+	AdvanceLook(InDeltaTime);
 }
 
 FReply UMainMenuWidget::NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)

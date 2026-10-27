@@ -45,6 +45,14 @@ public:
 	/** Its story lets it open now (OpenWhen; always without a condition), and it isn't the main menu's backdrop. */
 	bool IsOpen() const;
 
+	/**
+	 * Lost Property is shut in World: the level has a window and none of them is open yet (Ransom's Rest before Lost and
+	 * Found is turned in). A level with no window (Skyreach, the tests' levels) isn't shut: its guns go to the session's
+	 * shelves as they always did. The ground's clock holds while it's shut, so no gun goes into a window nobody can open
+	 * (ULostLootSubsystem::AdvanceAt).
+	 */
+	static bool IsShutIn(const UWorld* World);
+
 	/** The shutter's sound at the window as the screen opens or closes. */
 	void PlayShutter(bool bOpening) const;
 
@@ -67,7 +75,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lost Property")
 	FText Prompt;
 
-	/** When the window opens (empty: always, the game's choice: guns are handed in from the start). */
+	/**
+	 * When the window opens (empty: always). Ransom's Rest's opens once Mr. Sloane's Lost and Found is turned in (the user's
+	 * note of 2026-10-27, "There should be a quest to unlock Lost Loot"; Tools/Unreal/build_area_lostloot.py sets it).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lost Property")
 	FStoryCondition OpenWhen;
 

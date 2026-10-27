@@ -70,8 +70,8 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	// The band the station board shows: 1 to 7 since the mountain (2026-10-13), Abel and the Foreman at 7 with their ranks;
-	// no zone above 6 before ranks.
+	// The band the station board shows: 1 to 7 since the mountain (2026-10-13), Abel at 7 with his rank (the Foreman 6 since
+	// 2026-10-27); no zone above 6 before ranks.
 	TestTrue(TEXT("Ransom's Rest's band is levels 1 to 7"), Rest->MinLevel == 1 && Rest->GetBandTop() == 7);
 	bool bZonesToSix = true;
 	for (const FAreaLevelZone& Zone : Rest->LevelZones)
@@ -165,7 +165,7 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 	}
 
 	// The bosses, at set levels wherever they stand, their ranks' levels on top: the Gravemother (Side 3, after Main 5) 4 and
-	// Soulfed's two, level 6, over the Sink's 4-5; Abel (Main 6, the second boss and the story's last) 6 and his Boss rank's
+	// Soulfed's two, level 6, over the Sink's 4-5; Abel (Main 6, the story's last boss) 6 and his Boss rank's
 	// one, level 7, over the deck's adds, over her, and the area's highest.
 	const int32 BossOffset = UCreatureRankSettings::Get(ECreatureRank::Boss).LevelOffset;
 	const int32 SoulfedOffset = UCreatureRankSettings::Get(ECreatureRank::Legendary).LevelOffset;
@@ -177,11 +177,12 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the Gravemother over the Sink's creatures"), StoryLevels.Contains(TEXT("sink")) && Gravemother > StoryLevels[TEXT("sink")].Value);
 	TestTrue(TEXT("...Abel over his adds"), StoryLevels.Contains(TEXT("Abel")) && Abel > StoryLevels[TEXT("Abel")].Value);
 	TestTrue(TEXT("...and over the Gravemother: the second boss above the first"), Abel > Gravemother);
-	// The Foreman (Back Pay, the Providence's Legendary monster): 5 and Soulfed's two, level 7, level with Abel (the user's
-	// call, 2026-10-13), over the mountain's 5-6.
+	// The Foreman (Back Pay, the Providence's Legendary monster): 4 and Soulfed's two, level 6, over the mountain's 5-6. Was
+	// level with Abel (2026-10-13); since the user's 2026-10-27 note 32 he's the story's second boss and Abel its last, so a
+	// level under him.
 	const int32 ForemanLevel = Rest->FindKindLevel(AForemanCreature::StaticClass()) + SoulfedOffset;
-	TestEqual(TEXT("The Foreman is level 7"), ForemanLevel, 7);
-	TestTrue(TEXT("...level with Abel"), ForemanLevel == Abel);
+	TestEqual(TEXT("The Foreman is level 6"), ForemanLevel, 6);
+	TestTrue(TEXT("...under Abel, the last boss"), ForemanLevel < Abel);
 
 	// The mountain's fights where the design puts them (Docs/Areas/RansomsRest_Expansion.md section 6, layout cm): all 5-6
 	// (the user's call), the quarry bowl, the crest, Calder's Post, the Bench, the Diggings and the Providence.

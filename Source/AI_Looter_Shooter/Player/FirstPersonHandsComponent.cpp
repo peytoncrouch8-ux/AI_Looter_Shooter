@@ -1,11 +1,13 @@
 #include "Player/FirstPersonHandsComponent.h"
 #include "AI_Looter_Shooter.h"
+#include "Embers/EmberComponent.h"
 #include "Embers/HeroDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Player/FirstPersonHandsFraming.h"
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/PlayerLocomotionComponent.h"
+#include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerThrowComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Session/SessionSubsystem.h"
@@ -127,7 +129,13 @@ void UFirstPersonHandsComponent::BeginPlay()
 	View = Owner->FindComponentByClass<UPlayerViewComponent>();
 	Weapons = Owner->FindComponentByClass<UWeaponManagerComponent>();
 	Throw = UPlayerThrowComponent::Find(Owner);
-	// Its tick group already follows the locomotion's; said here too, so a move of either keeps the order.
+	Melee = UPlayerMeleeComponent::Find(Owner);
+	Embers = UEmberComponent::Find(Owner);
+	// Its tick group already follows the locomotion's and the strike's tool; said here too, so a move of either keeps the order.
+	if (UPlayerMeleeComponent* Striker = Melee.Get())
+	{
+		AddTickPrerequisiteComponent(Striker);
+	}
 	if (UPlayerLocomotionComponent* Locomotion = Owner->FindComponentByClass<UPlayerLocomotionComponent>())
 	{
 		AddTickPrerequisiteComponent(Locomotion);
@@ -239,7 +247,9 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 {
 	const float Dt = FMath::Clamp(DeltaTime, 0.f, 0.1f);
 	FHandsGun Gun;
-	if (!Rig.IsBound() || !FindGun(Dt, Gun))
+	const bool bGun = Rig.IsBound() && FindGun(Dt, Gun);
+	// No gun in hand: the arms still show for a melee strike's tool or an ember power's cast.
+	if (!bGun && !(Rig.IsBound() && PlaceBareHands()))
 	{
 		Show(false);
 		bHaveSupport = false;
@@ -251,13 +261,17 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 	const int32 Left = FirstPersonHands::Index(EFirstPersonHand::Left);
 	const int32 Right = FirstPersonHands::Index(EFirstPersonHand::Right);
 	const UWeaponManagerComponent* Manager = Weapons.Get();
-	if (const AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr)
+	if (const AWeaponBase* Weapon = bGun && Manager ? Manager->GetActiveWeapon() : nullptr)
 	{
 		Gun.TriggerReady = NextTriggerReady(*Weapon, Dt);
 	}
-	Targets[Right] = FirstPersonHandsGrips::OnGrip(Gun);
-	LastGun = Gun;
-	Targets[Left] = ParkSupportHand(Gun, PlaceSupportHand(Gun, Dt), Dt);
+	if (bGun)
+	{
+		// A strike's tool takes the trigger hand off the grip; the gun is the support hand's alone meanwhile.
+		Targets[Right] = RightOnTool(FirstPersonHandsGrips::OnGrip(Gun));
+		LastGun = Gun;
+		Targets[Left] = ParkSupportHand(Gun, PlaceSupportHand(Gun, Dt), Dt);
+	}
 
 	// The arms' size (a smaller hand holds the same spots: they're scaled into the mesh's space with it), then into the
 	// mesh's own space (the stand-in is turned and set back on the camera) and posed.
@@ -378,10 +392,17 @@ FHandPlacement UFirstPersonHandsComponent::PlaceSupportHand(const FHandsGun& Gun
 	const UPlayerThrowComponent* Thrower = Throw.Get();
 	EHandsSupportJob Job = EHandsSupportJob::Foregrip;
 	FHandPlacement Wanted = OnGun;
+	FHandPlacement CastHand;
 	if (Thrower && Thrower->IsThrowing())
 	{
 		Job = EHandsSupportJob::Throw;
 		Wanted = FirstPersonHandsMotion::SupportInThrow(OnGun, Thrower->GetThrowTime());
+	}
+	else if (CastSupport(OnGun, CastHand))
+	{
+		// An ember power's cast takes the hand from a reload too (it's short; the reload's hand catches up after).
+		Job = EHandsSupportJob::Cast;
+		Wanted = CastHand;
 	}
 	else if (Gun.ReloadProgress >= 0.f)
 	{
@@ -411,7 +432,8 @@ FHandPlacement UFirstPersonHandsComponent::ParkSupportHand(const FHandsGun& Gun,
 {
 	// Borderlands holds a pistol in the right hand alone: the left leaves the gun while it only holds, and comes back for
 	// the work only it does (a reload, the jar), on PlaceSupportHand's job this frame.
-	const float Wanted = SupportJob == EHandsSupportJob::Foregrip ? FPHandsFraming::OneHandShare(Gun.Kind) : 0.f;
+	// A melee strike has the gun in this hand alone: on it, even a pistol's.
+	const float Wanted = SupportJob == EHandsSupportJob::Foregrip && !bToolInHand ? FPHandsFraming::OneHandShare(Gun.Kind) : 0.f;
 	OneHandBlend = FMath::FInterpConstantTo(OneHandBlend, Wanted, DeltaTime, 1.f / FPHandsFraming::OneHandSeconds());
 	if (OneHandBlend <= 0.f)
 	{

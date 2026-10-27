@@ -23,7 +23,8 @@ DECLARE_MULTICAST_DELEGATE(FOnLostLootChanged);
  * Every gun lying loose on the ground (any rarity, the player's own drops, named guns and mission rewards too; never one
  * on a weapon rack, which is the rack's) has five minutes of play (LostLootRules::GroundLifeSeconds), counted by the ground's
  * clock (LostLootGround.cpp, once a second in a played level), and then goes to the shelves. A gun nobody can see yet (a
- * scene keeps it hidden) doesn't age; one under the player's feet waits a little (KeepNearRadius, NearGraceSeconds).
+ * scene keeps it hidden) doesn't age; one under the player's feet waits a little (KeepNearRadius, NearGraceSeconds); none
+ * ages while the level's window is still shut (IsHeldShut: Mr. Sloane's Lost and Found opens it, 2026-10-27).
  * Leaving the area hands in every gun on the ground at once (SendAllGroundWeapons, from TravelToMap), and so does a load:
  * the guns a save kept lying are never put back on the ground, they're handed in (every load follows a quit: Save & Quit,
  * closing the game, a stopped play session). Each goes off the ground as it goes on the shelves, so it's never in both,
@@ -97,6 +98,12 @@ public:
 
 	/** Sets what's left of Weapon's five minutes (the console, the tests). */
 	void SetLifeLeft(AWeaponBase& Weapon, float Seconds);
+
+	/**
+	 * The level's Lost Property window is still shut (ALostPropertyWindow::IsShutIn: Ransom's Rest before Lost and Found):
+	 * the ground's clock holds, every gun stays where it lies with its time unspent.
+	 */
+	bool IsHeldShut() const;
 
 	/** The ground's clock: DeltaSeconds more for every gun lying in sight, and the ones whose time is up handed in. */
 	void Advance(float DeltaSeconds);

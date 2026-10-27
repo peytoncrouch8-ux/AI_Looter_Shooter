@@ -8,6 +8,8 @@
 
 class AWeaponBase;
 class UCameraComponent;
+class UEmberComponent;
+class UPlayerMeleeComponent;
 class UPlayerThrowComponent;
 class UPlayerViewComponent;
 class USkeletalMesh;
@@ -25,7 +27,11 @@ class UWeaponManagerComponent;
  *    (bob, sway, sprint, crouch, climb, the draw, the menu's lowering, aiming down the sights, recoil, a strike, a
  *    throw's dip) moves the hand with it.
  *  - The left hand holds the foregrip (a six-gun's support palm) and does the work: the reloads (magazine, shells and
- *    pump, cylinder) and the grenade (FirstPersonHandsMotion), on the same clocks as the parts and the jar they handle.
+ *    pump, cylinder) and the grenade (FirstPersonHandsMotion), on the same clocks as the parts and the jar they handle,
+ *    and an ember power's cast (UEmberComponent's cast clock; FirstPersonHandsCast.cpp).
+ *  - A melee strike takes the right hand off the grip onto the hero's tool (UPlayerMeleeComponent::GetToolHold), the gun
+ *    dropped into the left. With no gun in hand the arms still show for a strike or a cast, the idle hand resting under
+ *    the frame (FirstPersonHandsActions.cpp).
  *  - It ticks after everything that places the gun (the locomotion's view model, a strike's and a throw's pose, the
  *    gun's own reload parts: all earlier tick groups), so the hands are never a frame behind.
  *  - Hidden in third person, with no gun in first person, and once a menu has been up long enough to lower the gun
@@ -151,6 +157,17 @@ private:
 	/** How far the support hand is toward its parked spot now (0 on the gun, 1 parked). */
 	float OneHandBlend = 0.f;
 
+	// --- A strike's tool and a cast (FirstPersonHandsActions.cpp) ---
+
+	/** The trigger hand from OnGrip toward the melee tool by the swing's share (OnGrip itself with no tool out); sets bToolInHand. */
+	FHandPlacement RightOnTool(const FHandPlacement& OnGrip);
+	/** The support hand in an ember power's cast now, from OnGun; false when no cast is showing. */
+	bool CastSupport(const FHandPlacement& OnGun, FHandPlacement& OutPlacement) const;
+	/** No gun in hand: both hands for a strike or a cast (Targets), else false (hidden). */
+	bool PlaceBareHands();
+	/** A melee tool is in the right hand this frame (the gun, if any, is the left hand's alone). */
+	bool bToolInHand = false;
+
 	/**
 	 * The trigger finger's way to the trigger this frame (FHandsGun::TriggerReady): on it while the trigger is pulled, the
 	 * sights are up or for Looter.Hands.TriggerHoldSeconds after a pull, else eased off to lie along the frame.
@@ -180,6 +197,8 @@ private:
 	TWeakObjectPtr<UPlayerViewComponent> View;
 	TWeakObjectPtr<UWeaponManagerComponent> Weapons;
 	TWeakObjectPtr<UPlayerThrowComponent> Throw;
+	TWeakObjectPtr<UPlayerMeleeComponent> Melee;
+	TWeakObjectPtr<UEmberComponent> Embers;
 
 	/** The last pose in the component's space, and the targets it was posed for (camera space). */
 	TArray<FTransform> PosedSpace;

@@ -70,7 +70,10 @@ public:
 
 	// --- Using it ---
 
-	/** The Ember key: fires the equipped power unless something blocks it (returns why; None: it fired). */
+	/**
+	 * The Ember key: fires the equipped power unless something blocks it (returns why; None: it fired, or will at its
+	 * cast's release, CastLeadSeconds later, while the first-person hands show the cast).
+	 */
 	EEmberDenied TryUse();
 
 	/** Why a press right now would do nothing (None: it would fire). */
@@ -95,8 +98,33 @@ public:
 	/** FLevelRules::EnemyScale at the player's level (1 at level 1 or with no player): what a power multiplies its damage by. */
 	float GetLevelScale() const;
 
-	/** Ends the running power now (death, a scene, the level ending): End(bInterrupted). */
+	/** Ends the running power now (death, a scene, the level ending): End(bInterrupted). A cast waiting to fire is dropped. */
 	void Interrupt();
+
+	// --- The cast (EmberComponentCast.cpp; the user's note 27, 2026-10-27: "action skill activation animation") ---
+
+	/**
+	 * The hands' cast is under way (a press waiting out its lead, or the first-person hands still in the cast's pose):
+	 * the left hand is off the gun, so a melee strike waits (UPlayerMeleeComponent's gate).
+	 */
+	bool IsCasting() const;
+
+	/** Seconds since the cast began (the press; for a console use, its fire less no lead), or -1 when none is showing. */
+	float GetCastTime() const;
+
+	/** The lead that cast waited before its power fired (0: it fired at the press). */
+	float GetCastLead() const { return CastLead; }
+
+	/** The power cast (its id): the hands' pose by its kind (FirstPersonHandsMotion::CastKindOf). */
+	FName GetCastId() const { return CastId; }
+
+	/**
+	 * How long a press waits before its power fires while the first-person hands show the cast (raise, flare, release:
+	 * the power goes off at the release): Looter.Embers.CastLead, never over MaxCastLead. None in third person or for a body
+	 * no local player controls (the tests' bare bodies fire at once).
+	 */
+	static float CastLeadSeconds();
+	static constexpr float MaxCastLead = 0.15f;
 
 	/**
 	 * Ends the running power now as if its time had run out (End, not interrupted): a power whose work is done early (Last
@@ -142,6 +170,25 @@ private:
 	void Fire(int32 Index);
 	void EndActive(bool bInterrupted);
 	bool IsOwnerDead() const;
+
+	/** The gate passed for power Index: the cast begins, and the power fires now or after the lead (EmberComponentCast.cpp). */
+	void BeginCast(int32 Index);
+	/** The lead counting down: fires the waiting power at its end, or drops it (death, a scene, the power's own say). */
+	void TickCast(float DeltaTime);
+	/** A waiting cast dropped (it never fired). */
+	void CancelCast();
+	/** A power fired with no cast before it (a console use): the hands' clock starts at its release. */
+	void NoteFired(FName Id);
+	/** The press should wait out the lead: a local player in first person. */
+	bool ShouldLead() const;
+
+	/** The power waiting out the cast's lead (Powers' index), and the lead left. */
+	int32 PendingIndex = INDEX_NONE;
+	float PendingLeft = 0.f;
+	/** When the cast began (world seconds), its lead, and the power cast. */
+	double CastStart = -1000.0;
+	float CastLead = 0.f;
+	FName CastId;
 
 	FPawnInputBinding InputBinding;
 

@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/HealthComponent.h"
+#include "Embers/EmberComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/PlayerLocomotionComponent.h"
@@ -24,7 +25,7 @@
 #include "GameFramework/PlayerController.h"
 
 // UPlayerMeleeComponent's life, input and the swing's clock. The blow itself (finding the body, the damage, the knock and
-// the feedback) is in PlayerMeleeStrike.cpp.
+// the feedback) is in PlayerMeleeStrike.cpp, the hero's tool in PlayerMeleeTool.cpp.
 
 UPlayerMeleeComponent::UPlayerMeleeComponent()
 {
@@ -122,6 +123,9 @@ FMeleeGateInput UPlayerMeleeComponent::GatherGate() const
 	// A grenade throw has the hands, as a strike keeps the grenade's (EThrowBlock::Busy): one at a time.
 	const UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(Owner);
 	In.bSwinging |= Throw && Throw->IsThrowing();
+	// An ember power's cast has the left hand off the gun: the swing would leave the gun in neither (one at a time).
+	const UEmberComponent* Embers = UEmberComponent::Find(Owner);
+	In.bSwinging |= Embers && Embers->IsCasting();
 	In.bAlive = Owner && Player && !IsOwnerDead();
 	const UPlayerLocomotionComponent* Locomotion = Owner ? Owner->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
 	In.bTraversing = Locomotion && Locomotion->IsTraversing();
@@ -143,20 +147,23 @@ void UPlayerMeleeComponent::StartSwing()
 	SwingTime = 0.f;
 	HoldTime = 0.f;
 
-	// With a gun in hand it's the stock: the gun holds its fire, and a reload under way is cut short (it starts over after).
+	// The hero's tool in the right hand; a gun in hand drops into the left, holds its fire, and a reload under way is cut
+	// short (it starts over after).
+	PrepareTool();
 	AWeaponBase* Gun = GetWeaponInHand();
 	bArmedSwing = Gun != nullptr;
 	SwingWeapon = Gun;
 	const bool bCutReload = Gun && Gun->BeginMeleeSwing();
 
 	// Heard and felt the moment the key goes down: the whoosh, and the view drawn back with the coil.
-	LooterSound::Play2D(this, MeleeCue::Swing, 1.f, bArmedSwing ? 1.f : MeleeMotion::FistSoundPitch);
+	LooterSound::Play2D(this, MeleeCue::Swing);
 	if (APlayerController* Player = GetPlayer())
 	{
-		UCameraShakeModifier::Kick(Player, MeleeMotion::WindUp(bArmedSwing));
+		UCameraShakeModifier::Kick(Player, MeleeMotion::WindUp(Tool.Swing, Tool.Heft));
 	}
 	SetComponentTickEnabled(true);
-	UE_LOG(LogLooter, Verbose, TEXT("Melee: %s strike %d%s"), bArmedSwing ? TEXT("stock") : TEXT("fist"), MeleeCount,
+	UpdateGunPose();
+	UE_LOG(LogLooter, Verbose, TEXT("Melee: strike %d (%s)%s"), MeleeCount, *UEnum::GetValueAsString(Tool.Swing),
 		bCutReload ? TEXT(", reload cut short") : TEXT(""));
 }
 
@@ -215,6 +222,7 @@ void UPlayerMeleeComponent::EndSwing(bool bResume)
 	bSwinging = false;
 	HoldTime = 0.f;
 	ReleaseWeapon(bResume);
+	HideTool();
 	SetComponentTickEnabled(false);
 }
 
@@ -234,6 +242,7 @@ void UPlayerMeleeComponent::UpdateGunPose()
 		const FMeleeSwingPose Pose = MeleeMotion::GunPose(SwingTime, bLanded);
 		Gun->SetMeleePose(Pose.Offset, Pose.Rotation);
 	}
+	PlaceTool();
 }
 
 // ---------------------------------------------------------------------------

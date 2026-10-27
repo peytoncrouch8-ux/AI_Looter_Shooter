@@ -37,6 +37,8 @@ The before/after table against the stories branch's original is in the archive. 
 
 ## Cold open
 
+*The intro* (2026-10-27, note 3): on a new game, before the cold open, Teropa from orbit and Ransom's Rest in eleven narration captions ending on the logline; its words are DA_Lines_NewGameIntro (create_story_lines.py).
+
 Plays as soon as a new game starts, skippable, once per session (since 2026-10-13). The title REVENANT rises through the white of a bank of evening cloud, and the white thins on the Dunne Gang's skiff gliding out of it. Ellis comes out of the grave with the Common Bullpup they were buried with. (A session begun on Skyreach before then and still there gets one trip from the jetty's board: the packet skiff's ride into the cloud, then this; `StationBoard`.)
 
 1. **Seven days ago.** The player stands on the Dunne Gang's skiff's deck, free to look around: dark-hulled, gliding out of a bank of evening cloud in the west, low over the plains and up Gravewind Canyon toward Ransom's Rest at sunset. Seven figures stand on deck in silhouette. The Deacon, beside Ellis: *“Home, kid.”* Caption: *Ransom's Rest. Seven days ago.* Ellis told them where to moor: in a cleft of the canyon under the cliffs of Ransom's Point, the one place on Ransom's Rest nobody in town can see. Fade.
@@ -149,7 +151,7 @@ The gang's leader and Ellis's mentor, almost a father. He was a preacher thrown 
 
 | Name | Who they are | Bestiary (the Ledger) |
 |---|---|---|
-| Abel Ransom (new) | Ellis's father, the Keeper of Saint Ada. He ran up the bluff path with his lantern and shotgun the night of the robbery, and Ned shot him. His body lies in its grave, but he walks as one of the Unpaid: a keeper doesn't lie still while his saint is dark. He is the first boss, on Ransom's Rest. Afterwards he sits on his burial board at Gravewind Point, with new lines after each ember | Enemies (boss), then Friends |
+| Abel Ransom (new) | Ellis's father, the Keeper of Saint Ada. He ran up the bluff path with his lantern and shotgun the night of the robbery, and Ned shot him. His body lies in its grave, but he walks as one of the Unpaid: a keeper doesn't lie still while his saint is dark. He is Ransom's Rest's last boss (after the Foreman, since 2026-10-27). Afterwards he sits on his burial board at Gravewind Point, with new lines after each ember | Enemies (boss), then Friends |
 | Tilly Bright | The undertaker's daughter on Ransom's Rest. She dressed Ellis and Abel for burial and is the first in town to talk to Ellis since (through her shop window). Knows the old rites; sells grave goods (charms, salts, consumables) once vendors exist. Her late father's funeral car, the hearse car, carries Ellis between regions on the train: the dead ride in the funeral car | Friend (vendor) |
 | Hob | A one-eyed crow, Sexton's messenger, whom only Ellis can hear. Sardonic and secretly kind. He was a Revenant once; he paid his debt, and Sexton made him a crow | Friend |
 | Ranger Ruth Calder | A Rim Ranger hunting the Dunne Gang. Her signature is on the wanted posters on Ransom's Rest. She watched the robbery through her glass, saw Ellis draw on the Deacon, and closed Ellis's eyes at dawn (2026-10-13). She shoots at Ellis on sight in Act I and rides beside them by Act III | Friend |
@@ -158,11 +160,11 @@ The gang's leader and Ellis's mentor, almost a father. He was a preacher thrown 
 | Amos Whitlock (new) | A farmer who died last harvest with his hay half in. He was still on the Sundown Road when the saint went dark, and drifted home to find it rotting in the field. One of the Unpaid, but not angry yet | Friend |
 | Ozias Penhallow | A blind gunsmith who hears the dead in metal and rebuilds the Hollow's guns. Joins the hub after the *Gilded Lily* | NPC (vendor) |
 | Thaddeus Bright (new, 2026-10-13) | Tilly's dead father, the undertaker, home from the Sundown Road to his work in her cellar (Knocking Below) | Friend |
-| Hiram Coyle (new, 2026-10-13) | The Old Quarry ore lift's dead engineman, still by its boiler (Dead Lift) | Friend |
-| Mr. Sloane (new, 2026-10-13) | The station agent at the depot (The Old Fare; the LOST PROPERTY window) | — |
+| Hiram Coyle (new, 2026-10-13) | The Old Quarry ore lift's dead engineman, still by its boiler (Dead Lift); up the lift head's speaking tube he tells who Cyrus Teague was (Back Pay) | Friend |
+| Mr. Sloane (new, 2026-10-13) | The station agent at the depot (The Old Fare; Lost and Found, which opens his LOST PROPERTY window, 2026-10-27) | — |
 | Josiah Fenn (new, 2026-10-13) | A dead peddler in his coffin in the depot's baggage room, bound for Gravesend (The Old Fare) | — |
 | Mrs. Pruitt (new, 2026-10-13) | The storekeeper of Pruitt's General Store, the late Sheriff Odell's sister; heard through the store's hatch | — |
-| Cyrus Teague, the Foreman (new, 2026-10-13) | The Providence silver mine's foreman, dead and digging at the fall; a Legendary monster (Back Pay) | Enemies |
+| Cyrus Teague, the Foreman (new, 2026-10-13) | The Providence silver mine's foreman, company man to the bone. Eleven men barricaded the lower drift for three months' pay; his "small charge" brought the roof down on them, and he swore it was the roof. Dead, he still drives the mine's dead shift and digs at the fall every night. Abel went up every spring to ask for the eleven, and Teague ran him off company ground. Ransom's Rest's second boss and a Legendary monster (Back Pay, main since 2026-10-27, the user's note 32): put down before the keeper's night, or his dead would follow Ellis to the boards (Aldana) | Enemies |
 | Odessa Lark, the Cardsharp *(saga; from the cloud heroes)* | A riverboat gambler who caught Ned dealing seconds and caught his bullet for it; Sexton bought her marker. Her death is told on the *Gilded Lily* | Playable hero (*The heroes*): the Revenant when picked, absent otherwise |
 | Wendell Pike, the Surveyor *(saga)* | Walked every mile the railroad will ever run until the gang left him in a Dustwater ravine | Playable hero |
 | Gauge, the Iron Hand *(saga)* | The railroad's clockwork track-layer, woken in the mail-train wreck at Halfway Junction by a spark of ember sealed in its firebox | Playable hero |
@@ -266,7 +268,9 @@ The main missions in order (full plan: `Docs/Areas/RansomsRest.md`; givers, side
 2. **Shall We Talk Business?** Up the bluff to Ransom's Point, the lookout where Ellis died, about 15 minutes in. The first ranked enemy, a blue Restless spider, nests by the lookout. Sexton's deal comes with the Ledger of seven names: bring each ember to this lookout at the new moon. Each one paid returns a little of Ellis's life (warmth, color, a heartbeat for a minute). Bring all seven and Ellis rests, *“and your father crosses.”* The gang scattered, so Ellis asks where to start. Sexton: *“Ask a keeper. Their lanterns lean toward a saint's light.”* *“The keeper's dead.”* *“So are you, friend.”*
 3. **Cold Welcome.** Into town. The Unpaid come for the corpse at the gate. Tilly, at her window, says Pa's lantern wasn't on him when she laid him out.
 4. **Hallowed Ground.** The chapel yard, the bell and the smashed Reliquary. Aldana says the gang shot the keeper first in every town and smashed his lantern. Abel's fell in the dark, whole, and spiders hoard what a saint has touched: look in the Sink.
-5. **The Keeper's Lantern.** Down into the Sink for it.
+5. **The Keeper's Lantern.** Down into the Sink for it. The altar candle won't light it, and Aldana warns: not yet, with Cyrus Teague still driving his dead shift in the Providence, or they'd follow Ellis to the boards at dusk.
+5a. **Dead Lift** (main since 2026-10-27, the user's note 32). Hiram Coyle's ore lift up Larkspur Ridge: its clamp pin back from Abe Haskett's crew, steam raised, the first ride.
+5b. **Back Pay** (main since 2026-10-27). Hiram, up the speaking tube, tells who Teague was; down into the Providence, the payroll book's "small charge", the eleven's tags, **Cyrus Teague, the Foreman**, the second boss; the choice at the tag board (pay the eleven or keep the payroll). Hob: "Now the Keeper, sunshine."
 6. **The Gravewind.** At dusk Ellis carries the lantern to the burial boards. Pa is the boss. Afterwards he lights the lantern from the ghost light he carries, and its flame leans north-east, over the ridges, toward Ned.
 7. **The Lantern Leans.** Delia hands Heirloom, Pa's shotgun, out through the door. Tilly's hearse car waits at the depot, hitched to the train, and the station board lists the *Gilded Lily*. (The train stands at the platform from the start, cold and shut; from this mission it has steam up and the hearse car's door is open.)
 
@@ -288,13 +292,13 @@ Areas open when story missions are done. No area, mission or gun ever checks the
 - Side areas can open from side missions later, for example the wreck of the *Gilded Lily* for “The House Always Wins”.
 
 **What levels still mean: difficulty, XP and loot level.** Numbers, tables and the Borderlands research: `Docs/Progression.md`.
-- **Enemy levels.** Enemies don't scale with the player (the user's call, 2026-10-12): an enemy's level is where it stands. Every area has an enemy level band and zones (its layout's `gameplay.levels`); a creature takes a level rolled between its zone's two levels, then plus its rank's offset. Bosses and Legendary monsters have set levels (the Gravemother 6, Abel 7, the Foreman 7). A player who rushes the story meets the same levels as one who comes back strong. `Docs/Progression.md`, "Creature levels", has the zones.
+- **Enemy levels.** Enemies don't scale with the player (the user's call, 2026-10-12): an enemy's level is where it stands. Every area has an enemy level band and zones (its layout's `gameplay.levels`); a creature takes a level rolled between its zone's two levels, then plus its rank's offset. Bosses and Legendary monsters have set levels (the Gravemother 6, the Foreman 6, Abel 7; the Foreman was 7 until 2026-10-27, when he became the story's second boss and Abel its last). A player who rushes the story meets the same levels as one who comes back strong. `Docs/Progression.md`, "Creature levels", has the zones.
 - **Health and damage.** Enemy health and damage grow linearly, ×(1 + 0.08 × (level − 1)). That is the rule guns use (`UWeaponDefinition::DamagePerLevel` 0.08), so a gun of the enemy's level always needs the same number of hits.
 - **Loot level.** Dropped guns take the enemy's level.
 - **Player health.** +8% max health per level (`HealthPerLevel` 0.08), so the player keeps pace with the enemies' damage growth.
 - **The curve** (the user's call, 2026-10-13: like Borderlands): total XP to reach level L = 180 × (L^2.8 − 1), Borderlands 2's shape at three times the scale. The top level is **65**.
 - **Kill XP** = the creature's `XPReward` (10 for a level 1 Basic) × its level^1.2 × the rank's XP multiplier. Below the player's level it falls 15 points a level (85% one level below), down to 10%, so farming old areas isn't the fast road.
-- **Mission XP** is a fixed amount per mission, given only when the mission is turned in to its giver (Borderlands' way), never for its steps. Only kills and turn-ins give XP. Ransom's Rest ends about level 5.5 on the story alone, about 6.8 with everything.
+- **Mission XP** is a fixed amount per mission, given only when the mission is turned in to its giver (Borderlands' way), never for its steps. Only kills and turn-ins give XP. Ransom's Rest ends about level 6.9 on the story alone, about 7.5 with everything (since the mine joined the story, 2026-10-27; a player arrives near each boss's level).
 - **After the campaign** every area's band rises to follow the player to 65. Open: this clashes with the 2026-10-12 rule above, and waits for the user's endgame call.
 
 ## Enemy ranks and legendary drops (new)
@@ -359,7 +363,7 @@ Rarity of each dropped gun at each luck (Common / Uncommon / Rare / Epic / Legen
 
 | Area | Opens after | Enemy levels | What it is | Enemies | Boss |
 |---|---|---|---|---|---|
-| Ransom's Rest (home and hub) | A new game | 1–7 | Home: a high farm valley on the Rim, over Gravewind Canyon. The farm and family plot, the town and Main Street, the chapel, the Sink, the burial boards; up the ore lift, Larkspur Bench, Calder's Post and the Providence mine | The Unpaid, dead miners, spiders, slimes; roster†: Coffin Rats, Bone Hounds, Knockers, Gravepickers | Abel Ransom, the Keeper. Legendary monsters: the Gravemother (Side 3) and the Foreman (Back Pay) |
+| Ransom's Rest (home and hub) | A new game | 1–7 | Home: a high farm valley on the Rim, over Gravewind Canyon. The farm and family plot, the town and Main Street, the chapel, the Sink, the burial boards; up the ore lift, Larkspur Bench, Calder's Post and the Providence mine | The Unpaid, dead miners, spiders, slimes; roster†: Coffin Rats, Bone Hounds, Knockers, Gravepickers | Cyrus Teague, the Foreman (Back Pay, the second), then Abel Ransom, the Keeper (the last). Legendary monster: the Gravemother (Side 3) |
 | The *Gilded Lily* | “The Lantern Leans” (Abel lights the lantern; it leans toward Ned) | 8–13 | A paddle-wheel casino airship tethered over the canyon's morning cloud at **Highwater Landing** *(saga)*, a rim boomtown where the line ends (its saint **Saint Hester**, who staked the landing): card rooms, a ballroom, gondolas, rigging (an airship: the user's call, 2026-10-15, closing decision 12) | Card sharps, bouncers, Sky Jumpers; roster†: Carrion Gulls | Lucky Ned (Odessa Lark's own death, played as her) |
 | Skyreach | “The Salvage Line” on the *Lily* (to design), by its skylift | 12–16 | Teropa's one sky island: Crossroads Town, the salvage rigs, the Well where the Gravewind is born (*Skyreach, area 3*) | Sky salvagers going strange, Sky Jumpers, the first Mourners; roster†: Carrion Gulls | Marguerite Vane *(saga)* |
 | Dustwater Mesa | “The House Always Loses” (Ned's ember paid at the new moon; the lantern swings to Ira) | 15–20 | Wind-scoured mesas and rope bridges; the wind is part of every fight. Its saint **Saint Ezra**, who dug the cistern | Dust riders, Bone Hounds; roster†: Mesa Stingers, Rimrock Rattlers, Dust Wights | Whistling Ira (Wendell Pike's ravine, played as him) |
@@ -461,7 +465,7 @@ Odell wanted), a crate fallen from the old derrick.
 
 ## Side quests (samples)
 
-Ransom's Rest's built side missions (Wanted: Already Dead, Calder's Caches, The Old Fare, Unfinished Business, Knocking Below, The Gravemother, Dead Lift, The Last Watch, Back Pay) are in `Docs/Areas/RansomsRest_Expansion.md`.
+Ransom's Rest's built side missions (Wanted: Already Dead, Calder's Caches, The Old Fare, Lost and Found, Unfinished Business, Knocking Below, The Gravemother, The Last Watch) are in `Docs/Areas/RansomsRest_Expansion.md`; Dead Lift and Back Pay are main missions since 2026-10-27.
 - **Unfinished Business** (Ransom's Rest). Amos Whitlock, an Unpaid farmer, won't rest until his hay is in. Load it, under fire.
 - **Burial Board.** A town lost its undertaker. Escort its dead to the Gravewind while the Bone Hounds circle.
 - **Ruth's Brother.** Ruth's brother rode with a rival gang and died Hollow. She wants him found and put down by the only hand that can.

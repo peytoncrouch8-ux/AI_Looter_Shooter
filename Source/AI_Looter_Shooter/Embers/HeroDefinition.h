@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Player/Animation/HeroPoseTypes.h"
+#include "Player/PlayerMeleeToolTypes.h"
 #include "HeroDefinition.generated.h"
 
 class UEmberDefinition;
 class UIKRetargeter;
 class USkeletalMesh;
+class UStaticMesh;
 class UTexture2D;
 
 /**
@@ -126,6 +128,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
 	FHeroAim Aim;
 
+	/**
+	 * The tool this hero strikes with on the Melee key, on the right arm while the gun drops into the left (the user's note
+	 * 5 and picks, 2026-10-27). Its mesh empty: the picks' table stands (GetMeleeTool); create_ember_assets.py may set it
+	 * (SetMeleeTool) to tune one hero's.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hero|Looks")
+	FHeroMeleeTool MeleeTool;
+
 	/** The hero's three, in the order the powers page lists them; the first is equipped in a new game. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")
 	TArray<TObjectPtr<UEmberDefinition>> Powers;
@@ -154,6 +164,23 @@ public:
 	USkeletalMesh* LoadFirstPersonArms() const;
 	/** The portrait texture, or null while it isn't imported. */
 	UTexture2D* LoadPortrait() const;
+
+	/** MeleeTool when its mesh is set, else the picks' table for this Id (MeleeToolFor). */
+	FHeroMeleeTool GetMeleeTool() const;
+	/** The hero's own tool's mesh, else the placeholder (PlaceholderMeleeToolPath), else null while neither is in the game. */
+	UStaticMesh* LoadMeleeTool() const;
+
+	/**
+	 * The user's picks (2026-10-27, Art/Concepts/MeleeTools): Ellis the Grave Spade (a steady swat), Odessa the Razor Fan (a
+	 * quick flick), Crane the Ferry Gaff (a heavy hooking chop and yank), Gauge the Piston Fist (on the forearm, a quick
+	 * jab), Pike the Rock Pick (a quick peck); /Game/Art/Melee/SM_Melee_<Tool>. Any other id: the placeholder's swat.
+	 */
+	static FHeroMeleeTool MeleeToolFor(FName HeroId);
+	/** The one neutral tool swung while a hero's isn't in the game: `/Game/Art/Melee/SM_Melee_Placeholder`. */
+	static FSoftObjectPath PlaceholderMeleeToolPath();
+	/** Points MeleeTool at this mesh (empty: the picks' table) with its grip, swing, heft and size. For create_ember_assets.py. */
+	UFUNCTION(BlueprintCallable, Category = "Hero|Editor")
+	void SetMeleeTool(const FString& MeshPath, EMeleeGripKind Grip, EMeleeSwingStyle Swing, EMeleeHeft Heft, float Scale);
 
 	/** Every power has its code (a non-abstract power class), and there is at least one. */
 	bool HasAllPowerCode() const;

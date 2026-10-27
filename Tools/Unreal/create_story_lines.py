@@ -13,6 +13,8 @@ lines live in the mission assets (create_mission_assets.py, create_side_mission_
 story_texts.py (READABLES). Lines marked "the doc's" are Docs/Story.md's or Docs/Areas/RansomsRest_Expansion.md's; the
 rest are drafts in the game's voice for the user (2026-10-13, the missions' data step).
 
+  Intro    NewGameIntro (the new game's intro narration, Story/NewGameIntro.h: 11 lines, no speaker, in the
+           captions' order; the code keeps the same words as its fallback and Looter.Intro.Lines checks they match)
 The main story (2026-10-21, the user's cut of the story's talk: offers two or three lines, Hob's perch arrivals one line,
 his taps only Main 1's, the Old Fare's and a catch-all; where a perch had only directions he lands silent):
   Main 1   DeliaMain1 (her door during Main 1, before the turn-in: take the plate first), DeliaPorch (after),
@@ -23,6 +25,8 @@ his taps only Main 1's, the Old Fare's and a catch-all; where a perch had only d
   Main 4   HobMain4Yard/Reliquary, AldanaBarred, AldanaWaiting (the knock at the vestry door, step 2), AldanaBell (the bell
            and the Reliquary waiting), AldanaMain4 (the turn-in's words), AldanaAfterMain4
   Main 5   HobMain5Way/Out, AldanaAfterMain5
+  The mine (main since 2026-10-27: Dead Lift, Back Pay, Cyrus Teague the second boss) DeliaMine (her door meanwhile);
+           Teague's build-up is otherwise the missions' own words (Main 5's turn-in, Back Pay's offer at the lift tube)
   Main 6   DeliaMain6, HobMain6Way/Fight, AbelOnBoard, AbelAfterMain7
   Main 7   DeliaMain7, DeliaMain7After, HobMain7Lean, TillyMain7, TillyMain7Father (once Knocking Below is done),
            TillyAfterMain7
@@ -84,6 +88,26 @@ SETS = {
     ],
     'DA_Lines_HobAfterMain1': [
         ('', "Don't look at me. I only carry the messages."),
+    ],
+
+    # --- The new game's intro (INTRO, 2026-10-27, playtest note 3; Docs/Story.md facts, no new canon) ---
+    # Story/NewGameIntro.h: line N fills the intro's caption slot N (NewGameIntro::ScriptLines), so the order and the count
+    # matter (a set with a line missing or extra is ignored, the code's own words play); the code keeps the same words as
+    # its fallback and Looter.Intro.Lines checks they match. Narration, no speaker; no family words (no hero rows).
+    # Teropa from orbit (or Westward over the canyon in its place).
+    'DA_Lines_NewGameIntro': [
+        ('', "One sun, one moon, wide seas, and one great continent."),
+        ('', "Its railroad runs west to the Rim, and no farther."),
+        ('', "Out here the dead are given to the wind."),
+        ('', "At dusk the Gravewind carries them west, down the Sundown Road."),
+        # Ransom's Rest: over the Rim, the chapel, home, the grave.
+        ('', "Every town keeps a saint, whose light shows its dead the way across."),
+        ('', "Seven days ago the Dunne Gang robbed Saint Ada, and the Rest went dark."),
+        ('', "Seven towns. Seven saints. Not one light left burning."),
+        ('', "The dead lost the light on the road, and drifted home."),
+        ('', "You rode in with that gang."),
+        ('', "Seven outlaws killed you."),
+        ('', "Something sent you back to bring them in."),
     ],
 
     'DA_Lines_HobMain2Blue': [
@@ -186,6 +210,14 @@ SETS = {
     # After Main 5 (its turn-in has the candle that won't take): a word in passing.
     'DA_Lines_AldanaAfterMain5': [
         ('', "I tried the candle again after you'd gone. Old habits."),
+    ],
+
+    # --- The mine, between Main 5 and Main 6 (2026-10-27, the user's note 32: Cyrus Teague the story's second boss) ---
+    # Delia's door while Dead Lift and Back Pay run (build_area_farm.py's topic "after Main5, before BackPay"): who Teague is
+    # to the family, and why he comes before the boards. Shared words: no "Pa", "Ellis", "kid" or "grandmother".
+    'DA_Lines_DeliaMine': [
+        ('', "Cyrus Teague. Abel went up to the Providence every spring to ask for those eleven men."),
+        ('', "Teague ran him off company ground every time. Go on. I'll keep the plate."),
     ],
 
     # --- Main 6 ---

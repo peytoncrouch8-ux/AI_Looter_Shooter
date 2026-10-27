@@ -14,6 +14,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Character.h"
+#include "HAL/IConsoleManager.h"
 
 namespace
 {
@@ -27,6 +28,14 @@ namespace
 	constexpr float RicochetGlow = 26.f;
 	/** The cards fanned out on use. */
 	constexpr int32 StartCards = 14;
+	/**
+	 * Where they burst from in first person, cm right of the eye: the left hand's side (negative), where the hands' cast
+	 * clenches before the face (FirstPersonHandsMotion, a clench).
+	 */
+	constexpr float StartHandRight = -10.f;
+
+	TAutoConsoleVariable<float> CVarLuckyCardSize(TEXT("Looter.Embers.LuckyStreak.CardSize"), 0.7f,
+		TEXT("Lucky Streak's fluttering cards against a thrown card's size (Looter.Embers.Cards.Size): they burst close to the eye."));
 }
 
 // ---------------------------------------------------------------------------
@@ -244,6 +253,8 @@ void UEmberLuckyStreak::StepFlight(float DeltaSeconds)
 			LandRicochet(*Target, To, Along);
 		}
 	}
+	Deck.Begin();
+	const float Size = EmberFX::CardSize() * FMath::Clamp(CVarLuckyCardSize.GetValueOnGameThread(), 0.1f, 2.f);
 	for (int32 Index = Cards.Num() - 1; Index >= 0; --Index)
 	{
 		FCard& Card = Cards[Index];
@@ -253,17 +264,18 @@ void UEmberLuckyStreak::StepFlight(float DeltaSeconds)
 			Cards.RemoveAtSwap(Index);
 			continue;
 		}
-		// Paper on the air: it slows fast and drifts down, spinning.
+		// Paper on the air: it slows fast and drifts down, spinning and fluttering.
 		Card.Velocity *= FMath::Max(1.f - 3.f * Dt, 0.f);
 		Card.Velocity.Z -= 260.f * Dt;
 		Card.Location += Card.Velocity * Dt;
 		Card.Spin += Card.SpinRate * Dt;
-		if (FX)
-		{
-			const float Fade = 1.f - Card.Age / Card.Life;
-			EmberFX::DrawCard(*FX, Card.Location, Card.Velocity.IsNearlyZero() ? FVector::UpVector : Card.Velocity, Card.Spin, Color, 14.f * Fade);
-		}
+		Card.Flutter += Card.FlutterRate * Dt;
+		// Shrinks away over the last third of its life (lit, solid cards: no fading them out).
+		const float Left = FMath::Clamp((1.f - Card.Age / Card.Life) * 3.f, 0.f, 1.f);
+		Deck.Add(Card.Location, EmberFX::FlyingCardTurn(Card.Velocity.IsNearlyZero() ? FVector::DownVector : Card.Velocity, Card.Spin, Card.Flutter,
+			Card.Spin * 0.3f), Size * FMath::SmoothStep(0.f, 1.f, Left));
 	}
+	Deck.Flush(GetBodyWorld(), Color);
 	Sparks.Tick(Dt, FX);
 }
 
@@ -280,6 +292,8 @@ void UEmberLuckyStreak::FlickCard(const FVector& At, const FVector& Away, float 
 	Card.Velocity = Away.GetSafeNormal() * Speed + Random.GetUnitVector() * 80.f;
 	Card.Spin = Random.FRandRange(0.f, UE_TWO_PI);
 	Card.SpinRate = Random.FRandRange(14.f, 24.f) * (Random.FRand() < 0.5f ? -1.f : 1.f);
+	Card.Flutter = Random.FRandRange(0.f, UE_TWO_PI);
+	Card.FlutterRate = Random.FRandRange(7.f, 12.f);
 	Card.Life = Random.FRandRange(0.45f, 0.65f);
 }
 
@@ -294,7 +308,7 @@ void UEmberLuckyStreak::ShowStart()
 	FVector Eye;
 	FVector Aim;
 	GetAim(*Character, Eye, Aim);
-	const FVector Hand = HandPoint(*Character, 14.f, 10.f, 55.f);
+	const FVector Hand = HandPoint(*Character, StartHandRight, 10.f, 55.f);
 	const FVector Side = FVector::CrossProduct(FVector::UpVector, Aim).GetSafeNormal();
 	for (int32 Index = 0; Index < StartCards; ++Index)
 	{
@@ -304,6 +318,8 @@ void UEmberLuckyStreak::ShowStart()
 		Card.Velocity = (Aim + Side * Spread + FVector(0.0, 0.0, 0.55 + 0.25 * Random.FRand())).GetSafeNormal() * Random.FRandRange(260.f, 420.f);
 		Card.Spin = Random.FRandRange(0.f, UE_TWO_PI);
 		Card.SpinRate = Random.FRandRange(10.f, 20.f) * (Index % 2 ? 1.f : -1.f);
+		Card.Flutter = Random.FRandRange(0.f, UE_TWO_PI);
+		Card.FlutterRate = Random.FRandRange(7.f, 12.f);
 		Card.Life = Random.FRandRange(0.55f, 0.8f);
 	}
 	for (int32 Index = 0; Index < 16; ++Index)

@@ -8,7 +8,8 @@ missions (fields, steps, turn-in and rewards) from what's written here; other mi
 Side missions are picked up from a giver and turned in as the main ones are (create_mission_assets.py's docstring;
 Docs/Areas/RansomsRest_Expansion.md sections 2-4, with the user's decisions of 2026-10-13 in its section 13). Each is
 worth about an eighth to a fifth of a level where it's met, as a Borderlands side mission is, besides its purse and its
-gun (Docs/Progression.md: everything done ends about level 6.8, the story alone about 5.5). Steps are counted from 0, as
+gun (Docs/Progression.md: everything done ends about level 7.5, the story alone about 6.9 since the mine joined the story
+on 2026-10-27; Dead Lift and Back Pay below are main missions and carry a main mission's share). Steps are counted from 0, as
 the build scripts' conditions count them; "+
 optional" is an optional objective in that step. Where things are placed and what's said where is in
 Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
@@ -33,6 +34,11 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     FennsFare, shown from step 4), 5 laid back on Fenn's eyes (FennCoffin again, a tap: DA_Lines_FennCoins;
                     the look is its first Interact FennCoffin, the lay its last). Turned in to Josiah Fenn in his coffin
                     (Speaker_Fenn, the same actor). 450 XP, a Rare Drover revolver, 30 silver.
+  DA_Mission_LostAndFound "Lost and Found" (2026-10-27, the user's note 37: the quest that opens Lost Property), offered by
+                    Mr. Sloane at his ticket window after the Old Fare (Speaker_AgentWindow): 0 his keys under the waiting
+                    room's benches (item LostPropertyKeys), 1 the LOST PROPERTY window's shutter unlocked at its hatch (held;
+                    the fitting LostPropertyShutter, counted from the world). Both placed by build_area_lostloot.py. Turned
+                    in to him at his window, which opens the window (its open_when). 150 XP, 20 silver.
   The valley, after Main 4:
   DA_Mission_Side2  "Unfinished Business", offered by Amos at his fence (Speaker_Amos: his meet lines): 0 three of his
                     hay bales loaded (held; counted from the world), 1 his old hired hands driven off (WhitlockHands, 8;
@@ -54,14 +60,16 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     fang (item GravemotherFang, dropped where she falls the first time) + optional the sheriff's badge in
                     her den (SheriffBadge). Turned in to Mrs. Pruitt at the store's hatch (Speaker_Pruitt). 900 XP, 80
                     silver; her Legendary table on every kill.
-  DA_Mission_DeadLift "Dead Lift", offered by Hiram Coyle in the winch house (Speaker_Hiram): 0 the clamp pin (item
+  The mine, MAIN missions since 2026-10-27 (the user's note 32: Cyrus Teague, the Foreman, the story's second boss; Abel
+  the last): made here still, beside the Last Watch that follows Dead Lift; ids and steps unchanged; met first (no card).
+  DA_Mission_DeadLift "Dead Lift", met at Hiram Coyle's stool in the winch house (Speaker_Hiram): 0 the clamp pin (item
                     ClampPin, dropped by Abe Haskett, the lift crew's Restless brakeman, tagged AbeHaskett; the crank and
                     the depot's coal went 2026-10-21), 1 the boiler stoked from the quarry's bin and the pin driven (held;
                     each AMissionFitting counted done from the world: LiftFitting_Boiler, LiftFitting_Pin), 2 the quarry held for 60 s while she raises
                     steam (Place_OldQuarry; RaisingSteam), 3 the lift ridden up (Board.Lift: AOreLift opens at step 3).
-                    Turned in to Hiram through the speaking tube at the lift head (Speaker_LiftTube). 1,000 XP, a Rare
+                    Turned in to Hiram through the speaking tube at the lift head (Speaker_LiftTube). 5,000 XP, a Rare
                     rifle, 40 silver.
-  After Dead Lift:
+  After Dead Lift (side):
   DA_Mission_LastWatch "The Last Watch", offered by the board at Calder's Post (NoticeBoard_CalderPost): 0 the post's yard
                     cleared (CalderPost, 6), 1 lamp oil in Ruth's cabin (item LampOil) + optional her journal
                     (RuthJournal), 2 the watch fire lit (WatchFire, held: AWatchFire's LightStep 2), 3 the post kept for 45 s
@@ -69,13 +77,14 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     shows from step 4) + optional the post's log signed (PostLog). Turned in at the post's board (Ellis's
                     and Hob's words). 900 XP, 60 silver (and Calder's fourth cache in the cabin opens, the placing
                     script's).
-  DA_Mission_BackPay "Back Pay", offered by No. 7's tag on the Providence's tag board (Artifact_MinersTag): 0 into the
+  DA_Mission_BackPay "Back Pay", met at the lift head's speaking tube (Speaker_LiftTube: Hiram on Teague, said straight
+                    after Dead Lift's turn-in there; No. 7's tag, Artifact_MinersTag, offers nothing now): 0 into the
                     Providence (Place_UpperGallery, height counted), 1 the upper gallery cleared (MineUpper, 8), 2 the
                     Foreman's payroll book read (PayrollBook) + optional the chalk on the wall (ChalkTally), 3 the lower
                     drift cleared (MineLower, 9), 4 the eleven's tags from their barricade (Barricade), 5 the Foreman put
                     down (his lair, Foreman), 6 the payroll from the stope (item Payroll). Turned in at the tag board
                     (Speaker_TagBoard) with a choice: pay the eleven (story flag BackPay.Paid, a Rare gun) or keep the
-                    payroll (BackPay.Kept, 400 silver). 1,300 XP either way.
+                    payroll (BackPay.Kept, 400 silver); Hob then sends Ellis to Delia's door (Main 6). 6,500 XP either way.
 
 Objectives are instanced objects inside the asset, one class per kind, made with unreal.new_object(<class>, asset) and
 listed in each step's 'objectives'. Classes for actor filters are loaded by their script path
@@ -126,6 +135,9 @@ POST_BOARD = 'NoticeBoard_CalderPost'
 
 ELLIS = 'Ellis'
 HOB = 'Hob'
+# Back Pay's last word, either choice (2026-10-27: the mine is the story's now, and the boards come next): Hob sends Ellis
+# to Delia's door, where The Gravewind is met. Shared words (no "Pa", "Ellis" or "kid"), so no hero line row.
+BOARDS_NEXT = "Teague's settled. Now the Keeper, sunshine. Delia's door first."
 
 
 def mission_types():
@@ -317,19 +329,21 @@ def choice(title, line, flag='', stamp='', lines=(), **reward_settings):
     return made
 
 
-def offer(giver_tag='', giver='', lines=(), briefing='', accept_lines=()):
+def offer(giver_tag='', giver='', lines=(), briefing='', accept_lines=(), meet_first=False):
     """FMissionOffer, as create_mission_assets.py makes it: who offers a mission picked up from its giver (start='OFFERED')
     by the tag their actor carries (Speaker_Agent, NoticeBoard_CalderPost, Artifact_MinersTag), their name for people
     (empty: an artifact's own title), what a speaker says as they offer it (lines of (speaker, words): said beside the card,
     which opens at once), what they say once it's taken (accept_lines: Accept cuts the offer's lines short and goes
     straight to these, Borderlands' way, 2026-10-22), and the offer card's story. Without a giver tag the offer is empty,
-    as every mission that isn't offered keeps it. Its prerequisites are its story gate: nobody offers it before."""
+    as every mission that isn't offered keeps it. Its prerequisites are its story gate: nobody offers it before.
+    meet_first (a main mission only: Dead Lift and Back Pay since 2026-10-27): never a card; listed as "Talk to <giver>"
+    until talking to them starts it, their lines then their accept_lines said as one talk."""
     made = unreal.MissionOffer()
     made.set_editor_property('giver_tag', unreal.Name(giver_tag))
     made.set_editor_property('giver_name', unreal.Text(giver))
     made.set_editor_property('lines', story_lines(lines))
     made.set_editor_property('accept_lines', story_lines(accept_lines))
-    made.set_editor_property('meet_first', False)
+    made.set_editor_property('meet_first', bool(meet_first))
     made.set_editor_property('briefing', unreal.Text(briefing))
     return made
 
@@ -413,6 +427,19 @@ def old_fare_steps(asset):
                            short="Take Fenn's coins")),
         # Any use of the coffin counts (a held one too), whatever the placing script makes of it.
         step(interact(asset, "Lay the coins back on Fenn's eyes.", 'FennCoffin', short="Lay the coins on Fenn's eyes")),
+    ]
+
+
+def lost_and_found_steps(asset):
+    """Mr. Sloane's keys off the waiting room's floor (a find: the arrow on them), then the LOST PROPERTY window's shutter
+    unlocked at its hatch (held; an AMissionFitting tagged LostPropertyShutter, counted from the world). Both placed by
+    build_area_lostloot.py, whose KEYS_STEP 0 and SHUTTER_STEP 1 are these steps; the window opens at the turn-in."""
+    return [
+        step(collect_items(asset, "Find Mr. Sloane's keys. They went under the waiting room's benches when he ran.",
+                           ['LostPropertyKeys'], short="Find Mr. Sloane's keys")),
+        step(interact(asset, "Unlock the LOST PROPERTY window in the baggage room: hold {Interact} at its hatch.",
+                      'LostPropertyShutter', 'MissionFitting', hold=True, lasting=True, short='Unlock the Lost Property window',
+                      waypoint=unreal.MissionWaypoint.ACTOR, waypoint_tag='LostPropertyShutter')),
     ]
 
 
@@ -607,6 +634,36 @@ MISSIONS = [
          expect=['MissionClearObjective', 'MissionReachObjective', 'MissionInteractObjective',
                  ['MissionTalkObjective', 'MissionEventObjective'], 'MissionCollectItemObjective',
                  'MissionInteractObjective']),
+    # The quest that opens Lost Property (the user's note 37, 2026-10-27: "There should be a quest to unlock Lost Loot"):
+    # Mr. Sloane, back at his ticket window once the Old Fare is done, has his keys to find. Short on purpose (a find and a
+    # held unlock), early enough to matter: until it's turned in the window stays shut and guns left lying stay where they
+    # lie (ULostLootSubsystem holds the ground's clock), so nothing is lost before it.
+    dict(asset='DA_Mission_LostAndFound', id='LostAndFound', title='Lost and Found',
+         summary="Mr. Sloane kept the depot's LOST PROPERTY window until the night the dead came, when he dropped its keys "
+                 "running for the stair. Find them and open the window, and guns left lying about the Rest will find their "
+                 "way to his shelves.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['OldFare'], sort_order=13,
+         steps=lost_and_found_steps,
+         offer=dict(giver_tag='Speaker_AgentWindow', giver='Mr. Sloane', lines=[
+             ('', "Lost Property's been shut since Wednesday. I dropped the keys running for the stair."),
+             ('', "They went under the benches out there. I'm not crawling about where they stood."),
+         ], accept_lines=[
+             ('', "Bring them and open her up. Folk leave half their lives on a railroad."),
+         ], briefing="Mr. Sloane kept the depot's LOST PROPERTY window until the night the dead came, when he dropped its "
+                     "keys running for the stair. Find them in the waiting room and unlock the window: from then on, "
+                     "guns left lying about the Rest find their way to his shelves."),
+         items=[dict(item_id='LostPropertyKeys', name="Mr. Sloane's keys",
+                     line="The depot's ring of keys. The brass one says LOST PROPERTY.",
+                     mesh=PROPS + 'SM_CellarKey')],
+         # At his window: how the shelves work, in his words, and who brings the guns in (Hob's crows: they carry Ellis
+         # between roosts already).
+         turn_in=dict(speaker='Speaker_AgentWindow', giver='Mr. Sloane', lines=[
+             ('', "There she is. Shelves are bare, but they won't stay that way."),
+             ('', "Anything left lying about the Rest a while ends up here. Claim it at the window. Shelving's extra."),
+             (HOB, "My crows pick up after you, sunshine. Somebody has to."),
+         ]),
+         rewards=dict(experience=150, silver=20),
+         expect=['MissionCollectItemObjective', 'MissionLastingInteractObjective']),
 
     # --- The valley, after Main 4 ---
     dict(asset='DA_Mission_Side2', id='Side2', title='Unfinished Business',
@@ -675,17 +732,20 @@ MISSIONS = [
     dict(asset='DA_Mission_DeadLift', id='DeadLift', title='Dead Lift',
          summary="The Providence Mining Company's ore lift still hangs over the Old Quarry, and its engineman, Hiram Coyle, "
                  "still waits by its cold boiler. Get its clamp pin back from Abe Haskett, and he'll take you up Larkspur "
-                 "Ridge.",
-         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main5'], sort_order=31, steps=dead_lift_steps,
-         # Ellis's answer is the taking: Accept goes straight to it and his ask (2026-10-22).
-         offer=dict(giver_tag='Speaker_Hiram', giver='Hiram Coyle', lines=[
+                 "Ridge to the Providence, where Cyrus Teague's dead shift still works.",
+         # A main mission since 2026-10-27 (the user's note 32: Cyrus Teague, the Foreman, the story's second boss): after
+         # Main 5, met first at Hiram's stool ("Talk to Hiram Coyle", Main 5's turn-in sends Ellis there), no card. Its
+         # id and steps are unchanged (AOreLift opens at step 3; old saves keep their steps).
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main5'], sort_order=6, steps=dead_lift_steps,
+         # Ellis's answer is the taking: the talk says his offer, then the answer and his ask (2026-10-22).
+         offer=dict(giver_tag='Speaker_Hiram', giver='Hiram Coyle', meet_first=True, lines=[
              ('', "Ain't had a passenger in four years. Riding up?"),
          ], accept_lines=[
              (ELLIS, 'Riding.'),
              ('', "Then I need her clamp pin back. Abe Haskett took it down the hill the day of the fall."),
          ], briefing="The old ore lift still hangs over the Old Quarry, and its engineman, Hiram Coyle, still waits by its "
                      "boiler. Get its clamp pin back from Abe Haskett, its brakeman, stoke the boiler from the quarry's "
-                     "coal, and Hiram will take you up the mountain."),
+                     "coal, and Hiram will take you up the mountain, to the Providence."),
          # (WinchCrank and CoalSack went with the crank and coal fetches, 2026-10-21: never reuse their ids.)
          items=[# Abe Haskett carries it, the lift crew's Restless brakeman (the dead miner the mountain's script tags
                 # AbeHaskett): it falls where he does.
@@ -698,12 +758,13 @@ MISSIONS = [
              ('', "Hear that? She still runs."),
              ('', "There's a carbine in the head's tool box. Company's. They'll never miss it."),
          ]),
-         rewards=dict(experience=1000, gun=True, gun_rarity_floor='RARE', gun_kind=RIFLE, silver=40),
+         # A main mission's share since 2026-10-27: about half a level where it's met (Docs/Progression.md).
+         rewards=dict(experience=5000, gun=True, gun_rarity_floor='RARE', gun_kind=RIFLE, silver=40),
          expect=['MissionCollectItemObjective',
                  ['MissionLastingInteractObjective', 'MissionLastingInteractObjective'],
                  'MissionDefendObjective', 'MissionBoardObjective']),
 
-    # --- After Dead Lift: Calder's Post and the Providence ---
+    # --- After Dead Lift: Calder's Post (side) and the Providence (main since 2026-10-27) ---
     dict(asset='DA_Mission_LastWatch', id='LastWatch', title='The Last Watch',
          summary="Calder's Post on the Rim stands empty: Ruth Calder rode south after the Dunne Gang. Light the watch fire "
                  "so the posts down the Rim know Larkspur stands.",
@@ -727,11 +788,21 @@ MISSIONS = [
     dict(asset='DA_Mission_BackPay', id='BackPay', title='Back Pay',
          summary="Eleven brass tags still hang on the IN side of the Providence's tag board. Go down into the mine and find "
                  "out why eleven men never came up, and what still works the dark.",
-         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['DeadLift'], sort_order=33, steps=back_pay_steps,
-         offer=dict(giver_tag='Artifact_MinersTag', giver='', briefing=(
+         # A main mission since 2026-10-27 (the user's note 32): Cyrus Teague, the Foreman, is the story's second boss, before
+         # Abel at the boards. Met first at the lift head's speaking tube, where Dead Lift is turned in, so Hiram's words
+         # about Teague follow its turn-in as one talk and start it (no card); his are who Teague is (the payroll book says
+         # what he did), Hob's the push. No. 7's tag (Artifact_MinersTag) offers nothing now and stays hung on IN.
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['DeadLift'], sort_order=7, steps=back_pay_steps,
+         offer=dict(giver_tag='Speaker_LiftTube', giver='Hiram Coyle', meet_first=True, lines=[
+             ('', "Providence is up the Bench. Cyrus Teague ran her: foreman, company man to the bone."),
+             ('', "Eleven men barricaded the lower drift for three months' pay. Then the roof came down on them."),
+             ('', "Teague swore it was the roof. He's down there yet, digging at the fall."),
+         ], accept_lines=[
+             (HOB, "A foreman who never paid his men. Go and collect, sunshine."),
+         ], briefing=(
              "No. 7. J. ODELL. IN. Eleven brass tags still hang on the IN side of the Providence's tag board. A miner hung "
-             "his tag there going down and took it off coming up. These eleven never came up, and something has worked "
-             "the dark galleries ever since.")),
+             "his tag there going down and took it off coming up. These eleven never came up, and Cyrus Teague, the "
+             "Foreman, has worked the dark galleries ever since.")),
          items=[dict(item_id='Payroll', name='The Providence payroll',
                      line="The company's strongbox: three months' wages for eleven men, never paid out.",
                      mesh=PROPS + 'SM_PayrollChest')],
@@ -746,15 +817,18 @@ MISSIONS = [
                   flag='BackPay.Paid', stamp='PAID', lines=[
                       ('', "Paid in full. Shift's over, boys."),
                       (HOB, "First honest pay this mine ever made."),
+                      (HOB, BOARDS_NEXT),
                   ], gun=True, gun_rarity_floor='RARE'),
              dict(title='Keep the payroll', line="Leave the tags on IN and pocket the company's silver. The dead go on "
                                                  "working the dark.",
                   flag='BackPay.Kept', stamp='KEPT', lines=[
                       ('', "...Company man after all."),
                       (HOB, "Can't spend it in the ground, sunshine."),
+                      (HOB, BOARDS_NEXT),
                   ], silver=400),
          ]),
-         rewards=dict(experience=1300),
+         # A main mission's share since 2026-10-27: about half a level where it's met, the story's last before the boards.
+         rewards=dict(experience=6500),
          expect=['MissionReachObjective', 'MissionClearObjective', ['MissionEventObjective', 'MissionEventObjective'],
                  'MissionClearObjective', 'MissionEventObjective', 'MissionClearObjective', 'MissionCollectItemObjective']),
 ]

@@ -67,9 +67,13 @@ def place_delia(build, house):
     during = story.lines(build, 'DA_Lines_DeliaMain1')
     if during:
         said.append(story.topic(story.condition(before=[story.MAIN1]), during))
+    # While the mine's main missions run (Dead Lift, Back Pay: Cyrus Teague before Abel, the user's 2026-10-27 call).
+    mine = story.lines(build, 'DA_Lines_DeliaMine')
+    if mine:
+        said.append(story.topic(story.condition(after=[MAIN5], before=['BackPay']), mine))
     lantern = story.lines(build, 'DA_Lines_DeliaMain6')
     if lantern:
-        take_him = story.topic(story.condition(after=[MAIN5], before=[MAIN6]), lantern)
+        take_him = story.topic(story.condition(after=['BackPay'], before=[MAIN6]), lantern)
         take_him.set_editor_property('event', unreal.Name(MAIN6_EVENT))
         said.append(take_him)
     # Main 7: Heirloom handed out through the door (its first step, from 0: 0), then a word once she has.

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Player/PlayerMeleeToolTypes.h"
 #include "Player/ViewKick.h"
 
 /** Where a swing has the gun: off its hold in its own frame (cm; X along the barrel, Y right, Z up) and turned (degrees). */
@@ -11,41 +12,108 @@ struct FMeleeSwingPose
 };
 
 /**
- * How a melee strike moves, done in code like recoil (no animation assets): the gun's swing in first person and the
- * view's lean into the blow, through the shared camera modifier (UCameraShakeModifier) so the player's camera shake
- * setting scales it and the aim never moves.
+ * One swing style's arc (MeleeMotion::ArcFor), in the first-person camera's space (X ahead, Y right, Z up; cm): the right
+ * arm turns about Axis through the shoulder, the hand Reach out along ContactDir at the blow. The wind-up has the arm turned
+ * CockDegrees round (its sign says which side), and after the blow it goes on to ThroughDegrees: past the blow (the other
+ * sign) for a follow-through, or back the cock's way for a yank (the gaff). The wrist lays the head back behind the hand
+ * by WristDegrees at the wind-up's top and snaps it through at the blow (the whip that reads as weight), rolling over by
+ * half as much after. The reach's share at the wind-up and after (CockReach, ThroughReach): a jab draws the hand in and
+ * drives it out, a yank pulls it back. The handle points HandleAtContact at the blow; the striking side is the way the head
+ * moves then, or StrikeHint when that runs along the handle (a jab's does).
+ */
+struct FMeleeArc
+{
+	FVector Shoulder = FVector::ZeroVector;
+	FVector Axis = FVector::UpVector;
+	FVector ContactDir = FVector::ForwardVector;
+	float Reach = 50.f;
+	float CockDegrees = 70.f;
+	float ThroughDegrees = -50.f;
+	float WristDegrees = 35.f;
+	float CockReach = 1.f;
+	float ThroughReach = 1.f;
+	FVector HandleAtContact = FVector::UpVector;
+	FVector StrikeHint = FVector(0.f, -1.f, 0.f);
+	/** The striking side is StrikeHint always (a punch: the back of the fist up, whichever way the arm turns). */
+	bool bFaceHint = false;
+};
+
+/** The tool on the right arm at a moment of the swing (MeleeMotion::ToolPose). */
+struct FMeleeToolPose
+{
+	/**
+	 * Its frame in the camera's space: the origin the grip point (a forearm tool's: the fist's), X up the handle (a forearm
+	 * tool's: the punch's way), Z its striking side (the back of the fist), Y the palm's way onto the handle.
+	 */
+	FTransform Grip = FTransform::Identity;
+	/** How much of the right hand is on the tool (1) rather than on the gun's grip (0). */
+	float HandShare = 0.f;
+	/** A forearm tool's piston driven out past the fist (cm along X): it kicks at the blow. */
+	float Push = 0.f;
+	/** The tool is drawn. */
+	bool bShown = false;
+};
+
+/**
+ * How a melee strike moves, done in code like recoil (no animation assets): the hero's tool swung on the right arm (the
+ * user's note 5 and picks, 2026-10-27), the gun dropped into the left hand meanwhile, and the view's lean into the blow,
+ * through the shared camera modifier (UCameraShakeModifier) so the player's camera shake setting scales it and the aim
+ * never moves.
  *
- * The gun's stock strike, over FMeleeRules' 0.45 s: a quick cock back and to the right (0.05 s), the drive across (the
- * muzzle swung right and canted so the stock leads forward and left into the middle of the view, accelerating into the
- * blow at 0.12 s), then back to the hold. A blow that lands stops dead there (the striker's hit-stop holds the clock) and
- * comes straight back; a miss carries on past it a little before it recovers.
- *
- * A fist has no model yet (the first-person arms are hidden), so its strike is the view's alone: a short pull back, then
- * a punch in (the view narrowing) with a dip toward the blow.
+ * Over FMeleeRules' 0.5 s, the blow at 0.15 s:
+ *  - The draw and wind-up (to CockSeconds): the right hand lets go of the grip and comes up from under the frame with the
+ *    tool, cocked back on the swing's far side, the head laid back behind the hand.
+ *  - The strike (to the blow): the arm swung through, accelerating, the wrist snapping the head through at the blow.
+ *  - The blow: one that lands stops dead there (the striker's hit-stop holds the clock) and bounces back a little; a miss
+ *    goes on to the arc's through (past the blow, or a gaff's yank back).
+ *  - The return (ReturnFrom to the end): the tool goes back down under the frame and the hand back to the grip.
+ *  - The gun meanwhile: lowered and canted into the left hand (LowReadyPose) through the swing, back up at the end.
+ * A heft (quick, steady, heavy) scales the wind-up and the jolts, never the clock. The timings are named constants here (the
+ * third-person jab reads CockSeconds too: LooterStancePose::MeleeJab); the sizes and shares are Looter.Melee.* console
+ * variables (PlayerMeleeToolMotion.cpp), the arcs named constants there.
  */
 namespace MeleeMotion
 {
-	/** When the gun is fully cocked back, before it drives across (seconds into the swing). */
-	inline constexpr float CockSeconds = 0.05f;
-	/** How far a miss carries on past the strike pose (a share of it), and how soon it has (seconds after the blow). */
-	inline constexpr float FollowThrough = 0.25f;
-	inline constexpr float FollowThroughSeconds = 0.08f;
+	/**
+	 * When the tool is fully wound up (seconds into the swing): the draw up from under the frame and the coil. Most of the
+	 * 0.15 s before the blow, so the wind-up is seen; the drive after it is short, so the head is at its fastest as it lands.
+	 */
+	inline constexpr float CockSeconds = 0.09f;
+	/** How soon a miss has gone through (seconds after the blow), and a landed blow's bounce back off the body. */
+	inline constexpr float FollowThroughSeconds = 0.1f;
+	inline constexpr float RecoilSeconds = 0.07f;
+	/** When the tool starts back down under the frame (seconds into the swing): after the follow-through has been seen. */
+	inline constexpr float ReturnFrom = 0.3f;
+	/** How long the right hand takes to leave the grip for the tool, and to come back to it at the end (seconds). */
+	inline constexpr float HandSeconds = 0.04f;
 
-	/** The cocked pose and the strike pose (the moment of the blow), in the gun's frame. */
-	AI_LOOTER_SHOOTER_API FMeleeSwingPose CockedPose();
-	AI_LOOTER_SHOOTER_API FMeleeSwingPose StrikePose();
+	/** A heft's scale on the wind-up's size and the view's jolts: quick 0.8, steady 1, heavy 1.25 (Looter.Melee.Heft.*). */
+	AI_LOOTER_SHOOTER_API float HeftScale(EMeleeHeft Heft);
+
+	/** Each style's arc (named constants with their reasons, PlayerMeleeToolMotion.cpp), sized by Looter.Melee.ArcScale and the heft. */
+	AI_LOOTER_SHOOTER_API FMeleeArc ArcFor(EMeleeSwingStyle Style, EMeleeHeft Heft = EMeleeHeft::Steady);
 
 	/**
-	 * The gun SwingTime seconds into a strike (the swing's own clock: it holds while the blow's hit-stop does). bLanded:
-	 * the blow met a body (or a wall) and stopped dead, so there's no follow-through. Rest (zero) before and after.
+	 * The tool's frame on Arc with the arm turned Degrees from the blow, the reach at ReachShare of the arc's, the wrist laid
+	 * back Wrist degrees about the arc's axis, and the whole pose moved by Drop (camera space: under the frame).
 	 */
+	AI_LOOTER_SHOOTER_API FTransform ArcPose(const FMeleeArc& Arc, float Degrees, float ReachShare, float Wrist, const FVector& Drop = FVector::ZeroVector);
+
+	/** The tool SwingTime seconds into a strike on Arc (the swing's own clock); bLanded: the blow met a body or a wall. */
+	AI_LOOTER_SHOOTER_API FMeleeToolPose ToolPoseOnArc(const FMeleeArc& Arc, float SwingTime, bool bLanded);
+	AI_LOOTER_SHOOTER_API FMeleeToolPose ToolPose(EMeleeSwingStyle Style, EMeleeHeft Heft, float SwingTime, bool bLanded);
+
+	/** The gun held low and canted in the left hand while the right swings (its own frame, about the middle of the hands). */
+	AI_LOOTER_SHOOTER_API FMeleeSwingPose LowReadyPose();
+
+	/** The gun SwingTime seconds into a strike: eased into LowReadyPose by the wind-up, held, back to its hold by the end. */
 	AI_LOOTER_SHOOTER_API FMeleeSwingPose GunPose(float SwingTime, bool bLanded);
 
-	/** The view as the swing starts: drawn back and turned a little away from the blow to come (a fist's, a short pull back). */
-	AI_LOOTER_SHOOTER_API FViewKick WindUp(bool bArmed);
+	/** The view as the swing starts: drawn back and turned a little away from the blow to come. */
+	AI_LOOTER_SHOOTER_API FViewKick WindUp(EMeleeSwingStyle Style, EMeleeHeft Heft = EMeleeHeft::Steady);
 
-	/** The view at the blow, hit or miss: leaning into the swing's way across (a fist's, a punch in with a dip). */
-	AI_LOOTER_SHOOTER_API FViewKick Strike(bool bArmed);
+	/** The view at the blow, hit or miss: leaning into the swing's way (a chop dips, a jab punches in). */
+	AI_LOOTER_SHOOTER_API FViewKick Strike(EMeleeSwingStyle Style, EMeleeHeft Heft = EMeleeHeft::Steady);
 
 	/**
 	 * The blow landing on a body: a sharp jolt back off it and a punch in, rolled a little Lean's way (-1 or 1). The
@@ -53,7 +121,7 @@ namespace MeleeMotion
 	 */
 	AI_LOOTER_SHOOTER_API FViewKick Impact(bool bKill, float Lean);
 
-	/** The stock or the knuckles on a wall: a smaller jolt. */
+	/** The tool on a wall: a smaller jolt. */
 	AI_LOOTER_SHOOTER_API FViewKick WallKnock();
 
 	/** A landed blow's shake (UCameraShakeModifier::AddShake): its strength and seconds; a killing blow's is stronger. */
@@ -61,8 +129,6 @@ namespace MeleeMotion
 	inline constexpr float KillShake = 0.3f;
 	inline constexpr float ShakeSeconds = 0.15f;
 
-	/** A fist is lighter than a stock: its whoosh and thud play this much higher. */
-	inline constexpr float FistSoundPitch = 1.1f;
 	/** A knock on a wall is heard at this share of a blow's volume. */
 	inline constexpr float WallVolume = 0.5f;
 }

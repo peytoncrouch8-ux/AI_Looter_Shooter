@@ -4,6 +4,7 @@
 
 class AActor;
 class FWeaponFX;
+class UInstancedStaticMeshComponent;
 class UMaterialInstanceDynamic;
 class UObject;
 class UWorld;
@@ -43,6 +44,61 @@ namespace EmberFX
 	 */
 	AI_LOOTER_SHOOTER_API void DrawCard(FWeaponFX& Effects, const FVector& Center, const FVector& Along, float Spin, const FLinearColor& Edge,
 		float Glow, float Size = 1.f);
+
+	// --- Real cards (EmberFXCards.cpp; the user's note 6, 2026-10-27: "shoots tiny particles, needs ... bigger card like
+	// projectiles") ---
+
+	/** A playing card as modeled (cm): long side, short side. Drawn CardSize() times that. */
+	inline constexpr float CardLong = 8.9f;
+	inline constexpr float CardShort = 6.4f;
+
+	/** Looter.Embers.Cards.Size: how much bigger than a real card a thrown one is drawn, so a fan reads at range. */
+	AI_LOOTER_SHOOTER_API float CardSize();
+
+	/**
+	 * A thrown card's turn this frame (X along its long side, Z out of its face): flying along Velocity, its face tipped
+	 * back toward the thrower by Looter.Embers.Cards.Tilt (a card flying flat is seen edge on from behind, a sliver) plus a
+	 * flutter of Looter.Embers.Cards.Flutter at its Flutter phase (radians), rolled Roll radians about its way, spun Spin
+	 * radians about its face.
+	 */
+	AI_LOOTER_SHOOTER_API FQuat FlyingCardTurn(const FVector& Velocity, float Spin, float Flutter, float Roll);
+
+	/**
+	 * Cards drawn as real cards: an ivory face with a red pip, the back in the power's colour (Odessa's red), each a pair of
+	 * the engine's planes back to back on M_StylizedSurface (as her idle card, UBodyFigureComponent), lit like the world and
+	 * glowing a little so they read in shade. One deck per power; Begin, Add each card, Flush once a frame. Its components sit
+	 * on a transient actor of its own, made at the first Flush in a world; an empty Flush hides them.
+	 */
+	class AI_LOOTER_SHOOTER_API FCardDeck
+	{
+	public:
+		/** A new frame: no cards yet. */
+		void Begin() { Pending.Reset(); }
+
+		/** One card this frame at Center, turned Turn (FlyingCardTurn), Size times a real card (CardSize() for a thrown one). */
+		void Add(const FVector& Center, const FQuat& Turn, float Size);
+
+		/** Draws this frame's cards in World with their backs in Back. */
+		void Flush(UWorld* World, const FLinearColor& Back);
+
+		int32 NumDrawn() const { return Drawn; }
+
+	private:
+		struct FCardDraw
+		{
+			FVector Center;
+			FQuat Turn;
+			float Size;
+		};
+		bool Make(UWorld& World, const FLinearColor& Back);
+
+		TArray<FCardDraw> Pending;
+		TWeakObjectPtr<AActor> Owner;
+		TWeakObjectPtr<UInstancedStaticMeshComponent> Faces;
+		TWeakObjectPtr<UInstancedStaticMeshComponent> Backs;
+		TWeakObjectPtr<UInstancedStaticMeshComponent> Pips;
+		int32 Drawn = 0;
+	};
 
 	/** Glowing sparks thrown out that fall, slow in the air and fade (slag's, a spike's, a lantern's motes). Drawn as streaks. */
 	class AI_LOOTER_SHOOTER_API FEmberSparks

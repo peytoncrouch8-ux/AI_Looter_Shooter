@@ -583,13 +583,23 @@ def sights():
     v0 = SIGHT_AT[1]
     S = lambda key: model('Sight', key, SIGHT_AT)
 
-    m = S('Iron')                                                # flip-up rear aperture and front post
-    blade = lg.slab([(15, v0), (18, v0), (17.6, v0 + 3.2), (16.0, v0 + 3.2)], 2.0, bevel=0.15, mat=lg.BLACK, round=0.3)
-    g.add(m, lg.cut(blade, [lg.tube(14.0, 19.0, 0.35, v=v0 + 2.6, segments=16)]))   # the peep hole
-    g.add(m, hollow([(0.0, 0.55), (0.6, 0.55)], 16.5, v0 + 2.6, 16, lg.BLACK, wall=0.2))   # the aperture ring
-    g.add(m, lg.slab([(29.6, v0), (32, v0), (31.6, v0 + 2.6), (30.2, v0 + 2.6)], 1.8, bevel=0.15, mat=lg.BLACK, round=0.3))
-    g.add(m, lg.tube(30.0, 30.14, 0.14, v=v0 + 2.3, segments=10, mat=CYAN))   # a cyan dot on the post, facing the eye
-    g.socket(m, 'Aim', (16.8, v0 + 2.6))   # the rear aperture's center: the front post's tip shows in it
+    m = S('Iron')                                                # flip-up leaves: a wide aperture, an A-frame post
+    # (2026-10-27 redesign: lg's iron sight notes.) The rear leaf is a rounded plate round an aperture 1.8 cm across, the
+    # front an A-frame whose slanted ears stop under the line round a post with its cyan dot on it; both stand up from
+    # sand hinge blocks.
+    h = v0 + 2.6
+    ur, uf = 16.8, 30.8
+    for u in (ur, uf):
+        g.add(m, lg.box(u - 1.2, u + 1.2, v0, v0 + 0.6, 2.4, bevel=0.15, mat=lg.BLACK))      # the clamp
+        g.add(m, lg.pin(u + 0.55, v0 + 0.85, -1.05, 1.05, 0.32, mat=SHELL, segments=14))     # the hinge
+    leaf = lg.face([(-1.2, v0 + 0.55), (1.2, v0 + 0.55), (1.45, h - 0.3), (1.45, h + 0.75), (0.95, h + 1.35),
+                    (-0.95, h + 1.35), (-1.45, h + 0.75), (-1.45, h - 0.3)], ur - 0.25, ur + 0.25, bevel=0.1,
+                   mat=lg.BLACK, round=0.25)
+    g.add(m, lg.cut(leaf, [lg.tube(ur - 1.0, ur + 1.0, 0.9, v=h, segments=28)]))   # the aperture
+    g.add(m, hollow([(0.0, 0.98), (0.06, 0.98)], ur - 0.3, h, 28, SHELL, wall=0.08))   # a sand lip round it
+    lg.post_ears(g, m, uf, v0 + 0.55, h, half=1.35, gap=0.55, drop=0.45, thick=0.7, slant=0.45)
+    lg.front_post(g, m, uf, v0 + 1.0, h)
+    g.socket(m, 'Aim', (ur, h))   # the aperture's center: the front post's dot sits in its middle
 
     m = S('RedDot')                                              # a 1x tube, a cyan LED knob, a sand sunshade
     g.add(m, lg.box(19.4, 26.6, v0, v0 + 1.3, 2.2, bevel=0.25, mat=lg.BLACK))

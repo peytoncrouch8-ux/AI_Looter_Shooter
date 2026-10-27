@@ -18,7 +18,28 @@
  *
  * The throw (FirstPersonHandsThrow.cpp): off the gun and round the jar (ThrowMotion::JarPose) through the draw and the
  * sling, open past the release, back to the gun as it comes up.
+ *
+ * An ember power's cast (FirstPersonHandsCast.cpp; the user's note 27, 2026-10-27): the left hand off the gun, raised and
+ * gathered through the cast's lead (UEmberComponent::CastLeadSeconds), flared open at the release as the power fires, held
+ * out a moment, back to the gun; its shape by the power (CastKindOf: a fling, a push, a clench, a press to the ground).
+ *
+ * A melee strike (FirstPersonHandsCast.cpp too): the right hand off the gun's grip and onto the hero's tool
+ * (UPlayerMeleeComponent::GetToolHold), round its handle, or a fist inside a forearm tool.
  */
+
+/** The shape of an ember power's cast pose (FirstPersonHandsMotion::CastKindOf). */
+enum class EHandsCast : uint8
+{
+	/** Drawn back by the cheek, flung out across (cards, a slag lob, a thrown hook). */
+	Fling,
+	/** Gathered at the chest, pushed straight out palm first (a mark, a spike, a dash, a sighting). */
+	Push,
+	/** Opened palm up, then clenched to a fist before the face (a power on the body: a hide, a streak, a debt). */
+	Clench,
+	/** Raised palm down and pressed toward the ground (a lantern planted, a wire laid). */
+	Plant
+};
+
 namespace FirstPersonHandsMotion
 {
 	/** The belt's pouches (camera space): low on the left for magazines and speedloaders, low on the right for shells. */
@@ -48,4 +69,32 @@ namespace FirstPersonHandsMotion
 
 	/** The hand round the jar ThrowTime seconds into a throw, where ThrowMotion::JarPose has the jar (camera space). */
 	AI_LOOTER_SHOOTER_API FHandPlacement OnJar(float ThrowTime);
+
+	// --- Casts and the melee tool (FirstPersonHandsCast.cpp) ---
+
+	/** The cast's shape for an ember power by its id (the twelve and Ellis's three; anything else a push). */
+	AI_LOOTER_SHOOTER_API EHandsCast CastKindOf(FName PowerId);
+
+	/** The whole cast pose's length after a Lead (the lead, the flare, the hold, back to the gun). */
+	AI_LOOTER_SHOOTER_API float CastSeconds(float Lead);
+
+	/** The cast's gathered spot (the lead's end) and its released spot (the flare's end), camera space. */
+	AI_LOOTER_SHOOTER_API FHandPlacement CastRaised(EHandsCast Kind);
+	AI_LOOTER_SHOOTER_API FHandPlacement CastReleased(EHandsCast Kind);
+
+	/**
+	 * The support hand CastTime seconds into a cast of Kind whose power fired Lead after the press; OnGun: where it holds
+	 * the gun now (or rests, with none). OnGun before and after.
+	 */
+	AI_LOOTER_SHOOTER_API FHandPlacement SupportInCast(const FHandPlacement& OnGun, EHandsCast Kind, float CastTime, float Lead);
+
+	/**
+	 * The right hand on a melee tool whose grip frame is Grip (camera space; X up the handle, Z the striking side): round the
+	 * handle (HandleRadius, drawn), fingers closing on it; or, bForearm, a fist with the knuckles along X, the back of the
+	 * hand toward Z, inside the forearm piece.
+	 */
+	AI_LOOTER_SHOOTER_API FHandPlacement OnMeleeTool(const FTransform& Grip, float HandleRadius, bool bForearm);
+
+	/** Where an empty hand rests under the frame (no gun in hand, the other hand at work): the left's, mirrored for the right. */
+	AI_LOOTER_SHOOTER_API FHandPlacement BareRest(EFirstPersonHand Hand);
 }

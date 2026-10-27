@@ -327,7 +327,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMissionSideGatesTest, "Looter.Missions.MainSta
 bool FMissionSideGatesTest::RunTest(const FString& Parameters)
 {
 	// Ransom's Rest's side missions as their assets have them, each behind its story gate (Docs/Areas/
-	// RansomsRest_Expansion.md section 2): nothing offered on a new game; after Main 5, all but the two behind Dead Lift.
+	// RansomsRest_Expansion.md section 2): nothing offered on a new game; after Main 5, every one whose gate is open (not
+	// the Last Watch, behind Dead Lift, nor Lost and Found, behind the Old Fare). Dead Lift and Back Pay are main missions
+	// since 2026-10-27 (the user's note 32: Cyrus Teague the second boss): Looter.Missions.MinePromoted.
 	struct FGate
 	{
 		const TCHAR* Id;
@@ -335,9 +337,9 @@ bool FMissionSideGatesTest::RunTest(const FString& Parameters)
 	};
 	const FGate Gates[] = {
 		{ TEXT("Side1"), TEXT("Main3") }, { TEXT("CaldersCaches"), TEXT("Main3") }, { TEXT("OldFare"), TEXT("Main3") },
+		{ TEXT("LostAndFound"), TEXT("OldFare") },
 		{ TEXT("Side2"), TEXT("Main4") }, { TEXT("KnockingBelow"), TEXT("Main4") },
-		{ TEXT("Side3"), TEXT("Main5") }, { TEXT("DeadLift"), TEXT("Main5") },
-		{ TEXT("LastWatch"), TEXT("DeadLift") }, { TEXT("BackPay"), TEXT("DeadLift") },
+		{ TEXT("Side3"), TEXT("Main5") }, { TEXT("LastWatch"), TEXT("DeadLift") },
 	};
 	TArray<UMissionDefinition*> Sides;
 	for (const FGate& Gate : Gates)
@@ -375,7 +377,7 @@ bool FMissionSideGatesTest::RunTest(const FString& Parameters)
 			!FreshRunner->IsAvailable(Side->GetMissionId()) && FreshRunner->GetStatus(*Side) == EMissionStatus::Locked);
 	}
 
-	// Main 5 turned in: every gate open but Dead Lift's.
+	// Main 5 turned in (and nothing else): every gate open but Dead Lift's and the Old Fare's.
 	FCampaignRecord Later;
 	Later.CompletedMissions = { FName(TEXT("Main1")), FName(TEXT("Main2")), FName(TEXT("Main3")), FName(TEXT("Main4")), FName(TEXT("Main5")) };
 	FTestWorldWrapper LaterLevel;
@@ -394,9 +396,9 @@ bool FMissionSideGatesTest::RunTest(const FString& Parameters)
 	LaterRunner->Update(0.f);
 	for (const UMissionDefinition* Side : Sides)
 	{
-		const bool bBehindDeadLift = Side->Prerequisites.Contains(FName(TEXT("DeadLift")));
-		TestEqual(FString::Printf(TEXT("After Main 5: %s %s"), *Side->GetMissionId().ToString(), bBehindDeadLift ? TEXT("still shut") : TEXT("offered")),
-			LaterRunner->IsAvailable(Side->GetMissionId()), !bBehindDeadLift);
+		const bool bShut = Side->Prerequisites.ContainsByPredicate([&Later](FName Each) { return !Later.CompletedMissions.Contains(Each); });
+		TestEqual(FString::Printf(TEXT("After Main 5: %s %s"), *Side->GetMissionId().ToString(), bShut ? TEXT("still shut") : TEXT("offered")),
+			LaterRunner->IsAvailable(Side->GetMissionId()), !bShut);
 	}
 	return true;
 }
@@ -407,20 +409,27 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMissionMainStartAssetsTest, "Looter.Missions.M
 bool FMissionMainStartAssetsTest::RunTest(const FString& Parameters)
 {
 	// The data as create_mission_assets.py and create_side_mission_assets.py write it (2026-10-22): Main 3 and Main 6 met
-	// first at Delia's door, the other main missions with a giver starting by themselves; the speakers' side jobs with words
-	// for once they're taken.
-	for (const TCHAR* Id : { TEXT("Main3"), TEXT("Main6") })
+	// first at Delia's door, Dead Lift at Hiram's stool and Back Pay at the lift head's speaking tube (main since
+	// 2026-10-27), the other main missions with a giver starting by themselves; the speakers' jobs with words for once
+	// they're taken.
+	struct FMeet
 	{
-		const UMissionDefinition* Asset = LoadMission(Id);
-		TestTrue(FString::Printf(TEXT("%s: met first at Delia's"), Id), Asset && Asset->IsMetFirst()
-			&& Asset->Offer.GiverTag == FName(TEXT("Speaker_Delia")));
+		const TCHAR* Id;
+		const TCHAR* Giver;
+	};
+	for (const FMeet& Meet : { FMeet{ TEXT("Main3"), TEXT("Speaker_Delia") }, FMeet{ TEXT("Main6"), TEXT("Speaker_Delia") },
+		FMeet{ TEXT("DeadLift"), TEXT("Speaker_Hiram") }, FMeet{ TEXT("BackPay"), TEXT("Speaker_LiftTube") } })
+	{
+		const UMissionDefinition* Asset = LoadMission(Meet.Id);
+		TestTrue(FString::Printf(TEXT("%s: met first at %s"), Meet.Id, Meet.Giver), Asset && Asset->IsMetFirst()
+			&& Asset->Offer.GiverTag == FName(Meet.Giver));
 	}
 	for (const TCHAR* Id : { TEXT("Main2"), TEXT("Main4"), TEXT("Main5"), TEXT("Main7") })
 	{
 		const UMissionDefinition* Asset = LoadMission(Id);
 		TestTrue(FString::Printf(TEXT("%s: starts by itself"), Id), Asset && Asset->IsMainByItself());
 	}
-	for (const TCHAR* Id : { TEXT("OldFare"), TEXT("Side2"), TEXT("KnockingBelow"), TEXT("DeadLift") })
+	for (const TCHAR* Id : { TEXT("OldFare"), TEXT("Side2"), TEXT("KnockingBelow"), TEXT("DeadLift"), TEXT("BackPay"), TEXT("LostAndFound") })
 	{
 		const UMissionDefinition* Asset = LoadMission(Id);
 		TestTrue(FString::Printf(TEXT("%s: offer words and accept words"), Id), Asset && !Asset->Offer.Lines.IsEmpty()

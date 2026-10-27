@@ -24,8 +24,8 @@ leaves every other field as it is.
                    once per 20 minutes of play per map. Legendary monsters are hand-placed.
   required_kinds   kinds the area's layout must set, at these levels (its bosses and Legendary monsters, never rolled from a
                    zone): checked before anything is saved, so a layout that loses one is caught here. Ransom's Rest's
-                   Foreman (Back Pay) is a set 5 before his Soulfed rank's 2, so level 7, level with Abel (the user's call,
-                   2026-10-13).
+                   Foreman (Back Pay) is a set 4 before his Soulfed rank's 2, so level 6, a level under Abel's 7 (since
+                   2026-10-27 he is the second boss, before Abel: the user's call; level 7 before).
 
 A level zone's shape in the layout is a layout zone ("zone"), an obstacle ("obstacle"), its own "polygon", or a "radius"
 round a point ("at") or between two obstacles ("between"), made a 16-sided outline as the tests read it
@@ -46,7 +46,7 @@ AREAS = [
          promotions=dict(rare=0.0, epic=0.0)),
     dict(asset='DA_Area_RansomsRest', name="Ransom's Rest", map='/Game/Maps/Lvl_RansomsRest', landings=['Landing_Depot'],
          practice=False, opening_mission='Main1', sort_order=10, layout='Art/Levels/RansomsRest/layout.json',
-         promotions=dict(rare=0.08, epic=0.02), required_kinds=dict(ForemanCreature=5)),
+         promotions=dict(rare=0.08, epic=0.02), required_kinds=dict(ForemanCreature=4)),
     dict(asset='DA_Area_GildedLily', name='The Gilded Lily', spoken='the Lily', map='/Game/Maps/Lvl_GildedLily',
          landings=['Landing_Platform'], practice=False, opening_mission='', sort_order=20, band=(9, 15),
          promotions=dict(rare=0.08, epic=0.02)),

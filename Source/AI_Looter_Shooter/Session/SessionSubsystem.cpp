@@ -189,7 +189,7 @@ void USessionSubsystem::OpenMainMenu()
 	{
 		Options = MenuOptions;
 	}
-	UGameplayStatics::OpenLevel(World, FName(*NewGameMap()), /*bAbsolute*/ true, Options);
+	UGameplayStatics::OpenLevel(World, FName(*MenuMap()), /*bAbsolute*/ true, Options);
 }
 
 FString USessionSubsystem::ContinueMap(const FString& SavedMap)

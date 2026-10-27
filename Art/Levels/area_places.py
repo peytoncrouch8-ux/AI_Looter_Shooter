@@ -21,6 +21,24 @@ macro.places: {"size": px across, "fray": m the edges wander, "layers": {name: {
   "soft": m an edge eases over, "patch": 0 even .. 1 only in patches, "grass": the share of the grass and flowers left,
   "clutter": the scatter's density of the place's clutter at full weight}}}
 
+The roads (2026-10-27, the user's note 16: "the map doesn't really prompt the player to use roads, it feels like a free
+for all"): the layout's "macro.roads" block writes a third map, read by M_Terrain's road term (Tools/Unreal/
+build_world_materials.py ROAD_WEIGHTS), so every road reads at eye level as a road (wheel ruts, a packed bed brighter
+than the grass, worn darker edges) wherever its own place doesn't carry it:
+
+  Art/Textures/<Area>Places/T_<Area>Roads_M.png          R how much road lies there (the road's bed and its verge, out
+                                                           to its width plus "verge" m each side; its weight), G where
+                                                           across it (0.5 + signed meters from its middle / (2 x
+                                                           ACROSS): the shader draws the ruts from it, so they stay
+                                                           sharp at any texel size), B its half width (/ ACROSS), A how
+                                                           strong its ruts are (its kind's "ruts", eased out over
+                                                           RUT_ENDS m at the road's ends)
+
+macro.roads: {"size": px across, "verge": m past a road's side its worn edge reaches, "skip": [road ids left to their
+  place (Main Street's dust has ruts of its own) or with no ruts (the rails)], "ruts": {kind: strength}, "weight":
+  {road id: its weight, 1 when unnamed}, "instances" and "look" (M_Terrain's: build_world_materials.apply_roads)}.
+Where two roads meet, each cell is the nearer road's.
+
     python Art/Levels/area_places.py <Area>     (Blender's Python, or Tools\\artrun.ps1 -Script Art\\Levels\\area_places.py
                                                  -ScriptArgs <Area>)
 """
@@ -35,9 +53,15 @@ REPO = os.path.normpath(os.path.join(LEVELS, '..', '..'))
 if LEVELS not in sys.path:
     sys.path.append(LEVELS)
 
-from area_math import Grid, catmull_rom, fbm_raster, polyline_field, signed_distance, smoothstep  # noqa: E402
+from area_math import (Grid, arc_length, catmull_rom, fbm_raster, polyline_field, signed_distance,  # noqa: E402
+                       smoothstep)
 
 CHANNELS = {'R': 0, 'G': 1, 'B': 2, 'A': 3}
+# The road map's across and half width are kept in meters over this (M_Terrain's ROAD_WEIGHTS decodes them by the same):
+# Ransom's Rest's widest road with ruts (the yard road) is 3 m each side, plus its verge.
+ACROSS = 8.0
+# Meters a road's ruts ease in from each of its ends (a road ending at another's side, or in a yard, doesn't stop dead).
+RUT_ENDS = 4.0
 # Which scatter channel carries a layer's clutter (the place map's channel -> the scatter map's): the ash's cinders,
 # the grit's chips, the coal's lumps; the town's dust has none (its street is bare already).
 CLUTTER = {'G': 1, 'B': 2, 'A': 3}
@@ -119,9 +143,53 @@ def layer_weight(grid, layout, spec, fray):
     return np.clip(w, 0.0, 1.0).astype(np.float32)
 
 
+def road_map(layout, spec):
+    """The road map (see the docstring) as float32 (n, n, 4), rows south to north as the grid's."""
+    half = layout['map']['half'] / 100.0
+    grid = Grid(int(spec.get('size', 1024)), half)
+    verge = float(spec.get('verge', 1.5))
+    skip = set(spec.get('skip', []))
+    ruts = spec.get('ruts', {})
+    weights = spec.get('weight', {})
+    out = np.zeros((grid.n, grid.n, 4), np.float32)
+    out[..., 1] = 0.5
+    best = np.full((grid.n, grid.n), np.inf, np.float32)
+    count = 0
+    for road in layout.get('roads', []):
+        if road['id'] in skip or len(road['path']) < 2:
+            continue
+        side_half = road.get('width', 400) / 200.0
+        reach = side_half + verge
+        curve = catmull_rom(to_m(road['path']), step=0.5)
+        dist, along, side = polyline_field(grid, curve, reach + 1.0)
+        total = float(arc_length(curve)[-1])
+        ends = smoothstep(0.0, RUT_ENDS, along) * smoothstep(0.0, RUT_ENDS, total - along)
+        # Where a road ends on another's side (the quarry track off the north road), the cells there count as a little
+        # farther from the ending road, so the through road keeps its ruts across the mouth.
+        score = dist + (1.0 - ends) * RUT_ENDS * 0.5
+        nearer = score < best
+        if not nearer.any():
+            continue
+        count += 1
+        best[nearer] = score[nearer]
+        weight = float(weights.get(road['id'], 1.0))
+        out[..., 0][nearer] = weight * (1.0 - smoothstep(reach - 1.0, reach, dist[nearer]))
+        out[..., 1][nearer] = np.clip(0.5 + side[nearer] * dist[nearer] / (2.0 * ACROSS), 0.0, 1.0)
+        out[..., 2][nearer] = min(side_half / ACROSS, 1.0)
+        out[..., 3][nearer] = float(ruts.get(road.get('kind', 'dirt'), 0.0)) * ends[nearer]
+    print(f'LOOTER places: road map, {count} roads ({", ".join(sorted(skip))} left out)')
+    return np.clip(out, 0.0, 1.0)
+
+
 def build(area):
     with open(os.path.join(LEVELS, area, 'layout.json'), encoding='utf-8') as f:
         layout = json.load(f)
+    roads = layout.get('macro', {}).get('roads')
+    if roads:
+        data = road_map(layout, roads)
+        path = os.path.join(REPO, 'Art', 'Textures', f'{area}Places', f'T_{area}Roads_M.png')
+        write_png(path, np.maximum(np.round(data[::-1] * 255.0), 1).astype(np.uint8))
+        print(f'LOOTER places: {path}')
     places = layout.get('macro', {}).get('places')
     if not places:
         print(f'LOOTER places: {area} has no macro.places')

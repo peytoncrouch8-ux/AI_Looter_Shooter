@@ -1,5 +1,6 @@
-// ULostLootSubsystem: the guns lying on the ground: which are loose (never a rack's), their five minutes, handing them in
-// one at a time as their time runs out or all at once as the player leaves, and the clock's beat that drives it.
+// ULostLootSubsystem: the guns lying on the ground: which are loose (never a rack's), their five minutes (held while the
+// level's Lost Property window is still shut), handing them in one at a time as their time runs out or all at once as the
+// player leaves, and the clock's beat that drives it.
 
 #include "Loot/LostLootSubsystem.h"
 #include "AI_Looter_Shooter.h"
@@ -8,6 +9,7 @@
 #include "Session/SessionSubsystem.h"
 #include "UI/Style/WeaponText.h"
 #include "Weapons/WeaponBase.h"
+#include "World/LostPropertyWindow.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
@@ -53,6 +55,11 @@ TArray<AWeaponBase*> ULostLootSubsystem::FindGroundWeapons() const
 		}
 	}
 	return Found;
+}
+
+bool ULostLootSubsystem::IsHeldShut() const
+{
+	return ALostPropertyWindow::IsShutIn(GetWorld());
 }
 
 float ULostLootSubsystem::GetLifeLeft(const AWeaponBase& Weapon) const
@@ -111,6 +118,10 @@ void ULostLootSubsystem::AdvanceAt(float DeltaSeconds, const TOptional<FVector>&
 	TMap<TWeakObjectPtr<AWeaponBase>, float> Seen;
 	TArray<AWeaponBase*> Due;
 	const double NearSquared = FMath::Square(static_cast<double>(LostLootRules::KeepNearRadius));
+	// Lost Property still shut here (Mr. Sloane's Lost and Found not done, the user's note of 2026-10-27): the guns stay
+	// where they lie and don't age, so none goes into a window nobody can open yet. The clock picks up where it left off
+	// once the window opens.
+	const bool bHeld = IsHeldShut();
 	for (TActorIterator<AWeaponBase> It(World); It; ++It)
 	{
 		AWeaponBase* Weapon = *It;
@@ -122,13 +133,13 @@ void ULostLootSubsystem::AdvanceAt(float DeltaSeconds, const TOptional<FVector>&
 		float Left = Known ? *Known : LostLootRules::GroundLifeSeconds;
 		// A gun nobody can see yet (a scene keeps it hidden until it's shown) isn't lying anywhere the player could have
 		// left it: it doesn't age.
-		if (!Weapon->IsHidden())
+		if (!Weapon->IsHidden() && !bHeld)
 		{
 			Left -= FMath::Max(DeltaSeconds, 0.f);
 		}
 		Seen.Add(Weapon, Left);
 		const bool bNear = PlayerAt.IsSet() && FVector::DistSquared(PlayerAt.GetValue(), Weapon->GetActorLocation()) < NearSquared;
-		if (LostLootRules::IsDue(Left, bNear))
+		if (!bHeld && LostLootRules::IsDue(Left, bNear))
 		{
 			Due.Add(Weapon);
 		}

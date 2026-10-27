@@ -64,7 +64,9 @@ CYAN = lg.CYAN             # sight dots and optics
 CYL_V = -1.2                 # the cylinder's axis, under the bore by its chambers' offset
 CYL_U0, CYL_U1 = 2.1, 6.45   # its rear and front faces
 STRAP_TOP = 1.8              # the top strap's top
-SIGHT_LINE = 2.25            # the iron sights' line: every rear's shoulders and every barrel's front blade top
+# The iron sights' line: every rear's shoulders and every barrel's front dot. 3.0 since 2026-10-27: at 2.25 the hammer's
+# spur (top 2.55, 18 cm in front of the aiming eye) stood in the line and hid the rear notch whole.
+SIGHT_LINE = 3.0
 HALF = 1.3                   # half the frame's width
 ROD_END = CYL_U1 + 4.6       # the ejector rod's tip, where it seats in the barrel's latch
 BARREL_AT = (9.2, 0.0)
@@ -351,15 +353,17 @@ def frames():
 # --- Barrels: from the frame's front, each with its front sight and the rod's latch ---
 
 def front_blade(m, tip, base, mat=lg.BLUED, bead=None):
-    """A ramped blade whose top is on the sight line; a bead (a material) caps it, or else a cyan insert glows just
-    under its top on the ramp the eye sees."""
-    top = SIGHT_LINE - (0.2 if bead else 0.0)
-    g.add(m, lg.slab([(tip - 1.9, base), (tip - 0.3, base), (tip - 0.3, top), (tip - 0.9, top)], 0.34, bevel=0.06,
-                     mat=mat, round=0.1))
+    """A ramped blade whose top stands upright toward the eye, with a cyan insert (square) or a bead of the given
+    material (round) on that face, centered on the sight line: through the notch it sits level with the rear's
+    shoulders, where the shots go (2026-10-27: the irons' one sight picture, looter_guns' notes). 0.56 cm wide, about
+    a third of the notch's light as the eye sees it at the Service barrel's 39 cm."""
+    top = SIGHT_LINE + 0.22
+    g.add(m, lg.slab([(tip - 2.4, base), (tip - 0.3, base), (tip - 0.3, top), (tip - 0.85, top),
+                      (tip - 0.85, SIGHT_LINE - 0.35)], 0.56, bevel=0.06, mat=mat, round=0.08))
     if bead:
-        g.add(m, lg.upright(tip - 0.6, top - 0.05, SIGHT_LINE, 0.18, mat=bead, segments=10))
+        g.add(m, lg.tube(tip - 0.92, tip - 0.82, 0.22, v=SIGHT_LINE, segments=14, mat=bead))
     else:
-        g.add(m, lg.box(tip - 1.05, tip - 0.85, top - 0.32, top - 0.08, 0.36, bevel=0.0, mat=CYAN))
+        g.add(m, lg.box(tip - 0.9, tip - 0.83, SIGHT_LINE - 0.17, SIGHT_LINE + 0.17, 0.42, bevel=0.0, mat=CYAN))
 
 
 def rod_latch(m, mat=lg.BLUED):
@@ -584,31 +588,40 @@ def sights():
     S = lambda key: model('Sight', key, SIGHT_AT)
     v0 = STRAP_TOP
 
-    m = S('Notch')                                             # the Drover's: a fixed notch block
-    block = lg.slab([(1.0, v0), (2.7, v0), (2.7, SIGHT_LINE), (1.3, SIGHT_LINE)], 1.2, bevel=0.08, mat=lg.BLUED,
-                    round=0.1)
-    g.add(m, lg.cut(block, [lg.cbox(0.5, 3.2, SIGHT_LINE - 0.32, SIGHT_LINE + 0.5, -0.24, 0.24)]))
-    for w in (-0.42, 0.42):   # a cyan dot each side of the notch: with the front blade's, three in a row
-        g.add(m, lg.box(1.12, 1.24, SIGHT_LINE - 0.24, SIGHT_LINE - 0.1, 0.14, w=w, bevel=0.0, mat=CYAN))
-    g.socket(m, 'Aim', (1.8, SIGHT_LINE))   # the rear's shoulders: the front blade's top shows in the notch
+    # Irons (2026-10-27 redesign: looter_guns' iron sight notes). The eye is 18 cm behind the rear (the revolver is
+    # drawn at 1.2x), the front blade 39 cm on the Service barrel: the rear is a plate as wide as the strap with a notch
+    # 0.84 cm across, so the blade shows in it with a clear bar of light each side and its cyan dot level with the
+    # shoulders.
+    L = SIGHT_LINE
 
-    m = S('Blade')                                             # an adjustable target rear
+    def notch(depth, round_bottom):
+        """The rear plate's outline as the eye sees it: shoulders on the line, a U (or square) notch 0.84 across."""
+        if round_bottom:
+            cut = [(0.42, L), (0.42, L - depth + 0.2), (0.3, L - depth + 0.05), (0.0, L - depth),
+                   (-0.3, L - depth + 0.05), (-0.42, L - depth + 0.2), (-0.42, L)]
+        else:
+            cut = [(0.42, L), (0.42, L - depth), (-0.42, L - depth), (-0.42, L)]
+        return cut
+
+    m = S('Notch')                                             # the Drover's: a fixed U notch (the hammer hides below)
+    g.add(m, lg.face([(-1.15, v0), (1.15, v0), (1.15, L - 0.14), (1.0, L)] + notch(0.52, True) +
+                     [(-1.0, L), (-1.15, L - 0.14)], 1.0, 2.6, bevel=0.06, mat=lg.BLUED))
+    g.socket(m, 'Aim', (1.8, L))   # the rear's shoulders: the front dot sits level with them in the notch
+
+    m = S('Blade')                                             # an adjustable target rear: square notch, cyan bars
     g.add(m, lg.box(1.0, 4.2, v0, v0 + 0.3, 1.0, bevel=0.08, mat=lg.BLACK))
-    blade = lg.slab([(1.0, v0 + 0.3), (1.9, v0 + 0.3), (1.9, SIGHT_LINE), (1.0, SIGHT_LINE)], 1.6, bevel=0.05,
-                    mat=lg.BLACK, round=0.05)
-    g.add(m, lg.cut(blade, [lg.cbox(0.5, 2.4, SIGHT_LINE - 0.3, SIGHT_LINE + 0.5, -0.24, 0.24)]))
-    for w in (-0.5, 0.5):     # cyan dots each side of the notch
-        g.add(m, lg.box(0.96, 1.02, SIGHT_LINE - 0.24, SIGHT_LINE - 0.08, 0.16, w=w, bevel=0.0, mat=CYAN))
+    g.add(m, lg.face([(-1.25, v0 + 0.25), (1.25, v0 + 0.25), (1.25, L)] + notch(0.48, False) + [(-1.25, L)],
+                     1.0, 1.6, bevel=0.05, mat=lg.BLACK))
+    for w in (-0.66, 0.66):   # a cyan bar each side of the notch, level with the front dot
+        g.add(m, lg.box(0.95, 1.01, L - 0.2, L - 0.04, 0.14, w=w, bevel=0.0, mat=CYAN))
     g.add(m, lg.upright(2.6, v0 + 0.3, v0 + 0.5, 0.16, mat=lg.BRASS, segments=10))     # elevation screw
-    g.add(m, lg.pin(1.45, v0 + 0.4, -0.95, 0.95, 0.08, mat=lg.STEEL, segments=8))      # windage screw
-    g.socket(m, 'Aim', (1.45, SIGHT_LINE))
+    g.add(m, lg.pin(1.3, v0 + 0.45, -1.4, 1.4, 0.08, mat=lg.STEEL, segments=8))        # windage screw
+    g.socket(m, 'Aim', (1.3, L))
 
-    m = S('Peep')                                              # a brass aperture on a post, a sand base
+    m = S('Peep')                                              # a brass ring on a post, a sand base
     g.add(m, lg.box(1.0, 3.4, v0, v0 + 0.25, 1.0, bevel=0.06, mat=SAND))
-    g.add(m, lg.slab([(1.4, v0 + 0.25), (2.2, v0 + 0.25), (2.1, SIGHT_LINE - 0.42), (1.5, SIGHT_LINE - 0.42)], 0.5,
-                     bevel=0.05, mat=lg.BLACK))
-    g.add(m, hollow([(0.0, 0.55), (0.5, 0.55)], 1.55, SIGHT_LINE, 18, lg.BRASS, wall=0.22))
-    g.socket(m, 'Aim', (1.8, SIGHT_LINE))   # the ring: the front blade's top shows in its middle
+    lg.rear_ring(g, m, 1.8, v0 + 0.2, L, 0.7, 0.9, mat=lg.BRASS, lip=None, depth=0.4, stem=0.7, stem_mat=lg.BLACK)
+    g.socket(m, 'Aim', (1.8, L))   # the ring: the front dot sits in its middle
 
     m = S('Pip')                                               # a little open dot sight in a sand hood, a cyan LED
     g.add(m, lg.box(1.0, 6.6, v0, v0 + 0.35, 1.4, bevel=0.1, mat=lg.BLACK))

@@ -426,6 +426,12 @@ ITEMS = {
                       prompt="Take the Ranger's tag", shown_when=dict(after=['Main1'])),
     'FennsFare': dict(mission='OldFare', where="on the landing under Mr. Sloane's door (SM_RR_Depot's AgentDoor socket)",
                       prompt="Take Fenn's coins", shown_when=dict(during='OldFare', from_step=4)),
+    # Lost and Found (2026-10-27, the user's note 37: the quest that opens Lost Property): Mr. Sloane's keys, kicked under the
+    # waiting room's benches as he ran for the stair; there only while the mission runs (build_area_lostloot.py places them,
+    # with the window and its shutter; name: the prompt's and the stand-in's).
+    'LostPropertyKeys': dict(mission='LostAndFound', name="Mr. Sloane's keys",
+                             where="on the waiting room's floor by its benches (SM_RR_Depot's Wait_2 socket, off it)",
+                             prompt="Take Mr. Sloane's keys", shown_when=dict(during='LostAndFound')),
     'CellarKey': dict(mission='KnockingBelow', where="on Thaddeus's measuring hook (SM_RR_Workshop_Bright's MeasuringHook)",
                       prompt='Take the cellar key', shown_when=None),
     'ThaddeusTape': dict(mission='KnockingBelow', where="on Thaddeus's bench in the cold room (ThaddeusBench socket)",
@@ -495,7 +501,9 @@ TOPICS = {
         (dict(during='OldFare', from_step=3), 'DA_Lines_AgentCoins'),
         (dict(during='OldFare'), 'DA_Lines_AgentDoor'),
     ]),
-    # His ticket window (SM_RR_Depot's TicketWindow socket), from the Old Fare's end; the coal while Dead Lift runs.
+    # His ticket window (SM_RR_Depot's TicketWindow socket), from the Old Fare's end; the coal while Dead Lift runs. It
+    # offers Lost and Found and takes its turn-in (the mission's own words, 2026-10-27), which opens the LOST PROPERTY
+    # window.
     'Speaker_AgentWindow': dict(default='DA_Lines_AgentWindow', name='Mr. Sloane', shown_when=dict(after=['OldFare']),
                                 topics=[
         (dict(after=['OldFare', 'Main7']), 'DA_Lines_AgentWindowLily'),

@@ -1,5 +1,6 @@
 #include "Scenes/ColdOpenSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Story/NewGameIntro.h"
 #include "Areas/AreaTravelSubsystem.h"
 #include "Scenes/ColdOpen.h"
 #include "Scenes/ColdOpenSet.h"
@@ -85,6 +86,24 @@ bool UColdOpenSubsystem::BeginIfDue()
 		UE_LOG(LogLooter, Log, TEXT("Cold open: scenes are off (a tour or perf run, -NoScenes, or Looter.Scenes 0), so it's passed."));
 		PassColdOpen(true);
 		return false;
+	}
+	// The new game's intro first (Story/NewGameIntro.h): Teropa if the menu didn't show it, Ransom's Rest, who the player is.
+	// It ends holding the player under the white, which the cold open's title rises through.
+	const TWeakObjectPtr<UColdOpenSubsystem> WeakThis = this;
+	if (NewGameIntro::PlayRestIfDue(*World, [WeakThis]()
+	{
+		UColdOpenSubsystem* Opening = WeakThis.Get();
+		if (Opening && !Opening->PlayColdOpen(true))
+		{
+			Opening->PassColdOpen(true);
+			if (USceneSubsystem* Scenes = USceneSubsystem::Get(Opening))
+			{
+				Scenes->ReturnFromScene(UTransitionScreenSubsystem::GameTitle());
+			}
+		}
+	}))
+	{
+		return true;
 	}
 	if (!PlayColdOpen(true))
 	{
