@@ -3,6 +3,23 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
+## Now (2026-10-27): the user's playtest notes
+The user played the 10-23 build and sent 41 notes: `Docs/Work/2026-10-27-Playtest/NOTES.md` (word for word + their calls),
+`FINDINGS.md` (where each lives), `CONTRACT.md` (round 1). Calls: sniper ground ring dropped; order = round 1 bugs + quick
+asks, round 2 fights (bosses, bounties, Unpaid AI, grenades, legendaries, recoil), story/cutscenes/logos after; fast travel =
+Depot + Calder's Post only (Sheriff's Office roost kept as save/death-respawn point); legendaries rarer early, bosses and
+bounties keep odds; recoil: more kick, a high accuracy stat calms it a lot.
+Round 1 DONE and pushed (10843096, fdb7ab58+97223247, 696fea31 + level): cellar Unpaid upstairs (SnapToGround), Refill All
+Ammo, roost stations, Amos poster, Back Pay tags no card, Reliquary words, inventory pauses, no HUD money, no chest pins, gun
+pile labels fold, settings tabs + descriptions, legendary landing (no slow, pooled, burst), early legendary cap, vigil stones
+own countdowns (Save & Quit shortcut gone), apples on stems, M_Water two-sided, bounties pay at the board (+25% health, new
+arenas, board at the Depot). A DEMO play-check of all of it was running at this writing.
+Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where);
+round 2 (21/34 Gravemother: tombstone gate, rim-sniping aggro, harder; Abel harder; 23 Unpaid AI; 39 scarier mobs; 7
+grenades; 28 recoil; 29 idle sway; 38 mission gates); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
+two, 37 Lost Loot quest, 5 melee tools, 6 Odessa cards, 27 action skill anim, 35 iron sights, 16 roads, 26 chest spots, 25
+level scaling (after the Lily). Underwater/swimming effects: none exist (new system; not asked yet).
+
 ## State at the session swap (2026-10-27)
 Last commit f386c39 (all pushed, tree clean). Test build `Builds\Playtest\2026-10-23_0658` (1.27 GB, smoke menu + RR
 PASS; `Play Latest Build.bat`) has everything through 94699b1. **The user hasn't reported playing it yet: ask first.**

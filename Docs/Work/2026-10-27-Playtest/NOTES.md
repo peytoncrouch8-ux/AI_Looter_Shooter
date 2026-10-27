@@ -54,6 +54,18 @@ The user's notes, word for word (typed in Excel, one line each):
 - Legendaries: rarer early; normal enemies and chests almost never in RR; bosses (and their bounties) still can.
 - Recoil: more kick on every gun; a high accuracy stat calms it a lot (the stat must clearly matter).
 
+Round 2 calls (2026-10-27):
+- Mission gates (38): steps unlock in order: a step's items/objects appear or work only from that step; key mission actions
+  need a short hold instead of a tap.
+- Gravemother rim sniping: shots from the rim do nothing (her hide shrugs them off) until the player comes down into the Sink.
+- Gravemother and Abel: about 1.6x health and harder hits (+ the tombstone phase for her: no damage to her until it breaks).
+- Grenade classes: later. Now: weaker at the start, bigger projectile, a proper explosion.
+
+Round 1 play-check (DEMO, all PASS); its small finds go into round 2 POLISH: map labels WIDOW'S PINES / CHAPEL OF SAINT ADA
+overlap; folded pile dots tiny and lost in the legendary beam; the legendary name pop drawn twice; settings hovered row not
+highlighted; player fell ~14 m off the Ransom's Point arena mid-fight (-8682,-7016,622); Back Pay's "Take the tags" prompt
+stays after taking them; the Depot roost faces ~45 deg off the board.
+
 ## First sort (Main)
 
 - Bugs: 9 poster, 11 apples, 15 stairs, 17 legendary hitch, 20 Knocking Below, 21 Gravemother aggro, 22 bounty kinds/places,
