@@ -3243,9 +3243,8 @@
           "spots": [[-4100, -1800], [-4600, -1500], [-4800, -2150], [-4350, -2350], [-3950, -2150]],
           "ground": { "radius": 1300, "maxRise": 300 },
           "crate": [
-            [-5195,-2335,-18,true],[-5243,-2319,-18,true],[-5138,-2354,-18,true],[-5115,-2095,-18,true],
-            [-5255,-2515,-18,true],[-5035,-1855,-18,true],[-4700,-1750,45,false],[-4250,-1600,30,false],
-            [-4600,-2400,60,false]
+            [-5062,-2379,-18,false],[-5122,-2559,-18,false],[-4902,-1899,-18,false],[-4700,-1750,45,false],
+            [-4250,-1600,30,false],[-4600,-2400,60,false]
           ],
           "note": "Once the Unpaid have come for the corpse at the gate, some wait at the salt line for it: they never cross it (the farm is a safe zone, so they give up at the line), and they stand looking in at the farm."
         },
