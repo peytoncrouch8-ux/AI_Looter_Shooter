@@ -23,18 +23,25 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	int32 Kit = 1;
 
 	// --- Leading the target ---
-	/** Looter.Unpaid.LeadShare: how much of the target's run it allows for (0 aims at where they stand, 1 a perfect lead). */
-	float LeadShare = 0.7f;
-	/** Looter.Unpaid.LeadMaxSeconds: it never leads more than this far ahead (s), so a long sprint still shakes it. */
-	float LeadMaxSeconds = 0.45f;
+	/**
+	 * Looter.Unpaid.LeadShare: how much of the target's run it allows for (0 aims at where they stand, 1 a perfect lead).
+	 * DEMO 2026-10-27: at 0.7 a walking strafe was hit by 11 of 13 lunges; a quarter keeps a strafe the answer to it.
+	 */
+	float LeadShare = 0.25f;
+	/** Looter.Unpaid.LeadMaxSeconds: it never leads more than this far ahead (s), so a strafe or a sprint-step still shakes it. */
+	float LeadMaxSeconds = 0.2f;
 
 	// --- The lunge ---
 	/** Looter.Unpaid.LungeStart: it starts a lunge from this far out (cm; the old kit 380). */
 	float LungeStart = 520.f;
 	/** Looter.Unpaid.LungeDistance: a lunge flies at most this far (cm; the old 320). */
 	float LungeDistance = 470.f;
-	/** Looter.Unpaid.LungeHoming: in flight it turns after its target at most this fast (degrees a second): a late sidestep still beats it. */
-	float LungeHoming = 40.f;
+	/** Looter.Unpaid.LungeHoming: in flight it turns after its target at most this fast (degrees a second); 0: its aim is committed at the end of the wind-up (DEMO: 40 caught strafes). */
+	float LungeHoming = 0.f;
+	/** Looter.Unpaid.LungeHitRadius: its lunge lands on a target this near its line (cm at size 1; the old kit's 130 caught a strafe). */
+	float LungeHitRadius = 85.f;
+	/** Looter.Unpaid.LungeDamageShare: a landed lunge hurts this share of its attack (DEMO: 15-18 a hit at level 3 was too lethal). */
+	float LungeDamageShare = 0.85f;
 
 	// --- The rake (the second attack) ---
 	/** Looter.Unpaid.RakeRange: nearer than this (cm) it may rake instead of lunging. */
@@ -50,8 +57,8 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	/** Looter.Unpaid.RakeRadius / RakeArc: a swipe reaches this far (cm) in an arc this wide (degrees) across its front. */
 	float RakeRadius = 240.f;
 	float RakeArc = 130.f;
-	/** Looter.Unpaid.RakeDamageShare: each swipe hurts this share of its attack (two land: a little over one lunge). */
-	float RakeDamageShare = 0.65f;
+	/** Looter.Unpaid.RakeDamageShare: each swipe hurts this share of its attack (two land: about one old lunge). */
+	float RakeDamageShare = 0.5f;
 	/** Looter.Unpaid.RakeDrift: it drifts in this fast (cm/s) while it swipes, so a slow backpedal still gets caught. */
 	float RakeDrift = 240.f;
 
@@ -61,25 +68,25 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	/** Looter.Unpaid.CinderCooldown: one Unpaid throws at most once every this many seconds (each throw jittered 0.8-1.2x). */
 	float CinderCooldown = 6.f;
 	/** Looter.Unpaid.CinderGap: cinders at one player at least this far apart (s), however many throw. */
-	float CinderGap = 1.4f;
+	float CinderGap = 2.f;
 	/** Looter.Unpaid.CinderTell: the coal swells at its chest this long (s) before it throws: time to see it and move. */
 	float CinderTell = 0.7f;
 	/** Looter.Unpaid.CinderSpeed / CinderRadius: how fast it flies (cm/s) and how big it is (cm). */
 	float CinderSpeed = 1500.f;
 	float CinderRadius = 16.f;
 	/** Looter.Unpaid.CinderDamageShare: a cinder hurts this share of its attack. */
-	float CinderDamageShare = 0.55f;
+	float CinderDamageShare = 0.4f;
 	/** Looter.Unpaid.CinderMinRange / CinderMaxRange: it throws at a player this far off (cm), never nearer or farther. */
 	float CinderMinRange = 450.f;
 	float CinderMaxRange = 2200.f;
 
 	// --- The flank ---
-	/** Looter.Unpaid.FlankChance: given its turn in front of the player's eyes, it flanks with this chance. */
-	float FlankChance = 0.5f;
-	/** Looter.Unpaid.FlankFront: "in front of their eyes": its bearing's frontness in their view at least this (0 behind, 1 dead ahead). */
-	float FlankFront = 0.75f;
-	/** Looter.Unpaid.FlankMinRange / FlankMaxRange: it flanks a player this far off (cm; a turn held farther than about 11.5 m is taken back anyway). */
-	float FlankMinRange = 450.f;
+	/** Looter.Unpaid.FlankChance: waiting on the ring in front of the player's eyes, its next turn opens with a flank with this chance (rolled once a wait). */
+	float FlankChance = 0.6f;
+	/** Looter.Unpaid.FlankFront: "in front of their eyes": its bearing's frontness in their view at least this (0 behind, 1 dead ahead; 0.6 is within about 78 degrees). */
+	float FlankFront = 0.6f;
+	/** Looter.Unpaid.FlankMinRange / FlankMaxRange: it flanks a player this far off (cm; the ring is 4.8 m; a turn held farther than about 11.5 m is taken back anyway). */
+	float FlankMinRange = 300.f;
 	float FlankMaxRange = 1100.f;
 	/** Looter.Unpaid.FlankRadius: it comes back this far (cm) from the player, at their side or behind them. */
 	float FlankRadius = 330.f;
@@ -102,7 +109,7 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	/** Looter.Unpaid.FrenzyTokens: melee turns at that player during the frenzy (Looter.Fight.MeleeTokens otherwise). */
 	int32 FrenzyTokens = 4;
 	/** Looter.Unpaid.FrenzyChase: the pack chases this many times faster in the frenzy. */
-	float FrenzyChase = 1.3f;
+	float FrenzyChase = 1.2f;
 
 	// --- Closing in ---
 	/** Looter.Unpaid.ClosingScale / ClosingRange: farther than this (cm) from its target it chases this many times faster. */

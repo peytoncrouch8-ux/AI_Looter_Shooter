@@ -41,8 +41,14 @@ struct FUnpaidKitState
 	/** Seconds until it may throw, or flank, again. */
 	float CinderCooldown = 0.f;
 	float FlankCooldown = 0.f;
-	/** Its turn's flank has been rolled for (once a turn). */
+	/** Its flank has been rolled for this wait on the ring (once a wait). */
 	bool bFlankRolled = false;
+	/**
+	 * Its next turn opens with a flank: it holds its attack (CanStartAttack) until its turn comes, then fades round. Without
+	 * this the turn and the attack came in one frame from the ring (inside its lunge's reach) and no flank ever went (DEMO
+	 * 2026-10-27: none in 35 turns).
+	 */
+	bool bFlankArmed = false;
 	/** Seconds to its next look at its choices on the ring (not every frame). */
 	float ThinkIn = 0.f;
 	/** The chase boost it last told the fight director (written only when it changes). */
@@ -66,6 +72,7 @@ struct FUnpaidKitState
 		CinderCooldown = 0.f;
 		FlankCooldown = 0.f;
 		bFlankRolled = false;
+		bFlankArmed = false;
 		ThinkIn = 0.f;
 		BossAdd = -1;
 	}

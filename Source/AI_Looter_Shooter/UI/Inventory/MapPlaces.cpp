@@ -72,15 +72,36 @@ namespace MapPlaces
 		return FVector2D(FCString::Strlen(Name) * FontSize * LetterShare, FontSize * LineShare);
 	}
 
-	void Declutter(TArray<FNameBox>& Boxes, double Gap)
+	void Declutter(TArray<FNameBox>& Boxes, double Gap, TConstArrayView<FBox2D> Blocked)
 	{
-		// How far a name may slide: this many of its own heights either way.
+		// How far a name may slide: this many of its own heights up or down, or to either side of its point (just clear of
+		// an icon standing on it), the nearer slides tried first.
 		constexpr int32 MaxSteps = 3;
-		TArray<FBox2D> Placed;
+		// A sideways slide counts for this much of a vertical step when the nearest free spot is chosen (the name stays by its point).
+		constexpr double SideCost = 1.2;
+		// Room past the half width a name slides sideways to clear an icon on its point (page units).
+		constexpr double SideClear = 16.0;
+		TArray<FBox2D> Placed(Blocked);
 		for (FNameBox& Box : Boxes)
 		{
 			Box.bShown = false;
 		}
+		struct FTry
+		{
+			int32 Steps;
+			int32 Side;
+			double Cost;
+		};
+		TArray<FTry> Tries;
+		for (int32 Steps = -MaxSteps; Steps <= MaxSteps; ++Steps)
+		{
+			for (int32 Side = -1; Side <= 1; ++Side)
+			{
+				Tries.Add({ Steps, Side, FMath::Abs(Steps) + (Side != 0 ? SideCost : 0.0) + (Steps < 0 ? 0.01 : 0.0) });
+			}
+		}
+		// Nearest first; of two alike, down before up (as before: Widow's Pines slid down).
+		Tries.StableSort([](const FTry& A, const FTry& B) { return A.Cost < B.Cost; });
 		for (int32 Pass = 0; Pass < 2; ++Pass)
 		{
 			const bool bMajorPass = Pass == 0;
@@ -91,17 +112,16 @@ namespace MapPlaces
 					continue;
 				}
 				const double Step = Box.Size.Y + Gap;
-				// In place first, then down and up a step at a time: the nearest free spot wins.
-				for (int32 Try = 0; Try <= MaxSteps * 2 && !Box.bShown; ++Try)
+				for (const FTry& Try : Tries)
 				{
-					const int32 Steps = Try == 0 ? 0 : (Try % 2 == 1 ? (Try + 1) / 2 : -(Try / 2));
-					const FVector2D Center = Box.Center + FVector2D(0.0, Steps * Step);
+					const FVector2D Center = Box.Center + FVector2D(Try.Side * (Box.Size.X * 0.5 + SideClear), Try.Steps * Step);
 					const FBox2D Spot(Center - Box.Size * 0.5 - FVector2D(Gap * 0.5), Center + Box.Size * 0.5 + FVector2D(Gap * 0.5));
 					if (!Placed.ContainsByPredicate([&Spot](const FBox2D& Other) { return Spot.Intersect(Other); }))
 					{
 						Box.Center = Center;
 						Box.bShown = true;
 						Placed.Add(Spot);
+						break;
 					}
 				}
 			}

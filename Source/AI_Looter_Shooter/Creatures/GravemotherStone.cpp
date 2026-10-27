@@ -214,7 +214,8 @@ float AGravemotherStone::TakeDamage(float DamageAmount, FDamageEvent const& Dama
 	AGravemotherCreature* Her = Mother.Get();
 	if (Her && DamageAmount > 0.f && Her->ShrugFor(EventInstigator) == EGravemotherShrug::OffGround)
 	{
-		Her->PlayShrugSound(Where);
+		Her->PlayShrugSound(Where, EGravemotherShrug::OffGround);
+		Her->AnswerRimShot(EventInstigator);
 		Her->NoteShrug(EGravemotherShrug::OffGround, EventInstigator);
 		return 0.f;
 	}

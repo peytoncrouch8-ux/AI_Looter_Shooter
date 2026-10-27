@@ -9,7 +9,7 @@
  * The flight's numbers stay FGraveSaltRules' constants (the arc and the bounce are physics, not feel).
  *
  * The user's playtest (2026-10-27, note 7): "Grenades are too strong to start with, projectiles are too small and lacks
- * explosion visuals." So the burst starts at EarlyShare of its strength at level 1 and grows to full by FullStrengthLevel
+ * explosion visuals." So the burst starts at EarlyShare of its strength and grows to full by FullStrengthLevel
  * (on top of the level growth every enemy and gun has), the first gun brings one jar, not two, and the burst is a real
  * explosion (fire, a shock ring, a smoke column, debris, a scorch) sized to the radius.
  */
@@ -32,11 +32,15 @@ struct AI_LOOTER_SHOOTER_API FGraveSaltTuning
 	float KnockShare = 0.6f;
 
 	/**
-	 * Looter.Grenade.EarlyShare / .FullLevel: the burst's strength at the player's level 1, growing straight to full by
-	 * FullStrengthLevel. 0.45 at level 1 puts the heart at 405, about two thirds of a Common rifle magazine: a Basic spider
-	 * (300) at its heart still goes, a pack at its edge doesn't. Ransom's Rest (levels 1-7) sees 45-75% of it.
+	 * Looter.Grenade.EarlyShare / .EarlyLevels / .FullLevel: the burst's strength for a new player, held through
+	 * EarlyLevels, then rising on a curve (slow at first) to full by FullStrengthLevel. Measured on the Basic Unpaid of
+	 * Ransom's Rest (160 health x 1.08 a level: 160, 173, 186 at levels 1-3), the weakest thing there: 0.1 puts the heart at
+	 * 90 (135 on the Unpaid, salt x1.5), so a jar at a pack's middle leaves each about a third (two metres out: 99 of 160)
+	 * and even its heart at the top roll (149, 93%) leaves one for a follow-up shot (the user, 2026-10-27: too strong at
+	 * the start). Then 11% at level 4, 20% at 6, 50% at 9, full at 12.
 	 */
-	float EarlyShare = 0.45f;
+	float EarlyShare = 0.1f;
+	int32 EarlyLevels = 3;
 	int32 FullStrengthLevel = 12;
 
 	/** Looter.Grenade.Starting: the jars the first gun brings (three can be carried, FThrowRules::MaxGrenades). */

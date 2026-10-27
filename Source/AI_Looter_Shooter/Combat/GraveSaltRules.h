@@ -26,8 +26,8 @@ struct FGraveSaltBody
  *    level 1 (a Common rifle's magazine is 30 rounds of 20: one and a half magazines), full within a metre, falling
  *    straight to a fifth at 4 m, nothing past. It grows with the player's level as enemies and guns do
  *    (FLevelRules::EnemyScale), and on top of that it starts weak (the user's playtest, 2026-10-27: "too strong to start
- *    with"): 45% of its strength at level 1 (405 at the heart, two thirds of a magazine: a Basic spider there goes, a
- *    pack at its edge doesn't), full by level 12 (EarlyShare). At full strength a pack of Basic creatures goes and a
+ *    with"): 10% of its strength through level 3 (90 at the heart, 135 on the Unpaid: a Basic Unpaid there is left
+ *    about a sixth to a third for a follow-up shot), then rising on a curve to full by level 12 (EarlyShare). At full strength a pack of Basic creatures goes and a
  *    Gravebound spider is left at half. +/-10% like every hit, never critical. Measured to the body's nearest side, so a
  *    big body is caught by its edge.
  *  - Salt burns the dead: the Unpaid take half as much again and are staggered (the melee strike's heavy stagger).
@@ -102,8 +102,8 @@ struct AI_LOOTER_SHOOTER_API FGraveSaltRules
 	static float CapForBoss(float Damage, float MaxHealth, const FGraveSaltTuning& Tuning);
 
 	/**
-	 * How strong the burst is for a player of Level, before the level growth: the tuning's EarlyShare at level 1, growing
-	 * straight to 1 at its FullStrengthLevel and staying there.
+	 * How strong the burst is for a player of Level, before the level growth: the tuning's EarlyShare through its
+	 * EarlyLevels, then rising as the square of the way on to 1 at its FullStrengthLevel, and staying there.
 	 */
 	static float EarlyShare(int32 Level, const FGraveSaltTuning& Tuning);
 

@@ -6,8 +6,11 @@
 #include "Combat/GraveSaltGrenade.h"
 #include "Combat/GraveSaltRules.h"
 #include "Combat/GraveSaltTuning.h"
+#include "Creatures/CreatureRank.h"
+#include "Creatures/CreatureRankSettings.h"
 #include "Player/PlayerThrowRules.h"
 #include "Progression/LevelRules.h"
+#include "Progression/ProgressionSettings.h"
 #include "Tests/LocomotionTestWorld.h"
 #include "Weapons/VfxRules.h"
 #include "Weapons/VfxTypes.h"
@@ -40,14 +43,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGrenadeEarlyTest, "Looter.Grenade.Early",
 bool FGrenadeEarlyTest::RunTest(const FString& Parameters)
 {
 	const FGraveSaltTuning Tuning;
-	const FLevelRules Rules;
+	// The game's own level growth, as creatures take it (ACreatureBase::ApplyStats).
+	const FLevelRules Rules = GetDefault<UProgressionSettings>()->GetLevelRules();
 	constexpr float CommonMagazine = 30.f * 20.f;
 
-	// Weak at the start: 45% of its strength at level 1, straight up to full at level 12, never past it.
-	TestEqual(TEXT("45% at level 1"), FGraveSaltRules::EarlyShare(1, Tuning), 0.45f, 0.0001f);
+	// Weak at the start: 10% of its strength through level 3, then up on a curve to full at level 12, never past it.
+	for (const int32 Level : { 0, 1, 2, 3 })
+	{
+		TestEqual(FString::Printf(TEXT("10%% at level %d"), Level), FGraveSaltRules::EarlyShare(Level, Tuning), 0.1f, 0.0001f);
+	}
+	TestTrue(TEXT("Slow at first: under a quarter at level 6"), FGraveSaltRules::EarlyShare(6, Tuning) < 0.25f);
+	TestEqual(TEXT("Half at level 9"), FGraveSaltRules::EarlyShare(9, Tuning), 0.5f, 0.0001f);
 	TestEqual(TEXT("Full at level 12"), FGraveSaltRules::EarlyShare(12, Tuning), 1.f, 0.0001f);
 	TestEqual(TEXT("...and after"), FGraveSaltRules::EarlyShare(40, Tuning), 1.f, 0.0001f);
-	TestEqual(TEXT("A level under 1 counts as 1"), FGraveSaltRules::EarlyShare(0, Tuning), 0.45f, 0.0001f);
 	float Last = 0.f;
 	bool bGrows = true;
 	for (int32 Level = 1; Level <= 15; ++Level)
@@ -63,19 +71,29 @@ bool FGrenadeEarlyTest::RunTest(const FString& Parameters)
 	Flat.FullStrengthLevel = 1;
 	TestEqual(TEXT("A full level of 1: full from the start"), FGraveSaltRules::EarlyShare(1, Flat), 1.f, 0.0001f);
 
-	// At level 1, against a Common rifle's magazine (30 x 20 = 600): the heart is about two thirds of one (405), not the
-	// one and a half (900) it was. A Basic spider (300) at the heart still goes, even at the low roll; a Restless one (750
-	// at level 2) is left standing; a Basic Unpaid (160) at the edge lives, in the core it goes.
-	const float Scale1 = FGraveSaltRules::ThrowerScale(1, Rules.EnemyScale(1), Tuning);
-	const float Heart = FGraveSaltRules::BurstDamage(0.f, Scale1, 0.5f, false, Tuning);
-	TestEqual(TEXT("405 at the heart at level 1"), Heart, 405.f, 0.5f);
-	TestTrue(FString::Printf(TEXT("Under one Common magazine (%.0f of %.0f)"), Heart, CommonMagazine), Heart < CommonMagazine);
-	TestTrue(TEXT("A Basic spider at the heart goes, low roll and all"), FGraveSaltRules::BurstDamage(0.f, Scale1, 0.f, false, Tuning) >= 300.f);
-	TestTrue(TEXT("A Restless spider lives"), FGraveSaltRules::BurstDamage(0.f, Scale1, 1.f, false, Tuning) < 300.f * 2.5f * Rules.EnemyScale(2));
-	TestTrue(TEXT("A Basic Unpaid at the edge lives"), FGraveSaltRules::BurstDamage(Tuning.Radius, Scale1, 1.f, true, Tuning) < 160.f);
-	TestTrue(TEXT("...in the core it goes"), FGraveSaltRules::BurstDamage(Tuning.CoreRadius, Scale1, 0.f, true, Tuning) >= 160.f);
-	// Ransom's Rest's top (level 7) is still short of full.
-	TestTrue(TEXT("Ransom's Rest never sees it at full"), FGraveSaltRules::EarlyShare(7, Tuning) < 0.8f);
+	// At level 1 the heart is 90, a sixth of a Common rifle's magazine (30 x 20 = 600); it was 900, one and a half.
+	const float Heart = FGraveSaltRules::BurstDamage(0.f, FGraveSaltRules::ThrowerScale(1, Rules.EnemyScale(1), Tuning), 0.5f, false, Tuning);
+	TestEqual(TEXT("90 at the heart at level 1"), Heart, 90.f, 0.5f);
+	TestTrue(FString::Printf(TEXT("A sixth of a Common magazine (%.0f of %.0f)"), Heart, CommonMagazine), Heart < CommonMagazine / 5.f);
+
+	// The Basic Unpaid of Ransom's Rest at levels 1-3, with the health the game gives it (160 grown by its level, times
+	// its tier's multiplier), against a player of its level: a jar never kills one outright, even at its heart at the top
+	// roll; two metres out (a pack's middle) it leaves about a third; the gun finishes it.
+	const float UnpaidBase = 160.f * UCreatureRankSettings::Get(ECreatureRank::Basic).HealthMultiplier;
+	for (const int32 Level : { 1, 2, 3 })
+	{
+		const float Health = UnpaidBase * Rules.EnemyScale(Level);
+		const float Scale = FGraveSaltRules::ThrowerScale(Level, Rules.EnemyScale(Level), Tuning);
+		const float Core = FGraveSaltRules::BurstDamage(0.f, Scale, 1.f, true, Tuning);
+		const float Near = FGraveSaltRules::BurstDamage(200.f, Scale, 0.5f, true, Tuning);
+		TestTrue(FString::Printf(TEXT("Level %d: the heart at the top roll leaves it standing (%.0f of %.0f)"), Level, Core, Health), Core < Health);
+		TestTrue(FString::Printf(TEXT("...but takes most of it (%.0f of %.0f)"), Core, Health), Core > Health * 0.6f);
+		const float Left = 1.f - Near / Health;
+		TestTrue(FString::Printf(TEXT("Level %d: two metres out it leaves about a third (%.0f%%)"), Level, Left * 100.f), Left > 0.25f && Left < 0.45f);
+	}
+	// A Basic spider (300) keeps most of itself; Ransom's Rest's top (level 7) is still well short of full.
+	TestTrue(TEXT("A Basic spider at the heart keeps most of itself"), Heart * 1.1f < 300.f * 0.5f);
+	TestTrue(TEXT("Ransom's Rest never sees it at full"), FGraveSaltRules::EarlyShare(7, Tuning) < 0.4f);
 
 	// One jar to start (it was two), three carried at most.
 	TestEqual(TEXT("One to start"), Tuning.StartingGrenades, 1);

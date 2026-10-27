@@ -26,8 +26,8 @@ float AUnpaidCreature::GetLungeSpeed() const
 
 bool AUnpaidCreature::CanStartAttack() const
 {
-	// Not mid-cinder or mid-scream either: its turn waits for them.
-	return !IsPhasing() && !bLunging && Kit.Action == EUnpaidAction::None;
+	// Not mid-cinder or mid-scream either: its turn waits for them; nor with a flank ready (its turn opens with the flank).
+	return !IsPhasing() && !bLunging && Kit.Action == EUnpaidAction::None && !Kit.bFlankArmed;
 }
 
 float AUnpaidCreature::GetAttackStartRange() const
@@ -143,13 +143,17 @@ bool AUnpaidCreature::TryLungeHit()
 	}
 	const float Scale = GetSizeScale();
 	const FVector ToVictim = Victim->GetActorLocation() - GetActorLocation();
+	// With its kit the lunge lands only near its line and hurts its share (a strafe after the tell beats it; DEMO 2026-10-27).
+	const bool bKit = Kit.Move == EUnpaidMove::Lunge;
+	const FUnpaidFightTuning Tuning = bKit ? FUnpaidFightTuning::Live() : FUnpaidFightTuning();
+	const float Radius = bKit ? Tuning.LungeHitRadius : LungeHitRadius;
 	// Up and down, a small one still reaches a player standing over it, as a full-size one does.
-	if (ToVictim.Size2D() > LungeHitRadius * Scale || FMath::Abs(ToVictim.Z) > 220.f * FMath::Max(Scale, 1.f))
+	if (ToVictim.Size2D() > Radius * Scale || FMath::Abs(ToVictim.Z) > 220.f * FMath::Max(Scale, 1.f))
 	{
 		return false;
 	}
 	bLungeLanded = true;
-	HitWithAttack(Victim, ToVictim.GetSafeNormal2D());
+	HitWithAttack(Victim, ToVictim.GetSafeNormal2D(), bKit ? Tuning.LungeDamageShare : 1.f);
 	return true;
 }
 

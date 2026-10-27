@@ -175,7 +175,10 @@ public:
 	 *  her, her bar calls it out, the stone glows as the target (Stone), and after a few Hob says what to do. */
 	void NoteShrug(EGravemotherShrug Why, AController* By);
 	/** The glancing whine and thud of a shrugged hit at Where (not twice in a moment). */
-	void PlayShrugSound(const FVector& Where);
+	void PlayShrugSound(const FVector& Where, EGravemotherShrug Why);
+	/** A rim shot shrugged off, as the shooter up there sees and hears it: the glance heard on the rim (2D), and she rears
+	 *  and screeches up at them (not too often). Her bar is hidden from up there (no fight), so this is the feedback. */
+	void AnswerRimShot(const AController* By);
 	/** Hits shrugged off for Why since she came (the tests), and whether Hob has hinted at it. */
 	int32 GetShrugCount(EGravemotherShrug Why) const;
 	bool WasHinted(EGravemotherShrug Why) const;
@@ -335,7 +338,9 @@ private:
 	void BindShrugLook(bool bOn);
 	void NoteBulletLanding(const FBulletShot& Shot, const FHitResult& Hit, FBulletLanding& Landing);
 	/** A shrugged hit's look at Where: a pale glint, a glancing spark or two, dried grave mud puffing off her hide. */
-	void PlayShrugLook(const FVector& Where, const FVector& Normal, const FVector& ShotDirection);
+	void PlayShrugLook(const FVector& Where, const FVector& Normal, const FVector& ShotDirection, float Scale = 1.f);
+	/** How big a shrugged hit's look is drawn for By: 1 near, growing with By's distance so it still reads from the rim. */
+	float ShrugLookScale(const AController* By, const FVector& Where) const;
 	/** Hob's line for Why, once, after a few. */
 	void MaybeHint(EGravemotherShrug Why, const AController* By);
 
@@ -418,6 +423,7 @@ private:
 	uint8 HintedKinds = 0;
 	double LastShrugSound = -1.0;
 	double LastShrugRicochet = -1.0;
+	double LastRimScreech = -1.0;
 	FVector LastShrugSoundAt = FVector::ZeroVector;
 	uint64 LastShrugFlashFrame = 0;
 	double LastShrugCallout = -1.0;

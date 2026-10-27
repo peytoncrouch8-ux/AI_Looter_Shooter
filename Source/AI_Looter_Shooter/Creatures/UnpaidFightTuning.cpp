@@ -21,7 +21,11 @@ namespace
 	TAutoConsoleVariable<float> CVarLungeDistance(TEXT("Looter.Unpaid.LungeDistance"), KitDefaults.LungeDistance,
 		TEXT("An Unpaid's lunge flies at most this far (cm at size 1)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarLungeHoming(TEXT("Looter.Unpaid.LungeHoming"), KitDefaults.LungeHoming,
-		TEXT("In flight a lunge turns after its target at most this fast (degrees a second)."), ECVF_Default);
+		TEXT("In flight a lunge turns after its target at most this fast (degrees a second); 0 commits its aim at the end of the wind-up."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLungeHitRadius(TEXT("Looter.Unpaid.LungeHitRadius"), KitDefaults.LungeHitRadius,
+		TEXT("An Unpaid's lunge lands on a target this near its line (cm at size 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLungeDamageShare(TEXT("Looter.Unpaid.LungeDamageShare"), KitDefaults.LungeDamageShare,
+		TEXT("A landed lunge hurts this share of the Unpaid's attack."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarRakeRange(TEXT("Looter.Unpaid.RakeRange"), KitDefaults.RakeRange,
 		TEXT("Nearer than this (cm at size 1) an Unpaid may rake instead of lunging."), ECVF_Default);
@@ -62,7 +66,7 @@ namespace
 		TEXT("An Unpaid throws only at a player at most this far off (cm)."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarFlankChance(TEXT("Looter.Unpaid.FlankChance"), KitDefaults.FlankChance,
-		TEXT("Given its turn in front of the player's eyes, an Unpaid flanks with this chance."), ECVF_Default);
+		TEXT("Waiting on the ring in front of the player's eyes, an Unpaid's next turn opens with a flank with this chance (once a wait)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFlankFront(TEXT("Looter.Unpaid.FlankFront"), KitDefaults.FlankFront,
 		TEXT("In front of the player's eyes: its frontness in their view at least this (0 behind, 1 dead ahead)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFlankMinRange(TEXT("Looter.Unpaid.FlankMinRange"), KitDefaults.FlankMinRange,
@@ -134,6 +138,8 @@ FUnpaidFightTuning FUnpaidFightTuning::Live()
 	Numbers.LungeStart = AtLeast(CVarLungeStart, 100.f);
 	Numbers.LungeDistance = Positive(CVarLungeDistance);
 	Numbers.LungeHoming = Positive(CVarLungeHoming);
+	Numbers.LungeHitRadius = AtLeast(CVarLungeHitRadius, 10.f);
+	Numbers.LungeDamageShare = Positive(CVarLungeDamageShare);
 	Numbers.RakeRange = Positive(CVarRakeRange);
 	Numbers.RakeChance = Share(CVarRakeChance);
 	Numbers.RakeWindup = AtLeast(CVarRakeWindup, 0.1f);

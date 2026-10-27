@@ -1,6 +1,7 @@
 #include "Weapons/WeaponBase.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
+#include "Combat/HealthComponent.h"
 #include "Weapons/ReloadTuning.h"
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponDefinition.h"
@@ -57,7 +58,9 @@ float AWeaponBase::GetReloadBlend() const
 
 bool AWeaponBase::CanReload() const
 {
-	return !bReloading && GetReserveAmmo() > 0 && CurrentMagazine < Instance.Stats.MagazineSize;
+	// A dead holder reloads nothing until the respawn gives their health back.
+	const UHealthComponent* Health = GetOwner() ? GetOwner()->FindComponentByClass<UHealthComponent>() : nullptr;
+	return !bReloading && GetReserveAmmo() > 0 && CurrentMagazine < Instance.Stats.MagazineSize && !(Health && Health->IsDead());
 }
 
 // ---------------------------------------------------------------------------

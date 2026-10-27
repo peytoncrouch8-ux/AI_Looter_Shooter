@@ -32,6 +32,8 @@ namespace
 	constexpr float GiverMarkShare = 0.8f;
 	/** The room kept between two place names on the page (page units). */
 	constexpr double NameGap = 4.0;
+	/** Half the player's arrow, to keep names off it (page units). */
+	constexpr double PlayerArrowHalf = 12.0;
 
 	/** A page point for the painted lines (Slate draws in floats). */
 	FVector2f Point2f(double X, double Y)
@@ -155,7 +157,30 @@ void UMapWidget::LayoutPlaces()
 		Box.bMajor = Place.bMajor;
 		Box.bWanted = (Place.bMajor || bMinor) && InFrame(Box.Center, 40.0);
 	}
-	MapPlaces::Declutter(Boxes, NameGap);
+	// The icons (pins) and the player's arrow are in the way too: they covered THE SINK, MAIN STREET and DEPOT (the pins are
+	// placed in LayoutPins, from the same spots).
+	TArray<FBox2D> Icons;
+	for (const FMapPin& Pin : Pins)
+	{
+		FVector2D At = WorldToFrame(Pin.Location);
+		const double Half = MapIcons::Size(Pin.Kind) * 0.5 * 1.18;
+		if (Pin.Kind == EMapPinKind::Objective || Pin.Kind == EMapPinKind::TurnIn)
+		{
+			KeepOnFrame(At);
+		}
+		else if (!InFrame(At, Half))
+		{
+			continue;
+		}
+		Icons.Add(FBox2D(At - FVector2D(Half), At + FVector2D(Half)));
+	}
+	if (const APawn* Player = GetOwningPlayerPawn())
+	{
+		FVector2D At = WorldToFrame(Player->GetActorLocation());
+		KeepOnFrame(At);
+		Icons.Add(FBox2D(At - FVector2D(PlayerArrowHalf), At + FVector2D(PlayerArrowHalf)));
+	}
+	MapPlaces::Declutter(Boxes, NameGap, Icons);
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		ShowIf(PlaceLabels[Index], Boxes[Index].bShown);

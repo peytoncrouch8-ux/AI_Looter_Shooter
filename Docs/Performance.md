@@ -1,4 +1,4 @@
-# Performance history
+﻿# Performance history
 
 **Target:** 120 fps (8.3 ms) at 1080p on the Medium preset, at the heaviest view, on the reference PC (Radeon RX 580, Core i7-8700,
 16 GB). It was 60 fps until 2026-09-30. Nanite is for High and Epic only and Lumen for Epic only, so everything must look right on the Nanite
@@ -111,3 +111,4 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-22 | GROUND-DETAIL places final (pattern within 60 m, map within 120 m), RR spawn | bc9a98cf | 1920x1080 | 7.7 | 130 | 8.2 | 4.0 | 7.7 | 1.7 | 6.5 | 1709 | 1735518 | 3.74 |
 | 2026-10-23 | Gun feel pass + grips + arachnids, RR spawn | 7ea84f74 | 1920x1080 | 7.8 | 128 | 8.3 | 4.0 | 7.8 | 1.7 | 6.6 | 1709 | 1735289 | 3.66 |
 | 2026-10-23 | Gun feel pass: 8 spiders, RR spawn | 7ea84f74 | 1920x1080 | 7.9 | 127 | 8.4 | 4.0 | 7.9 | 1.7 | 6.6 | 1709 | 1735634 | 3.62 |
+| 2026-10-27 | playtest rounds 1-2 (Unpaid kit, grenades, legendary burst), RR spawn | 4b24064a | 1920x1080 | 7.8 | 127 | 8.4 | 4.1 | 7.8 | 1.7 | 6.6 | 1716 | 1742954 | 3.44 |

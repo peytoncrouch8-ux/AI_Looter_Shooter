@@ -33,6 +33,8 @@ namespace
 	/** Where she lobs from, seen before the tell (her grip overhead, at a spider's size): up and a little ahead. */
 	constexpr float LobFromUp = 150.f;
 	constexpr float LobFromAhead = 60.f;
+	/** A lob that meets something this soon after leaving her grip is blocked (s; her shortest lob flies 0.8 s). */
+	constexpr float ClodMinClearSeconds = 0.25f;
 
 	/** Where a pawn's feet are. */
 	FVector FeetOf(const APawn& Pawn)
@@ -82,6 +84,19 @@ bool AGravemotherCreature::IsLobClear() const
 	const float Seconds = GravemotherFight::ClodFlightSeconds(static_cast<float>(FVector::Dist2D(Start, LandAt)), Clods.FlightAt20m);
 	const FVector Velocity = SpitterRules::LobVelocity(Start, LandAt, Seconds, Clods.Gravity);
 	const FCollisionQueryParams Query = ASpitterGlob::MakeWorldQuery(World, this);
+	// Room over her for the clod held high on her raised forelegs: under the den's roof the clod rose into the rock and
+	// "came down" on it the frame it was thrown (DEMO, 2026-10-27). No room, no clod: she bites or ploughs in there.
+	{
+		const FVector Middle = GetActorLocation();
+		const FVector Top = Start + FVector(0.0, 0.0, AGravemotherClod::FullSize);
+		FHitResult Roof;
+		if (World->LineTraceSingleByObjectType(Roof, Middle, FVector(Middle.X, Middle.Y, Top.Z), FCollisionObjectQueryParams(ECC_WorldStatic), Query)
+			|| World->LineTraceSingleByObjectType(Roof, FVector(Middle.X, Middle.Y, Top.Z), Top, FCollisionObjectQueryParams(ECC_WorldStatic), Query))
+		{
+			bLobClear = false;
+			return false;
+		}
+	}
 	FVector From = Start;
 	for (int32 Piece = 1; Piece <= LobCheckPieces; ++Piece)
 	{
@@ -204,6 +219,21 @@ void AGravemotherCreature::ThrowClod()
 	const FVector Aim = Victim ? FeetOf(*Victim) : GetFeet() + GetActorForwardVector() * (Clods.MaxDistance * GetSizeScale() * 0.6f);
 	const float Seconds = GravemotherFight::ClodFlightSeconds(static_cast<float>(FVector::Dist2D(From, Aim)), Clods.FlightAt20m);
 	const FVector Velocity = SpitterRules::LobVelocity(From, Aim, Seconds, Clods.Gravity);
+	// Its way out of her grip blocked at once (a roof over her, a wall she backed into during the tell; her shortest lob is
+	// 0.8 s): it would burst in her own claws. She loses her grip instead and it falls harmlessly.
+	FVector BlockedAt;
+	FVector BlockedNormal;
+	float BlockedAfter = 0.f;
+	FCollisionQueryParams Query = ASpitterGlob::MakeWorldQuery(GetWorld(), this);
+	Query.AddIgnoredActor(Clod);
+	if (AGravemotherClod::PredictLanding(GetWorld(), From, Velocity, Clods.Gravity, ClodMinClearSeconds, Query, BlockedAt, BlockedNormal,
+		BlockedAfter, 3))
+	{
+		UE_LOG(LogLooter, Log, TEXT("%s: no room to lob her clod (blocked %.2f s out at %s): it falls from her grip."), *GetName(), BlockedAfter,
+			*BlockedAt.ToCompactString());
+		DropClod();
+		return;
+	}
 	Clod->Throw(Velocity, AttackDamage * Clods.Strength, GetController(), this);
 	ThrownClod = Clod;
 	HeldClod = nullptr;

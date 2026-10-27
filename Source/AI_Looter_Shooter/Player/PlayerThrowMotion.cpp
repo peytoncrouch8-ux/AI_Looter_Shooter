@@ -39,9 +39,11 @@ FThrowPose ThrowMotion::JarStartPose()
 
 FThrowPose ThrowMotion::JarDrawnPose()
 {
-	// Drawn back by the cheek on the left, tipped back as the wrist cocks.
+	// Drawn back low on the left, tipped back as the wrist cocks. Held by the cheek (20, -17, -11) the jar, twice its first
+	// size since 2026-10-27, covered a third of the view through the wind-up (DEMO's play-check): low in the corner its
+	// top and fuse show the throw coming without blocking the aim.
 	FThrowPose Pose;
-	Pose.Offset = FVector(20.f, -17.f, -11.f);
+	Pose.Offset = FVector(22.f, -19.f, -19.f);
 	Pose.Rotation = FRotator(35.f, 10.f, -12.f);
 	return Pose;
 }

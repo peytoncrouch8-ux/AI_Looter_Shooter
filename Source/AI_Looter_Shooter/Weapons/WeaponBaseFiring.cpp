@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
+#include "Combat/HealthComponent.h"
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
@@ -40,6 +41,13 @@ namespace
 {
 	/** How big a misfire's spit of sparks and smoke is beside a shot's flash in the open (FWeaponFX::SpawnFlash). */
 	constexpr float MisfirePuffScale = 0.25f;
+
+	/** The gun's holder is down (dead, until a respawn resets their health): a dead hand fires nothing. */
+	bool IsHolderDead(const AActor* Holder)
+	{
+		const UHealthComponent* Health = Holder ? Holder->FindComponentByClass<UHealthComponent>() : nullptr;
+		return Health && Health->IsDead();
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -54,6 +62,12 @@ void AWeaponBase::StartFire()
 
 void AWeaponBase::StartFireAt(double Now)
 {
+	// From death to respawn the trigger does nothing (a press held or sent while dying once landed shots 2 s after death).
+	if (IsHolderDead(GetOwner()))
+	{
+		bWantsToFire = false;
+		return;
+	}
 	bWantsToFire = true;
 
 	// A pump gun mid-reload finishes the shell in hand, then fires (InterruptReload; others ignore the press).
@@ -149,6 +163,19 @@ void AWeaponBase::HandleFiring()
 {
 	if (bReloading || bMeleeSwinging || !Instance.Definition)
 	{
+		return;
+	}
+	// Died with the trigger held, a burst under way or a shot waiting on the cycle: it all stops here.
+	if (IsHolderDead(GetOwner()))
+	{
+		BurstShotsRemaining = 0;
+		// An Overcharge wind-up is dropped, not let go (StopFire would fire what it reached).
+		if (UPartEffectComponent* Parts = UPartEffectComponent::Find(this))
+		{
+			Parts->CancelCharge();
+		}
+		GetWorldTimerManager().ClearTimer(FireTimer);
+		StopFire();
 		return;
 	}
 

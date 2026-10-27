@@ -313,7 +313,7 @@ bool UPlayerThrowComponent::IsOwnerDead() const
 float UPlayerThrowComponent::GetLevelScale() const
 {
 	// The burst grows with the player as enemies and guns grow with theirs, and it starts weak (FGraveSaltRules::EarlyShare:
-	// 45% at level 1, full by level 12), so a new player's jar helps in a crowd without ending it.
+	// 10% through level 3, full by level 12), so a new player's jar softens a crowd without ending it.
 	const APlayerController* Player = GetPlayer();
 	const ULocalPlayer* Local = Player ? Player->GetLocalPlayer() : nullptr;
 	const UPlayerProgressionSubsystem* Progression = Local ? Local->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;

@@ -3,6 +3,7 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Combat/BulletSubsystem.h"
 #include "Loot/LootDropMoments.h"
+#include "Loot/LootFanfarePopLabel.h"
 #include "UI/World/WeaponLabelWidget.h"
 #include "Weapons/WeaponBase.h"
 #include "World/LightBeam.h"
@@ -31,23 +32,6 @@ namespace
 	 * has moved by the time it shows.
 	 */
 	constexpr float NamePopSettle = 0.05f;
-
-	/**
-	 * The gun's own label gives way while its name pops (it carries the same name, small, in the pile beside it: two names
-	 * for one gun) and comes back after; looked at, it stays, for its plate is what the player is reading.
-	 */
-	void QuietOwnLabel(const AWeaponBase& Weapon, bool bQuiet)
-	{
-		const UWidgetComponent* OwnLabel = Weapon.GetLabelComponent();
-		if (UWeaponLabelWidget* Own = OwnLabel ? Cast<UWeaponLabelWidget>(OwnLabel->GetUserWidgetObject()) : nullptr)
-		{
-			const float Wanted = bQuiet && !Own->IsFocusedLabel() ? 0.f : 1.f;
-			if (Own->GetRenderOpacity() != Wanted)
-			{
-				Own->SetRenderOpacity(Wanted);
-			}
-		}
-	}
 	/** The ring: its start width and end width (cm), and its glow at the start. */
 	constexpr float RingStartWidth = 7.f;
 	constexpr float RingEndWidth = 2.f;
@@ -280,6 +264,8 @@ void ULootFanfareSubsystem::GiveBack(UWidgetComponent* Widget)
 	if (UUserWidget* Label = Widget->GetUserWidgetObject())
 	{
 		Label->SetRenderOpacity(0.f);
+		// Back where it hangs for the next landing (KeepClearOfLevelUp may have slid it).
+		Label->SetRenderTranslation(FVector2D::ZeroVector);
 	}
 	USceneComponent* Root = PoolRoot();
 	if (!Root || Widget->GetOwner() != Root->GetOwner())
@@ -352,7 +338,7 @@ void ULootFanfareSubsystem::StartShows(AWeaponBase& Weapon)
 		if (UWidgetComponent* Widget = TakeNamePop(Weapon))
 		{
 			// Shown from AdvanceShows once settled (NamePopSettle); until then it stays at the pool's opacity, nothing.
-			QuietOwnLabel(Weapon, true);
+			LootFanfarePop::QuietOwnLabel(Weapon, true);
 			FNamePop& Pop = NamePops.AddDefaulted_GetRef();
 			Pop.Weapon = &Weapon;
 			Pop.Widget = Widget;
@@ -451,18 +437,22 @@ void ULootFanfareSubsystem::AdvanceShows(float DeltaTime)
 		{
 			if (Weapon)
 			{
-				QuietOwnLabel(*Weapon, false);
+				LootFanfarePop::QuietOwnLabel(*Weapon, false);
 			}
 			GiveBack(Widget);
 			NamePops.RemoveAtSwap(Index);
 			continue;
 		}
-		QuietOwnLabel(*Weapon, true);
+		LootFanfarePop::QuietOwnLabel(*Weapon, true);
 		if (Pop.Time >= NamePopSettle)
 		{
 			if (UWeaponLabelWidget* Label = Cast<UWeaponLabelWidget>(Widget->GetUserWidgetObject()))
 			{
 				Label->SetPop(Pop.Time, Pop.Seconds);
+				if (World)
+				{
+					LootFanfarePop::KeepClearOfLevelUp(*World, *Widget, *Label, DeltaTime);
+				}
 			}
 		}
 	}
@@ -482,7 +472,7 @@ void ULootFanfareSubsystem::ClearShows()
 	{
 		if (const AWeaponBase* Weapon = Pop.Weapon.Get())
 		{
-			QuietOwnLabel(*Weapon, false);
+			LootFanfarePop::QuietOwnLabel(*Weapon, false);
 		}
 	}
 	Spins.Reset();

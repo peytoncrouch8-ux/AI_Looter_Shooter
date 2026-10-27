@@ -72,6 +72,19 @@ bool FMapPlacesDeclutterTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Some are left off, the first always shown"), Shown >= 1 && Shown < Packed.Num() && Packed[0].bShown);
 
+	// An icon on a name's point: the name slides past it (up, down or beside its point) and never covers it.
+	const FBox2D Icon(FVector2D(190.0, 90.0), FVector2D(210.0, 110.0));
+	TArray<MapPlaces::FNameBox> Covered = { Name(TEXT("THE SINK"), 200.0, 100.0, true) };
+	MapPlaces::Declutter(Covered, 4.0, MakeArrayView(&Icon, 1));
+	TestTrue(TEXT("Under an icon: still named"), Covered[0].bShown);
+	TestFalse(TEXT("...and clear of the icon"), NameRect(Covered[0]).Intersect(Icon));
+	TestTrue(TEXT("...a line away at most"), FMath::Abs(Covered[0].Center.Y - 100.0) < 40.0);
+	// Two icons side by side on it (the store and a giver on MAIN STREET): the name still finds a clear spot.
+	const FBox2D Icons[] = { FBox2D(FVector2D(170.0, 90.0), FVector2D(190.0, 110.0)), FBox2D(FVector2D(210.0, 90.0), FVector2D(230.0, 110.0)) };
+	TArray<MapPlaces::FNameBox> Two = { Name(TEXT("MAIN STREET"), 200.0, 100.0, true) };
+	MapPlaces::Declutter(Two, 4.0, MakeArrayView(Icons));
+	TestTrue(TEXT("Two icons: named, clear of both"), Two[0].bShown && !NameRect(Two[0]).Intersect(Icons[0]) && !NameRect(Two[0]).Intersect(Icons[1]));
+
 	// Names not wanted (out of the frame, a minor before the zoom) are never shown nor in the way.
 	TArray<MapPlaces::FNameBox> Hidden = { Name(TEXT("OLD QUARRY"), 100.0, 100.0, false), Name(TEXT("DEPOT"), 100.0, 100.0, true) };
 	Hidden[0].bWanted = false;

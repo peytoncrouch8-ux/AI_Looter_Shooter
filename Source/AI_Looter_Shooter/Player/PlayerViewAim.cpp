@@ -1,4 +1,5 @@
 #include "Player/PlayerViewComponent.h"
+#include "Combat/HealthComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
@@ -34,9 +35,12 @@ void UPlayerViewComponent::UpdateAim(float DeltaTime)
 	const AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr;
 	const bool bSprinting = Locomotion.IsValid() && Locomotion->GetSprintAlpha() > 0.5f;
 	// No sights on a gun going down or coming up in a swap.
-	const bool bCanAim = Weapon && !Weapon->IsReloading() && !bSprinting && !Manager->IsSwapping()
+	// Dead (until the respawn resets health) the sights drop and a toggled aim is let go.
+	const UHealthComponent* Health = OwnerHealth.Get();
+	const bool bDead = Health && Health->IsDead();
+	const bool bCanAim = Weapon && !bDead && !Weapon->IsReloading() && !bSprinting && !Manager->IsSwapping()
 		&& Mode != EPlayerViewMode::ThirdPersonFront;
-	if (!Weapon)
+	if (!Weapon || bDead)
 	{
 		bAimWanted = false;
 	}

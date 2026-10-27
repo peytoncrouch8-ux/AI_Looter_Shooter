@@ -7,6 +7,7 @@
 
 #include "Creatures/GravemotherCreature.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/CreatureVoiceComponent.h"
 #include "Audio/LooterSound.h"
 #include "Audio/LooterSoundCues.h"
 #include "Bosses/BossComponent.h"
@@ -40,6 +41,16 @@ namespace
 	/** Her bar calls a shrug out for this long, and not again within CalloutGap (s): the line under the bar, not a strobe. */
 	constexpr float CalloutSeconds = 1.4f;
 	constexpr double CalloutGap = 3.0;
+	/**
+	 * The look grows with the shooter's distance past LookNear (cm) so it keeps about its size on screen, up to LookMax
+	 * times (the rim, 20-40 m off: about 1.5-2.5x), and from the rim it throws more sparks.
+	 */
+	constexpr float LookNear = 1500.f;
+	constexpr float LookMax = 3.f;
+	/** A rim shot's glance heard by the shooter wherever they are (2D, this loud), and her screech up at them at most this
+	 *  often (s): an answer, not a drone under a rifle's stream. */
+	constexpr float RimGlanceVolume = 0.55f;
+	constexpr double RimScreechGap = 4.0;
 
 	int32 KindIndex(EGravemotherShrug Why)
 	{
@@ -133,8 +144,12 @@ float AGravemotherCreature::TakeDamage(float DamageAmount, FDamageEvent const& D
 	{
 		Where = GetActorLocation();
 	}
-	PlayShrugLook(Where, Normal, Along);
-	PlayShrugSound(Where);
+	PlayShrugLook(Where, Normal, Along, ShrugLookScale(EventInstigator, Where));
+	PlayShrugSound(Where, Why);
+	if (Why == EGravemotherShrug::OffGround)
+	{
+		AnswerRimShot(EventInstigator);
+	}
 	NoteShrug(Why, EventInstigator);
 	UE_LOG(LogLooter, Verbose, TEXT("%s shrugs off %.0f (%s)."), *GetName(), DamageAmount,
 		Why == EGravemotherShrug::Stone ? TEXT("her headstone stands") : TEXT("from off her ground"));
@@ -207,31 +222,43 @@ bool AGravemotherCreature::WasHinted(EGravemotherShrug Why) const
 	return (HintedKinds & static_cast<uint8>(1u << KindIndex(Why))) != 0;
 }
 
-void AGravemotherCreature::PlayShrugLook(const FVector& Where, const FVector& Normal, const FVector& ShotDirection)
+float AGravemotherCreature::ShrugLookScale(const AController* By, const FVector& Where) const
+{
+	const APawn* Shooter = By ? By->GetPawn() : nullptr;
+	if (!Shooter)
+	{
+		return 1.f;
+	}
+	return FMath::Clamp(static_cast<float>(FVector::Dist(Shooter->GetActorLocation(), Where)) / LookNear, 1.f, LookMax);
+}
+
+void AGravemotherCreature::PlayShrugLook(const FVector& Where, const FVector& Normal, const FVector& ShotDirection, float Scale)
 {
 	UGravemotherFX* Effects = UGravemotherFX::Get(this);
 	if (!Effects)
 	{
 		return;
 	}
+	const float Size = FMath::Max(Scale, 1.f);
 	const FVector Along = ShotDirection.GetSafeNormal();
 	const FVector Out = !Normal.IsNearlyZero() ? Normal.GetSafeNormal() : (!Along.IsNearlyZero() ? -Along : FVector::UpVector);
-	// A glancing spark or two off the shot's bounce: it skipped off, it didn't go in.
-	Effects->Sparks(Where, Out, Along.IsNearlyZero() ? -Out : Along, FMath::RandRange(ShrugSparksMin, ShrugSparksMax));
+	// A glancing spark or two off the shot's bounce: it skipped off, it didn't go in (more of them seen from far off).
+	Effects->Sparks(Where, Out, Along.IsNearlyZero() ? -Out : Along,
+		FMath::RandRange(ShrugSparksMin, ShrugSparksMax) + FMath::RoundToInt32(Size - 1.f) * 2);
 	// A small pale glint, once a frame (a shotgun's pellets glint once).
 	if (LastShrugFlashFrame != GFrameCounter)
 	{
 		LastShrugFlashFrame = GFrameCounter;
-		Effects->Flash(Where + Out * 3.f, ShrugFlashSize);
+		Effects->Flash(Where + Out * 3.f, ShrugFlashSize * Size);
 	}
 	// Dried grave mud flaking off her hide where it struck, and a crumb of it thrown.
 	FGraveDustBurst Mud;
 	Mud.Kind = EGraveDust::Earth;
 	Mud.Count = ShrugPuffs;
-	Mud.Spread = 10.f;
-	Mud.SpreadUp = 5.f;
-	Mud.StartSize = 20.f;
-	Mud.EndSize = 55.f;
+	Mud.Spread = 10.f * Size;
+	Mud.SpreadUp = 5.f * Size;
+	Mud.StartSize = 20.f * Size;
+	Mud.EndSize = 55.f * Size;
 	Mud.Life = 0.8f;
 	Mud.Opacity = 0.45f;
 	Mud.Drift = Out * 50.f + FVector(0.0, 0.0, 15.0);
@@ -241,7 +268,26 @@ void AGravemotherCreature::PlayShrugLook(const FVector& Where, const FVector& No
 	Effects->Chunks(EGraveChunk::Clod, Where + Out * 3.f, Out, 1, 300.f, 0.5f);
 }
 
-void AGravemotherCreature::PlayShrugSound(const FVector& Where)
+void AGravemotherCreature::AnswerRimShot(const AController* By)
+{
+	const UWorld* World = GetWorld();
+	if (!World || IsDead())
+	{
+		return;
+	}
+	const double Now = World->GetTimeSeconds();
+	// She hears it and rears up at them, screeching: seen and heard from the rim (her voice carries further than a hit's thud).
+	if (LastRimScreech < 0.0 || Now - LastRimScreech >= RimScreechGap)
+	{
+		LastRimScreech = Now;
+		Voice->Play(LooterSoundCue::SpiderAlert, 1.3f);
+		// Her rear: the spider's own flinch from below her, as a hit on her chest would rock her back.
+		ASpiderCreature::OnHurt(false, GetActorLocation() + GetActorForwardVector() * (150.f * GetSizeScale())
+			- FVector(0.0, 0.0, 200.0));
+	}
+}
+
+void AGravemotherCreature::PlayShrugSound(const FVector& Where, EGravemotherShrug Why)
 {
 	const UWorld* World = GetWorld();
 	if (!World)
@@ -256,11 +302,19 @@ void AGravemotherCreature::PlayShrugSound(const FVector& Where)
 		LastShrugSoundAt = Where;
 		LooterSound::PlayAt(this, LooterSoundCue::Impact::Dirt, Where);
 	}
-	// ...and the round's whine skipping away: the ear's "that did nothing".
+	// ...and the round's whine skipping away: the ear's "that did nothing". From the rim the shooter is too far to hear it
+	// out there, so they hear it as their own (2D, softer).
 	if (LastShrugRicochet < 0.0 || Now - LastShrugRicochet >= ShrugRicochetGap)
 	{
 		LastShrugRicochet = Now;
-		LooterSound::PlayAt(this, LooterSoundCue::Impact::Ricochet, Where);
+		if (Why == EGravemotherShrug::OffGround)
+		{
+			LooterSound::Play2D(this, LooterSoundCue::Impact::Ricochet, RimGlanceVolume);
+		}
+		else
+		{
+			LooterSound::PlayAt(this, LooterSoundCue::Impact::Ricochet, Where);
+		}
 	}
 }
 

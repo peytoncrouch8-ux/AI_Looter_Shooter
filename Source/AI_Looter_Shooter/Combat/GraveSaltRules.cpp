@@ -89,15 +89,21 @@ float FGraveSaltRules::CapForBoss(float Damage, float MaxHealth, const FGraveSal
 float FGraveSaltRules::EarlyShare(int32 Level, const FGraveSaltTuning& Tuning)
 {
 	const float Least = FMath::Clamp(Tuning.EarlyShare, 0.f, 1.f);
+	const int32 Held = FMath::Max(Tuning.EarlyLevels, 1);
 	const int32 Full = FMath::Max(Tuning.FullStrengthLevel, 1);
-	if (Full <= 1)
+	const int32 At = FMath::Max(Level, 1);
+	if (At <= Held && Held < Full)
+	{
+		return Least;
+	}
+	if (At >= Full || Full <= Held)
 	{
 		return 1.f;
 	}
-	// Straight up from level 1 to the full level: each level the jar earns a little more, so a new player's first
-	// grenade is a help in a crowd, not the end of it, and by the mid game it's the panic button it was built as.
-	const float Grown = static_cast<float>(FMath::Clamp(Level, 1, Full) - 1) / static_cast<float>(Full - 1);
-	return FMath::Lerp(Least, 1.f, Grown);
+	// Held through the first levels (a new player's jar softens a pack, the gun finishes it), then rising on a square
+	// curve, slow at first, so it grows into the panic button it was built as by the mid game rather than all at once.
+	const float Grown = static_cast<float>(At - Held) / static_cast<float>(Full - Held);
+	return FMath::Lerp(Least, 1.f, Grown * Grown);
 }
 
 float FGraveSaltRules::ThrowerScale(int32 Level, float EnemyScale, const FGraveSaltTuning& Tuning)

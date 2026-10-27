@@ -2,7 +2,8 @@
 // just stand. Now and then it throws a cinder (the coal swells at its chest first: the tell; a slow glowing pellet led at
 // where the player will be, one at a time at a player: UFightDirectorSubsystem::TryTakeCinder). Three or more after one
 // player, one screams the pack on: a ring of its coal's light runs out, and after the scream the pack comes on together for
-// a while (the director's frenzy: more turns at once, a faster chase). A hit that staggers it calls either off.
+// a while (the director's frenzy: more turns at once, a faster chase). A hit that staggers it calls either off. In front
+// of the player's eyes it may ready a flank for its next turn (UnpaidCreatureMoves.cpp sends it round when the turn comes).
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
@@ -11,6 +12,8 @@
 #include "Audio/LooterSoundCues.h"
 #include "Combat/EnemyProjectileSubsystem.h"
 #include "Creatures/FightDirectorSubsystem.h"
+#include "Creatures/FightRules.h"
+#include "Creatures/PackRules.h"
 #include "Creatures/ShriekRing.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
@@ -55,11 +58,25 @@ void AUnpaidCreature::ThinkOnRing(const APawn& Victim)
 		StartKitAction(EUnpaidAction::Rally);
 		return;
 	}
+	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim.GetActorLocation()));
+	// In front of the player's eyes: once this wait, the dice say whether its next turn opens with a flank (it then holds
+	// its attack until the turn comes: CanStartAttack; TickFightKit sends it round).
+	if (!Kit.bFlankRolled && !Kit.bFlankArmed && Kit.FlankCooldown <= 0.f)
+	{
+		const float Bearing = PackRules::BearingAround(Victim.GetActorLocation(), GetActorLocation());
+		const float Front = FightRules::Frontness(Bearing, static_cast<float>(Victim.GetViewRotation().Yaw));
+		if (UnpaidFightRules::WantsFlank(Front, Distance, Tuning.FlankFront, Tuning.FlankMinRange, Tuning.FlankMaxRange))
+		{
+			Kit.bFlankRolled = true;
+			Kit.bFlankArmed = FMath::FRand() < Tuning.FlankChance;
+			UE_LOG(LogLooter, Verbose, TEXT("%s waits in front of %s: %s."), *GetName(), *Victim.GetName(),
+				Kit.bFlankArmed ? TEXT("its next turn opens with a flank") : TEXT("no flank this time"));
+		}
+	}
 	if (Kit.WaitTime < Tuning.CinderWait || Kit.CinderCooldown > 0.f)
 	{
 		return;
 	}
-	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim.GetActorLocation()));
 	if (Distance < Tuning.CinderMinRange || Distance > Tuning.CinderMaxRange)
 	{
 		return;

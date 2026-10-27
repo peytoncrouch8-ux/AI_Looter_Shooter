@@ -24,6 +24,8 @@ namespace
 		TEXT("Bodies within this share of the radius are knocked away from the burst."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarEarly(TEXT("Looter.Grenade.EarlyShare"), SaltDefaults.EarlyShare,
 		TEXT("The burst's strength at the player's level 1, as a share of full; it grows to full by Looter.Grenade.FullLevel."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarEarlyLevels(TEXT("Looter.Grenade.EarlyLevels"), SaltDefaults.EarlyLevels,
+		TEXT("The burst keeps its early share through this player level, then rises on a curve to full."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarFullLevel(TEXT("Looter.Grenade.FullLevel"), SaltDefaults.FullStrengthLevel,
 		TEXT("The player's level at which the burst has its full strength."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarStarting(TEXT("Looter.Grenade.Starting"), SaltDefaults.StartingGrenades,
@@ -63,6 +65,7 @@ FGraveSaltTuning FGraveSaltTuning::Current()
 	Made.BossShareCap = FMath::Clamp(CVarBossCap.GetValueOnGameThread(), 0.f, 1.f);
 	Made.KnockShare = FMath::Clamp(CVarKnock.GetValueOnGameThread(), 0.f, 1.f);
 	Made.EarlyShare = FMath::Clamp(CVarEarly.GetValueOnGameThread(), 0.f, 1.f);
+	Made.EarlyLevels = FMath::Max(CVarEarlyLevels.GetValueOnGameThread(), 1);
 	Made.FullStrengthLevel = FMath::Max(CVarFullLevel.GetValueOnGameThread(), 1);
 	// Never more than can be carried (FThrowRules::MaxGrenades, 3).
 	Made.StartingGrenades = FMath::Clamp(CVarStarting.GetValueOnGameThread(), 0, 3);

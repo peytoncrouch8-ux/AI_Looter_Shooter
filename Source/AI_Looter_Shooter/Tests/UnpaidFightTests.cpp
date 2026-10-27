@@ -84,7 +84,18 @@ bool FUnpaidKitTuningTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...and never far ahead"), Tuning.LeadMaxSeconds > 0.f && Tuning.LeadMaxSeconds <= 0.6f);
 	TestTrue(TEXT("It lunges from farther out than it did"), Tuning.LungeStart > Defaults->AttackRange);
 	TestTrue(TEXT("...and farther"), Tuning.LungeDistance > Defaults->LungeDistance);
-	TestTrue(TEXT("Its lunge bends only a little in flight"), Tuning.LungeHoming > 0.f && Tuning.LungeHoming <= 60.f);
+	TestTrue(TEXT("Its lunge bends little if at all in flight"), Tuning.LungeHoming >= 0.f && Tuning.LungeHoming <= 60.f);
+	// A walking strafe beats a Regular one's lunge from its farthest start (DEMO 2026-10-27: 11 of 13 landed at the old lead):
+	// where they are when it gets there is farther from its aim than its lunge lands.
+	const float Lunge = Defaults->LungeSpeed;
+	const FVector Player(Tuning.LungeStart, 0.0, 0.0);
+	const FVector Strafe(0.0, 400.0, 0.0);
+	const float Flight = (Tuning.LungeStart - Defaults->LungeStopShort) / Lunge;
+	const FVector Aim = UnpaidFightRules::LeadPoint(FVector::ZeroVector, Player, Strafe, Lunge, Tuning.LeadShare, Tuning.LeadMaxSeconds);
+	const float Miss = static_cast<float>(FVector::Dist2D(Player + Strafe * Flight, Aim));
+	TestTrue(FString::Printf(TEXT("A walking strafe dodges its lunge (%.0f cm off its aim, it lands within %.0f)"), Miss, Tuning.LungeHitRadius),
+		Miss > Tuning.LungeHitRadius);
+	TestTrue(TEXT("A landed lunge hurts no more than its attack"), Tuning.LungeDamageShare > 0.f && Tuning.LungeDamageShare <= 1.f);
 	TestTrue(TEXT("It rakes only close in, nearer than it lunges from"), Tuning.RakeRange < Tuning.LungeStart);
 	TestTrue(TEXT("Two swipes hurt no more than a lunge and a half"), 2.f * Tuning.RakeDamageShare <= 1.5f);
 	TestTrue(TEXT("A cinder hurts less than a lunge"), Tuning.CinderDamageShare < 1.f);

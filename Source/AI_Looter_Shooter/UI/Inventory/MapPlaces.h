@@ -44,7 +44,9 @@ namespace MapPlaces
 	 * Keeps the names from drawing over each other (Widow's Pines and the Chapel of Saint Ada did, playtest 2026-10-27).
 	 * Majors are placed first, then minors, each in list order; a name that would overlap one already placed slides up or
 	 * down by its own height (a few steps) to the first free spot, and if none is free it is left off (bShown false).
-	 * Center is rewritten for a shifted name. Gap: the room kept between two names (page units).
+	 * Center is rewritten for a shifted name. Gap: the room kept between two names (page units). Blocked: rectangles no name
+	 * may cover (the map's icons: they hid THE SINK, MAIN STREET and DEPOT, playtest 2026-10-27); a name that an icon sits on
+	 * slides up or down, or to the side of its point, past it.
 	 */
-	AI_LOOTER_SHOOTER_API void Declutter(TArray<FNameBox>& Boxes, double Gap);
+	AI_LOOTER_SHOOTER_API void Declutter(TArray<FNameBox>& Boxes, double Gap, TConstArrayView<FBox2D> Blocked = TConstArrayView<FBox2D>());
 }

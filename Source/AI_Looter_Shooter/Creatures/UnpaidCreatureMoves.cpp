@@ -156,6 +156,7 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 		}
 		Kit.WaitTime = 0.f;
 		Kit.bFlankRolled = false;
+		Kit.bFlankArmed = false;
 		UpdateChaseBoost(nullptr, false);
 		return;
 	}
@@ -196,29 +197,42 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 	}
 
 	const bool bChasing = BrainState == ECreatureState::Chase;
-	Kit.WaitTime = bChasing && IsWaitingTurn() ? Kit.WaitTime + DeltaSeconds : 0.f;
-	if (!Director || !bChasing || IsPhasing() || bLunging || IsHeldByHit())
+	const bool bWaiting = bChasing && IsWaitingTurn();
+	Kit.WaitTime = bWaiting ? Kit.WaitTime + DeltaSeconds : 0.f;
+	if (!bWaiting)
 	{
-		if (!Director || !Director->HoldsToken(*this))
-		{
-			Kit.bFlankRolled = false;
-		}
+		// A new wait on the ring rolls for a flank afresh.
+		Kit.bFlankRolled = false;
+	}
+	if (!Director || !bChasing)
+	{
+		// Out of the chase (its attack can't have started with a flank ready, so this is a search, a return, a call-off).
+		Kit.bFlankArmed = false;
+		return;
+	}
+	if (IsPhasing() || bLunging || IsHeldByHit())
+	{
 		return;
 	}
 
-	// Its turn: once a turn, it may flank (it's in front of the player's eyes and not too near or far).
+	// Its turn has come with a flank ready (ThinkOnRing armed it while it waited in front of the player's eyes): it fades
+	// round to their side; with no spot round them, or once they've turned from it, it attacks from where it is next frame.
 	if (Director->HoldsToken(*this))
 	{
-		if (!Kit.bFlankRolled)
+		if (Kit.bFlankArmed)
 		{
-			Kit.bFlankRolled = true;
+			Kit.bFlankArmed = false;
 			TryFlank(*Victim);
 		}
 		return;
 	}
-	Kit.bFlankRolled = false;
+	if (!bWaiting)
+	{
+		// Off the ring with no turn (the ring broke up): no flank held for it.
+		Kit.bFlankArmed = false;
+	}
 
-	// Waiting on the ring: now and then it looks at its choices (a rally, a cinder).
+	// Waiting on the ring: now and then it looks at its choices (a rally, a flank for its next turn, a cinder).
 	if (IsWaitingTurn())
 	{
 		Kit.ThinkIn -= DeltaSeconds;
@@ -338,11 +352,8 @@ bool AUnpaidCreature::Swipe(int32 Arm)
 
 bool AUnpaidCreature::TryFlank(const APawn& Victim)
 {
+	// Its chance and cooldown were settled as it was armed (ThinkOnRing); here only whether they're still in front of it.
 	const FUnpaidFightTuning& Tuning = FUnpaidFightTuning::Live();
-	if (Kit.FlankCooldown > 0.f || FMath::FRand() >= Tuning.FlankChance)
-	{
-		return false;
-	}
 	const FVector Center = Victim.GetActorLocation();
 	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Center));
 	const float ViewYaw = static_cast<float>(Victim.GetViewRotation().Yaw);

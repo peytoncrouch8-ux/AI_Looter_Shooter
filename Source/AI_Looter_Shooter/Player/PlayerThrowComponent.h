@@ -185,7 +185,7 @@ private:
 	bool IsOwnerDead() const;
 	/**
 	 * The burst's damage scale at the player's level (FGraveSaltRules::ThrowerScale: FLevelRules::EnemyScale times the
-	 * early share, 0.45 at level 1 or with no player, full by level 12).
+	 * early share, 0.1 through level 3 or with no player, full by level 12).
 	 */
 	float GetLevelScale() const;
 
