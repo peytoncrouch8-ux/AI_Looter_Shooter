@@ -319,16 +319,21 @@ bool FMeleeMotionTest::RunTest(const FString& Parameters)
 	using namespace MeleeMotion;
 	const float Contact = FMeleeRules::ContactSeconds;
 
-	// The gun starts and ends in its hold, and is down in the left hand (low, to the left, canted) through the blow while the
-	// tool swings (the user's note 5, 2026-10-27).
+	// The gun starts and ends in its hold and is out of sight through the swing (the user's playtest, 2026-10-27: "Gun stays
+	// visible while using melee animation"): dropped out of the frame in under a tenth of a second, hidden from then until
+	// the last tenth, when it comes back up.
+	const float End = FMeleeRules::SwingSeconds;
 	TestTrue(TEXT("In its hold at the start"), GunPose(0.f, false).Offset.IsNearlyZero() && GunPose(0.f, false).Rotation.IsNearlyZero());
-	TestTrue(TEXT("In its hold at the end"), GunPose(FMeleeRules::SwingSeconds, false).Rotation.IsNearlyZero());
-	TestTrue(TEXT("Nearly back just before the end"), FMath::Abs(GunPose(FMeleeRules::SwingSeconds - 0.01f, false).Rotation.Roll) < 1.f);
-	const FMeleeSwingPose Low = GunPose(Contact, false);
-	TestTrue(TEXT("At the blow: dropped low"), Low.Offset.Z < -5.f);
-	TestTrue(TEXT("...to the left"), Low.Offset.Y < -5.f);
-	TestTrue(TEXT("...canted over"), Low.Rotation.Roll < -15.f);
-	TestTrue(TEXT("Fully down by the wind-up's end"), GunPose(CockSeconds, false).Offset.Equals(LowReadyPose().Offset, 0.1f));
+	TestTrue(TEXT("In its hold at the end"), GunPose(End, false).Rotation.IsNearlyZero());
+	TestTrue(TEXT("Nearly back just before the end"), FMath::Abs(GunPose(End - 0.005f, false).Rotation.Pitch) < 2.f);
+	const FMeleeSwingPose Away = GunPose(Contact, false);
+	TestTrue(TEXT("At the blow: dropped out of the frame"), Away.Offset.Z < -30.f && Away.Rotation.Pitch < -20.f);
+	TestFalse(TEXT("Not hidden as the swing starts"), IsGunAway(0.01f));
+	TestTrue(TEXT("Hidden by the wind-up's end"), IsGunAway(CockSeconds));
+	TestTrue(TEXT("Hidden at the blow and through the recovery"), IsGunAway(Contact) && IsGunAway(ReturnFrom) && IsGunAway(End - 0.1f));
+	TestFalse(TEXT("Shown again as it comes back up"), IsGunAway(End - 0.03f));
+	TestFalse(TEXT("Shown outside a swing"), IsGunAway(0.f) || IsGunAway(End));
+	TestTrue(TEXT("Down quickly: at least 90% by 0.08 s"), GunAwayShare(0.08f) > 0.9f);
 
 	// Snappy but never a pop: no more than 2.5 degrees or 1 cm in a millisecond.
 	float WorstTurn = 0.f;

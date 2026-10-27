@@ -76,8 +76,10 @@ namespace
 
 void UPlayerMeleeComponent::PrepareTool()
 {
-	// The hero played (the session's pick or Looter.Hero's); none in a test level: Ellis's.
-	const UHeroDefinition* Hero = USessionSubsystem::FindPlayedHero(this);
+	// The hero played (the session's pick or Looter.Hero's); none (a test level, a play with no session): Ellis's, so the
+	// tool is the one the game would show.
+	const UHeroDefinition* Played = USessionSubsystem::FindPlayedHero(this);
+	const UHeroDefinition* Hero = Played ? Played : UHeroDefinition::Load(UHeroDefinition::DefaultId());
 	if (bToolPrepared && Hero == ToolHero.Get())
 	{
 		return;
@@ -179,7 +181,15 @@ void UPlayerMeleeComponent::PlaceTool()
 	}
 	Root.SetScale3D(FVector(Scale));
 	ToolRoot->SetRelativeTransform(Root);
+	// The root and each part said outright (HideTool hides each part on its own too).
 	ToolRoot->SetVisibility(ToolPose.bShown, true);
+	for (UStaticMeshComponent* Part : ToolParts)
+	{
+		if (Part && Part->IsVisible() != ToolPose.bShown)
+		{
+			Part->SetVisibility(ToolPose.bShown);
+		}
+	}
 }
 
 void UPlayerMeleeComponent::HideTool()

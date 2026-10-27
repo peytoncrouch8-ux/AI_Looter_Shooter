@@ -109,7 +109,7 @@ void UPlayerMeleeComponent::HideGunForSwing(bool bHide)
 	}
 }
 
-bool UPlayerMeleeComponent::FindToolSocket(FName Socket, FVector& OutLocation, FVector& OutForward) const
+bool UPlayerMeleeComponent::FindToolSocket(FName Socket, FVector& OutLocation, FVector& OutForward, float* OutDrawScale) const
 {
 	const bool bFirstPerson = IsFirstPersonView();
 	const UStaticMeshComponent* Part = bFirstPerson ? (ToolParts.IsEmpty() ? nullptr : ToolParts[0].Get()) : ThirdPersonTool.Get();
@@ -120,6 +120,10 @@ bool UPlayerMeleeComponent::FindToolSocket(FName Socket, FVector& OutLocation, F
 	const FTransform Place = Part->GetSocketTransform(Socket);
 	OutLocation = Place.GetLocation();
 	OutForward = Place.GetRotation().GetForwardVector();
+	if (OutDrawScale)
+	{
+		*OutDrawScale = 1.f;
+	}
 	const UCameraComponent* Camera = bFirstPerson ? UPlayerViewComponent::FindFirstPersonCamera(GetOwner()) : nullptr;
 	if (!Camera)
 	{
@@ -136,7 +140,14 @@ bool UPlayerMeleeComponent::FindToolSocket(FName Socket, FVector& OutLocation, F
 	View.bUseFirstPersonParameters = Camera->bEnableFirstPersonFieldOfView || Camera->bEnableFirstPersonScale;
 	if (View.bUseFirstPersonParameters)
 	{
+		const FVector Real = OutLocation;
 		OutLocation = View.TransformWorldToFirstPerson(OutLocation, false);
+		// How much nearer the eye it shows than it is: anything drawn there in the world (a smear's width) shrinks with it.
+		const double RealDistance = FVector::Dist(Real, View.Location);
+		if (OutDrawScale && RealDistance > 1.0)
+		{
+			*OutDrawScale = static_cast<float>(FVector::Dist(OutLocation, View.Location) / RealDistance);
+		}
 	}
 	return true;
 }

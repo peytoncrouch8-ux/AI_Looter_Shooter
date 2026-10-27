@@ -72,7 +72,8 @@ struct FMeleeToolPose
  *  - The blow: one that lands stops dead there (the striker's hit-stop holds the clock) and bounces back a little; a miss
  *    goes on to the arc's through (past the blow, or a gaff's yank back).
  *  - The return (ReturnFrom to the end): the tool goes back down under the frame and the hand back to the grip.
- *  - The gun meanwhile: lowered and canted into the left hand (LowReadyPose) through the swing, back up at the end.
+ *  - The gun meanwhile: dropped out of the frame in 0.08 s (AwayPose) and hidden there, back up over the last 0.08 s; the
+ *    left hand rests under the frame (the first-person hands with no gun shown).
  * A heft (quick, steady, heavy) scales the wind-up and the jolts, never the clock. The timings are named constants here (the
  * third-person jab reads CockSeconds too: LooterStancePose::MeleeJab); the sizes and shares are Looter.Melee.* console
  * variables (PlayerMeleeToolMotion.cpp), the arcs named constants there.
@@ -115,10 +116,25 @@ namespace MeleeMotion
 	 */
 	AI_LOOTER_SHOOTER_API void AimAtTip(FMeleeArc& Arc, float TipLength);
 
-	/** The gun held low and canted in the left hand while the right swings (its own frame, about the middle of the hands). */
-	AI_LOOTER_SHOOTER_API FMeleeSwingPose LowReadyPose();
+	/** The gun dropped down out of the frame while the tool swings (its own frame, about the middle of the hands). */
+	AI_LOOTER_SHOOTER_API FMeleeSwingPose AwayPose();
 
-	/** The gun SwingTime seconds into a strike: eased into LowReadyPose by the wind-up, held, back to its hold by the end. */
+	/**
+	 * How far the gun is toward AwayPose SwingTime seconds into a strike: down over Looter.Melee.GunLowerSeconds (0.08),
+	 * held, back up over the swing's last Looter.Melee.GunRaiseSeconds (0.08); 0 outside a swing.
+	 */
+	AI_LOOTER_SHOOTER_API float GunAwayShare(float SwingTime);
+
+	/**
+	 * The tool's head lays down its smear SwingTime seconds into a strike: from late in the wind-up (as the drive starts)
+	 * through the follow-through, the arc's fast part (round 5, 2026-10-27).
+	 */
+	AI_LOOTER_SHOOTER_API bool IsSmearing(float SwingTime);
+
+	/** The gun is all the way down: hidden (with its attachments) until it comes back up (UPlayerMeleeComponent). */
+	AI_LOOTER_SHOOTER_API bool IsGunAway(float SwingTime);
+
+	/** The gun SwingTime seconds into a strike: AwayPose by GunAwayShare. */
 	AI_LOOTER_SHOOTER_API FMeleeSwingPose GunPose(float SwingTime, bool bLanded);
 
 	/** The view as the swing starts: drawn back and turned a little away from the blow to come. */

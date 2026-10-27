@@ -51,4 +51,29 @@ namespace MeleeFX
 
 	/** A burst of steam from a vent at Vent (world, where it shows), blowing out along Out, Strength 1 a full one. */
 	AI_LOOTER_SHOOTER_API void SpawnSteam(FWeaponFX& Effects, const FVector& Vent, const FVector& Out, float Strength, FRandomStream& Random);
+
+	// --- The swing's smear (round 5, 2026-10-27: the user's video pick, "swing smear + hit feel") ---
+
+	/** One place the tool's head passed: its tip and a point down the head toward the hand (world, where they show). */
+	struct FSmearSample
+	{
+		FVector Tip = FVector::ZeroVector;
+		FVector Inner = FVector::ZeroVector;
+		/** World seconds when it was there, and the draw scale there (a first-person tool is drawn pulled in toward the eye). */
+		double Time = 0.0;
+		float Scale = 1.f;
+	};
+
+	/** The smear's tint by the tool: the spade's ember cyan, the fan's gold, the gaff's pale iron, the piston's steam, the pick's teal. */
+	AI_LOOTER_SHOOTER_API FLinearColor SmearColor(FName Kind);
+
+	/** How long a smear sample lasts (Looter.Melee.Smear.Seconds, 0.12) and its strength at Age seconds (1 new, 0 gone). */
+	AI_LOOTER_SHOOTER_API float SmearSeconds();
+	AI_LOOTER_SHOOTER_API float SmearShare(float Age);
+
+	/**
+	 * Draws the smear this frame through Samples (oldest first) as Now: a glowing band from each sample to the next along the
+	 * tip and along the inner edge, thinning and fading with age (FWeaponFX's streaks, drawn one frame each).
+	 */
+	AI_LOOTER_SHOOTER_API void DrawSmear(FWeaponFX& Effects, const TArray<FSmearSample>& Samples, double Now, const FLinearColor& Color);
 }

@@ -8,7 +8,11 @@
 namespace
 {
 	TAutoConsoleVariable<float> CVarGunLower(TEXT("Looter.Melee.GunLower"), 1.f,
-		TEXT("How far the gun drops into the left hand during a melee swing (a share of MeleeMotion::LowReadyPose; 0 keeps it up)."));
+		TEXT("How far the gun drops out of view during a melee swing (a share of MeleeMotion::AwayPose)."));
+	TAutoConsoleVariable<float> CVarGunLowerSeconds(TEXT("Looter.Melee.GunLowerSeconds"), 0.08f,
+		TEXT("Seconds the gun takes to drop out of view as a melee swing starts."));
+	TAutoConsoleVariable<float> CVarGunRaiseSeconds(TEXT("Looter.Melee.GunRaiseSeconds"), 0.08f,
+		TEXT("Seconds the gun takes to come back up at a melee swing's end."));
 	TAutoConsoleVariable<float> CVarHeftQuick(TEXT("Looter.Melee.Heft.Quick"), 0.8f,
 		TEXT("A quick tool's wind-up size and view jolts against a steady one's (the razor fan, the rock pick, the piston fist)."));
 	TAutoConsoleVariable<float> CVarHeftHeavy(TEXT("Looter.Melee.Heft.Heavy"), 1.25f,
@@ -33,33 +37,47 @@ float MeleeMotion::HeftScale(EMeleeHeft Heft)
 	}
 }
 
-FMeleeSwingPose MeleeMotion::LowReadyPose()
+FMeleeSwingPose MeleeMotion::AwayPose()
 {
-	// Dropped low and to the left, muzzle down and canted over, held by the support hand alone: the right side of the view is
-	// the tool's, and the gun still reads as the gun in hand (the throw dips it the other way, ThrowMotion::GunDipPose).
+	// Dropped down out of the frame, muzzle tipped down and swung a little right, Borderlands' way: the swing has the view to
+	// itself (the user's playtest, 2026-10-27: "Gun stays visible while using melee animation"; round 3 held it low in the
+	// left hand, in view).
 	FMeleeSwingPose Pose;
-	Pose.Offset = FVector(-5.f, -9.f, -11.f);
-	Pose.Rotation = FRotator(-14.f, -10.f, -26.f);
+	Pose.Offset = FVector(-8.f, 6.f, -42.f);
+	Pose.Rotation = FRotator(-35.f, 10.f, 15.f);
 	return Pose;
+}
+
+float MeleeMotion::GunAwayShare(float SwingTime)
+{
+	if (SwingTime <= 0.f || SwingTime >= FMeleeRules::SwingSeconds)
+	{
+		return 0.f;
+	}
+	// Down over the first LowerSeconds of the wind-up, back up over the swing's last RaiseSeconds.
+	const float Lower = FMath::Max(CVarGunLowerSeconds.GetValueOnAnyThread(), 0.01f);
+	const float Raise = FMath::Max(CVarGunRaiseSeconds.GetValueOnAnyThread(), 0.01f);
+	const float Down = FMath::SmoothStep(0.f, Lower, SwingTime);
+	const float Up = FMath::SmoothStep(FMeleeRules::SwingSeconds - Raise, FMeleeRules::SwingSeconds, SwingTime);
+	return Down * (1.f - Up);
+}
+
+bool MeleeMotion::IsSmearing(float SwingTime)
+{
+	// The drive starts at CockSeconds (a frame early so the band begins at the wind-up's top); the follow-through is the
+	// last of the head's speed.
+	return SwingTime >= CockSeconds * 0.9f && SwingTime <= FMeleeRules::ContactSeconds + FollowThroughSeconds;
+}
+
+bool MeleeMotion::IsGunAway(float SwingTime)
+{
+	// Fully down out of the frame: the gun (its attachments, laser and label with it) is hidden till it comes back up.
+	return GunAwayShare(SwingTime) >= 0.98f;
 }
 
 FMeleeSwingPose MeleeMotion::GunPose(float SwingTime, bool bLanded)
 {
-	if (SwingTime <= 0.f || SwingTime >= FMeleeRules::SwingSeconds)
-	{
-		return FMeleeSwingPose();
-	}
-	// Down with the wind-up, held through the blow and its follow-through, back up as the tool goes away under the frame.
-	const float Down = FMath::SmoothStep(0.f, CockSeconds, SwingTime);
-	const float Up = FMath::SmoothStep(ReturnFrom, FMeleeRules::SwingSeconds, SwingTime);
-	float Share = Down * (1.f - Up);
-	// A landed blow jars the whole body: the gun gives a little more for an instant.
-	if (bLanded && SwingTime > FMeleeRules::ContactSeconds)
-	{
-		const float Since = (SwingTime - FMeleeRules::ContactSeconds) / RecoilSeconds;
-		Share *= 1.f + 0.12f * FMath::Sin(UE_PI * FMath::Clamp(Since, 0.f, 1.f));
-	}
-	return Scaled(LowReadyPose(), Share * FMath::Clamp(CVarGunLower.GetValueOnAnyThread(), 0.f, 1.5f));
+	return Scaled(AwayPose(), GunAwayShare(SwingTime) * FMath::Clamp(CVarGunLower.GetValueOnAnyThread(), 0.f, 1.5f));
 }
 
 FViewKick MeleeMotion::WindUp(EMeleeSwingStyle Style, EMeleeHeft Heft)

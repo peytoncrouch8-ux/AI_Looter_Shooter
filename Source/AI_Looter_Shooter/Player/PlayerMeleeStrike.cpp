@@ -235,7 +235,7 @@ bool UPlayerMeleeComponent::LandStrike(AActor& Target, const FMeleeContact& Cont
 	// A crate or a barrel that breaks under the blow is felt as a hit, not as a creature's kill (the hard shake).
 	const bool bFeltAsKill = bKilled && !Target.ActorHasTag(FName(LooterBreakables::Tag));
 	FeelBlow(MeleeMotion::Impact(bFeltAsKill, KickRandom.FRandRange(-1.f, 1.f)), bFeltAsKill ? MeleeMotion::KillShake : MeleeMotion::ImpactShake,
-		FMeleeRules::AttackerHitStop);
+		FMeleeRules::HitStopSeconds(bFeltAsKill));
 	UE_LOG(LogLooter, Verbose, TEXT("Melee: %s hit %s for %.1f%s (knocked %.0f cm/s)"), *UEnum::GetValueAsString(Tool.Swing),
 		*Target.GetName(), Damage, bKilled ? TEXT(", killed") : TEXT(""), Knock.Size2D());
 	return true;
@@ -265,7 +265,7 @@ void UPlayerMeleeComponent::StrikeWorld(const FMeleeAim& Aim)
 	}
 	LooterSound::PlayAt(this, MeleeCue::Hit, Wall.ImpactPoint, MeleeMotion::WallVolume);
 	ShowToolImpact(Wall.ImpactPoint, Wall.ImpactNormal, Aim.Forward, EMeleeStruck::World, ImpactSurface::Of(Wall), MeleeMotion::WallVolume);
-	FeelBlow(MeleeMotion::WallKnock(), 0.f, FMeleeRules::AttackerHitStop * 0.6f);
+	FeelBlow(MeleeMotion::WallKnock(), 0.f, FMeleeRules::HitStopSeconds(false) * 0.6f);
 }
 
 void UPlayerMeleeComponent::FeelBlow(const FViewKick& Kick, float Shake, float Seconds)

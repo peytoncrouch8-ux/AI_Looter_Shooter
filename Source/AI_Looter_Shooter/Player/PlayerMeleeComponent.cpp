@@ -157,8 +157,9 @@ void UPlayerMeleeComponent::StartSwing()
 	const bool bCutReload = Gun && Gun->BeginMeleeSwing();
 
 	// In third person the tool takes the gun's place in the right hand for the swing (when there's a tool to show there).
+	// (First person: it drops out of the frame and hides there, UpdateGunPose.) Shown again as the swing ends.
 	const UPlayerViewComponent* View = GetOwner() ? GetOwner()->FindComponentByClass<UPlayerViewComponent>() : nullptr;
-	if (Gun && ThirdPersonTool && View && !View->IsFirstPerson())
+	if (Gun && View && !View->IsFirstPerson())
 	{
 		HideGunForSwing(true);
 	}
@@ -217,6 +218,7 @@ void UPlayerMeleeComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 		Strike();
 	}
 	UpdateGunPose();
+	UpdateSmear();
 	if (bSwinging && SwingTime >= FMeleeRules::SwingSeconds)
 	{
 		EndSwing(true);
@@ -231,6 +233,7 @@ void UPlayerMeleeComponent::EndSwing(bool bResume)
 	}
 	bSwinging = false;
 	HoldTime = 0.f;
+	Smear.Reset();
 	ReleaseWeapon(bResume);
 	HideTool();
 	SetComponentTickEnabled(false);
@@ -252,6 +255,21 @@ void UPlayerMeleeComponent::UpdateGunPose()
 	{
 		const FMeleeSwingPose Pose = MeleeMotion::GunPose(SwingTime, bLanded);
 		Gun->SetMeleePose(Pose.Offset, Pose.Rotation);
+		// First person (the user's playtest, 2026-10-27: the gun stayed in view): dropped out of the frame it's hidden,
+		// attachments, laser and label with it, and shown as it comes back up. The hands then show the right on the tool
+		// and the left resting under the frame (UFirstPersonHandsComponent's no-gun pose). Third person: hidden all swing.
+		if (IsFirstPersonView())
+		{
+			const bool bAway = bSwinging && MeleeMotion::IsGunAway(SwingTime);
+			if (bAway && !HiddenGun.IsValid())
+			{
+				HideGunForSwing(true);
+			}
+			else if (!bAway && HiddenGun.IsValid())
+			{
+				HideGunForSwing(false);
+			}
+		}
 	}
 	PlaceTool();
 }

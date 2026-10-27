@@ -9,6 +9,12 @@ namespace
 {
 	TAutoConsoleVariable<float> CVarMeleeFX(TEXT("Looter.Melee.FX"), 1.f,
 		TEXT("The melee tools' own impact effects' strength (sparks, glints, steam; 0: only the shared blow's dust and chips)."));
+	TAutoConsoleVariable<float> CVarSmearSeconds(TEXT("Looter.Melee.Smear.Seconds"), 0.12f,
+		TEXT("Seconds the melee swing's smear behind the tool's head lasts as it fades."));
+	TAutoConsoleVariable<float> CVarSmearGlow(TEXT("Looter.Melee.Smear.Glow"), 6.f,
+		TEXT("The melee swing smear's brightness (0: none)."));
+	TAutoConsoleVariable<float> CVarSmearWidth(TEXT("Looter.Melee.Smear.Width"), 7.f,
+		TEXT("The melee swing smear's width at its tip (cm, as the tool is drawn)."));
 	TAutoConsoleVariable<float> CVarSparks(TEXT("Looter.Melee.Sparks"), 1.f,
 		TEXT("How many sprays of sparks iron throws off stone or metal (1: two hard-target sprays for the spade and pick)."));
 	TAutoConsoleVariable<float> CVarSteam(TEXT("Looter.Melee.Steam"), 1.f,
@@ -134,6 +140,70 @@ namespace MeleeFX
 			{
 				Effects.SpawnStarburst(At + Normal * 2.0, 14.f * Strength, PickTeal, 14.f, 0.1f, 4);
 			}
+		}
+	}
+
+	FLinearColor SmearColor(FName Kind)
+	{
+		if (Kind == Spade())
+		{
+			return FLinearColor(0.55f, 0.9f, 1.f);
+		}
+		if (Kind == Fan())
+		{
+			return FLinearColor(1.f, 0.85f, 0.5f);
+		}
+		if (Kind == Gaff())
+		{
+			return FLinearColor(0.75f, 0.8f, 0.85f);
+		}
+		if (Kind == Piston())
+		{
+			return FLinearColor(0.95f, 0.92f, 0.85f);
+		}
+		if (Kind == Pick())
+		{
+			return FLinearColor(0.45f, 0.9f, 0.82f);
+		}
+		return FLinearColor(0.9f, 0.9f, 0.9f);
+	}
+
+	float SmearSeconds()
+	{
+		return FMath::Clamp(CVarSmearSeconds.GetValueOnGameThread(), 0.02f, 0.4f);
+	}
+
+	float SmearShare(float Age)
+	{
+		// Bright as it's laid down, then gone quickly (squared: most of it fades in the first half of its life).
+		const float Left = 1.f - FMath::Clamp(Age / SmearSeconds(), 0.f, 1.f);
+		return Left * Left;
+	}
+
+	void DrawSmear(FWeaponFX& Effects, const TArray<FSmearSample>& Samples, double Now, const FLinearColor& Color)
+	{
+		const float Glow = FMath::Max(CVarSmearGlow.GetValueOnGameThread(), 0.f);
+		const float Width = FMath::Max(CVarSmearWidth.GetValueOnGameThread(), 0.f);
+		if (Glow <= 0.f || Width <= 0.f)
+		{
+			return;
+		}
+		for (int32 Index = 1; Index < Samples.Num(); ++Index)
+		{
+			const FSmearSample& From = Samples[Index - 1];
+			const FSmearSample& To = Samples[Index];
+			const float Share = SmearShare(static_cast<float>(Now - From.Time));
+			if (Share <= 0.f || From.Tip.Equals(To.Tip, 0.05))
+			{
+				continue;
+			}
+			const float Scale = FMath::Max(To.Scale, 0.01f);
+			// The tip's arc the brightest and widest; the inner edge fainter; a fill between them so it reads as a band.
+			Effects.AddStreak(From.Tip, To.Tip, Width * Scale * (0.4f + 0.6f * Share), Color, Glow * Share);
+			Effects.AddStreak(From.Inner, To.Inner, Width * 0.6f * Scale * (0.4f + 0.6f * Share), Color, Glow * 0.4f * Share);
+			const FVector FillFrom = FMath::Lerp(From.Inner, From.Tip, 0.5f);
+			const FVector FillTo = FMath::Lerp(To.Inner, To.Tip, 0.5f);
+			Effects.AddStreak(FillFrom, FillTo, Width * 1.6f * Scale * Share, Color, Glow * 0.25f * Share);
 		}
 	}
 

@@ -81,6 +81,9 @@ public:
 	/** Why a press right now would start no strike (None: it would). */
 	EMeleeBlock GetBlock() const;
 
+	/** A strike started now, past the gate (the tests' bodies have no player to press the key). */
+	void BeginSwingNow() { StartSwing(); }
+
 	bool IsSwinging() const { return bSwinging; }
 
 	/** Seconds into the swing on its own clock (it holds through the blow's hit-stop); 0 when not swinging. */
@@ -174,7 +177,9 @@ private:
 	/** In third person the gun in hand steps out of the right hand for the swing (back at its end, or let go of). */
 	void HideGunForSwing(bool bHide);
 	/** Where a socket of the tool in view shows in the world (first person: as the view model's field of view draws it). */
-	bool FindToolSocket(FName Socket, FVector& OutLocation, FVector& OutForward) const;
+	bool FindToolSocket(FName Socket, FVector& OutLocation, FVector& OutForward, float* OutDrawScale = nullptr) const;
+	/** The swing's smear behind the tool's head (PlayerMeleeSmear.cpp): sampled and drawn each frame of the swing. */
+	void UpdateSmear();
 	/** The tool's own hit sound and effects where its blow landed (MeleeFX), and the piston's steam. */
 	void ShowToolImpact(const FVector& At, const FVector& Normal, const FVector& Along, EMeleeStruck Struck, EImpactMaterial Material,
 		float Volume);
@@ -236,6 +241,8 @@ private:
 	TWeakObjectPtr<AWeaponBase> HiddenGun;
 	/** The tool's effects' randomness. */
 	FRandomStream ToolRandom{ 0x5ade };
+	/** Where the tool's head passed lately (oldest first), for its smear. */
+	TArray<MeleeFX::FSmearSample> Smear;
 
 	/** Which way each landed blow's jolt rolls. */
 	FRandomStream KickRandom{ 0x3e1ee };

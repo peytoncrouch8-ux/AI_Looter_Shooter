@@ -91,8 +91,14 @@ struct AI_LOOTER_SHOOTER_API FMeleeRules
 	static constexpr float SwingSeconds = 0.5f;
 	static constexpr float ContactSeconds = 0.15f;
 	static constexpr float CooldownSeconds = 0.6f;
-	/** The swing's own clock holds this long as the blow lands (the striker's half of the hit-stop). */
-	static constexpr float AttackerHitStop = 0.05f;
+	/**
+	 * The most the swing's own clock holds as the blow lands (the striker's half of the hit-stop; the creature's own is
+	 * FHitReaction::MeleeHitStop, 0.06): HitStopSeconds is Looter.Melee.HitStop (0.065; round 5, 2026-10-27, "make it
+	 * read": 0.05 went by unseen), a kill Looter.Melee.HitStop.Kill (0.085), both held to this so the swing always ends
+	 * inside its cooldown.
+	 */
+	static constexpr float AttackerHitStop = 0.09f;
+	static float HitStopSeconds(bool bKill);
 
 	// --- The reach ---
 	/** At full size; the player's reach is this times their size (Reach()). */

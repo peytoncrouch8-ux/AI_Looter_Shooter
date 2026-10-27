@@ -131,7 +131,7 @@ bool FMeleeToolArcTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...through high on the right"), FlickThrough.Y > FlickBlow.Y + 10.f && FlickThrough.Z > FlickBlow.Z);
 	for (const EMeleeSwingStyle Over : { EMeleeSwingStyle::Chop, EMeleeSwingStyle::Peck, EMeleeSwingStyle::Gaff })
 	{
-		TestTrue(UEnum::GetValueAsString(Over) + TEXT(": wound up high"), HandAt(Over, Cock).Z > HandAt(Over, Contact).Z + 15.f);
+		TestTrue(UEnum::GetValueAsString(Over) + TEXT(": wound up high"), HandAt(Over, Cock).Z > HandAt(Over, Contact).Z + 12.f);
 	}
 	TestTrue(TEXT("Peck: down and to the left after the blow"), HandAt(EMeleeSwingStyle::Peck, Through).Y < HandAt(EMeleeSwingStyle::Peck, Contact).Y
 		&& HandAt(EMeleeSwingStyle::Peck, Through).Z < HandAt(EMeleeSwingStyle::Peck, Contact).Z);
@@ -154,6 +154,36 @@ bool FMeleeToolArcTest::RunTest(const FString& Parameters)
 		FMath::Abs(LongTip.Y) < 3.f && FMath::Abs(LongTip.Z + 4.f) < 3.f && LongTip.X > 60.f);
 	TestTrue(TEXT("Chop strikes down"), ToolPose(EMeleeSwingStyle::Chop, EMeleeHeft::Steady, Contact, false).Grip.GetRotation().GetAxisZ().Z < -0.4f);
 	// A heavy tool winds up farther than a quick one.
+	// In view through the swing (the gun is out of sight meanwhile: the tool and the arm are all there is; 2026-10-27): from
+	// the wind-up's top through the follow-through the hand stays within 42 degrees across and 26 up or down of the
+	// middle: each swing at a steady heft, and each hero's own (the picks: the heavy gaff winds up farthest).
+	TArray<TPair<EMeleeSwingStyle, EMeleeHeft>> Swings;
+	for (const EMeleeSwingStyle Style : AllStyles)
+	{
+		Swings.Add({ Style, EMeleeHeft::Steady });
+	}
+	for (const TCHAR* Hero : { TEXT("Ellis"), TEXT("Odessa"), TEXT("Crane"), TEXT("Gauge"), TEXT("Pike") })
+	{
+		const FHeroMeleeTool Picked = UHeroDefinition::MeleeToolFor(Hero);
+		Swings.Add({ Picked.Swing, Picked.Heft });
+	}
+	for (const TPair<EMeleeSwingStyle, EMeleeHeft>& Swing : Swings)
+	{
+		const EMeleeSwingStyle Style = Swing.Key;
+		const EMeleeHeft Heft = Swing.Value;
+		{
+			float Across = 0.f;
+			float UpDown = 0.f;
+			for (float Time = CockSeconds; Time <= ReturnFrom; Time += 0.005f)
+			{
+				const FVector Hand = ToolPose(Style, Heft, Time, false).Grip.GetLocation();
+				Across = FMath::Max(Across, FMath::Abs(FMath::RadiansToDegrees(static_cast<float>(FMath::Atan2(Hand.Y, Hand.X)))));
+				UpDown = FMath::Max(UpDown, FMath::Abs(FMath::RadiansToDegrees(static_cast<float>(FMath::Atan2(Hand.Z, FVector2D(Hand.X, Hand.Y).Size())))));
+			}
+			TestTrue(FString::Printf(TEXT("%s (heft %d): the hand in view through the swing (%.0f across, %.0f up/down)"), *UEnum::GetValueAsString(Style),
+				static_cast<int32>(Heft), Across, UpDown), Across <= 42.f && UpDown <= 26.f);
+		}
+	}
 	TestTrue(TEXT("Heavy winds up farther"), FMath::Abs(ArcFor(EMeleeSwingStyle::Chop, EMeleeHeft::Heavy).CockDegrees)
 		> FMath::Abs(ArcFor(EMeleeSwingStyle::Chop, EMeleeHeft::Quick).CockDegrees));
 	// A landed blow stops and bounces back a little, a miss goes on through.
@@ -229,6 +259,38 @@ bool FMeleeToolFeelTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(FString::Printf(TEXT("The wrist never jumps (%.2f degrees in a millisecond)"), Worst), Worst < 4.f);
 	TestEqual(TEXT("...and is back at rest after the swing"), Last, 0.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeleeSmearTest, "Looter.Melee.Tool.Smear",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FMeleeSmearTest::RunTest(const FString& Parameters)
+{
+	// Round 5 (2026-10-27, the user's pick from a video): a smear behind the head through the strike, and a hit-stop that reads.
+	using namespace MeleeMotion;
+	const float Contact = FMeleeRules::ContactSeconds;
+	TestFalse(TEXT("No smear at rest or as the tool is drawn"), IsSmearing(0.f) || IsSmearing(0.03f));
+	TestTrue(TEXT("Smearing through the drive, the blow and the follow-through"), IsSmearing(CockSeconds) && IsSmearing(Contact)
+		&& IsSmearing(Contact + FollowThroughSeconds * 0.9f));
+	TestFalse(TEXT("None as the tool goes back under the frame"), IsSmearing(ReturnFrom) || IsSmearing(FMeleeRules::SwingSeconds));
+	TestEqual(TEXT("A smear sample starts bright"), MeleeFX::SmearShare(0.f), 1.f);
+	TestEqual(TEXT("...and is gone by its life's end"), MeleeFX::SmearShare(MeleeFX::SmearSeconds()), 0.f);
+	TestTrue(TEXT("...fading all the way"), MeleeFX::SmearShare(0.03f) > MeleeFX::SmearShare(0.06f) && MeleeFX::SmearShare(0.06f) > 0.f);
+	TestTrue(TEXT("About an eighth of a second"), MeleeFX::SmearSeconds() >= 0.08f && MeleeFX::SmearSeconds() <= 0.16f);
+	TSet<FLinearColor> Tints;
+	for (const FName Kind : { MeleeFX::Spade(), MeleeFX::Fan(), MeleeFX::Gaff(), MeleeFX::Piston(), MeleeFX::Pick() })
+	{
+		Tints.Add(MeleeFX::SmearColor(Kind));
+	}
+	TestEqual(TEXT("Each tool its own tint"), Tints.Num(), 5);
+
+	// The striker's hit-stop: 50-70 ms on a blow, a little more on a kill, never past the most the cooldown allows.
+	const float Blow = FMeleeRules::HitStopSeconds(false);
+	const float Kill = FMeleeRules::HitStopSeconds(true);
+	TestTrue(FString::Printf(TEXT("A blow's hit-stop reads (%.3f s)"), Blow), Blow >= 0.05f && Blow <= 0.07f);
+	TestTrue(TEXT("...a kill's longer"), Kill >= Blow && Kill <= FMeleeRules::AttackerHitStop);
+	TestTrue(TEXT("...and the swing still ends inside the cooldown"), FMeleeRules::SwingSeconds + FMeleeRules::AttackerHitStop < FMeleeRules::CooldownSeconds);
 	return true;
 }
 

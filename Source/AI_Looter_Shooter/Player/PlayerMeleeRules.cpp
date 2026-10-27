@@ -1,6 +1,21 @@
 #include "Player/PlayerMeleeRules.h"
 #include "Combat/CombatRules.h"
 #include "Player/PlayerSize.h"
+#include "HAL/IConsoleManager.h"
+
+namespace
+{
+	TAutoConsoleVariable<float> CVarHitStop(TEXT("Looter.Melee.HitStop"), 0.065f,
+		TEXT("Seconds the melee swing freezes where its blow lands on a body (held to 0.09)."));
+	TAutoConsoleVariable<float> CVarHitStopKill(TEXT("Looter.Melee.HitStop.Kill"), 0.085f,
+		TEXT("Seconds the melee swing freezes on a killing blow (held to 0.09)."));
+}
+
+float FMeleeRules::HitStopSeconds(bool bKill)
+{
+	const float Wanted = bKill ? CVarHitStopKill.GetValueOnAnyThread() : CVarHitStop.GetValueOnAnyThread();
+	return FMath::Clamp(Wanted, 0.f, AttackerHitStop);
+}
 
 float FMeleeRules::Reach()
 {

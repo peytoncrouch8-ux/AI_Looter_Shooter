@@ -70,46 +70,48 @@ namespace
 
 FMeleeArc MeleeMotion::ArcFor(EMeleeSwingStyle Style, EMeleeHeft Heft)
 {
-	// Each wind-up is sized to end at the view's edge (a hand much farther round goes behind the eye and the wind-up is never
-	// seen); the head laid back by the wrist reaches farther still. The follow-throughs may leave the view.
+	// Every arc keeps the hand inside the view from the wind-up's top through the follow-through (within about 40 degrees
+	// across and 24 up or down of the middle): with the gun dropped out of sight for the swing, the tool and the arm are
+	// all there is to see (2026-10-27 play-check: the round 3-4 arcs swung the hand out of the frame for all but a tenth
+	// of a second, so mid-swing showed nothing). The blow lands just under the crosshair.
 	FMeleeArc Arc;
 	switch (Style)
 	{
 	case EMeleeSwingStyle::Flick:
 		// Odessa's razor fan: a backhand flick from low on the left up to high on the right, the fan snapping open mid-cut.
 		// The swat's tilted axis the other way round: cocked low across the body, through high on the right.
-		Arc = MakeArc(FVector(38.f, 2.f, -8.f), FVector(0.f, -0.5f, 0.866f), -45.f, 45.f, 45.f, FVector(0.45f, 0.35f, 0.82f),
+		Arc = MakeArc(FVector(40.f, 2.f, -4.f), FVector(0.f, -0.35f, 0.94f), -28.f, 26.f, 45.f, FVector(0.45f, 0.35f, 0.82f),
 			FVector(0.f, 1.f, 0.f));
-		Arc.CockReach = 0.85f;
+		Arc.CockReach = 0.9f;
 		break;
 	case EMeleeSwingStyle::Chop:
 		// Straight down from high on the right onto the crosshair: about the view's right-hand axis, tipped a little.
-		Arc = MakeArc(FVector(40.f, 6.f, -14.f), FVector(0.f, 1.f, 0.15f), -35.f, 40.f, 40.f, FVector(0.65f, -0.1f, 0.75f),
+		Arc = MakeArc(FVector(42.f, 6.f, -6.f), FVector(0.f, 1.f, 0.15f), -22.f, 15.f, 40.f, FVector(0.65f, -0.1f, 0.75f),
 			FVector(0.f, 0.f, -1.f));
 		break;
 	case EMeleeSwingStyle::Peck:
 		// Pike's rock pick: a short overhand peck, pick first, down and to the left; small and quick, a field hammer's.
-		Arc = MakeArc(FVector(36.f, 4.f, -12.f), FVector(0.f, 0.85f, -0.5f), -40.f, 25.f, 30.f, FVector(0.7f, 0.1f, 0.7f),
+		Arc = MakeArc(FVector(40.f, 4.f, -6.f), FVector(0.f, 0.85f, -0.5f), -26.f, 14.f, 30.f, FVector(0.7f, 0.1f, 0.7f),
 			FVector(0.f, 0.f, -1.f));
 		break;
 	case EMeleeSwingStyle::Gaff:
 		// Crane's ferry gaff: a big overhand hooking chop, then the hook yanked back toward him (through goes back the cock's
 		// way, the reach drawn in).
-		Arc = MakeArc(FVector(44.f, 4.f, -14.f), FVector(0.f, 0.95f, -0.3f), -45.f, -30.f, 45.f, FVector(0.6f, -0.15f, 0.78f),
+		Arc = MakeArc(FVector(44.f, 4.f, -6.f), FVector(0.f, 0.95f, -0.3f), -22.f, -12.f, 45.f, FVector(0.6f, -0.15f, 0.78f),
 			FVector(0.f, 0.f, -1.f));
-		Arc.ThroughReach = 0.7f;
+		Arc.ThroughReach = 0.75f;
 		break;
 	case EMeleeSwingStyle::Jab:
 		// Gauge's piston fist: drawn back by the shoulder and driven straight into the crosshair, the back of the fist up.
-		Arc = MakeArc(FVector(46.f, 4.f, -10.f), FVector::UpVector, 18.f, -4.f, 0.f, FVector(0.95f, -0.25f, 0.1f), FVector::UpVector);
-		Arc.CockReach = 0.55f;
-		Arc.ThroughReach = 1.08f;
+		Arc = MakeArc(FVector(46.f, 4.f, -6.f), FVector::UpVector, 14.f, -3.f, 0.f, FVector(0.95f, -0.25f, 0.1f), FVector::UpVector);
+		Arc.CockReach = 0.65f;
+		Arc.ThroughReach = 1.06f;
 		Arc.bFaceHint = true;
 		break;
 	default:
 		// Ellis's grave spade: a flat backhand swat from high on the right down to low on the left, across the middle. The
 		// axis is the view's up tipped toward the left, so the arm's turn falls as it crosses.
-		Arc = MakeArc(FVector(40.f, 0.f, -12.f), FVector(0.f, -0.5f, 0.866f), 40.f, -55.f, 35.f, FVector(0.55f, -0.55f, 0.62f),
+		Arc = MakeArc(FVector(42.f, 2.f, -6.f), FVector(0.f, -0.35f, 0.94f), 30.f, -27.f, 35.f, FVector(0.55f, -0.55f, 0.62f),
 			FVector(0.f, -1.f, 0.f));
 		Arc.CockReach = 0.95f;
 		Arc.ThroughReach = 0.95f;
