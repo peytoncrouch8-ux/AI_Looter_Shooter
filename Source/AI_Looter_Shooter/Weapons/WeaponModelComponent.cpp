@@ -30,6 +30,20 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	auto Paint = [&](FName Slot, UMaterialInterface* Material) -> UMaterialInterface*
 	{
 		const FLinearColor* Color = Look.Colors.Find(Slot);
+		if (!Color)
+		{
+			// A part's own copy of a painted surface (a Tripo model's shell on its own baked texture,
+			// GunPolymerSand_TripoBullpupBodyStandard) takes the paint its slot name starts with, then "_".
+			const FString Name = Slot.ToString();
+			for (const TPair<FName, FLinearColor>& Entry : Look.Colors)
+			{
+				if (Name.StartsWith(Entry.Key.ToString() + TEXT("_")))
+				{
+					Color = &Entry.Value;
+					break;
+				}
+			}
+		}
 		const bool bGlow = Slot == Definition->RarityGlowSlot;
 		const bool bGauge = Slot == AmmoGlowSlot || Slot == HeatGlowSlot;
 		if (!Material || (!Color && !bGlow && !bGauge))

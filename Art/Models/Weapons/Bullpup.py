@@ -32,8 +32,16 @@ pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt
 alone).
 
     blender -b --factory-startup --python Art/Models/Weapons/Bullpup.py -- --preview
+
+Tripo parts (2026-10-27): the six default parts (Standard body, Carbine barrel, Cap muzzle, 30 magazine, Iron sight,
+Pad stock) come from the user's Tripo image-to-3D models (Art/Models/Weapons/Tripo/Bullpup<Slot>_<Key>.glb, made from
+Art/Concepts/Weapons/AR/<Slot>_<Key>), fitted to this frame by looter_tripo with their baked maps (texture sets
+TripoBullpup<Slot><Key> on the Gun master; glows re-added as our glow slots). TRIPO_PARTS lists them; the switch
+LOOTER_BULLPUP_TRIPO=0 builds the scripted ones for a run (or empty TRIPO_PARTS for good). Same mesh names, keys and
+sockets either way.
 """
 import math
+import os
 
 import bpy
 from mathutils import Matrix, Vector
@@ -41,6 +49,10 @@ from mathutils import Matrix, Vector
 import looter_guns as lg
 import looter_props as lp
 import looter_textures as lt
+
+TRIPO_PARTS = {'Body_Standard', 'Barrel_Carbine', 'Muzzle_Cap', 'Magazine_30', 'Sight_Iron', 'Stock_Pad'}
+TRIPO = set() if os.environ.get('LOOTER_BULLPUP_TRIPO') == '0' else TRIPO_PARTS
+TRIPO_DIR = 'Art/Models/Weapons/Tripo/'
 
 ACCENT = lg.glow('GunAccentGlow', 0xe8e8e8, 2.0)   # glows in the gun's rarity color in the game
 RETICLE = lg.glow('GunReticle', 0xff3b2e, 6.0)
@@ -141,19 +153,159 @@ def fittings(m, bolt=lg.BLACK, mount=SHELL, rail=lg.BLACK, accent=(21.0, 37.0, -
     g.add(m, lg.rail(14, 32, 5.2, mat=rail))
     g.add(m, lg.tube(50.6, BARREL_AT[0], 1.25, segments=20, mat=lg.BLACK))
     g.add(m, lg.pipe([(43.0, -3.0), (43.6, -4.6), (45.6, -4.6), (46.2, -3.0)], 0.25, mat=lg.BLACK))
+    body_sockets(m)
+
+
+def body_sockets(m):
     for name, uv in (('Stock', STOCK_AT), ('Barrel', BARREL_AT), ('Magazine', MAG_AT), ('Sight', SIGHT_AT),
                      ('Grip', (22.5, -10.0)), ('Foregrip', (44.0, -4.5))):
         g.socket(m, name, uv)
+
+
+# --- Tripo parts (2026-10-27): the user's image-to-3D models of the six default parts, fitted onto each scripted part's
+# box (the concept's size table, Art/Concepts/Weapons/AR/README.md) with their baked maps on the Gun master ---
+
+def tripo_load(name, box, **axes):
+    """Loads Art/Models/Weapons/Tripo/Bullpup<name>.glb, writes its maps as the texture set TripoBullpup<name without
+    '_'> (material GunTripoBullpup...), fits it onto box (u, v, w as looter_tripo.fit); returns (tripo, obj, maps, mat)."""
+    import looter_tripo as tripo
+    path = TRIPO_DIR + f'Bullpup{name}.glb'
+    set_name = 'TripoBullpup' + name.replace('_', '')
+    obj, maps = tripo.load(path)
+    mat = tripo.write_set(maps, set_name, 'Gun' + set_name, path)
+    tripo.fit(obj, *box, **axes)
+    return tripo, obj, maps, mat
+
+
+TRIPO_LODS = '50,20'          # LOD1, LOD2 (percent of triangles; Unreal reduces), for guns lying about
+TRIPO_LOD_SCREENS = (0.3, 0.12)   # the body's switch sizes; smaller parts scale them by their size, so all switch together
+
+
+def tripo_add(m, tripo, obj, mat, glows=None, maps=None):
+    """Adds obj to model m: glows {material: faces} as their own slots; with maps, the sand shell (tripo.is_sand) as the
+    paintable slot GunPolymerSand_<set> (the gun's shell paint recolours it, as it does GunPolymerSand); the rest
+    textured."""
+    glows = {k: v for k, v in (glows or {}).items() if v}
+    taken = set(f for faces in glows.values() for f in faces)
+    if maps is not None:
+        set_name = mat.name[len('Gun'):]
+        # A piece of the mesh mostly sand (by area) is shell all over: single faces sampled in Tripo's atlas miss on
+        # seams and stray texels, which left unpainted sand patches on a painted gun.
+        sandy = set(tripo.faces_where(obj, maps['BC'], tripo.is_sand, share=0.6))
+        area = [p.area for p in obj.data.polygons]
+        shell = []
+        for isl in tripo.islands(obj):
+            if sum(area[f] for f in isl.faces if f in sandy) > 0.5 * sum(area[f] for f in isl.faces):
+                shell += [f for f in isl.faces if f not in taken]
+        if shell:
+            glows[tripo.paint_set(maps, set_name, SHELL.name, 0xe6d8b6, obj['TripoFile'])] = shell
+            taken.update(shell)
+    rest = [i for i in range(len(obj.data.polygons)) if i not in taken]
+    g.add(m, *tripo.split(obj, {mat: rest, **glows}, keep_uv=(mat,) + tuple(k for k in glows if k.name.startswith(SHELL.name + '_'))))
+
+
+def tripo_lods(built):
+    """LODs on the Tripo parts (about 10k triangles each, against a few hundred for a scripted part): first person keeps
+    LOD0 (a held gun fills the screen); a part's switch sizes scale with its size against the body's."""
+    if not TRIPO:
+        return
+    sizes = {k: max(built[k].dimensions) for k in TRIPO}
+    body = sizes.get('Body_Standard') or max(sizes.values())
+    for k in TRIPO:
+        share = sizes[k] / body
+        built[k]['LODs'] = TRIPO_LODS
+        built[k]['LODScreens'] = ','.join(f'{s * share:.4f}' for s in TRIPO_LOD_SCREENS)
+
+
+def tripo_standard(m):
+    """The body: butt plate's back -0.3 to the barrel nut's face 51.9, the grip loop's foot -15.25 to the rail's top
+    6.15, 5.7 cm across with the plates, where its rail, nut, well and loop already sit on our attach points. Its modeled
+    accent inlay (left side) glows in the rarity's colour as GunAccentGlow; a strip on the right matches it, and the
+    painted nose vents get ember glow inserts (the shell there is flat, at w 2.54)."""
+    tripo, obj, maps, mat = tripo_load('Body_Standard', ((-0.3, BARREL_AT[0]), (-15.25, SIGHT_AT[1]), 5.7),
+                                       forward='-X', left='-Y')
+    accent = []
+    for isl in tripo.islands(obj):
+        (u0, v0, w0), (u1, v1, w1) = isl.lo, isl.hi
+        if u0 >= 20.5 and u1 <= 37.5 and v1 - v0 < 0.7 and min(abs(w0), abs(w1)) > 2.2:   # the inlay along the side
+            accent += isl.faces
+    tripo_add(m, tripo, obj, mat, {ACCENT: accent}, maps=maps)
+    g.add(m, lg.box(21.0, 36.2, -3.1, -2.75, 0.2, w=-2.6, bevel=0.0, mat=ACCENT))
+    for side in (-1.0, 1.0):
+        for u in VENTS:
+            g.add(m, lg.slab([(u, -1.6), (u + 0.9, -1.6), (u + 2.2, 1.2), (u + 1.3, 1.2)], 0.04, w=side * 2.57,
+                             bevel=0.0, mat=EMBER, round=0.3))
+    body_sockets(m)
+
+
+def tripo_carbine(m):
+    """The barrel: 12 cm from the barrel nut (its flange on the nut's face), 3.3 across its brass collar; its painted
+    ember slots become GunEmberGlow faces."""
+    u0 = BARREL_AT[0]
+    tripo, obj, maps, mat = tripo_load('Barrel_Carbine', ((u0, u0 + 12.0), (-1.65, 1.65), 3.3), forward='-Y', left='+X')
+    tripo_add(m, tripo, obj, mat, {EMBER: tripo.faces_where(obj, maps['BC'], tripo.is_ember)})
+    g.socket(m, 'Muzzle', (u0 + 12.0, 0.0))
+
+
+def tripo_cap(m):
+    """The muzzle cap: 1.8 long from its open, threaded back (on the barrel's tip) to its closed face, 1.84 across."""
+    u0 = MUZZLE_AT[0]
+    tripo, obj, maps, mat = tripo_load('Muzzle_Cap', ((u0, u0 + 1.8), (-0.92, 0.92), 1.84), forward='-Y', left='+X')
+    tripo_add(m, tripo, obj, mat)
+    g.socket(m, 'Muzzle', (u0 + 1.8, 0.0))
+
+
+def tripo_mag30(m):
+    """The 30 magazine: its top (the feed lips) on the well at v -5.6, its foot at -24.8, 10.4 to 20.1 along the gun (it
+    rakes forward), 2.8 across."""
+    tripo, obj, maps, mat = tripo_load('Magazine_30', ((10.4, 20.1), (-24.8, MAG_AT[1]), 2.8), forward='-Y', left='+X')
+    tripo_add(m, tripo, obj, mat)
+
+
+def tripo_stock_pad(m):
+    """The butt pad: 1.6 long, 10.8 tall (v -8.8 to 2.0, as the scripted pad), 5.2 across; slid so its backing plate's
+    face sits on the body's butt plate (u -0.3), the locating boss in front of it sinking into the plate."""
+    tripo, obj, maps, mat = tripo_load('Stock_Pad', ((-1.9, -0.3), (-8.8, 2.0), 5.2), forward='-Y', left='+X')
+    face = tripo.probe_u(obj, [(-7.6, 0.0), (0.8, 0.0), (-3.3, 1.8), (-3.3, -1.8)])   # off the boss, from the front
+    if face is not None:
+        shift = -0.3 - face
+        obj.data.transform(Matrix.Translation(lg.at(shift, 0.0, 0.0)))
+        lt._log(f'Tripo Stock_Pad: backing plate face at u {face:.2f}, moved {shift:+.2f} cm onto the butt plate')
+    tripo_add(m, tripo, obj, mat)
+
+
+def tripo_iron(m):
+    """The flip-up irons: clamps 15.6 to 32.0 on the rail's top (6.15), 3.95 tall, 2.9 across. The front post's painted
+    cyan dot becomes GunCyanGlow; SOCKET_Aim goes in the rear aperture's plane at the dot's height (the sight-picture
+    rule: the dot sits on the line of sight, at the crosshair), and the aperture's centre is measured against it."""
+    v0 = SIGHT_AT[1]
+    tripo, obj, maps, mat = tripo_load('Sight_Iron', ((15.6, 32.0), (v0, v0 + 3.95), 2.9), forward='-Y', left='+X')
+    cyan = tripo.faces_where(obj, maps['BC'], tripo.is_cyan) or tripo.faces_where(obj, maps['BC'], tripo.is_cyan,
+                                                                                   corners=False)
+    front = [i for i in cyan if tripo.gun_uvw(obj.data.polygons[i].center)[0] > 24.0]
+    dot = tripo.centroid(obj, front)
+    leaf = [tripo.gun_uvw(v.co) for v in obj.data.vertices]
+    leaf = [p for p in leaf if p[0] < 24.0 and p[1] > v0 + 2.2]
+    ur = sum(p[0] for p in leaf) / len(leaf)
+    ring = tripo.hole_centre(obj, ur, (v0 + 0.8, v0 + 4.2), (-1.6, 1.6))
+    lt._log(f'Tripo Sight_Iron: rear leaf u {ur:.2f}; aperture {ring and tuple(round(x, 2) for x in ring)} (v, w, '
+            f'width); front dot {dot and tuple(round(x, 2) for x in dot)} (u, v, w); {len(cyan)} cyan faces')
+    aim_v, aim_w = (dot[1], dot[2]) if dot else ((ring[0], ring[1]) if ring else (v0 + 2.6, 0.0))
+    tripo_add(m, tripo, obj, mat, {CYAN: cyan}, maps=maps)
+    g.socket(m, 'Aim', (ur, aim_v), w=aim_w)
 
 
 def bodies():
     B = lambda key: model('Body', key, (0.0, 0.0))
 
     m = B('Standard')                                          # the sand shell the user picked, gunmetal plates
-    shell(m, SHELL)
-    grip_loop(m, SHELL)
-    side_plates(m, METAL, lg.BLACK)
-    fittings(m)
+    if 'Body_Standard' in TRIPO:
+        tripo_standard(m)
+    else:
+        shell(m, SHELL)
+        grip_loop(m, SHELL)
+        side_plates(m, METAL, lg.BLACK)
+        fittings(m)
 
     m = B('Heritage')                                          # the sand shell dressed in brass: a gunmetal loop and mount
     shell(m, SHELL)
@@ -273,9 +425,12 @@ def barrels():
     tip(m, 6.0)
 
     m = model('Barrel', 'Carbine', BARREL_AT)                   # the standard barrel in a slotted shroud, ember in its slots
-    g.add(m, lg.tube(u0, u0 + 12.0, 0.8, mat=lg.BLACK))
-    shroud(m, 9.0, 1.6, slots=(1.4, 3.2, 5.0, 6.8), collar=BRASS)
-    tip(m, 12.0)
+    if 'Barrel_Carbine' in TRIPO:
+        tripo_carbine(m)
+    else:
+        g.add(m, lg.tube(u0, u0 + 12.0, 0.8, mat=lg.BLACK))
+        shroud(m, 9.0, 1.6, slots=(1.4, 3.2, 5.0, 6.8), collar=BRASS)
+        tip(m, 12.0)
 
     m = model('Barrel', 'Fluted', BARREL_AT)                    # longer, with six flutes, a brass collar
     fluted = lg.tube(u0, u0 + 16.0, 0.9, segments=24, mat=lg.STEEL)
@@ -346,8 +501,11 @@ def muzzles():
         g.socket(m, 'Muzzle', (u0 + length, 0.0))
 
     m = model('Muzzle', 'Cap', MUZZLE_AT)                       # a brass thread protector
-    g.add(m, lg.turned([(0, 0.92), (1.5, 0.92), (1.8, 0.7)], u0, segments=20, mat=BRASS))
-    tip(m, 1.8)
+    if 'Muzzle_Cap' in TRIPO:
+        tripo_cap(m)
+    else:
+        g.add(m, lg.turned([(0, 0.92), (1.5, 0.92), (1.8, 0.7)], u0, segments=20, mat=BRASS))
+        tip(m, 1.8)
 
     m = model('Muzzle', 'Birdcage', MUZZLE_AT)                  # slotted flash hider, closed underneath
     cage = lg.turned([(0, 0.98), (5.4, 0.98), (5.8, 0.82)], u0, segments=20, mat=lg.BLACK)
@@ -425,7 +583,10 @@ def magazines():
     mag(m, [(F, top), (17.9, -10), (18.3, -16.0)], [(R, top), (10.6, -10), (10.9, -15.6)], 2.4, lg.POLY_BLACK, 2, -12.5)
 
     m = model('Magazine', '30', MAG_AT)
-    mag(m, [(F, top), (18.3, -15.0), (19.8, -24.0)], [(R, top), (10.9, -15.0), (12.0, -23.4)], 2.4, lg.POLY_BLACK, 4)
+    if 'Magazine_30' in TRIPO:
+        tripo_mag30(m)
+    else:
+        mag(m, [(F, top), (18.3, -15.0), (19.8, -24.0)], [(R, top), (10.9, -15.0), (12.0, -23.4)], 2.4, lg.POLY_BLACK, 4)
 
     m = model('Magazine', '30Window', MAG_AT)                   # smoke polymer with a window onto the rounds
     mag(m, [(F, top), (18.3, -15.0), (19.8, -24.0)], [(R, top), (10.9, -15.0), (12.0, -23.4)], 2.4, lg.POLY_GREY, 0)
@@ -589,17 +750,20 @@ def sights():
     # sand hinge blocks.
     h = v0 + 2.6
     ur, uf = 16.8, 30.8
-    for u in (ur, uf):
-        g.add(m, lg.box(u - 1.2, u + 1.2, v0, v0 + 0.6, 2.4, bevel=0.15, mat=lg.BLACK))      # the clamp
-        g.add(m, lg.pin(u + 0.55, v0 + 0.85, -1.05, 1.05, 0.32, mat=SHELL, segments=14))     # the hinge
-    leaf = lg.face([(-1.2, v0 + 0.55), (1.2, v0 + 0.55), (1.45, h - 0.3), (1.45, h + 0.75), (0.95, h + 1.35),
-                    (-0.95, h + 1.35), (-1.45, h + 0.75), (-1.45, h - 0.3)], ur - 0.25, ur + 0.25, bevel=0.1,
-                   mat=lg.BLACK, round=0.25)
-    g.add(m, lg.cut(leaf, [lg.tube(ur - 1.0, ur + 1.0, 0.9, v=h, segments=28)]))   # the aperture
-    g.add(m, hollow([(0.0, 0.98), (0.06, 0.98)], ur - 0.3, h, 28, SHELL, wall=0.08))   # a sand lip round it
-    lg.post_ears(g, m, uf, v0 + 0.55, h, half=1.35, gap=0.55, drop=0.45, thick=0.7, slant=0.45)
-    lg.front_post(g, m, uf, v0 + 1.0, h)
-    g.socket(m, 'Aim', (ur, h))   # the aperture's center: the front post's dot sits in its middle
+    if 'Sight_Iron' in TRIPO:
+        tripo_iron(m)
+    else:
+        for u in (ur, uf):
+            g.add(m, lg.box(u - 1.2, u + 1.2, v0, v0 + 0.6, 2.4, bevel=0.15, mat=lg.BLACK))      # the clamp
+            g.add(m, lg.pin(u + 0.55, v0 + 0.85, -1.05, 1.05, 0.32, mat=SHELL, segments=14))     # the hinge
+        leaf = lg.face([(-1.2, v0 + 0.55), (1.2, v0 + 0.55), (1.45, h - 0.3), (1.45, h + 0.75), (0.95, h + 1.35),
+                        (-0.95, h + 1.35), (-1.45, h + 0.75), (-1.45, h - 0.3)], ur - 0.25, ur + 0.25, bevel=0.1,
+                       mat=lg.BLACK, round=0.25)
+        g.add(m, lg.cut(leaf, [lg.tube(ur - 1.0, ur + 1.0, 0.9, v=h, segments=28)]))   # the aperture
+        g.add(m, hollow([(0.0, 0.98), (0.06, 0.98)], ur - 0.3, h, 28, SHELL, wall=0.08))   # a sand lip round it
+        lg.post_ears(g, m, uf, v0 + 0.55, h, half=1.35, gap=0.55, drop=0.45, thick=0.7, slant=0.45)
+        lg.front_post(g, m, uf, v0 + 1.0, h)
+        g.socket(m, 'Aim', (ur, h))   # the aperture's center: the front post's dot sits in its middle
 
     m = S('RedDot')                                              # a 1x tube, a cyan LED knob, a sand sunshade
     g.add(m, lg.box(19.4, 26.6, v0, v0 + 1.3, 2.2, bevel=0.25, mat=lg.BLACK))
@@ -707,7 +871,10 @@ def stocks():
                           (u_back, 2.0)], 5.2, bevel=0.5, mat=mat, round=0.6))
 
     m = S('Pad')                                                 # a plain rubber butt pad
-    pad(m, 0.3)
+    if 'Stock_Pad' in TRIPO:
+        tripo_stock_pad(m)
+    else:
+        pad(m, 0.3)
 
     m = S('Recoil')                                              # a thick ribbed recoil pad
     thick = lg.slab([(0.3, -9.0), (-3.0, -9.5), (-3.0, 2.4), (0.3, 2.1)], 5.4, bevel=0.8, mat=lg.RUBBER, round=1.0)
@@ -845,6 +1012,7 @@ sights()
 stocks()
 lg.fill_uvs(g)   # glows and glass get UVs, so Unreal builds their tangents quietly
 built = g.build(origins)
+tripo_lods(built)
 
 
 def socket_at(obj, name):

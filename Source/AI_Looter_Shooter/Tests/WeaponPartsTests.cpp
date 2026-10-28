@@ -367,7 +367,17 @@ bool FWeaponPartAssemblyTest::RunTest(const FString& Parameters)
 				{
 					const UMaterialInstanceDynamic* Instanced = Cast<UMaterialInstanceDynamic>(Part->GetMaterial(Material));
 					FLinearColor Color;
-					if (const FLinearColor* Wanted = Look.Colors.Find(Slots[Material]))
+					// As UWeaponModelComponent paints: the slot itself, or a part's own copy named "<paint>_<anything>"
+					// (a Tripo model's shell on its own texture, 2026-10-27).
+					const FLinearColor* Wanted = Look.Colors.Find(Slots[Material]);
+					for (const TPair<FName, FLinearColor>& Entry : Look.Colors)
+					{
+						if (!Wanted && Slots[Material].ToString().StartsWith(Entry.Key.ToString() + TEXT("_")))
+						{
+							Wanted = &Entry.Value;
+						}
+					}
+					if (Wanted)
 					{
 						const bool bColored = Instanced && (Instanced->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("Tint")), Color)
 							|| Instanced->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("Color")), Color));
