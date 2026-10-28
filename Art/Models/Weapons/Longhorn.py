@@ -53,7 +53,8 @@ import looter_textures as lt
 ACCENT = lg.glow('GunAccentGlow', 0xe8e8e8, 2.0)   # glows in the gun's rarity color in the game
 RETICLE = lg.RETICLE                                 # the kit's frontier-tech glows, shared by the four new guns
 EMBER = lg.EMBER                                     # GunEmberGlow: fixed ember lines and vents
-OPTIC = lg.CYAN                                      # GunCyanGlow: cyan optics
+SCOPE_LENS = lg.glass('GunScopeLens', 0x2f6b66, 0.45)   # coated scope glass: M_Glass at 0.45, a faint blue-green
+OPTIC = lg.CYAN                                     # GunCyanGlow: cyan optics
 SHELL = lg.POLY_SAND
 WALNUT_DARK = lg.material('GunWalnutDark', 'GunWood', 0xa48670)
 OLIVE = lg.material('GunOlivePaint', 'PaintWorn', 0x6f7550)
@@ -102,8 +103,16 @@ def ring(u, v, r, length, mat, wall=0.25, segments=24):
 def optics(m, u_eye, u_obj, v, r_eye, r_obj, wall=WALL):
     """A scope's glass: a lens just inside the eyepiece and one inside the objective, and a fine cross just behind the
     objective lens, tiny because it sits over the screen's crosshair."""
-    g.add(m, lg.tube(u_eye + 0.15, u_eye + 0.25, r_eye - wall - 0.03, v=v, segments=20, mat=lg.LENS))
-    g.add(m, lg.tube(u_obj - 0.25, u_obj - 0.15, r_obj - wall - 0.03, v=v, segments=24, mat=lg.LENS))
+    g.add(m, lg.tube(u_eye + 0.15, u_eye + 0.25, r_eye - wall - 0.03, v=v, segments=20, mat=SCOPE_LENS))
+    g.add(m, lg.tube(u_obj - 0.25, u_obj - 0.15, r_obj - wall - 0.03, v=v, segments=24, mat=SCOPE_LENS))
+    # Dark sleeves a short way in behind each lens, each closed by a matte disc, so the glass is seen over darkness
+    # (coated glass) and not the lit inside of the tube. The sight picture is the HUD's scope overlay with the gun
+    # hidden (WeaponBaseKinds.cpp, HideGunAt), so nothing here sits in the aimed view.
+    for u0, u1, r, seg in ((u_eye + 0.3, u_eye + 1.5, r_eye - wall - 0.01, 20),
+                           (u_obj - 2.4, u_obj - 0.3, r_obj - wall - 0.01, 24)):
+        g.add(m, hollow([(0.0, r), (u1 - u0, r)], u0, v, seg, lg.RUBBER, wall=0.08))
+        far = u1 if u0 < u_eye + 1.0 else u0
+        g.add(m, lg.tube(far - 0.1, far, r, v=v, segments=seg, mat=lg.RUBBER))
     u = u_obj - 0.4
     g.add(m, lg.box(u, u + 0.02, v - 0.075, v + 0.075, 0.02, bevel=0.0, mat=RETICLE))
     g.add(m, lg.box(u, u + 0.02, v - 0.01, v + 0.01, 0.15, bevel=0.0, mat=RETICLE))
