@@ -58,8 +58,6 @@ namespace LoadoutParts
 		inline FLinearColor CardFill() { return LooterUI::Hex(7, 26, 40, 230); }
 		/** Floating cards (the stats card, the dragged gun) sit over the stand-in: nearly solid so they read over it. */
 		inline FLinearColor InspectFill() { return LooterUI::Hex(5, 18, 29, 242); }
-		/** A slot or row a dragged gun would land in. */
-		inline FLinearColor DropFill() { return LooterUI::Hex(255, 159, 28, 46); }
 		inline FLinearColor EmptyFill() { return LooterUI::Hex(7, 26, 40, 140); }
 		inline FLinearColor InHandFill() { return LooterUI::Hex(46, 30, 8, 235); }
 		inline FLinearColor InHandCursor() { return LooterUI::Hex(74, 47, 10, 240); }

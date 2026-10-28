@@ -715,6 +715,25 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* Inspect = TEXT("UI.Inspect");
 	}
 
+	// --- The gun card (UGunCardWidget's intro; Art/Sounds/recipes/ui_cards.py; 2D, short and quiet; a maker's cue plays with Open) ---
+	namespace Card
+	{
+		/** Every card unfolding: a light mechanical tick with a tiny airy swish. */
+		inline constexpr const TCHAR* Open = TEXT("UI.Card.Open");
+
+		namespace Maker
+		{
+			/** Roundhouse (railroad): a short, heavy iron-on-iron clank. */
+			inline constexpr const TCHAR* Roundhouse = TEXT("UI.Card.Maker.Roundhouse");
+			/** Saint Maud (blessed foundry): a small bright chapel-bell ting. */
+			inline constexpr const TCHAR* SaintMaud = TEXT("UI.Card.Maker.SaintMaud");
+			/** Windfall (salvage): a loose rattle of bolted scrap, two or three tinny knocks. */
+			inline constexpr const TCHAR* Windfall = TEXT("UI.Card.Maker.Windfall");
+			/** Meridian (precision): a surveyor's transit detent, one crisp small click. */
+			inline constexpr const TCHAR* Meridian = TEXT("UI.Card.Maker.Meridian");
+		}
+	}
+
 	// --- The lootable world (ABreakableProp, AChest's graves, coffins, mailboxes and footlockers; Art/Sounds/recipes/props.py) ---
 	namespace Lootables
 	{

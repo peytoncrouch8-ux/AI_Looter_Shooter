@@ -1,34 +1,20 @@
-// ULoadoutWidget: opening and closing, the page's layout, refreshing it, and what it reads from the inventory. The rows
-// are LoadoutWidgetRows.cpp, the card and the showcase LoadoutWidgetInspect.cpp, the keys and actions
-// LoadoutWidgetInput.cpp, dragging LoadoutWidgetDrag.cpp, the showcase's ring and the motion LoadoutWidgetPaint.cpp.
+// ULoadoutWidget: opening and closing, refreshing the page, and what it reads from the inventory. The page's layout is
+// LoadoutWidgetLayout.cpp, the rows LoadoutWidgetRows.cpp, the cards and the showcase LoadoutWidgetInspect.cpp, the cursor
+// in the two columns LoadoutWidgetColumns.cpp, the actions and keys LoadoutWidgetInput.cpp, dragging LoadoutWidgetDrag.cpp,
+// the showcase's ring and the motion LoadoutWidgetPaint.cpp.
 
 #include "UI/Inventory/LoadoutWidget.h"
 #include "AI_Looter_Shooter.h"
+#include "UI/Cards/GunCardWidget.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutGunStage.h"
-#include "UI/Inventory/LoadoutPaintLayer.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutRules.h"
-#include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Weapons/WeaponBase.h"
-#include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
-#include "Blueprint/WidgetTree.h"
-#include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
-#include "Components/Image.h"
-#include "Components/Overlay.h"
-#include "Components/OverlaySlot.h"
-#include "Components/ScaleBox.h"
-#include "Components/ScrollBox.h"
-#include "Components/SizeBox.h"
-#include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -166,206 +152,6 @@ void ULoadoutWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 }
 
 // ---------------------------------------------------------------------------
-// Layout
-// ---------------------------------------------------------------------------
-
-TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
-{
-	if (WidgetTree && !WidgetTree->RootWidget)
-	{
-		UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Root"));
-		WidgetTree->RootWidget = Root;
-
-		// The world stays in view behind the screen, dimmed.
-		UImage* Backdrop = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Backdrop"));
-		Backdrop->SetBrush(RectBrush(Colors::Dim()));
-		MarkBackground(Backdrop);
-		FillOverlaySlot(Root->AddChildToOverlay(Backdrop));
-
-		// Laid out at 1600 x 900, scaled to fit the screen.
-		UScaleBox* Scale = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
-		Scale->SetStretch(EStretch::ScaleToFit);
-		FillOverlaySlot(Root->AddChildToOverlay(Scale));
-		UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Page"));
-		Scale->SetContent(MakeSized(WidgetTree, Canvas, PageSize.X, PageSize.Y));
-		Page = Canvas;
-
-		auto Place = [Canvas](UWidget* Widget, const FVector2D& Position, const FVector2D& Size, const FVector2D& Alignment = FVector2D::ZeroVector)
-		{
-			UCanvasPanelSlot* CanvasSlot = Canvas->AddChildToCanvas(Widget);
-			CanvasSlot->SetPosition(Position);
-			CanvasSlot->SetAlignment(Alignment);
-			if (Size.IsZero())
-			{
-				CanvasSlot->SetAutoSize(true);
-			}
-			else
-			{
-				CanvasSlot->SetSize(Size);
-			}
-			return CanvasSlot;
-		};
-
-		// The title tabs: this page, the ledger and the missions.
-		TArray<ULooterButton*> Tabs;
-		Place(MakePageTabs(WidgetTree, static_cast<int32>(EInventoryPage::Loadout), Tabs), PageTabsPosition, FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
-		for (ULooterButton* Tab : Tabs)
-		{
-			Tab->OnButtonClicked.BindUObject(this, &ULoadoutWidget::HandleTabClicked);
-		}
-
-		// The card's rarity glow sits behind everything on the right, and the showcase's ring behind its gun.
-		CardGlow = MakeImage(WidgetTree, GlowBrush(FVector2D(560.f, 320.f), FLinearColor::White));
-		CardGlow->SetColorAndOpacity(FLinearColor::Transparent);
-		MarkBackground(CardGlow);
-		Place(CardGlow, FVector2D(LoadoutLayout::CardX - 80.f, LoadoutLayout::ColumnTop - 90.f), FVector2D(560.f, 320.f));
-
-		// The showcase: the far half of its ring, the gun's picture, then the near half.
-		BackLayer = WidgetTree->ConstructWidget<ULoadoutPaintLayer>(ULoadoutPaintLayer::StaticClass());
-		BackLayer->SetPainter([this](const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId) { PaintBack(Geometry, Elements, LayerId); });
-		BackLayer->SetVisibility(ESlateVisibility::HitTestInvisible);
-		Place(BackLayer, FVector2D::ZeroVector, PageSize);
-
-		StageImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Showcase"));
-		StageImage->SetBrush(RectBrush(FLinearColor::Transparent));
-		StageImage->SetCursor(EMouseCursor::GrabHand);
-		StageSlot = Place(StageImage, LoadoutLayout::ShowcaseTopLeft, LoadoutLayout::ShowcaseSize);
-
-		FrontLayer = WidgetTree->ConstructWidget<ULoadoutPaintLayer>(ULoadoutPaintLayer::StaticClass());
-		FrontLayer->SetPainter([this](const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId) { PaintFront(Geometry, Elements, LayerId); });
-		FrontLayer->SetVisibility(ESlateVisibility::HitTestInvisible);
-		Place(FrontLayer, FVector2D::ZeroVector, PageSize);
-
-		ShowcaseHint = Label(WidgetTree, TEXT(""), 8, Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.8f), 220);
-		ShowcaseHint->SetVisibility(ESlateVisibility::HitTestInvisible);
-		ShowcaseHintSlot = Place(ShowcaseHint, FVector2D::ZeroVector, FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
-
-		// Left: everything carried, as one list: the equip slots, the backpack, then the ammo.
-		{
-			UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			auto Header = [this](const TCHAR* Title, TObjectPtr<UTextBlock>& OutCount)
-			{
-				UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-				Line->AddChildToHorizontalBox(Label(WidgetTree, Title, 10, Color::Accent(), 300))->SetVerticalAlignment(VAlign_Center);
-				OutCount = Label(WidgetTree, TEXT(""), 10, Color::TextDim(), 200);
-				UHorizontalBoxSlot* CountSlot = Line->AddChildToHorizontalBox(OutCount);
-				CountSlot->SetVerticalAlignment(VAlign_Center);
-				CountSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
-				UHorizontalBoxSlot* RuleSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::RowLine())), 0.f, 1.f));
-				RuleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-				RuleSlot->SetVerticalAlignment(VAlign_Center);
-				RuleSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
-				return Line;
-			};
-			Column->AddChildToVerticalBox(Header(TEXT("Equipped"), EquippedCount));
-			SlotList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			Column->AddChildToVerticalBox(SlotList)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-
-			// The backpack's header carries its sort, which a click (or R) changes.
-			UHorizontalBox* PackHead = Header(TEXT("Backpack"), BackpackCount);
-			SortText = Label(WidgetTree, TEXT(""), 8, Color::TextDim(), 160);
-			UHorizontalBox* SortLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			SortLine->AddChildToHorizontalBox(SortText)->SetVerticalAlignment(VAlign_Center);
-			SortButton = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
-			SortButton->bPlaysSounds = false;
-			SortButton->SetupContent(SortLine, ActionPrompt, static_cast<int32>(EAction::Sort));
-			SortButton->SetCursor(EMouseCursor::Hand);
-			SortButton->OnButtonClicked.BindUObject(this, &ULoadoutWidget::HandlePromptClicked);
-			UHorizontalBoxSlot* SortSlot = PackHead->AddChildToHorizontalBox(SortButton);
-			SortSlot->SetVerticalAlignment(VAlign_Center);
-			SortSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
-			Column->AddChildToVerticalBox(PackHead)->SetPadding(FMargin(0.f, 18.f, 0.f, 0.f));
-
-			ListBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
-			StyleScrollBox(ListBox);
-			UVerticalBoxSlot* ListSlot = Column->AddChildToVerticalBox(ListBox);
-			ListSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			ListSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-
-			// The ammo, on one quiet line: its icon and the rounds carried.
-			UHorizontalBox* AmmoLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			AmmoLine->AddChildToHorizontalBox(Label(WidgetTree, TEXT("Ammo"), 8, Color::TextDim(), 300))->SetVerticalAlignment(VAlign_Center);
-			AmmoRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			UHorizontalBoxSlot* AmmoSlot = AmmoLine->AddChildToHorizontalBox(AmmoRow);
-			AmmoSlot->SetVerticalAlignment(VAlign_Center);
-			AmmoSlot->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
-			Column->AddChildToVerticalBox(AmmoLine)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
-
-			ListColumn = Column;
-			BuildWardSection(Column);
-			Place(Column, FVector2D(LoadoutLayout::ListX, LoadoutLayout::ColumnTop),
-				FVector2D(LoadoutLayout::ListWidth, LoadoutLayout::ColumnBottom - LoadoutLayout::ColumnTop));
-		}
-
-		// Right: the card of the gun under the cursor, always here. Its contents scroll when Inspect opens all of them.
-		{
-			CardBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			CardScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
-			StyleScrollBox(CardScroll);
-			CardScroll->AddChild(CardBox);
-			USizeBox* Limit = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-			Limit->SetMaxDesiredHeight(LoadoutLayout::ColumnBottom - LoadoutLayout::ColumnTop - 36.f);
-			Limit->SetContent(CardScroll);
-			UImage* Fill = nullptr;
-			UImage* Line = nullptr;
-			UOverlay* Card = MakeCard(WidgetTree, Limit, FMargin(20.f, 18.f, 14.f, 18.f), 1.7f, Fill, Line);
-			CardFill = Fill;
-			CardLine = Line;
-			CardFill->SetColorAndOpacity(Colors::InspectFill());
-			// The rarity's colour along the card's top edge (clear of its cut corner).
-			CardStripe = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-			UOverlaySlot* StripeSlot = Card->AddChildToOverlay(MakeSized(WidgetTree, CardStripe, 0.f, 3.f));
-			StripeSlot->SetHorizontalAlignment(HAlign_Fill);
-			StripeSlot->SetVerticalAlignment(VAlign_Top);
-			StripeSlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
-			Place(MakeSized(WidgetTree, Card, LoadoutLayout::CardWidth, 0.f), FVector2D(LoadoutLayout::CardX, LoadoutLayout::ColumnTop), FVector2D::ZeroVector);
-		}
-
-		// The gun being dragged, following the mouse: its picture and name, and what letting go here would do.
-		{
-			UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			GhostBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			Content->AddChildToVerticalBox(GhostBox);
-			GhostAction = Label(WidgetTree, TEXT(""), 8, Color::Accent(), 150);
-			Content->AddChildToVerticalBox(GhostAction)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
-			UImage* GhostFill = nullptr;
-			UImage* GhostLine = nullptr;
-			UOverlay* Card = MakeCard(WidgetTree, Content, FMargin(12.f, 8.f), 1.3f, GhostFill, GhostLine);
-			GhostFill->SetColorAndOpacity(Colors::InspectFill());
-			GhostLine->SetColorAndOpacity(Color::Accent());
-			DragGhost = MakeSized(WidgetTree, Card, GhostWidth, 0.f);
-			DragGhost->SetVisibility(ESlateVisibility::Collapsed);
-			DragGhost->SetRenderOpacity(0.92f);
-			GhostSlot = Canvas->AddChildToCanvas(DragGhost);
-			GhostSlot->SetAutoSize(true);
-		}
-
-		// Bottom: what the keys do right now.
-		PromptBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Place(PromptBar, LoadoutLayout::PromptBarPosition, FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
-
-		DiscBrush = IconBrush(TEXT("LoadoutDisc"), DiscIcon(), 2.f, FVector2D(64.f, 64.f), FLinearColor::White);
-
-		// Opened before it was first shown: the picture and contents can go in now.
-		ApplyStageBrush();
-		ApplyMode();
-		Refresh();
-	}
-	return Super::RebuildWidget();
-}
-
-void ULoadoutWidget::ApplyStageBrush()
-{
-	if (StageImage && StageMaterial)
-	{
-		FSlateBrush Brush;
-		Brush.SetResourceObject(StageMaterial);
-		Brush.ImageSize = bInspecting ? LoadoutLayout::InspectShowcaseSize : LoadoutLayout::ShowcaseSize;
-		StageImage->SetBrush(Brush);
-	}
-}
-
-// ---------------------------------------------------------------------------
 // Contents
 // ---------------------------------------------------------------------------
 
@@ -423,6 +209,21 @@ ULoadoutWidget::FView ULoadoutWidget::GetView() const
 	for (const FPrompt& Prompt : CurrentPrompts())
 	{
 		View.Prompts.Add(FString::Printf(TEXT("%s: %s"), *Prompt.Key, *Prompt.Text));
+	}
+	if (const UCanvasPanelSlot* LeftSlot = LeftColumn ? Cast<UCanvasPanelSlot>(LeftColumn->Slot) : nullptr)
+	{
+		View.EquippedX = LeftSlot->GetPosition().X;
+	}
+	if (const UCanvasPanelSlot* RightSlot = RightColumn ? Cast<UCanvasPanelSlot>(RightColumn->Slot) : nullptr)
+	{
+		View.BackpackX = RightSlot->GetPosition().X;
+	}
+	View.EmptyBackpackRows = NumEmptyRows;
+	View.bGunCard = GunCard && GunCard->GetVisibility() != ESlateVisibility::Collapsed && GunCard->GetVisibility() != ESlateVisibility::Hidden;
+	if (View.bGunCard)
+	{
+		View.CardName = GunCard->GetNameText().ToString();
+		View.CardVerdict = GunCard->GetVerdictText().ToString();
 	}
 	return View;
 }

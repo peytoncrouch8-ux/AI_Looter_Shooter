@@ -102,7 +102,7 @@ public:
 	/** The rarity-colored pillar over it while it lies as loot (a landing drop's beam flares: ULootFanfareSubsystem). */
 	UStaticMeshComponent* GetLootBeam() const { return LootBeam; }
 
-	/** Shows/hides the floating label. Focused adds stats and the pickup prompt. */
+	/** Shows/hides the floating label. Focused, it opens into the gun card over the gun (UWeaponLabelWidget, UGunCardWidget). */
 	void SetLabelState(bool bVisible, bool bFocused);
 
 	/** Its floating label (ULootLabelSubsystem keeps it clear of the other loot labels on screen). */

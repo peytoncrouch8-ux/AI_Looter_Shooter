@@ -387,3 +387,31 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 - Player numbers (2026-10-13): 0.85 of the mannequin's size and 0.9 pace on top (the user: "pace of play is super fast"): walk
   459, sprint 711, crouch 230, slide 783 cm/s; eye about 140 cm; jump 103.5 cm. A slide comes out of sprint plus crouch. Chasing
   creatures scale with `LooterPlayerSize::MoveScale` (size and pace); slimes don't.
+
+## The gun card ("Wide Sweep", 2026-10-28)
+
+- The user's asks: character through motion and maker branding, simplicity ("don't overload the user ... on simple things
+  like guns"), a looked-at gun's card over the gun (not the screen's right), the gun in hand on the right, the inventory's
+  backpack back on the right. Look picked over four mockup rounds (`Docs/Work/2026-10-28-UICharacter/mockup/`): not boxy, a
+  little curvy, then "Wide Sweep, less curvy, slightly more futuristic, hollow Hold E buttons", then "bolder lines, a little".
+  Final image `mockup/wide.png`; contract `Docs/Work/2026-10-28-UICharacter/CONTRACT.md`.
+- Kit `UI/Cards`: `UGunCardWidget` (modes World, InHand, Loadout; widths 440 / 390 / 440), `GunCardRules`, `GunCardStyle`
+  (per maker: sweep plates, ink, trim, deco Rivets/Gilt/Patch/Ticks, mark, `OpenCue`; plain gunmetal with the rarity's word
+  for a named gun), `ULooterCardBackdrop` (Card/Row shapes painted as vertices, Fill part = background, Lines part solid),
+  `ULooterSegmentBar` (10 skewed segments, compare tick), `ULooterHollowKey`. Colours `LooterUI::Color::Card*`, `Row*`, `Maker*`.
+- Shows only: damage (count-up), fire rate, magazine, reload bars (`LoadoutRules::StatRating`, scaled across every kind, so a
+  shotgun's fire rate and magazine bars sit low), one special line (element > effect > curse > notches), "▲ UPGRADE" when it
+  beats the compared gun (same kind, DPS), else the maker's quirk. Everything else: the inventory's Inspect.
+- Intro: unfold 0.12 s (overshoot 1.06), bars staggered 0.06 s, count 0.25 s, shine on Epic+ 0.30-0.65 s; sounds `UI.Card.Open`
+  + `UI.Card.Maker.<Key>` (`Art/Sounds/recipes/ui_cards.py`). World card plays both on a new gun looked at (not again within
+  0.3 s); inventory plays Open only (rate 0.12 s), the maker's on Inspect; the in-hand card is silent.
+- World card: `UWeaponLabelWidget` (looked at) shows the card on a 40 px tether and a hollow rarity diamond (`WeaponLabelWidgetCard.cpp`);
+  compared with the gun in hand; keys from the weapon manager (TAKE / TO BACKPACK + HOLD EQUIP / SWAP + BACKPACK FULL), the
+  HOLD cap fills with the hold. `LootLabelLayout::KeepOnScreen`: the looked-at card stays 16 px inside the screen (a gun looked
+  down at close by put it past the top). HUD right: `UPlayerHUDWidget::InHandCard` under "IN HAND", only while loot is looked at
+  and a gun is held.
+- Inventory (`LoadoutLayout`): left x 56 w 488 EQUIPPED, WARD, AMMO; right x 1056 w 488 BACKPACK with EMPTY rows; middle the
+  showcase (550, 96) 500x319 over the card (top y 440). A/D switch columns to the nearest row (`RowCenterY`); W/S within.
+  Inspect: columns hide, gun large, the full card on the right with the maker's sweep. Row chips sit left of the number column.
+- Tests `Looter.UI.GunCard.*`, `Looter.UI.WorldCard.*`, `Looter.Inventory.*`, `Looter.Loot.Labels.*`. Next (round 2): the same
+  look and motion on the menus, pause menu, HUD popups and the other screens (vendor, bench, boards).

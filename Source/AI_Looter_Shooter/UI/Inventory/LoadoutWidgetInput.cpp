@@ -1,8 +1,9 @@
-// ULoadoutWidget: the cursor, the keys and what they do (swap, hold, move, stow, drop, inspect, sort). The mouse is
-// LoadoutWidgetMouse.cpp, dragging guns LoadoutWidgetDrag.cpp.
+// ULoadoutWidget: the keys and what they do (swap, hold, move, stow, drop, inspect, sort). The cursor in the two columns
+// is LoadoutWidgetColumns.cpp, the mouse LoadoutWidgetMouse.cpp, dragging guns LoadoutWidgetDrag.cpp.
 
 #include "UI/Inventory/LoadoutWidget.h"
 #include "Audio/LooterSound.h"
+#include "UI/Cards/GunCardStyle.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutGunStage.h"
 #include "UI/Inventory/LoadoutParts.h"
@@ -21,91 +22,6 @@ namespace
 {
 	/** How far A / D turn the gun on Inspect (degrees a press). */
 	constexpr float KeyTurnDegrees = 20.f;
-}
-
-// ---------------------------------------------------------------------------
-// The cursor
-// ---------------------------------------------------------------------------
-
-void ULoadoutWidget::MoveCursor(int32 Rows)
-{
-	// One list from the first slot through the wards to the last backpack gun: W / S walk straight through it.
-	const int32 NumSlotRows = SlotRows.Num();
-	const int32 NumWardRows = WardRows.Num();
-	const int32 Total = NumSlotRows + NumWardRows + ListRows.Num();
-	if (Total == 0)
-	{
-		return;
-	}
-	const int32 Here = Zone == EZone::Slots ? CursorIndex : (Zone == EZone::Wards ? NumSlotRows : NumSlotRows + NumWardRows) + CursorIndex;
-	const int32 There = FMath::Clamp(Here + Rows, 0, Total - 1);
-	if (There < NumSlotRows)
-	{
-		MoveCursorTo(EZone::Slots, There, false, true);
-	}
-	else if (There < NumSlotRows + NumWardRows)
-	{
-		MoveCursorTo(EZone::Wards, There - NumSlotRows, false, true);
-	}
-	else
-	{
-		MoveCursorTo(EZone::Backpack, There - NumSlotRows - NumWardRows, true, true);
-	}
-}
-
-void ULoadoutWidget::JumpTo(EZone NewZone)
-{
-	if (NewZone == EZone::Slots)
-	{
-		MoveCursorTo(EZone::Slots, Zone == EZone::Slots ? CursorIndex : TargetSlot, false, true);
-	}
-	else if (!ListRows.IsEmpty() && Zone != EZone::Backpack)
-	{
-		MoveCursorTo(EZone::Backpack, 0, true, true);
-	}
-}
-
-void ULoadoutWidget::MoveCursorTo(EZone NewZone, int32 NewIndex, bool bScrollIntoView, bool bSound)
-{
-	if (NewZone == Zone && NewIndex == CursorIndex)
-	{
-		return;
-	}
-	Zone = NewZone;
-	CursorIndex = NewIndex;
-	MarkSeen();
-	Restyle();
-	RefreshCard();
-	RefreshPrompts();
-	RefreshShowcase();
-	if (bScrollIntoView && Zone == EZone::Backpack && ListRows.IsValidIndex(CursorIndex) && ListBox)
-	{
-		ListBox->ScrollWidgetIntoView(ListRows[CursorIndex].Button, false, EDescendantScrollDestination::IntoView, 8.f);
-	}
-	if (bSound)
-	{
-		PlayCue(LooterSoundCue::Hover);
-	}
-}
-
-void ULoadoutWidget::MarkSeen()
-{
-	if (const FWeaponInstanceData* Gun = CursorItem())
-	{
-		SeenGuns.Add(LoadoutRules::GunIdentity(*Gun));
-	}
-}
-
-void ULoadoutWidget::FlashRow(EZone RowZone, int32 Index)
-{
-	FlashZone = RowZone;
-	FlashIndex = Index;
-	FlashAge = 0.f;
-}
-
-void ULoadoutWidget::PlayCue(const TCHAR* Cue) const
-{
-	LooterSound::Play2D(this, FName(Cue));
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +249,13 @@ void ULoadoutWidget::ToggleInspect()
 	RefreshCard();
 	RefreshPrompts();
 	PlayCue(bInspecting ? Sounds::Inspect : LooterSoundCue::Back);
+	// The card opening to everything wears its maker's sweep, and sounds its maker's note once (the bell, the clank...).
+	const FWeaponInstanceData* Gun = bInspecting ? CursorItem() : nullptr;
+	const FName MakerCue = Gun ? GunCardStyle::For(*Gun).OpenCue : NAME_None;
+	if (!MakerCue.IsNone())
+	{
+		LooterSound::Play2D(this, MakerCue);
+	}
 }
 
 void ULoadoutWidget::CycleSort()
@@ -433,21 +356,21 @@ bool ULoadoutWidget::HandleKey(const FKey& Key)
 		return true;
 	}
 
-	if (Key == EKeys::Up || Key == EKeys::W || Key == EKeys::Gamepad_DPad_Up)
+	if (Key == EKeys::Up || Key == EKeys::W || Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Gamepad_LeftStick_Up)
 	{
 		MoveCursor(-1);
 		return true;
 	}
-	if (Key == EKeys::Down || Key == EKeys::S || Key == EKeys::Gamepad_DPad_Down)
+	if (Key == EKeys::Down || Key == EKeys::S || Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)
 	{
 		MoveCursor(1);
 		return true;
 	}
-	const bool bLeft = Key == EKeys::Left || Key == EKeys::A || Key == EKeys::Gamepad_DPad_Left;
-	const bool bRight = Key == EKeys::Right || Key == EKeys::D || Key == EKeys::Gamepad_DPad_Right;
+	const bool bLeft = Key == EKeys::Left || Key == EKeys::A || Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left;
+	const bool bRight = Key == EKeys::Right || Key == EKeys::D || Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right;
 	if (bLeft || bRight)
 	{
-		// On Inspect they turn the gun; otherwise they jump between the slots and the backpack.
+		// On Inspect they turn the gun; otherwise they switch columns, to the nearest row there.
 		if (bInspecting)
 		{
 			if (ALoadoutGunStage* StagePtr = Stage.Get())
@@ -457,7 +380,7 @@ bool ULoadoutWidget::HandleKey(const FKey& Key)
 		}
 		else
 		{
-			JumpTo(bLeft ? EZone::Slots : EZone::Backpack);
+			MoveColumn(bRight);
 		}
 		return true;
 	}

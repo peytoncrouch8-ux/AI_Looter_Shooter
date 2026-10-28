@@ -97,6 +97,16 @@ bool FLootLabelLayoutTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Looked at, label up: the plate names it"), LootLabelLayout::PlateNamesGun(true, true));
 	TestFalse(TEXT("Not looked at: its name is not on a plate"), LootLabelLayout::PlateNamesGun(false, true));
 	TestFalse(TEXT("Its label down (out of range): no plate"), LootLabelLayout::PlateNamesGun(true, false));
+	// The looked-at card stays on screen: a gun looked down at close by would put its card past the top.
+	{
+		const FVector2D View(1920.0, 1080.0);
+		const FLootLabelBox High = LabelBox(960.0, 120.0, 420.0, 300.0, 150.f);
+		TestEqual(TEXT("Past the top: pushed down to the margin"), LootLabelLayout::KeepOnScreen(High, 0.f, View, 16.f).Y, 196.0);
+		const FLootLabelBox Fine = LabelBox(960.0, 700.0, 420.0, 300.0, 150.f);
+		TestTrue(TEXT("On screen: left alone"), LootLabelLayout::KeepOnScreen(Fine, 0.f, View, 16.f).IsNearlyZero());
+		const FLootLabelBox Edge = LabelBox(100.0, 700.0, 420.0, 300.0, 150.f);
+		TestEqual(TEXT("Past the left edge: pushed right"), LootLabelLayout::KeepOnScreen(Edge, 0.f, View, 16.f).X, 126.0);
+	}
 	return true;
 }
 

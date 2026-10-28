@@ -34,7 +34,7 @@ void ULoadoutWidget::RefreshCounts()
 	}
 	EquippedCount->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), NumWeapons(), NumSlots())));
 	BackpackCount->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), Inventory->GetBackpack().Num(), Inventory->BackpackCapacity)));
-	SortText->SetText(FText::FromString(FString::Printf(TEXT("[R] Sort: %s"), LoadoutRules::SortName(Sort)).ToUpper()));
+	SortText->SetText(FText::FromString(FString::Printf(TEXT("R  Sort: %s"), LoadoutRules::SortName(Sort)).ToUpper()));
 	// Nothing to sort with fewer than two guns.
 	SortButton->SetVisibility(Inventory->GetBackpack().Num() > 1 ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 }

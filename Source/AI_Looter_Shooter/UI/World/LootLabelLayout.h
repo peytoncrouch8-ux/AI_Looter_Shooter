@@ -67,4 +67,11 @@ namespace LootLabelLayout
 	 * (the legendaries) show whatever the count. MaxShown 0 or less: every label shows.
 	 */
 	AI_LOOTER_SHOOTER_API TArray<bool> PickShown(TConstArrayView<FLootPileLabel> Labels, float PileRadius, int32 MaxShown, int32 AlwaysRank);
+
+	/**
+	 * The extra shift (widget units) that keeps a label wholly on screen, Margin from each edge: the looked-at gun's card
+	 * rises over the gun, so a gun looked down at close by would put it past the screen's top (2026-10-28 play-check).
+	 * Shift is the label's shift up or down already; View the viewport's size. Zero when it fits.
+	 */
+	AI_LOOTER_SHOOTER_API FVector2D KeepOnScreen(const FLootLabelBox& Box, float Shift, const FVector2D& View, float Margin);
 }

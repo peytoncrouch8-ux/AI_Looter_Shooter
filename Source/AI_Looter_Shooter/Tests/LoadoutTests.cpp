@@ -216,8 +216,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLoadoutScreenTest, "Looter.Inventory.Screen",
 
 bool FLoadoutScreenTest::RunTest(const FString& Parameters)
 {
-	// The loadout screen over a real weapon manager, driven by its keys: the cursor, the swap target, Inspect, the sort,
-	// equipping, stowing and dropping, and the prompts saying what E does. (A test's editor world has no showcase.)
+	// The loadout screen over a real weapon manager, driven by its keys: the two columns (equipped left, backpack right),
+	// the cursor across them, the swap target, the gun card, Inspect, the sort, equipping, stowing and dropping, and the
+	// prompts saying what E does. (A test's editor world has no showcase.)
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -270,20 +271,52 @@ bool FLoadoutScreenTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Best for the rifle slot: the better rifle, the worse, then the shotgun"), View.ListOrder == TArray<int32>{ 0, 2, 1 });
 	TestTrue(TEXT("E on a slot swaps from the backpack"), !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("E: Swap from backpack"));
 
+	// The page's two columns: the equipped slots on the left half, the backpack on the right (the user's 2026-10-28 ask),
+	// every place in it shown, the free ones as EMPTY rows.
+	const float PageMiddle = 800.f;
+	TestTrue(FString::Printf(TEXT("The equipped column on the left half (x %.0f)"), View.EquippedX),
+		View.EquippedX + LoadoutLayout::ListWidth < PageMiddle);
+	TestTrue(FString::Printf(TEXT("The backpack's rows past the middle, on the right (x %.0f)"), View.BackpackX), View.BackpackX > PageMiddle);
+	TestEqual(TEXT("...and a faint EMPTY row for each of its 9 free places"), View.EmptyBackpackRows, 9);
+	TestTrue(TEXT("The gun in hand's card in the middle"), View.bGunCard && !View.CardName.IsEmpty());
+	TestTrue(TEXT("...compared with nothing (it is the slot's own gun)"), View.CardVerdict.IsEmpty());
+
 	// W / S walk the slots; walking over them doesn't change the swap target.
 	Screen->HandleKey(EKeys::S);
 	View = Screen->GetView();
 	TestTrue(TEXT("S: the second slot"), View.bOnSlot && View.Cursor == 1 && View.TargetSlot == 0);
+
+	// D and A switch columns to the row nearest the cursor's, on the page: the second slot sits level with the third
+	// backpack row, and back.
+	Screen->HandleKey(EKeys::D);
+	View = Screen->GetView();
+	TestTrue(TEXT("D from slot 2: the backpack row level with it (the third)"), !View.bOnSlot && !View.bOnWard && View.Cursor == 2);
+	Screen->HandleKey(EKeys::A);
+	View = Screen->GetView();
+	TestTrue(TEXT("A: back to slot 2"), View.bOnSlot && View.Cursor == 1);
+
+	// W / S stay in their column: past the last slot (no ward on this holder) S doesn't walk into the backpack.
+	Screen->HandleKey(EKeys::S);
+	Screen->HandleKey(EKeys::S);
+	View = Screen->GetView();
+	TestTrue(TEXT("S, S: the last slot, still on the left"), View.bOnSlot && View.Cursor == 2);
+	TestFalse(TEXT("...an empty slot: no gun card"), View.bGunCard);
+	Screen->HandleKey(EKeys::W);
 	Screen->HandleKey(EKeys::W);
 	Screen->HandleKey(EKeys::D);
 	View = Screen->GetView();
-	TestTrue(TEXT("D: the backpack's first gun"), !View.bOnSlot && View.Cursor == 0);
+	TestTrue(TEXT("W, W, D: the backpack's first gun"), !View.bOnSlot && View.Cursor == 0);
 	TestTrue(TEXT("...E swaps it into slot 1"), !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("E: Swap into slot 1"));
+	TestTrue(TEXT("...its card an upgrade over slot 1's rifle"), View.bGunCard && View.CardVerdict.Contains(TEXT("Upgrade")));
+	Screen->HandleKey(EKeys::W);
+	View = Screen->GetView();
+	TestTrue(TEXT("W at the backpack's top: still there"), !View.bOnSlot && !View.bOnWard && View.Cursor == 0);
 
 	// Inspect opens and Esc backs out of it before it closes anything.
 	Screen->HandleKey(EKeys::X);
 	View = Screen->GetView();
 	TestTrue(TEXT("X: Inspect"), View.bInspecting && !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("X: Back"));
+	TestFalse(TEXT("...every stat on the plain card instead of the gun card"), View.bGunCard);
 	Screen->HandleKey(EKeys::Escape);
 	TestFalse(TEXT("Esc: back from Inspect"), Screen->GetView().bInspecting);
 
@@ -325,7 +358,8 @@ bool FLoadoutScreenTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Q: one fewer in the backpack"), Inventory->GetBackpack().Num(), 2);
 	Screen->HandleKey(EKeys::A);
 	View = Screen->GetView();
-	TestTrue(TEXT("A: back to the target slot"), View.bOnSlot && View.Cursor == 1);
+	TestTrue(TEXT("A from the backpack's first row: the slot level with it, the first"), View.bOnSlot && View.Cursor == 0);
+	Screen->HandleKey(EKeys::S);
 	Screen->HandleKey(EKeys::C);
 	TestTrue(TEXT("C: the shotgun stowed"), Inventory->GetWeapons().Num() == 1 && Inventory->GetBackpack().Num() == 3);
 

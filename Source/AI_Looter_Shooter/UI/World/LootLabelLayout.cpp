@@ -149,3 +149,26 @@ TArray<bool> LootLabelLayout::PickShown(TConstArrayView<FLootPileLabel> Labels, 
 	}
 	return Shown;
 }
+
+FVector2D LootLabelLayout::KeepOnScreen(const FLootLabelBox& Box, float Shift, const FVector2D& View, float Margin)
+{
+	if (View.X <= 0.0 || View.Y <= 0.0)
+	{
+		return FVector2D::ZeroVector;
+	}
+	// The anchor is the label's bottom middle.
+	const double Left = Box.Anchor.X - Box.Size.X * 0.5;
+	const double Right = Left + Box.Size.X;
+	const double Bottom = Box.Anchor.Y + Shift;
+	const double Top = Bottom - Box.Size.Y;
+	FVector2D Push = FVector2D::ZeroVector;
+	if (Box.Size.X + Margin * 2.0 <= View.X)
+	{
+		Push.X = Left < Margin ? Margin - Left : (Right > View.X - Margin ? View.X - Margin - Right : 0.0);
+	}
+	if (Box.Size.Y + Margin * 2.0 <= View.Y)
+	{
+		Push.Y = Top < Margin ? Margin - Top : (Bottom > View.Y - Margin ? View.Y - Margin - Bottom : 0.0);
+	}
+	return Push;
+}

@@ -3,6 +3,16 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-28 evening: UI character, round 1 (the user at work; playtest Friday 2026-10-30; "don't package yet")
+Committed and pushed. Contract and mockups: Docs/Work/2026-10-28-UICharacter/ (kept open for round 2). Notes: Pipeline/Game.md
+"The gun card". The user picked the look "Wide Sweep" (mockup/wide.png) after four rounds; saw it in game only as screenshots.
+- Built: the gun card kit (UI/Cards), the card over a looked-at gun with hollow keys, the in-hand card on the HUD's right, the
+  four makers' card looks and open sounds (UI.Card.*), the inventory back to two columns (backpack right), card on screen clamp.
+- Not heard by ear: the card sounds. Bars use the all-kinds rating, so shotgun fire rate/magazine bars sit low (maybe per-kind later).
+- Next (round 2, the user's list): the same look and motion on the main and pause menus, the HUD popups (level-up, mission,
+  pickups), the bestiary rows; then the other screens (vendor, bench, boards, Lost Loot) still in the old boxy panels.
+- The Gilded Lily: design only, H2 The Spine picked; not to build until the user says.
+
 ## 2026-10-28 afternoon (the user at work; their picks: Unpaid balance, maker sounds, packaged fixes, cleanups)
 All pushed (last: 683405f9 + this handoff). Nothing played by the user yet. Contract: Docs/Work/2026-10-28-Polish2/CONTRACT.md.
 - Unpaid (play-checked by DEMO each round, numbers in Pipeline/Enemies.md):

@@ -1,22 +1,23 @@
-// ULoadoutWidget: the card of the gun under the cursor (at a glance: what it is, its damage big, four stats against the
-// gun it would replace, its best part bonuses, its notches or curse as badges; on Inspect: everything), and the showcase
-// that puts the same gun on show.
+// ULoadoutWidget: the cards and the showcase. In the middle, under the turning gun, its gun card (UGunCardWidget, Loadout:
+// what it is, its damage, three bars against the gun it would replace, one special line); a ward or an empty slot gets the
+// plain card there instead. On Inspect the plain card opens to everything (every stat, how it fires and feeds, its parts
+// and bonuses, its history) where the backpack was, wearing its maker's sweep.
 
 #include "UI/Inventory/LoadoutWidget.h"
+#include "Audio/LooterSound.h"
+#include "UI/Cards/GunCardStyle.h"
+#include "UI/Cards/GunCardWidget.h"
+#include "UI/Cards/LooterCardBackdrop.h"
 #include "UI/Inventory/LoadoutGunStage.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutRules.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponMakerRows.h"
 #include "UI/Style/WeaponText.h"
-#include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
-#include "Weapons/WeaponNotches.h"
 #include "Weapons/WeaponParts.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/WidgetTree.h"
-#include "Components/Border.h"
-#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
@@ -25,6 +26,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "HAL/PlatformTime.h"
 
 using namespace LooterUI;
 using namespace LoadoutParts;
@@ -38,13 +40,17 @@ namespace
 	constexpr float StatArrowWidth = 18.f;
 	constexpr float StatDeltaWidth = 56.f;
 	constexpr float StatBarHeight = 5.f;
-	/** The card's title: its type size, the smallest a long name is set, and the line it fits (the card less its padding
+	/** Inspect's title: its type size, the smallest a long name is set, and the line it fits (the card less its padding
 	 * either side and a scroll bar's room). */
 	constexpr int32 TitleSize = 19;
 	constexpr int32 TitleMinSize = 14;
-	constexpr float TitleWidth = LoadoutLayout::CardWidth - 20.f - 14.f - 10.f;
-	/** Rarities from here up have a glow that breathes. */
+	constexpr float TitleWidth = LoadoutLayout::InspectCardWidth - 18.f - 12.f - 10.f;
+	/** Rarities from here up have a showcase pool that breathes. */
 	constexpr EWeaponRarity BreathingRarity = EWeaponRarity::Epic;
+	/** The maker's mark on the plain card's head. */
+	constexpr float HeadMarkSize = 15.f;
+	/** The gun card's open sound (Audio/LooterSoundCues.h, LooterSoundCue::Card::Open). */
+	const FName CardOpenCue(TEXT("UI.Card.Open"));
 
 	/** A thin rule across the card between its parts. */
 	UWidget* Rule(UWidgetTree* Tree)
@@ -93,25 +99,6 @@ namespace
 		return Bar;
 	}
 
-	/** A small framed tag: a glyph and words (the curse, the notches). */
-	UWidget* Badge(UWidgetTree* Tree, UWidget* Glyph, const TArray<TPair<FString, FLinearColor>>& Words, const FLinearColor& Edge)
-	{
-		UHorizontalBox* Line = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Line->AddChildToHorizontalBox(Glyph)->SetVerticalAlignment(VAlign_Center);
-		for (const TPair<FString, FLinearColor>& Word : Words)
-		{
-			UHorizontalBoxSlot* WordSlot = Line->AddChildToHorizontalBox(Label(Tree, Word.Key, 9, Word.Value, 140));
-			WordSlot->SetVerticalAlignment(VAlign_Center);
-			WordSlot->SetPadding(FMargin(7.f, 0.f, 0.f, 0.f));
-		}
-		UBorder* Frame = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Frame->SetBrush(RectBrush(Color::Plate() * FLinearColor(1.f, 1.f, 1.f, 0.8f), Edge, 1.f));
-		MarkBackground(Frame);
-		Frame->SetPadding(FMargin(8.f, 3.f, 10.f, 3.f));
-		Frame->SetContent(Line);
-		return Frame;
-	}
-
 	/** An orange section title inside the card (Inspect's parts). */
 	UWidget* Section(UWidgetTree* Tree, const TCHAR* Title)
 	{
@@ -120,25 +107,43 @@ namespace
 }
 
 // ---------------------------------------------------------------------------
-// The card
+// The cards
 // ---------------------------------------------------------------------------
 
 void ULoadoutWidget::RefreshCard()
 {
-	if (!CardBox)
+	if (!CardBox || !GunCard)
 	{
 		return;
 	}
 	if (Zone == EZone::Wards)
 	{
-		// A ward's card is its own (LoadoutWidgetWard.cpp).
+		// A ward's card is its own (LoadoutWidgetWardCard.cpp).
+		ShowPlainCard(true);
 		RefreshWardCard();
 		return;
 	}
-	CardBox->ClearChildren();
 	const FWeaponInstanceData* Gun = CursorItem();
 
-	// A different gun (or an empty slot) slides its card in (TickMotion).
+	// A gun at a glance: its gun card, compared with the gun of the slot it would go to. A new gun unfolds its card (the
+	// card's intro) with the open sound; its maker's sound waits for Inspect.
+	if (Gun && !bInspecting)
+	{
+		CardRarity = RarityColor(Gun);
+		bCardBreathes = Gun->Rarity >= BreathingRarity;
+		ShowPlainCard(false);
+		if (GunCard->SetGun(*Gun, Baseline(), EGunCardMode::Loadout))
+		{
+			GunCard->PlayIntro(false);
+			PlayCardOpenCue();
+		}
+		// The plain card slides in afresh when it shows next.
+		CardIdentity = 0;
+		return;
+	}
+
+	CardBox->ClearChildren();
+	// A different gun (or an empty slot) slides its plain card's contents in (TickMotion).
 	const uint32 Identity = Gun ? LoadoutRules::GunIdentity(*Gun) : static_cast<uint32>(0x51070000 + CursorIndex);
 	if (Identity != CardIdentity)
 	{
@@ -154,9 +159,7 @@ void ULoadoutWidget::RefreshCard()
 	{
 		CardRarity = Color::TextDim();
 		bCardBreathes = false;
-		CardStripe->SetColorAndOpacity(Colors::CardLine());
-		CardLine->SetColorAndOpacity(Colors::CardLine());
-		CardGlow->SetColorAndOpacity(FLinearColor::Transparent);
+		ShowPlainCard(true);
 		const UWeaponManagerComponent* Inventory = Manager.Get();
 		const bool bBackpackGuns = Inventory && !Inventory->GetBackpack().IsEmpty();
 		if (NumWeapons() == 0 && !bBackpackGuns)
@@ -171,12 +174,10 @@ void ULoadoutWidget::RefreshCard()
 		return;
 	}
 
-	// The card wears the gun's rarity: its top edge, its outline and a glow behind it.
+	// Inspect: everything, on the plain card in its maker's sweep.
 	CardRarity = RarityColor(Gun);
 	bCardBreathes = Gun->Rarity >= BreathingRarity;
-	CardStripe->SetColorAndOpacity(CardRarity);
-	CardLine->SetColorAndOpacity(CardRarity * FLinearColor(1.f, 1.f, 1.f, 0.65f));
-	CardGlow->SetColorAndOpacity(CardRarity * FLinearColor(1.f, 1.f, 1.f, 0.14f));
+	ShowPlainCard(true, Gun);
 
 	// Over the name: where it is, or how it compares with the gun it would replace.
 	if (Zone == EZone::Slots)
@@ -207,9 +208,8 @@ void ULoadoutWidget::RefreshCard()
 		}
 	}
 
-	// Its name in its rarity's colour, then what it is.
-	// A long name (a legendary's, a Named gun's nickname) is set smaller to fit one line, down to TitleMinSize; one longer
-	// still wraps to a second line rather than leaving the card.
+	// Its name in its rarity's colour, then what it is. A long name (a legendary's, a Named gun's nickname) is set smaller
+	// to fit one line, down to TitleMinSize; one longer still wraps to a second line rather than leaving the card.
 	UTextBlock* Name = Label(WidgetTree, LooterWeaponText::Name(*Gun), TitleSize, CardRarity, 40);
 	FitTextToWidth(Name, TitleWidth, TitleMinSize);
 	Name->SetAutoWrapText(true);
@@ -217,8 +217,8 @@ void ULoadoutWidget::RefreshCard()
 	const FString Kind = Gun->Definition ? Gun->Definition->DisplayName.ToString() : FString();
 	CardBox->AddChildToVerticalBox(Label(WidgetTree, FString::Printf(TEXT("%s · Lv %d"), *Kind, Gun->Level), 9, Color::TextDim(), 160))
 		->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
-	// Its maker: the mark and name with its trade at a glance; on Inspect the maker's own line and story too.
-	if (UWidget* Maker = WeaponMakerRows::MakeRows(WidgetTree, *Gun, 9, bInspecting))
+	// Its maker: the mark and name with its trade, the maker's own line and story.
+	if (UWidget* Maker = WeaponMakerRows::MakeRows(WidgetTree, *Gun, 9, true))
 	{
 		CardBox->AddChildToVerticalBox(Maker)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 	}
@@ -231,27 +231,53 @@ void ULoadoutWidget::RefreshCard()
 		FlavorText->SetAutoWrapText(true);
 		CardBox->AddChildToVerticalBox(FlavorText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 	}
-
 	AddCardStats(*Gun, Baseline());
-	if (bInspecting)
+	AddCardInspect(*Gun);
+}
+
+void ULoadoutWidget::ShowPlainCard(bool bPlain, const FWeaponInstanceData* Sweep)
+{
+	if (GunCard)
 	{
-		AddCardInspect(*Gun, Baseline());
+		GunCard->SetVisibility(bPlain ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
-	else
+	if (!PlainCard)
 	{
-		// What its parts do best, in one line: the gun's character at a glance.
-		TArray<FString> Lines;
-		for (const LoadoutRules::FBonus& Bonus : LoadoutRules::TopBonuses(LoadoutRules::PartTotals(*Gun)))
-		{
-			Lines.Add(LoadoutRules::BonusText(Bonus));
-		}
-		if (!Lines.IsEmpty())
-		{
-			CardBox->AddChildToVerticalBox(Label(WidgetTree, FString::Join(Lines, TEXT("  ·  ")), 9, Color::CyanText(), 120))
-				->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
-		}
-		AddCardBadges(*Gun);
+		return;
 	}
+	PlainCard->SetVisibility(bPlain ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+
+	// Inspect's card wears the gun's maker's sweep, its mark, word and quirk on the head; the others are plain glass.
+	const GunCardStyle::FStyle* Style = Sweep ? &GunCardStyle::For(*Sweep) : nullptr;
+	PlainFill->SetSweep(Style);
+	PlainLines->SetSweep(Style);
+	CardHead->SetVisibility(Style ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	CardHeadGap->SetVisibility(Style ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	if (!Style)
+	{
+		return;
+	}
+	CardHeadWord->SetText(FText::FromString(Style->Word.ToString().ToUpper()));
+	CardHeadWord->SetColorAndOpacity(FSlateColor(Style->Ink));
+	CardHeadQuirk->SetText(FText::FromString(Style->Quirk.ToString().ToUpper()));
+	const FInkedIcon* Mark = Style->MarkIcon.IsNone() ? nullptr : FindInkedIcon(Style->MarkIcon);
+	if (Mark)
+	{
+		CardHeadMark->SetBrush(InkedIconBrush(Style->MarkIcon, *Mark, FVector2D(HeadMarkSize, HeadMarkSize), Style->Ink));
+	}
+	CardHeadMark->SetVisibility(Mark ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+}
+
+void ULoadoutWidget::PlayCardOpenCue()
+{
+	// Browsing fast would rattle it: once every CardOpenCueGap at most.
+	const double Now = FPlatformTime::Seconds();
+	if (LastCardOpenCue >= 0.0 && Now - LastCardOpenCue < LoadoutLayout::CardOpenCueGap)
+	{
+		return;
+	}
+	LastCardOpenCue = Now;
+	LooterSound::Play2D(this, CardOpenCue);
 }
 
 void ULoadoutWidget::AddCardBanner(const FString& Words, const FLinearColor& WordsColor, int32 Arrow)
@@ -294,9 +320,8 @@ void ULoadoutWidget::AddCardStats(const FWeaponInstanceData& Gun, const FWeaponI
 		CardBox->AddChildToVerticalBox(Hero)->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
 	}
 
-	// The rest at first glance (fire rate, magazine, reload, accuracy); every one on Inspect.
-	const TConstArrayView<EStat> Stats = bInspecting ? LoadoutRules::AllStats() : LoadoutRules::FirstGlanceStats();
-	for (const EStat Stat : Stats)
+	// Every other stat, the first glance's first.
+	for (const EStat Stat : LoadoutRules::AllStats())
 	{
 		if (Stat == EStat::Damage)
 		{
@@ -330,36 +355,7 @@ void ULoadoutWidget::AddCardStats(const FWeaponInstanceData& Gun, const FWeaponI
 	}
 }
 
-void ULoadoutWidget::AddCardBadges(const FWeaponInstanceData& Gun)
-{
-	// Its curse and its notches as two small tags; their story (the perk, the drawback, the tiers) waits behind Inspect.
-	UHorizontalBox* Badges = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	if (const FWeaponCurse* Curse = WeaponCurses::Of(Gun))
-	{
-		const FLinearColor CoinTint(1.f, 1.f, 1.f, Gun.bCurseLifted ? 0.55f : 1.f);
-		Badges->AddChildToHorizontalBox(Badge(WidgetTree, MakeImage(WidgetTree, CrackedCoinBrush(FVector2D(16.f, 16.f), CoinTint)),
-			{ { Curse->Name.ToString(), Color::Curse() }, { Gun.bCurseLifted ? FString(TEXT("Lifted")) : FString(TEXT("Cursed")),
-				Gun.bCurseLifted ? Color::Better() : Color::TextDim() } }, Color::Curse() * FLinearColor(1.f, 1.f, 1.f, 0.6f)));
-	}
-	if (Gun.Kills > 0)
-	{
-		const ENotchTier Tier = WeaponNotches::TierFor(Gun.Kills);
-		TArray<TPair<FString, FLinearColor>> Words = { { FText::AsNumber(Gun.Kills).ToString(), Color::Text() } };
-		if (Tier != ENotchTier::None)
-		{
-			Words.Add({ WeaponNotches::TierName(Tier).ToString(), NotchTierColor(Tier) });
-		}
-		UHorizontalBoxSlot* NotchSlot = Badges->AddChildToHorizontalBox(Badge(WidgetTree, MakeImage(WidgetTree, TallyBrush(FVector2D(16.f, 16.f),
-			NotchTierColor(Tier))), Words, Color::Hairline() * FLinearColor(1.f, 1.f, 1.f, 0.4f)));
-		NotchSlot->SetPadding(FMargin(Badges->GetChildrenCount() > 1 ? 8.f : 0.f, 0.f, 0.f, 0.f));
-	}
-	if (Badges->HasAnyChildren())
-	{
-		CardBox->AddChildToVerticalBox(Badges)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
-	}
-}
-
-void ULoadoutWidget::AddCardInspect(const FWeaponInstanceData& Gun, const FWeaponInstanceData* Against)
+void ULoadoutWidget::AddCardInspect(const FWeaponInstanceData& Gun)
 {
 	// How it fires and feeds.
 	const UWeaponManagerComponent* Inventory = Manager.Get();
@@ -444,27 +440,4 @@ void ULoadoutWidget::RefreshShowcase()
 	}
 	// On a ward's row the showcase holds the ward box's icon instead.
 	RefreshWardShowcase();
-}
-
-void ULoadoutWidget::ApplyMode()
-{
-	if (!StageSlot)
-	{
-		return;
-	}
-	// Inspect puts the list away and gives the gun the room; the card stays where it is.
-	const FVector2D TopLeft = bInspecting ? LoadoutLayout::InspectShowcaseTopLeft : LoadoutLayout::ShowcaseTopLeft;
-	const FVector2D Size = bInspecting ? LoadoutLayout::InspectShowcaseSize : LoadoutLayout::ShowcaseSize;
-	StageSlot->SetPosition(TopLeft);
-	StageSlot->SetSize(Size);
-	ApplyStageBrush();
-	if (ListColumn)
-	{
-		ListColumn->SetVisibility(bInspecting ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
-	}
-	if (ShowcaseHint && ShowcaseHintSlot)
-	{
-		ShowcaseHint->SetText(FText::FromString(FString(bInspecting ? TEXT("Drag to turn") : TEXT("Drag to turn · click to inspect")).ToUpper()));
-		ShowcaseHintSlot->SetPosition(FVector2D(TopLeft.X + Size.X * 0.5f, TopLeft.Y + Size.Y + 6.f));
-	}
 }

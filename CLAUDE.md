@@ -94,6 +94,8 @@ keep it short; details go in the pipeline.
   cartridge bottom-right; bezelled minimap top-right, the mission tracker under it. `Tools\hudshots.ps1` photographs it at 1080p
   through its states. Mockup CSS px are used as Slate font sizes as they are (the user's call: in game text is a third
   bigger than in mockups).
+- Cards and list rows: "Wide Sweep" (the user's pick 2026-10-28; `UI/Cards`): not boxy, angled cuts, bold 2 px lines, the
+  maker's sweep, segmented bars, hollow key caps, motion and a sound on open; simple (few stats). Pipeline Game.md "The gun card".
 - Every background a widget paints calls `LooterUI::MarkBackground` (the UI transparency setting fades it). Text,
   outlines and bars stay solid.
 - Vector art from mockups goes through the kit's brushes (`IconBrush`, `PaintedIconBrush`), never new texture assets.

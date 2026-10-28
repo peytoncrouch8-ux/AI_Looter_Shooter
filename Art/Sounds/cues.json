@@ -8322,5 +8322,75 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 4
+  },
+  "UI.Card.Open": {
+    "files": [
+      "UI_Card_Open_01.wav",
+      "UI_Card_Open_02.wav",
+      "UI_Card_Open_03.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Card.Maker.Roundhouse": {
+    "files": [
+      "UI_Card_Maker_Roundhouse_01.wav",
+      "UI_Card_Maker_Roundhouse_02.wav",
+      "UI_Card_Maker_Roundhouse_03.wav"
+    ],
+    "volume_db": -24.5,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Card.Maker.SaintMaud": {
+    "files": [
+      "UI_Card_Maker_SaintMaud_01.wav",
+      "UI_Card_Maker_SaintMaud_02.wav",
+      "UI_Card_Maker_SaintMaud_03.wav"
+    ],
+    "volume_db": -28.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Card.Maker.Windfall": {
+    "files": [
+      "UI_Card_Maker_Windfall_01.wav",
+      "UI_Card_Maker_Windfall_02.wav",
+      "UI_Card_Maker_Windfall_03.wav"
+    ],
+    "volume_db": -21.5,
+    "pitch_jitter": 0.05,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Card.Maker.Meridian": {
+    "files": [
+      "UI_Card_Maker_Meridian_01.wav",
+      "UI_Card_Maker_Meridian_02.wav",
+      "UI_Card_Maker_Meridian_03.wav"
+    ],
+    "volume_db": -22.5,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
   }
 }

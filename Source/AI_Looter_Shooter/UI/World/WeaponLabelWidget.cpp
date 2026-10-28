@@ -1,8 +1,6 @@
 #include "UI/World/WeaponLabelWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
-#include "Affixes/WeaponMakers.h"
-#include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
@@ -13,7 +11,10 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
-#include "Engine/LocalPlayer.h"
+#include "HAL/PlatformTime.h"
+
+// The label from afar (name, trait line, curse, the folded dot, the drop's name pop) and which of its looks shows. The
+// looked-at card over the gun is WeaponLabelWidgetCard.cpp.
 
 using namespace LooterUI;
 
@@ -28,6 +29,17 @@ namespace
 	constexpr float FoldedHaloSize = 26.f;
 	/** The core's light rim (widget units), a little thicker than the kit's hairlines so it shows at the label range's far end. */
 	constexpr float FoldedRimWidth = 2.f;
+	/**
+	 * A look back at the same gun this soon (seconds) after looking away plays no intro again: the focus drops for a frame
+	 * when a body crosses the line of sight, and the card mustn't unfold and tick each time.
+	 */
+	constexpr double RefocusQuietSeconds = 0.3;
+
+	bool IsOnScreen(const UWidget* Widget)
+	{
+		const ESlateVisibility Shown = Widget ? Widget->GetVisibility() : ESlateVisibility::Collapsed;
+		return Shown != ESlateVisibility::Collapsed && Shown != ESlateVisibility::Hidden;
+	}
 }
 
 TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
@@ -37,13 +49,15 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Root"));
 		WidgetTree->RootWidget = Root;
 
-		// The card (plate and lines) and, in its place when folded, the dot: collapsing the card leaves the dot's size alone,
-		// so a folded label takes no more room than its dot.
-		UOverlay* Card = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Card"));
-		UOverlaySlot* CardSlot = Root->AddChildToOverlay(Card);
-		CardSlot->SetHorizontalAlignment(HAlign_Fill);
-		CardSlot->SetVerticalAlignment(VAlign_Fill);
-		Lines = Card;
+		// Three looks, one showing at a time: the lines from afar, the dot when folded, the card when looked at. Each
+		// collapses whole, so a folded label takes no more room than its dot and a far one no more than its lines.
+		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Lines"));
+		UOverlaySlot* LinesSlot = Root->AddChildToOverlay(Box);
+		LinesSlot->SetHorizontalAlignment(HAlign_Fill);
+		LinesSlot->SetVerticalAlignment(VAlign_Fill);
+		LinesSlot->SetPadding(FMargin(12.f, 6.f));
+		Lines = Box;
+
 		UOverlay* Dot = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("FoldedDot"));
 		FoldedDot = Dot;
 		UOverlaySlot* DotSlot = Root->AddChildToOverlay(Dot);
@@ -58,47 +72,21 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		CoreSlot->SetHorizontalAlignment(HAlign_Center);
 		CoreSlot->SetVerticalAlignment(VAlign_Center);
 
-		auto AddFill = [Card](UWidget* Child, const FMargin& ChildPadding)
-		{
-			UOverlaySlot* ChildSlot = Card->AddChildToOverlay(Child);
-			ChildSlot->SetHorizontalAlignment(HAlign_Fill);
-			ChildSlot->SetVerticalAlignment(VAlign_Fill);
-			ChildSlot->SetPadding(ChildPadding);
-		};
+		// The card stands on its tether's diamond, at the label's foot where the name hung (the component's pivot is 0.5, 1).
+		UOverlaySlot* StackSlot = Root->AddChildToOverlay(BuildFocusStack());
+		StackSlot->SetHorizontalAlignment(HAlign_Center);
+		StackSlot->SetVerticalAlignment(VAlign_Bottom);
 
-		PlateFill = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		PlateFill->SetBrush(ShapeBrush(EShape::Control, false, FLinearColor::FromSRGBColor(FColor(7, 26, 40, 225))));
-		MarkBackground(PlateFill);
-		AddFill(PlateFill, FMargin(0.f));
-		PlateLine = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		PlateLine->SetBrush(ShapeBrush(EShape::Control, true, Color::ScreenLine()));
-		AddFill(PlateLine, FMargin(0.f));
-
-		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		auto AddLine = [Box](UWidget* Line)
 		{
 			Box->AddChildToVerticalBox(Line)->SetHorizontalAlignment(HAlign_Center);
 		};
 
 		NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Name"));
-		FlavorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Flavor"));
 		TraitText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Trait"));
 
-		// The maker's line: its mark and name, over the gun's name. ApplyContent sizes the mark and shows the row only while
-		// the label is looked at, for a gun with a maker.
-		UHorizontalBox* MakerLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("MakerLine"));
-		MakerGlyph = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("MakerGlyph"));
-		MakerLine->AddChildToHorizontalBox(MakerGlyph)->SetVerticalAlignment(VAlign_Center);
-		MakerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Maker"));
-		UHorizontalBoxSlot* MakerTextSlot = MakerLine->AddChildToHorizontalBox(MakerText);
-		MakerTextSlot->SetVerticalAlignment(VAlign_Center);
-		MakerTextSlot->SetPadding(FMargin(5.f, 0.f, 0.f, 0.f));
-		MakerRow = MakerLine;
-		StatsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Stats"));
-		PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Prompt"));
-
 		// A cursed iron's line: the cracked coin and the curse's name, in the curse's own brass, so the name above keeps the
-		// rarity's color. ApplyContent sizes the coin and shows the row only for a cursed gun.
+		// rarity's color. ApplyContent shows the row only for a cursed gun.
 		UHorizontalBox* CurseLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CurseLine"));
 		CurseGlyph = MakeImage(WidgetTree, CrackedCoinBrush(FVector2D(16.f, 16.f)));
 		CurseLine->AddChildToHorizontalBox(CurseGlyph)->SetVerticalAlignment(VAlign_Center);
@@ -108,56 +96,53 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		CurseTextSlot->SetPadding(FMargin(5.f, 0.f, 0.f, 0.f));
 		CurseRow = CurseLine;
 
-		AddLine(MakerRow);
 		AddLine(NameText);
 		AddLine(CurseRow);
 		AddLine(TraitText);
-		AddLine(FlavorText);
-		AddLine(StatsText);
-		AddLine(PromptText);
-		AddFill(Box, FMargin(12.f, 6.f));
 
 		ApplyContent();
 	}
 	return Super::RebuildWidget();
 }
 
-void UWeaponLabelWidget::SetWeapon(const AWeaponBase* Weapon)
+void UWeaponLabelWidget::SetWeapon(const AWeaponBase* InWeapon)
 {
-	if (!Weapon)
+	if (!InWeapon)
 	{
 		return;
 	}
 
-	const FWeaponInstanceData& Instance = Weapon->GetInstance();
-	const FWeaponStats& S = Instance.Stats;
+	const FWeaponInstanceData& Instance = InWeapon->GetInstance();
+	Gun = Instance;
+	Weapon = InWeapon;
+	bHasGun = true;
+	bCardStale = true;
 	Name = FText::FromString(LooterWeaponText::Name(Instance).ToUpper());
 	// The line in its own words, as written: it's said, not a label.
 	Flavor = FText::FromString(LooterWeaponText::FlavorLine(Instance));
 	// A cursed iron's curse ("HUNGRY"), empty for any other gun.
 	Curse = FText::FromString(LooterWeaponText::CurseString(Instance).ToUpper());
-	Stats = FText::FromString(FString::Printf(TEXT("LV %d   %s DMG   %.0f RPM   %d MAG"),
-		Instance.Level, *LooterWeaponText::DamageString(S), S.FireRate, S.MagazineSize));
 	NameColor = LooterWeaponText::Color(Instance);
 	// Its element and effect ("EMBER · RICOCHET"), in the element's colour: what makes it worth walking over to.
 	Trait = FText::FromString(LooterWeaponText::TraitLine(Instance));
 	TraitColor = LooterWeaponText::TraitColor(Instance);
-	// Its maker ("MERIDIAN") and mark: who made it, so its name and feel promise something.
+	// Its maker ("MERIDIAN"): the card's sweep carries it while looked at.
 	Maker = FText::FromString(LooterWeaponText::MakerString(Instance));
-	const FWeaponMaker* Made = WeaponMakers::Of(Instance);
-	MakerIcon = Made && LooterWeaponText::MakerMark(Instance) ? Made->MarkIcon : NAME_None;
 	ApplyContent();
+	if (bIsFocused)
+	{
+		UpdateCardFromViewer();
+	}
 }
 
 FText UWeaponLabelWidget::GetMakerText() const
 {
-	return MakerText ? MakerText->GetText() : FText::GetEmpty();
+	return Maker;
 }
 
 bool UWeaponLabelWidget::IsMakerShown() const
 {
-	const ESlateVisibility Shown = MakerRow ? MakerRow->GetVisibility() : ESlateVisibility::Collapsed;
-	return Shown != ESlateVisibility::Collapsed && Shown != ESlateVisibility::Hidden && !MakerText->GetText().IsEmpty();
+	return IsCardShown() && !Maker.IsEmpty();
 }
 
 FText UWeaponLabelWidget::GetTraitText() const
@@ -208,8 +193,7 @@ FText UWeaponLabelWidget::GetFlavorText() const
 
 bool UWeaponLabelWidget::IsFlavorShown() const
 {
-	const ESlateVisibility Shown = FlavorText ? FlavorText->GetVisibility() : ESlateVisibility::Collapsed;
-	return Shown != ESlateVisibility::Collapsed && Shown != ESlateVisibility::Hidden && !FlavorText->GetText().IsEmpty();
+	return IsOnScreen(FocusStack) && IsOnScreen(FlavorText) && !FlavorText->GetText().IsEmpty();
 }
 
 FText UWeaponLabelWidget::GetCurseText() const
@@ -219,16 +203,30 @@ FText UWeaponLabelWidget::GetCurseText() const
 
 bool UWeaponLabelWidget::IsCurseShown() const
 {
-	const ESlateVisibility Shown = CurseRow ? CurseRow->GetVisibility() : ESlateVisibility::Collapsed;
-	return Shown != ESlateVisibility::Collapsed && Shown != ESlateVisibility::Hidden && !CurseText->GetText().IsEmpty();
+	return IsOnScreen(Lines) && IsOnScreen(CurseRow) && !CurseText->GetText().IsEmpty();
 }
 
 void UWeaponLabelWidget::SetFocused(bool bFocused)
 {
-	if (bIsFocused != bFocused)
+	if (bIsFocused == bFocused)
 	{
-		bIsFocused = bFocused;
-		ApplyContent();
+		return;
+	}
+	bIsFocused = bFocused;
+	// A gun newly looked at unfolds its card with its sound; a look back within a blink just shows it again.
+	const double Now = FPlatformTime::Seconds();
+	if (bFocused)
+	{
+		bIntroPending = Now - LostFocusAt > RefocusQuietSeconds;
+	}
+	else
+	{
+		LostFocusAt = Now;
+	}
+	ApplyContent();
+	if (bFocused)
+	{
+		UpdateCardFromViewer();
 	}
 }
 
@@ -253,66 +251,32 @@ void UWeaponLabelWidget::ApplyContent()
 		return;
 	}
 
-	// Unfocused: just the outlined name floating over the loot. Focused: a full plate with stats and the prompt.
-	const ESlateVisibility Detail = bIsFocused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-	PlateFill->SetVisibility(bIsFocused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-	PlateLine->SetVisibility(bIsFocused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-
+	// From afar: the outlined name floating over the loot (bigger as a drop's pop).
 	NameText->SetText(Name);
-	StyleFloatingText(NameText, bPop ? 24 : (bIsFocused ? 17 : 14), NameColor, bPop ? 120 : 80);
+	StyleFloatingText(NameText, bPop ? 24 : 14, NameColor, bPop ? 120 : 80);
 
-	// Its element and effect, from afar as up close (a pop's bigger): the reason to walk over.
+	// Its element and effect, from afar (a pop's bigger): the reason to walk over.
 	TraitText->SetText(Trait);
-	StyleFloatingText(TraitText, bPop ? 15 : (bIsFocused ? 13 : 11), TraitColor, 120);
+	StyleFloatingText(TraitText, bPop ? 15 : 11, TraitColor, 120);
 	TraitText->SetVisibility(Trait.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 
-	// A cursed iron: the coin and the curse's name under the name, from afar as up close (it is the warning), the coin
-	// a size up when the label opens.
+	// A cursed iron: the coin and the curse's name under the name, from afar (it is the warning; up close the card's
+	// special line carries it). A drop's name pop leaves it to the gun's own label.
 	CurseText->SetText(Curse);
-	StyleFloatingText(CurseText, bIsFocused ? 13 : 12, Color::Curse(), 80);
-	const float CoinSize = bIsFocused ? 19.f : 16.f;
-	CurseGlyph->SetBrush(CrackedCoinBrush(FVector2D(CoinSize, CoinSize)));
-	CurseRow->SetVisibility(Curse.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	StyleFloatingText(CurseText, 12, Color::Curse(), 80);
+	CurseRow->SetVisibility(Curse.IsEmpty() || bPop ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 
-	// Its maker over its name, with the details (from afar the name alone, which a gun no part names already takes from
-	// its maker): the mark white as every Inked icon, the name in dim text so the gun's own name leads.
-	MakerText->SetText(Maker);
-	StyleFloatingText(MakerText, 11, LooterWeaponText::MakerColor(), 160);
-	const LooterUI::FInkedIcon* MarkIcon = LooterUI::FindInkedIcon(MakerIcon);
-	MakerGlyph->SetVisibility(MarkIcon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	if (MarkIcon)
-	{
-		MakerGlyph->SetBrush(InkedIconBrush(MakerIcon, *MarkIcon, FVector2D(17.f, 17.f)));
-	}
-	MakerRow->SetVisibility(bIsFocused && !Maker.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-
-	// A named gun's line under its name, with the details: the name alone floats over the loot from afar.
+	// Looked at: the card over the gun in place of the lines. A named gun's line floats over the card, as written.
+	const bool bShowCard = bIsFocused && !bPop && bHasGun;
+	FocusStack->SetVisibility(bShowCard ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	FlavorText->SetText(Flavor);
 	StyleFloatingText(FlavorText, 12, LooterWeaponText::FlavorColor(), 20);
-	FlavorText->SetVisibility(bIsFocused && !Flavor.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	FlavorText->SetVisibility(bShowCard && !Flavor.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	TetherDiamond->SetColorAndOpacity(NameColor);
 
-	StatsText->SetText(Stats);
-	StyleFloatingText(StatsText, 11, Color::TextDim(), 60);
-	StatsText->SetVisibility(Detail);
-
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
-	const FString Key = Bindings ? Bindings->GetKey(TEXT("Interact")).GetDisplayName().ToString().ToUpper() : FString(TEXT("E"));
-	PromptText->SetText(FText::FromString(FString::Printf(TEXT("[%s] PICK UP  |  HOLD EQUIP"), *Key)));
-	StyleFloatingText(PromptText, 13, Color::Accent(), 150);
-	PromptText->SetVisibility(Detail);
-
-	// A drop's name pop: the name and its line alone (no curse row: the gun's own label carries the warning).
-	if (bPop)
-	{
-		CurseRow->SetVisibility(ESlateVisibility::Collapsed);
-		FlavorText->SetVisibility(ESlateVisibility::Collapsed);
-		MakerRow->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	// Folded (one of a pile): its rarity's dot where the name would hang, the card gone. Looked at or popping, never.
+	// Folded (one of a pile): its rarity's dot where the name would hang. Looked at or popping, never.
 	const bool bShowDot = bFolded && !bIsFocused && !bPop;
-	Lines->SetVisibility(bShowDot ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	Lines->SetVisibility(bShowDot || bShowCard ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	FoldedDot->SetVisibility(bShowDot ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	if (bShowDot)
 	{

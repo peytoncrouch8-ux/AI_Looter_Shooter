@@ -19,9 +19,9 @@ class UHudMissionCompleteWidget;
 class UHudNotchTallyWidget;
 class UHudPlayerFrameWidget;
 class UHudWeaponSlotsWidget;
+class UGunCardWidget;
 class UImage;
 class UInteractionComponent;
-class ULooterProgressRing;
 class UPlayerMeleeComponent;
 class UPlayerThrowComponent;
 class USizeBox;
@@ -47,7 +47,7 @@ enum class EGrenadeChange : uint8;
  *    name in its rarity's colour after a small rarity gem, with the gun's notches before the gem once it has any (a tally
  *    mark and the count, popping on each kill with it: UHudNotchTallyWidget)
  *  - top-right: the minimap (UHudMinimapWidget); under it the mission tracker (UHudMissionTrackerWidget, a viewport widget
- *    of its own that ALooterHUD makes, which steps aside while the loot card would cover it: GetLootCardBounds)
+ *    of its own that ALooterHUD makes, which steps aside while the in-hand card would cover it: GetLootCardBounds)
  *  - top-left: the frame rate (UHudFrameRateWidget)
  *  - top-centre, its gem 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up;
  *    in the same place, taking turns with it, the mission-complete banner (UHudMissionCompleteWidget) as a mission is turned in;
@@ -61,14 +61,16 @@ enum class EGrenadeChange : uint8;
  *    creature's ward took it or broke, red on a kill; sized by the hit's share of its health, a blast's pellets one
  *    marker; a kill and a break bigger and held longer), and round it the red arcs pointing to where hits came from (UHudDamageIndicatorWidget)
  *  - under the crosshair: what the Interact key does to the thing looked at (UHudInteractPromptWidget), for everything
- *    but loot, which has the comparison card (right-middle); lower, the message plate (the weapon manager's messages)
+ *    but loot, whose card stands over the gun (its label, UWeaponLabelWidget); lower, the message plate (the weapon
+ *    manager's messages)
+ *  - right-middle, while loot is looked at with a gun in hand: "IN HAND" over that gun's card (UGunCardWidget, InHand)
  *  - behind everything: the screen edges' red flash on a hit and pulse at low health (UHudScreenEdgeWidget)
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on activity (firing,
- * reloading, switching, taking damage). The loot comparison card and messages only appear when relevant. Reads the
+ * reloading, switching, taking damage). The in-hand card and messages only appear when relevant. Reads the
  * possessed pawn every frame, so it survives respawns.
  *
  * PlayerHUDWidgetLayout.cpp builds it; PlayerHUDWidget.cpp runs the corners and crosshair; PlayerHUDWidgetPickupCard.cpp
- * fills the loot card and the interaction prompt from the player's interaction component.
+ * fills the in-hand card and the interaction prompt from the player's interaction component.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerHUDWidget : public UUserWidget
@@ -93,18 +95,30 @@ public:
 	UHudWeaponSlotsWidget* GetWeaponSlots() const { return WeaponSlots; }
 
 	/**
-	 * The loot comparison card's rectangle on the desktop (absolute pixels, as Slate lays it out) while it's up; false while
-	 * it's away or not laid out yet. The mission tracker steps aside where it would overlap.
+	 * The in-hand card's rectangle on the desktop (absolute pixels, as Slate lays it out) while it's up; false while it's
+	 * away or not laid out yet. The mission tracker steps aside where it would overlap.
 	 */
 	bool GetLootCardBounds(FVector2D& OutMin, FVector2D& OutMax) const;
 
 	/**
-	 * How far down (HUD pixels) the loot card moves from the right edge's middle, where it stands, so a tall card (a gun with
-	 * a maker's line, traits and notches) keeps its top at ClearTop: under the minimap's frame and the place's name (the
-	 * tracker's top, UHudMissionTrackerWidget::TopFor), but its bottom never goes past BottomKeep above the screen's foot (a
-	 * card too tall for the room between stops there). 0 for a card that fits, or before anything is laid out.
+	 * How far down (HUD pixels) the in-hand card moves from the right edge's middle, where it stands, so a tall card keeps
+	 * its top at ClearTop: under the minimap's frame and the place's name (the tracker's top, UHudMissionTrackerWidget::TopFor),
+	 * but its bottom never goes past BottomKeep above the screen's foot (a card too tall for the room between stops there).
+	 * 0 for a card that fits, or before anything is laid out.
 	 */
 	static float LootCardDrop(float ScreenHeight, float CardHeight, float ClearTop, float BottomKeep = 36.f);
+
+	/**
+	 * The in-hand card (the user's call, 2026-10-28): while loot is looked at with a gun in hand, that gun's card
+	 * (UGunCardWidget, InHand) under "IN HAND" on the right edge, to hold against the looked-at gun's card over it (its
+	 * label's, UWeaponLabelWidget); the interaction prompt under the crosshair for anything else. NativeTick calls it every
+	 * frame with the pawn's components; tests call it.
+	 */
+	void UpdatePickupCard(UWeaponManagerComponent* Manager, const UInteractionComponent* Interaction, float DeltaTime);
+
+	/** The in-hand card (null before the HUD is built), and whether it is up (tests). */
+	UGunCardWidget* GetInHandCard() const { return InHandCard; }
+	bool IsInHandCardShown() const;
 
 	/**
 	 * How far the gun is raised toward the sight (UPlayerViewComponent::GetAimAlpha, eased) when the crosshair is gone: it
@@ -136,8 +150,6 @@ private:
 	void UpdatePlayerFrame(UHealthComponent* Health, float DeltaTime);
 	void UpdateCrosshair(const AWeaponBase* Active, float DeltaTime);
 
-	/** The loot card when the player looks at loot, the interaction prompt for anything else they could use. */
-	void UpdatePickupCard(UWeaponManagerComponent* Manager, const UInteractionComponent* Interaction, float DeltaTime);
 	FString BoundKeyName(FName BindingId, const TCHAR* Fallback) const;
 
 	/** A melee strike's or a grenade's hit: the marker with no gun (never part of a blast). */
@@ -231,20 +243,10 @@ private:
 	/** The gun's notches before the gem (the user's call, 2026-10-14): collapsed for a gun with none. */
 	UPROPERTY(Transient) TObjectPtr<UHudNotchTallyWidget> NotchTally;
 
-	// Loot card and messages
+	// The in-hand card and messages
+	/** Right-middle: "IN HAND" over the gun in hand's card, while loot is looked at with a gun in hand. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> PickupCard;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupName;
-	/** A named gun's flavor line under its name; collapsed for any other gun. */
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupFlavor;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupLevel;
-	/** The gun's notches and curse (LoadoutParts::MakeGunIdeasRows) under its level line; collapsed for a gun with neither. */
-	UPROPERTY(Transient) TObjectPtr<USizeBox> PickupIdeas;
-	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> PickupStatTexts;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupHint;
-	/** The hold's key cap with its progress ring (LooterUI::MakeHoldKeyCap), and the ring and the key's name inside it. */
-	UPROPERTY(Transient) TObjectPtr<UWidget> PickupHoldBar;
-	UPROPERTY(Transient) TObjectPtr<ULooterProgressRing> PickupHoldRing;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupHoldKey;
+	UPROPERTY(Transient) TObjectPtr<UGunCardWidget> InHandCard;
 	UPROPERTY(Transient) TObjectPtr<UWidget> MessagePlate;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MessageText;
 
@@ -263,11 +265,8 @@ private:
 	uint64 GrenadeHitFrame = 0;
 	bool bMuteHitSound = false;
 
-	/** What the loot card's notch and curse rows were built for: rebuilt only when another gun is looked at or a count in it changes. */
-	TWeakObjectPtr<const AWeaponBase> IdeasPickup;
-	int32 IdeasKills = 0;
-	FName IdeasCurse;
-	bool bIdeasLifted = false;
+	/** The gun in hand the in-hand card shows (set again only when another comes into hand or the card shows again). */
+	TWeakObjectPtr<const AWeaponBase> InHandShown;
 
 	// Weapon display state
 	int32 LastMagazine = INDEX_NONE;

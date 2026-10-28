@@ -1,0 +1,83 @@
+@font-face{font-family:Chakra;src:url('file:///C:/Dev/AI_Looter_Shooter/Content/UI/Fonts/ChakraPetch-Regular.ttf');font-weight:400}
+@font-face{font-family:Chakra;src:url('file:///C:/Dev/AI_Looter_Shooter/Content/UI/Fonts/ChakraPetch-Bold.ttf');font-weight:700}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05080b;font-family:Chakra,sans-serif;color:#dcefff}
+.sheet{position:relative;width:1920px;height:1080px;overflow:hidden;background:#05080b}
+.title{position:absolute;left:40px;top:28px;font-weight:700;font-size:30px;letter-spacing:4px;color:#ff9f1c}
+.sub{position:absolute;left:40px;top:70px;font-size:17px;color:#8fb3cc;letter-spacing:.5px}
+.note{font-size:15px;color:#8fb3cc;line-height:1.35}
+.note b{color:#dcefff}
+/* ---- the gun card ---- */
+.card{position:absolute;width:330px;background:linear-gradient(180deg,rgba(7,26,40,.93),rgba(5,18,29,.95));
+ box-shadow:inset 0 0 0 1.3px rgba(90,200,255,.45),0 10px 30px rgba(0,0,0,.55);
+ clip-path:polygon(0 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%)}
+.band{position:relative;height:34px;display:flex;align-items:center;padding:0 12px;gap:9px;font-weight:700;font-size:14px;letter-spacing:2.5px;overflow:hidden}
+.band .mk{width:22px;height:22px;flex:none}
+.band .q{margin-left:auto;font-size:11px;letter-spacing:1.5px;opacity:.85}
+.body{padding:10px 14px 12px}
+.name{font-weight:700;font-size:21px;letter-spacing:1px;line-height:1.05}
+.kind{font-size:13px;color:#8fb3cc;letter-spacing:1.5px;margin-top:3px}
+.dmg{display:flex;align-items:baseline;gap:8px;margin-top:9px}
+.dmg .n{font-weight:700;font-size:40px;line-height:1;color:#dcefff}
+.dmg .x{font-weight:700;font-size:20px;color:#dcefff}
+.dmg .l{font-size:12px;color:#8fb3cc;letter-spacing:2px}
+.dmg .d{margin-left:auto;font-weight:700;font-size:16px}
+.up{color:#6dff7a}.dn{color:#ff7a6b}
+.stat{display:flex;align-items:center;gap:10px;margin-top:7px;font-size:12px;letter-spacing:1.5px;color:#8fb3cc}
+.stat .lab{width:84px}
+.bar{position:relative;flex:1;height:7px;background:rgba(90,200,255,.13);transform:skewX(-18deg)}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:#dcefff}
+.bar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:#ff9f1c}
+.stat .a{width:14px;font-weight:700;font-size:13px;text-align:right}
+.trait{margin-top:10px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;letter-spacing:1.5px}
+.trait span{font-weight:400;color:#8fb3cc;letter-spacing:.5px}
+.keys{margin-top:11px;padding-top:9px;border-top:1px solid rgba(90,200,255,.25);display:flex;gap:16px;font-weight:700;font-size:13px;letter-spacing:1.5px}
+.cap{display:inline-block;min-width:22px;padding:1px 5px;margin-right:5px;text-align:center;color:#23140a;background:linear-gradient(#ffd08a,#ff9f1c);border-radius:2px}
+.verdict{position:absolute;right:12px;top:42px;font-weight:700;font-size:12px;letter-spacing:2px;padding:2px 8px;transform:skewX(-14deg)}
+.verdict.up{background:rgba(109,255,122,.16);box-shadow:inset 0 0 0 1px rgba(109,255,122,.6)}
+.inhand{opacity:.92}
+.inhand .tag{position:absolute;left:0;top:-22px;font-weight:700;font-size:13px;letter-spacing:3px;color:#8fb3cc}
+/* rarity */
+.r-common{color:#e7e7e7}.r-unc{color:#7ce77c}.r-rare{color:#7caaff}.r-epic{color:#cc7cf4}.r-leg{color:#ffcb00}
+.rstrip{position:absolute;left:0;top:34px;bottom:0;width:4px}
+/* maker bands */
+.m-round{background:linear-gradient(#8e3a2a,#6b2a22);color:#efe3c4}
+.m-round:before,.m-round:after{content:'';position:absolute;top:0;bottom:0;width:100%;left:0;
+ background:radial-gradient(circle at 6px 7px,#d9a441 2.2px,transparent 2.6px) 0 0/16px 34px repeat-x,radial-gradient(circle at 6px 27px,#d9a441 2.2px,transparent 2.6px) 0 0/16px 34px repeat-x;opacity:.0}
+.m-round .riv{position:absolute;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f6d98a,#a87a28);}
+.m-round{border-bottom:3px solid #d9a441}
+.m-maud{background:linear-gradient(#efe8d6,#d9cfb6);color:#3a2a10}
+.m-maud{border-bottom:1.5px solid #9a6a1c;box-shadow:inset 0 -5px 0 -3.5px #9a6a1c}
+.m-wind{background:linear-gradient(90deg,#4f8f8a 0 38%,#9a5534 38% 63%,#6f7550 63% 82%,#d8a832 82%);color:#fff6e0;text-shadow:0 1px 0 rgba(0,0,0,.5)}
+.m-wind .tape{position:absolute;width:46px;height:14px;background:rgba(230,220,180,.75);transform:rotate(-8deg)}
+.m-wind .bolt{position:absolute;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#c9c9c4,#55524c);box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.m-mer{background:linear-gradient(#2b3c55,#1f2a38);color:#dfe6ea}
+.m-mer:after{content:'';position:absolute;left:0;right:0;bottom:0;height:7px;
+ background:repeating-linear-gradient(90deg,#dfe6ea 0 1px,transparent 1px 8px),repeating-linear-gradient(90deg,#c99a4a 0 1.5px,transparent 1.5px 40px);
+ -webkit-mask:linear-gradient(#000,#000);opacity:.8}
+.m-mer{border-bottom:1px solid #c99a4a}
+.mono{position:absolute;right:-18px;bottom:-26px;width:150px;height:150px;opacity:.05}
+/* ---- v2 (the user, 2026-10-28: "slim down the boxy style"): no outlines, panels fade out, slanted tabs, lines not boxes ---- */
+.card{background:linear-gradient(100deg,rgba(5,18,29,.90) 0%,rgba(5,18,29,.80) 62%,rgba(5,18,29,0) 100%);box-shadow:none;
+ clip-path:polygon(16px 0,100% 0,100% 100%,0 100%,0 16px)}
+.card:before{content:'';position:absolute;left:16px;right:0;top:0;height:1px;background:linear-gradient(90deg,rgba(90,200,255,.8),rgba(90,200,255,0) 85%)}
+.card:after{content:'';position:absolute;left:0;right:30%;bottom:0;height:1px;background:linear-gradient(90deg,rgba(90,200,255,.45),rgba(90,200,255,0))}
+.band{display:inline-flex;height:26px;margin:10px 0 0 14px;padding:0 22px 0 10px;font-size:12px;letter-spacing:2.5px;gap:7px;
+ clip-path:polygon(0 0,100% 0,calc(100% - 12px) 100%,0 100%)}
+.band .mk{width:17px;height:17px}
+.band .q{display:none}
+.quirk{position:absolute;top:16px;font-size:11px;letter-spacing:1.5px;color:#8fb3cc}
+.m-round{border-bottom:none;box-shadow:inset 0 -2px 0 #d9a441}
+.m-maud{border-bottom:none;box-shadow:inset 0 -1.5px 0 #9a6a1c}
+.m-mer{border-bottom:none}
+.m-round .riv{width:5px;height:5px}
+.rstrip{left:0;top:16px;width:3px;background-clip:content-box;-webkit-mask:linear-gradient(#000 30%,transparent)}
+.body{padding:8px 16px 12px 16px}
+.verdict{top:12px;box-shadow:none!important;background:none!important;padding:0;transform:none;font-size:12px}
+.verdict.up:before{content:'▲ '}
+.keys{border-top:none;background:linear-gradient(90deg,rgba(90,200,255,.0),rgba(90,200,255,0));position:relative}
+.keys:before{content:'';position:absolute;left:0;right:20%;top:0;height:1px;background:linear-gradient(90deg,rgba(90,200,255,.35),transparent)}
+.cap{transform:skewX(-12deg);border-radius:0}
+.mono{opacity:.04}
+.mono{display:none}
+.m-wind .tape{width:30px;height:10px;right:4px!important;top:-2px!important}

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "UI/Cards/LooterCardBackdrop.h"
 #include "UI/Inventory/LoadoutGunStage.h"
 #include "UI/Inventory/LoadoutRules.h"
 #include "Weapons/AmmoTypes.h"
@@ -12,12 +13,14 @@ class FSlateWindowElementList;
 class UBorder;
 class UCanvasPanel;
 class UCanvasPanelSlot;
+class UGunCardWidget;
 class UHorizontalBox;
 class UImage;
 class ULoadoutPaintLayer;
 class ULooterButton;
 class UMaterialInstanceDynamic;
 class UScrollBox;
+class USizeBox;
 class UTextBlock;
 class UVerticalBox;
 class UPlayerShieldComponent;
@@ -25,55 +28,67 @@ class UWeaponManagerComponent;
 struct FShieldInstanceData;
 struct FWeaponInstanceData;
 
-/** The loadout page's layout, on the inventory's 1600 x 900 page. */
+/** The loadout page's layout, on the inventory's 1600 x 900 page (the user's 2026-10-28 ask: the backpack back on the right). */
 namespace LoadoutLayout
 {
-	/** Left: everything carried, as one list (the equip slots over the backpack, then the ammo). */
+	/** Left: EQUIPPED (a row per slot), WARD, then AMMO. */
 	inline constexpr float ListX = 56.f;
 	inline constexpr float ListWidth = 488.f;
+	/** Right: the BACKPACK, a row per place in it (empty ones faint), scrolling when they don't fit. */
+	inline constexpr float BackpackX = 1056.f;
+	inline constexpr float BackpackWidth = 488.f;
 	inline constexpr float ColumnTop = 104.f;
 	inline constexpr float ColumnBottom = 836.f;
-	inline constexpr float SlotRowHeight = 80.f;
-	inline constexpr float BackpackRowHeight = 42.f;
-	/** The ward worn's row (SHIELD, 2026-10-22), between the slots and the backpack; the spares' are BackpackRowHeight. */
-	inline constexpr float WardRowHeight = 58.f;
+	/** A section's header line, the gap under it, and the gap over a section after the first. */
+	inline constexpr float HeaderHeight = 22.f;
+	inline constexpr float HeaderGap = 8.f;
+	inline constexpr float SectionGap = 20.f;
+	inline constexpr float SlotRowHeight = 72.f;
+	/** The ward worn's row; the spares' are BackpackRowHeight. */
+	inline constexpr float WardRowHeight = 56.f;
+	inline constexpr float BackpackRowHeight = 46.f;
 	inline constexpr float RowGap = 6.f;
-	/** Right: the card of the gun under the cursor, always in the same place. */
-	inline constexpr float CardX = 1144.f;
-	inline constexpr float CardWidth = 400.f;
-	/** Middle: the showcase, the gun under the cursor turning; on Inspect it takes the list's place too. */
-	inline const FVector2D ShowcaseTopLeft(566.f, 250.f);
-	inline const FVector2D ShowcaseSize(556.f, 556.f * ALoadoutGunStage::ImageHeight / ALoadoutGunStage::ImageWidth);
+	/** Where both columns' first row starts: A / D keep the nearest row by where the rows are laid out from here. */
+	inline constexpr float FirstRowTop = ColumnTop + HeaderHeight + HeaderGap;
+	/** Middle: the showcase, the gun under the cursor turning, with its card under it. */
+	inline const FVector2D ShowcaseTopLeft(550.f, 96.f);
+	inline const FVector2D ShowcaseSize(500.f, 500.f * ALoadoutGunStage::ImageHeight / ALoadoutGunStage::ImageWidth);
+	/** The middle card (the gun card, or a ward's or an empty slot's card): its top; centred on the page. */
+	inline constexpr float CardTop = 440.f;
+	inline constexpr float CardWidth = 420.f;
+	/** Inspect: the lists put away, the gun large on the left, every stat on a card in the backpack's place. */
 	inline const FVector2D InspectShowcaseTopLeft(56.f, 150.f);
-	inline const FVector2D InspectShowcaseSize(1040.f, 1040.f * ALoadoutGunStage::ImageHeight / ALoadoutGunStage::ImageWidth);
+	inline const FVector2D InspectShowcaseSize(980.f, 980.f * ALoadoutGunStage::ImageHeight / ALoadoutGunStage::ImageWidth);
+	inline constexpr float InspectCardX = BackpackX;
+	inline constexpr float InspectCardWidth = BackpackWidth;
 	/** The key hints, centered at the bottom. */
 	inline const FVector2D PromptBarPosition(800.f, 852.f);
-	/** A new card's contents slide in over this long; a gun put into a row flashes its rarity for this long. */
+	/** A plain card's contents slide in over this long; a gun put into a row flashes for this long. */
 	inline constexpr float CardIntroSeconds = 0.16f;
 	inline constexpr float FlashSeconds = 0.55f;
+	/** The card's open sound plays at most this often (browsing fast would rattle it). */
+	inline constexpr double CardOpenCueGap = 0.12;
 }
 
 /**
- * The inventory's first page, the loadout (the 2026-10-08 redesign, after the user found the character stand confusing
- * and dull): one thing in focus at a time.
- *  - left, one list: EQUIPPED (a row per equip slot: its number, lit while in hand, the gun's icon, name in its rarity's
- *    colour, kind, level and damage) over the BACKPACK (a row per gun: rarity stripe, icon, name, level, damage, and an
- *    arrow against the gun it would replace; sorted best-for-slot, by rarity, level or newest with R), then the ammo
- *  - middle: the gun under the cursor, built from its parts, swinging in and turning slowly (drag to turn, click to
- *    inspect)
- *  - right: that gun's card, always in the same place: name, kind and level, its damage big, four stats with bars and
- *    green or red arrows against the gun it would replace, its parts' best bonuses, and its notches or curse as badges
- *  - Inspect (X, or a click on the gun) hides the list, shows the gun large and opens the card to everything: every stat,
- *    fire mode and ammo, the parts and their bonuses, the curse's perk and drawback
+ * The inventory's first page, the loadout (the 2026-10-08 redesign, laid out again 2026-10-28: the user wanted the
+ * backpack back on the right). Two columns of rows in the "Wide Sweep" row look (ULooterCardBackdrop), the gun under the
+ * cursor between them:
+ *  - left: EQUIPPED (a row per equip slot: its number, lit while in hand, the gun's icon, name in its rarity's colour,
+ *    kind, level and damage), the WARD (the ward worn, then the spares; LoadoutWidgetWard.cpp), then the ammo and silver
+ *  - right: the BACKPACK (a row per gun: icon, name, level, damage, an arrow against the gun it would replace; sorted
+ *    best-for-slot, by rarity, level or newest with R), then a faint EMPTY row per free place
+ *  - middle: the gun under the cursor, built from its parts, turning slowly (drag to turn, click to inspect), and under it
+ *    its gun card (UGunCardWidget, Loadout: compared with the gun of the slot it would go to). A ward or an empty slot
+ *    gets a plain card there instead
+ *  - Inspect (X, or a click on the gun) hides the lists, shows the gun large, and every stat, the parts and the history
+ *    on a card wearing its maker's sweep where the backpack was
  *  - bottom: what the keys do right now; each hint is also a button
- * E on a slot picks it as the swap target and goes to the backpack; E on a backpack gun swaps it into the target slot (or
- * equips it into a free one). F takes a gun in hand, M moves a slot (then E puts it down), C stows a slot's gun in the
- * backpack, Q drops. Guns can also be dragged: onto a slot, a backpack gun, the backpack, or the showcase (in hand). W / S
- * browse, A / D jump between the slots and the backpack, Esc backs out (a drag, a move, Inspect) then closes; Tab and I
- * close; 2 and 3 (or the tabs) turn to the ledger and the missions.
- * The WARD section between them (SHIELD, 2026-10-22; LoadoutWidgetWard.cpp): the ward worn, then the spares carried; the card
- * shows a ward's numbers against the one worn, the showcase its Inked icon. E on a spare wears it (the worn one takes its
- * place), E on the worn ward goes to the spares, C stows it, Q drops either.
+ * W / S move within a column (the slots then the wards; the backpack), A / D switch columns to the nearest row. E on a
+ * slot picks it as the swap target and goes to the backpack; E on a backpack gun swaps it into the target slot (or equips
+ * it into a free one). F takes a gun in hand, M moves a slot (then E puts it down), C stows a slot's gun in the backpack,
+ * Q drops, R sorts, X inspects. Guns can also be dragged: onto a slot, a backpack gun, the backpack, or the showcase (in
+ * hand). Esc backs out (a drag, a move, Inspect) then closes; Tab and I close; the number keys (or the tabs) turn pages.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULoadoutWidget : public UUserWidget
@@ -105,6 +120,14 @@ public:
 		TArray<FString> Prompts;
 		/** For each backpack row, in the list's order: it carries the JUNK tag (its gun is marked junk). */
 		TArray<bool> JunkRows;
+		/** Where the columns stand on the page (their left edge), and the backpack's faint EMPTY rows. */
+		float EquippedX = 0.f;
+		float BackpackX = 0.f;
+		int32 EmptyBackpackRows = 0;
+		/** The middle gun card: shown, the gun's name on it and its verdict ("UPGRADE", or empty). */
+		bool bGunCard = false;
+		FString CardName;
+		FString CardVerdict;
 	};
 	FView GetView() const;
 
@@ -121,7 +144,7 @@ protected:
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 
 private:
-	/** The list's two parts. */
+	/** Where the cursor is: the left column's slots or wards, or the right column's backpack. */
 	enum class EZone : uint8 { Slots, Backpack, Wards };
 
 	/** Where a dragged gun can be let go. */
@@ -145,18 +168,19 @@ private:
 		EAction Action;
 	};
 
-	/** A slot or backpack row, and the parts that restyle as the cursor moves (the widgets live in the widget tree). */
+	/** A slot, ward or backpack row, and the parts that restyle as the cursor moves (the widgets live in the widget tree). */
 	struct FRow
 	{
 		ULooterButton* Button = nullptr;
-		UImage* Fill = nullptr;
-		UImage* Line = nullptr;
-		/** The rarity's flash as a gun lands in the row. */
-		UImage* Flash = nullptr;
+		/** The row's glass (a background) and its lines (the lit outline, the tick). */
+		ULooterCardBackdrop* Fill = nullptr;
+		ULooterCardBackdrop* Lines = nullptr;
+		/** The lit wash flashed as a gun lands in the row (faded out by TickMotion). */
+		ULooterCardBackdrop* Flash = nullptr;
 		/** A slot's number, lit while its gun is in hand (slot rows only). */
 		UBorder* Badge = nullptr;
 		UTextBlock* BadgeText = nullptr;
-		/** A word on the row's top edge: MOVING, SWAP TARGET. */
+		/** A word on the row's top edge: MOVING, SWAP TARGET, WORN. */
 		UBorder* Chip = nullptr;
 		UTextBlock* ChipText = nullptr;
 		/** NEW, until the cursor has been on the gun. */
@@ -166,6 +190,7 @@ private:
 		/** Its gun's identity (LoadoutRules::GunIdentity), 0 for an empty slot. */
 		uint32 Identity = 0;
 		FLinearColor Rarity = FLinearColor::White;
+		bool bFilled = false;
 	};
 
 	UFUNCTION()
@@ -174,41 +199,67 @@ private:
 	UFUNCTION()
 	void HandleAmmoChanged(EAmmoType Type, int32 Carried);
 
-	// --- Rows and the list (LoadoutWidgetRows.cpp) ---
+	// --- The page (LoadoutWidgetLayout.cpp) ---
+	UCanvasPanelSlot* PlaceOnPage(UWidget* Widget, const FVector2D& Position, const FVector2D& Size, const FVector2D& Alignment = FVector2D::ZeroVector);
+	/** A section's header line, HeaderHeight tall: its title in orange, its count after it, and Extra on its right end. */
+	UWidget* MakeSectionHeader(const TCHAR* Title, UTextBlock*& OutCount, UWidget* Extra = nullptr);
+	void BuildLeftColumn();
+	void BuildRightColumn();
+	/** The middle's gun card, the plain card (a ward's, an empty slot's, Inspect's) and the drag ghost. */
+	void BuildCards();
+	/** Places the showcase and the cards and shows or hides the lists, for Inspect or not. */
+	void ApplyMode();
+	void ApplyStageBrush();
+
+	// --- Rows (LoadoutWidgetRows.cpp) ---
 	void RebuildSlots();
 	FRow MakeSlotRow(int32 SlotIndex);
-	/** The backpack list, in the sort's order (best for slot: the target slot's kind first). */
+	/** The backpack list, in the sort's order (best for slot: the target slot's kind first), then its free places. */
 	void RebuildList();
 	FRow MakeBackpackRow(int32 Row);
-	/** The parts every row shares: its fill, outline, rarity stripe and flash, round its content, in a button. */
-	FRow WrapRow(UWidget* Content, const FLinearColor& Rarity, bool bHasGun, float Height, FName Action, int32 Index);
+	/** A faint EMPTY row for a free place in the backpack (nothing to press: a gun dropped on it is stowed). */
+	UWidget* MakeEmptyBackpackRow();
+	/** The parts every row shares: its backdrops, flash and chip, round its content, in a button. */
+	FRow WrapRow(UWidget* Content, const FLinearColor& Rarity, bool bHasItem, float Height, FName Action, int32 Index);
+	void ApplyRowState(const FRow& Row, ELooterRowState State) const;
 	void Restyle();
 	void RefreshCounts();
 	void RefreshAmmo();
 	void RefreshPrompts();
 	TArray<FPrompt> CurrentPrompts() const;
 
-	// --- The card and the showcase (LoadoutWidgetInspect.cpp) ---
-	/** The card's contents for the gun under the cursor: at a glance, or everything while inspecting. */
+	// --- The cards and the showcase (LoadoutWidgetInspect.cpp) ---
+	/** The middle card for what's under the cursor (the gun card, a ward's, an empty slot's), or Inspect's. */
 	void RefreshCard();
-	/** The line over the name: where the gun is, or how it compares; Arrow 1 / -1 puts the green up or red down arrow first. */
+	/** Shows the plain card (else the gun card); Sweep dresses the plain card's head in that gun's maker's sweep (Inspect). */
+	void ShowPlainCard(bool bPlain, const FWeaponInstanceData* Sweep = nullptr);
+	/** The card's open sound, at most every CardOpenCueGap. */
+	void PlayCardOpenCue();
+	/** The plain card's line over the name: where the gun is, or how it compares; Arrow 1 / -1 puts the green up or red down arrow first. */
 	void AddCardBanner(const FString& Words, const FLinearColor& WordsColor, int32 Arrow = 0);
-	/** The stats, against the gun it would replace (Against, when there is one of its kind). */
+	/** Every stat, against the gun it would replace (Against, when there is one of its kind). */
 	void AddCardStats(const FWeaponInstanceData& Gun, const FWeaponInstanceData* Against);
-	void AddCardBadges(const FWeaponInstanceData& Gun);
-	void AddCardInspect(const FWeaponInstanceData& Gun, const FWeaponInstanceData* Against);
+	void AddCardInspect(const FWeaponInstanceData& Gun);
 	void AddCardEmpty(const FString& Title, const FString& Words);
 	/** The showcase's gun follows the cursor. */
 	void RefreshShowcase();
-	/** Places the showcase and shows or hides the list, for Inspect or not. */
-	void ApplyMode();
-	void ApplyStageBrush();
 
-	// --- Cursor and actions (LoadoutWidgetInput.cpp) ---
+	// --- The cursor in the two columns (LoadoutWidgetColumns.cpp) ---
+	/** W / S: Rows up or down within the cursor's column. */
 	void MoveCursor(int32 Rows);
-	void JumpTo(EZone NewZone);
+	/** A / D: to the other column's row nearest the cursor's on the page. */
+	void MoveColumn(bool bRight);
+	/** Where a row's middle is laid out on the page (y), from the layout's numbers and the backpack's scroll. */
+	float RowCenterY(EZone RowZone, int32 Index) const;
 	/** bSound: a key moved it (the mouse's own hover sound plays from the button). */
 	void MoveCursorTo(EZone NewZone, int32 NewIndex, bool bScrollIntoView, bool bSound);
+	/** The cursor moved onto a gun: it isn't new any more. */
+	void MarkSeen();
+	/** A gun just landed in a row: it flashes there. */
+	void FlashRow(EZone RowZone, int32 Index);
+	void PlayCue(const TCHAR* Cue) const;
+
+	// --- Actions (LoadoutWidgetInput.cpp) ---
 	void RunAction(EAction Action);
 	/** E / click: see the class comment. */
 	void Activate();
@@ -220,11 +271,6 @@ private:
 	void ToggleInspect();
 	void CycleSort();
 	void CancelPick();
-	/** The cursor moved onto a gun: it isn't new any more. */
-	void MarkSeen();
-	/** A gun just landed in a row: its rarity flashes there. */
-	void FlashRow(EZone RowZone, int32 Index);
-	void PlayCue(const TCHAR* Cue) const;
 
 	// --- Drag and drop (LoadoutWidgetDrag.cpp) ---
 	/** The gun row under a screen point, as the zone and index it was pressed in (backpack: the list row). */
@@ -254,11 +300,11 @@ private:
 	void PaintFront(const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId) const;
 	/** A point on the showcase's gun, in the paint layers' space (the page's). */
 	bool ProjectToPage(const FVector& WorldLocation, FVector2f& OutPoint) const;
-	/** The card sliding in, a row's flash fading, the rarity glow breathing. */
+	/** The plain card sliding in, a row's flash fading. */
 	void TickMotion(float DeltaTime);
 
-	// --- The wards (LoadoutWidgetWard.cpp) ---
-	/** Puts the WARD header and its list into the column (between the slots and the backpack). */
+	// --- The wards (LoadoutWidgetWard.cpp; their card LoadoutWidgetWardCard.cpp) ---
+	/** Adds the WARD header and its list to the left column (after the slots). */
 	void BuildWardSection(UVerticalBox* Column);
 	/** The ward rows (the one worn, then the spares), and the shield bound so its changes refresh the screen. */
 	void RebuildWards();
@@ -283,7 +329,7 @@ private:
 	const FWeaponInstanceData* SlotItem(int32 SlotIndex) const;
 	/** The backpack gun on a row of the list. */
 	const FWeaponInstanceData* ListItem(int32 Row) const;
-	/** The gun under the cursor, or null (an empty slot). */
+	/** The gun under the cursor, or null (an empty slot, a ward). */
 	const FWeaponInstanceData* CursorItem() const;
 	/** What a backpack gun is compared with: the target slot's gun of the same kind, else null. */
 	const FWeaponInstanceData* Baseline() const;
@@ -306,7 +352,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULoadoutPaintLayer> FrontLayer;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ShowcaseHint;
 	UPROPERTY(Transient) TObjectPtr<UCanvasPanelSlot> ShowcaseHintSlot;
-	UPROPERTY(Transient) TObjectPtr<UWidget> ListColumn;
+	/** The two columns (put away on Inspect). */
+	UPROPERTY(Transient) TObjectPtr<UWidget> LeftColumn;
+	UPROPERTY(Transient) TObjectPtr<UWidget> RightColumn;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> EquippedCount;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> SlotList;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> BackpackCount;
@@ -314,10 +362,20 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SortText;
 	UPROPERTY(Transient) TObjectPtr<UScrollBox> ListBox;
 	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> AmmoRow;
-	UPROPERTY(Transient) TObjectPtr<UImage> CardGlow;
-	UPROPERTY(Transient) TObjectPtr<UImage> CardFill;
-	UPROPERTY(Transient) TObjectPtr<UImage> CardLine;
-	UPROPERTY(Transient) TObjectPtr<UImage> CardStripe;
+	/** The middle's gun card. */
+	UPROPERTY(Transient) TObjectPtr<UGunCardWidget> GunCard;
+	/** The plain card: a ward's or an empty slot's in the middle, Inspect's on the right. Its head wears a maker's sweep on Inspect. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> PlainCard;
+	UPROPERTY(Transient) TObjectPtr<UCanvasPanelSlot> PlainCardSlot;
+	UPROPERTY(Transient) TObjectPtr<USizeBox> PlainCardSize;
+	UPROPERTY(Transient) TObjectPtr<USizeBox> PlainCardLimit;
+	UPROPERTY(Transient) TObjectPtr<ULooterCardBackdrop> PlainFill;
+	UPROPERTY(Transient) TObjectPtr<ULooterCardBackdrop> PlainLines;
+	UPROPERTY(Transient) TObjectPtr<UWidget> CardHead;
+	UPROPERTY(Transient) TObjectPtr<UWidget> CardHeadGap;
+	UPROPERTY(Transient) TObjectPtr<UImage> CardHeadMark;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> CardHeadWord;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> CardHeadQuirk;
 	UPROPERTY(Transient) TObjectPtr<UScrollBox> CardScroll;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> CardBox;
 	UPROPERTY(Transient) TObjectPtr<UWidget> DragGhost;
@@ -334,11 +392,11 @@ private:
 	TArray<FRow> ListRows;
 	/** The ward rows: the one worn (always, "No ward" when none), then a row per spare. */
 	TArray<FRow> WardRows;
+	/** The backpack's free places, shown as EMPTY rows after its guns. */
+	int32 NumEmptyRows = 0;
 	TWeakObjectPtr<UPlayerShieldComponent> BoundShield;
 	/** Backpack indices in the order the list shows them. */
 	TArray<int32> ListOrder;
-	/** How many of the listed guns are the target slot's kind (they come first when sorted best for slot). */
-	int32 NumSameKind = 0;
 
 	EZone Zone = EZone::Slots;
 	int32 CursorIndex = 0;
@@ -373,16 +431,18 @@ private:
 	float TurnInput = 0.f;
 
 	// Motion (LoadoutWidgetPaint.cpp).
-	/** The gun the card shows, to slide its contents in when it changes. */
+	/** What the plain card shows, to slide its contents in when it changes. */
 	uint32 CardIdentity = 0;
 	float CardIntroAge = 100.f;
-	/** The card's gun's rarity colour; the top rarities' glow breathes. */
+	/** The shown gun's rarity colour (the showcase's ring); the top rarities' pool breathes. */
 	FLinearColor CardRarity = FLinearColor::White;
 	bool bCardBreathes = false;
+	/** When the card's open sound last played (FPlatformTime seconds). */
+	double LastCardOpenCue = -1.0;
 	EZone FlashZone = EZone::Slots;
 	int32 FlashIndex = INDEX_NONE;
 	float FlashAge = 100.f;
-	/** Seconds the screen has been open: the rarity glow breathes on it. */
+	/** Seconds the screen has been open: the rarity pool breathes on it. */
 	float Clock = 0.f;
 
 	FSlateBrush DiscBrush;

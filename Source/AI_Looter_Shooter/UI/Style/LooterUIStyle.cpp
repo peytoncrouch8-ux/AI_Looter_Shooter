@@ -250,6 +250,42 @@ namespace LooterUI::Color
 	FLinearColor ElementEmber()      { return Hex(255, 94, 46); }
 	FLinearColor ElementSoulLight()  { return Hex(255, 230, 166); }
 	FLinearColor ElementGraveSalt()  { return Hex(204, 240, 246); }
+
+	// The gun card (Docs/Work/2026-10-28-UICharacter/mockup/wide.png).
+	FLinearColor CardFillTop()       { return Hex(8, 30, 44, 235); }
+	FLinearColor CardFillBottom()    { return Hex(6, 20, 30, 219); }
+	FLinearColor CardLine()          { return Hex(90, 200, 255, 217); }
+	FLinearColor CardBracket()       { return Hex(90, 200, 255, 178); }
+	FLinearColor CardShine()         { return Hex(255, 255, 255, 150); }
+	FLinearColor RowFill()           { return Hex(8, 30, 44, 199); }
+	FLinearColor RowEmpty()          { return Hex(8, 30, 44, 89); }
+	FLinearColor RowLitWash()        { return Hex(255, 159, 28, 66); }
+	FLinearColor RowLitWashEnd()     { return Hex(255, 159, 28, 8); }
+	FLinearColor RowLitLine()        { return Hex(255, 159, 28, 191); }
+
+	// The makers' sweeps: their guns' paints (Affixes/WeaponMakers.cpp) as sRGB.
+	FLinearColor MakerRoundhouse()     { return Hex(142, 58, 42); }
+	FLinearColor MakerRoundhouseDark() { return Hex(107, 42, 34); }
+	FLinearColor MakerRoundhouseInk()  { return Hex(239, 227, 196); }
+	FLinearColor MakerRoundhouseTrim() { return Hex(217, 164, 65); }
+	FLinearColor MakerSaintMaud()      { return Hex(232, 224, 204); }
+	FLinearColor MakerSaintMaudDark()  { return Hex(207, 196, 168); }
+	FLinearColor MakerSaintMaudInk()   { return Hex(58, 42, 16); }
+	FLinearColor MakerSaintMaudTrim()  { return Hex(154, 106, 28); }
+	FLinearColor MakerWindfallTeal()   { return Hex(79, 143, 138); }
+	FLinearColor MakerWindfallRust()   { return Hex(154, 85, 52); }
+	FLinearColor MakerWindfallOlive()  { return Hex(111, 117, 80); }
+	FLinearColor MakerWindfallInk()    { return Hex(255, 246, 224); }
+	FLinearColor MakerWindfallTrim()   { return Hex(230, 180, 58); }
+	FLinearColor MakerWindfallTape()   { return Hex(230, 220, 180, 191); }
+	FLinearColor MakerWindfallBolt()   { return Hex(184, 182, 176); }
+	FLinearColor MakerMeridian()       { return Hex(47, 71, 102); }
+	FLinearColor MakerMeridianDark()   { return Hex(31, 42, 56); }
+	FLinearColor MakerMeridianInk()    { return Hex(223, 230, 234); }
+	FLinearColor MakerMeridianTrim()   { return Hex(201, 154, 74); }
+	FLinearColor MakerPlain()          { return Hex(74, 79, 86); }
+	FLinearColor MakerPlainDark()      { return Hex(44, 48, 54); }
+	FLinearColor MakerPlainTrim()      { return Hex(143, 150, 156); }
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,132 @@
+// Round 3 (the user, 2026-10-28: change the card's size or layout, its colours or font, "add a little bit of curvy-ness"):
+// three versions of the gun card and an inventory row, each with soft curves. node variants.js -> variants.png
+const fs = require('fs');
+const path = require('path');
+const here = __dirname;
+const shot = 'file:///C:/Dev/AI_Looter_Shooter/Saved/Screenshots/Tools/maud_shotgun.png';
+const RAR = { unc: '#7ce77c', rare: '#7caaff', epic: '#cc7cf4', leg: '#ffcb00' };
+const wheel = c => `<svg width="16" height="16" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="${c}" stroke-width="10"/>${[0, 45, 90, 135].map(a => `<line x1="50" y1="12" x2="50" y2="88" stroke="${c}" stroke-width="7" transform="rotate(${a} 50 50)"/>`).join('')}<circle cx="50" cy="50" r="13" fill="${c}"/></svg>`;
+
+const css = `
+@font-face{font-family:Chakra;src:url('file:///C:/Dev/AI_Looter_Shooter/Content/UI/Fonts/ChakraPetch-Regular.ttf');font-weight:400}
+@font-face{font-family:Chakra;src:url('file:///C:/Dev/AI_Looter_Shooter/Content/UI/Fonts/ChakraPetch-Bold.ttf');font-weight:700}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05080b;color:#e8eef2}
+.sheet{position:relative;width:1920px;height:1080px;overflow:hidden;font-family:Chakra}
+.col{position:absolute;top:150px;width:560px}
+.h{font-family:Chakra;font-weight:700;font-size:30px;letter-spacing:4px;color:#ff9f1c}
+.d{font-family:Chakra;font-size:16px;color:#c2d2dc;margin-top:6px;line-height:1.35;height:66px}
+.u{color:#6dff7a}.w{color:#ff7a6b}
+.bar{position:relative;height:6px;border-radius:3px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+.bar u{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:1px}
+
+/* A: warm brass, compact */
+.A{font-family:'Saira',sans-serif;width:300px;padding:12px 16px 14px;border-radius:14px 14px 14px 4px;
+ background:linear-gradient(160deg,rgba(32,26,20,.92),rgba(20,17,14,.86));box-shadow:0 8px 28px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,214,150,.18)}
+.A .tab{display:inline-flex;align-items:center;gap:6px;padding:3px 12px 3px 8px;border-radius:10px;background:linear-gradient(#8e3a2a,#6b2a22);
+ font-family:Chakra;font-weight:700;font-size:11px;letter-spacing:2.5px;color:#efe3c4;box-shadow:inset 0 -1.5px 0 #d9a441}
+.A .v{float:right;font-family:Chakra;font-weight:700;font-size:12px;letter-spacing:2px;margin-top:4px}
+.A .n{font-family:Chakra;font-weight:700;font-size:21px;margin-top:8px;letter-spacing:.5px}
+.A .k{font-size:13px;color:#b9a98f;letter-spacing:1px}
+.A .dm{display:flex;align-items:baseline;gap:6px;margin-top:6px}
+.A .dm b{font-family:Chakra;font-size:38px;line-height:1}
+.A .st{display:grid;grid-template-columns:78px 1fr 14px;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#b9a98f;letter-spacing:1px}
+.A .bar{background:rgba(255,214,150,.12)} .A .bar i{background:#f2e6d0} .A .bar u{background:#ff9f1c}
+.A .t{margin-top:9px;font-size:13px;color:#ff5e2e;font-weight:700}.A .t span{color:#b9a98f;font-weight:400}
+.A .keys{margin-top:10px;display:flex;gap:14px;font-family:Chakra;font-weight:700;font-size:12px;letter-spacing:1.5px}
+.cap{display:inline-block;padding:0 7px;margin-right:5px;border-radius:9px;color:#23140a;background:linear-gradient(#ffd08a,#ff9f1c)}
+
+/* B: night glass, asymmetric curve, neutral charcoal */
+.B{font-family:'Rajdhani',sans-serif;width:330px;padding:14px 18px 14px 20px;border-radius:22px 4px 22px 4px;
+ background:radial-gradient(ellipse at 0% 0%,rgba(46,52,58,.94),rgba(16,19,22,.88) 70%);box-shadow:0 8px 28px rgba(0,0,0,.5)}
+.B:before{content:'';position:absolute;left:0;top:22px;bottom:22px;width:3px;border-radius:2px;background:var(--r)}
+.B .tab{display:inline-flex;align-items:center;gap:6px;font-family:Chakra;font-weight:700;font-size:11px;letter-spacing:3px;color:#efe3c4}
+.B .tab .pill{width:26px;height:4px;border-radius:2px;background:linear-gradient(90deg,#8e3a2a,#d9a441)}
+.B .v{float:right;font-family:Chakra;font-weight:700;font-size:12px;letter-spacing:2px}
+.B .n{font-family:Chakra;font-weight:700;font-size:22px;margin-top:6px}
+.B .k{font-size:15px;font-weight:600;color:#9aa7b0;letter-spacing:1px}
+.B .dm{position:relative;display:flex;align-items:baseline;gap:6px;margin-top:4px;padding-bottom:6px}
+.B .dm b{font-family:Chakra;font-size:42px;line-height:1}
+.B .arc{position:absolute;left:-4px;right:40px;bottom:-2px;height:14px;border-bottom:1.5px solid rgba(90,200,255,.55);border-radius:0 0 50% 50%/0 0 100% 100%}
+.B .st{display:grid;grid-template-columns:84px 1fr 14px;align-items:center;gap:8px;margin-top:7px;font-size:14px;font-weight:600;color:#9aa7b0;letter-spacing:1px}
+.B .bar{background:rgba(255,255,255,.1)} .B .bar i{background:#e8eef2} .B .bar u{background:#ff9f1c}
+.B .t{margin-top:9px;font-size:15px;font-weight:700;color:#ff5e2e}.B .t span{color:#9aa7b0;font-weight:500}
+.B .keys{margin-top:10px;display:flex;gap:14px;font-family:Chakra;font-weight:700;font-size:12px;letter-spacing:1.5px}
+
+/* C: wide and short, two columns, a curved header sweep */
+.C{font-family:'Exo 2',sans-serif;width:420px;border-radius:18px;overflow:hidden;
+ background:linear-gradient(180deg,rgba(8,30,44,.9),rgba(6,20,30,.86));box-shadow:0 8px 28px rgba(0,0,0,.5)}
+.C .top{position:relative;height:30px;background:linear-gradient(90deg,#8e3a2a,#6b2a22 70%,transparent);display:flex;align-items:center;gap:7px;padding-left:14px;
+ font-family:Chakra;font-weight:700;font-size:11px;letter-spacing:2.5px;color:#efe3c4;clip-path:ellipse(85% 160% at 0% 0%)}
+.C .v{position:absolute;right:16px;top:8px;font-family:Chakra;font-weight:700;font-size:12px;letter-spacing:2px}
+.C .in{display:grid;grid-template-columns:150px 1fr;gap:4px 16px;padding:8px 16px 12px}
+.C .n{grid-column:1/3;font-family:Chakra;font-weight:700;font-size:20px}
+.C .k{grid-column:1/3;font-size:13px;color:#9fb6c4;margin-top:-4px}
+.C .dm b{font-family:Chakra;font-size:40px;line-height:1}
+.C .dm span{display:block;font-size:12px;color:#9fb6c4;letter-spacing:1.5px;margin-top:4px}
+.C .dm span b{font-size:15px;line-height:1}
+.C .st{display:grid;grid-template-columns:74px 1fr 12px;align-items:center;gap:7px;margin-top:5px;font-size:12px;color:#9fb6c4}
+.C .bar{background:rgba(90,200,255,.14)} .C .bar i{background:#dcefff} .C .bar u{background:#ff9f1c}
+.C .t{grid-column:1/3;font-size:13px;font-weight:700;color:#ff5e2e}.C .t span{color:#9fb6c4;font-weight:400}
+.C .keys{grid-column:1/3;display:flex;gap:14px;font-family:Chakra;font-weight:700;font-size:12px;letter-spacing:1.5px}
+
+/* rows */
+.row{position:relative;width:470px;height:52px;margin-top:8px;display:flex;align-items:center;gap:12px;padding-left:16px}
+.row .nm{font-family:Chakra;font-weight:700;font-size:16px}
+.row .kk{font-size:12px;letter-spacing:1px}
+`;
+
+const stats = [['FIRE RATE', 0.42, 0.55, 'w'], ['MAGAZINE', 0.62, 0.4, 'u'], ['RELOAD', 0.7, 0.5, 'u']];
+const statRows = cls => stats.map(([l, v, o, a]) => `<div class="st"><span>${l}</span><div class="bar"><i style="width:${v * 100}%"></i><u style="left:${o * 100}%"></u></div><b class="${a}">${a === 'u' ? '▲' : '▼'}</b></div>`).join('');
+const keys = `<div class="keys"><span><span class="cap">E</span>TAKE</span><span style="opacity:.7">HOLD <span class="cap">E</span>EQUIP</span></div>`;
+
+const A = `<div class="A" style="position:relative">
+ <span class="tab">${wheel('#efe3c4')}ROUNDHOUSE</span><span class="v u">▲ UPGRADE</span>
+ <div class="n" style="color:${RAR.rare}">ROUNDHOUSE BRUTE</div><div class="k">Level 6 · Pump shotgun</div>
+ <div class="dm"><b>14</b><span style="font-weight:700">×8</span><span class="k">damage</span><span class="u" style="margin-left:auto;font-weight:700">▲ +22</span></div>
+ ${statRows('A')}<div class="t">◆ EMBER <span>sets them alight</span></div>${keys}</div>`;
+const B = `<div class="B" style="position:relative;--r:${RAR.rare}">
+ <span class="tab"><span class="pill"></span>ROUNDHOUSE</span><span class="v u">▲ UPGRADE</span>
+ <div class="n" style="color:${RAR.rare}">ROUNDHOUSE BRUTE</div><div class="k">LV 6 · PUMP SHOTGUN</div>
+ <div class="dm"><b>14</b><span style="font-weight:700;font-size:20px">×8</span><span class="k">DAMAGE</span><span class="u" style="margin-left:auto;font-weight:700;font-size:17px">▲ +22</span><div class="arc"></div></div>
+ ${statRows('B')}<div class="t">◆ EMBER <span>sets them alight</span></div>${keys}</div>`;
+const C = `<div class="C" style="position:relative">
+ <div class="top">${wheel('#efe3c4')}ROUNDHOUSE</div><span class="v u">▲ UPGRADE</span>
+ <div class="in"><div class="n" style="color:${RAR.rare}">ROUNDHOUSE BRUTE</div><div class="k">Level 6 · Pump shotgun</div>
+ <div class="dm"><b>14<span style="display:inline;font-size:18px;color:#e8eef2">×8</span></b><span>DAMAGE <b class="u">▲ +22</b></span></div>
+ <div>${statRows('C')}</div><div class="t">◆ EMBER <span>sets them alight</span></div>${keys}</div></div>`;
+
+const rowsA = `<div class="row" style="border-radius:26px;background:linear-gradient(90deg,rgba(255,159,28,.28),rgba(255,159,28,0) 85%)"><div style="width:4px;height:28px;border-radius:2px;background:#ff9f1c"></div><div><div class="nm" style="color:${RAR.rare}">ROUNDHOUSE BRUTE</div><div class="kk" style="color:#b9a98f;font-family:Saira">Shotgun · Level 6</div></div></div>
+ <div class="row" style="border-radius:26px;background:linear-gradient(90deg,rgba(32,26,20,.8),rgba(32,26,20,0) 85%)"><div style="width:4px;height:28px;border-radius:2px;background:${RAR.epic}"></div><div><div class="nm" style="color:${RAR.epic}">SAINT MAUD VESPER</div><div class="kk" style="color:#b9a98f;font-family:Saira">Revolver · Level 6</div></div></div>`;
+const rowsB = `<div class="row" style="border-radius:20px 3px 20px 3px;background:linear-gradient(90deg,rgba(255,159,28,.26),rgba(255,159,28,0) 85%)"><div style="width:3px;height:26px;border-radius:2px;background:#ff9f1c"></div><div><div class="nm" style="color:${RAR.rare}">ROUNDHOUSE BRUTE</div><div class="kk" style="color:#9aa7b0;font-family:Rajdhani;font-weight:600;font-size:14px">SHOTGUN · LV 6</div></div></div>
+ <div class="row" style="border-radius:20px 3px 20px 3px;background:linear-gradient(90deg,rgba(40,46,52,.8),rgba(40,46,52,0) 85%)"><div style="width:3px;height:26px;border-radius:2px;background:${RAR.epic}"></div><div><div class="nm" style="color:${RAR.epic}">SAINT MAUD VESPER</div><div class="kk" style="color:#9aa7b0;font-family:Rajdhani;font-weight:600;font-size:14px">REVOLVER · LV 6</div></div></div>`;
+const rowsC = `<div class="row" style="border-radius:14px;background:linear-gradient(90deg,rgba(255,159,28,.28),rgba(255,159,28,.04));box-shadow:inset 0 0 0 1px rgba(255,159,28,.5)"><div><div class="nm" style="color:${RAR.rare}">ROUNDHOUSE BRUTE</div><div class="kk" style="color:#9fb6c4;font-family:'Exo 2'">Shotgun · Level 6</div></div></div>
+ <div class="row" style="border-radius:14px;background:rgba(8,30,44,.75)"><div><div class="nm" style="color:${RAR.epic}">SAINT MAUD VESPER</div><div class="kk" style="color:#9fb6c4;font-family:'Exo 2'">Revolver · Level 6</div></div></div>`;
+
+const col = (x, letter, title, desc, cardHtml, rows) => `<div class="col" style="left:${x}px">
+ <div class="h">${letter} · ${title}</div><div class="d">${desc}</div>
+ <div style="margin-top:20px;height:390px;padding:26px 20px;border-radius:18px;background:url('${shot}') -900px -480px/2403px auto;position:relative">${cardHtml}</div>
+ <div style="margin-top:26px;font-family:Chakra;font-weight:700;font-size:13px;letter-spacing:3px;color:#8fb3cc">INVENTORY ROWS</div>${rows}</div>`;
+
+const html = `<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;600;700&family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet">
+<style>${css}</style></head><body><div class="sheet" style="background:radial-gradient(ellipse at 50% 20%,#132634,#05080b 70%)">
+ <div style="position:absolute;left:40px;top:30px;font-weight:700;font-size:32px;letter-spacing:4px;color:#ff9f1c">PICK A CARD: SIZE, COLOUR, FONT AND CURVES</div>
+ <div style="position:absolute;left:40px;top:78px;font-size:17px;color:#8fb3cc">Same gun, three versions. Titles stay Chakra Petch (the game's lettering); the small text changes. All fonts are free to ship.</div>
+ ${col(40, 'A', 'WARM BRASS', 'Compact. Warm dark-bronze glass, brass and orange, cream text. Soft round corners, round bar ends, pill keys. Small text in Saira.', A, rowsA)}
+ ${col(680, 'B', 'NIGHT GLASS', 'Medium. Neutral charcoal (no blue), one curved corner pair, a thin arc under the damage. Small text in Rajdhani.', B, rowsB)}
+ ${col(1320, 'C', 'WIDE SWEEP', 'Wide and short: damage left, bars right. The current blue glass, round corners, a curved maker sweep on top. Small text in Exo 2.', C, rowsC)}
+</div></body></html>`;
+
+fs.writeFileSync(path.join(here, 'variants.html'), html);
+(async () => {
+	const pw = require('playwright');
+	const browser = await pw.chromium.launch();
+	const pg = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+	await pg.goto('file:///' + path.join(here, 'variants.html').replace(/\\/g, '/'));
+	await pg.waitForTimeout(1500);
+	await pg.screenshot({ path: path.join(here, 'variants.png') });
+	await browser.close();
+	console.log('done');
+})();

@@ -211,11 +211,15 @@ void ULootLabelSubsystem::Tick(float DeltaTime)
 		}
 	}
 	const float Ease = CVarLootLabelsEase.GetValueOnGameThread();
+	// The looked-at card stays wholly on screen (it may cover its gun then, never run off the top).
+	const FVector2D View = PC ? UWidgetLayoutLibrary::GetViewportSize(PC) / FMath::Max(UWidgetLayoutLibrary::GetViewportScale(PC), 0.01f)
+		: FVector2D::ZeroVector;
 	for (int32 Index = 0; Index < Labels.Num(); ++Index)
 	{
 		const float Was = Labels[Index].Box.Previous;
 		const float Now = Ease > 0.f ? FMath::FInterpTo(Was, Targets[Index], DeltaTime, Ease) : Targets[Index];
 		Shown.Add(Labels[Index].Widget, Now);
-		Labels[Index].Widget->SetRenderTranslation(FVector2D(0.0, Now));
+		const FVector2D Keep = Labels[Index].Box.bFocused ? LootLabelLayout::KeepOnScreen(Labels[Index].Box, Now, View, 16.f) : FVector2D::ZeroVector;
+		Labels[Index].Widget->SetRenderTranslation(FVector2D(Keep.X, Now + Keep.Y));
 	}
 }

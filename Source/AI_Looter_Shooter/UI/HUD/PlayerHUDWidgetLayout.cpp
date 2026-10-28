@@ -14,9 +14,8 @@
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudScreenEdgeWidget.h"
 #include "UI/HUD/HudWeaponSlotsWidget.h"
-#include "UI/Style/LooterProgressRingWidget.h"
+#include "UI/Cards/GunCardWidget.h"
 #include "UI/Style/LooterUIStyle.h"
-#include "UI/Style/WeaponText.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -32,16 +31,21 @@
 #include "Components/VerticalBoxSlot.h"
 
 // UPlayerHUDWidget's layout as RebuildWidget builds it: the screen edges, the corner clusters, the crosshair and hit
-// marker, the level-up banner, the loot card, the interaction prompt and the feeds. Running it frame by frame is in
+// marker, the level-up banner, the in-hand card, the interaction prompt and the feeds. Running it frame by frame is in
 // PlayerHUDWidget.cpp.
 
 using namespace LooterUI;
 
 namespace
 {
-	constexpr int32 NumCompareStats = 9;
-	/** The loot card's least width (inside its padding); the notch and curse rows wrap at it. */
-	constexpr float PickupCardWidth = 320.f;
+	/**
+	 * The "IN HAND" word over the in-hand card (the mockup's, wide.png): small, dim and widely spaced like the HUD's other
+	 * labels, right-aligned a little in from the card's cut corner, with a small gap down to the card.
+	 */
+	constexpr int32 InHandWordSize = 12;
+	constexpr int32 InHandWordSpacing = 250;
+	constexpr float InHandWordInset = 8.f;
+	constexpr float InHandWordGap = 6.f;
 	/**
 	 * How far left of the screen's middle the pickup feed's lines end: past half the widest crosshair (80 px) with room
 	 * to spare, so a line never covers the crosshair or the hit marker.
@@ -289,52 +293,23 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			PlaceOnCanvas(Root, EmberRow, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-ClusterRight, -(ClusterBottom + ArmsLift)));
 		}
 
-		// Right-middle: comparison card for the loot you're looking at.
+		// Right-middle, while loot is looked at with a gun in hand: "IN HAND" over that gun's card, to hold against the
+		// looked-at gun's card over it (the user's call, 2026-10-28). UpdatePickupCard fills it and shows it.
 		{
 			UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			Box->AddChildToVerticalBox(MakeSection(WidgetTree, TEXT("Loot")));
-			PickupName = MakeText(WidgetTree, TEXT(""), 17, Color::Text(), false, 80);
-			Box->AddChildToVerticalBox(PickupName)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
-			// A named gun's line under its name (UpdatePickupCard collapses it for any other gun).
-			PickupFlavor = MakeText(WidgetTree, TEXT(""), 12, LooterWeaponText::FlavorColor());
-			PickupFlavor->SetFont(LooterWeaponText::FlavorFont(12));
-			PickupFlavor->SetVisibility(ESlateVisibility::Collapsed);
-			Box->AddChildToVerticalBox(PickupFlavor)->SetPadding(FMargin(0.f, 1.f, 0.f, 0.f));
-			PickupLevel = MakeText(WidgetTree, TEXT(""), 11, Color::TextDim(), false, 120);
-			Box->AddChildToVerticalBox(PickupLevel)->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
-			// A gun's notches and curse (UpdatePickupCard fills it, and collapses it, space and all, for a gun with neither).
-			// As wide as the card's least width, so a long perk wraps there instead of stretching the card.
-			PickupIdeas = MakeSized(WidgetTree, nullptr, PickupCardWidth);
-			PickupIdeas->SetVisibility(ESlateVisibility::Collapsed);
-			Box->AddChildToVerticalBox(PickupIdeas)->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
-			for (int32 Stat = 0; Stat < NumCompareStats; ++Stat)
-			{
-				UTextBlock* StatText = MakeText(WidgetTree, TEXT(""), 13, Color::Text());
-				PickupStatTexts.Add(StatText);
-				Box->AddChildToVerticalBox(StatText)->SetPadding(FMargin(0.f, 1.f));
-			}
-			PickupHint = MakeText(WidgetTree, TEXT(""), 13, Color::Accent(), false, 150);
-			Box->AddChildToVerticalBox(PickupHint)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-			// The key cap with its ring: fills while the interact key is held to equip; hidden (keeping its space, so the card
-			// doesn't jump) otherwise.
-			ULooterProgressRing* HoldRing = nullptr;
-			UTextBlock* HoldKey = nullptr;
-			PickupHoldBar = LooterUI::MakeHoldKeyCap(WidgetTree, HoldRing, HoldKey);
-			PickupHoldRing = HoldRing;
-			PickupHoldKey = HoldKey;
-			PickupHoldBar->SetVisibility(ESlateVisibility::Hidden);
-			UVerticalBoxSlot* HoldSlot = Box->AddChildToVerticalBox(PickupHoldBar);
-			HoldSlot->SetHorizontalAlignment(HAlign_Left);
-			HoldSlot->SetPadding(FMargin(4.f, 6.f, 0.f, 0.f));
-
-			USizeBox* CardSize = MakeSized(WidgetTree, Box, 0.f);
-			CardSize->SetMinDesiredWidth(PickupCardWidth);
-			PickupCard = MakePlate(WidgetTree, CardSize, FMargin(16.f, 12.f));
+			UTextBlock* InHandWord = MakeFloatingText(WidgetTree, InHandWordSize, Color::TextDim(), InHandWordSpacing, ETextJustify::Right);
+			InHandWord->SetText(FText::FromString(TEXT("IN HAND")));
+			UVerticalBoxSlot* WordSlot = Box->AddChildToVerticalBox(InHandWord);
+			WordSlot->SetHorizontalAlignment(HAlign_Right);
+			WordSlot->SetPadding(FMargin(0.f, 0.f, InHandWordInset, InHandWordGap));
+			InHandCard = WidgetTree->ConstructWidget<UGunCardWidget>(UGunCardWidget::StaticClass(), TEXT("InHandCard"));
+			Box->AddChildToVerticalBox(InHandCard)->SetHorizontalAlignment(HAlign_Right);
+			PickupCard = Box;
 			PickupCard->SetVisibility(ESlateVisibility::Collapsed);
 			PlaceOnCanvas(Root, PickupCard, FAnchors(1.f, 0.5f), FVector2D(1.f, 0.5f), FVector2D(-32.f, 0.f));
 		}
 
-		// Under the crosshair: what the Interact key does to the thing looked at (loot has the card above instead).
+		// Under the crosshair: what the Interact key does to the thing looked at (loot has its card over the gun instead).
 		InteractPrompt = WidgetTree->ConstructWidget<UHudInteractPromptWidget>(UHudInteractPromptWidget::StaticClass());
 		PlaceOnCanvas(Root, InteractPrompt, Center, FVector2D(0.5f, 0.f), FVector2D(0.f, UHudInteractPromptWidget::Gap));
 

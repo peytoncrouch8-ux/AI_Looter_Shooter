@@ -165,6 +165,53 @@ namespace LooterUI
 		FLinearColor ElementSoulLight();
 		/** #CCF0F6, Grave-salt's pale cyan-white (paler than the ward bar and the kit's cyan lines). */
 		FLinearColor ElementGraveSalt();
+
+		// --- The gun card and its rows ("Wide Sweep", the user's pick 2026-10-28; UI/Cards) ---
+
+		/** The card's glass, top and foot (a background: it fades with the UI transparency). */
+		FLinearColor CardFillTop();
+		FLinearColor CardFillBottom();
+		/** Its 2 px cyan line along the top and down the cut, and the fainter bracket at the bottom-left. */
+		FLinearColor CardLine();
+		FLinearColor CardBracket();
+		/** The shine across an Epic's or a Legendary's sweep. */
+		FLinearColor CardShine();
+		/** A list row's glass, an empty slot's, and the lit row's orange wash (left, right) and outline. */
+		FLinearColor RowFill();
+		FLinearColor RowEmpty();
+		FLinearColor RowLitWash();
+		FLinearColor RowLitWashEnd();
+		FLinearColor RowLitLine();
+
+		// --- The gun makers' card sweeps (their paints on the gun: Affixes/WeaponMakers.cpp) ---
+
+		/** Roundhouse: rail-car red to oxblood, cream ink, brass trim. */
+		FLinearColor MakerRoundhouse();
+		FLinearColor MakerRoundhouseDark();
+		FLinearColor MakerRoundhouseInk();
+		FLinearColor MakerRoundhouseTrim();
+		/** Saint Maud: ivory enamel, dark ink, antique gold. */
+		FLinearColor MakerSaintMaud();
+		FLinearColor MakerSaintMaudDark();
+		FLinearColor MakerSaintMaudInk();
+		FLinearColor MakerSaintMaudTrim();
+		/** Windfall: patchwork plates (teal, rust, olive), warm white ink, mustard trim, its tape and bolts. */
+		FLinearColor MakerWindfallTeal();
+		FLinearColor MakerWindfallRust();
+		FLinearColor MakerWindfallOlive();
+		FLinearColor MakerWindfallInk();
+		FLinearColor MakerWindfallTrim();
+		FLinearColor MakerWindfallTape();
+		FLinearColor MakerWindfallBolt();
+		/** Meridian: navy steel, silver ink, brass ruler ticks. */
+		FLinearColor MakerMeridian();
+		FLinearColor MakerMeridianDark();
+		FLinearColor MakerMeridianInk();
+		FLinearColor MakerMeridianTrim();
+		/** No maker (a named gun): plain gunmetal. */
+		FLinearColor MakerPlain();
+		FLinearColor MakerPlainDark();
+		FLinearColor MakerPlainTrim();
 	}
 
 	enum class EShape : uint8

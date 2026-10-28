@@ -1,11 +1,12 @@
-// ULoadoutWidget: the showcase's ring under the gun (in its rarity's colour), and the screen's motion: the card sliding
-// in, a row's flash as a gun lands in it, and the top rarities' glow breathing.
+// ULoadoutWidget: the showcase's ring under the gun (in its rarity's colour, its pool breathing for the top rarities), and
+// the screen's motion: the plain card's contents sliding in, a row's flash as a gun lands in it. (The gun card runs its own
+// intro.)
 
 #include "UI/Inventory/LoadoutWidget.h"
+#include "UI/Cards/LooterCardBackdrop.h"
 #include "UI/Inventory/LoadoutGunStage.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
-#include "Components/Image.h"
 #include "Components/VerticalBox.h"
 #include "Rendering/DrawElements.h"
 
@@ -19,8 +20,8 @@ namespace
 	/** A breathing glow swings this far either side of its brightness, once every BreathSeconds. */
 	constexpr float BreathDepth = 0.25f;
 	constexpr float BreathSeconds = 2.8f;
-	/** How strongly a landing gun's row flashes at first. */
-	constexpr float FlashStrength = 0.6f;
+	/** How strongly a landing gun's row flashes at first: the whole lit wash again over the row. */
+	constexpr float FlashStrength = 1.f;
 	/** The card's contents slide in from this far right, from this faint. */
 	constexpr float IntroOffset = 14.f;
 	constexpr float IntroOpacity = 0.2f;
@@ -113,7 +114,7 @@ void ULoadoutWidget::TickMotion(float DeltaTime)
 {
 	Clock += DeltaTime;
 
-	// The card's contents slide in when it changes to another gun: quick, so browsing never waits on it.
+	// The plain card's contents slide in when it changes to another thing: quick, so browsing never waits on it.
 	if (CardBox && CardIntroAge < LoadoutLayout::CardIntroSeconds + DeltaTime)
 	{
 		CardIntroAge += DeltaTime;
@@ -122,7 +123,7 @@ void ULoadoutWidget::TickMotion(float DeltaTime)
 		CardBox->SetRenderTranslation(FVector2D(IntroOffset * (1.f - Alpha), 0.f));
 	}
 
-	// A gun that just landed in a row flashes its rarity there, fading fast.
+	// A gun that just landed in a row flashes the lit wash there, fading fast.
 	if (FlashIndex != INDEX_NONE)
 	{
 		FlashAge += DeltaTime;
@@ -130,18 +131,11 @@ void ULoadoutWidget::TickMotion(float DeltaTime)
 		if (Rows.IsValidIndex(FlashIndex) && Rows[FlashIndex].Flash)
 		{
 			const float Fade = FMath::Square(1.f - FMath::Clamp(FlashAge / LoadoutLayout::FlashSeconds, 0.f, 1.f));
-			Rows[FlashIndex].Flash->SetColorAndOpacity(Rows[FlashIndex].Rarity * FLinearColor(1.f, 1.f, 1.f, FlashStrength * Fade));
+			Rows[FlashIndex].Flash->SetRenderOpacity(FlashStrength * Fade);
 		}
 		if (FlashAge >= LoadoutLayout::FlashSeconds)
 		{
 			FlashIndex = INDEX_NONE;
 		}
-	}
-
-	// The top rarities' glow behind the card breathes, slowly.
-	if (CardGlow && bCardBreathes)
-	{
-		const float Breath = 1.f + BreathDepth * FMath::Sin(UE_TWO_PI * Clock / BreathSeconds);
-		CardGlow->SetColorAndOpacity(CardRarity * FLinearColor(1.f, 1.f, 1.f, 0.14f * Breath));
 	}
 }
