@@ -89,6 +89,16 @@ namespace ChestShow
 	/** Whether a tier's loot fountains out piece by piece (tier 5) rather than all at once. */
 	bool Fountains(int32 Tier);
 
+	/** No fountain piece flies within this many degrees of the opener's bearing from the chest. */
+	inline constexpr float FountainClearOfOpener = 40.f;
+
+	/**
+	 * Which way tier 5's Index-th piece flies (degrees round the chest's forward, + to its right, Jitter added): to the sides in
+	 * turn, each pair a little further round, mirrored to the other side when it would land toward the opener (OpenerBearing,
+	 * the same measure; unset when nobody's there).
+	 */
+	float FountainTurn(int32 Index, float Jitter, TOptional<float> OpenerBearing);
+
 	/** The glow slot's name on a tier's models ("ChestTier3LockGlow"), or none where the tier hasn't the slot. */
 	FName GlowSlot(int32 Tier, EChestGlow Glow);
 }

@@ -205,6 +205,20 @@ bool ChestShow::Fountains(int32 Tier)
 	return Tier >= 5;
 }
 
+float ChestShow::FountainTurn(int32 Index, float Jitter, TOptional<float> OpenerBearing)
+{
+	// To the chest's sides in turn, each pair a little further round. A piece bound for where the opener stands goes to the
+	// other side instead: one stood at the chest's front corner (the Widows' strongbox, 2026-10-28) had an Epic land at their
+	// feet, its beam filling the view.
+	const float Side = (Index % 2 == 0) ? 1.f : -1.f;
+	const float Turn = Side * (60.f + 18.f * static_cast<float>(Index / 2)) + Jitter;
+	if (OpenerBearing.IsSet() && FMath::Abs(FMath::FindDeltaAngleDegrees(Turn, OpenerBearing.GetValue())) < FountainClearOfOpener)
+	{
+		return -Turn;
+	}
+	return Turn;
+}
+
 FName ChestShow::GlowSlot(int32 Tier, EChestGlow Glow)
 {
 	if (Tier < 1 || Tier > FChestKindInfo::NumTiers)

@@ -117,7 +117,10 @@ void AMissionItem::BeginPlay()
 		BoundRunner = Runner;
 		ChangedHandle = Runner->OnChanged.AddUObject(this, &AMissionItem::HandleRunnerChanged);
 	}
-	if (!GetMission())
+	// Only where missions run: behind the main menu (the editor's Play opens the level under the menu's game mode first)
+	// the runner is idle and knows no mission, and every item warned falsely (playtest 2026-10-28).
+	const UMissionRunner* ActiveRunner = BoundRunner.Get();
+	if (ActiveRunner && ActiveRunner->IsActive() && !GetMission())
 	{
 		UE_LOG(LogLooter, Warning, TEXT("%s: no mission has an item %s, so it's never there to take."), *GetActorNameOrLabel(), *ItemId.ToString());
 	}

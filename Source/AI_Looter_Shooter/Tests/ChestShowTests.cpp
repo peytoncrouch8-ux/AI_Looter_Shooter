@@ -333,4 +333,31 @@ bool FChestShowModelsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FChestShowFountainClearTest, "Looter.Loot.ChestShow.FountainClear",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FChestShowFountainClearTest::RunTest(const FString& Parameters)
+{
+	// Tier 5's pieces fly to the chest's sides in turn and never toward the opener, wherever they stand (playtest 2026-10-28:
+	// an Epic landed at the feet of a player stood at the Widows' strongbox's front corner).
+	TestEqual(TEXT("Nobody there: the first piece to the right"), ChestShow::FountainTurn(0, 0.f, {}), 60.f);
+	TestEqual(TEXT("...the second to the left"), ChestShow::FountainTurn(1, 0.f, {}), -60.f);
+	TestEqual(TEXT("...the third a little further round"), ChestShow::FountainTurn(2, 0.f, {}), 78.f);
+	TestEqual(TEXT("Stood square in front: nothing changes"), ChestShow::FountainTurn(1, 0.f, TOptional<float>(0.f)), -60.f);
+	for (float Bearing = -180.f; Bearing <= 180.f; Bearing += 15.f)
+	{
+		for (int32 Index = 0; Index < 8; ++Index)
+		{
+			for (const float Jitter : { -6.f, 0.f, 6.f })
+			{
+				const float Turn = ChestShow::FountainTurn(Index, Jitter, TOptional<float>(Bearing));
+				const float Clear = FMath::Abs(FMath::FindDeltaAngleDegrees(Turn, Bearing));
+				TestTrue(*FString::Printf(TEXT("Opener at %.0f deg, piece %d (jitter %.0f): flies %.0f deg, %.0f clear of them"), Bearing, Index,
+					Jitter, Turn, Clear), Clear >= ChestShow::FountainClearOfOpener);
+			}
+		}
+	}
+	return true;
+}
+
 #endif

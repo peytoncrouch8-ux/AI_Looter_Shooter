@@ -182,11 +182,21 @@ void AChest::DropLoot()
 	Show.FountainClock = 0.f;
 	// Up and out in a high arc to the chest's sides, left and right in turn, each a little further round. Thrown across its
 	// front, the pieces landed where the player stood to open it, a beam filling the view (checked in PIE 2026-10-28).
-	auto FountainVelocity = [this, &Random](int32 Index)
+	// Nor where the opener stands, off to a front corner (ChestShow::FountainTurn).
+	const FVector Forward = GetActorForwardVector().GetSafeNormal2D();
+	TOptional<float> OpenerBearing;
+	if (const APawn* Opener = World->GetFirstPlayerController() ? World->GetFirstPlayerController()->GetPawn() : nullptr)
 	{
-		const float Side = (Index % 2 == 0) ? 1.f : -1.f;
-		const float Turn = Side * (60.f + 18.f * static_cast<float>(Index / 2)) + Random.FRandRange(-6.f, 6.f);
-		const FVector Out = GetActorForwardVector().GetSafeNormal2D().RotateAngleAxis(Turn, FVector::UpVector);
+		const FVector ToOpener = (Opener->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+		if (!ToOpener.IsNearlyZero() && !Forward.IsNearlyZero())
+		{
+			OpenerBearing = FMath::RadiansToDegrees(FMath::Atan2(FVector::CrossProduct(Forward, ToOpener).Z, FVector::DotProduct(Forward, ToOpener)));
+		}
+	}
+	auto FountainVelocity = [this, &Random, &Forward, &OpenerBearing](int32 Index)
+	{
+		const float Turn = ChestShow::FountainTurn(Index, Random.FRandRange(-6.f, 6.f), OpenerBearing);
+		const FVector Out = Forward.RotateAngleAxis(Turn, FVector::UpVector);
 		return Out * TossForward * 1.15f * Random.FRandRange(0.9f, 1.1f) + FVector::UpVector * TossUp * 1.6f * Random.FRandRange(0.95f, 1.05f);
 	};
 	for (const FWeaponInstanceData& Instance : Roll.Weapons)
