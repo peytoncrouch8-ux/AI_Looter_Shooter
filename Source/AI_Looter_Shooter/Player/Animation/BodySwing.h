@@ -35,6 +35,13 @@ struct AI_LOOTER_SHOOTER_API FBodySwingSettings
 	 * body starts and stops at about 3 g, which swung Crane's hook out level on every step off (2026-10-20).
 	 */
 	float Carry = 0.f;
+	/**
+	 * The share of the body's own turn carried straight to the points each step (turned round its pivot, their speed with
+	 * them; 0: all of it left to their inertia). Cloth worn on a body turns with it: left to the springs, a quick turn (a
+	 * mouse flick, the hero stand spun by a drag) swept the anchors round and the cloth whipped out wide and lagged.
+	 * Scaled by Looter.Body.Swing.TurnCarry.
+	 */
+	float TurnCarry = 0.f;
 };
 
 /** A limb the swinging points keep clear of: a segment between two points (component space) and the distance kept. */
@@ -91,6 +98,17 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	 * the bones out this side, the cloth staying outside the legs.
 	 */
 	FVector Outward = FVector::ZeroVector;
+	/**
+	 * The body's turn (world) and the place it turns about (world; the component's origin), set by the caller each frame:
+	 * Settings.TurnCarry of its turn since the last step is handed to the points. Left as they are, nothing turns.
+	 */
+	FQuat BodyRotation = FQuat::Identity;
+	FVector BodyPivot = FVector::ZeroVector;
+	/** The body's turn and pivot last frame and at the last fixed step (between them each step's are found). */
+	FQuat LastBodyRotation = FQuat::Identity;
+	FVector LastBodyPivot = FVector::ZeroVector;
+	FQuat LastStepRotation = FQuat::Identity;
+	FVector LastStepPivot = FVector::ZeroVector;
 
 	/** Puts every point on its target, at rest (the first frame, after a teleport). */
 	void Reset(TConstArrayView<FVector> Targets);
@@ -103,7 +121,8 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	 * It steps in fixed 1/120 s steps (the leftover carried), so every frame rate swings alike; Shown is what to draw.
 	 * No point goes under the floor (so a crouch lays the hem on the ground), and the last may then lie nearer its head
 	 * than its length (Floor.LastReach). A point a limb (or the floor, or the ceiling over its head) pushes keeps no speed
-	 * into it, and the push gives it none. Settings.Carry of the anchor's move is handed straight on to the points.
+	 * into it, and the push gives it none. Settings.TurnCarry of the body's turn (BodyRotation about BodyPivot) turns the
+	 * points with it, and Settings.Carry of the rest of the anchor's move is handed straight on to them.
 	 */
 	void Step(const FVector& Anchor, TConstArrayView<FVector> Targets, TConstArrayView<float> Lengths,
 		TConstArrayView<FBodySwingCapsule> Capsules, const FBodySwingSettings& Settings, float DeltaSeconds,

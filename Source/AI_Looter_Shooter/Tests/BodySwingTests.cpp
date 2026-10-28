@@ -285,6 +285,9 @@ bool FBodySwingKindsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The hook: a pendulum (full gravity), stiffer and quicker to settle than the lantern, going partly with him"),
 		FMath::IsNearlyEqual(Hook.Gravity, 1.f) && Hook.Stiffness > Lantern.Stiffness && Hook.Damping > Lantern.Damping && Hook.Carry > 0.f);
 	TestTrue(TEXT("Long hair goes partly with him too"), FBodySwing::SettingsFor(TEXT("longhair")).Carry > 0.f);
+	TestTrue(TEXT("Worn cloth turns with the body; the hook and the lantern, hung off it, swing more of a turn"),
+		Duster.TurnCarry >= 0.85f && Tails.TurnCarry >= 0.85f && Cape.TurnCarry >= 0.85f && Hook.TurnCarry < Duster.TurnCarry
+		&& Lantern.TurnCarry < Hook.TurnCarry && Lantern.TurnCarry > 0.f);
 	return true;
 }
 
@@ -368,6 +371,93 @@ bool FBodySwingRestTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("At rest against the limb it lies still (%.2f cm of wander in its last second)"), Wander), Wander < 0.3f);
 	const FVector Last = Sim.Points.Last();
 	TestTrue(TEXT("...outside it"), FVector::Dist(Last, FMath::ClosestPointOnSegment(Last, Back.A, Back.B)) > Back.Radius - 1.5f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingTurnTest, "Looter.Player.BodySwing.Turn",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBodySwingTurnTest::RunTest(const FString& Parameters)
+{
+	// A skirt chain on the hip, 15 cm off the body's turning axis (the origin), leaning 20 degrees out, settles; then the
+	// body yaws 90 degrees in one frame (a mouse flick, the hero stand spun) and holds. Turned with the body (TurnCarry),
+	// the cloth keeps near its turned rest pose; left to the springs, it whipped out wide and lagged.
+	const FBodySwingSettings Skirt = FBodySwing::SettingsFor(TEXT("skirt_sl"));
+	FBodySwingSettings Free = Skirt;
+	Free.TurnCarry = 0.f;
+	TestTrue(FString::Printf(TEXT("The duster's skirt turns with the body (TurnCarry %.2f)"), Skirt.TurnCarry), Skirt.TurnCarry >= 0.85f);
+	const FVector Hip(15.0, 0.0, 100.0);
+	const double LeanRadians = FMath::DegreesToRadians(20.0);
+	const FVector Lean(FMath::Sin(LeanRadians), 0.0, -FMath::Cos(LeanRadians));
+	struct FTurnSwing
+	{
+		/** The worst bone's angle off its turned rest (degrees): the most after the turn, and the most from 0.5 s to 1 s on. */
+		float Peak = 0.f;
+		float Settled = 0.f;
+	};
+	auto Turn = [&](const FBodySwingSettings& Settings)
+	{
+		FTurnSwing Result;
+		FBodySwingPoints Sim;
+		const float Fps = 60.f;
+		const FQuat Turned(FVector::UpVector, UE_HALF_PI);
+		TArray<FVector> RestWays;
+		for (int32 Frame = 0; Frame < 90; ++Frame)
+		{
+			const bool bTurned = Frame >= 30;
+			const FQuat Body = bTurned ? Turned : FQuat::Identity;
+			const FVector Anchor = Body.RotateVector(Hip);
+			TArray<FVector> Targets;
+			for (int32 Index = 1; Index <= SwingTestCount; ++Index)
+			{
+				Targets.Add(Anchor + Body.RotateVector(Lean) * (SwingTestLength * Index));
+			}
+			Sim.BodyRotation = Body;
+			Sim.BodyPivot = FVector::ZeroVector;
+			Sim.Step(Anchor, Targets, SwingTestLengths(), {}, Settings, 1.f / Fps);
+			// Its rest: where it settled before the turn (gravity's share sags it a little off its targets), turned.
+			FVector Head = Anchor;
+			if (Frame == 29)
+			{
+				for (int32 Index = 0; Index < SwingTestCount; ++Index)
+				{
+					RestWays.Add((Sim.Points[Index] - Head).GetSafeNormal());
+					Head = Sim.Points[Index];
+				}
+			}
+			else if (bTurned && RestWays.Num() == SwingTestCount)
+			{
+				float Worst = 0.f;
+				for (int32 Index = 0; Index < SwingTestCount; ++Index)
+				{
+					const FVector Want = Turned.RotateVector(RestWays[Index]);
+					const FVector Has = (Sim.Points[Index] - Head).GetSafeNormal();
+					const float Degrees = FMath::RadiansToDegrees(static_cast<float>(FMath::Acos(FMath::Clamp(FVector::DotProduct(Want, Has), -1.0, 1.0))));
+					Worst = FMath::Max(Worst, Degrees);
+					Head = Sim.Points[Index];
+				}
+				Result.Peak = FMath::Max(Result.Peak, Worst);
+				if (Frame >= 60)
+				{
+					Result.Settled = FMath::Max(Result.Settled, Worst);
+				}
+			}
+		}
+		return Result;
+	};
+	const FTurnSwing With = Turn(Skirt);
+	const FTurnSwing Without = Turn(Free);
+	TestTrue(FString::Printf(TEXT("Half a second after the turn it's near its turned rest (%.1f degrees off at most)"), With.Settled), With.Settled < 6.f);
+	TestTrue(FString::Printf(TEXT("...and swung far less than left to the springs (%.1f degrees at most, against %.1f)"), With.Peak, Without.Peak),
+		With.Peak < 20.f && With.Peak < Without.Peak * 0.25f);
+	TestTrue(FString::Printf(TEXT("(Left to the springs it whipped out: %.1f degrees, still %.1f half a second on)"), Without.Peak, Without.Settled),
+		Without.Settled > With.Settled * 2.f);
+
+	// Turned all the way with the body (TurnCarry 1), the cloth hardly moves on it: the turn alone flings nothing.
+	FBodySwingSettings Worn = Skirt;
+	Worn.TurnCarry = 1.f;
+	const FTurnSwing Rigid = Turn(Worn);
+	TestTrue(FString::Printf(TEXT("Carried whole, a turn barely moves it (%.2f degrees)"), Rigid.Peak), Rigid.Peak < 3.f);
 	return true;
 }
 

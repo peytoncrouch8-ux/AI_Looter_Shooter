@@ -6,6 +6,8 @@
 FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 {
 	FBodySwingSettings Settings;
+	// TurnCarry: worn things turn with the body (only a little lag and swing is left of a quick turn); the hook and the
+	// lantern hang off it on links and a wire, so more of a turn swings them.
 	// Gravity is a small share: the animated pose already hangs, and the spring would hold a full share's sag off it
 	// (g x share / stiffness^2: 2 cm on the skirt at 0.08).
 	if (ChainName.StartsWith(TEXT("hook")))
@@ -18,6 +20,7 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Gravity = 1.f;
 		Settings.Bulk = 1.5f;
 		Settings.Carry = 0.75f;
+		Settings.TurnCarry = 0.75f;
 	}
 	else if (ChainName.StartsWith(TEXT("longhair")))
 	{
@@ -27,6 +30,7 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Damping = 5.f;
 		Settings.Gravity = 0.05f;
 		Settings.Carry = 0.35f;
+		Settings.TurnCarry = 0.85f;
 	}
 	else if (ChainName.StartsWith(TEXT("tails")))
 	{
@@ -38,6 +42,7 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Damping = 4.f;
 		Settings.Gravity = 0.08f;
 		Settings.Carry = 0.6f;
+		Settings.TurnCarry = 0.9f;
 	}
 	else if (ChainName.StartsWith(TEXT("skirt")))
 	{
@@ -45,6 +50,8 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Stiffness = 7.f;
 		Settings.Damping = 3.5f;
 		Settings.Gravity = 0.08f;
+		// Wrapped round him: a turn swung it out wide, lagging (the hero stand spun, 2026-10-27).
+		Settings.TurnCarry = 0.9f;
 	}
 	else if (ChainName.StartsWith(TEXT("cape")))
 	{
@@ -52,6 +59,7 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Stiffness = 12.f;
 		Settings.Damping = 5.f;
 		Settings.Gravity = 0.05f;
+		Settings.TurnCarry = 0.92f;
 		// Fluted and stiff, it stands off the arms further than the coat's cloth does.
 		Settings.Bulk = 6.f;
 	}
@@ -60,6 +68,7 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Stiffness = 9.f;
 		Settings.Damping = 3.5f;
 		Settings.Gravity = 0.05f;
+		Settings.TurnCarry = 0.85f;
 	}
 	else if (ChainName.StartsWith(TEXT("lantern")))
 	{
@@ -70,6 +79,8 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Gravity = 1.f;
 		// Its glass and cage round the wire: 4.3 cm across, half of it each side, and a little.
 		Settings.Bulk = 2.5f;
+		// On its wire off the thigh: a turn still swings it some.
+		Settings.TurnCarry = 0.6f;
 	}
 	return Settings;
 }

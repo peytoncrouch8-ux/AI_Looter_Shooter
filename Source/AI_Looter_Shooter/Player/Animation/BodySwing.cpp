@@ -425,6 +425,9 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 		Floor.LastReach = Chain.LengthAxes.Last() != INDEX_NONE ? GatherReach : 1.f;
 		// Its way out of the body as the body is turned and leans now.
 		Chain.Sim.Outward = ComponentToWorld.TransformVectorNoScale(Animated[0].TransformVectorNoScale(Chain.OutwardInBone));
+		// The body's turn, about its root (the actor turned by the mouse, the hero stand spun): the cloth turns with it.
+		Chain.Sim.BodyRotation = ComponentToWorld.GetRotation();
+		Chain.Sim.BodyPivot = ComponentToWorld.GetLocation();
 		Chain.Sim.Step(Chain.Anchor, Targets, Lengths, Capsules, Chain.Settings, DeltaSeconds, Floor);
 	}
 

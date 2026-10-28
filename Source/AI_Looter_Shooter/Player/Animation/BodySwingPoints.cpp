@@ -1,10 +1,14 @@
 #include "Player/Animation/BodySwing.h"
+#include "HAL/IConsoleManager.h"
 
 // FBodySwingPoints: one swing chain's points and the step that moves them (FBodySwing, BodySwing.cpp, drives a chain's
 // worth from the pose).
 
 namespace
 {
+	TAutoConsoleVariable<float> CVarBodySwingTurnCarry(TEXT("Looter.Body.Swing.TurnCarry"), 1.f,
+		TEXT("Scales how much of the body's turn the swinging cloth turns with (each kind's TurnCarry; 0: none, the springs alone)."));
+
 	/** World gravity (cm/s^2); each kind takes a share (FBodySwingSettings::Gravity). */
 	constexpr float GravityZ = -980.f;
 	/** The anchor jumping this far in one frame (cm) is a teleport (a respawn, a lift's end): the chain starts over. */
@@ -169,6 +173,10 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 		Reset(Targets);
 		LastAnchor = Anchor;
 		LastStepAnchor = Anchor;
+		LastBodyRotation = BodyRotation;
+		LastStepRotation = BodyRotation;
+		LastBodyPivot = BodyPivot;
+		LastStepPivot = BodyPivot;
 		return;
 	}
 	// A fixed step, the leftover carried to the next frame: chains joined by length constraints swing differently at
@@ -182,17 +190,53 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 	const float Spring = Settings.Stiffness * Settings.Stiffness;
 	const FVector Gravity(0.0, 0.0, GravityZ * Settings.Gravity);
 	const int32 PerPoint = Capsules.Num() / FMath::Max(Count, 1);
+	const float TurnShare = FMath::Clamp(Settings.TurnCarry * CVarBodySwingTurnCarry.GetValueOnAnyThread(), 0.f, 1.f);
+	TArray<FVector, TInlineAllocator<8>> StepTargets;
+	StepTargets.SetNum(Count);
 	int32 Stepped = 0;
 	while (Accumulator >= FixedStep - UE_KINDA_SMALL_NUMBER)
 	{
-		// Where the anchor (and the animated pose with it) was when this step ends, between last frame's and this one's.
+		// Where the anchor (and the animated pose with it) was when this step ends, between last frame's and this one's,
+		// and how the body was turned then.
 		const float Along = Frame > 0.f ? FMath::Min(1.f, (FixedStep * static_cast<float>(Stepped + 1) - Carried) / Frame) : 1.f;
-		const FVector Head0 = FMath::Lerp(LastAnchor, Anchor, static_cast<double>(Along));
-		const FVector Shift = Head0 - Anchor;
+		const FQuat StepRotation = FQuat::Slerp(LastBodyRotation, BodyRotation, Along).GetNormalized();
+		const FVector StepPivot = FMath::Lerp(LastBodyPivot, BodyPivot, static_cast<double>(Along));
+		// The anchor goes round with the turn, not across its chord (cut across, a quick turn's middle steps pulled it in
+		// toward the pivot and back, and that flung the cloth even turned all the way with the body); with no turn, the
+		// straight line between last frame's and this one's.
+		const FVector OnBodyBefore = LastBodyRotation.UnrotateVector(LastAnchor - LastBodyPivot);
+		const FVector OnBodyNow = BodyRotation.UnrotateVector(Anchor - BodyPivot);
+		const FVector Head0 = StepPivot + StepRotation.RotateVector(FMath::Lerp(OnBodyBefore, OnBodyNow, static_cast<double>(Along)));
+		// The animated pose then: this frame's, moved back to the step's anchor and turned back by the turn still to come
+		// this frame (none when the body doesn't turn: the frame's pose moved, as it always was).
+		const FQuat Unturn = (BodyRotation * StepRotation.Inverse()).GetNormalized().Inverse();
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			StepTargets[Index] = Head0 + Unturn.RotateVector(Targets[Index] - Anchor);
+		}
+		// Where the last step's anchor goes with the body's turn as far as it's carried (the rest of its move is Carry's).
+		FVector Turned = LastStepAnchor;
+		if (TurnShare > 0.f)
+		{
+			// Its share of the body's turn since the last step, round the body's pivot: where and how fast (Previous too),
+			// so the cloth's own swing turns with the body and only the rest of the turn sweeps it out.
+			const FQuat Turn = (StepRotation * LastStepRotation.Inverse()).GetNormalized();
+			const FQuat Share = FQuat::Slerp(FQuat::Identity, Turn, TurnShare).GetNormalized();
+			if (!Share.Equals(FQuat::Identity, UE_SMALL_NUMBER))
+			{
+				for (int32 Index = 0; Index < Count; ++Index)
+				{
+					Points[Index] = LastStepPivot + Share.RotateVector(Points[Index] - LastStepPivot);
+					Previous[Index] = LastStepPivot + Share.RotateVector(Previous[Index] - LastStepPivot);
+				}
+				Turned = LastStepPivot + Share.RotateVector(LastStepAnchor - LastStepPivot);
+			}
+		}
 		if (Settings.Carry > 0.f)
 		{
-			// Its share of the anchor's move since the last step, handed on as it is (where and how fast: Previous too).
-			const FVector Handed = (Head0 - LastStepAnchor) * static_cast<double>(Settings.Carry);
+			// Its share of the anchor's move since the last step (past what the turn carried), handed on as it is (where and
+			// how fast: Previous too).
+			const FVector Handed = (Head0 - Turned) * static_cast<double>(Settings.Carry);
 			for (int32 Index = 0; Index < Count; ++Index)
 			{
 				Points[Index] += Handed;
@@ -200,10 +244,12 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 			}
 		}
 		LastStepAnchor = Head0;
+		LastStepRotation = StepRotation;
+		LastStepPivot = StepPivot;
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const FVector Velocity = (Points[Index] - Previous[Index]) * Keep;
-			const FVector Accel = (Targets[Index] + Shift - Points[Index]) * Spring + Gravity;
+			const FVector Accel = (StepTargets[Index] - Points[Index]) * Spring + Gravity;
 			Previous[Index] = Points[Index];
 			Points[Index] += Velocity + Accel * (FixedStep * FixedStep);
 		}
@@ -211,7 +257,7 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 		FVector Head = Head0;
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
-			const FVector Rest = (Targets[Index] + Shift - Head).GetSafeNormal(UE_SMALL_NUMBER, FVector::DownVector);
+			const FVector Rest = (StepTargets[Index] - Head).GetSafeNormal(UE_SMALL_NUMBER, FVector::DownVector);
 			FVector P = Head + (Points[Index] - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
 			const FVector Free = P;
 			for (int32 Limb = 0; Limb < PerPoint; ++Limb)
@@ -221,7 +267,7 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 				P = PushBoneOut(Head, P, Capsule, Capsule.bShortestWay ? FVector::ZeroVector : Outward);
 			}
 			P = Head + (P - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
-			P = KeepUnder(Head, P, Lengths[Index], Settings.bRisesToTarget ? FMath::Max(Head.Z, Targets[Index].Z + Shift.Z) : Head.Z);
+			P = KeepUnder(Head, P, Lengths[Index], Settings.bRisesToTarget ? FMath::Max(Head.Z, StepTargets[Index].Z) : Head.Z);
 			const bool bGrounded = P.Z < Floor.Z;
 			P = KeepAbove(Head, P, Lengths[Index], Floor.Z, Rest, ReachOf(Index));
 			// A limb moves the cloth aside without throwing it: the push isn't carried on as speed (it flung a chain over
@@ -252,6 +298,8 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 		++Stepped;
 	}
 	LastAnchor = Anchor;
+	LastBodyRotation = BodyRotation;
+	LastBodyPivot = BodyPivot;
 
 	// Shown: between the last two steps by the leftover (no stutter when a frame takes no step or two), hung from where
 	// the anchor is now, each point its length from the one before.

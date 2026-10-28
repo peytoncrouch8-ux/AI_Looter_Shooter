@@ -366,17 +366,21 @@ void AHeroSelectStage::PlaceCamera()
 	const float Sway = SwayWeight * SwayDegrees * FMath::Sin(SwayClock / SwaySeconds * UE_TWO_PI);
 	const float TurnIn = TurnInDegrees * (1.f - EaseOutCubic(1.f - TurnInLeft / TurnInSeconds));
 	CurrentTurn = UserTurn + Sway + TurnIn;
-	// Facing the camera at 180 degrees (it looks along +X); a positive turn shows more of the hero's right side.
-	SetActorRotation(FRotator(0.f, 180.f + DefaultTurn + CurrentTurn, 0.f));
+	// The hero stands still, facing the rest view (180 degrees: the camera looks along +X), and the camera and its lights
+	// orbit them the other way, a photographer's turntable: a positive turn still shows more of the hero's right side. The
+	// hero used to spin, and their coat's springs (world space) whipped out on every drag (the user, 2026-10-27).
+	SetActorRotation(FRotator(0.f, 180.f + DefaultTurn, 0.f));
+	const FRotator Orbit(0.f, -CurrentTurn, 0.f);
 
 	const FVector Origin = GetActorLocation();
-	const FVector Eye = Origin + FVector(-CameraDistance, 0.f, CameraHeight);
+	const FVector Eye = Origin + Orbit.RotateVector(FVector(-CameraDistance, 0.f, CameraHeight));
 	Capture->SetWorldLocationAndRotation(Eye, (Origin + FVector(0.f, 0.f, LookHeight) - Eye).Rotation());
 	Capture->FOVAngle = FieldOfView;
-	KeyLight->SetWorldLocationAndRotation(Origin + KeySpot, (KeyTarget - KeySpot).Rotation());
-	FillLight->SetWorldLocation(Origin + FillSpot);
-	RimLight->SetWorldLocation(Origin + RimSpot);
-	KickerLight->SetWorldLocation(Origin + KickerSpot);
+	const FVector Key = Orbit.RotateVector(KeySpot);
+	KeyLight->SetWorldLocationAndRotation(Origin + Key, (Orbit.RotateVector(KeyTarget) - Key).Rotation());
+	FillLight->SetWorldLocation(Origin + Orbit.RotateVector(FillSpot));
+	RimLight->SetWorldLocation(Origin + Orbit.RotateVector(RimSpot));
+	KickerLight->SetWorldLocation(Origin + Orbit.RotateVector(KickerSpot));
 }
 
 void AHeroSelectStage::ApplyLights()
