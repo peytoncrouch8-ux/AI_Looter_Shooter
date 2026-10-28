@@ -38,8 +38,13 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	float LungeDistance = 470.f;
 	/** Looter.Unpaid.LungeHoming: in flight it turns after its target at most this fast (degrees a second); 0: its aim is committed at the end of the wind-up (DEMO: 40 caught strafes). */
 	float LungeHoming = 0.f;
-	/** Looter.Unpaid.LungeHitRadius: its lunge lands on a target this near its line (cm at size 1; the old kit's 130 caught a strafe). */
-	float LungeHitRadius = 85.f;
+	/**
+	 * Looter.Unpaid.LungeHitRadius: its lunge lands on a target this near (cm at size 1; the old kit's 130 caught a strafe).
+	 * Measured from its middle, and the lunge stops LungeStopShort (90) short of its aim, so it must be more than that: at 85
+	 * no lunge ever landed on a player standing still (DEMO 2026-10-28: 1 hit in 10 at point-blank, every Unpaid hit a rake).
+	 * At 100 a standing target is hit and a walking strafe still dodges (the Kit.Tuning test's 103 cm).
+	 */
+	float LungeHitRadius = 100.f;
 	/** Looter.Unpaid.LungeDamageShare: a landed lunge hurts this share of its attack (DEMO: 15-18 a hit at level 3 was too lethal). */
 	float LungeDamageShare = 0.85f;
 	/**
@@ -100,8 +105,12 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	float CinderMaxRange = 2200.f;
 
 	// --- The flank ---
-	/** Looter.Unpaid.FlankChance: waiting on the ring in front of the player's eyes, its next turn opens with a flank with this chance (rolled once a wait). */
-	float FlankChance = 0.6f;
+	/**
+	 * Looter.Unpaid.FlankChance: waiting on the ring in front of the player's eyes, its next turn opens with a flank with this
+	 * chance (rolled once a wait). DEMO 2026-10-28 (flanks working at last): at 0.6 a two-wave yard fight saw 10-13 flanks in
+	 * under a minute, one behind the player every ~5 s on top of the phase-steps; 0.4 keeps it a special move (6).
+	 */
+	float FlankChance = 0.4f;
 	/** Looter.Unpaid.FlankFront: "in front of their eyes": its bearing's frontness in their view at least this (0 behind, 1 dead ahead; 0.6 is within about 78 degrees). */
 	float FlankFront = 0.6f;
 	/** Looter.Unpaid.FlankMinRange / FlankMaxRange: it flanks a player this far off (cm; the ring is 4.8 m; a turn held farther than about 11.5 m is taken back anyway). */

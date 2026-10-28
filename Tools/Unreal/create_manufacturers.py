@@ -41,6 +41,9 @@ def import_atlas():
     texture.set_editor_property('srgb', False)
     texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_GRAYSCALE)
     texture.set_editor_property('mip_gen_settings', unreal.TextureMipGenSettings.TMGS_FROM_TEXTURE_GROUP)
+    # Sampled only from M_Gun's custom node, so the streamer can't see it used and may leave a far gun a soft mip: keep it
+    # whole (256 KB).
+    texture.set_editor_property('never_stream', True)
     unreal.EditorAssetLibrary.save_loaded_asset(texture, only_if_is_dirty=False)
     unreal.log(f'MAKERS atlas {ATLAS} ({texture.blueprint_get_size_x()}x{texture.blueprint_get_size_y()})')
 

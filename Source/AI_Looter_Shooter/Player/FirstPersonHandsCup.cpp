@@ -74,8 +74,11 @@ void FirstPersonHandsGrips::AddCup(EWeaponKind Kind, FGunHands& Hands)
 		Hands.bCup = false;
 		break;
 	case EWeaponKind::Shotgun:
-		// Ranchhand: under the receiver ahead of the wrist (its underside about v -3.5 at u 9; the loading port at 15.5, -3.2),
-		// grip at (-4.5, -6). The pump only to rack it and to reload (bPumpFromCup).
+		// Ranchhand: under the receiver's bare floor just ahead of the trigger group, grip at (-4.5, -6). The group's housing
+		// and guard run u -0.6 to 8 (moved 5 cm back on 2026-10-28; on 10-27, when this was set, they ran 3 to 13 and the box
+		// sat under them); the floor is v -3 from there to u 20, the loading port at 15.5, -3.2. The box: its middle u 9, 8 long
+		// (its back 3 cm now over the housing's front), its floor v -3.5 (the cup fit keeps a table within 1 cm of the faces
+		// it finds). The pump only to rack it and to reload (bPumpFromCup).
 		// (The hold 3 cm further ahead than the box's middle: the framing's -3 slide, kept for the pump, takes it back.)
 		Hands.CupShape = CupBox(FVector(13.5f, 0.f, 5.f), 2.5f, 2.4f, 1.f, 4.f);
 		Hands.CupHold = FVector(16.5f, 0.3f, OverBottom(2.5f));

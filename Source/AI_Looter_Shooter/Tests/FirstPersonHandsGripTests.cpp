@@ -213,18 +213,16 @@ bool FFirstPersonHandsGripContactTest::RunTest(const FString& Parameters)
 		const FHandPlacement& Grip = Targets.Hands[Right];
 		if (TestTrue(FString::Printf(TEXT("%s: has a trigger spot"), *Name), Grip.Contact.bTrigger))
 		{
-			// The Ranchhand's trigger is 13 cm ahead of its stock's wrist: the finger reaches toward it but can't get there
-			// (its trigger hand is under the frame's bottom edge at the hip).
+			// Every gun the same 3 cm, the Ranchhand too since its trigger group moved 5 cm back (2026-10-28: its blade 8.4 cm
+			// ahead of SOCKET_Grip, not 13; it had been let off at 7 cm and not checked indexed).
 			const float OnIt = static_cast<float>(FVector::Dist(TriggerPad(Rig, Space), Grip.Contact.TriggerPoint));
-			const float Reach = Kind == EWeaponKind::Shotgun ? 7.f : 3.f;
-			TestTrue(FString::Printf(TEXT("%s: the trigger finger's pad on the trigger (%.2f cm off)"), *Name, OnIt), OnIt < Reach);
+			TestTrue(FString::Printf(TEXT("%s: the trigger finger's pad on the trigger (%.2f cm off)"), *Name, OnIt), OnIt < 3.f);
 			FHandsRigTargets Indexed = Targets;
 			Indexed.Hands[Right] = FirstPersonHandsGrips::OnGrip(GripTestGun(Kind, 0.f)).Moved(GripTestToMesh);
 			TArray<FTransform> IndexedSpace;
 			Rig.Pose(Indexed, Local, IndexedSpace);
 			const float OffIt = static_cast<float>(FVector::Dist(TriggerPad(Rig, IndexedSpace), Grip.Contact.TriggerPoint));
-			TestTrue(FString::Printf(TEXT("%s: indexed, the finger leaves the trigger (%.2f cm off)"), *Name, OffIt),
-				Kind == EWeaponKind::Shotgun || OffIt > OnIt + 1.f);
+			TestTrue(FString::Printf(TEXT("%s: indexed, the finger leaves the trigger (%.2f cm off)"), *Name, OffIt), OffIt > OnIt + 1.f);
 		}
 	}
 	return true;

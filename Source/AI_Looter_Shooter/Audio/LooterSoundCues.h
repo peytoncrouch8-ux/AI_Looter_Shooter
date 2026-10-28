@@ -95,6 +95,15 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* CritRing = TEXT("Weapon.Revolver.CritRing");
 	}
 
+	/** A maker's own shot layer, the shooter's own gun only (MakerSoundFlavor, Art/Sounds/recipes/guns_makers.py). */
+	namespace Maker
+	{
+		/** Saint Maud: the barrel's ring after the shot. */
+		inline constexpr const TCHAR* SaintMaudRing = TEXT("Weapon.Maker.SaintMaud.Ring");
+		/** Windfall: the loose parts' rattle. */
+		inline constexpr const TCHAR* WindfallRattle = TEXT("Weapon.Maker.Windfall.Rattle");
+	}
+
 	/**
 	 * A shot as layers (2026-10-21, built from recordings: Art/Sounds/recipes/guns_shots.py; GunshotSound::PlayShot picks
 	 * them, GunshotSound::CueFor names them "Weapon.<Kind>.<Layer>" for Rifle, Shotgun, Revolver, SMG, Sniper, LMG and

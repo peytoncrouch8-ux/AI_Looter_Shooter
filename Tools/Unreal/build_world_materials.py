@@ -589,9 +589,9 @@ MARK_CODE = """// The gun maker's mark: a square of the atlas cell Cell (1-4; 0 
 if (Cell < 0.5) return float4(0.0, 0.0, 0.0, 0.0);
 float2 P = (float2(Local.x, Local.z) - Centre) / max(Size, 0.01) + 0.5;
 if (any(P < 0.0) || any(P > 1.0) || abs(Local.y) < Depth || abs(LocalNormal.y) < 0.5) return float4(0.0, 0.0, 0.0, 0.0);
-// The same picture both sides: one side sees the gun's X run to the left, so it's turned round there (if a mark reads
-// mirrored in PIE, swap the sign test).
-P.x = LocalNormal.y > 0.0 ? 1.0 - P.x : P.x;
+// The same picture both sides: the side facing -Y sees the gun's X run to the left, so it's turned round there, as the
+// pattern's stencil is (checked on the board 2026-10-27; this had the sign the other way, every mark mirrored both sides).
+P.x = LocalNormal.y < 0.0 ? 1.0 - P.x : P.x;
 float Index = round(Cell) - 1.0;
 float2 UV = (float2(fmod(Index, 2.0), floor(Index * 0.5)) + float2(P.x, 1.0 - P.y)) * 0.5;
 float Cover = Texture2DSampleLevel(Marks, MarksSampler, UV, 0.0).r;

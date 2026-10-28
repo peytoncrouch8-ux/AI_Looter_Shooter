@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "Weapons/GunfeelSoundTuning.h"
+#include "Weapons/MakerSoundFlavor.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponSounds.h"
@@ -19,7 +20,8 @@
 // shot past Looter.Gunfeel.Sound.DistantFrom. The surroundings come from a few short traces round the shooter, looked at
 // again at most every quarter second per gun. An automatic's burst plays the tail on every Nth shot and one long at its end
 // (the gun feel pass: at 900 rpm every shot's tail was 60 voices a second, cutting each other, and no burst ended in a tail).
-// The rules are GunfeelSoundTuning's.
+// The rules are GunfeelSoundTuning's. The gun's maker shapes every layer (MakerSoundFlavor: Roundhouse heavy, Saint Maud
+// ringing, Windfall rattly, Meridian clean) and may add its own (a ring, a rattle) on the shooter's own gun.
 
 namespace
 {
@@ -194,16 +196,17 @@ namespace
 	}
 
 	/** Plays Kind's tail by Surroundings: on the gun for the player's own (it stays with the view), else where the shot was. */
-	void PlayTail(const AWeaponBase& Weapon, EWeaponKind Kind, GunfeelSound::ESurroundings Surroundings, bool bOwnGun, float Volume)
+	void PlayTail(const AWeaponBase& Weapon, EWeaponKind Kind, GunfeelSound::ESurroundings Surroundings, bool bOwnGun, float Volume,
+		float Pitch)
 	{
 		const FName Cue = GunshotSound::CueFor(Kind, GunfeelSound::TailFor(Surroundings));
 		if (bOwnGun)
 		{
-			LooterSound::PlayAttached(Cue, Weapon.GetRootComponent(), NAME_None, Volume);
+			LooterSound::PlayAttached(Cue, Weapon.GetRootComponent(), NAME_None, Volume, Pitch);
 		}
 		else
 		{
-			LooterSound::PlayAt(&Weapon, Cue, Weapon.GetActorLocation(), Volume);
+			LooterSound::PlayAt(&Weapon, Cue, Weapon.GetActorLocation(), Volume, Pitch);
 		}
 	}
 
@@ -284,11 +287,13 @@ void GunshotSound::PlayShot(const AWeaponBase& Weapon)
 	}
 	const EWeaponKind Kind = Definition->Kind;
 	USceneComponent* Gun = Weapon.GetRootComponent();
+	// Who made it: the pitch and the layers' balance (plain for a named gun or one without a maker).
+	const FMakerSoundFlavor Flavor = MakerSoundFlavor::Of(Weapon);
 	// Until the bank has the layers (an older bank), the whole shot in one sound, as before.
 	const ULooterSoundSubsystem* Sounds = ULooterSoundSubsystem::Find(&Weapon);
 	if (!Sounds || !Sounds->HasSounds(CoreCue(Kind)))
 	{
-		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::Fire), Gun);
+		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::Fire), Gun, NAME_None, Flavor.Core, Flavor.Pitch);
 		return;
 	}
 
@@ -300,7 +305,7 @@ void GunshotSound::PlayShot(const AWeaponBase& Weapon)
 
 	if (Layers.bDistant)
 	{
-		LooterSound::PlayAt(&Weapon, CueFor(Kind, EGunshotLayer::Distant), Weapon.GetActorLocation());
+		LooterSound::PlayAt(&Weapon, CueFor(Kind, EGunshotLayer::Distant), Weapon.GetActorLocation(), Flavor.Core, Flavor.Pitch);
 		return;
 	}
 	// Which shot of its burst this is: an automatic skips the tails between its Nth shots (the burst's end plays the long one).
@@ -308,24 +313,33 @@ void GunshotSound::PlayShot(const AWeaponBase& Weapon)
 
 	// The player's own layers ride on the gun, so they stay with the view as it turns; someone else's tail stays where the
 	// shot was, as the land's answer does.
-	if (Layers.bCore)
+	if (Layers.bCore && Flavor.Core > 0.f)
 	{
-		LooterSound::PlayAttached(CoreCue(Kind), Gun);
+		LooterSound::PlayAttached(CoreCue(Kind), Gun, NAME_None, Flavor.Core, Flavor.Pitch);
 	}
-	const float Mech = GunfeelSound::MechVolume();
+	const float Mech = GunfeelSound::MechVolume() * Flavor.Mech;
 	if (Layers.bMech && Mech > 0.f)
 	{
-		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::Mech), Gun, NAME_None, Mech);
+		// A loose action (Windfall's) never cycles at quite the same pitch twice.
+		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::Mech), Gun, NAME_None, Mech,
+			MakerSoundFlavor::MechPitch(Flavor, FMath::FRand()));
 	}
-	const float Low = GunfeelSound::LowVolume();
+	const float Low = GunfeelSound::LowVolume() * Flavor.Low;
 	if (Layers.bLow && Low > 0.f)
 	{
-		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::Low), Gun, NAME_None, Low);
+		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::Low), Gun, NAME_None, Low, Flavor.Pitch);
 	}
-	const float Tail = GunfeelSound::TailVolume();
+	const float Tail = GunfeelSound::TailVolume() * Flavor.Tail;
 	if (Layers.bTail && Tail > 0.f)
 	{
-		PlayTail(Weapon, Kind, Surroundings, bOwnGun, Tail);
+		PlayTail(Weapon, Kind, Surroundings, bOwnGun, Tail, MakerSoundFlavor::TailPitchOf(Flavor));
+	}
+	// The maker's own layer (Saint Maud's ring, Windfall's rattle) rides with the action: the shooter's own gun, and only
+	// once the bank has it (no warning from a bank built before it).
+	const FName Extra = Flavor.Extra > 0.f && Layers.bMech ? MakerSoundFlavor::ExtraCueOf(Weapon) : NAME_None;
+	if (!Extra.IsNone() && Sounds->HasSounds(Extra))
+	{
+		LooterSound::PlayAttached(Extra, Gun, NAME_None, Flavor.Extra, Flavor.Pitch);
 	}
 	TrimMemories();
 }
@@ -356,10 +370,11 @@ void GunshotSound::PlayBurstEnd(const AWeaponBase& Weapon)
 	{
 		return;
 	}
-	const float TailGain = GunfeelSound::BurstEndTailVolume() * GunfeelSound::TailVolume();
+	const FMakerSoundFlavor Flavor = MakerSoundFlavor::Of(Weapon);
+	const float TailGain = GunfeelSound::BurstEndTailVolume() * GunfeelSound::TailVolume() * Flavor.Tail;
 	if (GunfeelSound::BurstEndTailPlays(BurstShots, ShotsSinceTail, TailGain))
 	{
-		PlayTail(Weapon, Kind, SurroundingsOf(Memory, Weapon, *World), bOwnGun, TailGain);
+		PlayTail(Weapon, Kind, SurroundingsOf(Memory, Weapon, *World), bOwnGun, TailGain, MakerSoundFlavor::TailPitchOf(Flavor));
 	}
 	// A hot LMG barrel ticks and hisses once the firing stops; the hotter, the louder.
 	const float Heat = Kind == EWeaponKind::LMG ? Weapon.GetBarrelHeat() : 0.f;

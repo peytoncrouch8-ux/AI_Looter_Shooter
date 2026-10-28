@@ -53,7 +53,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      does nothing in the editor world). A rebuilt master shows its old shader in the viewport until the compile finishes
      (a minute or more): grab again before judging. The board script used 2026-10-27 was a scratch file: rewrite it from this.
    - The stencil's flip: the side facing -Y reads the part's X backwards (seen on the board: unflipped it read mirrored).
-     MARK_CODE flips the other way and is unchecked: if a maker's mark reads mirrored, swap its sign test.
+     MARK_CODE flips on -Y like the stencil (fixed 2026-10-28: it flipped +Y, so every mark read mirrored on both sides).
+     T_GunMakerMarks never streams (sampled only from a custom node: the streamer can't see it used). Third person never
+     shows a mark: the over-the-shoulder camera sees the gun end-on, ~7 deg onto its right flank, so a 4-5 cm mark is ~2 px
+     (same parts and data as first person: one AWeaponBase re-attached; accepted 2026-10-22). Check it with the front view
+     (F5 twice) and `Looter.ThirdPerson.FrontYaw 270`.
    - Looks (checked on the board, AR Tripo body): grime = dark streaks down the sides and in creases; worn edges = small
      tint-coloured chips plus paler rubbed edges (burnished on bare metal); stripes = 1-3 bands round the part; chevrons =
      forward-pointing V bands; camo = light (1.22x) and dark (`PatternCamo.z` 0.72x) blotches of the gun's own paint about a Scale big, never the tint (2026-10-28: red on cream read as cow hide; Amount x1.6); pale enamel (tint luma 0.4-0.62, `PatternPale`, any kind or none: Saint Maud's ivory) 25% darker with outside edges rubbed in chips to dark iron; stencil = letter+two figures in

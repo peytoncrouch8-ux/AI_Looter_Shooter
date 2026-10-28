@@ -27,7 +27,8 @@ FREQUENT = ['Weapon.Rifle.Fire', 'Weapon.Shotgun.Fire', 'Weapon.*.Core', 'Weapon
             'Creature.Spider.Burst', 'Creature.Slime.Splat', 'UI.Equip', 'UI.Stow', 'Player.Melee.*', 'UI.Hold.Complete',
             'World.Gust.*', 'Creature.Chicken.Cluck', 'Weapon.Casing.*', 'Weapon.NearMiss.*', 'Creature.Spider.Twitch',
             'Creature.Slime.Bubble', 'Player.Splash', 'Loot.Tier.Pop.*', 'Creature.Trait.Mend', 'Creature.Trait.Rally',
-            'Creature.Trait.WardHit', 'UI.HitMarker.*', 'Creature.Hit.Heavy', 'Creature.Crit.*', 'Weapon.Shotgun.Rack']
+            'Creature.Trait.WardHit', 'UI.HitMarker.*', 'Creature.Hit.Heavy', 'Creature.Crit.*', 'Weapon.Shotgun.Rack',
+            'Weapon.Maker.*']
 
 
 def _frequent(name):

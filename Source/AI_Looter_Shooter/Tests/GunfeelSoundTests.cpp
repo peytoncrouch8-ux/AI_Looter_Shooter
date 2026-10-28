@@ -2,9 +2,11 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Affixes/WeaponMakers.h"
 #include "Audio/LooterSoundCues.h"
 #include "Weapons/GunfeelSoundTuning.h"
 #include "Weapons/GunshotSound.h"
+#include "Weapons/MakerSoundFlavor.h"
 #include "Weapons/WeaponTypes.h"
 #include "HAL/IConsoleManager.h"
 
@@ -326,6 +328,111 @@ bool FGunfeelSoundLayersTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The contract's names"), FName(Cue::ImpactHeavy), FName(TEXT("Impact.Heavy")));
 	TestEqual(TEXT("...all of them"), FName(Cue::CreatureHitHeavy), FName(TEXT("Creature.Hit.Heavy")));
 	TestEqual(TEXT("...the kill"), FName(Cue::KillCrit), FName(TEXT("UI.Kill.Crit")));
+	return true;
+}
+
+// The gun makers' sound flavours (2026-10-28, the user's pick): Roundhouse heavy, Saint Maud ringing, Windfall rattly,
+// Meridian clean; a gun with no maker (or a key the table doesn't know) sounds as its kind always did.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelSoundMakerFlavorsTest, "Looter.Gunfeel.Sound.Maker.Flavors",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelSoundMakerFlavorsTest::RunTest(const FString& Parameters)
+{
+	using namespace MakerSoundFlavor;
+	for (const FWeaponMaker& Maker : WeaponMakers::All())
+	{
+		TestNotNull(*FString::Printf(TEXT("%s has a sound flavour"), *Maker.Key.ToString()), ShippedFor(Maker.Key));
+		TestFalse(*FString::Printf(TEXT("%s's flavour is heard"), *Maker.Key.ToString()), IsPlain(ShippedFlavor(Maker.Key)));
+	}
+	TestEqual(TEXT("One flavour per maker"), Shipped().Num(), WeaponMakers::All().Num());
+
+	const FMakerSoundFlavor Roundhouse = ShippedFlavor(TEXT("Roundhouse"));
+	TestTrue(TEXT("Roundhouse is lower"), Roundhouse.Pitch < 1.f && Roundhouse.Pitch >= 0.9f);
+	TestTrue(TEXT("...with more chest thump"), Roundhouse.Low > 1.f);
+	TestTrue(TEXT("...and no layer of its own"), ExtraCueFor(TEXT("Roundhouse")).IsNone());
+
+	const FMakerSoundFlavor SaintMaud = ShippedFlavor(TEXT("SaintMaud"));
+	TestTrue(TEXT("Saint Maud is a touch brighter"), SaintMaud.Pitch > 1.f && SaintMaud.Pitch <= 1.1f);
+	TestTrue(TEXT("...its tail louder and brighter"), SaintMaud.Tail > 1.f && TailPitchOf(SaintMaud) > SaintMaud.Pitch);
+	TestTrue(TEXT("...and its barrel rings"), SaintMaud.Extra > 0.f);
+	TestEqual(TEXT("...with the ring's cue"), ExtraCueFor(TEXT("SaintMaud")), FName(MakerSoundCue::SaintMaudRing));
+
+	const FMakerSoundFlavor Windfall = ShippedFlavor(TEXT("Windfall"));
+	TestTrue(TEXT("Windfall's action is louder"), Windfall.Mech > 1.f);
+	TestTrue(TEXT("...never the same pitch twice"), Windfall.MechJitter > 0.f
+		&& MechPitch(Windfall, 0.f) < MechPitch(Windfall, 1.f));
+	TestEqual(TEXT("...and rattles"), ExtraCueFor(TEXT("Windfall")), FName(MakerSoundCue::WindfallRattle));
+
+	const FMakerSoundFlavor Meridian = ShippedFlavor(TEXT("Meridian"));
+	TestEqual(TEXT("Meridian keeps the kind's pitch"), Meridian.Pitch, 1.f);
+	TestTrue(TEXT("...with a short, quiet tail"), Meridian.Tail < 1.f);
+	TestTrue(TEXT("...and a tight action"), Meridian.Mech < 1.f && FMath::IsNearlyZero(Meridian.MechJitter));
+	TestTrue(TEXT("...and no layer of its own"), ExtraCueFor(TEXT("Meridian")).IsNone());
+
+	// Subtle enough that the gun still sounds like its kind.
+	for (const FShipped& Entry : Shipped())
+	{
+		const FString Key = Entry.Key;
+		TestTrue(*(Key + TEXT(": pitch within 10%")), FMath::Abs(Entry.Flavor.Pitch - 1.f) <= 0.1f
+			&& FMath::Abs(TailPitchOf(Entry.Flavor) - 1.f) <= 0.12f);
+		TestTrue(*(Key + TEXT(": no layer past +4 dB or under -4 dB")),
+			Entry.Flavor.Core <= 1.6f && Entry.Flavor.Mech <= 1.6f && Entry.Flavor.Low <= 1.6f && Entry.Flavor.Tail <= 1.6f
+			&& Entry.Flavor.Core >= 0.6f && Entry.Flavor.Mech >= 0.6f && Entry.Flavor.Low >= 0.6f && Entry.Flavor.Tail >= 0.6f);
+	}
+
+	// No maker, or one gone from the table: plain.
+	TestTrue(TEXT("No maker is plain"), IsPlain(ShippedFlavor(NAME_None)));
+	TestTrue(TEXT("An unknown maker is plain"), IsPlain(ShippedFlavor(TEXT("NoSuchMaker"))));
+	TestTrue(TEXT("...live too"), IsPlain(For(TEXT("NoSuchMaker"))) && IsPlain(For(NAME_None)));
+	TestTrue(TEXT("...with no layer of its own"), ExtraCueFor(TEXT("NoSuchMaker")).IsNone());
+	TestTrue(TEXT("A default flavour is plain"), IsPlain(FMakerSoundFlavor()));
+	TestEqual(TEXT("A plain action's pitch never moves"), MechPitch(FMakerSoundFlavor(), 0.f), 1.f);
+
+	// The scale: 0 plain, 1 as shipped, 2 twice as far; nothing goes under silence.
+	TestTrue(TEXT("Scale 0 is plain"), IsPlain(Scaled(Roundhouse, 0.f)));
+	TestEqual(TEXT("Scale 1 keeps the pitch"), Scaled(Roundhouse, 1.f).Pitch, Roundhouse.Pitch);
+	TestTrue(TEXT("Scale 2 doubles the move"), FMath::IsNearlyEqual(Scaled(Roundhouse, 2.f).Low, 1.f + 2.f * (Roundhouse.Low - 1.f)));
+	TestEqual(TEXT("...and the extra layer"), Scaled(SaintMaud, 2.f).Extra, 2.f * SaintMaud.Extra);
+	FMakerSoundFlavor Quiet;
+	Quiet.Tail = 0.2f;
+	TestEqual(TEXT("A volume never goes under silence"), Scaled(Quiet, 3.f).Tail, 0.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelSoundMakerLiveTest, "Looter.Gunfeel.Sound.Maker.Live",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelSoundMakerLiveTest::RunTest(const FString& Parameters)
+{
+	using namespace MakerSoundFlavor;
+	TestNotNull(TEXT("The scale exists"), IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Gunfeel.Sound.Maker.Scale")));
+	const TCHAR* Fields[] = { TEXT("Pitch"), TEXT("TailPitch"), TEXT("Core"), TEXT("Mech"), TEXT("Low"), TEXT("Tail"),
+		TEXT("MechJitter"), TEXT("Extra") };
+	for (const FShipped& Entry : Shipped())
+	{
+		for (const TCHAR* Field : Fields)
+		{
+			const FString Name = FString::Printf(TEXT("Looter.Gunfeel.Sound.Maker.%s.%s"), Entry.Key, Field);
+			TestNotNull(*FString::Printf(TEXT("%s exists"), *Name), IConsoleManager::Get().FindConsoleVariable(*Name));
+		}
+	}
+	{
+		FScopedSoundVariable Scale(TEXT("Looter.Gunfeel.Sound.Maker.Scale"), 1.f);
+		FScopedSoundVariable Pitch(TEXT("Looter.Gunfeel.Sound.Maker.Roundhouse.Pitch"), 0.8f);
+		TestEqual(TEXT("A changed maker pitch is read at once"), For(TEXT("Roundhouse")).Pitch, 0.8f);
+		{
+			FScopedSoundVariable Off(TEXT("Looter.Gunfeel.Sound.Maker.Scale"), 0.f);
+			TestTrue(TEXT("Scale 0 makes every maker plain"), IsPlain(For(TEXT("Roundhouse"))) && IsPlain(For(TEXT("SaintMaud"))));
+		}
+		{
+			FScopedSoundVariable Twice(TEXT("Looter.Gunfeel.Sound.Maker.Scale"), 2.f);
+			TestTrue(TEXT("Scale 2 doubles a live move"), FMath::IsNearlyEqual(For(TEXT("Roundhouse")).Pitch, 0.6f));
+		}
+		{
+			FScopedSoundVariable Below(TEXT("Looter.Gunfeel.Sound.Maker.Scale"), -1.f);
+			TestEqual(TEXT("A negative scale is none"), MakerSoundFlavor::Scale(), 0.f);
+		}
+	}
 	return true;
 }
 

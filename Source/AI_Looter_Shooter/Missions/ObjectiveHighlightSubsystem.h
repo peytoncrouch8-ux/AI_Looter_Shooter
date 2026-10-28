@@ -5,6 +5,7 @@
 #include "ObjectiveHighlightSubsystem.generated.h"
 
 class AActor;
+class AObjectiveMarkerActor;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UMeshComponent;
@@ -52,6 +53,8 @@ struct FObjectiveHighlight
 	UMaterialInstanceDynamic* WholeLook = nullptr;
 	UMaterialInstanceDynamic* SpotLook = nullptr;
 	UMaterialInstanceDynamic* FigureLook = nullptr;
+	/** The marker over a paper the overlay can't be seen on (NeedsMarker), while it's lit; pooled by the subsystem. */
+	TWeakObjectPtr<AObjectiveMarkerActor> Marker;
 };
 
 /**
@@ -70,6 +73,11 @@ struct FObjectiveHighlight
  * Nanite mesh shows its fallback while lit, since Nanite draws no overlay). A thing with no mesh of its own, or whose point
  * of use is part of something bigger (Delia's screen door in the farmhouse's mesh, a poster's wall, the bell's rope),
  * lights a spot of what's there, round that point.
+ *
+ * A paper (a poster or a note: a decal, which has no mesh to wear the overlay, or a sheet-thin mesh, a sliver edge-on) is
+ * hard to see lit past a few metres (the gate poster in Ransom's Rest barely showed past 5 m): it also gets a small marker
+ * over it (AObjectiveMarkerActor, the kit's orange; NeedsMarker says which), seen across the whole radius, fading out close
+ * up where the paper reads on its own. Pooled, at most one per lit thing, moved only while something is lit.
  *
  * It looks a few times a second: the tracked mission's targets every second (sooner when the missions change), their
  * distances every RefreshInterval; per frame only while something is lit (the fades, and taking the overlay back after a
@@ -103,6 +111,9 @@ public:
 	static constexpr float SpotSearchRadius = 100.f;
 	/** Nothing this big lights even a spot (cliffs, the ground): its whole redraw would cost more than the spot is worth (cm). */
 	static constexpr float MaxSpotMeshRadius = 3000.f;
+	/** A mesh this thin (its own box's smallest side, cm) and no bigger than FlatMostSize is a sheet: a paper, a letter. */
+	static constexpr float FlatThickness = 1.5f;
+	static constexpr float FlatMostSize = 80.f;
 	/** The highlight's material (made by Tools/Unreal/build_highlight_material.py). */
 	static const TCHAR* MaterialPath;
 
@@ -170,6 +181,12 @@ public:
 	 */
 	static bool IsFigure(const AActor& Actor);
 
+	/**
+	 * Actor is a paper the overlay can't be seen on, so it gets a marker over it as it lights: it shows a decal (a poster,
+	 * a note) or sheet-thin meshes (FlatThickness), and no solid mesh of its own that wears the overlay. Never a character.
+	 */
+	static bool NeedsMarker(const AActor& Actor);
+
 private:
 	/** The level's mission runner while it plays missions, else null. */
 	UMissionRunner* ActiveRunner() const;
@@ -200,6 +217,18 @@ private:
 	void ReturnLook(UMaterialInstanceDynamic*& Look);
 	UMaterialInterface* LoadMaterial();
 
+	// ObjectiveHighlightSubsystemMarker.cpp
+	/** A marker from the pool over its paper (NeedsMarker), popping in. */
+	void ShowMarker(FObjectiveHighlight& Highlight);
+	/** Its marker back to the pool, hidden. */
+	void HideMarker(FObjectiveHighlight& Highlight);
+	/** Every lit thing's marker on with its strength, the player's distance and its spot (per frame while something is lit). */
+	void MoveMarkers(float DeltaSeconds);
+	/** A free marker, or a new one (null with no world to put it in). */
+	AObjectiveMarkerActor* TakeMarker();
+	/** The pool's markers gone (a level that stays, a test's: its actors would outlive the subsystem). */
+	void DestroyMarkers();
+
 	TArray<FObjectiveHighlight> Highlights;
 	TArray<TWeakObjectPtr<AActor>> Candidates;
 
@@ -207,6 +236,10 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> Looks;
 	TArray<UMaterialInstanceDynamic*> FreeLooks;
+
+	/** Every marker made (kept for reuse; a free one is hidden). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<AObjectiveMarkerActor>> Markers;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> HighlightMaterial;

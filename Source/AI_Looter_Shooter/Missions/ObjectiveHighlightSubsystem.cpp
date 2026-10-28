@@ -67,8 +67,10 @@ void UObjectiveHighlightSubsystem::Deinitialize()
 	if (World && !World->bIsTearingDown)
 	{
 		ClearAll();
+		DestroyMarkers();
 	}
 	Highlights.Reset();
+	Markers.Reset();
 	Candidates.Reset();
 	FreeLooks.Reset();
 	Looks.Reset();
@@ -114,6 +116,7 @@ void UObjectiveHighlightSubsystem::Advance(float DeltaSeconds)
 	{
 		Fade(DeltaSeconds);
 		Reclaim();
+		MoveMarkers(DeltaSeconds);
 	}
 }
 
@@ -430,8 +433,9 @@ namespace
 				}
 			}
 			UE_LOG(LogLooter, Display, TEXT("  %s at %.1f m: %s"), *Target->GetActorNameOrLabel(), Distance / 100.0,
-				Lit ? *FString::Printf(TEXT("strength %.2f%s, %d mesh(es) whole, %d as a spot, %d as a figure"), Lit->Strength,
-					Lit->bWanted ? TEXT("") : TEXT(" (fading)"), Lit->Meshes.Num() - Spots - Figures, Spots, Figures) : TEXT("not lit"));
+				Lit ? *FString::Printf(TEXT("strength %.2f%s, %d mesh(es) whole, %d as a spot, %d as a figure%s"), Lit->Strength,
+					Lit->bWanted ? TEXT("") : TEXT(" (fading)"), Lit->Meshes.Num() - Spots - Figures, Spots, Figures,
+					Lit->Marker.IsValid() ? TEXT(", marked") : TEXT("")) : TEXT("not lit"));
 		}
 	}
 

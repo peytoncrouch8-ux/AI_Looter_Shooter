@@ -69,6 +69,9 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
 - chest_tiers (2026-10-28, the loot chest tiers' show, `LooterSoundCue::ChestTiers`, `Loot/ChestShow.h`: `Loot.Chest.LatchPop`,
   `.LockSpin`, `.LockOpen`, `.OrbPulse`, `.TrimSweep`, `.CrestUnfold`, `.Burst`, `.Rise` (3D; Burst and Rise 'Creature'); uses
   loot.py's `_outside`, `_ratchet`, `_glint`).
+- guns_makers (2026-10-28, the gun makers' own layers, `MakerSoundCue` in `Weapons/MakerSoundFlavor.h`: `Weapon.Maker.SaintMaud.Ring`
+  (the cast barrel's ring, 0.9 s), `Weapon.Maker.Windfall.Rattle` (loose bits, 0.2 s); 3D Near, the shooter's own gun, with the
+  action; the rest of each maker's sound is code: `MakerSoundFlavor` pitch and layer volumes).
 
 ## Render
 

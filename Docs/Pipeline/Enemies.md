@@ -348,6 +348,15 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
     owed step that finds nowhere logs the same line (Verbose).
   - Chapel: the nave is INSIDE the yard's ground (the fence polygon encloses the chapel); the overnight line at the back door
     was the blocked steps, not the ground.
+- Balance play-check 2026-10-28 (DEMO, player level 4, 40% aimbot, yard Unpaid level 3):
+  - `LungeHitRadius` 85 -> 100: it must exceed `LungeStopShort` (90; both from the middle). At 85 no lunge landed on a still
+    target (1 in 10 at point-blank): every Unpaid hit before was a rake. Kit.Tuning's strafe miss (103 cm) caps it.
+  - `FlankChance` 0.6 -> 0.4 (10-13 flanks a two-wave fight at 0.6, 6 at 0.4).
+  - Stand still in the pack: dead in 12-20 s; move and shoot: both waves cost about half the health; backing off past the
+    fence escapes (the pack stops at the press reach). Attackers at once 3, briefly 4-5 (frenzy, turns handed back).
+    Blinks per Unpaid >= 3.65 s apart (median ~4); pack-wide one every 0.4-0.9 s, 5-6 at once when they notice or spawn.
+  - Within the ground's Margin outside the fence (~1 m) the pack fights as if inside; 4 m out it doesn't notice.
+  - The nave: attacks through walls (no sight check on a turn or lunge); the pack outside the walls is too near to step.
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
   arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.

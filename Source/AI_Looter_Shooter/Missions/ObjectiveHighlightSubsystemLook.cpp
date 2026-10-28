@@ -10,11 +10,13 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "Weapons/WeaponBase.h"
 #include "CollisionQueryParams.h"
+#include "Components/DecalComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
@@ -120,6 +122,20 @@ namespace
 			: Fit == EObjectiveHighlightFit::Figure ? Highlight.FigureLook : Highlight.WholeLook;
 	}
 
+	/** A sheet: a static mesh paper-thin in its own space and no bigger than a page or a poster (a letter, a nailed note). */
+	bool IsSheet(const UMeshComponent& Mesh)
+	{
+		const UStaticMeshComponent* Static = Cast<UStaticMeshComponent>(&Mesh);
+		const UStaticMesh* Model = Static ? Static->GetStaticMesh() : nullptr;
+		if (!Model)
+		{
+			return false;
+		}
+		// Its own box, not the world's: a sheet turned on a wall is thin only along its own normal.
+		const FVector Size = Model->GetBounds().BoxExtent * 2.0 * Static->GetComponentScale().GetAbs();
+		return Size.GetMin() <= UObjectiveHighlightSubsystem::FlatThickness && Size.GetMax() <= UObjectiveHighlightSubsystem::FlatMostSize;
+	}
+
 	UMaterialInstanceDynamic* LookFor(const FObjectiveHighlight& Highlight, const FObjectiveHighlightMesh& Mesh)
 	{
 		return Mesh.Fit == EObjectiveHighlightFit::Spot ? Highlight.SpotLook
@@ -145,6 +161,38 @@ bool UObjectiveHighlightSubsystem::IsFigure(const AActor& Actor)
 	}
 	TInlineComponentArray<USkinnedMeshComponent*> Skinned(&Actor);
 	return Skinned.ContainsByPredicate([](const USkinnedMeshComponent* Mesh) { return Mesh && Mesh->GetSkinnedAsset(); });
+}
+
+bool UObjectiveHighlightSubsystem::NeedsMarker(const AActor& Actor)
+{
+	// A character is seen by its figure look.
+	if (IsFigure(Actor))
+	{
+		return false;
+	}
+	// A decal draws on what's behind it and has no triangles of its own to wear the overlay: the spot of its wall is all
+	// that lights, and a wall's spot is faint past a few metres.
+	bool bPaper = false;
+	TInlineComponentArray<UDecalComponent*> Decals(&Actor);
+	for (const UDecalComponent* Decal : Decals)
+	{
+		bPaper = bPaper || (Decal && Decal->IsRegistered() && Decal->IsVisible());
+	}
+	// Any solid mesh of its own wears the overlay where it's seen; sheets only add to what's marked.
+	TInlineComponentArray<UMeshComponent*> Own(&Actor);
+	for (const UMeshComponent* Mesh : Own)
+	{
+		if (!Mesh || !CanWear(*Mesh, /*bFigure*/ false))
+		{
+			continue;
+		}
+		if (!IsSheet(*Mesh))
+		{
+			return false;
+		}
+		bPaper = true;
+	}
+	return bPaper;
 }
 
 void UObjectiveHighlightSubsystem::PickMeshes(const AActor& Actor, const FVector& Focus, TArray<FObjectiveHighlightMesh>& Out)
@@ -218,6 +266,11 @@ void UObjectiveHighlightSubsystem::Light(FObjectiveHighlight& Highlight)
 	}
 	Highlight.bLit = true;
 	PickMeshes(*Actor, Highlight.Focus, Highlight.Meshes);
+	// A paper shows little of the overlay: a marker over it too (with or without the material, which only the meshes need).
+	if (NeedsMarker(*Actor))
+	{
+		ShowMarker(Highlight);
+	}
 	// Without its material the rules still run (the tests, Looter.Highlight.List say so); nothing is drawn.
 	if (Highlight.Meshes.IsEmpty() || !LoadMaterial())
 	{
@@ -259,6 +312,7 @@ void UObjectiveHighlightSubsystem::Unlight(FObjectiveHighlight& Highlight)
 		}
 	}
 	Highlight.Meshes.Reset();
+	HideMarker(Highlight);
 	ReturnLook(Highlight.WholeLook);
 	ReturnLook(Highlight.SpotLook);
 	ReturnLook(Highlight.FigureLook);

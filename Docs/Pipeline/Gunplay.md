@@ -153,6 +153,14 @@ Cvars `Looter.Gunfeel.*`, read at each hit (live in PIE), defaults in brackets.
 
 ## Gunfeel: gun sounds (GUNFEEL-SOUND, written 2026-10-21, unbuilt and untested in play)
 
+Maker flavour (2026-10-28, the user's pick): `Weapons/MakerSoundFlavor` shapes each shot's layers by the gun's maker
+(Pitch, TailPitch, Core, Mech, Low, Tail, MechJitter, Extra): Roundhouse heavy 0.93/0.97/1/1.15/1.3/1.1/0/0; Saint Maud
+ringing 1.04/1.03/1/0.85/0.9/1.35/0/1 (+ `Weapon.Maker.SaintMaud.Ring`); Windfall rattly 1.02/1/0.95/1.5/0.85/1/0.07/1
+(+ `Weapon.Maker.Windfall.Rattle`); Meridian clean 1/1/1/0.75/0.95/0.75/0/0. No maker or a named gun: plain. The extra
+layers (`recipes/guns_makers.py`) play with Mech on the shooter's own gun only. Cvars `Looter.Gunfeel.Sound.Maker.<Key>.*`,
+`.Maker.Scale` (0 plain for A/B, 2 doubles). Tests `Looter.Gunfeel.Sound.Maker.Flavors`, `.Live`. Not heard in play yet;
+a Roundhouse/Saint Maud revolver indoors may clip (its own-gun sum was near -0.1 dBFS): lower `.Low`/`.Tail` live.
+
 Code: `Weapons/GunshotSound.cpp` (`PlayShot`), `Weapons/GunfeelSoundTuning.h/.cpp` (cvars, `Default`, plain rules), cue names
 `LooterSoundCue::Gunshot::*Core`, `Revolver::CritRing`. Tests: `Tests/GunfeelSoundTests.cpp`, `Looter.Gunfeel.Sound.Variables`,
 `.Surroundings`, `.Layers`. Sounds: `Art/Sounds/recipes/guns_shots.py` (+ `guns_rec.py`), `guns_impacts.py`, `lib/sample.py`, `packs/`

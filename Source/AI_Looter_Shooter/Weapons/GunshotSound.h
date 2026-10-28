@@ -45,7 +45,8 @@ namespace GunshotSound
 	/**
 	 * Plays Weapon's shot. An automatic's burst (shots less than Looter.Gunfeel.Sound.BurstGap apart) plays the tail on
 	 * every Nth shot only (AutoTailEvery.Rifle/.SMG/.LMG), so a long burst doesn't cut its own voices; PlayBurstEnd plays
-	 * the long one at release.
+	 * the long one at release. The gun's maker shapes the layers' pitch and balance and may add its own layer
+	 * (MakerSoundFlavor).
 	 */
 	AI_LOOTER_SHOOTER_API void PlayShot(const AWeaponBase& Weapon);
 

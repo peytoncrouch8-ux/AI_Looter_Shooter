@@ -70,6 +70,10 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `M_ObjectiveHighlight` from `build_highlight_material.py`; `Looter.Highlight.List`. A character (a story character or a
   skinned figure, never a gun; `IsFigure`) wears the figure look: rim only, body all but clear (`Figure` 1; tune the
   script's `Figure*` defaults). A thing's 20% fill turned Sexton's near-black coat solid orange (fixed 2026-10-14).
+  Papers (2026-10-28: a decal, or sheet-thin static meshes <= 1.5 cm thick and <= 80 cm, no solid mesh of their own, not a
+  character; `NeedsMarker`) can't show the overlay: while lit they get a pooled `AObjectiveMarkerActor` over them (screen
+  space, 15 cm over the top, orange ring-diamond round a dot; gone within 2.5 m, whole from 4.5 m; shows through walls like
+  the giver's mark). `Looter.Highlight.List` says ", marked". Test `Looter.Missions.Highlight.Marker`.
 - Holds: every hold-to-use shows the kit's round ring (`SLooterProgressRing`, `LooterUI::MakeHoldKeyCap`).
 - HUD (the user's list, 2026-10-14): the mission tracker sits under the minimap, right-aligned (`TopFor`, `RightInset` 36,
   `MaxWidth` 540: clear of the boss bar's 380 px either side of the middle); steps and the objective are circles, checked
@@ -342,7 +346,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `TriggerAt` (3.9, 0, -5.2), `MakeShotgun` TriggerCurl 18/35/18. The four body Tripo views (Standard, Armored, Salvaged,
   Tactical) were redrawn (Art/Concepts/Weapons/Shotgun/parts_set1-4.js); Windfall's brass sling loop was dropped (it sat where
   the housing goes). Still open: `Tests/FirstPersonHandsGripTests.cpp` lets the shotgun miss by 7 cm and skips its indexed
-  check; tighten to 3 once `Looter.Hands.Grip.Report` shows the finger on. Grip tests check guns at 1.1, not the drawn 1.32.
+  check: tightened to 3 and indexed checked 2026-10-28 (passes). Grip tests check guns at `ScaleFor` 1.1, but first person
+  draws 1.32 with unscaled hands (reach ~20% longer in game): confirm a trigger with `Looter.Hands.Grip.Report` in PIE.
+  The shotgun's cup box (u 9, 8 long) now overlaps the housing's front 3 cm: look in PIE if the hand seems off.
 - Grip contact (FPGRIP, 2026-10-22; the user: "grip the gun better and like an actual military officer"; style pick
   "Modern tactical, not so much hand showing"): each gun kind's handles are rounded boxes (`AddContact`,
   `FirstPersonHandsGripShapes.cpp`, numbers read off the default parts' .py); the rig seats each palm on its handle
