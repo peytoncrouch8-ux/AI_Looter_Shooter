@@ -653,6 +653,7 @@ The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter
 - `Tools/Unreal/build_window_life_material.py`: `M_WindowLife` (unlit translucent card shapes: shadow, curtain).
 - `Tools/animal_poses.py`: the animals' pose tables (`Intermediate/AnimalsModel/*_poses.json`) as `World/*PoseData.inl` (engine Python).
 - `Tools/Unreal/build_hero_retarget.py <Hero>`: `/Game/Player/Retarget` IK_Manny, IK_<Hero> and RTG_MannyTo<Hero> for any of the five (auto chains, hands blended to the mannequin's; an old +X-facing mesh gets its root turned 90 degrees), rebuilt in place. `Art/Models/Characters/Gauge.py`: SK_Gauge (hard-surface parts on the mannequin's bones, three-fingered hands; helpers `Tools/Blender/gauge_geo.py`, `gauge_parts.py`, `gauge_looks.py`, `gauge_audit.py`).
+- `Tools/Blender/hero_views.py`: Tripo upload views of the five heroes from their game models (A-pose, four orthographic Cycles views, transparent and white) into `Art/Concepts/Heroes/<Hero>/upload`, `upload_white`; `Art/Concepts/Heroes/README.md` has the Tripo steps.
 - `Art/Models/Characters/Pike.py`: SK_Pike, Wendell Pike the Surveyor (the user's pick A): 34,990 triangles, 92 bones
   (63 mannequin, 4 twist, skirt_{fl,sl,bl,bm,br,sr,fr} and bandana chains with `_end` leaves, `hat`), sets
   PikeSkin/Coat/Garb/Gear (baked) and PikeHair (script-made, ellis_hair's layout). Helpers `Tools/Blender/pike_clothes.py`,
