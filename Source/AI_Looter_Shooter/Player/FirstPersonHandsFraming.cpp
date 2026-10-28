@@ -83,9 +83,10 @@ namespace
 			// 2 up still hid them).
 			// "Pushed forward, 1.2x bigger, less arm" (2026-10-27): the table's distance with the 1.2x first-person scale and the
 			// steeper forearms; tuned in PIE at 16:9.
-			Frame.HipAhead = 0.f;
+			// "2cm back and 2 cm down" after that (the user, 2026-10-27).
+			Frame.HipAhead = -2.f;
 			Frame.HipRight = 0.f;
-			Frame.HipUp = -1.f;
+			Frame.HipUp = -3.f;
 			Frame.HipPitch = 4.f;
 			// The user (2026-10-27): the cupping hand clipped the belt box, too big for it: the arms 0.9x on this gun only (0.8
 			// overall at Ellis's 0.88). Then "move the hand forward towards the front of the boxmag, and the gun needs to go
