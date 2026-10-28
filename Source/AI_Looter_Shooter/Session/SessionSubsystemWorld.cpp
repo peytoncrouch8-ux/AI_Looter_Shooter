@@ -150,6 +150,8 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	Here.OpenedChests.Reset();
 	for (TActorIterator<AChest> It(World); It; ++It)
 	{
+		// A tier 5's fountain still throwing: the rest out now, so the guns below are all of it.
+		It->ThrowPendingLoot();
 		if (It->HasGivenLoot())
 		{
 			Here.OpenedChests.Add(It->GetSaveKey());

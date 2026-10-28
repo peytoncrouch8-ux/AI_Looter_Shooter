@@ -66,6 +66,9 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
   `.ScatterJar.Burst|Pop`, `.CinderJar.Burst|Bed` (loop), `Throwable.Jar.Swap` 2D; the burst layers play over the salt jar's).
 - swim (2026-10-27, swimming, `SwimCue` in `Player/UnderwaterView.h`: `Player.Swim.In|Out|Stroke|StrokeUnder|Gasp`,
   `Player.Underwater.Loop|Enter|Exit|Bubbles`; the underwater ones are made dark and close, `SMX_Underwater` muffles the rest).
+- chest_tiers (2026-10-28, the loot chest tiers' show, `LooterSoundCue::ChestTiers`, `Loot/ChestShow.h`: `Loot.Chest.LatchPop`,
+  `.LockSpin`, `.LockOpen`, `.OrbPulse`, `.TrimSweep`, `.CrestUnfold`, `.Burst`, `.Rise` (3D; Burst and Rise 'Creature'); uses
+  loot.py's `_outside`, `_ratchet`, `_glint`).
 
 ## Render
 

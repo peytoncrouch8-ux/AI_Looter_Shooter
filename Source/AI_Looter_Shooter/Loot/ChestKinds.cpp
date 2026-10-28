@@ -25,7 +25,11 @@ namespace
 		EWeaponRarity MinRarity;
 		int32 AmmoPickups;
 		bool bKeepsLegendaryOdds;
-		/** Its lid's swing (s), the lid's sound (volume, pitch), its reveal's strength and colour. */
+		/**
+		 * Its show before the lid and its lid's swing (s; the user's escalating show, 2026-10-28: about 0.6 s from the tap to
+		 * the lid open for tier 1, up to 2.2 s for tier 5), the lid's sound (volume, pitch), its reveal's strength and colour.
+		 */
+		float ShowSeconds;
 		float LidSeconds;
 		float OpenVolume;
 		float OpenPitch;
@@ -35,15 +39,15 @@ namespace
 
 	constexpr FTierNumbers TierNumbers[FChestKindInfo::NumTiers] = {
 		// 1: ammo, and a gun one time in three.
-		{ 1, 1, 0.35f, 0.f, EWeaponRarity::Common, 2, false, 0.8f, 0.85f, 1.05f, 0.f, EWeaponRarity::Common },
+		{ 1, 1, 0.35f, 0.f, EWeaponRarity::Common, 2, false, 0.15f, 0.45f, 0.85f, 1.05f, 0.f, EWeaponRarity::Common },
 		// 2: a gun (the old Supply Crate's numbers).
-		{ 1, 1, 1.f, 0.5f, EWeaponRarity::Common, 2, false, 0.9f, 1.f, 1.f, 0.5f, EWeaponRarity::Common },
+		{ 1, 1, 1.f, 0.5f, EWeaponRarity::Common, 2, false, 0.2f, 0.55f, 1.f, 1.f, 0.5f, EWeaponRarity::Common },
 		// 3: one or two guns, Uncommon or better.
-		{ 1, 2, 1.f, 0.5f, EWeaponRarity::Uncommon, 2, false, 1.f, 1.1f, 0.96f, 1.f, EWeaponRarity::Uncommon },
+		{ 1, 2, 1.f, 0.5f, EWeaponRarity::Uncommon, 2, false, 0.6f, 0.6f, 1.1f, 0.96f, 1.f, EWeaponRarity::Uncommon },
 		// 4: two guns, Rare or better.
-		{ 2, 2, 1.f, 0.75f, EWeaponRarity::Rare, 2, false, 1.1f, 1.2f, 0.92f, 1.4f, EWeaponRarity::Rare },
+		{ 2, 2, 1.f, 0.75f, EWeaponRarity::Rare, 2, false, 0.75f, 0.95f, 1.2f, 0.92f, 1.4f, EWeaponRarity::Rare },
 		// 5: three guns, Epic or better, a legendary likely.
-		{ 3, 3, 1.f, 1.f, EWeaponRarity::Epic, 3, true, 1.3f, 1.35f, 0.86f, 2.f, EWeaponRarity::Legendary },
+		{ 3, 3, 1.f, 1.f, EWeaponRarity::Epic, 3, true, 1.f, 1.2f, 1.35f, 0.86f, 2.f, EWeaponRarity::Legendary },
 	};
 
 	/** A tier's info: its numbers, its own models (SM_ChestTier<N>), its stand-in's sockets and lid until they're imported. */
@@ -66,10 +70,20 @@ namespace
 		Info.BodyPath = Bodies[Index];
 		Info.LidPath = Lids[Index];
 		Info.WheelPath = nullptr;
+		// The show's pieces (ChestTiers.py): tiers 1-2 their latches, 3 its ring lock, 5 its crest; 4's orb and trim are glow slots.
+		constexpr const TCHAR* LatchLefts[] = { TEXT("/Game/Art/Loot/SM_ChestTier1_Latch_L.SM_ChestTier1_Latch_L"),
+			TEXT("/Game/Art/Loot/SM_ChestTier2_Latch_L.SM_ChestTier2_Latch_L") };
+		constexpr const TCHAR* LatchRights[] = { TEXT("/Game/Art/Loot/SM_ChestTier1_Latch_R.SM_ChestTier1_Latch_R"),
+			TEXT("/Game/Art/Loot/SM_ChestTier2_Latch_R.SM_ChestTier2_Latch_R") };
+		Info.LatchLeftPath = Index < 2 ? LatchLefts[Index] : nullptr;
+		Info.LatchRightPath = Index < 2 ? LatchRights[Index] : nullptr;
+		Info.LockPath = Index == 2 ? TEXT("/Game/Art/Loot/SM_ChestTier3_Lock.SM_ChestTier3_Lock") : nullptr;
+		Info.CrestPath = Index == 4 ? TEXT("/Game/Art/Loot/SM_ChestTier5_Crest.SM_ChestTier5_Crest") : nullptr;
 		Info.StandIn = StandIn;
 		Info.Tier = Index + 1;
 		Info.LidMotion = EChestLidMotion::Hinge;
-		Info.PreMotion = EChestPreMotion::None;
+		Info.PreMotion = EChestPreMotion::Show;
+		Info.PreSeconds = Numbers.ShowSeconds;
 		Info.WheelTurns = 0.f;
 		Info.PreCue = nullptr;
 		Info.OpenCue = LooterSoundCue::ChestOpen;

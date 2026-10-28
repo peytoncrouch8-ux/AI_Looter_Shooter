@@ -313,6 +313,23 @@ namespace LooterSoundCue
 	/** The Strongbox's vault wheel spinning before its lid lifts. */
 	inline constexpr const TCHAR* StrongboxWheel = TEXT("Loot.StrongboxWheel");
 
+	/** A loot chest tier's show (Loot/ChestShow.h, Art/Sounds/recipes/chest_tiers.py); its lid is ChestOpen, its fountain's pops Boss.Loot.Pop. */
+	namespace ChestTiers
+	{
+		/** Tiers 1-2: a sprung latch snapping open (each latch). */
+		inline constexpr const TCHAR* LatchPop = TEXT("Loot.Chest.LatchPop");
+		/** Tier 3: the ring lock's detents spinning up and running down; then its bolt drawn and a bright two-note "open". */
+		inline constexpr const TCHAR* LockSpin = TEXT("Loot.Chest.LockSpin");
+		inline constexpr const TCHAR* LockOpen = TEXT("Loot.Chest.LockOpen");
+		/** Tier 4: the orb's two glassy hum pulses; the gold trim's shimmer running left to right. */
+		inline constexpr const TCHAR* OrbPulse = TEXT("Loot.Chest.OrbPulse");
+		inline constexpr const TCHAR* TrimSweep = TEXT("Loot.Chest.TrimSweep");
+		/** Tier 5: the crest swinging out on its hinge and locking; the burst of light; the short rising tone over it. */
+		inline constexpr const TCHAR* CrestUnfold = TEXT("Loot.Chest.CrestUnfold");
+		inline constexpr const TCHAR* Burst = TEXT("Loot.Chest.Burst");
+		inline constexpr const TCHAR* Rise = TEXT("Loot.Chest.Rise");
+	}
+
 	/** A soul-mote's sounds (ASoulMotePickup), heard where it is. */
 	namespace SoulMote
 	{

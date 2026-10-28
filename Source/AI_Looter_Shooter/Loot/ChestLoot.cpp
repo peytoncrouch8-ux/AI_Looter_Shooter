@@ -171,11 +171,34 @@ void AChest::DropLoot()
 	// move; none where guns don't drop.
 	FRandomStream SilverRoll(FMath::Rand());
 	const int32 Silver = SilverDrops::RollForContainer(this, Kind, Level, SilverRoll);
-	const int32 Count = Roll.Weapons.Num() + Roll.Shields.Num() + Roll.Ammo.Num() + (bGrenade ? 1 : 0) + (Silver > 0 ? 1 : 0);
+	// A tier 5's guns and wards fountain out one by one, high, after the rest (ChestShow.cpp); the rest fans out at once.
+	const bool bFountain = ChestShow::Fountains(GetKindInfo().Tier);
+	const int32 Fountained = bFountain ? Roll.Weapons.Num() + Roll.Shields.Num() : 0;
+	const int32 Count = Roll.Weapons.Num() + Roll.Shields.Num() + Roll.Ammo.Num() + (bGrenade ? 1 : 0) + (Silver > 0 ? 1 : 0) - Fountained;
 	int32 Thrown = 0;
 	TArray<FString> Items;
+	Show.Fountain.Reset();
+	Show.FountainThrown = 0;
+	Show.FountainClock = 0.f;
+	// Up and out in a high arc to the chest's sides, left and right in turn, each a little further round. Thrown across its
+	// front, the pieces landed where the player stood to open it, a beam filling the view (checked in PIE 2026-10-28).
+	auto FountainVelocity = [this, &Random](int32 Index)
+	{
+		const float Side = (Index % 2 == 0) ? 1.f : -1.f;
+		const float Turn = Side * (60.f + 18.f * static_cast<float>(Index / 2)) + Random.FRandRange(-6.f, 6.f);
+		const FVector Out = GetActorForwardVector().GetSafeNormal2D().RotateAngleAxis(Turn, FVector::UpVector);
+		return Out * TossForward * 1.15f * Random.FRandRange(0.9f, 1.1f) + FVector::UpVector * TossUp * 1.6f * Random.FRandRange(0.95f, 1.05f);
+	};
 	for (const FWeaponInstanceData& Instance : Roll.Weapons)
 	{
+		if (bFountain)
+		{
+			FChestFountainPiece& Piece = Show.Fountain.AddDefaulted_GetRef();
+			Piece.Weapon = Instance;
+			Piece.Velocity = FountainVelocity(Show.Fountain.Num() - 1);
+			Items.Add(FString::Printf(TEXT("%s %s"), *UEnum::GetDisplayValueAsText(Instance.Rarity).ToString(), *GetNameSafe(Instance.Definition)));
+			continue;
+		}
 		const FVector Velocity = TossVelocity(Thrown++, Count, Random);
 		const FTransform Spawn(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), From);
 		if (AWeaponBase* Gun = UWeaponRollLibrary::SpawnWeapon(this, Instance, Spawn))
@@ -191,6 +214,15 @@ void AChest::DropLoot()
 	// Wards fly out with the guns, landing with their rarity's sting (AShieldPickup).
 	for (const FShieldInstanceData& Ward : Roll.Shields)
 	{
+		if (bFountain)
+		{
+			FChestFountainPiece& Piece = Show.Fountain.AddDefaulted_GetRef();
+			Piece.Ward = Ward;
+			Piece.bWard = true;
+			Piece.Velocity = FountainVelocity(Show.Fountain.Num() - 1);
+			Items.Add(FString::Printf(TEXT("%s ward"), *UEnum::GetDisplayValueAsText(Ward.Rarity).ToString()));
+			continue;
+		}
 		const FVector Velocity = TossVelocity(Thrown++, Count, Random);
 		if (AShieldPickup* Pickup = AShieldPickup::SpawnWard(World, Ward, From))
 		{
@@ -199,6 +231,11 @@ void AChest::DropLoot()
 			Items.Add(FString::Printf(TEXT("%s ward"), *UEnum::GetDisplayValueAsText(Ward.Rarity).ToString()));
 		}
 	}
+	// The rarest goes last, so the fountain ends on its best (as a boss's shower does).
+	Show.Fountain.StableSort([](const FChestFountainPiece& A, const FChestFountainPiece& B)
+	{
+		return (A.bWard ? A.Ward.Rarity : A.Weapon.Rarity) < (B.bWard ? B.Ward.Rarity : B.Weapon.Rarity);
+	});
 	for (const FAmmoDrop& Drop : Roll.Ammo)
 	{
 		const FVector Velocity = TossVelocity(Thrown++, Count, Random);

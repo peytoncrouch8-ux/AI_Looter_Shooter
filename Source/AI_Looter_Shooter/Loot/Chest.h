@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interaction/Interactable.h"
+#include "Loot/ChestShow.h"
 #include "Story/StoryCondition.h"
 #include "Weapons/WeaponTypes.h"
 #include "Chest.generated.h"
@@ -38,8 +39,8 @@ enum class EChestKind : uint8
 	 * tap, its lid swung on SOCKET_Lid, its reveal stronger by tier. What each gives (the steady climb): 1 ammo and maybe a
 	 * gun; 2 a gun; 3 one or two guns, Uncommon or better; 4 two, Rare or better; 5 three, Epic or better, keeping its
 	 * legendary odds even early. Where: 1-2 about the world, 3-4 guarded or hidden, 5 bosses' and secrets' only. Models
-	 * SM_ChestTier<N> and SM_ChestTier<N>_Lid (/Game/Art/Loot); until they're imported a tier wears the Supply Crate's (1-2)
-	 * or the Strongbox's (3-5).
+	 * SM_ChestTier<N> and SM_ChestTier<N>_Lid (/Game/Art/Loot) and the show's pieces (ChestShow.h); until they're imported a
+	 * tier wears the Supply Crate's (1-2) or the Strongbox's (3-5), and its show plays on without the pieces.
 	 */
 	ChestTier1,
 	ChestTier2,
@@ -81,6 +82,8 @@ enum class EChestPreMotion : uint8
 	/** A grave is dug over PreSeconds: its mound sinks into the ground and the body (the open grave) heaves up out of it,
 	 *  dirt flying off the spade. */
 	Dig,
+	/** A loot chest tier's show over PreSeconds: latches, the lock, the orb and trim, the crest (ChestShow.h). */
+	Show,
 };
 
 /**
@@ -96,6 +99,12 @@ struct AI_LOOTER_SHOOTER_API FChestKindInfo
 	const TCHAR* WheelPath = nullptr;
 	const TCHAR* CoverPath = nullptr;
 	const TCHAR* ShovelPath = nullptr;
+
+	/** A tier's show pieces: the latches on SOCKET_Latch_L/_R (tiers 1-2), the lock on SOCKET_Lock (3), the crest on the lid's SOCKET_Crest (5). */
+	const TCHAR* LatchLeftPath = nullptr;
+	const TCHAR* LatchRightPath = nullptr;
+	const TCHAR* LockPath = nullptr;
+	const TCHAR* CrestPath = nullptr;
 
 	/** How the lid comes off, and how far a hinged lid opens about its hinge (degrees: Chests.py's OPEN_ANGLE; negative swings down). */
 	EChestLidMotion LidMotion = EChestLidMotion::Hinge;
@@ -284,8 +293,20 @@ public:
 	/** Moves the opening on by DeltaSeconds (the tick does while it moves; a test level never ticks, so tests call it). */
 	void Advance(float DeltaSeconds);
 
-	/** Open and empty as the session keeps it (USessionSubsystem::RestoreWorld): the lid off at once, no loot, no save. */
+	/** Open and empty as the session keeps it (USessionSubsystem::RestoreWorld): the lid off at once, no loot, no save, no show. */
 	void RestoreOpened();
+
+	/** Throws what's left of a tier 5's fountain at once (a save being taken: everything it gave lies on the ground). */
+	void ThrowPendingLoot();
+
+	/** A tier's show as it stands, how many of its moments have played, its fountain (pieces in all, thrown so far). */
+	const FChestShowPose& GetShowPose() const { return Show.Pose; }
+	int32 GetShowMomentsPlayed() const { return Show.MomentsPlayed; }
+	int32 GetFountainCount() const { return Show.Fountain.Num(); }
+	int32 GetFountainThrown() const { return Show.FountainThrown; }
+
+	/** From the tap to the lid standing open (s): the show before the lid, and the lid. */
+	float GetShowSeconds() const { return GetPreSeconds() + GetLidSecondsFor(); }
 
 	/** Shut and full again (the console): the lid down, its loot to give once more. What it gave stays where it lies. */
 	void CloseAgain();
@@ -371,6 +392,19 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Shovel;
 
+	/** A tier's show pieces (ChestShow.h): its latches, its ring lock, its crest; hidden on a kind without them. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> LatchLeft;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> LatchRight;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> Lock;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> Crest;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chest")
 	EChestKind Kind = EChestKind::SupplyCrate;
 
@@ -452,6 +486,16 @@ private:
 	/** A better chest's light as its loot comes out (its kind's RevealStrength; ChestOpening.cpp), only while it's opened. */
 	void Reveal() const;
 
+	/** A tier's show (ChestShow.cpp): its pose at the shares now (and, while it's opened, the moments passed); its glow slots'
+	 *  instances (made once, at the first opening or restore); the frame's drawn lights; a moment; the fountain. */
+	void UpdateShow();
+	void MakeShowLooks();
+	void DrawShowFrame() const;
+	void PlayShowMoment(uint32 Moment);
+	void AdvanceFountain(float DeltaSeconds);
+	void ThrowFountainPiece(int32 Index);
+	bool HasFountainLeft() const { return Show.FountainThrown < Show.Fountain.Num(); }
+
 	/** Rolls and throws its loot out of SOCKET_Loot, once; asks the session to save soon (it's progress). */
 	void DropLoot();
 
@@ -475,4 +519,7 @@ private:
 	FVector LidRest = FVector::ZeroVector;
 
 	TArray<TWeakObjectPtr<AActor>> DroppedLoot;
+
+	UPROPERTY(Transient)
+	FChestShowState Show;
 };

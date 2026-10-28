@@ -8187,5 +8187,109 @@
     "loop": false,
     "space": "2D",
     "max_concurrent": 1
+  },
+  "Loot.Chest.LatchPop": {
+    "files": [
+      "Loot_Chest_LatchPop_01.wav",
+      "Loot_Chest_LatchPop_02.wav",
+      "Loot_Chest_LatchPop_03.wav",
+      "Loot_Chest_LatchPop_04.wav"
+    ],
+    "volume_db": -6.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Loot.Chest.LockSpin": {
+    "files": [
+      "Loot_Chest_LockSpin_01.wav",
+      "Loot_Chest_LockSpin_02.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Loot.Chest.LockOpen": {
+    "files": [
+      "Loot_Chest_LockOpen_01.wav",
+      "Loot_Chest_LockOpen_02.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Loot.Chest.OrbPulse": {
+    "files": [
+      "Loot_Chest_OrbPulse_01.wav",
+      "Loot_Chest_OrbPulse_02.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.01,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Loot.Chest.TrimSweep": {
+    "files": [
+      "Loot_Chest_TrimSweep_01.wav",
+      "Loot_Chest_TrimSweep_02.wav"
+    ],
+    "volume_db": -23.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Loot.Chest.CrestUnfold": {
+    "files": [
+      "Loot_Chest_CrestUnfold_01.wav",
+      "Loot_Chest_CrestUnfold_02.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Loot.Chest.Burst": {
+    "files": [
+      "Loot_Chest_Burst_01.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Loot.Chest.Rise": {
+    "files": [
+      "Loot_Chest_Rise_01.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
   }
 }

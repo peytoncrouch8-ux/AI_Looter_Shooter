@@ -25,6 +25,12 @@ namespace
 	/** The tag the minimap and the scatter read on solid things standing on the ground. */
 	const FName ObstacleTag(TEXT("Obstacle"));
 
+	/** A tier's show pieces' sockets: the latches' and the lock's on the body, the crest's on the lid. */
+	const FName LatchLeftSocket(TEXT("Latch_L"));
+	const FName LatchRightSocket(TEXT("Latch_R"));
+	const FName LockSocket(TEXT("Lock"));
+	const FName CrestSocket(TEXT("Crest"));
+
 	/** Whether a model's package is there (imported). */
 	bool ModelExists(const TCHAR* Path)
 	{
@@ -66,7 +72,8 @@ namespace
 		for (const EChestKind Each : FChestKindInfo::All())
 		{
 			const FChestKindInfo Info = FChestKindInfo::Get(Each);
-			for (const TCHAR* Own : { Info.BodyPath, Info.LidPath, Info.WheelPath, Info.CoverPath, Info.ShovelPath })
+			for (const TCHAR* Own : { Info.BodyPath, Info.LidPath, Info.WheelPath, Info.CoverPath, Info.ShovelPath, Info.LatchLeftPath,
+				Info.LatchRightPath, Info.LockPath, Info.CrestPath })
 			{
 				if (Own && Path == Own)
 				{
@@ -138,6 +145,21 @@ AChest::AChest()
 	Cover->LDMaxDrawDistance = 12000.f;
 	Shovel->LDMaxDrawDistance = 12000.f;
 
+	// A tier's show pieces, on their sockets (ChestTiers.py): small, nothing to stand on, and no shadow of their own worth
+	// the cost (the body's covers them).
+	LatchLeft = MakeLookPart(this, Body, TEXT("LatchLeft"));
+	LatchLeft->SetupAttachment(Body, LatchLeftSocket);
+	LatchRight = MakeLookPart(this, Body, TEXT("LatchRight"));
+	LatchRight->SetupAttachment(Body, LatchRightSocket);
+	Lock = MakeLookPart(this, Body, TEXT("Lock"));
+	Lock->SetupAttachment(Body, LockSocket);
+	Crest = MakeLookPart(this, Lid, TEXT("Crest"));
+	Crest->SetupAttachment(Lid, CrestSocket);
+	for (UStaticMeshComponent* Piece : { LatchLeft.Get(), LatchRight.Get(), Lock.Get() })
+	{
+		Piece->SetCastShadow(false);
+	}
+
 	Tags.Add(ChestTag);
 	Tags.Add(ObstacleTag);
 }
@@ -198,6 +220,11 @@ FChestKindInfo FChestKindInfo::GetWorn(EChestKind Kind)
 		Info.BodyPath = StandIn.BodyPath;
 		Info.LidPath = StandIn.LidPath;
 		Info.WheelPath = StandIn.WheelPath;
+		// The stand-ins have no show pieces: the show plays on with its glows and sounds only.
+		Info.LatchLeftPath = StandIn.LatchLeftPath;
+		Info.LatchRightPath = StandIn.LatchRightPath;
+		Info.LockPath = StandIn.LockPath;
+		Info.CrestPath = StandIn.CrestPath;
 	}
 	return Info;
 }
@@ -215,6 +242,25 @@ void AChest::ApplyKind()
 	FollowKind(Wheel, Info.WheelPath);
 	FollowKind(Cover, Info.CoverPath);
 	FollowKind(Shovel, Info.ShovelPath);
+	// A tier's show pieces, shown where it has them (its own models imported). Their looks are made again for new models.
+	if (Show.bLooksMade)
+	{
+		for (UStaticMeshComponent* Part : { Body.Get(), Lid.Get(), LatchLeft.Get(), LatchRight.Get(), Lock.Get(), Crest.Get() })
+		{
+			Part->EmptyOverrideMaterials();
+		}
+		Show.Looks.Reset();
+		Show.bLooksMade = false;
+	}
+	auto FollowPiece = [](UStaticMeshComponent* Piece, const TCHAR* Path)
+	{
+		FollowKind(Piece, Path);
+		Piece->SetVisibility(Piece->GetStaticMesh() != nullptr);
+	};
+	FollowPiece(LatchLeft, Info.LatchLeftPath);
+	FollowPiece(LatchRight, Info.LatchRightPath);
+	FollowPiece(Lock, Info.LockPath);
+	FollowPiece(Crest, Info.CrestPath);
 	// On the model's sockets; without the model, where they would be on it.
 	LidRest = Body->DoesSocketExist(LidSocket) ? FVector::ZeroVector : Info.Hinge;
 	Wheel->SetRelativeLocation(Body->DoesSocketExist(WheelSocket) ? FVector::ZeroVector : Info.WheelHub);
@@ -253,7 +299,8 @@ float AChest::GetPreSeconds() const
 	{
 	case EChestPreMotion::Wheel: return FMath::Max(WheelSeconds, KINDA_SMALL_NUMBER);
 	case EChestPreMotion::Pry:
-	case EChestPreMotion::Dig: return FMath::Max(Info.PreSeconds, KINDA_SMALL_NUMBER);
+	case EChestPreMotion::Dig:
+	case EChestPreMotion::Show: return FMath::Max(Info.PreSeconds, KINDA_SMALL_NUMBER);
 	default: return 0.f;
 	}
 }
@@ -340,7 +387,18 @@ bool AChest::Open(AActor* ByWhom, bool bForce)
 	Clock = 0.f;
 	DirtThrown = 0;
 	SetActorTickEnabled(true);
-	if (State == EChestState::Unlocking)
+	// A tier's show starts now: its looks made, its first moments (the first latch, the lock's spin, the orb, the crest) heard.
+	Show.LastPreShare = -1.f;
+	Show.MomentsPlayed = 0;
+	Show.Fountain.Reset();
+	Show.FountainThrown = 0;
+	Show.FountainClock = 0.f;
+	if (Info.PreMotion == EChestPreMotion::Show && State == EChestState::Unlocking)
+	{
+		MakeShowLooks();
+		SetPreShare(0.f);
+	}
+	else if (State == EChestState::Unlocking)
 	{
 		const FVector Where = Info.PreMotion == EChestPreMotion::Wheel && Wheel ? Wheel->GetComponentLocation()
 			: GetActorTransform().TransformPosition(FVector(0.0, 0.0, Info.Height * 0.5));
@@ -365,6 +423,10 @@ void AChest::RestoreOpened()
 	bLootGiven = true;
 	Clock = 0.f;
 	SetActorTickEnabled(false);
+	// Snapped to its show's end: the latches out, the lock green, the crest unfolded, nothing heard or flashed.
+	Show.Fountain.Reset();
+	Show.FountainThrown = 0;
+	MakeShowLooks();
 	PoseOpen();
 }
 
@@ -375,6 +437,10 @@ void AChest::CloseAgain()
 	Clock = 0.f;
 	DirtThrown = 0;
 	DroppedLoot.Reset();
+	Show.Fountain.Reset();
+	Show.FountainThrown = 0;
+	Show.LastPreShare = -1.f;
+	Show.MomentsPlayed = 0;
 	SetActorTickEnabled(false);
 	PoseClosed();
 }

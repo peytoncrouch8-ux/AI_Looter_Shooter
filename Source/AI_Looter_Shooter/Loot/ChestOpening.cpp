@@ -96,7 +96,16 @@ void AChest::Advance(float DeltaSeconds)
 			State = EChestState::Open;
 		}
 	}
-	if (State == EChestState::Closed || State == EChestState::Open)
+	// A tier 5's fountain throws its pieces one by one after the loot comes out; a tier's show draws its lights each frame.
+	if (bLootGiven && HasFountainLeft())
+	{
+		AdvanceFountain(Left);
+	}
+	if (Info.PreMotion == EChestPreMotion::Show && (State == EChestState::Unlocking || State == EChestState::Opening))
+	{
+		DrawShowFrame();
+	}
+	if ((State == EChestState::Closed || State == EChestState::Open) && !HasFountainLeft())
 	{
 		SetActorTickEnabled(false);
 	}
@@ -177,6 +186,25 @@ void AChest::SetPreShare(float Share)
 		}
 		break;
 	}
+	case EChestPreMotion::Show:
+	{
+		// A tier's show (ChestShow.cpp): the moments it passes now heard and seen (only while it's opened, never on a
+		// restore), then its pose.
+		if (State == EChestState::Unlocking)
+		{
+			const uint32 Due = ChestShow::MomentsBetween(Info.Tier, Show.LastPreShare, PreShare);
+			Show.LastPreShare = PreShare;
+			for (uint32 Bit = 1; Bit != 0 && Bit <= Due; Bit <<= 1)
+			{
+				if ((Due & Bit) != 0)
+				{
+					PlayShowMoment(Bit);
+				}
+			}
+		}
+		UpdateShow();
+		break;
+	}
 	default:
 		break;
 	}
@@ -246,6 +274,8 @@ void AChest::SetLidShare(float Share)
 	if (Info.LidMotion == EChestLidMotion::Hinge)
 	{
 		SetLidAngle(Info.OpenAngle * Eased);
+		// A tier's show goes on as the lid lifts: its inside lighting, its flashes fading.
+		UpdateShow();
 		return;
 	}
 	// Shoved off: lifted clear of the box on the way, carried aside, turned to rest where it lands.
@@ -315,6 +345,8 @@ void AChest::PoseClosed()
 		Shovel->SetRelativeTransform(Info.ShovelBefore);
 		Shovel->SetVisibility(Shovel->GetStaticMesh() != nullptr);
 	}
+	// A tier's pieces back home: latches shut, lock blue, crest folded.
+	UpdateShow();
 }
 
 void AChest::PoseOpen()

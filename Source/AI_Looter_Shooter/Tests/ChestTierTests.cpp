@@ -23,7 +23,7 @@
 // The five loot chest tiers (the user, 2026-10-27: "the better the chest the better the loot"; EChestKind::ChestTier1-5,
 // FChestKindInfo's tier numbers in ChestKinds.cpp): what each pays over many openings (counts, rarity floors, tier 5's
 // legendary odds kept early, the steady climb), the stand-in models until SM_ChestTier<N> is imported, the plain hinged
-// opening, and the old kinds (Supply Crate, Strongbox) still read and kept by id as they were.
+// opening after its show, and the old kinds (Supply Crate, Strongbox) still read and kept by id as they were.
 
 // The kinds are saved in levels and sessions by their number: the old ones never move, the tiers come after them.
 static_assert(static_cast<uint8>(EChestKind::SupplyCrate) == 0 && static_cast<uint8>(EChestKind::Strongbox) == 1
@@ -188,8 +188,8 @@ bool FChestTiersPayoutTest::RunTest(const FString& Parameters)
 			&& FMath::IsNearlyEqual(Info.GunChance, Design.GunChance) && Info.MinRarity == Design.Floor && Info.AmmoPickups == Design.Ammo);
 		TestEqual(*FString::Printf(TEXT("%s: keeps its legendary odds early: %s"), *Name, Design.bKeepsOdds ? TEXT("yes") : TEXT("no")),
 			Info.bKeepsLegendaryOdds, Design.bKeepsOdds);
-		TestTrue(FString::Printf(TEXT("%s: a tap, a plain hinged lid, on the map"), *Name), Info.HoldSeconds <= 0.f
-			&& Info.LidMotion == EChestLidMotion::Hinge && Info.PreMotion == EChestPreMotion::None && Info.bOnMap);
+		TestTrue(FString::Printf(TEXT("%s: a tap, its show, a hinged lid, on the map"), *Name), Info.HoldSeconds <= 0.f
+			&& Info.LidMotion == EChestLidMotion::Hinge && Info.PreMotion == EChestPreMotion::Show && Info.bOnMap);
 
 		const ULootTable* Table = StockTierTable(Design.Tier);
 		TestTrue(FString::Printf(TEXT("%s: its table carries the floor, the gun counts and a chest's 36 rounds"), *Name),
@@ -328,7 +328,13 @@ bool FChestTiersStandInTest::RunTest(const FString& Parameters)
 		{
 			continue;
 		}
-		TestTrue(FString::Printf(TEXT("%s: nothing before the lid"), *Name), Chest->GetState() == EChestState::Opening);
+		// Its show first (ChestShowTests.cpp has its order), then the lid.
+		TestTrue(FString::Printf(TEXT("%s: its show before the lid"), *Name), Chest->GetState() == EChestState::Unlocking);
+		Run(Chest, Chest->GetPreSeconds());
+		while (Chest->GetState() == EChestState::Unlocking)
+		{
+			Chest->Advance(0.001f);
+		}
 		const float LidSeconds = Chest->GetLidSecondsFor();
 		Run(Chest, LidSeconds * 0.5f);
 		TestTrue(FString::Printf(TEXT("%s: halfway, the lid partway up (%.0f degrees)"), *Name, Chest->GetLidAngle()),
