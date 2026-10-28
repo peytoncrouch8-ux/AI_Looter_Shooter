@@ -22,6 +22,9 @@ import odessa_head as head
 import odessa_kit as kit
 from odessa_kit import FWD, log
 
+BOOT_KNEE = 0.5          # the boots' tops: this share of the calf's weight handed to the thigh (weights, Boots)
+BOOT_TOP_BAND = 0.08     # m down from each boot's top it fades over
+
 # ------------------------------------------------------------------------------------------------- skin weights
 
 
@@ -104,6 +107,27 @@ def weights(fig, ob):
             t = gm.smoothstep(0.75 * fig.ball_s, 1.1 * fig.ball_s, (P[sel] - ankle) @ f)
             out[sel] = hu.blend(fig.names, int(sel.sum()), {f'foot_{s}': 1.0 - t, f'ball_{s}': t})
         return out
+    if name == 'Boots':
+        # the skin's own weights, the shafts' tops in front handing BOOT_KNEE of the calf's share to the thigh over
+        # their top BOOT_TOP_BAND (fit pass, 2026-10-27: on the calf's a crouch's knee, in the trousers over the boot's front
+        # peak, came out through the peak; the stiff top now tips forward with the knee)
+        W = fig.b.weights_at(P)[1]
+        names = list(fig.names)
+        for s_ in 'lr':
+            side = (P[:, 0] > 0.0) if s_ == 'l' else (P[:, 0] <= 0.0)
+            if not side.any():
+                continue
+            top = P[side, 2].max()
+            band = side & (P[:, 2] > top - BOOT_TOP_BAND)
+            cy = P[band, 1].mean()
+            # the front half only (the knee's side): the back's, tipped with the thigh, folded into the calf in a
+            # sprint's bent back leg
+            k = BOOT_KNEE * gm.smoothstep(top - BOOT_TOP_BAND, top, P[:, 2]) * side * gm.smoothstep(cy + 0.01, cy - 0.03, P[:, 1])
+            c, t = names.index(f'calf_{s_}'), names.index(f'thigh_{s_}')
+            moved = W[:, c] * k
+            W[:, c] -= moved
+            W[:, t] += moved
+        return W
     if name == 'Belt':
         # the skin's own weights, as the trousers' under it (rigid on the hips, a crouch's trousers rose 2.8 cm over
         # its lower edge at the hip creases)

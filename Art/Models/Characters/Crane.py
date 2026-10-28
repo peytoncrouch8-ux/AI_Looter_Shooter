@@ -47,6 +47,7 @@ import crane_head as ch  # noqa: E402
 import crane_looks as cl  # noqa: E402
 import crane_rig as cr  # noqa: E402
 import looter_bake as bk  # noqa: E402
+import looter_fit as fit  # noqa: E402
 import looter_textures as lt  # noqa: E402
 import looter_garments as gm  # noqa: E402
 import looter_looks as lk  # noqa: E402
@@ -298,6 +299,9 @@ def push_out(objs, under, gap):
         ob.data.update()
 
 
+SHIRT_TUCK = 0.006       # m of shirt kept inside the trousers' top (make_lows; at 2 cm its reduced faces still showed below the belt)
+
+
 def make_lows(fig, highs):
     """The game mesh: a reduced copy of every detailed part (named <part>_low until the detailed ones go), the skin by
     region, the shirt only where it shows, the coin, chain and hook built again low, the hair cards as they are; then
@@ -324,6 +328,10 @@ def make_lows(fig, highs):
             bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
             bm.to_mesh(low.data)
             bm.free()
+            # and what the trousers cover, tucked in under the belt, but for a band SHIRT_TUCK under their waistband
+            # (fit pass, 2026-10-27: reduced, its big faces came out through the trousers' front below the belt)
+            fit.hide_covered([low], [o for o in highs if o.name.split('.')[0] == 'Trousers'], reach=0.03,
+                             margin=SHIRT_TUCK, log=log)
         if ob.name == 'Crane':
             before, after = ch.decimate_skin(fig, low)
             log(f'skin: {before} -> {after} triangles by region')
@@ -354,6 +362,9 @@ def make_lows(fig, highs):
     by = lambda *names: [o for o in lows if o.name.split('.')[0].startswith(names)]
     push_out(by('ShirtBand'), by('Crane'), 0.003)
     push_out(by('Trousers'), by('Shirt'), 0.002)
+    # what the trousers cover of the shirt's band kept under them (fit pass: corners of its reduced faces showed below
+    # the belt at the coat's front edges)
+    fit.tuck_under(by('Shirt'), by('Trousers'), fig.centre, 0.003, log=log)
     push_out(by('Belt'), by('Trousers', 'Shirt'), 0.002)
     push_out(by('Coat'), by('Shirt', 'Belt', 'Buckle', 'Trousers'), 0.003)
     push_out(by('Cuff'), by('Sleeves'), 0.003)
@@ -510,8 +521,8 @@ def share_link_uvs(ob):
 
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
-    ('Tools', 'Blender', 'looter_bake.py'), ('Tools', 'Blender', 'looter_face.py'), ('Art', 'Portraits', 'mh.py'),
-    ('Art', 'Portraits', 'Crane.py'),
+    ('Tools', 'Blender', 'looter_bake.py'), ('Tools', 'Blender', 'looter_face.py'), ('Tools', 'Blender', 'looter_fit.py'),
+    ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'Crane.py'),
     ('Art', 'Portraits', 'bust.py'), ('Art', 'Portraits', 'bustkit.py'), ('Tools', 'Blender', 'ellis_hat.py'), ('Tools', 'Blender', 'ellis_hair.py'),
     ('Tools', 'Blender', 'crane_common.py'), ('Tools', 'Blender', 'crane_head.py'), ('Tools', 'Blender', 'crane_clothes.py'),
     ('Tools', 'Blender', 'crane_gear.py'), ('Tools', 'Blender', 'crane_looks.py'), ('Tools', 'Blender', 'crane_hair.py'))]

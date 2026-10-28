@@ -46,6 +46,7 @@ for p in (os.path.join(REPO, 'Tools', 'Blender'), os.path.join(REPO, 'Art', 'Por
         sys.path.insert(0, p)
 import bust  # noqa: E402
 import looter_bake as bk  # noqa: E402
+import looter_fit as fit  # noqa: E402
 import looter_garments as gm  # noqa: E402
 import looter_human as hu  # noqa: E402
 import looter_looks as lk  # noqa: E402
@@ -624,6 +625,11 @@ def make_lows(fig, highs):
             new = gm.clear(co, tree, 0.003, 0.02)
             ob.data.vertices.foreach_set('co', new.astype(np.float32).ravel())
             ob.data.update()
+    # the crown's felt kept 1 mm inside the band where the band covers it (fit pass, 2026-10-27: belled above the band,
+    # the crown met the band's outer face within half a millimetre and the two flickered along the band's top)
+    for crown in by('HatCrown'):
+        c = gm._object_coords(crown)[:, :2].mean(0)
+        fit.tuck_under([crown], by('HatBand'), c, 0.001, reach=0.01, log=log)
     return lows
 
 
@@ -653,7 +659,8 @@ def prepare_uvs(objects):
 
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
-    ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'Pike.py'),
+    ('Tools', 'Blender', 'looter_bake.py'), ('Tools', 'Blender', 'looter_fit.py'), ('Art', 'Portraits', 'mh.py'),
+    ('Art', 'Portraits', 'Pike.py'),
     ('Art', 'Portraits', 'bust.py'), ('Art', 'Portraits', 'bustkit.py'), ('Tools', 'Blender', 'ellis_hat.py'),
     ('Tools', 'Blender', 'ellis_hair.py'),
     ('Tools', 'Blender', 'pike_clothes.py'), ('Tools', 'Blender', 'pike_gear.py'), ('Tools', 'Blender', 'pike_hair.py'),

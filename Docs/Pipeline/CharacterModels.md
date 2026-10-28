@@ -566,3 +566,45 @@ own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
   scratchpad-style Workbench clay of skin/hair/hat with back faces culled, then the exported FBX with its BC. OdessaCoat/Garb/Gear differ only in
   occlusion near the face (0.03-0.16% of pixels). Crane.py and crane_common.py are in FPArmsCrane's digest: its next
   export rebakes (same looks). Before/after: `Saved/ArtPreviews/Characters/Face_<Hero>_compare.png`.
+
+## Clipping and fit pass (FIT, 2026-10-27; the user: our own heroes perfected, Tripo clipped and z-fought)
+
+- **Audit:** `Tools\artrun.ps1 -Script Tools\Blender\fit_audit.py -ScriptArgs '<Hero>,--tag,<tag>[,--poses,idle+run][,--detail][,--renders|--renders-only]'`
+  builds and rigs the hero WITHOUT the bake (`bake_all` stubbed; ~1.5 min a hero, clay renders +1 min), poses from
+  `looter_audit.POSES` + `body_poses` (run, slide, jump, fall, hip_turn_l/r from the figure's joints, the slide as
+  LooterStancePose's: hips to 44 %, right leg out, left folded) + `stand` (the hero's own select-stand idle, HERO_IDLE
+  approximated with `ik` steps), the hero audit module's PAIRS/SOLIDS/GROUNDED plus: `cross` (faces that cut each other
+  where both face out), `zfight` (any two parts within 0.6 mm facing the same way, rest and idle), `inside` reach 12 cm
+  (looter_audit's 5 cm missed a holster pouch deep in a sprinting thigh). `--detail` groups each finding by side and 5 cm
+  of height; renders: every part its own colour, backs culled on magenta, `FIT_VIEWS` (hips_l/r, chest_l/r, back_neck,
+  waist, knee_l). Out: `Saved/Concepts/FitAudit/<Hero>/<tag>/findings.json`.
+- **Reading it:** totals over-report. Hidden by design: anything inside the collar's ring (Ellis, Odessa), hair cards
+  in collars, a waistcoat or shirt seen through a coat's open front (deeper `through` checks read the opening as a
+  poke), the shirt through the belt buckle's frame, hard-surface overlaps at Gauge's joints, the pauldrons sinking into
+  the boiler when aiming (reads as armour). Judge by the renders. Springs' domain, not the model's (BodySwing): long coat
+  hems under the ground in a crouch, a sprint's back boot through the coat's back, hands into the coat's sides, Pike's
+  skirt behind his thighs crouched, Crane's toll-chain hook into his coat when stooped.
+- **Fixed (model scripts, all re-exported 2026-10-27 to `Intermediate/ArtExport_Fit_<Hero>`):**
+  - Ellis: the belt, loops, buckle and cartridges on the body's own weights (rigid on the hips, a crouch's trousers and
+    waistcoat rose 2-3 cm through the belt); the holster (`holster_w`: the body's weights at the throat handing over to
+    thigh_l down the pouch, `HOLSTER_THIGH` 0.25-0.75), the gun rigid on `HOLSTER_GUN_BODY` 0.6 of the pouch's mean + 0.4
+    of round 6's (pelvis 0.4, thigh_l 0.6), the pouch and gun `HOLSTER_OUT` 1.5 cm further off the hip: the sprinting
+    thigh through the gun 4.6 cm -> 0.1, jump 4.9 -> 2.6, hip turn 2.9 -> 0, crouch 1.1 -> 2.5 (the trade: all on the pouch
+    the crouch put the grip 4.9 cm into the belly); the waistcoat pushed off the trousers and the trousers' waistband
+    tucked 3 mm under the reduced waistcoat (`tuck_under`: its top showed through above the belt between the
+    waistcoat's coarse faces); the hair cards 1.5 mm off the reduced skin (`HAIR_OFF_SKIN`; within 0.6 mm on the brow).
+  - Odessa (weights only, no rebake, `odessa_rig.py`): the boots' tops in front hand `BOOT_KNEE` 0.5 of the calf's weight
+    to the thigh over their top `BOOT_TOP_BAND` 8 cm, so the stiff top tips with the knee (a crouch's knee pushed the
+    trousers through the boot's front peak; the back half too folded into the calf in a sprint).
+  - Crane: the tucked shirt cut under the trousers before the reduction (`looter_fit.hide_covered`, `SHIRT_TUCK` 6 mm;
+    at 2 cm its reduced corners still showed) and tucked 3 mm under them after (`tuck_under`): yellow shards below the belt.
+  - Pike: the tripod's shoes 1.5 mm over the legs' ends and the spyglass's leather 0.7-1 mm off its brass (`pike_gear.py`;
+    0.3-0.5 mm flickered), the crown's felt 1 mm under the hat band (`tuck_under`).
+  - Gauge: the upper arms' brass band 4 mm under the casing's end (`gauge_parts.py`; their end faces were level).
+- **What didn't work:** Odessa's low belt weights with half the thighs' share on the pelvis (no better in a crouch: the
+  thighs fold up over a hip belt whatever it rides); cutting her trousers inside the boots (they already end just inside
+  the tops: the knee was the problem); a 6 cm `through` depth (false hits in open coat fronts).
+- **Lessons:** a reduced outer layer covers only at its points: whatever it hides must be cut away before the
+  reduction (`hide_covered` on the detailed copy) or tucked under after (`tuck_under` casts level rays at the body's
+  axis, so a part's edge that shows stays put); hard parts that meet (bands, ferrules, sleeves, caps) need 1 mm of radius
+  or a few mm of length between faces that would otherwise lie level.

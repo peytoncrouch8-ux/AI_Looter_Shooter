@@ -603,7 +603,8 @@ def tripod(M, fig, sack, yc):
         d = gm.unit(q - p)
         leg = gm.tube(np.array([p, p + (q - p) * 0.5, q - d * 0.05]), np.array([0.0115, 0.0110, 0.0100]), n=8, cap0=True)
         legs = leg if legs is None else legs + leg
-        sh = gm.tube(np.array([q - d * 0.052, q - d * 0.046, q, q + d * 0.040]), np.array([0.0105, 0.0108, 0.0102, 0.0025]),
+        # (the shoe's mouth 1.5 mm over the leg's end: at 0.5 mm the two flickered against each other, fit pass 2026-10-27)
+        sh = gm.tube(np.array([q - d * 0.052, q - d * 0.046, q, q + d * 0.040]), np.array([0.0117, 0.0117, 0.0105, 0.0025]),
                      n=8, cap1=True)
         shoes = sh if shoes is None else shoes + sh
         for f in (0.30, 0.62):
@@ -723,7 +724,8 @@ def build_spyglass(M, fig, under_obs):
     z0 = bottom
     prof_brass = [(0.0, 0.0), (0.0190, 0.0), (0.0212, 0.004), (0.0212, 0.028), (0.0198, 0.032)]
     parts.append(lathe('SpyglassBrass_objective', prof_brass, z0, M.slot('Brass'), n=18, axis=tuple(ax)))
-    parts.append(lathe('SpyglassGrip', [(0.0201, 0.030), (0.0204, 0.034), (0.0204, 0.118), (0.0201, 0.122)], z0,
+    # (the leather 0.7-1 mm clear of the brass at both ends: at 0.3-0.5 mm they flickered, fit pass 2026-10-27)
+    parts.append(lathe('SpyglassGrip', [(0.0207, 0.0315), (0.0209, 0.035), (0.0209, 0.117), (0.0206, 0.121)], z0,
                        M.slot('TubeLeather'), n=18, axis=tuple(ax), cap_top=False, cap_bottom=False))
     draws = [(0.0196, 0.120), (0.0196, 0.128), (0.0172, 0.130), (0.0172, 0.158), (0.0180, 0.160), (0.0180, 0.164),
              (0.0150, 0.166), (0.0150, 0.188), (0.0158, 0.190), (0.0158, 0.194), (0.0120, 0.197), (0.0118, 0.205),
