@@ -36,7 +36,7 @@ Open for the user (feel calls, not built):
 4. Saint Maud's clean finish reads flat; camo on red/cream reads as cow hide.
 5. The AR reflex dot is tiny.
 - The user's Tripo next: the shotgun's 24 parts (views ready).
-- Test build: newest Builds\Playtest\ (smoke tested).
+- Test build: Builds\Playtest\2026-10-28_0250 (1.45 GB, smoke test PASS; Play Latest Build.bat) has everything above.
 
 ## 2026-10-27: the user's playtest notes
 The user played the 10-23 build and sent 41 notes: `Docs/Work/2026-10-27-Playtest/NOTES.md` (word for word + their calls),
