@@ -20,7 +20,13 @@
                   an element part's own mesh: Ember dark with soot blotches and glowing seams, Soul-light gold and
                   metallic with a faint gold-white rim, Grave-salt pale with salt-crystal speckle lit cyan. Its pattern
                   is the macro noise laid on from the part's three sides in its own space (cm), numbers in
-                  ELEMENT_FINISH (group ElementFinish). Kind 0 leaves every other part exactly as before.
+                  ELEMENT_FINISH (group ElementFinish). Every other part of an element gun gets the kind at a low
+                  amount: only its stains (Ember soot streaks and edge scorch, Soul-light gold veins and edge gilt,
+                  Grave-salt rime in the creases). Kind 0 leaves a part exactly as before. Its pattern (2026-10-27, the
+                  user's "break up the monotony"; data 29-35: kind 1 grime, 2 worn edges, 3 stripes, 4 chevrons, 5 camo,
+                  6 stencil, 7 clean bold, 0 none; scale cm, seed, tint and amount) lies on the maker's paint under the
+                  wear, in the part's own space, triplanar; bare surfaces (metal, rubber, dark trim) take only 1 and 2.
+                  Numbers in GUN_PATTERN (group GunPattern).
   M_WorldFoliage  masked, two-sided (back faces keep the front's normal), the same maps (opacity from the base
                   color's alpha) plus wind: vertex color R is how far a vertex sways, G offsets its phase;
                   WindStrength (cm), WindSpeed, WindDirection.
@@ -592,9 +598,12 @@ float Cover = Texture2DSampleLevel(Marks, MarksSampler, UV, 0.0).r;
 return float4(Colour, Cover * (1.0 - 0.75 * Scuff) * (1.0 - Tally.x));"""
 
 
-# An element part's finish (UWeaponModelComponent::ShowElementFinish; Source/AI_Looter_Shooter/Weapons/
+# An element gun's finish (UWeaponModelComponent::ShowElementFinish; Source/AI_Looter_Shooter/Weapons/
 # WeaponModelElements.cpp). Every number is a parameter of the ElementFinish group with its default here; the colours, amounts
 # and glow strengths come from the part's custom primitive data (data 20-28), so the code's cvars tune them live per gun.
+# The element part gets a high amount (0.75-0.85): its whole mesh takes the finish. Every other part of the gun gets the same
+# kind at a low amount (about a quarter): only the stains (ElementStain*), Ember's soot and scorch, Soul-light's veins and
+# edge gilt, Grave-salt's rime, at the amount times ElementStainMix.z. The element part wears the stains too, over its finish.
 ELEMENT_FINISH = {
     # The noise's repeats per cm on the part: soot blotches / frost cover, seams / gilt brushing, salt specks; and how much
     # thicker the frost lies on upward faces.
@@ -610,11 +619,196 @@ ELEMENT_FINISH = {
     'ElementSalt': (0.85, 0.93, 0.97, 0.55),
     # Roughness: soot, how dark a seam's charred lip is, frost, a salt crystal's glint.
     'ElementSurface': (0.92, 0.7, 0.8, 0.3),
+    # The stains' noise (repeats per cm): Ember's soot streaks across and along their run (tall: they rise up the sides),
+    # Soul-light's veins; unused.
+    'ElementStainScales': (0.4, 0.03, 0.08, 0.0),
+    # Soot streaks from (noise), a vein's width (of the noise's ridge), rime from (crease), the outside edges' share (scorch,
+    # gilt).
+    'ElementStainShape': (0.84, 0.12, 0.15, 0.85),
+    # The whole finish from / fully by (amount: the element part's), the stains' strength per amount, the veins' and edge
+    # gilt's faint light.
+    'ElementStainMix': (0.35, 0.6, 4.0, 0.5),
 }
 
-ELEMENT_PATTERN_CODE = """// The element finish's masks (Kind 0, every part but an element part: nothing). The macro noise laid on from the part's
-// three sides in its own space (cm), so a Tripo part's atlas and a scripted part's UVs take it alike, without seams.
-// Returns per kind: scorched (soot, seam), gilt (brushing, 0), frosted (frost cover, lit speck); w 1 when on.
+# The part's bend under each pixel, shared by the pattern and the element stains (worn edges, scorch and gilt on the outside
+# edges, grime and rime in the creases).
+PART_EDGES_CODE = """// The part's bend (1/cm): how far its normal turns across the pixel over how far the surface runs; + over an outside edge
+// (a bevel, a rim), - in a crease. Only smooth-shaded edges bend: a hard edge's two faces each stay flat (the creases still
+// come from the baked occlusion). x the outside edges, y the creases, 0-1 from Edge.x to Edge.y per cm.
+float3 N = normalize(LocalNormal);
+float3 Px = ddx(Local);
+float3 Py = ddy(Local);
+float Bend = 0.5 * (dot(ddx(N), Px) / max(dot(Px, Px), 1e-6) + dot(ddy(N), Py) / max(dot(Py, Py), 1e-6));
+return float2(smoothstep(Edge.x, Edge.y, Bend), smoothstep(Edge.x, Edge.y, -Bend));"""
+
+# The gun's pattern (data 29-35, picked per gun by the code from its seed, rarity and maker). Numbers in GUN_PATTERN
+# (parameters of the group GunPattern, defaults here).
+GUN_PATTERN = {
+    # Painted or bare: metal (ORM blue) under x counts as paint, over y as bare; a tint luma (linear) under z is rubber
+    # (0x262626) and a texture luma under w dark trim (a Tripo atlas's black grips and iron): both bare.
+    'PatternSurface': (0.25, 0.55, 0.022, 0.025),
+    # Grime's noise stretch across and along its run (it runs down the sides), the noise's repeats per Scale (T_MacroNoise has
+    # about 8 blotches across a repeat, evenly spread 0-1), how much of a painted pattern is worn thin where the noise peaks.
+    'PatternShape': (5.0, 0.4, 0.15, 0.5),
+    # Stripes and chevrons (in repeats): the main band's half width, a thin band's, the gap between, the chevrons' slope.
+    'PatternBands': (0.07, 0.022, 0.035, 0.9),
+    # Camo: the tint's blotches above x (noise), the dark tone's below y, the dark tone (x the tint), the edges' softness.
+    'PatternCamo': (0.6, 0.27, 0.45, 0.03),
+    # Grime's colour (a multiplier of what's under it, a quarter of the way to the tint); the chips' noise, x the pattern's.
+    'PatternGrime': (0.26, 0.22, 0.18, 3.0),
+    # Stencil: the cell's width and height (x Scale), the code's height (x Scale), a column bar's half width (of its pitch).
+    'PatternStencil': (2.2, 1.1, 0.3, 0.38),
+    # Clean bold: the split's slope range (cm per cm), its height range (cm), the pinstripe's distance under the split and
+    # its half width (cm).
+    'PatternBold': (0.06, 2.0, 0.45, 0.11),
+    # The edges' bend (1/cm) from which an outside edge or a crease begins to count, and by which it fully does.
+    'PatternEdge': (0.8, 2.6, 0.0, 0.0),
+}
+
+PATTERN_CODE = """// The pattern over the maker's paint, under the wear (so the scuffs and grime after it wear it through). Kind (1 grime, 2 worn
+// edges, 3 stripes, 4 chevrons, 5 camo, 6 stencil, 7 clean bold; 0 none: the part as it was), Scale cm a repeat, Seed, Pat
+// its tint (rgb) and amount (a). Painted surfaces take every kind, bare ones (Surface) grime and worn edges only. Laid in the
+// part's own space (cm, triplanar on its own normal), so a Tripo atlas never chops it. Returns the colour and a roughness
+// offset (w).
+float3 Dx = ddx(Local);
+float3 Dy = ddy(Local);
+float Px = max(length(Dx), length(Dy)) + 1e-4;
+float4 Result = float4(Color, 0.0);
+if (Kind > 0.5 && Pat.a > 0.001)
+{
+    float Kd = round(Kind);
+    float Amount = saturate(Pat.a);
+    float F = 1.0 / clamp(Scale, 2.0, 60.0);
+    float2 O = frac(Seed * float2(13.17, 7.31) + 0.13) * 7.0;
+    float3 Lum = float3(0.2126, 0.7152, 0.0722);
+    float Paint = smoothstep(Surface.y, Surface.x, Metal) * smoothstep(Surface.z, Surface.z * 1.45, dot(Tint, Lum))
+                * smoothstep(Surface.w, Surface.w * 2.5, dot(Base, Lum));
+    float3 Nrm = normalize(LocalNormal);
+    float3 W = pow(abs(Nrm), 4.0);
+    W /= max(W.x + W.y + W.z, 1e-4);
+    // The macro noise from the part's three sides; grime's stretched tall on the sides, as it runs down; chips finer.
+    float2 St = Kd < 1.5 ? Shape.xy : (Kd < 2.5 ? Grime.ww : float2(1.0, 1.0));
+    float Fn = F * Shape.z;
+    float Fa = Fn * St.x;
+    float Fz = Fn * St.y;
+    float NA = Texture2DSampleGrad(Noise, NoiseSampler, float2(Local.y * Fa, Local.z * Fz) + O, float2(Dx.y * Fa, Dx.z * Fz), float2(Dy.y * Fa, Dy.z * Fz)).r;
+    float NB = Texture2DSampleGrad(Noise, NoiseSampler, float2(Local.x * Fa, Local.z * Fz) + O.yx, float2(Dx.x * Fa, Dx.z * Fz), float2(Dy.x * Fa, Dy.z * Fz)).r;
+    float Fc = Fn * (Kd > 1.5 && Kd < 2.5 ? Grime.w : 1.0);
+    float NC = Texture2DSampleGrad(Noise, NoiseSampler, Local.xy * Fc + O * 1.7, Dx.xy * Fc, Dy.xy * Fc).r;
+    float N = NA * W.x + NB * W.y + NC * W.z;
+    // The pattern's paint: its tint on the texture, darkened as the maker's paint is by the occlusion.
+    float Shade = saturate(dot(Color, Lum) / max(dot(Base * Tint, Lum), 1e-4));
+    float3 Over = Base * Pat.rgb * Shade;
+    float3 C = Color;
+    float R = 0.0;
+    if (Kd < 1.5)
+    {
+        // Grime: streaks down the sides, heavier underneath, gathered in the creases.
+        float Crease = saturate((1.0 - Occlusion) * 2.0) + Edges.y * 0.6;
+        float G = saturate(smoothstep(0.45, 0.75, N) * (0.6 + 0.4 * saturate(0.5 - Nrm.z)) + Crease) * saturate(Amount * 1.4);
+        C = lerp(Color, Color * lerp(Grime.rgb, Pat.rgb, 0.25), G);
+        R = G * 0.12;
+    }
+    else if (Kd < 2.5)
+    {
+        // Worn edges: the outside edges rubbed, chips knocked off where the noise peaks (more of them near the edges).
+        // Painted: a chip shows the under-layer (the tint), a rubbed edge goes paler. Bare: both burnish brighter.
+        float Rub = Edges.x * Amount;
+        float Chip = smoothstep(1.0 - Amount * 0.25, 1.03 - Amount * 0.25, N + Edges.x * 0.3);
+        float3 Painted = lerp(lerp(Color, Color * 1.35 + 0.02, Rub), Over * 0.9, Chip);
+        float3 Bare = lerp(Color, Color * 1.6 + 0.03, saturate(Rub + Chip * 0.6));
+        C = lerp(Bare, Painted, Paint);
+        R = lerp(-0.15, 0.05, Paint) * saturate(Rub + Chip);
+    }
+    else if (Kd > 4.5 && Kd < 5.5)
+    {
+        // Camo: blotches of the tint and of a darker tone of it, the maker's paint between.
+        float An = Camo.w + Px * Fn;
+        float A = Amount * Paint;
+        C = lerp(Color, Over, smoothstep(Camo.x - An, Camo.x + An, N) * A);
+        C = lerp(C, Over * Camo.z, smoothstep(Camo.y + An, Camo.y - An, N) * A);
+    }
+    else
+    {
+        float Cover = 0.0;
+        float Accent = 0.0;
+        float Aa = Px * F;
+        if (Kd < 3.5)
+        {
+            // Stripes round the part every Scale cm along the gun: one band, a thin one beside it, or one each side.
+            float Count = 1.0 + floor(frac(Seed * 5.37) * 2.999);
+            float T = frac(Local.x * F + frac(Seed * 3.1)) - 0.5;
+            float Off = Bands.x + Bands.z + Bands.y;
+            float D = abs(T) - Bands.x;
+            D = min(D, Count > 1.5 ? abs(T - Off) - Bands.y : 1.0);
+            D = min(D, Count > 2.5 ? abs(T + Off) - Bands.y : 1.0);
+            Cover = saturate(0.5 - D / Aa);
+        }
+        else if (Kd < 4.5)
+        {
+            // Chevrons pointing up the gun, one or two nested.
+            float T = frac(Local.x * F + abs(Local.z) * F * Bands.w + frac(Seed * 3.1)) - 0.5;
+            float B = Bands.x * 1.3;
+            float D = abs(T) - B;
+            D = min(D, frac(Seed * 5.37) > 0.5 ? abs(T + B + Bands.z + Bands.x * 0.5) - Bands.x * 0.5 : 1.0);
+            Cover = saturate(0.5 - D / (Aa * (1.0 + Bands.w)));
+        }
+        else if (Kd < 6.5)
+        {
+            // Stencil codes, a letter and two figures in 3x5 blocks, each column its own bar (the gaps a stencil's bridges),
+            // on the part's sides in cells Stencil.x by Stencil.y Scales: the row through the part's middle mostly, the
+            // others now and then. The side facing -Y reads the gun's X backwards, so it's turned round there (seen on a
+            // check board 2026-10-27; the maker's mark's own flip is still unchecked).
+            const uint G[14] = { 31599u, 11415u, 29671u, 29391u, 23497u, 31183u, 31215u, 29266u, 31727u, 31695u, 11245u, 23469u, 27565u, 23213u };
+            float Side = saturate((abs(Nrm.y) - 0.5) * 4.0);
+            float U = Nrm.y > 0.0 ? Local.x : -Local.x;
+            float Cw = Scale * Stencil.x;
+            float Ch = Scale * Stencil.y;
+            float Ci = floor(U / Cw);
+            float Cj = floor(Local.z / Ch + 0.5);
+            float Hc = frac(sin(Ci * 12.9898 + Cj * 78.233 + Seed * 37.719) * 43758.5453);
+            float Shown = abs(Cj) < 0.5 ? step(0.25, Hc) : step(0.7, Hc);
+            float P = Scale * Stencil.z / 5.0;
+            float Uc = U - (Ci + 0.5) * Cw + 5.5 * P;
+            float Gx = floor(Uc / (4.0 * P));
+            float Cu = Uc - Gx * 4.0 * P;
+            float Col = floor(Cu / P);
+            float Vv = 2.5 * P - (Local.z - Cj * Ch);
+            float Row = floor(Vv / P);
+            if (Shown > 0.5 && Side > 0.0 && Gx >= 0.0 && Gx < 3.0 && Col < 3.0 && Row >= 0.0 && Row < 5.0)
+            {
+                float Hg = frac(sin(Gx * 3.31 + Ci * 17.17 + Cj * 5.71 + Seed * 91.3) * 24634.6345);
+                uint Id = Gx < 0.5 ? 10u + (uint)(Hg * 3.999) : (uint)(Hg * 9.999);
+                uint Bit = (G[Id] >> (uint)((4.0 - Row) * 3.0 + (2.0 - Col))) & 1u;
+                float2 In = float2(Cu - Col * P, Vv - Row * P) / P - 0.5;
+                Cover = (float)Bit * saturate((Stencil.w - abs(In.x)) * P / Px + 0.5) * Side;
+            }
+        }
+        else
+        {
+            // Clean bold: the tint under a raked split along the part, a pinstripe just under the split.
+            float Slope = (frac(Seed * 7.3) - 0.5) * Bold.x;
+            float D = Local.z - ((frac(Seed * 3.7) - 0.5) * Bold.y + Local.x * Slope);
+            Cover = saturate(0.5 - D / Px);
+            Accent = saturate(0.5 - (abs(D + Bold.z) - Bold.w) / Px) * saturate(Bold.w * 2.0 / Px);
+            R = -0.05 * Cover * Amount * Paint;
+        }
+        // Painted on, worn thin in patches; the pinstripe bone on a dark tint, near-black on a light one.
+        float Worn = 1.0 - Shape.w * smoothstep(0.7, 0.95, N) * (Kd > 6.5 ? 0.4 : 1.0);
+        float A = saturate(Amount * 1.2) * Paint * Worn;
+        C = lerp(Color, Over, Cover * A);
+        float3 Pin = Base * Shade * (dot(Pat.rgb, Lum) > 0.3 ? float3(0.02, 0.02, 0.022) : float3(0.62, 0.55, 0.42));
+        C = lerp(C, Pin, Accent * saturate(A * 1.4));
+    }
+    Result = float4(C, R);
+}
+return Result;"""
+
+ELEMENT_PATTERN_CODE = """// The element finish's masks (Kind 0, a gun without an element: nothing). The macro noise laid on from the part's three
+// sides in its own space (cm), so a Tripo part's atlas and a scripted part's UVs take it alike, without seams.
+// Returns per kind: scorched (soot, seam, stain), gilt (brushing, 0, stain), frosted (frost cover, lit speck, stain); w 1 when
+// on. The stain (z) is what every part of an element gun wears: Ember's soot streaking up the sides and scorch on the outside
+// edges, Soul-light's thin gold veins and gilt rubbed onto the edges, Grave-salt's rime in the creases.
 float4 Result = float4(0.0, 0.0, 0.0, 0.0);
 // Gradients before the branch (every pixel of the quad needs them); the samples inside use them.
 float3 Dx = ddx(Local);
@@ -625,17 +819,20 @@ if (Kind > 0.5)
     float3 Nrm = normalize(LocalNormal);
     float3 W = pow(abs(Nrm), 4.0);
     W /= max(W.x + W.y + W.z, 0.0001);
+    float Kd = round(Kind);
+    // The third noise: Grave-salt's specks; Ember's soot streaks (stretched tall on the sides); Soul-light's veins.
+    float2 S2 = Kd < 1.5 ? StainScales.xy : (Kd < 2.5 ? StainScales.zz : Scales.zz);
     float3 N = float3(0.0, 0.0, 0.0);
     for (int K = 0; K < 3; K++)
     {
-        float Sc = Scales[K];
+        float2 S = K == 2 ? S2 : float2(Scales[K], Scales[K]);
         float2 O = float2(0.37, 0.71) * (K + 1);
-        float A = Texture2DSampleGrad(Noise, NoiseSampler, Local.yz * Sc + O, Dx.yz * Sc, Dy.yz * Sc).r;
-        float B = Texture2DSampleGrad(Noise, NoiseSampler, Local.xz * Sc + O, Dx.xz * Sc, Dy.xz * Sc).r;
-        float C = Texture2DSampleGrad(Noise, NoiseSampler, Local.xy * Sc + O, Dx.xy * Sc, Dy.xy * Sc).r;
+        float A = Texture2DSampleGrad(Noise, NoiseSampler, float2(Local.y * S.x, Local.z * S.y) + O, float2(Dx.y * S.x, Dx.z * S.y), float2(Dy.y * S.x, Dy.z * S.y)).r;
+        float B = Texture2DSampleGrad(Noise, NoiseSampler, float2(Local.x * S.x, Local.z * S.y) + O, float2(Dx.x * S.x, Dx.z * S.y), float2(Dy.x * S.x, Dy.z * S.y)).r;
+        float C = Texture2DSampleGrad(Noise, NoiseSampler, Local.xy * S.x + O, Dx.xy * S.x, Dy.xy * S.x).r;
         N[K] = A * W.x + B * W.y + C * W.z;
     }
-    float Kd = round(Kind);
+    float Crease = saturate((1.0 - Occlusion) * 2.0);
     if (Kd < 1.5)
     {
         float Soot = smoothstep(Shape.x, Shape.y, N.x);
@@ -644,95 +841,110 @@ if (Kind > 0.5)
         float Ridge = 1.0 - abs(N.y * 2.0 - 1.0);
         float Fw = Px * Scales.y * 2.0;
         float Seam = smoothstep(1.0 - (Shape.z + Fw), 1.0 - Shape.z * 0.35, Ridge) * Shape.z / (Shape.z + Fw);
-        Result = float4(Soot, Seam, 0.0, 1.0);
+        // Stain: soot streaks up the sides (fewer on flat tops), scorch on the outside edges.
+        float Streak = smoothstep(StainShape.x, StainShape.x + 0.12, N.z) * (1.0 - 0.6 * W.z) * 0.8;
+        float Scorch = Edges.x * smoothstep(0.35, 0.6, N.x) * StainShape.w;
+        Result = float4(Soot, Seam, saturate(max(Streak, Scorch)), 1.0);
     }
     else if (Kd < 2.5)
     {
-        Result = float4(N.y, 0.0, 0.0, 1.0);
+        // Stain: thin gold veins (the noise's ridge, in patches; filtered to the pixel as the seams are), gilt on the edges.
+        float Ridge = 1.0 - abs(N.z * 2.0 - 1.0);
+        float Fw = Px * StainScales.z * 2.0;
+        float Vein = smoothstep(1.0 - (StainShape.y + Fw), 1.0 - StainShape.y * 0.35, Ridge) * StainShape.y / (StainShape.y + Fw);
+        Vein *= smoothstep(0.42, 0.6, N.x);
+        float Gild = Edges.x * (0.5 + 0.5 * N.y) * StainShape.w;
+        Result = float4(N.y, 0.0, saturate(max(Vein, Gild)), 1.0);
     }
     else
     {
         float Up = saturate(Nrm.z);
         float Frost = saturate(N.x * (1.0 + Up * Scales.w));
         float Speck = smoothstep(1.0 - Shape.w, 1.0 - Shape.w * 0.6, N.z);
-        Result = float4(Frost, Speck, 0.0, 1.0);
+        // Stain: rime in the creases (the part's baked occlusion and its bends), ragged by the frost noise.
+        float Rime = smoothstep(StainShape.z, StainShape.z + 0.3, saturate(Crease + Edges.y) * (0.4 + N.x));
+        Result = float4(Frost, Speck, Rime, 1.0);
     }
 }
 return Result;"""
 
-ELEMENT_COLOR_CODE = """// The finish's colour: the part's texture pulled toward Tint by Tint.a, its light and dark kept.
+ELEMENT_COLOR_CODE = """// The finish's colour: on the element part (amount Tint.a past Mix.x-y) the texture pulled toward Tint by Tint.a, its light
+// and dark kept; on every part its stains (Mask.z) at Tint.a x Mix.z: soot, bright gold, salt white.
 if (Kind < 0.5) return Color;
 float Luma = dot(Color, float3(0.299, 0.587, 0.114));
-float3 F = Tint.rgb * lerp(Detail.x, Detail.y, saturate(Luma * Detail.z));
+float3 Base = Tint.rgb * lerp(Detail.x, Detail.y, saturate(Luma * Detail.z));
+float3 F = Base;
+float3 S = Salt.rgb;
 float Kd = round(Kind);
 if (Kd < 1.5)
 {
     F *= lerp(1.0, Detail.w, Mask.x);          // soot blotches
     F *= 1.0 - Surface.y * Mask.y;             // the seam's charred lip under its glow
+    S = Base * Detail.w;
 }
 else if (Kd < 2.5)
 {
     F *= lerp(Gilt.x, Gilt.y, Mask.x);         // brushed gold
+    S = Base * Gilt.y;
 }
 else
 {
     F = lerp(F, Salt.rgb, saturate(Mask.x * Salt.a + Mask.y));   // frost and crystals
 }
-return lerp(Color, F, Tint.a);"""
+float3 C = lerp(Color, F, Tint.a * smoothstep(Mix.x, Mix.y, Tint.a));
+return lerp(C, S, Mask.z * saturate(Tint.a * Mix.z));"""
 
-ELEMENT_GLOW_CODE = """// The finish's light: scorched seams, gilt's faint rim, frosted specks; in Glow's hue times its strength (Glow.a).
+ELEMENT_GLOW_CODE = """// The finish's light: scorched seams, gilt's faint rim, frosted specks; in Glow's hue times its strength (Glow.a). The
+// stains: Soul-light's veins and edge gilt faintly (Mix.w), the specks inside Grave-salt's rime.
 if (Kind < 0.5) return float3(0.0, 0.0, 0.0);
 float Kd = round(Kind);
 float E = Mask.y * (1.0 - 0.5 * Mask.x);
+float Es = 0.0;
 if (Kd > 1.5 && Kd < 2.5)
 {
     float Facing = saturate(dot(normalize(N), normalize(V)));
     E = Gilt.z + pow(1.0 - Facing, 3.0);
+    Es = Mask.z * Mix.w;
 }
 else if (Kd > 2.5)
 {
     E = Mask.y;
+    Es = Mask.y * Mask.z;
 }
-return Glow.rgb * Glow.a * E * Tint.a;"""
+return Glow.rgb * Glow.a * (E * Tint.a * smoothstep(Mix.x, Mix.y, Tint.a) + Es * saturate(Tint.a * Mix.z));"""
 
 ELEMENT_SURFACE_CODE = """// The finish's roughness (x) and metal (y): soot matte and bare of metal, gilt metal and polished, salt crust no metal.
 if (Kind < 0.5) return float2(Rough, Metal);
 float Kd = round(Kind);
 float2 F = float2(lerp(Rough, Surface.x, Mask.x), Metal * (1.0 - Mask.x));
+float2 S = float2(Surface.x, 0.0);
 if (Kd > 1.5 && Kd < 2.5)
 {
     F = float2(Gilt.w * lerp(1.3, 0.8, Mask.x), 1.0);
+    S = float2(Gilt.w, 1.0);
 }
 else if (Kd > 2.5)
 {
     F = float2(lerp(Surface.z, Surface.w, Mask.y), 0.0);
+    S = float2(Surface.z, 0.0);
 }
-return lerp(float2(Rough, Metal), F, Tint.a);"""
+float2 R = lerp(float2(Rough, Metal), F, Tint.a * smoothstep(Mix.x, Mix.y, Tint.a));
+return lerp(R, S, Mask.z * saturate(Tint.a * Mix.z));"""
 
 
 def build_gun(orm_default):
     mat = material('M_Gun')
     g = Graph(mat)
     bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
-    color = shaded_color(g, bc, ao)
+    paint_tint = g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1100, -500)
+    color = shaded_color(g, bc, ao, paint_tint)
     wear = g.node(unreal.MaterialExpressionScalarParameter, -800, 600, parameter_name='Wear', default_value=0.0,
                   use_custom_primitive_data=True, primitive_data_index=0)
     coords = g.node(unreal.MaterialExpressionTextureCoordinate, -800, 800, coordinate_index=0)
     noise = g.node(unreal.MaterialExpressionTextureObjectParameter, -800, 900, parameter_name='WearNoise',
                    texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE))
-    worn = g.custom(WEAR_CODE, [
-        ('Color', color, ''),
-        ('Occlusion', ao, ''),
-        ('Wear', wear, ''),
-        ('UV', coords, ''),
-        ('Noise', noise, ''),
-    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, -200, 'Wear')
-    rgb = g.node(unreal.MaterialExpressionComponentMask, 0, -300, r=True, g=True, b=True, a=False)
-    g.link(worn, '', rgb, '')
-    scuff = g.node(unreal.MaterialExpressionComponentMask, 0, 0, r=False, g=False, b=False, a=True)
-    g.link(worn, '', scuff, '')
 
-    # Notches (UWeaponModelComponent::ShowNotches sets the custom primitive data per part; 0 on parts without them).
+    # Per-part data (UWeaponModelComponent sets the custom primitive data per part; 0 where a part has none).
     def cpd_scalar(name, index, x, y):
         return g.node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=name, default_value=0.0,
                       use_custom_primitive_data=True, primitive_data_index=index)
@@ -748,6 +960,42 @@ def build_gun(orm_default):
     g.link(g.node(unreal.MaterialExpressionPreSkinnedPosition, -1100, 1200), '', local, 'VS')
     local_normal = g.node(unreal.MaterialExpressionVertexInterpolator, -800, 1350)
     g.link(g.node(unreal.MaterialExpressionPreSkinnedNormal, -1100, 1350), '', local_normal, 'VS')
+
+    # The pattern (data 29-35) on the maker's paint, before the wear scuffs and grimes it (GUN_PATTERN, PATTERN_CODE).
+    pp = {name: svector(g, 'GunPattern', name, value, -1700, 4200 + 100 * i)
+          for i, (name, value) in enumerate(GUN_PATTERN.items())}
+    edges = g.custom(PART_EDGES_CODE, [
+        ('Local', local, ''), ('LocalNormal', local_normal, ''), ('Edge', pp['PatternEdge'], 'RGBA'),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -500, 4200, 'Part edges')
+    patterned = g.custom(PATTERN_CODE, [
+        ('Color', color, ''), ('Base', bc, 'RGB'), ('Tint', paint_tint, ''), ('Metal', orm, 'B'), ('Occlusion', ao, ''),
+        ('Kind', cpd_scalar('PatternKind', 29, -1100, 4200), ''),
+        ('Scale', cpd_scalar('PatternScale', 30, -1100, 4300), ''),
+        ('Seed', cpd_scalar('PatternSeed', 31, -1100, 4400), ''),
+        ('Pat', cpd_vector('PatternTint', 32, -1100, 4500), 'RGBA'),
+        ('Local', local, ''), ('LocalNormal', local_normal, ''), ('Edges', edges, ''), ('Noise', noise, ''),
+        ('Surface', pp['PatternSurface'], 'RGBA'), ('Shape', pp['PatternShape'], 'RGBA'),
+        ('Bands', pp['PatternBands'], 'RGBA'), ('Camo', pp['PatternCamo'], 'RGBA'), ('Grime', pp['PatternGrime'], 'RGBA'),
+        ('Stencil', pp['PatternStencil'], 'RGBA'), ('Bold', pp['PatternBold'], 'RGBA'),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -500, -400, 'Pattern')
+    patterned_rgb = g.node(unreal.MaterialExpressionComponentMask, -400, -250, r=True, g=True, b=True, a=False)
+    g.link(patterned, '', patterned_rgb, '')
+    patterned_rough = g.node(unreal.MaterialExpressionComponentMask, -400, -150, r=False, g=False, b=False, a=True)
+    g.link(patterned, '', patterned_rough, '')
+
+    worn = g.custom(WEAR_CODE, [
+        ('Color', patterned_rgb, ''),
+        ('Occlusion', ao, ''),
+        ('Wear', wear, ''),
+        ('UV', coords, ''),
+        ('Noise', noise, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, -200, 'Wear')
+    rgb = g.node(unreal.MaterialExpressionComponentMask, 0, -300, r=True, g=True, b=True, a=False)
+    g.link(worn, '', rgb, '')
+    scuff = g.node(unreal.MaterialExpressionComponentMask, 0, 0, r=False, g=False, b=False, a=True)
+    g.link(worn, '', scuff, '')
+
+    # Notches (UWeaponModelComponent::ShowNotches; 0 on parts without them).
     tally = g.custom(TALLY_CODE, [
         ('Local', local, ''),
         ('LocalNormal', local_normal, ''),
@@ -785,8 +1033,9 @@ def build_gun(orm_default):
         ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, 200, 2400, 'Maker mark')
         marked = g.custom('return lerp(Color, Mark.rgb, Mark.a);', [('Color', carved, ''), ('Mark', mark, '')],
                           unreal.CustomMaterialOutputType.CMOT_FLOAT3, 500, -300, 'Marked')
-    rough = g.custom('return lerp(saturate(Roughness + Wear * 0.12 + Scuff * 0.15), 0.95, Tally.x);', [
-        ('Roughness', orm, 'G'), ('Wear', wear, ''), ('Scuff', scuff, ''), ('Tally', tally, ''),
+    rough = g.custom('return lerp(saturate(Roughness + Pattern + Wear * 0.12 + Scuff * 0.15), 0.95, Tally.x);', [
+        ('Roughness', orm, 'G'), ('Pattern', patterned_rough, ''), ('Wear', wear, ''), ('Scuff', scuff, ''),
+        ('Tally', tally, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, 200, 100, 'Worn roughness')
     occlusion = g.custom('return Occlusion * (1.0 - 0.6 * Tally.x);', [
         ('Occlusion', ao, ''), ('Tally', tally, ''),
@@ -798,7 +1047,8 @@ def build_gun(orm_default):
         ('Time', g.node(unreal.MaterialExpressionTime, -300, 2200), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 200, 600, 'Soul-light')
 
-    # The element finish (data 20-28) over everything above, on the element part alone (Kind 0 elsewhere: unchanged).
+    # The element finish (data 20-28) over everything above: the whole finish on the element part, its stains on every part of
+    # an element gun (Kind 0 on a gun without one: unchanged).
     params = {name: svector(g, 'ElementFinish', name, value, -300, 3300 + 100 * i)
               for i, (name, value) in enumerate(ELEMENT_FINISH.items())}
     kind = cpd_scalar('ElementFinish', 20, -800, 3300)
@@ -806,16 +1056,19 @@ def build_gun(orm_default):
     glow = cpd_vector('ElementGlow', 25, -800, 3500)
     pattern = g.custom(ELEMENT_PATTERN_CODE, [
         ('Kind', kind, ''), ('Local', local, ''), ('LocalNormal', local_normal, ''), ('Noise', noise, ''),
+        ('Occlusion', ao, ''), ('Edges', edges, ''),
         ('Scales', params['ElementScales'], 'RGBA'), ('Shape', params['ElementShape'], 'RGBA'),
+        ('StainScales', params['ElementStainScales'], 'RGBA'), ('StainShape', params['ElementStainShape'], 'RGBA'),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, 200, 3300, 'Element pattern')
     finished = g.custom(ELEMENT_COLOR_CODE, [
         ('Color', marked, ''), ('Kind', kind, ''), ('Tint', tint, 'RGBA'), ('Mask', pattern, ''),
         ('Detail', params['ElementDetail'], 'RGBA'), ('Gilt', params['ElementGilt'], 'RGBA'),
         ('Salt', params['ElementSalt'], 'RGBA'), ('Surface', params['ElementSurface'], 'RGBA'),
+        ('Mix', params['ElementStainMix'], 'RGBA'),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 800, -300, 'Element colour')
     element_glow = g.custom(ELEMENT_GLOW_CODE, [
         ('Kind', kind, ''), ('Tint', tint, 'RGBA'), ('Glow', glow, 'RGBA'), ('Mask', pattern, ''),
-        ('Gilt', params['ElementGilt'], 'RGBA'),
+        ('Gilt', params['ElementGilt'], 'RGBA'), ('Mix', params['ElementStainMix'], 'RGBA'),
         ('N', g.node(unreal.MaterialExpressionPixelNormalWS, 200, 3700), ''),
         ('V', g.node(unreal.MaterialExpressionCameraVectorWS, 200, 3800), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 500, 600, 'Element glow')
@@ -825,6 +1078,7 @@ def build_gun(orm_default):
     surface = g.custom(ELEMENT_SURFACE_CODE, [
         ('Rough', rough, ''), ('Metal', orm, 'B'), ('Kind', kind, ''), ('Tint', tint, 'RGBA'), ('Mask', pattern, ''),
         ('Gilt', params['ElementGilt'], 'RGBA'), ('Surface', params['ElementSurface'], 'RGBA'),
+        ('Mix', params['ElementStainMix'], 'RGBA'),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT2, 500, 100, 'Element surface')
     finished_rough = g.node(unreal.MaterialExpressionComponentMask, 800, 100, r=True, g=False, b=False, a=False)
     g.link(surface, '', finished_rough, '')

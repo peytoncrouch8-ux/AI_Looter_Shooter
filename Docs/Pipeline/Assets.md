@@ -35,6 +35,34 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
    - Judge a change without Unreal first: `Tools\artrun.ps1 -Script Tools\Blender\ground_preview.py` renders the layers from tour
      viewpoints at eye height (before above, after below) into `Saved/ArtPreviews/Terrain/`. It is a numpy port of the master's code:
      keep it in step with `GROUND_WEIGHTS` and `GROUND_DEFAULTS`. It has no shadows, grass or hollows' damp, so look in the editor too.
+   - Gun patterns and element stains (2026-10-27, `M_Gun`; numbers `GUN_PATTERN` group GunPattern, `ELEMENT_FINISH` group
+     ElementFinish; built by Main's MAT agent): custom primitive data 29-35 (kind, scale cm, seed, tint rgb, amount) -> `PATTERN_CODE` between the paint
+     and the wear (the scuffs then wear it through). All in the part's own space (PreSkinnedPosition, cm), triplanar on its own
+     normal: Tripo atlases never chop it. Painted vs bare per pixel: not metal (ORM blue < 0.25), tint luma > 0.022 (rubber's
+     0x262626 = 0.019 is bare), texture luma > 0.025 (Tripo atlases' black grips); bare takes only grime and worn edges. Glow
+     and glass slots are other masters (`M_StylizedSurface`, `M_Glass`), so never patterned. `PART_EDGES_CODE`: outside edges
+     and creases from ddx/ddy of the local normal over the local position (1/cm; only smooth-shaded bevels bend, hard edges
+     stay flat; creases also from the baked vertex occlusion).
+   - T_MacroNoise is evenly spread 0-1 (histogram-equalized, ~8 blotches per UV repeat): thresholds are area shares (0.6 =
+     40% of the surface), no contrast stretch needed. Pattern noise = Scale x 0.15 repeats per cm so a blotch is about a Scale.
+   - Element stains: every part of an element gun gets the element kind at ~0.2 amount (`ElementLook.Spread` 0.25); the
+     master shows the whole finish only past amount 0.35-0.6 (`ElementStainMix`), the stains at amount x 4.
+   - Checking without the game: a board of transient StaticMeshActors in the editor level (spawn_actor_from_class(...,
+     transient=True), set_custom_primitive_data_float/vector4, the level viewport camera set at them), grabbed with
+     grab.ps1; remove them before the editor closes. Destroy them with EditorActorSubsystem.destroy_actor (Actor.destroy_actor
+     does nothing in the editor world). A rebuilt master shows its old shader in the viewport until the compile finishes
+     (a minute or more): grab again before judging. The board script used 2026-10-27 was a scratch file: rewrite it from this.
+   - The stencil's flip: the side facing -Y reads the part's X backwards (seen on the board: unflipped it read mirrored).
+     MARK_CODE flips the other way and is unchecked: if a maker's mark reads mirrored, swap its sign test.
+   - Looks (checked on the board, AR Tripo body): grime = dark streaks down the sides and in creases; worn edges = small
+     tint-coloured chips plus paler rubbed edges (burnished on bare metal); stripes = 1-3 bands round the part; chevrons =
+     forward-pointing V bands; camo = tint and dark-tint blotches about a Scale big; stencil = letter+two figures in
+     column-bar glyphs ("K06"); clean bold = darker belly under a raked split with a bone (or near-black) pinstripe. Stains:
+     Ember thin soot streaks + edge scorch, Soul-light fine gold crackle veins + edge gilt (faint glow), Grave-salt rime in
+     creases and edges; the element part's whole finish is unchanged.
+   - Cost: M_Gun pixel shader 497 -> ~800 instructions (all branches counted; each branch is per part, so a pixel runs one
+     kind), samplers unchanged (6), +3 noise taps for a pattern; the element masks' 9 taps now run on every part of an
+     element gun.
 7. Guns from parts: `Art/Models/Weapons/<Gun>.py` models the parts (sockets chain them; sights carry `SOCKET_Aim` for aiming down
    sights). `<Gun>.parts.csv` lists each part's key, name, name word, rarity and stat ranges in percent (capped per stat,
    `Weapons/WeaponParts.h`). After importing, run `Tools/Unreal/setup_gun_parts.py` in the editor to fill the gun's definition from
