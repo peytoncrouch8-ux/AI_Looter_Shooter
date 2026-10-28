@@ -228,8 +228,9 @@ def write_set(maps, set_name, material_name, source, master='Gun', orm_size=2048
 
 def fit(obj, u, v, w, forward='-X', left='-Y', up='+Z'):
     """Stretches obj (as load() left it; forward, left and up name the file's axes the gun's muzzle, its left side and
-    up face) so its bounds run u[0]..u[1] along the gun and v[0]..v[1] up (cm), w cm across, centred on the bore's plane;
-    then it lies in gun space (Blender: +X left, -Y forward, +Z up, meters)."""
+    up face) so its bounds run u[0]..u[1] along the gun and v[0]..v[1] up (cm), and across w cm centred on the bore's
+    plane, or w = (w0, w1) from w0 (the gun's right) to w1 (its left) for a part that stands out on one side; then it lies
+    in gun space (Blender: +X left, -Y forward, +Z up, meters)."""
     me = obj.data
     pick = lambda name: (_AXES[name[-1]], -1.0 if name[0] == '-' else 1.0)
     (fa, fs), (la, ls), (ua, us) = pick(forward), pick(left), pick(up)
@@ -237,10 +238,10 @@ def fit(obj, u, v, w, forward='-X', left='-Y', up='+Z'):
     across = [x.co[la] * ls for x in me.vertices]
     high = [x.co[ua] * us for x in me.vertices]
     a0, a1, c0, c1, z0, z1 = min(along), max(along), min(across), max(across), min(high), max(high)
-    su, sv, sw = (u[1] - u[0]) / (a1 - a0), (v[1] - v[0]) / (z1 - z0), w / (c1 - c0)
-    cm = (c0 + c1) * 0.5
+    w0, w1 = (w[0], w[1]) if isinstance(w, (tuple, list)) else (-w * 0.5, w * 0.5)
+    su, sv, sw = (u[1] - u[0]) / (a1 - a0), (v[1] - v[0]) / (z1 - z0), (w1 - w0) / (c1 - c0)
     for vert, a, c, z in zip(me.vertices, along, across, high):
-        vert.co = lg.at(u[0] + (a - a0) * su, v[0] + (z - z0) * sv, (c - cm) * sw)
+        vert.co = lg.at(u[0] + (a - a0) * su, v[0] + (z - z0) * sv, w0 + (c - c0) * sw)
     # The map's determinant (Blender x = left, y = -forward, z = up): negative when the axes as named mirror the mesh,
     # which would turn its faces inside out.
     perm = (la, fa, ua)
@@ -354,13 +355,16 @@ def _srgb(c):
     return np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(np.maximum(c, 0.0), 1.0 / 2.4) - 0.055)
 
 
-def paint_set(maps, set_name, paint_slot, tint, source, master='Gun', size=MAX_SIZE):
+def paint_set(maps, set_name, paint_slot, tint, source, master='Gun', size=MAX_SIZE, test=None, mode='rgb'):
     """A paintable copy of the texture set set_name (write_set's, written first): <set_name>Paint, its colour map in linear
     light divided by the sand shell's own brightest colour (the 98th percentile of its texels, per channel), so it is
     near-white where Tripo painted sand and keeps Tripo's light and dark; tinted tint (the paint's default colour,
     0xRRGGBB) it reads as our sand, and any other paint recolours it as the scripted shells' GunPolymerSand. Its ORM and
     normal are the set's. Returns the material <paint_slot>_<set_name>: the game paints a slot named
-    <paint>_<anything> with that paint (UWeaponModelComponent; the exporter folds "__" to "_")."""
+    <paint>_<anything> with that paint (UWeaponModelComponent; the exporter folds "__" to "_").
+    test: the shell's colour test ((r, g, b) sRGB -> bool; is_sand by default) for the texels the brightest is taken
+    from. mode 'luma': the copy is grey, the texel's luminance over the shell's brightest, for dark or saturated shells
+    (oxblood): divided per channel, their faint green and blue would come out as 8-bit noise under a light paint."""
     paint = set_name + 'Paint'
     bc = lt.texture_path(paint, 'BC')
     stamp = os.path.getmtime(_abs(source))
@@ -370,11 +374,25 @@ def paint_set(maps, set_name, paint_slot, tint, source, master='Gun', size=MAX_S
         lin = _linear(rgb)
         r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
         hi, lo = rgb.max(axis=-1), rgb.min(axis=-1)
-        sand = (hi > 0.5) & ((hi - lo) / np.maximum(hi, 1e-4) < 0.42) & (r >= b) & (g > 0.72 * r)   # as is_sand
-        top = np.percentile(lin[sand], 98.0, axis=0) if sand.any() else np.ones(3)
-        out = _srgb(np.clip(lin / np.maximum(top, 1e-3), 0.0, 1.0))
+        if test is None:
+            shell = (hi > 0.5) & ((hi - lo) / np.maximum(hi, 1e-4) < 0.42) & (r >= b) & (g > 0.72 * r)   # as is_sand
+        else:
+            try:   # a test written with &, < on its r, g, b runs on whole arrays at once
+                shell = np.asarray(test((r, g, b)), bool) & np.ones(r.shape, bool)
+            except (TypeError, ValueError):
+                shell = np.array([[bool(test(px)) for px in row] for row in rgb])
+        if mode == 'luma':
+            luma = lin @ np.array([0.2126, 0.7152, 0.0722])
+            top = np.percentile(luma[shell], 98.0) if shell.any() else 1.0
+            # The shell's texels over its brightest; the rest (iron, rivets, stencils on faces that are mostly shell) keep
+            # their own brightness, so a light paint doesn't light up dark iron along the slot's ragged edges.
+            grey = np.where(shell, luma / max(top, 1e-3), luma)
+            out = _srgb(np.clip(np.repeat(grey[..., None], 3, axis=-1), 0.0, 1.0))
+        else:
+            top = np.percentile(lin[shell], 98.0, axis=0) if shell.any() else np.ones(3)
+            out = _srgb(np.clip(lin / np.maximum(top, 1e-3), 0.0, 1.0))
         lt.write_png(bc, lt.to8(out))
-        lt._log(f'{paint}: wrote T_{paint}_BC ({rgb.shape[0]} px; the sand divided by linear {np.round(top, 3).tolist()})')
+        lt._log(f'{paint}: wrote T_{paint}_BC ({rgb.shape[0]} px, {mode}; the shell divided by linear {np.round(top, 3).tolist()})')
     for kind in ('ORM', 'N'):
         src, dst = lt.texture_path(set_name, kind), lt.texture_path(paint, kind)
         if os.path.exists(src) and not (os.path.exists(dst) and os.path.getmtime(dst) >= os.path.getmtime(src)):
@@ -382,6 +400,32 @@ def paint_set(maps, set_name, paint_slot, tint, source, master='Gun', size=MAX_S
         elif not os.path.exists(src) and os.path.exists(dst):
             os.remove(dst)
     return lt.material(paint, name=f'{paint_slot}_{set_name}', master=master, tint=tint)
+
+
+def probe(obj, origin, direction, reach=30.0):
+    """The first surface along direction (du, dv, dw) from origin (u, v, w), gun space cm: its (u, v, w), or None."""
+    me = obj.data
+    tree = BVHTree.FromPolygons([v.co.copy() for v in me.vertices], [list(p.vertices) for p in me.polygons])
+    d = Vector((direction[2], -direction[0], direction[1])).normalized()
+    hit = tree.ray_cast(lg.at(*origin), d, reach * lg.CM)[0]
+    return gun_uvw(hit) if hit is not None else None
+
+
+def majority(obj, faces, passes=2):
+    """faces cleaned by their neighbours: a face is kept when more than half of the faces sharing its edges are in the
+    set (and added when more than half are), passes times; it clears the speckle per-face colour picks leave on a mesh
+    of one piece."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.faces.ensure_lookup_table()
+    near = [list({g.index for e in f.edges for g in e.link_faces if g.index != f.index}) for f in bm.faces]
+    bm.free()
+    inside = np.zeros(len(near), bool)
+    inside[list(faces)] = True
+    for _ in range(passes):
+        share = np.array([inside[n].mean() if n else (1.0 if inside[i] else 0.0) for i, n in enumerate(near)])
+        inside = np.where(share > 0.5, True, np.where(share < 0.5, False, inside))
+    return [int(i) for i in np.nonzero(inside)[0]]
 
 
 def centroid(obj, faces):

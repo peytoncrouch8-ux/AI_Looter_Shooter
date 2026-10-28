@@ -19,7 +19,8 @@ if (-not $blender -or -not (Test-Path $blender)) { "Blender not found. Install i
 $threads = if ($env:LOOTER_BLENDER_THREADS) { [int]$env:LOOTER_BLENDER_THREADS } else { 6 }
 
 $sourceRoot = if ($Source) { (Resolve-Path $Source).Path } else { Join-Path $root 'Art\Models' }
-$sources = @(Get-ChildItem $sourceRoot -Recurse -File -Include *.blend, *.py | Where-Object { -not $Only -or $Only -contains $_.BaseName })
+# parts_*.py beside a model script are its data (Art/Models/Weapons/Tripo/parts_set<N>.py, read by Bullpup.py), not models.
+$sources = @(Get-ChildItem $sourceRoot -Recurse -File -Include *.blend, *.py | Where-Object { $_.Name -notlike 'parts_*.py' } | Where-Object { -not $Only -or $Only -contains $_.BaseName })
 if (-not $sources) { "No models found under $sourceRoot."; exit 1 }
 
 # The export folder is cleared of the last run's files (so only this run's models get imported): only its own .fbx and
