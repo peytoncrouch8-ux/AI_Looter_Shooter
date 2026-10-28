@@ -114,15 +114,24 @@ namespace UnpaidRules
 	 */
 	AI_LOOTER_SHOOTER_API bool WantsSightStep(const FPhaseStepRules& Rules, bool bSeesTarget, float StuckSeconds, float SinceLastStep);
 
-	/**
-	 * Where such a step may land, in order: round the target at NearestToTarget, then a metre farther, its own side first and
-	 * fanning round to the far side (through the doorway, into the nave), every spot within MaxStep of Here, at Here's height.
-	 * CanStand's sight check picks the ones that see the target.
-	 */
-	AI_LOOTER_SHOOTER_API TArray<FVector> SightCandidates(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target);
+	/** A step to sight comes back no nearer its target than this (cm): nearer than a gaining step may, to get onto a narrow dais. */
+	inline constexpr float SightNearest = 150.f;
 
-	/** ChoosePhaseSpot's checks over SightCandidates: the first spot on its ground where CanStand finds its feet, on its own level. */
-	AI_LOOTER_SHOOTER_API bool ChooseSightSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target,
+	/**
+	 * Where such a step may land, in order: along its line to the target every metre, nearest the target first (over the
+	 * wall, through the doorway: the far side first), then round the target at SightNearest, NearestToTarget and a metre
+	 * farther, its own side first and fanning round to the far side. Every spot within MaxStep of Here, at the target's own
+	 * floor height (TargetFeetZ: 2026-10-28, the chapel's dais stands 75 cm over the yard). CanStand's sight check picks the
+	 * ones that see the target.
+	 */
+	AI_LOOTER_SHOOTER_API TArray<FVector> SightCandidates(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target,
+		float TargetFeetZ);
+
+	/** Whether a step to sight may land on ground at FeetZ: its own level (MaxRise of Here) or its target's (MaxRise of TargetFeetZ). */
+	AI_LOOTER_SHOOTER_API bool IsSightStepLevel(const FPhaseStepRules& Rules, float HereZ, float TargetFeetZ, float FeetZ);
+
+	/** ChoosePhaseSpot's checks over SightCandidates: the first spot on its ground where CanStand finds its feet, on its level or its target's. */
+	AI_LOOTER_SHOOTER_API bool ChooseSightSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target, float TargetFeetZ,
 		const FHuntingGround& Ground, const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand,
 		FVector& OutFeet, float GroundReach = 0.f);
 }

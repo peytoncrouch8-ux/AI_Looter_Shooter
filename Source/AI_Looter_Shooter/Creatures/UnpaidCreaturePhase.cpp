@@ -17,6 +17,8 @@
 #include "Components/CapsuleComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
+#include "Components/PrimitiveComponent.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 
@@ -36,6 +38,15 @@ namespace
 
 	/** Nowhere to come back on: it looks again after this long (s), not every frame. */
 	constexpr float RetrySeconds = 0.75f;
+
+	/** A step to sight may land on what its target stands on, this near their feet's height (cm). */
+	constexpr float TheirFloorBand = 60.f;
+
+	/** Its target's feet (world Z): where they stand. */
+	float FeetZOf(const APawn& Victim)
+	{
+		return static_cast<float>(Victim.GetActorLocation().Z) - Victim.GetSimpleCollisionHalfHeight();
+	}
 }
 
 bool AUnpaidCreature::IsPhasing() const
@@ -172,34 +183,45 @@ FString AUnpaidCreature::DescribePhaseRefusals() const
 		return TEXT("no target");
 	}
 	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-	const TArray<FVector> Candidates = UnpaidRules::PhaseCandidates(PhaseStep, Feet, Victim->GetActorLocation());
-	// 0 off its ground, 1 no ground, 2 steep or an obstacle's top, 3 no room, 4 no sight, 5 safe zone or past the area, 6 another level.
-	int32 Counts[7] = {};
-	int32 Fine = 0;
-	for (const FVector& Candidate : Candidates)
+	const float TheirFeet = FeetZOf(*Victim);
+	// Each candidate's first refusal: 0 off its ground, 1 no ground, 2 steep or an obstacle's top, 3 no room, 4 no sight,
+	// 5 safe zone or past the area, 6 another level (a step to sight: neither its own level nor its target's).
+	auto Count = [&](const TArray<FVector>& Candidates, bool bToSight)
 	{
-		if (!HuntingGround.ContainsSpot(Candidate, GetHome().GetLocation(), GetGroundReach()))
+		int32 Counts[7] = {};
+		int32 Fine = 0;
+		for (const FVector& Candidate : Candidates)
 		{
-			++Counts[0];
-			continue;
+			if (!HuntingGround.ContainsSpot(Candidate, GetHome().GetLocation(), GetGroundReach()))
+			{
+				++Counts[0];
+				continue;
+			}
+			FVector Ground;
+			int32 Refusal = 0;
+			if (!CanStandAt(Candidate, Ground, &Refusal, bToSight))
+			{
+				++Counts[FMath::Clamp(Refusal, 1, 5)];
+				continue;
+			}
+			const bool bLevel = bToSight
+				? UnpaidRules::IsSightStepLevel(PhaseStep, static_cast<float>(Feet.Z), TheirFeet, static_cast<float>(Ground.Z))
+				: FMath::Abs(Ground.Z - Feet.Z) <= PhaseStep.MaxRise;
+			if (!bLevel)
+			{
+				++Counts[6];
+				continue;
+			}
+			++Fine;
 		}
-		FVector Ground;
-		int32 Refusal = 0;
-		if (!CanStandAt(Candidate, Ground, &Refusal))
-		{
-			++Counts[FMath::Clamp(Refusal, 1, 5)];
-			continue;
-		}
-		if (FMath::Abs(Ground.Z - Feet.Z) > PhaseStep.MaxRise)
-		{
-			++Counts[6];
-			continue;
-		}
-		++Fine;
-	}
-	return FString::Printf(TEXT("%d spots at %.1f m (reach %.0f, waiting %d, pressed %d, sees %d): fine %d, off ground %d, no ground %d, steep/obstacle %d, no room %d, no sight %d, safe/area %d, other level %d"),
-		Candidates.Num(), FVector::Dist2D(Feet, Victim->GetActorLocation()) / 100.f, GetGroundReach(), IsWaitingTurn() ? 1 : 0,
-		IsPressed() ? 1 : 0, SeesTarget(*Victim) ? 1 : 0, Fine, Counts[0], Counts[1], Counts[2], Counts[3], Counts[4], Counts[5], Counts[6]);
+		return FString::Printf(TEXT("%d spots: fine %d, off ground %d, no ground %d, steep/obstacle %d, no room %d, no sight %d, safe/area %d, other level %d"),
+			Candidates.Num(), Fine, Counts[0], Counts[1], Counts[2], Counts[3], Counts[4], Counts[5], Counts[6]);
+	};
+	const FString Gaining = Count(UnpaidRules::PhaseCandidates(PhaseStep, Feet, Victim->GetActorLocation()), false);
+	const FString ToSight = Count(UnpaidRules::SightCandidates(PhaseStep, Feet, Victim->GetActorLocation(), TheirFeet), true);
+	return FString::Printf(TEXT("at %.1f m, %.0f cm under them (reach %.0f, waiting %d, pressed %d, sees %d, blind spell %d). Gaining: %s. To sight: %s"),
+		FVector::Dist2D(Feet, Victim->GetActorLocation()) / 100.f, TheirFeet - Feet.Z, GetGroundReach(), IsWaitingTurn() ? 1 : 0,
+		IsPressed() ? 1 : 0, SeesTarget(*Victim) ? 1 : 0, Sight.bBlindSpell ? 1 : 0, *Gaining, *ToSight);
 }
 
 void AUnpaidCreature::StartPhaseStep()
@@ -249,13 +271,16 @@ bool AUnpaidCreature::FindPhaseSpot(FVector& OutFeet) const
 	{
 		return true;
 	}
-	// Out of their sight with no step that gains ground: one to where it sees them (CanStandAt's sight), nearer or not.
+	// Out of their sight with no step that gains ground: one to where it sees them (CanStandAt's sight), nearer or not, on
+	// its own floor or theirs, onto what they stand on too (the chapel's raised dais, 2026-10-28: every step to sight landed
+	// back outside).
+	auto CanStandToSight = [this](const FVector& Candidate, FVector& OutGround) { return CanStandAt(Candidate, OutGround, nullptr, true); };
 	return NeedsSight() && FUnpaidFightTuning::Live().BlindStep != 0 && !SeesTarget(*Victim)
-		&& UnpaidRules::ChooseSightSpot(PhaseStep, Feet, Victim->GetActorLocation(), HuntingGround, GetHome().GetLocation(), CanStand,
-			OutFeet, GetGroundReach());
+		&& UnpaidRules::ChooseSightSpot(PhaseStep, Feet, Victim->GetActorLocation(), FeetZOf(*Victim), HuntingGround, GetHome().GetLocation(),
+			CanStandToSight, OutFeet, GetGroundReach());
 }
 
-bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal) const
+bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal, bool bTheirFloorToo) const
 {
 	int32 Ignored = 0;
 	int32& Refusal = OutRefusal ? *OutRefusal : Ignored;
@@ -286,7 +311,12 @@ bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround, i
 		return false;
 	}
 	const AActor* Under = Hit.GetActor();
-	if (Hit.ImpactNormal.Z < WalkableGroundNormalZ || (Under && Under->ActorHasTag(StandingObstacleTag)))
+	// What its target stands on is ground for a step to sight, tagged an obstacle or not (a dais, a platform), near their feet.
+	const ACharacter* Walker = bTheirFloorToo ? Cast<ACharacter>(Victim) : nullptr;
+	const UPrimitiveComponent* TheirBase = Walker ? Walker->GetMovementBase() : nullptr;
+	const bool bTheirFloor = TheirBase && Under && TheirBase->GetOwner() == Under
+		&& FMath::Abs(static_cast<float>(Hit.ImpactPoint.Z) - FeetZOf(*Victim)) <= TheirFloorBand;
+	if (Hit.ImpactNormal.Z < WalkableGroundNormalZ || (Under && Under->ActorHasTag(StandingObstacleTag) && !bTheirFloor))
 	{
 		Refusal = 2;
 		return false;

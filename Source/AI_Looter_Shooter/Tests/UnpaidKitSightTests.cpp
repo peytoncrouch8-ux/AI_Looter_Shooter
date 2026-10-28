@@ -78,8 +78,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidKitSightTest, "Looter.Creatures.Unpaid.K
 
 bool FUnpaidKitSightTest::RunTest(const FString& Parameters)
 {
-	// The rules: a blind step only when stalled and off its cooldown; its spots round the target, never nearer than its
-	// nearest, never a longer blink than its longest step, its own side first.
+	// The rules: a blind step only when stalled and off its cooldown; its spots along its line to the target (nearest them
+	// first) and round them, never nearer than SightNearest, never a longer blink than its longest step, at their floor's height.
 	const FPhaseStepRules Rules;
 	TestTrue(TEXT("Out of sight, stalled, off cooldown: a step to sight"), UnpaidRules::WantsSightStep(Rules, false, Rules.StuckSeconds, Rules.Cooldown));
 	TestFalse(TEXT("...not while it sees them"), UnpaidRules::WantsSightStep(Rules, true, Rules.StuckSeconds, Rules.Cooldown));
@@ -87,7 +87,8 @@ bool FUnpaidKitSightTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("...nor within its cooldown"), UnpaidRules::WantsSightStep(Rules, false, Rules.StuckSeconds, Rules.Cooldown - 0.1f));
 	const FVector Near(200.0, 0.0, 0.0);
 	const FVector Middle(0.0, 0.0, 90.0);
-	const TArray<FVector> Spots = UnpaidRules::SightCandidates(Rules, Near, Middle);
+	const float TheirFloor = 75.f;
+	const TArray<FVector> Spots = UnpaidRules::SightCandidates(Rules, Near, Middle, TheirFloor);
 	if (TestTrue(TEXT("Spots round them to try"), Spots.Num() >= 6))
 	{
 		TestTrue(TEXT("Its own side first"), Spots[0].X > 0.0 && FMath::Abs(Spots[0].Y) < 1.0);
@@ -95,12 +96,23 @@ bool FUnpaidKitSightTest::RunTest(const FString& Parameters)
 	for (const FVector& Spot : Spots)
 	{
 		const double FromThem = FVector::Dist2D(Spot, Middle);
-		if (FromThem < Rules.NearestToTarget - 0.5 || FVector::Dist2D(Spot, Near) > Rules.MaxStep + 0.5 || !FMath::IsNearlyEqual(Spot.Z, Near.Z))
+		if (FromThem < UnpaidRules::SightNearest - 0.5 || FVector::Dist2D(Spot, Near) > Rules.MaxStep + 0.5 || !FMath::IsNearlyEqual(Spot.Z, TheirFloor))
 		{
-			AddError(FString::Printf(TEXT("%s is %.0f cm from them (at least %.0f), %.0f from it (at most %.0f), or off its height"), *Spot.ToString(),
-				FromThem, Rules.NearestToTarget, FVector::Dist2D(Spot, Near), Rules.MaxStep));
+			AddError(FString::Printf(TEXT("%s is %.0f cm from them (at least %.0f), %.0f from it (at most %.0f), or off their floor"), *Spot.ToString(),
+				FromThem, UnpaidRules::SightNearest, FVector::Dist2D(Spot, Near), Rules.MaxStep));
 		}
 	}
+	// Through a wall from 6 m off: the line's spots come first, the one nearest them first (the far side of the wall).
+	const TArray<FVector> Far = UnpaidRules::SightCandidates(Rules, FVector(600.0, 0.0, 0.0), Middle, 0.f);
+	if (TestTrue(TEXT("From 6 m: spots along its line"), Far.Num() >= 3))
+	{
+		TestTrue(FString::Printf(TEXT("...nearest them first (%s)"), *Far[0].ToCompactString()), FMath::IsNearlyEqual(Far[0].X, 150.0, 1.0) && FMath::Abs(Far[0].Y) < 1.0);
+		TestTrue(TEXT("...then a metre farther along"), FMath::IsNearlyEqual(Far[1].X, 250.0, 1.0) && FMath::Abs(Far[1].Y) < 1.0);
+	}
+	// Its level or theirs: up onto a dais 75 cm over the yard from a step that rose too far for its own level alone.
+	TestTrue(TEXT("Their floor counts"), UnpaidRules::IsSightStepLevel(Rules, 0.f, 200.f, 200.f));
+	TestTrue(TEXT("...and its own"), UnpaidRules::IsSightStepLevel(Rules, 0.f, 200.f, 50.f));
+	TestFalse(TEXT("...but no third floor"), UnpaidRules::IsSightStepLevel(Rules, 0.f, 200.f, 500.f));
 
 	// In a level: a wall 1 m from the player between them and an Unpaid 2 m off (the chapel nave's wall), and one more Unpaid
 	// on the player's open side. One melee turn at a time, so the one let go shows.
@@ -144,6 +156,7 @@ bool FUnpaidKitSightTest::RunTest(const FString& Parameters)
 	// It took the one turn and let it go, rested (it would have it now otherwise), so the one with a clear way in takes it.
 	TestFalse(TEXT("...it let its turn go and rests"), Director->TryTakeToken(*Walled, *Player, EFightRole::Melee));
 	TestTrue(TEXT("...so the one with a clear way in takes the turn"), Director->TryTakeToken(*Open, *Player, EFightRole::Melee));
+	TestTrue(TEXT("...and stays out of the line for turns while it can't see them (its blind spell)"), Walled->IsBlindToTurns());
 
 	// Stalled out of sight, too near to step nearer: it blinks to where it sees them (round the wall's end is 15 m off).
 	bool bStepped = false;
@@ -162,7 +175,12 @@ bool FUnpaidKitSightTest::RunTest(const FString& Parameters)
 		}
 		const float Off = static_cast<float>(FVector::Dist2D(Walled->GetActorLocation(), Player->GetActorLocation()));
 		TestTrue(TEXT("...back where it sees them"), Walled->SeesTarget(*Player, true));
-		TestTrue(FString::Printf(TEXT("...no nearer than a step may bring it (%.0f cm)"), Off), Off >= Walled->PhaseStep.NearestToTarget - 5.f);
+		TestTrue(FString::Printf(TEXT("...no nearer than a step to sight may bring it (%.0f cm)"), Off), Off >= UnpaidRules::SightNearest - 5.f);
+		for (int32 Index = 0; Index < 30; ++Index)
+		{
+			TickUnpaid(*Walled);
+		}
+		TestFalse(TEXT("...and, seeing them, it's back in line for turns"), Walled->IsBlindToTurns());
 	}
 	return true;
 }
@@ -174,7 +192,7 @@ bool FUnpaidKitPackStepTest::RunTest(const FString& Parameters)
 {
 	// The gate's rules on their own clock: one step a gap, an owed one first, its hold running out if it finds nowhere.
 	const FUnpaidFightTuning Tuning;
-	TestTrue(TEXT("A gap under a second: a pack still presses"), Tuning.PackStepGap > 0.f && Tuning.PackStepGap <= 1.f);
+	TestTrue(TEXT("A gap of a second or so: a pack still presses"), Tuning.PackStepGap > 0.f && Tuning.PackStepGap <= 2.f);
 	TestTrue(TEXT("A jitter of a second or two"), Tuning.StepJitter > 0.f && Tuning.StepJitter <= 2.f);
 	const float Gap = Tuning.PackStepGap;
 	FUnpaidStepGate Gate;

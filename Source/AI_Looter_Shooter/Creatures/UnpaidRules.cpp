@@ -12,12 +12,20 @@ namespace
 	/** A step to sight lands round the target this often (degrees) from its own side, out to the far side. */
 	constexpr float SightFanStep = 30.f;
 
-	/** ...at NearestToTarget, then this much farther (cm). */
+	/** ...at SightNearest, NearestToTarget, then this much farther (cm); along its line to them this far apart (cm). */
 	constexpr float SightRingGap = 100.f;
+	constexpr float SightLineStep = 100.f;
 
-	/** The first of Candidates on its ground (with its reach) where CanStand finds its feet, on Here's level. */
+	/** Spots nearer each other than this (cm) are one spot: tried once. */
+	constexpr float SameSpot = 30.f;
+
+	/**
+	 * The first of Candidates on its ground (with its reach) where CanStand finds its feet, on Here's level (or, given
+	 * TargetFeetZ, on its target's).
+	 */
 	bool ChooseFrom(const TArray<FVector>& Candidates, const FPhaseStepRules& Rules, const FVector& Here, const FHuntingGround& Ground,
-		const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand, FVector& OutFeet, float GroundReach)
+		const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand, FVector& OutFeet, float GroundReach,
+		const float* TargetFeetZ = nullptr)
 	{
 		for (const FVector& Candidate : Candidates)
 		{
@@ -27,7 +35,14 @@ namespace
 				continue;
 			}
 			FVector Feet;
-			if (!CanStand(Candidate, Feet) || FMath::Abs(Feet.Z - Here.Z) > Rules.MaxRise)
+			if (!CanStand(Candidate, Feet))
+			{
+				continue;
+			}
+			const bool bLevel = TargetFeetZ
+				? UnpaidRules::IsSightStepLevel(Rules, static_cast<float>(Here.Z), *TargetFeetZ, static_cast<float>(Feet.Z))
+				: FMath::Abs(Feet.Z - Here.Z) <= Rules.MaxRise;
+			if (!bLevel)
 			{
 				continue;
 			}
@@ -140,24 +155,43 @@ bool UnpaidRules::WantsSightStep(const FPhaseStepRules& Rules, bool bSeesTarget,
 	return !bSeesTarget && SinceLastStep >= Rules.Cooldown && StuckSeconds >= Rules.StuckSeconds;
 }
 
-TArray<FVector> UnpaidRules::SightCandidates(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target)
+TArray<FVector> UnpaidRules::SightCandidates(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target, float TargetFeetZ)
 {
 	TArray<FVector> Candidates;
-	FVector2D Out(Here.X - Target.X, Here.Y - Target.Y);
-	Out = Out.IsNearlyZero() ? FVector2D(1.0, 0.0) : Out.GetSafeNormal();
-	for (const float Radius : { Rules.NearestToTarget, Rules.NearestToTarget + SightRingGap })
+	const FVector2D From(Here.X, Here.Y);
+	const FVector2D To(Target.X, Target.Y);
+	FVector2D Out = From - To;
+	const double Apart = Out.Size();
+	Out = Apart <= UE_KINDA_SMALL_NUMBER ? FVector2D(1.0, 0.0) : Out / Apart;
+	auto Add = [&Candidates, &From, &Rules, TargetFeetZ](const FVector2D& At)
+	{
+		// No blink longer than its longest step, and each spot tried once.
+		if (FVector2D::Distance(At, From) > Rules.MaxStep + 0.5)
+		{
+			return;
+		}
+		for (const FVector& Each : Candidates)
+		{
+			if (FVector2D::Distance(At, FVector2D(Each.X, Each.Y)) < SameSpot)
+			{
+				return;
+			}
+		}
+		Candidates.Emplace(At.X, At.Y, TargetFeetZ);
+	};
+	// Along its line to them, nearest them first: the far side of the wall it stands behind, the doorway it looks through.
+	for (double Along = SightNearest; Along < Apart; Along += SightLineStep)
+	{
+		Add(To + Out * Along);
+	}
+	// Round them, its own side first, out to their far side.
+	for (const float Radius : { SightNearest, Rules.NearestToTarget, Rules.NearestToTarget + SightRingGap })
 	{
 		for (float Fan = 0.f; Fan <= 180.f + 0.5f; Fan += SightFanStep)
 		{
 			for (const float Side : { 1.f, -1.f })
 			{
-				const FVector2D Way = Out.GetRotated(Fan * Side) * FMath::Max(Radius, 1.f);
-				const FVector Spot(Target.X + Way.X, Target.Y + Way.Y, Here.Z);
-				// No blink longer than its longest step.
-				if (FVector::Dist2D(Spot, Here) <= Rules.MaxStep)
-				{
-					Candidates.Add(Spot);
-				}
+				Add(To + Out.GetRotated(Fan * Side) * FMath::Max(Radius, 1.f));
 				if (Fan == 0.f || Fan >= 180.f)
 				{
 					break;
@@ -168,8 +202,15 @@ TArray<FVector> UnpaidRules::SightCandidates(const FPhaseStepRules& Rules, const
 	return Candidates;
 }
 
-bool UnpaidRules::ChooseSightSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target, const FHuntingGround& Ground,
-	const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand, FVector& OutFeet, float GroundReach)
+bool UnpaidRules::IsSightStepLevel(const FPhaseStepRules& Rules, float HereZ, float TargetFeetZ, float FeetZ)
 {
-	return ChooseFrom(SightCandidates(Rules, Here, Target), Rules, Here, Ground, Home, CanStand, OutFeet, GroundReach);
+	return FMath::Abs(FeetZ - HereZ) <= Rules.MaxRise || FMath::Abs(FeetZ - TargetFeetZ) <= Rules.MaxRise;
+}
+
+bool UnpaidRules::ChooseSightSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target, float TargetFeetZ,
+	const FHuntingGround& Ground, const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand,
+	FVector& OutFeet, float GroundReach)
+{
+	return ChooseFrom(SightCandidates(Rules, Here, Target, TargetFeetZ), Rules, Here, Ground, Home, CanStand, OutFeet, GroundReach,
+		&TargetFeetZ);
 }

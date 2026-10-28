@@ -583,7 +583,8 @@ The saga (2026-10-15; the readable bible: https://claude.ai/artifact/Gr66uUTXWze
     seeds** in Ransom's Rest. Built from it: the saints as souls who refused to cross; the spark; the second light; the
     Well; Halfway Junction, Hoarfrost Pass and the Sundown Road as regions; the cloud heroes as companions; the seeds
     list. **The user's calls (2026-10-15):** (a) the *Lily* is **an airship** over the canyon at Highwater Landing
-    (decision 12 closed); (b) the five heroes are **playable characters chosen before the story starts, like
+    (decision 12 closed; **REVERSED 2026-10-28: a Titanic-like liner anchored at sea off a port town, it stays afloat;
+    design answers in `Docs/Areas/GildedLily.md`, which overrides every airship line in this file**); (b) the five heroes are **playable characters chosen before the story starts, like
     Borderlands 2** (the user's own words; not "companions playable later"); (c) **the false lighthouse** as written;
     (d) **keep all three new regions**; (e) a non-Ellis pick **takes Ellis's place**: one story for everyone, Pa
     becomes the Keeper, the Deacon's "kid" is whoever you are, Ellis exists only when picked, heroes not picked don't

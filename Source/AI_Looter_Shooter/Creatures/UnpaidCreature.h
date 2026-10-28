@@ -114,6 +114,8 @@ public:
 	bool WaitGoesNowhere(const APawn& Victim) const;
 	/** A clear line from its eyes to Victim's through real geometry (one trace, kept a moment; bFresh: traced now). UnpaidCreatureSight.cpp. */
 	bool SeesTarget(const APawn& Victim, bool bFresh = false) const;
+	/** Out of its target's sight since it let a turn go: it asks for none until it sees them (UnpaidCreatureSight.cpp). */
+	bool IsBlindToTurns() const { return Sight.bBlindSpell; }
 	/**
 	 * Why a phase-step toward its target finds nowhere now: each candidate spot's first refusal counted (off its ground, no
 	 * ground, steep or an obstacle's top, no room, no sight of the target, a safe zone or past the playable area, another level),
@@ -363,16 +365,22 @@ private:
 	virtual void OnPressedByHit(const APawn& By) override;
 	/** Where a step lands now: the rules' first spot the level allows (ground, room, sight of its target, safe zones). */
 	bool FindPhaseSpot(FVector& OutFeet) const;
-	/** Whether it may come back at Candidate: walkable ground near it, room, its target in sight, no safe zone (the ground: OutGround). */
-	bool CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal = nullptr) const;
+	/**
+	 * Whether it may come back at Candidate: walkable ground near it, room, its target in sight, no safe zone (the ground:
+	 * OutGround). bTheirFloorToo (a step to sight): the top of what its target stands on is ground, even one tagged Obstacle.
+	 */
+	bool CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal = nullptr, bool bTheirFloorToo = false) const;
 	/** Starts a step to Feet now: it fades out here and comes back there (counted at its target's step gate). */
 	void StartStepTo(const FVector& Feet);
 
 	// --- Sight and the pack's steps (UnpaidCreatureSight.cpp) ---
 	/** Its sight's clock, and its step clock jittered when it has a new target. */
 	void TickSight(float DeltaSeconds);
-	/** With its kit, holding a turn it can't use, out of its target's sight: lets it go (true). */
-	bool LetBlindTurnGo(UFightDirectorSubsystem& Director, const APawn& Victim);
+	/**
+	 * With its kit, out of its target's sight: a turn it holds is let go (true), and it stays out of the line for turns until
+	 * it sees them again (a blind spell: logged once). Asked each frame of its kit on the ring or in the chase.
+	 */
+	bool TickBlindTurn(UFightDirectorSubsystem& Director, const APawn& Victim);
 	/** Whether its target's step gate lets it phase-step or flank now (Looter.Unpaid.PackStepGap; an owed press step first). */
 	bool MayPackStep(const APawn& Victim);
 	/** Its kit's sight rule is on (Looter.Unpaid.Sight). */

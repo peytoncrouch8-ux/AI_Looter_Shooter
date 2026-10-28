@@ -2,8 +2,9 @@
 //  - Sight: with its kit no melee turn starts and no lunge flies without a clear line at its target through real geometry
 //    (Looter.Unpaid.Sight). Unpaid 1.4-2.6 m outside the chapel nave's wall, or behind an open door leaf, kept taking turns
 //    and lunging into it (one made 21 attacks, landing none), too near for a step that gains ground: a stalemate. Now one
-//    holding a turn it can't see by lets it go (another takes it), and stalled out of sight it may blink to where it sees
-//    them, nearer or not (UnpaidCreaturePhase.cpp, UnpaidRules::ChooseSightSpot): into the doorway, into the nave.
+//    holding a turn it can't see by lets it go (another takes it) and asks for none until it sees them again (a blind
+//    spell), and stalled out of sight it may blink to where it sees them, nearer or not, on its own floor or theirs
+//    (UnpaidCreaturePhase.cpp, UnpaidRules::ChooseSightSpot): into the doorway, into the nave, up onto the dais.
 //  - The pack's blinks: those past FarBehind all stepped on one frame as they noticed the player or a wave spawned hunting
 //    (5-6 at once). Now at most one phase-step or flank at a player every Looter.Unpaid.PackStepGap across all the Unpaid
 //    (the fight director's step gate, FUnpaidStepGate; an owed press step first), and each one's step clock is jittered
@@ -30,8 +31,12 @@ namespace
 	constexpr float EyeShare = 0.6f;
 	constexpr float TargetEyeLift = 50.f;
 
-	/** A turn let go for want of sight: it isn't put in line again for this long (s), so another takes the turn. */
-	constexpr float BlindRest = 0.8f;
+	/**
+	 * A blind spell keeps it out of the line for turns: the director's rest is set this long (s) and renewed once less than
+	 * BlindRenew is left, until it sees them again; then it's back in line at once.
+	 */
+	constexpr float BlindHold = 0.6f;
+	constexpr float BlindRenew = 0.3f;
 }
 
 bool AUnpaidCreature::NeedsSight() const
@@ -67,6 +72,7 @@ bool AUnpaidCreature::SeesTarget(const APawn& Victim, bool bFresh) const
 void AUnpaidCreature::TickSight(float DeltaSeconds)
 {
 	Sight.RecheckIn -= DeltaSeconds;
+	Sight.BlindHoldLeft = FMath::Max(Sight.BlindHoldLeft - DeltaSeconds, 0.f);
 	const APawn* Victim = GetTarget();
 	const uint32 Id = Victim ? Victim->GetUniqueID() : 0;
 	if (Id == Sight.StepTargetId)
@@ -74,6 +80,8 @@ void AUnpaidCreature::TickSight(float DeltaSeconds)
 		return;
 	}
 	Sight.StepTargetId = Id;
+	// A new target is a new look: no blind spell carried over (its rest runs out on its own).
+	Sight.bBlindSpell = false;
 	// A new target (it spawned hunting, or noticed them): its next step waits a moment of its own, so a pack that sees the
 	// player together doesn't blink together. Never holding back an owed press step, nor a boss's own.
 	if (Id != 0 && !bPressStepOwed && !IsBossCreature())
@@ -83,17 +91,43 @@ void AUnpaidCreature::TickSight(float DeltaSeconds)
 	}
 }
 
-bool AUnpaidCreature::LetBlindTurnGo(UFightDirectorSubsystem& Director, const APawn& Victim)
+bool AUnpaidCreature::TickBlindTurn(UFightDirectorSubsystem& Director, const APawn& Victim)
 {
-	if (!NeedsSight() || !Director.HoldsToken(*this) || SeesTarget(Victim))
+	const bool bHolding = Director.HoldsToken(*this);
+	if (!bHolding && !Sight.bBlindSpell)
 	{
 		return false;
 	}
-	// Its turn would only bring it into the wall: another of the pack, with a clear way in, takes it. Rested a moment so it
-	// doesn't take it straight back; out of their sight it may blink to where it sees them (WantsToStep).
-	UE_LOG(LogLooter, Verbose, TEXT("%s can't see %s: it lets its turn go."), *GetName(), *Victim.GetName());
-	Director.RestFromTurns(*this, BlindRest);
-	return true;
+	if (!NeedsSight())
+	{
+		Sight.bBlindSpell = false;
+		return false;
+	}
+	if (SeesTarget(Victim))
+	{
+		if (Sight.bBlindSpell && !bHolding)
+		{
+			// In sight again: back in line for a turn at once (its rest cut to nothing).
+			Director.RestFromTurns(*this, UE_KINDA_SMALL_NUMBER);
+			Sight.BlindHoldLeft = 0.f;
+		}
+		Sight.bBlindSpell = false;
+		return false;
+	}
+	// Its turn would only bring it into the wall: another of the pack, with a clear way in, takes it. Out of the line while
+	// it can't see them (not taken and let go again a few times a second); out of their sight it may blink to where it sees
+	// them (WantsToStep).
+	if (!Sight.bBlindSpell)
+	{
+		Sight.bBlindSpell = true;
+		UE_LOG(LogLooter, Verbose, TEXT("%s can't see %s: it lets its turn go until it does."), *GetName(), *Victim.GetName());
+	}
+	if (bHolding || Sight.BlindHoldLeft <= BlindRenew)
+	{
+		Director.RestFromTurns(*this, BlindHold);
+		Sight.BlindHoldLeft = BlindHold;
+	}
+	return bHolding;
 }
 
 bool AUnpaidCreature::MayPackStep(const APawn& Victim)

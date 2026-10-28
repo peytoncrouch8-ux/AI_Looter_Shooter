@@ -89,6 +89,13 @@ struct FUnpaidSightState
 	/** Seconds until it looks again (counted down by its own frames, so a test's ticks count too). */
 	float RecheckIn = 0.f;
 	uint32 StepTargetId = 0;
+	/**
+	 * A blind spell: it let a turn go for want of sight and stays out of the line for turns until it sees its target again
+	 * (2026-10-28 play-check: let go and taken again 4-7 times a second across the pack). BlindHoldLeft: seconds left of the
+	 * director's rest it last set, renewed before it runs out.
+	 */
+	bool bBlindSpell = false;
+	float BlindHoldLeft = 0.f;
 };
 
 /**

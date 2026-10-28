@@ -377,6 +377,15 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
   clock jittered 0-1.5 s at a new target (`Looter.Unpaid.StepJitter`, `JitterStepClock`). Test
   `Looter.Creatures.Unpaid.Kit.PackStep`. Cost: one sight trace per Unpaid per ~0.3 s only while it holds a turn, is in
   attack range or wants a step; a blind step's search is at most 24 spots x 3 queries, every 0.75 s, gated.
+- Dais (2026-10-28 rerun: steps to sight landed back outside, -0.9/-1.3/-0.1 m): to-sight spots run along its line to the
+  player every 1 m (nearest them first), then rings at 150 (`UnpaidRules::SightNearest`), 250 and 350 cm, all at the
+  player's floor height; it may land on its own floor or theirs (`IsSightStepLevel`, `MaxRise` 120 of either); the top of
+  what the player stands on counts as ground even if tagged `Obstacle` (`CanStandAt` `bTheirFloorToo`, within 60 cm of
+  their feet). `Looter.Unpaid.TryStep` prints gaining and to-sight refusals apart. The 12 s "out of its reach" give-up is
+  `CreaturePursuit` Prowl (4 s overhead, 10 s no progress), unchanged.
+- Blind spell (rerun: 529 let-go lines in 75 s): one that lets a turn go for want of sight asks for none until it sees the
+  player again (`TickBlindTurn`; director rest 0.6 s renewed under 0.3 s, cut to nothing on sight; logged once a spell).
+- `Looter.Unpaid.PackStepGap` 0.8 -> 1.2 (at 0.8 a busy fight blinked like a metronome, ~70 a minute).
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
   arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.

@@ -77,8 +77,11 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	 * or not (the nave's doors). 0: the old way (one made 21 attacks into the nave's wall, landing none).
 	 */
 	int32 Sight = 1;
-	/** Looter.Unpaid.PackStepGap: at most one phase-step or flank at one player every this many seconds, across all the Unpaid (an owed press step first); 0: no gap. */
-	float PackStepGap = 0.8f;
+	/**
+	 * Looter.Unpaid.PackStepGap: at most one phase-step or flank at one player every this many seconds, across all the Unpaid
+	 * (an owed press step first); 0: no gap. DEMO 2026-10-28: at 0.8 a busy fight blinked like a metronome (~70 a minute).
+	 */
+	float PackStepGap = 1.2f;
 	/** Looter.Unpaid.StepJitter: spawning or noticing a target, an Unpaid's next phase-step waits up to this much longer (s, rolled each), so a pack doesn't blink as one. */
 	float StepJitter = 1.5f;
 

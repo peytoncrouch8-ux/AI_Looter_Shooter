@@ -225,10 +225,12 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 		Kit.bFlankArmed = false;
 		if (!(bFlank && MayPackStep(*Victim) && TryFlank(*Victim)))
 		{
-			LetBlindTurnGo(*Director, *Victim);
+			TickBlindTurn(*Director, *Victim);
 		}
 		return;
 	}
+	// Out of their sight since it let a turn go: it stays out of the line until it sees them.
+	TickBlindTurn(*Director, *Victim);
 	if (!bWaiting)
 	{
 		// Off the ring with no turn (the ring broke up): no flank held for it.
