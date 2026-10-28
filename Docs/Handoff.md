@@ -3,6 +3,31 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-28 afternoon (the user at work; their picks: Unpaid balance, maker sounds, packaged fixes, cleanups)
+All pushed (last: 683405f9 + this handoff). Nothing played by the user yet. Contract: Docs/Work/2026-10-28-Polish2/CONTRACT.md.
+- Unpaid (play-checked by DEMO each round, numbers in Pipeline/Enemies.md):
+  - LungeHitRadius 85 -> 100 (at 85 no lunge ever landed on a still player); FlankChance 0.6 -> 0.4.
+  - Sight: no turn or lunge through walls; a blind Unpaid lets its turn go and steps to a spot that sees the player
+    (reaches the chapel dais now); one blink per player per 1.2 s across the pack, step clock jittered 0-1.5 s;
+    no attack 0.6 s after a blink lands (ArrivalHold). Standing still on the nave floor: dead in 49 s (was 12).
+  - Open: the dais still hardest (landings at 1.5 m; a still player dies in 23 s). Idea: 0.8 s hold for 1.5 m landings.
+    UnpaidCreature.h is 544 lines (over ~500): split when next touched.
+- Gun maker sounds: MakerSoundFlavor (Roundhouse heavy, Saint Maud ring, Windfall rattle, Meridian clean); heard in PIE
+  via au.Debug only, not by ear. Watch for clipping on a Roundhouse/Saint Maud revolver indoors.
+- Paper marker: decal/sheet mission items (the gate poster) get an orange ring-diamond while lit (PASS in PIE).
+- Maker marks were mirrored on both sides: fixed (MARK_CODE); T_GunMakerMarks never streams. Third person can't show a mark
+  (camera sees the gun end-on; accepted since 10-22).
+- Shotgun trigger: Grip.Report 2.23 cm (test now 3 cm, indexed). The shotgun's support hand reads a bit off (cup box sits on
+  the housing front, fingers not wrapping): the user to look.
+- Packaged game: r.PSOPrecache.GlobalShaders=0 (22 compute PSO errors gone on the old build with -dpcvars); not yet in a
+  packaged build.
+- Part swapping waits for Ozias after the Lily (the user): Ransom Farm's and the tutorial island's benches removed.
+- Plan.md refreshed (phases 9-11 built); the user: stay on Ransom's Rest, no tutorial-island work.
+- The Gilded Lily DESIGN only (the user: "I don't want to make the gilded lily yet"): Docs/Areas/GildedLily.md. A
+  Titanic-like liner anchored at sea (not an airship), bigger than RR, town first and ship last, Ned's rigged card game,
+  slots, Ozias. Three top-down concept maps: Art/Concepts/Areas/GildedLily/ (the user asked; sent as PNG).
+- Element answer given to the user: Ember, Soul-light, Grave-salt; any maker; Saint Maud element parts x3.
+
 ## 2026-10-28 day (the user at work, no playtest from them)
 The user's picks: "Fix the unpaid not hitting but leave the spiders where they are. Fix Sniper framing" (a193ab75), then all four
 of gallery fix, gun looks, melee hand bugs, small cleanups (76c191db). All pushed; nothing seen in play by the user yet.

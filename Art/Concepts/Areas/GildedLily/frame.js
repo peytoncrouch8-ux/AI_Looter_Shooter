@@ -20,7 +20,6 @@ function deckPlan(x0, y0, w, variant) {
 	decks.forEach((dk, i) => {
 		const y = dy(i);
 		s += text(x0 + 4, y - Wd / 2 - 8, dk.name, { size: 14, weight: 700, fill: C.accent, anchor: 'start', halo: false, ls: 1.5 });
-		s += text(x0 + w - 2, y - Wd / 2 - 8, dk.note, { size: 12, weight: 400, fill: C.dim, anchor: 'end', halo: false });
 		s += `<g transform="translate(${f1(cx)} ${f1(y)})"><path d="${L.hullPath(Lh, Wd)}" fill="#24100f" stroke="${C.gold}" stroke-width="2"/>`;
 		const inner = L.hullPath(Lh * 0.95, Wd * 0.82);
 		if (i === 0) {
@@ -78,7 +77,12 @@ function deckPlan(x0, y0, w, variant) {
 	// the way through: lettered steps joined by a dashed line
 	const R = variant.route;
 	const pts = R.map(r => [X(r.t), Y(r.deck, r.y)]);
-	s += `<path d="${L.d(pts)}" fill="none" stroke="${C.accent}" stroke-width="2.6" stroke-dasharray="6 4" opacity="0.95"/>`;
+	const rp = [pts[0]];
+	for (let k = 1; k < R.length; k++) {
+		if (R[k].via !== undefined) rp.push([X(R[k].via), Y(R[k - 1].deck, R[k].viaY || 0)], [X(R[k].via), Y(R[k].deck, R[k].viaY || 0)]);
+		rp.push(pts[k]);
+	}
+	s += `<path d="${L.d(rp)}" fill="none" stroke="#000" stroke-width="5.5" opacity="0.45"/><path d="${L.d(rp)}" fill="none" stroke="${C.accent}" stroke-width="2.6" stroke-dasharray="6 4" opacity="0.95"/>`;
 	R.forEach((r, k) => {
 		const [px, py] = pts[k];
 		s += `<circle cx="${f1(px)}" cy="${f1(py)}" r="10.5" fill="${C.accent}" stroke="#1a0f00" stroke-width="2"/>` + text(px, py + 4.5, r.k, { size: 13, weight: 700, fill: '#1a0f00', halo: false });
@@ -128,7 +132,7 @@ function section(x, y, w, title) {
 
 // Scale bar in metres (mpp = metres per map px) and a compass.
 function scaleBar(x, y, mpp) {
-	const seg = 50 / mpp; let s = `<g transform="translate(${f1(x)} ${f1(y)})"><rect x="-10" y="-30" width="${f1(seg * 2 + 70)}" height="50" rx="4" fill="#07131c" fill-opacity="0.75" stroke="${C.line}" stroke-opacity="0.5"/>`;
+	const seg = 50 / mpp; let s = `<g transform="translate(${f1(x)} ${f1(y)})"><rect x="-10" y="-30" width="${f1(seg * 2 + 46)}" height="50" rx="4" fill="#07131c" fill-opacity="0.75" stroke="${C.line}" stroke-opacity="0.5"/>`;
 	s += `<rect x="0" y="-6" width="${f1(seg)}" height="9" fill="#f6e7c1" stroke="#120d0a"/><rect x="${f1(seg)}" y="-6" width="${f1(seg)}" height="9" fill="#120d0a" stroke="#f6e7c1"/>`;
 	s += text(0, -12, '0', { size: 12, halo: false }) + text(seg, -12, '50', { size: 12, halo: false }) + text(seg * 2, -12, '100 m', { size: 12, halo: false });
 	s += text(seg * 2 + 28, 3, '', { size: 1, halo: false });
@@ -146,7 +150,7 @@ function page(cn) {
 	s += `<rect width="${W}" height="${H}" fill="#06121c"/><rect width="${W}" height="${H}" fill="url(#panelGrad)" opacity="0.6"/>`;
 	// header
 	s += text(34, 62, 'THE GILDED LILY', { size: 44, weight: 700, fill: '#f6e7c1', anchor: 'start', halo: false, ls: 3 });
-	s += `<rect x="440" y="28" width="${f1(cn.name.length * 17 + 150)}" height="46" rx="4" fill="${C.accent}"/>`;
+	s += `<rect x="440" y="28" width="${f1(cn.name.length * 21 + 172)}" height="46" rx="4" fill="${C.accent}"/>`;
 	s += text(456, 61, `CONCEPT ${cn.key}`, { size: 22, weight: 700, fill: '#1a0f00', anchor: 'start', halo: false, ls: 1 });
 	s += text(590, 61, cn.name.toUpperCase(), { size: 26, weight: 700, fill: '#1a0f00', anchor: 'start', halo: false, ls: 2 });
 	s += text(34, 92, cn.subtitle, { size: 16, weight: 400, fill: C.dim, anchor: 'start', halo: false });
@@ -178,7 +182,12 @@ function page(cn) {
 	});
 	y += 14; s += section(px, y, pw, "THE LILY: DECKS PLAYED  (bow →)"); y += 14;
 	const dp = deckPlan(px, y, pw, cn.deck); s += dp.s; y = dp.yEnd + 6;
-	for (const ln of cn.deck.lines) { s += text(px, y, ln, { size: 13.5, weight: 400, fill: C.text, anchor: 'start', halo: false }); y += 19; }
+	cn.deck.lines.forEach((ln, i) => {
+		const cx = px + (i % 2) * (pw / 2), cy = y + 6 + Math.floor(i / 2) * 22;
+		s += `<circle cx="${cx + 9}" cy="${cy - 4.5}" r="8.5" fill="${C.accent}"/>` + text(cx + 9, cy, ln[0], { size: 12, weight: 700, fill: '#1a0f00', halo: false });
+		s += text(cx + 24, cy, ln[1], { size: 13.5, weight: 400, fill: C.text, anchor: 'start', halo: false });
+	});
+	y += Math.ceil(cn.deck.lines.length / 2) * 22 - 10;
 	y += 18; s += section(px, y, pw, 'LEGEND'); y += 34;
 	s += legend(px, y, pw).s;
 	return s + '</svg>';

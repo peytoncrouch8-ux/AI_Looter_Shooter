@@ -35,6 +35,15 @@ gilded lily yet; but I want some idea about what it is".
   now"): Ransom Farm's gunsmith's bench is taken out of Ransom's Rest now (2026-10-28).
 - **Skyreach's link: decide later** (was a skylift from the airship's north side).
 
+## Concept maps (2026-10-28, for the user; pick pending)
+`Art/Concepts/Areas/GildedLily/` (`node gen.js` rebuilds; Playwright, Chakra Petch from Content/UI/Fonts): A Crescent Bay
+(open hub: horseshoe harbor, town on the curve, cliffs + lighthouse north horn, tide flats south, liner past the mouth),
+B The Long Spit (linear: half-km sandbar, rail along it, docks on the sound, Ned's card barge, "The Neck" choke, lighthouse
+at the tip), C Estuary Delta (maze: eight islands, Stilt Town, the Gilded Parlor, bridges and low-tide fords, lighthouse on
+Hester's Rock). Each shore ~95,000 m2, liner 180 m; deck plan inset (upper decks, casino/ballroom, engine room/hold).
+Placeholder names (agent-made, original): Marquee Hotel, the Gilded Parlor, Ned's card barge, Lily Sound, The Neck, Gull
+Head, Hester's Rock, Stilt Town, Smugglers' Reach, Saltgrass Hills, Blackrock Heights, Tidewrack Bluffs.
+
 ## Open (ask the user at the Lily's start)
 - The port's name (Highwater Landing was a canyon-rim name; keep or rename) and Saint Hester's role.
 - Shore creature kinds and a bestiary page each; Carrion Gulls (Story roster) on the cliffs?

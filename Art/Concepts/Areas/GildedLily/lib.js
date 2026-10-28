@@ -116,7 +116,7 @@ function waterLayer(coasts, o = {}) {
 	const strokes = (w, col, op) => coasts.map(c => `<path d="${c}" fill="none" stroke="${col}" stroke-width="${w}" stroke-opacity="${op}" stroke-linejoin="round"/>`).join('');
 	return `<rect x="-50" y="-50" width="${MAP.w + 100}" height="${MAP.h + 100}" fill="url(#seaGrad)"/>
 <rect x="-50" y="-50" width="${MAP.w + 100}" height="${MAP.h + 100}" filter="url(#seaNoise)" opacity="0.55"/>
-<rect x="-50" y="-50" width="${MAP.w + 100}" height="${MAP.h + 100}" fill="url(#sunGlow)"/>
+<rect x="-50" y="-50" width="${MAP.w + 100}" height="${MAP.h + 100}" fill="url(#sunGlow)" style="mix-blend-mode:screen"/>
 <g filter="url(#blur18)">${strokes(170, C.mid, 0.9)}</g>
 <g filter="url(#blur10)">${strokes(96, C.shelf, 0.95)}</g>
 <g filter="url(#blur6)">${strokes(46, C.shallow, 0.95)}</g>
@@ -146,9 +146,10 @@ ${uplandDs.map(u => `<path d="${u}" fill="${C.grass}" filter="url(#soft)"/>`).jo
 <path d="${coastD}" fill="none" stroke="#3b2c20" stroke-width="1.6" stroke-opacity="0.75"/>`;
 }
 // Closing hills: dark hatched ridges with crest lines.
-function ridgeLayer(ridgeDs, crests = []) {
-	return ridgeDs.map(r => `<path d="${r}" fill="${C.ridge}"/><path d="${r}" fill="url(#hatch)" opacity="0.55"/><path d="${r}" fill="none" stroke="#1f1712" stroke-width="3" stroke-dasharray="2 5" stroke-linecap="round"/>`).join('')
-		+ crests.map(c => `<path d="${c}" fill="none" stroke="#8a7460" stroke-width="2" stroke-opacity="0.6" stroke-dasharray="10 6"/>`).join('');
+function ridgeLayer(ridgeDs, crests = [], clipId) {
+	const open = clipId ? `<g clip-path="url(#${clipId})">` : '<g>';
+	return open + ridgeDs.map(r => `<path d="${r}" fill="${C.ridge}"/><path d="${r}" fill="url(#hatch)" opacity="0.55"/><path d="${r}" fill="none" stroke="#1f1712" stroke-width="3" stroke-dasharray="2 5" stroke-linecap="round"/>`).join('')
+		+ crests.map(c => `<path d="${c}" fill="none" stroke="#8a7460" stroke-width="2" stroke-opacity="0.6" stroke-dasharray="10 6"/>`).join('') + '</g>';
 }
 // A raised headland or hill: stacked rings lighter toward the top (a painted contour look).
 function hill(pts, seed, rings = 3, col = C.rock) {
@@ -312,7 +313,7 @@ function liner(cx, cy, L, ang, seed = 7) {
 	let s = `<g transform="translate(${f1(cx)} ${f1(cy)}) rotate(${ang})">`;
 	// warm light spilling on the sea, then reflections
 	s += `<ellipse cx="0" cy="0" rx="${f1(L * 0.62)}" ry="${f1(Wd * 2.4)}" fill="url(#shipGlow)"/>`;
-	for (let i = 0; i < 26; i++) { const x = -L / 2 + R() * L, side = R() < 0.5 ? -1 : 1, y = side * (Wd / 2 + 6 + R() * Wd * 1.2); s += `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x + 6 + R() * 14)}" y2="${f1(y)}" stroke="#ffd27a" stroke-width="1.6" stroke-opacity="${f1(0.25 + R() * 0.4)}" stroke-linecap="round"/>`; }
+	for (let i = 0; i < 18; i++) { const x = -L * 0.4 + R() * L * 0.75, side = R() < 0.5 ? -1 : 1, y = side * (Wd / 2 + 5 + R() * Wd * 0.5); s += `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x)}" y2="${f1(y + side * (4 + R() * 8))}" stroke="#ffd27a" stroke-width="2.4" stroke-opacity="${f1(0.2 + R() * 0.35)}" stroke-linecap="round"/>`; }
 	s += `<path d="${hull}" fill="#000" opacity="0.45" transform="translate(5 6)"/>`;
 	s += `<path d="${hull}" fill="#24100f" stroke="${C.gold}" stroke-width="2.6"/>`;
 	s += `<path d="${deck}" fill="#a3794c" stroke="#5d3e22" stroke-width="1"/>`;
@@ -346,6 +347,16 @@ function liner(cx, cy, L, ang, seed = 7) {
 	s += `<path d="${deck}" fill="none" stroke="${C.gold}" stroke-width="1" opacity="0.8"/>`;
 	return s + '</g>';
 }
+// A small boat at anchor: schooner, fishing boat or coal lighter (kind 0/1/2).
+function boat(x, y, ang, len = 30, kind = 0) {
+	const w = len * 0.32, hull = kind === 2 ? '#1c1a1c' : kind === 1 ? '#5a3a26' : '#3b2a22', deck = kind === 2 ? '#333' : '#a3794c';
+	const shape = (l, ww, i) => `M${f1(-l / 2 + i)},${f1(-ww / 2 + i)} L${f1(l * 0.25 - i)},${f1(-ww / 2 + i)} Q${f1(l / 2 - i * 1.5)},0 ${f1(l * 0.25 - i)},${f1(ww / 2 - i)} L${f1(-l / 2 + i)},${f1(ww / 2 - i)} Z`;
+	let s = `<g transform="translate(${f1(x)} ${f1(y)}) rotate(${ang})"><path d="${shape(len, w, 0)}" fill="#000" opacity="0.35" transform="translate(2 2)"/><path d="${shape(len, w, 0)}" fill="${hull}" stroke="#140c08" stroke-width="1"/><path d="${shape(len, w, 2)}" fill="${deck}"/>`;
+	if (kind === 2) s += `<ellipse cx="0" cy="0" rx="${f1(len * 0.3)}" ry="${f1(w * 0.3)}" fill="#0c0b0c"/>`;
+	else s += `<line x1="${f1(-len * 0.3)}" y1="0" x2="${f1(len * 0.35)}" y2="0" stroke="#e8dcc0" stroke-width="1.4" opacity="0.8"/><circle cx="${f1(len * 0.05)}" cy="0" r="1.8" fill="#2a1a10"/>`;
+	return s + '</g>' + lamp(x, y, 0.55);
+}
+function buoy(x, y) { return `<circle cx="${f1(x)}" cy="${f1(y)}" r="4" fill="#a0362b" stroke="#f2ecdf" stroke-width="1.4"/>`; }
 // The launch: a small steam launch with a canopy.
 function launchBoat(x, y, ang) {
 	return `<g transform="translate(${f1(x)} ${f1(y)}) rotate(${ang})"><path d="M-14,-5 L8,-5 Q16,0 8,5 L-14,5 Z" fill="#3a1a14" stroke="${C.gold}" stroke-width="1.4"/><rect x="-10" y="-3" width="12" height="6" fill="${C.velvet}" stroke="${C.gold}" stroke-width="0.8"/><circle cx="5" cy="0" r="1.8" fill="#ffd27a"/></g>`;
@@ -429,5 +440,5 @@ text{font-family:'Chakra Petch','Bahnschrift','Segoe UI',sans-serif;}
 
 module.exports = { W, H, MAP, PANEL, C, rng, f1, dist, lerp, pip, inAny, segDist, lineDist, spline, roughen, d, smooth, offsetLine, walk, playArea,
 	esc, text, district, waterLayer, waves, landLayer, ridgeLayer, hill, cliff, flats, trees, rocks, road, trail, rail, roof, town, lamp, pier,
-	crane, coalHeap, wreck, cave, lighthouse, dryDock, warehouse, bridge, stilts, hullPath, liner, launchBoat, step, giver, bounty, chest,
+	crane, coalHeap, wreck, cave, lighthouse, dryDock, warehouse, bridge, stilts, hullPath, liner, launchBoat, boat, buoy, step, giver, bounty, chest,
 	secret, slots, station, anchorIcon, zone, foeIcon, chip, route, seaRoute, defs };

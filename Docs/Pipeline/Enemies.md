@@ -390,6 +390,9 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
   to sight landed 1.5 m off, inside the rake's 2.6 m, and raked at once (nave floor: 21 of 22 hits rakes, a standing player
   dead in 12 s). Now `Looter.Unpaid.ArrivalHold` 0.6 s: no attack starts that soon after a step or flank lands
   (`CanStartAttack`, kit only, on `SinceLastStep`). Yard two waves (kite): cleared, lowest 33/124; pack gap >= 1.2 s.
+  Recheck at 0.6 (standing still): nave floor dead at 48.8 s (was 12.2; 10 killed), dais 23.3 s (was 16.1). Step log to
+  first attack 1.27-1.30 s (0.65 fade + 0.6 hold), the first swipe ~1.1 s after it's whole: kept 0.6 (0.8-1.0 sluggish).
+  If the dais needs softening: 0.8 s for a 1.5 m landing only (code).
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
   arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.
