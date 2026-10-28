@@ -52,3 +52,27 @@ Playwright as for `Tools\portraits.ps1`). The drawings, captions and swing arrow
 - **C Plumb Bob** (1.2 m cord, STEADY): his brass plumb bob on its line. One whirl overhead, then a whip across, right to
   left. Solid brass bob with a steel point, waxed cord on a walnut spool. (For HANDS: a cord and a swinging weight, not a
   rigid tool.)
+
+## Tripo upload views (2026-10-27)
+
+The user remodels the five picked tools in Tripo (paid plan, multi-view image-to-3D). Each tool's folder
+(`GraveSpade`, `RazorFan`, `FerryGaff`, `PistonFist`, `RockPick`) holds four renders of the game model:
+`upload/` (transparent PNGs: upload these) and `upload_white/` (the same on pure #ffffff), each `front`, `back`, `left`,
+`right`.
+
+- Renders of the existing models (`Art/Models/Weapons/Melee/MeleeTools.py`: game materials, textures, baked occlusion),
+  stood upright (long axis vertical), orthographic Cycles, 1024 x 1024, 96 samples, denoised, same scale in all four
+  views of a tool, the tool ~85% of the frame's height (the Razor Fan is limited by its width), centred; even soft
+  studio light riding with the camera, no ground or shadow, Standard view transform (true colours). Glow parts (cyan
+  ember crack, orange knuckle caps) show at about a quarter of their game strength so they keep their colour.
+- Front: Grave Spade the blade's face (crack on both faces), Razor Fan the card faces (the five cards stay fanned),
+  Piston Fist the top (cylinder, rod, yoke, knuckle plate; knuckles up), Ferry Gaff and Rock Pick in profile (hook and
+  pick curl to the image's right, hammer to the left). Left shows the tool's own left side, right its right; if Tripo
+  mixes them up, swap `left` and `right`.
+- Rebuild: `Tools\artrun.ps1 -Script Tools\Blender\melee_views.py [-ScriptArgs GraveSpade,RazorFan,--samples,300]`
+  (`Tools/Blender/melee_views.py`; flags `--samples --size --fill --glow --out`).
+
+Tripo steps: 1. Image to 3D, **multi-view**: front = `upload/front.png`, then left, back, right from the same folder
+(if the result comes out flat or doubled, try `upload_white/`). 2. Generate, then **Smart UV**, then **Texture** (PBR
+if offered). 3. Download the **GLB** and save it in that tool's folder (`Art/Concepts/MeleeTools/<Tool>/<Tool>.glb`,
+beside `upload/`).
