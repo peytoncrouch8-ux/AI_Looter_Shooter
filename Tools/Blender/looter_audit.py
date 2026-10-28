@@ -218,12 +218,18 @@ def body_poses(arm):
 # Player/Animation/BodySwing.cpp's numbers (keep in step): the limbs a chain point keeps clear of (cm: the most it
 # keeps), the share of its rest distance it keeps, each chain kind's stiffness and gravity share, and how much of the
 # upper arm's movement the cape's corners take.
-LIMBS = (('thigh_l', 'calf_l', 14.0), ('calf_l', 'foot_l', 10.0), ('thigh_r', 'calf_r', 14.0), ('calf_r', 'foot_r', 10.0),
+LIMBS = (('thigh_l', 'calf_l', 14.0), ('calf_l', 'foot_l', 12.0), ('thigh_r', 'calf_r', 14.0), ('calf_r', 'foot_r', 12.0),
          ('pelvis', 'spine_01', 18.0), ('spine_01', 'spine_03', 18.0), ('spine_03', 'spine_05', 18.0),
          ('spine_05', 'neck_01', 15.0), ('neck_01', 'head', 9.0), ('upperarm_l', 'lowerarm_l', 9.0),
          ('upperarm_r', 'lowerarm_r', 9.0), ('lowerarm_l', 'hand_l', 7.0), ('lowerarm_r', 'hand_r', 7.0),
-         ('hand_l', 'middle_01_l', 5.0), ('hand_r', 'middle_01_r', 5.0), ('foot_l', 'ball_l', 8.0),
-         ('foot_r', 'ball_r', 8.0))
+         ('hand_l', 'middle_03_l', 5.0), ('hand_r', 'middle_03_r', 5.0), ('foot_l', 'ball_l', 9.0),
+         ('foot_r', 'ball_r', 9.0))
+# (2026-10-28) the hands reach middle_03 (middle_01 without it); foot..ball is the boot's line heel to toe (BodySwing's
+# FootLine: the heel HEEL_BACK behind the ankle joint, HEEL_UP over the ground, the toe TOE_ON past the ball); a leg's
+# (thigh, calf, foot) cloth side is the chain's rest way out turned with the leg, and its push may lift a point LEG_LIFT
+# of its bone over its head. Not mirrored: the hands' HandGive and Body floor, the hands' shortest-way push.
+HEEL_BACK, HEEL_UP, TOE_ON = 0.05, 0.04, 0.04
+LEG_LIFT = 0.35
 CLEARANCE_SHARE = 0.95
 # BodySwingRing: the skirt's chains in order round the body (the open front not joined); the cloth between neighbours
 # kept off the limbs too, on what's shown only, moving a level's two points at most RING_PUSH (m) a frame
@@ -263,8 +269,52 @@ def _idle_arm(bones, side):
     return bones.get(IDLE_ARM_BONE.format(side)) or bones[f'upperarm_{side}']
 
 
+def _limb_bone(bones, b):
+    """A limb's end bone: middle_03 falls back to middle_01 on a skeleton without it (BodySwing's OrTo)."""
+    if b not in bones and b.startswith('middle_03'):
+        alt = 'middle_01' + b[len('middle_03'):]
+        return alt if alt in bones else b
+    return b
+
+
+def _is_foot(a, b):
+    return a.startswith('foot_') and b.startswith('ball_')
+
+
+def _is_leg(a):
+    return a.startswith(('thigh_', 'calf_', 'foot_'))
+
+
+def _foot_line(ankle, ball):
+    """BodySwing's FootLine (rest, armature space, the ground at z 0): the boot from its heel to its toe."""
+    fwd = Vector((ball.x - ankle.x, ball.y - ankle.y, 0.0))
+    if fwd.length < 1e-9:
+        return ankle.copy(), ball.copy()
+    fwd.normalize()
+    heel = ankle - fwd * HEEL_BACK
+    heel.z = min(ankle.z, HEEL_UP)
+    return heel, ball + fwd * TOE_ON
+
+
+def _to_pose(pbs, bones, n):
+    return pbs[n].matrix @ bones[n].matrix_local.inverted()
+
+
+def _now_limb(pbs, bones, a, b):
+    """A limb's segment in the current pose (the boot's line carried by foot and ball)."""
+    b = _limb_bone(bones, b)
+    if _is_foot(a, b):
+        heel, toe = _foot_line(bones[a].head_local, bones[b].head_local)
+        return _to_pose(pbs, bones, a) @ heel, _to_pose(pbs, bones, b) @ toe
+    return pbs[a].head.copy(), pbs[b].head.copy()
+
+
 def _rest_limb(bones, a, b):
-    """A limb's rest segment (from a's head to b's): the upper arm's as it hangs at the idle (_idle_arm)."""
+    """A limb's rest segment (from a's head to b's): the upper arm's as it hangs at the idle (_idle_arm); the boot's
+    heel-to-toe line."""
+    b = _limb_bone(bones, b)
+    if _is_foot(a, b):
+        return _foot_line(bones[a].head_local, bones[b].head_local)
     if a.startswith('upperarm_'):
         idle = _idle_arm(bones, a[-1])
         return idle.head_local.copy(), idle.matrix_local @ (bones[a].matrix_local.inverted() @ bones[b].head_local)
@@ -336,12 +386,13 @@ def _push_bone_out(head, tip, a, c, r, outward=None):
     return tip + out * min(overlap / along, length * MAX_BONE_PUSH)
 
 
-def _keep_under(head, tip, length, target_z=None):
+def _keep_under(head, tip, length, target_z=None, lift=0.0):
     """BodySwing's KeepUnder: nothing hanging rises above what it hangs from, or, riding an arm (target_z), above its
     target (round 6, PROPOSED: a cape riding an arm raised to aim is meant to rise); a tip over that goes level, out
     the way it went (straight up has no way: it stays as it is). Crouched thighs had swung a coat flap out level with
     the hip, once up to the shoulder."""
-    rise = 0.0 if target_z is None else min(max(target_z - head.z, 0.0), length)
+    # (lift: how far a leg's push let it rise over that, BodySwing's Rises)
+    rise = min((0.0 if target_z is None else max(target_z - head.z, 0.0)) + lift, length)
     if tip.z <= head.z + rise:
         return tip
     flat = Vector((tip.x - head.x, tip.y - head.y, 0.0))
@@ -384,21 +435,42 @@ def _push_place_out(s, a, c, r, outward):
     return Vector((0.0, 0.0, 0.0)) if side is None else side * (r + d)
 
 
+def _push_band_out(s, a, c, r, way):
+    """BodySwing's PushBandOut (the ring's push): _push_place_out on way's side; pushed down though the cloth's side of
+    the limb is up (a leg come up through it), across it instead; then never down (it may lift the cloth)."""
+    p = _push_place_out(s, a, c, r, way)
+    if p.z < 0.0:
+        away = s - _closest(s, a, c)
+        axis = (c - a).normalized()
+        side = way - axis * way.dot(axis)
+        if side.length > 1e-8:
+            side.normalize()
+            if side.z > 0.0 and away.dot(side) < 0.0:
+                p = side * (r + away.length)
+    return Vector((p.x, p.y, max(p.z, 0.0)))
+
+
 def _move_level(points, anchor, level, delta):
     """BodySwingRing's MoveLevel: points[level] moved by delta, re-hung from the one above at its length, the points
     below re-hung along their old ways from it at theirs."""
     lengths = [(points[i] - (points[i - 1] if i > 0 else anchor)).length for i in range(level, len(points))]
     head = points[level - 1] if level > 0 else anchor
     way = lambda v: v.normalized() if v.length > 1e-9 else Vector((0.0, 0.0, -1.0))
+    old_z = points[level].z
     points[level] = head + way(points[level] + delta - head) * lengths[0]
+    # lifted at most LEG_LIFT of its bone over its head (one already higher isn't pulled down)
+    ceiling = max(head.z + lengths[0] * LEG_LIFT, old_z)
+    points[level] = _keep_under(head, points[level], lengths[0], None, min(max(ceiling - head.z, 0.0), lengths[0]))
     for i in range(level + 1, len(points)):
         points[i] = points[i - 1] + way(points[i] - points[i - 1]) * lengths[i - level]
 
 
-def _ring(arm, chain_bones, tips, shown, anchors, ways, limbs_now):
+def _ring(arm, chain_bones, tips, shown, anchors, ways, limbs_now, leg_turns=None, rest_ways=None):
     """BodySwingRing's ApplyRing on the shown points: per neighbouring pair of skirt chains and level, the middle of
     the two points and the middle of the patch above them kept off every limb (each its rest distance x 0.95, capped),
-    the push levelled and shared by nearness (the nearer point more), each point moved by its share, at most RING_PUSH."""
+    pushed by _push_band_out (a leg's side the pair's rest way out turned with it: leg_turns, rest_ways), shared by
+    nearness (the nearer point more), each point moved by its share, at most RING_PUSH."""
+    leg_turns = leg_turns or [None] * len(LIMBS)
     bones = arm.data.bones
     rest_limbs = [(*_rest_limb(bones, a, b), m / 100.0) for a, b, m in LIMBS]
     order = [c for c in SKIRT_RING if c in chain_bones]
@@ -412,23 +484,23 @@ def _ring(arm, chain_bones, tips, shown, anchors, ways, limbs_now):
             above_a = shown[ca][level - 1] if level > 0 else anchors[ca]
             above_b = shown[cb][level - 1] if level > 0 else anchors[cb]
             da, db = Vector((0.0, 0.0, 0.0)), Vector((0.0, 0.0, 0.0))
-            for (a, c), (ra, rc, m) in zip(limbs_now, rest_limbs):
+            for (a, c), (ra, rc, m), turn in zip(limbs_now, rest_limbs, leg_turns):
                 pa, pb_ = shown[ca][level] + da, shown[cb][level] + db
-                # the nearer point takes more of the push, levelled (both taking all of it folded a corner another limb
-                # had pushed out right over it, and lifted the hem)
+                # the nearer point takes more of the push (both taking all of it folded a corner another limb had
+                # pushed out right over it)
                 na, nb = (pa - _closest(pa, a, c)).length, (pb_ - _closest(pb_, a, c)).length
                 share = nb / (na + nb) if na + nb > 1e-9 else 0.5
+                side = out if turn is None or rest_ways is None else (turn @ (rest_ways[ca] + rest_ways[cb])).normalized()
 
                 def spread(push, corners):
                     nonlocal da, db
-                    push = Vector((push.x, push.y, 0.0))
                     da = da + push * (corners * share)
                     db = db + push * (corners * (1.0 - share))
                 r_mid = min((mid_rest - _closest(mid_rest, ra, rc)).length * CLEARANCE_SHARE, m)
                 r_cen = min((cen_rest - _closest(cen_rest, ra, rc)).length * CLEARANCE_SHARE, m)
-                spread(_push_place_out((pa + pb_) * 0.5, a, c, r_mid, out), 2.0)
+                spread(_push_band_out((pa + pb_) * 0.5, a, c, r_mid, side), 2.0)
                 centre = (above_a + above_b + shown[ca][level] + da + shown[cb][level] + db) * 0.25
-                spread(_push_place_out(centre, a, c, r_cen, out), 4.0)
+                spread(_push_band_out(centre, a, c, r_cen, side), 4.0)
             for chain, d in ((ca, da), (cb, db)):
                 if d.length > RING_PUSH:
                     d = d.normalized() * RING_PUSH
@@ -489,7 +561,9 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
             pose(arm, steps, stage / stages)
         bpy.context.view_layer.update()
         pbs = arm.pose.bones
-        now_limbs = [(pbs[a].head.copy(), pbs[b].head.copy()) for a, b, _m in LIMBS]
+        now_limbs = [_now_limb(pbs, bones, a, b) for a, b, _m in LIMBS]
+        # each leg's turn from rest (its cloth side is the chain's rest way out turned with it); None for the rest
+        leg_turns = [to_pose(pbs, a).to_3x3().normalized() if _is_leg(a) else None for a, _b, _m in LIMBS]
         for chain, names in chain_bones.items():
             k, g = SPRINGS[chain.split('_')[0]]
             follow = cape_follow(chain)
@@ -515,14 +589,19 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
                         p = p + d * min(1.0, reach / max(d.length, 1e-9))
                     rest_dir = (targets[i] - head).normalized()
                     p = head + ((p - head).normalized() if (p - head).length > 1e-9 else rest_dir) * lengths[i]
-                    for (a, c), r, rb in zip(now_limbs, clear[chain][i], bone_clear[chain][i]):
+                    lifted = False
+                    for (a, c), r, rb, turn in zip(now_limbs, clear[chain][i], bone_clear[chain][i], leg_turns):
+                        before = p.copy()
                         q = _closest(p, a, c)
                         if (p - q).length < r:
                             p = q + ((p - q).normalized() if (p - q).length > 1e-9 else Vector((0, -1, 0))) * r
-                        p = _push_bone_out(head, p, a, c, rb, way)
+                        p = _push_bone_out(head, p, a, c, rb, way if turn is None else (turn @ outward[chain]).normalized())
+                        lifted = lifted or (turn is not None and (p - before).length > 1e-7)
                     p = head + ((p - head).normalized() if (p - head).length > 1e-9 else rest_dir) * lengths[i]
-                    # (a chain riding an arm may rise to its target; the rest no higher than its head)
-                    p = _keep_under(head, p, lengths[i], targets[i].z if follow is not None else None)
+                    # (a chain riding an arm may rise to its target; the rest no higher than its head, but a leg's push
+                    # lifts it LEG_LIFT of its bone over it)
+                    p = _keep_under(head, p, lengths[i], targets[i].z if follow is not None else None,
+                                    lengths[i] * LEG_LIFT if lifted else 0.0)
                     p = _keep_above(head, p, lengths[i], floor, rest_dir,
                                     lengths[i] * (GATHER_REACH if i == len(points) - 1 else 1.0))
                     points[i] = p
@@ -530,7 +609,7 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
             held[chain], anchors[chain], ways[chain] = points, anchor, way
     # the cloth between the skirt's chains off the limbs too, on what's shown (not fed back to the springs)
     shown = {chain: [p.copy() for p in pts] for chain, pts in held.items()}
-    _ring(arm, chain_bones, tips, shown, anchors, ways, now_limbs)
+    _ring(arm, chain_bones, tips, shown, anchors, ways, now_limbs, leg_turns, outward)
     pbs = arm.pose.bones
     for chain, names in chain_bones.items():
         for name, tip_rest, p in zip(names, tips[chain], shown[chain]):

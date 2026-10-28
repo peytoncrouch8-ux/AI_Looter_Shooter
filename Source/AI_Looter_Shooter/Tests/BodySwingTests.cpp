@@ -525,6 +525,11 @@ bool FBodySwingEllisTest::RunTest(const FString& Parameters)
 			Ellis->GetRefSkeleton().FindBoneIndex(FName(*FString::Printf(TEXT("%s_end"), Chain))) != INDEX_NONE);
 	}
 	TestEqual(TEXT("The cloth between the 9 skirt chains keeps off the legs: 8 pairs round the coat (its front open)"), Swing.NumRingPairs(), 8);
+	// The hands reach the fingers' last joints (ended at the knuckles, the fingers hanging down the coat sank into it);
+	// the boots run from foot to ball (heel to toe, FBodySwing::FootLine).
+	TestTrue(TEXT("The hands' limbs reach the fingers (hand to middle_03)"), Swing.HasLimb(TEXT("hand_l"), TEXT("middle_03_l"))
+		&& Swing.HasLimb(TEXT("hand_r"), TEXT("middle_03_r")));
+	TestTrue(TEXT("The boots are limbs (foot to ball)"), Swing.HasLimb(TEXT("foot_l"), TEXT("ball_l")) && Swing.HasLimb(TEXT("foot_r"), TEXT("ball_r")));
 	FBodyForearmTwist Twist;
 	Twist.Bind(Ellis->GetRefSkeleton());
 	TestEqual(TEXT("Two twist bones down each forearm roll it with the hand (the wrists tore open without)"), Twist.NumTwistBones(), 4);
@@ -545,6 +550,268 @@ bool FBodySwingEllisTest::RunTest(const FString& Parameters)
 		TestEqual(FString::Printf(TEXT("SK_%s: %s"), Coat[0], bFront ? TEXT("a long coat, its skirt's front chained") : TEXT("a tailcoat, tails only")),
 			bFront, FCString::Atoi(Coat[1]) != 0);
 	}
+	return true;
+}
+
+// The hero fit pass's leftovers (2026-10-28, Docs/Pipeline/CharacterModels.md "Clipping and fit pass"): a sprint's back
+// boot through the duster's back, a run's front thigh through the cloth between two skirt chains, a hand lying where the
+// coat hangs. In these tests +X is the coat's outside (behind her for the back panel, ahead for the front), +Z up.
+
+namespace
+{
+	/** V turned Degrees about the side-to-side axis, +X toward +Z (a leg swung back past its hip, a thigh raised forward). */
+	FVector SwingTestTurn(const FVector& V, float Degrees)
+	{
+		return FQuat(FVector(0.0, -1.0, 0.0), FMath::DegreesToRadians(Degrees)).RotateVector(V);
+	}
+
+	/** The nearest the bones from Anchor through Points come to the segment A-B (cm). */
+	double SwingTestBoneGap(const FVector& Anchor, TConstArrayView<FVector> Points, const FVector& A, const FVector& B)
+	{
+		double Nearest = UE_BIG_NUMBER;
+		FVector Head = Anchor;
+		for (const FVector& Point : Points)
+		{
+			FVector OnBone;
+			FVector OnLimb;
+			FMath::SegmentDistToSegmentSafe(Head, Point, A, B, OnBone, OnLimb);
+			Nearest = FMath::Min(Nearest, FVector::Dist(OnBone, OnLimb));
+			Head = Point;
+		}
+		return Nearest;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingBackBootTest, "Looter.Player.BodySwing.BackBoot",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBodySwingBackBootTest::RunTest(const FString& Parameters)
+{
+	// Ellis's duster's back panel behind her right leg (skirt_br at rest, from the belt to the hem) and the leg (hip, knee,
+	// ankle, ball), the limbs' clearances as Bind takes them (rest distance x 0.95, at most the tuning table's). The leg
+	// swings back over a fifth of a second and holds; the coat's bones must keep off the boot (8 cm round the shin, the
+	// hit capsule's, and 5.5 round its heel-to-toe line).
+	const FBodySwingSettings Skirt = FBodySwing::SettingsFor(TEXT("skirt_br"));
+	const FVector Anchor(13.0, 0.0, 97.5);
+	const TArray<FVector> Targets({ FVector(13.6, 0.0, 74.0), FVector(15.7, 0.0, 53.0), FVector(20.4, 0.0, 21.7) });
+	TArray<float> Lengths;
+	{
+		FVector Head = Anchor;
+		for (const FVector& Target : Targets)
+		{
+			Lengths.Add(static_cast<float>(FVector::Dist(Head, Target)));
+			Head = Target;
+		}
+	}
+	const FVector Hip(-0.6, 0.0, 95.0);
+	const FVector Thigh(-3.4, 0.0, -42.0);
+	const FVector Shin(1.6, 0.0, -43.1);
+	const FVector Foot(-14.0, 0.0, -4.8);
+	FVector RestHeel;
+	FVector RestToe;
+	FBodySwing::FootLine(Hip + Thigh + Shin, Hip + Thigh + Shin + Foot, RestHeel, RestToe);
+	const FVector HeelOnAnkle = RestHeel - (Hip + Thigh + Shin);
+	const FVector ToeOnBall = RestToe - (Hip + Thigh + Shin + Foot);
+	TestTrue(FString::Printf(TEXT("The boot's line starts behind the ankle joint, low (the heel %.1f cm back, %.1f up)"), HeelOnAnkle.X, RestHeel.Z),
+		HeelOnAnkle.X > 3.0 && RestHeel.Z < 6.0);
+
+	struct FLegNow
+	{
+		FVector Knee;
+		FVector Ankle;
+		FVector Heel;
+		FVector Toe;
+		/** Thigh, shin, boot: each limb's ends and its cloth side (the coat's outside, turned with it). */
+		FBodySwingCapsule Limbs[3];
+	};
+	const float Caps[3] = { FBodySwing::MaxClearanceOf(TEXT("thigh_r")), FBodySwing::MaxClearanceOf(TEXT("calf_r")),
+		FBodySwing::MaxClearanceOf(TEXT("foot_r")) };
+	auto LegAt = [&](float ThighDegrees, float ShinDegrees, float FootDegrees, bool bCarried)
+	{
+		FLegNow Leg;
+		Leg.Knee = Hip + SwingTestTurn(Thigh, ThighDegrees);
+		Leg.Ankle = Leg.Knee + SwingTestTurn(Shin, ShinDegrees);
+		Leg.Heel = Leg.Ankle + SwingTestTurn(HeelOnAnkle, FootDegrees);
+		Leg.Toe = Leg.Ankle + SwingTestTurn(Foot + ToeOnBall, FootDegrees);
+		const FVector Ends[3][2] = { { Hip, Leg.Knee }, { Leg.Knee, Leg.Ankle }, { Leg.Heel, Leg.Toe } };
+		const float Turns[3] = { ThighDegrees, ShinDegrees, FootDegrees };
+		for (int32 Limb = 0; Limb < 3; ++Limb)
+		{
+			Leg.Limbs[Limb].A = Ends[Limb][0];
+			Leg.Limbs[Limb].B = Ends[Limb][1];
+			// As FBodySwing::Apply: the chain's way out, carried in the leg's own frame, and a leg may lift the cloth.
+			Leg.Limbs[Limb].Side = bCarried ? SwingTestTurn(FVector(1.0, 0.0, 0.0), Turns[Limb]) : FVector::ZeroVector;
+			Leg.Limbs[Limb].bLifts = bCarried;
+		}
+		return Leg;
+	};
+	// The clearances at rest, per point and limb (Bind).
+	const FLegNow Rest = LegAt(0.f, 0.f, 0.f, false);
+	TArray<float> Clearances;
+	TArray<float> BoneClearances;
+	for (int32 Index = 0; Index < Targets.Num(); ++Index)
+	{
+		const FVector Head = Index > 0 ? Targets[Index - 1] : Anchor;
+		for (int32 Limb = 0; Limb < 3; ++Limb)
+		{
+			const FBodySwingCapsule& At = Rest.Limbs[Limb];
+			const FVector& Tip = Targets[Index];
+			Clearances.Add(FMath::Min(static_cast<float>(FVector::Dist(Tip, FMath::ClosestPointOnSegment(Tip, At.A, At.B))) * FBodySwing::ClearanceShare, Caps[Limb]));
+			FVector OnBone;
+			FVector OnLimb;
+			FMath::SegmentDistToSegmentSafe(Head, Tip, At.A, At.B, OnBone, OnLimb);
+			BoneClearances.Add(FMath::Min(static_cast<float>(FVector::Dist(OnBone, OnLimb)) * FBodySwing::ClearanceShare, Caps[Limb]));
+		}
+	}
+	// The worst gap (cm) between the coat's bones and the boot (ShinRadius round the shin, 5.5 round heel to toe) once
+	// the leg has held its pose a fifth of a second.
+	auto Swing = [&](float ThighDegrees, float ShinDegrees, float FootDegrees, bool bCarried, double ShinRadius)
+	{
+		FBodySwingPoints Sim;
+		Sim.Outward = FVector(1.0, 0.0, 0.0);
+		double Worst = UE_BIG_NUMBER;
+		const float Fps = 60.f;
+		for (int32 Frame = 0; Frame <= 72; ++Frame)
+		{
+			const float Time = static_cast<float>(Frame) / Fps;
+			const float Share = FMath::Clamp((Time - 0.5f) / 0.2f, 0.f, 1.f);
+			const FLegNow Leg = LegAt(ThighDegrees * Share, ShinDegrees * Share, FootDegrees * Share, bCarried);
+			TArray<FBodySwingCapsule> Capsules;
+			for (int32 Index = 0; Index < Targets.Num(); ++Index)
+			{
+				for (int32 Limb = 0; Limb < 3; ++Limb)
+				{
+					FBodySwingCapsule Capsule = Leg.Limbs[Limb];
+					Capsule.Radius = Clearances[Index * 3 + Limb];
+					Capsule.BoneRadius = BoneClearances[Index * 3 + Limb];
+					Capsules.Add(Capsule);
+				}
+			}
+			Sim.Step(Anchor, Targets, Lengths, Capsules, Skirt, 1.f / Fps);
+			if (Time >= 0.9f)
+			{
+				Worst = FMath::Min(Worst, SwingTestBoneGap(Anchor, Sim.Points, Leg.Knee, Leg.Ankle) - ShinRadius);
+				Worst = FMath::Min(Worst, SwingTestBoneGap(Anchor, Sim.Points, Leg.Heel, Leg.Toe) - 5.5);
+			}
+		}
+		return Worst;
+	};
+
+	// A sprint's back kick (the fit audit's run: the thigh 28 degrees back, the knee bent 85 more, the foot -25): the shin
+	// rises past level behind her. The coat lies over it, lifted by the heel.
+	const double Sprint = Swing(28.f, 113.f, 88.f, true, 8.0);
+	TestTrue(FString::Printf(TEXT("A sprint's back kick: the coat keeps off the boot (%.1f cm at the nearest)"), Sprint), Sprint > 1.0);
+	// The chain's way out squared to the shin flipped under it past level: the coat went into the knee's fold, the boot
+	// through it.
+	const double Flipped = Swing(28.f, 113.f, 88.f, false, 8.0);
+	TestTrue(FString::Printf(TEXT("(With the chain's own way out the boot came through: %.1f cm)"), Flipped), Flipped < -3.0);
+
+	// The stride's end (the audit's stride: the thigh 20 back, the shin 35, the foot 15), Odessa's riding boots (10 cm
+	// round the shin, Pike's 9.7): the shin's clearance (12) leaves the coat room; at 10 it touched.
+	const double Stride = Swing(20.f, 35.f, 15.f, true, 10.0);
+	TestTrue(FString::Printf(TEXT("The stride's end, the thickest boots: the coat keeps off them (%.1f cm)"), Stride), Stride > 1.0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingRunBandTest, "Looter.Player.BodySwing.RunBand",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBodySwingRunBandTest::RunTest(const FString& Parameters)
+{
+	// A run's front leg: the thigh swings from 30 degrees back to 70 forward, up under the cloth between a skirt's front
+	// and side chains (Pike's front flap over his thigh: the ring's places there, at rest a hand's width off it). Each
+	// place keeps its clearance (rest distance x 0.95, at most the thigh's) all through the swing.
+	const FVector Hip(0.0, 0.0, 92.0);
+	const FVector Thigh(0.0, 0.0, -41.0);
+	const float Cap = FBodySwing::MaxClearanceOf(TEXT("thigh_l"));
+	const FVector Outward(1.0, 0.0, 0.0);
+	const FVector Places[] = { FVector(12.0, 0.0, 80.0), FVector(10.0, 4.0, 85.0), FVector(14.0, -3.0, 74.0), FVector(9.0, 6.0, 70.0),
+		FVector(16.0, 0.0, 88.0) };
+	for (const FVector& Place : Places)
+	{
+		const float Radius = FMath::Min(static_cast<float>(FVector::Dist(Place, FMath::ClosestPointOnSegment(Place, Hip, Hip + Thigh)))
+			* FBodySwing::ClearanceShare, Cap);
+		double Worst = UE_BIG_NUMBER;
+		double WorstLevel = UE_BIG_NUMBER;
+		for (int32 Degrees = -30; Degrees <= 70; ++Degrees)
+		{
+			FBodySwingCapsule Leg;
+			Leg.A = Hip;
+			Leg.B = Hip + SwingTestTurn(Thigh, static_cast<float>(Degrees));
+			Leg.Radius = Radius;
+			// The cloth's side of the thigh, turned with it (FBodySwing::Apply).
+			Leg.Side = SwingTestTurn(Outward, static_cast<float>(Degrees));
+			auto Gap = [&](const FVector& Push)
+			{
+				const FVector Moved = Place + Push;
+				return FVector::Dist(Moved, FMath::ClosestPointOnSegment(Moved, Leg.A, Leg.B)) - Radius;
+			};
+			Worst = FMath::Min(Worst, Gap(FBodySwingPoints::PushBandOut(Place, Leg, Outward)));
+			// As the ring pushed before: the chain's way out, kept level.
+			FBodySwingCapsule Before = Leg;
+			Before.Side = FVector::ZeroVector;
+			FVector Level = FBodySwingPoints::PushPlaceOut(Place, Before, Outward);
+			Level.Z = 0.0;
+			WorstLevel = FMath::Min(WorstLevel, Gap(Level));
+		}
+		TestTrue(FString::Printf(TEXT("Place (%.0f, %.0f, %.0f): the cloth keeps off the swinging thigh (%.2f cm short at worst)"), Place.X, Place.Y,
+			Place.Z, -FMath::Min(Worst, 0.0)), Worst > -0.05);
+		TestTrue(FString::Printf(TEXT("...(pushed level, the thigh stayed %.1f cm into it)"), -WorstLevel), WorstLevel < Worst);
+	}
+	FBodySwingCapsule Over;
+	Over.A = FVector(-20.0, 0.0, 53.0);
+	Over.B = FVector(20.0, 0.0, 53.0);
+	Over.Radius = 6.f;
+	TestTrue(TEXT("Never pulled down (a limb over the cloth)"), FBodySwingPoints::PushBandOut(FVector(0.0, 0.0, 50.0), Over, Outward).Z >= 0.0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingHandThicknessTest, "Looter.Player.BodySwing.HandThickness",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBodySwingHandThicknessTest::RunTest(const FString& Parameters)
+{
+	// The idle's hand lying where the coat's side hangs (its line half a centimetre outside the cloth's, palm and fingers
+	// down its first two bones): the cloth keeps off the glove's own thickness (Body 4 cm from the hand's line), not only
+	// HandGive past where the animation has it (3.5 here: the glove sank into the coat).
+	const FBodySwingSettings Skirt = FBodySwing::SettingsFor(TEXT("skirt_sl"));
+	const FVector Anchor(0.0, 0.0, 100.0);
+	const TArray<FVector> Targets = SwingTestTargets(Anchor);
+	const float Body = 4.f;
+	const float RestClearance = 5.f;
+	FBodySwingCapsule Hand;
+	Hand.A = Anchor + FVector(0.5, 0.0, -12.0);
+	Hand.B = Anchor + FVector(0.5, 0.0, -34.0);
+	Hand.bShortestWay = true;
+	auto Hang = [&](float HandBody)
+	{
+		TArray<FBodySwingCapsule> Capsules;
+		for (int32 Index = 0; Index < SwingTestCount; ++Index)
+		{
+			// As FBodySwing::Apply: the point's and its bone's distance from the hand as the animation has them.
+			const FVector& Tip = Targets[Index];
+			const FVector Head = Index > 0 ? Targets[Index - 1] : Anchor;
+			FVector OnBone;
+			FVector OnLimb;
+			FMath::SegmentDistToSegmentSafe(Head, Tip, Hand.A, Hand.B, OnBone, OnLimb);
+			FBodySwingCapsule Capsule = Hand;
+			Capsule.Radius = FBodySwing::HandRadius(RestClearance, FVector::Dist(Tip, FMath::ClosestPointOnSegment(Tip, Hand.A, Hand.B)), HandBody, 1.0);
+			Capsule.BoneRadius = FBodySwing::HandRadius(RestClearance, FVector::Dist(OnBone, OnLimb), HandBody, 1.0);
+			Capsules.Add(Capsule);
+		}
+		FBodySwingPoints Sim;
+		Sim.Outward = FVector(1.0, 0.0, 0.0);
+		for (int32 Frame = 0; Frame < 180; ++Frame)
+		{
+			Sim.Step(Anchor, Targets, SwingTestLengths(), Capsules, Skirt, 1.f / 60.f);
+		}
+		return SwingTestBoneGap(Anchor, Sim.Points, Hand.A, Hand.B);
+	};
+	const double Kept = Hang(Body);
+	TestTrue(FString::Printf(TEXT("The cloth keeps off the glove (%.2f cm from the hand's line)"), Kept), Kept > Body - 0.25);
+	const double GiveOnly = Hang(0.f);
+	TestTrue(FString::Printf(TEXT("(With the give alone: %.2f cm, into the glove)"), GiveOnly), GiveOnly < Body - 0.25);
+	TestTrue(TEXT("A hand far from the cloth keeps its rest clearance"), FMath::IsNearlyEqual(FBodySwing::HandRadius(RestClearance, 20.0, Body, 1.0), RestClearance));
 	return true;
 }
 

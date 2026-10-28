@@ -604,6 +604,18 @@ own looks. Before/after renders: `Saved/ArtPreviews/Characters/CharMat_*.png`.
 - **What didn't work:** Odessa's low belt weights with half the thighs' share on the pelvis (no better in a crouch: the
   thighs fold up over a hip belt whatever it rides); cutting her trousers inside the boots (they already end just inside
   the tops: the knee was the problem); a 6 cm `through` depth (false hits in open coat fronts).
+- **Springs' leftovers fixed (BodySwing*, 2026-10-28; tests BackBoot, RunBand, HandThickness, Ellis's HasLimb):**
+  a sprint's back boot: the chain's Outward squared to a shin kicked back past level flipped under it (coat into the
+  knee fold), so each leg (thigh, calf, foot) carries the chain's rest way out in its own frame (`FBodySwingCapsule::Side`),
+  and a leg's push may lift a point `FBodySwingPoints::LegLift` 0.35 of its bone over its head (`bLifts`, `Rises`); the
+  boot's heel sat 9-12 cm behind the ankle joint, out of reach: the foot limb is `FootLine` (heel 5 cm back and 4 cm up,
+  toe 4 cm past the ball), cap 9; shin cap 10 -> 12 (hit capsules: boots 8-10 cm). Run's front thigh through the cloth
+  between chains: the ring's push was level (slid along a raised thigh): `PushBandOut` lifts, never pulls down, and goes
+  across a leg come up from below. Hands: the limb ended at the knuckles (now hand -> middle_03, else middle_01) and
+  HandGive let a pressed hand sink in: `HandRadius` keeps at least Body (hand 4, forearm 5 cm). Steady-state numbers (JS
+  copy of the step): sprint kick -7.8 -> +3.3 cm off the boot, Odessa's stride boot 0 -> +2. Left: a held sprint kick
+  lays the hem up behind the heel (lifted to the cap), a run kick lasts too short to show it. `looter_audit.py`
+  mirrors all of it but the hands' give, floor and shortest way.
 - **Lessons:** a reduced outer layer covers only at its points: whatever it hides must be cut away before the
   reduction (`hide_covered` on the detailed copy) or tucked under after (`tuck_under` casts level rays at the body's
   axis, so a part's edge that shows stays put); hard parts that meet (bands, ferrules, sleeves, caps) need 1 mm of radius

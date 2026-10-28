@@ -61,6 +61,17 @@ struct AI_LOOTER_SHOOTER_API FBodySwingCapsule
 	 * the coat as often as in it, and taken for come through, the cloth was flipped out over the hand).
 	 */
 	bool bShortestWay = false;
+	/**
+	 * The cloth's side of the limb now (world; zero: the chain's Outward). A leg's is the chain's way out of the body as
+	 * it lay at rest, turned with the leg: the chain's Outward squared to the limb flipped to the shin's underside once a
+	 * sprint's back kick raised it past level, and the coat's back was pushed into the knee's fold, the boot through it.
+	 */
+	FVector Side = FVector::ZeroVector;
+	/**
+	 * Its push may lift the cloth over what it hangs from (FBodySwingPoints::LegLift of the bone): a leg kicked up under
+	 * the coat. Held level with its head, the coat's back lay flat under a sprint's raised heel and the boot came through.
+	 */
+	bool bLifts = false;
 };
 
 /** The ground a chain lies on. */
@@ -109,6 +120,11 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	FVector LastBodyPivot = FVector::ZeroVector;
 	FQuat LastStepRotation = FQuat::Identity;
 	FVector LastStepPivot = FVector::ZeroVector;
+	/** How far over its head each point may lie after the last step (cm; a leg lifted it: bLifts), so Shown keeps it. */
+	TArray<float> Rises;
+
+	/** The share of a bone's length a leg's push may lift its tip over its head (about 20 degrees over level). */
+	static constexpr float LegLift = 0.35f;
 
 	/** Puts every point on its target, at rest (the first frame, after a teleport). */
 	void Reset(TConstArrayView<FVector> Targets);
@@ -122,7 +138,9 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	 * No point goes under the floor (so a crouch lays the hem on the ground), and the last may then lie nearer its head
 	 * than its length (Floor.LastReach). A point a limb (or the floor, or the ceiling over its head) pushes keeps no speed
 	 * into it, and the push gives it none. Settings.TurnCarry of the body's turn (BodyRotation about BodyPivot) turns the
-	 * points with it, and Settings.Carry of the rest of the anchor's move is handed straight on to them.
+	 * points with it, and Settings.Carry of the rest of the anchor's move is handed straight on to them. A capsule's Side
+	 * (a leg's) is the cloth's side of it in place of Outward; one that lifts (bLifts) may raise a point it pushes LegLift
+	 * of its bone over its head.
 	 */
 	void Step(const FVector& Anchor, TConstArrayView<FVector> Targets, TConstArrayView<float> Lengths,
 		TConstArrayView<FBodySwingCapsule> Capsules, const FBodySwingSettings& Settings, float DeltaSeconds,
@@ -144,6 +162,14 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	 * Outward's side (square to the limb) when the limb has come through. Zero when clear.
 	 */
 	static FVector PushPlaceOut(const FVector& S, const FBodySwingCapsule& Capsule, const FVector& Outward);
+
+	/**
+	 * The ring's push on a place on the cloth between two chains (PushPlaceOut, Capsule.Side's side when it has one, else
+	 * Outward's): it may lift the cloth, never pull it down (a place under a leg whose cloth side is up goes across, over
+	 * it). Kept level, it slid along a thigh raised forward in a run
+	 * (the push off it points mostly up) and the cloth between the front and side chains stayed in the thigh.
+	 */
+	static FVector PushBandOut(const FVector& S, const FBodySwingCapsule& Capsule, const FVector& Outward);
 
 	/**
 	 * Tip (Length from Head) kept no higher than CeilingZ (Head's height for hanging cloth: it never rises over what it
@@ -193,6 +219,25 @@ struct AI_LOOTER_SHOOTER_API FBodySwing
 	/** The cloth at rest keeps this share of its distance from a limb (a little give, so it isn't shoved at rest). */
 	static constexpr float ClearanceShare = 0.95f;
 
+	/** The most cloth keeps from the limb starting at bone FromBone (cm, full size; 0: no such limb): the tuning table. */
+	static float MaxClearanceOf(const FString& FromBone);
+
+	/**
+	 * The boot's line the cloth keeps off (component space, at rest): from the heel (behind the ankle joint, low) to past
+	 * the ball (the toe). From the ankle joint, the heel of a back boot kicked up in a sprint was 9-12 cm out of reach.
+	 */
+	static void FootLine(const FVector& Ankle, const FVector& Ball, FVector& OutHeel, FVector& OutToe);
+
+	/**
+	 * What a hand or forearm keeps the cloth from its line (cm, world): its rest clearance, at most HandGive past where the
+	 * animation has the cloth (AnimatedAway), but never less than Body, the hand's or sleeve's own thickness (with the
+	 * give alone, a hand lying where the coat hangs sank into it).
+	 */
+	static float HandRadius(float RestClearance, double AnimatedAway, float Body, double Scale);
+
+	/** Whether a limb runs from bone From to bone To (the bound skeleton's; the tests check the hands reach the fingers). */
+	bool HasLimb(FName From, FName To) const;
+
 private:
 	struct FLimb
 	{
@@ -206,6 +251,13 @@ private:
 		 * was thrown 18 to 29 cm out and up, folded over the hip, by a hand measured against the bind pose's A.
 		 */
 		bool bHand = false;
+		/** A hand's or forearm's own thickness (cm): it keeps the cloth at least this far, whatever HandGive allows. */
+		float Body = 0.f;
+		/** A thigh, shin or foot: its cloth's side turns with it (FBodySwingCapsule::Side) and its push may lift the cloth. */
+		bool bLeg = false;
+		/** The limb's ends in From's and To's own space (zero: the bones' heads; the foot's run heel to toe, FootLine). */
+		FVector FromOffset = FVector::ZeroVector;
+		FVector ToOffset = FVector::ZeroVector;
 	};
 
 	struct FChain
@@ -223,6 +275,8 @@ private:
 		TArray<int32> LengthAxes;
 		/** The way out of the body the chain hangs (level, from the pelvis to its first tip at rest), in its first bone's space. */
 		FVector OutwardInBone = FVector::ZeroVector;
+		/** Per limb: the same way out in the limb's From bone's space at rest, for a leg (zero for the rest). */
+		TArray<FVector> OutwardInLimbs;
 		/** Per point and limb: the distance kept from the limb (its rest clearance, at most the limb's MaxClearance). */
 		TArray<float> Clearances;
 		/** Per bone and limb: the same for the bone ending at the point (its nearest at rest). */
@@ -272,6 +326,8 @@ private:
 
 	TArray<FChain> Chains;
 	TArray<FLimb> Limbs;
+	/** This frame's: each limb's From bone's turn (world), carrying a leg's cloth side (Apply and ApplyRing). */
+	TArray<FQuat> LimbTurns;
 	TArray<FRingPair> Ring;
 	/** The skeleton bound to (its bone count and first name, to notice another mesh) and the bone container's serial. */
 	int32 BoundBoneCount = 0;

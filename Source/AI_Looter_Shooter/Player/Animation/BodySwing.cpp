@@ -19,20 +19,39 @@ namespace
 		const TCHAR* From;
 		const TCHAR* To;
 		float MaxClearance;
+		/** To when the skeleton has no To (nullptr: none). */
+		const TCHAR* OrTo = nullptr;
+		/** A hand's or forearm's own thickness (FLimb::Body; 0 for the rest). */
+		float Body = 0.f;
+		/** The boot: from the heel to the toe (FBodySwing::FootLine), not from joint to joint. */
+		bool bFoot = false;
 	};
 	const FLimbSpec LimbSpecs[] = {
-		{ TEXT("thigh_l"), TEXT("calf_l"), 14.f }, { TEXT("calf_l"), TEXT("foot_l"), 10.f },
-		{ TEXT("thigh_r"), TEXT("calf_r"), 14.f }, { TEXT("calf_r"), TEXT("foot_r"), 10.f },
+		// The shins: the boots round them are 8-10 cm (the heroes' hit capsules: Ellis 8, Crane 8.5, Pike 9.7, Odessa's
+		// riding boots 10); at 10 a stride's back boot touched the coat's back and showed through between its points.
+		{ TEXT("thigh_l"), TEXT("calf_l"), 14.f }, { TEXT("calf_l"), TEXT("foot_l"), 12.f },
+		{ TEXT("thigh_r"), TEXT("calf_r"), 14.f }, { TEXT("calf_r"), TEXT("foot_r"), 12.f },
 		{ TEXT("pelvis"), TEXT("spine_01"), 18.f }, { TEXT("spine_01"), TEXT("spine_03"), 18.f },
 		{ TEXT("spine_03"), TEXT("spine_05"), 18.f }, { TEXT("spine_05"), TEXT("neck_01"), 15.f },
 		{ TEXT("neck_01"), TEXT("head"), 9.f },
 		{ TEXT("upperarm_l"), TEXT("lowerarm_l"), 9.f }, { TEXT("upperarm_r"), TEXT("lowerarm_r"), 9.f },
-		// The forearms and hands: at the game's idle they hang against the coat's sides (they sank 2.5 cm into it).
-		{ TEXT("lowerarm_l"), TEXT("hand_l"), 7.f }, { TEXT("lowerarm_r"), TEXT("hand_r"), 7.f },
-		{ TEXT("hand_l"), TEXT("middle_01_l"), 5.f }, { TEXT("hand_r"), TEXT("middle_01_r"), 5.f },
-		// The boots' feet, ankle to the ball (the shins alone let the ankle-length hem through a boot's toe in a stride).
-		{ TEXT("foot_l"), TEXT("ball_l"), 8.f }, { TEXT("foot_r"), TEXT("ball_r"), 8.f },
+		// The forearms and hands: at the game's idle they hang against the coat's sides (they sank 2.5 cm into it). The
+		// hands reach the fingers' last joints: ended at the knuckles, the fingers hanging down the coat's side sank into it.
+		{ TEXT("lowerarm_l"), TEXT("hand_l"), 7.f, nullptr, 5.f }, { TEXT("lowerarm_r"), TEXT("hand_r"), 7.f, nullptr, 5.f },
+		{ TEXT("hand_l"), TEXT("middle_03_l"), 5.f, TEXT("middle_01_l"), 4.f },
+		{ TEXT("hand_r"), TEXT("middle_03_r"), 5.f, TEXT("middle_01_r"), 4.f },
+		// The boots' feet, heel to toe (the shins alone let the ankle-length hem through a boot's toe in a stride; from the
+		// ankle joint, a sprint's raised back heel came through the coat's back).
+		{ TEXT("foot_l"), TEXT("ball_l"), 9.f, nullptr, 0.f, true }, { TEXT("foot_r"), TEXT("ball_r"), 9.f, nullptr, 0.f, true },
 	};
+
+	/**
+	 * The boot's line (FBodySwing::FootLine, cm): its heel this far behind the ankle joint and this high over the ground
+	 * (the hit capsules' heels: 4-5 cm behind, their backs 9-12 cm), its toe this far past the ball.
+	 */
+	constexpr double HeelBack = 5.0;
+	constexpr double HeelUp = 4.0;
+	constexpr double ToeOn = 4.0;
 
 	/** The swing points keep this far over the ground at his feet (cm): the ankle-length hem sank 11 cm into it crouching. */
 	constexpr float FloorClearance = 2.f;
@@ -107,6 +126,44 @@ namespace
 // FBodySwing
 // ---------------------------------------------------------------------------
 
+float FBodySwing::MaxClearanceOf(const FString& FromBone)
+{
+	for (const FLimbSpec& Spec : LimbSpecs)
+	{
+		if (FromBone.Equals(Spec.From, ESearchCase::IgnoreCase))
+		{
+			return Spec.MaxClearance;
+		}
+	}
+	return 0.f;
+}
+
+void FBodySwing::FootLine(const FVector& Ankle, const FVector& Ball, FVector& OutHeel, FVector& OutToe)
+{
+	// Forward along the ground (component space, Z up, the ground at the root): from the ankle toward the ball.
+	FVector Forward(Ball.X - Ankle.X, Ball.Y - Ankle.Y, 0.0);
+	if (!Forward.Normalize())
+	{
+		OutHeel = Ankle;
+		OutToe = Ball;
+		return;
+	}
+	OutHeel = Ankle - Forward * HeelBack;
+	OutHeel.Z = FMath::Min(Ankle.Z, HeelUp);
+	OutToe = Ball + Forward * ToeOn;
+}
+
+float FBodySwing::HandRadius(float RestClearance, double AnimatedAway, float Body, double Scale)
+{
+	const double Give = AnimatedAway + HandGive * Scale;
+	return static_cast<float>(FMath::Min(static_cast<double>(RestClearance), FMath::Max(Give, static_cast<double>(Body) * Scale)));
+}
+
+bool FBodySwing::HasLimb(FName From, FName To) const
+{
+	return Limbs.ContainsByPredicate([From, To](const FLimb& Limb) { return Limb.From.BoneName == From && Limb.To.BoneName == To; });
+}
+
 bool FBodySwing::IsBoundTo(const FReferenceSkeleton& Skeleton) const
 {
 	return BoundBoneCount == Skeleton.GetNum() && Skeleton.GetNum() > 0 && BoundFirstBone == Skeleton.GetBoneName(0);
@@ -140,12 +197,19 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		FVector A;
 		FVector B;
 		float MaxClearance;
+		/** A leg's From bone's turn at rest (its cloth side is carried in it); identity for the rest. */
+		FQuat Frame;
+		bool bLeg;
 	};
 	TArray<FLimbRest> LimbRests;
 	for (const FLimbSpec& Spec : LimbSpecs)
 	{
 		const int32 From = Skeleton.FindBoneIndex(Spec.From);
-		const int32 To = Skeleton.FindBoneIndex(Spec.To);
+		int32 To = Skeleton.FindBoneIndex(Spec.To);
+		if (To == INDEX_NONE && Spec.OrTo != nullptr)
+		{
+			To = Skeleton.FindBoneIndex(Spec.OrTo);
+		}
 		if (From == INDEX_NONE || To == INDEX_NONE)
 		{
 			continue;
@@ -154,12 +218,21 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		Limb.From = FBoneReference(Skeleton.GetBoneName(From));
 		Limb.To = FBoneReference(Skeleton.GetBoneName(To));
 		Limb.MaxClearance = Spec.MaxClearance;
-		const FString LimbName = Skeleton.GetBoneName(From).ToString();
-		Limb.bHand = LimbName.StartsWith(TEXT("lowerarm")) || LimbName.StartsWith(TEXT("hand"));
+		Limb.Body = Spec.Body;
+		const FString FromName = Skeleton.GetBoneName(From).ToString();
+		Limb.bHand = FromName.StartsWith(TEXT("lowerarm")) || FromName.StartsWith(TEXT("hand"));
+		Limb.bLeg = FromName.StartsWith(TEXT("thigh")) || FromName.StartsWith(TEXT("calf")) || FromName.StartsWith(TEXT("foot"));
+		FVector RestA = Rest[From].GetLocation();
+		FVector RestB = Rest[To].GetLocation();
+		if (Spec.bFoot)
+		{
+			// The boot from its heel to its toe, each end carried by its own bone.
+			FootLine(Rest[From].GetLocation(), Rest[To].GetLocation(), RestA, RestB);
+			Limb.FromOffset = Rest[From].InverseTransformPosition(RestA);
+			Limb.ToOffset = Rest[To].InverseTransformPosition(RestB);
+		}
 		// The upper arm's rest is the bind pose's, raised 31 degrees off the idle: the cape's clearances are measured
 		// against the arm as it hangs at the game's idle (Ellis.py's unweighted `cape_arm_<side>`) when the mesh has it.
-		FVector RestB = Rest[To].GetLocation();
-		const FString FromName = Skeleton.GetBoneName(From).ToString();
 		if (FromName.StartsWith(TEXT("upperarm")))
 		{
 			const int32 IdleArm = Skeleton.FindBoneIndex(FName(*(TEXT("cape_arm") + FromName.RightChop(8))));
@@ -168,7 +241,7 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 				RestB = Rest[IdleArm].TransformPosition(Rest[From].InverseTransformPosition(Rest[To].GetLocation()));
 			}
 		}
-		LimbRests.Add({ Rest[From].GetLocation(), RestB, Spec.MaxClearance });
+		LimbRests.Add({ RestA, RestB, Spec.MaxClearance, Limb.bLeg ? Rest[From].GetRotation() : FQuat::Identity, Limb.bLeg });
 	}
 	const int32 Pelvis = Skeleton.FindBoneIndex(TEXT("pelvis"));
 	// A coat whose skirt has chains but none at its front is a tailcoat: its chains are tails (Odessa's).
@@ -272,6 +345,11 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		const FVector Middle = Pelvis != INDEX_NONE ? Rest[Pelvis].GetLocation() : FVector::ZeroVector;
 		const FVector Outward = FVector(LastTip.X - Middle.X, LastTip.Y - Middle.Y, 0.0).GetSafeNormal();
 		Chain.OutwardInBone = Rest[Ordered[0].Value].InverseTransformVectorNoScale(Outward);
+		// And in each leg's own space, so the cloth's side of a leg turns with it (FBodySwingCapsule::Side).
+		for (const FLimbRest& Limb : LimbRests)
+		{
+			Chain.OutwardInLimbs.Add(Limb.bLeg ? Limb.Frame.UnrotateVector(Outward) : FVector::ZeroVector);
+		}
 	}
 
 	TArray<FVector> LimbA;
@@ -321,16 +399,21 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 
 	// The limbs as they are this frame (world space).
 	TArray<FBodySwingCapsule, TInlineAllocator<16>> LimbsNow;
+	LimbTurns.Reset();
 	for (const FLimb& Limb : Limbs)
 	{
 		const FCompactPoseBoneIndex From = Limb.From.GetCompactPoseIndex(Bones);
 		const FCompactPoseBoneIndex To = Limb.To.GetCompactPoseIndex(Bones);
 		FBodySwingCapsule& Capsule = LimbsNow.AddDefaulted_GetRef();
 		Capsule.bShortestWay = Limb.bHand;
+		Capsule.bLifts = Limb.bLeg;
+		FQuat& Turn = LimbTurns.Add_GetRef(ComponentToWorld.GetRotation());
 		if (From.IsValid() && To.IsValid())
 		{
-			Capsule.A = ComponentToWorld.TransformPosition(Pose.GetComponentSpaceTransform(From).GetLocation());
-			Capsule.B = ComponentToWorld.TransformPosition(Pose.GetComponentSpaceTransform(To).GetLocation());
+			const FTransform& FromNow = Pose.GetComponentSpaceTransform(From);
+			Capsule.A = ComponentToWorld.TransformPosition(FromNow.TransformPosition(Limb.FromOffset));
+			Capsule.B = ComponentToWorld.TransformPosition(Pose.GetComponentSpaceTransform(To).TransformPosition(Limb.ToOffset));
+			Turn = (ComponentToWorld.GetRotation() * FromNow.GetRotation()).GetNormalized();
 		}
 	}
 
@@ -402,19 +485,24 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 				FBodySwingCapsule Capsule = LimbsNow[Limb];
 				Capsule.Radius = Chain.Clearances[Index * LimbsNow.Num() + Limb] * static_cast<float>(Scale);
 				Capsule.BoneRadius = Chain.BoneClearances[Index * LimbsNow.Num() + Limb] * static_cast<float>(Scale);
+				if (Chain.OutwardInLimbs.IsValidIndex(Limb) && !Chain.OutwardInLimbs[Limb].IsZero() && LimbTurns.IsValidIndex(Limb))
+				{
+					// A leg: the cloth's side of it as it lay at rest, turned with the leg (over a shin kicked back past level).
+					Capsule.Side = LimbTurns[Limb].RotateVector(Chain.OutwardInLimbs[Limb]);
+				}
 				if (Limbs.IsValidIndex(Limb) && Limbs[Limb].bHand)
 				{
-					// A hand or forearm moves the cloth aside by at most HandGive past where the animation has it.
+					// A hand or forearm moves the cloth aside by at most HandGive past where the animation has it, but keeps
+					// it off its own thickness.
 					const FVector& Target = Targets[Index];
 					const FVector& Before = Index > 0 ? Targets[Index - 1] : Chain.Anchor;
-					const double Give = HandGive * Scale;
 					const double PointAway = FVector::Dist(Target, FMath::ClosestPointOnSegment(Target, Capsule.A, Capsule.B));
 					FVector OnBone;
 					FVector OnLimb;
 					FMath::SegmentDistToSegmentSafe(Before, Target, Capsule.A, Capsule.B, OnBone, OnLimb);
 					const double BoneAway = FVector::Dist(OnBone, OnLimb);
-					Capsule.Radius = static_cast<float>(FMath::Min(static_cast<double>(Capsule.Radius), PointAway + Give));
-					Capsule.BoneRadius = static_cast<float>(FMath::Min(static_cast<double>(Capsule.BoneRadius), BoneAway + Give));
+					Capsule.Radius = HandRadius(Capsule.Radius, PointAway, Limbs[Limb].Body, Scale);
+					Capsule.BoneRadius = HandRadius(Capsule.BoneRadius, BoneAway, Limbs[Limb].Body, Scale);
 				}
 				Capsules.Add(Capsule);
 			}

@@ -29,6 +29,10 @@ namespace
 		const FVector Old = Points[Level];
 		const FVector Head = Level > 0 ? Points[Level - 1] : Anchor;
 		Points[Level] = Head + (Old + Delta - Head).GetSafeNormal(UE_SMALL_NUMBER, FVector::DownVector) * Lengths[0];
+		// Lifted over a leg at most as far as a leg lifts a chain over what it hangs from (FBodySwingPoints::LegLift); one
+		// the chain's own step already left higher isn't pulled down.
+		const double Ceiling = FMath::Max(Head.Z + Lengths[0] * FBodySwingPoints::LegLift, Old.Z);
+		Points[Level] = FBodySwingPoints::KeepUnder(Head, Points[Level], Lengths[0], Ceiling);
 		for (int32 Index = Level + 1; Index < Points.Num(); ++Index)
 		{
 			Points[Index] = Points[Index - 1] + (Points[Index] - Points[Index - 1]).GetSafeNormal(UE_SMALL_NUMBER, FVector::DownVector)
@@ -122,25 +126,31 @@ void FBodySwing::ApplyRing(TConstArrayView<FBodySwingCapsule> LimbsNow, double S
 			for (int32 Limb = 0; Limb < NumLimbs; ++Limb)
 			{
 				FBodySwingCapsule Capsule = LimbsNow[Limb];
+				// A leg: the two chains' side of it as they lay at rest, turned with the leg (BodySwing.cpp's Apply).
+				if (LimbTurns.IsValidIndex(Limb) && A.OutwardInLimbs.IsValidIndex(Limb) && B.OutwardInLimbs.IsValidIndex(Limb))
+				{
+					Capsule.Side = LimbTurns[Limb].RotateVector(A.OutwardInLimbs[Limb] + B.OutwardInLimbs[Limb]).GetSafeNormal();
+				}
 				const FVector PointA = A.Sim.Shown[Level] + DeltaA;
 				const FVector PointB = B.Sim.Shown[Level] + DeltaB;
 				// The nearer of the two points takes more of the push (both taking all of it folded a corner another limb
-				// had already pushed out right over), level (the cloth isn't lifted: a limb under it lifts its chain).
+				// had already pushed out right over).
 				const double NearA = FVector::Dist(PointA, FMath::ClosestPointOnSegment(PointA, Capsule.A, Capsule.B));
 				const double NearB = FVector::Dist(PointB, FMath::ClosestPointOnSegment(PointB, Capsule.A, Capsule.B));
 				const double ShareA = NearA + NearB > UE_KINDA_SMALL_NUMBER ? NearB / (NearA + NearB) : 0.5;
-				auto Spread = [&](FVector Push, double Corners)
+				auto Spread = [&](const FVector& Push, double Corners)
 				{
-					Push.Z = 0.0;
 					DeltaA += Push * (Corners * ShareA);
 					DeltaB += Push * (Corners * (1.0 - ShareA));
 				};
-				// Halfway between them moves by half what both move together; the patch's middle by a quarter.
+				// Halfway between them moves by half what both move together; the patch's middle by a quarter. Lifted over a
+				// leg come up under it, never pulled down (PushBandOut).
+				const FVector Way = Capsule.bShortestWay ? FVector::ZeroVector : Outward;
 				Capsule.Radius = Pair.MidClearances[Level * NumLimbs + Limb] * static_cast<float>(Scale);
-				Spread(FBodySwingPoints::PushPlaceOut((PointA + PointB) * 0.5, Capsule, Capsule.bShortestWay ? FVector::ZeroVector : Outward), 2.0);
+				Spread(FBodySwingPoints::PushBandOut((PointA + PointB) * 0.5, Capsule, Way), 2.0);
 				Capsule.Radius = Pair.CenterClearances[Level * NumLimbs + Limb] * static_cast<float>(Scale);
 				const FVector Center = (AboveA + AboveB + A.Sim.Shown[Level] + DeltaA + B.Sim.Shown[Level] + DeltaB) * 0.25;
-				Spread(FBodySwingPoints::PushPlaceOut(Center, Capsule, Capsule.bShortestWay ? FVector::ZeroVector : Outward), 4.0);
+				Spread(FBodySwingPoints::PushBandOut(Center, Capsule, Way), 4.0);
 			}
 			DeltaA = DeltaA.GetClampedToMaxSize(MaxRingPush * Scale);
 			DeltaB = DeltaB.GetClampedToMaxSize(MaxRingPush * Scale);
