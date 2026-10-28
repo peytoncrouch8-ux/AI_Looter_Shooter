@@ -51,6 +51,12 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	/** Looter.Unpaid.HitSlowGap: an Unpaid takes the hit slow at most once every this many seconds (0: every hit, as other kinds). */
 	float HitSlowGap = 0.5f;
 
+	// --- Pressed past its ground's edge (2026-10-28: shot at from the chapel's doorway, nine stood in a line at the edge) ---
+	/** Looter.Unpaid.PressReach: hurt (or its pack hurt) from this near past its ground's edge (cm), it fights them there; 0: never. */
+	float PressReach = 800.f;
+	/** Looter.Unpaid.PressSeconds: a press lasts this long once they're out of that reach (s); within it, it's renewed. */
+	float PressSeconds = 6.f;
+
 	// --- The rake (the second attack) ---
 	/** Looter.Unpaid.RakeRange: nearer than this (cm) it may rake instead of lunging. */
 	float RakeRange = 260.f;

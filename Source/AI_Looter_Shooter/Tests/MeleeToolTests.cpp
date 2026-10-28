@@ -228,6 +228,23 @@ bool FMeleeToolHandTest::RunTest(const FString& Parameters)
 			AddInfo(FString::Printf(TEXT("Gaff at %.2f s: the arm runs along the pole (%.2f across)"), Time, AcrossFull.Size() / ToShoulder.Size()));
 		}
 	}
+	// Odessa's fan: cocked across the body, the glove never comes near the lens while it's in view (playtest 2026-10-28: at
+	// the old 0.9 wind-up reach it was 33-34 cm off, a dark blob filling the lower left as the swing began; 40 since).
+	// The view: 90 degrees across at 16:9.
+	float Nearest = TNumericLimits<float>::Max();
+	float NearestAt = 0.f;
+	for (float Time = 0.f; Time < FMeleeRules::SwingSeconds; Time += 0.005f)
+	{
+		const FVector Hand = MeleeMotion::ToolPose(EMeleeSwingStyle::Flick, EMeleeHeft::Quick, Time, false).Grip.GetLocation();
+		const bool bInView = Hand.X > 1.0 && FMath::Abs(Hand.Y / Hand.X) <= 1.0 && FMath::Abs(Hand.Z / Hand.X) <= 9.0 / 16.0;
+		if (bInView && Hand.Size() < Nearest)
+		{
+			Nearest = static_cast<float>(Hand.Size());
+			NearestAt = Time;
+		}
+	}
+	TestTrue(FString::Printf(TEXT("Flick: the glove at least 38 cm from the eye while in view (nearest %.1f cm at %.3f s)"), Nearest, NearestAt),
+		Nearest >= 38.f);
 	const FHandPlacement Fist = FirstPersonHandsMotion::OnMeleeTool(Pose.Grip, 1.6f, true);
 	TestTrue(TEXT("Forearm: the knuckles along the punch"), FVector::DotProduct(Fist.GetFingersDir(), Turn.GetAxisX()) > 0.9f);
 	TestFalse(TEXT("...a bare fist (nothing to close on)"), Fist.Contact.Handle.bValid);

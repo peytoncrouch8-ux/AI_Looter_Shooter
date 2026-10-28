@@ -802,7 +802,10 @@ def sights():
     g.add(m, lg.cut(frame, [lg.cbox(20.0, 27.4, v0 + 1.6, v0 + 4.6, -0.95, 0.95)]))
     g.add(m, lg.box(25.6, 25.75, v0 + 1.6, v0 + 4.6, 1.9, bevel=0.0, mat=lg.LENS))
     g.add(m, lg.box(24.9, 26.1, v0 + 1.0, v0 + 1.15, 1.5, bevel=0.0, mat=CYAN))
-    g.add(m, lg.pin(25.5, v0 + 3.1, -0.1, 0.1, 0.1, mat=RETICLE))
+    # The dot is a disc facing the eye, 4 mm across (was a 2 mm pin across the gun, lost in the tall window: PIE
+    # 2026-10-28), with a thin ring round it (1.1 cm across) to catch the eye; both GunReticle, so the element tints them.
+    g.add(m, lg.tube(25.46, 25.5, 0.2, v=v0 + 3.1, segments=14, mat=RETICLE))
+    g.add(m, hollow([(0.0, 0.55), (0.04, 0.55)], 25.46, v0 + 3.1, 24, RETICLE, wall=0.07))
     g.socket(m, 'Aim', (25.5, v0 + 3.1))   # the dot
 
     m = S('Holo')                                                # a holographic box with a hood, a sand cap, a cyan bar

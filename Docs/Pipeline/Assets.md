@@ -56,7 +56,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      MARK_CODE flips the other way and is unchecked: if a maker's mark reads mirrored, swap its sign test.
    - Looks (checked on the board, AR Tripo body): grime = dark streaks down the sides and in creases; worn edges = small
      tint-coloured chips plus paler rubbed edges (burnished on bare metal); stripes = 1-3 bands round the part; chevrons =
-     forward-pointing V bands; camo = tint and dark-tint blotches about a Scale big; stencil = letter+two figures in
+     forward-pointing V bands; camo = light (1.22x) and dark (`PatternCamo.z` 0.72x) blotches of the gun's own paint about a Scale big, never the tint (2026-10-28: red on cream read as cow hide; Amount x1.6); pale enamel (tint luma 0.4-0.62, `PatternPale`, any kind or none: Saint Maud's ivory) 25% darker with outside edges rubbed in chips to dark iron; stencil = letter+two figures in
      column-bar glyphs ("K06"); clean bold = darker belly under a raked split with a bone (or near-black) pinstripe. Stains:
      Ember thin soot streaks + edge scorch, Soul-light fine gold crackle veins + edge gilt (faint glow), Grave-salt rime in
      creases and edges; the element part's whole finish is unchanged.

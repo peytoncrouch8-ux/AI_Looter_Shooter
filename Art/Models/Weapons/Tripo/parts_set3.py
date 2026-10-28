@@ -206,7 +206,10 @@ def sight(bp, m):
                          (pane_u(lv1) - 0.03, lv1)], 2.0 * hw, bevel=0.0, mat=lg.LENS))
     dot_v = v0 + 3.2
     dot_u = pane_u(dot_v) - 0.06
-    bp.g.add(m, lg.pin(dot_u, dot_v, -0.06, 0.06, 0.06, mat=bp.RETICLE))
+    # The dot is a disc facing the eye, 4 mm across (a 1.2 mm pin was lost in the tall window: PIE 2026-10-28), with a thin
+    # ring round it (1.1 cm across) to catch the eye; both GunReticle, so the element tints them (as Bullpup.py's Reflex).
+    bp.g.add(m, lg.tube(dot_u - 0.04, dot_u, 0.2, v=dot_v, segments=14, mat=bp.RETICLE))
+    bp.g.add(m, bp.hollow([(0.0, 0.55), (0.04, 0.55)], dot_u - 0.04, dot_v, 24, bp.RETICLE, wall=0.07))
     # The emitter's lens: its front face, measured, under the window.
     tube = t3.extent(obj, u=(18.8, 22.8), v=(v0 + 1.0, v0 + 2.1), w=(-0.6, 0.6))
     if tube:

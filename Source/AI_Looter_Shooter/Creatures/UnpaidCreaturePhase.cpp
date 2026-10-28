@@ -5,6 +5,7 @@
 // ends last, and coming back the ends come first.
 
 #include "Creatures/UnpaidCreature.h"
+#include "Creatures/UnpaidFightTuning.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "World/PlayableArea.h"
@@ -109,7 +110,26 @@ bool AUnpaidCreature::WantsToStep() const
 		return false;
 	}
 	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation()));
-	return UnpaidRules::WantsPhaseStep(PhaseStep, Distance, StallTime, SinceLastStep);
+	// Pressed by a hit from past its edge: it blinks in as soon as it may, stuck or not (a long way short counts as stuck).
+	const float Stuck = bPressStepOwed ? FMath::Max(StallTime, PhaseStep.StuckSeconds) : StallTime;
+	return UnpaidRules::WantsPhaseStep(PhaseStep, Distance, Stuck, SinceLastStep);
+}
+
+float AUnpaidCreature::GetPressReach() const
+{
+	return HasFightKit() ? FUnpaidFightTuning::Live().PressReach : 0.f;
+}
+
+float AUnpaidCreature::GetPressSeconds() const
+{
+	return HasFightKit() ? FUnpaidFightTuning::Live().PressSeconds : 0.f;
+}
+
+void AUnpaidCreature::OnPressedByHit(const APawn& By)
+{
+	// Only the one hit owes the blink: its pack walks in after it, so the doorway never fills with nine at once.
+	bPressStepOwed = true;
+	UE_LOG(LogLooter, Verbose, TEXT("%s is pressed past its edge by %s: it comes in."), *GetName(), *By.GetName());
 }
 
 void AUnpaidCreature::StartPhaseStep()
@@ -120,6 +140,7 @@ void AUnpaidCreature::StartPhaseStep()
 		RetryIn = RetrySeconds;
 		return;
 	}
+	bPressStepOwed = false;
 	UE_LOG(LogLooter, Verbose, TEXT("%s phase-steps %.1f m nearer its target (stuck %.1f s)."), *GetName(),
 		(FVector::Dist2D(GetActorLocation(), GetTarget()->GetActorLocation()) - FVector::Dist2D(Feet, GetTarget()->GetActorLocation())) / 100.0,
 		StallTime);
@@ -143,7 +164,7 @@ bool AUnpaidCreature::FindPhaseSpot(FVector& OutFeet) const
 	}
 	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 	return UnpaidRules::ChoosePhaseSpot(PhaseStep, Feet, Victim->GetActorLocation(), HuntingGround, GetHome().GetLocation(),
-		[this](const FVector& Candidate, FVector& OutGround) { return CanStandAt(Candidate, OutGround); }, OutFeet);
+		[this](const FVector& Candidate, FVector& OutGround) { return CanStandAt(Candidate, OutGround); }, OutFeet, GetGroundReach());
 }
 
 bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround) const

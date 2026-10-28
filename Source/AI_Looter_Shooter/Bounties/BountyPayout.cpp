@@ -151,7 +151,8 @@ FBountyHaul BountyPayout::HandOver(UWorld* World, const ABountyBoard* Board, con
 		UE_LOG(LogLooter, Warning, TEXT("Bounty pay: no guns to hand over (the default loot table, DA_LootTable_Default, lists none)."));
 	}
 	FRandomStream Random(FMath::Rand());
-	const FLootRoll Roll = ULootLibrary::RollLoot(Table, Level, 0.f, Random);
+	FLootRoll Roll = ULootLibrary::RollLoot(Table, Level, 0.f, Random);
+	ULootLibrary::KeepRocketsForLaunchers(Roll, Table, Random, ULootLibrary::AnyPlayerCarriesLauncher(World));
 	// A grave-salt grenade at a Strongbox's chance, rolled after the table's own rolls so theirs don't move.
 	const UPlayerThrowComponent* Throw = Player ? UPlayerThrowComponent::Find(Player) : nullptr;
 	const bool bGrenade = Throw && Random.FRand() < FThrowRules::ChestChance(/*bStrongbox*/ true, Throw->GetGrenades());

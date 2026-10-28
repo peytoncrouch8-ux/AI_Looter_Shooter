@@ -160,7 +160,7 @@ void UFightDirectorSubsystem::PlaceRing(const APawn& Target, FTargetFight& Fight
 			for (int32 Slot = 0; Slot < Fight.Slots; ++Slot)
 			{
 				const FVector Spot = Center + BearingDirection(FightRules::SlotBearing(Slot, Fight.Slots, Fight.RingTurn)) * Reach;
-				if (Creature->HuntingGround.Contains(Spot, Creature->GetHome().GetLocation()))
+				if (Creature->IsOnItsGround(Spot))
 				{
 					Ask.Allowed |= 1u << Slot;
 				}

@@ -652,8 +652,9 @@ GUN_PATTERN = {
     'PatternShape': (5.0, 0.4, 0.15, 0.5),
     # Stripes and chevrons (in repeats): the main band's half width, a thin band's, the gap between, the chevrons' slope.
     'PatternBands': (0.07, 0.022, 0.035, 0.9),
-    # Camo: the tint's blotches above x (noise), the dark tone's below y, the dark tone (x the tint), the edges' softness.
-    'PatternCamo': (0.6, 0.27, 0.45, 0.03),
+    # Camo: the light tone's blotches above x (noise), the dark tone's below y, the dark tone (x the paint under it; the light
+    # tone is a fixed 1.22x), the edges' softness. Both tones are the gun's own paint, never the tint (red on cream = cow hide).
+    'PatternCamo': (0.6, 0.27, 0.72, 0.03),
     # Grime's colour (a multiplier of what's under it, a quarter of the way to the tint); the chips' noise, x the pattern's.
     'PatternGrime': (0.26, 0.22, 0.18, 3.0),
     # Stencil: the cell's width and height (x Scale), the code's height (x Scale), a column bar's half width (of its pitch).
@@ -663,6 +664,10 @@ GUN_PATTERN = {
     'PatternBold': (0.06, 2.0, 0.45, 0.11),
     # The edges' bend (1/cm) from which an outside edge or a crease begins to count, and by which it fully does.
     'PatternEdge': (0.8, 2.6, 0.0, 0.0),
+    # Pale enamel (Saint Maud's ivory read as a flat pale grey block at first-person distance, PIE 2026-10-28), on any
+    # pattern kind or none: a tint luma (linear) from x to y counts as pale, such paint goes darker by z, and its outside
+    # edges are rubbed through to dark iron by w (broken up by the noise).
+    'PatternPale': (0.4, 0.62, 0.25, 1.0),
 }
 
 PATTERN_CODE = """// The pattern over the maker's paint, under the wear (so the scuffs and grime after it wear it through). Kind (1 grime, 2 worn
@@ -674,15 +679,15 @@ float3 Dx = ddx(Local);
 float3 Dy = ddy(Local);
 float Px = max(length(Dx), length(Dy)) + 1e-4;
 float4 Result = float4(Color, 0.0);
+float3 Lum = float3(0.2126, 0.7152, 0.0722);
+float Paint = smoothstep(Surface.y, Surface.x, Metal) * smoothstep(Surface.z, Surface.z * 1.45, dot(Tint, Lum))
+            * smoothstep(Surface.w, Surface.w * 2.5, dot(Base, Lum));
 if (Kind > 0.5 && Pat.a > 0.001)
 {
     float Kd = round(Kind);
     float Amount = saturate(Pat.a);
     float F = 1.0 / clamp(Scale, 2.0, 60.0);
     float2 O = frac(Seed * float2(13.17, 7.31) + 0.13) * 7.0;
-    float3 Lum = float3(0.2126, 0.7152, 0.0722);
-    float Paint = smoothstep(Surface.y, Surface.x, Metal) * smoothstep(Surface.z, Surface.z * 1.45, dot(Tint, Lum))
-                * smoothstep(Surface.w, Surface.w * 2.5, dot(Base, Lum));
     float3 Nrm = normalize(LocalNormal);
     float3 W = pow(abs(Nrm), 4.0);
     W /= max(W.x + W.y + W.z, 1e-4);
@@ -722,11 +727,12 @@ if (Kind > 0.5 && Pat.a > 0.001)
     }
     else if (Kd > 4.5 && Kd < 5.5)
     {
-        // Camo: blotches of the tint and of a darker tone of it, the maker's paint between.
+        // Camo: blotches of a lighter and of a darker tone of the gun's own paint (never the tint: red on cream read as cow
+        // hide), the paint between; the tones are close, so Amount is lifted to keep them seen.
         float An = Camo.w + Px * Fn;
-        float A = Amount * Paint;
-        C = lerp(Color, Over, smoothstep(Camo.x - An, Camo.x + An, N) * A);
-        C = lerp(C, Over * Camo.z, smoothstep(Camo.y + An, Camo.y - An, N) * A);
+        float A = saturate(Amount * 1.6) * Paint;
+        C = lerp(Color, Color * 1.22, smoothstep(Camo.x - An, Camo.x + An, N) * A);
+        C = lerp(C, Color * Camo.z, smoothstep(Camo.y + An, Camo.y - An, N) * A);
     }
     else
     {
@@ -801,6 +807,16 @@ if (Kind > 0.5 && Pat.a > 0.001)
         C = lerp(C, Pin, Accent * saturate(A * 1.4));
     }
     Result = float4(C, R);
+}
+// Pale enamel goes darker and its outside edges are rubbed through to dark iron, in chips (the noise at 3 cm a repeat).
+float Pale = smoothstep(Coat.x, Coat.y, dot(Tint, Lum)) * Paint;
+if (Pale > 0.001)
+{
+    float2 Fw = float2(0.33, 0.33);
+    float Chips = Texture2DSampleGrad(Noise, NoiseSampler, Local.xz * Fw.x + 0.21, Dx.xz * Fw.x, Dy.xz * Fw.x).r;
+    float Rub = saturate(Edges.x * (0.3 + 1.5 * Chips) * Coat.w) * Pale;
+    Result.rgb = lerp(Result.rgb * (1.0 - Coat.z * Pale), float3(0.2, 0.19, 0.18), Rub);
+    Result.a -= 0.1 * Rub;
 }
 return Result;"""
 
@@ -976,7 +992,7 @@ def build_gun(orm_default):
         ('Local', local, ''), ('LocalNormal', local_normal, ''), ('Edges', edges, ''), ('Noise', noise, ''),
         ('Surface', pp['PatternSurface'], 'RGBA'), ('Shape', pp['PatternShape'], 'RGBA'),
         ('Bands', pp['PatternBands'], 'RGBA'), ('Camo', pp['PatternCamo'], 'RGBA'), ('Grime', pp['PatternGrime'], 'RGBA'),
-        ('Stencil', pp['PatternStencil'], 'RGBA'), ('Bold', pp['PatternBold'], 'RGBA'),
+        ('Stencil', pp['PatternStencil'], 'RGBA'), ('Bold', pp['PatternBold'], 'RGBA'), ('Coat', pp['PatternPale'], 'RGBA'),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -500, -400, 'Pattern')
     patterned_rgb = g.node(unreal.MaterialExpressionComponentMask, -400, -250, r=True, g=True, b=True, a=False)
     g.link(patterned, '', patterned_rgb, '')

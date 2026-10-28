@@ -86,6 +86,11 @@ bool FUnpaidPhaseStepTest::RunTest(const FString& Parameters)
 	FHuntingGround Pen;
 	Pen.Radius = 200.f;
 	TestFalse(TEXT("A yard too small for any step: it doesn't step"), UnpaidRules::ChoosePhaseSpot(Rules, Here, Target, Pen, Here, Ground, Chosen));
+	// Pressed (2026-10-28), its reach past the edge counts: the pen's steps are open to it.
+	if (TestTrue(TEXT("Pressed, it steps past its pen's edge"), UnpaidRules::ChoosePhaseSpot(Rules, Here, Target, Pen, Here, Ground, Chosen, 800.f)))
+	{
+		TestTrue(TEXT("...within its reach"), Pen.ContainsSpot(Chosen, Here, 800.f) && !Pen.ContainsSpot(Chosen, Here));
+	}
 
 	// Never onto another level of ground: a ledge 2 m up straight ahead, so it comes back beside it, on its own level.
 	auto Ledge = [](const FVector& Candidate, FVector& OutFeet)

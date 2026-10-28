@@ -1,4 +1,5 @@
 #include "Loot/LootLibrary.h"
+#include "Inventory/WeaponManagerComponent.h"
 #include "Loot/AmmoPickup.h"
 #include "Loot/LootFanfareSubsystem.h"
 #include "Loot/LootTable.h"
@@ -12,6 +13,8 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "AI_Looter_Shooter.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/Package.h"
 
@@ -77,7 +80,7 @@ UWeaponDefinition* ULootLibrary::PickWeaponWith(const ULootTable* LootTable, FRa
 	return Last;
 }
 
-EAmmoType ULootLibrary::PickAmmoType(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo)
+EAmmoType ULootLibrary::PickAmmoType(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo, bool bNoRockets)
 {
 	// Each class's weight: what the table gives it (a class listed twice counts twice), or 1 each when it lists none.
 	float Weights[LooterAmmo::NumTypes] = {};
@@ -106,6 +109,10 @@ EAmmoType ULootLibrary::PickAmmoType(const ULootTable* LootTable, FRandomStream&
 	if (KillAmmo.IsSet() && LooterAmmo::IsValid(KillAmmo.GetValue()))
 	{
 		Weights[static_cast<int32>(KillAmmo.GetValue())] *= FMath::Max(LootTable ? LootTable->KillWeaponAmmoBias : 1.f, 1.f);
+	}
+	if (bNoRockets)
+	{
+		Weights[static_cast<int32>(EAmmoType::Rocket)] = 0.f;
 	}
 
 	Total = 0.f;
@@ -181,6 +188,66 @@ FWeaponInstanceData ULootLibrary::RollDroppedWeapon(UWeaponDefinition* Definitio
 		Gun.Stats = UWeaponRollLibrary::ComputeInstanceStats(Gun);
 	}
 	return Gun;
+}
+
+void ULootLibrary::KeepRocketsForLaunchers(FLootRoll& Roll, const ULootTable* LootTable, FRandomStream& Random, bool bLauncher)
+{
+	if (bLauncher)
+	{
+		return;
+	}
+	for (const FWeaponInstanceData& Gun : Roll.Weapons)
+	{
+		// A launcher in the same drop brings its rockets with it.
+		if (Gun.Definition && Gun.Definition->Kind == EWeaponKind::Launcher)
+		{
+			return;
+		}
+	}
+	for (FAmmoDrop& Drop : Roll.Ammo)
+	{
+		if (Drop.Type == EAmmoType::Rocket)
+		{
+			Drop.Type = PickAmmoType(LootTable, Random, {}, true);
+			Drop.Amount = LooterLoot::AmmoAmountFor(Drop.Type, RollAmmoAmount(LootTable, Random));
+		}
+	}
+}
+
+bool ULootLibrary::AnyPlayerCarriesLauncher(const UObject* WorldContextObject)
+{
+	const UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
+	if (!World)
+	{
+		return true;
+	}
+	bool bAnyArmed = false;
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* Controller = It->Get();
+		const APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
+		const UWeaponManagerComponent* Weapons = Pawn ? Pawn->FindComponentByClass<UWeaponManagerComponent>() : nullptr;
+		if (!Weapons)
+		{
+			continue;
+		}
+		bAnyArmed = true;
+		for (const AWeaponBase* Gun : Weapons->GetWeapons())
+		{
+			if (Gun && Gun->GetInstance().Definition && Gun->GetInstance().Definition->Kind == EWeaponKind::Launcher)
+			{
+				return true;
+			}
+		}
+		for (const FWeaponInstanceData& Kept : Weapons->GetBackpack())
+		{
+			if (Kept.Definition && Kept.Definition->Kind == EWeaponKind::Launcher)
+			{
+				return true;
+			}
+		}
+	}
+	return !bAnyArmed;
 }
 
 TArray<FAmmoDrop> ULootLibrary::RollAmmo(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo)
@@ -272,7 +339,8 @@ TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const U
 	}
 
 	FRandomStream Random(FMath::Rand());
-	const FLootRoll Roll = RollLoot(LootTable, Level, ExtraLuck, Random, KillAmmo, bWeapons);
+	FLootRoll Roll = RollLoot(LootTable, Level, ExtraLuck, Random, KillAmmo, bWeapons);
+	KeepRocketsForLaunchers(Roll, LootTable, Random, AnyPlayerCarriesLauncher(World));
 	const FVector SpawnLocation = Location + FVector(0.f, 0.f, 60.f);
 
 	if (UE_LOG_ACTIVE(LogLooter, Verbose))

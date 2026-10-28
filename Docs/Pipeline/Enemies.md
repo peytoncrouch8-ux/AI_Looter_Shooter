@@ -327,6 +327,15 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
     other kind: spiders untouched, the user's call). At 1400 cm/s a 4.7 m lunge flies 0.34 s, so in practice the whole lunge
     commits; the slowed stretch matters for the Gravebound's faster, longer ones. Test `Looter.Creatures.Unpaid.Kit.Commit`
     (the gap, a short lunge committed from its first frame at full speed, a long one slowed its whole way then committed).
+- Pressed past its edge (2026-10-28, the overnight playtest: shot at from the chapel's doorway, nine stood in a line at the
+  yard's edge, a shooting gallery). A hit, or its pack's call, from a player within `Looter.Unpaid.PressReach` 800 cm past its
+  hunting ground's edge (the height band still holds; never a safe zone, never a boss, kit only) presses it: its ground
+  reaches that far (`ACreatureBase::NotePressed`, `GetGroundReach`, `IsOnItsGround`: the hunt check, the prowl's edge, the
+  ring's slots, the trait phase, the pack's retreat all use it), renewed while they stay within it, `PressSeconds` 6 after.
+  The one hit (not its pack) owes a phase-step in (`OnPressedByHit`: stuck or not, cooldown 3 s), whose spot may lie in the
+  reach (`ChoosePhaseSpot`'s `GroundReach`), so a fence is blinked over. Walking past the edge without shooting still only
+  draws a watch from it. Tests `Looter.Creatures.Unpaid.Kit.Press`, `Looter.Creatures.Unpaid.PhaseStep` (pressed step past a
+  pen). Not seen in play yet; the chapel nave is the place to check.
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
   arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.

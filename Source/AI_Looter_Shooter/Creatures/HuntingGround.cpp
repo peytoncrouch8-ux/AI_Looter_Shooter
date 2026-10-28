@@ -11,7 +11,7 @@ FVector FHuntingGround::GetMiddle(const FVector& Home) const
 	return bAroundHome ? Home : Center;
 }
 
-bool FHuntingGround::Contains(const FVector& Point, const FVector& Home) const
+bool FHuntingGround::Contains(const FVector& Point, const FVector& Home, float Reach) const
 {
 	if (!IsSet())
 	{
@@ -25,12 +25,12 @@ bool FHuntingGround::Contains(const FVector& Point, const FVector& Home) const
 	const FVector2D Flat(Point.X, Point.Y);
 	if (Corners.Num() >= 3)
 	{
-		return IsInsidePolygon(Corners, Flat) || DistanceToPolygonEdge(Corners, Flat) <= Margin;
+		return IsInsidePolygon(Corners, Flat) || DistanceToPolygonEdge(Corners, Flat) <= Margin + Reach;
 	}
-	return FVector2D::DistSquared(Flat, FVector2D(Middle.X, Middle.Y)) <= FMath::Square(static_cast<double>(Radius));
+	return FVector2D::DistSquared(Flat, FVector2D(Middle.X, Middle.Y)) <= FMath::Square(static_cast<double>(Radius + Reach));
 }
 
-bool FHuntingGround::ContainsSpot(const FVector& Point, const FVector& Home) const
+bool FHuntingGround::ContainsSpot(const FVector& Point, const FVector& Home, float Reach) const
 {
 	if (!IsSet())
 	{
@@ -39,10 +39,10 @@ bool FHuntingGround::ContainsSpot(const FVector& Point, const FVector& Home) con
 	const FVector2D Flat(Point.X, Point.Y);
 	if (Corners.Num() >= 3)
 	{
-		return IsInsidePolygon(Corners, Flat);
+		return IsInsidePolygon(Corners, Flat) || (Reach > 0.f && DistanceToPolygonEdge(Corners, Flat) <= Reach);
 	}
 	const FVector Middle = GetMiddle(Home);
-	return FVector2D::DistSquared(Flat, FVector2D(Middle.X, Middle.Y)) <= FMath::Square(static_cast<double>(Radius));
+	return FVector2D::DistSquared(Flat, FVector2D(Middle.X, Middle.Y)) <= FMath::Square(static_cast<double>(Radius + Reach));
 }
 
 FHuntingGround FHuntingGround::MakeAround(const FVector& InCenter, float InRadius, const TArray<FVector>& InCorners, float InMargin,

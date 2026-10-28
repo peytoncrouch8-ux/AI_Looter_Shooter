@@ -57,7 +57,8 @@ namespace
 		{ 1.f, 2.f, 0.f, 0.f, 1.f },   // worn edges and chips
 		{ 1.f, 1.f, 3.f, 2.f, 2.f },   // stripes
 		{ 0.f, 0.f, 2.f, 2.f, 3.f },   // chevrons
-		{ 3.f, 2.f, 1.f, 1.f, 1.f },   // camo blotches
+		{ 3.f, 2.f, 1.f, 1.f, 1.f },   // camo blotches (the master now draws them in light and dark tones of the gun's own paint,
+		                               // not in this tint: red on cream read as cow hide, PIE 2026-10-28)
 		{ 0.f, 1.f, 1.f, 2.f, 3.f },   // stencil
 		{ 2.f, 1.f, 2.f, 2.f, 1.f },   // clean bold
 	};

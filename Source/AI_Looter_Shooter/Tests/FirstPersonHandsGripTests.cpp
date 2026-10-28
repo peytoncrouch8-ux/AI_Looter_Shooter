@@ -2,16 +2,20 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Embers/HeroDefinition.h"
 #include "Player/FirstPersonHandsFraming.h"
 #include "Player/FirstPersonHandsGrips.h"
+#include "Player/FirstPersonHandsMotion.h"
 #include "Player/FirstPersonHandsRig.h"
+#include "Player/PlayerMeleeMotion.h"
+#include "Player/PlayerMeleeRules.h"
 #include "Weapons/WeaponModelComponent.h"
 #include "Engine/SkeletalMesh.h"
 
 // The first-person hands touching their guns (FPGRIP, 2026-10-22): the handle's solid as plain math, then Ellis's arms
 // (SK_FP_Arms, made with the eye at the origin, so the camera's space is the mesh's) on every gun kind's hold: the palms
 // seated, the fingers closed on the handles (touching, never in them), the trigger finger on the trigger when it's wanted
-// there and straight along the frame when it isn't.
+// there and straight along the frame when it isn't; and the right hand round each hero's melee tool through its swing.
 
 namespace
 {
@@ -221,6 +225,75 @@ bool FFirstPersonHandsGripContactTest::RunTest(const FString& Parameters)
 			const float OffIt = static_cast<float>(FVector::Dist(TriggerPad(Rig, IndexedSpace), Grip.Contact.TriggerPoint));
 			TestTrue(FString::Printf(TEXT("%s: indexed, the finger leaves the trigger (%.2f cm off)"), *Name, OffIt),
 				Kind == EWeaponKind::Shotgun || OffIt > OnIt + 1.f);
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstPersonHandsGripToolTest, "Looter.Player.Hands.Grip.Tool",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FFirstPersonHandsGripToolTest::RunTest(const FString& Parameters)
+{
+	// The right hand on each held melee tool, Ellis's arms posed on it through the swing: the hand gets to its grip point,
+	// the palm rests on the handle and all four fingers close round it (ClosedRound), touching, never in it. The overnight
+	// playtest (2026-10-28, pt_mel_Crane_d) saw Crane's glove beside and under the gaff's pole, not round it.
+	const USkeletalMesh* Arms = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Art/Characters/SK_FP_Arms.SK_FP_Arms"));
+	FFirstPersonHandsRig Rig;
+	if (!TestNotNull(TEXT("SK_FP_Arms"), Arms) || !TestTrue(TEXT("The rig binds to it"), Rig.Bind(Arms, false)))
+	{
+		return false;
+	}
+	constexpr float MostIn = 0.35f;
+	constexpr float Touching = 0.4f;
+	// The long tools' striking ends from the grip (MeleeTools.py: SPADE_TIP 76, GAFF_TIP 106): they aim the arc (AimAtTip).
+	const TPair<const TCHAR*, float> Heroes[] = { { TEXT("Ellis"), 76.f }, { TEXT("Odessa"), 0.f }, { TEXT("Crane"), 106.f }, { TEXT("Pike"), 0.f } };
+	const int32 Right = FirstPersonHands::Index(EFirstPersonHand::Right);
+	const int32 Left = FirstPersonHands::Index(EFirstPersonHand::Left);
+	for (const TPair<const TCHAR*, float>& Hero : Heroes)
+	{
+		const FHeroMeleeTool Tool = UHeroDefinition::MeleeToolFor(FName(Hero.Key));
+		if (!TestTrue(FString::Printf(TEXT("%s: a held tool"), Hero.Key), Tool.Grip == EMeleeGripKind::Held))
+		{
+			continue;
+		}
+		// The gaff (the playtest's) must close every finger; the others report theirs (the fan's pivot is thin).
+		const bool bStrict = Tool.bRoundHandle;
+		for (const float Time : { MeleeMotion::CockSeconds, FMeleeRules::ContactSeconds, FMeleeRules::ContactSeconds + 0.1f, 0.28f })
+		{
+			const FMeleeToolPose Pose = MeleeMotion::ToolPose(Tool.Swing, Tool.Heft, Time, false, Hero.Value);
+			const FHandPlacement OnTool = FirstPersonHandsMotion::OnMeleeTool(Pose.Grip, Tool.HandleRadius * Tool.Scale, false, Tool.bRoundHandle);
+			FHandsRigTargets Targets;
+			Targets.Hands[Right] = OnTool.Moved(GripTestToMesh);
+			Targets.Hands[Left] = FirstPersonHandsMotion::BareRest(EFirstPersonHand::Left).Moved(GripTestToMesh);
+			TArray<FTransform> Local;
+			TArray<FTransform> Space;
+			Rig.Pose(Targets, Local, Space);
+			const FHandPlacement& Target = Targets.Hands[Right];
+			const FString Name = FString::Printf(TEXT("%s at %.2f s"), Hero.Key, Time);
+
+			// The arm gets the hand there (a far spot leaves the glove short of its handle, beside it).
+			const FHandPlacement Seated = Rig.Seated(Target);
+			const int32 HandBone = Rig.GetHandBone(EFirstPersonHand::Right);
+			const FVector Reached = Space[HandBone].TransformPosition(Rig.GetHoldLocal(EFirstPersonHand::Right));
+			TestTrue(FString::Printf(TEXT("%s: the hand on its grip point (%.2f cm off)"), *Name, FVector::Dist(Reached, Seated.Hold)),
+				FVector::Dist(Reached, Seated.Hold) < 0.5);
+			const float PalmGap = Target.Contact.Handle.Distance(Seated.Hold - Seated.GetPalmDir() * FirstPersonHands::GripOffPalmSkin);
+			TestTrue(FString::Printf(TEXT("%s: the palm rests on the handle (%.2f cm off)"), *Name, PalmGap), FMath::Abs(PalmGap - Target.Contact.SeatGap) < 0.3f);
+
+			int32 Touches = 0;
+			for (int32 Finger = FHandFingers::IndexFinger; Finger < FHandFingers::Count; ++Finger)
+			{
+				float Deepest = 0.f;
+				float Nearest = 0.f;
+				FingerGap(Rig, EFirstPersonHand::Right, Finger, Space, Target.Contact, Deepest, Nearest);
+				TestTrue(FString::Printf(TEXT("%s, finger %d: not in the handle (%.2f cm)"), *Name, Finger, Deepest), Deepest > -MostIn);
+				AddInfo(FString::Printf(TEXT("%s, finger %d: touched %d, deepest %.2f, nearest %.2f"), *Name, Finger,
+					(Rig.GetLastTouched(EFirstPersonHand::Right) >> Finger) & 1, Deepest, Nearest));
+				Touches += Nearest < Touching ? 1 : 0;
+			}
+			const int32 Wanted = bStrict ? FHandFingers::Count - 1 : 0;
+			TestTrue(FString::Printf(TEXT("%s: the fingers close round the handle (%d of 4 touch)"), *Name, Touches), Touches >= Wanted);
 		}
 	}
 	return true;

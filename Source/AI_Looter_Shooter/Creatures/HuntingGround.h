@@ -57,10 +57,14 @@ struct AI_LOOTER_SHOOTER_API FHuntingGround
 	 * Whether Point stands on it: inside the polygon or its margin (or within the radius of its middle), and no more than
 	 * MaxRise above or below the middle. Home is the creature's home. An unset hunting ground holds everywhere.
 	 */
-	bool Contains(const FVector& Point, const FVector& Home) const;
+	bool Contains(const FVector& Point, const FVector& Home) const { return Contains(Point, Home, 0.f); }
+	/** As Contains, with its edge Reach (cm) further out seen from above (a pressed creature's: ACreatureBase::GetGroundReach); the height band holds. */
+	bool Contains(const FVector& Point, const FVector& Home, float Reach) const;
 
 	/** Whether a spot is well on it, seen from above: inside the polygon itself, or the radius. Where a spawner may put a creature. */
-	bool ContainsSpot(const FVector& Point, const FVector& Home) const;
+	bool ContainsSpot(const FVector& Point, const FVector& Home) const { return ContainsSpot(Point, Home, 0.f); }
+	/** As ContainsSpot, Reach (cm) past the polygon or the radius counting too. */
+	bool ContainsSpot(const FVector& Point, const FVector& Home, float Reach) const;
 
 	/** A spawner's: InRadius round InCenter, or the polygon when InCorners has three corners or more. */
 	static FHuntingGround MakeAround(const FVector& InCenter, float InRadius, const TArray<FVector>& InCorners, float InMargin,

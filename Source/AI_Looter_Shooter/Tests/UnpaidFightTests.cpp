@@ -308,6 +308,62 @@ bool FUnpaidKitCommitTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidKitPressTest, "Looter.Creatures.Unpaid.Kit.Press",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FUnpaidKitPressTest::RunTest(const FString& Parameters)
+{
+	// Shot at from just past its ground's edge (DEMO 2026-10-28: from the chapel's doorway, nine stood in a line at the edge),
+	// an Unpaid fights them there; from farther off, and with its kit off, it keeps to its edge as before. Never higher up.
+	FKitLevel Level;
+	if (!TestTrue(TEXT("Test level made"), Level.Create()))
+	{
+		return false;
+	}
+	UWorld* World = Level.Wrapper.GetTestWorld();
+	FEditorScriptExecutionGuard RunActorEvents;
+	LocomotionTestWorld::SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(6000.0, 6000.0, 100.0));
+	ACharacter* Near = EncounterTestWorld::SpawnPlayer(World, FVector(1100.0, 0.0, 90.0));
+	ACharacter* Far = EncounterTestWorld::SpawnPlayer(World, FVector(0.0, 2000.0, 90.0));
+	ACharacter* Above = EncounterTestWorld::SpawnPlayer(World, FVector(-1000.0, 0.0, 690.0));
+	AUnpaidCreature* Unpaid = SpawnUnpaid(World, FVector(0.0, 0.0, 0.0));
+	if (!TestNotNull(TEXT("Players"), Near) || !TestNotNull(TEXT("..."), Far) || !TestNotNull(TEXT("..."), Above)
+		|| !TestNotNull(TEXT("Unpaid spawned"), Unpaid))
+	{
+		return false;
+	}
+	FCVarScope KitOn(TEXT("Looter.Unpaid.Kit"), TEXT("1"));
+	// Its yard: 6 m round its home, 3 m of height either way.
+	Unpaid->HuntingGround.Radius = 600.f;
+	Unpaid->HuntingGround.MaxRise = 300.f;
+	const FUnpaidFightTuning Tuning;
+	TestTrue(TEXT("The reach is a doorway's, not a field's"), Tuning.PressReach >= 400.f && Tuning.PressReach <= 1200.f);
+	TestFalse(TEXT("5 m past its edge: not on its ground"), Unpaid->IsOnItsGround(Near->GetActorLocation()));
+	{
+		FCVarScope KitOff(TEXT("Looter.Unpaid.Kit"), TEXT("0"));
+		TestFalse(TEXT("Kit off: a hit from there doesn't press it"), Unpaid->NotePressed(Near));
+	}
+	TestFalse(TEXT("14 m past its edge: too far to press it"), Unpaid->NotePressed(Far));
+	TestFalse(TEXT("6 m up, past its height band: never"), Unpaid->NotePressed(Above));
+	TestTrue(TEXT("5 m past its edge: pressed"), Unpaid->NotePressed(Near));
+	TestTrue(TEXT("...so it fights them there"), Unpaid->IsOnItsGround(Near->GetActorLocation()) && Unpaid->IsPressed());
+	TestNearlyEqual(TEXT("...its ground reaching past its edge"), Unpaid->GetGroundReach(), Tuning.PressReach, 0.5f);
+	TestFalse(TEXT("...not as far as the far one"), Unpaid->IsOnItsGround(Far->GetActorLocation()));
+	TestTrue(TEXT("Spiders never press"), GetDefault<ACreatureBase>()->GetPressReach() == 0.f);
+
+	// A hit from past its edge: the hit one owes a blink in.
+	AUnpaidCreature* Hit = SpawnUnpaid(World, FVector(0.0, -300.0, 0.0));
+	if (TestNotNull(TEXT("A second Unpaid"), Hit))
+	{
+		Hit->HuntingGround.Radius = 600.f;
+		Hit->HuntingGround.MaxRise = 300.f;
+		Hit->AlertTo(Near);
+		TestTrue(TEXT("Its pack's call presses it"), Hit->IsPressed());
+		TestFalse(TEXT("...but only the one hit owes a blink in"), Hit->OwesPressStep());
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidKitMovesTest, "Looter.Creatures.Unpaid.Kit.Moves",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

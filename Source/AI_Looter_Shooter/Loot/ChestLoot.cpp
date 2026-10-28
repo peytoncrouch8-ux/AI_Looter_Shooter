@@ -160,7 +160,8 @@ void AChest::DropLoot()
 	}
 	FRandomStream Random(FMath::Rand());
 	const int32 Level = GetLootLevel();
-	const FLootRoll Roll = ULootLibrary::RollLoot(Table, Level, 0.f, Random);
+	FLootRoll Roll = ULootLibrary::RollLoot(Table, Level, 0.f, Random);
+	ULootLibrary::KeepRocketsForLaunchers(Roll, Table, Random, ULootLibrary::AnyPlayerCarriesLauncher(this));
 	const FVector From = GetLootOrigin();
 	// A grave-salt grenade now and then (always from a Strongbox or a tier 4 or 5, or when the player has none), rolled after
 	// the table's own rolls so theirs don't move.

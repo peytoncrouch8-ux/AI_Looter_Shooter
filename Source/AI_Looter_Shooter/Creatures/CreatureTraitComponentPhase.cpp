@@ -212,7 +212,7 @@ bool UCreatureTraitComponent::FindBlinkSpot(FVector& OutFeet) const
 		// Not onto its hitter, and (for the tests' sake as much as play's) never off its ground or into a safe zone.
 		if ((Attacker && FVector::Dist2D(Ground, Attacker->GetActorLocation()) < Tuning.NearestToAttacker)
 			|| (Encounters && Encounters->IsInSafeZone(Ground)) || (Playable && !Playable->Contains(Ground))
-			|| !Creature->HuntingGround.Contains(Ground, Home))
+			|| !Creature->IsOnItsGround(Ground))
 		{
 			continue;
 		}

@@ -40,8 +40,32 @@ ACreatureBase::EHuntCheck ACreatureBase::CheckHunt(const APawn* Pawn) const
 	{
 		return EHuntCheck::OffGround;
 	}
-	// Off its ground the chase can't follow, so a fight never runs down a ramp or out over a fence.
-	return HuntingGround.Contains(Where, Home.GetLocation()) ? EHuntCheck::Huntable : EHuntCheck::OffGround;
+	// Off its ground the chase can't follow, so a fight never runs down a ramp or out over a fence (unless pressed: a little
+	// way past the edge, at the same height).
+	return IsOnItsGround(Where) ? EHuntCheck::Huntable : EHuntCheck::OffGround;
+}
+
+bool ACreatureBase::IsOnItsGround(const FVector& Where) const
+{
+	return HuntingGround.Contains(Where, Home.GetLocation(), GetGroundReach());
+}
+
+float ACreatureBase::GetGroundReach() const
+{
+	return PressedLeft > 0.f ? GetPressReach() : 0.f;
+}
+
+bool ACreatureBase::NotePressed(const APawn* By)
+{
+	// Only a player just past its edge, at its ground's own height (the band holds: never down a ramp), and never a boss.
+	const float Reach = GetPressReach();
+	if (Reach <= 0.f || !By || !HuntingGround.IsSet() || KeepsBossRules() || UEncounterSubsystem::IsSheltered(this, By->GetActorLocation())
+		|| !HuntingGround.Contains(By->GetActorLocation(), Home.GetLocation(), Reach))
+	{
+		return false;
+	}
+	PressedLeft = FMath::Max(PressedLeft, GetPressSeconds());
+	return true;
 }
 
 /** A scene plays or holds the player: nothing but a boss hunts them meanwhile. */

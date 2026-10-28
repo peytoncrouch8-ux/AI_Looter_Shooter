@@ -94,6 +94,13 @@ bool ACreatureBase::TakeUpHunt(APawn* Prey, bool bHit)
 		return true;
 	}
 	// A hit from beyond its sight still turns it, and one from off its ground sends it to its edge; nobody in a safe zone.
+	// A hit (or its pack's) from just past its edge presses it (a kind that presses: the Unpaid): it fights them there.
+	const bool bWasPressed = IsPressed();
+	const bool bOffBefore = CheckHunt(Prey) == EHuntCheck::OffGround;
+	if (NotePressed(Prey) && bHit && !bWasPressed && bOffBefore)
+	{
+		OnPressedByHit(*Prey);
+	}
 	const EHuntCheck Check = CheckHunt(Prey);
 	if (Check != EHuntCheck::Huntable && Check != EHuntCheck::OffGround)
 	{
@@ -153,6 +160,12 @@ void ACreatureBase::UpdatePursuit(float Interval)
 		return;
 	}
 
+	// A press runs down, renewed while they stay within its reach (they're still in its doorway).
+	if (PressedLeft > 0.f)
+	{
+		PressedLeft = FMath::Max(PressedLeft - Interval, 0.f);
+		NotePressed(Prey);
+	}
 	const UEncounterSettings& Settings = UEncounterSettings::Get();
 	const EHuntCheck Check = CheckHunt(Prey);
 	FCreaturePursuit::FLook Look;
@@ -304,7 +317,7 @@ void ACreatureBase::TickSniff(float DeltaSeconds)
 	{
 		const FVector2D Offset = FMath::RandPointInCircle(Radius);
 		Walk.Goal = Walk.Anchor + FVector(Offset, 0.f);
-		if (HuntingGround.IsSet() && !HuntingGround.Contains(Walk.Goal, Home.GetLocation()))
+		if (HuntingGround.IsSet() && !IsOnItsGround(Walk.Goal))
 		{
 			Walk.Goal = Walk.Anchor;
 		}
@@ -339,7 +352,7 @@ void ACreatureBase::TickProwl(float DeltaSeconds, const APawn& Prey)
 		// as it closes in to, or as far as it gets in a few seconds. Under one out of its reach it waits where it is.
 		Walk.ApproachTime += DeltaSeconds;
 		const FVector Ahead = Here + Toward * (ProwlEdgeLook * SizeScale);
-		const bool bAtEdge = (HuntingGround.IsSet() && !HuntingGround.Contains(Ahead, Home.GetLocation())) || USwimWaterSubsystem::IsDeepAt(this, Ahead);
+		const bool bAtEdge = (HuntingGround.IsSet() && !IsOnItsGround(Ahead)) || USwimWaterSubsystem::IsDeepAt(this, Ahead);
 		if (bOffGround && !bAtEdge && Flat > GetChaseHold() && Walk.ApproachTime < ProwlApproachSeconds)
 		{
 			MoveToward(Spot, WalkSpeed * 1.5f, DeltaSeconds);
@@ -363,7 +376,7 @@ void ACreatureBase::TickProwl(float DeltaSeconds, const APawn& Prey)
 			Walk.PaceSign = -Walk.PaceSign;
 			const FVector Side(-Toward.Y, Toward.X, 0.0);
 			Walk.Goal = Walk.Anchor + Side * (Walk.PaceSign * ProwlPaceDistance * SizeScale);
-			if ((HuntingGround.IsSet() && !HuntingGround.Contains(Walk.Goal, Home.GetLocation())) || USwimWaterSubsystem::IsDeepAt(this, Walk.Goal))
+			if ((HuntingGround.IsSet() && !IsOnItsGround(Walk.Goal)) || USwimWaterSubsystem::IsDeepAt(this, Walk.Goal))
 			{
 				Walk.Goal = Walk.Anchor;
 			}

@@ -81,6 +81,10 @@ public:
 	bool UsesFightDirector() const;
 	/** Its brain is held by a hit: staggered, knocked or dazed. */
 	bool IsHeldByHit() const;
+	/** How far past its ground's edge (cm) a hit can press it (NotePressed); 0: never (every kind but the Unpaid). */
+	virtual float GetPressReach() const { return 0.f; }
+	/** How long a press lasts once its target is out of that reach (s). */
+	virtual float GetPressSeconds() const { return 0.f; }
 	/** Seconds between the hit slows it takes (Looter.Gunfeel.Flinch.Slow); 0: every hit slows it (the Unpaid: once a half second). */
 	virtual float GetHitSlowGap() const { return 0.f; }
 	/** Its chase speed now: ChaseSpeed, quickened by Looter.Fight.ChaseScale unless it keeps its own fight. */
@@ -96,6 +100,18 @@ public:
 
 	/** As if Attacker had hurt it (its pack heard): off its ground it watches from its edge; already after them, a search becomes the hunt; after someone else, nothing. */
 	void AlertTo(APawn* Attacker);
+
+	/**
+	 * Pressed: hurt (or its pack hurt) by By from just past its ground's edge (within GetPressReach), it fights them there for
+	 * GetPressSeconds, renewed while they stay within that reach (the Unpaid, 2026-10-28: shot at from the chapel's doorway,
+	 * nine stood in a line at the edge). False (nothing changes) for a kind that never presses or one already out of reach.
+	 */
+	bool NotePressed(const APawn* By);
+	/** How far past its hunting ground's edge (cm) it counts a player as on it now: its press reach while pressed, else 0. */
+	float GetGroundReach() const;
+	/** Whether Where is on its hunting ground, with the reach it has now (GetGroundReach). */
+	bool IsOnItsGround(const FVector& Where) const;
+	bool IsPressed() const { return PressedLeft > 0.f; }
 
 	/** How its hunt is going (CreatureBasePursuit.cpp): its step, its last known spot, why it gave up; for tests and tools. */
 	const FCreaturePursuit& GetPursuit() const { return Pursuit; }
@@ -372,6 +388,8 @@ protected:
 	virtual void OnAttackStarted() {}
 	virtual void OnAttackStrike(bool bConnected) {}
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) {}
+	/** A hit from By has newly pressed it past its ground's edge (NotePressed): the Unpaid phase-steps in. */
+	virtual void OnPressedByHit(const APawn& By) {}
 	/**
 	 * The hit being taken (its share of health and its burst's, the gun, crit, way, spot), stored by HandleDamaged before
 	 * OnHurt: each kind sizes its flinch by GetLastHit().FlinchStrength (Gunfeel; fresh only during that OnHurt).
@@ -580,6 +598,8 @@ private:
 	TWeakObjectPtr<APawn> Target;
 	/** How its hunt is going: searching, waiting where it can't reach, why it gave up (CreatureBasePursuit.cpp). */
 	FCreaturePursuit Pursuit;
+	/** Seconds its press past its ground's edge has left (NotePressed). */
+	float PressedLeft = 0.f;
 	FTransform Home;
 	FVector WanderGoal = FVector::ZeroVector;
 	float StateTime = 0.f;

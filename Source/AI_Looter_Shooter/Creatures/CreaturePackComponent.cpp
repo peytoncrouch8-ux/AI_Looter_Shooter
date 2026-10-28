@@ -219,9 +219,8 @@ void UCreaturePackComponent::StartRetreat()
 		return;
 	}
 	const FVector Home = Me->GetHome().GetLocation();
-	const FHuntingGround& Ground = Me->HuntingGround;
 	RetreatTo = PackRules::RetreatGoal(Me->GetActorLocation(), Victim->GetActorLocation(), Home, Settings.RetreatDistance * Me->GetSizeScale(),
-		[&Ground, &Home](const FVector& Point) { return Ground.Contains(Point, Home); });
+		[Me](const FVector& Point) { return Me->IsOnItsGround(Point); });
 	RetreatLeft = Settings.RetreatSeconds;
 	FlankDegrees = 0.f;
 	// A cry as it breaks: the player hears it give way.

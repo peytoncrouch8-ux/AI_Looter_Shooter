@@ -121,7 +121,21 @@ public:
 	 * Picks one ammo class from the table by weight (every class, equally, if the table lists none). KillAmmo's weight
 	 * is multiplied by the table's KillWeaponAmmoBias; a class the table never drops stays out.
 	 */
-	static EAmmoType PickAmmoType(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo = {});
+	static EAmmoType PickAmmoType(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo = {},
+		bool bNoRockets = false);
+
+	/**
+	 * No rockets while nobody carries a launcher (the overnight playtest, 2026-10-28: +3 rockets at level 1): each rocket
+	 * pickup in Roll becomes another class from the table, with a fresh amount, unless bLauncher (one is carried) or Roll
+	 * itself holds a launcher. Spawning code passes AnyPlayerCarriesLauncher.
+	 */
+	static void KeepRocketsForLaunchers(FLootRoll& Roll, const ULootTable* LootTable, FRandomStream& Random, bool bLauncher);
+
+	/**
+	 * Whether any player carries a launcher, in hand, holstered or in the backpack. True when no player has a weapon manager
+	 * (nothing to judge by: the roll is left as it is).
+	 */
+	static bool AnyPlayerCarriesLauncher(const UObject* WorldContextObject);
 
 	/** The loot table creatures, dummies and anything else with a loot drop component use unless given their own. */
 	static ULootTable* GetDefaultLootTable();

@@ -102,12 +102,12 @@ TArray<FVector> UnpaidRules::PhaseCandidates(const FPhaseStepRules& Rules, const
 }
 
 bool UnpaidRules::ChoosePhaseSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target, const FHuntingGround& Ground,
-	const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand, FVector& OutFeet)
+	const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand, FVector& OutFeet, float GroundReach)
 {
 	for (const FVector& Candidate : PhaseCandidates(Rules, Here, Target))
 	{
 		// It keeps to its hunting ground: a step never carries it over a fence it fights inside, or out of the yard.
-		if (!Ground.ContainsSpot(Candidate, Home))
+		if (!Ground.ContainsSpot(Candidate, Home, GroundReach))
 		{
 			continue;
 		}

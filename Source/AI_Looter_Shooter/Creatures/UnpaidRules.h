@@ -105,5 +105,5 @@ namespace UnpaidRules
 	 */
 	AI_LOOTER_SHOOTER_API bool ChoosePhaseSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target,
 		const FHuntingGround& Ground, const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand,
-		FVector& OutFeet);
+		FVector& OutFeet, float GroundReach = 0.f);
 }

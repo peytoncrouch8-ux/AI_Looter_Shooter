@@ -31,6 +31,42 @@ namespace
 	}
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootRocketsForLaunchersTest, "Looter.Loot.RocketsForLaunchers",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FLootRocketsForLaunchersTest::RunTest(const FString& Parameters)
+{
+	// No rockets while nobody carries a launcher (the overnight playtest, 2026-10-28): every rocket pickup turns into another class.
+	ULootTable* Table = NewObject<ULootTable>();
+	FRandomStream Random(77);
+	for (int32 Pick = 0; Pick < 400; ++Pick)
+	{
+		if (ULootLibrary::PickAmmoType(Table, Random, EAmmoType::Rocket, true) == EAmmoType::Rocket)
+		{
+			AddError(TEXT("A rocket picked with rockets left out"));
+			break;
+		}
+	}
+	FLootRoll Roll;
+	for (int32 Box = 0; Box < 6; ++Box)
+	{
+		FAmmoDrop& Drop = Roll.Ammo.AddDefaulted_GetRef();
+		Drop.Type = Box % 2 ? EAmmoType::Rocket : EAmmoType::Shotgun;
+		Drop.Amount = Box % 2 ? 2 : 24;
+	}
+	FLootRoll Carried = Roll;
+	ULootLibrary::KeepRocketsForLaunchers(Carried, Table, Random, true);
+	TestEqual(TEXT("A launcher carried: the rockets stay"), Carried.Ammo[1].Type, EAmmoType::Rocket);
+	ULootLibrary::KeepRocketsForLaunchers(Roll, Table, Random, false);
+	for (const FAmmoDrop& Drop : Roll.Ammo)
+	{
+		TestTrue(TEXT("None carried: no rockets"), Drop.Type != EAmmoType::Rocket);
+		TestTrue(TEXT("...each box a fresh amount of its class"), Drop.Amount > 3);
+	}
+	TestTrue(TEXT("No world, nobody armed: nothing to judge by"), ULootLibrary::AnyPlayerCarriesLauncher(nullptr));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootDropOddsTest, "Looter.Loot.DropOdds",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
