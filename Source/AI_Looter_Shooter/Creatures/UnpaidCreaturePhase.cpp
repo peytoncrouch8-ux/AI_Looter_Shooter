@@ -104,15 +104,43 @@ void AUnpaidCreature::ResetProgress()
 bool AUnpaidCreature::WantsToStep() const
 {
 	const APawn* Victim = GetTarget();
-	// Waiting its turn on the fight's ring it holds back on purpose: that's no stall to step out of (CreatureBaseFight.cpp).
-	if (!Victim || bLunging || RetryIn > 0.f || GetCreatureState() != ECreatureState::Chase || IsWaitingTurn())
+	if (!Victim || bLunging || RetryIn > 0.f || GetCreatureState() != ECreatureState::Chase)
 	{
 		return false;
 	}
 	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation()));
 	// Pressed by a hit from past its edge: it blinks in as soon as it may, stuck or not (a long way short counts as stuck).
 	const float Stuck = bPressStepOwed ? FMath::Max(StallTime, PhaseStep.StuckSeconds) : StallTime;
-	return UnpaidRules::WantsPhaseStep(PhaseStep, Distance, Stuck, SinceLastStep);
+	if (!UnpaidRules::WantsPhaseStep(PhaseStep, Distance, Stuck, SinceLastStep))
+	{
+		return false;
+	}
+	// Waiting its turn on the fight's ring it holds back on purpose: that's no stall to step out of (CreatureBaseFight.cpp),
+	// unless the wait goes nowhere (asked last: its trace only once the rest says step).
+	return !IsWaitingTurn() || bPressStepOwed || WaitGoesNowhere(*Victim);
+}
+
+bool AUnpaidCreature::WaitGoesNowhere(const APawn& Victim) const
+{
+	if (!HasFightKit() || FUnpaidFightTuning::Live().BlindStep == 0)
+	{
+		return false;
+	}
+	// Pressed, its target past its own edge: a fence or a wall it can't walk through holds it at the edge.
+	if (IsPressed() && HuntingGround.IsSet() && !HuntingGround.Contains(Victim.GetActorLocation(), GetHome().GetLocation()))
+	{
+		return true;
+	}
+	// Out of their sight where it waits (a wall between: the player inside a building): its turn would never get it there.
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("UnpaidWaitSight"), this);
+	const FVector Eye = GetActorLocation() + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 0.6f);
+	return World->LineTraceTestByObjectType(Eye, Victim.GetActorLocation() + FVector(0.f, 0.f, 50.f),
+		FCollisionObjectQueryParams(ECC_WorldStatic), Params);
 }
 
 float AUnpaidCreature::GetPressReach() const

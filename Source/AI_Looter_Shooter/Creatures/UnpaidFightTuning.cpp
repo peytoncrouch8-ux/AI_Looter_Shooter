@@ -34,6 +34,8 @@ namespace
 		TEXT("Hurt (or its pack hurt) from this near past its ground's edge (cm), an Unpaid fights them there; the one hit phase-steps in. 0: never."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarPressSeconds(TEXT("Looter.Unpaid.PressSeconds"), KitDefaults.PressSeconds,
 		TEXT("A press past its edge lasts this long once the player is out of its reach (s)."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarBlindStep(TEXT("Looter.Unpaid.BlindStep"), KitDefaults.BlindStep,
+		TEXT("1: an Unpaid waiting its turn may phase-step when it has stood stalled out of its target's sight, or pressed with them past its edge."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarRakeRange(TEXT("Looter.Unpaid.RakeRange"), KitDefaults.RakeRange,
 		TEXT("Nearer than this (cm at size 1) an Unpaid may rake instead of lunging."), ECVF_Default);
@@ -152,6 +154,7 @@ FUnpaidFightTuning FUnpaidFightTuning::Live()
 	Numbers.HitSlowGap = Positive(CVarHitSlowGap);
 	Numbers.PressReach = Positive(CVarPressReach);
 	Numbers.PressSeconds = Positive(CVarPressSeconds);
+	Numbers.BlindStep = CVarBlindStep.GetValueOnGameThread();
 	Numbers.RakeRange = Positive(CVarRakeRange);
 	Numbers.RakeChance = Share(CVarRakeChance);
 	Numbers.RakeWindup = AtLeast(CVarRakeWindup, 0.1f);

@@ -56,6 +56,11 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	float PressReach = 800.f;
 	/** Looter.Unpaid.PressSeconds: a press lasts this long once they're out of that reach (s); within it, it's renewed. */
 	float PressSeconds = 6.f;
+	/**
+	 * Looter.Unpaid.BlindStep: 1 lets one waiting its turn phase-step once it has stood stalled out of its target's sight
+	 * (walls between: the chapel's nave, its pack in a line at the back door), or while pressed with them past its edge.
+	 */
+	int32 BlindStep = 1;
 
 	// --- The rake (the second attack) ---
 	/** Looter.Unpaid.RakeRange: nearer than this (cm) it may rake instead of lunging. */

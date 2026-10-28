@@ -95,9 +95,10 @@ bool ACreatureBase::TakeUpHunt(APawn* Prey, bool bHit)
 	}
 	// A hit from beyond its sight still turns it, and one from off its ground sends it to its edge; nobody in a safe zone.
 	// A hit (or its pack's) from just past its edge presses it (a kind that presses: the Unpaid): it fights them there.
-	const bool bWasPressed = IsPressed();
-	const bool bOffBefore = CheckHunt(Prey) == EHuntCheck::OffGround;
-	if (NotePressed(Prey) && bHit && !bWasPressed && bOffBefore)
+	// The hit one owes a blink in whenever the shot came from past its own edge (its ground without the reach), however long
+	// it's been pressed: a fight begun on its ground presses the pack before the player steps out past the fence.
+	const bool bPastEdge = HuntingGround.IsSet() && !HuntingGround.Contains(Prey->GetActorLocation(), Home.GetLocation());
+	if (NotePressed(Prey) && bHit && bPastEdge)
 	{
 		OnPressedByHit(*Prey);
 	}

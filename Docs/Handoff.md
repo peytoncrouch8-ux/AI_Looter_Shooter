@@ -17,8 +17,21 @@ of gallery fix, gun looks, melee hand bugs, small cleanups (76c191db). All pushe
 - Open, the user's call: the shotgun trigger finger can't reach (geometry: the Ranchhand's trigger is ~13.4 cm ahead of
   SOCKET_Grip, ~20 hand-cm drawn vs ~10.6 reach). Fix = Ranchhand.py `trigger_group` ~5 cm back, best before the shotgun's
   Tripo modelling (its views show today's trigger). Side note: grip tests check guns at 1.1, not the drawn 1.32.
-- Not built: spider balance (the user: leave them), the old builds still unplayed. A play-check agent ran after 76c191db
-  (results below when in).
+- Not built: spider balance (the user: leave them), the old builds still unplayed.
+- Play-checks (Demo agent, PIE, God, aimbot): sniper hip PASS (Saved/Screenshots/Tools/sniper_hip2.png), Saint Maud and camo
+  PASS (maud_shotgun2.png, camo1-3.png), Reflex dot PASS (ads_reflex.png). Unpaid hits landing: ~25% of attacks started
+  (overnight 3.4%), rough.
+- **Unpaid gallery: FAILED twice in play; the user was asked how to go on (rule 6).**
+  - Run 1: the press never blinked anyone in. Cause: a fight begun in the yard pressed the whole pack, so a later shot from
+    past the fence owed nothing, and an Unpaid waiting its turn may never step. Fixed in the last commit (hit from past its own
+    edge always owes the blink; `WaitGoesNowhere`, `Looter.Unpaid.BlindStep`).
+  - Run 2: still 0 phase-steps. "is pressed past its edge" fired 202 times (every hit: log spam, Verbose only), the pack
+    lined up 0.5-1.8 m inside the west fence 7-8 m from the player and never stepped; 2-4 walked out through gaps. Likely
+    `FindPhaseSpot` failing silently (retries every 0.75 s, no log): suspects the landing spot's sight trace, the Obstacle-tag
+    rule, or Search state. Next: a log line on its failure.
+  - The chapel nave is INSIDE the yard's ground (fence polygon x 5600-7800, y -3600..-200 encloses it). Standing in the nave,
+    Unpaid walked in through the doors in ones and twos, the rest along the outside walls 3.4-5.5 m off (too near to step:
+    MinStep 3 + NearestToTarget 2.5). No line at the back door this time.
 
 ## State at the session swap (2026-10-28 morning)
 All committed and pushed (last: the handoff commit). Test build `Builds\Playtest\2026-10-28_0250` (1.45 GB, smoke PASS;

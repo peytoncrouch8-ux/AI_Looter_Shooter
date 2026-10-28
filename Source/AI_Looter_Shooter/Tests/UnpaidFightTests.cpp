@@ -19,6 +19,7 @@
 #include "Tests/LocomotionTestWorld.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "HAL/IConsoleManager.h"
 #include "Tests/AutomationCommon.h"
@@ -351,7 +352,15 @@ bool FUnpaidKitPressTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("...not as far as the far one"), Unpaid->IsOnItsGround(Far->GetActorLocation()));
 	TestTrue(TEXT("Spiders never press"), GetDefault<ACreatureBase>()->GetPressReach() == 0.f);
 
-	// A hit from past its edge: the hit one owes a blink in.
+	// A hit from past its edge owes the hit one a blink in, even pressed already (the fight begun on its ground: DEMO
+	// 2026-10-28, the yard's pack pressed before the player stepped out past the fence).
+	TestTrue(TEXT("...and it may step though waiting its turn: its target is past its own edge"), Unpaid->WaitGoesNowhere(*Near));
+	if (APlayerController* Shooter = World->SpawnActor<APlayerController>())
+	{
+		Shooter->Possess(Near);
+		BossTestWorld::Hurt(Unpaid, 1.f, Shooter);
+		TestTrue(TEXT("Shot from past its edge, pressed already: it owes a blink in"), Unpaid->OwesPressStep());
+	}
 	AUnpaidCreature* Hit = SpawnUnpaid(World, FVector(0.0, -300.0, 0.0));
 	if (TestNotNull(TEXT("A second Unpaid"), Hit))
 	{

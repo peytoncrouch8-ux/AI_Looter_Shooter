@@ -388,7 +388,7 @@ protected:
 	virtual void OnAttackStarted() {}
 	virtual void OnAttackStrike(bool bConnected) {}
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) {}
-	/** A hit from By has newly pressed it past its ground's edge (NotePressed): the Unpaid phase-steps in. */
+	/** A hit from By, standing past its ground's edge within its press reach (NotePressed): the Unpaid phase-steps in. */
 	virtual void OnPressedByHit(const APawn& By) {}
 	/**
 	 * The hit being taken (its share of health and its burst's, the gun, crit, way, spot), stored by HandleDamaged before

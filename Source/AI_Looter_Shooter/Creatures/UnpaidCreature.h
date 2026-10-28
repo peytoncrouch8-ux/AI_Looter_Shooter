@@ -109,6 +109,8 @@ public:
 	virtual float GetPressSeconds() const override;
 	/** Whether it owes a phase-step in (pressed by a hit from past its edge), taken once its cooldown allows. */
 	bool OwesPressStep() const { return bPressStepOwed; }
+	/** Waiting its turn, whether the wait can't end where it stands: its target past its own edge, or out of its sight (one trace). */
+	bool WaitGoesNowhere(const APawn& Victim) const;
 
 	// --- Its fighting kit (UnpaidCreatureMoves.cpp, UnpaidCreatureRing.cpp; FUnpaidFightTuning) ---
 
