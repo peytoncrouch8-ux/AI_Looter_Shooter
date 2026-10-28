@@ -3,6 +3,23 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-28 day (the user at work, no playtest from them)
+The user's picks: "Fix the unpaid not hitting but leave the spiders where they are. Fix Sniper framing" (a193ab75), then all four
+of gallery fix, gun looks, melee hand bugs, small cleanups (76c191db). All pushed; nothing seen in play by the user yet.
+- Unpaid lunge commits its last 0.3 s through the hit slow; the Unpaid take that slow at most once per 0.5 s. Spiders untouched.
+- Sniper hip: HipUp -1.5, ArmsScale 0.9 (like the LMG).
+- Unpaid gallery: shot from within 8 m past their ground's edge, the pack fights there and the one hit blinks in (Pipeline/Enemies.md).
+- No rocket ammo unless a launcher is carried or in the drop.
+- Gun looks: camo in two close tones of the gun's own paint; pale enamel (Saint Maud) darker with dark chipped edges (M_Gun 822
+  instructions, was 800); AR Reflex dot a 4 mm disc + 1.1 cm ring (the Tripo set 3 sight is the one in the game).
+- Melee hands: the overnight Crane/Odessa grabs predate f2423b2d, which fixed both; new tests only.
+- Split for ~500 lines: UnpaidCreatureLook.cpp, UnpaidCreatureArmGuard.cpp, UnpaidBodyParts.h.
+- Open, the user's call: the shotgun trigger finger can't reach (geometry: the Ranchhand's trigger is ~13.4 cm ahead of
+  SOCKET_Grip, ~20 hand-cm drawn vs ~10.6 reach). Fix = Ranchhand.py `trigger_group` ~5 cm back, best before the shotgun's
+  Tripo modelling (its views show today's trigger). Side note: grip tests check guns at 1.1, not the drawn 1.32.
+- Not built: spider balance (the user: leave them), the old builds still unplayed. A play-check agent ran after 76c191db
+  (results below when in).
+
 ## State at the session swap (2026-10-28 morning)
 All committed and pushed (last: the handoff commit). Test build `Builds\Playtest\2026-10-28_0250` (1.45 GB, smoke PASS;
 `Play Latest Build.bat`) has everything below. **The user hasn't played it yet: ask first.** Older builds (10-27_1006,
@@ -46,7 +63,7 @@ Done 2026-10-27 evening to 10-28 overnight (details in git; the user's orders an
 - Overnight playtest: Docs/Work/2026-10-28-Overnight/PLAYTEST.md.
 
 Open (ask the user first; tap choices):
-1. Feel calls from the overnight playtest, none built. The user was asked which comes first (fight balance or sniper framing) and hasn't answered.
+1. Feel calls from the overnight playtest: b-f BUILT 2026-10-28 (above); a) spiders left as they are by the user's call.
    - a) Spider packs kill in 3-4 s while the Unpaid land almost nothing. Suggested: spider melee tokens 1 or bite cadence 1.6 s while 2+ bite; the Unpaid lunge commits its last 0.3 s, hit-slow at most every 0.5 s.
    - b) The sniper at the hip hides a third of the screen (per-kind framing like the LMG).
    - c) The Unpaid wait at their ground's edge, a shooting gallery (phase-step in, or cinders).

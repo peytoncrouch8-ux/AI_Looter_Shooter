@@ -278,6 +278,9 @@ committed: its names are here). The session keeps the pick; the character takes 
   expects Toll Chain's own Refused on a bare actor. `.Screen` still says "Odessa is in the works": update it when SK_Odessa lands.
 
 ## Melee tools (playtest round 3, 2026-10-27, note 5: "melee is jank, we want each character to have a specific tool they hit with the right hand")
+- 2026-10-28: the overnight Crane/Odessa grabs predate f2423b2d (which fixed both). `Looter.Player.Hands.Grip.Tool` poses the
+  rig on each held tool (the gaff: four fingers on the pole); `Melee.Tool.Hand` keeps Odessa's glove 38 cm+ from the eye in view.
+  Crane's yank draws the butt cap ~19 cm from the eye (`ThroughReach` 0.75, Gaff arc): try 0.85 if it reads too big.
 
 The user picked one tool per hero from Main's concept sheets (`Art/Concepts/MeleeTools/`: three options A/B/C per hero, README
 lists them all, `node sheets.js [Hero...]` redraws the PNGs; the unpicked options stay there as ideas). Modeled in

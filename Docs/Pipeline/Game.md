@@ -336,6 +336,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   pushed out by `DepthScale`) flattens the gun but not the arms: left off. Framing checks: `Looter.FPHands.PreviewAspect
   1.7778` draws PIE at 16:9 inside the 2.17:1 editor viewport (bars at the sides; grab the middle: x 0.093-0.893, y
   0.132-0.962 of the window); before/after sheet `Saved/FPHands/compare.png`.
+- Shotgun trigger finger (2026-10-28): geometry, not hands. The Ranchhand's trigger face is 13.4 cm (modelled) ahead of
+  `SOCKET_Grip`, ~20 hand-cm at the drawn sizes (gun 1.32x, hands 0.88x) against ~10.6 of reach. Fix in `Ranchhand.py`
+  (`trigger_group` ~5 cm back), before the shotgun's Tripo bodies. Grip tests check guns at 1.1, not the drawn 1.32.
 - Grip contact (FPGRIP, 2026-10-22; the user: "grip the gun better and like an actual military officer"; style pick
   "Modern tactical, not so much hand showing"): each gun kind's handles are rounded boxes (`AddContact`,
   `FirstPersonHandsGripShapes.cpp`, numbers read off the default parts' .py); the rig seats each palm on its handle
