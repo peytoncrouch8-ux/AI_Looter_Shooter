@@ -3,7 +3,28 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
-## Now (2026-10-27): the user's playtest notes
+## Now (2026-10-28 overnight; the user asleep until 6am, answers given before bed)
+Done and pushed 10-27 evening:
+- First-person framing: GunScale 1.2, cupping support hand, LMG hold SupportAhead 3, HipAhead -2, HipUp -3, per-kind Looter.FPHands.<Kind>.ArmsScale (LMG 0.9).
+- Cloth: hero select orbits camera and lights round a still hero; BodySwing TurnCarry.
+- AR Tripo sets 2-4 (parts_set1-4.py merged by Bullpup.py).
+- Gun pattern code (custom data 29-35, element stains spread 0.25).
+- Hero fit pass on all five (Tools/Blender/fit_audit.py, looter_fit.py).
+- Chest tiers 1-5 code plus Ransom's Rest's 13 chests tiered (set_chest_tiers.py).
+- Tripo views: heroes (Art/Concepts/Heroes; the user then DROPPED Tripo for heroes: clipping and z-fighting), melee tools (Art/Concepts/MeleeTools/<Tool>/upload), chest tiers (Art/Concepts/Chests/Tier<N>).
+- The Tripo API trial was dropped (no API page on the user's account); the user models by hand.
+
+The user's overnight orders, in order:
+1. Gun pattern material (PATMAT agent: M_Gun 29-35 layer; patterns checked by eye; element stains in check).
+2. The user's Tripo chests (Art/Concepts/Chests/Tier<N>/Tier<N>Chest.glb) and melee tools (Art/Concepts/MeleeTools/<Tool>/*.glb): raise their quality (sharper textures, cleaner shapes, match our style). The chests get the "escalating show" opening: T1-2 latches pop and lid swings; T3 lock light spins and goes green; T4 orb pulses and gold trim lights in a sweep; T5 crest unfolds, light burst, rising tone, loot fountain. Implement with no mistakes. CHESTFIT and MELEEFIT agents (Blender, exports to Intermediate/ArtExport_Chests and ArtExport_Melee); then the chest opening code, import, tests, play-check.
+3. BodySwing clipping left by the fit pass (coat hems through legs, back boot through coat, hands through coats): SWINGCLIP agent.
+4. Shotgun (Ranchhand) Tripo views, 4 maker sets, genuinely new designs: SHOTGUNVIEWS agent -> Art/Concepts/Weapons/Shotgun.
+5. Core-loop playtest pass of Ransom's Rest (fix bugs, list feel problems), then a performance pass.
+6. LAST: package a test build for the morning.
+
+Leave the user a short morning report (3 sentences).
+
+## 2026-10-27: the user's playtest notes
 The user played the 10-23 build and sent 41 notes: `Docs/Work/2026-10-27-Playtest/NOTES.md` (word for word + their calls),
 `FINDINGS.md` (where each lives), `CONTRACT.md` (round 1). Calls: sniper ground ring dropped; order = round 1 bugs + quick
 asks, round 2 fights (bosses, bounties, Unpaid AI, grenades, legendaries, recoil), story/cutscenes/logos after; fast travel =
@@ -39,7 +60,7 @@ level 2, a special swaps your kind and keeps the count). Round 3 nits fixed too.
 open ~30 s first; render every new recipe's cues. Remaining small: spade/pick sparks tuning, chest logs still say grave-salt
 grenade, road ruts faint, a smeared rock texture, Unreal logo (browser policy check failing). Test build `Builds\Playtest\2026-10-27_1818` (smoke PASS) has rounds 1-4 + the Ledger-step fix (inventory pause hid it from missions/hints: HUD WasPageShownLastVisit) + melee (gun hidden, tool in view, smear, hit-stop 65/85 ms); round 5 DONE after that build (3138d9cc: boss attack rules + Looter.Boss.HurtZones; Niagara Cinder fire via the editor-only Cascade To Niagara Converter plugin, Looter.Fx.Niagara; not yet play-checked by eye); AR concept views for Tripo being drawn (Art/Concepts/Weapons/AR; Tripo: free-plan rights contested, paid plan for shipped parts). Earlier build 2026-10-27_1711 had rounds 1-4; the user hasn't played it yet. (A test build with rounds 1-4
 was packaging at this writing (newest `Builds\Playtest\`).
-Tripo AR parts (2026-10-27): the user is modeling the AR's six default parts in Tripo from Art/Concepts/Weapons/AR/<Part>/upload/*.png and saving textured GLBs in those folders; they said STOP and WAIT until all six are done, then fit them all. Fitting so far: Tools/Blender/looter_tripo.py (load, fit, split; untracked), Art/Models/Weapons/Tripo/, Art/Textures/TripoBullpupBarrel/ (partial), and Bullpup.py's half-done switch saved as Saved/TRIPOFIT/bullpup_tripo_wip.patch (Bullpup.py restored). Use the TEXTURED GLBs, keep Tripo's maps through a master's MI, same mesh names/keys/sockets; Looter.ImportModels needs an absolute path; console.ps1 needs the editor window un-minimized.
+Tripo AR parts: all four sets in the game (see Docs/Pipeline/Assets.md "Tripo parts").
 Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where;
 asked 2026-10-27, no answer yet); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
 two, 37 Lost Loot quest, 5 melee tools, 6 Odessa cards, 27 action skill anim, 35 iron sights, 16 roads, 26 chest spots, 25
