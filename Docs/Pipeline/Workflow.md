@@ -25,7 +25,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   by key) is not on that list, so compare `cues.json` and `Content/Audio` with the recipe by hand.
   An agent that renders ALL sounds to check its own recipe rewrites `cues.json` and leaves untracked WAVs for recipes still unfinished
   (GRENADES did, round 4): tell agents to render only their own cues (`Tools\sounds.ps1 <their patterns>`), and rerender after a merge.
-- Holding trees (rounds 1-4, 2026-10-27, `Docs/Work/2026-10-27-Playtest/CONTRACT*.md`): agents that change C++ work in
+- Holding trees (rounds 1-4, 2026-10-27, `Docs/Archive/Work/2026-10-27-Playtest/CONTRACT*.md`): agents that change C++ work in
   `Saved/<Job><Round>Code/Source/AI_Looter_Shooter/...` (copies of the changed files, the originals' hashes in `HASHES.txt`, new
   files beside them) and write a README there (files, what it does, CODEMAP lines, the exact hooks Main adds in files they don't
   own, run order, tests, risks); Python and art files an agent owns are edited in place. Main checks each `git hash-object`

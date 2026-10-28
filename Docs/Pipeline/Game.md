@@ -78,7 +78,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   Health and XP bars 25% longer and thicker (`HudFrameShapes::BarScale`). Subtitles On/Off in Interface
   (`Looter.Subtitles`): off hides lines with a speaker (barks too); notices stay. The game has no voice acting, so off
   means NPC talk isn't shown at all.
-- Playtest round 1 (2026-10-27, the user's notes; `Docs/Work/2026-10-27-Playtest/NOTES.md`), the UI and world parts:
+- Playtest round 1 (2026-10-27, the user's notes; `Docs/Archive/Work/2026-10-27-Playtest/NOTES.md`), the UI and world parts:
   - The inventory pauses the game (note 8): `ALooterHUD::ApplyGamePause` (`LooterHUDPause.cpp`, with the pause menu) pauses
     while the pause menu or any inventory page (the map key too) is open (`PausesGame`); called on every open/close path.
     Vendor, bench, boards and the offer card don't pause (they `CloseInventory` first). Pausing collapses the HUD and world
@@ -120,7 +120,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     only; see Mission gates below). Main 4 step 5 says "Examine Saint Ada's smashed Reliquary, where her light
     burned." and Aldana's bell line says what it held (note 18). Amos's house has its wanted poster (note 9,
     `storyfix_1.json` posterAmos; position a guess, check the build log); Side 1 now has 8 posters, needs 4.
-- Playtest round 2 (2026-10-27; contract `Docs/Work/2026-10-27-Playtest/CONTRACT2.md`), the game and UI parts. Bosses, the Unpaid's
+- Playtest round 2 (2026-10-27; contract `Docs/Archive/Work/2026-10-27-Playtest/CONTRACT2.md`), the game and UI parts. Bosses, the Unpaid's
   kit: `Enemies.md`; grenades and recoil: `Gunplay.md`.
   - Mission gates (note 38): steps open in order. `Missions/MissionGates` (`HoldSeconds` = `Looter.Missions.HoldSeconds` [0.6 s, 0 =
     taps like before], `IsMet`, `AnyMet`, `SetUse` sets a key action's hold or tap and its prompt). `AMissionItem::TakeWhen`
@@ -157,7 +157,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     6.6 m+ from the lip, 2.2 m+ from the nest ring, 1.7 m+ from the two rocks, 7 m+ from the lookout (checked with node against
     the plateau polygon). The Depot roost's yaw 135 -> 180 (`polish_1.json`; it was 51 deg off the board; holds only while the
     roost builder doesn't move the mast).
-- Playtest round 3 (2026-10-27; contract `Docs/Work/2026-10-27-Playtest/CONTRACT3.md`), the game and UI parts. The user's calls:
+- Playtest round 3 (2026-10-27; contract `Docs/Archive/Work/2026-10-27-Playtest/CONTRACT3.md`), the game and UI parts. The user's calls:
   startup logos = a placeholder studio card (renamable) + the Unreal Engine card per Epic's logo rules; Cyrus Teague the required
   second boss (`Docs/Story.md`, `Docs/Progression.md`); menu backdrop = Teropa from orbit. Melee tools per hero: `Heroes.md`;
   the cast pose and Odessa's cards: `EmberPowers.md`; iron sights: `Gunplay.md`; roads, signs, chest spots: `Levels.md`.
@@ -231,7 +231,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - The main path is Main 1-5, Dead Lift, Back Pay (the second boss, Cyrus Teague the Foreman), Main 6, Main 7: `Docs/Story.md`,
     `Docs/Progression.md`. Mr. Sloane's side mission Lost and Found (after the Old Fare) opens Lost Property (below).
   - Perf after round 3 (road term and roadside included): RR spawn 7.8 ms, p95 8.6 (Medium 1080p). The menu map's cost is unmeasured.
-- Playtest round 4 (2026-10-27; contract `Docs/Work/2026-10-27-Playtest/CONTRACT4.md`; four holding trees, HANDS4 SCENES4 SWIM4 GRENADES4, merged, then fixed after a play-check; tests Swim, BossIntro, Melee, Cards, FiftyTwoPickup, Intro, Grenade pass). The user's picks: melee polish (`Heroes.md` "Melee tools"), boss cutscenes, swimming (note 30: "entering the pond up there, it is as if the water disappears and there are no swimming or underwater effects"), grenade kinds found as loot (Pitch, Scatter, Cinder). Not measured yet: perf with a cinder bed and a scatter brood in a pack (`Tools\perf.ps1`; a brood pops ~30 pieces each, a bed ~14 flames a second).
+- Playtest round 4 (2026-10-27; contract `Docs/Archive/Work/2026-10-27-Playtest/CONTRACT4.md`; four holding trees, HANDS4 SCENES4 SWIM4 GRENADES4, merged, then fixed after a play-check; tests Swim, BossIntro, Melee, Cards, FiftyTwoPickup, Intro, Grenade pass). The user's picks: melee polish (`Heroes.md` "Melee tools"), boss cutscenes, swimming (note 30: "entering the pond up there, it is as if the water disappears and there are no swimming or underwater effects"), grenade kinds found as loot (Pitch, Scatter, Cinder). Not measured yet: perf with a cinder bed and a scatter brood in a pack (`Tools\perf.ps1`; a brood pops ~30 pieces each, a bed ~14 flames a second).
   - Swimming (`PlayerLocomotionSwim.cpp`, `World/SwimWaterRules`; every number a `Looter.Swim.*` cvar, lengths for the full-size body and scaled by the player's 0.85): water more than chest deep over the feet swims, shallower wades as before: `StartDepth` 160 full-size cm = 136 on the player (the first pass's 135 made the island's 1.2 m pond swim; it wades now); a swimmer stands again where the bed lies less than `StartDepth` - `StandMargin` 15 under the surface, so a pool's edge never flickers. Where: an `ASwimWater` per layout pond (data; the terrain's water mesh has no collision, it is only the look), placed by `build_area_swimwater.py` (`Assets.md` "Swim waters"): Ransom's Rest's Larkspur Tarn (1.7 m: the swim) and the island's ponds; the Wallow's pools (0.3-0.6 m) and creeks wade.
     - Movement: `MOVE_Flying` while swimming (the engine's own swimming needs physics volumes, brushes the build scripts can't make) and the locomotion steers Z each frame: the eye floats `FloatEye` 12 cm over the surface on a spring with a slow bob; the crouch key dives, the jump key rises, at the surface it hops out (`JumpOut` 520 cm/s; a bank's ledge in front is climbed by the traversal catch); swimming forward with the look pitched past `DiveDeadZone` 25 deg (full at `DiveFull` 65) goes that way. Speed 0.5 of the walk, 0.72 with sprint held forward; up and down 230 cm/s; a fall keeps 30% of its speed on hitting the water (`EntryKeep`) and swims once the feet are half a swim's depth under; a jump out can't fall back in for 0.25 s. Third person has no swim pose yet (the run cycle at 0.4x).
     - Guns: lowered out of view; no fire, reload, aim, melee or throw while swimming (each asks `UPlayerLocomotionComponent::IsSwimmingActor`); ember powers stay usable. The first-person hands stroke (breaststroke, scull when treading: `FirstPersonHandsSwim`, `Looter.Hands.Swim.TreadReach/TreadPace`).

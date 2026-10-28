@@ -1,134 +1,85 @@
 # Handoff
 
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
-`Docs/Archive/Handoff_history.md` (read only when needed).
+`Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## Now (2026-10-28 overnight; the user asleep until 6am, answers given before bed)
-Done and pushed 10-27 evening:
-- First-person framing: GunScale 1.2, cupping support hand, LMG hold SupportAhead 3, HipAhead -2, HipUp -3, per-kind Looter.FPHands.<Kind>.ArmsScale (LMG 0.9).
-- Cloth: hero select orbits camera and lights round a still hero; BodySwing TurnCarry.
-- AR Tripo sets 2-4 (parts_set1-4.py merged by Bullpup.py).
-- Gun pattern code (custom data 29-35, element stains spread 0.25).
-- Hero fit pass on all five (Tools/Blender/fit_audit.py, looter_fit.py).
-- Chest tiers 1-5 code plus Ransom's Rest's 13 chests tiered (set_chest_tiers.py).
-- Tripo views: heroes (Art/Concepts/Heroes; the user then DROPPED Tripo for heroes: clipping and z-fighting), melee tools (Art/Concepts/MeleeTools/<Tool>/upload), chest tiers (Art/Concepts/Chests/Tier<N>).
-- The Tripo API trial was dropped (no API page on the user's account); the user models by hand.
+## State at the session swap (2026-10-28 morning)
+All committed and pushed (last: the handoff commit). Test build `Builds\Playtest\2026-10-28_0250` (1.45 GB, smoke PASS;
+`Play Latest Build.bat`) has everything below. **The user hasn't played it yet: ask first.** Older builds (10-27_1006,
+_1711, _1818, 10-23_0658) were never reported played either.
 
-The user's overnight orders, in order:
-1. Gun pattern material (PATMAT agent: M_Gun 29-35 layer; patterns checked by eye; element stains in check).
-2. The user's Tripo chests (Art/Concepts/Chests/Tier<N>/Tier<N>Chest.glb) and melee tools (Art/Concepts/MeleeTools/<Tool>/*.glb): raise their quality (sharper textures, cleaner shapes, match our style). The chests get the "escalating show" opening: T1-2 latches pop and lid swings; T3 lock light spins and goes green; T4 orb pulses and gold trim lights in a sweep; T5 crest unfolds, light burst, rising tone, loot fountain. Implement with no mistakes. CHESTFIT and MELEEFIT agents (Blender, exports to Intermediate/ArtExport_Chests and ArtExport_Melee); then the chest opening code, import, tests, play-check.
-3. BodySwing clipping left by the fit pass (coat hems through legs, back boot through coat, hands through coats): SWINGCLIP agent.
-4. Shotgun (Ranchhand) Tripo views, 4 maker sets, genuinely new designs: SHOTGUNVIEWS agent -> Art/Concepts/Weapons/Shotgun.
-5. Core-loop playtest pass of Ransom's Rest (fix bugs, list feel problems), then a performance pass.
-6. LAST: package a test build for the morning.
+Done 2026-10-27 evening to 10-28 overnight (details in git; the user's orders and calls kept here):
+- First person (the user's playtest asks):
+  - GunScale 1.2 in first person only (Looter.FPHands.GunScale, per kind .<Kind>.GunScale).
+  - Guns pushed forward; forearms steeper (72/78 degrees, ForearmBack 0.5).
+  - The support hand cups palm-up under each gun's middle (FirstPersonHandsCup.cpp, the user's rule: "cup beneath the trigger housing... on the magazine of the LMG... keep this in mind for all weapons").
+  - Cup fitted at runtime to whatever parts the gun has (FirstPersonHandsCupFit.cpp: rays on the parts' collision, Looter.Hands.CupFit.*).
+  - LMG: SupportAhead 3, HipAhead -2, HipUp -3, ArmsScale 0.9 (new per-kind Looter.FPHands.<Kind>.ArmsScale). The user tuned it by eye; the LMG's support hand now sits below the frame, which is accepted.
+- Tripo (the user models on a PAID plan from Main's views; Main checks, fixes and fits; method in Docs/Pipeline/Assets.md "Tripo parts"; memory tripo-gun-parts):
+  - AR: all 4 maker sets in the game (Art/Models/Weapons/Tripo/parts_set1-4.py merged by Bullpup.py; LOOTER_BULLPUP_TRIPO=0 scripted).
+  - Melee tools: all 5 in the game (Art/Models/Weapons/Melee/parts_tripo.py; LOOTER_MELEE_TRIPO=0).
+  - Chest tiers: 5 in the game (Art/Models/Loot/ChestTiers.py).
+  - Shotgun views READY for the user to model: Art/Concepts/Weapons/Shotgun/<Slot>_<Key>/upload (24 parts, 4 sets: Saint Maud Standard/Field/Crown/Tube6/Flip/Skeleton, Roundhouse Armored/Shielded/Brake/Drum20/Prism/Mule, Windfall Salvaged/Short/Duckbill/Box8/GhostRing/Folding, Meridian Tactical/Slug/Choke/Tube6Window/Variable/Thumbhole; the pump has no views).
+  - The user's rule: each set is a genuinely new design, never a recolour.
+  - Heroes: Tripo DROPPED by the user (clipping, z-fighting, unfilled parts): "expand on what you already have and get it perfect". Views stay in Art/Concepts/Heroes (Tools/Blender/hero_views.py).
+  - The Tripo API trial was dropped (no API page on the user's account); the user models by hand.
+- Gun pattern variety (the user's call: rarer = fancier, subtle and worn-in):
+  - WeaponModelPattern.cpp rolls from the seed, rarity and maker into custom data 29-35.
+  - M_Gun's pattern layer: 1 grime, 2 worn edges, 3 stripes, 4 chevrons, 5 camo, 6 stencil, 7 clean bold.
+  - Element stains on every part (Looter.Weapons.ElementLook.Spread 0.25). M_Gun is 800 instructions, up from 497.
+  - Force a pattern with Looter.Weapons.Pattern.Force.
+- Loot chest tiers 1-5 (the user: "the better the chest the better the loot"; "steady climb"):
+  - T1 ammo + 35% one gun; T2 one gun; T3 1-2 guns uncommon+; T4 two rare+; T5 three epic+ past the early cap (~70% legendary).
+  - The "escalating show" (ChestShow.cpp): T1-2 latches pop; T3 the lock spins green; T4 orb pulse and gold trim sweep; T5 crest unfold, burst and rising tone, then a loot fountain thrown away from the opener. Eight Loot.Chest.* cues.
+  - Ransom's Rest's 13 chests tiered by Tools/Unreal/chest_tiers.py + set_chest_tiers.py. Ruth's bluff cache is T2 (the swap lesson).
+  - The Supply Crate and Strongbox models are replaced by the tiers; Coffin, Grave, Mailbox and Footlocker are unchanged.
+- Heroes "perfect", the user's ask:
+  - Fit pass on all five (Tools/Blender/fit_audit.py, looter_fit.py).
+  - Cloth springs kept off the limbs (BodySwing: back boot, hems, hands).
+  - TurnCarry: cloth turns with the body.
+  - The hero select orbits its camera and lights round a still hero, a turntable (the user: "cloth acts unnaturally" when panned).
+- Melee:
+  - Crane's hand wraps the gaff (bRoundHandle).
+  - Odessa's fan winds up 45 cm from the eye.
+- Other: sniper scope glass (GunScopeLens). Tools/zenwait.ps1: launch.ps1 presses Yes on the editor's Zen "keep waiting" box (the user saw it).
+- Perf: RR Medium 7.6 ms (132 fps), p95 7.9 (target 8.3).
+- Overnight playtest: Docs/Work/2026-10-28-Overnight/PLAYTEST.md.
 
-Leave the user a short morning report (3 sentences).
+Open (ask the user first; tap choices):
+1. Feel calls from the overnight playtest, none built. The user was asked which comes first (fight balance or sniper framing) and hasn't answered.
+   - a) Spider packs kill in 3-4 s while the Unpaid land almost nothing. Suggested: spider melee tokens 1 or bite cadence 1.6 s while 2+ bite; the Unpaid lunge commits its last 0.3 s, hit-slow at most every 0.5 s.
+   - b) The sniper at the hip hides a third of the screen (per-kind framing like the LMG).
+   - c) The Unpaid wait at their ground's edge, a shooting gallery (phase-step in, or cinders).
+   - d) Saint Maud's clean finish reads flat, and camo on red/cream reads as cow hide.
+   - e) The AR reflex dot is tiny (2x, a ring, or cyan).
+   - f) No rocket ammo while no launcher is carried.
+2. The user models the shotgun's 24 parts in Tripo; then fit them like the AR (one agent per set, the cup fit covers the hands).
+3. Still open from the 10-27 notes:
+   - Note 15 (stairs invisible), note 10 (terrain), note 30 (floating fences): the user's screenshots are needed, asked 10-27 with no answer.
+   - The Unreal Engine logo download: the user asked Main to do it. The built-in browser's policy check failed 3x. Retry, naming the file, source and size first.
+   - Not yet checked by eye in play: the Niagara Cinder fire, the boss attack rules.
+4. Older, small (the 10-23 list, archived): the sniper ground ring (ask: drop it), Tilly's silhouette, gunfeel cvar tuning by the user, decal mission items can't wear the highlight, bounty variety after Main 5, ~66 D3D12 PSO errors in the packaged game, the shotgun trigger finger, third person never shows a maker mark.
 
-RESULT (all pushed by 2026-10-28 ~03:00):
-- Done: gun patterns (M_Gun 497 -> 800 instr); chests T1-T5 from Tripo plus the show (ChestShow.cpp, 8 Loot.Chest.* cues; the fountain throws away from the opener); melee tools from Tripo (parts_tripo.py, LOOTER_MELEE_TRIPO=0 = scripted); cloth springs off limbs; hero fit pass (all 5); cup fit on every gun part (FirstPersonHandsCupFit.cpp); Crane's gaff grip and Odessa's fan wind-up; shotgun Tripo views (Art/Concepts/Weapons/Shotgun, 24 parts, 4 sets); sniper scope glass; bluff cache back to T2.
-- Perf: RR Medium 7.6 ms / p95 7.9.
-- Playtest: Docs/Work/2026-10-28-Overnight/PLAYTEST.md.
+How the work ran 10-27/28 (keep doing it):
+- Main orchestrates up to 8 agents on disjoint files.
+- Blender agents run one job each (16 GB RAM): more RAM was suggested to the user as the biggest speed-up.
+- One editor lane: agents SendMessage Main before a build or long PIE use, and Main hands the editor over.
+- Main imports (Looter.ImportModels <ABSOLUTE path>), runs only the touched tests, commits and pushes after each step.
+Lessons:
+- A "Save Content" dialog blocks close.ps1. Read it with Tools\winshot.ps1, then answer with Tools\dialogclick.ps1 (Don't Save at 493 502). Reload the level clean first: Tools/Unreal/open_clean.py.
+- A build compiles every agent's in-progress files: warn them first.
+- git "Permission denied" on .git/objects passes: retry after a few seconds.
+- Check what exists before an art job: render existing models, don't redraw them (the user caught a redraw; memory reuse-existing-assets-first).
+- An editor test run stops another agent's PIE: tell it.
 
-Open for the user (feel calls, not built):
-1. Spider packs kill in 3-4 s while the Unpaid land almost nothing. Suggested: spider melee tokens 1 or a slower bite cadence; the Unpaid lunge commits its last 0.3 s.
-2. The sniper at the hip hides a third of the screen (per-kind framing like the LMG).
-3. The Unpaid wait at their ground's edge (a shooting gallery).
-4. Saint Maud's clean finish reads flat; camo on red/cream reads as cow hide.
-5. The AR reflex dot is tiny.
-- The user's Tripo next: the shotgun's 24 parts (views ready).
-- Test build: Builds\Playtest\2026-10-28_0250 (1.45 GB, smoke test PASS; Play Latest Build.bat) has everything above.
+The user's calls this stretch:
+- Reports in 3 sentences.
+- "Run multiple agents as needed."
+- "Don't worry about checking or taking screenshots" (for small framing tweaks the user watches themself).
+- Fast mode isn't worth it here.
+- The user may be on Remote Control: put questions in the closing message too.
 
-## 2026-10-27: the user's playtest notes
-The user played the 10-23 build and sent 41 notes: `Docs/Work/2026-10-27-Playtest/NOTES.md` (word for word + their calls),
-`FINDINGS.md` (where each lives), `CONTRACT.md` (round 1). Calls: sniper ground ring dropped; order = round 1 bugs + quick
-asks, round 2 fights (bosses, bounties, Unpaid AI, grenades, legendaries, recoil), story/cutscenes/logos after; fast travel =
-Depot + Calder's Post only (Sheriff's Office roost kept as save/death-respawn point); legendaries rarer early, bosses and
-bounties keep odds; recoil: more kick, a high accuracy stat calms it a lot.
-Round 1 DONE and pushed (10843096, fdb7ab58+97223247, 696fea31 + level): cellar Unpaid upstairs (SnapToGround), Refill All
-Ammo, roost stations, Amos poster, Back Pay tags no card, Reliquary words, inventory pauses, no HUD money, no chest pins, gun
-pile labels fold, settings tabs + descriptions, legendary landing (no slow, pooled, burst), early legendary cap, vigil stones
-own countdowns (Save & Quit shortcut gone), apples on stems, M_Water two-sided, bounties pay at the board (+25% health, new
-arenas, board at the Depot). DEMO play-check: all PASS.
-Round 2 DONE and pushed (`CONTRACT2.md`; user calls in NOTES.md: steps unlock in order + hold, rim shots do nothing, bosses
-~1.6x, grenade classes later): bosses (1.6x health, 1.25x hits, Gravemother's stone gate + rim shrug), the Unpaid kit (led
-lunge, rake, flank, cinders, rally/frenzy; tuned fair after DEMO), grenades (10% strength to level 3, full at 12; jar 2x;
-real explosion), recoil by accuracy + aimed sway, mission gates (step-gated props, 0.6 s hold), polish (map declutter, pile
-dots, name pop, settings hover, Ransom's Point arena, Depot roost yaw), a dead player can't fire. DEMO round 2 PASS after
-fixes; perf RR spawn 7.8 ms / p95 8.4 (unchanged). Lesson: a gameplay pass right after opening the level found no ground
-(now refused: `require_ground`); always read its warning count (0) before committing.
-Test build `Builds\Playtest\2026-10-27_1006` (1.27 GB, smoke menu + RR PASS; `Play Latest Build.bat`) has rounds 1-2; the user hasn't played it yet.
-Round 3 DONE and pushed (dbf6cfa4 + camp fix + docs; `CONTRACT3.md`): melee tools per hero (user picks: Ellis Grave Spade,
-Odessa Razor Fan, Crane Ferry Gaff, Gauge Piston Fist, Pike Rock Pick; /Game/Art/Melee), cast pose, Odessa's card quads, iron
-sights, Cyrus as boss two (Dead Lift + Back Pay main; Foreman level 6), Lost and Found, roads (M_Terrain road term, signs,
-roads on maps), chest spots, startup logos (placeholder studio; engine card shows a wordmark until the official logo is in
-Art/UI/Logos/UnrealEngineLogo.png: the user asked Main to download it; the built-in browser's policy check failed 3x on
-2026-10-27, so not yet), Teropa menu (Lvl_MenuTeropa = GameDefaultMap; MenuMap() vs NewGameMap() fallback), new-game intro.
-DEMO round 3: all PASS; nits: intro in RR ignores Space (menu says HOLD SPACE), RR intro ends on white without a title card;
-Crane's fingers open beside the gaff, Ellis's spade reads like a spear edge-on; cards vanish 1 s after a body dies; road ruts
-faint; orchard overhang rock texture smeared. Perf RR 7.8 ms, p95 8.6.
-Round 4 DONE and pushed (`CONTRACT4.md`; user picks: melee polish, boss cutscenes, swimming, grenade types Pitch/Scatter/Cinder;
-all play-checked, fixes in): per-tool melee sounds/sparks/steam + 3P tool; boss intros (skippable, name cards, player untouchable +
-1.5 s, hostiles within 60 m held); swimming (starts at 136 cm water; RR tarn + 6 island waters via build_area_swimwater.py;
-underwater tint/fog/mix/bubbles, stroke, breath carries you up, no shooting, creatures stay ashore); grenade kinds (35% special from
-level 2, a special swaps your kind and keeps the count). Round 3 nits fixed too. Lesson: a gameplay/swim pass needs the level
-open ~30 s first; render every new recipe's cues. Remaining small: spade/pick sparks tuning, chest logs still say grave-salt
-grenade, road ruts faint, a smeared rock texture, Unreal logo (browser policy check failing). Test build `Builds\Playtest\2026-10-27_1818` (smoke PASS) has rounds 1-4 + the Ledger-step fix (inventory pause hid it from missions/hints: HUD WasPageShownLastVisit) + melee (gun hidden, tool in view, smear, hit-stop 65/85 ms); round 5 DONE after that build (3138d9cc: boss attack rules + Looter.Boss.HurtZones; Niagara Cinder fire via the editor-only Cascade To Niagara Converter plugin, Looter.Fx.Niagara; not yet play-checked by eye); AR concept views for Tripo being drawn (Art/Concepts/Weapons/AR; Tripo: free-plan rights contested, paid plan for shipped parts). Earlier build 2026-10-27_1711 had rounds 1-4; the user hasn't played it yet. (A test build with rounds 1-4
-was packaging at this writing (newest `Builds\Playtest\`).
-Tripo AR parts: all four sets in the game (see Docs/Pipeline/Assets.md "Tripo parts").
-Still open from the notes: 15 stairs invisible + 10 terrain + 30 floating fences (need the user's screenshots: which/where;
-asked 2026-10-27, no answer yet); later: 1 logos, 2 menu, 3 intro story, boss cutscenes, 32 Cyrus as boss
-two, 37 Lost Loot quest, 5 melee tools, 6 Odessa cards, 27 action skill anim, 35 iron sights, 16 roads, 26 chest spots, 25
-level scaling (after the Lily). Underwater/swimming effects: none exist (new system; not asked yet).
-
-## State at the session swap (2026-10-27)
-Last commit f386c39 (all pushed, tree clean). Test build `Builds\Playtest\2026-10-23_0658` (1.27 GB, smoke menu + RR
-PASS; `Play Latest Build.bat`) has everything through 94699b1. **The user hasn't reported playing it yet: ask first.**
-Usage note: on 2026-10-23 the account's weekly all-models limit hit 100% (reset 2026-10-27 01:00 UTC); Fable 5.1 has
-its own weekly allowance and kept working; agents inherit the main session's model.
-
-Done 2026-10-21 evening to 2026-10-23 (details in git and `Docs/Archive/Handoff_history.md`, section "archived at the
-session swap of 2026-10-27"):
-- Guns: four new kinds (Rustler SMG, Longhorn sniper, Thresher LMG, Powderkeg launcher); Bullpup/Ranchhand/Drover
-  restyled frontier-tech; story elements (Ember, Soul-light, Grave-salt); four makers (Roundhouse, Saint Maud,
-  Windfall, Meridian); gun feel pass (recorded reload foley, shotgun shell by shell + rack, slower empty reloads, no
-  fast-reload window, kick patterns, impacts per kind, hit markers); muzzle flash reworked (soft burst off the
-  crosshair; sparks/tracers as streaks); FP hands framed, pulled in, real grips, sniper/LMG hip lifted.
-- Player: the Ward Box shield (rarities, traits, HUD bar, loadout slot, drops incl. bosses; cyan edges on ward hits).
-- Enemies: fight director, hit reactions, placeholder clay creatures; Brown Spider 230 HP / bite 11 (Gravemother keeps
-  300/12, spiderlings 60); arachnids restyled (legs, fangs, matte fur, darker coat with pale bands); hit flash a rim;
-  early fights softened (bluff nest, town gate, Main Street); **creature levels by zone** (they rolled 2-3 everywhere
-  since 2026-10-13); fights never spawn nothing; leftovers leave when the story moves on. DamageScale stays 1.8.
-- Missions/story: talk cut ~1/3, on the move; main missions start by themselves; side missions gated by story; offers
-  accept at once and cut to the accept lines; 10 secrets; giver ?/! marks fixed; bounty board (3 varied postings,
-  Strongbox, posters, BOUNTY PAID banner); objectives usable from any reasonable spot (interaction boxes).
-- World/UI/sound/tools: per-place ground detail, world variants, thinner tall grass, town roost by the sheriff's office;
-  menus hide the tracker, interact grace, loot beams merge, screens close past 4.5 m; three Sonniss impact packs
-  (user-approved, licence kept); `Tools\package.ps1 -CloseEditor -SmokeTest`; packaged-log noise fixed.
-- Perf after all of it: RR spawn 7.8 ms (p95 8.3), 8 spiders 7.9 (p95 8.4); target 8.3.
-
-Open (ask or do next):
-1. The user plays the test build; fix what they find (play-check by an agent after each fix: memory playtest-after-features).
-2. Ask: the sniper's ground-impact ring/column failed three fixes (rule 6) â€” keep trying or drop it.
-3. Ask: Tilly (a "talking window" by design) â€” a silhouette behind her curtain?
-4. Gunplay step 4 still pending: the user tunes `Looter.Gunfeel.*` in PIE, Main bakes their values into the defaults.
-5. Small, known: decal mission items (the gate poster) can't wear the highlight overlay (barely visible past 5 m);
-   bounty variety after Main 5 is limited (only the Scatter/Unpaid open: proposal Webwood after Main 4 + a spider arena);
-   ~66 D3D12 PSO compute errors in the packaged game (RX 580 driver; `r.PSOPrecache.GlobalShaders=0` untried); the
-   shotgun's trigger finger can't reach its trigger (below frame at the hip); the rifle's trigger hand stays hidden at the
-   hip (bullpup body); third person never shows a gun's maker mark (framing); early fights now end ~66% shield+health
-   (aim was 30-60%; the user's playtest decides).
-
-The user's calls this stretch (kept; most also in the pipeline docs): muzzle "Rework it"; spider "Darker coat"; after a
-feature, a short agent play-check (no nightly full runs); FP grip modern tactical "but not so much hand showing", hip
-"Lift slightly"; early fights "Soften early only"; respawn "Town roost"; sound downloads approved per file (rule: name
-file, source, size first); missions flow (verbatim in the archive); spiders softened.
-
-How the work ran (keep doing it): one editor lane; agents write C++ into holding trees `Saved/<Job>Code/` with
-`HASHES.txt`; Main checks with `Tools/hashcheck.sh`, copies (the user approved Main doing the copies), builds, runs only
-the touched tests, commits and pushes; a DEMO agent play-checks in PIE with single `Tools\grab.ps1` shots (Slomo 0.1 to
-catch effects); fixes go back to the agent that knows the area.
-
-## Direction (the user's answers, grill session 2026-10-21) â€” overrides "next" below
+## Direction (the user's answers, grill session 2026-10-21) - overrides "next" below
 
 - **Core-loop freeze:** no new regions, heroes or systems (the *Lily* stays on hold) until shooting, fights, loot and
   pacing are fun in Ransom's Rest. The user played it through after the heroes: "something's off" in gunplay, pacing,
@@ -144,8 +95,8 @@ catch effects); fixes go back to the agent that knows the area.
   build and both want to replay it with another hero.
 - **Sounds:** paid/free royalty-free libraries licensed for games are now allowed for guns and impacts (e.g. Sonniss
   GDC bundle), processed through the script pipeline; script-made stays the rule elsewhere.
-- **Release plan:** single-player at launch (co-op not planned). 1.0 keeps 15â€“18 regions. A free Steam demo once the
-  game is 60â€“70% built, within a year (~Oct 2027). Store page ("Coming Soon") goes up once the core is fun, with a
+- **Release plan:** single-player at launch (co-op not planned). 1.0 keeps 15-18 regions. A free Steam demo once the
+  game is 60-70% built, within a year (~Oct 2027). Store page ("Coming Soon") goes up once the core is fun, with a
   Ransom's Rest trailer. Steam's AI-content survey answered plainly (made with AI tools, nothing generated live).
 - Playtesters: the user and one friend.
 

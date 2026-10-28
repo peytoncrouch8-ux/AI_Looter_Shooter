@@ -34,7 +34,7 @@ Each line: bug (date). Cause. Fix.
   Post roost, Abel's vigil stone, caches, a bench left out, camps at z 0, and the level saved and committed that way. Cause:
   the terrain tiles' collision wasn't there yet (open_clean.py, then the pass at once). Fix: `AreaBuild.require_ground` stops
   the pass when no tile answers a trace; still read the pass's warning count (0 is right) before committing.
-- Playtest 2026-10-27, round 1 (the user's notes, `Docs/Work/2026-10-27-Playtest/NOTES.md`):
+- Playtest 2026-10-27, round 1 (the user's notes, `Docs/Archive/Work/2026-10-27-Playtest/NOTES.md`):
   - Knocking Below's cellar dead spawned on the workshop floor (note 20). Cause: `SnapToGround` from a middle inside a stair's
     hull or low ceiling saw no roof (the look up starts inside it), so the look down started over the floor upstairs. Fix: settling
     never lifts a creature more than a step (`SettleMostRise`); past that it looks again from just over its own feet

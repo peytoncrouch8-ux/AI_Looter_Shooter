@@ -234,7 +234,7 @@ Test `Looter.Fx.Niagara`.
 
 ## Tools we looked at (round 5 research, 2026-10-27)
 
-Sources and the unconfirmed parts: `Docs/Work/2026-10-27-Playtest/RESEARCH_ANIMATION.md`. None is installed or used.
+Sources and the unconfirmed parts: `Docs/Archive/Work/2026-10-27-Playtest/RESEARCH_ANIMATION.md`. None is installed or used.
 - **Tripo** (AI model maker): a paid plan is needed for models that ship (the free plan's rights are contested). Concepts only so far.
 - **Suno** (AI music): free plan = non-commercial only, no downloads, Suno keeps ownership: not usable in a Steam game. Pro ($8/mo)
   and Premier give commercial rights to songs made and downloaded while subscribed (perpetual; none retroactive for free-plan songs).
