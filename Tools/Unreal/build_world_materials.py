@@ -14,7 +14,13 @@
                   rarity's color (SoulLight 8-11, emissive). Its maker's mark (Affixes/WeaponMakers::PaintMark, data 12-19:
                   the cell of MakerMarks, T_GunMakerMarks's 2x2 atlas, 0 none; its centre X/Z, size and depth in the
                   part's own space, cm; its colour) painted on both sides of the one part that carries it, scuffed with
-                  the wear (create_manufacturers.py imports the atlas first).
+                  the wear (create_manufacturers.py imports the atlas first). Its element finish (2026-10-27, the
+                  user's "Glow parts take element"; UWeaponModelComponent::ShowElementFinish, data 20-28: the kind,
+                  1 scorched / 2 gilt / 3 frosted, 0 none; the tint and its amount; the glow's hue and strength) recolours
+                  an element part's own mesh: Ember dark with soot blotches and glowing seams, Soul-light gold and
+                  metallic with a faint gold-white rim, Grave-salt pale with salt-crystal speckle lit cyan. Its pattern
+                  is the macro noise laid on from the part's three sides in its own space (cm), numbers in
+                  ELEMENT_FINISH (group ElementFinish). Kind 0 leaves every other part exactly as before.
   M_WorldFoliage  masked, two-sided (back faces keep the front's normal), the same maps (opacity from the base
                   color's alpha) plus wind: vertex color R is how far a vertex sways, G offsets its phase;
                   WindStrength (cm), WindSpeed, WindDirection.
@@ -586,6 +592,124 @@ float Cover = Texture2DSampleLevel(Marks, MarksSampler, UV, 0.0).r;
 return float4(Colour, Cover * (1.0 - 0.75 * Scuff) * (1.0 - Tally.x));"""
 
 
+# An element part's finish (UWeaponModelComponent::ShowElementFinish; Source/AI_Looter_Shooter/Weapons/
+# WeaponModelElements.cpp). Every number is a parameter of the ElementFinish group with its default here; the colours, amounts
+# and glow strengths come from the part's custom primitive data (data 20-28), so the code's cvars tune them live per gun.
+ELEMENT_FINISH = {
+    # The noise's repeats per cm on the part: soot blotches / frost cover, seams / gilt brushing, salt specks; and how much
+    # thicker the frost lies on upward faces.
+    'ElementScales': (0.08, 0.12, 0.9, 0.8),
+    # Soot from / to (noise), the seams' width (of the noise's ridge), the share of the surface that is lit salt specks.
+    'ElementShape': (0.5, 0.72, 0.08, 0.16),
+    # The texture's light and dark kept under the tint: darkest x, lightest x, how fast luma reaches the lightest; soot's
+    # darkening.
+    'ElementDetail': (0.55, 1.4, 2.5, 0.35),
+    # Gilt: brushing darker x, lighter x, the rim glow's floor (faint over the whole part), its roughness.
+    'ElementGilt': (0.8, 1.15, 0.12, 0.3),
+    # Frost: the salt's white (linear) and how much of the frost cover turns it.
+    'ElementSalt': (0.85, 0.93, 0.97, 0.55),
+    # Roughness: soot, how dark a seam's charred lip is, frost, a salt crystal's glint.
+    'ElementSurface': (0.92, 0.7, 0.8, 0.3),
+}
+
+ELEMENT_PATTERN_CODE = """// The element finish's masks (Kind 0, every part but an element part: nothing). The macro noise laid on from the part's
+// three sides in its own space (cm), so a Tripo part's atlas and a scripted part's UVs take it alike, without seams.
+// Returns per kind: scorched (soot, seam), gilt (brushing, 0), frosted (frost cover, lit speck); w 1 when on.
+float4 Result = float4(0.0, 0.0, 0.0, 0.0);
+// Gradients before the branch (every pixel of the quad needs them); the samples inside use them.
+float3 Dx = ddx(Local);
+float3 Dy = ddy(Local);
+float Px = length(Dx) + length(Dy);
+if (Kind > 0.5)
+{
+    float3 Nrm = normalize(LocalNormal);
+    float3 W = pow(abs(Nrm), 4.0);
+    W /= max(W.x + W.y + W.z, 0.0001);
+    float3 N = float3(0.0, 0.0, 0.0);
+    for (int K = 0; K < 3; K++)
+    {
+        float Sc = Scales[K];
+        float2 O = float2(0.37, 0.71) * (K + 1);
+        float A = Texture2DSampleGrad(Noise, NoiseSampler, Local.yz * Sc + O, Dx.yz * Sc, Dy.yz * Sc).r;
+        float B = Texture2DSampleGrad(Noise, NoiseSampler, Local.xz * Sc + O, Dx.xz * Sc, Dy.xz * Sc).r;
+        float C = Texture2DSampleGrad(Noise, NoiseSampler, Local.xy * Sc + O, Dx.xy * Sc, Dy.xy * Sc).r;
+        N[K] = A * W.x + B * W.y + C * W.z;
+    }
+    float Kd = round(Kind);
+    if (Kd < 1.5)
+    {
+        float Soot = smoothstep(Shape.x, Shape.y, N.x);
+        // Seams: the thin ridge where the noise crosses its middle. Seen from far the band widens by the pixel's footprint and
+        // dims as much, so a blurred noise can't light the whole part.
+        float Ridge = 1.0 - abs(N.y * 2.0 - 1.0);
+        float Fw = Px * Scales.y * 2.0;
+        float Seam = smoothstep(1.0 - (Shape.z + Fw), 1.0 - Shape.z * 0.35, Ridge) * Shape.z / (Shape.z + Fw);
+        Result = float4(Soot, Seam, 0.0, 1.0);
+    }
+    else if (Kd < 2.5)
+    {
+        Result = float4(N.y, 0.0, 0.0, 1.0);
+    }
+    else
+    {
+        float Up = saturate(Nrm.z);
+        float Frost = saturate(N.x * (1.0 + Up * Scales.w));
+        float Speck = smoothstep(1.0 - Shape.w, 1.0 - Shape.w * 0.6, N.z);
+        Result = float4(Frost, Speck, 0.0, 1.0);
+    }
+}
+return Result;"""
+
+ELEMENT_COLOR_CODE = """// The finish's colour: the part's texture pulled toward Tint by Tint.a, its light and dark kept.
+if (Kind < 0.5) return Color;
+float Luma = dot(Color, float3(0.299, 0.587, 0.114));
+float3 F = Tint.rgb * lerp(Detail.x, Detail.y, saturate(Luma * Detail.z));
+float Kd = round(Kind);
+if (Kd < 1.5)
+{
+    F *= lerp(1.0, Detail.w, Mask.x);          // soot blotches
+    F *= 1.0 - Surface.y * Mask.y;             // the seam's charred lip under its glow
+}
+else if (Kd < 2.5)
+{
+    F *= lerp(Gilt.x, Gilt.y, Mask.x);         // brushed gold
+}
+else
+{
+    F = lerp(F, Salt.rgb, saturate(Mask.x * Salt.a + Mask.y));   // frost and crystals
+}
+return lerp(Color, F, Tint.a);"""
+
+ELEMENT_GLOW_CODE = """// The finish's light: scorched seams, gilt's faint rim, frosted specks; in Glow's hue times its strength (Glow.a).
+if (Kind < 0.5) return float3(0.0, 0.0, 0.0);
+float Kd = round(Kind);
+float E = Mask.y * (1.0 - 0.5 * Mask.x);
+if (Kd > 1.5 && Kd < 2.5)
+{
+    float Facing = saturate(dot(normalize(N), normalize(V)));
+    E = Gilt.z + pow(1.0 - Facing, 3.0);
+}
+else if (Kd > 2.5)
+{
+    E = Mask.y;
+}
+return Glow.rgb * Glow.a * E * Tint.a;"""
+
+ELEMENT_SURFACE_CODE = """// The finish's roughness (x) and metal (y): soot matte and bare of metal, gilt metal and polished, salt crust no metal.
+if (Kind < 0.5) return float2(Rough, Metal);
+float Kd = round(Kind);
+float2 F = float2(lerp(Rough, Surface.x, Mask.x), Metal * (1.0 - Mask.x));
+if (Kd > 1.5 && Kd < 2.5)
+{
+    F = float2(Gilt.w * lerp(1.3, 0.8, Mask.x), 1.0);
+}
+else if (Kd > 2.5)
+{
+    F = float2(lerp(Surface.z, Surface.w, Mask.y), 0.0);
+}
+return lerp(float2(Rough, Metal), F, Tint.a);"""
+
+
 def build_gun(orm_default):
     mat = material('M_Gun')
     g = Graph(mat)
@@ -594,13 +718,14 @@ def build_gun(orm_default):
     wear = g.node(unreal.MaterialExpressionScalarParameter, -800, 600, parameter_name='Wear', default_value=0.0,
                   use_custom_primitive_data=True, primitive_data_index=0)
     coords = g.node(unreal.MaterialExpressionTextureCoordinate, -800, 800, coordinate_index=0)
+    noise = g.node(unreal.MaterialExpressionTextureObjectParameter, -800, 900, parameter_name='WearNoise',
+                   texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE))
     worn = g.custom(WEAR_CODE, [
         ('Color', color, ''),
         ('Occlusion', ao, ''),
         ('Wear', wear, ''),
         ('UV', coords, ''),
-        ('Noise', g.node(unreal.MaterialExpressionTextureObjectParameter, -800, 900, parameter_name='WearNoise',
-                         texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE)), ''),
+        ('Noise', noise, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, -200, 'Wear')
     rgb = g.node(unreal.MaterialExpressionComponentMask, 0, -300, r=True, g=True, b=True, a=False)
     g.link(worn, '', rgb, '')
@@ -672,12 +797,46 @@ def build_gun(orm_default):
         ('V', g.node(unreal.MaterialExpressionCameraVectorWS, -300, 2100), ''),
         ('Time', g.node(unreal.MaterialExpressionTime, -300, 2200), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 200, 600, 'Soul-light')
-    g.out(marked, '', unreal.MaterialProperty.MP_BASE_COLOR)
+
+    # The element finish (data 20-28) over everything above, on the element part alone (Kind 0 elsewhere: unchanged).
+    params = {name: svector(g, 'ElementFinish', name, value, -300, 3300 + 100 * i)
+              for i, (name, value) in enumerate(ELEMENT_FINISH.items())}
+    kind = cpd_scalar('ElementFinish', 20, -800, 3300)
+    tint = cpd_vector('ElementTint', 21, -800, 3400)
+    glow = cpd_vector('ElementGlow', 25, -800, 3500)
+    pattern = g.custom(ELEMENT_PATTERN_CODE, [
+        ('Kind', kind, ''), ('Local', local, ''), ('LocalNormal', local_normal, ''), ('Noise', noise, ''),
+        ('Scales', params['ElementScales'], 'RGBA'), ('Shape', params['ElementShape'], 'RGBA'),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, 200, 3300, 'Element pattern')
+    finished = g.custom(ELEMENT_COLOR_CODE, [
+        ('Color', marked, ''), ('Kind', kind, ''), ('Tint', tint, 'RGBA'), ('Mask', pattern, ''),
+        ('Detail', params['ElementDetail'], 'RGBA'), ('Gilt', params['ElementGilt'], 'RGBA'),
+        ('Salt', params['ElementSalt'], 'RGBA'), ('Surface', params['ElementSurface'], 'RGBA'),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 800, -300, 'Element colour')
+    element_glow = g.custom(ELEMENT_GLOW_CODE, [
+        ('Kind', kind, ''), ('Tint', tint, 'RGBA'), ('Glow', glow, 'RGBA'), ('Mask', pattern, ''),
+        ('Gilt', params['ElementGilt'], 'RGBA'),
+        ('N', g.node(unreal.MaterialExpressionPixelNormalWS, 200, 3700), ''),
+        ('V', g.node(unreal.MaterialExpressionCameraVectorWS, 200, 3800), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 500, 600, 'Element glow')
+    emissive = g.node(unreal.MaterialExpressionAdd, 800, 600)
+    g.link(soul, '', emissive, 'A')
+    g.link(element_glow, '', emissive, 'B')
+    surface = g.custom(ELEMENT_SURFACE_CODE, [
+        ('Rough', rough, ''), ('Metal', orm, 'B'), ('Kind', kind, ''), ('Tint', tint, 'RGBA'), ('Mask', pattern, ''),
+        ('Gilt', params['ElementGilt'], 'RGBA'), ('Surface', params['ElementSurface'], 'RGBA'),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT2, 500, 100, 'Element surface')
+    finished_rough = g.node(unreal.MaterialExpressionComponentMask, 800, 100, r=True, g=False, b=False, a=False)
+    g.link(surface, '', finished_rough, '')
+    finished_metal = g.node(unreal.MaterialExpressionComponentMask, 800, 200, r=False, g=True, b=False, a=False)
+    g.link(surface, '', finished_metal, '')
+
+    g.out(finished, '', unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(nrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
-    g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
-    g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
+    g.out(finished_rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(finished_metal, '', unreal.MaterialProperty.MP_METALLIC)
     g.out(occlusion, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
-    g.out(soul, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    g.out(emissive, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     finish(mat, [])
     return mat
 

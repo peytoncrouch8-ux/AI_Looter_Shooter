@@ -13,6 +13,23 @@ class UStaticMesh;
 class UStaticMeshComponent;
 
 /**
+ * How an element part looks on the gun master (M_Gun's element finish, custom primitive data
+ * UWeaponModelComponent::ElementFinishDataIndex on): the same mesh recoloured, no models of its own (the user's call,
+ * 2026-10-27). Kind picks the pattern (UWeaponModelComponent::FinishScorched / FinishGilt / FinishFrosted, 0 none): Ember
+ * scorched (dark, soot blotches, glowing seams), Soul-light gilt (gold, metallic, a faint gold-white rim glow), Grave-salt
+ * frosted (pale, salt-crystal speckle lit cyan). Tint is the finish's colour (linear) the part's texture is pulled toward
+ * by Amount (0-1), keeping its light and dark; Glow the emissive hue times GlowStrength.
+ */
+struct FWeaponElementFinish
+{
+	float Kind = 0.f;
+	FLinearColor Tint = FLinearColor::White;
+	float Amount = 0.f;
+	FLinearColor Glow = FLinearColor::Black;
+	float GlowStrength = 0.f;
+};
+
+/**
  * A rolled gun's model: its definition's parts (static meshes made in Blender) as the roll's seed picks them, in the
  * gun's paint and its rarity's glow. This component is the gun's own space (origin at the back of the receiver, +X
  * toward the muzzle): the parts hang in it, or from sockets on earlier parts. It knows where the muzzle and the hands
@@ -138,6 +155,39 @@ public:
 	static const FName HeatGlowSlot;
 	static UMaterialInterface* FindGaugeMaster();
 
+	// --- The gun's element on its looks (WeaponModelElements.cpp; the user's call 2026-10-27, "Glow parts take element") ---
+
+	/**
+	 * Whether a material slot is one of the glows that take the gun's element's colour: every emissive accent of the gun
+	 * kit (a "Gun...Glow" slot: the ember vents and barrel slots, the optics' and the irons' cyan dots, the ammo and heat
+	 * gauges, the element pieces' own glows; the Tripo parts' glows are the same slots) and the optics' GunReticle while
+	 * Looter.Weapons.ElementLook.Reticle is on; never the rarity accent (RarityGlowSlot, or a part's own copy of it).
+	 */
+	static bool IsElementGlowSlot(FName Slot, FName RarityGlowSlot);
+
+	/** Whether the glows take the element at all (Looter.Weapons.ElementLook.Glows; read as a gun is built). */
+	static bool ElementGlowsOn();
+
+	/** The finish an element part wears (Kind 0 for None, or while Looter.Weapons.ElementLook.Finish is off). */
+	static FWeaponElementFinish ElementFinishFor(ELooterElement Element);
+
+	/** Writes Element's finish into a part's custom primitive data for the gun master (zeros = the part as modeled). */
+	static void ShowElementFinish(UPrimitiveComponent& Part, ELooterElement Element);
+
+	/** The part whose element the gun fires (its first part with one), wearing its finish; null without one. */
+	UStaticMeshComponent* GetElementPart() const { return ElementPart; }
+
+	/**
+	 * The gun master's element finish in custom primitive data (after the maker's mark, 12-19): the kind (20), the tint and
+	 * its amount (21-24, RGBA), the glow's hue and strength (25-28, RGBA). Kinds as FWeaponElementFinish::Kind.
+	 */
+	static constexpr int32 ElementFinishDataIndex = 20;
+	static constexpr int32 ElementTintDataIndex = 21;
+	static constexpr int32 ElementGlowDataIndex = 25;
+	static constexpr float FinishScorched = 1.f;
+	static constexpr float FinishGilt = 2.f;
+	static constexpr float FinishFrosted = 3.f;
+
 	/** Draws the parts like first-person arms (own field of view, no clipping) or like the world. */
 	void SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType Type);
 	EFirstPersonPrimitiveType GetFirstPersonPrimitiveType() const { return FirstPersonType; }
@@ -192,8 +242,8 @@ private:
 
 	/**
 	 * A gauge slot's material for this gun (WeaponModelKinds.cpp): the gauge master's instance in Source's color, else Source's own.
-	 * A gun with an element part fitted lights its round count (the ammo slot only) in that element's hue, so the orange count
-	 * does not drown a Soul-light or Grave-salt helix.
+	 * A gun with an element part fitted lights its round count in that element's hue, so the orange count does not drown a
+	 * Soul-light or Grave-salt helix; the heat rings too while the glows take the element (ElementGlowsOn).
 	 */
 	UMaterialInstanceDynamic* MakeGauge(FName Slot, UMaterialInterface* Source, ELooterElement Element = ELooterElement::None);
 
@@ -245,6 +295,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> NotchPart;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> ElementPart;
 
 	/** The tally's row on NotchPart (start X, start Z, end X, end Z; cm), and its cuts' height and least depth. */
 	FVector4f NotchRow = FVector4f(0.f, 0.f, 0.f, 0.f);

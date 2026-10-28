@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Affixes/WeaponMakers.h"
 #include "Affixes/WeaponRollLibrary.h"
+#include "Elements/ElementRules.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponParts.h"
 #include "Components/StaticMeshComponent.h"
@@ -19,8 +20,11 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	}
 	const FWeaponLook Look = WeaponParts::Pick(Instance);
 	const float Wear = WeaponParts::Wear(Instance);
-	// The element part fitted (if any) tints the helix glow, so the round count shows in its hue.
+	// The element part fitted (if any) colours the gun's glows (WeaponModelElements.cpp): its vents, sight dots and gauges
+	// in the element's hue, the rarity accent and the shell's paint as they were. Without one they keep the art's colours.
 	const ELooterElement GunElement = WeaponParts::ElementOf(Look);
+	const bool bElementGlows = GunElement != ELooterElement::None && ElementGlowsOn();
+	const FLinearColor ElementGlow = ElementRules::FxColor(GunElement);
 	// Its maker's mark, on the one part that carries it (the gun master paints it from that part's custom primitive data).
 	const FWeaponMarkPaint Mark = WeaponMakers::MarkFor(Instance, Look);
 	ModelScale = ScaleFor(Definition->Kind);
@@ -46,7 +50,8 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		}
 		const bool bGlow = Slot == Definition->RarityGlowSlot;
 		const bool bGauge = Slot == AmmoGlowSlot || Slot == HeatGlowSlot;
-		if (!Material || (!Color && !bGlow && !bGauge))
+		const bool bElementGlow = !bGlow && !bGauge && bElementGlows && IsElementGlowSlot(Slot, Definition->RarityGlowSlot);
+		if (!Material || (!Color && !bGlow && !bGauge && !bElementGlow))
 		{
 			return Material;
 		}
@@ -66,6 +71,11 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		{
 			Instanced->SetVectorParameterValue(TEXT("Color"), UWeaponRollLibrary::GetRarityColor(Definition, Instance.Rarity));
 			Instanced->SetScalarParameterValue(TEXT("Glow"), WeaponParts::RarityGlow(Instance.Rarity));
+		}
+		else if (bElementGlow)
+		{
+			// The art's strength (its Glow) kept: only the hue becomes the element's.
+			Instanced->SetVectorParameterValue(TEXT("Color"), ElementGlow);
 		}
 		else
 		{
@@ -127,6 +137,16 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		{
 			WeaponMakers::PaintMark(*Part, Mark);
 		}
+		// An element part (a magazine, a cylinder, a rocket) wears its element as a finish on its own mesh: scorched, gilt or
+		// frosted by the gun master, so a Tripo part and a scripted one alike need no model of their own.
+		if (Option->Element != ELooterElement::None)
+		{
+			ShowElementFinish(*Part, Option->Element);
+			if (!ElementPart)
+			{
+				ElementPart = Part;
+			}
+		}
 		const TArray<FName> MaterialSlots = Part->GetMaterialSlotNames();
 		for (int32 Material = 0; Material < MaterialSlots.Num(); ++Material)
 		{
@@ -158,6 +178,11 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 					for (int32 Material = 0; Material < RocketSlots.Num(); ++Material)
 					{
 						RocketLoadMesh->SetMaterial(Material, Paint(RocketSlots[Material], RocketLoadMesh->GetMaterial(Material)));
+					}
+					// The next rocket is the same round as the loaded one: in its finish too.
+					if (Option->Element != ELooterElement::None)
+					{
+						ShowElementFinish(*RocketLoadMesh, Option->Element);
 					}
 				}
 			}
@@ -262,6 +287,7 @@ void UWeaponModelComponent::Clear()
 	ReloadPartMesh = nullptr;
 	SightPart = nullptr;
 	NotchPart = nullptr;
+	ElementPart = nullptr;
 	AimPoint = FVector::ZeroVector;
 	ReloadPart = EWeaponReloadPart::None;
 	ModelScale = 1.f;

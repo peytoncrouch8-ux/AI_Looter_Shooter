@@ -64,9 +64,9 @@ UMaterialInstanceDynamic* UWeaponModelComponent::MakeGauge(FName Slot, UMaterial
 			Gauge->SetVectorParameterValue(TEXT("Color"), Color);
 		}
 	}
-	// An element helix glows in its element's hue (the round count only; the heat rings keep the art's): the art's ember orange
-	// drowned the Soul-light part's gold-white and the salt's cyan.
-	if (Slot == AmmoGlowSlot && Element != ELooterElement::None)
+	// An element helix glows in its element's hue: the art's ember orange drowned the Soul-light part's gold-white and the
+	// salt's cyan. The heat rings take it too while every glow does (the user's call 2026-10-27, "Glow parts take element").
+	if (Element != ELooterElement::None && (Slot == AmmoGlowSlot || ElementGlowsOn()))
 	{
 		Gauge->SetVectorParameterValue(TEXT("Color"), ElementRules::FxColor(Element));
 	}
