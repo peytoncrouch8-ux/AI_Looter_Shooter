@@ -47,16 +47,22 @@ wide, rail top v 6.15 over u 14-32 with the sight origin at 23, grip hand at (22
 | `Sight_Holo` | Holo | 11.6 x 7 x 3.9 | Riveted oxblood holo box inside an iron roll cage, heavy clamp with hex bolts, cream stripe, red dot in the glass |
 | `Stock_Monopod` | Monopod | 15.3 x 21.6 x 5.2 | Heavy brace stock: iron beams round an oxblood web with two lightening holes, thick ribbed pad, folding monopod (oxblood sleeve, brass collar, steel spike) |
 
-**Set 3: Windfall** (sea-teal paint over rust, bare steel, tape, copper; rattly, scrap-built).
+**Set 3: Windfall** (scrap-built, rattly: rusted steel, galvanized tin, sea-teal and sky-blue paint over rust, black
+friction tape, tan tape, brass wire, a little ember). Redrawn 2026-10-27: the user rejected the first set 3 (set 1's
+outlines recoloured), so these are new silhouettes; only the interfaces are kept (barrel-nut face (51.9, 0) r 1.25, stock
+boss (0, -3.3) on a butt plate at u 0, well top u 10.4-17.6 at v -5.6 and 2.8 wide, rail u 14-32 top v 6.15, sight origin
+(23, 6.15), grip hand (22.5, -10)). Drawn by `node Art/Concepts/Weapons/AR/render_set3.js [Folder ...]` (upload/ and
+upload_white/ only). render.js still holds the rejected set 3 entries: running it on these folders overwrites the new
+images, so its set 3 entries are to be removed.
 
 | Folder | Key | Size | Look |
 |---|---|---|---|
-| `Body_Salvager` | Salvager | 52.2 x 22.4 x 5.9 | Chipped teal shell, welded rust and steel panels, hazard tag, taped grip, pipe guard, copper line, ember coolant line (right) |
-| `Barrel_Shrouded` | Shrouded | 16.5 x 4.1 x 4.1 | Rusty bare-steel ported shroud, ember core in the holes, tape wrap, copper wire, steel collar |
-| `Muzzle_Prong` | Prong | 6.2 x 2.1 x 2.1 | Bare-steel three-prong hider, welded roots, copper ring |
-| `Magazine_Coupled` | Coupled | 9.6 x 19.4 x 5.6 | A polymer 30 and a rusty steel 30 clamped side by side with copper clamps |
-| `Sight_Reflex` | Reflex | 7 x 5.2 x 2.6 | Chipped teal hood welded to a steel base, tape patch, glass window |
-| `Stock_Skeleton` | Skeleton | 10.3 x 11.8 x 5.2 | Rust frame with old teal paint, taped top bar, welded joint, cracked black pad |
+| `Body_Salvager` | Salvager | 52.2 x 22.4 x 7 | Open tube frame: a rusted spine pipe butt to nose (tan tape at the cheek, zip-ties), rail on two welded risers with a gap under it; welded receiver box with mismatched panels (left galvanized + teal, right rust with the ejection port + sky blue with a hazard tag); butt plate on two tubes with a buffer spring between; raked separate pistol grip in black friction tape, tan band, brass wire, pipe-cap foot; bent-rod trigger guard; open front: galvanized lower tube (taped hand wrap), exposed recoil spring on a guide rod, one strut, a pipe collar with a hose clamp holding the barrel nut; ember cell wired and brass-strapped on the right; brass knob charging slider on the left |
+| `Barrel_Shrouded` | Shrouded | 16.5 x 4.7 x 4.3 | Rusted shroud with seven staggered rows of drilled holes (ember glimpse in the middle row) on a steel adapter (welded cone), hose clamp (housing right), tan tape band with a loose end, brass wire wrap, scrap front-sight tab, crimped front, threaded steel barrel; left a rolled weld seam, right a riveted galvanized patch |
+| `Muzzle_Prong` | Prong | 6.2 x 2.6 x 2.6 | Three uneven flat-bar prongs (one short with a bent tip) welded to a rusty galvanized hex nut, brass-wire collar, steel bore sleeve |
+| `Magazine_Coupled` | Coupled | 9.3 x 20.3 x 6.4 | A straight rusted steel box (seated; pressed ribs, brass witness holes) and a galvanized box taped upside down beside it on the gun's left (teal band, feed lips down with a round showing), joined by a bolted strap, brass wire and black tape, rubber spacer |
+| `Sight_Reflex` | Reflex | 7.5 x 5.6 x 4.8 | Tilted glass in a tin frame between two gusset plates (left galvanized, right sky blue, drilled holes), welded to a bent-strap rail clamp (wing nut left, hex bolt right); a flashlight-tube emitter taped and wired on behind, a teal cell taped on the right; red dot in the glass from behind |
+| `Stock_Skeleton` | Skeleton | 11.9 x 11.7 x 5.1 | Rust mount plate (boss at (0, -3.3)), galvanized upper tube with a tape-wrapped cheek roll, rusted lower tube with a buffer spring, diagonal steel brace (right), tyre-tread butt pad on a rust backing plate, brass wire sling loop (left) |
 
 **Set 4: Meridian** (clean and precise; satin-white and graphite polymer, machined aluminium, fine brass, a cyan accent
 line). Redrawn 2026-10-27 as six new designs (the user rejected set 1's outlines recoloured): own silhouettes and
@@ -113,3 +119,5 @@ Watch for in the game, because Tripo bakes one texture:
 - The iron sight is two separate pieces 14 cm apart on one mesh; Tripo may bridge the gap. If it does, make the rear
   leaf and the front post as two runs and join them.
 - Small parts (the 1.8 cm muzzle cap) are drawn large; only the size table fixes their scale.
+
+**Scripts:** render.js makes sets 1-2 only (its old set 3/4 entries are stale: never run them for sets 3-4); render_set3.js makes set 3 (Windfall), render_set4.js set 4 (Meridian).
