@@ -154,11 +154,13 @@ FHeroMeleeTool UHeroDefinition::MeleeToolFor(FName HeroId)
 		/** The handle's radius under the fist (cm, MeleeTools.py): the spade's ash 1.55, the gaff's pole 1.75 (POLE_R), the
 		 * pick's hickory 1.45, the fan's pivot stack about 1.2. */
 		float HandleRadius;
+		/** Round all the way under the fist (FHeroMeleeTool::bRoundHandle): the gaff's pole. */
+		bool bRoundHandle = false;
 	};
 	static const FPick Picks[] = {
 		{ TEXT("Ellis"), TEXT("GraveSpade"), EMeleeGripKind::Held, EMeleeSwingStyle::Swat, EMeleeHeft::Steady, TEXT("Spade"), 1.55f },
 		{ TEXT("Odessa"), TEXT("RazorFan"), EMeleeGripKind::Held, EMeleeSwingStyle::Flick, EMeleeHeft::Quick, TEXT("Fan"), 1.2f },
-		{ TEXT("Crane"), TEXT("FerryGaff"), EMeleeGripKind::Held, EMeleeSwingStyle::Gaff, EMeleeHeft::Heavy, TEXT("Gaff"), 1.75f },
+		{ TEXT("Crane"), TEXT("FerryGaff"), EMeleeGripKind::Held, EMeleeSwingStyle::Gaff, EMeleeHeft::Heavy, TEXT("Gaff"), 1.75f, true },
 		{ TEXT("Gauge"), TEXT("PistonFist"), EMeleeGripKind::Forearm, EMeleeSwingStyle::Jab, EMeleeHeft::Quick, TEXT("Piston"), 1.6f },
 		{ TEXT("Pike"), TEXT("RockPick"), EMeleeGripKind::Held, EMeleeSwingStyle::Peck, EMeleeHeft::Quick, TEXT("Pick"), 1.45f },
 	};
@@ -173,6 +175,7 @@ FHeroMeleeTool UHeroDefinition::MeleeToolFor(FName HeroId)
 			Tool.Heft = Pick.Heft;
 			Tool.Kind = FName(Pick.Kind);
 			Tool.HandleRadius = Pick.HandleRadius;
+			Tool.bRoundHandle = Pick.bRoundHandle;
 			break;
 		}
 	}

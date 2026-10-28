@@ -32,6 +32,8 @@ struct FMeleeToolHold
 	/** The handle's radius as drawn (cm): the fingers close on it. */
 	float HandleRadius = 1.6f;
 	EMeleeGripKind Kind = EMeleeGripKind::Held;
+	/** Round all the way under the fist (FHeroMeleeTool::bRoundHandle): the hand turns round it to meet the arm. */
+	bool bRoundHandle = false;
 };
 
 /** A strike's blow came (hit or miss) on what it hit (null for a miss). */

@@ -68,6 +68,11 @@ namespace
 	}
 }
 
+FVector MeleeMotion::ShoulderPoint()
+{
+	return RightShoulder;
+}
+
 FMeleeArc MeleeMotion::ArcFor(EMeleeSwingStyle Style, EMeleeHeft Heft)
 {
 	// Every arc keeps the hand inside the view from the wind-up's top through the follow-through (within about 40 degrees
@@ -79,10 +84,12 @@ FMeleeArc MeleeMotion::ArcFor(EMeleeSwingStyle Style, EMeleeHeft Heft)
 	{
 	case EMeleeSwingStyle::Flick:
 		// Odessa's razor fan: a backhand flick from low on the left up to high on the right, the fan snapping open mid-cut.
-		// The swat's tilted axis the other way round: cocked low across the body, through high on the right.
-		Arc = MakeArc(FVector(40.f, 2.f, -4.f), FVector(0.f, -0.35f, 0.94f), -28.f, 26.f, 45.f, FVector(0.45f, 0.35f, 0.82f),
+		// The swat's tilted axis the other way round: cocked low across the body, through high on the right. Cocked across
+		// the body the arm swings in near the eye: at a 0.9 reach the glove's back was 30-34 cm off, a dark blob filling the
+		// lower left as the swing began (playtest 2026-10-28), so the wind-up reaches out to about 45 cm.
+		Arc = MakeArc(FVector(40.f, 2.f, -4.f), FVector(0.f, -0.35f, 0.94f), -26.f, 26.f, 45.f, FVector(0.45f, 0.35f, 0.82f),
 			FVector(0.f, 1.f, 0.f));
-		Arc.CockReach = 0.9f;
+		Arc.CockReach = 1.2f;
 		break;
 	case EMeleeSwingStyle::Chop:
 		// Straight down from high on the right onto the crosshair: about the view's right-hand axis, tipped a little.

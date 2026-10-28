@@ -91,9 +91,10 @@ namespace FirstPersonHandsMotion
 	/**
 	 * The right hand on a melee tool whose grip frame is Grip (camera space; X up the handle, Z the striking side): round the
 	 * handle (HandleRadius, drawn), fingers closing on it; or, bForearm, a fist with the knuckles along X, the back of the
-	 * hand toward Z, inside the forearm piece.
+	 * hand toward Z, inside the forearm piece. bRoundHandle (a pole): the hand turned round the handle so the forearm runs
+	 * back toward the swing's shoulder (MeleeMotion::ShoulderPoint) instead of the knuckles leading Z.
 	 */
-	AI_LOOTER_SHOOTER_API FHandPlacement OnMeleeTool(const FTransform& Grip, float HandleRadius, bool bForearm);
+	AI_LOOTER_SHOOTER_API FHandPlacement OnMeleeTool(const FTransform& Grip, float HandleRadius, bool bForearm, bool bRoundHandle = false);
 
 	/** Where an empty hand rests under the frame (no gun in hand, the other hand at work): the left's, mirrored for the right. */
 	AI_LOOTER_SHOOTER_API FHandPlacement BareRest(EFirstPersonHand Hand);

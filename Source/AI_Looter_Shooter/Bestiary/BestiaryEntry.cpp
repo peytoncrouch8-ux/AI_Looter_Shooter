@@ -3,6 +3,8 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/FightRules.h"
+#include "Creatures/FightTuning.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "AnimationRuntime.h"
@@ -41,7 +43,11 @@ FBestiaryStats UBestiaryEntry::ReadStats() const
 		Stats.Level = SetLevel > 0 ? SetLevel + Rank.LevelOffset : Creature->Level;
 		const float Growth = SetLevel > 0 ? Rules.EnemyScale(Stats.Level) : 1.f;
 		Stats.Health *= Rank.HealthMultiplier * Growth;
-		Stats.AttackDamage = Creature->AttackDamage * Rank.DamageMultiplier * Growth;
+		// The bite as it lands: a regular kind hits Looter.Fight.DamageScale harder (1.8), so the page said 11 where a spider
+		// took 20 off the player (playtest 2026-10-28). A boss or Legendary monster keeps its own.
+		const float FightScale = FightRules::DamageScaleFor(FightRules::KeepsOwnFight(Creature->StartingRank, Creature->IsBossCreature()),
+			FFightTuning::LiveDamageScale());
+		Stats.AttackDamage = Creature->AttackDamage * Rank.DamageMultiplier * Growth * FightScale;
 		// What a kill really gives a player of its level: the kill rules grow the creature's XPReward with its level (Abel's
 		// 200 is 2,066 at his 7), so the page shows what the kill pays.
 		const int32 BaseXP = FMath::Max(0, FMath::RoundToInt32(Creature->XPReward * Rank.XPMultiplier));

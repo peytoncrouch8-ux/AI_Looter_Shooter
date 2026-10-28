@@ -93,4 +93,12 @@ struct AI_LOOTER_SHOOTER_API FHeroMeleeTool
 	/** A held tool's handle radius where the hand closes on it (cm, as modeled): the fingers close till they touch it. */
 	UPROPERTY(EditDefaultsOnly, Category = "Melee", meta = (ClampMin = "0.5", ClampMax = "4"))
 	float HandleRadius = 1.6f;
+
+	/**
+	 * A held tool round all the way where the hand closes (a pole): the hand turns round it to meet the arm, the forearm
+	 * back toward the shoulder, instead of keeping its knuckles on the striking side. The gaff's yank and thrust otherwise
+	 * hung the hand under the pole with the wrist above it (playtest 2026-10-28: "fingers open beside the gaff").
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Melee")
+	bool bRoundHandle = false;
 };

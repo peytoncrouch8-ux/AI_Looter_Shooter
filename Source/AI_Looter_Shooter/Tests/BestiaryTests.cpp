@@ -5,6 +5,7 @@
 #include "Bestiary/BestiaryEntry.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/SpiderCreature.h"
+#include "Creatures/FightTuning.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
@@ -59,8 +60,8 @@ bool FBestiaryEntriesTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Its level"), Stats.Level, Defaults->Level);
 		TestEqual(TEXT("Its experience, as a kill pays it"), static_cast<int64>(Stats.XPReward),
 			UPlayerProgressionSubsystem::GetLevelRules().KillXP(Defaults->XPReward, Defaults->Level, Defaults->Level));
-		TestEqual(TEXT("Its attack"), Stats.AttackDamage, Defaults->AttackDamage);
-		TestTrue(TEXT("Its health"), Stats.bHasHealth && Stats.Health > 0.f);
+		// As its bite lands on the player: a regular kind hits Looter.Fight.DamageScale harder.
+		TestEqual(TEXT("Its attack, as it bites"), Stats.AttackDamage, Defaults->AttackDamage * FFightTuning::LiveDamageScale());		TestTrue(TEXT("Its health"), Stats.bHasHealth && Stats.Health > 0.f);
 		TestEqual(TEXT("A creature"), (*Spider)->Category, EBestiaryCategory::Creature);
 	}
 

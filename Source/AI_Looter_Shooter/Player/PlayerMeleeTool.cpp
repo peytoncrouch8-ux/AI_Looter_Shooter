@@ -230,5 +230,6 @@ bool UPlayerMeleeComponent::GetToolHold(FMeleeToolHold& OutHold) const
 	OutHold.HandShare = ToolPose.HandShare;
 	OutHold.HandleRadius = Tool.HandleRadius * FMath::Max(Tool.Scale * CVarToolScale.GetValueOnGameThread(), 0.1f);
 	OutHold.Kind = bForearmMesh ? EMeleeGripKind::Forearm : EMeleeGripKind::Held;
+	OutHold.bRoundHandle = Tool.bRoundHandle;
 	return true;
 }

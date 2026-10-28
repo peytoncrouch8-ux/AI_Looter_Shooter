@@ -205,6 +205,29 @@ bool FMeleeToolHandTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the fingers close on the handle"), Held.Contact.Handle.bValid && Held.Contact.Share > 0.9f);
 	TestEqual(TEXT("...a round handle of its radius"), Held.Contact.Handle.Distance(Pose.Grip.GetLocation() + Turn.GetAxisZ() * 1.6f), 0.f, 0.05f);
 	TestTrue(TEXT("...the forearm behind the knuckles"), FVector::DotProduct(Held.Forearm, Held.GetFingersDir()) < 0.f);
+	// A pole (the gaff): through its whole swing the fist turns on it so the wrist lies toward the shoulder, never over the
+	// pole with the hand hanging under it (playtest 2026-10-28).
+	for (float Time = 0.02f; Time < FMeleeRules::SwingSeconds; Time += 0.02f)
+	{
+		const FMeleeToolPose Gaff = MeleeMotion::ToolPose(EMeleeSwingStyle::Gaff, EMeleeHeft::Heavy, Time, false, 106.f);
+		const FVector Along = Gaff.Grip.GetRotation().GetAxisX();
+		const FHandPlacement OnPole = FirstPersonHandsMotion::OnMeleeTool(Gaff.Grip, 1.75f, false, true);
+		const FVector ToShoulder = MeleeMotion::ShoulderPoint() - Gaff.Grip.GetLocation();
+		const FVector AcrossFull = ToShoulder - Along * FVector::DotProduct(ToShoulder, Along);
+		const FVector Across = AcrossFull.GetSafeNormal();
+		TestTrue(FString::Printf(TEXT("Gaff at %.2f s: the grip point on the pole"), Time), OnPole.Hold.Equals(Gaff.Grip.GetLocation(), 0.01f));
+		TestTrue(TEXT("...the pole across the palm"), FMath::Abs(FVector::DotProduct(OnPole.GetPalmDir(), Along)) < 0.05f);
+		// Where the shoulder lies nearly down the pole (the arm along it) the tool's own palm side stays (OnMeleeTool).
+		if (AcrossFull.Size() >= 0.3 * ToShoulder.Size())
+		{
+			TestTrue(FString::Printf(TEXT("...the wrist toward the shoulder at %.2f s (%.2f)"), Time, FVector::DotProduct(-OnPole.GetFingersDir(), Across)),
+				FVector::DotProduct(-OnPole.GetFingersDir(), Across) > 0.9f);
+		}
+		else
+		{
+			AddInfo(FString::Printf(TEXT("Gaff at %.2f s: the arm runs along the pole (%.2f across)"), Time, AcrossFull.Size() / ToShoulder.Size()));
+		}
+	}
 	const FHandPlacement Fist = FirstPersonHandsMotion::OnMeleeTool(Pose.Grip, 1.6f, true);
 	TestTrue(TEXT("Forearm: the knuckles along the punch"), FVector::DotProduct(Fist.GetFingersDir(), Turn.GetAxisX()) > 0.9f);
 	TestFalse(TEXT("...a bare fist (nothing to close on)"), Fist.Contact.Handle.bValid);

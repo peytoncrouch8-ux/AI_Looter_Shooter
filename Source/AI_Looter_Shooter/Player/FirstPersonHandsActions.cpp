@@ -19,7 +19,8 @@ FHandPlacement UFirstPersonHandsComponent::RightOnTool(const FHandPlacement& OnG
 	{
 		return OnGrip;
 	}
-	const FHandPlacement OnTool = FirstPersonHandsMotion::OnMeleeTool(Hold.Grip, Hold.HandleRadius, Hold.Kind == EMeleeGripKind::Forearm);
+	const FHandPlacement OnTool = FirstPersonHandsMotion::OnMeleeTool(Hold.Grip, Hold.HandleRadius, Hold.Kind == EMeleeGripKind::Forearm,
+		Hold.bRoundHandle);
 	return FHandPlacement::Blend(OnGrip, OnTool, FMath::SmoothStep(0.f, 1.f, Hold.HandShare));
 }
 

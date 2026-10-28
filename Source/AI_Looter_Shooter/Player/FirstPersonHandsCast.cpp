@@ -1,6 +1,7 @@
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/FirstPersonHandsFraming.h"
 #include "Player/FirstPersonHandsGrips.h"
+#include "Player/PlayerMeleeMotion.h"
 #include "HAL/IConsoleManager.h"
 
 // The first-person hands' casts and the melee tool's hand: an ember power's cast by the support hand (the user's note 27,
@@ -172,7 +173,7 @@ FHandPlacement FirstPersonHandsMotion::SupportInCast(const FHandPlacement& OnGun
 	return FHandPlacement::Blend(Out, OnGun, FMath::SmoothStep(0.f, 1.f, (Since - Flare() - Hold()) / Back()));
 }
 
-FHandPlacement FirstPersonHandsMotion::OnMeleeTool(const FTransform& Grip, float HandleRadius, bool bForearm)
+FHandPlacement FirstPersonHandsMotion::OnMeleeTool(const FTransform& Grip, float HandleRadius, bool bForearm, bool bRoundHandle)
 {
 	const FQuat Turn = Grip.GetRotation();
 	const FVector Along = Turn.GetAxisX();
@@ -187,6 +188,23 @@ FHandPlacement FirstPersonHandsMotion::OnMeleeTool(const FTransform& Grip, float
 	FVector Fingers;
 	FVector Palm;
 	FirstPersonHandsGrips::OnHandle(EFirstPersonHand::Right, Along, Turn.GetAxisY(), 0.f, Fingers, Palm);
+	if (bRoundHandle)
+	{
+		// A pole is the same all the way round: the fist turns on it so the wrist lies toward the shoulder and the forearm
+		// runs back to it (a real wrist barely bends sideways). Kept to the tool's palm side, the gaff's chop and yank hung
+		// the hand under the pole, the wrist above it and the forearm bent back up over it, so from the eye the glove sat
+		// beside the shaft with its fingers out of sight behind it (playtest 2026-10-28). Where the arm runs along the pole
+		// (the shoulder nearly straight down it) the tool's own palm side stays.
+		const FVector ToShoulder = MeleeMotion::ShoulderPoint() - Grip.GetLocation();
+		const FVector Across = ToShoulder - Along * FVector::DotProduct(ToShoulder, Along);
+		const float Share = FMath::Clamp(static_cast<float>(Across.Size() / FMath::Max(ToShoulder.Size(), 1.0)) / 0.3f, 0.f, 1.f);
+		if (Share > 0.f)
+		{
+			const FVector Knuckles = (-Across.GetSafeNormal() * Share + Fingers * (1.f - Share)).GetSafeNormal(UE_SMALL_NUMBER, Fingers);
+			// The right hand's palm for those knuckles on this handle (OnHandle's Fingers = Along x Palm, turned round).
+			FirstPersonHandsGrips::OnHandle(EFirstPersonHand::Right, Along, FVector::CrossProduct(Knuckles, Along), 0.f, Fingers, Palm);
+		}
+	}
 	// The forearm behind the knuckles and down, out toward the right shoulder (the framing slants it out of view after).
 	const FVector Forearm = (-Fingers + FVector(-0.4f, 0.35f, -0.5f)).GetSafeNormal();
 	FHandPlacement Placement = FHandPlacement::Make(Grip.GetLocation(), Fingers, Palm, ClosedRound(), Forearm);

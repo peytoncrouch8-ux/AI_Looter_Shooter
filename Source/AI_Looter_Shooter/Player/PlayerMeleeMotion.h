@@ -93,6 +93,9 @@ namespace MeleeMotion
 	/** How long the right hand takes to leave the grip for the tool, and to come back to it at the end (seconds). */
 	inline constexpr float HandSeconds = 0.04f;
 
+	/** The right shoulder every arc swings from (camera space): under the eye, a little back and out to the right. */
+	AI_LOOTER_SHOOTER_API FVector ShoulderPoint();
+
 	/** A heft's scale on the wind-up's size and the view's jolts: quick 0.8, steady 1, heavy 1.25 (Looter.Melee.Heft.*). */
 	AI_LOOTER_SHOOTER_API float HeftScale(EMeleeHeft Heft);
 
