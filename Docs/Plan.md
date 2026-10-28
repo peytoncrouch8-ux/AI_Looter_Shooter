@@ -86,8 +86,8 @@ into Ransom's Rest's opening.
 ## Phases 6-11: from the cloud session
 
 These phases came from the user's cloud session of 2026-10-02 to 2026-10-05 (handoff: `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`,
-which has the full spec of 7-11; its files were brought in on 2026-10-07). Phase 6 was renewed on 2026-10-08, Phase 8 is built;
-the others are not started.
+which has the full spec of 7-11; its files were brought in on 2026-10-07). Phase 6 closed, 8, 9, 10 and 11 built; 7's
+round 2 waits (tutorial island; the user 2026-10-28: stay on Ransom's Rest, the core-loop freeze).
 
 ## Phase 6: The art style
 
@@ -149,23 +149,16 @@ On 2026-10-04 the user picked three ideas from a brainstorm (full spec in the cl
 On 2026-10-04 the user played a demo of six ember powers (<https://claude.ai/artifact/MeXAwqdJdX4SYGDzhEy4xR>, sources in
 `Docs/EmberDemo/`) and kept four, for the main session to revise: Lucky Streak (ricochets and critical hits), Dust Devil (a dash
 that flings creatures aside), Slag Bomb (a burning pool), Spyglass (marks creatures through walls). With the heroes (Phase 11) they
-became four of the heroes' fifteen powers; the outlaws' embers no longer give powers. Nothing in the code has changed yet.
-- [ ] The ember component, definitions, keys and saving.
-- [ ] The creatures' knocked, dizzy, burning and marked states.
-- [ ] The fifteen powers and their effects, in the chosen art style, the four from the demo first.
-- [ ] The HUD's ember sockets and the inventory's ember page.
-- [ ] Tests, measured on Medium, `CODEMAP.md` updated.
+became four of the heroes' fifteen powers; the outlaws' embers no longer give powers. Built from 2026-10-16 (rounds and state:
+`Docs/Pipeline/EmberPowers.md`; component, definitions, powers, creature states, HUD sockets, tests).
 
 ## Phase 11: Playable heroes
 
 On 2026-10-05 the user approved five playable heroes to choose from, as in Borderlands, each with three ember powers
 (<https://claude.ai/artifact/5NVdW7yTzReFkP3wvaxbyg>, sources in `Docs/HeroSelect/`): Ellis Ransom the Revenant, Odessa Lark the
 Cardsharp, Hollis Crane the Unpaid, Gauge the Iron Hand and Wendell Pike the Surveyor. Their models are Blender scripts in
-`Art/Backlog/Characters/`, rigged on the mannequin's skeleton. Nothing in the game has changed yet.
-- [ ] The five brought in and retargeted from the mannequin, materials merged, checked in first and third person.
-- [ ] Hero definitions, the hero select screen, and the session's hero and its saving.
-- [ ] Four new portraits for the player frame.
-- [ ] `Docs/Story.md` updated for the five; tests; `CODEMAP.md` updated.
+`Art/Backlog/Characters/`, rigged on the mannequin's skeleton. Built (the hero pick 2026-10-19, portraits, models and fit
+passes, melee tools: `Docs/Pipeline/Heroes.md`, `Docs/Pipeline/CharacterModels.md`).
 
 ## Phase 12: Core loop (the freeze, 2026-10-21)
 
