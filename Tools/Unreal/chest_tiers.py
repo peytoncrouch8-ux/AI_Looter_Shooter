@@ -17,7 +17,9 @@ TIERS = {
     # Gravemother's den; the bluff path's up the lookout's stair (a climb, a view).
     'RangerCache_Windmill': 2,
     'RangerCache_SinkRim': 3,
-    'RangerCache_BluffPath': 3,
+    # The first chest Main 2 sends the player to (the swap lesson beside the coffin's Common Bullpup): a T3 gave a Rare
+    # shotgun and an Uncommon sniper at level 1 (overnight playtest 2026-10-28), so T2.
+    'RangerCache_BluffPath': 2,
     # The gang's Strongbox in the sheriff's office (Calder's Caches; opens from its step 1).
     'GangStrongbox': 4,
     # The encounters' camps' crates (build_area_camps.py, build_area_fights_mountain.py): guarded by the camp.
