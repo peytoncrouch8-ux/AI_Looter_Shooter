@@ -53,6 +53,18 @@ colossal sea wall, crest station +60 m, lifts and coal chutes to the quay). Each
 (180 x 24 m; Ned's ring 22 m), arrival sketch, five fight rings. Placeholder names: Fjord Head, Kestrel Fjord, Gilt Harbor,
 Hulltown, the Sovereign, the Anvil, The Crest, The Tiers.
 
+Main's view to the user: F Hulltown most enjoyable (landmark, inside/outside fights), A Crescent Bay the safest hub; G's
+climbs tire on backtracking, C's maze frustrates. **The user's pick (2026-10-28): Hulltown in Crescent Bay** (the wreck town
+on the horseshoe harbor); two variants H1/H2 drawn (`gen3.js`). **Boarding: Ned's crew is hostile from the start** (the
+user; not a guest stretch, not stealth); each map gets a boarding panel.
+
+H1 Along the Curve: the Sovereign's three pieces along the bay's inner curve, town and station in the stern, "Wreck Row"
+the corridor street through all three, bow on the north shore by the docks; launch from the bow (long ride); board at the
+Lily's stern ladder, first fight the aft deck (16 m). H2 The Spine: the wreck runs bow-first from the curve across the bay
+to the mouth, splitting a harbor (docks, north) from a lagoon of flats (south); town in the beached bow, ring roads north
+and south, the wreck the only way across to the stern's launch stage (short ride); board by the starboard gangway, first
+fight the starboard promenade (14 m). Pick pending.
+
 ## Open (ask the user at the Lily's start)
 - The port's name (Highwater Landing was a canyon-rim name; keep or rename) and Saint Hester's role.
 - Shore creature kinds and a bestiary page each; Carrion Gulls (Story roster) on the cliffs?

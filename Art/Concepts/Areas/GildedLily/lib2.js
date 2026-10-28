@@ -115,8 +115,13 @@ function skFrame(x, y, inner, caption) {
 }
 
 // ---------- the liner's played decks at true scale ----------
+// Where a deck point (deck 0-2, t along -0.5..0.5 stern to bow, v across -0.5..0.5) lands on the page.
+function shipXY(cn, deck, t, v) {
+	const P = { ...SHIP, y: SHIP.y + (cn.shift || 0) }, Lh = P.w - 120, kpm = Lh / 180, Wd = 24 * kpm, cx = P.x + P.w / 2 + 20;
+	return [cx + t * Lh, P.y + 136 + Wd / 2 + deck * (Wd + 66) + v * Wd, kpm];
+}
 function shipPanel(cn) {
-	const P = SHIP, Lh = P.w - 120, kpm = Lh / 180, Wd = 24 * kpm, cx = P.x + P.w / 2 + 20;
+	const P = { ...SHIP, y: SHIP.y + (cn.shift || 0) }, Lh = P.w - 120, kpm = Lh / 180, Wd = 24 * kpm, cx = P.x + P.w / 2 + 20;
 	const dy = i => P.y + 136 + Wd / 2 + i * (Wd + 66);
 	const X = t => cx + t * Lh, Y = (i, v) => dy(i) + v * Wd;
 	const lab = (x, y, s, o = {}) => text(x, y, s, { size: o.size || 17, weight: 700, fill: o.fill || '#f6e7c1', haloW: 5, ls: o.ls === undefined ? 1.5 : o.ls, anchor: o.anchor });
@@ -256,12 +261,13 @@ function section(x, y, w, title) {
 	return `<line x1="${x}" y1="${y + 7}" x2="${x + w}" y2="${y + 7}" stroke="${C.line}" stroke-opacity="0.35"/><rect x="${x}" y="${y - 14}" width="${title.length * 12 + 18}" height="28" fill="#071a28"/>` + text(x + 2, y + 8, title, { size: 19, weight: 700, fill: C.title, anchor: 'start', halo: false, ls: 2.5 });
 }
 function page(cn) {
-	let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W2}" height="${H2}" viewBox="0 0 ${W2} ${H2}">${L.defs().replace('</defs>', skDefs() + '</defs>')}`;
-	s += `<rect width="${W2}" height="${H2}" fill="#06121c"/>`;
+	const HH = H2 + (cn.shift || 0);
+	let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W2}" height="${HH}" viewBox="0 0 ${W2} ${HH}">${L.defs().replace('</defs>', skDefs() + '</defs>')}`;
+	s += `<rect width="${W2}" height="${HH}" fill="#06121c"/>`;
 	s += text(32, 66, 'THE GILDED LILY', { size: 48, weight: 700, fill: '#f6e7c1', anchor: 'start', halo: false, ls: 3 });
-	s += `<rect x="470" y="26" width="${f1(cn.name.length * 23 + 200)}" height="52" rx="4" fill="${C.accent}"/>`;
+	s += `<rect x="470" y="26" width="${f1(cn.name.length * 23 + 50 + `CONCEPT ${cn.key}`.length * 15.6)}" height="52" rx="4" fill="${C.accent}"/>`;
 	s += text(488, 63, `CONCEPT ${cn.key}`, { size: 25, weight: 700, fill: '#1a0f00', anchor: 'start', halo: false, ls: 1 });
-	s += text(640, 64, cn.name.toUpperCase(), { size: 29, weight: 700, fill: '#1a0f00', anchor: 'start', halo: false, ls: 2 });
+	s += text(488 + `CONCEPT ${cn.key}`.length * 15.6 + 14, 64, cn.name.toUpperCase(), { size: 29, weight: 700, fill: '#1a0f00', anchor: 'start', halo: false, ls: 2 });
 	s += text(32, 100, cn.subtitle, { size: 18, weight: 400, fill: C.dim, anchor: 'start', halo: false });
 	s += `<rect x="${COL.x}" y="22" width="${COL.w}" height="64" rx="4" fill="#0e2c42" stroke="${C.line}" stroke-width="1.5"/>`;
 	s += text(COL.x + 18, 46, `${cn.kind} · PLAYS`, { size: 14, weight: 700, fill: C.dim, anchor: 'start', halo: false, ls: 2 });
@@ -300,8 +306,9 @@ function page(cn) {
 	const leg = [[L.step(0, 0, 1).replace('<g transform="translate(0 0)">', '<g transform="translate(0 0) scale(0.8)">'), 'path'], [L.giver(0, 0), 'mission'], [`<circle r="10" fill="none" stroke="${C.crew}" stroke-width="3" stroke-dasharray="5 3"/>`, "Ned's crew"], [`<circle r="10" fill="none" stroke="${FIGHT.beast}" stroke-width="3" stroke-dasharray="5 3"/>`, 'creatures'], [`<circle r="10" fill="none" stroke="${C.line}" stroke-width="3" stroke-dasharray="5 3"/>`, 'bounty'], [L.chest(0, 0), 'chest'], [L.secret(0, 0), 'secret']];
 	let lx = px + 10;
 	for (const [ic, lb] of leg) { s += `<g transform="translate(${lx} ${y - 6})">${ic}</g>` + text(lx + 18, y, lb, { size: 15, weight: 400, fill: C.dim, anchor: 'start', halo: false }); lx += 26 + lb.length * 7.4 + 12; }
-	s += shipPanel(cn);
+	s += `<g id="shipDecks">${shipPanel(cn)}</g>`;
+	if (cn.boarding) s += cn.boarding(cn);
 	return s + '</svg>';
 }
 
-module.exports = { W2, H2, MAP2, COL, SK, fight, bigLabel, scaleBar, compass, skSky, skLiner, skShape, skTown, skLamp, skPlatform, page, FIGHT };
+module.exports = { W2, H2, MAP2, COL, SK, fight, bigLabel, scaleBar, compass, skSky, skLiner, skShape, skTown, skLamp, skPlatform, page, FIGHT, shipXY, skFrame, SHIP };
