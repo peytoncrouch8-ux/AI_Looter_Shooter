@@ -194,6 +194,7 @@ bool FUnpaidKitPackStepTest::RunTest(const FString& Parameters)
 	const FUnpaidFightTuning Tuning;
 	TestTrue(TEXT("A gap of a second or so: a pack still presses"), Tuning.PackStepGap > 0.f && Tuning.PackStepGap <= 2.f);
 	TestTrue(TEXT("A jitter of a second or two"), Tuning.StepJitter > 0.f && Tuning.StepJitter <= 2.f);
+	TestTrue(TEXT("A beat after a blink lands, shorter than its cooldown"), Tuning.ArrivalHold > 0.2f && Tuning.ArrivalHold < 1.5f);
 	const float Gap = Tuning.PackStepGap;
 	FUnpaidStepGate Gate;
 	TestTrue(TEXT("The first may step"), Gate.MayStep(1, false, 0.0, Gap));

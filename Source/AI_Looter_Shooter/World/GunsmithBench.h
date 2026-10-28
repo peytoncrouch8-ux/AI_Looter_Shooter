@@ -10,7 +10,8 @@ class UStaticMeshComponent;
 
 /**
  * A plain gunsmith's bench (the user's call, 2026-10-08: "a plain gunsmith's bench now, in Skyreach's village and in Ransom's
- * Rest, usable from the start; Ozias takes it over when the Gilded Lily comes"). A tap of Interact at it opens the bench's
+ * Rest, usable from the start; Ozias takes it over when the Gilded Lily comes"); Ransom's Rest's was taken out 2026-10-28 (the
+ * user: "Gun parts bench shouldn't be unlocked until the lily"). A tap of Interact at it opens the bench's
  * screen (ALooterHUD::OpenBench, UBenchWidget): the player scraps guns they carry for one part each, kept in the parts box
  * (UWeaponManagerComponent), and fits parts from the box onto guns of the same kind (WeaponPartSwap has the rules).
  *

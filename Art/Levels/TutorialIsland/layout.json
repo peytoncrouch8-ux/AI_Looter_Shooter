@@ -134,9 +134,6 @@
     "levels": { "about": "Skyreach's creatures are level 1, wherever they stand and whatever the player's level: a practice island (Docs/Progression.md, \"Creature levels\"; Tools/Unreal/create_area_assets.py writes the band into DA_Area_Skyreach).", "band": [1, 1] },
     "rackWeapon": "/Game/Weapons/Data/DA_AssaultRifle",
     "jetty": { "at": [-6923, 7078], "yaw": 126.3 },
-    "benches": [
-      { "id": "Bench_Village", "at": [850, -700], "yaw": 90, "note": "the gunsmith's bench beside the gun rack, facing the road junction (build_area_benches.py)" }
-    ],
     "seed": 7,
     "creatures": [
       { "class": "SpiderCreature", "label": "Spider", "count": 6, "center": [5800,5600], "spread": 1250, "spacing": 700, "respawns": false, "note": "Web Hollow, the webbed clearing on the forest rise (the user, 2026-10-08: six, spread through the hollow, never coming back)" },

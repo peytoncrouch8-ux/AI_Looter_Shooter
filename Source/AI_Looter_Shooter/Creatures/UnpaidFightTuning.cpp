@@ -40,6 +40,8 @@ namespace
 		TEXT("1: an Unpaid starts no melee turn and flies no lunge without a clear line at its target; out of sight it lets its turn go and may step to where it sees them."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarPackStepGap(TEXT("Looter.Unpaid.PackStepGap"), KitDefaults.PackStepGap,
 		TEXT("At most one Unpaid phase-step or flank at one player every this many seconds (an owed press step first); 0: no gap."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarArrivalHold(TEXT("Looter.Unpaid.ArrivalHold"), KitDefaults.ArrivalHold,
+		TEXT("After a phase-step or flank lands, no attack starts for this long (s): a beat to see it."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarStepJitter(TEXT("Looter.Unpaid.StepJitter"), KitDefaults.StepJitter,
 		TEXT("Spawning or noticing a target, an Unpaid's next phase-step waits up to this much longer (s), so a pack doesn't blink as one."), ECVF_Default);
 
@@ -164,6 +166,7 @@ FUnpaidFightTuning FUnpaidFightTuning::Live()
 	Numbers.Sight = CVarSight.GetValueOnGameThread();
 	Numbers.PackStepGap = Positive(CVarPackStepGap);
 	Numbers.StepJitter = Positive(CVarStepJitter);
+	Numbers.ArrivalHold = Positive(CVarArrivalHold);
 	Numbers.RakeRange = Positive(CVarRakeRange);
 	Numbers.RakeChance = Share(CVarRakeChance);
 	Numbers.RakeWindup = AtLeast(CVarRakeWindup, 0.1f);

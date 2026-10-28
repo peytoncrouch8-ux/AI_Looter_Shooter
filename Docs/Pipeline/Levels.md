@@ -145,7 +145,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     its forest road until 2026-10-08).
   - The bridge's one flagged spot on the keeper's path is the step onto its deck.
 - Gameplay pieces from the layout's `gameplay` block need no generator run (read straight from `layout.json`): jetty, landings,
-  posters, the gunsmith's benches (`gameplay.benches`, `build_area_benches.py`). `build_area.py <Area> gameplay` places them again.
+  posters, the gunsmith's benches (`gameplay.benches`, `build_area_benches.py`; Ransom's Rest has none since 2026-10-28, its old one
+  removed by `Tools/Unreal/remove_rr_bench.py`). `build_area.py <Area> gameplay` places them again.
   Also from it (2026-10-09):
   - encounters between the story's fights (`gameplay.encounters`, `build_area_camps.py`): camps with a Supply Crate
     (`CampCache_<id>`), patrols on a road, ambushes that rise or drop when the player walks in. Each waits for a story step and keeps

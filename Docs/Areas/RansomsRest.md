@@ -185,6 +185,8 @@ fences, dark pines on Larkspur Ridge, the canyon's blue haze to the west and a l
 
 - **Ransom Farm, Orchard and Family Plot** (spawn), (−70, −38), +4 m. Used by Main 1, 6, 7.
   - The existing Farmhouse (−58, −40) with black crepe on the door, plus the Barn, Well and Outhouse.
+  - No gunsmith's bench: the one by the barn (Bench_Farm) was removed 2026-10-28 (the user: "Gun parts bench shouldn't be
+    unlocked until the lily"); part swapping first appears with Ozias after the *Lily*.
   - The family plot (−86, −36) under a dead oak, inside a picket fence: 8 old headboards, Ellis's fresh grave and Abel's
     frosted one.
   - The amber orchard runs down the terrace's east edge as an avenue on both sides of the farm road.
@@ -667,7 +669,7 @@ however strong the player comes back, so it is easy and low-XP to revisit. What 
 - **Tilly's parlor** becomes the grave-goods vendor once currency exists.
 - **The hub changes cheaply:**
   - A little color returns to the orchard with each ember paid (material swaps).
-  - Ozias Penhallow arrives after the *Lily*, and Ruth's tent after Dustwater.
+  - Ozias Penhallow arrives after the *Lily* (with him the gunsmith's bench: part swapping), and Ruth's tent after Dustwater.
   - A new-moon night version serves the end of Act II.
   - Hanging Moon nights come in the endgame.
 - **Revisits:** the Gravemother and the placed creatures come back; promotions reroll after 20 minutes of play. Abel isn't

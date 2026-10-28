@@ -43,6 +43,11 @@ bool AUnpaidCreature::CanStartAttack() const
 	{
 		return false;
 	}
+	// Nor right after a blink lands (SinceLastStep restarts as it's whole again): a beat to see where it came back.
+	if (HasFightKit() && SinceLastStep < FUnpaidFightTuning::Live().ArrivalHold)
+	{
+		return false;
+	}
 	// Nor at a target it can't see (asked last: its trace, kept a moment, only when all else says go).
 	const APawn* Victim = GetTarget();
 	return !Victim || !NeedsSight() || SeesTarget(*Victim);

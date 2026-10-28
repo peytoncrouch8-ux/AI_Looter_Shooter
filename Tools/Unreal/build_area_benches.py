@@ -1,7 +1,8 @@
 """The gunsmith's benches (World/GunsmithBench: AGunsmithBench), for build_area.py's gameplay pass: one at each spot of
 layout.json gameplay.benches ({"id", "at": [X, Y], "yaw"}, the yaw the way its front faces, where the player stands to
 use it), labeled by its id in the Gameplay folder and tagged Obstacle for the minimap. The user's call (2026-10-08): a
-plain bench now, in Skyreach's village and at Ransom Farm, until Ozias Penhallow takes over after the Gilded Lily.
+plain bench now, in Skyreach's village, until Ozias Penhallow takes over after the Gilded Lily. Ransom Farm's was taken out
+(2026-10-28, the user: "Gun parts bench shouldn't be unlocked until the lily"; remove_rr_bench.py removed the placed one).
 
 A bench stands on the lowest ground under its four corners, so no leg hangs in the air on a slope (the higher ones sink
 a little into the ground). Without the game module's class yet it's left out with a warning.

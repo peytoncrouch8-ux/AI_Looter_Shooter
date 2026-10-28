@@ -140,7 +140,8 @@ On 2026-10-04 the user picked three ideas from a brainstorm (full spec in the cl
 - Cursed irons: 6% of Rare-or-better drops; a strong perk with a real drawback; lifted at 100 notches or with Tilly's grave salt
   (the salt waits for Tilly's shop and grave gold).
 - Part swapping at Ozias's bench: scrap a gun to keep one part, fit parts onto guns of the same kind. The user's call: a plain
-  gunsmith's bench now, in Skyreach's village and at Ransom Farm; Ozias takes it over after the *Lily*.
+  gunsmith's bench (none placed now); Ransom Farm's and the tutorial island village's were removed 2026-10-28 (the user: "Gun parts bench shouldn't be
+  unlocked until the lily"): part swapping first appears with Ozias after the *Lily*.
 - Tests for all three, `CODEMAP.md` updated.
 - [ ] The user plays them; numbers tuned (notch bonuses, curse rates and effects).
 

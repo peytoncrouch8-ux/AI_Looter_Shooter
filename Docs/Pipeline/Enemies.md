@@ -386,6 +386,10 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
 - Blind spell (rerun: 529 let-go lines in 75 s): one that lets a turn go for want of sight asks for none until it sees the
   player again (`TickBlindTurn`; director rest 0.6 s renewed under 0.3 s, cut to nothing on sight; logged once a spell).
 - `Looter.Unpaid.PackStepGap` 0.8 -> 1.2 (at 0.8 a busy fight blinked like a metronome, ~70 a minute).
+- Round 2 rerun: the dais and the nave floor are reached (dais 28 attacks, 20 hits; 8 let-go lines, was 529), but steps
+  to sight landed 1.5 m off, inside the rake's 2.6 m, and raked at once (nave floor: 21 of 22 hits rakes, a standing player
+  dead in 12 s). Now `Looter.Unpaid.ArrivalHold` 0.6 s: no attack starts that soon after a step or flank lands
+  (`CanStartAttack`, kit only, on `SinceLastStep`). Yard two waves (kite): cleared, lowest 33/124; pack gap >= 1.2 s.
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
   arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.

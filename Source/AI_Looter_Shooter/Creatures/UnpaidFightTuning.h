@@ -84,6 +84,12 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	float PackStepGap = 1.2f;
 	/** Looter.Unpaid.StepJitter: spawning or noticing a target, an Unpaid's next phase-step waits up to this much longer (s, rolled each), so a pack doesn't blink as one. */
 	float StepJitter = 1.5f;
+	/**
+	 * Looter.Unpaid.ArrivalHold: after a phase-step or flank lands it starts no attack for this long (s): the player gets a beat
+	 * to see it. DEMO 2026-10-28: steps to sight land 1.5 m off, inside the rake's 2.6 m, and raked at once (21 of 22 hits on
+	 * the nave floor; a standing player dead in 12 s).
+	 */
+	float ArrivalHold = 0.6f;
 
 	// --- The rake (the second attack) ---
 	/** Looter.Unpaid.RakeRange: nearer than this (cm) it may rake instead of lunging. */
