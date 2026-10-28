@@ -33,16 +33,19 @@ Every set keeps the in-game outlines and the same attach points (table above; ea
 **Set 1: Saint Maud** (the closest of the four: ivory-sand shell, dark iron, brass trim; it is the plainest set, not
 ornate). Folders and sizes in the table above.
 
-**Set 2: Roundhouse** (oxblood paint, black iron, brass trim, cream; heavy, industrial, big magazine).
+**Set 2: Roundhouse** (redrawn 2026-10-27 as new designs: the user rejected recoloured set-1 shapes). Heavy and
+industrial: oxblood paint, black iron, big brass rivets, cream stencil stripes. New silhouettes; only the interfaces are
+set 1's (barrel-nut face at (51.9, 0) r 1.25, butt-plate boss at (0, -3.3), magazine well u 10.4-17.6 at v -5.6 and 2.4
+wide, rail top v 6.15 over u 14-32 with the sight origin at 23, grip hand at (22.5, -10)). Drawn by `render.js --upload` (the rh* functions).
 
-| Folder | Key | Size | Look |
+| Folder | Key | Size | Design |
 |---|---|---|---|
-| `Body_Armored` | Armored | 52.2 x 21.4 x 6.7 | Oxblood shell, black iron armour plates with brass rivets and edge, vents through the nose plate, brass handle and nut ring, cream pinstripe |
-| `Barrel_Heavy` | Heavy | 17 x 2.6 x 2.6 | Black bull barrel with cooling grooves, cream paint band, brass collar, three ember heat rings |
-| `Muzzle_BoxBrake` | BoxBrake | 7.4 x 3.4 x 3.8 | Black iron box, ember blast through three ports, oxblood band, bolted brass face plate |
-| `Magazine_Drum` | Drum | 13.6 x 17.6 x 6.3 | Oxblood drum, iron rim with rivets, stamped spokes, cream ring, ember ring, brass caps with winding keys |
-| `Sight_Holo` | Holo | 11 x 6.8 x 3.4 | Oxblood hood with ribs and brass rivets, black base, cream cap with a cyan bar, red dot in the glass |
-| `Stock_Monopod` | Monopod | 4 x 20.4 x 5.2 | Black pad on a black bracket, oxblood leg sleeve, brass collar, steel leg, rubber foot |
+| `Body_Armored` | Armored | 52.2 x 22.6 x 7.4 | Blocky oxblood slab receiver, riveted iron armour plate, iron rail beam on gussets the length of the gun, squared iron handguard with ember slots and a brass front band, chunky grip with an oxblood panel, heavy bar trigger guard, brass T-knob charging handle (left), hinged ejection hatch (right), cream chevrons, sling bar |
+| `Barrel_Heavy` | Heavy | 18 x 3.8 x 3.8 | Thick squared iron shroud with ember in five slots and brass rivets, oxblood end cap, round barrel out of it, brass collar at the nut |
+| `Muzzle_BoxBrake` | BoxBrake | 9.9 x 6.4 x 5.2 | Oversized iron box brake, three ports with ember blast, oxblood baffle fins standing proud, bolted brass face plate, knurled threaded collar |
+| `Magazine_Drum` | Drum | 12.6 x 10 x 13.3 | Pan drum hanging upright under a riveted feed neck: oxblood can, iron lid, hoop and base, cartridge window, cream band, brass crank (right) |
+| `Sight_Holo` | Holo | 11.6 x 7 x 3.9 | Riveted oxblood holo box inside an iron roll cage, heavy clamp with hex bolts, cream stripe, red dot in the glass |
+| `Stock_Monopod` | Monopod | 15.3 x 21.6 x 5.2 | Heavy brace stock: iron beams round an oxblood web with two lightening holes, thick ribbed pad, folding monopod (oxblood sleeve, brass collar, steel spike) |
 
 **Set 3: Windfall** (sea-teal paint over rust, bare steel, tape, copper; rattly, scrap-built).
 
@@ -55,16 +58,21 @@ ornate). Folders and sizes in the table above.
 | `Sight_Reflex` | Reflex | 7 x 5.2 x 2.6 | Chipped teal hood welded to a steel base, tape patch, glass window |
 | `Stock_Skeleton` | Skeleton | 10.3 x 11.8 x 5.2 | Rust frame with old teal paint, taped top bar, welded joint, cracked black pad |
 
-**Set 4: Meridian** (deep navy, nickel, walnut-dark, brass; clean and precise, small magazine).
+**Set 4: Meridian** (clean and precise; satin-white and graphite polymer, machined aluminium, fine brass, a cyan accent
+line). Redrawn 2026-10-27 as six new designs (the user rejected set 1's outlines recoloured): own silhouettes and
+construction, only the interfaces kept (barrel-nut face (51.9, 0) r 1.25 with a 3.2 cm barrel collar on it, butt plate
+-8.4..1.8 with the boss at (0, -3.3), magazine top 10.4..17.6 at v -5.6, rail top 6.15 over u 14-32, grip centre
+(22.5, -10)). Script: `node Art/Concepts/Weapons/AR/render_set4.js [Folder ...]` (upload images only; render.js still
+holds the older navy set 4 code, unused).
 
 | Folder | Key | Size | Look |
 |---|---|---|---|
-| `Body_Marksman` | Marksman | 52.2 x 21.4 x 5.7 | Navy shell, nickel plates with brass rivets, walnut cheek rest, nickel rails (top and under the nose), thumb rest, brass nut ring |
-| `Barrel_Marksman` | Marksman | 24 x 5.2 x 2 | Long navy barrel with etched rings, nickel gas block and front-sight block, brass bands and crown, post with a cyan dot |
-| `Muzzle_Compensator` | Compensator | 5.4 x 2.3 x 2.3 | Nickel body, ember in three top ports, navy band, brass ring |
-| `Magazine_20` | 20 | 8.2 x 11.2 x 2.8 | Navy steel with witness holes (brass behind), engraved border, nickel lips and base plate |
-| `Sight_RedDot` | RedDot | 9.2 x 4.4 x 3.7 | Navy tube, nickel clamp and rings, brass-lipped sunshade, cyan LED knob (right), red dot in the eyepiece |
-| `Stock_Cheek` | Cheek | 12.7 x 14.2 x 5.2 | Black pad on a nickel plate, walnut cheek rest with checkering on brass posts |
+| `Body_Marksman` | Marksman | 52.2 x 22.3 x 5.5 | Long streamlined shell: satin-white upper, graphite lower split by one flowing parting line with a cyan inlay; raised comb over the butt, flat spine with a flush low graphite rail and faired ends, long tapering snout to a brass-ringed nut, six ember heat slits in a recessed strip on the nose cap; flush brushed-aluminium side panel (ejection cover in it on the right), hand-stop lip, separate raked stippled grip with an aluminium cap, slim swept guard, flat aluminium trigger, charging slot and tab on the left, brass pins and selector, aluminium mag-well flare and QD cups |
+| `Barrel_Marksman` | Marksman | 24 x 3.2 x 3.2 | Thin graphite barrel, three visible flutes each side of a low aluminium gas block, aluminium seating collar with wrench flats, fine brass ring, bare-steel muzzle threads; back face keeps the threaded boss and brass key |
+| `Muzzle_Compensator` | Compensator | 5.0 x 2.1 x 2.1 | Slim graphite body, four raked side ports (ember inside), milled top flat, bright machined front chamfer, brass ring, sleeve with wrench flats |
+| `Magazine_20` | 20 | 9.2 x 11.3 x 2.9 | Short graphite 20, slight forward curve, molded border, smoked witness window showing the brass stack with index ticks (top one cyan), grip grooves, aluminium feed lips, machined base plate with a toe, brass pin and cyan inlay |
+| `Sight_RedDot` | RedDot | 6.9 x 5.4 x 4.0 | Compact enclosed dot: graphite housing with a raked hood and side pocket, aluminium window bezels, coated front lens, red dot centred in the rear window (SOCKET_Aim (20.2, 8.95)), aluminium elevation cap with brass ring, brass windage cap and battery tray (right), +/- buttons (left), brushed aluminium clamp with a knurled thumb nut (right), cyan accent |
+| `Stock_Cheek` | Cheek | 10.2 x 14.7 x 5.7 | Adjustable: aluminium seat plate (boss and guide slots as set 1), two aluminium rods and a marked graphite lock bar for length, a swept two-tone block with a cyan line, satin-white cheek riser on brass posts, lock knob (right) or index plate (left), aluminium spacer, curved black rubber pad, QD cup |
 
 What changed from the in-game parts in set 1 (all inside the old silhouettes):
 - **Body:** butt-cap and nose-cap seams, seven hex screws, ribbed gunmetal plates with a border groove, a ported bolt on
