@@ -63,7 +63,10 @@ the corridor street through all three, bow on the north shore by the docks; laun
 Lily's stern ladder, first fight the aft deck (16 m). H2 The Spine: the wreck runs bow-first from the curve across the bay
 to the mouth, splitting a harbor (docks, north) from a lagoon of flats (south); town in the beached bow, ring roads north
 and south, the wreck the only way across to the stern's launch stage (short ride); board by the starboard gangway, first
-fight the starboard promenade (14 m). Pick pending.
+fight the starboard promenade (14 m). **The user's pick (2026-10-28): H2 The Spine** ("H2 is what we will go with"):
+the layout to build from (`H2_TheSpine.png/.svg`). The Sovereign's backstory is open: Main suggested the Lily's older sister
+(Ned's first casino), an emigrant ship Saint Hester ran aground to save its passengers (Main's pick: ties the port's saint
+in), or a grave-gold freighter; the name is a placeholder.
 
 ## Open (ask the user at the Lily's start)
 - The port's name (Highwater Landing was a canyon-rim name; keep or rename) and Saint Hester's role.

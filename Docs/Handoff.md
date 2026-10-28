@@ -25,7 +25,8 @@ All pushed (last: 683405f9 + this handoff). Nothing played by the user yet. Cont
 - Plan.md refreshed (phases 9-11 built); the user: stay on Ransom's Rest, no tutorial-island work.
 - The Gilded Lily DESIGN only (the user: "I don't want to make the gilded lily yet"): Docs/Areas/GildedLily.md. A
   Titanic-like liner anchored at sea (not an airship), bigger than RR, town first and ship last, Ned's rigged card game,
-  slots, Ozias. Three top-down concept maps: Art/Concepts/Areas/GildedLily/ (the user asked; sent as PNG).
+  slots, Ozias, hostile boarding. Concept maps A-H2 in Art/Concepts/Areas/GildedLily/; **the user picked H2 The Spine**
+  (Hulltown in Crescent Bay: a beached wreck, the Sovereign, across the bay). Still not to build until the user says.
 - Element answer given to the user: Ember, Soul-light, Grave-salt; any maker; Saint Maud element parts x3.
 
 ## 2026-10-28 day (the user at work, no playtest from them)
