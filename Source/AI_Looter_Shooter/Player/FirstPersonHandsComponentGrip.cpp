@@ -6,6 +6,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponModelComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Camera/CameraComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
@@ -40,6 +42,38 @@ float UFirstPersonHandsComponent::NextTriggerReady(const AWeaponBase& Weapon, fl
 	return TriggerReady;
 }
 
+FHandsCupFit UFirstPersonHandsComponent::CupFitFor(const UWeaponModelComponent& Model, EWeaponKind Kind, bool bAtRest) const
+{
+	// The gun as assembled: this model, its kind and its parts' meshes (a swap at the bench or another gun changes it).
+	uint32 Key = HashCombine(HashCombine(GetTypeHash(&Model), static_cast<uint32>(Kind) + 1u), FirstPersonHandsGrips::CupFitSettings());
+	for (const UStaticMeshComponent* Part : Model.GetParts())
+	{
+		Key = HashCombine(Key, GetTypeHash(Part ? Part->GetStaticMesh() : nullptr));
+	}
+	if (Key == CupFitKey)
+	{
+		return CupFit;
+	}
+	if (!bAtRest)
+	{
+		return FHandsCupFit();
+	}
+	CupFitKey = Key;
+	CupFit = FirstPersonHandsGrips::FitCup(Model, Kind);
+	const FGunHands& Table = FirstPersonHandsGrips::For(Kind);
+	if (CupFit.bFitted)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Cup fit, %s: underside %s (the table's %.2f), half width %.2f (the table's %.2f; 0: not measured)."),
+			*UEnum::GetValueAsString(Kind), *CupFit.Under.ToCompactString(), Table.CupShape.Offset.Z - Table.CupShape.HalfAcross, CupFit.HalfWidth,
+			Table.CupShape.HalfThrough);
+	}
+	else if (Table.bCup)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Cup fit, %s: no underside found on the parts; the table's cup."), *UEnum::GetValueAsString(Kind));
+	}
+	return CupFit;
+}
+
 void UFirstPersonHandsComponent::ReportGrip() const
 {
 	if (!Rig.IsBound() || PosedSpace.IsEmpty())
@@ -52,6 +86,8 @@ void UFirstPersonHandsComponent::ReportGrip() const
 	auto InGun = [&](const FVector& Camera) { return LastGun.ToCamera.InverseTransformPosition(Camera) / Scale; };
 	UE_LOG(LogLooter, Display, TEXT("Grip report, %s (gun cm, modeled; drawn x%.2f; arms x%.2f), trigger ready %.2f"),
 		*UEnum::GetValueAsString(LastGun.Kind), Scale, MeshToCamera.GetScale3D().X, LastGun.TriggerReady);
+	UE_LOG(LogLooter, Display, TEXT("  Cup: %s, underside %s from the grip, half width %.2f"), LastGun.Cup.bFitted ? TEXT("fitted to the parts") : TEXT("the table's"),
+		*LastGun.Cup.Under.ToCompactString(), LastGun.Cup.HalfWidth);
 	for (const EFirstPersonHand Hand : { EFirstPersonHand::Right, EFirstPersonHand::Left })
 	{
 		const int32 Side = FirstPersonHands::Index(Hand);

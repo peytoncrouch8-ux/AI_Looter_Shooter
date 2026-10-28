@@ -6,7 +6,9 @@
 // the magazine of the LMG, the left hand does not need to be towards the front of the gun. Keep this in mind for all
 // weapons."): palm up under each gun's middle, fingers curled up round its far side, the thumb along its near side, the
 // forearm up from under the frame. Spots read off the models (Art/Models/Weapons/<Gun>.py: u, v, w are X, Z and -Y here),
-// from each gun's SOCKET_Grip, cm of the modeled gun (the game draws it bigger and scales these with it). Tuned live with
+// from each gun's SOCKET_Grip, cm of the modeled gun (the game draws it bigger and scales these with it). These are each
+// kind's spot along the gun and its fallback: how high and wide the underside is comes from the gun's own parts when they
+// say (FitCup, FirstPersonHandsCupFit.cpp: another body or magazine than the one read here). Tuned live with
 // the support hand's Looter.Hands.Support* console variables (they move the cup too) and Looter.FPHands.<Kind>.Support*.
 
 namespace
@@ -114,11 +116,13 @@ void FirstPersonHandsGrips::AddCup(EWeaponKind Kind, FGunHands& Hands)
 
 FHandPlacement FirstPersonHandsGrips::OnCup(const FHandsGun& Gun)
 {
-	const FGunHands Hands = Tuned(Gun.Kind);
+	FGunHands Hands = Tuned(Gun.Kind);
 	if (!Hands.bCup)
 	{
 		return OnForeEnd(Gun);
 	}
+	// On the underside found on this gun's own parts (another body or magazine than the table's: FirstPersonHandsCupFit.cpp).
+	FitCupTo(Hands, Gun.Cup);
 	// The hand first, as a real cupping hold has it: the palm up onto the underside, the knuckles forward along the gun (a
 	// little to its right, so the fingers curl up its far side), the thumb along its near side.
 	const FVector Palm = Hands.CupPalm.GetSafeNormal(UE_SMALL_NUMBER, FVector::UpVector);

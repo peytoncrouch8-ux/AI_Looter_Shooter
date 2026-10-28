@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "Player/FirstPersonHandsTypes.h"
 
+class UWeaponModelComponent;
+
 /**
  * A handle's solid on a gun (FHandleShape in the modeled gun's space): its middle Offset from the hand's socket
  * (SOCKET_Foregrip, or SOCKET_Grip with bFromGrip: a six-gun's support hand closes round the shooting hand there), its
@@ -177,6 +179,20 @@ namespace FirstPersonHandsGrips
 
 	/** A kind's cup under the gun's middle (FirstPersonHandsCup.cpp; For's tables get it). */
 	AI_LOOTER_SHOOTER_API void AddCup(EWeaponKind Kind, FGunHands& Hands);
+
+	/**
+	 * The cup found on the gun's own parts (FirstPersonHandsCupFit.cpp): rays up from under the gun at the kind's cup spot
+	 * through every part's collision mesh find its underside there (any body or magazine, scripted or Tripo), rays in from
+	 * each side its width. Not fitted (the table holds) for a kind without a cup, a gun not built from parts, or nothing
+	 * within reach of the table's spot. Run on the gun at rest (not mid reload or rack: the parts move).
+	 */
+	AI_LOOTER_SHOOTER_API FHandsCupFit FitCup(const UWeaponModelComponent& Model, EWeaponKind Kind);
+
+	/** The kind's cup moved onto a fit (Looter.Hands.CupFit 1): its box's bottom on the underside, the hand with it. */
+	AI_LOOTER_SHOOTER_API void FitCupTo(FGunHands& Hands, const FHandsCupFit& Fit);
+
+	/** The fit's tuning now (Looter.Hands.CupFit.MinWidth), so a fit kept for a gun is worked out again when it changes. */
+	AI_LOOTER_SHOOTER_API uint32 CupFitSettings();
 
 	/**
 	 * The touch tuning on a kind's hold (development builds; Looter.Hands.Kind picks the kind as for the rest):

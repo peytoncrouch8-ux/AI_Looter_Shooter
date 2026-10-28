@@ -14,6 +14,7 @@ class UPlayerThrowComponent;
 class UPlayerViewComponent;
 class USkeletalMesh;
 class UWeaponManagerComponent;
+class UWeaponModelComponent;
 
 /**
  * The player's first-person arms, the played hero's (UHeroDefinition::FirstPersonArms: Ellis's gloves and duster sleeves
@@ -141,6 +142,14 @@ private:
 
 	/** The gun as the hands see it (camera space). */
 	void DescribeGun(const AWeaponBase& Weapon, const FTransform& CameraWorld, FHandsGun& OutGun) const;
+
+	/**
+	 * The support hand's cup fitted to the gun's parts (FirstPersonHandsGrips::FitCup), worked out once per gun as assembled
+	 * (a part swapped at the bench fits it again) and only at rest (a reload or a rack moves parts: the table meanwhile).
+	 */
+	FHandsCupFit CupFitFor(const UWeaponModelComponent& Model, EWeaponKind Kind, bool bAtRest) const;
+	mutable FHandsCupFit CupFit;
+	mutable uint32 CupFitKey = 0;
 
 	/** The support hand's placement this frame (camera space), easing over when its job changed under it. */
 	FHandPlacement PlaceSupportHand(const FHandsGun& Gun, float DeltaTime);

@@ -368,6 +368,10 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 	// The sniper's bolt, worked by the trigger hand between shots and in its reload (FirstPersonHandsGrips::OnGrip).
 	OutGun.BoltOpen = Weapon.GetBoltOpen();
 	OutGun.BoltHand = Weapon.GetBoltHand();
+	if (bModel)
+	{
+		OutGun.Cup = CupFitFor(*Model, OutGun.Kind, OutGun.ReloadProgress < 0.f && OutGun.PumpCycle < 0.f && OutGun.BoltOpen <= 0.f);
+	}
 	if (OutGun.ReloadProgress < 0.f || !bModel)
 	{
 		return;

@@ -43,5 +43,8 @@ public class AI_Looter_Shooter : ModuleRules
 
 		// Ellis's body copies the mannequin's pose through an IK retargeter (UBodyRetargetAnimInstance).
 		PrivateDependencyModuleNames.Add("IKRig");
+
+		// The first-person support hand finds a gun's underside on its parts' cooked collision meshes (FirstPersonHandsCupFit.cpp).
+		PrivateDependencyModuleNames.AddRange(new string[] { "Chaos", "PhysicsCore" });
 	}
 }

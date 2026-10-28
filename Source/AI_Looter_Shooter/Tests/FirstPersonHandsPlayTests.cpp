@@ -92,6 +92,9 @@ namespace
 		const FTransform GunNow = Model->GetComponentTransform();
 		const EWeaponKind Kind = Player.Gun->GetInstance().Definition->Kind;
 		const FGunHands& Hold = FirstPersonHandsGrips::For(Kind);
+		// The cup on the underside found on this gun's own parts, as the hands fit it (FirstPersonHandsCupFit.cpp).
+		FGunHands Cupped = Hold;
+		FirstPersonHandsGrips::FitCupTo(Cupped, FirstPersonHandsGrips::FitCup(*Model, Kind));
 		const float Scale = Model->GetModelScale();
 		struct FHandsPlaySide
 		{
@@ -106,7 +109,7 @@ namespace
 			// The support hand cupped under the gun's middle from its grip since 2026-10-27 (the fore-end before; Looter.Hands.Cup).
 			{ EFirstPersonHand::Left, TEXT("left hand cupped under the gun"),
 				Hold.bCup && FirstPersonHandsGrips::UseCup()
-					? GunNow.TransformPosition(Model->GetGrip() + (Hold.CupHold + FPHandsFraming::SupportNudge(Kind)) * Scale)
+					? GunNow.TransformPosition(Model->GetGrip() + (Cupped.CupHold + FPHandsFraming::SupportNudge(Kind)) * Scale)
 					: GunNow.TransformPosition(Model->GetForegrip() + (Hold.ForeHold + FPHandsFraming::SupportNudge(Kind)) * Scale) },
 		};
 		// The view model's frame: its own field of view across, 16:9 (the setting widens the world, never it).

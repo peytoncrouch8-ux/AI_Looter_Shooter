@@ -171,6 +171,21 @@ struct AI_LOOTER_SHOOTER_API FHandPlacement
 };
 
 /**
+ * The support hand's cup as found on the gun's own parts (FirstPersonHandsGrips::FitCup, 2026-10-28): a body or magazine
+ * that isn't the one the cup table was read off (the AR's Marksman body has no thumbhole loop) has its underside
+ * elsewhere, and the hand would float under nothing. Modeled cm from SOCKET_Grip (X ahead, Y right, Z up).
+ */
+struct FHandsCupFit
+{
+	/** The underside under the cup was found (else the kind's table holds). */
+	bool bFitted = false;
+	/** The underside's middle under the hand: its lowest point there, across the gun's middle. */
+	FVector Under = FVector::ZeroVector;
+	/** Half the underside's width there (0: not measured; the table's width holds). */
+	float HalfWidth = 0.f;
+};
+
+/**
  * The gun in hand as the hands see it: its visible model's own space (origin at the back of the receiver, X to the
  * muzzle, Y right, Z up; cm) in the first-person camera's space (X ahead, Y right, Z up), so a strike's or a throw's
  * pose on the model moves the hands with it, and the points on it the hands work. UFirstPersonHandsComponent fills it
@@ -215,6 +230,9 @@ struct AI_LOOTER_SHOOTER_API FHandsGun
 	/** SOCKET_Grip and SOCKET_Foregrip, in the gun's space. */
 	FVector Grip = FVector::ZeroVector;
 	FVector Foregrip = FVector::ZeroVector;
+
+	/** The cup fitted to this gun's parts (unset for a test's own gun: the kind's table). */
+	FHandsCupFit Cup;
 
 	/** Where the magazine seats (the body's SOCKET_Magazine), when a reload needs it. */
 	FVector MagazineSeat = FVector::ZeroVector;
