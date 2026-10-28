@@ -42,9 +42,13 @@ namespace
 			// Pulled in (the user, 2026-10-22: "pull the guns in"): 12 cm nearer, 7 lower and 2 in toward the middle, the
 			// muzzle tipped up 5 degrees about the grip so it stays at Borderlands' height (0.63 down) while the fore-end and
 			// the support glove under it come down the frame (0.78 down; was 0.70). Tuned in PIE at 16:9.
-			Frame.HipAhead = -12.f;
-			Frame.HipRight = -2.f;
-			Frame.HipUp = -7.f;
+			// The user's playtest (2026-10-27): "the guns need pushed forward, made 1.2x bigger and the forearm/hand needs to not
+			// be so much in view": back out to the table's distance, 5 up, 1 further in, the gun drawn 1.2x in first person
+			// (Looter.FPHands.GunScale) with the steeper, more turned-back forearms below. Tuned in PIE at 16:9.
+			Frame.HipAhead = 0.f;
+			Frame.HipRight = -3.f;
+			// 5 up again once the support hand cups under the trigger housing (2026-10-27), so the cupping hand shows.
+			Frame.HipUp = 3.f;
 			Frame.HipPitch = 5.f;
 			// FPGRIP (2026-10-22): no longer 2.5 cm right: the trigger finger is placed (on the trigger or along the frame),
 			// so none shows through the thumbhole, and the palm is seated on the post.
@@ -60,8 +64,9 @@ namespace
 			Frame.OneHand = 1.f;
 			break;
 		case EWeaponKind::SMG:
+			// (The support slides back toward the grip of the fore-end days are gone: the hand cups under the gun's middle
+			// now, its spot in FirstPersonHandsCup.cpp, 2026-10-27; the Ranchhand's -3 stays for its pump.)
 			Frame.HipUp = -1.5f;
-			Frame.SupportAhead = -2.f;
 			break;
 		case EWeaponKind::Sniper:
 			// Pulled in a little (glove 0.84, muzzle 0.60) until the play-check of 2026-10-23 ("the Sniper is held one-handed":
@@ -70,18 +75,18 @@ namespace
 			Frame.HipAhead = 0.f;
 			Frame.HipUp = 2.5f;
 			Frame.HipPitch = 2.f;
-			Frame.SupportAhead = -6.f;
 			break;
 		case EWeaponKind::LMG:
 			// Pulled in 14 cm from its last hold (the support hand on the handguard was ~86 cm out), lower, the muzzle tipped up
 			// 4 degrees (glove 0.80 down, muzzle 0.64). The user's "lift slightly" (2026-10-23, the trigger glove was under the
 			// frame): back out to the table's distance and 3 up, tuned in PIE till its fingers show under the receiver (5 out and
 			// 2 up still hid them).
+			// "Pushed forward, 1.2x bigger, less arm" (2026-10-27): the table's distance with the 1.2x first-person scale and the
+			// steeper forearms; tuned in PIE at 16:9.
 			Frame.HipAhead = 0.f;
 			Frame.HipRight = 0.f;
 			Frame.HipUp = 3.f;
 			Frame.HipPitch = 4.f;
-			Frame.SupportAhead = -6.f;
 			break;
 		case EWeaponKind::Launcher:
 			Frame.HipAhead = 9.f;
@@ -119,6 +124,7 @@ namespace
 		{ TEXT("TriggerRight"), &FPHandsFraming::FKindFrame::TriggerRight, TEXT("Trigger hand moved to the gun's right (cm; out of a stock it sinks into).") },
 		{ TEXT("TriggerUp"), &FPHandsFraming::FKindFrame::TriggerUp, TEXT("Trigger hand moved up the gun (cm of the modeled gun).") },
 		{ TEXT("OneHand"), &FPHandsFraming::FKindFrame::OneHand, TEXT("0-1: how much the support hand leaves the gun at rest, parked under the frame (a pistol's 1).") },
+		{ TEXT("GunScale"), &FPHandsFraming::FKindFrame::GunScale, TEXT("This kind's first-person gun size on top of Looter.FPHands.GunScale (a multiplier).") },
 	};
 
 	/** Registers every kind's fields as console variables over Frames (static start-up, after Frames is filled). */
@@ -148,12 +154,14 @@ namespace
 		TEXT("The view model's field of view the hip holds were tuned at (degrees): ViewFov's push-out is measured from it."));
 	TAutoConsoleVariable<float> CVarAspect(TEXT("Looter.FPHands.Aspect"), 16.f / 9.f,
 		TEXT("The frame's width over height the forearm framing keeps elbows out of (16:9; a wider screen shows less height, so less arm)."));
-	TAutoConsoleVariable<float> CVarSupportAngle(TEXT("Looter.FPHands.SupportForearmAngle"), 50.f,
+	// 72 / 78 and ForearmBack 0.5 since the user's "less arm" (2026-10-27): the sleeves leave the frame sooner, only the gloves
+	// and a short cuff show.
+	TAutoConsoleVariable<float> CVarSupportAngle(TEXT("Looter.FPHands.SupportForearmAngle"), 72.f,
 		TEXT("Degrees under the horizontal the support forearm runs on screen, down to the left."));
-	TAutoConsoleVariable<float> CVarTriggerAngle(TEXT("Looter.FPHands.TriggerForearmAngle"), 65.f,
+	TAutoConsoleVariable<float> CVarTriggerAngle(TEXT("Looter.FPHands.TriggerForearmAngle"), 78.f,
 		TEXT("Degrees under the horizontal the trigger forearm runs on screen, down to the right."));
 	// 0.3 since FPGRIP (2026-10-22): at 0.6 the support sleeve's cuff hid the glove holding the gun.
-	TAutoConsoleVariable<float> CVarBack(TEXT("Looter.FPHands.ForearmBack"), 0.3f,
+	TAutoConsoleVariable<float> CVarBack(TEXT("Looter.FPHands.ForearmBack"), 0.5f,
 		TEXT("0-1: how much of a forearm's way turns back toward the eye's plane (foreshortened, coming from behind the view; it also pushes the elbow out of the frame)."));
 	TAutoConsoleVariable<float> CVarElbowMargin(TEXT("Looter.FPHands.ElbowMargin"), 0.06f,
 		TEXT("How far outside the frame the elbow (the sleeve's cut end) stays (share of the half-frame)."));
@@ -166,6 +174,8 @@ namespace
 	TAutoConsoleVariable<float> CVarParkAhead(TEXT("Looter.FPHands.ParkAhead"), 20.f, TEXT("The parked support hand (a one-handed pistol): cm ahead of the eye."));
 	TAutoConsoleVariable<float> CVarParkRight(TEXT("Looter.FPHands.ParkRight"), -26.f, TEXT("The parked support hand: cm right of the eye (negative: left)."));
 	TAutoConsoleVariable<float> CVarParkUp(TEXT("Looter.FPHands.ParkUp"), -38.f, TEXT("The parked support hand: cm up from the eye (well under the frame)."));
+	TAutoConsoleVariable<float> CVarGunScale(TEXT("Looter.FPHands.GunScale"), 1.2f,
+		TEXT("How much bigger the gun in hand is drawn in first person only (about its grip; ADS, hands, muzzle and brass follow)."));
 	TAutoConsoleVariable<float> CVarOneHandSeconds(TEXT("Looter.FPHands.OneHandSeconds"), 0.15f,
 		TEXT("Seconds the support hand takes to leave a one-handed gun or come back to it (a reload, a throw)."));
 
@@ -300,6 +310,11 @@ FVector FPHandsFraming::TriggerNudge(EWeaponKind Kind)
 float FPHandsFraming::OneHandShare(EWeaponKind Kind)
 {
 	return FMath::Clamp(For(Kind).OneHand, 0.f, 1.f);
+}
+
+float FPHandsFraming::GunScale(EWeaponKind Kind)
+{
+	return FMath::Clamp(CVarGunScale.GetValueOnAnyThread() * For(Kind).GunScale, 0.5f, 2.f);
 }
 
 float FPHandsFraming::ViewModelFieldOfView(float Base)

@@ -318,6 +318,7 @@ const FGunHands& FirstPersonHandsGrips::For(EWeaponKind Kind)
 	auto WithContact = [](EWeaponKind Kind, FGunHands Hands)
 	{
 		AddContact(Kind, Hands);
+		AddCup(Kind, Hands);
 		return Hands;
 	};
 	static const FGunHands Rifle = WithContact(EWeaponKind::Rifle, MakeRifle());
@@ -383,6 +384,8 @@ FGunHands FirstPersonHandsGrips::Tuned(EWeaponKind Kind)
 	Hands.ForeTurn += FRotator(CVarSupportPitch.GetValueOnGameThread(), CVarSupportYaw.GetValueOnGameThread(), CVarSupportRoll.GetValueOnGameThread());
 	Hands.ForeForearm = SwingForearm(Hands.ForeForearm, CVarSupportArmYaw.GetValueOnGameThread(), CVarSupportArmPitch.GetValueOnGameThread());
 	Hands.ForeHold += FVector(CVarSupportAhead.GetValueOnGameThread(), CVarSupportRight.GetValueOnGameThread(), CVarSupportUp.GetValueOnGameThread());
+	// The support hand's tuning moves its cup too (the hold it rests in since 2026-10-27); its forearm follows the hand.
+	Hands.CupHold +=FVector(CVarSupportAhead.GetValueOnGameThread(), CVarSupportRight.GetValueOnGameThread(), CVarSupportUp.GetValueOnGameThread());
 	TuneContact(Kind, Hands);
 #endif
 	return Hands;
@@ -445,6 +448,19 @@ FHandPlacement FirstPersonHandsGrips::OnGrip(const FHandsGun& Gun)
 }
 
 FHandPlacement FirstPersonHandsGrips::OnForegrip(const FHandsGun& Gun, float PumpBack)
+{
+	// At rest cupped under the gun's middle (FirstPersonHandsCup.cpp); a pump gun's hand on the pump as far as it's gone there.
+	const FGunHands& Hands = For(Gun.Kind);
+	if (!Hands.bCup || !UseCup())
+	{
+		return OnForeEnd(Gun, PumpBack);
+	}
+	const FHandPlacement Cup = OnCup(Gun);
+	const float Pump = Hands.bPumpFromCup ? FMath::Clamp(Gun.PumpShare, 0.f, 1.f) : 0.f;
+	return Pump > 0.f ? FHandPlacement::Blend(Cup, OnForeEnd(Gun, PumpBack), FMath::SmoothStep(0.f, 1.f, Pump)) : Cup;
+}
+
+FHandPlacement FirstPersonHandsGrips::OnForeEnd(const FHandsGun& Gun, float PumpBack)
 {
 	const FGunHands Hands = Tuned(Gun.Kind);
 	FVector Fingers;

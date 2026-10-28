@@ -5,6 +5,7 @@
 #include "UI/HUD/LooterHUD.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -357,6 +358,20 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	// eye with it (and one coming up rises into the aim).
 	const float Aim = (PlayerView.IsValid() ? PlayerView->GetAimAlpha() : 0.f) * (1.f - FMath::Clamp(Lowered, 0.f, 1.f)) * (1.f - SwimDown);
 	FTransform Hold = Manager->GetFirstPersonHold(Weapon);
+	// Drawn bigger in first person only (the user, 2026-10-27: FPHandsFraming::GunScale, 1.2), grown about its grip so the
+	// hold stays where it's tuned; everything after reads the hold's scale (the sight's line, the stance's pivot) and the
+	// gun's sockets take it from the actor (the hands, the muzzle, the brass).
+	{
+		const UWeaponDefinition* Definition = Weapon->GetInstance().Definition.Get();
+		const float Bigger = FPHandsFraming::GunScale(Definition ? Definition->Kind : EWeaponKind::None);
+		if (!FMath::IsNearlyEqual(Bigger, 1.f))
+		{
+			const FVector Grip = Weapon->GetGripPoint().IsZero() ? Manager->AttachGrip : Weapon->GetGripPoint();
+			const FVector GripAt = Hold.TransformPosition(Grip);
+			Hold.SetScale3D(Hold.GetScale3D() * Bigger);
+			Hold.SetTranslation(GripAt - Hold.GetRotation().RotateVector(Grip * Hold.GetScale3D()));
+		}
+	}
 	if (Aim > 0.f)
 	{
 		// Out with the hip holds when the view model is drawn narrower (FPHandsFraming::DepthScale), so a sight comes up the
@@ -378,7 +393,8 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 
 	FQuat FinalRotation = Rotation.Quaternion() * Hold.GetRotation();
 	// The stance poses turn the gun around (roughly) its grip, wherever this gun has it.
-	const FVector Pivot = (Weapon->GetGripPoint().IsZero() ? Manager->AttachGrip : Weapon->GetGripPoint()) + GripPivotFromGrip;
+	// (In the hold's space: as big as the gun is drawn.)
+	const FVector Pivot = ((Weapon->GetGripPoint().IsZero() ? Manager->AttachGrip : Weapon->GetGripPoint()) + GripPivotFromGrip) * Hold.GetScale3D();
 	FVector FinalLocation = Hold.GetLocation() + Offset + Hold.GetRotation().RotateVector(Pivot) - FinalRotation.RotateVector(Pivot);
 
 	// Shots fly along the line of sight (the crosshair), so through the sight its aim point must sit on that line whatever

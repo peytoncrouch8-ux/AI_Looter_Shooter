@@ -156,6 +156,10 @@ private:
 
 	/** How far the support hand is toward its parked spot now (0 on the gun, 1 parked). */
 	float OneHandBlend = 0.f;
+	/** How far a pump gun's support hand is from its cup toward the pump (FHandsGun::PumpShare). */
+	float PumpHandShare = 0.f;
+	/** How much the support hand's forearm is its cup's own (fitted to the hand) rather than slanted by the framing. */
+	float CupForearmShare = 0.f;
 
 	// --- A strike's tool and a cast (FirstPersonHandsActions.cpp) ---
 

@@ -17,6 +17,7 @@
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "HAL/IConsoleManager.h"
 #include "Tests/AutomationCommon.h"
 #include "UObject/Script.h"
 
@@ -102,8 +103,11 @@ namespace
 		const FHandsPlaySide Sides[] = {
 			{ EFirstPersonHand::Right, TEXT("right hand on the grip"),
 				GunNow.TransformPosition(Model->GetGrip() + (Hold.GripHold + FPHandsFraming::TriggerNudge(Kind)) * Scale) },
-			{ EFirstPersonHand::Left, TEXT("left hand on the foregrip"),
-				GunNow.TransformPosition(Model->GetForegrip() + (Hold.ForeHold + FPHandsFraming::SupportNudge(Kind)) * Scale) },
+			// The support hand cupped under the gun's middle from its grip since 2026-10-27 (the fore-end before; Looter.Hands.Cup).
+			{ EFirstPersonHand::Left, TEXT("left hand cupped under the gun"),
+				Hold.bCup && FirstPersonHandsGrips::UseCup()
+					? GunNow.TransformPosition(Model->GetGrip() + (Hold.CupHold + FPHandsFraming::SupportNudge(Kind)) * Scale)
+					: GunNow.TransformPosition(Model->GetForegrip() + (Hold.ForeHold + FPHandsFraming::SupportNudge(Kind)) * Scale) },
 		};
 		// The view model's frame: its own field of view across, 16:9 (the setting widens the world, never it).
 		const float HalfWide = FMath::Tan(FMath::DegreesToRadians(Camera->FirstPersonFieldOfView > 1.f ? Camera->FirstPersonFieldOfView : Camera->FieldOfView) * 0.5f);
@@ -248,6 +252,75 @@ bool FFirstPersonHandsHiddenTest::RunTest(const FString& Parameters)
 	{
 		TestTrue(TEXT("Stand-in arms stay hidden in game unless asked"), Armed.Hands->bHiddenInGame != 0);
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstPersonHandsGunScaleTest, "Looter.Player.Hands.GunScale",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FFirstPersonHandsGunScaleTest::RunTest(const FString& Parameters)
+{
+	// The user (2026-10-27): the guns "made 1.2x bigger" in first person: drawn bigger about the grip (the hold where it
+	// was), the hands still on the bigger gun's grip and foregrip, and nowhere else (third person: as modeled).
+	IConsoleVariable* GunScale = IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.FPHands.GunScale"));
+	if (!TestNotNull(TEXT("Looter.FPHands.GunScale"), GunScale))
+	{
+		return false;
+	}
+	TestEqual(TEXT("1.2 by default"), FPHandsFraming::GunScale(EWeaponKind::Rifle), GunScale->GetFloat(), 0.001f);
+	const float Before = GunScale->GetFloat();
+
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	FEditorScriptExecutionGuard RunActorEvents;
+	UWorld* World = TestLevel.GetTestWorld();
+	UWeaponDefinition* Rifle = LoadObject<UWeaponDefinition>(nullptr, TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"));
+	if (!TestNotNull(TEXT("A floor"), SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(8000.0, 8000.0, 100.0))) || !TestNotNull(TEXT("The rifle"), Rifle))
+	{
+		return false;
+	}
+	const FHandsPlayPlayer Player = HandsPlaySpawn(World, FVector::ZeroVector, Rifle);
+	if (!TestTrue(TEXT("The player, its view, hands and rifle"), Player.Locomotion && Player.View && Player.Hands && Player.Gun))
+	{
+		return false;
+	}
+	World->TimeSeconds += 10.0;
+	const UCameraComponent* Camera = CameraOf(Player.Locomotion);
+	auto GripInView = [&]()
+	{
+		return Camera->GetComponentTransform().InverseTransformPosition(Player.Gun->GetActorTransform().TransformPosition(Player.Gun->GetGripPoint()));
+	};
+
+	GunScale->Set(1.f, ECVF_SetByCode);
+	for (int32 Frames = 0; Frames < 10; ++Frames)
+	{
+		HandsPlayFrame(Player);
+	}
+	const FVector GripAsModeled = GripInView();
+	const float ScaleAsModeled = static_cast<float>(Player.Gun->GetActorRelativeScale3D().X);
+
+	GunScale->Set(1.2f, ECVF_SetByCode);
+	for (int32 Frames = 0; Frames < 10; ++Frames)
+	{
+		HandsPlayFrame(Player);
+	}
+	TestEqual(TEXT("Drawn 1.2 times as big in first person"), static_cast<float>(Player.Gun->GetActorRelativeScale3D().X), ScaleAsModeled * 1.2f, 0.01f);
+	TestTrue(FString::Printf(TEXT("...about its grip: the hold where it was (%.2f cm off)"), FVector::Dist(GripInView(), GripAsModeled)),
+		GripInView().Equals(GripAsModeled, 0.5));
+	// The hands on the bigger gun's grip and foregrip, as everywhere else (the spots read off the gun as it is).
+	HandsPlayCheck(*this, Player, TEXT("Bullpup at 1.2"), false);
+
+	// Third person: the body's hand holds it as modeled.
+	Player.View->SetViewMode(EPlayerViewMode::ThirdPerson);
+	for (int32 Frames = 0; Frames < 3; ++Frames)
+	{
+		HandsPlayFrame(Player);
+	}
+	TestEqual(TEXT("Third person: as modeled"), static_cast<float>(Player.Gun->GetActorRelativeScale3D().X), 1.f, 0.01f);
+	GunScale->Set(Before, ECVF_SetByCode);
 	return true;
 }
 

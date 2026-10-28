@@ -191,6 +191,11 @@ struct AI_LOOTER_SHOOTER_API FHandsGun
 	/** 0..1 through a pump gun's rack between shots, or -1 while the fore-end is still (AWeaponBase::GetPumpCycle). */
 	float PumpCycle = -1.f;
 	/**
+	 * How far a pump gun's support hand has gone from its cup to the pump (0-1; UFirstPersonHandsComponent eases it there for
+	 * a rack or a reload and back after). 0 for a test's own gun: the cup.
+	 */
+	float PumpShare = 0.f;
+	/**
 	 * The sniper's bolt: how open it is (0 home, 1 turned up and drawn back; LooterReload::BoltPose) and how much of the
 	 * trigger hand is on its knob (0 on the grip, 1 on the knob) between shots and through its reload.
 	 */

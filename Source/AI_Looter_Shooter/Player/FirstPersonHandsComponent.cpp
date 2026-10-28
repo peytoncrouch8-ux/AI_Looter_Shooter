@@ -266,6 +266,9 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 	if (const AWeaponBase* Weapon = bGun && Manager ? Manager->GetActiveWeapon() : nullptr)
 	{
 		Gun.TriggerReady = NextTriggerReady(*Weapon, Dt);
+		// A pump gun's support hand leaves its cup for the pump to rack it or reload (FirstPersonHandsCup.cpp).
+		PumpHandShare = FirstPersonHandsGrips::NextPumpShare(Gun, PumpHandShare, Dt);
+		Gun.PumpShare = PumpHandShare;
 	}
 	if (bGun)
 	{
@@ -274,6 +277,10 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 		LastGun = Gun;
 		Targets[Left] = ParkSupportHand(Gun, PlaceSupportHand(Gun, Dt), Dt);
 	}
+	// The support hand resting in its cup keeps its own forearm (FrameForearms), eased in and out over 0.12 s.
+	const bool bCupped = bGun && SupportJob == EHandsSupportJob::Foregrip && FirstPersonHandsGrips::For(Gun.Kind).bCup
+		&& FirstPersonHandsGrips::UseCup() && PumpHandShare < 0.5f && OneHandBlend < 0.01f;
+	CupForearmShare = FMath::FInterpConstantTo(CupForearmShare, bCupped ? 1.f : 0.f, Dt, 1.f / 0.12f);
 
 	// The arms' size (a smaller hand holds the same spots: they're scaled into the mesh's space with it), then into the
 	// mesh's own space (the stand-in is turned and set back on the camera) and posed.
@@ -338,15 +345,19 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 	const bool bModel = Model && Model->IsAssembled();
 	const FTransform GunWorld = bModel ? Model->GetComponentTransform() : Weapon.GetActorTransform();
 	OutGun.ToCamera = GunWorld.GetRelativeTransform(CameraWorld);
+	// The first-person size (FPHandsFraming::GunScale, on the gun's actor) taken out of the transform and into the gun's
+	// own numbers below: its sockets and Scale, which the grip tables, the handle shapes and the reload paths all use.
+	const float Drawn = FMath::Max(static_cast<float>(OutGun.ToCamera.GetScale3D().X), UE_KINDA_SMALL_NUMBER);
+	OutGun.ToCamera.SetScale3D(FVector::OneVector);
 	const UWeaponDefinition* Definition = Weapon.GetInstance().Definition.Get();
 	OutGun.Kind = Definition ? Definition->Kind : EWeaponKind::None;
 	// A gun not built from parts has no grip socket: the weapon manager lines such a gun's hold up on AttachGrip.
 	const UWeaponManagerComponent* Manager = Weapons.Get();
-	OutGun.Grip = bModel && !Model->GetGrip().IsZero() ? Model->GetGrip() : (Manager ? Manager->AttachGrip : FVector::ZeroVector);
-	OutGun.Foregrip = bModel ? Model->GetForegrip() : Weapon.GetForegripPoint();
-	// Drawn bigger than modeled (UWeaponModelComponent::ScaleFor): the sockets already are, the hands' own numbers off the
-	// gun follow it.
-	OutGun.Scale = Weapon.GetModelScale();
+	OutGun.Grip = (bModel && !Model->GetGrip().IsZero() ? Model->GetGrip() : (Manager ? Manager->AttachGrip : FVector::ZeroVector)) * Drawn;
+	OutGun.Foregrip = (bModel ? Model->GetForegrip() : Weapon.GetForegripPoint()) * Drawn;
+	// Drawn bigger than modeled (UWeaponModelComponent::ScaleFor, and first person's own size): the sockets already are,
+	// the hands' own numbers off the gun follow it.
+	OutGun.Scale = Weapon.GetModelScale() * Drawn;
 	OutGun.ReloadPart = Weapon.GetReloadPart();
 	OutGun.ReloadProgress = Weapon.GetReloadProgress();
 	OutGun.ReloadPlan = Weapon.GetReloadPlan();
@@ -361,11 +372,13 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 	if (IsMagazineLike(OutGun.ReloadPart))
 	{
 		OutGun.bHasMagazineSeat = FindPartSocket(*Model, MagazineSocket, OutGun.MagazineSeat);
+		OutGun.MagazineSeat *= Drawn;
 	}
 	else if (OutGun.ReloadPart == EWeaponReloadPart::Rocket)
 	{
 		// The launcher's rocket seats in its barrel's mouth: the reload's hand works there.
 		OutGun.bHasMagazineSeat = FindPartSocket(*Model, RocketSocket, OutGun.MagazineSeat);
+		OutGun.MagazineSeat *= Drawn;
 	}
 	else if (OutGun.ReloadPart == EWeaponReloadPart::Cylinder)
 	{
@@ -380,7 +393,7 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 			{
 				Middle += Rear;
 			}
-			OutGun.CylinderRear = GunWorld.InverseTransformPosition(Middle / Rears.Num());
+			OutGun.CylinderRear = GunWorld.InverseTransformPosition(Middle / Rears.Num()) * Drawn;
 			OutGun.CylinderAxis = -GunWorld.InverseTransformVectorNoScale(Back).GetSafeNormal(UE_SMALL_NUMBER, -FVector::ForwardVector);
 			OutGun.bHasCylinder = true;
 		}
@@ -460,8 +473,12 @@ void UFirstPersonHandsComponent::FrameForearms(float Scale)
 		FHandPlacement& Target = Targets[FirstPersonHands::Index(Hand)];
 		const FVector TableWay = Target.Forearm.IsNearlyZero() ? (Hand == EFirstPersonHand::Left ? LeftForearm : RightForearm) : Target.Forearm;
 		const float Length = Rig.GetForearmLength(Hand) * Scale;
-		Target.Forearm = FPHandsFraming::FrameForearm(Hand, FPHandsFraming::WristOf(Target, Scale), TableWay, Length, Frame,
+		const FVector Framed = FPHandsFraming::FrameForearm(Hand, FPHandsFraming::WristOf(Target, Scale), TableWay, Length, Frame,
 			FPHandsFraming::FForearmRules::For(Hand));
+		// A cupping support hand keeps the forearm fitted to it (in line behind the knuckles: slanting it for the frame
+		// twisted the hand, 2026-10-27), eased over as it takes up or leaves the cup.
+		const float Own = Hand == EFirstPersonHand::Left ? CupForearmShare : 0.f;
+		Target.Forearm = Own > 0.f ? FMath::Lerp(Framed, TableWay.GetSafeNormal(), Own).GetSafeNormal(UE_SMALL_NUMBER, Framed) : Framed;
 	}
 }
 

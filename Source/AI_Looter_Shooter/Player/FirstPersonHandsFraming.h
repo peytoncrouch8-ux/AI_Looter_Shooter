@@ -41,6 +41,8 @@ namespace FPHandsFraming
 		float TriggerRight = 0.f;
 		float TriggerUp = 0.f;
 		float OneHand = 0.f;
+		/** This kind's first-person gun size on top of Looter.FPHands.GunScale (a multiplier; 1: the shared size). */
+		float GunScale = 1.f;
 	};
 
 	/** The view model's frame: the tangent of half its field of view across, and its width over its height. */
@@ -89,6 +91,14 @@ namespace FPHandsFraming
 
 	/** 0-1: how much the support hand leaves a gun of this kind at rest (a pistol held one-handed: 1). */
 	AI_LOOTER_SHOOTER_API float OneHandShare(EWeaponKind Kind);
+
+	/**
+	 * How much bigger the gun in hand is drawn in first person only (the user, 2026-10-27: "made 1.2x bigger"):
+	 * Looter.FPHands.GunScale (1.2) times the kind's Looter.FPHands.<Kind>.GunScale (1), on top of the model's own
+	 * UWeaponModelComponent::ScaleFor. Applied about the grip by the view model (PlayerLocomotionViewModel.cpp), so the hold
+	 * stays put; third person, the loadout stand, the bench and loot never see it.
+	 */
+	AI_LOOTER_SHOOTER_API float GunScale(EWeaponKind Kind);
 
 	/** Looter.FPHands.Enable: 0 puts every framing rule off (the game as before; for comparing). */
 	AI_LOOTER_SHOOTER_API bool IsEnabled();

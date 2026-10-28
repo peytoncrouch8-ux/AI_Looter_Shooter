@@ -88,6 +88,30 @@ struct FGunHands
 	float ForeThumbSpread = 0.f;
 	/** 0-1: how much the support hand's fingers close by touch (the rest: its grip's own curls). */
 	float ForeContact = 1.f;
+
+	/**
+	 * The support hand's rest hold since 2026-10-27 (the user: "the hand needs to cup beneath the trigger housing ... on the
+	 * magazine of the LMG, the left hand does not need to be towards the front of the gun. Keep this in mind for all
+	 * weapons"): palm up under the gun's middle, the fingers curled up round its far side, the thumb along its near side,
+	 * the forearm up from under the frame. From SOCKET_Grip (cm of the modeled gun, drawn to scale with it): CupHold the
+	 * hand's grip point, CupShape what it closes on (the trigger housing, the magazine or the box). bCup off (the revolver,
+	 * one-handed; or Looter.Hands.Cup 0): the fore-end hold above. The reloads start and end on it (OnForegrip gives it).
+	 */
+	bool bCup = false;
+	FVector CupHold = FVector::ZeroVector;
+	/**
+	 * The cup's frame (the gun's space): the knuckles' way (forward along the gun, a little to its right, where the fingers
+	 * curl up its far side) and the palm's (up onto the underside). The forearm is fitted to them, not the other way round
+	 * (the user, 2026-10-27: "the hand is twisted to the right, straighten it out"): straight behind the knuckles, the wrist
+	 * bent back only (Looter.Hands.CupWristBend, no sideways bend or roll), so it rises from the frame's bottom left.
+	 */
+	FVector CupKnuckles = FVector(0.8f, 0.5f, 0.15f);
+	FVector CupPalm = FVector(0.f, 0.15f, 1.f);
+	FHandleSpec CupShape;
+	float CupThumbSwing = 0.f;
+	float CupThumbSpread = -20.f;
+	/** A pump gun: the hand leaves the cup for the pump to rack it or reload (FHandsGun::PumpShare of the way). */
+	bool bPumpFromCup = false;
 };
 
 /** The hands on the gun: the trigger hand on its grip, the support hand on its foregrip (FirstPersonHandsGrips.cpp). */
@@ -122,6 +146,21 @@ namespace FirstPersonHandsGrips
 	 */
 	AI_LOOTER_SHOOTER_API FHandPlacement OnForegrip(const FHandsGun& Gun, float PumpBack = 0.f);
 
+	/** The support hand's cup under the gun's middle (FGunHands::CupHold; camera space); the fore-end hold for a kind without one. */
+	AI_LOOTER_SHOOTER_API FHandPlacement OnCup(const FHandsGun& Gun);
+
+	/** The fore-end (or pump) hold itself, whatever the cup (the pump gun's rack, the tests). */
+	AI_LOOTER_SHOOTER_API FHandPlacement OnForeEnd(const FHandsGun& Gun, float PumpBack = 0.f);
+
+	/** Looter.Hands.Cup (1): the support hand rests cupped under the gun's middle (0: on the fore-end, as before 2026-10-27). */
+	AI_LOOTER_SHOOTER_API bool UseCup();
+
+	/**
+	 * A pump gun's support hand from its cup toward the pump: Current eased toward the pump while it's racked or reloaded
+	 * (Gun.PumpCycle or Gun.ReloadProgress under way), back to the cup after, over Looter.Hands.PumpReachSeconds (0.08).
+	 */
+	AI_LOOTER_SHOOTER_API float NextPumpShare(const FHandsGun& Gun, float Current, float DeltaTime);
+
 	/** A placement given in the gun's own space, in camera space. */
 	AI_LOOTER_SHOOTER_API FHandPlacement InGun(const FHandsGun& Gun, const FVector& Hold, const FVector& FingersDir, const FVector& PalmDir,
 		const FHandFingers& Fingers, const FVector& Forearm);
@@ -135,6 +174,9 @@ namespace FirstPersonHandsGrips
 
 	/** A kind's handles, trigger and thumbs, read off its model (FirstPersonHandsGripShapes.cpp; For's tables get them). */
 	AI_LOOTER_SHOOTER_API void AddContact(EWeaponKind Kind, FGunHands& Hands);
+
+	/** A kind's cup under the gun's middle (FirstPersonHandsCup.cpp; For's tables get it). */
+	AI_LOOTER_SHOOTER_API void AddCup(EWeaponKind Kind, FGunHands& Hands);
 
 	/**
 	 * The touch tuning on a kind's hold (development builds; Looter.Hands.Kind picks the kind as for the rest):

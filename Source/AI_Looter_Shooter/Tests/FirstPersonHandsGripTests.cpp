@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Player/FirstPersonHandsFraming.h"
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/FirstPersonHandsRig.h"
 #include "Weapons/WeaponModelComponent.h"
@@ -222,6 +223,57 @@ bool FFirstPersonHandsGripContactTest::RunTest(const FString& Parameters)
 				Kind == EWeaponKind::Shotgun || OffIt > OnIt + 1.f);
 		}
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstPersonHandsGripCupTest, "Looter.Player.Hands.Grip.Cup",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FFirstPersonHandsGripCupTest::RunTest(const FString& Parameters)
+{
+	// The user (2026-10-27): the support hand cups beneath the gun's middle (the AR's trigger housing, the LMG's box), not
+	// out toward the front; the revolver stays one-handed; the pump gun's hand goes to the pump only to rack and reload.
+	TestTrue(TEXT("Looter.Hands.Cup on"), FirstPersonHandsGrips::UseCup());
+	const EWeaponKind Kinds[] = { EWeaponKind::Rifle, EWeaponKind::Shotgun, EWeaponKind::SMG, EWeaponKind::Sniper, EWeaponKind::LMG,
+		EWeaponKind::Launcher };
+	for (const EWeaponKind Kind : Kinds)
+	{
+		const FString Name = UEnum::GetValueAsString(Kind);
+		const FGunHands& Hands = FirstPersonHandsGrips::For(Kind);
+		TestTrue(Name + TEXT(": cups"), Hands.bCup && Hands.CupShape.bValid);
+		const FHandsGun Gun = GripTestGun(Kind, 0.f);
+		const FHandPlacement Rest = FirstPersonHandsGrips::OnForegrip(Gun);
+		const FVector Grip = Gun.ToCameraPoint(Gun.Grip);
+		const FVector Fore = Gun.ToCameraPoint(Gun.Foregrip);
+		const FVector Expected = Gun.ToCameraPoint(Gun.Grip + (Hands.CupHold + FPHandsFraming::SupportNudge(Kind)) * Gun.Scale);
+		TestTrue(FString::Printf(TEXT("%s: at rest on its cup (%.2f cm off)"), *Name, FVector::Dist(Rest.Hold, Expected)), Rest.Hold.Equals(Expected, 0.01));
+		TestTrue(Name + TEXT(": nearer the grip than the fore-end was (not out toward the front)"),
+			FVector::Dist(Rest.Hold, Grip) < FVector::Dist(Fore, Grip));
+		TestTrue(Name + TEXT(": palm up under the gun"), FVector::DotProduct(Rest.GetPalmDir(), Gun.ToCameraDir(FVector::UpVector)) > 0.7f);
+		TestTrue(Name + TEXT(": its forearm up from below"), FVector::DotProduct(Rest.Forearm, Gun.ToCameraDir(FVector::UpVector)) < -0.6f);
+		// A real cup (the user, 2026-10-27: "straighten it out"): the knuckles forward along the gun, the forearm straight
+		// behind them, the wrist bent back only (no sideways bend: the forearm in the knuckles' and palm's plane).
+		TestTrue(Name + TEXT(": knuckles forward along the gun"), FVector::DotProduct(Rest.GetFingersDir(), Gun.ToCameraDir(FVector::ForwardVector)) > 0.7f);
+		const FVector Side = FVector::CrossProduct(Rest.GetFingersDir(), Rest.GetPalmDir()).GetSafeNormal();
+		const float Sideways = FMath::RadiansToDegrees(FMath::Asin(FMath::Abs(static_cast<float>(FVector::DotProduct(Rest.Forearm, Side)))));
+		TestTrue(FString::Printf(TEXT("%s: no sideways bend at the wrist (%.1f degrees)"), *Name, Sideways), Sideways <= 12.f);
+		TestTrue(Name + TEXT(": the forearm behind the knuckles"), FVector::DotProduct(Rest.Forearm, Rest.GetFingersDir()) < -0.3f);
+		TestTrue(Name + TEXT(": the fingers close on what it cups"), Rest.Contact.Handle.bValid && Rest.Contact.Share > 0.5f);
+		// The cup's palm sits under what it holds: the handle's underside is above the grip point's palm side.
+		const float Under = Rest.Contact.Handle.Distance(Rest.Hold - Rest.GetPalmDir() * FirstPersonHands::GripOffPalmSkin);
+		TestTrue(FString::Printf(TEXT("%s: the palm against the underside (%.2f cm off it)"), *Name, Under), FMath::Abs(Under) < 1.f);
+	}
+	TestFalse(TEXT("The revolver stays one-handed (no cup)"), FirstPersonHandsGrips::For(EWeaponKind::Revolver).bCup);
+
+	// The pump gun: on the pump as far as its share, and the reloads and racks on the pump hold.
+	FHandsGun Pump = GripTestGun(EWeaponKind::Shotgun, 0.f);
+	Pump.PumpShare = 1.f;
+	TestTrue(TEXT("Shotgun: on the pump when racking"), FirstPersonHandsGrips::OnForegrip(Pump, 4.f).Hold.Equals(FirstPersonHandsGrips::OnForeEnd(Pump, 4.f).Hold, 0.01));
+	Pump.PumpCycle = 0.2f;
+	TestEqual(TEXT("...going there as a rack starts"), FirstPersonHandsGrips::NextPumpShare(Pump, 0.f, 0.04f), 0.5f, 0.01f);
+	Pump.PumpCycle = -1.f;
+	Pump.ReloadProgress = -1.f;
+	TestEqual(TEXT("...back to the cup after"), FirstPersonHandsGrips::NextPumpShare(Pump, 1.f, 1.f), 0.f);
 	return true;
 }
 
