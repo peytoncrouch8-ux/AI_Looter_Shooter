@@ -24,6 +24,20 @@ The user's overnight orders, in order:
 
 Leave the user a short morning report (3 sentences).
 
+RESULT (all pushed by 2026-10-28 ~03:00):
+- Done: gun patterns (M_Gun 497 -> 800 instr); chests T1-T5 from Tripo plus the show (ChestShow.cpp, 8 Loot.Chest.* cues; the fountain throws away from the opener); melee tools from Tripo (parts_tripo.py, LOOTER_MELEE_TRIPO=0 = scripted); cloth springs off limbs; hero fit pass (all 5); cup fit on every gun part (FirstPersonHandsCupFit.cpp); Crane's gaff grip and Odessa's fan wind-up; shotgun Tripo views (Art/Concepts/Weapons/Shotgun, 24 parts, 4 sets); sniper scope glass; bluff cache back to T2.
+- Perf: RR Medium 7.6 ms / p95 7.9.
+- Playtest: Docs/Work/2026-10-28-Overnight/PLAYTEST.md.
+
+Open for the user (feel calls, not built):
+1. Spider packs kill in 3-4 s while the Unpaid land almost nothing. Suggested: spider melee tokens 1 or a slower bite cadence; the Unpaid lunge commits its last 0.3 s.
+2. The sniper at the hip hides a third of the screen (per-kind framing like the LMG).
+3. The Unpaid wait at their ground's edge (a shooting gallery).
+4. Saint Maud's clean finish reads flat; camo on red/cream reads as cow hide.
+5. The AR reflex dot is tiny.
+- The user's Tripo next: the shotgun's 24 parts (views ready).
+- Test build: newest Builds\Playtest\ (smoke tested).
+
 ## 2026-10-27: the user's playtest notes
 The user played the 10-23 build and sent 41 notes: `Docs/Work/2026-10-27-Playtest/NOTES.md` (word for word + their calls),
 `FINDINGS.md` (where each lives), `CONTRACT.md` (round 1). Calls: sniper ground ring dropped; order = round 1 bugs + quick
