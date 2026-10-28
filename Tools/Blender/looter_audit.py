@@ -127,6 +127,10 @@ def pose(arm, steps, amount=1.0):
                 axis = (pb.matrix.to_3x3() @ Vector((1.0, 0.0, 0.0))).normalized()
                 _apply(pb, Matrix.Translation(h) @ Matrix.Rotation(math.radians(args[0] * amount), 4, axis)
                        @ Matrix.Translation(-h))
+        elif kind == 'ik':
+            # ('ik', limb, target, hint): a two-bone limb ('leg_l', 'arm_r') reaching target (a point, m) with its
+            # middle joint toward hint (a point), as the stance layer's SolveTwoBoneIK (fit_audit's code poses)
+            _ik(arm, bone, Vector(args[0]), Vector(args[1]), amount)
         elif kind == 'twist':
             # ('twist', side, degrees, bend): the hand turned about the forearm's axis, each lowerarm_twist bone by its
             # share of the way down (TWIST_SHARES, as the game turns them), then the hand bent about its own X
@@ -142,6 +146,72 @@ def pose(arm, steps, amount=1.0):
             h = hand.head.copy()
             _apply(hand, Matrix.Translation(h) @ Matrix.Rotation(math.radians(args[1] * amount), 4, side)
                    @ Matrix.Translation(-h))
+
+
+LIMB_BONES = {'leg': ('thigh', 'calf', 'foot'), 'arm': ('upperarm', 'lowerarm', 'hand')}
+
+
+def _ik(arm, limb, target, hint, amount=1.0):
+    """Two-bone IK on the posed skeleton: limb 'leg_l' / 'arm_r'; the end's head moved amount of the way to target, the
+    middle joint in the plane of the root, the target and hint (each bone pointed head to the next bone's head)."""
+    kind, side = limb.split('_')
+    a, b, c = (arm.pose.bones[f'{n}_{side}'] for n in LIMB_BONES[kind])
+    h, m, e = a.head.copy(), b.head.copy(), c.head.copy()
+    l1, l2 = (m - h).length, (e - m).length
+    t = e.lerp(target, amount)
+    d = t - h
+    dist = min(max(d.length, abs(l1 - l2) + 1e-4), l1 + l2 - 1e-4)
+    u = d.normalized()
+    k = hint - h
+    v = k - u * k.dot(u)
+    if v.length < 1e-6:
+        v = (m - h) - u * (m - h).dot(u)
+    v.normalize()
+    ca = (l1 * l1 + dist * dist - l2 * l2) / (2.0 * l1 * dist)
+    knee = h + (u * ca + v * math.sqrt(max(0.0, 1.0 - ca * ca))) * l1
+    q = (m - h).normalized().rotation_difference((knee - h).normalized())
+    _apply(a, Matrix.Translation(h) @ q.to_matrix().to_4x4() @ Matrix.Translation(-h))
+    m, e = b.head.copy(), c.head.copy()
+    q = (e - m).normalized().rotation_difference((h + u * dist - m).normalized())
+    _apply(b, Matrix.Translation(m) @ q.to_matrix().to_4x4() @ Matrix.Translation(-m))
+
+
+def body_poses(arm):
+    """The game's code poses placed from this figure's own joints (Player/Animation/LooterStancePose.cpp; the fit
+    audit's, 2026-10-27): a sprint's widest stride, the slide (hips down to 44% of their height, the right leg out
+    ahead with the heel near the ground, the left folded under with its knee out, the torso back 24 degrees), a jump's
+    tuck, a fall (legs apart, arms out), and a wide hip turn each way (the hips 35 degrees round under a chest held on
+    the aim, the thighs turned back toward the feet)."""
+    bones = arm.data.bones
+    hd = lambda n: bones[n].head_local.copy()
+    pel = hd('pelvis')
+    drop = pel.z * 0.44 - pel.z
+    hips = pel + Vector((0.0, 0.0, drop))
+    th_l, th_r = hd('thigh_l') + Vector((0.0, 0.0, drop)), hd('thigh_r') + Vector((0.0, 0.0, drop))
+    carry = POSES['carry']
+    out = {
+        'run': [('turn', 'spine_01', X, 10.0),
+                ('point', 'upperarm_l', (0.10, -0.62, -0.78)), ('point', 'lowerarm_l', (0.0, -0.75, 0.66)),
+                ('point', 'upperarm_r', (-0.12, 0.62, -0.78)), ('point', 'lowerarm_r', (-0.05, -0.30, -0.95)),
+                ('turn', 'thigh_l', X, -55.0), ('turn', 'calf_l', X, 60.0), ('turn', 'thigh_r', X, 28.0),
+                ('turn', 'calf_r', X, 85.0), ('turn', 'foot_r', X, -25.0)],
+        'slide': [('move', 'pelvis', (0.0, 0.0, drop)),
+                  ('ik', 'leg_r', (hips.x - 0.12, hips.y - 0.58, 0.13), tuple(th_r + Vector((0.0, -0.50, 0.25)))),
+                  ('ik', 'leg_l', (hips.x - 0.04, hips.y - 0.22, 0.10), tuple(th_l + Vector((0.40, -0.15, -0.10)))),
+                  ('turn', 'spine_01', X, -12.0), ('turn', 'spine_03', X, -12.0)] + carry,
+        'jump': [('move', 'pelvis', (0.0, 0.0, 0.25)), ('turn', 'thigh_l', X, -60.0), ('turn', 'calf_l', X, 80.0),
+                 ('turn', 'thigh_r', X, -45.0), ('turn', 'calf_r', X, 85.0), ('turn', 'spine_01', X, 8.0)] + carry,
+        'fall': [('move', 'pelvis', (0.0, 0.0, 0.3)), ('turn', 'thigh_l', X, -30.0), ('turn', 'calf_l', X, 35.0),
+                 ('turn', 'thigh_r', X, 15.0), ('turn', 'calf_r', X, 45.0), ('turn', 'spine_01', X, -6.0),
+                 ('point', 'upperarm_l', (0.72, -0.25, -0.3)), ('point', 'lowerarm_l', (0.6, -0.45, 0.2)),
+                 ('point', 'upperarm_r', (-0.72, -0.25, -0.3)), ('point', 'lowerarm_r', (-0.6, -0.45, 0.2))],
+    }
+    for name, sgn in (('hip_turn_l', 1.0), ('hip_turn_r', -1.0)):
+        out[name] = _arms_down(14.0) + [('turn', 'pelvis', Z, 35.0 * sgn), ('turn', 'spine_01', Z, -20.0 * sgn),
+                                        ('turn', 'spine_03', Z, -15.0 * sgn), ('turn', 'thigh_l', Z, -25.0 * sgn),
+                                        ('turn', 'thigh_r', Z, -25.0 * sgn), ('turn', 'thigh_l', X, -18.0),
+                                        ('turn', 'calf_l', X, 15.0), ('turn', 'thigh_r', X, 12.0)]
+    return out
 
 
 # ------------------------------------------------------------------------------------------------- the swing springs

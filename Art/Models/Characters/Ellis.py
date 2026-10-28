@@ -1542,6 +1542,10 @@ def belt_frame(fig, angle):
     return path[i], nrm[i], up[i], tangent
 
 
+HOLSTER_OUT = 0.015     # the pouch and gun this much further off the hip than round 6 (fit pass, 2026-10-27: a sprint's,
+                        # a jump's and a hip turn's thigh rose 3-5 cm through the gun; with this and HOLSTER_GUN_BODY 0.1-2.6)
+
+
 def build_holster(fig, under_obs):
     """The cross-draw holster on the left front hip, a Mexican loop holster as the 1870s wore them: a leather skirt
     folded over the belt, the pouch pushed through two loops cut in it, canted so the revolver's walnut grip points
@@ -1562,12 +1566,12 @@ def build_holster(fig, under_obs):
             q = p + a * u + across * (half * w)
             hit = tree.ray_cast(Vector(tuple(q + n * 0.15)), Vector(tuple(-n)), 0.3)
             base = np.array(hit[0]) if hit[0] is not None else q
-            row.append(base + n * (0.010 if u > 0.03 else 0.016))
+            row.append(base + n * ((0.010 if u > 0.03 else 0.016) + HOLSTER_OUT * gm.smoothstep(0.0, 0.08, u)))
         rows.append(row)
     P = np.array(rows)
     parts.append(gm.mesh('HolsterSkirt', gm.grid(P[..., 0], P[..., 1], P[..., 2]), slot('Belt')))
     # the pouch: flattened, swelling round the cylinder at the throat, tapering to the toe, closed there
-    mouth = p + a * 0.035 + n * 0.034
+    mouth = p + a * 0.035 + n * (0.034 + HOLSTER_OUT)
     us = np.linspace(0, 1, 11)
     path = np.array([mouth + a * 0.20 * u for u in us])
     rad = np.array([[0.031 + 0.006 * math.exp(-((u - 0.12) / 0.12) ** 2) - 0.014 * u, 0.020 - 0.008 * u] for u in us])
@@ -1882,7 +1886,7 @@ def make_lows(fig, highs, hair_under):
     # reduced layers can cut through one another where the detailed ones only just cleared: each outer part is pushed
     # back outside the reduced parts under it
     by = lambda *names: [o for o in lows if o.name.split('.')[0].startswith(names)]
-    for outer, inner in (('Vest', ('Shirt',)), ('Duster', ('Vest', 'Shirt', 'Belt', 'Cartridges', 'Bullets', 'Trousers')),
+    for outer, inner in (('Vest', ('Shirt', 'Trousers')), ('Duster', ('Vest', 'Shirt', 'Belt', 'Cartridges', 'Bullets', 'Trousers')),
                          ('Cape', ('Duster', 'Sleeves')), ('Collar', ('Cape',)), ('Gauntlet', ('Sleeves',)),
                          ('Bandana', ('Shirt', 'Vest', 'Ellis')), ('Boots', ('Trousers',))):
         under = by(*inner)
@@ -1916,7 +1920,44 @@ def make_lows(fig, highs, hair_under):
                 co[k] = np.array(loc + nrm * float(gap[k]))
         ob.data.vertices.foreach_set('co', co.astype(np.float32).ravel())
         ob.data.update()
+    # the hair cards at least HAIR_OFF_SKIN off the reduced skin (fit pass, 2026-10-27: the cards over the brow lay
+    # within 0.6 mm of it, facing the same way, and would flicker against it)
+    for ob in by('Hair'):
+        co = gm._object_coords(ob)
+        new = gm.clear(co, tree, HAIR_OFF_SKIN, 0.004)
+        ob.data.vertices.foreach_set('co', new.astype(np.float32).ravel())
+        ob.data.update()
+    # the trousers' waistband tucked TUCK_GAP inside the reduced waistcoat over it (fit pass: between the waistcoat's
+    # coarse faces the band's top showed through above the belt, the vest's push-out moves only its points)
+    tuck_under(by('Trousers'), by('Vest'), fig.centre if hasattr(fig, 'centre') else (0.0, 0.0), TUCK_GAP)
     return lows
+
+
+HAIR_OFF_SKIN = 0.0015   # m
+TUCK_GAP = 0.003         # m
+
+
+def tuck_under(inner, outer, centre, gap, reach=0.03):
+    """Points of the inner parts that a level ray toward the body's axis (centre, x y) finds the outer parts in front
+    of, or within gap outside them, moved gap inside the outer layer along that ray: what the outer layer covers stays
+    covered between its coarse faces; what shows below its hem is left alone."""
+    tree = gm.bvh_objects(outer)
+    for ob in inner:
+        co = gm._object_coords(ob)
+        moved = 0
+        for k, p in enumerate(co):
+            d = Vector((centre[0] - p[0], centre[1] - p[1], 0.0))
+            if d.length < 1e-6:
+                continue
+            d.normalize()
+            o = Vector(tuple(p))
+            hit = tree.ray_cast(o - d * gap, d, reach + gap)       # the outer layer from just outside the point, inward
+            if hit[0] is not None:
+                co[k] = np.array(hit[0] + d * gap)
+                moved += 1
+        ob.data.vertices.foreach_set('co', co.astype(np.float32).ravel())
+        ob.data.update()
+        log(f'{ob.name}: {moved} points tucked {gap * 1000:.0f} mm under {outer[0].name if outer else "-"}')
 
 
 def look_of(ob):
@@ -1986,7 +2027,20 @@ def thicken(objects):
             gm.solidify(ob, t, offset=off, rim=not ob.name.startswith('Hair'))
 
 
-HOLSTER_GUN = 0.6       # the holstered gun's share of the left thigh's turn (rigid; the pouch takes all of it)
+HOLSTER_GUN_BODY = 0.6  # the rigid gun's weights: this share the mean of the pouch's round it (holster_w), the rest
+                        # round 6's (pelvis 0.4, thigh_l 0.6); all the pouch's, a crouch put its grip 4.9 cm into the belly
+HOLSTER_THIGH = (0.25, 0.75)   # down the pouch (its share of its 20 cm from the throat) the thigh's weights take over
+                                # from the body's
+
+
+def holster_w(fig, P):
+    """The holster's weights at points P: the body's own where it lies (the trousers under it ride them), handing over
+    to thigh_l down the pouch (HOLSTER_THIGH), so its throat and the gun stay on the hip crease's cloth."""
+    mouth, a, _g, _n = fig.holster
+    u = ((P - mouth) @ a) / 0.20     # down the pouch, 0 the throat, 1 the toe
+    t = gm.smoothstep(HOLSTER_THIGH[0], HOLSTER_THIGH[1], u)[:, None]
+    thigh = rigid_w(fig, len(P), {'thigh_l': 1.0})
+    return hu.top4((1.0 - t) * fig.b.weights_at(P)[1] + t * thigh)
 
 
 def rigid_w(fig, n, parts):
@@ -2040,20 +2094,23 @@ def weights(fig, ob):
         t = 0.4 + 0.6 * np.clip(((P - a) @ (b - a)) / max((b - a) @ (b - a), 1e-9), 0.0, 1.0)
         return rigid_w(fig, n, {'pelvis': 1.0 - t, 'thigh_r': t})
     if name.startswith(('Belt', 'Cartridges', 'Bullets', 'Buckle')):
-        return rigid_w(fig, n, {'pelvis': 0.85, 'spine_01': 0.15})
+        # the body's own weights where it lies, as the trousers and waistcoat under it have them (fit pass, 2026-10-27:
+        # rigid on the hips, a crouch's or a slide's trousers and waistcoat rose 2-3 cm through the belt's front)
+        return fig.b.weights_at(P)[1]
     if name.startswith('HolsterSkirt'):
-        # the flap over the belt rides the hips; down along the pouch it goes with the pouch (below)
-        t = gm.smoothstep(0.95, 0.88, P[:, 2])
-        return rigid_w(fig, n, {'pelvis': 1.0 - t, 'thigh_l': t})
+        # the flap over the belt rides the belt (the body's weights); down along the pouch it goes with the pouch (below)
+        return holster_w(fig, P)
     if name.startswith('Revolver'):
-        # the gun whole, mostly with the pouch: on the thigh entirely a stride swung its grip (in front of the hip
-        # joint) 4.5 cm into his belly; with the hips, a crouch's thigh rose 5 cm into it
-        return rigid_w(fig, n, {'pelvis': 1.0 - HOLSTER_GUN, 'thigh_l': HOLSTER_GUN})
+        # the gun whole (rigid), partly on the pouch's weights round it (HOLSTER_GUN_BODY; at 60 % thigh_l and the
+        # rest pelvis alone, a sprint's thigh rose 4.6 cm through it)
+        body = holster_w(fig, P).mean(0)
+        old = rigid_w(fig, 1, {'pelvis': 0.4, 'thigh_l': 0.6})[0]
+        return np.tile(hu.top4((HOLSTER_GUN_BODY * body + (1.0 - HOLSTER_GUN_BODY) * old)[None])[0], (n, 1))
     if name.startswith('Holster'):
-        # the pouch and its loops whole on the thigh they hang against, as a loop holster swings on its skirt (blended
-        # from the belt down the pouch, the thigh sank 3.6 cm into it crouching; at 35 % a stride put the thigh 5 cm
-        # through it)
-        return rigid_w(fig, n, {'thigh_l': 1.0})
+        # the pouch and its loops: the body's weights at the throat (it rides the trousers there), handing over to the
+        # thigh's down the pouch (all on the thigh, a sprint's thigh rose 5 cm into its throat at the hip crease;
+        # blended pelvis to thigh, round 5's crouch put the thigh 3.6 cm into it)
+        return holster_w(fig, P)
     if name.startswith('Lantern'):
         return rigid_w(fig, n, {'pelvis': 0.6, 'thigh_r': 0.4})
     if name.startswith(('Gauntlet', 'Concho')):
