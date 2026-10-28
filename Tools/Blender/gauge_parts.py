@@ -578,7 +578,8 @@ def build_arm(K, s):
     ua_r = [(0.05, 0.067), (L1 * 0.5, 0.065), (L1 - 0.07, 0.058)]
     K.add(f'UpperArm_{s}', 'ArmsEnamel', UA, housing(ua_r, n, 0.008, seg).at(Fu))
     add_seam(K, f'UpperArmSeam_{s}', 'Arms', UA, Fu, angle_of(Fu, out), ua_r, 0.07, L1 - 0.105)
-    K.add(f'UpperArmBand_{s}', 'ArmsBrass', UA, cyl(0.0665, 0.02, n, b=0.002, seg=K.n(1, 2)).at(Fu @ T((0, 0, L1 - 0.09))))
+    # (its top 4 mm under the casing's end: level with it, the two end faces flickered, fit pass 2026-10-27)
+    K.add(f'UpperArmBand_{s}', 'ArmsBrass', UA, cyl(0.0665, 0.02, n, b=0.002, seg=K.n(1, 2)).at(Fu @ T((0, 0, L1 - 0.094))))
     pa = S0 + du * 0.09 + back_u * 0.07
     K.add(f'UpperArmPiston_{s}', 'ArmsIron', UA, cyl(0.013, 0.12, K.n(10, 20), b=0.002, seg=1).at(frame(pa, du)))
     K.add(f'UpperArmRod_{s}', 'ArmsBrass', UA, cyl(0.0065, L1 - 0.22, K.n(8, 16)).at(frame(pa + du * 0.1, du)))
