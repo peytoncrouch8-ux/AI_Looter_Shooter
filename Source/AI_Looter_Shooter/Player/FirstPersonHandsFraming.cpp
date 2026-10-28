@@ -85,8 +85,13 @@ namespace
 			// steeper forearms; tuned in PIE at 16:9.
 			Frame.HipAhead = 0.f;
 			Frame.HipRight = 0.f;
-			Frame.HipUp = 3.f;
+			Frame.HipUp = -1.f;
 			Frame.HipPitch = 4.f;
+			// The user (2026-10-27): the cupping hand clipped the belt box, too big for it: the arms 0.9x on this gun only (0.8
+			// overall at Ellis's 0.88). Then "move the hand forward towards the front of the boxmag, and the gun needs to go
+			// down": the cup 3 ahead of the box's middle, the gun 4 lower (HipUp 3 -> -1), tuned in PIE.
+			Frame.SupportAhead = 3.f;
+			Frame.ArmsScale = 0.9f;
 			break;
 		case EWeaponKind::Launcher:
 			Frame.HipAhead = 9.f;
@@ -125,6 +130,7 @@ namespace
 		{ TEXT("TriggerUp"), &FPHandsFraming::FKindFrame::TriggerUp, TEXT("Trigger hand moved up the gun (cm of the modeled gun).") },
 		{ TEXT("OneHand"), &FPHandsFraming::FKindFrame::OneHand, TEXT("0-1: how much the support hand leaves the gun at rest, parked under the frame (a pistol's 1).") },
 		{ TEXT("GunScale"), &FPHandsFraming::FKindFrame::GunScale, TEXT("This kind's first-person gun size on top of Looter.FPHands.GunScale (a multiplier).") },
+		{ TEXT("ArmsScale"), &FPHandsFraming::FKindFrame::ArmsScale, TEXT("This kind's first-person arms size on top of the hero's (a multiplier).") },
 	};
 
 	/** Registers every kind's fields as console variables over Frames (static start-up, after Frames is filled). */

@@ -43,6 +43,8 @@ namespace FPHandsFraming
 		float OneHand = 0.f;
 		/** This kind's first-person gun size on top of Looter.FPHands.GunScale (a multiplier; 1: the shared size). */
 		float GunScale = 1.f;
+		/** This kind's first-person arms size on top of the hero's (a multiplier; under 1: hands that fit a fat gun's middle). */
+		float ArmsScale = 1.f;
 	};
 
 	/** The view model's frame: the tangent of half its field of view across, and its width over its height. */

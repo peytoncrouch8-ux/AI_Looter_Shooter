@@ -195,7 +195,10 @@ void UFirstPersonHandsComponent::PlaceOnCamera(float Scale)
 float UFirstPersonHandsComponent::GetWantedScale() const
 {
 	const float Tuning = CVarHandsScale.GetValueOnGameThread();
-	return FMath::Clamp(Tuning > 0.f ? Tuning : (HeroScale > 0.f ? HeroScale : ArmsScale), 0.5f, 1.5f);
+	// The gun in hand may want smaller hands (FPHandsFraming's per-kind ArmsScale: the LMG's fat belt box); the tuning
+	// variable stays absolute.
+	const float Kind = FPHandsFraming::For(LastGun.Kind).ArmsScale;
+	return FMath::Clamp(Tuning > 0.f ? Tuning : (HeroScale > 0.f ? HeroScale : ArmsScale) * Kind, 0.5f, 1.5f);
 }
 
 void UFirstPersonHandsComponent::WearHero()
