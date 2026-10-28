@@ -44,6 +44,15 @@ Hester's Rock). Each shore ~95,000 m2, liner 180 m; deck plan inset (upper decks
 Placeholder names (agent-made, original): Marquee Hotel, the Gilded Parlor, Ned's card barge, Lily Sound, The Neck, Gull
 Head, Hester's Rock, Stilt Town, Smugglers' Reach, Saltgrass Hills, Blackrock Heights, Tidewrack Bluffs.
 
+Round 2 (the user: "Build 4 more, completely different"; asked for a bigger ship part, fewer labels, a mix of grounded
+and wild, the liner always offshore, a ground-level arrival sketch and sized fight spots; `node gen2.js`): D Fjord Head
+(grounded, two shores joined by the head bridge and a chain ferry, rifle fights across the water), E Breakwater Harbor
+(grounded, close quarters: terraced grid town, the breakwater gauntlet), F Hulltown (wild: the port inside a ~340 m beached
+wreck, the Sovereign, broken in three; the bow on the Anvil rock with the light), G The Tiers (wild, vertical: a city down a
+colossal sea wall, crest station +60 m, lifts and coal chutes to the quay). Each page: the full deck plan at true scale
+(180 x 24 m; Ned's ring 22 m), arrival sketch, five fight rings. Placeholder names: Fjord Head, Kestrel Fjord, Gilt Harbor,
+Hulltown, the Sovereign, the Anvil, The Crest, The Tiers.
+
 ## Open (ask the user at the Lily's start)
 - The port's name (Highwater Landing was a canyon-rim name; keep or rename) and Saint Hester's role.
 - Shore creature kinds and a bestiary page each; Carrion Gulls (Story roster) on the cliffs?
