@@ -27,6 +27,10 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	const FLinearColor ElementGlow = ElementRules::FxColor(GunElement);
 	// Its maker's mark, on the one part that carries it (the gun master paints it from that part's custom primitive data).
 	const FWeaponMarkPaint Mark = WeaponMakers::MarkFor(Instance, Look);
+	// Its field paint (WeaponModelPattern.cpp: rarer is fancier), on every part but the wholly glowing ones, and its element as
+	// light stains on the parts that aren't the element part (ElementSpread of that part's finish).
+	const FWeaponPattern Pattern = PatternFor(Instance, Look);
+	const float ElementStains = ElementSpread();
 	ModelScale = ScaleFor(Definition->Kind);
 
 	// The parts share their materials; the ones this gun colors become one dynamic instance each, shared by every part.
@@ -133,12 +137,15 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		}
 		// How battered this gun is, for the gun master's scuffs and grime (custom primitive data: no material copies).
 		Part->SetCustomPrimitiveDataFloat(WeaponParts::WearDataIndex, Wear);
+		const bool bWhollyGlow = IsWhollyGlow(*Part, Definition->RarityGlowSlot);
+		ShowPattern(*Part, bWhollyGlow ? FWeaponPattern() : Pattern, Index);
 		if (Index == Mark.PartIndex)
 		{
 			WeaponMakers::PaintMark(*Part, Mark);
 		}
 		// An element part (a magazine, a cylinder, a rocket) wears its element as a finish on its own mesh: scorched, gilt or
-		// frosted by the gun master, so a Tripo part and a scripted one alike need no model of their own.
+		// frosted by the gun master, so a Tripo part and a scripted one alike need no model of their own. The rest of the gun
+		// wears the same finish lightly.
 		if (Option->Element != ELooterElement::None)
 		{
 			ShowElementFinish(*Part, Option->Element);
@@ -146,6 +153,10 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 			{
 				ElementPart = Part;
 			}
+		}
+		else if (GunElement != ELooterElement::None && !bWhollyGlow)
+		{
+			ShowElementFinish(*Part, GunElement, ElementStains);
 		}
 		const TArray<FName> MaterialSlots = Part->GetMaterialSlotNames();
 		for (int32 Material = 0; Material < MaterialSlots.Num(); ++Material)
@@ -179,10 +190,15 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 					{
 						RocketLoadMesh->SetMaterial(Material, Paint(RocketSlots[Material], RocketLoadMesh->GetMaterial(Material)));
 					}
-					// The next rocket is the same round as the loaded one: in its finish too.
+					// The next rocket is the same round as the loaded one: in its finish and its pattern too.
+					ShowPattern(*RocketLoadMesh, bWhollyGlow ? FWeaponPattern() : Pattern, Index);
 					if (Option->Element != ELooterElement::None)
 					{
 						ShowElementFinish(*RocketLoadMesh, Option->Element);
+					}
+					else if (GunElement != ELooterElement::None && !bWhollyGlow)
+					{
+						ShowElementFinish(*RocketLoadMesh, GunElement, ElementStains);
 					}
 				}
 			}

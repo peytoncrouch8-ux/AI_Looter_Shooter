@@ -187,7 +187,7 @@ bool FWeaponElementLookGunsTest::RunTest(const FString& Parameters)
 						}
 					}
 				}
-				// Only the element part wears a finish.
+				// The element part wears its finish whole.
 				const bool bElementPart = Part == Model->GetElementPart();
 				const FWeaponElementFinish Finish = UWeaponModelComponent::ElementFinishFor(Element);
 				if (bElementPart)
@@ -199,9 +199,15 @@ bool FWeaponElementLookGunsTest::RunTest(const FString& Parameters)
 						FMath::IsNearlyEqual(DataAt(*Part, UWeaponModelComponent::ElementGlowDataIndex + 3), Finish.GlowStrength));
 					Finished += Finish.Kind > 0.f ? 1 : 0;
 				}
-				else
+				else if (Element == ELooterElement::None || UWeaponModelComponent::IsWhollyGlow(*Part, RaritySlot))
 				{
 					TestEqual(FString::Printf(TEXT("%s: other parts as modeled"), *Case), DataAt(*Part, UWeaponModelComponent::ElementFinishDataIndex), 0.f);
+				}
+				else
+				{
+					// The rest of the gun wears the same finish lightly (Looter.Weapons.ElementLook.Spread; WeaponPatternTests check it closely).
+					const float Stains = Finish.Kind > 0.f && UWeaponModelComponent::ElementSpread() > 0.f ? Finish.Kind : 0.f;
+					TestEqual(FString::Printf(TEXT("%s: other parts wear its stains"), *Case), DataAt(*Part, UWeaponModelComponent::ElementFinishDataIndex), Stains);
 				}
 			}
 			TestEqual(FString::Printf(TEXT("%s: an element part exactly when it has an element"), *Case),

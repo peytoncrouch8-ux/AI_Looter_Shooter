@@ -30,6 +30,23 @@ struct FWeaponElementFinish
 };
 
 /**
+ * A gun's field paint on the gun master (M_Gun's pattern, custom primitive data UWeaponModelComponent::PatternKindDataIndex
+ * on; Docs/Work/2026-10-27-GunPatterns/CONTRACT.md): Kind (UWeaponModelComponent::PatternGrime .. PatternBold, 0 none),
+ * Scale (cm per repeat, 4-30), Seed (0-1, the material's offsets and turn), Tint (linear) and Amount (0-1). Rolled from the
+ * gun's seed, rarity and maker (rarer is fancier); all zeros = the part as modeled.
+ */
+struct FWeaponPattern
+{
+	float Kind = 0.f;
+	float Scale = 0.f;
+	float Seed = 0.f;
+	FLinearColor Tint = FLinearColor::Black;
+	float Amount = 0.f;
+};
+
+struct FWeaponLook;
+
+/**
  * A rolled gun's model: its definition's parts (static meshes made in Blender) as the roll's seed picks them, in the
  * gun's paint and its rarity's glow. This component is the gun's own space (origin at the back of the receiver, +X
  * toward the muzzle): the parts hang in it, or from sockets on earlier parts. It knows where the muzzle and the hands
@@ -171,8 +188,15 @@ public:
 	/** The finish an element part wears (Kind 0 for None, or while Looter.Weapons.ElementLook.Finish is off). */
 	static FWeaponElementFinish ElementFinishFor(ELooterElement Element);
 
-	/** Writes Element's finish into a part's custom primitive data for the gun master (zeros = the part as modeled). */
-	static void ShowElementFinish(UPrimitiveComponent& Part, ELooterElement Element);
+	/**
+	 * Writes Element's finish into a part's custom primitive data for the gun master (zeros = the part as modeled). The gun's
+	 * other parts wear it too as light stains (the user's call, 2026-10-27): AmountScale (ElementSpread) scales its amount and
+	 * its glow; the element part takes it whole (1).
+	 */
+	static void ShowElementFinish(UPrimitiveComponent& Part, ELooterElement Element, float AmountScale = 1.f);
+
+	/** How much of the element part's finish the gun's other parts wear (Looter.Weapons.ElementLook.Spread, 0.25; 0-1). */
+	static float ElementSpread();
 
 	/** The part whose element the gun fires (its first part with one), wearing its finish; null without one. */
 	UStaticMeshComponent* GetElementPart() const { return ElementPart; }
@@ -187,6 +211,59 @@ public:
 	static constexpr float FinishScorched = 1.f;
 	static constexpr float FinishGilt = 2.f;
 	static constexpr float FinishFrosted = 3.f;
+
+	// --- The gun's field paint (WeaponModelPattern.cpp; the user's call 2026-10-27: rarer is fancier, subtle and worn-in) ---
+
+	/**
+	 * The gun master's pattern in custom primitive data (after the element finish, 20-28): the kind (29), the scale (30), the
+	 * seed (31), the tint (32-34, RGB linear), the amount (35).
+	 */
+	static constexpr int32 PatternKindDataIndex = 29;
+	static constexpr int32 PatternScaleDataIndex = 30;
+	static constexpr int32 PatternSeedDataIndex = 31;
+	static constexpr int32 PatternTintDataIndex = 32;
+	static constexpr int32 PatternAmountDataIndex = 35;
+	static constexpr float PatternNone = 0.f;
+	static constexpr float PatternGrime = 1.f;
+	static constexpr float PatternWorn = 2.f;
+	static constexpr float PatternStripes = 3.f;
+	static constexpr float PatternChevrons = 4.f;
+	static constexpr float PatternCamo = 5.f;
+	static constexpr float PatternStencil = 6.f;
+	static constexpr float PatternBold = 7.f;
+	static constexpr int32 PatternKindCount = 8;
+
+	/**
+	 * The pattern a gun rolls (pure, no cvars): from its seed (a stream of its own, like WeaponParts::Wear, so no other roll
+	 * moves), its rarity (Common grime or worn edges, Uncommon those or stripes, Rare stripes/chevrons/camo/stencil, Epic
+	 * chevrons/camo/stencil/clean bold, Legendary clean bold or its maker's own design, MakerPatternKind) and its maker's
+	 * palette (PatternPalette). ForceKind 0-7 keeps the roll but shows that kind (Looter.Weapons.Pattern.Force); -1 rolls it.
+	 */
+	static FWeaponPattern PickPattern(const FWeaponInstanceData& Instance, const FWeaponLook& Look, int32 ForceKind = -1);
+
+	/** PickPattern under the cvars: zeros while Looter.Weapons.Pattern is 0, the kind Looter.Weapons.Pattern.Force names. */
+	static FWeaponPattern PatternFor(const FWeaponInstanceData& Instance, const FWeaponLook& Look);
+
+	/** A legendary's maker-specific bold design (Roundhouse chevrons, Saint Maud stripes, Windfall camo, Meridian stencil); else PatternBold. */
+	static float MakerPatternKind(FName MakerKey);
+
+	/**
+	 * The tints a gun's pattern picks from (linear): a darker and a lighter shade of its shell's paint (the maker's), its trim
+	 * (the maker's brass), black and bone.
+	 */
+	static TArray<FLinearColor> PatternPalette(const FWeaponLook& Look);
+
+	/**
+	 * Writes the pattern into a part's custom primitive data for the gun master. Each part's seed is moved on by its index, so
+	 * the parts (separate meshes) don't repeat one another.
+	 */
+	static void ShowPattern(UPrimitiveComponent& Part, const FWeaponPattern& Pattern, int32 PartIndex = 0);
+
+	/** A glow of the gun (its rarity accent, any Gun*Glow, the reticle): never takes a pattern or stains. */
+	static bool IsGlowSlot(FName Slot, FName RarityGlowSlot);
+
+	/** A part that is nothing but glow (every material slot IsGlowSlot): takes no pattern and no element stains. */
+	static bool IsWhollyGlow(const UStaticMeshComponent& Part, FName RarityGlowSlot);
 
 	/** Draws the parts like first-person arms (own field of view, no clipping) or like the world. */
 	void SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType Type);

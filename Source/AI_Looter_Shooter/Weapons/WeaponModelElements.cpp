@@ -7,6 +7,8 @@
 // element part (vents, barrel slots, sight dots, gauges) glows in ElementRules::FxColor, the rarity accent keeps the rarity's
 // colour and the shell its maker's paint; the element part itself wears its element as a finish the gun master draws on its
 // own mesh (scorched, gilt, frosted), so no part needs a model of its own and the Tripo parts take it as the scripted ones do.
+// The gun's other parts wear the same finish lightly, as stains (ElementSpread of it; the user's call 2026-10-27, "including
+// the elemental differences"), so the whole gun reads as its element and the element part still stands out.
 // The material side: Tools/Unreal/build_world_materials.py (M_Gun, ELEMENT_FINISH_*).
 
 namespace
@@ -19,6 +21,8 @@ namespace
 		TEXT("An element part wears its element's finish (Ember scorched, Soul-light gilt, Grave-salt frosted); 0 shows it as modeled."));
 	TAutoConsoleVariable<float> CVarElementAmount(TEXT("Looter.Weapons.ElementLook.Amount"), 1.f,
 		TEXT("Scales how far each finish pulls the part's colour to its own (0-1 after scaling)."));
+	TAutoConsoleVariable<float> CVarElementSpread(TEXT("Looter.Weapons.ElementLook.Spread"), 0.25f,
+		TEXT("How much of the element part's finish the gun's other parts wear as stains (0-1 of its amount and glow). Read as a gun is built."));
 	TAutoConsoleVariable<float> CVarEmberGlow(TEXT("Looter.Weapons.ElementLook.EmberGlow"), 4.f,
 		TEXT("How bright a scorched part's seams glow (emissive x the Ember hue)."));
 	TAutoConsoleVariable<float> CVarSoulGlow(TEXT("Looter.Weapons.ElementLook.SoulGlow"), 0.6f,
@@ -102,10 +106,24 @@ FWeaponElementFinish UWeaponModelComponent::ElementFinishFor(ELooterElement Elem
 	return Finish;
 }
 
-void UWeaponModelComponent::ShowElementFinish(UPrimitiveComponent& Part, ELooterElement Element)
+void UWeaponModelComponent::ShowElementFinish(UPrimitiveComponent& Part, ELooterElement Element, float AmountScale)
 {
-	const FWeaponElementFinish Finish = ElementFinishFor(Element);
+	FWeaponElementFinish Finish = ElementFinishFor(Element);
+	// The other parts' stains: the same kind (the gun master draws it as soot streaks, gilt veins or salt rime by its amount),
+	// lighter and dimmer. Nothing at all once scaled to zero.
+	const float Scale = FMath::Clamp(AmountScale, 0.f, 1.f);
+	if (Scale <= 0.f)
+	{
+		Finish = FWeaponElementFinish();
+	}
+	Finish.Amount *= Scale;
+	Finish.GlowStrength *= Scale;
 	Part.SetCustomPrimitiveDataFloat(ElementFinishDataIndex, Finish.Kind);
 	Part.SetCustomPrimitiveDataVector4(ElementTintDataIndex, FVector4(Finish.Tint.R, Finish.Tint.G, Finish.Tint.B, Finish.Amount));
 	Part.SetCustomPrimitiveDataVector4(ElementGlowDataIndex, FVector4(Finish.Glow.R, Finish.Glow.G, Finish.Glow.B, Finish.GlowStrength));
+}
+
+float UWeaponModelComponent::ElementSpread()
+{
+	return FMath::Clamp(CVarElementSpread.GetValueOnGameThread(), 0.f, 1.f);
 }
