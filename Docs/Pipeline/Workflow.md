@@ -46,6 +46,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - `Tools\winshot.ps1 <handle>`: captures a window with PrintWindow; use it on a Save Content dialog.
   - `Tools\dialogclick.ps1 <handle> <x> <y>`: clicks a point in that dialog, in winshot's pixels, only if the dialog really came to
     the front (Save Content's Don't Save is 493 502; a one-line Message's OK is 535 127).
+  - `Tools\zenwait.ps1`: presses Yes on the startup box asking to keep waiting for the editor while the Zen cache server starts
+    (seen 2026-10-28). It is a Win32 box (BM_CLICK, no mouse); `launch.ps1` calls it every 5 s while the editor loads.
   - `Tools\menushots.ps1 [-Label]`: photographs the inventory through its states with a realistic loadout.
   - `Tools\castshots.ps1 [-Tag]`: every creature and character in its states from three angles, with `numbers.csv` (feet in the
     ground, limbs through bodies, sliding feet, pops as a change of world velocity per 60 fps frame) and a `past_mark` column. Dead

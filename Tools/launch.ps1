@@ -18,6 +18,8 @@ if ($Build) {
 if (-not $p) { Start-Process "$engine\Engine\Binaries\Win64\UnrealEditor.exe" -ArgumentList "`"$root\AI_Looter_Shooter.uproject`" -ModelContextProtocolStartServer" }
 for ($i = 0; $i -lt 72; $i++) {
     Start-Sleep 5
+    # The Zen cache's "keep waiting for the editor to load?" box would stall the start: answer Yes.
+    & "$PSScriptRoot\zenwait.ps1"
     try { $r = & "$PSScriptRoot\mcp.ps1" 'EditorToolset.EditorAppToolset' 'IsPIERunning' '{}' 2>$null; if ($r -and $r -notmatch 'ERROR') { Start-Sleep 3; & "$PSScriptRoot\closemsglog.ps1" | Out-Null; "ready"; exit 0 } } catch {}
 }
 "timeout"
