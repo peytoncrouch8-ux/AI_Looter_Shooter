@@ -126,16 +126,20 @@ def rotate_about_bore(obj, degrees):
 # --- Bodies: receivers, all with the same sockets ---
 
 def trigger_group(m, guard_mat=lg.BLUED, big=False, housing=lg.BLUED):
-    g.add(m, lg.slab([(3, -3.0), (13, -3.0), (12.4, -4.6), (4, -4.4)], 2.4, bevel=0.2, mat=housing, round=0.3))
+    """At the receiver's back, the guard's rear meeting the pistol grips' fronts (u about -0.4): moved 5 cm back on
+    2026-10-28 (the user's call) so the first-person trigger finger reaches the blade from SOCKET_Grip (-4.5, -6); its
+    face was 13.4 cm ahead of the grip, now 8 (u 3.4, v -5; FirstPersonHandsGripShapes.cpp's TriggerAt). The bare
+    underside ahead of it (u 8..20) is the loading port's and the support hand's."""
+    g.add(m, lg.slab([(0, -3.0), (8, -3.0), (7.4, -4.6), (-0.6, -4.4)], 2.4, bevel=0.2, mat=housing, round=0.3))
     if big:
-        guard = lg.slab([(3.6, -4.2), (13.2, -4.6), (13.2, -7.6), (11.8, -8.4), (4.4, -8.0)], 2.2, bevel=0.2,
+        guard = lg.slab([(-0.6, -4.2), (8.2, -4.6), (8.2, -7.6), (6.8, -8.4), (-0.4, -8.0)], 2.2, bevel=0.2,
                         mat=guard_mat, round=0.4)
-        g.add(m, lg.cut(guard, [lg.cbox(4.6, 12.2, -7.6, -4.4, -2, 2)]))
+        g.add(m, lg.cut(guard, [lg.cbox(0.4, 7.2, -7.6, -4.4, -2, 2)]))
     else:
-        g.add(m, lg.strip([(4.6, -4.4), (5.0, -6.8), (7.0, -7.6), (11.0, -7.2), (12.4, -4.6)], 0.8, 0.3, mat=guard_mat))
-    g.add(m, lg.slab([(7.4, -4.4), (8.4, -4.4), (8.2, -5.6), (7.8, -6.6), (7.2, -6.8), (7.5, -5.6)], 0.5, bevel=0.1,
+        g.add(m, lg.strip([(-0.4, -4.4), (0.0, -6.8), (2.0, -7.6), (6.0, -7.2), (7.4, -4.6)], 0.8, 0.3, mat=guard_mat))
+    g.add(m, lg.slab([(2.4, -4.4), (3.4, -4.4), (3.2, -5.6), (2.8, -6.6), (2.2, -6.8), (2.5, -5.6)], 0.5, bevel=0.1,
                      mat=lg.BLUED))
-    g.add(m, lg.pin(10.6, -3.7, -1.5, 1.5, 0.3, mat=lg.STEEL))
+    g.add(m, lg.pin(5.6, -3.7, -1.5, 1.5, 0.3, mat=lg.STEEL))
 
 
 def receiver(mat, outline=None, width=3.0, port=True, bolt=lg.STEEL, extra_cuts=()):
@@ -254,7 +258,7 @@ def bodies():
     g.add(m, lg.pin(2.6, 0.9, 1.6, 1.85, 0.42, mat=lg.BLACK, segments=12))      # the status light on the left
     g.add(m, lg.pin(2.6, 0.9, 1.85, 1.92, 0.26, mat=CYAN, segments=12))
     g.add(m, lg.rail(0.4, 19.8, 2.2, mat=lg.BLACK))
-    g.add(m, lg.slab([(12.6, -3.6), (15.0, -3.8), (15.4, -4.6), (12.8, -4.4)], 0.6, w=-1.3, bevel=0.1, mat=lg.BLACK))
+    g.add(m, lg.slab([(7.6, -3.6), (10.0, -3.8), (10.4, -4.6), (7.8, -4.4)], 0.6, w=-1.3, bevel=0.1, mat=lg.BLACK))
     trigger_group(m, lg.BLACK, big=True, housing=GRIPS)
     accent(m)
     body_sockets(m)

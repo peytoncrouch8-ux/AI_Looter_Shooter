@@ -31,9 +31,11 @@ const RCV = [[0, -3.0], [20, -3.0], [20, 1.4], [18.5, 2.2], [1.5, 2.2], [0, 1.6]
 const BEV = [[0.06, 1.6], [1.5, 2.16], [18.5, 2.16], [19.94, 1.42], [19.5, 1.28], [18.35, 1.86], [1.65, 1.86], [0.45, 1.38]];
 const VENTS = [15.2, 16.6, 18.0];
 const vent = u => [[u, -0.4], [u + 0.5, -0.4], [u + 1.2, 1.2], [u + 0.7, 1.2]];
-const HOUSING = [[3, -3.0], [13, -3.0], [12.4, -4.6], [4, -4.4]];
-const GUARD = [[4.6, -4.4], [5.0, -6.8], [7.0, -7.6], [11.0, -7.2], [12.4, -4.6]];
-const TRIG = [[7.4, -4.4], [8.4, -4.4], [8.2, -5.6], [7.8, -6.6], [7.2, -6.8], [7.5, -5.6]];
+// The trigger group sits at the receiver's back (moved 5 cm back on 2026-10-28 so the first-person finger reaches it):
+// Ranchhand.py's trigger_group, the guard's rear meeting the pistol grip's front.
+const HOUSING = [[0, -3.0], [8, -3.0], [7.4, -4.6], [-0.6, -4.4]];
+const GUARD = [[-0.4, -4.4], [0.0, -6.8], [2.0, -7.6], [6.0, -7.2], [7.4, -4.6]];
+const TRIG = [[2.4, -4.4], [3.4, -4.4], [3.2, -5.6], [2.8, -6.6], [2.2, -6.8], [2.5, -5.6]];
 
 function railSide(V, u0, u1, v, fill = 'url(#iron)') {
 	let s = ao(RR(V, u0, v, u1, v + 0.45, 0.08, fill, 'mS'));
@@ -42,11 +44,11 @@ function railSide(V, u0, u1, v, fill = 'url(#iron)') {
 }
 function triggerSide(V) {
 	let s = ao(shp(pth(V, HOUSING, 0.25), 'url(#iron)', 'mM'));
-	s += pl(V, [[3.3, -3.3], [12.7, -3.3]], '#8a847c', 0.9, 'opacity=".4"');
+	s += pl(V, [[0.3, -3.3], [7.7, -3.3]], '#8a847c', 0.9, 'opacity=".4"');
 	s += flt('mS', pl(V, GUARD, '#2a2725', 0.42 * V.s)) + pl(V, GUARD.map(([a, v]) => [a - 0.04, v + 0.1]), '#8c857c', Math.max(1, 0.08 * V.s), 'opacity=".55"');
-	s += ao(shp(pth(V, TRIG, 0.15), 'url(#steelCyl)', 'mS')) + pl(V, [[7.55, -4.6], [7.65, -6.3]], '#ffffff', 1, 'opacity=".5"');
-	s += ao(circ(V, 10.6, -3.75, 0.3, 'url(#rSteel)', 'mS')) + circ(V, 10.6, -3.75, 0.1, '#2a2725');
-	s += giltScrew(V, 5.0, -3.75, 0.22);                                                       // the crossbolt safety
+	s += ao(shp(pth(V, TRIG, 0.15), 'url(#steelCyl)', 'mS')) + pl(V, [[2.55, -4.6], [2.65, -6.3]], '#ffffff', 1, 'opacity=".5"');
+	s += ao(circ(V, 5.6, -3.75, 0.3, 'url(#rSteel)', 'mS')) + circ(V, 5.6, -3.75, 0.1, '#2a2725');
+	s += giltScrew(V, 0.4, -3.75, 0.22);                                                       // the crossbolt safety
 	return s;
 }
 function bodySide(V) {
@@ -361,7 +363,7 @@ function stockEnd(V, back) {
 }
 
 module.exports = [
-	{ dir: 'Body_Standard', b: { u: [0, 20], v: [-7.85, 3.15], w: [-1.55, 1.55] }, draw: { left: bodySide, right: bodySide, front: V => bodyEnd(V, false), back: V => bodyEnd(V, true) } },
+	{ dir: 'Body_Standard', b: { u: [-0.6, 20],v: [-7.85, 3.15], w: [-1.55, 1.55] }, draw: { left: bodySide, right: bodySide, front: V => bodyEnd(V, false), back: V => bodyEnd(V, true) } },
 	{ dir: 'Barrel_Field', b: { u: [0, 46], v: [-1.27, 2.06], w: [-1.4, 1.4] }, draw: { left: barrelSide, right: barrelSide, front: V => barrelEnd(V, false), back: V => barrelEnd(V, true) } },
 	{ dir: 'Muzzle_Crown', b: { u: [0, 1.0], v: [-1.18, 1.18], w: [-1.18, 1.18] }, draw: { left: crownSide, right: crownSide, front: V => crownEnd(V, false), back: V => crownEnd(V, true) } },
 	{ dir: 'Magazine_Tube6', b: { u: [20, 56], v: [-3.7, 0.9], w: [-1.4, 1.4] }, draw: { left: tubeSide, right: tubeSide, front: V => tubeEnd(V, false), back: V => tubeEnd(V, true) } },

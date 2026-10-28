@@ -21,7 +21,13 @@ of gallery fix, gun looks, melee hand bugs, small cleanups (76c191db). All pushe
 - Play-checks (Demo agent, PIE, God, aimbot): sniper hip PASS (Saved/Screenshots/Tools/sniper_hip2.png), Saint Maud and camo
   PASS (maud_shotgun2.png, camo1-3.png), Reflex dot PASS (ads_reflex.png). Unpaid hits landing: ~25% of attacks started
   (overnight 3.4%), rough.
-- **Unpaid gallery: FAILED twice in play; the user was asked how to go on (rule 6).**
+- **Unpaid gallery: the user said "Dig in" after two failed play-checks. Found and fixed (Pipeline/Enemies.md): every
+  phase-step and flank had been refused game-wide by the scatter's PCG volume answering the landing spot's sight trace.**
+  Main's PIE check after: past the west fence the yard's pack blinked over (19 steps in ~10 s). The Unpaid are now much more
+  aggressive than any playtest saw (blinks and flanks work for the first time): the user should feel it out. The press path
+  itself (a hit from past the edge) is covered by `.Kit.Press`; no shot of Main's landed in that PIE check.
+- Shotgun trigger moved back at the user's go-ahead (Pipeline/Game.md); body views redrawn; not seen in play.
+- History of the two failures:
   - Run 1: the press never blinked anyone in. Cause: a fight begun in the yard pressed the whole pack, so a later shot from
     past the fence owed nothing, and an Unpaid waiting its turn may never step. Fixed in the last commit (hit from past its own
     edge always owes the blink; `WaitGoesNowhere`, `Looter.Unpaid.BlindStep`).

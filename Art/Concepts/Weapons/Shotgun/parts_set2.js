@@ -46,22 +46,24 @@ const evenodd = (d1, d2, fill, filt) => `<path d="${d1}${d2}" fill="${fill}" fil
 const CORE = [[0, -3.0], [20, -3.0], [20, 1.7], [19.4, 2.2], [0.6, 2.2], [0, 1.8]];
 const CAB = [[-0.3, -4.0], [3.0, -4.0], [3.5, -3.0], [5.8, -3.0], [5.8, 2.2], [-0.3, 2.2]];
 const HOOD = [[14.0, -3.0], [20.0, -3.0], [20.0, 1.6], [19.4, 2.2], [14.0, 2.2]];
-const GUARD_O = [[4.0, -4.4], [13.2, -4.6], [13.2, -8.4], [4.0, -8.4]], GUARD_I = [[4.8, -4.6], [12.4, -4.7], [12.4, -7.55], [4.8, -7.55]];
-const HOUSING = [[3.0, -3.0], [13.2, -3.0], [13.2, -4.65], [3.4, -4.45]];
-const TRIG = [[7.4, -4.4], [8.5, -4.4], [8.4, -5.4], [8.1, -6.7], [7.5, -6.95], [7.7, -5.6]];
+// The trigger group at the receiver's back, under the cab's skirt (moved 5 cm back on 2026-10-28 so the first-person
+// finger reaches it: Ranchhand.py's trigger_group), the guard's rear meeting the pistol grip's front.
+const GUARD_O = [[-0.6, -4.4], [8.2, -4.6], [8.2, -8.4], [-0.6, -8.4]], GUARD_I = [[0.2, -4.6], [7.4, -4.7], [7.4, -7.55], [0.2, -7.55]];
+const HOUSING = [[0.0, -3.0], [8.2, -3.0], [8.2, -4.65], [-0.6, -4.45]];
+const TRIG = [[2.4, -4.4], [3.5, -4.4], [3.4, -5.4], [3.1, -6.7], [2.5, -6.95], [2.7, -5.6]];
 
 function bodySide(V) {
 	const right = V.kind === 'right';
 	let s = '';
 	// trigger group: the step guard (behind), the lever, the riveted housing
 	s += ao(evenodd(pth(V, GUARD_O, 0.3), pth(V, GUARD_I, 0.2), 'url(#s2iron)', 'mM'));
-	s += inside(pth(V, R4(4.0, -8.4, 13.2, -7.55), 0.1), `<rect x="0" y="0" width="${N}" height="${N}" fill="url(#s2tread)"/>`);
-	s += pl(V, [[4.3, -7.6], [12.9, -7.6]], '#8a8d92', 1, 'opacity=".5"');
-	s += bR(V, 4.4, -8.0, 0.22) + bR(V, 12.8, -8.0, 0.22) + bR(V, 12.8, -5.0, 0.2);
-	s += ao(shp(pth(V, TRIG, 0.15), 'url(#steelPlate)', 'mS')) + pl(V, [[7.7, -4.6], [8.0, -6.6]], '#ffffff', 1, 'opacity=".35"');
+	s += inside(pth(V, R4(-0.6, -8.4, 8.2, -7.55), 0.1), `<rect x="0" y="0" width="${N}" height="${N}" fill="url(#s2tread)"/>`);
+	s += pl(V, [[-0.3, -7.6], [7.9, -7.6]], '#8a8d92', 1, 'opacity=".5"');
+	s += bR(V, -0.2, -8.0, 0.22) + bR(V, 7.8, -8.0, 0.22) + bR(V, 7.8, -5.0, 0.2);
+	s += ao(shp(pth(V, TRIG, 0.15), 'url(#steelPlate)', 'mS')) + pl(V, [[2.7, -4.6], [3.0, -6.6]], '#ffffff', 1, 'opacity=".35"');
 	const hd = pth(V, HOUSING, 0.2);
-	s += shp(hd, 'url(#oxblood)', 'pM') + rowR(V, 4.0, 12.4, -3.85, 2.8, 0.2);
-	s += bR(V, 7.95, -3.5, 0.28) + ao(circ(V, 10.6, -3.75, 0.3, 'url(#rSteel)', 'mS')) + circ(V, 10.6, -3.75, 0.12, '#2a2b2e');
+	s += shp(hd, 'url(#oxblood)', 'pM') + rowR(V, 3.8, 7.4, -3.85, 3.6, 0.2);
+	s += bR(V, 5.6, -3.5, 0.28) + ao(circ(V, 6.6, -3.75, 0.3, 'url(#rSteel)', 'mS')) + circ(V, 6.6, -3.75, 0.12, '#2a2b2e');
 	// the oxblood receiver
 	const core = pth(V, CORE, 0.25);
 	s += shp(core, 'url(#oxblood)', 'pL');
@@ -438,7 +440,7 @@ function muleEnd(V, back) {
 }
 
 module.exports = [
-	{ dir: 'Body_Armored', b: { u: [-0.3, 20.0], v: [-8.4, 3.15], w: [-2.25, 2.25] }, draw: { left: bodySide, right: bodySide, front: V => bodyEnd(V, false), back: V => bodyEnd(V, true) } },
+	{ dir: 'Body_Armored', b: { u: [-0.6, 20.0], v: [-8.4, 3.15], w: [-2.25, 2.25] }, draw: { left: bodySide, right: bodySide, front: V => bodyEnd(V, false), back: V => bodyEnd(V, true) } },
 	{ dir: 'Barrel_Shielded', b: { u: [0, 46], v: [-1.42, 3.1], w: [-1.95, 1.95] }, draw: { left: brlSide, right: brlSide, front: V => brlEnd(V, false), back: V => brlEnd(V, true) } },
 	{ dir: 'Muzzle_Brake', b: { u: [0, 5.6], v: [-1.75, 1.75], w: [-1.75, 1.75] }, draw: { left: brkSide, right: brkSide, front: V => brkEnd(V, false), back: V => brkEnd(V, true) } },
 	{ dir: 'Magazine_Drum20', b: { u: [13.4, 48.0], v: [-21.2, -1.55], w: [-3.9, 3.3] }, draw: { left: drumSide, right: drumSide, front: V => drumEnd(V, false), back: V => drumEnd(V, true) } },

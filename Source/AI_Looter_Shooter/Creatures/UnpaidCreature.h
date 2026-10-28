@@ -111,6 +111,12 @@ public:
 	bool OwesPressStep() const { return bPressStepOwed; }
 	/** Waiting its turn, whether the wait can't end where it stands: its target past its own edge, or out of its sight (one trace). */
 	bool WaitGoesNowhere(const APawn& Victim) const;
+	/**
+	 * Why a phase-step toward its target finds nowhere now: each candidate spot's first refusal counted (off its ground, no
+	 * ground, steep or an obstacle's top, no room, no sight of the target, a safe zone or past the playable area, another level),
+	 * as one line. Looter.Unpaid.TryStep prints it; a failed step logs it (Verbose).
+	 */
+	FString DescribePhaseRefusals() const;
 
 	// --- Its fighting kit (UnpaidCreatureMoves.cpp, UnpaidCreatureRing.cpp; FUnpaidFightTuning) ---
 
@@ -355,7 +361,7 @@ private:
 	/** Where a step lands now: the rules' first spot the level allows (ground, room, sight of its target, safe zones). */
 	bool FindPhaseSpot(FVector& OutFeet) const;
 	/** Whether it may come back at Candidate: walkable ground near it, room, its target in sight, no safe zone (the ground: OutGround). */
-	bool CanStandAt(const FVector& Candidate, FVector& OutGround) const;
+	bool CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal = nullptr) const;
 	/** Starts a step to Feet now: it fades out here and comes back there. */
 	void StartStepTo(const FVector& Feet);
 	/** Unseen at last: moves to the spot it chose and starts coming back. */

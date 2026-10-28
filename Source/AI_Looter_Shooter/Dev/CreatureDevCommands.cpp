@@ -131,6 +131,41 @@ namespace
 		}
 	}
 
+	/** Looter.Unpaid.TryStep: the nearest Unpaid with a target says where a phase-step toward them could land, and why not. */
+	void TryUnpaidStep(const TArray<FString>& Args, UWorld* World)
+	{
+		const APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
+		const APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
+		if (!Pawn)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Unpaid.TryStep: no player (start the game first)."));
+			return;
+		}
+		const AUnpaidCreature* Nearest = nullptr;
+		double Best = TNumericLimits<double>::Max();
+		for (TActorIterator<AUnpaidCreature> It(World); It; ++It)
+		{
+			const double Distance = FVector::DistSquared(It->GetActorLocation(), Pawn->GetActorLocation());
+			if (!It->IsDead() && It->GetTarget() && Distance < Best)
+			{
+				Best = Distance;
+				Nearest = *It;
+			}
+		}
+		if (!Nearest)
+		{
+			UE_LOG(LogLooter, Log, TEXT("Looter.Unpaid.TryStep: no Unpaid after anyone."));
+			return;
+		}
+		UE_LOG(LogLooter, Log, TEXT("Looter.Unpaid.TryStep: %s (%s): %s"), *Nearest->GetName(),
+			*UEnum::GetValueAsString(Nearest->GetCreatureState()), *Nearest->DescribePhaseRefusals());
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs TryUnpaidStepCommand(
+		TEXT("Looter.Unpaid.TryStep"),
+		TEXT("Looter.Unpaid.TryStep: the nearest Unpaid after someone logs where a phase-step toward them could land, and why each spot is refused."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&TryUnpaidStep));
+
 	FAutoConsoleCommandWithWorldAndArgs KillNearestCommand(
 		TEXT("Looter.KillNearest"),
 		TEXT("Looter.KillNearest [count]: kills the nearest living creatures (1 by default) as the player's kill, to watch deaths on cue."),

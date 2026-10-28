@@ -136,9 +136,10 @@ void FirstPersonHandsGrips::AddContact(EWeaponKind Kind, FGunHands& Hands)
 	{
 	case EWeaponKind::Shotgun:
 		// Ranchhand: the stock's pistol wrist on SOCKET_Grip (-4.5, -6; the AR-style grip's middle, 5 cm front to back, 3 wide,
-		// leaning forward at the top); the trigger blade's face at u 8.4, v -5; the pump a 4.2 cm round tube on SOCKET_Foregrip.
+		// leaning forward at the top); the trigger blade's face at u 3.4, v -5 (the trigger group moved 5 cm back, 2026-10-28,
+		// so the finger reaches it: it was at 8.4); the pump a 4.2 cm round tube on SOCKET_Foregrip.
 		Hands.GripShape = PistolGrip(FVector::ZeroVector, FVector(0.22f, 0.f, 0.97f), 2.5f, 1.6f, 1.1f);
-		Hands.TriggerAt = FVector(8.9f, 0.f, -5.2f);
+		Hands.TriggerAt = FVector(3.9f, 0.f, -5.2f);
 		Hands.ForeShape = ForeEnd(FVector::ZeroVector, 2.1f, 2.1f, 2.1f);
 		// The thumb along the pump's near side toward the muzzle (tuned in PIE: straight up it stood off the pump).
 		Hands.ForeThumbSwing = 0.f;

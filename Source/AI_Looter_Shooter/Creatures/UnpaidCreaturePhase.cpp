@@ -155,9 +155,51 @@ float AUnpaidCreature::GetPressSeconds() const
 
 void AUnpaidCreature::OnPressedByHit(const APawn& By)
 {
-	// Only the one hit owes the blink: its pack walks in after it, so the doorway never fills with nine at once.
+	// Only the one hit owes the blink: its pack walks in after it, so the doorway never fills with nine at once. Logged once
+	// a debt (every hit of a burst came here: 202 lines in one play-check).
+	if (!bPressStepOwed)
+	{
+		UE_LOG(LogLooter, Verbose, TEXT("%s is pressed past its edge by %s: it comes in."), *GetName(), *By.GetName());
+	}
 	bPressStepOwed = true;
-	UE_LOG(LogLooter, Verbose, TEXT("%s is pressed past its edge by %s: it comes in."), *GetName(), *By.GetName());
+}
+
+FString AUnpaidCreature::DescribePhaseRefusals() const
+{
+	const APawn* Victim = GetTarget();
+	if (!Victim)
+	{
+		return TEXT("no target");
+	}
+	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	const TArray<FVector> Candidates = UnpaidRules::PhaseCandidates(PhaseStep, Feet, Victim->GetActorLocation());
+	// 0 off its ground, 1 no ground, 2 steep or an obstacle's top, 3 no room, 4 no sight, 5 safe zone or past the area, 6 another level.
+	int32 Counts[7] = {};
+	int32 Fine = 0;
+	for (const FVector& Candidate : Candidates)
+	{
+		if (!HuntingGround.ContainsSpot(Candidate, GetHome().GetLocation(), GetGroundReach()))
+		{
+			++Counts[0];
+			continue;
+		}
+		FVector Ground;
+		int32 Refusal = 0;
+		if (!CanStandAt(Candidate, Ground, &Refusal))
+		{
+			++Counts[FMath::Clamp(Refusal, 1, 5)];
+			continue;
+		}
+		if (FMath::Abs(Ground.Z - Feet.Z) > PhaseStep.MaxRise)
+		{
+			++Counts[6];
+			continue;
+		}
+		++Fine;
+	}
+	return FString::Printf(TEXT("%d spots at %.1f m (reach %.0f, waiting %d, pressed %d): fine %d, off ground %d, no ground %d, steep/obstacle %d, no room %d, no sight %d, safe/area %d, other level %d"),
+		Candidates.Num(), FVector::Dist2D(Feet, Victim->GetActorLocation()) / 100.f, GetGroundReach(), IsWaitingTurn() ? 1 : 0,
+		IsPressed() ? 1 : 0, Fine, Counts[0], Counts[1], Counts[2], Counts[3], Counts[4], Counts[5], Counts[6]);
 }
 
 void AUnpaidCreature::StartPhaseStep()
@@ -166,6 +208,10 @@ void AUnpaidCreature::StartPhaseStep()
 	if (!FindPhaseSpot(Feet))
 	{
 		RetryIn = RetrySeconds;
+		if (bPressStepOwed && UE_LOG_ACTIVE(LogLooter, Verbose))
+		{
+			UE_LOG(LogLooter, Verbose, TEXT("%s owes a step in, nowhere to land: %s"), *GetName(), *DescribePhaseRefusals());
+		}
 		return;
 	}
 	bPressStepOwed = false;
@@ -195,8 +241,10 @@ bool AUnpaidCreature::FindPhaseSpot(FVector& OutFeet) const
 		[this](const FVector& Candidate, FVector& OutGround) { return CanStandAt(Candidate, OutGround); }, OutFeet, GetGroundReach());
 }
 
-bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround) const
+bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal) const
 {
+	int32 Ignored = 0;
+	int32& Refusal = OutRefusal ? *OutRefusal : Ignored;
 	UWorld* World = GetWorld();
 	const APawn* Victim = GetTarget();
 	if (!World || !Victim)
@@ -220,11 +268,13 @@ bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround) c
 	if (!World->LineTraceSingleByObjectType(Hit, Candidate + FVector(0.f, 0.f, Reach), Candidate - FVector(0.f, 0.f, Reach),
 		FCollisionObjectQueryParams(ECC_WorldStatic), GroundParams))
 	{
+		Refusal = 1;
 		return false;
 	}
 	const AActor* Under = Hit.GetActor();
 	if (Hit.ImpactNormal.Z < WalkableGroundNormalZ || (Under && Under->ActorHasTag(StandingObstacleTag)))
 	{
+		Refusal = 2;
 		return false;
 	}
 	const FVector Ground = Hit.ImpactPoint;
@@ -233,12 +283,18 @@ bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround) c
 	if (World->OverlapBlockingTestByChannel(Ground + FVector(0.f, 0.f, HalfHeight + RoomLift * Scale), FQuat::Identity, ECC_Pawn, Room,
 		OpenParams))
 	{
+		Refusal = 3;
 		return false;
 	}
-	// In the open, with its target in sight: never shut in a room or behind a wall from them.
+	// In the open, with its target in sight: never shut in a room or behind a wall from them. Real geometry only: the level's
+	// volumes answer world-static traces too (the scatter's PCG volume covers all of Ransom's Rest), so a plain trace saw
+	// nothing at all (2026-10-28, the press's play-checks: 0 phase-steps).
+	FCollisionQueryParams SightParams = LooterWorld::StaticGeometryParams(World, TEXT("UnpaidPhaseSight"), this);
+	SightParams.AddIgnoredActor(Victim);
 	if (World->LineTraceTestByObjectType(Ground + FVector(0.f, 0.f, HalfHeight * EyeShare), TargetEye,
-		FCollisionObjectQueryParams(ECC_WorldStatic), OpenParams))
+		FCollisionObjectQueryParams(ECC_WorldStatic), SightParams))
 	{
+		Refusal = 4;
 		return false;
 	}
 	// Not into a safe zone (Delia's salt line), nor past the playable area's edge.
@@ -246,6 +302,7 @@ bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround) c
 	const APlayableArea* Playable = APlayableArea::Find(World);
 	if ((Encounters && Encounters->IsInSafeZone(Ground)) || (Playable && !Playable->Contains(Ground)))
 	{
+		Refusal = 5;
 		return false;
 	}
 	OutGround = Ground;

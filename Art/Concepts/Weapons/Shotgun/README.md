@@ -36,7 +36,7 @@ is on the right. `compare_bodies.png` and `compare_sets.png`: left views side by
 ## Interfaces every set keeps (gun space, cm: u along the gun from the receiver's back, v up from the bore)
 - Body u 0..20: stock seat on the back face (u 0, v -3.0..1.6); barrel nut (20, 0), barrel r 1.15; magazine/pump seat
   (20, -2.5), tube r 1.05; flat bottom at v -3.0 over u 13.4..19.6 (box and drum wells); picatinny rail base v 2.2, top
-  3.15, width 2.1, over u 1..19.5; trigger group u 3..13.4; the left flank flat over u 5.8..14, v -2.2..1.3 (element
+  3.15, width 2.1, over u 1..19.5; trigger group u -0.6..8.2 (moved 5 cm back on 2026-10-28 so the first-person finger reaches the trigger, face at u 3.4; the guard's rear meets the grips' fronts); the left flank flat over u 5.8..14, v -2.2..1.3 (element
   plate). The stock brings the pistol grip.
 - Barrel: from the nut, r 1.15, lengths Field 46, Shielded 46, Short 38, Slug 46 (SOCKET_Muzzle at the tip, the last cm
   plain); the underside plain (the pump rides under it, the tube clamp wraps it at 32.5..34.5 / 42.5..44.5).

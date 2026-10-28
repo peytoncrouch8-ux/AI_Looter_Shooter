@@ -41,15 +41,17 @@ const RAIL_END = RAIL_X.map(([w, v]) => [w, v - 3.0]);
 const CORE = [[0.45, -3.0], [13.4, -3.0], [13.4, 1.55], [12.7, 1.7], [1.3, 1.7], [0.45, 1.25]];
 const BOX = [[13.0, -3.0], [19.9, -3.0], [20.0, -2.7], [20.0, 1.0], [19.6, 1.3], [13.15, 1.25]];
 const BUTTP = [[-0.3, -3.4], [0.45, -3.4], [0.45, 2.0], [-0.3, 2.0]];
-const TH5 = [[3.2, -3.0], [13.0, -3.0], [12.4, -4.6], [4.0, -4.4]];
-const TRIG5 = [[7.4, -4.4], [8.3, -4.4], [8.15, -5.6], [7.8, -6.6], [7.2, -6.8], [7.5, -5.6]];
-const GUARD5 = [[4.6, -4.4], [4.85, -6.9], [6.6, -7.75], [11.2, -7.35], [12.4, -4.6]];
+// The trigger group at the receiver's back (moved 5 cm back on 2026-10-28 so the first-person finger reaches it:
+// Ranchhand.py's trigger_group), the guard's rear meeting the pistol grip's front; the brass-wire sling loop that hung
+// there went (the support hand holds the bare underside ahead of the housing).
+const TH5 = [[0.0, -3.0], [8.0, -3.0], [7.4, -4.6], [-0.6, -4.4]];
+const TRIG5 = [[2.4, -4.4], [3.3, -4.4], [3.15, -5.6], [2.8, -6.6], [2.2, -6.8], [2.5, -5.6]];
+const GUARD5 = [[-0.4, -4.4], [-0.15, -6.9], [1.6, -7.75], [6.2, -7.35], [7.4, -4.6]];
 const RISERS = [[1.7, 1.7], [9.3, 1.7], [17.0, 1.3]];
 function bodySide(V) {
 	const right = V.kind === 'right';
 	let s = '';
-	// the butt plate the stock seats on, the brass-wire sling loop under the back
-	s += rod(V, [[0.9, -3.0], [0.95, -4.2], [1.6, -4.65], [2.35, -4.15], [2.35, -3.0]], 0.1, '#c99a4a', '#fff1c2');
+	// the butt plate the stock seats on
 	s += rusty(V, BUTTP, 3, 8, 'rust3', 0.15) + hexHead(V, 0.08, 1.35, 0.24, 'url(#rRust)') + hexHead(V, 0.08, -2.75, 0.24, 'url(#rRust)');
 	// the core: a length of rusted square tube, welded to the plate
 	s += rusty(V, CORE, 5, 22, 'rustDeep', 0.2) + weld(V, [[0.5, -2.9], [0.5, 1.2]]);
@@ -86,10 +88,10 @@ function bodySide(V) {
 		s += rod(V, [[12.7, 0.2], [12.9, 0.4]], 0.14, '#7d8083', '#d9dde1') + ao(circ(V, 12.9, 0.4, 0.38, 'url(#rBrass)', 'bS')) + circ(V, 12.78, 0.52, 0.11, '#fff6d8', null, 'opacity=".7"');
 	}
 	// trigger housing, trigger, a bent-rebar guard welded on
-	s += rusty(V, TH5, 17, 10, 'rust3', 0.15) + weld(V, [[3.3, -3.05], [12.9, -3.05]], 0.22, 0.09);
-	s += hexHead(V, 10.6, -3.7, 0.24);
+	s += rusty(V, TH5, 17, 10, 'rust3', 0.15) + weld(V, [[0.5, -3.05], [7.9, -3.05]], 0.22, 0.09);
+	s += hexHead(V, 5.6, -3.7, 0.24);
 	s += ao(shp(pth(V, TRIG5, 0.12), 'url(#steelPlate)', 'mS'));
-	s += rod(V, GUARD5, 0.2, '#7d8083', '#d9dde1') + weld(V, [[4.4, -4.45], [4.85, -4.45]], 0.15, 0.1) + weld(V, [[12.2, -4.6], [12.7, -4.6]], 0.15, 0.1);
+	s += rod(V, GUARD5, 0.2, '#7d8083', '#d9dde1') + weld(V, [[-0.6, -4.45], [-0.15, -4.45]], 0.15, 0.1) + weld(V, [[7.2, -4.6], [7.7, -4.6]], 0.15, 0.1);
 	// the front face: a pipe coupling for the barrel nut, a pipe stub seating the magazine tube
 	s += pipe(V, [18.7, 0], [20.0, 0], 1.5, 'steel', 'mM') + rustOn(V, pipeD(V, [18.7, 0], [20.0, 0], 1.5), [18.7, 20, -1.5, 1.5], 23, 6) + weld(V, [[18.75, -1.4], [18.75, 1.4]], 0.16, 0.1);
 	s += pipe(V, [19.1, -2.5], [20.0, -2.5], 1.15, 'galv') + weld(V, [[19.15, -3.5], [19.15, -2.9]], 0.16, 0.1);
@@ -114,7 +116,6 @@ function bodyEnd(V, back) {
 	const sides = () => painted(V, R4(1.5, -2.75, 1.62, 1.35), 'tealPaint', 3, 2, 0.02) + painted(V, R4(-1.62, -2.6, -1.5, 1.35), 'sky', 4, 2, 0.02) +
 		ao(shp(pth(V, R4(-1.6, -2.95, 1.6, -2.45), 0.1), '#1a1714', null)) + shp(pth(V, R4(-1.6, -2.85, -1.48, -2.6), 0.03), 'url(#accentLin)', null) + shp(pth(V, R4(1.48, -2.85, 1.6, -2.6), 0.03), 'url(#accentLin)', null);
 	if (!back) {
-		s += rod(V, [[-0.75, -3.0], [-0.75, -4.6], [0.75, -4.6], [0.75, -3.0]], 0.1, '#c99a4a', '#fff1c2');
 		s += rusty(V, R4(-1.6, -3.4, 1.6, 2.0), 31, 6, 'rust3', 0.2);              // the butt plate, behind
 		s += rusty(V, R4(-1.5, -3.0, 1.5, 1.7), 33, 8, 'rustDeep', 0.15) + sides();
 		s += guard() + rail() + knob();
@@ -451,7 +452,7 @@ function stockEnd(V, back) {
 }
 
 module.exports = [
-	{ dir: 'Body_Salvaged', b: { u: [-0.3, 20.0], v: [-8.0, 3.15], w: [-2.5, 1.8] }, draw: { left: bodySide, right: bodySide, front: V => bodyEnd(V, false), back: V => bodyEnd(V, true) } },
+	{ dir: 'Body_Salvaged', b: { u: [-0.6, 20.0], v: [-8.0, 3.15], w: [-2.5, 1.8] }, draw: { left: bodySide, right: bodySide, front: V => bodyEnd(V, false), back: V => bodyEnd(V, true) } },
 	{ dir: 'Barrel_Short', b: { u: [0, 38], v: [-1.5, 2.45], w: [-1.8, 1.8] }, draw: { left: brlSide, right: brlSide, front: V => brlEnd(V, false), back: V => brlEnd(V, true) } },
 	{ dir: 'Muzzle_Duckbill', b: { u: [0, 6.6], v: [-1.32, 1.32], w: [-2.65, 2.65] }, draw: { left: duckSide, right: duckSide, front: V => duckEnd(V, false), back: V => duckEnd(V, true) } },
 	{ dir: 'Magazine_Box8', b: { u: [13.3, 48.05], v: [-22.45, -1.55], w: [-2.0, 2.0] }, draw: { left: magSide, right: magSide, front: V => magEnd(V, false), back: V => magEnd(V, true) } },

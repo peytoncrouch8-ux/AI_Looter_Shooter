@@ -69,10 +69,11 @@ namespace
 		Hands.GripTilt = -25.f;
 		Hands.GripForearm = FVector(-0.7f, 0.35f, -0.62f);
 		Hands.GripHold = FVector(0.f, 1.f, 0.f);
-		// The trigger is 12 cm ahead of the grip: the finger reaches out nearly straight.
-		Hands.TriggerCurl[0] = 5.f;
-		Hands.TriggerCurl[1] = 20.f;
-		Hands.TriggerCurl[2] = 10.f;
+		// The trigger is 8 cm ahead of the grip (12 before its group moved back, 2026-10-28): a long reach, the finger half
+		// bent (PistolGrip's rule at 8 cm; the trigger search owns the finger whenever it's on the trigger).
+		Hands.TriggerCurl[0] = 18.f;
+		Hands.TriggerCurl[1] = 35.f;
+		Hands.TriggerCurl[2] = 18.f;
 		Hands.ForeHandle = FVector(0.92f, -0.4f, 0.f);
 		Hands.ForePalm = FVector(0.f, 0.1f, 1.f);
 		// Tuned in game (2026-10-15, the user: the hand angled oddly and didn't grab the pump): the hand rolled 20 degrees
@@ -125,7 +126,7 @@ namespace
 		Hands.GripTilt = -25.f;
 		Hands.GripForearm = FVector(-0.55f, 0.35f, -0.76f);
 		Hands.GripHold = FVector(0.f, 0.8f, 0.f);
-		// The farther the trigger from the grip, the straighter the finger (the rifle's 4 cm: well bent; the shotgun's 12: out).
+		// The farther the trigger from the grip, the straighter the finger (the rifle's 4 cm: well bent; 12 and over: out).
 		const float Bend = FMath::Clamp(1.f - (TriggerReach - 4.f) / 8.f, 0.f, 1.f);
 		Hands.TriggerCurl[0] = FMath::Lerp(5.f, 30.f, Bend);
 		Hands.TriggerCurl[1] = FMath::Lerp(20.f, 50.f, Bend);

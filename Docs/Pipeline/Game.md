@@ -336,9 +336,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   pushed out by `DepthScale`) flattens the gun but not the arms: left off. Framing checks: `Looter.FPHands.PreviewAspect
   1.7778` draws PIE at 16:9 inside the 2.17:1 editor viewport (bars at the sides; grab the middle: x 0.093-0.893, y
   0.132-0.962 of the window); before/after sheet `Saved/FPHands/compare.png`.
-- Shotgun trigger finger (2026-10-28): geometry, not hands. The Ranchhand's trigger face is 13.4 cm (modelled) ahead of
-  `SOCKET_Grip`, ~20 hand-cm at the drawn sizes (gun 1.32x, hands 0.88x) against ~10.6 of reach. Fix in `Ranchhand.py`
-  (`trigger_group` ~5 cm back), before the shotgun's Tripo bodies. Grip tests check guns at 1.1, not the drawn 1.32.
+- Shotgun trigger finger (2026-10-28, the user's go-ahead): it was 13.4 cm (modelled) ahead of `SOCKET_Grip`, ~20 hand-cm
+  drawn (gun 1.32x, hands 0.88x) against ~10.6 of reach. Now the Ranchhand's `trigger_group` sits at the receiver's back:
+  housing u -0.6..8, guard rear -0.4 meeting the grips' fronts, trigger face u 3.4 v -5 (7.9 cm from SOCKET_Grip);
+  `TriggerAt` (3.9, 0, -5.2), `MakeShotgun` TriggerCurl 18/35/18. The four body Tripo views (Standard, Armored, Salvaged,
+  Tactical) were redrawn (Art/Concepts/Weapons/Shotgun/parts_set1-4.js); Windfall's brass sling loop was dropped (it sat where
+  the housing goes). Still open: `Tests/FirstPersonHandsGripTests.cpp` lets the shotgun miss by 7 cm and skips its indexed
+  check; tighten to 3 once `Looter.Hands.Grip.Report` shows the finger on. Grip tests check guns at 1.1, not the drawn 1.32.
 - Grip contact (FPGRIP, 2026-10-22; the user: "grip the gun better and like an actual military officer"; style pick
   "Modern tactical, not so much hand showing"): each gun kind's handles are rounded boxes (`AddContact`,
   `FirstPersonHandsGripShapes.cpp`, numbers read off the default parts' .py); the rig seats each palm on its handle

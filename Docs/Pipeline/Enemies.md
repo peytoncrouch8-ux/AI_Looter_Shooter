@@ -335,7 +335,19 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
   The one hit (not its pack) owes a phase-step in (`OnPressedByHit`: stuck or not, cooldown 3 s), whose spot may lie in the
   reach (`ChoosePhaseSpot`'s `GroundReach`), so a fence is blinked over. Walking past the edge without shooting still only
   draws a watch from it. Tests `Looter.Creatures.Unpaid.Kit.Press`, `Looter.Creatures.Unpaid.PhaseStep` (pressed step past a
-  pen). Not seen in play yet; the chapel nave is the place to check.
+  pen).
+  - Two play-checks failed (0 phase-steps). Causes: (1) a fight begun in the yard pressed the pack before the player stepped
+    out, so no blink was owed: now any hit from past its own edge owes one; one waiting its turn may step when the wait goes
+    nowhere (`WaitGoesNowhere`: target past its edge while pressed, or no sight of them; `Looter.Unpaid.BlindStep`).
+    (2) THE BIG ONE: `CanStandAt`'s sight trace used plain params, and the scatter's PCG volume (a world-static query volume
+    over all of Ransom's Rest) answered it, so EVERY phase-step and flank spot was refused, game-wide, for who knows how long.
+    Now `LooterWorld::StaticGeometryParams` + the target ignored (it drops all volumes, the scatter's trees with them: a step
+    may see "through" a tree). Main's PIE check after: past the west fence the yard's pack blinked over, 19 steps in ~10 s.
+    Flanks use the same check, so they fire now too: the Unpaid are much more aggressive than any playtest has seen.
+  - Diagnose: `Looter.Unpaid.TryStep` (the nearest Unpaid after someone: every candidate spot's first refusal counted); an
+    owed step that finds nowhere logs the same line (Verbose).
+  - Chapel: the nave is INSIDE the yard's ground (the fence polygon encloses the chapel); the overnight line at the back door
+    was the blocked steps, not the ground.
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
   arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.

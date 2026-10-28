@@ -35,13 +35,15 @@ const slot = (V, a, v, r0, r1) => pl(V, [[a - r0, v], [a + r0, v]], '#2a2c30', M
 // the right; a cyan status light (left), a level vial (right); ember slits in a recessed nose strip; graduations under
 // the aluminium rail.
 const SHB = [[0, -2.8], [0, 1.5], cb([0, 2.0], [0.35, 2.25], [1.0, 2.25]), [15.2, 2.25], cb([17.6, 2.25], [19.1, 2.05], [19.55, 1.45]),
-	[19.55, -3.0], [14.0, -3.0], cb([13.3, -3.0], [13.1, -3.4], [12.75, -4.0]), cb([12.45, -4.45], [12.0, -4.55], [11.4, -4.55]), [4.8, -4.55],
-	cb([4.0, -4.55], [3.5, -4.35], [3.1, -3.85]), cb([2.6, -3.2], [2.0, -3.1], [1.0, -3.1]), cb([0.3, -3.1], [0, -3.0], [0, -2.8])];
+	[19.55, -3.0], [9.0, -3.0], cb([8.3, -3.0], [8.1, -3.4], [7.75, -4.0]), cb([7.45, -4.45], [7.0, -4.55], [6.4, -4.55]), [0.5, -4.55],
+	cb([0.15, -4.55], [0, -4.4], [0, -4.1]), [0, -2.8]];
 const PARTB = [[-1, -0.9], cb([4, -1.3], [10, -1.95], [14.6, -1.3]), cb([17, -0.95], [18.6, -0.1], [21, 0.35])];
 const PANELB = [[5.7, -0.85], cb([5.7, 0.9], [6.0, 1.45], [6.8, 1.45]), [13.6, 1.45], cb([14.2, 1.45], [14.35, 1.1], [14.3, 0.5]), [14.15, -1.15],
 	cb([14.1, -1.5], [13.8, -1.55], [13.3, -1.5]), [6.4, -1.15], cb([5.95, -1.12], [5.7, -1.05], [5.7, -0.85])];
-const GUARDB = [[3.4, -4.3], cb([3.15, -6.4], [4.4, -8.1], [6.8, -8.1]), [10.4, -8.1], cb([12.4, -8.1], [13.2, -6.8], [12.9, -4.2])];
-const TRIGB = [[7.5, -4.55], [8.4, -4.55], [8.3, -5.6], [8.05, -6.7], [7.45, -7.05], [7.62, -5.8]];
+// The trigger housing and guard at the receiver's back (moved 5 cm back on 2026-10-28 so the first-person finger reaches
+// the trigger: Ranchhand.py's trigger_group), the guard's rear meeting the pistol grip's front.
+const GUARDB = [[-0.2, -4.3], cb([-0.45, -6.4], [0.0, -8.1], [1.8, -8.1]), [5.4, -8.1], cb([7.4, -8.1], [8.2, -6.8], [7.9, -4.2])];
+const TRIGB = [[2.5, -4.55], [3.4, -4.55], [3.3, -5.6], [3.05, -6.7], [2.45, -7.05], [2.62, -5.8]];
 const NOSEB = [[15.0, -0.55], [18.9, -0.25], cb([19.25, -0.23], [19.35, 0.0], [19.3, 0.4]), [19.2, 1.2], cb([19.15, 1.45], [18.95, 1.5], [18.6, 1.5]), [15.3, 1.4],
 	cb([14.95, 1.38], [14.8, 1.2], [14.8, 0.9]), [14.8, -0.25], cb([14.8, -0.45], [14.85, -0.55], [15.0, -0.55])];
 
@@ -55,13 +57,13 @@ function bodySide(V) {
 	let s = '';
 	// the swept guard and the flat-faced aluminium trigger
 	s += flt('pM', sk(V, GUARDB, '#3f4248', 0.72)) + sk(V, shift(GUARDB, -0.05, 0.2), '#9ca1a9', 0.1, 'opacity=".5"');
-	s += ao(shp(pth(V, TRIGB, 0.16), 'url(#alu)', 'mS')) + pl(V, [[7.7, -4.9], [7.85, -6.4]], '#ffffff', 0.9, 'opacity=".6"');
+	s += ao(shp(pth(V, TRIGB, 0.16), 'url(#alu)', 'mS')) + pl(V, [[2.7, -4.9], [2.85, -6.4]], '#ffffff', 0.9, 'opacity=".6"');
 	// the shell: white, the graphite lower under the parting line, form light, seams
 	s += shp(shell, 'url(#wht)', 'pL');
 	s += flt('pM', clip(shell, shp(cd(V, [...PARTB, [21, -10], [-1, -10]]), 'url(#gph)')));
 	s += clip(shell, `<rect x="0" y="${r2(V.Y(2.4))}" width="${N}" height="${r2(5 * V.s)}" fill="url(#form4)"/>` +
 		flt('soft', sk(V, [[0.8, 1.75], [16.6, 1.8], cb([18, 1.8], [18.8, 1.55], [19.2, 1.1])], '#ffffff', 0.4, 'opacity=".75"')) +
-		flt('soft', sk(V, [[3.4, -3.85], cb([4.2, -4.15], [8, -4.15], [12, -4.1])], '#9aa0a8', 0.22, 'opacity=".35"')) +
+		flt('soft', sk(V, [[0.3, -4.1], cb([0.8, -4.15], [3, -4.15], [7, -4.1])], '#9aa0a8', 0.22, 'opacity=".35"')) +
 		flt('soft2', sk(V, shift(PARTB, 0, 0.55), '#2a3040', 0.9, 'opacity=".14"')) +
 		seam(V, [[14.65, 2.4], cb([14.3, 0.6], [14.4, -1.6], [14.9, -3.2])]) + seam(V, [[0.7, 2.4], cb([0.5, 0.5], [0.5, -1.6], [0.8, -3.3])]) +
 		accent(V, PARTB, 0.12));
@@ -105,8 +107,8 @@ function bodySide(V) {
 		for (const a of [2.35, 3.55]) s += pl(V, [[a, 0.56], [a, 1.0]], '#123a46', 1.1);
 	}
 	// trigger pins, a brass cross-bolt safety, a QD sling cup at the rear
-	for (const [a, v] of [[4.4, -3.9], [11.4, -3.9]]) s += pin(V, a, v, 0.15);
-	s += ao(circ(V, 12.25, -3.55, 0.3, 'url(#rBrass)', 'bS')) + ring(V, 12.25, -3.55, 0.3, '#2a2c30', 1, 'opacity=".6"');
+	for (const [a, v] of [[1.0, -3.9], [6.4, -3.9]]) s += pin(V, a, v, 0.15);
+	s += ao(circ(V, 7.25, -3.55, 0.3, 'url(#rBrass)', 'bS')) + ring(V, 7.25, -3.55, 0.3, '#2a2c30', 1, 'opacity=".6"');
 	s += qd(V, 1.6, -2.25, 0.36);
 	s += railS(V, 1, 19.5);
 	return s + wear(shell, '#b9bec5', 1, 0.35, '3 34 2 60');
@@ -519,7 +521,7 @@ function stockEnd(V, back) {
 }
 
 module.exports = [
-	{ dir: 'Body_Tactical', b: { u: [-0.05, 20.05], v: [-8.5, 3.15], w: [-1.75, 1.75] }, draw: { left: bodySide, right: bodySide, front: V => bodyEnd(V, false), back: V => bodyEnd(V, true) } },
+	{ dir: 'Body_Tactical', b: { u: [-0.6, 20.05], v: [-8.5, 3.15], w: [-1.75, 1.75] }, draw: { left: bodySide, right: bodySide, front: V => bodyEnd(V, false), back: V => bodyEnd(V, true) } },
 	{ dir: 'Barrel_Slug', b: { u: [0, 46], v: [-1.45, 3.05], w: [-1.45, 1.45] }, draw: { left: brlSide, right: brlSide, front: V => brlEnd(V, false), back: V => brlEnd(V, true) } },
 	{ dir: 'Muzzle_Choke', b: { u: [0, 4.6], v: [-1.4, 1.4], w: [-1.4, 1.4] }, draw: { left: chokeSide, right: chokeSide, front: V => chokeEnd(V, false), back: V => chokeEnd(V, true) } },
 	{ dir: 'Magazine_Tube6Window', b: { u: [20, 56], v: [-3.85, 0.95], w: [-1.35, 1.65] }, draw: { left: magSide, right: magSide, front: V => magEnd(V, false), back: V => magEnd(V, true) } },
