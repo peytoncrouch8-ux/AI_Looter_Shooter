@@ -229,11 +229,12 @@ def sweep(points, radius, sides=6, scales=None, squash=1.0, up=(1.0, 0.0, 0.0), 
                     scales=scales)
 
 
-def finish(name, parts, sockets):
+def finish(name, parts, sockets, smooth=30.0):
     """Joins the parts into the model, finishes it (shading, baked occlusion, no Nanite, no collision) and adds its
-    sockets: [(name, (u, v, w), rotation degrees), ...]."""
+    sockets: [(name, (u, v, w), rotation degrees), ...]. smooth None: the parts keep the hard edges they were given."""
     model = lp.join(name, parts)
-    lm.smooth(model, 30.0)
+    if smooth:
+        lm.smooth(model, smooth)
     lt.bake_vertex_ao(model, samples=16, distance=0.04, ground=False)
     model['Nanite'] = 0
     model['Collision'] = 'None'
@@ -387,7 +388,8 @@ def bmesh_flip(obj):
     bm.free()
 
 
-def grave_spade():
+def spade_head():
+    """The blade, its ember crack, the tread and the frog (the Tripo spade keeps these: its own blade came out warped)."""
     parts = [spade_blade()]
     parts.append(crack(CRACK, 0.32, 1.0))
     parts.append(crack(CRACK_BRANCH, 0.22, 1.0))
@@ -399,13 +401,19 @@ def grave_spade():
                      [(-0.85 * CM, -0.42 * CM), (0.85 * CM, -0.42 * CM), (0.85 * CM, 0.42 * CM), (-0.85 * CM, 0.42 * CM)],
                      up=(0.0, 0.0, 1.0))
     parts.append(mapped(tread, IRON))
-    # The socket the shaft sits in, flaring into the frog that runs down both faces.
-    parts.append(mapped(turned([(0.0, 1.9), (0.6, 2.05), (8.5, 2.3), (11.8, 2.55), (12.6, 2.0)], 37.0, segments=14),
-                        IRON))
     for s in (1.0, -1.0):
         frog = flat([(BLADE_TOP - 0.5, -2.5), (BLADE_TOP - 0.5, 2.5), (58.0, 0.6), (58.0, -0.6)], 0.5,
                     v=s * (BLADE_THICK + 0.2), bevel=0.12)
         parts.append(mapped(frog, IRON))
+    return parts
+
+
+def grave_spade():
+    parts = spade_head()
+    # The socket the shaft sits in, flaring into the frog that runs down both faces.
+    parts.append(mapped(turned([(0.0, 1.9), (0.6, 2.05), (8.5, 2.3), (11.8, 2.55), (12.6, 2.0)], 37.0, segments=14),
+                        IRON))
+    for s in (1.0, -1.0):
         parts.append(mapped(dome((43.5, s * 2.25, 0.0), 'v' if s > 0 else '-v', 0.42, 0.25), IRON))
     parts.append(wood(turned([(0.0, 1.55), (6.0, 1.6), (40.0, 1.78), (46.0, 1.95)], -6.0, segments=14), ASH))
     parts.extend(spade_d_grip())
@@ -553,14 +561,15 @@ HOOK = [(89.5 + (u - 89.5) * 1.25, 0.6 + (v - 0.6) * 1.25) for u, v in
          (94.6, 11.5), (93.6, 10.7), (93.1, 9.5))]
 
 
-def fare_coin(u_c, phi_c):
-    """The fare coin, bent round the pole and nailed through: a disc with a raised rim, its nail's head proud."""
+def fare_coin(u_c, phi_c, pole_r=POLE_R):
+    """The fare coin, bent round the pole (radius pole_r) and nailed through: a disc with a raised rim, its nail's head
+    proud."""
     def wrap(obj):
         me = obj.data
         for vtx in me.vertices:
             x, y, z = vtx.co.x / CM, vtx.co.y / CM, vtx.co.z / CM
-            phi = phi_c - y / POLE_R          # this way round the wrap is no mirror: faces stay outward
-            radial = POLE_R - 0.04 + z
+            phi = phi_c - y / pole_r          # this way round the wrap is no mirror: faces stay outward
+            radial = pole_r - 0.04 + z
             vtx.co = at(u_c + x, radial * math.sin(phi), radial * math.cos(phi))
         me.update()
         return obj
@@ -603,6 +612,12 @@ KNUCKLES = (-2.75, 0.0, 2.75) # the three knuckle caps across the plate (w)
 KNUCKLE_V = 0.9
 
 
+def piston_yoke():
+    """The yoke from the rod's end down onto the knuckle plate (the Tripo fist keeps it: its own came out hollow)."""
+    return mapped(slab([(15.0, 9.4), (17.4, 9.4), (PLATE_U + 1.2, 4.6), (PLATE_U + 1.2, 3.0), (PLATE_U - 0.4, 3.0),
+                        (15.0, 6.6)], 3.0, bevel=0.25), IRON)
+
+
 def piston_fist():
     parts = []
     # The clamp: a front ring with its split lug underneath, a brass rear ring, the saddle joining them on top.
@@ -624,8 +639,7 @@ def piston_fist():
     for u in (-3.5, 2.0):
         parts.append(mapped(ring(u, u + 0.7, 1.95, 2.18, v=CYL_V, segments=16, chamfer=0.08), IRON))
     parts.append(mapped(turned([(0.0, 0.85), (6.4, 0.85)], 9.4, v=CYL_V, segments=10), STEEL_BRIGHT))
-    parts.append(mapped(slab([(15.0, 9.4), (17.4, 9.4), (PLATE_U + 1.2, 4.6), (PLATE_U + 1.2, 3.0), (PLATE_U - 0.4, 3.0),
-                              (15.0, 6.6)], 3.0, bevel=0.25), IRON))
+    parts.append(piston_yoke())
     # The knuckle plate, its rivets, and three knuckle caps glowing from the firebox.
     plate = face([(w, v) for w, v in rounded_rect(-4.3, 4.3, -3.9, 3.6, 1.2)], PLATE_U, PLATE_U + 1.4, bevel=0.25)
     parts.append(mapped(plate, IRON))
@@ -700,6 +714,32 @@ def rock_pick():
 for _obj in list(bpy.data.objects):   # the startup scene's cube, light and camera
     bpy.data.objects.remove(_obj)
 MODELS = [grave_spade(), razor_fan(), ferry_gaff(), piston_fist(), rock_pick()]
+
+
+# --- Tripo tools: the user's image-to-3D remodels (2026-10-28) in place of the scripted ones ---
+# Art/Models/Weapons/Melee/parts_tripo.py (not a model: Tools\models.ps1 skips parts_*.py) fits each Tripo .glb
+# (Art/Models/Weapons/Melee/Tripo/<Tool>.glb) onto the scripted model built above (its length, size and sockets), fixes
+# what Tripo got wrong, and bakes the scripted model's look (our texture sets, tints, crisp material borders) onto its
+# atlas with Tools/Blender/looter_rebake.py; the scripted model then goes. LOOTER_MELEE_TRIPO=0 keeps every scripted
+# tool; =GraveSpade,RockPick swaps only those.
+
+def tripo_swap(models):
+    import runpy
+    wanted = os.environ.get('LOOTER_MELEE_TRIPO', '')
+    if wanted == '0':
+        return models
+    keys = {k.strip() for k in wanted.split(',') if k.strip()}
+    tripo = runpy.run_path(os.path.join(lt.REPO, 'Art', 'Models', 'Weapons', 'Melee', 'parts_tripo.py'))
+    out = []
+    for model in models:
+        key = model.name[len('Melee_'):]
+        if key in tripo['PARTS'] and (not keys or key in keys):
+            model = tripo['swap'](globals(), model, key)
+        out.append(model)
+    return out
+
+
+MODELS = tripo_swap(MODELS)
 
 if lt.want_preview():
     bpy.context.view_layer.update()
