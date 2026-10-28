@@ -4,6 +4,8 @@
 
 #include "Bosses/AbelKeeper.h"
 #include "Combat/EnemyProjectileSubsystem.h"
+#include "Combat/GunfeelReactTuning.h"
+#include "Combat/MovementSlowComponent.h"
 #include "Creatures/BellRingerCreature.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/DeadMinerCreature.h"
@@ -96,6 +98,10 @@ bool FUnpaidKitTuningTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("A walking strafe dodges its lunge (%.0f cm off its aim, it lands within %.0f)"), Miss, Tuning.LungeHitRadius),
 		Miss > Tuning.LungeHitRadius);
 	TestTrue(TEXT("A landed lunge hurts no more than its attack"), Tuning.LungeDamageShare > 0.f && Tuning.LungeDamageShare <= 1.f);
+	// Its last stretch is committed (2026-10-28: steady rifle fire kept every lunge short), never more than its whole flight; its
+	// hit slows come once a gap longer than one slow lasts.
+	TestTrue(TEXT("Its lunge commits its last stretch, within its flight"), Tuning.LungeCommit > 0.f && Tuning.LungeCommit <= Tuning.LungeDistance / Lunge + 0.05f);
+	TestTrue(TEXT("It takes the hit slow once a gap, longer than a slow"), Tuning.HitSlowGap >= FGunfeelReactTuning().FlinchSlowSeconds);
 	TestTrue(TEXT("It rakes only close in, nearer than it lunges from"), Tuning.RakeRange < Tuning.LungeStart);
 	TestTrue(TEXT("Two swipes hurt no more than a lunge and a half"), 2.f * Tuning.RakeDamageShare <= 1.5f);
 	TestTrue(TEXT("A cinder hurts less than a lunge"), Tuning.CinderDamageShare < 1.f);
@@ -184,6 +190,121 @@ bool FUnpaidKitRulesTest::RunTest(const FString& Parameters)
 	TestNearlyEqual(TEXT("Far: closing in"), UnpaidFightRules::ChaseBoost(1500.f, false, 900.f, 1.2f, false, 1.3f), 1.2f, 0.0001f);
 	TestNearlyEqual(TEXT("Waiting on the ring: no closing"), UnpaidFightRules::ChaseBoost(1500.f, true, 900.f, 1.2f, false, 1.3f), 1.f, 0.0001f);
 	TestNearlyEqual(TEXT("Frenzy, far: both"), UnpaidFightRules::ChaseBoost(1500.f, false, 900.f, 1.2f, true, 1.3f), 1.56f, 0.0001f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidKitCommitTest, "Looter.Creatures.Unpaid.Kit.Commit",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FUnpaidKitCommitTest::RunTest(const FString& Parameters)
+{
+	// The lunge against a gun's hit slow (DEMO 2026-10-28, the chapel yard: 59 attacks, 2 hits): the slow is taken once a gap,
+	// a slowed flight goes its whole way, and its last stretch flies at full speed with the slow held off.
+	FKitLevel Level;
+	if (!TestTrue(TEXT("Test level made"), Level.Create()))
+	{
+		return false;
+	}
+	UWorld* World = Level.Wrapper.GetTestWorld();
+	FEditorScriptExecutionGuard RunActorEvents;
+	LocomotionTestWorld::SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(6000.0, 6000.0, 100.0));
+	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector(0.0, 0.0, 90.0));
+	AUnpaidCreature* Unpaid = SpawnUnpaid(World, FVector(450.0, 0.0, 0.0));
+	if (!TestNotNull(TEXT("Player stand-in"), Player) || !TestNotNull(TEXT("Unpaid spawned"), Unpaid))
+	{
+		return false;
+	}
+	FCVarScope KitOn(TEXT("Looter.Unpaid.Kit"), TEXT("1"));
+	FCVarScope NeverRake(TEXT("Looter.Unpaid.RakeChance"), TEXT("0"));
+	const FGunfeelReactTuning Gunfeel;
+	constexpr float Step = 1.f / 60.f;
+
+	// The slow once a gap: a second hit in the gap neither deepens nor lengthens it.
+	BossTestWorld::Hurt(Unpaid, 1.f);
+	UMovementSlowComponent* Slow = Unpaid->FindComponentByClass<UMovementSlowComponent>();
+	if (!TestNotNull(TEXT("A hit slows it"), Slow))
+	{
+		return false;
+	}
+	Slow->Advance(0.1f);
+	const float Left = Slow->GetTimeLeft();
+	BossTestWorld::Hurt(Unpaid, 1.f);
+	TestEqual(TEXT("A second hit in the gap doesn't slow it again"), Slow->GetTimeLeft(), Left, 0.001f);
+	Slow->Advance(1.f);
+	TestFalse(TEXT("The slow ran out"), Slow->IsSlowed());
+
+	// A lunge from 4.5 m is in its committed stretch from the start: a hit's slow is held off it, and it flies at full speed.
+	Unpaid->DevPutInState(ECreatureState::Chase, Player);
+	Unpaid->DevPutInState(ECreatureState::Attack, Player);
+	TestTrue(TEXT("4.5 m off: it lunges"), Unpaid->GetKitMove() == EUnpaidMove::Lunge);
+	int32 Frames = 0;
+	while (!Unpaid->IsLunging() && Frames < 120)
+	{
+		Unpaid->ConsumeMovementInputVector();
+		Unpaid->Tick(Step);
+		++Frames;
+	}
+	if (!TestTrue(TEXT("The lunge flies after the shriek"), Unpaid->IsLunging()))
+	{
+		return false;
+	}
+	TestTrue(TEXT("A short flight is committed from its first frame"), Unpaid->IsLungeCommitted());
+	const float Full = Unpaid->GetLungeSpeed();
+	UMovementSlowComponent::Apply(Unpaid, Gunfeel.FlinchSlow, 10.f);
+	Unpaid->ConsumeMovementInputVector();
+	Unpaid->Tick(Step);
+	TestTrue(TEXT("...the slow is held off it"), Slow->IsSuspended() && Slow->GetMultiplier() == 1.f);
+	TestEqual(TEXT("...and it flies at full speed"), Unpaid->GetCharacterMovement()->MaxWalkSpeed, Full, 1.f);
+	Frames = 0;
+	while (Unpaid->IsLunging() && Frames < 120)
+	{
+		Unpaid->ConsumeMovementInputVector();
+		Unpaid->Tick(Step);
+		++Frames;
+	}
+	TestFalse(TEXT("The lunge ends"), Unpaid->IsLunging());
+	TestFalse(TEXT("...and the slow it took on the way holds it again"), Slow->IsSuspended());
+	TestEqual(TEXT("...at its share"), Unpaid->GetCharacterMovement()->MaxWalkSpeed, Full * Gunfeel.FlinchSlow, 1.f);
+	Slow->Advance(20.f);
+
+	// A longer flight with a short commit: slowed, it flies its whole way (longer, never cut short), then commits.
+	FCVarScope ShortCommit(TEXT("Looter.Unpaid.LungeCommit"), TEXT("0.1"));
+	Unpaid->DevPutInState(ECreatureState::Chase, Player);
+	Unpaid->SetActorLocation(FVector(520.0, 0.0, Unpaid->GetActorLocation().Z));
+	Unpaid->DevPutInState(ECreatureState::Attack, Player);
+	Frames = 0;
+	while (!Unpaid->IsLunging() && Frames < 120)
+	{
+		Unpaid->ConsumeMovementInputVector();
+		Unpaid->Tick(Step);
+		++Frames;
+	}
+	if (!TestTrue(TEXT("The second lunge flies"), Unpaid->IsLunging()))
+	{
+		return false;
+	}
+	TestFalse(TEXT("A long flight isn't committed at first"), Unpaid->IsLungeCommitted());
+	UMovementSlowComponent::Apply(Unpaid, Gunfeel.FlinchSlow, 10.f);
+	TestFalse(TEXT("...so the slow holds it"), Slow->IsSuspended());
+	bool bCommitted = false;
+	float Flight = 0.f;
+	while (Unpaid->IsLunging() && Flight < 2.f)
+	{
+		Unpaid->ConsumeMovementInputVector();
+		Unpaid->Tick(Step);
+		Flight += Step;
+		bCommitted |= Unpaid->IsLungeCommitted();
+	}
+	// Its way: 520 less the stop-short, at 55% until the last 0.1 s' worth, then full: longer than the unslowed flight, and
+	// never cut off by the wall-grace (which counts the way it really flew).
+	const AUnpaidCreature* Class = GetDefault<AUnpaidCreature>();
+	const float Way = 520.f - Class->LungeStopShort;
+	const float Unslowed = Way / Full;
+	const float Expected = (Way - 0.1f * Full) / (Full * Gunfeel.FlinchSlow) + 0.1f;
+	TestTrue(FString::Printf(TEXT("Slowed, the lunge flies its whole way (%.2f s; unslowed %.2f, expected %.2f)"), Flight, Unslowed, Expected),
+		Flight > Unslowed + 0.05f && FMath::Abs(Flight - Expected) < 0.08f);
+	TestTrue(TEXT("...and commits its last stretch"), bCommitted);
+	TestFalse(TEXT("...letting the slow hold it again after"), Slow->IsSuspended());
 	return true;
 }
 

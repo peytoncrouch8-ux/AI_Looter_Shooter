@@ -318,6 +318,15 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
   (`LeadShare` 0.25 of their run, at most `LeadMaxSeconds` 0.2 ahead), starts from 5.2 m (was 3.8), flies up to 4.7 m (was 3.2),
   no homing (`LungeHoming` 0: the aim is fixed at the wind-up's end), lands on a target within `LungeHitRadius` 85 cm of its line
   (was 130), hurts `LungeDamageShare` 0.85. A 400 cm/s strafe dodges a Regular's lunge from its farthest start (test).
+  - Against the gun's hit slow (overnight playtest 2026-10-28, the chapel yard: 73 turns, 59 attacks, 2 hits; every rifle hit's
+    0.12 s at 55% clamped the flight while `LungeLeft` counted full speed, so every lunge stopped short): the flight counts the
+    way it really flew (the slow's multiplier; the wall-grace too), and its last `LungeCommit` 0.3 s' worth is committed:
+    `CommitLunge` suspends its `UMovementSlowComponent` (`Suspend`; the component is added first if it has none, so a hit in
+    the stretch finds it suspended; a grave-salt slow keeps its time and holds again after). An Unpaid with its kit takes the
+    hit slow once per `HitSlowGap` 0.5 s (`ACreatureBase::GetHitSlowGap`, read by `UCreatureHitReactionComponent`; 0 for every
+    other kind: spiders untouched, the user's call). At 1400 cm/s a 4.7 m lunge flies 0.34 s, so in practice the whole lunge
+    commits; the slowed stretch matters for the Gravebound's faster, longer ones. Test `Looter.Creatures.Unpaid.Kit.Commit`
+    (the gap, a short lunge committed from its first frame at full speed, a long one slowed its whole way then committed).
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
   arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.

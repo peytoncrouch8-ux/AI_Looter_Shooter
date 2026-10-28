@@ -72,9 +72,13 @@ namespace
 			// Pulled in a little (glove 0.84, muzzle 0.60) until the play-check of 2026-10-23 ("the Sniper is held one-handed":
 			// its trigger glove sat ~6 cm under the frame's bottom edge). The user's "lift slightly": back out to the table's
 			// distance and 2.5 up, tuned in PIE so the trigger glove's knuckles show at the bottom edge.
+			// The overnight playtest (2026-10-28; the 1.2x first-person gun since): at the hip the scope hid the right third of
+			// the screen (an Unpaid half behind it). Framed like the LMG: the gun 4 cm lower (HipUp 2.5 -> -1.5) and the arms
+			// 0.9x on it, so the scope drops under the crosshair's line and the hands fit its box.
 			Frame.HipAhead = 0.f;
-			Frame.HipUp = 2.5f;
+			Frame.HipUp = -1.5f;
 			Frame.HipPitch = 2.f;
+			Frame.ArmsScale = 0.9f;
 			break;
 		case EWeaponKind::LMG:
 			// Pulled in 14 cm from its last hold (the support hand on the handguard was ~86 cm out), lower, the muzzle tipped up

@@ -240,9 +240,14 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 		Shove(*Creature, Hit.Direction, Response.BurstShare, Tuning.StaggerShove);
 	}
 	// Every hit holds it back a moment: a charging creature visibly catches the bullet (strongest slow wins, never stacks).
+	// A kind with a gap between its slows (the Unpaid, 2026-10-28: steady rifle fire kept every lunge short) takes one, then
+	// none for the gap, whatever lands in between.
 	const UCreatureKnockComponent* Knock = Creature->GetKnock();
-	if (Tuning.FlinchSlow < 1.f && Tuning.FlinchSlowSeconds > 0.f && !(Knock && Knock->IsKnocked()))
+	const double Now = World->GetTimeSeconds();
+	const bool bSlowDue = Now - LastSlowAt >= Creature->GetHitSlowGap();
+	if (Tuning.FlinchSlow < 1.f && Tuning.FlinchSlowSeconds > 0.f && bSlowDue && !(Knock && Knock->IsKnocked()))
 	{
+		LastSlowAt = Now;
 		const bool bFirst = Creature->FindComponentByClass<UMovementSlowComponent>() == nullptr;
 		UMovementSlowComponent* Slow = UMovementSlowComponent::Apply(Creature, Tuning.FlinchSlow, Tuning.FlinchSlowSeconds);
 		if (Slow && bFirst)

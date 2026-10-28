@@ -25,6 +25,8 @@ public:
 
 	/** Slows Victim's walking to SlowShare of its speed for Seconds, adding the component if it has none. Null without a victim. */
 	static UMovementSlowComponent* Apply(ACharacter* Victim, float SlowShare, float Seconds);
+	/** The character's slow component, added (holding nothing) if it has none. Null without a character. */
+	static UMovementSlowComponent* FindOrAdd(ACharacter* Character);
 
 	/** A slow on top of any it has: the stronger share, and the longer time left. */
 	void AddSlow(float SlowShare, float Seconds);
@@ -34,8 +36,15 @@ public:
 	/** Seconds of slow left (0: none). */
 	float GetTimeLeft() const { return TimeLeft; }
 
-	/** The share of its speed it walks at now (1: not slowed). */
-	float GetMultiplier() const { return IsSlowed() ? Multiplier : 1.f; }
+	/** The share of its speed it walks at now (1: not slowed, or suspended). */
+	float GetMultiplier() const { return IsSlowed() && !bSuspended ? Multiplier : 1.f; }
+
+	/**
+	 * Holds the slow off (its speeds given back, its time still running down) while bOn: a flying lunge that's committed
+	 * (the Unpaid) is never dragged short by it. Off again, it holds the speeds down once more if any slow is left.
+	 */
+	void Suspend(bool bOn);
+	bool IsSuspended() const { return bSuspended; }
 
 	/** Moves the slow on by DeltaSeconds: it holds the speeds down while it lasts and gives them back when it ends. Its tick calls it; tests call it. */
 	void Advance(float DeltaSeconds);
@@ -55,6 +64,7 @@ private:
 	float Multiplier = 1.f;
 	float TimeLeft = 0.f;
 	bool bHolding = false;
+	bool bSuspended = false;
 	/** The character's own speeds (unslowed), and what this last wrote. */
 	float OwnWalkSpeed = 0.f;
 	float OwnCrouchedSpeed = 0.f;

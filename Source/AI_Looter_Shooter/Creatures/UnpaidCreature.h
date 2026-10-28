@@ -99,6 +99,10 @@ public:
 
 	/** Whether it's in the middle of a lunge. */
 	bool IsLunging() const { return bLunging; }
+	/** In the committed last stretch of a lunge (Looter.Unpaid.LungeCommit): the hit slow is held off it. */
+	bool IsLungeCommitted() const { return bLunging && bLungeCommitted; }
+	/** Its hit slows come at most once every Looter.Unpaid.HitSlowGap seconds (with its kit). */
+	virtual float GetHitSlowGap() const override;
 
 	// --- Its fighting kit (UnpaidCreatureMoves.cpp, UnpaidCreatureRing.cpp; FUnpaidFightTuning) ---
 
@@ -321,6 +325,8 @@ private:
 	/** Strikes whoever the lunge has reached (once); whether it did. */
 	bool TryLungeHit();
 	void EndLunge();
+	/** Commits the lunge (its slow suspended) or lets it go again (the slow holds once more, if any is left). */
+	void CommitLunge(bool bOn);
 
 	// --- Phase-steps (UnpaidCreaturePhase.cpp) ---
 	enum class EPhaseState : uint8
@@ -532,6 +538,7 @@ private:
 	// Attack
 	bool bLunging = false;
 	bool bLungeLanded = false;
+	bool bLungeCommitted = false;
 	FVector LungeDirection = FVector::ForwardVector;
 	float LungeLeft = 0.f;
 	float LungeTime = 0.f;

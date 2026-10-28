@@ -26,14 +26,24 @@ UMovementSlowComponent* UMovementSlowComponent::Apply(ACharacter* Victim, float 
 	{
 		return nullptr;
 	}
-	UMovementSlowComponent* Slow = Victim->FindComponentByClass<UMovementSlowComponent>();
+	UMovementSlowComponent* Slow = FindOrAdd(Victim);
+	Slow->AddSlow(SlowShare, Seconds);
+	return Slow;
+}
+
+UMovementSlowComponent* UMovementSlowComponent::FindOrAdd(ACharacter* Character)
+{
+	if (!Character)
+	{
+		return nullptr;
+	}
+	UMovementSlowComponent* Slow = Character->FindComponentByClass<UMovementSlowComponent>();
 	if (!Slow)
 	{
-		Slow = NewObject<UMovementSlowComponent>(Victim);
-		Victim->AddInstanceComponent(Slow);
+		Slow = NewObject<UMovementSlowComponent>(Character);
+		Character->AddInstanceComponent(Slow);
 		Slow->RegisterComponent();
 	}
-	Slow->AddSlow(SlowShare, Seconds);
 	return Slow;
 }
 
@@ -71,6 +81,23 @@ void UMovementSlowComponent::AddSlow(float SlowShare, float Seconds)
 	SetComponentTickEnabled(true);
 }
 
+void UMovementSlowComponent::Suspend(bool bOn)
+{
+	if (bOn == bSuspended)
+	{
+		return;
+	}
+	bSuspended = bOn;
+	if (bOn)
+	{
+		Release();
+	}
+	else if (IsSlowed())
+	{
+		HoldSpeeds();
+	}
+}
+
 void UMovementSlowComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -86,7 +113,10 @@ void UMovementSlowComponent::Advance(float DeltaSeconds)
 	TimeLeft = FMath::Max(TimeLeft - DeltaSeconds, 0.f);
 	if (IsSlowed())
 	{
-		HoldSpeeds();
+		if (!bSuspended)
+		{
+			HoldSpeeds();
+		}
 		return;
 	}
 	Release();
@@ -97,7 +127,7 @@ void UMovementSlowComponent::Advance(float DeltaSeconds)
 void UMovementSlowComponent::HoldSpeeds()
 {
 	UCharacterMovementComponent* Movement = MovementOf(this);
-	if (!Movement)
+	if (!Movement || bSuspended)
 	{
 		return;
 	}

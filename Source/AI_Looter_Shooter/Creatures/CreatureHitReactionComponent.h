@@ -116,6 +116,8 @@ private:
 
 	/** The latest hit (its way from the shooter through the wound, crit, gun, spot): the death goes with it. */
 	FCreatureHit LastHit;
+	/** When the creature last took the hit slow (world seconds): a kind with a gap between slows isn't slowed again sooner. */
+	double LastSlowAt = -1.0e9;
 
 	/** The corpse's slide: its speed (cm/s, across the ground), seconds slid, and its height over the ground it keeps. */
 	FVector KnockVelocity = FVector::ZeroVector;

@@ -130,7 +130,8 @@ Cvars `Looter.Gunfeel.*`, read at each hit (live in PIE), defaults in brackets.
   Spitter, Gravemother: the spider's. Numbers: a 300-health spider, rifle 12 = 0.72, revolver 52 = 1.12, a third = 1.6.
 - Slow: any non-boss hit, `Flinch.Slow` [0.55] for `SlowSeconds` [0.12] via `UMovementSlowComponent` (strongest wins, no stacking).
   The creature's brain sets `MaxWalkSpeed` in its own frame (actor ticks PostPhysics), so the slow component made on a creature is
-  moved to `TG_PostPhysics` after its actor; otherwise the brain's speed won every frame.
+  moved to `TG_PostPhysics` after its actor; otherwise the brain's speed won every frame. A kind's `GetHitSlowGap` (the Unpaid
+  0.5 s with its kit, else 0) spaces its slows; a committed Unpaid lunge suspends the component (Enemies.md, the kit's lunge).
 - Stagger: heavy = crit or burst >= `Stagger.HeavyShare` [0.12]; Basic `Stagger.Seconds` [0.4], ranks in the old proportions;
   `Stagger.Cooldown` [0.7]; shove `Stagger.Shove` [420]. Hit-stops: `HitStop.Crit` [0.05], `.Heavy` [0.035] (shares the crit's
   0.25 s cooldown), `.Kill` [0.075], `.CritKill` [0.1]; melee unchanged.

@@ -457,6 +457,7 @@ void AUnpaidCreature::OnDied()
 		EndKitAction(true);
 	}
 	Kit.Reset();
+	CommitLunge(false);
 	bLunging = false;
 	PhaseState = EPhaseState::None;
 	PhaseTime = 0.f;
@@ -476,6 +477,7 @@ void AUnpaidCreature::OnRespawned()
 	RiseTime = -1.f;
 	GlanceYaw = 0.f;
 	GlanceLeft = 0.f;
+	CommitLunge(false);
 	bLunging = false;
 	Kit.Reset();
 	SinceLastStep = 1000.f;

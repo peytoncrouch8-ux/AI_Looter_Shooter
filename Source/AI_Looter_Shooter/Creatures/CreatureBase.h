@@ -81,6 +81,8 @@ public:
 	bool UsesFightDirector() const;
 	/** Its brain is held by a hit: staggered, knocked or dazed. */
 	bool IsHeldByHit() const;
+	/** Seconds between the hit slows it takes (Looter.Gunfeel.Flinch.Slow); 0: every hit slows it (the Unpaid: once a half second). */
+	virtual float GetHitSlowGap() const { return 0.f; }
 	/** Its chase speed now: ChaseSpeed, quickened by Looter.Fight.ChaseScale unless it keeps its own fight. */
 	float GetChaseSpeedNow() const;
 	/** Waiting its turn on the ring, at its slot or on its way round to it (an Unpaid then never phase-steps in). */

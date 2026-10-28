@@ -2,10 +2,15 @@
 // player, AShriekRing), and the lunge, which flies at its target and lands if it reaches them. Back off during the shriek
 // and the lunge falls short. With its fighting kit (UnpaidCreatureMoves.cpp) the wind-up begins with a choice (a rake close
 // in), and the lunge starts from farther out, aims where the target will be and bends a little after them in flight.
+//
+// A gun's hit slows it (UMovementSlowComponent, 55% for 0.12 s a hit): the flight honours the slow, but flies its whole
+// way, and its last stretch (Looter.Unpaid.LungeCommit) is committed, the slow held off, so steady fire can't keep every
+// lunge short (DEMO 2026-10-28: 59 attacks in the chapel yard, 2 hits). Its slows come once a gap, too (GetHitSlowGap).
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/CreatureVoiceComponent.h"
+#include "Combat/MovementSlowComponent.h"
 #include "Creatures/ShriekRing.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
@@ -24,6 +29,11 @@ float AUnpaidCreature::GetLungeSpeed() const
 	return LungeSpeed * Traits.LungeSpeedScale * GetSizeScale();
 }
 
+float AUnpaidCreature::GetHitSlowGap() const
+{
+	return HasFightKit() ? FUnpaidFightTuning::Live().HitSlowGap : 0.f;
+}
+
 bool AUnpaidCreature::CanStartAttack() const
 {
 	// Not mid-cinder or mid-scream either: its turn waits for them; nor with a flank ready (its turn opens with the flank).
@@ -38,6 +48,7 @@ float AUnpaidCreature::GetAttackStartRange() const
 void AUnpaidCreature::OnAttackStarted()
 {
 	// The wind-up is the shriek (the pose drops the jaw and spreads the arms through it), or with its kit the rake's arm drawn back.
+	CommitLunge(false);
 	bLunging = false;
 	bLungeLanded = false;
 	ChooseKitMove();
@@ -94,6 +105,8 @@ void AUnpaidCreature::Strike()
 	LungeTime = 0.f;
 	Kit.LungeReach = Reach;
 	bLunging = LungeLeft > 0.f;
+	// A short flight is committed from its first frame.
+	CommitLunge(bLunging && LungeLeft <= GetLungeSpeed() * Tuning.LungeCommit);
 	// The rush of cloth and cold air as it flies (or swipes where it stands); the shriek before it was the wind-up's cry.
 	Voice->Play(LooterSoundCue::UnpaidLunge);
 	if (!bLunging)
@@ -113,7 +126,16 @@ void AUnpaidCreature::TickLunge(float DeltaSeconds)
 		return;
 	}
 	const float Speed = GetLungeSpeed();
-	LungeLeft -= Speed * DeltaSeconds;
+	// Its last stretch is committed: the hit slow is held off it. Before that a slow drags its flight (the movement clamps
+	// to the held speed), so the way left and the wall-grace count the way it really flew, never the way it meant to.
+	if (!bLungeCommitted && LungeLeft <= Speed * FUnpaidFightTuning::Live().LungeCommit)
+	{
+		CommitLunge(true);
+	}
+	const UMovementSlowComponent* Slow = bLungeCommitted ? nullptr : FindComponentByClass<UMovementSlowComponent>();
+	const float Flown = Slow ? Slow->GetMultiplier() : 1.f;
+	LungeLeft -= Speed * Flown * DeltaSeconds;
+	LungeTime += (Flown - 1.f) * DeltaSeconds;
 	const float Reach = Kit.LungeReach > 0.f ? Kit.LungeReach : LungeDistance * GetSizeScale();
 	if (LungeLeft <= 0.f || LungeTime > Reach / FMath::Max(Speed, 1.f) + LungeGrace)
 	{
@@ -159,8 +181,23 @@ bool AUnpaidCreature::TryLungeHit()
 
 void AUnpaidCreature::EndLunge()
 {
-	// It stops dead where the lunge ends: the dead don't skid.
+	// It stops dead where the lunge ends: the dead don't skid. Any slow it took on the way holds it again now.
 	bLunging = false;
 	TryLungeHit();
 	GetCharacterMovement()->StopMovementImmediately();
+	CommitLunge(false);
+}
+
+void AUnpaidCreature::CommitLunge(bool bOn)
+{
+	if (bOn == bLungeCommitted)
+	{
+		return;
+	}
+	bLungeCommitted = bOn;
+	// Added now if it has none, so a hit that lands in the committed stretch finds it suspended.
+	if (UMovementSlowComponent* Slow = bOn ? UMovementSlowComponent::FindOrAdd(this) : FindComponentByClass<UMovementSlowComponent>())
+	{
+		Slow->Suspend(bOn);
+	}
 }

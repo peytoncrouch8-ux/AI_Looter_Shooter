@@ -26,6 +26,10 @@ namespace
 		TEXT("An Unpaid's lunge lands on a target this near its line (cm at size 1)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarLungeDamageShare(TEXT("Looter.Unpaid.LungeDamageShare"), KitDefaults.LungeDamageShare,
 		TEXT("A landed lunge hurts this share of the Unpaid's attack."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLungeCommit(TEXT("Looter.Unpaid.LungeCommit"), KitDefaults.LungeCommit,
+		TEXT("The last stretch of a lunge's flight (s at full speed) is committed: no hit slow drags it, it flies at full speed to its aim."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarHitSlowGap(TEXT("Looter.Unpaid.HitSlowGap"), KitDefaults.HitSlowGap,
+		TEXT("An Unpaid takes a gun hit's slow at most once every this many seconds (0: every hit)."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarRakeRange(TEXT("Looter.Unpaid.RakeRange"), KitDefaults.RakeRange,
 		TEXT("Nearer than this (cm at size 1) an Unpaid may rake instead of lunging."), ECVF_Default);
@@ -140,6 +144,8 @@ FUnpaidFightTuning FUnpaidFightTuning::Live()
 	Numbers.LungeHoming = Positive(CVarLungeHoming);
 	Numbers.LungeHitRadius = AtLeast(CVarLungeHitRadius, 10.f);
 	Numbers.LungeDamageShare = Positive(CVarLungeDamageShare);
+	Numbers.LungeCommit = Positive(CVarLungeCommit);
+	Numbers.HitSlowGap = Positive(CVarHitSlowGap);
 	Numbers.RakeRange = Positive(CVarRakeRange);
 	Numbers.RakeChance = Share(CVarRakeChance);
 	Numbers.RakeWindup = AtLeast(CVarRakeWindup, 0.1f);

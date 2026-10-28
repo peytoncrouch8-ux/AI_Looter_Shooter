@@ -42,6 +42,14 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	float LungeHitRadius = 85.f;
 	/** Looter.Unpaid.LungeDamageShare: a landed lunge hurts this share of its attack (DEMO: 15-18 a hit at level 3 was too lethal). */
 	float LungeDamageShare = 0.85f;
+	/**
+	 * Looter.Unpaid.LungeCommit: the last stretch of a lunge's flight (s at full speed) is committed: the hit slow is held off
+	 * it and it flies at its full speed to where it aimed (DEMO 2026-10-28: 59 attacks, 2 hits; every rifle hit's 0.12 s at 55%
+	 * kept each lunge short). Before that stretch a slowed one flies slower but still the whole way.
+	 */
+	float LungeCommit = 0.3f;
+	/** Looter.Unpaid.HitSlowGap: an Unpaid takes the hit slow at most once every this many seconds (0: every hit, as other kinds). */
+	float HitSlowGap = 0.5f;
 
 	// --- The rake (the second attack) ---
 	/** Looter.Unpaid.RakeRange: nearer than this (cm) it may rake instead of lunging. */

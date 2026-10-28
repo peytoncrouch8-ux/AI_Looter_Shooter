@@ -325,7 +325,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   through the Bullpup's thumbhole; its support can't slide back: grip loop at u 37.8); Shotgun -1.5 up, support -3;
   Revolver -5 right +1 up roll +6, one-handed (support parked at 20, -26, -38 cm, eased 0.15 s, back on the gun for
   reloads and throws); SMG -1.5 up, support -2; Sniper 0 ahead +2.5 up pitch +2, support -6; LMG 0 ahead +3 up pitch
-  +4, support -6 (to u 38); Launcher +9 ahead +2 right -2 up. "Pull the guns in" (the user, 2026-10-22): a support wrist
+  +4, support -6 (to u 38); Launcher +9 ahead +2 right -2 up. Sniper since 2026-10-28: -1.5 up, arms 0.9x (the overnight
+  playtest: at the hip, with the 1.2x gun, the scope hid the right third of the screen; framed like the LMG, 4 cm lower; not
+  yet seen by the user). "Pull the guns in" (the user, 2026-10-22): a support wrist
   high in the frame (fore-ends ~70 cm out) could only hide its elbow by running straight down, so the rifle, LMG and
   sniper sit nearer and lower with the muzzle tipped up about the grip (never down: the user's 2026-10-14 call), muzzle
   0.60-0.64 down, support glove 0.78-0.84; forearm on screen rifle 20% of the height (was 29), LMG 18 (22), sniper 12
