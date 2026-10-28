@@ -247,8 +247,15 @@ def place_chest(build, spec, x, y, z, yaw):
     kind = spec['kind']
     chest = build.place(cls, (x, y, z), yaw, label=spec['chest_id'], folder=FOLDER,
                         tags=('Chest', kind, 'Obstacle', SECRET_TAG))
-    chest.set_editor_property('kind', getattr(unreal.ChestKind, CHEST_KINDS[kind]))
-    if spec.get('loot'):
+    # A strongbox or crate the loot chest tiers name (chest_tiers.py: the Widow's strongbox, tier 5) becomes that tier, its
+    # loot the tier's; the footlockers stay as they are, with their loot.
+    tiers = importlib.reload(importlib.import_module('chest_tiers'))
+    tier = tiers.tier_of(spec['chest_id'], kind) if kind in tiers.DEFAULTS else None
+    if tier is not None:
+        tiers.apply(chest, tier)
+    else:
+        chest.set_editor_property('kind', getattr(unreal.ChestKind, CHEST_KINDS[kind]))
+    if spec.get('loot') and tier is None:
         loot = unreal.ChestLootOverride()
         loot.set_editor_property('override', True)
         for name, value in spec['loot'].items():

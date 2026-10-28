@@ -145,7 +145,7 @@ bool FLootContainersKindsTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("The caches and strongboxes are the map's chests"), FChestKindInfo::Get(EChestKind::SupplyCrate).bOnMap
 		&& FChestKindInfo::Get(EChestKind::Strongbox).bOnMap);
-	TestEqual(TEXT("Every kind is listed"), FChestKindInfo::All().Num(), 6);
+	TestEqual(TEXT("Every kind is listed (the old six and the five tiers)"), FChestKindInfo::All().Num(), 11);
 
 	AChest* Saloon = SpawnChest(World, EChestKind::Strongbox, FVector(300.0, Along, 0.0));
 	if (TestNotNull(TEXT("A strongbox"), Saloon))
@@ -388,7 +388,7 @@ bool FLootContainersLevelsTest::RunTest(const FString& Parameters)
 			}
 			else if (const AChest* Chest = Cast<AChest>(Actor))
 			{
-				Containers += Chest->Kind >= EChestKind::Coffin ? 1 : 0;
+				Containers += Chest->Kind >= EChestKind::Coffin && Chest->Kind <= EChestKind::Footlocker ? 1 : 0;
 				bool bSeen = false;
 				Ids.Add(Chest->GetSaveKey(), &bSeen);
 				TestFalse(FString::Printf(TEXT("%s: %s's id is its own"), *Name, *Chest->GetSaveKey().ToString()), bSeen);

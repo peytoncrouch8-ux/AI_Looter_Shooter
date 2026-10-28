@@ -335,7 +335,14 @@ bool FRangerCachesLootTest::RunTest(const FString& Parameters)
 		Run(Chest, (Info.WheelTurns > 0.f ? Chest->WheelSeconds : 0.f) + Chest->LidSeconds * Chest->LootShare * 0.5f);
 		TestEqual(FString::Printf(TEXT("%s: nothing out while the lid is low"), Design.Name), CountGuns(World), GunsBefore);
 		Run(Chest, OpenSeconds(Chest));
-		TestEqual(FString::Printf(TEXT("%s: its guns came out of it"), Design.Name), CountGuns(World) - GunsBefore, Design.Guns);
+		// A gun pick may come out as a ward of its rarity (the default table drops wards, 2026-10-22): both count.
+		int32 Wards = 0;
+		for (const AActor* Loot : Chest->GetDroppedLoot())
+		{
+			Wards += Cast<AShieldPickup>(Loot) ? 1 : 0;
+		}
+		TestEqual(FString::Printf(TEXT("%s: its guns came out of it (wards among them)"), Design.Name), CountGuns(World) - GunsBefore + Wards,
+			Design.Guns);
 		const TArray<AAmmoPickup*> Ammo = FindAmmo(World);
 		TestEqual(FString::Printf(TEXT("%s: its ammo pickups too"), Design.Name), Ammo.Num() - AmmoBefore, Info.AmmoPickups);
 		TestFalse(FString::Printf(TEXT("%s: each holding 36 rounds (rockets: three)"), Design.Name), Ammo.ContainsByPredicate([](const AAmmoPickup* Pickup)
@@ -515,7 +522,8 @@ bool FRangerCachesPlacedTest::RunTest(const FString& Parameters)
 			// The camps' Supply Crates (build_area_camps.py) are the same model: only Ruth's carry the RangerCache tag. The
 			// lootable world's loose strongboxes (build_area_loot.py: behind the saloon, by the burnt wagons) aren't the
 			// gang's: only the one with its id counts.
-			if (Chest->Kind == EChestKind::Strongbox && Chest->ChestId == StrongboxId)
+			// By its id, whatever its kind (a Strongbox, or the loot chest tier it became: 2026-10-27).
+			if (Chest->ChestId == StrongboxId)
 			{
 				Strongboxes.Add(Chest);
 			}
@@ -544,7 +552,17 @@ bool FRangerCachesPlacedTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s is a chest and solid (tagged %s and Obstacle)"), *What, *AChest::ChestTag.ToString()),
 			Chest->ActorHasTag(AChest::ChestTag) && Chest->ActorHasTag(TEXT("Obstacle")));
 		TestTrue(FString::Printf(TEXT("%s has its model and lid"), *What), Chest->Body->GetStaticMesh() && Chest->Lid->GetStaticMesh());
-		TestTrue(FString::Printf(TEXT("%s opens from the start"), *What), Chest->OpenWhen.IsEmpty());
+		// Ruth's caches open from the start; the gang's Strongbox only from Calder's Caches' step 1 (the user, 2026-10-27:
+		// mission steps unlock in order; build_area_caches.place_strongbox sets it).
+		if (Chest->ChestId == StrongboxId)
+		{
+			TestTrue(FString::Printf(TEXT("%s opens during Calder's Caches from step 1"), *What),
+				Chest->OpenWhen.DuringMission == FName(TEXT("CaldersCaches")) && Chest->OpenWhen.FromStep == 1);
+		}
+		else
+		{
+			TestTrue(FString::Printf(TEXT("%s opens from the start"), *What), Chest->OpenWhen.IsEmpty());
+		}
 	};
 
 	TestEqual(TEXT("Ruth's three Supply Crates"), Crates.Num(), 3);

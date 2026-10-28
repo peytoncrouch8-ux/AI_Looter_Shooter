@@ -592,10 +592,10 @@ ENCOUNTERS = {
 # a layout cm spot) and the search ring round it; widows and buttes are layout obstacles.
 SECRETS = {
     # The legendary chance: a strongbox from the gang's old bank jobs (Docs/Story.md, Loot) under the middle Widow, on its
-    # north side, away from the keeper's path. The Gravemother's odds: two guns at Luck 1.3.
+    # north side, away from the keeper's path. A loot chest tier 5 since 2026-10-27 (chest_tiers.py: three guns, Epic or
+    # better, its legendary odds kept); placed and judged as a strongbox. Its loot before: two guns at Luck 1.3.
     'WidowsBox': dict(chest_id='Secret_WidowsStrongbox', kind='Strongbox', anchor=('obstacle', 'widow2Rock'),
                       prefer=(1.0, 0.0), ring=(260.0, 420.0),
-                      loot=dict(guns=2, gun_chance=1.0, luck=1.3, ammo_pickups=2, mote_chance=0.0),
                       readable='Secret_WidowsBox'),
     # The skiff's locker on the Mooring Ledge, by the Deacon's letter and the Mire's page (Hob's hint at Main 2's end).
     'Mooring': dict(chest_id='Secret_MooringLocker', kind='Footlocker', anchor=('ledge', 'mooringPost'),

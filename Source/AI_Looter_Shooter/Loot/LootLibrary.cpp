@@ -226,7 +226,8 @@ TArray<FLootWeaponPick> ULootLibrary::RollWeaponPicks(const ULootTable* LootTabl
 			{
 				FLootWeaponPick& Pick = Picks.AddDefaulted_GetRef();
 				Pick.Definition = Definition;
-				Pick.Rarity = UWeaponRollLibrary::RollRarityWith(Definition, LootTable->Luck + ExtraLuck, Random, LegendaryCap);
+				Pick.Rarity = UWeaponRollLibrary::RollRarityWith(Definition, LootTable->Luck + ExtraLuck, Random, LegendaryCap,
+					LootTable->MinWeaponRarity);
 			}
 		}
 	}

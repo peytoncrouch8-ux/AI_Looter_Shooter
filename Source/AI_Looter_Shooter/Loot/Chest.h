@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Interaction/Interactable.h"
 #include "Story/StoryCondition.h"
+#include "Weapons/WeaponTypes.h"
 #include "Chest.generated.h"
 
 class ULootTable;
@@ -31,6 +32,20 @@ enum class EChestKind : uint8
 	Mailbox,
 	/** A traveller's or a miner's footlocker: its lid opened with a tap; ammo and a fair chance of a gun. */
 	Footlocker,
+	/**
+	 * The five loot chest tiers (the user, 2026-10-27: "the better the chest the better the loot"), 1 worst to 5 best, in
+	 * place of the Supply Crate and the Strongbox (kept above for the saves and levels that name them). Each opens with a
+	 * tap, its lid swung on SOCKET_Lid, its reveal stronger by tier. What each gives (the steady climb): 1 ammo and maybe a
+	 * gun; 2 a gun; 3 one or two guns, Uncommon or better; 4 two, Rare or better; 5 three, Epic or better, keeping its
+	 * legendary odds even early. Where: 1-2 about the world, 3-4 guarded or hidden, 5 bosses' and secrets' only. Models
+	 * SM_ChestTier<N> and SM_ChestTier<N>_Lid (/Game/Art/Loot); until they're imported a tier wears the Supply Crate's (1-2)
+	 * or the Strongbox's (3-5).
+	 */
+	ChestTier1,
+	ChestTier2,
+	ChestTier3,
+	ChestTier4,
+	ChestTier5,
 };
 
 /** Where a chest is in its opening. */
@@ -114,6 +129,28 @@ struct AI_LOOTER_SHOOTER_API FChestKindInfo
 	int32 AmmoPickups = 0;
 	float MoteChance = 0.f;
 
+	/** The most guns an opening gives (Guns to MaxGuns, every count as likely); 0: exactly Guns. */
+	int32 MaxGuns = 0;
+
+	/** The least rarity its guns come at (ULootTable::MinWeaponRarity), and whether they keep their legendary odds even in
+	 *  the early areas (ULootTable::bKeepsLegendaryOdds: a tier 5's, as a boss's). */
+	EWeaponRarity MinRarity = EWeaponRarity::Common;
+	bool bKeepsLegendaryOdds = false;
+
+	/** Which loot chest tier it is (1 worst to 5 best); 0: not a tier (the old crate and strongbox, the lootable world). */
+	int32 Tier = 0;
+
+	/** Whose models it wears while its own (BodyPath) aren't imported: a tier's stand-in, the Supply Crate's or the Strongbox's. */
+	TOptional<EChestKind> StandIn;
+
+	/** The lid's sound as it starts, louder and deeper for a better chest (VolumeScale, PitchScale of LooterSound::PlayAt). */
+	float OpenVolume = 1.f;
+	float OpenPitch = 1.f;
+
+	/** The light out of it as its loot comes out (AChest::Reveal; 0: none), and its colour's rarity. */
+	float RevealStrength = 0.f;
+	EWeaponRarity RevealRarity = EWeaponRarity::Common;
+
 	/** SOCKET_Lid (the hinge, or where a shoved lid sits), SOCKET_Loot (where loot comes out), SOCKET_Wheel (cm). */
 	FVector Hinge = FVector::ZeroVector;
 	FVector LootPoint = FVector::ZeroVector;
@@ -145,8 +182,18 @@ struct AI_LOOTER_SHOOTER_API FChestKindInfo
 
 	static FChestKindInfo Get(EChestKind Kind);
 
+	/** Get, with the models it wears today: its own, or its stand-in's while its own aren't imported (Chest.cpp). */
+	static FChestKindInfo GetWorn(EChestKind Kind);
+
+	/** Whether it wears its stand-in's models now (a tier whose SM_ChestTier<N> isn't imported yet). */
+	static bool WearsStandIn(EChestKind Kind);
+
 	/** Every kind. */
 	static TConstArrayView<EChestKind> All();
+
+	/** How many loot chest tiers there are, and a tier's kind (Tier clamped to 1..NumTiers). */
+	static constexpr int32 NumTiers = 5;
+	static EChestKind TierKind(int32 Tier);
 };
 
 /** A chest's own loot numbers in place of its kind's (the build script sets them: a strongbox behind the saloon gives less). */
@@ -279,6 +326,13 @@ public:
 	 */
 	ULootTable* MakeLootTable() const;
 
+	/**
+	 * MakeLootTable's table for a chest's loot numbers (its kind's, or its override's): the default table's guns and ammo
+	 * classes, Info's guns (Guns to MaxGuns) at its chance and luck, its rarity floor and legendary rule, its ammo pickups of
+	 * a chest's 36 rounds. Without bGuns, none (an area that drops none). The tests build their chests' odds with it.
+	 */
+	static ULootTable* MakeLootTableFor(const FChestKindInfo& Info, bool bGuns = true);
+
 	/** The level its guns come at: the player's, kept inside the area's band (1 without a player). */
 	int32 GetLootLevel() const;
 
@@ -288,10 +342,10 @@ public:
 	/** Whether the map shows it as a chest (its kind's bOnMap: the caches and strongboxes, not every grave and mailbox). */
 	bool ShowsOnMap() const { return GetKindInfo().bOnMap; }
 
-	/** The words for a kind's prompt: "Open the crate", "Open the strongbox", "Pry the coffin open", "Dig up the grave"... */
+	/** The words for a kind's prompt: "Open the crate", "Open the strongbox", "Pry the coffin open", "Dig up the grave", a tier's "Open the chest"... */
 	static FText DefaultPrompt(EChestKind ForKind);
 
-	/** A kind's name on the map or a list: "Supply crate", "Strongbox", "Coffin", "Grave", "Mailbox", "Footlocker". */
+	/** A kind's name on the map or a list: "Supply crate", "Strongbox", "Coffin", "Grave", "Mailbox", "Footlocker", "Chest (tier 3)". */
 	static FText KindName(EChestKind ForKind);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -394,6 +448,9 @@ private:
 
 	/** The dig's moments: dirt thrown off the spade (ChestOpening.cpp). */
 	void ThrowDirt(float Strength) const;
+
+	/** A better chest's light as its loot comes out (its kind's RevealStrength; ChestOpening.cpp), only while it's opened. */
+	void Reveal() const;
 
 	/** Rolls and throws its loot out of SOCKET_Loot, once; asks the session to save soon (it's progress). */
 	void DropLoot();

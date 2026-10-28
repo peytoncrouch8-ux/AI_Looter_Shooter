@@ -8,16 +8,18 @@ namespace
 {
 	/**
 	 * Each rarity's chance for one gun of this kind at this luck: its weights, tier n times (1 + luck)^n, a legendary held
-	 * to LegendaryCap of it (RollRarityWith).
+	 * to LegendaryCap of it, none under the table's floor (RollRarityWith).
 	 */
-	void RarityChances(const UWeaponDefinition& Definition, float Luck, float LegendaryCap, double (&OutChances)[LootOdds::NumRarities])
+	void RarityChances(const UWeaponDefinition& Definition, float Luck, float LegendaryCap, EWeaponRarity MinRarity,
+		double (&OutChances)[LootOdds::NumRarities])
 	{
 		constexpr int32 Top = LootOdds::NumRarities - 1;
+		const int32 Floor = FMath::Clamp(static_cast<int32>(MinRarity), 0, Top);
 		double Total = 0.0;
 		for (int32 Tier = 0; Tier < LootOdds::NumRarities; ++Tier)
 		{
 			const double TierScale = FMath::Pow(1.0 + FMath::Max(static_cast<double>(Luck), 0.0), static_cast<double>(Tier));
-			OutChances[Tier] = Definition.GetRarityInfo(static_cast<EWeaponRarity>(Tier)).Weight * TierScale;
+			OutChances[Tier] = Tier < Floor ? 0.0 : Definition.GetRarityInfo(static_cast<EWeaponRarity>(Tier)).Weight * TierScale;
 			Total += OutChances[Tier];
 		}
 		const double Others = Total - OutChances[Top];
@@ -25,8 +27,8 @@ namespace
 		Total = Others + OutChances[Top];
 		for (int32 Tier = 0; Tier < LootOdds::NumRarities; ++Tier)
 		{
-			// No weights at all rolls Common, as RollRarityWith does.
-			OutChances[Tier] = Total > 0.0 ? OutChances[Tier] / Total : (Tier == 0 ? 1.0 : 0.0);
+			// No weights at all rolls the floor (Common without one), as RollRarityWith does.
+			OutChances[Tier] = Total > 0.0 ? OutChances[Tier] / Total : (Tier == Floor ? 1.0 : 0.0);
 		}
 	}
 }
@@ -62,7 +64,7 @@ LootOdds::FExpected LootOdds::Expected(const ULootTable* LootTable, float ExtraL
 			continue;
 		}
 		double Chances[NumRarities];
-		RarityChances(*Entry.Weapon, LootTable->Luck + ExtraLuck, LegendaryCap, Chances);
+		RarityChances(*Entry.Weapon, LootTable->Luck + ExtraLuck, LegendaryCap, LootTable->MinWeaponRarity, Chances);
 		for (int32 Tier = 0; Tier < NumRarities; ++Tier)
 		{
 			Result.RarityShares[Tier] += Chances[Tier] * Entry.Weight / TotalWeight;

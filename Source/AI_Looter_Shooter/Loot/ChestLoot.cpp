@@ -57,6 +57,7 @@ FChestKindInfo AChest::GetLootInfo() const
 	if (LootOverride.bOverride)
 	{
 		Info.Guns = LootOverride.Guns;
+		Info.MaxGuns = 0;
 		Info.GunChance = LootOverride.GunChance;
 		Info.Luck = LootOverride.Luck;
 		Info.AmmoPickups = LootOverride.AmmoPickups;
@@ -67,7 +68,13 @@ FChestKindInfo AChest::GetLootInfo() const
 
 ULootTable* AChest::MakeLootTable() const
 {
-	const FChestKindInfo Info = GetLootInfo();
+	// Its guns at its chance (a Ranger cache's every time, a mailbox's rarely); none at all in a practice area the player
+	// has left (Skyreach on a return visit), as its creatures drop none there.
+	return MakeLootTableFor(GetLootInfo(), UAreaRulesSubsystem::DropsGunsAt(this));
+}
+
+ULootTable* AChest::MakeLootTableFor(const FChestKindInfo& Info, bool bGuns)
+{
 	ULootTable* Table = NewObject<ULootTable>(GetTransientPackage(), NAME_None, RF_Transient);
 	// The game's guns by the default table's weights, and its ammo classes; nothing kill-made leans the ammo.
 	if (const ULootTable* Default = ULootLibrary::GetDefaultLootTable())
@@ -77,12 +84,14 @@ ULootTable* AChest::MakeLootTable() const
 		// Its wards as the default table has them (SHIELD: a share of the guns come as wards).
 		Table->bDropsShields = Default->bDropsShields;
 	}
-	// Its guns at its chance (a Ranger cache's every time, a mailbox's rarely); none at all in a practice area the player
-	// has left (Skyreach on a return visit), as its creatures drop none there.
-	Table->WeaponDropChance = UAreaRulesSubsystem::DropsGunsAt(this) ? FMath::Clamp(Info.GunChance, 0.f, 1.f) : 0.f;
-	Table->MinWeaponDrops = Info.Guns;
-	Table->MaxWeaponDrops = Info.Guns;
+	Table->WeaponDropChance = bGuns ? FMath::Clamp(Info.GunChance, 0.f, 1.f) : 0.f;
+	Table->MinWeaponDrops = FMath::Max(Info.Guns, 0);
+	Table->MaxWeaponDrops = FMath::Max(Info.MaxGuns, Table->MinWeaponDrops);
 	Table->Luck = Info.Luck;
+	// A better chest's floor (tier 3 Uncommon, 4 Rare, 5 Epic), and a tier 5's legendary odds kept even early (as a boss's
+	// table: ULootLibrary::LegendaryCapFor never caps it); every other chest keeps the early cap.
+	Table->MinWeaponRarity = Info.MinRarity;
+	Table->bKeepsLegendaryOdds = Info.bKeepsLegendaryOdds;
 	Table->AmmoDropChance = Info.AmmoPickups > 0 ? 1.f : 0.f;
 	Table->MinAmmoDrops = Info.AmmoPickups;
 	Table->MaxAmmoDrops = Info.AmmoPickups;
@@ -153,11 +162,11 @@ void AChest::DropLoot()
 	const int32 Level = GetLootLevel();
 	const FLootRoll Roll = ULootLibrary::RollLoot(Table, Level, 0.f, Random);
 	const FVector From = GetLootOrigin();
-	// A grave-salt grenade now and then (always from a Strongbox, or when the player has none), rolled after the table's own
-	// rolls so theirs don't move.
+	// A grave-salt grenade now and then (always from a Strongbox or a tier 4 or 5, or when the player has none), rolled after
+	// the table's own rolls so theirs don't move.
 	const UPlayerThrowComponent* PlayerThrow = FindPlayerThrow(World);
-	const bool bGrenade = PlayerThrow
-		&& Random.FRand() < FThrowRules::ChestChance(Kind == EChestKind::Strongbox, PlayerThrow->GetGrenades());
+	const bool bSureGrenade = Kind == EChestKind::Strongbox || GetKindInfo().Tier >= 4;
+	const bool bGrenade = PlayerThrow && Random.FRand() < FThrowRules::ChestChance(bSureGrenade, PlayerThrow->GetGrenades());
 	// Silver (Docs/Progression.md, "Economy"), on a stream of its own so the table's, the grenade's and the mote's rolls don't
 	// move; none where guns don't drop.
 	FRandomStream SilverRoll(FMath::Rand());

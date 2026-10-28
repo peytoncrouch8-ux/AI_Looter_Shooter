@@ -4,6 +4,7 @@
 #include "Loot/Chest.h"
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
+#include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponFX.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
@@ -31,6 +32,26 @@ namespace
 	constexpr float FirstTilt = 2.f;
 	constexpr float SecondTilt = -3.f;
 	constexpr float PriedProud = 1.f;
+
+	/**
+	 * A better chest's reveal (AChest::Reveal), each times its kind's RevealStrength (0.5 tier 2 to 2 tier 5): the core of
+	 * light kept low (additive light keeps its colour in daylight only near 1-4), its start size (cm) and life (s); the star's
+	 * size, strength and life; tier 4 and up, the ground ring's first radius, reach, width, strength and life; tier 5's motes.
+	 */
+	const FLinearColor RevealWarmWhite(1.f, 0.9f, 0.72f);
+	constexpr float RevealCoreSize = 20.f;
+	constexpr float RevealCoreStrength = 1.6f;
+	constexpr float RevealCoreLife = 0.5f;
+	constexpr float RevealStarSize = 70.f;
+	constexpr float RevealStarStrength = 8.f;
+	constexpr float RevealStarLife = 0.3f;
+	constexpr float RevealRingStart = 30.f;
+	constexpr float RevealRingReach = 140.f;
+	constexpr float RevealRingWidth = 18.f;
+	constexpr float RevealRingStrength = 6.f;
+	constexpr float RevealRingLife = 0.6f;
+	constexpr float RevealMoteRadius = 50.f;
+	constexpr int32 RevealMotes = 12;
 }
 
 void AChest::Advance(float DeltaSeconds)
@@ -55,7 +76,7 @@ void AChest::Advance(float DeltaSeconds)
 			State = EChestState::Opening;
 			if (Info.OpenCue)
 			{
-				LooterSound::PlayAt(this, Info.OpenCue, Lid ? Lid->GetComponentLocation() : GetActorLocation());
+				LooterSound::PlayAt(this, Info.OpenCue, Lid ? Lid->GetComponentLocation() : GetActorLocation(), Info.OpenVolume, Info.OpenPitch);
 			}
 		}
 	}
@@ -64,8 +85,10 @@ void AChest::Advance(float DeltaSeconds)
 		Clock += Left;
 		const float Share = FMath::Clamp(Clock / GetLidSecondsFor(), 0.f, 1.f);
 		SetLidShare(Share);
-		if (Share >= LootShare)
+		if (Share >= LootShare && !bLootGiven)
 		{
+			// A better chest lights up as its loot comes out (once: DropLoot marks it given).
+			Reveal();
 			DropLoot();
 		}
 		if (Share >= 1.f)
@@ -171,6 +194,43 @@ void AChest::ThrowDirt(float Strength) const
 	Effects.Initialize(World);
 	const FVector Spot = GetActorTransform().TransformPosition(DirtSpot[FMath::Clamp(DirtThrown, 0, DirtMoments - 1)]);
 	Effects.SpawnDirt(Spot, GetActorUpVector(), Strength);
+}
+
+void AChest::Reveal() const
+{
+	const FChestKindInfo Info = GetKindInfo();
+	const float Strength = Info.RevealStrength;
+	UWorld* World = GetWorld();
+	UBulletSubsystem* Bullets = World && Strength > 0.f ? World->GetSubsystem<UBulletSubsystem>() : nullptr;
+	if (!Bullets)
+	{
+		return;
+	}
+	FWeaponFX& Effects = Bullets->GetEffects();
+	Effects.Initialize(World);
+	// Its colour: the best its loot is sure to be (a tier 3's Uncommon green, a tier 4's Rare blue), a tier 5's the legendary
+	// gold it's likely to hold; a plain chest's a warm white.
+	const FLinearColor Color = Info.RevealRarity == EWeaponRarity::Common ? RevealWarmWhite
+		: GetDefault<UWeaponDefinition>()->GetRarityInfo(Info.RevealRarity).Color;
+	const FVector Up = GetActorUpVector();
+	const FVector From = GetLootOrigin();
+	// A soft ball of light swelling up out of it, and a star over it as the lid stands open (a crit's flare is 20-26: a tier
+	// 5's star at 16 stays under it).
+	Effects.SpawnFireball(From + Up * 15.0, Up * 50.0, RevealCoreSize * Strength, RevealCoreSize * 3.f * Strength, Color,
+		RevealCoreStrength * Strength, RevealCoreLife + 0.25f * Strength);
+	Effects.SpawnStarburst(From + Up * 30.0, RevealStarSize * Strength, Color, RevealStarStrength * Strength, RevealStarLife,
+		6 + 2 * Info.Tier);
+	// Tier 4 and up: a ring of its light running out over the ground.
+	if (Info.Tier >= 4)
+	{
+		Effects.SpawnShockRing(GetActorLocation() + Up * 4.0, Up, RevealRingStart, RevealRingReach * Strength, RevealRingWidth, Color,
+			RevealRingStrength * Strength, RevealRingLife);
+	}
+	// Tier 5: motes rising round it, as a legendary's landing has.
+	if (Info.Tier >= 5)
+	{
+		Effects.SpawnLootMotes(From, RevealMoteRadius, Color, RevealMotes);
+	}
 }
 
 // ---------------------------------------------------------------------------

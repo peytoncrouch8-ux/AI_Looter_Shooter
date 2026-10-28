@@ -25,14 +25,34 @@ namespace
 	/** The tag the minimap and the scatter read on solid things standing on the ground. */
 	const FName ObstacleTag(TEXT("Obstacle"));
 
+	/** Whether a model's package is there (imported). */
+	bool ModelExists(const TCHAR* Path)
+	{
+		return Path && FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(Path)));
+	}
+
 	/** A model by its object path, quietly null while it isn't imported. */
 	UStaticMesh* LoadModel(const TCHAR* Path)
 	{
-		if (!Path || !FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(Path))))
+		if (!ModelExists(Path))
 		{
 			return nullptr;
 		}
 		return LoadObject<UStaticMesh>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	}
+
+	/** Says once per kind that it wears its stand-in's models (its own aren't imported yet). */
+	void LogStandInOnce(EChestKind Kind, const FChestKindInfo& Own, const FChestKindInfo& StandIn)
+	{
+		static uint64 Logged = 0;
+		const uint64 Bit = uint64(1) << (static_cast<uint8>(Kind) & 63);
+		if ((Logged & Bit) != 0)
+		{
+			return;
+		}
+		Logged |= Bit;
+		UE_LOG(LogLooter, Log, TEXT("Chests: %s has no %s yet; it wears %s until its own model is imported."),
+			*AChest::KindName(Kind).ToString(), Own.BodyPath, StandIn.BodyPath);
 	}
 
 	/** Mesh is some kind's own model (or none), so it follows the kind; anything else was chosen for this chest. */
@@ -162,9 +182,34 @@ void AChest::Tick(float DeltaSeconds)
 // Its kind
 // ---------------------------------------------------------------------------
 
+bool FChestKindInfo::WearsStandIn(EChestKind Kind)
+{
+	const FChestKindInfo Info = Get(Kind);
+	return Info.StandIn.IsSet() && !ModelExists(Info.BodyPath);
+}
+
+FChestKindInfo FChestKindInfo::GetWorn(EChestKind Kind)
+{
+	FChestKindInfo Info = Get(Kind);
+	if (Info.StandIn.IsSet() && !ModelExists(Info.BodyPath))
+	{
+		// The stand-in's body, lid and wheel (its wheel only for the look: a tier's lid just swings).
+		const FChestKindInfo StandIn = Get(Info.StandIn.GetValue());
+		Info.BodyPath = StandIn.BodyPath;
+		Info.LidPath = StandIn.LidPath;
+		Info.WheelPath = StandIn.WheelPath;
+	}
+	return Info;
+}
+
 void AChest::ApplyKind()
 {
-	const FChestKindInfo Info = GetKindInfo();
+	const FChestKindInfo Info = FChestKindInfo::GetWorn(Kind);
+	const FChestKindInfo Own = GetKindInfo();
+	if (Own.StandIn.IsSet() && !ModelExists(Own.BodyPath))
+	{
+		LogStandInOnce(Kind, Own, Info);
+	}
 	FollowKind(Body, Info.BodyPath);
 	FollowKind(Lid, Info.LidPath);
 	FollowKind(Wheel, Info.WheelPath);
@@ -173,7 +218,8 @@ void AChest::ApplyKind()
 	// On the model's sockets; without the model, where they would be on it.
 	LidRest = Body->DoesSocketExist(LidSocket) ? FVector::ZeroVector : Info.Hinge;
 	Wheel->SetRelativeLocation(Body->DoesSocketExist(WheelSocket) ? FVector::ZeroVector : Info.WheelHub);
-	Wheel->SetVisibility(Info.WheelTurns > 0.f);
+	// The wheel shows where the kind has one (the Strongbox's, and a tier wearing the Strongbox's model, which never turns it).
+	Wheel->SetVisibility(Info.WheelPath != nullptr);
 	// A grave's heaps and its coffin's lid are nothing to stand on or snag on; a shoved lid never sweeps a player aside.
 	const bool bLidSolid = Info.bSolid && Info.LidMotion == EChestLidMotion::Hinge;
 	Body->SetCollisionProfileName(Info.bSolid ? UCollisionProfile::BlockAllDynamic_ProfileName : UCollisionProfile::NoCollision_ProfileName);
@@ -305,7 +351,8 @@ bool AChest::Open(AActor* ByWhom, bool bForce)
 	}
 	else if (Info.OpenCue)
 	{
-		LooterSound::PlayAt(this, Info.OpenCue, Lid ? Lid->GetComponentLocation() : GetActorLocation());
+		// A better chest's lid is heard louder and deeper (its tier's OpenVolume, OpenPitch).
+		LooterSound::PlayAt(this, Info.OpenCue, Lid ? Lid->GetComponentLocation() : GetActorLocation(), Info.OpenVolume, Info.OpenPitch);
 	}
 	UE_LOG(LogLooter, Log, TEXT("%s (%s): opened%s."), *GetActorNameOrLabel(), *GetSaveKey().ToString(),
 		ByWhom ? *FString::Printf(TEXT(" by %s"), *ByWhom->GetName()) : TEXT(""));

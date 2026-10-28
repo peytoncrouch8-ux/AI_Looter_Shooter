@@ -24,9 +24,12 @@ public:
 	/**
 	 * RollRarity from a given random stream (seeded rolls, tests). LegendaryCap (0..1): the most a legendary's share of the
 	 * roll may be (an early area's drop: ULootLibrary::LegendaryCapFor); the weight taken off goes to the other tiers in
-	 * their own proportions. 1: the definition's odds as they are, drawn exactly as before the cap.
+	 * their own proportions. 1: the definition's odds as they are, drawn exactly as before the cap. MinRarity: the least it
+	 * comes at (a better chest's floor, ULootTable::MinWeaponRarity): the tiers under it never roll, the rest keep their odds
+	 * against each other, the cap held on what's left; Common: no floor, drawn exactly as before.
 	 */
-	static EWeaponRarity RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random, float LegendaryCap = 1.f);
+	static EWeaponRarity RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random, float LegendaryCap = 1.f,
+		EWeaponRarity MinRarity = EWeaponRarity::Common);
 
 	/**
 	 * The legendary weight that holds a legendary's share to LegendaryCap, the other tiers weighing Others together:

@@ -41,16 +41,12 @@ namespace
 		return Table;
 	}
 
-	/** A chest kind's table as AChest::MakeLootTable builds it (the default table's guns at the kind's numbers). */
+	/** A chest kind's table as AChest::MakeLootTable builds it (the default table's guns at the kind's numbers, its floor, its
+	 *  legendary rule). */
 	ULootTable* ChestTable(EChestKind Kind, const ULootTable& Default)
 	{
-		const FChestKindInfo Info = FChestKindInfo::Get(Kind);
-		ULootTable* Table = NewObject<ULootTable>();
+		ULootTable* Table = AChest::MakeLootTableFor(FChestKindInfo::Get(Kind));
 		Table->Entries = Default.Entries;
-		Table->WeaponDropChance = FMath::Clamp(Info.GunChance, 0.f, 1.f);
-		Table->MinWeaponDrops = Info.Guns;
-		Table->MaxWeaponDrops = Info.Guns;
-		Table->Luck = Info.Luck;
 		return Table;
 	}
 }
@@ -199,6 +195,12 @@ bool FLootEarlyLegendaryOddsTest::RunTest(const FString& Parameters)
 		const ULootTable* Table = ChestTable(Kind, *Default);
 		const double Early = LootOdds::Expected(Table, 0.f, EarlyLevel).LegendaryPerKill;
 		const double Late = LootOdds::Expected(Table, 0.f, LateLevel).LegendaryPerKill;
+		if (Table->bKeepsLegendaryOdds)
+		{
+			// A tier 5 chest (bosses' and secrets' only) keeps its odds as a boss's table does (Looter.Loot.ChestTiers.Payout).
+			TestNearlyEqual(*FString::Printf(TEXT("%s: keeps its odds on Ransom's Rest (%.1f%%)"), *Name, Early * 100.0), Early, Late, 1e-9);
+			continue;
+		}
 		TestTrue(FString::Printf(TEXT("%s: a legendary %.3f%% of the time on Ransom's Rest, under 1%%"), *Name, Early * 100.0), Early < 0.01);
 		TestTrue(FString::Printf(TEXT("%s: more later (%.2f%%)"), *Name, Late * 100.0), Late >= Early);
 		AddInfo(FString::Printf(TEXT("%s: %.3f%% early, %.2f%% later"), *Name, Early * 100.0, Late * 100.0));

@@ -31,21 +31,25 @@ double UWeaponRollLibrary::CapLegendaryWeight(double Legendary, double Others, f
 	return Cap * FMath::Max(Others, 0.0) / (1.0 - Cap);
 }
 
-EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random, float LegendaryCap)
+EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random, float LegendaryCap,
+	EWeaponRarity MinRarity)
 {
 	if (!Definition)
 	{
-		return EWeaponRarity::Common;
+		return MinRarity;
 	}
 
 	constexpr int32 NumTiers = static_cast<int32>(EWeaponRarity::Legendary) + 1;
 	constexpr int32 Top = NumTiers - 1;
+	// A floor (a better chest's: ULootTable::MinWeaponRarity) takes the tiers under it out; the rest keep their odds against
+	// each other. Without one (Common) every tier draws exactly as it always has.
+	const int32 Floor = FMath::Clamp(static_cast<int32>(MinRarity), 0, Top);
 	float Weights[NumTiers];
 	float Total = 0.f;
 	for (int32 Tier = 0; Tier < NumTiers; ++Tier)
 	{
 		const float LuckScale = FMath::Pow(1.f + FMath::Max(Luck, 0.f), static_cast<float>(Tier));
-		Weights[Tier] = Definition->GetRarityInfo(static_cast<EWeaponRarity>(Tier)).Weight * LuckScale;
+		Weights[Tier] = Tier < Floor ? 0.f : Definition->GetRarityInfo(static_cast<EWeaponRarity>(Tier)).Weight * LuckScale;
 		Total += Weights[Tier];
 	}
 	// An early area's cap on a legendary (only then: an uncapped roll draws exactly as it always has, seeded tests too).
@@ -58,12 +62,13 @@ EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Defini
 
 	if (Total <= 0.f)
 	{
-		return EWeaponRarity::Common;
+		return static_cast<EWeaponRarity>(Floor);
 	}
 
 	float Pick = Random.FRand() * Total;
-	int32 LastWeighted = 0;
-	for (int32 Tier = 0; Tier < NumTiers; ++Tier)
+	int32 LastWeighted = Floor;
+	// From the floor up: a tier under it never comes, even on a pick of exactly 0.
+	for (int32 Tier = Floor; Tier < NumTiers; ++Tier)
 	{
 		Pick -= Weights[Tier];
 		if (Pick <= 0.f)

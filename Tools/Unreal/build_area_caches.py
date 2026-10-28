@@ -336,12 +336,20 @@ def models(build, kind):
 
 
 def place_chest(build, cls, kind, meshes, chest_id, location, yaw, tags):
-    """A chest of kind at location facing yaw, standing level, with its models and id."""
+    """A chest of kind at location facing yaw, standing level, with its models and id. A crate or strongbox the loot chest
+    tiers name (chest_tiers.py, the user's 2026-10-27 call; every one, by its kind's default) becomes that tier instead,
+    its models from the tier's kind."""
     chest = build.place(cls, location, yaw, label=chest_id, folder='Gameplay',
                         tags=(CHEST_TAG,) + tuple(tags) + (OBSTACLE_TAG,))
-    for part, mesh in zip(PARTS, meshes):
-        chest.get_editor_property(part).set_static_mesh(mesh)
-    chest.set_editor_property('kind', getattr(unreal.ChestKind, KIND_ENUM[kind]))
+    tiers = importlib.reload(importlib.import_module('chest_tiers'))
+    tier = tiers.tier_of(chest_id, kind)
+    if tier is not None:
+        tiers.apply(chest, tier)
+        build.log(f'{chest_id}: loot chest tier {tier} (was a {kind})')
+    else:
+        for part, mesh in zip(PARTS, meshes):
+            chest.get_editor_property(part).set_static_mesh(mesh)
+        chest.set_editor_property('kind', getattr(unreal.ChestKind, KIND_ENUM[kind]))
     # Set last, so the editor builds it again with its models and puts the lid and wheel on their sockets.
     chest.set_editor_property('chest_id', unreal.Name(chest_id))
     return chest

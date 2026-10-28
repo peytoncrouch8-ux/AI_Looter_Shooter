@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Weapons/AmmoTypes.h"
+#include "Weapons/WeaponTypes.h"
 #include "LootTable.generated.h"
 
 class UWeaponDefinition;
@@ -113,6 +114,14 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Weapons")
 	bool bKeepsLegendaryOdds = false;
+
+	/**
+	 * The least rarity its guns come at (a better loot chest's floor; the user, 2026-10-27: tier 3 Uncommon, tier 4 Rare,
+	 * tier 5 Epic): the rarities under it never roll, the rest keep their odds against each other (luck, and the early
+	 * legendary cap on what's left). Common: no floor, every roll as before.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Weapons")
+	EWeaponRarity MinWeaponRarity = EWeaponRarity::Common;
 
 	/**
 	 * Some of the guns it drops come as wards instead (SHIELD, 2026-10-22: the weapon-drop share split): each gun it rolls is

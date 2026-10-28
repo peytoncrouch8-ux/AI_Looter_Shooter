@@ -66,9 +66,8 @@ STACK_ABOVE = 20.0      # cm up
 CHEST_KINDS = {'Coffin': 'COFFIN', 'Grave': 'GRAVE', 'Mailbox': 'MAILBOX', 'Footlocker': 'FOOTLOCKER', 'Strongbox': 'STRONGBOX'}
 CHEST_HALF = {'Coffin': (34.0, 99.0), 'Grave': (50.0, 100.0), 'Mailbox': (25.0, 14.0), 'Footlocker': (25.0, 42.0),
               'Strongbox': (31.0, 42.0)}
-# A strongbox standing loose about the area gives less than the gang's in the sheriff's office (two guns at Luck 1.0):
-# one gun at Luck 0.5, two ammo pickups (FChestLootOverride).
-LOOSE_STRONGBOX = dict(guns=1, gun_chance=1.0, luck=0.5, ammo_pickups=2, mote_chance=0.0)
+# A strongbox standing loose about the area is a loot chest tier (the user, 2026-10-27; chest_tiers.py: behind the saloon
+# 1, under Keeper's Bridge 2, any other LOOSE_TIER), not the gang's tier 4; it stands, and is judged and named, as a strongbox.
 
 # How a spot is judged (cm).
 LEVEL = 12.0            # the terrain under its footprint within this
@@ -464,7 +463,15 @@ def place_chest(build, cls, kind, transform, chest_id, extra_tags=(), override=N
     tags = (TAG, 'Chest', kind) + (() if kind == 'Grave' else ('Obstacle',)) + tuple(extra_tags)
     actor = build.place(cls, (at.x, at.y, at.z), yaw_of(transform), label=chest_id, folder=FOLDER, tags=tags)
     actor.set_actor_transform(transform, False, True)
-    actor.set_editor_property('kind', getattr(unreal.ChestKind, CHEST_KINDS[kind]))
+    # A strongbox becomes a loot chest tier (chest_tiers.py PREFIXES: the saloon's 1, the bridge's 2; else LOOSE_TIER), its
+    # loot the tier's; its spot, id and footprint stay a strongbox's. Coffins, graves, mailboxes, footlockers stay as they are.
+    tiers = importlib.reload(importlib.import_module('chest_tiers'))
+    tier = tiers.tier_of(chest_id) or (tiers.LOOSE_TIER if kind == 'Strongbox' else None)
+    if tier is not None:
+        tiers.apply(actor, tier)
+        override = None
+    else:
+        actor.set_editor_property('kind', getattr(unreal.ChestKind, CHEST_KINDS[kind]))
     if override:
         loot = unreal.ChestLootOverride()
         loot.set_editor_property('override', True)
@@ -568,8 +575,7 @@ def anchored(build, breakable_cls, cls, site, spec):
                 place_breakable(build, breakable_cls, kind, transform, spot_id(f'Breakable_{kind}', x, y), False)
             else:
                 word = key.split(':')[-1].replace('@', '')
-                place_chest(build, cls, kind, transform, spot_id(f'{kind}_{word}', x, y),
-                            override=LOOSE_STRONGBOX if kind == 'Strongbox' else None)
+                place_chest(build, cls, kind, transform, spot_id(f'{kind}_{word}', x, y))
             site.placed.append((x, y))
             counts[kind] = counts.get(kind, 0) + 1
     if counts:

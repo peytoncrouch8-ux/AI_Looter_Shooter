@@ -117,6 +117,12 @@ LooterEconomy::FDropOdds LooterEconomy::ContainerOdds(EChestKind Kind)
 	case EChestKind::Mailbox:     return { 0.8f, 4, 10 };
 	// A traveller's or a miner's savings.
 	case EChestKind::Footlocker:  return { 0.9f, 8, 18 };
+	// The loot chest tiers (2026-10-27): the better the chest, the more coin, tier 2 as the old crate, tier 4 as the Strongbox.
+	case EChestKind::ChestTier1:  return { 0.9f, 6, 14 };
+	case EChestKind::ChestTier2:  return { 0.9f, 10, 20 };
+	case EChestKind::ChestTier3:  return { 1.f, 20, 40 };
+	case EChestKind::ChestTier4:  return { 1.f, 40, 70 };
+	case EChestKind::ChestTier5:  return { 1.f, 80, 140 };
 	}
 	return { 0.f, 0, 0 };
 }
