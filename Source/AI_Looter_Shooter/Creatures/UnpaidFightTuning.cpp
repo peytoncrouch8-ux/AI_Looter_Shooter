@@ -36,6 +36,12 @@ namespace
 		TEXT("A press past its edge lasts this long once the player is out of its reach (s)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarBlindStep(TEXT("Looter.Unpaid.BlindStep"), KitDefaults.BlindStep,
 		TEXT("1: an Unpaid waiting its turn may phase-step when it has stood stalled out of its target's sight, or pressed with them past its edge."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarSight(TEXT("Looter.Unpaid.Sight"), KitDefaults.Sight,
+		TEXT("1: an Unpaid starts no melee turn and flies no lunge without a clear line at its target; out of sight it lets its turn go and may step to where it sees them."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarPackStepGap(TEXT("Looter.Unpaid.PackStepGap"), KitDefaults.PackStepGap,
+		TEXT("At most one Unpaid phase-step or flank at one player every this many seconds (an owed press step first); 0: no gap."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarStepJitter(TEXT("Looter.Unpaid.StepJitter"), KitDefaults.StepJitter,
+		TEXT("Spawning or noticing a target, an Unpaid's next phase-step waits up to this much longer (s), so a pack doesn't blink as one."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarRakeRange(TEXT("Looter.Unpaid.RakeRange"), KitDefaults.RakeRange,
 		TEXT("Nearer than this (cm at size 1) an Unpaid may rake instead of lunging."), ECVF_Default);
@@ -155,6 +161,9 @@ FUnpaidFightTuning FUnpaidFightTuning::Live()
 	Numbers.PressReach = Positive(CVarPressReach);
 	Numbers.PressSeconds = Positive(CVarPressSeconds);
 	Numbers.BlindStep = CVarBlindStep.GetValueOnGameThread();
+	Numbers.Sight = CVarSight.GetValueOnGameThread();
+	Numbers.PackStepGap = Positive(CVarPackStepGap);
+	Numbers.StepJitter = Positive(CVarStepJitter);
 	Numbers.RakeRange = Positive(CVarRakeRange);
 	Numbers.RakeChance = Share(CVarRakeChance);
 	Numbers.RakeWindup = AtLeast(CVarRakeWindup, 0.1f);

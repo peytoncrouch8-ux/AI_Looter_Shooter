@@ -106,4 +106,23 @@ namespace UnpaidRules
 	AI_LOOTER_SHOOTER_API bool ChoosePhaseSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target,
 		const FHuntingGround& Ground, const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand,
 		FVector& OutFeet, float GroundReach = 0.f);
+
+	/**
+	 * Out of its target's sight, stuck (2026-10-28 play-check: the pack stood 1.4-2.6 m outside the chapel nave's wall,
+	 * lunging into it, too near for a step that gains ground): whether it may step to where it sees them, nearer or not.
+	 * Its cooldown holds as for any step.
+	 */
+	AI_LOOTER_SHOOTER_API bool WantsSightStep(const FPhaseStepRules& Rules, bool bSeesTarget, float StuckSeconds, float SinceLastStep);
+
+	/**
+	 * Where such a step may land, in order: round the target at NearestToTarget, then a metre farther, its own side first and
+	 * fanning round to the far side (through the doorway, into the nave), every spot within MaxStep of Here, at Here's height.
+	 * CanStand's sight check picks the ones that see the target.
+	 */
+	AI_LOOTER_SHOOTER_API TArray<FVector> SightCandidates(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target);
+
+	/** ChoosePhaseSpot's checks over SightCandidates: the first spot on its ground where CanStand finds its feet, on its own level. */
+	AI_LOOTER_SHOOTER_API bool ChooseSightSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target,
+		const FHuntingGround& Ground, const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand,
+		FVector& OutFeet, float GroundReach = 0.f);
 }

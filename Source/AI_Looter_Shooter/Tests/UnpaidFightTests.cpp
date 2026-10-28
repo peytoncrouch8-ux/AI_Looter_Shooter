@@ -88,16 +88,29 @@ bool FUnpaidKitTuningTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("It lunges from farther out than it did"), Tuning.LungeStart > Defaults->AttackRange);
 	TestTrue(TEXT("...and farther"), Tuning.LungeDistance > Defaults->LungeDistance);
 	TestTrue(TEXT("Its lunge bends little if at all in flight"), Tuning.LungeHoming >= 0.f && Tuning.LungeHoming <= 60.f);
-	// A walking strafe beats a Regular one's lunge from its farthest start (DEMO 2026-10-27: 11 of 13 landed at the old lead):
-	// where they are when it gets there is farther from its aim than its lunge lands.
+	// A walking strafe beats a Regular one's lunge from its farthest start (DEMO 2026-10-27: 11 of 13 landed at the old lead).
+	// Measured as the lunge really flies (AUnpaidCreature::Strike): at its aim, stopping LungeStopShort short of it, landing on
+	// whoever comes within LungeHitRadius of its middle on the way (TryLungeHit, each frame). The first version measured from
+	// the aim point and left out the stop-short (103 cm; the real nearest is about 139).
 	const float Lunge = Defaults->LungeSpeed;
 	const FVector Player(Tuning.LungeStart, 0.0, 0.0);
 	const FVector Strafe(0.0, 400.0, 0.0);
-	const float Flight = (Tuning.LungeStart - Defaults->LungeStopShort) / Lunge;
 	const FVector Aim = UnpaidFightRules::LeadPoint(FVector::ZeroVector, Player, Strafe, Lunge, Tuning.LeadShare, Tuning.LeadMaxSeconds);
-	const float Miss = static_cast<float>(FVector::Dist2D(Player + Strafe * Flight, Aim));
-	TestTrue(FString::Printf(TEXT("A walking strafe dodges its lunge (%.0f cm off its aim, it lands within %.0f)"), Miss, Tuning.LungeHitRadius),
+	const FVector Way = FVector(Aim.X, Aim.Y, 0.0).GetSafeNormal();
+	const float Length = FMath::Clamp(static_cast<float>(FVector::Dist2D(FVector::ZeroVector, Aim)) - Defaults->LungeStopShort, 0.f, Tuning.LungeDistance);
+	const float Flight = Length / Lunge;
+	float Miss = TNumericLimits<float>::Max();
+	for (int32 Sample = 0; Sample <= 120; ++Sample)
+	{
+		const float Time = Flight * static_cast<float>(Sample) / 120.f;
+		Miss = FMath::Min(Miss, static_cast<float>(FVector::Dist2D(Way * (Lunge * Time), Player + Strafe * Time)));
+	}
+	TestTrue(FString::Printf(TEXT("A walking strafe dodges its lunge (it comes within %.0f cm of them, it lands within %.0f)"), Miss, Tuning.LungeHitRadius),
 		Miss > Tuning.LungeHitRadius);
+	// Both measured from its middle: a lunge stops LungeStopShort short of a target standing still, so it must land farther
+	// out than that (DEMO 2026-10-28: at 85 no lunge landed on a still player).
+	TestTrue(FString::Printf(TEXT("It lands farther out than it stops short (%.0f > %.0f): a standing target is hit"), Tuning.LungeHitRadius,
+		Defaults->LungeStopShort), Tuning.LungeHitRadius > Defaults->LungeStopShort);
 	TestTrue(TEXT("A landed lunge hurts no more than its attack"), Tuning.LungeDamageShare > 0.f && Tuning.LungeDamageShare <= 1.f);
 	// Its last stretch is committed (2026-10-28: steady rifle fire kept every lunge short), never more than its whole flight; its
 	// hit slows come once a gap longer than one slow lasts.

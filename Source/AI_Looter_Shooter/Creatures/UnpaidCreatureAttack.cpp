@@ -6,6 +6,8 @@
 // A gun's hit slows it (UMovementSlowComponent, 55% for 0.12 s a hit): the flight honours the slow, but flies its whole
 // way, and its last stretch (Looter.Unpaid.LungeCommit) is committed, the slow held off, so steady fire can't keep every
 // lunge short (DEMO 2026-10-28: 59 attacks in the chapel yard, 2 hits). Its slows come once a gap, too (GetHitSlowGap).
+// With its kit it attacks only a target it sees (SeesTarget, Looter.Unpaid.Sight): no wind-up, flight or landing through a
+// wall (DEMO 2026-10-28: Unpaid outside the chapel nave's wall lunged into it every ~2.6 s, one 21 times, landing none).
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
@@ -37,7 +39,13 @@ float AUnpaidCreature::GetHitSlowGap() const
 bool AUnpaidCreature::CanStartAttack() const
 {
 	// Not mid-cinder or mid-scream either: its turn waits for them; nor with a flank ready (its turn opens with the flank).
-	return !IsPhasing() && !bLunging && Kit.Action == EUnpaidAction::None && !Kit.bFlankArmed;
+	if (IsPhasing() || bLunging || Kit.Action != EUnpaidAction::None || Kit.bFlankArmed)
+	{
+		return false;
+	}
+	// Nor at a target it can't see (asked last: its trace, kept a moment, only when all else says go).
+	const APawn* Victim = GetTarget();
+	return !Victim || !NeedsSight() || SeesTarget(*Victim);
 }
 
 float AUnpaidCreature::GetAttackStartRange() const
@@ -85,6 +93,16 @@ void AUnpaidCreature::Strike()
 	const bool bKit = Kit.Move == EUnpaidMove::Lunge;
 	const FUnpaidFightTuning& Tuning = FUnpaidFightTuning::Live();
 	const float Reach = (bKit ? Tuning.LungeDistance : LungeDistance) * Scale;
+	// Never into a wall: its target gone out of its sight through the wind-up (round a corner, behind a door leaf), it holds
+	// where it is, its attack spent (looked at now, not a moment ago).
+	if (bKit && Victim && Tuning.Sight != 0 && !SeesTarget(*Victim, true))
+	{
+		bLunging = false;
+		LungeLeft = 0.f;
+		Kit.LungeReach = Reach;
+		OnAttackStrike(false);
+		return;
+	}
 	FVector Aim = GetActorLocation() + GetActorForwardVector() * Reach;
 	if (Victim)
 	{
@@ -171,6 +189,11 @@ bool AUnpaidCreature::TryLungeHit()
 	const float Radius = bKit ? Tuning.LungeHitRadius : LungeHitRadius;
 	// Up and down, a small one still reaches a player standing over it, as a full-size one does.
 	if (ToVictim.Size2D() > Radius * Scale || FMath::Abs(ToVictim.Z) > 220.f * FMath::Max(Scale, 1.f))
+	{
+		return false;
+	}
+	// Never through a wall (a thin one between, in reach): looked at now, only once it's that near.
+	if (bKit && Tuning.Sight != 0 && !SeesTarget(*Victim, true))
 	{
 		return false;
 	}

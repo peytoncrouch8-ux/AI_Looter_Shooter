@@ -42,7 +42,10 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	 * Looter.Unpaid.LungeHitRadius: its lunge lands on a target this near (cm at size 1; the old kit's 130 caught a strafe).
 	 * Measured from its middle, and the lunge stops LungeStopShort (90) short of its aim, so it must be more than that: at 85
 	 * no lunge ever landed on a player standing still (DEMO 2026-10-28: 1 hit in 10 at point-blank, every Unpaid hit a rake).
-	 * At 100 a standing target is hit and a walking strafe still dodges (the Kit.Tuning test's 103 cm).
+	 * At 100 a standing target is hit and a walking strafe dodges: the Kit.Tuning test measures where the lunge really ends
+	 * (about 139 cm from them; it first measured from the aim point and read 103). 110 was tried (DEMO 2026-10-28, same
+	 * kiting run from the same start): 110 landed 12 lunges in 29 attacks and the kiter died in 17 s; 100 landed 9 in 64
+	 * and the kiter cleared both waves at 57/124 health.
 	 */
 	float LungeHitRadius = 100.f;
 	/** Looter.Unpaid.LungeDamageShare: a landed lunge hurts this share of its attack (DEMO: 15-18 a hit at level 3 was too lethal). */
@@ -66,6 +69,18 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	 * (walls between: the chapel's nave, its pack in a line at the back door), or while pressed with them past its edge.
 	 */
 	int32 BlindStep = 1;
+
+	// --- Sight and the pack's blinks (2026-10-28 play-check: attacks through the nave's walls; a pack blinking on one frame) ---
+	/**
+	 * Looter.Unpaid.Sight: 1: no melee turn started and no lunge flown without a clear line at its target (static geometry);
+	 * one holding a turn it can't see by lets it go, and stalled out of sight it may phase-step to where it sees them, nearer
+	 * or not (the nave's doors). 0: the old way (one made 21 attacks into the nave's wall, landing none).
+	 */
+	int32 Sight = 1;
+	/** Looter.Unpaid.PackStepGap: at most one phase-step or flank at one player every this many seconds, across all the Unpaid (an owed press step first); 0: no gap. */
+	float PackStepGap = 0.8f;
+	/** Looter.Unpaid.StepJitter: spawning or noticing a target, an Unpaid's next phase-step waits up to this much longer (s, rolled each), so a pack doesn't blink as one. */
+	float StepJitter = 1.5f;
 
 	// --- The rake (the second attack) ---
 	/** Looter.Unpaid.RakeRange: nearer than this (cm) it may rake instead of lunging. */

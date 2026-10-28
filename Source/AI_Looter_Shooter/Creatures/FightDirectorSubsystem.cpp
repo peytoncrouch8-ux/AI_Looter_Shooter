@@ -172,6 +172,17 @@ void UFightDirectorSubsystem::ForgetCreature(const ACreatureBase& Creature)
 	ChaseBoosts.Remove(Id);
 }
 
+void UFightDirectorSubsystem::RestFromTurns(const ACreatureBase& Creature, float Seconds)
+{
+	const uint32 Id = Creature.GetUniqueID();
+	const double Time = Now();
+	for (TPair<TWeakObjectPtr<const APawn>, FTargetFight>& Each : Fights)
+	{
+		Each.Value.Melee.Release(Id, Time, Seconds);
+		Each.Value.Ranged.Release(Id, Time, Seconds);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // A pack's moments (the Unpaid's kit)
 // ---------------------------------------------------------------------------
@@ -232,6 +243,16 @@ bool UFightDirectorSubsystem::TryHowl(const APawn& Target, float Cooldown)
 bool UFightDirectorSubsystem::TryTakeCinder(const APawn& Target, float Gap)
 {
 	return TakeMoment(Fights.FindOrAdd(&Target).LastCinder, Now(), Gap);
+}
+
+bool UFightDirectorSubsystem::MayStep(const ACreatureBase& Creature, const APawn& Target, float Gap, bool bOwed)
+{
+	return Fights.FindOrAdd(&Target).Steps.MayStep(Creature.GetUniqueID(), bOwed, Now(), Gap);
+}
+
+void UFightDirectorSubsystem::NoteStep(const ACreatureBase& Creature, const APawn& Target)
+{
+	Fights.FindOrAdd(&Target).Steps.Note(Creature.GetUniqueID(), Now());
 }
 
 int32 UFightDirectorSubsystem::CountPack(const APawn& Target, FName PackTag) const

@@ -216,13 +216,16 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 	}
 
 	// Its turn has come with a flank ready (ThinkOnRing armed it while it waited in front of the player's eyes): it fades
-	// round to their side; with no spot round them, or once they've turned from it, it attacks from where it is next frame.
+	// round to their side; with no spot round them, once they've turned from it, or with another of the pack just blinked
+	// (one at a player at a time: MayPackStep), it attacks from where it is next frame. Out of their sight (a wall between)
+	// it lets the turn go for another to take (UnpaidCreatureSight.cpp).
 	if (Director->HoldsToken(*this))
 	{
-		if (Kit.bFlankArmed)
+		const bool bFlank = Kit.bFlankArmed;
+		Kit.bFlankArmed = false;
+		if (!(bFlank && MayPackStep(*Victim) && TryFlank(*Victim)))
 		{
-			Kit.bFlankArmed = false;
-			TryFlank(*Victim);
+			LetBlindTurnGo(*Director, *Victim);
 		}
 		return;
 	}

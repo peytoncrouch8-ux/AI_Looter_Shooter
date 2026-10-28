@@ -102,3 +102,39 @@ float UnpaidFightRules::ChaseBoost(float Distance, bool bWaiting, float ClosingR
 	const float Closing = !bWaiting && Distance > ClosingRange ? ClosingScale : 1.f;
 	return Closing * (bFrenzy ? FrenzyChase : 1.f);
 }
+
+float UnpaidFightRules::JitterStepClock(float SinceLastStep, float Cooldown, float Jitter, float Roll)
+{
+	return FMath::Min(SinceLastStep, Cooldown - FMath::Clamp(Roll, 0.f, 1.f) * FMath::Max(Jitter, 0.f));
+}
+
+bool FUnpaidStepGate::MayStep(uint32 Id, bool bOwed, double Now, float Gap)
+{
+	if (Gap <= 0.f)
+	{
+		return true;
+	}
+	const bool bHeld = OwedId != 0 && Now - OwedAsked <= OwedHold;
+	if (bOwed && (!bHeld || OwedId == Id))
+	{
+		// The next opening is its own: the first owed one to ask holds it while it keeps asking.
+		OwedId = Id;
+		OwedAsked = Now;
+	}
+	if (Now - LastStep < Gap)
+	{
+		return false;
+	}
+	// Another's owed step goes first.
+	return !(OwedId != 0 && OwedId != Id && Now - OwedAsked <= OwedHold);
+}
+
+void FUnpaidStepGate::Note(uint32 Id, double Now)
+{
+	LastStep = Now;
+	if (OwedId == Id)
+	{
+		OwedId = 0;
+		OwedAsked = -1.0e9;
+	}
+}

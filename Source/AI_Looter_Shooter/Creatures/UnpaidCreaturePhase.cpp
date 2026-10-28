@@ -2,12 +2,14 @@
 // its target. UnpaidRules has the rules (when, how far, which spot first); this is where they meet the level: ground it
 // can stand on, room for its body, its target in sight from there, no safe zone and nothing past the playable area. Its
 // material does the fading (Phase, in the mesh's custom primitive data): the solid body goes first and the shroud's
-// ends last, and coming back the ends come first.
+// ends last, and coming back the ends come first. Out of its target's sight and too near to gain ground, it may step to
+// where it sees them instead (UnpaidCreatureSight.cpp); one step or flank at a player at a time across the pack (MayPackStep).
 
 #include "Creatures/UnpaidCreature.h"
 #include "Creatures/UnpaidFightTuning.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/EncounterSubsystem.h"
+#include "Creatures/FightDirectorSubsystem.h"
 #include "World/PlayableArea.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
@@ -43,12 +45,14 @@ bool AUnpaidCreature::IsPhasing() const
 
 void AUnpaidCreature::TickPhaseStep(float DeltaSeconds)
 {
+	TickSight(DeltaSeconds);
 	if (PhaseState == EPhaseState::None)
 	{
 		SinceLastStep = FMath::Min(SinceLastStep + DeltaSeconds, 1000.f);
 		RetryIn = FMath::Max(RetryIn - DeltaSeconds, 0.f);
 		WatchProgress(DeltaSeconds);
-		if (WantsToStep())
+		// One blink at a player at a time across the pack (the gate asked last: the step is wanted).
+		if (WantsToStep() && MayPackStep(*GetTarget()))
 		{
 			StartPhaseStep();
 		}
@@ -111,13 +115,17 @@ bool AUnpaidCreature::WantsToStep() const
 	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation()));
 	// Pressed by a hit from past its edge: it blinks in as soon as it may, stuck or not (a long way short counts as stuck).
 	const float Stuck = bPressStepOwed ? FMath::Max(StallTime, PhaseStep.StuckSeconds) : StallTime;
-	if (!UnpaidRules::WantsPhaseStep(PhaseStep, Distance, Stuck, SinceLastStep))
-	{
-		return false;
-	}
 	// Waiting its turn on the fight's ring it holds back on purpose: that's no stall to step out of (CreatureBaseFight.cpp),
 	// unless the wait goes nowhere (asked last: its trace only once the rest says step).
-	return !IsWaitingTurn() || bPressStepOwed || WaitGoesNowhere(*Victim);
+	if (UnpaidRules::WantsPhaseStep(PhaseStep, Distance, Stuck, SinceLastStep)
+		&& (!IsWaitingTurn() || bPressStepOwed || WaitGoesNowhere(*Victim)))
+	{
+		return true;
+	}
+	// Stalled out of its target's sight, too near for a step that gains ground (outside the nave's wall, behind a door leaf):
+	// a step to where it sees them, nearer or not (FindPhaseSpot). The cheap asks first, its sight last.
+	return UnpaidRules::WantsSightStep(PhaseStep, false, Stuck, SinceLastStep) && NeedsSight()
+		&& FUnpaidFightTuning::Live().BlindStep != 0 && !SeesTarget(*Victim);
 }
 
 bool AUnpaidCreature::WaitGoesNowhere(const APawn& Victim) const
@@ -132,15 +140,7 @@ bool AUnpaidCreature::WaitGoesNowhere(const APawn& Victim) const
 		return true;
 	}
 	// Out of their sight where it waits (a wall between: the player inside a building): its turn would never get it there.
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("UnpaidWaitSight"), this);
-	const FVector Eye = GetActorLocation() + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 0.6f);
-	return World->LineTraceTestByObjectType(Eye, Victim.GetActorLocation() + FVector(0.f, 0.f, 50.f),
-		FCollisionObjectQueryParams(ECC_WorldStatic), Params);
+	return !SeesTarget(Victim);
 }
 
 float AUnpaidCreature::GetPressReach() const
@@ -197,9 +197,9 @@ FString AUnpaidCreature::DescribePhaseRefusals() const
 		}
 		++Fine;
 	}
-	return FString::Printf(TEXT("%d spots at %.1f m (reach %.0f, waiting %d, pressed %d): fine %d, off ground %d, no ground %d, steep/obstacle %d, no room %d, no sight %d, safe/area %d, other level %d"),
+	return FString::Printf(TEXT("%d spots at %.1f m (reach %.0f, waiting %d, pressed %d, sees %d): fine %d, off ground %d, no ground %d, steep/obstacle %d, no room %d, no sight %d, safe/area %d, other level %d"),
 		Candidates.Num(), FVector::Dist2D(Feet, Victim->GetActorLocation()) / 100.f, GetGroundReach(), IsWaitingTurn() ? 1 : 0,
-		IsPressed() ? 1 : 0, Fine, Counts[0], Counts[1], Counts[2], Counts[3], Counts[4], Counts[5], Counts[6]);
+		IsPressed() ? 1 : 0, SeesTarget(*Victim) ? 1 : 0, Fine, Counts[0], Counts[1], Counts[2], Counts[3], Counts[4], Counts[5], Counts[6]);
 }
 
 void AUnpaidCreature::StartPhaseStep()
@@ -227,6 +227,12 @@ void AUnpaidCreature::StartStepTo(const FVector& Feet)
 	PhaseState = EPhaseState::Out;
 	PhaseTime = 0.f;
 	GetCharacterMovement()->StopMovementImmediately();
+	// Counted at its target's step gate (a phase-step or a flank alike): the next of the pack waits Looter.Unpaid.PackStepGap.
+	UFightDirectorSubsystem* Director = !IsBossCreature() ? UFightDirectorSubsystem::Get(this) : nullptr;
+	if (const APawn* Victim = GetTarget(); Director && Victim)
+	{
+		Director->NoteStep(*this, *Victim);
+	}
 }
 
 bool AUnpaidCreature::FindPhaseSpot(FVector& OutFeet) const
@@ -237,8 +243,16 @@ bool AUnpaidCreature::FindPhaseSpot(FVector& OutFeet) const
 		return false;
 	}
 	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-	return UnpaidRules::ChoosePhaseSpot(PhaseStep, Feet, Victim->GetActorLocation(), HuntingGround, GetHome().GetLocation(),
-		[this](const FVector& Candidate, FVector& OutGround) { return CanStandAt(Candidate, OutGround); }, OutFeet, GetGroundReach());
+	auto CanStand = [this](const FVector& Candidate, FVector& OutGround) { return CanStandAt(Candidate, OutGround); };
+	if (UnpaidRules::ChoosePhaseSpot(PhaseStep, Feet, Victim->GetActorLocation(), HuntingGround, GetHome().GetLocation(), CanStand,
+		OutFeet, GetGroundReach()))
+	{
+		return true;
+	}
+	// Out of their sight with no step that gains ground: one to where it sees them (CanStandAt's sight), nearer or not.
+	return NeedsSight() && FUnpaidFightTuning::Live().BlindStep != 0 && !SeesTarget(*Victim)
+		&& UnpaidRules::ChooseSightSpot(PhaseStep, Feet, Victim->GetActorLocation(), HuntingGround, GetHome().GetLocation(), CanStand,
+			OutFeet, GetGroundReach());
 }
 
 bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal) const

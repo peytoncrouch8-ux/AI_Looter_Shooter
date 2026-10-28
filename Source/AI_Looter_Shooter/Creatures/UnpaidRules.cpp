@@ -8,6 +8,34 @@ namespace
 
 	/** Shorter steps are tried this much shorter each (cm), down to the shortest. */
 	constexpr float StepDecrement = 50.f;
+
+	/** A step to sight lands round the target this often (degrees) from its own side, out to the far side. */
+	constexpr float SightFanStep = 30.f;
+
+	/** ...at NearestToTarget, then this much farther (cm). */
+	constexpr float SightRingGap = 100.f;
+
+	/** The first of Candidates on its ground (with its reach) where CanStand finds its feet, on Here's level. */
+	bool ChooseFrom(const TArray<FVector>& Candidates, const FPhaseStepRules& Rules, const FVector& Here, const FHuntingGround& Ground,
+		const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand, FVector& OutFeet, float GroundReach)
+	{
+		for (const FVector& Candidate : Candidates)
+		{
+			// It keeps to its hunting ground: a step never carries it over a fence it fights inside, or out of the yard.
+			if (!Ground.ContainsSpot(Candidate, Home, GroundReach))
+			{
+				continue;
+			}
+			FVector Feet;
+			if (!CanStand(Candidate, Feet) || FMath::Abs(Feet.Z - Here.Z) > Rules.MaxRise)
+			{
+				continue;
+			}
+			OutFeet = Feet;
+			return true;
+		}
+		return false;
+	}
 }
 
 FUnpaidRankTraits UnpaidRules::RankTraits(ECreatureRank Rank)
@@ -104,20 +132,44 @@ TArray<FVector> UnpaidRules::PhaseCandidates(const FPhaseStepRules& Rules, const
 bool UnpaidRules::ChoosePhaseSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target, const FHuntingGround& Ground,
 	const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand, FVector& OutFeet, float GroundReach)
 {
-	for (const FVector& Candidate : PhaseCandidates(Rules, Here, Target))
+	return ChooseFrom(PhaseCandidates(Rules, Here, Target), Rules, Here, Ground, Home, CanStand, OutFeet, GroundReach);
+}
+
+bool UnpaidRules::WantsSightStep(const FPhaseStepRules& Rules, bool bSeesTarget, float StuckSeconds, float SinceLastStep)
+{
+	return !bSeesTarget && SinceLastStep >= Rules.Cooldown && StuckSeconds >= Rules.StuckSeconds;
+}
+
+TArray<FVector> UnpaidRules::SightCandidates(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target)
+{
+	TArray<FVector> Candidates;
+	FVector2D Out(Here.X - Target.X, Here.Y - Target.Y);
+	Out = Out.IsNearlyZero() ? FVector2D(1.0, 0.0) : Out.GetSafeNormal();
+	for (const float Radius : { Rules.NearestToTarget, Rules.NearestToTarget + SightRingGap })
 	{
-		// It keeps to its hunting ground: a step never carries it over a fence it fights inside, or out of the yard.
-		if (!Ground.ContainsSpot(Candidate, Home, GroundReach))
+		for (float Fan = 0.f; Fan <= 180.f + 0.5f; Fan += SightFanStep)
 		{
-			continue;
+			for (const float Side : { 1.f, -1.f })
+			{
+				const FVector2D Way = Out.GetRotated(Fan * Side) * FMath::Max(Radius, 1.f);
+				const FVector Spot(Target.X + Way.X, Target.Y + Way.Y, Here.Z);
+				// No blink longer than its longest step.
+				if (FVector::Dist2D(Spot, Here) <= Rules.MaxStep)
+				{
+					Candidates.Add(Spot);
+				}
+				if (Fan == 0.f || Fan >= 180.f)
+				{
+					break;
+				}
+			}
 		}
-		FVector Feet;
-		if (!CanStand(Candidate, Feet) || FMath::Abs(Feet.Z - Here.Z) > Rules.MaxRise)
-		{
-			continue;
-		}
-		OutFeet = Feet;
-		return true;
 	}
-	return false;
+	return Candidates;
+}
+
+bool UnpaidRules::ChooseSightSpot(const FPhaseStepRules& Rules, const FVector& Here, const FVector& Target, const FHuntingGround& Ground,
+	const FVector& Home, TFunctionRef<bool(const FVector& Candidate, FVector& OutFeet)> CanStand, FVector& OutFeet, float GroundReach)
+{
+	return ChooseFrom(SightCandidates(Rules, Here, Target), Rules, Here, Ground, Home, CanStand, OutFeet, GroundReach);
 }

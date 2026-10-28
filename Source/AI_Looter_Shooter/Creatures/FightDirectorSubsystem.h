@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Creatures/FightRules.h"
 #include "Creatures/FightTuning.h"
+#include "Creatures/UnpaidFightRules.h"
 #include "Math/RandomStream.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "FightDirectorSubsystem.generated.h"
@@ -24,7 +25,8 @@ class APawn;
  *  - Ranged spots: a spot in its band at RangedOffAngle or more round from the melee pack, with a clear line at the target,
  *    a new one after a shot now and then (RangedRelocate).
  *  - A pack's moments (the Unpaid's kit): a frenzy that lets one pack take more turns at once for a while after a rally
- *    scream, one rally, howl and cinder at a time per target, and each creature's own chase boost.
+ *    scream, one rally, howl and cinder at a time per target, one phase-step or flank at a time per target, and each
+ *    creature's own chase boost.
  * Bosses and Legendary monsters never ask (ACreatureBase::UsesFightDirector). Looter.Fight.Director 0 turns it all off (Get
  * returns none). It is made in game and PIE worlds only, and in test levels a test lets it (bAllowInTestWorlds).
  */
@@ -63,6 +65,8 @@ public:
 	void GiveBackForHit(const ACreatureBase& Creature);
 	/** Dead or removed: nothing of it kept. */
 	void ForgetCreature(const ACreatureBase& Creature);
+	/** It can't use a turn now (an Unpaid out of its target's sight): its turn back, and it isn't put in line for Seconds. */
+	void RestFromTurns(const ACreatureBase& Creature, float Seconds);
 
 	// --- Places ---
 
@@ -89,6 +93,13 @@ public:
 	bool TryHowl(const APawn& Target, float Cooldown);
 	/** One cinder thrown at Target in Gap seconds, whoever throws: true when this one may (counted). */
 	bool TryTakeCinder(const APawn& Target, float Gap);
+	/**
+	 * One phase-step or flank at Target every Gap seconds, whoever goes (FUnpaidStepGate; 2026-10-28: a pack blinked on one
+	 * frame): whether Creature may go now. bOwed (a press step owed) holds the next opening for it. Counted only by NoteStep.
+	 */
+	bool MayStep(const ACreatureBase& Creature, const APawn& Target, float Gap, bool bOwed);
+	/** Creature phase-stepped or flanked at Target now: the next one waits the gap. */
+	void NoteStep(const ACreatureBase& Creature, const APawn& Target);
 	/** Creatures of PackTag fighting Target at the last look at the fights. */
 	int32 CountPack(const APawn& Target, FName PackTag) const;
 	/** A creature's own chase boost on top of Looter.Fight.ChaseScale (the Unpaid's closing and frenzy pace); 1 unless set. */
@@ -136,6 +147,8 @@ private:
 		double LastRally = -1.0e9;
 		double LastHowl = -1.0e9;
 		double LastCinder = -1.0e9;
+		/** The phase-steps and flanks at this target (one a gap, an owed one first). */
+		FUnpaidStepGate Steps;
 		/** Fighters by pack tag at the last look. */
 		TMap<FName, int32> PackCounts;
 	};

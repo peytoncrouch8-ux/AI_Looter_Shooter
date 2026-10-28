@@ -350,13 +350,33 @@ The user: "Unpaid have terrible ai, need better attacks and targeting sequences"
     was the blocked steps, not the ground.
 - Balance play-check 2026-10-28 (DEMO, player level 4, 40% aimbot, yard Unpaid level 3):
   - `LungeHitRadius` 85 -> 100: it must exceed `LungeStopShort` (90; both from the middle). At 85 no lunge landed on a still
-    target (1 in 10 at point-blank): every Unpaid hit before was a rake. Kit.Tuning's strafe miss (103 cm) caps it.
+    target (1 in 10 at point-blank): every Unpaid hit before was a rake. 110 tried (rerun with sight): 45% of attacks landed
+    on a kiter, dead in 17 s; at 100, 25%, both waves cleared at 57/124: kept 100. Kit.Tuning now flies the lunge as `Strike`
+    does (lead, stop-short): a walking strafe comes no nearer than ~139 cm (the old test measured from the aim point, 103).
+    The test asserts `LungeHitRadius > LungeStopShort`.
+  - Rerun after sight + pack gate: no wall attacks; same-frame blinks gone (pack gap >= 0.80 s, but a busy fight blinks like
+    a metronome, ~70 a minute: 1.2 read better); on the nave floor they come in by the door one at a time; on the raised
+    dais (7115, -2175, z 913) nobody reaches the player (sight-steps land outside, the release line fires 4-7 a second).
   - `FlankChance` 0.6 -> 0.4 (10-13 flanks a two-wave fight at 0.6, 6 at 0.4).
   - Stand still in the pack: dead in 12-20 s; move and shoot: both waves cost about half the health; backing off past the
     fence escapes (the pack stops at the press reach). Attackers at once 3, briefly 4-5 (frenzy, turns handed back).
     Blinks per Unpaid >= 3.65 s apart (median ~4); pack-wide one every 0.4-0.9 s, 5-6 at once when they notice or spawn.
   - Within the ground's Margin outside the fence (~1 m) the pack fights as if inside; 4 m out it doesn't notice.
   - The nave: attacks through walls (no sight check on a turn or lunge); the pack outside the walls is too near to step.
+- Sight (2026-10-28, the nave stalemate: Unpaid 1.4-2.6 m outside the wall or behind a door leaf lunged into it every
+  ~2.6 s, one 21 times, none landed): with its kit no melee turn starts (`CanStartAttack`), no lunge flies (`Strike`, fresh
+  trace) or lands (`TryLungeHit`) without a clear line (`SeesTarget`: one eye trace, `StaticGeometryParams`, cached ~0.3 s;
+  `WaitGoesNowhere` shares it). A turn held blind is let go (`UFightDirectorSubsystem::RestFromTurns`, out of line 0.8 s,
+  `Looter.Unpaid.BlindRest`). Stalled out of sight with no step that gains ground, it steps to a spot that sees the target
+  (`UnpaidRules::WantsSightStep`/`SightCandidates`/`ChooseSightSpot`: round the target at 250 and 350 cm, own side first,
+  within 5 m). `Looter.Unpaid.Sight 0` = old way. Kit only (a dead miner can still take turns into a wall). Code
+  `UnpaidCreatureSight.cpp`; test `Looter.Creatures.Unpaid.Kit.Sight`.
+- Pack blinks (2026-10-28: those past FarBehind blinked on one frame, 5-6 at once): one phase-step or flank per player per
+  `Looter.Unpaid.PackStepGap` 0.8 s across all non-boss Unpaid (director `MayStep`/`NoteStep`, `FUnpaidStepGate`; an owed
+  press step goes first and holds the opening 0.25 s while it asks; a flank the gate refuses becomes a plain attack); step
+  clock jittered 0-1.5 s at a new target (`Looter.Unpaid.StepJitter`, `JitterStepClock`). Test
+  `Looter.Creatures.Unpaid.Kit.PackStep`. Cost: one sight trace per Unpaid per ~0.3 s only while it holds a turn, is in
+  attack range or wants a step; a blind step's search is at most 24 spots x 3 queries, every 0.75 s, gated.
 - Rake (second attack) within 2.6 m, 70%: arm drawn back 0.5 s (the tell), two swipes 0.32 s apart (left/right), 2.4 m reach, 130 deg
   arc, 0.5x damage each (`RakeDamageShare`), drifting in at 240 cm/s. New pose channel `FPoseChannels::Rake[2]` (Rig follows it, Arms applies it).
 - Coal flares through every wind-up (`TellFlare` 0.6): the read for all attacks.

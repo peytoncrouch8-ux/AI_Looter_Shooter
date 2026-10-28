@@ -1,6 +1,6 @@
 // AUnpaidCreature: construction, its hat, its coal, and its frame, hits, death and return; its look (clothes, the rank's
 // color, the dissolve) is UnpaidCreatureLook.cpp. UnpaidCreatureAttack.cpp has the shriek and the lunge, UnpaidCreatureMoves.cpp its fighting kit,
-// UnpaidCreaturePhase.cpp the phase-step and UnpaidCreatureRig.cpp the body.
+// UnpaidCreaturePhase.cpp the phase-step, UnpaidCreatureSight.cpp its sight and its pack's blinks, UnpaidCreatureRig.cpp the body.
 
 #include "Creatures/UnpaidCreature.h"
 #include "Combat/GunfeelReactTuning.h"
@@ -377,6 +377,7 @@ void AUnpaidCreature::OnRespawned()
 	CommitLunge(false);
 	bLunging = false;
 	Kit.Reset();
+	Sight = FUnpaidSightState();
 	SinceLastStep = 1000.f;
 	ResetProgress();
 	for (FShroudChain& Chain : Chains)

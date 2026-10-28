@@ -78,6 +78,41 @@ struct FUnpaidKitState
 	}
 };
 
+/**
+ * What an Unpaid last saw of its target (AUnpaidCreature::SeesTarget: one trace, kept a moment so a frame's asks cost no
+ * more), and whose target its step clock was last jittered for (a new target jitters it: UnpaidCreatureSight.cpp).
+ */
+struct FUnpaidSightState
+{
+	uint32 TargetId = 0;
+	bool bClear = true;
+	/** Seconds until it looks again (counted down by its own frames, so a test's ticks count too). */
+	float RecheckIn = 0.f;
+	uint32 StepTargetId = 0;
+};
+
+/**
+ * One phase-step or flank at a time at one target, across all the Unpaid after them (2026-10-28 play-check: a pack past
+ * FarBehind blinked on one frame as it noticed the player or a wave spawned, 5-6 at once): at most one every Gap seconds.
+ * One that owes a press step (hit from past its edge) goes ahead of the rest: its ask holds the next opening for it a moment
+ * (OwedHold), so the others wait; one that finds nowhere to land stops asking and the hold runs out. Plain, so the tests
+ * check it with their own clock (UFightDirectorSubsystem keeps one per target: MayStep, NoteStep).
+ */
+struct AI_LOOTER_SHOOTER_API FUnpaidStepGate
+{
+	/** An owed step's ask holds the next opening this long (s) after it last asked. */
+	static constexpr float OwedHold = 0.25f;
+
+	/** Whether Id may step now (bOwed: it owes a press step). Asking owed holds the next opening for it; nothing is counted until Note. */
+	bool MayStep(uint32 Id, bool bOwed, double Now, float Gap);
+	/** Id stepped (or flanked) at Now: the next waits the gap; its owed hold, if any, is spent. */
+	void Note(uint32 Id, double Now);
+
+	double LastStep = -1.0e9;
+	uint32 OwedId = 0;
+	double OwedAsked = -1.0e9;
+};
+
 /** The kit's rules as plain functions (the tests check them without a level; AUnpaidCreature plays them). Distances in cm. */
 namespace UnpaidFightRules
 {
@@ -111,6 +146,13 @@ namespace UnpaidFightRules
 
 	/** Whether its turn should open with a flank: it's in front of the player's eyes (Frontness at least Front) and between MinRange and MaxRange off. */
 	AI_LOOTER_SHOOTER_API bool WantsFlank(float Frontness, float Distance, float Front, float MinRange, float MaxRange);
+
+	/**
+	 * Its step clock (seconds since its last phase-step) as it spawns or notices a target: set back to Roll (0-1) times Jitter
+	 * short of its Cooldown, so each of a pack waits its own moment more (they no longer blink on one frame); a clock already
+	 * further back (a step just taken) is kept.
+	 */
+	AI_LOOTER_SHOOTER_API float JitterStepClock(float SinceLastStep, float Cooldown, float Jitter, float Roll);
 
 	/**
 	 * How much faster than its chase it comes now: ClosingScale while farther than ClosingRange (not while it waits on the

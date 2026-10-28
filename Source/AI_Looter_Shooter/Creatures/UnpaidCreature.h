@@ -11,6 +11,7 @@
 #include "UnpaidCreature.generated.h"
 
 class AShriekRing;
+class UFightDirectorSubsystem;
 class UPrimitiveComponent;
 class UMaterialInterface;
 class UStaticMeshComponent;
@@ -109,8 +110,10 @@ public:
 	virtual float GetPressSeconds() const override;
 	/** Whether it owes a phase-step in (pressed by a hit from past its edge), taken once its cooldown allows. */
 	bool OwesPressStep() const { return bPressStepOwed; }
-	/** Waiting its turn, whether the wait can't end where it stands: its target past its own edge, or out of its sight (one trace). */
+	/** Waiting its turn, whether the wait can't end where it stands: its target past its own edge, or out of its sight (SeesTarget). */
 	bool WaitGoesNowhere(const APawn& Victim) const;
+	/** A clear line from its eyes to Victim's through real geometry (one trace, kept a moment; bFresh: traced now). UnpaidCreatureSight.cpp. */
+	bool SeesTarget(const APawn& Victim, bool bFresh = false) const;
 	/**
 	 * Why a phase-step toward its target finds nowhere now: each candidate spot's first refusal counted (off its ground, no
 	 * ground, steep or an obstacle's top, no room, no sight of the target, a safe zone or past the playable area, another level),
@@ -362,8 +365,18 @@ private:
 	bool FindPhaseSpot(FVector& OutFeet) const;
 	/** Whether it may come back at Candidate: walkable ground near it, room, its target in sight, no safe zone (the ground: OutGround). */
 	bool CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal = nullptr) const;
-	/** Starts a step to Feet now: it fades out here and comes back there. */
+	/** Starts a step to Feet now: it fades out here and comes back there (counted at its target's step gate). */
 	void StartStepTo(const FVector& Feet);
+
+	// --- Sight and the pack's steps (UnpaidCreatureSight.cpp) ---
+	/** Its sight's clock, and its step clock jittered when it has a new target. */
+	void TickSight(float DeltaSeconds);
+	/** With its kit, holding a turn it can't use, out of its target's sight: lets it go (true). */
+	bool LetBlindTurnGo(UFightDirectorSubsystem& Director, const APawn& Victim);
+	/** Whether its target's step gate lets it phase-step or flank now (Looter.Unpaid.PackStepGap; an owed press step first). */
+	bool MayPackStep(const APawn& Victim);
+	/** Its kit's sight rule is on (Looter.Unpaid.Sight). */
+	bool NeedsSight() const;
 	/** Unseen at last: moves to the spot it chose and starts coming back. */
 	void Arrive();
 
@@ -505,6 +518,8 @@ private:
 	float SinceLastStep = 1000.f;
 	/** Pressed by a hit from past its edge: its next step comes as soon as its cooldown allows, stuck or not. */
 	bool bPressStepOwed = false;
+	/** What it last saw of its target, and the target its step clock was jittered for (mutable: SeesTarget keeps it). */
+	mutable FUnpaidSightState Sight;
 	float StallTime = 0.f;
 	float BestDistance = TNumericLimits<float>::Max();
 	float RetryIn = 0.f;
