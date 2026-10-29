@@ -107,8 +107,8 @@ bool FElementWeaknessTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Resist: x0.5"), AffinityScale(EElementAffinity::Resist, Tuning), 0.5f);
 	TestEqual(TEXT("Neutral: x1"), AffinityScale(EElementAffinity::Neutral, Tuning), 1.f);
 
-	TestEqual(TEXT("A spider's bestiary line"), WeaknessLine(ASpiderCreature::StaticClass()), FString(TEXT("WEAK TO EMBER · RESISTS GRAVE-SALT")));
-	TestTrue(TEXT("The Unpaid's names its coal"), WeaknessLine(AUnpaidCreature::StaticClass()).Contains(TEXT("ITS COAL TO GRAVE-SALT")));
+	TestEqual(TEXT("A spider's bestiary line"), WeaknessLine(ASpiderCreature::StaticClass()), FString(TEXT("WEAK TO CINDER · RESISTS WARDBREAK")));
+	TestTrue(TEXT("The Unpaid's names its coal"), WeaknessLine(AUnpaidCreature::StaticClass()).Contains(TEXT("ITS COAL TO WARDBREAK")));
 	TestTrue(TEXT("Nothing for an unnamed kind"), WeaknessLine(nullptr).IsEmpty());
 	return true;
 }
@@ -243,7 +243,7 @@ bool FElementWordsTest::RunTest(const FString& Parameters)
 	TestIs(*this, TEXT("Parse SoulLight"), Parse(TEXT("SoulLight")), ELooterElement::SoulLight);
 	TestIs(*this, TEXT("Parse Grave-salt"), Parse(TEXT(" grave-salt ")), ELooterElement::GraveSalt);
 	TestIs(*this, TEXT("Parse nothing"), Parse(TEXT("")), ELooterElement::None);
-	TestEqual(TEXT("A word"), Word(ELooterElement::SoulLight), FString(TEXT("SOUL-LIGHT")));
+	TestEqual(TEXT("A word"), Word(ELooterElement::SoulLight), FString(TEXT("HALLOW")));
 	TestTrue(TEXT("None has none"), Word(ELooterElement::None).IsEmpty() && Description(ELooterElement::None).IsEmpty());
 	TestEqual(TEXT("Cues by name"), Cue(ELooterElement::GraveSalt, EElementCue::Tick), FName(TEXT("Element.GraveSalt.Tick")));
 	TestEqual(TEXT("...the kill's"), Cue(ELooterElement::Ember, EElementCue::Kill), FName(TEXT("Element.Ember.Kill")));

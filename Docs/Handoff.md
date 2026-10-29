@@ -16,8 +16,10 @@ tag card). Tests Looter.UI 64, Settings 11, FPHands 6, Player.Hands 13, Inventor
   Then: no maker trait line (only special traits on the card), a gap before the element rows, the maker at the top over
   the name with no box. Tests UI.GunCard 3, WorldCard 2, Inventory 10 pass.
   Then element glyphs picked from four concepts each: Ember Hearth, Soul-light Sunburst, Grave-salt Salt Cluster, Normal
-  Empty Ring (Docs/Archive/Work/2026-10-29-Embers). Tests UI.GunCard 3 pass. The user asked for other names for Grave-salt
-  (options offered; no rename yet).
+  Empty Ring (Docs/Archive/Work/2026-10-29-Embers). Tests UI.GunCard 3 pass.
+- Elements renamed for the player (the user's picks from options): Cinder (Ember), Hallow (Soul-light), Wardbreak (Grave-salt);
+  code names unchanged (Pipeline Gunplay.md "Names"). The user then asked for two new elements: concept sheet in
+  Docs/Work/2026-10-29-NewElements (picks pending).
 - Main's calls (undo any): from the main menu the reticle row says BACK and the footer Back chip is hidden (the row was an
   empty band); the RESUME wash runs to the right bracket; slider end labels 5 px lower; arrowheads point out (c5's picture).
 - Not seen by the user in game yet. Next: the user's look, then the rest of round 2's list (HUD mission popup, bestiary

@@ -86,13 +86,13 @@ namespace ElementRules
 	/** One of the dead (an Unpaid or the rest of the risen): a smite leaps between them. */
 	AI_LOOTER_SHOOTER_API bool IsTheDead(EElementBody Body);
 
-	/** "EMBER", "SOUL-LIGHT", "GRAVE-SALT" (cards and labels); empty for None. */
+	/** "CINDER", "HALLOW", "WARDBREAK" (cards and labels; the user's names, 2026-10-29); empty for None. */
 	AI_LOOTER_SHOOTER_API FString Word(ELooterElement Element);
 
 	/** What it does, in a line for the loot card. Empty for None. */
 	AI_LOOTER_SHOOTER_API FString Description(ELooterElement Element);
 
-	/** The element a CSV cell names ("Ember", "SoulLight", "Soul-light", "GraveSalt", "Grave-salt"); None for anything else. */
+	/** The element a CSV cell names ("Ember"/"Cinder", "SoulLight"/"Hallow", "GraveSalt"/"Wardbreak", hyphens and spaces ignored); None for anything else. */
 	AI_LOOTER_SHOOTER_API ELooterElement Parse(const FString& Text);
 
 	/** Its look's colour (linear, for FWeaponFX and tracers): ember orange-red, soul-light white-gold, salt pale cyan-white. */

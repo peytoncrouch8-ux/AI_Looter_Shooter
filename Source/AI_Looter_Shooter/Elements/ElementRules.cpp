@@ -125,9 +125,11 @@ FString ElementRules::Word(ELooterElement Element)
 {
 	switch (Element)
 	{
-	case ELooterElement::Ember: return TEXT("EMBER");
-	case ELooterElement::SoulLight: return TEXT("SOUL-LIGHT");
-	case ELooterElement::GraveSalt: return TEXT("GRAVE-SALT");
+	// The user's names (2026-10-29): Cinder (was Ember, which the hero powers keep), Hallow (was Soul-light), Wardbreak (was
+	// Grave-salt; the salt jar and grenade keep their names). The enum, cues, cvars and part keys keep the old words.
+	case ELooterElement::Ember: return TEXT("CINDER");
+	case ELooterElement::SoulLight: return TEXT("HALLOW");
+	case ELooterElement::GraveSalt: return TEXT("WARDBREAK");
 	default: return FString();
 	}
 }
@@ -146,15 +148,15 @@ FString ElementRules::Description(ELooterElement Element)
 ELooterElement ElementRules::Parse(const FString& Text)
 {
 	FString Key = Text.TrimStartAndEnd().Replace(TEXT("-"), TEXT("")).Replace(TEXT(" "), TEXT(""));
-	if (Key.Equals(TEXT("Ember"), ESearchCase::IgnoreCase))
+	if (Key.Equals(TEXT("Ember"), ESearchCase::IgnoreCase) || Key.Equals(TEXT("Cinder"), ESearchCase::IgnoreCase))
 	{
 		return ELooterElement::Ember;
 	}
-	if (Key.Equals(TEXT("SoulLight"), ESearchCase::IgnoreCase))
+	if (Key.Equals(TEXT("SoulLight"), ESearchCase::IgnoreCase) || Key.Equals(TEXT("Hallow"), ESearchCase::IgnoreCase))
 	{
 		return ELooterElement::SoulLight;
 	}
-	if (Key.Equals(TEXT("GraveSalt"), ESearchCase::IgnoreCase))
+	if (Key.Equals(TEXT("GraveSalt"), ESearchCase::IgnoreCase) || Key.Equals(TEXT("Wardbreak"), ESearchCase::IgnoreCase))
 	{
 		return ELooterElement::GraveSalt;
 	}
@@ -247,7 +249,7 @@ FString ElementRules::WeaknessLine(const UClass* CreatureClass)
 	}
 	if (Body == EElementBody::Unpaid)
 	{
-		Parts.Add(TEXT("ITS COAL TO GRAVE-SALT"));
+		Parts.Add(TEXT("ITS COAL TO ") + Word(ELooterElement::GraveSalt));
 	}
 	if (!Resists.IsEmpty())
 	{

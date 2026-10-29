@@ -21,9 +21,9 @@ namespace
 		switch (Element)
 		{
 		// Led by the element's name: its rows above only show its glyph and colour.
-		case ELooterElement::Ember: return TEXT("Ember: sets them burning");
-		case ELooterElement::SoulLight: return TEXT("Soul-Light: light leaps to the next of the dead");
-		case ELooterElement::GraveSalt: return TEXT("Grave-Salt: salts and slows them, wards crumble");
+		case ELooterElement::Ember: return TEXT("Cinder: sets them burning");
+		case ELooterElement::SoulLight: return TEXT("Hallow: light leaps to the next of the dead");
+		case ELooterElement::GraveSalt: return TEXT("Wardbreak: salts and slows them, wards crumble");
 		default: return FString();
 		}
 	}

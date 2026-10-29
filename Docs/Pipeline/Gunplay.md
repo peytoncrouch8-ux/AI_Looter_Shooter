@@ -320,6 +320,11 @@ nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in
 
 ## Loot: elements, part effects, drop moments (LOOT-CODE, built 2026-10-22)
 
+- **Names (the user, 2026-10-29)**: the player sees **Cinder** (was Ember; the hero powers keep "ember"), **Hallow** (was
+  Soul-light) and **Wardbreak** (was Grave-salt; the salt jar, grenade and vendor item keep "grave salt"). Only `ElementRules::Word`,
+  `Description`, the card lines and `Parse` (both spellings) changed: the enum, cues (`Element.Ember.*`), cvars, part keys and
+  quirk names (Smoldering, Saintlit, Salted) keep the old words. The docs below use the old names for the code.
+
 The user's calls (2026-10-21 night): story elements Ember (burn), Soul-light (vs undead), Grave-salt (slow, vs spirits),
 each status dealing damage and stronger on the monsters weakest to it; part effects that change behaviour; bigger drop
 moments. Code: CODEMAP "Elements", `Weapons/PartEffect*`, `Loot/LootDropMoments`, `LootFanfareShows.cpp`.
