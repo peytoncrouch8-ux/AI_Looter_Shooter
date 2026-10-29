@@ -3,22 +3,34 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## 2026-10-28 late: core gameplay job started (the user picked all four: guns feel different, enemy hit reactions,
-smarter bigger fights, things to find off the path)
-Four Opus planning agents write Docs/Work/2026-10-28-Core/GUNS.md, HITS.md, FIGHTS.md, FINDS.md (read-only); Main merges
-them into CONTRACT.md, asks the user their questions, then runs coding lanes. Licensed gun sounds: ask per download.
-The user's answers before bed: Docs/Work/2026-10-28-Core/CONTRACT.md (build with Main's calls overnight, clearly harder,
-finds pay a mix, script-made gun sounds now and a pack to approve in the morning).
-- Round 1 BUILT and pushed (122556fd): gun identity (per-kind kick, shakes, heft, move speed, reload beats, brass, punch and
-  aim-in sounds; `Looter.Gunfeel.Identity 0` = the old feel) and hit feel (zones, weight, poise staggers, overkill; spider
-  leg buckle/limp, Unpaid whiplash/arm flings/hats, slime air knock/pops; kill styles; ten hit sounds). Not yet seen in PIE.
-- Round 2 running (fights: measure, director + pack leaders, slime split/dodge, bigger encounters and the chapel-yard arena;
-  finds: core, banner/map/sounds, level build). Then: Unpaid fight lane, finds words and named guns, DEMO play-check, perf.
-- Decided unattended (undo any): see CONTRACT.md "Main's calls overnight" (heavy-gun kick caps kept; move speed by kind
-  +-5%; spider leg shots looks only; Unpaid hats; spiders' fight balance untouched (the user's 10-28 "leave them"); arena at
-  the chapel yard only; Borderlands-normal targets; map shows total and per-region find counts; crows+glint tells; the
-  Tollman a find). Crosshair per kind: mockup only, for the morning. Gun sound pack to approve: another year's Sonniss GDC
-  bundle (no download yet).
+## 2026-10-29 night: core gameplay job BUILT (the user picked all four: guns feel different, enemy hit reactions,
+smarter bigger fights, things to find off the path; asleep, answers in Docs/Work/2026-10-28-Core/CONTRACT.md)
+All pushed (122556fd round 1, 58e7faa2 round 2, 597d0d6c fixes). Notes: Pipeline/Gunplay.md "Gun identity and hit feel",
+Enemies.md "Fight: pack brains", Levels.md "Finds". Play-check: Docs/Work/2026-10-28-Core/RESULTS.md. Nobody has played it yet.
+- Guns: per-kind kick, view shakes, heft and move speed (+-5%), reload beats, brass, punch and aim-in sounds (script-made).
+  `Looter.Gunfeel.Identity 0` = the old feel.
+- Hits: zones, hit weight, side, poise staggers, overkill; spider leg buckle/limp (looks only), Unpaid whiplash, arm flings,
+  hats knocked off; slime air knock and pops; kill styles; ten hit sounds. Staggers need a creature in a fight (an idle one
+  only flinches; the demo's "never staggers" was that). `Looter.Hits.Test Body 30` on a chasing Unpaid logs "heavy (..%)".
+- Fights: fight director (melee gaps by kind, player read, close-call ease, camping punished), pack leaders and leader-down
+  falter, slime split and dodge, Unpaid leader-only rally, fade-back, dais hold; Saint Ada's Yard arena with a fog gate,
+  Barn Doors, leaders in most fights. Sim: 6 Unpaid kill a still player in ~10 s; strafing ends at 63% lowest health.
+  `Looter.Fight.Sim` / `Looter.Fight.Log`.
+- Finds: 15 off the path with crows and glints, FOUND banner, map counts (total and per region), Pike's cache, the tarn
+  lockbox, the bolt-hole, the Ranger Post, the miser's grave, the Tollman; named guns Still Water, Bench Mark, Ferryman's Due.
+- Perf after (tutorial island default, Medium): 6.1 ms p95 6.5 (before 6.2 / 7.6); 8 Unpaid horde 7.0 p95 8.1 (before 7.8 / 11.4).
+- Decided unattended (undo any): CONTRACT.md "Main's calls overnight" (heavy-gun kick caps kept; spiders' fight balance
+  untouched, the user's 10-28 "leave them"; arena at the chapel yard only; Borderlands-normal targets; crows+glint tells; the
+  Tollman a find); Regular Unpaid silver chance 55% -> 40% (Progression.md 10-21 said 40%); FOUND banner moved to 78% down
+  (the card over loot covered it); the SMG has no punch sound.
+- For the user in the morning: (1) crosshair per gun kind, mockup only: Docs/Work/2026-10-28-Core/crosshair/crosshairs.png;
+  (2) gun sound pack to approve, no download yet: another year's Sonniss GDC bundle (royalty-free, game use); (3) play it.
+- Open (not built or not checked): LMG long burst climbs ~30 deg (check by hand); Ranger Post crows small specks 7 m up
+  (CrowHeight 700, maybe lower); tarn bed murky, lockbox hard to see; launcher not tried; hits on the capsule get no zone
+  (bot-only?); Hob's caption at the town-gate leader's death; Sink/Webwood spider additions; news when a find is found;
+  E6 grenade tins; Pike's footlocker body (needs a C++ flag); art: laid rope, card+knife, bigger cache tag; FightPace
+  uptimes need fitting to play. Files over 500 lines to split: CreatureBase.h 694, GunfeelSoundTests 636, WeaponBase.h 616,
+  WeaponBrass.cpp ~565, GunfeelSoundTuning.cpp 511, SpiderCreatureHurt.cpp 508, UnpaidCreature.h 506.
 
 ## 2026-10-28 evening: UI character, round 1 (the user at work; playtest Friday 2026-10-30; "don't package yet")
 Committed and pushed. Contract and mockups: Docs/Work/2026-10-28-UICharacter/ (kept open for round 2). Notes: Pipeline/Game.md

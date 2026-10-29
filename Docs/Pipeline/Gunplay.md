@@ -136,6 +136,8 @@ Cvars `Looter.Gunfeel.*`, read at each hit (live in PIE), defaults in brackets.
   `Stagger.Cooldown` [0.7]; shove `Stagger.Shove` [420]. Hit-stops: `HitStop.Crit` [0.05], `.Heavy` [0.035] (shares the crit's
   0.25 s cooldown), `.Kill` [0.075], `.CritKill` [0.1]; melee unchanged.
 - Rifle pressure: `Rifle.PressureHits` [5] within `PressureWindow` [1 s] = a stagger, same cooldown as any stagger.
+- Only a creature in a fight staggers or logs it; an idle or wandering one just flinches (the 10-29 demo hit idle ones and
+  thought staggers were broken). Test on a `chase` spawn: `Looter.Hits.Test Body 30` logs "heavy (..% of its health)".
 - Shotgun power: once a blast, burst >= `Shotgun.KnockShare` [0.35], shooter within `KnockRange` [600 cm]: size <= `KnockSize`
   [1.2] knocked back (`UCreatureKnockComponent::Knock`, Shove style: rocked back 24 degrees, no stars; launch `KnockSpeed` [520]
   across, `KnockHeight` [40] up = about 3 m, then `KnockHold` [0.25 s]), else staggered. Skips the stagger cooldown (each takes a

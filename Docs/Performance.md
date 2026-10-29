@@ -115,3 +115,5 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-28 | overnight 10-28: gun patterns M_Gun 800 instr, Tripo AR/melee/chests, cloth, cup fit | 2a54db8d | 1920x1080 | 7.6 | 132 | 7.9 | 4.0 | 7.6 | 1.6 | 6.5 | 1726 | 1744268 | 3.50 |
 | 2026-10-28 | Core before (tag card in) | e31979df | 1920x1080 | 6.2 | 162 | 7.6 | 6.0 | 4.6 | 2.0 | 4.9 | 686 | 663844 | 3.85 |
 | 2026-10-28 | Core before, 8 Unpaid horde | e31979df | 1920x1080 | 7.8 | 129 | 11.4 | 7.7 | 3.2 | 1.9 | 4.9 | 782 | 685104 | 1.85 |
+| 2026-10-29 | Core after (rounds 1-2) | 597d0d6c | 1920x1080 | 6.1 | 163 | 6.5 | 4.3 | 6.1 | 1.7 | 5.1 | 690 | 671597 | 1.92 |
+| 2026-10-29 | Core after, 8 Unpaid horde | 597d0d6c | 1920x1080 | 7.0 | 142 | 8.1 | 7.0 | 3.3 | 1.8 | 5.0 | 766 | 673220 | 1.80 |
