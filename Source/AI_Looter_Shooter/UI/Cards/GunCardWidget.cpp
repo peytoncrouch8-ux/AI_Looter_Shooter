@@ -28,6 +28,9 @@ using namespace LooterUI;
 
 namespace
 {
+	/** The maker's mark on the foot's badge (px). */
+	constexpr float MakerMarkSize = 20.f;
+
 	constexpr float IconSize = 18.f;
 	constexpr float ArrowWidth = 18.f;
 	/** Italic by shear: Chakra Petch ships no italic. */
@@ -138,15 +141,16 @@ void UGunCardWidget::EnsureBuilt()
 	Italic(FlavorText);
 	Content->AddChildToVerticalBox(FlavorText)->SetPadding(FMargin(4.f, 4.f, 0.f, 0.f));
 
-	// The foot: the maker's badge and the element's glyph, centred.
+	// The foot: the maker's badge and the element's glyph, centred. The badge is sized to fill the tag's narrowing foot (the
+	// user, 2026-10-29: "the manufacturer at the bottom should be slightly bigger and fit the open space more").
 	UHorizontalBox* Foot = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	MakerBadge = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	MakerBadge->SetPadding(FMargin(10.f, 3.f, 14.f, 4.f));
+	MakerBadge->SetPadding(FMargin(16.f, 6.f, 20.f, 7.f));
 	UHorizontalBox* BadgeRow = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	MakerMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-	BadgeRow->AddChildToHorizontalBox(MakeSized(Tree, MakerMark, 15.f, 15.f))->SetVerticalAlignment(VAlign_Center);
-	MakerText = Words(Tree, 11, Color::Text(), true, 250);
-	BadgeRow->AddChildToHorizontalBox(MakerText)->SetPadding(FMargin(7.f, 0.f, 0.f, 0.f));
+	BadgeRow->AddChildToHorizontalBox(MakeSized(Tree, MakerMark, MakerMarkSize, MakerMarkSize))->SetVerticalAlignment(VAlign_Center);
+	MakerText = Words(Tree, 15, Color::Text(), true, 280);
+	BadgeRow->AddChildToHorizontalBox(MakerText)->SetPadding(FMargin(9.f, 0.f, 0.f, 0.f));
 	MakerBadge->SetContent(BadgeRow);
 	Foot->AddChildToHorizontalBox(MakerBadge)->SetVerticalAlignment(VAlign_Center);
 	ElementIcon = Tree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -317,13 +321,13 @@ void UGunCardWidget::ApplyGun()
 
 	// The foot: the maker's badge in its first plate's colour, its trim round it; the element's glyph in its colour.
 	const FLinearColor Plate = Style.Plates.Num() > 0 ? Style.Plates[0] : Color::MakerPlain();
-	MakerBadge->SetBrush(FSlateRoundedBoxBrush(Plate, 12.f, Style.Trim, 2.f));
+	MakerBadge->SetBrush(FSlateRoundedBoxBrush(Plate, 18.f, Style.Trim, 2.5f));
 	SetWords(MakerText, Style.Word.ToString());
 	MakerText->SetColorAndOpacity(FSlateColor(Style.Ink));
 	const FInkedIcon* Mark = Style.MarkIcon.IsNone() ? nullptr : FindInkedIcon(Style.MarkIcon);
 	if (Mark)
 	{
-		MakerMark->SetBrush(InkedIconBrush(Style.MarkIcon, *Mark, FVector2D(15.f, 15.f), Style.Ink));
+		MakerMark->SetBrush(InkedIconBrush(Style.MarkIcon, *Mark, FVector2D(MakerMarkSize, MakerMarkSize), Style.Ink));
 	}
 	SetShown(MakerMark, Mark != nullptr);
 	const ELooterElement Element = WeaponParts::ElementOf(Shown);

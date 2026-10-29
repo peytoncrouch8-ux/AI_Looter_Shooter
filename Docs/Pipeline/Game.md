@@ -395,6 +395,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `GunCardIcons` (stat and element glyphs), `GunCardRules::Lines`/`MakerTraitLine`/`PickCompare`, rounded hollow keys;
   `ULooterSegmentBar` deleted (no bars). Widths World/Loadout 470, InHand 430 drawn at 0.8 (it covered the weapon slots).
   Italics by a -12 shear (Chakra Petch has no italic). The inventory's Inspect card is still the Wide Sweep Card shape.
+  The foot's maker badge: 15 px words (spacing 280), a 20 px mark, padding 16/6/20/7, radius 18 (the user, 2026-10-29:
+  "slightly bigger and fit the open space more"; was 11 px, 15 px mark).
 
 - The user's asks: character through motion and maker branding, simplicity ("don't overload the user ... on simple things
   like guns"), a looked-at gun's card over the gun (not the screen's right), the gun in hand on the right, the inventory's
