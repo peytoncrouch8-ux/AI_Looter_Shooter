@@ -156,4 +156,22 @@ namespace FindRules
 
 	/** How bright a star is Age seconds into its GlintSeconds (0 to 1: a quick rise, a slower fall; 0 outside it). */
 	AI_LOOTER_SHOOTER_API float GlintEnvelope(float Age);
+
+	// --- The underwater glow (2026-10-29: the tarn's lockbox was lost in the murk) ---
+
+	/**
+	 * A glint under a swim water's surface doesn't flash with the sun: it glows steadily while the player's eye is within
+	 * UnderGlowRange (cm), breathing between UnderGlowLeast and 1 of UnderGlowStrength at UnderGlowRate (Hz), so a diver
+	 * (or someone on the bank) sees something gleam down there through the teal fog.
+	 */
+	inline constexpr double UnderGlowRange = 2000.0;
+	inline constexpr float UnderGlowStrength = 3.f;
+	inline constexpr float UnderGlowLeast = 0.45f;
+	inline constexpr float UnderGlowRate = 0.6f;
+
+	/** The underwater glow's brightness (UnderGlowLeast..1) Time seconds in; Seed (0-1) sets its own phase. */
+	AI_LOOTER_SHOOTER_API float UnderGlowPulse(float Time, float Seed);
+
+	/** Its size against a glint's (a share): smaller close up, so a diver at the box isn't blinded by a star 70 cm across. */
+	AI_LOOTER_SHOOTER_API float UnderGlowScale(double Distance);
 }

@@ -30,6 +30,19 @@ public:
 	 */
 	void MakeCircling(const FVector& Beacon, int32 Count);
 
+	/**
+	 * Makes it the crows circling low over an unfound find instead (UFindSubsystem's tell; before play begins): Count of them
+	 * on a tight, slow wheel Height over Over (world), rising and dipping a little, cawing now and then: low enough to read
+	 * against the hills from 30-40 m, never a speck high in the sky. Hidden past the settings' CirclingCullDistance.
+	 */
+	void MakeFindCircling(const FVector& Over, int32 Count, float Height);
+
+	/**
+	 * Makes it one crow sitting at Perch (world) on an unfound find instead (before play begins): it lets the player come
+	 * within a few metres, then goes up cawing and wheels off; back once all is calm, away over the hills if it isn't.
+	 */
+	void MakeFindPerch(const FTransform& Perch);
+
 	/** The roost found: the crows lift off as its light catches, wheel once and settle. */
 	void Lift(const FVector& From);
 

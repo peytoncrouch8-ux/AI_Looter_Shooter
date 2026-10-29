@@ -173,6 +173,10 @@ FSettingHelp SettingsMenu::RowHelp(ESettingRow Row)
 	case ESettingRow::FrameRate:
 		return Help(TEXT("FPS counter"), TEXT("Frames per second and the frame time, top left of the HUD. The number turns orange under 60 fps and red under 30."),
 			OnOffDefault(true));
+	case ESettingRow::CrosshairColour:
+		return Help(TEXT("Crosshair colour"), TEXT("The colour of the crosshair's lines and dot, for every gun. Each colour keeps its dark edge, "
+			"so it reads over bright sky and dark ground alike."), FString::Printf(TEXT("Default: %s."),
+				*GS::CrosshairColourName(ECrosshairColour::White)));
 	case ESettingRow::ControlHints:
 		return Help(TEXT("Control hints"), TEXT("A key and what it does, shown near the mission tracker when that control would help. "
 			"Each stops for good once you've used its control."), OnOffDefault(true));

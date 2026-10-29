@@ -1,4 +1,6 @@
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudCrosshairRules.h"
+#include "UI/HUD/HudCrosshairWidget.h"
 #include "UI/HUD/HudDamageIndicatorWidget.h"
 #include "UI/HUD/HudEmberSocketWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
@@ -48,8 +50,8 @@ namespace
 	constexpr float InHandWordInset = 8.f;
 	constexpr float InHandWordGap = 6.f;
 	/**
-	 * How far left of the screen's middle the pickup feed's lines end: past half the widest crosshair (80 px) with room
-	 * to spare, so a line never covers the crosshair or the hit marker.
+	 * How far left of the screen's middle the pickup feed's lines end: past the farthest a crosshair reaches
+	 * (HudCrosshair::MaxReach, 50 px) with room to spare, so a line never covers the crosshair or the hit marker.
 	 */
 	constexpr float PickupFeedGap = 76.f;
 
@@ -180,18 +182,21 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			ArcsSlot->SetAutoSize(false);
 		}
 
-		// Crosshair: four thin ticks round a centre dot; the gap follows the weapon's spread, and each shot kicks it out. The
-		// dot is its own piece: through a third-person aim it stays as the aim point when the ticks have gone.
+		// Crosshair: the gun kind's shape (HudCrosshairRules) round its centre dot; the gap follows the weapon's spread, and
+		// each shot kicks it out. The dot is its own piece: through a third-person aim it stays as the aim point when the
+		// lines have gone. Both paint in the same square, centred, so the dot sits where its shape puts it.
 		{
-			// 4px ticks with a 1px dark edge leave a 2px white core that reads on any background.
-			UOverlay* Ticks = MakeTicks(WidgetTree, 9.f, 4.f);
-			CrosshairBox = MakeSized(WidgetTree, Ticks, 20.f, 20.f);
-			// The kick grows it about its middle.
+			CrosshairLines = WidgetTree->ConstructWidget<UHudCrosshairWidget>(UHudCrosshairWidget::StaticClass());
+			CrosshairLines->SetPart(EHudCrosshairPart::Lines);
+			CrosshairBox = MakeSized(WidgetTree, CrosshairLines, HudCrosshair::CanvasSize, HudCrosshair::CanvasSize);
+			// The kick and the switch grow it about its middle.
 			CrosshairBox->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 			PlaceOnCanvas(Root, CrosshairBox, Center, FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 
-			// White at full strength: its opacity (UpdateCrosshair) sets how soft it is.
-			CrosshairDot = MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(FLinearColor::White)), 3.f, 3.f);
+			// Full strength: its opacity (UpdateCrosshair) sets how soft it is.
+			CrosshairDotShape = WidgetTree->ConstructWidget<UHudCrosshairWidget>(UHudCrosshairWidget::StaticClass());
+			CrosshairDotShape->SetPart(EHudCrosshairPart::Dot);
+			CrosshairDot = MakeSized(WidgetTree, CrosshairDotShape, HudCrosshair::CanvasSize, HudCrosshair::CanvasSize);
 			CrosshairDot->SetRenderOpacity(0.8f);
 			PlaceOnCanvas(Root, CrosshairDot, Center, FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 		}

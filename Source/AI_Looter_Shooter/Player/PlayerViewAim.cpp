@@ -137,8 +137,14 @@ void UPlayerViewComponent::HandleWeaponFired()
 void UPlayerViewComponent::UpdateRecoil(float DeltaTime)
 {
 	AController* Controller = Character->GetController();
-	// Whatever moved the view since our change last tick was the player (pulling down against the kick uses it up).
-	const float PlayerPitch = Controller && bHaveLastViewPitch ? FRotator::NormalizeAxis(Controller->GetControlRotation().Pitch - LastViewPitch) : 0.f;
+	// Whatever moved the view since our change last tick was the player (pulling down against the kick uses it up), less
+	// what the gun's own sway through the sights moved it. Counted as the player's, every dip of the sway ate the kick's
+	// recovery and its rise never gave it back, so a long aimed burst ratcheted the view up a little each sway.
+	const AWeaponBase* Weapon = FiringWeapon.Get();
+	const float SwayPitch = Weapon ? static_cast<float>(Weapon->GetSwayApplied().Pitch) : 0.f;
+	const float ViewMoved = Controller && bHaveLastViewPitch ? FRotator::NormalizeAxis(Controller->GetControlRotation().Pitch - LastViewPitch) : 0.f;
+	const float PlayerPitch = bHaveLastViewPitch ? ViewMoved - (SwayPitch - LastSwayPitch) : 0.f;
+	LastSwayPitch = SwayPitch;
 	const FRotator AimChange = Recoil.Tick(DeltaTime, PlayerPitch);
 
 	// Only a player's own view kicks (the camera manager clamps the pitch on its next update).

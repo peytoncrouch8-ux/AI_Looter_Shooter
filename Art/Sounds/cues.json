@@ -47,7 +47,7 @@
       "Weapon_AimIn_02.wav",
       "Weapon_AimIn_03.wav"
     ],
-    "volume_db": -20.5,
+    "volume_db": -22.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -550,7 +550,7 @@
       "Weapon_SMG_Fire_05.wav",
       "Weapon_SMG_Fire_06.wav"
     ],
-    "volume_db": -3.5,
+    "volume_db": -3.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Gun",
@@ -582,7 +582,7 @@
       "Weapon_SMG_Mech_03.wav",
       "Weapon_SMG_Mech_04.wav"
     ],
-    "volume_db": -12.0,
+    "volume_db": -12.5,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -687,7 +687,7 @@
       "Weapon_SMG_HelixOut_02.wav",
       "Weapon_SMG_HelixOut_03.wav"
     ],
-    "volume_db": -9.5,
+    "volume_db": -10.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -855,7 +855,7 @@
       "Weapon_Sniper_BoltOpen_02.wav",
       "Weapon_Sniper_BoltOpen_03.wav"
     ],
-    "volume_db": -7.0,
+    "volume_db": -8.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -869,7 +869,7 @@
       "Weapon_Sniper_BoltClose_02.wav",
       "Weapon_Sniper_BoltClose_03.wav"
     ],
-    "volume_db": -9.0,
+    "volume_db": -8.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -884,7 +884,7 @@
       "Weapon_Sniper_BoltCycle_03.wav",
       "Weapon_Sniper_BoltCycle_04.wav"
     ],
-    "volume_db": -7.0,
+    "volume_db": -8.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -933,7 +933,7 @@
       "Weapon_LMG_Mech_03.wav",
       "Weapon_LMG_Mech_04.wav"
     ],
-    "volume_db": -14.5,
+    "volume_db": -16.0,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -1052,7 +1052,7 @@
       "Weapon_LMG_BoxOut_02.wav",
       "Weapon_LMG_BoxOut_03.wav"
     ],
-    "volume_db": -7.0,
+    "volume_db": -7.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -8489,7 +8489,7 @@
       "Weapon_SMG_AimIn_02.wav",
       "Weapon_SMG_AimIn_03.wav"
     ],
-    "volume_db": -17.5,
+    "volume_db": -18.0,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -8503,7 +8503,7 @@
       "Weapon_Rifle_AimIn_02.wav",
       "Weapon_Rifle_AimIn_03.wav"
     ],
-    "volume_db": -20.0,
+    "volume_db": -19.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -8517,7 +8517,7 @@
       "Weapon_LMG_AimIn_02.wav",
       "Weapon_LMG_AimIn_03.wav"
     ],
-    "volume_db": -15.5,
+    "volume_db": -16.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -8531,7 +8531,7 @@
       "Weapon_Revolver_AimIn_02.wav",
       "Weapon_Revolver_AimIn_03.wav"
     ],
-    "volume_db": -9.0,
+    "volume_db": -9.5,
     "pitch_jitter": 0.02,
     "class": "Effects",
     "attenuation": "Near",
@@ -8545,7 +8545,7 @@
       "Weapon_Shotgun_AimIn_02.wav",
       "Weapon_Shotgun_AimIn_03.wav"
     ],
-    "volume_db": -18.0,
+    "volume_db": -19.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -8559,7 +8559,7 @@
       "Weapon_Sniper_AimIn_02.wav",
       "Weapon_Sniper_AimIn_03.wav"
     ],
-    "volume_db": -20.5,
+    "volume_db": -21.5,
     "pitch_jitter": 0.02,
     "class": "Effects",
     "attenuation": "Near",
@@ -8587,7 +8587,7 @@
       "Weapon_AimOut_02.wav",
       "Weapon_AimOut_03.wav"
     ],
-    "volume_db": -22.0,
+    "volume_db": -23.5,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",

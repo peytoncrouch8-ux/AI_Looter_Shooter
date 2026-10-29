@@ -202,6 +202,15 @@ contract and in each tuning header's `Default`).
   SMG shimmy, LMG sway; side random x0.4; first shot x1.3; summed auto kicks capped `Kick.SustainCap` 1.2 deg; the rack's
   view beat `Kick.Rack`. First-shot spread x0.6 after 0.35 s rest (rifle/SMG/LMG) through `GetSpreadBloom` going negative
   (crosshair tightens eased). Launcher FOV kick clamped to the stack's 5%.
+- LMG climb cap (2026-10-29, after a play-check grab showed the view "in the sky" after 2 s; the model gave ~2.4 deg, cause of
+  the grab not found): per-shot `ClimbCap` 2.5 deg, past it a shot keeps `ClimbCapFloor` 0.1 of its climb (LMG only; also with
+  Identity 0). Aimed, `UpdateRecoil` no longer counts the sway's own dips as the player pulling down (they ate recovery).
+  `Looter.Gunfeel.Identity.LMGBurst` checks a 2 s burst, a 9 s box and 3 fps.
+- Crosshair per kind (the user's 2026-10-29 pick of the mockup Docs/Work/2026-10-28-Core/crosshair/crosshairs.png):
+  `UI/HUD/HudCrosshairRules` (shapes as data in mockup units x1.25 px; open limit 50 px so the prompt 52 px below stays clear;
+  kick SMG 1.1/0.08 s, rifle 1.3/0.12, LMG 1.2/0.1, revolver 1.5/0.16, shotgun 1.55/0.2, sniper 1.6/0.22, launcher 1.6/0.25;
+  unarmed = the old cross 1.45/0.16); a new kind grows in from 0.7x over 0.15 s. Colour: Settings > Interface > Crosshair
+  colour (White default, Salt, Gold, Cyan, Green; `Looter.CrosshairColour`). ADS/sprint/facing-camera fades unchanged.
 - **Reload** (`ReloadTuning`, `ReloadMotionPlan.cpp`, `WeaponBasePump.cpp`): `FReloadPlan {bEmpty, Shells}` set at start;
   tactical x0.9 / empty x1.1 (sniper 0.9/1.0, others 1/1); tactical magazine/helix skip the handle (progress jumps
   `HandleFrom` 0.70 -> `HandleTo` 0.82), tactical sniper keeps the bolt home; rounds commit at the seat; ready 0.08 s

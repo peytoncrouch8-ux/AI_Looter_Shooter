@@ -27,6 +27,7 @@ from recipes import cue
 from recipes import kit
 from recipes import guns as G
 from recipes import guns_impacts as REC
+from recipes.guns_rec import _cloth_rec, _pat
 
 _loud = G._loud
 
@@ -103,6 +104,10 @@ for _kind, _p in PUNCH.items():
 # --- Aiming ------------------------------------------------------------------------------------------------------------
 # Each opens on the small physical touch that starts it (a tick, a knock) so it answers the button at once; the cloth and
 # rings come after. 2-5 kHz eased: the sights come up hundreds of times a session.
+# 2026-10-29: a recorded T-shirt's swish (guns_rec._cloth_rec, the 2026 bundle) under each synthesized swish, the
+# synthesized one 3 dB down and the recording 1 dB under where it was, so the cloth sounds worn and real while the ticks
+# and taps stay on top; the heavier kinds also land the stock on a recorded pat. Their streams are drawn last, after
+# the synthesized layers', so those stay as they were.
 
 def _ease(x, cut_db=-5.0, shelf_db=-3.0):
     return F.filt(x, F.peak(3300.0, cut_db, 0.8), F.highshelf(9000.0, shelf_db), extend=False)
@@ -120,8 +125,9 @@ def smg_aim_in(v, r):
     shine = kit.metal_click(child(r, 'shine'), 5600.0, 9500.0, 0.012, 0.00004, 3, -18.0)
     pad = kit.thunk(520.0 * jitter(r, 1, 0.08), child(r, 'pad'), 0.03, 0.0012)
     t = 0.055 + 0.01 * r.random()
-    x = layers((tick, 0.0, 0.0), (shine, 0.001, -12.0), (_swish(r, 0.09, 400.0, 2600.0, 0.2), 0.0, -9.0), (pad, t, -6.0))
-    return _ease(x)
+    x = layers((tick, 0.0, 0.0), (shine, 0.001, -12.0), (_swish(r, 0.09, 400.0, 2600.0, 0.2), 0.0, -12.0), (pad, t, -6.0))
+    rec = _cloth_rec(child(r, 'rec'), 0.09, v, 1.3, 0.2, 0.5, 400.0)
+    return _ease(layers(x, (rec, 0.002, -10.0)))
 
 
 @cue('Weapon.Rifle.AimIn', variations=3, att='Near', jitter=0.03, conc=2, level=-19.0)
@@ -131,8 +137,10 @@ def rifle_aim_in(v, r):
     cheek = kit.thunk(300.0 * jitter(r, 1, 0.1), child(r, 'cheek'), 0.04, 0.002)
     rail = kit.metal_click(child(r, 'rail'), 1300.0, 3600.0, 0.016, 0.0001, 5, -16.0)
     t = 0.1 + 0.02 * r.random()
-    x = layers((touch, 0.0, -10.0), (_swish(r, 0.16), 0.0, -4.0), (cheek, t, -6.0), (rail, t + 0.018, -10.0))
-    return _ease(x)
+    x = layers((touch, 0.0, -10.0), (_swish(r, 0.16), 0.0, -7.0), (cheek, t, -6.0), (rail, t + 0.018, -10.0))
+    rec = _cloth_rec(child(r, 'rec'), 0.16, v, 1.2, 0.25)
+    pat, pa = _pat(child(r, 'pat'))
+    return _ease(layers(x, (rec, 0.002, -5.0), (pat, max(0.0, t - pa), -12.0)))
 
 
 @cue('Weapon.LMG.AimIn', variations=3, att='Near', jitter=0.03, conc=2, level=-17.5)
@@ -145,8 +153,10 @@ def lmg_aim_in(v, r):
     stock = kit.thunk(210.0 * jitter(r, 1, 0.06), child(r, 'stock'), 0.06, 0.0015)
     belt = kit.jingle(0.16, child(r, 'belt'), 4 + int(r.integers(0, 2)), 1700.0, 6500.0, 0.03, 0.06, 0.004)
     t = 0.13 + 0.02 * r.random()
-    x = layers((grab, 0.0, -8.0), (swish, 0.0, -6.0), (thump, t, 0.0), (stock, t, -4.0), (belt, t + 0.006, -13.0))
-    return _ease(x, -6.0)
+    x = layers((grab, 0.0, -8.0), (swish, 0.0, -9.0), (thump, t, 0.0), (stock, t, -4.0), (belt, t + 0.006, -13.0))
+    rec = _cloth_rec(child(r, 'rec'), 0.22, v, 1.1, 0.3, 0.5, 200.0)
+    pat, pa = _pat(child(r, 'pat'), 1800.0)
+    return _ease(layers(x, (rec, 0.002, -7.0), (pat, max(0.0, t - pa), -10.0)), -6.0)
 
 
 @cue('Weapon.Revolver.AimIn', variations=3, att='Near', jitter=0.02, conc=2, level=-18.0)
@@ -161,8 +171,9 @@ def revolver_aim_in(v, r):
     shine = kit.metal_click(child(r, 'shine'), 5800.0, 9000.0, 0.01, 0.00004, 3, -18.0)
     swish = _swish(r, 0.12, 300.0, 2400.0, 0.2)
     gap = 0.075 + 0.015 * r.random()
-    x = layers((first, 0.0, -2.0), (turn, gap * 0.55, -14.0), (full, gap, 0.0), (shine, gap, -14.0), (swish, 0.0, -14.0))
-    return _ease(x, -8.0)
+    x = layers((first, 0.0, -2.0), (turn, gap * 0.55, -14.0), (full, gap, 0.0), (shine, gap, -14.0), (swish, 0.0, -17.0))
+    rec = _cloth_rec(child(r, 'rec'), 0.12, v, 1.25, 0.2, 0.5, 300.0)
+    return _ease(layers(x, (rec, 0.002, -15.0)), -8.0)
 
 
 @cue('Weapon.Shotgun.AimIn', variations=3, att='Near', jitter=0.03, conc=2, level=-18.5)
@@ -175,7 +186,10 @@ def shotgun_aim_in(v, r):
     creak = kit.creak(0.13, child(r, 'creak'), 55.0, 30.0, (330.0, 720.0, 1350.0), 8.0, 0.2)
     swish = _swish(r, 0.14, 220.0, 2000.0, 0.25)
     t = 0.09 + 0.02 * r.random()
-    x = layers((touch, 0.0, -10.0), (swish, 0.0, -7.0), (thump, t, 0.0), (give, t, -6.0), (creak, t + 0.02, -12.0))
+    x = layers((touch, 0.0, -10.0), (swish, 0.0, -10.0), (thump, t, 0.0), (give, t, -6.0), (creak, t + 0.02, -12.0))
+    rec = _cloth_rec(child(r, 'rec'), 0.14, v, 1.15, 0.25, 0.5, 220.0)
+    pat, pa = _pat(child(r, 'pat'), 2000.0)
+    x = layers(x, (rec, 0.002, -8.0), (pat, max(0.0, t - pa), -10.0))
     x = x * E.end_fade(np.ones(x.size), 0.05)
     return _ease(x)
 
@@ -191,8 +205,11 @@ def sniper_aim_in(v, r):
     ring = M.strike(M.parts(f0, f0 * 1.31, child(r, 'ring'), 3, 0.18, 0.12, 0.2), M.hammer(0.0003), 0.35)
     shine = M.strike(M.parts(5800.0, 7600.0, child(r, 'shine'), 3, 0.08, 0.05, 0.2), M.hammer(0.0001), 0.15)
     t = 0.16 + 0.02 * r.random()
-    x = layers((touch, 0.0, -10.0), (swish, 0.0, -5.0), (cheek, t, -3.0), (_loud(ring, 0.005), t + 0.01, -11.0),
+    x = layers((touch, 0.0, -10.0), (swish, 0.0, -8.0), (cheek, t, -3.0), (_loud(ring, 0.005), t + 0.01, -11.0),
                (_loud(shine, 0.005), t + 0.012, -20.0))
+    rec = _cloth_rec(child(r, 'rec'), 0.24, v, 1.1, 0.35, 0.5, 220.0)
+    pat, pa = _pat(child(r, 'pat'), 2000.0)
+    x = layers(x, (rec, 0.002, -6.0), (pat, max(0.0, t - pa), -9.0))
     x = x * E.end_fade(np.ones(x.size), 0.02)
     return _ease(x, -6.0)
 
@@ -208,8 +225,11 @@ def launcher_aim_in(v, r):
     buckle = kit.metal_click(child(r, 'buckle'), 1400.0, 4200.0, 0.02, 0.0001, 4, -14.0)
     swish = _swish(r, 0.18, 200.0, 1800.0, 0.3)
     t = 0.12 + 0.02 * r.random()
-    x = layers((knock, 0.0, -6.0), (swish, 0.0, -8.0), (thump, t, 0.0), (_loud(tube, 0.005), t + 0.002, -7.0),
+    x = layers((knock, 0.0, -6.0), (swish, 0.0, -11.0), (thump, t, 0.0), (_loud(tube, 0.005), t + 0.002, -7.0),
                (buckle, t + 0.03, -16.0))
+    rec = _cloth_rec(child(r, 'rec'), 0.18, v, 1.1, 0.3, 0.5, 200.0)
+    pat, pa = _pat(child(r, 'pat'), 1800.0)
+    x = layers(x, (rec, 0.002, -9.0), (pat, max(0.0, t - pa), -12.0))
     x = x * E.end_fade(np.ones(x.size), 0.03)
     return _ease(x, -6.0)
 
@@ -222,6 +242,8 @@ def aim_out(v, r):
     swish = kit.cloth(0.17, child(r, 'cloth'), 220.0, 1800.0, 150.0, 0.15, 0.7)
     settle = kit.thunk(360.0 * jitter(r, 1, 0.08), child(r, 'settle'), 0.04, 0.0015)
     t = 0.12 + 0.02 * r.random()
-    x = layers((tick, 0.0, -8.0), (swish, 0.0, -3.0), (settle, t, -8.0))
+    x = layers((tick, 0.0, -8.0), (swish, 0.0, -6.0), (settle, t, -8.0))
+    rec = _cloth_rec(child(r, 'rec'), 0.17, v, 1.15, 0.15, 0.7, 220.0)
+    x = layers(x, (rec, 0.002, -4.0))
     x = x * E.end_fade(np.ones(x.size), 0.03)
     return _ease(x)

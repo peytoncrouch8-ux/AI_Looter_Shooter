@@ -152,7 +152,9 @@ Rules that saved time:
 - The user's rule: sounds are synthesized from scratch, like the scripted models: no recordings, libraries, AI generators or new
   programs. Blender 4.4's bundled Python has numpy (no system Python on this PC).
 - Exception (the user, 2026-10-21): royalty-free recordings for **guns and bullet impacts only**, always processed through the
-  recipes. Source: Sonniss GDC bundles 2016/2017 (games OK, edits OK, no attribution; no resale/redistribution as sounds, no AI
+  recipes. Source: Sonniss GDC bundles 2016/2017 (+2026, the user's 2026-10-29 yes: no gunshots in it, only cloth for
+  aim-in/out, lock/latch clicks for the sniper bolt, clacks and a spring for SMG/LMG mech; 2018 and 2021-23 have guns but the
+  user said no more downloads) (games OK, edits OK, no attribution; no resale/redistribution as sounds, no AI
   training). Raw packs in `Saved/SoundPacks/Sonniss` (outside git); the excerpts used in `Art/Sounds/packs/Sonniss/` (LFS, cut
   by `packs/make_pack.py`; sources and licence in `packs/README.md`). Never publish `packs/`.
 - Make: `Art/Sounds/lib` (synthesis library), `Art/Sounds/recipes/<group>.py` (one recipe per cue, seeded takes). `Tools\sounds.ps1

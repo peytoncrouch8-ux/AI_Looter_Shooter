@@ -41,6 +41,7 @@ namespace SettingsMenu
 		MinimapSize,
 		MinimapZoom,
 		FrameRate,
+		CrosshairColour,
 		ControlHints,
 		Subtitles,
 		LookSensitivity,

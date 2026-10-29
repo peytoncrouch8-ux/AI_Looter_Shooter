@@ -104,6 +104,19 @@ void USettingsMenuWidget::MakeInterfacePage()
 	AddPageRow(Describe(NavChoices(RateRow, { RateOn, RateOff }), RowHelp(ESettingRow::FrameRate)));
 	FrameRateOn = RateOn;
 	FrameRateOff = RateOff;
+	// The crosshair's colour, every gun's (the user's call, 2026-10-29: white with a dark edge unless picked here).
+	TArray<FString> ColourNames;
+	for (const ECrosshairColour Colour : AllCrosshairColours)
+	{
+		ColourNames.Add(UGraphicsSettingsSubsystem::CrosshairColourName(Colour));
+	}
+	TArray<ULooterButton*> Colours;
+	UWidget* ColourRow = MakeChoiceRow(TEXT("Crosshair colour"), ColourNames, ActionCrosshairColour, QualityColumnWidth, Colours);
+	AddPageRow(Describe(NavChoices(ColourRow, Colours), RowHelp(ESettingRow::CrosshairColour)));
+	for (ULooterButton* Button : Colours)
+	{
+		CrosshairColourButtons.Add(Button);
+	}
 	// A key and what it does, near the mission tracker, until the player has used that control.
 	ULooterButton* ShowHints = nullptr;
 	ULooterButton* HideHints = nullptr;

@@ -294,6 +294,8 @@ private:
 	/** The view's pitch right after our own recoil change last tick, to tell the player's mouse movement apart from ours. */
 	float LastViewPitch = 0.f;
 	bool bHaveLastViewPitch = false;
+	/** The gun's sway pitch on the view at that moment (AWeaponBase::GetSwayApplied), so its moves aren't taken for the player's. */
+	float LastSwayPitch = 0.f;
 
 	/** Linear 0..1 (GetAimAlpha eases it). */
 	float AimAlpha = 0.f;

@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/HUD/HudHitMarker.h"
+#include "Weapons/WeaponTypes.h"
 #include "PlayerHUDWidget.generated.h"
 
 class AWeaponBase;
 class UEmberComponent;
 class UHealthComponent;
+class UHudCrosshairWidget;
 class UHudEmberSocketWidget;
 class UHudFindBannerWidget;
 class UHudGraveMarkedWidget;
@@ -56,7 +58,11 @@ enum class EGrenadeChange : uint8;
  *    a little higher, the "GRAVE MARKED" banner (UHudGraveMarkedWidget) when the player walks up to a respawn grave for the first time
  *  - left of the crosshair: the ammo pickup feed (UHudPickupFeedWidget)
  *  - bottom-centre: nothing, on purpose
- *  - centre: thin tick crosshair sized by the weapon's spread, kicking out on every shot, round a centre dot (the ticks
+ *  - centre: the gun kind's crosshair (UHudCrosshairWidget, HudCrosshairRules: the user's pick, 2026-10-29; dot and ticks
+ *    for the SMG, the classic cross for the rifle, brackets for the LMG, a chevron for the revolver, a broken ring for the
+ *    shotgun, long hairs for the sniper, a diamond and drop marks for the launcher, the old four ticks with no gun), in the
+ *    colour picked under Settings > Interface over a dark edge, opened by the weapon's spread, kicking out on every shot by
+ *    its kind's amount and growing in when another kind comes into hand, round its centre dot (the lines
  *    fade out while aiming down the sights, with any gun in any view, and come back as the gun comes down: the user's
  *    call, 2026-10-14; the dot goes too in first person, where the sight's reticle is the aim point, and stays as the aim
  *    point in third person, where no sight is seen), diagonal hit marker (HudHitMarker: orange on a crit, cyan when a
@@ -142,9 +148,13 @@ public:
 
 	/**
 	 * The centre dot's: as the ticks in first person, where the sight's reticle takes over; through a third-person aim, which
-	 * only zooms and shows no sight, it stays as the aim point.
+	 * only zooms and shows no sight, it stays as the aim point. bHipDot false (a shape drawn with no dot: the rifle's cross,
+	 * the launcher's diamond): only that third-person aim point, never beside the lines.
 	 */
-	static float AimDotOpacity(float AimAlpha, float SprintAlpha, bool bFacingCamera, bool bFirstPerson);
+	static float AimDotOpacity(float AimAlpha, float SprintAlpha, bool bFacingCamera, bool bFirstPerson, bool bHipDot = true);
+
+	/** The crosshair's lines (null before the HUD is built), for the tests. */
+	UHudCrosshairWidget* GetCrosshair() const { return CrosshairLines; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -210,9 +220,12 @@ private:
 	void HandleLevelUp(int32 NewLevel);
 
 	// Crosshair and hit marker
+	/** The crosshair's lines in their square (HudCrosshair::CanvasSize): the box kicks and grows in, the lines open. */
 	UPROPERTY(Transient) TObjectPtr<USizeBox> CrosshairBox;
-	/** The centre dot, apart from the ticks: it stays through a third-person aim (AimDotOpacity) and doesn't kick. */
+	UPROPERTY(Transient) TObjectPtr<UHudCrosshairWidget> CrosshairLines;
+	/** The centre dot, apart from the lines: it stays through a third-person aim (AimDotOpacity) and doesn't kick. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> CrosshairDot;
+	UPROPERTY(Transient) TObjectPtr<UHudCrosshairWidget> CrosshairDotShape;
 	UPROPERTY(Transient) TObjectPtr<UWidget> HitMarker;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> HitMarkerTicks;
 
@@ -288,10 +301,15 @@ private:
 	float WeaponActivity = 0.f;
 	float ReloadDuration = 0.f;
 	float ReloadElapsed = 0.f;
+	/** The spread's gap box (HudCrosshair::GapBoxFor), eased toward the gun's spread; the lines open by its growth. */
 	float CrosshairSize = 0.f;
 	/** Seconds since the last shot, while the crosshair's kick settles. */
 	float CrosshairKickAge = 0.f;
 	bool bCrosshairKicking = false;
+	/** The gun kind whose shape is up, and seconds since it came up (another kind grows in: HudCrosshair::SwitchSeconds). */
+	EWeaponKind CrosshairKind = EWeaponKind::None;
+	bool bCrosshairKindShown = false;
+	float CrosshairSwitchAge = 1.f;
 	float PulseTime = 0.f;
 
 	float HitMarkerTime = 0.f;

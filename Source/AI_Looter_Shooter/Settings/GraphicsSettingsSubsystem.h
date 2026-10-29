@@ -16,6 +16,25 @@ enum class EGraphicsQuality : uint8
 	Epic
 };
 
+/**
+ * The crosshair's colour (Settings > Interface; the user's call, 2026-10-29: white with a dark edge by default, a colour to
+ * pick in the settings). Every choice keeps the dark edge; HudCrosshair::ColourOf gives each its palette colour. Saved by
+ * name, so append new ones.
+ */
+UENUM()
+enum class ECrosshairColour : uint8
+{
+	White,
+	Salt,
+	Gold,
+	Cyan,
+	Green
+};
+
+/** Every crosshair colour, in the settings row's order. */
+inline constexpr ECrosshairColour AllCrosshairColours[] = { ECrosshairColour::White, ECrosshairColour::Salt, ECrosshairColour::Gold,
+	ECrosshairColour::Cyan, ECrosshairColour::Green };
+
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULooterGraphicsSave : public USaveGame
 {
@@ -75,6 +94,10 @@ public:
 	 */
 	UPROPERTY()
 	bool bShowSubtitles = true;
+
+	/** The crosshair's colour. Saves from before the option existed load with white. */
+	UPROPERTY()
+	ECrosshairColour CrosshairColour = ECrosshairColour::White;
 };
 
 /**
@@ -85,7 +108,8 @@ public:
  * fades every UI's panel backgrounds (see LooterUI::SetBackgroundOpacity), live. The HUD reads the minimap size
  * and zoom every frame, and whether to show the frame rate twice a second; the player's view (UPlayerViewComponent)
  * reads the first-person field of view every frame; the caption widget (UHudCaptionWidget) reads the subtitles switch every
- * frame and hands it to the level's captions (UCaptionSubsystem), so a change shows at once.
+ * frame and hands it to the level's captions (UCaptionSubsystem), so a change shows at once; the HUD's crosshair reads its
+ * colour every frame.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UGraphicsSettingsSubsystem : public ULocalPlayerSubsystem
@@ -181,6 +205,16 @@ public:
 
 	/** A save's subtitles switch: on without a save (and for saves from before it existed). */
 	static bool SubtitlesOf(const ULooterGraphicsSave* Save);
+
+	/** The crosshair's colour. The HUD reads it every frame, so a change shows the moment the game resumes. */
+	ECrosshairColour GetCrosshairColour() const;
+	void SetCrosshairColour(ECrosshairColour Colour);
+
+	/** A save's crosshair colour: white without a save, for saves from before it existed and for a value no colour has. */
+	static ECrosshairColour CrosshairColourOf(const ULooterGraphicsSave* Save);
+
+	/** "White", "Salt", "Gold", "Cyan", "Green": the settings row's words and Looter.CrosshairColour's. */
+	static FString CrosshairColourName(ECrosshairColour Colour);
 
 	void SaveSettings() const;
 

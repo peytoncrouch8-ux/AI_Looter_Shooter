@@ -125,6 +125,22 @@ bool FFindRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Fading after"), FindRules::GlintEnvelope(FindRules::GlintSeconds * 0.8f) < 0.5f);
 	TestEqual(TEXT("Dark after"), FindRules::GlintEnvelope(FindRules::GlintSeconds + 0.01f), 0.f);
 	TestEqual(TEXT("Two glints at most"), FindRules::MaxGlints, 2);
+
+	// Under water (the tarn's box): a steady breath of light, never out, and smaller close up.
+	float Least = 1.f;
+	float Most = 0.f;
+	for (float Time = 0.f; Time < 4.f; Time += 0.05f)
+	{
+		const float Pulse = FindRules::UnderGlowPulse(Time, 0.3f);
+		Least = FMath::Min(Least, Pulse);
+		Most = FMath::Max(Most, Pulse);
+	}
+	TestTrue(FString::Printf(TEXT("The glow breathes (%.2f..%.2f), never out"), Least, Most),
+		Least >= FindRules::UnderGlowLeast - 0.001f && Least < FindRules::UnderGlowLeast + 0.05f && Most > 0.95f && Most <= 1.f);
+	TestTrue(TEXT("Each find its own phase"), !FMath::IsNearlyEqual(FindRules::UnderGlowPulse(1.f, 0.f), FindRules::UnderGlowPulse(1.f, 0.25f), 0.01f));
+	TestTrue(TEXT("Smaller up close"), FindRules::UnderGlowScale(150.0) < FindRules::UnderGlowScale(800.0));
+	TestEqual(TEXT("A glint's size from 12 m"), FindRules::UnderGlowScale(1500.0), 1.f, 0.001f);
+	TestTrue(TEXT("Seen from the bank and a dive"), FindRules::UnderGlowRange >= 1500.0);
 	return true;
 }
 

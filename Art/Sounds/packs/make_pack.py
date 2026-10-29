@@ -32,6 +32,12 @@ TS = '2016/TS Sound - 12 Gauge Shotgun/'
 DT = '2017/Double Trouble Audio - Wood Impacts and Debris/'
 MW = '2017/Mechanical Wave - Rock,Brick and Dirt - Part 02/'
 GB = '2016/SoundBits - Just Gore - Add On/'
+# The 2026 bundle (Sonniss GDC 2026 Game Audio Bundle, Part 9; the user's yes 2026-10-29: its clicks and cloth only, for
+# the guns' aim-in and bolt and handling foley; it has no gunshots).
+TS26 = '2026/InMotionAudio - Foley T-Shirt/'
+LM26 = '2026/Epic Stock Media - HD Lock And Mechanism Sound Design Kit/'
+SM26 = '2026/344 Audio - Antique Small Metals/'
+CG26 = '2026/344 Audio - Climbing Gear Foley Vol. 1/'
 
 # Excerpt name: (source under Saved/SoundPacks/Sonniss, windows (start, end) in seconds, channels: 'keep' or 'mono').
 EXCERPTS = {
@@ -189,6 +195,26 @@ EXCERPTS = {
     'Flesh_Stab.wav': (GB + 'Stab_Punch_Hit_136.wav', [(0.02, 0.5)], 'mono'),
     'Flesh_Splat.wav': (GB + 'Splatter_Splat_153.wav', [(0.0, 0.45)], 'mono'),
     'Flesh_Crunch.wav': (GB + 'Crunch_Rip_024.wav', [(0.1, 0.45), (1.75, 2.15)], 'mono'),
+    # The 2026 bundle's handling foley (2026-10-29): a T-shirt's cloth moving (two slow swishes, then the soft rustles
+    # before take 24's fabric snaps) and a single pat on it, for the sights coming up and going down.
+    'Foley_Cloth_Move.wav': (TS26 + 'FOLYClth_ClothMovement29_InMotionAudio_FoleyT-Shirt.wav', [(0.04, 0.74), (0.80, 1.24)],
+                             'mono'),
+    'Foley_Cloth_Rustle.wav': (TS26 + 'FOLYClth_ClothMovement24_InMotionAudio_FoleyT-Shirt.wav', [(0.05, 0.56), (1.38, 1.68)],
+                               'mono'),
+    'Foley_Cloth_Pat.wav': (TS26 + 'FOLYClth_SinglePats04_InMotionAudio_FoleyT-Shirt.wav', [(0.06, 0.36)], 'mono'),
+    # A deep latch's thunk (the sniper's bolt locked down), an antique lock's tumbler clicks (the bolt's handle lifted),
+    # a carabiner's gate snapping shut (the bolt's stop), a counting machine's loose clacks (the SMG's action), a spring
+    # wire's clatter (the LMG's action and belt). The windowed ones are evenly cut round their clicks, as the reload foley.
+    'Foley_Latch_Thunk.wav': (LM26 + 'MECHLtch_Click Deep Mechanism Latch Button Nearfield Thunk 02_ESM_HDLM.wav',
+                              [(0.0, 0.38)], 'mono'),
+    'Foley_Lock_Tinker.wav': (SM26 + 'METLMvmt_  Tinkering Antique Lock_344 Audio_Antique Small Metals.wav',
+                              [(p - 0.02, p + 0.05) for p in (0.1729, 1.2939, 1.3719, 2.4505, 3.3139, 3.4287)], 'mono'),
+    'Foley_Carabiner_Snap.wav': (CG26 + 'EQUISprt_Climbing Gear, Carabiner, Screwing Lock 01_344 Audio_Climbing Gear Foley Vol 1.wav',
+                                 [(p - 0.015, p + 0.06) for p in (0.4555, 1.8698, 2.1893, 2.3286, 2.5040, 2.8752)], 'mono'),
+    'Foley_Counter_Rattle.wav': (LM26 + 'MACHMech_Mechanism Counting Machine Interact Loose Container Short 01_ESM_HDLM.wav',
+                                 [(0.0, 0.27)], 'mono'),
+    'Foley_Spring_Clatter.wav': (LM26 + 'METLTonl_Item Spring Wire Impact Flick Top Clatter Light Tap Roll Handling Short 01_ESM_HDLM.wav',
+                                 [(p - 0.02, p + 0.14) for p in (2.2404, 2.4967, 2.7906, 3.0032, 3.3420, 3.4454)], 'mono'),
 }
 
 

@@ -5,12 +5,14 @@
 #include "Player/CameraShakeModifier.h"
 #include "Player/ViewKick.h"
 #include "Weapons/GunfeelKickTuning.h"
+#include "Weapons/GunKindsTuning.h"
+#include "Weapons/WeaponRecoil.h"
 #include "Weapons/WeaponTypes.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/Package.h"
 
 // Gun identity (GUNS.md lane A, 2026-10-28), the second half: the LMG's dig-in, the automatics' rhythm, each kind's ADS
-// curve and sight-arrival settle, the heavy kinds' shakes, and the master switch Looter.Gunfeel.Identity giving today's
+// curve and sight-arrival settle, the heavy kinds' shakes, a held LMG belt's climb cap (2026-10-29), and the master switch Looter.Gunfeel.Identity giving today's
 // numbers back (the kicks, the sight and the recovery are GunfeelIdentityTests.cpp). Driven with the shipped defaults; the
 // few live reads set the variables they read for their scope and put them back.
 
@@ -47,6 +49,68 @@ namespace
 	bool IsAutomatic(EWeaponKind Kind)
 	{
 		return Kind == EWeaponKind::Rifle || Kind == EWeaponKind::SMG || Kind == EWeaponKind::LMG;
+	}
+
+	/** What a held LMG burst did to the aim: the climb at its end, the highest it reached, how far the sway took it each way. */
+	struct FLMGBurst
+	{
+		float Climb = 0.f;
+		float Highest = 0.f;
+		float Left = 0.f;
+		float Right = 0.f;
+		int32 Shots = 0;
+	};
+
+	/**
+	 * The trigger held Seconds on a cold LMG at Fps, as UPlayerViewComponent and AWeaponBase do it with the shipped numbers:
+	 * DA_LMG's recoil (create_new_guns.py: aim kick 0.3, side 0.18, recovery 6), the kind's recovery share, its spin-up rate,
+	 * its dig-in, its climb, its sway pattern and the climb cap (or none, bCapped false); ShotRecoil the gun's Recoil stat
+	 * as GunfeelKick::ShotRecoil gives it. The timer fires every shot due in a frame (several a frame when the game runs
+	 * slow), then the view's recoil ticks. No hand on the mouse: nothing pulls down.
+	 */
+	FLMGBurst HoldLMG(float ShotRecoil, float Seconds, float Fps, bool bCapped)
+	{
+		namespace KindsDef = GunKinds::Default;
+		const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeelDefault(EWeaponKind::LMG);
+		const GunfeelKick::FPatternNumbers Pattern{};
+		const float FullInterval = 60.f / 650.f;
+		const float Dt = 1.f / Fps;
+		FWeaponRecoil Recoil;
+		FRandomStream Random(0x1a6);
+		FLMGBurst Burst;
+		float Time = 0.f;
+		float NextShot = 0.f;
+		float Pitch = 0.f;
+		float Yaw = 0.f;
+		while (Time < Seconds - KINDA_SMALL_NUMBER)
+		{
+			Time += Dt;
+			while (NextShot <= Time)
+			{
+				const float Spin = GunKinds::SpinAfter(0.f, NextShot, true, KindsDef::LMGSpinUp, KindsDef::LMGSpinDown);
+				const float Kick = ShotRecoil * GunfeelKick::DigIn(Spin, IdDef::LMGDigInFrom, IdDef::LMGDigInStart, IdDef::LMGDigInEnd);
+				FWeaponRecoilProfile Profile;
+				Profile.AimKick = 0.3f * Kick;
+				Profile.AimKickSide = 0.18f * Kick * IdDef::SideRandom;
+				Profile.AimRecovery = 6.f * Feel.Recovery;
+				Profile.ClimbPerShot = IdDef::LMGClimb;
+				Profile.ClimbMax = IdDef::RifleClimbMax;
+				Profile.ClimbCap = bCapped ? KindsDef::LMGClimbCap : 0.f;
+				Profile.ClimbCapFloor = KindsDef::LMGClimbCapFloor;
+				Recoil.AddShot(Profile, Random, 1.f);
+				Recoil.AddAimYaw(GunfeelKick::PatternSide(EWeaponKind::LMG, Recoil.GetShotInBurst(), Pattern) * Kick);
+				++Burst.Shots;
+				NextShot += FullInterval / GunKinds::SpinRateShare(Spin, KindsDef::LMGSpinStart);
+			}
+			const FRotator Change = Recoil.Tick(Dt);
+			Pitch += static_cast<float>(Change.Pitch);
+			Yaw += static_cast<float>(Change.Yaw);
+			Burst.Highest = FMath::Max(Burst.Highest, Pitch);
+			Burst.Left = FMath::Min(Burst.Left, Yaw);
+			Burst.Right = FMath::Max(Burst.Right, Yaw);
+		}
+		Burst.Climb = Pitch;
+		return Burst;
 	}
 }
 
@@ -86,6 +150,61 @@ bool FGunfeelIdentityDigInTest::RunTest(const FString& Parameters)
 		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 0.f);
 		TestEqual(TEXT("Identity 0: no dig-in"), GunfeelKick::LMGDigIn(0.f), 1.f);
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelIdentityLMGBurstTest, "Looter.Gunfeel.Identity.LMGBurst",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelIdentityLMGBurstTest::RunTest(const FString& Parameters)
+{
+	// A held belt climbs a few degrees and then rides its cap, swaying side to side (the 2026-10-29 play-check saw a 2 s
+	// burst walk the view into the sky). The base gun (Recoil 1 x More 1.4) and a sloppy one (past the accuracy's worst).
+	const float Cap = GunKinds::Default::LMGClimbCap;
+	const float Base = IdDef::RecoilMore;
+	const float Sloppy = IdDef::RecoilMore * IdDef::AccuracyCalmMost * 1.15f;
+	const float Margin = 0.3f;
+
+	const FLMGBurst Two = HoldLMG(Base, 2.f, 60.f, true);
+	TestTrue(FString::Printf(TEXT("2 s at 60 fps: %d shots, a belt's worth"), Two.Shots), Two.Shots >= 18);
+	TestTrue(FString::Printf(TEXT("2 s: it climbs a few degrees (%.2f)"), Two.Climb), Two.Climb > 1.f);
+	TestTrue(FString::Printf(TEXT("2 s: held under the cap (%.2f, cap %.1f) and far from the sky"), Two.Highest, Cap),
+		Two.Highest <= Cap + Margin && Two.Highest < 8.f);
+
+	const FLMGBurst Hard = HoldLMG(Sloppy, 2.f, 60.f, true);
+	TestTrue(FString::Printf(TEXT("A sloppy gun's 2 s: held too (%.2f)"), Hard.Highest), Hard.Highest <= Cap + Margin);
+	const FLMGBurst Loose = HoldLMG(Sloppy, 2.f, 60.f, false);
+	TestTrue(FString::Printf(TEXT("...the cap is what holds it (%.2f without)"), Loose.Highest), Loose.Highest > Cap + Margin);
+
+	const FLMGBurst Box = HoldLMG(Sloppy, 9.f, 60.f, true);
+	TestTrue(FString::Printf(TEXT("A whole box (9 s): never past the cap (%.2f)"), Box.Highest), Box.Highest <= Cap + Margin);
+	TestTrue(FString::Printf(TEXT("...the sway carries it both ways (%.2f..%.2f degrees)"), Box.Left, Box.Right),
+		Box.Left < -0.1f && Box.Right > 0.1f);
+
+	// A slow frame (a background editor runs at 3 fps) fires several shots a frame: still held.
+	const FLMGBurst Slow = HoldLMG(Sloppy, 2.f, 3.f, true);
+	TestTrue(FString::Printf(TEXT("3 fps: held (%.2f)"), Slow.Highest), Slow.Highest <= Cap + Margin);
+
+	// A profile with no cap (the rifle's, the SMG's, every other kind's) kicks exactly as before.
+	FWeaponRecoilProfile Plain;
+	Plain.ClimbPerShot = IdDef::RifleClimb;
+	Plain.ClimbMax = IdDef::RifleClimbMax;
+	FWeaponRecoilProfile Roomy = Plain;
+	Roomy.ClimbCap = 1000.f;
+	FWeaponRecoil A;
+	FWeaponRecoil B;
+	FRandomStream RandomA(5);
+	FRandomStream RandomB(5);
+	float PitchA = 0.f;
+	float PitchB = 0.f;
+	for (int32 Shot = 0; Shot < 30; ++Shot)
+	{
+		A.AddShot(Plain, RandomA);
+		B.AddShot(Roomy, RandomB);
+		PitchA += static_cast<float>(A.Tick(0.09f).Pitch);
+		PitchB += static_cast<float>(B.Tick(0.09f).Pitch);
+	}
+	TestEqual(TEXT("No cap (or one never reached): the same climb"), PitchA, PitchB, 0.0001f);
 	return true;
 }
 

@@ -16,6 +16,8 @@ namespace
 	constexpr float StarSpikes = 4.f;
 	/** Warm white: sunlight off old brass (linear). */
 	const FLinearColor GlintColor(1.f, 0.92f, 0.72f);
+	/** Under water a paler, greener white: brass seen through the tarn, bright against its teal fog without looking lit. */
+	const FLinearColor UnderGlowColor(0.85f, 1.f, 0.88f);
 }
 
 AFindGlints::AFindGlints()
@@ -90,9 +92,11 @@ void AFindGlints::SetStars(const TArray<FFindGlintStar>& Stars, const FVector& V
 			Facing = FVector::UpVector;
 		}
 		// The engine's plane is 100 cm across. A far glint grows a little so it still reads as a point of light, not a speck.
-		const float Size = FindRules::GlintSize * static_cast<float>(FMath::GetMappedRangeValueClamped(FVector2D(1000.0, 4500.0), FVector2D(1.0, 1.8), Distance));
+		const float Size = FindRules::GlintSize * static_cast<float>(FMath::GetMappedRangeValueClamped(FVector2D(1000.0, 4500.0), FVector2D(1.0, 1.8), Distance))
+			* FMath::Max(Star.Scale, 0.f);
 		Transforms.Add(FTransform(FRotationMatrix::MakeFromZ(Facing).ToQuat(), Star.Location, FVector(Size / 100.f, Size / 100.f, 1.f)));
-		const float Data[ShapeFloats] = { GlintColor.R, GlintColor.G, GlintColor.B, Star.Strength, StarShape, StarSpikes, Star.Seed };
+		const FLinearColor& Color = Star.bUnderwater ? UnderGlowColor : GlintColor;
+		const float Data[ShapeFloats] = { Color.R, Color.G, Color.B, Star.Strength, StarShape, StarSpikes, Star.Seed };
 		Cards->SetCustomData(Index, TArrayView<const float>(Data, ShapeFloats), false);
 	}
 	Cards->BatchUpdateInstancesTransforms(0, Transforms, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ true, /*bTeleport*/ true);

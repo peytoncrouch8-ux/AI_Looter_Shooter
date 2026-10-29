@@ -232,6 +232,21 @@ void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 		SetKeyboardFocus();
 		return;
 	}
+	if (Button->Action == ActionCrosshairColour && Button->Index >= 0 && Button->Index < UE_ARRAY_COUNT(AllCrosshairColours))
+	{
+		StopListening();
+		if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+		{
+			// The HUD reads it every frame: the crosshair wears it the moment the game resumes.
+			const ECrosshairColour Colour = AllCrosshairColours[Button->Index];
+			Graphics->SetCrosshairColour(Colour);
+			SetStatus(FString::Printf(TEXT("Crosshair colour: %s."), *UGraphicsSettingsSubsystem::CrosshairColourName(Colour)), LooterUI::Color::TextDim());
+		}
+		RefreshGraphics();
+		RefreshKeyLabels();
+		SetKeyboardFocus();
+		return;
+	}
 	if (Button->Action == ActionHintsOn || Button->Action == ActionHintsOff)
 	{
 		StopListening();

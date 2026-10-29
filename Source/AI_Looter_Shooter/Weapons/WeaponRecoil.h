@@ -52,6 +52,15 @@ struct FWeaponRecoilProfile
 	float ClimbMax = 1.f;
 
 	/**
+	 * The most a held burst may lift the aim above where the player has put it (degrees of aim kick not yet recovered or
+	 * pulled down; 0 = no cap). A shot's kick past it keeps only ClimbCapFloor of its size, so a long belt climbs a few
+	 * degrees and then only sways and nods instead of walking into the sky (the LMG, 2026-10-29 play-check). Not data:
+	 * GetRecoilProfile sets them from Looter.Gunfeel.LMG.ClimbCap / .ClimbCapFloor.
+	 */
+	float ClimbCap = 0.f;
+	float ClimbCapFloor = 0.f;
+
+	/**
 	 * The gun model's kick through the sight as a share of the hip's (GunfeelKick::AimedModelKick(1, ...)): the muzzle flip and
 	 * twist, the roll, and the push back along the sight line. 1 = the same as the hip. Not data: GetRecoilProfile sets them
 	 * from the Looter.Gunfeel.Recoil.Aimed* variables; AddShot blends them in by the shot's AimAlpha.
@@ -137,4 +146,11 @@ public:
 
 	/** The climb the next shot would kick with, as a multiple of the profile's AimKick (1 on the first shot of a burst). */
 	float GetClimb(const FWeaponRecoilProfile& Profile) const;
+
+	/** How far the aim is held up by kicks not yet recovered or pulled down right now (degrees; what ClimbCap measures). */
+	float GetHeldClimb() const { return AimApplied.Pitch + AimPending.Pitch; }
+
+private:
+	/** A shot's upward aim kick Kick (degrees) trimmed by the profile's ClimbCap: whole under it, ClimbCapFloor of it past. */
+	float CappedPitchKick(const FWeaponRecoilProfile& Profile, float Kick) const;
 };

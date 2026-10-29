@@ -260,6 +260,12 @@ public:
 	 */
 	float GetRecoilHoldSeconds() const;
 
+	/**
+	 * The turn its sway through the sights has put on the holder's aim right now (UpdateScopeSway). The holder's recoil takes
+	 * it out of what it reads as the player's own pull: the sway dipping is not the player pulling down against the kick.
+	 */
+	FRotator GetSwayApplied() const { return SwayApplied; }
+
 	/** Shots (and duds) fired since it was made: what its cadence's jitter is keyed on (GunfeelKick::CadenceScale). */
 	int32 GetShotCount() const { return ShotCount; }
 

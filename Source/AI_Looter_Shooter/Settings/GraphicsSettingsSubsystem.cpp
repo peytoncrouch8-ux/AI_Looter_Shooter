@@ -115,6 +115,31 @@ namespace
 		TEXT("Looter.Subtitles"),
 		TEXT("Sets and saves the subtitles switch: Looter.Subtitles on|off"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetSubtitlesCommand));
+
+	/** Looter.CrosshairColour White|Salt|Gold|Cyan|Green: sets and saves the crosshair's colour, as the settings row does (HUD shots). */
+	void SetCrosshairColourCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		ULocalPlayer* Player = World ? World->GetFirstLocalPlayerFromController() : nullptr;
+		UGraphicsSettingsSubsystem* Graphics = Player ? Player->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+		if (Graphics && Args.Num() == 1)
+		{
+			for (const ECrosshairColour Colour : AllCrosshairColours)
+			{
+				if (Args[0].Equals(UGraphicsSettingsSubsystem::CrosshairColourName(Colour), ESearchCase::IgnoreCase))
+				{
+					Graphics->SetCrosshairColour(Colour);
+					UE_LOG(LogLooter, Display, TEXT("Crosshair colour: %s."), *UGraphicsSettingsSubsystem::CrosshairColourName(Colour));
+					return;
+				}
+			}
+		}
+		UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.CrosshairColour White|Salt|Gold|Cyan|Green"));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs SetCrosshairColourCommandRegistration(
+		TEXT("Looter.CrosshairColour"),
+		TEXT("Sets and saves the crosshair's colour: Looter.CrosshairColour White|Salt|Gold|Cyan|Green"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetCrosshairColourCommand));
 }
 
 void UGraphicsSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -393,6 +418,50 @@ void UGraphicsSettingsSubsystem::SetSubtitlesShown(bool bShown)
 	SaveData->bShowSubtitles = bShown;
 	SaveSettings();
 	UE_LOG(LogLooter, Log, TEXT("Subtitles %s"), bShown ? TEXT("on") : TEXT("off"));
+}
+
+ECrosshairColour UGraphicsSettingsSubsystem::CrosshairColourOf(const ULooterGraphicsSave* Save)
+{
+	if (!Save)
+	{
+		return ECrosshairColour::White;
+	}
+	for (const ECrosshairColour Colour : AllCrosshairColours)
+	{
+		if (Save->CrosshairColour == Colour)
+		{
+			return Colour;
+		}
+	}
+	return ECrosshairColour::White;
+}
+
+ECrosshairColour UGraphicsSettingsSubsystem::GetCrosshairColour() const
+{
+	return CrosshairColourOf(SaveData);
+}
+
+void UGraphicsSettingsSubsystem::SetCrosshairColour(ECrosshairColour Colour)
+{
+	if (!SaveData || SaveData->CrosshairColour == Colour)
+	{
+		return;
+	}
+	SaveData->CrosshairColour = Colour;
+	SaveSettings();
+}
+
+FString UGraphicsSettingsSubsystem::CrosshairColourName(ECrosshairColour Colour)
+{
+	switch (Colour)
+	{
+	case ECrosshairColour::White: return TEXT("White");
+	case ECrosshairColour::Salt:  return TEXT("Salt");
+	case ECrosshairColour::Gold:  return TEXT("Gold");
+	case ECrosshairColour::Cyan:  return TEXT("Cyan");
+	case ECrosshairColour::Green: return TEXT("Green");
+	}
+	return TEXT("White");
 }
 
 void UGraphicsSettingsSubsystem::SaveSettings() const

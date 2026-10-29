@@ -419,6 +419,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MinimapOff;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> FrameRateOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> FrameRateOff;
+	/** The crosshair colours, in AllCrosshairColours' order. */
+	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> CrosshairColourButtons;
 	/** The contextual control hints' switch. */
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> HintsOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> HintsOff;

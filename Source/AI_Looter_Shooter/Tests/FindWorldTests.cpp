@@ -291,6 +291,9 @@ bool FFindTellsTest::RunTest(const FString& Parameters)
 	SpawnSpot(World, TEXT("Open"), EFindKind::Cache, FVector(2000.0, 0.0, 0.0));
 	SpawnSpot(World, TEXT("Done"), EFindKind::Cache, FVector(-2000.0, 0.0, 0.0));
 	SpawnSpot(World, TEXT("Quiet"), EFindKind::Cache, FVector(0.0, 2000.0, 0.0), nullptr, [](AFindSpot& Spot) { Spot.Crows = 0; });
+	// A chest under open sky: a crow sits on it too.
+	AChest* Box = SpawnChest(World, FVector(0.0, -2000.0, 0.0), TEXT("Find_PerchBox"));
+	SpawnSpot(World, TEXT("Perched"), EFindKind::Cache, FVector(0.0, -2000.0, 0.0), Box);
 	// Six more round the player at 20 m: their glints would overlap without the cap.
 	for (int32 Index = 0; Index < 6; ++Index)
 	{
@@ -305,7 +308,30 @@ bool FFindTellsTest::RunTest(const FString& Parameters)
 	TestNull(TEXT("None where none are wanted"), Finds->GetCrows(TEXT("Quiet")));
 	if (Crows)
 	{
-		TestEqual(TEXT("Its circle hangs CrowHeight over the find"), Crows->GetActorLocation().Z, 700.0, 1.0);
+		// Low and tight (2026-10-29: 10-19 m up they were specks against the sky).
+		TestEqual(TEXT("Its circle hangs CrowHeight over the find"), Crows->GetActorLocation().Z, 400.0, 1.0);
+		TestTrue(FString::Printf(TEXT("...the birds 3.5-4.5 m up (%.0f-%.0f cm)"), Crows->AerialArea.MinHeight, Crows->AerialArea.MaxHeight),
+			Crows->AerialArea.MinHeight >= 300.f && Crows->AerialArea.MaxHeight <= 500.f);
+		TestTrue(TEXT("...on a tight circle"), Crows->AerialArea.Radius <= 350.f);
+	}
+	TestNull(TEXT("No crow sits on a find with nothing to sit on"), Finds->GetPercher(TEXT("Open")));
+	FVector BoxMiddle;
+	FVector BoxExtent;
+	if (Box)
+	{
+		Box->GetActorBounds(/*bOnlyCollidingComponents*/ true, BoxMiddle, BoxExtent);
+	}
+	// Only where the chest's model is in this checkout (without it the box has no body to sit on).
+	if (Box && !BoxExtent.IsNearlyZero(1.0))
+	{
+		const ARoostCrows* Sitter = Finds->GetPercher(TEXT("Perched"));
+		TestNotNull(TEXT("A crow sits on the chest under open sky"), Sitter);
+		if (Sitter && Sitter->Perches.Num() == 1)
+		{
+			TestEqual(TEXT("...on its lid"), Sitter->Perches[0].Location.Z, BoxMiddle.Z + BoxExtent.Z, 1.0);
+		}
+		TestTrue(TEXT("The chest's find made"), Finds->MarkFound(TEXT("Perched"), /*bAnnounce*/ true));
+		TestNull(TEXT("...its crow gone up"), Finds->GetPercher(TEXT("Perched")));
 	}
 
 	int32 Most = 0;

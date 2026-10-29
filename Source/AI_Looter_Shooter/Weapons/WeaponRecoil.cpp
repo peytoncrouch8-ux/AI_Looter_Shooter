@@ -66,12 +66,26 @@ void FWeaponRecoil::AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& 
 	const float Climb = GetClimb(Profile);
 	BurstShots = FMath::Min(BurstShots + 1, 10000);
 
-	AimPending.Pitch += Profile.AimKick * Climb * Random.FRandRange(0.85f, 1.15f);
+	AimPending.Pitch += CappedPitchKick(Profile, Profile.AimKick * Climb * Random.FRandRange(0.85f, 1.15f));
 	AimPending.Yaw += Random.FRandRange(-1.f, 1.f) * Profile.AimKickSide;
 	AimRecovery = Profile.AimRecovery;
 	SinceShot = 0.f;
 	// A hold is the shot's own (HoldRecovery after this sets it).
 	HoldSeconds = 0.f;
+}
+
+float FWeaponRecoil::CappedPitchKick(const FWeaponRecoilProfile& Profile, float Kick) const
+{
+	if (Profile.ClimbCap <= 0.f || Kick <= 0.f)
+	{
+		return Kick;
+	}
+	// What the burst still holds the aim up by (kicked in or on its way, less what has recovered or the player pulled
+	// down): only the room left under the cap is kicked whole; past it a shot keeps a nod, so the gun still feels alive.
+	const float Held = FMath::Max(AimApplied.Pitch + AimPending.Pitch, 0.f);
+	const float Room = FMath::Max(Profile.ClimbCap - Held, 0.f);
+	const float Whole = FMath::Min(Kick, Room);
+	return Whole + (Kick - Whole) * FMath::Clamp(Profile.ClimbCapFloor, 0.f, 1.f);
 }
 
 float FWeaponRecoil::GetClimb(const FWeaponRecoilProfile& Profile) const

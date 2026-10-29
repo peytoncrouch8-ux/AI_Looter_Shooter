@@ -1,6 +1,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/GunfeelKickTuning.h"
+#include "Weapons/GunKindsTuning.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Engine/World.h"
 
@@ -8,7 +9,8 @@
 // bloom, and the reward of a first shot after a rest). The numbers are GunfeelKickTuning's Looter.Gunfeel.* variables, read
 // per shot, so a change in play shows on the next one. The kick's size is GunfeelKick::ShotRecoil (the Recoil stat, the
 // "more kick" for all, the accuracy's calm); the view's kick and the pattern read the same (PlayerViewKicks/PlayerViewAim).
-// Gun identity (2026-10-28) adds each kind's sight shares and recovery, the LMG's dig-in and the sniper's held recovery.
+// Gun identity (2026-10-28) adds each kind's sight shares and recovery, the LMG's dig-in and the sniper's held recovery;
+// the LMG's climb cap (2026-10-29) keeps a held belt from walking the view up.
 
 FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 {
@@ -48,6 +50,13 @@ FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 		// A burst climbs: the rifle's, the SMG's a little, the LMG's under its weight.
 		Profile.ClimbPerShot = GunfeelKick::ClimbPerShot(Kind);
 		Profile.ClimbMax = GunfeelKick::RifleClimbMax();
+	}
+	if (Kind == EWeaponKind::LMG)
+	{
+		// A held belt lifts the aim a few degrees and no further: past its cap a shot only nods, and the sway carries the
+		// burst sideways (with Identity 0 too: a belt that walks into the sky was never the feel we wanted).
+		Profile.ClimbCap = GunKinds::LMGClimbCap();
+		Profile.ClimbCapFloor = GunKinds::LMGClimbCapFloor();
 	}
 	return Profile;
 }

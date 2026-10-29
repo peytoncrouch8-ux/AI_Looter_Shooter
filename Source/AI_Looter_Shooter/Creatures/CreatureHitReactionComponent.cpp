@@ -213,7 +213,9 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 	Hit.bCritical = bCritical;
 	Hit.Location = HitLocation;
 	Hit.bBoss = IsBoss(*Creature);
-	Hit.Bone = Bone;
+	// A shot stopped by the capsule beside the body counts on the bone nearest it, so its zone (and an arm's fling, a
+	// spider's leg) is the part it struck, not a plain body hit.
+	Hit.Bone = CreatureHitZones::BoneOfHit(*Creature, HitComponent, Bone, HitLocation);
 
 	// The shot's way: from whoever fired it (else what dealt it) through the wound.
 	const APawn* Shooter = InstigatedBy ? InstigatedBy->GetPawn() : nullptr;

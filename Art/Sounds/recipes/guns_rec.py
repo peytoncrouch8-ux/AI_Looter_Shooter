@@ -4,8 +4,8 @@ Mech layer's opening tick and the low-ammo click. See guns_shots.py for how a sh
 """
 import numpy as np
 
-from lib.core import ns, times, layers, child, db2a  # noqa: F401
-from lib import noise as N, filters as F, dynamics as Y, modal as M, reverb as R
+from lib.core import ns, times, layers, child, db2a, normalize, jitter, varispeed  # noqa: F401
+from lib import noise as N, filters as F, dynamics as Y, modal as M, reverb as R, env as E
 from lib import sample as S
 from recipes import kit
 from recipes import guns as G
@@ -158,3 +158,74 @@ def _ping(r, f0, t60, db=-10.0):
                      t60 * 1.2)
     x = layers((_loud(knock, 0.005), 0.0, 0.0), (_loud(ring, 0.005), 0.0, -2.0), (_loud(shine, 0.005), 0.0, db))
     return F.filt(x, F.peak(3300.0, -8.0, 0.7), F.hp(300.0), extend=False)
+
+
+# --- The 2026 bundle's handling foley (2026-10-29: cloth and clicks only; Art/Sounds/packs/README.md) -------------------
+# Recorded cloth under the sights' synthesized ticks and taps (recipes/guns_identity.py), a latch's thunk, a lock's
+# tumblers and a carabiner's gate in the sniper's bolt (guns_sniper.py), a counting machine's clacks and a spring wire's
+# clatter in the SMG's and the LMG's action (guns_smg.py, guns_lmg.py). Each sits under the layers it joins.
+
+GAP = 0.25  # the silence make_pack.py puts between an excerpt's windows
+# The evenly cut click excerpts: name: (window length, lead to its click, windows).
+CLICKS = {
+    'Foley_Lock_Tinker.wav': (0.07, 0.02, 6),
+    'Foley_Carabiner_Snap.wav': (0.075, 0.015, 6),
+    'Foley_Spring_Clatter.wav': (0.16, 0.02, 6),
+}
+# The cloth takes' usable stretches (s into the excerpt): the swishes' fuller middles, not their near-silent starts.
+# Take k of a cue uses stretch k (wrapping round), so a cue's variations never share one. Each stretch has its own
+# low-pass (Hz), measured so all four land near a 1.3-1.5 kHz centroid with under a fifth of themselves at 2-5 kHz:
+# the slow swishes (Move) are much brighter than the soft rustle (take 24's first), and a cue's takes must match.
+CLOTH = [
+    ('Foley_Cloth_Move.wav', 0.12, 0.66, 2200.0),
+    ('Foley_Cloth_Rustle.wav', 0.30, 0.50, 4500.0),
+    ('Foley_Cloth_Move.wav', 0.99, 1.35, 2200.0),
+    ('Foley_Cloth_Rustle.wav', 0.78, 1.04, 2400.0),
+]
+
+
+def _click(name, k, before, after, speed=1.0):
+    """Take k of an evenly cut click excerpt, from before seconds ahead of its loudest moment to after seconds past it,
+    softly edged and played speed times faster; (samples, the click's time in them)."""
+    length, lead, count = CLICKS[name]
+    x = S.load(name)
+    start = (k % count) * (length + GAP)
+    s0, s1 = ns(start + lead - 0.012), ns(start + lead + 0.012)
+    t = (s0 + int(np.argmax(np.abs(x[s0:s1])))) / 48000.0
+    a, b = max(start, t - before), min(start + length, t + after)
+    y = x[ns(a):ns(b)].copy()
+    y = y * E.end_fade(np.ones(y.size), min(0.02, 0.3 * (b - a)))
+    if ns(t - a) > 48:
+        y[:48] *= np.linspace(0.0, 1.0, 48)
+    if speed != 1.0:
+        y = varispeed(y, speed)
+    return y, (t - a) / speed
+
+
+def _cloth_rec(r, dur, k, speed=1.15, attack=0.3, release=0.5, hp=220.0):
+    """A recorded T-shirt's swish dur seconds long (take k: the cue's variation): a stretch of a slow swish played speed
+    times faster (shorter, a little brighter), shaped like kit.cloth (rising over attack, falling over release, shares
+    of dur), its rumble cut and its top rolled off steeply with the ear's touchy band dipped (close-miked cloth puts
+    40-50% of itself at 2-5 kHz; the sights come up hundreds of times a session); peak at 0 dB like kit.cloth, so it
+    takes a synthesized swish's place."""
+    name, a, b, lp = CLOTH[k % len(CLOTH)]
+    span = dur * speed
+    a0 = a + r.uniform(0.0, max(0.0, b - a - span))
+    x = S.load(name)[ns(a0):ns(min(b, a0 + span))]
+    y = varispeed(x, speed)
+    d = y.size / 48000.0
+    y = y * E.ar(d, d * attack, d * release, 2.0)[:y.size]
+    y = F.filt(y, F.hpn(hp, 2), F.lpn(lp, 4), F.peak(3300.0, -8.0, 0.8), F.highshelf(7000.0, -4.0), extend=False)
+    return normalize(y, 0.0)
+
+
+def _pat(r, lp=2400.0):
+    """The palm's pat on a T-shirt (a recorded one): the soft, dark thud of the stock or the cheek meeting cloth.
+    (samples, the pat's time in them)."""
+    x = S.load('Foley_Cloth_Pat.wav')
+    t = int(np.argmax(np.abs(x[:ns(0.1)]))) / 48000.0
+    a = max(0.0, t - 0.004)
+    y = x[ns(a):ns(t + 0.12)].copy() * E.end_fade(np.ones(ns(t + 0.12) - ns(a)), 0.05)
+    y = varispeed(y, jitter(r, 1.0, 0.06))
+    y = F.filt(y, F.hpn(70.0, 2), F.lpn(lp, 2), extend=False)
+    return normalize(y, 0.0), t - a

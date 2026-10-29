@@ -294,6 +294,10 @@ void USettingsMenuWidget::RefreshGraphics()
 	{
 		QualityButtons[Index]->SetHighlighted(static_cast<int32>(Graphics->GetQuality()) == Index);
 	}
+	for (int32 Index = 0; Index < CrosshairColourButtons.Num(); ++Index)
+	{
+		CrosshairColourButtons[Index]->SetHighlighted(static_cast<int32>(Graphics->GetCrosshairColour()) == Index);
+	}
 
 	if (FieldOfViewSlider && FieldOfViewValue)
 	{

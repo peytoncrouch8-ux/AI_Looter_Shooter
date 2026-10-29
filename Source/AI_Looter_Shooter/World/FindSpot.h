@@ -96,9 +96,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Find|Tells", meta = (ClampMin = "0", ClampMax = "6"))
 	int32 Crows = 2;
 
-	/** How high over the spot the crows' circle hangs (cm). */
+	/**
+	 * How high over the spot the crows circle (cm; they rise and dip a little either way of it). 400 since 2026-10-29: the
+	 * old 700, on the roost beacon's sky, put them 10-19 m up, black specks against a bright sky from the farm yard.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Find|Tells", meta = (ClampMin = "100", Units = "cm"))
-	float CrowHeight = 700.f;
+	float CrowHeight = 400.f;
 
 	/** Props that tell of it and go once it's found (the bolt-hole's lantern, the miser's coins): hidden then. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Find|Tells")

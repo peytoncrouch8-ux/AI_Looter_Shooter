@@ -302,7 +302,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 - 15 finds in Ransom's Rest (the 9 secrets of 10-22 with tells and better loot; new: Tarn lockbox (dive, Still Water),
   Tumble bolt-hole (130 cm crawl), Rimrock Ranger Post (steps), Pike's cache (field-book scrap at Coffin Rock -> dig;
   Bench Mark), the miser's grave (ambush, 60 silver), the Tollman (wandering Gravebound elite, respawns 20 min after a kill;
-  Ferryman's Due)) + 6 Ledger pages counted apart. Tells: two low circling crows and a glint for unfound finds. Map: total
+  Ferryman's Due)) + 6 Ledger pages counted apart. Tells: two low circling crows and a glint for unfound finds (2026-10-29: crows 3.4-4.6 m up on a 3 m wheel, one perched on a
+  chest under open sky that flies off within 7 m; an under-water find glows pale green within 20 m instead of flashing). Map: total
   and per-region counts. The FOUND banner pays XP (~4,442 in all) and a completion bonus.
 - Built by `Tools/Unreal/build_area_finds.py` (+`_sites.py`, `_graves.py`) from layout.json `gameplay.finds`, run inside
   `build_area.py RansomsRest gameplay`. Missing art (stand-ins used): a laid rope, a card and knife, a bigger cache tag.

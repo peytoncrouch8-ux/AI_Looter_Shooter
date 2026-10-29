@@ -294,7 +294,10 @@ def aim_in(v, r):
     cheek = kit.thunk(300.0 * jitter(r, 1, 0.1), child(r, 'cheek'), 0.04, 0.002)
     tick = kit.metal_click(child(r, 'tick'), 1800.0, 5000.0, 0.02, 0.00015, tick_db=-18.0)
     t = 0.1 + 0.02 * r.random()
-    return layers((swish, 0.0, -4.0), (cheek, t, -6.0), (tick, t + 0.012, -12.0))
+    x = layers((swish, 0.0, -7.0), (cheek, t, -6.0), (tick, t + 0.012, -12.0))
+    # 2026-10-29: a recorded T-shirt's swish under the synthesized one (the 2026 bundle; guns_identity.py's aim cues).
+    from recipes.guns_rec import _cloth_rec
+    return layers(x, (_cloth_rec(child(r, 'rec'), 0.16, v, 1.2, 0.25), 0.0, -7.0))
 
 
 # --- The Drover revolver (2026-10-09): its click on a spent chamber and its draw (its reload: guns_foley.py) --------

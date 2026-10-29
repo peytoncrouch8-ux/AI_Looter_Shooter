@@ -100,6 +100,12 @@ public:
 	/** An unfound find's circling crows, or null (found, tells off, none wanted, not yet started). */
 	ARoostCrows* GetCrows(FName FindId) const;
 
+	/** The crow sitting on an unfound find (its chest under open sky), or null. */
+	ARoostCrows* GetPercher(FName FindId) const;
+
+	/** An unfound underwater find's glint is glowing now (the player near). */
+	bool IsGlowing(FName FindId) const;
+
 	/** The legacy pass has run: the tells and the live watch are on. */
 	bool IsWatching() const { return bWatching; }
 
@@ -147,12 +153,20 @@ private:
 		TWeakObjectPtr<ARoostCrows> Crows;
 		/** Crows sent off by the find: gone once out of the player's sight (or after a while). */
 		TWeakObjectPtr<ARoostCrows> LeavingCrows;
+		/** The one crow sitting on it (a chest under open sky), and that crow sent off with the find. */
+		TWeakObjectPtr<ARoostCrows> Percher;
+		TWeakObjectPtr<ARoostCrows> LeavingPercher;
 		float LeavingAge = 0.f;
 		FRandomStream GlintRandom;
 		float NextGlint = 0.f;
 		/** A star showing: its age (s); negative: none. */
 		float GlintAge = -1.f;
 		bool bGlintHeard = false;
+		/** Its glint lies under a swim water's surface (looked at once): it glows steadily there instead of flashing. */
+		bool bUnderLooked = false;
+		bool bUnderwater = false;
+		/** The underwater glow is showing (the player near enough). */
+		bool bGlowing = false;
 	};
 
 	// FindSubsystem.cpp
@@ -196,6 +210,10 @@ private:
 	bool HasLiveGlints() const;
 	bool IsSunSideOf(const FVector& Spot, const FVector& Player) const;
 	bool HasClearLine(const FVector& Eyes, const FVector& Spot) const;
+	/** Where a crow can sit on Spot's find: its source's top, under open sky and above any water; false for none. */
+	bool FindPerch(const AFindSpot& Spot, FTransform& OutPerch) const;
+	/** Spot's glint is under a swim water (asked once, then kept). */
+	bool IsUnderwaterGlint(FSpotState& State) const;
 
 	TArray<FSpotState> States;
 	TArray<FPendingShow> Pending;

@@ -177,4 +177,17 @@ float FindRules::GlintEnvelope(float Age)
 	return Age < Rise ? Age / Rise : FMath::Square(1.f - (Age - Rise) / (GlintSeconds - Rise));
 }
 
+float FindRules::UnderGlowPulse(float Time, float Seed)
+{
+	// A slow breath, never out: something down there catching what light reaches it, not a lamp blinking.
+	const float Wave = 0.5f + 0.5f * FMath::Sin(UE_TWO_PI * (UnderGlowRate * Time + Seed));
+	return FMath::Lerp(UnderGlowLeast, 1.f, Wave);
+}
+
+float FindRules::UnderGlowScale(double Distance)
+{
+	// Under 2 m a third of a glint, a glint's own size by 12 m (the fog has most of it by then).
+	return static_cast<float>(FMath::GetMappedRangeValueClamped(FVector2D(200.0, 1200.0), FVector2D(0.35, 1.0), Distance));
+}
+
 #undef LOCTEXT_NAMESPACE

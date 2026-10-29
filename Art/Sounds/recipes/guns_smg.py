@@ -7,7 +7,8 @@ from recordings, and its reload's two steps.
   MP7 off axis), the synthesized crack and a small heave under them; tight (gated at 35 ms), its brightness put up at
   6-9 kHz rather than in the ear's touchy 2-5 kHz, since it fires fifteen times a second.
 - Mech: the open bolt slamming (a recorded TMP's bolt going home, on synthesized clacks) and the helix's whirr: the spring
-  turning the column a round on, a few quick ratchet ticks over a tiny rotary hum.
+  turning the column a round on, a few quick ratchet ticks over a tiny rotary hum; under them (2026-10-29, the 2026
+  bundle) a counting machine's loose clacks, quiet, so the action rattles like steel parts (HelixOut has them too).
 - Low: an MP5's and an Uzi's lows on a short heave: a small push, so a burst doesn't boom.
 - Tails: shorter and quieter than the rifle's (a burst lays them over each other): the open tail rolls with the far Uzi's
   and MP5's fields; inside, the HK416's small room or the warehouse.
@@ -19,7 +20,7 @@ Recordings: Art/Sounds/packs/Sonniss/SMG_*.wav, Foley_G36C_Mag.wav (sources in A
 """
 import numpy as np
 
-from lib.core import ns, times, layers, normalize, child, jitter
+from lib.core import ns, times, layers, normalize, child, jitter, varispeed
 from lib import noise as N, env as E, filters as F, dist as D, dynamics as Y, modal as M
 from lib import sample as S
 from recipes import cue
@@ -98,8 +99,25 @@ def _smg_mech(v, r):
     home = _loud(layers((_loud(slam, 0.005), 0.0, -2.0), (_loud(rec, 0.005), 0.0, 0.0)))
     whirr = _whirr(child(r, 'whirr'))
     t_home = 0.012 + 0.004 * r.random()
-    x = layers((_loud(tick, 0.005), 0.0, -10.0), (home, t_home, 0.0), (whirr, t_home + 0.008, -9.0))
+    rattle = _rattle(child(r, 'rattle'), v)
+    x = layers((_loud(tick, 0.005), 0.0, -10.0), (home, t_home, 0.0), (whirr, t_home + 0.008, -9.0),
+               (kit.set_level(rattle, home, -9.0), t_home + 0.005))
     return F.filt(x, F.peak(3200.0, -5.0, 0.8), extend=False)
+
+
+# The counting machine's three loose clacks (s into Foley_Counter_Rattle.wav; the 2026 bundle, 2026-10-29).
+_CLACKS = [0.070, 0.105, 0.135]
+
+
+def _rattle(r, v, length=0.035):
+    """The action's loose steel rattling after the bolt slams: one of a recorded mechanism's clacks and the start of
+    the next, a little faster, kept above 700 Hz (the slam has the body) with the ear's touchy band dipped."""
+    x = S.load('Foley_Counter_Rattle.wav')
+    c = _CLACKS[v % len(_CLACKS)]
+    y = x[ns(c - 0.001):ns(c + length)].copy()
+    y = y * E.end_fade(np.ones(y.size), 0.012)
+    y = varispeed(y, jitter(r, 1.12, 0.05))
+    return F.filt(y, F.hpn(700.0, 2), F.peak(3300.0, -6.0, 0.8), F.highshelf(8000.0, -4.0), extend=False)
 
 
 def _smg_low(v, r):
@@ -180,8 +198,10 @@ def smg_helix_out(v, r):
     rounds = G._rounds(r, 3, 0.05)
     spring = _whirr(child(r, 'spring'), 0.04, 260.0, -10.0)
     t1 = 0.02 + 0.006 * r.random()
+    rattle = _rattle(child(r, 'rattle'), v + 1, 0.06)
     return layers((latch, 0.0, -8.0), (lift, t1, 0.0), (_loud(rec, 0.005), t1 + 0.002, -4.0), (slide, t1 + 0.02, -17.0),
-                  (rounds, t1 + 0.03, -15.0), (spring, t1 + 0.012, -14.0))
+                  (rounds, t1 + 0.03, -15.0), (spring, t1 + 0.012, -14.0),
+                  (kit.set_level(rattle, lift, -14.0), t1 + 0.028))
 
 
 @cue('Weapon.SMG.HelixIn', variations=3, att='Near', jitter=0.03, conc=2, level=-11.0)

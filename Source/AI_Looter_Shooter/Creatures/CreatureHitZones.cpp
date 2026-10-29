@@ -118,6 +118,23 @@ ECreatureHitZone CreatureHitZones::ZoneOfHit(const ACreatureBase& Creature, cons
 	return ZoneOf(Creature, Bone, bCritical);
 }
 
+FName CreatureHitZones::BoneOfHit(const ACreatureBase& Creature, const UPrimitiveComponent* Component, FName Bone, const FVector& Location)
+{
+	if (!Bone.IsNone() || !Component || Creature.IsA<ASlimeCreature>())
+	{
+		return Bone;
+	}
+	const USkeletalMeshComponent* Mesh = Creature.GetMesh();
+	// The capsule is wider than a thin body: a shot can stop on it beside the mesh. It still struck that body, at the part
+	// nearest where it landed (a shot on the capsule by the head is a head hit, by an arm an arm hit).
+	const bool bBody = Component == Mesh || Component == Creature.GetCapsuleComponent();
+	if (!bBody || !Mesh || !Mesh->GetSkinnedAsset())
+	{
+		return Bone;
+	}
+	return Mesh->FindClosestBone(Location);
+}
+
 int32 CreatureHitZones::SpiderLegOf(FName Bone)
 {
 	// femur_<pair>_<side>, tibia_..., foot_...: pair 0 (front) to 3 (back), side l or r.

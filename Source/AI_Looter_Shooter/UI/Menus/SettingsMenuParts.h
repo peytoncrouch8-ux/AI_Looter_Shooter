@@ -21,6 +21,8 @@ namespace SettingsMenu
 	inline const FName ActionMinimapOff(TEXT("MinimapOff"));
 	inline const FName ActionFrameRateOn(TEXT("FrameRateOn"));
 	inline const FName ActionFrameRateOff(TEXT("FrameRateOff"));
+	/** A crosshair colour; Index is its ECrosshairColour (AllCrosshairColours' order). */
+	inline const FName ActionCrosshairColour(TEXT("CrosshairColour"));
 	inline const FName ActionHintsOn(TEXT("HintsOn"));
 	inline const FName ActionHintsOff(TEXT("HintsOff"));
 	inline const FName ActionSubtitlesOn(TEXT("SubtitlesOn"));

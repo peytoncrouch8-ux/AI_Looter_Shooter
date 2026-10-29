@@ -10,10 +10,14 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/HitReaction.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Creatures/CreatureHitReactionComponent.h"
+#include "Creatures/CreatureHitZones.h"
+#include "Creatures/SlimeCreature.h"
 #include "Creatures/UnpaidBodyParts.h"
 #include "Creatures/UnpaidCreature.h"
 #include "Creatures/UnpaidHat.h"
 #include "Tests/BossTestWorld.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "CoreGlobals.h"
@@ -109,6 +113,67 @@ bool FUnpaidHitArmFlingTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A boss's arms are its own"), Hurt.ArmShare[0] == 1.f && Hurt.ArmShare[1] == 1.f);
 	Hurt.OnHit(FreshHit(ECreatureHitZone::Shroud), 1.f, -1, /*Chain*/ 1, FVector::BackwardVector, FVector::ForwardVector, false, false);
 	TestTrue(TEXT("Through the shroud: its strip jerks hard, the body flinches less"), Hurt.ChainJerk[1] > 1.5f && Hurt.BodyShare < 1.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidHitCapsuleTest, "Looter.Creatures.Hits.Unpaid.CapsuleZone",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FUnpaidHitCapsuleTest::RunTest(const FString& Parameters)
+{
+	// A shot stopped by the capsule beside the body counts on the bone nearest it (the 2026-10-29 play-check saw "bone None"
+	// body hits): by the face a head hit, by the elbow an arm hit. A shot's own bone is kept; no part, no bone; the slime none.
+	const ASlimeCreature& Slime = *GetDefault<ASlimeCreature>();
+	TestTrue(TEXT("The slime's gel is one body: no bone found for it"),
+		CreatureHitZones::BoneOfHit(Slime, Slime.GetCapsuleComponent(), NAME_None, FVector::ZeroVector).IsNone());
+
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	AUnpaidCreature* Unpaid = SpawnHitUnpaid(WorldWrapper.GetTestWorld(), FVector::ZeroVector);
+	if (!TestNotNull(TEXT("Unpaid spawned"), Unpaid))
+	{
+		return false;
+	}
+	UCapsuleComponent* Capsule = Unpaid->GetCapsuleComponent();
+	TestTrue(TEXT("A shot's own bone is kept"),
+		CreatureHitZones::BoneOfHit(*Unpaid, Capsule, Unpaid->Rig.Chest, FVector::ZeroVector) == Unpaid->Rig.Chest);
+	TestTrue(TEXT("A hit with no part (a tick, a blast): no bone"),
+		CreatureHitZones::BoneOfHit(*Unpaid, nullptr, NAME_None, FVector::ZeroVector).IsNone());
+	if (!HasModel(Unpaid))
+	{
+		AddWarning(TEXT("SK_Unpaid isn't imported: the capsule's nearest bones aren't checked."));
+		return true;
+	}
+	USkeletalMeshComponent* Body = Unpaid->GetMesh();
+	// In front of the face (it faces +X), and just out from the left elbow, where a capsule wider than the body stops a shot.
+	const FVector ByFace = Body->GetBoneLocation(Unpaid->Rig.Head) + FVector(20.0, 0.0, 0.0);
+	const FVector Elbow = Body->GetBoneLocation(Unpaid->Rig.LeftArm.LowerArm);
+	const FVector Out = (Elbow - Unpaid->GetActorLocation()).GetSafeNormal2D();
+	const FVector ByElbow = Elbow + Out * 8.0;
+	const FName FaceBone = CreatureHitZones::BoneOfHit(*Unpaid, Capsule, NAME_None, ByFace);
+	const FName ElbowBone = CreatureHitZones::BoneOfHit(*Unpaid, Capsule, NAME_None, ByElbow);
+	TestTrue(FString::Printf(TEXT("By the face: a head hit (%s)"), *FaceBone.ToString()),
+		CreatureHitZones::ZoneOf(*Unpaid, FaceBone, false) == ECreatureHitZone::Head);
+	TestTrue(FString::Printf(TEXT("By the elbow: an arm hit (%s)"), *ElbowBone.ToString()),
+		CreatureHitZones::ZoneOf(*Unpaid, ElbowBone, false) == ECreatureHitZone::Arm);
+
+	// And through the game's own path: the point damage on the capsule, no bone, lands on the head.
+	{
+		FEditorScriptExecutionGuard RunActorEvents;
+		const UDamageType* Type = GetDefault<UDamageType>();
+		Unpaid->OnTakePointDamage.Broadcast(Unpaid, 5.f, nullptr, ByFace, Capsule, NAME_None, FVector::BackwardVector, Type, nullptr);
+		Unpaid->OnTakeAnyDamage.Broadcast(Unpaid, 5.f, Type, nullptr, nullptr);
+	}
+	const UCreatureHitReactionComponent* Reaction = Unpaid->FindComponentByClass<UCreatureHitReactionComponent>();
+	if (TestNotNull(TEXT("It reacts to hits"), Reaction))
+	{
+		const FCreatureHit& Last = Reaction->GetLastTakenHit();
+		TestTrue(FString::Printf(TEXT("The capsule hit took a bone (%s) and the head's zone"), *Last.Bone.ToString()),
+			!Last.Bone.IsNone() && Last.Zone == ECreatureHitZone::Head);
+	}
 	return true;
 }
 

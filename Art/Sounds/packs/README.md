@@ -13,6 +13,11 @@ games and other productions, commercial included; edit freely; no attribution ne
 sharing of the sounds as sounds (a sound library, a pack, a marketplace); **no** AI training. The excerpts here sit in
 the team's private repository (allowed: it is the licensee's own use); never publish the `packs/` folder or the raw files.
 
+2026 bundle (Sonniss GDC 2026 Game Audio Bundle, Part 9; the user's yes 2026-10-29): `Sonniss/Licensing_2026.pdf` (copied
+from `Saved/SoundPacks/Sonniss/2026/License - GDC Game Audio.pdf`), the same licence family: games OK, edits OK, no
+attribution, no resale or redistribution as sounds, no AI training. It has no gunshots; the user's call: only its clicks
+and cloth, for the guns' aim-in, bolt and handling foley.
+
 ## Files
 
 The raw bundles stay outside git in `Saved/SoundPacks/Sonniss/<year>/<Vendor - Library>/` (59 files, listed in
@@ -137,3 +142,24 @@ Just Gore - Add On`, 4 files, 2.6 MB). Played faster and cut short in `recipes/g
 
 Not used yet (on disk only): `Rustles - Pile, Debris 22.wav`, `Crumbling Rock Slide_RBDII 07.wav`, `Rock Hit and Bounce
 Dirt_RBDII 06.wav`, `Blood-Squeeze_Drip_045.wav`.
+
+Aim-in, bolt and handling foley (2026-10-29, the 2026 bundle, unpacked at `Saved/SoundPacks/Sonniss/2026/<Vendor - Library>/`;
+IM = InMotionAudio - Foley T-Shirt, ESM = Epic Stock Media - HD Lock And Mechanism Sound Design Kit, 344 = 344 Audio).
+Layered in by `recipes/guns_rec.py` (`CLICKS`, `CLOTH`, `_click`, `_cloth_rec`, `_pat`); the evenly cut ones' windows are
+the same length with the click the same time in:
+
+| Excerpt (`Sonniss/`) | Source (library: file; seconds used) | Used for |
+|---|---|---|
+| `Foley_Cloth_Move.wav` | IM: `FOLYClth_ClothMovement29_InMotionAudio_FoleyT-Shirt.wav` 0.04-0.74, 0.80-1.24 | Weapon.<Kind>.AimIn (all seven), Weapon.AimIn, Weapon.AimOut |
+| `Foley_Cloth_Rustle.wav` | IM: `FOLYClth_ClothMovement24_InMotionAudio_FoleyT-Shirt.wav` 0.05-0.56, 1.38-1.68 (the soft rustles before its fabric snaps) | the same |
+| `Foley_Cloth_Pat.wav` | IM: `FOLYClth_SinglePats04_InMotionAudio_FoleyT-Shirt.wav` 0.06-0.36 | Rifle, LMG, Shotgun, Sniper, Launcher AimIn (stock or cheek landing) |
+| `Foley_Latch_Thunk.wav` | ESM: `MECHLtch_Click Deep Mechanism Latch Button Nearfield Thunk 02_ESM_HDLM.wav` whole (0-0.38) | Sniper.BoltClose, BoltCycle (the lock-down) |
+| `Foley_Lock_Tinker.wav` | 344 Antique Small Metals: `METLMvmt_  Tinkering Antique Lock_344 Audio_Antique Small Metals.wav` six 0.07 s windows round 0.1729, 1.2939, 1.3719, 2.4505, 3.3139, 3.4287 | Sniper.BoltOpen (the lift), BoltClose (home), BoltCycle |
+| `Foley_Carabiner_Snap.wav` | 344 Climbing Gear Foley Vol. 1: `EQUISprt_Climbing Gear, Carabiner, Screwing Lock 01_344 Audio_Climbing Gear Foley Vol 1.wav` six 0.075 s windows round 0.4555, 1.8698, 2.1893, 2.3286, 2.5040, 2.8752 | Sniper.BoltOpen, BoltCycle (the stop) |
+| `Foley_Counter_Rattle.wav` | ESM: `MACHMech_Mechanism Counting Machine Interact Loose Container Short 01_ESM_HDLM.wav` whole (0-0.27; clacks at 0.070, 0.105, 0.135) | SMG.Mech (so SMG.Fire), SMG.HelixOut |
+| `Foley_Spring_Clatter.wav` | ESM: `METLTonl_Item Spring Wire Impact Flick Top Clatter Light Tap Roll Handling Short 01_ESM_HDLM.wav` six 0.16 s windows round 2.2404, 2.4967, 2.7906, 3.0032, 3.3420, 3.4454 | LMG.Mech (so LMG.Fire), LMG.BoxOut, LMG.BeltLay |
+| `Licensing_2026.pdf` | the 2026 bundle's licence | |
+
+Looked at and left (2026-10-29): the ESM tape measure, the carabiner flicked on rope (mostly handling rumble), the
+antique blowtorch lid and measuring tape, the instrument case's latches, the suitcase locks, the car foley's clicks, the
+velcro, the historical weapons (shield, spear, sword) and the melee pack: kept for a later ask, not cut.

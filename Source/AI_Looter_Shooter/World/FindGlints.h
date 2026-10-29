@@ -12,6 +12,10 @@ struct FFindGlintStar
 	FVector Location = FVector::ZeroVector;
 	float Strength = 0.f;
 	float Seed = 0.f;
+	/** Its size against a glint's (an underwater glow is smaller close up: FindRules::UnderGlowScale). */
+	float Scale = 1.f;
+	/** Tinted toward the water's teal-white (an underwater glow) rather than the sun's warm brass. */
+	bool bUnderwater = false;
 };
 
 /**

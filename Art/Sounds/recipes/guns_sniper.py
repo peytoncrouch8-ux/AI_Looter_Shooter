@@ -12,13 +12,15 @@ the cycle between shots and one per reload step.
 - Distant: the Remington at 50 m, an FN FAL at 25 m, the Barrett made far.
 - BoltCycle: lift (the cocking cam's clack), draw back (steel on steel, the case flicked out ringing), shove forward,
   lock down (the heaviest clack); BoltOpen and BoltClose are its two halves for the reload. A recorded rifle's cocking
-  is laid on the synthesized clanks.
+  is laid on the synthesized clanks, and (2026-10-29, the 2026 bundle) a lock's tumbler click on the lift, a carabiner
+  gate's snap on the stop and a deep latch's thunk under the lock-down.
 
-Recordings: Art/Sounds/packs/Sonniss/Sniper_*.wav, Rifle_Cock.wav (sources in Art/Sounds/packs/README.md).
+Recordings: Art/Sounds/packs/Sonniss/Sniper_*.wav, Rifle_Cock.wav, Foley_Lock_Tinker.wav, Foley_Carabiner_Snap.wav,
+Foley_Latch_Thunk.wav (sources in Art/Sounds/packs/README.md).
 """
 import numpy as np
 
-from lib.core import ns, times, layers, normalize, child, jitter
+from lib.core import ns, times, layers, normalize, child, jitter, varispeed
 from lib import noise as N, env as E, filters as F, dist as D, dynamics as Y, modal as M
 from lib import sample as S
 from recipes import cue
@@ -26,7 +28,7 @@ from recipes import kit
 from recipes import guns as G
 from recipes import guns_shots as GS
 from recipes.guns_rec import (SHOTS, _loud, _take, _roll, _gated, _land_wet, _with_roll, _master, _rec_room,
-                               _synth_room, _far, _tick, _ping, _cap)
+                               _synth_room, _far, _tick, _ping, _cap, _click)
 
 SHOTS.update({
     'Sniper_Barrett_Gun.wav': [0.050, 1.350, 2.650, 3.950, 5.250, 6.550],
@@ -178,21 +180,61 @@ def _rec_cock(r, k, db_hp=250.0):
     return _loud(_gated(_take('Rifle_Cock.wav', k, 0.08), 0.03, 0.05, hp=db_hp), 0.005)
 
 
+# Recorded handling from the 2026 bundle (2026-10-29), each under the synthesized clack it joins: an antique lock's
+# tumbler click as the handle lifts (the cocking cam), a carabiner's gate snapping as the bolt hits its stop, a deep
+# latch's thunk as the handle locks down (pitched a little lower: the lugs turning into their seats). Their streams are
+# drawn after the synthesized layers', so those stay as they were.
+
+def _steel(x, hp, shelf_db=-5.0):
+    """A recorded click made to sit with the guns: its rumble cut, the ear's touchy band dipped, the fizz eased."""
+    return F.filt(x, F.hpn(hp, 2), F.peak(3300.0, -5.0, 0.8), F.highshelf(7000.0, shelf_db), extend=False)
+
+
+def _rec_click(name, r, hp, before=0.001, after=0.05):
+    k = int(r.integers(0, 6))
+    x, at = _click(name, k, before, after, jitter(r, 1.0, 0.04))
+    return _steel(x, hp), at
+
+
+def _rec_thunk(r):
+    """The deep latch's thunk, slowed a little (deeper), its body kept: (samples, the hit's time in them)."""
+    x = S.load('Foley_Latch_Thunk.wav')
+    t = int(np.argmax(np.abs(x[:ns(0.05)]))) / 48000.0
+    a = max(0.0, t - 0.003)
+    y = x[ns(a):ns(t + 0.15)].copy()
+    y = y * E.end_fade(np.ones(y.size), 0.05)
+    speed = 0.9 * jitter(r, 1.0, 0.04)
+    y = F.filt(varispeed(y, speed), F.hpn(40.0, 2), F.peak(3300.0, -4.0, 0.8), F.highshelf(7000.0, -6.0), extend=False)
+    return y, (t - a) / speed
+
+
 def _bolt_open(v, r):
     t_back = 0.07 + 0.012 * r.random()
     t_stop = t_back + 0.11 + 0.02 * r.random()
-    return layers((_lift(r), 0.0, -2.0), (_rec_cock(r, 0), 0.0, -6.0), (_back(r, t_stop - t_back + 0.01), t_back, -17.0),
-                  (_case(r), t_stop, -3.0), (_rec_cock(r, 1), t_stop, -8.0))
+    lift = _lift(r)
+    back = _back(r, t_stop - t_back + 0.01)
+    case = _case(r)
+    tumbler, ta = _rec_click('Foley_Lock_Tinker.wav', child(r, 'tumbler'), 250.0)
+    gate, ga = _rec_click('Foley_Carabiner_Snap.wav', child(r, 'gate'), 1500.0, 0.001, 0.04)
+    return layers((lift, 0.0, -2.0), (_rec_cock(r, 0), 0.0, -6.0), (back, t_back, -17.0),
+                  (case, t_stop, -3.0), (_rec_cock(r, 1), t_stop, -8.0),
+                  (kit.set_level(tumbler, lift, -9.0), 0.0),
+                  (kit.set_level(gate, case, -12.0), max(0.0, t_stop + 0.002 - ga)))
 
 
 def _bolt_close(v, r):
     t_lock = 0.1 + 0.015 * r.random()
     # The palm meeting the handle starts it at once (a small steel tick), then the bolt rides forward.
     touch = kit.metal_click(child(r, 'touch'), 1600.0, 4800.0, 0.015, 0.0001, 4, -10.0)
-    return layers((_loud(touch, 0.005), 0.0, -12.0), (_forward(r, t_lock - 0.01), 0.002, -18.0),
-                  (G._clank(child(r, 'home'), (900.0, 3200.0, 0.03), (420.0, 0.03), (150.0, 0.03), (0.0, -4.0, -8.0)),
-                   t_lock - 0.03, -6.0),
-                  (_lock(r), t_lock, 0.0), (_rec_cock(r, 2), t_lock, -5.0))
+    forward = _forward(r, t_lock - 0.01)
+    home = G._clank(child(r, 'home'), (900.0, 3200.0, 0.03), (420.0, 0.03), (150.0, 0.03), (0.0, -4.0, -8.0))
+    lock = _lock(r)
+    thunk, ka = _rec_thunk(child(r, 'thunk'))
+    tumbler, ta = _rec_click('Foley_Lock_Tinker.wav', child(r, 'tumbler'), 250.0)
+    return layers((_loud(touch, 0.005), 0.0, -12.0), (forward, 0.002, -18.0), (home, t_lock - 0.03, -6.0),
+                  (lock, t_lock, 0.0), (_rec_cock(r, 2), t_lock, -5.0),
+                  (kit.set_level(tumbler, home, -10.0), max(0.0, t_lock - 0.03 - ta)),
+                  (kit.set_level(thunk, lock, -4.0), max(0.0, t_lock - ka)))
 
 
 @cue('Weapon.Sniper.BoltOpen', variations=3, att='Near', jitter=0.03, conc=2, level=-11.0)

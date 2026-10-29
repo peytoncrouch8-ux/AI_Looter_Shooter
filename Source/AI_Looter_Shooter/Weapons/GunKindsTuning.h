@@ -62,6 +62,11 @@ namespace GunKinds
 		inline constexpr float LMGHeatDelay = 0.5f;
 		inline constexpr float LMGHeatCool = 0.3f;
 		inline constexpr float LMGHeatGlow = 6.f;
+		// The belt's climb held (2026-10-29: a 2 s burst walked the view into the sky in the play-check): a held LMG lifts the
+		// aim at most this many degrees above where the player holds it, then each shot keeps only the floor's share of its
+		// climb, so the sway and the nod carry the burst (as a big studio's LMG: up a few degrees, then sideways).
+		inline constexpr float LMGClimbCap = 2.5f;
+		inline constexpr float LMGClimbCapFloor = 0.1f;
 
 		// The launcher's rocket and its burst.
 		inline constexpr float RocketSpeed = 4000.f;
@@ -127,6 +132,9 @@ namespace GunKinds
 	AI_LOOTER_SHOOTER_API float LMGHeatDelay();
 	AI_LOOTER_SHOOTER_API float LMGHeatCool();
 	AI_LOOTER_SHOOTER_API float LMGHeatGlow();
+	/** The LMG's climb cap (degrees; 0 none) and the share of a shot's climb kept past it (LMG.ClimbCap, .ClimbCapFloor). */
+	AI_LOOTER_SHOOTER_API float LMGClimbCap();
+	AI_LOOTER_SHOOTER_API float LMGClimbCapFloor();
 
 	/** The rocket's speed (cm/s), its fall (cm/s/s), and how long it flies before it bursts on its own (s). */
 	AI_LOOTER_SHOOTER_API float RocketSpeed();

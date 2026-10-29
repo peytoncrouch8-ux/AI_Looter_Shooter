@@ -69,6 +69,10 @@ namespace
 		TEXT("...then it cools by this much a second."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarHeatGlow(TEXT("Looter.Gunfeel.LMG.HeatGlow"), Def::LMGHeatGlow,
 		TEXT("How bright the LMG's heat rings glow at their hottest."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarClimbCap(TEXT("Looter.Gunfeel.LMG.ClimbCap"), Def::LMGClimbCap,
+		TEXT("A held LMG lifts the aim at most this many degrees above where the player holds it (0 no cap)..."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarClimbCapFloor(TEXT("Looter.Gunfeel.LMG.ClimbCapFloor"), Def::LMGClimbCapFloor,
+		TEXT("...past it each shot keeps this share of its climb (0-1)."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarRocketSpeed(TEXT("Looter.Gunfeel.Launcher.RocketSpeed"), Def::RocketSpeed,
 		TEXT("The rocket's speed (cm/s)."), ECVF_Default);
@@ -153,6 +157,8 @@ float GunKinds::LMGHeatPerShot() { return Positive(CVarHeatPerShot); }
 float GunKinds::LMGHeatDelay() { return Positive(CVarHeatDelay); }
 float GunKinds::LMGHeatCool() { return Positive(CVarHeatCool); }
 float GunKinds::LMGHeatGlow() { return Positive(CVarHeatGlow); }
+float GunKinds::LMGClimbCap() { return Positive(CVarClimbCap); }
+float GunKinds::LMGClimbCapFloor() { return FMath::Clamp(CVarClimbCapFloor.GetValueOnGameThread(), 0.f, 1.f); }
 float GunKinds::RocketSpeed() { return Positive(CVarRocketSpeed, 100.f); }
 float GunKinds::RocketGravity() { return Positive(CVarRocketGravity); }
 float GunKinds::RocketLife() { return Positive(CVarRocketLife, 0.1f); }

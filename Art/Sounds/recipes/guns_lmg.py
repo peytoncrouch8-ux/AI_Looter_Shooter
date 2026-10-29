@@ -6,7 +6,7 @@ the same way from recordings, plus the spin-up and its reload's three steps.
   in a field (the chug), the synthesized crack and a deep heave; lifted under 110 Hz with a chug at 250 Hz and its top
   rolled off: deep and round where the rifle is tight.
 - Mech: the bolt carrier slamming, the feed pawl knocking the belt over, a spent link clinking away, and the drum's
-  short turn.
+  short turn; under them (2026-10-29, the 2026 bundle) a spring wire's clatter, quiet (BoxOut and BeltLay have it too).
 - Low: the two LMGs' lows on a long heave: a machine gun's thud in the chest.
 - TailOpen: the machine gun's recorded field after a burst (a large field answering it) laid under synthesized echoes;
   inside: a Browning M2's warehouse after its burst, or the shotgun's hall.
@@ -29,7 +29,7 @@ from recipes import kit
 from recipes import guns as G
 from recipes import guns_shots as GS
 from recipes.guns_rec import (SHOTS, _loud, _take, _roll, _gated, _land_wet, _with_roll, _master, _rec_room,
-                               _synth_room, _far, _tick, _ping)
+                               _synth_room, _far, _tick, _ping, _click)
 
 SHOTS.update({
     'LMG_L7A2_1m.wav': [0.112, 0.223],
@@ -85,9 +85,22 @@ def _lmg_mech(v, r):
     link = M.strike(M.parts(5400.0, 8200.0, child(r, 'link'), 4, 0.05, 0.03, 0.2), M.hammer(0.00004), 0.1)
     turn = _drum_turn(child(r, 'turn'))
     t_slam = 0.018 + 0.006 * r.random()
+    t_link = t_slam + 0.02 + 0.01 * r.random()
+    clatter = _clatter(child(r, 'clatter'), v, 0.05)
     x = layers((_loud(tick, 0.005), 0.0, -12.0), (slam, t_slam, 0.0), (pawl, t_slam + 0.012, -8.0),
-               (_loud(link, 0.005), t_slam + 0.02 + 0.01 * r.random(), -18.0), (turn, t_slam + 0.006, -12.0))
+               (_loud(link, 0.005), t_link, -18.0), (turn, t_slam + 0.006, -12.0),
+               (kit.set_level(clatter, slam, -7.0), t_slam + 0.008))
     return F.filt(x, F.peak(3200.0, -4.0, 0.8), extend=False)
+
+
+def _clatter(r, v, after, hp=600.0):
+    """A spring wire's clatter (recorded; the 2026 bundle, 2026-10-29): the belt's links and the action's springs shaken
+    by the slam. Its handling rumble cut, kept over hp (the slam has the body), the ear's touchy band dipped. The take
+    rattles on steadily, so it is made to die away over after seconds (a T60), as a rattle shaken once does."""
+    x, at = _click('Foley_Spring_Clatter.wav', v, 0.002, after, jitter(r, 1.0, 0.05))
+    t = times(x.size)
+    x = x * np.exp(-6.9 * np.clip(t - at, 0.0, None) / after)
+    return F.filt(x, F.hpn(hp, 4), F.peak(3300.0, -6.0, 0.8), F.highshelf(8000.0, -4.0), extend=False)
 
 
 def _lmg_low(v, r):
@@ -216,9 +229,13 @@ def lmg_box_out(v, r):
     box = M.strike(M.shell(f0, child(r, 'box'), 0.08, 6, 0.03), M.hammer(0.00015), 0.2)
     unhook = G._clank(child(r, 'unhook'), (800.0, 2800.0, 0.04), (300.0, 0.05), (130.0, 0.05), (0.0, -2.0, -4.0))
     t = 0.03 + 0.008 * r.random()
+    belt = _links(child(r, 'belt'), 7, 0.12)
+    slide = G._slide(0.12, child(r, 'slide'), 480.0, 700.0, 0.2, 0.6)
+    # The belt's tail swinging free: a recorded spring wire's clatter under the synthesized links (2026-10-29).
+    clatter = _clatter(child(r, 'clatter'), v + 2, 0.13, 500.0)
     return layers((catch, 0.0, -7.0), (unhook, t, 0.0), (_loud(box, 0.005), t + 0.001, -8.0),
-                  (_links(child(r, 'belt'), 7, 0.12), t + 0.02, -9.0),
-                  (G._slide(0.12, child(r, 'slide'), 480.0, 700.0, 0.2, 0.6), t + 0.03, -19.0))
+                  (belt, t + 0.02, -9.0), (slide, t + 0.03, -19.0),
+                  (kit.set_level(clatter, unhook, -15.0), t + 0.025))
 
 
 @cue('Weapon.LMG.BoxIn', variations=3, att='Near', jitter=0.03, conc=2, level=-11.0)
@@ -246,5 +263,7 @@ def lmg_belt_lay(v, r):
                      (110.0 * jitter(r, 1.0, 0.05), 0.09), (0.0, 0.0, -1.0), 0.00012, drive_db=6.0)
     latch = G._clank(child(r, 'latch'), (1400.0, 4200.0, 0.02), (720.0, 0.02), (240.0, 0.02), (0.0, -6.0, -12.0))
     hinge = kit.creak(0.1, child(r, 'hinge'), 260.0, 140.0, (500.0, 1100.0, 1900.0), 8.0, 0.25)
+    # The links clattering across the tray: a recorded spring wire's clatter under the synthesized links (2026-10-29).
+    clatter = _clatter(child(r, 'clatter'), v + 3, 0.13, 500.0)
     return layers((tray, 0.0, -6.0), (lay, 0.01, -6.0), (_loud(hinge), t_slam - 0.11, -20.0), (cover, t_slam, 0.0),
-                  (latch, t_slam + 0.012, -6.0))
+                  (latch, t_slam + 0.012, -6.0), (kit.set_level(clatter, tray, -9.0), 0.015))

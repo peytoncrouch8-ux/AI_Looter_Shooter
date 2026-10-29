@@ -2,7 +2,8 @@
 
 Every sound in the game is made by the scripts here: numpy in Blender's bundled Python, no generators. All of them are
 synthesized from scratch except the guns' shots and the bullet impacts, which since 2026-10-21 (the user's call, after
-the synthesized shots played thin), and the guns' reload and handling foley since 2026-10-22, are built from royalty-free
+the synthesized shots played thin), and the guns' reload and handling foley since 2026-10-22 (and since 2026-10-29 the
+aim-in cloth and the sniper's bolt, SMG's and LMG's action clicks, from the 2026 bundle), are built from royalty-free
 recordings (`packs/`, the licence in `packs/README.md`)
 sliced, shaped and layered by their recipes. No other sound uses a recording. Change a sound by changing its recipe and
 rendering again; never edit a WAV by hand.

@@ -28,6 +28,15 @@ namespace CreatureHitZones
 		bool bCritical);
 
 	/**
+	 * The bone a shot counts on: its own when it has one; a shot that met the creature's collision capsule (or its mesh with
+	 * no bone) the mesh's bone nearest Location, so every real shot gets a zone (the 2026-10-29 play-check: "body hit (bone
+	 * None)" for shots on an Unpaid's capsule). Left None for a hit with no part (a status's tick, a blast), for a part of its
+	 * own (a lamp, a bell: the part is the zone) and for the slime (one gel; a bone near the core is no shot onto it).
+	 */
+	AI_LOOTER_SHOOTER_API FName BoneOfHit(const ACreatureBase& Creature, const UPrimitiveComponent* Component, FName Bone,
+		const FVector& Location);
+
+	/**
 	 * Which spider leg Bone belongs to (femur_<pair>_<side>, tibia_..., foot_...): pair x 2 + (1 on the right), the same order
 	 * as ASpiderCreature's Legs (front left 0, front right 1 ... back right 7); -1 for any other bone.
 	 */

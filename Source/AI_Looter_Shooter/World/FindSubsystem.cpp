@@ -193,7 +193,7 @@ void UFindSubsystem::UnregisterSpot(AFindSpot* Spot)
 		return;
 	}
 	FSpotState& State = States[Index];
-	for (TWeakObjectPtr<ARoostCrows>* Flock : { &State.Crows, &State.LeavingCrows })
+	for (TWeakObjectPtr<ARoostCrows>* Flock : { &State.Crows, &State.LeavingCrows, &State.Percher, &State.LeavingPercher })
 	{
 		if (ARoostCrows* Birds = Flock->Get())
 		{
