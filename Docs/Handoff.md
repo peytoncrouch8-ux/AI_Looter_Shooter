@@ -9,6 +9,16 @@ Four Opus planning agents write Docs/Work/2026-10-28-Core/GUNS.md, HITS.md, FIGH
 them into CONTRACT.md, asks the user their questions, then runs coding lanes. Licensed gun sounds: ask per download.
 The user's answers before bed: Docs/Work/2026-10-28-Core/CONTRACT.md (build with Main's calls overnight, clearly harder,
 finds pay a mix, script-made gun sounds now and a pack to approve in the morning).
+- Round 1 BUILT and pushed (122556fd): gun identity (per-kind kick, shakes, heft, move speed, reload beats, brass, punch and
+  aim-in sounds; `Looter.Gunfeel.Identity 0` = the old feel) and hit feel (zones, weight, poise staggers, overkill; spider
+  leg buckle/limp, Unpaid whiplash/arm flings/hats, slime air knock/pops; kill styles; ten hit sounds). Not yet seen in PIE.
+- Round 2 running (fights: measure, director + pack leaders, slime split/dodge, bigger encounters and the chapel-yard arena;
+  finds: core, banner/map/sounds, level build). Then: Unpaid fight lane, finds words and named guns, DEMO play-check, perf.
+- Decided unattended (undo any): see CONTRACT.md "Main's calls overnight" (heavy-gun kick caps kept; move speed by kind
+  +-5%; spider leg shots looks only; Unpaid hats; spiders' fight balance untouched (the user's 10-28 "leave them"); arena at
+  the chapel yard only; Borderlands-normal targets; map shows total and per-region find counts; crows+glint tells; the
+  Tollman a find). Crosshair per kind: mockup only, for the morning. Gun sound pack to approve: another year's Sonniss GDC
+  bundle (no download yet).
 
 ## 2026-10-28 evening: UI character, round 1 (the user at work; playtest Friday 2026-10-30; "don't package yet")
 Committed and pushed. Contract and mockups: Docs/Work/2026-10-28-UICharacter/ (kept open for round 2). Notes: Pipeline/Game.md
