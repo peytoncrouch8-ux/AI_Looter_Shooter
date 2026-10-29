@@ -412,8 +412,10 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   like that isn't needed, only special characteristics" (element, part effect, curse, notches stay); a 14 px gap before
   the element's rows; the maker at the card's top over the name, its mark and word in its `Trim` colour, no badge box
   (the foot keeps only the element's glyph and the gun's kind).
-  The Ember glyph is a flame of three tongues over a round base (`GunCardIcons` MakeEmber; the user: the single teardrop
-  "reads as a red teardrop"); convex fills only, so the notches between tongues must stay open above the base.
+  Element glyphs (the user's picks from four concepts each, 2026-10-29; sheets and points in
+  Docs/Archive/Work/2026-10-29-Embers, elements.js -> elements.json): Ember "Hearth" (a flame cut from its heart), Soul-light
+  "Sunburst", Grave-salt "Salt Cluster", Normal "Empty Ring" (grey, on the Element: Normal row). Painted icons, even-odd
+  polygons in a 24 box, white for the tint (`GunCardIcons::ElementBrush`); the convex-only vector icons couldn't cut holes.
 
 - The user's asks: character through motion and maker branding, simplicity ("don't overload the user ... on simple things
   like guns"), a looked-at gun's card over the gun (not the screen's right), the gun in hand on the right, the inventory's

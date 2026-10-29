@@ -283,8 +283,11 @@ void UGunCardWidget::ApplyGun()
 	// Borderlands shows a burn (the user, 2026-10-29), or "Element: Normal" for a gun without one (the user, same day).
 	ShownStats = GunCardRules::CardStats(Shown.Stats);
 	const ELooterElement Element = WeaponParts::ElementOf(Shown);
-	const FVectorIcon* ElementGlyph = GunCardIcons::Element(Element);
-	const FLinearColor ElementTint = ElementGlyph ? ElementRules::UiColor(Element) : Color::SlateText();
+	const FLinearColor ElementTint = Element != ELooterElement::None ? ElementRules::UiColor(Element) : Color::SlateText();
+	// The row's glyph: the element's in its colour, or the empty ring in the icons' grey.
+	FSlateBrush RowGlyph;
+	const bool bElementGlyph = GunCardIcons::ElementBrush(Element, FVector2D(IconSize, IconSize),
+		Element != ELooterElement::None ? ElementTint : Color::SlateIcon(), RowGlyph);
 	const TArray<GunCardRules::FElementRow> ElementRows = GunCardRules::ElementRows(Shown, FElementTuning::Live());
 	EnsureRows(ShownStats.Num() + ElementRows.Num());
 	// A clear gap between the gun's stats and its element's (the user, 2026-10-29).
@@ -319,16 +322,9 @@ void UGunCardWidget::ApplyGun()
 	for (int32 Row = 0; Row < ElementRows.Num(); ++Row)
 	{
 		const int32 Index = ShownStats.Num() + Row;
-		if (ElementGlyph)
-		{
-			RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::ElementName(Element), *ElementGlyph, 3.f, FVector2D(IconSize, IconSize), ElementTint));
-		}
-		else
-		{
-			RowIcons[Index]->SetBrush(IconBrush(TEXT("GunCardDiamondRow"), GunCardIcons::Diamond(), 3.f, FVector2D(IconSize, IconSize), Color::SlateIcon()));
-		}
+		RowIcons[Index]->SetBrush(RowGlyph);
 		SetWords(RowLabels[Index], ElementRows[Row].Label);
-		RowLabels[Index]->SetColorAndOpacity(FSlateColor(ElementGlyph ? ElementTint : Color::SlateLabel()));
+		RowLabels[Index]->SetColorAndOpacity(FSlateColor(bElementGlyph ? ElementTint : Color::SlateLabel()));
 		SetWords(RowValues[Index], ElementRows[Row].Value);
 		RowValues[Index]->SetColorAndOpacity(FSlateColor(ElementTint));
 		SetWords(RowArrows[Index], FString());
@@ -351,7 +347,7 @@ void UGunCardWidget::ApplyGun()
 		{
 			SetWords(LineTexts[Index], FString(TEXT("• ")) + Bullets[Index]);
 			// The element's line (always first) in its colour, like Borderlands' orange burn lines.
-			LineTexts[Index]->SetColorAndOpacity(FSlateColor(Index == 0 && ElementGlyph ? ElementTint : Color::SlateText()));
+			LineTexts[Index]->SetColorAndOpacity(FSlateColor(Index == 0 && bElementGlyph ? ElementTint : Color::SlateText()));
 		}
 	}
 	const FString Flavor = GunCardRules::FlavorLine(Shown);
@@ -368,12 +364,12 @@ void UGunCardWidget::ApplyGun()
 		MakerMark->SetBrush(InkedIconBrush(Style.MarkIcon, *Mark, FVector2D(MakerMarkSize, MakerMarkSize), Style.Trim));
 	}
 	SetShown(MakerMark, Mark != nullptr);
-	if (ElementGlyph)
+	FSlateBrush FootGlyph;
+	if (GunCardIcons::ElementBrush(Element, FVector2D(ElementMarkSize, ElementMarkSize), ElementTint, FootGlyph))
 	{
-		ElementMark->SetBrush(IconBrush(FName(*(GunCardIcons::ElementName(Element).ToString() + TEXT("Foot"))), *ElementGlyph, 3.f,
-			FVector2D(ElementMarkSize, ElementMarkSize), ElementTint));
+		ElementMark->SetBrush(FootGlyph);
 	}
-	SetShown(ElementMark, ElementGlyph != nullptr);
+	SetShown(ElementMark, bElementGlyph);
 	const EWeaponKind Kind = Shown.Definition ? Shown.Definition->Kind : EWeaponKind::None;
 	if (Kind != EWeaponKind::None)
 	{
