@@ -9,6 +9,8 @@ The user picked from six concepts: pause/settings = mix of 1 Ledger & Brass + 3 
 and compared with the concepts; notes Pipeline/Game.md "UI round 3". The user's two asks mid-job: the rifle's first-person
 hold 3 cm nearer (WeaponHipHold 50 -> 47 cm ahead), the E / HOLD E caps centred (and hollow again: drawn filled since the
 tag card). Tests Looter.UI 64, Settings 11, FPHands 6, Player.Hands 13, Inventory 10, Menu 3 pass.
+- Gun card after (the user's asks): the maker badge bigger (15 px words), no "Maker · Kind" line under the name, the
+  element as the stat list's last row (was a gem by the badge). Tests UI.GunCard 3, WorldCard 2, Inventory 10 pass.
 - Main's calls (undo any): from the main menu the reticle row says BACK and the footer Back chip is hidden (the row was an
   empty band); the RESUME wash runs to the right bracket; slider end labels 5 px lower; arrowheads point out (c5's picture).
 - Not seen by the user in game yet. Next: the user's look, then the rest of round 2's list (HUD mission popup, bestiary

@@ -19,9 +19,9 @@ class UWidget;
 /**
  * The gun card: the tag card (the user's pick, 2026-10-28 evening; Docs/Work/2026-10-28-UICharacter/CONTRACT.md "Round 2"),
  * laid out like Borderlands' item card in our own look. A tag in Slate & Salt with the level's gem in its notch; the name in
- * its rarity's colour, "Maker · Kind" in italics, the stats as a list (icon, label, value, arrow against the compared gun),
- * an ornament, bullet lines (element, part effect, maker's trait, curse, notches), a named gun's flavour line, the maker's
- * badge and the element at its foot. On a world card the take keys float under it. One card for the gun on the ground
+ * its rarity's colour, the stats as a list (icon, label, value, arrow against the compared gun; an Element row last for a gun
+ * with one), an ornament, bullet lines (element, part effect, maker's trait, curse, notches), a named gun's flavour line,
+ * the maker's badge at its foot (the "Maker · Kind" line under the name went, the user's call 2026-10-29). On a world card the take keys float under it. One card for the gun on the ground
  * (World), the gun in hand (InHand) and the inventory (Loadout).
  *
  * Its intro (PlayIntro) unfolds it, brings the rows in one by one, counts the damage up and pops the gem, and plays the
@@ -112,8 +112,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> NameText;
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> KindText;
-	UPROPERTY(Transient)
 	TObjectPtr<UVerticalBox> StatsBox;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UWidget>> RowWidgets;
@@ -139,8 +137,6 @@ private:
 	TObjectPtr<UImage> MakerMark;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> MakerText;
-	UPROPERTY(Transient)
-	TObjectPtr<UImage> ElementIcon;
 	UPROPERTY(Transient)
 	TObjectPtr<UHorizontalBox> KeysRow;
 	UPROPERTY(Transient)

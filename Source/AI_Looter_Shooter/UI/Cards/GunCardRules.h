@@ -58,9 +58,6 @@ namespace GunCardRules
 	/** The italic flavour line (a named gun's own words); empty for most guns. */
 	AI_LOOTER_SHOOTER_API FString FlavorLine(const FWeaponInstanceData& Gun);
 
-	/** "Roundhouse · Assault Rifle" (the rarity's word for a gun with no maker). */
-	AI_LOOTER_SHOOTER_API FString KindLine(const FWeaponInstanceData& Gun);
-
 	/**
 	 * What a world card compares with (the user's call, 2026-10-28: compare like with like): the gun in hand when it's the
 	 * same kind, else the first carried gun of that kind (in the order given), else nothing.

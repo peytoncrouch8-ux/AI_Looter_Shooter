@@ -112,11 +112,8 @@ void UGunCardWidget::EnsureBuilt()
 	NameText = Words(Tree, 21, Color::SlateText(), true, 50);
 	NameText->SetJustification(ETextJustify::Center);
 	NameText->SetAutoWrapText(true);
+	// No maker-and-kind line under the name (the user, 2026-10-29: removed; the maker's badge at the foot names the maker).
 	Content->AddChildToVerticalBox(NameText);
-	KindText = Words(Tree, 12, Color::SlateLabel(), true, 50);
-	KindText->SetJustification(ETextJustify::Center);
-	Italic(KindText);
-	Content->AddChildToVerticalBox(KindText)->SetPadding(FMargin(0.f, 1.f, 0.f, 0.f));
 
 	StatsBox = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Content->AddChildToVerticalBox(StatsBox)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
@@ -141,7 +138,7 @@ void UGunCardWidget::EnsureBuilt()
 	Italic(FlavorText);
 	Content->AddChildToVerticalBox(FlavorText)->SetPadding(FMargin(4.f, 4.f, 0.f, 0.f));
 
-	// The foot: the maker's badge and the element's glyph, centred. The badge is sized to fill the tag's narrowing foot (the
+	// The foot: the maker's badge, centred (the element is the stat list's last row). The badge is sized to fill the tag's narrowing foot (the
 	// user, 2026-10-29: "the manufacturer at the bottom should be slightly bigger and fit the open space more").
 	UHorizontalBox* Foot = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	MakerBadge = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
@@ -153,8 +150,6 @@ void UGunCardWidget::EnsureBuilt()
 	BadgeRow->AddChildToHorizontalBox(MakerText)->SetPadding(FMargin(9.f, 0.f, 0.f, 0.f));
 	MakerBadge->SetContent(BadgeRow);
 	Foot->AddChildToHorizontalBox(MakerBadge)->SetVerticalAlignment(VAlign_Center);
-	ElementIcon = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-	Foot->AddChildToHorizontalBox(ElementIcon)->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
 	UVerticalBoxSlot* FootSlot = Content->AddChildToVerticalBox(Foot);
 	FootSlot->SetHorizontalAlignment(HAlign_Center);
 	FootSlot->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
@@ -271,11 +266,13 @@ void UGunCardWidget::ApplyGun()
 	SetWords(GemText, FString::FromInt(Shown.Level));
 	SetWords(NameText, LooterWeaponText::Name(Shown).ToUpper());
 	NameText->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Shown)));
-	SetWords(KindText, GunCardRules::KindLine(Shown));
 
-	// The stat list, each against the compared gun.
+	// The stat list, each against the compared gun; a gun with an element ends it with an Element row, its glyph and name
+	// in the element's colour (the user, 2026-10-29: "put the element type and name at the bottom of the stats list").
 	ShownStats = GunCardRules::CardStats(Shown.Stats);
-	EnsureRows(ShownStats.Num());
+	const ELooterElement Element = WeaponParts::ElementOf(Shown);
+	const FVectorIcon* ElementGlyph = GunCardIcons::Element(Element);
+	EnsureRows(ShownStats.Num() + (ElementGlyph ? 1 : 0));
 	const FWeaponInstanceData* Against = bHasCompare ? &Compared : nullptr;
 	for (int32 Index = 0; Index < ShownStats.Num(); ++Index)
 	{
@@ -283,6 +280,7 @@ void UGunCardWidget::ApplyGun()
 		RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::StatName(Stat), GunCardIcons::Stat(Stat), 3.f, FVector2D(IconSize, IconSize), Color::SlateIcon()));
 		SetWords(RowLabels[Index], GunCardRules::StatLabel(Stat));
 		SetWords(RowValues[Index], GunCardRules::StatValueText(Stat, Shown.Stats));
+		RowValues[Index]->SetColorAndOpacity(FSlateColor(Color::SlateText()));
 		FString Arrow;
 		if (Against)
 		{
@@ -294,6 +292,16 @@ void UGunCardWidget::ApplyGun()
 			}
 		}
 		SetWords(RowArrows[Index], Arrow);
+	}
+	if (ElementGlyph)
+	{
+		const int32 Index = ShownStats.Num();
+		const FLinearColor Tint = ElementRules::UiColor(Element);
+		RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::ElementName(Element), *ElementGlyph, 3.f, FVector2D(IconSize, IconSize), Tint));
+		SetWords(RowLabels[Index], TEXT("Element"));
+		SetWords(RowValues[Index], ElementRules::Word(Element));
+		RowValues[Index]->SetColorAndOpacity(FSlateColor(Tint));
+		SetWords(RowArrows[Index], FString());
 	}
 
 	// The bullet lines and the flavour line.
@@ -330,13 +338,6 @@ void UGunCardWidget::ApplyGun()
 		MakerMark->SetBrush(InkedIconBrush(Style.MarkIcon, *Mark, FVector2D(MakerMarkSize, MakerMarkSize), Style.Ink));
 	}
 	SetShown(MakerMark, Mark != nullptr);
-	const ELooterElement Element = WeaponParts::ElementOf(Shown);
-	const FVectorIcon* ElementGlyph = GunCardIcons::Element(Element);
-	if (ElementGlyph)
-	{
-		ElementIcon->SetBrush(IconBrush(GunCardIcons::ElementName(Element), *ElementGlyph, 3.f, FVector2D(20.f, 20.f), ElementRules::UiColor(Element)));
-	}
-	SetShown(ElementIcon, ElementGlyph != nullptr);
 	SetShown(KeysRow, Mode == EGunCardMode::World && ShownKeys.Num() > 0);
 }
 

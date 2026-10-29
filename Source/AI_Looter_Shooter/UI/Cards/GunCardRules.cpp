@@ -173,23 +173,6 @@ FString GunCardRules::FlavorLine(const FWeaponInstanceData& Gun)
 	return LooterWeaponText::FlavorLine(Gun);
 }
 
-FString GunCardRules::KindLine(const FWeaponInstanceData& Gun)
-{
-	const FString Kind = Gun.Definition ? Gun.Definition->DisplayName.ToString() : FString(TEXT("Gun"));
-	const FWeaponMaker* Maker = WeaponMakers::Of(Gun);
-	FString Who;
-	if (Maker)
-	{
-		Who = Maker->Name.ToString();
-	}
-	else
-	{
-		const UEnum* Enum = StaticEnum<EWeaponRarity>();
-		Who = Enum ? Enum->GetDisplayNameTextByValue(static_cast<int64>(Gun.Rarity)).ToString() : FString();
-	}
-	return Who.IsEmpty() ? Kind : FString::Printf(TEXT("%s · %s"), *Who, *Kind);
-}
-
 bool GunCardRules::SameKind(const FWeaponInstanceData& A, const FWeaponInstanceData& B)
 {
 	return A.Definition && B.Definition && A.Definition->Kind == B.Definition->Kind;
