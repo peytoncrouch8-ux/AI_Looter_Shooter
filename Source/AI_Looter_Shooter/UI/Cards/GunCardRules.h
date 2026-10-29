@@ -62,7 +62,7 @@ namespace GunCardRules
 	/**
 	 * The element's rows at the stat list's foot, like Borderlands' "Burn Dmg/Sec" and "Chance to Ignite" (the user,
 	 * 2026-10-29): Ember "Burn dmg/sec" and "Chance to burn", Soul-light "Smite damage" and "Chance to smite", Grave-salt
-	 * "Salt dmg/sec" and "Chance to salt" (per bullet, before a weakness). A gun without one: one row, "Element" "Normal".
+	 * "Salt dmg/sec" and "Chance to salt" (per bullet, before a weakness). A gun without one: one row, "Normal" (no value).
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FElementRow> ElementRows(const FWeaponInstanceData& Gun, const FElementTuning& Tuning);
 

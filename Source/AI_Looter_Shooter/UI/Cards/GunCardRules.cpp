@@ -122,7 +122,8 @@ TArray<GunCardRules::FElementRow> GunCardRules::ElementRows(const FWeaponInstanc
 	case ELooterElement::Rot:
 		return { { TEXT("Rot dmg/sec"), PerSecond(Tuning.RotShare, Tuning.RotSeconds) }, { TEXT("Chance to rot"), Chance } };
 	default:
-		return { { TEXT("Element"), TEXT("Normal") } };
+		// Just the word by the empty ring (the user, 2026-10-29: not "Element ... Normal").
+		return { { TEXT("Normal"), FString() } };
 	}
 }
 

@@ -277,7 +277,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   hand follows reload parts and carries the jar. SK_FP_Arms (approved 2026-10-14; `Art/Models/Characters/FPArms.py`,
   sheet `Saved/Concepts/Hands/fp_arms_sheet.png`) at `ArmsScale` 0.88 (the user: hands looked big). The rig reads bone
   positions only (the import turns bone axes). Hip holds (`Weapons/WeaponHipHold.cpp`; the revolver's in
-  `create_revolver.py`): grip cm ahead/right/up, rifle 50, 23, -23.5; shotgun 30, 22.5, -23; revolver 50, 22, -21 (the
+  `create_revolver.py`): grip cm ahead/right/up, rifle 43, 23, -23.5 (50 until 2026-10-29); shotgun 30, 22.5, -23; revolver 50, 22, -21 (the
   user's Borderlands framing: low right, both gloves in view; `Looter.Player.Hands.OnGun` keeps the support grip point inside
   0.85 of the half-frame, the trigger's inside 1.0 (but for the shotgun's); the Borderlands framing nudges these, below). Long guns level (no muzzle-down tilt: the user, "the AR is
   tilted forward"). Support hand palm up under the fore-end, forearms from below so the sleeve's cut end (SK_FP_Arms
@@ -416,6 +416,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   Docs/Archive/Work/2026-10-29-Embers, elements.js -> elements.json): Ember "Hearth" (a flame cut from its heart), Soul-light
   "Sunburst", Grave-salt "Salt Cluster", Normal "Empty Ring" (grey, on the Element: Normal row). Painted icons, even-odd
   polygons in a 24 box, white for the tint (`GunCardIcons::ElementBrush`); the convex-only vector icons couldn't cut holes.
+  A gun without an element: one row, just "Normal" by the empty ring (the user, 2026-10-29: not "Element ... Normal").
 
 - The user's asks: character through motion and maker branding, simplicity ("don't overload the user ... on simple things
   like guns"), a looked-at gun's card over the gun (not the screen's right), the gun in hand on the right, the inventory's

@@ -324,7 +324,7 @@ void UGunCardWidget::ApplyGun()
 		const int32 Index = ShownStats.Num() + Row;
 		RowIcons[Index]->SetBrush(RowGlyph);
 		SetWords(RowLabels[Index], ElementRows[Row].Label);
-		RowLabels[Index]->SetColorAndOpacity(FSlateColor(bElementGlyph ? ElementTint : Color::SlateLabel()));
+		RowLabels[Index]->SetColorAndOpacity(FSlateColor(bElementGlyph ? ElementTint : Color::SlateText()));
 		SetWords(RowValues[Index], ElementRows[Row].Value);
 		RowValues[Index]->SetColorAndOpacity(FSlateColor(ElementTint));
 		SetWords(RowArrows[Index], FString());

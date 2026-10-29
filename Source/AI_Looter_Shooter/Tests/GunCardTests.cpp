@@ -68,14 +68,14 @@ bool FGunCardRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Similar says nothing"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Similar).IsEmpty());
 	TestTrue(TEXT("Weaker says nothing (the arrows do)"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Weaker).IsEmpty());
 
-	// A gun without an element: one row, Element: Normal (an element's rows follow its parts, checked in game).
+	// A gun without an element: one row, just "Normal" by its ring (an element's rows follow its parts, checked in game).
 	FWeaponInstanceData NoElement;
 	NoElement.Stats = Plain;
 	const TArray<GunCardRules::FElementRow> Rows = GunCardRules::ElementRows(NoElement, FElementTuning());
 	if (TestEqual(TEXT("No element: one row"), Rows.Num(), 1))
 	{
-		TestEqual(TEXT("...Element"), Rows[0].Label, FString(TEXT("Element")));
-		TestEqual(TEXT("...Normal"), Rows[0].Value, FString(TEXT("Normal")));
+		TestEqual(TEXT("...Normal"), Rows[0].Label, FString(TEXT("Normal")));
+		TestTrue(TEXT("...no value"), Rows[0].Value.IsEmpty());
 	}
 
 	// The take keys, as the weapon manager takes loot.
