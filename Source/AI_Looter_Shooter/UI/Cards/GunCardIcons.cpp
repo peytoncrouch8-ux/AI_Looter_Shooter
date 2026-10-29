@@ -83,15 +83,20 @@ namespace
 
 	FVectorIcon MakeEmber()
 	{
-		// A flame: a tall teardrop and a smaller bright one inside (two convex fills; the tint colours both).
+		// A flame of three tongues over a round base (the user, 2026-10-29: the old single teardrop "reads as a red teardrop"):
+		// the tall middle one leans a little right, a shorter one each side with open notches between (they blurred into one
+		// at 18 px). Convex fills, clockwise; they draw as one.
 		FVectorIcon Icon = Make(1.f);
-		TArray<FVector2D> Outer = { {8, 0.5} };
-		for (int32 Step = 0; Step <= 12; ++Step)
+		TArray<FVector2D> Base;
+		for (int32 Step = 0; Step <= 14; ++Step)
 		{
-			const float Angle = FMath::DegreesToRadians(-30.f + 240.f * Step / 12.f);
-			Outer.Add(FVector2D(8.0 + 5.6 * FMath::Cos(Angle), 10.0 + 5.4 * FMath::Sin(Angle)));
+			const float Angle = FMath::DegreesToRadians(-15.f + 210.f * Step / 14.f);
+			Base.Add(FVector2D(8.0 + 4.8 * FMath::Cos(Angle), 11.4 + 4.2 * FMath::Sin(Angle)));
 		}
-		Icon.Fills = { Outer };
+		Icon.Fills = { Base,
+			{ {8.8, 0.4}, {10.8, 4.8}, {11.8, 10.8}, {4.2, 10.8}, {5.6, 5.6} },
+			{ {1.8, 3.8}, {5.4, 9.4}, {4.2, 12.6}, {2.0, 10.2} },
+			{ {14.2, 2.6}, {14.0, 10.2}, {11.8, 12.6}, {10.6, 8.6} } };
 		return Icon;
 	}
 
