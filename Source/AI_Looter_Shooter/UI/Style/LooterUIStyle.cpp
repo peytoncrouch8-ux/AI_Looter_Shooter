@@ -161,28 +161,30 @@ FLinearColor LooterUI::Hex(uint8 R, uint8 G, uint8 B, uint8 A)
 
 namespace LooterUI::Color
 {
+	// The panels, lines, text and accent are "Slate & Salt" since 2026-10-29 (the user's pick for the whole UI after the gun
+	// card; was Concept C's blue glass, cyan lines and orange accent). Rarity, health, XP, gem and maker colours stay.
 	FLinearColor FrameEdge()  { return Hex(14, 17, 22); }
 	FLinearColor FrameFill()  { return Hex(38, 43, 51); }
-	FLinearColor ScreenBg()   { return Hex(7, 26, 40, 245); }
-	FLinearColor ScreenLine() { return Hex(90, 200, 255, 140); }
-	FLinearColor Plate()      { return Hex(14, 44, 66); }
-	FLinearColor Title()      { return Hex(191, 234, 255); }
-	FLinearColor Accent()     { return Hex(255, 159, 28); }
-	FLinearColor AccentDark() { return Hex(35, 20, 0); }
-	FLinearColor Text()       { return Hex(220, 239, 255); }
-	FLinearColor TextDim()    { return Hex(143, 179, 204); }
-	FLinearColor Row()        { return Hex(18, 64, 94, 140); }
-	FLinearColor RowLine()    { return Hex(90, 200, 255, 72); }
-	FLinearColor Tile()       { return Hex(18, 64, 94); }
-	FLinearColor TileLine()   { return Hex(90, 200, 255, 180); }
-	FLinearColor SegmentOn()  { return Hex(92, 202, 255); }
-	FLinearColor SegmentOff() { return Hex(90, 200, 255, 31); }
+	FLinearColor ScreenBg()   { return Hex(22, 25, 30, 245); }
+	FLinearColor ScreenLine() { return Hex(212, 238, 244, 140); }
+	FLinearColor Plate()      { return Hex(36, 41, 48); }
+	FLinearColor Title()      { return Hex(212, 238, 244); }
+	FLinearColor Accent()     { return Hex(255, 214, 130); }
+	FLinearColor AccentDark() { return Hex(38, 28, 6); }
+	FLinearColor Text()       { return Hex(242, 246, 248); }
+	FLinearColor TextDim()    { return Hex(180, 190, 200); }
+	FLinearColor Row()        { return Hex(48, 54, 62, 140); }
+	FLinearColor RowLine()    { return Hex(212, 238, 244, 60); }
+	FLinearColor Tile()       { return Hex(40, 45, 53); }
+	FLinearColor TileLine()   { return Hex(212, 238, 244, 170); }
+	FLinearColor SegmentOn()  { return Hex(212, 238, 244); }
+	FLinearColor SegmentOff() { return Hex(212, 238, 244, 31); }
 	FLinearColor Better()     { return Hex(109, 255, 122); }
 	FLinearColor Worse()      { return Hex(255, 122, 107); }
 	FLinearColor Danger()     { return Hex(122, 34, 25); }
 	FLinearColor Health()     { return Hex(255, 91, 74); }
-	FLinearColor Backdrop()   { return Hex(2, 8, 14, 190); }
-	FLinearColor Outline()    { return Hex(0, 39, 56, 217); }
+	FLinearColor Backdrop()   { return Hex(6, 7, 9, 190); }
+	FLinearColor Outline()    { return Hex(8, 10, 13, 217); }
 	FLinearColor IconInk()    { return Hex(10, 18, 24); }
 	FLinearColor IconLight()  { return Hex(244, 239, 230); }
 	FLinearColor IconShade()  { return Hex(142, 163, 180); }
@@ -195,8 +197,8 @@ namespace LooterUI::Color
 	FLinearColor BarMetalHi()    { return Hex(102, 113, 126); }
 	FLinearColor BarMetalLow()   { return Hex(21, 25, 30); }
 	FLinearColor Ink()           { return Hex(14, 17, 22); }
-	FLinearColor Track()         { return Hex(5, 16, 24); }
-	FLinearColor Hairline()      { return Hex(90, 200, 255); }
+	FLinearColor Track()         { return Hex(10, 12, 15); }
+	FLinearColor Hairline()      { return Hex(212, 238, 244); }
 	FLinearColor GemLight()      { return Hex(189, 238, 255); }
 	FLinearColor GemDark()       { return Hex(74, 181, 238); }
 	FLinearColor XPLight()       { return Hex(185, 236, 255); }
@@ -211,8 +213,8 @@ namespace LooterUI::Color
 	FLinearColor Hurt()          { return Hex(255, 59, 46); }
 	FLinearColor NumberDim()     { return Hex(214, 228, 238); }
 	FLinearColor ReserveText()   { return Hex(207, 226, 239); }
-	FLinearColor KeycapTop()     { return Hex(36, 70, 94); }
-	FLinearColor KeycapBottom()  { return Hex(14, 36, 51); }
+	FLinearColor KeycapTop()     { return Hex(54, 60, 69); }
+	FLinearColor KeycapBottom()  { return Hex(26, 29, 34); }
 	FLinearColor Heal()          { return Hex(109, 255, 122); }
 
 	FLinearColor Curse()         { return Hex(199, 178, 96); }
@@ -223,9 +225,9 @@ namespace LooterUI::Color
 	FLinearColor Roost()         { const FColor C = URoostSettings::Get().BeaconColor; return Hex(C.R, C.G, C.B); }
 	FLinearColor RoostCore()     { const FColor C = URoostSettings::Get().FlameCoreColor; return Hex(C.R, C.G, C.B); }
 
-	FLinearColor Focus()         { return Hex(255, 186, 72); }
+	FLinearColor Focus()         { return Hex(255, 226, 160); }
 	FLinearColor FocusOnAccent() { return Hex(255, 246, 228); }
-	FLinearColor FocusWash()     { return Hex(255, 159, 28, 38); }
+	FLinearColor FocusWash()     { return Hex(255, 214, 130, 38); }
 
 	// The ember powers: Dust Devil a wind-blown near-white, Sundown a low sun's amber, Borrowed Time a faded ledger violet.
 	FLinearColor EmberDustDevil()    { return Hex(232, 246, 255); }
@@ -252,16 +254,16 @@ namespace LooterUI::Color
 	FLinearColor ElementGraveSalt()  { return Hex(204, 240, 246); }
 
 	// The gun card (Docs/Work/2026-10-28-UICharacter/mockup/wide.png).
-	FLinearColor CardFillTop()       { return Hex(8, 30, 44, 235); }
-	FLinearColor CardFillBottom()    { return Hex(6, 20, 30, 219); }
-	FLinearColor CardLine()          { return Hex(90, 200, 255, 217); }
-	FLinearColor CardBracket()       { return Hex(90, 200, 255, 178); }
+	FLinearColor CardFillTop()       { return Hex(30, 34, 40, 235); }
+	FLinearColor CardFillBottom()    { return Hex(18, 21, 26, 219); }
+	FLinearColor CardLine()          { return Hex(212, 238, 244, 217); }
+	FLinearColor CardBracket()       { return Hex(212, 238, 244, 178); }
 	FLinearColor CardShine()         { return Hex(255, 255, 255, 150); }
-	FLinearColor RowFill()           { return Hex(8, 30, 44, 199); }
-	FLinearColor RowEmpty()          { return Hex(8, 30, 44, 89); }
-	FLinearColor RowLitWash()        { return Hex(255, 159, 28, 66); }
-	FLinearColor RowLitWashEnd()     { return Hex(255, 159, 28, 8); }
-	FLinearColor RowLitLine()        { return Hex(255, 159, 28, 191); }
+	FLinearColor RowFill()           { return Hex(30, 34, 40, 199); }
+	FLinearColor RowEmpty()          { return Hex(30, 34, 40, 89); }
+	FLinearColor RowLitWash()        { return Hex(255, 214, 130, 66); }
+	FLinearColor RowLitWashEnd()     { return Hex(255, 214, 130, 8); }
+	FLinearColor RowLitLine()        { return Hex(255, 214, 130, 191); }
 
 	// The makers' sweeps: their guns' paints (Affixes/WeaponMakers.cpp) as sRGB.
 	FLinearColor MakerRoundhouse()     { return Hex(142, 58, 42); }
@@ -540,7 +542,7 @@ namespace
 		}
 		if (bHighlighted || Kind == EButtonKind::Primary)
 		{
-			return { Color::Accent(), Hex(255, 181, 77), Hex(224, 133, 15), Color::AccentDark(), Hex(255, 201, 119) };
+			return { Color::Accent(), Hex(255, 230, 170), Hex(214, 170, 80), Color::AccentDark(), Hex(255, 236, 190) };
 		}
 		switch (Kind)
 		{
@@ -548,9 +550,9 @@ namespace
 			return { Color::Danger(), Hex(150, 48, 34), Hex(92, 25, 17), Hex(255, 225, 220), Hex(255, 122, 107, 180) };
 		case EButtonKind::Mini:
 		case EButtonKind::Tab:
-			return { Hex(11, 34, 51, 170), Hex(22, 77, 114), Hex(14, 44, 66), Color::TextDim(), Color::RowLine() };
+			return { Hex(26, 29, 34, 170), Hex(52, 58, 67), Hex(36, 41, 48), Color::TextDim(), Color::RowLine() };
 		default:
-			return { Hex(22, 77, 114), Hex(31, 99, 148), Hex(16, 56, 79), Color::Text(), Hex(120, 215, 255, 230) };
+			return { Hex(48, 54, 62), Hex(66, 73, 83), Hex(30, 34, 40), Color::Text(), Hex(212, 238, 244, 230) };
 		}
 	}
 }
@@ -817,7 +819,7 @@ UWidget* LooterUI::MakeSegmentBar(UWidgetTree* Tree, int32 Segments, float Fract
 
 UWidget* LooterUI::MakePlate(UWidgetTree* Tree, UWidget* Content, const FMargin& Padding)
 {
-	return MakeShapeBox(Tree, EShape::Control, Hex(7, 26, 40, 215), Color::ScreenLine(), Content, Padding);
+	return MakeShapeBox(Tree, EShape::Control, Hex(22, 25, 30, 215), Color::ScreenLine(), Content, Padding);
 }
 
 void LooterUI::StyleScrollBox(UScrollBox* ScrollBox)
@@ -828,7 +830,7 @@ void LooterUI::StyleScrollBox(UScrollBox* ScrollBox)
 	Bar.SetVerticalTopSlotImage(RectBrush(FLinearColor::Transparent));
 	Bar.SetVerticalBottomSlotImage(RectBrush(FLinearColor::Transparent));
 	Bar.SetNormalThumbImage(RectBrush(Color::Tile(), Color::TileLine(), 1.f));
-	Bar.SetHoveredThumbImage(RectBrush(Hex(31, 99, 148), Color::TileLine(), 1.f));
+	Bar.SetHoveredThumbImage(RectBrush(Hex(66, 73, 83), Color::TileLine(), 1.f));
 	Bar.SetDraggedThumbImage(RectBrush(Color::Accent()));
 	Bar.SetThickness(6.f);
 	ScrollBox->SetWidgetBarStyle(Bar);

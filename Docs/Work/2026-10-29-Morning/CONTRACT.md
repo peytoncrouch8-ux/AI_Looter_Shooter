@@ -24,3 +24,12 @@ after these: the open issues first, then UI round 2 (Slate & Salt on the other s
   29.3 GB), 2021-2023 (Black Powder Guns, Assault Gun IKV 103, 38.7 GB), 2020 (Hand Guns, 48.2 GB).
 - The user: "Neither" (no more downloads). Use the 2026 clicks/cloth only: aim-in/out cloth, sniper bolt latch thunk,
   SMG/LMG spring/mechanism rattle (lane S, Opus agent, Art/Sounds only; Main imports).
+
+## UI round 2 (started 03:00)
+- Step 1 BUILT: the kit's palette is Slate & Salt (LooterUIStyle.cpp Color::ScreenBg..Focus, Card*/Row*, button colours,
+  plate; LoadoutParts.h Colors; inline blues in Bestiary/Missions/MainMenuSessions/NoticeBoard/StationBoard). Rarity, health,
+  XP, gems, makers, CyanText kept. Before/after: palette/palette.png (menushots before/after).
+- Fix: the inventory's tag card ran under the key hints: CardTop 420 and `ULoadoutWidget::FitGunCard` shrinks it from its top
+  (CardFootGap 10, CardMinScale 0.62).
+- Step 2 mockup for the user: ui2/ui2.png (pause, main menu, level-up + mission popups, settings rows; shapes + motion +
+  sounds; proposes new cue UI.Tag.Tick). Not built until the user picks.

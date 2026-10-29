@@ -87,8 +87,9 @@ keep it short; details go in the pipeline.
 
 ## UI rules (the user requires these)
 
-- Every UI is C++ with the `LooterUI` kit (`UI/Style/LooterUIStyle.h`), "Concept C": dark glass panels, orange accents,
-  cyan lines, Chakra Petch. Colors only from `LooterUI::Color` (or `LooterUI::Hex` inside it).
+- Every UI is C++ with the `LooterUI` kit (`UI/Style/LooterUIStyle.h`): dark glass panels, Chakra Petch, colours "Slate &
+  Salt" since 2026-10-29 (slate glass, salt lines, gold = selected; was Concept C blue/cyan/orange). Colors only from
+  `LooterUI::Color` (or `LooterUI::Hex` inside it).
 - Gameplay HUD has no backing panels: floating outlined text, slim slanted bars, gunmetal metalwork. Pieces: player
   frame (portrait in a medallion, health bar, level gem, experience bar) bottom-left; weapon column with upright
   cartridge bottom-right; bezelled minimap top-right, the mission tracker under it. `Tools\hudshots.ps1` photographs it at 1080p

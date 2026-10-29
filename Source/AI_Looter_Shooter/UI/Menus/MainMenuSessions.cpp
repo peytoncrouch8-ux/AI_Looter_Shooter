@@ -40,8 +40,8 @@ namespace
 
 	/** Cards on the picker's glass: a saved session's like the settings menu's rows, an empty slot's fainter. */
 	FLinearColor SavedFill() { return Color::Row(); }
-	FLinearColor SavedLine() { return Hex(90, 200, 255, 110); }
-	FLinearColor EmptyFill() { return Hex(18, 64, 94, 60); }
+	FLinearColor SavedLine() { return Hex(212, 238, 244, 110); }
+	FLinearColor EmptyFill() { return Hex(48, 54, 62, 60); }
 	FLinearColor EmptyLine() { return Color::RowLine(); }
 
 	/** "Session 2": the slots count from 0, people from 1. */

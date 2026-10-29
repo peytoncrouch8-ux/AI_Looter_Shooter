@@ -54,7 +54,11 @@ namespace LoadoutLayout
 	inline const FVector2D ShowcaseTopLeft(550.f, 96.f);
 	inline const FVector2D ShowcaseSize(500.f, 500.f * ALoadoutGunStage::ImageHeight / ALoadoutGunStage::ImageWidth);
 	/** The middle card (the gun card, or a ward's or an empty slot's card): its top; centred on the page. */
-	inline constexpr float CardTop = 440.f;
+	inline constexpr float CardTop = 420.f;
+	/** The tag card is taller than the room under the showcase (a long gun ran under the key hints, 2026-10-29): it is drawn
+	 *  smaller, from its top, so its foot stays this far over the key hints; never under CardMinScale. */
+	inline constexpr float CardFootGap = 10.f;
+	inline constexpr float CardMinScale = 0.62f;
 	inline constexpr float CardWidth = 420.f;
 	/** Inspect: the lists put away, the gun large on the left, every stat on a card in the backpack's place. */
 	inline const FVector2D InspectShowcaseTopLeft(56.f, 150.f);
@@ -302,6 +306,8 @@ private:
 	bool ProjectToPage(const FVector& WorldLocation, FVector2f& OutPoint) const;
 	/** The plain card sliding in, a row's flash fading. */
 	void TickMotion(float DeltaTime);
+	/** Shrinks the gun card from its top so a tall card never runs under the key hints (LoadoutLayout::CardFootGap). */
+	void FitGunCard();
 
 	// --- The wards (LoadoutWidgetWard.cpp; their card LoadoutWidgetWardCard.cpp) ---
 	/** Adds the WARD header and its list to the left column (after the slots). */

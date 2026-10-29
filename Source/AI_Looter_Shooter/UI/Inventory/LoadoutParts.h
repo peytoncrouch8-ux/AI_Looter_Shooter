@@ -52,21 +52,22 @@ namespace LoadoutParts
 	/** The loadout's own sounds (Equip, Stow, Drop, Inspect): the Inventory section of Audio/LooterSoundCues.h. */
 	namespace Sounds = LooterSoundCue::Inventory;
 
+	// Slate & Salt since 2026-10-29 (the kit's palette; was Concept C blue, cyan and orange).
 	namespace Colors
 	{
-		inline FLinearColor Dim() { return LooterUI::Hex(2, 8, 14, 204); }
-		inline FLinearColor CardFill() { return LooterUI::Hex(7, 26, 40, 230); }
+		inline FLinearColor Dim() { return LooterUI::Hex(6, 7, 9, 204); }
+		inline FLinearColor CardFill() { return LooterUI::Hex(26, 29, 34, 230); }
 		/** Floating cards (the stats card, the dragged gun) sit over the stand-in: nearly solid so they read over it. */
-		inline FLinearColor InspectFill() { return LooterUI::Hex(5, 18, 29, 242); }
-		inline FLinearColor EmptyFill() { return LooterUI::Hex(7, 26, 40, 140); }
-		inline FLinearColor InHandFill() { return LooterUI::Hex(46, 30, 8, 235); }
-		inline FLinearColor InHandCursor() { return LooterUI::Hex(74, 47, 10, 240); }
-		inline FLinearColor PickedFill() { return LooterUI::Hex(255, 159, 28, 72); }
-		inline FLinearColor CardLine() { return LooterUI::Hex(90, 200, 255, 89); }
-		inline FLinearColor Ring() { return LooterUI::Hex(92, 202, 255, 191); }
-		inline FLinearColor InnerRing() { return LooterUI::Hex(92, 202, 255, 115); }
-		inline FLinearColor RingGlow() { return LooterUI::Hex(92, 202, 255, 30); }
-		inline FLinearColor Pillar() { return LooterUI::Hex(92, 202, 255, 36); }
+		inline FLinearColor InspectFill() { return LooterUI::Hex(20, 23, 28, 242); }
+		inline FLinearColor EmptyFill() { return LooterUI::Hex(26, 29, 34, 140); }
+		inline FLinearColor InHandFill() { return LooterUI::Hex(46, 38, 20, 235); }
+		inline FLinearColor InHandCursor() { return LooterUI::Hex(72, 58, 28, 240); }
+		inline FLinearColor PickedFill() { return LooterUI::Hex(255, 214, 130, 72); }
+		inline FLinearColor CardLine() { return LooterUI::Hex(212, 238, 244, 89); }
+		inline FLinearColor Ring() { return LooterUI::Hex(212, 238, 244, 191); }
+		inline FLinearColor InnerRing() { return LooterUI::Hex(212, 238, 244, 115); }
+		inline FLinearColor RingGlow() { return LooterUI::Hex(212, 238, 244, 30); }
+		inline FLinearColor Pillar() { return LooterUI::Hex(212, 238, 244, 36); }
 	}
 
 	/** A notch tier's colour on a card: warmer as the gun earns it, the soul-forged one in the kit's cyan. */

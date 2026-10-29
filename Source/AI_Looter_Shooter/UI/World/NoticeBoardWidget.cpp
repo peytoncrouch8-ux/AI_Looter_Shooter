@@ -45,11 +45,11 @@ namespace
 	{
 		if (bChosen)
 		{
-			return IsFaint(Posting) ? Color::Accent() * FLinearColor(1.f, 1.f, 1.f, 0.12f) : Hex(255, 159, 28, 64);
+			return IsFaint(Posting) ? Color::Accent() * FLinearColor(1.f, 1.f, 1.f, 0.12f) : Hex(255, 214, 130, 64);
 		}
 		if (IsFaint(Posting))
 		{
-			return Hex(7, 26, 40, 110);
+			return Hex(22, 25, 30, 110);
 		}
 		return bHovered ? Color::Tile() : Color::Row();
 	}
@@ -66,7 +66,7 @@ namespace
 		}
 		if (IsFaint(Posting))
 		{
-			return Hex(90, 200, 255, 46);
+			return Hex(212, 238, 244, 46);
 		}
 		// A job up for the taking here is edged in its mark's colour, gold or white, as its ! is.
 		if (Posting.State == ENoticePosting::Offered && Posting.bOfferedHere)

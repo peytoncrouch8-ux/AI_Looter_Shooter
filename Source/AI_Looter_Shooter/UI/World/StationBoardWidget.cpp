@@ -39,16 +39,16 @@ namespace
 	{
 		if (!Line.IsDestination())
 		{
-			return Hex(7, 26, 40, 110);
+			return Hex(22, 25, 30, 110);
 		}
-		return bChosen ? Hex(255, 159, 28, 64) : Color::Row();
+		return bChosen ? Hex(255, 214, 130, 64) : Color::Row();
 	}
 
 	FLinearColor CardLine(const FStationBoardLine& Line, bool bChosen)
 	{
 		if (!Line.IsDestination())
 		{
-			return Hex(90, 200, 255, 46);
+			return Hex(212, 238, 244, 46);
 		}
 		return bChosen ? Color::Accent() : Color::RowLine();
 	}

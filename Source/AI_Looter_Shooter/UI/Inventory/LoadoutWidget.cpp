@@ -135,6 +135,7 @@ void ULoadoutWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	TickMotion(InDeltaTime);
+	FitGunCard();
 
 	ALoadoutGunStage* StagePtr = Stage.Get();
 	if (!StagePtr)
@@ -148,6 +149,28 @@ void ULoadoutWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	if (StageMaterial)
 	{
 		StageMaterial->SetScalarParameterValue(TEXT("Exposure"), StagePtr->GetExposure());
+	}
+}
+
+void ULoadoutWidget::FitGunCard()
+{
+	// The card's height changes with the gun (stat rows, bullet lines); its layout size is known after a pass, so it is fitted
+	// each frame from its desired size, shrunk from its top so its foot never covers the key hints.
+	if (!GunCard || GunCard->GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		return;
+	}
+	const float Height = GunCard->GetDesiredSize().Y;
+	if (Height <= 1.f)
+	{
+		return;
+	}
+	const float Room = LoadoutLayout::PromptBarPosition.Y - LoadoutLayout::CardFootGap - LoadoutLayout::CardTop;
+	const float Scale = FMath::Clamp(Room / Height, LoadoutLayout::CardMinScale, 1.f);
+	if (!FMath::IsNearlyEqual(static_cast<float>(GunCard->GetRenderTransform().Scale.Y), Scale, 0.005f))
+	{
+		GunCard->SetRenderTransformPivot(FVector2D(0.5f, 0.f));
+		GunCard->SetRenderScale(FVector2D(Scale, Scale));
 	}
 }
 

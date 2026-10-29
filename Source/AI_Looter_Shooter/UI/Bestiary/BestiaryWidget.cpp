@@ -249,7 +249,7 @@ TSharedRef<SWidget> UBestiaryWidget::RebuildWidget()
 			UImage* DetailsLine = nullptr;
 			UOverlay* DetailsCard = MakeCard(WidgetTree, DetailsBox, FMargin(16.f, 14.f), 1.7f, DetailsFill, DetailsLine);
 			DetailsFill->SetColorAndOpacity(Colors::CardFill());
-			DetailsLine->SetColorAndOpacity(Hex(90, 200, 255, 102));
+			DetailsLine->SetColorAndOpacity(Hex(212, 238, 244, 102));
 			Right->AddChildToVerticalBox(DetailsCard)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 
 			UScrollBox* NotesScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
@@ -319,7 +319,7 @@ void UBestiaryWidget::RebuildList()
 		UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Head->AddChildToHorizontalBox(Label(WidgetTree, UBestiaryEntry::CategoryName(Section).ToString(), 8, Color::TextDim(), 220))
 			->SetVerticalAlignment(VAlign_Center);
-		UHorizontalBoxSlot* RuleSlot = Head->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Hex(90, 200, 255, 61))), 0.f, 1.f));
+		UHorizontalBoxSlot* RuleSlot = Head->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Hex(212, 238, 244, 61))), 0.f, 1.f));
 		RuleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		RuleSlot->SetVerticalAlignment(VAlign_Center);
 		RuleSlot->SetPadding(FMargin(10.f, 0.f));

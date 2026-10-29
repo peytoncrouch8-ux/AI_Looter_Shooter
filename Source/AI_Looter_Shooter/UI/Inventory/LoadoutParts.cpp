@@ -353,7 +353,7 @@ namespace LoadoutParts
 			KeyText->SetShadowColorAndOpacity(FLinearColor::Transparent);
 		}
 		UBorder* Cap = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Cap->SetBrush(bPrimary ? RectBrush(Color::Accent()) : RectBrush(Color::Plate(), Hex(90, 200, 255, 140), 1.f));
+		Cap->SetBrush(bPrimary ? RectBrush(Color::Accent()) : RectBrush(Color::Plate(), Hex(212, 238, 244, 140), 1.f));
 		Cap->SetPadding(FMargin(6.f, 2.f));
 		Cap->SetHorizontalAlignment(HAlign_Center);
 		Cap->SetContent(KeyText);
