@@ -3,6 +3,13 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-28 late: core gameplay job started (the user picked all four: guns feel different, enemy hit reactions,
+smarter bigger fights, things to find off the path)
+Four Opus planning agents write Docs/Work/2026-10-28-Core/GUNS.md, HITS.md, FIGHTS.md, FINDS.md (read-only); Main merges
+them into CONTRACT.md, asks the user their questions, then runs coding lanes. Licensed gun sounds: ask per download.
+The user's answers before bed: Docs/Work/2026-10-28-Core/CONTRACT.md (build with Main's calls overnight, clearly harder,
+finds pay a mix, script-made gun sounds now and a pack to approve in the morning).
+
 ## 2026-10-28 evening: UI character, round 1 (the user at work; playtest Friday 2026-10-30; "don't package yet")
 Committed and pushed. Contract and mockups: Docs/Work/2026-10-28-UICharacter/ (kept open for round 2). Notes: Pipeline/Game.md
 "The gun card". The user picked the look "Wide Sweep" (mockup/wide.png) after four rounds; saw it in game only as screenshots.
