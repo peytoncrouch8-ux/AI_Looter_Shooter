@@ -1,5 +1,6 @@
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/FirstPersonHandsFraming.h"
+#include "Player/FirstPersonHandsMarks.h"
 #include "HAL/IConsoleManager.h"
 
 // The support hand's cup (the user, 2026-10-27: "The hand needs to cup beneath the trigger housing thingy on the AR and on
@@ -51,10 +52,37 @@ bool FirstPersonHandsGrips::UseCup()
 	return CVarCup.GetValueOnAnyThread() != 0;
 }
 
+FHandPlacement FirstPersonHandsGrips::OnForegrip(const FHandsGun& Gun, float PumpBack)
+{
+	// At rest cupped under the gun's middle; a pump gun's hand on the pump as far as it's gone there. The spots the gun's
+	// parts mark come first (Hold_L at rest, Rack_L the pump: FirstPersonHandsMarks.cpp), the kind's tables for the rest.
+	const FGunHands& Hands = For(Gun.Kind);
+	FHandPlacement Rest;
+	const bool bMarkedRest = FirstPersonHandsMarks::SupportRest(Gun, Rest);
+	FHandPlacement Rack;
+	// The pump's mark rests forward on the gun (WeaponModelHandMarks.cpp): racked, it goes back with the pump.
+	const bool bMarkedRack = FirstPersonHandsMarks::Place(Gun, EHandMarkRole::Rack, EFirstPersonHand::Left, Rack, FVector(-PumpBack, 0.f, 0.f));
+	if (!bMarkedRest && (!Hands.bCup || !UseCup()))
+	{
+		return bMarkedRack ? Rack : OnForeEnd(Gun, PumpBack);
+	}
+	if (!bMarkedRest)
+	{
+		Rest = OnCup(Gun);
+	}
+	const float Pump = bMarkedRack || Hands.bPumpFromCup ? FMath::Clamp(Gun.PumpShare, 0.f, 1.f) : 0.f;
+	if (Pump <= 0.f)
+	{
+		return Rest;
+	}
+	return FHandPlacement::Blend(Rest, bMarkedRack ? Rack : OnForeEnd(Gun, PumpBack), FMath::SmoothStep(0.f, 1.f, Pump));
+}
+
 float FirstPersonHandsGrips::NextPumpShare(const FHandsGun& Gun, float Current, float DeltaTime)
 {
+	// A pump marked on the parts (Rack_L) or the kind's table says the hand leaves its rest hold for the pump.
 	const FGunHands& Hands = For(Gun.Kind);
-	if (!Hands.bPumpFromCup)
+	if (!Hands.bPumpFromCup && !FirstPersonHandsMarks::Find(Gun, EHandMarkRole::Rack, EFirstPersonHand::Left))
 	{
 		return 0.f;
 	}
@@ -119,6 +147,12 @@ void FirstPersonHandsGrips::AddCup(EWeaponKind Kind, FGunHands& Hands)
 
 FHandPlacement FirstPersonHandsGrips::OnCup(const FHandsGun& Gun)
 {
+	// The rest hold the gun's parts mark (Hold_L), when they do.
+	FHandPlacement Marked;
+	if (FirstPersonHandsMarks::SupportRest(Gun, Marked))
+	{
+		return Marked;
+	}
 	FGunHands Hands = Tuned(Gun.Kind);
 	if (!Hands.bCup)
 	{

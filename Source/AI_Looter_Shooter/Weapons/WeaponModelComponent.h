@@ -11,6 +11,7 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UStaticMesh;
 class UStaticMeshComponent;
+struct FHandMarks;
 
 /**
  * How an element part looks on the gun master (M_Gun's element finish, custom primitive data
@@ -92,6 +93,14 @@ public:
 
 	/** The middle of the gun's parts, in its space. */
 	FVector GetCenter() const;
+
+	/**
+	 * The hands' grip spots its parts mark (SOCKET_<Hold|Rack|Reload>_<L|R>_<Pose>, SOCKET_Trigger: Weapons/WeaponHandMarks.h;
+	 * WeaponModelHandMarks.cpp), read from the parts as they are now, in this component's space as GetGrip's point is (its own
+	 * scale divided out, the parts' ScaleFor in it). The latest part in assembly order wins each role and side; a mark on the
+	 * reload part is where that part rests. False (and empty) when no part marks any.
+	 */
+	bool GetHandMarks(FHandMarks& Out) const;
 
 	/** The ejection port its spent cases leave from, in its space, when a part marks it (SOCKET_Eject); false if none does. */
 	bool GetEject(FVector& OutLocation) const

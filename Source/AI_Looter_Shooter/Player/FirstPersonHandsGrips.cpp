@@ -1,6 +1,7 @@
 #include "Player/FirstPersonHandsGrips.h"
 #include "AI_Looter_Shooter.h"
 #include "Player/FirstPersonHandsFraming.h"
+#include "Player/FirstPersonHandsMarks.h"
 #include "HAL/IConsoleManager.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponHipHold.h"
@@ -418,47 +419,39 @@ FHandPlacement FirstPersonHandsGrips::InGun(const FHandsGun& Gun, const FVector&
 FHandPlacement FirstPersonHandsGrips::OnGrip(const FHandsGun& Gun)
 {
 	const FGunHands Hands = Tuned(Gun.Kind);
-	FVector Fingers;
-	FVector Palm;
-	OnHandle(EFirstPersonHand::Right, Hands.GripHandle, Hands.GripPalm, Hands.GripTilt, Fingers, Palm);
-	TurnHand(Hands.GripTurn, Fingers, Palm);
-	// The trigger finger on the trigger as far as it's wanted there (Gun.TriggerReady), else laid straight along the frame
-	// (a trained shooter's indexed finger); the thumb's base swung round the grip's far side. The rest close by touch.
-	FHandFingers Curls = FHandFingers::Of(EHandGrip::Trigger);
-	const float Ready = FMath::Clamp(Gun.TriggerReady, 0.f, 1.f);
-	for (int32 Joint = 0; Joint < FHandFingers::Joints; ++Joint)
+	// The grip spot the gun's parts mark (Hold_R; FirstPersonHandsMarks.cpp), else the kind's table.
+	FHandPlacement OnTheGrip;
+	if (!FirstPersonHandsMarks::Place(Gun, EHandMarkRole::Hold, EFirstPersonHand::Right, OnTheGrip))
 	{
-		Curls.Curl[FHandFingers::IndexFinger][Joint] = FMath::Lerp(Hands.IndexedCurl[Joint], Hands.TriggerCurl[Joint], Ready);
+		FVector Fingers;
+		FVector Palm;
+		OnHandle(EFirstPersonHand::Right, Hands.GripHandle, Hands.GripPalm, Hands.GripTilt, Fingers, Palm);
+		TurnHand(Hands.GripTurn, Fingers, Palm);
+		// The trigger finger on the trigger as far as it's wanted there (Gun.TriggerReady), else laid straight along the
+		// frame (a trained shooter's indexed finger); the thumb's base swung round the grip's far side. The rest close by touch.
+		FHandFingers Curls = FHandFingers::Of(EHandGrip::Trigger);
+		const float Ready = FMath::Clamp(Gun.TriggerReady, 0.f, 1.f);
+		for (int32 Joint = 0; Joint < FHandFingers::Joints; ++Joint)
+		{
+			Curls.Curl[FHandFingers::IndexFinger][Joint] = FMath::Lerp(Hands.IndexedCurl[Joint], Hands.TriggerCurl[Joint], Ready);
+		}
+		Curls.Spread[FHandFingers::IndexFinger] = FMath::Lerp(Hands.IndexedSpread, 0.f, Ready);
+		if (Hands.GripShape.bValid)
+		{
+			Curls.Curl[FHandFingers::Thumb][0] = Hands.GripThumbSwing;
+			Curls.Spread[FHandFingers::Thumb] = Hands.GripThumbSpread;
+		}
+		// The framing's nudge on top (FPHandsFraming: a trigger glove sunk in a stock brought out where it reads).
+		OnTheGrip = InGun(Gun, Gun.Grip + (Hands.GripHold + FPHandsFraming::TriggerNudge(Gun.Kind)) * Gun.Scale, Fingers, Palm, Curls, Hands.GripForearm);
+		// The trigger's face SOCKET_Trigger marks, when a part does, else the table's.
+		OnTheGrip.Contact = ContactOnGun(Gun, Gun.Grip, Hands.GripShape, 1.f, FirstPersonHandsMarks::TriggerAt(Gun, Hands.TriggerAt), Ready);
 	}
-	Curls.Spread[FHandFingers::IndexFinger] = FMath::Lerp(Hands.IndexedSpread, 0.f, Ready);
-	if (Hands.GripShape.bValid)
-	{
-		Curls.Curl[FHandFingers::Thumb][0] = Hands.GripThumbSwing;
-		Curls.Spread[FHandFingers::Thumb] = Hands.GripThumbSpread;
-	}
-	// The framing's nudge on top (FPHandsFraming: a trigger glove sunk in a stock brought out where it reads).
-	FHandPlacement OnTheGrip = InGun(Gun, Gun.Grip + (Hands.GripHold + FPHandsFraming::TriggerNudge(Gun.Kind)) * Gun.Scale, Fingers, Palm, Curls,
-		Hands.GripForearm);
-	OnTheGrip.Contact = ContactOnGun(Gun, Gun.Grip, Hands.GripShape, 1.f, Hands.TriggerAt, Ready);
 	// A bolt gun's trigger hand leaves the grip to work the bolt (between shots and in its reload), riding its knob.
 	if (Gun.BoltHand > 0.f && !Hands.BoltPivot.IsZero())
 	{
 		return FHandPlacement::Blend(OnTheGrip, OnBoltKnob(Gun, Gun.BoltOpen), Gun.BoltHand);
 	}
 	return OnTheGrip;
-}
-
-FHandPlacement FirstPersonHandsGrips::OnForegrip(const FHandsGun& Gun, float PumpBack)
-{
-	// At rest cupped under the gun's middle (FirstPersonHandsCup.cpp); a pump gun's hand on the pump as far as it's gone there.
-	const FGunHands& Hands = For(Gun.Kind);
-	if (!Hands.bCup || !UseCup())
-	{
-		return OnForeEnd(Gun, PumpBack);
-	}
-	const FHandPlacement Cup = OnCup(Gun);
-	const float Pump = Hands.bPumpFromCup ? FMath::Clamp(Gun.PumpShare, 0.f, 1.f) : 0.f;
-	return Pump > 0.f ? FHandPlacement::Blend(Cup, OnForeEnd(Gun, PumpBack), FMath::SmoothStep(0.f, 1.f, Pump)) : Cup;
 }
 
 FHandPlacement FirstPersonHandsGrips::OnForeEnd(const FHandsGun& Gun, float PumpBack)

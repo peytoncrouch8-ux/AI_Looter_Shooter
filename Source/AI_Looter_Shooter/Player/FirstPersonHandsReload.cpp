@@ -1,5 +1,6 @@
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/FirstPersonHandsGrips.h"
+#include "Player/FirstPersonHandsMarks.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/ReloadTuning.h"
 
@@ -179,6 +180,12 @@ namespace
 	/** The support hand round the next rocket just behind its nose, Travel cm in front of its seat in the mouth. */
 	FHandPlacement OnRocket(const FHandsGun& Gun, float Travel)
 	{
+		// On the spot the parts mark on the loaded rocket (Reload_L, seated), the next one Travel ahead of it, when they do.
+		FHandPlacement Marked;
+		if (FirstPersonHandsMarks::Place(Gun, EHandMarkRole::Reload, EFirstPersonHand::Left, Marked, FVector(Travel, 0.f, 0.f)))
+		{
+			return Marked;
+		}
 		const FGunHands& Hands = FirstPersonHandsGrips::For(Gun.Kind);
 		const FVector Seat = Gun.bHasMagazineSeat ? Gun.MagazineSeat : FVector(90.f, 0.f, 0.f) * Gun.Scale;
 		const FVector Hold = Seat + (Hands.RocketGrab + FVector(Travel, 0.f, 0.f)) * Gun.Scale;
@@ -465,7 +472,12 @@ FHandPlacement FirstPersonHandsMotion::SupportInReload(const FHandsGun& Gun)
 FHandPlacement FirstPersonHandsMotion::OnMagazine(const FHandsGun& Gun, float Travel)
 {
 	// Round the magazine from its left, the fingers over its front edge, wherever its travel (the modeled gun's cm, as
-	// LooterReload gives it) has it.
+	// LooterReload gives it) has it: on the spot the parts mark for it (Reload_L, at the magazine's rest) when they do.
+	FHandPlacement Marked;
+	if (FirstPersonHandsMarks::Place(Gun, EHandMarkRole::Reload, EFirstPersonHand::Left, Marked, FVector(0.f, 0.f, -Travel)))
+	{
+		return Marked;
+	}
 	const FGunHands& Hands = FirstPersonHandsGrips::For(Gun.Kind);
 	const FVector Seat = Gun.bHasMagazineSeat ? Gun.MagazineSeat : FVector(14.f, 0.f, -5.6f) * Gun.Scale;
 	const FVector Hold = Seat + (Hands.MagazineGrab - FVector(0.f, 0.f, Travel)) * Gun.Scale;

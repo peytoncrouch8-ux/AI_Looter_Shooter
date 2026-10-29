@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Math/RotationMatrix.h"
 #include "Weapons/ReloadTuning.h"
+#include "Weapons/WeaponHandMarks.h"
 #include "Weapons/WeaponTypes.h"
 
 // What the first-person hands' files share (UFirstPersonHandsComponent, FFirstPersonHandsRig, FirstPersonHandsGrips,
@@ -226,6 +227,19 @@ struct AI_LOOTER_SHOOTER_API FHandsGun
 	 * hands' own numbers off the gun (FGunHands, the reload spots) are the modeled gun's and are scaled by it.
 	 */
 	float Scale = 1.f;
+
+	/**
+	 * The arms' size against the camera's space (UFirstPersonHandsComponent's arms scale: Ellis's 0.88, a hero's own, a kind's
+	 * framing on it): a hand's own lengths (the palm's skin off the grip point) are this many camera cm per cm. 1 for a test's
+	 * own gun unless it says.
+	 */
+	float HandScale = 1.f;
+
+	/**
+	 * The grip spots its parts mark (UWeaponModelComponent::GetHandMarks; FirstPersonHandsMarks), drawn to scale like the
+	 * sockets below. Unmarked (every gun until its parts are marked, a test's own gun): the kind's tables hold.
+	 */
+	FHandMarks Marks;
 
 	/** SOCKET_Grip and SOCKET_Foregrip, in the gun's space. */
 	FVector Grip = FVector::ZeroVector;

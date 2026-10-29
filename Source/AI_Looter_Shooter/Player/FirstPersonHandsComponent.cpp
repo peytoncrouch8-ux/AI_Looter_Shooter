@@ -5,6 +5,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Player/FirstPersonHandsFraming.h"
 #include "Player/FirstPersonHandsGrips.h"
+#include "Player/FirstPersonHandsMarks.h"
 #include "Player/FirstPersonHandsMotion.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
@@ -194,10 +195,15 @@ void UFirstPersonHandsComponent::PlaceOnCamera(float Scale)
 
 float UFirstPersonHandsComponent::GetWantedScale() const
 {
+	return GetWantedScaleFor(LastGun.Kind);
+}
+
+float UFirstPersonHandsComponent::GetWantedScaleFor(EWeaponKind GunKind) const
+{
 	const float Tuning = CVarHandsScale.GetValueOnGameThread();
 	// The gun in hand may want smaller hands (FPHandsFraming's per-kind ArmsScale: the LMG's fat belt box); the tuning
 	// variable stays absolute.
-	const float Kind = FPHandsFraming::For(LastGun.Kind).ArmsScale;
+	const float Kind = FPHandsFraming::For(GunKind).ArmsScale;
 	return FMath::Clamp(Tuning > 0.f ? Tuning : (HeroScale > 0.f ? HeroScale : ArmsScale) * Kind, 0.5f, 1.5f);
 }
 
@@ -280,9 +286,10 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 		LastGun = Gun;
 		Targets[Left] = ParkSupportHand(Gun, PlaceSupportHand(Gun, Dt), Dt);
 	}
-	// The support hand resting in its cup keeps its own forearm (FrameForearms), eased in and out over 0.12 s.
-	const bool bCupped = bGun && SupportJob == EHandsSupportJob::Foregrip && FirstPersonHandsGrips::For(Gun.Kind).bCup
-		&& FirstPersonHandsGrips::UseCup() && PumpHandShare < 0.5f && OneHandBlend < 0.01f;
+	// The support hand resting in its cup keeps its own forearm (FrameForearms), eased in and out over 0.12 s. A cup the
+	// parts mark (Hold_L's pose) or the kind's table.
+	const bool bCupped = bGun && SupportJob == EHandsSupportJob::Foregrip && FirstPersonHandsMarks::SupportCups(Gun) && PumpHandShare < 0.5f
+		&& OneHandBlend < 0.01f;
 	CupForearmShare = FMath::FInterpConstantTo(CupForearmShare, bCupped ? 1.f : 0.f, Dt, 1.f / 0.12f);
 
 	// The arms' size (a smaller hand holds the same spots: they're scaled into the mesh's space with it), then into the
@@ -368,9 +375,16 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 	// The sniper's bolt, worked by the trigger hand between shots and in its reload (FirstPersonHandsGrips::OnGrip).
 	OutGun.BoltOpen = Weapon.GetBoltOpen();
 	OutGun.BoltHand = Weapon.GetBoltHand();
+	// The hands' own size in the camera's space, and the grip spots the parts mark, drawn to scale like the sockets above
+	// (FirstPersonHandsMarks: the hands go to them where a gun has them).
+	OutGun.HandScale = GetWantedScaleFor(OutGun.Kind);
 	if (bModel)
 	{
 		OutGun.Cup = CupFitFor(*Model, OutGun.Kind, OutGun.ReloadProgress < 0.f && OutGun.PumpCycle < 0.f && OutGun.BoltOpen <= 0.f);
+		if (Model->GetHandMarks(OutGun.Marks))
+		{
+			OutGun.Marks.ScalePoints(Drawn);
+		}
 	}
 	if (OutGun.ReloadProgress < 0.f || !bModel)
 	{

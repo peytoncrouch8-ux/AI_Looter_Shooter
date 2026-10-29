@@ -133,6 +133,8 @@ private:
 
 	/** The arms' size now: ArmsScale, or Looter.Hands.Scale while it's set. */
 	float GetWantedScale() const;
+	/** ...on a gun of GunKind (its framing's ArmsScale): the gun being described this frame, before it's the last one. */
+	float GetWantedScaleFor(EWeaponKind GunKind) const;
 
 	/** Places the hands and writes the arms' pose, its bones marked to refresh; false (and hidden) when they don't show. */
 	bool PoseHands(float DeltaTime);

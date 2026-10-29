@@ -144,7 +144,8 @@ namespace FirstPersonHandsGrips
 
 	/**
 	 * The support hand on the foregrip (camera space): under a rifle's handguard, round a shotgun's pump (PumpBack: how
-	 * far the pump is racked, cm of the modeled gun), or round a six-gun's shooting hand.
+	 * far the pump is racked, cm of the modeled gun), or round a six-gun's shooting hand. The spots the gun's parts mark come
+	 * first (Hold_L at rest, Rack_L the pump: FirstPersonHandsMarks); FirstPersonHandsCup.cpp.
 	 */
 	AI_LOOTER_SHOOTER_API FHandPlacement OnForegrip(const FHandsGun& Gun, float PumpBack = 0.f);
 
