@@ -4,8 +4,12 @@
 #include "Audio/LooterSound.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureTrait.h"
+#include "Creatures/CreatureTraitComponent.h"
 #include "Creatures/EncounterSettings.h"
 #include "Creatures/EncounterSubsystem.h"
+#include "Creatures/FightDirectorSubsystem.h"
+#include "Creatures/PackLeaderRules.h"
 #include "Creatures/PackRules.h"
 #include "Creatures/CreatureTierLook.h"
 #include "Engine/World.h"
@@ -55,6 +59,11 @@ void UCreaturePackComponent::BeginPlay()
 	// Each creature rolls on its own stream, the same each time it lives (the tests seed it themselves).
 	Rolls.Initialize(static_cast<int32>(GetUniqueID()));
 	NextLook = FMath::FRandRange(0.f, PackLookInterval);
+	// It hears its own creature's death: a leader's fall shakes its pack (PackLeaderRules::OnLeaderDown).
+	if (UHealthComponent* Life = GetOwner() ? GetOwner()->FindComponentByClass<UHealthComponent>() : nullptr)
+	{
+		Life->OnDeath.AddUniqueDynamic(this, &UCreaturePackComponent::HandleOwnerDeath);
+	}
 }
 
 ACreatureBase* UCreaturePackComponent::GetCreature() const
@@ -73,6 +82,8 @@ void UCreaturePackComponent::SetSeed(int32 Seed)
 
 void UCreaturePackComponent::HandleStateChanged(ECreatureState OldState, ECreatureState NewState)
 {
+	// Its traits are rolled again with a new life or a promotion: a leader keeps wearing Rallying.
+	KeepLeaderTrait();
 	if (NewState == ECreatureState::Chase)
 	{
 		if (!IsHunting(OldState))
@@ -229,6 +240,77 @@ void UCreaturePackComponent::StartRetreat()
 		Voice->Play(UCreatureVoiceComponent::CriesFor(*Me).Hurt, RetreatCryVolume);
 	}
 	UE_LOG(LogLooter, Log, TEXT("%s: its pack is gone; hurt, it breaks off for %.1f s."), *Me->GetName(), RetreatLeft);
+}
+
+void UCreaturePackComponent::BreakOff()
+{
+	if (!IsRetreating())
+	{
+		StartRetreat();
+	}
+}
+
+bool UCreaturePackComponent::RollLeaderBreakOff(float Chance)
+{
+	const ACreatureBase* Me = GetCreature();
+	if (!Me)
+	{
+		return false;
+	}
+	PackLeaderRules::FBreakOffAsk Ask;
+	Ask.Rank = Me->GetRank();
+	Ask.bAllowedKind = UEncounterSettings::Get().MayRetreat(Me->GetClass());
+	Ask.bHunting = Me->GetTarget() && IsHunting(Me->GetCreatureState());
+	Ask.bRetreating = IsRetreating();
+	Ask.bDead = Me->IsDead();
+	if (!PackLeaderRules::WantsBreakOffRoll(Ask) || !PackLeaderRules::BreaksOff(Ask, Rolls.FRand(), Chance))
+	{
+		return false;
+	}
+	StartRetreat();
+	return IsRetreating();
+}
+
+// ---------------------------------------------------------------------------
+// Its pack's leader
+// ---------------------------------------------------------------------------
+
+void UCreaturePackComponent::SetLeader(bool bInLeader)
+{
+	bLeader = bInLeader;
+	ACreatureBase* Me = GetCreature();
+	if (!bLeader || !Me)
+	{
+		return;
+	}
+	KeepLeaderTrait();
+	if (UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(Me))
+	{
+		Director->NoteLeader(*Me);
+	}
+	UE_LOG(LogLooter, Verbose, TEXT("%s leads its pack."), *Me->GetName());
+}
+
+void UCreaturePackComponent::KeepLeaderTrait()
+{
+	UCreatureTraitComponent* Traits = bLeader && GetOwner() ? GetOwner()->FindComponentByClass<UCreatureTraitComponent>() : nullptr;
+	if (!Traits || Traits->HasTrait(ECreatureTrait::Rallying))
+	{
+		return;
+	}
+	// On top of what its rank rolled: Rallying's ring and tethers are how the player sees who leads.
+	TArray<ECreatureTrait> Worn;
+	Worn.Append(Traits->GetTraits().GetData(), Traits->GetTraits().Num());
+	Worn.Add(ECreatureTrait::Rallying);
+	Traits->SetTraits(Worn);
+}
+
+void UCreaturePackComponent::HandleOwnerDeath(AController* Killer)
+{
+	if (ACreatureBase* Me = bLeader ? GetCreature() : nullptr)
+	{
+		PackLeaderRules::OnLeaderDown(*Me);
+	}
 }
 
 FVector UCreaturePackComponent::GetChaseGoal(const APawn& Victim) const

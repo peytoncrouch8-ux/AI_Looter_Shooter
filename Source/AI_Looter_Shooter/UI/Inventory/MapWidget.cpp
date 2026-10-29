@@ -99,6 +99,7 @@ void UMapWidget::Open(ALooterHUD* InHUD)
 	CardRefreshLeft = 0.f;
 	ShownStatus.Reset();
 	RefreshLegend();
+	RefreshFinds();
 	RebuildGraveList();
 	RefreshTravelCard();
 	RefreshPrompts();
@@ -251,6 +252,7 @@ TSharedRef<SWidget> UMapWidget::RebuildWidget()
 			AreaTitle->SetText(AreaName.ToUpper());
 		}
 		RefreshLegend();
+		RefreshFinds();
 		RebuildGraveList();
 		RefreshTravelCard();
 		RefreshPrompts();
@@ -360,6 +362,8 @@ void UMapWidget::BuildMapFrame(UCanvasPanel& Page)
 	UTextBlock* NorthUp = MakeFloatingText(WidgetTree, 8, Color::TextDim(), 220, ETextJustify::Left);
 	NorthUp->SetText(FText::FromString(TEXT("MAP  ·  NORTH UP")));
 	PlaceOn(Page, NorthUp, FramePosition + FVector2D(27.0, 44.0), FVector2D::ZeroVector);
+	// Under it: how many of the level's finds are found (MapWidgetFinds.cpp).
+	BuildFinds(Page);
 
 	MapCompass::Build(WidgetTree, Page, FramePosition, FrameSize);
 

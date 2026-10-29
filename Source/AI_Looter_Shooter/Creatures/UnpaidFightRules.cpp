@@ -138,3 +138,52 @@ void FUnpaidStepGate::Note(uint32 Id, double Now)
 		OwedAsked = -1.0e9;
 	}
 }
+
+float UnpaidFightRules::RallyCooldownFor(bool bPackLed, bool bIsLeader, bool bInLull, float RallyCooldown, float LeaderRallyCooldown)
+{
+	// Its leader just fell: the pack has lost its voice for a while.
+	if (bInLull)
+	{
+		return -1.f;
+	}
+	// A led pack screams with one voice, its leader's (the "head" the player can find and silence); one without, as before.
+	if (bPackLed)
+	{
+		return bIsLeader ? FMath::Max(LeaderRallyCooldown, 0.f) : -1.f;
+	}
+	return FMath::Max(RallyCooldown, 0.f);
+}
+
+bool UnpaidFightRules::MayFadeBack(bool bBasic, float HealthShare, float Below, bool bFadedThisLife)
+{
+	return bBasic && !bFadedThisLife && HealthShare > 0.f && HealthShare < Below;
+}
+
+TArray<FVector> UnpaidFightRules::FadeBackSpots(const FVector& Here, const FVector& Target, float Near, float Far, float FeetZ)
+{
+	// Away from them on its own side: straight away first, then fanned either way (more room than straight back off a wall).
+	constexpr float Fans[] = { 0.f, 25.f, -25.f, 50.f, -50.f };
+	const float Low = FMath::Max(FMath::Min(Near, Far), 0.f);
+	const float High = FMath::Max(Near, Far);
+	const float Distances[] = { 0.5f * (Low + High), High, Low };
+	const FVector Out = FVector(Here.X - Target.X, Here.Y - Target.Y, 0.0);
+	const float Away = Out.IsNearlyZero() ? 0.f : static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Out.Y, Out.X)));
+	TArray<FVector> Spots;
+	Spots.Reserve(static_cast<int32>(UE_ARRAY_COUNT(Fans) * UE_ARRAY_COUNT(Distances)));
+	for (const float Fan : Fans)
+	{
+		const float Radians = FMath::DegreesToRadians(Away + Fan);
+		for (const float Distance : Distances)
+		{
+			Spots.Add(FVector(Target.X + FMath::Cos(Radians) * Distance, Target.Y + FMath::Sin(Radians) * Distance, FeetZ));
+		}
+	}
+	return Spots;
+}
+
+float UnpaidFightRules::ArrivalHoldFor(float LandedGap, float Hold, float NearHold, float NearRange)
+{
+	// Landed right by them (the dais: steps to sight came back 1.5 m off, inside the rake's reach), a longer beat to answer.
+	// Half a centimetre for rounding: the to-sight ring's spots lie at exactly 150 (UnpaidRules::SightNearest).
+	return LandedGap <= NearRange + 0.5f ? FMath::Max(Hold, NearHold) : Hold;
+}

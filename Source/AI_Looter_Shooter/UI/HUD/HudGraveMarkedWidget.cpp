@@ -2,6 +2,7 @@
 
 #include "UI/HUD/HudGraveMarkedWidget.h"
 #include "Scenes/SceneSubsystem.h"
+#include "UI/HUD/HudFindBannerWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMissionCompleteWidget.h"
 #include "UI/HUD/LooterHUD.h"
@@ -292,10 +293,12 @@ void UHudGraveMarkedWidget::NativeConstruct()
 // What it announces, and taking turns with the other banners
 // ---------------------------------------------------------------------------
 
-void UHudGraveMarkedWidget::SetOtherBanners(UHudLevelUpBannerWidget* InLevelUpBanner, UHudMissionCompleteWidget* InMissionBanner)
+void UHudGraveMarkedWidget::SetOtherBanners(UHudLevelUpBannerWidget* InLevelUpBanner, UHudMissionCompleteWidget* InMissionBanner,
+	UHudFindBannerWidget* InFindBanner)
 {
 	LevelUpBanner = InLevelUpBanner;
 	MissionBanner = InMissionBanner;
+	FindBanner = InFindBanner;
 }
 
 void UHudGraveMarkedWidget::Announce(const FText& GraveName)
@@ -318,7 +321,13 @@ bool UHudGraveMarkedWidget::IsOtherBannerShowing() const
 		return true;
 	}
 	const UHudMissionCompleteWidget* Mission = MissionBanner.Get();
-	return Mission && Mission->IsBusy();
+	if (Mission && Mission->IsBusy())
+	{
+		return true;
+	}
+	// The find banner on screen, not one only waiting (it waits for this banner too: two waiting would never start).
+	const UHudFindBannerWidget* Find = FindBanner.Get();
+	return Find && Find->IsShowing();
 }
 
 bool UHudGraveMarkedWidget::IsCovered() const

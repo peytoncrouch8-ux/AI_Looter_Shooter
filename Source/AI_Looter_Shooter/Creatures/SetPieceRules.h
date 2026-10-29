@@ -26,6 +26,9 @@ struct AI_LOOTER_SHOOTER_API FSetPieceTuning
 	int32 RewardAmmo = 2;
 	int32 RewardBonusAmmo = 1;
 
+	/** An arena set piece's fog gates (ASetPieceSpawner::ArenaGates) close; off, they never do. */
+	bool bArena = true;
+
 	/** The tuning as the cvars hold it now (read each time: a live change counts at once). */
 	static FSetPieceTuning Current();
 };
@@ -72,4 +75,39 @@ namespace SetPieceRules
 
 	/** Its reward's level: the highest of its creatures' (the guns follow the fight), at least 1. */
 	AI_LOOTER_SHOOTER_API int32 RewardLevel(int32 HighestCreatureLevel);
+
+	// --- An arena's fog gates (ASetPieceSpawner::ArenaGates; SetPieceSpawnerArena.cpp) ---
+
+	/**
+	 * Where one fog wall (an ABossSeal of the Gate shape) stands across an arena's opening: its origin, the yaw that turns the
+	 * seal's +Y along the wall (so its GateEnd is (0, Length, Rise)) and the +X, the arena's side, flat and unit length.
+	 */
+	struct FGateFrame
+	{
+		FVector Origin = FVector::ZeroVector;
+		double Yaw = 0.0;
+		double Length = 0.0;
+		/** How much higher (cm) the far end stands than the origin. */
+		double Rise = 0.0;
+		FVector Ahead = FVector::ForwardVector;
+	};
+
+	/** The frame of a wall from Start to End with ArenaPoint (a point inside the arena) ahead of it; the ends swap if they must. */
+	AI_LOOTER_SHOOTER_API FGateFrame GateFrame(const FVector& Start, const FVector& End, const FVector& ArenaPoint);
+
+	/** Whether Point is on the arena's side of the wall, at least Margin (cm) in from it. */
+	AI_LOOTER_SHOOTER_API bool IsAheadOfGate(const FGateFrame& Frame, const FVector& Point, double Margin);
+
+	/**
+	 * Whether the gates close now: it's fighting (Engaged) with a push begun, not won, the arena is on, and the living player
+	 * stands inside every gate (nobody is shut out, or caught in the wall as it rises).
+	 */
+	AI_LOOTER_SHOOTER_API bool ShouldRaiseGates(bool bUp, bool bArenaOn, EEncounterState State, int32 WavesStarted, bool bDone,
+		bool bPlayerAlive, bool bPlayerInside);
+
+	/**
+	 * Whether the gates open now: they're up and it is won (done, or its own creatures all down: Cleared), taken away or off
+	 * (not Engaged any more), the player died, or the arena was switched off.
+	 */
+	AI_LOOTER_SHOOTER_API bool ShouldDropGates(bool bUp, bool bArenaOn, EEncounterState State, bool bDone, bool bPlayerAlive);
 }

@@ -25,6 +25,7 @@ class UPlayerHUDWidget;
 class USettingsMenuWidget;
 class UStationBoardWidget;
 class UUserWidget;
+struct FFindBannerShow;
 struct FStationBoardWords;
 
 /** The inventory's pages, in the order of their tabs. */
@@ -155,6 +156,9 @@ public:
 
 	/** The short banner over the HUD when a respawn grave is marked as the save point ("GRAVE MARKED", its name). LooterHUDGraves.cpp. */
 	void ShowGraveMarked(const FText& GraveName);
+
+	/** The "FOUND" banner over the HUD for a find off the path (UFindSubsystem; FINDS.md). It queues behind banners showing. LooterHUDGraves.cpp. */
+	void ShowFind(const FFindBannerShow& Find);
 
 	/** The inventory, the station board, the bench's screen, a notice board, a vendor or the pause menu is up (the gameplay HUD is hidden). */
 	bool IsMenuOpen() const;

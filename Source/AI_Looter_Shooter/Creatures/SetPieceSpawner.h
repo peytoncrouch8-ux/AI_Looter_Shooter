@@ -7,7 +7,11 @@
 #include "Templates/SubclassOf.h"
 #include "SetPieceSpawner.generated.h"
 
+class ABossSeal;
+class AController;
 class ACreatureBase;
+class APawn;
+class UHealthComponent;
 class ULootDropComponent;
 class USpeakerPointComponent;
 
@@ -78,6 +82,19 @@ struct AI_LOOTER_SHOOTER_API FSetPiecePlaced
 	int32 Wave = 1;
 };
 
+/** One fog wall of an arena set piece, across one of the arena's openings: its two ends in the world, each at its ground (cm). */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FSetPieceGate
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece")
+	FVector Start = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece")
+	FVector End = FVector::ZeroVector;
+};
+
 /**
  * A hand-made set piece (the user's call, 2026-10-21: a few per area, announced and rewarded; Docs/Areas/RansomsRest.md
  * "Set pieces"): an ambush whose creatures come in pushes from sides of its own, each push with a beat (a caption, a sting,
@@ -94,6 +111,12 @@ struct AI_LOOTER_SHOOTER_API FSetPiecePlaced
  *    dead are in Main Street, so Main 3 can't be turned in over the fight).
  *  - Done: its ClearedBeat, the flag, and the loot shower (ABossLootShower, as a boss's but smaller: RewardGuns guns at
  *    RewardLuck and RewardAmmo pickups, Looter.Fight.SetPiece.Reward*) at RewardSpot, at the fight's level.
+ *  - An arena (FIGHTS lane 6, 2026-10-28: the chapel yard, Saint Ada's Yard): with ArenaGates, a fog wall (ABossSeal, Gate
+ *    shape, runtime-made) across each opening rises once it's fighting and the living player stands inside every gate by
+ *    ArenaMargin (nobody is shut out or caught in a rising wall), and drops when its own creatures are all down (Cleared,
+ *    so a Bell-Ringer left tolling never traps anyone), when it's done, taken away or off, on the player's death, and
+ *    with Looter.Fight.SetPiece.Arena 0. Sealed, the player can't leave its ground, so the Unpaid's press rule
+ *    (ACreatureBase::NotePressed: shot at from just past the edge) has nobody to press; walls sit inside the ground's edge.
  * Built by Tools/Unreal/build_area_camps.py (an ambush with a "setPiece" block) and build_area_fights_mountain.py (a fight
  * of spawner SetPieceSpawner); the layout's data is in gameplay.encounters.
  */
@@ -141,6 +164,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece")
 	TArray<FName> HushSpeakerTags;
 
+	/**
+	 * Fog walls that shut the arena's openings while it's fought (world ends, each at its ground). The arena lies ahead of
+	 * each wall as seen from the spawner (a wall is turned so the spawner's side is the inside). None: no arena.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece|Arena")
+	TArray<FSetPieceGate> ArenaGates;
+
+	/** The player must be this far (cm) inside every gate before they rise. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece|Arena", meta = (ClampMin = "0", Units = "cm"))
+	float ArenaMargin = 150.f;
+
 	/** Its loot shower at its end. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece")
 	bool bReward = true;
@@ -164,6 +198,15 @@ public:
 
 	/** Looks whether it's done (its creatures and its placed ones all down) and finishes it if so; the tests call it. */
 	bool CheckDone();
+
+	/** Its fog gates are up now (closing the arena). */
+	bool AreGatesUp() const { return bGatesUp; }
+
+	/** The fog wall of gate Index once it has been made (the first time the gates rise); null before. */
+	ABossSeal* GetGateSeal(int32 Index) const;
+
+	/** Whether Point is inside every gate by Margin (cm); true with no gates. */
+	bool IsInsideArena(const FVector& Point, float Margin) const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -205,7 +248,22 @@ private:
 	void Hush();
 	void Unhush();
 
+	// --- Its arena's fog gates (SetPieceSpawnerArena.cpp) ---
+	/** Looks at the player and the fight: raises the gates or drops them (each look of its timer). */
+	void UpdateArena();
+	void RaiseGates(const APawn& Player);
+	void DropGates();
+	void DestroyGates();
+	/** The player died while the gates were up: they open. */
+	UFUNCTION()
+	void HandleArenaPlayerDeath(AController* Killer);
+
 	TArray<FPlacedLiving> PlacedLiving;
+	/** The fog walls, one per ArenaGates entry (made the first time they rise, kept for the visit). */
+	TArray<TWeakObjectPtr<ABossSeal>> GateSeals;
+	/** The player's health, while the gates are up (for their death). */
+	TWeakObjectPtr<UHealthComponent> WatchedPlayerHealth;
+	bool bGatesUp = false;
 	TArray<int32> PlacedOwed;
 	TArray<TWeakObjectPtr<USpeakerPointComponent>> Hushed;
 	FVector SprungAt = FVector::ZeroVector;

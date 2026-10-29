@@ -39,14 +39,20 @@ float AUnpaidCreature::GetHitSlowGap() const
 bool AUnpaidCreature::CanStartAttack() const
 {
 	// Not mid-cinder or mid-scream either: its turn waits for them; nor with a flank ready (its turn opens with the flank).
-	if (IsPhasing() || bLunging || Kit.Action != EUnpaidAction::None || Kit.bFlankArmed)
+	if (IsPhasing() || Kit.bLunging || Kit.Action != EUnpaidAction::None || Kit.bFlankArmed)
 	{
 		return false;
 	}
-	// Nor right after a blink lands (SinceLastStep restarts as it's whole again): a beat to see where it came back.
-	if (HasFightKit() && SinceLastStep < FUnpaidFightTuning::Live().ArrivalHold)
+	// Nor right after a blink lands (SinceLastStep restarts as it's whole again): a beat to see where it came back, a longer
+	// one when it landed right by them (the chapel's dais: steps to sight came back 1.5 m off and raked at once).
+	if (HasFightKit())
 	{
-		return false;
+		const FUnpaidFightTuning Tuning = FUnpaidFightTuning::Live();
+		if (Kit.SinceLastStep < UnpaidFightRules::ArrivalHoldFor(Kit.LandedGap, Tuning.ArrivalHold, Tuning.ArrivalHoldNear,
+			Tuning.ArrivalNearRange * GetSizeScale()))
+		{
+			return false;
+		}
 	}
 	// Nor at a target it can't see (asked last: its trace, kept a moment, only when all else says go).
 	const APawn* Victim = GetTarget();
@@ -62,8 +68,8 @@ void AUnpaidCreature::OnAttackStarted()
 {
 	// The wind-up is the shriek (the pose drops the jaw and spreads the arms through it), or with its kit the rake's arm drawn back.
 	CommitLunge(false);
-	bLunging = false;
-	bLungeLanded = false;
+	Kit.bLunging = false;
+	Kit.bLungeLanded = false;
 	ChooseKitMove();
 	Shriek();
 }
@@ -72,11 +78,11 @@ AShriekRing* AUnpaidCreature::Shriek()
 {
 	APawn* Victim = GetTarget();
 	ACharacter* Character = Cast<ACharacter>(Victim);
-	if (!Traits.bSlowingShriek || !Character || !IsValidTarget(Victim) || SinceSlowingShriek < ShriekCooldown)
+	if (!Traits.bSlowingShriek || !Character || !IsValidTarget(Victim) || Kit.SinceSlowingShriek < ShriekCooldown)
 	{
 		return nullptr;
 	}
-	SinceSlowingShriek = 0.f;
+	Kit.SinceSlowingShriek = 0.f;
 	const float Scale = GetSizeScale();
 	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 	UE_LOG(LogLooter, Verbose, TEXT("%s shrieks at %s."), *GetName(), *GetNameSafe(Victim));
@@ -96,14 +102,16 @@ void AUnpaidCreature::Strike()
 	const float Scale = GetSizeScale();
 	const APawn* Victim = GetTarget();
 	const bool bKit = Kit.Move == EUnpaidMove::Lunge;
-	const FUnpaidFightTuning& Tuning = FUnpaidFightTuning::Live();
+	// At a camping target (still or hidden too long: the director's read) it leads not at all and lands wider (CampPunish).
+	Kit.bCampLunge = bKit && Victim && IsTargetCamping(*Victim);
+	const FUnpaidFightTuning Tuning = FUnpaidFightTuning::Live().ForCamping(Kit.bCampLunge);
 	const float Reach = (bKit ? Tuning.LungeDistance : LungeDistance) * Scale;
 	// Never into a wall: its target gone out of its sight through the wind-up (round a corner, behind a door leaf), it holds
 	// where it is, its attack spent (looked at now, not a moment ago).
 	if (bKit && Victim && Tuning.Sight != 0 && !SeesTarget(*Victim, true))
 	{
-		bLunging = false;
-		LungeLeft = 0.f;
+		Kit.bLunging = false;
+		Kit.LungeLeft = 0.f;
 		Kit.LungeReach = Reach;
 		OnAttackStrike(false);
 		return;
@@ -116,33 +124,33 @@ void AUnpaidCreature::Strike()
 	}
 	FVector ToVictim = Aim - GetActorLocation();
 	ToVictim.Z = 0.f;
-	LungeDirection = ToVictim.IsNearlyZero() ? GetActorForwardVector() : ToVictim.GetSafeNormal();
+	Kit.LungeDirection = ToVictim.IsNearlyZero() ? GetActorForwardVector() : ToVictim.GetSafeNormal();
 	float Length = FMath::Clamp(static_cast<float>(ToVictim.Size()) - LungeStopShort * Scale, 0.f, Reach);
 	const float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	FVector Ground;
-	while (Length > 40.f * Scale && !FindGround(GetActorLocation() + LungeDirection * Length, 50.f * Scale, HalfHeight + 350.f * Scale, Ground))
+	while (Length > 40.f * Scale && !FindGround(GetActorLocation() + Kit.LungeDirection * Length, 50.f * Scale, HalfHeight + 350.f * Scale, Ground))
 	{
 		Length *= 0.6f;
 	}
-	LungeLeft = Length > 40.f * Scale ? Length : 0.f;
-	LungeTime = 0.f;
+	Kit.LungeLeft = Length > 40.f * Scale ? Length : 0.f;
+	Kit.LungeTime = 0.f;
 	Kit.LungeReach = Reach;
-	bLunging = LungeLeft > 0.f;
+	Kit.bLunging = Kit.LungeLeft > 0.f;
 	// A short flight is committed from its first frame.
-	CommitLunge(bLunging && LungeLeft <= GetLungeSpeed() * Tuning.LungeCommit);
+	CommitLunge(Kit.bLunging && Kit.LungeLeft <= GetLungeSpeed() * Tuning.LungeCommit);
 	// The rush of cloth and cold air as it flies (or swipes where it stands); the shriek before it was the wind-up's cry.
 	Voice->Play(LooterSoundCue::UnpaidLunge);
-	if (!bLunging)
+	if (!Kit.bLunging)
 	{
 		// Already in reach, or nowhere to fly: it strikes where it stands.
 		TryLungeHit();
 	}
-	OnAttackStrike(bLungeLanded);
+	OnAttackStrike(Kit.bLungeLanded);
 }
 
 void AUnpaidCreature::TickLunge(float DeltaSeconds)
 {
-	LungeTime += DeltaSeconds;
+	Kit.LungeTime += DeltaSeconds;
 	if (TryLungeHit())
 	{
 		EndLunge();
@@ -151,16 +159,16 @@ void AUnpaidCreature::TickLunge(float DeltaSeconds)
 	const float Speed = GetLungeSpeed();
 	// Its last stretch is committed: the hit slow is held off it. Before that a slow drags its flight (the movement clamps
 	// to the held speed), so the way left and the wall-grace count the way it really flew, never the way it meant to.
-	if (!bLungeCommitted && LungeLeft <= Speed * FUnpaidFightTuning::Live().LungeCommit)
+	if (!Kit.bLungeCommitted && Kit.LungeLeft <= Speed * FUnpaidFightTuning::Live().LungeCommit)
 	{
 		CommitLunge(true);
 	}
-	const UMovementSlowComponent* Slow = bLungeCommitted ? nullptr : FindComponentByClass<UMovementSlowComponent>();
+	const UMovementSlowComponent* Slow = Kit.bLungeCommitted ? nullptr : FindComponentByClass<UMovementSlowComponent>();
 	const float Flown = Slow ? Slow->GetMultiplier() : 1.f;
-	LungeLeft -= Speed * Flown * DeltaSeconds;
-	LungeTime += (Flown - 1.f) * DeltaSeconds;
+	Kit.LungeLeft -= Speed * Flown * DeltaSeconds;
+	Kit.LungeTime += (Flown - 1.f) * DeltaSeconds;
 	const float Reach = Kit.LungeReach > 0.f ? Kit.LungeReach : LungeDistance * GetSizeScale();
-	if (LungeLeft <= 0.f || LungeTime > Reach / FMath::Max(Speed, 1.f) + LungeGrace)
+	if (Kit.LungeLeft <= 0.f || Kit.LungeTime > Reach / FMath::Max(Speed, 1.f) + LungeGrace)
 	{
 		EndLunge();
 		return;
@@ -169,20 +177,20 @@ void AUnpaidCreature::TickLunge(float DeltaSeconds)
 	const APawn* Victim = GetTarget();
 	if (Kit.Move == EUnpaidMove::Lunge && Victim)
 	{
-		LungeDirection = UnpaidFightRules::TurnToward(LungeDirection, Victim->GetActorLocation() - GetActorLocation(),
+		Kit.LungeDirection = UnpaidFightRules::TurnToward(Kit.LungeDirection, Victim->GetActorLocation() - GetActorLocation(),
 			FUnpaidFightTuning::Live().LungeHoming * DeltaSeconds);
 	}
 	// Flown, not walked: full speed at once (the movement keeps it on the ground and off the walls).
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	Movement->MaxWalkSpeed = Speed;
-	Movement->Velocity = FVector(LungeDirection * Speed) + FVector(0.f, 0.f, Movement->Velocity.Z);
-	AddMovementInput(LungeDirection);
+	Movement->Velocity = FVector(Kit.LungeDirection * Speed) + FVector(0.f, 0.f, Movement->Velocity.Z);
+	AddMovementInput(Kit.LungeDirection);
 }
 
 bool AUnpaidCreature::TryLungeHit()
 {
 	APawn* Victim = GetTarget();
-	if (bLungeLanded || !IsValidTarget(Victim))
+	if (Kit.bLungeLanded || !IsValidTarget(Victim))
 	{
 		return false;
 	}
@@ -190,7 +198,7 @@ bool AUnpaidCreature::TryLungeHit()
 	const FVector ToVictim = Victim->GetActorLocation() - GetActorLocation();
 	// With its kit the lunge lands only near its line and hurts its share (a strafe after the tell beats it; DEMO 2026-10-27).
 	const bool bKit = Kit.Move == EUnpaidMove::Lunge;
-	const FUnpaidFightTuning Tuning = bKit ? FUnpaidFightTuning::Live() : FUnpaidFightTuning();
+	const FUnpaidFightTuning Tuning = bKit ? FUnpaidFightTuning::Live().ForCamping(Kit.bCampLunge) : FUnpaidFightTuning();
 	const float Radius = bKit ? Tuning.LungeHitRadius : LungeHitRadius;
 	// Up and down, a small one still reaches a player standing over it, as a full-size one does.
 	if (ToVictim.Size2D() > Radius * Scale || FMath::Abs(ToVictim.Z) > 220.f * FMath::Max(Scale, 1.f))
@@ -202,7 +210,7 @@ bool AUnpaidCreature::TryLungeHit()
 	{
 		return false;
 	}
-	bLungeLanded = true;
+	Kit.bLungeLanded = true;
 	HitWithAttack(Victim, ToVictim.GetSafeNormal2D(), bKit ? Tuning.LungeDamageShare : 1.f);
 	return true;
 }
@@ -210,7 +218,7 @@ bool AUnpaidCreature::TryLungeHit()
 void AUnpaidCreature::EndLunge()
 {
 	// It stops dead where the lunge ends: the dead don't skid. Any slow it took on the way holds it again now.
-	bLunging = false;
+	Kit.bLunging = false;
 	TryLungeHit();
 	GetCharacterMovement()->StopMovementImmediately();
 	CommitLunge(false);
@@ -218,11 +226,11 @@ void AUnpaidCreature::EndLunge()
 
 void AUnpaidCreature::CommitLunge(bool bOn)
 {
-	if (bOn == bLungeCommitted)
+	if (bOn == Kit.bLungeCommitted)
 	{
 		return;
 	}
-	bLungeCommitted = bOn;
+	Kit.bLungeCommitted = bOn;
 	// Added now if it has none, so a hit that lands in the committed stretch finds it suspended.
 	if (UMovementSlowComponent* Slow = bOn ? UMovementSlowComponent::FindOrAdd(this) : FindComponentByClass<UMovementSlowComponent>())
 	{

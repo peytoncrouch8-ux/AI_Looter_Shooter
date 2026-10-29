@@ -125,6 +125,9 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 		{ TEXT("QuarryTrack"), 5, 6, TEXT("the quarry track's spiders") },
 		{ TEXT("Churchyard"), 3, 4, TEXT("the churchyard's risen dead") },
 		{ TEXT("Webwood"), 5, 6, TEXT("the Webwood's drop") },
+		// The finds' encounters (FINDS lane E): the far plot on boot hill (its zone 3-4) and the Tollman on the keeper's road (4-5).
+		{ TEXT("MiserPlot"), 3, 4, TEXT("the Miser's plot on boot hill (a find)") },
+		{ TEXT("Tollman"), 4, 5, TEXT("the Tollman on the keeper's road (a find)") },
 		// The new side missions' and the mountain's (2026-10-13), should the layout list them among its encounters: the
 		// depot's waiting room and Tilly's cellar in the valley (the cellar's spawner keeps its own 3-4), the mountain 5-6.
 		{ TEXT("DepotWaiting"), 2, 3, TEXT("the depot's waiting room (The Old Fare)") },

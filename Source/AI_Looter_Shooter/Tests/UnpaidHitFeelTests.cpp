@@ -16,6 +16,7 @@
 #include "Tests/BossTestWorld.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "CoreGlobals.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -252,7 +253,13 @@ bool FUnpaidHitHatTest::RunTest(const FString& Parameters)
 	Unpaid->RespawnDelay = 0.f;
 	BossTestWorld::Kill(Unpaid);
 	Run(Unpaid, 0.2f);
-	World->GetTimerManager().Tick(2.6f);
+	// Its respawn timer (CorpseTime + 2.5 s + RespawnDelay) was set before the timer manager's first tick this frame, so it
+	// waits as pending: the first tick only starts it counting, and the manager ticks once a frame. Tick, move the frame on,
+	// then tick its 2.6 s (as Looter.Gunfeel.Reload's RunReloadClock does).
+	FTimerManager& Timers = World->GetTimerManager();
+	Timers.Tick(0.f);
+	++GFrameCounter;
+	Timers.Tick(2.6f);
 	TestFalse(TEXT("It came back"), Unpaid->IsDead());
 	TestTrue(TEXT("With its hat on its head"), Hat->GetAttachParent() == Unpaid->GetMesh() && Hat->IsVisible());
 	TestEqual(TEXT("No hat off in the world now"), UnpaidHat::NumOff(World), 0);

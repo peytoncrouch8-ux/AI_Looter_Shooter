@@ -258,7 +258,7 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 	// The brain: senses, chase, the attack (Strike starts the lunge).
 	Super::Tick(DeltaSeconds);
 
-	SinceSlowingShriek = FMath::Min(SinceSlowingShriek + DeltaSeconds, 1000.f);
+	Kit.SinceSlowingShriek = FMath::Min(Kit.SinceSlowingShriek + DeltaSeconds, 1000.f);
 	if (IsDead())
 	{
 		DeathTime += DeltaSeconds;
@@ -268,7 +268,7 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 	{
 		Heat = FMath::FInterpTo(Heat, 0.f, DeltaSeconds, FlareFade);
 		TickPhaseStep(DeltaSeconds);
-		if (bLunging)
+		if (Kit.bLunging)
 		{
 			TickLunge(DeltaSeconds);
 		}
@@ -305,9 +305,10 @@ void AUnpaidCreature::RiseIn()
 	}
 	// The end of a phase-step without its start: gone, and fading back in where it stands, as it comes up out of the ground
 	// clawing (RiseTime: the pose's RiseDrop and PoseTargets), the dirt thrown up round it.
-	PhaseState = EPhaseState::In;
-	PhaseTime = 0.f;
+	Kit.PhaseState = EPhaseState::In;
+	Kit.PhaseTime = 0.f;
 	PhaseAmount = 1.f;
+	Kit.LandedGap = TNumericLimits<float>::Max();
 	RiseTime = 0.f;
 	ApplyLook(true);
 	if (UCreatureReactComponent* Reacts = GetReact())
@@ -359,10 +360,10 @@ void AUnpaidCreature::OnDied()
 	}
 	Kit.Reset();
 	CommitLunge(false);
-	bLunging = false;
-	bPressStepOwed = false;
-	PhaseState = EPhaseState::None;
-	PhaseTime = 0.f;
+	Kit.bLunging = false;
+	Kit.bPressStepOwed = false;
+	Kit.PhaseState = EPhaseState::None;
+	Kit.PhaseTime = 0.f;
 	DeathTime = 0.f;
 	RiseTime = -1.f;
 	GlanceYaw = 0.f;
@@ -390,7 +391,7 @@ void AUnpaidCreature::OnRespawned()
 	UnpaidHat::PutBack(*Hat, Hurt.Hat);
 	Hurt.Reset();
 	PutOnHat();
-	PhaseState = EPhaseState::None;
+	Kit.PhaseState = EPhaseState::None;
 	PhaseAmount = 0.f;
 	Heat = 0.f;
 	DeathTime = 0.f;
@@ -398,10 +399,10 @@ void AUnpaidCreature::OnRespawned()
 	GlanceYaw = 0.f;
 	GlanceLeft = 0.f;
 	CommitLunge(false);
-	bLunging = false;
+	Kit.bLunging = false;
 	Kit.Reset();
-	Sight = FUnpaidSightState();
-	SinceLastStep = 1000.f;
+	Kit.Sight = FUnpaidSightState();
+	Kit.SinceLastStep = 1000.f;
 	ResetProgress();
 	for (FShroudChain& Chain : Chains)
 	{

@@ -94,6 +94,8 @@ void ASlimeCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	{
 		return;
 	}
+	// Three quick hits while it waits its turn may send it hopping aside (SlimeCreatureSplit.cpp).
+	NoteHitForDodge();
 	// How much of the hit-feel pass shows (Looter.Hits.SlimeScale; 0 is the slime as it was): each new number is its old one
 	// moved this far toward the new.
 	const FHitFeelTuning Feel = FHitFeelTuning::Live();
@@ -189,6 +191,8 @@ void ASlimeCreature::OnDied()
 		SetActorLocation(Ground + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), false, nullptr,
 			ETeleportType::TeleportPhysics);
 	}
+	// A Restless or better slime bursts into slimelets where it lies (SlimeCreatureSplit.cpp).
+	SplitOnDeath();
 	// How it goes by the killing hit (HITS): a core crit pops (the gel is already deflating), a blast splatters, an overkill
 	// swells on the killing frame, held by the hit-stop, and bursts when it ends (TickWounds).
 	DeathStyle = DeathStyleFor(GetLastHit());

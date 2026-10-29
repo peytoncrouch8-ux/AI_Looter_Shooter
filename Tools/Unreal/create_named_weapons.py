@@ -49,6 +49,56 @@ NAMED = [
          # Honest wear on the edges of a gun that was looked after (Epic guns roll 0.05-0.45, commons 0.45-1).
          wear=0.35,
          seed=1),
+
+    # The three finds' guns (FINDS, 2026-10-28; Docs/Work/2026-10-28-Core/FINDS.md section 2): a find pays one each, once
+    # (MissionRewards::DropNamedGun), for the best-hidden. Plain stat guns, no special effects: every part is a plain-stat
+    # one (no Effect/Element rows), at or under the gun's rarity.
+    # Still Water: the Rim Ranger cache in Larkspur Tarn (N1, Where They Can't Wade), a Longhorn sniper. Ruth Calder sank it
+    # where the dead will not follow, so it comes up quiet and worn. Epic. The long suppressor is the quiet, the Ranger
+    # chassis and 6x shaded glass are the Rangers' own: accuracy and reach, paid for in handling.
+    dict(asset='DA_Named_StillWater', weapon='DA_Sniper', name='Still Water', line="The dead don't wade.", rarity='Epic',
+         parts={
+             'Body': 'Ranger',          # Rare+. The Rangers' own chassis.
+             'Barrel': 'Long',          # Uncommon+. 60 cm: reach, for some handling.
+             'Muzzle': 'LongSuppressor',  # Epic. Whisper: the shot that does not carry across still water.
+             'Magazine': '6',           # Uncommon+. Six steel rounds.
+             'Sight': 'Ranger',         # Uncommon+. 6x shaded scope.
+             'Stock': 'Cheek',          # Uncommon+. A cheek riser, steady.
+             'Bolt': 'Standard',        # Common. The only bolt there is.
+         },
+         quality=0.8,
+         wear=0.5,   # Years under a tarn's cold: pitted, never ruined.
+         seed=2),
+    # Bench Mark: Wendell Pike's good rifle, buried in his cache south of Coffin Rock (N4, Pike's Cache), a Bullpup AR. Rare:
+    # a surveyor's rifle, dependable rather than grand: marksman's shell, a plain fluted barrel, a steadying compensator and
+    # a 4x combat optic for reading a far bench mark; a cheek riser, 30 rounds in a windowed magazine.
+    dict(asset='DA_Named_BenchMark', weapon='DA_AssaultRifle', name='Bench Mark',
+         line='One hundred and twelve feet above the trouble.', rarity='Rare',
+         parts={
+             'Body': 'Marksman',      # Rare+. Accuracy for some recoil control and handling.
+             'Barrel': 'Fluted',      # Uncommon+. Accuracy and range.
+             'Muzzle': 'Compensator',  # Rare+. Steady: accuracy, less recoil.
+             'Magazine': '30Window',  # Uncommon+. 30 rounds, a window to count them by.
+             'Sight': 'ACOG',         # Rare+. 4x combat optic.
+             'Stock': 'Cheek',        # Uncommon+. Steady.
+         },
+         quality=0.7,
+         wear=0.6,   # Buried in its tin with the instruments: stained, kept.
+         seed=3),
+    # Ferryman's Due: the Tollman's (N6, a Drover revolver). He wore the old fare on his eyes and carries what he collected with
+    # it. Epic: an engraved frame and a gilded barrel (the coin's gold), a moon-clip cylinder (round as a coin), a peep sight, a
+    # coffin grip. Six shots, exact change.
+    dict(asset='DA_Named_FerrymansDue', weapon='DA_Revolver', name="Ferryman's Due", line='Exact change only.', rarity='Epic',
+         parts={
+             'Body': 'Engraved',    # Epic. Damage, accuracy, handling.
+             'Barrel': 'Gilded',    # Epic. A short gilded barrel: damage, accuracy, range.
+             'Cylinder': 'Moon6',   # Uncommon+. Six shots on a moon clip, a quick reload.
+             'Sight': 'Peep',       # Uncommon+. Accuracy.
+             'Grip': 'Coffin',      # Rare+. Damage for slower handling.
+         },
+         quality=0.8,
+         wear=0.25,   # Taken off a dead man who kept it oiled to the end.
+         seed=4),
 ]
 
 # What the C++ declares, by Python name; a field missing means the C++ with named guns isn't built.

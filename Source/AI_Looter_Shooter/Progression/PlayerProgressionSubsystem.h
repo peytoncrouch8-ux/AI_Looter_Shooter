@@ -22,7 +22,8 @@ enum class EXPSource : uint8
 	Kill,    // a creature the player killed
 	Debug,   // the console commands (Looter.GiveXP, Looter.SetLevel, Looter.ResetProgress)
 	Loaded,  // a session's progress was loaded (nothing earned)
-	Mission  // a mission's reward (a share of the current level's experience)
+	Mission, // a mission's reward (a share of the current level's experience)
+	Find     // a find off the path (UFindSubsystem: a cache, a grave, an elite, a Ledger page), paid as its banner ends
 };
 
 /** Gained is 0 when the level was set directly (a console command, a reset, a session loaded) rather than earned. */

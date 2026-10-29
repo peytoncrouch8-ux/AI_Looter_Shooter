@@ -152,6 +152,10 @@ namespace EncounterLayout
 		FString OwnObstacle;
 		int32 Creatures = 0;
 		bool bLeader = false;
+		/** A find's encounter (MiserPlot, the Tollman: FINDS lane E): fewer creatures than a fight's, and rarer. */
+		bool bFind = false;
+		/** Story fights whose roaming ground it stands in by design (MiserPlot among boot hill's graves): not kept clear of them. */
+		TArray<FString> InsideFights;
 	};
 
 	struct FAreaLayout
@@ -279,6 +283,14 @@ namespace EncounterLayout
 				Made.Creatures += static_cast<int32>(Group->AsObject()->GetNumberField(TEXT("count")));
 				const FString Rank = Group->AsObject()->GetStringField(TEXT("rank"));
 				Made.bLeader |= Rank == TEXT("Rare") || Rank == TEXT("Epic");
+			}
+		}
+		Object->TryGetBoolField(TEXT("find"), Made.bFind);
+		if (Object->TryGetArrayField(TEXT("inside"), Field))
+		{
+			for (const TSharedPtr<FJsonValue>& Fight : *Field)
+			{
+				Made.InsideFights.Add(Fight->AsString());
 			}
 		}
 		FVector2D Middle = Made.Spots.Num() > 0 ? Centroid(Made.Spots) : FVector2D::ZeroVector;

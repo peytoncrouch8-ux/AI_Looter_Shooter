@@ -23,6 +23,8 @@ namespace
 		TEXT("Ammo pickups in a set piece's loot shower (36 rounds each, as a chest's)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarRewardBonusAmmo(TEXT("Looter.Fight.SetPiece.RewardBonusAmmo"), SetPieceDefaults.RewardBonusAmmo,
 		TEXT("Extra chest-full ammo boxes on top of a set piece's shower."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarArena(TEXT("Looter.Fight.SetPiece.Arena"), SetPieceDefaults.bArena ? 1 : 0,
+		TEXT("1: an arena set piece's fog gates close at its first push (the chapel yard's); 0: they never do."), ECVF_Default);
 }
 
 FSetPieceTuning FSetPieceTuning::Current()
@@ -35,6 +37,7 @@ FSetPieceTuning FSetPieceTuning::Current()
 	Made.RewardLuck = FMath::Max(CVarRewardLuck.GetValueOnGameThread(), 0.f);
 	Made.RewardAmmo = FMath::Max(CVarRewardAmmo.GetValueOnGameThread(), 0);
 	Made.RewardBonusAmmo = FMath::Clamp(CVarRewardBonusAmmo.GetValueOnGameThread(), 0, 10);
+	Made.bArena = CVarArena.GetValueOnGameThread() != 0;
 	return Made;
 }
 
@@ -97,4 +100,44 @@ int32 SetPieceRules::DustPuffs(int32 Count, float Scale)
 int32 SetPieceRules::RewardLevel(int32 HighestCreatureLevel)
 {
 	return FMath::Max(HighestCreatureLevel, 1);
+}
+
+SetPieceRules::FGateFrame SetPieceRules::GateFrame(const FVector& Start, const FVector& End, const FVector& ArenaPoint)
+{
+	// The seal's +Y runs along the wall and its +X is the arena's side (ABossSeal::IsInside), a quarter turn clockwise of it.
+	// Whichever way round the ends were given, the end that leaves the arena ahead is the origin.
+	FVector From = Start;
+	FVector To = End;
+	auto AheadOf = [](const FVector& A, const FVector& B)
+	{
+		const FVector2D Along = FVector2D(B.X - A.X, B.Y - A.Y).GetSafeNormal();
+		return FVector(Along.Y, -Along.X, 0.0);
+	};
+	if (FVector::DotProduct(FVector(ArenaPoint.X - From.X, ArenaPoint.Y - From.Y, 0.0), AheadOf(From, To)) < 0.0)
+	{
+		Swap(From, To);
+	}
+	FGateFrame Frame;
+	Frame.Origin = From;
+	Frame.Ahead = AheadOf(From, To);
+	Frame.Yaw = FMath::RadiansToDegrees(FMath::Atan2(Frame.Ahead.Y, Frame.Ahead.X));
+	Frame.Length = FVector2D::Distance(FVector2D(From.X, From.Y), FVector2D(To.X, To.Y));
+	Frame.Rise = To.Z - From.Z;
+	return Frame;
+}
+
+bool SetPieceRules::IsAheadOfGate(const FGateFrame& Frame, const FVector& Point, double Margin)
+{
+	return FVector::DotProduct(FVector(Point.X - Frame.Origin.X, Point.Y - Frame.Origin.Y, 0.0), Frame.Ahead) >= Margin;
+}
+
+bool SetPieceRules::ShouldRaiseGates(bool bUp, bool bArenaOn, EEncounterState State, int32 WavesStarted, bool bDone,
+	bool bPlayerAlive, bool bPlayerInside)
+{
+	return !bUp && bArenaOn && State == EEncounterState::Engaged && WavesStarted >= 1 && !bDone && bPlayerAlive && bPlayerInside;
+}
+
+bool SetPieceRules::ShouldDropGates(bool bUp, bool bArenaOn, EEncounterState State, bool bDone, bool bPlayerAlive)
+{
+	return bUp && (!bArenaOn || bDone || !bPlayerAlive || State != EEncounterState::Engaged);
 }

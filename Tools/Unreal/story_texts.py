@@ -27,6 +27,9 @@ line sets the topics below name are Tools/Unreal/create_story_lines.py's.
   ENCOUNTERS  when each mission fight is on (an encounter spawner's active_when), by its spawner id.
   SECRETS     the things to find off the path (2026-10-21): each one's chest, its loot, its anchor and its readable
               (build_area_secrets.py places them).
+  FINDS       the find system's words (2026-10-28, Docs/Work/2026-10-28-Core/FINDS.md): each of the fifteen finds' banner
+              name, region and the lines Hob says after the banner; FIND_REGIONS, FIND_COMPLETE. The new finds' readables
+              (Find_*) are in READABLES. The ids are AFindSpot ids (saved as Find.<Id>): never rename one.
 
 A condition is a dict of build_area_story.condition()'s words (after, before, during, from_step, before_step; steps
 counted from 0, as the missions' are) plus with_flags and without_flags (story flags); condition() below makes the
@@ -246,6 +249,39 @@ READABLES = {
         title='A fallen crate', heading='In the quarry blocks, under the derrick', prompt='Look', text='',
         sets_flag='Secret.Crate',
         lines=[(HOB, 'Fell off the boom. The company never came for it.')]),
+
+    # --- Finds off the path, round 2 (2026-10-28; FINDS below; build_area_finds.py places them). Only facts the story has:
+    # Pike surveyed the Reaches (the map's "W. PIKE, SURVEYOR"; bench mark 112 is Coffin Rock's), Ruth Calder's Rangers cache
+    # their supplies, the dead never follow into deep water, Ned Purcell gambles (the agent's desk), the old fare is a coin
+    # on each eye. The scrap is in Coffin Rock's tin; its bearing is honest (the Nose's foot, S. 40 E.).
+    'Find_PikeScrap': dict(
+        title="A scrap of W. Pike's field book", heading="Folded small in the surveyor's tin", prompt='Read',
+        text=("FIELD BOOK, W. PIKE.\n\n"
+              "FROM B.M. 112, S. 40 E., 26 YARDS, TO THE NOSE'S FOOT.\n"
+              "INSTRUMENTS, POWDER, MY GOOD RIFLE.\n"
+              "DIG BY THE RED STONE."),
+        lines=[(ELLIS, 'Twenty-six yards, south-east. An honest bearing.'),
+               (HOB, 'A surveyor buries what he cannot carry, sunshine.')]),
+    'Find_RangerTag': dict(
+        title='A Ranger cache tag', heading="Tied to a stake on the tarn's north shore, a rope running into the water",
+        prompt='Read', text="RANGER CACHE.\nR.C.\n\nWhere they can't wade.",
+        lines=[(ELLIS, "Ruth's mark. The rope goes under."),
+               (HOB, "The dead won't follow into deep water, sunshine. Take a breath.")]),
+    'Find_MarkedCard': dict(
+        title='A nicked ace', heading='Pinned to the rock with a knife', prompt='Look',
+        text='An ace of spades, nicked at one corner. You would feel it dealing.\n\nOn the back, in pencil: N.P.',
+        lines=[(ELLIS, 'A marked card.'),
+               (HOB, "Purcell's. He never could leave a deck alone, sunshine.")]),
+    'Find_RangerNote': dict(
+        title="Ranger Post Three's note", heading="Under a stone on the post's lookout", prompt='Read',
+        text='RANGER POST 3.\nWATCH THE NOTCH AT DUSK.\n\n' + DASH + ' R.C.',
+        lines=[(ELLIS, 'Another of her posts.'),
+               (HOB, 'Wait for dusk, sunshine. The canyon earns its name then.')]),
+    'Find_MiserBoard': dict(
+        title='A headboard set apart', heading='Past the last row on boot hill', prompt='Read',
+        text='EZEKIEL MOSS.\nHE TOOK HIS FARE WITH HIM.',
+        lines=[(ELLIS, 'Gold on the mound.'),
+               (HOB, "His fare, sunshine. Dig him up and he'll want it back.")]),
 }
 
 # The seven towns the Dunne Gang robbed, in the order the Keeper's Lantern finds their embers (the seven names' order),
@@ -372,6 +408,9 @@ READABLE_MODELS = {
     'DeaconLetter_Cleft': 'SM_DeaconLetter', 'DeaconLetter_Saloon': 'SM_DeaconLetter', 'ReachesMap': 'SM_ReachesMap',
     # Slips (build_area_secrets.py falls back to SM_DeaconsSlip, the slip it is): Aldana's page, Teague's powder slip.
     'AldanaPage': 'SM_DeaconsSlip', 'Secret_Powder': 'SM_DeaconsSlip',
+    # Finds (2026-10-28): paper stands in as a scrap, a card and a note; the tag and the headboard are read off the props
+    # build_area_finds.py places (SM_CacheTag, SM_Grave_Headboard_OldC).
+    'Find_PikeScrap': 'SM_LedgerPage', 'Find_MarkedCard': 'SM_DeaconsSlip', 'Find_RangerNote': 'SM_DeaconsSlip',
 }
 READABLE_MODELS.update({'LedgerPage_' + town: 'SM_LedgerPage' for town, page in LEDGER_TOWNS.items() if page['found']})
 
@@ -598,14 +637,19 @@ SECRETS = {
                       prefer=(1.0, 0.0), ring=(260.0, 420.0),
                       readable='Secret_WidowsBox'),
     # The skiff's locker on the Mooring Ledge, by the Deacon's letter and the Mire's page (Hob's hint at Main 2's end).
+    # (FINDS: two guns at Luck 1.0 now, was one at 0.5: a find pays at least a camp crate.)
     'Mooring': dict(chest_id='Secret_MooringLocker', kind='Footlocker', anchor=('ledge', 'mooringPost'),
-                    loot=dict(guns=1, gun_chance=1.0, luck=0.5, ammo_pickups=2, mote_chance=0.0), readable=None),
+                    loot=dict(guns=2, gun_chance=1.0, luck=1.0, ammo_pickups=2, mote_chance=0.0), readable=None),
     # Coffin Rock's top (a vista): the surveyor's tin and his bench mark, reached up the fallen slab on its north face
     # (steps: only the direction is read now, build_area_secrets.place_steps).
+    # FINDS: two guns at Luck 1.0 (was one at 0.6), and the tin also holds Pike's field-book scrap (READABLES Find_PikeScrap,
+    # 'scrap': build_area_finds.py places it beside the bench mark; it leads to Pike's Cache). Unknown keys are ignored by
+    # build_area_secrets.py.
     'CoffinRock': dict(chest_id='Secret_SurveyorsTin', kind='Footlocker', anchor=('top', 'coffinRock'),
-                       loot=dict(guns=1, gun_chance=1.0, luck=0.6, ammo_pickups=1, mote_chance=0.0),
-                       readable='Secret_BenchMark', steps=('north', 6, 125.0)),
-    # The Burnt Homestead's chimney (the town's mutter after the gate: "Avery kept his savings up the chimney").
+                       loot=dict(guns=2, gun_chance=1.0, luck=1.0, ammo_pickups=1, mote_chance=0.0),
+                       readable='Secret_BenchMark', scrap='Find_PikeScrap', steps=('north', 6, 125.0)),
+    # The Burnt Homestead's chimney (the town's mutter after the gate: "Avery kept his savings up the chimney"). FINDS E4's
+    # 45 silver are its AFindSpot's Silver, not the chest's loot.
     'Chimney': dict(chest_id='Secret_AveryTin', kind='Footlocker', anchor=('obstacle', 'burntHomestead'),
                     prefer=(0.0, 1.0), ring=(120.0, 300.0),
                     loot=dict(guns=1, gun_chance=1.0, luck=0.5, ammo_pickups=1, mote_chance=0.0), readable=None),
@@ -613,7 +657,8 @@ SECRETS = {
     'Bottle': dict(chest_id='Secret_ThaddeusBottle', kind='Footlocker', anchor=('obstacle', 'springhouse'), inside=True,
                    prefer=(0.0, 0.0), ring=(0.0, 200.0),
                    loot=dict(guns=1, gun_chance=1.0, luck=0.8, ammo_pickups=1, mote_chance=0.0), readable='Secret_Bottle'),
-    # The keepers' stores in the old lantern house by the keeper's grave: oil and shells for nights on the boards.
+    # The keepers' stores in the old lantern house by the keeper's grave: oil and shells for nights on the boards. (FINDS E6
+    # adds two grenade tins; the chest override has no grenade field, so the find system pays them.)
     'LanternHouse': dict(chest_id='Secret_KeepersStores', kind='Footlocker', anchor=('obstacle', 'lanternHouse'), inside=True,
                          prefer=(0.0, 0.0), ring=(0.0, 200.0),
                          loot=dict(guns=1, gun_chance=0.5, luck=0.5, ammo_pickups=2, mote_chance=0.0), readable=None),
@@ -624,12 +669,51 @@ SECRETS = {
     # Teague's powder box on Larkspur Bench, behind granite G (Odell's report, the payroll's small charge).
     'Powder': dict(chest_id='Secret_PowderBox', kind='Footlocker', anchor=('obstacle', 'benchGraniteGRock'),
                    prefer=(-1.0, 0.0), ring=(260.0, 420.0),
-                   loot=dict(guns=1, gun_chance=1.0, luck=1.0, ammo_pickups=2, mote_chance=0.0), readable='Secret_Powder'),
+                   loot=dict(guns=2, gun_chance=1.0, luck=1.0, ammo_pickups=2, mote_chance=0.0), readable='Secret_Powder'),
     # A crate fallen off the old derrick's boom, among the quarry blocks.
     'Crate': dict(chest_id='Secret_DerrickCrate', kind='Footlocker', anchor=('obstacle', 'quarryBlocks'),
                   prefer=(0.0, 1.0), ring=(260.0, 480.0),
                   loot=dict(guns=1, gun_chance=1.0, luck=0.5, ammo_pickups=2, mote_chance=0.0), readable='Secret_Crate'),
 }
+
+
+# The find system's words (2026-10-28, Docs/Work/2026-10-28-Core/FINDS.md), by FindId (AFindSpot::FindId, saved as the story
+# flag Find.<Id>: never rename one). name: the banner's name (AFindSpot::DisplayName); region: one of FIND_REGIONS (the
+# map's rows, in order); lines: what Hob says once the banner ends (AFindSpot::Lines, through UCaptionSubsystem::Play). A
+# find whose readable already has Hob's remark (READABLES) has no lines here, so he never says two things at once. Short,
+# in his voice ("sunshine"); no family words (Docs/Pipeline/Story.md "The heroes' words").
+FIND_REGIONS = ['Farm & Point', 'West Road', 'Town & Boot Hill', 'South Fields', 'The Mountain']
+
+FINDS = {
+    'WidowsBox': dict(name="The Widow's Strongbox", region='Farm & Point', lines=[]),
+    'Mooring': dict(name="The Gang's Locker", region='Farm & Point',
+                    lines=[(HOB, 'Left by the skiff, sunshine. Nobody came back.')]),
+    'RangerPost': dict(name='Ranger Post Three', region='Farm & Point', lines=[]),
+    'BoltHole': dict(name='The Bolt-Hole', region='Farm & Point',
+                     lines=[(HOB, 'The gang waited out the day in here, sunshine.')]),
+    'Chimney': dict(name="The Averys' Savings", region='West Road',
+                    lines=[(HOB, 'Fire took the house. The chimney kept the savings.')]),
+    'LanternHouse': dict(name="The Keepers' Stores", region='West Road',
+                         lines=[(HOB, 'Oil and shells. Keepers plan for long nights.')]),
+    'Tollman': dict(name='The Tollman', region='West Road',
+                    lines=[(HOB, 'Somebody finally collected from the collector, sunshine.')]),
+    'Hoard': dict(name="The Spiders' Hoard", region='Town & Boot Hill', lines=[]),
+    'MiserGrave': dict(name="The Miser's Fare", region='Town & Boot Hill',
+                       lines=[(HOB, 'He took his fare with him. You took it back, sunshine.')]),
+    'Bottle': dict(name="Thaddeus's Bottle", region='South Fields', lines=[]),
+    'CoffinRock': dict(name="The Surveyor's Tin", region='South Fields', lines=[]),
+    'PikesCache': dict(name="Pike's Cache", region='South Fields',
+                       lines=[(HOB, 'Twenty-six yards, and he never came back for it.')]),
+    'Powder': dict(name="Teague's Powder Box", region='The Mountain', lines=[]),
+    'Crate': dict(name='The Fallen Crate', region='The Mountain', lines=[]),
+    'Tarn': dict(name="Where They Can't Wade", region='The Mountain',
+                 lines=[(HOB, 'Clever woman, Ruth. Sank it where the dead will not go.')]),
+}
+
+# All fifteen found (the "EVERY FIND IN RANSOM'S REST" banner's moment): Hob, after the banner.
+FIND_COMPLETE = dict(
+    banner="EVERY FIND IN RANSOM'S REST",
+    lines=[(HOB, "That's all of it, sunshine. Even I didn't know about the tarn.")])
 
 
 def condition(spec):

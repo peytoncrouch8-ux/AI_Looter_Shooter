@@ -108,10 +108,13 @@ namespace
 	 * The dead pose (the body's frame at size 1, the thorax at DeadRide): each femur leaves its hip this many degrees from
 	 * straight ahead (to its own side) and slopes down to its knee this high over the ground; its tip lies this far to its own
 	 * side of the centreline, this high. The back pairs swing out past the abdomen's flank: along it, a femur's hull went
-	 * into the abdomen's.
+	 * into the abdomen's. The back pair was 146 degrees and 11 cm until the 2026-10-22 remodel (Spider.py: arched femurs, a
+	 * longer coxa, spines and bristles standing up off them), whose fuller femur hulls reached 4 cm past rest into the
+	 * abdomen's flank (Looter.Creatures.Anim.SpiderDeathCurl allows 3): swung 4 degrees wider and 2 cm lower, its knee still
+	 * drawn in (about 77 of the test's 80 cm off the body's line).
 	 */
-	constexpr float DeadKneeYaw[4] = { 8.f, 22.f, 156.f, 146.f };
-	constexpr float DeadKneeHeight[4] = { 12.f, 12.f, 12.f, 11.f };
+	constexpr float DeadKneeYaw[4] = { 8.f, 22.f, 156.f, 142.f };
+	constexpr float DeadKneeHeight[4] = { 12.f, 12.f, 12.f, 9.f };
 	constexpr float DeadTipSide[4] = { 6.f, 18.f, 8.f, 30.f };
 	constexpr float DeadTipHeight[4] = { 5.f, 3.f, 7.f, 3.f };
 	/**

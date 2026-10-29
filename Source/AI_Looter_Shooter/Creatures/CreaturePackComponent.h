@@ -5,6 +5,7 @@
 #include "Math/RandomStream.h"
 #include "CreaturePackComponent.generated.h"
 
+class AController;
 class ACreatureBase;
 class APawn;
 enum class ECreatureState : uint8;
@@ -24,6 +25,8 @@ enum class ECreatureState : uint8;
  *    (GetRankStingAge) for its tag to flash its rank's word.
  *  - A patrol's anchor (APatrolSpawner): while it has one, standing about and walking home mean keeping to that point as
  *    it moves along the route, at the anchor's pace.
+ *  - Its pack's leader (FIGHTS.md section 2, 2026-10-28; an encounter group's bLeader): a leader always wears Rallying, and
+ *    its death (heard here) makes the packmates near it falter and may break them (PackLeaderRules::OnLeaderDown).
  * It never ticks: the brain calls it.
  */
 UCLASS(ClassGroup = (Looter))
@@ -54,6 +57,21 @@ public:
 	/** It rolled for breaking off this life (and whether it had a pack to lose). */
 	bool HasRolledRetreat() const { return bRetreatRolled; }
 	bool HadPack() const { return bHadPack; }
+
+	/** Breaks off now (as when its pack is gone): it runs a while from its target, crying out, then comes again. */
+	void BreakOff();
+
+	/**
+	 * Its pack's leader fell: a Basic one of a kind that breaks off (UEncounterSettings::RetreatKinds), hunting and not
+	 * already running, rolls once with Chance to break off (PackLeaderRules::WantsBreakOffRoll). True when it broke off.
+	 */
+	bool RollLeaderBreakOff(float Chance);
+
+	// --- Its pack's leader (an encounter group's bLeader) ---
+
+	/** Makes it its pack's leader (or not): a leader wears Rallying on top of its rolled traits, and its fall shakes its pack. */
+	void SetLeader(bool bInLeader);
+	bool IsLeader() const { return bLeader; }
 
 	// --- Its brain's changes ---
 
@@ -110,6 +128,12 @@ private:
 	/** The rank sting, if it's due (PackRules::ShouldRankSting) and no other creature just sounded one. */
 	void TryRankSting();
 	void StartRetreat();
+	/** A leader wears Rallying: put it back if its traits were rolled again (a promotion, a new life). */
+	void KeepLeaderTrait();
+
+	/** Its creature died: a leader's fall shakes its pack. */
+	UFUNCTION()
+	void HandleOwnerDeath(AController* Killer);
 
 	/** Its flank now (degrees), and seconds to its next look at the pack. */
 	float FlankDegrees = 0.f;
@@ -122,6 +146,9 @@ private:
 	bool bHadPack = false;
 	bool bRetreatRolled = false;
 	FRandomStream Rolls;
+
+	/** Its pack's leader (SetLeader). */
+	bool bLeader = false;
 
 	bool bRankStung = false;
 	int32 RankStings = 0;

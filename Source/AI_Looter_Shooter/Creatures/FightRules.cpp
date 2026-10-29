@@ -1,4 +1,5 @@
 #include "Creatures/FightRules.h"
+#include "UObject/Class.h"
 
 namespace
 {
@@ -24,7 +25,7 @@ namespace
 // FFightTokens
 // ---------------------------------------------------------------------------
 
-bool FFightTokens::TryTake(uint32 Id, double Now, int32 Max, float ForgetAfter, float MinGap)
+bool FFightTokens::TryTake(uint32 Id, double Now, int32 Max, float ForgetAfter, float MinGap, FName Family, float FamilyGap)
 {
 	if (Holds(Id))
 	{
@@ -36,23 +37,26 @@ bool FFightTokens::TryTake(uint32 Id, double Now, int32 Max, float ForgetAfter, 
 	}
 	Prune(Now, ForgetAfter);
 	FWaiter* Mine = Waiters.FindByPredicate([Id](const FWaiter& Each) { return Each.Id == Id; });
-	if (Mine)
+	if (!Mine)
 	{
-		Mine->LastAsk = Now;
+		FWaiter Made;
+		Made.Id = Id;
+		Made.Since = Now;
+		Mine = &Waiters.Add_GetRef(Made);
 	}
-	else
-	{
-		Waiters.Add({ Id, Now, Now });
-	}
+	Mine->LastAsk = Now;
+	Mine->Family = Family;
+	Mine->FamilyGap = FamilyGap;
 	if (Holders.Num() >= FMath::Max(Max, 1) || (MinGap > 0.f && Now - LastGiven < MinGap))
 	{
 		return false;
 	}
-	// The next free turn is the longest waiter's (ties: the lower id, so every asker sees the same order).
+	// The next free turn is the longest waiter's (ties: the lower id, so every asker sees the same order) of those whose kind
+	// may begin one now: one held back by its family's gap doesn't hold up another kind behind it.
 	const FWaiter* First = nullptr;
 	for (const FWaiter& Each : Waiters)
 	{
-		if (!First || Each.Since < First->Since || (Each.Since == First->Since && Each.Id < First->Id))
+		if (IsFamilyOpen(Each, Now) && (!First || Each.Since < First->Since || (Each.Since == First->Since && Each.Id < First->Id)))
 		{
 			First = &Each;
 		}
@@ -61,10 +65,25 @@ bool FFightTokens::TryTake(uint32 Id, double Now, int32 Max, float ForgetAfter, 
 	{
 		return false;
 	}
+	const bool bKept = First->bKept;
 	Waiters.RemoveAll([Id](const FWaiter& Each) { return Each.Id == Id; });
 	Holders.Add({ Id, Now });
 	LastGiven = Now;
+	if (!bKept && !Family.IsNone() && FamilyGap > 0.f)
+	{
+		FamilyLastGiven.Add(Family, Now);
+	}
 	return true;
+}
+
+bool FFightTokens::IsFamilyOpen(const FWaiter& Waiter, double Now) const
+{
+	if (Waiter.bKept || Waiter.FamilyGap <= 0.f || Waiter.Family.IsNone())
+	{
+		return true;
+	}
+	const double* Last = FamilyLastGiven.Find(Waiter.Family);
+	return !Last || Now - *Last >= Waiter.FamilyGap;
 }
 
 bool FFightTokens::Holds(uint32 Id) const
@@ -118,7 +137,12 @@ bool FFightTokens::ReleaseKeepTurn(uint32 Id, double Now)
 	Waiters.RemoveAll([Id](const FWaiter& Each) { return Each.Id == Id; });
 	// Ahead of every real wait, in the order these turns were first taken; it leaves the line like anyone else once it has
 	// stopped asking for ForgetAfter (a knock that lasts gives the turn to the next one).
-	Waiters.Add({ Id, Since - HeadOfLine, Now });
+	FWaiter Kept;
+	Kept.Id = Id;
+	Kept.Since = Since - HeadOfLine;
+	Kept.LastAsk = Now;
+	Kept.bKept = true;
+	Waiters.Add(Kept);
 	return true;
 }
 
@@ -153,6 +177,16 @@ float FightRules::ChaseSpeedFor(float ChaseSpeed, bool bOwnFight, float Scale)
 float FightRules::DamageScaleFor(bool bOwnFight, float Scale)
 {
 	return bOwnFight ? 1.f : FMath::Max(Scale, 0.f);
+}
+
+FName FightRules::FamilyOf(const UClass* Class)
+{
+	// The native class: a Blueprint child of a kind fights as its kind does, and so shares its kind's gap.
+	while (Class && !Class->HasAnyClassFlags(CLASS_Native))
+	{
+		Class = Class->GetSuperClass();
+	}
+	return Class ? Class->GetFName() : NAME_None;
 }
 
 // ---------------------------------------------------------------------------

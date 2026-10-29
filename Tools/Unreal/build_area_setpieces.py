@@ -15,7 +15,12 @@ block, in the entry's frame (layout cm, or the mine's metres):
       "placed": [{"class": ..., "rank": "Basic", "wave": 1, "at": [x, y],
                   "high": cm (the highest ground within this of "at", inside its ground) |
                   "balcony": kind (the deck of that placement's balcony over "at"'s street), "z": m (the mine's)}],
-      "reward": [x, y]                         where its loot shower bursts (a round-the-player one bursts where it sprang)
+      "reward": [x, y],                        where its loot shower bursts (a round-the-player one bursts where it sprang)
+      "arena": {"gates": [[[x, y], [x, y]], ...], "margin": 150}
+                                               an arena (FIGHTS lane 6, the chapel yard): a fog wall (ABossSeal, Gate shape) across
+                                               each opening, each given by its two ends (the entry's frame, cm), the arena on the
+                                               spawner's side of it; they rise once the player stands inside every one by "margin"
+                                               cm with the fight on, and drop when it is won, on the player's death or if it is off
     }
 Its creatures' groups, trigger, entrance and ground are the entry's own, as any ambush's.
 """
@@ -58,6 +63,23 @@ def beat(spec, where):
     made.set_editor_property('shake', float(spec.get('shake', 0.0)))
     made.set_editor_property('shake_seconds', float(spec.get('shakeSeconds', 0.8)))
     made.set_editor_property('dust_puffs', int(spec.get('dust', 0)))
+    return made
+
+
+def gate_one(build, ends, where, entry):
+    """An FSetPieceGate across one of an arena's openings: its two ends (the entry's frame, cm), each on the ground there."""
+    import build_area_camps as camps
+    points = []
+    for end in ends:
+        x, y = where.point(end)
+        z = camps.ground_z(build, x, y, where.z)
+        if z is None:
+            build.warn(f'{entry["id"]}: no ground under an arena gate\'s end ({x:.0f}, {y:.0f}): it stands at the set piece\'s height')
+            z = where.z
+        points.append(unreal.Vector(x, y, z))
+    made = unreal.SetPieceGate()
+    made.set_editor_property('start', points[0])
+    made.set_editor_property('end', points[1])
     return made
 
 
@@ -171,6 +193,11 @@ def apply(build, made, entry, where):
     if 'reward' in spec:
         rx, ry = where.point(spec['reward'])
         made.set_editor_property('reward_spot', unreal.Vector(rx - where.x, ry - where.y, 0.0))
+    arena = spec.get('arena')
+    if arena:
+        made.set_editor_property('arena_gates', [gate_one(build, ends, where, entry) for ends in arena['gates']])
+        made.set_editor_property('arena_margin', float(arena.get('margin', 150.0)))
+        build.log(f'{entry["id"]}: an arena, {len(arena["gates"])} fog gate(s), up once the player is {arena.get("margin", 150.0):.0f} cm inside')
     pushes = ', '.join(f'{b.get("wave", 1)}' + (f' ({len(b["spots"])} spots)' if b.get('spots') else ' (round the player)')
                        for b in spec.get('beats', []))
     build.log(f'{entry["id"]}: a set piece (flag {spec.get("doneFlag")}), pushes {pushes}, {len(placed)} placed, '

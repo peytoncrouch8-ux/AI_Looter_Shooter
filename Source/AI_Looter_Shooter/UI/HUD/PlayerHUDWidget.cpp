@@ -1,4 +1,5 @@
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudFindBannerWidget.h"
 #include "UI/HUD/HudGraveMarkedWidget.h"
 #include "UI/HUD/HudGrenadeWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
@@ -400,6 +401,14 @@ void UPlayerHUDWidget::ShowGraveMarked(const FText& GraveName)
 	if (GraveBanner)
 	{
 		GraveBanner->Announce(GraveName);
+	}
+}
+
+void UPlayerHUDWidget::ShowFind(const FFindBannerShow& Find)
+{
+	if (FindBanner)
+	{
+		FindBanner->Announce(Find);
 	}
 }
 

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Creatures/FightEvent.h"
+#include "Creatures/FightPressureRules.h"
 #include "Creatures/FightRules.h"
 #include "Creatures/FightTuning.h"
 #include "Creatures/UnpaidFightRules.h"
@@ -27,6 +29,10 @@ class APawn;
  *  - A pack's moments (the Unpaid's kit): a frenzy that lets one pack take more turns at once for a while after a rally
  *    scream, one rally, howl and cinder at a time per target, one phase-step or flank at a time per target, and each
  *    creature's own chase boost.
+ *  - Pressure (FIGHTS.md section 2, 2026-10-28; FightDirectorPressure.cpp): a kind family's melee turns at one target spaced
+ *    by its melee gap (GetMeleeGap), what it reads of each player (still, hidden, hurt: GetPlayerRead) and the close-call ease
+ *    for one nearly dead, one leap at a target at a time (MayLeap), the packs' leaders (IsPackLed, the lull after one falls),
+ *    and the fight's moments for the fight log (NoteEvent, OnFightEvent).
  * Bosses and Legendary monsters never ask (ACreatureBase::UsesFightDirector). Looter.Fight.Director 0 turns it all off (Get
  * returns none). It is made in game and PIE worlds only, and in test levels a test lets it (bAllowInTestWorlds).
  */
@@ -106,6 +112,42 @@ public:
 	void SetChaseBoost(const ACreatureBase& Creature, float Boost);
 	float GetChaseBoost(const ACreatureBase& Creature) const;
 
+	// --- Pressure (FIGHTS.md section 2; FightDirectorPressure.cpp) ---
+
+	/**
+	 * The gap (s) between melee turns of Creature's kind family (its native class) at one target: its GetMeleeGap times
+	 * Looter.Fight.MeleeGap (0 turns every gap off). A turn waits for it; other families' turns don't.
+	 */
+	float GetMeleeGapFor(const ACreatureBase& Creature);
+
+	/** What the director read of Target at its last look (a fresh look first if one is due): a default read when it runs no fight there. */
+	FFightPlayerRead GetPlayerRead(const APawn& Target);
+
+	/** One leap (a pounce) at Target in Gap seconds, whoever leaps: whether Creature may go now. Counted only by NoteLeap. */
+	bool MayLeap(const ACreatureBase& Creature, const APawn& Target, float Gap) const;
+	/** Creature leapt at Target now: the next leap there waits the gap. */
+	void NoteLeap(const ACreatureBase& Creature, const APawn& Target);
+
+	/** Leader leads its pack now (UCreaturePackComponent::SetLeader): its packmates near it count as led. */
+	void NoteLeader(const ACreatureBase& Leader);
+	/** Member's pack has a living leader within Looter.Fight.LeaderReach of it (a leader counts its own pack as led). */
+	bool IsPackLed(const ACreatureBase& Member) const;
+	/** Leader fell (PackLeaderRules::OnLeaderDown): its pack's frenzy ends at once, and the lull after it begins. */
+	void NoteLeaderDown(const ACreatureBase& Leader);
+	/** Seconds since a leader of Member's pack fell within Looter.Fight.LeaderReach of it (a large number: none has). */
+	float GetSinceLeaderDown(const ACreatureBase& Member) const;
+	/** Within Looter.Fight.LeaderLull seconds of its leader's fall: no rally, no frenzy (the Unpaid's kit reads it). */
+	bool IsInLeaderLull(const ACreatureBase& Member) const;
+
+	/** A fight's moment (Creature's, Event, its number): counted and handed to OnFightEvent. */
+	void NoteEvent(const ACreatureBase& Creature, EFightEvent Event, float Value = 0.f);
+	/** NoteEvent at Creature's world's director, if it has one (Looter.Fight.Director 0: nothing). */
+	static void Note(const ACreatureBase& Creature, EFightEvent Event, float Value = 0.f);
+	/** Every NoteEvent (the fight log binds it; nothing is spent while nobody listens). */
+	FOnFightEvent OnFightEvent;
+	/** How many of Event were noted in this world. */
+	int32 GetEventCount(EFightEvent Event) const;
+
 	// --- Tests and tools ---
 
 	/** Looks at every fight now, whenever it last did. */
@@ -151,10 +193,31 @@ private:
 		FUnpaidStepGate Steps;
 		/** Fighters by pack tag at the last look. */
 		TMap<FName, int32> PackCounts;
+		/** The player read (FightDirectorPressure.cpp): how long still and hidden, the close-call ease, the leaps' gate. */
+		FFightStillWatch Still;
+		FFightSightWatch Sight;
+		FFightEaseWatch Ease;
+		FFightLeapGate Leaps;
+		FFightPlayerRead Read;
 	};
 
-	/** The melee turns at once for Creature at Fight now: Looter.Fight.MeleeTokens, or its pack's frenzy's if more. */
+	/** A leader's fall, kept a while for its pack's lull: whose pack (its tag, or its class without one), where, when. */
+	struct FLeaderDown
+	{
+		FName PackTag;
+		TWeakObjectPtr<const UClass> Class;
+		FVector Where = FVector::ZeroVector;
+		double Time = 0.0;
+	};
+
+	/** The melee turns at once for Creature at Fight now: Looter.Fight.MeleeTokens, or its pack's frenzy's if more; one fewer while the ease is on. */
 	int32 MeleeTokensFor(const ACreatureBase& Creature, const FTargetFight& Fight) const;
+	/** The ranged turns at once at Fight now: Looter.Fight.RangedTokens, one fewer while the ease is on. */
+	int32 RangedTokensFor(const FTargetFight& Fight) const;
+	/** Reads Target at a look (still, hidden, hurt, camping) and opens the close-call ease if it's due (FightDirectorPressure.cpp). */
+	void ReadPlayer(const APawn& Target, FTargetFight& Fight, const TArray<ACreatureBase*>& Fighters, double Time);
+	/** Whether any of Fighters (the first few: HiddenTraceMax) has a clear eye line at Target. */
+	bool AnyFighterSees(const APawn& Target, const TArray<ACreatureBase*>& Fighters) const;
 
 	/** The tuning for this frame (the cvars read once a frame). */
 	const FFightTuning& Tuning();
@@ -173,6 +236,11 @@ private:
 	TMap<TWeakObjectPtr<const APawn>, FTargetFight> Fights;
 	/** Creatures' own chase boosts by id (SetChaseBoost; none means 1). */
 	TMap<uint32, float> ChaseBoosts;
+	/** The packs' leaders (NoteLeader), and the falls of the last minute (NoteLeaderDown). */
+	TArray<TWeakObjectPtr<const ACreatureBase>> Leaders;
+	TArray<FLeaderDown> LeaderDowns;
+	/** NoteEvent's counts, by event. */
+	int32 EventCounts[NumFightEvents] = {};
 	double LastRefresh = -1.0e9;
 	uint64 TuningFrame = MAX_uint64;
 	FFightTuning FrameTuning;

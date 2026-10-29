@@ -29,6 +29,8 @@ namespace PacingPaths
 	{
 		Basic,
 		Restless,
+		/** A Gravebound leader (the chapel yard's Sexton's Debt, the lower drift's, the Tollman). */
+		Gravebound,
 		/** Rolled as a placed or spawned creature is on Ransom's Rest: 8% Restless, 2% Gravebound. */
 		AreaRolled,
 		/** The creature's own starting rank (Abel's Boss, the Gravemother's and the Foreman's Soulfed). */
@@ -146,17 +148,21 @@ namespace PacingPaths
 
 	inline FPathStop MainFourStop(const FPathCast& Foes)
 	{
-		// The chapel yard: fifteen Unpaid in two waves (eight, then seven) and a Restless one (build_area_chapel.py, ChapelYard).
+		// The chapel yard, Saint Ada's Yard (FIGHTS lane 6, 2026-10-28, build_area_chapel.py YARD_PUSHES): fifteen Unpaid in three
+		// pushes (6; 5; 4), a Restless leader with the second, a Gravebound one (the Sexton's Debt) with the third, and the
+		// Bell-Ringer on the vestry steps from the second.
 		return { TEXT("Main 4, Hallowed Ground"), TEXT("Main4"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 15, TEXT("ChapelYard")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("ChapelYard")) }, 1300 };
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 15, TEXT("ChapelYard")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("ChapelYard")),
+			  MakeKills(Foes.Unpaid, EPathRank::Gravebound, 1, TEXT("ChapelYard")), MakeKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("ChapelYard")) }, 1300 };
 	}
 
 	inline FPathStop RoamingStop(const FPathCast& Foes)
 	{
-		// A few roaming creatures once: boot hill's and the north road's Unpaid, five each (build_area_chapel.py, after Main 4;
-		// they're back on every level load). The layout's roaming encounters (the west road's walkers) join them.
+		// A few roaming creatures once: boot hill's and the north road's Unpaid, five each and a Restless leader (build_area_chapel.py,
+		// after Main 4; they're back on every level load). The layout's roaming encounters (the west road's walkers) join them.
 		return { RoamingLabel, NAME_None,
-			{ MakeKills(Foes.Unpaid, EPathRank::AreaRolled, 5, TEXT("BootHill")), MakeKills(Foes.Unpaid, EPathRank::AreaRolled, 5, TEXT("NorthRoad")) }, 0 };
+			{ MakeKills(Foes.Unpaid, EPathRank::AreaRolled, 5, TEXT("BootHill")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("BootHill")),
+			  MakeKills(Foes.Unpaid, EPathRank::AreaRolled, 5, TEXT("NorthRoad")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("NorthRoad")) }, 0 };
 	}
 
 	inline FPathStop MainFiveStop(const FPathCast& Foes)
@@ -195,7 +201,7 @@ namespace PacingPaths
 			  PlannedKills(Foes.Miner, EPathRank::Basic, 7, TEXT("MineUpper"), 26800.0, 7400.0),
 			  PlannedKills(Foes.Miner, EPathRank::Restless, 1, TEXT("MineUpper"), 26800.0, 7400.0),
 			  PlannedKills(Foes.Miner, EPathRank::Basic, 7, TEXT("MineLower"), 30000.0, 7400.0),
-			  PlannedKills(Foes.Miner, EPathRank::Restless, 1, TEXT("MineLower"), 30000.0, 7400.0),
+			  PlannedKills(Foes.Miner, EPathRank::Gravebound, 1, TEXT("MineLower"), 30000.0, 7400.0),
 			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("MineLower"), 30000.0, 7400.0),
 			  PlannedKills(Foes.Miner, EPathRank::Basic, 6, TEXT("Foreman"), 33000.0, 7400.0),
 			  PlannedKills(Foes.Foreman, EPathRank::Own, 1, TEXT("Foreman"), 33000.0, 7400.0),
@@ -242,9 +248,11 @@ namespace PacingPaths
 		// Mr. Sloane's keys and the window's shutter (2026-10-27, the user's note 37): no fight, a short errand.
 		Path.Add({ TEXT("Lost and Found"), TEXT("LostAndFound"), {}, 150 });
 		Path.Add(MainFourStop(Foes));
-		// Amos's old hands: seven Unpaid and a Restless one (build_area_whitlock.py, WhitlockHands).
+		// Amos's old hands, Barn Doors (FIGHTS lane 6): five Unpaid and a Restless leader in the yard, then four out of the barn
+		// and a Bell-Ringer (build_area_whitlock.py, WhitlockHands).
 		Path.Add({ TEXT("Side 2, Unfinished Business"), TEXT("Side2"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 7, TEXT("WhitlockHands")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("WhitlockHands")) }, 600 });
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 9, TEXT("WhitlockHands")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("WhitlockHands")),
+			  MakeKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("WhitlockHands")) }, 600 });
 		// Tilly's cellar, under Main Street: five Unpaid and a Restless one, its spawner's own 3-4.
 		Path.Add({ TEXT("Knocking Below"), TEXT("KnockingBelow"),
 			{ KeptKills(Foes.Unpaid, EPathRank::Basic, 5, TEXT("TillyCellar"), -2400.0, 6200.0, 3, 4),

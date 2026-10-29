@@ -297,3 +297,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `Saved/StyleLab/site/`. The artifact host serves no `.glb` or `.bin`, so models and heights go as base64 JSON (`--b64-glb`; packs
   under about 9.5 MB so each JSON stays under 16 MB); a publish over 64 MB goes in two calls.
 - Cloud sessions commit text only (see the bug list: LFS uploads are refused); binaries live under `Saved/StyleLab/`.
+
+## Finds (2026-10-29; Docs/Work/2026-10-28-Core/FINDS.md, CONTRACT.md)
+- 15 finds in Ransom's Rest (the 9 secrets of 10-22 with tells and better loot; new: Tarn lockbox (dive, Still Water),
+  Tumble bolt-hole (130 cm crawl), Rimrock Ranger Post (steps), Pike's cache (field-book scrap at Coffin Rock -> dig;
+  Bench Mark), the miser's grave (ambush, 60 silver), the Tollman (wandering Gravebound elite, respawns 20 min after a kill;
+  Ferryman's Due)) + 6 Ledger pages counted apart. Tells: two low circling crows and a glint for unfound finds. Map: total
+  and per-region counts. The FOUND banner pays XP (~4,442 in all) and a completion bonus.
+- Built by `Tools/Unreal/build_area_finds.py` (+`_sites.py`, `_graves.py`) from layout.json `gameplay.finds`, run inside
+  `build_area.py RansomsRest gameplay`. Missing art (stand-ins used): a laid rope, a card and knife, a bigger cache tag.
+  Pike's cache digs up the grave's usual coffin (a variant body needs a C++ flag). E6's 2 grenade tins aren't paid yet.

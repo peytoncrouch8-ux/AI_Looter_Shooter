@@ -7,11 +7,12 @@ class isn't there yet is left out with a warning.
 
 - The chapel's place (a target point tagged Place_Chapel) at the chapel's middle: "Go up to the Chapel of Saint Ada" ends
   within 15 m of it.
-- The chapel yard's fight (AEncounterSpawner ChapelYard) on the chapel's spot, turned as the chapel is, its creatures'
-  spots round the chapel in the chapel's own frame (YARD_SPOTS): two waves, eight Unpaid and then seven and a Restless one
-  (the user's bigger fights, 2026-10-21; the design's "12 Unpaid in two waves, and one Restless" until then), the second
-  once the first is down (and 4 s more), tagged Unpaid_ChapelYard. On during
-  Main 4's second step only, coming for the player as they appear, hunting only inside the churchyard's iron fence (the
+- The chapel yard's fight (ASetPieceSpawner ChapelYard, "Saint Ada's Yard", since 2026-10-28 an arena: YARD_PUSHES, placed
+  through build_area_fights_mountain.place_one) on the chapel's spot, turned as the chapel is, its creatures' spots round
+  the chapel in the chapel's own frame (YARD_SPOTS): three pushes, 6 Unpaid; 5 and a Restless leader; 4 and a Gravebound
+  leader (the Sexton's Debt), the Bell-Ringer on the vestry steps from the second, a fog gate across the fence's gateway
+  while it is fought, tagged Unpaid_ChapelYard. On during
+  Main 4's second step only, springing as the player comes near, hunting only inside the churchyard's iron fence (the
   obstacle churchyardFence) and its 2 m margin. The yard is levelled on the knoll's top (layout churchyardPad, 7.5 m;
   2026-10-12: before, the knoll fell about 8 m from the chapel's door to the fence's far corners and the limits were 9 m
   and 10 m), so it's one level of ground with the spawner's own limits: spots up to 4 m above or below the chapel's
@@ -68,18 +69,50 @@ YARD_SPOTS = (
     (-950.0, 0.0), (-1000.0, 500.0), (-1000.0, -500.0), (150.0, -600.0), (-750.0, -700.0),
 )
 YARD_CLEAR = 150.0
-# Each wave's Basic Unpaid (the first eight, the second seven and the Restless one: the chapel yard is the valley's
-# biggest fight); the second comes this long after the first is down (s).
-YARD_WAVE = 8
-YARD_SECOND = 7
-YARD_WAVE_PAUSE = 4.0
+# Saint Ada's Yard (FIGHTS lane 6, 2026-10-28; the user: "clearly harder", an elite in most fights, Main's call: the arena at
+# the chapel yard only): the yard fight is a set piece in three pushes of Unpaid that rise from the yard's spots (indexes into
+# YARD_SPOTS): 6; then 5 and a Restless leader; then 4 and a Gravebound leader, "the Sexton's Debt" (17 in all, the Bell-Ringer
+# on the vestry steps from the second push besides: 18). At most 9 out at once; the next push comes when 3 are left or 35 s
+# after the last. A fog gate shuts the iron fence's gateway (the south side, before the chapel's door) once the player is
+# inside, and opens when the Unpaid are down or the player dies; the shower is the set piece's own (2 guns, 2 ammo, a box).
+YARD_PUSHES = (
+    # (Basic Unpaid, the leader's rank or None, the leader's name or None, the push's spots)
+    (6, None, None, [0, 1, 2, 3, 4, 9]),
+    (5, 'Rare', None, [5, 10, 7, 8, 4, 9]),
+    (4, 'Epic', "the Sexton's Debt", [6, 7, 8, 0, 1]),
+)
+YARD_MAX_ALIVE = 9
+YARD_PUSH_WHEN_LEFT = 3
+YARD_PUSH_AFTER = 35.0
+# The set piece springs this near the chapel (cm): the fence (X 5600-7800, Y -3600 to -200) and a little more, not on
+# walking in (the player is already inside at Main 4's second step, standing by the chapel).
+YARD_SPRING = 3200.0
+# The fence's gateway (the double gate on the chapel's axis: build_area_dressing.py 'churchyardFence' gates) and the fog gate
+# across it, from end to end (layout cm; the gateway is 2 m wide, the gate overlaps the fence 2.5 m either side), on the
+# fence's south line; the yard lies north of it.
+YARD_GATES = (((5600.0, -2250.0), (5600.0, -1550.0)),)
+YARD_GATE_MARGIN = 150.0
+# The Bell-Ringer stands this far out of Aldana's vestry door (SOCKET_Speaker) on the steps, tolling from the second push
+# (cm), else this far behind the vestry in the chapel's frame.
+VESTRY_OUT = 350.0
+VESTRY_FALLBACK = (-200.0, -1050.0)
 # The yard as one level of ground (cm): spots this far above or below the chapel's floor, players this far (the
 # spawner's defaults, now the yard is flat).
 YARD_STEP = 400.0
 YARD_RISE = 600.0
+# Hob's words for it (the beats' speaker; a caption), and the cues each push comes with (existing cues).
+YARD_BEATS = (
+    dict(wave=1, speaker='Hob', line='They were waiting in the graves, sunshine. And the fog has shut the gate behind you. Hold the yard.',
+         sting='Boss.Phase', cue='Creature.Unpaid.Shriek', shake=0.2, shakeSeconds=0.6),
+    dict(wave=2, speaker='Hob', line='Bell-ringer on the vestry steps! He keeps them coming. Drop the loud one first, sunshine.',
+         sting='Creature.RankSting', shake=0.15, shakeSeconds=0.5),
+    dict(wave=3, speaker='Hob', line="That's the Sexton's Debt walking up. Put him down and the rest lose their nerve.",
+         sting='Boss.Phase', cue='Boss.Gravemother.Quake', shake=0.3, shakeSeconds=0.8),
+)
+YARD_CLEARED = dict(speaker='Hob', line='Fog is lifting. Quiet as a church, sunshine. Go knock on the vestry door.', cue='Boss.Loot.Burst')
 
-# The roaming Unpaid after Main 4: how many on each stretch, how far the north road's runs round its spawner, and how
-# far each spreads them out (cm).
+# The roaming Unpaid after Main 4: how many Basic-or-promoted ones on each stretch (and a Restless leader on top: six),
+# how far the north road's runs round its spawner, and how far each spreads them out (cm).
 ROAMING_COUNT = 5
 ROAD_STRETCH = 2500.0
 ROAD_SPREAD = 900.0
@@ -109,6 +142,17 @@ def roaming_group(cls, count):
     return made
 
 
+def leader_group(cls):
+    """FEncounterGroup: one Restless Unpaid that leads its pack (FIGHTS lane 6: it wears Rallying; its fall makes them falter)."""
+    made = unreal.EncounterGroup()
+    made.set_editor_property('creature_class', cls)
+    made.set_editor_property('count', 1)
+    made.set_editor_property('rank_roll', unreal.EncounterRankRoll.FIXED)
+    made.set_editor_property('rank', unreal.CreatureRank.RARE)
+    made.set_editor_property('leader', True)
+    return made
+
+
 # ---------------------------------------------------------------------------
 # The chapel
 # ---------------------------------------------------------------------------
@@ -121,39 +165,71 @@ def place_chapel_marker(build, chapel):
     build.log(f'the chapel\'s middle at ({at.x:.0f}, {at.y:.0f}), tagged {PLACE_CHAPEL}')
 
 
-def place_yard(build, chapel):
-    """The chapel yard's fight: two waves of Unpaid round the chapel (eight, then seven), the Restless one with the second."""
-    unpaid = story.actor_class('UnpaidCreature')
-    cls = story.actor_class('EncounterSpawner')
-    fence = story.layout_entry(build, 'obstacles', 'churchyardFence')
-    if unpaid is None or cls is None or fence is None:
-        if unpaid is None or cls is None:
-            build.warn('no EncounterSpawner or UnpaidCreature class (build the game module first): no fight in the chapel '
-                       'yard')
-        return
+def chapel_point(chapel, x, y):
+    """A point in the chapel's own frame (cm) as a layout point (x, y): the chapel's spot, turned as it is."""
     at = chapel.get_actor_location()
-    # On the chapel's spot and turned as it is, so the spots (in its frame) stand round it wherever it's placed.
-    yard = build.place(cls, (at.x, at.y, at.z + 50.0), chapel.get_actor_rotation().yaw, label=f'Encounter_{YARD}',
-                       folder='Gameplay')
-    yard.set_editor_property('spawner_id', unreal.Name(YARD))
-    # Eight Basic in the first wave, seven in the second with the Restless one (the user's bigger fights, 2026-10-21).
-    yard.set_editor_property('groups', [story.group(unpaid, YARD_WAVE, 'BASIC', first_wave=1, last_wave=1),
-                                        story.group(unpaid, YARD_SECOND, 'BASIC', first_wave=2, last_wave=2),
-                                        story.group(unpaid, 1, 'RARE', first_wave=2, last_wave=2)])
-    yard.set_editor_property('num_waves', 2)
-    yard.set_editor_property('wait_for_clear', True)
-    yard.set_editor_property('wave_interval', YARD_WAVE_PAUSE)
-    yard.set_editor_property('creature_tags', [unreal.Name(YARD_TAG)])
-    # Main 4's second step only (from 0: from 1, before 2): a yard already cleared doesn't fill again on a later load.
-    yard.set_editor_property('active_when', story.condition(during=MAIN4, from_step=1, before_step=2))
-    yard.set_editor_property('spawn_points', [unreal.Vector(x, y, 0.0) for x, y in YARD_SPOTS])
-    yard.set_editor_property('hunt_on_spawn', True)
-    # "Inside the iron fence; gives up at the fence."
-    yard.set_editor_property('ground_corners', [unreal.Vector(x, y, at.z) for x, y in fence['polygon']])
-    yard.set_editor_property('max_ground_step', YARD_STEP)
-    yard.set_editor_property('ground_max_rise', YARD_RISE)
-    build.log(f'the chapel yard\'s fight ({YARD}: {YARD_WAVE} Unpaid, then {YARD_SECOND} and the Restless one) round '
-              f'the chapel, inside the churchyard fence, during {MAIN4}\'s second step')
+    yaw = math.radians(chapel.get_actor_rotation().yaw)
+    return [at.x + math.cos(yaw) * x - math.sin(yaw) * y, at.y + math.sin(yaw) * x + math.cos(yaw) * y]
+
+
+def vestry_steps(chapel):
+    """Where the Bell-Ringer stands: out of Aldana's vestry door (the chapel's Speaker socket) on the steps, else behind the
+    vestry. A layout point (x, y)."""
+    door = story.socket(chapel, 'Speaker')
+    if door is None:
+        return chapel_point(chapel, *VESTRY_FALLBACK)
+    yaw = math.radians(door.rotation.rotator().yaw)
+    return [door.translation.x + math.cos(yaw) * VESTRY_OUT, door.translation.y + math.sin(yaw) * VESTRY_OUT]
+
+
+def yard_entry(chapel, fence):
+    """Saint Ada's Yard as a gameplay.encounters.fights entry (build_area_fights_mountain.place_one's format, with a
+    setPiece block: build_area_setpieces.py): three pushes of Unpaid with their leaders, the Bell-Ringer from the second,
+    the fog gate across the fence's gateway, Hob's words. Its spots are the chapel's, turned as it is."""
+    at = chapel.get_actor_location()
+    spots = [chapel_point(chapel, x, y) for x, y in YARD_SPOTS]
+    groups, beats = [], []
+    for wave, (basic, leader_rank, leader_name, indexes) in enumerate(YARD_PUSHES, start=1):
+        groups.append({'class': 'UnpaidCreature', 'count': basic, 'rank': 'Basic', 'firstWave': wave, 'lastWave': wave})
+        if leader_rank:
+            leader = {'class': 'UnpaidCreature', 'count': 1, 'rank': leader_rank, 'firstWave': wave, 'lastWave': wave, 'leader': True}
+            if leader_name:
+                leader['name'] = leader_name
+            groups.append(leader)
+        beat = dict(YARD_BEATS[wave - 1])
+        beat['spots'] = [spots[i] for i in indexes]
+        beats.append(beat)
+    return {
+        'id': YARD, 'spawner': 'SetPieceSpawner', 'pass': 'valley',
+        'where': "the chapel yard: Saint Ada's Yard, Main 4's arena (a set piece: the dead rise in three pushes behind a fog gate)",
+        'when': {'during': MAIN4, 'fromStep': 1, 'beforeStep': 2},
+        'groups': groups, 'tags': [YARD_TAG], 'center': [at.x, at.y], 'spots': spots,
+        'huntOnSpawn': True, 'entrance': 'Rise',
+        'waves': {'count': len(YARD_PUSHES), 'interval': YARD_PUSH_AFTER, 'waitForClear': False, 'maxAlive': YARD_MAX_ALIVE},
+        'ground': {'polygon': fence['polygon'], 'maxStep': YARD_STEP, 'maxRise': YARD_RISE},
+        'setPiece': {
+            'doneFlag': 'SetPiece.ChapelYard', 'waves': len(YARD_PUSHES), 'pushWhenLeft': YARD_PUSH_WHEN_LEFT,
+            'pushAfter': YARD_PUSH_AFTER, 'springRadius': YARD_SPRING,
+            'beats': beats, 'cleared': dict(YARD_CLEARED),
+            'placed': [{'class': 'BellRingerCreature', 'rank': 'Basic', 'wave': 2, 'at': vestry_steps(chapel)}],
+            'reward': chapel_point(chapel, 700.0, 0.0),
+            'arena': {'gates': [[list(a), list(b)] for a, b in YARD_GATES], 'margin': YARD_GATE_MARGIN},
+        },
+    }
+
+
+def place_yard(build, chapel):
+    """The chapel yard's fight as the set piece Saint Ada's Yard (spawner id ChapelYard, the missions' and the tests' name
+    for it): 17 Unpaid in three pushes with a Restless and a Gravebound leader, a Bell-Ringer from the second, a fog gate."""
+    fence = story.layout_entry(build, 'obstacles', 'churchyardFence')
+    if fence is None:
+        build.warn('no churchyardFence in the layout: no fight in the chapel yard')
+        return
+    fights = importlib.reload(importlib.import_module('build_area_fights_mountain'))
+    fights.place_one(build, yard_entry(chapel, fence), None)
+    unpaid = sum(basic + (1 if rank else 0) for basic, rank, _, _ in YARD_PUSHES)
+    build.log(f"the chapel yard's set piece ({YARD}: {unpaid} Unpaid in {len(YARD_PUSHES)} pushes and a Bell-Ringer, a fog gate "
+              f"at the fence's gateway) round the chapel, inside the churchyard fence, during {MAIN4}'s second step")
     check_yard_clear(build, chapel)
 
 
@@ -254,10 +330,10 @@ def place_aldana(build, chapel):
 # ---------------------------------------------------------------------------
 
 def roaming(build, cls, unpaid, spawner_id, x, y, z):
-    """A roaming stretch's spawner: five Unpaid of the area's ranks, on from Main 4's finish, standing about."""
+    """A roaming stretch's spawner: five Unpaid of the area's ranks and a Restless leader, on from Main 4's finish, standing about."""
     made = build.place(cls, (x, y, z + 50.0), 0.0, label=f'Encounter_{spawner_id}', folder='Gameplay')
     made.set_editor_property('spawner_id', unreal.Name(spawner_id))
-    made.set_editor_property('groups', [roaming_group(unpaid, ROAMING_COUNT)])
+    made.set_editor_property('groups', [roaming_group(unpaid, ROAMING_COUNT), leader_group(unpaid)])
     made.set_editor_property('creature_tags', [unreal.Name(f'Unpaid_{spawner_id}')])
     made.set_editor_property('active_when', story.condition(after=[MAIN4]))
     # They walk their stretch until someone comes near, rather than come at the player as they appear.

@@ -547,3 +547,19 @@ placing `Tools/Unreal/build_area_bounties.py` (gameplay pass after the placehold
 - Lessons: a `UUserWidget` member named `Slot` hides `UWidget::Slot`, an error here (C4458 is an error under
   `BuildSettingsVersion.Latest`); `CreateWidget` runs `NativeOnInitialized` before `OpenFor` sets its fields, so bind
   delegates in `OpenFor`; copy a card's words before an action that remakes the cards.
+
+## Fight: pack brains (2026-10-29; Docs/Work/2026-10-28-Core/FIGHTS.md, CONTRACT.md)
+- Targets (the user's "clearly harder" = Borderlands-normal): a still player dies in 8-12 s to a full pack, a moving one ends
+  a normal fight at 30-70% health, Basic kills 1.6-2.5 s. Spiders exempt (the user's 10-28 "leave them": no melee gap, no
+  pounce/skitter/flush, counts unchanged; the Pace test's spider guard is 2-16 s).
+- Director: melee gap per kind family (slime 0.45 s; `Looter.Fight.MeleeGap` multiplier), player read (still 2.5 s, hidden
+  2 s, camping with 3+ fighters), close-call ease (under 25% EHP: tokens -1 for 4 s, once per 20 s), pack leaders (an
+  encounter group's `bLeader`: Rallying, tethers; its death: packmates falter 1 s, Basic spiders/slimes may break off 0.35,
+  Unpaid lose rally/frenzy 16 s, `Fight.LeaderDown` sting).
+- Slime: Restless+ split into 2 slimelets (0.55 size, 0.3 health, x0.5 damage, x0.25 XP; under the caps); dodge hop.
+- Unpaid: only the leader rallies (12 s); fade-back (a hurt Basic, once a life, 500-650 cm away, 2 s, back); a camping
+  player punished (no lunge lead, hit radius +20, cinder gap x0.6, flank 0.6); dais fix (0.8 s hold for landings within 150 cm).
+- Encounters: Saint Ada's Yard (chapel yard set piece: 6 / 5+1R leader / 4+1 Gravebound "the Sexton's Debt", Bell-Ringer
+  from push 2, max 9 out, fog gate across the south gateway while fought), Barn Doors (Side 2: 5+1R, then 4+Bell-Ringer),
+  leaders in most fights, SheepFold/MillCreek/WestRoad 6+1R, finds' MiserPlot ambush and the Tollman patrol.
+- Measure: `Looter.Fight.Sim`, `Looter.Fight.Log report`, `play.py fight`. Uptimes in FightPaceRules need fitting to DEMO runs.

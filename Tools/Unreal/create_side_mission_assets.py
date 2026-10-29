@@ -41,7 +41,7 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     in to him at his window, which opens the window (its open_when). 150 XP, 20 silver.
   The valley, after Main 4:
   DA_Mission_Side2  "Unfinished Business", offered by Amos at his fence (Speaker_Amos: his meet lines): 0 three of his
-                    hay bales loaded (held; counted from the world), 1 his old hired hands driven off (WhitlockHands, 8;
+                    hay bales loaded (held; counted from the world), 1 his old hired hands driven off (WhitlockHands, 10;
                     as the last falls he says who they were, the Merritt brothers and Sol Tanner, unpaid: the spawner's
                     cleared_lines) + optional what he owed, chalked in the barn (WagesChalk). Turned in to Amos (his
                     thanks, the topic from step 2). 600
@@ -114,7 +114,7 @@ BALE_TAG = 'HayBale'
 # Any three of the six bales in the field (the user's cut of the chores, 2026-10-21).
 BALES = 3
 HANDS = 'WhitlockHands'
-HANDS_COUNT = 8
+HANDS_COUNT = 10  # Barn Doors set piece (2026-10-28): 5 + a Restless leader, then 4 (the Bell-Ringer is placed, not counted)
 # The Sink's markers (Tools/Unreal/build_area_sink.py: the floor's middle, 90 cm over the floor 12 m under the rim, and
 # the ramp head on the west rim) and the Gravemother's lair (Creatures/GravemotherCreature.h: Gravemother::LairId; placed
 # by Tools/Unreal/build_area_den.py).

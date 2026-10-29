@@ -286,12 +286,15 @@ bool FHitFeelFxBudgetTest::RunTest(const FString& Parameters)
 		{ TEXT("Ember puff"), [&](FWeaponFX& Fx, const FVector& At, int32) { Fx.SpawnEmberPuff(At, Ember, 30.f); }, 1, false },
 	};
 	int32 Spot = 0;
-	// (Spots far apart, so one kill's crowd thinning (KillCrowdDetail) never counts the last look's: a test world's clock stands still.)
+	// (Spots far apart, so one kill's crowd thinning (KillCrowdDetail) never counts the last look's: a test world's clock stands still.
+	// The camera moves along with each spot, so a near throw is 6 m from it and a far one 66 m: with the camera left at the first
+	// spot, every later "near" throw was 15 m more off than the last, already at DetailAt's floor, and near and far matched.)
 	auto Throw = [&](const FLook& Look, float AlongX, int32 Count)
 	{
-		HitFxClear(Effects, Camera);
+		const FVector Side(0.0, 1500.0 * Spot++, 0.0);
+		HitFxClear(Effects, Camera + Side);
 		const int32 Before = Effects.NumParticles();
-		Look.Spawn(Effects, FVector(AlongX, 1500.0 * Spot++, 80.0), Count);
+		Look.Spawn(Effects, FVector(AlongX, 0.0, 80.0) + Side, Count);
 		return Effects.NumParticles() - Before;
 	};
 	for (const FLook& Look : Looks)

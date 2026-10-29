@@ -1,5 +1,6 @@
 // ASetPieceSpawner: springing, its pushes and their beats, and its end (the flag, the shower). Its placed creatures and the
-// speakers it shuts are in SetPieceSpawnerPlaced.cpp; its rules (SetPieceRules) and cvars in SetPieceRules.cpp.
+// speakers it shuts are in SetPieceSpawnerPlaced.cpp, its arena's fog gates in SetPieceSpawnerArena.cpp; its rules
+// (SetPieceRules) and cvars in SetPieceRules.cpp.
 
 #include "Creatures/SetPieceSpawner.h"
 #include "AI_Looter_Shooter.h"
@@ -69,6 +70,7 @@ void ASetPieceSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		World->GetTimerManager().ClearTimer(DoneWatch);
 	}
 	Unhush();
+	DestroyGates();
 	if (EndPlayReason == EEndPlayReason::Destroyed)
 	{
 		RemovePlaced(/*bOweThem*/ false);
@@ -148,6 +150,7 @@ void ASetPieceSpawner::UpdatePack(float DeltaSeconds)
 {
 	Super::UpdatePack(DeltaSeconds);
 	PrunePlaced();
+	UpdateArena();
 	if (Hushed.Num() > 0 && !SetPieceRules::KeepsHushed(GetState(), GetWavesStarted(), bDone))
 	{
 		Unhush();
@@ -164,6 +167,11 @@ void ASetPieceSpawner::OnStateChanged(EEncounterState From, EEncounterState To)
 {
 	Super::OnStateChanged(From, To);
 	const bool bBegun = GetWavesStarted() > 0;
+	// The fog gates stand only while it fights: its own creatures down (Cleared), taken away (Waiting) or off, they open.
+	if (To != EEncounterState::Engaged)
+	{
+		DropGates();
+	}
 	switch (To)
 	{
 	case EEncounterState::Cleared:
@@ -327,6 +335,7 @@ void ASetPieceSpawner::Finish()
 	{
 		World->GetTimerManager().ClearTimer(DoneWatch);
 	}
+	DropGates();
 	Unhush();
 	PlayBeat(ClearedBeat, /*bInterrupt*/ false);
 	ThrowReward();

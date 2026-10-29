@@ -4,6 +4,8 @@
 // player, one screams the pack on: a ring of its coal's light runs out, and after the scream the pack comes on together for
 // a while (the director's frenzy: more turns at once, a faster chase). A hit that staggers it calls either off. In front
 // of the player's eyes it may ready a flank for its next turn (UnpaidCreatureMoves.cpp sends it round when the turn comes).
+// A led pack (FIGHTS.md lane 5, 2026-10-29) screams with its leader's voice only, and not at all for a while after its leader
+// falls (the director's lull). A camping player (still or hidden too long) draws cinders sooner and more flanks.
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
@@ -12,6 +14,7 @@
 #include "Audio/LooterSoundCues.h"
 #include "Combat/EnemyProjectileSubsystem.h"
 #include "Creatures/FightDirectorSubsystem.h"
+#include "Creatures/CreaturePackComponent.h"
 #include "Creatures/FightRules.h"
 #include "Creatures/PackRules.h"
 #include "Creatures/ShriekRing.h"
@@ -45,18 +48,25 @@ namespace
 
 void AUnpaidCreature::ThinkOnRing(const APawn& Victim)
 {
-	const FUnpaidFightTuning& Tuning = FUnpaidFightTuning::Live();
 	UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this);
 	if (!Director)
 	{
 		return;
 	}
-	// The pack's scream first: three or more after one player, none screamed lately, no frenzy on.
+	// At a camping player the ring presses harder: cinders sooner, more flanks (FUnpaidFightTuning::ForCamping).
+	const FUnpaidFightTuning Tuning = FUnpaidFightTuning::Live().ForCamping(IsTargetCamping(Victim));
+	// The pack's scream first: three or more after one player, none screamed lately, no frenzy on; in a led pack only its
+	// leader screams, and none in the lull after a leader's fall (asked last: the director's walk of its leaders).
 	if (Kit.WaitTime >= Tuning.RallyWait && Director->CountPack(Victim, PackTag) >= Tuning.RallyMinPack
-		&& Director->GetFrenzyLeft(Victim, PackTag) <= 0.f && Director->TryStartRally(Victim, Tuning.RallyCooldown))
+		&& Director->GetFrenzyLeft(Victim, PackTag) <= 0.f)
 	{
-		StartKitAction(EUnpaidAction::Rally);
-		return;
+		const float Cooldown = UnpaidFightRules::RallyCooldownFor(Director->IsPackLed(*this), Pack->IsLeader(), Director->IsInLeaderLull(*this),
+			Tuning.RallyCooldown, Tuning.LeaderRallyCooldown);
+		if (Cooldown >= 0.f && Director->TryStartRally(Victim, Cooldown))
+		{
+			StartKitAction(EUnpaidAction::Rally);
+			return;
+		}
 	}
 	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim.GetActorLocation()));
 	// In front of the player's eyes: once this wait, the dice say whether its next turn opens with a flank (it then holds
@@ -97,7 +107,7 @@ void AUnpaidCreature::ThinkOnRing(const APawn& Victim)
 bool AUnpaidCreature::StartKitAction(EUnpaidAction Action)
 {
 	const APawn* Victim = GetTarget();
-	if (Action == EUnpaidAction::None || Kit.Action != EUnpaidAction::None || !Victim || IsDead() || IsPhasing() || bLunging
+	if (Action == EUnpaidAction::None || Kit.Action != EUnpaidAction::None || !Victim || IsDead() || IsPhasing() || Kit.bLunging
 		|| GetCreatureState() == ECreatureState::Attack)
 	{
 		return false;
@@ -162,7 +172,9 @@ void AUnpaidCreature::TickKitAction(float DeltaSeconds, const APawn& Victim)
 	Heat = FMath::Max(Heat, RingEase(Kit.ActionTime / RallyFlareSeconds));
 	if (Kit.ActionTime >= Tuning.RallyTell)
 	{
-		if (UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this))
+		// Its leader fell during the scream: the pack doesn't come (the director's frenzy doesn't look at the lull itself).
+		UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this);
+		if (Director && !Director->IsInLeaderLull(*this))
 		{
 			Director->OpenFrenzy(Victim, PackTag, Tuning.FrenzySeconds, Tuning.FrenzyTokens);
 		}

@@ -67,7 +67,8 @@ bool FEncounterCampPlacementTest::RunTest(const FString& Parameters)
 		const FString Name = FString::Printf(TEXT("%s (%s)"), *Each.Id, *Each.Section);
 		TestTrue(FString::Printf(TEXT("%s waits for the story (after a mission)"), *Name), Each.After.Num() > 0);
 		const bool bAmbush = Each.Section == TEXT("ambushes");
-		const int32 Fewest = bAmbush ? 6 : 5;
+		// A find's encounter (the Tollman and his two) is smaller by design.
+		const int32 Fewest = Each.bFind ? 3 : bAmbush ? 6 : 5;
 		const int32 Most = bAmbush ? 10 : 8;
 		TestTrue(FString::Printf(TEXT("%s has %d-%d creatures (%d)"), *Name, Fewest, Most, Each.Creatures), Each.Creatures >= Fewest && Each.Creatures <= Most);
 		if (Each.Section == TEXT("camps"))
@@ -96,7 +97,7 @@ bool FEncounterCampPlacementTest::RunTest(const FString& Parameters)
 			}
 			for (const FAreaFight& Fight : Layout.Fights)
 			{
-				if (MayOverlapInTime(Each.After, Fight))
+				if (MayOverlapInTime(Each.After, Fight) && !Each.InsideFights.Contains(Fight.Id))
 				{
 					TestTrue(FString::Printf(TEXT("%s is off %s's ground"), *At, *Fight.Id), Fight.Ground.Distance(Spot) >= FightClear);
 				}

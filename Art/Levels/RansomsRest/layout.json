@@ -3216,8 +3216,8 @@
           "budget": "main",
           "countedBefore": "Main6",
           "groups": [
-            { "class": "UnpaidCreature", "count": 5, "rank": "Basic" },
-            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" }
+            { "class": "UnpaidCreature", "count": 6, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "leader": true }
           ],
           "center": [2800, -7900],
           "spots": [[2750, -8150], [2750, -7650], [2350, -7150], [2050, -8700], [3050, -7950]],
@@ -3233,7 +3233,7 @@
           "countedBefore": "Side1",
           "groups": [
             { "class": "UnpaidCreature", "count": 5, "rank": "Basic" },
-            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "leader": true },
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
           "center": [-4400, -2000],
@@ -3252,8 +3252,8 @@
           "budget": "optional",
           "countedBefore": "Side1",
           "groups": [
-            { "class": "SlimeCreature", "count": 5, "rank": "Basic" },
-            { "class": "SlimeCreature", "count": 1, "rank": "Rare" }
+            { "class": "SlimeCreature", "count": 6, "rank": "Basic" },
+            { "class": "SlimeCreature", "count": 1, "rank": "Rare", "leader": true }
           ],
           "center": [-7100, 7380],
           "spots": [[-6450, 7480], [-6750, 7440], [-7050, 7390], [-7350, 7340], [-7650, 7300]],
@@ -3269,7 +3269,7 @@
           "after": ["Main4"],
           "budget": "roaming",
           "countedBefore": "Main5",
-          "groups": [{ "class": "UnpaidCreature", "count": 5, "rank": "Area" }],
+          "groups": [{ "class": "UnpaidCreature", "count": 5, "rank": "Area" },{ "class": "UnpaidCreature", "count": 1, "rank": "Rare", "leader": true }],
           "route": [[4800, -4650], [4700, -5100], [4100, -6500]],
           "loop": false,
           "pause": 3.0,
@@ -3290,6 +3290,34 @@
           "corridor": 700,
           "maxRise": 900,
           "note": "Spiders working the quarry's rubble, up and down the track. Kept clear of the north road's roaming ground (25 m round its spot)."
+        },
+        {
+          "id": "Tollman",
+          "where": "the keeper's cairns road, from the keeper's grave toward the Keeper's Gate and back to the lantern house: the Tollman, a Gravebound Unpaid, with two of the dead at his heels (FINDS N6)",
+          "after": ["Main4"],
+          "budget": "optional",
+          "countedBefore": "Main5",
+          "find": true,
+          "legendaryId": "Tollman",
+          "groups": [
+            {
+              "class": "UnpaidCreature",
+              "count": 1,
+              "rank": "Epic",
+              "level": 5,
+              "healthScale": 2.0,
+              "leader": true,
+              "name": "The Tollman",
+              "tags": ["Find_Tollman"]
+            },
+            { "class": "UnpaidCreature", "count": 2, "rank": "Basic" }
+          ],
+          "route": [[1600,-11150],[1450,-12250],[3050,-10200]],
+          "loop": false,
+          "pause": 5.0,
+          "corridor": 700,
+          "maxRise": 800,
+          "note": "A lair: gone after his kill, back on an arrival 20 min of play later (LegendaryId Tollman). Level 5 before his Gravebound rank's one (6), health x2. Turns at Y -12250 (kept 1,500 cm off Gravewind Point's ground) and stops 1 m short of the lantern house's ruin; his Find_Tollman tag is his alone (the group's tags)."
         }
       ],
       "ambushes": [
@@ -3301,7 +3329,7 @@
           "countedBefore": "Main5",
           "groups": [
             { "class": "UnpaidCreature", "count": 6, "rank": "Basic" },
-            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "leader": true },
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
           "trigger": { "obstacle": "churchyardFence", "maxRise": 1000 },
@@ -3318,7 +3346,7 @@
           "countedBefore": "Main5",
           "groups": [
             { "class": "SpiderCreature", "count": 4, "rank": "Basic", "firstWave": 1, "lastWave": 1 },
-            { "class": "SpiderCreature", "count": 1, "rank": "Rare", "firstWave": 1, "lastWave": 1 },
+            { "class": "SpiderCreature", "count": 1, "rank": "Rare", "firstWave": 1, "lastWave": 1, "leader": true },
             { "class": "SpiderCreature", "count": 3, "rank": "Basic", "firstWave": 2, "lastWave": 2 }
           ],
           "trigger": { "obstacle": "webwood", "maxRise": 400 },
@@ -3344,6 +3372,27 @@
             "cleared": { "speaker": "Hob", "line": "Nothing up there now but webs. See what they were sitting on.", "cue": "Boss.Loot.Burst" }
           },
           "note": "A set piece (2026-10-21, the user's few hand-made fights an area): sprung on the Webwood's ground as before, once a session (SetPiece.Webwood), its spiders dropping round where the player stands in two pushes (five, then three once two are left), two Spitters on the highest ground near their spots; the shower bursts where it sprang. The listed spots are the band's old drop spots, kept as its levels' and the tests' spot. Sprung on the way to Ruth's crate on the Sink's rim, or round the rim to the den; the Sink's floor (12 m down) isn't its ground."
+        },
+        {
+          "id": "MiserPlot",
+          "where": "boot hill's far plot: Ezekiel Moss's headboard set apart past the third row; stepping onto it wakes the dead of the rows (FINDS N5)",
+          "after": ["Main3"],
+          "budget": "optional",
+          "countedBefore": "Main4",
+          "find": true,
+          "inside": ["BootHill","NorthRoad"],
+          "groups": [
+            { "class": "UnpaidCreature", "count": 5, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "leader": true }
+          ],
+          "trigger": {
+            "polygon": [[4350,450],[4233,733],[3950,850],[3667,733],[3550,450],[3667,167],[3950,50],[4233,167]],
+            "maxRise": 400
+          },
+          "entrance": "Rise",
+          "spots": [[3700,500],[3600,600],[3500,640],[3400,650],[3300,640],[3550,540]],
+          "ground": { "radius": 1300, "maxRise": 500 },
+          "note": "The Miser's Fare (FINDS N5): 4 m round the headboard at (3950, 450) is the trigger (an octagon), the dead rise in the rows' lee north of the third row inside boot hill's zone (levels 3-4). It stands in boot hill's and the north road's roaming grounds by design ('inside'), after Main 3."
         }
       ],
       "fights": [
@@ -3369,7 +3418,7 @@
           "where": "Abe Haskett, the lift crew's Restless brakeman, the clamp pin on a cord round his neck",
           "conditionOf": "QuarryCrew",
           "when": { "during": "DeadLift", "fromStep": 0, "beforeStep": 1 },
-          "groups": [{ "class": "DeadMinerCreature", "count": 1, "rank": "Rare" }],
+          "groups": [{ "class": "DeadMinerCreature", "count": 1, "rank": "Rare", "leader": true }],
           "tags": ["AbeHaskett","DeadMiner_QuarryCrew"],
           "spots": [[10200,1900]],
           "entrance": "Rise",
@@ -3418,7 +3467,7 @@
           "when": { "after": ["DeadLift"] },
           "groups": [
             { "class": "DeadMinerCreature", "count": 5, "rank": "Basic" },
-            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" }
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare", "leader": true }
           ],
           "tags": ["DeadMiner_CalderPost"],
           "center": [16800,-6600],
@@ -3449,7 +3498,7 @@
           "when": { "after": ["DeadLift"] },
           "groups": [
             { "class": "DeadMinerCreature", "count": 4, "rank": "Basic" },
-            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" },
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare", "leader": true },
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
           "tags": ["Camp_DinnerPail"],
@@ -3485,7 +3534,7 @@
           "when": {},
           "groups": [
             { "class": "DeadMinerCreature", "count": 7, "rank": "Basic" },
-            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" }
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare", "leader": true }
           ],
           "tags": ["DeadMiner_MineUpper"],
           "center": [0.0,42.0,0.0],
@@ -3505,7 +3554,7 @@
           "when": {},
           "groups": [
             { "class": "DeadMinerCreature", "count": 7, "rank": "Basic" },
-            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" },
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Epic", "leader": true },
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
           "tags": ["DeadMiner_MineLower"],
@@ -3545,7 +3594,7 @@
           "groups": [
             { "class": "UnpaidCreature", "count": 4, "rank": "Basic", "firstWave": 1, "lastWave": 1 },
             { "class": "UnpaidCreature", "count": 2, "rank": "Basic", "firstWave": 2, "lastWave": 2 },
-            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "firstWave": 2, "lastWave": 2 }
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "firstWave": 2, "lastWave": 2, "leader": true }
           ],
           "tags": ["Unpaid_MainStreet"],
           "center": [0, 3400],
@@ -3582,7 +3631,7 @@
           "when": { "during": "BackPay", "fromStep": 6 },
           "groups": [
             { "class": "DeadMinerCreature", "count": 4, "rank": "Basic", "firstWave": 1, "lastWave": 1 },
-            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare", "firstWave": 1, "lastWave": 1 },
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare", "firstWave": 1, "lastWave": 1, "leader": true },
             { "class": "DeadMinerCreature", "count": 5, "rank": "Basic", "firstWave": 2, "lastWave": 2 }
           ],
           "tags": ["DeadMiner_CaveIn"],
@@ -3670,7 +3719,57 @@
         "prompt": "Read the board",
         "note": "the sheriff's office's board on Main Street"
       }
-    ]
+    ],
+    "finds": {
+      "about": "Things to find off the path as one find system (Docs/Work/2026-10-28-Core/FINDS.md; the user's 2026-10-21 note: nothing to find off the path), placed by Tools/Unreal/build_area_finds.py in the gameplay pass right after the secrets. Positions and numbers only: the words (names, regions, Hob's lines, the readables) are story_texts.py's FINDS and READABLES. spots: each find's AFindSpot (id = FindId, saved as Find.<id>: never rename), its kind (Cache, Hidden, Grave, Elite, Lore), region (one of regions, the map's rows), source (a secrets chest by label, or the chest or creature tag the find's builder makes), glint (offset from the spot, cm, world axes; glintOn false: none), crows (circling low over it while unfound), silver (level 1), namedGun (a DA_Named_<Id>'s id). build picks the builder (none: an existing secret's chest): tarn, boltHole, rangerPost (build_area_finds_sites.py), pikesCache, miserGrave (build_area_finds_graves.py) and elite; its block holds that builder's numbers (cm). chest: the new chest's id (never renamed once placed), kind Tier (its tier in chest_tiers.py TIERS) or Grave, loot (FChestLootOverride's fields) and openWhen (a story condition). ledger: the six Ledger pages' Lore spots on build_area_seeds.py's readables (their own count, never in the fifteen). materials: the finds' own instances (as level.materials).",
+      "regions": ["Farm & Point", "West Road", "Town & Boot Hill", "South Fields", "The Mountain"],
+      "materials": {
+        "MI_RockOxide_Ransom": {"parent": "MI_RockCliff", "vectors": {"Tint": [0.85, 0.36, 0.22]}, "scalars": {"MossAmount": 0}, "note": "Pike's red stone (SM_Rock_C): the cliff rock rust-red"}
+      },
+      "spots": [
+        {"id": "WidowsBox", "kind": "Cache", "region": "Farm & Point", "source": {"chest": "Secret_WidowsStrongbox"}, "glint": [0, 0, 55], "crows": 2, "note": "E1: the tier 5 strongbox on widow2Rock's north side; glint off its brass from the keeper's path past the slab"},
+        {"id": "Mooring", "kind": "Cache", "region": "Farm & Point", "source": {"chest": "Secret_MooringLocker"}, "glint": [0, 0, 40], "crows": 2, "note": "E2: the gang's locker on the Mooring Ledge (cliff stairs from the lookout)"},
+        {"id": "RangerPost", "kind": "Hidden", "region": "Farm & Point", "build": "rangerPost", "source": {"chest": "Find_RangerPost"}, "glint": [0, 0, 60], "crows": 2,
+         "chest": {"id": "Find_RangerPost", "kind": "Tier"},
+         "steps": {"rock": "rimrockMiddleRock", "face": "east", "depth": 115, "width": 230, "into": 40, "bury": 30, "least": 4, "maxRise": 120, "stakeOut": 80, "stakeSide": 160, "readable": "Find_RangerNote"},
+         "note": "N3: the Rimrock middle piece's top (6 m) by flat-topped Boulder_D steps up its east face (each rise at most 1.2 m, under the 1.5 m mantle), a hidden cube on each top and a hidden deck on the rock's top (the Coffin Rock lesson); a stake with a Ranger cache tag at the foot; the vista over Gravewind Canyon"},
+        {"id": "BoltHole", "kind": "Hidden", "region": "Farm & Point", "build": "boltHole", "source": {"chest": "Find_BoltHole"}, "glintOn": false, "crows": 2,
+         "chest": {"id": "Find_BoltHole", "kind": "Tier"},
+         "boltHole": {"rockfall": "theTumble", "near": [-8600, -5200], "facing": [1.0, -0.3], "hollow": 300, "clear": 220, "level": 35, "laneWidth": 120, "laneLength": 210, "jamb": 110, "gap": 130, "lean": 8, "pathClear": 650, "view": 800, "fill": "SM_Boulder_C", "wall": 320, "readable": "Find_MarkedCard"},
+         "note": "N2: a 3 x 3 m hollow in the Tumble, its crawl gap under a leaning FallenSlab_A between two Boulder_D (a hidden ceiling 130 cm over a hidden lane floor: crouched 116 cm passes, standing 163 does not), facing the farm terrace and the bluff path's lower bend (a clear 8 m view line out of its mouth), 6.5 m off the bluff path; open sides walled with Boulder_C; the lantern (emissive, tagged Flicker) on its back wall is the tell"},
+        {"id": "Chimney", "kind": "Cache", "region": "West Road", "source": {"chest": "Secret_AveryTin"}, "glint": [0, 0, 40], "crows": 2, "silver": 45, "note": "E4: the Burnt Homestead's hearth; the Averys' savings, 45 silver at level 1"},
+        {"id": "LanternHouse", "kind": "Cache", "region": "West Road", "source": {"chest": "Secret_KeepersStores"}, "glint": [0, 0, 40], "crows": 2, "note": "E6: the old lantern house; its two grenade tins wait on a find-system field (AFindSpot has none)"},
+        {"id": "Tollman", "kind": "Elite", "region": "West Road", "build": "elite", "at": [1500, -11600], "source": {"creatureTag": "Find_Tollman", "encounter": "Encounter_Tollman"}, "glintOn": false, "crows": 0, "namedGun": "FerrymansDue", "note": "N6: the Tollman's beat on the cairns road (his patrol is the FIGHTS lane's, patches/fights.json); found by his kill"},
+        {"id": "Hoard", "kind": "Cache", "region": "Town & Boot Hill", "source": {"chest": "Secret_SpiderHoard"}, "glint": [0, 0, 40], "crows": 2, "note": "E7: under the hanging tree"},
+        {"id": "MiserGrave", "kind": "Grave", "region": "Town & Boot Hill", "build": "miserGrave", "source": {"chest": "Find_MiserGrave"}, "glint": [0, 0, 15], "crows": 2, "silver": 60,
+         "chest": {"id": "Find_MiserGrave", "kind": "Grave", "loot": {"guns": 1, "gun_chance": 1.0, "luck": 1.0, "ammo_pickups": 1, "mote_chance": 0.0}, "openWhen": {"after": ["Main3"]}},
+         "grave": {"at": [3950, 450], "ring": [0, 200], "yaws": [180, 90, -90, 0], "board": {"mesh": "SM_Grave_Headboard_OldC", "back": 110}, "coins": {"mesh": "SM_GraveCoins", "up": 14}, "openCoins": {"drop": 15}, "readable": "Find_MiserBoard"},
+         "note": "N5: Ezekiel Moss's grave set apart past boot hill's third row, within the MiserPlot ambush's 3.5 m circle round (3950, 450); dug after Main 3 (the ambush's story step); grave gold: 60 silver"},
+        {"id": "Bottle", "kind": "Cache", "region": "South Fields", "source": {"chest": "Secret_ThaddeusBottle"}, "glint": [0, 0, 40], "crows": 2, "note": "E5: the springhouse"},
+        {"id": "CoffinRock", "kind": "Hidden", "region": "South Fields", "source": {"chest": "Secret_SurveyorsTin"}, "glint": [0, 0, 40], "crows": 2, "scrap": "Find_PikeScrap", "note": "E3: Coffin Rock's top up the slab ramp; Pike's field-book scrap beside the tin (it leads to PikesCache)"},
+        {"id": "PikesCache", "kind": "Grave", "region": "South Fields", "build": "pikesCache", "source": {"chest": "Find_PikesCache"}, "glint": [0, 0, 15], "crows": 2, "namedGun": "BenchMark",
+         "chest": {"id": "Find_PikesCache", "kind": "Grave", "loot": {"guns": 2, "gun_chance": 1.0, "luck": 1.0, "ammo_pickups": 2, "mote_chance": 0.0}},
+         "cache": {"at": [-7900, 450], "ring": [0, 300], "clue": {"from": "Readable_Secret_BenchMark", "eastOfSouth": 40, "yards": 26}, "stone": {"mesh": "SM_Rock_C", "scale": 1.8, "at": [-150, 0], "turn": 25, "material": "MI_RockOxide_Ransom"}, "cairn": {"mesh": "SM_Cairn_A", "scale": 0.6, "at": [0, -140]}},
+         "note": "N4: the Nose's north foot, the scrap's 26 yards S. 40 E. from the bench mark (logged as built); dig by the red stone, a knee-high survey cairn beside; diggable whether or not the scrap was read"},
+        {"id": "Powder", "kind": "Cache", "region": "The Mountain", "source": {"chest": "Secret_PowderBox"}, "glint": [0, 0, 40], "crows": 2, "note": "E8: behind granite G on Larkspur Bench"},
+        {"id": "Crate", "kind": "Cache", "region": "The Mountain", "source": {"chest": "Secret_DerrickCrate"}, "glint": [0, 0, 40], "crows": 2, "note": "E9: among the quarry blocks"},
+        {"id": "Tarn", "kind": "Hidden", "region": "The Mountain", "build": "tarn", "source": {"chest": "Find_TarnLockbox"}, "crows": 2, "namedGun": "StillWater",
+         "chest": {"id": "Find_TarnLockbox", "kind": "Tier"},
+         "tarn": {"water": "larkspurTarn", "stake": [20650, -2000], "dryAbove": 15, "coverTop": 40, "inward": 120, "readable": "Find_RangerTag", "readableModel": "SM_CacheTag"},
+         "note": "N1: Ruth's cache on the bed of Larkspur Tarn (water 4930, bed 4760), its top at least 40 cm under the surface inside the deep zone (creatures never follow), a stake on the north shore with the rope down the bank to it and the Ranger tag (readable) on the stake's top"}
+      ],
+      "ledger": {
+        "crows": 0, "glintOn": false,
+        "pages": [
+          {"id": "LedgerPage_HighwaterLanding", "region": "Town & Boot Hill"},
+          {"id": "LedgerPage_DustwaterMesa", "region": "The Mountain"},
+          {"id": "LedgerPage_SaintAgnesMire", "region": "Farm & Point"},
+          {"id": "LedgerPage_FurnaceHollow", "region": "The Mountain"},
+          {"id": "LedgerPage_TheNeedles", "region": "Town & Boot Hill"},
+          {"id": "LedgerPage_RansomsRest", "region": "Town & Boot Hill"}
+        ]
+      }
+    }
   },
   "roadside": {
     "about": "The roads' own dressing (2026-10-27, the user's note 16: roads should read and pull; Tools/Unreal/build_area_dressing.py Plan.roadside, placed with the dressing). markers: posts (or cairns, up the mountain) every 'every' cm along the roads out of town, 'out' cm past the road's side ('side' -1 its right going along its path, else the left), never in the town's zones. lanterns: lantern posts on the last 'length' cm into town, both sides in turn, the lantern over the road. signs: a Signpost (ARoadSign, the names painted on its boards) where a branch leaves: 'along' cm along the road from 'at' (start, end, or the index of a point of its path) the way 'dir' says, 'out' cm past its side; its upper board points on along the road (upper: the place it leads to), its lower board back (lower: where it came from); the names are the map page's place names. Every piece keeps off the other pieces, the buildings, the obstacles and the other roads' beds, trying the other side first. mapRoads: an AMapRoad per road, which the minimap's bake paints, so the HUD minimap and the map page draw the roads.",

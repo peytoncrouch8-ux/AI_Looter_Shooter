@@ -63,6 +63,33 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	/** Looter.Fight.RangedMoveShare: it walks to a new spot at this share of its chase speed. */
 	float RangedMoveShare = 0.7f;
 
+	// --- Pressure (FIGHTS.md section 2, 2026-10-28; FightDirectorPressure.cpp) ---
+	/** Looter.Fight.MeleeGap: each kind's own melee gap (ACreatureBase::GetMeleeGap: the slime's 0.45 s), times this; 0 turns every gap off. */
+	float MeleeGap = 1.f;
+	/** Looter.Fight.StillSeconds / StillRadius: a player who keeps within this circle (cm, flat) this long (s) stands still. */
+	float StillSeconds = 2.5f;
+	float StillRadius = 150.f;
+	/** Looter.Fight.HiddenSeconds: no creature fighting a player has had a clear eye line at them this long (s): they hide. */
+	float HiddenSeconds = 2.f;
+	/** Looter.Fight.CampMinFighters: standing still or hiding is camping only while this many or more fight them. */
+	int32 CampMinFighters = 3;
+	/** Looter.Fight.Ease: 1 lets the close-call ease work (one turn fewer of each kind at a nearly dead player); 0 never. */
+	int32 Ease = 1;
+	/** Looter.Fight.EaseBelow / EaseSeconds / EaseGap: under this share of health and ward, the ease lasts this long (s), once in this long (s). */
+	float EaseBelow = 0.25f;
+	float EaseSeconds = 4.f;
+	float EaseGap = 20.f;
+
+	// --- Pack leaders (PackLeaderRules) ---
+	/** Looter.Fight.LeaderReach: a leader's fall shakes the packmates within this of it (cm); its pack counts as led this near it. */
+	float LeaderReach = 2000.f;
+	/** Looter.Fight.LeaderFalter: they falter this long (s): turns back, wind-ups called off, standing. */
+	float LeaderFalter = 1.f;
+	/** Looter.Fight.LeaderBreakChance: a Basic spider or slime breaks off at its leader's fall with this chance. */
+	float LeaderBreakChance = 0.35f;
+	/** Looter.Fight.LeaderLull: after its leader's fall a pack rallies and frenzies no more for this long (s). */
+	float LeaderLull = 16.f;
+
 	// --- Difficulty (Borderlands normal) ---
 	/** Looter.Fight.ChaseScale: every regular kind chases this many times its own speed (never a boss or Legendary monster). */
 	float ChaseScale = 1.3f;

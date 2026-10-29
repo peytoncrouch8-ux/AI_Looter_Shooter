@@ -88,4 +88,26 @@ struct AI_LOOTER_SHOOTER_API FEncounterGroup
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group", meta = (ClampMin = "0"))
 	int32 MaxAliveOfClass = 0;
+
+	/**
+	 * The first creature this group brings each wave it joins leads its pack (FIGHTS.md section 2, 2026-10-28: the elite in
+	 * most fights; UCreaturePackComponent::SetLeader): it always wears Rallying (its tethers show who leads), and its death
+	 * makes its packmates falter and may break them (PackLeaderRules::OnLeaderDown). Usually the Restless group of one.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group")
+	bool bLeader = false;
+
+	/**
+	 * A name for the creatures this group brings, shown as their DisplayName ("the Sexton's Debt", "The Tollman": a named
+	 * elite of a fight, FIGHTS lane 6). Empty: the class's own.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group")
+	FText DisplayName;
+
+	/**
+	 * Tags only this group's creatures carry, on top of the spawner's CreatureTags (the Tollman's `Find_Tollman`, which a find
+	 * is credited by: his two escorts must not carry it).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group")
+	TArray<FName> Tags;
 };

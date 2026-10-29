@@ -8750,5 +8750,76 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 3
+  },
+  "World.Find.Discover": {
+    "files": [
+      "World_Find_Discover_01.wav",
+      "World_Find_Discover_02.wav",
+      "World_Find_Discover_03.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "World.Find.Complete": {
+    "files": [
+      "World_Find_Complete_01.wav",
+      "World_Find_Complete_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "World.Find.Glint": {
+    "files": [
+      "World_Find_Glint_01.wav",
+      "World_Find_Glint_02.wav",
+      "World_Find_Glint_03.wav",
+      "World_Find_Glint_04.wav"
+    ],
+    "volume_db": -26.5,
+    "pitch_jitter": 0.08,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Slime.Split": {
+    "files": [
+      "Creature_Slime_Split_01.wav",
+      "Creature_Slime_Split_02.wav",
+      "Creature_Slime_Split_03.wav",
+      "Creature_Slime_Split_04.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Fight.LeaderDown": {
+    "files": [
+      "Fight_LeaderDown_01.wav",
+      "Fight_LeaderDown_02.wav",
+      "Fight_LeaderDown_03.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
   }
 }

@@ -20,7 +20,9 @@ enum class EFightRole : uint8
  * the tests check it without a level. At most Max creatures hold a turn at once; one that asks while they're all held waits in
  * line, and the next free turn goes to whoever has waited longest (one that stops asking for ForgetAfter seconds leaves the
  * line). A creature that just attacked rests a while before it may ask again. A staggered holder gives its turn back but
- * keeps the head of the line, so a short stagger costs it nothing and a long knock lets the next one in.
+ * keeps the head of the line, so a short stagger costs it nothing and a long knock lets the next one in. A kind family's turns
+ * may be spaced (its melee gap, FIGHTS.md section 2: the slime pack's leaps come one after another): one held back by its
+ * family's gap doesn't hold up another family's waiter behind it.
  */
 struct AI_LOOTER_SHOOTER_API FFightTokens
 {
@@ -34,6 +36,11 @@ struct AI_LOOTER_SHOOTER_API FFightTokens
 		uint32 Id = 0;
 		double Since = 0.0;
 		double LastAsk = 0.0;
+		/** Its kind family and that family's gap, as it last asked. */
+		FName Family;
+		float FamilyGap = 0.f;
+		/** Put back at the head of the line by a stagger: taking its turn back isn't a new turn, so no gap holds it. */
+		bool bKept = false;
 	};
 	struct FRest
 	{
@@ -44,8 +51,10 @@ struct AI_LOOTER_SHOOTER_API FFightTokens
 	/**
 	 * Id asks for a turn at Now: true when it holds one (it had one, or a turn was free and it has waited longest). While
 	 * resting it isn't even put in line. MinGap: a turn is never given within this many seconds of the last one given.
+	 * Family / FamilyGap (FightRules::FamilyOf, its melee gap): a turn is never given to one of Family within FamilyGap
+	 * seconds of the last turn its family was given; meanwhile the next waiter of another family may have it.
 	 */
-	bool TryTake(uint32 Id, double Now, int32 Max, float ForgetAfter, float MinGap = 0.f);
+	bool TryTake(uint32 Id, double Now, int32 Max, float ForgetAfter, float MinGap = 0.f, FName Family = NAME_None, float FamilyGap = 0.f);
 
 	bool Holds(uint32 Id) const;
 	/** When Id took its turn (negative when it holds none). */
@@ -68,10 +77,15 @@ struct AI_LOOTER_SHOOTER_API FFightTokens
 	const TArray<FHolder>& GetHolders() const { return Holders; }
 
 private:
+	/** Whether Waiter's family may begin a turn at Now (no gap, a kept turn, or its gap passed). */
+	bool IsFamilyOpen(const FWaiter& Waiter, double Now) const;
+
 	TArray<FHolder> Holders;
 	TArray<FWaiter> Waiters;
 	TArray<FRest> Rests;
 	double LastGiven = -1.0e9;
+	/** When each kind family was last given a turn (only families with a gap are kept). */
+	TMap<FName, double> FamilyLastGiven;
 };
 
 /**
@@ -91,6 +105,9 @@ namespace FightRules
 
 	/** What its damage is multiplied by: Scale, or 1 for a boss or Legendary monster. */
 	AI_LOOTER_SHOOTER_API float DamageScaleFor(bool bOwnFight, float Scale);
+
+	/** A creature class's kind family for its melee gap: its native class (a Blueprint child and spiderlings count as their kind). */
+	AI_LOOTER_SHOOTER_API FName FamilyOf(const UClass* Class);
 
 	// --- The ring ---
 

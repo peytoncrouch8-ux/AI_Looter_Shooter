@@ -17,6 +17,7 @@
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Progression/XPCurve.h"
 #include "Tutorial/TutorialDirector.h"
+#include "UI/HUD/FindBannerShow.h"
 #include "UI/HUD/HudBossBarWidget.h"
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/LooterHUD.h"
@@ -364,6 +365,22 @@ namespace
 		HudShotConsole(World, FString::Printf(TEXT("Looter.Mission.Complete %s"), *Id));
 	}
 
+	void HudShotBeginFind(UWorld& World)
+	{
+		// A find through the HUD's own path (ALooterHUD::ShowFind), as the find system hands it: the tally stamped, the name, the
+		// count line and the experience counting up.
+		const FHudShotPlayer Player = HudShotFindPlayer(World);
+		if (!Player.Hud)
+		{
+			return;
+		}
+		FFindBannerShow Find;
+		Find.Name = FText::FromString(TEXT("The Widow's Strongbox"));
+		Find.Count = FText::FromString(TEXT("4 / 15 · RANSOM'S REST"));
+		Find.Xp = 120;
+		Player.Hud->ShowFind(Find);
+	}
+
 	// The gaps after the heal, experience, level-up and reload steps let their floating numbers, flashes, the banner and the
 	// reload run out, so they don't show in the pictures after (two gains close together even add up into one "+N XP").
 	const FStep HudShotSteps[] =
@@ -385,6 +402,8 @@ namespace
 		// main posting, tracked in its place, or the tracker fading out if none is).
 		{ TEXT("done"),        0.35f, &HudShotBeginObjectiveDone,  nullptr,                    nullptr,               0.1f },
 		{ TEXT("next"),        1.15f, nullptr,                     nullptr,                    nullptr,               DefaultGapSeconds },
+		// The find banner at 1.3 s: the tally stamped, the name and count line in, the experience counted up (it holds to 2.25 s).
+		{ TEXT("find"),        1.3f, &HudShotBeginFind,            nullptr,                    nullptr,               1.9f },
 		// The ward's, last, so the pictures before keep their numbers. Chipped at 0.12 s: the cyan edges and glint near their
 		// peak, the pale chip held; the break at 0.1 s: both tints, the slivers flying; broken at 1.2 s: the empty track pulsing,
 		// inside the ward's 3.2 s wait.

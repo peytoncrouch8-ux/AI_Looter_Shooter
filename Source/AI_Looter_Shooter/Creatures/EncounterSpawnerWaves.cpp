@@ -6,6 +6,7 @@
 #include "Areas/AreaRulesSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreaturePackComponent.h"
 #include "Creatures/EncounterRules.h"
 #include "Creatures/EncounterSettings.h"
 #include "Creatures/EncounterSubsystem.h"
@@ -282,12 +283,45 @@ ACreatureBase* AEncounterSpawner::SpawnOne(const FOwedCreature& Entry, const FVe
 			Creature->Tags.AddUnique(Tag);
 		}
 	}
-	// A Legendary lair's monster: its death is noted in the session, for its return (USessionSubsystem::IsLegendaryBack).
+	// A Legendary lair's monster: its death is noted in the session, for its return (USessionSubsystem::IsLegendaryBack). A
+	// lair with a leader group (the Tollman and the two who walk with him) is its leader's alone: an escort falling first
+	// doesn't send the lair away.
 	if (!LegendaryId.IsNone())
 	{
-		if (UHealthComponent* Life = Creature->FindComponentByClass<UHealthComponent>())
+		const bool bLeaderLair = Groups.ContainsByPredicate([](const FEncounterGroup& Each) { return Each.bLeader; });
+		UHealthComponent* Life = !bLeaderLair || Group.bLeader ? Creature->FindComponentByClass<UHealthComponent>() : nullptr;
+		if (Life)
 		{
 			Life->OnDeath.AddDynamic(this, &AEncounterSpawner::HandleCreatureDeath);
+		}
+	}
+	// A named elite of the fight ("the Sexton's Debt", "The Tollman") wears its group's name and tags.
+	if (!Group.DisplayName.IsEmpty())
+	{
+		Creature->DisplayName = Group.DisplayName;
+	}
+	for (const FName& Tag : Group.Tags)
+	{
+		if (!Tag.IsNone())
+		{
+			Creature->Tags.AddUnique(Tag);
+		}
+	}
+	// A leader group's first creature leads its pack (FIGHTS.md section 2: the elite in most fights). One group keeps one
+	// leader at a time: a creature brought back after being taken away, or a later wave's, leads only if none of its group's
+	// is out leading already.
+	if (Group.bLeader)
+	{
+		bool bLeaderOut = false;
+		for (const FLivingCreature& Each : Living)
+		{
+			const ACreatureBase* Other = Each.Creature.Get();
+			const UCreaturePackComponent* OtherPack = Other && !Other->IsDead() ? Other->GetPack() : nullptr;
+			bLeaderOut |= Each.Group == Entry.Group && OtherPack && OtherPack->IsLeader();
+		}
+		if (UCreaturePackComponent* Pack = bLeaderOut ? nullptr : Creature->GetPack())
+		{
+			Pack->SetLeader(true);
 		}
 	}
 	FLivingCreature& Out = Living.AddDefaulted_GetRef();

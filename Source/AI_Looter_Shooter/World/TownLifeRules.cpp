@@ -41,19 +41,27 @@ namespace
 	// her child. They know only what a town would: Tilly dressed Ellis, the gate was fought, the bell rang, Abel is quiet.
 	// One line a house and stage since 2026-10-21 (the user's cut of the story's talk; the Pruitts' fright keeps its two),
 	// and the old man's word on the Averys' chimney once the gate is won (a thing to find off the path:
-	// build_area_secrets.py, the Burnt Homestead).
+	// build_area_secrets.py, the Burnt Homestead). The finds' hints (2026-10-28, Docs/Work/2026-10-28-Core/FINDS.md): old Moss's
+	// buried fare (the Miser's grave on boot hill), the collector on the keeper's road (the Tollman), the surveyor's buried
+	// rifle (Pike's cache). Each is a second line of a stage that already speaks, so the topic counts stay; the stages replace
+	// one another, so a hint is said again in the next stage in other words. At most 90 characters a line.
 	const FMutter Mutters[] = {
 		{ Pruitt, EStage::Afraid, TEXT("A woman, inside"), TEXT("Bar the door, Harlan. It's coming up the street.") },
 		{ Pruitt, EStage::Afraid, TEXT("A man, inside"), TEXT("Lord. That's the Ransom child. Was the Ransom child.") },
 		{ Pruitt, EStage::GateWon, TEXT("A man, inside"), TEXT("Tilly Bright says it put down the ones at the gate.") },
+		{ Pruitt, EStage::GateWon, TEXT("A woman, inside"), TEXT("Old Moss went in the ground with his fare on his eyes. Set apart from the rest.") },
 		{ Pruitt, EStage::BellRung, TEXT("A woman, inside"), TEXT("That was the chapel bell. First time in a week.") },
+		{ Pruitt, EStage::BellRung, TEXT("A man, inside"), TEXT("Somebody's collecting on the keeper's road. Wears a coin on each eye.") },
 		{ Pruitt, EStage::AbelAtRest, TEXT("A man, inside"), TEXT("They say Abel sits quiet out on Gravewind Point now. The child did that.") },
+		{ Pruitt, EStage::AbelAtRest, TEXT("A woman, inside"), TEXT("Somebody's still collecting out on the keeper's road. Coin on each eye.") },
 
 		{ CottageNorth, EStage::Afraid, TEXT("An old man, inside"), TEXT("Ransoms. Always did come home at the wrong hour.") },
 		{ CottageNorth, EStage::GateWon, TEXT("An old man, inside"), TEXT("Dead shooting the dead at the gate. Never thought I'd live to see it.") },
 		{ CottageNorth, EStage::GateWon, TEXT("An old man, inside"), TEXT("Avery kept his savings up the chimney. Fire took the house, not the chimney.") },
 		{ CottageNorth, EStage::BellRung, TEXT("A woman, inside"), TEXT("Father Aldana says it's helping. Father Aldana says a lot of things.") },
+		{ CottageNorth, EStage::BellRung, TEXT("An old man, inside"), TEXT("They say the railroad's surveyor buried his good rifle south of Coffin Rock.") },
 		{ CottageNorth, EStage::AbelAtRest, TEXT("A woman, inside"), TEXT("Set a plate on the step tonight, Walt. Like Delia does.") },
+		{ CottageNorth, EStage::AbelAtRest, TEXT("An old man, inside"), TEXT("That surveyor's rifle is still in the ground south of Coffin Rock, they say.") },
 
 		{ CottageSouth, EStage::Afraid, TEXT("A child, inside"), TEXT("Mama, is that the one Miss Tilly dressed?") },
 		{ CottageSouth, EStage::GateWon, TEXT("A child, inside"), TEXT("It's fighting the bad ones, Mama. I watched.") },

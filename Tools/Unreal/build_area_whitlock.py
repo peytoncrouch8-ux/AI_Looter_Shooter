@@ -229,14 +229,28 @@ def barn_actor(build):
     return None
 
 
+# Barn Doors (FIGHTS lane 6, 2026-10-28; Main's call: no walls here): the hands' fight is a set piece in two pushes. First 5 and a
+# Restless leader in the yard; then, once 3 are left or 30 s have gone, 4 more rise at the barn's front (the bay's mouth; the
+# barn has no hay-loft door, BarnWhitlock.py, so its Bell-Ringer stands in the yard at the barn's end instead of 4 m up) and a
+# Bell-Ringer tolls from there: 11 with it. The Restless leader's spots are the yard's; the barn's front is traced from the
+# barn's own frame (its front faces local -Y), 3.5 m out, at these offsets along it (cm).
+HANDS_PUSH_AFTER = 30.0
+BARN_DOOR_OFFSETS = (-400.0, -150.0, 150.0, 400.0)
+BARN_DOOR_OUT = 350.0
+HANDS_RINGER_AT = (-6300.0, 4600.0)
+HANDS_BEATS = (
+    dict(wave=1, speaker='Hob', line="Amos's old hands, sunshine. Still working for no wages.",
+         sting='Boss.Phase', cue='Creature.Unpaid.Shriek', shake=0.15, shakeSeconds=0.5),
+    dict(wave=2, speaker='Hob', line='More out of the bay! There is a bell in the yard, too. Mind your back.',
+         sting='Creature.RankSting', shake=0.15, shakeSeconds=0.5),
+)
+
+
 def place_hands(build, ground):
-    """The hired hands' fight in the barn yard: seven Unpaid and a Restless one, during Side 2's third step."""
-    unpaid = story.actor_class('UnpaidCreature')
-    cls = story.actor_class('EncounterSpawner')
+    """The hired hands' fight in the barn yard as the set piece Barn Doors: 5 Unpaid and a Restless leader, then 4 more out of
+    the barn's front and a Bell-Ringer; during Side 2's third step."""
     yard = story.layout_entry(build, 'obstacles', 'barnYardFence')
-    if unpaid is None or cls is None or yard is None:
-        if unpaid is None or cls is None:
-            build.warn('no EncounterSpawner or UnpaidCreature class (build the game module first): no hired hands')
+    if yard is None:
         return
     # The yard round Amos's own barn when it stands (its bay faces the gate), else round the older barn.
     barn = next((actor for actor in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
@@ -244,30 +258,50 @@ def place_hands(build, ground):
     mesh = barn.static_mesh_component.static_mesh if barn is not None and barn.static_mesh_component else None
     own_barn = mesh is not None and mesh.get_name().startswith(RR_BARN_PREFIX)
     (hx, hy), spots = (RR_HANDS_AT, RR_HANDS_SPOTS) if own_barn else (HANDS_AT, HANDS_SPOTS)
-    hz = ground(hx, hy)
-    hands = build.place(cls, (hx, hy, hz + 50.0), 0.0, label=f'Encounter_{HANDS}', folder='Gameplay')
-    hands.set_editor_property('spawner_id', unreal.Name(HANDS))
-    # Seven Basic and a Restless one, all in one wave (the design's "6, one of them Restless" until 2026-10-21).
-    hands.set_editor_property('groups', [story.group(unpaid, HANDS_BASIC, 'BASIC'), story.group(unpaid, 1, 'RARE')])
-    hands.set_editor_property('creature_tags', [unreal.Name(HANDS_TAG)])
-    # Side 2's second step only (from 0: from 1, before 2): they come up the road as the last bale goes in, and a fight
-    # already won doesn't come back on a later load.
-    hands.set_editor_property('active_when', story.condition(during=SIDE2, from_step=FIGHT_STEP, before_step=THANKS_STEP))
-    # Who they were, said as the last of them falls, after the fight's noise (Main's call, 2026-10-21). Guarded: a game
-    # module from before AEncounterSpawner::ClearedLines places them without it.
+    first = [list(spot) for spot in spots[:6]]
+    if own_barn:
+        frame = barn.get_actor_transform()
+        front = []
+        for along in BARN_DOOR_OFFSETS:
+            at = frame.transform_location(unreal.Vector(along, -BARN_DOOR_OUT, 0.0))
+            front.append([at.x, at.y])
+    else:
+        front = [list(spot) for spot in spots[6:10]] or first[:4]
+    entry = {
+        'id': HANDS, 'spawner': 'SetPieceSpawner', 'pass': 'valley',
+        'where': 'the barn yard: Barn Doors, Side 2 (a set piece: five and a Restless leader in the yard, then four out of the barn and a Bell-Ringer)',
+        # Side 2's second step only (from 0: from 1, before 2): they come up the road as the last bale goes in, and a fight
+        # already won doesn't come back on a later load.
+        'when': {'during': SIDE2, 'fromStep': FIGHT_STEP, 'beforeStep': THANKS_STEP},
+        'groups': [{'class': 'UnpaidCreature', 'count': 5, 'rank': 'Basic', 'firstWave': 1, 'lastWave': 1},
+                   {'class': 'UnpaidCreature', 'count': 1, 'rank': 'Rare', 'firstWave': 1, 'lastWave': 1, 'leader': True},
+                   {'class': 'UnpaidCreature', 'count': 4, 'rank': 'Basic', 'firstWave': 2, 'lastWave': 2}],
+        'tags': [HANDS_TAG], 'center': [hx, hy], 'spots': first + front, 'huntOnSpawn': True, 'entrance': 'Rise',
+        'waves': {'count': 2, 'interval': HANDS_PUSH_AFTER, 'waitForClear': False, 'maxAlive': 0},
+        # "Lives on the barn yard; gives up at the barn yard fence."
+        'ground': {'polygon': yard['polygon']},
+        'setPiece': {
+            'doneFlag': 'SetPiece.BarnDoors', 'waves': 2, 'pushWhenLeft': 3, 'pushAfter': HANDS_PUSH_AFTER,
+            'springRadius': HANDS_ACTIVATION,
+            'beats': [dict(HANDS_BEATS[0], spots=first), dict(HANDS_BEATS[1], spots=front)],
+            'placed': [{'class': 'BellRingerCreature', 'rank': 'Basic', 'wave': 2, 'at': list(HANDS_RINGER_AT)}],
+            'reward': [hx, hy],
+        },
+    }
+    fights = importlib.reload(importlib.import_module('build_area_fights_mountain'))
+    fights.place_one(build, entry, None)
+    # Who they were, said as the last of them falls, after the fight's noise (Main's call, 2026-10-21): the set piece is an
+    # encounter spawner too. Guarded: a game module from before AEncounterSpawner::ClearedLines places them without it.
     said = story.lines(build, HANDS_CLEARED_LINES)
-    if said is not None:
+    hands = next((actor for actor in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+                  if actor.get_actor_label() == f'Encounter_{HANDS}'), None)
+    if said is not None and hands is not None:
         try:
             hands.set_editor_property('cleared_lines', said)
         except Exception as error:
             build.warn(f'no EncounterSpawner.cleared_lines ({error}): build the game module; Amos says nothing as they fall')
-    hands.set_editor_property('spawn_points', [unreal.Vector(x - hx, y - hy, 0.0) for x, y in spots])
-    hands.set_editor_property('activation_radius', HANDS_ACTIVATION)
-    hands.set_editor_property('hunt_on_spawn', True)
-    # "Lives on the barn yard; gives up at the barn yard fence."
-    hands.set_editor_property('ground_corners', [unreal.Vector(x, y, hz) for x, y in yard['polygon']])
-    build.log(f'the hired hands ({HANDS}: {HANDS_BASIC} Unpaid and a Restless one) in the barn yard at ({hx:.0f}, {hy:.0f}), '
-              f'during {SIDE2}\'s second step')
+    build.log(f"the hired hands ({HANDS}, the set piece Barn Doors: 5 Unpaid and a Restless leader, then 4 and a Bell-Ringer) in the "
+              f"barn yard at ({hx:.0f}, {hy:.0f}), during {SIDE2}'s second step")
 
 
 def place(build):

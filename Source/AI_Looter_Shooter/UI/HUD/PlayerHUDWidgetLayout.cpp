@@ -2,6 +2,7 @@
 #include "UI/HUD/HudDamageIndicatorWidget.h"
 #include "UI/HUD/HudEmberSocketWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
+#include "UI/HUD/HudFindBannerWidget.h"
 #include "UI/HUD/HudGraveMarkedWidget.h"
 #include "UI/HUD/HudGrenadeWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
@@ -96,6 +97,10 @@ namespace
 	/** Where the "GRAVE MARKED" banner's lantern and words centre, down from the top's middle: above the level-up banner's gem
 	 *  (it waits for that banner and the mission-complete one), under the boss bar's cluster, which ends 126 px down. */
 	constexpr float GraveBannerTop = 175.f;
+
+	/** The "FOUND" banner's box centre, down from the top's middle: its tally and title sit where the roost banner's lantern and
+	 *  words do (it takes turns with it), under the boss bar's cluster. */
+	constexpr float FindBannerTop = 200.f;
 
 	UCanvasPanelSlot* PlaceOnCanvas(UCanvasPanel* Canvas, UWidget* Widget, const FAnchors& Anchors, const FVector2D& Alignment, const FVector2D& Position)
 	{
@@ -343,6 +348,12 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		GraveBanner = WidgetTree->ConstructWidget<UHudGraveMarkedWidget>(UHudGraveMarkedWidget::StaticClass());
 		GraveBanner->SetOtherBanners(LevelUpBanner, MissionBanner);
 		PlaceOnCanvas(Root, GraveBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, GraveBannerTop));
+
+		// In the same place: "FOUND" when the player finds a thing off the path; it and the roost banner wait for each other's show.
+		FindBanner = WidgetTree->ConstructWidget<UHudFindBannerWidget>(UHudFindBannerWidget::StaticClass());
+		FindBanner->SetOtherBanners(LevelUpBanner, MissionBanner, GraveBanner);
+		GraveBanner->SetOtherBanners(LevelUpBanner, MissionBanner, FindBanner);
+		PlaceOnCanvas(Root, FindBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, FindBannerTop));
 	}
 	return Super::RebuildWidget();
 }

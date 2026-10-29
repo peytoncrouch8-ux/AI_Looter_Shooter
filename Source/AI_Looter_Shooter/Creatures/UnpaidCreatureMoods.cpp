@@ -173,14 +173,14 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 		{
 			// The lunge: thrown forward, arms reaching long and clawing, the shroud snapped straight; the recovery eases back.
 			const float After = (InState - AttackWindup) / FMath::Max(AttackRecovery, 0.01f);
-			const float Reach = bLunging ? 1.f : 1.f - UnpaidEase((After - 0.3f) / 0.7f);
+			const float Reach = Kit.bLunging ? 1.f : 1.f - UnpaidEase((After - 0.3f) / 0.7f);
 			Goal.Reach = Reach;
 			Goal.Spread = 0.15f * Reach;
 			Goal.Lean = 6.f + 22.f * Reach;
 			Goal.Jaw = FMath::Lerp(12.f, JawOpenDegrees * 0.75f, Reach);
 			Goal.Curl = FMath::Lerp(30.f, 48.f, Reach);
 			Goal.Splay = 12.f * Reach;
-			Goal.Snap = bLunging ? 1.f : 0.f;
+			Goal.Snap = Kit.bLunging ? 1.f : 0.f;
 		}
 		break;
 

@@ -324,9 +324,10 @@ def marker(build, x, y, tag):
     return z
 
 
-def group(cls, count, rank, first_wave=1, last_wave=0, health_scale=1.0):
+def group(cls, count, rank, first_wave=1, last_wave=0, health_scale=1.0, leader=False):
     """FEncounterGroup: count creatures of cls, all of one rank ('BASIC', 'RARE'), in each wave from first_wave to
-    last_wave (counted from 1; 0: every wave from the first), their health health_scale of their class's."""
+    last_wave (counted from 1; 0: every wave from the first), their health health_scale of their class's; leader: the
+    first of them leads its pack (it wears Rallying and its fall makes the pack falter: FIGHTS lane 6, 2026-10-28)."""
     made = unreal.EncounterGroup()
     made.set_editor_property('creature_class', cls)
     made.set_editor_property('count', count)
@@ -335,6 +336,8 @@ def group(cls, count, rank, first_wave=1, last_wave=0, health_scale=1.0):
     made.set_editor_property('first_wave', first_wave)
     made.set_editor_property('last_wave', last_wave)
     made.set_editor_property('health_scale', health_scale)
+    if leader:
+        made.set_editor_property('leader', True)
     return made
 
 
@@ -486,7 +489,8 @@ def place_bluff_top(build):
     nest = build.place(cls, (nx, ny, nz + 50.0), 0.0, label=f'Encounter_{NEST}', folder='Gameplay')
     nest.set_editor_property('spawner_id', unreal.Name(NEST))
     # Four Basic spiders and a Restless one in two pushes, two out at most (NEST_PUSHES; softened 2026-10-23).
-    nest.set_editor_property('groups', [group(spider, count, rank, wave, wave, NEST_HEALTH[rank]) for count, rank, wave in NEST_PUSHES])
+    nest.set_editor_property('groups', [group(spider, count, rank, wave, wave, NEST_HEALTH[rank], leader=rank == 'RARE')
+                                        for count, rank, wave in NEST_PUSHES])
     nest.set_editor_property('num_waves', max(wave for _, _, wave in NEST_PUSHES))
     nest.set_editor_property('wait_for_clear', True)
     nest.set_editor_property('wave_interval', NEST_BREATH)
@@ -526,7 +530,7 @@ def place_town_gate(build):
     gate = build.place(cls, (gx, gy, gz + 50.0), 0.0, label=f'Encounter_{GATE}', folder='Gameplay')
     gate.set_editor_property('spawner_id', unreal.Name(GATE))
     # Six Basic Unpaid and a Restless one (the design's "4, one of them Restless" until the bigger fights).
-    gate.set_editor_property('groups', [group(unpaid, GATE_BASIC, 'BASIC'), group(unpaid, 1, 'RARE')])
+    gate.set_editor_property('groups', [group(unpaid, GATE_BASIC, 'BASIC'), group(unpaid, 1, 'RARE', leader=True)])
     # Four out at once; the rest (the Restless last, the groups' order) rise as those fall (softened 2026-10-23).
     gate.set_editor_property('max_alive', GATE_MAX_ALIVE)
     gate.set_editor_property('creature_tags', [unreal.Name(GATE_TAG)])

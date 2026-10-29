@@ -340,8 +340,11 @@ bool FEconomyBalanceTest::RunTest(const FString& Parameters)
 	{
 		Earned += Count * LooterEconomy::Expected(LooterEconomy::KillOdds(Rank, bUnpaid), Level);
 	};
-	Kills(ECreatureRank::Basic, true, 53);   // the gate, the chapel yard, Amos's hands, the roaming, the churchyard, the fold, Abel's adds, the depot, the cellar
-	Kills(ECreatureRank::Rare, true, 7);     // a Restless in each of seven fights
+	// (FIGHTS lane 6, 2026-10-28: the yard's Bell-Ringer, Amos's nine and his Bell-Ringer, the fold's sixth: 53 -> 58; a Restless
+	// leader on boot hill, the north road and the west road: 7 -> 10; the yard's Gravebound leader.)
+	Kills(ECreatureRank::Basic, true, 58);   // the gate, the chapel yard, Amos's hands, the roaming, the churchyard, the fold, Abel's adds, the depot, the cellar
+	Kills(ECreatureRank::Rare, true, 10);    // a Restless in each of seven fights and on the three roaming stretches
+	Kills(ECreatureRank::Epic, true, 1);     // the Sexton's Debt
 	Kills(ECreatureRank::Basic, false, 14);  // the bluff nest and the Sink's spiders
 	Kills(ECreatureRank::Rare, false, 1);
 	Kills(ECreatureRank::Boss, true, 1);     // Abel

@@ -22,6 +22,16 @@ enum class EUnpaidAction : uint8
 	Rally,
 };
 
+/** Where a hurt Unpaid is in its fade-back (FIGHTS.md lane 5, 2026-10-29; UnpaidCreatureFadeBack.cpp). */
+enum class EUnpaidFadeBack : uint8
+{
+	None,
+	/** Phase-stepping away from its target. */
+	Stepping,
+	/** Back in, at the ring's outer edge, waiting before it comes on again. */
+	Waiting,
+};
+
 /** An Unpaid's kit as it fights (AUnpaidCreature::Kit): what it's doing, its clocks, and what it has worked out once. */
 struct FUnpaidKitState
 {
@@ -57,6 +67,18 @@ struct FUnpaidKitState
 	int8 BossAdd = -1;
 	/** The class's (or level's) recovery, before a move sets its own (a lunge's, captured with the wind-up as its rank applies). */
 	float BaseRecovery = 0.7f;
+	/**
+	 * Its fade-back: where it is in one, seconds left of its wait, whether it has gone this life (once a life), and its
+	 * chance's roll (-1 not rolled yet, 0 lost, 1 won: rolled once a life, the first time it may).
+	 */
+	EUnpaidFadeBack Fade = EUnpaidFadeBack::None;
+	float FadeLeft = 0.f;
+	bool bFadedBack = false;
+	int8 FadeRoll = -1;
+	/** Seconds left of its coal guttering (its pack's leader fell near it). */
+	float GutterLeft = 0.f;
+	/** Its lunge was struck at a camping target: it lands a little wider (Looter.Unpaid.CampHitRadius). */
+	bool bCampLunge = false;
 
 	/** Back to calm (a death, coming back): its clocks start over; its rest timings stay (its rank's, captured once). */
 	void Reset()
@@ -75,6 +97,12 @@ struct FUnpaidKitState
 		bFlankArmed = false;
 		ThinkIn = 0.f;
 		BossAdd = -1;
+		Fade = EUnpaidFadeBack::None;
+		FadeLeft = 0.f;
+		bFadedBack = false;
+		FadeRoll = -1;
+		GutterLeft = 0.f;
+		bCampLunge = false;
 	}
 };
 
@@ -166,4 +194,26 @@ namespace UnpaidFightRules
 	 * ring), times FrenzyChase in its pack's frenzy.
 	 */
 	AI_LOOTER_SHOOTER_API float ChaseBoost(float Distance, bool bWaiting, float ClosingRange, float ClosingScale, bool bFrenzy, float FrenzyChase);
+
+	/**
+	 * Which rally cooldown its scream takes, or below 0 when it may not scream (FIGHTS.md lane 5, 2026-10-29): in a led pack
+	 * (bPackLed) only the leader screams, at LeaderRallyCooldown; within the lull after a leader's fall (bInLull) none does;
+	 * a leaderless pack as before, any of it at RallyCooldown.
+	 */
+	AI_LOOTER_SHOOTER_API float RallyCooldownFor(bool bPackLed, bool bIsLeader, bool bInLull, float RallyCooldown, float LeaderRallyCooldown);
+
+	/**
+	 * Whether a hurt one may fade back after its turn: a Basic, alive under Below of its health, not yet this life. Its chance
+	 * (Looter.Unpaid.FadeBack) is rolled apart, once a life.
+	 */
+	AI_LOOTER_SHOOTER_API bool MayFadeBack(bool bBasic, float HealthShare, float Below, bool bFadedThisLife);
+
+	/**
+	 * Where a fade-back may land, best first, at FeetZ: away from Target on the side Here is on (straight away, then fanned 25
+	 * and 50 degrees either way), between Near and Far from Target (the middle first, then the far, the near).
+	 */
+	AI_LOOTER_SHOOTER_API TArray<FVector> FadeBackSpots(const FVector& Here, const FVector& Target, float Near, float Far, float FeetZ);
+
+	/** The arrival hold after a step or flank that landed LandedGap (cm) from its target: NearHold within NearRange (the dais), else Hold. */
+	AI_LOOTER_SHOOTER_API float ArrivalHoldFor(float LandedGap, float Hold, float NearHold, float NearRange);
 }

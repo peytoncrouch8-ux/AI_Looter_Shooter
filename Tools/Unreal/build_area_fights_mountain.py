@@ -8,7 +8,8 @@ build_area_camps.py's, whose tests ask every one to be on by Main 4, which nothi
      "when": {"after": [...], "before": [...], "during": "", "fromStep": 0, "beforeStep": 0, "withFlags": [],
               "withoutFlags": []},
      "groups": [{"class": "DeadMinerCreature", "count": 4, "rank": "Basic" | "Rare" | "Epic" | "Legendary" | "Area",
-                 "firstWave": 1, "lastWave": 0}],
+                 "firstWave": 1, "lastWave": 0, "level": 0, "leader": false (its first creature leads its pack),
+                 "healthScale": 1.0, "name": "" (a named elite's DisplayName), "tags": [] (only its creatures carry them)}],
      "tags": [...], "legendaryId": "Foreman", "huntOnSpawn": false, "activation": 4500, "despawn": 9000,
      "center": [x, y] (or [x, y, z] in the mine), "spots": [[x, y], ...],
      "ground": {"polygon": [...] | "zone": id | "rooms": [...] (the mine's) | "radius": cm, "maxRise", "margin", "maxStep"},
@@ -84,6 +85,15 @@ def groups(build, entry):
         group.set_editor_property('last_wave', int(each.get('lastWave', 0)))
         if 'level' in each:
             group.set_editor_property('level', int(each['level']))
+        # A leader group's first creature leads its pack (FIGHTS lane 6); a named elite wears its name and its own tags.
+        if each.get('leader'):
+            group.set_editor_property('leader', True)
+        if 'healthScale' in each:
+            group.set_editor_property('health_scale', float(each['healthScale']))
+        if each.get('name'):
+            group.set_editor_property('display_name', unreal.Text(each['name']))
+        if each.get('tags'):
+            group.set_editor_property('tags', [unreal.Name(tag) for tag in each['tags']])
         made.append(group)
     return made
 

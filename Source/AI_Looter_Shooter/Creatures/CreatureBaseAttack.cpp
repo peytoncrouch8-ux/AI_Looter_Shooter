@@ -5,6 +5,8 @@
 #include "AI_Looter_Shooter.h"
 #include "Combat/CombatRules.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Creatures/FightDirectorSubsystem.h"
+#include "Creatures/FightEvent.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
@@ -65,6 +67,8 @@ void ACreatureBase::TickAttack(float DeltaSeconds)
 		CooldownRemaining = AttackCooldown;
 		// Its turn is over: back to the ring (or its spot) while the next one comes in (CreatureBaseFight.cpp).
 		EndFightTurn();
+		// Its kind's beat after an attack (a spider's skitter back) before it hunts again.
+		OnTurnPlayedOut();
 		ResumeHunt();
 	}
 }
@@ -98,6 +102,8 @@ void ACreatureBase::HitWithAttack(APawn* Victim, const FVector& Push, float Stre
 	const float Damage = LooterCombat::RollHitDamage(AttackDamage * Hardness * GetFightDamageScale(), false);
 	UGameplayStatics::ApplyDamage(Victim, Damage, GetController(), this, UCreatureAttackDamageType::StaticClass());
 	UE_LOG(LogLooter, Verbose, TEXT("%s hit %s for %.1f"), *GetName(), *GetNameSafe(Victim), Damage);
+	// For the fight log: what landed, by whom (the director counts it and hands it on).
+	UFightDirectorSubsystem::Note(*this, EFightEvent::AttackLanded, Damage);
 	// Shove the victim back so the hit is felt, not just read on the health bar.
 	if (ACharacter* VictimCharacter = Cast<ACharacter>(Victim))
 	{

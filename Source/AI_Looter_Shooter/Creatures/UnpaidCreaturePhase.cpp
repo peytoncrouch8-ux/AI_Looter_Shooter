@@ -51,16 +51,16 @@ namespace
 
 bool AUnpaidCreature::IsPhasing() const
 {
-	return PhaseState != EPhaseState::None;
+	return Kit.PhaseState != EPhaseState::None;
 }
 
 void AUnpaidCreature::TickPhaseStep(float DeltaSeconds)
 {
 	TickSight(DeltaSeconds);
-	if (PhaseState == EPhaseState::None)
+	if (Kit.PhaseState == EPhaseState::None)
 	{
-		SinceLastStep = FMath::Min(SinceLastStep + DeltaSeconds, 1000.f);
-		RetryIn = FMath::Max(RetryIn - DeltaSeconds, 0.f);
+		Kit.SinceLastStep = FMath::Min(Kit.SinceLastStep + DeltaSeconds, 1000.f);
+		Kit.RetryIn = FMath::Max(Kit.RetryIn - DeltaSeconds, 0.f);
 		WatchProgress(DeltaSeconds);
 		// One blink at a player at a time across the pack (the gate asked last: the step is wanted).
 		if (WantsToStep() && MayPackStep(*GetTarget()))
@@ -70,21 +70,21 @@ void AUnpaidCreature::TickPhaseStep(float DeltaSeconds)
 		return;
 	}
 
-	PhaseTime += DeltaSeconds;
-	if (PhaseState == EPhaseState::Out)
+	Kit.PhaseTime += DeltaSeconds;
+	if (Kit.PhaseState == EPhaseState::Out)
 	{
-		PhaseAmount = FMath::Clamp(PhaseTime / PhaseFadeOutSeconds, 0.f, 1.f);
+		PhaseAmount = FMath::Clamp(Kit.PhaseTime / PhaseFadeOutSeconds, 0.f, 1.f);
 		if (PhaseAmount >= 1.f)
 		{
 			Arrive();
 		}
 		return;
 	}
-	PhaseAmount = 1.f - FMath::Clamp(PhaseTime / PhaseFadeInSeconds, 0.f, 1.f);
+	PhaseAmount = 1.f - FMath::Clamp(Kit.PhaseTime / PhaseFadeInSeconds, 0.f, 1.f);
 	if (PhaseAmount <= 0.f)
 	{
-		PhaseState = EPhaseState::None;
-		SinceLastStep = 0.f;
+		Kit.PhaseState = EPhaseState::None;
+		Kit.SinceLastStep = 0.f;
 		ResetProgress();
 	}
 }
@@ -99,43 +99,44 @@ void AUnpaidCreature::WatchProgress(float DeltaSeconds)
 	}
 	// Getting nearer than it has been is progress; a player who keeps their distance (outrunning it) is as good as a wall.
 	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation()));
-	if (Distance < BestDistance - PhaseStep.ProgressNeeded)
+	if (Distance < Kit.BestDistance - PhaseStep.ProgressNeeded)
 	{
-		BestDistance = Distance;
-		StallTime = 0.f;
+		Kit.BestDistance = Distance;
+		Kit.StallTime = 0.f;
 	}
 	else
 	{
-		StallTime += DeltaSeconds;
+		Kit.StallTime += DeltaSeconds;
 	}
 }
 
 void AUnpaidCreature::ResetProgress()
 {
-	StallTime = 0.f;
-	BestDistance = TNumericLimits<float>::Max();
+	Kit.StallTime = 0.f;
+	Kit.BestDistance = TNumericLimits<float>::Max();
 }
 
 bool AUnpaidCreature::WantsToStep() const
 {
 	const APawn* Victim = GetTarget();
-	if (!Victim || bLunging || RetryIn > 0.f || GetCreatureState() != ECreatureState::Chase)
+	// Fading back it has stepped away on purpose (UnpaidCreatureFadeBack.cpp): no step in until its wait is done.
+	if (!Victim || Kit.bLunging || Kit.RetryIn > 0.f || IsFadingBack() || GetCreatureState() != ECreatureState::Chase)
 	{
 		return false;
 	}
 	const float Distance = static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation()));
 	// Pressed by a hit from past its edge: it blinks in as soon as it may, stuck or not (a long way short counts as stuck).
-	const float Stuck = bPressStepOwed ? FMath::Max(StallTime, PhaseStep.StuckSeconds) : StallTime;
+	const float Stuck = Kit.bPressStepOwed ? FMath::Max(Kit.StallTime, PhaseStep.StuckSeconds) : Kit.StallTime;
 	// Waiting its turn on the fight's ring it holds back on purpose: that's no stall to step out of (CreatureBaseFight.cpp),
 	// unless the wait goes nowhere (asked last: its trace only once the rest says step).
-	if (UnpaidRules::WantsPhaseStep(PhaseStep, Distance, Stuck, SinceLastStep)
-		&& (!IsWaitingTurn() || bPressStepOwed || WaitGoesNowhere(*Victim)))
+	if (UnpaidRules::WantsPhaseStep(PhaseStep, Distance, Stuck, Kit.SinceLastStep)
+		&& (!IsWaitingTurn() || Kit.bPressStepOwed || WaitGoesNowhere(*Victim)))
 	{
 		return true;
 	}
 	// Stalled out of its target's sight, too near for a step that gains ground (outside the nave's wall, behind a door leaf):
 	// a step to where it sees them, nearer or not (FindPhaseSpot). The cheap asks first, its sight last.
-	return UnpaidRules::WantsSightStep(PhaseStep, false, Stuck, SinceLastStep) && NeedsSight()
+	return UnpaidRules::WantsSightStep(PhaseStep, false, Stuck, Kit.SinceLastStep) && NeedsSight()
 		&& FUnpaidFightTuning::Live().BlindStep != 0 && !SeesTarget(*Victim);
 }
 
@@ -168,11 +169,11 @@ void AUnpaidCreature::OnPressedByHit(const APawn& By)
 {
 	// Only the one hit owes the blink: its pack walks in after it, so the doorway never fills with nine at once. Logged once
 	// a debt (every hit of a burst came here: 202 lines in one play-check).
-	if (!bPressStepOwed)
+	if (!Kit.bPressStepOwed)
 	{
 		UE_LOG(LogLooter, Verbose, TEXT("%s is pressed past its edge by %s: it comes in."), *GetName(), *By.GetName());
 	}
-	bPressStepOwed = true;
+	Kit.bPressStepOwed = true;
 }
 
 FString AUnpaidCreature::DescribePhaseRefusals() const
@@ -221,7 +222,7 @@ FString AUnpaidCreature::DescribePhaseRefusals() const
 	const FString ToSight = Count(UnpaidRules::SightCandidates(PhaseStep, Feet, Victim->GetActorLocation(), TheirFeet), true);
 	return FString::Printf(TEXT("at %.1f m, %.0f cm under them (reach %.0f, waiting %d, pressed %d, sees %d, blind spell %d). Gaining: %s. To sight: %s"),
 		FVector::Dist2D(Feet, Victim->GetActorLocation()) / 100.f, TheirFeet - Feet.Z, GetGroundReach(), IsWaitingTurn() ? 1 : 0,
-		IsPressed() ? 1 : 0, SeesTarget(*Victim) ? 1 : 0, Sight.bBlindSpell ? 1 : 0, *Gaining, *ToSight);
+		IsPressed() ? 1 : 0, SeesTarget(*Victim) ? 1 : 0, Kit.Sight.bBlindSpell ? 1 : 0, *Gaining, *ToSight);
 }
 
 void AUnpaidCreature::StartPhaseStep()
@@ -229,25 +230,25 @@ void AUnpaidCreature::StartPhaseStep()
 	FVector Feet;
 	if (!FindPhaseSpot(Feet))
 	{
-		RetryIn = RetrySeconds;
-		if (bPressStepOwed && UE_LOG_ACTIVE(LogLooter, Verbose))
+		Kit.RetryIn = RetrySeconds;
+		if (Kit.bPressStepOwed && UE_LOG_ACTIVE(LogLooter, Verbose))
 		{
 			UE_LOG(LogLooter, Verbose, TEXT("%s owes a step in, nowhere to land: %s"), *GetName(), *DescribePhaseRefusals());
 		}
 		return;
 	}
-	bPressStepOwed = false;
+	Kit.bPressStepOwed = false;
 	UE_LOG(LogLooter, Verbose, TEXT("%s phase-steps %.1f m nearer its target (stuck %.1f s)."), *GetName(),
 		(FVector::Dist2D(GetActorLocation(), GetTarget()->GetActorLocation()) - FVector::Dist2D(Feet, GetTarget()->GetActorLocation())) / 100.0,
-		StallTime);
+		Kit.StallTime);
 	StartStepTo(Feet);
 }
 
 void AUnpaidCreature::StartStepTo(const FVector& Feet)
 {
-	PhaseDestination = Feet;
-	PhaseState = EPhaseState::Out;
-	PhaseTime = 0.f;
+	Kit.PhaseDestination = Feet;
+	Kit.PhaseState = EPhaseState::Out;
+	Kit.PhaseTime = 0.f;
 	GetCharacterMovement()->StopMovementImmediately();
 	// Counted at its target's step gate (a phase-step or a flank alike): the next of the pack waits Looter.Unpaid.PackStepGap.
 	UFightDirectorSubsystem* Director = !IsBossCreature() ? UFightDirectorSubsystem::Get(this) : nullptr;
@@ -358,15 +359,18 @@ void AUnpaidCreature::Arrive()
 	// Gone from sight: it moves while unseen, and comes back facing its target.
 	const float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	double Yaw = GetActorRotation().Yaw;
+	// How near them it lands decides its arrival hold (CanStartAttack: a longer beat right by them).
+	Kit.LandedGap = TNumericLimits<float>::Max();
 	if (const APawn* Victim = GetTarget())
 	{
-		Yaw = (Victim->GetActorLocation() - PhaseDestination).Rotation().Yaw;
+		Yaw = (Victim->GetActorLocation() - Kit.PhaseDestination).Rotation().Yaw;
+		Kit.LandedGap = static_cast<float>(FVector::Dist2D(Kit.PhaseDestination, Victim->GetActorLocation()));
 	}
-	SetActorLocationAndRotation(PhaseDestination + FVector(0.f, 0.f, HalfHeight + 2.f), FRotator(0.0, Yaw, 0.0), false, nullptr,
+	SetActorLocationAndRotation(Kit.PhaseDestination + FVector(0.f, 0.f, HalfHeight + 2.f), FRotator(0.0, Yaw, 0.0), false, nullptr,
 		ETeleportType::TeleportPhysics);
 	GetCharacterMovement()->StopMovementImmediately();
-	PhaseState = EPhaseState::In;
-	PhaseTime = 0.f;
+	Kit.PhaseState = EPhaseState::In;
+	Kit.PhaseTime = 0.f;
 	ResetProgress();
 	// Its shroud comes back hanging still, not swinging in from where it was; and the turn isn't a spin.
 	for (FShroudChain& Chain : Chains)

@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "HudGraveMarkedWidget.generated.h"
 
+class UHudFindBannerWidget;
 class UHudLevelUpBannerWidget;
 class UHudMissionCompleteWidget;
 class UTextBlock;
@@ -33,8 +34,9 @@ public:
 	/** One show: eased in, held and eased out over this long. */
 	static constexpr float ShowSeconds = 2.5f;
 
-	/** The banners it takes turns with: it waits while either shows. */
-	void SetOtherBanners(UHudLevelUpBannerWidget* InLevelUpBanner, UHudMissionCompleteWidget* InMissionBanner);
+	/** The banners it takes turns with: it waits while any shows (the find banner is optional). */
+	void SetOtherBanners(UHudLevelUpBannerWidget* InLevelUpBanner, UHudMissionCompleteWidget* InMissionBanner,
+		UHudFindBannerWidget* InFindBanner = nullptr);
 
 	/** Announces a roost found: queued behind any being shown. */
 	void Announce(const FText& GraveName);
@@ -66,7 +68,7 @@ protected:
 private:
 	/** A menu covers the game, a scene holds the player, or it's paused. */
 	bool IsCovered() const;
-	/** The level-up or mission-complete banner is on screen. */
+	/** The level-up, mission-complete or find banner is on screen. */
 	bool IsOtherBannerShowing() const;
 	/** Scales and fades it for Time seconds into the show (hidden while idle or covered). */
 	void PaintShow(bool bCovered);
@@ -79,6 +81,7 @@ private:
 
 	TWeakObjectPtr<UHudLevelUpBannerWidget> LevelUpBanner;
 	TWeakObjectPtr<UHudMissionCompleteWidget> MissionBanner;
+	TWeakObjectPtr<UHudFindBannerWidget> FindBanner;
 
 	TArray<FText> Queue;
 	FText Shown;

@@ -33,6 +33,12 @@ TIERS = {
     'CompanySafe': 4,
     # The legendary chance, hidden under the middle Widow (story_texts.SECRETS WidowsBox).
     'Secret_WidowsStrongbox': 5,
+    # The finds off the path (build_area_finds.py, FINDS.md 2026-10-28), hidden behind a swim, a crawl and a climb: the
+    # lockbox on Larkspur Tarn's bed and the Tumble's bolt-hole two Rare or better, Ranger Post Three on the Rimrock one or
+    # two Uncommon or better.
+    'Find_TarnLockbox': 4,
+    'Find_BoltHole': 4,
+    'Find_RangerPost': 3,
 }
 
 # By chest_id's start (the lootable world's ids carry their spot: build_area_loot.spot_id), first match wins.

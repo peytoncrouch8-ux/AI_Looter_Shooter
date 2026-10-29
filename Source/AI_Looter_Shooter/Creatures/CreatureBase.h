@@ -87,6 +87,18 @@ public:
 	virtual float GetPressSeconds() const { return 0.f; }
 	/** Seconds between the hit slows it takes (Looter.Gunfeel.Flinch.Slow); 0: every hit slows it (the Unpaid: once a half second). */
 	virtual float GetHitSlowGap() const { return 0.f; }
+	/**
+	 * Seconds between the melee turns its kind family (its native class) begins at one target (FFightTokens; times
+	 * Looter.Fight.MeleeGap). 0: no gap: spiders and the Unpaid (the user's "leave them", 2026-10-28) and placeholders; the
+	 * slime's 0.45 is the pack's drumbeat.
+	 */
+	virtual float GetMeleeGap() const { return 0.f; }
+	/**
+	 * A leader of its pack fell near it (PackLeaderRules::OnLeaderDown, Leader dying): it falters Looter.Fight.LeaderFalter
+	 * (its turn given back, a wind-up called off, its brain held), and a Basic spider or slime may break off
+	 * (Looter.Fight.LeaderBreakChance). A kind that adds its own answer calls this first (CreatureBaseFight.cpp).
+	 */
+	virtual void OnPackLeaderDown(const ACreatureBase& Leader);
 	/** Its chase speed now: ChaseSpeed, quickened by Looter.Fight.ChaseScale unless it keeps its own fight. */
 	float GetChaseSpeedNow() const;
 	/** Waiting its turn on the ring, at its slot or on its way round to it (an Unpaid then never phase-steps in). */
@@ -434,6 +446,16 @@ protected:
 
 	/** Its attack was called off before its strike (hit off its turn, and no turn to be had when it came to): undo its kind's tell. */
 	virtual void OnAttackCalledOff() {}
+
+	/**
+	 * Called each frame it holds a turn in its chase (TickChaseFight), before the plain attack, Distance flat to Victim: true
+	 * when a move of its own takes that turn this frame (a spider's pounce: its kind moves it), and the chase does nothing
+	 * more. False by default: the plain attack.
+	 */
+	virtual bool StartsRingMove(const APawn& Victim, float Distance) { return false; }
+
+	/** Its attack played out (TickAttack's end: cooldown set, its turn given back), just before it goes back to the hunt: a skitter back starts here. */
+	virtual void OnTurnPlayedOut() {}
 
 	/** Moving toward a goal at Speed but not getting anywhere (it then takes a detour). Hoppers stand still between hops. */
 	virtual bool IsStuck(float Speed) const;

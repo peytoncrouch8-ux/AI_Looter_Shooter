@@ -8,6 +8,7 @@
 // then on creatures in a test level, ticked by hand (a test level never ticks).
 
 #include "Bosses/BossComponent.h"
+#include "Combat/HealthComponent.h"
 #include "Creatures/BellRingerCreature.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureReactComponent.h"
@@ -85,6 +86,27 @@ namespace
 			}
 		}
 		return FString::Join(Blocking, TEXT(", "));
+	}
+
+	/**
+	 * Killed plainly: worn down in small hits, then the rest of its health. Since HITS (2026-10-28) a kill from full health in
+	 * one blow is an overkill, and an overkilled Unpaid is "scattered" (faded out within 0.3 s,
+	 * Looter.Creatures.Hits.Unpaid.Scattered), not the crumple and ash this test times.
+	 */
+	void ReactKillPlainly(ACreatureBase& Creature)
+	{
+		BossTestWorld::NoLoot(&Creature);
+		UHealthComponent* Health = Creature.FindComponentByClass<UHealthComponent>();
+		if (!Health)
+		{
+			BossTestWorld::Kill(&Creature);
+			return;
+		}
+		while (Health->GetHealth() > 0.25f * Health->GetMaxHealth())
+		{
+			BossTestWorld::Hurt(&Creature, 0.2f * Health->GetMaxHealth());
+		}
+		BossTestWorld::Hurt(&Creature, Health->GetHealth());
 	}
 }
 
@@ -225,7 +247,15 @@ bool FCreatureReactCorpsesTest::RunTest(const FString& Parameters)
 			continue;
 		}
 		TestTrue(FString::Printf(TEXT("%s: alive, it stands in the way"), Kind.Name), !ReactPawnBlockers(*Creature).IsEmpty());
-		BossTestWorld::Kill(Creature);
+		// The Unpaid's crumple and ash (timed below) are a plain kill's look; the others' corpses lie the same however killed.
+		if (Kind.Class == AUnpaidCreature::StaticClass())
+		{
+			ReactKillPlainly(*Creature);
+		}
+		else
+		{
+			BossTestWorld::Kill(Creature);
+		}
 		TestTrue(FString::Printf(TEXT("%s: dead"), Kind.Name), Creature->IsDead());
 		TestTrue(FString::Printf(TEXT("%s: its body lies %.1f s (at least %.0f)"), Kind.Name, Creature->CorpseTime, Kind.AtLeast),
 			Creature->CorpseTime >= Kind.AtLeast);

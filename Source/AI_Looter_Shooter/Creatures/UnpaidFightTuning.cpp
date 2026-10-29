@@ -42,6 +42,10 @@ namespace
 		TEXT("At most one Unpaid phase-step or flank at one player every this many seconds (an owed press step first); 0: no gap."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarArrivalHold(TEXT("Looter.Unpaid.ArrivalHold"), KitDefaults.ArrivalHold,
 		TEXT("After a phase-step or flank lands, no attack starts for this long (s): a beat to see it."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarArrivalHoldNear(TEXT("Looter.Unpaid.ArrivalHoldNear"), KitDefaults.ArrivalHoldNear,
+		TEXT("A phase-step or flank that lands within Looter.Unpaid.ArrivalNearRange of its target holds this long instead (s)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarArrivalNearRange(TEXT("Looter.Unpaid.ArrivalNearRange"), KitDefaults.ArrivalNearRange,
+		TEXT("A landing this near its target (cm at size 1) gets the longer arrival hold."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarStepJitter(TEXT("Looter.Unpaid.StepJitter"), KitDefaults.StepJitter,
 		TEXT("Spawning or noticing a target, an Unpaid's next phase-step waits up to this much longer (s), so a pack doesn't blink as one."), ECVF_Default);
 
@@ -106,6 +110,12 @@ namespace
 		TEXT("The rally scream lasts this long (s) before the pack comes."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarRallyRing(TEXT("Looter.Unpaid.RallyRing"), KitDefaults.RallyRing,
 		TEXT("The rally scream's ring of light runs out this far (cm)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLeaderRallyCooldown(TEXT("Looter.Unpaid.LeaderRallyCooldown"), KitDefaults.LeaderRallyCooldown,
+		TEXT("In a led pack only the leader screams the rally, at most once every this many seconds at one player."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarGutterSeconds(TEXT("Looter.Unpaid.GutterSeconds"), KitDefaults.GutterSeconds,
+		TEXT("Its pack's leader down, an Unpaid's coal gutters this long (s)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarGutterFlare(TEXT("Looter.Unpaid.GutterFlare"), KitDefaults.GutterFlare,
+		TEXT("While its coal gutters, its tells flare no more than this."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFrenzySeconds(TEXT("Looter.Unpaid.FrenzySeconds"), KitDefaults.FrenzySeconds,
 		TEXT("After a rally the pack comes on together this long (s)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarFrenzyTokens(TEXT("Looter.Unpaid.FrenzyTokens"), KitDefaults.FrenzyTokens,
@@ -123,6 +133,26 @@ namespace
 
 	TAutoConsoleVariable<float> CVarTellFlare(TEXT("Looter.Unpaid.TellFlare"), KitDefaults.TellFlare,
 		TEXT("An Unpaid's coal flares up to this through every wind-up."), ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarFadeBack(TEXT("Looter.Unpaid.FadeBack"), KitDefaults.FadeBack,
+		TEXT("The chance (once a life) a hurt Basic Unpaid fades back out of the fight after its turn, waits, and returns; 0: never."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarFadeBackBelow(TEXT("Looter.Unpaid.FadeBackBelow"), KitDefaults.FadeBackBelow,
+		TEXT("An Unpaid fades back only hurt under this share of its health."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarFadeBackNear(TEXT("Looter.Unpaid.FadeBackNear"), KitDefaults.FadeBackNear,
+		TEXT("A fade-back comes back at least this far from its target (cm at size 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarFadeBackFar(TEXT("Looter.Unpaid.FadeBackFar"), KitDefaults.FadeBackFar,
+		TEXT("A fade-back comes back at most this far from its target (cm at size 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarFadeBackWait(TEXT("Looter.Unpaid.FadeBackWait"), KitDefaults.FadeBackWait,
+		TEXT("Back from a fade-back, an Unpaid waits this long (s) before it comes on again."), ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarCampPunish(TEXT("Looter.Unpaid.CampPunish"), KitDefaults.CampPunish,
+		TEXT("1: at a camping player (still or hidden too long) the Unpaid's lunge doesn't lead and lands wider, cinders come sooner, flanks more often."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCampHitRadius(TEXT("Looter.Unpaid.CampHitRadius"), KitDefaults.CampHitRadius,
+		TEXT("At a camping player a lunge lands this much wider (cm at size 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCampCinderGap(TEXT("Looter.Unpaid.CampCinderGap"), KitDefaults.CampCinderGap,
+		TEXT("At a camping player the gap between cinders is this share of Looter.Unpaid.CinderGap."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCampFlankChance(TEXT("Looter.Unpaid.CampFlankChance"), KitDefaults.CampFlankChance,
+		TEXT("At a camping player a waiting Unpaid's next turn opens with a flank with this chance."), ECVF_Default);
 
 	float Positive(const TAutoConsoleVariable<float>& Variable)
 	{
@@ -203,5 +233,34 @@ FUnpaidFightTuning FUnpaidFightTuning::Live()
 	Numbers.ClosingRange = Positive(CVarClosingRange);
 	Numbers.HowlCooldown = Positive(CVarHowlCooldown);
 	Numbers.TellFlare = Positive(CVarTellFlare);
+	Numbers.ArrivalHoldNear = Positive(CVarArrivalHoldNear);
+	Numbers.ArrivalNearRange = Positive(CVarArrivalNearRange);
+	Numbers.LeaderRallyCooldown = Positive(CVarLeaderRallyCooldown);
+	Numbers.GutterSeconds = Positive(CVarGutterSeconds);
+	Numbers.GutterFlare = Positive(CVarGutterFlare);
+	Numbers.FadeBack = Share(CVarFadeBack);
+	Numbers.FadeBackBelow = Share(CVarFadeBackBelow);
+	Numbers.FadeBackNear = AtLeast(CVarFadeBackNear, 100.f);
+	Numbers.FadeBackFar = FMath::Max(CVarFadeBackFar.GetValueOnGameThread(), Numbers.FadeBackNear);
+	Numbers.FadeBackWait = Positive(CVarFadeBackWait);
+	Numbers.CampPunish = CVarCampPunish.GetValueOnGameThread();
+	Numbers.CampHitRadius = Positive(CVarCampHitRadius);
+	Numbers.CampCinderGap = Positive(CVarCampCinderGap);
+	Numbers.CampFlankChance = Share(CVarCampFlankChance);
+	return Numbers;
+}
+
+FUnpaidFightTuning FUnpaidFightTuning::ForCamping(bool bCamping) const
+{
+	FUnpaidFightTuning Numbers = *this;
+	if (!bCamping || CampPunish == 0)
+	{
+		return Numbers;
+	}
+	// A player who stands still (or hides) needs no lead and gets no strafe's grace; the ring presses them harder.
+	Numbers.LeadShare = 0.f;
+	Numbers.LungeHitRadius += CampHitRadius;
+	Numbers.CinderGap *= CampCinderGap;
+	Numbers.FlankChance = FMath::Max(FlankChance, CampFlankChance);
 	return Numbers;
 }

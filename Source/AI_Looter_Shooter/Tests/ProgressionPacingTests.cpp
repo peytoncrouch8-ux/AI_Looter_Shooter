@@ -118,7 +118,8 @@ namespace
 					const FString Rank = Group->GetStringField(TEXT("rank"));
 					FPathKills& Kills = Made.Kills.AddDefaulted_GetRef();
 					Kills.Creature = Class->GetDefaultObject<ACreatureBase>();
-					Kills.Rank = Rank == TEXT("Rare") ? EPathRank::Restless : Rank == TEXT("Area") ? EPathRank::AreaRolled : EPathRank::Basic;
+					Kills.Rank = Rank == TEXT("Rare") ? EPathRank::Restless : Rank == TEXT("Epic") ? EPathRank::Gravebound
+						: Rank == TEXT("Area") ? EPathRank::AreaRolled : EPathRank::Basic;
 					Kills.Count = static_cast<int32>(Group->GetNumberField(TEXT("count")));
 					Kills.Where = Made.Id;
 				}
@@ -225,6 +226,9 @@ namespace
 			break;
 		case EPathRank::Restless:
 			Odds.Add({ ECreatureRank::Rare, 1.0 });
+			break;
+		case EPathRank::Gravebound:
+			Odds.Add({ ECreatureRank::Epic, 1.0 });
 			break;
 		case EPathRank::Own:
 			Odds.Add({ Creature.StartingRank, 1.0 });

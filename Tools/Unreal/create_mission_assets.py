@@ -509,7 +509,7 @@ def main4_steps(asset):
                        place=place(tag='Place_Chapel', radius=1500.0))),
         # "12 Unpaid in two waves, and one Restless": 13, counted from the spawner.
         step(objective(asset, unreal.MissionClearObjective, 'Clear the chapel yard.',
-                       spawner_id=unreal.Name('ChapelYard'), count=16)),
+                       spawner_id=unreal.Name('ChapelYard'), count=17)),
         step(objective(asset, unreal.MissionTalkObjective, 'Knock at the vestry door.',
                        speaker_tag=unreal.Name('Speaker_Aldana'))),
         step(objective(asset, unreal.MissionInteractObjective,

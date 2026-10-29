@@ -48,9 +48,9 @@ bool AUnpaidCreature::SeesTarget(const APawn& Victim, bool bFresh) const
 {
 	// Asked from its attack's start, its turn and its step each frame: one trace, kept a moment.
 	const uint32 Id = Victim.GetUniqueID();
-	if (!bFresh && Sight.TargetId == Id && Sight.RecheckIn > 0.f)
+	if (!bFresh && Kit.Sight.TargetId == Id && Kit.Sight.RecheckIn > 0.f)
 	{
-		return Sight.bClear;
+		return Kit.Sight.bClear;
 	}
 	UWorld* World = GetWorld();
 	if (!World)
@@ -62,31 +62,31 @@ bool AUnpaidCreature::SeesTarget(const APawn& Victim, bool bFresh) const
 	FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("UnpaidSight"), this);
 	Params.AddIgnoredActor(&Victim);
 	const FVector Eye = GetActorLocation() + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * EyeShare);
-	Sight.bClear = !World->LineTraceTestByObjectType(Eye, Victim.GetActorLocation() + FVector(0.f, 0.f, TargetEyeLift),
+	Kit.Sight.bClear = !World->LineTraceTestByObjectType(Eye, Victim.GetActorLocation() + FVector(0.f, 0.f, TargetEyeLift),
 		FCollisionObjectQueryParams(ECC_WorldStatic), Params);
-	Sight.TargetId = Id;
-	Sight.RecheckIn = SightRecheck + FMath::FRand() * SightJitter;
-	return Sight.bClear;
+	Kit.Sight.TargetId = Id;
+	Kit.Sight.RecheckIn = SightRecheck + FMath::FRand() * SightJitter;
+	return Kit.Sight.bClear;
 }
 
 void AUnpaidCreature::TickSight(float DeltaSeconds)
 {
-	Sight.RecheckIn -= DeltaSeconds;
-	Sight.BlindHoldLeft = FMath::Max(Sight.BlindHoldLeft - DeltaSeconds, 0.f);
+	Kit.Sight.RecheckIn -= DeltaSeconds;
+	Kit.Sight.BlindHoldLeft = FMath::Max(Kit.Sight.BlindHoldLeft - DeltaSeconds, 0.f);
 	const APawn* Victim = GetTarget();
 	const uint32 Id = Victim ? Victim->GetUniqueID() : 0;
-	if (Id == Sight.StepTargetId)
+	if (Id == Kit.Sight.StepTargetId)
 	{
 		return;
 	}
-	Sight.StepTargetId = Id;
+	Kit.Sight.StepTargetId = Id;
 	// A new target is a new look: no blind spell carried over (its rest runs out on its own).
-	Sight.bBlindSpell = false;
+	Kit.Sight.bBlindSpell = false;
 	// A new target (it spawned hunting, or noticed them): its next step waits a moment of its own, so a pack that sees the
 	// player together doesn't blink together. Never holding back an owed press step, nor a boss's own.
-	if (Id != 0 && !bPressStepOwed && !IsBossCreature())
+	if (Id != 0 && !Kit.bPressStepOwed && !IsBossCreature())
 	{
-		SinceLastStep = UnpaidFightRules::JitterStepClock(SinceLastStep, PhaseStep.Cooldown, FUnpaidFightTuning::Live().StepJitter,
+		Kit.SinceLastStep = UnpaidFightRules::JitterStepClock(Kit.SinceLastStep, PhaseStep.Cooldown, FUnpaidFightTuning::Live().StepJitter,
 			FMath::FRand());
 	}
 }
@@ -94,38 +94,38 @@ void AUnpaidCreature::TickSight(float DeltaSeconds)
 bool AUnpaidCreature::TickBlindTurn(UFightDirectorSubsystem& Director, const APawn& Victim)
 {
 	const bool bHolding = Director.HoldsToken(*this);
-	if (!bHolding && !Sight.bBlindSpell)
+	if (!bHolding && !Kit.Sight.bBlindSpell)
 	{
 		return false;
 	}
 	if (!NeedsSight())
 	{
-		Sight.bBlindSpell = false;
+		Kit.Sight.bBlindSpell = false;
 		return false;
 	}
 	if (SeesTarget(Victim))
 	{
-		if (Sight.bBlindSpell && !bHolding)
+		if (Kit.Sight.bBlindSpell && !bHolding)
 		{
 			// In sight again: back in line for a turn at once (its rest cut to nothing).
 			Director.RestFromTurns(*this, UE_KINDA_SMALL_NUMBER);
-			Sight.BlindHoldLeft = 0.f;
+			Kit.Sight.BlindHoldLeft = 0.f;
 		}
-		Sight.bBlindSpell = false;
+		Kit.Sight.bBlindSpell = false;
 		return false;
 	}
 	// Its turn would only bring it into the wall: another of the pack, with a clear way in, takes it. Out of the line while
 	// it can't see them (not taken and let go again a few times a second); out of their sight it may blink to where it sees
 	// them (WantsToStep).
-	if (!Sight.bBlindSpell)
+	if (!Kit.Sight.bBlindSpell)
 	{
-		Sight.bBlindSpell = true;
+		Kit.Sight.bBlindSpell = true;
 		UE_LOG(LogLooter, Verbose, TEXT("%s can't see %s: it lets its turn go until it does."), *GetName(), *Victim.GetName());
 	}
-	if (bHolding || Sight.BlindHoldLeft <= BlindRenew)
+	if (bHolding || Kit.Sight.BlindHoldLeft <= BlindRenew)
 	{
 		Director.RestFromTurns(*this, BlindHold);
-		Sight.BlindHoldLeft = BlindHold;
+		Kit.Sight.BlindHoldLeft = BlindHold;
 	}
 	return bHolding;
 }
@@ -138,5 +138,5 @@ bool AUnpaidCreature::MayPackStep(const APawn& Victim)
 		return true;
 	}
 	UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this);
-	return !Director || Director->MayStep(*this, Victim, FUnpaidFightTuning::Live().PackStepGap, bPressStepOwed);
+	return !Director || Director->MayStep(*this, Victim, FUnpaidFightTuning::Live().PackStepGap, Kit.bPressStepOwed);
 }

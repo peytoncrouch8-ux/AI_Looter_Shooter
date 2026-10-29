@@ -16,6 +16,8 @@
  *  - Rally: a pack waiting on the ring screams together: a ring of its coal's light runs out, and for FrenzySeconds the
  *    pack comes on at once (FrenzyTokens turns, FrenzyChase pace).
  *  - Howl: the first of a pack to see the player howls, heard far off.
+ *  - A pack with a head (FIGHTS.md lane 5, 2026-10-29): a led pack's rally is its leader's alone; its fall makes the pack's
+ *    coals gutter. A hurt Basic fades back a moment (FadeBack). A camping player is punished (CampPunish).
  */
 struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 {
@@ -90,6 +92,13 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	 * the nave floor; a standing player dead in 12 s).
 	 */
 	float ArrivalHold = 0.6f;
+	/**
+	 * Looter.Unpaid.ArrivalHoldNear / ArrivalNearRange: a step or flank that lands within this of its target (cm at size 1)
+	 * holds this long instead (s). The chapel's dais (DEMO 2026-10-28, a standing player dead in 23 s): steps to sight landed
+	 * 1.5 m off and raked at once; 0.8 everywhere read sluggish, so only the near landings get it (FIGHTS.md lane 5).
+	 */
+	float ArrivalHoldNear = 0.8f;
+	float ArrivalNearRange = 150.f;
 
 	// --- The rake (the second attack) ---
 	/** Looter.Unpaid.RakeRange: nearer than this (cm) it may rake instead of lunging. */
@@ -156,6 +165,14 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	float RallyTell = 0.8f;
 	/** Looter.Unpaid.RallyRing: the scream's ring of light runs out this far (cm). */
 	float RallyRing = 1400.f;
+	/**
+	 * Looter.Unpaid.LeaderRallyCooldown: in a led pack (an encounter group's leader, FIGHTS.md lane 5) only the leader screams
+	 * the rally, at most once every this many seconds at one player: kill it and the pack loses its voice.
+	 */
+	float LeaderRallyCooldown = 12.f;
+	/** Looter.Unpaid.GutterSeconds / GutterFlare: its pack's leader down, its coal gutters this long (s), its tells flaring no more than this. */
+	float GutterSeconds = 1.f;
+	float GutterFlare = 0.2f;
 	/** Looter.Unpaid.FrenzySeconds: after the scream, the pack comes on together this long (s). */
 	float FrenzySeconds = 4.f;
 	/** Looter.Unpaid.FrenzyTokens: melee turns at that player during the frenzy (Looter.Fight.MeleeTokens otherwise). */
@@ -175,6 +192,31 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	// --- Tells ---
 	/** Looter.Unpaid.TellFlare: the coal flares up to this through every wind-up (the material's Heat; a crit's flare is 0.8). */
 	float TellFlare = 0.6f;
+
+	// --- The fade-back (FIGHTS.md lane 5, 2026-10-29: a hurt one slips out of the fight a moment, then comes back) ---
+	/** Looter.Unpaid.FadeBack: the chance (rolled once a life) a hurt Basic fades back after its turn; 0: never. */
+	float FadeBack = 0.5f;
+	/** Looter.Unpaid.FadeBackBelow: hurt under this share of its health. */
+	float FadeBackBelow = 0.35f;
+	/** Looter.Unpaid.FadeBackNear / FadeBackFar: it comes back this far from its target (cm at size 1): the ring's outer edge (480). */
+	float FadeBackNear = 500.f;
+	float FadeBackFar = 650.f;
+	/** Looter.Unpaid.FadeBackWait: back in, it waits this long (s) before it comes on again: the player's window to finish it. */
+	float FadeBackWait = 2.f;
+
+	// --- A camping player (the fight director's read: still or hidden too long while 3+ fight them) ---
+	/**
+	 * Looter.Unpaid.CampPunish: 1: at a camping player the lunge leads not at all (a still target needs none) and lands
+	 * CampHitRadius wider, cinders come CampCinderGap times as often, flanks at CampFlankChance. A moving player sees the
+	 * plain numbers (the user's "standing still is punished", 2026-10-28).
+	 */
+	int32 CampPunish = 1;
+	float CampHitRadius = 20.f;
+	float CampCinderGap = 0.6f;
+	float CampFlankChance = 0.6f;
+
+	/** These numbers at a camping target (bCamping, CampPunish on): no lead, a wider lunge, cinders sooner, more flanks. */
+	FUnpaidFightTuning ForCamping(bool bCamping) const;
 
 	/** The cvars' values now (read at each ask, so a change in PIE counts at once). */
 	static FUnpaidFightTuning Live();

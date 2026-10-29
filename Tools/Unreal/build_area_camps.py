@@ -20,6 +20,11 @@ places it all again; a piece whose class or model isn't there yet is left out wi
   'entrance' says (Rise: the dead fade up out of the ground; Drop: from 'dropHeight' over their feet) and coming at once.
   One with a 'setPiece' block is an ASetPieceSpawner (the Webwood's drop, once a session: build_area_setpieces.py); its
   groups' 'firstWave'/'lastWave' say which push each comes with.
+- Any entry's groups may carry (FIGHTS lane 6, 2026-10-28): "leader": true (the group's first creature leads its pack and
+  wears Rallying: the elite of the fight, a camp's or patrol's Restless one), "level" (its own, before its rank's),
+  "healthScale", "name" (a named elite's DisplayName) and "tags" (only that group's creatures carry them); the entry
+  itself "tags" (on top of Camp_/Patrol_/Ambush_<id>) and "legendaryId" (a lair: the Tollman, FINDS N6). An entry with
+  "find": true is a find's encounter (MiserPlot, the Tollman): the tests allow it fewer creatures.
 
 Main runs it from build_area.py's gameplay(), after the story's pieces (the Webwood's trees and the caches stand first):
     importlib.reload(importlib.import_module('build_area_camps')).place(self)
@@ -56,9 +61,12 @@ LOOK_REACH = 1500.0
 # Helpers
 # ---------------------------------------------------------------------------
 
-def group(cls, count, rank, first_wave=1, last_wave=0):
-    """FEncounterGroup: count of cls, Fixed at a rank ('Basic', 'Rare'), or the area's promotions ('Area'), in the waves
-    from first_wave to last_wave (counted from 1; 0: every wave from the first: a set piece's pushes have their own)."""
+def group(cls, count, rank, first_wave=1, last_wave=0, leader=False, level=0, health_scale=1.0, name='', tags=()):
+    """FEncounterGroup: count of cls, Fixed at a rank ('Basic', 'Rare', 'Epic'), or the area's promotions ('Area'), in the
+    waves from first_wave to last_wave (counted from 1; 0: every wave from the first: a set piece's pushes have their own).
+    leader: its first creature leads its pack (FIGHTS lane 6: wears Rallying, its fall makes the pack falter); level (0: the
+    zone's) and health_scale (against its class's) as FEncounterGroup's; name: the DisplayName of a named elite ("The
+    Tollman"); tags: tags only this group's creatures carry (on top of the spawner's)."""
     made = unreal.EncounterGroup()
     made.set_editor_property('creature_class', cls)
     made.set_editor_property('count', count)
@@ -69,6 +77,16 @@ def group(cls, count, rank, first_wave=1, last_wave=0):
         made.set_editor_property('rank', getattr(unreal.CreatureRank, RANKS[rank]))
     made.set_editor_property('first_wave', first_wave)
     made.set_editor_property('last_wave', last_wave)
+    if leader:
+        made.set_editor_property('leader', True)
+    if level:
+        made.set_editor_property('level', int(level))
+    if health_scale != 1.0:
+        made.set_editor_property('health_scale', float(health_scale))
+    if name:
+        made.set_editor_property('display_name', unreal.Text(name))
+    if tags:
+        made.set_editor_property('tags', [unreal.Name(tag) for tag in tags])
     return made
 
 
@@ -80,7 +98,9 @@ def groups(build, entry):
         if cls is None:
             build.warn(f'no {each["class"]} class (build the game module first): no {entry["id"]}')
             return None
-        made.append(group(cls, each['count'], each['rank'], int(each.get('firstWave', 1)), int(each.get('lastWave', 0))))
+        made.append(group(cls, each['count'], each['rank'], int(each.get('firstWave', 1)), int(each.get('lastWave', 0)),
+                          bool(each.get('leader', False)), int(each.get('level', 0)), float(each.get('healthScale', 1.0)),
+                          each.get('name', ''), each.get('tags', ())))
     return made
 
 
@@ -169,8 +189,11 @@ def spawner(build, kind, label, x, y, entry, tag):
     made = build.place(cls, (x, y, z + 50.0), 0.0, label=f'Encounter_{label}', folder='Gameplay')
     made.set_editor_property('spawner_id', unreal.Name(label))
     made.set_editor_property('groups', made_groups)
-    made.set_editor_property('creature_tags', [unreal.Name(tag)])
+    made.set_editor_property('creature_tags', [unreal.Name(tag)] + [unreal.Name(each) for each in entry.get('tags', ())])
     made.set_editor_property('active_when', story.condition(after=entry.get('after', ())))
+    if entry.get('legendaryId'):
+        # A lair (the Tollman's patrol): gone after its leader's kill, back on an arrival 20 min of play later.
+        made.set_editor_property('legendary_id', unreal.Name(entry['legendaryId']))
     return made, z
 
 

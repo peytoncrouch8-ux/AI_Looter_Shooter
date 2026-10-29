@@ -6,6 +6,7 @@
 #include "Creatures/ShroudChain.h"
 #include "Creatures/UnpaidBodyParts.h"
 #include "Creatures/UnpaidFightRules.h"
+#include "Creatures/UnpaidKitMembers.h"
 #include "Creatures/UnpaidRigBones.h"
 #include "Creatures/UnpaidRules.h"
 #include "UnpaidCreature.generated.h"
@@ -39,21 +40,19 @@ namespace UnpaidLook
  *  - It attacks with a shriek and a lunge (UnpaidCreatureAttack.cpp): the shriek is the wind-up (jaw dropped, arms
  *    spread), then it flies at its target and the strike lands if it reaches them. Back off and the lunge falls short.
  *  - Its fighting kit (UnpaidCreatureMoves.cpp, Looter.Unpaid.*, round 2): the lunge leads its target, close in it rakes
- *    twice, on the ring it throws cinders and screams its pack on together, given its turn in front of the player's eyes it
- *    fades round to their side. Kinds on its rig with attacks of their own (the miners, the Bell-Ringer, Abel) and a boss's
- *    adds keep the old way (HasFightKit).
+ *    twice, on the ring it throws cinders and screams its pack on (a led pack: its leader only), given its turn in front of
+ *    the player's eyes it fades round to their side, hurt it fades back a moment (UnpaidCreatureFadeBack.cpp). Kinds on its
+ *    rig with attacks of their own (the miners, the Bell-Ringer, Abel) and a boss's adds keep the old way (HasFightKit).
  *  - Stuck, or fallen far behind, it phase-steps (UnpaidCreaturePhase.cpp): fades out and comes back 3 to 5 m nearer its
  *    target, never into a wall, off its level of ground or off its hunting ground.
  *  - Its rank shows in its coal and ember edge (custom primitive data, UnpaidLook): dull red Basic, the rank's tag color
  *    above it. Restless and up lunge faster; Gravebound and up shriek a ring that slows the player (AShriekRing).
  *  - It wears one of three sets of clothes, hat and all: the model's own (Ghost_A) or MI_Ghost_B and C (OtherClothes).
  *
- * The body is SK_Unpaid (Art/Models/Creatures/Unpaid.py), 33 bones under its root, all posed by code (UnpaidCreatureRig.cpp) on
- * top of the model's rest pose, the idle hang: it bobs, leans into its drift, looks at its target, and the shroud's chains
- * (FShroudChain) trail its motion, lifting off ground that rises behind it. Its arms (UnpaidCreatureArms.cpp) drift loose
- * at rest, hang against its lean, reach and claw while it hunts, fling wide for the shriek, lag behind its moves and its
- * hits on springs, and never pass into its own torso: the model's hit hulls keep them out. Without the model (a test level,
- * or before it is imported) it hunts as well, unseen: its coal is where the model carries it (CoalPointWithoutRig).
+ * The body is SK_Unpaid (Art/Models/Creatures/Unpaid.py), 33 bones, all posed by code (UnpaidCreatureRig.cpp) over the rest pose
+ * (the idle hang): it bobs, leans into its drift, looks at its target; the shroud's chains (FShroudChain) trail it, lifting off
+ * rising ground. Its arms (UnpaidCreatureArms.cpp) drift, reach, claw, fling wide for the shriek, lag on springs and never pass
+ * into its torso (the model's hit hulls). Without the model it hunts unseen, its coal at CoalPointWithoutRig.
  */
 UCLASS(Config = Game)
 class AI_LOOTER_SHOOTER_API AUnpaidCreature : public ACreatureBase
@@ -87,10 +86,7 @@ public:
 
 	// --- Its attack ---
 
-	/**
-	 * Shrieks now: its lunge's wind-up starts with it. A Gravebound one's shriek sends out a ring at its target that slows
-	 * them (at most once every ShriekCooldown seconds): that ring, else null. Public for the tests.
-	 */
+	/** Shrieks now (its lunge's wind-up): a Gravebound one's sends a slowing ring at its target (once a ShriekCooldown), returned, else null. */
 	AShriekRing* Shriek();
 
 	/** What its rank adds (UnpaidRules::RankTraits). */
@@ -100,27 +96,23 @@ public:
 	float GetLungeSpeed() const;
 
 	/** Whether it's in the middle of a lunge. */
-	bool IsLunging() const { return bLunging; }
+	bool IsLunging() const { return Kit.bLunging; }
 	/** In the committed last stretch of a lunge (Looter.Unpaid.LungeCommit): the hit slow is held off it. */
-	bool IsLungeCommitted() const { return bLunging && bLungeCommitted; }
+	bool IsLungeCommitted() const { return Kit.bLunging && Kit.bLungeCommitted; }
 	/** Its hit slows come at most once every Looter.Unpaid.HitSlowGap seconds (with its kit). */
 	virtual float GetHitSlowGap() const override;
 	/** With its kit, shot at from just past its ground's edge it fights there (Looter.Unpaid.PressReach, .PressSeconds). */
 	virtual float GetPressReach() const override;
 	virtual float GetPressSeconds() const override;
 	/** Whether it owes a phase-step in (pressed by a hit from past its edge), taken once its cooldown allows. */
-	bool OwesPressStep() const { return bPressStepOwed; }
+	bool OwesPressStep() const { return Kit.bPressStepOwed; }
 	/** Waiting its turn, whether the wait can't end where it stands: its target past its own edge, or out of its sight (SeesTarget). */
 	bool WaitGoesNowhere(const APawn& Victim) const;
 	/** A clear line from its eyes to Victim's through real geometry (one trace, kept a moment; bFresh: traced now). UnpaidCreatureSight.cpp. */
 	bool SeesTarget(const APawn& Victim, bool bFresh = false) const;
 	/** Out of its target's sight since it let a turn go: it asks for none until it sees them (UnpaidCreatureSight.cpp). */
-	bool IsBlindToTurns() const { return Sight.bBlindSpell; }
-	/**
-	 * Why a phase-step toward its target finds nowhere now: each candidate spot's first refusal counted (off its ground, no
-	 * ground, steep or an obstacle's top, no room, no sight of the target, a safe zone or past the playable area, another level),
-	 * as one line. Looter.Unpaid.TryStep prints it; a failed step logs it (Verbose).
-	 */
+	bool IsBlindToTurns() const { return Kit.Sight.bBlindSpell; }
+	/** Why a phase-step finds nowhere now: each candidate's first refusal counted, one line (Looter.Unpaid.TryStep; a failed step logs it, Verbose). */
 	FString DescribePhaseRefusals() const;
 
 	// --- Its fighting kit (UnpaidCreatureMoves.cpp, UnpaidCreatureRing.cpp; FUnpaidFightTuning) ---
@@ -134,14 +126,22 @@ public:
 	bool StartKitAction(EUnpaidAction Action);
 	/** Throws a cinder at its target now, led at where they'll be: the end of a cinder's tell. True when one left its hand. */
 	bool ThrowCinder();
+	/**
+	 * Hurt, at its turn's end: fades back out of the fight to the ring's outer edge, waits, and returns (Looter.Unpaid.FadeBack,
+	 * once a life; UnpaidCreatureFadeBack.cpp). bRoll false skips its chance (the tests). True when it went.
+	 */
+	bool TryFadeBack(bool bRoll = true);
+	bool IsFadingBack() const { return Kit.Fade != EUnpaidFadeBack::None; }
+	/** Its coal guttering a moment: its pack's leader fell near it. */
+	bool IsGuttering() const { return Kit.GutterLeft > 0.f; }
+	/** Its pack's leader fell near it: it falters as every kind does, a scream or tell is called off, its coal gutters. */
+	virtual void OnPackLeaderDown(const ACreatureBase& Leader) override;
 
 	// --- Its arms (UnpaidCreatureArms.cpp) ---
 
 	/**
-	 * How far its arms reach into its own torso past where they sit in the rest pose, as it's posed now (cm, the deepest
-	 * point of either arm's hit hull in the pelvis's, spine's, chest's or shroud top's): 0 when they keep out, as they
-	 * should. Measured on the last pose solved, so a body built on its rig (Abel) is measured in its own pose. For the
-	 * tests and Looter.CastShots; 0 without the model.
+	 * How far its arms reach into its own torso past their rest, on the last pose solved (cm, either arm's hull deepest in the
+	 * pelvis's, spine's, chest's or shroud top's; Abel's in his own pose): 0 when they keep out. Tests, Looter.CastShots.
 	 */
 	float GetArmIntrusion() const;
 
@@ -153,11 +153,7 @@ public:
 	/** How far it's dissolved now: 0 solid to 1 gone (its material's Phase). */
 	float GetPhase() const { return PhaseAmount; }
 
-	/**
-	 * Fades it in where it stands, as the end of a phase-step does (its shroud's ends first, shot through until it's mostly
-	 * there), coming up out of the ground (RiseSeconds) clawing, dirt thrown up: an add rising through the boards (Abel's), an
-	 * ambush's dead, one a toll raises. Nothing while it's dead.
-	 */
+	/** Fades it in where it stands as a step's end does, rising clawing out of the ground (RiseSeconds), dirt thrown up: Abel's adds, an ambush, a toll's dead. */
 	void RiseIn();
 	static constexpr float RiseSeconds = 0.9f;
 	bool IsRising() const { return RiseTime >= 0.f; }
@@ -260,6 +256,8 @@ protected:
 	virtual bool CanStartAttack() const override;
 	/** With its kit, a lunge starts from farther out (Looter.Unpaid.LungeStart). */
 	virtual float GetAttackStartRange() const override;
+	/** Its turn played out: hurt, it may fade back (TryFadeBack). */
+	virtual void OnTurnPlayedOut() override;
 	// --- The notice beat, its entrance, its ash (UnpaidCreatureMoods.cpp) ---
 	virtual void OnNoticed() override;
 	virtual void PlayEntrance() override;
@@ -273,10 +271,7 @@ protected:
 	/** Bones such a body poses besides the Unpaid's (Abel's lantern, gun and coat skirts), by name; one the model lacks is left out. */
 	virtual void GetExtraRigBones(TArray<FName>& OutBones) const {}
 
-	/**
-	 * Once this frame's pose is worked out channel by channel and the shroud's chains have swung, before it's solved: such a
-	 * body lays a pose of its own over the bones' turns and shifts (Bones' Own and Shift). The Unpaid lays nothing.
-	 */
+	/** Once the pose's channels are worked out and the chains have swung, before it's solved: such a body lays its own (Bones' Own, Shift). */
 	virtual void LayerPose(float DeltaSeconds) {}
 
 	/** Its look as it dies, DeathTime into its death: by default it slumps, then dissolves while its coal goes out. */
@@ -310,10 +305,7 @@ protected:
 	TArray<FPosedBone> Bones;
 	bool bRigReady = false;
 
-	/**
-	 * How far the shroud's chains swing its links: 1, they do (the Unpaid, always); at 0 the links take their own turns
-	 * (Abel knelt or sat, his shroud lying on the boards as his pose table lays it).
-	 */
+	/** How far the shroud's chains swing its links: 1 (the Unpaid); at 0 the links take their own turns (Abel knelt or sat, his shroud on the boards). */
 	float ChainSwing = 1.f;
 
 	/** How far it's dissolved (its material's Phase: 0 solid, 1 gone), its coal's flare (0 as it is, up on a crit, -1 out). */
@@ -348,14 +340,7 @@ private:
 	void CommitLunge(bool bOn);
 
 	// --- Phase-steps (UnpaidCreaturePhase.cpp) ---
-	enum class EPhaseState : uint8
-	{
-		None,
-		/** Fading away where it stands. */
-		Out,
-		/** Gone, moved, and fading back in nearer its target. */
-		In
-	};
+	using EPhaseState = EUnpaidPhaseState;
 	void TickPhaseStep(float DeltaSeconds);
 	/** Keeps up how long it has chased without getting nearer (stuck, or being outrun). */
 	void WatchProgress(float DeltaSeconds);
@@ -365,10 +350,7 @@ private:
 	virtual void OnPressedByHit(const APawn& By) override;
 	/** Where a step lands now: the rules' first spot the level allows (ground, room, sight of its target, safe zones). */
 	bool FindPhaseSpot(FVector& OutFeet) const;
-	/**
-	 * Whether it may come back at Candidate: walkable ground near it, room, its target in sight, no safe zone (the ground:
-	 * OutGround). bTheirFloorToo (a step to sight): the top of what its target stands on is ground, even one tagged Obstacle.
-	 */
+	/** Whether it may come back at Candidate (ground, room, target in sight, no safe zone; OutGround). bTheirFloorToo: their floor counts, Obstacle or not. */
 	bool CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal = nullptr, bool bTheirFloorToo = false) const;
 	/** Starts a step to Feet now: it fades out here and comes back there (counted at its target's step gate). */
 	void StartStepTo(const FVector& Feet);
@@ -376,10 +358,7 @@ private:
 	// --- Sight and the pack's steps (UnpaidCreatureSight.cpp) ---
 	/** Its sight's clock, and its step clock jittered when it has a new target. */
 	void TickSight(float DeltaSeconds);
-	/**
-	 * With its kit, out of its target's sight: a turn it holds is let go (true), and it stays out of the line for turns until
-	 * it sees them again (a blind spell: logged once). Asked each frame of its kit on the ring or in the chase.
-	 */
+	/** With its kit, out of its target's sight: a turn it holds is let go (true), and it asks for none until it sees them (a blind spell). */
 	bool TickBlindTurn(UFightDirectorSubsystem& Director, const APawn& Victim);
 	/** Whether its target's step gate lets it phase-step or flank now (Looter.Unpaid.PackStepGap; an owed press step first). */
 	bool MayPackStep(const APawn& Victim);
@@ -407,6 +386,12 @@ private:
 	void UpdateChaseBoost(const APawn* Victim, bool bFrenzy);
 	/** Whether it rose as a boss's add (looked up once a life). */
 	bool IsBossAdd();
+	/** Its target stands still or hides too long while 3+ fight them (the director's read), and the kit punishes it (Looter.Unpaid.CampPunish). */
+	bool IsTargetCamping(const APawn& Victim) const;
+	/** Its fade-back on (the step, then its wait) and its coal's gutter (UnpaidCreatureFadeBack.cpp). */
+	void TickFadeBack(float DeltaSeconds);
+	/** Where a fade-back lands: the first of the rules' spots away from Victim the level allows. */
+	bool FindFadeSpot(const APawn& Victim, FVector& OutFeet) const;
 
 	// --- The body (UnpaidCreatureRig.cpp) ---
 	// Its parts' structs live in UnpaidBodyParts.h (the ~500-line rule, 2026-10-28).
@@ -432,10 +417,7 @@ private:
 	// --- The arms (UnpaidCreatureArms.cpp) ---
 	/** Reads the points of the arms' hit hulls that keep out of the torso, and the torso's hulls, from the model's physics asset. */
 	void SetupArmGuard();
-	/**
-	 * Turns the arms' bones for this frame (after the trunk's): their channels, the drift, the sway and the keep-out. Speed is
-	 * its drift against its chase speed, LocalVelocity its velocity in its own frame, YawRate its turn (degrees a second).
-	 */
+	/** Turns the arms' bones after the trunk's: channels, drift, sway, keep-out (Speed: drift vs chase; LocalVelocity: own frame; YawRate deg/s). */
 	void PoseArms(float DeltaSeconds, float Time, float Speed, const FVector& LocalVelocity, float YawRate);
 	/** Steps the arms' sway springs on by DeltaSeconds under the body's acceleration (cm/s^2, its own frame) and turn. */
 	void StepArmSway(float DeltaSeconds, const FVector& LocalAcceleration, float YawRate);
@@ -509,30 +491,8 @@ private:
 	bool bTimingCaptured = false;
 	float BaseWindup = 0.6f;
 
-	// Its fighting kit: its move, its actions on the ring, its clocks.
-	FUnpaidKitState Kit;
-
-	// Attack
-	bool bLunging = false;
-	bool bLungeLanded = false;
-	bool bLungeCommitted = false;
-	FVector LungeDirection = FVector::ForwardVector;
-	float LungeLeft = 0.f;
-	float LungeTime = 0.f;
-	float SinceSlowingShriek = 1000.f;
-
-	// Phase-steps
-	EPhaseState PhaseState = EPhaseState::None;
-	float PhaseTime = 0.f;
-	FVector PhaseDestination = FVector::ZeroVector;
-	float SinceLastStep = 1000.f;
-	/** Pressed by a hit from past its edge: its next step comes as soon as its cooldown allows, stuck or not. */
-	bool bPressStepOwed = false;
-	/** What it last saw of its target, and the target its step clock was jittered for (mutable: SeesTarget keeps it). */
-	mutable FUnpaidSightState Sight;
-	float StallTime = 0.f;
-	float BestDistance = TNumericLimits<float>::Max();
-	float RetryIn = 0.f;
+	// Its fighting kit: its move, its actions on the ring, its clocks, its lunge, its phase-steps, its sight (UnpaidKitMembers.h).
+	FUnpaidKitMembers Kit;
 
 	/** The hat is a mesh of its own: it wears the body's clothes and look (custom primitive data), and casts no shadow either. */
 	UPROPERTY(VisibleAnywhere, Category = "Unpaid|Look")

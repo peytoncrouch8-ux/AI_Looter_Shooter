@@ -12,6 +12,7 @@
 #include "Creatures/CreatureKnockComponent.h"
 #include "Creatures/CreaturePackComponent.h"
 #include "Creatures/FightDirectorSubsystem.h"
+#include "Creatures/FightEvent.h"
 #include "Creatures/FightRules.h"
 #include "Creatures/FightTuning.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -128,11 +129,19 @@ void ACreatureBase::TickChaseFight(const APawn& Victim, float DeltaSeconds)
 	const bool bTurn = Director->HoldsToken(*this) || (bAsks && Director->TryTakeToken(*this, Victim, GetAttackTokenRole()));
 	FVector Spot;
 	const bool bHasSpot = !bTurn && Director->GetWaitSpot(*this, Victim, Spot);
+	if (bTurn && StartsRingMove(Victim, Distance))
+	{
+		// Its kind's own move takes the turn (a spider's pounce): its kind moves it this frame, not the plain chase.
+		bWaitingTurn = false;
+		SetWaitFacing(false);
+		return;
+	}
 	if (bTurn && bCanStart)
 	{
 		bWaitingTurn = false;
 		SetWaitFacing(false);
 		SetState(ECreatureState::Attack);
+		Director->NoteEvent(*this, EFightEvent::AttackStarted);
 		return;
 	}
 
@@ -259,4 +268,38 @@ void ACreatureBase::ResumeAfterHit()
 	OnAttackCalledOff();
 	CooldownRemaining = FMath::Max(CooldownRemaining, CalledOffCooldown);
 	ResumeHunt();
+}
+
+// ---------------------------------------------------------------------------
+// Its pack's leader down (FIGHTS.md section 2: PackLeaderRules::OnLeaderDown calls it on each packmate near the leader)
+// ---------------------------------------------------------------------------
+
+void ACreatureBase::OnPackLeaderDown(const ACreatureBase& Leader)
+{
+	if (IsDead() || bPassive || KeepsOwnFight())
+	{
+		return;
+	}
+	const FFightTuning Numbers = FFightTuning::Live();
+	// The leader's fall shakes it: a wind-up comes to nothing (a bite already landed plays out), its turn goes back for the
+	// next one, and it stands a moment, the player's window to press the fight.
+	if (State == ECreatureState::Attack && !bStruck)
+	{
+		OnAttackCalledOff();
+		CooldownRemaining = FMath::Max(CooldownRemaining, CalledOffCooldown);
+		LeaveFightTurn();
+		ResumeHunt();
+	}
+	else
+	{
+		LeaveFightTurn();
+	}
+	bWaitingTurn = false;
+	if (Numbers.LeaderFalter > 0.f)
+	{
+		HoldBrain(Numbers.LeaderFalter);
+	}
+	// A Basic spider or slime may lose its nerve and run for a moment (its pack's break-off, CreaturePackComponent).
+	Pack->RollLeaderBreakOff(Numbers.LeaderBreakChance);
+	UE_LOG(LogLooter, Verbose, TEXT("%s falters: %s, its pack's leader, is down."), *GetName(), *Leader.GetName());
 }

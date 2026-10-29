@@ -13,9 +13,15 @@ Usage: Tools\\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/play.py <com
   press <action> [seconds] [x] [y]                feeds IA_<action> (Interact, Fire, Jump, Reload, Move; the code-built
                                                   Crouch, Sprint, Aim too) as a tap, or held for the seconds given;
                                                   needs no window focus
-  fight [seconds] [range m]                       aims at the nearest living creature in sight and holds Fire, for
+  fight [seconds] [range m] [aim 0-1] [still|strafe|kite]
+                                                  aims at the nearest living creature in sight and holds Fire, for
                                                   the seconds given (20), reloading when nothing is in sight and
-                                                  keeping the ammo topped up
+                                                  keeping the ammo topped up. aim: 1 (the default) is dead on; below
+                                                  that each shot lands a random miss off the aim point, up to
+                                                  (1 - aim) x 190 cm (about 60% on a spider's body at 0.6). Moves
+                                                  (FIGHTS.md, the DEMO bot): still stands (the default), strafe
+                                                  walks A then D every 1.5 s, kite backs away from the target while
+                                                  it strafes. Says its health and what it saw when it ends
   ammo                                            fills every ammo pool
   guns                                            the gun in hand and every slot
   equip <slot 1-3>                                takes a slot's gun in hand (the number keys don't reach the game
@@ -30,6 +36,7 @@ Never set_editor_property on anything in the play session (2026-10-14): a change
 and a component's notice reruns its actor's construction script. On the player that rebuilt every Blueprint component, the
 weapon manager among them: all guns, the backpack and the ammo vanished, twice. Call the game's own functions instead."""
 import math
+import random
 import sys
 
 import unreal
@@ -292,21 +299,69 @@ def fill_ammo(pawn):
     return added
 
 
-def fight(world, seconds=20.0, range_m=40.0):
+FIGHT_MODES = ('still', 'strafe', 'kite')
+# A miss at aim 0 lands up to this far (cm) off the aim point, in the plane across the view; 190 puts about 60% of the shots
+# on a spider-sized body (60 cm across) at aim 0.6 (the disk has radius 76 cm there).
+MISS_CM = 190.0
+STRAFE_SECONDS = 1.5
+
+
+def fight(world, seconds=20.0, range_m=40.0, aim_share=1.0, mode='still'):
     """Fights for the player for the seconds given: each frame it turns the view onto the nearest living creature in
-    sight within the range and holds Fire, and taps Reload when nothing is in sight. Says what died."""
+    sight within the range (off by a random miss when aim_share is under 1) and holds Fire, and taps Reload when nothing
+    is in sight. mode: still stands; strafe walks sideways, A then D every STRAFE_SECONDS; kite backs away as well. Says
+    the player's health and what it saw when it ends."""
     pawn, controller = player(world)
     if pawn is None:
         return
     fire = unreal.load_asset('/Game/Input/Actions/IA_Fire')
     reload_action = unreal.load_asset('/Game/Input/Actions/IA_Reload')
+    move_action = unreal.load_asset('/Game/Input/Actions/IA_Move')
     inputs = next((s for s in unreal.ObjectIterator(unreal.EnhancedInputLocalPlayerSubsystem) if s.get_world() == world), None)
     if inputs is None or fire is None:
         say('fight: no input to fight with')
         return
+    if mode != 'still' and move_action is None:
+        say('fight: no IA_Move to move with; standing still')
+        mode = 'still'
+    aim_share = max(0.0, min(1.0, aim_share))
+    health = pawn.get_component_by_class(unreal.HealthComponent)
     fill_ammo(pawn)
-    state = {'left': seconds, 'idle': 0.0, 'refill': 2.0, 'seen': set()}
+    state = {'left': seconds, 'idle': 0.0, 'refill': 2.0, 'seen': set(), 'side': 1.0, 'side_left': STRAFE_SECONDS,
+             'start_health': health.get_health() if health else 0.0, 'moved': 0.0}
     on = unreal.Vector(1.0, 0.0, 0.0)
+
+    def finish(why):
+        now = health.get_health() if health else 0.0
+        say(f'fight: {why} after {seconds - state["left"]:.1f} s ({mode}, aim {aim_share:.2f}); health {state["start_health"]:.0f} -> '
+            f'{now:.0f}; saw {len(state["seen"])} creatures')
+
+    def missed(origin, eye):
+        """The aim point moved off by this shot's miss: a uniform point in a disk of radius (1 - aim) x MISS_CM across the view."""
+        radius = (1.0 - aim_share) * MISS_CM
+        if radius <= 0.0:
+            return origin
+        # Plain floats, so it doesn't lean on which operators the engine's Vector wrapper has.
+        dx, dy, dz = origin.x - eye.x, origin.y - eye.y, origin.z - eye.z
+        length = math.sqrt(dx * dx + dy * dy + dz * dz)
+        flat = math.hypot(dx, dy)
+        if length < 1.0 or flat < 0.001:
+            return origin
+        dx, dy, dz = dx / length, dy / length, dz / length
+        rx, ry = -dy / (flat / length), dx / (flat / length)  # across the view, level
+        ux, uy, uz = dy * 0.0 - dz * ry, dz * rx - dx * 0.0, dx * ry - dy * rx  # d x right: up across the view
+        spread = radius * math.sqrt(random.random())
+        turn = random.random() * 2.0 * math.pi
+        a, b = math.cos(turn) * spread, math.sin(turn) * spread
+        return unreal.Vector(origin.x + rx * a + ux * b, origin.y + ry * a + uy * b, origin.z + uz * b)
+
+    def walk(dt, away):
+        """Feeds the move action for this frame: sideways, switching every STRAFE_SECONDS, and back when kiting."""
+        state['side_left'] -= dt
+        if state['side_left'] <= 0.0:
+            state['side'] = -state['side']
+            state['side_left'] = STRAFE_SECONDS
+        inputs.inject_input_vector_for_action(move_action, unreal.Vector(state['side'], -1.0 if away else 0.0, 0.0), [], [])
 
     def target():
         eye, _ = controller.get_player_view_point()
@@ -331,10 +386,15 @@ def fight(world, seconds=20.0, range_m=40.0):
             if state['refill'] <= 0.0:
                 fill_ammo(pawn)
                 state['refill'] = 2.0
-            found = target()
             if state['left'] <= 0.0:
                 unreal.unregister_slate_post_tick_callback(state['handle'])
+                finish('done')
                 return
+            if health is not None and health.is_dead():
+                unreal.unregister_slate_post_tick_callback(state['handle'])
+                finish('the player died')
+                return
+            found = target()
             if found is None:
                 state['idle'] += dt
                 if state['idle'] > 1.0 and reload_action:
@@ -344,9 +404,12 @@ def fight(world, seconds=20.0, range_m=40.0):
             creature, origin = found
             state['seen'].add(creature.get_name())
             eye, _ = controller.get_player_view_point()
-            d = origin - eye
+            aimed = missed(origin, eye)
+            d = aimed - eye
             controller.set_control_rotation(unreal.Rotator(roll=0.0, pitch=math.degrees(math.atan2(d.z, math.hypot(d.x, d.y))),
                                                            yaw=math.degrees(math.atan2(d.y, d.x))))
+            if mode != 'still':
+                walk(dt, mode == 'kite')
             # Pressed every other frame, so a semi-automatic gun fires again too.
             state['trigger'] = not state.get('trigger', False)
             if state['trigger']:
@@ -356,7 +419,7 @@ def fight(world, seconds=20.0, range_m=40.0):
             say(f'fight stopped: {error}')
 
     state['handle'] = unreal.register_slate_post_tick_callback(tick)
-    say(f'fight: fighting for {seconds:.0f} s within {range_m:.0f} m')
+    say(f'fight: fighting for {seconds:.0f} s within {range_m:.0f} m, {mode}, aim {aim_share:.2f}')
 
 
 def what(world, yaw_offset=0.0, pitch_offset=0.0):
@@ -484,7 +547,10 @@ def main(args):
     elif command == 'press' and rest:
         press(world, rest[0], *[float(v) for v in rest[1:4]])
     elif command == 'fight':
-        fight(world, *[float(v) for v in rest[:2]])
+        # fight [seconds] [range m] [aim 0-1] [still|strafe|kite]: the numbers in order, the mode's word anywhere.
+        words = [v.lower() for v in rest if v.lower() in FIGHT_MODES]
+        numbers = [float(v) for v in rest if v.lower() not in FIGHT_MODES][:3]
+        fight(world, *numbers, mode=words[0] if words else 'still')
     elif command == 'what':
         what(world, *[float(v) for v in rest[:2]])
     elif command == 'lookat' and rest:

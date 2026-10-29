@@ -9,6 +9,7 @@ class AWeaponBase;
 class UEmberComponent;
 class UHealthComponent;
 class UHudEmberSocketWidget;
+class UHudFindBannerWidget;
 class UHudGraveMarkedWidget;
 class UHudGrenadeWidget;
 class UHudInteractPromptWidget;
@@ -28,6 +29,7 @@ class USizeBox;
 class UTextBlock;
 class UWidget;
 class UWeaponManagerComponent;
+struct FFindBannerShow;
 enum class EEmberDenied : uint8;
 enum class EEmberState : uint8;
 enum class EGrenadeChange : uint8;
@@ -83,6 +85,12 @@ public:
 
 	/** The grave banner, for the tests; null before the HUD is built. */
 	UHudGraveMarkedWidget* GetGraveBanner() const { return GraveBanner; }
+
+	/** Shows the "FOUND" banner for a find (ALooterHUD::ShowFind): queued behind a banner showing. */
+	void ShowFind(const FFindBannerShow& Find);
+
+	/** The find banner, for the tests; null before the HUD is built. */
+	UHudFindBannerWidget* GetFindBanner() const { return FindBanner; }
 
 	/** The notches beside the gun's name, for the tests; null before the HUD is built. */
 	UHudNotchTallyWidget* GetNotchTally() const { return NotchTally; }
@@ -215,6 +223,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UHudMissionCompleteWidget> MissionBanner;
 	/** The "GRAVE MARKED" banner, a little above them; it waits for them. */
 	UPROPERTY(Transient) TObjectPtr<UHudGraveMarkedWidget> GraveBanner;
+	/** The "FOUND" banner, in the same place; it waits for the three above (and the roost banner for it). */
+	UPROPERTY(Transient) TObjectPtr<UHudFindBannerWidget> FindBanner;
 
 	// Bottom-right: weapon
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeaponCluster;

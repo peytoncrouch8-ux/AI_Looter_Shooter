@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/SlimeFightRules.h"
 #include "SlimeCreature.generated.h"
 
 /**
@@ -18,6 +19,11 @@
  * the squash is a spring, volume kept (sides scale by 1 / sqrt of the height's scale), and the core lags behind the
  * body's moves on a spring of its own. The pose is in the mesh's space, so it holds at any size (GetSizeScale); the hops,
  * the leap and the core's crit radius are the full-size slime's times its size.
+ *
+ * The fight pass (FIGHTS.md section 3, 2026-10-28; SlimeCreatureSplit.cpp, numbers in SlimeFightRules.h): a Restless or
+ * better slime dies into two slimelets (this class at BodyScale 0.55, 0.3 of the health, half the damage, a quarter of the
+ * experience; Basic; they never split, and count toward the level's caps); the pack's leaps begin 0.45 s apart (GetMeleeGap),
+ * and a slime waiting its turn that takes three hits in 0.8 s may hop 250 cm aside.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ASlimeCreature : public ACreatureBase
@@ -35,6 +41,9 @@ public:
 
 	// Crits: the core's hull, or a shot whose line runs on through the core.
 	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
+
+	/** Its leaps at one target begin at least this far apart (Looter.Slime.MeleeGap, 0.45 s): the pack's drumbeat (the fight director's per-kind gap). */
+	virtual float GetMeleeGap() const override;
 
 	/** The launch velocity of a hop that covers Length (cm, flat ground) along Direction, rising Height at the top. */
 	static FVector HopVelocity(const FVector& Direction, float Length, float Height, float Gravity);
@@ -122,6 +131,20 @@ public:
 	/** Its stagger's share now (0 to 1), from the hit reaction; 0 with the stagger pose off. */
 	float GetStaggerShare() const;
 
+	// --- The fight pass (SlimeCreatureSplit.cpp) ---
+
+	/** A slimelet: a Restless or better slime's piece. It shares the slime's bestiary page, never splits, and hits and pays less. */
+	bool IsSlimelet() const { return bSlimelet; }
+
+	/**
+	 * Makes this slime a slimelet: named so, its damage and experience cut to the tuning's shares (kept through rank changes).
+	 * Called by the split on the slime it has just spawned.
+	 */
+	void MarkSlimelet(const FSlimeFightTuning& Tuning);
+
+	/** Throws it Length cm along Direction in a low hop (the split's pieces; a side hop). The hop's height is a third of its length. */
+	void ThrowNow(const FVector& Direction, float Length);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnAttackStarted() override;
@@ -138,6 +161,8 @@ protected:
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
 	virtual void OnNoticed() override;
 	virtual void PlayEntrance() override;
+	/** A slimelet's damage and experience shares are put on again after every rank application (SlimeCreatureSplit.cpp). */
+	virtual void OnRankChanged() override;
 
 private:
 	enum class EHop : uint8
@@ -156,6 +181,19 @@ private:
 	 * seat toward it; in the air, back upright over the capsule's foot (SlimeCreatureBody.cpp).
 	 */
 	void FitToGround(float DeltaSeconds);
+
+	// --- The fight pass (SlimeCreatureSplit.cpp) ---
+	/** On its death, a Restless or better slime bursts into slimelets when the caps allow. */
+	void SplitOnDeath();
+	/** A hit landed: three in the dodge window while it waits its turn make it hop aside (Looter.Slime.Dodge). */
+	void NoteHitForDodge();
+	/** Puts the slimelet's damage and experience shares on the stats the rank just set. */
+	void ApplySlimeletStats();
+
+	bool bSlimelet = false;
+	float SlimeletDamageShare = 1.f;
+	float SlimeletXPShare = 1.f;
+	FSlimeDodgeTracker DodgeTracker;
 
 	// --- Reactions and idle life (SlimeCreatureReact.cpp) ---
 	/** Its lean's spring, its idle bubbles and sway move on. */

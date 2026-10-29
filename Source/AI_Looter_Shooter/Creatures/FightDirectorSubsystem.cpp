@@ -1,11 +1,14 @@
 // UFightDirectorSubsystem: the turns (who may attack the player now) and the look at every fight that keeps them honest.
-// FightDirectorPlaces.cpp is where the waiting ones stand: the ring's slots and the ranged kinds' spots.
+// FightDirectorPlaces.cpp is where the waiting ones stand: the ring's slots and the ranged kinds' spots;
+// FightDirectorPressure.cpp the melee gap, the player read and its ease, leaps, pack leaders and the fight's events.
 
 #include "Creatures/FightDirectorSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreaturePackComponent.h"
 #include "Creatures/EncounterSubsystem.h"
+#include "Creatures/FightEvent.h"
+#include "Creatures/FightPressureRules.h"
 #include "CoreGlobals.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -89,12 +92,15 @@ bool UFightDirectorSubsystem::TryTakeToken(const ACreatureBase& Creature, const 
 	}
 	const bool bRanged = Role == EFightRole::Ranged;
 	FFightTokens& Tokens = bRanged ? Fight.Ranged : Fight.Melee;
-	const bool bTaken = Tokens.TryTake(Id, Now(), bRanged ? Numbers.RangedTokens : MeleeTokensFor(Creature, Fight), Numbers.TurnKeep,
-		bRanged ? Numbers.RangedGap : 0.f);
+	// A melee turn waits for its kind family's gap (the slime pack's drumbeat); a ranged one for the ranged gap.
+	const float FamilyGap = bRanged ? 0.f : GetMeleeGapFor(Creature);
+	const bool bTaken = Tokens.TryTake(Id, Now(), bRanged ? RangedTokensFor(Fight) : MeleeTokensFor(Creature, Fight), Numbers.TurnKeep,
+		bRanged ? Numbers.RangedGap : 0.f, FamilyGap > 0.f ? FightRules::FamilyOf(Creature.GetClass()) : FName(), FamilyGap);
 	if (bTaken)
 	{
 		UE_LOG(LogLooter, Verbose, TEXT("%s takes a %s turn at %s (%d held)."), *Creature.GetName(), bRanged ? TEXT("ranged") : TEXT("melee"),
 			*Target.GetName(), Tokens.NumHeld());
+		NoteEvent(Creature, EFightEvent::TurnTaken, bRanged ? 1.f : 0.f);
 	}
 	return bTaken;
 }
@@ -193,7 +199,14 @@ int32 UFightDirectorSubsystem::MeleeTokensFor(const ACreatureBase& Creature, con
 	// Its pack's frenzy lets more of them in at once; anyone else at the same player keeps the usual count (they still count
 	// the frenzy's holders, so a spider can't add a fourth bite on top of a frenzy).
 	const bool bFrenzy = !Creature.PackTag.IsNone() && Creature.PackTag == Fight.FrenzyPack && Now() < Fight.FrenzyUntil;
-	return bFrenzy ? FMath::Max(Usual, Fight.FrenzyTokens) : Usual;
+	// A nearly dead player's close-call ease takes one off whichever count holds (FightDirectorPressure.cpp).
+	return FightPressureRules::EasedTokens(bFrenzy ? FMath::Max(Usual, Fight.FrenzyTokens) : Usual, Fight.Ease.IsEasing(Now()));
+}
+
+int32 UFightDirectorSubsystem::RangedTokensFor(const FTargetFight& Fight) const
+{
+	const int32 Usual = const_cast<UFightDirectorSubsystem*>(this)->Tuning().RangedTokens;
+	return FightPressureRules::EasedTokens(Usual, Fight.Ease.IsEasing(Now()));
 }
 
 void UFightDirectorSubsystem::OpenFrenzy(const APawn& Target, FName PackTag, float Seconds, int32 Tokens)
@@ -400,6 +413,8 @@ void UFightDirectorSubsystem::RefreshTarget(const APawn& Target, FTargetFight& F
 	Fight.RingTurn = FMath::UnwindDegrees(Fight.RingTurn + Numbers.RingDrift * Elapsed);
 	PlaceRing(Target, Fight, Melee, Time);
 	PlaceRanged(Target, Fight, Ranged, Melee);
+	// What the player is doing (still, hidden, nearly dead): the kinds' answers to camping, and the close-call ease.
+	ReadPlayer(Target, Fight, Fighters, Time);
 }
 
 void UFightDirectorSubsystem::KeepUpTurns(const APawn& Target, FFightTokens& Tokens, bool bMelee, const TMap<uint32, ACreatureBase*>& ById,

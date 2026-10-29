@@ -517,3 +517,21 @@ Looter.Embers.Power (15), Looter.Creatures.React (5).
 - The Slag Bomb lands on the creature in sights: in a horde that is at the feet, inside its own fire (hence the eye scaling).
 - Rocks near town for stone hits: SM_CliffFace_* round (-3500, 2700); the stone house at (-2680, 3100) reads as Wood
   (no Surface tag), so `Looter.Vfx.Impact 1 Stone` there.
+
+## Gun identity and hit feel (2026-10-28 night; Docs/Work/2026-10-28-Core/GUNS.md, HITS.md, CONTRACT.md)
+- Gun identity: each kind its own kick shape, aimed shares, recovery, ADS curve/settle, cadence jitter (autos), sustain caps,
+  shot shakes (LMG/shotgun/sniper/launcher), heave, bolt-home, LMG dig-in, sniper recoil hold (`Weapons/GunfeelKickKinds.cpp`);
+  heft (look lag, bob, breath, landing, sight-arrival push; hip move +5% SMG/revolver, -5% LMG/launcher, -3% sniper;
+  `GunHeftTuning`); reload beats (`ReloadBeats`); brass per kind (Small, Magnum, Belt + LMG links); sounds: per-kind
+  Mech/Low/Tail, Punch layer (rifle every 3rd, LMG every 2nd, none SMG), per-kind AimIn, AimOut; loudness ladder SMG -3 /
+  rifle 0 / LMG +1 / revolver +2 / shotgun +3 / launcher +3 / sniper +4 LU, every own-gun sum <= -1 dBFS.
+  `Looter.Gunfeel.Identity 0` gives the feel before it. View-kick caps kept (3 deg, 5% FOV, push 4 cm; Main's call).
+  The heft push is held while a slide tips the view (it broke WeaponAim.CrouchAligned by 0.03 cm).
+- Hit feel: five layers on every hit (weight Body/Heavy/Big/Kill/Overkill, zone by bone, side, far boost, poise staggers:
+  poise builds only when a stagger could begin, 1.6 s gap on elites; Big hits a 300 cm/s ground push, no brain hold).
+  Spiders: leg buckle, limp, head snap, abdomen kick and goo, stagger pose, kill styles (lights out, blast, overkill);
+  looks only (no slow). Unpaid: whiplash, twist, arm flings, stagger fold, wounds, hats knocked off (hard head hit or head
+  kill; lie 6 s; at most 4), kill styles snuffed/torn/scattered (an overkill scatters in 0.3 s). Slime: air knock, wound
+  shrink, pop/over-inflate. Kill weight overkill +0.6 (cap 2.4). Switches `Looter.Hits.*` (Zones, Wounds, KillStyles, Hat,
+  StaggerPose, Spider/Unpaid/SlimeScale; `PoiseBreak 0` turns poise off). Dev: `Looter.Hits.Test <zone>`, `Looter.Hits.Show 1`.
+- Not seen by the user yet; DEMO play-check pending. Crosshair per kind: mockup only (Docs/Work/2026-10-28-Core/crosshair).

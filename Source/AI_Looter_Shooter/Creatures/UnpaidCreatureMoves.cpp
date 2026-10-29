@@ -96,6 +96,18 @@ bool AUnpaidCreature::HasFightKit() const
 	return Native == AUnpaidCreature::StaticClass();
 }
 
+bool AUnpaidCreature::IsTargetCamping(const APawn& Victim) const
+{
+	// The director reads the player (still or hidden too long while 3+ fight them: FightPressureRules); asked at a strike and
+	// a look at the ring, not every frame.
+	if (FUnpaidFightTuning::Live().CampPunish == 0)
+	{
+		return false;
+	}
+	UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this);
+	return Director && Director->GetPlayerRead(Victim).IsCamping();
+}
+
 bool AUnpaidCreature::IsBossAdd()
 {
 	if (Kit.BossAdd >= 0)
@@ -141,6 +153,8 @@ bool AUnpaidCreature::IsBossAdd()
 void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 {
 	Kit.CinderCooldown = FMath::Max(Kit.CinderCooldown - DeltaSeconds, 0.f);
+	// Its fade-back's step and wait, and its coal's gutter after its leader fell (UnpaidCreatureFadeBack.cpp).
+	TickFadeBack(DeltaSeconds);
 	Kit.FlankCooldown = FMath::Max(Kit.FlankCooldown - DeltaSeconds, 0.f);
 	const APawn* Victim = GetTarget();
 	bool bKit = Victim && !IsDead() && HasFightKit();
@@ -163,13 +177,15 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 	const FUnpaidFightTuning& Tuning = FUnpaidFightTuning::Live();
 	const ECreatureState BrainState = GetCreatureState();
 	UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this);
+	// Guttering (its leader fell), its tells burn low too.
+	const float TellFlare = Kit.GutterLeft > 0.f ? FMath::Min(Tuning.TellFlare, Tuning.GutterFlare) : Tuning.TellFlare;
 
 	// Its attack: the coal flares up through every wind-up (the tell), the rake swipes on.
 	if (BrainState == ECreatureState::Attack)
 	{
 		if (GetStateTime() < AttackWindup)
 		{
-			Heat = FMath::Max(Heat, Tuning.TellFlare * KitEase(GetStateTime() / FMath::Max(AttackWindup, 0.01f)));
+			Heat = FMath::Max(Heat, TellFlare * KitEase(GetStateTime() / FMath::Max(AttackWindup, 0.01f)));
 		}
 		if (Kit.Move == EUnpaidMove::Rake)
 		{
@@ -186,9 +202,18 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 	const bool bFrenzy = Director && Director->GetFrenzyLeft(*Victim, PackTag) > 0.f;
 	if (bFrenzy)
 	{
-		Heat = FMath::Max(Heat, Tuning.TellFlare * FrenzyGlowShare);
+		Heat = FMath::Max(Heat, TellFlare * FrenzyGlowShare);
 	}
 	UpdateChaseBoost(Victim, bFrenzy);
+
+	// Fading back (out to the ring's edge, waiting there): nothing of the ring for it until it comes on again.
+	if (IsFadingBack())
+	{
+		Kit.WaitTime = 0.f;
+		Kit.bFlankRolled = false;
+		Kit.bFlankArmed = false;
+		return;
+	}
 
 	if (Kit.Action != EUnpaidAction::None)
 	{
@@ -210,7 +235,7 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 		Kit.bFlankArmed = false;
 		return;
 	}
-	if (IsPhasing() || bLunging || IsHeldByHit())
+	if (IsPhasing() || Kit.bLunging || IsHeldByHit())
 	{
 		return;
 	}

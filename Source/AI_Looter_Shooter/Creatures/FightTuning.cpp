@@ -61,6 +61,36 @@ namespace
 	TAutoConsoleVariable<float> CVarRangedMoveShare(TEXT("Looter.Fight.RangedMoveShare"), FightDefaults.RangedMoveShare,
 		TEXT("A ranged creature walks to a new spot at this share of its chase speed."), ECVF_Default);
 
+	// Pressure.
+	TAutoConsoleVariable<float> CVarMeleeGap(TEXT("Looter.Fight.MeleeGap"), FightDefaults.MeleeGap,
+		TEXT("Each kind's own melee gap (the slime's 0.45 s between its pack's leaps at one target), times this; 0 = no gaps."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarStillSeconds(TEXT("Looter.Fight.StillSeconds"), FightDefaults.StillSeconds,
+		TEXT("A player who keeps within StillRadius this long (s) stands still (camping, with enough fighting them)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarStillRadius(TEXT("Looter.Fight.StillRadius"), FightDefaults.StillRadius,
+		TEXT("The circle (cm, flat) a still player keeps within."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarHiddenSeconds(TEXT("Looter.Fight.HiddenSeconds"), FightDefaults.HiddenSeconds,
+		TEXT("No creature fighting a player has seen them this long (s): they hide (camping, with enough fighting them)."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarCampMinFighters(TEXT("Looter.Fight.CampMinFighters"), FightDefaults.CampMinFighters,
+		TEXT("Standing still or hiding is camping only while this many or more fight the player."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarEase(TEXT("Looter.Fight.Ease"), FightDefaults.Ease,
+		TEXT("1: a nearly dead player gets one turn fewer of each kind at them for a while (EaseBelow, EaseSeconds, EaseGap); 0: never."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarEaseBelow(TEXT("Looter.Fight.EaseBelow"), FightDefaults.EaseBelow,
+		TEXT("The ease opens under this share of the player's health and ward."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarEaseSeconds(TEXT("Looter.Fight.EaseSeconds"), FightDefaults.EaseSeconds,
+		TEXT("The ease lasts this long (s)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarEaseGap(TEXT("Looter.Fight.EaseGap"), FightDefaults.EaseGap,
+		TEXT("One ease per player in this long (s)."), ECVF_Default);
+
+	// Pack leaders.
+	TAutoConsoleVariable<float> CVarLeaderReach(TEXT("Looter.Fight.LeaderReach"), FightDefaults.LeaderReach,
+		TEXT("A pack leader's fall shakes its packmates within this (cm); its pack counts as led this near it."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLeaderFalter(TEXT("Looter.Fight.LeaderFalter"), FightDefaults.LeaderFalter,
+		TEXT("Its packmates falter this long (s) at its fall (0 = not at all)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLeaderBreakChance(TEXT("Looter.Fight.LeaderBreakChance"), FightDefaults.LeaderBreakChance,
+		TEXT("A Basic spider or slime breaks off at its leader's fall with this chance."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarLeaderLull(TEXT("Looter.Fight.LeaderLull"), FightDefaults.LeaderLull,
+		TEXT("After its leader's fall a pack rallies and frenzies no more for this long (s)."), ECVF_Default);
+
 	// Difficulty.
 	TAutoConsoleVariable<float> CVarChaseScale(TEXT("Looter.Fight.ChaseScale"), FightDefaults.ChaseScale,
 		TEXT("Every regular creature chases this many times its own speed (never a boss or Legendary monster)."), ECVF_Default);
@@ -106,6 +136,21 @@ FFightTuning FFightTuning::Live()
 	Tuning.RangedRelocate = FMath::Clamp(CVarRangedRelocate.GetValueOnGameThread(), 0.f, 1.f);
 	Tuning.RangedBackOff = LiveRangedBackOff();
 	Tuning.RangedMoveShare = LiveRangedMoveShare();
+
+	Tuning.MeleeGap = NotBelowZero(CVarMeleeGap);
+	Tuning.StillSeconds = FMath::Max(CVarStillSeconds.GetValueOnGameThread(), 0.1f);
+	Tuning.StillRadius = FMath::Max(CVarStillRadius.GetValueOnGameThread(), 1.f);
+	Tuning.HiddenSeconds = FMath::Max(CVarHiddenSeconds.GetValueOnGameThread(), 0.1f);
+	Tuning.CampMinFighters = FMath::Max(CVarCampMinFighters.GetValueOnGameThread(), 1);
+	Tuning.Ease = CVarEase.GetValueOnGameThread();
+	Tuning.EaseBelow = FMath::Clamp(CVarEaseBelow.GetValueOnGameThread(), 0.f, 1.f);
+	Tuning.EaseSeconds = NotBelowZero(CVarEaseSeconds);
+	Tuning.EaseGap = NotBelowZero(CVarEaseGap);
+
+	Tuning.LeaderReach = NotBelowZero(CVarLeaderReach);
+	Tuning.LeaderFalter = NotBelowZero(CVarLeaderFalter);
+	Tuning.LeaderBreakChance = FMath::Clamp(CVarLeaderBreakChance.GetValueOnGameThread(), 0.f, 1.f);
+	Tuning.LeaderLull = NotBelowZero(CVarLeaderLull);
 
 	Tuning.ChaseScale = LiveChaseScale();
 	Tuning.DamageScale = LiveDamageScale();

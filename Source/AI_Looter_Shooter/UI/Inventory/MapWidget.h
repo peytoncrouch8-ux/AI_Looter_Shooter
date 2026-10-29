@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Styling/SlateBrush.h"
+#include "UI/Inventory/MapFinds.h"
 #include "UI/Inventory/MapPins.h"
 #include "UI/Inventory/MapPlaces.h"
 #include "UI/Inventory/MapView.h"
@@ -95,6 +96,22 @@ public:
 	/** A key as the page takes it (NativeOnKeyDown; tests). True when it used it. */
 	bool HandleKey(const FKey& Key);
 
+	/** The finds block over the map's top-left corner (MapWidgetFinds.cpp): shows Counts; nothing when the level has no finds. */
+	void ApplyFinds(const MapFinds::FCounts& Counts);
+
+	/** What the finds block shows, for the tests. */
+	struct FFindsView
+	{
+		bool bShown = false;
+		/** "4 / 15" and "2 / 6". */
+		FString Finds;
+		FString Ledger;
+		/** One line per region row shown: "Farm & Point  2 / 4"; Done[i] is its tick. */
+		TArray<FString> Regions;
+		TArray<bool> Done;
+	};
+	FFindsView GetFindsView() const;
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -165,6 +182,10 @@ private:
 	void HandleGraveRowClicked(ULooterButton* Button);
 	void HandleGraveRowHovered(ULooterButton* Button);
 
+	// MapWidgetFinds.cpp: the finds block (total, ledger pages, each region) under the frame's "north up", over the map
+	void BuildFinds(UCanvasPanel& Page);
+	void RefreshFinds();
+
 	// MapWidgetCard.cpp: the legend's counts, the travel card, the graves' list and the prompts
 	void RefreshLegend();
 	void RefreshTravelCard();
@@ -232,6 +253,20 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ZoomText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> PlaceLabels;
 	TArray<FPinSlot> PinSlots;
+
+	// The finds block.
+	/** A region's row: its tick (shown once every find in it is found), name and count. */
+	struct FFindRegionRow
+	{
+		UWidget* Row = nullptr;
+		UImage* Tick = nullptr;
+		UTextBlock* Name = nullptr;
+		UTextBlock* Count = nullptr;
+	};
+	UPROPERTY(Transient) TObjectPtr<UWidget> FindsBlock;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FindsCount;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> LedgerCount;
+	TArray<FFindRegionRow> FindRegionRows;
 
 	// The side column.
 	/** The legend's count for each kind, by EMapPinKind (null for a kind without a count). */
