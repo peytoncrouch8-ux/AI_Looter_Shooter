@@ -472,30 +472,58 @@ def arms_tree(side):
 
 
 # ----------------------------------------------------------------------------------------------------- guns
-def load_gun(name):
-    """A gun script's default gun as a stand-in, under one empty at its origin; its sockets in its own space."""
+def socket_mats(parts, rig=None):
+    """Every socket on parts by name (Blender's .001 numbering dropped) as its full matrix (4x4, m) in the gun's own space
+    (the rig's, when given: the parts parented under it), with the part it is on. A name on several parts: the latest
+    part in assembly order wins, as UWeaponModelComponent::FindSocket (the grip spots' rule, Docs/Work/2026-10-29-
+    GripSpots/CONTRACT.md). An empty's -Y is the socket's front in Unreal and its +Z its top (looter_export.socket_entry)."""
+    inv = np.linalg.inv(np.array(rig.matrix_world)) if rig is not None else np.eye(4)
+    mats, owners = {}, {}
+    for part in parts:
+        for o in part.children_recursive:
+            if o.name.startswith('SOCKET_'):
+                key = o.name[7:].split('.')[0]
+                mats[key] = inv @ np.array(o.matrix_world)
+                owners[key] = part.name
+    return mats, owners
+
+
+def load_gun(name, keep_all=False):
+    """A gun script's default gun as a stand-in, under one empty at its origin; its sockets in its own space (sockets:
+    points; mats: full matrices, socket_mats). keep_all keeps every part the script built (its `built`), parented under
+    the same empty and hidden but for the default's, so the caller can put other parts on with ns['assemble'](choice)
+    (locations are the rig's own space) and read them again with socket_mats(parts, rig)."""
     before = set(bpy.data.objects)
     ns = runpy.run_path(os.path.join(lt.REPO, 'Art', 'Models', 'Weapons', name + '.py'))
     shown = ns['assemble'](ns['DEFAULT'])
+    every = list(ns.get('built', {}).values()) if keep_all else []
+    every += [o for o in shown if o not in every]
     keep = set()
-    for o in shown:
+    for o in every:
         keep |= {o} | set(o.children_recursive)
     for o in list(set(bpy.data.objects) - before - keep):
         bpy.data.objects.remove(o)
     bpy.context.view_layer.update()
     sockets = {}
+    on_show = set()
+    for o in shown:
+        on_show |= {o} | set(o.children_recursive)
     for o in keep:
         if o.name.startswith('SOCKET_'):
             key = o.name[7:].split('.')[0]
-            sockets.setdefault(key, np.array(o.matrix_world.translation))
+            if o in on_show:
+                sockets.setdefault(key, np.array(o.matrix_world.translation))
         if o.name.startswith(('UCX_', '_')) and o.type == 'MESH':
             o.hide_render = True
+    mats, owners = socket_mats(shown)
     rig = bpy.data.objects.new('_Gun_' + name, None)
     bpy.context.scene.collection.objects.link(rig)
-    for o in shown:
+    for o in every:
         mw = o.matrix_world.copy()
         o.parent = rig
         o.matrix_world = mw
+        if o not in shown:
+            o.hide_render = True
     glow = bpy.data.materials.get('GunReticle')
     if glow:
         bsdf = next(n for n in glow.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
@@ -507,7 +535,7 @@ def load_gun(name):
         bsdf.inputs['Emission Color'].default_value = (0.75, 0.85, 1.0, 1.0)
         bsdf.inputs['Emission Strength'].default_value = 1.2
     log(f'{name}: {len(shown)} parts; sockets {", ".join(sorted(sockets))}')
-    return dict(rig=rig, parts=shown, sockets=sockets, ns=ns)
+    return dict(rig=rig, parts=shown, sockets=sockets, mats=mats, owners=owners, ns=ns, every=every)
 
 
 def place_gun(gun, grip_target, R=np.eye(3), offset=(0.0, 0.0, 0.0), pivot=None):

@@ -13,7 +13,8 @@ and, on some exports, a glTF metal-roughness map and an OpenGL normal map.
 - islands() lists its pieces with their bounds; faces_where() picks faces by the colour under them (painted ember slots,
   a sight's cyan dot, which become glow slots); centroid() and hole_centre() measure them (a sight's line).
 - split() cuts the mesh into one object per material for Gun.add(), keeping Tripo's UVs on the textured one.
-The part keeps the scripted model's name, key and sockets, so the game can't tell the two apart.
+The part keeps the scripted model's name, key and sockets, so the game can't tell the two apart. socket_spec() reads a
+spec's own sockets: ((u, v), w), or with a rotation for grip spots ((u, v), w, (rx, ry, rz)).
 
     import looter_tripo as tripo
     obj, maps = tripo.load('Art/Models/Weapons/Tripo/BullpupBarrel_Carbine.glb')
@@ -250,6 +251,20 @@ def fit(obj, u, v, w, forward='-X', left='-Y', up='+Z'):
         me.flip_normals()
     me.update()
     return su, sv, sw
+
+
+def socket_spec(value):
+    """A Tripo spec's socket, {name: value}: ((u, v), w), or ((u, v), w, (rx, ry, rz)) with the empty's rotation in degrees
+    as Gun.socket takes it (a grip spot's from lg.mark_rotation(fingers_dir, palm_dir)). Returns (uv, w, rotation)."""
+    if len(value) == 2:
+        (uv, w), rotation = value, (0.0, 0.0, 0.0)
+    elif len(value) == 3:
+        uv, w, rotation = value
+    else:
+        raise ValueError(f'socket {value!r}: ((u, v), w) or ((u, v), w, (rx, ry, rz))')
+    if len(uv) != 2 or len(rotation) != 3:
+        raise ValueError(f'socket {value!r}: ((u, v), w) or ((u, v), w, (rx, ry, rz))')
+    return tuple(uv), float(w), tuple(float(a) for a in rotation)
 
 
 class Island:

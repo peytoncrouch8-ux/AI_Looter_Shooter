@@ -86,7 +86,9 @@ def model(slot, key, at):
 #   paint     dict(slot='GunPolymerSand', test='sand', tint=0xe6d8b6): the pieces mostly that colour become the
 #             paintable slot <slot>_TripoBullpup<Slot><Key> (the gun's paint of <slot> recolours them); by='faces'
 #             sorts face by face (a mesh of one piece), mode='luma' for dark or saturated shells (looter_tripo.paint_set)
-#   sockets   {name: ((u, v), w)}: sockets replacing the scripted part's of that name (the others are kept)
+#   sockets   {name: ((u, v), w)} or {name: ((u, v), w, (rx, ry, rz))} (degrees, as Gun.socket; a grip spot's from
+#             lg.mark_rotation(fingers_dir, palm_dir)): sockets replacing the scripted part's of that name (the others,
+#             grip spots too, are kept)
 #   prepare(ctx), finish(ctx): hooks before the faces are sorted (move the mesh, measure; may set ctx.sockets) and
 #             after it is added (extra pieces: ctx.add(obj, ...)). ctx: key, obj, maps, mat, tripo, lg, lt, at (the
 #             attach points), glow(name) -> material, log(text), sockets, add(*objs).
@@ -223,8 +225,9 @@ def tripo_build(key, spec):
     if spec.get('finish'):
         spec['finish'](ctx)
     g.sockets = [s for s in g.sockets if not (s[0] == key and s[1] in ctx.sockets)]
-    for name, (uv, w) in ctx.sockets.items():
-        g.socket(key, name, uv, w=w)
+    for name, value in ctx.sockets.items():
+        uv, w, rotation = tripo.socket_spec(value)
+        g.socket(key, name, uv, w=w, rotation=rotation)
 
 
 def body_sockets(m):

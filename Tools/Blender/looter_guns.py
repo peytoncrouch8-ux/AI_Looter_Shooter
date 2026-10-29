@@ -335,6 +335,20 @@ class Gun:
     def socket(self, model, name, uv, w=0.0, rotation=(0.0, 0.0, 0.0)):
         self.sockets.append((model, name, at(uv[0], uv[1], w), rotation))
 
+    def hand_mark(self, model, role, side, pose, uv, w, fingers_dir, palm_dir):
+        """A grip spot for the first-person hands (Docs/Work/2026-10-29-GripSpots/CONTRACT.md): the socket
+        SOCKET_<role>_<side>_<pose> on model, on the part's skin at (uv, w) under the palm's grip point. role: Hold (the
+        resting hold), Rack (pump or bolt work) or Reload (where the support hand takes the reload part); side: L (support)
+        or R (trigger); pose: a name from the pose library (Art/Models/Characters/FPHandPoses.py: Pistol, Cup, Pump,
+        Forend, Wrap, Revolver). fingers_dir: the way the knuckles point, palm_dir: out of the part's skin toward the
+        palm (the palm looks back along it into the part); both gun-space directions (du, dv, dw), squared to each
+        other (palm_dir gives way). In Unreal the socket's +X is fingers_dir and its +Z palm_dir (mark_rotation)."""
+        if role not in HAND_ROLES or side not in ('L', 'R') or not pose.isidentifier():
+            raise ValueError(f'{model}: hand mark {role}_{side}_{pose}: role {HAND_ROLES}, side L or R, pose a name')
+        name = f'{role}_{side}_{pose}'
+        self.socket(model, name, uv, w=w, rotation=mark_rotation(fingers_dir, palm_dir))
+        return name
+
     def build(self, origins=None):
         """Joins the models (named <Gun><Model>), each with its origin at origins[model] (u, v) or the gun's origin,
         placed where it belongs; returns {model: object}."""
@@ -642,6 +656,37 @@ TEMPER = material('GunHeatTint', 'MetalWorn', 0x6b5682)    # the blue-violet tem
 def gdir(du, dv, dw):
     """A direction in gun space, in Blender's axes (as at() is for points)."""
     return Vector((dw, -du, dv))
+
+
+HAND_ROLES = ('Hold', 'Rack', 'Reload')
+
+
+def mark_rotation(fingers_dir, palm_dir):
+    """The empty's rotation (XYZ Euler, degrees, as Gun.socket takes) for a hand mark whose Unreal socket points +X along
+    fingers_dir and +Z along palm_dir (gun-space directions (du, dv, dw); palm_dir is squared to fingers_dir).
+    How the frame gets to Unreal: looter_export.socket_entry writes the socket's forward as the empty's -Y and its up as
+    the empty's +Z, both through to_unreal (Blender (x, y, z) -> Unreal (-y, -x, z), so gdir's (dw, -du, dv) lands as
+    (du, -dw, dv): X along the gun, Y to its right, Z up), and ModelImporter.cpp SetSockets builds the rotation with
+    FRotationMatrix::MakeFromXZ(Forward, Up): X exact, Z squared to it. So the empty's -Y is fingers_dir, its +Z
+    palm_dir, and its +X their cross product (-Y x Z, a right-handed frame in Blender). Also usable in a Tripo spec's
+    socket tuple ((u, v), w, lg.mark_rotation(...)). Unreal's Y comes out as Z x X there: whatever it is, the hands only
+    read X and Z (FHandPlacement's fingers and palm, FirstPersonHands::Frame)."""
+    f = gdir(*fingers_dir)
+    p = gdir(*palm_dir)
+    if f.length < 1e-9:
+        raise ValueError('hand mark: fingers_dir is zero')
+    f.normalize()
+    p = p - f * p.dot(f)
+    if p.length < 1e-6:
+        raise ValueError(f'hand mark: palm_dir {palm_dir} runs along fingers_dir {fingers_dir}')
+    p.normalize()
+    y = -f
+    rot = Matrix((y.cross(p), y, p)).transposed()   # columns: the empty's X, Y, Z
+    euler = rot.to_euler('XYZ')
+    # The round trip is what export reads: check it lands back on the two directions.
+    back = euler.to_matrix()
+    assert (back @ Vector((0.0, -1.0, 0.0)) - f).length < 1e-5 and (back @ Vector((0.0, 0.0, 1.0)) - p).length < 1e-5
+    return tuple(math.degrees(a) for a in euler)
 
 
 def _basis(normal, up=None):
