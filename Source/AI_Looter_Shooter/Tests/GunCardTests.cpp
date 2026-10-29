@@ -162,6 +162,9 @@ bool FGunCardWidgetTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("...the same again isn't"), Card->SetGun(Loot, &InHand, EGunCardMode::World));
 	TestEqual(TEXT("The maker's word on the sweep"), Card->GetMakerText().ToString(), FString(TEXT("ROUNDHOUSE")));
 	TestEqual(TEXT("Three bars"), Card->GetStatCount(), 3);
+	TestEqual(TEXT("Fire rate's value after its bar"), Card->GetStatValueText(0).ToString(), FString(TEXT("70 RPM")));
+	TestEqual(TEXT("...the magazine's"), Card->GetStatValueText(1).ToString(), FString(TEXT("8")));
+	TestEqual(TEXT("...the reload's"), Card->GetStatValueText(2).ToString(), FString(TEXT("2.2 s")));
 	TestEqual(TEXT("A better shotgun is an upgrade"), Card->GetVerdictText().ToString(), FString(TEXT("UPGRADE")));
 	TestTrue(TEXT("...the bars show the gun in hand's tick"), Card->GetBar(0) && Card->GetBar(0)->GetTick() >= 0.f);
 	TestEqual(TEXT("It opens with its maker's sound"), Card->GetMakerCue(), FName(LooterSoundCue::Card::Maker::Roundhouse));

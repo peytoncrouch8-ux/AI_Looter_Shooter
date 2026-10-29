@@ -68,6 +68,8 @@ public:
 	FText GetDamageText() const;
 	int32 GetStatCount() const { return Bars.Num(); }
 	const ULooterSegmentBar* GetBar(int32 Index) const { return Bars.IsValidIndex(Index) ? Bars[Index].Get() : nullptr; }
+	/** The value written after bar Index ("45 RPM"). */
+	FText GetStatValueText(int32 Index) const;
 	/** The keys row's caps ("E", "HOLD E"), in order; empty when it hides. */
 	TArray<FString> GetKeyCaps() const;
 	/** The hold cap's fill (0 without a hold cap). */
@@ -117,6 +119,8 @@ private:
 	TArray<TObjectPtr<UTextBlock>> StatLabels;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ULooterSegmentBar>> Bars;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> Values;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> Arrows;
 	UPROPERTY(Transient)

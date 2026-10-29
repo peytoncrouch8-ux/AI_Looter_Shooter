@@ -24,7 +24,9 @@ using namespace LooterUI;
 namespace
 {
 	constexpr float LeftColumn = 140.f;
-	constexpr float StatLabelWidth = 96.f;
+	constexpr float StatLabelWidth = 86.f;
+	/** The value after each bar ("45 RPM", "5", "3.1 s": the user's pick A, 2026-10-28). */
+	constexpr float ValueWidth = 62.f;
 	constexpr float ArrowWidth = 14.f;
 
 	UTextBlock* Words(UWidgetTree* Tree, int32 Size, const FLinearColor& Tint, bool bBold, int32 Spacing = 0)
@@ -61,7 +63,7 @@ namespace
 
 float UGunCardWidget::CardWidth(EGunCardMode InMode)
 {
-	return InMode == EGunCardMode::InHand ? 390.f : 440.f;
+	return InMode == EGunCardMode::InHand ? 430.f : 470.f;
 }
 
 float UGunCardWidget::UnfoldPivotY(EGunCardMode InMode)
@@ -135,12 +137,16 @@ void UGunCardWidget::EnsureBuilt()
 		BarSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		BarSlot->SetVerticalAlignment(VAlign_Center);
 		BarSlot->SetPadding(FMargin(0.f, 0.f, 7.f, 0.f));
+		UTextBlock* Value = Words(Tree, 12, Color::Text(), true);
+		Value->SetJustification(ETextJustify::Right);
+		Row->AddChildToHorizontalBox(MakeSized(Tree, Value, ValueWidth))->SetVerticalAlignment(VAlign_Center);
 		UTextBlock* Arrow = Words(Tree, 12, Color::Better(), true);
 		Arrow->SetJustification(ETextJustify::Right);
 		Row->AddChildToHorizontalBox(MakeSized(Tree, Arrow, ArrowWidth))->SetVerticalAlignment(VAlign_Center);
 		Stats->AddChildToVerticalBox(Row)->SetPadding(FMargin(0.f, StatLabels.Num() == 0 ? 4.f : 5.f, 0.f, 0.f));
 		StatLabels.Add(Label);
 		Bars.Add(Bar);
+		Values.Add(Value);
 		Arrows.Add(Arrow);
 	}
 	UHorizontalBoxSlot* StatsSlot = Columns->AddChildToHorizontalBox(Stats);
@@ -274,6 +280,7 @@ void UGunCardWidget::ApplyGun()
 	{
 		Bars[Index]->SetFill(LoadoutRules::StatRating(Stats[Index], Shown.Stats));
 		Bars[Index]->SetTick(Against ? LoadoutRules::StatRating(Stats[Index], Against->Stats) : -1.f);
+		SetWords(Values[Index], GunCardRules::StatValueText(Stats[Index], Shown.Stats));
 		FString Arrow;
 		if (Against)
 		{
@@ -394,4 +401,9 @@ float UGunCardWidget::GetHoldFill() const
 FName UGunCardWidget::GetMakerCue() const
 {
 	return bHasGun ? GunCardStyle::For(Shown).OpenCue : NAME_None;
+}
+
+FText UGunCardWidget::GetStatValueText(int32 Index) const
+{
+	return Values.IsValidIndex(Index) && Values[Index] ? Values[Index]->GetText() : FText::GetEmpty();
 }

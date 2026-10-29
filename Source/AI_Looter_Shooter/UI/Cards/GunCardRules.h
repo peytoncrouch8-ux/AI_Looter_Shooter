@@ -38,6 +38,9 @@ namespace GunCardRules
 	/** The three bars every card shows, in order: fire rate, magazine, reload (the rest wait behind the inventory's Inspect). */
 	AI_LOOTER_SHOOTER_API TConstArrayView<LoadoutRules::EStat> CardStats();
 
+	/** The value after a bar: "45 RPM", "5", "3.1 s". */
+	AI_LOOTER_SHOOTER_API FString StatValueText(LoadoutRules::EStat Stat, const FWeaponStats& Stats);
+
 	/** "FIRE RATE", "MAGAZINE", "RELOAD". */
 	AI_LOOTER_SHOOTER_API FString StatLabel(LoadoutRules::EStat Stat);
 

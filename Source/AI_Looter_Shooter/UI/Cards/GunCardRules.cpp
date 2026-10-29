@@ -56,6 +56,17 @@ TConstArrayView<LoadoutRules::EStat> GunCardRules::CardStats()
 	return Stats;
 }
 
+FString GunCardRules::StatValueText(LoadoutRules::EStat Stat, const FWeaponStats& Stats)
+{
+	switch (Stat)
+	{
+	case LoadoutRules::EStat::FireRate: return FString::Printf(TEXT("%d RPM"), FMath::RoundToInt(Stats.FireRate));
+	case LoadoutRules::EStat::Magazine: return FString::FromInt(Stats.MagazineSize);
+	case LoadoutRules::EStat::Reload: return FString::Printf(TEXT("%.1f s"), Stats.ReloadTime);
+	default: return LoadoutRules::StatText(Stat, Stats);
+	}
+}
+
 FString GunCardRules::StatLabel(LoadoutRules::EStat Stat)
 {
 	switch (Stat)

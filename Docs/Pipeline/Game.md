@@ -395,11 +395,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   backpack back on the right. Look picked over four mockup rounds (`Docs/Work/2026-10-28-UICharacter/mockup/`): not boxy, a
   little curvy, then "Wide Sweep, less curvy, slightly more futuristic, hollow Hold E buttons", then "bolder lines, a little".
   Final image `mockup/wide.png`; contract `Docs/Work/2026-10-28-UICharacter/CONTRACT.md`.
-- Kit `UI/Cards`: `UGunCardWidget` (modes World, InHand, Loadout; widths 440 / 390 / 440), `GunCardRules`, `GunCardStyle`
+- Kit `UI/Cards`: `UGunCardWidget` (modes World, InHand, Loadout; widths 470 / 430 / 470), `GunCardRules`, `GunCardStyle`
   (per maker: sweep plates, ink, trim, deco Rivets/Gilt/Patch/Ticks, mark, `OpenCue`; plain gunmetal with the rarity's word
   for a named gun), `ULooterCardBackdrop` (Card/Row shapes painted as vertices, Fill part = background, Lines part solid),
   `ULooterSegmentBar` (10 skewed segments, compare tick), `ULooterHollowKey`. Colours `LooterUI::Color::Card*`, `Row*`, `Maker*`.
-- Shows only: damage (count-up), fire rate, magazine, reload bars (`LoadoutRules::StatRating`, scaled across every kind, so a
+- Shows only: damage (count-up), fire rate, magazine, reload bars, each bar ending in its value ("66 RPM", "10", "1.7 s": the user picked A of mockup/numbers.png), (`LoadoutRules::StatRating`, scaled across every kind, so a
   shotgun's fire rate and magazine bars sit low), one special line (element > effect > curse > notches), "▲ UPGRADE" when it
   beats the compared gun (same kind, DPS), else the maker's quirk. Everything else: the inventory's Inspect.
 - Intro: unfold 0.12 s (overshoot 1.06), bars staggered 0.06 s, count 0.25 s, shine on Epic+ 0.30-0.65 s; sounds `UI.Card.Open`
