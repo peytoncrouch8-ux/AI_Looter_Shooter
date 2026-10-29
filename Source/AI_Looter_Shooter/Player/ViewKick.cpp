@@ -143,6 +143,24 @@ float FViewKickStack::GetPush() const
 	return FMath::Clamp(Sum, -MaxPush, MaxPush);
 }
 
+FVector FViewKickStack::GetPivotShift(const FRotator& View, float Scale) const
+{
+	// The eye moves so the pivot point (Pivot ahead along the view) is on the turned view's line at the same distance: from
+	// eye + F * d to eye + F * d - F' * d. Each pivoted kick on its own (the turns are a few tenths of a degree, so their
+	// shifts simply add).
+	FVector Shift = FVector::ZeroVector;
+	const FVector Ahead = View.Vector();
+	for (const FActive& Each : Active)
+	{
+		if (Each.Kick.Pivot > 0.f)
+		{
+			const FRotator Turn = FRotator(Each.Kick.Pitch, Each.Kick.Yaw, Each.Kick.Roll) * (Swing(Each) * Scale);
+			Shift += (Ahead - (View + Turn).Vector()) * Each.Kick.Pivot;
+		}
+	}
+	return Shift;
+}
+
 FShotKickShape FShotKickShape::For(EWeaponKind Kind)
 {
 	const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeelDefault(Kind);

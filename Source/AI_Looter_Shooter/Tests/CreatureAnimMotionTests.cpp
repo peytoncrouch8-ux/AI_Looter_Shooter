@@ -108,7 +108,10 @@ namespace
 
 	/**
 	 * How deep the spider's femurs' hit hulls reach into its abdomen's past where they reach at rest, in its code's pose (cm),
-	 * the coxa left out (SpiderCoxaReach).
+	 * the coxa left out (SpiderCoxaReach), and so is any of a femur's hull still inside the thorax's: it doesn't show. Since
+	 * the 2026-10-22 remodel (Spider.py's FEMUR_SEGS) the coxa starts 8 cm behind the hip, its rim there 11-12 cm from the
+	 * hip, past SpiderCoxaReach: a back femur laid down swung that buried rim 4-5 cm into the abdomen's front inside the
+	 * carapace, where nothing shows, and the dead pose's numbers could only trade it against the femur's visible flank.
 	 */
 	float FemursIntoAbdomen(const ASpiderCreature& Spider, FString& OutWhere)
 	{
@@ -127,9 +130,24 @@ namespace
 		}
 		FCreatureBodyHulls Femurs;
 		FCreatureBodyHulls Abdomen;
+		FCreatureBodyHulls Thorax;
 		Femurs.AddFromPhysicsAsset(Hulls, &Skeleton, FemurNames);
 		Abdomen.AddFromPhysicsAsset(Hulls, &Skeleton, { FName(TEXT("abdomen")) });
+		Thorax.AddFromPhysicsAsset(Hulls, &Skeleton, { FName(TEXT("body")) });
 		const TMap<FName, FTransform> Pose = PoseOf(Spider);
+		// A point (component space) inside the thorax's hull, posed: buried in the carapace, out of sight.
+		auto Hidden = [&Thorax, &Pose](const FVector& Point)
+		{
+			for (const FCreatureBodyHulls::FShape& Shape : Thorax.Shapes)
+			{
+				const FTransform* Posed = Pose.Find(Shape.Bone);
+				if (Posed && FCreatureBodyHulls::Depth(Shape, Posed->InverseTransformPosition(Point)) > 0.f)
+				{
+					return true;
+				}
+			}
+			return false;
+		};
 		float Deepest = 0.f;
 		for (const FCreatureBodyHulls::FShape& Femur : Femurs.Shapes)
 		{
@@ -150,13 +168,18 @@ namespace
 					{
 						continue;
 					}
-					const float Now = FCreatureBodyHulls::Depth(Body, BodyPosed->InverseTransformPosition(FemurPosed->TransformPosition(Point)));
+					const FVector PointPosed = FemurPosed->TransformPosition(Point);
+					const float Now = FCreatureBodyHulls::Depth(Body, BodyPosed->InverseTransformPosition(PointPosed));
+					if (Now <= 0.f || Hidden(PointPosed))
+					{
+						continue;
+					}
 					const float AtRest = FCreatureBodyHulls::Depth(Body, BodyRest.InverseTransformPosition(FemurRest.TransformPosition(Point)));
 					const float Past = Now - FMath::Max(AtRest, 0.f);
 					if (Past > Deepest)
 					{
 						Deepest = Past;
-						OutWhere = Femur.Bone.ToString();
+						OutWhere = FString::Printf(TEXT("%s, %.0f cm from its hip"), *Femur.Bone.ToString(), Point.Size());
 					}
 				}
 			}

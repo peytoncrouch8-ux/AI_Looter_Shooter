@@ -104,7 +104,8 @@ bool FEconomyKillDropsTest::RunTest(const FString& Parameters)
 		&& LooterEconomy::KillOdds(ECreatureRank::Boss, false).Chance >= 1.f);
 
 	// Regular, Restless and Gravebound pay exactly what they did before the top two tiers (Main's call, 2026-10-20: the tiers
-	// took nothing away); Hallowed and Ethereal 1.6 and 2.5 times a Gravebound kill.
+	// took nothing away); Hallowed and Ethereal 1.6 and 2.5 times a Gravebound kill. A Regular Unpaid's chance is 40% since
+	// the bigger fights gave a play more of them (55% before; Main's call, Docs/Progression.md: Looter.Economy.Balance).
 	struct FKept
 	{
 		ECreatureRank Rank;
@@ -112,7 +113,7 @@ bool FEconomyKillDropsTest::RunTest(const FString& Parameters)
 		LooterEconomy::FDropOdds Odds;
 	};
 	const FKept Kept[] = {
-		{ ECreatureRank::Basic, true, { 0.55f, 3, 7 } }, { ECreatureRank::Rare, true, { 0.85f, 9, 15 } }, { ECreatureRank::Epic, true, { 1.f, 18, 30 } },
+		{ ECreatureRank::Basic, true, { 0.40f, 3, 7 } }, { ECreatureRank::Rare, true, { 0.85f, 9, 15 } }, { ECreatureRank::Epic, true, { 1.f, 18, 30 } },
 		{ ECreatureRank::Basic, false, { 0.2f, 2, 4 } }, { ECreatureRank::Rare, false, { 0.5f, 5, 9 } }, { ECreatureRank::Epic, false, { 0.8f, 10, 18 } } };
 	for (const FKept& Each : Kept)
 	{

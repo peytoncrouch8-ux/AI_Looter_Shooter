@@ -100,7 +100,8 @@ namespace
 
 	/** The "FOUND" banner's box centre, down from the top's middle: its tally and title sit where the roost banner's lantern and
 	 *  words do (it takes turns with it), under the boss bar's cluster. */
-	constexpr float FindBannerTop = 200.f;
+	/** The find banner's middle, as a share of the screen's height. */
+	constexpr float FindBannerHeight = 0.78f;
 
 	UCanvasPanelSlot* PlaceOnCanvas(UCanvasPanel* Canvas, UWidget* Widget, const FAnchors& Anchors, const FVector2D& Alignment, const FVector2D& Position)
 	{
@@ -353,7 +354,9 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		FindBanner = WidgetTree->ConstructWidget<UHudFindBannerWidget>(UHudFindBannerWidget::StaticClass());
 		FindBanner->SetOtherBanners(LevelUpBanner, MissionBanner, GraveBanner);
 		GraveBanner->SetOtherBanners(LevelUpBanner, MissionBanner, FindBanner);
-		PlaceOnCanvas(Root, FindBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, FindBannerTop));
+		// Low in the middle, between the player frame and the weapon column: up high, the card over a looted gun covered it
+		// (the 2026-10-29 play-check, a chest's guns in the crosshair as the banner came up).
+		PlaceOnCanvas(Root, FindBanner, FAnchors(0.5f, FindBannerHeight), FVector2D(0.5f, 0.5f), FVector2D(0.f, 0.f));
 	}
 	return Super::RebuildWidget();
 }

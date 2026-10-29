@@ -5,6 +5,7 @@
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Camera/CameraComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
@@ -78,7 +79,17 @@ void UPlayerViewComponent::AddAimSettleKick(const AWeaponBase& Weapon)
 	const float Settle = GunfeelKick::KindFeel(GunfeelKick::KindOf(&Weapon)).AimSettle;
 	if (Settle > 0.f)
 	{
-		UCameraShakeModifier::Kick(Player, ViewKicks::ForAimSettle(Settle));
+		// Turned about the sight, not the eye: the world dips around a sight that stays on the line the shots fly (and the
+		// gun, which rides the camera and not this kick, tips about its sight). About the eye, the dip took the shots 0.12
+		// degrees under the raised sight for a moment (Looter.Weapons.Aim.CrouchAligned).
+		FViewKick Kick = ViewKicks::ForAimSettle(Settle);
+		const UCameraComponent* Camera = FirstPersonCamera.Get();
+		if (IsFirstPerson() && Camera)
+		{
+			const FVector Sight = Weapon.GetActorTransform().TransformPosition(Weapon.GetAimPoint());
+			Kick.Pivot = FMath::Max(static_cast<float>(FVector::DotProduct(Sight - Camera->GetComponentLocation(), Camera->GetForwardVector())), 0.f);
+		}
+		UCameraShakeModifier::Kick(Player, Kick);
 	}
 }
 

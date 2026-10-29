@@ -151,6 +151,9 @@ bool UCameraShakeModifier::ModifyCamera(float DeltaTime, FMinimalViewInfo& InOut
 	{
 		// A heavy gun's shove takes the camera back along the way it looks (before the kick turns it): the shoulder giving.
 		InOutPOV.Location -= InOutPOV.Rotation.Vector() * (Kicks.GetPush() * Scale);
+		// A kick that turns about a point ahead (the sights' settle turns about the sight) swings the eye so that point stays
+		// on the view's line: the raised sight stays on the line the shots fly.
+		InOutPOV.Location += Kicks.GetPivotShift(InOutPOV.Rotation, Scale);
 		InOutPOV.Rotation += Kicks.GetRotation() * Scale;
 		// Wider or narrower by a share of whatever the view is (a sight's zoom included), so a kick feels the same zoomed in.
 		InOutPOV.FOV = FMath::Clamp(InOutPOV.FOV * (1.f + Kicks.GetFieldOfView() * Scale), 5.f, 170.f);

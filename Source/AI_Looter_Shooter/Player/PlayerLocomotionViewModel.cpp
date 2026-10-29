@@ -404,9 +404,8 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		SightArrivalClock = 0.f;
 	}
 	SightArrivalClock = FMath::Min(SightArrivalClock + Dt, 100.f);
-	// Not while a slide tips the view: the tipped gun's push left the sight 0.03 cm off the shot's line (WeaponAim.CrouchAligned).
-	const float Untipped = 1.f - FMath::Clamp(FMath::Abs(AppliedViewRoll) / SlideViewRoll, 0.f, 1.f);
-	Offset.X += GunHeft::ArrivalAt(Heft, SightArrivalClock) * Aim * Untipped;
+	// (Along X it never leaves the line, in a slide too: the slide's tip turns about the line of sight.)
+	Offset.X += GunHeft::ArrivalAt(Heft, SightArrivalClock) * Aim;
 	// Raised to the eye, the gun is shouldered the same way in every stance: the stance poses go out entirely. Settled like
 	// the motion, they left 15% of a crouch's cant and drop on the sight (the user, 2026-10-14: crouched, the aim was off),
 	// and the first-person render magnifies any distance from the line of sight (6 mm once put a reticle 50 px low).

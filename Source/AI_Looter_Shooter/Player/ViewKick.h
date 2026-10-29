@@ -21,6 +21,12 @@ struct AI_LOOTER_SHOOTER_API FViewKick
 	float Damping = 0.55f;
 	/** Seconds before the spring starts (a launcher's heave follows its shove). */
 	float Delay = 0.f;
+	/**
+	 * How far ahead along the view (cm) the turn pivots: 0 turns the view about the eye; a sight's settle turns it about the
+	 * sight (its distance from the eye), so the sight stays on the line the shots fly while the world dips around it (a dip
+	 * about the eye left the raised sight 0.03 cm off the shot's line: Looter.Weapons.Aim.CrouchAligned). Not scaled.
+	 */
+	float Pivot = 0.f;
 
 	/**
 	 * Sustained-shot cap (degrees of view pitch; 0 = this is no automatic's shot kick, nothing capped). A kick with one
@@ -57,6 +63,12 @@ public:
 
 	/** How far the camera is pushed back along the view right now (cm), held within MaxPush either way. */
 	float GetPush() const;
+
+	/**
+	 * How far the eye swings (world cm) so each kick with a Pivot turns the view about its point ahead rather than about the
+	 * eye: for a view looking along View, its turn times Scale (the camera shake setting). Zero with no pivoted kick.
+	 */
+	FVector GetPivotShift(const FRotator& View, float Scale) const;
 
 	/** The view pitch the shot kicks (those with a SustainCap) hold right now, upward swings only: what the cap measures. */
 	float GetShotPitch() const;

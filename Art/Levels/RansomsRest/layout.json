@@ -3293,7 +3293,7 @@
         },
         {
           "id": "Tollman",
-          "where": "the keeper's cairns road, from the keeper's grave toward the Keeper's Gate and back to the lantern house: the Tollman, a Gravebound Unpaid, with two of the dead at his heels (FINDS N6)",
+          "where": "the keeper's cairns road, from its turn short of the Keeper's Gate past the keeper's grave to the lantern house: the Tollman, a Gravebound Unpaid, with two of the dead at his heels (FINDS N6)",
           "after": ["Main4"],
           "budget": "optional",
           "countedBefore": "Main5",
@@ -3312,12 +3312,12 @@
             },
             { "class": "UnpaidCreature", "count": 2, "rank": "Basic" }
           ],
-          "route": [[1600,-11150],[1450,-12250],[3050,-10200]],
+          "route": [[1450,-12250],[1600,-11150],[3050,-10200]],
           "loop": false,
           "pause": 5.0,
           "corridor": 700,
           "maxRise": 800,
-          "note": "A lair: gone after his kill, back on an arrival 20 min of play later (LegendaryId Tollman). Level 5 before his Gravebound rank's one (6), health x2. Turns at Y -12250 (kept 1,500 cm off Gravewind Point's ground) and stops 1 m short of the lantern house's ruin; his Find_Tollman tag is his alone (the group's tags)."
+          "note": "A lair: gone after his kill, back on an arrival 20 min of play later (LegendaryId Tollman). Level 5 before his Gravebound rank's one (6), health x2. Turns at Y -12250 (kept 1,500 cm off Gravewind Point's ground, its corridor's end 7 m) and stops 1 m short of the lantern house's ruin, the keeper's grave between: a route runs one way and the patrol walks it there and back (a route doubling back on itself, grave to turn to lantern house, twisted its corridor and left the grave and the turn off their own ground); his Find_Tollman tag is his alone (the group's tags)."
         }
       ],
       "ambushes": [

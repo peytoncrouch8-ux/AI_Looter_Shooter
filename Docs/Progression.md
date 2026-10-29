@@ -304,10 +304,11 @@ Silver pops out as a small pile of coins (`ASilverPickup`) that flies to a livin
 
 | Source | Chance | Amount (level 1) | Average |
 |---|---:|---:|---:|
-| An Unpaid's kill: Regular / Restless / Gravebound / Hallowed / Ethereal / Soulfed / Boss | 55 / 85 / 100 / 100 / 100 / 100 / 100% | 3-7 / 9-15 / 18-30 / 29-48 / 45-75 / 50-80 / 100-140 | 2.75 / 10.2 / 24 / 38.5 / 60 / 65 / 120 |
+| An Unpaid's kill: Regular / Restless / Gravebound / Hallowed / Ethereal / Soulfed / Boss | 40 / 85 / 100 / 100 / 100 / 100 / 100% | 3-7 / 9-15 / 18-30 / 29-48 / 45-75 / 50-80 / 100-140 | 2 / 10.2 / 24 / 38.5 / 60 / 65 / 120 |
 | A beast's kill (spiders, slimes): the same ranks | 20 / 50 / 80 / 92 / 98 / 100 / 100% | 2-4 / 5-9 / 10-18 / 14-25 / 20-37 / 40-60 / 80-120 | 0.6 / 3.5 / 11.2 / 18 / 28 / 50 / 100 |
 
-Regular, Restless and Gravebound pay what they did before the tiers (Main's call, 2026-10-20); Hallowed and Ethereal a
+Regular, Restless and Gravebound pay what they did before the tiers (Main's call, 2026-10-20), but a Regular Unpaid's
+chance is 40% since 2026-10-29 (55% before; the bigger fights' call below); Hallowed and Ethereal a
 Gravebound kill's times their `SilverMultiplier` (x1.6 / x2.5; `LooterEconomy::ScaledKillOdds`: more often, and more).
 | Ranger cache, camp crate (Supply Crate) | 90% | 10-20 | 13.5 |
 | The gang's Strongbox | 100% | 40-70 | 55 |
@@ -397,7 +398,8 @@ explorer's silver is for.
 **Since the bigger fights (2026-10-21, FIGHT-LAYOUT; not yet in the test).** A normal play now kills about 87 Basic and 8
 Restless Unpaid (Bell-Ringers among them), 17 spiders and a Restless one, and Abel (was 53, 7, 14 and 1): kills about 565
 silver (was 435), the playthrough about 1,550 (was 1,420); the set pieces' showers give guns and ammo, no silver. After
-supplies that's about 6.3 Uncommon guns of the day (the test's band is 3-6) or 3.0 Rare (under 3). `Looter.Economy.Balance`
-(`Tests/EconomyTests.cpp`) still counts the old kills, so it passes unchanged; Main's call: its counts to the new ones and
-a Regular Unpaid's silver chance from 55% to 40% (`LooterEconomy`), which keeps the playthrough about 1,470 (5.9 Uncommon,
-2.8 Rare).
+supplies that's about 6.3 Uncommon guns of the day (the test's band is 3-6) or 3.0 Rare (under 3). Main's call: a
+Regular Unpaid's silver chance from 55% to 40% (`LooterEconomy`), which keeps the playthrough about 1,470 (5.9 Uncommon,
+2.8 Rare). Done 2026-10-29, when the core job's fights (2026-10-28: 58 Basic, 10 Restless and the Sexton's Debt in the
+test's count, which never took the 87 above) put the test at 6.1 Uncommon: now about 1,450, 5.8 Uncommon, 2.7 Rare. With
+the 87 above plus the core job's (about 92 Basic, 11 Restless, 20 spiders) a play would be about 6.3 Uncommon: open.

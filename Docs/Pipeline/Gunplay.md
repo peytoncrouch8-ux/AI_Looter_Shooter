@@ -526,7 +526,10 @@ Looter.Embers.Power (15), Looter.Creatures.React (5).
   Mech/Low/Tail, Punch layer (rifle every 3rd, LMG every 2nd, none SMG), per-kind AimIn, AimOut; loudness ladder SMG -3 /
   rifle 0 / LMG +1 / revolver +2 / shotgun +3 / launcher +3 / sniper +4 LU, every own-gun sum <= -1 dBFS.
   `Looter.Gunfeel.Identity 0` gives the feel before it. View-kick caps kept (3 deg, 5% FOV, push 4 cm; Main's call).
-  The heft push is held while a slide tips the view (it broke WeaponAim.CrouchAligned by 0.03 cm).
+  The sights' settle (a camera kick, the gun doesn't ride it) turns the view about the sight, not the eye (`FViewKick::Pivot`,
+  set by `AddAimSettleKick` to the sight's distance): about the eye its 0.12 deg dip put the shots 0.03 cm (at the sight) off
+  the raised sight while it rang, which `WeaponAim.CrouchAligned` caught sliding (2026-10-29; a camera turn that isn't
+  about the forward axis must pivot on the sight while aimed). The heft push along X was never it: it rides in slides too.
 - Hit feel: five layers on every hit (weight Body/Heavy/Big/Kill/Overkill, zone by bone, side, far boost, poise staggers:
   poise builds only when a stagger could begin, 1.6 s gap on elites; Big hits a 300 cm/s ground push, no brain hold).
   Spiders: leg buckle, limp, head snap, abdomen kick and goo, stagger pose, kill styles (lights out, blast, overkill);

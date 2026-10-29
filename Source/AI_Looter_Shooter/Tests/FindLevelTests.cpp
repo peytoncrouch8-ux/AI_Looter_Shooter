@@ -238,9 +238,14 @@ bool FFindsLevelTest::RunTest(const FString& Parameters)
 		case EFindKind::Elite:
 		{
 			TestFalse(FString::Printf(TEXT("%s has its creature tag"), *Name), Spot->SourceTag.IsNone());
+			// On every creature of the spawner, or on one group's alone: the Tollman's Find_Tollman is his group's (FEncounterGroup::
+			// Tags), so his two escorts' kills don't credit the find.
 			const bool bCarried = Spawners.ContainsByPredicate([Spot](const AEncounterSpawner* Each)
 			{
-				return Each->CreatureTags.Contains(Spot->SourceTag);
+				return Each->CreatureTags.Contains(Spot->SourceTag) || Each->Groups.ContainsByPredicate([Spot](const FEncounterGroup& Group)
+				{
+					return Group.Count > 0 && Group.Tags.Contains(Spot->SourceTag);
+				});
 			});
 			TestTrue(FString::Printf(TEXT("An encounter spawns creatures tagged %s (the FIGHTS lane's patrol)"), *Spot->SourceTag.ToString()), bCarried);
 			break;

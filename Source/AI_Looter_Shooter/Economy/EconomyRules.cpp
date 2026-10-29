@@ -13,9 +13,11 @@ namespace
 	/**
 	 * A kill's silver at level 1, as it was before the top two tiers (the economy of 2026-10-13, kept exactly: Main's call,
 	 * 2026-10-20): Regular, Restless, Gravebound, and a Soulfed monster's and a boss's. Hallowed and Ethereal pay
-	 * Gravebound's times their SilverMultiplier (1.6 and 2.5: KillOdds, ScaledKillOdds).
+	 * Gravebound's times their SilverMultiplier (1.6 and 2.5: KillOdds, ScaledKillOdds). Except a Regular Unpaid's chance,
+	 * 55% until the bigger fights (2026-10-21 and the core job's, 2026-10-28) gave a play more of them to kill: 40%
+	 * (Main's call, Docs/Progression.md) keeps a playthrough's purse at five or six guns of the day (Looter.Economy.Balance).
 	 */
-	constexpr LooterEconomy::FDropOdds UnpaidRegular = { 0.55f, 3, 7 };
+	constexpr LooterEconomy::FDropOdds UnpaidRegular = { 0.40f, 3, 7 };
 	constexpr LooterEconomy::FDropOdds UnpaidRestless = { 0.85f, 9, 15 };
 	constexpr LooterEconomy::FDropOdds UnpaidGravebound = { 1.f, 18, 30 };
 	constexpr LooterEconomy::FDropOdds UnpaidSoulfed = { 1.f, 50, 80 };
