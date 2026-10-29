@@ -27,6 +27,10 @@ tag card). Tests Looter.UI 64, Settings 11, FPHands 6, Player.Hands 13, Inventor
 - Card: a plain gun's row reads just "Normal". Rifle hip hold 43 cm ahead (the user: 4 cm back). The AR's left hand: the
   user keeps it cupped under the trigger housing (fit the fingers onto the loop, lift the gun so it shows), and asked
   whether a different hands approach would stop per-gun tuning (answered with options; see the next entry when built).
+- Hands rework IN PROGRESS (the user's pick: grip spots on the parts): contract Docs/Work/2026-10-29-GripSpots/CONTRACT.md
+  (marker sockets SOCKET_<Hold|Rack|Reload>_<L|R>_<Pose>, a pose library, the game reaching the arms to them, a Blender
+  preview sheet; the old tables stay as the fallback until every part is marked). Lanes A (Blender), B (poses), C (C++)
+  started 2026-10-29 evening; then Bullpup markers (AR cup under the trigger housing, visible), then the other guns.
 - Main's calls (undo any): from the main menu the reticle row says BACK and the footer Back chip is hidden (the row was an
   empty band); the RESUME wash runs to the right bracket; slider end labels 5 px lower; arrowheads point out (c5's picture).
 - Not seen by the user in game yet. Next: the user's look, then the rest of round 2's list (HUD mission popup, bestiary
