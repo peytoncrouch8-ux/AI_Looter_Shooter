@@ -53,7 +53,7 @@ enum class EGrenadeChange : uint8;
  *  - top-right: the minimap (UHudMinimapWidget); under it the mission tracker (UHudMissionTrackerWidget, a viewport widget
  *    of its own that ALooterHUD makes, which steps aside while the in-hand card would cover it: GetLootCardBounds)
  *  - top-left: the frame rate (UHudFrameRateWidget)
- *  - top-centre, its gem 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up;
+ *  - top-centre, its middle (the big level number) 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up;
  *    in the same place, taking turns with it, the mission-complete banner (UHudMissionCompleteWidget) as a mission is turned in;
  *    a little higher, the "GRAVE MARKED" banner (UHudGraveMarkedWidget) when the player walks up to a respawn grave for the first time
  *  - left of the crosshair: the ammo pickup feed (UHudPickupFeedWidget)

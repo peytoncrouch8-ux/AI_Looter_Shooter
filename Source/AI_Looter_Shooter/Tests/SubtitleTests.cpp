@@ -127,13 +127,10 @@ bool FSubtitlesRowTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("...right after the Interface section's control hints"), Before == SettingsMenu::ActionHintsOn);
 
-	// It is the last stop of the Interface tab: the next one is the footer's Back (the tab's last row), and back up lands on it.
+	// It is the last stop of the Interface tab: Down stays on it (Back is the reticle row at the top since UI round 3).
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Down);
-	TestTrue(TEXT("Down: the footer's Back"), SubtitleTestActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionClose);
-	Menu->HandleNavKey(EKeys::Gamepad_DPad_Up);
-	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Up);
-	TestTrue(TEXT("Up: back on the subtitles"), SubtitleTestActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionSubtitlesOn);
+	TestTrue(TEXT("Down: still on the subtitles, the list's end"), SubtitleTestActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionSubtitlesOn);
 
 	// Right picks Off (with no player to save for, the menu simply takes the press); the stop stays the switch's.
 	TestTrue(TEXT("Right is the menu's"), Menu->HandleNavKey(EKeys::Gamepad_DPad_Right));

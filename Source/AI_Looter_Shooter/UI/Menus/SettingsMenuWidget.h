@@ -5,6 +5,7 @@
 #include "Settings/AudioSettingsSubsystem.h"
 #include "UI/Menus/MenuNav.h"
 #include "UI/Menus/MenuNavigator.h"
+#include "UI/Menus/SettingsMenuArt.h"
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuPreview.h"
 #include "UI/Style/LooterUIFocus.h"
@@ -12,6 +13,7 @@
 #include "SettingsMenuWidget.generated.h"
 
 class UBorder;
+class UCanvasPanel;
 class UControlSettingsSubsystem;
 class UGraphicsSettingsSubsystem;
 class UHorizontalBox;
@@ -19,6 +21,8 @@ class UHudMinimapWidget;
 class UImage;
 class UKeyBindingSubsystem;
 class ULooterButton;
+class ULooterHollowKey;
+class UOverlay;
 class UPlayerViewComponent;
 class UScrollBox;
 class USizeBox;
@@ -37,6 +41,18 @@ enum class ESettingsMenuMode : uint8
 };
 
 DECLARE_DELEGATE(FOnSettingsMenuAction);
+
+/** A row of the ledger (SettingsMenuLedger.cpp): its focus look, the number in its margin, the page it's on. */
+struct FSettingsLedgerLine
+{
+	TWeakObjectPtr<UWidget> Row;
+	TWeakObjectPtr<UWidget> Light;
+	/** "01" in the margin (none for an unnumbered row: the key list's head). */
+	TWeakObjectPtr<UTextBlock> Number;
+	int32 Page = INDEX_NONE;
+	/** One of the key list's rows, which RebuildControls makes again. */
+	bool bKeyList = false;
+};
 
 /**
  * The settings menu, in four tabbed pages (the user, 2026-10-27: tabs, not one long scroll): Graphics, Audio (the volumes),
@@ -59,6 +75,11 @@ DECLARE_DELEGATE(FOnSettingsMenuAction);
  * column; SettingsMenuInput.cpp handles its buttons, sliders and keys; SettingsMenuAudio.cpp is the Audio page;
  * SettingsMenuPreview.cpp is the field of view and minimap zoom sliders and the previews; SettingsMenuNav.cpp is the
  * keyboard and controller focus, its look and the prompts.
+ *
+ * Its look (round 3, the user's mix of concepts 1 and 3, 2026-10-29): a slate plate with a double salt trim, rivets and cut
+ * corners, a halo dial breaking out over its top-left corner; every row on a ruled ledger line with its number in the
+ * margin and a brass ribbon at the row pointed at; c3's reticle Resume, tabs, choices and rulers; Save & Quit a rubber
+ * stamp. SettingsMenuLedger.cpp builds those pieces and moves them; SettingsMenuArt.h paints them.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API USettingsMenuWidget : public UUserWidget
@@ -162,16 +183,44 @@ private:
 	/** A labelled two-way switch (On/Off, Hold/Toggle). bKeyListRow indents it under a key binding and aligns it to that list's columns. */
 	UWidget* MakeToggleRow(const FString& Label, const FString& FirstText, const FString& SecondText, FName FirstAction, FName SecondAction,
 		int32 Index, bool bKeyListRow, ULooterButton*& OutFirst, ULooterButton*& OutSecond);
-	/** A labelled row of choices, one highlighted at a time; each button's Index is its choice. */
+	/** A labelled row of choices, one highlighted at a time; each button's Index is its choice (Width: the old fixed column, unused). */
 	UWidget* MakeChoiceRow(const FString& Label, const TArray<FString>& Choices, FName Action, float Width, TArray<ULooterButton*>& OutButtons);
 	/**
 	 * A labelled slider that moves in steps of StepSize (5% of a 0-1 range by default), with a text for its value beside
-	 * it (the caller writes it: a percentage, a zoom, degrees).
+	 * it (the caller writes it: a percentage, a zoom, degrees). EndLabel words its ruler's two ends as the value is worded
+	 * (none: as a percentage).
 	 */
 	UWidget* MakeSliderRow(const FString& Label, float MinValue, float MaxValue, USlider*& OutSlider, UTextBlock*& OutValue,
-		float StepSize = 0.05f);
+		float StepSize = 0.05f, TFunction<FString(float)> EndLabel = nullptr);
 	/** The outline of the HUD's minimap, in the same corner, for previewing its size. */
 	UWidget* MakeMinimapPreview();
+
+	// --- Round 3's look: the plate, the ledger, the halo and the motion (SettingsMenuLedger.cpp) ---
+
+	/** A button that is a painted piece (a chip, a tab) showing its state, sounding as the kit's SoundKind button of Action. */
+	ULooterButton* MakeArtButton(FName Action, int32 Index, const FString& Label, ESettingsArt Look, int32 FontSize, int32 LetterSpacing,
+		LooterUI::EButtonKind SoundKind);
+	/** Content on a ruled line at least Height tall, numbered in the margin (bNumbered), its focus look under it. */
+	UWidget* MakeLedgerRow(UWidget* Content, float Height, bool bNumbered, bool bKeyList = false);
+	/** A ledger row's focus look (null for anything else). */
+	UWidget* LedgerLightOf(const UWidget* Row) const;
+	UWidget* MakeLedgerSection(const FString& Label);
+	/** GAME PAUSED (SETTINGS from the main menu) and its ruler and plate; Resume in its reticle; the stamp, serial and Back. */
+	UWidget* MakeHeader();
+	UWidget* MakeResumeRow();
+	UWidget* MakeFooter();
+	/** The free art over the plate: the halo on its top-left corner, the range arc in the bottom-left, the ribbon. */
+	void MakePlateArt();
+	/** The plate's words (the area and session, the serial with the player's level) and the halo's pause bars. */
+	void RefreshPlate();
+	/** The open, the ribbon and the tab mark sliding to theirs, the reticle turning (SettingsMenuLedgerMotion.cpp). */
+	void BeginOpenMotion();
+	void AdvanceLook(float DeltaSeconds);
+	/** The row the ribbon belongs at: the focus's under keys, the pointer's under the mouse; bOutHide: none. */
+	UWidget* FindMarkedRow(bool& bOutHide) const;
+	void MarkRow(UWidget* Row);
+	/** Resume over the game, else the page's first row. */
+	UWidget* DefaultMarkedRow() const;
 
 	// --- The pages (SettingsMenuPages.cpp; the Audio page is SettingsMenuAudio.cpp) ---
 
@@ -189,7 +238,7 @@ private:
 	/** A new page's scrolling list, added to the switcher: the rows, stops and descriptions made after it are its own. */
 	UVerticalBox* BeginPage();
 	/** A row on the page being built (a gap above it). Returns Row. */
-	UWidget* AddPageRow(UWidget* Row, float Top = 4.f);
+	UWidget* AddPageRow(UWidget* Row, float Top = 0.f);
 	/** Shows Page: its tab lit, its list from the top, the focus to its first setting, its own words in the column. */
 	void ShowPage(int32 Page);
 	/** LB / RB: the page beside, round the ends, with the tab's sound. */
@@ -371,9 +420,41 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> BuildRows;
 	/** The tabs along the top, by page. */
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> TabButtons;
-	/** The key caps at each end of the tabs: LB and RB, or PgUp and PgDn. */
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> TabKeyPrevious;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> TabKeyNext;
+	/** The hollow key caps at each end of the tabs: LB and RB, or PgUp and PgDn. */
+	UPROPERTY(Transient) TObjectPtr<ULooterHollowKey> TabKeyPrevious;
+	UPROPERTY(Transient) TObjectPtr<ULooterHollowKey> TabKeyNext;
+
+	// --- Round 3's look (SettingsMenuLedger.cpp) ---
+
+	/** Every ledger row, the next number on each page as it's built, and the key list's first (after the page's sliders). */
+	TArray<FSettingsLedgerLine> LedgerLines;
+	TArray<int32> PageRowNumbers;
+	int32 KeyNumberStart = 1;
+	/** The plate under the panel's contents, and the free art over it (the halo, the ribbon, the arc). */
+	UPROPERTY(Transient) TObjectPtr<UOverlay> Plate;
+	UPROPERTY(Transient) TObjectPtr<UCanvasPanel> PlateArt;
+	UPROPERTY(Transient) TObjectPtr<USettingsMenuArt> Ribbon;
+	/** The halo's ring and gold arcs (they spin up as it opens), its pause bars; Resume's reticle (it turns while marked). */
+	UPROPERTY(Transient) TObjectPtr<UImage> HaloRing;
+	UPROPERTY(Transient) TObjectPtr<UImage> HaloGold;
+	UPROPERTY(Transient) TObjectPtr<UWidget> PauseBars;
+	UPROPERTY(Transient) TObjectPtr<UImage> ResumeReticle;
+	/** The tabs' bar, the ruler under them and the gold mark that slides along it to the lit tab. */
+	UPROPERTY(Transient) TObjectPtr<UOverlay> TabBar;
+	UPROPERTY(Transient) TObjectPtr<UWidget> TabRuler;
+	UPROPERTY(Transient) TObjectPtr<USettingsMenuArt> TabMark;
+	/** The stamped plate beside the title ("NO. 01 · RANSOM'S REST") and the serial: over the game only. */
+	UPROPERTY(Transient) TObjectPtr<USettingsMenuArt> AreaPlate;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> SerialText;
+	/** The row the ribbon marks (its number gold), the time since opening, the slides' places, the ribbon's fade. */
+	TWeakObjectPtr<UWidget> MarkedRow;
+	float OpenAge = 0.f;
+	float RibbonY = 0.f;
+	bool bRibbonPlaced = false;
+	float RibbonOpacity = 0.f;
+	float TabMarkX = 0.f;
+	bool bTabMarkPlaced = false;
+	float ReticleAngle = 0.f;
 
 	/** Every described row and button (Describe), and the description column's three lines. */
 	TArray<SettingsMenu::FHelpEntry> HelpEntries;
@@ -398,13 +479,15 @@ private:
 	/** The key bindings' rows (RebuildControls fills it). */
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> KeyList;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
-	/** "Game paused", over the game (the prompts along the bottom say how to resume). */
+	/** The title: GAME PAUSED over the game, SETTINGS from the main menu (the prompts under the plate say how to resume). */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderText;
 	/** Resume and Save & Quit, over the game only. */
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> ResumeButton;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> SaveQuitButton;
 	/** Back, in the main menu only. */
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> BackButton;
+	/** The reticle row's word: RESUME over the game, BACK from the main menu. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ResumeWord;
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> KeyButtons;
 	/** Hold/Toggle switch halves; Index is the binding, Action says which half. */
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> ModeButtons;

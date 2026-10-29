@@ -19,11 +19,12 @@ struct FSessionSummary;
 
 /**
  * The main menu, drawn over the menu's backdrop (Teropa from orbit; ALooterMenuPlayerController frames it in the right
- * 60% of a 16:9 screen). The menu keeps to the left 40%: a dark shade thinning out to the right (no box), the game's
- * title lockup (its mark, REVENANT in the kit's display type, TEROPA under an orange rule), the main buttons as words
- * with a lit tick and wash (no boxes), and the key hints at the bottom. It arrives in motion (BeginReveal: the shade, the
- * title, the buttons one after another, UI.Menu.Reveal); a lit button eases its tick, wash and words in; the mark's ember
- * breathes; a page (the buttons, the picker) fades in when it changes (MainMenuMotion.cpp).
+ * 60% of a 16:9 screen). The menu keeps to the left 40%: a dark shade thinning out to the right (no box), concept 3 "Halo
+ * Reticle" (the user's pick, 2026-10-29): the title lockup (the logo mark in a ticked halo, REVENANT in the kit's display
+ * type, a salt ruler, TEROPA), the main buttons as words right-aligned to a range arc with their numbers on it (no
+ * boxes), and the key hints at the bottom. It arrives in motion (BeginReveal: the shade, the halo spinning up as its ticks
+ * light clockwise, the words, the buttons one after another, UI.Menu.Reveal); the lit word turns gold and a small reticle
+ * snaps to it on the arc, turning slowly; a page (the buttons, the picker) fades in when it changes (MainMenuMotion.cpp).
  *  - Single Player shows the session picker in place of the main buttons: a card per session (USessionSubsystem) naming
  *    its hero (their portrait and name) and the area it's in (Ransom's Rest, Skyreach), each continued or started from
  *    its card, and a saved one deleted after a confirmation popup. An empty slot's New Game opens the hero select
@@ -39,8 +40,9 @@ struct FSessionSummary;
  * the session cards' and the popups' (round the ends), A or Enter presses. The focus look and the key hints at the
  * bottom follow the device last used (LooterUIFocus.h).
  *
- * MainMenuWidget.cpp builds the screen and handles its buttons and keys; MainMenuMotion.cpp its motion; MainMenuArt the
- * pictures; MainMenuSessions.cpp makes the picker, its session cards, the delete confirmation and the way into and out
+ * MainMenuWidget.cpp builds the screen and handles its buttons and keys; MainMenuLook.cpp builds the title lockup and the
+ * main buttons; MainMenuMotion.cpp its motion; MainMenuArt the pictures and the layout (LooterReticleArt the sight's
+ * pictures); MainMenuSessions.cpp makes the picker, its session cards, the delete confirmation and the way into and out
  * of the hero select; MainMenuNav.cpp is the keyboard and controller focus and the key hints (handed to the hero select
  * while it shows).
  */
@@ -98,8 +100,8 @@ public:
 	/** The arrival is over (everything at full). */
 	bool IsRevealed() const;
 	/**
-	 * A frame of the menu's motion: the arrival, the lit button's tick, wash and words easing in, the mark's ember
-	 * breathing, a new page fading in (NativeTick; tests step it). A menu nobody held starts arriving on its first frame.
+	 * A frame of the menu's motion: the arrival, the lit button's words easing to gold, the reticle snapping to it and
+	 * turning, a new page fading in (NativeTick; tests step it). A menu nobody held starts arriving on its first frame.
 	 */
 	void AdvanceLook(float DeltaSeconds);
 	/** How far a main button's lit look has come on, 0 to 1 (by its action). */
@@ -129,11 +131,13 @@ private:
 	{
 		TWeakObjectPtr<ULooterButton> Button;
 		TWeakObjectPtr<UTextBlock> Label;
+		/** Its number on the arc (none for Multiplayer: its SOON tag stands there). */
 		TWeakObjectPtr<UTextBlock> Number;
-		TWeakObjectPtr<UWidget> Tick;
-		TWeakObjectPtr<UWidget> Wash;
-		/** Its words lit (orange; Quit Game's warning red). */
-		FLinearColor LitColor;
+		/** The salt dash across the arc at rest, and the gold dash from the words to the reticle while lit. */
+		TWeakObjectPtr<UWidget> SaltDash;
+		TWeakObjectPtr<UWidget> GoldDash;
+		/** Its middle, down the list's box (MainMenuArt::Layout::RowY). */
+		float Y = 0.f;
 		float Lit = 0.f;
 	};
 
@@ -146,12 +150,20 @@ private:
 	};
 
 	ULooterButton* MakeButton(FName Action, int32 Index, const FString& Label, int32 FontSize, LooterUI::EButtonKind Kind);
-	/** A main button: its number, its words, its tick and wash (no box), played with UI.Menu.Select. */
-	UWidget* MakeMainButton(FName Action, int32 Number, const FString& Label, bool bDanger, const FString& Tag = FString());
 	/** The menu's side: the shade, the title, the menu and the key hints at the bottom. */
 	UWidget* MakeColumn();
+
+	// --- The title lockup and the main buttons (MainMenuLook.cpp) ---
+
+	/** The halo with the logo mark, then REVENANT, the ruler and TEROPA; each part arrives in turn. */
 	UWidget* MakeTitle();
+	/** The halo: its dark disc, its ring, its ticks in sectors (they light in turn), the logo mark; it spins as a whole. */
+	UWidget* MakeHalo();
+	/** The range arc, the four rows on it, and the lit row's gold run and reticle over them. */
 	UWidget* MakeMainButtons();
+	/** Row Index (0 at the top): its words right-aligned to the arc, its dash and number on it (or Tag), played with
+	 *  UI.Menu.Select. */
+	UWidget* MakeMainButton(FName Action, int32 Index, const FString& Label, const FString& Tag = FString());
 	AMainMenuHUD* GetMenuHUD() const;
 
 	// --- Motion (MainMenuMotion.cpp) ---
@@ -159,8 +171,12 @@ private:
 	void AddRevealPart(UWidget* Widget, float Delay, float Slide);
 	/** The arrival as it stands at RevealAge. */
 	void ApplyReveal();
-	/** The main buttons' lit looks, eased on by DeltaSeconds. */
+	/** The halo's spin and its ticks lighting, at this age of the arrival. */
+	void ApplyHalo(float Age);
+	/** The main buttons' lit looks, eased on by DeltaSeconds, and the reticle with them. */
 	void ApplyRows(float DeltaSeconds);
+	/** The reticle and the arc's gold run: onto row LitIndex (INDEX_NONE: none lit, they fade), turning slowly. */
+	void ApplyReticle(float DeltaSeconds, int32 LitIndex);
 	/** The page on show (the main buttons or the picker) fading in after a change. */
 	void ApplyPage();
 	/** A page just changed: it fades in from the start. */
@@ -212,10 +228,15 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> ColumnBox;
 	/** The dark shade under the menu's side (a background: the UI transparency setting fades it). */
 	UPROPERTY(Transient) TObjectPtr<UWidget> Shade;
-	/** The title lockup's parts that move: the ember's glow, the orange rule (it draws out), the title's words. */
-	UPROPERTY(Transient) TObjectPtr<UWidget> TitleGlow;
+	/** The title lockup's parts that move: the halo (it spins up) and its ticks' sectors (they light clockwise), the ruler
+	 *  (it draws out), the title's words. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> HaloSpin;
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> HaloSectors;
 	UPROPERTY(Transient) TObjectPtr<UWidget> TitleRule;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TitleText;
+	/** Over the main buttons: the small reticle on the lit row's arc, and the gold run on the arc round it. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> ReticleMark;
+	UPROPERTY(Transient) TObjectPtr<UWidget> LitRunMark;
 	/** Over the whole screen while an empty slot's New Game chooses its hero; collapsed otherwise. */
 	UPROPERTY(Transient) TObjectPtr<UHeroSelectWidget> HeroSelect;
 
@@ -264,8 +285,15 @@ private:
 	float RevealAge = 0.f;
 	bool bRevealHeld = false;
 	bool bRevealStarted = false;
-	/** Seconds the menu has been on screen (the ember's breath). */
+	/** Seconds the menu has been on screen (the reticle's slow turn). */
 	float LookClock = 0.f;
+	/** The reticle: the row it's on (INDEX_NONE: none yet), its snap from one row's middle to another's (list px, seconds
+	 *  into it), and how far it shows. */
+	int32 ReticleRow = INDEX_NONE;
+	float ReticleFromY = 0.f;
+	float ReticleToY = 0.f;
+	float ReticleAge = 1000.f;
+	float ReticleAlpha = 0.f;
 	/** Seconds since the page on show changed (large: no fade running). */
 	float PageAge = 1000.f;
 };

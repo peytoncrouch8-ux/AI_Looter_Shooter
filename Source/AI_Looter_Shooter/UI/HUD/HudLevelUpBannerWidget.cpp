@@ -7,59 +7,95 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Rendering/SlateRenderer.h"
 
 using namespace LooterUI;
 
+// Concept 5 "Signal Glass" (ui3/make_b.js, c5's level-up). The mockup is drawn at 1:1 on a 1920 sheet; mockup CSS px are
+// Slate font sizes as they are (in game text comes out a third bigger), so the gaps round the type are the mockup's
+// grown by about a third too, to keep its proportions round the bigger letters.
+
 namespace
 {
-	/** The gem's picture: 180 px round the gem's centre, which is the box's centre. */
-	constexpr float BannerArt = 180.f;
-	constexpr float BannerPixelsPerUnit = 2.f;
-	constexpr float BannerGemRadius = 46.f;
-	constexpr float BannerRingRadius = 58.f;
-	/** The soft cyan glow behind it all. */
-	constexpr float BannerGlowSize = 160.f;
-	constexpr float BannerGlowOpacity = 0.55f;
-	/** The level in ink on the gem, no outline: it sits on the gem, not over the world. */
-	constexpr int32 BannerLevelSize = 38;
+	/** Every piece by its offset from the box's centre (the point the HUD places, 260 px down). The title stays under the
+	 *  boss bar's cluster (126 px down); the number sits under it, the reward under that. */
+	constexpr float TitleDown = -100.f;
+	constexpr float BarDown = -64.f;
+	constexpr float NumberDown = 56.f;
+	/** The hairlines run a touch under the number's middle, as in the mockup (192 against the digit's 188). */
+	constexpr float LinesDown = NumberDown + 5.f;
+	constexpr float RewardDown = 196.f;
 
-	/** "LEVEL UP": orange 46 px, letter-spaced 12 px (in thousandths of an em), its middle this far under the gem's centre. */
-	constexpr int32 BannerTitleSize = 46;
-	constexpr int32 BannerTitleSpacing = 261;
-	constexpr float BannerTitleDrop = 114.f;
-	/** The cyan rules either side of the title, fading out away from it, and their gap to it. */
-	constexpr float BannerRuleLength = 90.f;
-	constexpr float BannerRuleThickness = 2.f;
-	constexpr float BannerRuleGap = 22.f;
-	/** The reward line under it. */
-	constexpr int32 BannerRewardSize = 17;
-	constexpr int32 BannerRewardSpacing = 235;
-	constexpr float BannerRewardDrop = 158.f;
+	/** "LEVEL UP": 30 px, letter-spaced 16 px (0.53 em, in thousandths of an em), in text white with the floating outline. */
+	constexpr int32 TitleSize = 30;
+	constexpr int32 TitleSpacing = 533;
+	/** The level: one big bold number. Its outline is set by hand: the floating text's size/14 would swell it. */
+	constexpr int32 NumberSize = 160;
+	constexpr int32 NumberOutline = 4;
+	/** The reward line: 24 px, letter-spaced 0.3 em, a 2 px outline like the mockup's ring. */
+	constexpr int32 RewardSize = 24;
+	constexpr int32 RewardSpacing = 300;
+	constexpr int32 RewardOutline = 2;
 
-	/** The show: in by 9% of it (overshooting), settled by 14%, held until 80%, then out. */
-	constexpr float BannerSeconds = 2.8f;
-	constexpr float BannerInShare = 0.09f;
-	constexpr float BannerSettleShare = 0.14f;
-	constexpr float BannerOutShare = 0.8f;
-	constexpr float BannerStartScale = 0.7f;
-	constexpr float BannerOvershoot = 1.04f;
+	/** The salt hairline (one picture serves both sides: a tick at each end) and its gap past the arrowhead. */
+	constexpr float LineLength = 196.f;
+	constexpr float LineMargin = 2.f;
+	constexpr float LineTick = 7.f;
+	constexpr float LineArtHeight = 18.f;
+	/** The gold arrowheads beside the number, pointing out along the lines (c5), and the gap from the number's box. */
+	constexpr float ArrowWidth = 13.f;
+	constexpr float ArrowHalfHeight = 7.5f;
+	constexpr float ArrowArtWidth = 18.f;
+	constexpr float ArrowArtHeight = 20.f;
+	constexpr float NumberGap = 30.f;
+	constexpr float ArrowToLine = 4.f;
+	/** The gold bar under the title (the mockup's 80x4, grown with the type). */
+	constexpr float BarWidth = 104.f;
+	constexpr float BarHeight = 5.f;
+	constexpr float BarEdge = 2.f;
+	constexpr float PixelsPerUnit = 2.f;
+	/** The soft dark shade behind it all (the mockup's: half black in the middle) and the gold flash behind the number. */
+	const FVector2D ShadeSize(880.f, 460.f);
+	constexpr float ShadeOpacity = 0.42f;
+	const FVector2D FlashSize(440.f, 360.f);
+	constexpr float FlashOpacity = 0.6f;
 
-	FVector2D BannerAt(float X, float Y)
+	/** The show, in seconds. The UI.LevelUp cue rises for 0.42 s into its struck chord, so the count lands on the chord. */
+	constexpr float FadeInEnd = 0.15f;
+	constexpr float WipeStart = 0.02f;
+	constexpr float WipeEnd = 0.38f;
+	constexpr float ArrowStart = 0.06f;
+	constexpr float ArrowEnd = 0.22f;
+	constexpr float CountAt = 0.42f;
+	constexpr float PopSeconds = 0.26f;
+	constexpr float PopScale = 1.18f;
+	constexpr float FlashUp = 0.08f;
+	constexpr float FlashDown = 0.55f;
+	constexpr float BarStart = 0.62f;
+	constexpr float BarEnd = 0.86f;
+	constexpr float RewardStart = 0.7f;
+	constexpr float RewardEnd = 0.92f;
+	/** Holds about 2 s after the reward lands, then fades. */
+	constexpr float OutStart = 2.9f;
+	constexpr float ShowSeconds = 3.3f;
+	/** Words rise this far as they fade in (the concept's "fade in 8 px up"). */
+	constexpr float WordRise = 8.f;
+	/** The old level stands dimmer until the count. */
+	constexpr float OldNumberOpacity = 0.7f;
+
+	FSlateFontInfo OutlinedFont(int32 Size, int32 Spacing, int32 Outline)
 	{
-		return FVector2D(BannerArt * 0.5f + X, BannerArt * 0.5f + Y);
+		FSlateFontInfo Result = FloatingFont(Size, Spacing);
+		Result.OutlineSettings.OutlineSize = Outline;
+		return Result;
 	}
 
-	TArray<FVector2D> BannerDiamond(float Radius)
-	{
-		return { BannerAt(0.f, -Radius), BannerAt(Radius, 0.f), BannerAt(0.f, Radius), BannerAt(-Radius, 0.f) };
-	}
-
-	FPaintLayer BannerLines(TArray<TArray<FVector2D>> Lines, float Width, const FLinearColor& Color, float Opacity = 1.f)
+	FPaintLayer Strokes(TArray<TArray<FVector2D>> Lines, float Width, const FLinearColor& Color, float Opacity)
 	{
 		FPaintLayer Layer;
 		Layer.Strokes = MoveTemp(Lines);
@@ -69,65 +105,91 @@ namespace
 		return Layer;
 	}
 
-	/** Eight orange rays, a thin cyan ring, and the gem: two flat cyan halves in a heavy ink edge, lit along its top. */
-	const FPaintedIcon& BannerGemPicture()
+	/** The hairline with a tick at each end, a salt line on a dark edge like every kit line (it floats over the world). */
+	const FPaintedIcon& LinePicture()
 	{
 		static const FPaintedIcon Picture = []
 		{
 			FPaintedIcon Result;
-			Result.ViewBox = FVector2D(BannerArt);
-			TArray<TArray<FVector2D>> Rays;
-			for (const FVector2D& Way : { FVector2D(0.f, -1.f), FVector2D(1.f, 0.f), FVector2D(0.f, 1.f), FVector2D(-1.f, 0.f) })
-			{
-				Rays.Add({ BannerAt(Way.X * 64.f, Way.Y * 64.f), BannerAt(Way.X * 86.f, Way.Y * 86.f) });
-			}
-			for (const FVector2D& Way : { FVector2D(1.f, -1.f), FVector2D(1.f, 1.f), FVector2D(-1.f, 1.f), FVector2D(-1.f, -1.f) })
-			{
-				Rays.Add({ BannerAt(Way.X * 42.f, Way.Y * 42.f), BannerAt(Way.X * 54.f, Way.Y * 54.f) });
-			}
-			Result.Layers.Add(BannerLines(MoveTemp(Rays), 2.f, Color::Accent(), 0.75f));
-
-			TArray<FVector2D> Ring = BannerDiamond(BannerRingRadius);
-			Ring.Add(BannerAt(0.f, -BannerRingRadius));
-			Result.Layers.Add(BannerLines({ Ring }, 1.6f, Color::CyanText(), 0.8f));
-
-			FPaintLayer Dark;
-			Dark.Fills.Add(BannerDiamond(BannerGemRadius));
-			Dark.Color = Color::GemDark();
-			Result.Layers.Add(MoveTemp(Dark));
-			FPaintLayer Light;
-			Light.Fills.Add({ BannerAt(-BannerGemRadius, 0.f), BannerAt(0.f, -BannerGemRadius), BannerAt(BannerGemRadius, 0.f) });
-			Light.Color = Color::GemLight();
-			Result.Layers.Add(MoveTemp(Light));
-			TArray<FVector2D> Edge = BannerDiamond(BannerGemRadius);
-			Edge.Add(BannerAt(0.f, -BannerGemRadius));
-			Result.Layers.Add(BannerLines({ Edge }, 4.f, Color::Ink()));
-			Result.Layers.Add(BannerLines({ { BannerAt(-31.f, 0.f), BannerAt(0.f, -31.f), BannerAt(31.f, 0.f) } }, 2.f, FLinearColor::White, 0.8f));
+			Result.ViewBox = FVector2D(LineLength + LineMargin * 2.f, LineArtHeight);
+			const float Mid = LineArtHeight * 0.5f;
+			const float Left = LineMargin;
+			const float Right = LineMargin + LineLength;
+			const TArray<TArray<FVector2D>> Lines = {
+				{ FVector2D(Left, Mid), FVector2D(Right, Mid) },
+				{ FVector2D(Left, Mid - LineTick), FVector2D(Left, Mid + LineTick) },
+				{ FVector2D(Right, Mid - LineTick), FVector2D(Right, Mid + LineTick) } };
+			Result.Layers.Add(Strokes(Lines, 3.6f, Color::Ink(), 0.55f));
+			Result.Layers.Add(Strokes(Lines, 1.4f, Color::SaltLine(), 0.9f));
 			return Result;
 		}();
 		return Picture;
 	}
 
-	/** A cyan rule fading out away from the title: bToRight fades toward the right (the rule after it). */
-	const FPaintedIcon& BannerRulePicture(bool bToRight)
+	/** A small gold arrowhead on a dark edge; bRight points right (the one right of the number). */
+	const FPaintedIcon& ArrowPicture(bool bRight)
 	{
-		auto Make = [](bool bFadeRight)
+		auto Make = [](bool bPointRight)
 		{
 			FPaintedIcon Result;
-			Result.ViewBox = FVector2D(BannerRuleLength, BannerRuleThickness);
-			FPaintLayer Rule;
-			Rule.Fills.Add({ FVector2D(0.f, 0.f), FVector2D(BannerRuleLength, 0.f), FVector2D(BannerRuleLength, BannerRuleThickness),
-				FVector2D(0.f, BannerRuleThickness) });
-			Rule.Color = Color::Hairline().CopyWithNewOpacity(bFadeRight ? 1.f : 0.f);
-			Rule.GradientTo = Color::Hairline().CopyWithNewOpacity(bFadeRight ? 0.f : 1.f);
-			Rule.GradientStart = FVector2D(0.f, 0.f);
-			Rule.GradientEnd = FVector2D(BannerRuleLength, 0.f);
-			Result.Layers.Add(MoveTemp(Rule));
+			Result.ViewBox = FVector2D(ArrowArtWidth, ArrowArtHeight);
+			const float Mid = ArrowArtHeight * 0.5f;
+			const float Tip = bPointRight ? ArrowArtWidth - 2.5f : 2.5f;
+			const float Base = bPointRight ? Tip - ArrowWidth : Tip + ArrowWidth;
+			const TArray<FVector2D> Shape = { FVector2D(Tip, Mid), FVector2D(Base, Mid - ArrowHalfHeight), FVector2D(Base, Mid + ArrowHalfHeight) };
+			TArray<FVector2D> Edge = Shape;
+			Edge.Add(Shape[0]);
+			Result.Layers.Add(Strokes({ Edge }, 3.f, Color::Ink(), 0.6f));
+			FPaintLayer Fill;
+			Fill.Fills.Add(Shape);
+			Fill.Color = Color::SoulGold();
+			Result.Layers.Add(MoveTemp(Fill));
 			return Result;
 		};
 		static const FPaintedIcon Left = Make(false);
 		static const FPaintedIcon Right = Make(true);
-		return bToRight ? Right : Left;
+		return bRight ? Right : Left;
+	}
+
+	/** The gold bar under the title, on a thin dark edge. */
+	const FPaintedIcon& BarPicture()
+	{
+		static const FPaintedIcon Picture = []
+		{
+			FPaintedIcon Result;
+			const FVector2D Size(BarWidth + BarEdge * 2.f, BarHeight + BarEdge * 2.f);
+			Result.ViewBox = Size;
+			FPaintLayer Edge;
+			Edge.Fills.Add({ FVector2D(0.f, 0.f), FVector2D(Size.X, 0.f), FVector2D(Size.X, Size.Y), FVector2D(0.f, Size.Y) });
+			Edge.Color = Color::Ink();
+			Edge.Opacity = 0.55f;
+			Result.Layers.Add(MoveTemp(Edge));
+			FPaintLayer Gold;
+			Gold.Fills.Add({ FVector2D(BarEdge, BarEdge), FVector2D(Size.X - BarEdge, BarEdge), FVector2D(Size.X - BarEdge, Size.Y - BarEdge),
+				FVector2D(BarEdge, Size.Y - BarEdge) });
+			Gold.Color = Color::SoulGold();
+			Result.Layers.Add(MoveTemp(Gold));
+			return Result;
+		}();
+		return Picture;
+	}
+
+	/** How wide a number draws in the level's font (a guess of 0.6 em a digit where Slate can't measure, as in a test). */
+	float NumberWidth(const FString& Number, const FSlateFontInfo& NumberFont)
+	{
+		if (FSlateApplication::IsInitialized() && FSlateApplication::Get().GetRenderer())
+		{
+			return static_cast<float>(FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Number, NumberFont).X);
+		}
+		return Number.Len() * NumberSize * (96.f / 72.f) * 0.6f;
+	}
+
+	void MoveTo(UWidget* Widget, const FVector2D& Position)
+	{
+		if (UCanvasPanelSlot* CanvasSlot = Widget ? Cast<UCanvasPanelSlot>(Widget->Slot) : nullptr)
+		{
+			CanvasSlot->SetPosition(Position);
+		}
 	}
 }
 
@@ -137,46 +199,57 @@ TSharedRef<SWidget> UHudLevelUpBannerWidget::RebuildWidget()
 	{
 		UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
 		const FVector2D Centre(Width * 0.5f, Height * 0.5f);
-		// Everything by its middle, on the box's centre line.
-		auto Place = [Canvas](UWidget* Child, const FVector2D& Position)
+		// Each piece placed by the point Alignment names (the middle unless said), its own size.
+		auto Place = [Canvas](UWidget* Child, const FVector2D& Position, const FVector2D& Alignment = FVector2D(0.5f, 0.5f))
 		{
 			UCanvasPanelSlot* ChildSlot = Canvas->AddChildToCanvas(Child);
 			ChildSlot->SetAutoSize(true);
 			ChildSlot->SetPosition(Position);
-			ChildSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+			ChildSlot->SetAlignment(Alignment);
+			return Child;
+		};
+		auto Picture = [this](const TCHAR* Name, const FPaintedIcon& Icon)
+		{
+			return MakeImage(WidgetTree, PaintedIconBrush(Name, Icon, PixelsPerUnit, Icon.ViewBox));
 		};
 
-		Place(MakeImage(WidgetTree, GlowBrush(FVector2D(BannerGlowSize), Color::CyanText().CopyWithNewOpacity(BannerGlowOpacity))), Centre);
-		Place(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudBannerGem"), BannerGemPicture(), BannerPixelsPerUnit, FVector2D(BannerArt))),
-			Centre);
+		// The dark shade keeps the white type readable over bright sky; it is the popup's only background.
+		UImage* Shade = MakeImage(WidgetTree, GlowBrush(ShadeSize, FLinearColor::Black.CopyWithNewOpacity(ShadeOpacity)));
+		Place(Shade, Centre + FVector2D(0.f, NumberDown * 0.5f));
+		MarkBackground(Shade);
+		Flash = Place(MakeImage(WidgetTree, GlowBrush(FlashSize, Color::SoulGold().CopyWithNewOpacity(FlashOpacity))),
+			Centre + FVector2D(0.f, NumberDown));
+
+		// The hairlines grow out from their inner ends (by the number); ApplyTexts sets how far out those are.
+		LeftLine = Place(Picture(TEXT("HudLevelUpLine"), LinePicture()), Centre + FVector2D(0.f, LinesDown), FVector2D(1.f, 0.5f));
+		LeftLine->SetRenderTransformPivot(FVector2D(1.f, 0.5f));
+		RightLine = Place(Picture(TEXT("HudLevelUpLine"), LinePicture()), Centre + FVector2D(0.f, LinesDown), FVector2D(0.f, 0.5f));
+		RightLine->SetRenderTransformPivot(FVector2D(0.f, 0.5f));
+		LeftArrow = Place(Picture(TEXT("HudLevelUpArrowLeft"), ArrowPicture(false)), Centre + FVector2D(0.f, LinesDown), FVector2D(1.f, 0.5f));
+		RightArrow = Place(Picture(TEXT("HudLevelUpArrowRight"), ArrowPicture(true)), Centre + FVector2D(0.f, LinesDown), FVector2D(0.f, 0.5f));
+
 		LevelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		LevelText->SetFont(Font(BannerLevelSize));
-		LevelText->SetColorAndOpacity(FSlateColor(Color::Ink()));
+		LevelText->SetFont(OutlinedFont(NumberSize, 0, NumberOutline));
 		LevelText->SetJustification(ETextJustify::Center);
-		// Chakra Petch's digits sit in the middle of their line, so centring the line centres them in the gem.
-		Place(LevelText, Centre);
+		// Chakra Petch's digits sit in the middle of their line, so centring the line centres the digits.
+		Place(LevelText, Centre + FVector2D(0.f, NumberDown));
 
-		UHorizontalBox* Title = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		const FVector2D RuleSize(BannerRuleLength, BannerRuleThickness);
-		Title->AddChildToHorizontalBox(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudBannerRuleIn"), BannerRulePicture(false),
-			BannerPixelsPerUnit, RuleSize)))->SetVerticalAlignment(VAlign_Center);
-		UTextBlock* Words = MakeFloatingText(WidgetTree, BannerTitleSize, Color::Accent(), BannerTitleSpacing, ETextJustify::Center);
-		Words->SetText(FText::FromString(TEXT("LEVEL UP")));
-		UHorizontalBoxSlot* WordsSlot = Title->AddChildToHorizontalBox(Words);
-		WordsSlot->SetVerticalAlignment(VAlign_Center);
-		WordsSlot->SetPadding(FMargin(BannerRuleGap, 0.f));
-		Title->AddChildToHorizontalBox(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudBannerRuleOut"), BannerRulePicture(true),
-			BannerPixelsPerUnit, RuleSize)))->SetVerticalAlignment(VAlign_Center);
-		Place(Title, Centre + FVector2D(0.f, BannerTitleDrop));
+		UTextBlock* Title = MakeFloatingText(WidgetTree, TitleSize, Color::SlateText(), TitleSpacing, ETextJustify::Center);
+		Title->SetText(FText::FromString(TEXT("LEVEL UP")));
+		TitleText = Place(Title, Centre + FVector2D(0.f, TitleDown));
+		// The bar draws out from its middle, last of all.
+		GoldBar = Place(Picture(TEXT("HudLevelUpBar"), BarPicture()), Centre + FVector2D(0.f, BarDown));
 
-		RewardText = MakeFloatingText(WidgetTree, BannerRewardSize, Color::CyanText(), BannerRewardSpacing, ETextJustify::Center);
-		Place(RewardText, Centre + FVector2D(0.f, BannerRewardDrop));
+		RewardText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		RewardText->SetFont(OutlinedFont(RewardSize, RewardSpacing, RewardOutline));
+		RewardText->SetColorAndOpacity(FSlateColor(Color::SlateText()));
+		RewardText->SetJustification(ETextJustify::Center);
+		Place(RewardText, Centre + FVector2D(0.f, RewardDown));
 
 		USizeBox* Root = MakeSized(WidgetTree, Canvas, Width, Height);
-		// It pops from the gem's centre, the box's middle.
-		Root->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 		WidgetTree->RootWidget = Root;
 		Banner = Root;
+		ShownNumber = INDEX_NONE;
 		ApplyTexts();
 		PaintShow();
 	}
@@ -186,10 +259,13 @@ TSharedRef<SWidget> UHudLevelUpBannerWidget::RebuildWidget()
 void UHudLevelUpBannerWidget::Show(int32 NewLevel)
 {
 	Level = NewLevel;
+	FromLevel = FMath::Max(1, NewLevel - 1);
 	Time = 0.f;
+	ShownNumber = INDEX_NONE;
 	ApplyTexts();
 	PaintShow();
-	// With the banner, which waits for the experience bar to get there, so the fanfare and the gem's flare land together.
+	// With the show, which waits for the experience bar to get there: the cue rises for 0.42 s into its chord, which
+	// lands on the count (CountAt).
 	LooterSound::Play2D(this, LooterSoundCue::LevelUp);
 	// And in the world with them: a ring of light bursting out along the ground round the player, embers rising.
 	if (ULevelUpBurstSubsystem* Burst = ULevelUpBurstSubsystem::Get(this))
@@ -204,7 +280,6 @@ void UHudLevelUpBannerWidget::ApplyTexts()
 	{
 		return;
 	}
-	LevelText->SetText(FText::AsNumber(Level));
 	// Each level adds this share of the level 1 health (the progression settings' HealthPerLevel), the first reward.
 	const float Share = UPlayerProgressionSubsystem::GetLevelRules().HealthPerLevel;
 	if (Share > 0.f)
@@ -219,6 +294,19 @@ void UHudLevelUpBannerWidget::ApplyTexts()
 	{
 		RewardText->SetVisibility(ESlateVisibility::Collapsed);
 	}
+
+	// The arrowheads and hairlines stand off the widest number the count shows, so nothing moves as 9 turns to 10.
+	const FSlateFontInfo NumberFont = LevelText->GetFont();
+	const float Half = 0.5f * FMath::Max(NumberWidth(FText::AsNumber(FromLevel).ToString(), NumberFont),
+		NumberWidth(FText::AsNumber(Level).ToString(), NumberFont));
+	const FVector2D Centre(Width * 0.5f, Height * 0.5f + LinesDown);
+	const float ArrowIn = Half + NumberGap;
+	// The arrowheads' art has a 2.5 px margin at the tip and the base ends ArrowWidth in from it.
+	const float LineIn = ArrowIn + ArrowWidth + ArrowToLine;
+	MoveTo(LeftArrow, Centre - FVector2D(ArrowIn - (ArrowArtWidth - ArrowWidth - 2.5f), 0.f));
+	MoveTo(RightArrow, Centre + FVector2D(ArrowIn - (ArrowArtWidth - ArrowWidth - 2.5f), 0.f));
+	MoveTo(LeftLine, Centre - FVector2D(LineIn - LineMargin, 0.f));
+	MoveTo(RightLine, Centre + FVector2D(LineIn - LineMargin, 0.f));
 }
 
 void UHudLevelUpBannerWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -229,7 +317,7 @@ void UHudLevelUpBannerWidget::NativeTick(const FGeometry& MyGeometry, float InDe
 		return;
 	}
 	Time += InDeltaTime;
-	if (Time >= BannerSeconds)
+	if (Time >= ShowSeconds)
 	{
 		Time = -1.f;
 	}
@@ -251,26 +339,48 @@ void UHudLevelUpBannerWidget::PaintShow()
 	{
 		return;
 	}
-	// Each step eases out, as the mockup's keyframes do.
-	auto Step = [](float From, float To, float Share) { return FMath::Clamp((Share - From) / (To - From), 0.f, 1.f); };
-	auto EaseOut = [](float Alpha) { return FMath::InterpEaseOut(0.f, 1.f, Alpha, 2.f); };
-	const float Share = Time / BannerSeconds;
-	float Scale = 1.f;
-	float Opacity = 1.f;
-	if (Share < BannerInShare)
+	// Each step eases out (cubic), as the concept's motion does; the fade out eases both ways.
+	const float Now = Time;
+	auto Span = [Now](float From, float To) { return FMath::Clamp((Now - From) / (To - From), 0.f, 1.f); };
+	auto EaseOut = [](float Alpha) { return FMath::InterpEaseOut(0.f, 1.f, Alpha, 3.f); };
+	// A render scale of exactly zero can't be inverted; the piece is see-through until it starts anyway.
+	auto Grow = [](UWidget* Widget, float Alpha)
 	{
-		const float In = EaseOut(Step(0.f, BannerInShare, Share));
-		Scale = FMath::Lerp(BannerStartScale, BannerOvershoot, In);
-		Opacity = In;
-	}
-	else if (Share < BannerSettleShare)
+		Widget->SetRenderScale(FVector2D(FMath::Max(Alpha, 0.001f), 1.f));
+		Widget->SetRenderOpacity(Alpha > 0.f ? 1.f : 0.f);
+	};
+	auto Rise = [](UWidget* Widget, float Alpha)
 	{
-		Scale = FMath::Lerp(BannerOvershoot, 1.f, EaseOut(Step(BannerInShare, BannerSettleShare, Share)));
-	}
-	else if (Share > BannerOutShare)
+		Widget->SetRenderOpacity(Alpha);
+		Widget->SetRenderTranslation(FVector2D(0.f, WordRise * (1.f - Alpha)));
+	};
+
+	const float Out = 1.f - FMath::SmoothStep(0.f, 1.f, Span(OutStart, ShowSeconds));
+	Banner->SetRenderOpacity(EaseOut(Span(0.f, FadeInEnd)) * Out);
+
+	Rise(TitleText, EaseOut(Span(0.f, FadeInEnd + 0.07f)));
+	const float Wipe = EaseOut(Span(WipeStart, WipeEnd));
+	Grow(LeftLine, Wipe);
+	Grow(RightLine, Wipe);
+	const float Arrows = EaseOut(Span(ArrowStart, ArrowEnd));
+	LeftArrow->SetRenderOpacity(Arrows);
+	RightArrow->SetRenderOpacity(Arrows);
+
+	// The count: the old level stands dim, then the new one pops in on the cue's chord with one soft gold flash.
+	const bool bCounted = Now >= CountAt;
+	const int32 Number = bCounted ? Level : FromLevel;
+	if (Number != ShownNumber)
 	{
-		Opacity = 1.f - EaseOut(Step(BannerOutShare, 1.f, Share));
+		ShownNumber = Number;
+		LevelText->SetText(FText::AsNumber(Number));
+		LevelText->SetColorAndOpacity(FSlateColor(bCounted ? Color::SlateText() : Color::SlateLabel()));
 	}
-	Banner->SetRenderScale(FVector2D(Scale));
-	Banner->SetRenderOpacity(Opacity);
+	LevelText->SetRenderOpacity(bCounted ? 1.f : OldNumberOpacity);
+	LevelText->SetRenderScale(FVector2D(bCounted ? FMath::Lerp(PopScale, 1.f, EaseOut(Span(CountAt, CountAt + PopSeconds))) : 1.f));
+	const float FlashIn = Span(CountAt, CountAt + FlashUp);
+	const float FlashOut = FMath::SmoothStep(0.f, 1.f, Span(CountAt + FlashUp, CountAt + FlashUp + FlashDown));
+	Flash->SetRenderOpacity(FlashIn * (1.f - FlashOut));
+
+	Grow(GoldBar, EaseOut(Span(BarStart, BarEnd)));
+	Rise(RewardText, EaseOut(Span(RewardStart, RewardEnd)));
 }

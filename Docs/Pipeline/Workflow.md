@@ -49,6 +49,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - `Tools\zenwait.ps1`: presses Yes on the startup box asking to keep waiting for the editor while the Zen cache server starts
     (seen 2026-10-28). It is a Win32 box (BM_CLICK, no mouse); `launch.ps1` calls it every 5 s while the editor loads.
   - `Tools\menushots.ps1 [-Label]`: photographs the inventory through its states with a realistic loadout.
+  - `Tools\uishots.ps1 [-Label]`: runs the game twice standalone and photographs the menus (`Looter.UIShots`): the main menu
+    (01-04, on `Lvl_MenuTeropa?game=Menu -NoLogos`), then on a level (`-Map`, Ransom's Rest) the pause menu's tabs and a
+    focused row and the level-up popup (05-11).
   - `Tools\castshots.ps1 [-Tag]`: every creature and character in its states from three angles, with `numbers.csv` (feet in the
     ground, limbs through bodies, sliding feet, pops as a change of world velocity per 60 fps frame) and a `past_mark` column. Dead
     bodies and falling slimes aren't sampled; a limb's 30% nearest its joint is excused against the part it hangs from. Still read

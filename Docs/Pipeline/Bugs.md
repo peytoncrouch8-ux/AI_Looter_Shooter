@@ -127,7 +127,7 @@ Each line: bug (date). Cause. Fix.
 - Game crashed at start in Enhanced Input ("Unhandled tracking mode", 2026-10-09) though the build and every test passed. Cause: an
   agent added members to `KeyBindingSubsystem.h` mid-build, so files compiled against the old header were never rebuilt and read
   `CharacterContext` at the old offset (an input action). Fix: touch every changed header before the integration build; no builds
-  while agents edit headers; after each integration build start the game once (`menushots.ps1`/`hudshots.ps1`): tests don't add
+  while agents edit headers; after each integration build start the game once (`menushots.ps1`/`hudshots.ps1`/`uishots.ps1`): tests don't add
   input contexts.
 - The tutorial island's dressing build put 38 of Ransom's Rest's pieces on it (graves, dead trees, bales, fallen pines). Cause:
   `build_area_dressing`'s `EXTRA_GRAVE_ROWS` and `SPOTS` applied to every layout. Fix: only on Ransom's Rest (`EXTRAS_AREA`).

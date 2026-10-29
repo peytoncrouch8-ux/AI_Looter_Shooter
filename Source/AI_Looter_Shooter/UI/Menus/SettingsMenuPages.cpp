@@ -2,6 +2,7 @@
 // words for the description column (SettingsMenuHelp.h). The Audio page is SettingsMenuAudio.cpp.
 
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Menus/SettingsMenuArt.h"
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
@@ -43,7 +44,7 @@ void USettingsMenuWidget::MakeGraphicsPage()
 	USlider* FovSlider = nullptr;
 	UTextBlock* FovText = nullptr;
 	UWidget* FovRow = MakeSliderRow(TEXT("Field of view (1st person)"), UGraphicsSettingsSubsystem::MinFieldOfView,
-		UGraphicsSettingsSubsystem::MaxFieldOfView, FovSlider, FovText, FieldOfViewStep);
+		UGraphicsSettingsSubsystem::MaxFieldOfView, FovSlider, FovText, FieldOfViewStep, [](float Value) { return DegreesText(Value); });
 	AddPageRow(Describe(NavSlider(FovRow, FovSlider), RowHelp(ESettingRow::FieldOfView)));
 	FieldOfViewSlider = FovSlider;
 	FieldOfViewValue = FovText;
@@ -89,7 +90,8 @@ void USettingsMenuWidget::MakeInterfacePage()
 	USlider* MinimapZoom = nullptr;
 	UTextBlock* MinimapZoomText = nullptr;
 	UWidget* MinimapZoomRow = MakeSliderRow(TEXT("Minimap zoom"), UGraphicsSettingsSubsystem::MinMinimapZoom,
-		UGraphicsSettingsSubsystem::MaxMinimapZoom, MinimapZoom, MinimapZoomText);
+		UGraphicsSettingsSubsystem::MaxMinimapZoom, MinimapZoom, MinimapZoomText, 0.05f,
+		[](float Value) { return FString::Printf(TEXT("%.1fx"), Value); });
 	AddPageRow(Describe(NavSlider(MinimapZoomRow, MinimapZoom), RowHelp(ESettingRow::MinimapZoom)));
 	MinimapZoomSlider = MinimapZoom;
 	MinimapZoomValue = MinimapZoomText;
@@ -141,7 +143,8 @@ void USettingsMenuWidget::MakeControlsPage()
 	USlider* LookSlider = nullptr;
 	UTextBlock* LookValueText = nullptr;
 	UWidget* LookRow = MakeSliderRow(TEXT("Look sensitivity"), UControlSettingsSubsystem::MinLookSensitivity,
-		UControlSettingsSubsystem::MaxLookSensitivity, LookSlider, LookValueText, UControlSettingsSubsystem::LookSensitivityStep);
+		UControlSettingsSubsystem::MaxLookSensitivity, LookSlider, LookValueText, UControlSettingsSubsystem::LookSensitivityStep,
+		[](float Value) { return LookSensitivityText(Value); });
 	AddPageRow(Describe(NavSlider(LookRow, LookSlider), RowHelp(ESettingRow::LookSensitivity)), 0.f);
 	LookSensitivitySlider = LookSlider;
 	LookSensitivityValue = LookValueText;
@@ -173,20 +176,25 @@ void USettingsMenuWidget::MakeControlsPage()
 
 	// The key list's heading: how to change a key (RefreshNavLook words it per device), with Reset all keys beside it, a stop
 	// of its own above the keys (it resets only them, so it lives with them rather than in the footer).
-	AddPageRow(MakeSection(WidgetTree, TEXT("Keyboard and mouse keys")), 16.f);
+	AddPageRow(MakeLedgerSection(TEXT("Keyboard and mouse keys")), 12.f);
 	UHorizontalBox* KeyHead = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	KeyHintText = MakeText(WidgetTree, TEXT(""), 11, Color::TextDim());
+	KeyHintText = MakeText(WidgetTree, TEXT(""), 13, Color::SlateLabel());
+	KeyHintText->SetFont(Font(13, false));
 	KeyHintText->SetAutoWrapText(true);
 	UHorizontalBoxSlot* HintSlot = KeyHead->AddChildToHorizontalBox(KeyHintText);
 	HintSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	HintSlot->SetVerticalAlignment(VAlign_Center);
-	ResetAllButton = MakeButton(ActionResetAll, 0, TEXT("Reset all keys"), 12);
-	UHorizontalBoxSlot* ResetSlot = KeyHead->AddChildToHorizontalBox(MakeSized(WidgetTree, ResetAllButton, DefaultColumnWidth + KeyColumnWidth * 0.5f));
-	ResetSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
+	ResetAllButton = MakeArtButton(ActionResetAll, 0, TEXT("Reset all keys"), ESettingsArt::Chip, 13, 120, EButtonKind::Normal);
+	UHorizontalBoxSlot* ResetSlot = KeyHead->AddChildToHorizontalBox(ResetAllButton);
+	ResetSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
 	ResetSlot->SetVerticalAlignment(VAlign_Center);
 	Describe(ResetAllButton, RowHelp(ESettingRow::ResetAllKeys));
-	NavButton(ResetAllButton, KeyHead);
-	AddPageRow(KeyHead, 6.f);
+	// On a ledger line of its own, unnumbered (it isn't a setting).
+	UWidget* KeyHeadRow = MakeLedgerRow(KeyHead, LedgerRowHeight, /*bNumbered*/ false);
+	NavButton(ResetAllButton, KeyHeadRow);
+	AddPageRow(KeyHeadRow);
 	KeyList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	AddPageRow(KeyList, 8.f);
+	AddPageRow(KeyList);
+	// The key rows (RebuildControls) are numbered on from the sliders above them.
+	KeyNumberStart = PageRowNumbers.IsValidIndex(BuildPage) ? PageRowNumbers[BuildPage] : 1;
 }

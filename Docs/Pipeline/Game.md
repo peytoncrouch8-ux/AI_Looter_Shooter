@@ -422,3 +422,30 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   Inspect: columns hide, gun large, the full card on the right with the maker's sweep. Row chips sit left of the number column.
 - Tests `Looter.UI.GunCard.*`, `Looter.UI.WorldCard.*`, `Looter.Inventory.*`, `Looter.Loot.Labels.*`. Next (round 2): the same
   look and motion on the menus, pause menu, HUD popups and the other screens (vendor, bench, boards).
+
+## UI round 3: menus and level-up (2026-10-29)
+
+- The user's pick of six concepts (contract `Docs/Archive/Work/2026-10-29-UI3Build/`; concepts `Docs/Work/2026-10-29-Morning/ui3/c1-c6.png`):
+  "Mix 1 and 3 settings menu, 3's main menu but change the logo, 5's level up". Logo: two mockup rounds (`logos/logos.png`
+  1-5, `logos2.png` 6-13); the user picked 6 Spur Rowel (`MainMenuArt::LogoMark`, points from `logos/marks2.json`).
+- Main menu = concept 3 "Halo Reticle": halo ring with ticks in sectors (light clockwise on arrival, spin 90 deg) round the
+  logo, REVENANT, ruler, TEROPA; the four words right-aligned on a range arc with 01-04; the lit word gold with a small
+  reticle that snaps (0.09 s) and turns (8 s). Shared pictures `UI/Style/LooterReticleArt` (`LooterReticle::Halo`, `Ruler`,
+  `Bracket`, `SmallReticle`, `ArcScale`).
+- Pause / settings = 1 "Ledger & Brass" + 3: plate with a double salt trim, rivets and cut corners; c3's halo (pause bars;
+  a plain cross from the main menu) over the top-left corner; GAME PAUSED (SETTINGS from the main menu) over a dotted ruler;
+  the area's plate; Resume (Back from the main menu, the footer's Back chip hidden) in reticle brackets with a gold wash;
+  c3's tab strip on a ruler with a sliding gold mark; ledger rows numbered in a ruled margin with c1's gold ribbon at the
+  hovered row; c3's chips and ruler sliders; Save & Quit as c1's tilted red stamp; serial "SER. RV-000<session>-<level>".
+  Opens with the plate dropping 16 px and the halo spinning up.
+- Level-up = concept 5 "Signal Glass": L E V E L  U P, gold bar, the big number counting old -> new with a gold flash,
+  hairlines wiping out from it with gold arrowheads, the reward; 3.3 s.
+- Hollow keys (`ULooterHollowKey`): a rounded-box brush with a transparent fill painted the inside solid in game (every cap
+  since the tag card read as a filled pale bubble); the outline is now a closed triangle band with soft edges (a polyline
+  left a notch where its ends met). Labels measured at the drawn scale and nudged 1.5 px left (the outlined letters draw
+  right of their measure; the user: "the hold E and E aren't center").
+- Pictures: `Tools\uishots.ps1 [-Label x] [-Map ...]` (`Looter.UIShots`): main menu, lit row, its Settings, sessions; pause
+  on every tab and a hovered row; level-up counting and holding. Run it on the tutorial island (RR's intro may get in the way).
+- Lessons: `Points.Add(Points[0])` on a TArray asserts (the element comes from the array being grown): copy it first. A
+  crash in a standalone run leaves CrashReportClientEditor holding the game DLL: the next build's link fails until it's closed.
+

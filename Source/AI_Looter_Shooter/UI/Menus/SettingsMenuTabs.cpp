@@ -4,17 +4,24 @@
 // or the row with the focus while keys or a gamepad drive the menu; its words are SettingsMenuHelp.cpp's.
 
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Menus/SettingsMenuArt.h"
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
+#include "UI/Cards/LooterHollowKey.h"
 #include "UI/Style/LooterButton.h"
+#include "UI/Style/LooterReticleArt.h"
 #include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Audio/LooterSound.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/Slider.h"
@@ -27,13 +34,17 @@ using namespace SettingsMenu;
 
 namespace
 {
-	/** The gap between two tabs. */
-	constexpr float TabGap = 4.f;
-	/** A key cap at an end of the tabs: its height, and the room between it and the tabs. */
-	constexpr float TabKeyHeight = 22.f;
-	constexpr float TabKeyGap = 10.f;
-	/** The cyan line under the tabs and under the column's title. */
-	constexpr float HairlineThickness = 1.f;
+	/** The room between a hollow key at an end of the tabs and the tabs. */
+	constexpr float TabKeyGap = 12.f;
+	/** A tab's height (its word in the middle). */
+	constexpr float TabHeight = 40.f;
+	/** The ruler under the tabs (c3: a tick every 10 px, every fifth long). */
+	constexpr float TabRulerStep = 10.f;
+	constexpr int32 TabRulerLongEvery = 5;
+	/** The description column's short ruler at its left (c3: about three rows tall), and the words' room from it. */
+	constexpr float ColumnRulerWidth = 14.f;
+	constexpr float ColumnRulerHeight = 220.f;
+	constexpr float ColumnTextGap = 10.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -43,13 +54,14 @@ namespace
 UWidget* USettingsMenuWidget::MakeTabBar()
 {
 	using namespace LooterUI;
+	// c3's tab strip: a hollow key at each end (RefreshTabKeys names them for the device), the words spaced between them,
+	// the lit one gold; a ruler under them, and the gold mark under the lit tab that slides to it (AdvanceLook).
 	UHorizontalBox* Strip = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	// A key cap at each end, the inventory's key hints' look (RefreshTabKeys names the keys for the device).
-	auto AddKeyCap = [this, Strip](TObjectPtr<UTextBlock>& OutText, const FMargin& CapPadding)
+	auto AddKeyCap = [this, Strip](TObjectPtr<ULooterHollowKey>& OutKey, const FMargin& CapPadding)
 	{
-		OutText = MakeText(WidgetTree, TEXT(""), 9, Color::Title(), true, 40);
-		UWidget* Cap = MakeShapeBox(WidgetTree, EShape::Control, Color::Plate(), Color::ScreenLine(), OutText, FMargin(6.f, 2.f));
-		UHorizontalBoxSlot* CapSlot = Strip->AddChildToHorizontalBox(MakeSized(WidgetTree, Cap, 0.f, TabKeyHeight));
+		OutKey = WidgetTree->ConstructWidget<ULooterHollowKey>(ULooterHollowKey::StaticClass());
+		OutKey->SetVisibility(ESlateVisibility::HitTestInvisible);
+		UHorizontalBoxSlot* CapSlot = Strip->AddChildToHorizontalBox(OutKey);
 		CapSlot->SetVerticalAlignment(VAlign_Center);
 		CapSlot->SetPadding(CapPadding);
 	};
@@ -57,44 +69,68 @@ UWidget* USettingsMenuWidget::MakeTabBar()
 	TabButtons.Reset();
 	for (int32 Page = 0; Page < NumPages; ++Page)
 	{
-		ULooterButton* Tab = MakeButton(ActionTab, Page, PageName(Page), 13, EButtonKind::Tab);
+		// The tab's sound stays a tab's (UI.Tab), its look the painted word.
+		ULooterButton* Tab = MakeArtButton(ActionTab, Page, PageName(Page), ESettingsArt::Tab, 18, 167, EButtonKind::Tab);
 		TabButtons.Add(Tab);
-		UHorizontalBoxSlot* TabSlot = Strip->AddChildToHorizontalBox(MakeSized(WidgetTree, Tab, TabWidth));
-		TabSlot->SetPadding(FMargin(Page > 0 ? TabGap : 0.f, 0.f, 0.f, 0.f));
+		UHorizontalBoxSlot* TabSlot = Strip->AddChildToHorizontalBox(MakeSized(WidgetTree, Tab, TabWidth, TabHeight));
+		TabSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		TabSlot->SetVerticalAlignment(VAlign_Center);
 		// Pointed at, a tab says what its page holds.
 		Describe(Tab, PageHelp(Page), /*bEveryPage*/ true);
 	}
 	AddKeyCap(TabKeyNext, FMargin(TabKeyGap, 0.f, 0.f, 0.f));
 	RefreshTabKeys();
 
-	// A cyan line under the tabs, the pages' edge.
 	UVerticalBox* Bar = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Bar->AddChildToVerticalBox(Strip);
-	Bar->AddChildToVerticalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::ScreenLine())), 0.f, HairlineThickness))
-		->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
-	return Bar;
+	const float RulerLength = PanelWidth - PlatePadX * 2.f - LooterReticle::Pad * 2.f;
+	const FPaintedIcon Ruler = LooterReticle::Ruler(RulerLength, TabRulerStep, TabRulerLongEvery, false);
+	UImage* RulerImage = MakeImage(WidgetTree, PaintedIconBrush(TEXT("SettingsTabRuler"), Ruler, 2.f, Ruler.ViewBox));
+	TabRuler = RulerImage;
+	UVerticalBoxSlot* RulerSlot = Bar->AddChildToVerticalBox(RulerImage);
+	RulerSlot->SetHorizontalAlignment(HAlign_Left);
+	RulerSlot->SetPadding(FMargin(-LooterReticle::Pad, 6.f, 0.f, 0.f));
+
+	TabBar = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+	FillOverlaySlot(TabBar->AddChildToOverlay(Bar));
+	UCanvasPanel* Marks = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+	Marks->SetVisibility(ESlateVisibility::HitTestInvisible);
+	FillOverlaySlot(TabBar->AddChildToOverlay(Marks));
+	TabMark = USettingsMenuArt::Make(WidgetTree, ESettingsArt::TabMark);
+	// Hidden until the tabs have been drawn once and the mark knows where the lit one is.
+	TabMark->SetVisibility(ESlateVisibility::Collapsed);
+	UCanvasPanelSlot* MarkSlot = Marks->AddChildToCanvas(TabMark);
+	MarkSlot->SetAutoSize(false);
+	MarkSlot->SetSize(FVector2D(SettingsMenuArt::TabMarkWidth, SettingsMenuArt::TabMarkHeight));
+	return TabBar;
 }
 
 UWidget* USettingsMenuWidget::MakeHelpColumn()
 {
 	using namespace LooterUI;
+	// c3's description column: no glass, a short vertical ruler at its left, the row's name gold and spaced, its words.
 	UVerticalBox* Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	HelpTitle = MakeText(WidgetTree, TEXT(""), 13, Color::Accent(), true, 150);
+	HelpTitle = MakeText(WidgetTree, TEXT(""), 17, Color::SoulGold(), true, 235);
 	HelpTitle->SetAutoWrapText(true);
 	Lines->AddChildToVerticalBox(HelpTitle);
-	Lines->AddChildToVerticalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::ScreenLine())), 0.f, HairlineThickness))
-		->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
-	HelpBody = MakeText(WidgetTree, TEXT(""), 14, Color::Text());
+	HelpBody = MakeText(WidgetTree, TEXT(""), 16, Color::SlateText());
+	HelpBody->SetFont(Font(16, false));
 	HelpBody->SetAutoWrapText(true);
 	Lines->AddChildToVerticalBox(HelpBody)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
-	HelpDetail = MakeText(WidgetTree, TEXT(""), 12, Color::TextDim());
+	HelpDetail = MakeText(WidgetTree, TEXT(""), 14, Color::SlateLabel());
+	HelpDetail->SetFont(Font(14, false));
 	HelpDetail->SetAutoWrapText(true);
 	Lines->AddChildToVerticalBox(HelpDetail)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
 
-	// A glass plate the height of the page (its fill follows the UI transparency setting; MakePlate marks it).
-	UWidget* Plate = MakePlate(WidgetTree, Lines, FMargin(14.f, 12.f));
-	Plate->SetVisibility(ESlateVisibility::HitTestInvisible);
-	return MakeSized(WidgetTree, Plate, HelpColumnWidth);
+	UHorizontalBox* Column = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	Column->SetVisibility(ESlateVisibility::HitTestInvisible);
+	UHorizontalBoxSlot* RulerSlot = Column->AddChildToHorizontalBox(MakeSized(WidgetTree,
+		USettingsMenuArt::Make(WidgetTree, ESettingsArt::ColumnRuler), ColumnRulerWidth, ColumnRulerHeight));
+	RulerSlot->SetVerticalAlignment(VAlign_Top);
+	UHorizontalBoxSlot* LinesSlot = Column->AddChildToHorizontalBox(Lines);
+	LinesSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	LinesSlot->SetPadding(FMargin(ColumnTextGap, 4.f, 0.f, 0.f));
+	return MakeSized(WidgetTree, Column, HelpColumnWidth);
 }
 
 UVerticalBox* USettingsMenuWidget::BeginPage()
@@ -109,6 +145,8 @@ UVerticalBox* USettingsMenuWidget::BeginPage()
 	}
 	PageLists.Add(List);
 	PageNav.AddDefaulted();
+	// The ledger numbers each page's rows from 01.
+	PageRowNumbers.Add(1);
 	BuildPage = PageLists.Num() - 1;
 	return BuildRows;
 }
@@ -126,7 +164,7 @@ UWidget* USettingsMenuWidget::NavSlider(UWidget* Row, USlider* Slider)
 {
 	if (Row && Slider && PageNav.IsValidIndex(BuildPage))
 	{
-		PageNav[BuildPage].Add(FMenuNavRow{ FMenuNavItem::MakeSlider(Slider, LooterUI::AddFocusFrame(Row), Row, BuildPage) });
+		PageNav[BuildPage].Add(FMenuNavRow{ FMenuNavItem::MakeSlider(Slider, LedgerLightOf(Row), Row, BuildPage) });
 	}
 	return Row;
 }
@@ -135,7 +173,7 @@ UWidget* USettingsMenuWidget::NavChoices(UWidget* Row, const TArray<ULooterButto
 {
 	if (Row && !Choices.IsEmpty() && !Choices.Contains(nullptr) && PageNav.IsValidIndex(BuildPage))
 	{
-		PageNav[BuildPage].Add(FMenuNavRow{ FMenuNavItem::MakeChoices(Choices, LooterUI::AddFocusFrame(Row), Row, BuildPage) });
+		PageNav[BuildPage].Add(FMenuNavRow{ FMenuNavItem::MakeChoices(Choices, LedgerLightOf(Row), Row, BuildPage) });
 	}
 	return Row;
 }
@@ -215,11 +253,11 @@ void USettingsMenuWidget::RefreshTabKeys()
 	// Word key names in capitals, as the prompts' key caps show them (the kit's font has no arrow glyphs).
 	if (TabKeyPrevious)
 	{
-		TabKeyPrevious->SetText(FText::FromString(bPad ? TEXT("LB") : TEXT("PGUP")));
+		TabKeyPrevious->SetLabel(bPad ? TEXT("LB") : TEXT("PGUP"));
 	}
 	if (TabKeyNext)
 	{
-		TabKeyNext->SetText(FText::FromString(bPad ? TEXT("RB") : TEXT("PGDN")));
+		TabKeyNext->SetLabel(bPad ? TEXT("RB") : TEXT("PGDN"));
 	}
 }
 

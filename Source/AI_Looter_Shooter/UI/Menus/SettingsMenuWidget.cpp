@@ -81,6 +81,8 @@ void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 	ShowPage(static_cast<int32>(ESettingsPage::Graphics));
 	ResetNavigation();
 	RefreshNavLook();
+	// The plate drops in again and the halo spins up, the ribbon at Resume (or the first row).
+	BeginOpenMotion();
 }
 
 void USettingsMenuWidget::ApplyMode()
@@ -90,13 +92,24 @@ void USettingsMenuWidget::ApplyMode()
 	if (HeaderText)
 	{
 		// How to resume or go back is the prompts' to say, for the keyboard or the controller.
-		HeaderText->SetText(FText::FromString(TEXT("Game paused")));
-		HeaderText->SetVisibility(bPause ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		HeaderText->SetText(FText::FromString(bPause ? TEXT("GAME PAUSED") : TEXT("SETTINGS")));
+		HeaderText->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
 	const ESlateVisibility PauseOnly = bPause ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
-	if (ResumeButton) { ResumeButton->SetVisibility(PauseOnly); }
+	// The reticle row under the title is Resume over the game and Back from the main menu (both close the menu); the
+	// footer's own Back chip stays hidden, so going back is always the top row.
+	if (ResumeWord) { ResumeWord->SetText(FText::FromString(bPause ? TEXT("RESUME") : TEXT("BACK"))); }
+	for (auto& Entry : HelpEntries)
+	{
+		if (Entry.Target == ResumeButton)
+		{
+			Entry.Help = RowHelp(bPause ? ESettingRow::Resume : ESettingRow::Back);
+		}
+	}
 	if (SaveQuitButton) { SaveQuitButton->SetVisibility(PauseOnly); }
-	if (BackButton) { BackButton->SetVisibility(bPause ? ESlateVisibility::Collapsed : ESlateVisibility::Visible); }
+	if (BackButton) { BackButton->SetVisibility(ESlateVisibility::Collapsed); }
+	// The area's plate, the serial and the halo's pause bars are the pause menu's (SettingsMenuLedger.cpp).
+	RefreshPlate();
 }
 
 void USettingsMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -104,6 +117,7 @@ void USettingsMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	AdvancePreviews(InDeltaTime);
 	AdvanceNav(InDeltaTime);
+	AdvanceLook(InDeltaTime);
 }
 
 UKeyBindingSubsystem* USettingsMenuWidget::GetBindings() const
@@ -174,28 +188,36 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 			}
 		};
 
-		HeaderText = MakeText(WidgetTree, TEXT(""), 12, Color::TextDim(), true, 150);
-		Add(HeaderText, 0.f);
-		ResumeButton = MakeButton(ActionClose, 0, TEXT("Resume"), 16, EButtonKind::Primary);
-		Add(ResumeButton, 10.f);
+		// The title and the area's plate beside the halo, Resume in its reticle under them (SettingsMenuLedger.cpp).
+		Add(MakeHeader(), 0.f);
+		Add(MakeResumeRow(), 14.f);
 
 		// The tabs, then the page on show beside the description column. Every page is built now, each its own scrolling
-		// list in the switcher, so turning a tab only shows another (nothing is made then).
+		// list in the switcher, so turning a tab only shows another (nothing is made then). Under the pages, the ledger's
+		// margin rule runs the page's height.
 		HelpEntries.Reset();
-		Add(MakeTabBar(), 14.f);
+		// Far enough down that the PGUP key clears the halo's lowest ticks.
+		Add(MakeTabBar(), 30.f);
 		UHorizontalBox* Middle = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UOverlay* PageArea = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		USettingsMenuArt* Margin = USettingsMenuArt::Make(WidgetTree, ESettingsArt::MarginRule);
+		Margin->SetMarginX(LedgerMargin);
+		FillOverlaySlot(PageArea->AddChildToOverlay(Margin));
 		Pages = WidgetTree->ConstructWidget<UWidgetSwitcher>(UWidgetSwitcher::StaticClass());
-		UHorizontalBoxSlot* PagesSlot = Middle->AddChildToHorizontalBox(Pages);
+		FillOverlaySlot(PageArea->AddChildToOverlay(Pages));
+		UHorizontalBoxSlot* PagesSlot = Middle->AddChildToHorizontalBox(PageArea);
 		PagesSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		UHorizontalBoxSlot* HelpSlot = Middle->AddChildToHorizontalBox(MakeHelpColumn());
 		HelpSlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
 		HelpSlot->SetVerticalAlignment(VAlign_Fill);
-		Add(Middle, 12.f, true);
+		Add(Middle, 10.f, true);
 
-		// The keyboard and controller stops and the descriptions are noted as the rows are made, page by page
-		// (SettingsMenuNav.cpp, SettingsMenuTabs.cpp).
+		// The keyboard and controller stops, the descriptions and the ledger's rows are noted as the rows are made, page by
+		// page (SettingsMenuNav.cpp, SettingsMenuTabs.cpp, SettingsMenuLedger.cpp).
 		PageNav.Reset();
 		PageLists.Reset();
+		LedgerLines.Reset();
+		PageRowNumbers.Reset();
 		BuildPage = INDEX_NONE;
 		MakeGraphicsPage();
 		MakeAudioPage();
@@ -203,31 +225,41 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		MakeControlsPage();
 		BuildRows = nullptr;
 
-		StatusText = MakeText(WidgetTree, TEXT(""), 13, Color::TextDim());
+		StatusText = MakeText(WidgetTree, TEXT(""), 13, Color::SlateLabel());
 		StatusText->SetAutoWrapText(true);
-		Add(StatusText, 8.f);
+		Add(StatusText, 6.f);
 
-		// Save & Quit over the game or Back in the main menu (ApplyMode shows one of them), at the right.
-		UHorizontalBox* Footer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, nullptr, 0.f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		SaveQuitButton = MakeButton(ActionSaveQuit, 0, TEXT("Save & Quit"), 14, EButtonKind::Danger);
-		Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, SaveQuitButton, HelpColumnWidth));
-		BackButton = MakeButton(ActionClose, 0, TEXT("Back"), 14, EButtonKind::Primary);
-		Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, BackButton, HelpColumnWidth));
+		// Save & Quit's stamp over the game or Back in the main menu (ApplyMode shows one of them), at the right; the
+		// serial at the left.
+		Add(MakeFooter(), 4.f);
 		Describe(ResumeButton, RowHelp(ESettingRow::Resume), true);
 		Describe(SaveQuitButton, RowHelp(ESettingRow::SaveQuit), true);
 		Describe(BackButton, RowHelp(ESettingRow::Back), true);
-		Add(Footer, 10.f);
 
-		// What the keys or the controller's buttons do now, along the bottom (SettingsMenuNav.cpp fills it).
+		// The plate: its glass (a background), its double trim and rivets, its contents, and the free art over them (the halo
+		// breaking out over the top-left corner, the corner's range arc, the ribbon), which takes no clicks.
+		Plate = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		USettingsMenuArt* Glass = USettingsMenuArt::Make(WidgetTree, ESettingsArt::PlateFill);
+		MarkBackground(Glass);
+		FillOverlaySlot(Plate->AddChildToOverlay(Glass));
+		FillOverlaySlot(Plate->AddChildToOverlay(USettingsMenuArt::Make(WidgetTree, ESettingsArt::PlateLines)));
+		FillOverlaySlot(Plate->AddChildToOverlay(Column), FMargin(PlatePadX, PlatePadTop, PlatePadX, PlatePadBottom));
+		PlateArt = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		PlateArt->SetVisibility(ESlateVisibility::HitTestInvisible);
+		FillOverlaySlot(Plate->AddChildToOverlay(PlateArt));
+		MakePlateArt();
+
+		// What the keys or the controller's buttons do now, as hollow keys under the plate (SettingsMenuNav.cpp fills it).
 		PromptBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Add(PromptBar, 10.f);
 
-		// Close button in the frame corner does the same as Resume or Back.
-		UWidget* CloseSize = MakeSized(WidgetTree, MakeButton(ActionClose, 0, TEXT("X"), 15, EButtonKind::Normal), 34.f, 34.f);
-
-		// One size for every page, so turning a tab never moves the frame (a long page scrolls inside it).
-		Panel = MakeSized(WidgetTree, MakePanel(WidgetTree, TEXT("Settings"), Column, CloseSize), PanelWidth, PanelHeight);
+		// One size for every page, so turning a tab never moves the plate (a long page scrolls inside it). The panel is the
+		// plate and the keys under it: it drops in as it opens and ghosts for the field of view's preview.
+		UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Stack->AddChildToVerticalBox(MakeSized(WidgetTree, Plate, PanelWidth, PanelHeight));
+		UVerticalBoxSlot* PromptSlot = Stack->AddChildToVerticalBox(PromptBar);
+		PromptSlot->SetHorizontalAlignment(HAlign_Center);
+		PromptSlot->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
+		Panel = MakeSized(WidgetTree, Stack, 0.f);
 		UOverlaySlot* PanelSlot = Root->AddChildToOverlay(Panel);
 		PanelSlot->SetHorizontalAlignment(HAlign_Center);
 		PanelSlot->SetVerticalAlignment(VAlign_Center);

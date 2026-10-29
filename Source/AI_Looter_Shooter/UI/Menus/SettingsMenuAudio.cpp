@@ -30,7 +30,8 @@ void USettingsMenuWidget::MakeAudioPage()
 		USlider* Slider = nullptr;
 		UTextBlock* Value = nullptr;
 		UWidget* Row = MakeSliderRow(UAudioSettingsSubsystem::VolumeName(Which), 0.f, 1.f, Slider, Value, UAudioSettingsSubsystem::VolumeStep);
-		AddPageRow(Describe(NavSlider(Row, Slider), RowHelp(VolumeRow(Which))), Which == Volumes[0] ? 0.f : 4.f);
+		// Ledger rows sit line on line, with no gap between.
+		AddPageRow(Describe(NavSlider(Row, Slider), RowHelp(VolumeRow(Which))));
 		// Let go by the mouse, or by the key or stick that stepped it (held as a controller holds a slider).
 		Slider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleVolumeReleased);
 		Slider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleVolumeReleased);

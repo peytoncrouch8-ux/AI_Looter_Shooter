@@ -92,8 +92,8 @@ namespace
 	/** The gun's notches stand this far before the gem (UHudNotchTallyWidget collapses itself, gap and all, at none). */
 	constexpr float NotchGap = 10.f;
 
-	/** Where the level-up banner's gem centres, down from the top's middle: the mockup puts the banner's top at 170 and its
-	 *  180 px gem box at the top of it, which keeps the gem clear of the boss bar. */
+	/** Where the level-up banner's middle (its big level number) sits, down from the top's middle: its title then clears
+	 *  the boss bar (UI round 3's Signal Glass level-up, 2026-10-29). */
 	constexpr float BannerTop = 260.f;
 
 	/** Where the "GRAVE MARKED" banner's lantern and words centre, down from the top's middle: above the level-up banner's gem

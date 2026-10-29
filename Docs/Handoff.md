@@ -3,6 +3,17 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-29 day: UI round 3 BUILT (contract Docs/Archive/Work/2026-10-29-UI3Build/CONTRACT.md)
+The user picked from six concepts: pause/settings = mix of 1 Ledger & Brass + 3 Halo Reticle, main menu = 3 with a new logo
+(two logo rounds; picked 6 Spur Rowel), level-up = 5 Signal Glass. All built, photographed with the new `Tools\uishots.ps1`
+and compared with the concepts; notes Pipeline/Game.md "UI round 3". The user's two asks mid-job: the rifle's first-person
+hold 3 cm nearer (WeaponHipHold 50 -> 47 cm ahead), the E / HOLD E caps centred (and hollow again: drawn filled since the
+tag card). Tests Looter.UI 64, Settings 11, FPHands 6, Player.Hands 13, Inventory 10, Menu 3 pass.
+- Main's calls (undo any): from the main menu the reticle row says BACK and the footer Back chip is hidden (the row was an
+  empty band); the RESUME wash runs to the right bracket; slider end labels 5 px lower; arrowheads point out (c5's picture).
+- Not seen by the user in game yet. Next: the user's look, then the rest of round 2's list (HUD mission popup, bestiary
+  rows, vendor, bench, boards, Lost Loot) in this language; playtest Friday 2026-10-30 (don't package yet).
+
 ## 2026-10-29 morning (the user awake briefly; contract Docs/Work/2026-10-29-Morning/CONTRACT.md)
 The user's answers: per-kind crosshairs yes, colour picked in Settings; the Sonniss GDC 2026 bundle yes (downloaded, 14 GB
 in Saved/SoundPacks/Sonniss/2026: no gunshots in it; the user then said no to 2018 / 2021-23, which have guns); next = the

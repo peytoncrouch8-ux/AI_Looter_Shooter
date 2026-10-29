@@ -4,7 +4,6 @@
 #include "UI/Menus/MainMenuHUD.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
-#include "Scenes/TransitionScreenSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
@@ -12,8 +11,6 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/ScaleBox.h"
-#include "Components/ScaleBoxSlot.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -31,54 +28,20 @@ namespace
 	const FName ActionSettings(TEXT("Settings"));
 	const FName ActionQuit(TEXT("Quit"));
 
-	/** A main button's press (Art/Sounds/recipes/opening.py): heavier than the kit's click, as the menu is pressed rarely. */
-	const FName CueSelect(TEXT("UI.Menu.Select"));
-
 	/**
 	 * The shade under the menu runs past its side and thins out by here, so its edge is never seen as a line (the planet
 	 * the menu's camera frames starts at the column's edge; the shade over it there is faint).
 	 */
 	constexpr float ShadeWidth = 1000.f;
-	/** The menu's margins inside its side of the screen: room to breathe off the screen's edge, the title high. */
-	const FMargin ColumnMargin(96.f, 104.f, 48.f, 44.f);
+	/** The menu's margins inside its side of the screen: room to breathe off the screen's edge, the title high. The right
+	 *  one is slim: REVENANT, spaced wide, runs most of the way across. */
+	const FMargin ColumnMargin(96.f, 104.f, 24.f, 44.f);
 
-	/** The main buttons: words at 22 with room round them, so they read as a list, not a stack of boxes. */
-	constexpr float MainButtonWidth = 440.f;
-	constexpr float MainButtonHeight = 54.f;
-	constexpr float MainButtonGap = 4.f;
-	/** Quit Game stands a little apart: it ends the game. */
-	constexpr float QuitGap = 22.f;
-	constexpr int32 MainButtonFont = 22;
-	/** The space between the title and the menu under it. */
-	constexpr float ButtonsTop = 84.f;
-	constexpr float PickerTop = 40.f;
-
-	/** The title lockup: the mark, the title in the display type, the world's name under an orange rule. */
-	constexpr float TitleMarkSize = 84.f;
-	constexpr float TitleGlowSize = 190.f;
-	constexpr int32 TitleFont = 60;
-	constexpr int32 TitleSpacing = 360;
-	constexpr float TitleRuleWidth = 64.f;
-
-	/** When the parts arrive (seconds after the start, before Looter.Menu.Reveal.Speed) and how far they slide in. */
-	constexpr float TitleDelay = 0.15f;
-	constexpr float TitleSlide = 28.f;
-	constexpr float FirstButtonDelay = 0.45f;
-	/** One after another, quick enough to read as one movement. */
-	constexpr float ButtonStagger = 0.07f;
-	constexpr float ButtonSlide = 18.f;
-	constexpr float FooterDelay = 0.85f;
-
-	/** A small outlined word beside a button ("SOON"). Only an outline and text, so there's no background to fade. */
-	UWidget* MakeTag(UWidgetTree* Tree, const FString& Word)
-	{
-		UBorder* Tag = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Tag->SetBrush(RectBrush(FLinearColor::Transparent, Color::Accent(), 1.f));
-		Tag->SetPadding(FMargin(8.f, 2.f, 8.f, 3.f));
-		Tag->SetContent(MakeText(Tree, Word, 9, Color::Accent(), true, 250));
-		Tag->SetVisibility(ESlateVisibility::HitTestInvisible);
-		return Tag;
-	}
+	/** The main buttons' list starts right under the title's box (its range arc's top is the mockup's gap); the picker
+	 *  (three tall cards) a little further down. */
+	constexpr float PickerTop = 28.f;
+	/** The key hints arrive last (MainMenuLook.cpp times the rest). */
+	constexpr float FooterDelay = 0.9f;
 
 	/** A border showing one of the menu's painted pictures stretched over it, as a background the transparency fades. */
 	UBorder* MakeBackdropPicture(UWidgetTree* Tree, FName Name, const FPaintedIcon& Picture, float PixelsPerUnit)
@@ -162,12 +125,12 @@ UWidget* UMainMenuWidget::MakeColumn()
 
 	// Top to bottom: the title, the menu (the main buttons, or the session picker in their place), the key hints.
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	UWidget* Title = MakeTitle();
-	Content->AddChildToVerticalBox(Title);
-	AddRevealPart(Title, TitleDelay, TitleSlide);
+	// The title's parts and the buttons each arrive in their own turn (MainMenuLook.cpp adds them).
+	Content->AddChildToVerticalBox(MakeTitle());
 	MainButtons = MakeMainButtons();
-	Content->AddChildToVerticalBox(MainButtons)->SetPadding(FMargin(0.f, ButtonsTop, 0.f, 0.f));
-	// The picker is tall (three cards), so it starts closer under the title.
+	UVerticalBoxSlot* ButtonsSlot = Content->AddChildToVerticalBox(MainButtons);
+	ButtonsSlot->SetHorizontalAlignment(HAlign_Left);
+	// The picker in their place, a little under the title's box.
 	Picker = MakePicker();
 	Content->AddChildToVerticalBox(Picker)->SetPadding(FMargin(0.f, PickerTop, 0.f, 0.f));
 	Content->AddChildToVerticalBox(MakeSized(WidgetTree, nullptr, 0.f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -183,132 +146,7 @@ UWidget* UMainMenuWidget::MakeColumn()
 	return Side;
 }
 
-UWidget* UMainMenuWidget::MakeTitle()
-{
-	UHorizontalBox* Lockup = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-
-	// The mark over its ember's warm glow (it breathes). The glow is laid out at the mark's size and drawn larger, so it
-	// spreads past the mark without pushing the title away.
-	UOverlay* Mark = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	TitleGlow = MakeImage(WidgetTree, GlowBrush(FVector2D(TitleMarkSize, TitleMarkSize), Color::Accent()));
-	TitleGlow->SetRenderScale(FVector2D(TitleGlowSize / TitleMarkSize, TitleGlowSize / TitleMarkSize));
-	FillOverlaySlot(Mark->AddChildToOverlay(TitleGlow));
-	UOverlaySlot* MarkSlot = Mark->AddChildToOverlay(MakeImage(WidgetTree, PaintedIconBrush(TEXT("TitleMark"), MainMenuArt::TitleMark(), 3.f,
-		FVector2D(TitleMarkSize, TitleMarkSize))));
-	MarkSlot->SetHorizontalAlignment(HAlign_Center);
-	MarkSlot->SetVerticalAlignment(VAlign_Center);
-	Lockup->AddChildToHorizontalBox(MakeSized(WidgetTree, Mark, TitleMarkSize, TitleMarkSize))->SetVerticalAlignment(VAlign_Center);
-
-	UVerticalBox* Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	// The game's title (the same words the cloud bank's title card rises with), in the kit's display type. It shrinks
-	// rather than run past the menu's side (with a wider fallback font, say).
-	TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-	TitleText->SetText(UTransitionScreenSubsystem::GameTitle());
-	TitleText->SetFont(DisplayFont(TitleFont, TitleSpacing));
-	TitleText->SetColorAndOpacity(FSlateColor(Color::Title()));
-	UScaleBox* TitleFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
-	TitleFit->SetStretch(EStretch::ScaleToFitX);
-	TitleFit->SetStretchDirection(EStretchDirection::DownOnly);
-	if (UScaleBoxSlot* TitleSlot = Cast<UScaleBoxSlot>(TitleFit->SetContent(TitleText)))
-	{
-		TitleSlot->SetHorizontalAlignment(HAlign_Left);
-	}
-	Words->AddChildToVerticalBox(TitleFit);
-
-	// Under it, an orange rule drawn out from the left (it grows as the menu arrives), then the world, Teropa (the
-	// user's call, 2026-10-13), in the kit's cyan.
-	UHorizontalBox* PlanetLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	TitleRule = MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::Accent())), TitleRuleWidth, 3.f);
-	TitleRule->SetRenderTransformPivot(FVector2D(0.f, 0.5f));
-	PlanetLine->AddChildToHorizontalBox(TitleRule)->SetVerticalAlignment(VAlign_Center);
-	UHorizontalBoxSlot* PlanetSlot = PlanetLine->AddChildToHorizontalBox(MakeText(WidgetTree, TEXT("Teropa"), 13, Color::CyanText(), true, 900));
-	PlanetSlot->SetVerticalAlignment(VAlign_Center);
-	PlanetSlot->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
-	Words->AddChildToVerticalBox(PlanetLine)->SetPadding(FMargin(4.f, 4.f, 0.f, 0.f));
-
-	UHorizontalBoxSlot* WordsSlot = Lockup->AddChildToHorizontalBox(Words);
-	WordsSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	WordsSlot->SetVerticalAlignment(VAlign_Center);
-	WordsSlot->SetPadding(FMargin(20.f, 0.f, 0.f, 0.f));
-	return Lockup;
-}
-
-UWidget* UMainMenuWidget::MakeMainButton(FName Action, int32 Number, const FString& Label, bool bDanger, const FString& Tag)
-{
-	UOverlay* Body = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	// Under the words while lit: a faint orange wash from the left (a background, so the transparency fades it).
-	UBorder* Wash = MakeBackdropPicture(WidgetTree, TEXT("MenuRowWash"), MainMenuArt::RowWash(), 4.f);
-	FillOverlaySlot(Body->AddChildToOverlay(Wash));
-
-	// The tick at the left (it rises and lights), the button's number, its words and any tag.
-	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UWidget* TickBar = MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::Accent())), 3.f, 28.f);
-	TickBar->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-	Line->AddChildToHorizontalBox(TickBar)->SetVerticalAlignment(VAlign_Center);
-	UTextBlock* NumberText = MakeText(WidgetTree, FString::Printf(TEXT("%02d"), Number), 11, Color::TextDim(), true, 200);
-	UHorizontalBoxSlot* NumberSlot = Line->AddChildToHorizontalBox(NumberText);
-	NumberSlot->SetVerticalAlignment(VAlign_Center);
-	NumberSlot->SetPadding(FMargin(16.f, 2.f, 0.f, 0.f));
-	UTextBlock* Words = MakeText(WidgetTree, Label, MainButtonFont, Color::Text(), true, 260);
-	UHorizontalBoxSlot* WordsSlot = Line->AddChildToHorizontalBox(Words);
-	WordsSlot->SetVerticalAlignment(VAlign_Center);
-	WordsSlot->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
-	if (!Tag.IsEmpty())
-	{
-		UHorizontalBoxSlot* TagSlot = Line->AddChildToHorizontalBox(MakeTag(WidgetTree, Tag));
-		TagSlot->SetVerticalAlignment(VAlign_Center);
-		TagSlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
-	}
-	UOverlaySlot* LineSlot = Body->AddChildToOverlay(Line);
-	LineSlot->SetHorizontalAlignment(HAlign_Fill);
-	LineSlot->SetVerticalAlignment(VAlign_Center);
-
-	// The kit's button, bare: its look is all in the content above (MainMenuMotion.cpp lights it).
-	ULooterButton* Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
-	Button->SetupContent(Body, Action, 0, EButtonKind::Bare);
-	Button->ClickCue = CueSelect;
-	Button->OnButtonClicked.BindUObject(this, &UMainMenuWidget::HandleButton);
-	Button->OnButtonHovered.BindUObject(this, &UMainMenuWidget::HandleButtonHovered);
-	// Each made button is a stop for the keyboard and a controller too, top to bottom.
-	MainNavButtons.Add(Button);
-
-	FMainRow Row;
-	Row.Button = Button;
-	Row.Label = Words;
-	Row.Number = NumberText;
-	Row.Tick = TickBar;
-	Row.Wash = Wash;
-	Row.LitColor = bDanger ? Color::Worse() : Color::Accent();
-	MainRows.Add(Row);
-	return MakeSized(WidgetTree, Button, MainButtonWidth, MainButtonHeight);
-}
-
-UWidget* UMainMenuWidget::MakeMainButtons()
-{
-	UVerticalBox* List = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	MainNavButtons.Reset();
-	MainRows.Reset();
-	int32 Count = 0;
-	auto Add = [this, List, &Count](UWidget* Row, float Top)
-	{
-		UVerticalBoxSlot* RowSlot = List->AddChildToVerticalBox(Row);
-		RowSlot->SetHorizontalAlignment(HAlign_Left);
-		RowSlot->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
-		AddRevealPart(Row, FirstButtonDelay + ButtonStagger * Count++, ButtonSlide);
-	};
-
-	Add(MakeMainButton(ActionSinglePlayer, 1, TEXT("Single Player"), false), 0.f);
-	// Multiplayer doesn't exist yet. Disabled, the button can't be clicked or lit (the focus passes over it); its words
-	// show dim, and the tag beside them says why.
-	Add(MakeMainButton(ActionMultiplayer, 2, TEXT("Multiplayer"), false, TEXT("Soon")), MainButtonGap);
-	if (ULooterButton* Multiplayer = GetMainButton(ActionMultiplayer))
-	{
-		Multiplayer->SetIsEnabled(false);
-	}
-	Add(MakeMainButton(ActionSettings, 3, TEXT("Settings"), false), MainButtonGap);
-	Add(MakeMainButton(ActionQuit, 4, TEXT("Quit Game"), true), QuitGap);
-	return List;
-}
+// The title lockup and the main buttons (MakeTitle, MakeHalo, MakeMainButtons, MakeMainButton) are in MainMenuLook.cpp.
 
 ULooterButton* UMainMenuWidget::GetMainButton(FName Action) const
 {

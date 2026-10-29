@@ -5,7 +5,7 @@
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
-#include "UI/Inventory/LoadoutParts.h"
+#include "UI/Cards/LooterHollowKey.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -23,8 +23,11 @@ using namespace SettingsMenu;
 
 namespace
 {
-	/** The gap between the prompts along the bottom. */
-	constexpr float PromptGap = 20.f;
+	/** The gap between the prompts under the plate, between a key and its word, and the word's size and spacing. */
+	constexpr float PromptGap = 30.f;
+	constexpr float PromptKeyGap = 10.f;
+	constexpr int32 PromptWordSize = 18;
+	constexpr int32 PromptWordSpacing = 111;
 	/** Room kept round a stop scrolled into view, so the rows beside it show too. */
 	constexpr float ScrollPadding = 24.f;
 	/** A slider's tick per step (the volume sliders tick at their own new level instead). */
@@ -454,13 +457,21 @@ void USettingsMenuWidget::RefreshPrompts()
 		return;
 	}
 	ShownPrompts = Line;
-	// The inventory's key hints (a cap and its words; the first, the main one, lit).
+	// Under the plate, floating: each a hollow key (the user's pick, 2026-10-28) and its word, spaced (c1/c3: 18 px).
 	PromptBar->ClearChildren();
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)
 	{
-		UHorizontalBoxSlot* HintSlot = PromptBar->AddChildToHorizontalBox(LoadoutParts::MakeKeyHint(WidgetTree, Prompts[Index].Key, Prompts[Index].Text, Index == 0));
-		HintSlot->SetVerticalAlignment(VAlign_Center);
-		HintSlot->SetPadding(FMargin(Index > 0 ? PromptGap : 0.f, 0.f, 0.f, 0.f));
+		ULooterHollowKey* Key = WidgetTree->ConstructWidget<ULooterHollowKey>(ULooterHollowKey::StaticClass());
+		Key->SetLabel(Prompts[Index].Key.ToUpper());
+		Key->SetVisibility(ESlateVisibility::HitTestInvisible);
+		UHorizontalBoxSlot* KeySlot = PromptBar->AddChildToHorizontalBox(Key);
+		KeySlot->SetVerticalAlignment(VAlign_Center);
+		KeySlot->SetPadding(FMargin(Index > 0 ? PromptGap : 0.f, 0.f, 0.f, 0.f));
+		UTextBlock* Word = LooterUI::MakeFloatingText(WidgetTree, PromptWordSize, LooterUI::Color::SlateText(), PromptWordSpacing);
+		Word->SetText(FText::FromString(Prompts[Index].Text.ToUpper()));
+		UHorizontalBoxSlot* WordSlot = PromptBar->AddChildToHorizontalBox(Word);
+		WordSlot->SetVerticalAlignment(VAlign_Center);
+		WordSlot->SetPadding(FMargin(PromptKeyGap, 0.f, 0.f, 0.f));
 	}
 }
 

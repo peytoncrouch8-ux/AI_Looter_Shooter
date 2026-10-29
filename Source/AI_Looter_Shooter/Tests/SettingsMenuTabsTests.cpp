@@ -160,10 +160,14 @@ bool FSettingsMenuTabsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Down: the field of view"), Menu->GetFocusedWidget() == Menu->GetFieldOfViewSlider());
 	TestEqual(TEXT("...described"), Menu->GetShownHelpText(), RowHelp(ESettingRow::FieldOfView).Body);
 	SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
-	TestTrue(TEXT("Down past the page's last row: the footer's Back, not the next page"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionClose);
+	TestTrue(TEXT("Down past the page's last row: it stays, not the next page"), Menu->GetFocusedWidget() == Menu->GetFieldOfViewSlider());
+	// Back is the reticle row under the title (UI round 3: where Resume is over the game), up from the first setting.
+	for (int32 Step = 0; Step < 3; ++Step)
+	{
+		SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Up);
+	}
+	TestTrue(TEXT("Up past the first setting: Back, at the top"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionClose);
 	TestEqual(TEXT("...described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::Back).Title);
-	SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
-	TestTrue(TEXT("...where the page ends"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionClose);
 
 	// The bumpers turn the tabs in order, round the ends, the focus to each page's first setting.
 	SettingsTabsTap(*Menu, EKeys::Gamepad_RightShoulder);

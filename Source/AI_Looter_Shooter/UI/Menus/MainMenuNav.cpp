@@ -5,6 +5,7 @@
 #include "UI/Menus/MainMenuWidget.h"
 #include "UI/Menus/HeroSelectWidget.h"
 #include "UI/Menus/MainMenuHUD.h"
+#include "UI/Menus/MainMenuArt.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIFocus.h"
@@ -451,7 +452,7 @@ void UMainMenuWidget::RefreshFooter()
 	FooterPrompts->ClearChildren();
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)
 	{
-		UHorizontalBoxSlot* HintSlot = FooterPrompts->AddChildToHorizontalBox(LoadoutParts::MakeKeyHint(WidgetTree, Prompts[Index].Key, Prompts[Index].Text, Index == 0));
+		UHorizontalBoxSlot* HintSlot = FooterPrompts->AddChildToHorizontalBox(MainMenuArt::MakeKeyHint(WidgetTree, Prompts[Index].Key, Prompts[Index].Text));
 		HintSlot->SetVerticalAlignment(VAlign_Center);
 		HintSlot->SetPadding(FMargin(Index > 0 ? PromptGap : 0.f, 0.f, 0.f, 0.f));
 	}
