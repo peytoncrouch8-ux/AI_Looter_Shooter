@@ -61,7 +61,7 @@ bool FGunCardRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Reload in seconds"), GunCardRules::StatValueText(LoadoutRules::EStat::Reload, Plain), FString(TEXT("1.7 s")));
 	FWeaponStats Scoped = Plain;
 	Scoped.Zoom = 6.f;
-	TestEqual(TEXT("A scope adds its zoom"), GunCardRules::CardStats(Scoped).Num(), 7);
+	TestEqual(TEXT("A scope adds no row (zoom is no card stat since 2026-10-29)"), GunCardRules::CardStats(Scoped).Num(), 6);
 	TestEqual(TEXT("...as 6x"), GunCardRules::StatValueText(LoadoutRules::EStat::Zoom, Scoped), FString(TEXT("6×")));
 	TestEqual(TEXT("An upgrade boasts"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Upgrade), FString(TEXT("UPGRADE")));
 	TestTrue(TEXT("Similar says nothing"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Similar).IsEmpty());

@@ -58,15 +58,11 @@ namespace
 	}
 }
 
-TArray<EStat> GunCardRules::CardStats(const FWeaponStats& Stats)
+TArray<EStat> GunCardRules::CardStats(const FWeaponStats& /*Stats*/)
 {
-	TArray<EStat> Shown = { EStat::Damage, EStat::Accuracy, EStat::Handling, EStat::Reload, EStat::FireRate, EStat::Magazine };
-	// A scope is worth a row; iron sights' small zoom isn't.
-	if (Stats.Zoom >= 1.5f)
-	{
-		Shown.Add(EStat::Zoom);
-	}
-	return Shown;
+	// The same six for every gun: zoom is no row of the card (the user, 2026-10-29: "zoom doesn't have to be a stat"; the
+	// inventory's Inspect still lists it). The card's own Element row follows them (UGunCardWidget::ApplyGun).
+	return { EStat::Damage, EStat::Accuracy, EStat::Handling, EStat::Reload, EStat::FireRate, EStat::Magazine };
 }
 
 FString GunCardRules::StatLabel(EStat Stat)

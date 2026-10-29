@@ -31,6 +31,22 @@ namespace
 	/** The maker's mark on the foot's badge (px). */
 	constexpr float MakerMarkSize = 20.f;
 
+	/** "GRAVE-SALT" -> "Grave-Salt": the card's rows read like its labels ("Normal" beside them). */
+	FString TitleCase(const FString& Word)
+	{
+		FString Out = Word.ToLower();
+		bool bStart = true;
+		for (TCHAR& Char : Out)
+		{
+			if (bStart && FChar::IsAlpha(Char))
+			{
+				Char = FChar::ToUpper(Char);
+			}
+			bStart = !FChar::IsAlpha(Char);
+		}
+		return Out;
+	}
+
 	constexpr float IconSize = 18.f;
 	constexpr float ArrowWidth = 18.f;
 	/** Italic by shear: Chakra Petch ships no italic. */
@@ -267,12 +283,13 @@ void UGunCardWidget::ApplyGun()
 	SetWords(NameText, LooterWeaponText::Name(Shown).ToUpper());
 	NameText->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Shown)));
 
-	// The stat list, each against the compared gun; a gun with an element ends it with an Element row, its glyph and name
-	// in the element's colour (the user, 2026-10-29: "put the element type and name at the bottom of the stats list").
+	// The stat list, each against the compared gun, then the Element row: the element's glyph and name in its colour, or
+	// "Normal" for a gun without one (the user, 2026-10-29: "put the element type and name at the bottom of the stats
+	// list ... if there is no element it should say normal").
 	ShownStats = GunCardRules::CardStats(Shown.Stats);
 	const ELooterElement Element = WeaponParts::ElementOf(Shown);
 	const FVectorIcon* ElementGlyph = GunCardIcons::Element(Element);
-	EnsureRows(ShownStats.Num() + (ElementGlyph ? 1 : 0));
+	EnsureRows(ShownStats.Num() + 1);
 	const FWeaponInstanceData* Against = bHasCompare ? &Compared : nullptr;
 	for (int32 Index = 0; Index < ShownStats.Num(); ++Index)
 	{
@@ -293,14 +310,22 @@ void UGunCardWidget::ApplyGun()
 		}
 		SetWords(RowArrows[Index], Arrow);
 	}
-	if (ElementGlyph)
 	{
 		const int32 Index = ShownStats.Num();
-		const FLinearColor Tint = ElementRules::UiColor(Element);
-		RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::ElementName(Element), *ElementGlyph, 3.f, FVector2D(IconSize, IconSize), Tint));
+		if (ElementGlyph)
+		{
+			const FLinearColor Tint = ElementRules::UiColor(Element);
+			RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::ElementName(Element), *ElementGlyph, 3.f, FVector2D(IconSize, IconSize), Tint));
+			SetWords(RowValues[Index], TitleCase(ElementRules::Word(Element)));
+			RowValues[Index]->SetColorAndOpacity(FSlateColor(Tint));
+		}
+		else
+		{
+			RowIcons[Index]->SetBrush(IconBrush(TEXT("GunCardDiamondRow"), GunCardIcons::Diamond(), 3.f, FVector2D(IconSize, IconSize), Color::SlateIcon()));
+			SetWords(RowValues[Index], TEXT("Normal"));
+			RowValues[Index]->SetColorAndOpacity(FSlateColor(Color::SlateText()));
+		}
 		SetWords(RowLabels[Index], TEXT("Element"));
-		SetWords(RowValues[Index], ElementRules::Word(Element));
-		RowValues[Index]->SetColorAndOpacity(FSlateColor(Tint));
 		SetWords(RowArrows[Index], FString());
 	}
 
