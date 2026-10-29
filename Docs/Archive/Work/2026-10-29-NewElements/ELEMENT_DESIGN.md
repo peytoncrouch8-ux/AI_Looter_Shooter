@@ -48,3 +48,15 @@ or unique that may not be affected by any element ... what enemies get affected 
 ## Next job (after the Thunder/Rot commit): a contract for bodies + wards + Touched + Stone Sentinel, lanes:
 rules/health (Main), HUD ward bar (UI lane), Touched look + loot (Sonnet), Stone Sentinel (model: reuse a grave statue
 mesh from the chapel/graves set; brain: a slow heavy melee, Opus).
+
+## Element feedback (the user, 2026-10-29 night: "particles, animations and other feedbacks for each element when it fires,
+when it hurts an enemy, and more. Similar to borderlands' Damage Over Time mechanics"; picked all four)
+- Firing looks: the element's muzzle flash, tracer and trail per element (Cinder a flame trail, Thunder a crackling bolt,
+  Rot dripping, Hallow motes, Wardbreak salt glints), the held gun giving off its element (smoke, sparks, drips) idle.
+- Enemy status reactions: animations per status on every enemy kind (burning flail and run, jolted twitch and lock-up, rot
+  stagger and cough, salted stiff and slowed, smite flinch), on top of today's auras.
+- Status icons + callouts: an icon with a timer under the enemy's health bar, a short BURNING / JOLTED / ROTTING / SALTED /
+  SMITTEN callout the first time a status lands on it, the tick numbers as a damage-over-time stream.
+- Hit marks + kill deaths: a mark where element shots land on ground and walls (scorch, burn, acid, salt frost, gilt), and
+  bigger element deaths (ash, a shock pop, a melt, crystallised, a burst of light).
+Already in: hit sparks, body auras, element deaths, coloured tick numbers, Apply/Tick/Kill sounds, tracer tint, glow parts.
