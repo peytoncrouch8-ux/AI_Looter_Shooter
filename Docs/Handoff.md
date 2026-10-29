@@ -3,6 +3,16 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-29 morning (the user awake briefly; contract Docs/Work/2026-10-29-Morning/CONTRACT.md)
+The user's answers: per-kind crosshairs yes, colour picked in Settings; the Sonniss GDC 2026 bundle yes (downloaded, 14 GB
+in Saved/SoundPacks/Sonniss/2026: no gunshots in it; the user then said no to 2018 / 2021-23, which have guns); next = the
+open issues first, then UI round 2. Built and pushed (bba515e8 + the gold fix): crosshair per kind (seen in PIE: SMG,
+shotgun ring, sniper hairs; colour row in Settings > Interface), LMG climb cap + aimed sway fix, find crows low with one
+perched, under-water finds glow, capsule hits take the nearest bone's zone, aim-in/out cloth + sniper bolt latch + SMG/LMG
+mech clacks from the 2026 bundle. Not checked by hand: the LMG burst, the crows from the farm yard, the tarn glow, by-ear sounds.
+- Next: UI round 2 (Slate & Salt to the main and pause menus, HUD popups, bestiary rows, then vendor, bench, boards, Lost
+  Loot); the user playtests Friday 2026-10-30 (don't package yet).
+
 ## 2026-10-29 night: core gameplay job BUILT (the user picked all four: guns feel different, enemy hit reactions,
 smarter bigger fights, things to find off the path; asleep, answers in Docs/Work/2026-10-28-Core/CONTRACT.md)
 All pushed (122556fd round 1, 58e7faa2 round 2, 597d0d6c fixes). Notes: Pipeline/Gunplay.md "Gun identity and hit feel",
@@ -23,11 +33,8 @@ Enemies.md "Fight: pack brains", Levels.md "Finds". Play-check: Docs/Work/2026-1
   untouched, the user's 10-28 "leave them"; arena at the chapel yard only; Borderlands-normal targets; crows+glint tells; the
   Tollman a find); Regular Unpaid silver chance 55% -> 40% (Progression.md 10-21 said 40%); FOUND banner moved to 78% down
   (the card over loot covered it); the SMG has no punch sound.
-- For the user in the morning: (1) crosshair per gun kind, mockup only: Docs/Work/2026-10-28-Core/crosshair/crosshairs.png;
-  (2) gun sound pack to approve, no download yet: another year's Sonniss GDC bundle (royalty-free, game use); (3) play it.
-- Open (not built or not checked): LMG long burst climbs ~30 deg (check by hand); Ranger Post crows small specks 7 m up
-  (CrowHeight 700, maybe lower); tarn bed murky, lockbox hard to see; launcher not tried; hits on the capsule get no zone
-  (bot-only?); Hob's caption at the town-gate leader's death; Sink/Webwood spider additions; news when a find is found;
+- Morning asks answered (see 2026-10-29 morning above).
+- Open (not built or not checked): launcher not tried; Hob's caption at the town-gate leader's death; Sink/Webwood spider additions; news when a find is found;
   E6 grenade tins; Pike's footlocker body (needs a C++ flag); art: laid rope, card+knife, bigger cache tag; FightPace
   uptimes need fitting to play. Files over 500 lines to split: CreatureBase.h 694, GunfeelSoundTests 636, WeaponBase.h 616,
   WeaponBrass.cpp ~565, GunfeelSoundTuning.cpp 511, SpiderCreatureHurt.cpp 508, UnpaidCreature.h 506.

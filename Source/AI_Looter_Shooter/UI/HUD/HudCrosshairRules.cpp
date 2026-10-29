@@ -225,7 +225,7 @@ FLinearColor HudCrosshair::ColourOf(ECrosshairColour Colour)
 	switch (Colour)
 	{
 	case ECrosshairColour::Salt:  return Color::SaltLine();
-	case ECrosshairColour::Gold:  return Color::SoulGold();
+	case ECrosshairColour::Gold:  return Color::AccentLight();
 	case ECrosshairColour::Cyan:  return Color::CyanText();
 	case ECrosshairColour::Green: return Color::Better();
 	case ECrosshairColour::White:

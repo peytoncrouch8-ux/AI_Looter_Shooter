@@ -132,7 +132,7 @@ bool FHudCrosshairColourTest::RunTest(const FString& Parameters)
 
 	// Each choice is a palette colour, and the edge stays dark under every one.
 	TestTrue(TEXT("Salt"), HudCrosshair::ColourOf(ECrosshairColour::Salt).Equals(Color::SaltLine()));
-	TestTrue(TEXT("Gold"), HudCrosshair::ColourOf(ECrosshairColour::Gold).Equals(Color::SoulGold()));
+	TestTrue(TEXT("Gold"), HudCrosshair::ColourOf(ECrosshairColour::Gold).Equals(Color::AccentLight()));
 	TestTrue(TEXT("Cyan"), HudCrosshair::ColourOf(ECrosshairColour::Cyan).Equals(Color::CyanText()));
 	TestTrue(TEXT("Green"), HudCrosshair::ColourOf(ECrosshairColour::Green).Equals(Color::Better()));
 	TestTrue(TEXT("The dark edge is the HUD's outline"), HudCrosshair::EdgeColour().Equals(Color::Outline()));

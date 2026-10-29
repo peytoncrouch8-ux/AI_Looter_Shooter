@@ -210,7 +210,7 @@ contract and in each tuning header's `Default`).
   `UI/HUD/HudCrosshairRules` (shapes as data in mockup units x1.25 px; open limit 50 px so the prompt 52 px below stays clear;
   kick SMG 1.1/0.08 s, rifle 1.3/0.12, LMG 1.2/0.1, revolver 1.5/0.16, shotgun 1.55/0.2, sniper 1.6/0.22, launcher 1.6/0.25;
   unarmed = the old cross 1.45/0.16); a new kind grows in from 0.7x over 0.15 s. Colour: Settings > Interface > Crosshair
-  colour (White default, Salt, Gold, Cyan, Green; `Looter.CrosshairColour`). ADS/sprint/facing-camera fades unchanged.
+  colour (White default, Salt, Gold = AccentLight (SoulGold read as white), Cyan, Green; `Looter.CrosshairColour`). ADS/sprint/facing-camera fades unchanged.
 - **Reload** (`ReloadTuning`, `ReloadMotionPlan.cpp`, `WeaponBasePump.cpp`): `FReloadPlan {bEmpty, Shells}` set at start;
   tactical x0.9 / empty x1.1 (sniper 0.9/1.0, others 1/1); tactical magazine/helix skip the handle (progress jumps
   `HandleFrom` 0.70 -> `HandleTo` 0.82), tactical sniper keeps the bolt home; rounds commit at the seat; ready 0.08 s
