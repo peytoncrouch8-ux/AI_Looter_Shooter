@@ -243,6 +243,12 @@ The user's calls this stretch:
   Ransom's Rest trailer. Steam's AI-content survey answered plainly (made with AI tools, nothing generated live).
 - Playtesters: the user and one friend.
 
+## Queue (the user's picks, 2026-10-29 night)
+1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:
+typed wards, bodies, immunities, Touched variants, Stone Sentinel, x2 / x0.33), 3. Finish the hands rework (the other six
+guns, then delete the tables), 4. Loot and pacing pass (play 1-7, drops, XP, money, difficulty, unique legendaries).
+Offered and not picked: real models/moves for the placeholder enemies; a performance pass (70-88 fps in the editor).
+
 ## Suggestions for the user (Main's; none built without a go-ahead)
 - A decal-friendly objective highlight or a small world marker for flat mission items (posters, papers).
 - More bounty variety before Main 5: open the Webwood arena after Main 4 and add a spider/Spitter arena.
