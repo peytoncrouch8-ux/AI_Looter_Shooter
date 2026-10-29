@@ -11,6 +11,8 @@ hold 3 cm nearer (WeaponHipHold 50 -> 47 cm ahead), the E / HOLD E caps centred 
 tag card). Tests Looter.UI 64, Settings 11, FPHands 6, Player.Hands 13, Inventory 10, Menu 3 pass.
 - Gun card after (the user's asks): the maker badge bigger (15 px words), no "Maker · Kind" line under the name, the
   element as the stat list's last row ("Normal" without one; was a gem by the badge), no Zoom row. Tests UI.GunCard 3, WorldCard 2, Inventory 10 pass.
+  Then Borderlands' element look: element rows in its colour ("Burn dmg/sec", "Chance to burn"; salt, smite alike), its
+  bullet line coloured and named, its glyph and the gun's kind (rarity colour) by the maker badge. Tests UI.GunCard 3, WorldCard 2 pass.
 - Main's calls (undo any): from the main menu the reticle row says BACK and the footer Back chip is hidden (the row was an
   empty band); the RESUME wash runs to the right bracket; slider end labels 5 px lower; arrowheads point out (c5's picture).
 - Not seen by the user in game yet. Next: the user's look, then the rest of round 2's list (HUD mission popup, bestiary

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "UI/Inventory/LoadoutRules.h"
 
+struct FElementTuning;
 struct FWeaponInstanceData;
 struct FWeaponStats;
 
@@ -51,6 +52,19 @@ namespace GunCardRules
 	 * numbers, its curse's perk and drawback, its notches. Empty for a plain gun with no maker.
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FString> Lines(const FWeaponInstanceData& Gun);
+
+	/** One of the element's rows under the stats: its label and value. */
+	struct FElementRow
+	{
+		FString Label;
+		FString Value;
+	};
+	/**
+	 * The element's rows at the stat list's foot, like Borderlands' "Burn Dmg/Sec" and "Chance to Ignite" (the user,
+	 * 2026-10-29): Ember "Burn dmg/sec" and "Chance to burn", Soul-light "Smite damage" and "Chance to smite", Grave-salt
+	 * "Salt dmg/sec" and "Chance to salt" (per bullet, before a weakness). A gun without one: one row, "Element" "Normal".
+	 */
+	AI_LOOTER_SHOOTER_API TArray<FElementRow> ElementRows(const FWeaponInstanceData& Gun, const FElementTuning& Tuning);
 
 	/** "True Glass: accuracy +30%, range +20%": the maker's trait and its two biggest changes; empty without a maker. */
 	AI_LOOTER_SHOOTER_API FString MakerTraitLine(const FWeaponInstanceData& Gun);

@@ -7,6 +7,7 @@
 #include "UI/Cards/GunCardWidget.h"
 #include "UI/Cards/LooterCardBackdrop.h"
 #include "Audio/LooterSoundCues.h"
+#include "Elements/ElementTuning.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponTypes.h"
 #include "Blueprint/UserWidget.h"
@@ -66,6 +67,16 @@ bool FGunCardRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("An upgrade boasts"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Upgrade), FString(TEXT("UPGRADE")));
 	TestTrue(TEXT("Similar says nothing"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Similar).IsEmpty());
 	TestTrue(TEXT("Weaker says nothing (the arrows do)"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Weaker).IsEmpty());
+
+	// A gun without an element: one row, Element: Normal (an element's rows follow its parts, checked in game).
+	FWeaponInstanceData NoElement;
+	NoElement.Stats = Plain;
+	const TArray<GunCardRules::FElementRow> Rows = GunCardRules::ElementRows(NoElement, FElementTuning());
+	if (TestEqual(TEXT("No element: one row"), Rows.Num(), 1))
+	{
+		TestEqual(TEXT("...Element"), Rows[0].Label, FString(TEXT("Element")));
+		TestEqual(TEXT("...Normal"), Rows[0].Value, FString(TEXT("Normal")));
+	}
 
 	// The take keys, as the weapon manager takes loot.
 	FGunCardKeys Keys;

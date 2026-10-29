@@ -21,9 +21,10 @@ namespace
 	{
 		switch (Element)
 		{
-		case ELooterElement::Ember: return TEXT("Sets them burning");
-		case ELooterElement::SoulLight: return TEXT("Light leaps to the next of the dead");
-		case ELooterElement::GraveSalt: return TEXT("Salts and slows them: wards crumble");
+		// Led by the element's name: its rows above only show its glyph and colour.
+		case ELooterElement::Ember: return TEXT("Ember: sets them burning");
+		case ELooterElement::SoulLight: return TEXT("Soul-Light: light leaps to the next of the dead");
+		case ELooterElement::GraveSalt: return TEXT("Grave-Salt: salts and slows them, wards crumble");
 		default: return FString();
 		}
 	}
@@ -96,6 +97,27 @@ FString GunCardRules::StatValueText(EStat Stat, const FWeaponStats& Stats)
 		return FMath::IsNearlyEqual(Stats.Zoom, FMath::RoundToFloat(Stats.Zoom), 0.05f) ? FString::Printf(TEXT("%d×"), FMath::RoundToInt(Stats.Zoom))
 			: FString::Printf(TEXT("%.1f×"), Stats.Zoom);
 	default: return LoadoutRules::StatText(Stat, Stats);
+	}
+}
+
+TArray<GunCardRules::FElementRow> GunCardRules::ElementRows(const FWeaponInstanceData& Gun, const FElementTuning& Tuning)
+{
+	const ELooterElement Element = WeaponParts::ElementOf(Gun);
+	const EWeaponKind Kind = Gun.Definition ? Gun.Definition->Kind : EWeaponKind::None;
+	const FString Chance = FString::Printf(TEXT("%d%%"), FMath::RoundToInt(ElementRules::GunChance(Kind, Gun.Rarity, Tuning) * 100.f));
+	// A status is a share of the hit (one bullet, one pellet) that set it.
+	const float Hit = Gun.Stats.Damage;
+	auto PerSecond = [Hit](float Share, float Seconds) { return FString::Printf(TEXT("%.1f"), Hit * Share / FMath::Max(Seconds, 0.1f)); };
+	switch (Element)
+	{
+	case ELooterElement::Ember:
+		return { { TEXT("Burn dmg/sec"), PerSecond(Tuning.EmberShare, Tuning.EmberSeconds) }, { TEXT("Chance to burn"), Chance } };
+	case ELooterElement::SoulLight:
+		return { { TEXT("Smite damage"), FString::FromInt(FMath::RoundToInt(Hit * Tuning.SoulLightShare)) }, { TEXT("Chance to smite"), Chance } };
+	case ELooterElement::GraveSalt:
+		return { { TEXT("Salt dmg/sec"), PerSecond(Tuning.GraveSaltShare, Tuning.GraveSaltSeconds) }, { TEXT("Chance to salt"), Chance } };
+	default:
+		return { { TEXT("Element"), TEXT("Normal") } };
 	}
 }
 

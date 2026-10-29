@@ -401,6 +401,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   the foot to the stat list's last row (glyph, "Element", its word title-cased "Grave-Salt", in `ElementRules::UiColor`;
   "Normal" with the card's diamond for a gun without one); no Zoom row on the card (`GunCardRules::CardStats` is the same
   six for every gun; the inventory's Inspect still lists zoom).
+  Then Borderlands' element look (the user, 2026-10-29, from BL2 card photos; picked all four): the element's rows under
+  the stats in `ElementRules::UiColor` (glyph, label, value; `GunCardRules::ElementRows`, live `FElementTuning`):
+  Ember "Burn dmg/sec" = Damage x EmberShare / EmberSeconds and "Chance to burn" = `GunChance` (kind + rarity, before a
+  weakness); Soul-light "Smite damage" = Damage x SoulLightShare, "Chance to smite"; Grave-salt "Salt dmg/sec", "Chance
+  to salt"; no element: "Element" "Normal" (diamond). The element's bullet line (first) in its colour, led by its name
+  ("Ember: sets them burning"). The foot: badge, then the element's glyph (22 px) and the gun's kind Inked icon in its
+  rarity's colour (box 58x26).
 
 - The user's asks: character through motion and maker branding, simplicity ("don't overload the user ... on simple things
   like guns"), a looked-at gun's card over the gun (not the screen's right), the gun in hand on the right, the inventory's

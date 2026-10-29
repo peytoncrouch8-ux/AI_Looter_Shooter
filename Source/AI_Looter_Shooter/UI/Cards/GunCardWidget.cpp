@@ -4,8 +4,10 @@
 #include "UI/Cards/GunCardStyle.h"
 #include "UI/Cards/LooterCardBackdrop.h"
 #include "UI/Cards/LooterHollowKey.h"
+#include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
+#include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponParts.h"
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
@@ -30,22 +32,9 @@ namespace
 {
 	/** The maker's mark on the foot's badge (px). */
 	constexpr float MakerMarkSize = 20.f;
-
-	/** "GRAVE-SALT" -> "Grave-Salt": the card's rows read like its labels ("Normal" beside them). */
-	FString TitleCase(const FString& Word)
-	{
-		FString Out = Word.ToLower();
-		bool bStart = true;
-		for (TCHAR& Char : Out)
-		{
-			if (bStart && FChar::IsAlpha(Char))
-			{
-				Char = FChar::ToUpper(Char);
-			}
-			bStart = !FChar::IsAlpha(Char);
-		}
-		return Out;
-	}
+	/** The element's glyph beside the badge, and the box the gun's kind fits in (px). */
+	constexpr float ElementMarkSize = 22.f;
+	const FVector2D KindMarkBox(58.f, 26.f);
 
 	constexpr float IconSize = 18.f;
 	constexpr float ArrowWidth = 18.f;
@@ -166,6 +155,15 @@ void UGunCardWidget::EnsureBuilt()
 	BadgeRow->AddChildToHorizontalBox(MakerText)->SetPadding(FMargin(9.f, 0.f, 0.f, 0.f));
 	MakerBadge->SetContent(BadgeRow);
 	Foot->AddChildToHorizontalBox(MakerBadge)->SetVerticalAlignment(VAlign_Center);
+	// Then the element's glyph and the gun's kind, like the flame and the rifle beside Borderlands' maker (the user, 2026-10-29).
+	ElementMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+	UHorizontalBoxSlot* ElementSlot = Foot->AddChildToHorizontalBox(MakeSized(Tree, ElementMark, ElementMarkSize, ElementMarkSize));
+	ElementSlot->SetVerticalAlignment(VAlign_Center);
+	ElementSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+	KindMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+	UHorizontalBoxSlot* KindSlot = Foot->AddChildToHorizontalBox(KindMark);
+	KindSlot->SetVerticalAlignment(VAlign_Center);
+	KindSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
 	UVerticalBoxSlot* FootSlot = Content->AddChildToVerticalBox(Foot);
 	FootSlot->SetHorizontalAlignment(HAlign_Center);
 	FootSlot->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
@@ -283,19 +281,21 @@ void UGunCardWidget::ApplyGun()
 	SetWords(NameText, LooterWeaponText::Name(Shown).ToUpper());
 	NameText->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Shown)));
 
-	// The stat list, each against the compared gun, then the Element row: the element's glyph and name in its colour, or
-	// "Normal" for a gun without one (the user, 2026-10-29: "put the element type and name at the bottom of the stats
-	// list ... if there is no element it should say normal").
+	// The stat list, each against the compared gun, then the element's rows: its glyph, label and value in its colour, as
+	// Borderlands shows a burn (the user, 2026-10-29), or "Element: Normal" for a gun without one (the user, same day).
 	ShownStats = GunCardRules::CardStats(Shown.Stats);
 	const ELooterElement Element = WeaponParts::ElementOf(Shown);
 	const FVectorIcon* ElementGlyph = GunCardIcons::Element(Element);
-	EnsureRows(ShownStats.Num() + 1);
+	const FLinearColor ElementTint = ElementGlyph ? ElementRules::UiColor(Element) : Color::SlateText();
+	const TArray<GunCardRules::FElementRow> ElementRows = GunCardRules::ElementRows(Shown, FElementTuning::Live());
+	EnsureRows(ShownStats.Num() + ElementRows.Num());
 	const FWeaponInstanceData* Against = bHasCompare ? &Compared : nullptr;
 	for (int32 Index = 0; Index < ShownStats.Num(); ++Index)
 	{
 		const LoadoutRules::EStat Stat = ShownStats[Index];
 		RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::StatName(Stat), GunCardIcons::Stat(Stat), 3.f, FVector2D(IconSize, IconSize), Color::SlateIcon()));
 		SetWords(RowLabels[Index], GunCardRules::StatLabel(Stat));
+		RowLabels[Index]->SetColorAndOpacity(FSlateColor(Color::SlateLabel()));
 		SetWords(RowValues[Index], GunCardRules::StatValueText(Stat, Shown.Stats));
 		RowValues[Index]->SetColorAndOpacity(FSlateColor(Color::SlateText()));
 		FString Arrow;
@@ -310,22 +310,21 @@ void UGunCardWidget::ApplyGun()
 		}
 		SetWords(RowArrows[Index], Arrow);
 	}
+	for (int32 Row = 0; Row < ElementRows.Num(); ++Row)
 	{
-		const int32 Index = ShownStats.Num();
+		const int32 Index = ShownStats.Num() + Row;
 		if (ElementGlyph)
 		{
-			const FLinearColor Tint = ElementRules::UiColor(Element);
-			RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::ElementName(Element), *ElementGlyph, 3.f, FVector2D(IconSize, IconSize), Tint));
-			SetWords(RowValues[Index], TitleCase(ElementRules::Word(Element)));
-			RowValues[Index]->SetColorAndOpacity(FSlateColor(Tint));
+			RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::ElementName(Element), *ElementGlyph, 3.f, FVector2D(IconSize, IconSize), ElementTint));
 		}
 		else
 		{
 			RowIcons[Index]->SetBrush(IconBrush(TEXT("GunCardDiamondRow"), GunCardIcons::Diamond(), 3.f, FVector2D(IconSize, IconSize), Color::SlateIcon()));
-			SetWords(RowValues[Index], TEXT("Normal"));
-			RowValues[Index]->SetColorAndOpacity(FSlateColor(Color::SlateText()));
 		}
-		SetWords(RowLabels[Index], TEXT("Element"));
+		SetWords(RowLabels[Index], ElementRows[Row].Label);
+		RowLabels[Index]->SetColorAndOpacity(FSlateColor(ElementGlyph ? ElementTint : Color::SlateLabel()));
+		SetWords(RowValues[Index], ElementRows[Row].Value);
+		RowValues[Index]->SetColorAndOpacity(FSlateColor(ElementTint));
 		SetWords(RowArrows[Index], FString());
 	}
 
@@ -345,6 +344,8 @@ void UGunCardWidget::ApplyGun()
 		if (bShownLine)
 		{
 			SetWords(LineTexts[Index], FString(TEXT("• ")) + Bullets[Index]);
+			// The element's line (always first) in its colour, like Borderlands' orange burn lines.
+			LineTexts[Index]->SetColorAndOpacity(FSlateColor(Index == 0 && ElementGlyph ? ElementTint : Color::SlateText()));
 		}
 	}
 	const FString Flavor = GunCardRules::FlavorLine(Shown);
@@ -363,6 +364,18 @@ void UGunCardWidget::ApplyGun()
 		MakerMark->SetBrush(InkedIconBrush(Style.MarkIcon, *Mark, FVector2D(MakerMarkSize, MakerMarkSize), Style.Ink));
 	}
 	SetShown(MakerMark, Mark != nullptr);
+	if (ElementGlyph)
+	{
+		ElementMark->SetBrush(IconBrush(FName(*(GunCardIcons::ElementName(Element).ToString() + TEXT("Foot"))), *ElementGlyph, 3.f,
+			FVector2D(ElementMarkSize, ElementMarkSize), ElementTint));
+	}
+	SetShown(ElementMark, ElementGlyph != nullptr);
+	const EWeaponKind Kind = Shown.Definition ? Shown.Definition->Kind : EWeaponKind::None;
+	if (Kind != EWeaponKind::None)
+	{
+		KindMark->SetBrush(InkedIconBrush(LoadoutParts::GunIconName(Kind), LoadoutParts::GunIcon(Kind), KindMarkBox, LooterWeaponText::Color(Shown)));
+	}
+	SetShown(KindMark, Kind != EWeaponKind::None);
 	SetShown(KeysRow, Mode == EGunCardMode::World && ShownKeys.Num() > 0);
 }
 
