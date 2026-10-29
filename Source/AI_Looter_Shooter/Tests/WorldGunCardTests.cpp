@@ -121,7 +121,7 @@ bool FWorldGunCardOverTheGunTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("...the dot never shows over it"), Label->IsDotShown());
 	TestFalse(TEXT("Unarmed: nothing compared"), Compares(Card));
 	TestTrue(TEXT("...a key to take it"), Card && !Card->GetKeyCaps().IsEmpty());
-	TestFalse(TEXT("...a free slot: no hold to equip"), HasHoldCap(Card));
+	TestTrue(TEXT("...a free slot: a hold equips it too"), HasHoldCap(Card));
 	TestEqual(TEXT("The maker shown is the gun's"), Label->IsMakerShown(), !Label->GetMakerText().IsEmpty());
 
 	// A gun in hand: the card compares with it; the one slot full, a hold equips the loot.

@@ -18,9 +18,10 @@ namespace
 	constexpr float Line = 2.f;
 	constexpr int32 FontSize = 12;
 
+	/** Outlined like floating text: the cap now floats under the card, over whatever the world shows (a loot beam's glare). */
 	FSlateFontInfo CapFont()
 	{
-		return Font(FontSize, true, 100);
+		return FloatingFont(FontSize, 100);
 	}
 
 	FVector2f MeasureLabel(const FString& Label)
@@ -97,6 +98,10 @@ int32 SLooterHollowKey::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 	const float H = Line * 0.5f;
 	TArray<FVector2f> Ring = { FVector2f(Chamfer, H), FVector2f(Size.X - H, H), FVector2f(Size.X - H, Size.Y - Chamfer), FVector2f(Size.X - Chamfer, Size.Y - H),
 		FVector2f(H, Size.Y - H), FVector2f(H, Chamfer), FVector2f(Chamfer, H) };
+	// A dark edge under the orange line first, so the hollow cap reads over bright ground and beams.
+	FSlateDrawElement::MakeLines(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(), TArray<FVector2f>(Ring), ESlateDrawEffect::None,
+		Color::Outline().CopyWithNewOpacity(0.7f * Alpha), true, Line + 2.f);
+	++Layer;
 	FSlateDrawElement::MakeLines(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(), MoveTemp(Ring), ESlateDrawEffect::None, Orange, true, Line);
 	++Layer;
 

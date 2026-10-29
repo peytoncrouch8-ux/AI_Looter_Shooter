@@ -160,8 +160,6 @@ void UGunCardWidget::EnsureBuilt()
 	SpecialRow = Special;
 	Body->AddChildToVerticalBox(Special)->SetPadding(FMargin(0.f, 7.f, 0.f, 0.f));
 
-	KeysRow = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	Body->AddChildToVerticalBox(KeysRow)->SetPadding(FMargin(0.f, 9.f, 0.f, 0.f));
 
 	UVerticalBox* Content = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Content->AddChildToVerticalBox(MakeSized(Tree, Top, 0.f, LooterBackdrop::SweepHeight));
@@ -173,7 +171,14 @@ void UGunCardWidget::EnsureBuilt()
 	Fill = OutFill;
 	Lines = OutLines;
 	Box = MakeSized(Tree, Card, CardWidth(Mode));
-	Root = Box;
+	// The take keys float under the card, outside its glass (the user, 2026-10-28: "like Borderlands"), centred on it.
+	UVerticalBox* Stack = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Stack->AddChildToVerticalBox(Box);
+	KeysRow = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	UVerticalBoxSlot* KeysSlot = Stack->AddChildToVerticalBox(KeysRow);
+	KeysSlot->SetHorizontalAlignment(HAlign_Center);
+	KeysSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+	Root = Stack;
 	Root->SetVisibility(ESlateVisibility::HitTestInvisible);
 	Tree->RootWidget = Root;
 	if (bHasGun)
@@ -322,9 +327,11 @@ void UGunCardWidget::SetKeys(const FGunCardKeys& Keys)
 				Cap->SetDim(Hint.bDim && !Hint.bHold);
 				KeysRow->AddChildToHorizontalBox(Cap)->SetVerticalAlignment(VAlign_Center);
 			}
-			UTextBlock* Word = Words(WidgetTree, 12, Hint.bDim ? Color::TextDim() : Color::Text(), true, 150);
+			// Outlined floating text: no glass behind it out here.
+			UTextBlock* Word = MakeFloatingText(WidgetTree, 14, Hint.bDim ? Color::TextDim() : Color::Text(), 150);
 			Word->SetText(FText::FromString(Hint.Word));
-			KeysRow->AddChildToHorizontalBox(Word)->SetPadding(FMargin(Cap ? 6.f : 0.f, 0.f, 16.f, 0.f));
+			const bool bLast = &Hint == &Hints.Last();
+			KeysRow->AddChildToHorizontalBox(Word)->SetPadding(FMargin(Cap ? 7.f : 0.f, 0.f, bLast ? 0.f : 22.f, 0.f));
 			KeyCaps.Add(Cap);
 			KeyWords.Add(Word);
 		}

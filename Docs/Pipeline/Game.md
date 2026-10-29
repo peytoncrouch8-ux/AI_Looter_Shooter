@@ -406,8 +406,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   + `UI.Card.Maker.<Key>` (`Art/Sounds/recipes/ui_cards.py`). World card plays both on a new gun looked at (not again within
   0.3 s); inventory plays Open only (rate 0.12 s), the maker's on Inspect; the in-hand card is silent.
 - World card: `UWeaponLabelWidget` (looked at) shows the card on a 40 px tether and a hollow rarity diamond (`WeaponLabelWidgetCard.cpp`);
-  compared with the gun in hand; keys from the weapon manager (TAKE / TO BACKPACK + HOLD EQUIP / SWAP + BACKPACK FULL), the
-  HOLD cap fills with the hold. `LootLabelLayout::KeepOnScreen`: the looked-at card stays 16 px inside the screen (a gun looked
+  compared with the gun in hand. The keys float under the card, outside its glass (the user: "like Borderlands"; hollow caps
+  with a dark edge, outlined words): E TAKE + HOLD E EQUIP (a hold always takes it in hand), slots full E TO BACKPACK + HOLD E
+  EQUIP, both full E SWAP + BACKPACK FULL; the HOLD cap fills with the hold. `LootLabelLayout::KeepOnScreen`: the looked-at card stays 16 px inside the screen (a gun looked
   down at close by put it past the top). HUD right: `UPlayerHUDWidget::InHandCard` under "IN HAND", only while loot is looked at
   and a gun is held.
 - Inventory (`LoadoutLayout`): left x 56 w 488 EQUIPPED, WARD, AMMO; right x 1056 w 488 BACKPACK with EMPTY rows; middle the

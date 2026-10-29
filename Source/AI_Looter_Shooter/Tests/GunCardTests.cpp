@@ -57,10 +57,11 @@ bool FGunCardRulesTest::RunTest(const FString& Parameters)
 	FGunCardKeys Keys;
 	Keys.Key = TEXT("E");
 	TArray<GunCardRules::FKeyHint> Hints = GunCardRules::KeyHints(Keys);
-	if (TestEqual(TEXT("A free slot: one key"), Hints.Num(), 1))
+	if (TestEqual(TEXT("A free slot: take and equip"), Hints.Num(), 2))
 	{
 		TestEqual(TEXT("...E"), Hints[0].Cap, FString(TEXT("E")));
 		TestEqual(TEXT("...TAKE"), Hints[0].Word, FString(TEXT("TAKE")));
+		TestEqual(TEXT("...HOLD E EQUIP"), Hints[1].Word, FString(TEXT("EQUIP")));
 	}
 	Keys.bSlotsFull = true;
 	Hints = GunCardRules::KeyHints(Keys);

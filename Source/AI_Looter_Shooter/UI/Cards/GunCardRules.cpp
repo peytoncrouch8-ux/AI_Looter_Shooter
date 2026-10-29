@@ -126,14 +126,17 @@ TArray<GunCardRules::FKeyHint> GunCardRules::KeyHints(const FGunCardKeys& Keys)
 {
 	TArray<FKeyHint> Hints;
 	const FString HoldCap = FString::Printf(TEXT("HOLD %s"), *Keys.Key);
+	// A hold always takes it straight in hand (EquipPickup), so both show (the user, 2026-10-28: "press E to take, hold E
+	// to equip").
 	if (!Keys.bSlotsFull)
 	{
 		Hints.Add({ Keys.Key, TEXT("TAKE"), false, false });
+		Hints.Add({ HoldCap, TEXT("EQUIP"), true, false });
 	}
 	else if (!Keys.bBackpackFull)
 	{
 		Hints.Add({ Keys.Key, TEXT("TO BACKPACK"), false, false });
-		Hints.Add({ HoldCap, TEXT("EQUIP"), true, true });
+		Hints.Add({ HoldCap, TEXT("EQUIP"), true, false });
 	}
 	else
 	{

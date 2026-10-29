@@ -77,7 +77,7 @@ namespace GunCardRules
 		bool bDim = false;
 	};
 	/**
-	 * A world card's keys: free slot "[E] TAKE"; slots full "[E] TO BACKPACK  [HOLD E] EQUIP"; backpack full too
+	 * A world card's keys: free slot "[E] TAKE  [HOLD E] EQUIP"; slots full "[E] TO BACKPACK  [HOLD E] EQUIP"; backpack full too
 	 * "[E] SWAP  BACKPACK FULL" (the gun in hand drops), the take rules of UWeaponManagerComponent.
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FKeyHint> KeyHints(const FGunCardKeys& Keys);
