@@ -8,7 +8,6 @@
 #include "Tests/InteractionTestWorld.h"
 #include "UI/Cards/GunCardRules.h"
 #include "UI/Cards/GunCardWidget.h"
-#include "UI/Cards/LooterSegmentBar.h"
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/Style/WeaponText.h"
 #include "UI/World/WeaponLabelWidget.h"
@@ -49,11 +48,10 @@ namespace
 		return Card && Gun && Card->GetNameText().ToString().Equals(LooterWeaponText::Name(Gun->GetInstance()), ESearchCase::IgnoreCase);
 	}
 
-	/** The card's first bar has the compared gun's tick (none: nothing compared). */
+	/** The card compares with a gun (its arrows show). */
 	bool Compares(const UGunCardWidget* Card)
 	{
-		const ULooterSegmentBar* Bar = Card ? Card->GetBar(0) : nullptr;
-		return Bar && Bar->GetTick() >= 0.f;
+		return Card && Card->HasCompare();
 	}
 
 	bool HasHoldCap(const UGunCardWidget* Card)
@@ -124,9 +122,9 @@ bool FWorldGunCardOverTheGunTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...a free slot: a hold equips it too"), HasHoldCap(Card));
 	TestEqual(TEXT("The maker shown is the gun's"), Label->IsMakerShown(), !Label->GetMakerText().IsEmpty());
 
-	// A gun in hand: the card compares with it; the one slot full, a hold equips the loot.
-	AWeaponBase* Held = Loot(World, Rifle, EWeaponRarity::Common, BehindSpot);
-	if (!TestTrue(TEXT("A rifle taken in hand"), Held && Manager->TryPickup(Held) && Manager->GetActiveWeapon() == Held))
+	// A gun of its kind in hand: the card compares with it (like with like); the one slot full, a hold equips the loot.
+	AWeaponBase* Held = Loot(World, Shotgun, EWeaponRarity::Common, BehindSpot);
+	if (!TestTrue(TEXT("A shotgun taken in hand"), Held && Manager->TryPickup(Held) && Manager->GetActiveWeapon() == Held))
 	{
 		return false;
 	}

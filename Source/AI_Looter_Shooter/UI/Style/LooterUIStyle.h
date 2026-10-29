@@ -208,6 +208,22 @@ namespace LooterUI
 		FLinearColor MakerMeridianDark();
 		FLinearColor MakerMeridianInk();
 		FLinearColor MakerMeridianTrim();
+		// --- "Slate & Salt" (the user's pick for the UI, 2026-10-28 evening; first on the tag card, UI/Cards) ---
+
+		/** Slate glass, top and foot (a background). */
+		FLinearColor SlateGlassTop();
+		FLinearColor SlateGlassFoot();
+		/** The pale grave-salt line round a card (4 px), and the soul-light gold of its gem and keys. */
+		FLinearColor SaltLine();
+		FLinearColor SoulGold();
+		/** Labels, text, the flavour line, the stat icons, a stat row's band, the gem's dark inside. */
+		FLinearColor SlateLabel();
+		FLinearColor SlateText();
+		FLinearColor SlateFlavor();
+		FLinearColor SlateIcon();
+		FLinearColor SlateBand();
+		FLinearColor SlateGem();
+
 		/** No maker (a named gun): plain gunmetal. */
 		FLinearColor MakerPlain();
 		FLinearColor MakerPlainDark();

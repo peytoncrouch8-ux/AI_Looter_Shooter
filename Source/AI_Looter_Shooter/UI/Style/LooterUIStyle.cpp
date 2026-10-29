@@ -283,6 +283,17 @@ namespace LooterUI::Color
 	FLinearColor MakerMeridianDark()   { return Hex(31, 42, 56); }
 	FLinearColor MakerMeridianInk()    { return Hex(223, 230, 234); }
 	FLinearColor MakerMeridianTrim()   { return Hex(201, 154, 74); }
+	// Slate & Salt (Docs/Work/2026-10-28-UICharacter/mockup/colors.png, theme 6).
+	FLinearColor SlateGlassTop()       { return Hex(30, 34, 40, 242); }
+	FLinearColor SlateGlassFoot()      { return Hex(18, 21, 26, 237); }
+	FLinearColor SaltLine()            { return Hex(212, 238, 244); }
+	FLinearColor SoulGold()            { return Hex(255, 230, 166); }
+	FLinearColor SlateLabel()          { return Hex(180, 190, 200); }
+	FLinearColor SlateText()           { return Hex(242, 246, 248); }
+	FLinearColor SlateFlavor()         { return Hex(255, 211, 138); }
+	FLinearColor SlateIcon()           { return Hex(152, 164, 174); }
+	FLinearColor SlateBand()           { return Hex(212, 238, 244, 15); }
+	FLinearColor SlateGem()            { return Hex(14, 17, 21, 250); }
 	FLinearColor MakerPlain()          { return Hex(74, 79, 86); }
 	FLinearColor MakerPlainDark()      { return Hex(44, 48, 54); }
 	FLinearColor MakerPlainTrim()      { return Hex(143, 150, 156); }

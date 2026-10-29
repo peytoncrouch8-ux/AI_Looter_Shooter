@@ -6,6 +6,8 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 ## 2026-10-28 evening: UI character, round 1 (the user at work; playtest Friday 2026-10-30; "don't package yet")
 Committed and pushed. Contract and mockups: Docs/Work/2026-10-28-UICharacter/ (kept open for round 2). Notes: Pipeline/Game.md
 "The gun card". The user picked the look "Wide Sweep" (mockup/wide.png) after four rounds; saw it in game only as screenshots.
+- Round 2 built (later the same evening, after ~10 mockup rounds the user steered): the tag card (Borderlands-like list,
+  Slate & Salt, level gem, keys under it, like-with-like compare). The user's pick: Slate & Salt for the whole UI (next rounds).
 - Built: the gun card kit (UI/Cards), the card over a looked-at gun with hollow keys, the in-hand card on the HUD's right, the
   four makers' card looks and open sounds (UI.Card.*), the inventory back to two columns (backpack right), card on screen clamp.
 - Not heard by ear: the card sounds. Bars use the all-kinds rating, so shotgun fire rate/magazine bars sit low (maybe per-kind later).

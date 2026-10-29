@@ -390,6 +390,12 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 ## The gun card ("Wide Sweep", 2026-10-28)
 
+- Round 2 (same evening, replaces the body described below): the tag card, Docs/Work/2026-10-28-UICharacter/CONTRACT.md
+  "Round 2" (every decision). Kit additions: `ELooterBackdropShape::Tag` (notch, shoulders, point, 4 px salt line, gem),
+  `GunCardIcons` (stat and element glyphs), `GunCardRules::Lines`/`MakerTraitLine`/`PickCompare`, rounded hollow keys;
+  `ULooterSegmentBar` deleted (no bars). Widths World/Loadout 470, InHand 430 drawn at 0.8 (it covered the weapon slots).
+  Italics by a -12 shear (Chakra Petch has no italic). The inventory's Inspect card is still the Wide Sweep Card shape.
+
 - The user's asks: character through motion and maker branding, simplicity ("don't overload the user ... on simple things
   like guns"), a looked-at gun's card over the gun (not the screen's right), the gun in hand on the right, the inventory's
   backpack back on the right. Look picked over four mockup rounds (`Docs/Work/2026-10-28-UICharacter/mockup/`): not boxy, a

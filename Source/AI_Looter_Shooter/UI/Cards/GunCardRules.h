@@ -4,11 +4,12 @@
 #include "UI/Inventory/LoadoutRules.h"
 
 struct FWeaponInstanceData;
+struct FWeaponStats;
 
 /** Which card: where it shows decides what it compares and whether it has keys. */
 enum class EGunCardMode : uint8
 {
-	/** Over a gun on the ground (UWeaponLabelWidget, looked at): compared with the gun in hand, with the take keys. */
+	/** Over a gun on the ground (UWeaponLabelWidget, looked at): compared with a carried gun of its kind, with the take keys. */
 	World,
 	/** The gun in hand, on the screen's right while loot is looked at: compares nothing. */
 	InHand,
@@ -16,7 +17,7 @@ enum class EGunCardMode : uint8
 	Loadout
 };
 
-/** What the take keys do now (a world card's keys row; the HUD's old card's hint, as cards). */
+/** What the take keys do now (a world card's keys, under it). */
 struct FGunCardKeys
 {
 	/** The Interact key's name ("E"). */
@@ -30,57 +31,63 @@ struct FGunCardKeys
 };
 
 /**
- * The gun card's rules (Docs/Work/2026-10-28-UICharacter/CONTRACT.md), apart from the widget so the tests can check them:
- * what it shows (only what decides a pick: the damage, three bars, one special line, a verdict) and how its intro moves.
+ * The gun card's rules (the tag card, the user's pick 2026-10-28 evening; Docs/Work/2026-10-28-UICharacter/CONTRACT.md
+ * "Round 2"), apart from the widget so the tests can check them: a stat list with values and arrows, bullet lines, a
+ * flavour line, the maker's badge and the element; how its intro moves.
  */
 namespace GunCardRules
 {
-	/** The three bars every card shows, in order: fire rate, magazine, reload (the rest wait behind the inventory's Inspect). */
-	AI_LOOTER_SHOOTER_API TConstArrayView<LoadoutRules::EStat> CardStats();
+	/** The stats a card lists, in order: damage, accuracy, handling, reload, fire rate, magazine, and zoom on a scoped gun. */
+	AI_LOOTER_SHOOTER_API TArray<LoadoutRules::EStat> CardStats(const FWeaponStats& Stats);
 
-	/** The value after a bar: "45 RPM", "5", "3.1 s". */
-	AI_LOOTER_SHOOTER_API FString StatValueText(LoadoutRules::EStat Stat, const FWeaponStats& Stats);
-
-	/** "FIRE RATE", "MAGAZINE", "RELOAD". */
+	/** "Damage", "Accuracy", "Handling", "Reload", "Fire rate", "Magazine", "Zoom". */
 	AI_LOOTER_SHOOTER_API FString StatLabel(LoadoutRules::EStat Stat);
 
-	/** The one special line: the gun's element, else its part effect, else its curse, else its notches; empty for none. */
-	struct FSpecialLine
-	{
-		/** "EMBER", "RICOCHET", "HUNGRY", "12 NOTCHES". */
-		FString Word;
-		/** What it does ("sets them alight"); may be empty (notches). */
-		FString Words;
-		/** The word's colour (the element's own, the accent for an effect, the curse's, a notch tier's). */
-		FLinearColor Color = FLinearColor::White;
-		bool IsSet() const { return !Word.IsEmpty(); }
-	};
-	AI_LOOTER_SHOOTER_API FSpecialLine SpecialLine(const FWeaponInstanceData& Gun);
+	/** The value on its row: "34" or "21 × 8", "81%", "58%", "2.2 s", "540 rpm", "30", "6×". */
+	AI_LOOTER_SHOOTER_API FString StatValueText(LoadoutRules::EStat Stat, const FWeaponStats& Stats);
 
-	/** "UPGRADE" for an upgrade, empty otherwise (a card only ever boasts; Similar and Weaker show through the arrows). */
-	AI_LOOTER_SHOOTER_API FString VerdictWord(LoadoutRules::EVerdict Verdict);
+	/**
+	 * The card's bullet lines, in order: what its element does, its part effect, its maker's trait with its two biggest
+	 * numbers, its curse's perk and drawback, its notches. Empty for a plain gun with no maker.
+	 */
+	AI_LOOTER_SHOOTER_API TArray<FString> Lines(const FWeaponInstanceData& Gun);
 
-	/** "Level 6 · Pump shotgun". */
+	/** "True Glass: accuracy +30%, range +20%": the maker's trait and its two biggest changes; empty without a maker. */
+	AI_LOOTER_SHOOTER_API FString MakerTraitLine(const FWeaponInstanceData& Gun);
+
+	/** The italic flavour line (a named gun's own words); empty for most guns. */
+	AI_LOOTER_SHOOTER_API FString FlavorLine(const FWeaponInstanceData& Gun);
+
+	/** "Roundhouse · Assault Rifle" (the rarity's word for a gun with no maker). */
 	AI_LOOTER_SHOOTER_API FString KindLine(const FWeaponInstanceData& Gun);
 
-	/** The damage as the card's big number ("14") and its pellets ("×8"; empty for one). */
-	AI_LOOTER_SHOOTER_API FString DamageNumber(const FWeaponInstanceData& Gun);
-	AI_LOOTER_SHOOTER_API FString PelletText(const FWeaponInstanceData& Gun);
+	/**
+	 * What a world card compares with (the user's call, 2026-10-28: compare like with like): the gun in hand when it's the
+	 * same kind, else the first carried gun of that kind (in the order given), else nothing.
+	 */
+	AI_LOOTER_SHOOTER_API const FWeaponInstanceData* PickCompare(const FWeaponInstanceData& Gun, const FWeaponInstanceData* InHand,
+		TConstArrayView<const FWeaponInstanceData*> Carried);
 
-	/** One key cap and its word on a world card's keys row. */
+	/** Same kind of gun (both have a definition of one kind). */
+	AI_LOOTER_SHOOTER_API bool SameKind(const FWeaponInstanceData& A, const FWeaponInstanceData& B);
+
+	/** "UPGRADE" for an upgrade, empty otherwise (not drawn on the tag card; the inventory reads it). */
+	AI_LOOTER_SHOOTER_API FString VerdictWord(LoadoutRules::EVerdict Verdict);
+
+	/** One key cap and its word under a world card. */
 	struct FKeyHint
 	{
-		/** "E", or "HOLD E" for the hold. */
+		/** "E", or "HOLD E" for the hold; empty for a word alone ("BACKPACK FULL"). */
 		FString Cap;
 		/** "TAKE", "EQUIP", "SWAP", "TO BACKPACK". */
 		FString Word;
 		/** The hold: its cap fills as the hold runs. */
 		bool bHold = false;
-		/** Said dimmer (the second choice, or the warning "BACKPACK FULL"). */
+		/** Said dimmer (the warning "BACKPACK FULL"). */
 		bool bDim = false;
 	};
 	/**
-	 * A world card's keys: free slot "[E] TAKE  [HOLD E] EQUIP"; slots full "[E] TO BACKPACK  [HOLD E] EQUIP"; backpack full too
+	 * The keys: free slot "[E] TAKE  [HOLD E] EQUIP"; slots full "[E] TO BACKPACK  [HOLD E] EQUIP"; backpack full too
 	 * "[E] SWAP  BACKPACK FULL" (the gun in hand drops), the take rules of UWeaponManagerComponent.
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FKeyHint> KeyHints(const FGunCardKeys& Keys);
@@ -92,24 +99,19 @@ namespace GunCardRules
 	AI_LOOTER_SHOOTER_API float UnfoldScale(float Age);
 	AI_LOOTER_SHOOTER_API float UnfoldOpacity(float Age);
 
-	/** Bar Index's fill share (0-1, eased out): each starts BarStagger after the last and takes BarSeconds. */
-	inline constexpr float BarDelay = 0.08f;
-	inline constexpr float BarStagger = 0.06f;
-	inline constexpr float BarSeconds = 0.16f;
-	AI_LOOTER_SHOOTER_API float BarShare(float Age, int32 Index);
+	/** The rows come in one after another: row Index's share (0-1, eased out), RowStagger after the last, RowSeconds each. */
+	inline constexpr float RowDelay = 0.06f;
+	inline constexpr float RowStagger = 0.035f;
+	inline constexpr float RowSeconds = 0.14f;
+	AI_LOOTER_SHOOTER_API float RowShare(float Age, int32 Index);
 
 	/** The damage counting up: its share of the value (0-1, eased out) over CountSeconds. */
 	inline constexpr float CountSeconds = 0.25f;
 	AI_LOOTER_SHOOTER_API float CountShare(float Age);
 
-	/** The shine across the sweep (Epic and Legendary): where it is, 0 to 1 along the band, between ShineStart and ShineEnd; <0 before, >1 after. */
-	inline constexpr float ShineStart = 0.30f;
-	inline constexpr float ShineEnd = 0.65f;
-	AI_LOOTER_SHOOTER_API float ShinePosition(float Age);
+	/** The gem's pop as the card lands (scale; 1 at rest). */
+	AI_LOOTER_SHOOTER_API float GemPop(float Age);
 
 	/** The whole intro has run (nothing moves after this). */
-	inline constexpr float IntroSeconds = 0.70f;
-
-	/** A gun this rare gets the shine. */
-	AI_LOOTER_SHOOTER_API bool HasShine(const FWeaponInstanceData& Gun);
+	inline constexpr float IntroSeconds = 0.55f;
 }

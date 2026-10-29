@@ -58,7 +58,7 @@ UWidget* UWeaponLabelWidget::BuildFocusStack()
 	AddCentred(Card, 0.f);
 
 	// The tether from the card's foot down to the diamond: what ties the card to its gun among others lying near.
-	UImage* Tether = MakeImage(WidgetTree, RectBrush(Color::CardLine()));
+	UImage* Tether = MakeImage(WidgetTree, RectBrush(Color::SaltLine()));
 	AddCentred(MakeSized(WidgetTree, Tether, TetherWidth, TetherLength), 0.f);
 	TetherDiamond = MakeImage(WidgetTree, TetherDiamondBrush());
 	AddCentred(MakeSized(WidgetTree, TetherDiamond, DiamondSize, DiamondSize), 0.f);
@@ -103,19 +103,36 @@ void UWeaponLabelWidget::UpdateCard(const UWeaponManagerComponent* Manager, cons
 		return;
 	}
 
-	// Compared with the gun in hand: set again only when the gun or the hand changes (setting it rewrites the card).
+	// Compared like with like (the user's call, 2026-10-28): the gun in hand if it's this kind, else the first carried gun
+	// of this kind (the slots, then the backpack), else nothing. SetGun returns at once when nothing changed.
 	const AWeaponBase* InHand = Manager ? Manager->GetActiveWeapon() : nullptr;
 	if (InHand == Weapon.Get())
 	{
 		InHand = nullptr;
 	}
-	const bool bHandChanged = ComparedWith.Get() != InHand || bCompared != (InHand != nullptr);
-	if (bCardStale || bHandChanged)
+	TArray<const FWeaponInstanceData*> Carried;
+	if (Manager)
+	{
+		for (const AWeaponBase* SlotGun : Manager->GetWeapons())
+		{
+			if (SlotGun && SlotGun != Weapon.Get())
+			{
+				Carried.Add(&SlotGun->GetInstance());
+			}
+		}
+		for (const FWeaponInstanceData& Stored : Manager->GetBackpack())
+		{
+			Carried.Add(&Stored);
+		}
+	}
+	const FWeaponInstanceData* Against = GunCardRules::PickCompare(Gun, InHand ? &InHand->GetInstance() : nullptr, Carried);
+	const bool bChanged = Card->SetGun(Gun, Against, EGunCardMode::World);
+	if (bCardStale || bChanged)
 	{
 		bCardStale = false;
 		ComparedWith = InHand;
-		bCompared = InHand != nullptr;
-		if (Card->SetGun(Gun, InHand ? &InHand->GetInstance() : nullptr, EGunCardMode::World))
+		bCompared = Against != nullptr;
+		if (bChanged)
 		{
 			bIntroPending = true;
 		}

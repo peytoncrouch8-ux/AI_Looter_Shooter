@@ -12,7 +12,12 @@ enum class ELooterBackdropShape : uint8
 	/** A card: top-right and bottom-left cut 16 px; the maker's sweep top-left; hairlines along the top and the cuts. */
 	Card,
 	/** A list row: the top-right cut 12 px; lit, an orange wash with an orange outline. */
-	Row
+	Row,
+	/**
+	 * The gun card's tag (the user's pick, 2026-10-28 evening): the pennant's notch on top, the toe tag's cut shoulders and
+	 * its point down to the gun, a 4 px salt line round it, the level's gem set in the notch. Slate & Salt colours.
+	 */
+	Tag
 };
 
 /** Which part of the shape a backdrop paints: the glass (a background: it fades with the UI transparency) or its lines. */
@@ -85,6 +90,23 @@ namespace LooterBackdrop
 	inline constexpr float SweepShare = 0.657f;
 	/** The lines' width. */
 	inline constexpr float LineWidth = 2.f;
+
+	/** The tag's room above its top edge for the level gem, its shoulders' cut, its point's depth, its notch, its line. */
+	inline constexpr float TagTop = 16.f;
+	inline constexpr float TagShoulder = 26.f;
+	inline constexpr float TagPoint = 28.f;
+	inline constexpr float TagNotchOuter = 46.f;
+	inline constexpr float TagNotchInner = 34.f;
+	inline constexpr float TagNotchDepth = 11.f;
+	inline constexpr float TagLine = 4.f;
+	/** The gem: a diamond this many px across, centred on the notch, its outline. */
+	inline constexpr float TagGem = 46.f;
+	inline constexpr float TagGemLine = 3.5f;
+
+	/** The tag's outline for a box of a size (its top edge TagTop down), clockwise from the left shoulder. */
+	AI_LOOTER_SHOOTER_API TArray<FVector2f> TagOutline(const FVector2f& Size);
+	/** Where the gem's centre sits in that box. */
+	AI_LOOTER_SHOOTER_API FVector2f TagGemCenter(const FVector2f& Size);
 
 	/** The card's outline, clockwise from the top-left (six points: the two cuts). */
 	AI_LOOTER_SHOOTER_API TArray<FVector2f> CardOutline(const FVector2f& Size);

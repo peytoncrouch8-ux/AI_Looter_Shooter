@@ -6,7 +6,6 @@
 #include "UI/Cards/GunCardStyle.h"
 #include "UI/Cards/GunCardWidget.h"
 #include "UI/Cards/LooterCardBackdrop.h"
-#include "UI/Cards/LooterSegmentBar.h"
 #include "Audio/LooterSoundCues.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponTypes.h"
@@ -41,14 +40,29 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunCardRulesTest, "Looter.UI.GunCard.Rules",
 
 bool FGunCardRulesTest::RunTest(const FString& Parameters)
 {
-	// Only what decides a pick: three bars.
-	const TConstArrayView<LoadoutRules::EStat> Stats = GunCardRules::CardStats();
-	if (TestEqual(TEXT("Three bars"), Stats.Num(), 3))
+	// The stat list: six rows, a scoped gun's zoom a seventh.
+	FWeaponStats Plain;
+	Plain.Damage = 21.f;
+	Plain.PelletsPerShot = 8;
+	Plain.FireRate = 66.f;
+	Plain.MagazineSize = 10;
+	Plain.ReloadTime = 1.7f;
+	Plain.Handling = 0.7f;
+	Plain.Zoom = 1.2f;
+	const TArray<LoadoutRules::EStat> Stats = GunCardRules::CardStats(Plain);
+	if (TestEqual(TEXT("Six rows"), Stats.Num(), 6))
 	{
-		TestEqual(TEXT("Fire rate first"), GunCardRules::StatLabel(Stats[0]), FString(TEXT("FIRE RATE")));
-		TestEqual(TEXT("then magazine"), GunCardRules::StatLabel(Stats[1]), FString(TEXT("MAGAZINE")));
-		TestEqual(TEXT("then reload"), GunCardRules::StatLabel(Stats[2]), FString(TEXT("RELOAD")));
+		TestEqual(TEXT("Damage first"), GunCardRules::StatLabel(Stats[0]), FString(TEXT("Damage")));
+		TestEqual(TEXT("...magazine last"), GunCardRules::StatLabel(Stats[5]), FString(TEXT("Magazine")));
 	}
+	TestEqual(TEXT("A shotgun's damage with its pellets"), GunCardRules::StatValueText(LoadoutRules::EStat::Damage, Plain), FString(TEXT("21 × 8")));
+	TestEqual(TEXT("Fire rate in rpm"), GunCardRules::StatValueText(LoadoutRules::EStat::FireRate, Plain), FString(TEXT("66 rpm")));
+	TestEqual(TEXT("Handling in percent"), GunCardRules::StatValueText(LoadoutRules::EStat::Handling, Plain), FString(TEXT("70%")));
+	TestEqual(TEXT("Reload in seconds"), GunCardRules::StatValueText(LoadoutRules::EStat::Reload, Plain), FString(TEXT("1.7 s")));
+	FWeaponStats Scoped = Plain;
+	Scoped.Zoom = 6.f;
+	TestEqual(TEXT("A scope adds its zoom"), GunCardRules::CardStats(Scoped).Num(), 7);
+	TestEqual(TEXT("...as 6x"), GunCardRules::StatValueText(LoadoutRules::EStat::Zoom, Scoped), FString(TEXT("6×")));
 	TestEqual(TEXT("An upgrade boasts"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Upgrade), FString(TEXT("UPGRADE")));
 	TestTrue(TEXT("Similar says nothing"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Similar).IsEmpty());
 	TestTrue(TEXT("Weaker says nothing (the arrows do)"), GunCardRules::VerdictWord(LoadoutRules::EVerdict::Weaker).IsEmpty());
@@ -79,21 +93,21 @@ bool FGunCardRulesTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("...the warning has no cap"), Hints[1].Cap.IsEmpty());
 	}
 
-	// The intro: snaps open with an overshoot, bars one after another, the count, the shine.
+	// The intro: snaps open with an overshoot, rows one after another, the count, the gem's pop.
 	TestNearlyEqual(TEXT("Starts folded"), GunCardRules::UnfoldScale(0.f), 0.15f, 0.001f);
 	TestTrue(TEXT("Overshoots"), GunCardRules::UnfoldScale(0.08f) > 1.f);
 	TestNearlyEqual(TEXT("Settles whole"), GunCardRules::UnfoldScale(GunCardRules::UnfoldSeconds), 1.f, 0.001f);
-	TestTrue(TEXT("The first bar fills before the second"), GunCardRules::BarShare(0.15f, 0) > GunCardRules::BarShare(0.15f, 1));
-	TestNearlyEqual(TEXT("Every bar full by the end"), GunCardRules::BarShare(GunCardRules::IntroSeconds, 2), 1.f, 0.001f);
+	TestTrue(TEXT("The first row comes in before the second"), GunCardRules::RowShare(0.12f, 0) > GunCardRules::RowShare(0.12f, 1));
+	TestNearlyEqual(TEXT("Every row in by the end"), GunCardRules::RowShare(GunCardRules::IntroSeconds, 6), 1.f, 0.001f);
 	TestNearlyEqual(TEXT("The count done"), GunCardRules::CountShare(GunCardRules::CountSeconds), 1.f, 0.001f);
-	TestTrue(TEXT("No shine at first"), GunCardRules::ShinePosition(0.1f) < 0.f);
-	TestTrue(TEXT("The shine crosses midway"), GunCardRules::ShinePosition(0.5f) > 0.f && GunCardRules::ShinePosition(0.5f) < 1.f);
+	TestNearlyEqual(TEXT("The gem at rest at first"), GunCardRules::GemPop(0.f), 1.f, 0.001f);
+	TestTrue(TEXT("...it pops as the card lands"), GunCardRules::GemPop(0.38f) > 1.05f);
 
-	// The bar's segments.
-	TestEqual(TEXT("Nothing lights none"), LooterSegmentBarRules::LitSegments(0.f), 0);
-	TestEqual(TEXT("A sliver lights one"), LooterSegmentBarRules::LitSegments(0.01f), 1);
-	TestEqual(TEXT("Half lights five"), LooterSegmentBarRules::LitSegments(0.5f), 5);
-	TestEqual(TEXT("Full lights ten"), LooterSegmentBarRules::LitSegments(1.f), 10);
+	// The tag: eleven corners (shoulders, notch, point), its gem over the notch.
+	const TArray<FVector2f> Tag = LooterBackdrop::TagOutline(FVector2f(470.f, 500.f));
+	TestEqual(TEXT("The tag's corners"), Tag.Num(), 11);
+	TestNearlyEqual(TEXT("...its point at the foot's middle"), Tag[9].X, 235.f, 0.01f);
+	TestNearlyEqual(TEXT("...the gem centred"), LooterBackdrop::TagGemCenter(FVector2f(470.f, 500.f)).X, 235.f, 0.01f);
 
 	// The shapes.
 	const TArray<FVector2f> Card = LooterBackdrop::CardOutline(FVector2f(420.f, 200.f));
@@ -160,13 +174,14 @@ bool FGunCardWidgetTest::RunTest(const FString& Parameters)
 	const FWeaponInstanceData InHand = MakeGun(Shotgun, TEXT("Meridian"), EWeaponRarity::Uncommon, 9.f, 8, 80.f, 6, 2.6f, 202);
 	TestTrue(TEXT("A first gun is new"), Card->SetGun(Loot, &InHand, EGunCardMode::World));
 	TestFalse(TEXT("...the same again isn't"), Card->SetGun(Loot, &InHand, EGunCardMode::World));
-	TestEqual(TEXT("The maker's word on the sweep"), Card->GetMakerText().ToString(), FString(TEXT("ROUNDHOUSE")));
-	TestEqual(TEXT("Three bars"), Card->GetStatCount(), 3);
-	TestEqual(TEXT("Fire rate's value after its bar"), Card->GetStatValueText(0).ToString(), FString(TEXT("70 RPM")));
-	TestEqual(TEXT("...the magazine's"), Card->GetStatValueText(1).ToString(), FString(TEXT("8")));
-	TestEqual(TEXT("...the reload's"), Card->GetStatValueText(2).ToString(), FString(TEXT("2.2 s")));
+	TestEqual(TEXT("The maker's word on its badge"), Card->GetMakerText().ToString(), FString(TEXT("ROUNDHOUSE")));
+	TestEqual(TEXT("Six rows"), Card->GetStatCount(), 6);
+	TestEqual(TEXT("Fire rate's value"), Card->GetStatValueText(4).ToString(), FString(TEXT("70 rpm")));
+	TestEqual(TEXT("...the magazine's"), Card->GetStatValueText(5).ToString(), FString(TEXT("8")));
+	TestEqual(TEXT("...the reload's"), Card->GetStatValueText(3).ToString(), FString(TEXT("2.2 s")));
 	TestEqual(TEXT("A better shotgun is an upgrade"), Card->GetVerdictText().ToString(), FString(TEXT("UPGRADE")));
-	TestTrue(TEXT("...the bars show the gun in hand's tick"), Card->GetBar(0) && Card->GetBar(0)->GetTick() >= 0.f);
+	TestTrue(TEXT("...compared: its damage arrow is up"), Card->HasCompare() && Card->GetStatArrowText(0).ToString().Equals(TEXT("▲")));
+	TestTrue(TEXT("...a maker's trait line"), Card->GetLines().ContainsByPredicate([](const FString& Line) { return Line.Contains(TEXT("Rolling Stock")); }));
 	TestEqual(TEXT("It opens with its maker's sound"), Card->GetMakerCue(), FName(LooterSoundCue::Card::Maker::Roundhouse));
 
 	FGunCardKeys Keys;
@@ -180,19 +195,29 @@ bool FGunCardWidgetTest::RunTest(const FString& Parameters)
 	// The intro counts the damage up and ends whole.
 	Card->PlayIntro(false);
 	TestTrue(TEXT("The intro runs"), Card->IsIntroPlaying());
-	TestEqual(TEXT("...counting from nothing"), Card->GetDamageText().ToString(), FString(TEXT("0")));
+	TestEqual(TEXT("...counting from nothing"), Card->GetDamageText().ToString(), FString(TEXT("0 × 8")));
 	for (int32 Step = 0; Step < 20; ++Step)
 	{
 		Card->AdvanceIntro(0.05f);
 	}
 	TestFalse(TEXT("...and ends"), Card->IsIntroPlaying());
-	TestEqual(TEXT("...on the gun's damage"), Card->GetDamageText().ToString(), FString(TEXT("14")));
+	TestEqual(TEXT("...on the gun's damage"), Card->GetDamageText().ToString(), FString(TEXT("14 × 8")));
 
 	// In hand: nothing compared, no keys.
 	TestTrue(TEXT("Another mode is new"), Card->SetGun(InHand, nullptr, EGunCardMode::InHand));
 	TestTrue(TEXT("No verdict in hand"), Card->GetVerdictText().IsEmpty());
 	TestEqual(TEXT("No keys in hand"), Card->GetKeyCaps().Num(), 0);
-	TestTrue(TEXT("No tick in hand"), Card->GetBar(0) && Card->GetBar(0)->GetTick() < 0.f);
+	TestFalse(TEXT("No arrows in hand"), Card->HasCompare() || !Card->GetStatArrowText(0).IsEmpty());
+
+	// Like with like: a rifle in hand isn't held against a shotgun; a carried shotgun is.
+	UWeaponDefinition* Rifle = LoadObject<UWeaponDefinition>(nullptr, TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"));
+	if (TestNotNull(TEXT("The rifle's data"), Rifle))
+	{
+		const FWeaponInstanceData Held = MakeGun(Rifle, TEXT("Meridian"), EWeaponRarity::Common, 30.f, 1, 540.f, 30, 2.2f, 303);
+		TestNull(TEXT("A rifle in hand: no compare for a shotgun"), GunCardRules::PickCompare(Loot, &Held, {}));
+		const FWeaponInstanceData* Carried[] = { &InHand };
+		TestTrue(TEXT("...a shotgun carried: that one"), GunCardRules::PickCompare(Loot, &Held, Carried) == &InHand);
+	}
 	return true;
 }
 

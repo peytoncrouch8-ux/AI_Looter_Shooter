@@ -82,3 +82,21 @@ See `Source/AI_Looter_Shooter/UI/Cards/*.h`. In short:
 - `UGunCardWidget::SetGun(const FWeaponInstanceData& Gun, const FWeaponInstanceData* Compare, EGunCardMode Mode)`,
   `SetKeys(const FGunCardKeys&)` (World), `PlayIntro(bool bWithSound)`, `GetCardWidth(Mode)`.
 - `ULooterCardBackdrop`: `SetShape(ELooterBackdropShape)`, `SetPart(ELooterBackdropPart)`, `SetLit(bool)`, `SetSweep(...)`.
+
+## Round 2: the tag card (the user's picks, 2026-10-28 evening, mockups numbers/left/ideas/list/compact/themes/bold/tags/mix/dist/colors)
+
+Replaces the Wide Sweep card's body. Final: `mockup/dist.png` concept C, shape of `mockup/mix.png`, colours `mockup/colors.png` 6.
+- Layout like Borderlands' item card (the user's screenshots; our own art): name, an italic "Maker · Kind" line, a stat list
+  (icon, label, value, arrow): Damage ("34" / "21 × 8"), Accuracy %, Handling %, Reload "2.2 s", Fire rate "540 rpm", Magazine,
+  Zoom "6×" on scoped guns; banded rows; an ornament (rule, diamond, rule); bullet lines (element, part effect, maker trait with
+  its two biggest numbers, curse perk and drawback, notches); a flavour line (italic, named guns' own); the foot: the maker's
+  rounded badge (its plates, trim outline, mark, word) and the element's icon. No silver value ("remove the value").
+- Shape: the pennant's top notch, the toe tag's cut shoulders (26 px) and one point down to the gun (28 px); 4 px outline;
+  the level as a gem (44 px diamond, 3.5 px outline) set in the notch. Bold: name 26-27, labels 16, values 20, lines 15.
+- Colours "Slate & Salt": glass rgba(30,34,40,.95) to rgba(18,21,26,.93), lines #d4eef4, accent (gem, keys) #ffe6a6, labels
+  #b4bec8, text #f2f6f8, flavour #ffd38a, icons #98a4ae, row bands rgba(212,238,244,.06). Rarity and maker colours stay.
+  The user picked it for the UI ("which colours should the UI use?"): later rounds carry it to the HUD, menus, inventory.
+- Keys under the card: hollow round-cornered caps (3.5 px, the accent), "E TAKE   HOLD E EQUIP".
+- Compare like with like: a world card compares with the carried gun of the same kind (the one in hand first, then the slots);
+  none carried: no arrows, no verdict. Dropped: bars (and so per-kind bar scaling), the UPGRADE corner word, the sweep.
+- Not built unless asked: the rarity glow, the mid-range card (name and damage from afar).

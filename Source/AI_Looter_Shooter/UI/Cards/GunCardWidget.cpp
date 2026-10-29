@@ -1,35 +1,39 @@
 #include "UI/Cards/GunCardWidget.h"
+#include "Elements/ElementRules.h"
+#include "UI/Cards/GunCardIcons.h"
 #include "UI/Cards/GunCardStyle.h"
 #include "UI/Cards/LooterCardBackdrop.h"
 #include "UI/Cards/LooterHollowKey.h"
-#include "UI/Cards/LooterSegmentBar.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
+#include "Weapons/WeaponParts.h"
 #include "Blueprint/WidgetTree.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
+#include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
+#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 
-// The gun card's build and words (its intro: GunCardWidgetMotion.cpp). Sizes are the mockup's px (Docs/Work/
-// 2026-10-28-UICharacter/mockup/wide.png), used as Slate sizes the way the HUD's are (CLAUDE.md, UI rules).
+// The tag card's build and words (its intro: GunCardWidgetMotion.cpp). Sizes follow the mockup (Docs/Work/
+// 2026-10-28-UICharacter/mockup/dist.png concept C, colors.png theme 6) at the HUD's text scale.
 
 using namespace LooterUI;
 
 namespace
 {
-	constexpr float LeftColumn = 140.f;
-	constexpr float StatLabelWidth = 86.f;
-	/** The value after each bar ("45 RPM", "5", "3.1 s": the user's pick A, 2026-10-28). */
-	constexpr float ValueWidth = 62.f;
-	constexpr float ArrowWidth = 14.f;
+	constexpr float IconSize = 18.f;
+	constexpr float ArrowWidth = 18.f;
+	/** Italic by shear: Chakra Petch ships no italic. */
+	constexpr float ItalicShear = -12.f;
 
-	UTextBlock* Words(UWidgetTree* Tree, int32 Size, const FLinearColor& Tint, bool bBold, int32 Spacing = 0)
+	UTextBlock* Words(UWidgetTree* Tree, int32 Size, const FLinearColor& Tint, bool bBold = true, int32 Spacing = 0)
 	{
 		UTextBlock* Text = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Text->SetFont(Font(Size, bBold, Spacing));
@@ -54,10 +58,26 @@ namespace
 		}
 	}
 
+	void Italic(UWidget* Widget)
+	{
+		FWidgetTransform Transform;
+		Transform.Shear = FVector2D(ItalicShear, 0.f);
+		Widget->SetRenderTransform(Transform);
+	}
+
 	/** The same gun, as the card sees it: a new seed, kind, level or rarity is another gun (its intro plays again). */
 	bool SameGun(const FWeaponInstanceData& A, const FWeaponInstanceData& B)
 	{
 		return A.Seed == B.Seed && A.Definition == B.Definition && A.Level == B.Level && A.Rarity == B.Rarity && A.Named == B.Named;
+	}
+
+	/** A thin rule of the ornament, fading out at its far end. */
+	UImage* Rule(UWidgetTree* Tree)
+	{
+		UImage* Image = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+		Image->SetBrush(RectBrush(Color::SoulGold().CopyWithNewOpacity(0.55f)));
+		Image->SetDesiredSizeOverride(FVector2D(10.f, 2.f));
+		return Image;
 	}
 }
 
@@ -85,105 +105,86 @@ void UGunCardWidget::EnsureBuilt()
 	}
 	UWidgetTree* Tree = WidgetTree;
 
-	// The sweep's row: the maker's mark and word on the left, the verdict or the quirk on the right.
-	UOverlay* Top = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	UHorizontalBox* MakerRow = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	MakerMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-	MakerRow->AddChildToHorizontalBox(MakeSized(Tree, MakerMark, 15.f, 15.f))->SetVerticalAlignment(VAlign_Center);
-	MakerText = Words(Tree, 11, Color::Text(), true, 250);
-	MakerRow->AddChildToHorizontalBox(MakerText)->SetPadding(FMargin(7.f, 0.f, 0.f, 0.f));
-	UOverlaySlot* MakerSlot = Top->AddChildToOverlay(MakerRow);
-	MakerSlot->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
-	MakerSlot->SetVerticalAlignment(VAlign_Center);
-	CornerText = Words(Tree, 12, Color::Better(), true, 200);
-	UOverlaySlot* CornerSlot = Top->AddChildToOverlay(CornerText);
-	CornerSlot->SetHorizontalAlignment(HAlign_Right);
-	CornerSlot->SetVerticalAlignment(VAlign_Center);
-	CornerSlot->SetPadding(FMargin(0.f, 0.f, 22.f, 0.f));
-
-	UVerticalBox* Body = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	NameText = Words(Tree, 20, Color::Text(), true, 50);
-	Body->AddChildToVerticalBox(NameText);
-	KindText = Words(Tree, 13, Color::TextDim(), false, 50);
-	Body->AddChildToVerticalBox(KindText);
-
-	// Two columns: the damage on the left, the three bars on the right.
-	UHorizontalBox* Columns = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UVerticalBox* Damage = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	UHorizontalBox* Number = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	DamageText = Words(Tree, 40, Color::Text(), true);
-	Number->AddChildToHorizontalBox(DamageText)->SetVerticalAlignment(VAlign_Bottom);
-	PelletText = Words(Tree, 18, Color::Text(), true);
-	Number->AddChildToHorizontalBox(PelletText)->SetPadding(FMargin(2.f, 0.f, 0.f, 6.f));
-	Damage->AddChildToVerticalBox(Number);
-	UHorizontalBox* Under = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	DamageLabel = Words(Tree, 11, Color::TextDim(), false, 200);
-	DamageLabel->SetText(FText::FromString(TEXT("DAMAGE")));
-	Under->AddChildToHorizontalBox(DamageLabel)->SetVerticalAlignment(VAlign_Center);
-	DamageDelta = Words(Tree, 15, Color::Better(), true);
-	Under->AddChildToHorizontalBox(DamageDelta)->SetPadding(FMargin(6.f, 0.f, 0.f, 0.f));
-	Damage->AddChildToVerticalBox(Under)->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
-	Columns->AddChildToHorizontalBox(MakeSized(Tree, Damage, LeftColumn));
-
-	UVerticalBox* Stats = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	for (const LoadoutRules::EStat Stat : GunCardRules::CardStats())
-	{
-		UHorizontalBox* Row = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UTextBlock* Label = Words(Tree, 11, Color::TextDim(), false, 100);
-		Label->SetText(FText::FromString(GunCardRules::StatLabel(Stat)));
-		Row->AddChildToHorizontalBox(MakeSized(Tree, Label, StatLabelWidth))->SetVerticalAlignment(VAlign_Center);
-		ULooterSegmentBar* Bar = Tree->ConstructWidget<ULooterSegmentBar>(ULooterSegmentBar::StaticClass());
-		UHorizontalBoxSlot* BarSlot = Row->AddChildToHorizontalBox(Bar);
-		BarSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		BarSlot->SetVerticalAlignment(VAlign_Center);
-		BarSlot->SetPadding(FMargin(0.f, 0.f, 7.f, 0.f));
-		UTextBlock* Value = Words(Tree, 12, Color::Text(), true);
-		Value->SetJustification(ETextJustify::Right);
-		Row->AddChildToHorizontalBox(MakeSized(Tree, Value, ValueWidth))->SetVerticalAlignment(VAlign_Center);
-		UTextBlock* Arrow = Words(Tree, 12, Color::Better(), true);
-		Arrow->SetJustification(ETextJustify::Right);
-		Row->AddChildToHorizontalBox(MakeSized(Tree, Arrow, ArrowWidth))->SetVerticalAlignment(VAlign_Center);
-		Stats->AddChildToVerticalBox(Row)->SetPadding(FMargin(0.f, StatLabels.Num() == 0 ? 4.f : 5.f, 0.f, 0.f));
-		StatLabels.Add(Label);
-		Bars.Add(Bar);
-		Values.Add(Value);
-		Arrows.Add(Arrow);
-	}
-	UHorizontalBoxSlot* StatsSlot = Columns->AddChildToHorizontalBox(Stats);
-	StatsSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	StatsSlot->SetPadding(FMargin(18.f, 0.f, 0.f, 0.f));
-	Body->AddChildToVerticalBox(Columns)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
-
-	// The one special line: its word in its colour, what it does after it.
-	UHorizontalBox* Special = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	SpecialWord = Words(Tree, 13, Color::Accent(), true, 50);
-	Special->AddChildToHorizontalBox(SpecialWord);
-	SpecialWords = Words(Tree, 13, Color::TextDim(), false);
-	SpecialWords->SetAutoWrapText(true);
-	UHorizontalBoxSlot* WordsSlot = Special->AddChildToHorizontalBox(SpecialWords);
-	WordsSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	WordsSlot->SetPadding(FMargin(6.f, 0.f, 0.f, 0.f));
-	SpecialRow = Special;
-	Body->AddChildToVerticalBox(Special)->SetPadding(FMargin(0.f, 7.f, 0.f, 0.f));
-
-
 	UVerticalBox* Content = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Content->AddChildToVerticalBox(MakeSized(Tree, Top, 0.f, LooterBackdrop::SweepHeight));
-	Content->AddChildToVerticalBox(Body)->SetPadding(FMargin(18.f, 8.f, 18.f, 14.f));
+	NameText = Words(Tree, 21, Color::SlateText(), true, 50);
+	NameText->SetJustification(ETextJustify::Center);
+	NameText->SetAutoWrapText(true);
+	Content->AddChildToVerticalBox(NameText);
+	KindText = Words(Tree, 12, Color::SlateLabel(), true, 50);
+	KindText->SetJustification(ETextJustify::Center);
+	Italic(KindText);
+	Content->AddChildToVerticalBox(KindText)->SetPadding(FMargin(0.f, 1.f, 0.f, 0.f));
 
+	StatsBox = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Content->AddChildToVerticalBox(StatsBox)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
+
+	// The ornament: a rule, a diamond, a rule.
+	UHorizontalBox* Orn = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	UHorizontalBoxSlot* LeftRule = Orn->AddChildToHorizontalBox(Rule(Tree));
+	LeftRule->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	LeftRule->SetVerticalAlignment(VAlign_Center);
+	UImage* Diamond = MakeImage(Tree, IconBrush(TEXT("GunCardDiamond"), GunCardIcons::Diamond(), 3.f, FVector2D(16.f, 16.f), Color::SoulGold()));
+	Orn->AddChildToHorizontalBox(Diamond)->SetPadding(FMargin(8.f, 0.f));
+	UHorizontalBoxSlot* RightRule = Orn->AddChildToHorizontalBox(Rule(Tree));
+	RightRule->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	RightRule->SetVerticalAlignment(VAlign_Center);
+	Ornament = Orn;
+	Content->AddChildToVerticalBox(Orn)->SetPadding(FMargin(0.f, 10.f, 0.f, 8.f));
+
+	LinesBox = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Content->AddChildToVerticalBox(LinesBox);
+	FlavorText = Words(Tree, 13, Color::SlateFlavor(), true);
+	FlavorText->SetAutoWrapText(true);
+	Italic(FlavorText);
+	Content->AddChildToVerticalBox(FlavorText)->SetPadding(FMargin(4.f, 4.f, 0.f, 0.f));
+
+	// The foot: the maker's badge and the element's glyph, centred.
+	UHorizontalBox* Foot = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	MakerBadge = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	MakerBadge->SetPadding(FMargin(10.f, 3.f, 14.f, 4.f));
+	UHorizontalBox* BadgeRow = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	MakerMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+	BadgeRow->AddChildToHorizontalBox(MakeSized(Tree, MakerMark, 15.f, 15.f))->SetVerticalAlignment(VAlign_Center);
+	MakerText = Words(Tree, 11, Color::Text(), true, 250);
+	BadgeRow->AddChildToHorizontalBox(MakerText)->SetPadding(FMargin(7.f, 0.f, 0.f, 0.f));
+	MakerBadge->SetContent(BadgeRow);
+	Foot->AddChildToHorizontalBox(MakerBadge)->SetVerticalAlignment(VAlign_Center);
+	ElementIcon = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+	Foot->AddChildToHorizontalBox(ElementIcon)->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
+	UVerticalBoxSlot* FootSlot = Content->AddChildToVerticalBox(Foot);
+	FootSlot->SetHorizontalAlignment(HAlign_Center);
+	FootSlot->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
+
+	// The tag: glass and line under the content; the gem's number over the notch.
 	ULooterCardBackdrop* OutFill = nullptr;
 	ULooterCardBackdrop* OutLines = nullptr;
-	UOverlay* Card = ULooterCardBackdrop::MakeLayered(Tree, ELooterBackdropShape::Card, Content, FMargin(0.f), OutFill, OutLines);
+	const float Top = LooterBackdrop::TagTop + 32.f;
+	UOverlay* Card = ULooterCardBackdrop::MakeLayered(Tree, ELooterBackdropShape::Tag, Content,
+		FMargin(24.f, Top, 24.f, LooterBackdrop::TagPoint + 16.f), OutFill, OutLines);
 	Fill = OutFill;
 	Lines = OutLines;
+	GemText = Words(Tree, 15, Color::SoulGold(), true);
+	GemText->SetJustification(ETextJustify::Center);
+	// The number centred in the gem's box.
+	UOverlay* GemMiddle = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+	UOverlaySlot* NumberSlot = GemMiddle->AddChildToOverlay(GemText);
+	NumberSlot->SetHorizontalAlignment(HAlign_Center);
+	NumberSlot->SetVerticalAlignment(VAlign_Center);
+	USizeBox* GemBox = MakeSized(Tree, GemMiddle, LooterBackdrop::TagGem, LooterBackdrop::TagGem);
+	Gem = GemBox;
+	UOverlaySlot* GemSlot = Card->AddChildToOverlay(GemBox);
+	GemSlot->SetHorizontalAlignment(HAlign_Center);
+	GemSlot->SetVerticalAlignment(VAlign_Top);
+	GemSlot->SetPadding(FMargin(0.f, LooterBackdrop::TagTop + LooterBackdrop::TagNotchDepth * 0.5f - LooterBackdrop::TagGem * 0.5f, 0.f, 0.f));
 	Box = MakeSized(Tree, Card, CardWidth(Mode));
+
 	// The take keys float under the card, outside its glass (the user, 2026-10-28: "like Borderlands"), centred on it.
 	UVerticalBox* Stack = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Stack->AddChildToVerticalBox(Box);
 	KeysRow = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	UVerticalBoxSlot* KeysSlot = Stack->AddChildToVerticalBox(KeysRow);
 	KeysSlot->SetHorizontalAlignment(HAlign_Center);
-	KeysSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+	KeysSlot->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
 	Root = Stack;
 	Root->SetVisibility(ESlateVisibility::HitTestInvisible);
 	Tree->RootWidget = Root;
@@ -192,6 +193,43 @@ void UGunCardWidget::EnsureBuilt()
 		ApplyGun();
 	}
 	ApplyIntro();
+}
+
+void UGunCardWidget::EnsureRows(int32 Count)
+{
+	UWidgetTree* Tree = WidgetTree;
+	while (RowWidgets.Num() < Count)
+	{
+		const int32 Index = RowWidgets.Num();
+		UHorizontalBox* Row = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UImage* Icon = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+		Row->AddChildToHorizontalBox(MakeSized(Tree, Icon, IconSize, IconSize))->SetVerticalAlignment(VAlign_Center);
+		UTextBlock* Label = Words(Tree, 14, Color::SlateLabel(), true, 50);
+		Row->AddChildToHorizontalBox(Label)->SetPadding(FMargin(9.f, 0.f, 0.f, 0.f));
+		Row->AddChildToHorizontalBox(Tree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		UTextBlock* Value = Words(Tree, 17, Color::SlateText(), true);
+		Value->SetJustification(ETextJustify::Right);
+		Row->AddChildToHorizontalBox(Value)->SetVerticalAlignment(VAlign_Center);
+		UTextBlock* Arrow = Words(Tree, 12, Color::Better(), true);
+		Arrow->SetJustification(ETextJustify::Right);
+		Row->AddChildToHorizontalBox(MakeSized(Tree, Arrow, ArrowWidth))->SetVerticalAlignment(VAlign_Center);
+
+		// Every other row on a faint band, rounded, so the eye keeps to its line.
+		UBorder* Band = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Band->SetBrush(FSlateRoundedBoxBrush(Index % 2 == 0 ? Color::SlateBand() : FLinearColor::Transparent, 6.f));
+		Band->SetPadding(FMargin(8.f, 3.f, 6.f, 3.f));
+		Band->SetContent(Row);
+		StatsBox->AddChildToVerticalBox(Band);
+		RowWidgets.Add(Band);
+		RowIcons.Add(Icon);
+		RowLabels.Add(Label);
+		RowValues.Add(Value);
+		RowArrows.Add(Arrow);
+	}
+	for (int32 Index = 0; Index < RowWidgets.Num(); ++Index)
+	{
+		SetShown(RowWidgets[Index], Index < Count);
+	}
 }
 
 bool UGunCardWidget::SetGun(const FWeaponInstanceData& Gun, const FWeaponInstanceData* Compare, EGunCardMode InMode)
@@ -220,14 +258,66 @@ bool UGunCardWidget::SetGun(const FWeaponInstanceData& Gun, const FWeaponInstanc
 
 void UGunCardWidget::ApplyGun()
 {
-	const GunCardStyle::FStyle& Style = GunCardStyle::For(Shown);
 	if (Box)
 	{
 		Box->SetWidthOverride(CardWidth(Mode));
 	}
-	Lines->SetSweep(&Style);
+	const GunCardStyle::FStyle& Style = GunCardStyle::For(Shown);
 
-	// The sweep: the maker's mark and word in its ink.
+	SetWords(GemText, FString::FromInt(Shown.Level));
+	SetWords(NameText, LooterWeaponText::Name(Shown).ToUpper());
+	NameText->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Shown)));
+	SetWords(KindText, GunCardRules::KindLine(Shown));
+
+	// The stat list, each against the compared gun.
+	ShownStats = GunCardRules::CardStats(Shown.Stats);
+	EnsureRows(ShownStats.Num());
+	const FWeaponInstanceData* Against = bHasCompare ? &Compared : nullptr;
+	for (int32 Index = 0; Index < ShownStats.Num(); ++Index)
+	{
+		const LoadoutRules::EStat Stat = ShownStats[Index];
+		RowIcons[Index]->SetBrush(IconBrush(GunCardIcons::StatName(Stat), GunCardIcons::Stat(Stat), 3.f, FVector2D(IconSize, IconSize), Color::SlateIcon()));
+		SetWords(RowLabels[Index], GunCardRules::StatLabel(Stat));
+		SetWords(RowValues[Index], GunCardRules::StatValueText(Stat, Shown.Stats));
+		FString Arrow;
+		if (Against)
+		{
+			const LoadoutRules::EChange Change = LoadoutRules::CompareStat(Stat, Shown.Stats, Against->Stats);
+			if (Change != LoadoutRules::EChange::Same)
+			{
+				Arrow = Change == LoadoutRules::EChange::Better ? TEXT("▲") : TEXT("▼");
+				RowArrows[Index]->SetColorAndOpacity(FSlateColor(Change == LoadoutRules::EChange::Better ? Color::Better() : Color::Worse()));
+			}
+		}
+		SetWords(RowArrows[Index], Arrow);
+	}
+
+	// The bullet lines and the flavour line.
+	const TArray<FString> Bullets = GunCardRules::Lines(Shown);
+	while (LineTexts.Num() < Bullets.Num())
+	{
+		UTextBlock* Line = Words(WidgetTree, 13, Color::SlateText(), true);
+		Line->SetAutoWrapText(true);
+		LinesBox->AddChildToVerticalBox(Line)->SetPadding(FMargin(0.f, 1.f, 0.f, 1.f));
+		LineTexts.Add(Line);
+	}
+	for (int32 Index = 0; Index < LineTexts.Num(); ++Index)
+	{
+		const bool bShownLine = Index < Bullets.Num();
+		SetShown(LineTexts[Index], bShownLine);
+		if (bShownLine)
+		{
+			SetWords(LineTexts[Index], FString(TEXT("• ")) + Bullets[Index]);
+		}
+	}
+	const FString Flavor = GunCardRules::FlavorLine(Shown);
+	SetWords(FlavorText, Flavor);
+	SetShown(FlavorText, !Flavor.IsEmpty());
+	SetShown(Ornament, Bullets.Num() > 0 || !Flavor.IsEmpty());
+
+	// The foot: the maker's badge in its first plate's colour, its trim round it; the element's glyph in its colour.
+	const FLinearColor Plate = Style.Plates.Num() > 0 ? Style.Plates[0] : Color::MakerPlain();
+	MakerBadge->SetBrush(FSlateRoundedBoxBrush(Plate, 12.f, Style.Trim, 2.f));
 	SetWords(MakerText, Style.Word.ToString());
 	MakerText->SetColorAndOpacity(FSlateColor(Style.Ink));
 	const FInkedIcon* Mark = Style.MarkIcon.IsNone() ? nullptr : FindInkedIcon(Style.MarkIcon);
@@ -236,72 +326,13 @@ void UGunCardWidget::ApplyGun()
 		MakerMark->SetBrush(InkedIconBrush(Style.MarkIcon, *Mark, FVector2D(15.f, 15.f), Style.Ink));
 	}
 	SetShown(MakerMark, Mark != nullptr);
-
-	// The verdict on a card that compares (only ever boasting: "UPGRADE"), else the maker's quirk.
-	const FWeaponInstanceData* Against = bHasCompare ? &Compared : nullptr;
-	const FString Verdict = Against ? GunCardRules::VerdictWord(LoadoutRules::Compare(Shown, Against)) : FString();
-	if (!Verdict.IsEmpty())
+	const ELooterElement Element = WeaponParts::ElementOf(Shown);
+	const FVectorIcon* ElementGlyph = GunCardIcons::Element(Element);
+	if (ElementGlyph)
 	{
-		SetWords(CornerText, FString(TEXT("▲ ")) + Verdict);
-		CornerText->SetFont(Font(12, true, 200));
-		CornerText->SetColorAndOpacity(FSlateColor(Color::Better()));
+		ElementIcon->SetBrush(IconBrush(GunCardIcons::ElementName(Element), *ElementGlyph, 3.f, FVector2D(20.f, 20.f), ElementRules::UiColor(Element)));
 	}
-	else
-	{
-		SetWords(CornerText, Style.Quirk.ToString());
-		CornerText->SetFont(Font(11, false, 150));
-		CornerText->SetColorAndOpacity(FSlateColor(Color::TextDim()));
-	}
-
-	SetWords(NameText, LooterWeaponText::Name(Shown).ToUpper());
-	NameText->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Shown)));
-	SetWords(KindText, GunCardRules::KindLine(Shown));
-
-	DamageValue = Shown.Stats.Damage;
-	PelletWords = GunCardRules::PelletText(Shown);
-	SetWords(PelletText, PelletWords);
-	SetShown(PelletText, !PelletWords.IsEmpty());
-	FString Delta;
-	if (Against)
-	{
-		const LoadoutRules::EChange Change = LoadoutRules::CompareStat(LoadoutRules::EStat::Damage, Shown.Stats, Against->Stats);
-		if (Change != LoadoutRules::EChange::Same)
-		{
-			Delta = (Change == LoadoutRules::EChange::Better ? TEXT("▲ ") : TEXT("▼ ")) +
-				LoadoutRules::DeltaText(LoadoutRules::EStat::Damage, Shown.Stats, Against->Stats);
-			DamageDelta->SetColorAndOpacity(FSlateColor(Change == LoadoutRules::EChange::Better ? Color::Better() : Color::Worse()));
-		}
-	}
-	SetWords(DamageDelta, Delta);
-	SetShown(DamageDelta, !Delta.IsEmpty());
-
-	const TConstArrayView<LoadoutRules::EStat> Stats = GunCardRules::CardStats();
-	for (int32 Index = 0; Index < Stats.Num() && Index < Bars.Num(); ++Index)
-	{
-		Bars[Index]->SetFill(LoadoutRules::StatRating(Stats[Index], Shown.Stats));
-		Bars[Index]->SetTick(Against ? LoadoutRules::StatRating(Stats[Index], Against->Stats) : -1.f);
-		SetWords(Values[Index], GunCardRules::StatValueText(Stats[Index], Shown.Stats));
-		FString Arrow;
-		if (Against)
-		{
-			const LoadoutRules::EChange Change = LoadoutRules::CompareStat(Stats[Index], Shown.Stats, Against->Stats);
-			if (Change != LoadoutRules::EChange::Same)
-			{
-				Arrow = Change == LoadoutRules::EChange::Better ? TEXT("▲") : TEXT("▼");
-				Arrows[Index]->SetColorAndOpacity(FSlateColor(Change == LoadoutRules::EChange::Better ? Color::Better() : Color::Worse()));
-			}
-		}
-		SetWords(Arrows[Index], Arrow);
-	}
-
-	const GunCardRules::FSpecialLine Special = GunCardRules::SpecialLine(Shown);
-	SetShown(SpecialRow, Special.IsSet());
-	if (Special.IsSet())
-	{
-		SetWords(SpecialWord, FString(TEXT("◆ ")) + Special.Word);
-		SpecialWord->SetColorAndOpacity(FSlateColor(Special.Color));
-		SetWords(SpecialWords, Special.Words);
-	}
+	SetShown(ElementIcon, ElementGlyph != nullptr);
 	SetShown(KeysRow, Mode == EGunCardMode::World && ShownKeys.Num() > 0);
 }
 
@@ -324,21 +355,21 @@ void UGunCardWidget::SetKeys(const FGunCardKeys& Keys)
 		KeysRow->ClearChildren();
 		KeyCaps.Reset();
 		KeyWords.Reset();
-		for (const GunCardRules::FKeyHint& Hint : Hints)
+		for (int32 Index = 0; Index < Hints.Num(); ++Index)
 		{
+			const GunCardRules::FKeyHint& Hint = Hints[Index];
 			ULooterHollowKey* Cap = nullptr;
 			if (!Hint.Cap.IsEmpty())
 			{
 				Cap = WidgetTree->ConstructWidget<ULooterHollowKey>(ULooterHollowKey::StaticClass());
 				Cap->SetLabel(Hint.Cap);
-				Cap->SetDim(Hint.bDim && !Hint.bHold);
 				KeysRow->AddChildToHorizontalBox(Cap)->SetVerticalAlignment(VAlign_Center);
 			}
 			// Outlined floating text: no glass behind it out here.
-			UTextBlock* Word = MakeFloatingText(WidgetTree, 14, Hint.bDim ? Color::TextDim() : Color::Text(), 150);
+			UTextBlock* Word = MakeFloatingText(WidgetTree, 15, Hint.bDim ? Color::SlateLabel() : Color::SlateText(), 150);
 			Word->SetText(FText::FromString(Hint.Word));
-			const bool bLast = &Hint == &Hints.Last();
-			KeysRow->AddChildToHorizontalBox(Word)->SetPadding(FMargin(Cap ? 7.f : 0.f, 0.f, bLast ? 0.f : 22.f, 0.f));
+			const bool bLast = Index == Hints.Num() - 1;
+			KeysRow->AddChildToHorizontalBox(Word)->SetPadding(FMargin(Cap ? 8.f : 0.f, 0.f, bLast ? 0.f : 24.f, 0.f));
 			KeyCaps.Add(Cap);
 			KeyWords.Add(Word);
 		}
@@ -357,7 +388,21 @@ void UGunCardWidget::SetKeys(const FGunCardKeys& Keys)
 
 FText UGunCardWidget::GetNameText() const { return NameText ? NameText->GetText() : FText::GetEmpty(); }
 FText UGunCardWidget::GetMakerText() const { return MakerText ? MakerText->GetText() : FText::GetEmpty(); }
-FText UGunCardWidget::GetDamageText() const { return DamageText ? DamageText->GetText() : FText::GetEmpty(); }
+
+FText UGunCardWidget::GetDamageText() const
+{
+	return RowValues.Num() > 0 && RowValues[0] ? RowValues[0]->GetText() : FText::GetEmpty();
+}
+
+FText UGunCardWidget::GetStatValueText(int32 Index) const
+{
+	return Index < ShownStats.Num() && RowValues.IsValidIndex(Index) ? RowValues[Index]->GetText() : FText::GetEmpty();
+}
+
+FText UGunCardWidget::GetStatArrowText(int32 Index) const
+{
+	return Index < ShownStats.Num() && RowArrows.IsValidIndex(Index) ? RowArrows[Index]->GetText() : FText::GetEmpty();
+}
 
 FText UGunCardWidget::GetVerdictText() const
 {
@@ -365,9 +410,9 @@ FText UGunCardWidget::GetVerdictText() const
 	return FText::FromString(bHasGun && Against ? GunCardRules::VerdictWord(LoadoutRules::Compare(Shown, Against)) : FString());
 }
 
-FText UGunCardWidget::GetSpecialText() const
+TArray<FString> UGunCardWidget::GetLines() const
 {
-	return FText::FromString(bHasGun ? GunCardRules::SpecialLine(Shown).Word : FString());
+	return bHasGun ? GunCardRules::Lines(Shown) : TArray<FString>();
 }
 
 TArray<FString> UGunCardWidget::GetKeyCaps() const
@@ -401,9 +446,4 @@ float UGunCardWidget::GetHoldFill() const
 FName UGunCardWidget::GetMakerCue() const
 {
 	return bHasGun ? GunCardStyle::For(Shown).OpenCue : NAME_None;
-}
-
-FText UGunCardWidget::GetStatValueText(int32 Index) const
-{
-	return Values.IsValidIndex(Index) && Values[Index] ? Values[Index]->GetText() : FText::GetEmpty();
 }

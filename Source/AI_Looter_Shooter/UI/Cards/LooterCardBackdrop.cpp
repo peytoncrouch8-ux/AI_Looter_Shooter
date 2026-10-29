@@ -255,6 +255,22 @@ TArray<FVector2f> LooterBackdrop::CardOutline(const FVector2f& Size)
 		FVector2f(0.f, Size.Y - Cut) };
 }
 
+TArray<FVector2f> LooterBackdrop::TagOutline(const FVector2f& Size)
+{
+	const float W = Size.X;
+	const float T = TagTop;
+	const float B = Size.Y;
+	const float Mid = W * 0.5f;
+	return { FVector2f(0.f, T + TagShoulder), FVector2f(TagShoulder, T), FVector2f(Mid - TagNotchOuter, T), FVector2f(Mid - TagNotchInner, T + TagNotchDepth),
+		FVector2f(Mid + TagNotchInner, T + TagNotchDepth), FVector2f(Mid + TagNotchOuter, T), FVector2f(W - TagShoulder, T), FVector2f(W, T + TagShoulder),
+		FVector2f(W, B - TagPoint), FVector2f(Mid, B), FVector2f(0.f, B - TagPoint) };
+}
+
+FVector2f LooterBackdrop::TagGemCenter(const FVector2f& Size)
+{
+	return FVector2f(Size.X * 0.5f, TagTop + TagNotchDepth * 0.5f);
+}
+
 TArray<FVector2f> LooterBackdrop::RowOutline(const FVector2f& Size)
 {
 	const float Cut = FMath::Min(RowCut, FMath::Min(Size.X, Size.Y) * 0.5f);
@@ -317,6 +333,50 @@ int32 SLooterCardBackdrop::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 	// Lines sit a half-width inside the shape so the cut edges aren't shaved by the box.
 	const float In = W * 0.5f;
 	int32 Layer = LayerId;
+
+	if (Shape == ELooterBackdropShape::Tag)
+	{
+		const TArray<FVector2f> Outline = LooterBackdrop::TagOutline(Size);
+		if (Part == ELooterBackdropPart::Fill)
+		{
+			// The notch makes it concave, but every corner is seen from its middle: a fan from there fills it.
+			FPainter Painter(OutDrawElements, Layer, AllottedGeometry, Alpha);
+			const FVector2f Middle(Size.X * 0.5f, (LooterBackdrop::TagTop + Size.Y) * 0.5f);
+			auto At = [&](const FVector2f& Point)
+			{
+				return FMath::Lerp(Color::SlateGlassTop(), Color::SlateGlassFoot(), FMath::Clamp(Point.Y / Size.Y, 0.f, 1.f));
+			};
+			const SlateIndex Hub = Painter.Add(Middle, At(Middle));
+			for (int32 Index = 0; Index < Outline.Num(); ++Index)
+			{
+				const FVector2f& A = Outline[Index];
+				const FVector2f& B = Outline[(Index + 1) % Outline.Num()];
+				Painter.Triangle(Hub, Painter.Add(A, At(A)), Painter.Add(B, At(B)));
+			}
+			Painter.Flush();
+			return Layer;
+		}
+		// The salt line round it, then the gem over the notch.
+		TArray<FVector2f> Ring = Outline;
+		Ring.Add(Outline[0]);
+		Lines(OutDrawElements, Layer, AllottedGeometry, MoveTemp(Ring), Color::SaltLine(), Alpha, LooterBackdrop::TagLine);
+		++Layer;
+		const FVector2f Gem = LooterBackdrop::TagGemCenter(Size);
+		const float R = LooterBackdrop::TagGem * 0.5f;
+		{
+			FPainter Painter(OutDrawElements, Layer, AllottedGeometry, Alpha);
+			Painter.Convex({ Gem + FVector2f(0.f, -R), Gem + FVector2f(R, 0.f), Gem + FVector2f(0.f, R), Gem + FVector2f(-R, 0.f) }, Color::SlateGem(), Color::SlateGem(), 1.f);
+			Painter.Flush();
+		}
+		++Layer;
+		const float Edge = R - LooterBackdrop::TagGemLine * 0.5f;
+		Lines(OutDrawElements, Layer, AllottedGeometry, { Gem + FVector2f(0.f, -Edge), Gem + FVector2f(Edge, 0.f), Gem + FVector2f(0.f, Edge), Gem + FVector2f(-Edge, 0.f), Gem + FVector2f(0.f, -Edge) },
+			Color::SoulGold(), Alpha, LooterBackdrop::TagGemLine);
+		const float Inner = R * 0.62f;
+		Lines(OutDrawElements, Layer, AllottedGeometry, { Gem + FVector2f(0.f, -Inner), Gem + FVector2f(Inner, 0.f), Gem + FVector2f(0.f, Inner), Gem + FVector2f(-Inner, 0.f), Gem + FVector2f(0.f, -Inner) },
+			Color::SoulGold().CopyWithNewOpacity(0.35f), Alpha, 1.5f);
+		return Layer;
+	}
 
 	if (Shape == ELooterBackdropShape::Card)
 	{

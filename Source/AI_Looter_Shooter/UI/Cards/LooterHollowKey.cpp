@@ -1,24 +1,25 @@
 #include "UI/Cards/LooterHollowKey.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
 #include "Rendering/SlateRenderer.h"
-#include "Styling/CoreStyle.h"
 #include "UI/Style/LooterUIStyle.h"
 
-// A hollow key cap: the user found the solid orange caps "bubbly" (2026-10-28). The outline is the cap; a hold fills it.
+// A hollow key cap: the user found the solid caps "bubbly" (2026-10-28), then picked the tag card's rounded, bolder caps
+// in soul-light gold. The outline is the cap; a hold fills it.
 
 using namespace LooterUI;
 
 namespace
 {
-	constexpr float CapHeight = 20.f;
-	constexpr float PadX = 6.f;
-	constexpr float Chamfer = 5.f;
-	constexpr float Line = 2.f;
-	constexpr int32 FontSize = 12;
+	constexpr float CapHeight = 26.f;
+	constexpr float PadX = 8.f;
+	constexpr float Radius = 5.f;
+	constexpr float Line = 3.f;
+	constexpr int32 FontSize = 14;
 
-	/** Outlined like floating text: the cap now floats under the card, over whatever the world shows (a loot beam's glare). */
+	/** Outlined like floating text: the cap floats under the card, over whatever the world shows (a loot beam's glare). */
 	FSlateFontInfo CapFont()
 	{
 		return FloatingFont(FontSize, 100);
@@ -28,7 +29,7 @@ namespace
 	{
 		if (!FSlateApplication::IsInitialized())
 		{
-			return FVector2f(Label.Len() * 8.f, 14.f);
+			return FVector2f(Label.Len() * 9.f, 16.f);
 		}
 		return FVector2f(FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Label, CapFont()));
 	}
@@ -70,7 +71,7 @@ void SLooterHollowKey::SetDim(bool bInDim)
 FVector2D SLooterHollowKey::ComputeDesiredSize(float) const
 {
 	const FVector2f Text = MeasureLabel(Label);
-	return FVector2D(FMath::Max(CapHeight + 2.f, Text.X + PadX * 2.f), CapHeight);
+	return FVector2D(FMath::Max(CapHeight + 4.f, Text.X + PadX * 2.f), CapHeight);
 }
 
 int32 SLooterHollowKey::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
@@ -82,33 +83,30 @@ int32 SLooterHollowKey::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 		return LayerId;
 	}
 	const float Alpha = InWidgetStyle.GetColorAndOpacityTint().A * (bDim ? 0.6f : 1.f);
-	const FLinearColor Orange = Color::Accent().CopyWithNewOpacity(Color::Accent().A * Alpha);
+	const FLinearColor Gold = Color::SoulGold().CopyWithNewOpacity(Alpha);
 	int32 Layer = LayerId;
 
-	// The fill, left to right as the hold runs (a plain rectangle inside the outline: the chamfers read from the line).
-	if (Fill > 0.f && FSlateApplication::IsInitialized())
+	// A dark edge round the outside first, so the hollow cap reads over bright ground and beams.
+	const FSlateRoundedBoxBrush Edge(FLinearColor::Transparent, Radius + 1.5f, Color::Outline().CopyWithNewOpacity(0.7f * Alpha), 1.5f);
+	FSlateDrawElement::MakeBox(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(Size + FVector2f(3.f, 3.f), FSlateLayoutTransform(FVector2f(-1.5f, -1.5f))),
+		&Edge, ESlateDrawEffect::None, FLinearColor::White);
+	++Layer;
+	// The fill, left to right as the hold runs.
+	if (Fill > 0.f)
 	{
-		const FSlateBrush* White = FCoreStyle::Get().GetBrush(TEXT("WhiteBrush"));
-		FSlateDrawElement::MakeBox(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(FVector2f((Size.X - Line * 2.f) * Fill, Size.Y - Line * 2.f),
-			FSlateLayoutTransform(FVector2f(Line, Line))), White, ESlateDrawEffect::None, Orange);
+		const FSlateRoundedBoxBrush Inside(Gold, Radius);
+		FSlateDrawElement::MakeBox(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(FVector2f(FMath::Max(Size.X * Fill, Radius * 2.f), Size.Y),
+			FSlateLayoutTransform(FVector2f(0.f, 0.f))), &Inside, ESlateDrawEffect::None, FLinearColor::White);
 		++Layer;
 	}
-
-	// The outline: chamfered top-left and bottom-right, like the kit's controls.
-	const float H = Line * 0.5f;
-	TArray<FVector2f> Ring = { FVector2f(Chamfer, H), FVector2f(Size.X - H, H), FVector2f(Size.X - H, Size.Y - Chamfer), FVector2f(Size.X - Chamfer, Size.Y - H),
-		FVector2f(H, Size.Y - H), FVector2f(H, Chamfer), FVector2f(Chamfer, H) };
-	// A dark edge under the orange line first, so the hollow cap reads over bright ground and beams.
-	FSlateDrawElement::MakeLines(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(), TArray<FVector2f>(Ring), ESlateDrawEffect::None,
-		Color::Outline().CopyWithNewOpacity(0.7f * Alpha), true, Line + 2.f);
-	++Layer;
-	FSlateDrawElement::MakeLines(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(), MoveTemp(Ring), ESlateDrawEffect::None, Orange, true, Line);
+	const FSlateRoundedBoxBrush Ring(FLinearColor::Transparent, Radius, Gold, Line);
+	FSlateDrawElement::MakeBox(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(), &Ring, ESlateDrawEffect::None, FLinearColor::White);
 	++Layer;
 
-	// The key's name, orange on the hollow, dark where the fill has reached past its middle.
+	// The key's name, gold on the hollow, dark where the fill has reached past its middle.
 	const FVector2f Text = MeasureLabel(Label);
 	const FVector2f At((Size.X - Text.X) * 0.5f, (Size.Y - Text.Y) * 0.5f);
-	const FLinearColor Letters = Fill >= 0.5f ? Color::AccentDark().CopyWithNewOpacity(Alpha) : Orange;
+	const FLinearColor Letters = Fill >= 0.5f ? Color::SlateGem().CopyWithNewOpacity(Alpha) : Gold;
 	FSlateDrawElement::MakeText(OutDrawElements, Layer, AllottedGeometry.ToPaintGeometry(Text, FSlateLayoutTransform(At)), Label, CapFont(),
 		ESlateDrawEffect::None, Letters);
 	return Layer;
