@@ -535,7 +535,8 @@ namespace LooterSoundCue
 	 * "Element.<Element>.<Event>", 3D at the creature: Apply as a hit sets the status, Tick at each damage tick (Soul-light:
 	 * the delayed smite bursting), Kill when the status's damage finishes a creature. Ember is fire (a whoomph catching,
 	 * crackling), Soul-light warm holy light (a choir's shimmer and a bell's ring), Grave-salt cold salt (a crystalline
-	 * crunch and a frosty hiss, the grave-salt grenade's salt).
+	 * crunch and a frosty hiss, the grave-salt grenade's salt), Thunder electric cracks and buzzes (Tick: the jolt bursting),
+	 * Rot wet bubbling and pops.
 	 */
 	namespace Element
 	{
@@ -548,6 +549,12 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* GraveSaltApply = TEXT("Element.GraveSalt.Apply");
 		inline constexpr const TCHAR* GraveSaltTick = TEXT("Element.GraveSalt.Tick");
 		inline constexpr const TCHAR* GraveSaltKill = TEXT("Element.GraveSalt.Kill");
+		inline constexpr const TCHAR* ThunderApply = TEXT("Element.Thunder.Apply");
+		inline constexpr const TCHAR* ThunderTick = TEXT("Element.Thunder.Tick");
+		inline constexpr const TCHAR* ThunderKill = TEXT("Element.Thunder.Kill");
+		inline constexpr const TCHAR* RotApply = TEXT("Element.Rot.Apply");
+		inline constexpr const TCHAR* RotTick = TEXT("Element.Rot.Tick");
+		inline constexpr const TCHAR* RotKill = TEXT("Element.Rot.Kill");
 	}
 	/** A creature's body as it dies (its death burst), under its death cry: a spider's shell, a slime's splat, an Unpaid's soul-light. */
 	inline constexpr const TCHAR* SpiderBurst = TEXT("Creature.Spider.Burst");

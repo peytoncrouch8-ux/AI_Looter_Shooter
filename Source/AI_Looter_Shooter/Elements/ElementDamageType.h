@@ -10,7 +10,7 @@
  * UWeaponCritDamageType), and not a weapon's shot, so nothing that counts shots counts it. The gun that set the status is
  * its DamageCauser, so that gun gets the notch for a kill. Grave-salt's is the grave-salt grenade's own
  * (UGraveSaltDamageType: the same salt, the same name and feel; ElementRules::DamageTypeFor).
- * The three damage types live in this one header, as LooterDamageTypes.h's do: each is a name and nothing else.
+ * The damage types live in this one header, as LooterDamageTypes.h's do: each is a name and nothing else.
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API UElementDamageType : public UDamageType
@@ -40,4 +40,24 @@ class AI_LOOTER_SHOOTER_API USoulLightElementDamageType : public UElementDamageT
 
 public:
 	USoulLightElementDamageType() { Element = ELooterElement::SoulLight; }
+};
+
+/** A Thunder jolt's burst (and its arc to the next living thing). */
+UCLASS()
+class AI_LOOTER_SHOOTER_API UThunderElementDamageType : public UElementDamageType
+{
+	GENERATED_BODY()
+
+public:
+	UThunderElementDamageType() { Element = ELooterElement::Thunder; }
+};
+
+/** A Rot's piece. */
+UCLASS()
+class AI_LOOTER_SHOOTER_API URotElementDamageType : public UElementDamageType
+{
+	GENERATED_BODY()
+
+public:
+	URotElementDamageType() { Element = ELooterElement::Rot; }
 };

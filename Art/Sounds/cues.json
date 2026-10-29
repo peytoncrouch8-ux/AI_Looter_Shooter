@@ -2643,6 +2643,95 @@
     "space": "3D",
     "max_concurrent": 3
   },
+  "Element.Thunder.Apply": {
+    "files": [
+      "Element_Thunder_Apply_01.wav",
+      "Element_Thunder_Apply_02.wav",
+      "Element_Thunder_Apply_03.wav",
+      "Element_Thunder_Apply_04.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Element.Thunder.Tick": {
+    "files": [
+      "Element_Thunder_Tick_01.wav",
+      "Element_Thunder_Tick_02.wav",
+      "Element_Thunder_Tick_03.wav",
+      "Element_Thunder_Tick_04.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Element.Thunder.Kill": {
+    "files": [
+      "Element_Thunder_Kill_01.wav",
+      "Element_Thunder_Kill_02.wav",
+      "Element_Thunder_Kill_03.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Element.Rot.Apply": {
+    "files": [
+      "Element_Rot_Apply_01.wav",
+      "Element_Rot_Apply_02.wav",
+      "Element_Rot_Apply_03.wav",
+      "Element_Rot_Apply_04.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Element.Rot.Tick": {
+    "files": [
+      "Element_Rot_Tick_01.wav",
+      "Element_Rot_Tick_02.wav",
+      "Element_Rot_Tick_03.wav",
+      "Element_Rot_Tick_04.wav",
+      "Element_Rot_Tick_05.wav"
+    ],
+    "volume_db": -14.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Element.Rot.Kill": {
+    "files": [
+      "Element_Rot_Kill_01.wav",
+      "Element_Rot_Kill_02.wav",
+      "Element_Rot_Kill_03.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
   "Player.Footstep.Dirt": {
     "files": [
       "Player_Footstep_Dirt_01.wav",

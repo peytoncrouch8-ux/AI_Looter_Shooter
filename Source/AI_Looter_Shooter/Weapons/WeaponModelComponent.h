@@ -17,7 +17,9 @@ class UStaticMeshComponent;
  * UWeaponModelComponent::ElementFinishDataIndex on): the same mesh recoloured, no models of its own (the user's call,
  * 2026-10-27). Kind picks the pattern (UWeaponModelComponent::FinishScorched / FinishGilt / FinishFrosted, 0 none): Ember
  * scorched (dark, soot blotches, glowing seams), Soul-light gilt (gold, metallic, a faint gold-white rim glow), Grave-salt
- * frosted (pale, salt-crystal speckle lit cyan). Tint is the finish's colour (linear) the part's texture is pulled toward
+ * frosted (pale, salt-crystal speckle lit cyan); the story elements reuse the patterns in their own tints (2026-10-29):
+ * Thunder "Charged" frosted in cold blue steel, its speckle lit electric blue; Rot "Rotten" scorched in mossy green, its
+ * seams glowing dim green. Tint is the finish's colour (linear) the part's texture is pulled toward
  * by Amount (0-1), keeping its light and dark; Glow the emissive hue times GlowStrength.
  */
 struct FWeaponElementFinish

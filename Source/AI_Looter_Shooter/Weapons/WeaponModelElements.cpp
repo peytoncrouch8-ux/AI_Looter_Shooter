@@ -6,7 +6,7 @@
 // The gun's element on its looks (the user's call, 2026-10-27, "Glow parts take element"): every glowing bit of a gun with an
 // element part (vents, barrel slots, sight dots, gauges) glows in ElementRules::FxColor, the rarity accent keeps the rarity's
 // colour and the shell its maker's paint; the element part itself wears its element as a finish the gun master draws on its
-// own mesh (scorched, gilt, frosted), so no part needs a model of its own and the Tripo parts take it as the scripted ones do.
+// own mesh (scorched, gilt, frosted; Thunder frosted in blue steel, Rot scorched in moss), so no part needs a model of its own and the Tripo parts take it as the scripted ones do.
 // The gun's other parts wear the same finish lightly, as stains (ElementSpread of it; the user's call 2026-10-27, "including
 // the elemental differences"), so the whole gun reads as its element and the element part still stands out.
 // The material side: Tools/Unreal/build_world_materials.py (M_Gun, ELEMENT_FINISH_*).
@@ -18,7 +18,7 @@ namespace
 	TAutoConsoleVariable<bool> CVarElementReticle(TEXT("Looter.Weapons.ElementLook.Reticle"), true,
 		TEXT("The optics' reticle (GunReticle) takes the element's colour too; 0 keeps it red."));
 	TAutoConsoleVariable<bool> CVarElementFinish(TEXT("Looter.Weapons.ElementLook.Finish"), true,
-		TEXT("An element part wears its element's finish (Ember scorched, Soul-light gilt, Grave-salt frosted); 0 shows it as modeled."));
+		TEXT("An element part wears its element's finish (Ember scorched, Soul-light gilt, Grave-salt frosted, Thunder charged: frosted in blue steel, Rot rotten: scorched in moss); 0 shows it as modeled."));
 	TAutoConsoleVariable<float> CVarElementAmount(TEXT("Looter.Weapons.ElementLook.Amount"), 1.f,
 		TEXT("Scales how far each finish pulls the part's colour to its own (0-1 after scaling)."));
 	TAutoConsoleVariable<float> CVarElementSpread(TEXT("Looter.Weapons.ElementLook.Spread"), 0.25f,
@@ -29,6 +29,10 @@ namespace
 		TEXT("How bright a gilt part's faint rim glows (emissive x the Soul-light hue)."));
 	TAutoConsoleVariable<float> CVarSaltGlow(TEXT("Looter.Weapons.ElementLook.SaltGlow"), 2.5f,
 		TEXT("How bright a frosted part's lit salt crystals glow (emissive x the Grave-salt hue)."));
+	TAutoConsoleVariable<float> CVarThunderGlow(TEXT("Looter.Weapons.ElementLook.ThunderGlow"), 3.f,
+		TEXT("How bright a charged part's lit speckle glows (emissive x the Thunder hue; the frosted pattern)."));
+	TAutoConsoleVariable<float> CVarRotGlow(TEXT("Looter.Weapons.ElementLook.RotGlow"), 1.2f,
+		TEXT("How bright a rotten part's seams glow (emissive x the Rot hue; the scorched pattern, kept dim: a rot festers, it doesn't burn)."));
 
 	/** The finishes' colours (linear) and how far each pulls the part to it, before Looter.Weapons.ElementLook.Amount. */
 	const FLinearColor ScorchedTint(0.075f, 0.058f, 0.05f);   // soot-dark heat-scored metal
@@ -37,6 +41,11 @@ namespace
 	constexpr float GiltAmount = 0.8f;
 	const FLinearColor FrostedTint(0.6f, 0.7f, 0.75f);        // pale, cold, salt-crusted
 	constexpr float FrostedAmount = 0.75f;
+	// The story elements wear the patterns already in M_Gun (no new kinds this round, CONTRACT 2026-10-29), told apart by tint.
+	const FLinearColor ChargedTint(0.35f, 0.42f, 0.6f);       // cold blue steel under the frosted speckle
+	constexpr float ChargedAmount = 0.75f;
+	const FLinearColor RottenTint(0.18f, 0.26f, 0.1f);        // mossy, damp green-black under the scorched blotches
+	constexpr float RottenAmount = 0.8f;
 
 	/** The optics' reticle: an emissive slot without "Glow" in its name. */
 	const FName ReticleSlot(TEXT("GunReticle"));
@@ -97,6 +106,18 @@ FWeaponElementFinish UWeaponModelComponent::ElementFinishFor(ELooterElement Elem
 		Finish.Tint = FrostedTint;
 		Finish.Amount = FrostedAmount;
 		Finish.GlowStrength = CVarSaltGlow.GetValueOnGameThread();
+		break;
+	case ELooterElement::Thunder:
+		Finish.Kind = FinishFrosted;
+		Finish.Tint = ChargedTint;
+		Finish.Amount = ChargedAmount;
+		Finish.GlowStrength = CVarThunderGlow.GetValueOnGameThread();
+		break;
+	case ELooterElement::Rot:
+		Finish.Kind = FinishScorched;
+		Finish.Tint = RottenTint;
+		Finish.Amount = RottenAmount;
+		Finish.GlowStrength = CVarRotGlow.GetValueOnGameThread();
 		break;
 	default:
 		return FWeaponElementFinish();

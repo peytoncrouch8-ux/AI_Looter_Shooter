@@ -9,6 +9,9 @@ namespace
 	constexpr float EmberAura = 28.f;
 	constexpr float SoulAura = 8.f;
 	constexpr float SaltAura = 34.f;
+	/** Thunder's pieces are mostly three-bead crawling arcs, so fewer of them; Rot's are single drips, bubbles and wisps. */
+	constexpr float ThunderAura = 14.f;
+	constexpr float RotAura = 22.f;
 }
 
 int32 ElementDeathLook::AuraCount(ELooterElement Element, float BodyScale)
@@ -19,6 +22,8 @@ int32 ElementDeathLook::AuraCount(ELooterElement Element, float BodyScale)
 	case ELooterElement::Ember: Base = EmberAura; break;
 	case ELooterElement::SoulLight: Base = SoulAura; break;
 	case ELooterElement::GraveSalt: Base = SaltAura; break;
+	case ELooterElement::Thunder: Base = ThunderAura; break;
+	case ELooterElement::Rot: Base = RotAura; break;
 	default: return 0;
 	}
 	return FMath::Max(1, FMath::RoundToInt32(Base * FMath::Sqrt(FMath::Clamp(BodyScale, 0.5f, 3.f))));
@@ -54,6 +59,17 @@ void ElementDeathLook::Play(FWeaponFX& Effects, ELooterElement Element, const FV
 		// Crystals shed from the whole body, then what is left of it flung out and falling.
 		Effects.SpawnElementAura(Element, Center, Radius, HalfHeight, Aura, 1.4f);
 		Effects.SpawnElementBurst(Element, Center + Front * 0.5f, Radius * 2.5f, true);
+		break;
+	case ELooterElement::Thunder:
+		// A flash from its heart and sparks flung out, then sparks raining down over the body (the kill burst's), arcs
+		// crackling over it as the last of the charge runs out.
+		Effects.SpawnElementBurst(Element, Heart, Radius * 2.5f, true);
+		Effects.SpawnElementAura(Element, Center, Radius, HalfHeight, Aura, 1.6f);
+		break;
+	case ELooterElement::Rot:
+		// Drips running off the whole body, then it collapses low in a wet burst and a green cloud spreading over the ground.
+		Effects.SpawnElementAura(Element, Center, Radius, HalfHeight, Aura, 1.4f);
+		Effects.SpawnElementBurst(Element, Center + Front * 0.5f - Up * HalfHeight * 0.25f, Radius * 2.6f, true);
 		break;
 	default:
 		break;

@@ -18,6 +18,10 @@ class FWeaponFX;
  *  - Burning: embers rising off it and flame licks, more of both for each burn; Element.Ember.Tick at each piece.
  *  - Smiting: white-gold motes gathering in, a glow at its heart growing until the burst (rays and a flash).
  *  - Salted: pale crystals clinging and dropping off it, a breath of frost; Element.GraveSalt.Tick at each piece.
+ *  - Jolting (Thunder): sparks crawling over it until the burst: a flash, a stagger (UCreatureHitReactionComponent::Jolt) and
+ *    an arc to the nearest living creature (FindNextOfTheLiving) for a share of it.
+ *  - Rotting: drips and a dim green glow; Element.Rot.Tick at each piece. Its death spreads the rot to the living near it
+ *    (SpreadRot, once a death).
  * A kill by a status bursts in its look with Element.<Element>.Kill. Looks: ElementStatusComponentLooks.cpp.
  */
 UCLASS(ClassGroup = (Looter))
@@ -50,6 +54,8 @@ public:
 	bool IsBurning() const { return Status.NumBurns() > 0; }
 	bool IsSmiting() const { return Status.NumSmites() > 0; }
 	bool IsSalted() const { return Status.IsSalted(); }
+	bool IsJolting() const { return Status.NumJolts() > 0; }
+	bool IsRotting() const { return Status.IsRotting(); }
 
 	/** Damage it has sent so far by Element (what a test level, which deals none, would have dealt). */
 	float GetDealt(ELooterElement Element) const;
@@ -83,18 +89,22 @@ public:
 
 	/** Of the dead nearest Center within Radius (not Except, alive): where a smite leaps. Null for none. */
 	static AActor* FindNextOfTheDead(const UWorld* World, const FVector& Center, float Radius, const AActor* Except);
+	/** The living creature (not of the dead) nearest Center within Radius (not Except, alive): where a jolt arcs. Null for none. */
+	static AActor* FindNextOfTheLiving(const UWorld* World, const FVector& Center, float Radius, const AActor* Except);
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
-	static constexpr int32 NumElements = 4;
+	static constexpr int32 NumElements = 6;
 	/** Pieces of damage over time being dealt now (IsDealingNow). */
 	static int32 DealingDepth;
 	/** SendDamage's element while it deals (DealingElement). */
 	static ELooterElement DealingElementNow;
 
-	/** Deals one piece to its owner (and a smite's leap); true if that killed it. */
+	/** Deals one piece to its owner (and a smite's leap, a jolt's arc and stagger); true if that killed it. */
 	bool Deal(const FElementTick& Tick);
+	/** Its owner is dying while rotting: the rot spreads to the living near it, once for this death. */
+	void SpreadRot();
 	/** Sends Damage of Element to Victim as from the status's gun; true if it killed Victim. */
 	bool SendDamage(AActor& Victim, ELooterElement Element, float Damage);
 	bool IsOwnerAlive() const;
@@ -109,6 +119,10 @@ private:
 	void PlayLooks(float DeltaSeconds);
 	/** A smite's burst on Where (and its leap's arc to To when set). */
 	void PlaySmiteLook(const FVector& Where, const FVector* LeapTo) const;
+	/** A jolt's burst on Where (and its arc to LeapTo when set). */
+	void PlayJoltLook(const FVector& Where, const FVector* LeapTo) const;
+	/** The rot spreading from a death at From to each of To. */
+	void PlayRotSpreadLook(const FVector& From, TConstArrayView<FVector> To) const;
 	/** Its death by Element: its look's burst over the body. */
 	void PlayKillLook(ELooterElement Element) const;
 
@@ -117,10 +131,15 @@ private:
 	TWeakObjectPtr<AActor> Causers[NumElements];
 	TWeakObjectPtr<AController> Instigators[NumElements];
 	float Dealt[NumElements] = {};
-	double LastApplyCue[NumElements] = { -1000.0, -1000.0, -1000.0, -1000.0 };
+	double LastApplyCue[NumElements] = { -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0 };
+	/** The strongest hit that rotted it (what its death spreads), and whether this death has spread it. */
+	float RotHitDamage = 0.f;
+	bool bRotSpread = false;
 	/** Particles owed to each look (rate x time, spawned in whole ones). */
 	float EmberLookOwed = 0.f;
 	float SaltLookOwed = 0.f;
 	float SmiteLookOwed = 0.f;
+	float ThunderLookOwed = 0.f;
+	float RotLookOwed = 0.f;
 	float LookTime = 0.f;
 };

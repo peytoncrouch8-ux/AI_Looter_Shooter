@@ -10,6 +10,12 @@ finishes the creature). All synthesized (only guns and impacts may use recording
 - Grave-salt (slow, vs spirits): the grave-salt grenade's salt (recipes/throwables.py, same feel): Apply a crystalline
   crunch with a frosty hiss; Tick the salt hissing as it eats in, a few crystals ticking; Kill the crust shattering, its
   crystals raining down, a freezing crackle and a long hiss.
+- Thunder (jolt, arcs to the next living thing): electricity. Apply is the jolt striking (a bright snap, a dense buzz of
+  fast sparks, a short hum chopped by the arc, a zap falling away); Tick the burst leaping on (a snap, a crackling whip
+  falling fast in pitch, a brief buzz); Kill a big crack and a low thud, then a long sizzling buzz sinking as it dies.
+- Rot (spreads from the dying): wet and sick. Apply is the rot taking hold (a soft wet pop, gurgling, low bubbles, a wet
+  fizz, a faint sick drone of two tones a semitone apart); Tick a few wet blisters popping and a short fizz; Kill the body
+  collapsing (a wet burst and thud, a gush of bubbling, the rot's cloud hissing out over the drone).
 
 Heard over and over in a fight: every cue keeps its 2-5 kHz band low (the bites go to 6-10 kHz), crackles keep a hiss bed
 under them as long as they last (a lone late grain is a CLICK).
@@ -266,3 +272,204 @@ def grave_salt_kill(v, r):
     x = layers((_loud(crack), 0.0, 0.0), (crunch, 0.0, -1.0), (freeze, 0.03, -12.0), (crys, 0.01, -7.0),
                (hiss, 0.02, -11.0))
     return _air(_calm(D.drive(normalize(x), 2.0, 'tanh')), r, -16.0, 1.0)
+
+
+# --- Thunder -------------------------------------------------------------------------------------------------------------
+# The arc's sparks sit in the low mids (1-3 kHz) and its fizz up high (6-11 kHz), so it reads bright without the ear's
+# touchy band; the hum is the arc re-striking (a gate at 100-180 Hz), which is what makes it electric, not just noise.
+
+def _snap(r, lo=1500.0):
+    """The spark jumping: a hard bright crack (a shock front, a spit of hot air), a tick up high, a short knock of air."""
+    front = kit.nwave(0.00025)
+    crack = kit.burst(0.02, child(r, 'c'), 0.008, lo=lo, hi=12000.0)
+    tick = kit.burst(0.004, child(r, 'tick'), 0.0012, lo=6000.0, hi=12000.0)
+    knock = kit.noise_thump(0.06, child(r, 'k'), 2500.0, 300.0, 0.03, 1.0, 0.02, 0.0003)
+    return normalize(layers((front, 0.0, -8.0), (_loud(crack, 0.002), 0.0, 0.0), (_loud(tick, 0.002), 0.0, -5.0),
+                            (_loud(knock, 0.003), 0.0, -4.0)), 0.0)
+
+
+def _zap(dur, r, g0, g1, lo=700.0, hi=2400.0, attack=0.002, t60=None, hum_db=-8.0, fizz_db=None):
+    """An electric buzz: noise in the arc's band chopped by a fast gate (the arc striking again and again, g0 -> g1
+    times a second, a little unsteady), with a hum at the gate's pitch under it and, if fizz_db, a sizzle up high (6-10
+    kHz) on the same gate."""
+    n = ns(dur)
+    fg = O.expsweep(g0, g1, dur, 1.3, n=n) * (1.0 + 0.05 * N.smooth_random(n, child(r, 'w'), 30.0))
+    gate = (0.5 + 0.5 * np.cos(2.0 * np.pi * O.phase(fg, n))) ** 6
+    arc = normalize(N.band(n, child(r, 'n'), lo, hi) * gate * kit.turbulence(n, child(r, 't'), 200.0, 0.5))
+    hum = normalize(F.filt(O.saw(fg, n=n), F.lp(1100.0, 0.7), extend=False))
+    fizz = None
+    if fizz_db is not None:
+        fizz = (normalize(N.band(n, child(r, 'f'), 6000.0, 10000.0) * (0.3 + 0.7 * gate)), 0.0, fizz_db)
+    env = E.end_fade(E.perc(dur, attack, t60 or dur * 0.8), 0.02)
+    return normalize(layers((arc, 0.0, 0.0), (hum, 0.0, hum_db), fizz) * env, 0.0)
+
+
+def _arc(dur, r, rate0, tau, floor, lo=1000.0, hi=2400.0, t60=None):
+    """Sparks crackling: a dense spray of hard tiny clicks in the low mids with a fizz up high, thinning to a floor, over a
+    buzzing bed held as long as they last; grains and bed fade together (t60), so no lone late grain clicks."""
+    n = ns(dur)
+    t = times(n)
+    rate = rate0 * np.exp(-t / tau) + floor
+    body = G.grit(dur, child(r, 'body'), rate, lo, hi, 3.0, 4)
+    top = G.grit(dur, child(r, 'top'), 0.8 * rate, 6000.0, 11000.0, 2.0, 3)
+    bed = _zap(dur, child(r, 'bed'), 150.0, 110.0, 800.0, 2000.0, 0.004, dur * 3.0, -12.0)
+    x = layers((normalize(body), 0.0, 0.0), (normalize(top), 0.0, -4.0), (bed, 0.0, -14.0))
+    return normalize(x * E.end_fade(E.perc(dur, 0.002, t60 or dur * 1.2), 0.02), 0.0)
+
+
+def _dull(x):
+    """Thunder's extra dip in the touchy band (on top of _calm's): its bite is kept up at 6-11 kHz."""
+    return F.filt(x, F.peak(3600.0, -5.0, 0.6), extend=False)
+
+
+def _whip(dur, r, f0, f1):
+    """The arc leaping away: a crackling tone whose pitch falls fast (a whip of current), noise riding the same slide,
+    chopped by the arc's gate."""
+    n = ns(dur)
+    f = O.expsweep(f0, f1, dur, 2.5, n=n)
+    tone = O.fm(f, 0.5, 2.5 * E.perc(dur, 0.0005, dur * 0.6), n=n)
+    hiss = F.sweep(N.white(n, child(r, 'n')), 'bp', f, 4.0)
+    gate = 0.45 + 0.55 * (0.5 + 0.5 * np.cos(2.0 * np.pi * O.phase(140.0 * jitter(r, 1.0, 0.1), n))) ** 3
+    x = layers((normalize(tone), 0.0, 0.0), (normalize(hiss), 0.0, -4.0)) * gate
+    return normalize(x * E.end_fade(E.perc(dur, 0.0008, dur * 0.7), 0.01), 0.0)
+
+
+@cue('Element.Thunder.Apply', variations=4, att='Creature', jitter=0.05, conc=4, level=-11.0)
+def thunder_apply(v, r):
+    # The jolt striking: a bright snap, a dense buzz of sparks, a short hum chopped by the arc, a zap falling away.
+    snap = _snap(child(r, 'snap'))
+    sparks = _arc(0.3, child(r, 'sparks'), 3200.0, 0.06, 450.0)
+    hum = _zap(0.35, child(r, 'hum'), 140.0 * jitter(r, 1.0, 0.08), 115.0, 700.0, 2000.0, 0.003, 0.28, -12.0, -8.0)
+    tail = _zap(0.28, child(r, 'tail'), 180.0, 70.0, 600.0, 1800.0, 0.01, 0.22, -6.0)
+    x = layers((snap, 0.0, 0.0), (_loud(sparks, 0.01), 0.002, -6.0), (_loud(hum), 0.004, -7.0),
+               (_loud(tail), 0.14 + 0.04 * r.random(), -12.0))
+    return _air(_calm(_dull(D.drive(normalize(x), 3.0, 'tanh'))), r, -18.0)
+
+
+@cue('Element.Thunder.Tick', variations=4, att='Creature', jitter=0.06, conc=6, level=-16.0)
+def thunder_tick(v, r):
+    # The burst and its arc leaping on: a snap, a crackling whip falling fast in pitch, a brief buzz.
+    snap = _snap(child(r, 'snap'), 1800.0)
+    whip = _whip(0.18 + 0.04 * r.random(), child(r, 'whip'), 1900.0 * jitter(r, 1.0, 0.1), 240.0 * jitter(r, 1.0, 0.1))
+    sparks = _arc(0.2, child(r, 'sparks'), 2200.0, 0.05, 350.0)
+    buzz = _zap(0.16, child(r, 'buzz'), 150.0 * jitter(r, 1.0, 0.1), 110.0, 700.0, 2000.0, 0.004, 0.12, -8.0, -6.0)
+    x = layers((snap, 0.0, -2.0), (_loud(whip), 0.004, 0.0), (_loud(sparks, 0.01), 0.0, -9.0),
+               (_loud(buzz), 0.03, -9.0))
+    return _air(_calm(_dull(D.drive(normalize(x), 2.0, 'tanh'))), r, -20.0, 0.6)
+
+
+@cue('Element.Thunder.Kill', variations=3, att='Creature', jitter=0.04, conc=3, level=-8.0)
+def thunder_kill(v, r):
+    # The jolt finishing it: a big crack with a low thud of air under it, sparks spraying, and a long sizzling buzz
+    # sinking in pitch as the charge dies out.
+    dur = 1.3
+    snap = _snap(child(r, 'snap'), 1200.0)
+    crack = kit.noise_thump(0.25, child(r, 'crack'), 2200.0, 250.0, 0.08, 1.0, 0.05, 0.0004)
+    thud = kit.noise_thump(0.45, child(r, 'thud'), 450.0, 60.0, 0.25, 1.1, 0.1, 0.002)
+    sparks = _arc(dur, child(r, 'sparks'), 4200.0, 0.25, 300.0, t60=0.75)
+    sizzle = _zap(dur, child(r, 'sizzle'), 130.0 * jitter(r, 1.0, 0.08), 45.0, 600.0, 1900.0, 0.01, dur * 0.9, -10.0,
+                  -6.0)
+    x = layers((snap, 0.0, 0.0), (_loud(crack), 0.0, -2.0), (_loud(thud), 0.0, -4.0), (_loud(sparks, 0.02), 0.01, -9.0),
+               (_loud(sizzle), 0.03, -6.0))
+    return _air(_calm(_dull(D.drive(normalize(x), 2.0, 'tanh'))), r, -16.0, 1.2)
+
+
+# --- Rot -----------------------------------------------------------------------------------------------------------------
+# Wet and sick, all in the lows and low mids: gurgles and bubbles at 150-900 Hz, soft pops, a fizz kept above the touchy
+# band, and a faint drone of two reedy tones a semitone apart (the sickness).
+
+def _gurgle(dur, r, f0, f1, g0, g1, q=3.0):
+    """Thick liquid gurgling: pink noise torn by turbulence through a liquid's formant sliding f0 -> f1, glugging g0 -> g1
+    times a second."""
+    n = ns(dur)
+    x = N.pink(n, child(r, 'g')) * kit.turbulence(n, child(r, 'gt'), 60.0, 0.85)
+    fc = O.expsweep(f0, f1, dur, 1.0, n=n) * (1.0 + 0.15 * N.smooth_random(n, child(r, 'fw'), 8.0))
+    y = F.sweep(x, 'bp', fc, q) + 0.4 * F.sweep(x, 'bp', fc * 2.3, q * 1.2)
+    pulse = 0.5 - 0.5 * np.cos(2.0 * np.pi * O.phase(O.expsweep(g0, g1, dur, 1.0, n=n), n))
+    y = normalize(y) * (0.3 + 0.7 * pulse ** 1.5)
+    return normalize(y * E.end_fade(E.ar(dur, 0.03, dur * 0.6, 1.5), 0.02), 0.0)
+
+
+def _bubbles(dur, r, rate, lo, hi, fall_db=0.0):
+    """Bubbles rising through the rot: each a ring a little higher as it closes, lo..hi Hz, rate a second (a number or a
+    function of time), each weaker by fall_db over dur."""
+    out = np.zeros(1)
+    for tt in N.times_poisson(dur, r, rate):
+        f = float(np.exp(r.uniform(np.log(lo), np.log(hi))))
+        out = layers(out, (kit.bubble(f, r, 0.12), tt, r.uniform(-8.0, 0.0) - fall_db * tt / dur))
+    return normalize(out, 0.0) if out.size > 1 else out
+
+
+def _wet_pop(r, f0):
+    """A blister of rot bursting: a soft wet smack in the low mids, a bubble's ring, a dull knock."""
+    smack = kit.squelch(0.06, child(r, 'sq'), f0 * 2.0, f0 * 0.6, 2.5)
+    ring = kit.bubble(f0, child(r, 'b'), 0.15)
+    knock = kit.thunk(f0 * 0.5, child(r, 'k'), 0.03, 0.001, 4, 0.12)
+    return normalize(layers((smack, 0.0, 0.0), (normalize(ring), 0.002, -3.0), (knock, 0.0, -8.0)), 0.0)
+
+
+def _fizz(dur, r, rate, attack, release=None):
+    """The rot fizzing as it eats: a fine wet sizzle up high (above the touchy band), a soft breathy hiss there, and a
+    duller wet hiss in the low mids."""
+    n = ns(dur)
+    g = G.grit(dur, child(r, 'g'), rate, 5500.0, 10000.0, 2.0, 4)
+    h = N.band(n, child(r, 'h'), 5000.0, 9000.0) * kit.turbulence(n, child(r, 't'), 25.0, 0.5)
+    w = N.band(n, child(r, 'w'), 700.0, 1700.0) * kit.turbulence(n, child(r, 'wt'), 40.0, 0.6)
+    x = layers((normalize(g), 0.0, 0.0), (normalize(h), 0.0, -5.0), (normalize(w), 0.0, -6.0))
+    return normalize(x * E.end_fade(E.ar(dur, attack, release or dur - attack, 2.0), 0.02), 0.0)
+
+
+def _drone(dur, r, f0, attack, release):
+    """A faint sick drone: two low reedy tones a semitone apart, beating sourly and wavering."""
+    n = ns(dur)
+    w = 1.0 + 0.012 * N.smooth_random(n, child(r, 'w'), 3.0)
+    a = O.saw(f0 * w, n=n)
+    b = O.saw(f0 * 2.0 ** (1.0 / 12.0) * w * (1.0 + 0.008 * N.smooth_random(n, child(r, 'w2'), 2.0)), n=n)
+    x = F.filt(a + b, F.lp(650.0, 0.7), extend=False)
+    return normalize(x * E.end_fade(E.ar(dur, attack, release, 2.0), 0.02), 0.0)
+
+
+@cue('Element.Rot.Apply', variations=4, att='Creature', jitter=0.05, conc=4, level=-11.0)
+def rot_apply(v, r):
+    # The rot taking hold: a soft wet pop as it lands, gurgling and low bubbles welling up, a wet fizz, a faint sick drone.
+    dur = 0.7
+    pop = _wet_pop(child(r, 'pop'), 520.0 * jitter(r, 1.0, 0.12))
+    gurgle = _gurgle(0.6, child(r, 'gurgle'), 230.0, 460.0 * jitter(r, 1.0, 0.1), 7.0, 11.0)
+    bub = _bubbles(0.6, child(r, 'bub'), 32.0, 250.0, 900.0, 6.0)
+    fizz = _fizz(0.55, child(r, 'fizz'), 1500.0, 0.06)
+    drone = _drone(dur, child(r, 'drone'), kit.note(['B2', 'C3', 'A2', 'Bb2'][v]), 0.15, 0.4)
+    x = layers((_loud(pop, 0.003), 0.0, 0.0), (_loud(gurgle), 0.01, -4.0), (bub, 0.02, -6.0), (fizz, 0.02, -13.0),
+               (drone, 0.0, -20.0))
+    return _air(_calm(D.drive(normalize(x), 2.0, 'tanh')), r, -18.0)
+
+
+@cue('Element.Rot.Tick', variations=5, att='Creature', jitter=0.06, conc=6, level=-16.0)
+def rot_tick(v, r):
+    # Rotting on: two or three wet blisters popping, a short fizz, a few small bubbles.
+    dur = 0.4
+    out = layers((_wet_pop(child(r, 'p0'), 480.0 * jitter(r, 1.0, 0.15)), 0.0, 0.0))
+    for i in range(1 + v % 3):
+        out = layers(out, (_wet_pop(child(r, 'p', i), 560.0 * jitter(r, 1.0, 0.25)), 0.05 + 0.2 * r.random(),
+                           -3.0 - 4.0 * r.random()))
+    fizz = _fizz(dur, child(r, 'fizz'), 1000.0, 0.03)
+    bub = _bubbles(0.32, child(r, 'bub'), 25.0, 300.0, 850.0, 6.0)
+    gurgle = _gurgle(dur, child(r, 'gurgle'), 260.0, 380.0, 9.0, 9.0)
+    x = layers((_loud(out, 0.003), 0.0, 0.0), (fizz, 0.0, -12.0), (bub, 0.01, -9.0), (_loud(gurgle), 0.0, -12.0))
+    return _air(_calm(x), r, -20.0, 0.6)
+
+
+@cue('Element.Rot.Kill', variations=3, att='Creature', jitter=0.04, conc=3, level=-8.0)
+def rot_kill(v, r):
+    # The body collapsing: a wet burst and a soft thud, a gush of bubbling as it caves in, the rot's cloud hissing out and
+    # fading over the sick drone sinking.
+    dur = 1.4
+    burst = kit.squelch(0.25, child(r, 'burst'), 1200.0 * jitter(r, 1.0, 0.1), 220.0, 2.5)
+    thud = kit.noise_thump(0.35, child(r, 'thud'), 700.0, 70.0, 0.18, 1.1, 0.08, 0.002)
+    pop = _wet_pop(child(r, 'pop'), 420.0)
+    gush = _gurgle(1.0, child(r, 'gush'), 200.0, 520.0 * jitter(r, 1.0, 0.1), 8.0, 15.0, 2.5)
+    bub = _bubbles(1.1, child(r, 'bub'), lambda t: 10.0 + 80.0 * np.exp(-t / 0.35), 180.0, 800.0, 10.0)
+    cloud = _fizz(1.25, child(r, 'cloud'), 2500.0, 0.15, 1.0)
+    drone = _drone(dur, child(r, 'drone'), kit.note(['A2', 'B2', 'Bb2'][v]), 0.08, 1.0)
+    x = layers((_loud(burst), 0.0, 0.0), (_loud(thud), 0.0, -1.0), (_loud(pop, 0.003), 0.0, -4.0),
+               (_loud(gush), 0.04, -3.0), (bub, 0.05, -6.0), (cloud, 0.06, -10.0), (drone, 0.0, -18.0))
+    return _air(_calm(D.drive(normalize(x), 2.0, 'tanh')), r, -16.0, 1.2)

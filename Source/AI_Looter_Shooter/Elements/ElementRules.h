@@ -58,6 +58,8 @@ enum class EElementCue : uint8
  *   Ember      weak: spiders, the Spitter, slimes, the Gravemother        resists: the Unpaid
  *   Soul-light weak: the Unpaid, dead miners, the Bell-Ringer, Abel's risen  resists: slimes
  *   Grave-salt weak: spirits (Warded, Phasing, Ethereal), an Unpaid's coal   resists: spiders
+ *   Thunder    weak: slimes, the living (Other)                            resists: the dead (Unpaid, Undead)
+ *   Rot        weak: spiders, the living (Other)                           resists: slimes
  * A weakness wins over a resistance (a Warded spider is a spirit before it's a spider to the salt).
  */
 namespace ElementRules
@@ -83,10 +85,10 @@ namespace ElementRules
 	/** That chance on a target: times the weakness, at most ChanceMax. */
 	AI_LOOTER_SHOOTER_API float HitChance(float Chance, EElementAffinity Affinity, const FElementTuning& Tuning);
 
-	/** One of the dead (an Unpaid or the rest of the risen): a smite leaps between them. */
+	/** One of the dead (an Unpaid or the rest of the risen): a smite leaps between them, a jolt between the others. */
 	AI_LOOTER_SHOOTER_API bool IsTheDead(EElementBody Body);
 
-	/** "CINDER", "HALLOW", "WARDBREAK" (cards and labels; the user's names, 2026-10-29); empty for None. */
+	/** "CINDER", "HALLOW", "WARDBREAK", "THUNDER", "ROT" (cards and labels; the user's names, 2026-10-29); empty for None. */
 	AI_LOOTER_SHOOTER_API FString Word(ELooterElement Element);
 
 	/** What it does, in a line for the loot card. Empty for None. */
@@ -95,13 +97,13 @@ namespace ElementRules
 	/** The element a CSV cell names ("Ember"/"Cinder", "SoulLight"/"Hallow", "GraveSalt"/"Wardbreak", hyphens and spaces ignored); None for anything else. */
 	AI_LOOTER_SHOOTER_API ELooterElement Parse(const FString& Text);
 
-	/** Its look's colour (linear, for FWeaponFX and tracers): ember orange-red, soul-light white-gold, salt pale cyan-white. */
+	/** Its look's colour (linear, for FWeaponFX and tracers): cinder orange-red, hallow white-gold, wardbreak teal, thunder deep blue, rot green. */
 	AI_LOOTER_SHOOTER_API FLinearColor FxColor(ELooterElement Element);
 
 	/** Its interface colour (LooterUI::Color::ElementEmber and the rest). */
 	AI_LOOTER_SHOOTER_API FLinearColor UiColor(ELooterElement Element);
 
-	/** Element.<Ember|SoulLight|GraveSalt>.<Apply|Tick|Kill>; none for None. */
+	/** Element.<Ember|SoulLight|GraveSalt|Thunder|Rot>.<Apply|Tick|Kill>; none for None. */
 	AI_LOOTER_SHOOTER_API FName Cue(ELooterElement Element, EElementCue Event);
 
 	/** The damage type its status deals: UEmberElementDamageType, USoulLightElementDamageType, and the grave-salt grenade's own. */

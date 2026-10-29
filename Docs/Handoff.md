@@ -18,8 +18,12 @@ tag card). Tests Looter.UI 64, Settings 11, FPHands 6, Player.Hands 13, Inventor
   Then element glyphs picked from four concepts each: Ember Hearth, Soul-light Sunburst, Grave-salt Salt Cluster, Normal
   Empty Ring (Docs/Archive/Work/2026-10-29-Embers). Tests UI.GunCard 3 pass.
 - Elements renamed for the player (the user's picks from options): Cinder (Ember), Hallow (Soul-light), Wardbreak (Grave-salt);
-  code names unchanged (Pipeline Gunplay.md "Names"). The user then asked for two new elements: concept sheet in
-  Docs/Work/2026-10-29-NewElements (picks pending).
+  code names unchanged (Pipeline Gunplay.md "Names").
+- Two new elements BUILT (the user's picks: Thunder = a jolt that staggers and arcs to the living, Rot = a growing rot that
+  spreads from the dying; Pipeline Gunplay.md "Thunder and Rot"): rules, statuses, damage types, cvars, sounds, CSV parts,
+  card rows and glyphs (Bolt, Skull). Wardbreak recoloured teal with a Cracked Ward glyph, Thunder deep blue (the user's
+  picks). Looks (FX, finishes) by lane F: see the commit. Not yet: the ward nova's element list (ShieldRules::NovaElementFor)
+  still rolls only the first three; element finishes reuse frosted (Thunder) and scorched (Rot) patterns.
 - Main's calls (undo any): from the main menu the reticle row says BACK and the footer Back chip is hidden (the row was an
   empty band); the RESUME wash runs to the right bracket; slider end labels 5 px lower; arrowheads point out (c5's picture).
 - Not seen by the user in game yet. Next: the user's look, then the rest of round 2's list (HUD mission popup, bestiary

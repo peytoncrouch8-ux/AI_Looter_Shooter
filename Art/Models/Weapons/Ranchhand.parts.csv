@@ -51,6 +51,8 @@ Pump,Walnut,Ribbed pump,,Common,1,0,,,,,,,,,,,,,,,,,,
 Magazine,EmberTube6,6 ember shells,Smoldering,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,Ember,EmberTube6
 Magazine,SaintTube6,6 saint's shells,Saintlit,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,SoulLight,SaintTube6
 Magazine,SaltTube6,6 rock-salt shells,Salted,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,SaltTube6
+Magazine,ThunderTube6,6 thunder shells,Charged,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,Thunder,Tube6
+Magazine,RotTube6,6 rot shells,Blighted,Uncommon,0.35,38,6,,,,-6,-2,,,,,,,,,,,,,,Rot,Tube6
 Magazine,BlastingTube6,6 blasting shells,Blasting,Epic,0.6,39,6,,,,-8,-4,,,,,,,,,,,,,Explosive,,Tube6
 Muzzle,CaromChoke,Caroming choke,Caroming,Epic,0.6,39,,,,,,,4,8,,,,,,,,,,,Ricochet,,Choke
 Body,Thunder,Thunder receiver,Charged,Epic,0.6,39,,,,,2,6,,,,,,,,,,,,,Overcharge,,Shell

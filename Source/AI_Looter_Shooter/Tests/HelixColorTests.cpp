@@ -46,7 +46,8 @@ bool FNewGunsHelixColorTest::RunTest(const FString& Parameters)
 		ELooterElement Element;
 	};
 	const FCase Cases[] = { { TEXT("40"), ELooterElement::None }, { TEXT("Ember40"), ELooterElement::Ember },
-		{ TEXT("Saint40"), ELooterElement::SoulLight }, { TEXT("Salt40"), ELooterElement::GraveSalt } };
+		{ TEXT("Saint40"), ELooterElement::SoulLight }, { TEXT("Salt40"), ELooterElement::GraveSalt }, { TEXT("Thunder40"), ELooterElement::Thunder },
+		{ TEXT("Rot40"), ELooterElement::Rot } };
 	for (const FCase& Case : Cases)
 	{
 		FWeaponInstanceData Gun = UWeaponRollLibrary::RollWeaponWithRarity(Definition, EWeaponRarity::Rare, 1);

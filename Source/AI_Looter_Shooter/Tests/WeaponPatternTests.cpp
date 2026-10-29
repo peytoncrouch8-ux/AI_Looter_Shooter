@@ -24,7 +24,8 @@ namespace
 		TEXT("DA_Sniper"), TEXT("DA_LMG"), TEXT("DA_Launcher") };
 	const EWeaponRarity PatternRarities[] = { EWeaponRarity::Common, EWeaponRarity::Uncommon, EWeaponRarity::Rare, EWeaponRarity::Epic,
 		EWeaponRarity::Legendary };
-	const ELooterElement PatternElements[] = { ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt };
+	const ELooterElement PatternElements[] = { ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt, ELooterElement::Thunder,
+		ELooterElement::Rot };
 	constexpr int32 PatternRolls = 200;
 
 	UWeaponDefinition* LoadPatternGun(const TCHAR* Asset)

@@ -19,5 +19,9 @@ enum class ELooterElement : uint8
 	None,
 	Ember,
 	SoulLight,
-	GraveSalt
+	GraveSalt,
+	/** A jolt that staggers and arcs to the next living thing (the user's pick, 2026-10-29; Docs/Archive/Work/2026-10-29-NewElements). */
+	Thunder,
+	/** A rot that grows and spreads from the dying (the user's pick, 2026-10-29). */
+	Rot
 };

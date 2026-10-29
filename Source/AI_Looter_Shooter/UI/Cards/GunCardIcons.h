@@ -19,7 +19,8 @@ namespace GunCardIcons
 
 	/**
 	 * The element's glyph as a brush of Size in Tint, the user's picks (2026-10-29, Docs/Archive/Work/2026-10-29-Embers):
-	 * ember "Hearth" (a flame cut from its heart), soul-light "Sunburst", grave-salt "Salt Cluster", none "Empty Ring".
+	 * ember "Hearth" (a flame cut from its heart), soul-light "Sunburst", wardbreak "Cracked Ward", thunder "Bolt", rot "Skull",
+	 * none "Empty Ring".
 	 * False for none (the ring is still made).
 	 */
 	AI_LOOTER_SHOOTER_API bool ElementBrush(ELooterElement Element, const FVector2D& Size, const FLinearColor& Tint, FSlateBrush& OutBrush);

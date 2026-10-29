@@ -24,6 +24,8 @@ namespace
 		case ELooterElement::Ember: return TEXT("Cinder: sets them burning");
 		case ELooterElement::SoulLight: return TEXT("Hallow: light leaps to the next of the dead");
 		case ELooterElement::GraveSalt: return TEXT("Wardbreak: salts and slows them, wards crumble");
+		case ELooterElement::Thunder: return TEXT("Thunder: jolts them, and the next living thing");
+		case ELooterElement::Rot: return TEXT("Rot: eats at them, and spreads from the dying");
 		default: return FString();
 		}
 	}
@@ -115,6 +117,10 @@ TArray<GunCardRules::FElementRow> GunCardRules::ElementRows(const FWeaponInstanc
 		return { { TEXT("Smite damage"), FString::FromInt(FMath::RoundToInt(Hit * Tuning.SoulLightShare)) }, { TEXT("Chance to smite"), Chance } };
 	case ELooterElement::GraveSalt:
 		return { { TEXT("Salt dmg/sec"), PerSecond(Tuning.GraveSaltShare, Tuning.GraveSaltSeconds) }, { TEXT("Chance to salt"), Chance } };
+	case ELooterElement::Thunder:
+		return { { TEXT("Jolt damage"), FString::FromInt(FMath::RoundToInt(Hit * Tuning.ThunderShare)) }, { TEXT("Chance to jolt"), Chance } };
+	case ELooterElement::Rot:
+		return { { TEXT("Rot dmg/sec"), PerSecond(Tuning.RotShare, Tuning.RotSeconds) }, { TEXT("Chance to rot"), Chance } };
 	default:
 		return { { TEXT("Element"), TEXT("Normal") } };
 	}

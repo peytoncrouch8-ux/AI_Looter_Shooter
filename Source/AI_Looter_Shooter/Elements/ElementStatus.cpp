@@ -70,9 +70,61 @@ void FElementStatus::Apply(ELooterElement Element, float HitDamage, EElementAffi
 		Salt.PerSecond = Salt.DamageLeft / Salt.TimeLeft;
 		return;
 	}
+	case ELooterElement::Thunder:
+	{
+		const float Burst = HitDamage * Tuning.ThunderShare * Scale * BossShare;
+		if (Burst <= 0.f)
+		{
+			return;
+		}
+		if (Jolts.Num() < Tuning.ThunderMaxPending)
+		{
+			Jolts.Add({ Burst, 0.f });
+		}
+		else
+		{
+			Jolts.Last().Damage += Burst;
+		}
+		return;
+	}
+	case ELooterElement::Rot:
+	{
+		const float Total = HitDamage * Tuning.RotShare * Scale * BossShare;
+		const float Seconds = Tuning.RotSeconds * BossShare;
+		if (Total <= 0.f || Seconds <= 0.f)
+		{
+			return;
+		}
+		// One rot: a new hit adds to what is left and starts its time over, so it keeps growing while the hits come.
+		Rot.DamageLeft += Total;
+		Rot.TimeLeft = Seconds;
+		RotLength = Seconds;
+		Rot.PerSecond = Rot.DamageLeft / Seconds;
+		return;
+	}
 	default:
 		return;
 	}
+}
+
+float FElementStatus::DrainRot(FOverTime& Status, float Length, float DeltaSeconds)
+{
+	if (Status.TimeLeft <= 0.f)
+	{
+		return 0.f;
+	}
+	if (Status.TimeLeft <= DeltaSeconds)
+	{
+		const float Last = Status.DamageLeft;
+		Status.DamageLeft = 0.f;
+		Status.TimeLeft = 0.f;
+		return Last;
+	}
+	const float Growth = Length > 0.f ? FMath::Clamp(1.f - Status.TimeLeft / Length, 0.f, 1.f) : 1.f;
+	const float Dealt = FMath::Min(Status.PerSecond * (0.5f + Growth) * DeltaSeconds, Status.DamageLeft);
+	Status.DamageLeft -= Dealt;
+	Status.TimeLeft -= DeltaSeconds;
+	return Dealt;
 }
 
 float FElementStatus::Drain(FOverTime& Status, float DeltaSeconds)
@@ -112,6 +164,22 @@ void FElementStatus::Advance(float DeltaSeconds, const FElementTuning& Tuning, T
 		}
 	}
 	SaltOwed += Drain(Salt, DeltaSeconds);
+	RotOwed += DrainRot(Rot, RotLength, DeltaSeconds);
+
+	for (int32 Index = Jolts.Num() - 1; Index >= 0; --Index)
+	{
+		FSmite& Jolt = Jolts[Index];
+		Jolt.Wait += DeltaSeconds;
+		if (Jolt.Wait >= Tuning.ThunderDelay)
+		{
+			FElementTick Tick;
+			Tick.Element = ELooterElement::Thunder;
+			Tick.Damage = Jolt.Damage;
+			Tick.bJolt = true;
+			Out.Add(Tick);
+			Jolts.RemoveAt(Index, 1, EAllowShrinking::No);
+		}
+	}
 
 	for (int32 Index = Smites.Num() - 1; Index >= 0; --Index)
 	{
@@ -140,6 +208,11 @@ void FElementStatus::Advance(float DeltaSeconds, const FElementTuning& Tuning, T
 		Out.Add({ ELooterElement::GraveSalt, SaltOwed, false });
 		SaltOwed = 0.f;
 	}
+	if (RotOwed > 0.f && (bBeat || !IsRotting()))
+	{
+		Out.Add({ ELooterElement::Rot, RotOwed, false });
+		RotOwed = 0.f;
+	}
 }
 
 void FElementStatus::Clear()
@@ -147,14 +220,19 @@ void FElementStatus::Clear()
 	Burns.Reset();
 	Smites.Reset();
 	Salt = FOverTime();
+	Jolts.Reset();
+	Rot = FOverTime();
+	RotLength = 0.f;
 	EmberOwed = 0.f;
 	SaltOwed = 0.f;
+	RotOwed = 0.f;
 	SinceTick = 0.f;
 }
 
 bool FElementStatus::IsActive() const
 {
-	return !Burns.IsEmpty() || !Smites.IsEmpty() || IsSalted() || EmberOwed > 0.f || SaltOwed > 0.f;
+	return !Burns.IsEmpty() || !Smites.IsEmpty() || IsSalted() || !Jolts.IsEmpty() || IsRotting() || EmberOwed > 0.f || SaltOwed > 0.f
+		|| RotOwed > 0.f;
 }
 
 float FElementStatus::GetSmiteCharge(const FElementTuning& Tuning) const
@@ -188,10 +266,29 @@ float FElementStatus::GetDamageLeft(ELooterElement Element) const
 	case ELooterElement::GraveSalt:
 		Left = Salt.DamageLeft + SaltOwed;
 		break;
+	case ELooterElement::Thunder:
+		for (const FSmite& Jolt : Jolts)
+		{
+			Left += Jolt.Damage;
+		}
+		break;
+	case ELooterElement::Rot:
+		Left = Rot.DamageLeft + RotOwed;
+		break;
 	default:
 		break;
 	}
 	return Left;
+}
+
+float FElementStatus::GetJoltCharge(const FElementTuning& Tuning) const
+{
+	float Charge = 0.f;
+	for (const FSmite& Jolt : Jolts)
+	{
+		Charge = FMath::Max(Charge, Tuning.ThunderDelay > 0.f ? Jolt.Wait / Tuning.ThunderDelay : 1.f);
+	}
+	return FMath::Clamp(Charge, 0.f, 1.f);
 }
 
 float FElementStatus::GetBurnTimeLeft() const

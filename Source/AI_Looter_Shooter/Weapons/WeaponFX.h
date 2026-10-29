@@ -161,7 +161,8 @@ public:
 	 */
 	void SpawnDeathBurst(EDeathBurst Kind, const FVector& Center, const FVector& ShotDirection, float Size, const FLinearColor& Tint);
 
-	// --- The elements, the part effects and the loot's drop moments (WeaponFXElements.cpp; Phase 12.3) ---
+	// --- The elements, the part effects and the loot's drop moments (WeaponFXElements.cpp hits and auras; WeaponFXElementBursts.cpp
+	// bursts, arcs, the pop, the drop's ring; Phase 12.3, Thunder and Rot 2026-10-29) ---
 
 	/**
 	 * An element gun's round landing on a creature, on top of its splash: Ember a spit of embers and a lick of flame,

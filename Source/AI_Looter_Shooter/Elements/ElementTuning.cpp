@@ -59,6 +59,28 @@ namespace
 	TAutoConsoleVariable<float> CVarGraveSaltWardBonus(TEXT("Looter.Element.GraveSalt.WardBonus"), ElementDefaults.GraveSaltWardBonus,
 		TEXT("A bullet hit on a salted creature's standing ward counts this many times."), ECVF_Default);
 
+	TAutoConsoleVariable<float> CVarThunderShare(TEXT("Looter.Element.Thunder.Share"), ElementDefaults.ThunderShare,
+		TEXT("A jolt's burst: this share of the hit that set it."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarThunderDelay(TEXT("Looter.Element.Thunder.Delay"), ElementDefaults.ThunderDelay,
+		TEXT("How long after the hit the jolt bursts (s)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarThunderStaggerSeconds(TEXT("Looter.Element.Thunder.Stagger"), ElementDefaults.ThunderStaggerSeconds,
+		TEXT("The burst staggers a Basic creature this long (s; tougher ranks shorter, never a boss or a Soulfed; 0: none)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarThunderChainRadius(TEXT("Looter.Element.Thunder.ChainRadius"), ElementDefaults.ThunderChainRadius,
+		TEXT("A jolt arcs to the nearest living creature within this (cm)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarThunderChainShare(TEXT("Looter.Element.Thunder.ChainShare"), ElementDefaults.ThunderChainShare,
+		TEXT("The arc's share of the jolt's burst."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarThunderMaxPending(TEXT("Looter.Element.Thunder.MaxPending"), ElementDefaults.ThunderMaxPending,
+		TEXT("Jolts waiting on one creature at once."), ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarRotShare(TEXT("Looter.Element.Rot.Share"), ElementDefaults.RotShare,
+		TEXT("A rot deals this share of the hit that set it, over Rot.Seconds."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRotSeconds(TEXT("Looter.Element.Rot.Seconds"), ElementDefaults.RotSeconds,
+		TEXT("How long a rot lasts (s); a new hit sets it back to this."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRotSpreadRadius(TEXT("Looter.Element.Rot.SpreadRadius"), ElementDefaults.RotSpreadRadius,
+		TEXT("A rotting creature's death sets every living creature within this (cm) rotting."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarRotSpreadShare(TEXT("Looter.Element.Rot.SpreadShare"), ElementDefaults.RotSpreadShare,
+		TEXT("The spread rots as a hit of this share of the strongest hit that rotted the dead one."), ECVF_Default);
+
 	TAutoConsoleVariable<float> CVarBossDuration(TEXT("Looter.Element.BossDuration"), ElementDefaults.BossDuration,
 		TEXT("Bosses carry a status this share of its time (a smite's burst this share of its damage)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarTickSeconds(TEXT("Looter.Element.TickSeconds"), ElementDefaults.TickSeconds,
@@ -97,6 +119,16 @@ FElementTuning FElementTuning::Live()
 	Tuning.GraveSaltWardBonus = FMath::Max(CVarGraveSaltWardBonus.GetValueOnGameThread(), 1.f);
 	Tuning.BossDuration = FMath::Clamp(CVarBossDuration.GetValueOnGameThread(), 0.05f, 1.f);
 	Tuning.TickSeconds = FMath::Max(CVarTickSeconds.GetValueOnGameThread(), 0.05f);
+	Tuning.ThunderShare = FMath::Max(CVarThunderShare.GetValueOnGameThread(), 0.f);
+	Tuning.ThunderDelay = FMath::Max(CVarThunderDelay.GetValueOnGameThread(), 0.f);
+	Tuning.ThunderStaggerSeconds = FMath::Max(CVarThunderStaggerSeconds.GetValueOnGameThread(), 0.f);
+	Tuning.ThunderChainRadius = FMath::Max(CVarThunderChainRadius.GetValueOnGameThread(), 0.f);
+	Tuning.ThunderChainShare = FMath::Max(CVarThunderChainShare.GetValueOnGameThread(), 0.f);
+	Tuning.ThunderMaxPending = FMath::Max(CVarThunderMaxPending.GetValueOnGameThread(), 1);
+	Tuning.RotShare = FMath::Max(CVarRotShare.GetValueOnGameThread(), 0.f);
+	Tuning.RotSeconds = FMath::Max(CVarRotSeconds.GetValueOnGameThread(), 0.f);
+	Tuning.RotSpreadRadius = FMath::Max(CVarRotSpreadRadius.GetValueOnGameThread(), 0.f);
+	Tuning.RotSpreadShare = FMath::Max(CVarRotSpreadShare.GetValueOnGameThread(), 0.f);
 	Tuning.TracerTint = FMath::Clamp(CVarTracerTint.GetValueOnGameThread(), 0.f, 1.f);
 	Tuning.LookScale = FMath::Max(CVarLookScale.GetValueOnGameThread(), 0.f);
 	return Tuning;

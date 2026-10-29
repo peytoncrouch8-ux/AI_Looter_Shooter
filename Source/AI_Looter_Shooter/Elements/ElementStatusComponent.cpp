@@ -6,6 +6,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/MovementSlowComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureHitReactionComponent.h"
 #include "Elements/ElementRules.h"
 #include "Elements/ElementTuning.h"
 #include "Engine/World.h"
@@ -21,14 +22,14 @@ namespace
 {
 	int32 IndexOf(ELooterElement Element)
 	{
-		return FMath::Clamp(static_cast<int32>(Element), 0, 3);
+		return FMath::Clamp(static_cast<int32>(Element), 0, 5);
 	}
 
 	/**
 	 * Tick sounds heard at once across every creature: a horde burning together crackles, it doesn't roar. The last one's
 	 * time per element; world time, so a new play session starts with it long past.
 	 */
-	double LastTickCue[4] = { -1000.0, -1000.0, -1000.0, -1000.0 };
+	double LastTickCue[6] = { -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0 };
 	constexpr double TickCueGap = 0.12;
 	/** A status set again on one creature within this long sounds once (a rifle's stream of hits). */
 	constexpr double ApplyCueGap = 0.25;
@@ -92,6 +93,12 @@ void UElementStatusComponent::Apply(ELooterElement Element, float HitDamage, EEl
 	const FElementTarget Target = ElementRules::TargetOf(GetOwner());
 	const bool bWasSalted = Status.IsSalted();
 	Status.Apply(Element, HitDamage, Affinity, Target.bBoss, Tuning);
+	if (Element == ELooterElement::Rot)
+	{
+		// A new rot (none ran) starts a new death's spread; the strongest hit is what spreads.
+		RotHitDamage = Status.IsRotting() ? FMath::Max(bRotSpread ? 0.f : RotHitDamage, HitDamage) : 0.f;
+		bRotSpread = false;
+	}
 	const int32 Index = IndexOf(Element);
 	Causers[Index] = Causer;
 	Instigators[Index] = Instigator;
@@ -122,9 +129,11 @@ void UElementStatusComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 void UElementStatusComponent::Advance(float DeltaSeconds)
 {
-	// A death (by anything) ends every status: the look goes with the body's own death, nothing burns on a corpse.
+	// A death (by anything) ends every status: the look goes with the body's own death, nothing burns on a corpse. A rot
+	// spreads first.
 	if (!IsOwnerAlive())
 	{
+		SpreadRot();
 		Status.Clear();
 		SetComponentTickEnabled(false);
 		return;
@@ -143,6 +152,7 @@ void UElementStatusComponent::Advance(float DeltaSeconds)
 				PlayKillLook(Tick.Element);
 				PlayCue(Tick.Element, EElementCue::Kill, BodyPoint(0.3f));
 			}
+			SpreadRot();
 			Status.Clear();
 			break;
 		}
@@ -166,9 +176,30 @@ bool UElementStatusComponent::Deal(const FElementTick& Tick)
 	}
 	const UWorld* World = GetWorld();
 	const double Now = World ? World->GetTimeSeconds() : 0.0;
+	if (Tick.bJolt)
+	{
+		// A jolt: the burst, a stagger (never a boss: the reaction says no), and an arc to the nearest living creature.
+		const FElementTuning Tuning = FElementTuning::Live();
+		const FVector Heart = BodyPoint(0.35f);
+		AActor* Next = Tuning.ThunderChainShare > 0.f ? FindNextOfTheLiving(World, Heart, Tuning.ThunderChainRadius, Owner) : nullptr;
+		FVector NextHeart = Next ? Next->GetActorLocation() : FVector::ZeroVector;
+		PlayJoltLook(Heart, Next ? &NextHeart : nullptr);
+		PlayCue(ELooterElement::Thunder, EElementCue::Tick, Heart);
+		if (UCreatureHitReactionComponent* React = Owner->FindComponentByClass<UCreatureHitReactionComponent>())
+		{
+			const AActor* From = Causers[IndexOf(ELooterElement::Thunder)].Get();
+			const FVector Direction = From ? (Owner->GetActorLocation() - From->GetActorLocation()).GetSafeNormal2D() : FVector::ZeroVector;
+			React->Jolt(Tuning.ThunderStaggerSeconds, Direction);
+		}
+		if (Next)
+		{
+			SendDamage(*Next, ELooterElement::Thunder, Tick.Damage * Tuning.ThunderChainShare);
+		}
+		return SendDamage(*Owner, ELooterElement::Thunder, Tick.Damage);
+	}
 	if (!Tick.bSmite)
 	{
-		// A burn's or the salt's piece: a crackle or a hiss on it, a horde's together heard as a few.
+		// A burn's, the salt's or the rot's piece: a crackle, a hiss or a pop on it, a horde's together heard as a few.
 		const int32 Index = IndexOf(Tick.Element);
 		if (Now - LastTickCue[Index] >= TickCueGap || Now < LastTickCue[Index])
 		{
@@ -248,6 +279,65 @@ AActor* UElementStatusComponent::FindNextOfTheDead(const UWorld* World, const FV
 		ACreatureBase* Creature = *It;
 		if (Creature == Except || Creature->IsDead() || Creature->IsActorBeingDestroyed()
 			|| !ElementRules::IsTheDead(ElementRules::BodyOf(Creature->GetClass())))
+		{
+			continue;
+		}
+		const double Squared = FVector::DistSquared(Creature->GetActorLocation(), Center);
+		if (Squared <= NearestSquared)
+		{
+			NearestSquared = Squared;
+			Nearest = Creature;
+		}
+	}
+	return Nearest;
+}
+
+void UElementStatusComponent::SpreadRot()
+{
+	AActor* Owner = GetOwner();
+	const FElementTuning Tuning = FElementTuning::Live();
+	if (bRotSpread || !Owner || !Status.IsRotting() || RotHitDamage <= 0.f || Tuning.RotSpreadShare <= 0.f || Tuning.RotSpreadRadius <= 0.f)
+	{
+		return;
+	}
+	bRotSpread = true;
+	const UWorld* World = GetWorld();
+	const FVector Here = Owner->GetActorLocation();
+	const int32 Index = IndexOf(ELooterElement::Rot);
+	TArray<FVector> Targets;
+	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	{
+		ACreatureBase* Creature = *It;
+		if (Creature == Owner || Creature->IsDead() || Creature->IsActorBeingDestroyed()
+			|| FVector::DistSquared(Creature->GetActorLocation(), Here) > FMath::Square(Tuning.RotSpreadRadius))
+		{
+			continue;
+		}
+		// As a hit of the share on each, at its own weakness: a slime shrugs it, a spider takes it worse.
+		const EElementAffinity Affinity = ElementRules::Affinity(ELooterElement::Rot, ElementRules::TargetOf(Creature), false);
+		FindOrAdd(*Creature)->Apply(ELooterElement::Rot, RotHitDamage * Tuning.RotSpreadShare, Affinity, Creature->GetActorLocation(),
+			Causers[Index].Get(), Instigators[Index].Get());
+		Targets.Add(Creature->GetActorLocation());
+	}
+	if (Targets.Num() > 0)
+	{
+		PlayRotSpreadLook(BodyPoint(0.3f), Targets);
+	}
+}
+
+AActor* UElementStatusComponent::FindNextOfTheLiving(const UWorld* World, const FVector& Center, float Radius, const AActor* Except)
+{
+	if (!World || Radius <= 0.f)
+	{
+		return nullptr;
+	}
+	AActor* Nearest = nullptr;
+	double NearestSquared = FMath::Square(static_cast<double>(Radius));
+	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	{
+		ACreatureBase* Creature = *It;
+		if (Creature == Except || Creature->IsDead() || Creature->IsActorBeingDestroyed()
+			|| ElementRules::IsTheDead(ElementRules::BodyOf(Creature->GetClass())))
 		{
 			continue;
 		}

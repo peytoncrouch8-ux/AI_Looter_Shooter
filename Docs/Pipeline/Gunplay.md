@@ -324,6 +324,27 @@ nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in
   Soul-light) and **Wardbreak** (was Grave-salt; the salt jar, grenade and vendor item keep "grave salt"). Only `ElementRules::Word`,
   `Description`, the card lines and `Parse` (both spellings) changed: the enum, cues (`Element.Ember.*`), cvars, part keys and
   quirk names (Smoldering, Saintlit, Salted) keep the old words. The docs below use the old names for the code.
+- **Thunder and Rot (the user's picks of four candidates, 2026-10-29; contract and concept sheets in
+  Docs/Archive/Work/2026-10-29-NewElements)**: `ELooterElement::Thunder`, `::Rot` (after GraveSalt; never reorder).
+  Thunder, a jolt: a burst of `Thunder.Share` (0.35) of the hit `Thunder.Delay` (0.2 s) later, a stagger of `Thunder.Stagger`
+  (0.5 s Basic, by rank; never a boss, a Soulfed or a passive creature: `UCreatureHitReactionComponent::Jolt` ->
+  `FHitReaction::OnJolt`, job Power, the usual cooldown) with a shove, and an arc to the nearest living creature (not of the
+  dead, `FindNextOfTheLiving`) within `Thunder.ChainRadius` (350) for `Thunder.ChainShare` (0.5), damage only. Up to
+  `Thunder.MaxPending` (4) wait; more join the last. Weak gel + Other, resists the dead, neutral chitin. Rot, a rot:
+  `Rot.Share` (0.5) of the hit over `Rot.Seconds` (6), the rate growing from half the mean to one and a half (`DrainRot`;
+  the total exact); one rot, a new hit adds its total and sets the time back. A rotting creature's death (by anything;
+  `SpreadRot`, once a death) sets every living creature within `Rot.SpreadRadius` (300) rotting as by a hit of
+  `Rot.SpreadShare` (0.6) of the strongest hit that rotted it, at their own weakness. Weak chitin + Other, resists gel,
+  neutral the dead. Damage types `UThunderElementDamageType`, `URotElementDamageType`; cues `Element.Thunder.*`,
+  `Element.Rot.*` (recipes/elements.py: electric cracks and buzzes; wet pops and bubbling). Parts: CSV-only rows
+  Thunder30/Rot30 (Bullpup), Thunder6/Rot6 (Drover, Model Fluted6), Thunder5/Rot5, Thunderclap/Rotburst (Model Frag),
+  ThunderTube6/RotTube6 (Model Tube6), Thunder40/Rot40, Thunder100/Rot100; words Charged / Blighted; they reuse the plain
+  magazine mesh (the finish and glow carry the element; `Option->Element` finds the part). Card rows "Jolt damage" /
+  "Chance to jolt", "Rot dmg/sec" / "Chance to rot"; glyphs Bolt and Skull. Dev: `Looter.Element.Apply Thunder|Rot`.
+  Tests Looter.Elements.Jolt, .Rot (+ Weakness, Words rows).
+- **Colours (the user, 2026-10-29)**: Wardbreak teal #4FD4C4 (FX hue 0.3, 0.95, 0.85; was pale cyan-white), Thunder deep
+  blue #566EF0 (FX 0.28, 0.4, 1), Rot green #A8E05A (FX 0.55, 0.95, 0.25). Wardbreak's card glyph "Cracked Ward" (its
+  Salt Cluster lasted an hour).
 
 The user's calls (2026-10-21 night): story elements Ember (burn), Soul-light (vs undead), Grave-salt (slow, vs spirits),
 each status dealing damage and stronger on the monsters weakest to it; part effects that change behaviour; bigger drop

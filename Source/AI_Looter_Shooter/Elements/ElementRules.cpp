@@ -78,6 +78,20 @@ EElementAffinity ElementRules::Affinity(ELooterElement Element, const FElementTa
 			return EElementAffinity::Weak;
 		}
 		return Target.Body == EElementBody::Chitin ? EElementAffinity::Resist : EElementAffinity::Neutral;
+	case ELooterElement::Thunder:
+		// Wet and living things conduct; the dead don't feel it.
+		if (Target.Body == EElementBody::Gel || Target.Body == EElementBody::Other)
+		{
+			return EElementAffinity::Weak;
+		}
+		return IsTheDead(Target.Body) ? EElementAffinity::Resist : EElementAffinity::Neutral;
+	case ELooterElement::Rot:
+		// Flesh and chitin rot; a slime is rot already.
+		if (Target.Body == EElementBody::Chitin || Target.Body == EElementBody::Other)
+		{
+			return EElementAffinity::Weak;
+		}
+		return Target.Body == EElementBody::Gel ? EElementAffinity::Resist : EElementAffinity::Neutral;
 	default:
 		return EElementAffinity::Neutral;
 	}
@@ -130,6 +144,8 @@ FString ElementRules::Word(ELooterElement Element)
 	case ELooterElement::Ember: return TEXT("CINDER");
 	case ELooterElement::SoulLight: return TEXT("HALLOW");
 	case ELooterElement::GraveSalt: return TEXT("WARDBREAK");
+	case ELooterElement::Thunder: return TEXT("THUNDER");
+	case ELooterElement::Rot: return TEXT("ROT");
 	default: return FString();
 	}
 }
@@ -141,6 +157,8 @@ FString ElementRules::Description(ELooterElement Element)
 	case ELooterElement::Ember: return TEXT("Sets them burning. Spiders and slimes burn best; the Unpaid shrug it off.");
 	case ELooterElement::SoulLight: return TEXT("Smites with a burst of light that leaps to the next of the dead. Slimes dull it.");
 	case ELooterElement::GraveSalt: return TEXT("Salts and slows them; wards crumble. Spirits fear it; spiders barely notice.");
+	case ELooterElement::Thunder: return TEXT("Jolts them off their feet and arcs to the next living thing. Slimes and the living feel it most; the dead don't.");
+	case ELooterElement::Rot: return TEXT("Eats at them, worse as it goes, and spreads from the dying. Spiders and the living rot; slimes don't.");
 	default: return FString();
 	}
 }
@@ -160,6 +178,14 @@ ELooterElement ElementRules::Parse(const FString& Text)
 	{
 		return ELooterElement::GraveSalt;
 	}
+	if (Key.Equals(TEXT("Thunder"), ESearchCase::IgnoreCase) || Key.Equals(TEXT("Shock"), ESearchCase::IgnoreCase))
+	{
+		return ELooterElement::Thunder;
+	}
+	if (Key.Equals(TEXT("Rot"), ESearchCase::IgnoreCase) || Key.Equals(TEXT("Blight"), ESearchCase::IgnoreCase))
+	{
+		return ELooterElement::Rot;
+	}
 	return ELooterElement::None;
 }
 
@@ -170,7 +196,9 @@ FLinearColor ElementRules::FxColor(ELooterElement Element)
 	{
 	case ELooterElement::Ember: return FLinearColor(1.f, 0.3f, 0.06f);
 	case ELooterElement::SoulLight: return FLinearColor(1.f, 0.85f, 0.52f);
-	case ELooterElement::GraveSalt: return FLinearColor(0.7f, 0.92f, 1.f);
+	case ELooterElement::GraveSalt: return FLinearColor(0.3f, 0.95f, 0.85f);
+	case ELooterElement::Thunder: return FLinearColor(0.28f, 0.4f, 1.f);
+	case ELooterElement::Rot: return FLinearColor(0.55f, 0.95f, 0.25f);
 	default: return FLinearColor::White;
 	}
 }
@@ -182,6 +210,8 @@ FLinearColor ElementRules::UiColor(ELooterElement Element)
 	case ELooterElement::Ember: return LooterUI::Color::ElementEmber();
 	case ELooterElement::SoulLight: return LooterUI::Color::ElementSoulLight();
 	case ELooterElement::GraveSalt: return LooterUI::Color::ElementGraveSalt();
+	case ELooterElement::Thunder: return LooterUI::Color::ElementThunder();
+	case ELooterElement::Rot: return LooterUI::Color::ElementRot();
 	default: return LooterUI::Color::Text();
 	}
 }
@@ -194,6 +224,8 @@ FName ElementRules::Cue(ELooterElement Element, EElementCue Event)
 	case ELooterElement::Ember: Name = TEXT("Ember"); break;
 	case ELooterElement::SoulLight: Name = TEXT("SoulLight"); break;
 	case ELooterElement::GraveSalt: Name = TEXT("GraveSalt"); break;
+	case ELooterElement::Thunder: Name = TEXT("Thunder"); break;
+	case ELooterElement::Rot: Name = TEXT("Rot"); break;
 	default: return NAME_None;
 	}
 	const TCHAR* What = Event == EElementCue::Apply ? TEXT("Apply") : (Event == EElementCue::Tick ? TEXT("Tick") : TEXT("Kill"));
@@ -207,6 +239,8 @@ TSubclassOf<UDamageType> ElementRules::DamageTypeFor(ELooterElement Element)
 	case ELooterElement::Ember: return UEmberElementDamageType::StaticClass();
 	case ELooterElement::SoulLight: return USoulLightElementDamageType::StaticClass();
 	case ELooterElement::GraveSalt: return UGraveSaltDamageType::StaticClass();
+	case ELooterElement::Thunder: return UThunderElementDamageType::StaticClass();
+	case ELooterElement::Rot: return URotElementDamageType::StaticClass();
 	default: return UDamageType::StaticClass();
 	}
 }
@@ -230,7 +264,7 @@ FString ElementRules::WeaknessLine(const UClass* CreatureClass)
 	TArray<FString> Weak;
 	TArray<FString> Resists;
 	const FElementTarget Target{ Body, false, false };
-	for (const ELooterElement Element : { ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt })
+	for (const ELooterElement Element : { ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt, ELooterElement::Thunder, ELooterElement::Rot })
 	{
 		const EElementAffinity Side = Affinity(Element, Target, false);
 		if (Side == EElementAffinity::Weak)

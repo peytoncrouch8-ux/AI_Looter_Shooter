@@ -175,6 +175,18 @@ void FHitReaction::BeginStagger(double Now, float Seconds, FResponse& Response, 
 	bStaggerPose = Feel.StaggerPose;
 }
 
+bool FHitReaction::OnJolt(double Now, float BasicSeconds, ECreatureRank Rank)
+{
+	const float Seconds = StaggerSecondsFor(Rank, BasicSeconds);
+	if (Seconds <= 0.f || !CanStagger(Now, Rank))
+	{
+		return false;
+	}
+	FResponse Response;
+	BeginStagger(Now, Seconds, Response, EJob::Power);
+	return true;
+}
+
 bool FHitReaction::CanStagger(double Now, ECreatureRank Rank) const
 {
 	if (IsStaggered(Now) || Now < StaggerReady)

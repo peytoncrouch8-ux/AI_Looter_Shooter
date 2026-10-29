@@ -64,7 +64,7 @@ namespace
 		const ELooterElement Element = ElementRules::Parse(Args.Num() > 0 ? Args[0] : FString(TEXT("Ember")));
 		if (Element == ELooterElement::None)
 		{
-			UE_LOG(LogLooter, Warning, TEXT("Looter.Element.Apply <Ember|SoulLight|GraveSalt|off> [radius m] [every s] [hit damage]"));
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Element.Apply <Ember|SoulLight|GraveSalt|Thunder|Rot|off> [radius m] [every s] [hit damage]"));
 			return;
 		}
 		const float RadiusCm = (Args.Num() > 1 ? FCString::Atof(*Args[1]) : 20.f) * 100.f;
@@ -89,7 +89,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs ApplyCommandRegistration(
 		TEXT("Looter.Element.Apply"),
-		TEXT("Looter.Element.Apply <Ember|SoulLight|GraveSalt|off> [radius m = 20] [every s = once] [hit damage = 40]: sets an element's ")
+		TEXT("Looter.Element.Apply <Ember|SoulLight|GraveSalt|Thunder|Rot|off> [radius m = 20] [every s = once] [hit damage = 40]: sets an element's ")
 		TEXT("status on every creature within the radius of the player, as a hit of that damage from the gun in hand (no roll), once or ")
 		TEXT("again every so often."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ApplyCommand));

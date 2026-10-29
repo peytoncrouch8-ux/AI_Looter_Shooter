@@ -251,7 +251,9 @@ namespace LooterUI::Color
 	// The story elements on guns (Phase 12.3), apart from the rarities' and the tiers' colours.
 	FLinearColor ElementEmber()      { return Hex(255, 94, 46); }
 	FLinearColor ElementSoulLight()  { return Hex(255, 230, 166); }
-	FLinearColor ElementGraveSalt()  { return Hex(204, 240, 246); }
+	FLinearColor ElementGraveSalt()  { return Hex(79, 212, 196); }
+	FLinearColor ElementThunder()    { return Hex(86, 110, 240); }
+	FLinearColor ElementRot()        { return Hex(168, 224, 90); }
 
 	// The gun card (Docs/Work/2026-10-28-UICharacter/mockup/wide.png).
 	FLinearColor CardFillTop()       { return Hex(30, 34, 40, 235); }

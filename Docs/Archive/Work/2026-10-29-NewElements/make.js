@@ -1,7 +1,7 @@
 // Two new elements (the user, 2026-10-29: "add 2 other elements ... concept art of their pictures and name options").
 // Four candidate elements, each with what it does, four glyph concepts and four name options; the user picks two elements,
 // then a glyph and a name for each. Glyphs are even-odd polygons in a 24-unit box (y down), ported to C++ as FPaintedIcon.
-// Run from the repo root: node Docs/Work/2026-10-29-NewElements/make.js -> elements.png, elements.json
+// Run from the repo root: node Docs/Archive/Work/2026-10-29-NewElements/make.js -> elements.png, elements.json
 const fs = require('fs');
 const path = require('path');
 const here = __dirname;

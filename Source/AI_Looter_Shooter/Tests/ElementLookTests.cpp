@@ -22,7 +22,8 @@ namespace
 {
 	const TCHAR* const ElementGuns[] = { TEXT("DA_AssaultRifle"), TEXT("DA_PumpShotgun"), TEXT("DA_Revolver"), TEXT("DA_SMG"),
 		TEXT("DA_Sniper"), TEXT("DA_LMG"), TEXT("DA_Launcher") };
-	const ELooterElement Elements[] = { ELooterElement::None, ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt };
+	const ELooterElement Elements[] = { ELooterElement::None, ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt,
+		ELooterElement::Thunder, ELooterElement::Rot };
 
 	bool CVarOn(const TCHAR* Name)
 	{
@@ -106,6 +107,21 @@ bool FWeaponElementLookRulesTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Scorched is the darkest"), Ember.Tint.GetLuminance() < Soul.Tint.GetLuminance() && Ember.Tint.GetLuminance() < Salt.Tint.GetLuminance());
 		TestTrue(TEXT("Gilt is warm"), Soul.Tint.R > Soul.Tint.B * 2.f);
 		TestTrue(TEXT("Frosted is cold and pale"), Salt.Tint.B >= Salt.Tint.R && Salt.Tint.GetLuminance() > 0.5f);
+
+		// The story elements (2026-10-29) reuse the patterns in their own tints and glow in their own hues.
+		const FWeaponElementFinish Thunder = UWeaponModelComponent::ElementFinishFor(ELooterElement::Thunder);
+		const FWeaponElementFinish Rot = UWeaponModelComponent::ElementFinishFor(ELooterElement::Rot);
+		TestEqual(TEXT("Thunder is charged (the frosted pattern)"), Thunder.Kind, UWeaponModelComponent::FinishFrosted);
+		TestEqual(TEXT("Rot is rotten (the scorched pattern)"), Rot.Kind, UWeaponModelComponent::FinishScorched);
+		for (const FWeaponElementFinish* Finish : { &Thunder, &Rot })
+		{
+			TestTrue(TEXT("A story finish shows"), Finish->Amount > 0.f && Finish->Amount <= 1.f);
+			TestTrue(TEXT("A story finish glows"), Finish->GlowStrength > 0.f);
+		}
+		TestTrue(TEXT("Charged glows in Thunder's hue"), Thunder.Glow.Equals(ElementRules::FxColor(ELooterElement::Thunder)));
+		TestTrue(TEXT("Rotten glows in Rot's hue"), Rot.Glow.Equals(ElementRules::FxColor(ELooterElement::Rot)));
+		TestTrue(TEXT("Charged is blue steel, darker than the salt's frost"), Thunder.Tint.B > Thunder.Tint.R && Thunder.Tint.GetLuminance() < Salt.Tint.GetLuminance());
+		TestTrue(TEXT("Rotten is mossy green and dark"), Rot.Tint.G > Rot.Tint.R && Rot.Tint.G > Rot.Tint.B && Rot.Tint.GetLuminance() < Thunder.Tint.GetLuminance());
 	}
 	return true;
 }

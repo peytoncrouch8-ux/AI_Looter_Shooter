@@ -16,7 +16,7 @@ One row per part option (the model is SM_<Gun><Slot>_<Key>, made by Art/Models/W
                      rolls its own amount between the two. A gun's percentages add up per stat, capped (WeaponParts.h).
   Effect             what the part makes the gun do (EPartEffect: Ricochet, Burst, Explosive, Piercing, Overcharge,
                      Twin); empty = nothing. A gun has one at most: its first part with one (Phase 12.3).
-  Element            the story element it gives the gun's rounds (ELooterElement: Ember, SoulLight, GraveSalt); empty =
+  Element            the story element it gives the gun's rounds (ELooterElement: Ember, SoulLight, GraveSalt, Thunder, Rot); empty =
                      none.
   Model              the key of another part of the same slot whose model it wears (SM_<Gun><Slot>_<Model>): an
                      element or effect part before it has a model of its own (the gun's glow says which); empty = its own.
@@ -58,7 +58,7 @@ GUN_SOCKETS = {'Powderkeg': {'Magazine': 'Rocket'}}
 EFFECTS = {'Ricochet': 'RICOCHET', 'Burst': 'BURST', 'Explosive': 'EXPLOSIVE', 'Piercing': 'PIERCING',
            'Overcharge': 'OVERCHARGE', 'Twin': 'TWIN'}
 ELEMENTS = {'Ember': 'EMBER', 'SoulLight': 'SOUL_LIGHT', 'Soul-light': 'SOUL_LIGHT', 'GraveSalt': 'GRAVE_SALT',
-            'Grave-salt': 'GRAVE_SALT'}
+            'Grave-salt': 'GRAVE_SALT', 'Thunder': 'THUNDER', 'Rot': 'ROT'}
 
 # Where each family's parts carry the maker's mark: (slot, X, Z, size, depth), cm in that slot's part space. Clear of the
 # notch tally rows (Weapons/WeaponModelNotches.cpp) where there's room; the Drover's grips are small, so the tally is cut

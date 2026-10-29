@@ -10,6 +10,8 @@ class FWeaponFX;
  *  - Ember: the body collapses in embers, a fountain of them and a curl of dark smoke from its foot.
  *  - Soul-light: it goes up in a burst of light, rays flung out and motes lifting away.
  *  - Grave-salt: it crystallises and crumbles, salt crystals falling off the whole body and flung out, a breath of frost.
+ *  - Thunder: a flash from its heart, sparks flung out and raining down, arcs crackling over it.
+ *  - Rot: drips, then a low wet burst and a green cloud spreading out.
  * CreatureKillLook::Play lays it over the kind's kill layers when the killing hit was a status's (FCreatureHit::Element);
  * UCreatureHitReactionComponent leaves such a corpse without the gun's knock and the kind's own burst. Everything through
  * the bullets' pooled FWeaponFX (the element looks it already has: SpawnElementAura, SpawnElementBurst), no new draws.

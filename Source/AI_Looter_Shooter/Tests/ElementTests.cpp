@@ -100,6 +100,12 @@ bool FElementWeaknessTest::RunTest(const FString& Parameters)
 	TestIs(*this, TEXT("Grave-salt: a spirit's weak, a spider or not"), Affinity(ELooterElement::GraveSalt, WardedSpider, false), EElementAffinity::Weak);
 	TestIs(*this, TEXT("Grave-salt: an Unpaid's body neither"), Affinity(ELooterElement::GraveSalt, Unpaid, false), EElementAffinity::Neutral);
 	TestIs(*this, TEXT("Grave-salt: an Unpaid's coal (a crit) weak"), Affinity(ELooterElement::GraveSalt, Unpaid, true), EElementAffinity::Weak);
+	TestIs(*this, TEXT("Thunder: weak slimes"), Affinity(ELooterElement::Thunder, Slime, false), EElementAffinity::Weak);
+	TestIs(*this, TEXT("Thunder: the dead resist"), Affinity(ELooterElement::Thunder, Miner, false), EElementAffinity::Resist);
+	TestIs(*this, TEXT("Thunder: a spider neither"), Affinity(ELooterElement::Thunder, Spider, false), EElementAffinity::Neutral);
+	TestIs(*this, TEXT("Rot: weak spiders"), Affinity(ELooterElement::Rot, Spider, false), EElementAffinity::Weak);
+	TestIs(*this, TEXT("Rot: slimes resist"), Affinity(ELooterElement::Rot, Slime, false), EElementAffinity::Resist);
+	TestIs(*this, TEXT("Rot: the dead neither"), Affinity(ELooterElement::Rot, Unpaid, false), EElementAffinity::Neutral);
 	TestIs(*this, TEXT("No element: neutral"), Affinity(ELooterElement::None, Spider, false), EElementAffinity::Neutral);
 
 	const FElementTuning Tuning;
@@ -107,7 +113,7 @@ bool FElementWeaknessTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Resist: x0.5"), AffinityScale(EElementAffinity::Resist, Tuning), 0.5f);
 	TestEqual(TEXT("Neutral: x1"), AffinityScale(EElementAffinity::Neutral, Tuning), 1.f);
 
-	TestEqual(TEXT("A spider's bestiary line"), WeaknessLine(ASpiderCreature::StaticClass()), FString(TEXT("WEAK TO CINDER · RESISTS WARDBREAK")));
+	TestEqual(TEXT("A spider's bestiary line"), WeaknessLine(ASpiderCreature::StaticClass()), FString(TEXT("WEAK TO CINDER AND ROT · RESISTS WARDBREAK")));
 	TestTrue(TEXT("The Unpaid's names its coal"), WeaknessLine(AUnpaidCreature::StaticClass()).Contains(TEXT("ITS COAL TO WARDBREAK")));
 	TestTrue(TEXT("Nothing for an unnamed kind"), WeaknessLine(nullptr).IsEmpty());
 	return true;
@@ -232,6 +238,61 @@ bool FElementSaltTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FElementJoltTest, "Looter.Elements.Jolt",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FElementJoltTest::RunTest(const FString& Parameters)
+{
+	const FElementTuning Tuning;
+	FElementStatus Status;
+	Status.Apply(ELooterElement::Thunder, 100.f, EElementAffinity::Weak, false, Tuning);
+	TestTrue(TEXT("A jolt waits"), Status.NumJolts() == 1 && Status.IsActive());
+	TArray<FElementTick> Ticks;
+	Status.Advance(Tuning.ThunderDelay * 0.5f, Tuning, Ticks);
+	TestTrue(TEXT("...nothing before its time"), Ticks.IsEmpty());
+	TestTrue(TEXT("...its charge building"), Status.GetJoltCharge(Tuning) > 0.4f);
+	Status.Advance(Tuning.ThunderDelay * 0.6f, Tuning, Ticks);
+	if (TestEqual(TEXT("...then bursts once"), Ticks.Num(), 1))
+	{
+		TestTrue(TEXT("...a jolt"), Ticks[0].bJolt && !Ticks[0].bSmite && Ticks[0].Element == ELooterElement::Thunder);
+		TestEqual(TEXT("...for its share, weak x1.75"), Ticks[0].Damage, 100.f * Tuning.ThunderShare * 1.75f, 0.01f);
+	}
+	TestFalse(TEXT("...and is spent"), Status.IsActive());
+	FElementStatus Many;
+	for (int32 Hit = 0; Hit < Tuning.ThunderMaxPending + 2; ++Hit)
+	{
+		Many.Apply(ELooterElement::Thunder, 10.f, EElementAffinity::Neutral, false, Tuning);
+	}
+	TestEqual(TEXT("Jolts waiting at most four"), Many.NumJolts(), Tuning.ThunderMaxPending);
+	TestEqual(TEXT("...the rest joined, not lost"), Many.GetDamageLeft(ELooterElement::Thunder), (Tuning.ThunderMaxPending + 2) * 10.f * Tuning.ThunderShare, 0.01f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FElementRotTest, "Looter.Elements.Rot",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FElementRotTest::RunTest(const FString& Parameters)
+{
+	const FElementTuning Tuning;
+	FElementStatus Status;
+	Status.Apply(ELooterElement::Rot, 100.f, EElementAffinity::Neutral, false, Tuning);
+	TestTrue(TEXT("Rotting"), Status.IsRotting());
+	TestEqual(TEXT("...for its time"), Status.GetRotTimeLeft(), Tuning.RotSeconds, 0.001f);
+	// It grows: the second half deals more than the first.
+	const float First = DealtOver(Status, Tuning.RotSeconds * 0.5f, Tuning, ELooterElement::Rot);
+	TestTrue(TEXT("...half way, its growth"), FMath::IsNearlyEqual(Status.GetRotGrowth(), 0.5f, 0.02f));
+	const float Second = DealtOver(Status, Tuning.RotSeconds * 0.5f + 0.2f, Tuning, ELooterElement::Rot);
+	TestTrue(TEXT("The second half deals more"), Second > First * 1.5f);
+	TestEqual(TEXT("...the whole share in all"), First + Second, 100.f * Tuning.RotShare, 0.05f);
+	TestFalse(TEXT("...then it's off"), Status.IsRotting());
+	Status.Apply(ELooterElement::Rot, 100.f, EElementAffinity::Neutral, false, Tuning);
+	DealtOver(Status, 1.f, Tuning, ELooterElement::Rot);
+	Status.Apply(ELooterElement::Rot, 40.f, EElementAffinity::Neutral, false, Tuning);
+	TestEqual(TEXT("A new hit sets the time back"), Status.GetRotTimeLeft(), Tuning.RotSeconds, 0.001f);
+	TestTrue(TEXT("...and adds to what is left"), Status.GetDamageLeft(ELooterElement::Rot) > 100.f * Tuning.RotShare * 0.8f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FElementWordsTest, "Looter.Elements.Words",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
@@ -242,6 +303,11 @@ bool FElementWordsTest::RunTest(const FString& Parameters)
 	TestIs(*this, TEXT("Parse Soul-light"), Parse(TEXT("Soul-light")), ELooterElement::SoulLight);
 	TestIs(*this, TEXT("Parse SoulLight"), Parse(TEXT("SoulLight")), ELooterElement::SoulLight);
 	TestIs(*this, TEXT("Parse Grave-salt"), Parse(TEXT(" grave-salt ")), ELooterElement::GraveSalt);
+	TestIs(*this, TEXT("Parse Thunder"), Parse(TEXT("Thunder")), ELooterElement::Thunder);
+	TestIs(*this, TEXT("Parse Rot (and Blight)"), Parse(TEXT("Blight")), ELooterElement::Rot);
+	TestEqual(TEXT("Thunder's word"), Word(ELooterElement::Thunder), FString(TEXT("THUNDER")));
+	TestTrue(TEXT("Rot deals its own damage type"), DamageTypeFor(ELooterElement::Rot) == URotElementDamageType::StaticClass());
+	TestIs(*this, TEXT("...which counts as Rot"), ElementOf(GetDefault<URotElementDamageType>()), ELooterElement::Rot);
 	TestIs(*this, TEXT("Parse nothing"), Parse(TEXT("")), ELooterElement::None);
 	TestEqual(TEXT("A word"), Word(ELooterElement::SoulLight), FString(TEXT("HALLOW")));
 	TestTrue(TEXT("None has none"), Word(ELooterElement::None).IsEmpty() && Description(ELooterElement::None).IsEmpty());

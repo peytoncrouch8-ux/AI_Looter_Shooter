@@ -163,8 +163,12 @@ namespace LooterUI
 		FLinearColor ElementEmber();
 		/** #FFE6A6, Soul-light's pale gold (paler than Hallowed's #F5C842). */
 		FLinearColor ElementSoulLight();
-		/** #CCF0F6, Grave-salt's pale cyan-white (paler than the ward bar and the kit's cyan lines). */
+		/** #4FD4C4, Wardbreak's sea-glass teal (the user's pick, 2026-10-29; was Grave-salt's pale cyan-white #CCF0F6). */
 		FLinearColor ElementGraveSalt();
+		/** #566EF0, Thunder's deep electric blue (the user, 2026-10-29: "a deeper dark blue"; was #9FB4FF). */
+		FLinearColor ElementThunder();
+		/** #A8E05A, Rot's sickly green. */
+		FLinearColor ElementRot();
 
 		// --- The gun card and its rows ("Wide Sweep", the user's pick 2026-10-28; UI/Cards) ---
 

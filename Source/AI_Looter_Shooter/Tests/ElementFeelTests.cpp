@@ -294,7 +294,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FElementDeathLookTest, "Looter.Elements.DeathLo
 bool FElementDeathLookTest::RunTest(const FString& Parameters)
 {
 	using EE = ELooterElement;
-	for (const EE Element : { EE::Ember, EE::SoulLight, EE::GraveSalt })
+	for (const EE Element : { EE::Ember, EE::SoulLight, EE::GraveSalt, EE::Thunder, EE::Rot })
 	{
 		TestTrue(FString::Printf(TEXT("%s: a body of pieces"), *ElementRules::Word(Element)), ElementDeathLook::AuraCount(Element, 1.f) > 0);
 		TestTrue(TEXT("...more on a bigger body"), ElementDeathLook::AuraCount(Element, 3.f) > ElementDeathLook::AuraCount(Element, 1.f));
@@ -311,7 +311,7 @@ bool FElementDeathLookTest::RunTest(const FString& Parameters)
 	FWeaponFX Effects;
 	Effects.Initialize(WorldWrapper.GetTestWorld());
 	const FVector Body(0.0, 0.0, 60.0);
-	for (const EE Element : { EE::Ember, EE::SoulLight, EE::GraveSalt })
+	for (const EE Element : { EE::Ember, EE::SoulLight, EE::GraveSalt, EE::Thunder, EE::Rot })
 	{
 		const int32 Before = Effects.NumParticles();
 		ElementDeathLook::Play(Effects, Element, Body, 40.f, 60.f, FVector(500.0, 0.0, 100.0));

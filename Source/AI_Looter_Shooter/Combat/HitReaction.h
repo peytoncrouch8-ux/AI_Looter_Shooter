@@ -182,6 +182,12 @@ struct AI_LOOTER_SHOOTER_API FHitReaction
 		static bool IsOpen();
 	};
 
+	/**
+	 * A Thunder jolt burst on it at Now: a stagger of BasicSeconds at its rank (StaggerSecondsFor: a Soulfed's none) when one
+	 * may come (CanStagger: none running, its cooldown over). True if it began.
+	 */
+	bool OnJolt(double Now, float BasicSeconds, ECreatureRank Rank);
+
 	bool IsHitStopped(double Now) const { return Now < HitStopEnd; }
 	bool IsStaggered(double Now) const { return Now < StaggerEnd; }
 

@@ -50,6 +50,8 @@ Stock,Plate,Butt plate,Slung,Rare,1,20,,,,,,,,,,,,,,,-8,-4,5,11
 Magazine,Ember30,30-round ember rounds,Smoldering,Uncommon,0.35,38,30,,,,-6,-2,,,,,,,,,,,,,,Ember,30
 Magazine,Saint30,30-round saint's rounds,Saintlit,Uncommon,0.35,38,30,,,,-6,-2,,,,,,,,,,,,,,SoulLight,30
 Magazine,Salt30,30-round salt rounds,Salted,Uncommon,0.35,38,30,,,,-6,-2,,,,,,,,,,,,,,GraveSalt,30
+Magazine,Thunder30,30-round thunder rounds,Charged,Uncommon,0.35,38,30,,,,-6,-2,,,,,,,,,,,,,,Thunder,30
+Magazine,Rot30,30-round rot rounds,Blighted,Uncommon,0.35,38,30,,,,-6,-2,,,,,,,,,,,,,,Rot,30
 Magazine,Blasting20,20-round blasting rounds,Blasting,Epic,0.6,39,20,,,,,,,,,,,,5,11,,,,,Explosive,,20
 Barrel,Caromer,Caroming barrel,Caroming,Epic,0.6,39,,,,,,,2,6,,,,,,,,,,,Ricochet,,Fluted
 Barrel,BoreThrough,Bore-through barrel,Piercing,Epic,0.6,39,,,,,3,7,,,6,14,,,,,,,-14,-6,Piercing,,Heavy

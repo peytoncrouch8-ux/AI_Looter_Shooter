@@ -59,6 +59,29 @@ struct AI_LOOTER_SHOOTER_API FElementTuning
 	/** A bullet hit on a salted creature's standing ward counts this many times (salted wards break faster). */
 	float GraveSaltWardBonus = 1.5f;
 
+	// --- Thunder: a jolt (the user's pick, 2026-10-29) ---
+
+	/** The jolt's burst: this share of the hit that set it, ThunderDelay seconds later. */
+	float ThunderShare = 0.35f;
+	float ThunderDelay = 0.2f;
+	/** The burst staggers the creature this long (Basic rank; never a boss or a Soulfed). */
+	float ThunderStaggerSeconds = 0.5f;
+	/** It arcs to the nearest living creature within this (cm), for ChainShare of its burst (damage only, no status). */
+	float ThunderChainRadius = 350.f;
+	float ThunderChainShare = 0.5f;
+	/** Jolts waiting on one creature; one past it joins the latest. */
+	int32 ThunderMaxPending = 4;
+
+	// --- Rot: a rot (the user's pick, 2026-10-29) ---
+
+	/** The rot deals this share of the hit that set it, over RotSeconds, its rate growing from half the mean to one and a half. */
+	float RotShare = 0.5f;
+	float RotSeconds = 6.f;
+	/** When a rotting creature dies, every living creature within this (cm) is set rotting... */
+	float RotSpreadRadius = 300.f;
+	/** ...as by a hit of this share of the strongest hit that rotted the dead one. */
+	float RotSpreadShare = 0.6f;
+
 	// --- Everyone ---
 
 	/** Bosses carry a status this share of its time (and a smite's burst this share of its damage). */
