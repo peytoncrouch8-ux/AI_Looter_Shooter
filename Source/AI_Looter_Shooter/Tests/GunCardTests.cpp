@@ -192,7 +192,7 @@ bool FGunCardWidgetTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...the reload's"), Card->GetStatValueText(3).ToString(), FString(TEXT("2.2 s")));
 	TestEqual(TEXT("A better shotgun is an upgrade"), Card->GetVerdictText().ToString(), FString(TEXT("UPGRADE")));
 	TestTrue(TEXT("...compared: its damage arrow is up"), Card->HasCompare() && Card->GetStatArrowText(0).ToString().Equals(TEXT("▲")));
-	TestTrue(TEXT("...a maker's trait line"), Card->GetLines().ContainsByPredicate([](const FString& Line) { return Line.Contains(TEXT("Rolling Stock")); }));
+	TestFalse(TEXT("...no maker's trait line (the user, 2026-10-29)"), Card->GetLines().ContainsByPredicate([](const FString& Line) { return Line.Contains(TEXT("Rolling Stock")); }));
 	TestEqual(TEXT("It opens with its maker's sound"), Card->GetMakerCue(), FName(LooterSoundCue::Card::Maker::Roundhouse));
 
 	FGunCardKeys Keys;

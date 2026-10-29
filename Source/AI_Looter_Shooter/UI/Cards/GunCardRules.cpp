@@ -1,5 +1,4 @@
 #include "UI/Cards/GunCardRules.h"
-#include "Affixes/WeaponMakers.h"
 #include "Elements/ElementRules.h"
 #include "UI/Style/WeaponText.h"
 #include "Weapons/PartEffectRules.h"
@@ -121,37 +120,10 @@ TArray<GunCardRules::FElementRow> GunCardRules::ElementRows(const FWeaponInstanc
 	}
 }
 
-FString GunCardRules::MakerTraitLine(const FWeaponInstanceData& Gun)
-{
-	const FWeaponMaker* Maker = WeaponMakers::Of(Gun);
-	if (!Maker)
-	{
-		return FString();
-	}
-	const FWeaponMakerQuirk Quirk = WeaponMakers::QuirkOf(*Maker);
-	const EWeaponKind Kind = Gun.Definition ? Gun.Definition->Kind : EWeaponKind::None;
-	struct FChange { const TCHAR* Word; float Value; };
-	TArray<FChange> Changes = { { TEXT("damage"), Quirk.Damage }, { TEXT("accuracy"), Quirk.Accuracy }, { TEXT("range"), Quirk.Range },
-		{ TEXT("fire rate"), Quirk.FireRate }, { TEXT("reload time"), Quirk.Reload }, { TEXT("recoil"), Quirk.Recoil }, { TEXT("handling"), Quirk.Handling } };
-	if (WeaponMakers::ChangesMagazine(Kind))
-	{
-		Changes.Add({ TEXT("magazine"), Quirk.Magazine });
-	}
-	Changes.RemoveAll([](const FChange& Change) { return FMath::RoundToInt(Change.Value) == 0; });
-	// Its two biggest trades say what the maker is about; the inventory's Inspect lists them all.
-	Changes.Sort([](const FChange& A, const FChange& B) { return FMath::Abs(A.Value) > FMath::Abs(B.Value); });
-	TArray<FString> Words;
-	for (int32 Index = 0; Index < Changes.Num() && Index < 2; ++Index)
-	{
-		const int32 Rounded = FMath::RoundToInt(Changes[Index].Value);
-		Words.Add(FString::Printf(TEXT("%s %s%d%%"), Changes[Index].Word, Rounded > 0 ? TEXT("+") : TEXT("-"), FMath::Abs(Rounded)));
-	}
-	const FString Name = TitleCase(Maker->QuirkName.ToString());
-	return Words.Num() > 0 ? Name + TEXT(": ") + FString::Join(Words, TEXT(", ")) : Name;
-}
-
 TArray<FString> GunCardRules::Lines(const FWeaponInstanceData& Gun)
 {
+	// Only what sets the gun apart (the user, 2026-10-29: "basic information like that isn't needed, only special
+	// characteristics"): no maker's trait line, its stats already show its trades.
 	TArray<FString> Out;
 	const FString Element = ElementLine(WeaponParts::ElementOf(Gun));
 	if (!Element.IsEmpty())
@@ -162,11 +134,6 @@ TArray<FString> GunCardRules::Lines(const FWeaponInstanceData& Gun)
 	if (Effect != EPartEffect::None)
 	{
 		Out.Add(NoStop(PartEffectRules::Description(Effect)));
-	}
-	const FString Trait = MakerTraitLine(Gun);
-	if (!Trait.IsEmpty())
-	{
-		Out.Add(Trait);
 	}
 	if (const FWeaponCurse* Curse = WeaponCurses::Of(Gun))
 	{

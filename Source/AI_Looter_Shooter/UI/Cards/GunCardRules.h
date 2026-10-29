@@ -48,8 +48,8 @@ namespace GunCardRules
 	AI_LOOTER_SHOOTER_API FString StatValueText(LoadoutRules::EStat Stat, const FWeaponStats& Stats);
 
 	/**
-	 * The card's bullet lines, in order: what its element does, its part effect, its maker's trait with its two biggest
-	 * numbers, its curse's perk and drawback, its notches. Empty for a plain gun with no maker.
+	 * The card's bullet lines, in order: what its element does, its part effect, its curse's perk and drawback, its
+	 * notches (no maker's trait: the user, 2026-10-29). Empty for a plain gun.
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FString> Lines(const FWeaponInstanceData& Gun);
 
@@ -65,9 +65,6 @@ namespace GunCardRules
 	 * "Salt dmg/sec" and "Chance to salt" (per bullet, before a weakness). A gun without one: one row, "Element" "Normal".
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FElementRow> ElementRows(const FWeaponInstanceData& Gun, const FElementTuning& Tuning);
-
-	/** "True Glass: accuracy +30%, range +20%": the maker's trait and its two biggest changes; empty without a maker. */
-	AI_LOOTER_SHOOTER_API FString MakerTraitLine(const FWeaponInstanceData& Gun);
 
 	/** The italic flavour line (a named gun's own words); empty for most guns. */
 	AI_LOOTER_SHOOTER_API FString FlavorLine(const FWeaponInstanceData& Gun);

@@ -30,9 +30,9 @@ using namespace LooterUI;
 
 namespace
 {
-	/** The maker's mark on the foot's badge (px). */
+	/** The maker's mark over the name (px). */
 	constexpr float MakerMarkSize = 20.f;
-	/** The element's glyph beside the badge, and the box the gun's kind fits in (px). */
+	/** The element's glyph at the foot, and the box the gun's kind fits in (px). */
 	constexpr float ElementMarkSize = 22.f;
 	const FVector2D KindMarkBox(58.f, 26.f);
 
@@ -117,7 +117,16 @@ void UGunCardWidget::EnsureBuilt()
 	NameText = Words(Tree, 21, Color::SlateText(), true, 50);
 	NameText->SetJustification(ETextJustify::Center);
 	NameText->SetAutoWrapText(true);
-	// No maker-and-kind line under the name (the user, 2026-10-29: removed; the maker's badge at the foot names the maker).
+	// The maker over the name, its mark and word in its trim colour with no box round them (the user, 2026-10-29: "put the
+	// manufacturer at the top of the card, not inside of a bubble box").
+	MakerLine = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	MakerMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+	MakerLine->AddChildToHorizontalBox(MakeSized(Tree, MakerMark, MakerMarkSize, MakerMarkSize))->SetVerticalAlignment(VAlign_Center);
+	MakerText = Words(Tree, 15, Color::Text(), true, 280);
+	MakerLine->AddChildToHorizontalBox(MakerText)->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
+	UVerticalBoxSlot* MakerSlot = Content->AddChildToVerticalBox(MakerLine);
+	MakerSlot->SetHorizontalAlignment(HAlign_Center);
+	MakerSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 	Content->AddChildToVerticalBox(NameText);
 
 	StatsBox = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -143,27 +152,16 @@ void UGunCardWidget::EnsureBuilt()
 	Italic(FlavorText);
 	Content->AddChildToVerticalBox(FlavorText)->SetPadding(FMargin(4.f, 4.f, 0.f, 0.f));
 
-	// The foot: the maker's badge, centred (the element is the stat list's last row). The badge is sized to fill the tag's narrowing foot (the
-	// user, 2026-10-29: "the manufacturer at the bottom should be slightly bigger and fit the open space more").
+	// The foot: the element's glyph and the gun's kind, like the flame and the rifle on Borderlands' card (the user, 2026-10-29).
 	UHorizontalBox* Foot = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	MakerBadge = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	MakerBadge->SetPadding(FMargin(16.f, 6.f, 20.f, 7.f));
-	UHorizontalBox* BadgeRow = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	MakerMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-	BadgeRow->AddChildToHorizontalBox(MakeSized(Tree, MakerMark, MakerMarkSize, MakerMarkSize))->SetVerticalAlignment(VAlign_Center);
-	MakerText = Words(Tree, 15, Color::Text(), true, 280);
-	BadgeRow->AddChildToHorizontalBox(MakerText)->SetPadding(FMargin(9.f, 0.f, 0.f, 0.f));
-	MakerBadge->SetContent(BadgeRow);
-	Foot->AddChildToHorizontalBox(MakerBadge)->SetVerticalAlignment(VAlign_Center);
-	// Then the element's glyph and the gun's kind, like the flame and the rifle beside Borderlands' maker (the user, 2026-10-29).
 	ElementMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
 	UHorizontalBoxSlot* ElementSlot = Foot->AddChildToHorizontalBox(MakeSized(Tree, ElementMark, ElementMarkSize, ElementMarkSize));
 	ElementSlot->SetVerticalAlignment(VAlign_Center);
-	ElementSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+	ElementSlot->SetPadding(FMargin(5.f, 0.f, 5.f, 0.f));
 	KindMark = Tree->ConstructWidget<UImage>(UImage::StaticClass());
 	UHorizontalBoxSlot* KindSlot = Foot->AddChildToHorizontalBox(KindMark);
 	KindSlot->SetVerticalAlignment(VAlign_Center);
-	KindSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+	KindSlot->SetPadding(FMargin(5.f, 0.f, 5.f, 0.f));
 	UVerticalBoxSlot* FootSlot = Content->AddChildToVerticalBox(Foot);
 	FootSlot->SetHorizontalAlignment(HAlign_Center);
 	FootSlot->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
@@ -289,6 +287,14 @@ void UGunCardWidget::ApplyGun()
 	const FLinearColor ElementTint = ElementGlyph ? ElementRules::UiColor(Element) : Color::SlateText();
 	const TArray<GunCardRules::FElementRow> ElementRows = GunCardRules::ElementRows(Shown, FElementTuning::Live());
 	EnsureRows(ShownStats.Num() + ElementRows.Num());
+	// A clear gap between the gun's stats and its element's (the user, 2026-10-29).
+	for (int32 Index = 0; Index < RowWidgets.Num(); ++Index)
+	{
+		if (UVerticalBoxSlot* RowSlot = Cast<UVerticalBoxSlot>(RowWidgets[Index]->Slot))
+		{
+			RowSlot->SetPadding(FMargin(0.f, Index == ShownStats.Num() ? 14.f : 0.f, 0.f, 0.f));
+		}
+	}
 	const FWeaponInstanceData* Against = bHasCompare ? &Compared : nullptr;
 	for (int32 Index = 0; Index < ShownStats.Num(); ++Index)
 	{
@@ -353,15 +359,13 @@ void UGunCardWidget::ApplyGun()
 	SetShown(FlavorText, !Flavor.IsEmpty());
 	SetShown(Ornament, Bullets.Num() > 0 || !Flavor.IsEmpty());
 
-	// The foot: the maker's badge in its first plate's colour, its trim round it; the element's glyph in its colour.
-	const FLinearColor Plate = Style.Plates.Num() > 0 ? Style.Plates[0] : Color::MakerPlain();
-	MakerBadge->SetBrush(FSlateRoundedBoxBrush(Plate, 18.f, Style.Trim, 2.5f));
+	// The maker's line in its trim colour (its ink was made for its badge's plate, too dark on the glass); the foot's marks.
 	SetWords(MakerText, Style.Word.ToString());
-	MakerText->SetColorAndOpacity(FSlateColor(Style.Ink));
+	MakerText->SetColorAndOpacity(FSlateColor(Style.Trim));
 	const FInkedIcon* Mark = Style.MarkIcon.IsNone() ? nullptr : FindInkedIcon(Style.MarkIcon);
 	if (Mark)
 	{
-		MakerMark->SetBrush(InkedIconBrush(Style.MarkIcon, *Mark, FVector2D(MakerMarkSize, MakerMarkSize), Style.Ink));
+		MakerMark->SetBrush(InkedIconBrush(Style.MarkIcon, *Mark, FVector2D(MakerMarkSize, MakerMarkSize), Style.Trim));
 	}
 	SetShown(MakerMark, Mark != nullptr);
 	if (ElementGlyph)

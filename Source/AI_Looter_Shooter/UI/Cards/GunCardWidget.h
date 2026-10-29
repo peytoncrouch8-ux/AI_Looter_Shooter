@@ -21,8 +21,8 @@ class UWidget;
  * laid out like Borderlands' item card in our own look. A tag in Slate & Salt with the level's gem in its notch; the name in
  * its rarity's colour, the stats as a list (icon, label, value, arrow against the compared gun), then the element's rows in its
  * colour (Borderlands' way, the user 2026-10-29: "Burn dmg/sec", "Chance to burn"; "Element: Normal" without one), an ornament, bullet lines (element, part effect, maker's trait, curse, notches), a named gun's flavour line,
- * the maker's badge at its foot with the element's glyph and the gun's kind in its rarity's colour beside it (the "Maker · Kind"
- * line under the name went, the user's call 2026-10-29). On a world card the take keys float under it. One card for the gun on the ground
+ * the maker's mark and word over the name in its trim colour, no box, and the element's glyph and the gun's kind in its
+ * rarity's colour at its foot (the user's calls, 2026-10-29). On a world card the take keys float under it. One card for the gun on the ground
  * (World), the gun in hand (InHand) and the inventory (Loadout).
  *
  * Its intro (PlayIntro) unfolds it, brings the rows in one by one, counts the damage up and pops the gem, and plays the
@@ -132,13 +132,14 @@ private:
 	TArray<TObjectPtr<UTextBlock>> LineTexts;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> FlavorText;
+	/** The maker's mark and word over the name. */
 	UPROPERTY(Transient)
-	TObjectPtr<UBorder> MakerBadge;
+	TObjectPtr<UHorizontalBox> MakerLine;
 	UPROPERTY(Transient)
 	TObjectPtr<UImage> MakerMark;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> MakerText;
-	/** The element's glyph beside the badge (hidden without one). */
+	/** The element's glyph at the foot (hidden without one). */
 	UPROPERTY(Transient)
 	TObjectPtr<UImage> ElementMark;
 	/** The gun's kind (its Inked icon) in its rarity's colour, last on the foot. */

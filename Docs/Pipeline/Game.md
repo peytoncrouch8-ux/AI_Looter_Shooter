@@ -392,7 +392,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 - Round 2 (same evening, replaces the body described below): the tag card, Docs/Work/2026-10-28-UICharacter/CONTRACT.md
   "Round 2" (every decision). Kit additions: `ELooterBackdropShape::Tag` (notch, shoulders, point, 4 px salt line, gem),
-  `GunCardIcons` (stat and element glyphs), `GunCardRules::Lines`/`MakerTraitLine`/`PickCompare`, rounded hollow keys;
+  `GunCardIcons` (stat and element glyphs), `GunCardRules::Lines`/`ElementRows`/`PickCompare`, rounded hollow keys;
   `ULooterSegmentBar` deleted (no bars). Widths World/Loadout 470, InHand 430 drawn at 0.8 (it covered the weapon slots).
   Italics by a -12 shear (Chakra Petch has no italic). The inventory's Inspect card is still the Wide Sweep Card shape.
   The foot's maker badge: 15 px words (spacing 280), a 20 px mark, padding 16/6/20/7, radius 18 (the user, 2026-10-29:
@@ -408,6 +408,10 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   to salt"; no element: "Element" "Normal" (diamond). The element's bullet line (first) in its colour, led by its name
   ("Ember: sets them burning"). The foot: badge, then the element's glyph (22 px) and the gun's kind Inked icon in its
   rarity's colour (box 58x26).
+  Then (the user, same day): no maker's trait line ("Rolling Stock: ..."; `MakerTraitLine` deleted): "basic information
+  like that isn't needed, only special characteristics" (element, part effect, curse, notches stay); a 14 px gap before
+  the element's rows; the maker at the card's top over the name, its mark and word in its `Trim` colour, no badge box
+  (the foot keeps only the element's glyph and the gun's kind).
 
 - The user's asks: character through motion and maker branding, simplicity ("don't overload the user ... on simple things
   like guns"), a looked-at gun's card over the gun (not the screen's right), the gun in hand on the right, the inventory's
