@@ -16,7 +16,9 @@ class APlayerController;
  *    full strength), each dying away over its seconds as the square of the time left; together they stack to a little
  *    past one full shake.
  *  - Kicks (AddKick; ViewKicks: a shot by its gun, the jolt of being hurt, a kill's punch): a damped spring each, turning
- *    the view and widening or narrowing it (FViewKickStack).
+ *    the view, widening or narrowing it and pushing the camera back along it (a heavy gun's shove; FViewKickStack).
+ *    A heavy gun's shot also adds a short shake (gun identity: GunfeelKick::ShotShake, which reads GetAmount so the LMG's
+ *    stay small).
  * The player's camera shake setting (UControlSettingsSubsystem::GetCameraShake, 0 turns all of it off; the
  * Looter.CameraShake command sets it) scales both, read each frame so a change in the menu shows at once.
  */
@@ -37,7 +39,7 @@ public:
 
 	void AddKick(const FViewKick& Kick) { Kicks.Add(Kick); }
 
-	/** How hard it shakes now (0 still; past 1 while shakes stack), before the setting. */
+	/** How hard it shakes now (0 still; past 1 while shakes stack), before the setting: the strength a new shake adds to. */
 	float GetAmount() const;
 
 	const FViewKickStack& GetKicks() const { return Kicks; }

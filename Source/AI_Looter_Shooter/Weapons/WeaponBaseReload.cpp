@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/HealthComponent.h"
+#include "Weapons/ReloadBeats.h"
 #include "Weapons/ReloadTuning.h"
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponDefinition.h"
@@ -190,6 +191,8 @@ void AWeaponBase::PlayReloadSteps(float Progress)
 		{
 			PlayCue(WeaponSounds::ReloadStep(Kind, Step.Step));
 		}
+		// And felt in the view and the pad (the local player's own gun only; gun identity).
+		ReloadBeats::Play(*this, Step.Step);
 		switch (Step.Step)
 		{
 		case EReloadStep::Eject:

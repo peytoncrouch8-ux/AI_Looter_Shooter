@@ -119,7 +119,8 @@ public:
 	FRotator GetKickRotation() const { return Recoil.GetKickRotation(); }
 
 	/**
-	 * How far the gun is raised to the eye (0 = hip, 1 = looking through the sight), eased. Aiming narrows the view by
+	 * How far the gun is raised to the eye (0 = hip, 1 = looking through the sight), eased by its kind's curve (a light gun
+	 * snaps up, a heavy one is hefted; the ends are the same for all). Aiming narrows the view by
 	 * the gun's Zoom, tightens its spread and slows the look; the gun's Handling sets how fast it comes up.
 	 */
 	float GetAimAlpha() const;
@@ -217,8 +218,10 @@ private:
 
 	/** Listens to the gun in hand's shots (and stops listening to the last one). */
 	void BindFiringWeapon(AWeaponBase* Weapon);
-	/** The view's kick for a shot of Weapon (ViewKicks::ForShot), on a local player's camera. */
+	/** The view's kick for a shot of Weapon (ViewKicks::ForShot; a launcher's heave and a heavy gun's shake too), on a local player's camera. */
 	void AddShotKick(const AWeaponBase& Weapon);
+	/** The sights have arrived at the eye with Weapon: the view's settle (ViewKicks::ForAimSettle x its kind's Aim.Settle). */
+	void AddAimSettleKick(const AWeaponBase& Weapon);
 	/** Listens to the owner's health for the hurt jolt (or stops). */
 	void BindOwnerHealth(bool bBind);
 
@@ -294,6 +297,12 @@ private:
 
 	/** Linear 0..1 (GetAimAlpha eases it). */
 	float AimAlpha = 0.f;
+	/** The ease's exponent for the gun in hand (Looter.Gunfeel.Aim.Curve.<Kind>; 2 with Identity 0), set as the sights move. */
+	float AimCurve = 2.f;
+	/** The sights have been under half way since they last arrived, so arriving again settles the view once. */
+	bool bAimSettleArmed = true;
+	/** The aim key was wanted last tick: letting go with the sights up plays the gun's aim-out. */
+	bool bAimWantedLast = false;
 	/** The magnification of the gun in hand's sight. */
 	float AimZoom = MinAimZoom;
 	bool bAimWanted = false;

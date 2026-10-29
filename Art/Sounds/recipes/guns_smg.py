@@ -27,7 +27,10 @@ from recipes import kit
 from recipes import guns as G
 from recipes import guns_shots as GS
 from recipes.guns_rec import (SHOTS, _loud, _take, _roll, _gated, _land_wet, _with_roll, _master, _rec_room,
-                               _synth_room, _far, _tick, _ping)
+                               _synth_room, _far, _tick, _ping, _cap)
+
+# Every tail 0.6 s at most (gun identity, 2026-10-28): fifteen shots a second lay them over each other.
+TAIL = 0.6
 
 SHOTS.update({
     'SMG_MP7_Gun.wav': [0.070, 0.255, 0.431, 0.611],
@@ -113,26 +116,26 @@ def _smg_open(dry, v, r):
     # under the echoes.
     s1 = 0.045 + 0.03 * r.random()
     s2 = s1 + 0.08 + 0.05 * r.random()
-    wet = _land_wet(dry, r, 1.1, ((s1, -2.5), (s2, -6.0)), 14, 0.2, 0.8, -7.0, 0.6, 750.0, 0.18, -21.0, 200.0)
-    roll = _roll(*(('SMG_Uzi_75m.wav', 1.3, 0.95) if v % 2 == 0 else ('SMG_MP5_75m.wav', 0.6, 1.0)))
-    roll = F.filt(roll, F.hpn(200.0, 2), F.lpn(3500.0, 2), extend=False)
-    return _with_roll(wet, roll, 0.1, -4.0)
+    wet = _land_wet(dry, r, TAIL, ((s1, -2.5), (s2, -6.0)), 12, 0.18, 0.45, -7.0, 0.32, 750.0, 0.12, -21.0, 200.0)
+    roll = _roll(*(('SMG_Uzi_75m.wav', 1.3, 0.5) if v % 2 == 0 else ('SMG_MP5_75m.wav', 0.6, 0.5)))
+    roll = F.filt(S.gate_tail(roll, 0.15, 0.3), F.hpn(200.0, 2), F.lpn(3500.0, 2), extend=False)
+    return _cap(_with_roll(wet, roll, 0.08, -4.0), TAIL)
 
 
 def _smg_town(dry, v, r):
     s1 = 0.02 + 0.014 * r.random()
     gap = 0.019 + 0.011 * r.random()
     slaps = [(s1, -1.5), (s1 + 0.032 + 0.018 * r.random(), -3.5)] + [(s1 + gap * (k + 1), -4.5 - 2.8 * k) for k in range(5)]
-    return _land_wet(dry, r, 0.75, slaps, 7, 0.1, 0.42, -10.0, 0.38, 950.0, 0.1, -18.0, 220.0, -6.0, 0.045)
+    return _cap(_land_wet(dry, r, TAIL, slaps, 7, 0.1, 0.4, -10.0, 0.3, 950.0, 0.1, -18.0, 220.0, -6.0, 0.045), TAIL)
 
 
 def _smg_inside(dry, v, r):
     if v < 2:
-        rec = _rec_room('Rifle_HK416_Room.wav', 0, 0.9, 0.18, 0.5, 170.0, 7000.0, ('left', 'right')[v])
+        rec = _rec_room('Rifle_HK416_Room.wav', 0, TAIL, 0.15, 0.35, 170.0, 7000.0, ('left', 'right')[v])
     else:
-        rec = _rec_room('Revolver_Colt_Warehouse.wav', v + 1, 0.9, 0.12, 0.5, 200.0, 6500.0)
-    room = _synth_room(dry, r, 0.38, 0.5, -13.0, 170.0)
-    return layers(room, kit.set_level(rec, room, 1.5, 0.02))
+        rec = _rec_room('Revolver_Colt_Warehouse.wav', v + 1, TAIL, 0.1, 0.35, 200.0, 6500.0)
+    room = _synth_room(dry, r, 0.3, 0.5, -13.0, 170.0)
+    return _cap(layers(room, kit.set_level(rec, room, 1.5, 0.02)), TAIL)
 
 
 def _smg_distant(v, r):

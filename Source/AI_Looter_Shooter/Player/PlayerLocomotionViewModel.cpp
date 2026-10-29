@@ -3,6 +3,8 @@
 #include "Player/PlayerViewComponent.h"
 #include "Player/WeaponSwapMotion.h"
 #include "UI/HUD/LooterHUD.h"
+#include "Weapons/GunHeftTuning.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -230,8 +232,8 @@ void UPlayerLocomotionComponent::UpdateCamera(float DeltaTime)
 
 void UPlayerLocomotionComponent::HandleLanded(const FHitResult& Hit)
 {
-	// Harder landings push the gun down further.
-	KickVelocity -= FMath::Clamp(FallSpeed / 12.f, 10.f, 90.f);
+	// Harder landings push the gun down further, and a heavier gun sinks further (GunHeft).
+	KickVelocity -= FMath::Clamp(FallSpeed / 12.f, 10.f, 90.f) * GunHeft::FromWeight(HeftWeight, GunHeft::Share()).LandKick;
 	FallSpeed = 0.f;
 }
 
@@ -241,6 +243,13 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	const UCharacterMovementComponent* Move = Movement.Get();
 	const float Dt = FMath::Min(DeltaTime, 0.05f);
 
+	// The gun in hand and its weight (GunHeft): the view model works to the kind's, eased over a few frames so a swap never
+	// pops the bob or the lag. With nothing in hand, or heft off (Looter.Gunfeel.Identity 0), the weight is 1: today's feel.
+	const UWeaponManagerComponent* Manager = WeaponManager.Get();
+	AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr;
+	HeftWeight = FMath::FInterpTo(HeftWeight, Weapon ? GunHeft::Weight(GunfeelKick::KindOf(Weapon)) : 1.f, Dt, GunHeft::Default::WeightFollowRate);
+	const GunHeft::FGunHeft Heft = GunHeft::FromWeight(HeftWeight, GunHeft::Share());
+
 	// Jumps and falls feed the kick spring.
 	const bool bFalling = Move->IsFalling();
 	if (bFalling)
@@ -248,7 +257,7 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		FallSpeed = FMath::Max(FallSpeed, -Owner->GetVelocity().Z);
 		if (!bWasFalling && Owner->GetVelocity().Z > 50.f)
 		{
-			KickVelocity -= 18.f; // the gun lags as you jump
+			KickVelocity -= Heft.JumpLag; // the gun lags as you jump (more the heavier it is)
 		}
 	}
 	bWasFalling = bFalling;
@@ -260,13 +269,14 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	KickVelocity += (-KickStiffness * KickOffset - KickDamping * KickVelocity) * Dt;
 	KickOffset += KickVelocity * Dt;
 
-	// The gun lags behind fast mouse movement and springs back.
+	// The gun lags behind fast mouse movement and springs back; a heavier gun lags further and returns slower (GunHeft).
 	const FRotator Control = Owner->GetControlRotation();
 	const FRotator Turn = (Control - LastControlRotation).GetNormalized();
 	LastControlRotation = Control;
-	const float TurnScale = 0.012f / FMath::Max(Dt, UE_KINDA_SMALL_NUMBER);
-	const FVector2D SwayTarget(FMath::Clamp(-Turn.Yaw * TurnScale, -4.f, 4.f), FMath::Clamp(-Turn.Pitch * TurnScale, -3.f, 3.f));
-	LookSway = FMath::Vector2DInterpTo(LookSway, SwayTarget, Dt, 9.f);
+	const float TurnScale = Heft.LagGain / FMath::Max(Dt, UE_KINDA_SMALL_NUMBER);
+	const FVector2D SwayTarget(FMath::Clamp(-Turn.Yaw * TurnScale, -Heft.LagClampYaw, Heft.LagClampYaw),
+		FMath::Clamp(-Turn.Pitch * TurnScale, -Heft.LagClampPitch, Heft.LagClampPitch));
+	LookSway = FMath::Vector2DInterpTo(LookSway, SwayTarget, Dt, Heft.LagInterp);
 
 	// Step cycle: one dip per footstep, one side-to-side sway per stride. A smaller body takes shorter steps; a slide
 	// takes none.
@@ -284,10 +294,10 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	const float Crouch = CrouchAlpha;
 	const float StepSide = FMath::Sin(StepPhase);
 	const float StepDip = StepSide * StepSide;
-	const float BobDepth = FMath::Lerp(0.5f, 1.3f, Sprint) * MoveWeight;
-	const float BobSide = FMath::Lerp(0.7f, 2.f, Sprint) * MoveWeight;
-	const float BobRoll = FMath::Lerp(0.6f, 3.f, Sprint) * MoveWeight;
-	const float IdleBreath = 1.f - FMath::Min(MoveWeight, 1.f);
+	const float BobDepth = FMath::Lerp(0.5f, 1.3f, Sprint) * MoveWeight * Heft.Bob;
+	const float BobSide = FMath::Lerp(0.7f, 2.f, Sprint) * MoveWeight * Heft.Bob;
+	const float BobRoll = FMath::Lerp(0.6f, 3.f, Sprint) * MoveWeight * Heft.Bob;
+	const float IdleBreath = (1.f - FMath::Min(MoveWeight, 1.f)) * Heft.Breath;
 
 	FVector Offset(0.f, StepSide * BobSide, -StepDip * BobDepth);
 	FRotator Rotation(-StepDip * BobDepth * 0.6f, 0.f, StepSide * BobRoll);
@@ -310,8 +320,6 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	Rotation.Pitch += KickOffset * 0.8f;
 
 	// Apply on top of the manager's hold offset, rotating around the grip rather than the back of the gun.
-	const UWeaponManagerComponent* Manager = WeaponManager.Get();
-	AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr;
 	if (!Weapon || Weapon->GetAttachParentActor() != Owner || Manager->IsThirdPersonHold())
 	{
 		// In third person the gun is in the body's hands and moves with the animation instead.
@@ -383,6 +391,22 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		Offset *= Settle;
 		Rotation *= Settle;
 	}
+	// The sight lands with a small shove forward along the line of sight, more the heavier the gun (GunHeft; none with heft
+	// off). Added after the settle and only along X: the Lock below takes back sideways and vertical drift only, so the
+	// aim point stays on the line while the gun itself shoves.
+	if (Aim < 0.5f)
+	{
+		bSightWasDown = true;
+	}
+	else if (bSightWasDown && Aim >= 0.999f)
+	{
+		bSightWasDown = false;
+		SightArrivalClock = 0.f;
+	}
+	SightArrivalClock = FMath::Min(SightArrivalClock + Dt, 100.f);
+	// Not while a slide tips the view: the tipped gun's push left the sight 0.03 cm off the shot's line (WeaponAim.CrouchAligned).
+	const float Untipped = 1.f - FMath::Clamp(FMath::Abs(AppliedViewRoll) / SlideViewRoll, 0.f, 1.f);
+	Offset.X += GunHeft::ArrivalAt(Heft, SightArrivalClock) * Aim * Untipped;
 	// Raised to the eye, the gun is shouldered the same way in every stance: the stance poses go out entirely. Settled like
 	// the motion, they left 15% of a crouch's cant and drop on the sight (the user, 2026-10-14: crouched, the aim was off),
 	// and the first-person render magnifies any distance from the line of sight (6 mm once put a reticle 50 px low).

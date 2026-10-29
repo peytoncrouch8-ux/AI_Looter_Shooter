@@ -478,6 +478,8 @@ private:
 	float FlinchSpeed = 0.f;
 	float FlinchKick = 0.f;
 	FVector FlinchAway = FVector::ZeroVector;
+	/** Its hits as they show on the body: zones, whip, twist, stagger, wounds, kill style, hat (UnpaidBodyParts.h; UnpaidCreatureHurt.cpp). */
+	UnpaidBody::FHurtChannels Hurt;
 
 	// The arms
 	FArmSway ArmSway[2];

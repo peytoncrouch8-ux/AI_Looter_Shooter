@@ -137,6 +137,14 @@ public:
 	UCreatureReactComponent* GetReact() const { return React; }
 	/** Knocked off its feet or reeling (an ember power's fling or daze): its brain waits meanwhile (UCreatureKnockComponent). */
 	UCreatureKnockComponent* GetKnock() const { return Knock; }
+	/** How much of a stagger pose shows now (0 to 1, 0 for a boss; HITS: its kind poses on it; CreatureBaseHurt.cpp). */
+	float GetStaggerAlpha() const;
+	/**
+	 * The hit being taken (its share of health and its burst's, the gun, crit, way, spot), stored by HandleDamaged before
+	 * OnHurt: each kind sizes its flinch by GetLastHit().FlinchStrength (Gunfeel; fresh only during that OnHurt). Public:
+	 * the Unpaid's hurt helpers (UnpaidHurtEffects.cpp) read it.
+	 */
+	const FCreatureHit& GetLastHit() const { return LastHit; }
 	/** A boss, or a creature a boss fight is built round: its fight's rules (no notice beat; its death is its show's). */
 	bool IsBossCreature() const { return KeepsBossRules(); }
 	/** Comes into the world its kind's way (the dead rise, a spider climbs out of the dirt, a slime swells) if a player can see it. */
@@ -390,11 +398,6 @@ protected:
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) {}
 	/** A hit from By, standing past its ground's edge within its press reach (NotePressed): the Unpaid phase-steps in. */
 	virtual void OnPressedByHit(const APawn& By) {}
-	/**
-	 * The hit being taken (its share of health and its burst's, the gun, crit, way, spot), stored by HandleDamaged before
-	 * OnHurt: each kind sizes its flinch by GetLastHit().FlinchStrength (Gunfeel; fresh only during that OnHurt).
-	 */
-	const FCreatureHit& GetLastHit() const { return LastHit; }
 	virtual void OnDied() {}
 	virtual void OnRespawned() {}
 

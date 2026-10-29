@@ -28,6 +28,8 @@ enum class EGunshotLayer : uint8
 	HeatHiss,
 	/** The fore-end racked between the shotgun's shots. */
 	Rack,
+	/** The body punch under a shot (gun identity): a 2D thump of the shooter's own gun, by kind. */
+	Punch,
 };
 
 /**
@@ -46,7 +48,9 @@ namespace GunshotSound
 	 * Plays Weapon's shot. An automatic's burst (shots less than Looter.Gunfeel.Sound.BurstGap apart) plays the tail on
 	 * every Nth shot only (AutoTailEvery.Rifle/.SMG/.LMG), so a long burst doesn't cut its own voices; PlayBurstEnd plays
 	 * the long one at release. The gun's maker shapes the layers' pitch and balance and may add its own layer
-	 * (MakerSoundFlavor).
+	 * (MakerSoundFlavor). Gun identity (Looter.Gunfeel.Identity 1): each kind scales its Mech/Low/Tail layers
+	 * (GunfeelSound::KindMix), and the shooter's own gun adds a 2D body punch (Weapon.<Kind>.Punch) on every Nth shot of a
+	 * burst (GunfeelSound::PunchEvery).
 	 */
 	AI_LOOTER_SHOOTER_API void PlayShot(const AWeaponBase& Weapon);
 
@@ -71,6 +75,15 @@ namespace GunshotSound
 	 * player's own gun only.
 	 */
 	AI_LOOTER_SHOOTER_API void PlayLowAmmo(const AWeaponBase& Weapon, int32 RoundsLeft, int32 Magazine);
+
+	/**
+	 * The cue the sights rise with on a gun of Kind (the weapon's PlayAimIn): "Weapon.<Kind>.AimIn" when the bank has it,
+	 * else the general Weapon.AimIn; always the general one with Looter.Gunfeel.Identity 0 (today's sound).
+	 */
+	AI_LOOTER_SHOOTER_API FName AimInCue(const UObject* WorldContext, EWeaponKind Kind);
+
+	/** The cue the sights lower with (Weapon.AimOut), or NAME_None when the bank lacks it or Looter.Gunfeel.Identity is 0. */
+	AI_LOOTER_SHOOTER_API FName AimOutCue(const UObject* WorldContext);
 
 	/** A revolver's critical hit landing: a bright ring for its shooter (2D). */
 	AI_LOOTER_SHOOTER_API void PlayCritRing(const UObject* WorldContext);

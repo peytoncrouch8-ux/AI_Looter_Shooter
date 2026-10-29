@@ -72,6 +72,13 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
 - guns_makers (2026-10-28, the gun makers' own layers, `MakerSoundCue` in `Weapons/MakerSoundFlavor.h`: `Weapon.Maker.SaintMaud.Ring`
   (the cast barrel's ring, 0.9 s), `Weapon.Maker.Windfall.Rattle` (loose bits, 0.2 s); 3D Near, the shooter's own gun, with the
   action; the rest of each maker's sound is code: `MakerSoundFlavor` pitch and layer volumes).
+- guns_identity (2026-10-28, gun identity, `Docs/Work/2026-10-28-Core/GUNS.md` lane D; names in `LooterSoundCues.h`
+  `Gunshot::<Kind>Punch/<Kind>AimIn`, `Weapon::AimOut`): `Weapon.<Kind>.Punch` (2D, own gun; Rifle, LMG, Revolver, Shotgun,
+  Sniper, Launcher: the SMG has none), `Weapon.<Kind>.AimIn` (all seven, 3D Near; `Weapon.AimIn` stays the fallback),
+  `Weapon.AimOut`.
+- hit_feel (2026-10-28, the hit reactions, `CreatureHitCue` in `Creatures/CreatureHitCues.h`): `Creature.Spider.LegCrack`,
+  `.Spider.Stagger`, `Creature.Unpaid.HatOff`, `.Stagger`, `.Gutter`, `.Snuff`, `.Tear`, `Creature.Slime.Stagger`, `.Pop`,
+  `Creature.Hit.Overkill`; 4-5 takes each, 3D 'Creature', synthesized on creatures.py's helpers.
 
 ## Render
 
@@ -88,6 +95,10 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
 - Deterministic: every random number comes from a generator seeded by the cue's name and variation, so the same recipe
   always gives the same files.
 - After a render, Main runs `build_sound_bank.py` to bring them into Unreal.
+- A render or check that touches a `Weapon.*` cue also prints the guns' table (`check.gun_ladder`, written to
+  `Saved/SoundCheck/guns.txt`): each kind's own-gun sum against the ladder and its worst peak, flagged `GUN PEAK` over
+  -1 dBFS or `LADDER` more than 0.75 LU off. Its kind and maker gains copy the code's defaults (`check.py` GUN_KINDS,
+  PUNCH_GAIN, MAKERS): change them with the code. Alone: Blender's Python on `Art/Sounds/check.py` (about 15 s).
 
 ## The format (the contract)
 
@@ -151,6 +162,20 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
   scatter so it starts with the shot, with a recorded far take's field roll laid in (open), a flutter between two walls
   (town), or a recorded warehouse or room (inside, the direct sound cut off, our shot in a synthesized room first). Each
   layer's `level` is its loudness inside Fire's mix, so the shooter's layers add up to Fire (within 0.5 dB).
+- **Guns, round 4: gun identity** (2026-10-28, `Docs/Work/2026-10-28-Core/GUNS.md` lane D). The loudness ladder on the
+  own-gun sum (Core + Mech + Low + tail + Punch at cues.json volumes x the code's kind gains, `GunfeelSoundTuning.h`
+  KindMix: SMG 1.2/0.75/0.85, LMG 1.1/1.2/1, revolver 0.9/1.1/1.2, shotgun 1/1.25/1.1, sniper 0.9/1.2/1.35, launcher
+  1/1.2/1), short-term (3 s) max loudness against the rifle's: SMG -3, rifle 0, LMG +1, revolver +2, shotgun +3, launcher
+  +3, sniper +4 LU (built: -3.0/0/+0.9/+1.9/+3.2/+3.2/+4.1; L200 -2.9/0/+0.9/+1.6/+3.0/+2.4/+2.1: the sniper's and the
+  launcher's extra is in their long tails). Every own-gun sum's worst peak (every take combination, Open/Town/Inside, every
+  maker: Roundhouse Low 1.3, Saint Maud Tail 1.35, Windfall Mech 1.5 + its rattle) at or under -1 dBFS (built: -1.1 to
+  -2.3). How: `guns_shots.DENSITY` pushes the heavy kinds' Cores harder into the master's limiter (LMG 10 dB, sniper 8,
+  revolver 7, shotgun and launcher 6; rifle and SMG keep 2) and eases each kind's Low in over 12-35 ms (`guns_rec._rise`),
+  so the Low's top lands after the Core's; the heavy kinds' Lows sit 4-9 dB under round 3 (Punch carries the shove now),
+  their room tails (TailInside) 4-5 dB under; the Windfall rattle 3 dB under. `Weapon.<Kind>.Punch` (guns_identity.py): a
+  recorded body punch's low-passed front over one synthesized push of air and a fixed-pitch chest ring (no swept sine),
+  rising over 12-35 ms. The sniper's TailOpen is the valley (2.5 s at most, `guns_rec._cap`: a slapback off the far wall
+  0.35-0.5 s on, a weaker answer after it); the SMG's tails 0.6 s at most.
 - **Guns, round 2** (heavy and punchy, the user's pick; 2026-10-08, made them less synthetic, after Borderlands' big,
   punchy guns; the synthesized parts the recorded shots still use): modelled the way a real shot reaches a close
   microphone, not built from drum-machine parts.
@@ -289,3 +314,9 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
   own-gun sum passed 0 dBFS; Low sits 9.5 dB under the Core there, and a denser Core (7.5 dB soft clip) needs less volume.
 - The mix references the rifle's Fire: keep its loudest 200 ms within 1 dB of -18 at its peak, or every other cue's
   volume in cues.json shifts.
+- Loudness is K-weighted, which counts lows little: a Low or Punch layer adds a lot of peak to the own-gun sum and little
+  loudness (crest 16-22 dB against a Core's 12-15). Make a kind louder through its Core's density (the limiter push) and
+  its tails, keep the lows modest, and ease them in so their tops miss the Core's (2026-10-28: a 30 ms rise took the
+  shotgun's and the revolver's worst sums down 2-3 dB; a post-hoc high-pass on a limited Core raises its peak instead).
+- The worst own-gun peak is a maker's and a room's: Roundhouse (Low x1.3) and Windfall (Mech x1.5 + rattle) with
+  TailInside set the headroom, not the plain gun in the open (often 1.5-2 dB lower).

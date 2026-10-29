@@ -10,6 +10,7 @@
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
 #include "Creatures/CreatureTierLook.h"
+#include "Creatures/UnpaidHat.h"
 #include "Player/PlayerSize.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
@@ -325,6 +326,9 @@ void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	// on the coal makes it flare, and any hit stirs it a little.
 	const float Strength = GetLastHit().FlinchStrength(FGunfeelReactTuning::Live());
 	FlinchAway = GetActorRotation().UnrotateVector(GetActorLocation() - HitLocation).GetSafeNormal();
+	// Where it landed and how hard (HITS, UnpaidCreatureHurt.cpp): each part's share of the flinch, the head's knock and whip,
+	// the twist, its hat knocked off, the coal's sparks.
+	UnpaidHurtPose::OnHit(*this, Hurt, Strength, FlinchAway);
 	ReactToHit(bCritical, Strength);
 	if (bCritical)
 	{
@@ -334,14 +338,15 @@ void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	{
 		Heat = FMath::Max(Heat, FMath::Min(HitFlare * Strength, CritFlare));
 	}
-	// The shroud jerks with it.
+	// The shroud jerks with it (the chain a shot hit, or a Big hit's strips, harder: Hurt.ChainJerk).
 	const float Jerk = (bCritical ? 160.f : 90.f) * FMath::Min(Strength, 2.f);
-	for (FShroudChain& Chain : Chains)
+	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(Chains)); ++Index)
 	{
-		for (FShroudChain::FLink& Link : Chain.Links)
+		const float ChainJerk = Jerk * Hurt.ChainJerk[Index];
+		for (FShroudChain::FLink& Link : Chains[Index].Links)
 		{
-			Link.BackSpeed += Jerk * static_cast<float>(FlinchAway.X);
-			Link.SideSpeed += Jerk * static_cast<float>(FlinchAway.Y);
+			Link.BackSpeed += ChainJerk * static_cast<float>(FlinchAway.X);
+			Link.SideSpeed += ChainJerk * static_cast<float>(FlinchAway.Y);
 		}
 	}
 }
@@ -363,10 +368,28 @@ void AUnpaidCreature::OnDied()
 	GlanceYaw = 0.f;
 	AshOwed = -1.f;
 	ResetProgress();
+	// How the killing hit takes it (HITS kill styles, UnpaidCreatureHurt.cpp; its look runs in UnpaidCreatureMoods.cpp): torn
+	// by a blast, its strips whip out along the shot.
+	UnpaidHurtPose::OnKilled(*this, Hurt, FlinchAway);
+	if (Hurt.Kill == UnpaidBody::EKillStyle::Torn)
+	{
+		for (int32 Strip = 1; Strip < static_cast<int32>(UE_ARRAY_COUNT(Chains)); ++Strip)
+		{
+			for (FShroudChain::FLink& Link : Chains[Strip].Links)
+			{
+				Link.BackSpeed += 400.f * static_cast<float>(Hurt.KillAway.X);
+				Link.SideSpeed += 400.f * static_cast<float>(Hurt.KillAway.Y);
+			}
+		}
+	}
 }
 
 void AUnpaidCreature::OnRespawned()
 {
+	// Its hat back on its head, its hits forgotten.
+	UnpaidHat::PutBack(*Hat, Hurt.Hat);
+	Hurt.Reset();
+	PutOnHat();
 	PhaseState = EPhaseState::None;
 	PhaseAmount = 0.f;
 	Heat = 0.f;

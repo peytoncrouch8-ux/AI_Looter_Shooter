@@ -16,6 +16,17 @@
  */
 namespace GunfeelSound
 {
+	/**
+	 * How a kind balances its own layers (gun identity, 2026-10-28): the shooter's action (Mech), chest thump (Low) and the
+	 * land's answer (Tail) times these, on top of the maker's flavour and the global Mech/Low/Tail. 1/1/1 is the plain kind.
+	 */
+	struct FKindMix
+	{
+		float Mech = 1.f;
+		float Low = 1.f;
+		float Tail = 1.f;
+	};
+
 	/** The numbers a variable starts at. */
 	namespace Default
 	{
@@ -75,6 +86,36 @@ namespace GunfeelSound
 		inline constexpr float CreatureBlastWindow = 0.08f;
 		inline constexpr float CreatureCrit = 1.f;
 
+		// --- Gun identity (GUNS.md): each kind's layer balance and its body punch ---
+		/** The body punch under a shot (Weapon.<Kind>.Punch), all kinds, times this. 0 = none. */
+		inline constexpr float Punch = 1.f;
+		/** The rifle's punch sits at -4 dB (a share of 10^(-4/20)), so every third shot's thump is felt, not heard over the crack. */
+		inline constexpr float PunchRifleGain = 0.63f;
+
+		/** The shipped Mech/Low/Tail multipliers of a kind (Looter.Gunfeel.Sound.<Kind>.Mech/.Low/.Tail start at these). */
+		constexpr FKindMix KindMix(EWeaponKind Kind)
+		{
+			switch (Kind)
+			{
+			case EWeaponKind::SMG: return { 1.2f, 0.75f, 0.85f };
+			case EWeaponKind::LMG: return { 1.1f, 1.2f, 1.0f };
+			case EWeaponKind::Revolver: return { 0.9f, 1.1f, 1.2f };
+			case EWeaponKind::Shotgun: return { 1.0f, 1.25f, 1.1f };
+			case EWeaponKind::Sniper: return { 0.9f, 1.2f, 1.35f };
+			case EWeaponKind::Launcher: return { 1.0f, 1.2f, 1.0f };
+			default: return { 1.0f, 1.0f, 1.0f };
+			}
+		}
+		/** The punch plays on every Nth shot of a burst by kind (0 = never): rifle 3rd, SMG none, LMG 2nd, the single shots every one. */
+		constexpr int32 PunchEvery(EWeaponKind Kind)
+		{
+			return Kind == EWeaponKind::Rifle ? 3 : Kind == EWeaponKind::SMG ? 0 : Kind == EWeaponKind::LMG ? 2 : 1;
+		}
+		constexpr float PunchGain(EWeaponKind Kind)
+		{
+			return Kind == EWeaponKind::Rifle ? PunchRifleGain : 1.f;
+		}
+
 		/** The shipped number of tails/low rounds for a kind (the variables start at these). */
 		constexpr int32 AutoTailEvery(EWeaponKind Kind)
 		{
@@ -127,6 +168,15 @@ namespace GunfeelSound
 	AI_LOOTER_SHOOTER_API float HissVolume();
 	/** The shotgun's rack volume. */
 	AI_LOOTER_SHOOTER_API float RackVolume();
+
+	// --- Gun identity (GUNS.md; all of it plain with Looter.Gunfeel.Identity 0) ---
+
+	/** The kind's layer balance (Looter.Gunfeel.Sound.<Kind>.Mech/.Low/.Tail; never negative); 1/1/1 with Identity 0. */
+	AI_LOOTER_SHOOTER_API FKindMix KindMix(EWeaponKind Kind);
+	/** The body punch's volume for Kind: Looter.Gunfeel.Sound.Punch x the kind's gain (Looter.Gunfeel.Sound.PunchGain.<Kind>); 0 with Identity 0. */
+	AI_LOOTER_SHOOTER_API float PunchVolume(EWeaponKind Kind);
+	/** The punch on every Nth shot of a burst (Looter.Gunfeel.Sound.PunchEvery.<Kind>; 0 = never, never negative). */
+	AI_LOOTER_SHOOTER_API int32 PunchEvery(EWeaponKind Kind);
 	/** The surface cue's volume for a bullet of MarkScale (bBlast: one of a shotgun's pellets, whose cue stands for the blast). */
 	AI_LOOTER_SHOOTER_API float ImpactVolume(float MarkScale, bool bBlast);
 	/** Mark scale from which an impact has the heavy layer (0 = never), its volume, and the scatter pepper's volume. */
@@ -219,6 +269,15 @@ namespace GunfeelSound
 
 	/** The hiss's loudness: half at From, full at a glowing barrel (Heat 1). */
 	AI_LOOTER_SHOOTER_API float HeatHissLoudness(float Heat, float From);
+
+	/**
+	 * Whether shot number ShotInBurst (0 the first) plays the body punch when it comes on every Every shots: the first of a
+	 * burst always does; Every of 0 or less = never (the SMG).
+	 */
+	AI_LOOTER_SHOOTER_API bool PunchPlays(int32 ShotInBurst, int32 Every);
+
+	/** Whether the punch is heard: the shooter's own gun only (it is a thump in the chest, 2D), at a volume above 0. */
+	AI_LOOTER_SHOOTER_API bool PunchAudible(bool bOwnGun, float Volume);
 
 	/** Whether the rack is heard: the shooter's own always, someone else's within DistantFrom of the listener. */
 	AI_LOOTER_SHOOTER_API bool RackAudible(bool bOwnGun, float DistanceToListener, float DistantFromCm);

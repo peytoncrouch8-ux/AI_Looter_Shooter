@@ -72,7 +72,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelReactFlinchTest, "Looter.Gunfeel.React.
 
 bool FGunfeelReactFlinchTest::RunTest(const FString& Parameters)
 {
-	// Every hit flinches, sized by its share of health: Scale x clamp(0.6 + 3 x share, 0.6, 2.5), a crit x1.4, a boss x0.4.
+	// Every hit flinches, sized by its share of health: Scale x clamp(0.85 + 3 x share, 0.85, 3), a crit x1.4, a boss x
+	// BossScale (HITS 2026-10-28 raised the floor 0.6 -> 0.85 and the cap 2.5 -> 3; the far boost is Looter.Gunfeel.Hits.FarBoost's).
 	const FGunfeelReactTuning Tuning;
 	auto Strength = [&Tuning](float Share, bool bCritical = false, bool bBoss = false, float BurstShare = 0.f)
 	{
@@ -84,15 +85,15 @@ bool FGunfeelReactFlinchTest::RunTest(const FString& Parameters)
 		Hit.bFresh = true;
 		return Hit.FlinchStrength(Tuning);
 	};
-	TestEqual(TEXT("A scratch still flinches (the floor)"), Strength(0.001f), 0.6f, 0.01f);
-	TestEqual(TEXT("A rifle round on a 300-health spider (12): 0.72"), Strength(12.f / 300.f), 0.72f, 0.01f);
-	TestEqual(TEXT("A revolver round on it (52): about 1.12"), Strength(52.f / 300.f), 1.12f, 0.01f);
+	TestEqual(TEXT("A scratch still flinches (the floor)"), Strength(0.001f), 0.85f, 0.01f);
+	TestEqual(TEXT("A rifle round on a 300-health spider (12): 0.97"), Strength(12.f / 300.f), 0.97f, 0.01f);
+	TestEqual(TEXT("A revolver round on it (52): about 1.37"), Strength(52.f / 300.f), 1.37f, 0.01f);
 	TestTrue(TEXT("The revolver's rocks it harder than the rifle's"), Strength(52.f / 300.f) > Strength(12.f / 300.f) * 1.4f);
-	TestEqual(TEXT("A third of its health: 1.6"), Strength(1.f / 3.f), 1.6f, 0.01f);
-	TestEqual(TEXT("Capped at 2.5"), Strength(0.9f), 2.5f, 0.001f);
-	TestEqual(TEXT("A crit x1.4"), Strength(0.1f, true), 0.9f * 1.4f, 0.01f);
+	TestEqual(TEXT("A third of its health: 1.85"), Strength(1.f / 3.f), 1.85f, 0.01f);
+	TestEqual(TEXT("Capped at 3"), Strength(0.9f), 3.f, 0.001f);
+	TestEqual(TEXT("A crit x1.4"), Strength(0.1f, true), 1.15f * 1.4f, 0.01f);
 	TestEqual(TEXT("A boss: today's flinch x BossScale (1), whatever the hit"), Strength(0.1f, true, true), 1.f, 0.01f);
-	TestEqual(TEXT("A blast's last pellet carries the blast's share"), Strength(0.05f, false, false, 0.3f), 1.5f, 0.01f);
+	TestEqual(TEXT("A blast's last pellet carries the blast's share"), Strength(0.05f, false, false, 0.3f), 1.75f, 0.01f);
 	FCreatureHit Stale;
 	Stale.Share = 0.5f;
 	TestEqual(TEXT("A flinch not from a hit (a boss's own jolt): its own size"), Stale.FlinchStrength(Tuning), 1.f);
@@ -101,7 +102,7 @@ bool FGunfeelReactFlinchTest::RunTest(const FString& Parameters)
 	FCreatureHit Plain;
 	Plain.Share = 0.1f;
 	Plain.bFresh = true;
-	TestEqual(TEXT("Flinch.Scale scales them all"), Plain.FlinchStrength(Doubled), 1.8f, 0.01f);
+	TestEqual(TEXT("Flinch.Scale scales them all"), Plain.FlinchStrength(Doubled), 2.3f, 0.01f);
 	return true;
 }
 
@@ -129,7 +130,8 @@ bool FGunfeelReactStaggerTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Stagger.Seconds tunes them all"), FHitReaction::StaggerSecondsFor(ECreatureRank::Epic, 0.8f), 0.5f, 0.001f);
 	TestEqual(TEXT("Soulfed: never"), FHitReaction::StaggerSecondsFor(ECreatureRank::Legendary), 0.f);
 
-	// Hit-stops: a crit 50 ms, a revolver's 90, a kill 75, a crit kill 100; a heavy body hit shares the crit's cooldown.
+	// Hit-stops: a crit 50 ms, a revolver's 90, a kill 85, a crit kill 110 (HITS raised both); a heavy body hit shares the
+	// crit's cooldown. The kills are small last hits: a Big kill is an overkill (Looter.Gunfeel.Hits.Overkill).
 	{
 		FHitReaction Reaction;
 		TestEqual(TEXT("A rifle crit: 50 ms"), Reaction.OnHit(0.0, GunHit(5.f, EWeaponKind::Rifle, true)).HitStopSeconds, Tuning.HitStopCrit);
@@ -139,12 +141,14 @@ bool FGunfeelReactStaggerTest::RunTest(const FString& Parameters)
 			Tuning.RevolverCritHitStop);
 		TestTrue(TEXT("...the longest of the crits"), Tuning.RevolverCritHitStop > Tuning.HitStopCrit);
 		FHitReaction Kill;
-		FHitReaction::FHit Killing = GunHit(100.f, EWeaponKind::Rifle);
+		FHitReaction::FHit Killing = GunHit(10.f, EWeaponKind::Rifle);
 		Killing.bKilled = true;
-		TestEqual(TEXT("A kill: 75 ms"), Kill.OnHit(0.0, Killing).HitStopSeconds, Tuning.HitStopKill);
+		TestEqual(TEXT("A kill: 85 ms"), Kill.OnHit(0.0, Killing).HitStopSeconds, Tuning.HitStopKill);
+		TestEqual(TEXT("...85 ms by default"), Tuning.HitStopKill, 0.085f, 0.0001f);
 		Killing.bCritical = true;
 		FHitReaction CritKill;
-		TestEqual(TEXT("A crit kill: 100 ms"), CritKill.OnHit(0.0, Killing).HitStopSeconds, Tuning.HitStopCritKill);
+		TestEqual(TEXT("A crit kill: 110 ms"), CritKill.OnHit(0.0, Killing).HitStopSeconds, Tuning.HitStopCritKill);
+		TestEqual(TEXT("...110 ms by default"), Tuning.HitStopCritKill, 0.11f, 0.0001f);
 		FHitReaction Boss;
 		FHitReaction::FHit OnBoss = GunHit(50.f, EWeaponKind::Revolver, true, 300.f, 1.f, ECreatureRank::Boss);
 		const FHitReaction::FResponse BossResponse = Boss.OnHit(0.0, OnBoss);
@@ -381,8 +385,9 @@ bool FGunfeelReactInPlayTest::RunTest(const FString& Parameters)
 	const float Scratch = PeakAfter(1.f);
 	const UHealthComponent* Health = Hit->FindComponentByClass<UHealthComponent>();
 	const float Heavy = PeakAfter(Health ? Health->GetMaxHealth() * 0.3f : 90.f);
+	// The strengths are 1.75 against 0.85 since HITS raised the floor (2.5 against 0.6 before): half as far again at least.
 	TestTrue(FString::Printf(TEXT("A third of its health flinches it farther (%.1f cm) than a scratch (%.1f cm)"), Heavy, Scratch),
-		Heavy > Scratch * 1.8f);
+		Heavy > Scratch * 1.5f);
 	return true;
 }
 

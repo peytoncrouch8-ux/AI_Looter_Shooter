@@ -96,9 +96,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelKickIdentityTest, "Looter.Gunfeel.Kick.
 bool FGunfeelKickIdentityTest::RunTest(const FString& Parameters)
 {
 	// The shipped numbers give each gun its character: the shotgun shoves hardest, the six-gun is quickest on its feet and
-	// to the eye, the shotgun slowest.
-	TestTrue(TEXT("The shotgun shoves, the rifle ticks"), Def::KickShotgun >= Def::KickRevolver && Def::KickRevolver < Def::KickRifle + 0.5f
-		&& Def::KickRifle > 1.f && Def::RecoilShotgun > Def::RecoilRifle);
+	// to the eye, the shotgun slowest. Since gun identity (2026-10-28) the view kick's per-kind weight is ViewKicks::ForShot's
+	// own table, so every Kick.<Kind> starts at 1; Identity 0's old scales (Default::Today) keep today's order.
+	namespace Today = Def::Today;
+	for (const float Scale : { Def::KickRifle, Def::KickShotgun, Def::KickRevolver, Def::KickSMG, Def::KickSniper, Def::KickLMG, Def::KickLauncher })
+	{
+		TestEqual(TEXT("Every kind's view kick scale starts at 1 (one table to read)"), Scale, 1.f);
+	}
+	TestTrue(TEXT("The shotgun shoves, the rifle ticks"), Today::KickShotgun >= Today::KickRevolver && Today::KickRevolver < Today::KickRifle + 0.5f
+		&& Today::KickRifle > 1.f && Def::RecoilShotgun > Def::RecoilRifle);
 	TestTrue(TEXT("The six-gun comes up quickest, the shotgun slowest"), Def::AimTimeRevolver < Def::AimTimeRifle && Def::AimTimeRifle < Def::AimTimeShotgun);
 	TestTrue(TEXT("...is swapped quickest, the shotgun slowest"), Def::SwapRevolver < Def::SwapRifle && Def::SwapRifle < Def::SwapShotgun);
 	TestTrue(TEXT("...and walks fastest aimed, the shotgun slowest"), Def::AimMoveRevolver > Def::AimMoveRifle && Def::AimMoveRifle > Def::AimMoveShotgun);
@@ -107,10 +113,17 @@ bool FGunfeelKickIdentityTest::RunTest(const FString& Parameters)
 		Def::RumbleShotgun > Def::RumbleRevolver && Def::RumbleRevolver > Def::RumbleRifle
 		&& Def::RumbleShotgunSeconds > Def::RumbleRevolverSeconds && Def::RumbleRevolverSeconds > Def::RumbleRifleSeconds);
 	TestEqual(TEXT("The user's call: the revolver's crit is 1.75x"), Def::CritRevolver, 1.75f);
-	// The gun feel pass spread the kinds apart (2026-10-22): heaviest first, the SMG a hum.
-	TestTrue(TEXT("The view kick runs launcher/sniper, shotgun, revolver, rifle, LMG, SMG"),
-		Def::KickLauncher >= Def::KickSniper && Def::KickSniper > Def::KickShotgun && Def::KickShotgun > Def::KickRevolver
-		&& Def::KickRevolver > Def::KickRifle && Def::KickRifle > Def::KickLMG && Def::KickLMG > Def::KickSMG);
+	// The gun feel pass spread the kinds apart (2026-10-22): heaviest first, the SMG a hum (Identity 0's scales).
+	TestTrue(TEXT("Today's view kick runs launcher/sniper, shotgun, revolver, rifle, LMG, SMG"),
+		Today::KickLauncher >= Today::KickSniper && Today::KickSniper > Today::KickShotgun && Today::KickShotgun > Today::KickRevolver
+		&& Today::KickRevolver > Today::KickRifle && Today::KickRifle > Today::KickLMG && Today::KickLMG > Today::KickSMG);
+	// Gun identity's table at a base gun: the light guns low, the heavy three up high but apart (Looter.Gunfeel.Identity.*).
+	FRandomStream Random(2);
+	auto Hip = [&Random](EWeaponKind Kind) { return ViewKicks::ForShot(Kind, ViewKicks::BaseShotRecoil, 0.f, Random).Pitch; };
+	TestTrue(TEXT("Identity's lift runs shotgun, sniper, revolver, launcher, LMG, rifle, SMG"),
+		Hip(EWeaponKind::Shotgun) > Hip(EWeaponKind::Sniper) && Hip(EWeaponKind::Sniper) > Hip(EWeaponKind::Revolver)
+		&& Hip(EWeaponKind::Revolver) > Hip(EWeaponKind::Launcher) && Hip(EWeaponKind::Launcher) > Hip(EWeaponKind::LMG)
+		&& Hip(EWeaponKind::LMG) > Hip(EWeaponKind::Rifle) && Hip(EWeaponKind::Rifle) > Hip(EWeaponKind::SMG));
 	return true;
 }
 
@@ -123,24 +136,33 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelKickViewTest, "Looter.Gunfeel.Kick.View
 
 bool FGunfeelKickViewTest::RunTest(const FString& Parameters)
 {
-	// A shot's view kick times the kind's weight (UPlayerViewComponent::AddShotKick): every kind kicks harder than before, and
-	// a burst of any of them still stays within the view's limits (FViewKickStack holds the sum).
+	// A shot's view kick times the kind's weight (UPlayerViewComponent::AddShotKick), at a base Common (Recoil 1.4): the rifle a
+	// crack, the shotgun the biggest shove, and a burst of any of them still stays within the view's limits (FViewKickStack
+	// holds the sum).
 	FRandomStream Random(5);
-	const FViewKick Rifle = ViewKicks::ForShot(EWeaponKind::Rifle, 1.f, 0.f, Random) * Def::KickRifle;
-	const FViewKick Shotgun = ViewKicks::ForShot(EWeaponKind::Shotgun, 1.f, 0.f, Random) * Def::KickShotgun;
-	const FViewKick Revolver = ViewKicks::ForShot(EWeaponKind::Revolver, 1.f, 0.f, Random) * Def::KickRevolver;
-	TestTrue(FString::Printf(TEXT("The rifle's tick is bigger (%.2f degrees)"), Rifle.Pitch), Rifle.Pitch > 0.4f && Rifle.Pitch < 1.f);
+	const float Base = ViewKicks::BaseShotRecoil;
+	const FViewKick Rifle = ViewKicks::ForShot(EWeaponKind::Rifle, Base, 0.f, Random) * Def::KickRifle;
+	const FViewKick Shotgun = ViewKicks::ForShot(EWeaponKind::Shotgun, Base, 0.f, Random) * Def::KickShotgun;
+	const FViewKick Revolver = ViewKicks::ForShot(EWeaponKind::Revolver, Base, 0.f, Random) * Def::KickRevolver;
+	TestTrue(FString::Printf(TEXT("The rifle's crack (%.2f degrees)"), Rifle.Pitch), Rifle.Pitch > 0.4f && Rifle.Pitch < 1.f);
 	TestTrue(FString::Printf(TEXT("The shotgun's shove is the most (%.2f degrees)"), Shotgun.Pitch), Shotgun.Pitch > Revolver.Pitch && Shotgun.Pitch > 1.5f);
 	TestTrue(TEXT("...and widens the view the most"), Shotgun.FieldOfView > Revolver.FieldOfView && Shotgun.FieldOfView > Rifle.FieldOfView);
-	TestTrue(TEXT("A single kick stays within the view's limits"), Shotgun.Pitch <= FViewKickStack::MaxTurn && Shotgun.FieldOfView <= FViewKickStack::MaxFieldOfView);
+	TestTrue(TEXT("...and pushes the camera back"), Shotgun.Push > 0.f && Rifle.Push == 0.f && Revolver.Push == 0.f);
+	TestTrue(TEXT("A single kick stays within the view's limits"), Shotgun.Pitch <= FViewKickStack::MaxTurn && Shotgun.FieldOfView <= FViewKickStack::MaxFieldOfView
+		&& Shotgun.Push <= FViewKickStack::MaxPush);
+
+	// Identity 0's kick is today's: the old table times the old scale (a rifle 0.32 x 1.3 at Recoil 1).
+	const FViewKick OldRifle = ViewKicks::ForShotToday(EWeaponKind::Rifle, 1.f, 0.f, Random) * Def::Today::KickRifle;
+	TestEqual(TEXT("Today's rifle tick"), OldRifle.Pitch, 0.32f * 1.3f, 0.0001f);
 
 	FViewKickStack Burst;
 	for (int32 Shot = 0; Shot < 20; ++Shot)
 	{
-		Burst.Add(ViewKicks::ForShot(EWeaponKind::Shotgun, 1.5f, 0.f, Random) * Def::KickShotgun);
+		Burst.Add(ViewKicks::ForShot(EWeaponKind::Shotgun, 2.f, 0.f, Random) * Def::KickShotgun);
 		Burst.Tick(0.016f);
 		TestTrue(TEXT("A heavy burst never turns the view past the limit"), FMath::Abs(Burst.GetRotation().Pitch) <= FViewKickStack::MaxTurn + KINDA_SMALL_NUMBER);
 		TestTrue(TEXT("...or widens it past the limit"), FMath::Abs(Burst.GetFieldOfView()) <= FViewKickStack::MaxFieldOfView + KINDA_SMALL_NUMBER);
+		TestTrue(TEXT("...or pushes the camera past the limit"), FMath::Abs(Burst.GetPush()) <= FViewKickStack::MaxPush + KINDA_SMALL_NUMBER);
 	}
 	return true;
 }

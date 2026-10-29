@@ -2,6 +2,9 @@
 // not to their sides or above them"): a short throe (it rears, fangs spread, front legs carried up, every leg kicking), a
 // hard drop with one bounce on its death cry's knock (a thud and a puff of dust), then every leg folded under the body; its
 // last twitches (SpiderCreatureReact.cpp), a last shudder and the sink. SpiderCreature.cpp calls it each frame it's posed.
+// The killing hit's style (HITS, 2026-10-28; picked in SpiderCreatureHurt.cpp) times it: a head crit's "lights out" drops
+// at once (no throe: the nose thrown back, down at 0.12 s, a quick curl), a blast's flails its legs wider in the air and
+// curls them as it lands; every style ends with the legs curled under the body.
 //
 // Why it's built this way (tuned in a model of the rig against Looter.Creatures.Anim.SpiderDeathCurl's limits):
 // - The old curl laid each femur out to the side with its knee raised 35 degrees: the knees stood up and out round the
@@ -152,6 +155,61 @@ namespace
 	{
 		return FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(From, To), Alpha).RotateVector(From);
 	}
+
+	// --- Kill styles (HITS, 2026-10-28; SpiderCreatureHurt.cpp picks one from the killing hit) ---
+
+	/**
+	 * A style's death against the body kill's (a full-size death's seconds): its apex and drop, how high and how far nose up
+	 * it rears, its curl's share of the time and how much later it starts, its kicks' reach and its riding legs' throw.
+	 */
+	struct FDeathTimes
+	{
+		float Apex = ApexSeconds;
+		float Drop = ASpiderCreature::DropSeconds;
+		float Rise = ThroeRise;
+		float Rear = ThroeRear;
+		float CurlShare = 1.f;
+		float CurlDelay = 0.f;
+		float Flail = 1.f;
+		float Throw = 1.f;
+	};
+
+	/** Lights out (a head crit): no throe, its nose thrown back by the shot as it drops at once, its legs curling in quick. */
+	constexpr float LightsOutApex = 0.05f;
+	constexpr float LightsOutDrop = 0.12f;
+	constexpr float LightsOutSnap = 25.f;
+	constexpr float LightsOutCurl = 0.6f;
+	/** A blast: its legs flail wider in the air and curl under it as it lands, a little later than a body kill's. */
+	constexpr float BlastFlail = 1.5f;
+	constexpr float BlastCurlDelay = 0.12f;
+	static_assert(CurlFirst + CurlStagger * 3 + CurlJitter + BlastCurlDelay + CurlLength[3] < 1.5f,
+		"a blast's curl is done before its first twitch");
+
+	FDeathTimes TimesFor(ASpiderCreature::EKillStyle Style)
+	{
+		FDeathTimes Times;
+		if (Style == ASpiderCreature::EKillStyle::LightsOut)
+		{
+			Times.Apex = LightsOutApex;
+			Times.Drop = LightsOutDrop;
+			Times.Rise = 0.f;
+			Times.Rear = LightsOutSnap;
+			Times.CurlShare = LightsOutCurl;
+			Times.Flail = 0.f;
+			Times.Throw = 0.f;
+		}
+		else if (Style == ASpiderCreature::EKillStyle::Blast || Style == ASpiderCreature::EKillStyle::Overkill)
+		{
+			Times.CurlDelay = BlastCurlDelay;
+			Times.Flail = BlastFlail;
+		}
+		return Times;
+	}
+}
+
+float ASpiderCreature::GetDeathDropTime() const
+{
+	return TimesFor(KillStyle).Drop * DeathTimeScale(GetSizeScale());
 }
 
 // ---------------------------------------------------------------------------
@@ -162,9 +220,13 @@ void ASpiderCreature::RecordDeathPose()
 {
 	const float Scale = GetSizeScale();
 	const float GroundZ = static_cast<float>(GetActorLocation().Z) - GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	// The body as it was: a climb out of the dirt cut short folds into its height, a bite's lunge eases off over the rear.
-	DeathHeight = (BodyZ + EmergeDrop() - GroundZ) / Scale;
-	DeathPitch = BodyPitch;
+	// The body as it was: a climb out of the dirt cut short folds into its height, a bite's lunge eases off over the rear,
+	// a stagger's crouch (laid on after the body's smoothing: SpiderCreatureHurt.cpp) folds into its height and pitch.
+	const FHitFeelPose Feel = HitFeelPose();
+	const float StaggerDrop = Feel.Drop - static_cast<float>(HitTwist.Offset.Z);
+	DeathHeight = (BodyZ + EmergeDrop() - StaggerDrop - GroundZ) / Scale;
+	DeathPitch = BodyPitch + Feel.Pitch;
+	const FDeathTimes Times = TimesFor(KillStyle);
 	DeathRoll = BodyRoll;
 	DeathLunge = LungeNow;
 	UCreatureReactComponent* Reacts = GetReact();
@@ -181,7 +243,7 @@ void ASpiderCreature::RecordDeathPose()
 		Leg.HeldVelocity = FVector::ZeroVector;
 		DeadPose(Leg, Leg.DeadKnee, Leg.DeadFoot);
 		const int32 Pair = FMath::Clamp(Leg.Pair, 0, 3);
-		Leg.CurlStart = CurlFirst + CurlStagger * (3 - Pair) + Roll(0.f, CurlJitter);
+		Leg.CurlStart = (CurlFirst + CurlStagger * (3 - Pair) + Roll(0.f, CurlJitter)) * Times.CurlShare + Times.CurlDelay;
 		Leg.FlailStart = Roll(0.f, FlailStagger);
 		Leg.FlailHz = Roll(FlailHz[0], FlailHz[1]);
 	}
@@ -216,23 +278,25 @@ void ASpiderCreature::DeadBody(float Time, float GroundZ, float& OutZ, float& Ou
 {
 	const float Scale = GetSizeScale();
 	const float U = Time / DeathTimeScale(Scale);
-	const float Span = DropSeconds - ApexSeconds;
+	// Its kill style's timing (a body kill's is the constants above; lights out drops at once, its nose thrown back).
+	const FDeathTimes Times = TimesFor(KillStyle);
+	const float Span = Times.Drop - Times.Apex;
 	// The throe: from as it stood it rears to its apex (from rest, to rest), then falls ever faster, height and nose
-	// together, to its dead ride and pitch at DropSeconds. (Killed mid-bite, already reared, it rears no further.)
-	const float Apex = FMath::Max(DeathHeight, RideHeight + ThroeRise);
-	const float ApexPitch = FMath::Max(DeathPitch, GroundPitch + ThroeRear);
+	// together, to its dead ride and pitch at its drop. (Killed mid-bite, already reared, it rears no further.)
+	const float Apex = FMath::Max(DeathHeight, RideHeight + Times.Rise);
+	const float ApexPitch = FMath::Max(DeathPitch, GroundPitch + Times.Rear);
 	const float RestPitch = GroundPitch + DeadPitch;
 	float Height = DeadRide;
 	float Pitch = RestPitch;
-	if (U < ApexSeconds)
+	if (U < Times.Apex)
 	{
-		const float Rise = Smooth01(U / ApexSeconds);
+		const float Rise = Smooth01(U / Times.Apex);
 		Height = FMath::Lerp(DeathHeight, Apex, Rise);
 		Pitch = FMath::Lerp(DeathPitch, ApexPitch, Rise);
 	}
-	else if (U < DropSeconds)
+	else if (U < Times.Drop)
 	{
-		const float Fallen = FMath::Square((U - ApexSeconds) / Span);
+		const float Fallen = FMath::Square((U - Times.Apex) / Span);
 		Height = Apex - (Apex - DeadRide) * Fallen;
 		Pitch = ApexPitch - (ApexPitch - RestPitch) * Fallen;
 	}
@@ -240,7 +304,7 @@ void ASpiderCreature::DeadBody(float Time, float GroundZ, float& OutZ, float& Ou
 	{
 		// Landed still falling: the ground takes its speed over a few frames, its nose stops a little past its rest and comes
 		// back, and it bounces once.
-		const float After = U - DropSeconds;
+		const float After = U - Times.Drop;
 		const float LandSpeed = -2.f * (Apex - DeadRide) / Span;
 		Height = DeadRide + LandSpeed * After * FMath::Exp(-After / ImpactSoftness);
 		const float Spin = -2.f * (ApexPitch - RestPitch) / Span;
@@ -274,16 +338,17 @@ void ASpiderCreature::DeadBody(float Time, float GroundZ, float& OutZ, float& Ou
 	}
 	OutPitch = Pitch;
 	OutRoll = Roll;
-	OutFang = U < DropSeconds ? ThroeFang : DeadFang;
+	OutFang = U < Times.Drop ? ThroeFang : DeadFang;
 }
 
 float ASpiderCreature::DeadAbdomenTilt(float Time) const
 {
 	const float U = Time / DeathTimeScale(GetSizeScale());
+	const FDeathTimes Times = TimesFor(KillStyle);
 	// Its tail up as it rears (the body's own pitch would swing it down into the ground), slammed down as it lands,
 	// wriggling through the throe, and a tremor in the last shudder.
-	const float Rear = Smooth01(U / ApexSeconds) * (1.f - Smooth01((U - ApexSeconds) / (DropSeconds - ApexSeconds)));
-	const float After = U - DropSeconds;
+	const float Rear = Smooth01(U / Times.Apex) * (1.f - Smooth01((U - Times.Apex) / (Times.Drop - Times.Apex)));
+	const float After = U - Times.Drop;
 	const float Slam = After > 0.f ? After / AbdomenSlamPeak * FMath::Exp(1.f - After / AbdomenSlamPeak) : 0.f;
 	const float Wriggle = AbdomenWriggle * FMath::Sin(2.f * UE_PI * AbdomenWriggleHz * U) * FMath::Exp(-U / AbdomenWriggleFade)
 		* Smooth01(U / 0.05f);
@@ -315,6 +380,8 @@ void ASpiderCreature::PoseDeadLeg(const FLeg& Leg, int32 Index, float Time, cons
 	const float Lower = Leg.TibiaLength * Scale;
 	const int32 Pair = FMath::Clamp(Leg.Pair, 0, 3);
 	const bool bPlanted = Pair >= FirstPlantedPair;
+	// Its kill style's kicks, throw and curl (a body kill's: all as the constants say).
+	const FDeathTimes Times = TimesFor(KillStyle);
 
 	// Where its foot would be without its curl: a back foot planted where it stood (set down if it was off the ground), a
 	// front or middle one riding up with the body as it rears, drawn up and in a little; each kicking out and up, from rest,
@@ -327,14 +394,14 @@ void ASpiderCreature::PoseDeadLeg(const FLeg& Leg, int32 Index, float Time, cons
 	else
 	{
 		const FVector Spot(Leg.Hip.X + ThrowAhead[Pair], Leg.Hip.Y * ThrowSpread[Pair], ThrowHeight[Pair]);
-		From = BodyFrame.TransformPosition(FMath::Lerp(Leg.DeathLocal, Spot, ThrowShare[Pair] * Smooth01(U / ThrowSeconds)));
+		From = BodyFrame.TransformPosition(FMath::Lerp(Leg.DeathLocal, Spot, ThrowShare[Pair] * Times.Throw * Smooth01(U / ThrowSeconds)));
 	}
 	const float Kicking = U - Leg.FlailStart;
 	if (Kicking > 0.f)
 	{
 		const FVector KickWay = ((bPlanted ? FVector::UpVector : Up) + Outward * 0.6f).GetSafeNormal();
 		const float Kick = 0.5f * (1.f - FMath::Cos(2.f * UE_PI * Leg.FlailHz * Kicking)) * FMath::Exp(-Kicking / FlailFade);
-		From += KickWay * (FlailReach[Pair] * Scale * Kick);
+		From += KickWay * (FlailReach[Pair] * Times.Flail * Scale * Kick);
 	}
 	// That foot as the walking bend holds it: where the curl starts from.
 	FVector KneeFrom;
@@ -342,7 +409,7 @@ void ASpiderCreature::PoseDeadLeg(const FLeg& Leg, int32 Index, float Time, cons
 	SolveTwoBone(Hip, From, Upper, Lower, Pole, KneeFrom, FootFrom);
 
 	// The curl: the femur turns round the hip and the tibia round the knee, each evenly, to their dead ways.
-	const float Alpha = CurlEase((U - Leg.CurlStart) / CurlLength[Pair]);
+	const float Alpha = CurlEase((U - Leg.CurlStart) / (CurlLength[Pair] * Times.CurlShare));
 	const FVector DeadKneeWay = BodyFrame.TransformVectorNoScale((Leg.DeadKnee - Leg.Hip).GetSafeNormal());
 	const FVector DeadTibiaWay = BodyFrame.TransformVectorNoScale((Leg.DeadFoot - Leg.DeadKnee).GetSafeNormal());
 	const FVector KneeWay = TurnWay((KneeFrom - Hip).GetSafeNormal(UE_SMALL_NUMBER, DeadKneeWay), DeadKneeWay, Alpha);

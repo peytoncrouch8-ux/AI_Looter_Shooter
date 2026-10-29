@@ -1,9 +1,11 @@
 #include "Creatures/CreatureKillLook.h"
 #include "Combat/BulletSubsystem.h"
 #include "Combat/GraveSaltBurst.h"
+#include "Combat/HitFeelTuning.h"
 #include "Combat/HitReaction.h"
 #include "Audio/LooterSound.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureHitCues.h"
 #include "Creatures/CreatureHitReactionComponent.h"
 #include "Creatures/CreatureReactSubsystem.h"
 #include "Creatures/CreatureTierLook.h"
@@ -49,6 +51,27 @@ namespace
 		OutNormal = FVector(Hit.ImpactNormal).GetSafeNormal();
 		return OutNormal.Z > 0.3f;
 	}
+
+	/**
+	 * How far downrange of the body a blast or overkill throws a second splat (cm, HITS): a spider's goo 40, an Unpaid's ash 80, a
+	 * slime's gel 60 to 90; 0: none for that blood in this style (a spider's blast kill is only its thrown slide).
+	 */
+	float DownrangeFor(ECreatureBlood Blood, CreatureKillLook::EStyle Style)
+	{
+		switch (Blood)
+		{
+		case ECreatureBlood::Gel: return FMath::FRandRange(60.f, 90.f);
+		case ECreatureBlood::Embers:
+		case ECreatureBlood::MinerEmbers: return 80.f;
+		case ECreatureBlood::Ichor:
+		case ECreatureBlood::DarkIchor: return Style == CreatureKillLook::EStyle::Overkill ? 40.f : 0.f;
+		default: return 0.f;
+		}
+	}
+
+	/** When the last Big-hit splat was laid (the world's seconds), so no more than one comes every BigSplatGap in the world. */
+	double LastBigSplatAt = -1.0e9;
+	constexpr double BigSplatGap = 0.5;
 
 	FVector BodyMiddle(const ACreatureBase& Creature)
 	{
@@ -119,6 +142,59 @@ namespace CreatureKillLook
 		return Kill;
 	}
 
+	EStyle StyleOf(const FCreatureHit& Hit)
+	{
+		if (!FHitFeelTuning::Live().KillStyles)
+		{
+			return EStyle::Body;
+		}
+		if (Hit.Weight == EHitWeight::Overkill)
+		{
+			return EStyle::Overkill;
+		}
+		// A shotgun's or a rocket's kill is a blast whatever its weight; so is any Big hit.
+		if (Hit.Kind == EWeaponKind::Shotgun || Hit.Kind == EWeaponKind::Launcher || Hit.Weight == EHitWeight::Big)
+		{
+			return EStyle::Blast;
+		}
+		return Hit.bCritical ? EStyle::Crit : EStyle::Body;
+	}
+
+	bool LayBigHitSplat(ACreatureBase& Creature, const FCreatureHit& Hit)
+	{
+		UWorld* World = Creature.GetWorld();
+		if (!World || Hit.Weight != EHitWeight::Big || Hit.bKilled || Hit.bBoss || GraveSaltBurst::IsBoss(&Creature)
+			|| !FHitFeelTuning::Live().KillStyles)
+		{
+			return false;
+		}
+		const double Now = World->GetTimeSeconds();
+		// (A clock that went backwards, a new level, starts over.)
+		if (Now >= LastBigSplatAt && Now - LastBigSplatAt < BigSplatGap)
+		{
+			return false;
+		}
+		UVfxSubsystem* Vfx = UVfxSubsystem::Get(&Creature);
+		UCreatureReactSubsystem* Reacts = UCreatureReactSubsystem::Get(&Creature);
+		const FVector Middle = BodyMiddle(Creature);
+		if (!Vfx || (Reacts && !Reacts->IsNearAViewer(Middle, SeenWithin)))
+		{
+			return false;
+		}
+		// A little beyond the body along the shot, where the spill that went through it would land.
+		const FVector Shot = Hit.Direction.GetSafeNormal2D();
+		FVector Ground;
+		FVector Normal;
+		if (Shot.IsNearlyZero()
+			|| !KillGroundUnder(Creature, Middle + Shot * (FMath::FRandRange(30.f, 45.f) + 40.f * Creature.GetSizeScale()), Ground, Normal))
+		{
+			return false;
+		}
+		LastBigSplatAt = Now;
+		const ECreatureBlood Blood = CreatureBlood::Of(&Creature);
+		return Vfx->AddSplat(Ground, Normal, SplatFor(Blood), CreatureBlood::TintOf(&Creature), 45.f * Creature.GetSizeScale());
+	}
+
 	bool Play(ACreatureBase& Creature, const FCreatureHit& Hit, bool bSplat)
 	{
 		UWorld* World = Creature.GetWorld();
@@ -147,11 +223,34 @@ namespace CreatureKillLook
 			// Killed by an element's status: the element's death on top (embers, light, crumbling salt), not the gun's.
 			PlayElementDeath(Creature, Effects, Hit.Element);
 		}
+		// The kill's style (HITS): a slime's gel flung out along the shot (a core crit's pop, a blast's splatter x1.5, an overkill's
+		// burst x1.6), and a second splat downrange of a blast's or an overkill's. The spiders' and the Unpaid's own style looks are
+		// their kinds' (SpiderCreatureHurt.cpp, UnpaidCreatureHurt.cpp). Not on a status's kill: the element's death is the whole.
+		const EStyle Style = Hit.Element == ELooterElement::None ? StyleOf(Hit) : EStyle::Body;
+		if (Style == EStyle::Overkill || (Style == EStyle::Blast && Kill.Blood == ECreatureBlood::Gel))
+		{
+			// The body giving way all at once: its own thud under the kind's sounds.
+			LooterSound::PlayAt(&Creature, FName(CreatureHitCue::HitOverkill), Kill.Center);
+		}
+		if (Style != EStyle::Body && Kill.Blood == ECreatureBlood::Gel)
+		{
+			const float Burst = Style == EStyle::Overkill ? 1.6f : (Style == EStyle::Blast ? 1.5f : 1.f);
+			Effects.SpawnGelPop(Kill.Center, Kill.Direction, Kill.Spill, Kill.Size * Burst);
+		}
 		if (bSplat && Kill.bGround)
 		{
 			if (UVfxSubsystem* Vfx = UVfxSubsystem::Get(&Creature))
 			{
 				Vfx->AddSplat(Kill.Ground, Kill.GroundNormal, SplatFor(Kill.Blood), Kill.Spill, Kill.Size);
+				const FVector Shot = Kill.Direction.GetSafeNormal2D();
+				const float Downrange = Style == EStyle::Blast || Style == EStyle::Overkill ? DownrangeFor(Kill.Blood, Style) : 0.f;
+				FVector Beyond;
+				FVector BeyondNormal;
+				if (Downrange > 0.f && !Shot.IsNearlyZero()
+					&& KillGroundUnder(Creature, Kill.Ground + Shot * Downrange * Creature.GetSizeScale(), Beyond, BeyondNormal))
+				{
+					Vfx->AddSplat(Beyond, BeyondNormal, SplatFor(Kill.Blood), Kill.Spill, Kill.Size * 0.6f);
+				}
 			}
 		}
 		return true;

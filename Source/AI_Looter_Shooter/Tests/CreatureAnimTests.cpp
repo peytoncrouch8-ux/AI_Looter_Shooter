@@ -343,7 +343,7 @@ bool FSpiderHitJoltTest::RunTest(const FString& Parameters)
 {
 	// A hit used to move the spider's body 7 cm (14 on a crit) in one frame and ease it back: a pop. Now it rides a stiff
 	// spring: it peaks a few frames on, about as far, and settles. (A 1-point scratch: Gunfeel sizes every flinch by the hit,
-	// the least 0.6 of a full one, so its peak is about 4 cm.)
+	// the least 0.85 of a full one since the hit feel pass, HITS 2026-10-28, on a 12 cm kick: its peak is about 7 cm.)
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -377,8 +377,8 @@ bool FSpiderHitJoltTest::RunTest(const FString& Parameters)
 		Step = FMath::Max(Step, static_cast<float>(FVector::Dist(Now, Last)));
 		Last = Now;
 	}
-	TestTrue(FString::Printf(TEXT("A hit jolts it (%.1f cm at most)"), Peak), Peak > 2.f && Peak < 11.f);
-	TestTrue(FString::Printf(TEXT("...over a few frames, not one (%.1f cm in a frame at most)"), Step), Step < 4.5f);
+	TestTrue(FString::Printf(TEXT("A hit jolts it (%.1f cm at most)"), Peak), Peak > 3.f && Peak < 15.f);
+	TestTrue(FString::Printf(TEXT("...over a few frames, not one (%.1f cm in a frame at most)"), Step), Step < 5.5f);
 	TestTrue(FString::Printf(TEXT("...and it settles (%.1f cm off after 0.6 s)"), FVector::Dist(Last, Before)), FVector::Dist(Last, Before) < 2.0);
 	return true;
 }

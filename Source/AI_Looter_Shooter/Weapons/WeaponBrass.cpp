@@ -8,10 +8,16 @@
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Weapons/GunfeelKickTuning.h"
+#include "Weapons/WeaponSounds.h"
 
 namespace
 {
 	const TCHAR* const BrassCylinderPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
+	/** The LMG's belt link (gun identity): the engine cube, 1.2 x 0.9 x 0.25 cm, in a dark brass. */
+	const TCHAR* const BrassCubePath = TEXT("/Engine/BasicShapes/Cube.Cube");
+	const FLinearColor BrassLinkColor(0.2f, 0.14f, 0.06f);
+	constexpr float BrassLinkThickness = 0.25f;
 	/** The ammo pickups' brass and paper hull (Art/Models/Loot/Ammo.py), so a spent case is the round the player picked up. */
 	const TCHAR* const BrassMaterialPath = TEXT("/Game/Art/Materials/MI_AmmoCaseBrass.MI_AmmoCaseBrass");
 	const TCHAR* const BrassHullMaterialPath = TEXT("/Game/Art/Materials/MI_AmmoShellHull.MI_AmmoShellHull");
@@ -48,9 +54,13 @@ namespace
 
 	UMaterialInterface* BrassMaterial(UObject* Outer, const TCHAR* Path, const FLinearColor& Fallback)
 	{
-		if (UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, Path))
+		// A null path is a surface with no material of its own (the links'): the flat stylized one in its color.
+		if (Path)
 		{
-			return Material;
+			if (UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, Path))
+			{
+				return Material;
+			}
 		}
 		UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, BrassFallbackPath);
 		UMaterialInstanceDynamic* Instance = Base ? UMaterialInstanceDynamic::Create(Base, Outer) : nullptr;
@@ -115,17 +125,26 @@ namespace
 
 ECasingKind FWeaponBrass::KindFor(EWeaponKind Kind)
 {
+	return KindFor(Kind, GunfeelKick::IdentityOn());
+}
+
+ECasingKind FWeaponBrass::KindFor(EWeaponKind Kind, bool bIdentity)
+{
 	switch (Kind)
 	{
 	case EWeaponKind::Shotgun:
 		return ECasingKind::Hull;
 	case EWeaponKind::Revolver:
 		return ECasingKind::Pistol;
-	// The frontier-tech guns throw a bottlenecked case out of their port (the sniper's as its bolt is drawn back; the
-	// launcher throws none: AWeaponBase::EjectAfterShot).
+	// Gun identity: the SMG throws a small case, the LMG a belt one (with its link), the sniper a fat magnum one. With the
+	// switch off they all throw the rifle's, as before.
 	case EWeaponKind::SMG:
-	case EWeaponKind::Sniper:
+		return bIdentity ? ECasingKind::Small : ECasingKind::Rifle;
 	case EWeaponKind::LMG:
+		return bIdentity ? ECasingKind::Belt : ECasingKind::Rifle;
+	// The sniper's case is thrown as its bolt is drawn back, the launcher throws none: AWeaponBase::EjectAfterShot.
+	case EWeaponKind::Sniper:
+		return bIdentity ? ECasingKind::Magnum : ECasingKind::Rifle;
 	case EWeaponKind::Launcher:
 	case EWeaponKind::Rifle:
 	case EWeaponKind::None:
@@ -143,10 +162,23 @@ FVector2D FWeaponBrass::SizeOf(ECasingKind Kind)
 		return FVector2D(6.4, 2.05);
 	case ECasingKind::Pistol:
 		return FVector2D(3.1, 1.15);
+	case ECasingKind::Small:
+		return FVector2D(2.0, 0.95);
+	case ECasingKind::Magnum:
+		return FVector2D(6.9, 1.45);
+	case ECasingKind::Belt:
+		return FVector2D(5.1, 1.05);
+	case ECasingKind::Link:
+		return FVector2D(1.2, 0.9);
 	case ECasingKind::Rifle:
 	default:
 		return FVector2D(4.5, 0.95);
 	}
+}
+
+float FWeaponBrass::HalfThickness(ECasingKind Kind)
+{
+	return Kind == ECasingKind::Link ? BrassLinkThickness * 0.5f : static_cast<float>(SizeOf(Kind).Y) * 0.5f;
 }
 
 bool FWeaponBrass::IsSoft(EImpactMaterial Surface)
@@ -223,6 +255,7 @@ void FWeaponBrass::Initialize(UWorld* World)
 	UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, BrassCylinderPath);
 	BrassInstances = BrassInstancesOn(Actor, TEXT("Brass"), Cylinder, BrassMaterial(Actor, BrassMaterialPath, BrassFallbackColor));
 	HullInstances = BrassInstancesOn(Actor, TEXT("Hulls"), Cylinder, BrassMaterial(Actor, BrassHullMaterialPath, BrassHullFallbackColor));
+	LinkInstances = BrassInstancesOn(Actor, TEXT("Links"), LoadObject<UStaticMesh>(nullptr, BrassCubePath), BrassMaterial(Actor, nullptr, BrassLinkColor));
 }
 
 void FWeaponBrass::Shutdown()
@@ -243,10 +276,25 @@ void FWeaponBrass::Shutdown()
 
 void FWeaponBrass::Eject(const FCasingLaunch& Launch)
 {
-	// The last MaxCasings are kept: the oldest goes (the one lying longest, usually far behind by now).
-	while (Casings.Num() >= MaxCasings)
+	// The last MaxCasings are kept: the oldest goes (the one lying longest, usually far behind by now). Belt links are kept
+	// apart (the last MaxLinks), so an LMG's links never push its cases out.
+	const bool bLink = Launch.Kind == ECasingKind::Link;
+	const int32 Cap = bLink ? MaxLinks : MaxCasings;
+	auto Counts = [bLink](const FCasing& Casing) { return (Casing.Kind == ECasingKind::Link) == bLink; };
+	int32 Same = 0;
+	for (const FCasing& Casing : Casings)
 	{
-		Casings.RemoveAt(0, 1, EAllowShrinking::No);
+		Same += Counts(Casing) ? 1 : 0;
+	}
+	while (Same >= Cap)
+	{
+		const int32 Oldest = Casings.IndexOfByPredicate(Counts);
+		if (Oldest == INDEX_NONE)
+		{
+			break;
+		}
+		Casings.RemoveAt(Oldest, 1, EAllowShrinking::No);
+		--Same;
 	}
 	FCasing& Casing = Casings.AddDefaulted_GetRef();
 	Casing.Kind = Launch.Kind;
@@ -315,7 +363,7 @@ void FWeaponBrass::StartLeg(FCasing& Casing, const FVector& From, const FVector&
 bool FWeaponBrass::Land(FCasing& Casing)
 {
 	const FVector Normal = Casing.LandNormal.GetSafeNormal();
-	const float Radius = static_cast<float>(SizeOf(Casing.Kind).Y) * 0.5f;
+	const float Radius = HalfThickness(Casing.Kind);
 	const FVector Velocity = Casing.LegVelocity + FVector(0.0, 0.0, -BrassGravity * Casing.LegLanding);
 	Casing.Location = Casing.LandPoint + Normal * Radius;
 	++Casing.Contacts;
@@ -371,7 +419,8 @@ bool FWeaponBrass::Land(FCasing& Casing)
 void FWeaponBrass::PlayLanding(const FCasing& Casing, const FVector& Where)
 {
 	UWorld* World = WorldRef.Get();
-	if (!World)
+	// A belt link lands silent: its round's case carries the sound (a tab's tick would only eat the gap between sounds).
+	if (!World || Casing.Kind == ECasingKind::Link)
 	{
 		return;
 	}
@@ -381,9 +430,10 @@ void FWeaponBrass::PlayLanding(const FCasing& Casing, const FVector& Where)
 		return;
 	}
 	LastSoundTime = Now;
-	// Each bounce quieter than the last; a six-gun's fat case a little lower than a rifle's.
-	const float Volume = Casing.Contacts <= 1 ? 1.f : (Casing.Contacts == 2 ? 0.55f : 0.3f);
-	const float Pitch = Casing.Kind == ECasingKind::Pistol ? 0.92f : (Casing.Kind == ECasingKind::Hull && IsSoft(Casing.LandSurface) ? 0.8f : 1.f);
+	// Each bounce quieter than the last; a six-gun's fat case a little lower than a rifle's, the SMG's small one bright, the
+	// sniper's magnum low and a little louder (WeaponSounds::CasingPitch).
+	const float Volume = (Casing.Contacts <= 1 ? 1.f : (Casing.Contacts == 2 ? 0.55f : 0.3f)) * (Casing.Kind == ECasingKind::Magnum ? 1.2f : 1.f);
+	const float Pitch = Casing.Kind == ECasingKind::Hull && IsSoft(Casing.LandSurface) ? 0.8f : WeaponSounds::CasingPitch(Casing.Kind);
 	LooterSound::PlayAt(World, CueFor(Casing.Kind, Casing.LandSurface), Where, Volume, Pitch);
 }
 
@@ -443,6 +493,7 @@ void FWeaponBrass::Redraw()
 	bDirty = false;
 	TArray<FTransform> BrassTransforms;
 	TArray<FTransform> HullTransforms;
+	TArray<FTransform> LinkTransforms;
 	BrassTransforms.Reserve(Casings.Num() + 8);
 	for (const FCasing& Casing : Casings)
 	{
@@ -451,9 +502,14 @@ void FWeaponBrass::Redraw()
 		const float Shrink = 1.f - 0.8f * Fade;
 		const FVector2D Size = SizeOf(Casing.Kind);
 		const FVector Axis = Casing.Rotation.GetAxisZ();
-		const FVector Center = Casing.Location - Casing.Rotation.GetAxisX() * (Size.Y * 0.5 * Fade);
+		const FVector Center = Casing.Location - Casing.Rotation.GetAxisX() * (HalfThickness(Casing.Kind) * Fade);
 		// The engine cylinder is 100 across and 100 long along its Z, about its middle.
-		if (Casing.Kind == ECasingKind::Hull)
+		if (Casing.Kind == ECasingKind::Link)
+		{
+			// The engine cube is 100 each way: thin along X (the ground's normal once it lies), wide along Y, long along Z.
+			LinkTransforms.Add(FTransform(Casing.Rotation, Center, FVector(BrassLinkThickness, Size.Y, Size.X) * (Shrink / 100.f)));
+		}
+		else if (Casing.Kind == ECasingKind::Hull)
 		{
 			const double Body = Size.X - BrassHullHead;
 			BrassTransforms.Add(FTransform(Casing.Rotation, Center + Axis * (-Size.X * 0.5 + BrassHullHead * 0.5),
@@ -468,6 +524,7 @@ void FWeaponBrass::Redraw()
 	}
 	BrassDraw(BrassInstances.Get(), BrassTransforms);
 	BrassDraw(HullInstances.Get(), HullTransforms);
+	BrassDraw(LinkInstances.Get(), LinkTransforms);
 	bDrawnAnything = !Casings.IsEmpty();
 }
 

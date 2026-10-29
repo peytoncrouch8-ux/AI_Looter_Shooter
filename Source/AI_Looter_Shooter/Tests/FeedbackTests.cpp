@@ -81,7 +81,7 @@ bool FHitStopRulesTest::RunTest(const FString& Parameters)
 	using FResponse = FHitReaction::FResponse;
 	// The defaults of the Looter.Gunfeel.* cvars (never what the user has set).
 	const FGunfeelReactTuning Tuning;
-	// Only a crit, a heavy hit or the kill stops a creature's clock, for 35-100 ms; a plain hit never does.
+	// Only a crit, a heavy hit or the kill stops a creature's clock, for 35-110 ms; a plain hit never does.
 	{
 		FHitReaction Reaction;
 		TestEqual(TEXT("A plain hit: no hit-stop"), Reaction.OnHit(0.0, 5.f, 100.f, false, false, ECreatureRank::Basic).HitStopSeconds, 0.f);
@@ -98,12 +98,12 @@ bool FHitStopRulesTest::RunTest(const FString& Parameters)
 	}
 	{
 		FHitReaction Reaction;
-		TestEqual(TEXT("A critical kill: 100 ms"), Reaction.OnHit(0.0, 50.f, 100.f, true, true, ECreatureRank::Rare).HitStopSeconds,
+		TestEqual(TEXT("A critical kill: 110 ms (a small last hit: a big one is an overkill)"), Reaction.OnHit(0.0, 10.f, 100.f, true, true, ECreatureRank::Rare).HitStopSeconds,
 			Tuning.HitStopCritKill);
 	}
 	for (const float Seconds : { Tuning.HitStopCrit, Tuning.HitStopHeavy, Tuning.HitStopKill, Tuning.HitStopCritKill, Tuning.RevolverCritHitStop })
 	{
-		TestTrue(FString::Printf(TEXT("%.0f ms is within 35-100 ms"), Seconds * 1000.f), Seconds >= 0.035f - KINDA_SMALL_NUMBER && Seconds <= 0.1f + KINDA_SMALL_NUMBER);
+		TestTrue(FString::Printf(TEXT("%.0f ms is within 35-110 ms"), Seconds * 1000.f), Seconds >= 0.035f - KINDA_SMALL_NUMBER && Seconds <= 0.11f + KINDA_SMALL_NUMBER);
 	}
 	TestTrue(TEXT("Its clock all but stops (never quite 0)"), FHitReaction::HitStopDilation > 0.f && FHitReaction::HitStopDilation < 0.1f);
 	// A boss's own code runs its big moments: no hit-stop on one.
@@ -225,7 +225,15 @@ bool FViewKicksTest::RunTest(const FString& Parameters)
 	const FViewKick Shotgun = ViewKicks::ForShot(EWeaponKind::Shotgun, 1.f, 0.f, Random);
 	TestTrue(TEXT("The shotgun shoves harder than the rifle"), Shotgun.Pitch > Rifle.Pitch * 2.f && Shotgun.FieldOfView > Rifle.FieldOfView * 2.f);
 	TestTrue(TEXT("...and slower"), Shotgun.Frequency < Rifle.Frequency);
-	TestTrue(TEXT("Small: under 1.5 degrees a shot"), Shotgun.Pitch <= 1.5f && Rifle.Pitch <= 0.5f);
+	// Gun identity (2026-10-28): the table is a base gun's (Recoil 1.4) peaks, all under the stack's limits.
+	TestTrue(TEXT("Small: under 2 degrees a shot at Recoil 1"), Shotgun.Pitch <= 2.f && Rifle.Pitch <= 0.5f);
+	TestTrue(TEXT("The shotgun pushes the camera back, the rifle doesn't"), Shotgun.Push > 0.f && Rifle.Push == 0.f);
+	{
+		FViewKickStack Stack;
+		Stack.Add(Shotgun);
+		const float Push = PeakOver(Stack, 0.08f, [](const FViewKickStack& Each) { return Each.GetPush(); });
+		TestEqual(TEXT("The push peaks at its number"), Push, Shotgun.Push, Shotgun.Push * 0.02f);
+	}
 
 	for (const FViewKick& Kick : { Rifle, Shotgun })
 	{
@@ -249,7 +257,8 @@ bool FViewKicksTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Through the sight: half the turn"), Sight.Pitch, Hip.Pitch * 0.5f, 0.0001f);
 	TestTrue(TEXT("...and less of the widening"), Sight.FieldOfView < Hip.FieldOfView);
 	TestEqual(TEXT("Heavy parts kick harder"), ViewKicks::ForShot(EWeaponKind::Rifle, 1.4f, 0.f, Same).Pitch, Hip.Pitch * 1.4f, 0.0001f);
-	TestEqual(TEXT("...held to 1.5x"), ViewKicks::ForShot(EWeaponKind::Rifle, 9.f, 0.f, Same).Pitch, Hip.Pitch * 1.5f, 0.0001f);
+	TestEqual(TEXT("...held to 2x (the accuracy's wild end is felt)"), ViewKicks::ForShot(EWeaponKind::Rifle, 9.f, 0.f, Same).Pitch, Hip.Pitch * 2.f, 0.0001f);
+	TestEqual(TEXT("...and the calm end to 0.4x"), ViewKicks::ForShot(EWeaponKind::Rifle, 0.1f, 0.f, Same).Pitch, Hip.Pitch * 0.4f, 0.0001f);
 
 	// Hurt: knocked away from the hit, harder for a bigger share of the bar.
 	const FViewKick FromRight = ViewKicks::ForHurt(0.25f, 1.f, 0.f);

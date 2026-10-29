@@ -91,6 +91,37 @@ public:
 	/** Its jelly's lean now (degrees: X forward, Y to its right): away from a hit, swaying at rest. For the tests and tools. */
 	FVector2D GetLean() const { return Lean; }
 
+	// --- The hit-feel pass (HITS lane D, 2026-10-28; SlimeCreatureReact.cpp) ---
+
+	/** How its death goes, by the killing hit: today's splat, a core crit's pop, a blast's splatter, an overkill's over-inflate and burst. */
+	enum class EDeathStyle : uint8 { Body, Popped, Splattered, Overkill };
+
+	/** The style a killing Hit gives (an overkill wins, then a blast, then a crit through the core). */
+	static EDeathStyle DeathStyleFor(const FCreatureHit& Hit);
+	EDeathStyle GetDeathStyle() const { return DeathStyle; }
+
+	/** An overkill's gel swells to this height scale on the killing frame and holds it through the hit-stop. */
+	static constexpr float OverInflate = 1.25f;
+
+	/** A shot's push on a hop in the air (cm/s along the shot, flat): 150 + 400 x the burst's share of its health, at most MaxAirKnock, times sqrt of its size. */
+	static FVector AirKnockFor(const FVector& ShotWay, float BurstShare, float SizeScale);
+	static constexpr float MaxAirKnock = 450.f;
+
+	/**
+	 * Deflects a hop it is in the air for (the hop's ground rules: it never lands past a ledge, so the push is halved until
+	 * its landing is on ground, else dropped). Returns the change in its velocity (zero: none made).
+	 */
+	FVector KnockInAir(const FVector& ShotWay, float BurstShare);
+
+	/** Starts a hop of 200 cm at once along Direction (the tests and the dev tools; its brain does it on its own). */
+	void HopNow(const FVector& Direction);
+	bool IsInAir() const { return Hop == EHop::Air; }
+
+	/** The wounded gel's size now (1 at full health, easing down to 0.88 at none left: the wound stages' shrink). */
+	float GetWoundShrink() const { return WoundScale; }
+	/** Its stagger's share now (0 to 1), from the hit reaction; 0 with the stagger pose off. */
+	float GetStaggerShare() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnAttackStarted() override;
@@ -129,6 +160,12 @@ private:
 	// --- Reactions and idle life (SlimeCreatureReact.cpp) ---
 	/** Its lean's spring, its idle bubbles and sway move on. */
 	void TickReactions(float DeltaSeconds);
+	/** The wound drips of a slime under a quarter of its health, the stagger's wobble cue, and an overkill's burst once its hit-stop is over. */
+	void TickWounds(float DeltaSeconds);
+	/** Lets go of an overkill held inflated through its hit-stop: the kill's layers and its splat, the gel bursting into its puddle. */
+	void ReleaseOverkill();
+	/** Where on its gel a hit landed, 0 at the ground to 1 at the top. */
+	float HitHeightShare(const FVector& HitLocation) const;
 	/** What its notice beat does to the squash's rest: down low, shuddering. */
 	float ReactSquash() const;
 	/** Its lean as a turn about its foot (the mesh's space). */
@@ -146,6 +183,25 @@ private:
 	/** Its notice beat's shudder: seconds to the next kick of its squash, and which way it goes. */
 	float ShudderClock = 0.f;
 	float ShudderSign = 1.f;
+
+	// --- The hit-feel pass ---
+	/** A core crit's ripple: seconds since the hit (past RippleSeconds it is over), and its size in squash. */
+	float RippleAge = 100.f;
+	float RippleAmount = 0.f;
+	/** A stagger's quiver: seconds to the next kick of its squash, and which way. */
+	float QuiverClock = 0.f;
+	float QuiverSign = 1.f;
+	/** Seconds to its next gel drip while hurt to a quarter of its health, and whether its stagger's cue has played. */
+	float DripClock = 0.f;
+	bool bStaggerCued = false;
+	/** The wounded gel's size (eased toward lerp(0.88, 1, health share)). */
+	float WoundScale = 1.f;
+	/** How it died, and the hop's launch velocity (for a deflection before its movement has taken it up). */
+	EDeathStyle DeathStyle = EDeathStyle::Body;
+	FVector HopLaunchVelocity = FVector::ZeroVector;
+	/** An overkill waiting on its hit-stop: the killing hit, and whether it still holds (ReleaseOverkill lets it burst). */
+	FCreatureHit OverkillHit;
+	bool bOverkillHeld = false;
 
 	FName BodyBone = TEXT("body");
 	FName CoreBone = TEXT("core");

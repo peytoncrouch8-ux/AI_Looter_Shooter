@@ -17,7 +17,16 @@ enum class ECasingKind : uint8
 	/** The shotgun's oxblood paper hull on its brass head, thrown out as the gun is pumped. */
 	Hull,
 	/** The six-gun's straight case: none on firing, the empties all tumble out on a reload's eject. */
-	Pistol
+	Pistol,
+	// Gun identity (2026-10-28, Looter.Gunfeel.Identity 1; appended): the SMG, sniper and LMG stop throwing the rifle's case.
+	/** The SMG's small, fast case. */
+	Small,
+	/** The sniper's fat magnum case, drawn out lazily with the bolt. */
+	Magnum,
+	/** The LMG's case, thrown down and to the right with its belt link. */
+	Belt,
+	/** The LMG's belt link: a dark brass tab that falls with each round's case (drawn on its own instances, the last MaxLinks kept). */
+	Link
 };
 
 /** One spent case leaving a gun. */
@@ -52,6 +61,8 @@ class AI_LOOTER_SHOOTER_API FWeaponBrass
 {
 public:
 	static constexpr int32 MaxCasings = 60;
+	/** The belt links kept, apart from the cases (an LMG throws one with every round). */
+	static constexpr int32 MaxLinks = 40;
 	/** Bounces after the first landing. */
 	static constexpr int32 MaxBounces = 2;
 	/** How long a case lies before it fades, and how long it takes to sink away. */
@@ -76,6 +87,8 @@ public:
 	int32 Num() const { return Casings.Num(); }
 	int32 NumFlying() const;
 	int32 NumOfKind(ECasingKind Kind) const;
+	/** Whether a case of Kind is drawn as an engine cube on the link instances (otherwise a cylinder). */
+	static bool IsLink(ECasingKind Kind) { return Kind == ECasingKind::Link; }
 	/** Where each case is now (tests). */
 	TArray<FVector> GetLocations() const;
 
@@ -83,11 +96,16 @@ public:
 	const FCasingLaunch& GetLastLaunch() const { return LastLaunch; }
 	int32 GetLaunches() const { return Launches; }
 
-	/** The case a gun of Kind throws. */
+	/** The case a gun of Kind throws (by Looter.Gunfeel.Identity: with it off, the rifle's case for the SMG, LMG and sniper, as before). */
 	static ECasingKind KindFor(EWeaponKind Kind);
+	/** The same with the identity switch given: on, the SMG throws a Small case, the LMG a Belt one, the sniper a Magnum one. */
+	static ECasingKind KindFor(EWeaponKind Kind, bool bIdentity);
 
-	/** The case's length and diameter (cm). */
+	/** The case's length and diameter (cm); a link's length and width (it is 0.25 thick). */
 	static FVector2D SizeOf(ECasingKind Kind);
+
+	/** How far a resting case's middle sits off the ground it lies on (cm): half its diameter, half a link's thickness. */
+	static float HalfThickness(ECasingKind Kind);
 
 	/** The sound of a case landing on Surface (a hull's plastic knock on anything hard). */
 	static FName CueFor(ECasingKind Kind, EImpactMaterial Surface);
@@ -132,6 +150,7 @@ private:
 	TWeakObjectPtr<AActor> Owner;
 	TWeakObjectPtr<UInstancedStaticMeshComponent> BrassInstances;
 	TWeakObjectPtr<UInstancedStaticMeshComponent> HullInstances;
+	TWeakObjectPtr<UInstancedStaticMeshComponent> LinkInstances;
 
 	TArray<FCasing> Casings;
 	FCasingLaunch LastLaunch;

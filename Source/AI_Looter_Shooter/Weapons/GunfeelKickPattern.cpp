@@ -3,8 +3,10 @@
 #include "HAL/IConsoleManager.h"
 
 // The gun feel pass's kick rules (GF-KICK, 2026-10-22): the recoil pattern, the first shot's reward, the sustained-kick cap
-// and the gun model's kick through the sight. Variables are Looter.Gunfeel.*, read each time they are asked (live in play);
-// the rules are plain functions over numbers so the tests drive them with the shipped defaults (GunfeelKickTuning.h).
+// and the gun model's kick through the sight; since gun identity (2026-10-28) the rifle's S, the SMG's own side random and
+// each automatic's own cap (Looter.Gunfeel.Identity 0 gives today's back). Variables are Looter.Gunfeel.*, read each time
+// they are asked (live in play); the rules are plain functions over numbers so the tests drive them with the shipped
+// defaults (GunfeelKickTuning.h).
 
 namespace
 {
@@ -18,8 +20,16 @@ namespace
 		TEXT("Degrees a rifle shot drifts the aim right, from shot RifleDriftFrom of a burst."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarKpRifleDriftFrom(TEXT("Looter.Gunfeel.Recoil.RifleDriftFrom"), KpDef::RifleDriftFrom,
 		TEXT("The rifle holds straight up for this many shots of a burst before it drifts."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarKpRifleDriftBack(TEXT("Looter.Gunfeel.Recoil.RifleDriftBack"), KpDef::RifleDriftBack,
+		TEXT("Degrees a rifle shot drifts the aim from shot RifleDriftBackFrom on (negative: back left, the S; 0 keeps drifting right)."),
+		ECVF_Default);
+	TAutoConsoleVariable<float> CVarKpRifleDriftBackFrom(TEXT("Looter.Gunfeel.Recoil.RifleDriftBackFrom"), KpDef::RifleDriftBackFrom,
+		TEXT("The shot of a burst the rifle's drift turns back from."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarKpSMGShimmy(TEXT("Looter.Gunfeel.Recoil.SMGShimmy"), KpDef::SMGShimmy,
 		TEXT("Degrees each SMG shot nudges the aim, left and right alternating."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarKpSideRandomSMG(TEXT("Looter.Gunfeel.Recoil.SideRandom.SMG"), KpDef::SideRandomSMG,
+		TEXT("The share of the random sideways aim kick the SMG keeps (gun identity; the rifle and LMG keep Recoil.SideRandom)."),
+		ECVF_Default);
 	TAutoConsoleVariable<float> CVarKpLMGSway(TEXT("Looter.Gunfeel.Recoil.LMGSway"), KpDef::LMGSway,
 		TEXT("Degrees of the LMG's slow sideways sway per shot (a sine over LMGSwayShots shots)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarKpLMGSwayShots(TEXT("Looter.Gunfeel.Recoil.LMGSwayShots"), KpDef::LMGSwayShots,
@@ -61,7 +71,12 @@ float GunfeelKick::PatternSide(EWeaponKind Kind, int32 ShotInBurst, const FPatte
 	switch (Kind)
 	{
 	case EWeaponKind::Rifle:
-		// Straight up for the first shots (the climb is learnable), then a steady drift right to pull against.
+		// Straight up for the first shots (the climb is learnable), then a steady drift right to pull against, then (gun
+		// identity) back left: an S the hand learns.
+		if (Numbers.RifleDriftBack != 0.f && static_cast<float>(Shot) >= Numbers.RifleDriftBackFrom)
+		{
+			return Numbers.RifleDriftBack;
+		}
 		return static_cast<float>(Shot) >= Numbers.RifleDriftFrom ? Numbers.RifleDrift : 0.f;
 	case EWeaponKind::SMG:
 		// A shimmy: one way, the other, so the light gun hums rather than walks.
@@ -82,10 +97,30 @@ float GunfeelKick::PatternSide(EWeaponKind Kind, int32 ShotInBurst)
 	FPatternNumbers Numbers;
 	Numbers.RifleDrift = CVarKpRifleDrift.GetValueOnGameThread();
 	Numbers.RifleDriftFrom = CVarKpRifleDriftFrom.GetValueOnGameThread();
-	Numbers.SMGShimmy = CVarKpSMGShimmy.GetValueOnGameThread();
 	Numbers.LMGSway = CVarKpLMGSway.GetValueOnGameThread();
 	Numbers.LMGSwayShots = CVarKpLMGSwayShots.GetValueOnGameThread();
+	// Identity 0: today's shimmy and a drift that never turns back.
+	const bool bIdentity = IdentityOn();
+	Numbers.SMGShimmy = bIdentity ? CVarKpSMGShimmy.GetValueOnGameThread() : KpDef::Today::SMGShimmy;
+	Numbers.RifleDriftBack = bIdentity ? CVarKpRifleDriftBack.GetValueOnGameThread() : 0.f;
+	Numbers.RifleDriftBackFrom = CVarKpRifleDriftBackFrom.GetValueOnGameThread();
 	return PatternSide(Kind, ShotInBurst, Numbers) * FMath::Max(CVarKpPattern.GetValueOnGameThread(), 0.f);
+}
+
+float GunfeelKick::PatternLean(EWeaponKind Kind, int32 ShotInBurst, float LMGSwayShots)
+{
+	if (Kind != EWeaponKind::LMG)
+	{
+		return 0.f;
+	}
+	// The sway's own sine, so the shoulders roll the way the belt swings.
+	const float Period = FMath::Max(LMGSwayShots, 1.f);
+	return FMath::Sin(2.f * UE_PI * static_cast<float>(FMath::Max(ShotInBurst, 0)) / Period);
+}
+
+float GunfeelKick::PatternLean(EWeaponKind Kind, int32 ShotInBurst)
+{
+	return PatternLean(Kind, ShotInBurst, CVarKpLMGSwayShots.GetValueOnGameThread());
 }
 
 float GunfeelKick::SideRandomScale(EWeaponKind Kind)
@@ -94,9 +129,11 @@ float GunfeelKick::SideRandomScale(EWeaponKind Kind)
 	{
 		return 1.f;
 	}
-	// Pattern 0 gives the old random back whole; 1 keeps SideRandom of it.
+	// Pattern 0 gives the old random back whole; 1 keeps SideRandom of it (the SMG its own since gun identity: the hornet
+	// buzzes about, it doesn't walk).
 	const float Strength = FMath::Clamp(CVarKpPattern.GetValueOnGameThread(), 0.f, 1.f);
-	return FMath::Lerp(1.f, FMath::Max(CVarKpSideRandom.GetValueOnGameThread(), 0.f), Strength);
+	const float Keep = Kind == EWeaponKind::SMG && IdentityOn() ? CVarKpSideRandomSMG.GetValueOnGameThread() : CVarKpSideRandom.GetValueOnGameThread();
+	return FMath::Lerp(1.f, FMath::Max(Keep, 0.f), Strength);
 }
 
 float GunfeelKick::FirstShotKick(EWeaponKind Kind, int32 ShotInBurst, float FirstShot)
@@ -112,7 +149,12 @@ float GunfeelKick::FirstShotKick(EWeaponKind Kind, int32 ShotInBurst)
 
 float GunfeelKick::SustainCapFor(EWeaponKind Kind)
 {
-	return IsAutomatic(Kind) ? FMath::Max(CVarKpSustainCap.GetValueOnGameThread(), 0.f) : 0.f;
+	if (!IsAutomatic(Kind))
+	{
+		return 0.f;
+	}
+	// Each automatic its own since gun identity: the SMG's hum held low, the LMG's chug allowed to dig in.
+	return FMath::Max(IdentityOn() ? KindFeel(Kind).SustainCap : CVarKpSustainCap.GetValueOnGameThread(), 0.f);
 }
 
 float GunfeelKick::SustainFloor()

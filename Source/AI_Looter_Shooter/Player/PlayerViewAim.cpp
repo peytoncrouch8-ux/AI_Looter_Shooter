@@ -53,11 +53,33 @@ void UPlayerViewComponent::UpdateAim(float DeltaTime)
 	const float WasAimAlpha = AimAlpha;
 	AimAlpha = FMath::FInterpConstantTo(AimAlpha, bAimWanted && bCanAim ? 1.f : 0.f, DeltaTime, Speed);
 	AimZoom = Weapon ? FMath::Max(Weapon->GetStats().Zoom, MinAimZoom) : AimZoom;
+	// Each kind comes up its own way (gun identity): a light gun snaps to the eye, a heavy one is hefted and eased in.
+	if (Weapon)
+	{
+		AimCurve = GunfeelKick::KindFeel(GunfeelKick::KindOf(Weapon)).AimCurve;
+	}
 	// The sights coming up: the gun's aim-in sound, once as aiming starts.
 	if (WasAimAlpha <= 0.f && AimAlpha > 0.f && Weapon)
 	{
 		Weapon->PlayAimIn();
 	}
+	// ...and arriving: the view settles once as they reach the eye after being under half way (no settle on a sight that
+	// only dipped a little).
+	if (AimAlpha < 0.5f)
+	{
+		bAimSettleArmed = true;
+	}
+	else if (bAimSettleArmed && AimAlpha >= 1.f && Weapon)
+	{
+		bAimSettleArmed = false;
+		AddAimSettleKick(*Weapon);
+	}
+	// ...and let go with the sights still up: the gun's aim-out sound (not for a reload, a sprint or a swap taking them).
+	if (bAimWantedLast && !bAimWanted && AimAlpha > 0.f && Weapon && !bDead && !bSwimming)
+	{
+		Weapon->PlayAimOut();
+	}
+	bAimWantedLast = bAimWanted;
 }
 
 float UPlayerViewComponent::GetAimSpreadMultiplier() const
@@ -73,8 +95,9 @@ float UPlayerViewComponent::GetLookSensitivityMultiplier() const
 
 float UPlayerViewComponent::GetAimAlpha() const
 {
-	// Eased, so the gun settles into the sight instead of stopping dead.
-	return FMath::InterpEaseInOut(0.f, 1.f, AimAlpha, 2.f);
+	// Eased, so the gun settles into the sight instead of stopping dead; by its kind's curve, whose ends are the same for all
+	// (the spread, the look's speed and the crosshair's fade all read this).
+	return FMath::InterpEaseInOut(0.f, 1.f, AimAlpha, AimCurve);
 }
 
 // ---------------------------------------------------------------------------
@@ -100,9 +123,12 @@ void UPlayerViewComponent::HandleWeaponFired()
 	{
 		// The gun model kicks less through the sight (AddShot blends by how far the sights are up); the aim then takes the
 		// kind's pattern on top: a rifle's drift, an SMG's shimmy, an LMG's sway, by the shot's place in the burst.
+		// The LMG's dig-in reaches the pattern too (the profile already has it).
 		const EWeaponKind Kind = GunfeelKick::KindOf(Weapon);
 		Recoil.AddShot(Weapon->GetRecoilProfile(), RecoilRandom, GetAimAlpha());
-		Recoil.AddAimYaw(GunfeelKick::PatternSide(Kind, Recoil.GetShotInBurst()) * GunfeelKick::ShotRecoil(Weapon));
+		Recoil.AddAimYaw(GunfeelKick::PatternSide(Kind, Recoil.GetShotInBurst()) * GunfeelKick::ShotRecoil(Weapon) * Weapon->GetKickDigIn());
+		// A bolt gun's kick holds while its bolt is worked, then the world settles (none for any other gun).
+		Recoil.HoldRecovery(Weapon->GetRecoilHoldSeconds());
 		// The view's own kick on top of the recoil (only what the player sees; the aim takes the recoil above).
 		AddShotKick(*Weapon);
 	}

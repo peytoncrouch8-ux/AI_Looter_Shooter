@@ -3,6 +3,7 @@
 #include "Elements/ElementCallout.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/DamageNumberActor.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
@@ -31,6 +32,14 @@ void UHealthComponent::HandlePointDamage(AActor* DamagedActor, float Damage, ACo
 {
 	bHasPendingHitLocation = true;
 	PendingHitLocation = HitLocation;
+	// The bone and part too: a creature's hit reactions go by where on its body the shot landed (HITS).
+	PendingHitBone = BoneName;
+	PendingHitComponent = HitComponent;
+}
+
+const UPrimitiveComponent* UHealthComponent::GetLastHitComponent() const
+{
+	return LastHitComponent.Get();
 }
 
 void UHealthComponent::SetDamageTakenScale(FName Source, float Scale)
@@ -68,7 +77,16 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float IncomingDamag
 	AActor* DamageCauser)
 {
 	const FVector HitLocation = bHasPendingHitLocation ? PendingHitLocation : GetOwner()->GetActorLocation() + FVector(0.f, 0.f, 50.f);
+	// Damage with no point damage before it (a test level's, a status's tick) hit no bone: none is kept from an older shot.
+	const FName HitBone = bHasPendingHitLocation ? PendingHitBone : NAME_None;
+	TWeakObjectPtr<const UPrimitiveComponent> HitComponent;
+	if (bHasPendingHitLocation)
+	{
+		HitComponent = PendingHitComponent;
+	}
 	bHasPendingHitLocation = false;
+	PendingHitBone = NAME_None;
+	PendingHitComponent.Reset();
 	const bool bCritical = DamageType && DamageType->IsA<UWeaponCritDamageType>();
 	// An ember power's say over what it takes (a mark makes it more, plates less), then its tier's defense (a crit pierces
 	// half of it), once, before anything counts it.
@@ -81,6 +99,9 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float IncomingDamag
 	}
 
 	LastDamageCauser = DamageCauser;
+	LastHitBone = HitBone;
+	LastHitComponent = HitComponent;
+	HealthBeforeLastHit = Health;
 	++HurtCount;
 	// Hurting something counts as meeting it (the bestiary's unknown pages); only the player's hits count.
 	UPlayerProgressionSubsystem::RecordEncounter(InstigatedBy, GetOwner());

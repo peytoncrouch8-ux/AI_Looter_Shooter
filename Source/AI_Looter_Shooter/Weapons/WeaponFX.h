@@ -262,6 +262,26 @@ public:
 	 */
 	bool SettleBlastSheet(bool bStillFlying);
 
+	// --- The hit-feel pass (HITS lane D, 2026-10-28; WeaponFXHitFeel.cpp): wounds' and kills' own looks. No blood: chitin, goo, embers, soul-light, gel ---
+
+	/** Count chitin plates chipped off a spider's shell at Point, thrown out along Normal; Size is the body part's (cm). */
+	void SpawnChitinChips(const FVector& Point, const FVector& Normal, float Size, int32 Count);
+
+	/** One bit of goo (a wounded spider's ichor, a spitter's venom, a slime's gel in Tint) dripping down from Point, Size cm. */
+	void SpawnGooDrip(const FVector& Point, const FLinearColor& Tint, float Size);
+
+	/** Count ember streaks of Tint torn from From along Way (a unit vector), flung up to Length cm (a torn Unpaid). */
+	void SpawnEmberTear(const FVector& From, const FVector& Way, float Length, const FLinearColor& Tint, int32 Count);
+
+	/** Count soul tatters (ember-edged wisps) flung from Center along Way, spiralling up as they fade; Size is the body's. */
+	void SpawnSoulTatters(const FVector& Center, const FVector& Way, const FLinearColor& Tint, float Size, int32 Count);
+
+	/** A slime burst: gel in Tint flung out in a fan from Center along Way (the shot's), Size cm across, with a low wet spray. */
+	void SpawnGelPop(const FVector& Center, const FVector& Way, const FLinearColor& Tint, float Size);
+
+	/** A puff of ember smoke rising from Point (a wounded Unpaid's coal, a hat's dust), Size cm, warm at Tint. */
+	void SpawnEmberPuff(const FVector& Point, const FLinearColor& Tint, float Size);
+
 	/** The share of a look's pieces thrown at Where (VfxRules::DetailAt from the camera last drawn from; 1 before any). */
 	float DetailAt(const FVector& Where) const;
 

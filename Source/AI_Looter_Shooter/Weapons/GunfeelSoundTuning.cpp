@@ -1,6 +1,7 @@
 #include "Weapons/GunfeelSoundTuning.h"
 #include "Audio/LooterSoundCues.h"
 #include "HAL/IConsoleManager.h"
+#include "Weapons/GunfeelKickTuning.h"
 
 // The Looter.Gunfeel.Sound.* variables (GunfeelSoundTuning.h) and the plain rules of a shot's layers, an automatic's tails,
 // the end of a magazine, and how impacts and creature hits sound by gun. Each accessor reads its variable when asked, never
@@ -87,6 +88,77 @@ namespace
 		TEXT("The window (s) a blast's pellets add up in."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarCreatureCrit(TEXT("Looter.Gunfeel.Sound.CreatureCrit"), Def::CreatureCrit,
 		TEXT("A critical hit's crack on the body (shell, gel or coal) at this volume."), ECVF_Default);
+
+	// Gun identity (GUNS.md): each kind's layer balance and its body punch. Seven small sets, so a kind is tuned in one line.
+	struct FKindMixVars
+	{
+		FKindMixVars(const TCHAR* MechName, const TCHAR* LowName, const TCHAR* TailName, const GunfeelSound::FKindMix& Start)
+			: Mech(MechName, Start.Mech, TEXT("This kind's action (Mech) layer times this, on top of the maker's and the global one."), ECVF_Default)
+			, Low(LowName, Start.Low, TEXT("This kind's chest thump (Low) layer times this."), ECVF_Default)
+			, Tail(TailName, Start.Tail, TEXT("This kind's tail (the land answering) times this."), ECVF_Default)
+		{
+		}
+		TAutoConsoleVariable<float> Mech;
+		TAutoConsoleVariable<float> Low;
+		TAutoConsoleVariable<float> Tail;
+	};
+
+	struct FPunchVars
+	{
+		FPunchVars(const TCHAR* EveryName, const TCHAR* GainName, int32 Every, float Gain)
+			: PunchEvery(EveryName, Every, TEXT("The body punch plays on every Nth shot of a burst (0 = never, 1 = every shot)."), ECVF_Default)
+			, PunchGain(GainName, Gain, TEXT("This kind's body punch at this volume."), ECVF_Default)
+		{
+		}
+		TAutoConsoleVariable<int32> PunchEvery;
+		TAutoConsoleVariable<float> PunchGain;
+	};
+
+	FKindMixVars GMixRifle(TEXT("Looter.Gunfeel.Sound.Rifle.Mech"), TEXT("Looter.Gunfeel.Sound.Rifle.Low"), TEXT("Looter.Gunfeel.Sound.Rifle.Tail"), Def::KindMix(EWeaponKind::Rifle));
+	FKindMixVars GMixShotgun(TEXT("Looter.Gunfeel.Sound.Shotgun.Mech"), TEXT("Looter.Gunfeel.Sound.Shotgun.Low"), TEXT("Looter.Gunfeel.Sound.Shotgun.Tail"), Def::KindMix(EWeaponKind::Shotgun));
+	FKindMixVars GMixRevolver(TEXT("Looter.Gunfeel.Sound.Revolver.Mech"), TEXT("Looter.Gunfeel.Sound.Revolver.Low"), TEXT("Looter.Gunfeel.Sound.Revolver.Tail"), Def::KindMix(EWeaponKind::Revolver));
+	FKindMixVars GMixSMG(TEXT("Looter.Gunfeel.Sound.SMG.Mech"), TEXT("Looter.Gunfeel.Sound.SMG.Low"), TEXT("Looter.Gunfeel.Sound.SMG.Tail"), Def::KindMix(EWeaponKind::SMG));
+	FKindMixVars GMixSniper(TEXT("Looter.Gunfeel.Sound.Sniper.Mech"), TEXT("Looter.Gunfeel.Sound.Sniper.Low"), TEXT("Looter.Gunfeel.Sound.Sniper.Tail"), Def::KindMix(EWeaponKind::Sniper));
+	FKindMixVars GMixLMG(TEXT("Looter.Gunfeel.Sound.LMG.Mech"), TEXT("Looter.Gunfeel.Sound.LMG.Low"), TEXT("Looter.Gunfeel.Sound.LMG.Tail"), Def::KindMix(EWeaponKind::LMG));
+	FKindMixVars GMixLauncher(TEXT("Looter.Gunfeel.Sound.Launcher.Mech"), TEXT("Looter.Gunfeel.Sound.Launcher.Low"), TEXT("Looter.Gunfeel.Sound.Launcher.Tail"), Def::KindMix(EWeaponKind::Launcher));
+
+	FPunchVars GPunchRifle(TEXT("Looter.Gunfeel.Sound.PunchEvery.Rifle"), TEXT("Looter.Gunfeel.Sound.PunchGain.Rifle"), Def::PunchEvery(EWeaponKind::Rifle), Def::PunchGain(EWeaponKind::Rifle));
+	FPunchVars GPunchShotgun(TEXT("Looter.Gunfeel.Sound.PunchEvery.Shotgun"), TEXT("Looter.Gunfeel.Sound.PunchGain.Shotgun"), Def::PunchEvery(EWeaponKind::Shotgun), Def::PunchGain(EWeaponKind::Shotgun));
+	FPunchVars GPunchRevolver(TEXT("Looter.Gunfeel.Sound.PunchEvery.Revolver"), TEXT("Looter.Gunfeel.Sound.PunchGain.Revolver"), Def::PunchEvery(EWeaponKind::Revolver), Def::PunchGain(EWeaponKind::Revolver));
+	FPunchVars GPunchSMG(TEXT("Looter.Gunfeel.Sound.PunchEvery.SMG"), TEXT("Looter.Gunfeel.Sound.PunchGain.SMG"), Def::PunchEvery(EWeaponKind::SMG), Def::PunchGain(EWeaponKind::SMG));
+	FPunchVars GPunchSniper(TEXT("Looter.Gunfeel.Sound.PunchEvery.Sniper"), TEXT("Looter.Gunfeel.Sound.PunchGain.Sniper"), Def::PunchEvery(EWeaponKind::Sniper), Def::PunchGain(EWeaponKind::Sniper));
+	FPunchVars GPunchLMG(TEXT("Looter.Gunfeel.Sound.PunchEvery.LMG"), TEXT("Looter.Gunfeel.Sound.PunchGain.LMG"), Def::PunchEvery(EWeaponKind::LMG), Def::PunchGain(EWeaponKind::LMG));
+	FPunchVars GPunchLauncher(TEXT("Looter.Gunfeel.Sound.PunchEvery.Launcher"), TEXT("Looter.Gunfeel.Sound.PunchGain.Launcher"), Def::PunchEvery(EWeaponKind::Launcher), Def::PunchGain(EWeaponKind::Launcher));
+	TAutoConsoleVariable<float> CVarPunch(TEXT("Looter.Gunfeel.Sound.Punch"), Def::Punch,
+		TEXT("The body punch under a shot (the shooter's own gun, 2D) at this volume, all kinds (0 = none)."), ECVF_Default);
+
+	FKindMixVars& MixOf(EWeaponKind Kind)
+	{
+		switch (Kind)
+		{
+		case EWeaponKind::Shotgun: return GMixShotgun;
+		case EWeaponKind::Revolver: return GMixRevolver;
+		case EWeaponKind::SMG: return GMixSMG;
+		case EWeaponKind::Sniper: return GMixSniper;
+		case EWeaponKind::LMG: return GMixLMG;
+		case EWeaponKind::Launcher: return GMixLauncher;
+		default: return GMixRifle;
+		}
+	}
+
+	FPunchVars& PunchOf(EWeaponKind Kind)
+	{
+		switch (Kind)
+		{
+		case EWeaponKind::Shotgun: return GPunchShotgun;
+		case EWeaponKind::Revolver: return GPunchRevolver;
+		case EWeaponKind::SMG: return GPunchSMG;
+		case EWeaponKind::Sniper: return GPunchSniper;
+		case EWeaponKind::LMG: return GPunchLMG;
+		case EWeaponKind::Launcher: return GPunchLauncher;
+		default: return GPunchRifle;
+		}
+	}
 
 	/** A volume or time: never negative. */
 	float Positive(const TAutoConsoleVariable<float>& Variable)
@@ -190,6 +262,41 @@ float GunfeelSound::HissVolume()
 float GunfeelSound::RackVolume()
 {
 	return Positive(CVarRack);
+}
+
+GunfeelSound::FKindMix GunfeelSound::KindMix(EWeaponKind Kind)
+{
+	// Identity 0: every kind balances its layers as before.
+	if (!GunfeelKick::IdentityOn())
+	{
+		return FKindMix();
+	}
+	FKindMixVars& Vars = MixOf(Kind);
+	FKindMix Mix;
+	Mix.Mech = Positive(Vars.Mech);
+	Mix.Low = Positive(Vars.Low);
+	Mix.Tail = Positive(Vars.Tail);
+	return Mix;
+}
+
+float GunfeelSound::PunchVolume(EWeaponKind Kind)
+{
+	return GunfeelKick::IdentityOn() ? Positive(CVarPunch) * Positive(PunchOf(Kind).PunchGain) : 0.f;
+}
+
+int32 GunfeelSound::PunchEvery(EWeaponKind Kind)
+{
+	return FMath::Max(PunchOf(Kind).PunchEvery.GetValueOnGameThread(), 0);
+}
+
+bool GunfeelSound::PunchPlays(int32 ShotInBurst, int32 Every)
+{
+	return Every > 0 && ShotInBurst >= 0 && ShotInBurst % Every == 0;
+}
+
+bool GunfeelSound::PunchAudible(bool bOwnGun, float Volume)
+{
+	return bOwnGun && Volume > 0.f;
 }
 
 float GunfeelSound::ImpactVolume(float MarkScale, bool bBlast)

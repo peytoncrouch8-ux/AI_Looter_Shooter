@@ -7,6 +7,7 @@
 #include "Weapons/GunfeelSoundTuning.h"
 #include "Weapons/GunshotSound.h"
 #include "Weapons/MakerSoundFlavor.h"
+#include "Weapons/WeaponSounds.h"
 #include "Weapons/WeaponTypes.h"
 #include "HAL/IConsoleManager.h"
 
@@ -433,6 +434,202 @@ bool FGunfeelSoundMakerLiveTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("A negative scale is none"), MakerSoundFlavor::Scale(), 0.f);
 		}
 	}
+	return true;
+}
+
+
+// ---------------------------------------------------------------------------
+// Gun identity (2026-10-28, Docs/Work/2026-10-28-Core/GUNS.md lane C): each kind's layer balance, the body punch, the
+// sights' foley. Looter.Gunfeel.Identity 0 is today's sound.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+	const EWeaponKind AllKinds[] = { EWeaponKind::Rifle, EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::SMG,
+		EWeaponKind::Sniper, EWeaponKind::LMG, EWeaponKind::Launcher };
+
+	const TCHAR* KindName(EWeaponKind Kind)
+	{
+		switch (Kind)
+		{
+		case EWeaponKind::Shotgun: return TEXT("Shotgun");
+		case EWeaponKind::Revolver: return TEXT("Revolver");
+		case EWeaponKind::SMG: return TEXT("SMG");
+		case EWeaponKind::Sniper: return TEXT("Sniper");
+		case EWeaponKind::LMG: return TEXT("LMG");
+		case EWeaponKind::Launcher: return TEXT("Launcher");
+		default: return TEXT("Rifle");
+		}
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelSoundKindLayersTest, "Looter.Gunfeel.Sound.KindLayers",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelSoundKindLayersTest::RunTest(const FString& Parameters)
+{
+	// The variables exist for every kind.
+	for (const EWeaponKind Kind : AllKinds)
+	{
+		for (const TCHAR* Layer : { TEXT("Mech"), TEXT("Low"), TEXT("Tail") })
+		{
+			const FString Name = FString::Printf(TEXT("Looter.Gunfeel.Sound.%s.%s"), KindName(Kind), Layer);
+			TestNotNull(*FString::Printf(TEXT("%s exists"), *Name), IConsoleManager::Get().FindConsoleVariable(*Name));
+		}
+	}
+	// The shipped balance: the rifle is the reference; the SMG buzzes (action up, thump and tail down); the heavy guns
+	// carry the chest and the valley.
+	const GunfeelSound::FKindMix Rifle = Def::KindMix(EWeaponKind::Rifle);
+	TestTrue(TEXT("Rifle: 1/1/1"), Rifle.Mech == 1.f && Rifle.Low == 1.f && Rifle.Tail == 1.f);
+	const GunfeelSound::FKindMix SMG = Def::KindMix(EWeaponKind::SMG);
+	TestTrue(TEXT("SMG: action up, thump and tail down"), SMG.Mech > 1.f && SMG.Low < 1.f && SMG.Tail < 1.f);
+	TestTrue(TEXT("LMG: more chest"), Def::KindMix(EWeaponKind::LMG).Low > 1.f);
+	TestTrue(TEXT("Revolver: a longer tail, a quieter action"),
+		Def::KindMix(EWeaponKind::Revolver).Tail > 1.f && Def::KindMix(EWeaponKind::Revolver).Mech < 1.f);
+	TestTrue(TEXT("Shotgun: the biggest thump"), Def::KindMix(EWeaponKind::Shotgun).Low >= Def::KindMix(EWeaponKind::Sniper).Low
+		&& Def::KindMix(EWeaponKind::Shotgun).Low >= Def::KindMix(EWeaponKind::LMG).Low);
+	TestTrue(TEXT("Sniper: the longest tail"), Def::KindMix(EWeaponKind::Sniper).Tail > Def::KindMix(EWeaponKind::Revolver).Tail
+		&& Def::KindMix(EWeaponKind::Sniper).Tail > Def::KindMix(EWeaponKind::Shotgun).Tail);
+	TestTrue(TEXT("Launcher: more chest, the rest plain"),
+		Def::KindMix(EWeaponKind::Launcher).Low > 1.f && Def::KindMix(EWeaponKind::Launcher).Mech == 1.f);
+	for (const EWeaponKind Kind : AllKinds)
+	{
+		const GunfeelSound::FKindMix Mix = Def::KindMix(Kind);
+		TestTrue(*FString::Printf(TEXT("%s: no layer moved more than half either way"), KindName(Kind)),
+			Mix.Mech >= 0.5f && Mix.Mech <= 1.5f && Mix.Low >= 0.5f && Mix.Low <= 1.5f && Mix.Tail >= 0.5f && Mix.Tail <= 1.5f);
+	}
+
+	// Read live (Identity on): a changed variable is heard at once, never under silence.
+	if (IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Gunfeel.Identity")))
+	{
+		FScopedSoundVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
+		TestEqual(TEXT("The live SMG mech starts at the shipped one"), GunfeelSound::KindMix(EWeaponKind::SMG).Mech, SMG.Mech);
+		FScopedSoundVariable Low(TEXT("Looter.Gunfeel.Sound.SMG.Low"), 0.4f);
+		TestEqual(TEXT("A changed layer is read at once"), GunfeelSound::KindMix(EWeaponKind::SMG).Low, 0.4f);
+		FScopedSoundVariable Tail(TEXT("Looter.Gunfeel.Sound.SMG.Tail"), -1.f);
+		TestEqual(TEXT("...and never goes under silence"), GunfeelSound::KindMix(EWeaponKind::SMG).Tail, 0.f);
+		TestEqual(TEXT("...and only for its kind"), GunfeelSound::KindMix(EWeaponKind::Rifle).Low, 1.f);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelSoundPunchTest, "Looter.Gunfeel.Sound.Punch",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelSoundPunchTest::RunTest(const FString& Parameters)
+{
+	// Every Nth shot of a burst, the first always (by the shipped numbers).
+	TestEqual(TEXT("Rifle: every 3rd"), Def::PunchEvery(EWeaponKind::Rifle), 3);
+	TestEqual(TEXT("SMG: none"), Def::PunchEvery(EWeaponKind::SMG), 0);
+	TestEqual(TEXT("LMG: every 2nd"), Def::PunchEvery(EWeaponKind::LMG), 2);
+	for (const EWeaponKind Kind : { EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::Sniper, EWeaponKind::Launcher })
+	{
+		TestEqual(TEXT("A single-shot kind punches every shot"), Def::PunchEvery(Kind), 1);
+	}
+	auto Count = [](int32 Every)
+	{
+		int32 Plays = 0;
+		for (int32 Shot = 0; Shot < 12; ++Shot)
+		{
+			Plays += GunfeelSound::PunchPlays(Shot, Every) ? 1 : 0;
+		}
+		return Plays;
+	};
+	TestEqual(TEXT("Rifle: 4 punches in 12 shots"), Count(Def::PunchEvery(EWeaponKind::Rifle)), 4);
+	TestEqual(TEXT("LMG: 6 in 12"), Count(Def::PunchEvery(EWeaponKind::LMG)), 6);
+	TestEqual(TEXT("SMG: none in 12"), Count(Def::PunchEvery(EWeaponKind::SMG)), 0);
+	TestEqual(TEXT("A single shot kind: every one"), Count(1), 12);
+	TestTrue(TEXT("The first shot of a burst punches"), GunfeelSound::PunchPlays(0, 3));
+	TestFalse(TEXT("...the second of an every-3rd doesn't"), GunfeelSound::PunchPlays(1, 3));
+	TestTrue(TEXT("...the fourth does"), GunfeelSound::PunchPlays(3, 3));
+	TestFalse(TEXT("Never for 0"), GunfeelSound::PunchPlays(0, 0));
+	TestFalse(TEXT("...or a negative count"), GunfeelSound::PunchPlays(0, -2));
+
+	// The shooter's own gun only (a thump in the chest, 2D), and only above silence.
+	TestTrue(TEXT("Own gun, audible"), GunfeelSound::PunchAudible(true, 1.f));
+	TestFalse(TEXT("Someone else's gun: none"), GunfeelSound::PunchAudible(false, 1.f));
+	TestFalse(TEXT("Silence: none"), GunfeelSound::PunchAudible(true, 0.f));
+
+	// The rifle's sits at -4 dB; the others at full.
+	TestTrue(TEXT("Rifle punch at -4 dB"), FMath::Abs(Def::PunchGain(EWeaponKind::Rifle) - FMath::Pow(10.f, -4.f / 20.f)) < 0.01f);
+	for (const EWeaponKind Kind : { EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::SMG, EWeaponKind::Sniper, EWeaponKind::LMG, EWeaponKind::Launcher })
+	{
+		TestEqual(*FString::Printf(TEXT("%s: full punch"), KindName(Kind)), Def::PunchGain(Kind), 1.f);
+	}
+
+	// The variables and the cues.
+	for (const EWeaponKind Kind : AllKinds)
+	{
+		for (const TCHAR* Which : { TEXT("PunchEvery"), TEXT("PunchGain") })
+		{
+			const FString Name = FString::Printf(TEXT("Looter.Gunfeel.Sound.%s.%s"), Which, KindName(Kind));
+			TestNotNull(*FString::Printf(TEXT("%s exists"), *Name), IConsoleManager::Get().FindConsoleVariable(*Name));
+		}
+		TestEqual(*FString::Printf(TEXT("%s: the punch's cue"), KindName(Kind)), GunshotSound::CueFor(Kind, EGunshotLayer::Punch),
+			FName(*FString::Printf(TEXT("Weapon.%s.Punch"), KindName(Kind))));
+	}
+	TestNotNull(TEXT("The global punch volume exists"), IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Gunfeel.Sound.Punch")));
+	namespace Shot = LooterSoundCue::Gunshot;
+	TestEqual(TEXT("Rifle cue constant"), FName(Shot::RiflePunch), GunshotSound::CueFor(EWeaponKind::Rifle, EGunshotLayer::Punch));
+	TestEqual(TEXT("Revolver cue constant"), FName(Shot::RevolverPunch), GunshotSound::CueFor(EWeaponKind::Revolver, EGunshotLayer::Punch));
+	TestEqual(TEXT("Launcher cue constant"), FName(Shot::LauncherPunch), GunshotSound::CueFor(EWeaponKind::Launcher, EGunshotLayer::Punch));
+
+	// Live volume (Identity on): the global one times the kind's.
+	if (IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Gunfeel.Identity")))
+	{
+		FScopedSoundVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
+		TestTrue(TEXT("Rifle: live volume is the -4 dB one"), FMath::Abs(GunfeelSound::PunchVolume(EWeaponKind::Rifle) - Def::PunchRifleGain) < 0.001f);
+		TestEqual(TEXT("Shotgun: full"), GunfeelSound::PunchVolume(EWeaponKind::Shotgun), 1.f);
+		{
+			FScopedSoundVariable Half(TEXT("Looter.Gunfeel.Sound.Punch"), 0.5f);
+			TestEqual(TEXT("The global volume scales every kind"), GunfeelSound::PunchVolume(EWeaponKind::Shotgun), 0.5f);
+		}
+		FScopedSoundVariable Never(TEXT("Looter.Gunfeel.Sound.PunchEvery.Rifle"), -4.f);
+		TestEqual(TEXT("A negative spacing is none"), GunfeelSound::PunchEvery(EWeaponKind::Rifle), 0);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelSoundAimInTest, "Looter.Gunfeel.Sound.AimIn",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelSoundAimInTest::RunTest(const FString& Parameters)
+{
+	TSet<FName> Seen;
+	for (const EWeaponKind Kind : AllKinds)
+	{
+		const FName Cue = WeaponSounds::AimIn(Kind);
+		TestEqual(*FString::Printf(TEXT("%s: its own sights"), KindName(Kind)), Cue, FName(*FString::Printf(TEXT("Weapon.%s.AimIn"), KindName(Kind))));
+		Seen.Add(Cue);
+		// A bank without the kind's cue falls back to the general one.
+		TestEqual(*FString::Printf(TEXT("%s: falls back to the general sound"), KindName(Kind)), WeaponSounds::AimIn(Kind, false), FName(LooterSoundCue::AimIn));
+	}
+	TestEqual(TEXT("Seven kinds, seven cues"), Seen.Num(), 7);
+	TestEqual(TEXT("The sights lowering"), WeaponSounds::AimOut(), FName(TEXT("Weapon.AimOut")));
+	TestEqual(TEXT("...is the constant"), FName(LooterSoundCue::AimOut), WeaponSounds::AimOut());
+	TestEqual(TEXT("The general rising sound is unchanged"), FName(LooterSoundCue::AimIn), FName(TEXT("Weapon.AimIn")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelSoundSwitchTest, "Looter.Gunfeel.Sound.Switch",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelSoundSwitchTest::RunTest(const FString& Parameters)
+{
+	// Looter.Gunfeel.Identity 0 is today's sound: plain balance, no punch, the general sights, no lowering sound.
+	if (!TestNotNull(TEXT("The master switch exists"), IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Gunfeel.Identity"))))
+	{
+		return false;
+	}
+	FScopedSoundVariable Off(TEXT("Looter.Gunfeel.Identity"), 0.f);
+	for (const EWeaponKind Kind : AllKinds)
+	{
+		const GunfeelSound::FKindMix Mix = GunfeelSound::KindMix(Kind);
+		TestTrue(*FString::Printf(TEXT("%s: plain balance"), KindName(Kind)), Mix.Mech == 1.f && Mix.Low == 1.f && Mix.Tail == 1.f);
+		TestEqual(*FString::Printf(TEXT("%s: no punch"), KindName(Kind)), GunfeelSound::PunchVolume(Kind), 0.f);
+		TestEqual(*FString::Printf(TEXT("%s: the general sights"), KindName(Kind)), GunshotSound::AimInCue(nullptr, Kind), FName(LooterSoundCue::AimIn));
+	}
+	TestTrue(TEXT("No lowering sound"), GunshotSound::AimOutCue(nullptr).IsNone());
 	return true;
 }
 

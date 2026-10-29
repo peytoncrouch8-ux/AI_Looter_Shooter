@@ -1,4 +1,5 @@
-// ACreatureBase: being hurt (its attention, a full update rate for a while), its pack's call on whoever hurt it, and the
+// ACreatureBase: being hurt (its attention, a full update rate for a while, the hit's bone for its zone, its stagger pose's
+// strength), its pack's call on whoever hurt it, and the
 // tag over it (name, level, rank word, health, its tier's frame and trait line, and its rank's sting flashing the word).
 // Moved out of CreatureBase.cpp to keep it under the size guide.
 
@@ -27,8 +28,10 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 	WakeUpdateRate();
 	// Its hit reactions first (hit-stop, stagger or knock, slow: they know the blast's pellets together), then its kind's
 	// flinch, sized by the hit (Gunfeel): LastHit is fresh only while OnHurt runs, so a flinch a boss plays itself keeps its
-	// own size.
-	LastHit = HitReaction->TakeHit(Damage, bCritical, HitLocation, InstigatedBy, DamageCauser);
+	// own size. The bone the shot hit (and its part: a lamp, a bell) gives the hit its zone (HITS); the health still holds
+	// them while OnDamaged runs.
+	LastHit = HitReaction->TakeHit(Damage, bCritical, HitLocation, InstigatedBy, DamageCauser, Health->GetLastHitBone(),
+		Health->GetLastHitComponent());
 	LastHit.bFresh = true;
 	OnHurt(bCritical, HitLocation);
 	LastHit.bFresh = false;
@@ -66,6 +69,12 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 			}
 		});
 	}
+}
+
+float ACreatureBase::GetStaggerAlpha() const
+{
+	// A boss's stagger is its show's (UBossComponent), never this pose.
+	return HitReaction && !IsBossCreature() ? HitReaction->GetStaggerAlpha() : 0.f;
 }
 
 void ACreatureBase::AlertTo(APawn* Attacker)

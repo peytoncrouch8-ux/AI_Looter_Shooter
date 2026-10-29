@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/HitPose.h"
 #include "Creatures/CreatureBase.h"
 #include "SpiderCreature.generated.h"
 
@@ -95,6 +96,16 @@ protected:
 	virtual void OnNoticed() override;
 	virtual void PlayEntrance() override;
 
+	/**
+	 * Seconds since a shot struck its weak spot (the Spitter's sac; below 0: never), set as the hit's OnHurt runs: the
+	 * Spitter wobbles its sac by it. Its pulse over Seconds (0 to 1 and back), 0 outside it.
+	 */
+	float WeakHitAge = -1.f;
+	float GetWeakHitPulse(float Seconds) const
+	{
+		return WeakHitAge >= 0.f && WeakHitAge < Seconds ? FMath::Sin(UE_PI * WeakHitAge / FMath::Max(Seconds, 0.01f)) : 0.f;
+	}
+
 private:
 	struct FLeg
 	{
@@ -138,6 +149,13 @@ private:
 		float CurlStart = 0.3f;
 		float FlailStart = 0.f;
 		float FlailHz = 6.f;
+		/** Shot (SpiderCreatureHurt.cpp): seconds since a hit buckled it (below 0: none) and how hard (the hit's flinch strength). */
+		float BuckleAge = -1.f;
+		float BuckleStrength = 0.f;
+		/** What's left of the slide a Big hit gave its planted foot (world): slid on over a few frames, never in one. */
+		FVector Skid = FVector::ZeroVector;
+		/** Wounded, the leg it limps on (the most-shot one): a lower, slower step. */
+		bool bLimp = false;
 	};
 
 public:
@@ -153,6 +171,20 @@ public:
 	/** Its last shudder, just before it sinks (s): it ends as the sink starts, at its corpse time. */
 	static constexpr float ShudderSeconds = 0.12f;
 	static float DeathTimeScale(float Size) { return FMath::Sqrt(FMath::Max(Size, 0.1f)); }
+
+	/**
+	 * How its death goes, by the killing hit (HITS, 2026-10-28; SpiderCreatureHurt.cpp picks it, SpiderCreatureDeath.cpp plays
+	 * it): Body today's throe, drop and curl; LightsOut a head crit's (no throe: its nose thrown back, down at once, a quick
+	 * curl); Blast a shotgun's or launcher's (thrown, legs flailing wider, curled as it lands); Overkill a blast with chitin
+	 * plates thrown off. Its legs always end curled under the body (the user's 2026-10-14 rule).
+	 */
+	enum class EKillStyle : uint8 { Body, LightsOut, Blast, Overkill };
+	EKillStyle GetKillStyle() const { return KillStyle; }
+	/** Its wound stage now (0 at half health or more, 1 under half, 2 under a quarter; looks only), and the leg it limps on (-1: none). */
+	int32 GetWoundStage() const { return WoundStageNow; }
+	int32 GetLimpLeg() const;
+	/** When its dead body hits the ground (s after death), by its kill style and size. */
+	float GetDeathDropTime() const;
 
 private:
 	/** A bone the code turns about its resting position, in the body's frame. */
@@ -209,6 +241,20 @@ private:
 
 	/** Where the pose override holds a front leg's foot now (world; SpiderCreatureLegs.cpp). */
 	FVector OverrideFootTarget(const FLeg& Leg, const FTransform& Body) const;
+	/**
+	 * A leg's pose alive (SpiderCreatureLegs.cpp): the solve to Target, its foot pushed out by the stagger's splay, and a shot
+	 * leg buckled (its knee dropped on its arc, its foot lifted). A held leg (bHeld: the bite's, the override's) is solved
+	 * plainly. Pole comes back turned with the buckle, for the bones' roll.
+	 */
+	void PoseGaitLeg(const FLeg& Leg, const FVector& Hip, const FVector& Target, const FVector& Outward, bool bHeld, FVector& Pole,
+		FVector& OutKnee, FVector& OutFoot) const;
+	/** How hard a leg is buckled now (its hit's strength along the buckle's envelope; 0: none). */
+	float BuckleNow(const FLeg& Leg) const;
+	/** A Big hit's skids: each planted foot it slid moves on along the rest of its slide. */
+	void SlideSkids(float DeltaSeconds);
+	/** A limping leg's step: its lift's share, and how much longer it takes. */
+	static float LimpLiftShare(const FLeg& Leg);
+	static float LimpTimeScale(const FLeg& Leg);
 
 	// --- Its death (SpiderCreatureDeath.cpp) ---
 	/** As it dies: its body and each foot as they are (the throe starts there), its legs' timing by its dice, its dead pose. */
@@ -234,6 +280,37 @@ private:
 	float DeathShudder(float Time) const;
 	/** The body hitting the ground: its thud and a puff of dust from under it. */
 	void LandDeadBody();
+
+	// --- The hit feel pass (HITS 2026-10-28; SpiderCreatureHurt.cpp): zones, stagger pose, wounds, kill styles ---
+	/** What the hit feel adds to the body this frame: its twist (yaw), nose (pitch), roll (degrees), drop (cm), fangs, abdomen. */
+	struct FHitFeelPose
+	{
+		float Yaw = 0.f;
+		float Pitch = 0.f;
+		float Roll = 0.f;
+		float Drop = 0.f;
+		/** The fangs spread at least this far (degrees: the stagger's), and this much more (a head crit's splay). */
+		float FangAtLeast = 0.f;
+		float FangAdd = 0.f;
+		/** The abdomen's wobble on top of its kick (degrees). */
+		float Abdomen = 0.f;
+	};
+	/** A fresh hit that didn't kill it, at its flinch Strength: its zone's look (twist, buckle, nose snap, abdomen), a Big hit's skid. */
+	void ReactToHitFeel(const FCreatureHit& Hit, const FVector& HitLocation, float Strength);
+	/** Its hit feel's clocks: buckles, the stagger's cry, the wound stage and limp, the wound's drip. */
+	void TickHitFeel(float DeltaSeconds);
+	/** The hit feel's body pose now; keeps the stagger shown (StaggerShown) for the legs' splay and the death's start. */
+	FHitFeelPose HitFeelPose() const;
+	/** Wounded and alive (SpiderCreatureLegs.cpp): its limp's roll toward its leg (degrees), its breath's share (deeper at stage 2). */
+	float LimpRoll() const;
+	float WoundBreath() const;
+	/** The killing hit's death style, and its own layer as it dies (an overkill's chitin plates). */
+	EKillStyle PickKillStyle(const FCreatureHit& Hit) const;
+	void PlayKillStyle(const FCreatureHit& Hit);
+	/** Which leg (index into Legs) a bone is part of, or INDEX_NONE. */
+	int32 LegOfBone(FName Bone) const;
+	/** Everything the hit feel holds, cleared (a new life). */
+	void ResetHitFeel();
 
 	// --- Reactions and idle life (SpiderCreatureReact.cpp) ---
 	/** Its idle acts, its entrance's climb and its death's twitches move on. */
@@ -317,4 +394,24 @@ private:
 	/** A subclass's pose this frame (GetPoseOverride), asked once in AnimateBody and kept for AnimateLegs. */
 	FSpiderPoseOverride PoseOverride;
 	bool bPoseOverride = false;
+
+	// --- The hit feel pass (SpiderCreatureHurt.cpp) ---
+	/** A hit's twist (X: yaw, degrees), a shot leg's roll toward it (Y: degrees) and dip (Z: cm), on the jolt's spring. */
+	FHitSpring HitTwist;
+	/** Seconds since a head crit splayed its fangs, and since an abdomen hit set it wobbling (how far: degrees); below 0: none. */
+	float FangSnapAge = -1.f;
+	float AbdomenWobbleAge = -1.f;
+	float AbdomenWobbleSize = 0.f;
+	/** A shotgun's pellets land together: when the burst began and the parts it kicked (at most two, each again only harder). */
+	double ZoneBurstStart = -1000.0;
+	int32 ZoneBurstTargets[2] = { INDEX_NONE, INDEX_NONE };
+	/** The stagger pose shown now (0 to 1), and whether this stagger's cry has played. */
+	float StaggerShown = 0.f;
+	bool bStaggerCried = false;
+	/** Its wounds: the share of its health shot out of each bone, the stage now, and the drip's clock. */
+	TMap<FName, float> HurtByBone;
+	int32 WoundStageNow = 0;
+	float DripClock = 0.f;
+	/** How its death goes (OnDied picks it from the killing hit). */
+	EKillStyle KillStyle = EKillStyle::Body;
 };

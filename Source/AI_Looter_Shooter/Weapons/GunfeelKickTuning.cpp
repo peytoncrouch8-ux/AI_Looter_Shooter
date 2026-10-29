@@ -365,7 +365,9 @@ float GunfeelKick::BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha,
 
 float GunfeelKick::BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha)
 {
-	const float PerShot = Kind == EWeaponKind::SMG ? CVarSMGBloom.GetValueOnGameThread()
+	// The SMG's cone opens wider since gun identity (hosed, it spreads rather than climbs); Identity 0 gives today's back.
+	const float SMGPerShot = IdentityOn() ? CVarSMGBloom.GetValueOnGameThread() : Default::Today::SMGBloom;
+	const float PerShot = Kind == EWeaponKind::SMG ? SMGPerShot
 		: (Kind == EWeaponKind::LMG ? CVarLMGBloom.GetValueOnGameThread() : CVarRifleBloom.GetValueOnGameThread());
 	return BloomAfterShot(Kind, Bloom, AimAlpha, PerShot, CVarBloomMax.GetValueOnGameThread());
 }

@@ -26,7 +26,7 @@ from recipes import kit
 from recipes import guns as G
 from recipes import guns_shots as GS
 from recipes.guns_rec import (SHOTS, _loud, _take, _roll, _gated, _land_wet, _with_roll, _master, _rec_room,
-                               _synth_room, _far, _tick, _ping)
+                               _synth_room, _far, _tick, _ping, _cap)
 
 SHOTS.update({
     'Sniper_Barrett_Gun.wav': [0.050, 1.350, 2.650, 3.950, 5.250, 6.550],
@@ -82,17 +82,20 @@ def _sniper_low(v, r):
 
 
 def _sniper_open(dry, v, r):
-    # The valley: the yard's two slaps, then hills and the far side of the valley out to ~450 m answering for well over
-    # two seconds over a long roll whose level wanders; the Barrett's own recorded field under it.
-    s1 = 0.07 + 0.04 * r.random()
-    s2 = s1 + 0.15 + 0.08 * r.random()
-    wet = _land_wet(dry, r, 3.3, ((s1, -1.5), (s2, -3.5), (s2 + 0.35 + 0.2 * r.random(), -6.0)), 34, 0.35, 2.6, -2.0,
-                    2.2, 450.0, 0.45, -15.0, 100.0)
-    roll = _take('Sniper_Barrett_2m.wav', v + 1, 3.3, skip=0.2)
-    roll = F.filt(S.gate_tail(roll, 1.4, 1.6), F.hpn(110.0, 2), F.lpn(3000.0, 2), extend=False)
+    # The valley, 2.5 s (gun identity, 2026-10-28: "one thunderclap down the valley"): the yard's slap close by, then the
+    # slapback off the valley's far wall 0.35-0.5 s on (120 m: the shot coming back, nearly as loud as the slaps, its top
+    # dulled by the air), a weaker second answer off the hills behind it, then the far side rolling out over a wandering
+    # rumble; the Barrett's own recorded field under it. The near-field scatter that starts it is kept low: the Core is
+    # the front, the valley its answer.
+    s1 = 0.06 + 0.03 * r.random()
+    back = 0.35 + 0.15 * r.random()
+    slaps = ((s1, -4.0), (back, 0.0), (back + 0.22 + 0.12 * r.random(), -5.0))
+    wet = _land_wet(dry, r, 2.5, slaps, 26, 0.3, 1.9, -2.5, 1.5, 450.0, 0.5, -15.0, 100.0, -10.0, 0.08)
+    roll = _take('Sniper_Barrett_2m.wav', v + 1, 2.4, skip=0.2)
+    roll = F.filt(S.gate_tail(roll, 1.0, 1.2), F.hpn(110.0, 2), F.lpn(3000.0, 2), extend=False)
     k = ns(0.06)
     roll[:k] *= np.linspace(0.0, 1.0, k)
-    return _with_roll(wet, roll, 0.2, -1.0)
+    return _cap(_with_roll(wet, roll, 0.2, -1.5), 2.5, 0.4)
 
 
 def _sniper_town(dry, v, r):
@@ -129,7 +132,7 @@ GS.KINDS['Sniper'] = dict(dry=_sniper_dry, mech=_sniper_mech, low=_sniper_low, o
 GS.MIX['Sniper'] = dict(mech=-16.0, low=-5.0)
 
 # Fire 1.5 dB over the rifle's: the loudest gun, fired a shot at a time; a long valley tail.
-GS._register('Sniper', 6, 6, dict(fire=1.5, core=0.9, mech=-15.5, low=-7.5, open=-8.0, town=-7.5, inside=-5.0,
+GS._register('Sniper', 6, 6, dict(fire=1.5, core=3.2, mech=-19.5, low=-11.5, open=-4.0, town=-9.0, inside=-12.5,
                                   distant=-0.5, n_distant=6), 4, trim=1.2)
 
 

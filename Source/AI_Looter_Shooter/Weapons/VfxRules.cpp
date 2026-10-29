@@ -196,9 +196,10 @@ namespace VfxRules
 		{
 			Weight *= 1.25f;
 		}
-		// Overkill: a killing hit worth more than the health it took reads as the body giving way all at once.
-		Weight += FMath::Clamp((Share - 1.f) * 0.15f, 0.f, 0.3f);
-		return FMath::Clamp(Weight, 0.6f, 2.2f);
+		// Overkill: a killing hit worth more than the health it took reads as the body giving way all at once (HITS,
+		// 2026-10-28: up to 0.6 more, was 0.3, and the cap 2.4, was 2.2, so a sniper's overkill reads past a plain kill).
+		Weight += FMath::Clamp((Share - 1.f) * 0.3f, 0.f, 0.6f);
+		return FMath::Clamp(Weight, 0.6f, 2.4f);
 	}
 
 	float KillCarry(EWeaponKind Gun)

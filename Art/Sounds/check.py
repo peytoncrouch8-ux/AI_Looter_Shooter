@@ -28,7 +28,8 @@ FREQUENT = ['Weapon.Rifle.Fire', 'Weapon.Shotgun.Fire', 'Weapon.*.Core', 'Weapon
             'World.Gust.*', 'Creature.Chicken.Cluck', 'Weapon.Casing.*', 'Weapon.NearMiss.*', 'Creature.Spider.Twitch',
             'Creature.Slime.Bubble', 'Player.Splash', 'Loot.Tier.Pop.*', 'Creature.Trait.Mend', 'Creature.Trait.Rally',
             'Creature.Trait.WardHit', 'UI.HitMarker.*', 'Creature.Hit.Heavy', 'Creature.Crit.*', 'Weapon.Shotgun.Rack',
-            'Weapon.Maker.*']
+            'Weapon.Maker.*', 'Weapon.*.Punch', 'Weapon.*.AimIn', 'Weapon.AimOut', 'Creature.Spider.LegCrack',
+            'Creature.Hit.Overkill']
 
 
 def _frequent(name):
@@ -258,3 +259,130 @@ def run(registry, selected, zoom=None):
         f.write(page(registry, cues_json, results))
     print(f'  check: {sum(len(r["files"]) for r in results.values())} files, {bad} flagged; '
           f'{os.path.join(CHECK, "index.html")}')
+    if any(s.name.startswith('Weapon.') for s in selected):
+        gun_ladder(cues_json)
+
+
+# --- The guns' own-gun sums (gun identity, 2026-10-28, Docs/Work/2026-10-28-Core/GUNS.md lane D) ----------------------
+# The shooter's own gun plays Core + Mech + Low + a tail + Punch (+ a maker's extra layer) together
+# (Weapons/GunshotSound.cpp), each at its cues.json volume times the code's multipliers below. The game can't limit their
+# sum, so it is checked here: its loudness against the rifle's (the ladder) and its worst peak over every take
+# combination, surroundings and maker. Keep these tables equal to the code's defaults: Weapons/GunfeelSoundTuning.h
+# (KindMix, PunchGain) and Weapons/MakerSoundFlavor.cpp (Pitch, TailPitch, Core, Mech, Low, Tail, the extra cue).
+GUN_KINDS = {'Rifle': (1.0, 1.0, 1.0), 'SMG': (1.2, 0.75, 0.85), 'LMG': (1.1, 1.2, 1.0), 'Revolver': (0.9, 1.1, 1.2),
+             'Shotgun': (1.0, 1.25, 1.1), 'Sniper': (0.9, 1.2, 1.35), 'Launcher': (1.0, 1.2, 1.0)}
+PUNCH_GAIN = {'Rifle': 0.63, 'SMG': 0.0}
+# The loudness ladder: the plain own-gun sum in the open, its short-term (3 s) max loudness in LU against the rifle's.
+LADDER = {'SMG': -3.0, 'Rifle': 0.0, 'LMG': 1.0, 'Revolver': 2.0, 'Shotgun': 3.0, 'Launcher': 3.0, 'Sniper': 4.0}
+# pitch, tail pitch, core, mech, low, tail, the extra cue
+MAKERS = {'plain': (1.0, 1.0, 1.0, 1.0, 1.0, 1.0, None),
+          'Roundhouse': (0.93, 0.97, 1.0, 1.15, 1.3, 1.1, None),
+          'SaintMaud': (1.04, 1.03, 1.0, 0.85, 0.9, 1.35, 'Weapon.Maker.SaintMaud.Ring'),
+          'Windfall': (1.02, 1.0, 0.95, 1.5, 0.85, 1.0, 'Weapon.Maker.Windfall.Rattle'),
+          'Meridian': (1.0, 1.0, 1.0, 0.75, 0.95, 0.75, None)}
+SURROUNDINGS = ('TailOpen', 'TailTown', 'TailInside')
+GUN_PEAK_DB = -1.0
+
+
+def _takes(cues_json, name, gain, pitch=1.0):
+    from lib.core import varispeed, db2a
+    entry = cues_json.get(name) if name else None
+    if not entry or gain <= 0.0:
+        return []
+    out = []
+    for f in entry['files']:
+        x, _ = wav.read(os.path.join(OUT, f))
+        if x.ndim == 2:
+            x = x.mean(axis=0)
+        x = varispeed(x, pitch) if abs(pitch - 1.0) > 1e-6 else x
+        out.append(x * float(db2a(entry['volume_db'])) * gain)
+    return out
+
+
+def _worst_peak(groups, n):
+    """The loudest sample of the sum over every combination of one take per layer in the first n samples (where the
+    layers' fronts meet), or a bound for the rest (each layer's loudest sample after n, added), whichever is higher."""
+    total = np.zeros((1, n))
+    later = 0.0
+    for xs in groups:
+        if not xs:
+            continue
+        a = np.zeros((len(xs), n))
+        for i, x in enumerate(xs):
+            m = min(n, x.size)
+            a[i, :m] = x[:m]
+        total = (total[:, None, :] + a[None, :, :]).reshape(-1, n)
+        later += max((float(np.max(np.abs(x[n:]))) if x.size > n else 0.0) for x in xs)
+    return max(float(np.max(np.abs(total))), later)
+
+
+def _sum(parts):
+    y = np.zeros(max(x.size for x in parts))
+    for x in parts:
+        y[:x.size] += x
+    return y
+
+
+def gun_ladder(cues_json):
+    from lib.core import a2db
+    rows = {}
+    for kind, (k_mech, k_low, k_tail) in GUN_KINDS.items():
+        if f'Weapon.{kind}.Core' not in cues_json:
+            continue
+        punch_gain = PUNCH_GAIN.get(kind, 1.0)
+        worst = (-99.0, '')
+        for maker, (pitch, tail_pitch, g_core, g_mech, g_low, g_tail, extra) in MAKERS.items():
+            core = _takes(cues_json, f'Weapon.{kind}.Core', g_core, pitch)
+            mech = _takes(cues_json, f'Weapon.{kind}.Mech', k_mech * g_mech, pitch)
+            low = _takes(cues_json, f'Weapon.{kind}.Low', k_low * g_low, pitch)
+            # The punch is the body's: counted at the maker's Low too (the heavier reading of the code).
+            punch = _takes(cues_json, f'Weapon.{kind}.Punch', punch_gain * max(1.0, g_low), pitch)
+            ext = _takes(cues_json, extra, 1.0, pitch)
+            for where in SURROUNDINGS:
+                tail = _takes(cues_json, f'Weapon.{kind}.{where}', k_tail * g_tail, tail_pitch)
+                db = float(a2db(max(_worst_peak([core, low, punch, tail, mech, ext], int(0.12 * SR)), 1e-9)))
+                if db > worst[0]:
+                    worst = (db, f'{maker} {where[4:]}')
+        # The ladder: the plain gun in the open, take k of every layer together, averaged over the core's takes.
+        core = _takes(cues_json, f'Weapon.{kind}.Core', 1.0)
+        mech = _takes(cues_json, f'Weapon.{kind}.Mech', k_mech)
+        low = _takes(cues_json, f'Weapon.{kind}.Low', k_low)
+        tail = _takes(cues_json, f'Weapon.{kind}.TailOpen', k_tail)
+        punch = _takes(cues_json, f'Weapon.{kind}.Punch', punch_gain)
+        s3, l200, pks = [], [], []
+        for i in range(len(core)):
+            parts = [core[i], mech[i % len(mech)], low[i % len(low)], tail[i % len(tail)]]
+            if punch:
+                parts.append(punch[i % len(punch)])
+            y = _sum(parts)
+            s3.append(analysis.loudness_max(y, 3.0))
+            l200.append(analysis.loudness_max(y, 0.2))
+            pks.append(float(a2db(np.max(np.abs(y)))))
+        rows[kind] = (float(np.mean(s3)), float(np.mean(l200)), max(pks), worst)
+    if 'Rifle' not in rows:
+        return
+    ref_s3, ref_l200 = rows['Rifle'][0], rows['Rifle'][1]
+    lines = ['  guns, own-gun sum (Core+Mech+Low+tail+Punch at cues.json x the code\'s kind and maker gains):',
+             f'  {"kind":9s} {"S3 LU":>6s} {"want":>5s} {"L200 LU":>7s} {"plain pk":>8s} {"worst pk":>8s}  worst case']
+    bad = 0
+    for kind in sorted(rows, key=lambda k: LADDER[k]):
+        s3, l200, pk, (wpk, where) = rows[kind]
+        d3, d200 = s3 - ref_s3, l200 - ref_l200
+        fl = []
+        if wpk > GUN_PEAK_DB:
+            fl.append(f'GUN PEAK {wpk:+.2f}')
+        if abs(d3 - LADDER[kind]) > 0.75:
+            fl.append(f'LADDER {d3 - LADDER[kind]:+.1f}')
+        bad += bool(fl)
+        lines.append(f'  {kind:9s} {d3:+6.1f} {LADDER[kind]:+5.1f} {d200:+7.1f} {pk:8.2f} {wpk:8.2f}  {where:18s} '
+                     f'{" ".join(fl)}')
+    lines.append(f'  rifle reference: S3 {ref_s3:.1f} LUFS, L200 {ref_l200:.1f} LUFS; {bad} kinds flagged')
+    print('\n'.join(lines))
+    with open(os.path.join(CHECK, 'guns.txt'), 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines) + '\n')
+
+
+if __name__ == '__main__':
+    # In Blender's Python: python Art/Sounds/check.py prints the guns' sums from the files and cues.json as they are.
+    os.makedirs(CHECK, exist_ok=True)
+    gun_ladder(json.load(open(os.path.join(HERE, 'cues.json'), encoding='utf-8')))

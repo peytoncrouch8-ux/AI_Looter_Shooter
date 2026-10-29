@@ -70,6 +70,8 @@ void FWeaponRecoil::AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& 
 	AimPending.Yaw += Random.FRandRange(-1.f, 1.f) * Profile.AimKickSide;
 	AimRecovery = Profile.AimRecovery;
 	SinceShot = 0.f;
+	// A hold is the shot's own (HoldRecovery after this sets it).
+	HoldSeconds = 0.f;
 }
 
 float FWeaponRecoil::GetClimb(const FWeaponRecoilProfile& Profile) const
@@ -97,9 +99,10 @@ FRotator FWeaponRecoil::Tick(float DeltaSeconds, float PlayerPitchInput)
 	AimPending -= Kick;
 	AimApplied += Kick;
 
-	// ...and settles back: slowly while still firing, fully once the shooting stops.
+	// ...and settles back: slowly while still firing, fully once the shooting stops; not at all while a hold lasts (a bolt
+	// gun's kick stays up while the bolt is worked, then the world settles).
 	SinceShot += Dt;
-	const float Rate = AimRecovery * (SinceShot > AimRecoveryDelay ? 1.f : AimRecoveryWhileFiring);
+	const float Rate = SinceShot < HoldSeconds ? 0.f : AimRecovery * (SinceShot > AimRecoveryDelay ? 1.f : AimRecoveryWhileFiring);
 	const FRotator Settle = AimApplied * (1.f - FMath::Exp(-Rate * Dt));
 	AimApplied -= Settle;
 	return Kick - Settle;

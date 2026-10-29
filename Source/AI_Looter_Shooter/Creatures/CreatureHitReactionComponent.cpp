@@ -1,27 +1,23 @@
+// UCreatureHitReactionComponent (CreatureHitReactionComponent.h): the hits (hit-stop, slow, stagger, knock, Big shove, HITS'
+// weight, zone, side, offset and far boost). Its death (the burst, the killer's punch, the corpse's knock) is in
+// CreatureHitReactionComponentDeath.cpp.
+
 #include "Creatures/CreatureHitReactionComponent.h"
 #include "AI_Looter_Shooter.h"
-#include "Audio/LooterSound.h"
-#include "Audio/LooterSoundRules.h"
 #include "Bosses/BossComponent.h"
-#include "Combat/BulletSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/MovementSlowComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureHitZones.h"
 #include "Creatures/CreatureKnockComponent.h"
-#include "Creatures/SlimeCreature.h"
-#include "Creatures/SpiderCreature.h"
-#include "Creatures/UnpaidCreature.h"
 #include "Elements/ElementStatusComponent.h"
-#include "Player/CameraShakeModifier.h"
-#include "Player/ViewKick.h"
-#include "Weapons/CreatureBlood.h"
 #include "Weapons/GunKindsTuning.h"
 #include "Weapons/GunshotSound.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -31,14 +27,6 @@
 
 namespace
 {
-	/** Chitin as the burst's plates show it: the spider's brown hide, darker than its lit back. */
-	const FColor SpiderChitin(0x4E, 0x34, 0x1E);
-	/** Slime.py's gel tint. */
-	const FColor SlimeGel(0xB8, 0xF0, 0x88);
-
-	/** A revolver's crit kill bursts at the crit spot only if that's this near the body's middle (cm at size 1). */
-	constexpr float CritSpotReach = 250.f;
-
 	/**
 	 * A boss: Boss rank, or any creature a boss fight is built round (its UBossComponent: the Gravemother). Its show
 	 * (UBossComponent's stagger, slow-motion death, loot shower) runs its big moments, so none of these reactions apply.
@@ -69,6 +57,7 @@ namespace
 		case FHitReaction::EJob::Melee: return TEXT("melee");
 		case FHitReaction::EJob::Pressure: return TEXT("rifle pressure");
 		case FHitReaction::EJob::Power: return TEXT("shotgun power");
+		case FHitReaction::EJob::Poise: return TEXT("poise broken");
 		default: return TEXT("none");
 		}
 	}
@@ -109,6 +98,13 @@ bool UCreatureHitReactionComponent::IsStaggered() const
 {
 	const UWorld* World = GetWorld();
 	return World && Reaction.IsStaggered(World->GetTimeSeconds());
+}
+
+float UCreatureHitReactionComponent::GetStaggerAlpha() const
+{
+	// A boss's hits never reach the rules (TakeHit), so its alpha stays 0.
+	const UWorld* World = GetWorld();
+	return World ? Reaction.GetStaggerAlpha(World->GetTimeSeconds()) : 0.f;
 }
 
 bool UCreatureHitReactionComponent::IsHitStopped() const
@@ -153,12 +149,44 @@ float UCreatureHitReactionComponent::CorpseLiftFor(EWeaponKind Kind, const FGunf
 	}
 }
 
+float UCreatureHitReactionComponent::CorpseKnockFor(EWeaponKind Kind, bool bCritical, EHitWeight Weight, const FGunfeelReactTuning& Tuning,
+	const FHitFeelTuning& Feel)
+{
+	// An overkill's body goes farther: the shot had more than enough in it.
+	const float Speed = CorpseKnockFor(Kind, bCritical, Tuning);
+	return Feel.KillStyles && Weight == EHitWeight::Overkill ? Speed * Feel.OverkillKnock : Speed;
+}
+
+float UCreatureHitReactionComponent::CorpseLiftFor(EWeaponKind Kind, EHitWeight Weight, const FGunfeelReactTuning& Tuning, const FHitFeelTuning& Feel)
+{
+	// A blast's overkill throws it up off its feet; a bullet's (a sniper's) slides it, as ever.
+	const float Lift = CorpseLiftFor(Kind, Tuning);
+	const bool bBlast = Kind == EWeaponKind::Shotgun || Kind == EWeaponKind::Launcher;
+	return Feel.KillStyles && Weight == EHitWeight::Overkill && bBlast ? FMath::Max(Lift, Feel.OverkillLift) : Lift;
+}
+
 // ---------------------------------------------------------------------------
 // Hits: the hit-stop, the slow, the stagger and the knock
 // ---------------------------------------------------------------------------
 
+void UCreatureHitReactionComponent::PlaceHit(const ACreatureBase& Creature, FCreatureHit& Hit, const UPrimitiveComponent* HitComponent,
+	const FHitFeelTuning& Feel) const
+{
+	// The layer's switch, and a status's tick (a burn has no wound to twist round): a plain front body hit.
+	if (!Feel.Zones || Hit.Element != ELooterElement::None)
+	{
+		Hit.Zone = ECreatureHitZone::Body;
+		Hit.Side = EHitSide::Front;
+		Hit.LateralOffset = 0.f;
+		return;
+	}
+	Hit.Zone = CreatureHitZones::ZoneOfHit(Creature, HitComponent, Hit.Bone, Hit.bCritical);
+	Hit.Side = HitFeel::SideOf(Creature.GetActorForwardVector(), Hit.Direction);
+	Hit.LateralOffset = HitFeel::LateralOffsetOf(Creature.GetActorLocation(), Hit.Direction, Hit.Location);
+}
+
 FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical, const FVector& HitLocation, AController* InstigatedBy,
-	AActor* DamageCauser)
+	AActor* DamageCauser, FName Bone, const UPrimitiveComponent* HitComponent)
 {
 	FCreatureHit Hit;
 	ACreatureBase* Creature = Cast<ACreatureBase>(GetOwner());
@@ -170,6 +198,7 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 	}
 	// Read once a hit, so a change in PIE counts from the next one.
 	const FGunfeelReactTuning Tuning = FGunfeelReactTuning::Live();
+	const FHitFeelTuning Feel = FHitFeelTuning::Live();
 	const float MaxHealth = FMath::Max(Life->GetMaxHealth(), 1.f);
 	Hit.Share = FMath::Max(Damage, 0.f) / MaxHealth;
 	Hit.BurstShare = Hit.Share;
@@ -184,12 +213,18 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 	Hit.bCritical = bCritical;
 	Hit.Location = HitLocation;
 	Hit.bBoss = IsBoss(*Creature);
+	Hit.Bone = Bone;
 
 	// The shot's way: from whoever fired it (else what dealt it) through the wound.
 	const APawn* Shooter = InstigatedBy ? InstigatedBy->GetPawn() : nullptr;
 	const FVector From = Shooter ? Shooter->GetActorLocation() : (DamageCauser ? DamageCauser->GetActorLocation() : HitLocation);
 	const FVector Way = HitLocation - From;
 	Hit.Direction = Way.IsNearlyZero() ? (Creature->GetActorLocation() - From).GetSafeNormal() : Way.GetSafeNormal();
+	Hit.Distance = Shooter ? static_cast<float>(FVector::Dist(Shooter->GetActorLocation(), Creature->GetActorLocation())) : -1.f;
+	// A flinch 25 m off reads as half of one at 10 m: the far boost makes it up (a boss's flinch keeps its own size).
+	Hit.FarBoost = HitFeel::FarBoostAt(Hit.Distance, Feel);
+	// Where on its body, and from which side: a boss's too (the Gravemother's legs buckle; looks only).
+	PlaceHit(*Creature, Hit, HitComponent, Feel);
 
 	// The precision guns' crits (the revolver's, the sniper's) ring for their shooter, a boss too: it's the shot's reward,
 	// not the creature's reaction.
@@ -208,6 +243,7 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 	// The health has already dropped; the death event comes right after this one.
 	const bool bKilled = Life->GetHealth() <= 0.f;
 	Hit.bKilled = bKilled;
+	Hit.Overkill = bKilled ? HitFeel::OverkillOf(Damage, Life->GetHealthBeforeLastHit(), MaxHealth) : 0.f;
 	FHitReaction::FHit Rule;
 	Rule.Damage = Damage;
 	Rule.MaxHealth = MaxHealth;
@@ -215,12 +251,19 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 	Rule.bKilled = bKilled;
 	Rule.Rank = Creature->GetRank();
 	Rule.Kind = Hit.Kind;
-	Rule.Distance = Shooter ? static_cast<float>(FVector::Dist(Shooter->GetActorLocation(), Creature->GetActorLocation())) : -1.f;
+	Rule.Distance = Hit.Distance;
 	Rule.Size = Creature->GetSizeScale();
+	Rule.Overkill = Hit.Overkill;
 	Reaction.SetTuning(Tuning);
-	const FHitReaction::FResponse Response = Reaction.OnHit(World->GetTimeSeconds(), Rule);
+	Reaction.SetFeel(Feel);
+	const double Now = World->GetTimeSeconds();
+	const FHitReaction::FResponse Response = Reaction.OnHit(Now, Rule);
 	Hit.BurstShare = FMath::Max(Response.BurstShare, Hit.Share);
+	Hit.Weight = Response.Weight;
 	LastHit = Hit;
+	UE_LOG(LogLooter, Verbose, TEXT("%s: %s hit on the %s (bone %s) from the %s, %.0f cm off its axis, far x%.2f, poise %.2f"),
+		*Creature->GetName(), HitFeel::WeightName(Hit.Weight), HitFeel::ZoneName(Hit.Zone), *Hit.Bone.ToString(),
+		HitFeel::SideName(Hit.Side), Hit.LateralOffset, Hit.FarBoost, Reaction.GetPoise(Now));
 
 	if (Response.HitStopSeconds > 0.f)
 	{
@@ -239,11 +282,16 @@ FCreatureHit UCreatureHitReactionComponent::TakeHit(float Damage, bool bCritical
 	{
 		Shove(*Creature, Hit.Direction, Response.BurstShare, Tuning.StaggerShove);
 	}
+	else if (Hit.Weight == EHitWeight::Big && Feel.BigShove > 0.f && Creature->GetSizeScale() <= Tuning.ShotgunKnockSize)
+	{
+		// A Big hit that didn't stagger still gives ground: a step back along the shot, its brain never held (a knock here
+		// would stun it on every sniper round, and fights must not get easier).
+		Shove(*Creature, Hit.Direction, Response.BurstShare, Feel.BigShove);
+	}
 	// Every hit holds it back a moment: a charging creature visibly catches the bullet (strongest slow wins, never stacks).
 	// A kind with a gap between its slows (the Unpaid, 2026-10-28: steady rifle fire kept every lunge short) takes one, then
 	// none for the gap, whatever lands in between.
 	const UCreatureKnockComponent* Knock = Creature->GetKnock();
-	const double Now = World->GetTimeSeconds();
 	const bool bSlowDue = Now - LastSlowAt >= Creature->GetHitSlowGap();
 	if (Tuning.FlinchSlow < 1.f && Tuning.FlinchSlowSeconds > 0.f && bSlowDue && !(Knock && Knock->IsKnocked()))
 	{
@@ -328,196 +376,6 @@ void UCreatureHitReactionComponent::KnockBack(ACreatureBase& Creature, const FVe
 		// Nowhere to be thrown (a ledge behind it): a step back at least.
 		Shove(Creature, Direction, Tuning.ShotgunKnockShare, Tuning.StaggerShove);
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Death: the burst, the killer's punch, the corpse's knock
-// ---------------------------------------------------------------------------
-
-EDeathBurst UCreatureHitReactionComponent::DeathBurstOf(const ACreatureBase& Creature)
-{
-	if (Creature.IsA<AUnpaidCreature>())
-	{
-		return EDeathBurst::SoulLight;
-	}
-	if (Creature.IsA<ASlimeCreature>())
-	{
-		return EDeathBurst::Gel;
-	}
-	if (Creature.IsA<ASpiderCreature>())
-	{
-		return EDeathBurst::Shell;
-	}
-	return EDeathBurst::None;
-}
-
-FLinearColor UCreatureHitReactionComponent::DeathBurstTint(const ACreatureBase& Creature)
-{
-	if (const AUnpaidCreature* Unpaid = Cast<AUnpaidCreature>(&Creature))
-	{
-		return Unpaid->GetCoalColor();
-	}
-	if (Creature.IsA<ASlimeCreature>())
-	{
-		return FLinearColor::FromSRGBColor(SlimeGel);
-	}
-	return FLinearColor::FromSRGBColor(SpiderChitin);
-}
-
-FName UCreatureHitReactionComponent::DeathBurstCue(EDeathBurst Kind)
-{
-	switch (Kind)
-	{
-	case EDeathBurst::Shell: return LooterSoundCue::SpiderBurst;
-	case EDeathBurst::Gel: return LooterSoundCue::SlimeSplat;
-	case EDeathBurst::SoulLight: return LooterSoundCue::UnpaidDissolve;
-	default: return NAME_None;
-	}
-}
-
-void UCreatureHitReactionComponent::HandleDeath(AController* Killer)
-{
-	ACreatureBase* Creature = Cast<ACreatureBase>(GetOwner());
-	if (!Creature || IsBoss(*Creature))
-	{
-		return;
-	}
-	const FGunfeelReactTuning Tuning = FGunfeelReactTuning::Live();
-	if (BurstsLikeItsKind(LastHit))
-	{
-		SpawnDeathBurst(*Creature, Tuning);
-	}
-
-	// The killer's view punches in: a crit kill, or a Gravebound or worse, harder.
-	APlayerController* Player = Cast<APlayerController>(Killer);
-	if (Player && Player->IsLocalController())
-	{
-		const bool bHeavy = LastHit.bCritical || LooterRanks::IsAtLeast(Creature->GetRank(), ECreatureRank::Epic);
-		UCameraShakeModifier::Kick(Player, ViewKicks::ForKill(bHeavy));
-	}
-	if (KnocksCorpse(LastHit))
-	{
-		StartCorpseKnock(*Creature, Tuning);
-	}
-}
-
-void UCreatureHitReactionComponent::SpawnDeathBurst(ACreatureBase& Creature, const FGunfeelReactTuning& Tuning)
-{
-	UWorld* World = GetWorld();
-	const EDeathBurst Kind = DeathBurstOf(Creature);
-	UBulletSubsystem* Bullets = World ? World->GetSubsystem<UBulletSubsystem>() : nullptr;
-	if (Kind == EDeathBurst::None || !Bullets)
-	{
-		return;
-	}
-	// From the middle of the body as drawn (a spider's legs spread wide, but its middle is its body).
-	const USkeletalMeshComponent* Body = Creature.GetMesh();
-	FVector Center = Body ? FVector(Body->Bounds.Origin) : Creature.GetActorLocation();
-	float Size = 100.f * Creature.GetSizeScale();
-	FWeaponFX& Effects = Bullets->GetEffects();
-	Effects.Initialize(World);
-
-	// The precision guns: a revolver's or a sniper's crit kill bursts bigger (the sniper's bigger still), from the crit spot
-	// itself, with a last spurt out of it.
-	const bool bPreciseGun = LastHit.Kind == EWeaponKind::Revolver || LastHit.Kind == EWeaponKind::Sniper;
-	const bool bPrecise = bPreciseGun && LastHit.bCritical && !LastHit.Location.IsNearlyZero()
-		&& FVector::Dist(LastHit.Location, Center) < CritSpotReach * FMath::Max(Creature.GetSizeScale(), 0.3f);
-	if (bPrecise)
-	{
-		const float Burst = Tuning.KillRevolverBurst * (LastHit.Kind == EWeaponKind::Sniper ? GunKinds::KillSniperBurst() : 1.f);
-		Center = LastHit.Location;
-		Size *= Burst;
-		Effects.SpawnCreatureHit(Center, -LastHit.Direction, LastHit.Direction, CreatureBlood::Of(&Creature), CreatureBlood::TintOf(&Creature),
-			Burst, true);
-	}
-	Effects.SpawnDeathBurst(Kind, Center, LastHit.Direction, Size, DeathBurstTint(Creature));
-	LooterSound::PlayAt(this, DeathBurstCue(Kind), Center, 1.f, LooterSoundRules::PitchForSize(Creature.GetSizeScale()));
-	UE_LOG(LogLooter, Verbose, TEXT("%s: death burst %d%s"), *Creature.GetName(), static_cast<int32>(Kind), bPrecise ? TEXT(" (revolver crit)") : TEXT(""));
-}
-
-void UCreatureHitReactionComponent::StartCorpseKnock(ACreatureBase& Creature, const FGunfeelReactTuning& Tuning)
-{
-	// A big body takes a killing shot without sliding off (a Soulfed monster's own death is its show).
-	const FVector Away = LastHit.Direction.GetSafeNormal2D();
-	if (Away.IsNearlyZero() || LooterRanks::IsAtLeast(Creature.GetRank(), ECreatureRank::Legendary))
-	{
-		return;
-	}
-	const float Size = FMath::Max(Creature.GetSizeScale(), 0.3f);
-	// By the gun: a shotgun throws it with a lift, a rifle crumples it where it stands, anything else as ever.
-	KnockVelocity = Away * (CorpseKnockFor(LastHit.Kind, LastHit.bCritical, Tuning) / FMath::Sqrt(Size));
-	KnockLift = CorpseLiftFor(LastHit.Kind, Tuning);
-	KnockLiftNow = 0.f;
-	KnockTime = 0.f;
-	// Its height over the ground is measured on the first step, after the body's own death has settled it (a slime
-	// killed mid-hop drops to the ground first).
-	bKnockMeasured = false;
-	// Ticks on the corpse's own clock: the kill's hit-stop holds it, then it goes.
-	SetComponentTickEnabled(true);
-}
-
-void UCreatureHitReactionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	StepCorpseKnock(DeltaTime);
-}
-
-void UCreatureHitReactionComponent::StepCorpseKnock(float DeltaTime)
-{
-	AActor* Owner = GetOwner();
-	UWorld* World = GetWorld();
-	KnockTime += DeltaTime;
-	if (!Owner || !World || KnockTime > CorpseKnockSeconds || KnockVelocity.SizeSquared() < 100.f)
-	{
-		EndCorpseKnock();
-		return;
-	}
-	// Where it lies under its lift: the ground rules go by that, the lift only rides on top.
-	const FVector From = Owner->GetActorLocation() - FVector(0.0, 0.0, KnockLiftNow);
-	const ACreatureBase* Creature = Cast<ACreatureBase>(Owner);
-	const float Size = Creature ? FMath::Max(Creature->GetSizeScale(), 0.3f) : 1.f;
-	FVector Ground;
-	if (!bKnockMeasured)
-	{
-		bKnockMeasured = true;
-		if (!FindGround(From, 50.f * Size, 300.f * Size, Ground))
-		{
-			EndCorpseKnock();
-			return;
-		}
-		KnockGroundOffset = static_cast<float>(From.Z - Ground.Z);
-	}
-	const FVector To = From + KnockVelocity * DeltaTime;
-	KnockVelocity *= FMath::Exp(-9.f * DeltaTime);
-
-	// Never through anything solid: a short sweep at the body's height (a volume it starts inside doesn't count)...
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(CorpseKnock), false, Owner);
-	FHitResult Hit;
-	const bool bBlocked = World->SweepSingleByObjectType(Hit, From, To, FQuat::Identity, FCollisionObjectQueryParams(ECC_WorldStatic),
-		FCollisionShape::MakeSphere(20.f * Size), Params) && !Hit.bStartPenetrating;
-	// ...and never off a drop or up a step: it keeps its height over the ground it lies on.
-	const bool bGround = !bBlocked && FindGround(To, 60.f * Size, 120.f * Size, Ground);
-	const float NewZ = bGround ? static_cast<float>(Ground.Z) + KnockGroundOffset : 0.f;
-	if (!bGround || FMath::Abs(NewZ - static_cast<float>(From.Z)) > 40.f * Size)
-	{
-		EndCorpseKnock();
-		return;
-	}
-	// A shotgun's throw lifts it in a low arc over the slide, back down on the ground as it ends.
-	KnockLiftNow = KnockLift * FMath::Sin(UE_PI * FMath::Clamp(KnockTime / CorpseKnockSeconds, 0.f, 1.f));
-	Owner->SetActorLocation(FVector(To.X, To.Y, NewZ + KnockLiftNow));
-}
-
-void UCreatureHitReactionComponent::EndCorpseKnock()
-{
-	AActor* Owner = GetOwner();
-	if (Owner && KnockLiftNow > 0.f)
-	{
-		Owner->SetActorLocation(Owner->GetActorLocation() - FVector(0.0, 0.0, KnockLiftNow));
-	}
-	KnockLiftNow = 0.f;
-	KnockVelocity = FVector::ZeroVector;
-	SetComponentTickEnabled(false);
 }
 
 bool UCreatureHitReactionComponent::FindGround(const FVector& Point, float Above, float Below, FVector& OutGround) const

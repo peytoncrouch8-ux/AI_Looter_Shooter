@@ -375,13 +375,19 @@ bool FNewGunsKindsTest::RunTest(const FString& Parameters)
 	// The shot's leavings: the SMG's small holes, the sniper's big ones; bottlenecked cases from the three that throw one.
 	TestTrue(TEXT("The SMG's marks are small"), FBulletMarks::GunScale(EWeaponKind::SMG) < FBulletMarks::GunScale(EWeaponKind::Rifle));
 	TestTrue(TEXT("The sniper's big"), FBulletMarks::GunScale(EWeaponKind::Sniper) > FBulletMarks::GunScale(EWeaponKind::Revolver));
-	TestTrue(TEXT("The SMG throws its cases"), FWeaponBrass::KindFor(EWeaponKind::SMG) == ECasingKind::Rifle);
-	TestTrue(TEXT("The LMG too"), FWeaponBrass::KindFor(EWeaponKind::LMG) == ECasingKind::Rifle);
+	// Gun identity (2026-10-28): the SMG, LMG and sniper each throw their own case (the rifle's with the switch off).
+	TestTrue(TEXT("The SMG throws small cases"), FWeaponBrass::KindFor(EWeaponKind::SMG, true) == ECasingKind::Small);
+	TestTrue(TEXT("The LMG throws belt cases"), FWeaponBrass::KindFor(EWeaponKind::LMG, true) == ECasingKind::Belt);
+	TestTrue(TEXT("The sniper throws magnum cases"), FWeaponBrass::KindFor(EWeaponKind::Sniper, true) == ECasingKind::Magnum);
+	TestTrue(TEXT("Identity 0: the SMG and LMG throw the rifle's"), FWeaponBrass::KindFor(EWeaponKind::SMG, false) == ECasingKind::Rifle
+		&& FWeaponBrass::KindFor(EWeaponKind::LMG, false) == ECasingKind::Rifle);
 
 	// Its gunfeel numbers by kind, the live ones at their defaults (the Variables test checks they ship so).
 	TestTrue(TEXT("The LMG's aimed walk the slowest"), GunfeelKick::AimMoveScale(EWeaponKind::LMG) < GunfeelKick::AimMoveScale(EWeaponKind::Rifle));
 	TestTrue(TEXT("The SMG's swap the quickest"), GunfeelKick::SwapScale(EWeaponKind::SMG) < GunfeelKick::SwapScale(EWeaponKind::Revolver));
-	TestTrue(TEXT("The launcher kicks the view hardest"), GunfeelKick::KickScale(EWeaponKind::Launcher) > GunfeelKick::KickScale(EWeaponKind::Shotgun));
+	// Since gun identity (2026-10-28) every Kick.<Kind> is 1 and the kinds differ by their own tables; with the switch off the
+	// old scales come back, the launcher's the biggest.
+	TestTrue(TEXT("The launcher kicked the view hardest (Identity 0)"), GunfeelKick::Default::Today::KickLauncher > GunfeelKick::Default::Today::KickShotgun);
 	TestTrue(TEXT("The SMG and the LMG climb; the sniper doesn't"), GunfeelKick::ClimbPerShot(EWeaponKind::SMG) > 0.f
 		&& GunfeelKick::ClimbPerShot(EWeaponKind::LMG) > 0.f && GunfeelKick::ClimbPerShot(EWeaponKind::Sniper) == 0.f);
 	return true;

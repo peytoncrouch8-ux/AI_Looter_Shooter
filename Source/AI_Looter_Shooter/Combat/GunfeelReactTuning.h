@@ -11,13 +11,18 @@
  */
 struct AI_LOOTER_SHOOTER_API FGunfeelReactTuning
 {
-	// --- The flinch on every hit (each kind's OnHurt): FlinchScale x clamp(0.6 + DamageGain x share, 0.6, FlinchMax) ---
+	// --- The flinch on every hit (each kind's OnHurt): FlinchScale x clamp(Floor + DamageGain x share, Floor, FlinchMax) ---
 	/** Looter.Gunfeel.Flinch.Scale: every flinch at once. */
 	float FlinchScale = 1.f;
-	/** Looter.Gunfeel.Flinch.DamageGain: how much a hit's share of health adds (a third of its health: 0.6 + 1.0). */
+	/**
+	 * Looter.Gunfeel.Flinch.Floor: the least a hit flinches it, whatever its share (HITS 2026-10-28: 0.85, was 0.6, so a rifle
+	 * round reads at 10-30 m).
+	 */
+	float FlinchFloor = 0.85f;
+	/** Looter.Gunfeel.Flinch.DamageGain: how much a hit's share of health adds (a third of its health: 0.85 + 1.0). */
 	float FlinchDamageGain = 3.f;
-	/** Looter.Gunfeel.Flinch.Max: the most a hit flinches it (before a crit's own). */
-	float FlinchMax = 2.5f;
+	/** Looter.Gunfeel.Flinch.Max: the most a hit flinches it, the far boost included (before a crit's own; HITS: 3, was 2.5). */
+	float FlinchMax = 3.f;
 	/** Looter.Gunfeel.Flinch.CritScale: a critical hit's flinch, times. */
 	float FlinchCritScale = 1.4f;
 	/** Looter.Gunfeel.Flinch.BossScale: a boss flinches this share of today's flinch, whatever the hit (its moves never interrupted). */
@@ -37,11 +42,14 @@ struct AI_LOOTER_SHOOTER_API FGunfeelReactTuning
 	float StaggerShove = 420.f;
 
 	// --- Hit-stops (its own clock all but stopped) ---
-	/** Looter.Gunfeel.HitStop.Crit / .Heavy / .Kill / .CritKill (seconds). Heavy: a heavy body hit, cooled down as a crit's. */
+	/**
+	 * Looter.Gunfeel.HitStop.Crit / .Heavy / .Kill / .CritKill (seconds). Heavy: a heavy body hit, cooled down as a crit's.
+	 * HITS (2026-10-28) raised heavy .035 -> .045, kill .075 -> .085, crit kill .1 -> .11; Big and overkill are Looter.Hits.*.
+	 */
 	float HitStopCrit = 0.05f;
-	float HitStopHeavy = 0.035f;
-	float HitStopKill = 0.075f;
-	float HitStopCritKill = 0.1f;
+	float HitStopHeavy = 0.045f;
+	float HitStopKill = 0.085f;
+	float HitStopCritKill = 0.11f;
 
 	// --- Kills by gun ---
 	/** Looter.Gunfeel.Kill.ShotgunKnock / .ShotgunLift: a shotgun's kill throws the corpse this fast (cm/s), this high (cm) at the arc's top. */

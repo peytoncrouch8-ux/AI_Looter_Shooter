@@ -9,6 +9,7 @@
 class ACreatureBase;
 class AController;
 class UHealthComponent;
+class UPrimitiveComponent;
 
 /**
  * How a creature takes a hit and a death, on top of its own flinch (OnHurt, sized by the hit: FCreatureHit) and death
@@ -17,13 +18,16 @@ class UHealthComponent;
  *    creature only, never the world's), so the blow lands with weight; a revolver's crit longest, with a ring for its
  *    shooter (GunshotSound::PlayCritRing);
  *  - a brief slow on any hit (UMovementSlowComponent), so a charging creature visibly catches the bullet;
- *  - a stagger on a heavy hit (a crit, a shotgun blast up close) or the rifle's pressure: its brain waits it out
- *    (ACreatureBase::TickBrain, so a wind-up holds too) and it's shoved back along the shot, then can't be staggered again
- *    for a while; a close shotgun blast knocks a small one back instead (UCreatureKnockComponent::Knock);
+ *  - a stagger on a heavy hit (a crit, a shotgun blast up close), the rifle's pressure or broken poise (HITS): its brain
+ *    waits it out (ACreatureBase::TickBrain, so a wind-up holds too), its kind poses on GetStaggerAlpha, and it's shoved
+ *    back along the shot, then can't be staggered again for a while; a close shotgun blast knocks a small one back instead
+ *    (UCreatureKnockComponent::Knock); a Big hit that does neither shoves a small one back (Looter.Hits.BigShove);
+ *  - HITS' hit details for its kind's pose (FCreatureHit: weight, zone, side, offset, far boost; CreatureHitZones);
  *  - its death: the kind's burst (a spider's shell, a slime's splat, an Unpaid's soul-light; FWeaponFX::SpawnDeathBurst;
  *    a revolver's crit kill bigger, at the crit spot, with a spurt) with the body's sound, the killer's view punched in
  *    (ViewKicks::ForKill), and the corpse knocked along the killing shot by the gun (a shotgun's thrown with a lift, a
- *    rifle's crumpling where it stands), never through a wall or off a drop. A kill by an element's status (a burn, a smite,
+ *    rifle's crumpling where it stands; an overkill's farther, a blast's lifted higher), never through a wall or off a drop
+ *    (CreatureHitReactionComponentDeath.cpp). A kill by an element's status (a burn, a smite,
  *    the salt) has none of those: no gun dealt it, and the element's own death plays instead (KnocksCorpse).
  * A boss gets none of it but the smaller flinch (Boss rank, or a creature with a UBossComponent: the Gravemother): its
  * fight's show runs its big moments (its own stagger, its slow-motion death). Ticks only while a corpse slides.
@@ -38,13 +42,19 @@ public:
 	UCreatureHitReactionComponent();
 
 	/**
-	 * The owner took a hit (ACreatureBase::HandleDamaged, its health already down): its hit-stop, stagger or knock, slow
-	 * and the revolver's ring. Returns the hit as its flinch and death go by (not yet fresh).
+	 * The owner took a hit (ACreatureBase::HandleDamaged, its health already down): its hit-stop, stagger or knock, slow,
+	 * Big shove and the revolver's ring. Returns the hit as its flinch and death go by (not yet fresh), with HITS' weight,
+	 * zone (by Bone, and HitComponent when the shot met a hit zone of its own: a lamp, a bell), side, offset and far boost.
+	 * Bone None: a Body hit (a test level's damage passes the bone it means straight here).
 	 */
-	FCreatureHit TakeHit(float Damage, bool bCritical, const FVector& HitLocation, AController* InstigatedBy, AActor* DamageCauser);
+	FCreatureHit TakeHit(float Damage, bool bCritical, const FVector& HitLocation, AController* InstigatedBy, AActor* DamageCauser,
+		FName Bone = NAME_None, const UPrimitiveComponent* HitComponent = nullptr);
 
 	/** Staggered right now: its brain pauses. */
 	bool IsStaggered() const;
+
+	/** How much of a stagger pose shows now (0 to 1; FHitReaction::GetStaggerAlpha): 0 for a boss, which never staggers. */
+	float GetStaggerAlpha() const;
 
 	/** In a hit-stop right now. */
 	bool IsHitStopped() const;
@@ -64,6 +74,14 @@ public:
 	static float CorpseKnockFor(EWeaponKind Kind, bool bCritical, const FGunfeelReactTuning& Tuning);
 	/** How high the corpse is lifted at its slide's middle (cm): a shotgun kill's Kill.ShotgunLift, else none. */
 	static float CorpseLiftFor(EWeaponKind Kind, const FGunfeelReactTuning& Tuning);
+
+	/**
+	 * ...as a kill of Weight goes (HITS): an overkill knocks the corpse OverkillKnock times as fast, and a shotgun's or a
+	 * rocket's overkill lifts it at least OverkillLift; any other kill as CorpseKnockFor / CorpseLiftFor (and every kill with
+	 * Looter.Hits.KillStyles 0).
+	 */
+	static float CorpseKnockFor(EWeaponKind Kind, bool bCritical, EHitWeight Weight, const FGunfeelReactTuning& Tuning, const FHitFeelTuning& Feel);
+	static float CorpseLiftFor(EWeaponKind Kind, EHitWeight Weight, const FGunfeelReactTuning& Tuning, const FHitFeelTuning& Feel);
 
 	/**
 	 * A killing hit is played the gun's way (its corpse knock, the kind's own death burst) unless a status dealt it: the
@@ -102,6 +120,8 @@ private:
 	void Shove(ACreatureBase& Creature, const FVector& Direction, float BurstShare, float ShoveSpeed);
 	/** The shotgun's power on a small one: thrown back along Direction (UCreatureKnockComponent, its shove style). */
 	void KnockBack(ACreatureBase& Creature, const FVector& Direction, const FGunfeelReactTuning& Tuning);
+	/** HITS' zone, side and offset of Hit (on the creature as it stands), the layer's switch obeyed. */
+	void PlaceHit(const ACreatureBase& Creature, FCreatureHit& Hit, const UPrimitiveComponent* HitComponent, const FHitFeelTuning& Feel) const;
 	void SpawnDeathBurst(ACreatureBase& Creature, const FGunfeelReactTuning& Tuning);
 	void StartCorpseKnock(ACreatureBase& Creature, const FGunfeelReactTuning& Tuning);
 	void StepCorpseKnock(float DeltaTime);

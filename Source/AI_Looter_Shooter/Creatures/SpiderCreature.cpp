@@ -129,6 +129,8 @@ void ASpiderCreature::Tick(float DeltaSeconds)
 	AnimTime += DeltaSeconds;
 	// Its idle life, its entrance and its death's last twitches move on (SpiderCreatureReact.cpp).
 	TickReactions(DeltaSeconds);
+	// Its hit feel's clocks: buckles, the stagger's cry, its wounds (SpiderCreatureHurt.cpp).
+	TickHitFeel(DeltaSeconds);
 	// Far away out of view it walks on unposed (OnPoseThawed puts its feet back under it); a corpse lying still keeps its pose.
 	if (bRigReady && !IsPoseFrozen() && !IsCorpseSettled())
 	{
@@ -204,10 +206,12 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 	}
 	else
 	{
-		TargetZ += FMath::Sin(AnimTime * 2.2f) * 1.5f * Scale; // breathing
+		TargetZ += FMath::Sin(AnimTime * 2.2f) * 1.5f * Scale * WoundBreath(); // breathing, heavier badly hurt
 		// Its notice beat (reared, fangs flared) and idle life (grooming), SpiderCreatureReact.cpp.
 		ReactBody(TargetZ, TargetPitch, TargetFang);
 	}
+	// Wounded, it leans onto the leg it limps on (SpiderCreatureLegs.cpp); not the ground's tilt its death keeps.
+	TargetRoll += LimpRoll();
 	if (bPoseOverride)
 	{
 		TargetZ += PoseOverride.Rise * Scale;
@@ -258,17 +262,27 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 			HurtTiltKick -= HurtHold > 0.f ? FVector::ZeroVector : HurtTiltKick * FMath::Min(HurtKickFade * Step, 1.f);
 			HurtTiltVelocity += (HurtOmega * HurtOmega * (HurtTiltKick - HurtTilt) - 2.f * HurtOmega * HurtTiltVelocity) * Step;
 			HurtTilt += HurtTiltVelocity * Step;
+			// The hit feel's twist, a shot leg's roll and dip (SpiderCreatureHurt.cpp), on a spring as stiff.
+			if (!HitTwist.IsSettled())
+			{
+				HitTwist.Step(Step, HurtOmega, HurtKickFade);
+			}
 		}
 	}
 	AbdomenKick = FMath::FInterpTo(AbdomenKick, 0.f, DeltaSeconds, 8.f);
+	// The hit feel on top (SpiderCreatureHurt.cpp): the twist, a shot leg's roll and dip, the stagger's crouch, fangs, abdomen.
+	// Laid on after the body's smoothing: each is its own curve already, and smoothing would only blunt a stagger's drop.
+	const FHitFeelPose Feel = HitFeelPose();
 
 	const FQuat Yaw = FRotator(0.f, GetActorRotation().Yaw, 0.f).Quaternion();
 	// Climbing out of the dirt as it comes into the world, the body starts under the ground (EmergeDrop).
-	const FVector Location = FVector(ActorLocation.X, ActorLocation.Y, BodyZ + EmergeDrop()) + Yaw.RotateVector(FVector(Lunge, 0.f, 0.f))
-		+ HurtOffset;
+	const FVector Location = FVector(ActorLocation.X, ActorLocation.Y, BodyZ + EmergeDrop() - Feel.Drop)
+		+ Yaw.RotateVector(FVector(Lunge, 0.f, 0.f)) + HurtOffset;
 	// The frame carries the size like the mesh does: hips, pivots and poses set in it scale with the spider. A hit tilts it
-	// away from the shot (HurtTilt: pitch, roll).
-	BodyFrame = FTransform(Yaw * FRotator(BodyPitch + HurtTilt.X, 0.f, BodyRoll + HurtTilt.Y).Quaternion(), Location, FVector(Scale));
+	// away from the shot (HurtTilt: pitch, roll) and twists it (Feel.Yaw).
+	const FQuat Twisted = FRotator(0.f, GetActorRotation().Yaw + Feel.Yaw, 0.f).Quaternion();
+	BodyFrame = FTransform(Twisted * FRotator(BodyPitch + HurtTilt.X + Feel.Pitch, 0.f, BodyRoll + HurtTilt.Y + Feel.Roll).Quaternion(),
+		Location, FVector(Scale));
 	SetBone(SpiderBones::Body, BodyInFrame, BodyFrame);
 
 	// Abdomen: slow breathing sway plus a jolt when hit. Dead, the breath goes out of it, and the throe lifts it and the drop
@@ -277,11 +291,12 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 	const float Breathing = bDead ? DeathBreath(Time) : 1.f;
 	const float Breath = FMath::Sin(AnimTime * 1.7f) * Breathing;
 	const float DeadTilt = bDead ? DeadAbdomenTilt(Time) : 0.f;
-	PosePivot(SpiderBones::Abdomen, Abdomen, FRotator(Breath * 2.5f + AbdomenKick + DeadTilt, FMath::Sin(AnimTime * 0.9f) * 2.f * Breathing, 0.f),
+	PosePivot(SpiderBones::Abdomen, Abdomen, FRotator(Breath * 2.5f + AbdomenKick + Feel.Abdomen + DeadTilt, FMath::Sin(AnimTime * 0.9f) * 2.f * Breathing, 0.f),
 		FVector(1.f, 1.f + Breath * 0.015f, 1.f + Breath * 0.02f));
 
-	PosePivot(SpiderBones::FangLeft, FangLeft, FRotator(FangOpen * 0.4f, -FangOpen, 0.f), FVector::OneVector);
-	PosePivot(SpiderBones::FangRight, FangRight, FRotator(FangOpen * 0.4f, FangOpen, 0.f), FVector::OneVector);
+	const float Fang = FMath::Max(FangOpen, Feel.FangAtLeast) + Feel.FangAdd;
+	PosePivot(SpiderBones::FangLeft, FangLeft, FRotator(Fang * 0.4f, -Fang, 0.f), FVector::OneVector);
+	PosePivot(SpiderBones::FangRight, FangRight, FRotator(Fang * 0.4f, Fang, 0.f), FVector::OneVector);
 }
 
 void ASpiderCreature::AnimateLegs(float DeltaSeconds)
@@ -305,14 +320,17 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 	// update: rounded up to two, each step would take twice as long while the body walks on, and the feet would trail.
 	const float StepTime = DeltaSeconds > StepDuration * 0.5f ? DeltaSeconds : StepDuration;
 
-	// Feet mid-step carry on.
+	// A Big hit's skids slide their planted feet on (SpiderCreatureLegs.cpp).
+	SlideSkids(DeltaSeconds);
+	// Feet mid-step carry on; a limping leg's (badly hurt: SpiderCreatureHurt.cpp) lower and slower.
 	for (FLeg& Leg : Legs)
 	{
 		if (Leg.bStepping)
 		{
-			Leg.StepAlpha = FMath::Min(1.f, Leg.StepAlpha + DeltaSeconds / StepTime);
+			Leg.StepAlpha = FMath::Min(1.f, Leg.StepAlpha + DeltaSeconds / (StepTime * LimpTimeScale(Leg)));
 			const float Eased = FMath::InterpEaseInOut(0.f, 1.f, Leg.StepAlpha, 2.f);
-			Leg.Foot = FMath::Lerp(Leg.StepFrom, Leg.StepTo, Eased) + FVector(0.f, 0.f, FMath::Sin(Leg.StepAlpha * UE_PI) * StepHeight);
+			Leg.Foot = FMath::Lerp(Leg.StepFrom, Leg.StepTo, Eased)
+				+ FVector(0.f, 0.f, FMath::Sin(Leg.StepAlpha * UE_PI) * StepHeight * LimpLiftShare(Leg));
 			if (Leg.StepAlpha >= 1.f)
 			{
 				Leg.Foot = Leg.StepTo;
@@ -449,8 +467,8 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 			Leg.KneeSpread = DeltaSeconds > 0.f ? FMath::FInterpTo(Leg.KneeSpread, WantedSpread, DeltaSeconds, KneeSpreadRate) : WantedSpread;
 			Pole = KneePole(Up, Outward) + Outward * Leg.KneeSpread;
 			// Its planted foot stays put for the gait; a front leg the notice beat raises or idle life taps or grooms with is
-			// posed off it (SpiderCreatureReact.cpp).
-			SolveTwoBone(Hip, Leg.Foot + ReactFootOffset(Leg, Body), Leg.FemurLength * Scale, Leg.TibiaLength * Scale, Pole, Knee, Foot);
+			// posed off it (SpiderCreatureReact.cpp); a shot leg buckles and a stagger splays the feet (SpiderCreatureLegs.cpp).
+			PoseGaitLeg(Leg, Hip, Leg.Foot + ReactFootOffset(Leg, Body), Outward, IsHeld(Leg), Pole, Knee, Foot);
 		}
 		Leg.PosedFoot = Foot;
 		SetBone(SpiderBones::FirstLeg + Index * 2, Leg.FemurInSegment, SegmentFrame(Hip, Knee, Pole, Scale));

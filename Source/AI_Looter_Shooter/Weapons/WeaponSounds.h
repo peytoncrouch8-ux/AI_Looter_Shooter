@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Audio/LooterSoundCues.h"
 #include "Weapons/ReloadMotion.h"
+#include "Weapons/WeaponBrass.h"
 #include "Weapons/WeaponTypes.h"
 
 /**
@@ -67,6 +68,67 @@ namespace WeaponSounds
 			return LooterSoundCue::Revolver::Holster;
 		}
 		return IsHeavy(Kind) ? FName(LooterSoundCue::Gunfeel::HolsterHeavy) : FName(LooterSoundCue::Holster);
+	}
+
+	/** The cue of the sights rising on a gun of Kind (gun identity): its own foley. */
+	inline FName AimInOf(EWeaponKind Kind)
+	{
+		switch (Kind)
+		{
+		case EWeaponKind::Shotgun:
+			return LooterSoundCue::Gunshot::ShotgunAimIn;
+		case EWeaponKind::Revolver:
+			return LooterSoundCue::Gunshot::RevolverAimIn;
+		case EWeaponKind::SMG:
+			return LooterSoundCue::Gunshot::SMGAimIn;
+		case EWeaponKind::Sniper:
+			return LooterSoundCue::Gunshot::SniperAimIn;
+		case EWeaponKind::LMG:
+			return LooterSoundCue::Gunshot::LMGAimIn;
+		case EWeaponKind::Launcher:
+			return LooterSoundCue::Gunshot::LauncherAimIn;
+		default:
+			return LooterSoundCue::Gunshot::RifleAimIn;
+		}
+	}
+
+	/**
+	 * The sights rising: Kind's own cue (Weapon.<Kind>.AimIn), or the general Weapon.AimIn when the sound bank has no
+	 * cue of the kind's yet (bKindCueAvailable false; GunshotSound::AimInCue asks the bank).
+	 */
+	inline FName AimIn(EWeaponKind Kind, bool bKindCueAvailable = true)
+	{
+		return bKindCueAvailable ? AimInOf(Kind) : FName(LooterSoundCue::AimIn);
+	}
+
+	/** The sights lowering (Weapon.AimOut): one for every kind. */
+	inline FName AimOut()
+	{
+		return LooterSoundCue::AimOut;
+	}
+
+	/**
+	 * The pitch a spent case of Kind lands with (FWeaponBrass::PlayLanding): the six-gun's fat case a little lower than a
+	 * rifle's, the SMG's small one bright, the sniper's magnum low and heavy, the LMG's belt link in between. A hull
+	 * keeps the rifle's (it drops lower on soft ground: FWeaponBrass).
+	 */
+	inline float CasingPitch(ECasingKind Kind)
+	{
+		switch (Kind)
+		{
+		case ECasingKind::Pistol:
+			return 0.92f;
+		case ECasingKind::Small:
+			return 1.25f;
+		case ECasingKind::Magnum:
+			return 0.8f;
+		case ECasingKind::Belt:
+			return 0.95f;
+		case ECasingKind::Rifle:
+		case ECasingKind::Hull:
+		default:
+			return 1.f;
+		}
 	}
 
 	/** Glove and sling as any reload starts, under its steps. */

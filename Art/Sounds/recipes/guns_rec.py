@@ -4,7 +4,7 @@ Mech layer's opening tick and the low-ammo click. See guns_shots.py for how a sh
 """
 import numpy as np
 
-from lib.core import ns, times, layers, child, db2a
+from lib.core import ns, times, layers, child, db2a  # noqa: F401
 from lib import noise as N, filters as F, dynamics as Y, modal as M, reverb as R
 from lib import sample as S
 from recipes import kit
@@ -88,8 +88,18 @@ def _with_roll(wet, roll, at, rel_db):
     return layers(wet, (kit.set_level(roll, wet, rel_db, 0.05), at))
 
 
-def _master(x, clip_db=4.0, lookahead=0.001, release=0.03):
-    return G._master(x, clip_db, 2.0, lookahead, release)
+def _master(x, clip_db=4.0, lookahead=0.001, release=0.03, push_db=2.0):
+    return G._master(x, clip_db, push_db, lookahead, release)
+
+
+def _rise(x, rise):
+    """A layer's front eased in over rise seconds (gun identity, 2026-10-28): the Low under a heavy gun's Core builds as
+    the Core's crack passes, so the two tops don't land together (their sum, which the game can't limit, kept under
+    -1 dBFS); the shove is felt a beat after the crack, as a blast's is."""
+    if rise <= 0.0:
+        return x
+    t = times(x.size)
+    return x * np.clip(t / rise, 0.0, 1.0) ** 1.5
 
 
 def _rec_room(name, i, length, after, t60, hp=120.0, lp=7000.0, channel='mix'):
@@ -119,6 +129,18 @@ def _far(x, lp, hp=120.0, direct_db=-8.0, direct_len=0.025):
     g[:k] = float(db2a(direct_db))
     g = Y.smooth(g, 0.004)
     return F.filt(x * g, F.hpn(hp, 2), F.lpn(lp, 2), F.highshelf(3500.0, -4.0), extend=False)
+
+
+def _cap(x, length, fade=0.15):
+    """A tail held to length seconds: past length - fade it eases to silence (a cosine), so a layer the game lays over
+    the next shots never runs longer than the kind's tail (gun identity, 2026-10-28: the SMG's 0.6 s, the sniper's 2.5 s)."""
+    n = ns(length)
+    if x.size <= n:
+        return x
+    y = x[:n].copy()
+    k = ns(fade)
+    y[n - k:] *= 0.5 + 0.5 * np.cos(np.linspace(0.0, np.pi, k))
+    return y
 
 
 def _tick(r, lo, hi, db):

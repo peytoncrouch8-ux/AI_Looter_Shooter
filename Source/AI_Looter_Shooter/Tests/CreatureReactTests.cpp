@@ -313,6 +313,27 @@ bool FCreatureReactHitFlashTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A crit flashes harder"), Flash.GetIntensity() > Full && Flash.IsCritical());
 	TestTrue(TEXT("Under a tenth of a second"), FCreatureHitFlash::Seconds <= 0.1f);
 
+	// HITS (2026-10-28): the flash's tint by what the body spills (strength unchanged): a spider's warm bone, a slime's pale gel, an
+	// Unpaid's ember, the old warm white for anything else; a crit's gold is the same for all.
+	{
+		const FLinearColor Bone = FCreatureHitFlash::TintFor(ECreatureBlood::Ichor, false);
+		const FLinearColor Pale = FCreatureHitFlash::TintFor(ECreatureBlood::Gel, false);
+		const FLinearColor Coal = FCreatureHitFlash::TintFor(ECreatureBlood::Embers, false);
+		TestTrue(TEXT("Spider flash: warm bone (1, .9, .7)"), Bone.Equals(FLinearColor(1.f, 0.9f, 0.7f), 0.001f));
+		TestTrue(TEXT("Slime flash: pale gel (.85, 1, .8)"), Pale.Equals(FLinearColor(0.85f, 1.f, 0.8f), 0.001f));
+		TestTrue(TEXT("Unpaid flash: ember (1, .62, .32)"), Coal.Equals(FLinearColor(1.f, 0.62f, 0.32f), 0.001f));
+		TestTrue(TEXT("...a miner's too, the dark ichor is a spider's"), FCreatureHitFlash::TintFor(ECreatureBlood::MinerEmbers, false).Equals(Coal, 0.001f)
+			&& FCreatureHitFlash::TintFor(ECreatureBlood::DarkIchor, false).Equals(Bone, 0.001f));
+		TestTrue(TEXT("The three differ"), !Bone.Equals(Pale, 0.05f) && !Pale.Equals(Coal, 0.05f) && !Bone.Equals(Coal, 0.05f));
+		TestTrue(TEXT("Anything else: the old warm white"), FCreatureHitFlash::TintFor(ECreatureBlood::None, false).Equals(FLinearColor(1.f, 0.94f, 0.86f), 0.001f));
+		bool bCritsAlike = true;
+		for (const ECreatureBlood Blood : { ECreatureBlood::Ichor, ECreatureBlood::Gel, ECreatureBlood::Embers, ECreatureBlood::None })
+		{
+			bCritsAlike &= FCreatureHitFlash::TintFor(Blood, true).Equals(FLinearColor(1.f, 0.78f, 0.48f), 0.001f);
+		}
+		TestTrue(TEXT("A crit keeps its gold (1, .78, .48) on every body"), bCritsAlike);
+	}
+
 	// Steady fire only nudges it (the see-through ghost under full auto, 2026-10-22); a pause and it flashes in full again.
 	{
 		FCreatureHitFlash Auto;
@@ -374,6 +395,25 @@ bool FCreatureReactHitFlashTest::RunTest(const FString& Parameters)
 	else
 	{
 		AddWarning(TEXT("M_FX_HitFlash isn't in this checkout: the flash isn't worn, only timed."));
+	}
+	// ...in the tint of what it is (HITS): the material's Color as the hit set it, for a spider, a slime and an Unpaid.
+	if (Look)
+	{
+		auto ColorOf = [](const UMaterialInstanceDynamic* Flash, FLinearColor& Out)
+		{
+			return Flash && Flash->GetVectorParameterValue(FHashedMaterialParameterInfo(FName(TEXT("Color"))), Out);
+		};
+		FLinearColor Worn;
+		TestTrue(TEXT("Spider: its flash is warm bone"), ColorOf(Look, Worn) && Worn.Equals(FLinearColor(1.f, 0.9f, 0.7f), 0.01f));
+		ASlimeCreature* Slime = ReactSpawn<ASlimeCreature>(WorldWrapper.GetTestWorld(), FVector(400.0, 0.0, 0.0));
+		AUnpaidCreature* Unpaid = ReactSpawn<AUnpaidCreature>(WorldWrapper.GetTestWorld(), FVector(800.0, 0.0, 0.0));
+		if (Slime && Slime->GetReact() && Unpaid && Unpaid->GetReact())
+		{
+			BossTestWorld::Hurt(Slime, 5.f);
+			BossTestWorld::Hurt(Unpaid, 5.f);
+			TestTrue(TEXT("Slime: its flash is pale gel"), ColorOf(Slime->GetReact()->GetFlashLook(), Worn) && Worn.Equals(FLinearColor(0.85f, 1.f, 0.8f), 0.01f));
+			TestTrue(TEXT("Unpaid: its flash is ember"), ColorOf(Unpaid->GetReact()->GetFlashLook(), Worn) && Worn.Equals(FLinearColor(1.f, 0.62f, 0.32f), 0.01f));
+		}
 	}
 	float Last = React->GetFlash().GetIntensity();
 	bool bFading = true;

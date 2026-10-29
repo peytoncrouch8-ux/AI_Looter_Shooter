@@ -39,12 +39,17 @@ def saint_maud_ring(v, r):
     return _ease(normalize(x), -6.0, -4.0)
 
 
-@cue('Weapon.Maker.Windfall.Rattle', variations=5, att='Near', jitter=0.06, conc=4, level=-18.0)
+# 3 dB under its first mix (2026-10-28): its rattle met the heavy kinds' Core tops and the own-gun sum passed -1 dBFS.
+@cue('Weapon.Maker.Windfall.Rattle', variations=5, att='Near', jitter=0.06, conc=4, level=-21.0)
 def windfall_rattle(v, r):
     # The gun's odd bits shaken by the action: a few loose steel pieces knocking (a pin, a swivel, a tag on a wire) over
     # about 90 ms, a tin panel bolted on loose buzzing once against the frame, and a dull knock of a part that moves.
-    bits = kit.jingle(0.2, child(r, 'bits'), 6 + int(r.integers(0, 3)), lo=1600.0, hi=6500.0, t60=0.03,
-                      spread=0.09, start=0.008)
+    # Its steel kept out of the ear's touchy 2-5 kHz band (2026-10-28: two takes flagged harsh): the pieces' low knock
+    # under 2 kHz, their tinny shine over 5.5.
+    bits = layers((kit.jingle(0.2, child(r, 'bits'), 6 + int(r.integers(0, 3)), lo=1000.0, hi=1900.0, t60=0.03,
+                              spread=0.09, start=0.008), 0.0, 0.0),
+                  (kit.jingle(0.2, child(r, 'shine'), 4 + int(r.integers(0, 2)), lo=5600.0, hi=9500.0, t60=0.025,
+                              spread=0.09, start=0.008), 0.0, -6.0))
     panel = M.strike(M.plate([360.0, 410.0, 330.0, 390.0, 345.0][v], child(r, 'panel'), count=14, t60=0.07, spread=0.04),
                      M.hammer(0.0003), 0.14)
     # The panel buzzes against the frame: chopped by a fast flutter, so it's a rattle, not a tone.

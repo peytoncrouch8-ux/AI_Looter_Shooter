@@ -57,12 +57,16 @@ void AUnpaidCreature::ApplyCoalColor()
 
 void AUnpaidCreature::ApplyLook(bool bForce)
 {
-	// The hat dissolves with the body.
+	// The hat dissolves with the body, unless it's been knocked off (it lies on the ground as itself until it hides).
 	USkeletalMeshComponent* Body = GetMesh();
+	const bool bHatOnHead = !Hurt.Hat.IsOff();
 	if (bForce || !FMath::IsNearlyEqual(PhaseAmount, ShownPhase, 0.002f))
 	{
 		Body->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, PhaseAmount);
-		Hat->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, PhaseAmount);
+		if (bHatOnHead)
+		{
+			Hat->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, PhaseAmount);
+		}
 		for (UPrimitiveComponent* Part : LookParts)
 		{
 			if (Part)
@@ -75,7 +79,10 @@ void AUnpaidCreature::ApplyLook(bool bForce)
 	if (bForce || !FMath::IsNearlyEqual(Heat, ShownHeat, 0.01f))
 	{
 		Body->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
-		Hat->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
+		if (bHatOnHead)
+		{
+			Hat->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
+		}
 		for (UPrimitiveComponent* Part : LookParts)
 		{
 			if (Part)

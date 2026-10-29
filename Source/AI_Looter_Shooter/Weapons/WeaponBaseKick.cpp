@@ -8,6 +8,7 @@
 // bloom, and the reward of a first shot after a rest). The numbers are GunfeelKickTuning's Looter.Gunfeel.* variables, read
 // per shot, so a change in play shows on the next one. The kick's size is GunfeelKick::ShotRecoil (the Recoil stat, the
 // "more kick" for all, the accuracy's calm); the view's kick and the pattern read the same (PlayerViewKicks/PlayerViewAim).
+// Gun identity (2026-10-28) adds each kind's sight shares and recovery, the LMG's dig-in and the sniper's held recovery.
 
 FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 {
@@ -16,7 +17,8 @@ FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 	// The gun's Recoil stat (its parts) scales every kick, on the gun and on the aim alike; the springs stay the same. Since
 	// playtest round 2 every gun kicks harder (Recoil.More) and its accuracy calms it (the tighter it shoots against its
 	// kind, the steadier: the user's call, 2026-10-27), so the accuracy stat is felt on every shot.
-	const float Kick = GunfeelKick::ShotRecoil(Instance.Definition.Get(), Instance.Stats);
+	// An LMG still spinning up kicks harder, a spun one steadier (its dig-in; 1 for the rest).
+	const float Kick = GunfeelKick::ShotRecoil(Instance.Definition.Get(), Instance.Stats) * GetKickDigIn();
 	// The kind's own weight in the hand on top: its model kicks back, flips, twists and rolls that much more. The aim's
 	// kick (what the player pulls down against) is left alone.
 	const float Weight = Kick * GunfeelKick::RecoilScale(Kind);
@@ -28,12 +30,14 @@ FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 	// An automatic's sideways kick is mostly its pattern now (UPlayerViewComponent::HandleWeaponFired adds that), so only a
 	// share of the old random stays; the other kinds keep all of it.
 	Profile.AimKickSide *= Kick * GunfeelKick::SideRandomScale(Kind);
-	// Through the sight the model kicks by these shares (full-sight numbers; AddShot blends by how far the sights are up).
-	FVector Sighted(1.f, 1.f, 1.f);
-	GunfeelKick::AimedModelKick(1.f, Sighted);
-	Profile.AimedBack = static_cast<float>(Sighted.X);
-	Profile.AimedFlip = static_cast<float>(Sighted.Y);
-	Profile.AimedRoll = static_cast<float>(Sighted.Z);
+	// Through the sight the model kicks by its kind's shares (full-sight numbers; AddShot blends by how far the sights are
+	// up): the six-gun's flip stays its character through the irons, the shotgun shoves back. And the aim comes back at its
+	// kind's pace on the asset's own (the six-gun back on target before the next pull, the heavy tubes slower).
+	const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeel(Kind);
+	Profile.AimedBack = Feel.AimedBack;
+	Profile.AimedFlip = Feel.AimedFlip;
+	Profile.AimedRoll = Feel.AimedRoll;
+	Profile.AimRecovery *= Feel.Recovery;
 	if (Kind == EWeaponKind::Shotgun)
 	{
 		// Heavy: it settles slower, so the shove is held a moment.
@@ -46,6 +50,25 @@ FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 		Profile.ClimbMax = GunfeelKick::RifleClimbMax();
 	}
 	return Profile;
+}
+
+float AWeaponBase::GetKickDigIn() const
+{
+	if (GunfeelKick::KindOf(this) != EWeaponKind::LMG)
+	{
+		return 1.f;
+	}
+	return GunfeelKick::LMGDigIn(GetSpin());
+}
+
+float AWeaponBase::GetRecoilHoldSeconds() const
+{
+	if (GunfeelKick::KindOf(this) != EWeaponKind::Sniper || !bBoltCycling)
+	{
+		return 0.f;
+	}
+	// The bolt's timing is in the world's seconds; the holder's recoil runs on their own clock (faster under Sundown).
+	return GunfeelKick::SniperRecoilHold(BoltTiming.Start + BoltTiming.Seconds) * GetOwnerTimeScale();
 }
 
 float AWeaponBase::GetSpreadBloom() const

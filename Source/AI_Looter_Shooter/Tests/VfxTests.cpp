@@ -105,8 +105,8 @@ bool FVfxKillRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...an SMG's a little less"), VfxRules::KillWeight(EWeaponKind::SMG, false, 0.3f) < Rifle);
 	TestTrue(TEXT("A crit more"), VfxRules::KillWeight(EWeaponKind::Rifle, true, 0.3f) > Rifle);
 	TestTrue(TEXT("Overkill more"), VfxRules::KillWeight(EWeaponKind::Rifle, false, 3.f) > Rifle);
-	TestTrue(TEXT("...but at most 0.3 more"), VfxRules::KillWeight(EWeaponKind::Rifle, false, 100.f) <= Rifle + 0.3f + 0.001f);
-	TestTrue(TEXT("Never past the cap"), VfxRules::KillWeight(EWeaponKind::Launcher, true, 100.f) <= 2.2f);
+	TestTrue(TEXT("...but at most 0.6 more"), VfxRules::KillWeight(EWeaponKind::Rifle, false, 100.f) <= Rifle + 0.6f + 0.001f);
+	TestTrue(TEXT("Never past the cap"), VfxRules::KillWeight(EWeaponKind::Launcher, true, 100.f) <= 2.4f);
 	TestTrue(TEXT("A shotgun carries its gore along the shot most"), VfxRules::KillCarry(EWeaponKind::Shotgun) > VfxRules::KillCarry(EWeaponKind::Rifle));
 	TestTrue(TEXT("Heavy rounds: the revolver's and the sniper's"), VfxRules::IsHeavyRound(1.25f) && VfxRules::IsHeavyRound(1.5f) && !VfxRules::IsHeavyRound(1.f));
 	TestTrue(TEXT("A pellet's pop is smaller than a rifle round's, a sniper's bigger"),

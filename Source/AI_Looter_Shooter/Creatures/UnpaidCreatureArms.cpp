@@ -113,15 +113,18 @@ void AUnpaidCreature::KickArm(int32 Side, float SwingSpeed, float OutSpeed)
 void AUnpaidCreature::ReactToHit(bool bCritical, float Strength)
 {
 	// The flinch: its kick (the spring's peak comes to about the old flinch's 0.6, 1 on a crit), sized by the hit (a
-	// revolver round jolts it hard, a rifle round less; never past MaxFlinchKick: about 20 degrees at the peak).
-	FlinchKick = FMath::Max(FlinchKick, FMath::Min((bCritical ? 1.f : 0.6f) * FlinchKickGain * Strength, MaxFlinchKick));
+	// revolver round jolts it hard, a rifle round less; never past MaxFlinchKick: about 20 degrees at the peak). A shot
+	// through its shroud's cloth jolts it less (Hurt.BodyShare, HITS: UnpaidCreatureHurt.cpp).
+	FlinchKick = FMath::Max(FlinchKick, FMath::Min((bCritical ? 1.f : 0.6f) * FlinchKickGain * Strength * Hurt.BodyShare, MaxFlinchKick));
 	// The body jolts along FlinchAway; the arms lag the other way: pushed back, they fly forward; pushed right, they swing left.
-	const float Fling = HitFling * FMath::Min(Strength, MaxFlingStrength);
+	// A shot on an arm flings that one hard and the other hardly (Hurt.ArmShare): the hit one always at least twice as far.
+	float Flings[2];
+	UnpaidBody::FHurtChannels::ArmFlings(HitFling * FMath::Min(Strength, MaxFlingStrength), Hurt.ArmShare, MaxKickSpeed, Flings);
 	for (int32 Side = 0; Side < 2; ++Side)
 	{
 		const float ArmSide = Arms[Side].Side;
-		KickArm(Side, Fling * static_cast<float>(FlinchAway.X),
-			-ArmSide * Fling * static_cast<float>(FlinchAway.Y) + (bCritical ? CritStartle : 0.f));
+		KickArm(Side, Flings[Side] * static_cast<float>(FlinchAway.X),
+			-ArmSide * Flings[Side] * static_cast<float>(FlinchAway.Y) + (bCritical ? CritStartle : 0.f));
 	}
 }
 
@@ -190,10 +193,12 @@ void AUnpaidCreature::TurnArm(const FArm& Arm, float Swing, float Out, float Ben
 	{
 		Bones[Arm.Hand].Own = PitchBy(Wrist);
 	}
+	// A shot on this arm fans its fingers out for a moment (HITS).
+	const float Splay = Pose.Splay + Hurt.SplayFor(Arm.Side < 0.f ? 0 : 1);
 	for (int32 Finger = 0; Finger < Arm.Fingers.Num(); ++Finger)
 	{
 		// The curl and fan are about axes that don't commute, so the rest's idle comes off as one turn, after them.
-		Bones[Arm.Fingers[Finger]].Own = TurnBy(Arm.CurlAxes[Finger], -Curl) * PitchBy(Arm.FanOffsets[Finger] * Pose.Splay)
+		Bones[Arm.Fingers[Finger]].Own = TurnBy(Arm.CurlAxes[Finger], -Curl) * PitchBy(Arm.FanOffsets[Finger] * Splay)
 			* Arm.IdleTurns[Finger].Inverse();
 	}
 }

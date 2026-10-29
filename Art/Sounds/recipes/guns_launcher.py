@@ -142,7 +142,7 @@ GS.KINDS['Launcher'] = dict(dry=_launcher_dry, mech=_launcher_mech, low=_launche
                             look=0.0015, rel=0.06)
 GS.MIX['Launcher'] = dict(mech=-15.0, low=-3.0)
 
-GS._register('Launcher', 4, 4, dict(fire=0.5, core=-0.1, mech=-15.0, low=-6.5, open=-11.0, town=-10.0, inside=-7.0,
+GS._register('Launcher', 4, 4, dict(fire=0.5, core=2.4, mech=-15.0, low=-15.5, open=-11.0, town=-10.0, inside=-11.0,
                                     distant=-2.5, n_distant=4), 2)
 
 

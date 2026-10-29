@@ -5,6 +5,7 @@
 #include "Creatures/CreatureTierLookComponent.h"
 #include "Elements/ElementStatusComponent.h"
 #include "Player/SlideDust.h"
+#include "Weapons/CreatureBlood.h"
 #include "Weapons/WeaponFX.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
@@ -40,10 +41,6 @@ namespace
 		TEXT("...how tight the rim hugs the silhouette (RimPower)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarCreatureFlashThinFade(TEXT("Looter.Creatures.HitFlash.ThinFade"), FCreatureHitFlash::ThinFade,
 		TEXT("...how much the rim fades on thin parts, legs and bristles (ThinFade; 0: not at all)."), ECVF_Default);
-	/** White with a little warmth; a crit's warmer, toward the coal. */
-	const FLinearColor CreatureFlashColor(1.f, 0.94f, 0.86f);
-	const FLinearColor CreatureCritFlashColor(1.f, 0.78f, 0.48f);
-
 	/** The ground under a creature is looked at again this often (s): it changes as it runs, but never every step. */
 	constexpr double CreatureGroundLookSeconds = 0.75;
 
@@ -180,7 +177,8 @@ void UCreatureReactComponent::FlashHit(bool bCritical)
 	FlashLook->SetScalarParameterValue(CreatureFlashRimParam, FMath::Max(CVarCreatureFlashRim.GetValueOnGameThread(), 0.f));
 	FlashLook->SetScalarParameterValue(CreatureFlashRimPowerParam, FMath::Max(CVarCreatureFlashRimPower.GetValueOnGameThread(), 0.5f));
 	FlashLook->SetScalarParameterValue(CreatureFlashThinFadeParam, FMath::Max(CVarCreatureFlashThinFade.GetValueOnGameThread(), 0.f));
-	FlashLook->SetVectorParameterValue(CreatureFlashColorParam, Flash.IsCritical() ? CreatureCritFlashColor : CreatureFlashColor);
+	// Its tint by what it is made of (HITS, 2026-10-28): warm bone for a spider, pale gel for a slime, ember for an Unpaid.
+	FlashLook->SetVectorParameterValue(CreatureFlashColorParam, FCreatureHitFlash::TintFor(CreatureBlood::Of(GetOwner()), Flash.IsCritical()));
 	FlashLook->SetScalarParameterValue(CreatureFlashIntensityParam, Flash.GetIntensity());
 	if (!bFlashWorn)
 	{

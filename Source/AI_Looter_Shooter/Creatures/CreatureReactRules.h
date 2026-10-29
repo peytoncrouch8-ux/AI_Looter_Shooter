@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureTypes.h"
+#include "Weapons/CreatureBlood.h"
 
 /**
  * The notice beat: half a second as a creature first spots its prey (from calm, or a search that never came to a chase)
@@ -100,6 +101,28 @@ struct AI_LOOTER_SHOOTER_API FCreatureHitFlash
 
 	/** A fresh hit's share of its full strength, GapSeconds after the last hit. */
 	static float ShareFor(float GapSeconds, bool bCritical);
+
+	/**
+	 * The flash's colour by what the body spills (HITS, 2026-10-28; only the tint, the strength is unchanged): a spider's warm
+	 * bone, a slime's pale gel, an Unpaid's ember; anything else (placeholders, dummies) the old white with a little warmth. A
+	 * crit is the same warm gold for all of them.
+	 */
+	static FLinearColor TintFor(ECreatureBlood Blood, bool bCritical)
+	{
+		if (bCritical)
+		{
+			return FLinearColor(1.f, 0.78f, 0.48f);
+		}
+		switch (Blood)
+		{
+		case ECreatureBlood::Ichor:
+		case ECreatureBlood::DarkIchor: return FLinearColor(1.f, 0.9f, 0.7f);
+		case ECreatureBlood::Gel: return FLinearColor(0.85f, 1.f, 0.8f);
+		case ECreatureBlood::Embers:
+		case ECreatureBlood::MinerEmbers: return FLinearColor(1.f, 0.62f, 0.32f);
+		default: return FLinearColor(1.f, 0.94f, 0.86f);
+		}
+	}
 
 	void Start(bool bCritical);
 	void Advance(float DeltaSeconds);

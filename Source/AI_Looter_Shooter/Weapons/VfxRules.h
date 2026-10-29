@@ -87,7 +87,7 @@ namespace VfxRules
 
 	/**
 	 * How big a kill's layers are (1 a rifle's body kill): by the gun (a shotgun's or a rocket's throws more, an SMG's a
-	 * little less), a crit (more), and how far past dead the killing hit went (Share over 1 adds up to 0.3).
+	 * little less), a crit (more), and how far past dead the killing hit went (Share over 1 adds up to 0.6; capped at 2.4).
 	 */
 	AI_LOOTER_SHOOTER_API float KillWeight(EWeaponKind Gun, bool bCritical, float Share);
 

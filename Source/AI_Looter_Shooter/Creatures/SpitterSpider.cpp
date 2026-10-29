@@ -52,6 +52,11 @@ namespace
 	/** A crit on the sac flashes it this much brighter (InnerGlow), fading in a fifth of a second. */
 	constexpr float FlashGlow = 3.f;
 	constexpr float FlashFade = 5.f;
+	/** A shot into the sac (crit or not) swells it this share more in a pulse this long, and drips this many venom bits this big (cm). */
+	constexpr float SacHitSwell = 0.15f;
+	constexpr float SacHitSeconds = 0.2f;
+	constexpr int32 SacHitDrips = 2;
+	constexpr float SacDripSize = 4.f;
 }
 
 ASpitterSpider::ASpitterSpider()
@@ -125,6 +130,22 @@ void ASpitterSpider::OnRankChanged()
 void ASpitterSpider::OnHurt(bool bCritical, const FVector& HitLocation)
 {
 	Super::OnHurt(bCritical, HitLocation);
+	// Any shot into the sac (the hit feel pass, HITS 2026-10-28: the spider's code marks it, WeakHitAge) wobbles it (TickSac)
+	// and spills a little venom from it, as globs' bits dripping down.
+	if (WeakHitAge == 0.f && SacPoseSlot != INDEX_NONE && IsSacHit(HitLocation))
+	{
+		UWorld* World = GetWorld();
+		UBulletSubsystem* Bullets = World && World->IsGameWorld() ? World->GetSubsystem<UBulletSubsystem>() : nullptr;
+		if (Bullets)
+		{
+			FWeaponFX& Effects = Bullets->GetEffects();
+			Effects.Initialize(World);
+			for (int32 Bit = 0; Bit < SacHitDrips; ++Bit)
+			{
+				Effects.SpawnGooDrip(HitLocation, SpitterLook::Venom, SacDripSize * GetSizeScale());
+			}
+		}
+	}
 	if (!bCritical || !IsSacHit(HitLocation))
 	{
 		return;
@@ -259,7 +280,8 @@ void ASpitterSpider::TickSac(float DeltaSeconds)
 		// The throb quickens as the spit nears (its phase kept running, so a changing rate never jumps it).
 		SacClock += DeltaSeconds * FMath::Lerp(ThrobSlow, ThrobFast, Tell) * 2.f * UE_PI;
 		const float Throb = 0.5f + 0.5f * FMath::Sin(SacClock);
-		SacScale = 1.f + SacBreath * FMath::Sin(Clock * SacBreathSpeed) + Tell * TellSwell * (0.65f + 0.35f * Throb) - SpentShrink * SacSpent;
+		SacScale = 1.f + SacBreath * FMath::Sin(Clock * SacBreathSpeed) + Tell * TellSwell * (0.65f + 0.35f * Throb) - SpentShrink * SacSpent
+			+ SacHitSwell * GetWeakHitPulse(SacHitSeconds);
 		SacGlow = SacRestGlow * (1.f - 0.75f * SacSpent) + FMath::Max(SacTellGlow - SacRestGlow, 0.f) * Tell * (0.55f + 0.45f * Throb)
 			+ FlashGlow * SacFlash;
 	}

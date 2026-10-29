@@ -81,6 +81,12 @@ public:
 	/** Adds Degrees (+ right) to the aim kick still to come: the recoil pattern's sideways drift. */
 	void AddAimYaw(float Degrees) { AimPending.Yaw += Degrees; }
 
+	/**
+	 * The last shot's aim kick holds, not recovering at all, for Seconds after it (0 recovers as ever): a bolt gun's kick
+	 * held while its bolt is worked (gun identity). Call it after AddShot; the next shot clears it.
+	 */
+	void HoldRecovery(float Seconds) { HoldSeconds = FMath::Max(Seconds, 0.f); }
+
 	/** Where the last shot added sits in its burst (0 the first), for the pattern and the first shot's reward. */
 	int32 GetShotInBurst() const { return FMath::Max(BurstShots - 1, 0); }
 
@@ -120,6 +126,8 @@ private:
 	FRotator AimApplied = FRotator::ZeroRotator;
 	float AimRecovery = 7.f;
 	float SinceShot = 100.f;
+	/** The aim kick holds until SinceShot reaches this (HoldRecovery). */
+	float HoldSeconds = 0.f;
 	/** Shots so far in this burst (a pause longer than BurstGap ends it), for the aim kick's climb. */
 	int32 BurstShots = 0;
 

@@ -73,14 +73,21 @@ bool FGunfeelKickPatternTest::RunTest(const FString& Parameters)
 	const GunfeelKick::FPatternNumbers Numbers;
 	auto Side = [&Numbers](EWeaponKind Kind, int32 Shot) { return GunfeelKick::PatternSide(Kind, Shot, Numbers); };
 
-	// The rifle: straight up for six shots, then a steady drift right.
+	// The rifle: straight up for six shots, then a steady drift right, then (gun identity) back left: an S to learn.
 	for (int32 Shot = 0; Shot < 6; ++Shot)
 	{
 		TestEqual(FString::Printf(TEXT("Rifle shot %d: straight up"), Shot), Side(EWeaponKind::Rifle, Shot), 0.f);
 	}
 	TestEqual(TEXT("Rifle shot 6: the drift starts"), Side(EWeaponKind::Rifle, 6), PatDef::RifleDrift);
-	TestEqual(TEXT("...and holds"), Side(EWeaponKind::Rifle, 30), PatDef::RifleDrift);
+	TestEqual(TEXT("...and holds to shot 15"), Side(EWeaponKind::Rifle, 15), PatDef::RifleDrift);
 	TestTrue(TEXT("The drift is to the right"), Side(EWeaponKind::Rifle, 12) > 0.f);
+	TestEqual(TEXT("Rifle shot 16: back left"), Side(EWeaponKind::Rifle, 16), PatDef::RifleDriftBack);
+	TestTrue(TEXT("...the S's other way"), Side(EWeaponKind::Rifle, 30) < 0.f);
+	{
+		GunfeelKick::FPatternNumbers NoS;
+		NoS.RifleDriftBack = 0.f;
+		TestEqual(TEXT("No drift back: it holds right (today's)"), GunfeelKick::PatternSide(EWeaponKind::Rifle, 30, NoS), PatDef::RifleDrift);
+	}
 
 	// The SMG: a shimmy, one way then the other, so it hums and does not walk.
 	TestEqual(TEXT("SMG shot 0: right"), Side(EWeaponKind::SMG, 0), PatDef::SMGShimmy);
@@ -139,8 +146,11 @@ bool FGunfeelKickPatternTest::RunTest(const FString& Parameters)
 	{
 		FPatternScopedVariable Pattern(TEXT("Looter.Gunfeel.Recoil.Pattern"), 1.f);
 		FPatternScopedVariable SideVar(TEXT("Looter.Gunfeel.Recoil.SideRandom"), PatDef::SideRandom);
+		FPatternScopedVariable SideSMG(TEXT("Looter.Gunfeel.Recoil.SideRandom.SMG"), PatDef::SideRandomSMG);
+		FPatternScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
 		TestEqual(TEXT("The rifle keeps 40% of its random sideways kick"), GunfeelKick::SideRandomScale(EWeaponKind::Rifle), PatDef::SideRandom, 0.0001f);
-		TestEqual(TEXT("...the SMG and LMG too"), GunfeelKick::SideRandomScale(EWeaponKind::LMG), GunfeelKick::SideRandomScale(EWeaponKind::SMG), 0.0001f);
+		TestEqual(TEXT("...the LMG too"), GunfeelKick::SideRandomScale(EWeaponKind::LMG), PatDef::SideRandom, 0.0001f);
+		TestEqual(TEXT("...the SMG its own (gun identity: it buzzes about)"), GunfeelKick::SideRandomScale(EWeaponKind::SMG), PatDef::SideRandomSMG, 0.0001f);
 		TestEqual(TEXT("The shotgun keeps all of it"), GunfeelKick::SideRandomScale(EWeaponKind::Shotgun), 1.f);
 		TestEqual(TEXT("...and the revolver"), GunfeelKick::SideRandomScale(EWeaponKind::Revolver), 1.f);
 	}
@@ -197,6 +207,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelKickSustainTest, "Looter.Gunfeel.Kick.S
 bool FGunfeelKickSustainTest::RunTest(const FString& Parameters)
 {
 	{
+		// Today's shared cap (Identity 0); each automatic's own since gun identity is Looter.Gunfeel.Identity.SustainCaps.
+		FPatternScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 0.f);
 		FPatternScopedVariable Cap(TEXT("Looter.Gunfeel.Kick.SustainCap"), PatDef::SustainCap);
 		TestEqual(TEXT("A rifle's shot kicks are capped at 1.2 degrees"), GunfeelKick::SustainCapFor(EWeaponKind::Rifle), PatDef::SustainCap);
 		TestEqual(TEXT("...the SMG's and LMG's too"), GunfeelKick::SustainCapFor(EWeaponKind::LMG), GunfeelKick::SustainCapFor(EWeaponKind::SMG));
@@ -237,26 +249,28 @@ bool FGunfeelKickSustainTest::RunTest(const FString& Parameters)
 	Mixed.Tick(0.02f);
 	TestEqual(TEXT("A kill's punch is no shot kick"), Mixed.GetShotPitch(), 0.f);
 
-	// The shake budget: no kind's shot kick, at the shipped weight, is past 2.8 degrees at the hip or 1.4 through the sight,
-	// and the automatics' bursts held at the real shot rates never get past the cap.
+	// Today's shake budget (Identity 0: the old table at the old weights; gun identity's is Looter.Gunfeel.Identity.Caps): no
+	// kind's shot kick is past 2.8 degrees at the hip or 1.4 through the sight, and the automatics' bursts held at the real
+	// shot rates never get past the cap.
 	struct FKindRate { EWeaponKind Kind; float Weight; float ShotsPerSecond; };
+	namespace Today = PatDef::Today;
 	const FKindRate Kinds[] = {
-		{ EWeaponKind::Rifle, PatDef::KickRifle, 14.f }, { EWeaponKind::Shotgun, PatDef::KickShotgun, 1.f },
-		{ EWeaponKind::Revolver, PatDef::KickRevolver, 2.f }, { EWeaponKind::SMG, PatDef::KickSMG, 15.f },
-		{ EWeaponKind::Sniper, PatDef::KickSniper, 1.f }, { EWeaponKind::LMG, PatDef::KickLMG, 11.f },
-		{ EWeaponKind::Launcher, PatDef::KickLauncher, 1.f } };
+		{ EWeaponKind::Rifle, Today::KickRifle, 14.f }, { EWeaponKind::Shotgun, Today::KickShotgun, 1.f },
+		{ EWeaponKind::Revolver, Today::KickRevolver, 2.f }, { EWeaponKind::SMG, Today::KickSMG, 15.f },
+		{ EWeaponKind::Sniper, Today::KickSniper, 1.f }, { EWeaponKind::LMG, Today::KickLMG, 11.f },
+		{ EWeaponKind::Launcher, Today::KickLauncher, 1.f } };
 	FRandomStream Random(12);
 	for (const FKindRate& Each : Kinds)
 	{
-		const FViewKick Hip = ViewKicks::ForShot(Each.Kind, 1.f, 0.f, Random) * Each.Weight;
-		const FViewKick Sight = ViewKicks::ForShot(Each.Kind, 1.f, 1.f, Random) * Each.Weight;
+		const FViewKick Hip = ViewKicks::ForShotToday(Each.Kind, 1.f, 0.f, Random) * Each.Weight;
+		const FViewKick Sight = ViewKicks::ForShotToday(Each.Kind, 1.f, 1.f, Random) * Each.Weight;
 		TestTrue(FString::Printf(TEXT("Kind %d: a hip shot turns the view %.2f degrees, 2.8 at most"), static_cast<int32>(Each.Kind), Hip.Pitch), Hip.Pitch <= 2.8f + 0.01f);
 		TestEqual(TEXT("...and half through the sight"), Sight.Pitch, Hip.Pitch * 0.5f, 0.001f);
 
 		if (Each.Kind == EWeaponKind::Rifle || Each.Kind == EWeaponKind::SMG || Each.Kind == EWeaponKind::LMG)
 		{
 			// A 3 second burst of the heaviest parts (Recoil stat 1.5), every shot given the first shot's extra: held under the cap.
-			FViewKick Burst = ViewKicks::ForShot(Each.Kind, 1.5f, 0.f, Random)
+			FViewKick Burst = ViewKicks::ForShotToday(Each.Kind, 1.5f, 0.f, Random)
 				* (Each.Weight * FMath::Max(GunfeelKick::FirstShotKick(EWeaponKind::Rifle, 0, PatDef::KickFirstShot), 1.f));
 			Burst.SustainCap = PatDef::SustainCap;
 			Burst.SustainFloor = PatDef::SustainFloor;

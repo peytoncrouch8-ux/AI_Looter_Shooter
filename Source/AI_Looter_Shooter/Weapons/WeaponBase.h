@@ -245,6 +245,24 @@ public:
 	/** The sights come up: its holder's view calls this as aiming starts, for the aim-in sound. */
 	void PlayAimIn() const;
 
+	/** The sights go down: its holder's view calls this as the player lets go of the aim with them still up, for the aim-out sound. */
+	void PlayAimOut() const;
+
+	/**
+	 * The LMG's dig-in on every kick it makes now (aim, view, model; GunfeelKick::LMGDigIn by its spin): harder while it
+	 * spins up, steadier once spun. 1 for every other gun and with Looter.Gunfeel.Identity 0. WeaponBaseKick.cpp.
+	 */
+	float GetKickDigIn() const;
+
+	/**
+	 * Seconds the holder's aim kick from the shot just fired holds before recovering: a sniper's while its bolt is worked
+	 * (GunfeelKick::SniperRecoilHold, in the holder's own time), 0 for every other gun. WeaponBaseKick.cpp.
+	 */
+	float GetRecoilHoldSeconds() const;
+
+	/** Shots (and duds) fired since it was made: what its cadence's jitter is keyed on (GunfeelKick::CadenceScale). */
+	int32 GetShotCount() const { return ShotCount; }
+
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool CanReload() const;
 
@@ -295,7 +313,10 @@ public:
 	/** The sniper's scope is up in first person: the scope picture shows (UHudScopeWidget) and the gun and hands are hidden. */
 	bool IsScopedIn() const { return bScopeHidden; }
 
-	/** Seconds between this gun's shots right now: its fire rate's, slower while an LMG is still spinning up. */
+	/**
+	 * Seconds between this gun's shots right now: its fire rate's, slower while an LMG is still spinning up, and an
+	 * automatic's a touch long or short by its cadence (the same for every read until the next shot; the mean kept).
+	 */
 	float GetShotInterval() const;
 
 	/** Magazine changed (shots, reloads, equip). Reserve lives in the holder's pool: see UWeaponManagerComponent::OnAmmoChanged. */
@@ -480,6 +501,8 @@ private:
 
 	int32 CurrentMagazine = 0;
 	int32 BurstShotsRemaining = 0;
+	/** Shots and duds so far (NoteKindShot counts them): the cadence's key, so both reads of one interval agree. */
+	int32 ShotCount = 0;
 	bool bWantsToFire = false;
 	bool bReloading = false;
 	bool bAmmoInitialized = false;

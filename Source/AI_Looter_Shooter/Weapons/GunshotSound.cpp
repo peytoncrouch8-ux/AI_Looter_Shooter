@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/GunfeelSoundTuning.h"
 #include "Weapons/MakerSoundFlavor.h"
 #include "Weapons/WeaponBase.h"
@@ -53,6 +54,7 @@ namespace
 		case EGunshotLayer::LastRound: return TEXT("LastRound");
 		case EGunshotLayer::HeatHiss: return TEXT("HeatHiss");
 		case EGunshotLayer::Rack: return TEXT("Rack");
+		case EGunshotLayer::Punch: return TEXT("Punch");
 		default: return TEXT("Fire");
 		}
 	}
@@ -153,8 +155,11 @@ namespace
 		return Memory.Surroundings;
 	}
 
-	/** One more shot of Kind's burst at Now; whether its tail plays (every Nth of an automatic's burst, else every one). */
-	bool NoteShot(FShooterMemory& Memory, EWeaponKind Kind, double Now)
+	/**
+	 * One more shot of Kind's burst at Now; whether its tail plays (every Nth of an automatic's burst, else every one).
+	 * OutShotInBurst is its place in the burst (0 the first), what the body punch's every-Nth counts.
+	 */
+	bool NoteShot(FShooterMemory& Memory, EWeaponKind Kind, double Now, int32& OutShotInBurst)
 	{
 		if (GunfeelSound::NewBurst(Now, Memory.LastShotAt, GunfeelSound::BurstGap()))
 		{
@@ -162,6 +167,7 @@ namespace
 			Memory.ShotsSinceTail = 0;
 		}
 		const int32 ShotInBurst = Memory.BurstShots++;
+		OutShotInBurst = ShotInBurst;
 		Memory.LastShotAt = Now;
 		const bool bTail = GunfeelSound::TailPlays(ShotInBurst, GunfeelSound::AutoTailEvery(Kind));
 		Memory.ShotsSinceTail = bTail ? 0 : Memory.ShotsSinceTail + 1;
@@ -309,7 +315,10 @@ void GunshotSound::PlayShot(const AWeaponBase& Weapon)
 		return;
 	}
 	// Which shot of its burst this is: an automatic skips the tails between its Nth shots (the burst's end plays the long one).
-	Layers.bTail = NoteShot(Memory, Kind, World->GetTimeSeconds()) && Layers.bTail;
+	int32 ShotInBurst = 0;
+	Layers.bTail = NoteShot(Memory, Kind, World->GetTimeSeconds(), ShotInBurst) && Layers.bTail;
+	// The kind's own balance of its layers (gun identity; 1/1/1 with Looter.Gunfeel.Identity 0).
+	const GunfeelSound::FKindMix Mix = GunfeelSound::KindMix(Kind);
 
 	// The player's own layers ride on the gun, so they stay with the view as it turns; someone else's tail stays where the
 	// shot was, as the land's answer does.
@@ -317,22 +326,34 @@ void GunshotSound::PlayShot(const AWeaponBase& Weapon)
 	{
 		LooterSound::PlayAttached(CoreCue(Kind), Gun, NAME_None, Flavor.Core, Flavor.Pitch);
 	}
-	const float Mech = GunfeelSound::MechVolume() * Flavor.Mech;
+	const float Mech = GunfeelSound::MechVolume() * Flavor.Mech * Mix.Mech;
 	if (Layers.bMech && Mech > 0.f)
 	{
 		// A loose action (Windfall's) never cycles at quite the same pitch twice.
 		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::Mech), Gun, NAME_None, Mech,
 			MakerSoundFlavor::MechPitch(Flavor, FMath::FRand()));
 	}
-	const float Low = GunfeelSound::LowVolume() * Flavor.Low;
+	const float Low = GunfeelSound::LowVolume() * Flavor.Low * Mix.Low;
 	if (Layers.bLow && Low > 0.f)
 	{
 		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::Low), Gun, NAME_None, Low, Flavor.Pitch);
 	}
-	const float Tail = GunfeelSound::TailVolume() * Flavor.Tail;
+	const float Tail = GunfeelSound::TailVolume() * Flavor.Tail * Mix.Tail;
 	if (Layers.bTail && Tail > 0.f)
 	{
 		PlayTail(Weapon, Kind, Surroundings, bOwnGun, Tail, MakerSoundFlavor::TailPitchOf(Flavor));
+	}
+	// The body punch: a thump under the shot, 2D so it stays in the chest wherever the view turns, on the shooter's own gun
+	// and only on every Nth shot of an automatic's burst (a punch per round at 900 rpm would only smear). The maker's
+	// volumes stay off it (the mix was balanced with its peak in mind); its pitch moves it with the rest of the shot.
+	const float Punch = GunfeelSound::PunchVolume(Kind);
+	if (GunfeelSound::PunchAudible(bOwnGun, Punch) && GunfeelSound::PunchPlays(ShotInBurst, GunfeelSound::PunchEvery(Kind)))
+	{
+		const FName PunchCue = CueFor(Kind, EGunshotLayer::Punch);
+		if (Sounds->HasSounds(PunchCue))
+		{
+			LooterSound::Play2D(&Weapon, PunchCue, Punch, Flavor.Pitch);
+		}
 	}
 	// The maker's own layer (Saint Maud's ring, Windfall's rattle) rides with the action: the shooter's own gun, and only
 	// once the bank has it (no warning from a bank built before it).
@@ -371,7 +392,7 @@ void GunshotSound::PlayBurstEnd(const AWeaponBase& Weapon)
 		return;
 	}
 	const FMakerSoundFlavor Flavor = MakerSoundFlavor::Of(Weapon);
-	const float TailGain = GunfeelSound::BurstEndTailVolume() * GunfeelSound::TailVolume() * Flavor.Tail;
+	const float TailGain = GunfeelSound::BurstEndTailVolume() * GunfeelSound::TailVolume() * Flavor.Tail * GunfeelSound::KindMix(Kind).Tail;
 	if (GunfeelSound::BurstEndTailPlays(BurstShots, ShotsSinceTail, TailGain))
 	{
 		PlayTail(Weapon, Kind, SurroundingsOf(Memory, Weapon, *World), bOwnGun, TailGain, MakerSoundFlavor::TailPitchOf(Flavor));
@@ -428,6 +449,27 @@ void GunshotSound::PlayLowAmmo(const AWeaponBase& Weapon, int32 RoundsLeft, int3
 	{
 		LooterSound::PlayAttached(CueFor(Kind, EGunshotLayer::LowAmmo), Weapon.GetRootComponent(), NAME_None, 1.f, Pitch);
 	}
+}
+
+FName GunshotSound::AimInCue(const UObject* WorldContext, EWeaponKind Kind)
+{
+	// Identity 0, or a bank built before the kind's cue: the general sound of the sights rising, as before.
+	if (!GunfeelKick::IdentityOn())
+	{
+		return LooterSoundCue::AimIn;
+	}
+	const ULooterSoundSubsystem* Sounds = ULooterSoundSubsystem::Find(WorldContext);
+	return WeaponSounds::AimIn(Kind, Sounds && Sounds->HasSounds(WeaponSounds::AimIn(Kind)));
+}
+
+FName GunshotSound::AimOutCue(const UObject* WorldContext)
+{
+	if (!GunfeelKick::IdentityOn())
+	{
+		return FName();
+	}
+	const ULooterSoundSubsystem* Sounds = ULooterSoundSubsystem::Find(WorldContext);
+	return Sounds && Sounds->HasSounds(WeaponSounds::AimOut()) ? WeaponSounds::AimOut() : FName();
 }
 
 void GunshotSound::PlayCritRing(const UObject* WorldContext)

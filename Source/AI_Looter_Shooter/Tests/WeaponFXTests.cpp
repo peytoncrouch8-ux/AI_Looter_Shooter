@@ -11,6 +11,7 @@
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponFX.h"
 #include "Weapons/WeaponModelComponent.h"
+#include "Weapons/WeaponSounds.h"
 #include "Components/BoxComponent.h"
 #include "CoreGlobals.h"
 #include "Engine/World.h"
@@ -59,6 +60,29 @@ bool FWeaponFXBrassTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("A rifle throws brass"), FWeaponBrass::KindFor(EWeaponKind::Rifle), ECasingKind::Rifle);
 	TestEqual(TEXT("A shotgun throws hulls"), FWeaponBrass::KindFor(EWeaponKind::Shotgun), ECasingKind::Hull);
 	TestEqual(TEXT("A revolver's are pistol cases"), FWeaponBrass::KindFor(EWeaponKind::Revolver), ECasingKind::Pistol);
+	// Gun identity (Looter.Gunfeel.Identity): each automatic and the sniper has its own case; with it off they share the rifle's.
+	TestEqual(TEXT("Identity: an SMG throws small cases"), FWeaponBrass::KindFor(EWeaponKind::SMG, true), ECasingKind::Small);
+	TestEqual(TEXT("Identity: an LMG throws belt cases"), FWeaponBrass::KindFor(EWeaponKind::LMG, true), ECasingKind::Belt);
+	TestEqual(TEXT("Identity: a sniper throws magnum cases"), FWeaponBrass::KindFor(EWeaponKind::Sniper, true), ECasingKind::Magnum);
+	TestEqual(TEXT("Identity: a rifle still its own"), FWeaponBrass::KindFor(EWeaponKind::Rifle, true), ECasingKind::Rifle);
+	TestEqual(TEXT("Identity: a shotgun still hulls"), FWeaponBrass::KindFor(EWeaponKind::Shotgun, true), ECasingKind::Hull);
+	TestEqual(TEXT("Identity: a revolver still pistol cases"), FWeaponBrass::KindFor(EWeaponKind::Revolver, true), ECasingKind::Pistol);
+	for (const EWeaponKind Kind : { EWeaponKind::SMG, EWeaponKind::LMG, EWeaponKind::Sniper })
+	{
+		TestEqual(TEXT("Identity 0: the rifle's case, as before"), FWeaponBrass::KindFor(Kind, false), ECasingKind::Rifle);
+	}
+	const FVector2D Rifle = FWeaponBrass::SizeOf(ECasingKind::Rifle);
+	TestTrue(TEXT("The small case is the shortest"), FWeaponBrass::SizeOf(ECasingKind::Small).X < Rifle.X);
+	TestTrue(TEXT("The magnum is the longest and fattest"), FWeaponBrass::SizeOf(ECasingKind::Magnum).X > FWeaponBrass::SizeOf(ECasingKind::Hull).X
+		&& FWeaponBrass::SizeOf(ECasingKind::Magnum).Y > FWeaponBrass::SizeOf(ECasingKind::Pistol).Y);
+	TestTrue(TEXT("The belt case is longer than a rifle's and fatter"), FWeaponBrass::SizeOf(ECasingKind::Belt).X > Rifle.X
+		&& FWeaponBrass::SizeOf(ECasingKind::Belt).Y > Rifle.Y);
+	TestTrue(TEXT("A link is a centimetre or so"), FWeaponBrass::SizeOf(ECasingKind::Link).X < 1.5 && FWeaponBrass::SizeOf(ECasingKind::Link).Y < 1.0);
+	TestTrue(TEXT("...and lies thin"), FWeaponBrass::HalfThickness(ECasingKind::Link) < FWeaponBrass::HalfThickness(ECasingKind::Small));
+	TestEqual(TEXT("The last 40 links are kept"), FWeaponBrass::MaxLinks, 40);
+	TestTrue(TEXT("The small case lands bright, the magnum low, the six-gun's a bit low"), WeaponSounds::CasingPitch(ECasingKind::Small) > 1.f
+		&& WeaponSounds::CasingPitch(ECasingKind::Magnum) < WeaponSounds::CasingPitch(ECasingKind::Pistol)
+		&& WeaponSounds::CasingPitch(ECasingKind::Pistol) < 1.f && WeaponSounds::CasingPitch(ECasingKind::Rifle) == 1.f);
 	TestEqual(TEXT("Brass on stone clinks"), FWeaponBrass::CueFor(ECasingKind::Rifle, EImpactMaterial::Stone), FName(TEXT("Weapon.Casing.Stone")));
 	TestEqual(TEXT("...on wood knocks"), FWeaponBrass::CueFor(ECasingKind::Rifle, EImpactMaterial::Wood), FName(TEXT("Weapon.Casing.Wood")));
 	TestEqual(TEXT("...on steel rings"), FWeaponBrass::CueFor(ECasingKind::Pistol, EImpactMaterial::Metal), FName(TEXT("Weapon.Casing.Metal")));

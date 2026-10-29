@@ -5,6 +5,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "UI/HUD/HudScopeWidget.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/GunKindsTuning.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponDefinition.h"
@@ -21,8 +22,8 @@
 
 // AWeaponBase's ways for the four frontier-tech kinds (Phase 12.3; GunKindsTuning has the numbers and the rules): the
 // SMG helix's glow, the sniper's bolt and scope, the LMG's spin and heat, the launcher's rocket, and every gun's sway
-// through its sights (UpdateScopeSway; the scope's widest). Every number is read when it's used, so a change in play
-// shows at once.
+// through its sights (UpdateScopeSway; the scope's widest), and since gun identity (2026-10-28) the automatics' cadence and
+// the sniper's bolt-home beat. Every number is read when it's used, so a change in play shows at once.
 
 namespace
 {
@@ -52,14 +53,18 @@ namespace
 float AWeaponBase::GetShotInterval() const
 {
 	const float Base = Instance.Stats.GetSecondsBetweenShots();
-	if (KindOfInstance(Instance) != EWeaponKind::LMG)
+	const EWeaponKind Kind = KindOfInstance(Instance);
+	// An automatic's rhythm isn't a metronome (gun identity): each interval a touch long or short, keyed on the shot count so
+	// the trigger's ready check and the auto-fire timer read the same one, the mean kept so the damage per second is too.
+	if (Kind != EWeaponKind::LMG)
 	{
-		return Base;
+		return Base * GunfeelKick::CadenceScale(Kind, ShotCount, 1.f);
 	}
-	// Spinning up: the rate climbs from its start share to full.
+	// Spinning up: the rate climbs from its start share to full (the rhythm only once it's there).
 	const UWorld* World = GetWorld();
 	const double Now = World ? World->GetTimeSeconds() : SpinTime;
-	return Base / GunKinds::SpinRateShare(GetSpinAt(Now), GunKinds::LMGSpinStart());
+	const float SpinNow = GetSpinAt(Now);
+	return Base / GunKinds::SpinRateShare(SpinNow, GunKinds::LMGSpinStart()) * GunfeelKick::CadenceScale(Kind, ShotCount, SpinNow);
 }
 
 float AWeaponBase::GetSpinAt(double Now) const
@@ -189,6 +194,8 @@ void AWeaponBase::NoteKindShot(bool bMisfire)
 		return;
 	}
 	const double Now = World->GetTimeSeconds();
+	// One more shot: the next interval's cadence (read after this, by the timer and the next press alike).
+	ShotCount = ShotCount < MAX_int32 ? ShotCount + 1 : 0;
 	switch (KindOfInstance(Instance))
 	{
 	case EWeaponKind::Sniper:
@@ -328,7 +335,7 @@ void AWeaponBase::UpdateBoltCycle()
 	{
 		if (SinceShot >= BoltTiming.Start + BoltTiming.Seconds)
 		{
-			// Home: whatever a long frame skipped, the case is out and the bolt is down.
+			// Home: whatever a long frame skipped, the case is out and the bolt is down, and the shooter feels it close.
 			bBoltCycling = false;
 			Model->SetBoltOpen(0.f);
 			ApplyCyclePose(FVector::ZeroVector, FRotator::ZeroRotator);
@@ -337,6 +344,7 @@ void AWeaponBase::UpdateBoltCycle()
 				bBoltCaseOut = true;
 				EjectCasing();
 			}
+			GunfeelKick::BoltHomeBeat(*this);
 		}
 		return;
 	}

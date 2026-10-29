@@ -191,6 +191,15 @@ bool FGunfeelSteadyProfileTest::RunTest(const FString& Parameters)
 		TestNearlyEqual(TEXT("ShotRecoil is the stat x More x the calm"), Shot,
 			Gun->GetStats().Recoil * KickDef::RecoilMore * GunfeelKick::AccuracyCalm(Rifle->BaseStats.Spread, Gun->GetStats().Spread,
 				GunfeelKick::FAccuracyKick()), 0.0001f);
+		// Gun identity (2026-10-28): the aim comes back at the kind's pace on the asset's, the model's sight shares are the
+		// kind's (the rifle's are today's), and nothing but an LMG digs in.
+		const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeel(EWeaponKind::Rifle);
+		const FWeaponRecoilProfile Profile = Gun->GetRecoilProfile();
+		TestNearlyEqual(TEXT("The aim's recovery is the asset's x the kind's"), Profile.AimRecovery, Rifle->Recoil.AimRecovery * Feel.Recovery, 0.0001f);
+		TestNearlyEqual(TEXT("...its sight flip the kind's"), Profile.AimedFlip, Feel.AimedFlip, 0.0001f);
+		TestNearlyEqual(TEXT("...its sight push back the kind's"), Profile.AimedBack, Feel.AimedBack, 0.0001f);
+		TestNearlyEqual(TEXT("A rifle doesn't dig in"), Gun->GetKickDigIn(), 1.f, 0.0001f);
+		TestNearlyEqual(TEXT("...nor hold its recovery"), Gun->GetRecoilHoldSeconds(), 0.f, 0.0001f);
 	}
 	// Per point of Recoil stat: the tighter of the two kicks less.
 	auto PerStat = [Rifle](const AWeaponBase* Gun) { return Gun->GetRecoilProfile().AimKick / FMath::Max(Gun->GetStats().Recoil * Rifle->Recoil.AimKick, 0.0001f); };

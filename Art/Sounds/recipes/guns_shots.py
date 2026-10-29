@@ -35,7 +35,7 @@ from recipes import cue
 from recipes import kit
 from recipes import guns as G
 from recipes.guns_rec import (SHOTS, _loud, _take, _roll, _gated, _land_wet, _with_roll, _master, _rec_room,  # noqa: F401
-                               _synth_room, _far, _tick, _ping)
+                               _synth_room, _far, _tick, _ping, _rise)
 
 # --- The Bullpup rifle: tight and punchy, a mid crack ---------------------------------------------------------------------
 
@@ -320,13 +320,21 @@ MIX = {
 }
 
 
+# Gun identity (2026-10-28, Docs/Work/2026-10-28-Core/GUNS.md lane D): the loudness ladder (SMG -3, rifle 0, LMG +1,
+# revolver +2, shotgun +3, launcher +3, sniper +4 LU) with every own-gun sum under -1 dBFS (check.py's gun table). Per
+# kind: how hard its Core is pushed into the master's limiter (dB; denser, so it's louder for its peak: the heavy kinds),
+# and how long its Low takes to rise (s; its top lands after the Core's: guns_rec._rise). The rifle keeps round 3's Core.
+DENSITY = {'Rifle': (2.0, 0.02), 'SMG': (2.0, 0.0), 'LMG': (10.0, 0.035), 'Revolver': (7.0, 0.025), 'Shotgun': (6.0, 0.035),
+           'Sniper': (8.0, 0.035), 'Launcher': (6.0, 0.035)}
+
+
 def _k(kind):
     return KINDS[kind]
 
 
 def _core(kind, v, r):
     k = _k(kind)
-    return _master(k['dry'](v, child(r, 'dry')), k['clip'], k['look'], k['rel'])
+    return _master(k['dry'](v, child(r, 'dry')), k['clip'], k['look'], k['rel'], DENSITY[kind][0])
 
 
 def _tail(kind, which, v, r):
@@ -368,7 +376,7 @@ def _register(kind, n_core, n_fire, levels, conc, trim=0.0):
 
     @cue(f'Weapon.{kind}.Low', variations=4, att='Near', jitter=0.03, conc=4, level=lv['low'])
     def low(v, r):
-        return _k(kind)['low'](v, r)
+        return _rise(_k(kind)['low'](v, r), DENSITY[kind][1])
 
     @cue(f'Weapon.{kind}.TailOpen', variations=4, att='Gun', jitter=0.03, conc=6, level=lv['open'], swell=True)
     def tail_open(v, r):
@@ -391,11 +399,11 @@ def _register(kind, n_core, n_fire, levels, conc, trim=0.0):
 # loudness inside Fire's mix (measured: each layer's loudest 200 ms against Fire's, over four takes), so the shooter's
 # layers add up to Fire; a town's tail 1.5-0.5 dB over the open one, a room's 4-5 dB over it (a room answers louder, but
 # a rifle's burst indoors mustn't wash out); Distant 2-3 dB under Fire (the far takes carry their own field).
-_register('Rifle', 6, 6, dict(fire=0.0, core=-0.6, mech=-14.1, low=-9.6, open=-15.1, town=-13.5, inside=-10.5,
+_register('Rifle', 6, 6, dict(fire=0.0, core=-0.6, mech=-14.1, low=-9.6, open=-15.1, town=-13.5, inside=-12.5,
                               distant=-3.0, n_distant=6), 8)
-_register('Shotgun', 5, 5, dict(fire=1.0, core=0.2, mech=-13.8, low=-5.9, open=-12.2, town=-11.0, inside=-7.5,
+_register('Shotgun', 5, 5, dict(fire=1.0, core=2.6, mech=-13.8, low=-14.9, open=-12.2, town=-11.0, inside=-11.5,
                                 distant=-2.0, n_distant=5), 4)
-_register('Revolver', 6, 6, dict(fire=0.5, core=0.2, mech=-17.6, low=-12.1, open=-10.0, town=-9.3, inside=-5.8,
+_register('Revolver', 6, 6, dict(fire=0.5, core=2.6, mech=-17.6, low=-18.1, open=-10.0, town=-9.3, inside=-11.0,
                                  distant=-2.5, n_distant=5), 6, trim=0.8)
 
 

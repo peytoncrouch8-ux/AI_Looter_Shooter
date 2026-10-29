@@ -11,10 +11,12 @@ namespace
 	// The flinch and the slow.
 	TAutoConsoleVariable<float> CVarFlinchScale(TEXT("Looter.Gunfeel.Flinch.Scale"), ReactDefaults.FlinchScale,
 		TEXT("Every creature's hit flinch, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarFlinchFloor(TEXT("Looter.Gunfeel.Flinch.Floor"), ReactDefaults.FlinchFloor,
+		TEXT("The least a hit flinches a creature, whatever its share of health (0.6 before HITS)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFlinchDamageGain(TEXT("Looter.Gunfeel.Flinch.DamageGain"), ReactDefaults.FlinchDamageGain,
-		TEXT("How much a hit's share of health adds to its flinch (flinch = Scale x clamp(0.6 + Gain x share, 0.6, Max))."), ECVF_Default);
+		TEXT("How much a hit's share of health adds to its flinch (flinch = Scale x clamp(Floor + Gain x share, Floor, Max))."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFlinchMax(TEXT("Looter.Gunfeel.Flinch.Max"), ReactDefaults.FlinchMax,
-		TEXT("The most a hit flinches a creature, before a crit's own."), ECVF_Default);
+		TEXT("The most a hit flinches a creature, the far boost included, before a crit's own (2.5 before HITS)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFlinchCritScale(TEXT("Looter.Gunfeel.Flinch.CritScale"), ReactDefaults.FlinchCritScale,
 		TEXT("A critical hit's flinch, times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFlinchBossScale(TEXT("Looter.Gunfeel.Flinch.BossScale"), ReactDefaults.FlinchBossScale,
@@ -92,9 +94,10 @@ FGunfeelReactTuning FGunfeelReactTuning::Live()
 {
 	FGunfeelReactTuning Tuning;
 	Tuning.FlinchScale = NotBelowZero(CVarFlinchScale);
+	Tuning.FlinchFloor = NotBelowZero(CVarFlinchFloor);
 	Tuning.FlinchDamageGain = NotBelowZero(CVarFlinchDamageGain);
-	// The cap is never under the floor (a hit's least flinch is 0.6).
-	Tuning.FlinchMax = FMath::Max(CVarFlinchMax.GetValueOnGameThread(), 0.6f);
+	// The cap is never under the floor (a hit's least flinch).
+	Tuning.FlinchMax = FMath::Max(CVarFlinchMax.GetValueOnGameThread(), Tuning.FlinchFloor);
 	Tuning.FlinchCritScale = NotBelowZero(CVarFlinchCritScale);
 	Tuning.FlinchBossScale = NotBelowZero(CVarFlinchBossScale);
 	Tuning.FlinchSlow = FMath::Clamp(CVarFlinchSlow.GetValueOnGameThread(), 0.05f, 1.f);

@@ -1,4 +1,5 @@
 #include "Player/PlayerLocomotionComponent.h"
+#include "Weapons/GunHeftTuning.h"
 #include "AI_Looter_Shooter.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
@@ -466,8 +467,12 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 	// Looter.Gunfeel.Aim.Move.*).
 	const UWeaponManagerComponent* Manager = WeaponManager.Get();
 	const float AimedWalk = AimWalkSpeedMultiplier * GunfeelKick::AimMoveScale(GunfeelKick::KindOf(Manager ? Manager->GetActiveWeapon() : nullptr));
-	const float WalkSpeed = bSprinting ? BaseWalkSpeed * SprintSpeedMultiplier
-		: BaseWalkSpeed * FMath::Lerp(1.f, AimedWalk, View ? View->GetAimAlpha() : 0.f);
+	// The gun's heft by its kind (GunHeft::MoveScale, Main's call 2026-10-28: SMG and revolver +5%, LMG and launcher -5%,
+	// sniper -3%; 1 unarmed or with the identity switch off), walking and sprinting alike.
+	const AWeaponBase* InHand = Manager ? Manager->GetActiveWeapon() : nullptr;
+	const float KindMove = InHand ? GunHeft::MoveScale(GunfeelKick::KindOf(InHand)) : 1.f;
+	const float WalkSpeed = bSprinting ? BaseWalkSpeed * KindMove * SprintSpeedMultiplier
+		: BaseWalkSpeed * KindMove * FMath::Lerp(1.f, AimedWalk, View ? View->GetAimAlpha() : 0.f);
 	if (!FMath::IsNearlyEqual(Move->MaxWalkSpeed, WalkSpeed))
 	{
 		Move->MaxWalkSpeed = WalkSpeed;

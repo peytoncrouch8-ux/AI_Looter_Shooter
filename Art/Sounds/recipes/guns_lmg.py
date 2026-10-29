@@ -148,7 +148,7 @@ GS.MIX['LMG'] = dict(mech=-14.0, low=-5.0)
 
 # Fire about a dB under the rifle's by measured loudness (its weight is in the lows, which loudness counts less, so
 # it plays as big as the rifle or bigger); its tails a little under the rifle's (a long burst).
-GS._register('LMG', 6, 6, dict(fire=-0.9, core=-1.4, mech=-14.5, low=-8.5, open=-15.0, town=-13.5, inside=-10.5,
+GS._register('LMG', 6, 6, dict(fire=-0.9, core=0.75, mech=-19.5, low=-16.5, open=-15.0, town=-13.5, inside=-16.0,
                                distant=-3.5, n_distant=6), 8)
 
 

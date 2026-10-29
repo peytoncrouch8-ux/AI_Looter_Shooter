@@ -362,7 +362,18 @@ void AWeaponBase::PlayCue(FName Cue, USoundBase* Override) const
 
 void AWeaponBase::PlayAimIn() const
 {
-	PlayCue(LooterSoundCue::AimIn);
+	// Each kind's own raise (Weapon.<Kind>.AimIn), the shared one when the bank has none or the identity switch is off.
+	PlayCue(GunshotSound::AimInCue(this, GunfeelKick::KindOf(this)));
+}
+
+void AWeaponBase::PlayAimOut() const
+{
+	// Letting go of the sights with them up: a short lowering (none with the identity switch off, as before).
+	const FName Cue = GunshotSound::AimOutCue(this);
+	if (!Cue.IsNone())
+	{
+		PlayCue(Cue);
+	}
 }
 
 void AWeaponBase::NotifyBulletHit(const FHitResult& Hit, float Damage, bool bCritical)

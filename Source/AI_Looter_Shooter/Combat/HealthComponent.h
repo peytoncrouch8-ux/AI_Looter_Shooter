@@ -122,6 +122,18 @@ public:
 	const FHealthHit* GetHitBeingTaken() const { return HitBeingTaken; }
 
 	/**
+	 * The bone the latest damage's shot hit (a point damage's: a bullet, a strike, a burst), None for damage dealt without
+	 * one (OnTakeAnyDamage alone: a test level's, a status's tick). Valid while OnDamaged runs (HITS: a creature's hit zone).
+	 */
+	FName GetLastHitBone() const { return LastHitBone; }
+
+	/** The part the latest damage's shot hit (the mesh, or a hit zone of its own: a miner's lamp, a bell); null without one. */
+	const UPrimitiveComponent* GetLastHitComponent() const;
+
+	/** Its health just before the latest damage came off it (valid while OnDamaged runs): how far past dead a kill went. */
+	float GetHealthBeforeLastHit() const { return HealthBeforeLastHit; }
+
+	/**
 	 * What the latest damage took off health itself, after the shield: 0 when a shield took all of it. A listener that
 	 * means a wound, not a hit (a hurt grunt, Borrowed Time's debt), reads this in OnDamaged.
 	 */
@@ -187,4 +199,11 @@ private:
 	// so the point handler stashes the hit location for the any-damage handler to use.
 	bool bHasPendingHitLocation = false;
 	FVector PendingHitLocation = FVector::ZeroVector;
+	/** ...and the bone and part it hit, for GetLastHitBone / GetLastHitComponent. */
+	FName PendingHitBone;
+	TWeakObjectPtr<const UPrimitiveComponent> PendingHitComponent;
+	FName LastHitBone;
+	TWeakObjectPtr<const UPrimitiveComponent> LastHitComponent;
+	/** GetHealthBeforeLastHit's. */
+	float HealthBeforeLastHit = 0.f;
 };

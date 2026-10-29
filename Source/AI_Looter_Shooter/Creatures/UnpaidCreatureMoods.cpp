@@ -9,14 +9,18 @@
 #include "Creatures/UnpaidCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
 #include "Audio/LooterSound.h"
+#include "Combat/HealthComponent.h"
+#include "Creatures/CreatureHitCues.h"
 #include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
 #include "Creatures/FightDirectorSubsystem.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidHat.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/Pawn.h"
 
 namespace
@@ -53,6 +57,16 @@ namespace
 
 	/** Dying, ash comes off it this fast (motes a second) while it breaks up, from these of its bones. */
 	constexpr float AshPerSecond = 20.f;
+
+	/**
+	 * Its stagger (HITS): its arms thrown out this far (the shriek's Spread), its coal guttering down to a tenth of its glow
+	 * (heat -0.9: "heat 0.1" in the plan) for the hold, then flaring this much as it comes back.
+	 */
+	constexpr float StaggerSpread = 0.6f;
+	constexpr float StaggerGutterHeat = -0.9f;
+	constexpr float StaggerRecoverFlare = 0.6f;
+	/** Snuffed, its coal is out at once. */
+	constexpr float SnuffedHeat = -1.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,10 +193,26 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 		Goal.Curl = 50.f;
 		Goal.Splay = 0.f;
 		Goal.Crumple = IsBossCreature() ? 0.f : 1.f;
+		if (Hurt.IsStiff(DeathTime))
+		{
+			// Snuffed (HITS): a moment stiff and upright as its coal goes out, arms jerked out, mouth wide; then it drops.
+			Goal.Death = 0.f;
+			Goal.Crumple = 0.f;
+			Goal.Lean = -2.f;
+			Goal.Spread = 0.25f;
+			Goal.Jaw = 30.f;
+		}
 		break;
 
 	default:
 		break;
+	}
+
+	// Its hits (HITS, UnpaidCreatureHurt.cpp): staggered, its arms thrown out; a Big hit from the front snaps its strips straight.
+	if (!IsDead())
+	{
+		Goal.Spread = FMath::Max(Goal.Spread, StaggerSpread * Hurt.Stagger);
+		Goal.Snap = FMath::Max(Goal.Snap, Hurt.SnapLeft > 0.f ? 1.f : 0.f);
 	}
 
 	// Rising out of the ground: clawing up out of the dirt, arms reaching and raking, its head thrown back, mouth open.
@@ -238,6 +268,11 @@ void AUnpaidCreature::TickReactions(float DeltaSeconds)
 			RiseTime = -1.f;
 		}
 	}
+	// A hat knocked off flies, lies and sinks whether it's alive or not (UnpaidHat.cpp).
+	if (Hat && Hurt.Hat.IsShown())
+	{
+		UnpaidHat::Tick(*Hat, Hurt.Hat, DeltaSeconds);
+	}
 	if (IsDead())
 	{
 		// Its first dead frame (Tick has just counted its DeathTime up from 0): the kill's own layers and its ash on the ground.
@@ -245,6 +280,18 @@ void AUnpaidCreature::TickReactions(float DeltaSeconds)
 		if (DeathTime > 0.f && DeathTime - DeltaSeconds <= UE_KINDA_SMALL_NUMBER)
 		{
 			CreatureKillLook::Play(*this, GetLastHit(), /*bSplat*/ true);
+		}
+		// Its kill style's look over the death's (HITS; after UpdateDeathLook): snuffed, the coal out at once; scattered, gone
+		// in a breath through its phase fade.
+		if (Hurt.Kill == UnpaidBody::EKillStyle::Snuffed)
+		{
+			Heat = SnuffedHeat;
+		}
+		const float Scatter = Hurt.KillPhase(DeathTime);
+		if (Scatter >= 0.f)
+		{
+			PhaseAmount = FMath::Max(PhaseAmount, Scatter);
+			Heat = FMath::Min(Heat, -PhaseAmount);
 		}
 		return;
 	}
@@ -260,6 +307,36 @@ void AUnpaidCreature::TickReactions(float DeltaSeconds)
 		return;
 	}
 	FRandomStream& Dice = Reacts->GetRandom();
+	if (!IsBossCreature())
+	{
+		// Its stagger (HITS): a choked gasp as it begins, its coal guttering through the hold and flaring as it comes back.
+		const int32 StaggerTurn = Hurt.TickStagger(GetStaggerAlpha());
+		if (StaggerTurn > 0)
+		{
+			UnpaidHurtPose::PlayCue(*this, CreatureHitCue::UnpaidStagger);
+		}
+		else if (StaggerTurn < 0)
+		{
+			Heat = FMath::Max(Heat, StaggerRecoverFlare);
+		}
+		if (Hurt.bStaggered)
+		{
+			Heat = FMath::Lerp(Heat, StaggerGutterHeat, Hurt.Stagger);
+		}
+		// Its wounds: under half its health its coal flickers and gutters now and then; under a quarter it smokes, heavier.
+		bool bPuff = false;
+		bool bGutter = false;
+		const float HealthShare = Health->GetMaxHealth() > 0.f ? Health->GetHealth() / Health->GetMaxHealth() : 1.f;
+		Heat += Hurt.TickWound(HealthShare, DeltaSeconds, PoseTime + PoseSeed, Dice, bPuff, bGutter);
+		if (bPuff)
+		{
+			UnpaidHurtPose::PuffWound(*this);
+		}
+		if (bGutter)
+		{
+			UnpaidHurtPose::PlayCue(*this, CreatureHitCue::UnpaidGutter, 0.8f, /*bNearOnly*/ true);
+		}
+	}
 	// Calm, now and then it looks over its shoulder a while (PoseTargets eases its head there and back).
 	const ECreatureState BrainState = GetCreatureState();
 	const bool bCalm = !GetTarget() && (BrainState == ECreatureState::Idle || BrainState == ECreatureState::Wander) && !IsBossCreature();

@@ -4,10 +4,16 @@
 // in a player's view (welling up out of a puddle), idle life (it sways, and now and then a bubble rises through it), and the
 // ring of dust a hunting hop's landing kicks up. Moved here with the reactions it had, to keep SlimeCreature.cpp in size.
 // The VFX pass (Saved/Vfx/PLAN.md): its kill's own layers and its gel puddle splashed out on the ground (CreatureKillLook).
+// The hit-feel pass (HITS lane D, 2026-10-28): a hit squashes it mid-hop and in the telegraph too (a hop is knocked off its line), a core crit
+// shoves the core to the gel's far wall and ripples it, a Big hit flattens it, a stagger flattens and quivers it, and a kill goes by its style
+// (popped, splattered, an overkill swollen through its hit-stop); the wounds, drips and stagger cue are SlimeCreatureBody.cpp's.
 
 #include "Creatures/SlimeCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
 #include "Combat/GunfeelReactTuning.h"
+#include "Combat/HealthComponent.h"
+#include "Combat/HitFeelTuning.h"
+#include "Combat/HitPose.h"
 #include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
@@ -37,6 +43,31 @@ namespace
 	constexpr float SwayForward = 1.5f;
 	constexpr float SwaySide = 1.2f;
 
+	// --- The hit-feel pass (HITS lane D, 2026-10-28; each moves toward its number by Looter.Hits.SlimeScale) ---
+	/** A hit on the gel's upper part (above this share of its height) squashes it this much more. */
+	constexpr float TopShare = 0.65f;
+	constexpr float TopSquash = 1.3f;
+	/** A hit on its side leans it this much more, and a lean is this many degrees at strength 1 (10 before). */
+	constexpr float SideLean = 1.3f;
+	constexpr float HurtLeanNew = 12.f;
+	/** A Big hit flattens it to this height. */
+	constexpr float BigSquash = 0.6f;
+	/** In the telegraph a hit dents the held squash this share of its depth, never lower than TelegraphFloor (so the leap still reads). */
+	constexpr float TelegraphShare = 0.5f;
+	constexpr float TelegraphFloor = 0.4f;
+	/** Mid-hop the dent is a kick on the squash spring (velocity per unit of dent: the spring's 20/s makes the dip about that deep). */
+	constexpr float AirKick = 16.f;
+	/** A core crit's ripple: the squash shakes 9 Hz for 0.35 s, this much at first (height scale). */
+	constexpr float RippleHz = 9.f;
+	constexpr float RippleSeconds = 0.35f;
+	constexpr float RippleSize = 0.12f;
+	/** A stagger flattens it to this height and quivers 14 Hz (the kick sized for about +-0.04 on the spring). */
+	constexpr float StaggerSquash = 0.62f;
+	constexpr float QuiverHz = 14.f;
+	constexpr float QuiverKick = 7.f;
+	/** A core crit kill's gel is already this squashed as it dies: it deflates into its puddle. */
+	constexpr float PoppedStart = 0.45f;
+
 	/** The notice beat: squashed low (its rest this much lower), shuddering: the squash kicked each way this often. */
 	constexpr float NoticeSquash = 0.28f;
 	constexpr float NoticeDip = 0.74f;
@@ -63,22 +94,86 @@ void ASlimeCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	{
 		return;
 	}
-	// A squash and a wobble, sized by the hit (Gunfeel: a revolver round dents it deep, a close blast flattens it); the
-	// core jiggles away from the hit (harder on a crit).
-	const float Strength = GetLastHit().FlinchStrength(FGunfeelReactTuning::Live());
-	if (Hop == EHop::Ground && !bTelegraph && !Squash.IsRamping())
+	// How much of the hit-feel pass shows (Looter.Hits.SlimeScale; 0 is the slime as it was): each new number is its old one
+	// moved this far toward the new.
+	const FHitFeelTuning Feel = FHitFeelTuning::Live();
+	const float Planned = FMath::Max(Feel.SlimeScale, 0.f);
+	auto Mix = [Planned](float Old, float New) { return Old + (New - Old) * Planned; };
+	const FCreatureHit& Hit = GetLastHit();
+	const float Strength = Hit.FlinchStrength(FGunfeelReactTuning::Live());
+	const bool bBig = Hit.Weight == EHitWeight::Big;
+	const bool bTop = HitHeightShare(HitLocation) > TopShare;
+	const float Max = Health->GetMaxHealth();
+	const bool bWorn = Feel.Wounds && Max > 0.f && WoundStage(Health->GetHealth() / Max) >= 2;
+
+	// A squash and a wobble, sized by the hit (Gunfeel: a revolver round dents it deep, a close blast flattens it); a hit on its
+	// top squashes more. Mid-hop it is kicked on the spring, in the telegraph half as deep so the leap still reads.
+	const float Dent = (1.f - HurtSquash) * Strength * (bTop ? Mix(1.f, TopSquash) : 1.f);
+	float Squashed = FMath::Max(1.f - Dent, HurtSquashMost);
+	if (bBig && Planned > 0.f)
 	{
-		Squash.Ramp(FMath::Max(1.f - (1.f - HurtSquash) * Strength, HurtSquashMost), 0.05f);
+		Squashed = FMath::Min(Squashed, BigSquash);
 	}
+	if (Planned <= 0.f)
+	{
+		if (Hop == EHop::Ground && !bTelegraph && !Squash.IsRamping())
+		{
+			Squash.Ramp(Squashed, 0.05f);
+		}
+	}
+	else if (!Squash.IsRamping())
+	{
+		if (bTelegraph)
+		{
+			Squash.Ramp(FMath::Max(Squash.Value - Dent * TelegraphShare, TelegraphFloor), 0.05f);
+		}
+		else if (Hop == EHop::Ground)
+		{
+			Squash.Ramp(Squashed, 0.05f);
+		}
+		else
+		{
+			Squash.Velocity -= Dent * AirKick;
+		}
+	}
+
+	// The core jiggles away from the hit (harder on a crit, harder again when the slime is nearly gone); a core crit shoves it on
+	// along the shot to the gel's far wall and sets the gel rippling.
 	const FVector Away = GetActorTransform().InverseTransformVector(GetActorLocation() - HitLocation).GetSafeNormal();
-	CoreVelocity += (Away + FMath::VRand() * 0.5f) * ((bCritical ? 220.f : 130.f) * FMath::Min(Strength, HurtCoreMost));
+	FVector Shoved = Away + FMath::VRand() * 0.5f;
+	if (bCritical && Planned > 0.f)
+	{
+		const FVector Along = GetActorTransform().InverseTransformVector(Hit.Direction).GetSafeNormal();
+		if (!Along.IsNearlyZero())
+		{
+			Shoved = Along + FMath::VRand() * 0.15f;
+		}
+		RippleAge = 0.f;
+		RippleAmount = RippleSize * FMath::Min(Planned, 2.f);
+	}
+	const float CoreKick = (bCritical ? Mix(220.f, 320.f) : 130.f) * (bWorn ? Mix(1.f, 1.3f) : 1.f);
+	CoreVelocity += Shoved * (CoreKick * FMath::Min(Strength, HurtCoreMost));
+
 	// The jelly leans away from the hit and wobbles back (ReactLean): a hit on its front tips it back, one from its left to
-	// its right. A shotgun's pellets land together: the strongest kick stands.
-	const float Hard = FMath::Min(HurtLean * (bCritical ? 1.5f : 1.f) * Strength, HurtLeanMost);
+	// its right; a hit on its side leans it more. A shotgun's pellets land together: the strongest kick stands.
+	const float Hard = FMath::Min(Mix(HurtLean, HurtLeanNew) * (bCritical ? 1.5f : 1.f) * Strength * (bTop ? 1.f : Mix(1.f, SideLean)), HurtLeanMost);
 	const FVector2D Kick(static_cast<float>(Away.X) * Hard, static_cast<float>(Away.Y) * Hard);
 	if (Kick.SizeSquared() >= LeanKick.SizeSquared())
 	{
 		LeanKick = Kick;
+	}
+
+	if (Planned > 0.f)
+	{
+		// A hop in the air is knocked off its line by the shot (never past a ledge); a Big hit leaves a splat behind it.
+		if (Hop == EHop::Air)
+		{
+			KnockInAir(Hit.Direction, Hit.BurstShare);
+		}
+		if (bBig)
+		{
+			CreatureKillLook::LayBigHitSplat(*this, Hit);
+		}
 	}
 }
 
@@ -94,7 +189,26 @@ void ASlimeCreature::OnDied()
 		SetActorLocation(Ground + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), false, nullptr,
 			ETeleportType::TeleportPhysics);
 	}
-	// On the ground now: the kill's own layers (fat blobs with the shot, a gel mist and spray) and its puddle splashed out.
+	// How it goes by the killing hit (HITS): a core crit pops (the gel is already deflating), a blast splatters, an overkill
+	// swells on the killing frame, held by the hit-stop, and bursts when it ends (TickWounds).
+	DeathStyle = DeathStyleFor(GetLastHit());
+	bOverkillHeld = false;
+	if (DeathStyle == EDeathStyle::Overkill)
+	{
+		Squash.Value = OverInflate;
+		Squash.Velocity = 0.f;
+		Squash.RampTime = Squash.RampLength = 0.f;
+		OverkillHit = GetLastHit();
+		bOverkillHeld = true;
+		return;
+	}
+	if (DeathStyle == EDeathStyle::Popped)
+	{
+		Squash.Value = PoppedStart;
+		Squash.Velocity = 0.f;
+		Squash.RampTime = Squash.RampLength = 0.f;
+	}
+	// On the ground now: the kill's own layers (fat blobs with the shot, a gel mist and spray, the style's gel burst) and its puddle splashed out.
 	CreatureKillLook::Play(*this, GetLastHit(), /*bSplat*/ true);
 }
 
@@ -106,6 +220,14 @@ void ASlimeCreature::OnRespawned()
 	Squash = FSquashSpring();
 	CoreOffset = CoreVelocity = FVector::ZeroVector;
 	Lean = LeanKick = LeanSpeed = FVector2D::ZeroVector;
+	// The hit-feel pass's marks gone with it: whole again, standing, not dripping.
+	DeathStyle = EDeathStyle::Body;
+	bOverkillHeld = false;
+	RippleAge = 100.f;
+	DripClock = 0.f;
+	bStaggerCued = false;
+	WoundScale = 1.f;
+	GetMesh()->SetRelativeScale3D(FVector::OneVector);
 	AnimateBody(0.f);
 }
 
@@ -144,7 +266,13 @@ void ASlimeCreature::OnNoticed()
 
 float ASlimeCreature::ReactSquash() const
 {
-	return -NoticeSquash * GetNoticeStrength();
+	// The notice beat's low squash; a stagger flattens it to StaggerSquash (its quiver is TickReactions' kicks); a core crit's ripple on top.
+	float Lower = -NoticeSquash * GetNoticeStrength() - (1.f - StaggerSquash) * GetStaggerShare();
+	if (RippleAge < RippleSeconds)
+	{
+		Lower += RippleAmount * FMath::Sin(UE_TWO_PI * RippleHz * RippleAge) * (1.f - RippleAge / RippleSeconds);
+	}
+	return Lower;
 }
 
 void ASlimeCreature::PlayEntrance()
@@ -172,6 +300,9 @@ void ASlimeCreature::PlayEntrance()
 
 void ASlimeCreature::TickReactions(float DeltaSeconds)
 {
+	// Its wounds, stagger and an overkill's wait on its hit-stop (SlimeCreatureBody.cpp), and a core crit's ripple moves on.
+	TickWounds(DeltaSeconds);
+	RippleAge += DeltaSeconds;
 	UCreatureReactComponent* Reacts = GetReact();
 	const bool bResting = !IsDead() && Hop == EHop::Ground && !bTelegraph && GetCreatureState() == ECreatureState::Idle;
 	// At rest it sways a little, in its own time; anything else and it stands up straight (on the ground's tilt).
@@ -209,6 +340,17 @@ void ASlimeCreature::TickReactions(float DeltaSeconds)
 			ShudderSign = -ShudderSign;
 			Squash.Velocity += ShudderSign * ShudderKick * GetNoticeStrength();
 			CoreVelocity += FVector(Dice.FRandRange(-30.f, 30.f), Dice.FRandRange(-30.f, 30.f), 0.f);
+		}
+	}
+	// A stagger quivers it: the squash kicked one way and the other, 14 times a second.
+	if (GetStaggerShare() > 0.f && !Squash.IsRamping())
+	{
+		QuiverClock -= DeltaSeconds;
+		if (QuiverClock <= 0.f)
+		{
+			QuiverClock = 0.5f / QuiverHz;
+			QuiverSign = -QuiverSign;
+			Squash.Velocity += QuiverSign * QuiverKick * GetStaggerShare();
 		}
 	}
 	if (!bResting)

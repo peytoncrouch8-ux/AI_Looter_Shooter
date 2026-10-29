@@ -5,8 +5,22 @@ namespace
 	/** How many FMeleeScopes are open: a strike's damage being dealt (never more than one, but nesting is harmless). */
 	int32 OpenMeleeScopes = 0;
 
-	/** The least a hit flinches (of today's flinch), whatever its share. */
-	constexpr float FlinchFloor = 0.6f;
+	/** A shot within 60 degrees of its facing is from the front, past 120 from behind (cosines). */
+	constexpr float FrontCosine = 0.5f;
+	constexpr float BackCosine = -0.5f;
+
+	/** 0 to 1 eased both ways (smoothstep). */
+	float Smooth(float X)
+	{
+		const float T = FMath::Clamp(X, 0.f, 1.f);
+		return T * T * (3.f - 2.f * T);
+	}
+
+	/** Gravebound and tougher: the ranks the stagger gap holds (no stun-lock on an elite: the fight's harder, not easier). */
+	bool IsElite(ECreatureRank Rank)
+	{
+		return LooterRanks::IsAtLeast(Rank, ECreatureRank::Epic);
+	}
 }
 
 float FCreatureHit::FlinchStrength(const FGunfeelReactTuning& Tuning) const
@@ -26,9 +40,13 @@ float FCreatureHit::FlinchStrength(const FGunfeelReactTuning& Tuning) const
 	{
 		return 1.f;
 	}
+	const float Floor = FMath::Max(Tuning.FlinchFloor, 0.f);
+	const float Most = FMath::Max(Tuning.FlinchMax, Floor);
 	const float Sized = FMath::Max(BurstShare, Share);
-	float Strength = Tuning.FlinchScale * FMath::Clamp(FlinchFloor + Tuning.FlinchDamageGain * Sized, FlinchFloor,
-		FMath::Max(Tuning.FlinchMax, FlinchFloor));
+	// A far shooter sees a flinch smaller on screen: the far boost makes it up, but never past the cap (a sniper's 70% hit
+	// at 30 m would otherwise throw a body through itself).
+	const float Boosted = FMath::Min(FMath::Clamp(Floor + Tuning.FlinchDamageGain * Sized, Floor, Most) * FMath::Max(FarBoost, 0.f), Most);
+	float Strength = Tuning.FlinchScale * Boosted;
 	if (bCritical)
 	{
 		Strength *= Tuning.FlinchCritScale;
@@ -76,6 +94,62 @@ bool FHitReaction::HitStopsFor(ECreatureRank Rank)
 	return Rank != ECreatureRank::Boss;
 }
 
+float FHitReaction::PoiseScaleFor(ECreatureRank Rank)
+{
+	// A tougher one takes more to rock off its feet, so poise never makes an elite's fight easier (HITS' guard).
+	switch (Rank)
+	{
+	case ECreatureRank::Basic: return 1.f;
+	case ECreatureRank::Rare: return 1.15f;
+	case ECreatureRank::Epic: return 1.35f;
+	case ECreatureRank::Hallowed: return 1.6f;
+	case ECreatureRank::Ethereal: return 1.9f;
+	default: return 0.f;
+	}
+}
+
+EHitWeight FHitReaction::WeightOf(const FHit& Hit, float BurstShare, const FGunfeelReactTuning& InTuning, const FHitFeelTuning& InFeel)
+{
+	const float Share = FMath::Max(Hit.Damage, 0.f) / FMath::Max(Hit.MaxHealth, 1.f);
+	// Big: one hit that takes a quarter of it, the guns built for one big hit (a sniper's round, a rocket), or a shotgun
+	// blast that earns its power (close and heavy enough).
+	const bool bCloseBlast = Hit.Kind == EWeaponKind::Shotgun && Hit.Distance >= 0.f && Hit.Distance <= InTuning.ShotgunKnockRange
+		&& BurstShare >= InTuning.ShotgunKnockShare;
+	const bool bBig = Share >= InFeel.BigShare || Hit.Kind == EWeaponKind::Sniper || Hit.Kind == EWeaponKind::Launcher || bCloseBlast;
+	if (Hit.bKilled)
+	{
+		// A kill that went well past dead, or a Big hit's, is the body giving way all at once.
+		const bool bOverkill = InFeel.KillStyles && (Hit.Overkill >= InFeel.OverkillShare || bBig);
+		return bOverkill ? EHitWeight::Overkill : EHitWeight::Kill;
+	}
+	if (bBig)
+	{
+		return EHitWeight::Big;
+	}
+	// A melee strike always lands heavy (the panic button against a lunge).
+	const bool bMelee = Hit.bMelee || FMeleeScope::IsOpen();
+	if (Hit.bCritical || bMelee || BurstShare >= InTuning.StaggerHeavyShare)
+	{
+		return EHitWeight::Heavy;
+	}
+	return EHitWeight::Body;
+}
+
+float FHitReaction::GetStaggerAlpha(double Now) const
+{
+	if (!bStaggerPose || !IsStaggered(Now))
+	{
+		return 0.f;
+	}
+	return FStaggerCurve::Alpha(static_cast<float>(Now - StaggerStart), static_cast<float>(StaggerEnd - StaggerStart));
+}
+
+float FHitReaction::GetPoise(double Now) const
+{
+	const float Since = static_cast<float>(FMath::Max(Now - PoiseAt, 0.0));
+	return FMath::Max(Poise - Feel.PoiseDrain * Since, 0.f);
+}
+
 FHitReaction::FResponse FHitReaction::OnHit(double Now, float Damage, float MaxHealth, bool bCritical, bool bKilled, ECreatureRank Rank, bool bMelee)
 {
 	FHit Hit;
@@ -95,6 +169,38 @@ void FHitReaction::BeginStagger(double Now, float Seconds, FResponse& Response, 
 	StaggerStart = Now;
 	StaggerEnd = Now + Seconds;
 	StaggerReady = StaggerEnd + Tuning.StaggerCooldown;
+	// Whatever brought it on, the stagger spends its poise: it builds again from none once the next can come.
+	Poise = 0.f;
+	PoiseAt = Now;
+	bStaggerPose = Feel.StaggerPose;
+}
+
+bool FHitReaction::CanStagger(double Now, ECreatureRank Rank) const
+{
+	if (IsStaggered(Now) || Now < StaggerReady)
+	{
+		return false;
+	}
+	// An elite gets its fight back between staggers, however hard it's hit.
+	return !IsElite(Rank) || Now - StaggerStart >= Feel.StaggerGap;
+}
+
+void FHitReaction::TakePoise(double Now, const FHit& Hit, float StaggerFor, FResponse& Response)
+{
+	Poise = GetPoise(Now);
+	PoiseAt = Now;
+	// Poise builds only while a stagger could come: hits during one, its cooldown or an elite's gap don't bank a stagger
+	// for the moment it ends (steady fire would otherwise chain them).
+	const float Break = Feel.PoiseBreak * PoiseScaleFor(Hit.Rank);
+	if (Break <= 0.f || !CanStagger(Now, Hit.Rank))
+	{
+		return;
+	}
+	Poise += FMath::Max(Hit.Damage, 0.f) / FMath::Max(Hit.MaxHealth, 1.f);
+	if (Poise >= Break)
+	{
+		BeginStagger(Now, StaggerFor, Response, EJob::Poise);
+	}
 }
 
 FHitReaction::FResponse FHitReaction::OnHit(double Now, const FHit& Hit)
@@ -116,6 +222,7 @@ FHitReaction::FResponse FHitReaction::OnHit(double Now, const FHit& Hit)
 	BurstDamage += Hit.Damage;
 	Response.BurstShare = BurstDamage / FMath::Max(Hit.MaxHealth, 1.f);
 	const bool bHeavy = Hit.bCritical || Response.BurstShare >= Tuning.StaggerHeavyShare;
+	Response.Weight = WeightOf(Hit, Response.BurstShare, Tuning, Feel);
 
 	// The rifle's pressure (the LMG's too: it holds the line the same way): its hits on this one within the window, this one counted.
 	bool bPressure = false;
@@ -138,21 +245,37 @@ FHitReaction::FResponse FHitReaction::OnHit(double Now, const FHit& Hit)
 	{
 		if (Hit.bKilled)
 		{
-			// The kill always lands with weight, whatever came just before it.
+			// The kill always lands with weight, whatever came just before it; an overkill holds longest (the anticipation
+			// frame before the body gives way).
 			Response.HitStopSeconds = Hit.bCritical ? Tuning.HitStopCritKill : Tuning.HitStopKill;
+			if (Response.Weight == EHitWeight::Overkill)
+			{
+				Response.HitStopSeconds = FMath::Max(Response.HitStopSeconds, Feel.HitStopOverkill);
+			}
 		}
-		else if (Hit.bCritical && Now >= HitStopReady)
+		else
 		{
-			// The precision guns (the revolver, the sniper): their crits hold longest.
-			const bool bPrecise = Hit.Kind == EWeaponKind::Revolver || Hit.Kind == EWeaponKind::Sniper;
-			Response.HitStopSeconds = bPrecise ? Tuning.RevolverCritHitStop : Tuning.HitStopCrit;
-			HitStopReady = Now + HitStopCooldown;
-		}
-		else if (bHeavy && Now >= HitStopReady && Tuning.HitStopHeavy > 0.f)
-		{
-			// A heavy body hit (a revolver round, a close blast) lands with weight too, a touch shorter than a crit.
-			Response.HitStopSeconds = Tuning.HitStopHeavy;
-			HitStopReady = Now + HitStopCooldown;
+			// A crit (the precision guns', the revolver's and the sniper's, longest), a Big hit, or a heavy body hit (a
+			// revolver round, a close blast), a touch shorter than a crit: one every cooldown, whichever is longest.
+			float Wanted = 0.f;
+			if (Hit.bCritical)
+			{
+				const bool bPrecise = Hit.Kind == EWeaponKind::Revolver || Hit.Kind == EWeaponKind::Sniper;
+				Wanted = bPrecise ? Tuning.RevolverCritHitStop : Tuning.HitStopCrit;
+			}
+			else if (bHeavy)
+			{
+				Wanted = Tuning.HitStopHeavy;
+			}
+			if (Response.Weight == EHitWeight::Big)
+			{
+				Wanted = FMath::Max(Wanted, Feel.HitStopBig);
+			}
+			if (Wanted > 0.f && Now >= HitStopReady)
+			{
+				Response.HitStopSeconds = Wanted;
+				HitStopReady = Now + HitStopCooldown;
+			}
 		}
 		// A strike always lands with weight: it comes no more often than the strike's own cooldown.
 		if (bMeleeHit)
@@ -190,13 +313,16 @@ FHitReaction::FResponse FHitReaction::OnHit(double Now, const FHit& Hit)
 		bBurstPowered = true;
 		if (Hit.Size <= Tuning.ShotgunKnockSize)
 		{
-			// Thrown back: the knock holds its brain itself (UCreatureKnockComponent). Any stagger this blast began ends.
+			// Thrown back: the knock holds its brain itself (UCreatureKnockComponent). Any stagger this blast began ends,
+			// and the throw spends its poise.
 			Response.bKnockBack = true;
 			Response.Job = EJob::Power;
 			StaggerEnd = FMath::Min(StaggerEnd, Now);
 			StaggerReady = FMath::Max(StaggerReady, Now + Tuning.StaggerCooldown);
+			Poise = 0.f;
+			PoiseAt = Now;
 		}
-		else
+		else if (!IsElite(Hit.Rank) || Now - StaggerStart >= Feel.StaggerGap)
 		{
 			BeginStagger(Now, StaggerFor, Response, EJob::Power);
 		}
@@ -204,10 +330,123 @@ FHitReaction::FResponse FHitReaction::OnHit(double Now, const FHit& Hit)
 	}
 
 	// A heavy hit, or the rifle's pressure: one stagger, then the cooldown.
-	if ((bHeavy || bPressure) && Now >= StaggerReady && !IsStaggered(Now))
+	if ((bHeavy || bPressure) && CanStagger(Now, Hit.Rank))
 	{
 		BeginStagger(Now, StaggerFor, Response, bHeavy ? EJob::Heavy : EJob::Pressure);
 		RifleHits.Reset();
+		return Response;
 	}
+	// Else damage piling up fast enough breaks its poise.
+	TakePoise(Now, Hit, StaggerFor, Response);
 	return Response;
+}
+
+float FStaggerCurve::Alpha(float Time, float Seconds)
+{
+	if (Seconds <= 0.f || Time <= 0.f || Time >= Seconds)
+	{
+		return 0.f;
+	}
+	// A short stagger (an Ethereal one's 0.15 s) still rises, holds and eases back, its rise shortened to fit.
+	const float HoldEnd = HoldShare * Seconds;
+	const float RiseEnd = FMath::Min(Rise, HoldEnd);
+	if (Time < RiseEnd)
+	{
+		// Eased out: the jolt comes at once and settles into the pose.
+		const float X = Time / RiseEnd;
+		return 1.f - (1.f - X) * (1.f - X);
+	}
+	if (Time <= HoldEnd)
+	{
+		return 1.f;
+	}
+	return 1.f - Smooth((Time - HoldEnd) / (Seconds - HoldEnd));
+}
+
+EHitSide HitFeel::SideOf(const FVector& Facing, const FVector& Direction)
+{
+	const FVector Face = Facing.GetSafeNormal2D();
+	const FVector ToShooter = (-Direction).GetSafeNormal2D();
+	if (Face.IsNearlyZero() || ToShooter.IsNearlyZero())
+	{
+		return EHitSide::Front;
+	}
+	const float Cosine = static_cast<float>(FVector::DotProduct(Face, ToShooter));
+	if (Cosine > FrontCosine)
+	{
+		return EHitSide::Front;
+	}
+	if (Cosine < BackCosine)
+	{
+		return EHitSide::Back;
+	}
+	// Its right as it faces (Up x Forward is the right in Unreal's frame).
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Face);
+	return FVector::DotProduct(Right, ToShooter) >= 0.0 ? EHitSide::Right : EHitSide::Left;
+}
+
+float HitFeel::LateralOffsetOf(const FVector& Center, const FVector& Direction, const FVector& Location)
+{
+	const FVector Way = Direction.GetSafeNormal2D();
+	if (Way.IsNearlyZero())
+	{
+		return 0.f;
+	}
+	// Across the shot, to the right of a body turned to face it: its distance that way is the shot's lever on it (the
+	// shot's torque about the upright axis comes out + yaw for + offset whichever side it came from).
+	const FVector Across = FVector::CrossProduct(FVector::UpVector, -Way);
+	return static_cast<float>(FVector::DotProduct(Location - Center, Across));
+}
+
+float HitFeel::FarBoostAt(float Distance, const FHitFeelTuning& Feel)
+{
+	if (Distance < 0.f || Feel.FarBoost <= 1.f)
+	{
+		return 1.f;
+	}
+	const float Span = FMath::Max(Feel.FarFar - Feel.FarNear, 1.f);
+	return FMath::Lerp(1.f, Feel.FarBoost, FMath::Clamp((Distance - Feel.FarNear) / Span, 0.f, 1.f));
+}
+
+float HitFeel::OverkillOf(float Damage, float HealthBefore, float MaxHealth)
+{
+	return FMath::Max(Damage - FMath::Max(HealthBefore, 0.f), 0.f) / FMath::Max(MaxHealth, 1.f);
+}
+
+const TCHAR* HitFeel::ZoneName(ECreatureHitZone Zone)
+{
+	switch (Zone)
+	{
+	case ECreatureHitZone::Head: return TEXT("head");
+	case ECreatureHitZone::Abdomen: return TEXT("abdomen");
+	case ECreatureHitZone::Leg: return TEXT("leg");
+	case ECreatureHitZone::Arm: return TEXT("arm");
+	case ECreatureHitZone::Core: return TEXT("core");
+	case ECreatureHitZone::Shroud: return TEXT("shroud");
+	case ECreatureHitZone::Weak: return TEXT("weak");
+	default: return TEXT("body");
+	}
+}
+
+const TCHAR* HitFeel::WeightName(EHitWeight Weight)
+{
+	switch (Weight)
+	{
+	case EHitWeight::Heavy: return TEXT("heavy");
+	case EHitWeight::Big: return TEXT("big");
+	case EHitWeight::Kill: return TEXT("kill");
+	case EHitWeight::Overkill: return TEXT("overkill");
+	default: return TEXT("body");
+	}
+}
+
+const TCHAR* HitFeel::SideName(EHitSide Side)
+{
+	switch (Side)
+	{
+	case EHitSide::Left: return TEXT("left");
+	case EHitSide::Right: return TEXT("right");
+	case EHitSide::Back: return TEXT("back");
+	default: return TEXT("front");
+	}
 }

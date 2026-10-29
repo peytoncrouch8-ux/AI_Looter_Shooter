@@ -5,6 +5,7 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Combat/HealthComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Weapons/ReloadBeats.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/ReloadTuning.h"
 #include "Weapons/WeaponBase.h"
@@ -124,7 +125,8 @@ bool FGunfeelReloadPlanTest::RunTest(const FString& Parameters)
 			TEXT("Looter.Gunfeel.Reload.Empty.Revolver"), TEXT("Looter.Gunfeel.Reload.Tactical.Launcher"), TEXT("Looter.Gunfeel.Reload.CommitAtSeat"),
 			TEXT("Looter.Gunfeel.Reload.ReadyEarly"), TEXT("Looter.Gunfeel.Reload.Shotgun.Start"), TEXT("Looter.Gunfeel.Reload.Shotgun.Shell"),
 			TEXT("Looter.Gunfeel.Reload.Shotgun.Pump"), TEXT("Looter.Gunfeel.Reload.Shotgun.Interrupt"), TEXT("Looter.Gunfeel.Shotgun.RackShare"),
-			TEXT("Looter.Gunfeel.Shotgun.RackMin"), TEXT("Looter.Gunfeel.Shotgun.RackMax"), TEXT("Looter.Gunfeel.Reload.Debug") })
+			TEXT("Looter.Gunfeel.Shotgun.RackMin"), TEXT("Looter.Gunfeel.Shotgun.RackMax"), TEXT("Looter.Gunfeel.Reload.Debug"),
+			TEXT("Looter.Gunfeel.Reload.Beats") })
 	{
 		TestNotNull(*FString::Printf(TEXT("%s exists"), Name), IConsoleManager::Get().FindConsoleVariable(Name));
 	}
@@ -441,6 +443,88 @@ bool FGunfeelReloadGunsTest::RunTest(const FString& Parameters)
 		// (the play-check's to see); here the round is in, or in and fired.
 		const int32 After = ShotgunGun->GetCurrentMagazine();
 		TestTrue(FString::Printf(TEXT("...its round in (%d)"), After), After == 3 || After == 2);
+	}
+	return true;
+}
+
+
+// ---------------------------------------------------------------------------
+// The felt beats of a reload (gun identity, 2026-10-28; ReloadBeats.h)
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelReloadBeatsTest, "Looter.Gunfeel.Reload.Beats",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGunfeelReloadBeatsTest::RunTest(const FString& Parameters)
+{
+	TestNotNull(TEXT("The beats' strength is a live variable"), IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Gunfeel.Reload.Beats")));
+
+	// The table (GUNS.md): each kind's seat, slam or snap, and the steps that carry none.
+	const FReloadBeat HelixIn = ReloadBeats::For(EWeaponKind::SMG, EReloadStep::HelixIn);
+	TestTrue(TEXT("SMG helix in: a tiny dip, a little roll"), FMath::IsNearlyEqual(HelixIn.Kick.Pitch, -0.08f) && FMath::IsNearlyEqual(HelixIn.Kick.Roll, 0.1f));
+	TestTrue(TEXT("...rumble 0.15 for 0.04 s"), FMath::IsNearlyEqual(HelixIn.Rumble, 0.15f) && FMath::IsNearlyEqual(HelixIn.RumbleSeconds, 0.04f));
+	TestTrue(TEXT("SMG charge: up a tenth"), FMath::IsNearlyEqual(ReloadBeats::For(EWeaponKind::SMG, EReloadStep::Bolt).Kick.Pitch, 0.1f));
+	const FReloadBeat MagIn = ReloadBeats::For(EWeaponKind::Rifle, EReloadStep::MagIn);
+	TestTrue(TEXT("Rifle mag in: -0.12 deg, view 0.3% narrower"), FMath::IsNearlyEqual(MagIn.Kick.Pitch, -0.12f) && FMath::IsNearlyEqual(MagIn.Kick.FieldOfView, -0.003f));
+	const FReloadBeat Slap = ReloadBeats::For(EWeaponKind::Rifle, EReloadStep::Bolt);
+	TestTrue(TEXT("Rifle handle slap: +0.18, roll 0.2, rumble 0.3/0.06"), FMath::IsNearlyEqual(Slap.Kick.Pitch, 0.18f) && FMath::IsNearlyEqual(Slap.Kick.Roll, 0.2f)
+		&& FMath::IsNearlyEqual(Slap.Rumble, 0.3f) && FMath::IsNearlyEqual(Slap.RumbleSeconds, 0.06f));
+	const FReloadBeat BoxIn = ReloadBeats::For(EWeaponKind::LMG, EReloadStep::BoxIn);
+	TestTrue(TEXT("LMG box in: the biggest of its three"), BoxIn.Kick.Pitch < ReloadBeats::For(EWeaponKind::LMG, EReloadStep::BoxOut).Kick.Pitch
+		&& BoxIn.Kick.Pitch < ReloadBeats::For(EWeaponKind::LMG, EReloadStep::BeltLay).Kick.Pitch);
+	TestTrue(TEXT("...-0.25, view 0.5% narrower, rumble 0.45/0.08"), FMath::IsNearlyEqual(BoxIn.Kick.Pitch, -0.25f) && FMath::IsNearlyEqual(BoxIn.Kick.FieldOfView, -0.005f)
+		&& FMath::IsNearlyEqual(BoxIn.Rumble, 0.45f) && FMath::IsNearlyEqual(BoxIn.RumbleSeconds, 0.08f));
+	TestTrue(TEXT("Revolver cylinder out rolls the wrist back"), ReloadBeats::For(EWeaponKind::Revolver, EReloadStep::CylinderOut).Kick.Roll < -0.4f);
+	const FReloadBeat Snap = ReloadBeats::For(EWeaponKind::Revolver, EReloadStep::CylinderIn);
+	TestTrue(TEXT("Revolver cylinder in snaps: roll +0.6, pitch -0.1, 0.3/0.05"), FMath::IsNearlyEqual(Snap.Kick.Roll, 0.6f) && FMath::IsNearlyEqual(Snap.Kick.Pitch, -0.1f)
+		&& FMath::IsNearlyEqual(Snap.Rumble, 0.3f) && FMath::IsNearlyEqual(Snap.RumbleSeconds, 0.05f));
+	TestTrue(TEXT("Shotgun: a shell dips, the pump lifts"), ReloadBeats::For(EWeaponKind::Shotgun, EReloadStep::ShellIn).Kick.Pitch < 0.f
+		&& FMath::IsNearlyEqual(ReloadBeats::For(EWeaponKind::Shotgun, EReloadStep::Pump).Kick.Pitch, 0.15f));
+	TestTrue(TEXT("Sniper: bolt open lifts, bolt closed slams"), ReloadBeats::For(EWeaponKind::Sniper, EReloadStep::BoltOpen).Kick.Pitch > 0.f
+		&& FMath::IsNearlyEqual(ReloadBeats::For(EWeaponKind::Sniper, EReloadStep::BoltClose).Kick.Pitch, -0.2f));
+	const FReloadBeat Rocket = ReloadBeats::For(EWeaponKind::Launcher, EReloadStep::RocketIn);
+	TestTrue(TEXT("Launcher rocket in: -0.3, view 0.6% narrower, 0.5/0.1"), FMath::IsNearlyEqual(Rocket.Kick.Pitch, -0.3f) && FMath::IsNearlyEqual(Rocket.Kick.FieldOfView, -0.006f)
+		&& FMath::IsNearlyEqual(Rocket.Rumble, 0.5f) && FMath::IsNearlyEqual(Rocket.RumbleSeconds, 0.1f));
+	TestTrue(TEXT("A step with no beat is none"), ReloadBeats::For(EWeaponKind::Rifle, EReloadStep::MagOut).IsNone());
+	TestTrue(TEXT("...a kind's step on another kind is none"), ReloadBeats::For(EWeaponKind::Rifle, EReloadStep::BoxIn).IsNone());
+
+	// Every beat is a fraction of a degree and sits well under the view's caps: a reload is hands at work, not a second recoil.
+	const EWeaponKind Kinds[] = { EWeaponKind::Rifle, EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::SMG, EWeaponKind::Sniper,
+		EWeaponKind::LMG, EWeaponKind::Launcher };
+	int32 Beats = 0;
+	for (const EWeaponKind Kind : Kinds)
+	{
+		for (int32 StepIndex = 0; StepIndex <= static_cast<int32>(EReloadStep::HelixIn); ++StepIndex)
+		{
+			const FReloadBeat Beat = ReloadBeats::For(Kind, static_cast<EReloadStep>(StepIndex));
+			if (Beat.IsNone())
+			{
+				continue;
+			}
+			++Beats;
+			TestTrue(FString::Printf(TEXT("Kind %d step %d: under a degree each way"), static_cast<int32>(Kind), StepIndex),
+				FMath::Abs(Beat.Kick.Pitch) <= 1.f && FMath::Abs(Beat.Kick.Roll) <= 1.f && FMath::Abs(Beat.Kick.FieldOfView) <= 0.01f);
+			TestTrue(FString::Printf(TEXT("Kind %d step %d: a real spring"), static_cast<int32>(Kind), StepIndex),
+				Beat.Kick.Frequency > 0.f && Beat.Kick.Damping > 0.f && Beat.Kick.Damping < 1.f);
+			TestTrue(FString::Printf(TEXT("Kind %d step %d: rumble short and strong enough or none"), static_cast<int32>(Kind), StepIndex),
+				(Beat.Rumble <= 0.f && Beat.RumbleSeconds <= 0.f) || (Beat.Rumble > 0.f && Beat.Rumble <= 1.f && Beat.RumbleSeconds > 0.f && Beat.RumbleSeconds <= 0.2f));
+		}
+	}
+	TestEqual(TEXT("Seventeen beats in the table"), Beats, 17);
+
+	// The rule: identity on, a strength above 0, the sight down. Aimed, none; Identity 0, none; Beats 0, none.
+	TestTrue(TEXT("Hip, identity on: plays"), ReloadBeats::Plays(true, 1.f, 0.f));
+	TestFalse(TEXT("Aimed: none"), ReloadBeats::Plays(true, 1.f, 1.f));
+	TestFalse(TEXT("The sight half up: none"), ReloadBeats::Plays(true, 1.f, 0.5f));
+	TestFalse(TEXT("Identity 0: none"), ReloadBeats::Plays(false, 1.f, 0.f));
+	TestFalse(TEXT("Strength 0: none"), ReloadBeats::Plays(true, 0.f, 0.f));
+	{
+		FScopedReloadVariable Off(TEXT("Looter.Gunfeel.Reload.Beats"), -3.f);
+		TestEqual(TEXT("A negative strength reads as none"), ReloadBeats::Scale(), 0.f);
+	}
+	{
+		FScopedReloadVariable Half(TEXT("Looter.Gunfeel.Reload.Beats"), 0.5f);
+		TestEqual(TEXT("A changed strength is read at once"), ReloadBeats::Scale(), 0.5f);
 	}
 	return true;
 }

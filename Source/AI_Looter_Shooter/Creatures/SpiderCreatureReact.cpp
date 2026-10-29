@@ -5,11 +5,14 @@
 // dirt), idle life while it stands (a front leg tapped, the front legs groomed at its fangs, each spider on its own dice)
 // and the dust its feet kick up running. Moved here with the reactions it had, to keep SpiderCreature.cpp under the size
 // guide. The VFX pass (Saved/Vfx/PLAN.md): its kill's own layers as it dies (gore by the gun, mist, dust skirt, tier rings;
-// CreatureKillLook), and its ichor pooling out from under it once the body lands.
+// CreatureKillLook), and its ichor pooling out from under it once the body lands. The hit feel pass (HITS, 2026-10-28) raised
+// a living spider's kick and tilt here and hands each hit on to SpiderCreatureHurt.cpp (zones, stagger, wounds, kill styles).
 
 #include "Creatures/SpiderCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
 #include "Combat/GunfeelReactTuning.h"
+#include "Combat/HitFeelTuning.h"
+#include "Combat/HitReaction.h"
 #include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreatureReactComponent.h"
 #include "Creatures/CreatureReactRules.h"
@@ -35,6 +38,15 @@ namespace
 	constexpr float HurtTiltPitch = 7.f;
 	constexpr float HurtTiltRoll = 10.f;
 	constexpr float HurtTiltMost = 28.f;
+	/**
+	 * The hit feel pass (HITS 2026-10-28) raised a living spider's body kick to 12 and its tilt to 9 and 13, all of it at
+	 * Looter.Hits.SpiderScale 1 (0: the numbers above). The killing hit keeps those: its death shows the kill. From behind
+	 * it lurches forward this far instead (the abdomen takes the shove: SpiderCreatureHurt.cpp).
+	 */
+	constexpr float FeltKickBody = 12.f;
+	constexpr float FeltTiltPitch = 9.f;
+	constexpr float FeltTiltRoll = 13.f;
+	constexpr float BehindLurch = 6.f;
 	/** The abdomen's kick on a hit tops out here (degrees). */
 	constexpr float HurtAbdomenMost = 22.f;
 	/** A flinch not from a hit (a boss's own jolt calling OnHurt): the old kick (body, crit) and tilt (pitch, roll). */
@@ -94,11 +106,23 @@ void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	// throws its body back); headshots harder. A shotgun's pellets land together: the strongest kick stands (the last
 	// pellet carries the blast's whole share), they don't add up.
 	// A flinch the body plays itself (the Gravemother's sink and stone jolts call this straight) keeps its old size.
-	const bool bSized = GetLastHit().bFresh;
-	const float Strength = GetLastHit().FlinchStrength(FGunfeelReactTuning::Live());
-	const float Base = bSized ? (bCritical ? HurtKickCrit : HurtKickBody) : (bCritical ? ScriptedKick[1] : ScriptedKick[0]);
-	const float Peak = FMath::Min(Base * Strength, HurtKickMost) * GetSizeScale();
-	const FVector Away = (BodyFrame.GetLocation() - HitLocation).GetSafeNormal();
+	const FCreatureHit& Hit = GetLastHit();
+	const bool bSized = Hit.bFresh;
+	const float Strength = Hit.FlinchStrength(FGunfeelReactTuning::Live());
+	// The hit feel's share of the raise (a living spider's sized hits only).
+	const FHitFeelTuning Feel = FHitFeelTuning::Live();
+	const float Felt = bSized && !Hit.bKilled ? FMath::Clamp(static_cast<float>(Feel.SpiderScale), 0.f, 2.f) : 0.f;
+	const float BodyKick = HurtKickBody + (FeltKickBody - HurtKickBody) * Felt;
+	const float Base = bSized ? (bCritical ? HurtKickCrit : BodyKick) : (bCritical ? ScriptedKick[1] : ScriptedKick[0]);
+	float Peak = FMath::Min(Base * Strength, HurtKickMost) * GetSizeScale();
+	FVector Away = (BodyFrame.GetLocation() - HitLocation).GetSafeNormal();
+	const bool bBehind = Felt > 0.f && Feel.Zones && Hit.Side == EHitSide::Back;
+	if (bBehind)
+	{
+		// Shot from behind, it lurches forward along its facing, a shorter jolt than a shove.
+		Away = GetActorForwardVector().GetSafeNormal2D();
+		Peak = FMath::Min(BehindLurch * Strength * Felt, HurtKickMost) * GetSizeScale();
+	}
 	const FVector Kick = Away * (Peak * HurtKickShare);
 	if (Kick.SizeSquared() >= HurtKick.SizeSquared())
 	{
@@ -107,20 +131,39 @@ void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 		// And tilted away from the shot: a hit on its front lifts its nose, one from the side rolls it over away from it.
 		const FVector Local = FRotator(0.f, GetActorRotation().Yaw, 0.f).UnrotateVector(Away);
 		const float Hard = (bCritical ? 1.5f : 1.f) * Strength;
-		const float Pitch = bSized ? HurtTiltPitch : ScriptedTilt[0];
-		const float Roll = bSized ? HurtTiltRoll : ScriptedTilt[1];
+		const float Pitch = bSized ? HurtTiltPitch + (FeltTiltPitch - HurtTiltPitch) * Felt : ScriptedTilt[0];
+		const float Roll = bSized ? HurtTiltRoll + (FeltTiltRoll - HurtTiltRoll) * Felt : ScriptedTilt[1];
 		HurtTiltKick = FVector(FMath::Clamp(-Local.X * Pitch * Hard, -HurtTiltMost, HurtTiltMost),
 			FMath::Clamp(Local.Y * Roll * Hard, -HurtTiltMost, HurtTiltMost), 0.f);
 	}
 	AbdomenKick = FMath::Max(AbdomenKick, FMath::Min((bCritical ? 10.f : 6.f) * Strength, HurtAbdomenMost));
+	// Where it was hit, on top (SpiderCreatureHurt.cpp): its twist, a leg's buckle, a head crit's snap, the abdomen's wobble.
+	if (bSized)
+	{
+		ReactToHitFeel(Hit, HitLocation, Strength);
+		// A Big hit that didn't kill it leaves a small splat behind it along the shot (its rules and budget are CreatureKillLook's).
+		if (!Hit.bKilled && Hit.Weight == EHitWeight::Big)
+		{
+			CreatureKillLook::LayBigHitSplat(*this, Hit);
+		}
+	}
 }
 
 void ASpiderCreature::OnDied()
 {
 	// Its throe starts from its body and each foot as they are now (a foot mid-step is set down), each leg on its own dice
 	// (SpiderCreatureDeath.cpp); then the gait lets go of them. Before the climb out of the dirt is cut short: its height
-	// folds into the body's.
+	// folds into the body's. Its style first (the killing hit's: SpiderCreatureHurt.cpp), whose timing the pose is laid out
+	// by; a stagger's crouch folds into where its death starts, then lets go.
+	KillStyle = PickKillStyle(GetLastHit());
 	RecordDeathPose();
+	StaggerShown = 0.f;
+	for (FLeg& Leg : Legs)
+	{
+		Leg.BuckleAge = -1.f;
+		Leg.Skid = FVector::ZeroVector;
+		Leg.bLimp = false;
+	}
 	for (FLeg& Leg : Legs)
 	{
 		Leg.bStepping = false;
@@ -143,10 +186,13 @@ void ASpiderCreature::OnDied()
 	// The kill's own layers over its burst: gore thrown by the gun that killed it, a wet mist, the dust it drops in, its
 	// tier's rings. Its pool spreads once the body lands (TickReactions).
 	CreatureKillLook::Play(*this, GetLastHit(), /*bSplat*/ false);
+	// Its style's own layer: an overkill's chitin plates (the sound and splats are CreatureKillLook's).
+	PlayKillStyle(GetLastHit());
 }
 
 void ASpiderCreature::OnRespawned()
 {
+	ResetHitFeel();
 	IdleAct = EIdleAct::None;
 	IdleWeight = 0.f;
 	EmergeTime = -1.f;
@@ -280,7 +326,7 @@ void ASpiderCreature::TickReactions(float DeltaSeconds)
 	{
 		// The body hits the ground on its death cry's knock: a thud and a puff of dust (SpiderCreatureDeath.cpp).
 		const float Time = GetStateTime();
-		const float Lands = DropSeconds * DeathTimeScale(GetSizeScale());
+		const float Lands = GetDeathDropTime();
 		if (Time >= Lands && Time - DeltaSeconds < Lands)
 		{
 			LandDeadBody();

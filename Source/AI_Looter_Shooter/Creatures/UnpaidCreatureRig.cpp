@@ -305,9 +305,9 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		Follow(Pose.LookYaw, Goal.LookYaw, Look);
 		Follow(Pose.LookPitch, Goal.LookPitch, Look);
 		Follow(Pose.Snap, Goal.Snap, Goal.Snap > Pose.Snap ? 25.f : 4.f);
-		Follow(Pose.Death, Goal.Death, 3.f);
-		// Dying, it crumples, quicker than it slumps; calm, it sways slowly where it hangs.
-		Follow(Pose.Crumple, Goal.Crumple, 4.5f);
+		// Dying, it crumples, quicker than it slumps (twice as quick again snuffed: HITS); calm, it sways slowly where it hangs.
+		Follow(Pose.Death, Goal.Death, 3.f * Hurt.CrumpleRate());
+		Follow(Pose.Crumple, Goal.Crumple, 4.5f * Hurt.CrumpleRate());
 		Follow(Pose.Sway, Goal.Sway, 2.f);
 		// The arms come up as the hunt starts, not at once; the shriek's own channels take over quickly.
 		Follow(Pose.Hunt, Goal.Hunt, GetCreatureState() == ECreatureState::Attack ? Rate : 4.f);
@@ -320,54 +320,68 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	}
 	// A hit's flinch rises over a few frames and eases off (UnpaidCreatureArms.cpp).
 	StepFlinch(Dt);
+	// Its hits' own channels (HITS, UnpaidCreatureHurt.cpp): the twist, the head's knock and whip, the jaw, the coal.
+	Hurt.Step(Dt);
 	const float Moving = FMath::Min(Speed, 1.f);
 	const float Alive = 1.f - Pose.Death;
 	// It banks into its turns a little, eased: followed straight, a turn's start threw the head and hat 30-50 cm in a frame.
 	const float WantedBank = FMath::Clamp(YawRate * 0.04f, -10.f, 10.f) * Alive;
 	Bank = Dt > 0.f ? FMath::FInterpTo(Bank, WantedBank, Dt, BankRate) : WantedBank;
-	const float FlinchBack = 8.f * Flinch * static_cast<float>(FlinchAway.X);
-	const float FlinchSide = 8.f * Flinch * static_cast<float>(FlinchAway.Y);
+	const float FlinchBack = Hurt.PelvisGain * Flinch * static_cast<float>(FlinchAway.X);
+	const float FlinchSide = Hurt.PelvisGain * Flinch * static_cast<float>(FlinchAway.Y);
+	// A stagger folds it at the waist away from the hit and sinks it; a blast's kill throws it back along the shot (HITS).
+	const FVector2D Fold = Hurt.StaggerFold();
+	const FVector2D Thrown = Hurt.KillTilt(DeathTime);
 
 	// The body hovers, bobbing, and leans into its drift; the shriek rears it back and the lunge throws it forward. A hit
 	// jolts it away.
 	if (PelvisBone != INDEX_NONE)
 	{
 		FPosedBone& Pelvis = Bones[PelvisBone];
-		const float Bob = BobHeight * FMath::Sin(2.f * UE_PI * BobHz * Time) * (1.f - 0.5f * Moving) * Alive;
+		// Badly hurt it hangs heavier: half its bob.
+		const float Bob = BobHeight * FMath::Sin(2.f * UE_PI * BobHz * Time) * (1.f - 0.5f * Moving) * Alive * Hurt.BobShare();
 		// Rising out of the ground it comes up from under it (RiseDrop); crumpling it sinks and folds over.
-		Pelvis.Own = PitchBy(0.4f * Pose.Lean + FlinchBack + CrumpleHips * Pose.Crumple) * RollBy(-Bank - FlinchSide + Pose.Sway);
-		Pelvis.Shift = FVector(0.f, 0.f, Bob - 4.f * Pose.Reach - 25.f * Pose.Death - CrumpleSink * Pose.Crumple + RiseDrop())
-			+ FlinchAway * (6.f * Flinch);
+		Pelvis.Own = PitchBy(0.4f * Pose.Lean + FlinchBack + CrumpleHips * Pose.Crumple + Thrown.X)
+			* RollBy(-Bank - FlinchSide + Pose.Sway + Thrown.Y);
+		Pelvis.Shift = FVector(0.f, 0.f, Bob - 4.f * Pose.Reach - 25.f * Pose.Death - CrumpleSink * Pose.Crumple + RiseDrop() - Hurt.StaggerSink())
+			+ FlinchAway * (6.f * Flinch) + Hurt.KillShift(DeathTime);
 	}
 	if (SpineBone != INDEX_NONE)
 	{
 		// The shriek's rear bends mostly at the waist: the chest folding back over it presses the armpits into the waist
-		// (all at the chest it did badly, an even split still 2-3 cm). The same 8 degrees back in all.
-		Bones[SpineBone].Own = PitchBy(0.3f * Pose.Lean + 1.5f * FMath::Sin(Time * 1.9f) - 6.f * Pose.Rear + CrumpleWaist * Pose.Crumple);
+		// (all at the chest it did badly, an even split still 2-3 cm). The same 8 degrees back in all. A wound off its middle
+		// twists it here, and a stagger folds it here.
+		Bones[SpineBone].Own = YawBy(Hurt.TwistYaw())
+			* PitchBy(0.3f * Pose.Lean + 1.5f * FMath::Sin(Time * 1.9f) - 6.f * Pose.Rear + CrumpleWaist * Pose.Crumple + Fold.X)
+			* RollBy(Fold.Y);
 	}
 	if (ChestBone != INDEX_NONE)
 	{
-		Bones[ChestBone].Own = PitchBy(0.3f * Pose.Lean - 2.f * Pose.Rear) * RollBy(-0.3f * Bank);
+		// The chest lags the hips' jolt a little (the whiplash's start).
+		Bones[ChestBone].Own = PitchBy(0.3f * Pose.Lean - 2.f * Pose.Rear + Hurt.ChestPitch(FlinchBack)) * RollBy(-0.3f * Bank);
 	}
 	if (CoalBone != INDEX_NONE)
 	{
-		// The coal throbs, and swells as it flares.
-		Bones[CoalBone].Scale = 1.f + 0.06f * FMath::Sin(2.f * UE_PI * 0.8f * Time) + 0.25f * FMath::Max(Heat, 0.f);
+		// The coal throbs, and swells as it flares (and as a crit lands on it); snuffed, it swells once and goes out.
+		Bones[CoalBone].Scale = (1.f + 0.06f * FMath::Sin(2.f * UE_PI * 0.8f * Time) + 0.25f * FMath::Max(Heat, 0.f) + Hurt.CoalPulse())
+			* Hurt.CoalDeathScale(DeathTime);
 	}
-	// Neck and head look at its target, holding most of the body's lean off so it keeps its eyes on them.
+	// Neck and head look at its target, holding most of the body's lean off so it keeps its eyes on them. A hit knocks the
+	// head, lags it behind the body's jolt and whips it on after; from behind it whips round toward the shooter.
 	if (NeckBone != INDEX_NONE)
 	{
-		Bones[NeckBone].Own = YawBy(0.4f * Pose.LookYaw) * PitchBy(-0.4f * Pose.LookPitch - 0.35f * Pose.Lean + 6.f * Pose.Reach);
+		Bones[NeckBone].Own = YawBy(0.4f * Pose.LookYaw)
+			* PitchBy(-0.4f * Pose.LookPitch - 0.35f * Pose.Lean + 6.f * Pose.Reach + Hurt.NeckPitch());
 	}
 	if (HeadBone != INDEX_NONE)
 	{
-		Bones[HeadBone].Own = YawBy(0.6f * Pose.LookYaw)
+		Bones[HeadBone].Own = YawBy(0.6f * Pose.LookYaw + Hurt.HeadYaw())
 			* PitchBy(-0.6f * Pose.LookPitch - 0.35f * Pose.Lean - 15.f * Pose.Rear + 8.f * Pose.Reach + 30.f * Pose.Death
-				+ CrumpleHead * Pose.Crumple);
+				+ CrumpleHead * Pose.Crumple + Hurt.HeadPitch(FlinchBack));
 	}
 	if (JawBone != INDEX_NONE)
 	{
-		Bones[JawBone].Own = PitchBy(Pose.Jaw - RestJaw);
+		Bones[JawBone].Own = PitchBy(Pose.Jaw - RestJaw + Hurt.JawOpen());
 	}
 
 	// The shroud lifts off ground that rises behind it (it trails a meter back, low): the floor's slope along its facing,

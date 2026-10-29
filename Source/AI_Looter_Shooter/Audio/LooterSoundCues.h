@@ -29,6 +29,8 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* Holster = TEXT("Weapon.Holster");
 	/** Raising the sights (right mouse). */
 	inline constexpr const TCHAR* AimIn = TEXT("Weapon.AimIn");
+	/** Lowering the sights (gun identity, 2026-10-28; GunshotSound::AimOutCue). A cue with no sounds plays nothing. */
+	inline constexpr const TCHAR* AimOut = TEXT("Weapon.AimOut");
 	/** A bullet meeting the world: ground and stone; wood; metal; water. */
 	inline constexpr const TCHAR* ImpactWorld = TEXT("Impact.World");
 	inline constexpr const TCHAR* ImpactWood = TEXT("Impact.Wood");
@@ -186,6 +188,23 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* SniperLowAmmo = TEXT("Weapon.Sniper.LowAmmo");
 		inline constexpr const TCHAR* LMGLowAmmo = TEXT("Weapon.LMG.LowAmmo");
 		inline constexpr const TCHAR* LauncherLowAmmo = TEXT("Weapon.Launcher.LowAmmo");
+
+		// Gun identity (2026-10-28, Docs/Work/2026-10-28-Core/GUNS.md; Art/Sounds/recipes/guns_*.py): the body "punch" under a
+		// shot (the shooter's own gun, 2D; GunshotSound::PlayShot) and the sights coming up by kind (WeaponSounds::AimIn;
+		// falls back to Weapon.AimIn). A cue with no sounds yet plays nothing.
+		inline constexpr const TCHAR* RiflePunch = TEXT("Weapon.Rifle.Punch");
+		inline constexpr const TCHAR* ShotgunPunch = TEXT("Weapon.Shotgun.Punch");
+		inline constexpr const TCHAR* RevolverPunch = TEXT("Weapon.Revolver.Punch");
+		inline constexpr const TCHAR* SniperPunch = TEXT("Weapon.Sniper.Punch");
+		inline constexpr const TCHAR* LMGPunch = TEXT("Weapon.LMG.Punch");
+		inline constexpr const TCHAR* LauncherPunch = TEXT("Weapon.Launcher.Punch");
+		inline constexpr const TCHAR* RifleAimIn = TEXT("Weapon.Rifle.AimIn");
+		inline constexpr const TCHAR* ShotgunAimIn = TEXT("Weapon.Shotgun.AimIn");
+		inline constexpr const TCHAR* RevolverAimIn = TEXT("Weapon.Revolver.AimIn");
+		inline constexpr const TCHAR* SMGAimIn = TEXT("Weapon.SMG.AimIn");
+		inline constexpr const TCHAR* SniperAimIn = TEXT("Weapon.Sniper.AimIn");
+		inline constexpr const TCHAR* LMGAimIn = TEXT("Weapon.LMG.AimIn");
+		inline constexpr const TCHAR* LauncherAimIn = TEXT("Weapon.Launcher.AimIn");
 	}
 
 	/** The Rustler SMG's own (its helix magazine's reload steps, EReloadStep HelixOut / HelixIn). */

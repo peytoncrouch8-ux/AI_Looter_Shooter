@@ -491,6 +491,12 @@ private:
 	bool bWasFalling = false;
 	bool bWasCrouched = false;
 	float FallSpeed = 0.f;
+	/** The weight of the gun in hand as the view model feels it (GunHeft): follows the kind's, 1 with nothing or heft off. */
+	float HeftWeight = 1.f;
+	/** Seconds since the sight last arrived (aim up after being down); past GunHeft::Default::ArrivalSeconds the push is over. */
+	float SightArrivalClock = 100.f;
+	/** The sight was down (under half raised) since it last arrived, so the next time it is up counts as an arrival. */
+	bool bSightWasDown = true;
 	/** 0..1 toward the lowered pose while a menu is open. */
 	float MenuLinear = 0.f;
 

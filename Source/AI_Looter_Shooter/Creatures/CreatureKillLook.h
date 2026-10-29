@@ -28,6 +28,19 @@ namespace CreatureKillLook
 	/** Lays only its splat (a body that settles before its pool spreads: the spider's lands a beat after it dies). */
 	AI_LOOTER_SHOOTER_API bool LaySplat(ACreatureBase& Creature);
 
+	/**
+	 * How a killing hit is styled (HITS, 2026-10-28): the plain body kill, a crit's, a blast's (a shotgun or launcher round, or a
+	 * Big hit) or an overkill's (Hit.Weight Overkill). The first that fits, overkill first. Looter.Hits.KillStyles 0: always Body.
+	 */
+	enum class EStyle : uint8 { Body, Crit, Blast, Overkill };
+	AI_LOOTER_SHOOTER_API EStyle StyleOf(const FCreatureHit& Hit);
+
+	/**
+	 * A Big hit that did not kill leaves one small splat on the ground 30 to 45 cm behind the body along the shot (at most one
+	 * every half second in the world, none for a boss, none unseen). Called from the hit's OnHurt. True if laid.
+	 */
+	AI_LOOTER_SHOOTER_API bool LayBigHitSplat(ACreatureBase& Creature, const FCreatureHit& Hit);
+
 	/** Kills farther than this from every view play nothing (cm): nobody sees them, and they'd cost a trace and a splat. */
 	inline constexpr float SeenWithin = 9000.f;
 }
