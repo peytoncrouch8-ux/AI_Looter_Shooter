@@ -297,6 +297,8 @@ The user's calls this stretch:
   today's drop counts. Not done (analysis, needs the user): more offer odds change (.45/.45/.10).
   DestroyAll <class> in PIE wipes far more than the class (the grass went): never use it; Looter.SpawnCreature + slomo 0.02 +
   play.py goto <name> <cm> [yaw] frames a creature for a grab.
+- Playtest package `Builds/Playtest/2026-10-30_0828` (1.47 GB, everything above; smoke menu + Ransom's Rest pass; `Play Latest
+  Build.bat` runs it). Not seen in play yet: the grass blast, the tag fade, the harder Abel and Foreman.
 
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:
