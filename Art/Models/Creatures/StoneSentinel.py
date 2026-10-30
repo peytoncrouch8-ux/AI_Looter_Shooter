@@ -5,6 +5,11 @@ waist; moss creeping up the folds from the ground and settling on the shoulders,
 the hood, a piece of the cape's hem broken away. Its rest pose is the dormant statue (hands clasped, head bowed): a
 creature's rest pose is its game idle.
 
+SK_StoneSentinel is the user's Tripo model by default (2026-10-29: Art/Models/Creatures/Tripo/parts_sentinel.py:
+remeshed to quads, cut into rigid stone pieces on these bones, the hood bowed, the fists at its sides as modelled, our
+granite and moss baked with Tripo's carving into T_TripoStoneSentinel, slot StoneSentinelBody, about 21k triangles,
+thighs hidden in the robe with hit capsules). LOOTER_SENTINEL_TRIPO=0 builds the script stand-in below (described next).
+
 Models:
   SK_StoneSentinel        the statue, about 16k triangles, LODs at 50% and 25% (no Nanite: it moves). Slots
                           StoneSentinel (RockGranite on M_World, moss on its upward faces: MossAmount 0.7, MossThreshold

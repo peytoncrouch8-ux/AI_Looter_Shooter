@@ -52,8 +52,8 @@ bool FStoneSentinelRulesTest::RunTest(const FString& Parameters)
 	const FStoneSentinelPose End = StoneSentinelRules::SlamPoseAt(Tuning.SlamWindup + Tuning.SlamRecovery, Tuning);
 	const FStoneSentinelPose Idle = StoneSentinelRules::IdlePose();
 	TestTrue(TEXT("It starts standing"), FMath::IsNearlyEqual(Start.ArmSwing, Idle.ArmSwing, 1.f));
-	TestTrue(TEXT("Its fists are overhead at the heave's top"), Top.ArmSwing >= 160.f);
-	TestTrue(TEXT("...and down in front at the blow, bowed over them"), Blow.ArmSwing < 90.f && Blow.Bow >= 30.f);
+	TestTrue(TEXT("Its fists are up over its hood at the heave's top, elbows bent"), Top.ArmSwing >= 120.f && Top.ElbowBend >= 60.f);
+	TestTrue(TEXT("...and down in front at the blow, bowed over them"), Blow.ArmSwing < 90.f && Blow.Bow >= 20.f);
 	TestTrue(TEXT("It stays down a moment: the window"), FMath::IsNearlyEqual(Held.ArmSwing, Blow.ArmSwing, 0.5f));
 	TestTrue(TEXT("It stands again by the recovery's end"), FMath::IsNearlyEqual(End.ArmSwing, Idle.ArmSwing, 1.f)
 		&& FMath::IsNearlyEqual(End.Bow, Idle.Bow, 1.f));

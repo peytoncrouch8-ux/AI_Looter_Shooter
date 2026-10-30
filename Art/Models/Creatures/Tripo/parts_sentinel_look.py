@@ -35,20 +35,21 @@ SIZE = 2048
 GRANITE = 'RockGranite'
 UV_DENSITY = 420.0                       # the stand-in's and the plinth's granite, px a metre
 CAP_UV = 0.45                            # the caps' share of density
-MOSS = np.array([0.13, 0.21, 0.05], np.float32) * 0.8   # M_World's MossColor (linear, the plinth's moss), in shade
+MOSS = np.array([0.13, 0.21, 0.05], np.float32) * 0.62  # M_World's MossColor (linear, the plinth's moss), in the shade of
+                                                       # the folds it keeps to
 IRON = np.array([0.050, 0.046, 0.042], np.float32)
 RUST = np.array([0.20, 0.085, 0.035], np.float32)
 
 # Iron staples across cracks (a mender's work on an old grave statue): (bone, a point near the surface, the side it is
 # seen from, the bar's rough way, length m). Placed in Tripo's stance, on the remeshed pieces, before the pose.
 STAPLES = [
-    ('head', (0.12, 0.16, 2.12), (0.45, 0.75, 0.5), (0.0, 0.3, -1.0), 0.13),
-    ('spine_02', (-0.18, 0.40, 1.80), (-0.2, 1.0, 0.15), (1.0, 0.0, 0.3), 0.14),
-    ('upperarm_l', (0.62, 0.10, 1.72), (1.0, 0.1, 0.2), (0.0, 1.0, 0.25), 0.13),
-    ('lowerarm_r', (-0.74, 0.02, 1.22), (-1.0, 0.0, 0.0), (0.0, 1.0, -0.4), 0.12),
-    ('calf_l', (0.24, -0.48, 0.52), (0.35, -1.0, 0.0), (1.0, 0.0, 0.15), 0.15),
-    ('thigh_r', (-0.20, 0.44, 0.95), (-0.3, 1.0, 0.0), (1.0, 0.0, -0.2), 0.14),
-    ('calf_r', (-0.42, 0.30, 0.40), (-0.8, 0.6, 0.0), (0.0, 0.2, 1.0), 0.13),
+    ('head', (0.12, 0.16, 2.12), (0.45, 0.75, 0.5), (0.0, 0.3, -1.0), 0.16),
+    ('spine_02', (-0.18, 0.40, 1.80), (-0.2, 1.0, 0.15), (1.0, 0.0, 0.3), 0.17),
+    ('upperarm_l', (0.62, 0.10, 1.72), (1.0, 0.1, 0.2), (0.0, 1.0, 0.25), 0.16),
+    ('lowerarm_r', (-0.70, -0.12, 1.30), (-0.75, -0.65, 0.0), (0.2, -0.2, 1.0), 0.15),
+    ('pelvis', (0.24, -0.48, 0.52), (0.35, -1.0, 0.0), (1.0, 0.0, 0.15), 0.18),
+    ('pelvis', (-0.20, 0.44, 0.95), (-0.3, 1.0, 0.0), (1.0, 0.0, -0.2), 0.17),
+    ('pelvis', (-0.42, 0.30, 0.40), (-0.8, 0.6, 0.0), (0.0, 0.2, 1.0), 0.16),
 ]
 
 
@@ -94,9 +95,9 @@ def staples(low):
             w = n.cross(t).normalized()
             sink = 0.025 if k in (0, steps) else 0.0          # the ends turned down into the stone
             base = h - n * (0.004 + sink)
-            top = h + n * 0.010 - n * sink * 0.6
-            rows.append([bm.verts.new(base - w * 0.012), bm.verts.new(base + w * 0.012),
-                         bm.verts.new(top + w * 0.012), bm.verts.new(top - w * 0.012)])
+            top = h + n * 0.014 - n * sink * 0.6
+            rows.append([bm.verts.new(base - w * 0.016), bm.verts.new(base + w * 0.016),
+                         bm.verts.new(top + w * 0.016), bm.verts.new(top - w * 0.016)])
         for a, b in zip(rows, rows[1:]):
             for i in range(4):
                 j = (i + 1) % 4
@@ -139,9 +140,9 @@ def _uv_islands(bm, uv):
     return out
 
 
-def unwrap(body, margin=0.003):
+def unwrap(body, margin=0.0018):
     """UVMap on body: smart projection, even density, cap islands at CAP_UV, packed. Returns the atlas's digest."""
-    lbk.smart_uv(body, angle=62.0, margin=0.0)
+    lbk.smart_uv(body, angle=66.0, margin=0.0)
     lbk.select([body])
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
@@ -357,7 +358,7 @@ def compose(b, g):
     # Tripo's carving as light and shade: each texel over its neighbourhood's mean (cracks, crevices and the carved lines
     # under 1), its smeared blotches clipped off above.
     local = lt.blur(lum, 10.0) + 1e-4
-    shade = np.clip(lum / local, 0.42, 1.12)
+    shade = np.clip(lum / local, 0.35, 1.12) ** 1.25
     shade = shade * 0.85 + 0.15 * np.clip(lt.blur(lum, 40.0) / (lum[known].mean() + 1e-4), 0.75, 1.15)
     stone = g['BC'] * shade[..., None]
     # Moss: where Tripo grew it (green over red and blue), crisp edges broken by noise; and creeping into upward folds.
@@ -367,7 +368,9 @@ def compose(b, g):
     grown = _smooth(lt.blur(green, 3.0) + 0.03 * lt.noise(lum.shape, 9, 8.0, octaves=2), 0.07, 0.085)
     up = b['Nw'][..., 2]
     fold = _smooth(up, 0.55, 0.85) * _smooth(-(shade - 1.0), 0.10, 0.25) * _smooth(n, 0.3, 0.6)
-    moss = np.clip(np.maximum(grown, fold), 0.0, 1.0) * ~cap * ~iron
+    # Tripo grew moss on every face: ours keeps to the tops and ledges, and creeps up the robe only near the ground.
+    lift = np.clip(_smooth(up, 0.05, 0.5) + _smooth(0.45, 0.2, b['P'][..., 2]), 0.0, 1.0)
+    moss = _smooth(np.maximum(grown * lift, fold), 0.35, 0.6) * ~cap * ~iron
     var = np.clip(_luma(g['BC']) / (_luma(g['BC'])[mask].mean() + 1e-4), 0.7, 1.3)
     moss_bc = MOSS[None, None, :] * (var * np.clip(shade, 0.6, 1.1))[..., None]
     bc = stone * (1.0 - moss[..., None]) + moss_bc * moss[..., None]
@@ -378,7 +381,7 @@ def compose(b, g):
     bc = np.where(cap[..., None], cap_bc, bc)
     ao = np.where(cap, 1.0, ao)
     # Iron: dark, pitted with rust; rust running down the stone below each staple.
-    rust_n = _smooth(lt.noise(lum.shape, 11, 1.5, octaves=2), -0.2, 0.9)
+    rust_n = _smooth(lt.noise(lum.shape, 11, 1.5, octaves=2), 0.3, 1.2) * 0.8
     iron_bc = IRON[None, None, :] * (1.0 - rust_n[..., None]) + RUST[None, None, :] * 0.6 * rust_n[..., None]
     bc = np.where(iron[..., None], iron_bc, bc)
     rough = np.where(iron, 0.48 + 0.3 * rust_n, rough)

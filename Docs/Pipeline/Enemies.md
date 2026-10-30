@@ -475,11 +475,20 @@ packs. Counts and the set pieces: `Docs/Areas/RansomsRest.md` "Fights and set pi
   (3x a dead miner), Defense 0.25 with the tier's; a two-fist slam (1.1 s wind-up, 2.8 m, 16 dmg, ground crack); left alone
   4 s near its plinth it climbs back at full health (the user's call); crumbles 0.8 s after death. Hits spill granite grit
   (CreatureBlood Clay in GraniteColor). Placed: `build_area_sentinels.py` 4 in Ransom's Rest (Boot Hill x2, churchyard west
-  x2) after Main 4. Page DA_Bestiary_StoneSentinel. Model: the script stand-in (Art/Models/Creatures/StoneSentinel.py); the
-  user is remaking it in Tripo from Main's prompt (save at Art/Concepts/Creatures/StoneSentinel/StoneSentinel.glb; fit to
-  the same bones, rigid pieces).
-- The Unpaid look (the user, 2026-10-29: agreed "bad": a plastic mannequin): being remade in Tripo (stylized prompt; Tripo's
-  image filter blocked later tries); save at Art/Concepts/Creatures/Unpaid/Unpaid.glb, skin to the shared Unpaid rig.
+  x2) after Main 4. Page DA_Bestiary_StoneSentinel.
+- Model (in game 2026-10-30): the user's Tripo statue (`Art/Models/Creatures/Tripo/StoneSentinel.glb`) built by
+  `StoneSentinel.py` with `LOOTER_SENTINEL_TRIPO` (default on; 0 = the old script stand-in) and `Tripo/parts_sentinel*.py`:
+  QuadriFlow remesh, cut into RIGID pieces each 100% on its bone (stone moves stiffly), 19,867 tris, 19 bones (root, the 16,
+  SOCKET_Head/FistL/FistR), 16 hit zones (14 hulls + 2 thigh capsules: the thighs have no mesh, the robe is one bell with the
+  pelvis and only shins/feet step), LODs 50/25, one slot `StoneSentinelBody` (MI_StoneSentinelBody, set TripoStoneSentinel);
+  plinth unchanged. Rest = the user's stance, fists at the sides (a clasp left cut faces and fins; `CLASP_HANDS` False in
+  parts_sentinel_cut.py), hood bowed 12 deg (HeadLift undoes it). The slam's poses were cut to what rigid pieces bend
+  cleanly: Raised (128, 70, -8), Down (45, 20, 22) (StoneSentinelRules.cpp; were 172/35/-10 and 62/6/34, which split the
+  shoulders into shards). Export: `Tools\artrun.ps1 -Export StoneSentinel -Family StoneSentinel` (~5 min); a `-Preview` rewrites
+  the textures, so export last before importing. Lessons: arm cut a few cm inside the robe's flank, chest seam sloped to the
+  back (no fins when it bows).
+- The Unpaid look (the user, 2026-10-29: agreed "bad": a plastic mannequin): remade from the user's Tripo model, in game
+  2026-10-29 (`LOOTER_UNPAID_TRIPO`); in play it reads pale/ghostly with a big near-white hat (play-check 2026-10-30).
 
 ## Placeholder creatures (ROSTER, built 2026-10-22)
 

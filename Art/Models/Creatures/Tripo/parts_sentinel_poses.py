@@ -20,8 +20,10 @@ WAKE_SHUDDER = 2.5
 RIGHT, FORWARD, UP = Vector((0.0, 1.0, 0.0)), Vector((1.0, 0.0, 0.0)), Vector((0.0, 0.0, 1.0))
 M = Matrix(((0.0, -1.0, 0.0), (-1.0, 0.0, 0.0), (0.0, 0.0, 1.0)))
 
-# StoneSentinelRules.cpp: (ArmSwing, ElbowBend, Bow) in degrees.
-IDLE, RAISED, DOWN = (8.0, 12.0, 4.0), (172.0, 35.0, -10.0), (62.0, 6.0, 34.0)
+# StoneSentinelRules.cpp: (ArmSwing, ElbowBend, Bow) in degrees. Raised and Down are the clean extremes found for the Tripo
+# model (2026-10-30; were 172/35/-10 and 62/6/34, which split the shoulders and the trunk into shards and fins): the
+# fists still come up over the hood with the elbows bent, and come down to the ground with less of a bow.
+IDLE, RAISED, DOWN = (8.0, 12.0, 4.0), (128.0, 70.0, -8.0), (45.0, 20.0, 22.0)
 
 # The check poses: name -> (awake weight, walking, gait phase, pose, shudder clock or None).
 POSES = {

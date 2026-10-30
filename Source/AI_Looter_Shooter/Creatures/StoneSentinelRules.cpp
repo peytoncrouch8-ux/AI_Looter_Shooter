@@ -2,10 +2,12 @@
 
 namespace
 {
-	/** The poses the slam passes through (StoneSentinelRules::SlamPoseAt): standing, fists overhead, fists in the dirt. */
+	/** The poses the slam passes through (StoneSentinelRules::SlamPoseAt): standing, fists overhead, fists in the dirt. Raised and
+	 * Down are the furthest the Tripo statue's rigid stone pieces bend cleanly (2026-10-30: 172/35/-10 and 62/6/34 split its
+	 * shoulders into shards). */
 	const FStoneSentinelPose Idle{ 8.f, 12.f, 4.f };
-	const FStoneSentinelPose Raised{ 172.f, 35.f, -10.f };
-	const FStoneSentinelPose Down{ 62.f, 6.f, 34.f };
+	const FStoneSentinelPose Raised{ 128.f, 70.f, -8.f };
+	const FStoneSentinelPose Down{ 45.f, 20.f, 22.f };
 
 	FStoneSentinelPose Blend(const FStoneSentinelPose& A, const FStoneSentinelPose& B, float Alpha)
 	{

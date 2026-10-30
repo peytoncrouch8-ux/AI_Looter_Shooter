@@ -2,12 +2,14 @@
 on (the default; 0 builds the script stand-in). Not a model: Tools\\models.ps1 skips parts_*.py.
 
     build() -> (rig, body)   the shape (parts_sentinel_cut.py), its look (parts_sentinel_look.py), the rig and hit hulls
-    previews(rig, body, plinth, out_dir)   the sheet and one render per game pose (parts_sentinel_poses.py)
+    previews(rig, body, plinth, out_dir, top)   the sheet and one render per game pose (parts_sentinel_poses.py)
 
 Kept from the stand-in, as lane D's code reads them: the asset name, the 17 bones and the SOCKET_Head / FistL / FistR
-bones, the rest pose (the dormant statue: hood bowed, fists clasped before the belt), about 2.37 m, a hull per bone,
-LODs 50% and 25%, no Nanite. Each piece is weighted wholly to its bone (rigid stone). The bones sit on the joints'
-pivots (the cuts' balls and drums are centred on them), so the game's turns slide the pieces on their seams.
+bones, the rest pose as the dormant statue (the hood bowed; the fists at the sides as the user modelled them, not
+clasped: parts_sentinel_cut.CLASP_HANDS), about 2.3 m (2.37 standing, the bow takes 7 cm), a hit zone per bone (hulls;
+capsules for the thighs hidden in the robe), LODs 50% and 25%, no Nanite. Each piece is weighted wholly to its bone
+(rigid stone). The bones sit on the joints' pivots (the cuts' balls are centred on them), so the game's turns open the
+seams on stone. The seams are darkened in the baked occlusion so they read as the joints of carved blocks.
 """
 import math
 import os
@@ -80,9 +82,14 @@ def build():
     specs = bones(xf, joints)
     rig = lm.armature()
     lm.bones(rig, [(n, h.copy(), t.copy(), p) for n, h, t, p in specs])
-    for bone in C['BONES']:
+    for bone in C['PIECES']:
         lm.hit_hull(rig, bone, [low[bone]])
-    body = lm.skin(rig, 'StoneSentinel', {bone: [low[bone]] for bone in C['BONES']})
+    heads = {n: (h, t) for n, h, t, _ in specs}
+    for bone in C['HIDDEN']:
+        # Under the robe (its hull, the pelvis's, takes the shots first): a capsule from the hip to the knee.
+        lm.hit_capsule(rig, bone, heads[bone][0], heads[bone][1], 0.13)
+    body = lm.skin(rig, 'StoneSentinel', {bone: [low[bone]] for bone in C['PIECES']})
+    _clean_slivers(body)
     L['record_staples'](body)
     digest = L['unwrap'](body)
     if L['cached'](digest, SOURCES):
@@ -92,11 +99,13 @@ def build():
         baked = L['bake'](body, list(high.values()), maps)
         look = L['compose'](baked, L['granite'](body))
         mat = L['write'](look, digest)
+    rims = _rim_vertices(body)
     L['finish'](body, mat)
     for p in body.data.polygons:
         p.use_smooth = True
     body.data.set_sharp_from_angle(angle=math.radians(60.0))
     lt.bake_vertex_ao(body, samples=24, distance=0.45)
+    _darken_rims(body, rims)
     for obj in high.values():
         me = obj.data
         bpy.data.objects.remove(obj)
@@ -108,11 +117,69 @@ def build():
     return rig, body
 
 
+def _clean_slivers(body, least=2e-8):
+    """Faces without area (a cut's slivers along its rims, under 0.01 mm2) lose their shortest edge, until none is
+    left: Unreal would give their corners zero tangents (Tools/Blender/tangentcheck.py). The export triangulates, so
+    n-gons and bent quads (a cut leaves points on straight rims, where a fan makes flat triangles) are triangulated here
+    first, where it can be checked; clean quads stay quads."""
+    import bmesh
+    import math
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+
+    def bent(f):
+        if len(f.verts) > 4:
+            return True
+        return len(f.verts) == 4 and any(l.calc_angle() > math.radians(165.0) for l in f.loops)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if bent(f)], quad_method='BEAUTY', ngon_method='BEAUTY')
+    bm.to_mesh(body.data)
+    bm.free()
+    for _ in range(12):
+        bm = bmesh.new()
+        bm.from_mesh(body.data)
+        bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-5)
+        # Flat ones, and needles (a corner under half a degree rounds to no angle at all in float32).
+        thin = [f for f in bm.faces if f.calc_area() < least or min(l.calc_angle() for l in f.loops) < 0.0087]
+        if not thin:
+            bm.to_mesh(body.data)
+            bm.free()
+            break
+        edges = list({min(f.edges, key=lambda e: e.calc_length()) for f in thin})
+        bmesh.ops.collapse(bm, edges=edges, uvs=False)
+        bm.to_mesh(body.data)
+        bm.free()
+    log(f'slivers: {sum(1 for p in body.data.polygons if p.area < least)} faces without area left')
+
+
+def _rim_vertices(body):
+    """The vertices where a piece's skin meets its cut faces: its seams with the next piece."""
+    me = body.data
+    cap = me.materials.find('_Cap')
+    skin = me.materials.find('_Skin')
+    on_cap, on_skin = set(), set()
+    for p in me.polygons:
+        (on_cap if p.material_index == cap else on_skin if p.material_index == skin else set()).update(p.vertices)
+    return on_cap & on_skin
+
+
+def _darken_rims(body, rims, keep=0.5):
+    """The seams read as the joints between carved blocks (and tell the player it will come apart): the baked occlusion
+    (vertex colour alpha) darkened at the skin's corners along every seam, fading over the first row of faces."""
+    me = body.data
+    col = me.color_attributes['Col']
+    for loop in me.loops:
+        if loop.vertex_index in rims:
+            rgba = list(col.data[loop.index].color)
+            rgba[3] *= keep
+            col.data[loop.index].color = rgba
+    log(f'seams: {len(rims)} vertices darkened')
+
+
 def report(rig, body, specs):
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     lo, hi = lt._bounds([body])
-    hulls = [o for o in rig.children if o.name.startswith('UCX_')]
-    log(f'SK_StoneSentinel (Tripo): {tris} triangles, {len(rig.data.bones)} bones, {len(hulls)} hulls, height '
+    hulls = [o for o in rig.children if o.name.startswith(('UCX_', 'UCP_'))]
+    log(f'SK_StoneSentinel (Tripo): {tris} triangles, {len(rig.data.bones)} bones, {len(hulls)} hit zones, height '
         f'{hi.z:.2f} m, width {hi.x - lo.x:.2f} m, depth {hi.y - lo.y:.2f} m; materials '
         f'{", ".join(m.name for m in body.data.materials)}')
     for name, h, t, parent in specs:

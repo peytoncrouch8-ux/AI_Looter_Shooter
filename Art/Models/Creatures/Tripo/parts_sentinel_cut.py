@@ -1,23 +1,28 @@
-"""The Stone Sentinel from the user's Tripo model (Art/Models/Creatures/Tripo/StoneSentinel.glb, made from
-Art/Concepts/Creatures/StoneSentinel/upload): its shape. Not a model: Tools\\models.ps1 skips parts_*.py;
-StoneSentinel.py runs it (LOOTER_SENTINEL_TRIPO, default on) and parts_sentinel_look.py textures what it makes.
+"""The Stone Sentinel from the user's Tripo model (Art/Models/Creatures/Tripo/StoneSentinel.glb, a copy of
+Art/Concepts/Creatures/StoneSentinel/Stone Sentinel.glb): its shape. Not a model: Tools\models.ps1 skips parts_*.py;
+parts_sentinel.py runs it, parts_sentinel_look.py textures what it makes, parts_sentinel_mesh.py holds the mesh tools.
 
 Stone moves stiffly, so the statue is cut into rigid pieces, one per bone, each weighted wholly to it:
-1. load(): Tripo's mesh (one watertight shell, 27.6k triangles, its front -Y, standing neutral with its fists at its
-   sides), scaled to 2.37 m, its feet on the ground.
-2. cut(): Exact booleans against cutter solids (CUTS), so every cut is capped. The joints are stone ball joints: the
-   parent keeps a ball (or, at the hips and knees, a drum round the lateral axis) inside the child, so a bend opens on
-   stone, never on a hole; where a child turns round the lateral axis (the legs, the arms' swing) the seam lies in a plane
-   or drum the turn keeps, so it slides instead of gaping. The sleeves are fused to the robe down their inner side:
-   the arm cut runs between them (x0 below).
-3. retopo(): each piece remeshed on its own (QuadriFlow, Blender's built-in) to clean, even quads, about 21k triangles
-   in all; its cap faces keep the _Cap slot (the look paints them as fresh-cut stone).
-4. pose(): the pieces turned into the dormant statue: the hood bowed, the arms brought forward, the fists clasped (left
-   over right) before the belt. The game's poses are offsets from this rest (Creatures/StoneSentinelCreaturePose.cpp).
+1. load(): Tripo's mesh (one watertight shell, 27.6k triangles, its front -Y, standing neutral, fists at its sides),
+   scaled to 2.37 m, its feet on the ground.
+2. retopo(): the whole statue remeshed to clean, even quads before it is cut (a fine voxel pass first: Tripo's shell
+   crosses itself where parts touch), so both sides of every seam are cut from one surface.
+3. cut(): the remeshed statue and Tripo's own (the bake's source) cut alike by Exact booleans against cutter solids,
+   so every cut is capped (slot _Cap: the look paints it fresh-cut granite). The joints are stone ball joints: the
+   parent keeps a ball inside the child at the neck, chest, waist and elbows (the joints the game bends), so a bend
+   opens on stone, never on a hole. The arms come off the trunk along a plane a little inside its flank (ARM_SEAM:
+   Tripo's sleeves are fused to the robe down their inner side; a cut between them left thin sheets that stood off as
+   fins); the upper arm turns round the top of the shoulder, so its swing slides on that plane. The fists come off
+   round their own footprint, over their curl, inside the cuff. The robe is one rigid bell with the hips:
+   only the shins and feet under its hem step (the thighs, inside it, have no stone, only a hit capsule).
+   tidy_caps(): loose slivers and razor-thin flaps a cut leaves go, the caps' facets are merged.
+4. rest_pose(): the dormant statue: the hood bowed 12 degrees (what the waking's HeadLift undoes, so awake the head is
+   Tripo's own). The fists stay at the sides as the user modelled them (CLASP_HANDS below says why).
 Space: Blender metres, the statue's left +X, its front -Y, up +Z (lc.TO_BLENDER of creature space).
 """
 import math
 import os
+import runpy
 
 import bmesh
 import bpy
@@ -38,19 +43,21 @@ NECK = Vector((0.0, 0.20, 1.80))          # the head's pivot, at the back of the
                                           # hood stays on its ball (radius NECK_R, the seam there) and the front sinks
 NECK_R = 0.30
 HOOD_PLANE = (Vector((0.0, -0.30, 1.74)), Vector((0.0, 0.36, 1.96)))   # the hood's lower edge, front to back
-CHEST = Vector((0.0, 0.02, 1.56))         # spine_02's pivot; seam z 1.62, its ball inside
-CHEST_Z, CHEST_R = 1.62, 0.22
+CHEST = Vector((0.0, 0.02, 1.56))         # spine_02's pivot; its seam CHEST_PLANE, its ball inside
+CHEST_R = 0.22
+CHEST_PLANE = (Vector((0.0, -0.35, 1.64)), Vector((0.0, 0.42, 1.50)))   # the chest seam, front to back
 WAIST = Vector((0.0, 0.0, 1.42))          # spine_01's pivot; seam z 1.48 (over the belt), its ball inside
 WAIST_Z, WAIST_R = 1.48, 0.24
-HIP_Y, HIP_Z, HIP_R = -0.03, 1.00, 0.42   # the drum the legs turn in (round the lateral axis)
-KNEE_Y, KNEE_Z, KNEE_R = -0.02, 0.58, 0.47
-ANKLE, ANKLE_R, ANKLE_Z = Vector((0.36, 0.02, 0.15)), 0.07, 0.15
+HIP_Y, HIP_Z = -0.03, 1.00                 # the legs' pivots (inside the robe: thighs have no stone of their own)
+KNEE_Y, KNEE_Z = -0.02, 0.58
+HEM_CUT = 0.19                            # under the robe's lowest hem (0.21 at its front middle): the shins
+ANKLE, ANKLE_Z = Vector((0.36, 0.02, 0.11)), 0.11
 SHOULDER = Vector((0.40, 0.04, 1.92))       # the upper arm's pivot, at the top of the shoulder under the mantle: it
                                           # swings round the lateral axis there (sliding on its flank seam) and, brought in,
                                           # tips round the forward axis there, so the shoulder's top never opens
 SHOULDER_DOME, SHOULDER_DOME_R = 0.0, 0.42   # no dome: where it swelled into the sleeve it left the flank thin sheets
 ELBOW, ELBOW_R, ELBOW_Z = Vector((0.565, 0.07, 1.40)), 0.16, 1.40
-WRIST, WRIST_R, WRIST_Z = Vector((0.62, -0.09, 1.04)), 0.07, 1.04
+WRIST, WRIST_Z = Vector((0.62, -0.09, 1.10)), 1.10    # over the fist's curl, inside the cuff
 FIST = Vector((0.625, -0.10, 0.93))
 # The arm's inner seam (x over z) between the sleeve and the robe it hangs against: down the flank, then out along
 # the cuff, under the fist.
@@ -58,15 +65,18 @@ ARM_INNER = 0.27
 HOOD_HALF = 0.335
 # The seam runs through the trunk's solid stone, a little inside its flank: where it ran between the sleeve and the robe
 # (fused there in Tripo's shell) it left thin sheets on both sides that stood off as fins once the arm came forward.
-# Down the waist it steps out round the belt and the robe.
-ARM_SEAM = [(ARM_INNER, 2.6), (ARM_INNER, 1.58), (0.34, 1.45), (0.445, 1.03), (0.50, 0.95)]
-ARM_BOTTOM = 0.95
-HAND_BOX = ((0.445, -0.42, 0.70), (0.95, 0.24, WRIST_Z))
+# Down the waist it keeps a few cm inside the robe's flank too (run between the cuffs and the robe, it left the cuffs'
+# walls on the robe as fins once the arms rose), stepping out under the cuffs.
+ARM_SEAM = [(ARM_INNER, 2.6), (ARM_INNER, 1.58), (0.33, 1.45), (0.37, 1.03), (0.43, 0.95), (0.52, 0.80)]
+ARM_BOTTOM = 0.80                         # under the cuffs' lowest hem (left on the robe, it stood off as a fin)
+HAND_BOX = ((0.445, -0.42, 0.80), (0.95, 0.24, WRIST_Z))
 HAND_INNER_LOW = (0.475, 0.86)              # the box's inner face leans out below the knuckles, clear of the robe
-HAND_ROUND = ((0.60, -0.10), (0.15, 0.165))      # the fist's footprint (centre, radii)
+HAND_ROUND = ((0.60, -0.11), (0.16, 0.19))       # the fist's footprint (centre, radii)
 
 BONES = ['pelvis', 'spine_01', 'spine_02', 'head', 'upperarm_l', 'lowerarm_l', 'hand_l', 'upperarm_r', 'lowerarm_r',
          'hand_r', 'thigh_l', 'calf_l', 'foot_l', 'thigh_r', 'calf_r', 'foot_r']
+HIDDEN = ('thigh_l', 'thigh_r')            # inside the robe: no stone, a capsule hit zone each
+PIECES = [b for b in BONES if b not in HIDDEN]
 
 
 def log(message):
@@ -77,186 +87,11 @@ def mirror(v, s):
     return Vector((v[0] * s, v[1], v[2]))
 
 
-# --- Solids ---
-
-def _material(name, color):
-    mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
-    mat.diffuse_color = color
-    return mat
-
-
-def solid(name, bm):
-    bm.normal_update()
-    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
-    me = bpy.data.meshes.new(name)
-    bm.to_mesh(me)
-    bm.free()
-    me.materials.append(_material('_Cap', (0.9, 0.3, 0.2, 1.0)))
-    obj = bpy.data.objects.new(name, me)
-    bpy.context.scene.collection.objects.link(obj)
-    return obj
-
-
-def hull(name, points):
-    bm = bmesh.new()
-    for p in points:
-        bm.verts.new(p)
-    made = bmesh.ops.convex_hull(bm, input=list(bm.verts))
-    junk = [v for v in made['geom_interior'] + made['geom_unused'] if isinstance(v, bmesh.types.BMVert)]
-    bmesh.ops.delete(bm, geom=list(set(junk)), context='VERTS')
-    return solid(name, bm)
-
-
-def box(name, lo, hi):
-    return hull(name, [Vector((x, y, z)) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
-
-
-def halfspace(name, point, normal):
-    """The solid on normal's side of the plane through point (a big box)."""
-    n = Vector(normal).normalized()
-    a = n.orthogonal().normalized()
-    b = n.cross(a)
-    p = Vector(point)
-    pts = [p + a * (i * BIG) + b * (j * BIG) + n * (k * BIG) for i in (-1, 1) for j in (-1, 1) for k in (0, 1)]
-    return hull(name, pts)
-
-
-def sphere(name, centre, radius):
-    bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=10, radius=radius,
-                              matrix=Matrix.Translation(Vector(centre)))
-    return solid(name, bm)
-
-
-def drum_or_below(name, y, z, radius, segments=40):
-    """Everything under the level z plus the drum (a cylinder round the lateral, x, axis through (y, z)) standing on it:
-    a child that turns round that axis inside its parent. Built as one profile swept along x (a boolean union of a box
-    and a cylinder meets on the cylinder's own edges: Exact gets those wrong now and then)."""
-    profile = [Vector((y - BIG, z)), Vector((y - radius, z))]
-    profile += [Vector((y - radius * math.cos(math.pi * k / segments), z + radius * math.sin(math.pi * k / segments)))
-                for k in range(1, segments)]
-    profile += [Vector((y + radius, z)), Vector((y + BIG, z)), Vector((y + BIG, z - BIG)), Vector((y - BIG, z - BIG))]
-    bm = bmesh.new()
-    rings = [[bm.verts.new((x, p.x, p.y)) for p in profile] for x in (-BIG, BIG)]
-    n = len(profile)
-    for i in range(n):
-        j = (i + 1) % n
-        bm.faces.new((rings[0][i], rings[0][j], rings[1][j], rings[1][i]))
-    bm.faces.new(rings[0][::-1])
-    bm.faces.new(rings[1])
-    return solid(name, bm)
-
-
-def _boolean(target, operand, op, self_check=True, tolerant=False):
-    """target op operand (Exact), as a new object; neither input is changed. Faces from the operand keep its _Cap slot."""
-    obj = target.copy()
-    obj.data = target.data.copy()
-    bpy.context.scene.collection.objects.link(obj)
-    mod = obj.modifiers.new('cut', 'BOOLEAN')
-    mod.operation = op
-    mod.solver = 'EXACT'
-    mod.object = operand
-    mod.material_mode = 'TRANSFER'
-    mod.use_self = self_check       # QuadriFlow's shell crosses itself in a few thin folds
-    mod.use_hole_tolerant = tolerant
-    deps = bpy.context.evaluated_depsgraph_get()
-    me = bpy.data.meshes.new_from_object(obj.evaluated_get(deps))
-    old = obj.data
-    obj.modifiers.clear()
-    obj.data = me
-    bpy.data.meshes.remove(old)
-    return obj
-
-
-def union(name, *solids):
-    out = solids[0]
-    for s in solids[1:]:
-        nxt = _boolean(out, s, 'UNION')
-        if out is not solids[0]:
-            _remove(out)
-        out = nxt
-    out.name = name
-    return out
-
-
-def minus(name, a, b):
-    out = _boolean(a, b, 'DIFFERENCE')
-    out.name = name
-    return out
-
-
-def _remove(obj):
-    me = obj.data
-    bpy.data.objects.remove(obj)
-    if me and not me.users:
-        bpy.data.meshes.remove(me)
-
-
-def _open_edges(obj):
-    bm = bmesh.new()
-    bm.from_mesh(obj.data)
-    n = sum(1 for e in bm.edges if not e.is_manifold)
-    bm.free()
-    return n
-
-
-def _heal(obj):
-    """Mends what a cut through a thin fold leaves: edges shared by more than two faces split apart, slivers and
-    duplicate points merged, holes filled."""
-    bm = bmesh.new()
-    bm.from_mesh(obj.data)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
-    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-6)
-    many = [e for e in bm.edges if len(e.link_faces) > 2]
-    if many:
-        bmesh.ops.split_edges(bm, edges=many)
-    loose = [v for v in bm.verts if not v.link_faces]
-    bmesh.ops.delete(bm, geom=loose, context='VERTS')
-    open_ = [e for e in bm.edges if e.is_boundary]
-    if open_:
-        bmesh.ops.holes_fill(bm, edges=open_, sides=0)
-    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
-    bm.to_mesh(obj.data)
-    bm.free()
-
-
-def _bounds(obj):
-    co = np.array([v.co[:] for v in obj.data.vertices]) if obj.data.vertices else np.zeros((1, 3))
-    return co.min(0), co.max(0)
-
-
-def split(piece, cutter, inside_name, outside_name):
-    """(piece inside cutter, piece outside it), both capped; piece and cutter are removed."""
-    # A boolean that lost track of inside and outside hands back the cutter's own far faces: nothing cut may reach past
-    # the piece it came from. Exact misses now and then on a shell crossing itself: tried again other ways, then with
-    # the cutter nudged under a millimetre.
-    lo, hi = _bounds(piece)
-    tries = [(True, False, 0.0), (False, False, 0.0), (True, True, 0.0), (True, False, 0.0007), (False, True, 0.0011)]
-    for k, (self_check, tolerant, nudge) in enumerate(tries):
-        cutter.location = (nudge, nudge * 0.7, -nudge * 0.5)
-        bpy.context.view_layer.update()
-        a = _boolean(piece, cutter, 'INTERSECT', self_check, tolerant)
-        b = _boolean(piece, cutter, 'DIFFERENCE', self_check, tolerant)
-        bad = [o for o in (a, b) if o.data.polygons and (any(_bounds(o)[0][i] < lo[i] - 0.01 for i in range(3))
-                                                         or any(_bounds(o)[1][i] > hi[i] + 0.01 for i in range(3)))]
-        if not bad:
-            break
-        _remove(a)
-        _remove(b)
-        if k == len(tries) - 1:
-            raise RuntimeError(f'the cut of {piece.name} into {inside_name} / {outside_name} failed every way')
-        log(f'cut of {piece.name} into {inside_name} / {outside_name} missed (try {k + 1}); again')
-    a.name, b.name = inside_name, outside_name
-    for o in (a, b):
-        n = _open_edges(o)
-        if n:
-            _heal(o)
-            m = _open_edges(o)
-            if m:
-                log(f'{o.name}: {n} open edges after the cut of {piece.name}, {m} after healing')
-    _remove(piece)
-    _remove(cutter)
-    return a, b
+# The mesh tools (solids, booleans, the remesh, clean-ups) live in parts_sentinel_mesh.py.
+MESH = runpy.run_path(os.path.join(os.path.dirname(GLB), 'parts_sentinel_mesh.py'))
+for _name in ('_material', 'solid', 'hull', 'box', 'halfspace', 'sphere', '_boolean', 'union', 'minus', '_remove', 'split',
+              '_remesh', '_thin_caps', 'drop_thin', 'orient_out'):
+    globals()[_name] = MESH[_name]
 
 
 # --- 1. Load ---
@@ -332,12 +167,11 @@ def _hand_cutter(s):
     ring = [Vector(((cx + rx * math.cos(a)) * s, cy + ry * math.sin(a), z)) for z in (z0, z1)
             for a in (2.0 * math.pi * k / 32 for k in range(32))]
     round_ = hull('_HandRound', ring)
-    cut = _boolean(box_, round_, 'INTERSECT')
-    ball = sphere('_WristBall', mirror(WRIST, s), WRIST_R)
-    out = minus('_HandCutter', cut, ball)
-    for o in (box_, round_, cut):
+    # No ball at the wrist: the game never turns a fist on its forearm (a ball there showed through the fist's curl).
+    out = _boolean(box_, round_, 'INTERSECT')
+    out.name = '_HandCutter'
+    for o in (box_, round_):
         _remove(o)
-    _remove(ball)
     return out
 
 
@@ -383,16 +217,27 @@ def cut(source, tag='P'):
         # The upper arm keeps its elbow ball: the lower arm is what lies under the seam, outside the ball.
         fore = _below_minus_ball(ELBOW_Z, mirror(ELBOW, s), ELBOW_R, "_ForeCutter")
         pieces[f'lowerarm_{sfx}'], pieces[f'upperarm_{sfx}'] = split(arm, fore, f'_P_lowerarm_{sfx}', f'_P_upperarm_{sfx}')
-    legs, rest = split(rest, drum_or_below('_HipCutter', HIP_Y, HIP_Z, HIP_R), '_Legs', '_Rest')
-    pieces['spine_02'], rest = split(rest, _above_minus_ball(CHEST_Z, CHEST, CHEST_R, '_ChestCutter'), '_P_spine_02', '_Rest')
+    # The robe is one rigid bell with the hips: only the shins and feet under its hem step (split, the skirt's halves
+    # sheared past each other on a bare flat face at every stride).
+    legs, rest = split(rest, box('_UnderHem', (-BIG, -BIG, -BIG), (BIG, BIG, HEM_CUT)), '_Legs', '_Rest')
+    # The chest seam slopes down to the back under the mantle's hem: level, it cut the mantle's hanging back into a
+    # thin plate left on the waist that stood off behind the bowed trunk (the slam).
+    (f0, f1) = CHEST_PLANE
+    slope = (f1 - f0).cross(Vector((1.0, 0.0, 0.0))).normalized()
+    above = halfspace('_AboveChest', f0, slope if slope.z > 0.0 else -slope)
+    ball = sphere('_ChestBall', CHEST, CHEST_R)
+    chest = minus('_ChestCutter', above, ball)
+    _remove(above)
+    _remove(ball)
+    pieces['spine_02'], rest = split(rest, chest, '_P_spine_02', '_Rest')
     pieces['spine_01'], pieces['pelvis'] = split(rest, _above_minus_ball(WAIST_Z, WAIST, WAIST_R, '_WaistCutter'),
                                                  '_P_spine_01', '_P_pelvis')
     left = box('_LeftHalf', (0.0, -BIG, -BIG), (BIG, BIG, BIG))
     halves = dict(zip(('l', 'r'), split(legs, left, '_LegL', '_LegR')))
     for s, sfx in ((1.0, 'l'), (-1.0, 'r')):
-        calf, pieces[f'thigh_{sfx}'] = split(halves[sfx], drum_or_below('_KneeCutter', KNEE_Y, KNEE_Z, KNEE_R),
-                                             '_Calf', f'_P_thigh_{sfx}')
-        foot = _below_minus_ball(ANKLE_Z, mirror(ANKLE, s), ANKLE_R, "_AnkleCutter")
+        calf = halves[sfx]
+        # No ball at the ankle either: the game never turns a foot on its shin.
+        foot = box('_AnkleCutter', (-BIG, -BIG, -BIG), (BIG, BIG, ANKLE_Z))
         pieces[f'foot_{sfx}'], pieces[f'calf_{sfx}'] = split(calf, foot, f'_P_foot_{sfx}', f'_P_calf_{sfx}')
     for bone, obj in pieces.items():
         obj.name = obj.data.name = f'_{tag}_{bone}'
@@ -466,90 +311,6 @@ def rehome(pieces, crumb=0.12):
 
 # --- 3. Retopology ---
 
-def _apply_voxel(obj, size):
-    mod = obj.modifiers.new('voxel', 'REMESH')
-    mod.mode = 'VOXEL'
-    mod.voxel_size = size
-    deps = bpy.context.evaluated_depsgraph_get()
-    me = bpy.data.meshes.new_from_object(obj.evaluated_get(deps))
-    old = obj.data
-    obj.modifiers.clear()
-    obj.data = me
-    bpy.data.meshes.remove(old)
-
-
-def _clean_for_quadriflow(obj, dist=3e-4):
-    """QuadriFlow refuses a mesh with any edge under 0.1 mm (a voxel pass or a cut leaves some): merged away."""
-    bm = bmesh.new()
-    bm.from_mesh(obj.data)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
-    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=dist)
-    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
-    bm.to_mesh(obj.data)
-    bm.free()
-
-
-def _materials_from(src, dst):
-    """dst's faces take the slot (_Skin or _Cap) of the nearest face of src."""
-    from mathutils.bvhtree import BVHTree
-    sm = src.data
-    tree = BVHTree.FromPolygons([v.co.copy() for v in sm.vertices], [list(p.vertices) for p in sm.polygons])
-    caps = [sm.materials[p.material_index].name == '_Cap' for p in sm.polygons]
-    dm = dst.data
-    dm.materials.clear()
-    dm.materials.append(bpy.data.materials['_Skin'])
-    dm.materials.append(bpy.data.materials['_Cap'])
-    for p in dm.polygons:
-        index = tree.find_nearest(p.center)[2]
-        p.material_index = 1 if index is not None and caps[index] else 0
-        p.use_smooth = True
-
-
-def _remesh(obj, want, voxel, factor, seed):
-    """One try at obj remeshed to about want quads: a voxel pass (one clean solid: a cut through Tripo's shell, which
-    crosses itself where parts touch, isn't always one), collapsed down to factor times the faces wanted (the voxel
-    pass leaves slivers, and QuadriFlow refuses any edge under 0.1 mm), then QuadriFlow. None when it refused."""
-    q = obj.copy()
-    q.data = obj.data.copy()
-    bpy.context.scene.collection.objects.link(q)
-    _apply_voxel(q, voxel)
-    dec = q.modifiers.new('dec', 'DECIMATE')
-    dec.ratio = min(1.0, want * factor / max(len(q.data.polygons), 1))
-    deps = bpy.context.evaluated_depsgraph_get()
-    me = bpy.data.meshes.new_from_object(q.evaluated_get(deps))
-    old = q.data
-    q.modifiers.clear()
-    q.data = me
-    bpy.data.meshes.remove(old)
-    _clean_for_quadriflow(q, 1.5e-4)
-    with bpy.context.temp_override(active_object=q, object=q, selected_objects=[q], selected_editable_objects=[q]):
-        result = bpy.ops.object.quadriflow_remesh(target_faces=want, use_preserve_sharp=True,
-                                                  use_preserve_boundary=False, use_mesh_symmetry=False,
-                                                  smooth_normals=False, mode='FACES', seed=seed)
-    if 'FINISHED' in result and want * 0.5 <= len(q.data.polygons) <= want * 2.0:
-        return q
-    _remove(q)
-    return None
-
-
-def _thin_caps(obj, angle=22.0):
-    """Caps are mostly hidden (the joints' inner faces, the balls): their quads merged by a limited dissolve inside them
-    (never across their rim, so seams keep their line) and triangulated, so the skin keeps the triangles."""
-    bm = bmesh.new()
-    bm.from_mesh(obj.data)
-    cap = obj.data.materials.find('_Cap')
-    faces = [f for f in bm.faces if f.material_index == cap]
-    inner = [e for e in {e for f in faces for e in f.edges} if all(g.material_index == cap for g in e.link_faces)]
-    verts = [v for v in {v for e in inner for v in e.verts} if all(f.material_index == cap for f in v.link_faces)]
-    bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(angle), use_dissolve_boundaries=False, verts=verts,
-                             edges=inner, delimit={'MATERIAL'})
-    big = [f for f in bm.faces if f.material_index == cap and len(f.verts) > 4]
-    if big:
-        bmesh.ops.triangulate(bm, faces=big, quad_method='BEAUTY', ngon_method='BEAUTY')
-    bm.to_mesh(obj.data)
-    bm.free()
-
-
 TRIES = ((VOXEL, 12.0), (VOXEL, 7.0), (VOXEL * 1.4, 10.0), (VOXEL * 2.0, 6.0), (VOXEL * 1.2, 16.0))
 
 
@@ -581,12 +342,27 @@ def retopo(source, quads=QUADS, seed=3):
 
 def tidy_caps(pieces):
     """A cut's caps carry the cutters' facets sliced to slivers: merged flat inside the caps and triangulated."""
-    for obj in pieces.values():
+    for bone, obj in pieces.items():
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=2e-4)
+        # Caps cut by a cutter made from two others (the fist's box and round) can come out facing in.
+        bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
         bm.to_mesh(obj.data)
         bm.free()
+        # Not the fists (their curled fingers are thin by nature) nor the hood (its rim).
+        gone = 0 if bone.startswith(('hand', 'head')) else drop_thin(obj)
+        if gone:
+            log(f'{bone}: {gone} faces of thin flaps dropped')
+        if bone == 'pelvis':
+            # The robe's flanks where the sleeves hung against them: the arm cut leaves the cuffs' inner walls there,
+            # thicker than a sliver, which stand off as fins once the arms rise (the slam).
+            extra = drop_thin(obj, thickness=0.03, where=lambda c: abs(c.x) > 0.30 and 0.85 < c.z < 1.46)
+            if extra:
+                log(f'pelvis: {extra} faces of the cuff walls dropped from its flanks')
+        turned = orient_out(obj)
+        if turned:
+            log(f'{bone}: {turned} faces turned to face out')
         _thin_caps(obj, angle=25.0)
         # The skin's triangles paired back into QuadriFlow's quads (each quad was split along one diagonal).
         bm = bmesh.new()
