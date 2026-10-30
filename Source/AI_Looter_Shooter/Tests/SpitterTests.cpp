@@ -410,7 +410,9 @@ bool FSpitterBestiaryTest::RunTest(const FString& Parameters)
 	const FBestiaryStats Stats = Page->ReadStats();
 	TestEqual(TEXT("Its experience, as a kill pays it: a spider's"), static_cast<int64>(Stats.XPReward),
 		UPlayerProgressionSubsystem::GetLevelRules().KillXP(GetDefault<ASpiderCreature>()->XPReward, Defaults->Level, Defaults->Level));
-	TestEqual(TEXT("Its attack"), Stats.AttackDamage, Defaults->AttackDamage);
+	// The page shows the spit as it lands: a regular kind hits Looter.Fight.DamageScale harder (1.8; the page reads it since
+	// the 2026-10-28 playtest, so its 10 shows as 18), as Looter.Bestiary checks for every page.
+	TestEqual(TEXT("Its attack, as it lands"), Stats.AttackDamage, Defaults->AttackDamage * FFightTuning::LiveDamageScale());
 	return true;
 }
 

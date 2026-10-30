@@ -1,6 +1,7 @@
 #include "UI/HUD/HudDamageIndicatorWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Combat/HealthComponent.h"
+#include "Player/PlayerRattleSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/CanvasPanel.h"
@@ -64,48 +65,61 @@ namespace
 	}
 
 	/**
-	 * The arc in the HUD's metalwork style: a red band, brightest at its point and dimming toward its ends, a light rim
-	 * along its outer edge, all in an ink line so it reads over sky or snow.
+	 * The arc in the HUD's metalwork style: a band of Band, brightest at its point and dimming toward its ends, a light rim
+	 * of Rim along its outer edge, all in an ink line so it reads over sky or snow.
 	 */
+	FPaintedIcon PaintArc(const FLinearColor& Band, const FLinearColor& RimColor)
+	{
+		FPaintedIcon Arc;
+		Arc.ViewBox = FVector2D(ArcWidth, ArcHeight);
+		const TArray<FVector2D> Outline = ArcOutline();
+
+		FPaintLayer Ink;
+		TArray<FVector2D> Closed = Outline;
+		Closed.Add(FVector2D(Outline[0]));
+		Ink.Strokes.Add(Closed);
+		Ink.StrokeWidth = 3.f;
+		Ink.Color = Color::Ink();
+		Arc.Layers.Add(MoveTemp(Ink));
+
+		FPaintLayer Fill;
+		Fill.Fills.Add(Outline);
+		Fill.Color = Band;
+		Fill.GradientTo = Band.CopyWithNewOpacity(0.4f);
+		Fill.bRadialGradient = true;
+		Fill.GradientStart = RingPoint(0.f, UHudDamageIndicatorWidget::RingRadius);
+		Fill.GradientEnd = RingPoint(ArcHalfSpan, UHudDamageIndicatorWidget::RingRadius);
+		Arc.Layers.Add(MoveTemp(Fill));
+
+		FPaintLayer Rim;
+		TArray<FVector2D> Edge;
+		for (float Degrees = -ArcHalfSpan + 2.f; Degrees <= ArcHalfSpan - 1.99f; Degrees += 2.f)
+		{
+			Edge.Add(RingPoint(Degrees, UHudDamageIndicatorWidget::RingRadius + ArcThickness * 0.5f - 1.5f));
+		}
+		Rim.Strokes.Add(Edge);
+		Rim.StrokeWidth = 1.4f;
+		Rim.Color = RimColor;
+		Arc.Layers.Add(MoveTemp(Rim));
+		return Arc;
+	}
+
+	/** A hit's arc: red, its rim the health bar's light. */
 	const FPaintedIcon& ArcPicture()
 	{
-		static const FPaintedIcon Picture = []()
-		{
-			FPaintedIcon Arc;
-			Arc.ViewBox = FVector2D(ArcWidth, ArcHeight);
-			const TArray<FVector2D> Outline = ArcOutline();
-
-			FPaintLayer Ink;
-			TArray<FVector2D> Closed = Outline;
-			Closed.Add(FVector2D(Outline[0]));
-			Ink.Strokes.Add(Closed);
-			Ink.StrokeWidth = 3.f;
-			Ink.Color = Color::Ink();
-			Arc.Layers.Add(MoveTemp(Ink));
-
-			FPaintLayer Fill;
-			Fill.Fills.Add(Outline);
-			Fill.Color = Color::Hurt();
-			Fill.GradientTo = Color::Hurt().CopyWithNewOpacity(0.4f);
-			Fill.bRadialGradient = true;
-			Fill.GradientStart = RingPoint(0.f, UHudDamageIndicatorWidget::RingRadius);
-			Fill.GradientEnd = RingPoint(ArcHalfSpan, UHudDamageIndicatorWidget::RingRadius);
-			Arc.Layers.Add(MoveTemp(Fill));
-
-			FPaintLayer Rim;
-			TArray<FVector2D> Edge;
-			for (float Degrees = -ArcHalfSpan + 2.f; Degrees <= ArcHalfSpan - 1.99f; Degrees += 2.f)
-			{
-				Edge.Add(RingPoint(Degrees, UHudDamageIndicatorWidget::RingRadius + ArcThickness * 0.5f - 1.5f));
-			}
-			Rim.Strokes.Add(Edge);
-			Rim.StrokeWidth = 1.4f;
-			Rim.Color = Color::HealthHi();
-			Arc.Layers.Add(MoveTemp(Rim));
-			return Arc;
-		}();
+		static const FPaintedIcon Picture = PaintArc(Color::Hurt(), Color::HealthHi());
 		return Picture;
 	}
+
+	/** A scream's arc (it rattled, it didn't wound): the grave-salt line's pale frost, its rim the soul-light gold. */
+	const FPaintedIcon& RattlePicture()
+	{
+		static const FPaintedIcon Picture = PaintArc(Color::SaltLine(), Color::SoulGold());
+		return Picture;
+	}
+
+	/** A scream's arc pops a little bigger than a hit's: it comes from farther off. */
+	constexpr float RattleScale = 1.2f;
 }
 
 float UHudDamageIndicatorWidget::ScreenAngle(const FVector& ViewLocation, float ViewYaw, const FVector& Source)
@@ -142,6 +156,14 @@ TSharedRef<SWidget> UHudDamageIndicatorWidget::RebuildWidget()
 			ArcSlot->SetSize(FVector2D(ArcWidth, ArcHeight));
 			ArcImages.Add(Image);
 		}
+		// A scream's arc (UPlayerRattleSubsystem), its own colour so it never reads as a wound.
+		RattleArc = MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudRattleArc"), RattlePicture(), 2.f, FVector2D(ArcWidth, ArcHeight)));
+		RattleArc->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		RattleArc->SetVisibility(ESlateVisibility::Collapsed);
+		UCanvasPanelSlot* RattleSlot = Canvas->AddChildToCanvas(RattleArc);
+		RattleSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+		RattleSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+		RattleSlot->SetSize(FVector2D(ArcWidth, ArcHeight));
 		Canvas->SetVisibility(ESlateVisibility::Collapsed);
 		WidgetTree->RootWidget = Canvas;
 	}
@@ -245,6 +267,14 @@ void UHudDamageIndicatorWidget::NativeTick(const FGeometry& MyGeometry, float In
 	{
 		bAny |= Arc.Age < ShowSeconds;
 	}
+	// A scream that rattled them: its arc, pointing at where it came from, for the rattle's own time.
+	float RattleFrost = 0.f;
+	FVector RattleSource = FVector::ZeroVector;
+	float RattleAge = UPlayerRattleSubsystem::ArcSeconds;
+	const UPlayerRattleSubsystem* Rattles = UPlayerRattleSubsystem::Get(this);
+	const bool bRattle = Rattles && Rattles->GetRattle(WatchedPawn.Get(), RattleFrost, RattleSource, RattleAge)
+		&& RattleAge < UPlayerRattleSubsystem::ArcSeconds;
+	bAny |= bRattle;
 	if (bAny != bShowing)
 	{
 		bShowing = bAny;
@@ -300,6 +330,34 @@ void UHudDamageIndicatorWidget::NativeTick(const FGeometry& MyGeometry, float In
 		if (Image->GetVisibility() != ESlateVisibility::HitTestInvisible)
 		{
 			Image->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+	}
+
+	// The scream's arc: in fast, held, out over the rest of its time, a little bigger than a hit's, never a wound's red.
+	if (RattleArc)
+	{
+		if (!bRattle)
+		{
+			if (RattleArc->GetVisibility() != ESlateVisibility::Collapsed)
+			{
+				RattleArc->SetVisibility(ESlateVisibility::Collapsed);
+			}
+			return;
+		}
+		const float Angle = ScreenAngle(ViewLocation, ViewYaw, RattleSource);
+		const float Radians = FMath::DegreesToRadians(Angle);
+		const float In = FMath::Clamp(RattleAge / FadeInSeconds, 0.f, 1.f);
+		const float Hold = HoldSeconds + 0.2f;
+		const float Out = 1.f - FMath::Clamp((RattleAge - FadeInSeconds - Hold) / FMath::Max(UPlayerRattleSubsystem::ArcSeconds - FadeInSeconds - Hold, 0.01f), 0.f, 1.f);
+		FWidgetTransform Transform;
+		Transform.Translation = FVector2D(FMath::Sin(Radians), -FMath::Cos(Radians)) * RingRadius;
+		Transform.Angle = Angle;
+		Transform.Scale = FVector2D(RattleScale * (1.f + 0.2f * (1.f - In)));
+		RattleArc->SetRenderTransform(Transform);
+		RattleArc->SetRenderOpacity(In * Out);
+		if (RattleArc->GetVisibility() != ESlateVisibility::HitTestInvisible)
+		{
+			RattleArc->SetVisibility(ESlateVisibility::HitTestInvisible);
 		}
 	}
 }

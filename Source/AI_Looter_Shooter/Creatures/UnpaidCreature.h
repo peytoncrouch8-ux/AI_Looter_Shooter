@@ -44,6 +44,8 @@ namespace UnpaidLook
  *    twice, on the ring it throws cinders and screams its pack on (a led pack: its leader only), given its turn in front of
  *    the player's eyes it fades round to their side, hurt it fades back a moment (UnpaidCreatureFadeBack.cpp). Kinds on its
  *    rig with attacks of their own (the miners, the Bell-Ringer, Abel) and a boss's adds keep the old way (HasFightKit).
+ *    Varied (2026-10-29, Looter.Unpaid.Variety): each turn picks its move by range and situation (feints, phase-strikes, low
+ *    swipes, hang-backs too), and a missed lunge may turn into a shriek (UnpaidCreatureVariety.cpp, UnpaidCreatureShriek.cpp).
  *  - Stuck, or fallen far behind, it phase-steps (UnpaidCreaturePhase.cpp): fades out and comes back 3 to 5 m nearer its
  *    target, never into a wall, off its level of ground or off its hunting ground.
  *  - Its rank shows in its coal and ember edge (custom primitive data, UnpaidLook): dull red Basic, the rank's tag color
@@ -257,8 +259,10 @@ protected:
 	virtual bool CanStartAttack() const override;
 	/** With its kit, a lunge starts from farther out (Looter.Unpaid.LungeStart). */
 	virtual float GetAttackStartRange() const override;
-	/** Its turn played out: hurt, it may fade back (TryFadeBack). */
+	/** Its turn played out: hurt, it may fade back (TryFadeBack); a missed lunge's shriek comes first. */
 	virtual void OnTurnPlayedOut() override;
+	/** With its varied kit its turn picks its move first: a close move closes in, a hang-back gives the turn up (UnpaidCreatureVariety.cpp). */
+	virtual bool StartsRingMove(const APawn& Victim, float Distance) override;
 	// --- The notice beat, its entrance, its ash (UnpaidCreatureMoods.cpp) ---
 	virtual void OnNoticed() override;
 	virtual void PlayEntrance() override;
@@ -327,6 +331,10 @@ protected:
 	TArray<TObjectPtr<UPrimitiveComponent>> LookParts;
 
 private:
+	// Its varied moves and failed-lunge shriek (UnpaidKitWork.h, 2026-10-29) reach its kit and body as its own files do.
+	friend struct FUnpaidMoveWork;
+	friend struct FUnpaidShriekWork;
+
 	// --- Look (UnpaidCreature.cpp) ---
 	/** Puts on its clothes: the model's own, or one of OtherClothes. */
 	void PutOnClothes();

@@ -26,6 +26,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponTypes.h"
+#include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Math/RandomStream.h"
@@ -87,6 +88,13 @@ namespace
 		{
 			return nullptr;
 		}
+		// A bare APawn has no root, so it stood at the origin whatever Where said and SetActorLocation never moved it (the
+		// Lamplighter's "out of its reach" step healed it 10 m away): a root of its own gives it a place.
+		USceneComponent* Root = NewObject<USceneComponent>(Holder, TEXT("Root"));
+		Holder->SetRootComponent(Root);
+		Holder->AddInstanceComponent(Root);
+		Root->RegisterComponent();
+		Holder->SetActorLocation(Where);
 		OutHealth = NewObject<UHealthComponent>(Holder, TEXT("Health"));
 		OutHealth->bShowDamageNumbers = false;
 		Holder->AddInstanceComponent(OutHealth);

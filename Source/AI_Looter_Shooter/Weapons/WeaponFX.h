@@ -301,6 +301,19 @@ public:
 	/** A puff of ember smoke rising from Point (a wounded Unpaid's coal, a hat's dust), Size cm, warm at Tint. */
 	void SpawnEmberPuff(const FVector& Point, const FLinearColor& Tint, float Size);
 
+	// --- The Unpaid's failed-lunge shriek (2026-10-29; WeaponFXShriek.cpp; Creatures/UnpaidCreatureShriek.cpp spawns them at its rates) ---
+
+	/** Count cold soul motes drawn into Mouth from a shell Radius round it, arriving as they burn out (the tell's in-breath). */
+	void SpawnSoulInhale(const FVector& Mouth, float Radius, const FLinearColor& Tint, int32 Count);
+	/** Count spectral wisps and soul streaks blasted out of Mouth along Way, carrying about Reach cm (the scream's cone). */
+	void SpawnShriekCone(const FVector& Mouth, const FVector& Way, float Reach, const FLinearColor& Tint, int32 Count, float Strength);
+	/** One piece of a ground wave's front at Ground, rolling Out: dust shoved along, grass blades torn up, now and then a leaf. Light: the dust's light. */
+	void SpawnWaveLift(const FVector& Ground, const FVector& Out, const FLinearColor& Light, float Strength);
+	/** Count embers flung from Coal along Out and up (and a puff of soot with bSoot), in Tint. */
+	void SpawnCoalFling(const FVector& Coal, const FVector& Out, const FLinearColor& Tint, int32 Count, bool bSoot);
+	/** One breath of frost out of Mouth along Way, sinking as it spreads; Size cm (a head's worth is 40). */
+	void SpawnFrostBreath(const FVector& Mouth, const FVector& Way, float Size);
+
 	/** The share of a look's pieces thrown at Where (VfxRules::DetailAt from the camera last drawn from; 1 before any). */
 	float DetailAt(const FVector& Where) const;
 

@@ -18,6 +18,7 @@
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
 #include "Creatures/UnpaidHat.h"
+#include "Creatures/UnpaidKitWork.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -241,6 +242,10 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 		Goal.LookPitch = -5.f + 4.f * FMath::Sin(Time * 0.23f);
 		Goal.Sway = IsBossCreature() ? 0.f : SwayRoll * FMath::Sin(Time * 0.55f) * (1.f - FMath::Min(Speed, 1.f));
 	}
+	// Its varied moves' poses (a low swipe's crouch, a phase-strike's raised claw, a feint's slide) and its failed-lunge shriek
+	// (reared, screaming, hunched): UnpaidCreatureVarietyMoves.cpp, UnpaidShriekPose.cpp.
+	FUnpaidMoveWork::Channels(*this, Goal);
+	FUnpaidShriekWork::Channels(*this, Goal);
 	// Its element statuses on top: flailing, locked up, hunched, stiff, flinching (UnpaidCreatureStatus.cpp).
 	StatusChannels(Goal);
 	return Goal;

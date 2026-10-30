@@ -17,7 +17,8 @@ class UImage;
  * behind its bottom. Up to four at once; a new hit from the same attacker brightens its arc again rather than adding one.
  * A harder hit (a bigger share of the bar) draws it bolder. The HUD's style: floating metal-and-ink shapes, no panel
  * (it's feedback, not a background, so the UI transparency setting leaves it alone). It watches the local player's
- * pawn's health itself, so nothing drives it; collapsed while there's nothing to show.
+ * pawn's health itself, so nothing drives it; collapsed while there's nothing to show. A scream that rattles the player
+ * (UPlayerRattleSubsystem, 2026-10-29) shows its own arc, in frost, toward where it came from.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudDamageIndicatorWidget : public UUserWidget
@@ -61,6 +62,8 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UCanvasPanel> Canvas;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> ArcImages;
+	/** A scream's arc (UPlayerRattleSubsystem): it rattled them, it didn't wound them, so it has its own frost colour. */
+	UPROPERTY(Transient) TObjectPtr<UImage> RattleArc;
 
 	FArc Arcs[MaxArcs];
 	TWeakObjectPtr<APawn> WatchedPawn;

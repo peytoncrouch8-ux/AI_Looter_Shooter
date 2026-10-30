@@ -4,7 +4,8 @@
 // and answer (the coal flaring through every wind-up, an arm drawn back, a glow swelling at its chest, a whisper from where
 // it will come back, a scream before the pack comes).
 //  - Its attack (OnAttackStarted, its turn from the fight director): close in, a rake (two swipes, one arm then the other,
-//    drifting in); else the lunge, aimed where the target will be (UnpaidCreatureAttack.cpp).
+//    drifting in); else the lunge, aimed where the target will be (UnpaidCreatureAttack.cpp). With the varied kit
+//    (2026-10-29, Looter.Unpaid.Variety) the turn picks from every move instead: UnpaidCreatureVariety.cpp.
 //  - Its turn, while it's in front of the player's eyes: now and then it fades and comes back at their side or behind them
 //    (the phase-step's fade, UnpaidCreaturePhase.cpp), a whisper heard from there first.
 //  - Each frame: its tells (the coal), its turn's flank, its look at the ring, its pace.
@@ -23,6 +24,8 @@
 #include "Creatures/PackRules.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidKitWork.h"
+#include "Creatures/UnpaidPackSubsystem.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
@@ -191,6 +194,8 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 		{
 			TickRake();
 		}
+		// The varied moves' frames: the phase-strike's tell, the feint's slide (UnpaidCreatureVarietyMoves.cpp).
+		FUnpaidMoveWork::TickAttack(*this, DeltaSeconds);
 	}
 	else
 	{
@@ -199,12 +204,19 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 	}
 
 	// Its pack's frenzy: every coal burns high while the pack comes on together.
-	const bool bFrenzy = Director && Director->GetFrenzyLeft(*Victim, PackTag) > 0.f;
+	// A pack-mate's shriek rallies it the same way, for a few seconds (UnpaidCreatureShriek.cpp).
+	const bool bFrenzy = (Director && Director->GetFrenzyLeft(*Victim, PackTag) > 0.f) || FUnpaidMoveWork::IsRallied(*this);
 	if (bFrenzy)
 	{
 		Heat = FMath::Max(Heat, TellFlare * FrenzyGlowShare);
 	}
 	UpdateChaseBoost(Victim, bFrenzy);
+
+	// Its varied moves' clocks, the pack's board, its hang-back, and a missed lunge's shriek owed (UnpaidCreatureVariety.cpp).
+	if (FUnpaidMoveWork::TickKit(*this, DeltaSeconds, *Victim))
+	{
+		return;
+	}
 
 	// Fading back (out to the ring's edge, waiting there): nothing of the ring for it until it comes on again.
 	if (IsFadingBack())
@@ -309,6 +321,11 @@ void AUnpaidCreature::ChooseKitMove()
 	{
 		return;
 	}
+	// The varied kit picks from all its moves (its turn's plan, or picked now); with Looter.Unpaid.Variety 0, the rake or the lunge.
+	if (FUnpaidMoveWork::Choose(*this))
+	{
+		return;
+	}
 	const FUnpaidFightTuning& Tuning = FUnpaidFightTuning::Live();
 	const APawn* Victim = GetTarget();
 	const float Distance = Victim ? static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation())) : TNumericLimits<float>::Max();
@@ -326,6 +343,8 @@ void AUnpaidCreature::ChooseKitMove()
 		AttackWindup = BaseWindup * Traits.WindupScale;
 		AttackRecovery = Kit.BaseRecovery;
 	}
+	// Counted too (Looter.Unpaid.Moves): with Looter.Unpaid.Variety 0 this is the old mix, the play-check's baseline.
+	UUnpaidPackSubsystem::Note(this, Kit.Move == EUnpaidMove::Rake ? EUnpaidTally::Rake : EUnpaidTally::Lunge);
 }
 
 void AUnpaidCreature::TickRake()
@@ -372,6 +391,7 @@ bool AUnpaidCreature::Swipe(int32 Arm)
 	// The swipe knocks them aside, the way the arm swept: the left arm sweeps to the right and on.
 	const FVector Across = GetActorRightVector() * (Arm == 0 ? 1.f : -1.f);
 	HitWithAttack(Victim, ((There - Here).GetSafeNormal2D() + 0.6f * Across).GetSafeNormal2D(), Tuning.RakeDamageShare);
+	UUnpaidPackSubsystem::Note(this, EUnpaidTally::Rake, true);
 	UE_LOG(LogLooter, Verbose, TEXT("%s rakes %s (%s arm)."), *GetName(), *GetNameSafe(Victim), Arm == 0 ? TEXT("left") : TEXT("right"));
 	return true;
 }
@@ -408,6 +428,7 @@ bool AUnpaidCreature::TryFlank(const APawn& Victim)
 		}
 		StartStepTo(Feet);
 		Kit.FlankCooldown = Tuning.FlankCooldown;
+		UUnpaidPackSubsystem::Note(this, EUnpaidTally::Flank);
 		// The tell: a cold whisper from where it will come back, before it's there.
 		LooterSound::PlayAt(this, FName(UnpaidKitCue::Flank), Feet + FVector(0.f, 0.f, FlankWhisperHeight), 1.f, Voice->GetPitch());
 		UE_LOG(LogLooter, Verbose, TEXT("%s flanks %s: back %.0f degrees round from their view."), *GetName(), *Victim.GetName(),

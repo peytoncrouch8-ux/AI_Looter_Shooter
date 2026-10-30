@@ -81,7 +81,7 @@ ASpitterSpider::ASpitterSpider()
 	// and keeping its distance takes over (BeginPlay sets it again from CloseInTo).
 	AttackRange = CloseInTo / 0.75f;
 	// Its tag over the sac, which stands above the spider's back.
-	HealthBarHeight = 140.f;
+	HealthBarHeight = 170.f; // Over the Tripo model's taller sac (its top ~157 cm; 2026-10-29).
 	// A kill pays as a spider's does.
 	XPReward = 10;
 

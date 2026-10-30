@@ -20,6 +20,8 @@
 #include "Creatures/ShriekRing.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidKitWork.h"
+#include "Creatures/UnpaidPackSubsystem.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
 #include "Components/CapsuleComponent.h"
@@ -106,6 +108,11 @@ void AUnpaidCreature::ThinkOnRing(const APawn& Victim)
 
 bool AUnpaidCreature::StartKitAction(EUnpaidAction Action)
 {
+	// The failed-lunge shriek starts by its own rules (UnpaidCreatureShriek.cpp; the tests and dev tools ask for it here too).
+	if (Action == EUnpaidAction::Shriek)
+	{
+		return FUnpaidShriekWork::Start(*this);
+	}
 	const APawn* Victim = GetTarget();
 	if (Action == EUnpaidAction::None || Kit.Action != EUnpaidAction::None || !Victim || IsDead() || IsPhasing() || Kit.bLunging
 		|| GetCreatureState() == ECreatureState::Attack)
@@ -135,6 +142,7 @@ bool AUnpaidCreature::StartKitAction(EUnpaidAction Action)
 		LooterSound::PlayAt(this, FName(UnpaidKitCue::Rally), GetActorLocation(), 1.f, Voice->GetPitch());
 		const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 		AShriekRing::Spawn(World, Feet, Tuning.RallyRing * Scale, GetCoalColor(), nullptr, 1.f, 0.f);
+		UUnpaidPackSubsystem::Note(this, EUnpaidTally::Rally);
 		UE_LOG(LogLooter, Verbose, TEXT("%s screams its pack on at %s."), *GetName(), *Victim->GetName());
 	}
 	return true;
@@ -142,6 +150,12 @@ bool AUnpaidCreature::StartKitAction(EUnpaidAction Action)
 
 void AUnpaidCreature::TickKitAction(float DeltaSeconds, const APawn& Victim)
 {
+	// The failed-lunge shriek keeps its own rules (a coal shot in its tell interrupts it; once it screams it's committed).
+	if (Kit.Action == EUnpaidAction::Shriek)
+	{
+		FUnpaidShriekWork::Tick(*this, DeltaSeconds, Victim);
+		return;
+	}
 	const FUnpaidFightTuning& Tuning = FUnpaidFightTuning::Live();
 	Kit.ActionTime += DeltaSeconds;
 	// Answered: a hit that holds it (a stagger, a knock), or its fight moving on, calls the tell off.
@@ -214,12 +228,18 @@ bool AUnpaidCreature::ThrowCinder()
 	// Flung from its hand with a breath of cold air.
 	Voice->Play(LooterSoundCue::UnpaidLunge, 0.6f);
 	Kit.CinderCooldown = Tuning.CinderCooldown * FMath::FRandRange(0.8f, 1.2f);
+	UUnpaidPackSubsystem::Note(this, EUnpaidTally::Cinder);
 	UE_LOG(LogLooter, Verbose, TEXT("%s throws a cinder at %s (%.1f before the roll)."), *GetName(), *Victim->GetName(), Shot.Damage);
 	return true;
 }
 
 void AUnpaidCreature::EndKitAction(bool bCalledOff)
 {
+	// A shriek's light goes back to the pool and its hat settles (UnpaidCreatureShriek.cpp).
+	if (Kit.Action == EUnpaidAction::Shriek)
+	{
+		FUnpaidShriekWork::CleanUp(*this, bCalledOff);
+	}
 	// A cinder's tell put out before it left the hand: its glow goes with it (nothing of it is in flight yet: a cinder's
 	// cooldown is several times its flight).
 	if (bCalledOff && Kit.Action == EUnpaidAction::Cinder && !Kit.bThrown)

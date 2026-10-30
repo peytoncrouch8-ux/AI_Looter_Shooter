@@ -230,7 +230,8 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 		&& Volley.WindupSeconds == 0.f && Volley.SpreadDegrees > 10.f && Volley.Muzzle.X > 60.0);
 	TestEqual(TEXT("...after a one-second flare"), GetDefault<AAbelKeeper>()->FlareSeconds, 1.f);
 
-	// His numbers: 40 Unpaid of his level and the playtest's 1.6x (about 16,800 at level 9), hits 1.25x, Boss rank, 1.3
+	// His numbers: 40 Unpaid of his level and the playtest's 1.6x (about 20,400 at level 9 since growth compounds +9% a
+	// level, the user's call 2026-10-29 night: x1.99 at 9; about 16,800 on the old linear +8%), hits 1.25x, Boss rank, 1.3
 	// times, a 6 cm coal.
 	const AAbelKeeper* Defaults = GetDefault<AAbelKeeper>();
 	const UHealthComponent* Health = Defaults->FindComponentByClass<UHealthComponent>();
@@ -238,7 +239,7 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 	{
 		const float Nine = Health->MaxHealth * GetDefault<UProgressionSettings>()->GetLevelRules().EnemyScale(9)
 			* UCreatureRankSettings::Get(ECreatureRank::Boss).HealthMultiplier;
-		TestTrue(FString::Printf(TEXT("About 16,800 health at level 9 (%.0f)"), Nine), FMath::IsNearlyEqual(Nine, 16800.f, 480.f));
+		TestTrue(FString::Printf(TEXT("About 20,400 health at level 9 (%.0f)"), Nine), FMath::IsNearlyEqual(Nine, 20400.f, 480.f));
 		TestEqual(TEXT("...40 Unpaid at level 1, times 1.6"), Health->MaxHealth, 160.f * 40.f * AbelRules::DefaultFightHealthScale);
 		TestNearlyEqual(TEXT("His stagger takes the same crits as before his health went up (5% of 6,400 at level 1)"),
 			AbelRules::MakeStagger().CritShare * Health->MaxHealth, 0.05f * 160.f * 40.f, 1.f);

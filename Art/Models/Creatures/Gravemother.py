@@ -27,8 +27,13 @@ What's hers (Tools/Blender/looter_barrow.py has the shared pieces):
     bone and drops shape names, so the game tells the rear by its shape: a hit on the abdomen within the sphere (a few cm
     of slack) is the soft rear (Saved/Gravemother/PLAN.md, 5.4).
 
+Since 2026-10-29 (LOOTER_GRAVEMOTHER_TRIPO, default on) her body is the user's Tripo model (Art/Models/Creatures/Tripo/
+parts_gravemother*.py): its six legs made eight, stood level on these bones in their IK rest pose, clean quads, an egg of
+an abdomen the headstone's fixed place fits, painted by this painter on this atlas; the fang bones sit on its chelicerae.
+
     Tools\\artrun.ps1 -Script Art\\Models\\Creatures\\Gravemother.py -Preview -Threads 6
-        (Saved/ArtPreviews/Creatures/Gravemother/Gravemother_*.png: her with the headstone, from behind, bare, her legs)
+        (Saved/ArtPreviews/Creatures/Gravemother/Gravemother_*.png: her with the headstone, from behind, bare, her legs;
+        Tripo: _pose_<rest|gait|attack|death>_<three|side>.png, _level_side.png, _poses_sheet.png)
     Tools\\artrun.ps1 -Export Gravemother,GravemotherStone,GraveFight -Family Gravemother
 """
 import math
@@ -515,3 +520,7 @@ if lt.want_preview():
     shots.append(lb.render([gravemother, stone], os.path.join(out, 'Gravemother_legs.png'), (-1.3, -1.9, 0.55),
                            (-0.3, -0.55, 0.35), lens=50.0, size=(1280, 820), sun_dir=(-0.45, -0.75, 0.75)))
     lb.sheet(shots, os.path.join(out, 'Gravemother_sheet.png'), cols=2)
+    if TRIPO:
+        # Her in the game's poses (rest, gait, the bite's wind-up, dead), and the level check on the ground.
+        import parts_gravemother_poses as gp
+        gp.render_poses(rig, gravemother, stone, out)

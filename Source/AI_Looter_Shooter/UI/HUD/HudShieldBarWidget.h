@@ -44,8 +44,12 @@ class AI_LOOTER_SHOOTER_API UHudShieldBarWidget : public UUserWidget
 
 public:
 	// --- Where it sits: 1080p pixels, the bar's box top-left before the lean (as the frame's HealthBarX/Y) ---
-	/** Over the health bar (its box at 130, 933): 4 px above it, its left end behind the medallion's bezel. */
-	static constexpr float BarX = 128.f;
+	/**
+	 * Over the health bar (its box at 130, 933): 4 px above it, its left end behind the medallion's bezel. The bezel's edge
+	 * runs along x - y = const, so the thicker bar (its middle 9.6 px higher than the old slim one's) starts 10.4 px further
+	 * left: its track still meets the bezel's edge at the bar's middle (Looter.Shields.HudPlace).
+	 */
+	static constexpr float BarX = 117.5f;
 	static constexpr float BarY = 895.f;
 
 	// --- Its measures (pixels at 1080p from the bar's box top-left before the lean) ---

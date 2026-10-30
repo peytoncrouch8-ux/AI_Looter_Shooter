@@ -433,6 +433,30 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* UnpaidRise = TEXT("Creature.Unpaid.Rise");
 	inline constexpr const TCHAR* SpiderDrop = TEXT("Creature.Spider.Drop");
 
+	/**
+	 * The Unpaid's varied moves and its failed-lunge shriek (2026-10-29; Art/Sounds/recipes/unpaid_shriek.py; played by
+	 * Creatures/UnpaidCreatureShriek.cpp and UnpaidCreatureVariety.cpp, each pitched by its own voice so a pack never sounds copied).
+	 */
+	namespace UnpaidScream
+	{
+		/** The tell: an in-breath rising through its teeth, its coal crackling faster. */
+		inline constexpr const TCHAR* Draw = TEXT("Creature.Unpaid.ShriekDraw");
+		/** The scream: torn voices driven into harmonic distortion, a violent tremble, a long cold tail; carries far ('Gun'). */
+		inline constexpr const TCHAR* Scream = TEXT("Creature.Unpaid.ShriekScream");
+		/** The recovery: ragged, panting breaths. */
+		inline constexpr const TCHAR* Pant = TEXT("Creature.Unpaid.ShriekPant");
+		/** Its coal shot in the tell: the scream choked off, the coal cracking and sputtering. */
+		inline constexpr const TCHAR* Choke = TEXT("Creature.Unpaid.ShriekChoke");
+		/** 2D, the player rattled by a scream: a cold ringing in the ears over a thump of pressure. */
+		inline constexpr const TCHAR* Rattled = TEXT("Player.Rattled");
+		/** The feint's slide aside: a snap of its shroud and a hissed breath. */
+		inline constexpr const TCHAR* Feint = TEXT("Creature.Unpaid.Feint");
+		/** The phase-strike's tell, back at the player's side: a whisper close by, snapping into the claw's cut. */
+		inline constexpr const TCHAR* PhaseStrike = TEXT("Creature.Unpaid.PhaseStrike");
+		/** The low swipe: claws dragging through the dirt as it sinks, then the skim's low rush. */
+		inline constexpr const TCHAR* LowSwipe = TEXT("Creature.Unpaid.LowSwipe");
+	}
+
 	/** The enemy tiers (2026-10-20, Saved/Tiers/CONTRACT.md): the top two tiers' moments, and the traits' (UCreatureTraitComponent). */
 	namespace Tier
 	{

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/UnpaidFightRules.h"
+#include "Creatures/UnpaidMoveRules.h"
 
 /** Where an Unpaid is in a phase-step (UnpaidCreaturePhase.cpp). */
 enum class EUnpaidPhaseState : uint8
@@ -51,4 +52,7 @@ struct FUnpaidKitMembers : FUnpaidKitState
 	float StallTime = 0.f;
 	float BestDistance = TNumericLimits<float>::Max();
 	float RetryIn = 0.f;
+
+	// --- Its varied moves and its failed-lunge shriek (UnpaidCreatureVariety.cpp, UnpaidCreatureShriek.cpp; 2026-10-29) ---
+	FUnpaidMoveState Moves;
 };

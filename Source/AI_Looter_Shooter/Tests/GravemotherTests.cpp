@@ -109,7 +109,8 @@ bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 		Spider->GetCapsuleComponent()->GetScaledCapsuleRadius() * Gravemother::Size, 0.1f);
 	TestFalse(TEXT("She never comes back on her own (her lair says when)"), Mother->WillRespawn());
 
-	// Twelve spiders' health at her level, then the playtest's 1.6x (2026-10-27): about 9,000 at level 8.
+	// Twelve spiders' health at her level, then the playtest's 1.6x (2026-10-27): about 10,500 at level 8 since growth
+	// compounds +9% a level (the user, 2026-10-29 night: x1.83 at level 8; about 9,000 on the old linear +8%).
 	// Her own base: the spider's 300 before spiders were softened (2026-10-22); her fight was tuned on it.
 	const float SpiderHealth = 300.f * GravemotherTuning::HealthScale();
 	Mother->SetLevel(8);
@@ -119,7 +120,7 @@ bool FGravemotherBodyTest::RunTest(const FString& Parameters)
 		GravemotherTuning::HealthScale(), Legendary.HealthMultiplier), Health, Wanted, 0.5f);
 	if (FMath::IsNearlyEqual(GravemotherTuning::HealthScale(), GravemotherTuning::DefaultHealthScale))
 	{
-		TestTrue(TEXT("...about 9,000"), Health > 8600.f && Health < 9300.f);
+		TestTrue(TEXT("...about 10,500"), Health > 10200.f && Health < 10900.f);
 		TestNearlyEqual(TEXT("Her class carries the tuning (the Ledger's page reads it)"), Defaults->FindComponentByClass<UHealthComponent>()->MaxHealth,
 			300.f * GravemotherTuning::DefaultHealthScale, 0.01f);
 	}

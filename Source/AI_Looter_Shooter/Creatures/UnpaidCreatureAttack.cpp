@@ -16,6 +16,8 @@
 #include "Creatures/ShriekRing.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidKitWork.h"
+#include "Creatures/UnpaidPackSubsystem.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -40,6 +42,11 @@ bool AUnpaidCreature::CanStartAttack() const
 {
 	// Not mid-cinder or mid-scream either: its turn waits for them; nor with a flank ready (its turn opens with the flank).
 	if (IsPhasing() || Kit.bLunging || Kit.Action != EUnpaidAction::None || Kit.bFlankArmed)
+	{
+		return false;
+	}
+	// Nor while it hangs back, waiting for a pack-mate to commit (UnpaidCreatureVariety.cpp).
+	if (FUnpaidMoveWork::HoldsAttack(*this))
 	{
 		return false;
 	}
@@ -97,6 +104,11 @@ void AUnpaidCreature::Strike()
 		OnAttackStrike(Swipe(Kit.LeadArm));
 		return;
 	}
+	// Its varied moves' own strikes: a feint's or a low swipe's flight, a phase-strike's claw (UnpaidCreatureVarietyMoves.cpp).
+	if (FUnpaidMoveWork::Strike(*this))
+	{
+		return;
+	}
 	// The lunge: it flies at its target and the strike lands if it reaches them. Never off a drop: it's cut short where
 	// the ground ends, as the slime's hop is. With its kit it flies at where they'll be, and farther.
 	const float Scale = GetSizeScale();
@@ -113,6 +125,8 @@ void AUnpaidCreature::Strike()
 		Kit.bLunging = false;
 		Kit.LungeLeft = 0.f;
 		Kit.LungeReach = Reach;
+		// Its target gone behind cover: a miss, which may turn into a shriek.
+		FUnpaidMoveWork::NoteLungeMissed(*this);
 		OnAttackStrike(false);
 		return;
 	}
@@ -142,8 +156,9 @@ void AUnpaidCreature::Strike()
 	Voice->Play(LooterSoundCue::UnpaidLunge);
 	if (!Kit.bLunging)
 	{
-		// Already in reach, or nowhere to fly: it strikes where it stands.
+		// Already in reach, or nowhere to fly: it strikes where it stands (a miss may turn into a shriek).
 		TryLungeHit();
+		FUnpaidMoveWork::OnFlightEnded(*this);
 	}
 	OnAttackStrike(Kit.bLungeLanded);
 }
@@ -156,7 +171,8 @@ void AUnpaidCreature::TickLunge(float DeltaSeconds)
 		EndLunge();
 		return;
 	}
-	const float Speed = GetLungeSpeed();
+	// A low swipe skims at its own pace (FUnpaidMoveWork::FlightSpeed); a feint flies as the lunge does.
+	const float Speed = FUnpaidMoveWork::FlightSpeed(*this);
 	// Its last stretch is committed: the hit slow is held off it. Before that a slow drags its flight (the movement clamps
 	// to the held speed), so the way left and the wall-grace count the way it really flew, never the way it meant to.
 	if (!Kit.bLungeCommitted && Kit.LungeLeft <= Speed * FUnpaidFightTuning::Live().LungeCommit)
@@ -189,6 +205,15 @@ void AUnpaidCreature::TickLunge(float DeltaSeconds)
 
 bool AUnpaidCreature::TryLungeHit()
 {
+	// A feint never lands (it baits the dodge); a low swipe lands only on feet still on the ground.
+	if (Kit.Move == EUnpaidMove::Feint)
+	{
+		return false;
+	}
+	if (Kit.Move == EUnpaidMove::LowSwipe)
+	{
+		return FUnpaidMoveWork::TryLowSwipeHit(*this);
+	}
 	APawn* Victim = GetTarget();
 	if (Kit.bLungeLanded || !IsValidTarget(Victim))
 	{
@@ -212,6 +237,10 @@ bool AUnpaidCreature::TryLungeHit()
 	}
 	Kit.bLungeLanded = true;
 	HitWithAttack(Victim, ToVictim.GetSafeNormal2D(), bKit ? Tuning.LungeDamageShare : 1.f);
+	if (bKit)
+	{
+		UUnpaidPackSubsystem::Note(this, EUnpaidTally::Lunge, true);
+	}
 	return true;
 }
 
@@ -222,6 +251,8 @@ void AUnpaidCreature::EndLunge()
 	TryLungeHit();
 	GetCharacterMovement()->StopMovementImmediately();
 	CommitLunge(false);
+	// A feint slides aside now; a lunge that missed may turn into a shriek (UnpaidCreatureVarietyMoves.cpp).
+	FUnpaidMoveWork::OnFlightEnded(*this);
 }
 
 void AUnpaidCreature::CommitLunge(bool bOn)

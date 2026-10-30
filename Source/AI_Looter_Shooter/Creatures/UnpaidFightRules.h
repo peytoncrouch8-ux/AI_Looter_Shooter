@@ -10,7 +10,19 @@ enum class EUnpaidMove : uint8
 	Lunge,
 	/** Close in: an arm drawn back, then two swipes across its front, one arm and then the other. */
 	Rake,
+	// --- The varied kit (2026-10-29, the user's "Unpaid fights: variety"; UnpaidCreatureVariety.cpp, Looter.Unpaid.Variety) ---
+	/** A lunge's tell and flight that stops short and slides aside: no blow, it baits the dodge. */
+	Feint,
+	/** Fades out, comes back at the player's side or behind them and claws after a clear tell of its own. */
+	PhaseStrike,
+	/** Sinks low and skims in along the ground, claws sweeping at the feet: a jump clears it. */
+	LowSwipe,
+	/** No attack: its turn given back, it circles wide and waits for a pack-mate to commit. */
+	HangBack,
 };
+
+/** How many EUnpaidMove values there are (per-move arrays are this long, indexed by the value). */
+inline constexpr int32 NumUnpaidMoves = static_cast<int32>(EUnpaidMove::HangBack) + 1;
 
 /** What an Unpaid is doing between its turns, on the ring (no attack turn needed). */
 enum class EUnpaidAction : uint8
@@ -20,6 +32,8 @@ enum class EUnpaidAction : uint8
 	Cinder,
 	/** Screaming its pack on: they come together once it ends. */
 	Rally,
+	/** A lunge missed: it rears up and shrieks at the player instead of lunging again (UnpaidCreatureShriek.cpp). */
+	Shriek,
 };
 
 /** Where a hurt Unpaid is in its fade-back (FIGHTS.md lane 5, 2026-10-29; UnpaidCreatureFadeBack.cpp). */

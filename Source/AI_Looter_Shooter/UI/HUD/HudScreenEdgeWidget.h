@@ -15,6 +15,8 @@ class UWidget;
  * behind everything else, the red over the cyan. It watches the local player's pawn's health and ward itself, every
  * tick (FHudWardHitWatch), so nothing drives it; a new pawn (a respawn) starts without a flash. Collapsed, it
  * costs nothing, and that's how it rests. It is feedback, not a background: the UI transparency setting leaves it alone.
+ * A scream that rattles the player (UPlayerRattleSubsystem, the Unpaid's failed-lunge shriek, 2026-10-29) frosts the edges
+ * over in the pale grave-salt line's colour, under the red and the cyan.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudScreenEdgeWidget : public UUserWidget
@@ -30,6 +32,8 @@ private:
 	/** The four red strips, and the four cyan ones under them; each set faded and shown or collapsed as one. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> Edges;
 	UPROPERTY(Transient) TObjectPtr<UWidget> WardEdges;
+	/** The rattle's frost, under both. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> FrostEdges;
 
 	/** The pawn's health and ward from frame to frame. */
 	FHudWardHitWatch Watch;
@@ -40,4 +44,5 @@ private:
 	float WardFlashLength = 1.f;
 	float ShownOpacity = -1.f;
 	float ShownWardOpacity = -1.f;
+	float ShownFrostOpacity = -1.f;
 };

@@ -108,9 +108,10 @@ bool FUnpaidStatsTest::RunTest(const FString& Parameters)
 		ECreatureRank Rank;
 		float Health;
 	};
-	// The five tiers' health (the design of 2026-10-20).
+	// The five tiers' health (the design of 2026-10-20; Hallowed 3.4, was 3.5, since growth compounds +9% a level, the
+	// user's call 2026-10-29 night: its two levels on top grow more, and 3.4 keeps its approved effective health).
 	const FRankCase Cases[] = { { ECreatureRank::Basic, 1.f }, { ECreatureRank::Rare, 2.f }, { ECreatureRank::Epic, 3.f },
-		{ ECreatureRank::Hallowed, 3.5f }, { ECreatureRank::Ethereal, 4.f } };
+		{ ECreatureRank::Hallowed, 3.4f }, { ECreatureRank::Ethereal, 4.f } };
 	TMap<ECreatureRank, const AUnpaidCreature*> ByRank;
 	double Column = 0.0;
 	for (const FRankCase& Case : Cases)
@@ -235,7 +236,7 @@ bool FUnpaidCoalTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidShriekTest, "Looter.Creatures.Unpaid.Shriek",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidShriekTest, "Looter.Creatures.Unpaid.Shriek.SlowRing",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FUnpaidShriekTest::RunTest(const FString& Parameters)
@@ -387,14 +388,15 @@ bool FUnpaidModelTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The coal is on the front of the chest"), Coal.X > Ground.X);
 	TestTrue(TEXT("Its pose has the bones it moves"), Unpaid->GetBonePose().Num() >= 20);
 
-	// The hat sits on the head as it was modelled: about 40 cm across, its middle over the head bone. An export that
-	// lost its metres-to-centimetres scale once made it 0.4 cm.
+	// The hat sits on the head as it was modelled, its middle over the head bone. The Tripo hat (2026-10-29, the user took it
+	// "as it is") is a wide-brimmed one, its brim about 64 cm (its box about 67 as worn, tipped); the old scripted one was
+	// about 40. An export that lost its metres-to-centimetres scale once made it 0.4 cm.
 	const UStaticMeshComponent* Hat = Unpaid->GetHat();
 	if (HatModel && TestTrue(TEXT("The hat is worn"), Hat->IsVisible() && Hat->GetAttachSocketName() == Rig.Hat))
 	{
 		const FBox HatBox = Hat->Bounds.GetBox();
 		const double Width = FMath::Max(HatBox.GetSize().X, HatBox.GetSize().Y);
-		TestTrue(FString::Printf(TEXT("The hat is a hat's width (%.1f cm)"), Width), Width > 25.0 && Width < 60.0);
+		TestTrue(FString::Printf(TEXT("The hat is a hat's width (%.1f cm)"), Width), Width > 25.0 && Width < 75.0);
 		const FVector Head = Mesh->GetBoneLocation(Rig.Head);
 		const FVector HatMiddle = HatBox.GetCenter();
 		TestTrue(FString::Printf(TEXT("The hat is on the head (%.0f cm up, %.0f cm from the head bone across)"), HatMiddle.Z - Ground.Z,

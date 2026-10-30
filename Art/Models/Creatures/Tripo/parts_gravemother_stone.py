@@ -168,6 +168,23 @@ def intersect(V, F, uvs, poly, name):
     mod.object = cutter
     graph = bpy.context.evaluated_depsgraph_get()
     mesh = bpy.data.meshes.new_from_object(slab.evaluated_get(graph))
+    # The exact boolean leaves slivers where a crack meets a quad's edge almost along it: collapsed (Unreal's tangents
+    # warn on faces without area).
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.dissolve_degenerate(bm, dist=0.05, edges=bm.edges[:])
+    # Its n-gons in triangles here (a fan over a cut's straight run would lay zero-area ones later), and any triangle
+    # without area collapsed along its shortest edge.
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4], quad_method='BEAUTY', ngon_method='BEAUTY')
+    for _ in range(4):
+        thin = [f for f in bm.faces if f.is_valid and f.calc_area() < 1e-3]
+        if not thin:
+            break
+        edges = {min(f.edges, key=lambda e: e.calc_length()) for f in thin}
+        bmesh.ops.collapse(bm, edges=[e for e in edges if e.is_valid], uvs=True)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(mesh)
+    bm.free()
     Vp, Fp, uvp = mesh_arrays(mesh)
     cut = [all(c[0] < -0.5 for c in u) for u in uvp]
     for o in (slab, cutter):

@@ -14,6 +14,7 @@
 #include "Creatures/FightEvent.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidKitWork.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Pawn.h"
 
@@ -30,6 +31,11 @@ namespace
 void AUnpaidCreature::OnTurnPlayedOut()
 {
 	Super::OnTurnPlayedOut();
+	// A missed lunge's shriek comes first (UnpaidCreatureVariety.cpp): no fade-back on top of it.
+	if (FUnpaidMoveWork::OnTurnPlayedOut(*this))
+	{
+		return;
+	}
 	TryFadeBack(true);
 }
 

@@ -6,10 +6,11 @@ bone) and hit hulls. Not a model: Tools\\models.ps1 skips parts_*.py.
 - tripo_spider(S): Spider.py's names with her abdomen the Tripo one (an egg on AB_CENTRE, AB_RADII), and looter_barrow
   told so: the headstone keeps its scripted place (the game's: GravemotherCreatureStone.cpp), the roots enter her hide
   where they did, seen from the stone. Every barrow helper (roots, earth collar, stubs, marks) then fits her.
-- The atlas: the legs' tubes along and round (coxa + femur on the femur bone, tibia on the tibia bone), the palps and
-  claws on 'palp', the chelicerae on 'chel' (their fangs' last half on the fang patch), the cephalothorax as Spider.py's
-  carapace and head ellipsoids (latitude-longitude round each, split at X_HEAD), the abdomen on its egg, the eyes (Tripo's
-  milky ones, now our glossy black) on the eye patch. The skulls wear BoneDry (the den's bone).
+- The atlas: the legs' tubes along and round (coxa + femur on the femur bone, tibia on the tibia bone), the palps on
+  'palp', the chelicerae on 'chel' (their fangs' last half on the fang patch), the cephalothorax on the carapace region
+  (one latitude-longitude round it; its front, past X_HEAD, is the head bone's, her crit), the abdomen on its egg's own
+  grid. Tripo's milky eyes are glossy black spheres now (Spider.py's, on the eye patch); spinnerets hide the abdomen's
+  rear pole. The skulls wear BoneDry (the den's bone).
 - Mud: a crust over each tibia from a ragged line part way down, thickening toward the claw (Gravemother.py's rule, laid
   on the tube's own rings so it hugs Tripo's leg)."""
 import math

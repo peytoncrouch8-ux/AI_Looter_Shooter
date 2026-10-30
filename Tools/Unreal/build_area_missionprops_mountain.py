@@ -540,14 +540,34 @@ def place(build):
     build.log('the mountain\'s mission props placed')
 
 
+def _built_chests(build):
+    """The chests the level's builds placed (tagged with the build's tag), by their paths."""
+    chest_cls = getattr(unreal, 'Chest', None)
+    if chest_cls is None:
+        return {}
+    level_actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+    return {a.get_path_name(): a for a in level_actors if isinstance(a, chest_cls) and unreal.Name(build.tag) in a.tags}
+
+
 def run(name):
-    """Places them again on their own (clears Gameplay/Mountain; the Foreman's vigil stone needs a gameplay build), saves."""
+    """Places them again on their own (clears Gameplay/Mountain; the Foreman's vigil stone needs a gameplay build), saves.
+    Its chests (CalderCache_Post, CompanySafe, the mountain camps' CampCache_*) stand in Gameplay with every chest, which
+    clearing Gameplay/Mountain leaves alone: run on its own twice (2026-10-29 night) left two and three of each, sharing an
+    id the session saves them by (Looter.Loot.Containers.Levels). So the chests already standing with an id this pass
+    places again are removed after it, and only those: the area's other chests keep theirs."""
     import build_area
     build = importlib.reload(build_area).AreaBuild(name)
     with open(build.computed_path) as f:
         build.layout = json.load(f)
     build.open_level(FOLDER)
+    older = _built_chests(build)
     place(build)
+    placed = {str(c.get_editor_property('chest_id')) for path, c in _built_chests(build).items() if path not in older}
+    stale = [c for c in older.values() if str(c.get_editor_property('chest_id')) in placed]
+    if stale:
+        names = sorted({str(c.get_editor_property('chest_id')) for c in stale})
+        unreal.get_editor_subsystem(unreal.EditorActorSubsystem).destroy_actors(stale)
+        build.log(f'removed {len(stale)} chests an earlier run placed with the same ids: {", ".join(names)}')
     unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level()
     build.log('the mountain\'s mission props placed and saved')
 

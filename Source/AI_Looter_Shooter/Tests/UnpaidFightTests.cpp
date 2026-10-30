@@ -230,6 +230,8 @@ bool FUnpaidKitCommitTest::RunTest(const FString& Parameters)
 	}
 	FCVarScope KitOn(TEXT("Looter.Unpaid.Kit"), TEXT("1"));
 	FCVarScope NeverRake(TEXT("Looter.Unpaid.RakeChance"), TEXT("0"));
+	// The lunge itself, as this test flies it: the varied pick (a feint or a blink from 4.5 m) and a miss's shriek are their own tests.
+	FCVarScope PlainKit(TEXT("Looter.Unpaid.Variety"), TEXT("0"));
 	const FGunfeelReactTuning Gunfeel;
 	constexpr float Step = 1.f / 60.f;
 
@@ -418,6 +420,8 @@ bool FUnpaidKitMovesTest::RunTest(const FString& Parameters)
 	{
 		FCVarScope KitOn(TEXT("Looter.Unpaid.Kit"), TEXT("1"));
 		FCVarScope AlwaysRake(TEXT("Looter.Unpaid.RakeChance"), TEXT("1"));
+		// The kit's own two moves, as they were: the varied pick has its tests (Looter.Creatures.Unpaid.Moves).
+		FCVarScope PlainKit(TEXT("Looter.Unpaid.Variety"), TEXT("0"));
 		TestTrue(TEXT("A spawned Unpaid has its kit"), Unpaid->HasFightKit());
 
 		// Close in: the rake, with its own wind-up and the two swipes' recovery.

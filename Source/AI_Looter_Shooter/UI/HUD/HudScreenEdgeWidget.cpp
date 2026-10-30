@@ -3,6 +3,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/HUD/HudWardHit.h"
 #include "Combat/HealthComponent.h"
+#include "Player/PlayerRattleSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -37,6 +38,9 @@ namespace
 	// The ward's cyan is a light colour over a warm, bright world: at the red's strength it all but vanished (play-test
 	// 2026-10-22), so its layer shows at twice that.
 	constexpr float WardEdgeStrength = 0.8f;
+	// A scream's frost (UPlayerRattleSubsystem): the pale salt line's colour, light over a bright world like the ward's cyan,
+	// so it shows at about its strength.
+	constexpr float FrostEdgeStrength = 0.75f;
 
 	/**
 	 * A strip's picture: Tint (the red, or the ward's cyan) fading from its edge inward. bAcrossX: the fade runs along x (the
@@ -113,6 +117,11 @@ TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 		static const FPaintedIcon WardRight = EdgeStrip(true, true, Color::XPLight());
 		static const FPaintedIcon WardTop = EdgeStrip(false, false, Color::XPLight());
 		static const FPaintedIcon WardBottom = EdgeStrip(false, true, Color::XPLight());
+		// The rattle's frost: the grave-salt line's pale colour.
+		static const FPaintedIcon FrostLeft = EdgeStrip(true, false, Color::SaltLine());
+		static const FPaintedIcon FrostRight = EdgeStrip(true, true, Color::SaltLine());
+		static const FPaintedIcon FrostTop = EdgeStrip(false, false, Color::SaltLine());
+		static const FPaintedIcon FrostBottom = EdgeStrip(false, true, Color::SaltLine());
 
 		UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
 		// A set of four strips filling the screen, each strip stretched between its anchors, whatever the screen's shape.
@@ -135,13 +144,15 @@ TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 			Set->SetVisibility(ESlateVisibility::Collapsed);
 			return Set;
 		};
-		// The cyan first, so a breaking hit's red lies over it.
+		// The frost under all, then the cyan, so a breaking hit's red lies over both.
+		FrostEdges = AddSet(TEXT("HudFrostEdge"), FrostLeft, FrostRight, FrostTop, FrostBottom);
 		WardEdges = AddSet(TEXT("HudWardEdge"), WardLeft, WardRight, WardTop, WardBottom);
 		Edges = AddSet(TEXT("HudEdge"), Left, Right, Top, Bottom);
 
 		WidgetTree->RootWidget = Root;
 		ShownOpacity = 0.f;
 		ShownWardOpacity = 0.f;
+		ShownFrostOpacity = 0.f;
 	}
 	return Super::RebuildWidget();
 }
@@ -200,4 +211,15 @@ void UHudScreenEdgeWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 
 	ShowEdgeLayer(Edges, Strength * EdgeStrength, ShownOpacity);
 	ShowEdgeLayer(WardEdges, WardStrength * WardEdgeStrength, ShownWardOpacity);
+
+	// A scream's frost creeping in at the edges and thawing (the rattle's own envelope).
+	float Frost = 0.f;
+	FVector Source;
+	float Age = 0.f;
+	const UPlayerRattleSubsystem* Rattles = UPlayerRattleSubsystem::Get(this);
+	if (Rattles && !Rattles->GetRattle(Player ? Player->GetPawn() : nullptr, Frost, Source, Age))
+	{
+		Frost = 0.f;
+	}
+	ShowEdgeLayer(FrostEdges, Frost * FrostEdgeStrength, ShownFrostOpacity);
 }

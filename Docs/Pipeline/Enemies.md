@@ -576,3 +576,45 @@ placing `Tools/Unreal/build_area_bounties.py` (gameplay pass after the placehold
   from push 2, max 9 out, fog gate across the south gateway while fought), Barn Doors (Side 2: 5+1R, then 4+Bell-Ringer),
   leaders in most fights, SheepFold/MillCreek/WestRoad 6+1R, finds' MiserPlot ambush and the Tollman patrol.
 - Measure: `Looter.Fight.Sim`, `Looter.Fight.Log report`, `play.py fight`. Uptimes in FightPaceRules need fitting to DEMO runs.
+
+## Fight: varied moves and the failed-lunge shriek (2026-10-29; the user's brief "Unpaid fights: variety and a AAA failed-lunge shriek")
+- Diagnosis (code + recorded runs; not re-measured): every melee turn begins on the ring at `RingRadius` 480 cm (Unpaid reach
+  380 + margin 80 = 460 < 480), inside `LungeStart` 520 and outside `RakeRange` 260, and `UnpaidFightRules::ChooseMove` had two
+  outcomes (rake within 2.6 m at 70%, else lunge) with no history or cooldowns: from the ring the lunge was ~100%. A rake needed
+  a turn to begin within 2.6 m, which the ring prevents (a lunge ends ~1.4 m off, then recovery 0.7 + cooldown 1.3 s while the
+  ring walk pulls it back to 4.8 m). Flanks land 3.3 m off (> 2.6) and open with a lunge too. 4 Unpaid on 3 melee tokens: demand
+  4 / 2.6 s = 1.54 turns/s vs supply 3 / (1.3 + 0.6 rest) = 1.58/s, so ring waits ~ the 1.3 s cooldown: cinders (wait 1.2 s) barely,
+  rallies (wait 2.5 s) almost never. DEMO's records agree: open-ground hits were lunges; rakes only where steps landed 1.5 m off
+  (nave floor 21 of 22 hits). `HasFightKit` was not the cause (plain Unpaid have the kit).
+- Now (`Looter.Unpaid.Variety` [1]; 0 = the kit as it was; needs the fight director): each turn plans its move before its attack
+  (`StartsRingMove` -> `FUnpaidMoveWork::PlanTurn`): `UnpaidMoveRules::Choose` weighs Lunge 1, Rake 1.4, Feint 0.55,
+  PhaseStrike 0.6, LowSwipe 0.7, HangBack 0.35 by range (a rake or low swipe planned up to `CloseInRange` 560 closes in at 1.15x
+  chase, x`CloseInShare` 0.6 weight, gives up after 1.4 s), own cooldowns (rake 2, feint 5, phase-strike 7, low swipe 4.5,
+  hang-back 6 s), never a third in a row, never a move a pack-mate commits at the same player (`FUnpaidMoveBoard` in
+  `UUnpaidPackSubsystem`), phase-strike x`PairBoost` 2.2 while a mate presses from the front, frontal x`PressBoost` 1.4 while one
+  is at the side, feint x1.6 after its own missed lunge, x0.3 at a camper (phase-strike x1.5). Nothing open with mates: hang-back.
+  A 4-pack simulation (`Looter.Creatures.Unpaid.Moves.Mix`, Node port): Lunge 27%, Rake 24%, PhaseStrike 20%, Feint 15%,
+  LowSwipe 14% of attacks, hang-back 9% of turns, 0 thirds, 0 clashes.
+- Moves: Feint = the lunge's tell, flies `Feint.Share` 0.45 of the way (never nearer than 230 cm), slides aside 260 cm over 0.4 s,
+  no blow. PhaseStrike = phase-step to 170 cm at the player's side/behind (flank bearings, `CanStandAt`, the pack's blink gate),
+  then a 0.4 s tell (claw up, whisper `Creature.Unpaid.PhaseStrike`, coal 0.9), claw 240 cm / 150 deg, 0.9x. LowSwipe = 0.55 s
+  crouch (claws dragging, `Creature.Unpaid.LowSwipe`), skims at 1150 cm/s through the player and 80 cm on (<= 480), catches feet
+  within 120 cm unless 30 cm up (or airborne 10+): jump it; 0.8x. HangBack = turn given up (`RestFromTurns` 0.6 s renewed),
+  circles at ring + 220 cm at 0.55x chase until a mate commits an attack (after 0.6 s) or 2.2 s.
+- Shriek (`Looter.Unpaid.Shriek.*`): a lunge that misses (in flight, struck where it stood, or target behind cover) rolls
+  `Chance` 0.35 (own `Cooldown` 8 s, pack `PackGap` 4 s at that player) -> recovery cut, at the turn's end `FUnpaidShriekWork::Start`
+  (out of the turns' line for its 2.3 s). Tell 0.5 / Scream 1.2 / Recover 0.6. Coal crit in the tell: `WardBreak` stagger, coal
+  exposed 1.5 s (crit radius x2.2, view 80 deg), `Creature.Unpaid.ShriekChoke`. Scream: players within `RattleRadius` 600 with a
+  clear line rattled (`UPlayerRattleSubsystem`: sway 1.1 deg over 0.9 s given back, slow to 85% for 1 s, both once per 3 s; shake
+  0.55; frost edges + scene fringe; HUD frost arc), to `FeltRadius` 1600 only felt (no sway/slow); its pack within 1200 rallied
+  3 s (frenzy pace and glow). FX: motes inhaled, ground ring (690 cm, 0.6 s) + wave of dust/grass/leaves (`StartWave`, a trace a
+  piece, <= 4 a frame), chest ring, mouth ring + starburst, cone of wisps and streaks, frost breath, embers/soot, one of 3 pooled
+  no-shadow point lights (70/150 cd, 7 m). Pose: rear/head up/jaw 1.15x/arms spread/claws curled; scream head thrust + 15 Hz
+  shake, jaw 1.3x, shudder, shroud flare, hat lifted 9 cm and settled; hunch + panting.
+- Sounds (`Art/Sounds/recipes/unpaid_shriek.py`, `LooterSoundCue::UnpaidScream`): ShriekDraw, ShriekScream ('Gun', 5 takes),
+  ShriekPant, ShriekChoke, Player.Rattled (2D), Feint, PhaseStrike, LowSwipe; pitched by the voice x(0.94-1.06 per Unpaid).
+- Measure: `Looter.Unpaid.Moves [reset]` (tally: each move, landed, flanks, cinders, rallies, shrieks, interrupts);
+  `Looter.Unpaid.Shriek.Now [count] [every]` makes the nearest kit Unpaid shriek now, repeating every s (grabs, perf; several of
+  one pack need `.PackGap 0`; `Now 0` stops the repeat). Not measured
+  yet: the mix in play, perf with 3 shrieking (`Looter.Unpaid.Shriek.Light 0` / `.Fx 0.5` are the knobs), grass blades bending
+  (the grass material has no local push: the wave throws blades and leaves instead; a local push needs MPC + grass material work).

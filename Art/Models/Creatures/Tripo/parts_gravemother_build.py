@@ -4,7 +4,8 @@ its docstring has the maps). Not a model: Tools\\models.ps1 skips parts_*.py.
 build(bones) -> ({name: dict(V, F, bone, kind, line?)}, extras): creature cm, the rig's rest pose, even quads, cached in
 Intermediate/GravemotherModel/TripoQuads (QuadriFlow takes minutes; the key hashes the GLB, these scripts and the bones).
 Pieces: thorax (on 'body'; the head's part is told by place), abdomen and skull0/1 (on 'abdomen'), femur_/tibia_<pair>_<side>,
-palp_l/r and claw_l/r (on the palps), chel_l/r (on the fangs), stone (the headstone in stone cm, no bone). extras: the
+palp_l/r (on the palps; Tripo's thin second claws between palp and chelicera are cut off and left out), chel_l/r (on the
+fangs), stone (the headstone in stone cm, no bone). extras: the
 fang bones' new places (each chelicera's root and its tip: the game turns a fang about its bone's head, so the bone sits
 where Tripo's chelicera meets the face), the eyes' middle."""
 import hashlib

@@ -11,6 +11,7 @@
 #include "Creatures/CreatureReactRules.h"
 #include "Creatures/CreatureTierLook.h"
 #include "Creatures/UnpaidHat.h"
+#include "Creatures/UnpaidKitWork.h"
 #include "Player/PlayerSize.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
@@ -223,10 +224,13 @@ bool AUnpaidCreature::IsCriticalSpot(const FHitResult& Hit) const
 	{
 		return false;
 	}
-	// Its coal is as much bigger as it is (a Gravebound one's by its rank's size).
+	// Its coal is as much bigger as it is (a Gravebound one's by its rank's size); laid bare after a choked shriek, bigger
+	// still and seen from wider round (UnpaidCreatureShriek.cpp).
 	const float Scale = GetSizeScale();
+	const float Exposure = FUnpaidShriekWork::CoalExposure(*this);
+	const float ViewAngle = Exposure > 1.f ? FMath::Max(CoalViewAngle, 80.f) : CoalViewAngle;
 	return UnpaidRules::IsCoalShot(GetCoalLocation(), GetCoalFacing(), Hit.ImpactPoint, Hit.TraceEnd - Hit.TraceStart,
-		CoalCritRadius * Scale, CoalViewAngle, CoalReach * Scale);
+		CoalCritRadius * Scale * Exposure, ViewAngle, CoalReach * Scale);
 }
 
 FVector AUnpaidCreature::GetCoalLocation() const
@@ -275,9 +279,9 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 		}
 		// Its fighting kit: the rake's second swipe, cinders and rallies on the ring, the flank, its pace (UnpaidCreatureMoves.cpp).
 		TickFightKit(DeltaSeconds);
-		if (IsPhasing() || Kit.Action == EUnpaidAction::Rally)
+		if (IsPhasing() || Kit.Action == EUnpaidAction::Rally || Kit.Action == EUnpaidAction::Shriek)
 		{
-			// It hangs where it is while it fades, or screams its pack on: the brain's steering goes unused.
+			// It hangs where it is while it fades, screams its pack on, or shrieks: the brain's steering goes unused.
 			ConsumeMovementInputVector();
 		}
 	}
@@ -324,6 +328,8 @@ void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	{
 		return;
 	}
+	// Its coal shot while it rears up to shriek: it chokes on it (a stagger, its coal laid bare a moment; UnpaidCreatureShriek.cpp).
+	FUnpaidShriekWork::OnHurt(*this, bCritical, HitLocation);
 	// A flinch away from the hit, its arms flung the other way (UnpaidCreatureArms.cpp), sized by the hit (Gunfeel); a shot
 	// on the coal makes it flare, and any hit stirs it a little.
 	const float Strength = GetLastHit().FlinchStrength(FGunfeelReactTuning::Live());
@@ -360,6 +366,8 @@ void AUnpaidCreature::OnDied()
 		EndKitAction(true);
 	}
 	Kit.Reset();
+	// Its varied moves forgotten: off the pack's board, its shriek's light back (UnpaidCreatureVariety.cpp).
+	FUnpaidMoveWork::Forget(*this);
 	CommitLunge(false);
 	Kit.bLunging = false;
 	Kit.bPressStepOwed = false;
@@ -402,6 +410,7 @@ void AUnpaidCreature::OnRespawned()
 	CommitLunge(false);
 	Kit.bLunging = false;
 	Kit.Reset();
+	FUnpaidMoveWork::Forget(*this);
 	Kit.Sight = FUnpaidSightState();
 	Kit.SinceLastStep = 1000.f;
 	ResetProgress();

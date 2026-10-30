@@ -7,6 +7,7 @@
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
+#include "Creatures/UnpaidKitWork.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -385,8 +386,9 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	{
 		Bones[JawBone].Own = PitchBy(Pose.Jaw - RestJaw + Hurt.JawOpen());
 	}
-	// Its statuses' tremors, twists, jerk and cough on the trunk (UnpaidCreatureStatus.cpp).
+	// Its statuses' tremors, twists, jerk and cough on the trunk (UnpaidCreatureStatus.cpp); its shriek's shake (UnpaidShriekPose.cpp).
 	LayStatusBones();
+	FUnpaidShriekWork::LayBones(*this);
 
 	// The shroud lifts off ground that rises behind it (it trails a meter back, low): the floor's slope along its facing,
 	// eased so bumps don't jerk it. Read off the movement's floor, so it costs no trace.
@@ -402,7 +404,7 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 
 	// The shroud and its strips trail the drift, out of phase with each other, and snap straight with the lunge; its
 	// statuses shake it on top (jittering jolted, flapping burning).
-	const FVector ShroudDrift = Local + StatusShroudShake();
+	const FVector ShroudDrift = Local + StatusShroudShake() + FUnpaidShriekWork::ShroudShake(*this);
 	for (int32 Chain = 0; Chain < static_cast<int32>(UE_ARRAY_COUNT(Chains)); ++Chain)
 	{
 		if (Chains[Chain].Links.Num() > 0)

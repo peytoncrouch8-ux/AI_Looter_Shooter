@@ -59,6 +59,8 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
   past the ear, a venom glob's hiss).
 - unpaid_kit (2026-10-27, the Unpaid's fighting kit: `Creature.Unpaid.Rake`, `.Cinder`, `.Flank`, `.Rally`, `.Howl`; 16 takes; names
   in `UnpaidKitCue`, `Creatures/UnpaidFightTuning.h`; the Howl uses the 'Gun' attenuation, about 60 m).
+- unpaid_shriek (2026-10-29, the Unpaid's varied moves and failed-lunge shriek, `LooterSoundCue::UnpaidScream`: `Creature.Unpaid.ShriekDraw`,
+  `.ShriekScream` ('Gun', 5 takes), `.ShriekPant`, `.ShriekChoke`, `.Feint`, `.PhaseStrike`, `.LowSwipe` (3D), `Player.Rattled` (2D)).
 - bossintro (2026-10-27, the boss intros, `Scenes/BossIntro.h` `BossIntroCue`: `Music.BossIntro.Gravemother`, `.Foreman`,
   `.Abel` (2D beds timed to each script's LiveAt), `Music.BossIntro.Reveal`, `Boss.Gravemother.Burrow`, `.Emerge` (3D)).
 - melee_tools (2026-10-27, round 4: `Player.Melee.<Spade|Fan|Gaff|Piston|Pick>.Swing` 2D and `.Hit` 3D Near, 4 takes each; named by
