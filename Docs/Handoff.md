@@ -267,6 +267,14 @@ The user's calls this stretch:
   fights, a weighted move mix with tells, the AAA shriek with rings/wisps/embers/frost/HUD feedback, perf with 3 at once)
   once the new Unpaid is in; before packaging run perf (perf.ps1) and FIX anything under 120 fps; then package a
   Development playtest build (Tools\package.ps1 -CloseEditor -SmokeTest) and commit/push as each piece lands.
+- Done overnight: d6e5e04f (pause hub, bars, legendaries, tuning, sprite polish, splits, Tripo Unpaid + Meadow Wolf);
+  0f02842a (Unpaid fights: move mix Lunge/Rake/PhaseStrike/Feint/LowSwipe picked by range, the cause of lunge-only fights was
+  the 480 cm ring sitting inside lunge range; the failed-lunge shriek; Tripo Spitter (6 legs rebuilt to 8) and Gravemother
+  (6 legs, middle pair doubled) imported; the ten stale tests fixed). Test `Looter.Creatures.Unpaid.Shriek` renamed
+  `.Shriek.SlowRing` (its name was also a group, so it never ran): rerun after the next build.
+- Still to do: play-check (agent), Stone Sentinel Tripo import (art agent, lane S), perf to 120 fps, package, then tell
+  the user: Map row added to the hub; named guns can't be sold; player health compounds +9% a level too; the new Unpaid's
+  big hat + glowing eyes; spider leg rebuilds; grass doesn't bend in the shriek.
 
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:

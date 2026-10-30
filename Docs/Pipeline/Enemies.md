@@ -608,7 +608,7 @@ placing `Tools/Unreal/build_area_bounties.py` (gameplay pass after the placehold
   clear line rattled (`UPlayerRattleSubsystem`: sway 1.1 deg over 0.9 s given back, slow to 85% for 1 s, both once per 3 s; shake
   0.55; frost edges + scene fringe; HUD frost arc), to `FeltRadius` 1600 only felt (no sway/slow); its pack within 1200 rallied
   3 s (frenzy pace and glow). FX: motes inhaled, ground ring (690 cm, 0.6 s) + wave of dust/grass/leaves (`StartWave`, a trace a
-  piece, <= 4 a frame), chest ring, mouth ring + starburst, cone of wisps and streaks (stops 140 cm short of the target's
+  piece, <= 4 a frame), mouth ring (the chest ring dropped 2026-10-30: it read as a grey collar) + starburst, cone of wisps and streaks (stops 140 cm short of the target's
   eyes), frost breath, embers/soot, one of 3 pooled no-shadow point lights (25/50 cd, 60 cm out of the coal, 7 m). PIE
   2026-10-30: 70/150 cd 35 cm out washed the pale Tripo body flat white, and the full cone through the camera from a missed
   lunge's ~1.4 m whitened half the screen. Pose: rear/head up/jaw 1.15x/arms spread/claws curled; scream head thrust + 15 Hz

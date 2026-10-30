@@ -5,8 +5,8 @@
 //    and pulsing fast; cold soul motes are drawn into its mouth. Shooting its coal now chokes it off: a stagger, its coal
 //    exposed a moment (a bigger crit spot), a choked cry.
 //  - Scream (1.2 s): its head thrusts forward shaking, jaw at its widest, body and shroud shuddering, its hat lifting off its
-//    head. A shockwave ring rolls out along the ground lifting dust, grass and leaves (UUnpaidPackSubsystem's wave), a fainter
-//    ring at chest height, a cone of spectral wisps and soul streaks out of its mouth, frost on its breath, embers and soot
+//    head. A shockwave ring rolls out along the ground lifting dust, grass and leaves (UUnpaidPackSubsystem's wave), a cone
+//    of spectral wisps and soul streaks out of its mouth, frost on its breath, embers and soot
 //    flung from its coal, its coal's light flaring round it. Players near it are rattled (UPlayerRattleSubsystem: a short aim
 //    sway and a slight slow within RattleRadius, never a stun; the shake falling off, frost at the screen's edges, a colour
 //    wobble and an arc on the HUD to where it came from), its pack within RallyRadius rallied (the frenzy's pace a while).
@@ -332,15 +332,15 @@ void FUnpaidShriekWork::Scream(AUnpaidCreature& Unpaid, const FUnpaidMoveTuning&
 	const FLinearColor RingColor = FMath::Lerp(SoulCold, Tint, 0.3f);
 	LooterSound::PlayAttached(FName(Cue::Scream), Unpaid.GetMesh(), Unpaid.Rig.Head, 1.f, State.ShriekPitch);
 
-	// The look: a shockwave ring rolling out along the ground (its wave lifts the dust, grass and leaves), a fainter one at
-	// chest height, a ring torn off its mouth, a flash, the first blast of the cone, embers and frost.
+	// The look: a shockwave ring rolling out along the ground (its wave lifts the dust, grass and leaves), a ring torn off its
+	// mouth, a flash, the first blast of the cone, embers and frost. No ring at chest height: born round its chest, it read as a
+	// flat grey collar (play-check 2026-10-30).
 	FWeaponFX* Effects = Tuning.ShriekFx > 0.f ? ShriekEffects(World) : nullptr;
 	const float Reach = Tuning.ShriekRattleRadius * 1.15f * Scale;
 	if (Effects)
 	{
 		const float Glow = FVfxTuning::Live().Glow * Tuning.ShriekFx;
 		Effects->SpawnShockRing(Feet + FVector(0.f, 0.f, 4.f), FVector::UpVector, 50.f * Scale, Reach, 48.f * Scale, RingColor, 12.f * Glow, 0.6f);
-		Effects->SpawnShockRing(Coal, FVector::UpVector, 40.f * Scale, Tuning.ShriekRattleRadius * 0.9f * Scale, 16.f * Scale, RingColor, 5.f * Glow, 0.5f);
 		Effects->SpawnShockRing(Mouth + Way * (10.f * Scale), Way, 8.f * Scale, 130.f * Scale, 9.f * Scale, SoulCold, 10.f * Glow, 0.22f);
 		Effects->SpawnStarburst(Mouth + Way * (8.f * Scale), 50.f * Scale, FMath::Lerp(SoulCold, FLinearColor::White, 0.5f), 4.f * Glow, 0.12f, 9);
 		Effects->SpawnShriekCone(Mouth, Way, ConeReachTo(Unpaid, Mouth, ConeReach * 1.1f * Scale), Tint, 12, 1.f);
