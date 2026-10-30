@@ -255,6 +255,19 @@ The user's calls this stretch:
   all fingers touching. The other guns get spots with their new parts.
 - Tripo remakes in progress by the user: Stone Sentinel and the Unpaid (prompts in this session; Enemies.md).
 
+## Overnight 2026-10-29/30 (the user went to bed; their answers)
+- In flight: Tripo remakes (Sentinel, Unpaid, Meadow Wolf, Spitter, Gravemother: contract Docs/Work/2026-10-29-TripoCreatures),
+  effect sprite polish (built? see commits), file splits, the tuning pass (the user: element bullets x1.75/x0.5 with status
+  x2/x0.33, ammo by class, compounding +9% a level, bosses ignore body resists keeping their story immunity, plus the
+  analyst's fixes), three boss legendaries at 10% per kill (Gravesilk, Company Scrip, Lamplighter), the ESC pause hub
+  (Resume top, Inventory, Missions, Bestiary, Embers, Settings, Save & Quit bottom; Save & Quit removed from Settings),
+  thicker player ward bar (as the health bar) and enemy bars (10 px).
+- The user's overnight calls: a Tripo model that can't reach the bar goes in ANYWAY (no fallback to the old one); start the
+  Unpaid attack variety + failed-lunge shriek (the user's prompt, in this session's transcript: diagnose the lunge-only
+  fights, a weighted move mix with tells, the AAA shriek with rings/wisps/embers/frost/HUD feedback, perf with 3 at once)
+  once the new Unpaid is in; before packaging run perf (perf.ps1) and FIX anything under 120 fps; then package a
+  Development playtest build (Tools\package.ps1 -CloseEditor -SmokeTest) and commit/push as each piece lands.
+
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:
 typed wards, bodies, immunities, Touched variants, Stone Sentinel, x2 / x0.33; plus element feedback: firing looks,
