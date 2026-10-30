@@ -2,6 +2,7 @@
 #include "Audio/LooterSoundCues.h"
 #include "Creatures/GravemotherCreature.h"
 #include "Creatures/GravemotherTuning.h"
+#include "Weapons/LegendaryDrops.h"
 
 #define LOCTEXT_NAMESPACE "LooterGravemother"
 
@@ -84,6 +85,8 @@ namespace GravemotherFight
 		// Her body is over two metres across: everything lands clear of it.
 		Shower.MinReach = 220.f;
 		Shower.MaxReach = 480.f;
+		// Her own legendary, farmed at her vigil stone: Gravesilk.
+		Shower.DedicatedLegendary = FName(LegendaryDrops::GravesilkId);
 		return Shower;
 	}
 

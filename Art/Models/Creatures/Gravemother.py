@@ -34,6 +34,7 @@ What's hers (Tools/Blender/looter_barrow.py has the shared pieces):
 import math
 import os
 import random
+import sys
 
 import bmesh
 import bpy
@@ -46,6 +47,12 @@ import looter_creatures as lc
 import looter_model as lm
 import looter_textures as lt
 
+# The user's Tripo remake (2026-10-29, Art/Models/Creatures/Tripo/Gravemother.glb): her body rebuilt from it as clean
+# quads on the spider's same bones and rest pose (six legs made eight, the tilt stood level, the size the spider's),
+# painted by this script's painter on the same atlas (parts_gravemother_look.py; parts_gravemother_build.py for the
+# shape). LOOTER_GRAVEMOTHER_TRIPO=0 keeps the scripted body (Spider.py's parts dressed).
+TRIPO = os.environ.get('LOOTER_GRAVEMOTHER_TRIPO', '1') != '0'
+
 SET, BARE_SET = 'Gravemother', 'GravemotherBare'
 SIZE = 2048
 PX_M = 0.003                 # Spider.py's per-pixel slope scale: the same relief per pixel as the spider's
@@ -56,6 +63,12 @@ UV_MUD = lb.SCALE * 0.01 * 0.5             # GravemotherMud's repeat per creatur
 UV_ROOT = lb.ROOT_UV_PER_CM
 
 S = lb.spider_parts()
+if TRIPO:
+    sys.path.insert(0, os.path.join(lt.REPO, 'Art', 'Models', 'Creatures', 'Tripo'))
+    import parts_gravemother_build as gb
+    import parts_gravemother_look as gl
+    # Her Tripo abdomen (an egg of its own) in S, looter_barrow told so: the stone keeps the game's place.
+    S = gl.tripo_spider(S)
 ATLAS = S['ATLAS']
 AB = lb.Abdomen(S)
 STONE = lb.stone_frame(S)
@@ -377,35 +390,43 @@ def finish(bm, name, material, uv_per):
     return lb.obj_from_bm(name, bm, [material], smooth=True, sharp=75.0)
 
 
-removed = bald_under_stone()
-dressing = {}
-for pair in range(4):
-    for side, suffix in S['SIDES']:
-        bm = lb.new_bm()
-        mud_sleeve(bm, pair, side, suffix, seed=pair * 2 + (1 if side > 0 else 0))
-        dressing.setdefault(f'tibia_{pair}_{suffix}', []).append(finish(bm, f'Mud{pair}{suffix.upper()}', MUD, UV_MUD))
-bm = lb.new_bm()
-root_stubs(bm)
-dressing['abdomen'] = [finish(bm, 'RootStubs', ROOTS, UV_ROOT)]
-
-# --- The rig (the spider's), the skin, the hit zones ---
-
-rig = lm.armature()
-lm.bones(rig, [(name, lc.to_blender(head), lc.to_blender(tail), parent) for name, head, tail, parent in bones])
-skin = {}
-for bone, mesh in parts.items():
-    material = ABDOMEN if bone == 'abdomen' else HIDE
-    skin[bone] = [mesh.finish(bone.title().replace('_', ''), material)]
-    if bone in hairs:
-        skin[bone].append(hairs.pop(bone).finish(bone.title().replace('_', '') + 'Hair', material))
-    skin[bone] += dressing.get(bone, [])
-    # As the spider's: a hull round everything the bone moves (the mud and the stubs too), so a shot at any drawn
-    # part hits it.
-    lm.hit_hull(rig, bone, skin[bone])
+if TRIPO:
+    # The Tripo body (parts_gravemother_look.body): its pieces rigid on the spider's bones, mud on its own tibias, the
+    # skulls in BoneDry, a hull round each bone's pieces; the root stubs as before.
+    bm = lb.new_bm()
+    root_stubs(bm)
+    stubs = finish(bm, 'RootStubs', ROOTS, UV_ROOT)
+    rig, gravemother, bones = gl.body(S, dict(hide=HIDE, abdomen=ABDOMEN, mud=MUD, bone=lb.bone()), stubs)
+    removed = 0
+else:
+    removed = bald_under_stone()
+    dressing = {}
+    for pair in range(4):
+        for side, suffix in S['SIDES']:
+            bm = lb.new_bm()
+            mud_sleeve(bm, pair, side, suffix, seed=pair * 2 + (1 if side > 0 else 0))
+            dressing.setdefault(f'tibia_{pair}_{suffix}', []).append(finish(bm, f'Mud{pair}{suffix.upper()}', MUD,
+                                                                           UV_MUD))
+    bm = lb.new_bm()
+    root_stubs(bm)
+    dressing['abdomen'] = [finish(bm, 'RootStubs', ROOTS, UV_ROOT)]
+    # The rig (the spider's), the skin, the hit zones.
+    rig = lm.armature()
+    lm.bones(rig, [(name, lc.to_blender(head), lc.to_blender(tail), parent) for name, head, tail, parent in bones])
+    skin = {}
+    for bone, mesh in parts.items():
+        material = ABDOMEN if bone == 'abdomen' else HIDE
+        skin[bone] = [mesh.finish(bone.title().replace('_', ''), material)]
+        if bone in hairs:
+            skin[bone].append(hairs.pop(bone).finish(bone.title().replace('_', '') + 'Hair', material))
+        skin[bone] += dressing.get(bone, [])
+        # As the spider's: a hull round everything the bone moves (the mud and the stubs too), so a shot at any drawn
+        # part hits it.
+        lm.hit_hull(rig, bone, skin[bone])
+    gravemother = lm.skin(rig, 'Gravemother', skin)
 rear_c = AB.center + AB.fwd * (REAR_AT * AB.radii[0])
 rear = lm.hit_sphere(rig, 'abdomen', lc.to_blender(rear_c), REAR_RADIUS * 0.01)
 rear.name = 'USP_AbdomenRear'
-gravemother = lm.skin(rig, 'Gravemother', skin)
 
 
 def spread_patch_uvs(obj):
@@ -453,7 +474,12 @@ lb.log(f'Gravemother: {tris} triangles, {len(bones)} bones, {removed} bristles l
 def stone_preview(state=0):
     """The headstone in a state, placed on her (as GravemotherStone.py builds it, in her space): a preview helper."""
     bm = lb.new_bm()
-    lbs.slab(bm, state)
+    if TRIPO:
+        import parts_gravemother_stone as gst
+        stone = gb.build({n: (np.array(h[:]), np.array(t[:])) for n, h, t, p in S['bones']})[0]['stone']
+        gst.slab(bm, (stone['V'], stone['F']), state, S)
+    else:
+        lbs.slab(bm, state)
     lbs.roots_into(bm, S, snapped=('FrontRight',) if state == 2 else ())
     lbs.mud_collar(bm, S)
     lbs.finish_uvs(bm)

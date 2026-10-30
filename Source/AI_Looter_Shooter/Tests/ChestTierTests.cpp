@@ -192,7 +192,7 @@ bool FChestTiersPayoutTest::RunTest(const FString& Parameters)
 			&& Info.LidMotion == EChestLidMotion::Hinge && Info.PreMotion == EChestPreMotion::Show && Info.bOnMap);
 
 		const ULootTable* Table = StockTierTable(Design.Tier);
-		TestTrue(FString::Printf(TEXT("%s: its table carries the floor, the gun counts and a chest's 36 rounds"), *Name),
+		TestTrue(FString::Printf(TEXT("%s: its table carries the floor, the gun counts and a chest's 1.5 boxes of ammo"), *Name),
 			Table->MinWeaponRarity == Design.Floor && Table->MinWeaponDrops == Design.MinGuns && Table->MaxWeaponDrops == Design.MaxGuns
 			&& Table->bKeepsLegendaryOdds == Design.bKeepsOdds && Table->AmmoAmountMin == LooterLoot::ChestAmmoAmount
 			&& Table->AmmoAmountMax == LooterLoot::ChestAmmoAmount);
@@ -202,7 +202,7 @@ bool FChestTiersPayoutTest::RunTest(const FString& Parameters)
 			const FString At = FString::Printf(TEXT("%s at level %d"), *Name, Level);
 			const FOpenings Rolled = OpenMany(Table, Openings, 20261027 + Design.Tier * 31 + Level, Level, Design.Ammo);
 			TestEqual(*FString::Printf(TEXT("%s: never a gun under the floor"), *At), Rolled.UnderFloor, 0);
-			TestEqual(*FString::Printf(TEXT("%s: its ammo pickups, each a chest's 36 rounds"), *At), Rolled.AmmoWrong, 0);
+			TestEqual(*FString::Printf(TEXT("%s: its ammo pickups, each a chest's 1.5 boxes"), *At), Rolled.AmmoWrong, 0);
 			TestTrue(FString::Printf(TEXT("%s: %d to %d guns an opening that gives any (%d-%d)"), *At, Rolled.FewestGuns, Rolled.MostGuns,
 				Design.MinGuns, Design.MaxGuns), Rolled.WithGuns == 0 || (Rolled.FewestGuns >= Design.MinGuns && Rolled.MostGuns <= Design.MaxGuns));
 			if (Design.MinGuns != Design.MaxGuns)
@@ -382,7 +382,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FChestTiersOldSavesTest, "Looter.Loot.ChestTier
 bool FChestTiersOldSavesTest::RunTest(const FString& Parameters)
 {
 	// The old kinds keep their names, numbers and loot (a level or a save naming them reads as before), and a chest the session
-	// kept open by its id stays open when the level's chest of that id has become a tier (GangStrongbox, a Strongbox, now tier 4).
+	// kept open by its id stays open when the level's chest of that id has become a tier (GangStrongbox, a Strongbox, now tier 3).
 	const UEnum* Kinds = StaticEnum<EChestKind>();
 	if (TestNotNull(TEXT("EChestKind is reflected"), Kinds))
 	{
@@ -437,8 +437,8 @@ bool FChestTiersOldSavesTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	AChest* Tiered = SpawnChest(Again, FChestKindInfo::TierKind(4), FVector(300.0, 0.0, 0.0), Id);
-	if (!TestNotNull(TEXT("The same chest, now tier 4"), Tiered))
+	AChest* Tiered = SpawnChest(Again, FChestKindInfo::TierKind(3), FVector(300.0, 0.0, 0.0), Id);
+	if (!TestNotNull(TEXT("The same chest, now tier 3"), Tiered))
 	{
 		return false;
 	}

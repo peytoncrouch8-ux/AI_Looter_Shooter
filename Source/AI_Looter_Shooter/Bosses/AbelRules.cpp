@@ -2,6 +2,7 @@
 #include "Audio/LooterSoundCues.h"
 #include "Bosses/AbelPoses.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Weapons/LegendaryDrops.h"
 #include "Components/LightComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
@@ -115,6 +116,8 @@ namespace AbelRules
 		Shower.bFromSpot = true;
 		Shower.MinReach = 160.f;
 		Shower.MaxReach = 400.f;
+		// His own legendary, farmed at his vigil stone: Lamplighter.
+		Shower.DedicatedLegendary = FName(LegendaryDrops::LamplighterId);
 		return Shower;
 	}
 

@@ -50,8 +50,8 @@ namespace FightPace
 		int32 MeleeTokens = 3;
 		float TokenRest = 0.6f;
 		float DamageScale = 1.8f;
-		/** An enemy's health and damage grow by this share of their level 1 values a level (FLevelRules::EnemyGrowth). */
-		float EnemyGrowth = 0.08f;
+		/** An enemy's health and damage grow by this share of the level below's a level, compounding (FLevelRules::EnemyGrowth). */
+		float EnemyGrowth = 0.09f;
 	};
 
 	/** The player's health; the ward comes from StarterWard or the caller. */
@@ -59,7 +59,7 @@ namespace FightPace
 	{
 		float BaseHealth = 100.f;
 		/** FLevelRules::HealthPerLevel. */
-		float HealthPerLevel = 0.08f;
+		float HealthPerLevel = 0.09f;
 	};
 
 	/** The gun a level-matched player carries. */
@@ -70,8 +70,8 @@ namespace FightPace
 		float FireRate = 600.f;
 		/** The share of the shots that land on the body (the user's 60% on target). */
 		float OnTarget = 0.6f;
-		/** The gun's damage grows by this share of its level 1 damage a level (UWeaponDefinition::DamagePerLevel). */
-		float DamagePerLevel = 0.08f;
+		/** The gun's damage grows by this share of the level below's a level, compounding (UWeaponDefinition::DamagePerLevel). */
+		float DamagePerLevel = 0.09f;
 		/** The rarity's multipliers (Uncommon 1.10 and 1.03). */
 		float DamageMultiplier = 1.f;
 		float FireRateMultiplier = 1.f;
@@ -97,7 +97,7 @@ namespace FightPace
 
 	// --- Levels ---
 
-	/** An enemy's health and damage at Level against its level 1 values: 1 + Growth x (Level - 1). */
+	/** An enemy's health and damage at Level against its level 1 values: (1 + Growth) ^ (Level - 1). */
 	AI_LOOTER_SHOOTER_API float EnemyScale(int32 Level, float Growth);
 
 	/** The ward the player's first gun brings, at Level: FIGHTS.md's two measured points (about 15 at level 1, 41 at level 3), carried on in a line. */

@@ -1,4 +1,5 @@
 #include "Creatures/FightPaceRules.h"
+#include "Progression/LevelRules.h"
 
 namespace
 {
@@ -8,7 +9,8 @@ namespace
 
 float FightPace::EnemyScale(int32 Level, float Growth)
 {
-	return 1.f + Growth * static_cast<float>(FMath::Max(Level, 1) - 1);
+	// Compounding, as the game grows them (FLevelRules::Compounded; the user, 2026-10-29 night).
+	return FLevelRules::Compounded(Growth, Level);
 }
 
 float FightPace::StarterWard(int32 Level)
@@ -19,7 +21,7 @@ float FightPace::StarterWard(int32 Level)
 
 float FightPace::PlayerEHP(int32 Level, const FPlayerNumbers& Player, float Ward)
 {
-	return Player.BaseHealth * (1.f + Player.HealthPerLevel * static_cast<float>(FMath::Max(Level, 1) - 1)) + FMath::Max(Ward, 0.f);
+	return Player.BaseHealth * FLevelRules::Compounded(Player.HealthPerLevel, Level) + FMath::Max(Ward, 0.f);
 }
 
 float FightPace::TurnSeconds(const FKindNumbers& Kind)
@@ -67,7 +69,7 @@ float FightPace::SecondsToDie(float EHP, float Dps)
 
 float FightPace::GunDps(const FGunNumbers& Gun, int32 Level)
 {
-	const float Damage = Gun.Damage * Gun.DamageMultiplier * (1.f + Gun.DamagePerLevel * static_cast<float>(FMath::Max(Level, 1) - 1));
+	const float Damage = Gun.Damage * Gun.DamageMultiplier * FLevelRules::Compounded(Gun.DamagePerLevel, Level);
 	const float Shots = Gun.FireRate * Gun.FireRateMultiplier / 60.f;
 	return Damage * Shots * FMath::Clamp(Gun.OnTarget, 0.f, 1.f);
 }

@@ -1,5 +1,5 @@
 """The Stone Sentinels on Ransom's Rest (Docs/Work/2026-10-29-ElementsMatter/CONTRACT.md, lane E): four grave statues that
-wake (AStoneSentinelCreature), two on Boot Hill and two among the churchyard's west grave rows, outside Saint Ada's Yard's
+wake (AStoneSentinelCreature), two on Boot Hill and two among the churchyard's east grave rows, outside Saint Ada's Yard's
 spots and the Churchyard ambush's, there after Main 4 ("Hallowed Ground": from then the dead walk Boot Hill and the
 churchyard). For build_area.py's gameplay pass.
 
@@ -11,15 +11,19 @@ can see the spot, and stands passive until it wakes (its own code: a player near
 plinth (SM_StoneSentinelPlinth) under itself as play begins (AStoneSentinelCreature::bBringsPlinth), so no plinth is
 placed here. Before Main 4 nothing stands there.
 
-The spots (layout cm: x north, y east, as the layout's zones and obstacles; chosen 2026-10-29 from layout.json):
-  BootHillWest      (3100, -820)  past the west ends of boot hill's first two grave rows, inside the bootHill zone, 8 m
-                                  from its respawn grave (3200, 0)
-  BootHillNorth     (3850, -450)  beside the third row's west half, on the hill's north side, 8 m from the grave
-  ChurchyardWest    (6700, -3450) between the westmost grave row (y -3300) and the fence (y -3600), halfway along it
-  ChurchyardCorner  (7650, -2850) past the north ends of the west rows, by the fence's north side (x 7800)
+The spots (layout cm: x north, y east, as the layout's zones and obstacles; moved 2026-10-29 night, the RR tuning the user
+took: 11 m from the Churchyard ambush's spots and from every respawn grave, so a statue never wakes into a fight or onto
+a player standing up from a grave):
+  BootHillWest      (2810, -1000) on the line of boot hill's first row, 3.3 m past its west end, 11.3 m from the hill's
+                                  respawn grave (3200, 0); every spot on the rows themselves is under 9.1 m from it
+  BootHillNorth     (3680, -1020) on the line of the third row, 2.7 m past its west end, 11.3 m from the grave
+  ChurchyardWest    (6950, -1050) on the churchyard's first east row (y -1050), 14 m from the ambush's spots, 11.9 m
+                                  from the yard's grave (5850, -600); the id kept (the spawner's), though no longer west
+  ChurchyardCorner  (7450, -450)  at the north end of the third east row (y -450), by the fence's north-east corner
+Saint Ada's Yard's spots (Main 4's second step only, over before the statues stand) are kept YARD_CLEAR, not CLEAR.
 The checks (warnings, nothing left out for them): the ground's rise across the plinth's footprint (PLINTH_HALF) over
-MAX_TILT; within CLEAR of a respawn grave, of Saint Ada's Yard's spots (build_area_chapel.YARD_SPOTS turned with the
-chapel) or of the Churchyard ambush's spots. Move a spot in SENTINELS if one warns.
+MAX_TILT; within CLEAR of a respawn grave or of the Churchyard ambush's spots, within YARD_CLEAR of Saint Ada's Yard's
+spots (build_area_chapel.YARD_SPOTS turned with the chapel). Move a spot in SENTINELS if one warns.
 
 Hook in build_area.py's gameplay(), after the chapel's pieces and the camps (the ambush stands first):
     importlib.reload(importlib.import_module('build_area_sentinels')).place(self)
@@ -44,23 +48,24 @@ AFTER = ['Main4']
 
 # id, (x, y) layout cm, its hunting ground (build_area_camps.set_ground's form), what it is.
 SENTINELS = [
-    dict(id='BootHillWest', at=(3100.0, -820.0), ground={'zone': 'bootHill', 'radius': 2500.0, 'maxStep': 400.0},
-         where="Boot Hill, past the west ends of its first two rows"),
-    dict(id='BootHillNorth', at=(3850.0, -450.0), ground={'zone': 'bootHill', 'radius': 2500.0, 'maxStep': 400.0},
-         where="Boot Hill, beside the third row on the hill's north side"),
-    dict(id='ChurchyardWest', at=(6700.0, -3450.0),
+    dict(id='BootHillWest', at=(2810.0, -1000.0), ground={'zone': 'bootHill', 'radius': 2500.0, 'maxStep': 400.0},
+         where="Boot Hill, on its first row's line past the west end"),
+    dict(id='BootHillNorth', at=(3680.0, -1020.0), ground={'zone': 'bootHill', 'radius': 2500.0, 'maxStep': 400.0},
+         where="Boot Hill, on its third row's line past the west end"),
+    dict(id='ChurchyardWest', at=(6950.0, -1050.0),
          ground={'obstacle': 'churchyardFence', 'maxStep': 900.0, 'maxRise': 1000.0},
-         where="the churchyard, between the westmost grave row and the fence"),
-    dict(id='ChurchyardCorner', at=(7650.0, -2850.0),
+         where="the churchyard, on the first east grave row"),
+    dict(id='ChurchyardCorner', at=(7450.0, -450.0),
          ground={'obstacle': 'churchyardFence', 'maxStep': 900.0, 'maxRise': 1000.0},
-         where="the churchyard, past the north ends of the west rows by the fence"),
+         where="the churchyard, the north end of the third east row by the fence's corner"),
 ]
 
 SPAWN_REACH = 12000.0        # cm: the spawner's ActivationRadius (a statue appearing in view would give it away)
 DESPAWN_REACH = 16000.0      # cm: its DespawnRadius
 PLINTH_HALF = 70.0           # cm: half the plinth's footing (SM_StoneSentinelPlinth, 1.4 m square)
 MAX_TILT = 40.0              # cm: the most the ground may rise across the footprint before it warns
-CLEAR = 300.0                # cm: kept from respawn graves and the yard's and the ambush's spots
+CLEAR = 1100.0               # cm: kept from respawn graves and the Churchyard ambush's spots (was 3 m; 2026-10-29 night)
+YARD_CLEAR = 300.0           # cm: kept from Saint Ada's Yard's spots (its fight is over before the statues stand)
 
 
 def camps():
@@ -72,23 +77,23 @@ def chapel_module():
 
 
 def others(build):
-    """(what, (x, y)) of the places a Sentinel keeps CLEAR of: the respawn graves, Saint Ada's Yard's spots (turned with
-    the chapel's placement) and the Churchyard ambush's spots."""
+    """(what, (x, y), how far) of the places a Sentinel keeps clear of: the respawn graves and the Churchyard ambush's
+    spots by CLEAR, Saint Ada's Yard's spots (turned with the chapel's placement) by YARD_CLEAR."""
     found = []
     for key, spot in build.layout['placements'].items():
         if spot['kind'].startswith('Grave_'):
-            found.append((f'the grave {key}', tuple(spot['location'][:2])))
+            found.append((f'the grave {key}', tuple(spot['location'][:2]), CLEAR))
         if spot['kind'] == 'Chapel':
             cx, cy = spot['location'][:2]
             yaw = math.radians(spot.get('yaw', 0.0))
             c, s = math.cos(yaw), math.sin(yaw)
             for i, (fx, fy) in enumerate(chapel_module().YARD_SPOTS):
-                found.append((f"Saint Ada's Yard spot {i}", (cx + fx * c - fy * s, cy + fx * s + fy * c)))
+                found.append((f"Saint Ada's Yard spot {i}", (cx + fx * c - fy * s, cy + fx * s + fy * c), YARD_CLEAR))
     encounters = build.settings.get('encounters', {})
     for ambush in encounters.get('ambushes', []):
         if ambush.get('id') == 'Churchyard':
             for i, (x, y) in enumerate(ambush.get('spots', [])):
-                found.append((f'the Churchyard ambush spot {i}', (x, y)))
+                found.append((f'the Churchyard ambush spot {i}', (x, y), CLEAR))
     return found
 
 
@@ -103,10 +108,10 @@ def check(build, entry, z, near):
     elif max(heights) - min(heights) > MAX_TILT:
         build.warn(f'{label}: the ground rises {max(heights) - min(heights):.0f} cm across its plinth (over {MAX_TILT:.0f}): '
                    f'move it in SENTINELS')
-    for what, (ox, oy) in near:
+    for what, (ox, oy), clear in near:
         d = math.hypot(ox - x, oy - y)
-        if d < CLEAR:
-            build.warn(f'{label}: {d / 100.0:.1f} m from {what} (under {CLEAR / 100.0:.0f} m): move it in SENTINELS')
+        if d < clear:
+            build.warn(f'{label}: {d / 100.0:.1f} m from {what} (under {clear / 100.0:.0f} m): move it in SENTINELS')
 
 
 def place_one(build, entry, cls, near):

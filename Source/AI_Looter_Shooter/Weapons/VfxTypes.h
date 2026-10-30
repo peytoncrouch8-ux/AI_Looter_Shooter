@@ -25,7 +25,13 @@ enum class EVfxShape : uint8
 	/** A ball of fire or light that cools: Param its heat (1 white-hot at the heart, 0 a dull ember edge eaten by noise). */
 	Fireball = 1,
 	/** A starburst: Param its spikes (3-16), uneven by its seed, round a hot core. */
-	Starburst = 2
+	Starburst = 2,
+	/**
+	 * A soft glow (FWeaponFX's flashes, embers, motes and round glows, Lane F's sprite polish 2026-10-29): a halo and a hot heart,
+	 * one of four looks by its seed. Param its heat (0..1: how white its heart); below 0 it isn't softened where it meets what's
+	 * behind it. Only on a master that has its SoftGlow knob (FWeaponFX checks); else M_FX_Glow's round disc.
+	 */
+	Glow = 3
 };
 
 /**

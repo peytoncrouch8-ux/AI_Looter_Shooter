@@ -335,4 +335,18 @@ namespace VfxRules
 	{
 		return FMath::Clamp(FMath::RoundToInt32(Radius / 12.f), 10, 28);
 	}
+
+	float SpriteRoll(float Roll, float Age)
+	{
+		// Its pace and way from its roll's digits (no new field per particle); it eases off as a billow slows.
+		const float Pace = FMath::Lerp(0.25f, 0.7f, FMath::Frac(Roll * 3.17f));
+		const float Way = FMath::Frac(Roll * 7.31f) < 0.5f ? -1.f : 1.f;
+		const float Time = FMath::Max(Age, 0.f);
+		return Roll + Way * Pace * Time / (1.f + 0.6f * Time);
+	}
+
+	float GlowStretch(float Speed, float Size)
+	{
+		return FMath::Clamp(1.f + FMath::Max(Speed, 0.f) * GlowShutter / FMath::Max(Size, 0.5f), 1.f, GlowMostStretch);
+	}
 }

@@ -29,7 +29,7 @@ namespace
 	TAutoConsoleVariable<float> CVarRewardLuck(TEXT("Looter.Bounty.RewardLuck"), BountyDefaults.RewardLuck,
 		TEXT("The luck of a bounty's reward guns (a Strongbox's is 1)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarRewardAmmo(TEXT("Looter.Bounty.RewardAmmo"), BountyDefaults.RewardAmmo,
-		TEXT("Ammo pickups handed over with a bounty's guns (36 rounds each)."), ECVF_Default);
+		TEXT("Ammo pickups handed over with a bounty's guns (a chest's 1.5 boxes each)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarPurseWanted(TEXT("Looter.Bounty.PurseWanted"), BountyDefaults.Purse[0],
 		TEXT("A Wanted bounty's purse at level 1 (silver; grown with the arena's level)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarPurseDangerous(TEXT("Looter.Bounty.PurseDangerous"), BountyDefaults.Purse[1],

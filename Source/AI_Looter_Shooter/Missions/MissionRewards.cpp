@@ -223,7 +223,8 @@ AWeaponBase* MissionRewards::DropGun(UWorld* World, const FMissionRewards& Rewar
 		return nullptr;
 	}
 	const EWeaponRarity Rarity = ApplyFloor(UWeaponRollLibrary::RollRarity(Kind), Rewards.GunRarityFloor);
-	const FWeaponInstanceData Instance = UWeaponRollLibrary::RollWeaponWithRarity(Kind, Rarity, FMath::Max(Level, 1));
+	// Its maker and element as the mission asks, if it does (MissionRewardGun.cpp).
+	const FWeaponInstanceData Instance = MakeRewardGun(Kind, Rarity, FMath::Max(Level, 1), Rewards);
 	AWeaponBase* Gun = DropInFront(World, Instance, *Player);
 	if (Gun)
 	{
@@ -424,7 +425,7 @@ FString MissionRewards::DescribeShort(const FMissionRewards& Rewards)
 	if (Rewards.bGun)
 	{
 		Parts.Add(Rewards.GunRarityFloor == EWeaponRarity::Common ? FString(TEXT("a gun"))
-			: FString::Printf(TEXT("a %s or better gun"), *RarityName(Rewards.GunRarityFloor)));
+			: FString::Printf(TEXT("a %s or better %sgun"), *RarityName(Rewards.GunRarityFloor), *GunWords(Rewards).Replace(TEXT(","), TEXT(""))));
 	}
 	if (!Rewards.NamedGun.IsNone())
 	{
@@ -455,8 +456,9 @@ TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards, FName M
 	}
 	if (Rewards.bGun)
 	{
-		// "Gun: Uncommon or better", "Gun: Shotgun, Rare or better".
+		// "Gun: Uncommon or better", "Gun: Shotgun, Rare or better", "Gun: Saint Maud, Hallow, Uncommon or better".
 		FString Gun = Rewards.GunKind && !Rewards.GunKind->DisplayName.IsEmpty() ? Rewards.GunKind->DisplayName.ToString() + TEXT(", ") : FString();
+		Gun += GunWords(Rewards);
 		Gun += Rewards.GunRarityFloor == EWeaponRarity::Common ? FString(TEXT("any rarity")) : RarityName(Rewards.GunRarityFloor) + TEXT(" or better");
 		Lines.Add(TEXT("Gun: ") + Gun);
 	}

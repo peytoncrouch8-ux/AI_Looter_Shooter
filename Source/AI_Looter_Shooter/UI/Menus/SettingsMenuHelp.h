@@ -48,8 +48,9 @@ namespace SettingsMenu
 		CameraShake,
 		ControllerRumble,
 		ResetAllKeys,
-		Resume,
-		SaveQuit,
+		/** The top row over the game: back to the pause menu's list (it was Resume; Save & Quit moved to the list, 2026-10-29). */
+		BackToPause,
+		/** The top row from the main menu: back to it. */
 		Back,
 		Count,
 	};

@@ -35,31 +35,43 @@ struct FAmmoLootEntry
 };
 
 /**
- * How many rounds one dropped ammo pickup holds (the user's rules), the same for every ammo class but rockets. Each
- * class's carry limit still caps what the player takes from it.
+ * How many rounds one dropped ammo pickup holds (the user's rules). A table's amounts are AR rounds; each class scales them
+ * by its kill box (LooterAmmo::FInfo::KillBox; the user, 2026-10-29 night: AR 18-36, SMG 24-48, pistol 12-24, shotgun 4-8,
+ * sniper 3-6, rockets one to three as before). Each class's carry limit still caps what the player takes from it.
  */
 namespace LooterLoot
 {
-	/** A kill's ammo pickups hold a random amount from Min to Max, both included. */
+	/** A kill's ammo pickups hold a random amount from Min to Max AR rounds, both included (other classes scaled). */
 	inline constexpr int32 KillAmmoAmountMin = 18;
 	inline constexpr int32 KillAmmoAmountMax = 36;
 
-	/** A loot chest's ammo pickups always hold this many, the most a kill's can. */
-	inline constexpr int32 ChestAmmoAmount = 36;
+	/**
+	 * A loot chest's ammo pickups always hold this many AR rounds: 1.5 of a class's box (the user, 2026-10-29 night; was 36,
+	 * a kill's most): AR 54, SMG 72, pistol 36, shotgun 12, sniper 9, rockets three.
+	 */
+	inline constexpr int32 ChestAmmoAmount = 54;
 
 	/**
 	 * Rockets come few (the contract, 2026-10-21: one to three a pickup): the rounds a pickup rolled, read as rockets, the
-	 * low third of a kill's range one, the middle two, the top three (a chest's 36: three).
+	 * low third of a kill's range one, the middle two, the top three (a chest's: three).
 	 */
 	inline int32 RocketsFor(int32 Rounds)
 	{
 		return Rounds <= 24 ? 1 : (Rounds <= 30 ? 2 : 3);
 	}
 
-	/** What a pickup of Type that rolled Rounds holds: the rounds themselves, or rockets for rockets. */
+	/**
+	 * What a pickup of Type that rolled Rounds (AR rounds) holds: Rounds x the class's KillBox / 36, rounded, at least one
+	 * (AR: the rounds themselves), or rockets for rockets.
+	 */
 	inline int32 AmmoAmountFor(EAmmoType Type, int32 Rounds)
 	{
-		return Type == EAmmoType::Rocket ? RocketsFor(Rounds) : Rounds;
+		if (Type == EAmmoType::Rocket)
+		{
+			return RocketsFor(Rounds);
+		}
+		const int32 Box = LooterAmmo::GetInfo(Type).KillBox;
+		return FMath::Max(1, FMath::RoundToInt32(static_cast<float>(Rounds) * static_cast<float>(Box) / static_cast<float>(KillAmmoAmountMax)));
 	}
 
 	/** How likely rockets are against each other class in a table that lists every class (a launcher drops less often too). */
@@ -158,7 +170,8 @@ public:
 	float KillWeaponAmmoBias = 2.f;
 
 	/**
-	 * Rounds in each ammo pickup: a random amount from AmmoAmountMin to AmmoAmountMax, both included, whatever the class.
+	 * Rounds in each ammo pickup: a random amount from AmmoAmountMin to AmmoAmountMax, both included, in AR rounds; the other
+	 * classes scale it by their kill box (LooterLoot::AmmoAmountFor).
 	 * Kills drop 18 to 36 (the user's rule); set both the same for a fixed amount. The player takes what fits under the
 	 * carry limit and the rest is lost: the pickup is collected either way (AAmmoPickup::CollectInto).
 	 */
@@ -171,7 +184,7 @@ public:
 	/**
 	 * Makes this a loot chest's table as far as ammo goes: every pickup holds exactly LooterLoot::ChestAmmoAmount rounds
 	 * (the user's rule) rather than a kill's random amount. For the chests to come; a chest's table asset gets the same by
-	 * setting both amounts to 36.
+	 * setting both amounts to LooterLoot::ChestAmmoAmount (54).
 	 */
 	void UseChestAmmoAmount();
 };

@@ -3,16 +3,20 @@ textures, so nothing to paint or import):
 
   M_FX_Shape       /Game/Art/Materials/Masters: unlit, additive, two-sided, for instanced static meshes (FWeaponFX's "Shapes"
                    component on the engine's Plane). Per-instance custom data (WeaponFXDraw.cpp's layout, ShapeFloats 7):
-                   0-2 colour (linear), 3 strength, 4 shape (EVfxShape: 0 ring, 1 fireball, 2 starburst), 5 param (a ring's
-                   thickness as a share of its radius; a fireball's heat, 1 white-hot .. 0 a dull ember edge; a starburst's
-                   spikes, 3-16), 6 seed (0..1). Emissive = shape's colour x mask x strength x Glow (1). Fireballs and
-                   starbursts are softened where they meet what's behind them (SoftDepth cm); rings are not (they lie on the
-                   ground, a few cm over it).
+                   0-2 colour (linear), 3 strength, 4 shape (EVfxShape: 0 ring, 1 fireball, 2 starburst, 3 soft glow), 5
+                   param (a ring's thickness as a share of its radius; a fireball's heat, 1 white-hot .. 0 a dull ember edge;
+                   a starburst's spikes, 3-16; a glow's heat 0..1, below 0 not softened), 6 seed (0..1; a glow's look and
+                   turn). Emissive = shape's colour x mask x strength x Glow (1); a glow's eased to at most 6 and x SoftGlow
+                   (1; FWeaponFX draws its flashes here only once this knob exists). Fireballs, starbursts and glows are
+                   softened where they meet what's behind them (SoftDepth cm; a glow keeps 35% there); rings are not (they
+                   lie on the ground, a few cm over it).
   M_FX_Puff        /Game/Art/Materials/Masters: unlit, translucent, two-sided, instanced static meshes (FWeaponFX's "Smoke"
                    once it exists: PuffFloats 6). Custom data 0-2 colour (the light already in it: unlit), 3 opacity, 4 seed
                    (below 0: a plain soft disc, the water rings' dashes), 5 erosion (0 fresh .. 1 thinned away: the noise
                    eats it into wisps as it ages). Two octaves of value noise drift with the erosion (the billow turning
-                   over); denser parts a touch darker. Soft where it meets what's behind it (SoftDepth cm).
+                   over) and lump its outline; denser parts a touch darker, the side toward the sky a touch lighter (the
+                   world's up turned into the quad's frame). Drawn by LocalPosition. Soft where it meets what's behind it
+                   (SoftDepth cm).
   M_FX_Fire        /Game/Art/Materials/Masters (VFX-2, 2026-10-22): unlit, translucent (alpha-blended), two-sided,
                    instanced static meshes (FWeaponFX's "Fire": FireFloats 10). Custom data 0-2 fire colour, 3-5 smoke colour
                    (the light in it), 6 opacity, 7 heat (1 white-hot .. 0 smoke), 8 seed, 9 erosion. Fire rolling into soot
@@ -126,6 +130,44 @@ for (int Octave = 0; Octave < 2; ++Octave)
 N = saturate(N / 0.93);
 """
 
+# The soft glow (Lane F's sprite polish, 2026-10-29): FWeaponFX's flashes, embers, motes, glints and round glows, which drew
+# on M_FX_Glow's flat disc. Two gaussians (a wide halo, a tight heart) gone well inside the quad, so it never shows an edge
+# even at a flash's strength of 30; one of four looks by its seed (a round bloom; a bloom with a faint four-point glint; a
+# soft oval; a soft three-to-five-lobed flicker), turned by it, so a shower of embers isn't a sheet of the same dot. Its light
+# eases to at most GlowCap (additive past ~3 washes white over a daylit scene: the VFX pass's lesson), the heart whitening
+# only by its heat (Param 0..1). Param below 0: not softened where it meets what's behind it (a body's glow sits just on its
+# near side, where the softening would eat it). First in the code, branched on, so a glow pays none of the others' noise.
+SHAPE_GLOW = """BRANCH
+if (S > 2.5)
+{
+    const float GlowCap = 6.0;
+    float Look = floor(Seed01 * 4.0);
+    float Turn = frac(Seed01 * 7.13) * 6.2831853;
+    float Rv = R;
+    if (Look > 1.5)
+    {
+        float Lobes = Look > 2.5 ? 3.0 + floor(frac(Seed01 * 13.7) * 3.0) : 2.0;
+        float Wobble = Look > 2.5 ? 0.14 : 0.24;
+        Rv = R / (1.0 + Wobble * cos(A * Lobes + Turn));
+    }
+    float Halo = exp(-Rv * Rv * 7.0);
+    float Heart = exp(-Rv * Rv * 34.0);
+    float G = Halo * 0.6 + Heart * 0.4;
+    if (Look > 0.5 && Look < 1.5)
+    {
+        float2 D = float2(cos(Turn) * P.x + sin(Turn) * P.y, cos(Turn) * P.y - sin(Turn) * P.x);
+        G += (exp(-D.x * D.x * 260.0 - D.y * D.y * 5.0) + exp(-D.y * D.y * 260.0 - D.x * D.x * 5.0)) * 0.3;
+    }
+    G *= 1.0 - smoothstep(0.8, 1.0, R);
+    float Heat = saturate(abs(Param));
+    float E = G * Strength * SoftGlow;
+    float3 Tint = lerp(Color, float3(1.0, 0.96, 0.88), saturate(Heart * Heat * 0.85));
+    float Lit = GlowCap * (1.0 - exp(-E / GlowCap));
+    float Soft = Param < 0.0 ? 1.0 : lerp(0.35, 1.0, SoftDepth);
+    return Tint * Lit * Glow * Soft;
+}
+"""
+
 SHAPE_CODE = """float2 P = UV * 2.0 - 1.0;
 float R = length(P);
 float A = atan2(P.y, P.x);
@@ -134,7 +176,7 @@ float Seed01 = frac(Seed);
 float3 C = Color;
 float M = 0.0;
 float Soften = 1.0;
-if (S < 0.5)
+""" + SHAPE_GLOW + """if (S < 0.5)
 {
     // A ring: a soft band of Param's share of the radius, brightest at its leading (outer) edge, a little broken.
     float2 Q = float2(A * 2.2 + Seed01 * 17.0, Seed01 * 5.0);
@@ -181,20 +223,31 @@ else
 M *= saturate((1.0 - R) * 8.0);
 return C * M * Strength * Glow * Soften;"""
 
-PUFF_CODE = """float2 P = UV * 2.0 - 1.0;
+# Drawn by the quad's own position (the Plane is -50..50), so Up (the world's up turned into the quad's frame) is in the same
+# axes as P; with it the side toward the sky is a touch lighter and the underside darker, so a cloud of puffs reads as a
+# volume, not stacked cards (Lane F's sprite polish, 2026-10-29). Up is (0,0,z) when the puff lies flat to the sky or the
+# transform isn't known: no shading then.
+PUFF_CODE = """float2 P = Local.xy / 50.0;
 float R = length(P);
-float Disc = saturate(1.0 - R);
-Disc = Disc * Disc * (3.0 - 2.0 * Disc);
 if (Seed < 0.0)
 {
     // A plain soft disc (the water rings' dashes).
-    return float4(Color, Disc * Opacity);
+    float Plain = saturate(1.0 - R);
+    Plain = Plain * Plain * (3.0 - 2.0 * Plain);
+    return float4(Color, Plain * Opacity);
 }
 // The billow: noise drifting as it ages, eating it into wisps as it thins.
 float2 Q = P * 1.8 + float2(Seed * 37.1, Seed * 11.7) + float2(0.0, Erode * 0.7);
-""" + NOISE + """float Dens = saturate(Disc * (0.45 + 0.9 * N) - Erode * 0.42);
-Dens = saturate(Dens * 1.35);
-float Shade = lerp(0.78, 1.06, N);
+""" + NOISE + """// Its outline lumped by the same noise (only ever pulled in, so it's gone before the quad's edge): a billow, not a disc.
+float Disc = saturate(1.0 - R * (0.9 + 0.32 * N));
+Disc = Disc * Disc * (3.0 - 2.0 * Disc);
+float Dens = saturate(Disc * (0.45 + 0.9 * N) - Erode * 0.42);
+// A firmer silhouette, still soft: the thin fringe thinner, the body fuller (was a straight x1.35).
+Dens = smoothstep(0.02, 0.72, Dens);
+float3 Un = Up / max(length(Up), 0.0001);
+float Side = length(Un.xy);
+float Lift = Side > 0.05 ? dot(P, Un.xy / Side) * saturate(Side * 1.5) : 0.0;
+float Shade = lerp(0.8, 1.06, N) * (1.0 + 0.12 * Lift);
 return float4(Color * Shade, Dens * Opacity);"""
 
 # M_FX_Fire (VFX-2, 2026-10-22): a puff of fire rolling into soot, alpha-blended so its colour holds in full sun. Its noise
@@ -209,7 +262,8 @@ float N1 = 0.0;
 """ + NOISE + """N1 = N;
 }
 float Bill = N1;
-float Disc = saturate(1.0 - R);
+// Its outline lumped by the billow (pulled in where it's thin): a rolling puff, not a round card.
+float Disc = saturate(1.0 - R * (0.92 + 0.3 * Bill));
 Disc = Disc * Disc * (3.0 - 2.0 * Disc);
 float Dens = saturate(Disc * (0.65 + Bill) - Erode * 0.42);
 Dens = saturate(Dens * 2.2);
@@ -329,11 +383,14 @@ def build_shape():
         ('Strength', custom_data(g, 3, 1.0, -1900, 450), ''), ('Shape', custom_data(g, 4, 0.0, -1900, 550), ''),
         ('Param', custom_data(g, 5, 0.2, -1900, 650), ''), ('Seed', custom_data(g, 6, 0.0, -1900, 750), ''),
         ('Glow', g.scalar('Glow', 1.0, -1900, 850), ''), ('SoftDepth', soft, ''),
+        # The soft glows' strength, times; FWeaponFX puts its flashes on this master only once it has this knob (an older
+        # graph would draw shape 3 as a starburst).
+        ('SoftGlow', g.scalar('SoftGlow', 1.0, -1900, 1000), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -1000, 300, 'Shapes')
     g.out(code, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     W.finish(mat, [unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES])
     log(f'{mat.get_path_name()} built (unlit, additive, two-sided): {parameter_names(mat)}; custom data 0-2 colour, '
-        f'3 strength, 4 shape, 5 param, 6 seed')
+        f'3 strength, 4 shape (3 a soft glow), 5 param, 6 seed')
     return mat
 
 
@@ -343,9 +400,20 @@ def build_puff():
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
     mat.set_editor_property('two_sided', True)
     g = W.Graph(mat)
-    coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1900, 0, coordinate_index=0)
+    local = g.node(unreal.MaterialExpressionLocalPosition, -1900, 0)
+    # The world's up in the quad's own frame (for its light from above): the instance's space ("Instance & Particle", the
+    # space LocalPosition draws in on instanced meshes). Without it, the component's (the effects actor sits unturned at the
+    # origin, so up stays straight up: no shading, nothing wrong).
+    sky = g.node(unreal.MaterialExpressionConstant3Vector, -2200, 800, constant=unreal.LinearColor(0.0, 0.0, 1.0, 1.0))
+    space = getattr(unreal.MaterialVectorCoordTransform, 'TRANSFORM_INSTANCE', None)
+    if space is None:
+        log('M_FX_Puff: no instance space in this engine; its light from above is off')
+        space = unreal.MaterialVectorCoordTransform.TRANSFORM_LOCAL
+    up = g.node(unreal.MaterialExpressionTransform, -1900, 800,
+                transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_WORLD, transform_type=space)
+    g.link(sky, '', up, '')
     code = g.custom(PUFF_CODE, [
-        ('UV', coords, ''), ('Color', instance_color(g, -1900, 200), ''),
+        ('Local', local, ''), ('Up', up, ''), ('Color', instance_color(g, -1900, 200), ''),
         ('Opacity', custom_data(g, 3, 1.0, -1900, 450), ''), ('Seed', custom_data(g, 4, -1.0, -1900, 550), ''),
         ('Erode', custom_data(g, 5, 0.0, -1900, 650), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -1100, 300, 'Puff')

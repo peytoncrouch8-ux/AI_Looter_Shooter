@@ -2,13 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Weapons/LegendarySignature.h"
 #include "Weapons/WeaponTypes.h"
 #include "NamedWeaponDefinition.generated.h"
 
 class UWeaponDefinition;
 
 /**
- * A named gun (Heirloom now, the unique legendaries later): one gun of a kind, with fixed parts and a fixed rarity, its
+ * A named gun (Heirloom, the finds' guns, the bosses' unique legendaries): one gun of a kind, with fixed parts and a fixed rarity, its
  * own name in place of the one its parts would give it, and a flavor line its card and label show under the name.
  * One data asset per named gun in /Game/Data/Weapons, named DA_Named_<Id>; Tools/Unreal/create_named_weapons.py makes
  * them. Mission rewards (FMissionRewards::NamedGun) and Looter.GiveWeapon name one by its id.
@@ -67,6 +68,13 @@ public:
 	/** The seed every copy is made with: its paint colors, and its wear when Wear is below 0. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Named Weapon")
 	int32 Seed = 0;
+
+	/**
+	 * A unique legendary's own trick (Gravesilk's silk, Company Scrip's pay, Lamplighter's lantern: LegendaryRules,
+	 * ULegendarySubsystem); None for a named gun that is only its parts (Heirloom, the finds' guns).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Named Weapon")
+	ELegendarySignature Signature = ELegendarySignature::None;
 
 	/** Its id: the asset's name without DA_Named_ ("Heirloom"). */
 	FName GetNamedId() const;

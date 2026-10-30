@@ -1,5 +1,5 @@
-// The scene of Looter.UIShots: how each state of the main menu, the pause menu and the level-up popup is made (not in
-// shipping builds). UIShotDevCommands.cpp runs the steps and takes the pictures; UIShotScene.h says what a step is.
+// The scene of Looter.UIShots: how each state of the main menu, the pause menu (its list, then its settings) and the
+// level-up popup is made (not in shipping builds). UIShotDevCommands.cpp runs the steps and takes the pictures; UIShotScene.h says what a step is.
 
 #include "Dev/UIShotScene.h"
 #include "CoreMinimal.h"
@@ -12,6 +12,7 @@
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Menus/MainMenuHUD.h"
 #include "UI/Menus/MainMenuWidget.h"
+#include "UI/Menus/PauseMenuWidget.h"
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/Style/LooterButton.h"
@@ -96,6 +97,12 @@ namespace
 	ALooterHUD* UIShotLevelHud(UWorld& World)
 	{
 		return ALooterHUD::FindFor(World.GetFirstPlayerController());
+	}
+
+	/** The pause menu's list on screen (Escape's menu over the game). */
+	UPauseMenuWidget* UIShotPauseHub(UWorld& World)
+	{
+		return UIShotFindWidget<UPauseMenuWidget>(World, /*bInViewport*/ true);
 	}
 
 	UPlayerProgressionSubsystem* UIShotProgression(UWorld& World)
@@ -239,7 +246,7 @@ namespace
 
 	// --- The level's steps ---
 
-	/** The pause menu as Escape opens it (the game paused under it), the mouse parked once it holds the pointer. */
+	/** The pause menu's list as Escape opens it (the game paused under it), the mouse parked once it holds the pointer. */
 	void UIShotBeginPause(UWorld& World)
 	{
 		if (ALooterHUD* Hud = UIShotLevelHud(World))
@@ -249,13 +256,54 @@ namespace
 		UIShotParkMouse();
 	}
 
+	bool UIShotPauseHubOpen(UWorld& World)
+	{
+		const ALooterHUD* Hud = UIShotLevelHud(World);
+		return Hud && Hud->GetPauseScreen() == EPauseScreen::Hub && UIShotPauseHub(World);
+	}
+
+	/** Down twice from Resume Game (after the press that brings the focus look up): Missions, the ribbon on it. */
+	void UIShotBeginPauseHubRow(UWorld& World)
+	{
+		if (UPauseMenuWidget* Hub = UIShotPauseHub(World))
+		{
+			UIShotReveal(*Hub, EKeys::Down);
+			UIShotPress(*Hub, EKeys::Down);
+			UIShotPress(*Hub, EKeys::Down);
+		}
+	}
+
+	/** The focus walked down the list to Settings and Enter: the settings over the game, on Graphics. */
+	void UIShotBeginPauseSettings(UWorld& World)
+	{
+		if (UPauseMenuWidget* Hub = UIShotPauseHub(World))
+		{
+			if (!UIShotFocusOn(*Hub, EKeys::Down, Hub->GetItemButton(EPauseMenuItem::Settings)))
+			{
+				UE_LOG(LogLooter, Warning, TEXT("Looter.UIShots: the focus didn't reach the pause menu's Settings."));
+			}
+			UIShotPress(*Hub, EKeys::Enter);
+		}
+		ALooterHUD* Hud = UIShotLevelHud(World);
+		if (Hud && Hud->GetPauseScreen() != EPauseScreen::Settings)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.UIShots: Enter on Settings didn't open them; opened through the HUD."));
+			Hud->ChoosePauseItem(EPauseMenuItem::Settings);
+		}
+		USettingsMenuWidget* Settings = UIShotSettings(World);
+		if (Settings && Settings->GetPage() != static_cast<int32>(ESettingsPage::Graphics))
+		{
+			Settings->SelectPage(static_cast<int32>(ESettingsPage::Graphics));
+		}
+	}
+
 	bool UIShotPauseOpen(UWorld& World)
 	{
 		const USettingsMenuWidget* Settings = UIShotSettings(World);
 		return Settings && Settings->GetMode() == ESettingsMenuMode::Pause && Settings->GetPage() == static_cast<int32>(ESettingsPage::Graphics);
 	}
 
-	/** Down twice from Resume (after the press that brings the focus look up): the page's second row, the ribbon on it. */
+	/** Down twice from Back (after the press that brings the focus look up): the page's second row, the ribbon on it. */
 	void UIShotBeginPauseRow(UWorld& World)
 	{
 		if (USettingsMenuWidget* Settings = UIShotSettings(World))
@@ -332,12 +380,15 @@ namespace
 		{ TEXT("menu_sessions"),       1.2f, &UIShotBeginSessions,         &UIShotPickerShown,       nullptr,   LastGapSeconds },
 	};
 
-	// The pause menu's open (the halo spinning up, the plate dropping in: about 0.25 s) and each tab's ribbon sliding to
-	// its row. The level-up's second picture waits for its moment by the show's own clock (the first one's gap is short).
+	// The pause menu's list as Escape opens it (the halo spinning up, the plate dropping in: about 0.25 s) and its ribbon on
+	// a row, then its Settings and each tab's ribbon sliding to its row. The level-up's second picture waits for its moment
+	// by the show's own clock (the first one's gap is short).
 	const FStep UIShotLevelSteps[] =
 	{
 		// Name                     Seconds  Begin                         Ready                                         After              Gap
-		{ TEXT("pause_graphics"),      1.0f, &UIShotBeginPause,            &UIShotPauseOpen,                             nullptr,           DefaultGapSeconds },
+		{ TEXT("pause_hub"),           1.0f, &UIShotBeginPause,            &UIShotPauseHubOpen,                          nullptr,           DefaultGapSeconds },
+		{ TEXT("pause_hub_row"),       0.8f, &UIShotBeginPauseHubRow,      nullptr,                                      nullptr,           DefaultGapSeconds },
+		{ TEXT("pause_graphics"),      1.0f, &UIShotBeginPauseSettings,    &UIShotPauseOpen,                             nullptr,           DefaultGapSeconds },
 		{ TEXT("pause_row"),           0.8f, &UIShotBeginPauseRow,         nullptr,                                      nullptr,           DefaultGapSeconds },
 		{ TEXT("pause_audio"),         0.9f, &UIShotBeginNextPage,         &UIShotOnPage<ESettingsPage::Audio>,          nullptr,           DefaultGapSeconds },
 		{ TEXT("pause_interface"),     0.9f, &UIShotBeginNextPage,         &UIShotOnPage<ESettingsPage::Interface>,      nullptr,           DefaultGapSeconds },

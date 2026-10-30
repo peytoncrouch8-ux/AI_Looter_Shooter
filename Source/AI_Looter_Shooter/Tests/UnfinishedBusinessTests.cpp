@@ -266,8 +266,8 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("...and, optional, the wages chalked in the barn"), Chalk && Chalk->bOptional);
 			TestTrue(TEXT("Turned in to Amos (his thanks: the topic from its third step)"), Asset->NeedsTurnIn()
 				&& Asset->TurnIn.SpeakerTag == AAmosWhitlock::SpeakerTag);
-			TestTrue(TEXT("Its reward: 600 experience and a guaranteed Epic gun"),
-				Asset->Rewards.Experience == 600 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Epic);  // (trimmed 2026-10-21; 800)
+			TestTrue(TEXT("Its reward: 600 experience and a guaranteed Rare gun (was Epic: the RR tuning, 2026-10-29 night)"),
+				Asset->Rewards.Experience == 600 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Rare);  // (trimmed 2026-10-21; 800)
 		}
 	}
 	else

@@ -35,7 +35,7 @@ struct AI_LOOTER_SHOOTER_API FBountyTuning
 	int32 RewardGuns[3] = { 2, 2, 3 };
 	float RewardLuck = 1.f;
 
-	/** The ammo pickups handed over with them (36 rounds each, a chest's). */
+	/** The ammo pickups handed over with them (a chest's 1.5 boxes each). */
 	int32 RewardAmmo = 2;
 
 	/** The purse paid at the board by tier, at level 1 (grown with the arena's level as the economy grows). */

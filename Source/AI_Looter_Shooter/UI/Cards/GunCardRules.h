@@ -48,7 +48,8 @@ namespace GunCardRules
 	AI_LOOTER_SHOOTER_API FString StatValueText(LoadoutRules::EStat Stat, const FWeaponStats& Stats);
 
 	/**
-	 * The card's bullet lines, in order: what its element does, its part effect, its curse's perk and drawback, its
+	 * The card's bullet lines, in order: what its element does, its part effect, a unique legendary's own trick
+	 * (LegendaryRules::Description), its curse's perk and drawback, its
 	 * notches (no maker's trait: the user, 2026-10-29). Empty for a plain gun.
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FString> Lines(const FWeaponInstanceData& Gun);

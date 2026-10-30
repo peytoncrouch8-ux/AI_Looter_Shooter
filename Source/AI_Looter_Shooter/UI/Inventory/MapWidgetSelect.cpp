@@ -220,10 +220,11 @@ void UMapWidget::ConfirmTravel()
 		FlashStatus();
 		return;
 	}
-	// On the way: the inventory closes as the screen fades (the travel's whoosh is the sound of it).
+	// On the way: the inventory closes as the screen fades (the travel's whoosh is the sound of it), past the pause menu's
+	// list too when the map was opened from it: the player is going somewhere, not back to the menu.
 	if (ALooterHUD* HUD = OwningHUD.Get())
 	{
-		HUD->CloseInventory();
+		HUD->CloseInventoryToGame();
 	}
 }
 

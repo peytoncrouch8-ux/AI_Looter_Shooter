@@ -345,6 +345,15 @@ bool FVfxShapeRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("A small ring's stand-in: 10 pieces"), VfxRules::RingPieces(20.f), 10);
 	TestEqual(TEXT("...a huge one's: 28"), VfxRules::RingPieces(5000.f), 28);
 
+	// Lane F's sprite polish (2026-10-29): puffs, fireballs and flames turn slowly as they billow; a moving glow smears along its way.
+	TestEqual(TEXT("A sprite starts at its spawn's roll"), VfxRules::SpriteRoll(1.f, 0.f), 1.f);
+	const float Turned = FMath::Abs(VfxRules::SpriteRoll(1.f, 1.f) - 1.f);
+	TestTrue(FString::Printf(TEXT("...and turns slowly: %.2f rad in its first second"), Turned), Turned > 0.1f && Turned < 0.5f);
+	TestEqual(TEXT("A still glow is round"), VfxRules::GlowStretch(0.f, 2.f), 1.f);
+	TestTrue(TEXT("...a fast ember a smear"), VfxRules::GlowStretch(300.f, 2.f) > 2.f);
+	TestEqual(TEXT("...never past the cap"), VfxRules::GlowStretch(5000.f, 1.f), VfxRules::GlowMostStretch);
+	TestTrue(TEXT("...a big slow mote barely"), VfxRules::GlowStretch(100.f, 30.f) < 1.1f);
+
 	const FVfxExplosionLook Small = VfxRules::ExplosionLook(150.f);
 	const FVfxExplosionLook Rocket = VfxRules::ExplosionLook(350.f);
 	const FVfxExplosionLook Huge = VfxRules::ExplosionLook(5000.f);

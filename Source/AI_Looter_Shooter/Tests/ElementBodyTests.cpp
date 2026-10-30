@@ -88,6 +88,32 @@ bool FElementBodiesTest::RunTest(const FString& Parameters)
 	Coal.Body = EB::Coal;
 	TestTrue(TEXT("Coal's crit (the coal itself) is weak to Wardbreak"), Affinity(EE::GraveSalt, Coal, true) == EA::Weak);
 
+	// Bosses and Soulfed monsters ignore their body's resistances and immunities, keeping its weaknesses and a boss's story
+	// immunity (the user, 2026-10-29 night).
+	FElementTarget StoneBoss;
+	StoneBoss.Body = EB::Stone;
+	StoneBoss.bBoss = true;
+	TestTrue(TEXT("A stone boss: Cinder no longer resisted"), Affinity(EE::Ember, StoneBoss, false) == EA::Neutral);
+	TestTrue(TEXT("...Rot no longer immune"), Affinity(EE::Rot, StoneBoss, false) == EA::Neutral);
+	TestTrue(TEXT("...still weak to Wardbreak and Thunder"), Affinity(EE::GraveSalt, StoneBoss, false) == EA::Weak
+		&& Affinity(EE::Thunder, StoneBoss, false) == EA::Weak);
+	FElementTarget Gravemother;
+	Gravemother.Body = EB::Chitin;
+	Gravemother.bBoss = true;
+	Gravemother.ImmuneMask = MaskOf(EE::Rot);
+	TestTrue(TEXT("A chitin boss: Wardbreak neutral"), Affinity(EE::GraveSalt, Gravemother, false) == EA::Neutral);
+	TestTrue(TEXT("...its story immunity stands over the body's weakness"), Affinity(EE::Rot, Gravemother, false) == EA::Immune);
+	TestTrue(TEXT("...Cinder still weak"), Affinity(EE::Ember, Gravemother, false) == EA::Weak);
+	FElementTarget Soulfed;
+	Soulfed.Body = EB::Iron;
+	Soulfed.bSoulfed = true;
+	TestTrue(TEXT("A Soulfed iron monster: Cinder neutral, Wardbreak no longer immune"), Affinity(EE::Ember, Soulfed, false) == EA::Neutral
+		&& Affinity(EE::GraveSalt, Soulfed, false) == EA::Neutral);
+	TestTrue(TEXT("...still weak to Thunder"), Affinity(EE::Thunder, Soulfed, false) == EA::Weak);
+	FElementTarget Plain;
+	Plain.Body = EB::Iron;
+	TestTrue(TEXT("The same body not a boss: resists Cinder as ever"), Affinity(EE::Ember, Plain, false) == EA::Resist);
+
 	// Each kind's own (its constructor's), Blueprint children keeping it.
 	TestTrue(TEXT("A spider is chitin"), BodyOf(ASpiderCreature::StaticClass()) == EB::Chitin);
 	TestTrue(TEXT("The Unpaid are coal"), BodyOf(AUnpaidCreature::StaticClass()) == EB::Coal);
@@ -99,8 +125,9 @@ bool FElementBodiesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The Foreman: Cinder"), StoryImmunityOf(AForemanCreature::StaticClass()) == EE::Ember);
 	TestTrue(TEXT("Abel: Hallow"), StoryImmunityOf(AAbelKeeper::StaticClass()) == EE::SoulLight);
 	TestTrue(TEXT("A spider: none"), StoryImmunityOf(ASpiderCreature::StaticClass()) == EE::None);
+	// A boss ignores its body's resists: chitin's Wardbreak resist is gone, its story immunity stays.
 	TestEqual(TEXT("The Gravemother's bestiary line"), WeaknessLine(AGravemotherCreature::StaticClass()),
-		FString(TEXT("WEAK TO CINDER · RESISTS WARDBREAK · IMMUNE TO ROT")));
+		FString(TEXT("WEAK TO CINDER · IMMUNE TO ROT")));
 	TestEqual(TEXT("A placeholder's: three weaknesses"), WeaknessLine(APlaceholderCreature::StaticClass()),
 		FString(TEXT("WEAK TO CINDER, THUNDER AND ROT")));
 
@@ -124,11 +151,19 @@ bool FElementImmuneTest::RunTest(const FString& Parameters)
 {
 	using namespace ElementRules;
 	const FElementTuning Tuning;
-	// The bullet's own scale: weak x2, resist x0.33, immune x0.1.
-	TestEqual(TEXT("A gun's hit, weak: x2"), HitScale(EA::Weak, Tuning), 2.f);
-	TestEqual(TEXT("...resisted: x0.33"), HitScale(EA::Resist, Tuning), 0.33f);
+	// The bullet's own scale (the user, 2026-10-29 night): weak x1.75, resist x0.5, immune x0.1...
+	TestEqual(TEXT("A gun's hit, weak: x1.75"), HitScale(EA::Weak, Tuning), 1.75f);
+	TestEqual(TEXT("...resisted: x0.5"), HitScale(EA::Resist, Tuning), 0.5f);
 	TestEqual(TEXT("...immune: x0.1"), HitScale(EA::Immune, Tuning), 0.1f);
 	TestEqual(TEXT("...neutral: x1"), HitScale(EA::Neutral, Tuning), 1.f);
+	// ...split from the status's, which keeps weak x2 / resist x0.33 / immune none.
+	TestEqual(TEXT("A status, weak: x2 (not the bullet's)"), AffinityScale(EA::Weak, Tuning), 2.f);
+	TestEqual(TEXT("...resisted: x0.33"), AffinityScale(EA::Resist, Tuning), 0.33f);
+	TestEqual(TEXT("...immune: none"), AffinityScale(EA::Immune, Tuning), 0.f);
+	FElementTuning Split;
+	Split.BulletWeak = 3.f;
+	TestEqual(TEXT("The bullet's weak number moves the bullet only"), HitScale(EA::Weak, Split), 3.f);
+	TestEqual(TEXT("...the status keeps its own"), AffinityScale(EA::Weak, Split), 2.f);
 
 	// A spirit on top of its body: an Ethereal spider keeps chitin's other weaknesses, immune wins.
 	FElementTarget Spirit;
@@ -164,9 +199,9 @@ bool FElementImmuneTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestTrue(TEXT("A plain spider: Cinder weak, a Cinder gun's hit x2"), FMath::IsNearlyEqual(GunHitScale(EE::Ember, Spider, false, Tuning), 2.f));
+	TestTrue(TEXT("A plain spider: Cinder weak, a Cinder gun's hit x1.75"), FMath::IsNearlyEqual(GunHitScale(EE::Ember, Spider, false, Tuning), 1.75f));
 	TestTrue(TEXT("...a plain gun's: never scaled"), FMath::IsNearlyEqual(GunHitScale(EE::None, Spider, false, Tuning), 1.f));
-	TestTrue(TEXT("...Wardbreak resisted: x0.33"), FMath::IsNearlyEqual(GunHitScale(EE::GraveSalt, Spider, false, Tuning), 0.33f));
+	TestTrue(TEXT("...Wardbreak resisted: x0.5"), FMath::IsNearlyEqual(GunHitScale(EE::GraveSalt, Spider, false, Tuning), 0.5f));
 	TestTrue(TEXT("Nothing that isn't a creature scales"), FMath::IsNearlyEqual(GunHitScale(EE::Ember, nullptr, false, Tuning), 1.f));
 	Spider->SetTouched(EE::Ember);
 	TestTrue(TEXT("Touched by Cinder"), Spider->GetTouchedElement() == EE::Ember);
@@ -178,7 +213,7 @@ bool FElementImmuneTest::RunTest(const FString& Parameters)
 	UElementStatusComponent* Status = UElementStatusComponent::FindOrAdd(*Spider);
 	Status->Apply(EE::Ember, 100.f, EA::Immune, FVector::ZeroVector, nullptr, nullptr);
 	TestFalse(TEXT("...not even set by hand at its immunity"), Status->IsBurning());
-	TestTrue(TEXT("...Wardbreak, its counter, x2"), FMath::IsNearlyEqual(GunHitScale(EE::GraveSalt, Spider, false, Tuning), 2.f));
+	TestTrue(TEXT("...Wardbreak, its counter, x1.75"), FMath::IsNearlyEqual(GunHitScale(EE::GraveSalt, Spider, false, Tuning), 1.75f));
 
 	// The number says so: NO EFFECT, once a fight, greyed, not bigger.
 	const FElementNumberLook Look = ElementCallout::Judge(EE::Ember, EE::None, false, EA::Immune, true);

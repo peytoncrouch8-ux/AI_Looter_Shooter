@@ -1,6 +1,8 @@
 #include "UI/Cards/GunCardRules.h"
 #include "Elements/ElementRules.h"
 #include "UI/Style/WeaponText.h"
+#include "Weapons/LegendaryRules.h"
+#include "Weapons/LegendaryTuning.h"
 #include "Weapons/PartEffectRules.h"
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
@@ -141,6 +143,12 @@ TArray<FString> GunCardRules::Lines(const FWeaponInstanceData& Gun)
 	if (Effect != EPartEffect::None)
 	{
 		Out.Add(NoStop(PartEffectRules::Description(Effect)));
+	}
+	// A unique legendary's own trick, with its live numbers (Gravesilk's silk, Company Scrip's pay, Lamplighter's lantern).
+	const FString Signature = LegendaryRules::Description(LegendaryRules::SignatureOf(Gun), FLegendaryTuning::Live());
+	if (!Signature.IsEmpty())
+	{
+		Out.Add(NoStop(Signature));
 	}
 	if (const FWeaponCurse* Curse = WeaponCurses::Of(Gun))
 	{

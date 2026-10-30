@@ -81,32 +81,31 @@ void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 	ShowPage(static_cast<int32>(ESettingsPage::Graphics));
 	ResetNavigation();
 	RefreshNavLook();
-	// The plate drops in again and the halo spins up, the ribbon at Resume (or the first row).
+	// The plate drops in again and the halo spins up, the ribbon at the top row over the game (or the page's first row).
 	BeginOpenMotion();
 }
 
 void USettingsMenuWidget::ApplyMode()
 {
-	// Over the game it pauses: Resume, and Save & Quit back to the main menu. From the main menu it only goes back.
+	// Either way it only goes back: over the game to the pause menu's list (GAME PAUSED, Resume and Save & Quit are the
+	// list's since the user's call of 2026-10-29 night), from the main menu to it.
 	const bool bPause = Mode == ESettingsMenuMode::Pause;
 	if (HeaderText)
 	{
-		// How to resume or go back is the prompts' to say, for the keyboard or the controller.
-		HeaderText->SetText(FText::FromString(bPause ? TEXT("GAME PAUSED") : TEXT("SETTINGS")));
+		// How to go back is the prompts' to say, for the keyboard or the controller.
+		HeaderText->SetText(FText::FromString(TEXT("SETTINGS")));
 		HeaderText->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
-	const ESlateVisibility PauseOnly = bPause ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
-	// The reticle row under the title is Resume over the game and Back from the main menu (both close the menu); the
-	// footer's own Back chip stays hidden, so going back is always the top row.
-	if (ResumeWord) { ResumeWord->SetText(FText::FromString(bPause ? TEXT("RESUME") : TEXT("BACK"))); }
+	// The reticle row under the title is Back in both; the footer's own Back chip stays hidden, so going back is always the
+	// top row.
+	if (ResumeWord) { ResumeWord->SetText(FText::FromString(TEXT("BACK"))); }
 	for (auto& Entry : HelpEntries)
 	{
 		if (Entry.Target == ResumeButton)
 		{
-			Entry.Help = RowHelp(bPause ? ESettingRow::Resume : ESettingRow::Back);
+			Entry.Help = RowHelp(bPause ? ESettingRow::BackToPause : ESettingRow::Back);
 		}
 	}
-	if (SaveQuitButton) { SaveQuitButton->SetVisibility(PauseOnly); }
 	if (BackButton) { BackButton->SetVisibility(ESlateVisibility::Collapsed); }
 	// The area's plate, the serial and the halo's pause bars are the pause menu's (SettingsMenuLedger.cpp).
 	RefreshPlate();
@@ -150,8 +149,8 @@ ULooterButton* USettingsMenuWidget::MakeButton(FName Action, int32 Index, const 
 	Button->Setup(WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass()), Action, Index, FText::FromString(Label), FontSize, Kind);
 	Button->OnButtonClicked.BindUObject(this, &USettingsMenuWidget::HandleButton);
 	Button->OnButtonHovered.BindUObject(this, &USettingsMenuWidget::HandleButtonHovered);
-	// Resume, Back and the corner's X close the menu: the page's close (over the game the HUD plays the same cue in the
-	// same moment, and the two are heard as one).
+	// Back and the corner's X close the menu: the page's close (over the game the HUD plays the same cue in the same
+	// moment, and the two are heard as one).
 	if (Action == ActionClose)
 	{
 		Button->ClickCue = LooterSoundCue::Close;
@@ -229,11 +228,10 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		StatusText->SetAutoWrapText(true);
 		Add(StatusText, 6.f);
 
-		// Save & Quit's stamp over the game or Back in the main menu (ApplyMode shows one of them), at the right; the
-		// serial at the left.
+		// The serial at the left (over the game), the hidden Back chip at the right. Save & Quit's stamp was here until it
+		// moved to the pause menu's list (the user, 2026-10-29 night).
 		Add(MakeFooter(), 4.f);
-		Describe(ResumeButton, RowHelp(ESettingRow::Resume), true);
-		Describe(SaveQuitButton, RowHelp(ESettingRow::SaveQuit), true);
+		Describe(ResumeButton, RowHelp(Mode == ESettingsMenuMode::Pause ? ESettingRow::BackToPause : ESettingRow::Back), true);
 		Describe(BackButton, RowHelp(ESettingRow::Back), true);
 
 		// The plate: its glass (a background), its double trim and rivets, its contents, and the free art over them (the halo

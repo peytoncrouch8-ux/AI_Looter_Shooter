@@ -34,7 +34,10 @@ class UWidgetSwitcher;
 /** Where the settings menu is open. */
 enum class ESettingsMenuMode : uint8
 {
-	/** Over the game, which is paused under it: Resume, and Save & Quit back to the main menu. */
+	/**
+	 * Over the paused game, opened from the pause menu's list (UPauseMenuWidget): Back returns to the list. Save & Quit is
+	 * the list's alone (the user, 2026-10-29 night: "Remove save and quit from the settings menu at the bottom").
+	 */
 	Pause,
 	/** From the main menu: Back. */
 	MainMenu,
@@ -58,8 +61,8 @@ struct FSettingsLedgerLine
  * The settings menu, in four tabbed pages (the user, 2026-10-27: tabs, not one long scroll): Graphics, Audio (the volumes),
  * Interface, and Controls (the view's feel and the key bindings). Each page scrolls on its own if it must. Beside the page
  * a description column says what the row pointed at (or with the keyboard or controller focus) does, in plain words, and
- * for graphics what it costs (SettingsMenuHelp.h). Escape opens it over the game (ALooterHUD, which pauses the game) and
- * the main menu's Settings opens it there. The HUD hides under it, so some sliders preview what they set while they move:
+ * for graphics what it costs (SettingsMenuHelp.h). The pause menu's Settings opens it over the paused game (ALooterHUD) and
+ * the main menu's Settings opens it there; its Back goes back to whichever menu opened it. The HUD hides under it, so some sliders preview what they set while they move:
  * the minimap size shows an outline of the minimap (the map's circle and the bezel round it) where it sits, at the size
  * chosen; the minimap zoom shows a live copy of the minimap there; and the first-person field of view changes the view
  * behind the menu, which fades back (the dimming goes, the panel ghosts) for as long as the slider is held, and a moment
@@ -78,8 +81,8 @@ struct FSettingsLedgerLine
  *
  * Its look (round 3, the user's mix of concepts 1 and 3, 2026-10-29): a slate plate with a double salt trim, rivets and cut
  * corners, a halo dial breaking out over its top-left corner; every row on a ruled ledger line with its number in the
- * margin and a brass ribbon at the row pointed at; c3's reticle Resume, tabs, choices and rulers; Save & Quit a rubber
- * stamp. SettingsMenuLedger.cpp builds those pieces and moves them; SettingsMenuArt.h paints them.
+ * margin and a brass ribbon at the row pointed at; c3's reticle Back, tabs, choices and rulers. SettingsMenuLedger.cpp
+ * builds those pieces and moves them; SettingsMenuArt.h paints them (the pause menu's list uses them too).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API USettingsMenuWidget : public UUserWidget
@@ -92,11 +95,8 @@ public:
 
 	ESettingsMenuMode GetMode() const { return Mode; }
 
-	/** Resume (over the game) or Back (main menu), the corner's X, or Escape. */
+	/** Back (to the pause menu's list over the game, to the main menu from it), or Escape. */
 	FOnSettingsMenuAction OnClose;
-
-	/** Save & Quit, over the game. */
-	FOnSettingsMenuAction OnSaveAndQuit;
 
 	/**
 	 * Escape (or the controller's menu button) while the field of view or minimap zoom slider is held: lets go of the
@@ -205,7 +205,7 @@ private:
 	/** A ledger row's focus look (null for anything else). */
 	UWidget* LedgerLightOf(const UWidget* Row) const;
 	UWidget* MakeLedgerSection(const FString& Label);
-	/** GAME PAUSED (SETTINGS from the main menu) and its ruler and plate; Resume in its reticle; the stamp, serial and Back. */
+	/** SETTINGS and its ruler and plate; Back in its reticle; the serial and the (hidden) Back chip. */
 	UWidget* MakeHeader();
 	UWidget* MakeResumeRow();
 	UWidget* MakeFooter();
@@ -219,7 +219,7 @@ private:
 	/** The row the ribbon belongs at: the focus's under keys, the pointer's under the mouse; bOutHide: none. */
 	UWidget* FindMarkedRow(bool& bOutHide) const;
 	void MarkRow(UWidget* Row);
-	/** Resume over the game, else the page's first row. */
+	/** The top row (Back) over the game, else the page's first row. */
 	UWidget* DefaultMarkedRow() const;
 
 	// --- The pages (SettingsMenuPages.cpp; the Audio page is SettingsMenuAudio.cpp) ---
@@ -363,11 +363,11 @@ private:
 	/** A button on a page as it's built (Reset all keys), in Row (what scrolls into view for it). */
 	void NavButton(ULooterButton* Button, UWidget* Row);
 	/**
-	 * The stops, top to bottom: Resume, the page on show (and on Controls the key list), the footer. Prefer: where the focus
-	 * goes (else it stays, else the first stop).
+	 * The stops, top to bottom: the top row (Back), the page on show (and on Controls the key list), the footer. Prefer:
+	 * where the focus goes (else it stays, else the first stop).
 	 */
 	void RebuildNavigation(const UWidget* Prefer = nullptr);
-	/** The focus to where the menu starts: Resume over the game, the first setting from the main menu. */
+	/** The focus to where the menu starts: the top row (Back) over the game, the first setting from the main menu. */
 	void ResetNavigation();
 	/** The first stop of the page on show (null on an empty page). */
 	UWidget* FirstPageStop() const;
@@ -479,14 +479,13 @@ private:
 	/** The key bindings' rows (RebuildControls fills it). */
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> KeyList;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
-	/** The title: GAME PAUSED over the game, SETTINGS from the main menu (the prompts under the plate say how to resume). */
+	/** The title: SETTINGS (the pause menu's list over it says GAME PAUSED; the prompts under the plate say how to go back). */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderText;
-	/** Resume and Save & Quit, over the game only. */
+	/** The reticle row under the title: Back, to the pause menu's list or the main menu (GetResumeButton, its old name). */
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> ResumeButton;
-	UPROPERTY(Transient) TObjectPtr<ULooterButton> SaveQuitButton;
-	/** Back, in the main menu only. */
+	/** The footer's Back chip, kept hidden: going back is always the top row. */
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> BackButton;
-	/** The reticle row's word: RESUME over the game, BACK from the main menu. */
+	/** The reticle row's word: BACK. */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ResumeWord;
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> KeyButtons;
 	/** Hold/Toggle switch halves; Index is the binding, Action says which half. */

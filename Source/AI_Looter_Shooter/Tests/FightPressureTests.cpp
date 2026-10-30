@@ -374,6 +374,19 @@ bool FFightLeaderTest::RunTest(const FString& Parameters)
 	{
 		AddInfo(TEXT("Spiders don't break off in this project's settings (or the chance is 0 or 1): the break-off rolls aren't checked."));
 	}
+
+	// A group's LeaderTraits on top of Rallying (the mountain fights' Restless leaders wear Warded: the RR tuning the user took,
+	// 2026-10-29 night), last, so the checks above meet no second leader.
+	ACreatureBase* WardedLeader = EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(), FVector(4000.0, 4000.0, 0.0));
+	if (TestNotNull(TEXT("Another leader"), WardedLeader))
+	{
+		WardedLeader->SetRank(ECreatureRank::Rare);
+		const TArray<ECreatureTrait> MountainLeader = { ECreatureTrait::Warded };
+		WardedLeader->GetPack()->SetLeader(true, MountainLeader);
+		const UCreatureTraitComponent* Worn = WardedLeader->FindComponentByClass<UCreatureTraitComponent>();
+		TestTrue(TEXT("A leader given Warded wears it and Rallying"), Worn && Worn->HasTrait(ECreatureTrait::Warded)
+			&& Worn->HasTrait(ECreatureTrait::Rallying));
+	}
 	return true;
 }
 

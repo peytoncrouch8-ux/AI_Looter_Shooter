@@ -21,12 +21,14 @@ class UMissionsWidget;
 class UNoticeBoardWidget;
 class AVendor;
 class UVendorWidget;
+class UPauseMenuWidget;
 class UPlayerHUDWidget;
 class USettingsMenuWidget;
 class UStationBoardWidget;
 class UUserWidget;
 struct FFindBannerShow;
 struct FStationBoardWords;
+enum class EPauseMenuItem : uint8;
 
 /** The inventory's pages, in the order of their tabs. */
 enum class EInventoryPage : uint8
@@ -40,12 +42,22 @@ enum class EInventoryPage : uint8
 	Map,
 };
 
+/** What the pause menu shows: nothing (playing), its list (UPauseMenuWidget), the settings, or an inventory page it opened. */
+enum class EPauseScreen : uint8
+{
+	None,
+	Hub,
+	Settings,
+	Page,
+};
+
 /**
  * Owns the player HUD, the mission tracker, the captions, inventory screen (over the paused game), the station board (a
  * jetty's or a station's, opened by holding Interact at it), the gunsmith's bench's screen (opened with Interact at a bench)
- * and pause menu (the settings menu over the paused game), plus the always-on menu hotkeys. Set as the HUD Class on the game
- * mode. The gameplay HUD hides while a menu is open (the mission tracker and the captions step aside by themselves). Its
- * pages sound as they open and close (LooterSoundCue::Open, Close; Tab between the inventory's pages).
+ * and pause menu (a list over the paused game, which opens the inventory's pages and the settings), plus the always-on menu
+ * hotkeys. Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open (the mission tracker and the
+ * captions step aside by themselves). Its pages sound as they open and close (LooterSoundCue::Open, Close; Tab between the
+ * inventory's pages).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterHUD : public AHUD
@@ -75,11 +87,42 @@ public:
 	 */
 	bool WasPageShownLastVisit(EInventoryPage Page) const { return PagesShownLastVisit.Contains(Page); }
 
+	/** Escape in play: the pause menu's list over the paused game (the user, 2026-10-29 night: not the settings at once). */
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void OpenPauseMenu();
 
+	/** Back to the game from anywhere in the pause menu (its list, the settings or a page it opened). */
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void ClosePauseMenu();
+
+	/**
+	 * A row of the pause menu's list, as its click does: Resume closes it, Save & Quit saves and leaves, Settings and the
+	 * inventory's pages open over the paused game and come back to the list when they close. Only while the list shows (Resume
+	 * and Save & Quit from anywhere in the pause menu). LooterHUDPause.cpp.
+	 */
+	void ChoosePauseItem(EPauseMenuItem Item);
+
+	/** What the pause menu shows now (None: it's closed). */
+	EPauseScreen GetPauseScreen() const { return PauseScreen; }
+
+	/** The pause menu's list (null before BeginPlay). */
+	UPauseMenuWidget* GetPauseHub() const { return PauseHubWidget; }
+
+	/**
+	 * Where backing out of Screen goes (Esc, B, the settings' Back, a page's close): what the list opened goes back to the
+	 * list, and the list to the game (the user, 2026-10-29 night: Esc opens "a menu that gives me options to go to different
+	 * menus", so backing out of one of them lands back on it).
+	 */
+	static EPauseScreen PauseBackFrom(EPauseScreen Screen);
+
+	/** The inventory page a row of the pause menu's list opens; false for the rows that aren't pages. */
+	static bool PausePageOf(EPauseMenuItem Item, EInventoryPage& OutPage);
+
+	/**
+	 * Closes the inventory to the game itself, past the pause menu's list when it was opened from there: for a page that
+	 * leaves for the world (the map's fast travel).
+	 */
+	void CloseInventoryToGame();
 
 	bool IsInventoryOpen() const { return bInventoryOpen; }
 
@@ -204,6 +247,19 @@ private:
 	/** Gives input back to the game after closing a menu. */
 	void RestoreGameInput();
 
+	/** Gives Menu the keys and the pointer (UI only, the mouse shown). */
+	void FocusMenu(UUserWidget* Menu);
+
+	// --- The pause menu's list and what it opens (LooterHUDPause.cpp) ---
+
+	/** The list on screen with the keys, the focus on Focus. */
+	void ShowPauseHub(EPauseMenuItem Focus);
+	void OpenPauseSettings();
+	/** An inventory page over the paused game, its close coming back to the list. */
+	void OpenPausePage(EPauseMenuItem Item, EInventoryPage Page);
+	/** Backs out of the screen the pause menu shows (PauseBackFrom): to its list, or to the game. */
+	void BackOutOfPauseScreen();
+
 	/**
 	 * Pauses the game or lets it run as the open menus want (PausesGame), after one opens or closes. The HUD doesn't tick
 	 * while the game is paused, so pausing puts the gameplay HUD and the world's labels away at once (Tick brings them back
@@ -263,9 +319,20 @@ private:
 	/** The pages the last (or current) inventory visit showed (WasPageShownLastVisit). */
 	TSet<EInventoryPage> PagesShownLastVisit;
 
-	/** The pause menu: the settings menu, over the paused game. */
+	/** The pause menu's list, over the paused game. */
 	UPROPERTY(Transient)
-	TObjectPtr<USettingsMenuWidget> PauseMenuWidget;
+	TObjectPtr<UPauseMenuWidget> PauseHubWidget;
+
+	/** The settings menu the list opens, over the paused game. */
+	UPROPERTY(Transient)
+	TObjectPtr<USettingsMenuWidget> PauseSettingsWidget;
+
+	/** What the pause menu shows, and the list's row to come back to when that closes. */
+	EPauseScreen PauseScreen = EPauseScreen::None;
+	EPauseMenuItem PauseReturnItem{};
+
+	/** This pause's first page from the list has counted its visit afresh (WasPageShownLastVisit: one pause, one visit). */
+	bool bPauseVisitCounted = false;
 
 	/** The station board, made the first time one is opened. */
 	UPROPERTY(Transient)

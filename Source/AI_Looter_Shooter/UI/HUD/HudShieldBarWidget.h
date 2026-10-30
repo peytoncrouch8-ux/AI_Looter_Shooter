@@ -44,16 +44,17 @@ class AI_LOOTER_SHOOTER_API UHudShieldBarWidget : public UUserWidget
 
 public:
 	// --- Where it sits: 1080p pixels, the bar's box top-left before the lean (as the frame's HealthBarX/Y) ---
-	/** Over the health bar (its box at 130, 933): 5 px above it, its left end behind the medallion's bezel. */
+	/** Over the health bar (its box at 130, 933): 4 px above it, its left end behind the medallion's bezel. */
 	static constexpr float BarX = 128.f;
-	static constexpr float BarY = 915.f;
+	static constexpr float BarY = 895.f;
 
 	// --- Its measures (pixels at 1080p from the bar's box top-left before the lean) ---
 	static constexpr float Length = 540.f;
-	static constexpr float Thickness = 13.f;
+	/** As thick as the health bar (the user, 2026-10-29: "the ward bar on the player needs to be as thick as the health bar"; was 13). */
+	static constexpr float Thickness = 33.75f;
 	static constexpr float Mid = Thickness * 0.5f;
-	static constexpr float Rim = 1.3f;
-	static constexpr float Inset = 1.4f;
+	static constexpr float Rim = 2.1f;
+	static constexpr float Inset = 4.2f;
 	/** The track starts this far in: where the medallion's bezel crosses the bar's middle (an empty bar still starts there, as the health bar does). */
 	static constexpr float TrackLeft = Rim + 4.3f;
 	static constexpr float TrackRight = Length - Rim - Inset;
@@ -61,18 +62,18 @@ public:
 	static constexpr float TrackBottom = Thickness - TrackTop;
 	static constexpr float TrackHeight = TrackBottom - TrackTop;
 	/** The pictures' box round the bar (room for the lean and the rim); an end piece's box round its cut. */
-	static constexpr float BoxLeft = -8.f;
-	static constexpr float BoxTop = -6.f;
-	static constexpr float BoxWidth = Length + 20.f;
-	static constexpr float BoxHeight = Thickness + 12.f;
-	static constexpr float CapLeft = -4.f;
-	static constexpr float CapWidth = 10.f;
+	static constexpr float BoxLeft = -10.f;
+	static constexpr float BoxTop = -8.f;
+	static constexpr float BoxWidth = Length + 24.f;
+	static constexpr float BoxHeight = Thickness + 16.f;
+	static constexpr float CapLeft = -6.f;
+	static constexpr float CapWidth = 14.f;
 	static constexpr float CapOverlap = 1.f;
 	/** The shimmer: about a fifth of the bar, as tall as the track. */
 	static constexpr float ShimmerLength = 110.f;
 	/** The charge's number after the bar's end. */
 	static constexpr float NumberGap = 9.f;
-	static constexpr int32 NumberSize = 12;
+	static constexpr int32 NumberSize = 16;
 	/** The widget's own box: the pictures' and the number's room after them. */
 	static constexpr float Width = BoxWidth + 48.f;
 	static constexpr float Height = BoxHeight;

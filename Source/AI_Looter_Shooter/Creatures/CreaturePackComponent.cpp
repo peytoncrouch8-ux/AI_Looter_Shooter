@@ -275,9 +275,10 @@ bool UCreaturePackComponent::RollLeaderBreakOff(float Chance)
 // Its pack's leader
 // ---------------------------------------------------------------------------
 
-void UCreaturePackComponent::SetLeader(bool bInLeader)
+void UCreaturePackComponent::SetLeader(bool bInLeader, TConstArrayView<ECreatureTrait> InLeaderTraits)
 {
 	bLeader = bInLeader;
+	LeaderTraits = bLeader ? TArray<ECreatureTrait>(InLeaderTraits.GetData(), InLeaderTraits.Num()) : TArray<ECreatureTrait>();
 	ACreatureBase* Me = GetCreature();
 	if (!bLeader || !Me)
 	{
@@ -294,15 +295,30 @@ void UCreaturePackComponent::SetLeader(bool bInLeader)
 void UCreaturePackComponent::KeepLeaderTrait()
 {
 	UCreatureTraitComponent* Traits = bLeader && GetOwner() ? GetOwner()->FindComponentByClass<UCreatureTraitComponent>() : nullptr;
-	if (!Traits || Traits->HasTrait(ECreatureTrait::Rallying))
+	if (!Traits)
 	{
 		return;
 	}
-	// On top of what its rank rolled: Rallying's ring and tethers are how the player sees who leads.
+	// On top of what its rank rolled: Rallying's ring and tethers are how the player sees who leads; its group's LeaderTraits
+	// (the mountain fights' Warded, so their typed wards come up: the RR tuning the user took, 2026-10-29 night) after it.
 	TArray<ECreatureTrait> Worn;
 	Worn.Append(Traits->GetTraits().GetData(), Traits->GetTraits().Num());
-	Worn.Add(ECreatureTrait::Rallying);
-	Traits->SetTraits(Worn);
+	bool bMissing = false;
+	TArray<ECreatureTrait> Wanted = { ECreatureTrait::Rallying };
+	Wanted.Append(LeaderTraits);
+	for (const ECreatureTrait Trait : Wanted)
+	{
+		if (!Worn.Contains(Trait))
+		{
+			Worn.Add(Trait);
+			bMissing = true;
+		}
+	}
+	// Only when one is missing: SetTraits starts them fresh (a full ward).
+	if (bMissing)
+	{
+		Traits->SetTraits(Worn);
+	}
 }
 
 void UCreaturePackComponent::HandleOwnerDeath(AController* Killer)

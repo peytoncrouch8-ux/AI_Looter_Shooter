@@ -14,9 +14,9 @@ class UDamageType;
 enum class EElementAffinity : uint8
 {
 	Neutral,
-	/** Weak to it: the effect's damage and chance x Looter.Element.Weak (2), an element gun's hit too. */
+	/** Weak to it: the effect's damage and chance x Looter.Element.Weak (2), an element gun's hit x BulletWeak (1.75). */
 	Weak,
-	/** Resists it: x Looter.Element.Resist (0.33). */
+	/** Resists it: the effect's x Looter.Element.Resist (0.33), an element gun's hit x BulletResist (0.5). */
 	Resist,
 	/**
 	 * Immune (a spirit's, a stone's, a Touched creature's own element, a boss's story immunity): no status at all, an element
@@ -42,6 +42,11 @@ struct FElementTarget
 	uint8 ImmuneMask = 0;
 	/** Elements it's weak to beyond its body, spirit and touch (MaskOf bits). */
 	uint8 WeakMask = 0;
+	/**
+	 * A Soulfed monster (the Legendary rank). It and a boss ignore their body's resistances and immunities, keeping its
+	 * weaknesses and a boss's story immunity (the user, 2026-10-29 night: "bosses ignore their body's resistances").
+	 */
+	bool bSoulfed = false;
 };
 
 /** The sounds an element's status makes (Element.<Element>.<Event>, GUNS-SOUND's cues). */
@@ -79,7 +84,7 @@ namespace ElementRules
 	/** The weakness table's multiplier for a status's damage and chance: Weak, Resist, 0 when immune, or 1. */
 	AI_LOOTER_SHOOTER_API float AffinityScale(EElementAffinity Affinity, const FElementTuning& Tuning);
 
-	/** An element gun's own hit's multiplier (the user's "bullets scale too, like Borderlands"): Weak, Resist, ImmuneHit, or 1. */
+	/** An element gun's own hit's multiplier (the user's "bullets scale too, like Borderlands"): BulletWeak, BulletResist, ImmuneHit, or 1. */
 	AI_LOOTER_SHOOTER_API float HitScale(EElementAffinity Affinity, const FElementTuning& Tuning);
 
 	/**

@@ -9,6 +9,7 @@ build_area_camps.py's, whose tests ask every one to be on by Main 4, which nothi
               "withoutFlags": []},
      "groups": [{"class": "DeadMinerCreature", "count": 4, "rank": "Basic" | "Rare" | "Epic" | "Legendary" | "Area",
                  "firstWave": 1, "lastWave": 0, "level": 0, "leader": false (its first creature leads its pack),
+                 "leaderTraits": [...] (its leader's traits on top of Rallying; default MOUNTAIN_LEADER_TRAITS by rank),
                  "healthScale": 1.0, "name": "" (a named elite's DisplayName), "tags": [] (only its creatures carry them)}],
      "tags": [...], "legendaryId": "Foreman", "huntOnSpawn": false, "activation": 4500, "despawn": 9000,
      "center": [x, y] (or [x, y, z] in the mine), "spots": [[x, y], ...],
@@ -40,6 +41,10 @@ RANKS = {'Basic': 'BASIC', 'Rare': 'RARE', 'Epic': 'EPIC', 'Legendary': 'LEGENDA
 ENTRANCES = {'Appear': 'APPEAR', 'Rise': 'RISE', 'Drop': 'DROP'}
 # How far over and under an encounter's middle the ground of its spots and corners is looked for on the surface (cm).
 LOOK = 1500.0
+# What a mountain fight's Restless leader wears on top of Rallying (FEncounterGroup.LeaderTraits): Warded, so the typed wards
+# come up up the lift (the RR tuning the user took, 2026-10-29 night). A group's own "leaderTraits" list wins; the valley's
+# fights ("pass": "valley", Main Street) keep Rallying alone.
+MOUNTAIN_LEADER_TRAITS = {'Rare': ['Warded']}
 
 
 def when_spec(entry):
@@ -65,6 +70,18 @@ def condition(spec):
     return props.spec_when(spec)
 
 
+def leader_traits(entry, each):
+    """unreal.CreatureTrait values a leader group's leader wears on top of Rallying: the group's "leaderTraits" (names, as
+    "Warded"), else MOUNTAIN_LEADER_TRAITS by its rank for a mountain fight; none for a group that doesn't lead or a valley
+    fight's."""
+    if not each.get('leader'):
+        return []
+    names = each.get('leaderTraits')
+    if names is None:
+        names = [] if entry.get('pass') == 'valley' else MOUNTAIN_LEADER_TRAITS.get(each['rank'], [])
+    return [getattr(unreal.CreatureTrait, name.upper()) for name in names]
+
+
 def groups(build, entry):
     """The entry's FEncounterGroups, or None (with a warning) when a class isn't built."""
     made = []
@@ -88,6 +105,10 @@ def groups(build, entry):
         # A leader group's first creature leads its pack (FIGHTS lane 6); a named elite wears its name and its own tags.
         if each.get('leader'):
             group.set_editor_property('leader', True)
+        # A mountain fight's leader wears its rank's leader traits (MOUNTAIN_LEADER_TRAITS) or the group's own list.
+        traits = leader_traits(entry, each)
+        if traits:
+            group.set_editor_property('leader_traits', traits)
         if 'healthScale' in each:
             group.set_editor_property('health_scale', float(each['healthScale']))
         if each.get('name'):

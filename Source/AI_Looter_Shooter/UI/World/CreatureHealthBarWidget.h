@@ -143,7 +143,8 @@ public:
 	static FLinearColor WardChipColorFor(const FLinearColor& Fill);
 
 	/** The ward bar: its height (px; the health bar's is 6), the gap over the health's frame, the break's length and swell. */
-	static constexpr float WardHeight = 4.f;
+	/** Thicker with the health bar (2026-10-29; was 4). */
+	static constexpr float WardHeight = 7.f;
 	static constexpr float WardGap = 2.f;
 	static constexpr float WardBreakSeconds = 0.35f;
 	static constexpr float WardBreakSwell = 1.15f;

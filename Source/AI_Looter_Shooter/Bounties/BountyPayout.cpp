@@ -93,7 +93,7 @@ ULootTable* BountyPayout::MakeTable(EBountyTier Tier, const FBountyTuning& Tunin
 	// A bounty's reward keeps its full legendary odds: the early areas' cap is for the rank and file ("bosses and their
 	// bounties still can", the user, 2026-10-27).
 	Table->bKeepsLegendaryOdds = true;
-	// The user's rule: a chest's ammo pickups always hold 36 rounds (these are the strongbox's).
+	// The user's rule: a chest's ammo pickups always hold 1.5 boxes of their class (these are the strongbox's).
 	Table->UseChestAmmoAmount();
 	return Table;
 }

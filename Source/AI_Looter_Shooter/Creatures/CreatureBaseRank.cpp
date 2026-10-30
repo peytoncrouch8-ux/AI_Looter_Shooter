@@ -8,6 +8,7 @@
 #include "Creatures/CreatureTraitComponent.h"
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootLibrary.h"
+#include "Loot/KillLootRules.h"
 #include "Loot/LootTable.h"
 #include "Progression/ProgressionSettings.h"
 #include "Components/CapsuleComponent.h"
@@ -208,10 +209,10 @@ void ACreatureBase::ApplyStats()
 {
 	const FCreatureRankInfo& Info = UCreatureRankSettings::Get(CurrentRank);
 
-	// Its level grows its health and damage linearly from what its class or the level designer gave it (as a gun's damage
-	// grows with the gun's level, so a gun of its level always takes the same hits); its rank multiplies that again. Its
-	// experience is its rank's share here; the kill adds its level's growth (FLevelRules::KillXP). Changed while hurt, it
-	// keeps its share of health; a dead one gets its full health back as it respawns.
+	// Its level grows its health and damage, compounding (+9% a level), from what its class or the level designer gave it
+	// (as a gun's damage grows with the gun's level, so a gun of its level always takes the same hits); its rank multiplies
+	// that again. Its experience is its rank's share here; the kill adds its level's growth (FLevelRules::KillXP). Changed
+	// while hurt, it keeps its share of health; a dead one gets its full health back as it respawns.
 	const float LevelScale = GetDefault<UProgressionSettings>()->GetLevelRules().EnemyScale(Level);
 	const bool bKeepShare = Health->HasBegunPlay() && !Health->IsDead();
 	const float HealthShare = Health->GetHealthPercent();
@@ -232,9 +233,11 @@ void ACreatureBase::ApplyRank()
 	CaptureBaseStats();
 	ApplyStats();
 
-	// Its own table as Basic (the default one, unless it was given another); a ranked creature carries its rank's.
+	// Its own table as Basic (the default one, unless it was given another); a ranked creature carries its rank's, and a kind
+	// that pays above its rank (a Stone Sentinel: KillLootRules) that rank's.
 	ULootTable* OwnTable = BaseLootTable ? BaseLootTable.Get() : ULootLibrary::GetDefaultLootTable();
-	Loot->LootTable = CurrentRank == ECreatureRank::Basic ? OwnTable : UCreatureRankSettings::GetLootTable(CurrentRank);
+	const ECreatureRank LootRank = KillLootRules::LootRankFor(*this, CurrentRank);
+	Loot->LootTable = LootRank == ECreatureRank::Basic ? OwnTable : UCreatureRankSettings::GetLootTable(LootRank);
 
 	ApplySize();
 	// Its touch before its traits (a Touched creature's ward is its own element) and before its look (the touched glow).

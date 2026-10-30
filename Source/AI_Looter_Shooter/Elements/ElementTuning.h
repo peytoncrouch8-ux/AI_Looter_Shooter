@@ -9,12 +9,20 @@
  */
 struct AI_LOOTER_SHOOTER_API FElementTuning
 {
-	// --- The weakness table (ElementRules::Affinity): times an effect's damage and chance, and an element gun's hit (HitScale) ---
+	// --- The weakness table (ElementRules::Affinity): times a status's damage and chance (AffinityScale) ---
 
-	/** A creature weak to the element (2, was 1.75: the user's wider gap, 2026-10-29). An element gun's own hit too. */
+	/** A creature weak to the element: its status's damage and chance (2, was 1.75: the user's wider gap, 2026-10-29). */
 	float Weak = 2.f;
-	/** A creature that resists it (0.33, was 0.5). */
+	/** A creature that resists it: its status's damage and chance (0.33, was 0.5). */
 	float Resist = 0.33f;
+
+	// --- An element gun's own hit (HitScale), split from the status's (the user, 2026-10-29 night: "element bullets weak
+	// x1.75 / resist x0.5", the statuses keep x2 / x0.33), so a weak body's bullets don't double on top of a doubled status ---
+
+	/** An element gun's hit on a creature weak to its element, times. */
+	float BulletWeak = 1.75f;
+	/** An element gun's hit on a creature that resists its element, times. */
+	float BulletResist = 0.5f;
 	/** An element gun's hit on a creature immune to it, times (it sets no status at all). */
 	float ImmuneHit = 0.1f;
 

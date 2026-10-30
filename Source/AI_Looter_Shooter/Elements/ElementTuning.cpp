@@ -12,6 +12,10 @@ namespace
 		TEXT("An element on a creature weak to it: its effect's damage and chance, times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarResist(TEXT("Looter.Element.Resist"), ElementDefaults.Resist,
 		TEXT("An element on a creature that resists it: its effect's damage and chance, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarBulletWeak(TEXT("Looter.Element.BulletWeak"), ElementDefaults.BulletWeak,
+		TEXT("An element gun's hit on a creature weak to its element, times (its status keeps Looter.Element.Weak)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarBulletResist(TEXT("Looter.Element.BulletResist"), ElementDefaults.BulletResist,
+		TEXT("An element gun's hit on a creature that resists its element, times (its status keeps Looter.Element.Resist)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarImmuneHit(TEXT("Looter.Element.ImmuneHit"), ElementDefaults.ImmuneHit,
 		TEXT("An element gun's hit on a creature immune to its element, times (no status sets)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarWardMatch(TEXT("Looter.Element.Ward.Match"), ElementDefaults.WardMatch,
@@ -100,6 +104,8 @@ FElementTuning FElementTuning::Live()
 	FElementTuning Tuning;
 	Tuning.Weak = FMath::Max(CVarWeak.GetValueOnGameThread(), 0.f);
 	Tuning.Resist = FMath::Max(CVarResist.GetValueOnGameThread(), 0.f);
+	Tuning.BulletWeak = FMath::Max(CVarBulletWeak.GetValueOnGameThread(), 0.f);
+	Tuning.BulletResist = FMath::Max(CVarBulletResist.GetValueOnGameThread(), 0.f);
 	Tuning.ImmuneHit = FMath::Max(CVarImmuneHit.GetValueOnGameThread(), 0.f);
 	Tuning.WardMatch = FMath::Max(CVarWardMatch.GetValueOnGameThread(), 0.f);
 	Tuning.WardBreakAny = FMath::Max(CVarWardBreakAny.GetValueOnGameThread(), 0.f);

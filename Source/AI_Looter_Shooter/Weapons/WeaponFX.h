@@ -45,7 +45,7 @@ enum class EDeathBurst : uint8
  * chunks are lit surfaces, one component per color (BitSetFor). WeaponFXWorld.cpp holds the effects that aren't a
  * gun's (grave dirt, the slide's dust and grit, the death bursts); WeaponFXImpacts.cpp the world's hits by surface,
  * WeaponFXCreatures.cpp the creatures' by what they spill, WeaponFXShots.cpp the shot's own (ricochets, the muzzle's
- * smoke, the tracer's smoke thread), WeaponFXDraw.cpp the moving and drawing.
+ * smoke, the tracer's smoke thread), WeaponFXMotion.cpp the moving, WeaponFXDraw.cpp the drawing.
  */
 class AI_LOOTER_SHOOTER_API FWeaponFX
 {
@@ -307,7 +307,7 @@ public:
 	/** Rings, fireballs and starbursts alive (tests). */
 	int32 NumShapes() const;
 
-	/** Advances the particles and redraws everything, turned to face the camera. */
+	/** Advances the particles and redraws everything, turned to face the camera (WeaponFXMotion.cpp moves, WeaponFXDraw.cpp draws). */
 	void Tick(float DeltaSeconds, const FVector& CameraLocation);
 
 	/** Nothing flying and nothing drawn: ticking can stop. */
@@ -458,6 +458,8 @@ private:
 	bool bDrawnAnything = false;
 	/** M_FX_Shape's quads (rings, fireballs, starbursts), when it's in the game and Looter.Vfx.Shapes is on (else stand-ins on Glows). */
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Shapes;
+	/** Its master draws soft glows (EVfxShape::Glow: it has the SoftGlow knob), so flashes and round glows go on it. */
+	bool bShapeGlows = false;
 	/** M_FX_Fire's quads (SpawnFlame), drawn far to near; null without it (the flames go on the smoke). */
 	TWeakObjectPtr<UInstancedStaticMeshComponent> FireQuads;
 	/**

@@ -1,6 +1,6 @@
 // USettingsMenuWidget's round 3 look (the user's mix of concept 1 "Ledger & Brass" and concept 3 "Halo Reticle",
 // 2026-10-29; Docs/Work/2026-10-29-UI3Build/CONTRACT.md, lane P): the pieces that make it (the ledger's rows and margin,
-// the header and its stamped plate, Resume in its reticle, the footer's stamp and serial, the halo breaking out over the
+// the header and its stamped plate, Back in its reticle, the footer's serial, the halo breaking out over the
 // plate's corner, the ribbon) and the plate's words. Their motion is SettingsMenuLedgerMotion.cpp's; SettingsMenuArt.h
 // paints the pieces; LooterReticleArt.h draws c3's pictures.
 
@@ -145,7 +145,7 @@ UWidget* USettingsMenuWidget::MakeLedgerSection(const FString& Label)
 UWidget* USettingsMenuWidget::MakeHeader()
 {
 	using namespace LooterUI;
-	// GAME PAUSED at c3's size and spacing, the stamped plate of c1 beside it, c3's mil-dot ruler under both.
+	// The title (ApplyMode's) at c3's size and spacing, the stamped plate of c1 beside it, c3's mil-dot ruler under both.
 	UHorizontalBox* TitleLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	HeaderText = MakeText(WidgetTree, TEXT(""), 38, Color::SlateText(), true, 200);
 	TitleLine->AddChildToHorizontalBox(HeaderText)->SetVerticalAlignment(VAlign_Center);
@@ -194,8 +194,8 @@ UWidget* USettingsMenuWidget::MakeResumeRow()
 	ReticleSlot->SetHorizontalAlignment(HAlign_Left);
 	ReticleSlot->SetVerticalAlignment(VAlign_Center);
 	ReticleSlot->SetPadding(FMargin(ResumeReticleX - LooterReticle::SmallReticleExtent(ResumeReticleRadius), 0.f, 0.f, 0.f));
-	// The word is the mode's (ApplyMode): RESUME over the game, BACK from the main menu, so the row is never left empty.
-	ResumeWord = MakeText(WidgetTree, TEXT("Resume"), 32, Color::SoulGold(), true, 340);
+	// The word is ApplyMode's (BACK: to the pause menu's list over the game, to the main menu from it).
+	ResumeWord = MakeText(WidgetTree, TEXT("Back"), 32, Color::SoulGold(), true, 340);
 	ResumeWord->SetVisibility(ESlateVisibility::HitTestInvisible);
 	UOverlaySlot* WordSlot = Look->AddChildToOverlay(ResumeWord);
 	WordSlot->SetHorizontalAlignment(HAlign_Center);
@@ -229,27 +229,10 @@ UWidget* USettingsMenuWidget::MakeFooter()
 	SerialSlot->SetPadding(FMargin(SerialIndent, 0.f, 0.f, 8.f));
 	Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, nullptr, 0.f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
-	// Save & Quit, c1's rubber stamp: its light red wash (a background), its red double outline and word, tilted.
-	UOverlay* StampLook = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	USettingsMenuArt* StampWash = USettingsMenuArt::Make(WidgetTree, ESettingsArt::StampWash);
-	MarkBackground(StampWash);
-	FillOverlaySlot(StampLook->AddChildToOverlay(StampWash));
-	USettingsMenuArt* Stamp = USettingsMenuArt::Make(WidgetTree, ESettingsArt::Stamp);
-	Stamp->SetLabel(TEXT("SAVE & QUIT"), 26, 230);
-	FillOverlaySlot(StampLook->AddChildToOverlay(Stamp));
-	SaveQuitButton = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
-	SaveQuitButton->SetupContent(StampLook, ActionSaveQuit, 0, EButtonKind::Bare);
-	StampWash->SetButton(SaveQuitButton);
-	Stamp->SetButton(SaveQuitButton);
-	SaveQuitButton->ClickCue = ULooterButton::ClickCueFor(ActionSaveQuit, EButtonKind::Danger);
-	SaveQuitButton->OnButtonClicked.BindUObject(this, &USettingsMenuWidget::HandleButton);
-	SaveQuitButton->OnButtonHovered.BindUObject(this, &USettingsMenuWidget::HandleButtonHovered);
-	SaveQuitButton->SetRenderTransformAngle(-3.f);
-	UHorizontalBoxSlot* StampSlot = Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, SaveQuitButton, 300.f, 84.f));
-	StampSlot->SetVerticalAlignment(VAlign_Center);
-	StampSlot->SetPadding(FMargin(0.f, 0.f, 10.f, 0.f));
+	// Save & Quit's stamp stood here until the user moved it to the pause menu's list (2026-10-29 night: "Remove save and
+	// quit from the settings menu at the bottom"); UPauseMenuWidget stamps it now.
 
-	// Back, from the main menu: a chosen chip, gold, where the stamp is over the game.
+	// Back: a chosen chip, gold, kept hidden (ApplyMode): going back is the reticle row at the top.
 	BackButton = MakeArtButton(ActionClose, 0, TEXT("Back"), ESettingsArt::Chip, 20, 230, EButtonKind::Primary);
 	BackButton->SetHighlighted(true);
 	Footer->AddChildToHorizontalBox(MakeSized(WidgetTree, BackButton, 230.f, 56.f))->SetVerticalAlignment(VAlign_Center);

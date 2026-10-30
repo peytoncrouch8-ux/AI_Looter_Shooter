@@ -64,7 +64,7 @@ Main 7. Main 5's turn-in says why the mine comes first and points at the lift; M
                    (ChapelYard, 16), 2 the knock at the vestry door (Speaker_Aldana: "ring her bell"), 3 the bell held
                    (Bell_Chapel), 4 the Reliquary seen (GraveSight.Reliquary; its look_when "during Main4 from step 4") +
                    optional the keepers' roll (KeepersRoll). Turned in to Aldana: a keeper's lantern can find an ember, and
-                   Pa's fell whole. 1,300 XP, the poor box (40).
+                   Pa's fell whole. 1,300 XP, a Saint Maud Uncommon gun with Hallow rounds, the poor box (40).
   DA_Mission_Main5 "The Keeper's Lantern", offered by Aldana after Main 4 (straight after its turn-in, one conversation):
                    0 into the Sink (Place_SinkFloor, height counted), 1 the three egg sacs, 2 the lantern taken (it must
                    stay step 2: AKeepersLantern::TakeStep), 3 out at the ramp head (Place_SinkRim) + optional the
@@ -264,8 +264,20 @@ def step(*objectives):
     return made
 
 
+def element_enum(name):
+    """unreal.LooterElement by the enum's C++ name ('SoulLight', 'Ember'; '' = None): Python spells it SOUL_LIGHT."""
+    if not name:
+        return unreal.LooterElement.NONE
+    import re
+    for spelled in (re.sub(r'(?<!^)(?=[A-Z])', '_', name).upper(), name.upper()):
+        value = getattr(unreal.LooterElement, spelled, None)
+        if value is not None:
+            return value
+    raise RuntimeError(f'unreal.LooterElement has no {name}: nothing was saved')
+
+
 def rewards(experience=0, experience_share=0.0, unlock_areas=(), gun=False, gun_rarity_floor='COMMON', named_gun='',
-            named_gun_by_hand=False, gun_kind='', silver=0, optional_silver=10):
+            named_gun_by_hand=False, gun_kind='', silver=0, optional_silver=10, gun_maker='', gun_element=''):
     """FMissionRewards: a fixed amount of experience (Docs/Progression.md tunes each; or a share of a level's when it's 0),
     areas opened, a gun at the player's feet (at least as rare as the floor; of gun_kind, a weapon definition's asset
     path, or else one from the default loot table), and a named gun by id, dropped, or handed over in the story (by hand:
@@ -286,6 +298,10 @@ def rewards(experience=0, experience_share=0.0, unlock_areas=(), gun=False, gun_
             raise RuntimeError(f'{gun_kind} is not an asset: nothing was saved')
     made.set_editor_property('gun_kind', kind)
     made.set_editor_property('gun_rarity_floor', getattr(unreal.WeaponRarity, gun_rarity_floor))
+    # The gun's maker by key ('SaintMaud') and element by the enum's name ('SoulLight'): Main 4's Saint Maud with Hallow
+    # rounds, Knocking Below's Cinder (the RR tuning the user took, 2026-10-29 night; MissionRewards::MakeRewardGun).
+    made.set_editor_property('gun_maker', unreal.Name(gun_maker))
+    made.set_editor_property('gun_element', element_enum(gun_element))
     made.set_editor_property('named_gun', unreal.Name(named_gun))
     made.set_editor_property('named_gun_by_hand', named_gun_by_hand)
     return made
@@ -720,7 +736,9 @@ MISSIONS = [
              ('', "Spiders hoard anything a saint has touched."),
              ('', "Look in the Sink."),
          ]),
-         rewards=dict(experience=1300)),
+         # A Saint Maud Uncommon with Hallow rounds, the chapel's gift for the yard (was nothing; the RR tuning the user
+         # took, 2026-10-29 night: the dead ahead are weak to Hallow).
+         rewards=dict(experience=1300, gun=True, gun_rarity_floor='UNCOMMON', gun_maker='SaintMaud', gun_element='SoulLight')),
     dict(asset='DA_Mission_Main5', id='Main5', title="The Keeper's Lantern",
          summary="The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. "
                  "Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg sacs.",

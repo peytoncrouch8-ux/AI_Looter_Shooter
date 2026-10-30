@@ -11,6 +11,7 @@
 #include "UI/Inventory/LoadoutWidget.h"
 #include "UI/Inventory/MapWidget.h"
 #include "UI/Inventory/MissionsWidget.h"
+#include "UI/Menus/PauseMenuWidget.h"
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/HUD/HudCaptionWidget.h"
 #include "UI/HUD/HudControlHintWidget.h"
@@ -87,11 +88,17 @@ void ALooterHUD::BeginPlay()
 	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());
 	MissionsWidget = CreateWidget<UMissionsWidget>(PC, UMissionsWidget::StaticClass());
 	MapWidget = CreateWidget<UMapWidget>(PC, UMapWidget::StaticClass());
-	PauseMenuWidget = CreateWidget<USettingsMenuWidget>(PC, USettingsMenuWidget::StaticClass());
-	if (PauseMenuWidget)
+	// Escape opens the pause menu's list; its Settings opens the settings menu, whose Back comes back to the list (the user,
+	// 2026-10-29 night).
+	PauseHubWidget = CreateWidget<UPauseMenuWidget>(PC, UPauseMenuWidget::StaticClass());
+	if (PauseHubWidget)
 	{
-		PauseMenuWidget->OnClose.BindUObject(this, &ALooterHUD::ClosePauseMenu);
-		PauseMenuWidget->OnSaveAndQuit.BindUObject(this, &ALooterHUD::SaveAndQuit);
+		PauseHubWidget->OnChoice.BindUObject(this, &ALooterHUD::ChoosePauseItem);
+	}
+	PauseSettingsWidget = CreateWidget<USettingsMenuWidget>(PC, USettingsMenuWidget::StaticClass());
+	if (PauseSettingsWidget)
+	{
+		PauseSettingsWidget->OnClose.BindUObject(this, &ALooterHUD::BackOutOfPauseScreen);
 	}
 
 	BindMenuInput();
@@ -213,6 +220,20 @@ void ALooterHUD::RestoreGameInput()
 	}
 }
 
+void ALooterHUD::FocusMenu(UUserWidget* Menu)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC || !Menu)
+	{
+		return;
+	}
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(Menu->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	PC->SetInputMode(InputMode);
+	PC->SetShowMouseCursor(true);
+}
+
 // ---------------------------------------------------------------------------
 // Inventory
 // ---------------------------------------------------------------------------
@@ -252,9 +273,26 @@ void ALooterHUD::CloseInventory()
 		Page->RemoveFromParent();
 	}
 	bInventoryOpen = false;
+	// Opened from the pause menu's list: its close (Esc, B, Tab) goes back to the list, the game still paused.
+	if (PauseScreen == EPauseScreen::Page)
+	{
+		BackOutOfPauseScreen();
+		return;
+	}
 	RestoreGameInput();
 	PlayPageSound(false);
 	ApplyGamePause();
+}
+
+void ALooterHUD::CloseInventoryToGame()
+{
+	if (PauseScreen == EPauseScreen::Page)
+	{
+		// The pause menu goes with it (the page quietly, the pause with its close).
+		ClosePauseMenu();
+		return;
+	}
+	CloseInventory();
 }
 
 void ALooterHUD::ShowInventoryPage(EInventoryPage Page)
@@ -276,10 +314,9 @@ void ALooterHUD::ShowInventoryPage(EInventoryPage Page)
 	InventoryPage = Page;
 	if (!OpenInventoryPage())
 	{
-		bInventoryOpen = false;
-		RestoreGameInput();
-		PlayPageSound(false);
-		ApplyGamePause();
+		// The page couldn't open (no player): the inventory closes as a whole, back to the pause menu's list if it came
+		// from there.
+		CloseInventory();
 		return;
 	}
 	// Turning to another page of the open inventory: the tab's own sound, not a whole screen's.
@@ -416,7 +453,8 @@ void ALooterHUD::CloseStationBoard()
 	PlayPageSound(false);
 }
 
-// The gunsmith's bench's screen: LooterHUDBench.cpp. The pause menu and the pause: LooterHUDPause.cpp.
+// The gunsmith's bench's screen: LooterHUDBench.cpp. The pause menu, its list and what it opens, and the pause:
+// LooterHUDPause.cpp.
 
 // ---------------------------------------------------------------------------
 // The mission tracker

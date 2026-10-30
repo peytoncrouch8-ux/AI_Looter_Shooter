@@ -13,7 +13,7 @@ namespace
 	/**
 	 * A loot chest tier's numbers (the user, 2026-10-27: "the better the chest the better the loot", the steady climb).
 	 * Guns: from Guns to MaxGuns at GunChance; Luck shifts the odds up within what the floor leaves; ammo pickups of a
-	 * chest's 36 rounds. Tier 5 keeps its legendary odds early (as a boss's table): with its Epic floor and Luck 1, a gun of
+	 * chest's 1.5 boxes. Tier 5 keeps its legendary odds early (as a boss's table): with its Epic floor and Luck 1, a gun of
 	 * it is legendary 1 time in 3 (two of three tier 5s give one); tiers 1-4 keep the early cap (Ransom's Rest: 1 in 300).
 	 */
 	struct FTierNumbers

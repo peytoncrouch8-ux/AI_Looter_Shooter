@@ -100,12 +100,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFightPaceModelTest, "Looter.Fight.Pace.Model",
 
 bool FFightPaceModelTest::RunTest(const FString& Parameters)
 {
-	// Levels: 8% of the level 1 value a level, for the enemy, the player's health and the gun alike.
-	TestNearlyEqual(TEXT("An enemy at level 1 is its class"), FightPace::EnemyScale(1, 0.08f), 1.f);
-	TestNearlyEqual(TEXT("...at level 11, x1.8"), FightPace::EnemyScale(11, 0.08f), 1.8f);
+	// Levels: the enemy, the gun and the player's health +9% of the level below's a level, compounding (the user, 2026-10-29
+	// night).
+	TestNearlyEqual(TEXT("An enemy at level 1 is its class"), FightPace::EnemyScale(1, 0.09f), 1.f);
+	TestNearlyEqual(TEXT("...at level 11, x1.09^10 (2.37)"), FightPace::EnemyScale(11, 0.09f), FMath::Pow(1.09f, 10.f), 0.0001f);
 	TestNearlyEqual(TEXT("The starter ward is 15 at level 1 and 41 at level 3"), FightPace::StarterWard(1), 15.f);
 	TestNearlyEqual(TEXT("...41 at level 3"), FightPace::StarterWard(3), 41.f);
-	TestNearlyEqual(TEXT("A level 3 player: 116 health and a 41 ward is 157"), FightPace::PlayerEHP(3, FightPace::FPlayerNumbers(), 41.f), 157.f, 0.01f);
+	TestNearlyEqual(TEXT("A level 3 player: 118.8 health (x1.09^2) and a 41 ward is 159.8"), FightPace::PlayerEHP(3, FightPace::FPlayerNumbers(), 41.f), 100.f * 1.09f * 1.09f + 41.f, 0.01f);
 
 	// The turns: a spider's numbers (0.55 / 0.45 / 1.1).
 	FightPace::FKindNumbers Bite;
@@ -134,7 +135,7 @@ bool FFightPaceModelTest::RunTest(const FString& Parameters)
 	FightPace::FFightNumbers Plain = Fight;
 	Plain.DamageScale = 2.f;
 	TestNearlyEqual(TEXT("A hit is the bite x the level's scale x the damage scale x the rank"),
-		FightPace::PackDps(Hitter, 1, 11, 1.5f, Plain), (1.f / 2.1f) * 10.f * 1.8f * 2.f * 1.5f, 0.01f);
+		FightPace::PackDps(Hitter, 1, 11, 1.5f, Plain), (1.f / 2.1f) * 10.f * FightPace::EnemyScale(11, Plain.EnemyGrowth) * 2.f * 1.5f, 0.01f);
 	Hitter.Uptime = 0.5f;
 	TestNearlyEqual(TEXT("Uptime halves what lands"), FightPace::PackDps(Hitter, 1, 1, 1.f, Plain), (1.f / 2.1f) * 10.f * 2.f * 0.5f, 0.01f);
 	TestNearlyEqual(TEXT("100 health under 20 a second lasts 5 s"), FightPace::SecondsToDie(100.f, 20.f), 5.f);
@@ -143,11 +144,11 @@ bool FFightPaceModelTest::RunTest(const FString& Parameters)
 	// The gun: a Common rifle is 200 a second on paper and 120 on the body (the plan's number).
 	const FightPace::FGunNumbers Common;
 	TestNearlyEqual(TEXT("A Common rifle puts 120 a second on the body"), FightPace::GunDps(Common, 1), 120.f, 0.01f);
-	TestNearlyEqual(TEXT("...8% more a level"), FightPace::GunDps(Common, 3), 120.f * 1.16f, 0.01f);
+	TestNearlyEqual(TEXT("...9% more a level, compounding"), FightPace::GunDps(Common, 3), 120.f * 1.09f * 1.09f, 0.01f);
 	TestNearlyEqual(TEXT("A level-matched gun kills the same in the same time at any level"),
-		FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.08f), FightPace::SecondsToKill(230.f, 9, 1.f, 0.f, Common, 0.08f), 0.01f);
-	TestNearlyEqual(TEXT("A Common rifle takes the spider's 230 health in 1.9 s"), FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.08f), 230.f / 120.f, 0.01f);
-	TestTrue(TEXT("Defense slows a kill"), FightPace::SecondsToKill(230.f, 1, 1.f, 0.2f, Common, 0.08f) > FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.08f));
+		FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.09f), FightPace::SecondsToKill(230.f, 9, 1.f, 0.f, Common, 0.09f), 0.01f);
+	TestNearlyEqual(TEXT("A Common rifle takes the spider's 230 health in 1.9 s"), FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.09f), 230.f / 120.f, 0.01f);
+	TestTrue(TEXT("Defense slows a kill"), FightPace::SecondsToKill(230.f, 1, 1.f, 0.2f, Common, 0.09f) > FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.09f));
 	return true;
 }
 

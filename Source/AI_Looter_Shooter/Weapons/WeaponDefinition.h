@@ -49,9 +49,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats", meta = (ClampMin = "0", ClampMax = "1"))
 	float StatVariance = 0.1f;
 
-	/** Additive damage bonus per level above 1 (0.08 = +8% per level). */
+	/**
+	 * Damage growth a level above 1, compounding: x(1 + this) ^ (Level - 1) (0.09: x1.68 at 7; the user, 2026-10-29 night; was
+	 * +8% of level 1's, linear). Keep it equal to UProgressionSettings' EnemyGrowthPerLevel (FLevelRules::Compounded).
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats", meta = (ClampMin = "0"))
-	float DamagePerLevel = 0.08f;
+	float DamagePerLevel = 0.09f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats")
 	TMap<EWeaponRarity, FWeaponRarityInfo> RarityTable;

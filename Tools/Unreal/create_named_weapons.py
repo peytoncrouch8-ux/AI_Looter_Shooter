@@ -16,6 +16,7 @@ a part its slot doesn't have, one that doesn't come at its rarity or doesn't fit
             worse end of each, 1 the better.
   wear      how worn it looks, 0 (factory fresh) to 1 (battered); below 0, rolled from its seed as any gun's.
   seed      every copy is made with it: its paint, and its wear when it has none of its own.
+  signature a unique legendary's own trick (ELegendarySignature, Weapons/LegendarySignature.h); left out: none.
 """
 import unreal
 
@@ -24,6 +25,21 @@ GUNS = '/Game/Weapons/Data'
 Rarity = unreal.WeaponRarity
 RARITIES = {'Common': Rarity.COMMON, 'Uncommon': Rarity.UNCOMMON, 'Rare': Rarity.RARE, 'Epic': Rarity.EPIC,
             'Legendary': Rarity.LEGENDARY}
+SIGNATURES = ('None', 'Gravesilk', 'CompanyScrip', 'Lamplighter')
+
+
+def signature_value(name):
+    """unreal.LegendarySignature's value for a signature's C++ name ('CompanyScrip' -> COMPANY_SCRIP)."""
+    if name not in SIGNATURES:
+        raise RuntimeError(f'{name} is no ELegendarySignature ({", ".join(SIGNATURES)})')
+    enum = getattr(unreal, 'LegendarySignature', None)
+    if enum is None:
+        raise RuntimeError('unreal.LegendarySignature is missing: build the C++ with Weapons/LegendarySignature.h first')
+    python_name = ''.join(('_' + c if c.isupper() and i else c) for i, c in enumerate(name)).upper()
+    value = getattr(enum, python_name, None)
+    if value is None:
+        raise RuntimeError(f'unreal.LegendarySignature has no {python_name}: build the C++ first; nothing was changed')
+    return value
 
 NAMED = [
     # Heirloom (Main 7, The Lantern Leans; Docs/Areas/RansomsRest.md, step 23): Abel Ransom's Ranchhand pump. A keeper
@@ -99,10 +115,64 @@ NAMED = [
          quality=0.8,
          wear=0.25,   # Taken off a dead man who kept it oiled to the end.
          seed=4),
+
+    # The bosses' unique legendaries (the user's call, 2026-10-29 night: each Ransom's Rest boss its own, 10% a kill,
+    # farmed at its vigil stone like Borderlands 2; Weapons/LegendaryDrops.h, LegendaryRules.h). Legendary, every part an
+    # existing one that reads as special (the kind's Epic and Legendary pieces, brass and engraving), none with an Effect or
+    # Element row: the signature is the gun's trick. Stats a touch better kept than the finds' guns.
+    # Gravesilk: the Gravemother's (her loot shower, FBossLootShowerSettings::DedicatedLegendary), a Rustler SMG. Hits lay
+    # silk and enough of it roots the target. The perforated jacket reads as webbing, the long can keeps it quiet ("lie
+    # still"), the gilded helix and reflex and the engraved upper make it a prize.
+    dict(asset='DA_Named_Gravesilk', weapon='DA_SMG', name='Gravesilk', line="Lie still. She's coming.", rarity='Legendary',
+         signature='Gravesilk',
+         parts={
+             'Body': 'Engraved',    # Epic. Silvered side plates scrolled in brass: damage, accuracy.
+             'Barrel': 'Shrouded',  # Rare+. A long perforated jacket (14 cm): the silk's holes; accuracy, range.
+             'Muzzle': 'LongCan',   # Epic. Whisper: a long can bound in brass.
+             'Magazine': 'Gilded',  # Legendary. The 55-round gilded helix (needs a barrel of 11 cm: the jacket is 14).
+             'Sight': 'Gilded',     # Legendary. The gilded reflex, 1.5x.
+             'Stock': 'Brass',      # Epic. Brass struts and an engraved butt.
+         },
+         quality=0.85,
+         wear=0.4,    # Dug out of her barrow: grave dirt in the scrollwork.
+         seed=5),
+    # Company Scrip: the Foreman's (Back Pay's boss), a Thresher LMG. Kills in one burst speed it up; a reload pays some of
+    # the belt back. The forge receiver and furnace barrel are the mine's, the brass box the company's pay chest, the brass
+    # flare and engraved stock its foreman's pride, the 4x tracker for reading a stope from its far end.
+    dict(asset='DA_Named_CompanyScrip', weapon='DA_LMG', name='Company Scrip', line='Paid in full. Eventually.', rarity='Legendary',
+         signature='CompanyScrip',
+         parts={
+             'Body': 'Forge',       # Legendary. Glass eyes onto an ember core: damage, fire rate.
+             'Barrel': 'Furnace',   # Legendary. A slotted brass-capped jacket: damage, fire rate.
+             'Muzzle': 'Flare',     # Epic. A brass bell with an ember throat: accuracy, fire rate, steadier.
+             'Magazine': 'Brass',   # Legendary. The 150-round brass box with a glowing count window: a quicker reload.
+             'Sight': 'Tracker',    # Epic. The 4x tracker scope.
+             'Stock': 'Engraved',   # Epic. Sand, a brass butt plate, scrolled inlay.
+         },
+         quality=0.85,
+         wear=0.3,    # A company man's gun: soot in the vents, the brass kept bright.
+         seed=6),
+    # Lamplighter: Abel's (Main 6's boss), a Longhorn sniper. A scoped kill leaves a lantern that heals. The gilded chassis,
+    # engraved barrel and brass-bound box are a keeper's brass, the forge brake glows like a lamp's ports, the 8x marshal
+    # scope watches the road from the light, the engraved butt plate is the family's.
+    dict(asset='DA_Named_Lamplighter', weapon='DA_Sniper', name='Lamplighter', line='Leave a light on.', rarity='Legendary',
+         signature='Lamplighter',
+         parts={
+             'Body': 'Gilded',      # Epic. Sand with brass inlays and ember lines: damage, accuracy, a quicker reload.
+             'Barrel': 'Engraved',  # Epic. Octagonal, brass bands, a scroll at the breech (58 cm): damage, accuracy, range.
+             'Muzzle': 'Forge',     # Epic. A brass brake whose ports glow ember: damage, steadier.
+             'Magazine': '8Brass',  # Epic. Brass-bound steel, a window and an ember follower: 8 rounds.
+             'Sight': 'Marshal',    # Epic. The 8x marshal scope, long, brass rings.
+             'Stock': 'Engraved',   # Epic. A heavy engraved brass butt plate.
+             'Bolt': 'Standard',    # Common. The only bolt there is.
+         },
+         quality=0.85,
+         wear=0.3,    # Oiled every night the light was lit.
+         seed=7),
 ]
 
 # What the C++ declares, by Python name; a field missing means the C++ with named guns isn't built.
-FIELDS = ('weapon', 'display_name', 'flavor_text', 'rarity', 'parts', 'stat_quality', 'wear', 'seed')
+FIELDS = ('weapon', 'display_name', 'flavor_text', 'rarity', 'parts', 'stat_quality', 'wear', 'seed', 'signature')
 
 
 def named_class():
@@ -159,6 +229,7 @@ def setup(spec, cls):
     asset.set_editor_property('stat_quality', spec['quality'])
     asset.set_editor_property('wear', spec['wear'])
     asset.set_editor_property('seed', spec['seed'])
+    asset.set_editor_property('signature', signature_value(spec.get('signature', 'None')))
     stored = {str(slot): str(key) for slot, key in asset.get_editor_property('parts').items()}
     if stored != spec['parts']:
         raise RuntimeError(f"{FOLDER}/{spec['asset']}: its parts read back as {stored}, not {spec['parts']}: nothing was saved")
@@ -169,7 +240,7 @@ def setup(spec, cls):
         raise RuntimeError(f"{FOLDER}/{spec['asset']} could not be saved")
     unreal.log(f"NAMEDGUNS {spec['asset']} {'made' if created else 'updated'}: \"{spec['name']}\", {spec['rarity']} {spec['weapon']} "
                f"({part_names(weapon, spec['parts'])}), line \"{spec['line']}\", quality {spec['quality']}, wear {spec['wear']}, "
-               f"seed {spec['seed']}")
+               f"seed {spec['seed']}, signature {spec.get('signature', 'None')}")
 
 
 def run():

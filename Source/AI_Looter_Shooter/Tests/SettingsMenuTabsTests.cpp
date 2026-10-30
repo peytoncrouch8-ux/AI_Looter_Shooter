@@ -203,12 +203,14 @@ bool FSettingsMenuTabsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...and the Audio page shows"), Menu->GetPage(), PageIndex(ESettingsPage::Audio));
 	TestEqual(TEXT("...with its own words"), Menu->GetShownHelpTitle(), PageName(PageIndex(ESettingsPage::Audio)));
 
-	// Over the game: Resume first, described; opened again it's back on Graphics.
+	// Over the game (from the pause menu's list): Back to the list first, described as that; opened again it's back on
+	// Graphics.
 	Menu->Open(ESettingsMenuMode::Pause);
 	TestEqual(TEXT("Opened over the game: Graphics"), Menu->GetPage(), PageIndex(ESettingsPage::Graphics));
 	SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
-	TestTrue(TEXT("The focus on Resume"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
-	TestEqual(TEXT("...described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::Resume).Title);
+	TestTrue(TEXT("The focus on the top row (Back)"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
+	TestEqual(TEXT("...described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::BackToPause).Title);
+	TestEqual(TEXT("...as going back to the pause menu"), Menu->GetShownHelpText(), RowHelp(ESettingRow::BackToPause).Body);
 	return true;
 }
 

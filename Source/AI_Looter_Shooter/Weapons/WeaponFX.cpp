@@ -30,6 +30,8 @@ namespace
 	const TCHAR* FireMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Fire.M_FX_Fire");
 	/** The muzzle rework's master: its soft tapered streak draws sparks and tracers (SoftStreaks; the play-check, 2026-10-22). */
 	const TCHAR* SoftStreakMaterialPath = TEXT("/Game/Art/Materials/Masters/M_FX_Muzzle.M_FX_Muzzle");
+	/** M_FX_Shape's soft glows' knob (build_vfx_materials.py): its being there says the master draws EVfxShape::Glow. */
+	const FName SoftGlowParameter(TEXT("SoftGlow"));
 
 	constexpr int32 GlowFloats = 5;  // R, G, B, intensity, shape (0 = streak, 1 = round, 2 = six-pointed star)
 	constexpr int32 SmokeFloats = 4; // R, G, B, opacity
@@ -143,6 +145,10 @@ void FWeaponFX::Initialize(UWorld* World)
 	}
 	// Rings, fireballs and starbursts on their own quads; without M_FX_Shape they're drawn on the glows (Redraw's stand-ins).
 	Shapes = ShapeMaterial ? MakeInstances(Actor, TEXT("Shapes"), Plane, ShapeMaterial, ShapeFloats) : nullptr;
+	// Flashes, embers and motes go on the shape quads as soft glows only once the master draws them (its SoftGlow knob, Lane F's
+	// rebuild): an older graph would draw shape 3 as a starburst.
+	float SoftGlow = 0.f;
+	bShapeGlows = ShapeMaterial && ShapeMaterial->GetScalarParameterValue(FHashedMaterialParameterInfo(SoftGlowParameter), SoftGlow);
 	// Fire and its soot, alpha-blended and drawn over the dust (a blast's skirt rolls out under its fire).
 	if (UMaterialInterface* FireMaterial = Tuning.bFire ? LoadQuietly(FireMaterialPath) : nullptr)
 	{
@@ -168,6 +174,7 @@ void FWeaponFX::Shutdown()
 	}
 	Owner.Reset();
 	Shapes.Reset();
+	bShapeGlows = false;
 	FireQuads.Reset();
 	SoftStreaks.Reset();
 	BitSets.Reset();

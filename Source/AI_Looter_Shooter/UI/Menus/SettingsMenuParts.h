@@ -6,11 +6,10 @@
 /** What the settings menu's .cpp files share: its buttons' actions, the key list's columns and value labels. */
 namespace SettingsMenu
 {
-	/** Resume or Back (and the corner's X). */
+	/** Back (and the corner's X). */
 	inline const FName ActionClose(TEXT("Close"));
 	/** A tab along the top; Index is its page (ESettingsPage, SettingsMenuHelp.h). */
 	inline const FName ActionTab(TEXT("Tab"));
-	inline const FName ActionSaveQuit(TEXT("SaveQuit"));
 	inline const FName ActionRebind(TEXT("Rebind"));
 	inline const FName ActionResetOne(TEXT("ResetOne"));
 	inline const FName ActionResetAll(TEXT("ResetAll"));

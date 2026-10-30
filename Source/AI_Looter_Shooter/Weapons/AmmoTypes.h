@@ -35,6 +35,12 @@ namespace LooterAmmo
 		int32 MaxCarried;          // pool cap
 		int32 PickupAmount;        // one box from Looter.SpawnAmmo (kills and chests drop LooterLoot's amounts instead)
 		const TCHAR* Short;        // "AR": the ammo class on the HUD
+		/**
+		 * The most a kill's pickup of this class holds, its "box" (the user, 2026-10-29 night: AR 18-36, SMG 24-48, pistol
+		 * 12-24, shotgun 4-8, sniper 3-6; the least is half of it; a chest 1.5 boxes). LooterLoot::AmmoAmountFor scales a
+		 * table's AR-rounds roll by KillBox / 36. Rockets don't read it (LooterLoot::RocketsFor).
+		 */
+		int32 KillBox;
 	};
 
 	AI_LOOTER_SHOOTER_API const FInfo& GetInfo(EAmmoType Type);

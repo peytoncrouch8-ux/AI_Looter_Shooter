@@ -28,7 +28,7 @@ struct AI_LOOTER_SHOOTER_API FBountyHaul
  * A bounty's loot handed over at the board as it's paid (the user's playtest, 2026-10-27, note 40: no chest at the fight;
  * the reward comes when the bounty is turned in). The rolls are the old strongbox's, so nothing about the reward's worth
  * changed: the tier's guns (BountyRules::RewardLoot) from the default loot table at a Strongbox's luck, two ammo pickups
- * of a chest's 36 rounds, a grave-salt grenade at a Strongbox's chance, a Strongbox's silver. They come out of the board's
+ * of a chest's 1.5 boxes, a grave-salt grenade at a Strongbox's chance, a Strongbox's silver. They come out of the board's
  * face toward the player, fanned so none lands on another, and land as any loot does (their beams, the rarity's sting).
  */
 namespace BountyPayout

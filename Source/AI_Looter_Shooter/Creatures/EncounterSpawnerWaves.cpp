@@ -322,7 +322,7 @@ ACreatureBase* AEncounterSpawner::SpawnOne(const FOwedCreature& Entry, const FVe
 		}
 		if (UCreaturePackComponent* Pack = bLeaderOut ? nullptr : Creature->GetPack())
 		{
-			Pack->SetLeader(true);
+			Pack->SetLeader(true, Group.LeaderTraits);
 		}
 	}
 	FLivingCreature& Out = Living.AddDefaulted_GetRef();

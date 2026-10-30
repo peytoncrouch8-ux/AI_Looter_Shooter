@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Elements/LooterElement.h"
 #include "Missions/MissionTargets.h"
 #include "Story/StoryLine.h"
 #include "Weapons/WeaponTypes.h"
@@ -152,6 +153,20 @@ struct AI_LOOTER_SHOOTER_API FMissionRewards
 	EWeaponRarity GunRarityFloor = EWeaponRarity::Common;
 
 	/**
+	 * Its maker by key (Affixes/WeaponMakers: Roundhouse, SaintMaud, Windfall, Meridian); none: rolled as loot's is. Main 4's
+	 * Saint Maud (the RR tuning the user took, 2026-10-29 night). Its parts are picked with the maker's leanings.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Rewards", meta = (EditCondition = "bGun"))
+	FName GunMaker;
+
+	/**
+	 * Its element: an element part of it is fitted when the roll gave none (Main 4's Hallow rounds, Knocking Below's Cinder;
+	 * MissionRewards::MakeRewardGun). None: whatever it rolled.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Rewards", meta = (EditCondition = "bGun"))
+	ELooterElement GunElement = ELooterElement::None;
+
+	/**
 	 * A named gun by its id (UNamedWeaponDefinition, DA_Named_<Id> in /Game/Data/Weapons: "Heirloom"), dropped at the
 	 * player's feet at their level as the gun above is: its own parts, rarity, name and line.
 	 */
@@ -179,7 +194,7 @@ struct AI_LOOTER_SHOOTER_API FMissionRewards
 /**
  * One of a turn-in's two choices (FMissionTurnIn::Choices): what it's called on the card, what it means in a line, what it
  * gives in place of the mission's own rewards, the story flag it sets for other code to read, and what's said once it's
- * chosen. Back Pay's: "Pay the eleven" (BackPay.Paid, a Rare gun) and "Keep the payroll" (BackPay.Kept, 400 silver).
+ * chosen. Back Pay's: "Pay the eleven" (BackPay.Paid, an Epic gun) and "Keep the payroll" (BackPay.Kept, 400 silver).
  */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FMissionTurnInChoice

@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Combat/HealthComponent.h"
+#include "Weapons/LegendaryEffectComponent.h"
 #include "Weapons/ReloadBeats.h"
 #include "Weapons/ReloadTuning.h"
 #include "Weapons/WeaponCurseEffects.h"
@@ -240,7 +241,10 @@ void AWeaponBase::CommitReloadRounds()
 	// Reloads draw from the holder's shared pool for this ammo class.
 	UWeaponManagerComponent* Inventory = GetHolderInventory();
 	const int32 Needed = Instance.Stats.MagazineSize - CurrentMagazine;
-	CurrentMagazine += Inventory && Needed > 0 ? Inventory->TakeAmmo(GetAmmoType(), Needed) : 0;
+	const int32 Taken = Inventory && Needed > 0 ? Inventory->TakeAmmo(GetAmmoType(), Needed) : 0;
+	CurrentMagazine += Taken;
+	// Company Scrip pays a share of the magazine back to the pool (a unique legendary's; nothing for any other gun).
+	ULegendaryEffectComponent::RefundReload(*this, Inventory, Taken);
 	// A Hungry iron feeds on its holder for the rounds it took.
 	WeaponCurseEffects::PayReload(*this);
 	BroadcastAmmo();

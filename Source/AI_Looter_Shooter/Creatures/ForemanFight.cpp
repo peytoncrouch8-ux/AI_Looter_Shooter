@@ -1,6 +1,7 @@
 #include "Creatures/ForemanFight.h"
 #include "Audio/LooterSoundCues.h"
 #include "Math/RandomStream.h"
+#include "Weapons/LegendaryDrops.h"
 
 #define LOCTEXT_NAMESPACE "LooterForeman"
 
@@ -90,6 +91,8 @@ namespace ForemanFight
 		// His body is a big man's at 1.5: everything lands clear of it.
 		Shower.MinReach = 200.f;
 		Shower.MaxReach = 460.f;
+		// His own legendary, farmed at his vigil stone: Company Scrip.
+		Shower.DedicatedLegendary = FName(LegendaryDrops::CompanyScripId);
 		return Shower;
 	}
 

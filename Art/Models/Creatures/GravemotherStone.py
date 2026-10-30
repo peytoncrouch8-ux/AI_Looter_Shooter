@@ -25,9 +25,11 @@ import json
 import math
 import os
 import random
+import sys
 
 import bmesh
 import bpy
+import numpy as np
 from mathutils import Matrix, Vector
 
 import looter_barrow as lb
@@ -36,9 +38,27 @@ import looter_creatures as lc
 import looter_model as lm
 import looter_textures as lt
 
+# The user's Tripo remake (2026-10-29): the headstone Tripo made on her back, cut off and set in the stone's frame at
+# the scripted slab's size, broken by the same cracks (parts_gravemother_stone.py; its texture
+# parts_gravemother_stone_look.py: the scripted granite with Tripo's carving baked in). LOOTER_GRAVEMOTHER_TRIPO=0 keeps
+# the scripted slab.
+TRIPO = os.environ.get('LOOTER_GRAVEMOTHER_TRIPO', '1') != '0'
 S = lb.spider_parts()
 KEEP = 'keep' in lb.argv()          # -ScriptArgs keep: its texture sets as they are
-lb.ensure_set(lbs.SET, lbs.paint_stone, always=not KEEP)
+if TRIPO:
+    sys.path.insert(0, os.path.join(lt.REPO, 'Art', 'Models', 'Creatures', 'Tripo'))
+    import parts_gravemother_build as gb
+    import parts_gravemother_look as gl
+    import parts_gravemother_stone as gst
+    import parts_gravemother_stone_look as gsl
+    BONES = {n: (np.array(h[:]), np.array(t[:])) for n, h, t, p in S['bones']}
+    S = gl.tripo_spider(S)                                     # her abdomen: the roots and earth fit it
+    TRIPO_STONE = gb.build(BONES)[0]['stone']
+    LOW = (TRIPO_STONE['V'], TRIPO_STONE['F'])
+    if not (KEEP and all(os.path.exists(lt.texture_path(lbs.SET, k)) for k in ('BC', 'N', 'ORM'))):
+        gsl.paint((*LOW, gst.corner_uvs(*LOW, '0')), TRIPO_STONE['tripo'])
+else:
+    lb.ensure_set(lbs.SET, lbs.paint_stone, always=not KEEP)
 lb.ensure_set(lb.ROOT_SET, lb.paint_roots, always=not KEEP)
 lb.ensure_set(lb.EARTH_SET, lb.paint_earth)
 STONE = lt.material(lbs.SET, name='GravemotherStone')
@@ -87,15 +107,32 @@ def triangles(obj):
 
 # --- The three states ---
 
+def slab(bm, state, only=None):
+    if TRIPO:
+        gst.slab(bm, LOW, state, S, only)
+    else:
+        lbs.slab(bm, state, only)
+
+
+def hull_points(bm):
+    """The slab's simple collision: the scripted outline's, or round the Tripo slab's own points (its stone faces)."""
+    if not TRIPO:
+        return lbs.hull_points()
+    pts = [v.co.copy() for f in bm.faces if f.material_index in (lbs.M_STONE, lbs.M_BREAK) for v in f.verts]
+    middle = sum(pts, Vector()) / len(pts)
+    return [p + (p - middle).normalized() * 0.6 for p in pts]
+
+
 states = []
 for state in (0, 1, 2):
     bm = lb.new_bm()
-    lbs.slab(bm, state)
+    slab(bm, state)
+    points = hull_points(bm)
     lbs.roots_into(bm, S, snapped=('FrontRight',) if state == 2 else ())
     lbs.mud_collar(bm, S)
     lbs.finish_uvs(bm)
     obj = model(f'GravemotherStone_{state}', bm, MATS)
-    hull(obj, lbs.hull_points())
+    hull(obj, points)
     states.append(obj)
 
 # --- The shards (state 2's pieces) ---
@@ -103,7 +140,7 @@ for state in (0, 1, 2):
 shards, centres = [], []
 for i, key in enumerate(lbs.SHARD_ORDER, 1):
     bm = lb.new_bm()
-    lbs.slab(bm, 2, only=key)
+    slab(bm, 2, only=key)
     lbs.finish_uvs(bm)
     xs, ys, zs = zip(*[tuple(v.co) for v in bm.verts])
     centre = Vector(((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, (min(zs) + max(zs)) / 2))

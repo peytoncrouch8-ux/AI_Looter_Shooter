@@ -11,12 +11,19 @@ namespace
 
 float FLevelRules::EnemyScale(int32 Level) const
 {
-	return 1.f + FMath::Max(EnemyGrowth, 0.f) * static_cast<float>(FMath::Max(Level, 1) - 1);
+	return Compounded(EnemyGrowth, Level);
+}
+
+float FLevelRules::Compounded(float Growth, int32 Level)
+{
+	// Each level a share of the one below (the user's +9% a level, compounding), so the step between two levels is the same
+	// share however high they are.
+	return FMath::Pow(1.f + FMath::Max(Growth, 0.f), static_cast<float>(FMath::Max(Level, 1) - 1));
 }
 
 float FLevelRules::PlayerHealthScale(int32 Level) const
 {
-	return 1.f + FMath::Max(HealthPerLevel, 0.f) * static_cast<float>(FMath::Max(Level, 1) - 1);
+	return Compounded(HealthPerLevel, Level);
 }
 
 double FLevelRules::KillXPShare(int32 EnemyLevel, int32 PlayerLevel) const

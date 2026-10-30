@@ -198,10 +198,8 @@ FSettingHelp SettingsMenu::RowHelp(ESettingRow Row)
 				*PercentText(CS::DefaultControllerRumble)));
 	case ESettingRow::ResetAllKeys:
 		return Help(TEXT("Reset all keys"), TEXT("Puts every key and every Hold or Toggle choice back to the game's defaults. Your other settings stay as they are."));
-	case ESettingRow::Resume:
-		return Help(TEXT("Resume"), TEXT("Closes the menu and goes back to the game. Every change here is already saved."));
-	case ESettingRow::SaveQuit:
-		return Help(TEXT("Save & Quit"), TEXT("Saves your game and goes back to the main menu."));
+	case ESettingRow::BackToPause:
+		return Help(TEXT("Back"), TEXT("Goes back to the pause menu. Every change here is already saved."));
 	case ESettingRow::Back:
 		return Help(TEXT("Back"), TEXT("Goes back to the main menu. Every change here is already saved."));
 	case ESettingRow::Count:

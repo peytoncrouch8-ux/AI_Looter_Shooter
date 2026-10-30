@@ -6,6 +6,7 @@
 #include "Loot/LootLibrary.h"
 #include "Loot/LootOdds.h"
 #include "Loot/LootTable.h"
+#include "Progression/LevelRules.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/SpiderCreature.h"
@@ -32,7 +33,7 @@ bool FLootRankOddsTest::RunTest(const FString& Parameters)
 	// 2026-10-20), from each rank's own table (its asset, or until Tools/Unreal/create_rank_assets.py has made it, the
 	// stand-in with the same odds): a legendary on 0.3% / 2.2% / 5.5% / 13.3% / 21.3% of kills up the tiers, Soulfed 21.4% and
 	// bosses 30.3% as before; guns on 30% of kills (Regular, the default table), 60% (Restless), 90% (Gravebound) and every
-	// kill above; more guns and ammo pickups up the tiers, each pickup still a kill's 18 to 36 rounds; Common the likeliest
+	// kill above; more guns and ammo pickups up the tiers, each pickup still a kill's amount for its class; Common the likeliest
 	// rarity at every rank.
 	struct FRankTarget
 	{
@@ -87,8 +88,8 @@ bool FLootRankOddsTest::RunTest(const FString& Parameters)
 		}
 
 		// Up the tiers (Regular to Ethereal), and from a Soulfed monster to a boss: legendaries more often, more guns, more ammo
-		// pickups, each still holding a kill's 18 to 36 rounds. A Soulfed monster's table is an Ethereal's give or take, so
-		// the climb starts again at it.
+		// pickups, each still holding a kill's amount for its class (sniper 3 up to SMG 48). A Soulfed monster's table is an
+		// Ethereal's give or take, so the climb starts again at it.
 		if (Target.Rank == ECreatureRank::Legendary)
 		{
 			LastLegendary = LastGuns = LastAmmo = -1.0;
@@ -96,8 +97,10 @@ bool FLootRankOddsTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s: legendaries more often than the rank below"), *Name), Legendary > LastLegendary);
 		TestTrue(FString::Printf(TEXT("%s: more guns a kill than the rank below (%.2f)"), *Name, Guns), Guns > LastGuns);
 		TestTrue(FString::Printf(TEXT("%s: more ammo pickups a kill than the rank below (%.2f)"), *Name, Ammo), Ammo > LastAmmo);
-		TestTrue(FString::Printf(TEXT("%s: each ammo pickup holds 18 to 36 rounds (%d to %d)"), *Name, Tally.FewestRounds, Tally.MostRounds),
-			Tally.FewestRounds >= LooterLoot::KillAmmoAmountMin && Tally.MostRounds <= LooterLoot::KillAmmoAmountMax);
+		// By class (the user, 2026-10-29 night): the fewest a sniper's 3, the most an SMG's 48.
+		TestTrue(FString::Printf(TEXT("%s: each ammo pickup holds a kill's amount, 3 to 48 rounds (%d to %d)"), *Name, Tally.FewestRounds, Tally.MostRounds),
+			Tally.FewestRounds >= LooterLoot::AmmoAmountFor(EAmmoType::Sniper, LooterLoot::KillAmmoAmountMin)
+			&& Tally.MostRounds <= LooterLoot::AmmoAmountFor(EAmmoType::SMG, LooterLoot::KillAmmoAmountMax));
 		LastLegendary = Legendary;
 		LastGuns = Guns;
 		LastAmmo = Ammo;
@@ -141,8 +144,8 @@ bool FLootLevelTest::RunTest(const FString& Parameters)
 			FWeaponInstanceData GunAtOne = Gun;
 			GunAtOne.Level = 1;
 			const FWeaponStats AtOne = UWeaponRollLibrary::ComputeInstanceStats(GunAtOne);
-			const float Growth = 1.f + Weapon->DamagePerLevel * static_cast<float>(KillLevel - 1);
-			TestNearlyEqual(FString::Printf(TEXT("Level %d kill: the gun's damage"), KillLevel), Gun.Stats.Damage, AtOne.Damage * Growth,
+			const float Growth = FLevelRules::Compounded(Weapon->DamagePerLevel, KillLevel);
+			TestNearlyEqual(FString::Printf(TEXT("Level %d kill: the gun's damage, +9%% a level compounding"), KillLevel), Gun.Stats.Damage, AtOne.Damage * Growth,
 				AtOne.Damage * 0.001f);
 		}
 	}

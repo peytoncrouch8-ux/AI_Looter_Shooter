@@ -35,7 +35,7 @@ namespace ShieldRules
 
 	/**
 	 * A ward's numbers: base x rarity x level x build x (1 +- the definition's variance, seeded):
-	 *   capacity = BaseCapacity x rarity x (1 + CapacityPerLevel x (Level - 1)) x lean x var
+	 *   capacity = BaseCapacity x rarity x (1 + CapacityPerLevel) ^ (Level - 1) x lean x var
 	 *   delay    = BaseRechargeDelay x rarity x lean x var
 	 *   rate     = capacity x BaseRechargeShare x rarity x lean x var   (points a second)
 	 */

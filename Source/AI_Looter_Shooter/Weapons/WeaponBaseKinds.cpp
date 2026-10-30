@@ -7,6 +7,7 @@
 #include "UI/HUD/HudScopeWidget.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/GunKindsTuning.h"
+#include "Weapons/LegendaryEffectComponent.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponModelComponent.h"
@@ -52,7 +53,8 @@ namespace
 
 float AWeaponBase::GetShotInterval() const
 {
-	const float Base = Instance.Stats.GetSecondsBetweenShots();
+	// Company Scrip's kills this burst quicken it (a unique legendary's; 1 for every other gun).
+	const float Base = Instance.Stats.GetSecondsBetweenShots() / ULegendaryEffectComponent::FireRateScaleOf(*this);
 	const EWeaponKind Kind = KindOfInstance(Instance);
 	// An automatic's rhythm isn't a metronome (gun identity): each interval a touch long or short, keyed on the shot count so
 	// the trigger's ready check and the auto-fire timer read the same one, the mean kept so the damage per second is too.

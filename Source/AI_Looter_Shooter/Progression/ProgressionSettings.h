@@ -63,15 +63,16 @@ public:
 	double KillXPFloor = FLevelRules::DefaultKillXPFloor;
 
 	/**
-	 * Enemy health and damage grow by this share of their level 1 values for each level (0.08: x1.72 at level 10). Keep it
+	 * Enemy health and damage grow by this share of the level below's for each level, compounding (0.09: x1.68 at 7, x2.17 at
+	 * 10; the user, 2026-10-29 night). Keep it
 	 * equal to the guns' DamagePerLevel (UWeaponDefinition), so a gun of an enemy's level always takes the same hits.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Levels", meta = (ClampMin = "0", ClampMax = "1"))
 	float EnemyGrowthPerLevel = FLevelRules::DefaultEnemyGrowth;
 
 	/**
-	 * The first level-up reward: the player's most health grows by this share of their level 1 health for each level
-	 * (0.08: +8% a level), keeping pace with the enemies' damage.
+	 * The first level-up reward: the player's most health grows by this share of the level below's for each level, compounding
+	 * (0.09, as the enemies since 2026-10-29 night), keeping pace with the enemies' damage.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Levels", meta = (ClampMin = "0", ClampMax = "1"))
 	float HealthPerLevel = FLevelRules::DefaultHealthPerLevel;

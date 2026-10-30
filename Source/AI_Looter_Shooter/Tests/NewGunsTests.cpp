@@ -293,7 +293,8 @@ bool FNewGunsRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("A small kill pickup: one rocket"), LooterLoot::RocketsFor(LooterLoot::KillAmmoAmountMin), 1);
 	TestEqual(TEXT("...a big one: three"), LooterLoot::RocketsFor(LooterLoot::KillAmmoAmountMax), 3);
 	TestEqual(TEXT("A chest's: three"), LooterLoot::AmmoAmountFor(EAmmoType::Rocket, LooterLoot::ChestAmmoAmount), 3);
-	TestEqual(TEXT("Other ammo: the rounds themselves"), LooterLoot::AmmoAmountFor(EAmmoType::SMG, 27), 27);
+	TestEqual(TEXT("AR ammo: the rounds themselves"), LooterLoot::AmmoAmountFor(EAmmoType::AssaultRifle, 27), 27);
+	TestEqual(TEXT("...SMG ammo: its box's share more (27 x 48/36)"), LooterLoot::AmmoAmountFor(EAmmoType::SMG, 27), 36);
 	for (int32 Rounds = LooterLoot::KillAmmoAmountMin; Rounds <= LooterLoot::KillAmmoAmountMax; ++Rounds)
 	{
 		const int32 Rockets = LooterLoot::RocketsFor(Rounds);

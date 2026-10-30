@@ -20,6 +20,7 @@
 #include "Creatures/GravemotherCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/SpitterSpider.h"
+#include "Creatures/StoneSentinelCreature.h"
 #include "Creatures/UnpaidCreature.h"
 
 namespace PacingPaths
@@ -107,8 +108,44 @@ namespace PacingPaths
 		const ACreatureBase* Abel = nullptr;
 		const ACreatureBase* Gravemother = nullptr;
 		const ACreatureBase* Foreman = nullptr;
+		/** The Stone Sentinels (four after Main 4: build_area_sentinels.py). */
+		const ACreatureBase* Sentinel = nullptr;
+		/** The placeholders (build_area_placeholders.py), their BP_Placeholder_<Kind> classes' (null until they're made). */
+		const ACreatureBase* CoffinRat = nullptr;
+		const ACreatureBase* BoneHound = nullptr;
+		const ACreatureBase* Knocker = nullptr;
+		const ACreatureBase* Gravepicker = nullptr;
+		const ACreatureBase* GravepickerLookout = nullptr;
 	};
 
+
+	/** A placeholder kind's class default (create_placeholder_creatures.py's BP_Placeholder_<Kind>), or null until it's made. */
+	inline const ACreatureBase* PlaceholderOf(const TCHAR* Kind)
+	{
+		const FString Path = FString::Printf(TEXT("/Game/Data/Placeholders/BP_Placeholder_%s.BP_Placeholder_%s_C"), Kind, Kind);
+		const UClass* Class = LoadClass<ACreatureBase>(nullptr, *Path);
+		return Class ? Class->GetDefaultObject<ACreatureBase>() : nullptr;
+	}
+
+	/** Kills added only for a creature whose class is made (a placeholder before its BP exists counts nothing). */
+	inline void AddKills(TArray<FPathKills>& Kills, const FPathKills& Made)
+	{
+		if (Made.Creature)
+		{
+			Kills.Add(Made);
+		}
+	}
+
+	/** A stop of kills alone (no mission), each group's only if its class is made. */
+	inline FPathStop KillsStop(const TCHAR* Label, std::initializer_list<FPathKills> Groups)
+	{
+		FPathStop Stop = { Label, NAME_None, {}, 0 };
+		for (const FPathKills& Each : Groups)
+		{
+			AddKills(Stop.Kills, Each);
+		}
+		return Stop;
+	}
 	inline FPathCast MakeCast()
 	{
 		FPathCast Made;
@@ -120,6 +157,12 @@ namespace PacingPaths
 		Made.Abel = GetDefault<AAbelKeeper>();
 		Made.Gravemother = GetDefault<AGravemotherCreature>();
 		Made.Foreman = GetDefault<AForemanCreature>();
+		Made.Sentinel = GetDefault<AStoneSentinelCreature>();
+		Made.CoffinRat = PlaceholderOf(TEXT("CoffinRat"));
+		Made.BoneHound = PlaceholderOf(TEXT("BoneHound"));
+		Made.Knocker = PlaceholderOf(TEXT("Knocker"));
+		Made.Gravepicker = PlaceholderOf(TEXT("Gravepicker"));
+		Made.GravepickerLookout = PlaceholderOf(TEXT("GravepickerLookout"));
 		return Made;
 	}
 
@@ -245,9 +288,22 @@ namespace PacingPaths
 			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("DepotWaiting"), 465.0, 11150.0),
 			  PlannedKills(Foes.Unpaid, EPathRank::Basic, 4, TEXT("DepotReturn"), 465.0, 11150.0),
 			  PlannedKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("DepotReturn"), 465.0, 11150.0) }, 450 });
+		// The baggage room's coffin rats (placeholders, beside the depot's fight: build_area_placeholders.py BaggageRats).
+		AddKills(Path.Last().Kills, PlannedKills(Foes.CoffinRat, EPathRank::Basic, 4, TEXT("BaggageRats"), 465.0, 11150.0));
 		// Mr. Sloane's keys and the window's shutter (2026-10-27, the user's note 37): no fight, a short errand.
 		Path.Add({ TEXT("Lost and Found"), TEXT("LostAndFound"), {}, 150 });
+		// Boot Hill's grave robbers after Cold Welcome, gone after Hallowed Ground (placeholders: BootHillDiggers).
+		Path.Add(KillsStop(TEXT("Boot Hill's Gravepickers (placeholders)"),
+			{ PlannedKills(Foes.Gravepicker, EPathRank::Basic, 4, TEXT("BootHillDiggers"), 3200.0, 0.0),
+			  PlannedKills(Foes.GravepickerLookout, EPathRank::Basic, 2, TEXT("BootHillDiggers"), 3200.0, 0.0) }));
 		Path.Add(MainFourStop(Foes));
+		// After Hallowed Ground: the four Stone Sentinels (build_area_sentinels.py: two on Boot Hill, two on the churchyard's east
+		// rows; the area's rank odds) and the keeper's road's Bone Hounds until The Gravewind (placeholders: KeepersRoadHounds).
+		Path.Add(KillsStop(TEXT("Stone Sentinels, the keeper's road's hounds"),
+			{ PlannedKills(Foes.Sentinel, EPathRank::AreaRolled, 2, TEXT("SentinelsBootHill"), 3275.0, -1050.0),
+			  PlannedKills(Foes.Sentinel, EPathRank::AreaRolled, 2, TEXT("SentinelsChurchyard"), 7200.0, -750.0),
+			  PlannedKills(Foes.BoneHound, EPathRank::Basic, 4, TEXT("KeepersRoadHounds"), 2000.0, -10000.0),
+			  PlannedKills(Foes.BoneHound, EPathRank::Restless, 1, TEXT("KeepersRoadHounds"), 2000.0, -10000.0) }));
 		// Amos's old hands, Barn Doors (FIGHTS lane 6): five Unpaid and a Restless leader in the yard, then four out of the barn
 		// and a Bell-Ringer (build_area_whitlock.py, WhitlockHands).
 		Path.Add({ TEXT("Side 2, Unfinished Business"), TEXT("Side2"),
@@ -257,6 +313,8 @@ namespace PacingPaths
 		Path.Add({ TEXT("Knocking Below"), TEXT("KnockingBelow"),
 			{ KeptKills(Foes.Unpaid, EPathRank::Basic, 5, TEXT("TillyCellar"), -2400.0, 6200.0, 3, 4),
 			  KeptKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("TillyCellar"), -2400.0, 6200.0, 3, 4) }, 600 });
+		// The cellar's coffin rats, with its fight and at its levels (placeholders: CellarRats, like Encounter_TillyCellar).
+		AddKills(Path.Last().Kills, KeptKills(Foes.CoffinRat, EPathRank::Basic, 4, TEXT("CellarRats"), -2400.0, 6200.0, 3, 4));
 		Path.Add(RoamingStop(Foes));
 		Path.Add(MainFiveStop(Foes));
 		// The Gravemother (set 4, Soulfed's 2) and about six of her brood (spiderlings at her 4).
@@ -264,6 +322,10 @@ namespace PacingPaths
 			{ MakeKills(Foes.Gravemother, EPathRank::Own, 1, TEXT("sink")),
 			  KeptKills(Foes.Spider, EPathRank::Basic, 6, TEXT("sink"), 5550.0, 6500.0, 4, 4) }, 900 });
 		Path.Add(DeadLiftStop(Foes, /*bWithCrest*/ true));
+		// The tramway's knockers after Dead Lift (placeholders: TramwayKnockers).
+		Path.Add(KillsStop(TEXT("The tramway's Knockers (placeholders)"),
+			{ PlannedKills(Foes.Knocker, EPathRank::Basic, 5, TEXT("TramwayKnockers"), 17300.0, 3900.0),
+			  PlannedKills(Foes.Knocker, EPathRank::Restless, 1, TEXT("TramwayKnockers"), 17300.0, 3900.0) }));
 		// Calder's Post's yard and the watch; the Bench's Dinner Pail camp on the way (optional).
 		Path.Add({ TEXT("The Last Watch"), TEXT("LastWatch"),
 			{ PlannedKills(Foes.Miner, EPathRank::Basic, 5, TEXT("CalderPost"), 16800.0, -6000.0),

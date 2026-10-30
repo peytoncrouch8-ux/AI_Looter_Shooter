@@ -6,6 +6,7 @@
 class AActor;
 class AWeaponBase;
 class UNamedWeaponDefinition;
+class UWeaponDefinition;
 class UWorld;
 struct FMissionRewards;
 struct FXPCurve;
@@ -69,6 +70,17 @@ namespace MissionRewards
 
 	/** The reward gun's rarity: as rolled, or Floor when that's rarer. */
 	EWeaponRarity ApplyFloor(EWeaponRarity Rolled, EWeaponRarity Floor);
+
+	/**
+	 * A reward gun of Kind at Rarity and Level, made as the mission asks (MissionRewardGun.cpp): with the rewards' GunMaker
+	 * its maker is that one and its parts are picked with that maker's leanings; with a GunElement its parts lean to it and,
+	 * when the roll still gave none of it, that element's part is fitted in its slot (the magazine, cylinder or rocket),
+	 * as the bench would. Otherwise exactly UWeaponRollLibrary::RollWeaponWithRarity.
+	 */
+	FWeaponInstanceData MakeRewardGun(UWeaponDefinition* Kind, EWeaponRarity Rarity, int32 Level, const FMissionRewards& Rewards);
+
+	/** "Saint Maud, Hallow, " for the reward lines: the gun's maker and element as the rewards ask; empty for neither. */
+	FString GunWords(const FMissionRewards& Rewards);
 
 	/**
 	 * Every reward gun's way into the world: Instance comes up a little ahead of Player (toward whoever they turned the

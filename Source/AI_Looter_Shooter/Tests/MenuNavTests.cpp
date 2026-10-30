@@ -296,17 +296,18 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	Menu->Open(ESettingsMenuMode::Pause);
 	Menu->AdvanceNav(0.f);
 
-	// Opened under the mouse: the focus waits on Resume, unseen, and the prompts name the keyboard's keys.
+	// Opened under the mouse: the focus waits on the top row (Back to the pause menu's list; it was Resume until
+	// 2026-10-29), unseen, and the prompts name the keyboard's keys.
 	TestTrue(TEXT("The focus starts on Resume"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
 	TestFalse(TEXT("...with no focus look under the mouse"), Menu->IsFocusLookShown());
-	TestTrue(TEXT("Keyboard prompts"), PromptsText(Menu->GetPrompts()).StartsWith(TEXT("Enter Select")) && PromptsText(Menu->GetPrompts()).Contains(TEXT("Esc Resume")));
+	TestTrue(TEXT("Keyboard prompts"), PromptsText(Menu->GetPrompts()).StartsWith(TEXT("Enter Select")) && PromptsText(Menu->GetPrompts()).Contains(TEXT("Esc Back")));
 
 	// The first D-pad press only shows where the focus is; the prompts turn to the gamepad's buttons.
 	TestTrue(TEXT("The D-pad is the menu's"), Menu->HandleNavKey(EKeys::Gamepad_DPad_Down));
 	TestTrue(TEXT("Still on Resume, now lit"), Menu->GetFocusedWidget() == Menu->GetResumeButton() && Menu->IsFocusLookShown() && Menu->GetResumeButton()->IsFocusLit());
 	const FString PadPrompts = PromptsText(Menu->GetPrompts());
-	TestTrue(TEXT("Gamepad prompts: A Select, LB / RB Tabs, B Resume"),
-		PadPrompts.StartsWith(TEXT("A Select")) && PadPrompts.Contains(TEXT("LB / RB Tabs")) && PadPrompts.Contains(TEXT("B Resume")));
+	TestTrue(TEXT("Gamepad prompts: A Select, LB / RB Tabs, B Back (to the pause menu's list)"),
+		PadPrompts.StartsWith(TEXT("A Select")) && PadPrompts.Contains(TEXT("LB / RB Tabs")) && PadPrompts.Contains(TEXT("B Back")));
 	TestTrue(TEXT("Up from Resume: it stays (the list doesn't wrap)"), Menu->HandleNavKey(EKeys::Gamepad_DPad_Up) && Menu->GetFocusedWidget() == Menu->GetResumeButton());
 
 	// Down the list in order: the quality presets, motion blur, the field of view.
@@ -403,11 +404,12 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...with the keyboard's prompts"), PromptsText(Menu->GetPrompts()).Contains(TEXT("PgUp / PgDn Tabs")));
 	Menu->HandleNavKeyUp(EKeys::Down);
 
-	// Opened again: back on Resume and the first tab, then A resumes; B closes from anywhere else.
+	// Opened again: back on the top row and the first tab, then A on it goes back (OnClose: the HUD shows the pause menu's
+	// list); B closes from anywhere else.
 	Menu->Open(ESettingsMenuMode::Pause);
 	TestTrue(TEXT("Opened again: back on Resume"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
 	TestEqual(TEXT("...on the Graphics tab"), Menu->GetPage(), static_cast<int32>(SettingsMenu::ESettingsPage::Graphics));
-	TestTrue(TEXT("Enter on Resume closes the menu"), Menu->HandleNavKey(EKeys::Enter) && Closed == 1);
+	TestTrue(TEXT("Enter on the top row closes the menu"), Menu->HandleNavKey(EKeys::Enter) && Closed == 1);
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("B with nothing held closes it"), Menu->HandleNavKey(EKeys::Gamepad_FaceButton_Right) && Closed == 2);
 	TestTrue(TEXT("A held B's repeat doesn't close it again"), Menu->HandleNavKey(EKeys::Gamepad_FaceButton_Right, true) && Closed == 2);

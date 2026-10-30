@@ -191,4 +191,19 @@ namespace VfxRules
 
 	/** A ring drawn in streaks (no M_FX_Shape): this many pieces for a radius (cm), 10 to 28. */
 	AI_LOOTER_SHOOTER_API int32 RingPieces(float Radius);
+
+	/**
+	 * A sprite's roll Age s into its life (a puff, a fireball, a flame): turning slowly as it billows, easing off, its way and
+	 * pace (0.25-0.7 rad/s) from Roll, its spawn's random roll, so a cloud of them isn't a still stack of cards. Its noise seed
+	 * stays the spawn's roll (the pattern turns with it, never jumps).
+	 */
+	AI_LOOTER_SHOOTER_API float SpriteRoll(float Roll, float Age);
+
+	/**
+	 * How many times its size a glow Size cm across moving Speed cm/s across the view is drawn along its way (an ember, a mote,
+	 * a glint: the smear a camera's shutter, GlowShutter s, shows), 1 still, at most GlowMostStretch.
+	 */
+	AI_LOOTER_SHOOTER_API float GlowStretch(float Speed, float Size);
+	inline constexpr float GlowShutter = 0.012f;
+	inline constexpr float GlowMostStretch = 3.f;
 }

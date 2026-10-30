@@ -156,11 +156,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreatureLevelScalingTest, "Looter.Creatures.Le
 
 bool FCreatureLevelScalingTest::RunTest(const FString& Parameters)
 {
-	// Docs/Story.md, "Health and damage": x(1 + 0.08 x (level - 1)), the rule guns' damage follows, so a gun of the
+	// Docs/Story.md, "Health and damage": x1.09 ^ (level - 1), compounding (the user, 2026-10-29 night; was x(1 + 0.08 x
+	// (level - 1))), the rule guns' damage follows, so a gun of the
 	// creature's level always takes the same number of hits. Its rank multiplies on top, at its rank's level.
 	const FLevelRules Shipped;
 	TestNearlyEqual(TEXT("Level 1: as its class made it"), Shipped.EnemyScale(1), 1.f, 1e-6f);
-	TestNearlyEqual(TEXT("Level 10: x1.72"), Shipped.EnemyScale(10), 1.72f, 1e-5f);
+	TestNearlyEqual(TEXT("Level 10: x1.09^9 (2.17)"), Shipped.EnemyScale(10), FMath::Pow(1.09f, 9.f), 1e-4f);
 	const FLevelRules Rules = UPlayerProgressionSubsystem::GetLevelRules();
 	TestNearlyEqual(TEXT("Creatures grow as guns' damage does (UWeaponDefinition::DamagePerLevel)"), Rules.EnemyGrowth,
 		GetDefault<UWeaponDefinition>()->DamagePerLevel, 1e-6f);
@@ -205,15 +206,15 @@ bool FCreatureLevelScalingTest::RunTest(const FString& Parameters)
 			TestEqual(*FString::Printf(TEXT("%s at level %d: drops level %d guns"), *Kind, NewLevel, NewLevel), Loot->Level, NewLevel);
 		}
 
-		// Linear: every level adds the same health, 8% of its level 1 health.
+		// Compounding: every level is the same share more than the one below, 9%.
 		Creature->SetLevel(7);
 		const float At7 = Health->MaxHealth;
 		Creature->SetLevel(8);
 		const float At8 = Health->MaxHealth;
 		Creature->SetLevel(9);
 		const float At9 = Health->MaxHealth;
-		TestNearlyEqual(*FString::Printf(TEXT("%s: each level adds the same health"), *Kind), At9 - At8, At8 - At7, 0.01f);
-		TestNearlyEqual(*FString::Printf(TEXT("%s: a level's health is its share of level 1's"), *Kind), At8 - At7, BaseHealth * Rules.EnemyGrowth, 0.01f);
+		TestNearlyEqual(*FString::Printf(TEXT("%s: each level the same share more"), *Kind), At9 / At8, At8 / At7, 0.001f);
+		TestNearlyEqual(*FString::Printf(TEXT("%s: a level's health is its share more than the level below's"), *Kind), At8 / At7, 1.f + Rules.EnemyGrowth, 0.001f);
 
 		// Hurt, it keeps its share of health as its level changes.
 		Health->SetHealth(Health->MaxHealth * 0.5f);

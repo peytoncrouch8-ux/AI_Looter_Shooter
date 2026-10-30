@@ -75,10 +75,10 @@ bool FShieldStatsTest::RunTest(const FString& Parameters)
 	const float Share = Common.Stats.RechargeRate / Common.Stats.Capacity;
 	TestTrue(FString::Printf(TEXT("...refills about 28%% a second (%.3f)"), Share), FMath::Abs(Share - 0.28f) <= 0.28f * 0.081f);
 
-	// The same seed: the same numbers, every time; another level grows the capacity 8% a level as health does.
+	// The same seed: the same numbers, every time; another level grows the capacity 9% a level, compounding, as health does.
 	TestEqual(TEXT("Seeded: the same twice"), TestWard(Definition).Stats.Capacity, Common.Stats.Capacity);
 	const FShieldInstanceData Eleven = TestWard(Definition, EWeaponRarity::Common, 11);
-	TestEqual(TEXT("Level 11: 1.8x level 1's"), Eleven.Stats.Capacity, Common.Stats.Capacity * 1.8f, 0.01f);
+	TestEqual(TEXT("Level 11: 1.09^10x level 1's (2.37)"), Eleven.Stats.Capacity, Common.Stats.Capacity * FMath::Pow(1.09f, 10.f), 0.01f);
 	TestEqual(TEXT("...its wait unchanged"), Eleven.Stats.RechargeDelay, Common.Stats.RechargeDelay, 0.0001f);
 
 	// Rarity climbs: a Legendary holds 1.75x a Common of its seed, wakes in 0.8 of the time and refills a larger share.

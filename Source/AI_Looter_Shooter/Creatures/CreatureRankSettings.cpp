@@ -66,7 +66,9 @@ UCreatureRankSettings::UCreatureRankSettings()
 	Basic = MakeRank(nullptr, LooterUI::Color::TierRegular(), 1.f, 1.f, 1.f, 1.f, 0, 0.f, ECreatureRank::Basic);
 	Rare = MakeRank(TEXT("Restless"), LooterUI::Color::TierRestless(), 1.08f, 2.f, 1.15f, 2.f, 1, 0.1f, ECreatureRank::Rare);
 	Epic = MakeRank(TEXT("Gravebound"), LooterUI::Color::TierGravebound(), 1.15f, 3.f, 1.3f, 3.5f, 1, 0.2f, ECreatureRank::Epic);
-	Hallowed = MakeRank(TEXT("Hallowed"), LooterUI::Color::TierHallowed(), 1.22f, 3.5f, 1.45f, 6.f, 2, 0.28f, ECreatureRank::Hallowed);
+	// Health 3.4, was 3.5: with growth compounding (+9% a level, 2026-10-29 night) its two levels on top grew more, and 3.4
+	// keeps the approved 5.5 effective health (5.6; 3.5 gave 5.78).
+	Hallowed = MakeRank(TEXT("Hallowed"), LooterUI::Color::TierHallowed(), 1.22f, 3.4f, 1.45f, 6.f, 2, 0.28f, ECreatureRank::Hallowed);
 	Ethereal = MakeRank(TEXT("Ethereal"), LooterUI::Color::TierEthereal(), 1.3f, 4.f, 1.6f, 9.f, 2, 0.35f, ECreatureRank::Ethereal);
 	// Soulfed's and a boss's tag: the legendary orange, #FF9900 (Main's call, 2026-10-20: the old #FFCC00 gold sat too near
 	// Hallowed's saint-gold #F5C842).

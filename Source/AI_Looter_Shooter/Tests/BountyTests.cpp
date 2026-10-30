@@ -314,12 +314,12 @@ bool FBountyRewardsTest::RunTest(const FString& Parameters)
 	const FChestLootOverride Box = RewardLoot(EBountyTier::Deadly, Tuning);
 	TestTrue(TEXT("Deadly: three guns at luck 1"), Box.bOverride && Box.Guns == 3 && FMath::IsNearlyEqual(Box.Luck, 1.f) && Box.AmmoPickups == 2);
 	TestEqual(TEXT("Wanted: two"), RewardLoot(EBountyTier::Wanted, Tuning).Guns, 2);
-	// Its table: those guns for sure (none where guns don't drop), the ammo at a chest's 36 rounds.
+	// Its table: those guns for sure (none where guns don't drop), the ammo at a chest's 1.5 boxes.
 	const ULootTable* Table = BountyPayout::MakeTable(EBountyTier::Deadly, Tuning, /*bGunsDropHere*/ true);
 	TestTrue(TEXT("Its table: three guns for sure at luck 1"), Table && Table->MinWeaponDrops == 3 && Table->MaxWeaponDrops == 3
 		&& FMath::IsNearlyEqual(Table->WeaponDropChance, 1.f) && FMath::IsNearlyEqual(Table->Luck, 1.f));
 	TestTrue(TEXT("...at its full legendary odds (bounties keep them early)"), Table && Table->bKeepsLegendaryOdds);
-	TestTrue(TEXT("...two ammo pickups of 36"), Table && Table->MinAmmoDrops == 2 && Table->MaxAmmoDrops == 2
+	TestTrue(TEXT("...two ammo pickups of a chest's 1.5 boxes"), Table && Table->MinAmmoDrops == 2 && Table->MaxAmmoDrops == 2
 		&& Table->AmmoAmountMin == LooterLoot::ChestAmmoAmount && Table->AmmoAmountMax == LooterLoot::ChestAmmoAmount);
 	TestTrue(TEXT("...no guns where none drop"), FMath::IsNearlyEqual(BountyPayout::MakeTable(EBountyTier::Wanted, Tuning, false)->WeaponDropChance, 0.f));
 	// Thrown out of the board toward the player: up, and out their way, the lot fanned either side of them.

@@ -143,6 +143,7 @@ FElementTarget ElementRules::TargetOf(const AActor* Target)
 	}
 	Result.Body = Creature->GetElementBody();
 	Result.bBoss = Creature->IsBossCreature() || Creature->GetRank() == ECreatureRank::Boss;
+	Result.bSoulfed = Creature->GetRank() == ECreatureRank::Legendary;
 	// A spirit: the Ethereal tier, or a soul that phases. A ward is its own layer now (typed wards), not a spirit.
 	const UCreatureTraitComponent* Traits = Creature->GetTraitComponent();
 	Result.bSpirit = Creature->GetRank() == ECreatureRank::Ethereal || (Traits && Traits->HasTrait(ECreatureTrait::Phasing));
@@ -159,7 +160,11 @@ EElementAffinity ElementRules::Affinity(ELooterElement Element, const FElementTa
 		return EElementAffinity::Neutral;
 	}
 	const FBodySides Sides = SidesOf(Target.Body);
-	uint8 Immune = Sides.Immune | Target.ImmuneMask;
+	// A boss or a Soulfed monster ignores its body's resistances and immunities (the user, 2026-10-29 night: "bosses ignore
+	// their body's resistances", weak where the body is weak): only a story immunity (ImmuneMask) stands against the player.
+	const bool bBodyShieldsOff = Target.bBoss || Target.bSoulfed;
+	const uint8 BodyResist = bBodyShieldsOff ? 0 : Sides.Resist;
+	uint8 Immune = (bBodyShieldsOff ? 0 : Sides.Immune) | Target.ImmuneMask;
 	uint8 Weak = Sides.Weak | Target.WeakMask;
 	if (Target.bSpirit)
 	{
@@ -186,7 +191,7 @@ EElementAffinity ElementRules::Affinity(ELooterElement Element, const FElementTa
 	{
 		return EElementAffinity::Weak;
 	}
-	return (Sides.Resist & Bit) ? EElementAffinity::Resist : EElementAffinity::Neutral;
+	return (BodyResist & Bit) ? EElementAffinity::Resist : EElementAffinity::Neutral;
 }
 
 float ElementRules::AffinityScale(EElementAffinity Affinity, const FElementTuning& Tuning)
@@ -203,10 +208,11 @@ float ElementRules::AffinityScale(EElementAffinity Affinity, const FElementTunin
 
 float ElementRules::HitScale(EElementAffinity Affinity, const FElementTuning& Tuning)
 {
+	// The bullet's own numbers, not the status's (the user, 2026-10-29 night: bullets x1.75 / x0.5, statuses x2 / x0.33).
 	switch (Affinity)
 	{
-	case EElementAffinity::Weak: return Tuning.Weak;
-	case EElementAffinity::Resist: return Tuning.Resist;
+	case EElementAffinity::Weak: return Tuning.BulletWeak;
+	case EElementAffinity::Resist: return Tuning.BulletResist;
 	// A scratch, so the player sees the gun is wrong for it rather than a miss.
 	case EElementAffinity::Immune: return Tuning.ImmuneHit;
 	default: return 1.f;
@@ -405,6 +411,8 @@ FString ElementRules::WeaknessLine(const UClass* CreatureClass)
 	FElementTarget Target;
 	Target.Body = BodyOf(CreatureClass);
 	Target.ImmuneMask = MaskOf(StoryImmunityOf(CreatureClass));
+	// A boss's page reads as the fight does: the three bosses are the ones with a story immunity.
+	Target.bBoss = Target.ImmuneMask != 0;
 	TArray<FString> Weak;
 	TArray<FString> Resists;
 	TArray<FString> Immune;

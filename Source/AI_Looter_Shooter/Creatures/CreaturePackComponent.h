@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Math/RandomStream.h"
+#include "Creatures/CreatureTrait.h"
 #include "CreaturePackComponent.generated.h"
 
 class AController;
@@ -69,8 +70,11 @@ public:
 
 	// --- Its pack's leader (an encounter group's bLeader) ---
 
-	/** Makes it its pack's leader (or not): a leader wears Rallying on top of its rolled traits, and its fall shakes its pack. */
-	void SetLeader(bool bInLeader);
+	/**
+	 * Makes it its pack's leader (or not): a leader wears Rallying and its group's LeaderTraits (FEncounterGroup: the mountain
+	 * fights' Warded) on top of its rolled traits, and its fall shakes its pack.
+	 */
+	void SetLeader(bool bInLeader, TConstArrayView<ECreatureTrait> InLeaderTraits = {});
 	bool IsLeader() const { return bLeader; }
 
 	// --- Its brain's changes ---
@@ -128,7 +132,7 @@ private:
 	/** The rank sting, if it's due (PackRules::ShouldRankSting) and no other creature just sounded one. */
 	void TryRankSting();
 	void StartRetreat();
-	/** A leader wears Rallying: put it back if its traits were rolled again (a promotion, a new life). */
+	/** A leader wears Rallying and its LeaderTraits: put them back if its traits were rolled again (a promotion, a new life). */
 	void KeepLeaderTrait();
 
 	/** Its creature died: a leader's fall shakes its pack. */
@@ -149,6 +153,8 @@ private:
 
 	/** Its pack's leader (SetLeader). */
 	bool bLeader = false;
+	/** What else it wears as its pack's leader (SetLeader: its group's LeaderTraits). */
+	TArray<ECreatureTrait> LeaderTraits;
 
 	bool bRankStung = false;
 	int32 RankStings = 0;

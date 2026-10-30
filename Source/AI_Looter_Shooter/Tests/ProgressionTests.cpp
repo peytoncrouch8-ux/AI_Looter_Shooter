@@ -273,13 +273,14 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLevelHealthTest, "Looter.Progression.LevelHeal
 
 bool FLevelHealthTest::RunTest(const FString& Parameters)
 {
-	// The first level-up reward (decided 2026-10-02): +8% of the character's own max health for each level above 1, the
-	// pace of the enemies' damage, so a fight at the player's level takes the same hits to lose at every level.
+	// The first level-up reward (decided 2026-10-02): +9% of the level below's max health for each level above 1, compounding
+	// (2026-10-29 night, as the enemies grow), the pace of the enemies' damage, so a fight at the player's level takes the same
+	// hits to lose at every level.
 	const FLevelRules Rules;
 	TestEqual(TEXT("Level 1: the health the character was made with"), Rules.PlayerHealthScale(1), 1.f);
-	TestNearlyEqual(TEXT("Level 2: +8%"), Rules.PlayerHealthScale(2), 1.08f, 1e-5f);
-	TestNearlyEqual(TEXT("Level 10: +72%"), Rules.PlayerHealthScale(10), 1.72f, 1e-5f);
-	TestNearlyEqual(TEXT("Level 65, the top: x6.12"), Rules.PlayerHealthScale(65), 6.12f, 1e-4f);
+	TestNearlyEqual(TEXT("Level 2: +9%"), Rules.PlayerHealthScale(2), 1.09f, 1e-5f);
+	TestNearlyEqual(TEXT("Level 10: x1.09^9 (2.17)"), Rules.PlayerHealthScale(10), FMath::Pow(1.09f, 9.f), 1e-4f);
+	TestNearlyEqual(TEXT("Level 65, the top: x1.09^64"), Rules.PlayerHealthScale(65), FMath::Pow(1.09f, 64.f), FMath::Pow(1.09f, 64.f) * 1e-4f);
 	TestNearlyEqual(TEXT("The player's health keeps pace with an enemy's damage"), Rules.PlayerHealthScale(37), Rules.EnemyScale(37), 1e-5f);
 
 	// On a health component (a training dummy's: 500, its class's), from the authored value every time.

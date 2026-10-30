@@ -108,7 +108,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootContainersKindsTest, "Looter.Loot.Containe
 bool FLootContainersKindsTest::RunTest(const FString& Parameters)
 {
 	// Each new kind as designed: a coffin pried and a grave dug with a hold, a mailbox and a footlocker opened with a tap;
-	// their guns at their chance (rarely, at a low luck), their ammo pickups of a chest's 36 rounds, a grave's and a
+	// their guns at their chance (rarely, at a low luck), their ammo pickups of a chest's 1.5 boxes, a grave's and a
 	// coffin's soul-mote now and then; only the treasure (the caches, the strongboxes) on the map. A chest's own override
 	// replaces its kind's numbers.
 	FTestWorldWrapper TestLevel;
@@ -140,7 +140,7 @@ bool FLootContainersKindsTest::RunTest(const FString& Parameters)
 		const ULootTable* Table = Chest->MakeLootTable();
 		TestTrue(FString::Printf(TEXT("%s: its loot table's guns at its chance"), Design.Name),
 			FMath::IsNearlyEqual(Table->WeaponDropChance, Design.GunChance) && Table->MinWeaponDrops == Design.Guns);
-		TestTrue(FString::Printf(TEXT("%s: its ammo at a chest's 36 rounds"), Design.Name), Table->MinAmmoDrops == Design.Ammo
+		TestTrue(FString::Printf(TEXT("%s: its ammo at a chest's 1.5 boxes"), Design.Name), Table->MinAmmoDrops == Design.Ammo
 			&& Table->AmmoAmountMin == LooterLoot::ChestAmmoAmount && Table->AmmoAmountMax == LooterLoot::ChestAmmoAmount);
 	}
 	TestTrue(TEXT("The caches and strongboxes are the map's chests"), FChestKindInfo::Get(EChestKind::SupplyCrate).bOnMap

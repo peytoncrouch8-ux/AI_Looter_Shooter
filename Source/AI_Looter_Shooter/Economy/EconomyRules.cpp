@@ -32,14 +32,20 @@ namespace
 	constexpr int32 SellBases[] = { 8, 18, 40, 90, 200 };
 	constexpr int32 BuyBases[] = { 70, 150, 320, 700, 1500 };
 
-	/** The gun of the day's rarity odds, in EWeaponRarity order. */
-	constexpr float OfferChances[] = { 0.f, 0.70f, 0.24f, 0.05f, 0.01f };
+	/**
+	 * The gun of the day's rarity odds, in EWeaponRarity order: Rare 60%, Epic 32%, Legendary 8%, never Common or Uncommon
+	 * (the RR tuning the user took, 2026-10-29 night; was Uncommon 70, Rare 24, Epic 5, Legendary 1).
+	 */
+	constexpr float OfferChances[] = { 0.f, 0.f, 0.60f, 0.32f, 0.08f };
 
 	/** A box of rounds, every type alike, and a jar of grave salt, at level 1. */
 	constexpr int32 AmmoBoxBase = 15;
 	constexpr int32 GrenadeBase = 25;
 
-	/** A box holds a chest pickup's rounds, at most this share of what can be carried. */
+	/**
+	 * A box holds 36 rounds (a chest pickup's until chests gave 1.5 kill boxes, 2026-10-29 night), at most this share of what
+	 * can be carried.
+	 */
 	constexpr int32 BoxRounds = 36;
 	constexpr float BoxMaxShare = 0.5f;
 
@@ -252,7 +258,7 @@ EWeaponRarity LooterEconomy::RollOfferRarity(FRandomStream& Random)
 		}
 		Pick -= OfferChances[Index];
 	}
-	return EWeaponRarity::Uncommon;
+	return EWeaponRarity::Rare;
 }
 
 #undef LOCTEXT_NAMESPACE

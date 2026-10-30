@@ -21,7 +21,8 @@ TIERS = {
     # shotgun and an Uncommon sniper at level 1 (overnight playtest 2026-10-28), so T2.
     'RangerCache_BluffPath': 2,
     # The gang's Strongbox in the sheriff's office (Calder's Caches; opens from its step 1).
-    'GangStrongbox': 4,
+    # T3, was T4 (Ransom's Rest's loot tuning, 2026-10-29 night: its early chests climbed too fast).
+    'GangStrongbox': 3,
     # The encounters' camps' crates (build_area_camps.py, build_area_fights_mountain.py): guarded by the camp.
     'CampCache_OrchardEdge': 3,
     'CampCache_SheepFold': 3,

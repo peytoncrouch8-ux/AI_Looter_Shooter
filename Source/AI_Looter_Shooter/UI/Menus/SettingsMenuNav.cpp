@@ -54,9 +54,9 @@ void USettingsMenuWidget::RebuildNavigation(const UWidget* Prefer)
 	{
 		return;
 	}
-	// Top to bottom: Resume (over the game), the page on show (on Controls, its key list after its sliders), then Save &
-	// Quit or Back (the one the mode shows; the focus passes over what's hidden). Only the page on show: the others' rows
-	// aren't on screen to move to.
+	// Top to bottom: Back in its reticle, the page on show (on Controls, its key list after its sliders), then the footer's
+	// Back chip (hidden: the focus passes over it). Only the page on show: the others' rows aren't on screen to move to.
+	// Save & Quit is no longer here: the pause menu's list has it (the user, 2026-10-29 night).
 	TArray<FMenuNavRow> Rows;
 	Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(ResumeButton) });
 	if (PageNav.IsValidIndex(CurrentPage))
@@ -67,17 +67,9 @@ void USettingsMenuWidget::RebuildNavigation(const UWidget* Prefer)
 	{
 		Rows.Append(KeyNav);
 	}
-	FMenuNavRow Footer;
-	for (ULooterButton* Button : { SaveQuitButton.Get(), BackButton.Get() })
+	if (BackButton)
 	{
-		if (Button)
-		{
-			Footer.Add(FMenuNavItem::MakeButton(Button, NumPages));
-		}
-	}
-	if (!Footer.IsEmpty())
-	{
-		Rows.Add(MoveTemp(Footer));
+		Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(BackButton, NumPages) });
 	}
 	// A long page: the ends stop the focus rather than throw it to the far end.
 	Nav.SetWrap(false);
@@ -111,7 +103,8 @@ UWidget* USettingsMenuWidget::FirstPageStop() const
 
 void USettingsMenuWidget::ResetNavigation()
 {
-	// Over the game the focus starts on Resume (A at once resumes); from the main menu on the page's first setting.
+	// Over the game the focus starts on the top row, Back to the pause menu's list (as it started on Resume when this was
+	// the pause menu); from the main menu on the page's first setting.
 	RebuildNavigation(Mode == ESettingsMenuMode::Pause ? static_cast<UWidget*>(ResumeButton.Get()) : FirstPageStop());
 }
 
@@ -440,7 +433,8 @@ TArray<FPrompt> USettingsMenuWidget::GetPrompts() const
 		}
 	}
 	Prompts.Add(MakePrompt(EPromptKey::Sections, bPad, TEXT("Tabs")));
-	Prompts.Add(MakePrompt(EPromptKey::Back, bPad, Mode == ESettingsMenuMode::Pause ? TEXT("Resume") : TEXT("Back")));
+	// Back either way: over the game to the pause menu's list, not to the game (the user, 2026-10-29 night).
+	Prompts.Add(MakePrompt(EPromptKey::Back, bPad, TEXT("Back")));
 	return Prompts;
 }
 

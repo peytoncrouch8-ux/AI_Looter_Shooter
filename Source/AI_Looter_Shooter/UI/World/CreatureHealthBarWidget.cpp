@@ -17,7 +17,8 @@ using namespace LooterUI;
 
 namespace
 {
-	constexpr float BarHeight = 6.f;
+	/** Noticeably thicker (the user, 2026-10-29: "the health bars on enemies need to be noticeably thicker"; was 6). */
+	constexpr float BarHeight = 10.f;
 	/** The same lean as the HUD's bars. */
 	constexpr float BarSlant = 16.f;
 	/** How long the chip of lost health stays before it drains, and how fast it drains (bar lengths per second). */
@@ -30,7 +31,7 @@ namespace
 
 	/** A dark rim round the whole bar so it holds its shape over bright sky and grass, and a lit strip along the red's top. */
 	const FLinearColor RimColor(0.f, 0.f, 0.f, 0.8f);
-	constexpr float HighlightHeight = 1.5f;
+	constexpr float HighlightHeight = 2.5f;
 
 	/** The trait line's letter spacing (thousandths of an em): a spaced label, as the level's "LV". */
 	constexpr int32 TraitLetterSpacing = 90;

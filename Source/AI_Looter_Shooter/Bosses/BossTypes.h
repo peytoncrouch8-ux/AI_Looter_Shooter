@@ -356,4 +356,11 @@ struct FBossLootShowerSettings
 	/** It waits for a scene playing (or about to, inside Delay) to end: Abel's loot comes after he sits with Ellis. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
 	bool bAfterScene = false;
+
+	/**
+	 * Its own legendary (a named gun's id, DA_Named_<Id>: "Gravesilk"), rolled on top of its table each kill, a vigil stone's
+	 * refight too, at Looter.Legendary.<Name>.DropChance (LegendaryDrops). None: no such drop.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	FName DedicatedLegendary;
 };

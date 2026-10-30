@@ -96,7 +96,7 @@ ULootTable* AChest::MakeLootTableFor(const FChestKindInfo& Info, bool bGuns)
 	Table->MinAmmoDrops = Info.AmmoPickups;
 	Table->MaxAmmoDrops = Info.AmmoPickups;
 	Table->KillWeaponAmmoBias = 1.f;
-	// The user's rule: a chest's ammo pickups always hold 36 rounds.
+	// The user's rule: a chest's ammo pickups always hold the same, 1.5 boxes of their class (2026-10-29 night; was 36 rounds).
 	Table->UseChestAmmoAmount();
 	return Table;
 }

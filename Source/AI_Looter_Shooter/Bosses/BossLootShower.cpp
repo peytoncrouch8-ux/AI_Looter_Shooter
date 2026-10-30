@@ -10,6 +10,7 @@
 #include "Loot/LootTable.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Shields/ShieldPickup.h"
+#include "Weapons/LegendaryDrops.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponFX.h"
@@ -115,6 +116,11 @@ ABossLootShower* ABossLootShower::Throw(AActor& Boss, const FVector& From, const
 	}
 	FRandomStream Random(FMath::Rand());
 	Shower->Roll = Plan(Table, Loot->Level, Luck, Random, KillAmmo, bWeapons, Settings.BonusAmmo);
+	// Its own legendary on top, a chance a kill (a vigil stone's refight rolls it again); never where guns are held back.
+	if (bWeapons)
+	{
+		LegendaryDrops::RollForBoss(Settings.DedicatedLegendary, Loot->Level, Random, Shower->Roll);
+	}
 	Shower->Queue = Order(Shower->Roll);
 	Shower->Settings = Settings;
 	Shower->Wait = Settings.Delay;

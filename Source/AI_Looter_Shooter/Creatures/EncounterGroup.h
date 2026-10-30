@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureRank.h"
+#include "Creatures/CreatureTrait.h"
 #include "Templates/SubclassOf.h"
 #include "EncounterGroup.generated.h"
 
@@ -96,6 +97,14 @@ struct AI_LOOTER_SHOOTER_API FEncounterGroup
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group")
 	bool bLeader = false;
+
+	/**
+	 * Traits its leader wears on top of Rallying and what its rank rolled (bLeader only; UCreaturePackComponent::SetLeader):
+	 * the mountain fights' Restless leaders wear Warded, so the typed wards come up there (the RR tuning the user took,
+	 * 2026-10-29 night). Empty: Rallying alone.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group", meta = (EditCondition = "bLeader"))
+	TArray<ECreatureTrait> LeaderTraits;
 
 	/**
 	 * A name for the creatures this group brings, shown as their DisplayName ("the Sexton's Debt", "The Tollman": a named

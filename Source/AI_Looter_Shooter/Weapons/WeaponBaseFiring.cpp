@@ -8,6 +8,7 @@
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/GunshotSound.h"
+#include "Weapons/LegendaryEffectComponent.h"
 #include "Weapons/PartEffectComponent.h"
 #include "Weapons/WeaponSounds.h"
 #include "Weapons/WeaponTrigger.h"
@@ -135,6 +136,8 @@ void AWeaponBase::StopFire()
 	GunshotSound::PlayBurstEnd(*this);
 	bWantsToFire = false;
 	StopKindTrigger();
+	// Company Scrip's burst ends with the trigger: its kills' fire rate goes with it.
+	ULegendaryEffectComponent::EndBurstOf(this);
 
 	// Bursts finish on their own and semi-auto keeps its one remembered press (made just before the gun was ready), so only
 	// auto stops immediately.

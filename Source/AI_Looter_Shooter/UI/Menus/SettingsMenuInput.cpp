@@ -168,13 +168,6 @@ void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 		SetKeyboardFocus();
 		return;
 	}
-	if (Button->Action == ActionSaveQuit)
-	{
-		StopListening();
-		SetStatus(TEXT("Saving..."), LooterUI::Color::TextDim());
-		OnSaveAndQuit.ExecuteIfBound();
-		return;
-	}
 	if (Button->Action == ActionQuality && Button->Index >= 0 && Button->Index < UE_ARRAY_COUNT(Qualities))
 	{
 		StopListening();

@@ -1575,6 +1575,16 @@ def build_hat(head):
 
 rig, body, head, torso, raw_colors = build_rig()
 hat = build_hat(head)
+# The user's Tripo model (2026-10-29) as SK_Unpaid's body and SM_UnpaidHat, on this same rig and rest pose: the script
+# body above is built first (its skeleton, head and coal places are the rig's) and swapped out. LOOTER_UNPAID_TRIPO=0
+# keeps the script body. Below the build line, so DeadMiner, Foreman and the rest, which run this file up to it, never
+# see it. Art/Models/Creatures/Tripo/parts_unpaid.py.
+TRIPO = os.environ.get('LOOTER_UNPAID_TRIPO', '1') != '0'
+if TRIPO:
+    sys.path.insert(0, os.path.join(lt.REPO, 'Art', 'Models', 'Creatures', 'Tripo'))
+    import parts_unpaid
+    body, hat = parts_unpaid.swap(globals())
+    raw_colors = None
 
 
 # --- Previews (Saved/ArtPreviews/RansomsRest/Unpaid): the stage and the ghost look come from the concept script ---
@@ -1682,6 +1692,13 @@ TRAIL = {'pelvis': [((1, 0, 0), 10)], 'tail_01': [((1, 0, 0), 22)], 'tail_02': [
          'tail_l_01': [((0, 0, 1), 18)], 'tail_l_02': [((0, 0, 1), -12)], 'tail_r_01': [((0, 0, 1), -16)],
          'tail_r_02': [((0, 0, 1), 14)], 'head': [((1, 0, 0), 6)],
          'lowerarm_l': [((1, 0, 0), IDLE_BEND)], 'lowerarm_r': [((1, 0, 0), IDLE_BEND)]}
+# The rake (UnpaidCreatureArms.cpp, its kit): the right arm swept forward across its front (Swing -90, Bend -10,
+# Wrist -18, Curl +20), the left drawn back and out wide (Rake -0.8: Swing and Out +36, Bend +20, Curl -20).
+RAKE = {'spine_02': [((0, 0, 1), 10)], 'upperarm_r': [((0, 0, 1), -20), ((1, 0, 0), -90)],
+        'lowerarm_r': [((1, 0, 0), 10)], 'hand_r': [((1, 0, 0), -18)],
+        'upperarm_l': [((0, 1, 0), -36), ((1, 0, 0), 36)], 'lowerarm_l': [((1, 0, 0), -20)],
+        'tail_01': [((1, 0, 0), 6)], **hand_pose(20.0, 6.0)}
+NAME = 'UnpaidTripo' if TRIPO else 'Unpaid'      # the previews' names: the Tripo body's apart from the script one's
 
 
 def previews():
@@ -1693,17 +1710,17 @@ def previews():
     for o in hulls:
         o.hide_render = True
     # The ghost look: the concept's preview material reads a float copy of the vertex colors.
+    # Without raw colors (the hat, the Tripo body: zones per face corner) the copy is per corner, the stored values.
     for obj, rgba in ((body, raw_colors), (hat, None)):
-        attr = obj.data.color_attributes.new('Ghost', 'FLOAT_COLOR', 'POINT')
-        if rgba is None:
-            src = obj.data.color_attributes['Col']
-            loops = np.empty(len(obj.data.loops), dtype=np.int64)
-            obj.data.loops.foreach_get('vertex_index', loops)
-            per_loop = np.empty(len(obj.data.loops) * 4, np.float32)
-            src.data.foreach_get('color', per_loop)
-            rgba = np.zeros((len(obj.data.vertices), 4), np.float32)
-            rgba[loops] = per_loop.reshape(-1, 4)
-        attr.data.foreach_set('color', np.asarray(rgba, np.float32).ravel())
+        if rgba is not None:
+            attr = obj.data.color_attributes.new('Ghost', 'FLOAT_COLOR', 'POINT')
+            attr.data.foreach_set('color', np.asarray(rgba, np.float32).ravel())
+            continue
+        src = obj.data.color_attributes['Col']
+        per_loop = np.empty(len(obj.data.loops) * 4, np.float32)
+        src.data.foreach_get('color_srgb' if src.data_type == 'BYTE_COLOR' else 'color', per_loop)
+        attr = obj.data.color_attributes.new('Ghost', 'FLOAT_COLOR', 'CORNER')
+        attr.data.foreach_set('color', per_loop)
     ghost = uc.ghost_material(tuple(int(c[1:], 16) for c in ZONE_COLORS), uc.RANKS[0][1:])    # the slot's zone colors
     body.data.materials[0] = ghost
     body.data.materials[1] = uc.coal_material(uc.RANKS[0][1:])
@@ -1729,27 +1746,55 @@ def previews():
     pose(IDLE)
     where = stage('Rest')
     outdoors(where)
-    shoot(where, (0.78, -1.0, 0.13), os.path.join(OUT, 'Unpaid_rest.png'), (1600, 1000), distance=4.9)
+    shoot(where, (0.78, -1.0, 0.13), os.path.join(OUT, f'{NAME}_rest.png'), (1600, 1000), distance=4.9)
     strike(where)
     concept = os.path.join(lt.REPO, 'Saved', 'ArtPreviews', 'RansomsRest', 'Concepts', 'Unpaid', 'Unpaid_D_hero.png')
     if os.path.exists(concept):
-        uc.compose([concept, os.path.join(OUT, 'Unpaid_rest.png')], os.path.join(OUT, 'Unpaid_vs_concept.png'))
+        uc.compose([concept, os.path.join(OUT, f'{NAME}_rest.png')], os.path.join(OUT, f'{NAME}_vs_concept.png'))
+    # Straight on and from the side, close (the face, the hands, the coal), for a look beside the script model.
+    for view, direction in (('front', (0.0, -1.0, 0.05)), ('side', (1.0, -0.15, 0.05)), ('back', (-0.5, 1.0, 0.1))):
+        where = stage('Rest')
+        outdoors(where)
+        shoot(where, direction, os.path.join(WORK, f'{NAME}_rest_{view}.png'), (900, 1100), fit=1.25)
+        strike(where)
+    # Close on the face and a hand: what the Tripo body's quads and colours make of them.
+    for view, bone, lift, direction in (('face', 'head', (0.0, -0.04, 0.03), (0.3, -1.0, 0.05)),
+                                        ('hand', 'hand_l', (0.0, -0.05, -0.08), (0.8, -1.0, 0.15))):
+        where = stage('Rest')
+        outdoors(where)
+        target = Vector(rig.data.bones[bone].head_local) + Vector(lift)
+        keep(uc.camera(target + Vector(direction).normalized() * 1.15, target, lens=85.0), where)
+        uc.render(os.path.join(WORK, f'{NAME}_close_{view}.png'), (900, 900))
+        strike(where)
+    if TRIPO and os.path.exists(os.path.join(WORK, 'Unpaid_rest_front.png')):
+        for view in ('rest_front', 'rest_side', 'rest_back', 'close_face', 'close_hand'):
+            old = os.path.join(WORK, f'Unpaid_{view}.png')
+            if os.path.exists(old):
+                uc.compose([old, os.path.join(WORK, f'{NAME}_{view}.png')],
+                           os.path.join(OUT, f'{NAME}_vs_script_{view}.png'))
 
     # Posed by its bones: the lunge, the shriek, the shroud trailing.
     panels = []
     for name, rotations, direction in (('lunge', LUNGE, (0.95, -0.75, 0.14)), ('shriek', SHRIEK, (0.35, -1.0, 0.1)),
-                                       ('trail', TRAIL, (1.0, -0.35, 0.12))):
+                                       ('trail', TRAIL, (1.0, -0.35, 0.12)),
+                                       ('rake', RAKE, (0.6, -1.0, 0.12))):
         pose(rotations)
         pose_gaps(name)
         where = stage('Pose')
         uc.ground(where, 0xbdb4a4, plain=True)
         uc.sky(0.8)
         uc.sun((-0.45, -0.85, 0.42), strength=3.8, where=where)
-        path = os.path.join(WORK, f'Unpaid_pose_{name}.png')
+        path = os.path.join(WORK, f'{NAME}_pose_{name}.png')
         shoot(where, direction, path, (900, 900), lens=50.0, fit=1.7)
         panels.append(path)
         strike(where)
-    uc.compose(panels, os.path.join(OUT, 'Unpaid_poses.png'))
+    uc.compose(panels, os.path.join(OUT, f'{NAME}_poses.png'))
+    if TRIPO:
+        for name in ('lunge', 'shriek', 'trail', 'rake'):
+            old = os.path.join(WORK, f'Unpaid_pose_{name}.png')
+            if os.path.exists(old):
+                uc.compose([old, os.path.join(WORK, f'{NAME}_pose_{name}.png')],
+                           os.path.join(OUT, f'{NAME}_vs_script_{name}.png'))
     pose({})
 
     # The LODs the importer will make (50% and 25%), reduced here the same way, with their counts.
@@ -1779,7 +1824,7 @@ def previews():
         uc.label(f'LOD{k}  {count} triangles', ((k - 1) * 1.1, -0.9, 0.05), 0.075, where=where)
         log(f'LOD{k}: {count} triangles' + (' (LOD0)' if k == 0 else f' ({100 * count / base:.0f}%)'))
     keep(uc.camera((0.0, -20.0, 1.05 + 20.0 * math.tan(math.radians(8.0))), (0.0, 0.0, 1.05), ortho=3.9), where)
-    uc.render(os.path.join(OUT, 'Unpaid_lods.png'), (1800, 1100), samples=48)
+    uc.render(os.path.join(OUT, f'{NAME}_lods.png'), (1800, 1100), samples=48)
     strike(where)
     body.hide_render = hat.hide_render = False
 
@@ -1804,14 +1849,14 @@ def previews():
         o.data.materials.append(uc.flat_material(f'Hit{color:06x}', color, 0.5, 2.0))
     shots = []
     for name, direction in (('front', (0.0, -1.0, 0.08)), ('side', (1.0, 0.0, 0.08))):
-        path = os.path.join(WORK, f'Unpaid_hits_{name}.png')
+        path = os.path.join(WORK, f'{NAME}_hits_{name}.png')
         lo, hi = posed_bounds([body])
         target = Vector(((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2))
         cam = keep(uc.camera(target + Vector(direction).normalized() * 20.0, target, ortho=2.25), where)
         uc.render(path, (900, 1000), samples=32)
         bpy.data.objects.remove(cam)
         shots.append(path)
-    uc.compose(shots, os.path.join(OUT, 'Unpaid_hitzones.png'))
+    uc.compose(shots, os.path.join(OUT, f'{NAME}_hitzones.png'))
     strike(where)
     for o in hulls:
         o.hide_render = True

@@ -1,5 +1,6 @@
 #include "Shields/ShieldRules.h"
 #include "Shields/ShieldDefinition.h"
+#include "Progression/LevelRules.h"
 #include "Shields/ShieldTuning.h"
 #include "Math/RandomStream.h"
 #include "Templates/TypeHash.h"
@@ -88,7 +89,8 @@ FShieldStats ShieldRules::ComputeStats(const UShieldDefinition& Definition, EWea
 	const FBuildLean Lean = LeanOf(Build);
 	FRandomStream Random = StreamFor(Seed, VarianceSalt);
 	const float Variance = FMath::Clamp(Definition.Variance, 0.f, 0.5f);
-	const float LevelScale = 1.f + FMath::Max(Definition.CapacityPerLevel, 0.f) * static_cast<float>(FMath::Max(Level, 1) - 1);
+	// Compounding, as guns and creatures grow (the user, 2026-10-29 night: +9% a level).
+	const float LevelScale = FLevelRules::Compounded(Definition.CapacityPerLevel, Level);
 
 	FShieldStats Stats;
 	Stats.Capacity = FMath::Max(Definition.BaseCapacity * Tier.CapacityMultiplier * LevelScale * Lean.Capacity * Varied(Random, Variance), 1.f);

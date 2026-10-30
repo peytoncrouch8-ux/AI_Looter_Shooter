@@ -20,11 +20,13 @@
 namespace
 {
 	/**
-	 * The menus by class, the one over the others first (their viewport layers: the pause menu 40, the offer and choice card
-	 * 30, the world screens 26, the boards, the vendor and the bench 25, the inventory's pages 20).
+	 * The menus by class, the one over the others first (their viewport layers: the pause menu's settings and its list 40,
+	 * one at a time; the offer and choice card 30, the world screens 26, the boards, the vendor and the bench 25, the
+	 * inventory's pages 20).
 	 */
 	const TCHAR* const MenuOrder[] = {
 		TEXT("SettingsMenuWidget"),
+		TEXT("PauseMenuWidget"),
 		TEXT("MissionOfferWidget"),
 		TEXT("BountyBoardWidget"),
 		TEXT("LostLootWidget"),

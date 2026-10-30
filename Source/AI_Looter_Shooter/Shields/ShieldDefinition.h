@@ -75,9 +75,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shield", meta = (ClampMin = "1"))
 	float BaseCapacity = 40.f;
 
-	/** Capacity grows by this share of its level-1 value each level: the player's health's 8%, so the two stay in step. */
+	/**
+	 * Capacity grows by this share of the level below's each level, compounding (0.09: x1.68 at 7), as guns and creatures do
+	 * (the user, 2026-10-29 night; was 8% of level 1's, linear, the player's health's).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shield", meta = (ClampMin = "0"))
-	float CapacityPerLevel = 0.08f;
+	float CapacityPerLevel = 0.09f;
 
 	/** Seconds unhurt before a Common ward refills. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shield", meta = (ClampMin = "0", Units = "s"))

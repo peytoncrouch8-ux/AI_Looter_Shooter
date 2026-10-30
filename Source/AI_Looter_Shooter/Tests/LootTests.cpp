@@ -139,8 +139,9 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Legendaries still drop"), Tiers[NumTiers - 1] > 0);
 
-	// Ammo: every kill, every class at its weight (rockets half as often), each pickup 18 to 36 rounds whatever its class
-	// (the user's rule; rockets read as one to three, LooterLoot::RocketsFor), both ends reached.
+	// Ammo: every kill, every class at its weight (rockets half as often), each pickup its class's kill amount (AR 18-36,
+	// shotgun 4-8, sniper 3-6...; the user, 2026-10-29 night)
+	// (rockets read as one to three, LooterLoot::RocketsFor), both ends reached.
 	float AmmoWeight = 0.f;
 	for (const FAmmoLootEntry& Listed : Table->AmmoTypes)
 	{
@@ -221,10 +222,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootAmmoAmountsTest, "Looter.Loot.AmmoAmounts"
 
 bool FLootAmmoAmountsTest::RunTest(const FString& Parameters)
 {
-	// The user's rules: a kill's ammo pickup holds 18 to 36 rounds, a loot chest's exactly 36.
+	// The user's rules: a kill's ammo pickup holds 18 to 36 AR rounds (other classes scaled: LooterLoot::AmmoAmountFor), a loot
+	// chest's exactly 1.5 boxes (54 AR rounds; 2026-10-29 night).
 	TestEqual(TEXT("Kill pickups hold at least 18"), LooterLoot::KillAmmoAmountMin, 18);
 	TestEqual(TEXT("Kill pickups hold at most 36"), LooterLoot::KillAmmoAmountMax, 36);
-	TestEqual(TEXT("Chest pickups hold 36"), LooterLoot::ChestAmmoAmount, 36);
+	TestEqual(TEXT("Chest pickups hold 54 AR rounds, 1.5 boxes"), LooterLoot::ChestAmmoAmount, 54);
 
 	// A new table drops a kill's range, every amount in it possible.
 	ULootTable* Table = NewObject<ULootTable>();
@@ -251,7 +253,7 @@ bool FLootAmmoAmountsTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("A seeded stream repeats the amounts"), bRepeats);
 
-	// A chest's table: always 36, every pickup of every roll.
+	// A chest's table: always 1.5 boxes of its class, every pickup of every roll.
 	ULootTable* Chest = NewObject<ULootTable>();
 	Chest->UseChestAmmoAmount();
 	Chest->MinAmmoDrops = 3;
@@ -268,7 +270,7 @@ bool FLootAmmoAmountsTest::RunTest(const FString& Parameters)
 		}
 	}
 	TestEqual(TEXT("Every chest opening drops its ammo"), ChestDrops, 500 * 3);
-	TestTrue(TEXT("Every chest pickup holds 36 (rockets: three)"), bChestFixed);
+	TestTrue(TEXT("Every chest pickup holds 1.5 boxes of its class (rockets: three)"), bChestFixed);
 
 	// Odd settings stay sane: no table means a kill's range, a backwards range drops its Min, never less than a round.
 	bool bNoTableInRange = true;
@@ -333,7 +335,7 @@ bool FLootDefaultTableTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Every kill drops ammo"), Table->AmmoDropChance >= 1.f && Table->MinAmmoDrops >= 1);
 	TestTrue(FString::Printf(TEXT("Ammo leans slightly toward the kill weapon's class (%.1fx)"), Table->KillWeaponAmmoBias),
 		Table->KillWeaponAmmoBias > 1.f && Table->KillWeaponAmmoBias <= 3.f);
-	TestTrue(FString::Printf(TEXT("Each ammo pickup holds 18 to 36 rounds (%d to %d)"), Table->AmmoAmountMin, Table->AmmoAmountMax),
+	TestTrue(FString::Printf(TEXT("Each ammo pickup holds 18 to 36 AR rounds, scaled by class (%d to %d)"), Table->AmmoAmountMin, Table->AmmoAmountMax),
 		Table->AmmoAmountMin == LooterLoot::KillAmmoAmountMin && Table->AmmoAmountMax == LooterLoot::KillAmmoAmountMax);
 
 	int32 Weapons = 0;

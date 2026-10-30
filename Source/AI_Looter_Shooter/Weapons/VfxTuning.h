@@ -138,6 +138,11 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	bool bShapes = true;
 	/** Looter.Vfx.Puffs: smoke on M_FX_Puff (noise-broken, eroding) when it's in the game (0: M_FX_Smoke's soft discs). */
 	bool bPuffs = true;
+	/**
+	 * Looter.Vfx.SoftGlows: flashes, embers, motes and round glows as M_FX_Shape's soft glows (halo and heart, four looks, eased so
+	 * a strong one keeps its colour) once the master draws them; 0: M_FX_Glow's flat discs. Read every frame (to compare).
+	 */
+	bool bSoftGlows = true;
 	/** Looter.Vfx.Fire: blasts' fire and soot on M_FX_Fire (alpha-blended) when it's in the game (0: heat-tinted puffs). */
 	bool bFire = true;
 	/** Looter.Vfx.BurnTint: a power's burn tint on bodies (Slag Bomb's pool: the body drawn again in an overlay). */

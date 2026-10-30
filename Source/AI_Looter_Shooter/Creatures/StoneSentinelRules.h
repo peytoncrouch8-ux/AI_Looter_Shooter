@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureTrait.h"
 #include "StoneSentinelRules.generated.h"
 
@@ -162,8 +163,16 @@ namespace StoneSentinelRules
 
 	/** Its slam's damage at level 1 (the fight's DamageScale on top), its experience, its walk. */
 	inline constexpr float SlamDamage = 16.f;
-	inline constexpr int32 XPReward = 26;
+	// 45, was 26 (the RR tuning the user took, 2026-10-29 night).
+	inline constexpr int32 XPReward = 45;
 	inline constexpr float WalkSpeed = 110.f;
+
+	/**
+	 * The rank whose loot it drops and whose Unpaid silver it pays at least (the RR tuning the user took, 2026-10-29 night):
+	 * a Regular statue pays as a Restless one, its loot table (DA_LootTable_Rare: 60% a gun, Luck 0.5, 2-3 ammo) and a
+	 * Restless Unpaid's purse; a higher tier its own. Loot/KillLootRules reads it.
+	 */
+	inline constexpr ECreatureRank LeastLootRank = ECreatureRank::Rare;
 
 	/** How fast it comes on in a fight (cm/s), as felt: its ChaseSpeed is this over the fight's chase scale. */
 	inline constexpr float FeltChaseSpeed = 170.f;

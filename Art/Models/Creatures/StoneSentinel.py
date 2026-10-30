@@ -33,6 +33,7 @@ into Blender metres facing -Y).
 import math
 import os
 import random
+import runpy
 import sys
 
 import bmesh
@@ -793,7 +794,11 @@ def build():
     return rig, body
 
 
-RIG, BODY = build()
+# The user's Tripo model (Art/Models/Creatures/Tripo/parts_sentinel.py: cleaned, remeshed, cut into rigid pieces, posed into
+# the dormant statue, our granite look) unless LOOTER_SENTINEL_TRIPO=0 (this script's stand-in).
+TRIPO = os.environ.get('LOOTER_SENTINEL_TRIPO', '1') != '0'
+SENTINEL = runpy.run_path(os.path.join(lt.REPO, 'Art', 'Models', 'Creatures', 'Tripo', 'parts_sentinel.py')) if TRIPO else None
+RIG, BODY = SENTINEL['build']() if TRIPO else build()
 PLINTH = plinth()
 
 
@@ -802,6 +807,9 @@ def triangles(obj):
 
 
 def report():
+    if TRIPO:
+        log(f'SM_StoneSentinelPlinth: {triangles(PLINTH)} triangles, pivot at its bottom, top {PLINTH_TOP:.0f} cm over it')
+        return
     lo, hi = lt._bounds([BODY])
     log(f'SK_StoneSentinel: {triangles(BODY)} triangles, {len(RIG.data.bones)} bones, height {hi.z:.2f} m, '
         f'width {hi.x - lo.x:.2f} m, depth {hi.y - lo.y:.2f} m; materials {", ".join(m.name for m in BODY.data.materials)}')
@@ -865,4 +873,7 @@ def previews():
 
 
 if lt.want_preview() or '--preview' in ARGV:
-    previews()
+    if TRIPO:
+        SENTINEL['previews'](RIG, BODY, PLINTH, OUT, PLINTH_TOP / 100.0)
+    else:
+        previews()

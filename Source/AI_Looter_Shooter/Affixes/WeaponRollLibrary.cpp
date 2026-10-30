@@ -1,5 +1,6 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Affixes/WeaponMakers.h"
+#include "Progression/LevelRules.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurses.h"
@@ -111,7 +112,8 @@ FWeaponStats UWeaponRollLibrary::ComputeStatsWithParts(const UWeaponDefinition* 
 
 	const FWeaponRarityInfo& RarityInfo = Definition->GetRarityInfo(Rarity);
 	const FWeaponStats& Base = Definition->BaseStats;
-	const float LevelScale = 1.f + Definition->DamagePerLevel * FMath::Max(Level - 1, 0);
+	// Compounding, as the creatures grow (the user, 2026-10-29 night: +9% a level).
+	const float LevelScale = FLevelRules::Compounded(Definition->DamagePerLevel, Level);
 	// The gun's parts shift its stats: their percentages add up (capped), each rolled within its range from the seed (or
 	// at the named gun's fixed point of it).
 	const FWeaponPartTotals Part = WeaponParts::CombinedStats(WeaponParts::Pick(*Definition, Seed, Rarity, Parts), Seed, FixedQuality);

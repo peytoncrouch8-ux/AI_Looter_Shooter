@@ -292,7 +292,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRangerCachesLootTest, "Looter.Loot.RangerCache
 bool FRangerCachesLootTest::RunTest(const FString& Parameters)
 {
 	// What each kind gives, from the default loot table: a Supply Crate one gun at Luck 0.5 (a legendary 3.7% of the time),
-	// the Strongbox two at Luck 1.0 (15.5%), each with its ammo pickups of a chest's fixed 36 rounds; and opened for real,
+	// the Strongbox two at Luck 1.0 (15.5%), each with its ammo pickups of a chest's fixed 1.5 boxes; and opened for real,
 	// that many guns and pickups come out of it, at the level the area gives the player (1 in a test level).
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
@@ -316,7 +316,7 @@ bool FRangerCachesLootTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s: every opening gives exactly %d gun(s), at its luck"), Design.Name, Design.Guns),
 			Table->WeaponDropChance == 1.f && Table->MinWeaponDrops == Design.Guns && Table->MaxWeaponDrops == Design.Guns
 			&& FMath::IsNearlyEqual(Table->Luck, Design.Luck));
-		TestTrue(FString::Printf(TEXT("%s: %d ammo pickup(s) of a chest's 36 rounds"), Design.Name, Info.AmmoPickups),
+		TestTrue(FString::Printf(TEXT("%s: %d ammo pickup(s) of a chest's 1.5 boxes"), Design.Name, Info.AmmoPickups),
 			Table->MinAmmoDrops == Info.AmmoPickups && Table->MaxAmmoDrops == Info.AmmoPickups
 			&& Table->AmmoAmountMin == LooterLoot::ChestAmmoAmount && Table->AmmoAmountMax == LooterLoot::ChestAmmoAmount);
 		if (Table->Entries.IsEmpty())
@@ -345,7 +345,7 @@ bool FRangerCachesLootTest::RunTest(const FString& Parameters)
 			Design.Guns);
 		const TArray<AAmmoPickup*> Ammo = FindAmmo(World);
 		TestEqual(FString::Printf(TEXT("%s: its ammo pickups too"), Design.Name), Ammo.Num() - AmmoBefore, Info.AmmoPickups);
-		TestFalse(FString::Printf(TEXT("%s: each holding 36 rounds (rockets: three)"), Design.Name), Ammo.ContainsByPredicate([](const AAmmoPickup* Pickup)
+		TestFalse(FString::Printf(TEXT("%s: each holding 1.5 boxes of its class (rockets: three)"), Design.Name), Ammo.ContainsByPredicate([](const AAmmoPickup* Pickup)
 		{
 			return Pickup->GetAmount() != LooterLoot::AmmoAmountFor(Pickup->GetAmmoType(), LooterLoot::ChestAmmoAmount);
 		}));

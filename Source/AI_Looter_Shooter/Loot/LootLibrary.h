@@ -114,9 +114,17 @@ public:
 
 	/**
 	 * Rounds in one ammo pickup from the table: a random amount from its AmmoAmountMin to AmmoAmountMax, both included,
-	 * whatever the class (a kill's 18 to 36 without a table). Never below 1; a Max below Min drops exactly Min.
+	 * in AR rounds (a kill's 18 to 36 without a table; RollAmmoAmountOf scales it to a class). Never below 1; a Max below Min
+	 * drops exactly Min.
 	 */
 	static int32 RollAmmoAmount(const ULootTable* LootTable, FRandomStream& Random);
+
+	/**
+	 * What one ammo pickup of Type from the table holds: an even roll over the class's own range, the table's AmmoAmountMin to
+	 * AmmoAmountMax scaled by LooterLoot::AmmoAmountFor (a kill's shells 4 to 8, every amount as likely; the user's by-class
+	 * pickups, 2026-10-29 night). Rockets: RollAmmoAmount read as rockets, as before.
+	 */
+	static int32 RollAmmoAmountOf(const ULootTable* LootTable, EAmmoType Type, FRandomStream& Random);
 
 	/** Picks one weapon definition from the table by weight. */
 	static UWeaponDefinition* PickWeaponWith(const ULootTable* LootTable, FRandomStream& Random);

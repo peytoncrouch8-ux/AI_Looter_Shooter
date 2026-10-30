@@ -130,7 +130,7 @@ struct AI_LOOTER_SHOOTER_API FChestKindInfo
 
 	/**
 	 * What it gives, once: its guns from the default loot table at this luck (each opening has GunChance of giving them
-	 * at all), ammo pickups of a chest's fixed 36 rounds, and a soul-mote at MoteChance (a grave's dead, giving back).
+	 * at all), ammo pickups of a chest's fixed 1.5 boxes, and a soul-mote at MoteChance (a grave's dead, giving back).
 	 */
 	int32 Guns = 1;
 	float GunChance = 1.f;
@@ -343,14 +343,14 @@ public:
 
 	/**
 	 * What it gives as a loot table: the default table's guns and ammo classes, every roll its guns at its luck (at its gun
-	 * chance; none where the area drops no guns) and its ammo pickups at a chest's fixed 36 rounds. A new transient table each call.
+	 * chance; none where the area drops no guns) and its ammo pickups at a chest's fixed 1.5 boxes. A new transient table each call.
 	 */
 	ULootTable* MakeLootTable() const;
 
 	/**
 	 * MakeLootTable's table for a chest's loot numbers (its kind's, or its override's): the default table's guns and ammo
 	 * classes, Info's guns (Guns to MaxGuns) at its chance and luck, its rarity floor and legendary rule, its ammo pickups of
-	 * a chest's 36 rounds. Without bGuns, none (an area that drops none). The tests build their chests' odds with it.
+	 * a chest's 1.5 boxes. Without bGuns, none (an area that drops none). The tests build their chests' odds with it.
 	 */
 	static ULootTable* MakeLootTableFor(const FChestKindInfo& Info, bool bGuns = true);
 

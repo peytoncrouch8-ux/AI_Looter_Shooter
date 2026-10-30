@@ -747,6 +747,19 @@ for pair in range(4):
 
 # --- The rig ---
 
+# The user's Tripo remake (2026-10-29, Art/Models/Creatures/Tripo/MeadowWolf.glb) takes the scripted parts' place:
+# Tripo's shape rebuilt as clean quads on these same bones, rest pose, atlas and material (parts_spider_build.py).
+# LOOTER_SPIDER_TRIPO=0 keeps the scripted parts. Only SK_Spider's own build reads this: the library users stop above.
+# Checks: Tools\artrun.ps1 -Script Tools\Blender\spider_tripo_views.py (renders, hit zones, the death curl, the shots).
+TRIPO = os.environ.get('LOOTER_SPIDER_TRIPO', '1') != '0'
+if TRIPO:
+    import sys
+    sys.path.insert(0, os.path.join(lt.REPO, 'Art', 'Models', 'Creatures', 'Tripo'))
+    import parts_spider_build
+    for _mesh in list(parts.values()) + list(hairs.values()):
+        _mesh.bm.free()
+    parts, hairs = parts_spider_build.build(globals())
+
 rig = lm.armature()
 lm.bones(rig, [(name, lc.to_blender(head), lc.to_blender(tail), parent) for name, head, tail, parent in bones])
 skin = {}
@@ -758,6 +771,8 @@ for bone, mesh in parts.items():
     # Looter.Creatures.Spider.HitZones test checks every vertex).
     lm.hit_hull(rig, bone, skin[bone])
 spider = lm.skin(rig, 'Spider', skin)
+if TRIPO:
+    parts_spider_build.seam_normals(spider)
 # No baked vertex occlusion: the parts move against each other, and the bristles would darken everything around them.
 # The occlusion map's painted shading (bellies, the undersides of the legs) does that job; vertex alpha stays 1.
 colors = spider.data.color_attributes.new('Col', 'BYTE_COLOR', 'CORNER')

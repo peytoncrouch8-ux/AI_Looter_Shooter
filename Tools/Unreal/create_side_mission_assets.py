@@ -45,14 +45,14 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     as the last falls he says who they were, the Merritt brothers and Sol Tanner, unpaid: the spawner's
                     cleared_lines) + optional what he owed, chalked in the barn (WagesChalk). Turned in to Amos (his
                     thanks, the topic from step 2). 600
-                    XP, an Epic gun, his purse (60).
+                    XP, a Rare gun, his purse (60).
   DA_Mission_KnockingBelow "Knocking Below", offered by Tilly: 0 the cellar key off the workshop's hook (item
                     CellarKey), 1 down into the cellar (Place_CellarFloor, height counted) + optional the coffin orders
                     (OrdersSlate: by the cellar door, beside the key's hook, so not on the key's step), 2 the cellar's dead
                     quieted (TillyCellar, 6), 3 the cold room's door (ColdRoomDoor), 4 Thaddeus at his bench
                     (Speaker_Thaddeus: his words DA_Lines_ThaddeusTalk) and his tape (item ThaddeusTape, shown from
                     step 4). Turned in to Tilly. 600 XP,
-                    a Rare gun, 40 silver.
+                    a Cinder (Ember) Rare gun, 40 silver.
   After Main 5:
   DA_Mission_Side3  "The Gravemother", offered by Sheriff Odell's bounty on the Rangers' board (NoticeBoard_Rangers):
                     0 where she hungers (entering the Sink: Place_SinkFloor within 19.5 m, height counted; the arrow on the
@@ -67,7 +67,7 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     the depot's coal went 2026-10-21), 1 the boiler stoked from the quarry's bin and the pin driven (held;
                     each AMissionFitting counted done from the world: LiftFitting_Boiler, LiftFitting_Pin), 2 the quarry held for 60 s while she raises
                     steam (Place_OldQuarry; RaisingSteam), 3 the lift ridden up (Board.Lift: AOreLift opens at step 3).
-                    Turned in to Hiram through the speaking tube at the lift head (Speaker_LiftTube). 5,000 XP, a Rare
+                    Turned in to Hiram through the speaking tube at the lift head (Speaker_LiftTube). 5,000 XP, an Epic
                     rifle, 40 silver.
   After Dead Lift (side):
   DA_Mission_LastWatch "The Last Watch", offered by the board at Calder's Post (NoticeBoard_CalderPost): 0 the post's yard
@@ -83,7 +83,7 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     Foreman's payroll book read (PayrollBook) + optional the chalk on the wall (ChalkTally), 3 the lower
                     drift cleared (MineLower, 9), 4 the eleven's tags from their barricade (Barricade), 5 the Foreman put
                     down (his lair, Foreman), 6 the payroll from the stope (item Payroll). Turned in at the tag board
-                    (Speaker_TagBoard) with a choice: pay the eleven (story flag BackPay.Paid, a Rare gun) or keep the
+                    (Speaker_TagBoard) with a choice: pay the eleven (story flag BackPay.Paid, an Epic gun) or keep the
                     payroll (BackPay.Kept, 400 silver); Hob then sends Ellis to Delia's door (Main 6). 6,500 XP either way.
 
 Objectives are instanced objects inside the asset, one class per kind, made with unreal.new_object(<class>, asset) and
@@ -292,8 +292,20 @@ def item(item_id, name, line='', mesh='', dropped_by_class=None, dropped_by_tag=
     return made
 
 
+def element_enum(name):
+    """unreal.LooterElement by the enum's C++ name ('SoulLight', 'Ember'; '' = None): Python spells it SOUL_LIGHT."""
+    if not name:
+        return unreal.LooterElement.NONE
+    import re
+    for spelled in (re.sub(r'(?<!^)(?=[A-Z])', '_', name).upper(), name.upper()):
+        value = getattr(unreal.LooterElement, spelled, None)
+        if value is not None:
+            return value
+    raise RuntimeError(f'unreal.LooterElement has no {name}: nothing was saved')
+
+
 def rewards(experience=0, gun=False, gun_rarity_floor='COMMON', gun_kind='', named_gun='', unlock_areas=(), silver=0,
-            optional_silver=10):
+            optional_silver=10, gun_maker='', gun_element=''):
     """FMissionRewards: a fixed amount of experience (Docs/Progression.md), a gun at the player's feet (of gun_kind, a
     weapon definition's asset path, else one from the default loot table), a named gun, areas opened, a purse of its own
     (silver; 0: the giver's kept by mission id) and each optional objective's silver (at level 1)."""
@@ -310,6 +322,10 @@ def rewards(experience=0, gun=False, gun_rarity_floor='COMMON', gun_kind='', nam
             raise RuntimeError(f'{gun_kind} is not an asset: nothing was saved')
     made.set_editor_property('gun_kind', kind)
     made.set_editor_property('gun_rarity_floor', getattr(unreal.WeaponRarity, gun_rarity_floor))
+    # The gun's maker by key ('SaintMaud') and element by the enum's name ('SoulLight'): Main 4's Saint Maud with Hallow
+    # rounds, Knocking Below's Cinder (the RR tuning the user took, 2026-10-29 night; MissionRewards::MakeRewardGun).
+    made.set_editor_property('gun_maker', unreal.Name(gun_maker))
+    made.set_editor_property('gun_element', element_enum(gun_element))
     made.set_editor_property('named_gun', unreal.Name(named_gun))
     made.set_editor_property('unlock_areas', [unreal.Name(area) for area in unlock_areas])
     return made
@@ -681,7 +697,8 @@ MISSIONS = [
                      "went dark, and drifted home to find it rotting in the field. He isn't angry yet. He'd like it in."),
          # His thanks are his topic at the turn-in's step (DA_Lines_AmosThanks, build_area_whitlock's THANKS_STEP 3).
          turn_in=dict(speaker=AMOS_TAG, giver='Amos'),
-         rewards=dict(experience=600, gun=True, gun_rarity_floor='EPIC'),
+         # Rare (was Epic: the RR tuning the user took, 2026-10-29 night).
+         rewards=dict(experience=600, gun=True, gun_rarity_floor='RARE'),
          expect=['MissionLastingInteractObjective', ['MissionClearObjective', 'MissionEventObjective']]),
     dict(asset='DA_Mission_KnockingBelow', id='KnockingBelow', title='Knocking Below',
          summary="Bright & Daughter keeps the Rest's dead in its cellar until their seven days are up. Since the saint went "
@@ -707,7 +724,8 @@ MISSIONS = [
              ('', "Brass handles. He'd have hated them."),
              ('', "A box of his is under the counter. Don't make me look at it."),
          ]),
-         rewards=dict(experience=600, gun=True, gun_rarity_floor='RARE', silver=40),
+         # A Cinder Rare (was any Rare: the RR tuning the user took, 2026-10-29 night).
+         rewards=dict(experience=600, gun=True, gun_rarity_floor='RARE', gun_element='Ember', silver=40),
          expect=['MissionCollectItemObjective', ['MissionReachObjective', 'MissionEventObjective'],
                  'MissionClearObjective', 'MissionInteractObjective', ['MissionTalkObjective', 'MissionCollectItemObjective']]),
 
@@ -759,7 +777,8 @@ MISSIONS = [
              ('', "There's a carbine in the head's tool box. Company's. They'll never miss it."),
          ]),
          # A main mission's share since 2026-10-27: about half a level where it's met (Docs/Progression.md).
-         rewards=dict(experience=5000, gun=True, gun_rarity_floor='RARE', gun_kind=RIFLE, silver=40),
+         # An Epic rifle (was Rare: the RR tuning the user took, 2026-10-29 night).
+         rewards=dict(experience=5000, gun=True, gun_rarity_floor='EPIC', gun_kind=RIFLE, silver=40),
          expect=['MissionCollectItemObjective',
                  ['MissionLastingInteractObjective', 'MissionLastingInteractObjective'],
                  'MissionDefendObjective', 'MissionBoardObjective']),
@@ -818,7 +837,8 @@ MISSIONS = [
                       ('', "Paid in full. Shift's over, boys."),
                       (HOB, "First honest pay this mine ever made."),
                       (HOB, BOARDS_NEXT),
-                  ], gun=True, gun_rarity_floor='RARE'),
+                  # Epic (was Rare: the RR tuning the user took, 2026-10-29 night).
+                  ], gun=True, gun_rarity_floor='EPIC'),
              dict(title='Keep the payroll', line="Leave the tags on IN and pocket the company's silver. The dead go on "
                                                  "working the dark.",
                   flag='BackPay.Kept', stamp='KEPT', lines=[

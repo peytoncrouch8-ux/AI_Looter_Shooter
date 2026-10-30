@@ -137,7 +137,8 @@ void FWeaponFX::CollectFlames(const FVector& Camera, TArray<FTransform>& FireTra
 		{
 			continue;
 		}
-		const FTransform Transform = FlameTransform(Particle.Location, Size, Particle.Roll, Camera);
+		// Turning slowly as it rolls (Lane F's sprite polish; its noise's seed stays its spawn's roll).
+		const FTransform Transform = FlameTransform(Particle.Location, Size, VfxRules::SpriteRoll(Particle.Roll, Particle.Age), Camera);
 		if (bFireQuads)
 		{
 			FireTransforms.Add(Transform);

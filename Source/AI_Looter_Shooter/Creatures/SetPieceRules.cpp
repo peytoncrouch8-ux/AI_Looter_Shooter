@@ -20,7 +20,7 @@ namespace
 	TAutoConsoleVariable<float> CVarRewardLuck(TEXT("Looter.Fight.SetPiece.RewardLuck"), SetPieceDefaults.RewardLuck,
 		TEXT("The luck of a set piece's reward guns (a Strongbox's is 1)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarRewardAmmo(TEXT("Looter.Fight.SetPiece.RewardAmmo"), SetPieceDefaults.RewardAmmo,
-		TEXT("Ammo pickups in a set piece's loot shower (36 rounds each, as a chest's)."), ECVF_Default);
+		TEXT("Ammo pickups in a set piece's loot shower (a chest's 1.5 boxes each)."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarRewardBonusAmmo(TEXT("Looter.Fight.SetPiece.RewardBonusAmmo"), SetPieceDefaults.RewardBonusAmmo,
 		TEXT("Extra chest-full ammo boxes on top of a set piece's shower."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarArena(TEXT("Looter.Fight.SetPiece.Arena"), SetPieceDefaults.bArena ? 1 : 0,

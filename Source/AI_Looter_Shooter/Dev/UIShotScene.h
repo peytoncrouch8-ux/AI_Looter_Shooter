@@ -7,8 +7,8 @@ class UWorld;
 /**
  * The states Looter.UIShots (UIShotDevCommands.cpp) photographs the menus in, and how each is made. Two halves, one per
  * run of the game (Tools/uishots.ps1 runs both): on the menu map the main menu (arrived, Settings lit, the settings page
- * opened from it, the session picker), and on a level the pause menu (Graphics, a row focused, Audio, Interface,
- * Controls) and the level-up popup (during its count, then holding). The screens are driven through their own key
+ * opened from it, the session picker), and on a level the pause menu (its list, a row of it marked, then its settings on
+ * Graphics, a row focused, Audio, Interface, Controls) and the level-up popup (during its count, then holding). The screens are driven through their own key
  * handling (HandleNavKey, as a player's keys arrive) and the HUDs' own open and close calls, so the same run photographs
  * any version of them (a redesign's before and after). Developer builds only (the .cpp is empty in shipping).
  */

@@ -249,7 +249,11 @@ bool FEconomyOfferOddsTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("The odds add to 1"), FMath::IsNearlyEqual(Sum, 1.f, 0.0001f));
 	TestEqual(TEXT("Never a Common"), LooterEconomy::OfferRarityChance(EWeaponRarity::Common), 0.f);
-	TestTrue(TEXT("Uncommon most days"), LooterEconomy::OfferRarityChance(EWeaponRarity::Uncommon) > 0.5f);
+	// Rare 60%, Epic 32%, Legendary 8% (the RR tuning the user took, 2026-10-29 night).
+	TestEqual(TEXT("Never an Uncommon"), LooterEconomy::OfferRarityChance(EWeaponRarity::Uncommon), 0.f);
+	TestTrue(TEXT("Rare most days"), FMath::IsNearlyEqual(LooterEconomy::OfferRarityChance(EWeaponRarity::Rare), 0.6f));
+	TestTrue(TEXT("Epic about one day in three, Legendary one in twelve"), FMath::IsNearlyEqual(LooterEconomy::OfferRarityChance(EWeaponRarity::Epic), 0.32f)
+		&& FMath::IsNearlyEqual(LooterEconomy::OfferRarityChance(EWeaponRarity::Legendary), 0.08f));
 
 	FRandomStream Random(2026);
 	int32 Counts[5] = {};
@@ -258,7 +262,7 @@ bool FEconomyOfferOddsTest::RunTest(const FString& Parameters)
 	{
 		++Counts[static_cast<int32>(LooterEconomy::RollOfferRarity(Random))];
 	}
-	TestEqual(TEXT("None Common in 20,000 days"), Counts[0], 0);
+	TestEqual(TEXT("None Common or Uncommon in 20,000 days"), Counts[0] + Counts[1], 0);
 	for (const EWeaponRarity Rarity : Rarities)
 	{
 		const float Seen = static_cast<float>(Counts[static_cast<int32>(Rarity)]) / Rolls;
@@ -316,7 +320,7 @@ bool FEconomyMissionPursesTest::RunTest(const FString& Parameters)
 	if (BackPay)
 	{
 		TestEqual(TEXT("Back Pay's kept payroll: 400 silver"), MissionRewards::PurseOf((*BackPay)->RewardsFor(1), TEXT("BackPay")), 400);
-		TestEqual(TEXT("...the eleven paid: none (a Rare gun instead)"), MissionRewards::PurseOf((*BackPay)->RewardsFor(0), TEXT("BackPay")), 0);
+		TestEqual(TEXT("...the eleven paid: none (an Epic gun instead)"), MissionRewards::PurseOf((*BackPay)->RewardsFor(0), TEXT("BackPay")), 0);
 	}
 	FMissionRewardsGiven Given;
 	TestTrue(TEXT("Nothing given is empty"), Given.IsEmpty());

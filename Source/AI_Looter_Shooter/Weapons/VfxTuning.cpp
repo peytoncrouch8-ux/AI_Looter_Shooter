@@ -134,6 +134,8 @@ namespace
 		TEXT("Rings, fireballs and starbursts on M_FX_Shape when it's in the game (read as a level's effects start)."), ECVF_Default);
 	TAutoConsoleVariable<bool> CVarVfxPuffs(TEXT("Looter.Vfx.Puffs"), VfxDefaults.bPuffs,
 		TEXT("Smoke on M_FX_Puff (noise-broken, eroding) when it's in the game (read as a level's effects start)."), ECVF_Default);
+	TAutoConsoleVariable<bool> CVarVfxSoftGlows(TEXT("Looter.Vfx.SoftGlows"), VfxDefaults.bSoftGlows,
+		TEXT("Flashes, embers, motes and round glows as M_FX_Shape's soft glows once it draws them (0: M_FX_Glow's flat discs)."), ECVF_Default);
 	TAutoConsoleVariable<bool> CVarVfxFire(TEXT("Looter.Vfx.Fire"), VfxDefaults.bFire,
 		TEXT("Blasts' fire and soot on M_FX_Fire (alpha-blended) when it's in the game (read as a level's effects start)."), ECVF_Default);
 	TAutoConsoleVariable<bool> CVarVfxBurnTint(TEXT("Looter.Vfx.BurnTint"), VfxDefaults.bBurnTint,
@@ -219,6 +221,7 @@ FVfxTuning FVfxTuning::Live()
 	Tuning.MaxParticles = FMath::Clamp(CVarVfxMaxParticles.GetValueOnGameThread(), 100, 4000);
 	Tuning.bShapes = CVarVfxShapes.GetValueOnGameThread();
 	Tuning.bPuffs = CVarVfxPuffs.GetValueOnGameThread();
+	Tuning.bSoftGlows = CVarVfxSoftGlows.GetValueOnGameThread();
 	Tuning.bFire = CVarVfxFire.GetValueOnGameThread();
 	Tuning.bBurnTint = CVarVfxBurnTint.GetValueOnGameThread();
 	Tuning.bSplats = CVarVfxSplats.GetValueOnGameThread();

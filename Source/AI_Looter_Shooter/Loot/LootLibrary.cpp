@@ -146,6 +146,21 @@ int32 ULootLibrary::RollAmmoAmount(const ULootTable* LootTable, FRandomStream& R
 	return Random.RandRange(MinAmount, MaxAmount);
 }
 
+int32 ULootLibrary::RollAmmoAmountOf(const ULootTable* LootTable, EAmmoType Type, FRandomStream& Random)
+{
+	if (Type == EAmmoType::Rocket)
+	{
+		// Rockets keep their one to three (the user, 2026-10-29 night: "rockets keep theirs").
+		return LooterLoot::AmmoAmountFor(Type, RollAmmoAmount(LootTable, Random));
+	}
+	// The table's AR range scaled to the class, then one even roll over it: scaling a rolled AR amount would make a shotgun's
+	// 4 and 8 half as likely as the shells between.
+	const int32 MinAmount = FMath::Max(LootTable ? LootTable->AmmoAmountMin : LooterLoot::KillAmmoAmountMin, 1);
+	const int32 MaxAmount = FMath::Max(LootTable ? LootTable->AmmoAmountMax : LooterLoot::KillAmmoAmountMax, MinAmount);
+	const int32 ClassMin = LooterLoot::AmmoAmountFor(Type, MinAmount);
+	return Random.RandRange(ClassMin, FMath::Max(LooterLoot::AmmoAmountFor(Type, MaxAmount), ClassMin));
+}
+
 FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random, TOptional<EAmmoType> KillAmmo,
 	bool bWeapons, ELooterElement Lean)
 {
@@ -209,7 +224,7 @@ void ULootLibrary::KeepRocketsForLaunchers(FLootRoll& Roll, const ULootTable* Lo
 		if (Drop.Type == EAmmoType::Rocket)
 		{
 			Drop.Type = PickAmmoType(LootTable, Random, {}, true);
-			Drop.Amount = LooterLoot::AmmoAmountFor(Drop.Type, RollAmmoAmount(LootTable, Random));
+			Drop.Amount = RollAmmoAmountOf(LootTable, Drop.Type, Random);
 		}
 	}
 }
@@ -258,7 +273,7 @@ TArray<FAmmoDrop> ULootLibrary::RollAmmo(const ULootTable* LootTable, FRandomStr
 		return Ammo;
 	}
 	// Most kills leave a pickup or two (ranked creatures more), each of a random class (more often the kill weapon's) and a
-	// random amount from the table's range, the same range for every class (rockets read it as one to three rockets).
+	// random amount from the table's range scaled to its class (shells 4-8 a kill; rockets one to three).
 	if (Random.FRand() < LootTable->AmmoDropChance)
 	{
 		const int32 MinDrops = FMath::Max(LootTable->MinAmmoDrops, 0);
@@ -267,7 +282,7 @@ TArray<FAmmoDrop> ULootLibrary::RollAmmo(const ULootTable* LootTable, FRandomStr
 		{
 			FAmmoDrop& Drop = Ammo.AddDefaulted_GetRef();
 			Drop.Type = PickAmmoType(LootTable, Random, KillAmmo);
-			Drop.Amount = LooterLoot::AmmoAmountFor(Drop.Type, RollAmmoAmount(LootTable, Random));
+			Drop.Amount = RollAmmoAmountOf(LootTable, Drop.Type, Random);
 		}
 	}
 	return Ammo;

@@ -3,21 +3,15 @@
 #include "Weapons/VfxTuning.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
-// FWeaponFX's moving and drawing: every particle advanced (falling, dragging, tumbling, landing on its impact's floor)
-// and drawn as instanced quads (turned to the camera) and lit chunks. The spawns are in WeaponFX.cpp and its topic files.
-// The VFX pass (Saved/Vfx/PLAN.md): rings, fireballs and starbursts on M_FX_Shape's quads (or stand-ins on the glows), the
-// puffs' seed and erosion for M_FX_Puff, and drops stretched by their speed into streaks of spray.
+// FWeaponFX's drawing: every particle drawn as instanced quads (turned to the camera) and lit chunks (WeaponFXMotion.cpp moves
+// them; the spawns are in WeaponFX.cpp and its topic files). The VFX pass (Saved/Vfx/PLAN.md): rings, fireballs and
+// starbursts on M_FX_Shape's quads (or stand-ins on the glows), the puffs' seed and erosion for M_FX_Puff, and drops stretched
+// by their speed into streaks of spray. Lane F's sprite polish (2026-10-29): flashes, embers and motes as M_FX_Shape's soft
+// glows (four looks by their seed), pulled a little toward the eye and smeared along their way while they move; puffs and
+// fireballs turning slowly as they billow; sparks each their own taper, warm ones cooling redder.
 
 namespace
 {
-	constexpr float FXGravity = 980.f;
-	/** A chunk lying on its floor goes after this long (seconds, at random between). */
-	constexpr float FXRestMin = 0.9f;
-	constexpr float FXRestMax = 2.f;
-	/** Under this speed (cm/s), or after this many bounces, a landed chunk lies still. */
-	constexpr float FXRestSpeed = 45.f;
-	constexpr uint8 FXMostBounces = 3;
-
 	/** Any unit vector at right angles to Direction. */
 	FVector FXPerpendicular(const FVector& Direction)
 	{
@@ -54,6 +48,59 @@ namespace
 		return FTransform(Rotation, Location, FVector(Size / 100.f, Size / 100.f, 1.f));
 	}
 
+	/**
+	 * A glow is drawn pulled toward the eye by this share of its size (never past a tenth of the way to it): a flash on a wall
+	 * or a wound was half sunk into it, cut off along a hard line; what's left there M_FX_Shape softens (its SoftDepth).
+	 */
+	constexpr float GlowPull = 0.3f;
+	/** Under this speed across the view (cm/s) a glow is still: turned by its roll, not along its way. */
+	constexpr float GlowStill = 1.f;
+
+	/**
+	 * A glow's quad (a flash, an ember, a mote) facing the camera, pulled toward it (GlowPull); while it moves, laid along its
+	 * way on screen and drawn Stretch times its size that way (VfxRules::GlowStretch: an ember's smear, not a dot), else turned
+	 * by Roll.
+	 */
+	FTransform GlowTransform(const FVector& Location, float Size, float Roll, const FVector& Velocity, const FVector& Camera, float& Stretch)
+	{
+		FVector Facing = Camera - Location;
+		const float Distance = static_cast<float>(Facing.Size());
+		Facing = Distance > UE_KINDA_SMALL_NUMBER ? Facing / Distance : FVector::UpVector;
+		const FVector Center = Location + Facing * FMath::Min(Size * GlowPull, Distance * 0.1f);
+		const FVector Across = Velocity - Facing * FVector::DotProduct(Velocity, Facing);
+		const float Speed = static_cast<float>(Across.Size());
+		Stretch = 1.f;
+		if (Speed > GlowStill)
+		{
+			Stretch = VfxRules::GlowStretch(Speed, Size);
+			const FQuat Rotation = FRotationMatrix::MakeFromZX(Facing, Across).ToQuat();
+			return FTransform(Rotation, Center, FVector(Size * Stretch / 100.f, Size / 100.f, 1.f));
+		}
+		const FQuat Rotation = FRotationMatrix::MakeFromZ(Facing).ToQuat() * FQuat(FVector::UpVector, Roll);
+		return FTransform(Rotation, Center, FVector(Size / 100.f, Size / 100.f, 1.f));
+	}
+
+	/**
+	 * A spark's colour T into its life: a fire-coloured one (red over green over blue, little blue) cools toward a deep orange-red
+	 * as it flies (hot metal dimming), any other (an element's: salt's cyan, soul-light's white-gold) keeps its own.
+	 */
+	FLinearColor SparkCooling(const FLinearColor& Color, float T)
+	{
+		const bool bFire = Color.R >= Color.G && Color.G >= Color.B && Color.B < Color.R * 0.5f;
+		if (!bFire)
+		{
+			return Color;
+		}
+		const float Cool = FMath::Clamp(T, 0.f, 1.f);
+		return FLinearColor(Color.R, Color.G * FMath::Lerp(1.f, 0.55f, Cool), Color.B * FMath::Lerp(1.f, 0.4f, Cool), Color.A);
+	}
+
+	/** A spark's taper (M_FX_Muzzle's streak length share, 0.72-1) from its roll: each its own, not a sheet of the same line. */
+	float SparkTaper(float Roll)
+	{
+		return FMath::Lerp(0.72f, 1.f, FMath::Frac(Roll * 2.31f));
+	}
+
 	void AddGlowData(TArray<float>& Data, const FLinearColor& Color, float Intensity, float Shape)
 	{
 		Data.Append({ Color.R, Color.G, Color.B, Intensity, Shape });
@@ -80,121 +127,6 @@ namespace
 		const FQuat Rotation = FRotationMatrix::MakeFromZ(Axis).ToQuat() * FQuat(FVector::UpVector, Roll);
 		return FTransform(Rotation, Location, FVector(Size / 100.f, Size / 100.f, 1.f));
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Simulation
-// ---------------------------------------------------------------------------
-
-void FWeaponFX::Tick(float DeltaSeconds, const FVector& CameraLocation)
-{
-	const float Dt = FMath::Clamp(DeltaSeconds, 0.f, 0.1f);
-	// Where looks are seen from (DetailAt thins what's thrown far off).
-	LastCamera = CameraLocation;
-	bHasCamera = true;
-	WaterRings.Tick(Dt);
-	for (int32 Index = Particles.Num() - 1; Index >= 0; --Index)
-	{
-		FParticle& Particle = Particles[Index];
-		Particle.Age += Dt;
-		if (Particle.Age >= Particle.Life)
-		{
-			Particles.RemoveAtSwap(Index, 1, EAllowShrinking::No);
-			continue;
-		}
-		if (Particle.bResting || Particle.Age < 0.f)
-		{
-			// Lying where it landed until it shrinks away; or not begun yet (a blast's late puff: SpawnFlame's delay).
-			continue;
-		}
-		Particle.Velocity += FVector(0.f, 0.f, -FXGravity * Particle.Gravity * Dt);
-		Particle.Velocity *= FMath::Exp(-Particle.Drag * Dt);
-		Particle.Location += Particle.Velocity * Dt;
-		if (!Particle.Spin.IsNearlyZero())
-		{
-			const float Angle = Particle.Spin.Size() * Dt;
-			Particle.Rotation = FQuat(Particle.Spin.GetSafeNormal(), Angle) * Particle.Rotation;
-		}
-		if (Particle.bFloor)
-		{
-			LandOnFloor(Particle);
-		}
-	}
-	Redraw(CameraLocation);
-	Streaks.Reset();
-}
-
-void FWeaponFX::LandOnFloor(FParticle& Particle)
-{
-	const FVector Up(Particle.Floor.X, Particle.Floor.Y, Particle.Floor.Z);
-	// A chunk comes to lie with its middle a little over the ground; a spark touches it.
-	const float Lift = Particle.Type == EParticle::Spark ? 0.3f : Particle.StartSize * 0.25f;
-	const double Height = Particle.Floor.PlaneDot(Particle.Location);
-	if (Height >= Lift)
-	{
-		return;
-	}
-	// A drop (water, gel) splats into the ground: gone.
-	const bool bDrop = Particle.Type == EParticle::Droplet
-		|| (Particle.Type == EParticle::Bit && BitSets.IsValidIndex(Particle.BitSet) && BitSets[Particle.BitSet].Shape == EBitShape::Round);
-	if (bDrop)
-	{
-		Particle.Life = Particle.Age;
-		return;
-	}
-	Particle.Location += Up * (Lift - Height);
-	const double Into = FVector::DotProduct(Particle.Velocity, Up);
-	const bool bSpark = Particle.Type == EParticle::Spark;
-	if (Into < 0.0)
-	{
-		// A bounce: it skids on along the ground and hops back up a little (sparks keep more, skittering on).
-		const FVector Across = Particle.Velocity - Up * Into;
-		Particle.Velocity = Across * (bSpark ? 0.7f : 0.45f) - Up * (Into * (bSpark ? 0.4f : 0.3f));
-		Particle.Spin *= 0.5f;
-		++Particle.Bounces;
-	}
-	if (!bSpark && (Particle.Bounces >= FXMostBounces || Particle.Velocity.SizeSquared() < FMath::Square(FXRestSpeed)))
-	{
-		// Spent: it lies flat where it fell a moment or two, then shrinks away.
-		Particle.bResting = true;
-		Particle.Velocity = FVector::ZeroVector;
-		Particle.Spin = FVector::ZeroVector;
-		FVector Along = Particle.Rotation.GetAxisX();
-		Along -= Up * FVector::DotProduct(Along, Up);
-		if (!Along.Normalize())
-		{
-			Along = FXPerpendicular(Up);
-		}
-		Particle.Rotation = FRotationMatrix::MakeFromZX(Up, Along).ToQuat();
-		Particle.Life = FMath::Max(Particle.Life, Particle.Age + Random.FRandRange(FXRestMin, FXRestMax));
-	}
-}
-
-int32 FWeaponFX::NumResting() const
-{
-	int32 Count = 0;
-	for (const FParticle& Particle : Particles)
-	{
-		Count += Particle.bResting ? 1 : 0;
-	}
-	return Count;
-}
-
-float FWeaponFX::LowestOverFloor() const
-{
-	bool bAny = false;
-	double Lowest = 0.0;
-	for (const FParticle& Particle : Particles)
-	{
-		// Not a drop that just splatted (gone next update) and not a spark (it only skitters).
-		if (Particle.bFloor && Particle.Type != EParticle::Spark && Particle.Age < Particle.Life)
-		{
-			const double Height = Particle.Floor.PlaneDot(Particle.Location);
-			Lowest = bAny ? FMath::Min(Lowest, Height) : Height;
-			bAny = true;
-		}
-	}
-	return static_cast<float>(Lowest);
 }
 
 // ---------------------------------------------------------------------------
@@ -232,10 +164,14 @@ void FWeaponFX::Redraw(const FVector& Camera)
 	// covered close targets), never bigger on screen than their cvars allow; on the glows without it.
 	const FVfxTuning Vfx = FVfxTuning::Live();
 	const bool bSoft = SoftStreaks.IsValid();
+	// Flashes, embers, motes and round glows as M_FX_Shape's soft glows once the master draws them (bShapeGlows: its SoftGlow
+	// knob); M_FX_Glow's flat discs before, or with Looter.Vfx.SoftGlows 0.
+	const bool bSoftGlows = bShapeQuads && bShapeGlows && Vfx.bSoftGlows;
 	TArray<FTransform> SoftTransforms;
 	TArray<float> SoftData;
+	// Param: the streak's length share (a spark's taper); Seed its own.
 	auto AddSoft = [&SoftTransforms, &SoftData, &Camera](const FVector& Tail, const FVector& Head, float Width, const FLinearColor& Color,
-		float Intensity, float MaxWidth, float MaxLength)
+		float Intensity, float MaxWidth, float MaxLength, float Param, float Seed)
 	{
 		const float Distance = static_cast<float>(FVector::Dist(Camera, Head));
 		FVector From = Tail;
@@ -247,14 +183,21 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			From = Head - Way * (Kept / Length);
 		}
 		SoftTransforms.Add(StreakTransform(From, Head, VfxRules::StreakWidthAt(Width, Distance, MaxWidth) * SoftStreakWiden, Camera));
-		SoftData.Append({ Color.R, Color.G, Color.B, Intensity, 0.f, 1.f, 0.f, 0.f });
+		SoftData.Append({ Color.R, Color.G, Color.B, Intensity, 0.f, Param, Seed, 0.f });
 	};
 
 	for (const FStreak& Streak : Streaks)
 	{
 		if (bSoft && Streak.Look == EStreakLook::Tracer && !Streak.bRound)
 		{
-			AddSoft(Streak.Tail, Streak.Head, Streak.Width, Streak.Color, Streak.Intensity * Vfx.TracerGlow, Vfx.TracerWidth, 0.f);
+			AddSoft(Streak.Tail, Streak.Head, Streak.Width, Streak.Color, Streak.Intensity * Vfx.TracerGlow, Vfx.TracerWidth, 0.f, 1.f, 0.f);
+			continue;
+		}
+		if (Streak.bRound && bSoftGlows)
+		{
+			// A plain round soft glow (seed 0.1: the first look; redrawn every frame, so no per-glow seed to keep), heat 0.5, not
+			// softened against what's behind it (a body's glow sits just on its near side).
+			AddShape(SpriteTransform(Streak.Head, Streak.Width, 0.f, Camera), Streak.Color, Streak.Intensity, EVfxShape::Glow, -0.5f, 0.1f);
 			continue;
 		}
 		// A round one is a flash's soft disc (the glow material's shape 1), a line the streak's.
@@ -291,14 +234,15 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			// A short streak trailing behind the spark, fading as it cools.
 			const float Length = FMath::Clamp(Particle.Velocity.Size() * 0.025f, 3.f, 40.f);
 			const FVector Tail = Particle.Location - Particle.Velocity.GetSafeNormal() * Length;
+			const FLinearColor Color = SparkCooling(Particle.Color, T);
 			if (bSoft)
 			{
-				AddSoft(Tail, Particle.Location, Particle.StartSize, Particle.Color, Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * Vfx.SparkGlow,
-					Vfx.SparkWidth, Vfx.SparkLength);
+				AddSoft(Tail, Particle.Location, Particle.StartSize, Color, Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * Vfx.SparkGlow,
+					Vfx.SparkWidth, Vfx.SparkLength, SparkTaper(Particle.Roll), Particle.Roll / UE_TWO_PI);
 				break;
 			}
 			GlowTransforms.Add(StreakTransform(Tail, Particle.Location, Particle.StartSize, Camera));
-			AddGlowData(GlowData, Particle.Color, Particle.Intensity * FMath::Pow(1.f - T, 1.5f), 0.f);
+			AddGlowData(GlowData, Color, Particle.Intensity * FMath::Pow(1.f - T, 1.5f), 0.f);
 			break;
 		}
 		case EParticle::Streak:
@@ -310,7 +254,7 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			if (bSoft)
 			{
 				AddSoft(Tail, Particle.Location, Particle.StartSize, Particle.Color, Particle.Intensity * FMath::Pow(1.f - T, 1.2f) * Vfx.SparkGlow,
-					Vfx.TracerWidth, 0.f);
+					Vfx.TracerWidth, 0.f, 1.f, 0.f);
 				break;
 			}
 			GlowTransforms.Add(StreakTransform(Tail, Particle.Location, Particle.StartSize, Camera));
@@ -319,9 +263,20 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		}
 		case EParticle::Flash:
 		{
+			// A flash, an ember, a mote, a glint: pulled toward the eye, smeared along its way while it moves (its light spread
+			// along the smear: a moving glow isn't brighter for it).
 			const float Size = FMath::Lerp(Particle.StartSize, Particle.EndSize, FMath::Sqrt(T));
-			GlowTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
-			AddGlowData(GlowData, Particle.Color, Particle.Intensity * FMath::Square(1.f - T), 1.f);
+			float Stretch = 1.f;
+			const FTransform Transform = GlowTransform(Particle.Location, Size, Particle.Roll, Particle.Velocity, Camera, Stretch);
+			const float Strength = Particle.Intensity * FMath::Square(1.f - T) / FMath::Sqrt(Stretch);
+			if (bSoftGlows)
+			{
+				// Its heart white as it starts, its own colour as it fades; its look and turn by its seed (its spawn's roll).
+				AddShape(Transform, Particle.Color, Strength, EVfxShape::Glow, 1.f - T, Particle.Roll / UE_TWO_PI);
+				break;
+			}
+			GlowTransforms.Add(Transform);
+			AddGlowData(GlowData, Particle.Color, Strength, GlowRound);
 			break;
 		}
 		case EParticle::Smoke:
@@ -338,7 +293,8 @@ void FWeaponFX::Redraw(const FVector& Camera)
 				// Not seen (not begun, or filling the view): not drawn either.
 				break;
 			}
-			SmokeTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
+			// Turning slowly as it billows (its seed stays its spawn's roll: the noise turns with it).
+			SmokeTransforms.Add(SpriteTransform(Particle.Location, Size, VfxRules::SpriteRoll(Particle.Roll, Particle.Age), Camera));
 			// Its own noise (its roll as the seed) and how far it has thinned: M_FX_Puff erodes it into wisps as it goes.
 			AddSmokeData(Particle.Color, Opacity, Particle.Roll / UE_TWO_PI, T);
 			break;
@@ -406,14 +362,16 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			// Additive fire must stay near 1 to keep its colour in daylight (the tonemapper turns a bright orange white): the
 			// spawns keep strengths of 1-4. It dims as it cools (a cooled fireball at full strength burned out to a white cloud in daylight: 2026-10-22).
 			const float Strength = Particle.Intensity * (1.f - T * T) * (0.2f + 0.8f * Heat * Heat);
+			// Rolling slowly as it billows (its noise's seed stays its spawn's roll).
+			const float Roll = VfxRules::SpriteRoll(Particle.Roll, Particle.Age);
 			if (bShapeQuads)
 			{
-				AddShape(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera), Particle.Color, Strength, EVfxShape::Fireball, Heat,
+				AddShape(SpriteTransform(Particle.Location, Size, Roll, Camera), Particle.Color, Strength, EVfxShape::Fireball, Heat,
 					Particle.Roll / UE_TWO_PI);
 			}
 			else
 			{
-				GlowTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
+				GlowTransforms.Add(SpriteTransform(Particle.Location, Size, Roll, Camera));
 				AddGlowData(GlowData, VfxRules::HeatColor(Particle.Color, Heat), Strength * (0.35f + 0.65f * Heat), GlowRound);
 			}
 			break;

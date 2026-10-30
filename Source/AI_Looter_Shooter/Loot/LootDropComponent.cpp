@@ -5,7 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/PlayerVitalsSubsystem.h"
 #include "Creatures/CreatureBase.h"
-#include "Creatures/UnpaidCreature.h"
+#include "Loot/KillLootRules.h"
 #include "Economy/SilverDrops.h"
 #include "Loot/GrenadePickup.h"
 #include "Player/PlayerThrowComponent.h"
@@ -88,7 +88,9 @@ void ULootDropComponent::HandleOwnerDeath(AController* Killer)
 		// Silver, apart from the table as well (so its odds don't move), by rank: the Unpaid had pockets, beasts swallowed a
 		// little. None where guns don't drop (a practice area the player has left).
 		FRandomStream SilverRoll(FMath::Rand());
-		SilverDrops::DropForKill(*Creature, Creature->GetRank(), Creature->IsA<AUnpaidCreature>(), Level, SilverRoll);
+		// (KillLootRules: the Gravepickers pay as the Unpaid, a Regular Sentinel as a Restless Unpaid.)
+		const FKillSilver Silver = KillLootRules::SilverFor(*Creature);
+		SilverDrops::DropForKill(*Creature, Silver.Rank, Silver.bUnpaid, Level, SilverRoll);
 	}
 
 	// Asked at the death rather than when play began, so turning the drop off after its owner has spawned still counts.
