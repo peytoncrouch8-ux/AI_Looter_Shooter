@@ -256,7 +256,7 @@ The user's calls this stretch:
 - Tripo remakes in progress by the user: Stone Sentinel and the Unpaid (prompts in this session; Enemies.md).
 
 ## Overnight 2026-10-29/30 (the user went to bed; their answers)
-- In flight: Tripo remakes (Sentinel, Unpaid, Meadow Wolf, Spitter, Gravemother: contract Docs/Work/2026-10-29-TripoCreatures),
+- In flight: Tripo remakes (Sentinel, Unpaid, Meadow Wolf, Spitter, Gravemother: contract Docs/Archive/Work/2026-10-29-TripoCreatures),
   effect sprite polish (built? see commits), file splits, the tuning pass (the user: element bullets x1.75/x0.5 with status
   x2/x0.33, ammo by class, compounding +9% a level, bosses ignore body resists keeping their story immunity, plus the
   analyst's fixes), three boss legendaries at 10% per kill (Gravesilk, Company Scrip, Lamplighter), the ESC pause hub
@@ -272,9 +272,16 @@ The user's calls this stretch:
   the 480 cm ring sitting inside lunge range; the failed-lunge shriek; Tripo Spitter (6 legs rebuilt to 8) and Gravemother
   (6 legs, middle pair doubled) imported; the ten stale tests fixed). Test `Looter.Creatures.Unpaid.Shriek` renamed
   `.Shriek.SlowRing` (its name was also a group, so it never ran): rerun after the next build.
-- Still to do: play-check (agent), Stone Sentinel Tripo import (art agent, lane S), perf to 120 fps, package, then tell
-  the user: Map row added to the hub; named guns can't be sold; player health compounds +9% a level too; the new Unpaid's
-  big hat + glowing eyes; spider leg rebuilds; grass doesn't bend in the shriek.
+- Then (2026-10-30 early): play-check passed (Variety 1 mix Rake 29 / Lunge 26 / LowSwipe 20 / PhaseStrike 13 / Feint 12 %,
+  Variety 0 was 93% lunges; shriek light 70/150 -> 25/50 cd and its cone stops short of the camera, f2bf413c; chest ring
+  dropped, e0a73e5e; pause hub, bars, models level with 8 legs: pass). Perf (Performance.md rows 10-30): base 6.2 ms, horde
+  6.4, horde + shrieks 6.5, Gravemother 6.4, tour 37 views all <= 8.2 ms. Shriek file split (29b31a90). Tripo Stone Sentinel
+  in game (6cd8be48; fists at the sides, slam poses cut). Playtest package `Builds/Playtest/2026-10-30_0215` (1.47 GB, smoke menu + Ransom's Rest pass; `Play Latest Build.bat` runs it).
+- Open, for the user: the Unpaid's hat reads near-white (darker?); the Spitter's sac looks plain; enemy nameplates overlap
+  the boss bar's title near a boss; Rake tally counts both swipes; the Gravemother spawn hitch was an editor first-use (none
+  in the standalone capture). Tell them: Map row added to the hub; named guns can't be sold; player health compounds +9% a
+  level too; spider leg rebuilds (Spitter 6 -> 8, Gravemother middle pair doubled); grass doesn't bend in the shriek.
+- TripoCreatures contract archived; GripSpots stays in Docs/Work (code points at it; the other guns use it later).
 
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:
