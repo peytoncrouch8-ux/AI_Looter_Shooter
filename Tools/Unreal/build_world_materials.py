@@ -1122,7 +1122,16 @@ float Front = 0.5 + 0.5 * sin(dot(WorldPos.xy, GDir) * 0.0025 - Time * 1.25);
 float G = GustStrength * lerp(0.55, 1.0, Front);
 float Flutter = sin(Time * Speed * 3.1 + Phase * 2.3);
 float2 Push = Dir * Sway * (1.0 + G * GustSway) + GDir * G * (GustBow + Flutter * GustFlutter);
-return float3(Push * Strength * VertexColor.r, 0.0);"""
+// A blast (UFoliageBlastSubsystem, MPC_Wind: an Unpaid's shriek): the plants at its rolling front (BlastCenter.w cm out) are
+// thrown flat away from its middle, BlastPush cm at the tip; those it has passed keep half that lean and spring back with
+// BlastStrength (which swings a little below 0). Nothing past the front, and nothing at all between blasts (strength 0).
+float2 BOff = WorldPos.xy - BlastCenter.xy;
+float BD = length(BOff);
+float BAt = (1.0 - saturate((BD - BlastCenter.w) / 120.0)) * lerp(1.0, 0.5, saturate((BlastCenter.w - BD) / 350.0)) * saturate(BD / 80.0);
+float BFlutter = 1.0 + 0.15 * sin(Time * 22.0 + Phase * 3.0);
+float2 BPush = BOff / max(BD, 1.0) * BlastStrength * BAt * BlastPush * BFlutter;
+// A blade thrown flat dips as it leans, so it doesn't stretch.
+return float3(Push * Strength * VertexColor.r + BPush * VertexColor.r, -0.35 * length(BPush) * VertexColor.r);"""
 
 
 # A share of the plants (VariationAmount; 0 for all but an area's own instances) wear TintVariation instead of Tint: the
@@ -1177,6 +1186,9 @@ def build_foliage(orm_default):
         ('GustBow', g.scalar('GustBow', 1.6, -800, 1600), ''),
         ('GustSway', g.scalar('GustSway', 1.5, -800, 1700), ''),
         ('GustFlutter', g.scalar('GustFlutter', 0.8, -800, 1800), ''),
+        ('BlastCenter', wind_param(g, 'BlastCenter', -800, 1900), ''),
+        ('BlastStrength', wind_param(g, 'BlastStrength', -800, 2000), ''),
+        ('BlastPush', g.scalar('BlastPush', 30.0, -800, 2100), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 900, 'Wind')
     g.out(wind, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
     # Foliage is never Nanite (it has LODs instead), and the Nanite permutation of this material doesn't compile on SM6.

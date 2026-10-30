@@ -1,4 +1,5 @@
 #include "UI/World/CreatureHealthBarWidget.h"
+#include "UI/HUD/HudBossBarWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -417,6 +418,7 @@ void UCreatureHealthBarWidget::SetHealth(float Health, float MaxHealth)
 void UCreatureHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	FadeUnderBossBar(MyGeometry, InDeltaTime);
 	if (bRankFlashing)
 	{
 		// The pop runs on its own clock between the creature's calls, so it stays smooth at any update rate.
@@ -445,5 +447,20 @@ void UCreatureHealthBarWidget::ApplyBar()
 	{
 		HealthFill->SetWidthOverride(BarWidth * Fraction);
 		ChipFill->SetWidthOverride(BarWidth * GhostFraction);
+	}
+}
+
+void UCreatureHealthBarWidget::FadeUnderBossBar(const FGeometry& MyGeometry, float DeltaSeconds)
+{
+	// A tag drifting up under a shown boss bar fades to a ghost, so the boss's name and phase line stay readable; it comes
+	// back as it leaves. Fading beats moving it: a moved tag would no longer sit over its creature.
+	FSlateRect Covered;
+	const FSlateRect Mine = FSlateRect::FromPointAndExtent(MyGeometry.GetAbsolutePosition(), MyGeometry.GetAbsoluteSize());
+	const bool bUnder = UHudBossBarWidget::CoveredArea(GetWorld(), Covered) && FSlateRect::DoRectanglesIntersect(Covered, Mine);
+	const float Goal = bUnder ? UnderBossBarOpacity : 1.f;
+	if (BossBarFade != Goal)
+	{
+		BossBarFade = FMath::FInterpConstantTo(BossBarFade, Goal, DeltaSeconds, 1.f / UnderBossBarFadeSeconds);
+		SetRenderOpacity(BossBarFade);
 	}
 }

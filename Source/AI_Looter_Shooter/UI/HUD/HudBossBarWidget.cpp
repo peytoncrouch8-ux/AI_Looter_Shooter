@@ -32,6 +32,11 @@ namespace
 	constexpr float BossHitWhite = 0.45f;
 	constexpr float BossPhaseOrange = 0.55f;
 
+	/** The bars shown now (CoveredArea reads them); weak, so a bar thrown away simply drops out. */
+	TArray<TWeakObjectPtr<UHudBossBarWidget>> ShownBars;
+	/** A bar fainter than this covers nothing worth stepping aside for. */
+	constexpr float BossCoversAt = 0.05f;
+
 	/** Tone, Amount of the way to the grey of its own brightness: an untargetable fill keeps its bands' light and dark. */
 	FLinearColor BossGreyed(const FLinearColor& Tone, float Amount)
 	{
@@ -198,6 +203,27 @@ bool UHudBossBarWidget::IsNearArena(const FVector& Viewer, const FVector& Center
 	return Reach <= 0.f || FVector::DistSquared(Viewer, Center) <= FMath::Square(static_cast<double>(Reach));
 }
 
+bool UHudBossBarWidget::CoveredArea(const UWorld* World, FSlateRect& OutArea)
+{
+	ShownBars.RemoveAll([](const TWeakObjectPtr<UHudBossBarWidget>& Bar) { return !Bar.IsValid(); });
+	for (const TWeakObjectPtr<UHudBossBarWidget>& Weak : ShownBars)
+	{
+		const UHudBossBarWidget* Bar = Weak.Get();
+		if (!Bar || Bar->GetWorld() != World || !Bar->IsInViewport() || !Bar->Cluster || Bar->Opacity <= BossCoversAt)
+		{
+			continue;
+		}
+		const FGeometry& Geometry = Bar->Cluster->GetCachedGeometry();
+		const FVector2D Size = Geometry.GetAbsoluteSize();
+		if (Size.X > 1.f && Size.Y > 1.f)
+		{
+			OutArea = FSlateRect::FromPointAndExtent(Geometry.GetAbsolutePosition(), Size);
+			return true;
+		}
+	}
+	return false;
+}
+
 bool UHudBossBarWidget::IsViewerNearArena() const
 {
 	if (ArenaReach <= 0.f)
@@ -236,6 +262,14 @@ void UHudBossBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		Opacity = FMath::FInterpConstantTo(Opacity, Target, InDeltaTime, 1.f / BossFadeSeconds);
 		Cluster->SetRenderOpacity(Opacity);
 		Cluster->SetVisibility(Opacity > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (Opacity > BossCoversAt)
+	{
+		ShownBars.AddUnique(this);
+	}
+	else
+	{
+		ShownBars.Remove(this);
 	}
 
 	bool bFillMoved = false;

@@ -5,6 +5,9 @@ GustSubsystem.h) for the materials that bend in the wind:
                  fall). M_WorldFoliage's plants and grass bow downwind and sway harder by it; M_Smoke's plumes lean.
   GustDirection  the way it blows (xy, level and unit; z and w 0): within 25 degrees of the prevailing wind (yaw 19, the
                  way the smoke leans).
+  BlastCenter    a blast through the grass (UFoliageBlastSubsystem: an Unpaid's shriek): xyz its middle, w its front's
+                 radius now (cm). M_WorldFoliage throws the plants at the front flat away from it.
+  BlastStrength  the blast's push now: 1 as the front rolls, swinging a little below 0 as the plants spring back, then 0.
 
 The defaults leave everything still (strength 0); the subsystem writes 0 as each level begins and after each gust. The
 names are UGustSubsystem's GustStrengthParameter and GustDirectionParameter.
@@ -19,10 +22,12 @@ import unreal
 PATH = '/Game/Art/Materials/MPC_Wind'
 SCALARS = (
     ('GustStrength', 0.0),
+    ('BlastStrength', 0.0),
 )
 VECTORS = (
     # The prevailing wind's way (yaw 19: cos, sin), so a material read before the first gust leans the right way.
     ('GustDirection', (0.9455, 0.3256, 0.0, 0.0)),
+    ('BlastCenter', (0.0, 0.0, 0.0, 0.0)),
 )
 
 

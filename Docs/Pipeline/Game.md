@@ -76,7 +76,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   the giver's mark). `Looter.Highlight.List` says ", marked". Test `Looter.Missions.Highlight.Marker`.
 - Holds: every hold-to-use shows the kit's round ring (`SLooterProgressRing`, `LooterUI::MakeHoldKeyCap`).
 - HUD (the user's list, 2026-10-14): the mission tracker sits under the minimap, right-aligned (`TopFor`, `RightInset` 36,
-  `MaxWidth` 540: clear of the boss bar's 380 px either side of the middle); steps and the objective are circles, checked
+  `MaxWidth` 540: clear of the boss bar's 380 px either side of the middle); enemy name tags under a shown boss bar fade to 0.15 in 0.2 s
+  (`UHudBossBarWidget::CoveredArea`, `UCreatureHealthBarWidget::FadeUnderBossBar`; 2026-10-30, they hid its title); steps and the objective are circles, checked
   once done; a line without a count takes the count's room before wrapping. A kill's XP floats by the kill (`XpPopup*`) and
   as "+N XP" after the XP bar's numbers. The gun's notches (inked tally in its tier's colour, count) sit before its name.
   Health and XP bars 25% longer and thicker (`HudFrameShapes::BarScale`). Subtitles On/Off in Interface

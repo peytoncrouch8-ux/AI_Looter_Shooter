@@ -2,6 +2,7 @@
 #include "Combat/BulletSubsystem.h"
 #include "Creatures/UnpaidMoveTuning.h"
 #include "Weapons/WeaponFX.h"
+#include "World/FoliageBlastSubsystem.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
 #include "Components/PointLightComponent.h"
@@ -211,6 +212,8 @@ void UUnpaidPackSubsystem::StartWave(const FVector& Feet, float Radius, float Se
 	Wave.Source = Source;
 	// The dust is shown in the light where the wave starts (one sun trace a wave: the yard is lit or shaded as a whole).
 	Wave.Light = Source ? DustLight.At(*World, Feet + FVector(0.0, 0.0, 30.0), *Source) : FLinearColor::White;
+	// The grass and plants it rolls over are thrown flat away from it and spring back (M_WorldFoliage reads MPC_Wind).
+	UFoliageBlastSubsystem::Blast(World, Feet, Radius, Seconds, Wave.Strength);
 }
 
 void UUnpaidPackSubsystem::AdvanceWaves(float DeltaSeconds)

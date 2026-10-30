@@ -201,6 +201,7 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 	{
 		Kit.Move = EUnpaidMove::None;
 		Kit.bSecondSwipe = false;
+		Kit.bRakeLanded = false;
 	}
 
 	// Its pack's frenzy: every coal burns high while the pack comes on together.
@@ -316,6 +317,7 @@ void AUnpaidCreature::ChooseKitMove()
 {
 	Kit.Move = EUnpaidMove::None;
 	Kit.bSecondSwipe = false;
+	Kit.bRakeLanded = false;
 	Kit.LungeReach = 0.f;
 	if (!HasFightKit() || IsBossAdd())
 	{
@@ -391,7 +393,11 @@ bool AUnpaidCreature::Swipe(int32 Arm)
 	// The swipe knocks them aside, the way the arm swept: the left arm sweeps to the right and on.
 	const FVector Across = GetActorRightVector() * (Arm == 0 ? 1.f : -1.f);
 	HitWithAttack(Victim, ((There - Here).GetSafeNormal2D() + 0.6f * Across).GetSafeNormal2D(), Tuning.RakeDamageShare);
-	UUnpaidPackSubsystem::Note(this, EUnpaidTally::Rake, true);
+	if (!Kit.bRakeLanded)
+	{
+		Kit.bRakeLanded = true;
+		UUnpaidPackSubsystem::Note(this, EUnpaidTally::Rake, true);
+	}
 	UE_LOG(LogLooter, Verbose, TEXT("%s rakes %s (%s arm)."), *GetName(), *GetNameSafe(Victim), Arm == 0 ? TEXT("left") : TEXT("right"));
 	return true;
 }

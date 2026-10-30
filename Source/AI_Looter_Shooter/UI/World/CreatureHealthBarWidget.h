@@ -215,6 +215,8 @@ private:
 	/** The frame and the trait line as the tier asks (shown, coloured), and the frame's lean and flare. */
 	void ApplyTier();
 	void ApplyFrameFlare(float Flare);
+	/** Fades the tag while it sits under a shown boss bar (UHudBossBarWidget::CoveredArea), and back. */
+	void FadeUnderBossBar(const FGeometry& MyGeometry, float DeltaSeconds);
 	float FlashSeconds() const { return FlashSecondsFor(bTopTierFlash); }
 	/** The ward bar as it stands: shown or not, its fill and chip, the break's flash and swell. */
 	void ApplyWard();
@@ -309,6 +311,10 @@ private:
 	/** The chip's end: snaps up with healing, holds a moment after a hit, then drains down to the health. */
 	float GhostFraction = 1.f;
 	float GhostHold = 0.f;
+	/** Its opacity for the boss bar: UnderBossBarOpacity while under one, 1 otherwise, eased over UnderBossBarFadeSeconds. */
+	float BossBarFade = 1.f;
+	static constexpr float UnderBossBarOpacity = 0.15f;
+	static constexpr float UnderBossBarFadeSeconds = 0.2f;
 
 	/** Seconds into the rank word's pop; it is playing while bRankFlashing. */
 	float RankFlashClock = RankFlashSeconds;

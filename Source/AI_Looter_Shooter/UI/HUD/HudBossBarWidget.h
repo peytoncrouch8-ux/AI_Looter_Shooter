@@ -69,6 +69,12 @@ public:
 	/** Someone at Viewer is near enough the arena at Center to see its bar (Reach 0: anywhere). */
 	static bool IsNearArena(const FVector& Viewer, const FVector& Center, float Reach);
 
+	/**
+	 * The screen area (Slate absolute space) a boss bar shown in World covers, if one is: enemy name tags under it fade back
+	 * so its title stays readable (the play-check 2026-10-30 saw them overlap near the Gravemother).
+	 */
+	static bool CoveredArea(const UWorld* World, FSlateRect& OutArea);
+
 	/** The boss's title, spelled out under the bar as it sweeps in ("Brood of the Sink"); empty: none. */
 	void SetTitle(const FText& InTitle);
 

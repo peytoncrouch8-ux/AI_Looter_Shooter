@@ -626,6 +626,9 @@ placing `Tools/Unreal/build_area_bounties.py` (gameplay pass after the placehold
   ShriekPant, ShriekChoke, Player.Rattled (2D), Feint, PhaseStrike, LowSwipe; pitched by the voice x(0.94-1.06 per Unpaid).
 - Measure: `Looter.Unpaid.Moves [reset]` (tally: each move, landed, flanks, cinders, rallies, shrieks, interrupts);
   `Looter.Unpaid.Shriek.Now [count] [every]` makes the nearest kit Unpaid shriek now, repeating every s (grabs, perf; several of
-  one pack need `.PackGap 0`; `Now 0` stops the repeat). Not measured
-  yet: the mix in play, perf with 3 shrieking (`Looter.Unpaid.Shriek.Light 0` / `.Fx 0.5` are the knobs), grass blades bending
-  (the grass material has no local push: the wave throws blades and leaves instead; a local push needs MPC + grass material work).
+  one pack need `.PackGap 0`; `Now 0` stops the repeat); the tally counts a rake landed once, not per swipe (2026-10-30).
+  Measured 2026-10-30: the mix (Rake 29 / Lunge 26 / LowSwipe 20 / PhaseStrike 13 / Feint 12 %), perf (Performance.md).
+- Grass in the shriek (2026-10-30): the wave also starts a `UFoliageBlastSubsystem` blast (its 690 cm, 0.6 s; strength x `Fx`):
+  MPC_Wind `BlastCenter` (w = front radius) / `BlastStrength` -> M_WorldFoliage throws plants at the front flat away
+  (`BlastPush` 30 cm at the tip, dipping 0.35 of it), half that behind, springing back past upright over 1.2 s. One blast at a
+  time (newest wins). Rebuild: `wind_collection.py`, then `build_world_materials.py M_WorldFoliage`. `Looter.Foliage.Blast`.

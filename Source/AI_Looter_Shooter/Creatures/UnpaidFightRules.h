@@ -56,6 +56,8 @@ struct FUnpaidKitState
 	/** Its rake's second swipe is done; its cinder has left its hand. */
 	bool bSecondSwipe = false;
 	bool bThrown = false;
+	/** One of its rake's two swipes landed (the tally counts a rake that landed once, not each swipe). */
+	bool bRakeLanded = false;
 	/** How far its lunge may fly this time (cm, at its size): the kit's reach, read as it struck. */
 	float LungeReach = 0.f;
 	/** Which arm swipes first (0 left, 1 right). */
@@ -101,6 +103,7 @@ struct FUnpaidKitState
 		Action = EUnpaidAction::None;
 		ActionTime = 0.f;
 		bSecondSwipe = false;
+		bRakeLanded = false;
 		bThrown = false;
 		LungeReach = 0.f;
 		ToldBoost = 1.f;
