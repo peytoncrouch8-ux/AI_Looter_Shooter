@@ -47,13 +47,16 @@ namespace
 	/** The soul's cold light: its rings, its breath, its motes (the coal's colour runs through them). */
 	const FLinearColor SoulCold(0.7f, 0.85f, 1.f);
 
-	/** Its coal's light: how far it reaches (cm at size 1), how strong through the tell and the scream (candelas). */
+	/** Its coal's light: reach (cm at size 1), candelas through the tell and the scream. 70/150 cd 35 cm off its pale chest
+	 *  washed the body flat white in daylight (PIE 2026-10-30; lanterns are 6-14 cd). */
 	constexpr float LightReach = 700.f;
-	constexpr float TellCandelas = 70.f;
-	constexpr float ScreamCandelas = 150.f;
+	constexpr float TellCandelas = 25.f;
+	constexpr float ScreamCandelas = 50.f;
 	/** It sits this far out of the coal (cm at size 1) and this far up: on its chest, face and arms, and the ground before it. */
-	constexpr float LightOut = 35.f;
+	constexpr float LightOut = 60.f;
 	constexpr float LightUp = 15.f;
+	/** The light's share of white through the tell / the scream (the rest the coal's colour). */
+	constexpr float TellWhiten = 0.15f, ScreamWhiten = 0.25f;
 
 	/** Particles a second (at Looter.Unpaid.Shriek.Fx 1): motes drawn in, the scream's cone at its start and its tail, embers, frost. */
 	constexpr float MoteRate = 50.f;
@@ -71,6 +74,9 @@ namespace
 	/** The motes come from a shell this far round its head (cm at size 1); the cone carries this far. */
 	constexpr float InhaleShell = 110.f;
 	constexpr float ConeReach = 380.f;
+	/** The cone stops this far short of its target's eyes (wisps grow to ~90 cm; carried through the camera from ~1.4 m off
+	 *  it washed half the screen white, PIE 2026-10-30), never shorter than ConeMin. */
+	constexpr float ConeClear = 140.f, ConeMin = 60.f;
 
 	/** It turns on its target this fast (1/s) through the tell, the scream (it's committed) and the recovery. */
 	constexpr float TellTurnRate = 9.f;
@@ -96,6 +102,18 @@ namespace
 		const int32 Count = FMath::Min(FMath::FloorToInt32(Owed), PerFrame);
 		Owed = FMath::Min(Owed - Count, static_cast<float>(PerFrame));
 		return Count;
+	}
+
+	/** How far its cone carries (cm): its full reach, cut to stop short of its target's eyes when they stand inside it. */
+	float ConeReachTo(const AUnpaidCreature& Unpaid, const FVector& Mouth, float Full)
+	{
+		const APawn* Victim = Unpaid.GetTarget();
+		if (!Victim)
+		{
+			return Full;
+		}
+		const float ToEyes = static_cast<float>(FVector::Dist(Mouth, Victim->GetPawnViewLocation()));
+		return FMath::Clamp(ToEyes - ConeClear, FMath::Min(ConeMin, Full), Full);
 	}
 
 	FWeaponFX* ShriekEffects(UWorld* World)
@@ -325,7 +343,7 @@ void FUnpaidShriekWork::Scream(AUnpaidCreature& Unpaid, const FUnpaidMoveTuning&
 		Effects->SpawnShockRing(Coal, FVector::UpVector, 40.f * Scale, Tuning.ShriekRattleRadius * 0.9f * Scale, 16.f * Scale, RingColor, 5.f * Glow, 0.5f);
 		Effects->SpawnShockRing(Mouth + Way * (10.f * Scale), Way, 8.f * Scale, 130.f * Scale, 9.f * Scale, SoulCold, 10.f * Glow, 0.22f);
 		Effects->SpawnStarburst(Mouth + Way * (8.f * Scale), 50.f * Scale, FMath::Lerp(SoulCold, FLinearColor::White, 0.5f), 4.f * Glow, 0.12f, 9);
-		Effects->SpawnShriekCone(Mouth, Way, ConeReach * 1.1f * Scale, Tint, 12, 1.f);
+		Effects->SpawnShriekCone(Mouth, Way, ConeReachTo(Unpaid, Mouth, ConeReach * 1.1f * Scale), Tint, 12, 1.f);
 		Effects->SpawnCoalFling(Coal, Unpaid.GetCoalFacing(), Tint, 10, true);
 		Effects->SpawnFrostBreath(Mouth, Way, 55.f * Scale);
 	}
@@ -428,7 +446,7 @@ void FUnpaidShriekWork::Show(AUnpaidCreature& Unpaid, float DeltaSeconds, EUnpai
 	const FVector CoalOut = Unpaid.GetCoalFacing();
 	const FLinearColor Tint = Unpaid.GetCoalColor();
 	float Candelas = 0.f;
-	float Whiten = 0.25f;
+	float Whiten = TellWhiten;
 	float EmberShare = 1.f;
 	switch (Phase)
 	{
@@ -452,12 +470,12 @@ void FUnpaidShriekWork::Show(AUnpaidCreature& Unpaid, float DeltaSeconds, EUnpai
 		const float Flicker = FMath::Sin(2.f * UE_PI * 13.f * Time);
 		Unpaid.Heat = FMath::Max(Unpaid.Heat, 1.1f + 0.25f * Flicker);
 		Candelas = ScreamCandelas * (1.f - 0.4f * Into) * (1.f + 0.3f * Flicker);
-		Whiten = 0.4f;
+		Whiten = ScreamWhiten;
 		EmberShare = 1.4f;
 		if (Effects)
 		{
 			const float Cone = ConeRate * FMath::Square(1.f - Into) + ConeTail;
-			Effects->SpawnShriekCone(Mouth, Way, ConeReach * Scale, Tint, Owe(State.WispsOwed, Cone * Fx, DeltaSeconds), 1.f - 0.5f * Into);
+			Effects->SpawnShriekCone(Mouth, Way, ConeReachTo(Unpaid, Mouth, ConeReach * Scale), Tint, Owe(State.WispsOwed, Cone * Fx, DeltaSeconds), 1.f - 0.5f * Into);
 			for (int32 Count = Owe(State.FrostOwed, FrostRate * Fx, DeltaSeconds); Count > 0; --Count)
 			{
 				Effects->SpawnFrostBreath(Mouth, Way, 40.f * Scale);
