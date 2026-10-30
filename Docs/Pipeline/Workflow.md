@@ -145,7 +145,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   by `UGraphicsSettingsSubsystem::QualitySettings`.
 - `perf.ps1 -GpuStats` records each pass; `Tools\perfdiff.ps1` compares two captures; `-Map` measures another level.
 - Measure with the editor closed and Blender paused (create `Saved\ArtPause.flag`, delete it after):
-  - `Tools\tour.ps1` for every view;
+  - `Tools\tour.ps1 -Map <map> -Views Art/Levels/<Area>/views.json` for every view (its default is the island; the same Git Bash path rule as below, or prefix `MSYS_NO_PATHCONV=1`);
   - `Tools\perf.ps1 -Label ... -Exec "Looter.Quality Medium" -Map <map>`, which appends a row to `Docs/Performance.md`.
     Run it from PowerShell, never through Git Bash: bash rewrites `/Game/Maps/...` into `C:/Program Files/Git/Game/...`
     and the game waits 15 min on a map it can't load (every `/Game/...` argument to a .ps1 has the same trap).
