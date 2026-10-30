@@ -281,7 +281,7 @@ Each group: where it lives; where it waits and watches.
 - Camp OrchardEdge (after Main 3): south of the orchard, outside the salt line, under Coffin Rock; its own ground.
 - Camp MillCreek (after Main 3): the creek bottom above Mill Falls, with the 2 m bank tops; its own ground.
 - Patrol WestRoad (after Main 4): the west road below the chapel knoll, 20 m there and back; the road's corridor.
-- Patrol QuarryTrack (after Main 3): the quarry track to the Old Quarry, 14 m; the track's corridor.
+- Patrol QuarryTrack (after Main 4; was Main 3 until 2026-10-30): the quarry track to the Old Quarry, 14 m; the track's corridor.
 - Ambush Churchyard (after Main 4): the lanes between the west grave rows, rising when the player walks back in; the fence.
 - Ambush Webwood (after Main 4, a set piece since 2026-10-21): round the player in the webbed band, dropping 3.5 m; its own ground.
 - Main Street's set piece (Main 3, after the gate): the street between the boardwalks round the Gilt Spur, its Bell-Ringer on
@@ -323,7 +323,7 @@ Unpaid family. XP held by trimming the missions' (`Docs/Progression.md`). Code: 
 | Camp OrchardEdgeDusk | during Main 7, at dusk (2026-10-22) | the same as OrchardEdge, no crate (new) | `build_area_camps.py` DUSK_RETURNS |
 | Camp MillCreek | after Main 3 | 5 slimes, 1 Restless (3+1) | layout `camps` |
 | Patrol WestRoad | after Main 4 | 5 Unpaid, area ranks (3) | layout `patrols` |
-| Patrol QuarryTrack | after Main 3 | 5 spiders, a Spitter, area ranks (3+1) | layout `patrols` |
+| Patrol QuarryTrack | after Main 4 | 5 spiders, a Spitter, area ranks (3+1) | layout `patrols` |
 | Ambush Churchyard | after Main 4 | 6 Unpaid, 1 Restless, a Bell-Ringer (3+1+1) | layout `ambushes` |
 | **Webwood** (set piece) | after Main 4 | 4 spiders + 1 Restless, then 3; 2 Spitters on the high ground (3+1+1) | layout `ambushes` Webwood |
 | Quarry crew + Abe | Dead Lift | 5 miners + Abe (4+1) | layout `fights` |

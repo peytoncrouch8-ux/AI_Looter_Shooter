@@ -175,11 +175,11 @@ bool FForemanStatsTest::RunTest(const FString& Parameters)
 	const UHealthComponent* Health = Defaults->FindComponentByClass<UHealthComponent>();
 	if (TestNotNull(TEXT("He has health"), Health))
 	{
-		// At his set level 7 (5 and Soulfed's 2): about 3,800 since growth compounds +9% a level (the user, 2026-10-29
-		// night: x1.68 at 7; about 3,400 on the old linear +8%).
+		// At his set level 7 (5 and Soulfed's 2): about 7,600 (380 health since 2026-10-30, was 190 and about 3,800; growth
+		// compounds +9% a level: x1.68 at 7).
 		const float AtSeven = Health->MaxHealth * UPlayerProgressionSubsystem::GetLevelRules().EnemyScale(7)
 			* UCreatureRankSettings::Get(ECreatureRank::Legendary).HealthMultiplier;
-		TestTrue(FString::Printf(TEXT("About 3,800 health at level 7 (%.0f)"), AtSeven), AtSeven >= 3600.f && AtSeven <= 4000.f);
+		TestTrue(FString::Printf(TEXT("About 7,600 health at level 7 (%.0f)"), AtSeven), AtSeven >= 7200.f && AtSeven <= 8000.f);
 	}
 	const UBossComponent* Boss = Defaults->GetBoss();
 	if (!TestNotNull(TEXT("His boss"), Boss))

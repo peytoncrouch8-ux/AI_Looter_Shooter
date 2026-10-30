@@ -283,6 +283,21 @@ The user's calls this stretch:
   level too; spider leg rebuilds (Spitter 6 -> 8, Gravemother middle pair doubled); grass doesn't bend in the shriek.
 - TripoCreatures contract archived; GripSpots stays in Docs/Work (code points at it; the other guns use it later).
 
+## 2026-10-30 day (the user awake; "fix the issues and ask questions to continue")
+- Fixed (9502f1db): grass blows flat in the Unpaid's shriek (`UFoliageBlastSubsystem`, MPC_Wind Blast*, M_WorldFoliage; M_Smoke
+  resaved), enemy name tags fade under a shown boss bar, the Rake tally counts a landed rake once.
+- The user's calls (574c3b0d): player max health +6% a level (enemies/guns/wards stay +9%); boss legendaries (signature) sell
+  behind a one-of-a-kind confirm, story heirlooms (Heirloom, Bench Mark, Ferryman's Due, Still Water) never; Sentinel keeps
+  fists at its sides; next = the loot and pacing pass. Art: Unpaid hat worn felt brown, Spitter venom sac (veins, glossy
+  membrane); both imported. Screens of the five Tripo creatures sent (Saved/Screenshots/Tools/show_*.png).
+- Loot and pacing pass (analysis: the Planning agent's model of RR 1-7; the user: boss uniques STAY 10%, early legendary cap
+  STAYS 1/300, Gravemother stays hard, Ferryman's Due stays an heirloom, "raise the difficulty of Abel"): Abel's hits x1.7
+  (was 1.25), the Foreman 380 base health (was 190), the quarry track patrol after Main 4 at 4-5 (was Main 3 at 5-6; level
+  actor and DA_Area_RansomsRest updated), gun of the day every 30 min of play (was 60), `Looter.Economy.Balance` rewritten to
+  today's drop counts. Not done (analysis, needs the user): more offer odds change (.45/.45/.10).
+  DestroyAll <class> in PIE wipes far more than the class (the grass went): never use it; Looter.SpawnCreature + slomo 0.02 +
+  play.py goto <name> <cm> [yaw] frames a creature for a grab.
+
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:
 typed wards, bodies, immunities, Touched variants, Stone Sentinel, x2 / x0.33; plus element feedback: firing looks,

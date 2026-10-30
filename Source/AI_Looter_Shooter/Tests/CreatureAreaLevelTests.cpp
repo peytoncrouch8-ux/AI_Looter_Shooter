@@ -122,7 +122,7 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 		{ TEXT("OrchardEdge"), 2, 3, TEXT("the orchard's edge, by the farm") },
 		{ TEXT("MillCreek"), 3, 4, TEXT("Mill Creek's slimes, in the fields") },
 		{ TEXT("WestRoad"), 4, 5, TEXT("the west road's walkers") },
-		{ TEXT("QuarryTrack"), 5, 6, TEXT("the quarry track's spiders") },
+		{ TEXT("QuarryTrack"), 4, 5, TEXT("the quarry track's spiders (4-5 from Main 4 since 2026-10-30)") },
 		{ TEXT("Churchyard"), 3, 4, TEXT("the churchyard's risen dead") },
 		{ TEXT("Webwood"), 5, 6, TEXT("the Webwood's drop") },
 		// The finds' encounters (FINDS lane E): the far plot on boot hill (its zone 3-4) and the Tollman on the keeper's road (4-5).

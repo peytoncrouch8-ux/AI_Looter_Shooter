@@ -94,6 +94,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `press <Interact|Fire|Jump|Reload|Move> [seconds] [x] [y]` (feeds the input action itself: no focus needed; Move's y is
   forward), `fight [s] [m]` (aims at creatures in sight, pulses Fire, keeps ammo full), `kill [m]`, `ammo`, `guns`,
   `equip <slot>`, `view [n]` (F5's cycle), `inventory [close]`.
+- Photographing a creature: `Looter.SpawnCreature <Kind>` (its name is in the log: "<Name> is level"), `slomo 0.02`, then
+  `play.py goto <Name> <cm> [yaw]` and `grab.ps1`; turn the player (`play.py at x y z yaw`) between spawns or they stack. Never
+  `DestroyAll <class>` in PIE: it wiped far more than the class (the grass went; 2026-10-30). Restart PIE instead.
 - Lessons: the console box takes keyboard focus, and only a left click gives the game viewport focus back (it fires a held
   gun), so use `press` for game actions and real keys only for menus (Tab, number keys). Offer and turn-in cards and the
   notice boards take mouse clicks, not injected actions. Teleports skip a roost's find (walk the last 15 m) and give hits

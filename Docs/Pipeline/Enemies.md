@@ -175,8 +175,10 @@ before you can damage her", rim shots do nothing until the player comes down. Co
 - The stone is the target: M_ObjectiveHighlight overlay in `LooterUI::Color::Accent`, 2.5 Hz pulse, `.StoneMarkSeconds` 1.6 s
   after each stone shrug and `.StoneMarkAtFight` 3 s as the fight starts; Nanite forced off on the slab only while it glows.
   Crack stages, shatter, shards, stagger unchanged.
+- The Foreman (`ForemanCreature.cpp`): 380 base health since 2026-10-30 (was 190: about 3,800 at his level 7, under half the
+  optional Gravemother's; now about 7,600, about 30 s on target). Damage unchanged. Test `Looter.Creatures.Foreman` band 7,200-8,000.
 - Abel (`Bosses/AbelRules`, `AbelKeeper`): health x1.6 (40 Unpaid x1.6: about 15,150 at his level 7, 16,800 at 9; `FightHealthScale`,
-  `Looter.Abel.HealthScale`), hits x1.25 (swing and buckshot pellets via AttackDamage; `.DamageScale`). Stagger crit share
+  `Looter.Abel.HealthScale`), hits x1.7 (x1.25 until 2026-10-30, the user: "raise the difficulty of Abel"; about 5.7 hits to down a level 6 player; swing and buckshot pellets via AttackDamage; `.DamageScale`). Stagger crit share
   0.05 -> 0.05/1.6. Every health-gated stretch is 1.6x longer at the same DPS: phase 1's adds (2 per 25 s, at most 4 alive)
   kept; wind phase's walk-off/pull cycles and barrages kept; the bell phase's back half on the deck (35%) was a bare duel and is
   now a trickle like phase 1 (2 every 25 s, at most 4 alive) from `BellRiseFrom` 49.5 s (after the second wave; none rise while
@@ -551,7 +553,7 @@ placing `Tools/Unreal/build_area_bounties.py` (gameplay pass after the placehold
 - **Harder** (note 33): +25% health on every bounty creature (posse, support, mark), `Looter.Bounty.HealthScale` [1.25] (not +1
   level: levels stay the zone's).
 - **Arenas** (note 22: all bounties were Unpaid at one grove): new Ransom's Point (Spider, after Main 3, levels 1-2) and the
-  quarry's mouth (Spider/Spitter, after Main 3, before Dead Lift, levels 5-6). Before Main 5 the draw has Scatter, Ransom's
+  quarry's mouth (Spider/Spitter, after Main 3, before Dead Lift, levels 5-6; the QuarryTrack patrol beside it comes after Main 4 at 4-5 since 2026-10-30). Before Main 5 the draw has Scatter, Ransom's
   Point, Quarry Mouth, Whitlock Yard (Side 2), Webwood (Main 4 + flag). Old saves keep their Scatter-only postings until the
   rotation (`Looter.Bounty.Post` shows the new mix). QuarryMouth is next to the QuarryTrack patrol, which may join its fight.
   Not seen in play yet.

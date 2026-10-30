@@ -114,8 +114,9 @@ namespace LooterEconomy
 
 	// --- The gun of the day ---
 
-	/** Play between two guns of the day when no level-up brings one sooner: an hour, a day's trade. */
-	inline constexpr double OfferDaySeconds = 3600.0;
+	/** Play between two guns of the day when no level-up brings one sooner: half an hour (was an hour; 2026-10-30, an
+	 *  explorer's silver piled up with too little to buy). */
+	inline constexpr double OfferDaySeconds = 1800.0;
 
 	/** The gun of the day's chance of each rarity, in EWeaponRarity order: never Common or Uncommon, Rare most days. Adds to 1. */
 	AI_LOOTER_SHOOTER_API float OfferRarityChance(EWeaponRarity Rarity);

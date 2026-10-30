@@ -3046,8 +3046,8 @@
           "id": "quarry",
           "at": [8300,1300],
           "radius": 1500,
-          "levels": [5,6],
-          "note": "the quarry track's spiders: optional from Main 3, ground to come back to"
+          "levels": [4,5],
+          "note": "the quarry track's spiders: optional from Main 4 (2026-10-30: were 5-6 from Main 3, met at about 2.6: five hits to die), ground to come back to"
         },
         { "id": "crest", "zone": "crest", "levels": [5,6], "note": "the lift head and the crest path, over the valley (Dead Lift's ride and after)" },
         {
@@ -3280,9 +3280,9 @@
         {
           "id": "QuarryTrack",
           "where": "the quarry track, from the Spoil Bank's east foot to the Old Quarry's mouth",
-          "after": ["Main3"],
+          "after": ["Main4"],
           "budget": "optional",
-          "countedBefore": "Side1",
+          "countedBefore": "Main5",
           "groups": [{ "class": "SpiderCreature", "count": 5, "rank": "Area" }, { "class": "SpitterSpider", "count": 1, "rank": "Area" }],
           "route": [[7700, 930], [8100, 1050], [8900, 1700]],
           "loop": false,

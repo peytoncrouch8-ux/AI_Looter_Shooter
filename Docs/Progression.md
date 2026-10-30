@@ -128,7 +128,8 @@ rising along the story, the mountain 5-6 (the user's call):
 | (Tilly's cellar) | its spawner's own | Knocking Below's four | 3-4 | — / 4 |
 | west | the west road to the keeper's grave | the west road's walkers, the sheep fold's camp | 4-5 | 3-4 / 4-6 |
 | sink | `sink` | Main 5's floor spiders and egg sacs | 4-5 | 3 / 4 |
-| webwood, quarry | `webwood`; 15 m round the quarry track | the optional drop and patrol | 5-6 | — / 3-4 |
+| webwood | `webwood` | the optional drop | 5-6 | — / 3-4 |
+| quarry | 15 m round the quarry track | the optional patrol, from Main 4 (2026-10-30: was 5-6 from Main 3, met at about 2.6) | 4-5 | — / 3.4-4.2 |
 | quarryBowl, crest | `oldQuarry`, `crest` | Dead Lift's lift crew, Abe Haskett, the raising steam; the crest's spiders | 5-6 | 4-5 / 5 |
 | calderPost, bench | `calderPost`, `larkspurBench` | The Last Watch's yard and watch; the Dinner Pail camp | 5-6 | — / 5-6 |
 | diggings, providence | `diggings`, `providence` | Back Pay: the spoil heap, the upper gallery, the lower drift, the stope's shift | 5-6 | 5 / 6 |
@@ -229,7 +230,7 @@ rest of the mountain before Main 6), their fights, and every optional camp, patr
 | After | Kills on the way | Kill XP | Turned in | XP in all | Level |
 |---|---|---:|---:|---:|---:|
 | Mains 1-3 | as above | 713 | 2,000 | 2,713 | 2.62 |
-| Side 1 | the optional camps and patrol counted before it: the orchard's edge (2-3), Mill Creek's slimes (3-4), the quarry track (5-6): 19 | 1,201 | 300 | 4,213 | 3.10 |
+| Side 1 | the optional camps and patrol counted before it: the orchard's edge (2-3), Mill Creek's slimes (3-4), the quarry track (5-6; since 2026-10-30 4-5, counted before Main 5): 19 | 1,201 | 300 | 4,213 | 3.10 |
 | Calder's Caches | none | 0 | 250 | 4,463 | 3.15 |
 | The Old Fare | the depot's waiting room (2-3) and its second push: 11 | 452 | 450 | 5,365 | 3.34 |
 | Lost and Found | none | 0 | 150 | 5,515 | 3.37 |
@@ -273,7 +274,7 @@ once even when the layout lists them.
 | Camp OrchardEdge | south of the orchard, under Coffin Rock | Main 3 | 5 Unpaid, 1 Restless, a Bell-Ringer; a crate | optional |
 | Camp MillCreek | the creek bottom above Mill Falls | Main 3 | 5 slimes, 1 Restless; a crate | optional |
 | Patrol WestRoad | the west road below the chapel knoll | Main 4 | 5 Unpaid (the area's ranks) | roaming |
-| Patrol QuarryTrack | the quarry track to the Old Quarry | Main 3 | 5 spiders, a Spitter (the area's ranks) | optional |
+| Patrol QuarryTrack | the quarry track to the Old Quarry | Main 4 (was Main 3; counted before Main 5) | 5 spiders, a Spitter (the area's ranks) | optional |
 | Ambush Churchyard | the churchyard's west grave rows | Main 4 | 6 Unpaid, 1 Restless, a Bell-Ringer | main, before Main 5 |
 | Ambush Webwood (set piece) | round the player in the Webwood | Main 4 | 4 spiders and 1 Restless, then 3; 2 Spitters on the high ground | optional |
 | (the mountain's) | the crest, the Bench, the Diggings | Dead Lift | CrestPatrol 5 spiders; DinnerPail 4 miners, 1 Restless, a Bell-Ringer; SpoilAmbush 6 miners | optional / Back Pay's way |
@@ -359,8 +360,9 @@ The valley's purses come to 420, the mountain's and the bounty to 180 more (580 
 - **Buy:** a box of each ammo the game's guns use: 36 rounds (24 shells, 18 sniper rounds: never more than half the most
   carried) for **15**, what fits when the player is nearly full for its share (rounded up); a jar of grave salt for
   **25**, up to the three carried.
-- **The gun of the day:** one gun at the player's level from the default loot table, Uncommon 70% / Rare 24% / Epic 5% /
-  Legendary 1%, never cursed, the same at both vendors. A level-up or an hour of play (a day's trade) brings the next;
+- **The gun of the day:** one gun at the player's level from the default loot table, Rare 60% / Epic 32% / Legendary 8%
+  (never Common or Uncommon; the RR tuning of 2026-10-29), never cursed, the same at both vendors. A level-up or half an
+  hour of play (a day's trade; was an hour until 2026-10-30) brings the next;
   bought, it's sold out until then. The session keeps it, so loading never rerolls it. Asks first.
 - **Sell:** backpack guns only (never one in hand), never a named gun (Heirloom is Pa's). Rare and up ask first. J (or a
   right-click) marks a gun junk, here or in the inventory; "Sell all junk" (R) sells every marked one at once, asking
@@ -378,31 +380,27 @@ A cursed iron sells for three quarters. Buying costs 7-8 times what selling pays
 
 ### What a playthrough of Ransom's Rest earns (`Looter.Economy.Balance`)
 
-A normal play: every main fight, the valley's five side missions (the posters, Calder's caches, the old fare, Amos's hay,
-Tilly's cellar), the roaming walkers, at level 4 on average, plus about twelve containers opened, fifteen crates broken
-and twenty guns sold (twelve Common, six Uncommon, two Rare):
+Rewritten 2026-10-30 (the old test priced a "normal play" of twenty guns sold and Uncommon guns of the day, both gone). It
+plays two paths on paper from the game's own functions (expected values, no rolls) over stretches of play, each with the
+player's level, its kills (PacingPaths' counts; the explorer's optional camps are estimates), containers and crates opened,
+the chests' guns (estimates) and the mission purses (the kept payroll isn't counted):
 
-| Source | Silver |
-|---|---:|
-| Kills (53 Basic and 7 Restless Unpaid, 15 spiders, Abel) | about 435 |
-| Containers (twelve, the Strongbox among them) | about 200 |
-| Crates and barrels (fifteen) | about 20 |
-| Mission purses (the valley's) | 420 |
-| Twenty guns sold | about 350 |
-| **In all** | **about 1,420** |
-
-Steady supplies (ten boxes of ammo, six jars of salt) cost about 375; what's left buys **about five or six Uncommon or two
-Rare guns of the day** (186 and 397 at level 4). A Legendary (2,100 at level 6) costs more than the whole playthrough
-earns, and a Basic kill is worth under a box of ammo: drops stay about the guns. An explorer (the mountain, the bounty,
-every container and camp) earns about 2,000, and 400 more with the payroll kept. The test holds the normal play between
-1,000 and 1,800 and the guns of the day to "a few"; Lost Property's shelving upgrades (300 to 2,400 since 2026-10-14, the user's call: dearer as the world grows) are what the
-explorer's silver is for.
-
-**Since the bigger fights (2026-10-21, FIGHT-LAYOUT; not yet in the test).** A normal play now kills about 87 Basic and 8
-Restless Unpaid (Bell-Ringers among them), 17 spiders and a Restless one, and Abel (was 53, 7, 14 and 1): kills about 565
-silver (was 435), the playthrough about 1,550 (was 1,420); the set pieces' showers give guns and ammo, no silver. After
-supplies that's about 6.3 Uncommon guns of the day (the test's band is 3-6) or 3.0 Rare (under 3). Main's call: a
-Regular Unpaid's silver chance from 55% to 40% (`LooterEconomy`), which keeps the playthrough about 1,470 (5.9 Uncommon,
-2.8 Rare). Done 2026-10-29, when the core job's fights (2026-10-28: 58 Basic, 10 Restless and the Sexton's Debt in the
-test's count, which never took the 87 above) put the test at 6.1 Uncommon: now about 1,450, 5.8 Uncommon, 2.7 Rare. With
-the 87 above plus the core job's (about 92 Basic, 11 Restless, 20 spiders) a play would be about 6.3 Uncommon: open.
+- **Guns found.** A kill drops a gun 30% of the time, a fifth of those wards (so 0.24 guns a kill); chests add the rest.
+  Story only (75 minutes, 129 kills, levels 2 to 7): about **55 guns** (31 from kills, 24 from chests). Explorer (every
+  side mission, the Gravemother, the mountain, the optional camps; about 3 hours 15; 266 kills): about **125 guns**
+  (Common 49, Uncommon 32, Rare 27, Epic 19, Legendary about 1 to 2; 64 from kills, 64 from chests). The mix: kill guns
+  .66 / .24 / .08 / .02 / 0, chest guns .10 / .26 / .34 / .28 / .02, Common first.
+- **Silver in.** Kills, containers and crates at the stretch's level, the mission purses, and the guns sold at
+  `GunSellPrice` for their rarity at the stretch's level: 75% of the kill guns and 90% of the chest guns (the rest are kept
+  or left). Story: about **2,900** (kills 700, containers 210, purses 250, sales 1,750). Explorer: about **6,800** (kills
+  1,200, containers 480, purses 600, sales 4,500). Selling guns is most of it. The test holds the story between 2,000 and
+  3,200 and the explorer between 5,000 and 7,500.
+- **Silver out.** Ammo and salt as the old test had them (a box per 8 kills, a jar per 14): about 600 and 1,260, under 40%
+  of the purse. The gun of the day arrives every half hour of play (`OfferDaySeconds` 1800) and with each level-up, Rare 60%
+  / Epic 32% / Legendary 8%: about 690 on average at these levels (320 / 700 / 1,500 grown with the level; 686 at level
+  4.5). The story is offered 7 (2 by the clock, 5 level-ups) and can afford about 3.4; the explorer is offered 12 (6 and 6)
+  and can afford about 8, so most but not all (the test: more than half, fewer than all). A Legendary of the day (about
+  2,200 at level 7) is no longer out of reach of the story's purse; what the explorer's silver is also for is Lost
+  Property's shelving upgrades (300 to 2,400 since 2026-10-14, the user's call: dearer as the world grows).
+- A kill is a small part of the purse (under a third even for the explorer) and a Basic Unpaid's worth under a box of ammo:
+  drops stay about the guns.

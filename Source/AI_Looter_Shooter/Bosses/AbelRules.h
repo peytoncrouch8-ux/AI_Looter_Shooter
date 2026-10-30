@@ -121,11 +121,13 @@ namespace AbelRules
 
 	/**
 	 * The playtest's tuning on top (the user, 2026-10-27: "way too easy and die too quickly as far as progression goes"):
-	 * 1.6x his health (about 16,800 at level 9), his hits (the swing, the buckshot's pellets) 1.25x. His class carries these
+	 * 1.6x his health (about 16,800 at level 9), his hits (the swing, the buckshot's pellets) 1.25x, raised to 1.7x on 2026-10-30
+	 * (the user: "raise the difficulty of Abel"; with the player's health +6% a level he took 7.8 hits to down them, now about
+	 * 5.7, the hardest fight in Ransom's Rest as its last boss should be). His class carries these
 	 * (the Ledger reads it); the cvars Looter.Abel.HealthScale and .DamageScale move him when he's next spawned.
 	 */
 	inline constexpr float DefaultFightHealthScale = 1.6f;
-	inline constexpr float DefaultFightDamageScale = 1.25f;
+	inline constexpr float DefaultFightDamageScale = 1.7f;
 	AI_LOOTER_SHOOTER_API float FightHealthScale();
 	AI_LOOTER_SHOOTER_API float FightDamageScale();
 

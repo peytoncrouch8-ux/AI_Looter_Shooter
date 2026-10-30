@@ -73,9 +73,9 @@ AForemanCreature::AForemanCreature()
 	StartingRank = ECreatureRank::Legendary;
 	// 1.5 times an Unpaid as seen, his rank's own growth (x1.4) included.
 	BodyScale = Foreman::Size / Foreman::RankSize;
-	// Soulfed's twelve times this: about 3,400 at level 7, a two or three minute fight with his shift (190 rather than a
-	// dead miner's 180 puts him at the design's 3,400 on the game's level growth).
-	Health->MaxHealth = 190.f;
+	// Soulfed's twelve times this: about 7,000 at level 6, about 30 s on target (380 since 2026-10-30: at 190 the story's
+	// boss had 3,500, under half the optional Gravemother's; he missed the 10-27 x1.6 that made the others last).
+	Health->MaxHealth = 380.f;
 	// The pick handle (Soulfed's 1.6 on top: about 24 a blow at level 7); his fuse and the roof hit harder.
 	AttackDamage = 10.f;
 	XPReward = 11;

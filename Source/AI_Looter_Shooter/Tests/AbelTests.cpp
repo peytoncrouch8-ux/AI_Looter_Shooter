@@ -244,7 +244,7 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 		TestNearlyEqual(TEXT("His stagger takes the same crits as before his health went up (5% of 6,400 at level 1)"),
 			AbelRules::MakeStagger().CritShare * Health->MaxHealth, 0.05f * 160.f * 40.f, 1.f);
 	}
-	TestNearlyEqual(TEXT("His hits 1.25x the first tuning's 12"), Defaults->AttackDamage, 12.f * AbelRules::DefaultFightDamageScale, 0.001f);
+	TestNearlyEqual(TEXT("His hits 1.7x the first tuning's 12"), Defaults->AttackDamage, 12.f * AbelRules::DefaultFightDamageScale, 0.001f);
 	TestTrue(TEXT("Boss rank, 1.3 times, a 6 cm coal, no tag"), Defaults->StartingRank == ECreatureRank::Boss
 		&& FMath::IsNearlyEqual(Defaults->BodyScale, 1.3f) && FMath::IsNearlyEqual(Defaults->CoalCritRadius, 6.f) && !Defaults->bShowsHealthTag);
 	TestTrue(TEXT("His fight starts by itself only once the lantern hangs, never from a hit"), Defaults->GetBoss()->EngageRadius == 0.f
