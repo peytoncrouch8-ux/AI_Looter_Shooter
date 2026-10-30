@@ -19,7 +19,7 @@ struct AI_LOOTER_SHOOTER_API FLevelRules
 	static constexpr double DefaultKillXPFalloff = 0.15;
 	static constexpr double DefaultKillXPFloor = 0.1;
 	static constexpr float DefaultEnemyGrowth = 0.09f;
-	static constexpr float DefaultHealthPerLevel = 0.09f;
+	static constexpr float DefaultHealthPerLevel = 0.06f;
 
 	/**
 	 * The share of a creature's XPReward a kill gives at its level 1 (1: all of it; a Basic creature's 10 gives 10, as a

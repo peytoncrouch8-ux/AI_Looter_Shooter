@@ -72,7 +72,7 @@ public:
 
 	/**
 	 * The first level-up reward: the player's most health grows by this share of the level below's for each level, compounding
-	 * (0.09, as the enemies since 2026-10-29 night), keeping pace with the enemies' damage.
+	 * (0.06, the user's call 2026-10-30: was 0.09 as the enemies; now they slowly outscale the player, so gear and wards matter more).
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Levels", meta = (ClampMin = "0", ClampMax = "1"))
 	float HealthPerLevel = FLevelRules::DefaultHealthPerLevel;

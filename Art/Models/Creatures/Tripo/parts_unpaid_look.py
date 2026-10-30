@@ -141,9 +141,73 @@ def seat_bowl(V, M, rig, U, share=0.75):
 
 # --- The hat ---
 
+# Worn felt (the playtest 2026-10-30: the hat read as a near-white disc at range). It wears the vest's zone (Zone3Color:
+# MI_Ghost_A's brown wool, B's charcoal, C's drab), darkened by M_Ghost's cavity (vertex G: Dark = 1 - 0.95 G^0.6), which
+# dims the pale rim on it as well as its colour: the felt overall, its brim's top a little lighter (dust settled, uneven),
+# under the brim and round the band darker, and its edge worn dark (edge: from edge_from of the way out; it also keeps the
+# brim's tips, the one place a rim stays, from flaring).
+FELT_SHADE = dict(felt=0.28, dust=0.17, dust_vary=0.04, under=0.7, band=0.3, crease=0.42, crease_reach=0.015, edge=0.6,
+                  edge_from=0.65)
+# The white disc was mostly M_Ghost's rim, (1 - facing)^RimPower: a flat brim seen near edge-on (an Unpaid's hat is at
+# the player's eye height) faces away from the eye everywhere. The brim's normals lean out from the crown, its top's and
+# underside's alike, more toward its edge (a lens's shading: the lean's tangent from BRIM_LEAN[0] by the crown to [1] at
+# the edge, ~39 to ~63 degrees), so seen from the side it faces the eye and takes its own colour; only its tips left and
+# right, as any silhouette, keep a rim.
+BRIM_LEAN = (0.8, 2.0)
+
+
+def hat_felt(U, V, C, Nf, r, band, z0, z1, middle):
+    """The felt's shade (vertex G) per face and per vertex, and each vertex's brim lean (tilt_brim; 0 on the crown).
+    C, Nf, r: face centres, normals, distance from the hat's axis; z0, z1: the band's bottom and top."""
+    s = FELT_SHADE
+    r_v = np.linalg.norm(V[:, :2] - middle, axis=1)
+    crown = float(np.median(r[band])) if band.any() else 0.13
+    brim_v = pr.smoothstep(crown + 0.008, crown + 0.04, r_v)
+    brim_f = pr.smoothstep(crown + 0.008, crown + 0.04, r)
+    face = np.full(len(C), s['felt'])
+    dust = np.clip(s['dust'] + s['dust_vary'] * U['pnoise'](C, 14.0, 7), 0.0, 1.0)
+    top = brim_f * pr.smoothstep(0.2, 0.5, Nf[:, 2])
+    under = brim_f * pr.smoothstep(-0.2, -0.5, Nf[:, 2])
+    face = face + (dust - face) * top
+    face = face + (s['under'] - face) * under
+    face[band] = s['band']
+    # The creases each side of the band, on the crown: a shadow fading over crease_reach.
+    gap = np.minimum(np.abs(V[:, 2] - z0), np.abs(V[:, 2] - z1))
+    vertex = s['crease'] * pr.smoothstep(s['crease_reach'], 0.0, gap) * (1.0 - brim_v)
+    # How far out on the brim, 0 at the crown to 1 at its edge in that direction (the brim is not round): the widest
+    # reach in each of 48 bearings, smoothed with its neighbours.
+    bearing = np.arctan2(V[:, 1] - middle[1], V[:, 0] - middle[0])
+    bins = ((bearing + np.pi) / (2.0 * np.pi) * 48).astype(int) % 48
+    reach = np.full(48, crown + 0.05)
+    np.maximum.at(reach, bins, r_v)
+    reach = np.maximum(reach, (np.roll(reach, 1) + reach + np.roll(reach, -1)) / 3.0)
+    out = np.clip((r_v - crown) / np.maximum(reach[bins] - crown, 1e-3), 0.0, 1.0)
+    vertex = np.maximum(vertex, s['edge'] * pr.smoothstep(s['edge_from'], 1.0, out) * brim_v)
+    pu.log(f'hat: crown radius {100 * crown:.1f} cm, brim out to {100 * r_v.max():.1f} cm; felt faces: '
+           f'{int((top > 0.5).sum())} brim top (dusty), {int((under > 0.5).sum())} under the brim')
+    lean = brim_v * (BRIM_LEAN[0] + (BRIM_LEAN[1] - BRIM_LEAN[0]) * out)
+    return dict(face=face, vertex=vertex, lean=lean)
+
+
+def tilt_brim(mesh, V, lean, middle):
+    """Leans the brim's normals out from the crown (lean: per vertex, the tangent of the lean; 0 on the crown),
+    each corner's own normal kept otherwise (the sharp edges set from the angle stay sharp)."""
+    n = np.empty(len(mesh.loops) * 3, np.float32)
+    mesh.corner_normals.foreach_get('vector', n)
+    n = n.reshape(-1, 3).astype(float)
+    vi = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get('vertex_index', vi)
+    out = np.column_stack([V[:, :2] - middle, np.zeros(len(V))])
+    out /= np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
+    n = n + lean[vi][:, None] * out[vi]
+    n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
+    mesh.normals_split_custom_set([tuple(v) for v in n])
+
+
 def finish_hat(U, V, faces, M, src):
     """SM_UnpaidHat from the Tripo hat (Tripo space): carried by the head's map, its pivot the 'hat' bone's head (as
-    Unpaid.py's build_hat), the felt zone 2 and the band zone 3 (a ring round the crown just over the brim)."""
+    Unpaid.py's build_hat), the felt zone 2 and the band zone 3 (a ring round the crown just over the brim); the felt
+    shaded and the brim's normals leaned out (FELT_SHADE, BRIM_LEAN)."""
     m = M['hat']
     V = V @ m[:3, :3].T + m[:3, 3]
     pivot = np.array(U['head']['hat'])
@@ -171,12 +235,14 @@ def finish_hat(U, V, faces, M, src):
     zone = np.full(len(faces), VEST)
     zone[band] = ACCENT
     pu.log(f"hat: band {100 * (z0 - pivot[2]):.1f}-{100 * (z1 - pivot[2]):.1f} cm over the hat bone")
+    felt = hat_felt(U, V, C, Nf, r, band, z0, z1, middle)
     mesh = tr.new_mesh('UnpaidHat', V - pivot, faces)
     if len(mesh.polygons) != len(faces):
         raise RuntimeError('validate() changed the Tripo hat')
     mesh.materials.append(bpy.data.materials['Ghost_A'])
     mesh.polygons.foreach_set('use_smooth', np.ones(len(mesh.polygons), dtype=bool))
     mesh.set_sharp_from_angle(angle=math.radians(70.0))
+    tilt_brim(mesh, V, felt['lean'], middle)
     hat = bpy.data.objects.new('UnpaidHat', mesh)
     bpy.context.scene.collection.objects.link(hat)
     hat.location = tuple(pivot)
@@ -188,7 +254,9 @@ def finish_hat(U, V, faces, M, src):
     loops = np.empty(len(mesh.loops), dtype=np.int64)
     mesh.loops.foreach_get('vertex_index', loops)
     face_of = np.repeat(np.arange(len(faces)), [len(f) for f in faces])
-    rgba = np.column_stack([zone[face_of] / 3.0, cavity[loops], np.zeros(len(loops)), np.ones(len(loops))])
+    shade = np.maximum.reduce([cavity[loops], felt['face'][face_of], felt['vertex'][loops]])
+    pu.log(f'hat: felt shade (vertex G) {np.round(np.percentile(shade, [5, 50, 95]), 3)}')
+    rgba = np.column_stack([zone[face_of] / 3.0, shade, np.zeros(len(loops)), np.ones(len(loops))])
     col.data.foreach_set('color', rgba.astype(np.float32).ravel())
     hat['Nanite'] = 0
     hat['LODs'] = '50,25'

@@ -224,7 +224,9 @@ bool LooterEconomy::CanSell(const FWeaponInstanceData& Gun, FText* OutWhy)
 		}
 		return false;
 	}
-	if (Gun.Named)
+	// A story heirloom (Heirloom, Pa's) stays with the player; a boss's legendary (it has a signature and drops again) sells,
+	// behind the vendor's confirm (the user, 2026-10-30).
+	if (Gun.Named && Gun.Named->Signature == ELegendarySignature::None)
 	{
 		if (OutWhy)
 		{

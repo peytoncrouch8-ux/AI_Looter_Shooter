@@ -179,8 +179,12 @@ void UVendorWidget::SellGun(int32 BackpackIndex)
 	}
 	if (LooterEconomy::SaleNeedsConfirm(Gun) && Confirm == EConfirm::None)
 	{
-		const FString Body = FText::Format(LOCTEXT("ConfirmSellBody", "Sell the {0} {1} (level {2}) for {3} silver? It's gone for good."),
-			UEnum::GetDisplayValueAsText(Gun.Rarity), GunName(Gun), FText::AsNumber(Gun.Level), FText::AsNumber(LooterEconomy::GunSellPrice(Gun))).ToString();
+		// A boss's named legendary says so: one of a kind, and the next may be a long hunt away.
+		const FString Body = (Gun.Named
+			? FText::Format(LOCTEXT("ConfirmSellNamedBody", "Sell {0} (level {1}) for {2} silver? It's one of a kind, and another may be a long hunt away."),
+				GunName(Gun), FText::AsNumber(Gun.Level), FText::AsNumber(LooterEconomy::GunSellPrice(Gun)))
+			: FText::Format(LOCTEXT("ConfirmSellBody", "Sell the {0} {1} (level {2}) for {3} silver? It's gone for good."),
+				UEnum::GetDisplayValueAsText(Gun.Rarity), GunName(Gun), FText::AsNumber(Gun.Level), FText::AsNumber(LooterEconomy::GunSellPrice(Gun)))).ToString();
 		OpenConfirm(EConfirm::Sell, BackpackIndex, LOCTEXT("ConfirmSellTitle", "Sell this gun").ToString(), Body, LOCTEXT("Sell", "Sell"));
 		return;
 	}

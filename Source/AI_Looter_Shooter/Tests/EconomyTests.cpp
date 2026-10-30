@@ -233,6 +233,16 @@ bool FEconomyPricesTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("A named gun isn't for sale"), LooterEconomy::CanSell(Named, &Why));
 	TestTrue(TEXT("...and the vendor says so"), Why.ToString().Contains(TEXT("Heirloom")));
 	TestEqual(TEXT("...it fetches nothing"), LooterEconomy::GunSellPrice(Named), 0);
+	// A boss's named legendary (it has a signature) sells, behind the confirm (the user, 2026-10-30).
+	FWeaponInstanceData BossGun = Plain;
+	UNamedWeaponDefinition* Gravesilk = NewObject<UNamedWeaponDefinition>();
+	Gravesilk->DisplayName = FText::FromString(TEXT("Gravesilk"));
+	Gravesilk->Signature = ELegendarySignature::Gravesilk;
+	BossGun.Named = Gravesilk;
+	BossGun.Rarity = EWeaponRarity::Legendary;
+	TestTrue(TEXT("A boss's legendary sells"), LooterEconomy::CanSell(BossGun));
+	TestTrue(TEXT("...for silver"), LooterEconomy::GunSellPrice(BossGun) > 0);
+	TestTrue(TEXT("...after asking"), LooterEconomy::SaleNeedsConfirm(BossGun));
 	TestFalse(TEXT("No gun, no sale"), LooterEconomy::CanSell(FWeaponInstanceData()));
 	return true;
 }

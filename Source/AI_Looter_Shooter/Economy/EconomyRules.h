@@ -105,7 +105,8 @@ namespace LooterEconomy
 	/** What a vendor pays for Gun: by its rarity, at its level, a cursed iron for less; 0 for one a vendor won't buy. */
 	AI_LOOTER_SHOOTER_API int32 GunSellPrice(const FWeaponInstanceData& Gun);
 
-	/** Whether a vendor buys Gun at all: a named gun (Heirloom, Pa's) stays with the player. OutWhy says why not. */
+	/** Whether a vendor buys Gun at all: a story heirloom (a named gun without a signature: Heirloom, Pa's) stays with the
+	 *  player; a boss's named legendary sells (behind the confirm: SaleNeedsConfirm). OutWhy says why not. */
 	AI_LOOTER_SHOOTER_API bool CanSell(const FWeaponInstanceData& Gun, FText* OutWhy = nullptr);
 
 	/** Selling Gun asks first: Rare and better. */

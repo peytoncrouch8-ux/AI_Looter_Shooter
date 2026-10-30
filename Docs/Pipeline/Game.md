@@ -105,6 +105,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     since the old 12-unit tinted marker was lost in a legendary beam's glow); looking at a dot opens its card. Wards never fold.
     0 = old way. `LootLabelLayout::PickShown`. Tests `Looter.Loot.Labels.Layout/.Pile/.Fold` (the Fold test's room 28, dot >= 20).
     Dot size and the 4 not judged by eye yet.
+  - Selling (`LooterEconomy::CanSell`): Rare and up asks first; a story heirloom (named, no signature: Heirloom, Bench Mark,
+    Ferryman's Due, Still Water) never sells (the hero's "not for sale" line); a boss's named legendary (Gravesilk, Company
+    Scrip, Lamplighter) sells with its own confirm ("one of a kind"; the user, 2026-10-30).
   - General store REFILL ALL AMMO (note 13): first row under BUY (`VendorTrade::RefillAllAmmo`, `TallyRefill`, `RefillPrice`):
     every ammo type to its most for one payment, all or nothing; price per type = whole boxes x box price + the last part box
     (`AmmoPrice`), equal to clicking Buy until full. The row shows "+N rounds across K kinds" and the price; FULL when full; red

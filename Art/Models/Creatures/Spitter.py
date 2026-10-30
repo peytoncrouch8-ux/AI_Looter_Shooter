@@ -54,6 +54,11 @@ LEG_RADIUS = 6.2
 HIDE_TINT = 0xD8E08A
 # The sac's gel: venom green, mostly see-through facing the eye and dense at its edges, glowing a little at rest.
 SAC_TINT, SAC_OPACITY, SAC_EDGE, SAC_GLOW = 0x8FE83A, 0.55, 0.93, 0.6
+# The Tripo sac (the playtest 2026-10-30: it looked plain): a thin, stretched membrane, lighter and more see-through
+# facing the eye (the painted venom core and its capillaries show through it), dense at its edges like skin pulled
+# tight, wet: glossier than the gel's default 0.15 with a tighter, brighter sun glint (M_Gel's Roughness,
+# HighlightSharpness, HighlightStrength). Its hue stays the venom's (SpitterLook::Venom, linear 0.45/1/0.12).
+TRIPO_SAC = dict(tint=0xA6EC5A, opacity=0.38, edge=0.95, roughness=0.06, sharpness=110.0, highlight=3.2)
 # Creature space as the spider's (cm, x forward, y left), z over the ride height (Spider.py's lifted()).
 SAC = dict(center=(-86.0, 0.0, 54.0), radii=(42.0, 36.0, 33.0))
 SAC_ROOT = (-86.0, 0.0, 37.0)                      # the sac bone's head: where it grows out of the abdomen
@@ -84,29 +89,36 @@ def spider_parts():
     return names
 
 
-def gel_material():
+def gel_material(membrane=None):
     """The sac: a Gel master material with a tint, an opacity, its edge's and a resting glow (no texture). Its nodes only
-    preview it in Blender."""
+    preview it in Blender. membrane: the Tripo sac's look (TRIPO_SAC) over the scripted one's."""
+    tint, opacity, edge = SAC_TINT, SAC_OPACITY, SAC_EDGE
+    if membrane:
+        tint, opacity, edge = membrane['tint'], membrane['opacity'], membrane['edge']
     mat = bpy.data.materials.get('SpitterSac') or bpy.data.materials.new('SpitterSac')
     mat.use_nodes = True
-    rgba = lm.hex_color(SAC_TINT)
+    rgba = lm.hex_color(tint)
     bsdf = next(node for node in mat.node_tree.nodes if node.type == 'BSDF_PRINCIPLED')
     bsdf.inputs['Base Color'].default_value = rgba
-    bsdf.inputs['Alpha'].default_value = SAC_OPACITY
-    bsdf.inputs['Roughness'].default_value = 0.1
+    bsdf.inputs['Alpha'].default_value = opacity
+    bsdf.inputs['Roughness'].default_value = membrane['roughness'] if membrane else 0.1
     if 'Emission Color' in bsdf.inputs:
         bsdf.inputs['Emission Color'].default_value = rgba
         bsdf.inputs['Emission Strength'].default_value = SAC_GLOW
-    mat.diffuse_color = rgba[:3] + [SAC_OPACITY]
+    mat.diffuse_color = rgba[:3] + [opacity]
     if hasattr(mat, 'surface_render_method'):
         mat.surface_render_method = 'BLENDED'
     for key in [k for k in mat.keys() if not k.startswith('_')]:
         del mat[key]
     mat['Master'] = 'Gel'
-    mat['Tint'] = f'#{SAC_TINT:06x}'
-    mat['Opacity'] = SAC_OPACITY
-    mat['EdgeOpacity'] = SAC_EDGE
+    mat['Tint'] = f'#{tint:06x}'
+    mat['Opacity'] = opacity
+    mat['EdgeOpacity'] = edge
     mat['InnerGlow'] = SAC_GLOW
+    if membrane:
+        mat['Roughness'] = membrane['roughness']
+        mat['HighlightSharpness'] = membrane['sharpness']
+        mat['HighlightStrength'] = membrane['highlight']
     return mat
 
 
@@ -202,7 +214,7 @@ def tripo():
     import parts_spitter_sac as sacs
     for mesh in list(parts.values()) + list(hairs.values()):
         mesh.bm.free()
-    gel = gel_material()
+    gel = gel_material(TRIPO_SAC)
     m = limbs.measure()
     roots = limbs.roots(m)
     waist = Vector(m['place'].root_c)

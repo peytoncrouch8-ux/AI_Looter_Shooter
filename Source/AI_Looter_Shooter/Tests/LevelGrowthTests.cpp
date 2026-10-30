@@ -31,7 +31,8 @@ bool FLevelGrowthCompoundTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Enemies grow 9% a level"), Shipped.EnemyGrowth, 0.09f);
 	TestEqual(TEXT("...and guns' damage the same"), GetDefault<UWeaponDefinition>()->DamagePerLevel, Shipped.EnemyGrowth);
 	TestEqual(TEXT("...and wards' capacity the same"), GetDefault<UShieldDefinition>()->CapacityPerLevel, Shipped.EnemyGrowth);
-	TestEqual(TEXT("...and the player's health the same (it keeps the enemies' pace)"), Shipped.PlayerHealthScale(7), Shipped.EnemyScale(7), 1e-5f);
+	// The player's health grows slower (the user, 2026-10-30: +6%): the enemies slowly outscale them, gear and wards make it up.
+	TestEqual(TEXT("...and the player's health 6% a level"), Shipped.PlayerHealthScale(7), FLevelRules::Compounded(0.06f, 7), 1e-5f);
 	TestEqual(TEXT("An enemy at level 7: x1.677"), Shipped.EnemyScale(7), FLevelRules::Compounded(0.09f, 7), 1e-5f);
 
 	// A gun: its damage at level 7 is its level 1 damage x1.09^6, the same seed and parts.

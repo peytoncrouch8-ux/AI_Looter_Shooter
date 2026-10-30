@@ -59,7 +59,7 @@ namespace FightPace
 	{
 		float BaseHealth = 100.f;
 		/** FLevelRules::HealthPerLevel. */
-		float HealthPerLevel = 0.09f;
+		float HealthPerLevel = 0.06f;
 	};
 
 	/** The gun a level-matched player carries. */

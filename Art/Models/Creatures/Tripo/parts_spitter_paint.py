@@ -19,8 +19,16 @@ import looter_textures as lt
 from parts_spitter_look import REGIONS, box, grads, lin
 
 EYE, EYE_ROUGH = 0x0E1A16, 0.18
-CORE_DARK, CORE_LIGHT = 0x1F3A10, 0x3F6A1C
-VEIN_DARK, VEIN_LIGHT = 0x2A1A10, 0x5A3B22
+# The venom core under the gel (the playtest 2026-10-30: the sac looked plain): venom pooled bright in the middle of each
+# cell (SpitterLook::Venom's hue, linear 0.45/1/0.12), deep in its creases, a net of dark capillaries over it that the
+# thin membrane shows through, glossy (wet).
+CORE_DEEP, CORE_HOT = 0x24480E, 0x9ADC48
+CAPILLARY = 0x121A0A
+CORE_ROUGH = 0.22
+CORE_NETS = ((34, 0.04, 0.95, 41), (130, 0.017, 0.7, 42))    # Voronoi nets on the core: seeds, line half-width
+                                                               # (radians), darkening, seed: big veins, fine capillaries
+VEIN_DARK, VEIN_LIGHT = 0x1A100A, 0x3A2416      # the tubes over the gel: darker than the hide (were 2A1A10/5A3B22)
+VEIN_ROUGH = 0.35
 COLLAR_DARK, COLLAR_LIGHT = 0x3A2616, 0x7A5634
 CHITIN_ROUGH, FANG_ROUGH, KNOB_ROUGH = 0.8, 0.42, 0.6
 GRAIN_KEEP = 0.4          # share of the carapace's fine detail (under ~6 px) kept: grooves stay, grain fades
@@ -132,19 +140,52 @@ def style(colour, covered):
     return np.clip(bc, 0.0, 1.0), orm
 
 
+def sphere_net(dirs, seeds, seed):
+    """Per texel (unit directions, (..., 3)): the angle to the nearest edge of a spherical Voronoi net of seeds random
+    cells (half the gap between the nearest and the second nearest seed), so its lines run on across the cube-sphere's
+    UV seams."""
+    rng = np.random.default_rng(seed)
+    pts = rng.normal(size=(seeds, 3))
+    pts /= np.linalg.norm(pts, axis=1, keepdims=True)
+    flat = dirs.reshape(-1, 3).astype(np.float32)
+    out = np.empty(len(flat), np.float32)
+    for k in range(0, len(flat), 65536):
+        d = np.clip(flat[k:k + 65536] @ pts.T.astype(np.float32), -1.0, 1.0)
+        two = -np.partition(-d, 1, axis=1)[:, :2]
+        out[k:k + 65536] = 0.5 * (np.arccos(two[:, 1]) - np.arccos(two[:, 0]))
+    return out.reshape(dirs.shape[:-1])
+
+
+def core(r0, r1, c0, c1):
+    """The venom core (a cube-sphere like the carapace, so body_dirs gives each texel's direction): venom pooled hot in
+    each big cell's middle and deep at its edges, dark veins along the big net and fine capillaries along a finer one,
+    a slow mottling over all. Returns (colour, roughness)."""
+    dirs = body_dirs(r1 - r0, c1 - c0)
+    (n0, w0, k0, s0), (n1, w1, k1, s1) = CORE_NETS
+    big, fine = sphere_net(dirs, n0, s0), sphere_net(dirs, n1, s1)
+    # A third net's cells as the mottling: a 2-D noise would step at the cube faces' UV seams.
+    mottle = 2.0 * _smoothstep(0.0, 0.14, sphere_net(dirs, 70, 43)) - 1.0
+    pooled = np.clip(0.2 + 0.8 * _smoothstep(0.02, 0.22, big) + 0.12 * mottle, 0.0, 1.0)
+    colour = _mix(lin(CORE_DEEP), lin(CORE_HOT), pooled)
+    lines = np.maximum(k0 * _smoothstep(w0, w0 * 0.3, big), k1 * _smoothstep(w1, w1 * 0.3, fine))
+    colour = _mix(colour, lin(CAPILLARY), lines)
+    return colour, CORE_ROUGH + 0.15 * lines
+
+
 def paint_built(bc, orm):
     """The regions Tripo never painted on a shape of ours: the eyes, the venom core, the veins, the collar and waist."""
     r0, r1, c0, c1 = box('eye')
     bc[r0:r1, c0:c1] = lin(EYE)
     orm[r0:r1, c0:c1] = (1.0, EYE_ROUGH, 0.0)
-    for region, dark, light, rough, seed in (('core', CORE_DARK, CORE_LIGHT, 0.5, 11),
-                                             ('vein', VEIN_DARK, VEIN_LIGHT, 0.55, 12),
+    r0, r1, c0, c1 = box('core')
+    bc[r0:r1, c0:c1], rough = core(r0, r1, c0, c1)
+    orm[r0:r1, c0:c1] = (1.0, 0.0, 0.0)
+    orm[r0:r1, c0:c1, 1] = rough
+    for region, dark, light, rough, seed in (('vein', VEIN_DARK, VEIN_LIGHT, VEIN_ROUGH, 12),
                                              ('collar', COLLAR_DARK, COLLAR_LIGHT, 0.78, 13)):
         r0, r1, c0, c1 = box(region)
         U, V = grads(region)
-        if region == 'core':
-            t = 0.5 + 0.22 * lt.noise(U.shape, seed, 6.0, octaves=3)
-        elif region == 'vein':
+        if region == 'vein':
             # Lit along its crest (V 0/1, the side out of the gel), dark down its sunk sides.
             t = 0.25 + 0.6 * (0.5 + 0.5 * np.cos(2.0 * math.pi * V)) + 0.06 * lt.noise(U.shape, seed, 4.0)
         else:

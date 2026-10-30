@@ -106,7 +106,7 @@ bool FFightPaceModelTest::RunTest(const FString& Parameters)
 	TestNearlyEqual(TEXT("...at level 11, x1.09^10 (2.37)"), FightPace::EnemyScale(11, 0.09f), FMath::Pow(1.09f, 10.f), 0.0001f);
 	TestNearlyEqual(TEXT("The starter ward is 15 at level 1 and 41 at level 3"), FightPace::StarterWard(1), 15.f);
 	TestNearlyEqual(TEXT("...41 at level 3"), FightPace::StarterWard(3), 41.f);
-	TestNearlyEqual(TEXT("A level 3 player: 118.8 health (x1.09^2) and a 41 ward is 159.8"), FightPace::PlayerEHP(3, FightPace::FPlayerNumbers(), 41.f), 100.f * 1.09f * 1.09f + 41.f, 0.01f);
+	TestNearlyEqual(TEXT("A level 3 player: 112.4 health (x1.06^2) and a 41 ward is 153.4"), FightPace::PlayerEHP(3, FightPace::FPlayerNumbers(), 41.f), 100.f * 1.06f * 1.06f + 41.f, 0.01f);
 
 	// The turns: a spider's numbers (0.55 / 0.45 / 1.1).
 	FightPace::FKindNumbers Bite;

@@ -41,6 +41,9 @@ The user's calls:
 
 - **The curve** (`FXPCurve`): reaching level L takes **180 × (L^2.8 − 1)** in all, rounded: Borderlands 2's shape at
   three times its experience. **The top level is 65** (about 21.4 million in all).
+- **Growth a level, compounding** (`FLevelRules::Compounded`): enemies' health and damage, guns' damage and wards' capacity
+  **+9%** (2026-10-29 night); the player's max health **+6%** (the user, 2026-10-30; was +9%): enemies slowly outscale the
+  player's health (x1.69 vs x2.17 at level 10, x41.6 vs x249 at 65), gear and wards make it up.
 - **Kills** (`FLevelRules::KillXP`): the creature's `XPReward` (10; times its rank's multiplier: Restless ×2,
   Gravebound ×3.5, Hallowed ×6, Ethereal ×9, Soulfed ×10, Boss ×20) × the kill scale (**1**) × **its level^1.2**, less 15 points a level when it's
   below the player (never under 10%), never under 1. A Basic creature gives **10** at level 1, 23 at 2, 69 at 5, 103 at
