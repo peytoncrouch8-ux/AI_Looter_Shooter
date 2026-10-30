@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureRank.h"
+#include "Elements/LooterElement.h"
 #include "Weapons/CreatureBlood.h"
 #include "Weapons/ImpactSurface.h"
 #include "Weapons/WeaponTypes.h"
@@ -125,6 +126,8 @@ struct FVfxMuzzle
 	 * muzzle rework, 2026-10-22: forward-flying sparks near the eye drew as big yellow diamonds over the target).
 	 */
 	FVector Away = FVector::ZeroVector;
+	/** The gun's element (its parts'): its sparks thrown round the flash too (FWeaponFX::SpawnElementMuzzle). */
+	ELooterElement Element = ELooterElement::None;
 };
 
 /**

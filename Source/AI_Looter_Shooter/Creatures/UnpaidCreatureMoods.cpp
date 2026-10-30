@@ -241,6 +241,8 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 		Goal.LookPitch = -5.f + 4.f * FMath::Sin(Time * 0.23f);
 		Goal.Sway = IsBossCreature() ? 0.f : SwayRoll * FMath::Sin(Time * 0.55f) * (1.f - FMath::Min(Speed, 1.f));
 	}
+	// Its element statuses on top: flailing, locked up, hunched, stiff, flinching (UnpaidCreatureStatus.cpp).
+	StatusChannels(Goal);
 	return Goal;
 }
 

@@ -243,8 +243,14 @@ void UBulletSubsystem::LeaveMark(const FBullet& Bullet, const FHitResult& Hit, E
 	{
 		return;
 	}
-	if (Marks.Add(*World, Hit, Bullet.Shot.Direction, Material, Bullet.MarkScale, FMath::FRand()))
+	// An element round leaves its element's mark, and a brief flare on it (embers, sparks, drips, glints, motes; 2026-10-29).
+	const ELooterElement Element = Bullet.Shot.Element;
+	if (Marks.Add(*World, Hit, Bullet.Shot.Direction, Material, Bullet.MarkScale, FMath::FRand(), Element))
 	{
 		++VolleyMarks[Entry].Count;
+		if (Element != ELooterElement::None)
+		{
+			Effects.SpawnElementMark(Element, Hit.ImpactPoint, Hit.ImpactNormal, Bullet.MarkScale);
+		}
 	}
 }

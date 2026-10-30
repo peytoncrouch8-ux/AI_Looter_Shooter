@@ -92,6 +92,7 @@ namespace
 ABellRingerCreature::ABellRingerCreature()
 {
 	DisplayName = NSLOCTEXT("LooterBellRinger", "BellRingerName", "Bell-Ringer");
+	ElementBody = EElementBody::Bone;
 	// Fragile next to the others (an Unpaid has 160) and weak in a fight: what it does to a fight is its bell.
 	Health->MaxHealth = 110.f;
 	AttackDamage = 6.f;

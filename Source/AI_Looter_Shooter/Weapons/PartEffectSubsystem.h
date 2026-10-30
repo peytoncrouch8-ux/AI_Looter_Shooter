@@ -16,8 +16,7 @@ struct FHitResult;
  * and element (UPartEffectComponent knows the gun's).
  *  - Firing: stamps the shot with its gun's element (its tracer tinted toward the element's colour), effect and pierce;
  *    an Overcharge round takes its charge's damage; a Twin shot fires its second bullet beside the first.
- *  - Landing: an Explosive round keeps Direct of itself for what it hit; a salted creature's standing ward takes a bullet
- *    GraveSaltWardBonus times (salted wards break faster).
+ *  - Landing: an Explosive round keeps Direct of itself for what it hit.
  *  - Struck: the element's look on every hit and its roll for the status (UElementStatusComponent::TryApply); a Piercing
  *    round flies on through a creature; a Ricochet round bounces once to the nearest creature it can see within its
  *    radius; an Explosive round splashes the rest of itself round where it landed (never through walls, never on the

@@ -115,6 +115,14 @@ bool FShieldStatsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Every Legendary has one"), Seen.Contains(EShieldTrait::None));
 	TestEqual(TEXT("...and all five turn up"), Seen.Num(), static_cast<int32>(UE_ARRAY_COUNT(AllShieldTraits)));
 	TestEqual(TEXT("Only Last Breath carries an element, and it always does"), Elementless, 0);
+	// Its nova is any of the five elements, alike (Thunder and Rot since 2026-10-29).
+	TSet<ELooterElement> NovaElements;
+	for (int32 Seed = 0; Seed < 200; ++Seed)
+	{
+		NovaElements.Add(ShieldRules::NovaElementFor(Seed));
+	}
+	TestEqual(TEXT("Last Breath's nova: all five elements turn up"), NovaElements.Num(), 5);
+	TestFalse(TEXT("...never none"), NovaElements.Contains(ELooterElement::None));
 
 	// The starting ward: a plain Common ward box at the level given.
 	const FShieldInstanceData Starter = ShieldRules::Starter(Definition, 4);

@@ -7,11 +7,14 @@
 #include "Player/FirstPersonHandsComponent.h"
 #include "Player/FirstPersonHandsFraming.h"
 #include "Player/FirstPersonHandsGrips.h"
+#include "Player/FirstPersonHandsMarks.h"
+#include "Player/FirstPersonHandsTypes.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Tests/LocomotionTestWorld.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponHandMarks.h"
 #include "Weapons/WeaponModelComponent.h"
 #include "Weapons/WeaponTypes.h"
 #include "Camera/CameraComponent.h"
@@ -96,6 +99,10 @@ namespace
 		FGunHands Cupped = Hold;
 		FirstPersonHandsGrips::FitCupTo(Cupped, FirstPersonHandsGrips::FitCup(*Model, Kind));
 		const float Scale = Model->GetModelScale();
+		// A gun whose parts carry hand markers (grip spots, 2026-10-29) is held from them, not the tables: its spot is the
+		// marker's point on the gun, the palm a skin's width off it along the marker's facing.
+		FHandMarks Marks;
+		const bool bMarked = FirstPersonHandsMarks::UseMarks() && Model->GetHandMarks(Marks);
 		struct FHandsPlaySide
 		{
 			EFirstPersonHand Hand;
@@ -128,9 +135,19 @@ namespace
 			const FVector Target = Player.Hands->GetTargetHoldPoint(Side.Hand);
 			const FVector Held = Player.Hands->GetHoldPoint(Side.Hand);
 			const float OnSpot = static_cast<float>(FVector::Dist(Held, Player.Hands->GetSeatedHoldPoint(Side.Hand)));
-			const float OffSpot = static_cast<float>(FVector::Dist(Target, Side.Spot));
+			float OffSpot = static_cast<float>(FVector::Dist(Target, Side.Spot));
+			float OffLimit = 0.1f;
+			const FHandMark& Mark = Marks.Get(EHandMarkRole::Hold, FirstPersonHands::Index(Side.Hand));
+			if (bMarked && Mark.bValid)
+			{
+				// The hand goes to its marker (grip spots, 2026-10-29): a palm's skin off it, then seated on the part. How well it
+				// sits is the OnSpot check above and Looter.Player.Hands.Marks; here only that it rides the gun near its marker
+				// this frame (the drawn scale and the arms' scale put the grip point a few cm off the marker's skin point).
+				OffSpot = static_cast<float>(FVector::Dist(Target, GunNow.TransformPosition(Mark.Local.GetLocation() * Scale)));
+				OffLimit = 8.f;
+			}
 			Test.TestTrue(FString::Printf(TEXT("%s: %s (%.2f cm from its spot)"), *Name, Side.Which, OnSpot), OnSpot <= HandsPlayOnSpot);
-			Test.TestTrue(FString::Printf(TEXT("%s: ...its spot on the gun as it is this frame (%.2f cm off)"), *Name, OffSpot), OffSpot <= 0.1f);
+			Test.TestTrue(FString::Printf(TEXT("%s: ...its spot on the gun as it is this frame (%.2f cm off)"), *Name, OffSpot), OffSpot <= OffLimit);
 			if (bOnScreen && !(bTriggerOffScreen && Side.Hand == EFirstPersonHand::Right))
 			{
 				const FVector InView = Camera->GetComponentTransform().InverseTransformPosition(Held);

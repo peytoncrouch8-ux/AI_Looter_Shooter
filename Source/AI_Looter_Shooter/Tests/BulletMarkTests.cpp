@@ -79,13 +79,30 @@ bool FBulletMarkRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Pellets are smaller"), FBulletMarks::GunScale(EWeaponKind::Shotgun) < FBulletMarks::GunScale(EWeaponKind::Rifle));
 	TestTrue(TEXT("The revolver's are bigger"), FBulletMarks::GunScale(EWeaponKind::Revolver) > FBulletMarks::GunScale(EWeaponKind::Rifle));
 
-	// The decal's colour carries the style for M_BulletMark (floor(R * 16)) and the seed.
-	for (int32 Style = 0; Style < 13; ++Style)
+	// The decal's colour carries the style for M_BulletMark (floor(R * StyleSlots): 32 since the element marks) and the seed.
+	for (int32 Style = 0; Style < FBulletMarks::FirstElementStyle + 5; ++Style)
 	{
 		const FLinearColor Code = FBulletMarks::Code(Style, 0.42f);
-		TestEqual(FString::Printf(TEXT("Style %d reads back"), Style), FMath::FloorToInt32(Code.R * 16.f), Style);
+		TestEqual(FString::Printf(TEXT("Style %d reads back"), Style), FMath::FloorToInt32(Code.R * FBulletMarks::StyleSlots), Style);
 		TestTrue(TEXT("The seed rides along"), FMath::IsNearlyEqual(Code.G, 0.42f));
 	}
+
+	// An element round's mark: its element's own style (15-19) on any surface that takes a mark, never on water, none for None.
+	TArray<int32> ElementStyles;
+	for (const ELooterElement Element : { ELooterElement::Ember, ELooterElement::Thunder, ELooterElement::Rot, ELooterElement::GraveSalt,
+		ELooterElement::SoulLight })
+	{
+		const FBulletMarkLook Look = FBulletMarks::ElementLookOf(Element, EImpactMaterial::Stone);
+		TestTrue(FString::Printf(TEXT("Element %d has its mark"), static_cast<int32>(Element)),
+			Look.Style >= FBulletMarks::FirstElementStyle && Look.Style < FBulletMarks::StyleSlots);
+		TestFalse(TEXT("...its own"), ElementStyles.Contains(Look.Style));
+		ElementStyles.Add(Look.Style);
+		TestEqual(TEXT("...the same on dirt"), FBulletMarks::ElementLookOf(Element, EImpactMaterial::Dirt).Style, Look.Style);
+		TestTrue(TEXT("...never smaller than the surface's"),
+			FBulletMarks::ElementLookOf(Element, EImpactMaterial::Glass).Radius >= FBulletMarks::LookOf(EImpactMaterial::Glass).Radius);
+		TestTrue(TEXT("...no mark on water"), FBulletMarks::ElementLookOf(Element, EImpactMaterial::Water).Style < 0);
+	}
+	TestTrue(TEXT("A plain round has no element mark"), FBulletMarks::ElementLookOf(ELooterElement::None, EImpactMaterial::Stone).Style < 0);
 
 	// Nothing to mark without a component.
 	const FHitResult Nothing;

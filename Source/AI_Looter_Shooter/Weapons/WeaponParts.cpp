@@ -65,7 +65,7 @@ namespace
 }
 
 FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity, TConstArrayView<FName> SavedParts,
-	const FWeaponMaker* Maker)
+	const FWeaponMaker* Maker, ELooterElement Lean)
 {
 	FWeaponLook Look;
 	// A stream of its own from the same seed: the stats' variance draws from FRandomStream(Seed), and sharing its
@@ -96,7 +96,12 @@ FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, E
 		Look.Parts.Add(PickByWeight(Slot.Options, Roll, [&](const FWeaponPartOption& Option)
 		{
 			return Option.Mesh && Option.MinRarity <= Rarity && Fits(Option, Definition, Look.Parts);
-		}, [Maker](const FWeaponPartOption& Option) { return WeaponMakers::PartWeight(Maker, Option); }));
+		}, [Maker, Lean](const FWeaponPartOption& Option)
+		{
+			// A Touched creature's element leans the pick toward its parts (never forces it).
+			const float Leaning = Lean != ELooterElement::None && Option.Element == Lean ? ElementLeanWeight : 1.f;
+			return WeaponMakers::PartWeight(Maker, Option) * Leaning;
+		}));
 	}
 	for (const FWeaponPaint& Paint : Definition.Paints)
 	{

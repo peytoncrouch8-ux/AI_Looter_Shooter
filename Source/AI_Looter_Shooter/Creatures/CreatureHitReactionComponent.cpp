@@ -116,6 +116,28 @@ bool UCreatureHitReactionComponent::Jolt(float BasicSeconds, const FVector& Dire
 	return true;
 }
 
+bool UCreatureHitReactionComponent::WardBreak(const FVector& Direction)
+{
+	ACreatureBase* Creature = Cast<ACreatureBase>(GetOwner());
+	const UWorld* World = GetWorld();
+	if (!Creature || !World || Creature->IsDead() || Creature->IsPassive() || IsBoss(*Creature))
+	{
+		return false;
+	}
+	const FGunfeelReactTuning Tuning = FGunfeelReactTuning::Live();
+	Reaction.SetTuning(Tuning);
+	Reaction.SetFeel(FHitFeelTuning::Live());
+	if (!Reaction.OnWardBreak(World->GetTimeSeconds(), Creature->GetRank()))
+	{
+		return false;
+	}
+	if (!Direction.IsNearlyZero())
+	{
+		Shove(*Creature, Direction, 0.3f, Tuning.StaggerShove);
+	}
+	return true;
+}
+
 bool UCreatureHitReactionComponent::IsStaggered() const
 {
 	const UWorld* World = GetWorld();

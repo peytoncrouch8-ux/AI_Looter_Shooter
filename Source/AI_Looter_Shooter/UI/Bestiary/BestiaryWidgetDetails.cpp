@@ -5,6 +5,8 @@
 #include "Bestiary/BestiaryEntry.h"
 #include "Bestiary/BestiaryTiers.h"
 #include "Bestiary/Ledger.h"
+#include "Creatures/CreatureBase.h"
+#include "Elements/ElementBody.h"
 #include "Elements/ElementRules.h"
 #include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressData.h"
@@ -45,6 +47,49 @@ namespace
 	FString FormatWhole(float Value)
 	{
 		return FText::AsNumber(FMath::RoundToInt(Value)).ToString();
+	}
+
+	/** Between the weakness line's pieces (ElementRules::WeaknessLine joins them with it). */
+	const TCHAR* const WeaknessSeparator = TEXT(" · ");
+
+	/** A creature kind's body as the page names it ("Chitin"); empty for anything that isn't a creature. */
+	FString BodyWord(const UClass* KindClass)
+	{
+		const ACreatureBase* Kind = KindClass && KindClass->IsChildOf(ACreatureBase::StaticClass())
+			? Cast<ACreatureBase>(KindClass->GetDefaultObject()) : nullptr;
+		if (!Kind)
+		{
+			return FString();
+		}
+		switch (Kind->GetElementBody())
+		{
+		case EElementBody::Flesh:  return TEXT("Flesh");
+		case EElementBody::Chitin: return TEXT("Chitin");
+		case EElementBody::Gel:    return TEXT("Gel");
+		case EElementBody::Bone:   return TEXT("Bone");
+		case EElementBody::Coal:   return TEXT("Coal");
+		case EElementBody::Spirit: return TEXT("Spirit");
+		case EElementBody::Stone:  return TEXT("Stone");
+		case EElementBody::Iron:   return TEXT("Iron");
+		}
+		return FString();
+	}
+
+	/**
+	 * A weakness piece's colour: what bites it (WEAK TO, its coal) in the accent, what it shrugs off dim, what does nothing
+	 * at all (IMMUNE TO) in the worse-than red, so the player doesn't bring that gun.
+	 */
+	FLinearColor WeaknessPieceColor(const FString& Piece)
+	{
+		if (Piece.StartsWith(TEXT("IMMUNE")))
+		{
+			return Color::Worse();
+		}
+		if (Piece.StartsWith(TEXT("RESIST")))
+		{
+			return Color::TextDim();
+		}
+		return Color::Accent();
 	}
 
 	/** The small diamond in front of a top tier on the defeat line, tinted by the tier. */
@@ -192,13 +237,23 @@ void UBestiaryWidget::RefreshDetails()
 			TierSlot->SetHorizontalAlignment(HAlign_Right);
 			TierSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 		}
-		// Which story elements bite it and which it shrugs off (the elements' weakness table, ElementRules).
-		const FString Weakness = ElementRules::WeaknessLine(Entry->ActorClass.LoadSynchronous());
-		if (!Weakness.IsEmpty())
+		// What it is made of, as the elements see it (its body: Elements matter, 2026-10-29), then which elements bite it,
+		// which it shrugs off and which do nothing at all (the weakness table, ElementRules), each on a line of its own so an
+		// IMMUNE TO reads apart from a WEAK TO.
+		const UClass* KindClass = Entry->ActorClass.LoadSynchronous();
+		const FString Body = BodyWord(KindClass);
+		if (!Body.IsEmpty())
 		{
-			UTextBlock* WeaknessText = Label(WidgetTree, Weakness, 9, Color::Accent(), 120);
-			WeaknessText->SetAutoWrapText(true);
-			DetailsBox->AddChildToVerticalBox(WeaknessText)->SetPadding(FMargin(0.f, 4.f, 0.f, 4.f));
+			AddStat(TEXT("Body"), Body, true);
+		}
+		TArray<FString> Pieces;
+		ElementRules::WeaknessLine(KindClass).ParseIntoArray(Pieces, WeaknessSeparator, true);
+		for (int32 Index = 0; Index < Pieces.Num(); ++Index)
+		{
+			UTextBlock* PieceText = Label(WidgetTree, Pieces[Index], 9, WeaknessPieceColor(Pieces[Index]), 120);
+			PieceText->SetAutoWrapText(true);
+			DetailsBox->AddChildToVerticalBox(PieceText)->SetPadding(
+				FMargin(0.f, Index == 0 ? 4.f : 1.f, 0.f, Index + 1 == Pieces.Num() ? 4.f : 0.f));
 		}
 	}
 

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/TimerHandle.h"
+#include "Elements/LooterElement.h"
 #include "Weapons/ImpactSurface.h"
 #include "Weapons/WeaponTypes.h"
 
@@ -59,10 +60,21 @@ public:
 	static constexpr int32 MarksPerVolley = 5;
 
 	/**
-	 * Leaves a mark for a bullet's hit, when it may have one (CanMark). SizeScale sizes it (GunScale()); Pick (0..1) picks its
-	 * turn and variant. False when it left none.
+	 * The atlas's style slots: M_BulletMark decodes the style as floor(R * StyleSlots) (Code). 32 since the element marks
+	 * (2026-10-29: the atlas grew to 8 x 8 cells; build_world_materials.py MARK_CELL_UV reads the same).
 	 */
-	bool Add(UWorld& World, const FHitResult& Hit, const FVector& ShotDirection, EImpactMaterial Material, float SizeScale, float Pick);
+	static constexpr int32 StyleSlots = 32;
+
+	/** The element marks' first style (make_bullet_marks.py: 15 Scorch, 16 Burn, 17 Acid, 18 Frost, 19 Gilt), after the heavy rounds'. */
+	static constexpr int32 FirstElementStyle = 15;
+
+	/**
+	 * Leaves a mark for a bullet's hit, when it may have one (CanMark). SizeScale sizes it (GunScale()); Pick (0..1) picks its
+	 * turn and variant; an element round's (Element) is its element's mark (ElementLookOf) while Looter.Vfx.Element.Marks is on.
+	 * False when it left none.
+	 */
+	bool Add(UWorld& World, const FHitResult& Hit, const FVector& ShotDirection, EImpactMaterial Material, float SizeScale, float Pick,
+		ELooterElement Element = ELooterElement::None);
 
 	/** Hides every mark at once (Looter.BulletMarks.Clear). */
 	void Clear();
@@ -97,6 +109,14 @@ public:
 	 */
 	static FBulletMarkLook HeavyLookOf(EImpactMaterial Material);
 
+	/**
+	 * An element round's mark on Material (BulletMarksElements.cpp; "Elements matter", 2026-10-29), on any surface that takes a
+	 * mark: Ember a sooty scorch (15), Thunder a burn ring with a pale fused edge (16), Rot an acid splash (17), Grave-salt salt
+	 * frost (18), Soul-light a gilt splash (19), each a little wider than the surface's own. Style below 0 for None or a surface
+	 * that takes no mark (water).
+	 */
+	static FBulletMarkLook ElementLookOf(ELooterElement Element, EImpactMaterial Material);
+
 	/** How big a gun's marks are against a rifle's: a revolver's heavy slug bigger, a shotgun's pellets smaller. */
 	static float GunScale(EWeaponKind Kind);
 
@@ -106,7 +126,7 @@ public:
 	 */
 	static FBulletMarkPlacement Place(const FVector& Point, const FVector& Normal, const FVector& ShotDirection, float Radius, float Turn);
 
-	/** The decal's colour, which tells M_BulletMark the style and the variant (R: (style + 0.5) / 16, G: the seed). */
+	/** The decal's colour, which tells M_BulletMark the style and the variant (R: (style + 0.5) / StyleSlots, G: the seed). */
 	static FLinearColor Code(int32 Style, float Seed);
 
 	/**

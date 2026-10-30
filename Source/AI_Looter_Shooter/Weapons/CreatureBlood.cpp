@@ -1,4 +1,6 @@
 #include "Weapons/CreatureBlood.h"
+#include "Creatures/GravemotherAssets.h"
+#include "Creatures/StoneSentinelCreature.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/DeadMinerCreature.h"
 #include "Creatures/GravemotherCreature.h"
@@ -75,6 +77,11 @@ ECreatureBlood CreatureBlood::OfClass(const UClass* Class)
 	{
 		return ECreatureBlood::Clay;
 	}
+	// The Stone Sentinel spills grit and chips, never ichor: clay's dry bits in granite grey (TintOf).
+	if (Class->IsChildOf(AStoneSentinelCreature::StaticClass()))
+	{
+		return ECreatureBlood::Clay;
+	}
 	// A creature with no look of its own yet: the old splash.
 	return ECreatureBlood::Ichor;
 }
@@ -111,6 +118,11 @@ FLinearColor CreatureBlood::TintOf(const AActor* Actor)
 	if (const AUnpaidCreature* Unpaid = Cast<AUnpaidCreature>(Actor))
 	{
 		return Unpaid->GetCoalColor();
+	}
+	// A Stone Sentinel's grit in its granite's grey.
+	if (Cast<AStoneSentinelCreature>(Actor))
+	{
+		return GravemotherAssets::GraniteColor();
 	}
 	// A placeholder's clay in its kind's colour.
 	if (const APlaceholderCreature* Placeholder = Cast<APlaceholderCreature>(Actor))

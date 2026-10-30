@@ -12,9 +12,12 @@ class FWeaponFX;
  *  - Grave-salt: it crystallises and crumbles, salt crystals falling off the whole body and flung out, a breath of frost.
  *  - Thunder: a flash from its heart, sparks flung out and raining down, arcs crackling over it.
  *  - Rot: drips, then a low wet burst and a green cloud spreading out.
+ * On top, the bigger deaths (2026-10-29, FWeaponFX::SpawnElementDeath, Looter.Vfx.Element.Death): Ember's ash falling and a
+ * heat burst, Thunder's shock pop and ring of arcs, Rot's melt into a green puddle, Grave-salt crystallised then shattering,
+ * Soul-light's burst of light lifting.
  * CreatureKillLook::Play lays it over the kind's kill layers when the killing hit was a status's (FCreatureHit::Element);
  * UCreatureHitReactionComponent leaves such a corpse without the gun's knock and the kind's own burst. Everything through
- * the bullets' pooled FWeaponFX (the element looks it already has: SpawnElementAura, SpawnElementBurst), no new draws.
+ * the bullets' pooled FWeaponFX (SpawnElementAura, SpawnElementBurst, SpawnElementDeath), no new draws.
  */
 namespace ElementDeathLook
 {

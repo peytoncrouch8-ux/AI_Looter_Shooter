@@ -230,6 +230,9 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 	}
 	// Come to after a hit that took its turn mid-wind-up: its attack goes on only with a turn again.
 	ResumeAfterHit();
+	// What it carries has its say before the hold below (CreatureBaseStatus.cpp): a burning one that panics runs itself and
+	// holds its brain for the frame, so the chase doesn't run in the same frame and fight the bolt.
+	UpdateStatusBrain(DeltaSeconds);
 	// Coming into the world (rising, climbing out of the dirt: HoldBrain): it stands until it's out, its clock held too.
 	if (BrainHold > 0.f)
 	{

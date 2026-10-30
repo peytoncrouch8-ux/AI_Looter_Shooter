@@ -327,6 +327,9 @@ protected:
 	 */
 	virtual bool HasOwnEntrance() const { return false; }
 
+	/** Whether its creatures may roll Touched (ACreatureBase::bMayBeTouched): a hand-built fight (a set piece, a bounty) says no. */
+	virtual bool LetsCreaturesBeTouched() const { return true; }
+
 	/** Moves its pack on by DeltaSeconds at each look while it's on (waiting or engaged): a patrol's walk. */
 	virtual void UpdatePack(float DeltaSeconds) {}
 

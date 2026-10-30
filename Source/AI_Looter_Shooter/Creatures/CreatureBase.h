@@ -14,6 +14,8 @@
 #include "Creatures/CreatureUpdateRate.h"
 #include "Creatures/FightRules.h"
 #include "Creatures/HuntingGround.h"
+#include "Elements/ElementBody.h"
+#include "Elements/LooterElement.h"
 #include "Templates/Function.h"
 #include "CreatureBase.generated.h"
 
@@ -209,6 +211,27 @@ public:
 	/** Its tier's traits (none below Gravebound), set each time its rank is applied. */
 	UCreatureTraitComponent* GetTraitComponent() const { return TraitComponent; }
 
+	// --- Elements (CreatureBaseRank.cpp; the bodies' table: ElementRules, Elements/ElementBody.h) ---
+
+	/** What it's made of, as the elements see it: its kind's (ElementBody). */
+	EElementBody GetElementBody() const { return ElementBody; }
+
+	/**
+	 * The element it's touched by this life (CreatureTouched: rare in Gravebound areas, rolled as its rank is applied for a
+	 * Basic, Restless or Gravebound creature that bMayBeTouched), None when it isn't: immune to it, weak to its counter, a
+	 * ward of it when Warded, its glow, its loot leaning to it.
+	 */
+	ELooterElement GetTouchedElement() const { return TouchedElement; }
+
+	/** The tag's word for its touch ("Cinder-touched"), empty when untouched. The tag builds its name with it (CreatureTierLook). */
+	FString GetTouchedWord() const;
+
+	/**
+	 * Touches it with Element now, whatever its rank or the roll (None: untouched), its traits' ward and look following at
+	 * once (Looter.SpawnCreature ... touched[=Element]); it lasts this life.
+	 */
+	void SetTouched(ELooterElement Element);
+
 	/**
 	 * Sets its level, which its tag shows and the guns it drops take (passed to its loot drop component). In play its
 	 * health and damage follow at once (FLevelRules::EnemyScale, its rank's multipliers on top), a hurt one keeping its share.
@@ -316,6 +339,17 @@ public:
 	/** Its name stands for its rank's word on its tag, in the rank's color: a named Legendary (the Gravemother), not "Soulfed". */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Rank")
 	bool bNameIsRankWord = false;
+
+	/** What it's made of, as the elements see it (each kind sets its own in its constructor; Elements/ElementBody.h). */
+	UPROPERTY(EditDefaultsOnly, Category = "Elements")
+	EElementBody ElementBody = EElementBody::Flesh;
+
+	/**
+	 * Whether it may roll Touched (CreatureTouched). Off for the fights built by hand: set pieces, bounties, the spider
+	 * fights and boss adds (their spawners turn it off: FCreatureRuntimeSpawn::bMayBeTouched).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Elements")
+	bool bMayBeTouched = true;
 
 	/**
 	 * Creatures with the same pack tag answer each other's pack calls (PackAlertRadius, and a rank's wider call): every
@@ -528,6 +562,8 @@ protected:
 private:
 	void SetState(ECreatureState NewState);
 	void TickBrain(float DeltaSeconds);
+	/** Its statuses' say in its brain each brain tick (a burning one may panic; Creatures/CreatureBaseStatus.cpp). */
+	void UpdateStatusBrain(float DeltaSeconds);
 	void TickAttack(float DeltaSeconds);
 	void UpdatePerception();
 	APawn* FindVisibleTarget() const;
@@ -601,6 +637,7 @@ private:
 	void ApplyStats();
 	void ApplySize();
 	void ApplyTraits();
+	void ApplyTouched();
 	void CaptureBaseStats();
 
 	// --- Update rate (CreatureBaseUpdateRate.cpp) ---
@@ -672,6 +709,10 @@ private:
 	bool bSpawnedAtRuntime = false;
 	/** The roll that promoted it this arrival (its bits), for GetTierSeed; 0 for a rank it was placed or spawned with. */
 	int32 TierRoll = 0;
+	/** Its touch this life (GetTouchedElement), whether SetTouched chose it (kept over the roll), and its lives so far (each rolls afresh). */
+	ELooterElement TouchedElement = ELooterElement::None;
+	bool bTouchedChosen = false;
+	int32 TouchedLives = 0;
 	/** What the class or the level gave it, which ranks multiply (CaptureBaseStats). */
 	bool bBaseCaptured = false;
 	float BaseMaxHealth = 100.f;

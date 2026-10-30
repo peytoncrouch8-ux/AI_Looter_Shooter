@@ -185,6 +185,24 @@ public:
 	/** A line of the element's light from From to To (a smite leaping to the next of the dead), fading in a moment. */
 	void SpawnElementArc(ELooterElement Element, const FVector& From, const FVector& To);
 
+	// --- An element gun's own looks ("Elements matter" lane F, 2026-10-29; WeaponFXElementShots/Marks/Deaths.cpp;
+	// strengths Looter.Vfx.Element.*, FElementVfxTuning) ---
+
+	/** Muzzle.Element's sparks round a shot's flash: Cinder embers, Thunder jagged arcs, Rot green gobs, Wardbreak salt glints, Hallow gold motes. */
+	void SpawnElementMuzzle(const FVfxMuzzle& Muzzle);
+	/** One piece of the trail behind an element round's tracer, Tail to Head: heat shimmer and embers, a forked spark line, drips, a frost line, a light ribbon. Amount: its share (fading in). */
+	void SpawnElementTrail(ELooterElement Element, const FVector& Tail, const FVector& Head, float Amount);
+	/** One idle piece off a held element gun at Location (as the eye sees it), carried at Velocity (its holder's), Scale the gun's: an ember or smoke, a crackle, a drip, frost, a mote. */
+	void SpawnElementIdle(ELooterElement Element, const FVector& Location, const FVector& Velocity, float Scale);
+	/** The brief flare on a fresh element mark (Normal its surface's): embers and a glow, sparks skittering, drips, glints, motes. Scale the round's mark scale. */
+	void SpawnElementMark(ELooterElement Element, const FVector& Location, const FVector& Normal, float Scale);
+	/**
+	 * The bigger element death over a body (its cylinder; Front: toward the eye, Radius long; Amount its share): Cinder ash falling
+	 * and a heat burst, Thunder a shock pop and a ring of arcs, Rot a melt into a green puddle, Wardbreak crystallised then
+	 * shattering, Hallow light lifting off it. On top of ElementDeathLook's aura and burst.
+	 */
+	void SpawnElementDeath(ELooterElement Element, const FVector& Center, float Radius, float HalfHeight, const FVector& Front, float Amount);
+
 	/** An Explosive round's burst at Location (Normal its surface's): a hot flash, sparks, a ring of smoke Radius cm out. */
 	void SpawnSplashPop(const FVector& Location, const FVector& Normal, float Radius);
 

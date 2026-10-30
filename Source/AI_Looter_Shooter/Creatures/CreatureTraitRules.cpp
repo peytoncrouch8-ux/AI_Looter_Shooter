@@ -8,6 +8,7 @@
 #include "Creatures/SpitterSpider.h"
 #include "Creatures/UnpaidCreature.h"
 #include "Math/RandomStream.h"
+#include "Templates/TypeHash.h"
 
 namespace
 {
@@ -138,13 +139,14 @@ namespace CreatureTraitRules
 		return false;
 	}
 
-	float AbsorbWard(float& InOutWard, float Damage, bool bCritical, float CritBreakScale)
+	float AbsorbWard(float& InOutWard, float Damage, bool bCritical, float CritBreakScale, float ElementScale)
 	{
 		if (InOutWard <= 0.f || Damage <= 0.f)
 		{
 			return FMath::Max(Damage, 0.f);
 		}
-		const float Scale = bCritical ? FMath::Max(CritBreakScale, 0.01f) : 1.f;
+		// Its type first, then the crit on top (the user: "then the crit's x2 as today").
+		const float Scale = FMath::Max(ElementScale, 0.01f) * (bCritical ? FMath::Max(CritBreakScale, 0.01f) : 1.f);
 		const float Against = Damage * Scale;
 		if (Against < InOutWard)
 		{
@@ -155,6 +157,54 @@ namespace CreatureTraitRules
 		const float Spent = InOutWard / Scale;
 		InOutWard = 0.f;
 		return FMath::Max(Damage - Spent, 0.f);
+	}
+
+	float WardElementScale(ELooterElement Ward, ELooterElement HitElement, float Match, float WardbreakAny)
+	{
+		if (HitElement == ELooterElement::None)
+		{
+			return 1.f;
+		}
+		float Scale = 1.f;
+		if (HitElement == Ward)
+		{
+			Scale = FMath::Max(Scale, Match);
+		}
+		if (HitElement == ELooterElement::GraveSalt)
+		{
+			Scale = FMath::Max(Scale, WardbreakAny);
+		}
+		return Scale;
+	}
+
+	ELooterElement WardElementAt(float Roll)
+	{
+		// The shock ward is the common one (the user's), a true ward next, the rest rare.
+		const float Value = FMath::Clamp(Roll, 0.f, 1.f);
+		if (Value < 0.5f)
+		{
+			return ELooterElement::Thunder;
+		}
+		if (Value < 0.7f)
+		{
+			return ELooterElement::GraveSalt;
+		}
+		if (Value < 0.8f)
+		{
+			return ELooterElement::Ember;
+		}
+		if (Value < 0.9f)
+		{
+			return ELooterElement::SoulLight;
+		}
+		return ELooterElement::Rot;
+	}
+
+	ELooterElement RollWardElement(int32 Seed)
+	{
+		// Its own dice, salted apart from the traits' roll from the same seed.
+		const FRandomStream Random(static_cast<int32>(HashCombineFast(static_cast<uint32>(Seed), 0x3A2Du)));
+		return WardElementAt(Random.FRand());
 	}
 
 	float MendAmount(float SinceHit, float UnhitSeconds, float HealSharePerSecond, float MaxHealth, float DeltaSeconds)

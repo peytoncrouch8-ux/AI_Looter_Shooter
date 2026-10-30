@@ -171,6 +171,8 @@ int32 AForemanCreature::CallShift()
 		Spawn.Rank = ECreatureRank::Basic;
 		// Their own level from where they stand (the Providence's), never his Soulfed one.
 		Spawn.Level = 0;
+		// His fight is built by hand: his shift is never Touched.
+		Spawn.bMayBeTouched = false;
 		ADeadMinerCreature* Miner = Cast<ADeadMinerCreature>(ACreatureBase::SpawnAtRuntime(World, ADeadMinerCreature::StaticClass(), Spot,
 			static_cast<float>(Facing.Rotation().Yaw), Spawn));
 		if (!Miner)

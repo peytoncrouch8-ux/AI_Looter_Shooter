@@ -52,7 +52,7 @@ T0 = time.time()
 # nudge and turn (MakeDefaults), its arms' scale on top of 0.88, FGunHands::TriggerAt (u, v), the slots held for the hold
 # and for the reload, and the fallback poser.
 GUNS = {
-    'Bullpup': dict(kind='Rifle', scale=1.1, hip=((43.0, 23.0, -23.5), (0.0, 0.0, 0.0)),
+    'Bullpup': dict(kind='Rifle', scale=1.1, hip=((43.0, 23.0, -27.5), (0.0, 0.0, 0.0)),
                     frame=((0.0, -3.0, 3.0), (5.0, 0.0, 0.0)), arms=1.0, trigger=(28.0, -6.6),
                     hold=('Body',), reload=('Magazine',), poser='bullpup'),
     'Ranchhand': dict(kind='Shotgun', scale=1.1, hip=((30.0, 22.5, -23.0), (0.0, -3.0, -5.0)),
@@ -76,12 +76,35 @@ GUNS = {
 }
 GUN = next((a for a in ARGV if a in GUNS), 'Bullpup')
 CFG = GUNS[GUN]
+
+
+def game_hip_hold(kind):
+    """WeaponHipHold.cpp's hold for kind, read from the source (it is retuned often), or None."""
+    path = os.path.join(lt.REPO, 'Source', 'AI_Looter_Shooter', 'Weapons', 'WeaponHipHold.cpp')
+    try:
+        with open(path, encoding='utf-8') as f:
+            text = f.read()
+    except OSError:
+        return None
+    num = r'(-?[\d.]+)f?'
+    m = re.search(r'\{\s*EWeaponKind::' + kind + r',\s*FVector\(' + r',\s*'.join([num] * 3) +
+                  r'\),\s*(FRotator::ZeroRotator|FRotator\(' + r',\s*'.join([num] * 3) + r'\))', text)
+    if not m:
+        return None
+    turn = (0.0, 0.0, 0.0) if m.group(4).endswith('ZeroRotator') else tuple(float(m.group(k)) for k in (5, 6, 7))
+    return tuple(float(m.group(k)) for k in (1, 2, 3)), turn
+
+
+_HIP = game_hip_hold(CFG['kind'])
+if _HIP is not None:
+    CFG['hip'] = _HIP
 FP_GUN_SCALE = 1.2                      # Looter.FPHands.GunScale
 ARMS = 0.88 * CFG['arms']               # UFirstPersonHandsComponent's ArmsScale x the kind's
 GUN_DRAWN = CFG['scale'] * FP_GUN_SCALE / ARMS   # the gun in the arms' space
 GRIP_OFF_PALM_SKIN = 0.02               # FirstPersonHands::GripOffPalmSkin (hand cm, here m)
 SEAT_GAP, SEAT_FULL, SEAT_FADE = 0.0015, 0.025, 0.05
 THUMB_FLEX = 80.0                       # Looter.Hands.ThumbFlexToFingers
+CUP_WRIST_BEND = 50.0                   # Looter.Hands.CupWristBend (degrees)
 END_SHARE = 0.6                         # EndJointRestShare
 REACHED = 1.2                           # cm: a trigger pad this near counts as on it (a finger pad is ~1.8 across)
 POSES_JSON = os.path.join(lt.REPO, 'Saved', 'FPHands', 'poses.json')
@@ -359,10 +382,18 @@ def fallback(gun, trees, trigger_at, reload_mag):
 
 # ----------------------------------------------------------------------------------------------------- the gun
 def pose_arms(hands):
-    """fp_arms_sheet.py's pose(), the forearm run straight back under the palm for a pose that says so."""
+    """fp_arms_sheet.py's pose(); a pose whose forearm runs behind the knuckles (the cup) gets the game's rule instead
+    (FirstPersonHandsMarks.cpp: back from the knuckles, the wrist bent CUP_WRIST_BEND toward the back of the hand)."""
     mats = {}
     for h in hands:
-        mats.update(S['arm_mats'](h.side, h, bend=0.12 if getattr(h, 'behind', False) else 0.45))
+        arm = h
+        if getattr(h, 'behind', False):
+            bend = math.radians(CUP_WRIST_BEND)
+            way = -h.R[:, 0] * math.cos(bend) + h.R[:, 2] * math.sin(bend)
+            arm = type('Arm', (), {})()     # arm_mats reads the forearm's way off R's first column (and R's second)
+            arm.wrist, arm.side = h.wrist, h.side
+            arm.R = np.column_stack([-way, h.R[:, 1], h.R[:, 2]])
+        mats.update(S['arm_mats'](h.side, arm, bend=0.0 if arm is not h else 0.45))
         mats.update(S['hand_mats'](h))
     S['apply_pose'](mats)
 
@@ -570,6 +601,7 @@ def held_parts(gun):
 
 
 S['stage']()
+log(f'{GUN}: hip hold {CFG["hip"]} (WeaponHipHold.cpp {"read" if _HIP else "not found: the table"}), framing {CFG["frame"]}')
 GUN_OBJ = S['load_gun'](GUN, keep_all=True)
 done = []
 for slot, key, model, role in held_parts(GUN_OBJ):

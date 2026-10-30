@@ -130,14 +130,8 @@ void UPartEffectSubsystem::NoteLanding(const FBulletShot& Shot, const FHitResult
 		// What it hit takes Direct of it; the rest splashes (NoteStruck), what it hit included.
 		Landing.DamageScale *= FPartEffectTuning::Live().ExplosiveDirect;
 	}
-	// Salted wards break faster: a standing ward on a salted creature takes more of each bullet.
-	const AActor* Target = Hit.GetActor();
-	const UElementStatusComponent* Status = UElementStatusComponent::Find(Target);
-	const UCreatureTraitComponent* Traits = Status && Status->IsSalted() ? UCreatureTraitComponent::Find(Target) : nullptr;
-	if (Traits && Traits->IsWardUp())
-	{
-		Landing.DamageScale *= FElementTuning::Live().GraveSaltWardBonus;
-	}
+	// The old salted-ward bonus is gone (the user, 2026-10-29 night): wards are typed now and Wardbreak itself is the
+	// breaker (UCreatureTraitComponent's ward).
 }
 
 void UPartEffectSubsystem::NoteStruck(const FBulletShot& Shot, const FHitResult& Hit, FBulletStrike& Strike)

@@ -249,3 +249,19 @@ def travel_whoosh(v, r):
                (c2, t + 0.1, -23.0))
     x = F.filt(x, F.hp(90.0, 0.7), F.peak(3300.0, -3.0, 0.9), extend=False)
     return _ui(x, r, 0.6, -16.0, 0.7)
+
+
+@cue('UI.StatusCallout', variations=3, space='2D', cls='Interface', jitter=0.02, conc=3, level=-15.0)
+def status_callout(v, r):
+    # The first time a status lands on a creature (BURNING, SMITTEN, SALTED, JOLTED, ROTTING over it): a short sting that
+    # says "that took": a firm brass stamp over a flick of air, two bright notes a fourth apart rising, a hint of
+    # shimmer. Any element's (the element's own Apply plays at the creature); short, so a fight's worth never tires.
+    flick = kit.whoosh(0.09, child(r, 'flick'), 900.0, 3800.0, 1.0, 0.8, -3.0, 1.0)
+    stamp = kit.clack(child(r, 'stamp'), 520.0 * jitter(r, 1, 0.04), 1500.0, 5200.0, 0.03, 0.04, -3.0, -8.0, 0.00012)
+    a, b = [('G5', 'C6'), ('A5', 'D6'), ('F5', 'Bb5')][v]
+    n1 = kit.chime(kit.note(a), child(r, 'n1'), 0.28, 0.6, 0.0002, 0.4, -34.0)
+    n2 = kit.chime(kit.note(b), child(r, 'n2'), 0.4, 0.6, 0.0002, 0.4, -34.0)
+    body = O.sine(kit.note(b) / 2.0, n=ns(0.3)) * E.perc(0.3, 0.003, 0.2)
+    x = layers((flick, 0.0, -14.0), (stamp, 0.0, -3.0), (n1, 0.003, -5.0), (n2, 0.065, -4.0), (normalize(body), 0.065, -14.0))
+    x = F.filt(x, F.peak(3300.0, -4.5, 0.9), F.hp(120.0), extend=False)
+    return _ui(x, r, 0.25, -22.0, 0.25)

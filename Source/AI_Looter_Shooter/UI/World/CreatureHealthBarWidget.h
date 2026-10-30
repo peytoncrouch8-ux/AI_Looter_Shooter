@@ -2,12 +2,17 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Elements/ElementStatusIcons.h"
+#include "Elements/LooterElement.h"
 #include "CreatureHealthBarWidget.generated.h"
 
 class UCanvasPanel;
+class UHorizontalBox;
 class UImage;
+class ULooterProgressRing;
 class USizeBox;
 class UTextBlock;
+class UWidget;
 
 /**
  * The tag over a creature in combat, in the gameplay HUD's style: no backing plate, just floating outlined text ("LV 1
@@ -23,9 +28,15 @@ class UTextBlock;
  * their colour, a thin line round it with a clamp biting each end, and their sting (the notice) pops the word bigger and
  * longer (TopTierFlashSeconds) in a white-hot of its own colour while the frame flares bright and swells a little.
  *
- * A Warded creature's ward (SetWard; the traits' soul ward, UCreatureTraitComponent::GetWardFraction): a slim pale-cyan bar
- * over the health bar, leaning with it, while the ward stands. A hit snaps its fill down and leaves a pale chip draining
- * after it, as the health's; breaking, it flashes white-hot, swells a little and goes.
+ * A Warded creature's ward (SetWard; the traits' soul ward, UCreatureTraitComponent::GetWardFraction): a slim bar over the
+ * health bar in the ward's element's colour (typed wards, 2026-10-29: ElementRules::UiColor of GetWardElement), leaning with
+ * it, while the ward stands. A hit snaps its fill down and leaves a paler chip draining after it, as the health's; breaking,
+ * it flashes white-hot of its colour, swells a little and goes.
+ *
+ * The element statuses on it (SetStatuses; UElementStatusComponent::GetStatusIcons): a row of small icons under the bar, one
+ * per element in the elements' own order (so an icon never jumps as another runs out): the element's glyph on a dark disc
+ * inside a ring of its colour that drains as the status runs down, a stack count beside it past one, popping in as it
+ * starts. CreatureHealthBarWidgetStatus.cpp has the row.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UCreatureHealthBarWidget : public UUserWidget
@@ -101,11 +112,15 @@ public:
 	// --- A Warded creature's ward ---
 
 	/**
-	 * Cheap to call every frame: whether it's Warded, and the share of its ward left (0 to 1). Shown while the ward stands
-	 * (a ward whole again, a new life, shows full at once); a lower share snaps the fill down and leaves the chip; 0 while
-	 * shown breaks it (the flash, then gone). Not Warded: no ward bar, at once and with no flash.
+	 * Cheap to call every frame: whether it's Warded, the share of its ward left (0 to 1) and the ward's colour (its
+	 * element's UiColor). Shown while the ward stands (a ward whole again, a new life, shows full at once); a lower share
+	 * snaps the fill down and leaves the chip; 0 while shown breaks it (the flash, then gone). Not Warded: no ward bar, at
+	 * once and with no flash. The colour is taken whenever it changes, so a break flashes in the ward's own colour.
 	 */
-	void SetWard(bool bInWarded, float InFraction);
+	void SetWard(bool bInWarded, float InFraction, const FLinearColor& InColor);
+
+	/** The same in the kit's cyan (DefaultWardColor): a ward with no element. */
+	void SetWard(bool bInWarded, float InFraction) { SetWard(bInWarded, InFraction, DefaultWardColor()); }
 
 	/** Moves the ward bar's chip and its break's flash on by DeltaSeconds (its tick calls it; the tests call it). */
 	void AdvanceWard(float DeltaSeconds);
@@ -116,12 +131,16 @@ public:
 	float GetWardFill() const { return WardFraction; }
 	float GetWardChip() const { return WardGhost; }
 
+	/** The ward's fill colour as last set, and its chip's (a paler of it). */
+	const FLinearColor& GetWardFillColor() const { return WardColor; }
+	FLinearColor GetWardChipColor() const { return WardChipColorFor(WardColor); }
+
 	/** The break's flash Seconds after it: 1 at once, easing to 0 by WardBreakSeconds (0 before and after). */
 	static float WardBreakFlashAt(float Seconds);
 
-	/** The ward's fill (the kit's pale cyan) and its chip's (paler) colours. CreatureHealthBarWidgetWard.cpp has the ward. */
-	static FLinearColor WardFillColor();
-	static FLinearColor WardChipColor();
+	/** A ward with no element's fill (the kit's pale cyan), and the chip's colour for a fill (paler, a little see-through). */
+	static FLinearColor DefaultWardColor();
+	static FLinearColor WardChipColorFor(const FLinearColor& Fill);
 
 	/** The ward bar: its height (px; the health bar's is 6), the gap over the health's frame, the break's length and swell. */
 	static constexpr float WardHeight = 4.f;
@@ -131,6 +150,48 @@ public:
 	/** Its chip holds this long after a hit, then drains at this many bar lengths a second. */
 	static constexpr float WardChipHold = 0.25f;
 	static constexpr float WardChipDrainRate = 1.2f;
+
+	// --- Its element statuses ---
+
+	/**
+	 * Cheap to call every frame (UElementStatusComponent::GetStatusIcons): the statuses on it now. The row only rebuilds an
+	 * icon when the elements shown change; each frame moves the rings and the stack counts. Empty: the row collapses.
+	 */
+	void SetStatuses(TConstArrayView<FCreatureStatusIcon> Icons);
+
+	/** Moves the icons' pop-in on by DeltaSeconds (its tick calls it; the tests call it). */
+	void AdvanceStatuses(float DeltaSeconds);
+
+	/** The icons as shown, in order (ArrangeStatuses'), and how far each one's pop has come (its scale now). */
+	const TArray<FCreatureStatusIcon>& GetStatuses() const { return Statuses; }
+	int32 GetStatusCount() const { return Statuses.Num(); }
+	float GetStatusScale(int32 Index) const;
+
+	/**
+	 * The icons to show for In: one per element (None and spent ones left out; the same element twice keeps the most time
+	 * and stacks), at most MaxStatusIcons, in the elements' own order so their places hold.
+	 */
+	static void ArrangeStatuses(TConstArrayView<FCreatureStatusIcon> In, TArray<FCreatureStatusIcon>& Out);
+
+	/** The count beside an icon: empty for one stack, "2", "3"... past it. */
+	static FText StacksLabel(int32 Stacks);
+
+	/** An icon's scale Seconds after it showed: StatusPopScale at once, settling to 1 by StatusPopSeconds. */
+	static float StatusPopScaleAt(float Seconds);
+
+	/** One icon per element there is. */
+	static constexpr int32 MaxStatusIcons = 5;
+	/** An icon's box (px), its ring's line, its glyph's size inside, the gap between icons and the row's gap under the bar. */
+	static constexpr float StatusIconSize = 20.f;
+	static constexpr float StatusRingThickness = 2.f;
+	static constexpr float StatusGlyphSize = 10.f;
+	static constexpr float StatusIconGap = 3.f;
+	static constexpr float StatusRowGap = 3.f;
+	/** The stack count's type. */
+	static constexpr int32 StatusStackTextSize = 9;
+	/** A new icon's pop. */
+	static constexpr float StatusPopScale = 1.45f;
+	static constexpr float StatusPopSeconds = 0.18f;
 
 	/** The bar's length on screen, whatever the creature's health. */
 	static constexpr float BarWidth = 120.f;
@@ -156,6 +217,15 @@ private:
 	float FlashSeconds() const { return FlashSecondsFor(bTopTierFlash); }
 	/** The ward bar as it stands: shown or not, its fill and chip, the break's flash and swell. */
 	void ApplyWard();
+	/** The ward's fill and chip images in its colour. */
+	void ApplyWardColor();
+
+	// CreatureHealthBarWidgetStatus.cpp
+	/** The status row's icons (MaxStatusIcons of them, collapsed), for RebuildWidget to place under the bar. */
+	UWidget* BuildStatusRow();
+	/** Every icon as Statuses stands: its glyph and colour when its element changed, its ring, its count, its scale. */
+	void ApplyStatuses(bool bElementsChanged);
+	void ApplyStatusScale(int32 Index);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> LevelText;
@@ -194,7 +264,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<USizeBox> ChipFill;
 
-	/** The ward bar over the health (sheared as the frame is), its cyan fill, its chip and the break's white flash. */
+	/** The ward bar over the health (sheared as the frame is), its fill, its chip and the break's white-hot flash. */
 	UPROPERTY(Transient)
 	TObjectPtr<USizeBox> WardBox;
 
@@ -206,6 +276,29 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UImage> WardFlashImage;
+
+	/** The ward's fill and chip themselves, white brushes tinted with the ward's colour. */
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> WardFillImage;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> WardChipImage;
+
+	/** The status row under the bar, and each icon's pieces: its box (scaled for the pop), ring, glyph and stack count. */
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> StatusRow;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USizeBox>> StatusBoxes;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<ULooterProgressRing>> StatusRings;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> StatusGlyphs;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StatusStacks;
 
 	FText CreatureName;
 	int32 CreatureLevel = 1;
@@ -232,4 +325,11 @@ private:
 	float WardGhost = 0.f;
 	float WardGhostHold = 0.f;
 	float WardBreakClock = WardBreakSeconds;
+	/** Its colour as last set (the kit's cyan until SetWard names one). */
+	FLinearColor WardColor = DefaultWardColor();
+
+	/** Its statuses as last set (ArrangeStatuses'), each icon's element as built, and each icon's seconds since it showed. */
+	TArray<FCreatureStatusIcon> Statuses;
+	ELooterElement IconElements[MaxStatusIcons] = {};
+	float IconAges[MaxStatusIcons] = {};
 };

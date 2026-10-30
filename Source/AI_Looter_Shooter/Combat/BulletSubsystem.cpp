@@ -4,6 +4,8 @@
 #include "Combat/CriticalSpotTarget.h"
 #include "Combat/LooterDamageTypes.h"
 #include "Elements/ElementCallout.h"
+#include "Elements/ElementRules.h"
+#include "Elements/ElementTuning.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -206,6 +208,7 @@ void UBulletSubsystem::Tick(float DeltaTime)
 	for (FBullet& Bullet : Bullets)
 	{
 		LayThread(Bullet);
+		LayElementTrail(Bullet);
 		DrawTracer(Bullet, Camera);
 		Bullet.bDrawn = true;
 	}
@@ -360,6 +363,10 @@ FBulletStrike UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResu
 		LeaveMark(Bullet, Hit, Material);
 	}
 
+	// An element gun's own hit scales by the creature's affinity to its element (the user, 2026-10-29 night: "bullets scale
+	// too, like Borderlands"): weak x2, resist x0.33, immune x0.1; a plain gun's never, nor a hit into a standing ward (the
+	// ward has its own rules). Only what is dealt: the strike below keeps the gun's hit, which the status scales itself.
+	const float Dealt = Shot.bBlank ? 0.f : Damage * ElementRules::GunHitScale(Shot.Element, HitActor, bCritical, FElementTuning::Live());
 	if (HitActor && !Shot.bBlank)
 	{
 		// The damage type tells receivers (health, damage numbers) whether this was a critical hit.
@@ -367,7 +374,7 @@ FBulletStrike UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResu
 		// The number over it knows an element gun's hit (the damage type is the same for every gun): its crit shows tinted, and
 		// a creature weak to the element says so (ElementCallout).
 		const FHitElementScope ElementOfThisHit(Shot.Element);
-		UGameplayStatics::ApplyPointDamage(HitActor, Damage, Shot.Direction, Hit, Shot.Instigator.Get(), Weapon, DamageType);
+		UGameplayStatics::ApplyPointDamage(HitActor, Dealt, Shot.Direction, Hit, Shot.Instigator.Get(), Weapon, DamageType);
 	}
 
 	UPrimitiveComponent* HitComponent = Hit.GetComponent();
@@ -378,9 +385,9 @@ FBulletStrike UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResu
 
 	if (Weapon && !Shot.bBlank)
 	{
-		Weapon->NotifyBulletHit(Hit, Damage, bCritical);
+		Weapon->NotifyBulletHit(Hit, Dealt, bCritical);
 	}
-	OnBulletHit.Broadcast(Hit, Damage, bCritical);
+	OnBulletHit.Broadcast(Hit, Dealt, bCritical);
 
 	// The gun's parts have their say last (its element's status, a bounce, a splash, flying on through).
 	FBulletStrike Strike;

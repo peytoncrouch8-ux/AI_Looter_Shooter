@@ -97,7 +97,8 @@ void ACreatureBase::UpdateHealthBar(float DeltaSeconds)
 		{
 			// A Legendary monster with a name of its own shows its name in the rank's color, with no word before it.
 			const FCreatureRankInfo& RankInfo = UCreatureRankSettings::Get(CurrentRank);
-			Bar->SetCreature(DisplayName, Level, bNameIsRankWord ? FText::GetEmpty() : RankInfo.Word, RankInfo.Color);
+			// A Touched one's name gains its word ("Cinder-touched Brown Spider"; lane C's CreatureTierLook::TagName).
+			Bar->SetCreature(CreatureTierLook::TagName(DisplayName, GetTouchedElement()), Level, bNameIsRankWord ? FText::GetEmpty() : RankInfo.Word, RankInfo.Color);
 			Bar->SetHealth(Health->GetHealth(), Health->GetMaxHealth());
 			// Its tier's frame and trait line (before the sting: a top tier's sting flashes bigger and longer).
 			UCreatureTierLookComponent::DressTag(*this, *Bar);

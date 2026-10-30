@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureStatusPose.h"
 #include "Creatures/SlimeFightRules.h"
 #include "SlimeCreature.generated.h"
 
@@ -210,6 +211,23 @@ private:
 	FQuat ReactLean() const;
 	/** It landed from a hop: a hunting hop or a leap kicks up a ring of dust. */
 	void NoteLanding();
+
+	// --- Its element statuses (the "Elements matter" job; SlimeCreatureStatus.cpp): looks only ---
+	/**
+	 * Reads its status pose for this frame (StatusShown) and kicks its gel with it: a burn's sizzle and bubbling core, a
+	 * jolt's tremor and the burst's jerk, the rot's cough; salted, its wobble's clock runs slow. TickReactions calls it first.
+	 */
+	void TickStatusPose(float DeltaSeconds);
+	/** What its statuses do to the squash's rest (ReactSquash adds it): the rot's sag and cough, a smite's cower, a jolt held tall. */
+	float StatusSquash() const;
+	/** Its statuses' lean on its rest sway (degrees, forward and to the side): a burn's slosh, a jolt's shiver, the rot's slump. */
+	FVector2D StatusLean() const;
+	/** Its status pose this frame (nothing dead), the kicks' clock and side, and the last frame's jerk and cough (their starts kick). */
+	FCreatureStatusPose StatusShown;
+	float StatusKickClock = 0.f;
+	float StatusKickSign = 1.f;
+	float LastJerkShown = 0.f;
+	float LastCoughShown = 0.f;
 
 	/** Its lean (degrees), the kick a hit gives it, and the spring's speed. */
 	FVector2D Lean = FVector2D::ZeroVector;

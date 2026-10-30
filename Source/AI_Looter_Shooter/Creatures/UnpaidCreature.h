@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureBodyHulls.h"
+#include "Creatures/CreatureStatusPose.h"
 #include "Creatures/ShroudChain.h"
 #include "Creatures/UnpaidBodyParts.h"
 #include "Creatures/UnpaidFightRules.h"
@@ -315,6 +316,12 @@ protected:
 	/** Seconds since it died. */
 	float DeathTime = 0.f;
 
+	/**
+	 * Its element statuses' pose this frame (CreatureStatusPose::Of, read as AnimateBody begins; nothing dead, nothing on a
+	 * boss): its own channels and bones take it (UnpaidCreatureStatus.cpp), and a body on its rig lays its arms by it too.
+	 */
+	FCreatureStatusPose StatusShown;
+
 	/** Meshes that wear the body's look besides the hat (Abel's lantern and pump): its rank's color, its dissolve, its flare. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPrimitiveComponent>> LookParts;
@@ -413,6 +420,14 @@ private:
 	float RiseDrop() const;
 	/** Works the bones' poses out from their turns, parents first. */
 	void SolvePose();
+
+	// --- Its element statuses (UnpaidCreatureStatus.cpp; the "Elements matter" job): looks only ---
+	/** Its status pose on the channels' goals (PoseTargets' end): a burn's flailing arms and scream, a jolt's arms locked out, the rot's hunch, the salt's stillness, a smite's flinch. */
+	void StatusChannels(FPoseChannels& Goal) const;
+	/** Its status pose's quick motions on the trunk's bones, laid after the channels (AnimateBody): tremors, twists, the jerk, the cough. */
+	void LayStatusBones();
+	/** A shake laid on the drift its shroud swings to (cm/s, its own frame): it jitters jolted, flaps burning, shivers smitten. */
+	FVector StatusShroudShake() const;
 
 	// --- The arms (UnpaidCreatureArms.cpp) ---
 	/** Reads the points of the arms' hit hulls that keep out of the torso, and the torso's hulls, from the model's physics asset. */

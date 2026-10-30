@@ -163,6 +163,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0", ClampMax = "1"))
 	float EpicPromotionChance = 0.f;
 
+	/**
+	 * The chance a Basic, Restless or Gravebound creature here is Touched this life (CreatureTouched; the user, 2026-10-29
+	 * night: rare in Ransom's Rest, about 6%). The default holds for an area asset saved before it (Ransom's Rest, the Lily);
+	 * a practice area never rolls them (ACreatureBase::ApplyTouched).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0", ClampMax = "1"))
+	float TouchedChance = 0.06f;
+
+	/** At most this many Touched creatures alive here at once. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0"))
+	int32 MaxTouchedAlive = 3;
+
 	/** Its creatures take their levels from a band (MinLevel is set). */
 	bool HasLevelBand() const { return MinLevel >= 1; }
 

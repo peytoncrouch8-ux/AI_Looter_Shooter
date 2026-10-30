@@ -473,3 +473,86 @@ def rot_kill(v, r):
     x = layers((_loud(burst), 0.0, 0.0), (_loud(thud), 0.0, -1.0), (_loud(pop, 0.003), 0.0, -4.0),
                (_loud(gush), 0.04, -3.0), (bub, 0.05, -6.0), (cloud, 0.06, -10.0), (drone, 0.0, -18.0))
     return _air(_calm(D.drive(normalize(x), 2.0, 'tanh')), r, -16.0, 1.2)
+
+
+# --- Ward breaks (Docs/Work/2026-10-29-ElementsMatter/CONTRACT.md: typed wards) --------------------------------------
+# A creature's ward of light shattering, in its element's voice (3D at the creature, under the stagger): the same pane
+# of light breaking as the player's own (shields.py's glass, a crack, slivers showering), then the element's own burst
+# riding it. Heard a few times a fight: bigger than a Tick, a step under a Kill.
+
+def _ward_glass(r, lo=2400.0, hi=7200.0, rate=150.0):
+    """The ward's pane breaking: a hard crack, glass slivers showering and thinning, a low thoom under it."""
+    from recipes import shields as SH
+    crack = kit.burst(0.05, child(r, 'crack'), 0.025, lo=1400.0, hi=12000.0)
+
+    def sliver(rr, t, i):
+        return SH._glass(rr.uniform(lo, hi), rr, rr.uniform(0.03, 0.09), 3) * rr.uniform(0.2, 1.0)
+
+    shards = G.cloud(0.7, child(r, 'shards'), lambda t: rate * np.exp(-t / 0.15) + 10.0, sliver)
+    bed = kit.grit_burst(0.4, child(r, 'bed'), 1600.0, 5000.0, 11000.0, 0.2)
+    thoom = kit.thump(140.0 * jitter(r, 1.0, 0.05), 45.0, 0.5, 0.3, r=child(r, 'thoom'), drive_db=4.0)
+    return normalize(layers((crack, 0.0, -4.0), (normalize(shards, 0.0), 0.004, -5.0), (bed, 0.004, -14.0),
+                            (thoom, 0.0, -3.0)), 0.0)
+
+
+@cue('Element.Ember.WardBreak', variations=3, att='Creature', jitter=0.04, conc=2, level=-8.0)
+def ember_ward_break(v, r):
+    # A ward of cinder bursting: the pane breaking, a flare roaring up out of it and a spray of crackle burning out.
+    glass = _ward_glass(child(r, 'glass'), 1800.0, 5600.0, 110.0)
+    whoomph = kit.noise_thump(0.4, child(r, 'whoomph'), 600.0, 70.0, 0.2, 1.1, 0.1, 0.003)
+    flare = _flame(0.7, child(r, 'flare'), 220.0, 1100.0 * jitter(r, 1.0, 0.08), 350.0, 0.15, 0.9)
+    crack = _crackle(0.6, child(r, 'crackle'), 1800.0, 0.18, 260.0)
+    x = layers((glass, 0.0, 0.0), (_loud(whoomph), 0.0, -2.0), (_loud(flare), 0.01, -6.0), (_loud(crack, 0.02), 0.03, -12.0))
+    return _air(_calm(D.drive(normalize(x), 2.0, 'tanh')), r, -16.0, 1.0)
+
+
+@cue('Element.SoulLight.WardBreak', variations=3, att='Creature', jitter=0.02, conc=2, level=-8.0)
+def soul_light_ward_break(v, r):
+    # A ward of hallowed light breaking: the pane breaking like struck crystal, a bell's bright ring cracked a semitone
+    # sour, a short choir stab and motes of light scattering.
+    glass = _ward_glass(child(r, 'glass'), 3000.0, 8000.0, 170.0)
+    f0 = kit.note(['A5', 'C#6', 'E6'][v])
+    ring = layers((_bell(f0, child(r, 'r1'), 0.7, 0.7), 0.0, 0.0), (_bell(f0 * 1.06, child(r, 'r2'), 0.5, 0.6), 0.003, -4.0))
+    choir = _voices(child(r, 'choir'), [f0 / 2.0, f0 / 2.0 * 1.26], 0.45, 'a', 1, 0.5)
+    sh = _shimmer(child(r, 'shimmer'), 10, 0.02, 0.45)
+    x = layers((glass, 0.0, 0.0), (ring, 0.0, -5.0), (choir, 0.01, -11.0), (sh, 0.0, -13.0))
+    return _air(_calm(x), r, -14.0, 1.4, 5000.0)
+
+
+@cue('Element.GraveSalt.WardBreak', variations=3, att='Creature', jitter=0.04, conc=2, level=-8.0)
+def grave_salt_ward_break(v, r):
+    # A ward of salt shattering: the pane and a salt crust breaking together, a heavy crunch, crystals raining off it and
+    # a cold hiss as it settles.
+    glass = _ward_glass(child(r, 'glass'), 2600.0, 7600.0, 140.0)
+    crunch = _crunch(0.35, child(r, 'crunch'), 13000.0, 0.09, 450.0, 2300.0)
+    crys = _crystals(0.8, child(r, 'crys'), 2000.0, 0.22)
+    frost = _frost(0.7, child(r, 'frost'), 4200.0, 10000.0, 0.08)
+    x = layers((glass, 0.0, 0.0), (crunch, 0.0, -2.0), (crys, 0.01, -8.0), (frost, 0.02, -13.0))
+    return _air(_calm(D.drive(normalize(x), 1.5, 'tanh')), r, -16.0, 0.9)
+
+
+@cue('Element.Thunder.WardBreak', variations=3, att='Creature', jitter=0.04, conc=2, level=-8.0)
+def thunder_ward_break(v, r):
+    # A ward of thunder blowing out: a big snap as the charge escapes, the pane breaking, sparks spraying and the ward's
+    # buzz chopped off and falling away.
+    snap = _snap(child(r, 'snap'), 1200.0)
+    glass = _ward_glass(child(r, 'glass'), 2200.0, 6400.0, 130.0)
+    sparks = _arc(0.5, child(r, 'sparks'), 3800.0, 0.12, 400.0, t60=0.4)
+    buzz = _zap(0.45, child(r, 'buzz'), 160.0 * jitter(r, 1.0, 0.08), 50.0, 700.0, 2000.0, 0.003, 0.35, -8.0, -7.0)
+    x = layers((snap, 0.0, 0.0), (glass, 0.002, -2.0), (_loud(sparks, 0.01), 0.004, -8.0), (_loud(buzz), 0.01, -8.0))
+    return _air(_calm(_dull(D.drive(normalize(x), 2.0, 'tanh'))), r, -16.0, 1.0)
+
+
+@cue('Element.Rot.WardBreak', variations=3, att='Creature', jitter=0.04, conc=2, level=-8.0)
+def rot_ward_break(v, r):
+    # A ward of rot bursting: the pane breaking dull and wet, a squelching burst under it, a gush of bubbles and the
+    # rot's fizz hissing out over a short sick drone.
+    glass = _ward_glass(child(r, 'glass'), 1600.0, 4800.0, 100.0)
+    burst = kit.squelch(0.22, child(r, 'burst'), 1100.0 * jitter(r, 1.0, 0.1), 240.0, 2.5)
+    gush = _gurgle(0.6, child(r, 'gush'), 220.0, 480.0, 9.0, 14.0, 2.5)
+    bub = _bubbles(0.6, child(r, 'bub'), lambda t: 10.0 + 70.0 * np.exp(-t / 0.25), 200.0, 850.0, 8.0)
+    fizz = _fizz(0.6, child(r, 'fizz'), 2000.0, 0.05)
+    drone = _drone(0.7, child(r, 'drone'), kit.note(['A2', 'Bb2', 'B2'][v]), 0.05, 0.5)
+    x = layers((glass, 0.0, -2.0), (_loud(burst), 0.0, 0.0), (_loud(gush), 0.03, -5.0), (bub, 0.04, -8.0),
+               (fizz, 0.04, -12.0), (drone, 0.0, -20.0))
+    return _air(_calm(D.drive(normalize(x), 2.0, 'tanh')), r, -16.0, 1.0)

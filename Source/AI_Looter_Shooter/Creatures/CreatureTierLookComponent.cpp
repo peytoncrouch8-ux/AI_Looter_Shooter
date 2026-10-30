@@ -6,6 +6,10 @@
 #include "Creatures/CreatureTierFXSubsystem.h"
 #include "Creatures/CreatureTraitComponent.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Elements/ElementRules.h"
+#include "Elements/ElementStatusComponent.h"
+#include "Elements/ElementStatusIcons.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "UI/World/CreatureHealthBarWidget.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -51,7 +55,7 @@ void UCreatureTierLookComponent::Refresh(ACreatureBase& Creature)
 	UCreatureTierLookComponent* Look = Find(&Creature);
 	// A Regular creature, a Legendary monster or a boss never gets one; one that had a tier and lost it (a promotion's
 	// life over, back as it was placed) keeps its component, which takes its shell off.
-	if (!Look && !CreatureTierLook::HasBodyGlow(Creature.GetRank()))
+	if (!Look && !CreatureTierLook::WearsShell(Creature.GetRank(), Creature.GetTouchedElement()))
 	{
 		return;
 	}
@@ -122,7 +126,7 @@ void UCreatureTierLookComponent::ApplyTier()
 	bDeathShown = false;
 	bDeathShowPending = false;
 	ShownCoalScale = 1.f;
-	ShellSpec = CreatureTierLook::ShellFor(CreatureTierLook::BodyOf(*Creature), ShownRank);
+	ShellSpec = CreatureTierLook::ShellFor(CreatureTierLook::BodyOf(*Creature), ShownRank, Creature->GetTouchedElement());
 	if (ShellSpec.bWorn)
 	{
 		WearShell();
@@ -418,5 +422,15 @@ void UCreatureTierLookComponent::DressTag(const ACreatureBase& Creature, UCreatu
 	// A Warded one's ward over its health while it stands (any tier: the dev command gives traits to Regulars too).
 	const UCreatureTraitComponent* TraitComponent = Creature.GetTraitComponent();
 	const bool bWarded = TraitComponent && TraitComponent->HasTrait(ECreatureTrait::Warded);
-	Tag.SetWard(bWarded, bWarded ? TraitComponent->GetWardFraction() : 0.f);
+	// Its fill is the ward's element (UiColor); a ward with no element named yet keeps the kit's cyan.
+	const ELooterElement WardElement = bWarded ? TraitComponent->GetWardElement() : ELooterElement::None;
+	const FLinearColor WardColor = WardElement != ELooterElement::None ? ElementRules::UiColor(WardElement) : LooterUI::Color::CyanText();
+	Tag.SetWard(bWarded, bWarded ? TraitComponent->GetWardFraction() : 0.f, WardColor);
+	// The statuses on it, as icons under the bar: none for a creature that can't take one (no status component).
+	TArray<FCreatureStatusIcon> Statuses;
+	if (const UElementStatusComponent* Status = Creature.FindComponentByClass<UElementStatusComponent>())
+	{
+		Status->GetStatusIcons(Statuses);
+	}
+	Tag.SetStatuses(Statuses);
 }

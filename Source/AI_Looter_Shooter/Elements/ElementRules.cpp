@@ -1,42 +1,136 @@
 #include "Elements/ElementRules.h"
 #include "Bosses/AbelKeeper.h"
 #include "Combat/GraveSaltDamageType.h"
-#include "Creatures/BellRingerCreature.h"
-#include "Creatures/DeadMinerCreature.h"
+#include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRank.h"
+#include "Creatures/CreatureTouched.h"
 #include "Creatures/CreatureTrait.h"
 #include "Creatures/CreatureTraitComponent.h"
-#include "Creatures/SlimeCreature.h"
-#include "Creatures/SpiderCreature.h"
-#include "Creatures/UnpaidCreature.h"
+#include "Creatures/ForemanCreature.h"
+#include "Creatures/GravemotherCreature.h"
 #include "Elements/ElementDamageType.h"
 #include "UI/Style/LooterUIStyle.h"
 
+namespace
+{
+	/** A body's three sides as element bits (ElementRules::MaskOf). */
+	struct FBodySides
+	{
+		uint8 Weak = 0;
+		uint8 Resist = 0;
+		uint8 Immune = 0;
+	};
+
+	uint8 Bits(std::initializer_list<ELooterElement> Elements)
+	{
+		uint8 Mask = 0;
+		for (const ELooterElement Element : Elements)
+		{
+			Mask |= ElementRules::MaskOf(Element);
+		}
+		return Mask;
+	}
+
+	/** The bodies' table (the user's, 2026-10-29 night; Elements/ElementBody.h). */
+	FBodySides SidesOf(EElementBody Body)
+	{
+		using E = ELooterElement;
+		FBodySides Sides;
+		switch (Body)
+		{
+		case EElementBody::Flesh:
+			// The living: red health, Cinder's layer; shocked and rotted as flesh is.
+			Sides.Weak = Bits({ E::Thunder, E::Rot, E::Ember });
+			break;
+		case EElementBody::Chitin:
+			Sides.Weak = Bits({ E::Ember, E::Rot });
+			Sides.Resist = Bits({ E::GraveSalt });
+			break;
+		case EElementBody::Gel:
+			Sides.Weak = Bits({ E::Ember, E::Thunder });
+			Sides.Resist = Bits({ E::SoulLight, E::Rot });
+			break;
+		case EElementBody::Bone:
+			Sides.Weak = Bits({ E::SoulLight });
+			Sides.Resist = Bits({ E::Thunder });
+			break;
+		case EElementBody::Coal:
+			// Wardbreak on the coal itself is a crit's (Affinity).
+			Sides.Weak = Bits({ E::SoulLight });
+			Sides.Resist = Bits({ E::Ember, E::Thunder });
+			break;
+		case EElementBody::Spirit:
+			Sides.Weak = Bits({ E::GraveSalt, E::SoulLight });
+			Sides.Immune = Bits({ E::Ember, E::Rot, E::Thunder });
+			break;
+		case EElementBody::Stone:
+			Sides.Weak = Bits({ E::GraveSalt, E::Thunder });
+			Sides.Resist = Bits({ E::Ember });
+			Sides.Immune = Bits({ E::Rot });
+			break;
+		case EElementBody::Iron:
+			Sides.Weak = Bits({ E::Thunder, E::Rot });
+			Sides.Resist = Bits({ E::Ember });
+			Sides.Immune = Bits({ E::GraveSalt });
+			break;
+		default:
+			break;
+		}
+		return Sides;
+	}
+
+	constexpr ELooterElement Every[] = { ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt, ELooterElement::Thunder,
+		ELooterElement::Rot };
+
+	/** "A", "A AND B", "A, B AND C". */
+	FString JoinWords(const TArray<FString>& Words)
+	{
+		if (Words.Num() <= 2)
+		{
+			return FString::Join(Words, TEXT(" AND "));
+		}
+		TArray<FString> Head(Words.GetData(), Words.Num() - 1);
+		return FString::Join(Head, TEXT(", ")) + TEXT(" AND ") + Words.Last();
+	}
+}
+
 EElementBody ElementRules::BodyOf(const UClass* CreatureClass)
+{
+	// Each kind says what it is made of in its constructor; Blueprint children keep their parent's.
+	if (!CreatureClass || !CreatureClass->IsChildOf(ACreatureBase::StaticClass()))
+	{
+		return EElementBody::Flesh;
+	}
+	const ACreatureBase* Defaults = CreatureClass->GetDefaultObject<ACreatureBase>();
+	return Defaults ? Defaults->GetElementBody() : EElementBody::Flesh;
+}
+
+ELooterElement ElementRules::StoryImmunityOf(const UClass* CreatureClass)
 {
 	if (!CreatureClass)
 	{
-		return EElementBody::Other;
+		return ELooterElement::None;
 	}
-	// The Spitter and the Gravemother are spiders (they derive from it).
-	if (CreatureClass->IsChildOf(ASpiderCreature::StaticClass()))
+	// The bosses' own (the user's, 2026-10-29): the Gravemother rots nothing, the Foreman was fire's, Abel is light's.
+	if (CreatureClass->IsChildOf(AGravemotherCreature::StaticClass()))
 	{
-		return EElementBody::Chitin;
+		return ELooterElement::Rot;
 	}
-	if (CreatureClass->IsChildOf(ASlimeCreature::StaticClass()))
+	if (CreatureClass->IsChildOf(AForemanCreature::StaticClass()))
 	{
-		return EElementBody::Gel;
+		return ELooterElement::Ember;
 	}
-	if (CreatureClass->IsChildOf(AUnpaidCreature::StaticClass()))
+	if (CreatureClass->IsChildOf(AAbelKeeper::StaticClass()))
 	{
-		// The Unpaid themselves are the coal's own (Ember finds it no harm); the kinds built on them (dead miners and the
-		// Foreman, the Bell-Ringer, Abel) are the rest of the risen dead. Blueprint children keep their parent's body.
-		const bool bRestOfTheDead = CreatureClass->IsChildOf(ADeadMinerCreature::StaticClass())
-			|| CreatureClass->IsChildOf(ABellRingerCreature::StaticClass()) || CreatureClass->IsChildOf(AAbelKeeper::StaticClass());
-		return bRestOfTheDead ? EElementBody::Undead : EElementBody::Unpaid;
+		return ELooterElement::SoulLight;
 	}
-	return EElementBody::Other;
+	return ELooterElement::None;
+}
+
+uint8 ElementRules::MaskOf(ELooterElement Element)
+{
+	return Element == ELooterElement::None ? 0 : static_cast<uint8>(1u << static_cast<uint8>(Element));
 }
 
 FElementTarget ElementRules::TargetOf(const AActor* Target)
@@ -47,54 +141,52 @@ FElementTarget ElementRules::TargetOf(const AActor* Target)
 	{
 		return Result;
 	}
-	Result.Body = BodyOf(Creature->GetClass());
+	Result.Body = Creature->GetElementBody();
 	Result.bBoss = Creature->IsBossCreature() || Creature->GetRank() == ECreatureRank::Boss;
+	// A spirit: the Ethereal tier, or a soul that phases. A ward is its own layer now (typed wards), not a spirit.
 	const UCreatureTraitComponent* Traits = Creature->GetTraitComponent();
-	Result.bSpirit = Creature->GetRank() == ECreatureRank::Ethereal
-		|| (Traits && (Traits->HasTrait(ECreatureTrait::Warded) || Traits->HasTrait(ECreatureTrait::Phasing)));
+	Result.bSpirit = Creature->GetRank() == ECreatureRank::Ethereal || (Traits && Traits->HasTrait(ECreatureTrait::Phasing));
+	Result.Touched = Creature->GetTouchedElement();
+	Result.ImmuneMask = MaskOf(StoryImmunityOf(Creature->GetClass()));
 	return Result;
 }
 
 EElementAffinity ElementRules::Affinity(ELooterElement Element, const FElementTarget& Target, bool bCritical)
 {
-	switch (Element)
+	const uint8 Bit = MaskOf(Element);
+	if (Bit == 0)
 	{
-	case ELooterElement::Ember:
-		if (Target.Body == EElementBody::Chitin || Target.Body == EElementBody::Gel)
-		{
-			return EElementAffinity::Weak;
-		}
-		return Target.Body == EElementBody::Unpaid ? EElementAffinity::Resist : EElementAffinity::Neutral;
-	case ELooterElement::SoulLight:
-		if (IsTheDead(Target.Body))
-		{
-			return EElementAffinity::Weak;
-		}
-		return Target.Body == EElementBody::Gel ? EElementAffinity::Resist : EElementAffinity::Neutral;
-	case ELooterElement::GraveSalt:
-		// A spirit before a spider: a weakness wins. An Unpaid's coal (its critical spot) is a spirit's heart.
-		if (Target.bSpirit || (bCritical && Target.Body == EElementBody::Unpaid))
-		{
-			return EElementAffinity::Weak;
-		}
-		return Target.Body == EElementBody::Chitin ? EElementAffinity::Resist : EElementAffinity::Neutral;
-	case ELooterElement::Thunder:
-		// Wet and living things conduct; the dead don't feel it.
-		if (Target.Body == EElementBody::Gel || Target.Body == EElementBody::Other)
-		{
-			return EElementAffinity::Weak;
-		}
-		return IsTheDead(Target.Body) ? EElementAffinity::Resist : EElementAffinity::Neutral;
-	case ELooterElement::Rot:
-		// Flesh and chitin rot; a slime is rot already.
-		if (Target.Body == EElementBody::Chitin || Target.Body == EElementBody::Other)
-		{
-			return EElementAffinity::Weak;
-		}
-		return Target.Body == EElementBody::Gel ? EElementAffinity::Resist : EElementAffinity::Neutral;
-	default:
 		return EElementAffinity::Neutral;
 	}
+	const FBodySides Sides = SidesOf(Target.Body);
+	uint8 Immune = Sides.Immune | Target.ImmuneMask;
+	uint8 Weak = Sides.Weak | Target.WeakMask;
+	if (Target.bSpirit)
+	{
+		// A spirit on top of its body: what burns, rots or shocks flesh passes through it; salt and light find it.
+		Immune |= Bits({ ELooterElement::Ember, ELooterElement::Rot, ELooterElement::Thunder });
+		Weak |= Bits({ ELooterElement::GraveSalt, ELooterElement::SoulLight });
+	}
+	if (Target.Touched != ELooterElement::None)
+	{
+		Immune |= MaskOf(Target.Touched);
+		Weak |= MaskOf(CreatureTouched::CounterOf(Target.Touched));
+	}
+	// The Unpaid's coal (their critical spot) is a spirit's heart to the salt.
+	if (bCritical && Target.Body == EElementBody::Coal)
+	{
+		Weak |= MaskOf(ELooterElement::GraveSalt);
+	}
+	// Immune wins, then weak, then resist.
+	if (Immune & Bit)
+	{
+		return EElementAffinity::Immune;
+	}
+	if (Weak & Bit)
+	{
+		return EElementAffinity::Weak;
+	}
+	return (Sides.Resist & Bit) ? EElementAffinity::Resist : EElementAffinity::Neutral;
 }
 
 float ElementRules::AffinityScale(EElementAffinity Affinity, const FElementTuning& Tuning)
@@ -103,8 +195,38 @@ float ElementRules::AffinityScale(EElementAffinity Affinity, const FElementTunin
 	{
 	case EElementAffinity::Weak: return Tuning.Weak;
 	case EElementAffinity::Resist: return Tuning.Resist;
+	// No status at all on what is immune to it.
+	case EElementAffinity::Immune: return 0.f;
 	default: return 1.f;
 	}
+}
+
+float ElementRules::HitScale(EElementAffinity Affinity, const FElementTuning& Tuning)
+{
+	switch (Affinity)
+	{
+	case EElementAffinity::Weak: return Tuning.Weak;
+	case EElementAffinity::Resist: return Tuning.Resist;
+	// A scratch, so the player sees the gun is wrong for it rather than a miss.
+	case EElementAffinity::Immune: return Tuning.ImmuneHit;
+	default: return 1.f;
+	}
+}
+
+float ElementRules::GunHitScale(ELooterElement Element, const AActor* Target, bool bCritical, const FElementTuning& Tuning)
+{
+	const ACreatureBase* Creature = Cast<ACreatureBase>(Target);
+	if (Element == ELooterElement::None || !Creature || Creature->IsDead())
+	{
+		return 1.f;
+	}
+	// A standing ward takes the hit by its own type (UCreatureTraitComponent's ward); the body's weakness waits until it's down.
+	const UCreatureTraitComponent* Traits = Creature->GetTraitComponent();
+	if (Traits && Traits->IsWardUp())
+	{
+		return 1.f;
+	}
+	return HitScale(Affinity(Element, TargetOf(Creature), bCritical), Tuning);
 }
 
 float ElementRules::GunChance(EWeaponKind Kind, EWeaponRarity Rarity, const FElementTuning& Tuning)
@@ -132,7 +254,7 @@ float ElementRules::HitChance(float Chance, EElementAffinity Affinity, const FEl
 
 bool ElementRules::IsTheDead(EElementBody Body)
 {
-	return Body == EElementBody::Unpaid || Body == EElementBody::Undead;
+	return Body == EElementBody::Coal || Body == EElementBody::Bone;
 }
 
 FString ElementRules::Word(ELooterElement Element)
@@ -150,13 +272,26 @@ FString ElementRules::Word(ELooterElement Element)
 	}
 }
 
+FString ElementRules::StatusWord(ELooterElement Element)
+{
+	switch (Element)
+	{
+	case ELooterElement::Ember: return TEXT("BURNING");
+	case ELooterElement::SoulLight: return TEXT("SMITTEN");
+	case ELooterElement::GraveSalt: return TEXT("SALTED");
+	case ELooterElement::Thunder: return TEXT("JOLTED");
+	case ELooterElement::Rot: return TEXT("ROTTING");
+	default: return FString();
+	}
+}
+
 FString ElementRules::Description(ELooterElement Element)
 {
 	switch (Element)
 	{
-	case ELooterElement::Ember: return TEXT("Sets them burning. Spiders and slimes burn best; the Unpaid shrug it off.");
+	case ELooterElement::Ember: return TEXT("Sets them burning. Spiders, slimes and the living burn best; the Unpaid shrug it off.");
 	case ELooterElement::SoulLight: return TEXT("Smites with a burst of light that leaps to the next of the dead. Slimes dull it.");
-	case ELooterElement::GraveSalt: return TEXT("Salts and slows them; wards crumble. Spirits fear it; spiders barely notice.");
+	case ELooterElement::GraveSalt: return TEXT("Salts and slows them; every ward crumbles. Spirits and stone fear it; spiders barely notice.");
 	case ELooterElement::Thunder: return TEXT("Jolts them off their feet and arcs to the next living thing. Slimes and the living feel it most; the dead don't.");
 	case ELooterElement::Rot: return TEXT("Eats at them, worse as it goes, and spreads from the dying. Spiders and the living rot; slimes don't.");
 	default: return FString();
@@ -228,7 +363,14 @@ FName ElementRules::Cue(ELooterElement Element, EElementCue Event)
 	case ELooterElement::Rot: Name = TEXT("Rot"); break;
 	default: return NAME_None;
 	}
-	const TCHAR* What = Event == EElementCue::Apply ? TEXT("Apply") : (Event == EElementCue::Tick ? TEXT("Tick") : TEXT("Kill"));
+	const TCHAR* What = TEXT("Kill");
+	switch (Event)
+	{
+	case EElementCue::Apply: What = TEXT("Apply"); break;
+	case EElementCue::Tick: What = TEXT("Tick"); break;
+	case EElementCue::WardBreak: What = TEXT("WardBreak"); break;
+	default: break;
+	}
 	return FName(*FString::Printf(TEXT("Element.%s.%s"), Name, What));
 }
 
@@ -256,38 +398,42 @@ ELooterElement ElementRules::ElementOf(const UDamageType* DamageType)
 
 FString ElementRules::WeaknessLine(const UClass* CreatureClass)
 {
-	const EElementBody Body = BodyOf(CreatureClass);
-	if (Body == EElementBody::Other)
+	if (!CreatureClass)
 	{
 		return FString();
 	}
+	FElementTarget Target;
+	Target.Body = BodyOf(CreatureClass);
+	Target.ImmuneMask = MaskOf(StoryImmunityOf(CreatureClass));
 	TArray<FString> Weak;
 	TArray<FString> Resists;
-	const FElementTarget Target{ Body, false, false };
-	for (const ELooterElement Element : { ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt, ELooterElement::Thunder, ELooterElement::Rot })
+	TArray<FString> Immune;
+	for (const ELooterElement Element : Every)
 	{
-		const EElementAffinity Side = Affinity(Element, Target, false);
-		if (Side == EElementAffinity::Weak)
+		switch (Affinity(Element, Target, false))
 		{
-			Weak.Add(Word(Element));
-		}
-		else if (Side == EElementAffinity::Resist)
-		{
-			Resists.Add(Word(Element));
+		case EElementAffinity::Weak: Weak.Add(Word(Element)); break;
+		case EElementAffinity::Resist: Resists.Add(Word(Element)); break;
+		case EElementAffinity::Immune: Immune.Add(Word(Element)); break;
+		default: break;
 		}
 	}
 	TArray<FString> Parts;
 	if (!Weak.IsEmpty())
 	{
-		Parts.Add(TEXT("WEAK TO ") + FString::Join(Weak, TEXT(" AND ")));
+		Parts.Add(TEXT("WEAK TO ") + JoinWords(Weak));
 	}
-	if (Body == EElementBody::Unpaid)
+	if (Target.Body == EElementBody::Coal)
 	{
 		Parts.Add(TEXT("ITS COAL TO ") + Word(ELooterElement::GraveSalt));
 	}
 	if (!Resists.IsEmpty())
 	{
-		Parts.Add(TEXT("RESISTS ") + FString::Join(Resists, TEXT(" AND ")));
+		Parts.Add(TEXT("RESISTS ") + JoinWords(Resists));
+	}
+	if (!Immune.IsEmpty())
+	{
+		Parts.Add(TEXT("IMMUNE TO ") + JoinWords(Immune));
 	}
 	return FString::Join(Parts, TEXT(" · "));
 }

@@ -9,12 +9,21 @@
  */
 struct AI_LOOTER_SHOOTER_API FElementTuning
 {
-	// --- The weakness table's two sides (ElementRules::Affinity): times an effect's damage and its chance ---
+	// --- The weakness table (ElementRules::Affinity): times an effect's damage and chance, and an element gun's hit (HitScale) ---
 
-	/** A creature weak to the element. */
-	float Weak = 1.75f;
-	/** A creature that resists it. */
-	float Resist = 0.5f;
+	/** A creature weak to the element (2, was 1.75: the user's wider gap, 2026-10-29). An element gun's own hit too. */
+	float Weak = 2.f;
+	/** A creature that resists it (0.33, was 0.5). */
+	float Resist = 0.33f;
+	/** An element gun's hit on a creature immune to it, times (it sets no status at all). */
+	float ImmuneHit = 0.1f;
+
+	// --- Typed wards (UCreatureTraitComponent): a hit into a ward, times the larger of these that applies (never both) ---
+
+	/** The ward's own element breaks it (a shock ward to Thunder). */
+	float WardMatch = 2.f;
+	/** Wardbreak on any other ward (the name). */
+	float WardBreakAny = 1.5f;
 
 	// --- How often a hit sets its status, by the gun's kind (per bullet: a shotgun's per pellet) ---
 
@@ -56,8 +65,6 @@ struct AI_LOOTER_SHOOTER_API FElementTuning
 	float GraveSaltSeconds = 4.f;
 	/** A salted creature walks at this share of its speed (0.7: a 30% slow; never a boss). */
 	float GraveSaltSlow = 0.7f;
-	/** A bullet hit on a salted creature's standing ward counts this many times (salted wards break faster). */
-	float GraveSaltWardBonus = 1.5f;
 
 	// --- Thunder: a jolt (the user's pick, 2026-10-29) ---
 

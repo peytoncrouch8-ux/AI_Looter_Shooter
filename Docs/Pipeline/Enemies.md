@@ -468,6 +468,19 @@ packs. Counts and the set pieces: `Docs/Areas/RansomsRest.md` "Fights and set pi
   Webwood Spitters' high spots, Main Street's street-edge spots (the probe rings them if a boardwalk is in the way), the
   gallery's spots and the 13 m spring on both ways out, perf with 10 fighting.
 
+## The Stone Sentinel (built 2026-10-29 night; the user's pick for the elements job)
+- `AStoneSentinelCreature` (Creatures/StoneSentinel*): a hooded mourner grave statue, body Stone (weak Wardbreak, Thunder;
+  resists Cinder; immune Rot), never Touched, never Fleet. Dormant on its plinth (no tag, off the minimap) until a player is
+  within 9 m (±4 m height, no sight needed, not in a safe zone) or shoots it; wakes 1.6 s; walk 110, chase ~170; 540 health
+  (3x a dead miner), Defense 0.25 with the tier's; a two-fist slam (1.1 s wind-up, 2.8 m, 16 dmg, ground crack); left alone
+  4 s near its plinth it climbs back at full health (the user's call); crumbles 0.8 s after death. Hits spill granite grit
+  (CreatureBlood Clay in GraniteColor). Placed: `build_area_sentinels.py` 4 in Ransom's Rest (Boot Hill x2, churchyard west
+  x2) after Main 4. Page DA_Bestiary_StoneSentinel. Model: the script stand-in (Art/Models/Creatures/StoneSentinel.py); the
+  user is remaking it in Tripo from Main's prompt (save at Art/Concepts/Creatures/StoneSentinel/StoneSentinel.glb; fit to
+  the same bones, rigid pieces).
+- The Unpaid look (the user, 2026-10-29: agreed "bad": a plastic mannequin): being remade in Tripo (stylized prompt; Tripo's
+  image filter blocked later tries); save at Art/Concepts/Creatures/Unpaid/Unpaid.glb, skin to the shared Unpaid rig.
+
 ## Placeholder creatures (ROSTER, built 2026-10-22)
 
 The user's roster ask (Docs/Story.md "Creature roster"): a named clay blob wherever the story wants a kind not modelled.

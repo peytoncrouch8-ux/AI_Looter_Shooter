@@ -147,7 +147,7 @@ int32 ULootLibrary::RollAmmoAmount(const ULootTable* LootTable, FRandomStream& R
 }
 
 FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random, TOptional<EAmmoType> KillAmmo,
-	bool bWeapons)
+	bool bWeapons, ELooterElement Lean)
 {
 	FLootRoll Roll;
 	if (!LootTable)
@@ -172,14 +172,14 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 			Roll.Shields.Add(ShieldRules::Make(UShieldDefinition::GetWardBox(), Pick.Rarity, Level, FMath::Rand()));
 			continue;
 		}
-		Roll.Weapons.Add(RollDroppedWeapon(Pick.Definition, Pick.Rarity, Level));
+		Roll.Weapons.Add(RollDroppedWeapon(Pick.Definition, Pick.Rarity, Level, Lean));
 	}
 	return Roll;
 }
 
-FWeaponInstanceData ULootLibrary::RollDroppedWeapon(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level)
+FWeaponInstanceData ULootLibrary::RollDroppedWeapon(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, ELooterElement Lean)
 {
-	FWeaponInstanceData Gun = UWeaponRollLibrary::RollWeaponWithRarity(Definition, Rarity, Level);
+	FWeaponInstanceData Gun = UWeaponRollLibrary::RollWeaponLeaning(Definition, Rarity, Level, Lean);
 	// Only guns that drop can come cursed (the curse is drawn from the gun's own seed, so the loot stream doesn't move);
 	// mission rewards, the tutorial's rack and starting guns are made without this.
 	Gun.Curse = WeaponCurses::Roll(Gun);
@@ -329,7 +329,7 @@ TArray<AActor*> ULootLibrary::SpawnLoot(UObject* WorldContextObject, const ULoot
 }
 
 TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level,
-	float ExtraLuck, TOptional<EAmmoType> KillAmmo, bool bWeapons)
+	float ExtraLuck, TOptional<EAmmoType> KillAmmo, bool bWeapons, ELooterElement Lean)
 {
 	TArray<AActor*> Spawned;
 	UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
@@ -339,7 +339,7 @@ TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const U
 	}
 
 	FRandomStream Random(FMath::Rand());
-	FLootRoll Roll = RollLoot(LootTable, Level, ExtraLuck, Random, KillAmmo, bWeapons);
+	FLootRoll Roll = RollLoot(LootTable, Level, ExtraLuck, Random, KillAmmo, bWeapons, Lean);
 	KeepRocketsForLaunchers(Roll, LootTable, Random, AnyPlayerCarriesLauncher(World));
 	const FVector SpawnLocation = Location + FVector(0.f, 0.f, 60.f);
 

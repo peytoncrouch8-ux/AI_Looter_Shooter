@@ -1,6 +1,6 @@
-// UCreatureTraitComponent: the traits on its health. Warded (a soul ward in front of it, through its health's Shield: a
-// turning cage of cyan light, a ripple and a ping per hit, a pop of shards and a daze as it breaks) and Mending (3 s unhit
-// it heals, motes rising and its shimmer looping; any hit breaks it off, the motes flung away).
+// UCreatureTraitComponent: the traits on its health. Warded (a ward of an element in front of it, through its health's
+// Shield: a turning cage of light in its colour, a ripple and a ping per hit, a pop of shards, a stagger and a daze as it
+// breaks) and Mending (3 s unhit it heals, motes rising and its shimmer looping; any hit breaks it off, the motes flung away).
 
 #include "Creatures/CreatureTraitComponent.h"
 #include "AI_Looter_Shooter.h"
@@ -8,9 +8,14 @@
 #include "Audio/LooterSoundRules.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureHitReactionComponent.h"
 #include "Creatures/CreatureKnockComponent.h"
 #include "Creatures/CreatureTraitRules.h"
 #include "Creatures/CreatureTraitSettings.h"
+#include "Elements/ElementCallout.h"
+#include "Elements/ElementRules.h"
+#include "Elements/ElementStatusComponent.h"
+#include "Elements/ElementTuning.h"
 #include "Embers/Powers/EmberFX.h"
 #include "Weapons/WeaponFX.h"
 #include "Components/AudioComponent.h"
@@ -48,6 +53,45 @@ namespace
 			Effects.AddStreak(At(From), At(From + Step * 1.6f), Width, Color, Glow);
 		}
 	}
+
+	/**
+	 * The element of the hit a ward is being handed: a status's piece or arc (what the status component deals), an element
+	 * damage type's own (the salt grenade's is Wardbreak), or an element gun's hit (FHitElementScope). None: a plain hit.
+	 */
+	ELooterElement ElementOfHit(const UHealthComponent* Life)
+	{
+		const ELooterElement Dealing = UElementStatusComponent::DealingElement();
+		if (Dealing != ELooterElement::None)
+		{
+			return Dealing;
+		}
+		const UHealthComponent::FHealthHit* Hit = Life ? Life->GetHitBeingTaken() : nullptr;
+		const ELooterElement OfType = Hit ? ElementRules::ElementOf(Hit->DamageType) : ELooterElement::None;
+		return OfType != ELooterElement::None ? OfType : FHitElementScope::Current();
+	}
+}
+
+ELooterElement UCreatureTraitComponent::PickWardElement() const
+{
+	// A Touched creature's ward is its own element; the rest roll theirs from the seed their traits came from.
+	const ACreatureBase* Creature = GetCreature();
+	if (!Creature)
+	{
+		return ELooterElement::Thunder;
+	}
+	const ELooterElement Touched = Creature->GetTouchedElement();
+	return Touched != ELooterElement::None ? Touched : CreatureTraitRules::RollWardElement(Creature->GetTierSeed());
+}
+
+void UCreatureTraitComponent::RefreshWardElement()
+{
+	WardElement = PickWardElement();
+}
+
+FLinearColor UCreatureTraitComponent::WardColor() const
+{
+	return WardElement != ELooterElement::None ? ElementRules::FxColor(WardElement)
+		: FLinearColor::FromSRGBColor(UCreatureTraitSettings::Get().Warded.Color);
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +106,7 @@ void UCreatureTraitComponent::RaiseWard()
 		return;
 	}
 	WardFraction = 1.f;
+	WardElement = PickWardElement();
 	WardFlare = 0.f;
 	WardBreakAge = 1000.f;
 	bDazePending = false;
@@ -97,7 +142,11 @@ float UCreatureTraitComponent::AbsorbIntoWard(float Damage, bool bCritical, cons
 		return Damage;
 	}
 	float Left = WardFraction * Capacity;
-	const float ToHealth = CreatureTraitRules::AbsorbWard(Left, Damage, bCritical, Tuning.CritBreakScale);
+	// Its type: its own element breaks it x2, Wardbreak any ward x1.5 (the larger alone), then a crit's x2 on top. The old
+	// salted-ward bonus is gone.
+	const FElementTuning Elements = FElementTuning::Live();
+	const float ElementScale = CreatureTraitRules::WardElementScale(WardElement, ElementOfHit(Health.Get()), Elements.WardMatch, Elements.WardBreakAny);
+	const float ToHealth = CreatureTraitRules::AbsorbWard(Left, Damage, bCritical, Tuning.CritBreakScale, ElementScale);
 	WardFraction = FMath::Clamp(Left / Capacity, 0.f, 1.f);
 	if (WardFraction <= 0.f)
 	{
@@ -158,11 +207,25 @@ void UCreatureTraitComponent::BreakWard(const FVector& HitLocation)
 	// Dazed once the hit is done with (it may yet die of what spilled over).
 	bDazePending = Tuning.BreakDazeSeconds > 0.f;
 
-	// The pop: its sound, and shards of the cage flung out from all round it that fall (the flash and rings: TickWard).
+	// A break always staggers it (the user: "once the ward is broken they stagger"), whatever its stagger cooldown, shoved
+	// away from the hit; the daze follows as before.
 	const FVector Center = BodyCenter();
 	const float Radius = BodyRadius();
-	LooterSound::PlayAt(Creature, LooterSoundCue::Tier::TraitWardBreak, Center, 1.f, LooterSoundRules::PitchForSize(Creature->GetSizeScale()));
-	const FLinearColor Color = FLinearColor::FromSRGBColor(Tuning.Color);
+	if (UCreatureHitReactionComponent* React = Creature->FindComponentByClass<UCreatureHitReactionComponent>())
+	{
+		React->WardBreak((Center - HitLocation).GetSafeNormal2D());
+	}
+
+	// The pop: its sounds (the shatter, and its element's own), and shards of the cage flung out from all round it that
+	// fall (the flash and rings: TickWard).
+	const float Pitch = LooterSoundRules::PitchForSize(Creature->GetSizeScale());
+	LooterSound::PlayAt(Creature, LooterSoundCue::Tier::TraitWardBreak, Center, 1.f, Pitch);
+	const FName ElementCue = ElementRules::Cue(WardElement, EElementCue::WardBreak);
+	if (!ElementCue.IsNone())
+	{
+		LooterSound::PlayAt(Creature, ElementCue, Center, 1.f, Pitch);
+	}
+	const FLinearColor Color = WardColor();
 	for (int32 Index = 0; Index < 28; ++Index)
 	{
 		const FVector Out = Random.GetUnitVector();
@@ -206,8 +269,7 @@ void UCreatureTraitComponent::TickWard(float DeltaSeconds, FWeaponFX* Effects)
 	{
 		return;
 	}
-	const FWardedTraitTuning& Tuning = UCreatureTraitSettings::Get().Warded;
-	const FLinearColor Color = FLinearColor::FromSRGBColor(Tuning.Color);
+	const FLinearColor Color = WardColor();
 	if (WardFraction > 0.f && ShowsLooks() && !Creature->IsDead())
 	{
 		DrawWardCage(*Effects);
@@ -242,7 +304,7 @@ void UCreatureTraitComponent::DrawWardCage(FWeaponFX& Effects) const
 		return;
 	}
 	const FWardedTraitTuning& Tuning = UCreatureTraitSettings::Get().Warded;
-	const FLinearColor Color = FLinearColor::FromSRGBColor(Tuning.Color);
+	const FLinearColor Color = WardColor();
 	const FVector Center = BodyCenter();
 	const float Across = BodyRadius();
 	// Squat bodies (a spider, a slime) get a squat cage: as tall as the body, at least a little.

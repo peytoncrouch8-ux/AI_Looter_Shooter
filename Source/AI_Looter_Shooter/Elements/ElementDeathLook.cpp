@@ -37,7 +37,8 @@ void ElementDeathLook::Play(FWeaponFX& Effects, ELooterElement Element, const FV
 		return;
 	}
 	const float BodyScale = FMath::Clamp(Radius / 40.f, 0.5f, 3.f);
-	const int32 Aura = AuraCount(Element, BodyScale) / (Effects.NumParticles() > ParticleBudget ? 2 : 1);
+	const bool bCrowded = Effects.NumParticles() > ParticleBudget;
+	const int32 Aura = AuraCount(Element, BodyScale) / (bCrowded ? 2 : 1);
 	const FVector Up = FVector::UpVector;
 	// The glows sit on the body's side toward the eye: at its heart the body would hide them.
 	const FVector Front = Camera.IsZero() ? FVector::ZeroVector : (Camera - Center).GetSafeNormal() * Radius * 0.8f;
@@ -74,4 +75,7 @@ void ElementDeathLook::Play(FWeaponFX& Effects, ELooterElement Element, const FV
 	default:
 		break;
 	}
+	// The bigger death on top ("Elements matter", 2026-10-29: ash and a heat burst, a shock pop and a ring of arcs, a melt into a
+	// green puddle, crystallised then shattering, light lifting off it; Looter.Vfx.Element.Death).
+	Effects.SpawnElementDeath(Element, Center, Radius, HalfHeight, Front, bCrowded ? 0.5f : 1.f);
 }

@@ -1,5 +1,6 @@
 #include "Weapons/BulletMarks.h"
 #include "AI_Looter_Shooter.h"
+#include "Weapons/ElementVfxTuning.h"
 #include "World/BreakableKinds.h"
 #include "Components/DecalComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -38,8 +39,6 @@ namespace
 	 * away), so far ones cost nothing.
 	 */
 	constexpr float MarkFadeScreenSize = 0.0025f;
-	/** The atlas styles' count in the decal's code (M_BulletMark decodes floor(R * 16)). */
-	constexpr float MarkStyleSlots = 16.f;
 
 	/**
 	 * Each surface's mark: its style (the atlas's order, make_bullet_marks.py STYLES: 0 a plain hole, 1 dirt, 2 grass,
@@ -181,7 +180,7 @@ FBulletMarkPlacement FBulletMarks::Place(const FVector& Point, const FVector& No
 
 FLinearColor FBulletMarks::Code(int32 Style, float Seed)
 {
-	return FLinearColor((FMath::Max(Style, 0) + 0.5f) / MarkStyleSlots, FMath::Clamp(Seed, 0.f, 0.999f), 0.f, 1.f);
+	return FLinearColor((FMath::Clamp(Style, 0, StyleSlots - 1) + 0.5f) / static_cast<float>(StyleSlots), FMath::Clamp(Seed, 0.f, 0.999f), 0.f, 1.f);
 }
 
 int32 FBulletMarks::PickSlot(TConstArrayView<double> Ends, TConstArrayView<double> Born, double Now, int32 Max)
@@ -297,10 +296,12 @@ UDecalComponent* FBulletMarks::MakeDecal()
 }
 
 bool FBulletMarks::Add(UWorld& World, const FHitResult& Hit, const FVector& ShotDirection, EImpactMaterial Material, float SizeScale,
-	float Pick)
+	float Pick, ELooterElement Element)
 {
 	const int32 Max = FMath::Clamp(CVarBulletMarksMax.GetValueOnGameThread(), 0, 256);
-	const FBulletMarkLook Look = LookFor(Material, SizeScale);
+	// An element round leaves its element's mark (BulletMarksElements.cpp), else the surface's own.
+	const FBulletMarkLook ElementLook = Element != ELooterElement::None && FElementVfxTuning::Live().bMarks ? ElementLookOf(Element, Material) : FBulletMarkLook();
+	const FBulletMarkLook Look = ElementLook.Style >= 0 ? ElementLook : LookFor(Material, SizeScale);
 	if (!CVarBulletMarks.GetValueOnGameThread() || Max == 0 || !CanMark(Hit, Material) || !Initialize(World))
 	{
 		return false;

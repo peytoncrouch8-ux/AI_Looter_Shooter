@@ -14,7 +14,7 @@
 #include "GameFramework/Actor.h"
 
 // UPlayerHUDWidget's hit marker (the gun feel pass, GF-IMPACT 2026-10-22; the rules are HudHitMarker's): a hit's mark (a
-// crit's orange, a ward's cyan and its break, a kill's red), its size by the hit's share of the target's health, a pellet
+// crit's orange, a ward's tick and its break in the ward's element's colour, a kill's red), its size by the hit's share of the target's health, a pellet
 // gun's blast as one marker and one sound, and the sound by the mark. NativeTick fades and pops it.
 
 void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCritical)
@@ -45,9 +45,13 @@ void UPlayerHUDWidget::ShowHitMarker(const FHitResult& Hit, float Damage, bool b
 	const bool bWarded = Traits && Traits->HasTrait(ECreatureTrait::Warded);
 	const float WardAfter = bWarded ? Traits->GetWardFraction() : 0.f;
 	const float WardBefore = bWarded ? WardMemory.Before(HitActor) : 0.f;
+	// Its ward's element (typed wards): the mark wears its colour. A ward this hit broke may no longer name it, so the one
+	// seen while it stood (the memory's) stands in.
+	ELooterElement WardElement = bWarded ? Traits->GetWardElement() : ELooterElement::None;
 	if (bWarded)
 	{
-		WardMemory.Note(HitActor, Traits, WardAfter);
+		WardMemory.Note(HitActor, Traits, WardAfter, WardElement);
+		WardElement = WardMemory.ElementOf(HitActor);
 	}
 	const EHudHitMark Mark = HudHitMarker::Decide(bKill, bCritical, bWarded, WardBefore, WardAfter);
 
@@ -96,7 +100,7 @@ void UPlayerHUDWidget::ShowHitMarker(const FHitResult& Hit, float Damage, bool b
 		HitMarkerShowFor = HudHitMarker::SecondsOf(Mark, Tuning);
 		HitMarkerPop = HudHitMarker::PopOf(Mark, Tuning);
 		HitMarkerTime = HitMarkerShowFor;
-		const FLinearColor Tint = HudHitMarker::Tint(Mark);
+		const FLinearColor Tint = HudHitMarker::Tint(Mark, WardElement);
 		for (UImage* Tick : HitMarkerTicks)
 		{
 			Tick->SetColorAndOpacity(Tint);

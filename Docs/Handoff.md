@@ -243,6 +243,18 @@ The user's calls this stretch:
   Ransom's Rest trailer. Steam's AI-content survey answered plainly (made with AI tools, nothing generated live).
 - Playtesters: the user and one friend.
 
+## 2026-10-29 night: elements matter BUILT, AR grip spots IN
+- Elements matter (Pipeline Gunplay.md "Elements matter", Enemies.md "The Stone Sentinel"): all seven lanes built, tests
+  pass (Elements 15, Creatures Touched/Sentinel/StatusPose/TierLook, UI StatusIcons/Tier/HitMarker/DamageNumbers, Shield 11,
+  Loot.TouchedLean, Vfx.Element 3, BulletMarks 4, Weapons.ElementLook 2, Bestiary 5). Imported: sounds (38), the Sentinel
+  stand-in, the 8x8 mark atlas + M_BulletMark; 4 Sentinels placed. Not yet looked at in play: reaction poses, trails, marks,
+  typed ward colours. Files over 500 lines to split later: CreatureBase.h, CreatureDevCommands.cpp, WeaponFX.h,
+  FirstPersonHandsComponent.cpp, FirstPersonHandsReload.cpp, fp_hands_parts_sheet.py.
+- AR grip spots: every Bullpup body/magazine marked (Art/Models/Weapons/Bullpup.py spot tables); left hand cupped at the
+  bottom of the trigger housing (the user's pick), hold 43, 23, -27.5 (the user: back 4, down 4); in PIE palm gap 0.15,
+  all fingers touching. The other guns get spots with their new parts.
+- Tripo remakes in progress by the user: Stone Sentinel and the Unpaid (prompts in this session; Enemies.md).
+
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:
 typed wards, bodies, immunities, Touched variants, Stone Sentinel, x2 / x0.33; plus element feedback: firing looks,

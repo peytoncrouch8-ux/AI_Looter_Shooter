@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "Elements/LooterElement.h"
 #include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureTrait.h"
 
@@ -53,6 +54,12 @@ struct FCreatureTierShell
 
 	/** How bright the eyes or core burn (M_CreatureTier's Glow: an emissive multiple of the tier's colour). */
 	float Glow = 0.f;
+
+	/**
+	 * The element a Touched creature glows in (ElementRules::FxColor) instead of its tier's colour; None for everyone else.
+	 * Part of the shared look's Key, so two Touched spiders of other elements never share a material.
+	 */
+	ELooterElement Touched = ELooterElement::None;
 
 	/** The shared look's name (kind and tier): one material instance for every creature that looks alike. */
 	FName Key;
@@ -112,6 +119,18 @@ namespace CreatureTierLook
 	/** Restless and up: the body glows in the tier's colour. */
 	AI_LOOTER_SHOOTER_API bool HasBodyGlow(ECreatureRank Rank);
 
+	/**
+	 * Whether a creature of Rank that is Touched by Touched (None: not Touched) wears a tier shell: any tier's glow as before,
+	 * and a Touched Basic one too (its element's glow stands in for the tier it hasn't). A Legendary monster or a boss never.
+	 */
+	AI_LOOTER_SHOOTER_API bool WearsShell(ECreatureRank Rank, ELooterElement Touched);
+
+	/**
+	 * The name on the tag: Base, with the Touched word in front for a Touched creature ("Cinder-touched Brown Spider";
+	 * CreatureTouched::Word), else Base as it is. The rank word stays its own, before it ("Restless Cinder-touched Brown Spider").
+	 */
+	AI_LOOTER_SHOOTER_API FText TagName(const FText& Base, ELooterElement Touched);
+
 	/** Ethereal: the faint red ghost-rim. */
 	AI_LOOTER_SHOOTER_API bool HasGhostRim(ECreatureRank Rank);
 
@@ -128,8 +147,16 @@ namespace CreatureTierLook
 	/** Which body Creature wears its tier on, by class (most specific first: a dead miner is an Unpaid). */
 	AI_LOOTER_SHOOTER_API ECreatureTierBody BodyOf(const ACreatureBase& Creature);
 
-	/** What the shell shows for that body at Rank (bWorn false: no shell). */
-	AI_LOOTER_SHOOTER_API FCreatureTierShell ShellFor(ECreatureTierBody Body, ECreatureRank Rank);
+	/**
+	 * What the shell shows for that body at Rank (bWorn false: no shell). A Touched creature (Touched not None) wears one even
+	 * at Basic, burning at the Restless glow, with its element's colour and a key of its own; its rank keeps the tag's frame
+	 * and word (those come from TagFor, never from the shell). A body with no eyes or core to light shows the faint rim
+	 * instead, so a Touched dead miner still glows.
+	 */
+	AI_LOOTER_SHOOTER_API FCreatureTierShell ShellFor(ECreatureTierBody Body, ECreatureRank Rank, ELooterElement Touched = ELooterElement::None);
+
+	/** The colour a shell glows in: the Touched element's (ElementRules::FxColor), else Rank's GlowColor. */
+	AI_LOOTER_SHOOTER_API FLinearColor ShellColor(const FCreatureTierShell& Shell, ECreatureRank Rank);
 
 	/**
 	 * The spider atlas's 'eye' patch in UV 0 as Unreal reads it (Spider.py's ATLAS 'eye' is u 0.75-0.8125, v 0-0.125 in

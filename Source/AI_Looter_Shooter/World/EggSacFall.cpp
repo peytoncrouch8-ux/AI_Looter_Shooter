@@ -169,6 +169,8 @@ void AEggSac::Hatch(APawn* Target)
 	ACreatureBase::FRuntimeSpawn Setup;
 	Setup.Rank = SpiderRank;
 	Setup.BodyScale = SpiderScale;
+	// The spider fights keep their balance (the user's rule): a sac's brood is never Touched.
+	Setup.bMayBeTouched = false;
 	for (const FTransform& Spot : GetSpawnSpots())
 	{
 		// On the ground at the socket (the floor may dip or rise a little under the burst sac's front).

@@ -2318,6 +2318,20 @@
     "space": "2D",
     "max_concurrent": 1
   },
+  "UI.StatusCallout": {
+    "files": [
+      "UI_StatusCallout_01.wav",
+      "UI_StatusCallout_02.wav",
+      "UI_StatusCallout_03.wav"
+    ],
+    "volume_db": -23.5,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 3
+  },
   "Bench.Scrap": {
     "files": [
       "Bench_Scrap_01.wav",
@@ -2731,6 +2745,76 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 3
+  },
+  "Element.Ember.WardBreak": {
+    "files": [
+      "Element_Ember_WardBreak_01.wav",
+      "Element_Ember_WardBreak_02.wav",
+      "Element_Ember_WardBreak_03.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Element.SoulLight.WardBreak": {
+    "files": [
+      "Element_SoulLight_WardBreak_01.wav",
+      "Element_SoulLight_WardBreak_02.wav",
+      "Element_SoulLight_WardBreak_03.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Element.GraveSalt.WardBreak": {
+    "files": [
+      "Element_GraveSalt_WardBreak_01.wav",
+      "Element_GraveSalt_WardBreak_02.wav",
+      "Element_GraveSalt_WardBreak_03.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Element.Thunder.WardBreak": {
+    "files": [
+      "Element_Thunder_WardBreak_01.wav",
+      "Element_Thunder_WardBreak_02.wav",
+      "Element_Thunder_WardBreak_03.wav"
+    ],
+    "volume_db": -9.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Element.Rot.WardBreak": {
+    "files": [
+      "Element_Rot_WardBreak_01.wav",
+      "Element_Rot_WardBreak_02.wav",
+      "Element_Rot_WardBreak_03.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
   },
   "Player.Footstep.Dirt": {
     "files": [
@@ -8910,5 +8994,91 @@
     "loop": false,
     "space": "2D",
     "max_concurrent": 1
+  },
+  "Creature.Sentinel.Wake": {
+    "files": [
+      "Creature_Sentinel_Wake_01.wav",
+      "Creature_Sentinel_Wake_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Sentinel.Step": {
+    "files": [
+      "Creature_Sentinel_Step_01.wav",
+      "Creature_Sentinel_Step_02.wav",
+      "Creature_Sentinel_Step_03.wav",
+      "Creature_Sentinel_Step_04.wav",
+      "Creature_Sentinel_Step_05.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Creature.Sentinel.WindUp": {
+    "files": [
+      "Creature_Sentinel_WindUp_01.wav",
+      "Creature_Sentinel_WindUp_02.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Sentinel.Slam": {
+    "files": [
+      "Creature_Sentinel_Slam_01.wav",
+      "Creature_Sentinel_Slam_02.wav",
+      "Creature_Sentinel_Slam_03.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Sentinel.Chip": {
+    "files": [
+      "Creature_Sentinel_Chip_01.wav",
+      "Creature_Sentinel_Chip_02.wav",
+      "Creature_Sentinel_Chip_03.wav",
+      "Creature_Sentinel_Chip_04.wav",
+      "Creature_Sentinel_Chip_05.wav",
+      "Creature_Sentinel_Chip_06.wav"
+    ],
+    "volume_db": -4.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Creature.Sentinel.Crumble": {
+    "files": [
+      "Creature_Sentinel_Crumble_01.wav",
+      "Creature_Sentinel_Crumble_02.wav"
+    ],
+    "volume_db": -9.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
   }
 }

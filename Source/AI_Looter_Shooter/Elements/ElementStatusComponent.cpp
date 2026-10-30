@@ -7,6 +7,7 @@
 #include "Combat/MovementSlowComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureHitReactionComponent.h"
+#include "Creatures/CreatureTraitComponent.h"
 #include "Elements/ElementRules.h"
 #include "Elements/ElementTuning.h"
 #include "Engine/World.h"
@@ -37,6 +38,7 @@ namespace
 }
 
 int32 UElementStatusComponent::DealingDepth = 0;
+FOnElementStatusSet UElementStatusComponent::OnStatusSet;
 ELooterElement UElementStatusComponent::DealingElementNow = ELooterElement::None;
 
 UElementStatusComponent::UElementStatusComponent()
@@ -72,9 +74,16 @@ bool UElementStatusComponent::TryApply(AActor& Target, ELooterElement Element, f
 	{
 		return false;
 	}
+	// A standing ward takes the hit: nothing sets through it (the typed wards, 2026-10-29 night).
+	const UCreatureTraitComponent* Traits = Creature->GetTraitComponent();
+	if (Traits && Traits->IsWardUp())
+	{
+		return false;
+	}
 	const FElementTuning Tuning = FElementTuning::Live();
 	const EElementAffinity Affinity = ElementRules::Affinity(Element, ElementRules::TargetOf(&Target), bCritical);
-	if (Roll >= ElementRules::HitChance(Chance, Affinity, Tuning))
+	// Immune: no status at all, whatever the roll.
+	if (Affinity == EElementAffinity::Immune || Roll >= ElementRules::HitChance(Chance, Affinity, Tuning))
 	{
 		return false;
 	}
@@ -85,7 +94,8 @@ bool UElementStatusComponent::TryApply(AActor& Target, ELooterElement Element, f
 void UElementStatusComponent::Apply(ELooterElement Element, float HitDamage, EElementAffinity Affinity, const FVector& HitLocation,
 	AActor* Causer, AController* Instigator)
 {
-	if (Element == ELooterElement::None || !IsOwnerAlive())
+	// Immune: nothing at all (a spirit doesn't burn, a Touched creature never carries its own element).
+	if (Element == ELooterElement::None || Affinity == EElementAffinity::Immune || !IsOwnerAlive())
 	{
 		return;
 	}
@@ -119,12 +129,75 @@ void UElementStatusComponent::Apply(ELooterElement Element, float HitDamage, EEl
 	UE_LOG(LogLooter, Verbose, TEXT("%s: %s set by a %.1f hit (%s)"), *GetNameSafe(GetOwner()), *ElementRules::Word(Element), HitDamage,
 		Affinity == EElementAffinity::Weak ? TEXT("weak") : (Affinity == EElementAffinity::Resist ? TEXT("resists") : TEXT("neutral")));
 	SetComponentTickEnabled(true);
+	// Last, so a listener sees the status as it now stands (the first-time callout reads it).
+	const uint8 Bit = ElementRules::MaskOf(Element);
+	const bool bFirst = (SetThisLife & Bit) == 0;
+	SetThisLife |= Bit;
+	OnStatusSet.Broadcast(GetOwner(), Element, bFirst);
 }
 
 void UElementStatusComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	Advance(DeltaTime);
+}
+
+void UElementStatusComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	// A creature comes back for a new life as the same actor: its statuses are first ones again after each death.
+	if (UHealthComponent* Health = GetOwner() ? GetOwner()->FindComponentByClass<UHealthComponent>() : nullptr)
+	{
+		Health->OnDeath.AddUniqueDynamic(this, &UElementStatusComponent::HandleOwnerDeath);
+	}
+}
+
+void UElementStatusComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UHealthComponent* Health = GetOwner() ? GetOwner()->FindComponentByClass<UHealthComponent>() : nullptr)
+	{
+		Health->OnDeath.RemoveDynamic(this, &UElementStatusComponent::HandleOwnerDeath);
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void UElementStatusComponent::HandleOwnerDeath(AController* Killer)
+{
+	SetThisLife = 0;
+}
+
+void UElementStatusComponent::GetStatusIcons(TArray<FCreatureStatusIcon>& Out) const
+{
+	Out.Reset();
+	if (!Status.IsActive())
+	{
+		return;
+	}
+	const FElementTuning Tuning = FElementTuning::Live();
+	// The time each was set for: a boss carries them for BossDuration of it (FElementStatus::Apply).
+	const float Length = ElementRules::TargetOf(GetOwner()).bBoss ? Tuning.BossDuration : 1.f;
+	auto Share = [](float Left, float Whole) { return Whole > 0.f ? FMath::Clamp(Left / Whole, 0.f, 1.f) : 0.f; };
+	if (Status.NumBurns() > 0)
+	{
+		Out.Add({ ELooterElement::Ember, Share(Status.GetBurnTimeLeft(), Tuning.EmberSeconds * Length), Status.NumBurns() });
+	}
+	if (Status.NumSmites() > 0)
+	{
+		// A smite's ring drains as its light gathers toward the burst.
+		Out.Add({ ELooterElement::SoulLight, FMath::Clamp(1.f - Status.GetSmiteCharge(Tuning), 0.f, 1.f), Status.NumSmites() });
+	}
+	if (Status.IsSalted())
+	{
+		Out.Add({ ELooterElement::GraveSalt, Share(Status.GetSaltTimeLeft(), Tuning.GraveSaltSeconds * Length), 1 });
+	}
+	if (Status.NumJolts() > 0)
+	{
+		Out.Add({ ELooterElement::Thunder, FMath::Clamp(1.f - Status.GetJoltCharge(Tuning), 0.f, 1.f), Status.NumJolts() });
+	}
+	if (Status.IsRotting())
+	{
+		Out.Add({ ELooterElement::Rot, FMath::Clamp(1.f - Status.GetRotGrowth(), 0.f, 1.f), 1 });
+	}
 }
 
 void UElementStatusComponent::Advance(float DeltaSeconds)
@@ -277,8 +350,10 @@ AActor* UElementStatusComponent::FindNextOfTheDead(const UWorld* World, const FV
 	for (TActorIterator<ACreatureBase> It(World); It; ++It)
 	{
 		ACreatureBase* Creature = *It;
+		// Never to one immune to the light (Abel, a Hallow-touched Bell-Ringer): it leaps past them.
 		if (Creature == Except || Creature->IsDead() || Creature->IsActorBeingDestroyed()
-			|| !ElementRules::IsTheDead(ElementRules::BodyOf(Creature->GetClass())))
+			|| !ElementRules::IsTheDead(Creature->GetElementBody())
+			|| ElementRules::Affinity(ELooterElement::SoulLight, ElementRules::TargetOf(Creature), false) == EElementAffinity::Immune)
 		{
 			continue;
 		}
@@ -313,8 +388,14 @@ void UElementStatusComponent::SpreadRot()
 		{
 			continue;
 		}
-		// As a hit of the share on each, at its own weakness: a slime shrugs it, a spider takes it worse.
+		// As a hit of the share on each, at its own weakness: a slime shrugs it, a spider takes it worse. Never onto one immune
+		// to rot (a spirit, stone, the Gravemother), nor through a standing ward.
 		const EElementAffinity Affinity = ElementRules::Affinity(ELooterElement::Rot, ElementRules::TargetOf(Creature), false);
+		const UCreatureTraitComponent* Traits = Creature->GetTraitComponent();
+		if (Affinity == EElementAffinity::Immune || (Traits && Traits->IsWardUp()))
+		{
+			continue;
+		}
 		FindOrAdd(*Creature)->Apply(ELooterElement::Rot, RotHitDamage * Tuning.RotSpreadShare, Affinity, Creature->GetActorLocation(),
 			Causers[Index].Get(), Instigators[Index].Get());
 		Targets.Add(Creature->GetActorLocation());
@@ -336,8 +417,10 @@ AActor* UElementStatusComponent::FindNextOfTheLiving(const UWorld* World, const 
 	for (TActorIterator<ACreatureBase> It(World); It; ++It)
 	{
 		ACreatureBase* Creature = *It;
+		// Never to one immune to it (a spirit, a Thunder-touched slime): the arc finds the next that conducts.
 		if (Creature == Except || Creature->IsDead() || Creature->IsActorBeingDestroyed()
-			|| ElementRules::IsTheDead(ElementRules::BodyOf(Creature->GetClass())))
+			|| ElementRules::IsTheDead(Creature->GetElementBody())
+			|| ElementRules::Affinity(ELooterElement::Thunder, ElementRules::TargetOf(Creature), false) == EElementAffinity::Immune)
 		{
 			continue;
 		}

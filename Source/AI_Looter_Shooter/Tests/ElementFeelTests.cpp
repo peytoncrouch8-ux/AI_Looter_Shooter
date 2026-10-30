@@ -98,6 +98,10 @@ bool FDamageNumbersElementTest::RunTest(const FString& Parameters)
 	// The tag: its words and colours.
 	TestEqual(TEXT("WEAK"), ElementCallout::TagText(EA::Weak).ToString(), FString(TEXT("WEAK")));
 	TestEqual(TEXT("RESIST"), ElementCallout::TagText(EA::Resist).ToString(), FString(TEXT("RESIST")));
+	TestEqual(TEXT("NO EFFECT on an immune one"), ElementCallout::TagText(EA::Immune).ToString(), FString(TEXT("NO EFFECT")));
+	const FElementNumberLook Immune = JudgeIt(EE::Ember, EE::None, false, EA::Immune, true);
+	TestTrue(TEXT("...called out once a fight, same size"), Immune.Callout == EA::Immune && Immune.SizeScale == 1.f);
+	TestFalse(TEXT("...greyed like a resist"), SameColor(ElementCallout::TagColor(EE::Ember, EA::Immune), LooterUI::Color::ElementEmber()));
 	TestTrue(TEXT("Nothing for neutral"), ElementCallout::TagText(EA::Neutral).IsEmpty());
 	TestTrue(TEXT("WEAK is the element's colour"), SameColor(ElementCallout::TagColor(EE::SoulLight, EA::Weak), LooterUI::Color::ElementSoulLight()));
 	const FLinearColor Grey = ElementCallout::TagColor(EE::Ember, EA::Resist);

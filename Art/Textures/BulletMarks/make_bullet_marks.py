@@ -5,7 +5,7 @@
     T_BulletMarks_N.png    DirectX normal map (green down, as Unreal expects) of the mark's relief
     T_BulletMarks_ORM.png  linear: R occlusion (unused, 1), G roughness, B metallic
 
-2048 x 1024: COLUMNS x ROWS cells of CELL px, a style's VARIANTS side by side (cell = style * 2 + variant, counted left to
+2048 x 2048 (2048 x 1024 before the element marks, 2026-10-29): COLUMNS x ROWS cells of CELL px, a style's VARIANTS side by side (cell = style * 2 + variant, counted left to
 right, top to bottom). A cell spans the decal's square: its middle is where the bullet struck, its edge the decal's
 radius (FBulletMarks' MarkLook gives each style's radius in cm, RADIUS_CM here: the normal map's scale). Across the cell
 (+x) is the decal's U, along the shot (a grazing round's gouge is stretched that way by the decal's box).
@@ -26,6 +26,13 @@ The styles, in FBulletMarks' order (never reorder: the game sends the index):
     12 Bone       a pale ivory chip with fine cracks
     13 StoneHeavy a heavy round's chip (revolver, sniper): the stone chip ringed by cracks running out to its edge
     14 WoodHeavy  a heavy round's hole in timber: the scorched hole split along the grain, splinters lifted
+  The element rounds' marks ("Elements matter", 2026-10-29; FBulletMarks::ElementLookOf), on any surface:
+    15 Scorch     Cinder: a charred disc, a star of soot streaks thrown out, ember-pocked char, heat-browned round it
+    16 Burn       Thunder: a fused dark burn ring with a pale blue-white glassy edge, branching burn lines running out
+    17 Acid       Rot: a wet sick-green splash with gobs thrown round it, its middle eaten into pits, a stain soaking out
+    18 Frost      Wardbreak: salt rime packed round the hole in facets, feathery fronds of frost, teal-lit glints
+    19 Gilt       Hallow: a gold splash (metallic), drops and short rays flung out, a burnished ring, a dark punched core
+  (The decal can't glow: the brief flare on a fresh element mark is the game's particles, FWeaponFX::SpawnElementMark.)
 
 Run it with Blender's Python (numpy; Tools/Blender/looter_textures.py's helpers):
     Tools\\artrun.ps1 -Script Art\\Textures\\BulletMarks\\make_bullet_marks.py
@@ -45,22 +52,26 @@ sys.path.insert(0, os.path.join(REPO, 'Tools', 'Blender'))
 import looter_textures as lt  # noqa: E402 - needs the path above
 
 CELL = 256
-COLUMNS, ROWS, VARIANTS = 8, 4, 2
+# 8 rows since the element marks (32 style slots; M_BulletMark and FBulletMarks::StyleSlots read the same).
+COLUMNS, ROWS, VARIANTS = 8, 8, 2
 # A pixel in the cell's own units (it spans -1..1).
 AA = 2.0 / CELL
 STYLES = ('Hole', 'Dirt', 'Grass', 'Gravel', 'Sand', 'Stone', 'Wood', 'Metal', 'SheetMetal', 'Glass', 'Cloth', 'Hay', 'Bone',
-          'StoneHeavy', 'WoodHeavy')
-# Each style's radius (cm) for a rifle round, as FBulletMarks' MarkLook has it: how big a cell is in the world.
+          'StoneHeavy', 'WoodHeavy', 'Scorch', 'Burn', 'Acid', 'Frost', 'Gilt')
+# Each style's radius (cm) for a rifle round, as FBulletMarks' MarkLook (and ElementLookOf) has it: how big a cell is in the world.
 RADIUS_CM = dict(Hole=5.0, Dirt=9.0, Grass=8.0, Gravel=8.0, Sand=9.5, Stone=7.0, Wood=6.0, Metal=5.0, SheetMetal=5.5,
-                 Glass=11.0, Cloth=4.5, Hay=6.0, Bone=5.0, StoneHeavy=8.5, WoodHeavy=7.5)
-# The preview's surface under each style (sRGB).
+                 Glass=11.0, Cloth=4.5, Hay=6.0, Bone=5.0, StoneHeavy=8.5, WoodHeavy=7.5,
+                 Scorch=9.0, Burn=8.5, Acid=9.0, Frost=9.5, Gilt=8.0)
+# The preview's surface under each style (sRGB); the element marks go on any surface, shown on a few.
 BACKDROPS = dict(Hole=0x808080, Dirt=0x7a6248, Grass=0x5e6d38, Gravel=0x8c8578, Sand=0xc6ad84, Stone=0x837c72, Wood=0x8a6a48,
                  Metal=0x46524a, SheetMetal=0x7a6c5e, Glass=0x1c2228, Cloth=0xb3aa96, Hay=0xc2a05a, Bone=0xd8cfbe,
-                 StoneHeavy=0x837c72, WoodHeavy=0x8a6a48)
+                 StoneHeavy=0x837c72, WoodHeavy=0x8a6a48,
+                 Scorch=0x8a6a48, Burn=0x837c72, Acid=0x46524a, Frost=0x7a6248, Gilt=0x837c72)
 OUT_DIR = HERE
 PREVIEW = os.path.join(REPO, 'Saved', 'ArtPreviews', 'BulletMarks', 'BulletMarks_sheet.png')
-# The styles the closer look (BulletMarks_zoom.png) shows.
+# The styles the closer looks (BulletMarks_zoom.png, BulletMarks_zoom_elements.png) show.
 ZOOM = ('Dirt', 'Stone', 'Wood', 'Metal', 'StoneHeavy', 'WoodHeavy')
+ZOOM_ELEMENTS = ('Scorch', 'Burn', 'Acid', 'Frost', 'Gilt')
 
 
 def rgb(value):
@@ -464,9 +475,144 @@ def style_wood_heavy(m, variant):
     m.height -= splits * 0.0012
 
 
+# --- The element rounds' marks (2026-10-29): each reads on any surface (the game lays them on dirt, stone, wood or metal), so
+# each carries its own dark hole and its own ground colour rather than the surface's ---
+
+def branch(m, x, y, heading, length, steps, wander):
+    """A wandering line from (x, y) along heading for about length (cell units): a burn line's or a frond's twig."""
+    points = [(x, y)]
+    step = length / steps
+    for _ in range(steps):
+        heading += m.rng.normal(0.0, wander)
+        x += step * math.cos(heading)
+        y += step * math.sin(heading)
+        points.append((x, y))
+    return points
+
+
+def style_scorch(m, variant):
+    # Cinder: heat-browned round it, a star of soot streaks thrown out, a charred disc pocked with cinders, a black core.
+    rag = m.ragged(0.25, harmonics=16)
+    m.over(rgb(0x5a3a22), 0.35 * lt.smooth(0.95, 0.45, m.r) * m.unit_noise(8), rough=0.9)
+    streaks = np.zeros((CELL, CELL), np.float32)
+    count = 14 + 4 * variant
+    for index in range(count):
+        angle = (index + m.rng.uniform(-0.4, 0.4)) / count * 2.0 * math.pi
+        m.stroke(m.path(angle, 0.15, m.rng.uniform(0.55, 0.92), 5, 0.1), 0.05, 0.006, streaks)
+    m.over(rgb(0x14100d), 0.75 * streaks * m.unit_noise(4), rough=0.95)
+    m.over(lt.mix(rgb(0x0f0c0a), rgb(0x2a1f18), m.unit_noise(3)), 0.92 * m.disc(0.42, 0.08, rag), rough=0.95)
+    # The char's edge scarred orange-brown (the lit edge itself is the game's flare: a decal can't glow).
+    m.over(rgb(0x7a3a14), 0.55 * m.ring(0.3, 0.42, 0.04) * m.unit_noise(3), rough=0.8)
+    cinders, shade = m.specks(10 + 4 * variant, 0.12, 0.38, 0.008, 0.02)
+    m.over(lt.mix(rgb(0x8a3a10), rgb(0xc8682a), shade), 0.8 * cinders, rough=0.7)
+    m.over(rgb(0x060505), m.disc(0.12, AA * 1.5, m.ragged(0.3)), rough=1.0)
+    m.bowl(0.4, 0.004, rag)
+    m.height -= streaks * 0.0002
+
+
+def style_burn(m, variant):
+    # Thunder: branching burn lines (a strike's tree) running out, a fused dark ring, its edge glassy and pale blue-white,
+    # a blued sheen inside it, a black core.
+    rag = m.ragged(0.12, harmonics=20)
+    lines = np.zeros((CELL, CELL), np.float32)
+    count = 7 + 2 * variant
+    for index in range(count):
+        angle = (index + m.rng.uniform(-0.35, 0.35)) / count * 2.0 * math.pi
+        trunk = m.path(angle, 0.3, m.rng.uniform(0.7, 0.95), 7, 0.45)
+        m.stroke(trunk, 0.012, 0.003, lines)
+        for _ in range(2):
+            k = int(m.rng.integers(1, len(trunk) - 2))
+            bx, by = trunk[k]
+            heading = math.atan2(by, bx) + (1.0 if m.rng.random() < 0.5 else -1.0) * m.rng.uniform(0.4, 0.9)
+            m.stroke(branch(m, bx, by, heading, m.rng.uniform(0.12, 0.25), 4, 0.5), 0.007, 0.002, lines)
+    m.over(rgb(0x1a1612), 0.85 * lines, rough=0.85)
+    m.height -= lines * 0.0002
+    m.over(lt.mix(rgb(0x15120f), rgb(0x2b2622), m.unit_noise(3)), 0.9 * m.ring(0.1, 0.34, 0.03), rough=0.45)
+    m.over(rgb(0x3a4a78), 0.4 * m.ring(0.2, 0.3, 0.03) * m.unit_noise(4), rough=0.4)
+    edge = m.ring(0.3, 0.36, 0.015) * (m.noise(4) > -0.4)
+    m.over(rgb(0xb8c8e8), 0.85 * edge, rough=0.3)
+    m.over(rgb(0x050505), m.disc(0.12, AA * 1.5, rag), rough=0.9)
+    m.bowl(0.14, 0.004, rag)
+    m.rim(0.33, 0.02, 0.0005)
+
+
+def style_acid(m, variant):
+    # Rot: a stain soaking out, gobs of the splash thrown round it, its wet glossy body eaten into dark pits, a bright wet rim
+    # where it pools.
+    rag = m.ragged(0.3, harmonics=10)
+    m.over(rgb(0x5a6a1e), 0.45 * m.disc(0.62, 0.15, m.ragged(0.3, harmonics=8)) * m.unit_noise(6), rough=0.5)
+    gobs, shade = m.specks(28 + 8 * variant, 0.3, 0.9, 0.02, 0.05, falloff=1.4)
+    m.over(lt.mix(rgb(0x4e6a14), rgb(0x8aa02a), shade), 0.85 * gobs, rough=0.25)
+    m.height += gobs * 0.0008
+    m.over(lt.mix(rgb(0x3a5210), rgb(0x6a8a1e), m.unit_noise(4)), 0.9 * m.disc(0.36, 0.05, rag), rough=0.2)
+    pits, _ = m.specks(16 + 6 * variant, 0.05, 0.3, 0.012, 0.03)
+    m.over(rgb(0x1a2008), 0.9 * pits, rough=0.6)
+    m.height -= pits * 0.0012
+    m.over(rgb(0xa8c040), 0.5 * m.ring(0.3, 0.37, 0.02) * m.unit_noise(3), rough=0.15)
+    m.over(rgb(0x0c0e05), m.disc(0.1, AA * 1.5, m.ragged(0.3)), rough=0.6)
+    m.bowl(0.36, 0.004, rag)
+    m.rim(0.36, 0.04, 0.0008)
+
+
+def style_frost(m, variant):
+    # Wardbreak: a cold haze of rime well out, feathery fronds of frost (stems with barbs), salt rime packed round the hole in
+    # facets, teal-lit glints that catch the sun, a dark hole.
+    m.over(rgb(0xc8dcdc), 0.3 * lt.smooth(0.95, 0.4, m.r) * m.unit_noise(5), rough=0.6)
+    fronds = np.zeros((CELL, CELL), np.float32)
+    count = 9 + 2 * variant
+    for index in range(count):
+        angle = (index + m.rng.uniform(-0.3, 0.3)) / count * 2.0 * math.pi
+        stem = m.path(angle, 0.12, m.rng.uniform(0.6, 0.92), 6, 0.15)
+        m.stroke(stem, 0.012, 0.004, fronds)
+        for k in range(1, len(stem) - 1):
+            x, y = stem[k]
+            heading = math.atan2(y, x)
+            for side in (-1.0, 1.0):
+                barb = heading + side * m.rng.uniform(0.5, 0.9)
+                length = m.rng.uniform(0.04, 0.09) * (1.0 - 0.5 * k / len(stem))
+                m.stroke([(x, y), (x + length * math.cos(barb), y + length * math.sin(barb))], 0.006, 0.002, fronds)
+    m.over(rgb(0xe6f2f0), 0.9 * fronds, rough=0.35)
+    m.height += fronds * 0.0004
+    value, border, tilt_x, tilt_y = m.facets(9 + variant, 5200 + 41 * variant + int(m.rng.integers(1000)))
+    rime = m.disc(0.32, 0.04, m.ragged(0.25, harmonics=20))
+    facet = rgb(0xd8ecea)[None, None, :] * (1.0 + 0.08 * value[..., None]) * (1.0 - 0.18 * border[..., None])
+    m.over(facet, 0.95 * rime, rough=0.3)
+    m.height += (tilt_x * m.x + tilt_y * m.y) * 0.0008 * rime + rime * 0.0008
+    glints, shade = m.specks(30 + 8 * variant, 0.05, 0.7, 0.006, 0.016, falloff=1.2)
+    m.over(lt.mix(rgb(0x9ee6dc), rgb(0xffffff), shade), 0.95 * glints, rough=0.08)
+    m.over(rgb(0x1c2628), m.disc(0.09, AA * 1.5, m.ragged(0.3)), rough=0.7)
+    m.bowl(0.1, 0.003)
+
+
+def style_gilt(m, variant):
+    # Hallow: gold flung out in drops and short rays, the splash's bright gilt body with a burnished ring, a dark punched
+    # core ringed by deeper gold. Metallic: it shines as gold does in the sun.
+    rag = m.ragged(0.28, harmonics=12)
+
+    def gold(t):
+        return lt.mix(rgb(0xa8782a), rgb(0xf0d27a), t)
+
+    rays = np.zeros((CELL, CELL), np.float32)
+    count = 12 + 3 * variant
+    for index in range(count):
+        angle = (index + m.rng.uniform(-0.4, 0.4)) / count * 2.0 * math.pi
+        m.stroke(m.path(angle, 0.25, m.rng.uniform(0.5, 0.85), 4, 0.1), 0.022, 0.004, rays)
+    drops, shade = m.specks(24 + 6 * variant, 0.35, 0.92, 0.012, 0.035, falloff=1.3)
+    m.over(gold(shade), 0.95 * drops, rough=0.25, metal=1.0)
+    m.over(gold(m.unit_noise(3)), 0.9 * rays, rough=0.25, metal=1.0)
+    m.height += (drops + rays) * 0.0006
+    m.over(gold(np.clip(0.4 + 0.5 * m.unit_noise(4), 0.0, 1.0)), m.disc(0.34, 0.03, rag), rough=0.2, metal=1.0)
+    m.over(rgb(0xfff0b8), 0.7 * m.ring(0.24, 0.3, 0.02) * m.unit_noise(3), rough=0.12, metal=1.0)
+    m.over(rgb(0x6a4a18), 0.8 * m.disc(0.16, 0.02, m.ragged(0.25)), rough=0.35, metal=1.0)
+    m.over(rgb(0x0a0806), m.disc(0.08, AA * 1.5, m.ragged(0.3)), rough=0.8, metal=0.0)
+    m.bowl(0.34, 0.003, rag)
+    m.rim(0.34, 0.03, 0.0008)
+
+
 PAINTERS = dict(Hole=style_hole, Dirt=style_dirt, Grass=style_grass, Gravel=style_gravel, Sand=style_sand,
                 Stone=style_stone, Wood=style_wood, Metal=style_metal, SheetMetal=style_sheet_metal, Glass=style_glass,
-                Cloth=style_cloth, Hay=style_hay, Bone=style_bone, StoneHeavy=style_stone_heavy, WoodHeavy=style_wood_heavy)
+                Cloth=style_cloth, Hay=style_hay, Bone=style_bone, StoneHeavy=style_stone_heavy, WoodHeavy=style_wood_heavy,
+                Scorch=style_scorch, Burn=style_burn, Acid=style_acid, Frost=style_frost, Gilt=style_gilt)
 
 
 def finish(m):
@@ -503,13 +649,14 @@ def preview(bc, normal):
             sheet[box] = np.clip(mixed * (0.45 + 0.75 * shade), 0.0, 1.0)
     os.makedirs(os.path.dirname(PREVIEW), exist_ok=True)
     lt.write_png(PREVIEW, lt.to8(sheet))
-    # A closer look: the first variant of a few styles, twice the size.
-    crops = []
-    for name in ZOOM:
-        index = STYLES.index(name) * VARIANTS
-        crop = sheet[(index // COLUMNS) * CELL:(index // COLUMNS + 1) * CELL, (index % COLUMNS) * CELL:(index % COLUMNS + 1) * CELL]
-        crops.append(np.repeat(np.repeat(crop, 2, axis=0), 2, axis=1))
-    lt.write_png(PREVIEW.replace('_sheet.png', '_zoom.png'), lt.to8(np.concatenate(crops, axis=1)))
+    # Closer looks: the first variant of a few styles, twice the size (the surfaces' and the element marks').
+    for names, suffix in ((ZOOM, '_zoom.png'), (ZOOM_ELEMENTS, '_zoom_elements.png')):
+        crops = []
+        for name in names:
+            index = STYLES.index(name) * VARIANTS
+            crop = sheet[(index // COLUMNS) * CELL:(index // COLUMNS + 1) * CELL, (index % COLUMNS) * CELL:(index % COLUMNS + 1) * CELL]
+            crops.append(np.repeat(np.repeat(crop, 2, axis=0), 2, axis=1))
+        lt.write_png(PREVIEW.replace('_sheet.png', suffix), lt.to8(np.concatenate(crops, axis=1)))
 
 
 def main():

@@ -60,6 +60,8 @@ struct FCreatureRuntimeSpawn
 	float BodyScale = 0.f;
 	/** Its health against its class's, before its level and rank multiply it (the test boss is twelve spiders tough). */
 	float HealthScale = 1.f;
+	/** It may roll Touched (ACreatureBase::bMayBeTouched): off for set pieces, bounties, the spider fights and boss adds. */
+	bool bMayBeTouched = true;
 };
 
 /** Whether a player is prey for a creature (CreatureBaseHunting.cpp). */

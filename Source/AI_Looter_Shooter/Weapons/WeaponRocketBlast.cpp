@@ -7,7 +7,9 @@
 #include "Combat/BulletSubsystem.h"
 #include "Combat/LooterDamageTypes.h"
 #include "Elements/ElementCallout.h"
+#include "Elements/ElementRules.h"
 #include "Elements/ElementStatusComponent.h"
+#include "Elements/ElementTuning.h"
 #include "Weapons/GunshotSound.h"
 #include "Weapons/PartEffectComponent.h"
 #include "Weapons/WeaponBase.h"
@@ -159,10 +161,13 @@ FRocketBlastResult WeaponRocketBlast::Detonate(UWorld* World, const FVector& Cen
 		AActor* Causer = Weapon ? static_cast<AActor*>(Weapon) : BurstSource;
 		UPartEffectComponent* Parts = Weapon ? UPartEffectComponent::For(*Weapon) : nullptr;
 		const ELooterElement Element = Parts ? Parts->GetElement() : ELooterElement::None;
+		// An element rocket's blast scales by each body's affinity, as an element bullet's hit does (ElementRules::GunHitScale);
+		// the status below takes the blast as it was, and scales itself.
+		const float Dealt = Target.Damage * ElementRules::GunHitScale(Element, Actor, false, FElementTuning::Live());
 		{
 			// The number over it knows the rocket's element, as a bullet's does (ElementCallout).
 			const FHitElementScope ElementOfThisHit(Element);
-			UGameplayStatics::ApplyPointDamage(Actor, Target.Damage, Direction, BodyHit, Instigator, Causer, UWeaponDamageType::StaticClass());
+			UGameplayStatics::ApplyPointDamage(Actor, Dealt, Direction, BodyHit, Instigator, Causer, UWeaponDamageType::StaticClass());
 		}
 		// The launcher's element (its rocket's kind: Incendiary, Saint's, Salt) on each body it hurt, as a bullet's hit sets
 		// it (UPartEffectSubsystem): rockets never pass the bullets' hooks.
@@ -182,7 +187,7 @@ FRocketBlastResult WeaponRocketBlast::Detonate(UWorld* World, const FVector& Cen
 		++Result.Hits;
 		if (Weapon)
 		{
-			Weapon->NotifyBulletHit(BodyHit, Target.Damage, false);
+			Weapon->NotifyBulletHit(BodyHit, Dealt, false);
 		}
 		if (Health->IsDead())
 		{

@@ -1,7 +1,7 @@
 // UCreatureHealthBarWidget: a Warded creature's ward over its health (the traits' soul ward,
-// UCreatureTraitComponent::GetWardFraction, fed each frame by UCreatureTierLookComponent::DressTag): shown while it stands,
-// a hit's chip draining after the fill, the break's white flash and swell. Moved out of CreatureHealthBarWidget.cpp to keep
-// it under the size guide; the bar itself is built there with the rest (RebuildWidget).
+// UCreatureTraitComponent::GetWardFraction, fed each frame by UCreatureTierLookComponent::DressTag): shown while it stands
+// in the ward's element's colour, a hit's chip draining after the fill, the break's flash and swell. Moved out of
+// CreatureHealthBarWidget.cpp to keep it under the size guide; the bar itself is built there with the rest (RebuildWidget).
 
 #include "UI/World/CreatureHealthBarWidget.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -10,22 +10,40 @@
 
 using namespace LooterUI;
 
-FLinearColor UCreatureHealthBarWidget::WardFillColor()
+FLinearColor UCreatureHealthBarWidget::DefaultWardColor()
 {
-	// The kit's pale cyan: the ward reads as the soul's, never as health or a rarity.
+	// The kit's pale cyan: a ward with no element reads as the soul's, never as health or a rarity.
 	return Color::CyanText();
 }
 
-FLinearColor UCreatureHealthBarWidget::WardChipColor()
+FLinearColor UCreatureHealthBarWidget::WardChipColorFor(const FLinearColor& Fill)
 {
-	// A paler cyan, as the health's chip is a pale of its red.
-	FLinearColor Chip = FMath::Lerp(Color::CyanText(), FLinearColor::White, 0.6f);
+	// A paler of the fill, as the health's chip is a pale of its red.
+	FLinearColor Chip = FMath::Lerp(Fill, FLinearColor::White, 0.6f);
 	Chip.A = 0.85f;
 	return Chip;
 }
 
-void UCreatureHealthBarWidget::SetWard(bool bInWarded, float InFraction)
+void UCreatureHealthBarWidget::ApplyWardColor()
 {
+	if (WardFillImage)
+	{
+		WardFillImage->SetColorAndOpacity(WardColor);
+	}
+	if (WardChipImage)
+	{
+		WardChipImage->SetColorAndOpacity(WardChipColorFor(WardColor));
+	}
+}
+
+void UCreatureHealthBarWidget::SetWard(bool bInWarded, float InFraction, const FLinearColor& InColor)
+{
+	// A typed ward's colour (a Touched creature's own element, or the roll's); kept through the break so its flash is its own.
+	if (bInWarded && !WardColor.Equals(InColor))
+	{
+		WardColor = InColor;
+		ApplyWardColor();
+	}
 	const float NewFraction = FMath::Clamp(InFraction, 0.f, 1.f);
 	if (!bInWarded)
 	{
@@ -125,12 +143,12 @@ void UCreatureHealthBarWidget::ApplyWard()
 		WardFillBox->SetWidthOverride(BarWidth * WardFraction);
 		WardChipBox->SetWidthOverride(BarWidth * WardGhost);
 	}
-	// Breaking: the whole bar lit white-hot (a white of its cyan), swelling a little from its middle, fading out; it leans as
-	// the health bar does either way.
+	// Breaking: the whole bar lit white-hot (a white of its own colour), swelling a little from its middle, fading out; it
+	// leans as the health bar does either way.
 	const float Flash = bBreaking ? WardBreakFlashAt(WardBreakClock) : 0.f;
 	if (WardFlashImage)
 	{
-		FLinearColor Lit = FMath::Lerp(WardFillColor(), FLinearColor::White, 0.75f);
+		FLinearColor Lit = FMath::Lerp(WardColor, FLinearColor::White, 0.75f);
 		Lit.A = Flash;
 		WardFlashImage->SetColorAndOpacity(Lit);
 		WardFlashImage->SetVisibility(Flash > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);

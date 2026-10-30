@@ -44,6 +44,8 @@ ACreatureBase::FRuntimeSpawn AGravemotherCreature::MakeSpiderlingSpawn(int32 Lev
 	Spawn.Level = FMath::Max(Level, 0);
 	Spawn.BodyScale = Gravemother::SpiderlingSize;
 	Spawn.HealthScale = Gravemother::SpiderlingHealthShare;
+	// The spider fights keep their balance (the user's rule): never Touched.
+	Spawn.bMayBeTouched = false;
 	return Spawn;
 }
 

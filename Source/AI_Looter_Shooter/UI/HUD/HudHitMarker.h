@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Elements/LooterElement.h"
 
 class AActor;
 class UCreatureTraitComponent;
@@ -10,11 +11,11 @@ enum class EHudHitMark : uint8
 {
 	/** A plain hit: white, the tick. */
 	Body,
-	/** A Warded creature's ward took it: cyan, the ward's glassy tick. */
+	/** A Warded creature's ward took it: the ward's colour (its element's), the ward's glassy tick. */
 	Ward,
 	/** A critical hit on its body: orange, the crit ping. */
 	Crit,
-	/** The hit broke its ward: cyan, bigger and longer, the break's crack. */
+	/** The hit broke its ward: the ward's colour, bigger and longer, the break's crack. */
 	WardBreak,
 	/** It died of it: red, bigger and longer (the creature's voice plays the kill's confirm). */
 	Kill
@@ -70,6 +71,13 @@ namespace HudHitMarker
 	AI_LOOTER_SHOOTER_API FLinearColor Tint(EHudHitMark Mark);
 
 	/**
+	 * The same for a hit on a typed ward (2026-10-29): a ward's tick and its break in the ward's element's colour
+	 * (ElementRules::UiColor; the break a touch whiter), so the player sees which element the ward is; the kit's cyan for a
+	 * ward with no element. Every other mark as Tint(Mark).
+	 */
+	AI_LOOTER_SHOOTER_API FLinearColor Tint(EHudHitMark Mark, ELooterElement WardElement);
+
+	/**
 	 * The sound the HUD plays for a mark (GunfeelSound::HitConfirmCue's: the ward's tick, the crit's ping, the plain tick; a
 	 * break's crack); none for a kill (its confirm is the creature's voice's, UI.Kill / UI.Kill.Crit).
 	 */
@@ -90,8 +98,14 @@ struct AI_LOOTER_SHOOTER_API FHudWardMemory
 	/** The ward Target held as last seen (a creature not seen yet: a full one, as every ward starts). */
 	float Before(const AActor* Target) const;
 
-	/** Notes Target's ward now (Traits its component, read again by Refresh). */
-	void Note(const AActor* Target, const UCreatureTraitComponent* Traits, float Fraction);
+	/**
+	 * Notes Target's ward now (Traits its component, read again by Refresh), and its element (None keeps the one last seen:
+	 * a broken ward may no longer name it, and its break still shows in its colour).
+	 */
+	void Note(const AActor* Target, const UCreatureTraitComponent* Traits, float Fraction, ELooterElement Element = ELooterElement::None);
+
+	/** The element of Target's ward as last seen (None: not seen, or a ward with no element). */
+	ELooterElement ElementOf(const AActor* Target) const;
 
 	/** Reads every remembered creature's ward again; forgets the gone. */
 	void Refresh();
@@ -104,6 +118,7 @@ private:
 		TWeakObjectPtr<const AActor> Actor;
 		TWeakObjectPtr<const UCreatureTraitComponent> Traits;
 		float Fraction = 1.f;
+		ELooterElement Element = ELooterElement::None;
 	};
 	TArray<FEntry, TInlineAllocator<Kept>> Entries;
 };

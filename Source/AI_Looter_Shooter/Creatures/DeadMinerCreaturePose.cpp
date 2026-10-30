@@ -217,6 +217,67 @@ void ADeadMinerCreature::WantedArms(FMinerArms& Out) const
 	Out.Rate = EaseCalm;
 }
 
+void ADeadMinerCreature::StatusArms(FMinerArms& Want) const
+{
+	const FCreatureStatusPose& Status = StatusShown;
+	if (!Status.IsAny() || IsDead())
+	{
+		return;
+	}
+	// Through its swing the blow must still read: the statuses take a little of the arms then.
+	const float Share = GetCreatureState() == ECreatureState::Attack ? 0.3f : 1.f;
+	auto Toward = [](FVector& Now, const FVector& To, float Alpha)
+	{
+		const FVector Blend = FMath::Lerp(Now, To, FMath::Clamp(Alpha, 0.f, 1.f)).GetSafeNormal();
+		Now = Blend.IsNearlyZero() ? To : Blend;
+	};
+	// Burning: both arms beating about its head, each in its own time, the pick waved with them.
+	if (const float Burn = Status.Burn * Share; Burn > 0.f)
+	{
+		const FVector WaveR(0.f, 0.25f * Status.Flail(), 0.2f * Status.Flail(1.f));
+		const FVector WaveL(0.f, 0.25f * Status.Flail(UE_PI), 0.2f * Status.Flail(UE_PI + 1.f));
+		Toward(Want.RightUpper, RaisedUpperR + WaveR, 0.7f * Burn);
+		Toward(Want.RightFore, RaisedForeR + WaveR, 0.7f * Burn);
+		Toward(Want.LeftUpper, RaisedUpperL + WaveL, 0.7f * Burn);
+		Toward(Want.LeftFore, RaisedForeL + WaveL, 0.7f * Burn);
+		Want.HeadPitch -= 12.f * Burn;
+		Want.Rate = FMath::Max(Want.Rate, EaseRaise);
+	}
+	// Jolted: flung out stiff (snapped at the burst).
+	if (const float Jolt = FMath::Min(Status.Jolt * 0.8f + Status.JoltJerk, 1.f) * Share; Jolt > 0.f)
+	{
+		Toward(Want.RightUpper, ReelUpperR, Jolt);
+		Toward(Want.RightFore, ReelForeR, Jolt);
+		Toward(Want.LeftUpper, ReelUpperL, Jolt);
+		Toward(Want.LeftFore, ReelForeL, Jolt);
+		Want.HeadPitch -= 10.f * Status.JoltJerk * Share;
+		Want.Rate = Status.JoltJerk > 0.f ? EaseSnap : FMath::Max(Want.Rate, EaseRaise);
+	}
+	// Rotting: hands to its belly, bent over it; a cough doubles it.
+	if (const float Rot = Status.Rot * Share; Rot > 0.f)
+	{
+		Toward(Want.RightUpper, PailUpperR, 0.7f * Rot);
+		Toward(Want.RightFore, PailForeR, 0.7f * Rot);
+		Toward(Want.LeftUpper, PailUpperL, 0.7f * Rot);
+		Toward(Want.LeftFore, PailForeL, 0.7f * Rot);
+		Want.Bow += (14.f * Status.Rot + 20.f * Status.Cough) * Share;
+		Want.HeadPitch += (10.f * Status.Rot + 15.f * Status.Cough) * Share;
+	}
+	// Salted: slow to move, stiff.
+	if (Status.Salt > 0.f)
+	{
+		Want.Rate *= FMath::Lerp(1.f, 0.6f, FMath::Min(Status.Salt, 1.f));
+	}
+	// Smitten: its pick arm up before its face, its head bowed from the light, rearing back.
+	if (const float Smite = Status.Smite * Share; Smite > 0.f)
+	{
+		Toward(Want.RightUpper, WorkUpUpperR, 0.6f * Smite);
+		Toward(Want.RightFore, WorkUpForeR, 0.6f * Smite);
+		Want.HeadPitch += 15.f * Smite;
+		Want.Bow -= 5.f * Smite;
+	}
+}
+
 void ADeadMinerCreature::LayArm(int32 UpperBone, int32 LowerBone, int32 HandBone, const FVector& RestUpper, const FVector& RestFore,
 	const FVector& Upper, const FVector& Fore, float Wrist, float Weight)
 {
@@ -233,13 +294,16 @@ void ADeadMinerCreature::LayArm(int32 UpperBone, int32 LowerBone, int32 HandBone
 
 void ADeadMinerCreature::LayerPose(float DeltaSeconds)
 {
-	ArmClock += DeltaSeconds;
+	// Salted, its arms' drift runs slow with the rest of its pose.
+	ArmClock += DeltaSeconds * StatusShown.ClockScale;
 	if (!bArmLayerReady)
 	{
 		return;
 	}
 	FMinerArms Want;
 	WantedArms(Want);
+	// Its element statuses on top (StatusArms).
+	StatusArms(Want);
 	if (!bArmsStarted || DeltaSeconds <= 0.f)
 	{
 		NowRightUpper = Want.RightUpper;

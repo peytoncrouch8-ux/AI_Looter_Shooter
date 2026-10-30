@@ -9,6 +9,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
+#include "Creatures/CreatureStatusPose.h"
 #include "Creatures/PlaceholderCreatureDefinition.h"
 #include "Weapons/WeaponFX.h"
 #include "AnimationRuntime.h"
@@ -74,6 +75,7 @@ namespace
 APlaceholderCreature::APlaceholderCreature()
 {
 	DisplayName = NSLOCTEXT("Placeholder", "DefaultName", "Placeholder");
+	ElementBody = EElementBody::Flesh;
 	Health->MaxHealth = 150.f;
 	GetCapsuleComponent()->InitCapsuleSize(40.f, 45.f);
 
@@ -168,7 +170,8 @@ void APlaceholderCreature::BeginPlay()
 void APlaceholderCreature::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	Clock += DeltaSeconds;
+	// Salted, its clock runs slow (its element statuses' pose: CreatureStatusPose).
+	Clock += DeltaSeconds * CreatureStatusPose::Of(this).ClockScale;
 	DeadTime = IsDead() ? DeadTime + DeltaSeconds : 0.f;
 	EntranceLeft = FMath::Max(0.f, EntranceLeft - DeltaSeconds);
 	Jolt *= FMath::Exp(-JoltEase * DeltaSeconds);
@@ -354,6 +357,7 @@ void APlaceholderCreature::AnimateBody(float DeltaSeconds)
 	In.bDead = IsDead();
 	In.DeadTime = DeadTime;
 	In.CorpseTime = CorpseTime;
+	In.Status = IsDead() ? FCreatureStatusPose() : CreatureStatusPose::Of(this);
 	PoseNow = PlaceholderRules::PoseAt(In);
 
 	// Its pose on the body bone, about its foot: the dome stretched to its kind and squashed (keeping its volume), lifted and

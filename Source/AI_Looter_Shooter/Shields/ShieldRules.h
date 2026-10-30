@@ -30,7 +30,7 @@ namespace ShieldRules
 	/** The trait a seed picks for a ward of Rarity: none below Rare; then the rarity's TraitChance, each trait alike. */
 	AI_LOOTER_SHOOTER_API EShieldTrait TraitFor(const UShieldDefinition& Definition, EWeaponRarity Rarity, int32 Seed);
 
-	/** Last Breath's element from the seed: Ember, Soul-light or Grave-salt alike. */
+	/** Last Breath's element from the seed: Ember (Cinder), Soul-light (Hallow), Grave-salt (Wardbreak), Thunder or Rot alike. */
 	AI_LOOTER_SHOOTER_API ELooterElement NovaElementFor(int32 Seed);
 
 	/**

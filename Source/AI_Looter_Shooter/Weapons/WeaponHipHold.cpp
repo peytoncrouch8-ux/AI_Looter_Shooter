@@ -22,8 +22,8 @@ namespace
 	const FHipHold HipHolds[] = {
 		// The Bullpup: its grip low on the right, level as it always was (the user: the 8 degree muzzle-down tilt read as
 		// tipped forward, 2026-10-14). 7 cm nearer since 2026-10-29 (the user: "ar and hand needs pulled back 3 cm", then
-		// "the AR needs moved back 4 cm").
-		{ EWeaponKind::Rifle, FVector(43.f, 23.f, -23.5f), FRotator::ZeroRotator },
+		// "the AR needs moved back 4 cm"), and 4 cm lower (the user, same night: "bring the AR down 4 cm").
+		{ EWeaponKind::Rifle, FVector(43.f, 23.f, -27.5f), FRotator::ZeroRotator },
 		// The Ranchhand: its grip is on the stock behind the receiver. Level too (its 7 degree tilt read as the rifle's did).
 		// 20 cm nearer than the rifle (the user, 2026-10-15: "too far forward making the arm look silly"): the stock leaves
 		// the frame past the bottom right, the left arm's reach to the pump is short and its sleeve's end stays under the

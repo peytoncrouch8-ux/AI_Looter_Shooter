@@ -276,7 +276,8 @@ float ASlimeCreature::ReactSquash() const
 	{
 		Lower += RippleAmount * FMath::Sin(UE_TWO_PI * RippleHz * RippleAge) * (1.f - RippleAge / RippleSeconds);
 	}
-	return Lower;
+	// Its element statuses' squash (SlimeCreatureStatus.cpp).
+	return Lower + StatusSquash();
 }
 
 void ASlimeCreature::PlayEntrance()
@@ -306,6 +307,8 @@ void ASlimeCreature::TickReactions(float DeltaSeconds)
 {
 	// Its wounds, stagger and an overkill's wait on its hit-stop (SlimeCreatureBody.cpp), and a core crit's ripple moves on.
 	TickWounds(DeltaSeconds);
+	// Its element statuses' kicks and clock (SlimeCreatureStatus.cpp).
+	TickStatusPose(DeltaSeconds);
 	RippleAge += DeltaSeconds;
 	UCreatureReactComponent* Reacts = GetReact();
 	const bool bResting = !IsDead() && Hop == EHop::Ground && !bTelegraph && GetCreatureState() == ECreatureState::Idle;
@@ -316,6 +319,7 @@ void ASlimeCreature::TickReactions(float DeltaSeconds)
 		const float Phase = 2.f * UE_PI * (Reacts ? Reacts->GetSeed() : 0.f);
 		Rest = FVector2D(SwayForward * FMath::Sin(AnimTime * 0.8f + Phase), SwaySide * FMath::Sin(AnimTime * 0.61f + 2.f * Phase));
 	}
+	Rest += StatusLean();
 	// The lean's loose spring, in short even steps as its other springs are (a slow-ticking slime wobbles as a near one).
 	const float Seconds = FMath::Min(DeltaSeconds, FCreatureUpdateRate::MaxInterval);
 	if (Seconds > 0.f)

@@ -342,6 +342,22 @@ nicknames, icons, kill reactions). Tests `Looter.Weapons.NewGuns.*`. Defaults in
   magazine mesh (the finish and glow carry the element; `Option->Element` finds the part). Card rows "Jolt damage" /
   "Chance to jolt", "Rot dmg/sec" / "Chance to rot"; glyphs Bolt and Skull. Dev: `Looter.Element.Apply Thunder|Rot`.
   Tests Looter.Elements.Jolt, .Rot (+ Weakness, Words rows).
+- **Elements matter (built 2026-10-29 night; contract Docs/Archive/Work/2026-10-29-ElementsMatter/CONTRACT.md, the
+  user's rulings there)**: bodies (EElementBody per kind; table in the contract), weak x2 / resist x0.33 / immune hit x0.1
+  and no status, on the BULLET too for element guns (`ElementRules::GunHitScale` in BulletSubsystem `ResolveHit` and the
+  rocket blast; plain guns never scale; not the Explosive splash); spirits (Ethereal/Phasing) add immune Cinder/Rot/Thunder
+  and weak Wardbreak/Hallow on top; story immunities Gravemother Rot, Foreman Ember, Abel SoulLight; NO EFFECT callout,
+  IMMUNE TO on the bestiary. Typed wards: element rolled Thunder 0.5 / Wardbreak 0.2 / others 0.1 (a Touched creature's own),
+  matching element x2, Wardbreak x1.5, else x1 (the larger), then crit x2; the old salted x1.5 removed; no status through a
+  standing ward; a break always staggers (`FHitReaction::OnWardBreak`) and plays `Element.X.WardBreak`; ward bar above the
+  health bar in UiColor. Touched: 6%, max 3 alive, Basic-Gravebound, never set pieces/bounties/spider fights, immune to its
+  element, weak to its counter, shell glow even at Basic, loot leans x3 to its element. Feedback: status icons with ring
+  timers, first-time callouts (UI.StatusCallout), one rolling DoT number per creature per element; status poses per kind
+  (spiders pose only, no panic); burn panic (`Looter.Element.BurnPanic` 0.3, never fire-resisters, bosses, Soulfed,
+  spiders); element muzzle sparks, trails, idle gun pieces, element bullet marks, bigger deaths (`Looter.Vfx.Element.*`).
+  Stone Sentinel: Docs/Pipeline/Enemies.md. Checked in PIE: Sentinel wakes at 7 m on Boot Hill (not in the farm's safe
+  zone), slams; Touched spider spawns "Cinder-touched". Not yet seen in PIE: every reaction pose, trails, marks, wards'
+  colours in a fight.
 - **Colours (the user, 2026-10-29)**: Wardbreak teal #4FD4C4 (FX hue 0.3, 0.95, 0.85; was pale cyan-white), Thunder deep
   blue #566EF0 (FX 0.28, 0.4, 1), Rot green #A8E05A (FX 0.55, 0.95, 0.25). Wardbreak's card glyph "Cracked Ward" (its
   Salt Cluster lasted an hour).

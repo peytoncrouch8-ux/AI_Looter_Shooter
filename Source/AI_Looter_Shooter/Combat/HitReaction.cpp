@@ -187,6 +187,19 @@ bool FHitReaction::OnJolt(double Now, float BasicSeconds, ECreatureRank Rank)
 	return true;
 }
 
+bool FHitReaction::OnWardBreak(double Now, ECreatureRank Rank)
+{
+	// The reward for breaking it is always there: no cooldown or gap holds it back (its own cooldown follows as any's).
+	const float Seconds = StaggerSecondsFor(Rank, Tuning.StaggerSeconds);
+	if (Seconds <= 0.f)
+	{
+		return false;
+	}
+	FResponse Response;
+	BeginStagger(Now, Seconds, Response, EJob::Power);
+	return true;
+}
+
 bool FHitReaction::CanStagger(double Now, ECreatureRank Rank) const
 {
 	if (IsStaggered(Now) || Now < StaggerReady)

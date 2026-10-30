@@ -5,6 +5,7 @@
 #include "Elements/ElementCallout.h"
 #include "DamageNumberWidget.generated.h"
 
+class UImage;
 class UTextBlock;
 
 /**
@@ -27,10 +28,22 @@ public:
 	/** The tag's size while it pops in (1: settled); nothing without a tag. */
 	void SetTagScale(float Scale);
 
-	/** Type sizes: a crit's twice as loud as a body shot's; the tag is small beside either. */
+	/** A stream's number rolling up: only the number changes (its look stays the first piece's). */
+	void SetValue(float Damage);
+
+	/**
+	 * A status's first-time word instead of a number: its glyph (GunCardIcons::ElementBrush) then its word
+	 * (ElementRules::StatusWord, "BURNING") in the element's colour, spaced as a label.
+	 */
+	void SetCallout(ELooterElement Element);
+
+	/** Type sizes: a crit's twice as loud as a body shot's; the tag is small beside either; a callout's word between. */
 	static constexpr int32 NormalSize = 22;
 	static constexpr int32 CriticalSize = 36;
 	static constexpr int32 TagSize = 13;
+	static constexpr int32 CalloutSize = 17;
+	static constexpr int32 CalloutLetterSpacing = 120;
+	static constexpr float CalloutGlyphSize = 18.f;
 
 	/** The size the number is set in for a hit (a weak hit's a little bigger). */
 	static int32 NumberSize(bool bCritical, const FElementNumberLook& Look);
@@ -40,6 +53,7 @@ protected:
 
 private:
 	void ApplyDamageText();
+	void ApplyCallout();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DamageText;
@@ -47,6 +61,12 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> TagText;
 
+	/** A callout's glyph before its word (collapsed for a number). */
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> GlyphImage;
+
+	/** The callout's element (None: a number). */
+	ELooterElement CalloutElement = ELooterElement::None;
 	float DisplayedDamage = 0.f;
 	bool bDisplayedCritical = false;
 	float DisplayedHeat = -1.f;

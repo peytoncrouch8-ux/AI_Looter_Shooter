@@ -8,6 +8,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/CreatureTouched.h"
 #include "Creatures/CreatureTraitComponent.h"
 #include "Creatures/DeadMinerCreature.h"
 #include "Creatures/ForemanCreature.h"
@@ -17,6 +18,8 @@
 #include "Creatures/UnpaidCreature.h"
 #include "Creatures/BellRingerCreature.h"
 #include "Creatures/SpitterSpider.h"
+#include "Creatures/StoneSentinelCreature.h"
+#include "Elements/ElementRules.h"
 #include "World/WorldQueries.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/Engine.h"
@@ -178,7 +181,10 @@ namespace
 		bool bSpiderling = false;
 	};
 
-	/** The creature kind a command names ("Spider", "slime", "Unpaid", "Gravemother", "Spiderling", "Spitter", "BellRinger", "DeadMiner", "Foreman"), or none. */
+	/**
+	 * The creature kind a command names ("Spider", "slime", "Unpaid", "Gravemother", "Spiderling", "Spitter", "BellRinger",
+	 * "DeadMiner", "Foreman", "StoneSentinel" or "Sentinel"), or none.
+	 */
 	FCreatureKind FindCreatureKind(const FString& Kind)
 	{
 		FCreatureKind Found;
@@ -219,7 +225,25 @@ namespace
 		{
 			Found.Class = AForemanCreature::StaticClass();
 		}
+		else if (Kind.Equals(TEXT("StoneSentinel"), ESearchCase::IgnoreCase) || Kind.Equals(TEXT("Sentinel"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = AStoneSentinelCreature::StaticClass();
+		}
 		return Found;
+	}
+
+	/**
+	 * Sets a spawned creature on Pawn: a Stone Sentinel wakes for them (a statue answers no call), any other is alerted to
+	 * them. Without this, chase would leave a sentinel standing as a statue.
+	 */
+	void SetOn(ACreatureBase& Creature, APawn* Pawn)
+	{
+		if (AStoneSentinelCreature* Sentinel = Cast<AStoneSentinelCreature>(&Creature))
+		{
+			Sentinel->Wake(Pawn);
+			return;
+		}
+		Creature.AlertTo(Pawn);
 	}
 
 	/** How a creature of Kind starts when a command spawns it: a spiderling as the Gravemother's brood come, else its class's. */
@@ -249,13 +273,25 @@ namespace
 		float Size = 0.f;
 		int32 SpawnLevel = 0;
 		bool bChase = false;
+		// touched (its kind's element) or touched=<Element>: a Touched creature (CreatureTouched), whatever the roll.
+		bool bTouched = false;
+		ELooterElement TouchedAs = ELooterElement::None;
 		for (const FString& Arg : AllArgs)
 		{
 			FString Key;
 			FString Value;
-			if (Arg.Split(TEXT("="), &Key, &Value))
+			if (Arg.Equals(TEXT("touched"), ESearchCase::IgnoreCase))
 			{
-				if (Key.Equals(TEXT("size"), ESearchCase::IgnoreCase))
+				bTouched = true;
+			}
+			else if (Arg.Split(TEXT("="), &Key, &Value))
+			{
+				if (Key.Equals(TEXT("touched"), ESearchCase::IgnoreCase))
+				{
+					bTouched = true;
+					TouchedAs = ElementRules::Parse(Value);
+				}
+				else if (Key.Equals(TEXT("size"), ESearchCase::IgnoreCase))
 				{
 					Size = FMath::Clamp(FCString::Atof(*Value), 0.1f, 5.f);
 				}
@@ -304,6 +340,16 @@ namespace
 		ACreatureBase::FRuntimeSpawn Spawn = MakeSpawn(Kind);
 		Spawn.Rank = Rank;
 		Spawn.Level = SpawnLevel;
+		// A dev spawn is what was asked for: Touched only when asked (never by the area's roll).
+		Spawn.bMayBeTouched = false;
+		if (bTouched && TouchedAs == ELooterElement::None)
+		{
+			TouchedAs = CreatureTouched::ElementFor(Kind.Class);
+			if (TouchedAs == ELooterElement::None)
+			{
+				UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: its kind has no touch of its own; name one (touched=Cinder)."));
+			}
+		}
 		if (Size > 0.f)
 		{
 			Spawn.BodyScale = Size;
@@ -338,12 +384,16 @@ namespace
 			{
 				Creature->DisplayName = AGravemotherCreature::SpiderlingName();
 			}
+			if (TouchedAs != ELooterElement::None)
+			{
+				Creature->SetTouched(TouchedAs);
+			}
 			++Spawned;
 			Name = Creature->DisplayName.ToString();
 			LastSpawned = Creature;
 			if (bChase)
 			{
-				Creature->AlertTo(Pawn);
+				SetOn(*Creature, Pawn);
 			}
 		}
 
@@ -366,9 +416,10 @@ namespace
 				}
 			}
 			UE_LOG(LogLooter, Log, TEXT("Looter.SpawnCreature: %s is level %d with %.0f health, %.0f%% defense (%.1f%% on a crit), a %.1f bite, %d XP at ")
-				TEXT("level 1, %.2fx size; traits: %s (seed %d)."), *LastSpawned->GetName(), LastSpawned->Level, Health ? Health->GetMaxHealth() : 0.f,
+				TEXT("level 1, %.2fx size; traits: %s (seed %d)%s%s."), *LastSpawned->GetName(), LastSpawned->Level, Health ? Health->GetMaxHealth() : 0.f,
 				LastSpawned->GetDefense() * 100.f, LastSpawned->GetDefense() * 50.f, LastSpawned->AttackDamage, LastSpawned->XPReward,
-				LastSpawned->GetSizeScale(), Traits.IsEmpty() ? TEXT("none") : *Traits, LastSpawned->GetTierSeed());
+				LastSpawned->GetSizeScale(), Traits.IsEmpty() ? TEXT("none") : *Traits, LastSpawned->GetTierSeed(),
+				LastSpawned->GetTouchedElement() != ELooterElement::None ? TEXT("; ") : TEXT(""), *LastSpawned->GetTouchedWord());
 		}
 		if (Spawned < Count)
 		{
@@ -469,7 +520,7 @@ namespace
 				{
 					Creature->DisplayName = AGravemotherCreature::SpiderlingName();
 				}
-				Creature->AlertTo(Pawn);
+				SetOn(*Creature, Pawn);
 				++Spawned;
 			}
 		}
@@ -489,15 +540,17 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs SpawnCreatureCommand(
 		TEXT("Looter.SpawnCreature"),
-		TEXT("Looter.SpawnCreature <Spider|Spiderling|Gravemother|Slime|Unpaid|Spitter|BellRinger|DeadMiner|Foreman> ")
+		TEXT("Looter.SpawnCreature <Spider|Spiderling|Gravemother|Slime|Unpaid|Spitter|BellRinger|DeadMiner|Foreman|StoneSentinel> ")
 		TEXT("[Regular|Restless|Gravebound|Hallowed|Ethereal|Soulfed|Boss] [count] [chase] ")
-		TEXT("[size=<scale>] [level=<n>]: spawns creatures of a rank (with none named, their kind's own: the Gravemother is ")
+		TEXT("[size=<scale>] [level=<n>] [touched|touched=<Cinder|Hallow|Wardbreak|Thunder|Rot>]: spawns creatures of a rank (with none named, their kind's own: the Gravemother is ")
 		TEXT("Legendary) on the ground in front of the player (rows of five, from about 8 m out). They never come back once ")
 		TEXT("killed. chase sets them on the player at once; size sets their BodyScale (0.45 a spiderling, 1.8 a giant) before the ")
 		TEXT("rank's own; level is before the rank's offset. A Spiderling is the Gravemother's brood: a brown spider at 0.45 with a ")
 		TEXT("fifth of its health. Ranks also take their code names (Basic, Rare, Epic, Legendary): Looter.SpawnCreature Unpaid ")
 		TEXT("Gravebound 1 chase. The last one's health, defense, bite and traits go to the log. The Unpaid's cap (12 at once) and ")
-		TEXT("the tiers' caps hold for the encounters and promotions, not here."),
+		TEXT("the tiers' caps hold for the encounters and promotions, not here. touched makes them Touched (their kind's element, ")
+		TEXT("or the one named); without it they never are. A StoneSentinel comes as a statue on its plinth (walk within 9 m or ")
+		TEXT("shoot it); chase wakes it at once."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnCreature));
 }
 

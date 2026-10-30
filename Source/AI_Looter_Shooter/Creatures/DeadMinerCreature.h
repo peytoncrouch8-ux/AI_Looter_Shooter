@@ -216,6 +216,13 @@ protected:
 	/** What the arms and trunk want now, for what it's doing (DeadMinerCreaturePose.cpp). */
 	virtual void WantedArms(FMinerArms& Out) const;
 
+	/**
+	 * Its element statuses on what the arms and trunk want (the "Elements matter" job; LayerPose calls it after WantedArms):
+	 * burning, both arms beat about its head; jolted, flung out stiff; rotting, hands to its belly, bent over, a cough
+	 * doubling it; salted, slow to move; smitten, an arm up before its face, head bowed from the light.
+	 */
+	void StatusArms(FMinerArms& Want) const;
+
 	/** Whether it works now: calm, alive, nobody to hunt (the Foreman: waiting for his fight, digging at the fall). */
 	virtual bool WantsToWork() const;
 

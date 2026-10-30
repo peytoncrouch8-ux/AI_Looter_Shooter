@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Elements/LooterElement.h"
 #include "Shields/ShieldTypes.h"
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponTypes.h"
@@ -61,7 +62,7 @@ public:
 	 * bWeapons only the ammo drops (a practice area's creatures once the player has left it).
 	 */
 	static TArray<AActor*> SpawnKillLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level,
-		float ExtraLuck, TOptional<EAmmoType> KillAmmo, bool bWeapons = true);
+		float ExtraLuck, TOptional<EAmmoType> KillAmmo, bool bWeapons = true, ELooterElement Lean = ELooterElement::None);
 
 	/**
 	 * Decides what one kill drops, without spawning anything. What drops (counts, weapons, rarities, ammo classes and
@@ -72,13 +73,16 @@ public:
 	 * Level also caps a legendary in the early areas (LegendaryCapFor).
 	 */
 	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random,
-		TOptional<EAmmoType> KillAmmo = {}, bool bWeapons = true);
+		TOptional<EAmmoType> KillAmmo = {}, bool bWeapons = true, ELooterElement Lean = ELooterElement::None);
 
 	/**
 	 * One gun that drops (a kill's or a chest's): rolled with a fresh seed at the rarity and level, and cursed when its
-	 * seed says so (WeaponCurses::Roll: some Rare, Epic and Legendary guns), its stats with the curse in them.
+	 * seed says so (WeaponCurses::Roll: some Rare, Epic and Legendary guns), its stats with the curse in them. Lean: the
+	 * element a Touched killer leans the gun's parts toward (WeaponParts::Pick; None: no lean). SpawnKillLoot and RollLoot
+	 * pass theirs on to every gun they drop.
 	 */
-	static FWeaponInstanceData RollDroppedWeapon(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level);
+	static FWeaponInstanceData RollDroppedWeapon(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level,
+		ELooterElement Lean = ELooterElement::None);
 
 	/** RollLoot's first half: the ammo pickups one kill drops (how many, each one's class and rounds). */
 	static TArray<FAmmoDrop> RollAmmo(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo = {});

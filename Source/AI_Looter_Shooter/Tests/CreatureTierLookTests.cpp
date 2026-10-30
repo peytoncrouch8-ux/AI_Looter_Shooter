@@ -19,6 +19,7 @@
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Elements/ElementRules.h"
 #include "Tests/BossTestWorld.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -332,6 +333,51 @@ bool FCreatureTierLookDeathShowTest::RunTest(const FString& Parameters)
 	TierShowRun(*Effects, CreatureTierLook::DeathShowFor(ECreatureRank::Ethereal).Seconds + 0.1f);
 	TestEqual(TEXT("All over"), Effects->NumShows(), 0);
 	TestEqual(TEXT("...every pillar back"), Effects->NumPillarsLit(), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreatureTierLookTouchedTest, "Looter.Creatures.TierLook.Touched",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FCreatureTierLookTouchedTest::RunTest(const FString& Parameters)
+{
+	using namespace CreatureTierLook;
+	const ECreatureRank Regular = ECreatureRank::Basic;
+	const ECreatureRank Restless = ECreatureRank::Rare;
+	const ELooterElement Cinder = ELooterElement::Ember;
+	const ELooterElement Thunder = ELooterElement::Thunder;
+
+	// Who wears a shell: a Touched Basic one now too; never a boss or a Legendary monster, and a plain Basic one still not.
+	TestFalse(TEXT("A plain Regular creature wears no shell"), WearsShell(Regular, ELooterElement::None));
+	TestTrue(TEXT("A Touched Regular one does"), WearsShell(Regular, Cinder));
+	TestTrue(TEXT("A Restless one does as ever"), WearsShell(Restless, ELooterElement::None) && WearsShell(Restless, Cinder));
+	TestFalse(TEXT("A Touched boss or Legendary monster never"), WearsShell(ECreatureRank::Boss, Cinder) || WearsShell(ECreatureRank::Legendary, Cinder));
+
+	// Its shell: the Restless glow in its element's colour, a key of its own per element, its tier's tag untouched.
+	const FCreatureTierShell Plain = ShellFor(ECreatureTierBody::Spider, Regular);
+	const FCreatureTierShell Touched = ShellFor(ECreatureTierBody::Spider, Regular, Cinder);
+	TestFalse(TEXT("A plain Regular spider: no shell"), Plain.bWorn);
+	TestTrue(TEXT("A Touched Regular spider's eyes glow"), Touched.bWorn && Touched.bEyes && Touched.Touched == Cinder);
+	TestNearlyEqual(TEXT("...at the Restless glow"), Touched.Glow, ShellFor(ECreatureTierBody::Spider, Restless).Glow, 0.0001f);
+	TestTrue(TEXT("...in its element's colour"), ShellColor(Touched, Regular).Equals(ElementRules::FxColor(Cinder)));
+	TestTrue(TEXT("...a plain shell in its tier's"), ShellColor(ShellFor(ECreatureTierBody::Spider, Restless), Restless).Equals(GlowColor(Restless)));
+	const FCreatureTierShell Storm = ShellFor(ECreatureTierBody::Spider, Regular, Thunder);
+	TestTrue(TEXT("Each element has its own shared look"), Touched.Key != Storm.Key && Touched.Key != ShellFor(ECreatureTierBody::Spider, Restless).Key
+		&& !Touched.Key.IsNone());
+	const FCreatureTierShell TouchedRestless = ShellFor(ECreatureTierBody::Spider, Restless, Cinder);
+	TestTrue(TEXT("A Touched Restless one burns in the element's colour too, under another key than a plain Restless"),
+		TouchedRestless.Touched == Cinder && TouchedRestless.Key != ShellFor(ECreatureTierBody::Spider, Restless).Key);
+	TestTrue(TEXT("The slime's core lights in it as well"), ShellFor(ECreatureTierBody::Slime, Regular, Thunder).bCore);
+	const FCreatureTierShell Miner = ShellFor(ECreatureTierBody::Unpaid, Regular, ELooterElement::Rot);
+	TestTrue(TEXT("A Touched Unpaid, with no eyes or core to light, shows the rim"), Miner.bWorn && Miner.bRim && !Miner.bEyes && !Miner.bCore && Miner.bShroudFade);
+	TestFalse(TEXT("Its frame stays its rank's: a Touched Regular one's tag has none"), TagFor(Regular).bThickFrame || TagFor(Regular).bTopTierFlash);
+
+	// The tag's name gains the word in front of the kind's name, after the rank's word.
+	const FText Base = FText::FromString(TEXT("Brown Spider"));
+	TestEqual(TEXT("A plain creature's name is as it was"), TagName(Base, ELooterElement::None).ToString(), Base.ToString());
+	const FString Named = TagName(Base, Cinder).ToString();
+	TestTrue(FString::Printf(TEXT("A Touched one's name leads with the word and keeps the kind (%s)"), *Named),
+		Named.EndsWith(TEXT("Brown Spider")) && Named.Contains(TEXT("touched")) && Named.Len() > Base.ToString().Len() + 8);
 	return true;
 }
 

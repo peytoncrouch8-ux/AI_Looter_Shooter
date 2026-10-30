@@ -5,6 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/BellRingerCreature.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureHitReactionComponent.h"
 #include "Creatures/CreatureKnockComponent.h"
 #include "Creatures/CreatureTraitComponent.h"
 #include "Creatures/CreatureTraitRules.h"
@@ -147,6 +148,22 @@ bool FCreatureTraitWardTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Broken, all of a hit goes through"), CreatureTraitRules::AbsorbWard(Ward, 25.f, false, 2.f), 25.f);
 	Ward = 10.f;
 	TestEqual(TEXT("A crit for 15 breaks 10 with 5 of itself; 10 spills"), CreatureTraitRules::AbsorbWard(Ward, 15.f, true, 2.f), 10.f);
+	// Typed wards (2026-10-29 night): the type's scale first, then the crit's on top; the spill is the hit as it was.
+	Ward = 100.f;
+	TestEqual(TEXT("Its own element x2: a 30 hit takes 60"), CreatureTraitRules::AbsorbWard(Ward, 30.f, false, 2.f, 2.f), 0.f);
+	TestEqual(TEXT("...40 left"), Ward, 40.f);
+	TestEqual(TEXT("...and a crit of it x4: a 15 hit breaks it with 10, 5 spills"), CreatureTraitRules::AbsorbWard(Ward, 15.f, true, 2.f, 2.f), 5.f);
+	using EE = ELooterElement;
+	TestEqual(TEXT("A shock ward to Thunder: x2"), CreatureTraitRules::WardElementScale(EE::Thunder, EE::Thunder, 2.f, 1.5f), 2.f);
+	TestEqual(TEXT("...to Wardbreak: x1.5"), CreatureTraitRules::WardElementScale(EE::Thunder, EE::GraveSalt, 2.f, 1.5f), 1.5f);
+	TestEqual(TEXT("...to Cinder: x1"), CreatureTraitRules::WardElementScale(EE::Thunder, EE::Ember, 2.f, 1.5f), 1.f);
+	TestEqual(TEXT("...to a plain gun: x1"), CreatureTraitRules::WardElementScale(EE::Thunder, EE::None, 2.f, 1.5f), 1.f);
+	TestEqual(TEXT("A true ward to Wardbreak: the larger, never both (x2, not x3)"), CreatureTraitRules::WardElementScale(EE::GraveSalt, EE::GraveSalt, 2.f, 1.5f), 2.f);
+	TestTrue(TEXT("Ward rolls: shock half"), CreatureTraitRules::WardElementAt(0.f) == EE::Thunder && CreatureTraitRules::WardElementAt(0.49f) == EE::Thunder);
+	TestTrue(TEXT("...a true ward a fifth"), CreatureTraitRules::WardElementAt(0.5f) == EE::GraveSalt && CreatureTraitRules::WardElementAt(0.69f) == EE::GraveSalt);
+	TestTrue(TEXT("...Cinder, Hallow, Rot a tenth each"), CreatureTraitRules::WardElementAt(0.75f) == EE::Ember
+		&& CreatureTraitRules::WardElementAt(0.85f) == EE::SoulLight && CreatureTraitRules::WardElementAt(0.95f) == EE::Rot);
+	TestTrue(TEXT("...the same seed the same ward"), CreatureTraitRules::RollWardElement(1234) == CreatureTraitRules::RollWardElement(1234));
 
 	// On a spider: its health untouched while the ward holds, the ward its share of the most health.
 	FEditorScriptExecutionGuard RunEvents;
@@ -176,6 +193,8 @@ bool FCreatureTraitWardTest::RunTest(const FString& Parameters)
 	Hurt(Spider, Full * 0.3f);
 	TestFalse(TEXT("A hit past what's left breaks it"), Traits->IsWardUp());
 	TestEqual(TEXT("...the rest of the hit spills onto health"), Health->GetHealth(), Max - Full * 0.2f, 0.05f);
+	const UCreatureHitReactionComponent* React = Spider->FindComponentByClass<UCreatureHitReactionComponent>();
+	TestTrue(TEXT("Broken, it staggers at once (always: the typed wards)"), React && React->IsStaggered());
 	Traits->Advance(Frame);
 	TestTrue(TEXT("Broken, it's dazed"), Spider->GetKnock() && Spider->GetKnock()->IsDizzy());
 	Hurt(Spider, 10.f);

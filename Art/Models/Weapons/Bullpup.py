@@ -196,8 +196,13 @@ def tripo_build(key, spec):
     g.parts[key] = []
     if callable(spec):
         from types import SimpleNamespace as Namespace
+        # A spec function adds the part's sockets itself; the scripted part's grip spots stay unless it adds its own.
+        kept = [s for s in g.sockets if s[0] == key and is_spot(s[1])]
         g.sockets = [s for s in g.sockets if s[0] != key]
         spec(Namespace(**globals()), key)
+        mine = {s[1] for s in g.sockets if s[0] == key}
+        g.sockets += [s for s in kept if s[1] not in mine]
+        spots(key, TRIPO_SPOTS.get(key, {}))
         return
     path = TRIPO_DIR + spec['glb']
     set_name = 'TripoBullpup' + key.replace('_', '')
@@ -228,6 +233,7 @@ def tripo_build(key, spec):
     for name, value in ctx.sockets.items():
         uv, w, rotation = tripo.socket_spec(value)
         g.socket(key, name, uv, w=w, rotation=rotation)
+    spots(key, TRIPO_SPOTS.get(key, {}))
 
 
 def body_sockets(m):
@@ -235,6 +241,75 @@ def body_sockets(m):
     for name, uv in (('Stock', STOCK_AT), ('Barrel', BARREL_AT), ('Magazine', MAG_AT), ('Sight', SIGHT_AT),
                      ('Grip', (22.5, -10.0)), ('Foregrip', (44.0, -4.5))):
         g.socket(m, name, uv)
+
+
+# --- Grip spots (2026-10-29, Docs/Work/2026-10-29-GripSpots): where the first-person hands hold each part ---
+# A spot is ((u, v), w, fingers, palm): on the part's skin under the palm's grip point, the knuckles' way and the way
+# out of the skin toward the palm (gun space; looter_guns Gun.hand_mark). Measured off each shell (gun space cm).
+# - Hold_R_Pistol: the trigger hand round the thumbhole loop's rear post (20.15..24.93 at v -10, 3.6 wide): the palm on
+#   its right face turned 15 degrees onto its back (the game's FPGRIP tuning), the knuckles forward round its front.
+# - Hold_L_Cup (the user's pick, 2026-10-29: "bottom of trigger housing"): the support hand cupped palm up under the
+#   trigger housing at its lowest, the loop's lower bar where it turns up into the front post (its underside v -14.3 at u
+#   35.5, 3.6 wide, facing down and a little forward): 2.5 ahead of the 2026-10-27 spot, so the glove clears the frame's
+#   bottom edge at the 4 cm lower hold (27.5 down); the knuckles forward and a little right so the fingers curl up its far side, the thumb along its near side (the
+#   game's cup, FirstPersonHandsCup.cpp: CupKnuckles, CupPalm); a little left of the middle, the
+#   eye's side. Under the shell's front (u 42, the first marking) the forearm showed too much.
+# - Trigger: the trigger blade's front face (26.5..27.2 at v -7), where the finger's pad presses.
+# - Reload_L_Wrap: the support hand's palm on the magazine's left face, knuckles forward round its front edge, the thumb
+#   up toward the well (the game's MagazineGrab: 1.5 ahead of the seat, 8 down).
+PISTOL = ((22.5, -10.0), -1.8, (1.0, 0.2, 0.0), (-0.26, 0.0, -0.97))
+CUP = ((35.5, -14.3), 0.6, (0.8, 0.15, -0.5), (0.3, -1.0, 0.15))
+GRAB = ((1.0, 0.17, 0.0), (0.0, 0.0, 1.0))             # a magazine's: knuckles forward (it rakes 10 degrees), palm left
+BODY_SPOTS = {'Hold_R_Pistol': PISTOL, 'Hold_L_Cup': CUP, 'Trigger': (27.25, -7.0)}
+SPOTS_OF = {                                           # scripted shells that differ
+    'Body_Salvager': {'Hold_R_Pistol': ((22.3, -10.0), -1.7, PISTOL[2], PISTOL[3]),    # the taped grip's front half
+                      'Hold_L_Cup': ((34.0, -13.55), 0.0, CUP[2], (0.0, -1.0, 0.15))},  # under its pipe guard
+}
+MAG_SPOTS = {                                          # (u, v), w of each magazine's left face (gun space)
+    'Magazine_20': ((14.6, -11.0), 1.2), 'Magazine_30': ((15.5, -13.6), 1.2), 'Magazine_30Window': ((15.5, -13.6), 1.2),
+    'Magazine_40': ((15.8, -14.0), 1.25), 'Magazine_Coupled': ((15.2, -14.6), 3.9), 'Magazine_60': ((15.3, -15.0), 1.9),
+    'Magazine_Drum': ((14.0, -16.4), 2.9), 'Magazine_TwinDrum': ((14.0, -14.5), 4.7),
+    'Magazine_Ember30': ((15.5, -13.6), 0.96), 'Magazine_Saint30': ((15.5, -13.6), 1.2),
+    'Magazine_Salt30': ((15.5, -13.6), 1.2),
+}
+TRIPO_SPOTS = {                                        # the Tripo models' own shells (applied after they replace a part)
+    'Body_Standard': {'Hold_R_Pistol': ((22.5, -10.0), -1.62, PISTOL[2], PISTOL[3]),
+                      'Hold_L_Cup': ((35.5, -14.35), 0.3, CUP[2], CUP[3]), 'Trigger': (26.9, -7.0)},
+    'Body_Armored': {'Hold_R_Pistol': ((22.8, -10.0), -1.5, PISTOL[2], PISTOL[3]),
+                     'Hold_L_Cup': ((33.8, -12.58), 0.3, CUP[2], (0.0, -1.0, 0.15)), 'Trigger': (27.17, -7.0)},
+    'Body_Salvager': {'Hold_R_Pistol': ((22.4, -10.0), -1.8, PISTOL[2], PISTOL[3]),
+                      'Hold_L_Cup': ((28.5, -9.85), 0.0, CUP[2], (0.0, -1.0, 0.15)), 'Trigger': (26.93, -7.0)},
+    'Body_Marksman': {'Hold_R_Pistol': ((23.3, -10.0), -1.43, PISTOL[2], PISTOL[3]),
+                      'Hold_L_Cup': ((31.0, -13.15), 0.3, CUP[2], (0.38, -1.0, 0.15)), 'Trigger': (28.3, -7.2)},
+    'Magazine_20': {'Reload_L_Wrap': ((14.6, -11.0), 1.09) + GRAB},
+    'Magazine_30': {'Reload_L_Wrap': ((15.5, -13.6), 1.15) + GRAB},
+    'Magazine_Coupled': {'Reload_L_Wrap': ((15.0, -14.0), 4.38) + GRAB},
+    'Magazine_Drum': {'Reload_L_Wrap': ((14.0, -12.0), 6.06) + GRAB},   # a flat drum lying on its side, 13 cm across
+}
+
+
+def is_spot(name):
+    return name == 'Trigger' or name.split('_')[0] in lg.HAND_ROLES
+
+
+def spots(m, table):
+    """Puts table's spots (name: spot, or Trigger: (u, v)) on model m, in place of any of the same name."""
+    for name, spot in table.items():
+        g.sockets = [s for s in g.sockets if not (s[0] == m and s[1] == name)]
+        if name == 'Trigger':
+            g.socket(m, name, spot)
+            continue
+        role, side, pose = name.split('_')
+        uv, w, fingers, palm = spot
+        g.hand_mark(m, role, side, pose, uv, w, fingers, palm)
+
+
+def mark_parts():
+    for m in g.parts:
+        if m.startswith('Body_'):
+            spots(m, {**BODY_SPOTS, **SPOTS_OF.get(m, {})})
+    for m, (uv, w) in MAG_SPOTS.items():
+        spots(m, {'Reload_L_Wrap': (uv, w) + GRAB})
 
 
 def tripo_override():
@@ -1033,6 +1108,7 @@ magazines()
 element_magazines()
 sights()
 stocks()
+mark_parts()      # the grip spots, before the Tripo models take over (they keep them, or their own)
 tripo_override()
 lg.fill_uvs(g)   # glows and glass get UVs, so Unreal builds their tangents quietly
 built = g.build(origins)

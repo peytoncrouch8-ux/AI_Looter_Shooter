@@ -15,8 +15,9 @@ class USkeletalMeshComponent;
 
 /**
  * A creature's tier as the player sees it (CreatureTierLook has the rules; Saved/Tiers/DESIGN.md, "Readable and
- * rewarding"). Made on a creature the first time its rank is a tier above Regular (Refresh, from ACreatureBase's rank
- * being applied), never on a Regular one, a Legendary monster or a boss:
+ * rewarding"). Made on a creature the first time its rank is a tier above Regular, or it is Touched (an element's glow even at
+ * Basic: CreatureTierLook::WearsShell; Refresh, from ACreatureBase's rank
+ * being applied), never on a plain Regular one, a Legendary monster or a boss:
  *  - its shell: the body's mesh once more on a follower of its pose (SetLeaderPoseComponent), every slot in the shared
  *    M_CreatureTier look for its kind and tier (UCreatureTierFXSubsystem::GetShellLook): the spiders' eyes and the slime's
  *    core glowing in the tier's colour, and the Ethereal's faint red ghost-rim shimmering up its body. A follower, not the
@@ -30,7 +31,8 @@ class USkeletalMeshComponent;
  *  - its death, a top tier's: the show in its colour (UCreatureTierFXSubsystem::PlayDeath: the burst, the ring, the
  *    pillar of soul-light, the motes, the loot's pop and both sounds), a frame after the death, or once a Grave-burst's
  *    swell is over (its soul goes with the blast); its glow holds while it swells, then goes out;
- *  - its tag's tier (DressTag, from its tag's frame): the thick frame and the top tiers' flash, and the trait line.
+ *  - its tag's tier (DressTag, from its tag's frame): the thick frame and the top tiers' flash, and the trait line, then its ward bar
+ *    (in the ward's element colour) and its status icons.
  * The Unpaid's coal and the dead miner's lamp take the tier's colour in their own code (CreatureTierLook::CoalGlow,
  * LampColor). Ticks only while it has something to drive: a shell, a death show waiting, an Unpaid's coal with traits.
  */

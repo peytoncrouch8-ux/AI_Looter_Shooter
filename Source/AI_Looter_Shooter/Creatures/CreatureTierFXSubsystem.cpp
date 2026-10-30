@@ -130,7 +130,9 @@ UMaterialInstanceDynamic* UCreatureTierFXSubsystem::GetShellLook(const FCreature
 		return nullptr;
 	}
 	UMaterialInstanceDynamic* Look = UMaterialInstanceDynamic::Create(ShellMaterial, this);
-	Look->SetVectorParameterValue(TierShellColorParam, CreatureTierLook::GlowColor(Rank));
+	// A Touched creature's shell burns in its element's colour (its key names the element, so the look is shared only by
+	// creatures Touched alike).
+	Look->SetVectorParameterValue(TierShellColorParam, CreatureTierLook::ShellColor(Shell, Rank));
 	Look->SetScalarParameterValue(TierShellGlowParam, Shell.Glow);
 	Look->SetScalarParameterValue(TierShellEyeOnParam, Shell.bEyes ? 1.f : 0.f);
 	Look->SetVectorParameterValue(TierShellEyeMinParam, FLinearColor(Shell.EyeMin.X, Shell.EyeMin.Y, 0.f, 0.f));

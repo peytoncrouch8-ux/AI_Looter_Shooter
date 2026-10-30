@@ -1,6 +1,7 @@
 #include "UI/HUD/HudHitMarker.h"
 #include "Audio/LooterSoundCues.h"
 #include "Creatures/CreatureTraitComponent.h"
+#include "Elements/ElementRules.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Weapons/GunfeelSoundTuning.h"
 #include "GameFramework/Actor.h"
@@ -120,6 +121,17 @@ FLinearColor HudHitMarker::Tint(EHudHitMark Mark)
 	}
 }
 
+FLinearColor HudHitMarker::Tint(EHudHitMark Mark, ELooterElement WardElement)
+{
+	if ((Mark != EHudHitMark::Ward && Mark != EHudHitMark::WardBreak) || WardElement == ELooterElement::None)
+	{
+		return Tint(Mark);
+	}
+	// The ward's own colour, as its bar over the tag; the break a touch whiter, as the cyan's is.
+	const FLinearColor Ward = ElementRules::UiColor(WardElement);
+	return Mark == EHudHitMark::WardBreak ? FMath::Lerp(Ward, FLinearColor::White, 0.35f) : Ward;
+}
+
 FName HudHitMarker::Cue(EHudHitMark Mark)
 {
 	switch (Mark)
@@ -151,7 +163,19 @@ float FHudWardMemory::Before(const AActor* Target) const
 	return 1.f;
 }
 
-void FHudWardMemory::Note(const AActor* Target, const UCreatureTraitComponent* Traits, float Fraction)
+ELooterElement FHudWardMemory::ElementOf(const AActor* Target) const
+{
+	for (const FEntry& Entry : Entries)
+	{
+		if (Entry.Actor.Get() == Target)
+		{
+			return Entry.Element;
+		}
+	}
+	return ELooterElement::None;
+}
+
+void FHudWardMemory::Note(const AActor* Target, const UCreatureTraitComponent* Traits, float Fraction, ELooterElement Element)
 {
 	if (!Target)
 	{
@@ -160,6 +184,11 @@ void FHudWardMemory::Note(const AActor* Target, const UCreatureTraitComponent* T
 	const int32 Found = Entries.IndexOfByPredicate([Target](const FEntry& Entry) { return Entry.Actor.Get() == Target; });
 	if (Found != INDEX_NONE)
 	{
+		// A broken ward may not name its element any more: the one seen while it stood stays.
+		if (Element == ELooterElement::None)
+		{
+			Element = Entries[Found].Element;
+		}
 		Entries.RemoveAt(Found, 1, EAllowShrinking::No);
 	}
 	else if (Entries.Num() >= Kept)
@@ -171,6 +200,7 @@ void FHudWardMemory::Note(const AActor* Target, const UCreatureTraitComponent* T
 	Entry.Actor = Target;
 	Entry.Traits = Traits;
 	Entry.Fraction = Fraction;
+	Entry.Element = Element;
 }
 
 void FHudWardMemory::Refresh()
@@ -185,5 +215,11 @@ void FHudWardMemory::Refresh()
 			continue;
 		}
 		Entry.Fraction = Traits->GetWardFraction();
+		// A ward made again (a new life) may roll a new element; a broken one naming none keeps the last.
+		const ELooterElement Element = Traits->GetWardElement();
+		if (Element != ELooterElement::None)
+		{
+			Entry.Element = Element;
+		}
 	}
 }

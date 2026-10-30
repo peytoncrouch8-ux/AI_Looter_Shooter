@@ -133,6 +133,8 @@ FText ElementCallout::TagText(EElementAffinity Affinity)
 	{
 	case EElementAffinity::Weak: return NSLOCTEXT("Looter", "ElementWeakTag", "WEAK");
 	case EElementAffinity::Resist: return NSLOCTEXT("Looter", "ElementResistTag", "RESIST");
+	// The gun is wrong for it: said plainly, so the player switches.
+	case EElementAffinity::Immune: return NSLOCTEXT("Looter", "ElementImmuneTag", "NO EFFECT");
 	default: return FText::GetEmpty();
 	}
 }

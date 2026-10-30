@@ -100,8 +100,9 @@
                   so it's lit as its surface is, on Medium's Nanite fallback without Lumen as on High): the bullet marks
                   (Source/AI_Looter_Shooter/Weapons/BulletMarks). The atlas T_BulletMarks_BC (colour, alpha the opacity),
                   _N and _ORM (G roughness, B metallic) is script-made by Art/Textures/BulletMarks/make_bullet_marks.py: 8
-                  cells across and 4 down, a style's two variants side by side. Each decal's colour picks its cell (R: the
-                  style, (style + 0.5) / 16; G: the seed, past 0.5 the second variant; A: its strength). The opacity fades
+                  cells across and 8 down (4 before the element marks, 2026-10-29), a style's two variants side by side.
+                  Each decal's colour picks its cell (R: the style, (style + 0.5) / 32; G: the seed, past 0.5 the second
+                  variant; A: its strength). The opacity fades
                   with the decal's life (DecalLifetimeOpacity: FBulletMarks sets its hold and fade) and where the surface
                   doesn't face back up the decal's axis (the back of a thin board in its box, a face it would smear along).
                   Opacity and NormalStrength scale the whole look; Tint its colour. It isn't built until the atlas exists.
@@ -2899,11 +2900,12 @@ def build_sunbleached_post():
 
 MARK_TEXTURES = 'C:/Dev/AI_Looter_Shooter/Art/Textures/BulletMarks'
 # The decal's colour picks the mark's cell in the atlas (make_bullet_marks.py: COLUMNS x ROWS cells, VARIANTS per style
-# side by side): R carries the style ((style + 0.5) / 16, FBulletMarks::Code), G the seed.
-MARK_CELL_UV = """float Style = floor(Code.r * 16.0);
+# side by side): R carries the style ((style + 0.5) / 32, FBulletMarks::Code and StyleSlots), G the seed. 8 x 8 cells since
+# the element marks (2026-10-29: styles 15-19; it was 8 x 4 and / 16).
+MARK_CELL_UV = """float Style = floor(Code.r * 32.0);
 float Cell = Style * 2.0 + (Code.g >= 0.5 ? 1.0 : 0.0);
 float2 Corner = float2(fmod(Cell, 8.0), floor(Cell / 8.0));
-return (Corner + saturate(UV)) / float2(8.0, 4.0);"""
+return (Corner + saturate(UV)) / float2(8.0, 8.0);"""
 # Only on surfaces facing back up the decal's way (Axis, its X, points into the surface): never the back of a thin board
 # inside its box, nor a face the mark would only smear along. The surface's facing comes from the depth buffer's own
 # positions (camera-relative, for their precision), turned toward the eye.

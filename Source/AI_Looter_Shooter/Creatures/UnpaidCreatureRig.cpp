@@ -270,7 +270,9 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		return;
 	}
 	const float Dt = FMath::Max(DeltaSeconds, 0.f);
-	PoseTime += Dt;
+	// Its element statuses' pose this frame (UnpaidCreatureStatus.cpp); salted, its clock runs slow.
+	StatusShown = IsDead() ? FCreatureStatusPose() : CreatureStatusPose::Of(this);
+	PoseTime += Dt * StatusShown.ClockScale;
 	const float Time = PoseTime + PoseSeed;
 
 	// How it moves: its drift in its own frame, and how fast it turns.
@@ -383,6 +385,8 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	{
 		Bones[JawBone].Own = PitchBy(Pose.Jaw - RestJaw + Hurt.JawOpen());
 	}
+	// Its statuses' tremors, twists, jerk and cough on the trunk (UnpaidCreatureStatus.cpp).
+	LayStatusBones();
 
 	// The shroud lifts off ground that rises behind it (it trails a meter back, low): the floor's slope along its facing,
 	// eased so bumps don't jerk it. Read off the movement's floor, so it costs no trace.
@@ -396,12 +400,14 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	}
 	ShroudLift = Dt > 0.f ? FMath::FInterpTo(ShroudLift, WantedLift, Dt, 4.f) : WantedLift;
 
-	// The shroud and its strips trail the drift, out of phase with each other, and snap straight with the lunge.
+	// The shroud and its strips trail the drift, out of phase with each other, and snap straight with the lunge; its
+	// statuses shake it on top (jittering jolted, flapping burning).
+	const FVector ShroudDrift = Local + StatusShroudShake();
 	for (int32 Chain = 0; Chain < static_cast<int32>(UE_ARRAY_COUNT(Chains)); ++Chain)
 	{
 		if (Chains[Chain].Links.Num() > 0)
 		{
-			Chains[Chain].Step(Shroud, Local, YawRate * Alive, Pose.Snap, Dt);
+			Chains[Chain].Step(Shroud, ShroudDrift, YawRate * Alive, Pose.Snap, Dt);
 		}
 	}
 

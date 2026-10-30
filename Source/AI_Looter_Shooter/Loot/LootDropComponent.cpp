@@ -103,7 +103,10 @@ void ULootDropComponent::HandleOwnerDeath(AController* Killer)
 	const bool bWeapons = UAreaRulesSubsystem::DropsGunsAt(this);
 	// A Greedy iron's kills roll their loot luckier.
 	const float Luck = ExtraLuck + WeaponCurseEffects::KillLootLuck(KillWeapon);
-	ULootLibrary::SpawnKillLoot(this, LootTable, GetOwner()->GetActorLocation(), Level, Luck, KillAmmo, bWeapons);
+	// A Touched creature leans the guns it drops toward its element's parts (WeaponParts::Pick's Lean); the dummy, a chest or
+	// any other owner has none.
+	const ELooterElement Lean = Creature ? Creature->GetTouchedElement() : ELooterElement::None;
+	ULootLibrary::SpawnKillLoot(this, LootTable, GetOwner()->GetActorLocation(), Level, Luck, KillAmmo, bWeapons, Lean);
 }
 
 TArray<AActor*> ULootDropComponent::DropLoot()

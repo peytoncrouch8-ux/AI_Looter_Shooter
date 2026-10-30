@@ -41,6 +41,9 @@ are written in his voice (first drafts, for the user to judge).
                           voice. Its stand is SK_DeadMiner with the felt hat and pick (bone_parts).
   DA_Bestiary_Foreman     The Foreman, Cyrus Teague (AForemanCreature, Back Pay), in Enemies after the dead miners; in the
                           Ledger, in Sexton's voice. SK_Foreman with his bowler, pick handle and satchel on the stand.
+  DA_Bestiary_StoneSentinel  The Stone Sentinel (AStoneSentinelCreature; the Elements matter job), in Enemies after the
+                          Foreman; in the Ledger, in Sexton's voice. SK_StoneSentinel (Art/Models/Creatures/StoneSentinel.py)
+                          on the stand, in its statue's pose.
   DA_Bestiary_Hiram       Hiram Coyle, Friends: a story character's page, SK_Hiram and his cap (bone_parts); in the Ledger,
                           known after Main 5 (when Dead Lift opens).
   DA_Bestiary_Thaddeus    Thaddeus Bright, Friends: as Hiram's, SK_Thaddeus and his spectacles; known after Knocking Below
@@ -172,6 +175,33 @@ PAGES = {
             "mouth calls him back.",
         ],
         sort_order=3,
+    ),
+    # The grave statues that wake (Docs/Work/2026-10-29-ElementsMatter/CONTRACT.md): Boot Hill and the churchyard, after
+    # Main 4 (Tools/Unreal/build_area_sentinels.py). Stone: weak to Wardbreak and Thunder, resists Cinder, immune to Rot.
+    'StoneSentinel': dict(
+        asset='DA_Bestiary_StoneSentinel',
+        name='Stone Sentinel',
+        section='ENEMY',
+        kind='Waking grave statue',
+        actor='/Script/AI_Looter_Shooter.StoneSentinelCreature',
+        model='/Game/Art/Creatures/SK_StoneSentinel',
+        ledger_only=True,
+        habitat="Ransom's Rest: Boot Hill and the churchyard's west rows, since the dead began to walk",
+        description=("Somebody paid a mason good money for every one of those mourners, friend: hooded, head bowed, hands "
+                     "folded, keeping watch over a grave forever. Forever turned out to be a long time to stand over the "
+                     "restless dead. Something of them seeped into the stone, and now the mourners keep their watch with "
+                     "their fists."),
+        notes=[
+            "It stands on its plinth like any statue until you come close or put a bullet in it. Then it cracks loose, "
+            "grinds round and steps down.",
+            "Slow, and nothing knocks it off its feet. Keep your distance and it can't touch you.",
+            "When it heaves both fists over its head, get out from in front of it: the slam cracks the ground. Bent over "
+            "its fists after, it's open.",
+            "The head under the hood is its weak spot: critical, for 1.5 times the damage.",
+            "Stone: Wardbreak and Thunder crack it, Cinder hardly warms it, and Rot does nothing at all.",
+            "Leave it be and it walks back to its plinth and stands there as if it never moved.",
+        ],
+        sort_order=4,
     ),
     'Gravemother': dict(
         asset='DA_Bestiary_Gravemother',

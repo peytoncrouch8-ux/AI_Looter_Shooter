@@ -249,6 +249,11 @@ int32 AGraveSaltCinderBed::Burn(float BurnSeconds)
 		}
 		// Fire, as the weakness table has it: spiders and slimes burn, the Unpaid shrug much of it off.
 		const EElementAffinity Affinity = ElementRules::Affinity(ELooterElement::Ember, ElementRules::TargetOf(Actor), false);
+		// Immune to fire (a spirit, a Cinder-touched spider, the Foreman): the bed doesn't touch it.
+		if (Affinity == EElementAffinity::Immune)
+		{
+			continue;
+		}
 		float Damage = GrenadeKinds::BedDamage(BurnSeconds, LevelScale, ElementRules::AffinityScale(Affinity, Elements), Random.FRand(), Base, Kinds);
 		UHealthComponent* Health = Actor->FindComponentByClass<UHealthComponent>();
 		if (GraveSaltBurst::IsBoss(Actor))

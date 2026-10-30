@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Elements/LooterElement.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Weapons/WeaponTypes.h"
 #include "WeaponRollLibrary.generated.h"
@@ -73,6 +74,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot")
 	static FWeaponInstanceData RollWeaponWithRarity(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level = 1);
+
+	/**
+	 * RollWeaponWithRarity whose parts lean toward Lean's element (WeaponParts::Pick's Lean: x3 weight on that element's parts;
+	 * a Touched creature's drops). None: exactly RollWeaponWithRarity. Not a Blueprint call: loot code only.
+	 */
+	static FWeaponInstanceData RollWeaponLeaning(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, ELooterElement Lean);
 
 	/** Spawns the actor for a rolled instance. The weapon starts unowned and visible in the world. */
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot", meta = (WorldContext = "WorldContextObject"))

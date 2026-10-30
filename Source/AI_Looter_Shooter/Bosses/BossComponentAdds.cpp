@@ -32,6 +32,8 @@ int32 UBossComponent::SpawnWave(const FBossAddWave& Wave)
 	Spawn.Rank = Wave.Rank;
 	Spawn.Level = Wave.Level;
 	Spawn.BodyScale = Wave.BodyScale;
+	// A boss fight is built by hand: its adds are never Touched.
+	Spawn.bMayBeTouched = false;
 
 	// They rise round the boss on its own level of ground (creatures never step down a drop, and every fight keeps to one
 	// level), inside its wall: one ring of spots evenly round it, then a second between them for any that didn't fit. A wave

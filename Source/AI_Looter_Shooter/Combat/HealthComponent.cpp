@@ -231,6 +231,8 @@ void UHealthComponent::SpawnDamageNumber(float Damage, bool bCritical, const FVe
 
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	// Owned by what was hit, so a status's pieces on it find their stream (one rolling number: ADamageNumberActor::Show).
+	Params.Owner = GetOwner();
 	if (ADamageNumberActor* Number = GetWorld()->SpawnActor<ADamageNumberActor>(DamageNumberClass, Location, FRotator::ZeroRotator, Params))
 	{
 		Number->Show(Damage, bCritical, Look);

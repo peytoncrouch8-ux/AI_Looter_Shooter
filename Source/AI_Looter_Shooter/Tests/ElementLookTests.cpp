@@ -228,6 +228,15 @@ bool FWeaponElementLookGunsTest::RunTest(const FString& Parameters)
 			}
 			TestEqual(FString::Printf(TEXT("%s: an element part exactly when it has an element"), *Case),
 				Model->GetElementPart() != nullptr, Element != ELooterElement::None);
+			// The model knows its element (the flash's tint and sparks), and gives it off idle only when drawn first person
+			// ("Elements matter", 2026-10-29).
+			TestEqual(FString::Printf(TEXT("%s: the model's element"), *Case), Model->GetElement(), Element);
+			TestEqual(FString::Printf(TEXT("%s: idle spots exactly when it has an element"), *Case), Model->NumIdleSpots() > 0, Element != ELooterElement::None);
+			Model->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+			TestEqual(FString::Printf(TEXT("%s: ticks in first person exactly when it has an element"), *Case), Model->IsComponentTickEnabled(),
+				Element != ELooterElement::None);
+			Model->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::None);
+			TestFalse(FString::Printf(TEXT("%s: no tick in the world's view"), *Case), Model->IsComponentTickEnabled());
 		}
 	}
 	if (bGlows)

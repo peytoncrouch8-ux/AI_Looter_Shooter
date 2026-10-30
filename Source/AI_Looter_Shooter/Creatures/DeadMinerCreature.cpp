@@ -119,6 +119,8 @@ void ADeadMinerCreature::HoldPick(const USkeletalMesh* Model, FName& OutBone, FT
 ADeadMinerCreature::ADeadMinerCreature()
 {
 	DisplayName = NSLOCTEXT("LooterDeadMiner", "DeadMinerName", "Dead Miner");
+	// The Foreman keeps it (he's one of them).
+	ElementBody = EElementBody::Bone;
 	// A shade tougher and heavier than the Unpaid (160 and 8): men who swung a pick for a living.
 	Health->MaxHealth = 180.f;
 	AttackDamage = 9.f;

@@ -13,7 +13,7 @@ class UObject;
  * How one floating damage number shows its element (UHealthComponent::SpawnDamageNumber works it out, ADamageNumberActor and
  * UDamageNumberWidget play it): an element status's piece or a smite takes the element's colour; a critical hit of an
  * element gun keeps its crit look, tinted toward the element's; a plain hit of one is unchanged. A hit on a creature weak to
- * the element, once a fight, pops a "WEAK" tag beside a slightly bigger number; a resisted one pops a greyed "RESIST".
+ * the element, once a fight, pops a "WEAK" tag beside a slightly bigger number; a resisted one pops a greyed "RESIST", an immune one a greyed "NO EFFECT".
  */
 struct FElementNumberLook
 {
@@ -110,7 +110,7 @@ namespace ElementCallout
 	 */
 	AI_LOOTER_SHOOTER_API FLinearColor NumberColor(const FElementNumberLook& Look, bool bCritical, float Heat);
 
-	/** The tag's text ("WEAK", "RESIST"; empty for Neutral) and colour (the element's for weak, greyed for a resist). */
+	/** The tag's text ("WEAK", "RESIST", "NO EFFECT"; empty for Neutral) and colour (the element's for weak, greyed otherwise). */
 	AI_LOOTER_SHOOTER_API FText TagText(EElementAffinity Affinity);
 	AI_LOOTER_SHOOTER_API FLinearColor TagColor(ELooterElement Element, EElementAffinity Affinity);
 }

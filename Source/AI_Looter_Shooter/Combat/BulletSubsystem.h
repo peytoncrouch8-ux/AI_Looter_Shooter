@@ -221,6 +221,8 @@ private:
 		/** One of its volley's first pellets: it leaves a smoke thread, laid as far as ThreadLaid (cm along its flight). */
 		bool bThread = false;
 		float ThreadLaid = 0.f;
+		/** An element round's trail laid as far as this (cm along its flight; LayElementTrail). */
+		float TrailLaid = 0.f;
 		/** What it has flown on through (Piercing): never hit again. */
 		TArray<TWeakObjectPtr<AActor>, TInlineAllocator<2>> Passed;
 	};
@@ -247,6 +249,8 @@ private:
 	void LeaveMark(const FBullet& Bullet, const FHitResult& Hit, EImpactMaterial Material);
 	/** Lays the smoke thread behind a bullet as far as it has flown (its first meters only). */
 	void LayThread(FBullet& Bullet);
+	/** Lays an element round's trail behind its tracer as far as it has flown (BulletSubsystemTrails.cpp; Looter.Vfx.Element.Trail). */
+	void LayElementTrail(FBullet& Bullet);
 	void DrawTracer(const FBullet& Bullet, const FVector& Camera);
 	FVector GetCameraLocation() const;
 

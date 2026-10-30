@@ -77,6 +77,7 @@ namespace
 AUnpaidCreature::AUnpaidCreature()
 {
 	DisplayName = FText::FromString(TEXT("Unpaid"));
+	ElementBody = EElementBody::Coal;
 	Health->MaxHealth = 160.f;
 	AttackDamage = 8.f;
 	// The coal is found by the shot's line (IsCriticalSpot), never by a bone's hit zone alone.

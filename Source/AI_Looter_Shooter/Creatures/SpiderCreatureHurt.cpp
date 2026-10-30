@@ -342,6 +342,8 @@ void ASpiderCreature::TickHitFeel(float DeltaSeconds)
 	Age(FangSnapAge, DeltaSeconds);
 	Age(AbdomenWobbleAge, DeltaSeconds);
 	Age(WeakHitAge, DeltaSeconds);
+	// Its element statuses' pose for this frame, and the salt's slow clock (SpiderCreatureStatus.cpp).
+	TickStatusPose(DeltaSeconds);
 
 	const FHitFeelTuning Feel = FHitFeelTuning::Live();
 	const float Amount = FMath::Clamp(static_cast<float>(Feel.SpiderScale), 0.f, 2.f);
@@ -425,6 +427,7 @@ ASpiderCreature::FHitFeelPose ASpiderCreature::HitFeelPose() const
 		Pose.Abdomen = AbdomenWobbleSize * AbdomenWobbleShare * FMath::Sin(2.f * UE_PI * AbdomenWobbleHz * AbdomenWobbleAge)
 			* (1.f - AbdomenWobbleAge / AbdomenWobbleSeconds);
 	}
+	AddStatusPose(Pose);
 	return Pose;
 }
 

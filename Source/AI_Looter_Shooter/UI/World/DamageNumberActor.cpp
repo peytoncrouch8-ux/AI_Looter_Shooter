@@ -1,5 +1,6 @@
 #include "UI/World/DamageNumberActor.h"
 #include "UI/World/DamageNumberWidget.h"
+#include "Elements/ElementStatusComponent.h"
 #include "Components/WidgetComponent.h"
 
 namespace
@@ -60,6 +61,22 @@ ADamageNumberActor::ADamageNumberActor()
 
 void ADamageNumberActor::Show(float Damage, bool bInCritical, const FElementNumberLook& Look)
 {
+	// A status's piece on a creature: into its stream (one rolling number), not a number of its own. The stream's actor is
+	// the first piece's; every later one hands its damage over and goes at once.
+	const ELooterElement Streamed = DamageNumberStream::StreamElementOf(bInCritical, UElementStatusComponent::IsDealingNow(), Look.Element);
+	if (Streamed != ELooterElement::None && GetOwner())
+	{
+		if (ADamageNumberActor* Stream = FindStream(GetWorld(), GetOwner(), Streamed))
+		{
+			Stream->AddToStream(Damage, Look);
+			Destroy();
+			return;
+		}
+		StartStream(Damage, Look, GetOwner(), Streamed);
+		return;
+	}
+
+	Kind = EDamageNumberKind::Hit;
 	bCritical = bInCritical;
 	bTagged = Look.Callout != EElementAffinity::Neutral;
 	Age = 0.f;
@@ -80,6 +97,17 @@ void ADamageNumberActor::Show(float Damage, bool bInCritical, const FElementNumb
 void ADamageNumberActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	if (Kind == EDamageNumberKind::Stream)
+	{
+		TickStream(DeltaSeconds);
+		return;
+	}
+	if (Kind == EDamageNumberKind::Callout)
+	{
+		TickCallout(DeltaSeconds);
+		return;
+	}
 
 	Age += DeltaSeconds;
 	AddActorWorldOffset(Velocity * DeltaSeconds);

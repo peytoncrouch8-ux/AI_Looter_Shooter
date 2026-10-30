@@ -217,6 +217,8 @@ protected:
 	virtual FVector GetSpawnCenter() const override;
 	virtual void OnStateChanged(EEncounterState From, EEncounterState To) override;
 	virtual void OnWaveStarted(int32 Wave) override;
+	/** Built by hand (and a bounty's fight on top of it): never a Touched creature in it. */
+	virtual bool LetsCreaturesBeTouched() const override { return false; }
 
 	/** The reward's loot table and level, for the shower (ABossLootShower::Throw reads its owner's). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

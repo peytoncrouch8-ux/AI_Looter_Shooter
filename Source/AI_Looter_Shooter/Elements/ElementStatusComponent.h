@@ -3,11 +3,15 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Elements/ElementStatus.h"
+#include "Elements/ElementStatusIcons.h"
 #include "Elements/LooterElement.h"
 #include "ElementStatusComponent.generated.h"
 
 class AController;
 class FWeaponFX;
+
+/** A status was set on Target (Apply): its element, and whether it's the first of that element on this creature this life (the first-time callout). */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnElementStatusSet, AActor* /*Target*/, ELooterElement, bool /*bFirstOnThisCreature*/);
 
 /**
  * A creature's element statuses in play (Phase 12.3): added at runtime to a creature the first time an element gun's roll
@@ -23,6 +27,8 @@ class FWeaponFX;
  *  - Rotting: drips and a dim green glow; Element.Rot.Tick at each piece. Its death spreads the rot to the living near it
  *    (SpreadRot, once a death).
  * A kill by a status bursts in its look with Element.<Element>.Kill. Looks: ElementStatusComponentLooks.cpp.
+ * Nothing sets on a creature immune to the element (ElementRules::Affinity), nor through a standing ward (the ward takes
+ * the hit); an immune creature is skipped by a jolt's arc, a smite's leap and a rot's spread.
  */
 UCLASS(ClassGroup = (Looter))
 class AI_LOOTER_SHOOTER_API UElementStatusComponent : public UActorComponent
@@ -43,9 +49,21 @@ public:
 	static bool TryApply(AActor& Target, ELooterElement Element, float Chance, float HitDamage, bool bCritical, float Roll,
 		const FVector& HitLocation, AActor* Causer, AController* Instigator);
 
-	/** Sets Element's status from a hit of HitDamage at Affinity (no roll). */
+	/**
+	 * Sets Element's status from a hit of HitDamage at Affinity (no roll); nothing when Affinity is Immune. Broadcasts
+	 * OnStatusSet.
+	 */
 	void Apply(ELooterElement Element, float HitDamage, EElementAffinity Affinity, const FVector& HitLocation, AActor* Causer,
 		AController* Instigator);
+
+	/** The delegate's type by the component's name too (UElementStatusComponent::FOnElementStatusSet). */
+	using FOnElementStatusSet = ::FOnElementStatusSet;
+
+	/** Every status set on any creature (the damage numbers' first-time callout: BURNING, JOLTED...). Game thread. */
+	static FOnElementStatusSet OnStatusSet;
+
+	/** What it carries now, one icon per element in the enum's order (the tag's status icons); Out is emptied first. */
+	void GetStatusIcons(TArray<FCreatureStatusIcon>& Out) const;
 
 	/** Moves the statuses on by DeltaSeconds: their damage, looks and sounds. Its tick calls it; the tests call it. */
 	void Advance(float DeltaSeconds);
@@ -94,7 +112,15 @@ public:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 private:
+	/** Its owner died: the next life's statuses are first ones again. */
+	UFUNCTION()
+	void HandleOwnerDeath(AController* Killer);
+
 	static constexpr int32 NumElements = 6;
 	/** Pieces of damage over time being dealt now (IsDealingNow). */
 	static int32 DealingDepth;
@@ -131,6 +157,8 @@ private:
 	TWeakObjectPtr<AActor> Causers[NumElements];
 	TWeakObjectPtr<AController> Instigators[NumElements];
 	float Dealt[NumElements] = {};
+	/** The elements set on it this life (MaskOf bits): OnStatusSet's bFirstOnThisCreature. */
+	uint8 SetThisLife = 0;
 	double LastApplyCue[NumElements] = { -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0 };
 	/** The strongest hit that rotted it (what its death spreads), and whether this death has spread it. */
 	float RotHitDamage = 0.f;

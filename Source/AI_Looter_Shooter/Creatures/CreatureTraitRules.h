@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureTrait.h"
+#include "Elements/LooterElement.h"
 
 class ACreatureBase;
 struct FGraveBurstTraitTuning;
@@ -63,10 +64,23 @@ namespace CreatureTraitRules
 	AI_LOOTER_SHOOTER_API bool Parse(const FString& Text, ECreatureTrait& OutTrait);
 
 	/**
-	 * A hit of Damage on a ward holding InOutWard: the ward takes it first (a critical one counts CritBreakScale times over
-	 * against it), and what it couldn't hold is returned for health. A hit that breaks it spills the rest of itself over.
+	 * A hit of Damage on a ward holding InOutWard: the ward takes it first, counting ElementScale times over against it (its
+	 * type: WardElementScale), then a critical one CritBreakScale times over on top; what it couldn't hold is returned for
+	 * health. A hit that breaks it spills the rest of itself over, as it was (no ward's scale on health).
 	 */
-	AI_LOOTER_SHOOTER_API float AbsorbWard(float& InOutWard, float Damage, bool bCritical, float CritBreakScale);
+	AI_LOOTER_SHOOTER_API float AbsorbWard(float& InOutWard, float Damage, bool bCritical, float CritBreakScale, float ElementScale = 1.f);
+
+	/**
+	 * A typed ward's say on a hit of HitElement (the user, 2026-10-29 night): Match when it's the ward's own element,
+	 * WardbreakAny for Wardbreak on any other ward, else 1; the larger, never the two multiplied.
+	 */
+	AI_LOOTER_SHOOTER_API float WardElementScale(ELooterElement Ward, ELooterElement HitElement, float Match, float WardbreakAny);
+
+	/** A ward's element from Seed: Thunder 0.5 (the common shock ward), Wardbreak 0.2 (a true ward), Cinder, Hallow, Rot 0.1 each. */
+	AI_LOOTER_SHOOTER_API ELooterElement RollWardElement(int32 Seed);
+
+	/** RollWardElement's pick from a roll in 0 to 1 (the tests read the weights). */
+	AI_LOOTER_SHOOTER_API ELooterElement WardElementAt(float Roll);
 
 	/** Health mended over DeltaSeconds: HealSharePerSecond of MaxHealth a second once SinceHit reaches UnhitSeconds, else none. */
 	AI_LOOTER_SHOOTER_API float MendAmount(float SinceHit, float UnhitSeconds, float HealSharePerSecond, float MaxHealth, float DeltaSeconds);

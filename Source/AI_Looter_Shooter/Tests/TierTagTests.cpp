@@ -115,7 +115,12 @@ bool FTierTagLookTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Whole again (a new life): back, full"), Tag->IsWardShown() && FMath::IsNearlyEqual(Tag->GetWardFill(), 1.f));
 	Tag->SetWard(false, 0.f);
 	TestFalse(TEXT("Its traits taken: gone at once, no flash"), Tag->IsWardShown() || Tag->IsWardBreaking());
-	TestTrue(TEXT("The ward's fill is the kit's cyan"), UBar::WardFillColor().Equals(LooterUI::Color::CyanText(), 0.0001f));
+	TestTrue(TEXT("A ward with no element fills in the kit's cyan"), UBar::DefaultWardColor().Equals(LooterUI::Color::CyanText(), 0.0001f));
+	// Typed wards (2026-10-29): the bar takes the ward's element's colour, its chip a paler of it.
+	Tag->SetWard(true, 1.f, LooterUI::Color::ElementThunder());
+	TestTrue(TEXT("A Thunder ward's bar is Thunder's blue"), Tag->GetWardFillColor().Equals(LooterUI::Color::ElementThunder(), 0.0001f));
+	TestTrue(TEXT("...its chip paler"), Tag->GetWardChipColor().B >= Tag->GetWardFillColor().B && Tag->GetWardChipColor().R > Tag->GetWardFillColor().R);
+	Tag->SetWard(false, 0.f);
 
 	// Dressed from a creature: a Regular spider plainly, a Hallowed one framed with its traits under its name.
 	ASpiderCreature* Spider = Cast<ASpiderCreature>(EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(), FVector::ZeroVector));

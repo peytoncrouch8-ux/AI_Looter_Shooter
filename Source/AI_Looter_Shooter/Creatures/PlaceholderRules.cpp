@@ -37,6 +37,48 @@ namespace
 		const float X = FMath::Clamp(T, 0.f, 1.f);
 		return X * X * (3.f - 2.f * X);
 	}
+
+	/** Through an attack its statuses show this share (its tell must read). */
+	constexpr float StatusAttackShare = 0.3f;
+
+	/**
+	 * Its element statuses on the clay (the "Elements matter" job): a burn rocks it side to side and hops it about, a jolt
+	 * holds it tall and trembling and its burst jerks it up, the rot slumps it forward and its cough heaves it, salt sits it
+	 * lower, a smite shrinks it back from the light, shivering. Share: how much of it shows.
+	 */
+	void AddStatus(FPlaceholderPose& Pose, const FCreatureStatusPose& Status, float Share)
+	{
+		if (!Status.IsAny() || Share <= 0.f)
+		{
+			return;
+		}
+		const float Burn = Status.Burn * Share;
+		const float Jolt = Status.Jolt * Share;
+		const float Jerk = Status.JoltJerk * Share;
+		const float Rot = Status.Rot * Share;
+		const float Cough = Status.Cough * Share;
+		const float Salt = Status.Salt * Share;
+		const float Smite = Status.Smite * Share;
+		// Burning.
+		Pose.LeanRoll += 7.f * Burn * Status.Flail();
+		Pose.LeanPitch += 4.f * Burn * Status.Flail(1.3f);
+		Pose.Squash += 0.06f * Burn * Status.Flail(2.f);
+		Pose.Lift += 4.f * Burn * FMath::Max(Status.Flail(0.7f), 0.f);
+		// Jolted.
+		Pose.Squash += (0.08f + 0.02f * Status.Tremor()) * Jolt + 0.15f * Jerk;
+		Pose.LeanRoll += 1.5f * Jolt * Status.Tremor(1.3f);
+		Pose.Lift += 8.f * Jerk;
+		// Rotting.
+		Pose.Squash -= 0.1f * Rot + 0.08f * Cough;
+		Pose.LeanPitch += 6.f * Rot + 10.f * Cough;
+		Pose.Lunge += 3.f * Cough;
+		// Salted.
+		Pose.Squash -= 0.03f * Salt;
+		// Smitten.
+		Pose.Squash -= 0.1f * Smite;
+		Pose.LeanPitch -= 6.f * Smite;
+		Pose.LeanRoll += 2.f * FMath::Square(Smite) * Status.Wave(9.f);
+	}
 }
 
 FText PlaceholderRules::TagName(const FText& Name, const FText& PlainType)
@@ -148,6 +190,8 @@ FPlaceholderPose PlaceholderRules::PoseAt(const FPlaceholderPoseInput& In)
 	Pose.Lift += NoticeHop * Notice;
 	// Rising into the world, it comes up out of the ground.
 	Pose.Lift -= (In.Height + In.Hover) * FMath::Clamp(In.EntranceLeft, 0.f, 1.f);
+	// Its element statuses on top.
+	AddStatus(Pose, In.Status, In.bAttacking ? StatusAttackShare : 1.f);
 	return Pose;
 }
 

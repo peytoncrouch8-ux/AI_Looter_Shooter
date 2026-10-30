@@ -140,6 +140,11 @@ void ASpiderCreature::PoseGaitLeg(const FLeg& Leg, const FVector& Hip, const FVe
 	{
 		Aim += Outward * (Leg.Rest.Size2D() * Scale * StaggerSplay * StaggerShown);
 	}
+	// Its element statuses (SpiderCreatureStatus.cpp): a burn's legs curl and kick, a jolt's lock out, the rot's draw in.
+	if (!bHeld)
+	{
+		Aim += StatusFootOffset(Leg, Outward);
+	}
 	SolveTwoBone(Hip, Aim, Upper, Lower, Pole, OutKnee, OutFoot);
 	const float Buckle = bHeld ? 0.f : BuckleNow(Leg);
 	if (Buckle <= KINDA_SMALL_NUMBER)

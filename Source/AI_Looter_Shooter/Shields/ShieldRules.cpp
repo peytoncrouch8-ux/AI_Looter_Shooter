@@ -76,7 +76,9 @@ EShieldTrait ShieldRules::TraitFor(const UShieldDefinition& Definition, EWeaponR
 ELooterElement ShieldRules::NovaElementFor(int32 Seed)
 {
 	FRandomStream Random = StreamFor(Seed, ElementSalt);
-	static constexpr ELooterElement Elements[] = { ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt };
+	// Every element alike, Thunder and Rot too since they came in (2026-10-29).
+	static constexpr ELooterElement Elements[] = { ELooterElement::Ember, ELooterElement::SoulLight, ELooterElement::GraveSalt,
+		ELooterElement::Thunder, ELooterElement::Rot };
 	return Elements[Random.RandRange(0, UE_ARRAY_COUNT(Elements) - 1)];
 }
 

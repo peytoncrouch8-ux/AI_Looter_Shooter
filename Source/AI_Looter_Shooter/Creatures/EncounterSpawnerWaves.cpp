@@ -261,6 +261,7 @@ ACreatureBase* AEncounterSpawner::SpawnOne(const FOwedCreature& Entry, const FVe
 	Setup.Level = Group.Level;
 	Setup.BodyScale = Group.BodyScale;
 	Setup.HealthScale = Group.HealthScale;
+	Setup.bMayBeTouched = LetsCreaturesBeTouched();
 	// Facing the player when there is one (they come for the corpse), else any way.
 	const float Yaw = Player ? static_cast<float>((Player->GetActorLocation() - Feet).Rotation().Yaw)
 		: static_cast<float>(Rolls.FRandRange(-180.0, 180.0));

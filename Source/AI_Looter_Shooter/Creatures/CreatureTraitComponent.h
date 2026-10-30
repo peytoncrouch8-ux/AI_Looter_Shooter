@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Creatures/CreatureTrait.h"
+#include "Elements/LooterElement.h"
 #include "Embers/Powers/EmberFX.h"
 #include "Math/RandomStream.h"
 #include "CreatureTraitComponent.generated.h"
@@ -32,9 +33,11 @@ struct FCreatureBurstVictim
  *    starts (put back as it ends, unless the creature set its own meanwhile); wind streaks trail it, a glint as it winds up.
  *  - Mending: 3 s unhit, 3% of its health a second, green motes rising and its shimmer looping; any hit (ward hits too)
  *    breaks it off with the motes flung away.
- *  - Warded: its health's Shield (UHealthComponent): a ward of 30% of its health takes each hit first, a crit counting
- *    twice; the rest of a breaking hit spills over. A turning cage of cyan light fading as it wears down, flickering near
- *    the end, a ripple and a ping where each hit lands; broken: a pop of shards and light, and a 0.8 s daze.
+ *  - Warded: its health's Shield (UHealthComponent): a ward of 30% of its health takes each hit first, typed by an element
+ *    (GetWardElement: its own element x2 into it, Wardbreak x1.5 on any other, the larger alone), then a crit counting
+ *    twice; the rest of a breaking hit spills over. A turning cage of light in the ward's colour fading as it wears down,
+ *    flickering near the end, a ripple and a ping where each hit lands; broken: a pop of shards and light in its colour,
+ *    always a stagger (UCreatureHitReactionComponent::WardBreak) and a 0.8 s daze.
  *  - Grave-burst: dead, the body swells 1 s (it grows and shivers, its heart glows, its 3 m ring pulses on the ground
  *    faster and faster, the swell's sound), then bursts: 1.5x its attack within 1.2 m, 0.6x at 3 m, players only, a knock
  *    and a jolt; the corpse is gone in the blast.
@@ -93,6 +96,15 @@ public:
 	/** The ward left, as a share of a full one (0: none, or broken). */
 	float GetWardFraction() const { return WardFraction; }
 	bool IsWardUp() const { return WardFraction > 0.f; }
+	/**
+	 * The ward's element (typed wards, the user's 2026-10-29 night): a Touched creature's own, else rolled from its tier seed
+	 * (Thunder 0.5, Wardbreak 0.2, Cinder, Hallow and Rot 0.1 each: CreatureTraitRules::RollWardElement). None without a
+	 * ward (not Warded, or broken). Its matching element breaks it x2, Wardbreak any other x1.5; its cage, shards and bar
+	 * take the element's colour.
+	 */
+	ELooterElement GetWardElement() const { return IsWardUp() ? WardElement : ELooterElement::None; }
+	/** Picks the ward's element again from its owner as it is now (its touch may have changed with its rank); the ward left stays. */
+	void RefreshWardElement();
 	bool IsMending() const { return bMending; }
 	bool IsEnraged() const { return bEnraged; }
 	/** Gone between a blink's two shimmers. */
@@ -169,6 +181,10 @@ private:
 	void DropWard();
 	void NoteWardHit(const FVector& HitLocation, bool bCritical);
 	void BreakWard(const FVector& HitLocation);
+	/** The ward's element for its owner now: its touch, or its seed's roll. */
+	ELooterElement PickWardElement() const;
+	/** The ward's colour (its element's look colour; the tuning's for none). */
+	FLinearColor WardColor() const;
 	void TickWard(float DeltaSeconds, FWeaponFX* Effects);
 	void DrawWardCage(FWeaponFX& Effects) const;
 	void TickMending(float DeltaSeconds, FWeaponFX* Effects);
@@ -237,6 +253,8 @@ private:
 
 	// Warded
 	float WardFraction = 0.f;
+	/** The ward's element (GetWardElement), picked as it's raised. */
+	ELooterElement WardElement = ELooterElement::Thunder;
 	/** A hit's flare on the cage (1 at the hit, fading), and the break's flash and rings (seconds since). */
 	float WardFlare = 0.f;
 	float WardBreakAge = 1000.f;

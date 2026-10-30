@@ -2,10 +2,12 @@
 #include "Audio/LooterSoundCues.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/CreatureTouched.h"
 #include "Creatures/CreatureTraitRules.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Elements/ElementRules.h"
 
 namespace
 {
@@ -65,6 +67,22 @@ bool CreatureTierLook::HasBodyGlow(ECreatureRank Rank)
 	return TierOf(Rank) >= 1;
 }
 
+bool CreatureTierLook::WearsShell(ECreatureRank Rank, ELooterElement Touched)
+{
+	// A Touched creature is only ever a tier (Basic, Restless, Gravebound): the one tier without a glow borrows its element's.
+	return HasBodyGlow(Rank) || (Touched != ELooterElement::None && TierOf(Rank) == 0);
+}
+
+FText CreatureTierLook::TagName(const FText& Base, ELooterElement Touched)
+{
+	if (Touched == ELooterElement::None)
+	{
+		return Base;
+	}
+	const FString Word = CreatureTouched::Word(Touched);
+	return Word.IsEmpty() ? Base : FText::FromString(FString::Printf(TEXT("%s %s"), *Word, *Base.ToString()));
+}
+
 bool CreatureTierLook::HasGhostRim(ECreatureRank Rank)
 {
 	return Rank == ECreatureRank::Ethereal;
@@ -116,14 +134,23 @@ void CreatureTierLook::SpiderEyePatch(FVector2f& OutMin, FVector2f& OutMax)
 	OutMax = FVector2f(0.8125f - Inset, 1.f - Inset);
 }
 
-FCreatureTierShell CreatureTierLook::ShellFor(ECreatureTierBody Body, ECreatureRank Rank)
+FLinearColor CreatureTierLook::ShellColor(const FCreatureTierShell& Shell, ECreatureRank Rank)
+{
+	return Shell.Touched != ELooterElement::None ? ElementRules::FxColor(Shell.Touched) : GlowColor(Rank);
+}
+
+FCreatureTierShell CreatureTierLook::ShellFor(ECreatureTierBody Body, ECreatureRank Rank, ELooterElement Touched)
 {
 	FCreatureTierShell Shell;
-	const int32 Tier = TierOf(Rank);
+	const int32 OwnTier = TierOf(Rank);
+	// A Basic Touched creature burns at the Restless glow; its tier (the tag's frame, its word) stays Basic's.
+	const bool bTouched = Touched != ELooterElement::None && OwnTier >= 0;
+	const int32 Tier = bTouched ? FMath::Max(OwnTier, 1) : OwnTier;
 	if (Tier < 1)
 	{
 		return Shell;
 	}
+	Shell.Touched = bTouched ? Touched : ELooterElement::None;
 	Shell.bRim = HasGhostRim(Rank);
 	Shell.bShroudFade = Body == ECreatureTierBody::Unpaid;
 	switch (Body)
@@ -144,10 +171,17 @@ FCreatureTierShell CreatureTierLook::ShellFor(ECreatureTierBody Body, ECreatureR
 		// The Unpaid's coal burns in M_Ghost already (CoalGlow); anything else has no glowing part of its own.
 		break;
 	}
+	// A Touched body with nothing of its own to light (the Unpaid's coal burns in the tier's colour already) shows the rim, so
+	// its element still reads on it.
+	if (bTouched && !Shell.bEyes && !Shell.bCore)
+	{
+		Shell.bRim = true;
+	}
 	Shell.bWorn = Shell.bEyes || Shell.bCore || Shell.bRim;
 	if (Shell.bWorn)
 	{
-		Shell.Key = FName(*FString::Printf(TEXT("%s_%d"), BodyName(Body), Tier));
+		Shell.Key = bTouched ? FName(*FString::Printf(TEXT("%s_%d_T%d"), BodyName(Body), Tier, static_cast<int32>(Touched)))
+			: FName(*FString::Printf(TEXT("%s_%d"), BodyName(Body), Tier));
 	}
 	return Shell;
 }

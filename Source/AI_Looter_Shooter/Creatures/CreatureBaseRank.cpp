@@ -1,8 +1,10 @@
 #include "Creatures/CreatureBase.h"
+#include "Areas/AreaDefinition.h"
 #include "Areas/AreaRulesSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/CreatureTierLookComponent.h"
+#include "Creatures/CreatureTouched.h"
 #include "Creatures/CreatureTraitComponent.h"
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootLibrary.h"
@@ -10,7 +12,11 @@
 #include "Progression/ProgressionSettings.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Math/RandomStream.h"
+#include "Misc/Crc.h"
+#include "Templates/TypeHash.h"
 #include "TimerManager.h"
 
 // ---------------------------------------------------------------------------
@@ -33,6 +39,9 @@ void ACreatureBase::BeginRankAndLevel()
 void ACreatureBase::RespawnRankAndLevel()
 {
 	TierRoll = 0;
+	// A new life rolls its touch afresh (a chosen one lasted the life it was chosen for).
+	bTouchedChosen = false;
+	++TouchedLives;
 	TakeRankAndLevel(StartingRank, RollOwnLevel(StartingRank));
 }
 
@@ -76,6 +85,62 @@ void ACreatureBase::ApplyTraits()
 	TraitComponent->SetTraits(Count > 0
 		? UCreatureTraitComponent::RollTraits(Count, CurrentRank == ECreatureRank::Ethereal, *this, GetTierSeed())
 		: TArray<ECreatureTrait>());
+}
+
+/**
+ * Its touch this life (CreatureTouched; the user's call, 2026-10-29 night: rare in Ransom's Rest, at most a few alive): only
+ * a Basic, Restless or Gravebound creature of a kind with a touch, that may be touched (never a set piece's, a bounty's, a
+ * spider fight's or a boss's), in an area that rolls them (not a practice one). From its tier seed and its lives, so a load
+ * rolls the same and each new life afresh. A touch SetTouched chose is kept.
+ */
+void ACreatureBase::ApplyTouched()
+{
+	if (bTouchedChosen)
+	{
+		return;
+	}
+	TouchedElement = ELooterElement::None;
+	const ELooterElement Element = CreatureTouched::ElementFor(GetClass());
+	const bool bTier = CurrentRank == ECreatureRank::Basic || CurrentRank == ECreatureRank::Rare || CurrentRank == ECreatureRank::Epic;
+	UWorld* World = GetWorld();
+	if (!bMayBeTouched || Element == ELooterElement::None || !bTier || IsBossCreature() || !World)
+	{
+		return;
+	}
+	const UAreaRulesSubsystem* Rules = World->GetSubsystem<UAreaRulesSubsystem>();
+	const UAreaDefinition* Area = Rules ? Rules->GetArea() : nullptr;
+	if (!Area || Area->bPractice || Area->TouchedChance <= 0.f)
+	{
+		return;
+	}
+	int32 Alive = 0;
+	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	{
+		Alive += (*It != this && !It->IsDead() && It->GetTouchedElement() != ELooterElement::None) ? 1 : 0;
+	}
+	// Its own dice (salted apart from its traits', which use the same seed).
+	constexpr uint32 TouchedSalt = 0x70C4u;
+	const FRandomStream Random(static_cast<int32>(HashCombineFast(static_cast<uint32>(GetTierSeed()), TouchedSalt + static_cast<uint32>(TouchedLives))));
+	if (CreatureTouched::Rolls(Random.FRand(), Area->TouchedChance, Alive, Area->MaxTouchedAlive))
+	{
+		TouchedElement = Element;
+	}
+}
+
+FString ACreatureBase::GetTouchedWord() const
+{
+	return CreatureTouched::Word(TouchedElement);
+}
+
+void ACreatureBase::SetTouched(ELooterElement Element)
+{
+	bTouchedChosen = true;
+	TouchedElement = Element;
+	// In play its ward, look and the rest follow now (its stats keep their share); before play BeginPlay applies it.
+	if (HasActorBegunPlay() && bBaseCaptured)
+	{
+		ApplyRank();
+	}
 }
 
 /** Its own level before its rank's: from where it stands in its area, or GivenLevel (no band, or spawned at one). */
@@ -172,8 +237,15 @@ void ACreatureBase::ApplyRank()
 	Loot->LootTable = CurrentRank == ECreatureRank::Basic ? OwnTable : UCreatureRankSettings::GetLootTable(CurrentRank);
 
 	ApplySize();
+	// Its touch before its traits (a Touched creature's ward is its own element) and before its look (the touched glow).
+	ApplyTouched();
 	// Before OnRankChanged, so the subclass's own rank looks see its traits.
 	ApplyTraits();
+	if (TraitComponent)
+	{
+		// The same traits again keep their ward: its element follows a touch that changed with the rank.
+		TraitComponent->RefreshWardElement();
+	}
 	OnRankChanged();
 	// Last, so its look sees the rank, size and traits as they are now: the tier's glow, ghost-rim and death (a Regular
 	// creature gets nothing; Creatures/CreatureTierLookComponent.h).
@@ -264,6 +336,8 @@ ACreatureBase* ACreatureBase::SpawnAtRuntime(UWorld* World, TSubclassOf<ACreatur
 	}
 	Creature->StartingRank = Spawn.Rank;
 	Creature->BodyScale = StartScale;
+	// Before play begins: its touch is rolled as its rank is applied there.
+	Creature->bMayBeTouched = Creature->bMayBeTouched && Spawn.bMayBeTouched;
 	// Before play begins, so its base health (what its level and rank multiply, CaptureBaseStats) includes it.
 	if (!FMath::IsNearlyEqual(Spawn.HealthScale, 1.f))
 	{

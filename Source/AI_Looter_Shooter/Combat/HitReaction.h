@@ -188,6 +188,13 @@ struct AI_LOOTER_SHOOTER_API FHitReaction
 	 */
 	bool OnJolt(double Now, float BasicSeconds, ECreatureRank Rank);
 
+	/**
+	 * Its ward broke at Now (the typed wards, 2026-10-29 night: a break always staggers): a stagger of its rank's length
+	 * (StaggerSecondsFor; never a Soulfed or a boss) whatever the cooldown or an elite's gap, one running started over. Job
+	 * Power. True if it began.
+	 */
+	bool OnWardBreak(double Now, ECreatureRank Rank);
+
 	bool IsHitStopped(double Now) const { return Now < HitStopEnd; }
 	bool IsStaggered(double Now) const { return Now < StaggerEnd; }
 

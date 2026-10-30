@@ -201,6 +201,63 @@ void ABellRingerCreature::WantedArms(FVector& OutUpper, FVector& OutFore, FVecto
 	OutFore = ((bHunting ? ReadyFore : CarryFore) + Drift).GetSafeNormal();
 }
 
+void ABellRingerCreature::StatusArms(FVector& Upper, FVector& Fore, FVector& OutLeftUpper, FVector& OutLeftFore, float& Wrist, float& Rate) const
+{
+	const FCreatureStatusPose& Status = StatusShown;
+	if (!Status.IsAny() || IsDead())
+	{
+		return;
+	}
+	// Through its swipe the blow must still read: the statuses take a little of the arms then.
+	const float Share = GetCreatureState() == ECreatureState::Attack ? 0.3f : 1.f;
+	auto Toward = [](FVector& Now, const FVector& To, float Alpha)
+	{
+		const FVector Blend = FMath::Lerp(Now, To, FMath::Clamp(Alpha, 0.f, 1.f)).GetSafeNormal();
+		Now = Blend.IsNearlyZero() ? To : Blend;
+	};
+	// Burning: the bell waved high and clanging, the rope's arm beating at the flames.
+	if (const float Burn = Status.Burn * Share; Burn > 0.f)
+	{
+		const FVector Wave(0.f, 0.2f * Status.Flail(), 0.25f * Status.Flail(1.f));
+		Toward(Upper, TellUpper + Wave, 0.6f * Burn);
+		Toward(Fore, TellFore + Wave, 0.6f * Burn);
+		Toward(OutLeftUpper, CallUpper + Wave * -1.f, 0.7f * Burn);
+		Toward(OutLeftFore, CallFore + FVector(0.f, 0.f, 0.3f * Status.Flail(UE_PI)), 0.7f * Burn);
+		Wrist += ShakeDegrees * 1.5f * Burn * Status.Flail(0.6f);
+		Rate = FMath::Max(Rate, EaseRaise);
+	}
+	// Jolted: both locked out, the bell rattling in its shaking fist (snapped out at the burst).
+	if (const float Jolt = FMath::Min(Status.Jolt * 0.8f + Status.JoltJerk, 1.f) * Share; Jolt > 0.f)
+	{
+		Toward(Upper, ReelUpper, Jolt);
+		Toward(Fore, ReelFore, Jolt);
+		Toward(OutLeftUpper, CallUpper, Jolt);
+		Toward(OutLeftFore, CallFore, Jolt);
+		Wrist += ShakeDegrees * 0.7f * Status.Jolt * Share * Status.Tremor();
+		Rate = Status.JoltJerk > 0.f ? EaseSnap : FMath::Max(Rate, EaseRaise);
+	}
+	// Rotting: both arms hanging low, the bell let down (the hunch and the cough are the Unpaid's).
+	if (const float Rot = Status.Rot * Share; Rot > 0.f)
+	{
+		Toward(Upper, CarryUpper, 0.6f * Rot);
+		Toward(Fore, RopeFore, 0.5f * Rot);
+		Toward(OutLeftUpper, RopeUpper, 0.6f * Rot);
+		Toward(OutLeftFore, RopeFore, 0.6f * Rot);
+	}
+	// Salted: slow to move.
+	if (Status.Salt > 0.f)
+	{
+		Rate *= FMath::Lerp(1.f, 0.6f, FMath::Min(Status.Salt, 1.f));
+	}
+	// Smitten: the bell held up before its face against the light, shaking as the burst nears.
+	if (const float Smite = Status.Smite * Share; Smite > 0.f)
+	{
+		Toward(Upper, ReadyUpper, 0.7f * Smite);
+		Toward(Fore, TellFore, 0.6f * Smite);
+		Wrist += ShakeDegrees * 0.5f * FMath::Square(Status.Smite) * Status.Wave(ShakeHz);
+	}
+}
+
 void ABellRingerCreature::LayArm(int32 UpperBone, int32 LowerBone, int32 HandBone, const FVector& RestUpper, const FVector& RestFore,
 	const FVector& Upper, const FVector& Fore, float Wrist, float Weight)
 {
@@ -233,7 +290,9 @@ void ABellRingerCreature::LayerPose(float DeltaSeconds)
 	// Snapped on a stroke, a swing or a shot; raised briskly for the tell; otherwise eased.
 	const bool bSnap = (Act == EAct::Lower && ActTime < StrokeSeconds * 1.5f) || Act == EAct::Reel
 		|| (GetCreatureState() == ECreatureState::Attack && GetStateTime() >= AttackWindup);
-	const float Rate = bSnap ? EaseSnap : (Act == EAct::Tell ? EaseRaise : EaseCalm);
+	float Rate = bSnap ? EaseSnap : (Act == EAct::Tell ? EaseRaise : EaseCalm);
+	// Its element statuses on top (StatusArms).
+	StatusArms(WantUpper, WantFore, WantLeftUpper, WantLeftFore, Wrist, Rate);
 	if (!bArmsStarted || DeltaSeconds <= 0.f)
 	{
 		NowRightUpper = WantUpper;

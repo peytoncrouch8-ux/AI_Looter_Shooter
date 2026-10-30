@@ -308,6 +308,9 @@ namespace LooterSoundCue
 	/** A gun's notch milestone (Blooded, Named, Soul-forged). */
 	inline constexpr const TCHAR* NotchMilestone = TEXT("UI.NotchMilestone");
 	inline constexpr const TCHAR* CurseLifted = TEXT("UI.CurseLifted");
+	/** The first time a status lands on a creature (its BURNING / SMITTEN / SALTED / JOLTED / ROTTING callout): a short
+	 *  sting, any element's (the element's own Apply plays at the creature). Art/Sounds/recipes/ui.py. */
+	inline constexpr const TCHAR* StatusCallout = TEXT("UI.StatusCallout");
 
 	// --- Menus and screens (2D) ---
 	inline constexpr const TCHAR* Click = TEXT("UI.Click");
@@ -555,6 +558,14 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* RotApply = TEXT("Element.Rot.Apply");
 		inline constexpr const TCHAR* RotTick = TEXT("Element.Rot.Tick");
 		inline constexpr const TCHAR* RotKill = TEXT("Element.Rot.Kill");
+		/** A creature's typed ward breaking, in its element's voice (3D at the creature, ~1 s): the ward's pane of light
+		 *  shattering, then a cinder flare, a cracked bell and choir, a salt crust's crunch, a thunder snap and sparks, a wet
+		 *  rot burst. */
+		inline constexpr const TCHAR* EmberWardBreak = TEXT("Element.Ember.WardBreak");
+		inline constexpr const TCHAR* SoulLightWardBreak = TEXT("Element.SoulLight.WardBreak");
+		inline constexpr const TCHAR* GraveSaltWardBreak = TEXT("Element.GraveSalt.WardBreak");
+		inline constexpr const TCHAR* ThunderWardBreak = TEXT("Element.Thunder.WardBreak");
+		inline constexpr const TCHAR* RotWardBreak = TEXT("Element.Rot.WardBreak");
 	}
 	/** A creature's body as it dies (its death burst), under its death cry: a spider's shell, a slime's splat, an Unpaid's soul-light. */
 	inline constexpr const TCHAR* SpiderBurst = TEXT("Creature.Spider.Burst");
@@ -902,6 +913,25 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* Raise = TEXT("Creature.BellRinger.Raise");
 		/** The bell swung as a club when it's run down: its rush through the air and a dull, choked clank. */
 		inline constexpr const TCHAR* Swipe = TEXT("Creature.BellRinger.Swipe");
+	}
+
+	// --- The Stone Sentinel (AStoneSentinelCreature; Art/Sounds/recipes/sentinel.py), all 3D; StoneSentinelCues in
+	//     Creatures/StoneSentinelRules.h names the same cues ---
+	namespace Sentinel
+	{
+		/** The statue coming to (~2.2 s): a crack through its crust, stone grinding as the head lifts and the hands part, a
+		 *  heavy settle at about 1.6 s. */
+		inline constexpr const TCHAR* Wake = TEXT("Creature.Sentinel.Wake");
+		/** A stone footfall (~0.4 s): a deep thud, gravel crunched, a short grind at the knee. */
+		inline constexpr const TCHAR* Step = TEXT("Creature.Sentinel.Step");
+		/** The slam's tell (~1.2 s, swells on purpose): the arms grinding up over the head, faster and higher. */
+		inline constexpr const TCHAR* WindUp = TEXT("Creature.Sentinel.WindUp");
+		/** Both fists into the ground (~1.2 s, carried like a gunshot): a huge thud, the ground cracking, stones raining back. */
+		inline constexpr const TCHAR* Slam = TEXT("Creature.Sentinel.Slam");
+		/** A bullet on its granite (~0.2 s, every hit): a crack, a dense dead knock, a flake ticking away. */
+		inline constexpr const TCHAR* Chip = TEXT("Creature.Sentinel.Chip");
+		/** Its death (~2.3 s, carried like a gunshot): cracks running through it, a split, the pieces falling, rubble and dust. */
+		inline constexpr const TCHAR* Crumble = TEXT("Creature.Sentinel.Crumble");
 	}
 
 	// --- The vigil stones (ABossShrine; Art/Sounds/recipes/shrines.py): a boss's stone by its arena ---

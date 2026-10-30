@@ -9,6 +9,13 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+UWeaponModelComponent::UWeaponModelComponent()
+{
+	// Ticks only while a held element gun gives off its element in first person (WeaponModelElementIdle.cpp): off otherwise.
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+}
+
 bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 {
 	Clear();
@@ -233,6 +240,7 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	FindAimPoint();
 	ChooseNotchPart(StockPart, BodyPart);
 	ShowNotches(Instance);
+	StartElementIdle(GunElement, Definition->RarityGlowSlot);
 	return !Parts.IsEmpty();
 }
 
@@ -304,6 +312,10 @@ void UWeaponModelComponent::Clear()
 	SightPart = nullptr;
 	NotchPart = nullptr;
 	ElementPart = nullptr;
+	ModelElement = ELooterElement::None;
+	IdleSpots.Reset();
+	IdleOwed = 0.f;
+	RefreshElementIdleTick();
 	AimPoint = FVector::ZeroVector;
 	ReloadPart = EWeaponReloadPart::None;
 	ModelScale = 1.f;
@@ -456,4 +468,6 @@ void UWeaponModelComponent::SetFirstPersonPrimitiveType(EFirstPersonPrimitiveTyp
 	{
 		RocketLoadMesh->SetFirstPersonPrimitiveType(Type);
 	}
+	// The held gun's idle element shows in the player's own view only.
+	RefreshElementIdleTick();
 }

@@ -73,17 +73,18 @@ bool FElementWeaknessTest::RunTest(const FString& Parameters)
 	TestIs(*this, TEXT("...the Spitter too"), BodyOf(ASpitterSpider::StaticClass()), EElementBody::Chitin);
 	TestIs(*this, TEXT("...and the Gravemother"), BodyOf(AGravemotherCreature::StaticClass()), EElementBody::Chitin);
 	TestIs(*this, TEXT("A slime is gel"), BodyOf(ASlimeCreature::StaticClass()), EElementBody::Gel);
-	TestIs(*this, TEXT("The Unpaid are the coal's own"), BodyOf(AUnpaidCreature::StaticClass()), EElementBody::Unpaid);
-	TestIs(*this, TEXT("A dead miner is the rest of the dead"), BodyOf(ADeadMinerCreature::StaticClass()), EElementBody::Undead);
-	TestIs(*this, TEXT("...the Foreman"), BodyOf(AForemanCreature::StaticClass()), EElementBody::Undead);
-	TestIs(*this, TEXT("...the Bell-Ringer"), BodyOf(ABellRingerCreature::StaticClass()), EElementBody::Undead);
-	TestIs(*this, TEXT("...Abel"), BodyOf(AAbelKeeper::StaticClass()), EElementBody::Undead);
-	TestIs(*this, TEXT("Nothing named: other"), BodyOf(nullptr), EElementBody::Other);
+	TestIs(*this, TEXT("The Unpaid are coal"), BodyOf(AUnpaidCreature::StaticClass()), EElementBody::Coal);
+	TestIs(*this, TEXT("A dead miner is bone"), BodyOf(ADeadMinerCreature::StaticClass()), EElementBody::Bone);
+	TestIs(*this, TEXT("...the Foreman"), BodyOf(AForemanCreature::StaticClass()), EElementBody::Bone);
+	TestIs(*this, TEXT("...the Bell-Ringer"), BodyOf(ABellRingerCreature::StaticClass()), EElementBody::Bone);
+	TestIs(*this, TEXT("...Abel"), BodyOf(AAbelKeeper::StaticClass()), EElementBody::Bone);
+	TestIs(*this, TEXT("Nothing named: flesh"), BodyOf(nullptr), EElementBody::Flesh);
 
 	const FElementTarget Spider{ EElementBody::Chitin, false, false };
 	const FElementTarget Slime{ EElementBody::Gel, false, false };
-	const FElementTarget Unpaid{ EElementBody::Unpaid, false, false };
-	const FElementTarget Miner{ EElementBody::Undead, false, false };
+	const FElementTarget Unpaid{ EElementBody::Coal, false, false };
+	const FElementTarget Miner{ EElementBody::Bone, false, false };
+	// A spirit on top of a spider (an Ethereal one): the salt finds it, though chitin resists the salt.
 	const FElementTarget WardedSpider{ EElementBody::Chitin, true, false };
 	// Ember.
 	TestIs(*this, TEXT("Ember: weak spiders"), Affinity(ELooterElement::Ember, Spider, false), EElementAffinity::Weak);
@@ -109,9 +110,10 @@ bool FElementWeaknessTest::RunTest(const FString& Parameters)
 	TestIs(*this, TEXT("No element: neutral"), Affinity(ELooterElement::None, Spider, false), EElementAffinity::Neutral);
 
 	const FElementTuning Tuning;
-	TestEqual(TEXT("Weak: x1.75"), AffinityScale(EElementAffinity::Weak, Tuning), 1.75f);
-	TestEqual(TEXT("Resist: x0.5"), AffinityScale(EElementAffinity::Resist, Tuning), 0.5f);
+	TestEqual(TEXT("Weak: x2 (the user's gap, 2026-10-29)"), AffinityScale(EElementAffinity::Weak, Tuning), 2.f);
+	TestEqual(TEXT("Resist: x0.33"), AffinityScale(EElementAffinity::Resist, Tuning), 0.33f);
 	TestEqual(TEXT("Neutral: x1"), AffinityScale(EElementAffinity::Neutral, Tuning), 1.f);
+	TestEqual(TEXT("Immune: no status at all"), AffinityScale(EElementAffinity::Immune, Tuning), 0.f);
 
 	TestEqual(TEXT("A spider's bestiary line"), WeaknessLine(ASpiderCreature::StaticClass()), FString(TEXT("WEAK TO CINDER AND ROT · RESISTS WARDBREAK")));
 	TestTrue(TEXT("The Unpaid's names its coal"), WeaknessLine(AUnpaidCreature::StaticClass()).Contains(TEXT("ITS COAL TO WARDBREAK")));
@@ -139,9 +141,10 @@ bool FElementChanceTest::RunTest(const FString& Parameters)
 		const float Chance = GunChance(Kind, EWeaponRarity::Uncommon, Tuning);
 		TestTrue(FString::Printf(TEXT("A %s's round: 15-35%%"), *UEnum::GetValueAsString(Kind)), Chance >= 0.15f && Chance <= 0.35f);
 	}
-	TestEqual(TEXT("Weak: x1.75"), HitChance(0.2f, EElementAffinity::Weak, Tuning), 0.35f, 0.0001f);
-	TestEqual(TEXT("Resist: x0.5"), HitChance(0.2f, EElementAffinity::Resist, Tuning), 0.1f, 0.0001f);
+	TestEqual(TEXT("Weak: x2"), HitChance(0.2f, EElementAffinity::Weak, Tuning), 0.4f, 0.0001f);
+	TestEqual(TEXT("Resist: x0.33"), HitChance(0.2f, EElementAffinity::Resist, Tuning), 0.066f, 0.0001f);
 	TestEqual(TEXT("Never past the most"), HitChance(0.8f, EElementAffinity::Weak, Tuning), Tuning.ChanceMax, 0.0001f);
+	TestEqual(TEXT("Immune: never"), HitChance(0.8f, EElementAffinity::Immune, Tuning), 0.f, 0.0001f);
 	return true;
 }
 
@@ -163,7 +166,7 @@ bool FElementBurnTest::RunTest(const FString& Parameters)
 	{
 		FElementStatus Status;
 		Status.Apply(ELooterElement::Ember, 100.f, EElementAffinity::Weak, false, Tuning);
-		TestEqual(TEXT("On a creature weak to it: x1.75"), DealtOver(Status, 3.5f, Tuning, ELooterElement::Ember), 100.f * Tuning.EmberShare * 1.75f, 0.01f);
+		TestEqual(TEXT("On a creature weak to it: x2"), DealtOver(Status, 3.5f, Tuning, ELooterElement::Ember), 100.f * Tuning.EmberShare * Tuning.Weak, 0.01f);
 	}
 	{
 		FElementStatus Status;
@@ -204,7 +207,7 @@ bool FElementSmiteTest::RunTest(const FString& Parameters)
 	if (TestEqual(TEXT("...then bursts once"), Ticks.Num(), 1))
 	{
 		TestTrue(TEXT("...a smite"), Ticks[0].bSmite && Ticks[0].Element == ELooterElement::SoulLight);
-		TestEqual(TEXT("...for its share, weak x1.75"), Ticks[0].Damage, 100.f * Tuning.SoulLightShare * 1.75f, 0.01f);
+		TestEqual(TEXT("...for its share, weak x2"), Ticks[0].Damage, 100.f * Tuning.SoulLightShare * Tuning.Weak, 0.01f);
 	}
 	TestFalse(TEXT("...and is spent"), Status.IsActive());
 
@@ -255,7 +258,7 @@ bool FElementJoltTest::RunTest(const FString& Parameters)
 	if (TestEqual(TEXT("...then bursts once"), Ticks.Num(), 1))
 	{
 		TestTrue(TEXT("...a jolt"), Ticks[0].bJolt && !Ticks[0].bSmite && Ticks[0].Element == ELooterElement::Thunder);
-		TestEqual(TEXT("...for its share, weak x1.75"), Ticks[0].Damage, 100.f * Tuning.ThunderShare * 1.75f, 0.01f);
+		TestEqual(TEXT("...for its share, weak x2"), Ticks[0].Damage, 100.f * Tuning.ThunderShare * Tuning.Weak, 0.01f);
 	}
 	TestFalse(TEXT("...and is spent"), Status.IsActive());
 	FElementStatus Many;
@@ -347,7 +350,7 @@ bool FElementInPlayTest::RunTest(const FString& Parameters)
 	TestNull(TEXT("...and adds nothing to it"), UElementStatusComponent::Find(Spider));
 	TestTrue(TEXT("A roll under it sets the burn"),
 		UElementStatusComponent::TryApply(*Spider, ELooterElement::Ember, 0.2f, 100.f, false, 0.0f, FVector::ZeroVector, nullptr, nullptr));
-	// Weak to Ember: x1.75 to the chance, so a roll of 0.3 against 0.2 comes up too.
+	// Weak to Ember: x2 to the chance, so a roll of 0.3 against 0.2 comes up too.
 	TestTrue(TEXT("A spider's weakness raises the chance"),
 		UElementStatusComponent::TryApply(*Spider, ELooterElement::Ember, 0.2f, 100.f, false, 0.3f, FVector::ZeroVector, nullptr, nullptr));
 	UElementStatusComponent* Status = UElementStatusComponent::Find(Spider);
@@ -360,7 +363,7 @@ bool FElementInPlayTest::RunTest(const FString& Parameters)
 	{
 		Status->Advance(Frame);
 	}
-	TestEqual(TEXT("The burns dealt their share, weak x1.75 (a test level takes none of it: what was sent)"),
+	TestEqual(TEXT("The burns dealt their share, weak x2 (a test level takes none of it: what was sent)"),
 		Status->GetDealt(ELooterElement::Ember), 2.f * 100.f * Tuning.EmberShare * Tuning.Weak, 0.05f);
 	TestFalse(TEXT("...and are out"), Status->IsBurning());
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Creatures/CreatureStatusPose.h"
 #include "Creatures/PlaceholderCreatureDefinition.h"
 
 /** The clay body's pose this frame, against its rest (mesh space at size 1, cm and degrees). */
@@ -41,6 +42,8 @@ struct FPlaceholderPoseInput
 	bool bDead = false;
 	float DeadTime = 0.f;
 	float CorpseTime = 6.f;
+	/** Its element statuses' pose (CreatureStatusPose::Of): flailing, locked up, hunched and coughing, stiff, cowering. */
+	FCreatureStatusPose Status;
 };
 
 /** What a ranged placeholder does about its distance inside its brain's hold (APlaceholderCreatureMoves.cpp). */
@@ -87,7 +90,9 @@ namespace PlaceholderRules
 	 * Its pose now. Idle it breathes; moving it bobs and sways; its wind-up is the tell (a melee kind squashes down and
 	 * leans back, a shot rears up, a flyer drops toward the ground), its strike stretches and lunges (a shot recoils), and
 	 * it eases back over its recovery. Dead it slumps flat and, after its corpse time, sinks. Rising in, it comes up out of
-	 * the ground.
+	 * the ground. Its element statuses lay on top (a third of them through an attack, so its tell reads): a burn rocks and
+	 * hops it about, a jolt holds it tall and trembling (the burst jerks it up), the rot slumps it and its cough heaves it
+	 * forward, salt sits it lower, a smite shrinks it back and shivers it.
 	 */
 	AI_LOOTER_SHOOTER_API FPlaceholderPose PoseAt(const FPlaceholderPoseInput& In);
 

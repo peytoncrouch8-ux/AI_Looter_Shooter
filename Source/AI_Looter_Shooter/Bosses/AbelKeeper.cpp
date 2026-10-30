@@ -91,6 +91,7 @@ namespace
 AAbelKeeper::AAbelKeeper()
 {
 	DisplayName = NSLOCTEXT("LooterAbel", "AbelDisplay", "Abel Ransom");
+	ElementBody = EElementBody::Bone;
 	StartingRank = ECreatureRank::Boss;
 	BodyScale = AbelRules::BodyScale;
 	// 40 Unpaid of his level; his rank (Boss) adds no health, so it's all here. Then the playtest's 1.6x health and harder

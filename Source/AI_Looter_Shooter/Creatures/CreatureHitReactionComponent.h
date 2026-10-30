@@ -56,6 +56,12 @@ public:
 	 */
 	bool Jolt(float BasicSeconds, const FVector& Direction);
 
+	/**
+	 * Its ward broke (UCreatureTraitComponent): always a stagger at its rank (FHitReaction::OnWardBreak, past any cooldown;
+	 * never a boss, a Soulfed or a creature held passive) and a shove along Direction. True if it staggered.
+	 */
+	bool WardBreak(const FVector& Direction);
+
 	/** Staggered right now: its brain pauses. */
 	bool IsStaggered() const;
 

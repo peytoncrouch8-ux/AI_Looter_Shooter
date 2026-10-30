@@ -90,16 +90,19 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 		TraitSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 0.f));
 
 		// A Warded creature's ward: a slim bar over the health's, back to front its dark track (faded by the UI transparency
-		// setting), the chip, the pale-cyan fill, the break's white flash and the rim; leaning as the health bar does, and
-		// collapsed (the tag as it always was) with no ward standing.
+		// setting), the chip, the fill in the ward's colour (white brushes tinted, so a new colour needs no new brush), the
+		// break's flash and the rim; leaning as the health bar does, and collapsed (the tag as it always was) with no ward.
 		UOverlay* Ward = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		FLinearColor WardTrackColor = Color::Track();
 		WardTrackColor.A = 0.65f;
 		UImage* WardTrack = MakeImage(WidgetTree, RectBrush(WardTrackColor));
 		MarkBackground(WardTrack);
 		FillOverlaySlot(Ward->AddChildToOverlay(WardTrack));
-		WardChipBox = AddFill(WidgetTree, Ward, MakeImage(WidgetTree, RectBrush(WardChipColor())), WardHeight);
-		WardFillBox = AddFill(WidgetTree, Ward, MakeImage(WidgetTree, RectBrush(WardFillColor())), WardHeight);
+		WardChipImage = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
+		WardChipBox = AddFill(WidgetTree, Ward, WardChipImage, WardHeight);
+		WardFillImage = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
+		WardFillBox = AddFill(WidgetTree, Ward, WardFillImage, WardHeight);
+		ApplyWardColor();
 		WardFlashImage = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
 		FillOverlaySlot(Ward->AddChildToOverlay(WardFlashImage));
 		FillOverlaySlot(Ward->AddChildToOverlay(MakeImage(WidgetTree, RectBrush(FLinearColor::Transparent, RimColor, 1.f))));
@@ -155,11 +158,17 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 		FrameSlot->SetHorizontalAlignment(HAlign_Center);
 		FrameSlot->SetPadding(FMargin(0.f, FMath::Max(3.f - FramePad, 0.f), 0.f, 0.f));
 
+		// Its element statuses under the bar, collapsed while it has none.
+		UVerticalBoxSlot* StatusSlot = Box->AddChildToVerticalBox(BuildStatusRow());
+		StatusSlot->SetHorizontalAlignment(HAlign_Center);
+		StatusSlot->SetPadding(FMargin(0.f, StatusRowGap, 0.f, 0.f));
+
 		Box->SetVisibility(ESlateVisibility::HitTestInvisible);
 		WidgetTree->RootWidget = Box;
 		ApplyBar();
 		ApplyTier();
 		ApplyWard();
+		ApplyStatuses(true);
 	}
 	return Super::RebuildWidget();
 }
@@ -415,6 +424,7 @@ void UCreatureHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InD
 		ApplyRankFlash();
 	}
 	AdvanceWard(InDeltaTime);
+	AdvanceStatuses(InDeltaTime);
 	if (GhostFraction <= Fraction)
 	{
 		return;

@@ -82,6 +82,7 @@ namespace
 ASlimeCreature::ASlimeCreature()
 {
 	DisplayName = FText::FromString(TEXT("Meadow Slime"));
+	ElementBody = EElementBody::Gel;
 	Health->MaxHealth = 120.f;
 	CriticalSpotBones = { CoreBone };
 

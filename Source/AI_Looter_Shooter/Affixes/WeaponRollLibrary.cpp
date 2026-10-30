@@ -165,6 +165,11 @@ FWeaponInstanceData UWeaponRollLibrary::RollWeapon(UWeaponDefinition* Definition
 
 FWeaponInstanceData UWeaponRollLibrary::RollWeaponWithRarity(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level)
 {
+	return RollWeaponLeaning(Definition, Rarity, Level, ELooterElement::None);
+}
+
+FWeaponInstanceData UWeaponRollLibrary::RollWeaponLeaning(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, ELooterElement Lean)
+{
 	FWeaponInstanceData Instance;
 	Instance.Definition = Definition;
 	Instance.Rarity = Rarity;
@@ -175,7 +180,7 @@ FWeaponInstanceData UWeaponRollLibrary::RollWeaponWithRarity(UWeaponDefinition* 
 	// The parts are picked once, here, and kept with the gun: parts added later never change it.
 	if (Definition)
 	{
-		Instance.Parts = WeaponParts::PartKeys(WeaponParts::Pick(*Definition, Instance.Seed, Instance.Rarity, {}, WeaponMakers::Of(Instance)));
+		Instance.Parts = WeaponParts::PartKeys(WeaponParts::Pick(*Definition, Instance.Seed, Instance.Rarity, {}, WeaponMakers::Of(Instance), Lean));
 	}
 	// As a weapon rebuilds them (a new gun has no notches or curse yet): its parts', then its maker's.
 	Instance.Stats = ComputeInstanceStats(Instance);

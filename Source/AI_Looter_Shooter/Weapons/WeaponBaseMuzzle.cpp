@@ -1,7 +1,9 @@
 #include "Weapons/WeaponBase.h"
 #include "Combat/BulletSubsystem.h"
 #include "Creatures/CreatureReactSubsystem.h"
+#include "Elements/ElementRules.h"
 #include "Player/PlayerViewComponent.h"
+#include "Weapons/ElementVfxTuning.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/VfxRules.h"
 #include "Weapons/VfxTuning.h"
@@ -32,6 +34,8 @@ namespace
 	constexpr int32 FlashFloats = 8;
 	constexpr int32 FlashStrengthIndex = 3;
 	constexpr float FlashLightCandelas = 24.f;
+	/** The flash light's own colour (AWeaponBase's constructor sets the same): a plain gun's. */
+	const FLinearColor MuzzleLightColor(1.f, 0.7f, 0.42f);
 	/** Each shot's flash this much stronger or weaker at random. */
 	constexpr float FlashStrengthLow = 0.85f;
 	constexpr float FlashStrengthHigh = 1.1f;
@@ -108,6 +112,20 @@ void AWeaponBase::SetupMuzzleFlash()
 	FlashGunScale = Definition->MuzzleFlashScale * (bUsingModel ? Model->GetModelScale() : 1.f);
 	FlashQuads.Reset();
 	VfxRules::MuzzleQuads(Look, FlashQuads);
+	// An element gun's flash leans to its element's colour ("Elements matter", 2026-10-29): its heart stays a gunshot's white-hot,
+	// the glow round it the element's. Read as the gun is built (Looter.Vfx.Element.MuzzleTint).
+	const ELooterElement Element = bUsingModel ? Model->GetElement() : ELooterElement::None;
+	const float Tint = Element != ELooterElement::None ? FElementVfxTuning::Live().MuzzleTint : 0.f;
+	if (Tint > 0.f)
+	{
+		const FLinearColor Hue = ElementRules::FxColor(Element);
+		for (FVfxFlashQuad& Quad : FlashQuads)
+		{
+			Quad.Color = VfxRules::MuzzleElementTint(Quad.Layer, Quad.Color, Hue, Tint);
+		}
+	}
+	// The flash's light on its surroundings (the one it always had) as its bloom: orange, or toward the element.
+	MuzzleLight->SetLightColor(VfxRules::MuzzleElementTint(EVfxFlashLayer::Bloom, MuzzleLightColor, ElementRules::FxColor(Element), Tint));
 
 	// One instance a quad, placed as seen from behind until the first shot places them for its view.
 	const FVfxMuzzleView Behind;
@@ -225,6 +243,8 @@ void AWeaponBase::PlayMuzzleFlash()
 	Muzzle.bFirstPerson = bFirstPerson;
 	Muzzle.InBurst = MuzzleShotsInBurst;
 	Muzzle.Away = Away;
+	// Its element's sparks round the flash too (FWeaponFX::SpawnElementMuzzle).
+	Muzzle.Element = bUsingModel ? Model->GetElement() : ELooterElement::None;
 	if (UCreatureReactSubsystem* Reacts = UCreatureReactSubsystem::Get(this))
 	{
 		Muzzle.DustLight = Reacts->GetDustLight();

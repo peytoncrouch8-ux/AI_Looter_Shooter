@@ -263,6 +263,9 @@ namespace WeaponParts
 	inline constexpr FCap RecoilCap{ -50.f, 40.f };
 	inline constexpr FCap HandlingCap{ -40.f, 40.f };
 
+	/** How much more a Lean's element parts weigh in Pick (the contract, 2026-10-29: a Touched creature leans its drops, it never forces them). */
+	inline constexpr float ElementLeanWeight = 3.f;
+
 	/**
 	 * A rolled gun's parts and paint. With SavedParts (one key per slot, as the gun was saved) the gun keeps those parts,
 	 * whatever has been added to the lists since; a saved part that no longer exists is picked again from the seed. Without
@@ -270,9 +273,11 @@ namespace WeaponParts
 	 * earlier slot). Every slot and paint takes one draw whatever it allows, so a slot's pick never shifts the ones after it.
 	 * With a Maker, its leanings weigh the picks (element or effect parts more likely: WeaponMakers::PartWeight; saved
 	 * parts never change) and its paints then recolour the look from a stream of their own (WeaponMakers::PaintLook).
+	 * With a Lean (the element a Touched creature leans its dropped guns to), that element's parts weigh ElementLeanWeight times
+	 * more, on top of the maker's. Only the weights move, so every draw is the same and the other slots pick as they did.
 	 */
 	AI_LOOTER_SHOOTER_API FWeaponLook Pick(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity,
-		TConstArrayView<FName> SavedParts = {}, const FWeaponMaker* Maker = nullptr);
+		TConstArrayView<FName> SavedParts = {}, const FWeaponMaker* Maker = nullptr, ELooterElement Lean = ELooterElement::None);
 
 	/** Pick for a rolled gun, with its saved parts and its maker (WeaponMakers::Of). */
 	AI_LOOTER_SHOOTER_API FWeaponLook Pick(const FWeaponInstanceData& Instance);

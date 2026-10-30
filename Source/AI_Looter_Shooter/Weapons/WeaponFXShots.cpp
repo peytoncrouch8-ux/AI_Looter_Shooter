@@ -252,4 +252,9 @@ void FWeaponFX::SpawnMuzzleBurst(const FVfxMuzzle& Muzzle)
 		}
 		SpawnShockRing(Center, Forward, 10.f * Scale, Look.Ring * Scale, 6.f * Scale, MuzzleHotColor, 5.f * Vfx.Glow, 0.16f);
 	}
+	// An element gun throws its element's own sparks round the flash too (WeaponFXElementShots.cpp).
+	if (Muzzle.Element != ELooterElement::None)
+	{
+		SpawnElementMuzzle(Muzzle);
+	}
 }

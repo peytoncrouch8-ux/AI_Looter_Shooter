@@ -1,4 +1,5 @@
 #include "UI/HUD/HudMinimapWidget.h"
+#include "Creatures/StoneSentinelCreature.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/MissionMarkIcons.h"
 #include "UI/Style/WeaponText.h"
@@ -267,7 +268,9 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	}
 	for (TActorIterator<ACreatureBase> It(World); It; ++It)
 	{
-		if (!It->IsDead())
+		// A Stone Sentinel standing as a statue isn't shown: the map mustn't give the trap away.
+		const AStoneSentinelCreature* Sentinel = Cast<AStoneSentinelCreature>(*It);
+		if (!It->IsDead() && !(Sentinel && Sentinel->IsDormant()))
 		{
 			Gather(HostileSpots, It->GetActorLocation(), Color::Health(), HostileMarkerSize);
 		}

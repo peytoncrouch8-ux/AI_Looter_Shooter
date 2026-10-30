@@ -26,6 +26,8 @@ ACreatureBase* ASetPieceSpawner::SpawnPlaced(int32 Entry)
 	const FSetPiecePlaced& Each = Placed[Entry];
 	ACreatureBase::FRuntimeSpawn Setup;
 	Setup.Rank = Each.Rank;
+	// A set piece is built by hand: never Touched.
+	Setup.bMayBeTouched = false;
 	ACreatureBase* Creature = ACreatureBase::SpawnAtRuntime(World, Each.CreatureClass, Each.Location, Each.Yaw, Setup);
 	if (!Creature)
 	{

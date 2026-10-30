@@ -115,6 +115,12 @@ namespace VfxRules
 	 */
 	AI_LOOTER_SHOOTER_API FVfxMuzzleView MuzzleView(bool bFirstPerson, float AimAlpha, const FVfxTuning& Tuning);
 
+	/**
+	 * A flash quad's colour leaning toward its gun's element (Amount 0 none .. 1 the layer's whole share; Looter.Vfx.Element.MuzzleTint):
+	 * the core stays near white-hot (a fifth), the star about half, the bloom, tongues and jets most (2026-10-29, "Elements matter").
+	 */
+	AI_LOOTER_SHOOTER_API FLinearColor MuzzleElementTint(EVfxFlashLayer Layer, const FLinearColor& Base, const FLinearColor& Element, float Amount);
+
 	/** A layer's size in a view (its FVfxMuzzleView field). */
 	AI_LOOTER_SHOOTER_API float MuzzleLayerScale(EVfxFlashLayer Layer, const FVfxMuzzleView& View);
 

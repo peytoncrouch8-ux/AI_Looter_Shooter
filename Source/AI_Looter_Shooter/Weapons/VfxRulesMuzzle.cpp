@@ -38,6 +38,12 @@ namespace
 	constexpr float MuzzleSpitSoftness = 0.3f;
 	/** The least share of a streak's length a shot shows. */
 	constexpr float MuzzleStreakShortest = 0.55f;
+	/** How far each layer of an element gun's flash leans to the element's colour (MuzzleElementTint). */
+	constexpr float MuzzleElementCore = 0.2f;
+	constexpr float MuzzleElementStar = 0.55f;
+	constexpr float MuzzleElementBloom = 0.75f;
+	constexpr float MuzzleElementTongue = 0.65f;
+	constexpr float MuzzleElementJet = 0.6f;
 }
 
 namespace VfxRules
@@ -220,6 +226,23 @@ namespace VfxRules
 		View.Size *= FMath::Lerp(1.f, Tuning.MuzzleAim, Aim);
 		View.Glow = FMath::Lerp(1.f, Tuning.MuzzleAimGlow, Aim);
 		return View;
+	}
+
+	FLinearColor MuzzleElementTint(EVfxFlashLayer Layer, const FLinearColor& Base, const FLinearColor& Element, float Amount)
+	{
+		// The flash still reads as a gunshot (its white-hot heart), its glow round it as the element: the shares by layer.
+		float Share = 0.f;
+		switch (Layer)
+		{
+		case EVfxFlashLayer::Core: Share = MuzzleElementCore; break;
+		case EVfxFlashLayer::Star: Share = MuzzleElementStar; break;
+		case EVfxFlashLayer::Bloom: Share = MuzzleElementBloom; break;
+		case EVfxFlashLayer::Tongue: Share = MuzzleElementTongue; break;
+		case EVfxFlashLayer::Jet:
+		case EVfxFlashLayer::Spit:
+		default: Share = MuzzleElementJet; break;
+		}
+		return FMath::Lerp(Base, Element, Share * FMath::Clamp(Amount, 0.f, 1.f));
 	}
 
 	float MuzzleLayerScale(EVfxFlashLayer Layer, const FVfxMuzzleView& View)

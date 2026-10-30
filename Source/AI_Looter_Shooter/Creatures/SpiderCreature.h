@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Combat/HitPose.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureStatusPose.h"
 #include "SpiderCreature.generated.h"
 
 /**
@@ -301,6 +302,16 @@ private:
 	void TickHitFeel(float DeltaSeconds);
 	/** The hit feel's body pose now; keeps the stagger shown (StaggerShown) for the legs' splay and the death's start. */
 	FHitFeelPose HitFeelPose() const;
+	/**
+	 * Its element statuses on the hit feel's body pose (SpiderCreatureStatus.cpp; looks only, its fight untouched): a burn's
+	 * buck and chattering fangs, a jolt's rigid tremor and the burst's jerk, the rot's sag and cough, the salt's stiff crouch,
+	 * a smite's cower. Alive only (StatusShown is nothing dead).
+	 */
+	void AddStatusPose(FHitFeelPose& Pose) const;
+	/** Reads its status pose for this frame (StatusShown), and holds back its clock while salted (TickHitFeel calls it). */
+	void TickStatusPose(float DeltaSeconds);
+	/** Where its statuses move a leg's foot off its aim (world): a burn's legs curl and kick, a jolt's lock out, the rot's draw in. */
+	FVector StatusFootOffset(const FLeg& Leg, const FVector& Outward) const;
 	/** Wounded and alive (SpiderCreatureLegs.cpp): its limp's roll toward its leg (degrees), its breath's share (deeper at stage 2). */
 	float LimpRoll() const;
 	float WoundBreath() const;
@@ -414,4 +425,6 @@ private:
 	float DripClock = 0.f;
 	/** How its death goes (OnDied picks it from the killing hit). */
 	EKillStyle KillStyle = EKillStyle::Body;
+	/** Its element statuses' pose this frame (CreatureStatusPose::Of, read once a frame in Tick; nothing dead). */
+	FCreatureStatusPose StatusShown;
 };

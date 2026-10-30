@@ -174,6 +174,13 @@ private:
 	void SetupArmLayer();
 	/** The directions its arms want now (component space), for what it's doing. */
 	void WantedArms(FVector& OutUpper, FVector& OutFore, FVector& OutLeftUpper, FVector& OutLeftFore, float& OutWrist) const;
+	/**
+	 * Its element statuses on what its arms want (the "Elements matter" job; LayerPose calls it after WantedArms): burning,
+	 * the bell waved high and clanging, the rope's arm flailing; jolted, both locked out and the bell rattling in its shaking
+	 * fist; rotting, both hanging low; smitten, the bell held up before its face against the light. Rate: how quickly they
+	 * ease there (salted, slower).
+	 */
+	void StatusArms(FVector& Upper, FVector& Fore, FVector& OutLeftUpper, FVector& OutLeftFore, float& Wrist, float& Rate) const;
 	/** Lays one arm's turns so its upper arm and forearm point along Upper and Fore, Weight over the Unpaid's own. */
 	void LayArm(int32 UpperBone, int32 LowerBone, int32 HandBone, const FVector& RestUpper, const FVector& RestFore, const FVector& Upper,
 		const FVector& Fore, float Wrist, float Weight);

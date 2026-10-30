@@ -12,6 +12,12 @@ namespace
 		TEXT("An element on a creature weak to it: its effect's damage and chance, times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarResist(TEXT("Looter.Element.Resist"), ElementDefaults.Resist,
 		TEXT("An element on a creature that resists it: its effect's damage and chance, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarImmuneHit(TEXT("Looter.Element.ImmuneHit"), ElementDefaults.ImmuneHit,
+		TEXT("An element gun's hit on a creature immune to its element, times (no status sets)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarWardMatch(TEXT("Looter.Element.Ward.Match"), ElementDefaults.WardMatch,
+		TEXT("A hit of a ward's own element into it, times."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarWardBreakAny(TEXT("Looter.Element.Ward.Wardbreak"), ElementDefaults.WardBreakAny,
+		TEXT("A Wardbreak hit into any other ward, times (the larger of this and Ward.Match, never both)."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarChanceRifle(TEXT("Looter.Element.Chance.Rifle"), ElementDefaults.ChanceRifle,
 		TEXT("A rifle round's chance to set its element's status."), ECVF_Default);
@@ -56,8 +62,6 @@ namespace
 		TEXT("How long a creature stays salted (s)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarGraveSaltSlow(TEXT("Looter.Element.GraveSalt.Slow"), ElementDefaults.GraveSaltSlow,
 		TEXT("A salted creature walks at this share of its speed (never a boss; 1 = no slow)."), ECVF_Default);
-	TAutoConsoleVariable<float> CVarGraveSaltWardBonus(TEXT("Looter.Element.GraveSalt.WardBonus"), ElementDefaults.GraveSaltWardBonus,
-		TEXT("A bullet hit on a salted creature's standing ward counts this many times."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarThunderShare(TEXT("Looter.Element.Thunder.Share"), ElementDefaults.ThunderShare,
 		TEXT("A jolt's burst: this share of the hit that set it."), ECVF_Default);
@@ -96,6 +100,9 @@ FElementTuning FElementTuning::Live()
 	FElementTuning Tuning;
 	Tuning.Weak = FMath::Max(CVarWeak.GetValueOnGameThread(), 0.f);
 	Tuning.Resist = FMath::Max(CVarResist.GetValueOnGameThread(), 0.f);
+	Tuning.ImmuneHit = FMath::Max(CVarImmuneHit.GetValueOnGameThread(), 0.f);
+	Tuning.WardMatch = FMath::Max(CVarWardMatch.GetValueOnGameThread(), 0.f);
+	Tuning.WardBreakAny = FMath::Max(CVarWardBreakAny.GetValueOnGameThread(), 0.f);
 	Tuning.ChanceRifle = CVarChanceRifle.GetValueOnGameThread();
 	Tuning.ChanceShotgun = CVarChanceShotgun.GetValueOnGameThread();
 	Tuning.ChanceRevolver = CVarChanceRevolver.GetValueOnGameThread();
@@ -116,7 +123,6 @@ FElementTuning FElementTuning::Live()
 	Tuning.GraveSaltShare = FMath::Max(CVarGraveSaltShare.GetValueOnGameThread(), 0.f);
 	Tuning.GraveSaltSeconds = FMath::Max(CVarGraveSaltSeconds.GetValueOnGameThread(), 0.1f);
 	Tuning.GraveSaltSlow = FMath::Clamp(CVarGraveSaltSlow.GetValueOnGameThread(), 0.05f, 1.f);
-	Tuning.GraveSaltWardBonus = FMath::Max(CVarGraveSaltWardBonus.GetValueOnGameThread(), 1.f);
 	Tuning.BossDuration = FMath::Clamp(CVarBossDuration.GetValueOnGameThread(), 0.05f, 1.f);
 	Tuning.TickSeconds = FMath::Max(CVarTickSeconds.GetValueOnGameThread(), 0.05f);
 	Tuning.ThunderShare = FMath::Max(CVarThunderShare.GetValueOnGameThread(), 0.f);

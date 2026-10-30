@@ -65,6 +65,8 @@ class AI_LOOTER_SHOOTER_API UWeaponModelComponent : public USceneComponent
 	GENERATED_BODY()
 
 public:
+	UWeaponModelComponent();
+
 	/** Builds the gun, replacing the one it showed. False (and empty) when its definition has no parts. */
 	bool Assemble(const FWeaponInstanceData& Instance);
 
@@ -212,6 +214,18 @@ public:
 	/** The part whose element the gun fires (its first part with one), wearing its finish; null without one. */
 	UStaticMeshComponent* GetElementPart() const { return ElementPart; }
 
+	/** The element of its parts (WeaponParts::ElementOf; None for a plain gun): its flash's tint and sparks, its idle look. */
+	ELooterElement GetElement() const { return ModelElement; }
+
+	/**
+	 * The held gun gives off its element while drawn first person (WeaponModelElementIdle.cpp; "Elements matter", 2026-10-29):
+	 * a few embers or smoke, sparks, drips, frost or motes a second near its glow parts (Looter.Vfx.Element.Idle). Ticks only then.
+	 */
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	/** The parts the idle pieces come off (its element part and its glowing parts, never the sight; tests). */
+	int32 NumIdleSpots() const { return IdleSpots.Num(); }
+
 	/**
 	 * The gun master's element finish in custom primitive data (after the maker's mark, 12-19): the kind (20), the tint and
 	 * its amount (21-24, RGBA), the glow's hue and strength (25-28, RGBA). Kinds as FWeaponElementFinish::Kind.
@@ -341,6 +355,11 @@ private:
 	/** The back-blast socket's place and facing, from whichever part has it (the launcher's body). */
 	void FindBackblast();
 
+	/** Notes the gun's element and the parts its idle pieces come off (WeaponModelElementIdle.cpp; Assemble's last step). */
+	void StartElementIdle(ELooterElement Element, FName RarityGlowSlot);
+	/** Ticks while it has an element, idle spots and is drawn first person (Looter.Vfx.Element.Idle above 0); else not. */
+	void RefreshElementIdleTick();
+
 	/** The slot (or the socket it hangs from) whose part is the sight. */
 	const FName SightSocket = TEXT("Sight");
 	/** On a sight: the point the eye lines up with when aiming (the dot, an optic's center, the irons' notch). */
@@ -386,6 +405,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> ElementPart;
+
+	/** Its parts' element, the parts its idle pieces come off, and the pieces owed (a fraction carried to the next frame). */
+	ELooterElement ModelElement = ELooterElement::None;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> IdleSpots;
+	float IdleOwed = 0.f;
 
 	/** The tally's row on NotchPart (start X, start Z, end X, end Z; cm), and its cuts' height and least depth. */
 	FVector4f NotchRow = FVector4f(0.f, 0.f, 0.f, 0.f);
