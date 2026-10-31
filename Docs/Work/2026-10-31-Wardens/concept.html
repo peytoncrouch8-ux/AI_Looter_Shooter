@@ -1,0 +1,159 @@
+<title>Lantern Wardens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column like a ship's log, with a soot-dark band for each part of the pitch; the game's own Slate & Salt colours and gold for what's picked. */
+:root {
+  --bg: #eef0f1;
+  --panel: #ffffff;
+  --ink: #1d2328;
+  --muted: #59646d;
+  --line: #c9d0d5;
+  --gold: #9a6a12;
+  --smog: #3a3f44;
+  --pick-bg: #f6efe0;
+  --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --body: "Spectral", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14181c; --panel: #1c2227; --ink: #e6eaed; --muted: #9aa6b0; --line: #333c44;
+    --gold: #e0b252; --smog: #0d1013; --pick-bg: #2a2418; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14181c; --panel: #1c2227; --ink: #e6eaed; --muted: #9aa6b0; --line: #333c44;
+  --gold: #e0b252; --smog: #0d1013; --pick-bg: #2a2418; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font: 17px/1.6 var(--body); }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; display: grid; gap: 34px; }
+h1, h2, h3, .label { font-family: var(--display); text-wrap: balance; }
+h1 { font-size: clamp(34px, 7vw, 52px); line-height: 1.05; letter-spacing: 0.04em; margin: 0; text-transform: uppercase; }
+h2 { font-size: 22px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 10px; }
+h3 { font-size: 17px; letter-spacing: 0.04em; margin: 0; }
+p { margin: 0; }
+.label { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+.lede { font-size: 20px; font-style: italic; color: var(--muted); }
+section { display: grid; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; display: grid; gap: 10px; }
+.picked { background: var(--pick-bg); border-left: 3px solid var(--gold); padding: 12px 16px; display: grid; gap: 4px; }
+.cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.cast .card { gap: 6px; }
+.cast .role { font-family: var(--display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+ol.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; counter-reset: s; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+ol.steps li::before { content: counter(s); font-family: var(--display); font-weight: 700; font-size: 18px; color: var(--gold); border: 2px solid var(--gold); border-radius: 50%; width: 30px; height: 30px; display: grid; place-items: center; }
+ol.steps .why { color: var(--muted); font-size: 15px; }
+ol.steps .what { font-weight: 600; }
+.quote { font-style: italic; border-left: 2px solid var(--line); padding-left: 14px; color: var(--ink); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td:first-child { font-family: var(--display); font-weight: 600; white-space: nowrap; }
+.band { background: var(--smog); color: #e8ecef; border-radius: 4px; padding: 22px 22px; display: grid; gap: 10px; }
+.band .label { color: #e0b252; }
+.band p { color: #cfd6db; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.open { display: grid; gap: 10px; }
+.open .card h3 { color: var(--gold); }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:12px">
+    <span class="label">Story concept for your approval · 2026-10-31</span>
+    <h1>Lantern Wardens</h1>
+    <p class="lede">Cornelius Vane burns the dead to drive his trains. The Wardens fly in to take them back, starting with the keeper of Ransom's Rest.</p>
+  </header>
+
+  <section>
+    <div class="picked">
+      <span class="label">Your picks</span>
+      <p>Nobody dies or wakes up anywhere. You're a living Lantern Warden arriving by airship. The villain and final boss is Cornelius Vane. Abel's soul goes back to his saint. The Dunne Gang work for Vane, and Sexton becomes the neutral Ferryman. The corruption is soul smog from Vane's dredge barge. Every mission turns in through a card, then the talk.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>The premise</h2>
+    <p>In the Reaches, every town has a saint whose light guides its dead west to rest. Cornelius Vane, chairman of Vane Consolidated Rail &amp; Air, found out that a soul burns hotter than coal. His dredge barges hang over towns and suck the dead out of the ground, and his refineries press them into <strong>soul coal</strong> that runs every engine in the Reaches. What's left falls as <strong>soul smog</strong>: black runoff that sours the land, swells the spiders and stirs half-torn souls into the restless dead.</p>
+    <p>The <strong>Lantern Wardens</strong> are a living order who fly to any town whose dead are in danger. Their ship carries the <strong>Great Lantern</strong>, whose flame leans toward stolen souls. You're its newest sworn Warden (any of the five heroes).</p>
+    <p>Ransom's Rest went under the smog a week ago. Vane's barge hangs over the Sink, the Dunne Gang guard it, and the town's keeper, Abel Ransom, was taken. A keeper's soul burns longest, so Abel is the barge's pilot light. Free him, return him to Saint Ada, and the Rest comes back to life.</p>
+  </section>
+
+  <section class="band">
+    <span class="label">The villain</span>
+    <h2 style="margin:0">Cornelius Vane</h2>
+    <p>Smug, funny and never in the room. His voice crackles over every radio tower, ship's horn and company loudspeaker, so he taunts you from minute one, the way a Borderlands villain does. He sees nothing wrong: the dead aren't using their souls, and his trains run on time. His company fleet hunts your one ship across the regions.</p>
+    <p class="quote">"Wardens! Welcome to Ransom's Rest, a wholly owned subsidiary as of Tuesday. Mind the smog. That's somebody's grandmother."</p>
+    <p><strong>Final boss:</strong> atop his flagship refinery airship, Vane in an iron suit fired by the souls he burned. You free them furnace by furnace, and the suit goes cold phase by phase.</p>
+  </section>
+
+  <section>
+    <h2>The crew of the Vigil</h2>
+    <p>The Wardens' airship, the <em>Vigil</em>, is your home base between regions: crew vendors, the bench, the mission board and the Great Lantern on its prow. All names are placeholders for you to change.</p>
+    <div class="cast">
+      <div class="card"><span class="role">Warden-Captain</span><h3>Mercy Holloway</h3><p>Steady, scarred, gives the orders. Lost her own town to Vane's first barge.</p></div>
+      <div class="card"><span class="role">Lantern-keeper</span><h3>Brother Tobiah Finch</h3><p>Tends the Great Lantern and reads its lean, which tells you where the next stolen soul is.</p></div>
+      <div class="card"><span class="role">Engineer</span><h3>Junie Calloway</h3><p>Ex-Vane rail mechanic. Knows his machines and how to break them. Runs the bench.</p></div>
+      <div class="card"><span class="role">Lookout</span><h3>Hob the crow</h3><p>Kept from the old story, still dry and rude. "Morning, sunshine."</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Who else is in it</h2>
+    <ul class="plain">
+      <li><strong>The Dunne Gang</strong> are Vane's hired soul-thieves, led by the Deacon. One runs each region's barge and is its boss. Lucky Ned runs the Rest's.</li>
+      <li><strong>Mister Sexton, the Ferryman</strong>, used to row the dead across the fog. Vane is stealing his passengers, so he hates Vane, but he trades for money, never for free. He sells you secrets.</li>
+      <li><strong>On the Rest:</strong> Delia Ransom, Abel's mother, Tilly Bright the undertaker, Father Aldana and the townsfolk all stay as the living people you help. The Unpaid stay as half-dredged souls that wander hungry, and the spiders, the Gravemother, Cyrus Teague's dead miners and the Stone Sentinel all stay.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>The new first mission: Landfall</h2>
+    <p>About 12 minutes, at golden hour going to dusk. Every step has a reason the player feels right then.</p>
+    <div class="card">
+      <ol class="steps">
+        <li><div><p class="what">The Vigil comes in over Gravewind Canyon, under the smog.</p><p class="why">Vane's voice cuts into the ship's horn. Smog-bloated crows pour out of the plume and tear at the gas-bag. Fight them off the deck, or the Vigil goes down: this is the shooting lesson.</p></div></li>
+        <li><div><p class="what">Hard landing on the Mooring Ledge.</p><p class="why">The bag is torn and Captain Holloway puts her down under Ransom's Point. A shaking, scripted landing.</p></div></li>
+        <li><div><p class="what">Tie the Vigil down: hold Interact on the two mooring posts.</p><p class="why">Without the lines she drifts into the canyon. The restless dead climb up from below while you tie, so you switch between holding a post and shooting.</p></div></li>
+        <li><div><p class="what">Climb the cliff stairs to Ransom's Point.</p><p class="why">The Great Lantern needs height to read. From the lookout you see the whole Rest under smog, and Vane's dredge barge hanging over the Sink with its black hose in the ground. The lantern leans toward the farm: Abel's trail.</p></div></li>
+        <li><div><p class="what">Follow the lantern's lean down to the Ransom farm.</p><p class="why">Abel's last steps glow in the grass where the gang dragged his soul out. Optional: find his dropped lantern by the path, which unlocks Delia's best line.</p></div></li>
+        <li><div><p class="what">Delia is holding her porch with a shotgun. Fight beside her.</p><p class="why">The smog has raised the family plot's dead and they're at her steps. She's the keeper's mother, and only she saw what the gang did.</p></div></li>
+        <li><div><p class="what">Talk to Delia: the turn-in card, then her lines.</p><p class="why">The card shows what you did and your rewards. Then she tells it: "They came Wednesday with a hose. A hose. He held the chapel door till they took the soul right out of him." That leads into Main 2.</p></div></li>
+      </ol>
+    </div>
+    <p><strong>New in the world:</strong> the Vigil moored on the Mooring Ledge (a new airship model); Vane's dredge barge over the Sink with its hose and smog plume; smog over the valley that clears as you win; two mooring posts; Delia's barricaded porch; Abel's glowing trail. The old cold open, the grave wake-up and the Revenant lines go.</p>
+  </section>
+
+  <section>
+    <h2>The turn-in card</h2>
+    <p>For every mission whose last step is talking to someone or using a board. It's the offer card's look: the mission's name, what you did, the rewards (XP, silver, items, a gun's card), and a <strong>Turn In</strong> button that stamps it with a sound and a burst. After that, the person says their lines. Missions without a talk at the end keep the banner they have now.</p>
+  </section>
+
+  <section>
+    <h2>Ransom's Rest, remapped</h2>
+    <p>The map, people, enemies and bosses stay. The reasons change.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Mission</th><th>Now</th><th>In the new story</th></tr></thead>
+        <tbody>
+          <tr><td>Main 1</td><td>Wake in the grave, walk to Delia</td><td>Landfall: storm the smog, moor the Vigil, follow Abel's trail, defend Delia</td></tr>
+          <tr><td>Main 2</td><td>Sexton's deal on the lookout</td><td>Sexton the Ferryman waits on the Point. He sells you the barge's weak spot for a price.</td></tr>
+          <tr><td>Main 3</td><td>Into town, Tilly</td><td>Town under smog. Tilly kept what the gang dropped: Abel's lantern bail.</td></tr>
+          <tr><td>Main 4</td><td>Ring the chapel bell</td><td>The chapel where Abel held the door. Saint Ada's Reliquary is dim but alive.</td></tr>
+          <tr><td>Main 5</td><td>Lantern in the Sink</td><td>Down in the Sink under the barge's hose; the Gravemother feeds on the smog.</td></tr>
+          <tr><td>Mine</td><td>Dead Lift, Back Pay</td><td>Vane's men forced the dead miners to dig. Teague stays the boss.</td></tr>
+          <tr><td>Main 6</td><td>Fight Abel at the boards</td><td>Board the dredge barge, beat Lucky Ned, pull Abel's soul from the furnace.</td></tr>
+          <tr><td>Main 7</td><td>The train out</td><td>Return Abel to Saint Ada. The light comes back, the smog lifts, and the Lantern leans to the next region.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="open">
+    <h2>To decide</h2>
+    <div class="card"><h3>Is Ellis Ransom Abel's child?</h3><p>My suggestion: Ellis left the farm years ago to join the Wardens and comes home on the Vigil to save Pa. That makes the Rest personal when you play Ellis, while the other heroes come as fellow Wardens.</p></div>
+    <div class="card"><h3>Names</h3><p>The Vigil, the crew, Vane Consolidated: all placeholders.</p></div>
+    <div class="card"><h3>Build order</h3><p>First the turn-in card and the new Main 1 with its world pieces. Then the other Ransom's Rest missions get their new reasons, one at a time, and the story docs get rewritten.</p></div>
+  </section>
+</div>
