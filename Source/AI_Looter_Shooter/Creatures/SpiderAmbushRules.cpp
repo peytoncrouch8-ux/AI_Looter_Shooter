@@ -221,3 +221,113 @@ namespace SpiderAmbushRules
 		return BodyOver <= Tuning.ClimbHopHeight * FMath::Max(Scale, 0.1f);
 	}
 }
+
+// ---------------------------------------------------------------------------
+// The den entrance (EAmbushEntrance::Den; ASpiderCreature::BeginDenEmerge, SpiderCreatureDen.cpp)
+// ---------------------------------------------------------------------------
+
+namespace
+{
+	const FSpiderDenTuning DenDefaults;
+
+	TAutoConsoleVariable<int32> CVarDen(TEXT("Looter.Spider.Den"), DenDefaults.Enabled,
+		TEXT("1: a den ambush's spiders crawl out of their dens in the walls; 0: they appear on their floor spots."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarDenStagger(TEXT("Looter.Spider.Den.Stagger"), DenDefaults.Stagger,
+		TEXT("Spider i of a den ambush's spawn starts out i x this (s) after the first, plus up to a quarter second."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarDenInside(TEXT("Looter.Spider.Den.Inside"), DenDefaults.Inside,
+		TEXT("A den spider waits this far inside its den's throat (cm behind the mouth, at size 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarDenCrawl(TEXT("Looter.Spider.Den.CrawlSeconds"), DenDefaults.CrawlSeconds,
+		TEXT("A den spider's crawl out of the mouth (s at size 1): its legs reach and grip the lip, then it squeezes out."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarDenTurn(TEXT("Looter.Spider.Den.TurnSeconds"), DenDefaults.TurnSeconds,
+		TEXT("A den spider's tip over the lip onto the face under it, head down (s at size 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarDenClimb(TEXT("Looter.Spider.Den.ClimbSpeed"), DenDefaults.ClimbSpeed,
+		TEXT("A den spider climbs down the face under its den at this (cm/s at size 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarDenHop(TEXT("Looter.Spider.Den.HopHeight"), DenDefaults.HopHeight,
+		TEXT("A den spider drops off the face once its body is this low over the floor (cm at size 1)."), ECVF_Default);
+
+	/** The crawl: the share of the body's way it makes while its legs reach out (the rest comes in heaves). */
+	constexpr float CrawlReachShare = 0.12f;
+	/** Its heaves: how many, and how much each pulls ahead of an even pull (kept small enough that it never slides back). */
+	constexpr float CrawlHeaves = 3.f;
+	constexpr float CrawlHeaveSize = 0.035f;
+	/** Its thorax stops this far over its hop height under the mouth (cm), so it climbs a little before it drops. */
+	constexpr float TurnAboveHop = 10.f;
+}
+
+FSpiderDenTuning FSpiderDenTuning::Live()
+{
+	FSpiderDenTuning Tuning;
+	Tuning.Enabled = CVarDen.GetValueOnGameThread();
+	Tuning.Stagger = FMath::Max(CVarDenStagger.GetValueOnGameThread(), 0.f);
+	Tuning.Inside = FMath::Max(CVarDenInside.GetValueOnGameThread(), 0.f);
+	Tuning.CrawlSeconds = FMath::Max(CVarDenCrawl.GetValueOnGameThread(), 0.1f);
+	Tuning.TurnSeconds = FMath::Max(CVarDenTurn.GetValueOnGameThread(), 0.1f);
+	Tuning.ClimbSpeed = FMath::Max(CVarDenClimb.GetValueOnGameThread(), 10.f);
+	Tuning.HopHeight = FMath::Max(CVarDenHop.GetValueOnGameThread(), 0.f);
+	return Tuning;
+}
+
+namespace SpiderAmbushRules
+{
+	FSpiderLurkTuning ClimbTuning(const FSpiderLurkState& Lurk)
+	{
+		FSpiderLurkTuning Tuning = FSpiderLurkTuning::Live();
+		if (Lurk.ClimbSpeed > 0.f)
+		{
+			Tuning.ClimbSpeed = Lurk.ClimbSpeed;
+		}
+		if (Lurk.HopHeight > 0.f)
+		{
+			Tuning.ClimbHopHeight = Lurk.HopHeight;
+		}
+		return Tuning;
+	}
+
+	float DenDelay(int32 Index, float Dice01, const FSpiderDenTuning& Tuning)
+	{
+		return FMath::Max(Index, 0) * Tuning.Stagger + FMath::Clamp(Dice01, 0.f, 1.f) * Tuning.Jitter;
+	}
+
+	float DenDelay(int32 Index, float Dice01)
+	{
+		return DenDelay(Index, Dice01, FSpiderDenTuning::Live());
+	}
+
+	int32 DenFor(int32 Index, int32 DenCount)
+	{
+		return DenCount > 0 ? FMath::Max(Index, 0) % DenCount : INDEX_NONE;
+	}
+
+	bool KnockedOffDen(bool bBigHit, float BurstShare, const FSpiderDenTuning& Tuning)
+	{
+		return bBigHit || BurstShare >= Tuning.KnockShare;
+	}
+
+	float DenCrawlOut(float Alpha)
+	{
+		const float Time = FMath::Clamp(Alpha, 0.f, 1.f);
+		// Its legs go first: the body hardly moves while they reach out of the mouth and grope round the lip.
+		const float Reach = CrawlReachShare * FMath::SmoothStep(0.f, 0.35f, Time);
+		// Then it pulls itself out, a heave at a time: an even pull with a small surge on each (its slope never goes below 0).
+		const float Pull = FMath::SmoothStep(0.3f, 1.f, Time);
+		const float Heaves = Pull + CrawlHeaveSize * FMath::Sin(2.f * UE_PI * CrawlHeaves * Pull);
+		return FMath::Clamp(Reach + (1.f - CrawlReachShare) * Heaves, 0.f, 1.f);
+	}
+
+	float DenTurnBelow(float MouthOver, float Scale, const FSpiderDenTuning& Tuning)
+	{
+		const float Size = FMath::Max(Scale, 0.1f);
+		const float Wanted = MouthOver - (Tuning.HopHeight + TurnAboveHop) * Size;
+		return FMath::Clamp(Wanted, FSpiderDenTuning::TurnBelowLeast, FSpiderDenTuning::TurnBelowMost);
+	}
+
+	float DenCrawlSeconds(float Scale, const FSpiderDenTuning& Tuning)
+	{
+		return Tuning.CrawlSeconds * FMath::Sqrt(FMath::Max(Scale, 0.1f));
+	}
+
+	float DenTurnSeconds(float Scale, const FSpiderDenTuning& Tuning)
+	{
+		return Tuning.TurnSeconds * FMath::Sqrt(FMath::Max(Scale, 0.1f));
+	}
+}

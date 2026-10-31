@@ -432,6 +432,12 @@ namespace LooterSoundCue
 	/** An ambush's entrances (AAmbushSpawner): the Unpaid rising from their graves, a spider dropping on its silk. */
 	inline constexpr const TCHAR* UnpaidRise = TEXT("Creature.Unpaid.Rise");
 	inline constexpr const TCHAR* SpiderDrop = TEXT("Creature.Spider.Drop");
+	/**
+	 * A spider crawling out of its den in a wall (Entrance Den; SpiderCreatureDen.cpp), played at the mouth as it starts out:
+	 * claws scrabbling on rock inside a hollow, grit and pebbles trickling out, a low hiss at the end (3D, a few takes;
+	 * Art/Sounds/recipes/spider_den.py, group spider_den).
+	 */
+	inline constexpr const TCHAR* SpiderDen = TEXT("Creature.Spider.Den");
 
 	/**
 	 * The Unpaid's varied moves and its failed-lunge shriek (2026-10-29; Art/Sounds/recipes/unpaid_shriek.py; played by

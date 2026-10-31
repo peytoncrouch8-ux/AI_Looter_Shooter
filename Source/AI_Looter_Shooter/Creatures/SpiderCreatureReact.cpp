@@ -94,6 +94,11 @@ void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 			{
 				NoteHurtForHunt(Taken);
 			}
+			else if (Lurk.bFromDen)
+			{
+				// Coming out of a den: a hard hit knocks it off its wall (SpiderCreatureDen.cpp).
+				NoteDenHit(Taken);
+			}
 		}
 	}
 	// Flinch away from the hit, sized by it (Gunfeel: a revolver round rocks it, a rifle round jerks it, a close blast
@@ -152,7 +157,12 @@ void ASpiderCreature::OnDied()
 	KillStyle = PickKillStyle(GetLastHit());
 	// Killed on its wall or in the air: its body comes down to the ground under it first, its death playing from where it
 	// hung (SpiderCreatureLurk.cpp). Its cunning's moves stop.
-	if (Lurk.Phase != ESpiderLurkPhase::None)
+	if (IsInDen())
+	{
+		// In its den's mouth: brought out of the wall first (SpiderCreatureDen.cpp).
+		FallFromDen();
+	}
+	else if (Lurk.Phase != ESpiderLurkPhase::None)
 	{
 		FallFromPerch();
 	}
@@ -196,6 +206,7 @@ void ASpiderCreature::OnRespawned()
 {
 	ResetHitFeel();
 	Lurk = FSpiderLurkState();
+	Den = FSpiderDenState();
 	Hunt = FSpiderHuntState();
 	Gait.bRead = false;
 	Gait.bWasAirborne = false;
@@ -218,6 +229,12 @@ void ASpiderCreature::OnPoseThawed()
 		return;
 	}
 	Gait.bRead = false;
+	// Coming out of its den: posed where its beats have it now (SpiderCreatureDen.cpp).
+	if (IsInDen())
+	{
+		AnimateDen(0.f);
+		return;
+	}
 	// On its perch: its feet put back on its surface (SpiderCreatureCling.cpp).
 	if (IsClinging())
 	{
@@ -257,7 +274,11 @@ void ASpiderCreature::OnPoseThawed()
 void ASpiderCreature::OnSizeChanged()
 {
 	// Promoted (or resized) in play: its feet go down where the new size puts them, and the body settles over them at once.
-	if (bRigReady && IsClinging())
+	if (bRigReady && IsInDen())
+	{
+		AnimateDen(0.f);
+	}
+	else if (bRigReady && IsClinging())
 	{
 		PlantOnSurface();
 		AnimateCling(0.f);

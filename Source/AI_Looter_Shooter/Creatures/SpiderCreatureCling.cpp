@@ -82,7 +82,7 @@ void ASpiderCreature::PlantOnSurface()
 void ASpiderCreature::AnimateCling(float DeltaSeconds)
 {
 	ComponentToWorld = GetMesh()->GetComponentTransform();
-	const FSpiderLurkTuning Tuning = FSpiderLurkTuning::Live();
+	const FSpiderLurkTuning Tuning = SpiderAmbushRules::ClimbTuning(Lurk);
 	const float Scale = GetSizeScale();
 	const FVector Normal = Lurk.Normal;
 	const bool bCoiling = Lurk.Phase == ESpiderLurkPhase::Coiling;

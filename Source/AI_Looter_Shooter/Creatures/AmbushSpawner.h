@@ -29,6 +29,13 @@ enum class EAmbushEntrance : uint8
 	 * them (AUnpaidCreature::RiseAmbush, round them; 2026-10-31). Other kinds come up their own way, where they stand.
 	 */
 	RiseAround,
+	/**
+	 * Spiders crawling out of dens in the walls (the Sink's floor; the user's ask, 2026-10-31): each waits unseen in a den's
+	 * throat (Dens, in turn), then, staggered (SpiderAmbushRules::DenDelay), its legs reach out and grip the lip, it squeezes
+	 * out, tips head down onto the face, climbs down, drops the last meter and hunts (ASpiderCreature::BeginDenEmerge). One
+	 * that can't (no wall at its den), or a creature that isn't a spider, appears where it was spawned (its floor spot).
+	 */
+	Den,
 };
 
 /**
@@ -41,6 +48,7 @@ enum class EAmbushEntrance : uint8
  *
  * Built by Tools/Unreal/build_area_camps.py from layout.json's gameplay.encounters.ambushes.
  * A lurk (Entrance Lurk: spiders waiting on walls, ledges and trees) by Tools/Unreal/build_area_lurks.py from gameplay.encounters.lurks.
+ * A den ambush (Entrance Den: the Sink floor's spiders crawling out of burrows in the pit walls) by Tools/Unreal/build_area_sink.py.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AAmbushSpawner : public AEncounterSpawner
@@ -85,6 +93,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Ambush")
 	TArray<FSpiderPerchSpot> Perches;
 
+	/**
+	 * Den: its dens' mouths (Kind Wall): Spot the middle of the mouth's opening on the wall plane (world), FaceYaw the way the
+	 * mouth faces out of the wall (degrees, 0 = +X). Spider i of a spawn comes out of den i mod their number. Its SpawnPoints
+	 * stay floor spots (one at the wall's foot under each den), where a spider that can't come out appears instead.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Ambush")
+	TArray<FSpiderPerchSpot> Dens;
+
 	/** A lurker sprang at Prey: its mates still waiting who can reach them spring too, each a moment after (SpiderAmbushRules::MateDelay). */
 	void NoteLurkerSprang(const ASpiderCreature& Spider, APawn* Prey);
 
@@ -102,6 +118,12 @@ private:
 	void Drop(ACreatureBase& Creature) const;
 	/** Sets a spider on its perch (Lurk), the nearest free one; anything else appears, and with the lurk off it drops and comes. */
 	void SetOnPerch(ACreatureBase& Creature);
+	/** Sends a spider into its den to crawl out (Den), its turn in the spawn by DenTurn; anything else appears. */
+	void SendIntoDen(ACreatureBase& Creature);
+
+	/** Den: the spider's turn in the spawn coming out now (spawns this close together are one: a wave's all come at once), and when the last came. */
+	int32 DenTurn = 0;
+	double LastDenSpawn = -1000.0;
 
 	/** Who holds each perch (by index into Perches); a dead or gone one's is free. */
 	TArray<TWeakObjectPtr<ACreatureBase>> PerchHolders;

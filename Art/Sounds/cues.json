@@ -9646,5 +9646,20 @@
     "loop": false,
     "space": "2D",
     "max_concurrent": 1
+  },
+  "Creature.Spider.Den": {
+    "files": [
+      "Creature_Spider_Den_01.wav",
+      "Creature_Spider_Den_02.wav",
+      "Creature_Spider_Den_03.wav",
+      "Creature_Spider_Den_04.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
   }
 }

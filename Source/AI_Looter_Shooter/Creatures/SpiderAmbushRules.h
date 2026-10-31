@@ -112,6 +112,12 @@ enum class ESpiderLurkPhase : uint8
 	Climbing,
 	/** Down from a leap, gathering itself. */
 	Landing,
+	/** Out of a den (Entrance Den; SpiderCreatureDen.cpp): waiting unseen in its den's throat for its turn. */
+	DenHidden,
+	/** Crawling out of its den's mouth: its legs reaching out and gripping the lip, its body squeezing out after them. */
+	DenCrawl,
+	/** Tipping over the lip onto the wall face under the mouth, head down; then it climbs down (Climbing) and drops. */
+	DenTurn,
 };
 
 /** What a lurker knows of the player at one look (SpiderCreatureLurk.cpp). Distances in cm. */
@@ -174,6 +180,70 @@ struct FSpiderLurkState
 	float ClimbOver = 1000.f;
 	float ClimbLookIn = 0.f;
 	float ClimbCueIn = 0.f;
+	/**
+	 * Come out of a den (SpiderCreatureDen.cpp): its climb down goes at ClimbSpeed and hops off at HopHeight (cm at size 1;
+	 * 0: the lurk's own), and once it's down it hunts (FinishDenEmerge).
+	 */
+	bool bFromDen = false;
+	float ClimbSpeed = 0.f;
+	float HopHeight = 0.f;
+};
+
+/** The den entrance's numbers (cvars Looter.Spider.Den.*; Live() reads them, a default-made one has the defaults). */
+struct AI_LOOTER_SHOOTER_API FSpiderDenTuning
+{
+	/** Looter.Spider.Den: 1 a den ambush's spiders crawl out of their dens; 0 they appear on their floor spots. */
+	int32 Enabled = 1;
+	/** Spider i of a spawn waits i x Stagger (s) plus up to Jitter, so six come out over about 2.5 s, each seen. */
+	float Stagger = 0.45f;
+	float Jitter = 0.25f;
+	/** It waits this far inside its den's throat (cm behind the mouth, at size 1), its thorax there. */
+	float Inside = 110.f;
+	/** Its crawl out of the mouth and its tip over the lip onto the face (s at size 1; longer for a bigger one). */
+	float CrawlSeconds = 1.1f;
+	float TurnSeconds = 0.55f;
+	/** Down the face at this (cm/s at size 1), dropping the rest once its body is this low over the floor (cm). */
+	float ClimbSpeed = 150.f;
+	float HopHeight = 100.f;
+	/** A hit of this share of its health in one burst (or any Big hit) knocks it off the wall. */
+	float KnockShare = 0.2f;
+
+	/** The burrow's mouth (SM_SpiderBurrow_A/B; the contract's): half its width and height, and its lip standing proud (cm). */
+	static constexpr float MouthHalfWidth = 85.f;
+	static constexpr float MouthHalfHeight = 47.f;
+	static constexpr float LipProud = 18.f;
+	/** Its thorax ends the tip this far under the mouth's middle (cm), within these, less for a low mouth. */
+	static constexpr float TurnBelowMost = 120.f;
+	static constexpr float TurnBelowLeast = 45.f;
+
+	static FSpiderDenTuning Live();
+};
+
+/**
+ * One spider's way out of its den (ASpiderCreature::BeginDenEmerge; SpiderCreatureDen.cpp moves it on). World cm. The den's
+ * frame: Mouth the middle of its opening on the wall plane, Out out of the wall (flat), straight up.
+ */
+struct FSpiderDenState
+{
+	FVector Mouth = FVector::ZeroVector;
+	FVector Out = FVector::ForwardVector;
+	/** The face under the mouth it tips onto: the point its thorax hangs over (on the face), the face's normal; bFace: found. */
+	FVector ClingPoint = FVector::ZeroVector;
+	FVector Normal = FVector::ForwardVector;
+	bool bFace = false;
+	/** The floor at the wall's foot under the mouth. */
+	FVector Floor = FVector::ZeroVector;
+	/** Its wait before it starts out (s). */
+	float Delay = 0.f;
+	/** Each leg's foot on the face at the end of the tip (world; the cling's own spots, so the climb takes over in step). */
+	static constexpr int32 MostLegs = 8;
+	FVector FaceSpots[MostLegs];
+	/** Grit thrown so far (one burst at each beat). */
+	int32 GritBeats = 0;
+	/** What it put on itself to wait unseen, given back as it comes out (passive until it's down: no target, no cry). */
+	bool bMadeInvulnerable = false;
+	bool bMadePassive = false;
+	uint8 CapsuleCollision = 0;
 };
 
 namespace SpiderAmbushRules
@@ -216,4 +286,26 @@ namespace SpiderAmbushRules
 	AI_LOOTER_SHOOTER_API float MateDelay(float Dice01, const FSpiderLurkTuning& Tuning);
 	/** Climbing down: low enough over the ground (BodyOver, cm) to hop off. */
 	AI_LOOTER_SHOOTER_API bool ClimbDone(float BodyOver, float Scale, const FSpiderLurkTuning& Tuning);
+	/** The live lurk numbers with this lurker's own climb (a den spider's slower climb and lower hop). */
+	AI_LOOTER_SHOOTER_API FSpiderLurkTuning ClimbTuning(const FSpiderLurkState& Lurk);
+
+	// --- The den entrance (EAmbushEntrance::Den; the user's ask, 2026-10-31: the Sink's spiders crawl out of dens in the walls) ---
+
+	/** Spider Index of a spawn: its wait before it starts out (s), for a dice roll Dice01 (the live tuning without one). */
+	AI_LOOTER_SHOOTER_API float DenDelay(int32 Index, float Dice01, const FSpiderDenTuning& Tuning);
+	AI_LOOTER_SHOOTER_API float DenDelay(int32 Index, float Dice01);
+	/** Which den spider Index of a spawn comes out of (round the dens in turn); INDEX_NONE with none. */
+	AI_LOOTER_SHOOTER_API int32 DenFor(int32 Index, int32 DenCount);
+	/** Whether a hit knocks it off its wall as it comes out: a Big hit, or a burst of KnockShare of its health. */
+	AI_LOOTER_SHOOTER_API bool KnockedOffDen(bool bBigHit, float BurstShare, const FSpiderDenTuning& Tuning);
+	/**
+	 * How far its body is along its crawl (0 deep in the throat .. 1 out over the lip) at Alpha (0..1) of it: barely moving
+	 * while its legs reach out and grope, then pulled out in heaves. Never goes back.
+	 */
+	AI_LOOTER_SHOOTER_API float DenCrawlOut(float Alpha);
+	/** How far under the mouth's middle its thorax ends the tip (cm), for a mouth MouthOver above the floor, at its size. */
+	AI_LOOTER_SHOOTER_API float DenTurnBelow(float MouthOver, float Scale, const FSpiderDenTuning& Tuning);
+	/** Its crawl's and tip's lengths (s) at its size: a bigger spider's slower, by the square root of its size. */
+	AI_LOOTER_SHOOTER_API float DenCrawlSeconds(float Scale, const FSpiderDenTuning& Tuning);
+	AI_LOOTER_SHOOTER_API float DenTurnSeconds(float Scale, const FSpiderDenTuning& Tuning);
 }

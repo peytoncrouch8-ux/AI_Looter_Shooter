@@ -104,6 +104,17 @@ public:
 	/** Waiting on its perch, crouched before a leap, or scrambling down: posed on its surface, not walking. */
 	bool IsClinging() const;
 
+	/**
+	 * Out of a den in a wall (AAmbushSpawner, Entrance Den, Owner; SpiderCreatureDen.cpp): it waits unseen in the den's throat
+	 * (no collision, not hurt, its brain held, passive) for Delay (s), then crawls out of the mouth (its front legs reaching
+	 * out and gripping the lip first), tips head down onto the face under it, climbs down, drops the last meter, lands and
+	 * hunts the player. False when there's no wall at the den (or no floor under it): it's left where it was spawned.
+	 */
+	bool BeginDenEmerge(const FSpiderPerchSpot& DenSpot, float Delay, AAmbushSpawner* Owner);
+	/** Waiting in its den, crawling out of it or tipping over its lip (its climb down is the lurk's Climbing). */
+	bool IsInDen() const;
+	const FSpiderDenState& GetDen() const { return Den; }
+
 	// --- Its cunning in a fight (SpiderCreatureHunt.cpp; SpiderHuntRules) ---
 
 	/** Its cunning now: circling, skittering back (for the tests and tools). */
@@ -530,6 +541,35 @@ private:
 	/** The surface under a point (along its normal), or the point itself. */
 	FVector SurfaceUnder(const FVector& Point) const;
 	FSpiderLurkState Lurk;
+
+	// --- Out of a den (SpiderCreatureDen.cpp) ---
+	/** Its den's beats move on (from TickLurk): the wait, the crawl, the tip; then the lurk's climb takes it down. */
+	void TickDen(float DeltaSeconds);
+	void StartDenCrawl();
+	void StartDenTurn();
+	void EndDenTurn();
+	/** Its pose coming out: the body along the throat and over the lip, its legs groping, gripping, stepping onto the face. */
+	void AnimateDen(float DeltaSeconds);
+	/**
+	 * Where a leg's foot wants to be now (world; Alpha along the beat, Body the body's frame without a hit's jolt): in the
+	 * throat, on the lip round the mouth, or on the face under it. bOutGrip: a grip it goes to at once (not one it follows).
+	 */
+	FVector DenFootTarget(const FLeg& Leg, int32 Index, float Alpha, const FTransform& Body, bool& bOutGrip) const;
+	/** Its body's frame now along its beats (no hit's jolt), worked out from the clock. */
+	FTransform DenBodyNow() const;
+	/** Each foot's spot on the face under the mouth for the tip's end: the cling's own (found once, as it tips). */
+	void PlanDenFaceSpots();
+	/** Grit and dust spilling from the mouth's lip (Strength 0 to 1). */
+	void SpillDenGrit(float Strength);
+	/** A hit on it as it comes out: a hard one knocks it off the wall (it drops and hunts). */
+	void NoteDenHit(const FCreatureHit& Hit);
+	/** Killed in its den's mouth: its body brought out of the wall, and down as off any wall (FallFromPerch). */
+	void FallFromDen();
+	/** Its hiding given back (seen, collision, hurt); with bHunt, its hold off too (passive). */
+	void ComeOutOfDen(bool bHunt);
+	/** Down on the floor (EndLurk): it hunts the player. */
+	void FinishDenEmerge();
+	FSpiderDenState Den;
 
 	// --- Its cunning in a fight (SpiderCreatureHunt.cpp) ---
 	/** It circles, backs off and skips back (a plain brown spider in a fight; not the Spitter, a boss or a spiderling). */

@@ -279,6 +279,12 @@ void ASpiderCreature::TickLurk(float DeltaSeconds)
 			EndLurk();
 		}
 		break;
+	case ESpiderLurkPhase::DenHidden:
+	case ESpiderLurkPhase::DenCrawl:
+	case ESpiderLurkPhase::DenTurn:
+		// Coming out of a den in a wall (SpiderCreatureDen.cpp); its climb down is the Climbing above.
+		TickDen(DeltaSeconds);
+		break;
 	default:
 		break;
 	}

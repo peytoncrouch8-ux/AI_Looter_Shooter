@@ -3,6 +3,14 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-31 evening: Sink dens BUILT (contract Docs/Archive/Work/2026-10-31-SinkDens/CONTRACT.md)
+The user: the Sink's spiders (Main 5) crawl out of dens in the walls instead of being there; picks: every time they spawn, when
+the player reaches the floor. Built: EAmbushEntrance::Den (spider crawls out, tips onto the face, climbs down, hunts), four burrows
+SM_SpiderBurrow_A/_B (SinkBurrows.py, MI_BurrowThroat new), Creature.Spider.Den, the SinkFloor spawner an ambush on the floor,
+hidden creatures off the minimap. Tests Spider.Den 4, Encounters.Ambush pass; PIE by log only (the PC was locked: no screenshots).
+Open: see it by eye (grope, tip, grit; the skirt's texture seam on the wall; the throat colour at the lip); SpiderCreature.h is
+588 lines (split when next touched).
+
 ## 2026-10-31 afternoon: orchestral score round 1 BUILT (contract Docs/Archive/Work/2026-10-31-Score/CONTRACT.md)
 The user: "We need soundtracks, different music for the menu screen, introductory scenes, ransom rest will have different music
 than the gilded lily". Their picks: keep music script-made (no Suno, no libraries, no composer); round 1 = main menu theme +

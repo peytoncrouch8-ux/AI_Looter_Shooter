@@ -268,9 +268,10 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	}
 	for (TActorIterator<ACreatureBase> It(World); It; ++It)
 	{
-		// A Stone Sentinel standing as a statue isn't shown: the map mustn't give the trap away.
+		// A Stone Sentinel standing as a statue isn't shown, nor a creature still hidden (a spider waiting in its den): the map
+		// mustn't give the trap away.
 		const AStoneSentinelCreature* Sentinel = Cast<AStoneSentinelCreature>(*It);
-		if (!It->IsDead() && !(Sentinel && Sentinel->IsDormant()))
+		if (!It->IsDead() && !It->IsHidden() && !(Sentinel && Sentinel->IsDormant()))
 		{
 			Gather(HostileSpots, It->GetActorLocation(), Color::Health(), HostileMarkerSize);
 		}

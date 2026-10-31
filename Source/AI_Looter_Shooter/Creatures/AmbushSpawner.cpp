@@ -31,6 +31,9 @@ namespace
 
 	/** Looks this many intervals apart or less are one watch on the player; a longer gap starts afresh (it was off). */
 	constexpr double LooksInAWatch = 4.0;
+
+	/** Den spiders spawned within this (s) of each other are one spawn's, taking turns out of the dens. */
+	constexpr double DenSpawnTogether = 0.5;
 }
 
 AAmbushSpawner::AAmbushSpawner()
@@ -122,6 +125,10 @@ void AAmbushSpawner::OnCreatureSpawned(ACreatureBase& Creature)
 		SetOnPerch(Creature);
 		break;
 
+	case EAmbushEntrance::Den:
+		SendIntoDen(Creature);
+		break;
+
 	default:
 		break;
 	}
@@ -209,6 +216,35 @@ void AAmbushSpawner::SetOnPerch(ACreatureBase& Creature)
 	}
 	PerchHolders[Best] = &Creature;
 	Spider->BeginLurk(Perches[Best], this);
+}
+
+void AAmbushSpawner::SendIntoDen(ACreatureBase& Creature)
+{
+	ASpiderCreature* Spider = Cast<ASpiderCreature>(&Creature);
+	const UWorld* World = GetWorld();
+	if (!Spider || !World || Dens.IsEmpty() || FSpiderDenTuning::Live().Enabled == 0)
+	{
+		// Not a spider, no dens, or the dens turned off (Looter.Spider.Den 0): it comes its kind's way where it was spawned.
+		Creature.PlayEntranceIfSeen();
+		return;
+	}
+	// A wave's spiders are spawned together: each takes the next turn, round the dens, a little after the one before. One
+	// spawned on its own later (owed, brought back) starts a turn afresh.
+	const double Now = World->GetTimeSeconds();
+	if (Now - LastDenSpawn > DenSpawnTogether)
+	{
+		DenTurn = 0;
+	}
+	LastDenSpawn = Now;
+	const int32 Turn = DenTurn++;
+	const FSpiderPerchSpot& Den = Dens[SpiderAmbushRules::DenFor(Turn, Dens.Num())];
+	if (!Spider->BeginDenEmerge(Den, SpiderAmbushRules::DenDelay(Turn, FMath::FRand()), this))
+	{
+		// No wall at its den (a rebuilt wall, a den set wrong): it climbs out of the dirt on its floor spot instead.
+		UE_LOG(LogLooter, Warning, TEXT("Ambush %s: no wall at den (%.0f, %.0f, %.0f) for %s: it appears on its floor spot."),
+			*GetSpawnerId().ToString(), Den.Spot.X, Den.Spot.Y, Den.Spot.Z, *Spider->GetName());
+		Creature.PlayEntranceIfSeen();
+	}
 }
 
 void AAmbushSpawner::NoteLurkerSprang(const ASpiderCreature& Spider, APawn* Prey)

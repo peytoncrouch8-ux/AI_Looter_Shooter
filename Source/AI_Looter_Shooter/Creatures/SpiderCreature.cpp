@@ -118,6 +118,12 @@ void ASpiderCreature::Tick(float DeltaSeconds)
 	// Far away out of view it walks on unposed (OnPoseThawed puts its feet back under it); a corpse lying still keeps its pose.
 	if (bRigReady && !IsPoseFrozen() && !IsCorpseSettled())
 	{
+		if (IsInDen())
+		{
+			// Coming out of its den in a wall (SpiderCreatureDen.cpp).
+			AnimateDen(DeltaSeconds);
+			return;
+		}
 		if (IsClinging())
 		{
 			// On its wall, ledge or tree (SpiderCreatureCling.cpp).

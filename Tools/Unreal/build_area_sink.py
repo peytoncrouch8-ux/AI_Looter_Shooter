@@ -41,10 +41,14 @@ below hold every number; Main changes them there after looking in the editor.
 - The places' markers: the floor's middle (a target point tagged Place_SinkFloor: "Climb down into the Sink", within
   9 m, height counted) and the ramp head on the west rim by the fence's gap (Place_SinkRim: "Climb out", within 6 m,
   height counted).
-- The floor's spiders (AEncounterSpawner SinkFloor, tagged Spider_SinkFloor): six of the area's ranks standing among
-  the blocks, on during Main 5 until the lantern is taken (its steps 1-3), appearing as the player comes to the rim,
-  hunting only on the floor (the zone sink, and no more than 2.5 m over the floor: they give up at the ramp's foot;
-  nothing lives on the rim).
+- The floor's spiders (AAmbushSpawner SinkFloor, Entrance Den, tagged Spider_SinkFloor; the user, 2026-10-31: "crawl out
+  of dens in the walls instead of being there", every time they spawn, when the player reaches the floor): six of the
+  area's ranks, on during Main 5 until the lantern is taken (its steps 1-3). The floor stands empty until the player walks
+  onto it (the zone sink, within FLOOR_RISE over the spawner: the ramp's last metres count); then they crawl out of the
+  four dens round the walls (DENS; SM_SpiderBurrow_A/_B set into the rock, Art/Models/Props/SinkBurrows.py), down the
+  face and come for the player, hunting only on the floor (they give up at the ramp's foot; nothing lives on the rim).
+  A den's mouth (its SOCKET_Mouth) is the spawner's Dens spot; its floor spot (1.5 m out from the wall's foot) is where a
+  spider that can't climb out appears, and the talus keeps clear of it.
 - The Webwood's dead, webbed trees north of the Sink and the Sink road's one (SM_DeadTree_A, tagged Obstacle, some
   wearing Web_Crown with the tree's own transform): nothing else places them (the scatter keeps dead trees to its forest
   mix), so they come with the Sink.
@@ -240,6 +244,32 @@ DEN_MOUTH = 'DenMouth'
 FLOOR_COUNT = 6
 FLOOR_SPOTS = ((350.0, -450.0), (1150.0, -450.0), (550.0, 100.0), (1300.0, 300.0))
 FLOOR_RISE = 250.0
+
+# The dens the floor's spiders crawl out of (2026-10-31): bearing from the middle, the mouth's height over the floor (cm),
+# and the burrow (SM_SpiderBurrow_<model>). Three on the north walls, in front of a player coming off the ramp's foot (the
+# sling's wall at -75, the hung sacs' lines at -58/-22 and 16/48 high up at 8.5 m, the lantern's snare at the foot at -8),
+# one under the ramp's inner face at the south, behind them: they surround the player. Den Rock (the Gravemother's) is on
+# the east wall, the ramp's head on the west rim. Spiders go to the dens in turn (six over four: the first two send two).
+DENS = (
+    dict(bearing=-50.0, up=230.0, model='A'),
+    dict(bearing=12.0, up=260.0, model='B'),
+    dict(bearing=62.0, up=210.0, model='A'),
+    dict(bearing=178.0, up=170.0, model='B'),
+)
+# A burrow's lip stands proud of the wall and its throat's dark plug sits 3 cm in front of its pivot (SinkBurrows.py: the
+# wall isn't cut), so the pivot goes on the MOST FORWARD of the wall's hits across its opening (DEN_PROBES: sideways and
+# up offsets, cm, over its ~170 x 95 cm), or a bulge in the rock pokes through the plug; then DEN_OUT further out (cm). It
+# tilts with the face at the middle hit, at most DEN_TILT (degrees) off upright. Its lip wears the walls' own rock
+# (DEN_ROCK: the area's MI_RockCliff_Ransom over the model's MI_RockCliff: the pit's walls are the cliff panels and the terrain's steep rock).
+DEN_OUT = 2.0
+DEN_TILT = 25.0
+DEN_PROBES = ((0.0, 0.0), (-80.0, 0.0), (80.0, 0.0), (0.0, -45.0), (0.0, 45.0), (-60.0, -35.0), (60.0, -35.0),
+              (-60.0, 35.0), (60.0, 35.0))
+DEN_ROCK = ('MI_RockCliff', 'MI_RockCliff_Ransom')
+# A den keeps this far (cm, flat) from the sacs' landings, the lantern and Den Rock's mouth, or the build warns.
+DEN_CLEAR = 300.0
+# A spider that can't climb out appears this far out from the wall's foot under its den (cm).
+DEN_FLOOR_OUT = 150.0
 
 # The Webwood's dead trees (frame offsets, inside the obstacle webwood north of the Sink), each with a yaw and a uniform
 # scale, and whether it wears Web_Crown; then the Sink road's one (in the middle of sinkRoadDeadTree).
@@ -529,13 +559,13 @@ def sac_landing(sac):
     return at.x + out.x * burst, at.y + out.y * burst
 
 
-def place_talus(build, sink, sacs, lantern, den):
+def place_talus(build, sink, sacs, lantern, den, den_spots=()):
     """The pit wall's talus (build_area_talus.py), clear of the story's spots (SINK_WALL's rules); each rock solid to
     the orb's traces. Returns the rocks (build_area_talus.talus's)."""
     talus = importlib.reload(importlib.import_module('build_area_talus'))
     mouth = story.socket(den, DEN_MOUTH) if den is not None else None
     blocked = talus_blocker((sink.cx, sink.cy), [(str(sac.get_actor_label()), *sac_landing(sac)) for sac in sacs],
-                            [sink.at(dx, dy) for dx, dy in FLOOR_SPOTS],
+                            [sink.at(dx, dy) for dx, dy in FLOOR_SPOTS] + list(den_spots),
                             None if lantern is None else (lantern.get_actor_location().x, lantern.get_actor_location().y),
                             [(str(actor.get_actor_label()), block_box(actor)) for actor in sink.solid],
                             None if mouth is None else (mouth.translation.x, mouth.translation.y))
@@ -961,11 +991,75 @@ def place_markers(build, sink):
     return hx, hy, hz - story.MARKER_UP
 
 
-def place_floor_spiders(build, sink):
+def place_dens(build, sink, sacs, lantern, den):
+    """The burrows set into the walls (DENS): each on the face a level line meets along its bearing, up over the floor,
+    tilted with the face; returns [(mouth location, its yaw, floor spot (x, y))] for the spawner and the talus. A den
+    whose wall or model isn't there is left out with a warning."""
+    clear = [(str(sac.get_actor_label()), *sac_landing(sac)) for sac in sacs]
+    if lantern is not None:
+        clear.append(('the lantern', lantern.get_actor_location().x, lantern.get_actor_location().y))
+    mouth = story.socket(den, DEN_MOUTH) if den is not None else None
+    if mouth is not None:
+        clear.append(('Den Rock\'s mouth', mouth.translation.x, mouth.translation.y))
+    out = []
+    for index, spec in enumerate(DENS):
+        model = mesh(build, f'SpiderBurrow_{spec["model"]}')
+        bearing, up = spec['bearing'], spec['up']
+        b = math.radians(bearing)
+        start = unreal.Vector(sink.cx, sink.cy, sink.fz + up)
+        hit = trace(start, unreal.Vector(sink.cx + math.cos(b) * WALL_REACH, sink.cy + math.sin(b) * WALL_REACH,
+                                         sink.fz + up), sink.placed)
+        if hit is None:
+            build.warn(f'den {index + 1}: no wall along {bearing:.0f} degrees, {up:.0f} cm up: left out')
+            continue
+        point, normal = hit
+        flat = math.hypot(normal.x, normal.y)
+        if flat < 0.2:
+            build.warn(f'den {index + 1}: the face along {bearing:.0f} degrees is a floor or a roof, not a wall: left out')
+            continue
+        yaw = math.degrees(math.atan2(normal.y, normal.x))
+        pitch = max(-DEN_TILT, min(DEN_TILT, math.degrees(math.atan2(normal.z, flat))))
+        # The most forward hit across the opening: lines parallel to the middle one, offset across the face.
+        nx, ny = normal.x / flat, normal.y / flat
+        side = unreal.Vector(-ny, nx, 0.0)
+        ahead = 0.0
+        for across, rise in DEN_PROBES[1:]:
+            offset = side * across + unreal.Vector(0.0, 0.0, rise)
+            probe = trace(point + offset + normal * 150.0, point + offset - normal * 150.0, sink.placed)
+            if probe is not None:
+                ahead = max(ahead, (probe[0] - point - offset).dot(normal))
+        at = point + normal * (ahead + DEN_OUT)
+        for name, x, y in clear:
+            gap = math.hypot(at.x - x, at.y - y)
+            if gap < DEN_CLEAR:
+                build.warn(f'den {index + 1} is {gap:.0f} cm from {name} (wanted {DEN_CLEAR:.0f}): move its bearing in DENS')
+        foot = sink.foot(bearing)
+        r = (foot[0] if foot is not None else math.hypot(point.x - sink.cx, point.y - sink.cy)) - DEN_FLOOR_OUT
+        floor_spot = sink.along(bearing, r)
+        if model is not None:
+            burrow = build.place(model, (at.x, at.y, at.z), yaw, label=f'Sink_Den_{index + 1}', folder='Gameplay')
+            turn(burrow, yaw, pitch)
+            rock = unreal.load_asset(MATERIALS + DEN_ROCK[1])
+            if rock is not None:
+                wear(burrow, rock, only=(DEN_ROCK[0],))
+            # Nothing meets it (spiders move by code, the player can't reach it), but its lip shades the hole.
+            part = burrow.static_mesh_component
+            part.set_collision_profile_name('NoCollision')
+            part.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+            sink.keep(burrow)
+            socket = story.socket(burrow, 'Mouth')
+            if socket is not None:
+                at = socket.translation
+        out.append((at, yaw, floor_spot))
+        build.log(f'den {index + 1}: {bearing:.0f} degrees, {up:.0f} cm up, facing {yaw:.0f}, tilted {pitch:.0f}')
+    return out
+
+
+def place_floor_spiders(build, sink, dens):
     spider = story.actor_class('SpiderCreature')
-    cls = story.actor_class('EncounterSpawner')
+    cls = story.actor_class('AmbushSpawner')
     if spider is None or cls is None:
-        build.warn('no EncounterSpawner or SpiderCreature class (build the game module first): no spiders on the Sink\'s '
+        build.warn('no AmbushSpawner or SpiderCreature class (build the game module first): no spiders on the Sink\'s '
                    'floor')
         return
     made = build.place(cls, (sink.cx, sink.cy, sink.fz + 50.0), 0.0, label=f'Encounter_{FLOOR}', folder='Gameplay')
@@ -978,13 +1072,30 @@ def place_floor_spiders(build, sink):
     made.set_editor_property('creature_tags', [unreal.Name(FLOOR_TAG)])
     # Main 5 until the lantern is taken (from 0: before 3): a session loaded climbing out finds the floor quiet.
     made.set_editor_property('active_when', story.condition(during=MAIN5, before_step=OUT_STEP))
-    made.set_editor_property('spawn_points', [unreal.Vector(x, y, 0.0) for x, y in FLOOR_SPOTS])
-    # They stand among the blocks until they notice the player on the floor.
-    made.set_editor_property('hunt_on_spawn', False)
     made.set_editor_property('ground_corners', [unreal.Vector(x, y, sink.fz) for x, y in sink.zone])
     made.set_editor_property('ground_max_rise', FLOOR_RISE)
-    build.log(f'the floor\'s spiders ({FLOOR}: {FLOOR_COUNT} of the area\'s ranks) among the blocks, during {MAIN5} until '
-              f'the lantern is taken')
+    if not dens:
+        # No dens (no burrow model yet, or no walls found): they stand among the blocks as before.
+        made.set_editor_property('spawn_points', [unreal.Vector(x, y, 0.0) for x, y in FLOOR_SPOTS])
+        made.set_editor_property('hunt_on_spawn', False)
+        build.warn(f'{FLOOR}: no dens, so its spiders stand among the blocks')
+        return
+    # The floor stands empty until the player walks onto it; then they crawl out of the dens and come for them.
+    made.set_editor_property('ambush_corners', [unreal.Vector(x, y, sink.fz) for x, y in sink.zone])
+    made.set_editor_property('ambush_max_rise', FLOOR_RISE)
+    made.set_editor_property('entrance', unreal.AmbushEntrance.DEN)
+    made.set_editor_property('hunt_on_spawn', True)
+    spots = []
+    for at, yaw, _ in dens:
+        spot = unreal.SpiderPerchSpot()
+        spot.set_editor_property('kind', unreal.SpiderPerchKind.WALL)
+        spot.set_editor_property('spot', at)
+        spot.set_editor_property('face_yaw', yaw)
+        spots.append(spot)
+    made.set_editor_property('dens', spots)
+    made.set_editor_property('spawn_points', [unreal.Vector(x - sink.cx, y - sink.cy, 0.0) for _, _, (x, y) in dens])
+    build.log(f'the floor\'s spiders ({FLOOR}: {FLOOR_COUNT} of the area\'s ranks) crawling out of {len(dens)} dens as the '
+              f'player reaches the floor, during {MAIN5} until the lantern is taken')
 
 
 def place_tree(build, model, crown, x, y, yaw, scale, label):
@@ -1079,10 +1190,11 @@ def place(build):
     lantern = place_lantern(build, sink)
     piles = place_floor(build, sink, story.layout_entry(build, 'obstacles', 'sinkFloorBlocks'))
     den = story.placed(build, 'DenRock')
-    rocks = place_talus(build, sink, sacs, lantern, den)
+    dens = place_dens(build, sink, sacs, lantern, den)
+    rocks = place_talus(build, sink, sacs, lantern, den, [spot for _, _, spot in dens])
     place_webs(build, sink, piles, rocks)
     head = place_markers(build, sink)
-    place_floor_spiders(build, sink)
+    place_floor_spiders(build, sink, dens)
     road_tree = place_webwood(build, sink)
     place_funnel(build, sink, den)
     return hob_spots(build, sink, piles, head, road_tree, den)

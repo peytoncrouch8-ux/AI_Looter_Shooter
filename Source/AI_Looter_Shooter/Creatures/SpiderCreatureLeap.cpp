@@ -115,7 +115,8 @@ void ASpiderCreature::Launch()
 
 void ASpiderCreature::TickClimb(float DeltaSeconds)
 {
-	const FSpiderLurkTuning Tuning = FSpiderLurkTuning::Live();
+	// Its own climb's speed and hop (a den spider's slower: SpiderCreatureDen.cpp), else the lurk's.
+	const FSpiderLurkTuning Tuning = SpiderAmbushRules::ClimbTuning(Lurk);
 	const float Scale = GetSizeScale();
 	UWorld* World = GetWorld();
 	const UCapsuleComponent* Capsule = GetCapsuleComponent();
@@ -220,6 +221,11 @@ void ASpiderCreature::EndLurk()
 		Movement->SetMovementMode(MOVE_Falling);
 	}
 	Gait.bRead = false;
+	// Down out of a den: now it hunts (SpiderCreatureDen.cpp).
+	if (Lurk.bFromDen)
+	{
+		FinishDenEmerge();
+	}
 }
 
 void ASpiderCreature::FallFromPerch()

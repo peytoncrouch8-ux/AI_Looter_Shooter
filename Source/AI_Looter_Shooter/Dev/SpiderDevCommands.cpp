@@ -53,6 +53,9 @@ namespace
 		case ESpiderLurkPhase::Leaping: return TEXT("leaping");
 		case ESpiderLurkPhase::Climbing: return TEXT("climbing");
 		case ESpiderLurkPhase::Landing: return TEXT("landing");
+		case ESpiderLurkPhase::DenHidden: return TEXT("in its den");
+		case ESpiderLurkPhase::DenCrawl: return TEXT("crawling out of its den");
+		case ESpiderLurkPhase::DenTurn: return TEXT("tipping out of its den");
 		default: return TEXT("none");
 		}
 	}

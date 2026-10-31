@@ -272,7 +272,8 @@ Each group: where it lives; where it waits and watches.
 - Chapel yard Unpaid (Main 4): inside the iron fence; the fence.
 - Roaming Unpaid (after Main 4): boot hill and the north road, round the hanging tree; their own stretch.
 - Sink spiders and egg-sac spiders (Main 5): the Sink floor, among the collapsed blocks and coffins; the foot of the ramp
-  (nothing lives on the rim).
+  (nothing lives on the rim). The floor's six crawl out of four dens in the walls as the player reaches the floor (the user,
+  2026-10-31; every time they spawn): `Docs/Pipeline/Enemies.md` "Den entrance".
 - The Gravemother and spiderlings: the den and the Sink floor; the foot of the ramp.
 - Whitlock hands (Side 2): the barn yard; the barn yard fence.
 - Slimes: Mill Creek's bottom; the banks.

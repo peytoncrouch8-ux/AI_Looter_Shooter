@@ -24,7 +24,7 @@ GROUPS = ['guns', 'impacts', 'feedback', 'ui', 'loot', 'player', 'creatures', 'w
           'embers_pike', 'tiers', 'elements', 'bounties', 'shields', 'unpaid_kit', 'opening', 'intro', 'melee_tools', 'bossintro', 'throwables_kinds',
           'swim', 'chest_tiers', 'guns_makers', 'ui_cards', 'guns_identity', 'hit_feel', 'finds', 'fight_kit',
           'sentinel', 'unpaid_shriek', 'flask', 'unpaid_rise', 'spider_ambush', 'orchestra', 'score_menu',
-          'score_beasts', 'score_men']
+          'score_beasts', 'score_men', 'spider_den']
 
 
 class Cue:
