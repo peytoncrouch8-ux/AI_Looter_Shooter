@@ -25,6 +25,7 @@
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
 #include "Creatures/UnpaidKitWork.h"
+#include "Creatures/UnpaidLifeWork.h"
 #include "Creatures/UnpaidPackSubsystem.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
@@ -160,7 +161,8 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 	TickFadeBack(DeltaSeconds);
 	Kit.FlankCooldown = FMath::Max(Kit.FlankCooldown - DeltaSeconds, 0.f);
 	const APawn* Victim = GetTarget();
-	bool bKit = Victim && !IsDead() && HasFightKit();
+	// Climbing out of the ground it has no kit yet: it comes for them once it stands (UnpaidCreatureRise.cpp).
+	bool bKit = Victim && !IsDead() && !IsRising() && HasFightKit();
 	if (bKit && Kit.BossAdd < 0 && IsBossAdd())
 	{
 		bKit = false;
@@ -203,6 +205,10 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 		Kit.bSecondSwipe = false;
 		Kit.bRakeLanded = false;
 	}
+
+	// The pack's punish of an opening (a reload, a swap, an empty gun, the flask at the lips): the one to claim it hisses and its
+	// pack's frenzy opens a moment, so it counts this frame (UnpaidCreatureOpening.cpp).
+	FUnpaidOpeningWork::Tick(*this, *Victim);
 
 	// Its pack's frenzy: every coal burns high while the pack comes on together.
 	// A pack-mate's shriek rallies it the same way, for a few seconds (UnpaidCreatureShriek.cpp).

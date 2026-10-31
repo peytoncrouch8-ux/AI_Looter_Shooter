@@ -8,6 +8,7 @@
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/UnpaidKitWork.h"
+#include "Creatures/UnpaidLifeWork.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -386,6 +387,12 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	{
 		Bones[JawBone].Own = PitchBy(Pose.Jaw - RestJaw + Hurt.JawOpen());
 	}
+	// Its body language over the trunk's pose (UnpaidCreatureGait.cpp, 2026-10-31): the lurch it drifts with, its breath and
+	// its head's tilt at rest, a wind-up's coil and shiver, a rake's twist, a hit's loll, a fall; then its rise's (bent over
+	// its hands through the haul, its head thrown back as it stands: UnpaidCreatureRise.cpp).
+	FUnpaidGaitWork::Step(*this, Dt, Speed);
+	FUnpaidGaitWork::LayBones(*this);
+	FUnpaidRiseWork::LayBones(*this);
 	// Its statuses' tremors, twists, jerk and cough on the trunk (UnpaidCreatureStatus.cpp); its shriek's shake (UnpaidShriekPose.cpp).
 	LayStatusBones();
 	FUnpaidShriekWork::LayBones(*this);

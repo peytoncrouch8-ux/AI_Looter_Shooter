@@ -288,7 +288,7 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	int32 Closed = 0;
 	Menu->OnClose.BindLambda([&Closed]() { ++Closed; });
 	USlider* FieldOfView = Menu->GetFieldOfViewSlider();
-	if (!TestTrue(TEXT("Its sliders and Resume"), FieldOfView && Menu->GetMinimapSizeSlider() && Menu->GetResumeButton()))
+	if (!TestTrue(TEXT("Its sliders and ESC BACK"), FieldOfView && Menu->GetMinimapSizeSlider() && Menu->GetResumeButton()))
 	{
 		return false;
 	}
@@ -296,25 +296,22 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	Menu->Open(ESettingsMenuMode::Pause);
 	Menu->AdvanceNav(0.f);
 
-	// Opened under the mouse: the focus waits on the top row (Back to the pause menu's list; it was Resume until
-	// 2026-10-29), unseen, and the prompts name the keyboard's keys.
-	TestTrue(TEXT("The focus starts on Resume"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
+	// Opened under the mouse: the focus waits on the page's first setting (the full page has no Back row: Esc, B or ESC
+	// BACK clicked go back), unseen, and the hints name the keyboard's keys.
+	TestTrue(TEXT("The focus starts on the quality presets"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionQuality);
 	TestFalse(TEXT("...with no focus look under the mouse"), Menu->IsFocusLookShown());
-	TestTrue(TEXT("Keyboard prompts"), PromptsText(Menu->GetPrompts()).StartsWith(TEXT("Enter Select")) && PromptsText(Menu->GetPrompts()).Contains(TEXT("Esc Back")));
+	TestTrue(TEXT("Keyboard hints"), PromptsText(Menu->GetPrompts()).StartsWith(TEXT("Enter Change")) && PromptsText(Menu->GetPrompts()).EndsWith(TEXT("Esc Back")));
 
-	// The first D-pad press only shows where the focus is; the prompts turn to the gamepad's buttons.
+	// The first D-pad press only shows where the focus is; the hints turn to the gamepad's buttons.
 	TestTrue(TEXT("The D-pad is the menu's"), Menu->HandleNavKey(EKeys::Gamepad_DPad_Down));
-	TestTrue(TEXT("Still on Resume, now lit"), Menu->GetFocusedWidget() == Menu->GetResumeButton() && Menu->IsFocusLookShown() && Menu->GetResumeButton()->IsFocusLit());
+	TestTrue(TEXT("Still on the quality presets, now lit"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionQuality && Menu->IsFocusLookShown());
 	const FString PadPrompts = PromptsText(Menu->GetPrompts());
-	TestTrue(TEXT("Gamepad prompts: A Select, LB / RB Tabs, B Back (to the pause menu's list)"),
-		PadPrompts.StartsWith(TEXT("A Select")) && PadPrompts.Contains(TEXT("LB / RB Tabs")) && PadPrompts.Contains(TEXT("B Back")));
-	TestTrue(TEXT("Up from Resume: it stays (the list doesn't wrap)"), Menu->HandleNavKey(EKeys::Gamepad_DPad_Up) && Menu->GetFocusedWidget() == Menu->GetResumeButton());
+	TestTrue(TEXT("Gamepad hints: A Change (a switch), LB / RB Tabs, B Back (to the pause menu)"),
+		PadPrompts.StartsWith(TEXT("A Change")) && PadPrompts.Contains(TEXT("LB / RB Tabs")) && PadPrompts.EndsWith(TEXT("B Back")));
+	TestTrue(TEXT("Up from the first setting: it stays (the list doesn't wrap)"),
+		Menu->HandleNavKey(EKeys::Gamepad_DPad_Up) && ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionQuality);
 
-	// Down the list in order: the quality presets, motion blur, the field of view.
-	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
-	TestTrue(TEXT("Down: the quality presets"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionQuality);
-	TestFalse(TEXT("...Resume's look out"), Menu->GetResumeButton()->IsFocusLit());
-	TestTrue(TEXT("...a switch changes with A"), PromptsText(Menu->GetPrompts()).StartsWith(TEXT("A Change")));
+	// Down the list in order: motion blur, the field of view.
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("Down: motion blur"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionMotionBlurOn);
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
@@ -367,7 +364,7 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Up);
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Up);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Up);
-	TestTrue(TEXT("Back up to Resume"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
+	TestTrue(TEXT("Back up to the quality presets, the page's top"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionQuality);
 	TestEqual(TEXT("...on the Graphics tab"), Menu->GetPage(), static_cast<int32>(SettingsMenu::ESettingsPage::Graphics));
 	Menu->HandleNavKey(EKeys::Gamepad_RightShoulder);
 	const UWidget* Master = Menu->GetFocusedWidget();
@@ -404,12 +401,12 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...with the keyboard's prompts"), PromptsText(Menu->GetPrompts()).Contains(TEXT("PgUp / PgDn Tabs")));
 	Menu->HandleNavKeyUp(EKeys::Down);
 
-	// Opened again: back on the top row and the first tab, then A on it goes back (OnClose: the HUD shows the pause menu's
-	// list); B closes from anywhere else.
+	// Opened again: back on the first setting of the first tab; ESC BACK clicked goes back (OnClose: the HUD shows the pause
+	// menu), and B goes back from anywhere.
 	Menu->Open(ESettingsMenuMode::Pause);
-	TestTrue(TEXT("Opened again: back on Resume"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
+	TestTrue(TEXT("Opened again: back on the quality presets"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionQuality);
 	TestEqual(TEXT("...on the Graphics tab"), Menu->GetPage(), static_cast<int32>(SettingsMenu::ESettingsPage::Graphics));
-	TestTrue(TEXT("Enter on the top row closes the menu"), Menu->HandleNavKey(EKeys::Enter) && Closed == 1);
+	TestTrue(TEXT("ESC BACK clicked closes the page"), Menu->GetResumeButton()->Press() && Closed == 1);
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("B with nothing held closes it"), Menu->HandleNavKey(EKeys::Gamepad_FaceButton_Right) && Closed == 2);
 	TestTrue(TEXT("A held B's repeat doesn't close it again"), Menu->HandleNavKey(EKeys::Gamepad_FaceButton_Right, true) && Closed == 2);

@@ -1,0 +1,29 @@
+/* Shared by every pause-menu concept: fonts, the "Slate & Salt" palette, the dimmed game behind the menu, key caps. */
+@font-face { font-family: 'Chakra Petch'; font-weight: 400; src: url('../../../../Content/UI/Fonts/ChakraPetch-Regular.ttf'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 700; src: url('../../../../Content/UI/Fonts/ChakraPetch-Bold.ttf'); }
+:root {
+	--glass: rgba(30,34,40,.95); --glass2: rgba(18,21,26,.95);
+	--salt: #D4EEF4; --gold: #FFE6A6; --flavor: #FFD38A;
+	--text: #F2F6F8; --label: #B4BEC8; --icon: #98A4AE;
+	--heal: #6DFF7A; --red: #FF7A6B; --redDeep: #7A2219;
+	--ink: rgba(8,10,13,.9);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #12151A; }
+body { font-family: 'Chakra Petch', sans-serif; color: var(--text); position: relative; }
+.abs { position: absolute; }
+/* The game behind the menu: zoomed so the HUD's edge pieces fall off screen, blurred and dimmed. */
+.world { position: absolute; inset: -40px; background: url('backdrop.png') center 46% / cover no-repeat;
+	transform: scale(1.22); filter: blur(6px) brightness(.76) saturate(.9); }
+.vignette { position: absolute; inset: 0;
+	background: radial-gradient(ellipse 75% 70% at 58% 45%, rgba(10,12,15,0) 0%, rgba(10,12,15,.25) 55%, rgba(10,12,15,.85) 100%); }
+/* Floating outlined type, as the HUD draws it. */
+.out { text-shadow: 0 0 2px var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink),
+	1.5px 1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px -1.5px 0 var(--ink); }
+/* Hollow key caps (ULooterHollowKey): rounded, 3.5 px gold outline. */
+.keys { display: flex; gap: 34px; align-items: center; }
+.hint { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 26px; letter-spacing: .08em; color: var(--text); }
+.cap { display: inline-flex; align-items: center; justify-content: center; min-width: 46px; height: 40px; padding: 0 11px;
+	border: 3.5px solid var(--gold); border-radius: 9px; font-weight: 700; font-size: 19px; letter-spacing: .04em; color: var(--gold);
+	background: rgba(18,21,26,.55); }
+svg { overflow: visible; }

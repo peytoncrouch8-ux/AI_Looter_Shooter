@@ -98,6 +98,11 @@ FString ULoadoutWidget::DropActionText(const FDropTarget& Target) const
 	{
 		return FString();
 	}
+	// A shut slot takes no gun.
+	if (Target.Kind == EDropKind::Slot && IsSlotLocked(Target.Index))
+	{
+		return FString();
+	}
 	if (PressZone == EZone::Slots)
 	{
 		switch (Target.Kind)

@@ -1,7 +1,7 @@
 // AUnpaidCreature's moods: what each moment asks of its pose (PoseTargets: the channels UnpaidCreatureRig.cpp eases toward
 // and lays on its bones), and its reactions (the 2026-10-14 polish, "creatures that react"): the notice beat (its head snaps
-// round to its prey and its coal flares bright, it starts back with its jaw open), its rise out of the ground (it comes up
-// from under the dirt clawing, the dirt thrown up), its idle life (a slow sway, now and then a look over its shoulder, each
+// round to its prey and its coal flares bright, it starts back with its jaw open), its rise out of the ground (its channels and
+// its depth: UnpaidCreatureRise.cpp since 2026-10-31), its idle life (a slow sway, now and then a look over its shoulder, each
 // on its own dice), its crumple and the ash it breaks into as it dies, and the dust its shroud drags as it rushes on.
 // The VFX pass (Saved/Vfx/PLAN.md): its kill's own layers on its first dead frame (a ring of its coal's light racing over
 // the ground, its ash collapsing, embers fountaining, its tier's rings; CreatureKillLook) and the ash it leaves lying.
@@ -19,6 +19,7 @@
 #include "Creatures/UnpaidFightTuning.h"
 #include "Creatures/UnpaidHat.h"
 #include "Creatures/UnpaidKitWork.h"
+#include "Creatures/UnpaidLifeWork.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -40,10 +41,6 @@ namespace
 	constexpr float NoticeSpread = 0.3f;
 	constexpr float NoticeJaw = 22.f;
 	constexpr float NoticeFlare = 0.9f;
-
-	/** Rising out of the ground it starts this far under its hang (cm at size 1) and holds its brain this share of the rise. */
-	constexpr float RiseDepth = 115.f;
-	constexpr float RiseHoldShare = 0.7f;
 
 	/** Calm, it sways this far (degrees of roll), and looks over its shoulder every so often, this far, this long. */
 	constexpr float SwayRoll = 2.5f;
@@ -216,17 +213,6 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 		Goal.Snap = FMath::Max(Goal.Snap, Hurt.SnapLeft > 0.f ? 1.f : 0.f);
 	}
 
-	// Rising out of the ground: clawing up out of the dirt, arms reaching and raking, its head thrown back, mouth open.
-	if (RiseTime >= 0.f)
-	{
-		const float Up = 1.f - UnpaidEase(RiseTime / RiseSeconds);
-		Goal.Reach = FMath::Max(Goal.Reach, 0.7f * Up);
-		Goal.Hunt = FMath::Max(Goal.Hunt, Up);
-		Goal.Rear = FMath::Max(Goal.Rear, 0.35f * Up);
-		Goal.Jaw = FMath::Max(Goal.Jaw, 20.f * Up);
-		Goal.Curl = FMath::Lerp(Goal.Curl, 45.f, Up);
-	}
-
 	// It looks at whoever it's after, as far as its neck turns; otherwise it looks about, slowly, now and then over its
 	// shoulder, and sways where it hangs.
 	if (const APawn* Victim = GetTarget(); Victim && !IsDead())
@@ -246,6 +232,9 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 	// (reared, screaming, hunched): UnpaidCreatureVarietyMoves.cpp, UnpaidShriekPose.cpp.
 	FUnpaidMoveWork::Channels(*this, Goal);
 	FUnpaidShriekWork::Channels(*this, Goal);
+	// Clawing up out of the ground: a hand grasping at the air, bent over its planted hands, its head thrown back as it stands
+	// (UnpaidCreatureRise.cpp).
+	FUnpaidRiseWork::Channels(*this, Goal);
 	// Its element statuses on top: flailing, locked up, hunched, stiff, flinching (UnpaidCreatureStatus.cpp).
 	StatusChannels(Goal);
 	return Goal;
@@ -257,24 +246,12 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 
 float AUnpaidCreature::RiseDrop() const
 {
-	if (RiseTime < 0.f)
-	{
-		return 0.f;
-	}
-	// Up out of the dirt quickly at first, settling into its hang (the mesh's space: the actor's size scales it).
-	return -RiseDepth * (1.f - FMath::InterpEaseOut(0.f, 1.f, FMath::Clamp(RiseTime / RiseSeconds, 0.f, 1.f), 2.f));
+	// Through its rise's phases (the mesh's space: the actor's size scales it); killed mid-rise, sinking back.
+	return FUnpaidRiseWork::Drop(*this);
 }
 
 void AUnpaidCreature::TickReactions(float DeltaSeconds)
 {
-	if (RiseTime >= 0.f)
-	{
-		RiseTime += DeltaSeconds;
-		if (RiseTime >= RiseSeconds)
-		{
-			RiseTime = -1.f;
-		}
-	}
 	// A hat knocked off flies, lies and sinks whether it's alive or not (UnpaidHat.cpp).
 	if (Hat && Hurt.Hat.IsShown())
 	{
@@ -400,9 +377,9 @@ void AUnpaidCreature::OnNoticed()
 
 void AUnpaidCreature::PlayEntrance()
 {
-	// Up through the dirt where it stands, its brain waiting most of the rise (RiseIn's fade, claw and dirt).
+	// Up through the dirt where it stands, its brain waiting for the haul (RiseIn's burst, hand, haul and stand; the quick rise
+	// is silent, so its caller's cue is its one sound).
 	RiseIn();
-	HoldBrain(RiseSeconds * RiseHoldShare);
 	LooterSound::PlayAt(this, FName(CreatureReactCue::UnpaidRise), GetActorLocation(), 1.f, Voice->GetPitch());
 }
 

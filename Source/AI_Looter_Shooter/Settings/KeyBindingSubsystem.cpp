@@ -181,6 +181,7 @@ FKey UKeyBindingSubsystem::DefaultWeaponSlotKey(int32 SlotIndex)
 	case 0: return EKeys::One;
 	case 1: return EKeys::Two;
 	case 2: return EKeys::Three;
+	case 3: return EKeys::Four;
 	default: return EKeys::Invalid;
 	}
 }

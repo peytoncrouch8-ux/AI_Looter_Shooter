@@ -1,5 +1,6 @@
 // AStoneSentinelCreature's rank (its traits kept for waking, Fleet taken out), hits (a shot wakes it; chips and a small
-// jolt), death (the crumble begins) and coming back (a statue again). Split from StoneSentinelCreature.cpp by topic.
+// jolt, more while it's open), its open window (soul-light embers pouring out of its back), death (the crumble begins, its
+// moves let go) and coming back (a statue again). Split from StoneSentinelCreature.cpp by topic.
 
 #include "Creatures/StoneSentinelCreature.h"
 #include "Audio/LooterSound.h"
@@ -8,7 +9,10 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureKillLook.h"
 #include "Creatures/CreatureTraitComponent.h"
+#include "Combat/BulletSubsystem.h"
 #include "Creatures/GravemotherFX.h"
+#include "Creatures/StoneSentinelFX.h"
+#include "Weapons/WeaponFX.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
@@ -21,6 +25,12 @@ namespace
 	constexpr float JoltRoll = 3.f;
 	/** Its chip sound at most this often (s: one for a shotgun's blast). */
 	constexpr double ChipSoundGap = 0.05;
+	/** While it's open: embers off its back this often (s), a puff of them every PuffEvery-th time, its heart's glow, and a hit's
+	 *  extra chips (its cracked stone gives more). */
+	constexpr float EmberEvery = 0.08f;
+	constexpr int32 EmberPuffEvery = 3;
+	const FLinearColor HeartGlow(1.f, 0.6f, 0.22f);
+	constexpr int32 OpenHitChips = 2;
 }
 
 void AStoneSentinelCreature::OnRankChanged()
@@ -82,7 +92,8 @@ void AStoneSentinelCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 
 	// Chips off where it landed, flung back toward the shooter; grit and a spark or two; its chip sound once a burst.
 	const FVector Back = -Way.GetSafeNormal();
-	ThrowChips(HitLocation, Back, StoneSentinelRules::ChipsFor(bCritical, Hit.BurstShare, Tuning), 320.f, 3.f, 8.f);
+	ThrowChips(HitLocation, Back, StoneSentinelRules::ChipsFor(bCritical, Hit.BurstShare, Tuning) + (IsExposed() ? OpenHitChips : 0), 320.f, 3.f,
+		IsExposed() ? 11.f : 8.f);
 	if (UGravemotherFX* Effects = UGravemotherFX::Get(this))
 	{
 		Effects->Chunks(EGraveChunk::StoneChip, HitLocation, Back, bCritical ? 4 : 2, 380.f, 0.6f);
@@ -94,17 +105,21 @@ void AStoneSentinelCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	if (Now - LastChipSound >= ChipSoundGap)
 	{
 		LastChipSound = Now;
-		LooterSound::PlayAt(this, FName(LooterSoundCue::Sentinel::Chip), HitLocation, bCritical ? 1.f : 0.8f, LooterSoundRules::PitchForSize(GetSizeScale()));
+		LooterSound::PlayAt(this, FName(StoneSentinelCue::Chip), HitLocation, bCritical ? 1.f : 0.8f, LooterSoundRules::PitchForSize(GetSizeScale()));
 	}
 }
 
 void AStoneSentinelCreature::OnDied()
 {
+	// Whatever it was at stops: a rock in its grip falls, the tell's cracks close, its window shuts.
+	DropBoulder();
+	EndShockTell();
+	ExposedLeft = 0.f;
 	// It sags and cracks through (TickCrumbling), then bursts into stone (Crumble): the cracking now, the burst after.
 	SetPhase(EStoneSentinelPhase::Crumbling);
 	bCrumbled = false;
 	const FVector Chest = GetActorLocation() + FVector(0.0, 0.0, 40.0 * GetSizeScale());
-	LooterSound::PlayAt(this, FName(LooterSoundCue::Sentinel::Crumble), Chest, 1.f, LooterSoundRules::PitchForSize(GetSizeScale()));
+	LooterSound::PlayAt(this, FName(StoneSentinelCue::Crumble), Chest, 1.f, LooterSoundRules::PitchForSize(GetSizeScale()));
 	ThrowChips(Chest, FVector::UpVector, 5, 250.f, 8.f, 16.f);
 	StoneDust(Chest, 4, 70.f, 40.f);
 	// The kill's own layers (its tier's rings and star, a crit's flare); no splat: stone leaves its pieces, not a pool.
@@ -125,6 +140,11 @@ void AStoneSentinelCreature::OnRespawned()
 	Chips.Reset();
 	DrawChips();
 	PoseNow = StoneSentinelRules::IdlePose();
+	Move = EStoneSentinelMove::None;
+	LastMove = EStoneSentinelMove::None;
+	MoveStreak = 0;
+	ExposedLeft = 0.f;
+	HeldBoulder.Reset();
 	BecomeStatue();
 }
 
@@ -132,5 +152,59 @@ void AStoneSentinelCreature::PlayEntrance()
 {
 	// Back on its plinth in view (a respawn): a settle of stone and dust, as if it had always stood there and someone looked away.
 	StoneDust(GetFeet(), 5, 80.f, 50.f);
-	LooterSound::PlayAt(this, FName(LooterSoundCue::Sentinel::Step), GetFeet(), 0.7f, LooterSoundRules::PitchForSize(GetSizeScale()));
+	LooterSound::PlayAt(this, FName(StoneSentinelCue::Step), GetFeet(), 0.7f, LooterSoundRules::PitchForSize(GetSizeScale()));
+}
+
+// ---------------------------------------------------------------------------
+// Open (the rhythm to learn: after a heavy blow it's stuck a moment, its stone's guard down, its back critical)
+// ---------------------------------------------------------------------------
+
+void AStoneSentinelCreature::TickExposed(float DeltaSeconds)
+{
+	if (ExposedLeft <= 0.f)
+	{
+		return;
+	}
+	ExposedLeft = FMath::Max(0.f, ExposedLeft - DeltaSeconds);
+	if (ExposedLeft <= 0.f)
+	{
+		// It closes up: its guard back on at once.
+		ApplyStoneDefense();
+		return;
+	}
+	EmberClock -= DeltaSeconds;
+	if (EmberClock > 0.f)
+	{
+		return;
+	}
+	EmberClock = EmberEvery;
+	UWorld* World = GetWorld();
+	if (!World || !World->IsGameWorld() || IsPoseFrozen())
+	{
+		return;
+	}
+	UBulletSubsystem* Bullets = World->GetSubsystem<UBulletSubsystem>();
+	if (!Bullets)
+	{
+		return;
+	}
+	// The soul-light that woke it pours out of the cracks in its back and neck: embers flung up and back, now and then a glow.
+	const float Scale = GetSizeScale();
+	const FVector Forward = GetActorForwardVector();
+	const FVector Middle = GetActorLocation();
+	const FVector Back = BoneSpot(Rig.Spine2, Middle + FVector(0.0, 0.0, 60.0 * Scale)) - Forward * (22.f * Scale) + FVector(0.0, 0.0, 8.0 * Scale);
+	const FVector Neck = BoneSpot(Rig.Head, Middle + FVector(0.0, 0.0, 95.0 * Scale)) - Forward * (10.f * Scale);
+	const FVector Out = (FVector::UpVector - Forward * 0.5f).GetSafeNormal();
+	FWeaponFX& Effects = Bullets->GetEffects();
+	Effects.Initialize(World);
+	Effects.SpawnCoalFling(Back, Out, HeartGlow, 2, false);
+	if (FMath::RandBool())
+	{
+		Effects.SpawnCoalFling(Neck, Out, HeartGlow, 1, false);
+	}
+	static int32 PuffTurn = 0;
+	if (++PuffTurn % EmberPuffEvery == 0 && StoneSentinelFX::IsClearOfLens(this, Back, 40.f * Scale, 60.f))
+	{
+		Effects.SpawnEmberPuff(Back, HeartGlow, 18.f * Scale);
+	}
 }

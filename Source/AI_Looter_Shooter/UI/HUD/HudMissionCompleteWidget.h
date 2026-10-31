@@ -6,6 +6,7 @@
 #include "HudMissionCompleteWidget.generated.h"
 
 class UHorizontalBox;
+class UHudGunSlotBannerWidget;
 class UHudLevelUpBannerWidget;
 class UImage;
 class UMissionDefinition;
@@ -46,6 +47,9 @@ public:
 
 	/** The level-up banner it takes turns with: its level-ups wait for this, and this waits while it shows. */
 	void SetLevelUpBanner(UHudLevelUpBannerWidget* InLevelUpBanner);
+
+	/** The "NEW GUN SLOT" banner in the same place: this waits while it shows (it waits for this, queue and all). */
+	void SetGunSlotBanner(UHudGunSlotBannerWidget* InGunSlotBanner);
 
 	/**
 	 * Whether an ending is a bounty's: its id starts "Bounty" (UBountyBoardSubsystem::Announce names it Bounty_<serial>), or it is
@@ -142,6 +146,7 @@ private:
 	TArray<FString> RewardWords;
 
 	TWeakObjectPtr<UHudLevelUpBannerWidget> LevelUpBanner;
+	TWeakObjectPtr<UHudGunSlotBannerWidget> GunSlotBanner;
 	TWeakObjectPtr<UMissionRunner> BoundRunner;
 	FDelegateHandle CompletedHandle;
 

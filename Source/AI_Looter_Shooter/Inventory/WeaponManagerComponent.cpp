@@ -104,6 +104,7 @@ int32 UWeaponManagerComponent::TakeAmmo(EAmmoType Type, int32 Amount)
 void UWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	TeardownInput();
+	StopWatchingSlotProgress();
 
 	if (APawn* Pawn = Cast<APawn>(GetOwner()))
 	{
@@ -185,6 +186,11 @@ void UWeaponManagerComponent::SetupInput(AController* Controller)
 	}
 	// Remembered past an unpossess: the pawn is destroyed after its controller lets go (ReportEndPlay).
 	bHeldByPlayer = bHeldByPlayer || (Controller && Controller->IsLocalPlayerController());
+	// The player's slots open with their level and the story: heard from here on, for the HUD's moment (WeaponManagerSlotGate.cpp).
+	if (Controller && Controller->IsLocalPlayerController())
+	{
+		WatchSlotProgress(Controller);
+	}
 
 	if (FireAction)
 	{
@@ -211,14 +217,14 @@ void UWeaponManagerComponent::SetupInput(AController* Controller)
 	// The interact key (mapped in these controls) is the interaction component's: it finds the loot looked at and hands
 	// a tap or a hold on it back here (UseOffer).
 
-	// The number keys take a slot's weapon in hand (an empty slot, or the one in hand, does nothing). They come from the
-	// key bindings' own context, which this adds and removes with the rest of the weapon controls.
+	// The number keys take a slot's weapon in hand (an empty slot, or the one in hand, does nothing; a shut one says how it
+	// opens). They come from the key bindings' own context, which this adds and removes with the rest of the weapon controls.
 	UEnhancedInputComponent* SlotInput = Bindings ? SlotInputBinding.Setup(GetOwner(), Controller, Bindings->GetWeaponSlotContext(), InputMappingPriority) : nullptr;
 	for (int32 SlotIndex = 0; SlotInput && SlotIndex < UKeyBindingSubsystem::NumWeaponSlotKeys; ++SlotIndex)
 	{
 		if (const UInputAction* SlotAction = Bindings->GetWeaponSlotAction(SlotIndex))
 		{
-			SlotInput->BindAction(SlotAction, ETriggerEvent::Started, this, &UWeaponManagerComponent::EquipSlot, SlotIndex);
+			SlotInput->BindAction(SlotAction, ETriggerEvent::Started, this, &UWeaponManagerComponent::HandleSlotKey, SlotIndex);
 		}
 	}
 

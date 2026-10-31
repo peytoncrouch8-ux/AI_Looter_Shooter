@@ -12,6 +12,7 @@
 #include "Creatures/CreatureTierLook.h"
 #include "Creatures/UnpaidHat.h"
 #include "Creatures/UnpaidKitWork.h"
+#include "Creatures/UnpaidLifeWork.h"
 #include "Player/PlayerSize.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
@@ -170,6 +171,8 @@ void AUnpaidCreature::BeginPlay()
 	GetMesh()->AddTickPrerequisiteActor(this);
 	PoseSeed = FMath::FRandRange(0.f, 100.f);
 	LastYaw = static_cast<float>(GetActorRotation().Yaw);
+	// Its limp and its strong side, its own for its life (UnpaidCreatureGait.cpp).
+	FUnpaidGaitWork::Seed(*this);
 	PutOnClothes();
 	bRigReady = SetupRig();
 	PutOnHat();
@@ -272,6 +275,11 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 	else
 	{
 		Heat = FMath::FInterpTo(Heat, 0.f, DeltaSeconds, FlareFade);
+		// Clawing up out of the ground (UnpaidCreatureRise.cpp): before the phase-step's fade, which waits while it's buried.
+		if (IsRising())
+		{
+			FUnpaidRiseWork::Tick(*this, DeltaSeconds);
+		}
 		TickPhaseStep(DeltaSeconds);
 		if (Kit.bLunging)
 		{
@@ -302,26 +310,6 @@ void AUnpaidCreature::UpdateDeathLook(float DeltaSeconds)
 	ShedDeathAsh(DeltaSeconds);
 }
 
-void AUnpaidCreature::RiseIn()
-{
-	if (IsDead())
-	{
-		return;
-	}
-	// The end of a phase-step without its start: gone, and fading back in where it stands, as it comes up out of the ground
-	// clawing (RiseTime: the pose's RiseDrop and PoseTargets), the dirt thrown up round it.
-	Kit.PhaseState = EPhaseState::In;
-	Kit.PhaseTime = 0.f;
-	PhaseAmount = 1.f;
-	Kit.LandedGap = TNumericLimits<float>::Max();
-	RiseTime = 0.f;
-	ApplyLook(true);
-	if (UCreatureReactComponent* Reacts = GetReact())
-	{
-		Reacts->ThrowGraveDirt(GetActorLocation() - FVector(0.0, 0.0, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), GetSizeScale(), 0.9f);
-	}
-}
-
 void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 {
 	if (IsDead())
@@ -338,6 +326,8 @@ void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	// the twist, its hat knocked off, the coal's sparks.
 	UnpaidHurtPose::OnHit(*this, Hurt, Strength, FlinchAway);
 	ReactToHit(bCritical, Strength);
+	// Its head lolls with the hit and its lurch stumbles (UnpaidCreatureGait.cpp).
+	FUnpaidGaitWork::OnHurt(*this, Strength, FlinchAway);
 	if (bCritical)
 	{
 		Heat = CritFlare;
@@ -374,13 +364,19 @@ void AUnpaidCreature::OnDied()
 	Kit.PhaseState = EPhaseState::None;
 	Kit.PhaseTime = 0.f;
 	DeathTime = 0.f;
-	RiseTime = -1.f;
+	// Killed clawing out of the ground, it sinks back into its grave (UnpaidCreatureRise.cpp).
+	if (IsRising())
+	{
+		FUnpaidRiseWork::Stop(*this, /*bDied*/ true);
+	}
 	GlanceYaw = 0.f;
 	AshOwed = -1.f;
 	ResetProgress();
 	// How the killing hit takes it (HITS kill styles, UnpaidCreatureHurt.cpp; its look runs in UnpaidCreatureMoods.cpp): torn
 	// by a blast, its strips whip out along the shot.
 	UnpaidHurtPose::OnKilled(*this, Hurt, FlinchAway);
+	// A plain kill falls one of its ways: a slump, a last reach at its killer, a twist away, a buckle (UnpaidCreatureGait.cpp).
+	FUnpaidGaitWork::OnDied(*this);
 	if (Hurt.Kill == UnpaidBody::EKillStyle::Torn)
 	{
 		for (int32 Strip = 1; Strip < static_cast<int32>(UE_ARRAY_COUNT(Chains)); ++Strip)
@@ -404,7 +400,9 @@ void AUnpaidCreature::OnRespawned()
 	PhaseAmount = 0.f;
 	Heat = 0.f;
 	DeathTime = 0.f;
-	RiseTime = -1.f;
+	// Out of any rise, its lurch and tilt as they were made (its limp kept).
+	FUnpaidRiseWork::Stop(*this, /*bDied*/ false);
+	FUnpaidGaitWork::Reset(*this);
 	GlanceYaw = 0.f;
 	GlanceLeft = 0.f;
 	CommitLunge(false);

@@ -47,7 +47,7 @@ CRATE_TAG = 'CampCache'
 CRATE_KIND = 'SupplyCrate'
 
 RANKS = {'Basic': 'BASIC', 'Rare': 'RARE', 'Epic': 'EPIC'}
-ENTRANCES = {'Appear': 'APPEAR', 'Rise': 'RISE', 'Drop': 'DROP'}
+ENTRANCES = {'Appear': 'APPEAR', 'Rise': 'RISE', 'Drop': 'DROP', 'RiseAround': 'RISE_AROUND'}
 
 # A spot whose ground is more than this (cm) above or below its encounter's middle is warned of: the spawner skips it
 # in play (its max_ground_step, 4 m unless the layout says).
@@ -299,6 +299,8 @@ def place_ambush(build, ambush):
     made.set_editor_property('entrance', getattr(unreal.AmbushEntrance, ENTRANCES[ambush.get('entrance', 'Appear')]))
     if 'dropHeight' in ambush:
         made.set_editor_property('drop_height', float(ambush['dropHeight']))
+    if 'riseRadius' in ambush:
+        made.set_editor_property('rise_radius', float(ambush['riseRadius']))
     set_ground(build, made, ambush['ground'], z)
     check_levels(build, label, (x, y, z), spots, float(ambush['ground'].get('maxStep', DEFAULT_STEP)))
     if ambush.get('setPiece'):

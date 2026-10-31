@@ -1,75 +1,102 @@
-// USettingsMenuWidget's round 3 motion (the contract's lane P): the plate drops in and settles as it opens (c1) while the
-// halo spins up a quarter turn (c3); the brass ribbon slides to the row marked (the focus's under keys, the pointer's under
-// the mouse) and the gold mark slides under the lit tab, each in about 0.09 s; Resume's reticle turns slowly while it is
-// the row marked. The pieces are SettingsMenuLedger.cpp's.
+// USettingsMenuWidget's motion and the row marked (E2 "Big Dial"). The open: the dial swings up into place as the title
+// slides in, the pennants drop onto their ticks one after another, the rows arrive from the left one after another and the
+// help card from the right, the key hints last (all within about 0.4 s, none of it in the way of a key press). A tab turned:
+// the dial clicks a tick that way with a slight overshoot (the hub's "one click per option"), the lit pennant drops in, the
+// new page's rows arrive. The card's words rise in when they change. The row marked (the focus's under keys, the pointer's
+// under the mouse, else the page's first) wears the gold light, its number and name gold.
 
 #include "UI/Menus/SettingsMenuWidget.h"
-#include "UI/Menus/SettingsMenuArt.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
-#include "UI/Style/LooterReticleArt.h"
+#include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
-#include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
-#include "Components/Overlay.h"
-#include "Components/ScrollBox.h"
-#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 
 using namespace SettingsMenu;
 
 namespace
 {
-	/** The open: the plate drops the last OpenDrop px in OpenDropSeconds (c1); the halo spins up its last quarter (c3). */
-	constexpr float OpenDrop = 16.f;
-	constexpr float OpenDropSeconds = 0.18f;
-	constexpr float OpenSpinDegrees = 90.f;
-	constexpr float OpenSpinSeconds = 0.25f;
-	/** The ribbon and the tab mark ease to theirs: 95% of the way in three of these (0.09 s, the contract's slide). */
-	constexpr float SlideEase = 0.03f;
-	constexpr float RibbonFadeSeconds = 0.12f;
-	/** Resume's reticle turns once in this long while Resume is the row marked (c3). */
-	constexpr float ReticleTurnSeconds = 8.f;
+	/** The dial swings up this far as the page opens, and clicks one tick (10 degrees) as a tab turns. */
+	constexpr float OpenSwingDegrees = 60.f;
+	constexpr float OpenSwingSeconds = 0.32f;
+	constexpr float ClickDegrees = 10.f;
+	constexpr float ClickSeconds = 0.18f;
+	/** Each piece arrives in this long, after its delay. */
+	constexpr float ArriveSeconds = 0.22f;
+	constexpr float TitleDelay = 0.04f;
+	constexpr float TitleSlide = 16.f;
+	constexpr float TabDelay = 0.06f;
+	constexpr float TabStagger = 0.035f;
+	constexpr float TabDrop = 12.f;
+	/** The lit pennant drops this far onto its tick as its page turns up. */
+	constexpr float LitDrop = 8.f;
+	constexpr float LitDropSeconds = 0.16f;
+	/** The rows arrive one after another, the first this many staggered (the rest with the last). */
+	constexpr float RowStagger = 0.03f;
+	constexpr float RowSlide = 24.f;
+	constexpr int32 RowsStaggered = 10;
+	constexpr float CardDelay = 0.1f;
+	constexpr float CardSlide = 24.f;
+	constexpr float HintDelay = 0.14f;
+	/** New words on the card rise this far, from this faint. */
+	constexpr float HelpRiseSeconds = 0.14f;
+	constexpr float HelpRise = 6.f;
+	constexpr float HelpFrom = 0.35f;
 
-	/** Child's box in Space's local space, from the geometry they were last drawn with; false before they're drawn. */
-	bool LocalBox(const UWidget& Child, const UWidget& Space, FVector2D& OutTopLeft, FVector2D& OutSize)
+	float EaseOut(float T)
 	{
-		const FGeometry& ChildGeometry = Child.GetCachedGeometry();
-		const FGeometry& SpaceGeometry = Space.GetCachedGeometry();
-		const FVector2D ChildSize(ChildGeometry.GetLocalSize());
-		if (ChildSize.IsNearlyZero() || FVector2D(SpaceGeometry.GetLocalSize()).IsNearlyZero())
+		const float Left = 1.f - FMath::Clamp(T, 0.f, 1.f);
+		return 1.f - Left * Left * Left;
+	}
+
+	/** Eased out with a slight overshoot past the end, then back (a click settling). */
+	float EaseOutBack(float T)
+	{
+		constexpr float Overshoot = 1.2f;
+		const float Back = FMath::Clamp(T, 0.f, 1.f) - 1.f;
+		return 1.f + (Overshoot + 1.f) * Back * Back * Back + Overshoot * Back * Back;
+	}
+
+	/** Widget at Opacity, moved by Translation: set only when it differs (each set redraws it). */
+	void SetMotion(UWidget* Widget, float Opacity, const FVector2D& Translation)
+	{
+		if (!Widget)
 		{
-			return false;
+			return;
 		}
-		const FVector2D TopLeft(SpaceGeometry.AbsoluteToLocal(FVector2D(ChildGeometry.LocalToAbsolute(FVector2D::ZeroVector))));
-		const FVector2D BottomRight(SpaceGeometry.AbsoluteToLocal(FVector2D(ChildGeometry.LocalToAbsolute(ChildSize))));
-		OutTopLeft = TopLeft;
-		OutSize = BottomRight - TopLeft;
-		return true;
+		if (!FMath::IsNearlyEqual(Widget->GetRenderOpacity(), Opacity, 0.002f))
+		{
+			Widget->SetRenderOpacity(Opacity);
+		}
+		if (!Widget->GetRenderTransform().Translation.Equals(Translation, 0.05))
+		{
+			Widget->SetRenderTranslation(Translation);
+		}
 	}
 }
 
 void USettingsMenuWidget::BeginOpenMotion()
 {
 	OpenAge = 0.f;
-	bRibbonPlaced = false;
-	bTabMarkPlaced = false;
-	RibbonOpacity = 0.f;
-	if (Ribbon)
-	{
-		Ribbon->SetRenderOpacity(0.f);
-	}
+	PageAge = 0.f;
+	HelpAge = 10.f;
+	DialClickAge = 10.f;
 	MarkRow(DefaultMarkedRow());
-	// The first frame shows the plate up and the halo turned back, before any tick has run.
+	RefreshTabLooks();
+	// The first frame shows everything at its start, before any tick has run.
 	AdvanceLook(0.f);
+}
+
+void USettingsMenuWidget::BeginPageMotion(int32 Direction)
+{
+	PageAge = 0.f;
+	DialClickAge = 0.f;
+	DialClickDirection = Direction >= 0 ? 1.f : -1.f;
 }
 
 UWidget* USettingsMenuWidget::DefaultMarkedRow() const
 {
-	if (Mode == ESettingsMenuMode::Pause && ResumeButton && ResumeButton->IsVisible())
-	{
-		return ResumeButton;
-	}
 	const FSettingsLedgerLine* First = LedgerLines.FindByPredicate([this](const FSettingsLedgerLine& Line)
 	{
 		return Line.Page == CurrentPage && Line.Number.IsValid();
@@ -82,30 +109,22 @@ UWidget* USettingsMenuWidget::FindMarkedRow(bool& bOutHide) const
 	bOutHide = false;
 	if (Nav.IsShown())
 	{
-		// Keys or a gamepad: the focus's row (a page's row, Resume); the footer and nothing have no ribbon.
+		// Keys or a gamepad: the focus's row.
 		const FMenuNavItem* Here = Nav.GetFocused();
 		if (Here && Here->Row.IsValid())
 		{
 			return Here->Row.Get();
 		}
-		if (Here && Here->GetWidget() == ResumeButton)
-		{
-			return ResumeButton;
-		}
 		bOutHide = true;
 		return nullptr;
 	}
-	// The mouse: the row under the pointer; between rows (or off them) the ribbon stays where it was.
+	// The mouse: the row under the pointer; between rows (or off them) the light stays where it was.
 	for (const FSettingsLedgerLine& Line : LedgerLines)
 	{
 		if (Line.Page == CurrentPage && Line.Row.IsValid() && Line.Row->IsHovered())
 		{
 			return Line.Row.Get();
 		}
-	}
-	if (ResumeButton && ResumeButton->IsVisible() && ResumeButton->IsHovered())
-	{
-		return ResumeButton;
 	}
 	return nullptr;
 }
@@ -117,11 +136,19 @@ void USettingsMenuWidget::MarkRow(UWidget* Row)
 	MarkedRow = Row;
 	for (const FSettingsLedgerLine& Line : LedgerLines)
 	{
-		UTextBlock* Number = Line.Number.Get();
 		const UWidget* LineRow = Line.Row.Get();
-		if (Number && LineRow && (LineRow == Before || LineRow == Row))
+		if (!LineRow || (LineRow != Before && LineRow != Row))
 		{
-			Number->SetColorAndOpacity(FSlateColor(LineRow == Row ? Color::SoulGold() : Color::SlateIcon()));
+			continue;
+		}
+		const bool bMarked = LineRow == Row;
+		if (UTextBlock* Number = Line.Number.Get())
+		{
+			Number->SetColorAndOpacity(FSlateColor(bMarked ? Color::SoulGold() : Color::SlateIcon()));
+		}
+		if (UTextBlock* Name = Line.Name.Get())
+		{
+			Name->SetColorAndOpacity(FSlateColor(bMarked ? Color::SoulGold() : Line.NameColor));
 		}
 	}
 }
@@ -129,37 +156,52 @@ void USettingsMenuWidget::MarkRow(UWidget* Row)
 void USettingsMenuWidget::AdvanceLook(float DeltaSeconds)
 {
 	const float Delta = FMath::Clamp(DeltaSeconds, 0.f, 0.1f);
-	const float Before = OpenAge;
 	OpenAge += Delta;
+	PageAge += Delta;
+	HelpAge += Delta;
+	DialClickAge += Delta;
 
-	// The open: the plate drops its last 16 px and settles (c1), the halo and its gold arcs spin up a quarter turn (c3).
-	if (Before <= FMath::Max(OpenDropSeconds, OpenSpinSeconds) || Delta <= 0.f)
+	// The dial: up into place as the page opens, a click a tick as a tab turns. Its ticks are 10 degrees apart, so a whole
+	// click ends looking as it began but for the needle's swing.
+	if (Dial)
 	{
-		const float Drop = FMath::Clamp(OpenAge / OpenDropSeconds, 0.f, 1.f);
-		const float Spin = FMath::Clamp(OpenAge / OpenSpinSeconds, 0.f, 1.f);
-		if (Panel)
+		const float Swing = -OpenSwingDegrees * (1.f - EaseOut(OpenAge / OpenSwingSeconds));
+		const float Click = -DialClickDirection * ClickDegrees * (1.f - EaseOutBack(DialClickAge / ClickSeconds));
+		const float Angle = Swing + Click;
+		if (!FMath::IsNearlyEqual(Dial->GetRenderTransformAngle(), Angle, 0.01f))
 		{
-			Panel->SetRenderTranslation(FVector2D(0.f, -OpenDrop * FMath::Pow(1.f - Drop, 3.f)));
-		}
-		const float Angle = -OpenSpinDegrees * FMath::Pow(1.f - Spin, 3.f);
-		if (HaloRing)
-		{
-			HaloRing->SetRenderTransformAngle(Angle);
-		}
-		if (HaloGold)
-		{
-			HaloGold->SetRenderTransformAngle(Angle);
+			Dial->SetRenderTransformAngle(Angle);
 		}
 	}
-	const float Follow = Delta > 0.f ? 1.f - FMath::Exp(-Delta / SlideEase) : 0.f;
 
-	// The ribbon: to the row marked. A row left on another page (a tab clicked) hands it to the new page's start.
+	// The title, the pennants, the card and the hints arriving.
+	const float TitleIn = EaseOut((OpenAge - TitleDelay) / ArriveSeconds);
+	SetMotion(TitleBlock, TitleIn, FVector2D(-TitleSlide * (1.f - TitleIn), 0.f));
+	for (int32 Page = 0; Page < TabCells.Num(); ++Page)
+	{
+		const float In = EaseOut((OpenAge - TabDelay - TabStagger * Page) / ArriveSeconds);
+		const float Drop = Page == CurrentPage ? -LitDrop * (1.f - EaseOutBack(PageAge / LitDropSeconds)) : 0.f;
+		SetMotion(TabCells[Page], In, FVector2D(0.f, -TabDrop * (1.f - In)));
+		// The pennant alone drops onto its tick; the tick stays on the ruler.
+		if (TabButtons.IsValidIndex(Page))
+		{
+			SetMotion(TabButtons[Page], 1.f, FVector2D(0.f, Drop));
+		}
+	}
+	const float CardIn = EaseOut((OpenAge - CardDelay) / ArriveSeconds);
+	SetMotion(HelpCard, CardIn, FVector2D(CardSlide * (1.f - CardIn), 0.f));
+	const float WordsIn = EaseOut(HelpAge / HelpRiseSeconds);
+	SetMotion(HelpWords, FMath::Lerp(HelpFrom, 1.f, WordsIn), FVector2D(0.f, HelpRise * (1.f - WordsIn)));
+	SetMotion(Hints, EaseOut((OpenAge - HintDelay) / ArriveSeconds), FVector2D::ZeroVector);
+
+	// The page's rows arriving one after another, and the light on the row marked. A row marked on another page (a tab
+	// clicked) hands the light to the new page's first row.
 	bool bHide = false;
 	UWidget* Wanted = FindMarkedRow(bHide);
 	if (!Wanted && !bHide)
 	{
 		const FSettingsLedgerLine* Marked = LedgerLines.FindByPredicate([this](const FSettingsLedgerLine& Line) { return Line.Row.Get() == MarkedRow.Get(); });
-		if (!MarkedRow.IsValid() || (Marked && Marked->Page != CurrentPage))
+		if (!MarkedRow.IsValid() || !Marked || Marked->Page != CurrentPage)
 		{
 			Wanted = DefaultMarkedRow();
 		}
@@ -168,72 +210,36 @@ void USettingsMenuWidget::AdvanceLook(float DeltaSeconds)
 	{
 		MarkRow(Wanted);
 	}
-	// Resume wears its own reticle, and the halo holds that corner of the plate: the ribbon is the ledger rows' alone.
-	UWidget* Target = bHide || MarkedRow.Get() == ResumeButton ? nullptr : MarkedRow.Get();
-	bool bShow = false;
-	float TargetY = RibbonY;
-	FVector2D TopLeft;
-	FVector2D Size;
-	if (Target && Plate && Target->IsVisible() && LocalBox(*Target, *Plate, TopLeft, Size))
+	const bool bKeysDrive = Nav.IsShown();
+	int32 Order = 0;
+	for (const FSettingsLedgerLine& Line : LedgerLines)
 	{
-		TargetY = TopLeft.Y + Size.Y * 0.5f;
-		bShow = true;
-		// A page's row scrolled out of the list's view: the ribbon waits out of sight.
-		FVector2D ListTopLeft;
-		FVector2D ListSize;
-		if (Body && LocalBox(*Body, *Plate, ListTopLeft, ListSize))
+		if (Line.Page != CurrentPage)
 		{
-			bShow = TargetY >= ListTopLeft.Y && TargetY <= ListTopLeft.Y + ListSize.Y;
+			continue;
 		}
-	}
-	if (bShow && !bRibbonPlaced)
-	{
-		RibbonY = TargetY;
-		bRibbonPlaced = true;
-	}
-	RibbonY = FMath::Lerp(RibbonY, TargetY, Follow);
-	if (Delta > 0.f)
-	{
-		RibbonOpacity = FMath::FInterpConstantTo(RibbonOpacity, bShow ? 1.f : 0.f, Delta, 1.f / RibbonFadeSeconds);
-	}
-	if (Ribbon)
-	{
-		if (UCanvasPanelSlot* RibbonSlot = Cast<UCanvasPanelSlot>(Ribbon->Slot))
+		const float Start = RowStagger * FMath::Min(Order++, RowsStaggered);
+		const float In = EaseOut((PageAge - Start) / ArriveSeconds);
+		SetMotion(Line.Row.Get(), In, FVector2D(-RowSlide * (1.f - In), 0.f));
+		UWidget* Light = Line.Light.Get();
+		const bool bLit = !bHide && Line.Row.Get() == MarkedRow.Get();
+		if (Light && LooterUI::IsFocusLit(Light) != bLit)
 		{
-			RibbonSlot->SetPosition(FVector2D(SettingsMenuArt::RibbonLeft, RibbonY - SettingsMenuArt::RibbonHeight * 0.5f));
+			LooterUI::SetFocusLit(Light, bLit);
 		}
-		Ribbon->SetRenderOpacity(RibbonOpacity);
-	}
-
-	// The tab mark: the ruler's gold run and its triangle slide under the lit tab.
-	ULooterButton* LitTab = TabButtons.IsValidIndex(CurrentPage) ? TabButtons[CurrentPage].Get() : nullptr;
-	FVector2D TabTopLeft;
-	FVector2D TabSize;
-	FVector2D RulerTopLeft;
-	FVector2D RulerSize;
-	if (TabMark && TabBar && TabRuler && LitTab && LocalBox(*LitTab, *TabBar, TabTopLeft, TabSize) && LocalBox(*TabRuler, *TabBar, RulerTopLeft, RulerSize))
-	{
-		const float X = TabTopLeft.X + TabSize.X * 0.5f;
-		if (!bTabMarkPlaced)
+		// Under keys the focus look breathes (the navigator's); under the mouse the light holds steady.
+		if (Light && bLit && !bKeysDrive)
 		{
-			TabMarkX = X;
-			bTabMarkPlaced = true;
-		}
-		TabMarkX = FMath::Lerp(TabMarkX, X, Follow);
-		if (UCanvasPanelSlot* MarkSlot = Cast<UCanvasPanelSlot>(TabMark->Slot))
-		{
-			MarkSlot->SetPosition(FVector2D(TabMarkX - SettingsMenuArt::TabMarkWidth * 0.5f, RulerTopLeft.Y + LooterReticle::RulerLineY(false) - 2.f));
-		}
-		if (TabMark->GetVisibility() != ESlateVisibility::HitTestInvisible)
-		{
-			TabMark->SetVisibility(ESlateVisibility::HitTestInvisible);
+			LooterUI::SetFocusGlow(Light, 1.f);
 		}
 	}
 
-	// Resume's reticle turns slowly while Resume is the row marked.
-	if (ResumeReticle && Delta > 0.f && MarkedRow.Get() == ResumeButton)
+	// Words set before the card was first drawn are measured now (they can't be until it is on screen).
+	if (!bHelpCardSized)
 	{
-		ReticleAngle = FMath::Fmod(ReticleAngle + Delta * 360.f / ReticleTurnSeconds, 360.f);
-		ResumeReticle->SetRenderTransformAngle(ReticleAngle);
+		SizeHelpCard();
 	}
+
+	// The tabs' looks follow the pointer.
+	RefreshTabLooks();
 }

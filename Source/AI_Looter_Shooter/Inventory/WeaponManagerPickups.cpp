@@ -21,8 +21,8 @@ bool UWeaponManagerComponent::TryPickup(AWeaponBase* Pickup)
 		return false;
 	}
 
-	// Slots full but backpack has room: stash it like Borderlands does.
-	if (Weapons.Num() >= MaxWeapons && HasBackpackRoom())
+	// Open slots full but backpack has room: stash it like Borderlands does (a shut slot never takes it).
+	if (!HasFreeSlot() && HasBackpackRoom())
 	{
 		BackpackAdd(Pickup->GetInstanceForStorage());
 		SendMessage(FString::Printf(TEXT("%s sent to backpack"), *Pickup->GetDisplayName().ToString()));
@@ -53,8 +53,8 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 		return true;
 	}
 
-	// A free slot takes it, the same as a tap.
-	if (Weapons.Num() < MaxWeapons)
+	// A free open slot takes it, the same as a tap.
+	if (HasFreeSlot())
 	{
 		if (!AddWeapon(Pickup))
 		{
@@ -77,7 +77,7 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 
 void UWeaponManagerComponent::PutLootInHand(AWeaponBase* Pickup)
 {
-	if (Weapons.Num() < MaxWeapons)
+	if (HasFreeSlot())
 	{
 		// (A slot freed while the gun in hand went down for it.)
 		if (AddWeapon(Pickup) && Weapons.IndexOfByKey(Pickup) != ActiveSlot)

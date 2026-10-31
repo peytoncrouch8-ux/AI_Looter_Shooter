@@ -1,0 +1,93 @@
+--- a/Tools/Unreal/build_creature_materials.py	2026-10-31 02:03:18.703037200 -0400
++++ b/Tools/Unreal/build_creature_materials.py	2026-10-31 02:03:55.618914600 -0400
+@@ -88,7 +88,13 @@
+ 
+ # The scalars on M_Ghost and their defaults: an instance that sets none of them looks right.
+ DEFAULTS = dict(RimStrength=1.5, RimPower=2.8, GlowStrength=0.1, EmberStrength=3.0, NoiseScale=1.5, NoiseSpeed=0.06,
+-                FadeSoftness=0.07, Coal=0.0, UVScale=1.0)
++                FadeSoftness=0.07, Coal=0.0, UVScale=1.0, PaintAmount=0.0)
++# A model's own paint (2026-10-31, the Tripo Unpaid: Art/Models/Creatures/Tripo/parts_unpaid_paint.py): with PaintAmount 1
++# the BaseColorMap is the model's painted atlas on UV 1 (not the Polymer grain on UV 0), each tint zone recolouring it by
++# Zone<N>Color / PaintZone<N> (the paint's mean colour in that zone). Ghost_A sets both to the same means, so the model's
++# own clothes are its paint exactly; MI_Ghost_B and _C (which copy Ghost_A's settings) recolour the paint by their own
++# zones over A's (paint_clothes()). PaintAmount 0 (every other ghost) is the look as it was.
++PAINT_ZONES = ('PaintZone1', 'PaintZone2', 'PaintZone3', 'PaintZone4')
+ # The painted ghost's (sheet 1). Heights are the mesh's own (pre-skinned) cm: every ghost is built standing on its origin,
+ # the pelvis (the float height) at 100, the head at about 170 (Abel and the Foreman are scaled by their actors, not built
+ # bigger). COAL_AT: the coal's middle at rest (Unpaid.py, DeadMiner.py, Abel.py, Amos.py, Foreman.py: 1.32-1.33 m up,
+@@ -144,8 +150,13 @@
+ GHOST_COLOR = """// Vertex R picks the tint zone: 0, 1/3, 2/3 and 1.
+ float ZoneIndex = VertexColor.r * 3.0;
+ float3 Cloth = ZoneIndex < 0.5 ? Zone1 : (ZoneIndex < 1.5 ? Zone2 : (ZoneIndex < 2.5 ? Zone3 : Zone4));
+-// The Polymer grain runs through it by its brightness (about 0.8 on average, so the zone keeps its value).
+-float Grain = clamp(dot(GrainColor, float3(0.299, 0.587, 0.114)) * 1.25, 0.5, 1.5);
++// A model's own paint (PaintAmount 1; GrainColor is then the paint, on UV 1): recoloured per zone by the zone's colour
++// over the paint's own mean there, so a model's own clothes are its paint and the other sets keep its detail.
++float3 PaintMean = ZoneIndex < 0.5 ? PaintZone1 : (ZoneIndex < 1.5 ? PaintZone2 : (ZoneIndex < 2.5 ? PaintZone3 : PaintZone4));
++float3 PaintCloth = GrainColor * Cloth / max(PaintMean, float3(0.002, 0.002, 0.002));
++Cloth = lerp(Cloth, PaintCloth, saturate(PaintAmount));
++// The Polymer grain runs through it by its brightness (about 0.8 on average, so the zone keeps its value); none on paint.
++float Grain = lerp(clamp(dot(GrainColor, float3(0.299, 0.587, 0.114)) * 1.25, 0.5, 1.5), 1.0, saturate(PaintAmount));
+ // The painted cloth (T_GhostCloth_M): the weave and its seams mostly on the clothes (zone 1 is skin and shroud), the
+ // hanging folds and the grave-dirt stains on everything. Each averages 1, so a zone keeps its value from afar.
+ float OnCloth = ZoneIndex < 0.5 ? SkinCloth : 1.0;
+@@ -278,7 +289,15 @@
+ 
+     coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1800, 200, coordinate_index=0)
+     grain_uv = g.mul(coords, '', g.scalar('UVScale', DEFAULTS['UVScale'], -1800, 320), '', -1600, 260)
+-    grain = g.texture('BaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, grain_texture(), grain_uv, -1400, 200)
++    # A model's own paint reads the BaseColorMap on UV 1 instead (PaintAmount 1).
++    paint_amount = g.scalar('PaintAmount', DEFAULTS['PaintAmount'], -1800, 40)
++    paint_uv = g.node(unreal.MaterialExpressionTextureCoordinate, -1800, 120, coordinate_index=1)
++    map_uv = g.node(unreal.MaterialExpressionLinearInterpolate, -1550, 160)
++    g.link(grain_uv, '', map_uv, 'A')
++    g.link(paint_uv, '', map_uv, 'B')
++    g.link(paint_amount, '', map_uv, 'Alpha')
++    grain = g.texture('BaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, grain_texture(), map_uv, -1400, 200)
++    paint_zones = [g.vector(name, (1.0, 1.0, 1.0, 1.0), -2200, -1300 + 100 * index) for index, name in enumerate(PAINT_ZONES)]
+     cloth_uv = g.mul(coords, '', g.scalar('ClothScale', PAINTED['ClothScale'], -1800, 420), '', -1600, 400)
+     painted = g.texture('ClothMap', unreal.MaterialSamplerType.SAMPLERTYPE_MASKS, cloth_map, cloth_uv, -1400, 320)
+     vertex = g.node(unreal.MaterialExpressionVertexColor, -1400, 500)
+@@ -296,6 +315,8 @@
+         ('GrainColor', grain, 'RGB'),
+         ('Painted', painted, 'RGB'),
+         ('Zone1', zones[0], ''), ('Zone2', zones[1], ''), ('Zone3', zones[2], ''), ('Zone4', zones[3], ''),
++        ('PaintZone1', paint_zones[0], 'RGB'), ('PaintZone2', paint_zones[1], 'RGB'), ('PaintZone3', paint_zones[2], 'RGB'),
++        ('PaintZone4', paint_zones[3], 'RGB'), ('PaintAmount', paint_amount, ''),
+         ('Tint', g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1400, -200), ''),
+         ('Crust', g.node(unreal.MaterialExpressionConstant3Vector, -1400, -100, constant=unreal.LinearColor(*linear(COAL_CRUST))), ''),
+         ('CoalAmount', coal, ''),
+@@ -393,6 +414,22 @@
+             {k: v for k, v in textures.items() if k not in skip and v is not None})
+ 
+ 
++def paint_clothes(zones, shared):
++    """A set of clothes' zone colours (linear RGBA). Over a model's own paint (MI_Ghost_A with PaintAmount 1) each is the
++    paint's mean in that zone times this set's colour over the first set's (CLOTHES['A']): the same recolouring the
++    flat tints made, the paint's detail kept; skin and robe (zone 1, the same in every set) stay the paint's."""
++    scalars, vectors = (shared[0], shared[1]) if shared else ({}, {})
++    if scalars.get('PaintAmount', 0.0) <= 0.0 or not all(k in vectors for k in PAINT_ZONES):
++        return [linear(color) for color in zones]
++    out = []
++    for color, first, key in zip(zones, CLOTHES['A'], PAINT_ZONES):
++        mean = vectors[key]
++        mine, theirs = linear(color), linear(first)
++        out.append(tuple(min(1.0, m * a / max(b, 1e-4)) for m, a, b in
++                         zip((mean.r, mean.g, mean.b), mine[:3], theirs[:3])) + (1.0,))
++    return out
++
++
+ def clothes(name, zones, master, shared):
+     path = f'{INSTANCE_FOLDER}/{name}'
+     if unreal.EditorAssetLibrary.does_asset_exist(path):
+@@ -419,8 +456,8 @@
+             MEL.set_material_instance_vector_parameter_value(instance, key, value)
+         for key, value in textures.items():
+             MEL.set_material_instance_texture_parameter_value(instance, key, value)
+-    for key, color in zip(ZONES, zones):
+-        MEL.set_material_instance_vector_parameter_value(instance, key, unreal.LinearColor(*linear(color)))
++    for key, color in zip(ZONES, paint_clothes(zones, shared)):
++        MEL.set_material_instance_vector_parameter_value(instance, key, unreal.LinearColor(*color))
+     MEL.update_material_instance(instance)
+     unreal.EditorAssetLibrary.save_loaded_asset(instance, only_if_is_dirty=False)
+     source = (f'MI_Ghost_A\'s other settings ({sum(len(part) for part in shared)})' if shared

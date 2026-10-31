@@ -1,7 +1,8 @@
 // AStoneSentinelCreature: construction (its numbers, its model or the stand-in, its stone), its frame, its plinth, the head
-// crit, knock-proofing. StoneSentinelCreatureHurt.cpp has its rank, hits, death and return, StoneSentinelCreatureWake.cpp
-// its sleep and waking, StoneSentinelCreatureSlam.cpp the slam and its tread, StoneSentinelCreaturePose.cpp its pose,
-// StoneSentinelCreatureChips.cpp the stone pieces it sheds and its crumbling.
+// crit, knock-proofing. StoneSentinelCreatureHurt.cpp has its rank, hits, its open window, death and return,
+// StoneSentinelCreatureWake.cpp its sleep and waking, StoneSentinelCreatureMoves.cpp its choice of attack, ...Slam.cpp the
+// slam and its tread, ...Shock.cpp the shockwave, ...Boulder.cpp the thrown rock, StoneSentinelCreaturePose.cpp its pose,
+// StoneSentinelCreatureChips.cpp the stone pieces and grit it sheds and its crumbling.
 
 #include "Creatures/StoneSentinelCreature.h"
 #include "AI_Looter_Shooter.h"
@@ -11,6 +12,9 @@
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/FightTuning.h"
 #include "Creatures/GravemotherAssets.h"
+#include "Creatures/GroundCrack.h"
+#include "Creatures/StoneSentinelBoulder.h"
+#include "Creatures/StoneSentinelShockwave.h"
 #include "Elements/ElementBody.h"
 #include "World/WorldQueries.h"
 #include "Components/CapsuleComponent.h"
@@ -92,7 +96,7 @@ AStoneSentinelCreature::AStoneSentinelCreature()
 	// woke it isn't an element.
 	ElementBody = EElementBody::Stone;
 	bMayBeTouched = false;
-	// Three dead miners' worth of stone, and a heavy blow; worth the trouble.
+	// Six dead miners' worth of stone (twice its first health, the user's "harder to kill", 2026-10-31), and a heavy blow.
 	Health->MaxHealth = StoneSentinelRules::MaxHealth();
 	AttackDamage = StoneSentinelRules::SlamDamage;
 	XPReward = StoneSentinelRules::XPReward;
@@ -208,6 +212,24 @@ void AStoneSentinelCreature::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	Plinth.Reset();
 	Chips.Reset();
+	// A rock still in its grip goes with it (one in flight lands by itself); the shockwave's tell closes.
+	if (AStoneSentinelBoulder* Rock = HeldBoulder.Get(); Rock && Rock->IsHeld() && !Rock->IsActorBeingDestroyed())
+	{
+		Rock->Destroy();
+	}
+	HeldBoulder.Reset();
+	// Its kept rock and wave go with it when they lie idle; one still out finishes, finds its sentinel gone and goes too.
+	if (AStoneSentinelBoulder* Rock = KeptBoulder.Get(); Rock && Rock->IsIdle() && !Rock->IsActorBeingDestroyed())
+	{
+		Rock->Destroy();
+	}
+	if (AStoneSentinelShockwave* Wave = KeptWave.Get(); Wave && Wave->IsIdle() && !Wave->IsActorBeingDestroyed())
+	{
+		Wave->Destroy();
+	}
+	KeptBoulder.Reset();
+	KeptWave.Reset();
+	EndShockTell();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -230,13 +252,16 @@ void AStoneSentinelCreature::SetupStandIn()
 
 void AStoneSentinelCreature::Tick(float DeltaSeconds)
 {
-	// The base's frame first: its brain (held while it wakes), the chase, the slam's wind-up and blow, its tag.
+	// The base's frame first: its brain (held while it wakes), the chase, the attack's wind-up and blow, its tag.
 	Super::Tick(DeltaSeconds);
 	Clock += DeltaSeconds;
 	PhaseTime += DeltaSeconds;
 	Jolt *= FMath::Exp(-10.f * DeltaSeconds);
 	StayPut();
-	// Its tier's defense is set again whenever its stats are (a level change): its stone goes back on top.
+	// Its moves' clocks and the beats inside a wind-up (the rock torn up, the tell's tremor), then its open window.
+	TickMoves(DeltaSeconds);
+	TickExposed(DeltaSeconds);
+	// Its tier's defense is set again whenever its stats are (a level change): its stone goes back on top (less while open).
 	ApplyStoneDefense();
 
 	switch (Phase)
@@ -248,6 +273,7 @@ void AStoneSentinelCreature::Tick(float DeltaSeconds)
 	case EStoneSentinelPhase::Crumbling: TickCrumbling(DeltaSeconds); break;
 	default: break;
 	}
+	TickGrit(DeltaSeconds);
 	TickChips(DeltaSeconds);
 	// Far away out of view it goes on unposed; its pose is worked out afresh from its state when it's seen again.
 	if (!IsPoseFrozen())
@@ -262,7 +288,8 @@ void AStoneSentinelCreature::Tick(float DeltaSeconds)
 
 void AStoneSentinelCreature::ApplyStoneDefense()
 {
-	const float Wanted = StoneSentinelRules::CombinedDefense(Tuning.StoneDefense, UCreatureRankSettings::Get(GetRank()).Defense);
+	const float Wanted = StoneSentinelRules::CombinedDefense(StoneSentinelRules::StoneDefenseNow(IsExposed(), Tuning),
+		UCreatureRankSettings::Get(GetRank()).Defense);
 	if (!FMath::IsNearlyEqual(Health->GetDefense(), Wanted))
 	{
 		Health->SetDefense(Wanted);
@@ -277,6 +304,11 @@ bool AStoneSentinelCreature::IsCriticalSpot(const FHitResult& Hit) const
 		return true;
 	}
 	if (Super::IsCriticalSpot(Hit))
+	{
+		return true;
+	}
+	// Open, the cracks in its back and shoulders are as weak as its head (the soul-light shows through them).
+	if (StoneSentinelRules::IsCritBone(Hit.BoneName, IsExposed(), Tuning))
 	{
 		return true;
 	}
@@ -441,4 +473,14 @@ FVector AStoneSentinelCreature::GetFistsPoint() const
 		return (Body->GetSocketLocation(FistLSocket) + Body->GetSocketLocation(FistRSocket)) * 0.5;
 	}
 	return GetFeet() + GetActorForwardVector() * (Tuning.SlamImpactAhead * GetSizeScale());
+}
+
+FVector AStoneSentinelCreature::BoneSpot(int32 BoneIndex, const FVector& Fallback) const
+{
+	const USkeletalMeshComponent* Body = GetMesh();
+	if (!Rig.bReady || bStandIn || BoneIndex == INDEX_NONE || !Body)
+	{
+		return Fallback;
+	}
+	return Body->GetBoneLocation(Body->GetBoneName(BoneIndex));
 }

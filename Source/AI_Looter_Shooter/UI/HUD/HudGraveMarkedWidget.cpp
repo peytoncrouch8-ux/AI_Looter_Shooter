@@ -3,6 +3,7 @@
 #include "UI/HUD/HudGraveMarkedWidget.h"
 #include "Scenes/SceneSubsystem.h"
 #include "UI/HUD/HudFindBannerWidget.h"
+#include "UI/HUD/HudGunSlotBannerWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMissionCompleteWidget.h"
 #include "UI/HUD/LooterHUD.h"
@@ -301,6 +302,11 @@ void UHudGraveMarkedWidget::SetOtherBanners(UHudLevelUpBannerWidget* InLevelUpBa
 	FindBanner = InFindBanner;
 }
 
+void UHudGraveMarkedWidget::SetGunSlotBanner(UHudGunSlotBannerWidget* InGunSlotBanner)
+{
+	GunSlotBanner = InGunSlotBanner;
+}
+
 void UHudGraveMarkedWidget::Announce(const FText& GraveName)
 {
 	Queue.Add(GraveName);
@@ -322,6 +328,12 @@ bool UHudGraveMarkedWidget::IsOtherBannerShowing() const
 	}
 	const UHudMissionCompleteWidget* Mission = MissionBanner.Get();
 	if (Mission && Mission->IsBusy())
+	{
+		return true;
+	}
+	// The gun-slot banner on screen (it waits only while this shows, so neither waits for the other forever).
+	const UHudGunSlotBannerWidget* GunSlot = GunSlotBanner.Get();
+	if (GunSlot && GunSlot->IsShowing())
 	{
 		return true;
 	}

@@ -93,6 +93,13 @@ TArray<ULoadoutWidget::FPrompt> ULoadoutWidget::CurrentPrompts() const
 	{
 		const bool bSame = PickedSlot.GetValue() == CursorIndex && Zone == EZone::Slots;
 		const bool bItem = Zone == EZone::Slots && SlotItem(CursorIndex) != nullptr;
+		if (Zone == EZone::Slots && IsSlotLocked(CursorIndex))
+		{
+			// A shut slot: nothing to put down here; the hint says why, and Esc still cancels.
+			Prompts.Add({ TEXT("E"), TEXT("Slot locked"), EAction::None });
+			Prompts.Add({ TEXT("Esc"), TEXT("Cancel"), EAction::Cancel });
+			return Prompts;
+		}
 		Prompts.Add({ TEXT("E"), bSame ? TEXT("Put back") : (bItem ? TEXT("Swap here") : TEXT("Move here")), EAction::Activate });
 		Prompts.Add({ TEXT("Esc"), TEXT("Cancel"), EAction::Cancel });
 		return Prompts;
@@ -129,7 +136,7 @@ TArray<ULoadoutWidget::FPrompt> ULoadoutWidget::CurrentPrompts() const
 			}
 			Prompts.Add({ TEXT("Q"), TEXT("Drop"), EAction::Drop });
 		}
-		else if (bBackpackGuns)
+		else if (bBackpackGuns && !IsSlotLocked(CursorIndex))
 		{
 			Prompts.Add({ TEXT("E"), TEXT("Choose from backpack"), EAction::Activate });
 		}

@@ -6,6 +6,7 @@
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Menus/SettingsPageArt.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIFocus.h"
 #include "Settings/AudioSettingsSubsystem.h"
@@ -17,9 +18,10 @@
 #include "InputCoreTypes.h"
 #include "Tests/AutomationCommon.h"
 
-// The settings menu's tabs and descriptions (the user, 2026-10-27: tabbed pages, and what each setting does shown as it's
+// The settings page's tabs and descriptions (the user, 2026-10-27: tabbed pages, and what each setting does shown as it's
 // pointed at): every row has words of one or two sentences, the bumpers turn the tabs round the ends, the keys move only
-// through the page on show, a click on a tab turns to it, and the description column follows the focus.
+// through the page on show, a click on a tab turns to it, and the help card follows the focus; the full page (E2 "Big Dial",
+// 2026-10-30): one page for both menus, its breadcrumb, the row lit, ESC BACK, the pictures split for the UI transparency.
 
 namespace
 {
@@ -138,7 +140,8 @@ bool FSettingsMenuTabsTest::RunTest(const FString& Parameters)
 	Menu->Open(ESettingsMenuMode::MainMenu);
 	Menu->AdvanceNav(0.f);
 
-	// Opened: the Graphics tab, lit alone, and the column saying what the page is for.
+	// Opened: the Graphics tab, lit alone; under the mouse the first row is lit and the help card describes it (the
+	// mockup E2b_settings: row 01 gold, QUALITY on the card).
 	TestEqual(TEXT("Opens on Graphics"), Menu->GetPage(), PageIndex(ESettingsPage::Graphics));
 	for (int32 Page = 0; Page < NumPages; ++Page)
 	{
@@ -148,26 +151,31 @@ bool FSettingsMenuTabsTest::RunTest(const FString& Parameters)
 			TestTrue(FString::Printf(TEXT("Tab %d lit only while its page shows"), Page), Tab->IsHighlighted() == (Page == 0));
 		}
 	}
-	TestEqual(TEXT("Under the mouse, nothing pointed at: the page's own words"), Menu->GetShownHelpTitle(), PageName(0));
+	TestNotNull(TEXT("Under the mouse, nothing pointed at: the first row lit"), Menu->GetLitRow());
+	TestEqual(TEXT("...and the card describes it"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::Quality).Title);
 
-	// Keys: the focus and the column move together, and only through the page on show (then the footer's Back).
+	// Keys: the focus, the row lit and the card move together, and only through the page on show.
 	SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("The first press shows the focus on the quality presets"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionQuality);
-	TestEqual(TEXT("...and the column describes them"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::Quality).Title);
+	TestEqual(TEXT("...and the card describes them"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::Quality).Title);
+	UWidget* FirstRow = Menu->GetLitRow();
 	SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
 	TestEqual(TEXT("Down: motion blur, described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::MotionBlur).Title);
+	Menu->AdvanceLook(0.f);
+	TestTrue(TEXT("...its row lit now"), Menu->GetLitRow() && Menu->GetLitRow() != FirstRow);
 	SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("Down: the field of view"), Menu->GetFocusedWidget() == Menu->GetFieldOfViewSlider());
 	TestEqual(TEXT("...described"), Menu->GetShownHelpText(), RowHelp(ESettingRow::FieldOfView).Body);
 	SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("Down past the page's last row: it stays, not the next page"), Menu->GetFocusedWidget() == Menu->GetFieldOfViewSlider());
-	// Back is the reticle row under the title (UI round 3: where Resume is over the game), up from the first setting.
+	// No row above the first setting: going back is Esc or B (or ESC BACK clicked), not a stop.
 	for (int32 Step = 0; Step < 3; ++Step)
 	{
 		SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Up);
 	}
-	TestTrue(TEXT("Up past the first setting: Back, at the top"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionClose);
-	TestEqual(TEXT("...described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::Back).Title);
+	TestTrue(TEXT("Up past the first setting: it stays on it"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionQuality);
+	Menu->AdvanceLook(0.f);
+	TestTrue(TEXT("...its row lit again"), Menu->GetLitRow() == FirstRow);
 
 	// The bumpers turn the tabs in order, round the ends, the focus to each page's first setting.
 	SettingsTabsTap(*Menu, EKeys::Gamepad_RightShoulder);
@@ -203,14 +211,76 @@ bool FSettingsMenuTabsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...and the Audio page shows"), Menu->GetPage(), PageIndex(ESettingsPage::Audio));
 	TestEqual(TEXT("...with its own words"), Menu->GetShownHelpTitle(), PageName(PageIndex(ESettingsPage::Audio)));
 
-	// Over the game (from the pause menu's list): Back to the list first, described as that; opened again it's back on
-	// Graphics.
+	// Over the game (from the pause menu): opened again it's back on Graphics, the focus on its first setting, ESC BACK
+	// in the hints going back to the pause menu.
+	int32 Closed = 0;
+	Menu->OnClose.BindLambda([&Closed]() { ++Closed; });
 	Menu->Open(ESettingsMenuMode::Pause);
 	TestEqual(TEXT("Opened over the game: Graphics"), Menu->GetPage(), PageIndex(ESettingsPage::Graphics));
 	SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
-	TestTrue(TEXT("The focus on the top row (Back)"), Menu->GetFocusedWidget() == Menu->GetResumeButton());
-	TestEqual(TEXT("...described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::BackToPause).Title);
-	TestEqual(TEXT("...as going back to the pause menu"), Menu->GetShownHelpText(), RowHelp(ESettingRow::BackToPause).Body);
+	TestTrue(TEXT("The focus on the first setting"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionQuality);
+	TestTrue(TEXT("The hints end with B Back"), MenuNav::PromptsText(Menu->GetPrompts()).EndsWith(TEXT("B Back")));
+	if (TestNotNull(TEXT("ESC BACK, a button"), Menu->GetResumeButton()))
+	{
+		TestTrue(TEXT("...clicked, it goes back"), Menu->GetResumeButton()->Press() && Closed == 1);
+	}
+	Menu->OnClose.Unbind();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSettingsMenuPageTest, "Looter.UI.SettingsMenu.Page",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSettingsMenuPageTest::RunTest(const FString& Parameters)
+{
+	using namespace SettingsMenu;
+	using namespace LooterUI;
+
+	// The page's pictures: the knob's glass is its background (faded by the UI transparency), its lines and dot are not;
+	// an icon redrawn gold keeps its dark edge.
+	const FPaintedIcon Knob = SettingsPageArt::Knob();
+	const FPaintedIcon KnobBack = SettingsPageArt::PictureLayers(Knob, true);
+	const FPaintedIcon KnobFront = SettingsPageArt::PictureLayers(Knob, false);
+	TestEqual(TEXT("The knob's back is its glass alone"), KnobBack.Layers.Num(), 1);
+	TestEqual(TEXT("...its front the rest"), KnobFront.Layers.Num(), Knob.Layers.Num() - 1);
+	TestTrue(TEXT("...in the same view box"), KnobBack.ViewBox == Knob.ViewBox && KnobFront.ViewBox == Knob.ViewBox);
+	const FPaintedIcon Gold = SettingsPageArt::Recoloured(Knob, Color::SoulGold());
+	TestTrue(TEXT("Redrawn gold: the dark edge stays dark"), Gold.Layers[0].Color.Equals(Knob.Layers[0].Color));
+	TestTrue(TEXT("...the light layers turn gold"), Gold.Layers.Last().Color.Equals(Color::SoulGold()));
+
+	FSettingsTabsMouseAfter Mouse;
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	USettingsMenuWidget* Menu = CreateWidget<USettingsMenuWidget>(TestLevel.GetTestWorld(), USettingsMenuWidget::StaticClass());
+	if (!TestNotNull(TEXT("The page"), Menu))
+	{
+		return false;
+	}
+	const TSharedRef<SWidget> MenuSlate = Menu->TakeWidget();
+
+	// One page for both: the breadcrumb says where it was opened from.
+	Menu->Open(ESettingsMenuMode::Pause);
+	TestEqual(TEXT("Over the game: PAUSED / SETTINGS"), Menu->GetBreadcrumb(), FString(TEXT("PAUSED / SETTINGS")));
+	Menu->Open(ESettingsMenuMode::MainMenu);
+	TestEqual(TEXT("From the main menu: MAIN MENU / SETTINGS"), Menu->GetBreadcrumb(), FString(TEXT("MAIN MENU / SETTINGS")));
+
+	// The motion settles: stepped well past it, the page is as it rests (the first row lit, nothing held).
+	for (int32 Frame = 0; Frame < 30; ++Frame)
+	{
+		Menu->AdvanceLook(1.f / 30.f);
+	}
+	TestNotNull(TEXT("Settled: the first row lit"), Menu->GetLitRow());
+	TestEqual(TEXT("...the page as usual"), Menu->GetViewFade(), 0.f);
+
+	// A tab turned by the keys: the new page's first row is lit, and the card says what the page holds.
+	UWidget* GraphicsRow = Menu->GetLitRow();
+	SettingsTabsTap(*Menu, EKeys::PageDown);
+	TestEqual(TEXT("Page Down: Audio"), Menu->GetPage(), PageIndex(ESettingsPage::Audio));
+	Menu->AdvanceLook(0.f);
+	TestTrue(TEXT("...its first row lit"), Menu->GetLitRow() && Menu->GetLitRow() != GraphicsRow);
 	return true;
 }
 

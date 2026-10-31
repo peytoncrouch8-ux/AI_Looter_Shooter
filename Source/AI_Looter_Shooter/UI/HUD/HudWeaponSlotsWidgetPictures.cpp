@@ -1,4 +1,4 @@
-// UHudWeaponSlotsWidget's pictures: the slot circle's rings, rarity arc and dashes, and the key tab's plate and edge, drawn
+// UHudWeaponSlotsWidget's pictures: the slot circle's rings, rarity arc and dashes, a shut slot's padlock, and the key tab's plate and edge, drawn
 // once from vector shapes into shared textures (the mockup's measures). How the widget lays them out and paints them per
 // slot is in HudWeaponSlotsWidget.cpp.
 
@@ -50,6 +50,15 @@ namespace
 	constexpr float TabEdgeWidth = 1.4f;
 	/** The tab is small, so its pictures are drawn finer than the circle's. */
 	constexpr float TabPixelsPerUnit = 3.f;
+
+	// A shut slot's padlock, in its own 22 x 26 box (UHudWeaponSlotsWidget::LockWidth, LockHeight): the shackle's arch over a
+	// chamfered gunmetal body with an ink keyhole. Drawn fine: the banner shows it half as big again.
+	constexpr float LockPixelsPerUnit = 4.f;
+	constexpr float ShackleRadius = 5.2f;
+	const FVector2D ShackleCenter(11.f, 10.f);
+	constexpr float ShackleFoot = 13.5f;
+	constexpr float ShackleWidth = 2.4f;
+	constexpr float LockEdgeWidth = 1.6f;
 
 	/**
 	 * Points round a circle of Radius about Center, from angle From to To in degrees (clockwise on screen from the right,
@@ -254,6 +263,65 @@ namespace
 	}
 }
 
+namespace
+{
+	/**
+	 * The padlock, shut: the arch of its shackle in salt (an ink line under it, so it reads over sky as the HUD's other lines
+	 * do), the body in the slots' gunmetal lit from the top with an ink edge, and the keyhole in ink.
+	 */
+	const FPaintedIcon& SlotLockIcon()
+	{
+		static const FPaintedIcon Icon = []()
+		{
+			FPaintedIcon Lock;
+			Lock.ViewBox = FVector2D(UHudWeaponSlotsWidget::LockWidth, UHudWeaponSlotsWidget::LockHeight);
+			// The arch, left foot to right foot over the top.
+			TArray<FVector2D> Shackle;
+			Shackle.Add(FVector2D(ShackleCenter.X - ShackleRadius, ShackleFoot));
+			Shackle.Append(SlotArc(ShackleCenter, ShackleRadius, 180.f, 360.f, 16));
+			Shackle.Add(FVector2D(ShackleCenter.X + ShackleRadius, ShackleFoot));
+			FPaintLayer ShackleInk;
+			ShackleInk.Strokes.Add(Shackle);
+			ShackleInk.StrokeWidth = ShackleWidth + LockEdgeWidth * 2.f;
+			ShackleInk.Color = Color::Ink();
+			Lock.Layers.Add(ShackleInk);
+			FPaintLayer ShackleSalt;
+			ShackleSalt.Strokes.Add(Shackle);
+			ShackleSalt.StrokeWidth = ShackleWidth;
+			ShackleSalt.Color = Color::SaltLine();
+			Lock.Layers.Add(ShackleSalt);
+
+			// The body: a plate with its corners cut, gunmetal from MetalHi at the top to MetalLow at its foot.
+			const TArray<FVector2D> Body = { FVector2D(5.f, 12.5f), FVector2D(17.f, 12.5f), FVector2D(18.5f, 14.f), FVector2D(18.5f, 22.5f),
+				FVector2D(17.f, 24.f), FVector2D(5.f, 24.f), FVector2D(3.5f, 22.5f), FVector2D(3.5f, 14.f) };
+			FPaintLayer Plate;
+			Plate.Fills.Add(Body);
+			Plate.Color = Color::MetalHi();
+			Plate.GradientTo = Color::MetalLow();
+			Plate.GradientStart = FVector2D(11.f, 12.5f);
+			Plate.GradientEnd = FVector2D(11.f, 24.f);
+			Lock.Layers.Add(Plate);
+			FPaintLayer Edge;
+			Edge.Strokes.Add(SlotClosed(Body));
+			Edge.StrokeWidth = LockEdgeWidth;
+			Edge.Color = Color::Ink();
+			Lock.Layers.Add(Edge);
+
+			// The keyhole: a round head and a tapering slot under it.
+			FPaintLayer Keyhole;
+			Keyhole.Fills.Add(SlotCircle(FVector2D(11.f, 17.2f), 1.9f));
+			Keyhole.Color = Color::Ink();
+			Lock.Layers.Add(Keyhole);
+			FPaintLayer KeySlot;
+			KeySlot.Fills.Add({ FVector2D(10.2f, 17.6f), FVector2D(11.8f, 17.6f), FVector2D(12.4f, 21.4f), FVector2D(9.6f, 21.4f) });
+			KeySlot.Color = Color::Ink();
+			Lock.Layers.Add(KeySlot);
+			return Lock;
+		}();
+		return Icon;
+	}
+}
+
 FSlateBrush UHudWeaponSlotsWidget::PictureBrush(EHudSlotPicture Picture)
 {
 	const FVector2D CircleSize(SlotDiameter, SlotDiameter);
@@ -270,6 +338,8 @@ FSlateBrush UHudWeaponSlotsWidget::PictureBrush(EHudSlotPicture Picture)
 	case EHudSlotPicture::AccentRing: return IconBrush(TEXT("HudSlotAccent"), SlotAccentIcon(), SlotPixelsPerUnit, CircleSize, FLinearColor::White);
 	case EHudSlotPicture::TabPlate: return IconBrush(TEXT("HudSlotTab"), TabPlateIcon(), TabPixelsPerUnit, TabSize, FLinearColor::White);
 	case EHudSlotPicture::TabEdge: return IconBrush(TEXT("HudSlotTabEdge"), TabEdgeIcon(), TabPixelsPerUnit, TabSize, FLinearColor::White);
+	case EHudSlotPicture::Lock:
+		return PaintedIconBrush(TEXT("HudSlotLock"), SlotLockIcon(), LockPixelsPerUnit, FVector2D(LockWidth, LockHeight));
 	}
 	return FSlateBrush();
 }

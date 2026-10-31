@@ -14,6 +14,7 @@
 
 #include "Creatures/SpiderCreature.h"
 #include "Combat/HitPose.h"
+#include "Creatures/SpiderGaitRules.h"
 
 namespace
 {
@@ -54,7 +55,10 @@ void ASpiderCreature::SolveTwoBone(const FVector& Hip, const FVector& Target, fl
 	const FVector ToTarget = Target - Hip;
 	float Distance = ToTarget.Size();
 	const FVector Direction = Distance > KINDA_SMALL_NUMBER ? ToTarget / Distance : FVector::DownVector;
-	Distance = FMath::Clamp(Distance, FMath::Abs(Upper - Lower) + 1.f, (Upper + Lower) * 0.999f);
+	// Never past SpiderGait::MaxReachShare of the leg's length: a straighter leg lines femur and tibia up into one long spike
+	// the model can't hide (the user's "spikes", 2026-10-31: the parts are the rig's length, their bends are the pose's). A
+	// target farther off is drawn short along the hip-to-target line; the gait steps its feet before it comes to that.
+	Distance = FMath::Clamp(Distance, FMath::Abs(Upper - Lower) + 1.f, (Upper + Lower) * SpiderGait::MaxReachShare);
 	OutFoot = Hip + Direction * Distance;
 
 	const float Along = (Upper * Upper - Lower * Lower + Distance * Distance) / (2.f * Distance);
@@ -144,6 +148,23 @@ void ASpiderCreature::PoseGaitLeg(const FLeg& Leg, const FVector& Hip, const FVe
 	if (!bHeld)
 	{
 		Aim += StatusFootOffset(Leg, Outward);
+		// A planted or stepping foot past the leg's reach (SpiderGait::MaxReachShare) is drawn in along its surface, at its own
+		// height over it: drawn short along the hip-to-foot line (the solve's own clamp) it would rise off the ground toward
+		// the hip, a hovering foot (it read as a raised, limping foot on a walking spider's trailing legs).
+		const FVector Surface = IsClinging() ? Lurk.Normal : FVector::UpVector;
+		const float Most = (Upper + Lower) * SpiderGait::MaxReachShare;
+		const FVector ToAim = Aim - Hip;
+		if (ToAim.SizeSquared() > FMath::Square(static_cast<double>(Most)))
+		{
+			const double Rise = FVector::DotProduct(ToAim, Surface);
+			const FVector Along = ToAim - Surface * Rise;
+			const double AlongNow = Along.Size();
+			const double AlongMost = FMath::Sqrt(FMath::Max(FMath::Square(static_cast<double>(Most)) - Rise * Rise, 0.0));
+			if (AlongNow > UE_KINDA_SMALL_NUMBER)
+			{
+				Aim = Hip + Along * (AlongMost / AlongNow) + Surface * Rise;
+			}
+		}
 	}
 	SolveTwoBone(Hip, Aim, Upper, Lower, Pole, OutKnee, OutFoot);
 	const float Buckle = bHeld ? 0.f : BuckleNow(Leg);

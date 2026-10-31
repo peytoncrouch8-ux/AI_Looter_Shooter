@@ -16,6 +16,7 @@
 #include "UI/Style/WeaponText.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponParts.h"
+#include "Inventory/GunSlotRules.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
@@ -147,8 +148,12 @@ void ULoadoutWidget::RefreshCard()
 	}
 
 	CardBox->ClearChildren();
-	// A different gun (or an empty slot) slides its plain card's contents in (TickMotion).
-	const uint32 Identity = Gun ? LoadoutRules::GunIdentity(*Gun) : static_cast<uint32>(0x51070000 + CursorIndex);
+	PlainCardTitle.Reset();
+	// A shut slot's card says how it opens (Zone is the slots here: a ward's row took its own card above).
+	const EGunSlotLock Lock = Gun || Zone != EZone::Slots ? EGunSlotLock::Open : SlotLock(CursorIndex);
+	// A different gun (or an empty or shut slot) slides its plain card's contents in (TickMotion).
+	const uint32 Identity = Gun ? LoadoutRules::GunIdentity(*Gun)
+		: static_cast<uint32>((Lock != EGunSlotLock::Open ? 0x51080000 : 0x51070000) + CursorIndex);
 	if (Identity != CardIdentity)
 	{
 		CardIdentity = Identity;
@@ -164,6 +169,11 @@ void ULoadoutWidget::RefreshCard()
 		CardRarity = Color::TextDim();
 		bCardBreathes = false;
 		ShowPlainCard(true);
+		if (Lock != EGunSlotLock::Open)
+		{
+			AddCardLocked(CursorIndex, Lock);
+			return;
+		}
 		const UWeaponManagerComponent* Inventory = Manager.Get();
 		const bool bBackpackGuns = Inventory && !Inventory->GetBackpack().IsEmpty();
 		if (NumWeapons() == 0 && !bBackpackGuns)
@@ -408,6 +418,7 @@ void ULoadoutWidget::AddCardInspect(const FWeaponInstanceData& Gun)
 
 void ULoadoutWidget::AddCardEmpty(const FString& Title, const FString& Words)
 {
+	PlainCardTitle = Title;
 	CardBox->AddChildToVerticalBox(Label(WidgetTree, Title, 16, Color::TextDim(), 120));
 	UTextBlock* Body = MakeText(WidgetTree, Words, 10, Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.8f));
 	Body->SetFont(LooterUI::Font(10, /*bBold*/ false));

@@ -4,6 +4,9 @@
 #include "Combat/HitPose.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureStatusPose.h"
+#include "Creatures/SpiderAmbushRules.h"
+#include "Creatures/SpiderGaitRules.h"
+#include "Creatures/SpiderHuntRules.h"
 #include "SpiderCreature.generated.h"
 
 /**
@@ -74,14 +77,44 @@ public:
 	/** Climbing out of the dirt as it comes into the world in view (PlayEntrance) takes this long (s). */
 	static constexpr float EmergeSeconds = 0.8f;
 
-	/** Its idle life now (SpiderCreatureReact.cpp): a front leg tapped, the front legs groomed at its fangs. For the tests and tools. */
-	enum class EIdleAct : uint8 { None, Tap, Groom };
+	/** Its idle life now (SpiderCreatureReact.cpp): a front leg tapped, the front legs groomed at its fangs, its weight shifted (a leg or two set down anew). For the tests and tools. */
+	enum class EIdleAct : uint8 { None, Tap, Groom, Shift };
 	EIdleAct GetIdleAct() const { return IdleAct; }
 
 	/** Where a leg's foot was posed this frame (world): Pair 0 (front) to 3, Side -1 left or +1 right. Its middle with none. */
 	FVector GetPosedFoot(int32 Pair, float Side) const;
 
+	// --- The ambush (the user's pick, 2026-10-31): lurking on a wall, ledge or tree, springing (SpiderCreatureLurk.cpp; its pose
+	//     there: SpiderCreatureCling.cpp) ---
+
+	/**
+	 * Takes up its perch in a lurk ambush (AAmbushSpawner, Entrance Lurk, Owner): the surface found near Perch.Spot, held there
+	 * (no movement, its brain waiting), head down a wall or trunk or crouched at a ledge's edge, until the player passes near or
+	 * under it (SpiderAmbushRules::WantsToSpring), it's shot, or a mate springs; then it leaps onto them or scrambles down and
+	 * hunts. False when no surface was found near the spot: it lurks crouched low on the ground where it stands instead.
+	 */
+	bool BeginLurk(const FSpiderPerchSpot& Perch, AAmbushSpawner* Owner);
+	/** A mate of its ambush sprang at Prey: it springs too after Delay (s), if it's still waiting. */
+	void NoteMateSprang(APawn* Prey, float Delay);
+	/** Developer tools and tests: springs now at Prey, as if it had seen them pass. */
+	void DevSpring(APawn* Prey);
+	/** Where it is in an ambush (None: not in one), and all of it (for the tests and tools). */
+	ESpiderLurkPhase GetLurkPhase() const { return Lurk.Phase; }
+	const FSpiderLurkState& GetLurk() const { return Lurk; }
+	/** Waiting on its perch, crouched before a leap, or scrambling down: posed on its surface, not walking. */
+	bool IsClinging() const;
+
+	// --- Its cunning in a fight (SpiderCreatureHunt.cpp; SpiderHuntRules) ---
+
+	/** Its cunning now: circling, skittering back (for the tests and tools). */
+	const FSpiderHuntState& GetHunt() const { return Hunt; }
+
 protected:
+	/** Given its turn: it may circle the player a moment before it rushes in (SpiderCreatureHunt.cpp). */
+	virtual bool StartsRingMove(const APawn& Victim, float Distance) override;
+	/** Its bite played out: now and then it skips back out of reach. */
+	virtual void OnTurnPlayedOut() override;
+
 	/** Its own pose this frame, alive (the Gravemother's moves); false: the spider's own (every other spider). */
 	virtual bool GetPoseOverride(FSpiderPoseOverride& Out) const { return false; }
 
@@ -157,6 +190,9 @@ private:
 		FVector Skid = FVector::ZeroVector;
 		/** Wounded, the leg it limps on (the most-shot one): a lower, slower step. */
 		bool bLimp = false;
+		/** A front leg the bite holds: where it stood as the bite took it (world; it rises from there). */
+		FVector HeldFrom = FVector::ZeroVector;
+		bool bBiteHeld = false;
 	};
 
 public:
@@ -326,8 +362,12 @@ private:
 	// --- Reactions and idle life (SpiderCreatureReact.cpp) ---
 	/** Its idle acts, its entrance's climb and its death's twitches move on. */
 	void TickReactions(float DeltaSeconds);
-	/** The notice beat's rear (higher, nose up, fangs flared) and a groom's nod and chewing, on the body's targets. */
-	void ReactBody(float& TargetZ, float& TargetPitch, float& TargetFang) const;
+	/** Its idle life moves on: a tap, a groom, a weight shift (SpiderCreatureIdle.cpp). */
+	void TickIdleLife(float DeltaSeconds);
+	/** The notice beat's rear (higher, nose up, fangs flared), a groom's nod and chewing, a weight shift's lean, on the body's targets. */
+	void ReactBody(float& TargetZ, float& TargetPitch, float& TargetRoll, float& TargetFang) const;
+	/** An idle weight shift: the leg it sets down anew now, if any (its index; INDEX_NONE), and where (world). */
+	int32 IdleShiftLeg(FVector& OutOffset) const;
 	/** Where a leg's foot is posed off its planted spot now (world): a front leg raised for the notice, tapped or groomed with. */
 	FVector ReactFootOffset(const FLeg& Leg, const FTransform& Body) const;
 	/** A dead leg's last twitch now (world offset of its foot), or none. */
@@ -340,6 +380,10 @@ private:
 	bool IsCorpseSettled() const;
 
 	EIdleAct IdleAct = EIdleAct::None;
+	/** A weight shift's legs (indices into Legs), how far each is set off its spot (cm at size 1, the body's frame), and how far along it is (0 to 2 legs set down). */
+	int32 ShiftLegs[2] = { 2, 5 };
+	FVector2D ShiftOffsets[2] = { FVector2D::ZeroVector, FVector2D::ZeroVector };
+	int32 ShiftDone = 0;
 	float IdleActTime = 0.f;
 	/** Its idle act's hold on the legs (eased off at once if it's disturbed), the next act's wait, and the side tapping. */
 	float IdleWeight = 0.f;
@@ -427,4 +471,78 @@ private:
 	EKillStyle KillStyle = EKillStyle::Body;
 	/** Its element statuses' pose this frame (CreatureStatusPose::Of, read once a frame in Tick; nothing dead). */
 	FCreatureStatusPose StatusShown;
+
+	// --- The weighty gait (2026-10-31; SpiderCreatureGait.cpp, rules SpiderGaitRules) ---
+	/** The pose's slots (SetupRig lays them out so): the body, the fangs, the abdomen, then each leg's femur and tibia. */
+	static constexpr int32 SlotBody = 0;
+	static constexpr int32 SlotFangLeft = 1;
+	static constexpr int32 SlotFangRight = 2;
+	static constexpr int32 SlotAbdomen = 3;
+	static constexpr int32 SlotFirstLeg = 4;
+	/** Its turn rate, its speed-up along its facing, and the frame's speed and facing they were read from. */
+	void ReadGaitMotion(float DeltaSeconds);
+	/** In the air (falling, flung, leaping), alive. */
+	bool IsAirborne() const;
+	/** A leg the attack, death, the air or a subclass's pose (bFrontHeld) holds: it doesn't walk. */
+	bool IsLegHeld(const FLeg& Leg, bool bFrontHeld, bool bAir) const;
+	/** Which feet step now (strayed, trailing, pulled toward the end of their reach, an idle weight shift), by alternating group. */
+	void PlanSteps(const TArray<FVector, TInlineAllocator<8>>& RestSpots, float GaitSpeed, float Speed, bool bFrontHeld, bool bAir);
+	/** The body riding its steps now (none for a boss: its own fight's look; see bWeightyGait). */
+	SpiderGait::FBodyMotion GaitMotion() const;
+	/** A leg in the air: reaching out round the body for the ground (a pounce's front legs ahead), on its spring. */
+	void PoseAirFoot(FLeg& Leg, const FTransform& Body, float DeltaSeconds);
+	/** Down from the air: every foot reaches for the ground under its spot at once, and the body dips by the fall. */
+	void PlantAfterFall(const TArray<FVector, TInlineAllocator<8>>& RestSpots, float StepHeight);
+	/** The jolts' springs move on: a hit's kick and tilt, the hit feel's twist, a landing's dip. */
+	void StepBodySprings(float DeltaSeconds);
+	/** Its fangs and abdomen on the body's frame (Breathing: 0 to 1; Tilt: the abdomen's extra pitch). */
+	void PoseHeadAndAbdomen(float Breathing, float Tilt, const FHitFeelPose& Feel);
+	/** The new bite, gait motion and landings (not a boss's: the Gravemother keeps her own look), and the bite now. */
+	bool bWeightyGait = true;
+	/** The new bite: a melee spider's (the Spitter's spit keeps the old rear and lunge its tell was made round). */
+	bool bWeightyBite = true;
+	SpiderGait::FBitePose BiteNow;
+	/** Its gait as it goes: its turn and speed-up, the stepping group's ride, its plants and landings. */
+	FSpiderGaitState Gait;
+
+	// --- The ambush (SpiderCreatureLurk.cpp, SpiderCreatureCling.cpp) ---
+	/** The surface near Perch.Spot (traces), into Out; false: none found. */
+	bool FindPerchSurface(const FSpiderPerchSpot& Perch, FSpiderLurkState& Out) const;
+	/** Its ambush moves on (before its brain: it holds it). */
+	void TickLurk(float DeltaSeconds);
+	/** One look at the player from its perch: what it knows (Sense), the player (OutPrey). */
+	FSpiderLurkSense SenseLurk(float Interval, APawn*& OutPrey);
+	/** It springs at Prey: its pack hears, its mates are called, and it leaps (after its coil) or scrambles down. */
+	void Spring(APawn* Prey, ESpiderSpring How);
+	/** Off its surface into the air: at its prey (a leap), or onto the ground before it (a hop). */
+	void Launch();
+	void TickClimb(float DeltaSeconds);
+	/** Down from a leap: a bite if it landed on them, a thump and dust, its crouch. */
+	void Land();
+	/** The ambush is over for it: it walks and fights as any spider. */
+	void EndLurk();
+	/** Killed on its surface or in the air: its body comes down to the ground under it, its death playing from where it hung. */
+	void FallFromPerch();
+	/** Its feet put down on its surface round its body now (no steps). */
+	void PlantOnSurface();
+	/** Its pose on its surface: the body flattened to it, head along Watch, its legs gripping, stepping as it turns or climbs. */
+	void AnimateCling(float DeltaSeconds);
+	/** The surface under a point (along its normal), or the point itself. */
+	FVector SurfaceUnder(const FVector& Point) const;
+	FSpiderLurkState Lurk;
+
+	// --- Its cunning in a fight (SpiderCreatureHunt.cpp) ---
+	/** It circles, backs off and skips back (a plain brown spider in a fight; not the Spitter, a boss or a spiderling). */
+	bool UsesCunning() const;
+	/** Before its brain: a skitter back holds it. After: its circle's facing and its skitter's steps. */
+	void HoldForHunt(float DeltaSeconds);
+	void TickHunt(float DeltaSeconds);
+	/** A hit that didn't kill it: hurt enough lately, it backs off. */
+	void NoteHurtForHunt(const FCreatureHit& Hit);
+	/** Skitters back from its target for Seconds. */
+	void StartSkitter(float Seconds);
+	/** Another spider began a bite at Victim less than Within (s) ago: this one circles a moment first. */
+	bool IsMateBiting(const APawn& Victim, float Within) const;
+	FSpiderHuntState Hunt;
+	bool bCirclingNow = false;
 };

@@ -210,6 +210,11 @@ void ULoadoutWidget::Refresh()
 		PickedSlot.Reset();
 	}
 	TargetSlot = FMath::Clamp(TargetSlot, 0, FMath::Max(NumSlots() - 1, 0));
+	// A shut slot is never the swap target (its gun may have just left a slot an older save kept open).
+	if (IsSlotLocked(TargetSlot))
+	{
+		TargetSlot = FMath::Max(NumWeapons() - 1, 0);
+	}
 
 	RebuildSlots();
 	RebuildWards();
@@ -269,6 +274,12 @@ ULoadoutWidget::FView ULoadoutWidget::GetView() const
 		View.CardName = GunCard->GetNameText().ToString();
 		View.CardVerdict = GunCard->GetVerdictText().ToString();
 	}
+	for (int32 SlotIndex = 0; SlotIndex < SlotRows.Num(); ++SlotIndex)
+	{
+		View.LockedSlots.Add(IsSlotLocked(SlotIndex));
+	}
+	View.EquippedCount = EquippedCount ? EquippedCount->GetText().ToString() : FString();
+	View.PlainCardTitle = PlainCard && PlainCard->GetVisibility() != ESlateVisibility::Collapsed ? PlainCardTitle : FString();
 	View.bWardCard = WardCard && WardCard->GetVisibility() != ESlateVisibility::Collapsed && WardCard->GetVisibility() != ESlateVisibility::Hidden;
 	if (View.bWardCard)
 	{

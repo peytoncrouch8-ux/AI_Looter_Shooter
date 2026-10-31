@@ -57,6 +57,14 @@ struct AI_LOOTER_SHOOTER_API FUnpaidMoveContext
 	int32 Mates = 0;
 	/** Picked as its attack begins (no plan before it): only moves that start from here, no hang-back, no closing in. */
 	bool bNow = false;
+	/**
+	 * The player is open now (reloading, swapping guns, an empty gun, the flask at the lips: UnpaidOpeningRules, 2026-10-31): the
+	 * quick commits weigh more, the feint less, no hang-back. bPunisher: it claimed the punish of that opening; bInFront: it is
+	 * in front of the player's view (its punish blinks round to their back), else behind or at a side (it lunges).
+	 */
+	bool bOpening = false;
+	bool bPunisher = false;
+	bool bInFront = true;
 };
 
 /**

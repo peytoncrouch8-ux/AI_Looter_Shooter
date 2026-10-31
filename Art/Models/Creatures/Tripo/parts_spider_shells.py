@@ -140,7 +140,7 @@ def abdomen(m, src, V, labels, fit, space):
             root = rear + fwd * 4 + np.array([0, side * 3, -2])
             end = rear - fwd * 5 + np.array([0, side * 4, -5])
             lc.tube(m, [Vector(root), Vector(end)], [3.0, 1.2], 'misc', sides=6, patch=True)
-    return dict(centre=centre, dirs=dirs, r=r, fwd=fwd)
+    return dict(centre=centre, dirs=dirs, r=r, fwd=fwd, shift=shift)
 
 
 def eyes(m, face):

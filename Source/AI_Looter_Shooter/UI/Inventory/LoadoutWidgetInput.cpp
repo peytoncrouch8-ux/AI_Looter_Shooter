@@ -11,6 +11,7 @@
 #include "UI/Inventory/LoadoutRules.h"
 #include "UI/Style/LooterButton.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "Inventory/GunSlotRules.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Components/ScrollBox.h"
 #include "Engine/LocalPlayer.h"
@@ -73,6 +74,12 @@ void ULoadoutWidget::Activate()
 	if (Zone == EZone::Slots)
 	{
 		const int32 SlotIndex = CursorIndex;
+		// A shut slot takes nothing: no gun put down there, none chosen for it (the pick stays up to put elsewhere).
+		if (IsSlotLocked(SlotIndex))
+		{
+			PlayCue(LooterSoundCue::Denied);
+			return;
+		}
 		if (PickedSlot.IsSet())
 		{
 			// Put the picked-up gun here: swap with the gun here, or move it into the free slot (it lands after the last gun).

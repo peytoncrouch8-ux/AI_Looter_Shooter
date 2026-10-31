@@ -73,12 +73,17 @@ void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
 		}
 	}
 
-	// Guns whose kind no longer exists (their data asset gone) can't come back; the warning below counts them.
-	for (const FWeaponInstanceData& Instance : Save.Equipped)
+	// Guns whose kind no longer exists (their data asset gone) can't come back; the warning below counts them. Every slot
+	// the save used takes its gun back, a slot shut now too (an older save's third gun below level 3): it stays in use until
+	// the gun leaves it, so a load never loses a gun or swaps one out (bRestoringSlots; WeaponManagerSlotGate.cpp).
 	{
-		if (Instance.Definition && Weapons.Num() < MaxWeapons)
+		TGuardValue<bool> EverySlot(bRestoringSlots, true);
+		for (const FWeaponInstanceData& Instance : Save.Equipped)
 		{
-			GiveWeapon(Instance);
+			if (Instance.Definition && Weapons.Num() < MaxWeapons)
+			{
+				GiveWeapon(Instance);
+			}
 		}
 	}
 	// The guns' own count as before: the spare wards never push a saved gun out (an old save's wards may take the backpack

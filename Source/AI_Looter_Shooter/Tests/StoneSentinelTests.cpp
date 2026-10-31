@@ -58,8 +58,8 @@ bool FStoneSentinelRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("It stands again by the recovery's end"), FMath::IsNearlyEqual(End.ArmSwing, Idle.ArmSwing, 1.f)
 		&& FMath::IsNearlyEqual(End.Bow, Idle.Bow, 1.f));
 
-	// Stone: three dead miners' health, a quarter of each hit shrugged off, a tier's on top (never added: multiplied through).
-	TestTrue(TEXT("Three dead miners' health"), FMath::IsNearlyEqual(StoneSentinelRules::MaxHealth(), 3.f * StoneSentinelRules::DeadMinerHealth));
+	// Stone: six dead miners' health (twice its first, 2026-10-31), a quarter of each hit shrugged off, a tier's on top (never added).
+	TestTrue(TEXT("Six dead miners' health"), FMath::IsNearlyEqual(StoneSentinelRules::MaxHealth(), 6.f * StoneSentinelRules::DeadMinerHealth));
 	TestTrue(TEXT("Defense 0.25"), FMath::IsNearlyEqual(Tuning.StoneDefense, 0.25f));
 	TestTrue(TEXT("...a Regular one's is its stone's"), FMath::IsNearlyEqual(StoneSentinelRules::CombinedDefense(0.25f, 0.f), 0.25f));
 	TestTrue(TEXT("...a Restless one keeps 0.75 x 0.9"), FMath::IsNearlyEqual(StoneSentinelRules::CombinedDefense(0.25f, 0.1f), 0.325f, 0.001f));
@@ -101,7 +101,7 @@ bool FStoneSentinelStatsTest::RunTest(const FString& Parameters)
 	if (TestNotNull(TEXT("It has health"), Health) && TestNotNull(TEXT("The dead miner has health"), MinerHealth))
 	{
 		TestTrue(TEXT("The rules' dead miner is today's"), FMath::IsNearlyEqual(MinerHealth->MaxHealth, StoneSentinelRules::DeadMinerHealth));
-		TestTrue(TEXT("Three dead miners' health"), FMath::IsNearlyEqual(Health->MaxHealth, 3.f * MinerHealth->MaxHealth));
+		TestTrue(TEXT("Six dead miners' health"), FMath::IsNearlyEqual(Health->MaxHealth, 6.f * MinerHealth->MaxHealth));
 	}
 	TestTrue(TEXT("Its slam winds up 1.1 s"), FMath::IsNearlyEqual(Defaults->AttackWindup, 1.1f));
 	TestTrue(TEXT("It starts its slam from its reach"), FMath::IsNearlyEqual(Defaults->AttackRange, StoneSentinelRules::AttackRange));

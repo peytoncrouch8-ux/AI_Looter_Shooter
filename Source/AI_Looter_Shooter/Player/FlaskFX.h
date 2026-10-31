@@ -5,7 +5,7 @@
 class APawn;
 
 /**
- * The soul flask's sounds and light (Docs/Work/2026-10-30-SoulFlask/CONTRACT.md; UPlayerFlaskComponent calls these). Sounds by
+ * The soul flask's sounds and light (Docs/Archive/Work/2026-10-30-SoulFlask/CONTRACT.md; UPlayerFlaskComponent calls these). Sounds by
  * cue (FlaskCue, Player/PlayerFlaskCues.h): 2D for the local player, at the body for anyone else. The light is code-drawn on
  * the bullets' effects (FWeaponFX's glows and streaks, M_FX_Glow): soul-motes' green (LooterUI::Color::Heal), no particle
  * assets, no lights, a few dozen quads for under a second, so it costs next to nothing. Each look that lasts more than a

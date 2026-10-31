@@ -14,7 +14,8 @@ behind it; skin weights made in the model's own pose (bone heat on a skeleton la
 along the shroud chain by height); then every bone's map from its Tripo joint to the rig's (bone_maps) carries the mesh
 into the rest pose: the chest hunched as the rig is, the arms in to the rig's shoulders, the hands halved (the model's
 hands are twice a man's: the finger bones sit where a hand's knuckles are), the robe swept back along the shroud chain.
-The look (zones from Tripo's paint, cavity, ember, fade) is parts_unpaid_look.py's."""
+The look (zones from Tripo's paint, cavity, ember, fade) is parts_unpaid_look.py's; Tripo's paint itself rides on UV 1
+(parts_unpaid_paint.py, 2026-10-31), drawn by M_Ghost with PaintAmount 1."""
 import hashlib
 import math
 import os
@@ -309,6 +310,7 @@ def swap(U):
 
     # The mouth's pocket and teeth, then everything to the rig's rest.
     Vs, Fs, zs, cav, fades, strips = [V], list(F), list(zone), [np.clip(pocket, 0.0, 1.0)], [fade], [strip]
+    n_main = len(Fs)          # the body's own faces; the mouth's pieces and the coal after them take no paint
     Ws = {b: [w] for b, w in W.items()}
     count = len(V)
     for Vp, Fp, wp, cavity in pr.mouth_pieces(U):
@@ -351,6 +353,7 @@ def swap(U):
     area = np.array([np.linalg.norm(sum(np.cross(Vr[f[k]] - Vr[f[0]], Vr[f[k + 1]] - Vr[f[0]])
                                         for k in range(1, len(f) - 1))) for f in Fs]) * 0.5
     keep = area > 1e-9
+    solid = (np.arange(len(keep)) >= n_main)[keep]
     Fs, slots, zs = [f for f, k in zip(Fs, keep) if k], slots[keep], [z for z, k in zip(zs, keep) if k]
     log(f"{int((~keep).sum())} faces of no area dropped")
     names = sorted(W)
@@ -421,6 +424,14 @@ def swap(U):
     lo, hi = Vr[:n_body].min(0), Vr[:n_body].max(0)
     log(f'bounds {np.round(lo, 3)} .. {np.round(hi, 3)}')
     hat = pl.finish_hat(U, HVq, HFq, M, src)
+    # Tripo's own paint on UV 1 (parts_unpaid_paint.py), and Ghost_A set to draw it.
+    import parts_unpaid_paint as pp
+    hat_world = np.array([v.co[:] for v in hat.data.vertices]) + np.array(hat.location)
+    m = M['hat']
+    hat_tripo = (hat_world - m[:3, 3]) @ np.linalg.inv(m[:3, :3]).T
+    body_tripo = np.vstack([Vt, Vr[len(Vt):]])
+    colour = pp.paint(body, body_tripo, hat, hat_tripo, solid)
+    pl.paint_look(bpy.data.materials['Ghost_A'], pp.zone_means(colour, [body, hat]))
     U['raw_colors'] = None
     return body, hat
 

@@ -183,10 +183,10 @@ namespace
 		Instance.Stats = UWeaponRollLibrary::ComputeInstanceStats(Instance);
 	}
 
-	/** Into a free slot if there is one, otherwise the backpack (never swapping out the weapon in hand). */
+	/** Into a free open slot if there is one, otherwise the backpack (never swapping out the weapon in hand). */
 	bool Give(UWeaponManagerComponent& Inventory, const FWeaponInstanceData& Instance)
 	{
-		return Inventory.GetWeapons().Num() < Inventory.MaxWeapons ? Inventory.GiveWeapon(Instance) != nullptr : Inventory.AddToBackpack(Instance);
+		return Inventory.HasFreeSlot() ? Inventory.GiveWeapon(Instance) != nullptr : Inventory.AddToBackpack(Instance);
 	}
 
 	/** A named gun (Heirloom): its own parts and rarity, at the level asked for or else the player's, as missions give it. */

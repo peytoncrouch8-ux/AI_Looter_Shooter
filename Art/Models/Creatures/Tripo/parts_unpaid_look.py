@@ -1,8 +1,8 @@
 """The Tripo Unpaid's look in M_Ghost's terms (Unpaid.py's docstring: vertex colour R the tint zone, G cavity, B the
 ember edge, A the fade; UV 0 the Polymer box projection, the shroud's strip UVs), and swap(), which puts the Tripo body
-and hat in the script model's place. Tripo's own paint is not drawn (its smears, baked light and seams went with it):
-it only says which zone a face is (skin, shirt, the dark waistcoat, tie and hair), so every set of clothes
-(MI_Ghost_A/B/C) tints it like the script model."""
+and hat in the script model's place. Tripo's paint says which zone a face is (skin, shirt, the dark
+waistcoat, tie and hair); since 2026-10-31 the paint itself is drawn too (parts_unpaid_paint.py, UV 1; the flat zones read
+washed out, near white, in the game), each set of clothes (MI_Ghost_A/B/C) recolouring it by zone (paint_look)."""
 import math
 
 import bpy
@@ -265,3 +265,30 @@ def finish_hat(U, V, faces, M, src):
     pu.log(f'SM_UnpaidHat: {sum(len(f) - 2 for f in faces)} triangles ({sum(len(f) == 4 for f in faces)} quads), '
            f'band {int(band.sum())} faces')
     return hat
+
+
+# --- The paint in M_Ghost (2026-10-31) ---
+
+# Ghost_A's look over Tripo's paint (the user, 2026-10-31: "washed out pale/white"): the paint carries the light and the
+# cloth's detail itself, so M_Ghost's painted-in extras are turned well down; the cold rim stays a thin edge (it was a
+# near-white 2.2 over the pale zones), the body's own glow nearly off.
+PAINT_LOOK = dict(PaintAmount=1.0, RimStrength=0.8, RimPower=4.0, GlowStrength=0.03, TopLightLow=0.9,
+                  TopLightHigh=1.06, PropTopLight=1.0, ClothWeave=0.06, ClothFolds=0.12, ClothStains=0.15,
+                  SkinCloth=0.2, ColdRim=0.5)
+
+
+def paint_look(ghost, means):
+    """Ghost_A (Unpaid.py's materials()) set to draw the paint: its BaseColorMap the paint (TextureSet UnpaidPaint, on
+    UV 1 while PaintAmount is 1), each zone's colour and PaintZone<N> the zone's mean paint colour (so its own clothes
+    are Tripo's paint exactly), and PAINT_LOOK."""
+    import parts_unpaid_paint as pp
+    ghost['TextureSet'] = pp.SET
+    for k, mean in enumerate(means):
+        ghost[f'Zone{k + 1}Color'] = pp.to_hex(mean)
+        ghost[f'PaintZone{k + 1}'] = pp.to_hex(mean)
+    for key, value in PAINT_LOOK.items():
+        ghost[key] = value
+    bsdf = next(n for n in ghost.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    bsdf.inputs['Base Color'].default_value = lt.hex_color(pp.to_hex(means[0]))
+    pu.log('paint: zones ' + ', '.join(f'{name} {pp.to_hex(m)}' for name, m in
+                                      zip(('skin and robe', 'shirt', 'waistcoat and hat', 'tie and band'), means)))

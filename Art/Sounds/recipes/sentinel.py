@@ -178,3 +178,9 @@ def crumble(v, r):
                (fall, ta, 3.0), (_lv(head, fall, -4.0), tb, 0.0), (_lv(rubble, fall, -9.0), ta + 0.04, 0.0),
                (_lv(dust, fall, -13.0), ta + 0.02, 0.0), (rumble, ta, -12.0))
     return _outside(_stone(x, 4.0, 3.0), r, -13.0)
+
+
+# The new attacks' cues (the boulder, the shockwave, its open window, its pebbles) live in their own file, on the helpers
+# above; imported here so they render with this group whether or not GROUPS lists 'sentinel_attacks' (imported last, as it
+# imports this module's helpers).
+from recipes import sentinel_attacks  # noqa: E402,F401

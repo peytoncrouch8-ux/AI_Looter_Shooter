@@ -1,5 +1,6 @@
 #include "Creatures/UnpaidMoveRules.h"
 #include "Creatures/UnpaidMoveTuning.h"
+#include "Creatures/UnpaidOpeningRules.h"
 
 // The Unpaid's varied fight as plain rules (2026-10-29): the weighted pick of a turn's move, the pack's board of who commits
 // what at one player, and the failed-lunge shriek's chance, phases, interrupt and reach. AUnpaidCreature plays them.
@@ -117,6 +118,8 @@ void UnpaidMoveRules::Weights(const FUnpaidMoveContext& Context, const FUnpaidMo
 	const float Press = Context.bMateSide ? Tuning.PressBoost : 1.f;
 	auto Weigh = [&](EUnpaidMove Move, float Weight)
 	{
+		// A player open (a reload, a swap, an empty gun, the flask) is pressed: the quick commits up, the feint down.
+		Weight *= UnpaidOpeningRules::WeightScale(Move, Context.bOpening, Context.bPunisher, Context.bInFront);
 		bool bClosing = false;
 		if (Weight <= 0.f || !InRange(Move, Context, Tuning, bClosing) || !Allowed(Move, Context) || Context.Cooldowns[Index(Move)] > 0.f)
 		{
@@ -142,7 +145,8 @@ void UnpaidMoveRules::Weights(const FUnpaidMoveContext& Context, const FUnpaidMo
 	// with "none committed" only (a 4-pack's simulation, 2026-10-29) never hung back: two are nearly always mid-attack.
 	if (!Context.bNow && Context.Mates > 0 && !Context.bMateSide && Context.Cooldowns[Index(EUnpaidMove::HangBack)] <= 0.f)
 	{
-		Out[Index(EUnpaidMove::HangBack)] = Tuning.HangBackWeight;
+		Out[Index(EUnpaidMove::HangBack)] = Tuning.HangBackWeight
+			* UnpaidOpeningRules::WeightScale(EUnpaidMove::HangBack, Context.bOpening, Context.bPunisher, Context.bInFront);
 	}
 }
 
@@ -171,8 +175,8 @@ EUnpaidMove UnpaidMoveRules::Choose(const FUnpaidMoveContext& Context, const FUn
 			Left -= Weight[Slot];
 		}
 	}
-	// Nothing open with pack-mates fighting: it waits for one of them to commit.
-	if (!Context.bNow && Context.Mates > 0)
+	// Nothing open with pack-mates fighting: it waits for one of them to commit (never at a player who is open: it presses).
+	if (!Context.bNow && Context.Mates > 0 && !Context.bOpening && !Context.bPunisher)
 	{
 		return EUnpaidMove::HangBack;
 	}

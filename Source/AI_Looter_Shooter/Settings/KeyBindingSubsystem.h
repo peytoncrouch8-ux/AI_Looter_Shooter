@@ -199,10 +199,10 @@ public:
 	/** Input priority the character components add GetCharacterContext() with. */
 	static constexpr int32 CharacterContextPriority = 1;
 
-	// --- Weapon slot keys: 1, 2 and 3 take that slot's weapon in hand (UWeaponManagerComponent binds them) ---
+	// --- Weapon slot keys: 1 to 4 take that slot's weapon in hand (UWeaponManagerComponent binds them) ---
 
-	/** One key per equip slot (UWeaponManagerComponent::MaxWeapons). */
-	static constexpr int32 NumWeaponSlotKeys = 3;
+	/** One key per equip slot (UWeaponManagerComponent::MaxWeapons, GunSlotRules::NumSlots; a shut slot's key says how it opens). */
+	static constexpr int32 NumWeaponSlotKeys = 4;
 
 	/** The rebindable binding of slot SlotIndex (from 0): "WeaponSlot1" for the first. */
 	static FName WeaponSlotBindingId(int32 SlotIndex);

@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "Interaction/InteractionSource.h"
 #include "Inventory/BackpackOrder.h"
+#include "Inventory/GunSlotRules.h"
 #include "Inventory/WeaponManagerTypes.h"
 #include "Player/PawnInputBinding.h"
 #include "Player/WeaponSwapMotion.h"
@@ -18,8 +19,12 @@ class AWeaponBase;
 class UInputAction;
 class UInputMappingContext;
 class UInteractionComponent;
+class UMissionDefinition;
+class UMissionRunner;
+class UPlayerProgressionSubsystem;
 class USceneComponent;
 struct FWeaponInventorySave;
+enum class EXPSource : uint8;
 
 /**
  * Add to any pawn to let it carry and use weapons. Handles slots, equipping, swapping, dropping,
@@ -39,7 +44,7 @@ class AI_LOOTER_SHOOTER_API UWeaponManagerComponent : public UActorComponent, pu
 public:
 	UWeaponManagerComponent();
 
-	/** Adds a weapon. If every slot is full, the active weapon is dropped and replaced. */
+	/** Adds a weapon. If every open slot is full, the active weapon is dropped and replaced. */
 	UFUNCTION(BlueprintCallable, Category = "Weapons")
 	bool AddWeapon(AWeaponBase* Weapon);
 
@@ -118,7 +123,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Inventory")
 	bool StashSlot(int32 SlotIndex);
 
-	/** Equips a backpack weapon. If all slots are full, the weapon in hand takes its place in the backpack. */
+	/** Equips a backpack weapon. If all open slots are full, the weapon in hand takes its place in the backpack. */
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Inventory")
 	bool EquipFromBackpack(int32 BackpackIndex);
 
@@ -300,8 +305,26 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Weapons")
 	FOnWeaponInventoryChanged OnInventoryChanged;
 
+	/** Every equip slot (GunSlotRules::NumSlots); the player's open with their progress (GetUnlockedSlots). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons", meta = (ClampMin = "1"))
-	int32 MaxWeapons = 3;
+	int32 MaxWeapons = GunSlotRules::NumSlots;
+
+	// --- Slots opening with the player's progress (WeaponManagerSlotGate.cpp; GunSlotRules, the user's rule of 2026-10-31) ---
+
+	/** The slots open now: all MaxWeapons for anyone but the player; the player's by GunSlotRules (2, 3 at level 3, 4 after the story). */
+	int32 GetUnlockedSlots() const;
+	/** Room in the open slots for one more gun: every "into a free slot" asks this, so a shut slot never takes a gun. */
+	bool HasFreeSlot() const;
+	/** What keeps slot SlotIndex shut; Open when it's open or holds a gun (an older save's gun keeps its slot until it leaves). */
+	EGunSlotLock GetSlotLock(int32 SlotIndex) const;
+	/** The level and story the player's slots open by now; unset for anyone else (every slot open). */
+	TOptional<FGunSlotProgress> GetSlotProgress() const;
+	/** Tests: the slots open by Progress, as a player's would (unset: back to the world's). */
+	void SetSlotProgressForTesting(const TOptional<FGunSlotProgress>& Progress) { SlotProgressForTesting = Progress; }
+	/** A slot opened for the player by something earned (a level, a mission; never a load): the HUD's banner and feed line. */
+	FOnGunSlotUnlocked OnSlotUnlocked;
+	/** Announces the slots open in Now but not in Before (each with what had shut it). The progress watch calls it; tests do. */
+	void AnnounceSlotsOpened(const FGunSlotProgress& Before, const FGunSlotProgress& Now);
 
 	/** Weapons rolled and given on BeginPlay. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons")
@@ -433,6 +456,24 @@ private:
 
 	/** As it ends play: guns carried that go with it anywhere but the end of the level or of play are a loss, said aloud. */
 	void ReportEndPlay(EEndPlayReason::Type EndPlayReason) const;
+
+	// --- The slots' gate (WeaponManagerSlotGate.cpp) ---
+	/** A slot's key: its gun in hand; a shut slot says how it opens. */
+	void HandleSlotKey(int32 SlotIndex);
+	/** Follows the player's level and the level's missions, to announce a slot as it opens (a local player's only). */
+	void WatchSlotProgress(AController* Controller);
+	void StopWatchingSlotProgress();
+	void HandleSlotXPChanged(int64 Gained, EXPSource Source);
+	void HandleSlotMissionFinished(const UMissionDefinition& Mission, bool bRewarded);
+	TOptional<FGunSlotProgress> SlotProgressForTesting;
+	TWeakObjectPtr<UPlayerProgressionSubsystem> SlotProgression;
+	TWeakObjectPtr<UMissionRunner> SlotRunner;
+	FDelegateHandle SlotXPHandle;
+	FDelegateHandle SlotMissionHandle;
+	/** The level the slots last saw (each change is checked against it). */
+	int32 SlotLevelSeen = 1;
+	/** A load is putting the saved guns back: every slot takes one (a shut slot keeps an older save's gun). */
+	bool bRestoringSlots = false;
 
 	/** Empties everything (ClearInventory, a load's RestoreInventory) without a word. */
 	void EmptyInventory();

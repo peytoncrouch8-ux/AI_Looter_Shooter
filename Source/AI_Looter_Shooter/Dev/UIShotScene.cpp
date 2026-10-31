@@ -267,8 +267,8 @@ namespace
 	{
 		if (UPauseMenuWidget* Hub = UIShotPauseHub(World))
 		{
+			// Down once from Back to Game: Settings lit, the needle on its tick (the E2b picture).
 			UIShotReveal(*Hub, EKeys::Down);
-			UIShotPress(*Hub, EKeys::Down);
 			UIShotPress(*Hub, EKeys::Down);
 		}
 	}

@@ -124,6 +124,7 @@ class Source:
         uv = uv.reshape(-1, 2)
         self.UV = uv.reshape(-1, 3, 2)                                 # each triangle's corners' UVs
         self.px = tripo.pixels(maps['BC'], 1024)[..., :3]
+        self.maps = maps            # Tripo's colour, roughness-metal and normal maps (parts_spider_look.py reads them)
         self.N = vertex_normals(self.V, self.F)
         tree = BVHTree.FromPolygons(self.V.tolist(), self.F.tolist(), all_triangles=True)
         self.T = np.full(len(self.V), 60.0)

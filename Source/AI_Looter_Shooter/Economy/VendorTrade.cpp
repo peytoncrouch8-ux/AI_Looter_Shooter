@@ -138,8 +138,8 @@ FVendorTradeResult VendorTrade::BuyGrenade(UWalletSubsystem& Wallet, UPlayerThro
 
 bool VendorTrade::HasRoomForGun(const UWeaponManagerComponent& Manager)
 {
-	// The backpack's room is shared with the spare wards (UWeaponManagerComponent::HasBackpackRoom).
-	return Manager.HasBackpackRoom() || Manager.GetWeapons().Num() < Manager.MaxWeapons;
+	// The backpack's room is shared with the spare wards (UWeaponManagerComponent::HasBackpackRoom); a slot must be open.
+	return Manager.HasBackpackRoom() || Manager.HasFreeSlot();
 }
 
 FVendorTradeResult VendorTrade::BuyOffer(UWalletSubsystem& Wallet, UWeaponManagerComponent& Manager)

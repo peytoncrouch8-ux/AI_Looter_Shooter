@@ -28,6 +28,7 @@ class UPlayerShieldComponent;
 class UWeaponManagerComponent;
 struct FShieldInstanceData;
 struct FWeaponInstanceData;
+enum class EGunSlotLock : uint8;
 
 /** The loadout page's layout, on the inventory's 1600 x 900 page (the user's 2026-10-28 ask: the backpack back on the right). */
 namespace LoadoutLayout
@@ -80,7 +81,8 @@ namespace LoadoutLayout
  * backpack back on the right). Two columns of rows in the "Wide Sweep" row look (ULooterCardBackdrop), the gun under the
  * cursor between them:
  *  - left: EQUIPPED (a row per equip slot: its number, lit while in hand, the gun's icon, name in its rarity's colour,
- *    kind, level and damage), the WARD worn (a row like a slot's: icon, name, kind, capacity; LoadoutWidgetWard.cpp), then
+ *    kind, level and damage; a shut slot's row dim with its padlock and how it opens, "Unlocks at level 3": GunSlotRules,
+ *    LoadoutWidgetLocked.cpp; nothing goes into it), the WARD worn (a row like a slot's: icon, name, kind, capacity; LoadoutWidgetWard.cpp), then
  *    the ammo and silver
  *  - right: the BACKPACK (a row per gun or spare ward, which share its places since 2026-10-31: icon, name, level, damage
  *    or capacity, an arrow against what it would replace; in the order they went in, sorted best-for-slot, by rarity,
@@ -144,6 +146,11 @@ public:
 		bool bWardCard = false;
 		FString WardCardName;
 		FString WardCardVerdict;
+		/** For each EQUIPPED row: it's a shut slot's (its padlock and how it opens). And the header's count ("2 / 4"). */
+		TArray<bool> LockedSlots;
+		FString EquippedCount;
+		/** The plain card's title (an empty or shut slot's: "Slot 3 is locked"); empty while another card shows. */
+		FString PlainCardTitle;
 	};
 	FView GetView() const;
 
@@ -230,6 +237,10 @@ private:
 	// --- Rows (LoadoutWidgetRows.cpp) ---
 	void RebuildSlots();
 	FRow MakeSlotRow(int32 SlotIndex);
+	/** A shut slot's row (LoadoutWidgetLocked.cpp): its number dim, its padlock, "Locked" and how it opens. */
+	FRow MakeLockedSlotRow(int32 SlotIndex, EGunSlotLock Lock);
+	/** The plain card for a shut slot: "Slot 3 is locked" and how it opens (LoadoutWidgetLocked.cpp). */
+	void AddCardLocked(int32 SlotIndex, EGunSlotLock Lock);
 	/** The backpack list, in the sort's order (best for slot: the target slot's kind first), then its free places. */
 	void RebuildList();
 	FRow MakeBackpackRow(int32 Row);
@@ -363,6 +374,9 @@ private:
 	const FWeaponInstanceData* Baseline() const;
 	int32 NumSlots() const;
 	int32 NumWeapons() const;
+	/** What keeps a slot shut (the weapon manager's GetSlotLock; LoadoutWidgetLocked.cpp), and whether anything does. */
+	EGunSlotLock SlotLock(int32 SlotIndex) const;
+	bool IsSlotLocked(int32 SlotIndex) const;
 	int32 GetActiveSlot() const;
 	bool HasBackpackRoom() const;
 	bool IsNew(uint32 Identity) const;
@@ -461,8 +475,9 @@ private:
 	float TurnInput = 0.f;
 
 	// Motion (LoadoutWidgetPaint.cpp).
-	/** What the plain card shows, to slide its contents in when it changes. */
+	/** What the plain card shows, to slide its contents in when it changes, and an empty or shut slot's title on it (tests). */
 	uint32 CardIdentity = 0;
+	FString PlainCardTitle;
 	float CardIntroAge = 100.f;
 	/** The shown gun's rarity colour (the showcase's ring); the top rarities' pool breathes. */
 	FLinearColor CardRarity = FLinearColor::White;

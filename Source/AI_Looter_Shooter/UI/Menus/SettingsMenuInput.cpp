@@ -318,10 +318,7 @@ void USettingsMenuWidget::StartListening(int32 BindingIndex)
 void USettingsMenuWidget::StopListening()
 {
 	ListeningIndex = INDEX_NONE;
-	if (Body)
-	{
-		Body->SetConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible);
-	}
+	// The wheel stays the page's, a row at a time (SettingsMenuScroll.cpp), never the list's own scroll.
 	RefreshPrompts();
 }
 
@@ -407,5 +404,11 @@ FReply USettingsMenuWidget::NativeOnMouseWheel(const FGeometry& InGeometry, cons
 		return FReply::Handled();
 	}
 	NotePointer();
+	// The list's own scroll is off (it would stop part-way down a row): a notch is a whole row.
+	if (InMouseEvent.GetWheelDelta() != 0.f)
+	{
+		ScrollByRows(InMouseEvent.GetWheelDelta() > 0.f ? -1 : 1);
+		return FReply::Handled();
+	}
 	return Super::NativeOnMouseWheel(InGeometry, InMouseEvent);
 }

@@ -21,7 +21,7 @@ struct FFlaskSave;
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnFlaskChanged, int32 /*Charges*/, int32 /*Delta*/, EFlaskChange /*Why*/);
 
 /**
- * The player's soul flask (Docs/Work/2026-10-30-SoulFlask/CONTRACT.md; the user's playtest note 2: a way to heal in a
+ * The player's soul flask (Docs/Archive/Work/2026-10-30-SoulFlask/CONTRACT.md; the user's playtest note 2: a way to heal in a
  * fight, boss fights too): the Flask key (H, or left on the D-pad) drinks a charge of soul-light that heals 35% of the most
  * health over a gulp. FFlaskRules has every number, FlaskMotion the motion, FlaskFX the look and sound.
  *

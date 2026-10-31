@@ -149,7 +149,8 @@ void UWeaponLabelWidget::UpdateCard(const UWeaponManagerComponent* Manager, cons
 	}
 	if (Manager)
 	{
-		Keys.bSlotsFull = Manager->GetWeapons().Num() >= Manager->MaxWeapons;
+		// The open slots: a shut one takes no gun (WeaponManagerSlotGate.cpp).
+		Keys.bSlotsFull = !Manager->HasFreeSlot();
 		// The backpack's room is shared with the spare wards.
 		Keys.bBackpackFull = !Manager->HasBackpackRoom();
 	}

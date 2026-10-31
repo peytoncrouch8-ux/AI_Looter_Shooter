@@ -8,6 +8,7 @@
 #include "UI/HUD/HudFlaskWidget.h"
 #include "UI/HUD/HudGraveMarkedWidget.h"
 #include "UI/HUD/HudGrenadeWidget.h"
+#include "UI/HUD/HudGunSlotBannerWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
@@ -57,8 +58,10 @@ namespace
 	constexpr float PickupFeedGap = 76.f;
 
 	// The weapon cluster, in 1080p pixels. It keeps its corner 48 px in from the right edge; its last line (the gun's
-	// name) ends 32 px above the bottom, which puts the slots' circles at y 812, 888 and 964 (x 1775), the cartridge at
-	// (1821, 800) with its base level with the last slot's bottom, and the fire mode's line at y 1000.
+	// name) ends 32 px above the bottom, which puts the four slots' circles at y 736, 812, 888 and 964 (x 1775; the user,
+	// 2026-10-31: four slots, shut ones shown dim with their lock), the cartridge at (1821, 800) with its base level with the
+	// last slot's bottom, the column's top at 704 (Looter.UI.GunSlots keeps it in the screen's lower part), and the fire
+	// mode's line at y 1000.
 	constexpr float ClusterRight = 48.f;
 	constexpr float ClusterBottom = 32.f;
 	/** The cartridge stands this far right of the slots' column. */
@@ -367,6 +370,14 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		FindBanner = WidgetTree->ConstructWidget<UHudFindBannerWidget>(UHudFindBannerWidget::StaticClass());
 		FindBanner->SetOtherBanners(LevelUpBanner, MissionBanner, GraveBanner);
 		GraveBanner->SetOtherBanners(LevelUpBanner, MissionBanner, FindBanner);
+
+		// In the level-up banner's place, after it: "NEW GUN SLOT" as an equip slot opens. It waits for every banner up top
+		// (a level's slot for its LEVEL UP), and the mission-complete and roost banners wait while it shows.
+		GunSlotBanner = WidgetTree->ConstructWidget<UHudGunSlotBannerWidget>(UHudGunSlotBannerWidget::StaticClass());
+		GunSlotBanner->SetOtherBanners(LevelUpBanner, MissionBanner, GraveBanner, FindBanner);
+		MissionBanner->SetGunSlotBanner(GunSlotBanner);
+		GraveBanner->SetGunSlotBanner(GunSlotBanner);
+		PlaceOnCanvas(Root, GunSlotBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, BannerTop));
 		// Low in the middle, between the player frame and the weapon column: up high, the card over a looted gun covered it
 		// (the 2026-10-29 play-check, a chest's guns in the crosshair as the banner came up).
 		PlaceOnCanvas(Root, FindBanner, FAnchors(0.5f, FindBannerHeight), FVector2D(0.5f, 0.5f), FVector2D(0.f, 0.f));

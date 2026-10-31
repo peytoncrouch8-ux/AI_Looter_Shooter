@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/UnpaidMoveRules.h"
+#include "Creatures/UnpaidOpeningRules.h"
+#include "Creatures/UnpaidRiseRules.h"
 #include "Player/DustLight.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "UnpaidPackSubsystem.generated.h"
@@ -24,6 +26,9 @@ enum class EUnpaidTally : uint8
 	Rally,
 	Shriek,
 	ShriekInterrupted,
+	/** An ambush's dead rising round the player, and the pack punishing an opening (2026-10-31). */
+	Rise,
+	Opening,
 	Count
 };
 
@@ -34,8 +39,9 @@ inline constexpr int32 NumUnpaidTallies = static_cast<int32>(EUnpaidTally::Count
  * The Unpaid packs' level-wide side of their varied fight (2026-10-29): which move each Unpaid commits at each player now
  * (FUnpaidMoveBoard: two never commit the same move at once), each pack's last failed-lunge shriek at each player (one a
  * Looter.Unpaid.Shriek.PackGap), the move tally (Looter.Unpaid.Moves), and the shriek's show: a small pool of its coal's
- * lights and the ground wave's lifted dust, grass and leaves as the ring rolls out. Ticks only while a wave rolls or a light
- * fades. Played worlds and the editor preview worlds the tests build (no lights there).
+ * lights and the ground wave's lifted dust, grass and leaves as the ring rolls out; since 2026-10-31 each player's burst of the
+ * dead rising round them (FUnpaidRiseBurst) and their opening's gate (FUnpaidOpeningGate: one punish a gap). Ticks only while a
+ * wave rolls or a light fades. Played worlds and the editor preview worlds the tests build (no lights there).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UUnpaidPackSubsystem : public UTickableWorldSubsystem
@@ -59,6 +65,13 @@ public:
 	/** Seconds since Pack last shrieked at Target (a large number: never). */
 	float SincePackShriek(const APawn& Target, FName Pack) const;
 	void NotePackShriek(const APawn& Target, FName Pack);
+
+	// --- Rises and openings (UnpaidCreatureRise.cpp, UnpaidCreatureOpening.cpp; 2026-10-31) ---
+
+	/** The burst of the dead rising round Target now (none: the one shared by rises that have no player). */
+	FUnpaidRiseBurst& BurstFor(const APawn* Target);
+	/** Target's opening at the pack's last look, and its punish's gate. */
+	FUnpaidOpeningGate& OpeningFor(const APawn& Target);
 
 	// --- The tally ---
 
@@ -135,6 +148,10 @@ private:
 	UPointLightComponent* LightAt(int32 Index);
 
 	TMap<TWeakObjectPtr<const APawn>, FTargetBoard> Boards;
+	/** Each player's rising burst and opening gate, and the burst of rises with no player. */
+	TMap<TWeakObjectPtr<const APawn>, FUnpaidRiseBurst> Bursts;
+	TMap<TWeakObjectPtr<const APawn>, FUnpaidOpeningGate> Openings;
+	FUnpaidRiseBurst Unaimed;
 	int32 Tally[NumUnpaidTallies] = {};
 	int32 Landed[NumUnpaidTallies] = {};
 	double TallySince = 0.0;

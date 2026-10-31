@@ -17,6 +17,11 @@
 
 namespace
 {
+	/** A second gun on the back stands this much further out (cm), so the crossed pair never cut into each other. */
+	constexpr float SecondBackDepth = 6.f;
+	/** A second gun at the hip rides on this thigh (the mannequin's left; the first is on HipBone, the right). */
+	const FName SecondHipBone(TEXT("thigh_l"));
+
 	bool IsSameGun(const FWeaponInstanceData& A, const FWeaponInstanceData& B)
 	{
 		return A.Definition == B.Definition && A.Named == B.Named && A.Seed == B.Seed && A.Rarity == B.Rarity && A.Level == B.Level
@@ -305,6 +310,10 @@ void ALoadoutStage::PlaceCamera()
 void ALoadoutStage::PlaceGuns()
 {
 	const FQuat Facing = GetFacing();
+	// Four slots carry up to three guns put away, so two can share a place (the user, 2026-10-31): the second on the back is
+	// slung the other way, crossing the first, a little further out; the second at the hip rides on the left thigh.
+	int32 OnBack = 0;
+	int32 AtHip = 0;
 	for (FLoadoutStageGun& Gun : Guns)
 	{
 		if (!Gun.Model)
@@ -323,8 +332,19 @@ void ALoadoutStage::PlaceGuns()
 		case ELoadoutCarry::Hip:
 		{
 			const bool bBack = Gun.Carry == ELoadoutCarry::Back;
-			Rotation = Facing * FRotationMatrix::MakeFromXZ(bBack ? BackDirection : HipDirection, bBack ? BackUp : HipUp).ToQuat();
-			const FVector Holster = Body->GetBoneLocation(bBack ? BackBone : HipBone) + Facing.RotateVector(bBack ? BackOffset : HipOffset);
+			const bool bMirrored = (bBack ? OnBack++ : AtHip++) % 2 == 1;
+			// Mirrored across the body (Y, the stand-in's right): the other diagonal on the back, the other thigh at the hip.
+			const FVector Mirror(1.f, bMirrored ? -1.f : 1.f, 1.f);
+			const FVector Direction = (bBack ? BackDirection : HipDirection) * Mirror;
+			const FVector Up = (bBack ? BackUp : HipUp) * Mirror;
+			FVector Offset = (bBack ? BackOffset : HipOffset) * Mirror;
+			if (bMirrored && bBack)
+			{
+				Offset.X -= SecondBackDepth;
+			}
+			const FName Bone = bBack ? BackBone : (bMirrored ? SecondHipBone : HipBone);
+			Rotation = Facing * FRotationMatrix::MakeFromXZ(Direction, Up).ToQuat();
+			const FVector Holster = Body->GetBoneLocation(Bone) + Facing.RotateVector(Offset);
 			Location = Holster - Rotation.RotateVector(Gun.Center);
 			break;
 		}

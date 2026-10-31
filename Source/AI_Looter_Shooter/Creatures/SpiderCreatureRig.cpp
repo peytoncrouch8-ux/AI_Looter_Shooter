@@ -11,6 +11,12 @@
 #include "Engine/SkeletalMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
+namespace
+{
+	/** Standing, no leg reaches farther than this share of its length (a clear knee bend). */
+	constexpr float StandReachShare = 0.8f;
+}
+
 FTransform ASpiderCreature::SegmentFrame(const FVector& From, const FVector& To, const FVector& Pole, float Scale)
 {
 	return FTransform(FRotationMatrix::MakeFromXZ(To - From, Pole).ToQuat(), From, FVector(Scale));
@@ -142,6 +148,20 @@ bool ASpiderCreature::SetupRig()
 			Leg.FemurLength = FVector::Dist(Hip, Knee);
 			Leg.TibiaLength = FVector::Dist(Knee, Foot);
 			Leg.RestStretch = FMath::Max(FVector::Dist(Hip, Foot), 1.f);
+			// Standing, a leg reaches at most StandReachShare of its length (the gait steps at SpiderGait::OverreachShare and no
+			// leg is posed past MaxReachShare): a model whose bind pose has its legs flattened out (SK_Spider's Tripo legs,
+			// 2026-10-31) has its resting feet drawn in toward the hip, so it never stands on straight legs.
+			const float Reach = Leg.FemurLength + Leg.TibiaLength;
+			const FVector Standing(Leg.Rest.X, Leg.Rest.Y, 0.f);
+			if (FVector::Dist(Hip, Standing) > StandReachShare * Reach && Hip.Z < StandReachShare * Reach)
+			{
+				const FVector2D Out = FVector2D(Standing.X - Hip.X, Standing.Y - Hip.Y).GetSafeNormal();
+				const float Flat = FMath::Sqrt(FMath::Square(StandReachShare * Reach) - FMath::Square(static_cast<float>(Hip.Z)));
+				Leg.Rest = FVector(Hip.X + Out.X * Flat, Hip.Y + Out.Y * Flat, 0.f);
+				Leg.RestStretch = StandReachShare * Reach;
+				UE_LOG(LogLooter, Verbose, TEXT("%s: leg %s's resting foot drawn in to %.0f%% of its reach (its bind pose stands it straighter)."),
+					*GetName(), *Suffix, StandReachShare * 100.f);
+			}
 			const FVector Pole = KneePole(FVector::UpVector, (Hip - Thorax.GetLocation()).GetSafeNormal2D());
 			Leg.FemurInSegment = Femur.GetRelativeTransform(SegmentFrame(Hip, Knee, Pole, 1.f));
 			Leg.TibiaInSegment = Tibia.GetRelativeTransform(SegmentFrame(Knee, Foot, Pole, 1.f));
@@ -155,7 +175,7 @@ bool ASpiderCreature::SetupRig()
 		return false;
 	}
 
-	// The pose's slots, in the order SpiderCreature.cpp numbers them (SpiderBones): the body, the fangs and the abdomen,
+	// The pose's slots, in the order SpiderCreature.h numbers them (its Slot* constants): the body, the fangs and the abdomen,
 	// then each leg's femur and tibia.
 	BonePose.Reset();
 	for (const FName Bone : { FName(TEXT("body")), FangLeft.Bone, FangRight.Bone, Abdomen.Bone })

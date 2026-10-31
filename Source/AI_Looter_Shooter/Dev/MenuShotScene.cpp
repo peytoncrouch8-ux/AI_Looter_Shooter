@@ -325,7 +325,17 @@ namespace MenuShotScene
 		// Equipped: the rifle in hand, a shotgun Named by its notches (its nickname in quotes), a Blooded rifle.
 		Weapons.GiveWeapon(MenuShotGun(*Rifle, EWeaponRarity::Rare, 12, 4711));
 		Weapons.GiveWeapon(MenuShotGun(*Shotgun, EWeaponRarity::Epic, 11, 1138, 312));
-		Weapons.GiveWeapon(MenuShotGun(*Rifle, EWeaponRarity::Uncommon, 10, 2024, 63));
+		// The third only where a slot is open (the player's slots open with their level since 2026-10-31): else the backpack,
+		// never in place of the gun in hand.
+		const FWeaponInstanceData Third = MenuShotGun(*Rifle, EWeaponRarity::Uncommon, 10, 2024, 63);
+		if (Weapons.HasFreeSlot())
+		{
+			Weapons.GiveWeapon(Third);
+		}
+		else
+		{
+			Weapons.AddToBackpack(Third);
+		}
 
 		// The backpack: the cursed iron first (the old list kept backpack order), then rifles and shotguns of every rarity.
 		Weapons.AddToBackpack(MenuShotGun(*Rifle, EWeaponRarity::Legendary, 12, 9001, 17, MenuShotCurse()));

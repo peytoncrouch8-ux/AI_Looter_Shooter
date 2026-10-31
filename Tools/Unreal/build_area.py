@@ -507,6 +507,7 @@ class AreaBuild:
         # The encounters between the story's fights (layout gameplay.encounters): camps with their crates, patrols and
         # ambushes (build_area_camps.py), after the story's actors, whose fights' ground they keep off.
         importlib.reload(importlib.import_module('build_area_camps')).place(self)
+        importlib.reload(importlib.import_module('build_area_lurks')).place(self)
         # The town's life behind its walls: townsfolk's doors that mutter and sound (build_area_townlife.py).
         importlib.reload(importlib.import_module('build_area_townlife')).place(self)
         # The vendors at their store doors (build_area_vendors.py): Pruitt's hatch, Skyreach's honesty box.

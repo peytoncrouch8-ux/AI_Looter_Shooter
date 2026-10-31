@@ -14,7 +14,7 @@
 #include "Engine/World.h"
 #include "Tests/AutomationCommon.h"
 
-// The soul flask on the HUD (Docs/Work/2026-10-30-SoulFlask): the row's plain rules (Looter.UI.Flask.Rules), its place
+// The soul flask on the HUD (Docs/Archive/Work/2026-10-30-SoulFlask): the row's plain rules (Looter.UI.Flask.Rules), its place
 // under the player frame clear of the medallion, the gem and the experience bar (Looter.UI.Flask.Place), the widget's
 // pips, flashes and words (Looter.UI.Flask.Widget), and the first-time hint (Looter.Tutorial.Hints.Flask).
 

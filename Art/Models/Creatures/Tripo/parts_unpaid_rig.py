@@ -11,6 +11,12 @@ import parts_unpaid as pu
 
 SIDES = ((1.0, 'l'), (-1.0, 'r'))
 ROBE_STRETCH = 1.15          # the robe runs this much longer along the shroud chain than it hangs (it streams back)
+FINGER_HOLD = (-0.004, 0.012)   # m along a finger from its knuckle (Tripo space): its bone's share 0 .. 1 (2026-10-31)
+SHOULDER_BLEND = (0.11, 0.05)   # m from the shoulder joint: the upper arm's weight smoothed fully within the second
+SHOULDER_PASSES = 8
+JAW_CORNER = (-0.2, 1.6)        # GLB units past the mouth's corners: the cheeks' jaw weight eases over this ...
+JAW_CHEEK = (1.6, -2.4)         # ... from this high over the mouth's line to this low (it was a 7 mm step: torn)
+JAW_PASSES = 4
 
 
 def _bone(rig, name):
@@ -175,8 +181,32 @@ def skin_weights(rig, S, V, faces, lip=None):
         total = sum(W[b] for b in fingers)
         dist = np.column_stack([tr_polyline_distance(V, P[f + '_line']) for f in pu.FINGERS])
         nearest = np.argmin(dist, axis=1)
+        # Along each finger its own bone takes it whole a little past the knuckle (FINGER_HOLD), the hand before it.
+        # (Bone heat left a fingertip part hand, part finger: curled for the lunge and the rake, a finger stretched
+        # 3-6 cm along itself, 2026-10-31.) The hand's and the fingers' share together stays what the heat gave.
+        hand = f'hand_{sfx}'
+        both = total + W[hand]
+        region = total > 0.02
+        along = np.column_stack([_along(V, P[f + '_line']) for f in pu.FINGERS])[np.arange(n), nearest]
+        hold = smoothstep(FINGER_HOLD[0], FINGER_HOLD[1], along)
         for k, b in enumerate(fingers):
-            W[b] = total * (nearest == k)
+            W[b] = np.where(region, both * hold * (nearest == k), total * (nearest == k))
+        W[hand] = np.where(region, both * (1.0 - hold), W[hand])
+        # The shoulder blended wider between the upper arm and the chest: raised 100 degrees out (the spread, the
+        # cocked rake) its top folded 3 cm into 0.7 over a narrow seam.
+        d = np.linalg.norm(V - P['shoulder'], axis=1)
+        reach = smoothstep(SHOULDER_BLEND[0], SHOULDER_BLEND[1], d)
+        upper = W[f'upperarm_{sfx}']
+        smooth = tr.smooth_values(upper, faces, passes=SHOULDER_PASSES, amount=0.5)
+        W[f'upperarm_{sfx}'] = upper + (smooth - upper) * reach
+        # The forearm, hand and fingers wholly the arm's: bone heat gave a hand hanging by the hip a share of the pelvis
+        # and the waist, so a raised arm left a thumb 3-6 cm behind (stretched along itself), 2026-10-31.
+        low = W[f'lowerarm_{sfx}'] + W[hand] + sum(W[b] for b in fingers)
+        arm_sum = sum(W[b] for b in mine)
+        whole = smoothstep(0.1, 0.4, low) * (arm_sum > 1e-6)
+        scale = 1.0 + (1.0 / np.maximum(arm_sum, 1e-6) - 1.0) * whole
+        for b in mine:
+            W[b] = W[b] * scale
 
     # The body as Unpaid.py weighs its torso: the spine by height (each bone whole at its middle, the rig's unbent
     # heights), the neck only close round it, the head above its pivot and the face jutting in front of the collar.
@@ -220,10 +250,20 @@ def skin_weights(rig, S, V, faces, lip=None):
     G = np.column_stack([V[:, 0] / pu.SCALE, V[:, 1] / pu.SCALE + pu.DEPTH, (V[:, 2] - pu.LIFT) / pu.SCALE])
     hinge = pu.TRIPO_JOINTS['hinge']
     below = smoothstep(pu.MOUTH['z'] + 0.05, pu.MOUTH['z'] - 0.35, G[:, 2])
+    # Past the mouth's corners the cheeks ease from the head to the jaw over a few cm (the lips' step there tore the
+    # corners open 4-7 cm when the jaw dropped for the lunge and the shriek, 2026-10-31), and follow it less.
+    side = smoothstep(JAW_CORNER[0], JAW_CORNER[1], np.abs(G[:, 0] - pu.MOUTH['x']) - pu.MOUTH['half_width'])
+    cheek = smoothstep(pu.MOUTH['z'] + JAW_CHEEK[0], pu.MOUTH['z'] + JAW_CHEEK[1], G[:, 2])
+    below = below * (1.0 - side) + cheek * side * 0.75
     front = smoothstep(hinge[1] + 0.5, hinge[1] - 2.5, G[:, 1])
     jaw = below * front * W["head"]
     if lip is not None:      # the parted lips: below the cut all jaw, above none
         jaw = np.where(lip < 0, W["head"], np.where(lip > 0, 0.0, jaw))
+        # Round the corners (not across the parted lips), the weights smoothed so no edge carries the whole step.
+        near = (np.abs(G[:, 0] - pu.MOUTH['x']) < pu.MOUTH['half_width'] + 4.0) & \
+            (np.abs(G[:, 2] - pu.MOUTH['z']) < 4.0) & (lip == 0)
+        soft = tr.smooth_values(jaw, faces, passes=JAW_PASSES, amount=0.5)
+        jaw = np.where(near, np.minimum(soft, W["head"]), jaw)
     W['jaw'] = jaw
     W['head'] = W['head'] - jaw
     for b in list(W):
@@ -244,6 +284,26 @@ def chain(x, stops, bones):
     f = (x - np.asarray(stops)[k]) / (np.asarray(stops)[k + 1] - np.asarray(stops)[k])
     for i, b in enumerate(bones):
         out[b] += np.where(k == i, 1.0 - f, 0.0) + np.where(k == i - 1, f, 0.0)
+    return out
+
+
+def _along(V, pts):
+    """How far along a polyline (from its first point, meters) each point's nearest place on it lies; before its start,
+    the distance back along its first segment (negative)."""
+    pts = np.asarray(pts, float)
+    best = np.full(len(V), np.inf)
+    out = np.zeros(len(V))
+    start = 0.0
+    for k, (a, b) in enumerate(zip(pts[:-1], pts[1:])):
+        d = b - a
+        L = max(float(np.linalg.norm(d)), 1e-12)
+        t = ((V - a) @ d) / (L * L)
+        tc = np.clip(t, 0.0 if k else -np.inf, 1.0)
+        dist = np.linalg.norm(V - (a + tc[:, None] * d), axis=1)
+        better = dist < best
+        best = np.where(better, dist, best)
+        out = np.where(better, start + tc * L, out)
+        start += L
     return out
 
 

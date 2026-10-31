@@ -308,7 +308,7 @@ The user's calls this stretch:
   Build.bat` runs it). Not seen in play yet: the grass blast, the tag fade, the harder Abel and Foreman.
 
 ## Overnight 2026-10-31 (the user asleep; their asks and answers, in their words where given)
-In flight at bedtime: the pause menu E2 "Big Dial" hub + the full-page Settings (contract Docs/Work/2026-10-30-PauseMenu/CONTRACT.md),
+In flight at bedtime: the pause menu E2 "Big Dial" hub + the full-page Settings (contract Docs/Archive/Work/2026-10-30-PauseMenu/CONTRACT.md),
 wards like guns (ward card in the gun card's style in the world and the loadout, ward rows like gun rows, spare wards in the
 backpack sharing the 12 slots with guns; worn ward stays left), Ranger Post Three removed (chest + stone steps by the wake-up grave;
 not committed yet: layout, build_area_finds.py docstring, FindLevelTests 14 finds, the level). Then, the user's overnight asks:
@@ -321,6 +321,16 @@ not committed yet: layout, build_area_finds.py docstring, FindLevelTests 14 find
 4. Gun slots: 4 equipped. "2 slots available at the start of the game, 3rd slot available at level 3, and fourth slot
    available after finishing all of Ransom's Rest's main missions."
 5. Package a playtest build at the end (as every overnight), smoke-tested; handoff and doc index current.
+STATUS (morning 2026-10-31): ALL BUILT, tested, checked in PIE, committed. Wards (930a7070). Pause menu E2 hub + full-page
+Settings (both modes; uishots pausehub2), Stone Sentinel (1080 health at L1, boulder + shockwave + open window; impact dust kept
+3 m off the camera), spider (Tripo look, legs keep their bends, gait capped at 0.9 reach, 4-stage bite, Lurk ambush: GoatSteps,
+QuarryWalls, WebwoodTrees), Unpaid (Tripo paint, weights, lurch gait, RiseAround surround rise: Churchyard, MiserPlot, new
+FurrowDead; punishes a reload), gun slots (2 / L3 / all 9 RR mains; banner, key 4, locked rows). Docs: Game.md, Enemies.md,
+Progression.md, CODEMAP. Not seen in play by the user: all of it. Open: the Sentinel XP stays 45 for twice the health (agent
+suggests ~70; the user's call); UI.GunSlotUnlocked cue unwritten (banner uses UI.NotchMilestone); no time of day, so the
+Unpaid ambushes are active day and night; a safe zone rejects every rise spot (by design); the editor sat at ~10 GB with
+memory-pressure warnings after many builds (restart it every few builds). PIE fps reads 12-19 when the editor is unfocused
+(its background throttle), not a game cost: focus it before reading fps.
 
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:

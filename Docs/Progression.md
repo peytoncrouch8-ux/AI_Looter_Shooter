@@ -18,6 +18,7 @@ The user's calls:
   (6 and 7); the turn-ins were raised so **a player arrives near each boss's level**: the story alone about a level
   under the Foreman and Abel, a full clear at them. **The story alone now ends about level 6.9, a full clear about
   7.5** (were 5.5 and 6.8), so the *Lily* (8-13) is met a level or so under its floor either way.
+- (2026-10-31) **Gun slots open with progress:** 2 at the start, the 3rd at level 3, the 4th after every Ransom's Rest main mission (see "Unlocks").
 
 ## How Borderlands does it (the research, 2026-10-13)
 
@@ -92,6 +93,11 @@ The knobs (Project Settings > Game > Progression, `UProgressionSettings`, saved 
 `Progression/XPCurve.h` and `Progression/LevelRules.h`): `MaxLevel`, `CurveScale`, `CurvePower`, `KillXPScale`,
 `KillXPPower`, the falloff; each mission's `experience` in `Tools/Unreal/create_mission_assets.py` and
 `create_side_mission_assets.py`; the creatures' levels (below). `Looter.XP.Table` prints the curve and the kills.
+
+## Unlocks
+
+- **Gun slots** (the user, 2026-10-31: "I want to be able to equip 4 guns at a time instead of 3." / "2 slots available at the start of the game, 3rd slot available at level 3, and fourth slot available after finishing all of Ransom's Rest's main missions."): 2 slots open at the start, the **3rd at level 3**, the **4th once every Ransom's Rest main mission is done** (`GunSlotRules::OpenSlots`; the story = every `EMissionKind::Main` mission with `Area == "RansomsRest"`, read from the mission data: Main1, Main2, Main3, Main4, Main5, DeadLift, BackPay, Main6, Main7, nine today; side missions, tutorials and other areas don't count; a main mission added to Ransom's Rest later is waited for). Level 3 takes 3,721 XP in all (the table above). Each opening is announced by the NEW GUN SLOT banner. Only Ransom's Rest's missions count; a later area's unlocks are not set. Details and tests: `Docs/Pipeline/Game.md` "Gun slots".
+
 
 ## Creature levels
 

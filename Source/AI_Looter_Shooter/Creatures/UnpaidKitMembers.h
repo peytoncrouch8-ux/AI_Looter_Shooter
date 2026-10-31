@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/UnpaidFightRules.h"
+#include "Creatures/UnpaidGaitRules.h"
 #include "Creatures/UnpaidMoveRules.h"
+#include "Creatures/UnpaidRiseRules.h"
 
 /** Where an Unpaid is in a phase-step (UnpaidCreaturePhase.cpp). */
 enum class EUnpaidPhaseState : uint8
@@ -55,4 +57,10 @@ struct FUnpaidKitMembers : FUnpaidKitState
 
 	// --- Its varied moves and its failed-lunge shriek (UnpaidCreatureVariety.cpp, UnpaidCreatureShriek.cpp; 2026-10-29) ---
 	FUnpaidMoveState Moves;
+
+	// --- Its body language and its rise out of the ground (UnpaidCreatureGait.cpp, UnpaidCreatureRise.cpp; 2026-10-31) ---
+	/** Its lurch, its head's tilt and loll, its wind-up's coil, how it falls: kept from its birth (its limp), reset as it comes back. */
+	FUnpaidGaitState Gait;
+	/** Its rise as it goes (none once it's up). */
+	FUnpaidRiseState Rise;
 };

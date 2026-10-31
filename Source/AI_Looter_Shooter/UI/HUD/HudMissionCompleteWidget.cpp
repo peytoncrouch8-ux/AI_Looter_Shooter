@@ -6,6 +6,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
+#include "UI/HUD/HudGunSlotBannerWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -114,6 +115,11 @@ void UHudMissionCompleteWidget::SetLevelUpBanner(UHudLevelUpBannerWidget* InLeve
 	LevelUpBanner = InLevelUpBanner;
 }
 
+void UHudMissionCompleteWidget::SetGunSlotBanner(UHudGunSlotBannerWidget* InGunSlotBanner)
+{
+	GunSlotBanner = InGunSlotBanner;
+}
+
 // ---------------------------------------------------------------------------
 // What it announces, and taking turns with the level-up banner
 // ---------------------------------------------------------------------------
@@ -157,7 +163,9 @@ bool UHudMissionCompleteWidget::IsLevelUpShowing() const
 	// root on screen is a banner showing.
 	const UHudLevelUpBannerWidget* LevelUp = LevelUpBanner.Get();
 	const UWidget* Root = LevelUp ? LevelUp->GetRootWidget() : nullptr;
-	return Root && Root->GetVisibility() != ESlateVisibility::Collapsed;
+	// The gun-slot banner shows in the same place: it waits for this one, so this one only waits while it is on screen.
+	const UHudGunSlotBannerWidget* GunSlot = GunSlotBanner.Get();
+	return (Root && Root->GetVisibility() != ESlateVisibility::Collapsed) || (GunSlot && GunSlot->IsShowing());
 }
 
 bool UHudMissionCompleteWidget::IsCovered() const

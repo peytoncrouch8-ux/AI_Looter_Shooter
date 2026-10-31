@@ -1,6 +1,6 @@
 // UPauseMenuWidget for the keyboard, a controller and the mouse, the settings menu's way (MenuNav.h, MenuNavigator.h,
-// LooterUIFocus.h): up and down round the ends (a short list), A or Enter picks, B, Esc or Start resume; the first key
-// after the mouse only brings the focus look up; the prompts under the plate follow the device last used.
+// LooterUIFocus.h): up and down round the ends (four options), A or Enter picks, B, Esc or Start resume; the first key
+// after the mouse only brings the focus look up; the key hints bottom-right follow the device last used.
 
 #include "UI/Menus/PauseMenuWidget.h"
 #include "UI/Cards/LooterHollowKey.h"
@@ -11,6 +11,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/ScaleBox.h"
 #include "Components/TextBlock.h"
 #include "InputCoreTypes.h"
 
@@ -18,11 +19,15 @@ using namespace MenuNav;
 
 namespace
 {
-	/** The gap between the prompts under the plate, between a key and its word, and the word's size and spacing (as the settings'). */
-	constexpr float PromptGap = 30.f;
-	constexpr float PromptKeyGap = 10.f;
-	constexpr int32 PromptWordSize = 18;
-	constexpr int32 PromptWordSpacing = 111;
+	/**
+	 * The key hints (e.js keysHTML, common.css .hint/.cap): 34 between hints, 12 between a key and its word, the words 26 px
+	 * bold spaced .08 em. The kit's hollow key is drawn 1.45 times its size, as big as the mockup's cap (40 tall).
+	 */
+	constexpr float PromptGap = 34.f;
+	constexpr float PromptKeyGap = 12.f;
+	constexpr int32 PromptWordSize = 26;
+	constexpr int32 PromptWordSpacing = 80;
+	constexpr float PromptKeyScale = 1.45f;
 }
 
 // ---------------------------------------------------------------------------
@@ -31,13 +36,19 @@ namespace
 
 void UPauseMenuWidget::RebuildNavigation(const UWidget* Prefer)
 {
-	// One stop a row, top to bottom: Resume, the screens, Save & Quit.
+	// One stop an option, top to bottom. Each lights an empty box as its focus look: the option marked (gold, slid out,
+	// the needle on it) is the focus, so the kit's outline round the tag's box isn't wanted.
 	TArray<FMenuNavRow> Rows;
-	for (const FPauseMenuLine& Line : Lines)
+	for (const FPauseMenuOption& Option : Options)
 	{
-		if (ULooterButton* Button = Line.Button.Get())
+		if (ULooterButton* Button = Option.Button.Get())
 		{
-			Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(Button) });
+			FMenuNavItem Item = FMenuNavItem::MakeButton(Button);
+			if (UWidget* Light = Option.FocusLight.Get())
+			{
+				Item.Light = Light;
+			}
+			Rows.Add(FMenuNavRow{ Item });
 		}
 	}
 	// A short list: round the ends, as the main menu's.
@@ -53,8 +64,7 @@ UWidget* UPauseMenuWidget::GetFocusedWidget() const
 
 EPauseMenuItem UPauseMenuWidget::GetFocusedItem() const
 {
-	const UWidget* Focused = Nav.GetFocusedWidget();
-	const FPauseMenuLine* Found = Lines.FindByPredicate([Focused](const FPauseMenuLine& Line) { return Focused && Line.Button.Get() == Focused; });
+	const FPauseMenuOption* Found = FindOption(Cast<ULooterButton>(Nav.GetFocusedWidget()));
 	return Found ? Found->Item : EPauseMenuItem::Count;
 }
 
@@ -324,14 +334,19 @@ void UPauseMenuWidget::RefreshPrompts()
 		return;
 	}
 	ShownPrompts = Line;
-	// Under the plate, floating: each a hollow key and its word, spaced, as under the settings menu.
+	// Bottom-right, floating: each a hollow gold key (the kit's, drawn the mockup's size) and its word, spaced.
 	PromptBar->ClearChildren();
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)
 	{
 		ULooterHollowKey* Key = WidgetTree->ConstructWidget<ULooterHollowKey>(ULooterHollowKey::StaticClass());
 		Key->SetLabel(Prompts[Index].Key.ToUpper());
 		Key->SetVisibility(ESlateVisibility::HitTestInvisible);
-		UHorizontalBoxSlot* KeySlot = PromptBar->AddChildToHorizontalBox(Key);
+		UScaleBox* KeySize = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
+		KeySize->SetStretch(EStretch::UserSpecified);
+		KeySize->SetUserSpecifiedScale(PromptKeyScale);
+		KeySize->SetContent(Key);
+		KeySize->SetVisibility(ESlateVisibility::HitTestInvisible);
+		UHorizontalBoxSlot* KeySlot = PromptBar->AddChildToHorizontalBox(KeySize);
 		KeySlot->SetVerticalAlignment(VAlign_Center);
 		KeySlot->SetPadding(FMargin(Index > 0 ? PromptGap : 0.f, 0.f, 0.f, 0.f));
 		UTextBlock* Word = LooterUI::MakeFloatingText(WidgetTree, PromptWordSize, LooterUI::Color::SlateText(), PromptWordSpacing);

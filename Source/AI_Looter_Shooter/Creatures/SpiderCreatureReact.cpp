@@ -2,8 +2,8 @@
 // jolt and its tilt away from the shot, its death's moments (the throe, drop and curl are SpiderCreatureDeath.cpp's; here the
 // drop's thud, a last twitch or two before the body lies still, the shudder before it sinks), coming back, the notice beat
 // (it rears with its front legs up and its fangs flared, hissing), its entrance in a player's view (climbing out of the
-// dirt), idle life while it stands (a front leg tapped, the front legs groomed at its fangs, each spider on its own dice)
-// and the dust its feet kick up running. Moved here with the reactions it had, to keep SpiderCreature.cpp under the size
+// dirt; idle life while it stands and the notice beat's pose are SpiderCreatureIdle.cpp's) and the dust its feet kick up
+// running. Moved here with the reactions it had, to keep SpiderCreature.cpp under the size
 // guide. The VFX pass (Saved/Vfx/PLAN.md): its kill's own layers as it dies (gore by the gun, mist, dust skirt, tier rings;
 // CreatureKillLook), and its ichor pooling out from under it once the body lands. The hit feel pass (HITS, 2026-10-28) raised
 // a living spider's kick and tilt here and hands each hit on to SpiderCreatureHurt.cpp (zones, stagger, wounds, kill styles).
@@ -53,22 +53,6 @@ namespace
 	constexpr float ScriptedKick[2] = { 7.f, 14.f };
 	constexpr float ScriptedTilt[2] = { 5.f, 7.f };
 
-	/** The notice beat: it rears this far (degrees, and cm at size 1), its fangs spread this wide, its front legs this share of the way to raised. */
-	constexpr float NoticeRear = 16.f;
-	constexpr float NoticeRise = 10.f;
-	constexpr float NoticeFang = 30.f;
-	constexpr float NoticeLegRaise = 0.55f;
-
-	/** Idle life: an act every this many seconds or so, a tap this long (lifted this high, cm at size 1) or a groom this long. */
-	constexpr float IdleEvery[2] = { 3.5f, 8.f };
-	constexpr float TapShare = 0.6f;
-	constexpr float TapSeconds = 0.9f;
-	constexpr float TapLift = 13.f;
-	constexpr float GroomSeconds = 1.8f;
-	constexpr float GroomRubHz = 3.2f;
-	/** Where a groom draws the front feet: before the fangs (the body's frame at size 1: ahead, out to each side, below the thorax). */
-	const FVector GroomSpot(60.f, 14.f, -18.f);
-
 	/**
 	 * Its death's two twitches: when (a full-size death's seconds after it dies, both after the curl: a bigger one's come as
 	 * much later as its death runs slower), each this long, the foot kicked this far (cm at size 1).
@@ -84,11 +68,6 @@ namespace
 	/** Its feet throw dust running at this share of its chase speed or faster. */
 	constexpr float FootfallPace = 0.55f;
 
-	/** Up over In seconds, held, and down over the last Out seconds of Length. */
-	float SpiderEnvelope(float Time, float Length, float In, float Out)
-	{
-		return FMath::SmoothStep(0.f, In, Time) * (1.f - FMath::SmoothStep(Length - Out, Length, Time));
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +81,21 @@ void ASpiderCreature::OnAttackStarted()
 
 void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 {
+	// On its perch, shot: it springs (SpiderCreatureLurk.cpp). In a fight, hurt enough lately: it backs off (SpiderCreatureHunt.cpp).
+	{
+		const FCreatureHit& Taken = GetLastHit();
+		if (Taken.bFresh && !Taken.bKilled)
+		{
+			if (Lurk.Phase == ESpiderLurkPhase::Perched)
+			{
+				Lurk.bHurt = true;
+			}
+			else if (Lurk.Phase == ESpiderLurkPhase::None)
+			{
+				NoteHurtForHunt(Taken);
+			}
+		}
+	}
 	// Flinch away from the hit, sized by it (Gunfeel: a revolver round rocks it, a rifle round jerks it, a close blast
 	// throws its body back); headshots harder. A shotgun's pellets land together: the strongest kick stands (the last
 	// pellet carries the blast's whole share), they don't add up.
@@ -156,6 +150,14 @@ void ASpiderCreature::OnDied()
 	// folds into the body's. Its style first (the killing hit's: SpiderCreatureHurt.cpp), whose timing the pose is laid out
 	// by; a stagger's crouch folds into where its death starts, then lets go.
 	KillStyle = PickKillStyle(GetLastHit());
+	// Killed on its wall or in the air: its body comes down to the ground under it first, its death playing from where it
+	// hung (SpiderCreatureLurk.cpp). Its cunning's moves stop.
+	if (Lurk.Phase != ESpiderLurkPhase::None)
+	{
+		FallFromPerch();
+	}
+	Hunt = FSpiderHuntState();
+	bCirclingNow = false;
 	RecordDeathPose();
 	StaggerShown = 0.f;
 	for (FLeg& Leg : Legs)
@@ -193,6 +195,11 @@ void ASpiderCreature::OnDied()
 void ASpiderCreature::OnRespawned()
 {
 	ResetHitFeel();
+	Lurk = FSpiderLurkState();
+	Hunt = FSpiderHuntState();
+	Gait.bRead = false;
+	Gait.bWasAirborne = false;
+	Gait.LandDip = Gait.LandDipSpeed = 0.f;
 	IdleAct = EIdleAct::None;
 	IdleWeight = 0.f;
 	EmergeTime = -1.f;
@@ -208,6 +215,14 @@ void ASpiderCreature::OnPoseThawed()
 {
 	if (!bRigReady)
 	{
+		return;
+	}
+	Gait.bRead = false;
+	// On its perch: its feet put back on its surface (SpiderCreatureCling.cpp).
+	if (IsClinging())
+	{
+		PlantOnSurface();
+		AnimateCling(0.f);
 		return;
 	}
 	// Its feet stayed where they last stood while it walked on unposed. This usually happens just before a view reaches
@@ -242,7 +257,12 @@ void ASpiderCreature::OnPoseThawed()
 void ASpiderCreature::OnSizeChanged()
 {
 	// Promoted (or resized) in play: its feet go down where the new size puts them, and the body settles over them at once.
-	if (bRigReady)
+	if (bRigReady && IsClinging())
+	{
+		PlantOnSurface();
+		AnimateCling(0.f);
+	}
+	else if (bRigReady)
 	{
 		PlantLegs();
 		AnimateBody(0.f);
@@ -276,7 +296,8 @@ void ASpiderCreature::OnNoticed()
 
 void ASpiderCreature::PlayEntrance()
 {
-	if (!bRigReady)
+	// A lurker comes its ambush's way (on its perch), never out of the dirt.
+	if (!bRigReady || Lurk.Phase != ESpiderLurkPhase::None)
 	{
 		return;
 	}
@@ -308,7 +329,7 @@ float ASpiderCreature::EmergeDrop() const
 }
 
 // ---------------------------------------------------------------------------
-// Idle life, its death's twitches, its footfalls
+// Its clocks (idle life: SpiderCreatureIdle.cpp), its death's twitches, its footfalls
 // ---------------------------------------------------------------------------
 
 void ASpiderCreature::TickReactions(float DeltaSeconds)
@@ -321,7 +342,6 @@ void ASpiderCreature::TickReactions(float DeltaSeconds)
 			EmergeTime = -1.f;
 		}
 	}
-	UCreatureReactComponent* Reacts = GetReact();
 	if (IsDead())
 	{
 		// The body hits the ground on its death cry's knock: a thud and a puff of dust (SpiderCreatureDeath.cpp).
@@ -351,100 +371,8 @@ void ASpiderCreature::TickReactions(float DeltaSeconds)
 	}
 	// The notice pose eases after the beat's own curve, so a beat a hit cuts short lets the legs down rather than dropping them.
 	NoticePose = DeltaSeconds > 0.f ? FMath::FInterpTo(NoticePose, GetNoticeStrength(), DeltaSeconds, 14.f) : GetNoticeStrength();
-	if (!Reacts)
-	{
-		return;
-	}
-	FRandomStream& Dice = Reacts->GetRandom();
-	if (!bIdleClockSet)
-	{
-		bIdleClockSet = true;
-		NextIdleAct = Dice.FRandRange(1.f, IdleEvery[1]);
-	}
-	// Standing about with nobody to hunt, now and then it taps a leg or grooms; anything else takes its legs back at once.
-	const bool bCalm = GetCreatureState() == ECreatureState::Idle && GetVelocity().SizeSquared2D() < 100.0 && !IsNoticing()
-		&& EmergeTime < 0.f && !IsPoseFrozen();
-	IdleWeight = FMath::FInterpTo(IdleWeight, bCalm ? 1.f : 0.f, DeltaSeconds, bCalm ? 4.f : 12.f);
-	if (IdleAct != EIdleAct::None)
-	{
-		IdleActTime += DeltaSeconds;
-		const float Length = IdleAct == EIdleAct::Tap ? TapSeconds : GroomSeconds;
-		if (IdleActTime >= Length || (!bCalm && IdleWeight < 0.01f))
-		{
-			IdleAct = EIdleAct::None;
-			IdleActTime = 0.f;
-		}
-		return;
-	}
-	if (!bCalm)
-	{
-		return;
-	}
-	NextIdleAct -= DeltaSeconds;
-	if (NextIdleAct <= 0.f)
-	{
-		IdleAct = Dice.FRand() < TapShare ? EIdleAct::Tap : EIdleAct::Groom;
-		IdleActTime = 0.f;
-		IdleSide = Dice.FRand() < 0.5f ? -1.f : 1.f;
-		NextIdleAct = Dice.FRandRange(IdleEvery[0], IdleEvery[1]);
-	}
-}
-
-void ASpiderCreature::ReactBody(float& TargetZ, float& TargetPitch, float& TargetFang) const
-{
-	const float Notice = NoticePose;
-	if (Notice > 0.f)
-	{
-		// Seen: reared, nose up, fangs spread wide.
-		TargetPitch += NoticeRear * Notice;
-		TargetZ += NoticeRise * GetSizeScale() * Notice;
-		TargetFang = FMath::Max(TargetFang, NoticeFang * Notice);
-	}
-	if (IdleAct == EIdleAct::Groom && IdleWeight > 0.f)
-	{
-		// Its front lifted a little to the legs it draws up, its fangs working over them.
-		const float Groom = IdleWeight * SpiderEnvelope(IdleActTime, GroomSeconds, 0.35f, 0.4f);
-		TargetPitch += 3.f * Groom;
-		TargetFang += Groom * (6.f + 6.f * FMath::Sin(2.f * UE_PI * 4.f * IdleActTime));
-	}
-}
-
-FVector ASpiderCreature::ReactFootOffset(const FLeg& Leg, const FTransform& Body) const
-{
-	if (Leg.Pair != 0)
-	{
-		return FVector::ZeroVector;
-	}
-	FVector Offset = FVector::ZeroVector;
-	const float Notice = NoticePose;
-	if (Notice > 0.001f)
-	{
-		// The front legs come up and reach as it rears (the bite's raise, lower).
-		const FVector Raised = Body.TransformPosition(FVector(Leg.Hip.X + 55.f, Leg.Hip.Y * 1.4f, 25.f));
-		Offset += (Raised - Leg.Foot) * (NoticeLegRaise * Notice);
-	}
-	if (IdleAct == EIdleAct::None || IdleWeight <= 0.f || Leg.bStepping)
-	{
-		return Offset;
-	}
-	const FQuat Turn = Body.GetRotation();
-	if (IdleAct == EIdleAct::Tap && Leg.Side == IdleSide)
-	{
-		// Lifted, two quick taps on the ground, set down again.
-		const float Lift = SpiderEnvelope(IdleActTime, TapSeconds, 0.18f, 0.2f);
-		const float TapClock = FMath::Clamp((IdleActTime - 0.2f) / 0.5f, 0.f, 1.f);
-		const float Dip = 0.5f * (1.f - FMath::Cos(2.f * UE_PI * 2.f * TapClock));
-		Offset += (Turn.GetUpVector() * (TapLift * (1.f - 0.75f * Dip)) + Turn.GetForwardVector() * 6.f) * (GetSizeScale() * Lift * IdleWeight);
-	}
-	else if (IdleAct == EIdleAct::Groom)
-	{
-		// Both front legs drawn up to the fangs and rubbed over them, one then the other.
-		const float Groom = SpiderEnvelope(IdleActTime, GroomSeconds, 0.35f, 0.4f) * IdleWeight;
-		const float Rub = 6.f * Leg.Side * FMath::Sin(2.f * UE_PI * GroomRubHz * IdleActTime);
-		const FVector AtFangs = Body.TransformPosition(FVector(GroomSpot.X + Rub, GroomSpot.Y * Leg.Side, GroomSpot.Z));
-		Offset += (AtFangs - Leg.Foot) * Groom;
-	}
-	return Offset;
+	// Its idle life: a tap, a groom, a weight shift (SpiderCreatureIdle.cpp).
+	TickIdleLife(DeltaSeconds);
 }
 
 FVector ASpiderCreature::DeathTwitch(int32 LegIndex, float Time, const FVector& Outward, const FVector& Up) const

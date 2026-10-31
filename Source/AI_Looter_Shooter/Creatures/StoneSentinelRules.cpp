@@ -1,19 +1,15 @@
+// StoneSentinelRules: the Stone Sentinel's plain rules (waking, the slam's reach, its stone, its open window, its stride's
+// footfalls, chips, traits). Its poses are StoneSentinelPoses.cpp's; its boulder and shockwave StoneSentinelMoveRules.cpp's.
+
 #include "Creatures/StoneSentinelRules.h"
 
 namespace
 {
-	/** The poses the slam passes through (StoneSentinelRules::SlamPoseAt): standing, fists overhead, fists in the dirt. Raised and
-	 * Down are the furthest the Tripo statue's rigid stone pieces bend cleanly (2026-10-30: 172/35/-10 and 62/6/34 split its
-	 * shoulders into shards). */
-	const FStoneSentinelPose Idle{ 8.f, 12.f, 4.f };
-	const FStoneSentinelPose Raised{ 128.f, 70.f, -8.f };
-	const FStoneSentinelPose Down{ 45.f, 20.f, 22.f };
-
-	FStoneSentinelPose Blend(const FStoneSentinelPose& A, const FStoneSentinelPose& B, float Alpha)
-	{
-		const float T = FMath::Clamp(Alpha, 0.f, 1.f);
-		return FStoneSentinelPose{ FMath::Lerp(A.ArmSwing, B.ArmSwing, T), FMath::Lerp(A.ElbowBend, B.ElbowBend, T), FMath::Lerp(A.Bow, B.Bow, T) };
-	}
+	/** The bones whose hit zones are its back and shoulders (critical while it's open) and its head (always). */
+	const FName HeadBone(TEXT("head"));
+	const FName HeadSocketBone(TEXT("SOCKET_Head"));
+	const FName UpperBackBone(TEXT("spine_02"));
+	const FName LowerBackBone(TEXT("spine_01"));
 }
 
 namespace StoneSentinelRules
@@ -54,39 +50,24 @@ namespace StoneSentinelRules
 		return FMath::Clamp(1.f - Left, 0.f, 0.9f);
 	}
 
+	float StoneDefenseNow(bool bExposed, const FStoneSentinelTuning& Tuning)
+	{
+		// Open, its stone is cracked through: what's left of its guard is its tier's (and ExposedStoneShare of its stone's).
+		return bExposed ? Tuning.StoneDefense * FMath::Clamp(Tuning.ExposedStoneShare, 0.f, 1.f) : Tuning.StoneDefense;
+	}
+
+	bool IsCritBone(FName Bone, bool bExposed, const FStoneSentinelTuning& Tuning)
+	{
+		if (Bone == HeadBone || Bone == HeadSocketBone)
+		{
+			return true;
+		}
+		return bExposed && Tuning.bExposedTorsoCrits && (Bone == UpperBackBone || Bone == LowerBackBone);
+	}
+
 	bool TracksAim(float StateTime, float Windup, float AimShare)
 	{
 		return StateTime < Windup * FMath::Clamp(AimShare, 0.f, 1.f);
-	}
-
-	FStoneSentinelPose IdlePose()
-	{
-		return Idle;
-	}
-
-	FStoneSentinelPose SlamPoseAt(float AttackTime, const FStoneSentinelTuning& Tuning)
-	{
-		const float Windup = FMath::Max(Tuning.SlamWindup, 0.05f);
-		const float Fall = FMath::Clamp(Tuning.SlamFallSeconds, 0.01f, Windup * 0.5f);
-		const float Heave = Windup - Fall;
-		if (AttackTime < Heave)
-		{
-			// Up slowly, faster at the top: the tell is the fists climbing.
-			return Blend(Idle, Raised, FMath::SmoothStep(0.f, 1.f, AttackTime / Heave));
-		}
-		if (AttackTime < Windup)
-		{
-			// Down hard: it gathers speed all the way to the ground.
-			return Blend(Raised, Down, FMath::Square((AttackTime - Heave) / Fall));
-		}
-		const float Recovery = FMath::Max(Tuning.SlamRecovery, 0.05f);
-		const float Hold = Recovery * FMath::Clamp(Tuning.SlamHoldShare, 0.f, 1.f);
-		const float After = AttackTime - Windup;
-		if (After < Hold)
-		{
-			return Down;
-		}
-		return Blend(Down, Idle, FMath::SmoothStep(0.f, 1.f, (After - Hold) / FMath::Max(Recovery - Hold, 0.01f)));
 	}
 
 	float WakeShare(float WakeTime, float WakeSeconds)

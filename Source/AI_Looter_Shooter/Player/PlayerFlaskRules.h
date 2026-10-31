@@ -63,7 +63,7 @@ struct FFlaskGateInput
 };
 
 /**
- * The soul flask (Docs/Work/2026-10-30-SoulFlask/CONTRACT.md, the user's playtest note 2: "add a way to heal during
+ * The soul flask (Docs/Archive/Work/2026-10-30-SoulFlask/CONTRACT.md, the user's playtest note 2: "add a way to heal during
  * combat"), as plain numbers with no engine state: UPlayerFlaskComponent plays them, and the tests drive them. Every number
  * of the design lives here and only here.
  *

@@ -15,6 +15,7 @@ class UHudFindBannerWidget;
 class UHudFlaskWidget;
 class UHudGraveMarkedWidget;
 class UHudGrenadeWidget;
+class UHudGunSlotBannerWidget;
 class UHudInteractPromptWidget;
 class UHudPickupFeedWidget;
 class UHudLevelUpBannerWidget;
@@ -38,6 +39,7 @@ enum class EEmberDenied : uint8;
 enum class EEmberState : uint8;
 enum class EFlaskChange : uint8;
 enum class EGrenadeChange : uint8;
+enum class EGunSlotLock : uint8;
 
 /**
  * In-game HUD in the shared UI style, built to stay out of the way while playing:
@@ -59,7 +61,8 @@ enum class EGrenadeChange : uint8;
  *  - top-left: the frame rate (UHudFrameRateWidget)
  *  - top-centre, its middle (the big level number) 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up;
  *    in the same place, taking turns with it, the mission-complete banner (UHudMissionCompleteWidget) as a mission is turned in;
- *    a little higher, the "GRAVE MARKED" banner (UHudGraveMarkedWidget) when the player walks up to a respawn grave for the first time
+ *    a little higher, the "GRAVE MARKED" banner (UHudGraveMarkedWidget) when the player walks up to a respawn grave for the first time;
+ *    in the level-up banner's place, after it, "NEW GUN SLOT" (UHudGunSlotBannerWidget) as an equip slot opens (PlayerHUDWidgetGunSlots.cpp)
  *  - left of the crosshair: the ammo pickup feed (UHudPickupFeedWidget)
  *  - bottom-centre: nothing, on purpose
  *  - centre: the gun kind's crosshair (UHudCrosshairWidget, HudCrosshairRules: the user's pick, 2026-10-29; dot and ticks
@@ -102,6 +105,12 @@ public:
 
 	/** The find banner, for the tests; null before the HUD is built. */
 	UHudFindBannerWidget* GetFindBanner() const { return FindBanner; }
+
+	/** The "NEW GUN SLOT" banner, for the tests; null before the HUD is built. */
+	UHudGunSlotBannerWidget* GetGunSlotBanner() const { return GunSlotBanner; }
+
+	/** An equip slot opened for the player (the weapon manager's OnSlotUnlocked): the banner, the feed's line, the column forward. */
+	void HandleSlotUnlocked(int32 SlotIndex, EGunSlotLock Was);
 
 	/** The notches beside the gun's name, for the tests; null before the HUD is built. */
 	UHudNotchTallyWidget* GetNotchTally() const { return NotchTally; }
@@ -242,6 +251,9 @@ private:
 	/** The player frame's experience bar reached a new level: the banner shows it. */
 	void HandleLevelUp(int32 NewLevel);
 
+	/** Follows the weapon manager's slots opening (PlayerHUDWidgetGunSlots.cpp). */
+	void BindSlotUnlocks(UWeaponManagerComponent* Manager);
+
 	// Crosshair and hit marker
 	/** The crosshair's lines in their square (HudCrosshair::CanvasSize): the box kicks and grows in, the lines open. */
 	UPROPERTY(Transient) TObjectPtr<USizeBox> CrosshairBox;
@@ -262,6 +274,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UHudGraveMarkedWidget> GraveBanner;
 	/** The "FOUND" banner, in the same place; it waits for the three above (and the roost banner for it). */
 	UPROPERTY(Transient) TObjectPtr<UHudFindBannerWidget> FindBanner;
+	/** "NEW GUN SLOT", in the level-up banner's place: it waits for every banner above (and the mission and roost banners for it). */
+	UPROPERTY(Transient) TObjectPtr<UHudGunSlotBannerWidget> GunSlotBanner;
+	TWeakObjectPtr<UWeaponManagerComponent> SlotUnlockManager;
+	FDelegateHandle SlotUnlockHandle;
 
 	// Bottom-right: weapon
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeaponCluster;

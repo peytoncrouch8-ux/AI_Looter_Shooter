@@ -18,10 +18,12 @@
 #include "Audio/LooterSound.h"
 #include "Audio/LooterSoundCues.h"
 #include "Creatures/FightDirectorSubsystem.h"
+#include "Creatures/FightRules.h"
 #include "Creatures/PackRules.h"
 #include "Creatures/UnpaidBodyParts.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidLifeWork.h"
 #include "Creatures/UnpaidMoveRules.h"
 #include "Creatures/UnpaidMoveTuning.h"
 #include "Creatures/UnpaidPackSubsystem.h"
@@ -124,6 +126,12 @@ namespace
 		}
 		Context.bLastLungeMissed = State.bLastLungeMissed;
 		Context.bNow = bNow;
+		// The player open (reloading, swapping, empty, drinking): quick commits, no hang-back; its punisher's turn its punish
+		// (UnpaidCreatureOpening.cpp). In front of their view (frontness over a half) its punish blinks round to their back.
+		Context.bOpening = FUnpaidOpeningWork::IsOpen(Unpaid, Victim);
+		Context.bPunisher = FUnpaidOpeningWork::IsPunisher(Unpaid, Victim);
+		Context.bInFront = FightRules::Frontness(PackRules::BearingAround(Victim.GetActorLocation(), Unpaid.GetActorLocation()),
+			static_cast<float>(Victim.GetViewRotation().Yaw)) > 0.5f;
 		return Context;
 	}
 }
@@ -362,7 +370,8 @@ EUnpaidMove FUnpaidMoveWork::CommittedNow(const AUnpaidCreature& Unpaid)
 	{
 		return State.Planned;
 	}
-	return Unpaid.IsPhasing() && !Unpaid.IsFadingBack() ? EUnpaidMove::PhaseStrike : EUnpaidMove::None;
+	// (A rise's fade-in is no blink round them.)
+	return Unpaid.IsPhasing() && !Unpaid.IsFadingBack() && !Unpaid.IsRising() ? EUnpaidMove::PhaseStrike : EUnpaidMove::None;
 }
 
 bool FUnpaidMoveWork::TickKit(AUnpaidCreature& Unpaid, float DeltaSeconds, const APawn& Victim)

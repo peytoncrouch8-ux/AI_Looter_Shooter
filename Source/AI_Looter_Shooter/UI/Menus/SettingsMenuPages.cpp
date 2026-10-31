@@ -1,8 +1,8 @@
 // USettingsMenuWidget's Graphics, Interface and Controls pages: their rows, each a keyboard and controller stop with its
-// words for the description column (SettingsMenuHelp.h). The Audio page is SettingsMenuAudio.cpp.
+// words for the help card (SettingsMenuHelp.h). The Audio page is SettingsMenuAudio.cpp.
 
 #include "UI/Menus/SettingsMenuWidget.h"
-#include "UI/Menus/SettingsMenuArt.h"
+#include "UI/Menus/SettingsPageArt.h"
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
@@ -18,6 +18,7 @@
 #include "Components/VerticalBox.h"
 
 using namespace SettingsMenu;
+using namespace SettingsMenu::Layout;
 
 void USettingsMenuWidget::MakeGraphicsPage()
 {
@@ -176,25 +177,26 @@ void USettingsMenuWidget::MakeControlsPage()
 
 	// The key list's heading: how to change a key (RefreshNavLook words it per device), with Reset all keys beside it, a stop
 	// of its own above the keys (it resets only them, so it lives with them rather than in the footer).
-	AddPageRow(MakeLedgerSection(TEXT("Keyboard and mouse keys")), 12.f);
+	AddPageRow(MakeLedgerSection(TEXT("Keyboard and mouse keys")));
 	UHorizontalBox* KeyHead = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	KeyHintText = MakeText(WidgetTree, TEXT(""), 13, Color::SlateLabel());
-	KeyHintText->SetFont(Font(13, false));
+	KeyHintText = MakeText(WidgetTree, TEXT(""), KeyHintSize, Color::SlateLabel());
+	KeyHintText->SetFont(Font(KeyHintSize, false));
 	KeyHintText->SetAutoWrapText(true);
 	UHorizontalBoxSlot* HintSlot = KeyHead->AddChildToHorizontalBox(KeyHintText);
 	HintSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	HintSlot->SetVerticalAlignment(VAlign_Center);
-	ResetAllButton = MakeArtButton(ActionResetAll, 0, TEXT("Reset all keys"), ESettingsArt::Chip, 13, 120, EButtonKind::Normal);
+	ResetAllButton = MakeArtButton(ActionResetAll, 0, TEXT("Reset all keys"), DefaultFontSize, EButtonKind::Normal);
 	UHorizontalBoxSlot* ResetSlot = KeyHead->AddChildToHorizontalBox(ResetAllButton);
-	ResetSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
+	ResetSlot->SetPadding(FMargin(24.f, 0.f, 0.f, 0.f));
 	ResetSlot->SetVerticalAlignment(VAlign_Center);
 	Describe(ResetAllButton, RowHelp(ESettingRow::ResetAllKeys));
-	// On a ledger line of its own, unnumbered (it isn't a setting).
-	UWidget* KeyHeadRow = MakeLedgerRow(KeyHead, LedgerRowHeight, /*bNumbered*/ false);
+	// On a band of its own, unnumbered (it isn't a setting).
+	UWidget* KeyHeadRow = MakeLedgerRow(KeyHead, nullptr, SettingsPageArt::RowHeight, /*bNumbered*/ false);
 	NavButton(ResetAllButton, KeyHeadRow);
 	AddPageRow(KeyHeadRow);
 	KeyList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	AddPageRow(KeyList);
-	// The key rows (RebuildControls) are numbered on from the sliders above them.
+	// The key rows (RebuildControls) are numbered and banded on from the rows above them.
 	KeyNumberStart = PageRowNumbers.IsValidIndex(BuildPage) ? PageRowNumbers[BuildPage] : 1;
+	KeyBandStart = PageBandCount.IsValidIndex(BuildPage) ? PageBandCount[BuildPage] : 0;
 }

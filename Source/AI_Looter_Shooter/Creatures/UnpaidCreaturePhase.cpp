@@ -7,6 +7,7 @@
 
 #include "Creatures/UnpaidCreature.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidLifeWork.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Creatures/FightDirectorSubsystem.h"
@@ -70,6 +71,12 @@ void AUnpaidCreature::TickPhaseStep(float DeltaSeconds)
 		return;
 	}
 
+	// Buried for an ambush's rise, it stays gone until its hand breaks the ground (UnpaidCreatureRise.cpp starts the fade then).
+	if (Kit.PhaseState == EPhaseState::In && FUnpaidRiseWork::HoldsPhase(*this))
+	{
+		PhaseAmount = 1.f;
+		return;
+	}
 	Kit.PhaseTime += DeltaSeconds;
 	if (Kit.PhaseState == EPhaseState::Out)
 	{
@@ -120,7 +127,8 @@ bool AUnpaidCreature::WantsToStep() const
 {
 	const APawn* Victim = GetTarget();
 	// Fading back it has stepped away on purpose (UnpaidCreatureFadeBack.cpp): no step in until its wait is done.
-	if (!Victim || Kit.bLunging || Kit.RetryIn > 0.f || IsFadingBack() || GetCreatureState() != ECreatureState::Chase)
+	// Nor while it climbs out of the ground: it comes for them once it stands.
+	if (!Victim || Kit.bLunging || Kit.RetryIn > 0.f || IsFadingBack() || IsRising() || GetCreatureState() != ECreatureState::Chase)
 	{
 		return false;
 	}
@@ -281,12 +289,13 @@ bool AUnpaidCreature::FindPhaseSpot(FVector& OutFeet) const
 			CanStandToSight, OutFeet, GetGroundReach());
 }
 
-bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal, bool bTheirFloorToo) const
+bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal, bool bTheirFloorToo, const APawn* For) const
 {
 	int32 Ignored = 0;
 	int32& Refusal = OutRefusal ? *OutRefusal : Ignored;
 	UWorld* World = GetWorld();
-	const APawn* Victim = GetTarget();
+	// Its target's sight, or (an ambush's rise, before it has one) the player it rises round.
+	const APawn* Victim = For ? For : GetTarget();
 	if (!World || !Victim)
 	{
 		return false;

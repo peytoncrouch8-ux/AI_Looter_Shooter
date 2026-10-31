@@ -5,6 +5,7 @@
 #include "HudGraveMarkedWidget.generated.h"
 
 class UHudFindBannerWidget;
+class UHudGunSlotBannerWidget;
 class UHudLevelUpBannerWidget;
 class UHudMissionCompleteWidget;
 class UTextBlock;
@@ -37,6 +38,9 @@ public:
 	/** The banners it takes turns with: it waits while any shows (the find banner is optional). */
 	void SetOtherBanners(UHudLevelUpBannerWidget* InLevelUpBanner, UHudMissionCompleteWidget* InMissionBanner,
 		UHudFindBannerWidget* InFindBanner = nullptr);
+
+	/** The "NEW GUN SLOT" banner, a little under this one: this waits while it shows (it waits while this shows). */
+	void SetGunSlotBanner(UHudGunSlotBannerWidget* InGunSlotBanner);
 
 	/** Announces a roost found: queued behind any being shown. */
 	void Announce(const FText& GraveName);
@@ -82,6 +86,7 @@ private:
 	TWeakObjectPtr<UHudLevelUpBannerWidget> LevelUpBanner;
 	TWeakObjectPtr<UHudMissionCompleteWidget> MissionBanner;
 	TWeakObjectPtr<UHudFindBannerWidget> FindBanner;
+	TWeakObjectPtr<UHudGunSlotBannerWidget> GunSlotBanner;
 
 	TArray<FText> Queue;
 	FText Shown;

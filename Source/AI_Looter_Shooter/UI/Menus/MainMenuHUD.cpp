@@ -122,6 +122,11 @@ void AMainMenuHUD::OpenSettings()
 	}
 	SettingsWidget->Open(ESettingsMenuMode::MainMenu);
 	SettingsWidget->AddToViewport(SettingsZOrder);
+	// The settings are a full page: the menu's column and lockup step out from under it (the planet stays).
+	if (MenuWidget)
+	{
+		MenuWidget->SetRenderOpacity(0.f);
+	}
 	bSettingsOpen = true;
 	FocusWidget(SettingsWidget.Get());
 }
@@ -135,6 +140,10 @@ void AMainMenuHUD::CloseSettings()
 	if (SettingsWidget)
 	{
 		SettingsWidget->RemoveFromParent();
+	}
+	if (MenuWidget)
+	{
+		MenuWidget->SetRenderOpacity(1.f);
 	}
 	bSettingsOpen = false;
 	FocusWidget(MenuWidget.Get());

@@ -2,7 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/EncounterSpawner.h"
+#include "Creatures/SpiderPerch.h"
 #include "AmbushSpawner.generated.h"
+
+class ASpiderCreature;
 
 /** How an ambush's creatures arrive (AAmbushSpawner::Entrance). */
 UENUM(BlueprintType)
@@ -14,6 +17,18 @@ enum class EAmbushEntrance : uint8
 	Rise,
 	/** They drop from above (the Webwood's trees) and land on their feet. */
 	Drop,
+	/**
+	 * Spiders lurking on walls, ledges and trees (Perches; the user's pick, 2026-10-31): brought out onto their perches as the
+	 * player comes within ActivationRadius (or walks onto its ground, with AmbushCorners), still and waiting; each springs
+	 * as the player passes near or under it, walks on past, stares at it, lingers or shoots it (ASpiderCreature::BeginLurk),
+	 * its mates a moment after. They don't come at once (bHuntOnSpawn is off). A creature that isn't a spider appears.
+	 */
+	Lurk,
+	/**
+	 * The dead rise round the player who sprang it, staggered, surrounding them: the first where they look, the next behind
+	 * them (AUnpaidCreature::RiseAmbush, round them; 2026-10-31). Other kinds come up their own way, where they stand.
+	 */
+	RiseAround,
 };
 
 /**
@@ -25,6 +40,7 @@ enum class EAmbushEntrance : uint8
  * while the player was far, they're owed, and spring again the next time the player walks in.
  *
  * Built by Tools/Unreal/build_area_camps.py from layout.json's gameplay.encounters.ambushes.
+ * A lurk (Entrance Lurk: spiders waiting on walls, ledges and trees) by Tools/Unreal/build_area_lurks.py from gameplay.encounters.lurks.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AAmbushSpawner : public AEncounterSpawner
@@ -57,10 +73,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Ambush", meta = (ClampMin = "0", Units = "cm"))
 	float DropHeight = 350.f;
 
+	/** Rising round the player (RiseAround): this far from them (cm at size 1); 0: Looter.Unpaid.Rise.Radius (480). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Ambush", meta = (ClampMin = "0", Units = "cm"))
+	float RiseRadius = 0.f;
+
+	/**
+	 * Lurk: its spiders' perches (world), each held by one spider, the nearest free one to where it was spawned; spiders past
+	 * their number lurk crouched on the ground where they stand. Written by Tools/Unreal/build_area_lurks.py from the layout's
+	 * gameplay.encounters.lurks; the spot of each is the ground under it (its SpawnPoints), so they spawn there and climb up.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Ambush")
+	TArray<FSpiderPerchSpot> Perches;
+
+	/** A lurker sprang at Prey: its mates still waiting who can reach them spring too, each a moment after (SpiderAmbushRules::MateDelay). */
+	void NoteLurkerSprang(const ASpiderCreature& Spider, APawn* Prey);
+
 	/** Whether a point is on its ground: inside its corners, and within AmbushMaxRise of the spawner's height. */
 	bool IsOnAmbushGround(const FVector& Point) const;
 
 protected:
+	virtual void BeginPlay() override;
 	virtual bool CheckApproach() override;
 	virtual void OnCreatureSpawned(ACreatureBase& Creature) override;
 	virtual bool HasOwnEntrance() const override { return Entrance != EAmbushEntrance::Appear; }
@@ -68,6 +100,11 @@ protected:
 private:
 	/** Drops a creature from above its feet: lifted as far as there's room, falling. */
 	void Drop(ACreatureBase& Creature) const;
+	/** Sets a spider on its perch (Lurk), the nearest free one; anything else appears, and with the lurk off it drops and comes. */
+	void SetOnPerch(ACreatureBase& Creature);
+
+	/** Who holds each perch (by index into Perches); a dead or gone one's is free. */
+	TArray<TWeakObjectPtr<ACreatureBase>> PerchHolders;
 
 	/** Its last look at the player: where they were, on its ground or not, and when (a long gap starts it afresh). */
 	FVector LastPlayerSpot = FVector::ZeroVector;

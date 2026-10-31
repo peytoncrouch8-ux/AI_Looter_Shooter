@@ -32,6 +32,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   still matches HASHES.txt, copies the tree over `Source/`, builds once, runs the scripts, and writes CODEMAP and the pipeline
   notes (a DOCS agent does that at the end of a round). Two agents never own one file: the second writes its exact edit in its
   README for the owner (round 3: INTRO's story lines went to STORY's `create_story_lines.py`; WORLD's SECRETS anchors to STORY).
+- Overnight lanes (2026-10-31: pause hub, settings, gun slots, spider, Unpaid, Stone Sentinel, art; each with a README in its tree or in `Docs/Work/<job>/`): a change an art agent needs in a shared master or script (M_Ghost in `build_creature_materials.py`) goes as a patch (`git apply`), not an edit; a second agent's edit to a file the first owns (UNPAID's `AmbushSpawner` on top of SPIDER's) is written for Main to lay on the first's tree; agents may not build, so the READMEs carry run order, hooks, tests and the PIE check; a Blender script needs an absolute output path (a relative one wrote `C:\Saved\ArtPreviews\Creatures\Fix1031` at the drive root, and the safety check blocked removing the stray folder: delete it by hand).
 - A script that sets editor state (World Settings flags, level properties) can raise a modal dialog that blocks every MCP call:
   `Tools\editorwindows.ps1` lists the editor's windows; see `Bugs.md` ("A modal 'build lighting' message").
 - The art session (a separate session) models in Blender (`Art/Models/**`), never commits, never opens Unreal. It exports into
@@ -50,8 +51,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     (seen 2026-10-28). It is a Win32 box (BM_CLICK, no mouse); `launch.ps1` calls it every 5 s while the editor loads.
   - `Tools\menushots.ps1 [-Label]`: photographs the inventory through its states with a realistic loadout.
   - `Tools\uishots.ps1 [-Label]`: runs the game twice standalone and photographs the menus (`Looter.UIShots`): the main menu
-    (01-04, on `Lvl_MenuTeropa?game=Menu -NoLogos`), then on a level (`-Map`, Ransom's Rest) the pause menu's tabs and a
-    focused row and the level-up popup (05-11).
+    (01-04, on `Lvl_MenuTeropa?game=Menu -NoLogos`), then on a level (`-Map`, Ransom's Rest) the pause hub (Back to Game lit, then
+    Settings lit), the Settings page on each tab and a focused row (05-11) and the level-up popup (12-13).
   - `Tools\castshots.ps1 [-Tag]`: every creature and character in its states from three angles, with `numbers.csv` (feet in the
     ground, limbs through bodies, sliding feet, pops as a change of world velocity per 60 fps frame) and a `past_mark` column. Dead
     bodies and falling slimes aren't sampled; a limb's 30% nearest its joint is excused against the part it hangs from. Still read
@@ -190,7 +191,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     `BossTestWorld::Hurt` does.
 - A test's name must not be the start of another test's name (`Looter.Economy.Offer` beside `Looter.Economy.Offer.Odds`;
   `Looter.Locomotion.Pace` beside `.Pace.Chases`, fixed by naming it `.Pace.Speeds`): the runner takes it for a group and reports it
-  "Not Run" (happened twice on 2026-10-13). Name every test as a leaf.
+  "Not Run" (happened twice on 2026-10-13). Name every test as a leaf (a third time 2026-10-31: `Looter.UI.PauseHub` beside `.Layout`, renamed `.Hub`).
 - `Looter.Hero.Unlock` typed at the console (0 or 1) outranked the tests' own set (`ECVF_SetByCode` is lower than the
   console's): `Looter.Heroes.Playable`, `.Save` and `.Screen` failed on "Unlocked: Odessa..." until the editor restarted
   (2026-10-20, twice). Fixed: the tests' `FHeroUnlock` sets and restores it at `ECVF_SetByConsole` (checked: Unlock 1

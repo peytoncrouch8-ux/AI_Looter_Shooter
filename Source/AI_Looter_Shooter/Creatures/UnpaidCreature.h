@@ -156,10 +156,21 @@ public:
 	/** How far it's dissolved now: 0 solid to 1 gone (its material's Phase). */
 	float GetPhase() const { return PhaseAmount; }
 
-	/** Fades it in where it stands as a step's end does, rising clawing out of the ground (RiseSeconds), dirt thrown up: Abel's adds, an ambush, a toll's dead. */
+	/**
+	 * Claws up out of the ground where it stands (RiseSeconds; UnpaidCreatureRise.cpp, the quick rise): the dirt bursts, a hand
+	 * breaks it, it hauls itself out and straightens, fading in as a step's end does; its brain waits for the haul. Abel's adds,
+	 * a toll's dead, the miners.
+	 */
 	void RiseIn();
-	static constexpr float RiseSeconds = 0.9f;
-	bool IsRising() const { return RiseTime >= 0.f; }
+	static constexpr float RiseSeconds = UnpaidRiseRules::QuickBreach + UnpaidRiseRules::QuickHaul + UnpaidRiseRules::QuickStand;
+	/**
+	 * An ambush's rise (AAmbushSpawner: Rise, RiseAround): buried a beat for its place in its pack's staggered burst at Around
+	 * (the player who sprang it), the ground stirring over it, then the hand, the haul and the stand. bSurround: it rises round
+	 * Around (Radius cm at size 1; 0: Looter.Unpaid.Rise.Radius), else where it stands; a support kind (the Bell-Ringer) always
+	 * where it stands. Without Around, a quick rise.
+	 */
+	void RiseAmbush(const APawn* Around, bool bSurround, float Radius = 0.f);
+	bool IsRising() const { return Kit.Rise.IsRising(); }
 
 	// --- Settings ---
 
@@ -282,26 +293,8 @@ protected:
 	/** Its look as it dies, DeathTime into its death: by default it slumps, then dissolves while its coal goes out. */
 	virtual void UpdateDeathLook(float DeltaSeconds);
 
-	/** One bone the code poses: its rest pose (component space), this frame's turn and shift, and the pose they make. */
-	struct FPosedBone
-	{
-		FName Name;
-		int32 SkeletonIndex = INDEX_NONE;
-		/** The nearest posed bone above it (an index into Bones), or none. */
-		int32 Parent = INDEX_NONE;
-		FTransform Rest;
-		/** Its own turn about its joint this frame, in the rest pose's frame (it takes its parent's turn on top). */
-		FQuat Own = FQuat::Identity;
-		/** Its own shift this frame (component space) and size against its rest. */
-		FVector Shift = FVector::ZeroVector;
-		float Scale = 1.f;
-		/** A shroud link: its chain and link (its turn comes from the chain, under what the chain hangs from). */
-		int32 Chain = INDEX_NONE;
-		int32 Link = INDEX_NONE;
-		/** Its turn from rest with everything above it, and its pose: worked out each frame. */
-		FQuat Turned = FQuat::Identity;
-		FTransform Posed;
-	};
+	/** One bone the code poses (UnpaidBodyParts.h; moved there 2026-10-31 for the ~500-line rule). */
+	using FPosedBone = UnpaidBody::FPosedBone;
 
 	/** Finds a bone of the rig by name (INDEX_NONE when the model lacks it). */
 	int32 FindPosedBone(FName Name) const;
@@ -334,6 +327,10 @@ private:
 	// Its varied moves and failed-lunge shriek (UnpaidKitWork.h, 2026-10-29) reach its kit and body as its own files do.
 	friend struct FUnpaidMoveWork;
 	friend struct FUnpaidShriekWork;
+	// Its body language, its rise and the pack's punish of an opening (UnpaidLifeWork.h, 2026-10-31) too.
+	friend struct FUnpaidGaitWork;
+	friend struct FUnpaidRiseWork;
+	friend struct FUnpaidOpeningWork;
 
 	// --- Look (UnpaidCreature.cpp) ---
 	/** Puts on its clothes: the model's own, or one of OtherClothes. */
@@ -365,8 +362,12 @@ private:
 	virtual void OnPressedByHit(const APawn& By) override;
 	/** Where a step lands now: the rules' first spot the level allows (ground, room, sight of its target, safe zones). */
 	bool FindPhaseSpot(FVector& OutFeet) const;
-	/** Whether it may come back at Candidate (ground, room, target in sight, no safe zone; OutGround). bTheirFloorToo: their floor counts, Obstacle or not. */
-	bool CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal = nullptr, bool bTheirFloorToo = false) const;
+	/**
+	 * Whether it may come back at Candidate (ground, room, target in sight, no safe zone; OutGround). bTheirFloorToo: their floor
+	 * counts, Obstacle or not. For: whose sight it needs (none: its target's; an ambush's rise has no target yet).
+	 */
+	bool CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal = nullptr, bool bTheirFloorToo = false,
+		const APawn* For = nullptr) const;
 	/** Starts a step to Feet now: it fades out here and comes back there (counted at its target's step gate). */
 	void StartStepTo(const FVector& Feet);
 
@@ -500,9 +501,8 @@ private:
 	/** How far the shroud lifts (degrees) off ground that rises behind it, eased. */
 	float ShroudLift = 0.f;
 
-	// Reactions: seconds into its rise (below 0: not rising), a glance's turn and time left, the next glance, the shroud's
-	// next puff of dust, ash owed from earlier frames.
-	float RiseTime = -1.f;
+	// Reactions: a glance's turn and time left, the next glance, the shroud's next puff of dust, ash owed from earlier frames.
+	// (Its rise is Kit.Rise since 2026-10-31.)
 	float GlanceYaw = 0.f;
 	float GlanceLeft = 0.f;
 	float NextGlance = -1.f;
@@ -514,7 +514,8 @@ private:
 	bool bTimingCaptured = false;
 	float BaseWindup = 0.6f;
 
-	// Its fighting kit: its move, its actions on the ring, its clocks, its lunge, its phase-steps, its sight (UnpaidKitMembers.h).
+	// Its fighting kit: its move, its actions on the ring, its clocks, its lunge, its phase-steps, its sight, its gait and its
+	// rise (UnpaidKitMembers.h).
 	FUnpaidKitMembers Kit;
 
 	/** The hat is a mesh of its own: it wears the body's clothes and look (custom primitive data), and casts no shadow either. */

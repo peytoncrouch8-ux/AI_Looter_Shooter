@@ -28,7 +28,7 @@ enum class EHudFlaskFlash : uint8
 };
 
 /**
- * The soul flask on the HUD (Docs/Work/2026-10-30-SoulFlask), under the player frame's experience bar, bottom-left (healing
+ * The soul flask on the HUD (Docs/Archive/Work/2026-10-30-SoulFlask), under the player frame's experience bar, bottom-left (healing
  * belongs with health): the Flask key's tab (the grenade counter's tab), the flask's Inked icon (InkedIconData::SoulFlask)
  * and three pips, one per charge, slim slanted bars leaning with the HUD's others. A lit pip is a full charge, in the
  * soul-light's green (LooterUI::Color::Heal); the next one fills from its foot as a liquid level as soul comes in

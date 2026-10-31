@@ -132,12 +132,12 @@ bool LostLootRules::HasRoom(const UWeaponManagerComponent& Manager)
 LostLootRules::ETake LostLootRules::WhereItGoes(const UWeaponManagerComponent& Manager)
 {
 	// Into the backpack, where the inventory shows it to compare (as a vendor's gun of the day goes); a free equip slot when
-	// the backpack is full (its room shared with the spare wards).
+	// the backpack is full (its room shared with the spare wards). A shut slot never takes one.
 	if (Manager.HasBackpackRoom())
 	{
 		return ETake::InBackpack;
 	}
-	return Manager.GetWeapons().Num() < Manager.MaxWeapons ? ETake::InSlot : ETake::NoRoom;
+	return Manager.HasFreeSlot() ? ETake::InSlot : ETake::NoRoom;
 }
 
 LostLootRules::ETake LostLootRules::Take(FLostLootStore& Store, int32 Index, UWeaponManagerComponent& Manager, FWeaponInstanceData* OutGun)

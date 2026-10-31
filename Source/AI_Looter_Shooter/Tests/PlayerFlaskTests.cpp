@@ -17,7 +17,7 @@
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UObject/UnrealType.h"
 
-// The soul flask's rules with no world (Docs/Work/2026-10-30-SoulFlask/CONTRACT.md): the numbers, the soul a kill gives,
+// The soul flask's rules with no world (Docs/Archive/Work/2026-10-30-SoulFlask/CONTRACT.md): the numbers, the soul a kill gives,
 // the heal's curve, pouring soul in, the gate, the motion (the flask, the gun's dip, the hand round it, the third-person
 // arm), the key and the save's struct. The drink in a test level is PlayerFlaskPlayTests.cpp.
 

@@ -18,6 +18,8 @@ body that read photographic and flat): stylized realism, a wolf spider in painte
     old fine streak noise (it read as wood grain) is gone. Chelicerae are tapered fang bases (ellipsoids read as balls).
   - Bones, rest pose, the body's shapes (CARAPACE, HEAD, ABDOMEN) and the atlas's layout (ATLAS) are as before.
 
+The Tripo build (the default, below the rig line) wears the user's Tripo paint instead: MI_SpiderBody on
+Art/Textures/SpiderTripo, the same atlas layout (Tripo/parts_spider_look.py, 2026-10-31). Without it:
 It has one material, MI_SpiderBody (the World master), whose texture set Art/Textures/SpiderBody (2048 px: color,
 normal, occlusion-roughness-metal) is painted by this script every run (looter_creatures.paint_atlas; deterministic, so an
 unchanged painter rewrites the same files). Every part maps onto a rectangle of that atlas (ATLAS); eyes, bristles and
@@ -759,6 +761,10 @@ if TRIPO:
     for _mesh in list(parts.values()) + list(hairs.values()):
         _mesh.bm.free()
     parts, hairs = parts_spider_build.build(globals())
+    # Tripo's own paint (the user, 2026-10-31: the scripted BROWN atlas made the game's spider grey-black and flat):
+    # MI_SpiderBody on Art/Textures/SpiderTripo, the same atlas layout (parts_spider_look.py). SpiderBody is still
+    # painted above for the Gravemother's pale hide and the Spitter's scripted fallback.
+    MATERIAL = parts_spider_build.material()
 
 rig = lm.armature()
 lm.bones(rig, [(name, lc.to_blender(head), lc.to_blender(tail), parent) for name, head, tail, parent in bones])

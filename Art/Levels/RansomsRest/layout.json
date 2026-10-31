@@ -3333,10 +3333,12 @@
             { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
           "trigger": { "obstacle": "churchyardFence", "maxRise": 1000 },
-          "entrance": "Rise",
+          "entrance": "RiseAround",
           "spots": [[6350, -3150], [7050, -3150], [6700, -2850], [7300, -2850], [6500, -2460], [7050, -2460]],
           "ground": { "obstacle": "churchyardFence", "maxStep": 900, "maxRise": 1000 },
-          "note": "After Main 4 the yard is quiet until the player walks in through its fence again (on the way back to Father Aldana to turn in Main 5): seven of the dead and their Bell-Ringer rise in front of their boards (four until the bigger fights of 2026-10-21). A player respawning at the yard's grave, or standing inside as it comes on, has to walk out and back in. The knoll's slope is one level of ground here, as for the yard's own fight."
+          "note": "After Main 4 the yard is quiet until the player walks in through its fence again (on the way back to Father Aldana to turn in Main 5): seven of the dead and their Bell-Ringer rise in front of their boards (four until the bigger fights of 2026-10-21). A player respawning at the yard's grave, or standing inside as it comes on, has to walk out and back in. The knoll's slope is one level of ground here, as for the yard's own fight.",
+          "riseRadius": 500,
+          "riseNote": "Since 2026-10-31 (UNPAID, the user's ambush pick): the dead rise round the player who walks in through the fence, staggered (the first where they look, the next behind them), the ground stirring over each first; the Bell-Ringer rises where it stands (AUnpaidCreature::RiseAmbush)."
         },
         {
           "id": "Webwood",
@@ -3389,10 +3391,33 @@
             "polygon": [[4350,450],[4233,733],[3950,850],[3667,733],[3550,450],[3667,167],[3950,50],[4233,167]],
             "maxRise": 400
           },
-          "entrance": "Rise",
+          "entrance": "RiseAround",
           "spots": [[3700,500],[3600,600],[3500,640],[3400,650],[3300,640],[3550,540]],
           "ground": { "radius": 1300, "maxRise": 500 },
-          "note": "The Miser's Fare (FINDS N5): 4 m round the headboard at (3950, 450) is the trigger (an octagon), the dead rise in the rows' lee north of the third row inside boot hill's zone (levels 3-4). It stands in boot hill's and the north road's roaming grounds by design ('inside'), after Main 3."
+          "note": "The Miser's Fare (FINDS N5): 4 m round the headboard at (3950, 450) is the trigger (an octagon), the dead rise in the rows' lee north of the third row inside boot hill's zone (levels 3-4). It stands in boot hill's and the north road's roaming grounds by design ('inside'), after Main 3.",
+          "riseNote": "Since 2026-10-31: stepping onto the Miser's plot, the dead of the rows rise round the player, staggered, the first where they look (AUnpaidCreature::RiseAmbush)."
+        },
+        {
+          "id": "FurrowDead",
+          "where": "Whitlock's fallow north of the barn yard, where the fields path runs on toward Mill Creek: the field hands buried at the edge of the ground they worked rise out of the furrows round whoever walks the path",
+          "after": ["Main3"],
+          "budget": "optional",
+          "countedBefore": "Main4",
+          "groups": [
+            { "class": "UnpaidCreature", "count": 5, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "leader": true }
+          ],
+          "trigger": {
+            "polygon": [
+              [-4300,5330],[-4432,5648],[-4750,5780],[-5068,5648],[-5200,5330],[-5068,5012],[-4750,4880],[-4432,5012]
+            ],
+            "maxRise": 400
+          },
+          "entrance": "RiseAround",
+          "riseRadius": 480,
+          "spots": [[-4450,5650],[-4950,5720],[-5150,5420],[-4400,5080],[-4800,5000],[-4650,5450]],
+          "ground": { "radius": 750, "maxRise": 400 },
+          "note": "2026-10-31 (UNPAID, the user's ambush pick: the dead rise from the ground round the player in the fields and on the roads): a 4.5 m octagon on the fields path at (-4750, 5330) is the trigger; the dead come up round the player, staggered, the first where they look. Its ground (7.5 m round its spots' middle, about (-4733, 5387)) keeps 8.9 m from the barn yard fence's nearest corner (WhitlockHands' ground, Side 2) and clear of Mill Creek's bottom; inside the whitlock levels zone (3-4). After Main 3, optional (an explorer's), counted before Main 4."
         }
       ],
       "fights": [
@@ -3656,6 +3681,56 @@
             "reward": [0.0, 42.0]
           },
           "note": "Back Pay from its payroll step (counted from 0: 6, the Foreman down), once a session (SetPiece.CaveIn). It springs as the player comes within 13 m of the gallery's middle on the way out, whichever way they came up (the decline from the drift, or the manway the Foreman's step opens), and holds off while the gallery's or the drift's shift or the Foreman's lair is fighting, so no two fights stack under the Unpaid's 16."
+        }
+      ],
+      "lurks": [
+        {
+          "id": "GoatSteps",
+          "where": "the Goat Steps: three spiders hang head down on the west wall over the ledges and leap onto the player dropping past, some onto the ledge behind them",
+          "when": { "after": ["DeadLift"] },
+          "budget": "optional",
+          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }],
+          "perches": [
+            { "kind": "Wall", "at": [12820,-400], "face": 88, "up": 300, "out": 375 },
+            { "kind": "Wall", "at": [12120,-530], "face": 92, "up": 320, "out": 505 },
+            { "kind": "Wall", "at": [11420,-480], "face": 88, "up": 340, "out": 455 }
+          ],
+          "ground": { "radius": 850, "maxRise": 2600, "maxStep": 1300 },
+          "activation": 6000,
+          "despawn": 9000,
+          "note": "The steps' neck is y -300 to 250 inside the boundary; the west wall stands just outside it (y -370 to -550), so the spiders' spots are the neck's middle (y -25) on ledges 3, 5 and 7 (floors about 30.6, 20.6 and 10.6 m). A creature can't follow a 5 m drop on foot (it waits at the edge), but a leap can: the one whose ledge the player drops past comes down after them."
+        },
+        {
+          "id": "QuarryWalls",
+          "where": "the Old Quarry: three spiders on its back and east walls over the floor round the lift house, springing as the player crosses to the cage or walks back to the mouth",
+          "when": { "after": ["DeadLift"] },
+          "budget": "optional",
+          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }],
+          "perches": [
+            { "kind": "Wall", "at": [11850,1950], "face": 180, "up": 420, "out": 600 },
+            { "kind": "Wall", "at": [11850,900], "face": 180, "up": 380, "out": 600 },
+            { "kind": "Wall", "at": [10500,4030], "face": -90, "up": 400, "out": 600 }
+          ],
+          "ground": { "polygon": [[10200,800],[10200,3850],[11650,3850],[11650,800]], "maxRise": 500, "maxStep": 400 },
+          "activation": 6000,
+          "despawn": 9000,
+          "note": "The quarry's back wall (x 11850, facing -X) and east wall (y 4025, facing -Y) stand 2 m outside the boundary (x 11650, y 3850): spots 6 m out from them, clear of the lift house (11000, 2800; flat radius 5.5 m). Its ground keeps off the quarry track's patrol corridor (x under 9900) and the Goat Steps' lurk. The quarry's own fights (QuarryCrew, Abe, Raising Steam) are during Dead Lift: this comes after."
+        },
+        {
+          "id": "WebwoodTrees",
+          "where": "the Webwood, once its set piece is won: three spiders hang head down on the webbed dead trees and drop on the player walking the rim",
+          "when": { "after": ["Main4"], "withFlags": ["SetPiece.Webwood"] },
+          "budget": "optional",
+          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }],
+          "perches": [
+            { "kind": "Tree", "at": [7200,6200], "face": 173, "up": 300 },
+            { "kind": "Tree", "at": [6900,7800], "face": 210, "up": 300 },
+            { "kind": "Tree", "at": [6300,9200], "face": 238, "up": 300 }
+          ],
+          "ground": { "obstacle": "webwood", "margin": 300, "maxRise": 400 },
+          "activation": 6000,
+          "despawn": 9000,
+          "note": "The Webwood's trees 3, 5 and 7 (build_area_sink.py WEBWOOD), each spider on the trunk's side toward the Sink's rim, 3 m up. On only with SetPiece.Webwood (the set piece's done flag), so it never shares its ground with the set piece: the Webwood's revisits are ambushed. A trunk too thin for its traces leaves the spider crouched at the tree's foot instead."
         }
       ]
     },

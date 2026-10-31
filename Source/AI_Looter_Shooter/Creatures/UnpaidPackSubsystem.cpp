@@ -1,7 +1,11 @@
 #include "Creatures/UnpaidPackSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Creatures/EncounterSubsystem.h"
 #include "Creatures/UnpaidCreature.h"
+#include "World/WorldQueries.h"
+#include "CollisionQueryParams.h"
 #include "Engine/Engine.h"
+#include "Engine/HitResult.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
@@ -32,6 +36,8 @@ namespace
 		case EUnpaidTally::Rally: return TEXT("Rally");
 		case EUnpaidTally::Shriek: return TEXT("Shriek");
 		case EUnpaidTally::ShriekInterrupted: return TEXT("ShriekInterrupted");
+		case EUnpaidTally::Rise: return TEXT("Rise");
+		case EUnpaidTally::Opening: return TEXT("Opening");
 		default: return TEXT("?");
 		}
 	}
@@ -122,6 +128,75 @@ namespace
 		return Started;
 	}
 
+	/** Ground under Spot (world-static geometry only), from a little over the player's feet: false with none near. */
+	bool FindRiseGround(UWorld& World, const FVector& Spot, float FeetZ, FVector& OutGround)
+	{
+		FHitResult Hit;
+		const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(&World, TEXT("UnpaidRiseDev"), nullptr);
+		if (!World.LineTraceSingleByObjectType(Hit, FVector(Spot.X, Spot.Y, FeetZ + 400.f), FVector(Spot.X, Spot.Y, FeetZ - 800.f),
+			FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+		{
+			return false;
+		}
+		OutGround = Hit.ImpactPoint;
+		return true;
+	}
+
+	/**
+	 * Looter.Unpaid.Rise [count] [around] [radius]: count plain Unpaid (default 6) rise out of the ground as an ambush's do, round
+	 * the player (around 1, the default) or where they're put, 8 m in front (around 0), hunting them once up: the play-check of
+	 * the rise, its stagger and its surround (2026-10-31).
+	 */
+	FAutoConsoleCommandWithWorldAndArgs RiseCommand(TEXT("Looter.Unpaid.Rise"),
+		TEXT("Looter.Unpaid.Rise [count] [around] [radius]: count Unpaid (6) rise out of the ground as an ambush's dead do: round the player (around 1) or 8 m in front (0), radius cm (Looter.Unpaid.Rise.Radius)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* ConsoleWorld)
+		{
+			UWorld* World = PlayedWorld(ConsoleWorld);
+			const APlayerController* Player = World ? World->GetFirstPlayerController() : nullptr;
+			APawn* Pawn = Player ? Player->GetPawn() : nullptr;
+			if (!World || !Pawn)
+			{
+				UE_LOG(LogLooter, Warning, TEXT("UNPAID RISE: no player (start the game first)."));
+				return;
+			}
+			// The dead never rise inside a safe zone (Delia's salt line round the farm, a town made safe): round a player standing in
+			// one every spot is refused, and they come up in the row where they were put.
+			const UEncounterSubsystem* Encounters = UEncounterSubsystem::Get(World);
+			if (Encounters && Encounters->IsInSafeZone(Pawn->GetActorLocation()))
+			{
+				UE_LOG(LogLooter, Warning, TEXT("UNPAID RISE: the player stands in a safe zone: no Unpaid rises round them there (they come up where they're put). Try it outside the salt line or a safe town."));
+			}
+			const int32 Count = Args.Num() > 0 ? FMath::Clamp(FCString::Atoi(*Args[0]), 1, 12) : 6;
+			const bool bAround = Args.Num() > 1 ? FCString::Atoi(*Args[1]) != 0 : true;
+			const float Radius = Args.Num() > 2 ? FMath::Max(FCString::Atof(*Args[2]), 0.f) : 0.f;
+			const float FeetZ = static_cast<float>(Pawn->GetActorLocation().Z) - Pawn->GetSimpleCollisionHalfHeight();
+			const FVector Ahead = FRotator(0.f, Player->GetControlRotation().Yaw, 0.f).Vector();
+			const FVector Side = FVector::CrossProduct(FVector::UpVector, Ahead);
+			FCreatureRuntimeSpawn Setup;
+			Setup.bMayBeTouched = false;
+			int32 Risen = 0;
+			for (int32 Index = 0; Index < Count; ++Index)
+			{
+				// Spawned in a row 8 m in front (where they rise without "around"); round the player they move to their slots.
+				const FVector Spot = Pawn->GetActorLocation() + Ahead * 800.f + Side * ((Index - (Count - 1) * 0.5f) * 220.f);
+				FVector Ground;
+				if (!FindRiseGround(*World, Spot, FeetZ, Ground))
+				{
+					continue;
+				}
+				const float Yaw = static_cast<float>((Pawn->GetActorLocation() - Ground).Rotation().Yaw);
+				AUnpaidCreature* Unpaid = Cast<AUnpaidCreature>(ACreatureBase::SpawnAtRuntime(World, AUnpaidCreature::StaticClass(), Ground, Yaw, Setup));
+				if (!Unpaid)
+				{
+					continue;
+				}
+				Unpaid->RiseAmbush(Pawn, bAround, Radius);
+				Unpaid->AlertTo(Pawn);
+				++Risen;
+			}
+			UE_LOG(LogLooter, Display, TEXT("UNPAID RISE: %d of %d rising %s."), Risen, Count, bAround ? TEXT("round the player") : TEXT("in front of the player"));
+		}));
+
 	/** Looter.Unpaid.Shriek.Now's repeat (one at a time, in the world it was set in). */
 	FTimerHandle ShriekRepeat;
 	TWeakObjectPtr<UWorld> ShriekRepeatWorld;
@@ -201,6 +276,45 @@ void UUnpaidPackSubsystem::Commit(const APawn& Target, uint32 Id, EUnpaidMove Mo
 	FTargetBoard& Board = Boards.FindOrAdd(TWeakObjectPtr<const APawn>(&Target));
 	Board.Board.Prune(Now(), BoardMaxAge);
 	Board.Board.Commit(Id, Move, Now());
+}
+
+// ---------------------------------------------------------------------------
+// Rises and openings
+// ---------------------------------------------------------------------------
+
+FUnpaidRiseBurst& UUnpaidPackSubsystem::BurstFor(const APawn* Target)
+{
+	if (!Target)
+	{
+		return Unaimed;
+	}
+	// Bursts of players gone are dropped as a new one is made (a handful of entries at most).
+	if (!Bursts.Contains(TWeakObjectPtr<const APawn>(Target)))
+	{
+		for (auto It = Bursts.CreateIterator(); It; ++It)
+		{
+			if (!It->Key.IsValid())
+			{
+				It.RemoveCurrent();
+			}
+		}
+	}
+	return Bursts.FindOrAdd(TWeakObjectPtr<const APawn>(Target));
+}
+
+FUnpaidOpeningGate& UUnpaidPackSubsystem::OpeningFor(const APawn& Target)
+{
+	if (!Openings.Contains(TWeakObjectPtr<const APawn>(&Target)))
+	{
+		for (auto It = Openings.CreateIterator(); It; ++It)
+		{
+			if (!It->Key.IsValid())
+			{
+				It.RemoveCurrent();
+			}
+		}
+	}
+	return Openings.FindOrAdd(TWeakObjectPtr<const APawn>(&Target));
 }
 
 void UUnpaidPackSubsystem::Release(uint32 Id)

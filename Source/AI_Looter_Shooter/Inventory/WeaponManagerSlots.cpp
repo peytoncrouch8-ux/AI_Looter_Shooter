@@ -37,9 +37,9 @@ bool UWeaponManagerComponent::AddWeapon(AWeaponBase* Weapon)
 	}
 
 	int32 Slot = INDEX_NONE;
-	if (Weapons.Num() >= MaxWeapons)
+	if (!HasFreeSlot() && !Weapons.IsEmpty())
 	{
-		// Full: swap out the weapon in hand.
+		// Every open slot full: swap out the weapon in hand.
 		Slot = FMath::Max(ActiveSlot, 0);
 		if (AWeaponBase* Replaced = Weapons[Slot])
 		{
@@ -175,7 +175,7 @@ bool UWeaponManagerComponent::EquipFromBackpack(int32 BackpackIndex)
 	const FWeaponInstanceData Incoming = Backpack[BackpackIndex];
 	const int32 Place = BackpackRemoveAt(BackpackIndex);
 
-	if (Weapons.Num() >= MaxWeapons)
+	if (!HasFreeSlot() && !Weapons.IsEmpty())
 	{
 		// Swap: the weapon in hand goes into the backpack where the new one came from.
 		const int32 Slot = FMath::Max(ActiveSlot, 0);
@@ -277,7 +277,8 @@ bool UWeaponManagerComponent::SwapSlotWithBackpack(int32 SlotIndex, int32 Backpa
 
 bool UWeaponManagerComponent::MoveBackpackToSlot(int32 BackpackIndex)
 {
-	if (!Backpack.IsValidIndex(BackpackIndex) || Weapons.Num() >= MaxWeapons)
+	// Only into an open slot: a shut one never takes a gun.
+	if (!Backpack.IsValidIndex(BackpackIndex) || !HasFreeSlot())
 	{
 		return false;
 	}

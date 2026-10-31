@@ -1,7 +1,8 @@
 // ALooterHUD: the pause menu, and the pause itself, which the inventory's pages share (the user's call, 2026-10-27). Escape
-// opens the pause menu's list (UPauseMenuWidget; the user, 2026-10-29 night: "Hitting ESC shouldn't take me right to
-// settings"): Resume Game, the inventory's pages, Settings, Save & Quit. What the list opens comes back to it when it
-// closes; only the list itself goes back to the game. The game stays paused throughout.
+// opens the pause menu's hub (UPauseMenuWidget, full screen; the user, 2026-10-31: "the ESC menu should encompass the
+// entire screen ... should not have whats in the inventory tabs"): Back to Game, Settings, Save & Quit, Quit Game. The
+// settings page it opens comes back to it (on Settings) when it closes; only the hub itself goes back to the game. The
+// game stays paused throughout.
 
 #include "UI/HUD/LooterHUD.h"
 #include "Audio/LooterSound.h"
@@ -14,6 +15,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Templates/UnrealTemplate.h"
 
 namespace
@@ -56,19 +58,6 @@ EPauseScreen ALooterHUD::PauseBackFrom(EPauseScreen Screen)
 	}
 }
 
-bool ALooterHUD::PausePageOf(EPauseMenuItem Item, EInventoryPage& OutPage)
-{
-	switch (Item)
-	{
-	case EPauseMenuItem::Inventory: OutPage = EInventoryPage::Loadout;  return true;
-	case EPauseMenuItem::Missions:  OutPage = EInventoryPage::Missions; return true;
-	case EPauseMenuItem::Map:       OutPage = EInventoryPage::Map;      return true;
-	case EPauseMenuItem::Bestiary:  OutPage = EInventoryPage::Bestiary; return true;
-	case EPauseMenuItem::Embers:    OutPage = EInventoryPage::Embers;   return true;
-	default:                        return false;
-	}
-}
-
 void ALooterHUD::OpenPauseMenu()
 {
 	APlayerController* PC = GetOwningPlayerController();
@@ -95,7 +84,6 @@ void ALooterHUD::OpenPauseMenu()
 	}
 
 	bPauseMenuOpen = true;
-	bPauseVisitCounted = false;
 	ShowPauseHub(EPauseMenuItem::Resume);
 	PlayPageSound(true);
 	ApplyGamePause();
@@ -107,7 +95,7 @@ void ALooterHUD::ClosePauseMenu()
 	{
 		return;
 	}
-	// A page the list opened goes with it, quietly (the pause menu's close sounds for both), and not back to the list.
+	// A page the hub opened goes with it, quietly (the pause menu's close sounds for both), and not back to the hub.
 	if (PauseScreen == EPauseScreen::Page)
 	{
 		PauseScreen = EPauseScreen::Hub;
@@ -129,14 +117,14 @@ void ALooterHUD::ClosePauseMenu()
 	PlayPageSound(false);
 }
 
-void ALooterHUD::ShowPauseHub(EPauseMenuItem Focus)
+void ALooterHUD::ShowPauseHub(EPauseMenuItem Focus, bool bReturning)
 {
 	if (!PauseHubWidget)
 	{
 		return;
 	}
 	PauseScreen = EPauseScreen::Hub;
-	PauseHubWidget->Open(Focus);
+	PauseHubWidget->Open(Focus, bReturning);
 	if (!PauseHubWidget->IsInViewport())
 	{
 		PauseHubWidget->AddToViewport(PauseMenuZOrder);
@@ -150,29 +138,26 @@ void ALooterHUD::ChoosePauseItem(EPauseMenuItem Item)
 	{
 		return;
 	}
-	if (Item == EPauseMenuItem::Resume)
+	switch (Item)
 	{
+	case EPauseMenuItem::Resume:
 		ClosePauseMenu();
 		return;
-	}
-	if (Item == EPauseMenuItem::SaveQuit)
-	{
+	case EPauseMenuItem::SaveQuit:
 		SaveAndQuit();
 		return;
-	}
-	// The rest open from the list only (a console's pick while a page is up waits for the list).
-	if (PauseScreen != EPauseScreen::Hub)
-	{
+	case EPauseMenuItem::QuitGame:
+		SaveAndQuitGame();
 		return;
-	}
-	EInventoryPage Page = EInventoryPage::Loadout;
-	if (Item == EPauseMenuItem::Settings)
-	{
-		OpenPauseSettings();
-	}
-	else if (PausePageOf(Item, Page))
-	{
-		OpenPausePage(Item, Page);
+	case EPauseMenuItem::Settings:
+		// From the hub only (a console's pick while the settings page is up waits for the hub).
+		if (PauseScreen == EPauseScreen::Hub)
+		{
+			OpenPauseSettings();
+		}
+		return;
+	default:
+		return;
 	}
 }
 
@@ -187,43 +172,12 @@ void ALooterHUD::OpenPauseSettings()
 	{
 		PauseHubWidget->RemoveFromParent();
 	}
-	// Over the game: its top row is Back, to the list (Save & Quit is the list's alone now).
+	// The settings page, full screen over the game: its Back (and Esc) comes back to the hub (OnClose, BeginPlay).
 	PauseSettingsWidget->Open(ESettingsMenuMode::Pause);
 	PauseSettingsWidget->AddToViewport(PauseMenuZOrder);
 	PauseScreen = EPauseScreen::Settings;
 	FocusMenu(PauseSettingsWidget);
 	PlayPageSound(true);
-}
-
-void ALooterHUD::OpenPausePage(EPauseMenuItem Item, EInventoryPage Page)
-{
-	// One pause is one visit: the pages looked at from this pause's list count together (WasPageShownLastVisit), as the
-	// inventory's tabs within one visit do.
-	if (!bPauseVisitCounted)
-	{
-		PagesShownLastVisit.Reset();
-		bPauseVisitCounted = true;
-	}
-	const EInventoryPage Before = InventoryPage;
-	InventoryPage = Page;
-	if (PauseHubWidget)
-	{
-		PauseHubWidget->RemoveFromParent();
-	}
-	// The page opens as its key opens it (its own Open, the keys on it), over the paused game.
-	if (!OpenInventoryPage())
-	{
-		// No player to show it for (dead, between pawns): the list stays, and says no.
-		InventoryPage = Before;
-		ShowPauseHub(Item);
-		LooterSound::Play2D(this, LooterSoundCue::Denied);
-		return;
-	}
-	bInventoryOpen = true;
-	PauseScreen = EPauseScreen::Page;
-	PauseReturnItem = Item;
-	PlayPageSound(true);
-	ApplyGamePause();
 }
 
 void ALooterHUD::BackOutOfPauseScreen()
@@ -241,8 +195,8 @@ void ALooterHUD::BackOutOfPauseScreen()
 	{
 		PauseSettingsWidget->RemoveFromParent();
 	}
-	// Back on the row it left from, the game still paused; the screen's close is its sound.
-	ShowPauseHub(PauseReturnItem);
+	// Back on the option it left from (Settings lit), the game still paused; the page's close is its sound.
+	ShowPauseHub(PauseReturnItem, /*bReturning*/ true);
 	PlayPageSound(false);
 	ApplyGamePause();
 }
@@ -254,4 +208,15 @@ void ALooterHUD::SaveAndQuit()
 	{
 		Sessions->SaveAndQuitToMenu();
 	}
+}
+
+void ALooterHUD::SaveAndQuitGame()
+{
+	// Written now, while the game stands paused (the level's teardown on the way out saves once more; same contents), then
+	// the game closes as the main menu's Quit Game closes it. Without a session SaveNow writes nothing.
+	if (USessionSubsystem* Sessions = USessionSubsystem::Get(this))
+	{
+		Sessions->SaveNow();
+	}
+	UKismetSystemLibrary::QuitGame(this, GetOwningPlayerController(), EQuitPreference::Quit, false);
 }

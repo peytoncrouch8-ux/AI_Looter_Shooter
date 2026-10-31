@@ -113,6 +113,8 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 
 void UPlayerHUDWidget::BindToPawn(UWeaponManagerComponent* Manager)
 {
+	// The slots opening with the player's progress: "NEW GUN SLOT" (PlayerHUDWidgetGunSlots.cpp).
+	BindSlotUnlocks(Manager);
 	if (BoundManager.Get() != Manager)
 	{
 		if (UWeaponManagerComponent* Old = BoundManager.Get())

@@ -16,6 +16,27 @@ struct FUnpaidRigBones;
  */
 namespace UnpaidBody
 {
+	/** One bone the code poses: its rest pose (component space), this frame's turn and shift, and the pose they make (AUnpaidCreature::FPosedBone). */
+	struct FPosedBone
+	{
+		FName Name;
+		int32 SkeletonIndex = INDEX_NONE;
+		/** The nearest posed bone above it (an index into Bones), or none. */
+		int32 Parent = INDEX_NONE;
+		FTransform Rest;
+		/** Its own turn about its joint this frame, in the rest pose's frame (it takes its parent's turn on top). */
+		FQuat Own = FQuat::Identity;
+		/** Its own shift this frame (component space) and size against its rest. */
+		FVector Shift = FVector::ZeroVector;
+		float Scale = 1.f;
+		/** A shroud link: its chain and link (its turn comes from the chain, under what the chain hangs from). */
+		int32 Chain = INDEX_NONE;
+		int32 Link = INDEX_NONE;
+		/** Its turn from rest with everything above it, and its pose: worked out each frame. */
+		FQuat Turned = FQuat::Identity;
+		FTransform Posed;
+	};
+
 	struct FArm
 	{
 		float Side = 1.f;

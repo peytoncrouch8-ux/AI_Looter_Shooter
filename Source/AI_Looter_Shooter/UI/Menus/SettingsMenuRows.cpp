@@ -1,12 +1,12 @@
-// USettingsMenuWidget's rows: switches, choices, sliders, the key list, and the minimap's size preview. Each is a ledger
-// row (SettingsMenuLedger.cpp) in round 3's look: c3's hollow choices and ruler sliders on c1's ruled, numbered lines.
+// USettingsMenuWidget's rows: switches, choices, sliders, the key list, and the minimap's size preview. Each is a banded
+// row (SettingsMenuLedger.cpp) in the full page's look: the name big at the left, the cut-corner switches or the ruler
+// slider with its diamond knob and value at the right (mockups/e.js MODE settings).
 
 #include "UI/Menus/SettingsMenuWidget.h"
-#include "UI/Menus/SettingsMenuArt.h"
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
+#include "UI/Menus/SettingsPageArt.h"
 #include "UI/Style/LooterButton.h"
-#include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Blueprint/WidgetTree.h"
@@ -22,6 +22,15 @@
 #include "Components/VerticalBoxSlot.h"
 
 using namespace SettingsMenu;
+using namespace SettingsMenu::Layout;
+
+namespace
+{
+	/** The key list's switches, a little shorter than a setting's, so its shorter rows keep room round them. */
+	constexpr float KeySwitchHeight = 50.f;
+	/** A Hold / Toggle row's name sits in under its key's. */
+	constexpr float ModeIndent = 28.f;
+}
 
 UWidget* USettingsMenuWidget::MakeMinimapPreview()
 {
@@ -36,7 +45,7 @@ UWidget* USettingsMenuWidget::MakeMinimapPreview()
 		LayerSlot->SetVerticalAlignment(bFill ? VAlign_Fill : VAlign_Center);
 		return Image;
 	};
-	// The HUD minimap's glass, a brighter rim so it reads over the dimmed screen, and the player's arrow in the middle.
+	// The HUD minimap's glass, a brighter rim so it reads over the shaded screen, and the player's arrow in the middle.
 	const FLinearColor Glass = Color::ScreenBg();
 	MarkBackground(AddLayer(CircleBrush(FLinearColor(Glass.R, Glass.G, Glass.B, 0.62f)), true));
 	AddLayer(CircleBrush(FLinearColor::Transparent, Color::TileLine(), 2.f), true);
@@ -54,62 +63,43 @@ UWidget* USettingsMenuWidget::MakeMinimapPreview()
 	return MinimapPreviewSize;
 }
 
-namespace
-{
-	/** A row's name (c1/c3: the label grey, set bold), and a key list row's, a step smaller and quieter. */
-	constexpr int32 RowLabelSize = 20;
-	constexpr int32 KeyLabelSize = 16;
-	/** A choice's word (c3: 15 px, spaced 2) and the gap between choices. */
-	constexpr int32 ChipFontSize = 14;
-	constexpr int32 ChipSpacing = 120;
-	constexpr float ChipGap = 6.f;
-	/** The value beside a slider (c3: 21 px, white). */
-	constexpr int32 ValueSize = 20;
-	constexpr float ValueWidth = 64.f;
-
-	/** A row's name; a long one ("Crosshair colour" beside five choices) wraps onto a second line rather than run under them. */
-	UTextBlock* RowLabel(UWidgetTree* Tree, const FString& Label, int32 Size, const FLinearColor& Tint)
-	{
-		UTextBlock* Text = LooterUI::MakeText(Tree, Label, Size, Tint);
-		Text->SetAutoWrapText(true);
-		return Text;
-	}
-}
-
 UWidget* USettingsMenuWidget::MakeToggleRow(const FString& Label, const FString& FirstText, const FString& SecondText, FName FirstAction,
 	FName SecondAction, int32 Index, bool bKeyListRow, ULooterButton*& OutFirst, ULooterButton*& OutSecond)
 {
 	using namespace LooterUI;
 	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	// Rows that belong to a key binding sit indented under it, a step quieter.
-	UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(RowLabel(WidgetTree, Label, bKeyListRow ? KeyLabelSize : RowLabelSize,
-		bKeyListRow ? Color::SlateIcon() : Color::SlateLabel()));
+	// A row that belongs to a key binding sits in under it, a step quieter.
+	const FLinearColor NameColor = bKeyListRow ? Color::SlateLabel() : Color::SlateText();
+	UTextBlock* Name = MakeRowName(Label, bKeyListRow ? KeyNameSize - 2 : RowNameSize, NameColor);
+	UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(Name);
 	NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	NameSlot->SetVerticalAlignment(VAlign_Center);
-	NameSlot->SetPadding(FMargin(bKeyListRow ? 16.f : 0.f, 0.f, 0.f, 0.f));
+	NameSlot->SetPadding(FMargin(bKeyListRow ? ModeIndent : 0.f, 0.f, 0.f, 0.f));
 
-	// c3's two hollow choices, the side that's the setting gold; each sounds a switch's click as the kit's segments did.
+	// The two switches, the side that's the setting gold; each sounds a switch's click as the kit's segments did.
+	const int32 FontSize = bKeyListRow ? DefaultFontSize : SwitchFontSize;
+	OutFirst = MakeArtButton(FirstAction, Index, FirstText, FontSize, EButtonKind::Tab);
+	OutSecond = MakeArtButton(SecondAction, Index, SecondText, FontSize, EButtonKind::Tab);
 	UHorizontalBox* Switch = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	OutFirst = MakeArtButton(FirstAction, Index, FirstText, ESettingsArt::Chip, ChipFontSize, ChipSpacing, EButtonKind::Tab);
-	OutSecond = MakeArtButton(SecondAction, Index, SecondText, ESettingsArt::Chip, ChipFontSize, ChipSpacing, EButtonKind::Tab);
-	UHorizontalBoxSlot* FirstSlot = Switch->AddChildToHorizontalBox(OutFirst);
-	FirstSlot->SetPadding(FMargin(0.f, 0.f, ChipGap, 0.f));
-	UHorizontalBoxSlot* SecondSlot = Switch->AddChildToHorizontalBox(OutSecond);
+	UHorizontalBoxSlot* FirstSlot = Switch->AddChildToHorizontalBox(bKeyListRow ? static_cast<UWidget*>(MakeSized(WidgetTree, OutFirst, 0.f, KeySwitchHeight)) : OutFirst);
+	FirstSlot->SetPadding(FMargin(0.f, 0.f, SettingsPageArt::SwitchGap, 0.f));
+	UHorizontalBoxSlot* SecondSlot = Switch->AddChildToHorizontalBox(bKeyListRow ? static_cast<UWidget*>(MakeSized(WidgetTree, OutSecond, 0.f, KeySwitchHeight)) : OutSecond);
 	if (bKeyListRow)
 	{
-		// In the key list the switch sits in the keys' column, above an empty "Default" column.
+		// In the key list the switch fills the keys' column, over an empty Default column.
 		FirstSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		SecondSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Switch, KeyColumnWidth))->SetPadding(FMargin(8.f, 0.f));
-		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, nullptr, DefaultColumnWidth));
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Switch, KeyColumnWide))->SetVerticalAlignment(VAlign_Center);
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, nullptr, DefaultColumnWide))->SetPadding(FMargin(SettingsPageArt::SwitchGap, 0.f, 0.f, 0.f));
 	}
 	else
 	{
 		UHorizontalBoxSlot* SwitchSlot = Line->AddChildToHorizontalBox(Switch);
 		SwitchSlot->SetVerticalAlignment(VAlign_Center);
-		SwitchSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
+		SwitchSlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
 	}
-	return MakeLedgerRow(Line, bKeyListRow ? KeyRowHeight : LedgerRowHeight, /*bNumbered*/ true, bKeyListRow);
+	return MakeLedgerRow(Line, Name, bKeyListRow ? SettingsPageArt::KeyRowHeight : SettingsPageArt::RowHeight, /*bNumbered*/ true,
+		bKeyListRow, NameColor);
 }
 
 UWidget* USettingsMenuWidget::MakeChoiceRow(const FString& Label, const TArray<FString>& Choices, FName Action, float /*Width*/,
@@ -117,24 +107,24 @@ UWidget* USettingsMenuWidget::MakeChoiceRow(const FString& Label, const TArray<F
 {
 	using namespace LooterUI;
 	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(RowLabel(WidgetTree, Label, RowLabelSize, Color::SlateLabel()));
+	UTextBlock* Name = MakeRowName(Label, RowNameSize, Color::SlateText());
+	UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(Name);
 	NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	NameSlot->SetVerticalAlignment(VAlign_Center);
 
-	// c3's hollow choices in a row, each as wide as its word (Width, the kit's fixed column, no longer applies), the chosen
-	// one gold.
+	// The switches in a row, each as wide as its word, the chosen one gold.
 	UHorizontalBox* Segments = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	for (int32 Index = 0; Index < Choices.Num(); ++Index)
 	{
-		ULooterButton* Button = MakeArtButton(Action, Index, Choices[Index], ESettingsArt::Chip, ChipFontSize, ChipSpacing, EButtonKind::Tab);
+		ULooterButton* Button = MakeArtButton(Action, Index, Choices[Index], SwitchFontSize, EButtonKind::Tab);
 		UHorizontalBoxSlot* SegmentSlot = Segments->AddChildToHorizontalBox(Button);
-		SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < Choices.Num() ? ChipGap : 0.f, 0.f));
+		SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < Choices.Num() ? SettingsPageArt::SwitchGap : 0.f, 0.f));
 		OutButtons.Add(Button);
 	}
 	UHorizontalBoxSlot* SegmentsSlot = Line->AddChildToHorizontalBox(Segments);
 	SegmentsSlot->SetVerticalAlignment(VAlign_Center);
-	SegmentsSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
-	return MakeLedgerRow(Line, LedgerRowHeight, /*bNumbered*/ true);
+	SegmentsSlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
+	return MakeLedgerRow(Line, Name, SettingsPageArt::RowHeight, /*bNumbered*/ true, false, Color::SlateText());
 }
 
 UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue, float MaxValue, USlider*& OutSlider, UTextBlock*& OutValue,
@@ -142,22 +132,23 @@ UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue
 {
 	using namespace LooterUI;
 	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(RowLabel(WidgetTree, Label, RowLabelSize, Color::SlateLabel()));
+	UTextBlock* Name = MakeRowName(Label, RowNameSize, Color::SlateText());
+	UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(Name);
 	NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	NameSlot->SetVerticalAlignment(VAlign_Center);
 
-	// c3's range scale: no bar of the slider's own (the ruler under it is the track, its gold run up to the knob), a gold
-	// ring knob that snaps to its steps.
+	// The ruler slider: no bar of the slider's own (the ruler under it is the track, its gold run out to the knob), a gold
+	// diamond knob that snaps to its steps.
 	FSliderStyle Style;
 	const FSlateBrush NoTrack = RectBrush(FLinearColor::Transparent);
 	Style.SetNormalBarImage(NoTrack);
 	Style.SetHoveredBarImage(NoTrack);
 	Style.SetDisabledBarImage(NoTrack);
-	const FVector2D KnobBox(SettingsMenuArt::KnobSize, SettingsMenuArt::KnobSize);
-	const FSlateBrush Knob = PaintedIconBrush(TEXT("SettingsSliderKnob"), SettingsMenuArt::Knob(), 2.f, KnobBox);
-	Style.SetNormalThumbImage(Knob);
-	Style.SetHoveredThumbImage(Knob);
-	Style.SetDisabledThumbImage(Knob);
+	constexpr float Knob = SettingsPageArt::KnobSize;
+	const FSlateBrush KnobBrush = PaintedIconBrush(TEXT("SettingsPageKnob"), SettingsPageArt::Knob(), 2.f, FVector2D(Knob, Knob));
+	Style.SetNormalThumbImage(KnobBrush);
+	Style.SetHoveredThumbImage(KnobBrush);
+	Style.SetDisabledThumbImage(KnobBrush);
 	Style.SetBarThickness(2.f);
 
 	OutSlider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass());
@@ -166,52 +157,69 @@ UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue
 	OutSlider->SetMaxValue(MaxValue);
 	OutSlider->SetStepSize(StepSize);
 	OutSlider->MouseUsesStep = true;
-	// The menu keeps keyboard focus (Esc closes it) and steps its sliders itself for the keys and a controller
+	// The page keeps keyboard focus (Esc goes back) and steps its sliders itself for the keys and a controller
 	// (SettingsMenuNav.cpp); and the world behind keeps redrawing while the handle is dragged.
 	OutSlider->IsFocusable = false;
 	OutSlider->bPreventThrottling = true;
 
-	// The ruler under the slider, the same box: its knob runs over the ruler's line, its ends' values under the ends.
+	// The ruler fills the cell; the slider lies over its top part, so the knob rides the ruler's line.
 	UOverlay* Cell = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	USettingsMenuArt* Ruler = USettingsMenuArt::Make(WidgetTree, ESettingsArt::SliderRuler);
+	USettingsPageArt* Track = USettingsPageArt::Make(WidgetTree, ESettingsPageArt::SliderTrack, ESettingsPagePart::Front);
 	auto Words = [&EndLabel](float Value) { return EndLabel ? EndLabel(Value) : PercentText(Value); };
-	Ruler->SetSlider(OutSlider, Words(MinValue), Words(MaxValue), SettingsMenuArt::KnobSize);
-	FillOverlaySlot(Cell->AddChildToOverlay(Ruler));
-	FillOverlaySlot(Cell->AddChildToOverlay(OutSlider));
-	UHorizontalBoxSlot* CellSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Cell, SliderWidth, SliderHeight));
+	Track->SetSlider(OutSlider, Words(MinValue), Words(MaxValue), Knob);
+	FillOverlaySlot(Cell->AddChildToOverlay(Track));
+	UOverlaySlot* SliderSlot = Cell->AddChildToOverlay(MakeSized(WidgetTree, OutSlider, 0.f, SettingsPageArt::SliderLineY * 2.f));
+	SliderSlot->SetHorizontalAlignment(HAlign_Fill);
+	SliderSlot->SetVerticalAlignment(VAlign_Top);
+	UHorizontalBoxSlot* CellSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Cell, SettingsPageArt::SliderTrackWidth + Knob * 2.f,
+		SettingsPageArt::SliderHeight));
 	CellSlot->SetVerticalAlignment(VAlign_Center);
-	CellSlot->SetPadding(FMargin(8.f, 0.f));
+	CellSlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
 
 	OutValue = MakeText(WidgetTree, TEXT(""), ValueSize, Color::SlateText());
 	OutValue->SetJustification(ETextJustify::Right);
-	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, OutValue, ValueWidth))->SetVerticalAlignment(VAlign_Center);
-	return MakeLedgerRow(Line, LedgerRowHeight, /*bNumbered*/ true);
+	UHorizontalBoxSlot* ValueSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, OutValue, ValueWidth));
+	ValueSlot->SetVerticalAlignment(VAlign_Center);
+	// Clear of the ruler: the cell keeps a knob's width past the ruler's end, and the end value reaches at most
+	// EndLabelOverhang past it, so the value starts ValueGap or more beyond the end value (the mockup's gap).
+	ValueSlot->SetPadding(FMargin(FMath::Max(0.f, ValueGap - (Knob - SettingsPageArt::EndLabelOverhang)), 0.f, 0.f, 0.f));
+	return MakeLedgerRow(Line, Name, SettingsPageArt::RowHeight, /*bNumbered*/ true, false, Color::SlateText());
 }
 
 void USettingsMenuWidget::RebuildControls()
 {
 	using namespace LooterUI;
+	if (!KeyList)
+	{
+		return;
+	}
 	KeyList->ClearChildren();
 	KeyButtons.Reset();
+	KeyLabels.Reset();
 	ModeButtons.Reset();
 	DefaultButtons.Reset();
 	KeyNav.Reset();
 	// The key list is the Controls page's, after its sliders: each key and its Default a row of two stops, each hold/toggle
-	// switch one. Each row has its words in the description column; the old rows' go with them.
+	// switch one. Each row has its words for the help card; the old rows' go with them.
 	const int32 KeySection = static_cast<int32>(ESettingsPage::Controls);
 	HelpEntries.RemoveAll([](const FHelpEntry& Entry) { return Entry.bKeyList; });
-	// The old rows leave the ledger too, and the key rows are numbered on from the page's sliders.
+	// The old rows leave the page too; the key rows are numbered and banded on from the page's sliders.
 	LedgerLines.RemoveAll([](const FSettingsLedgerLine& Line) { return Line.bKeyList; });
 	if (PageRowNumbers.IsValidIndex(KeySection))
 	{
 		PageRowNumbers[KeySection] = KeyNumberStart;
+	}
+	if (PageBandCount.IsValidIndex(KeySection))
+	{
+		PageBandCount[KeySection] = KeyBandStart;
 	}
 	TGuardValue<int32> DescribeOnControls(BuildPage, KeySection);
 
 	const UKeyBindingSubsystem* Bindings = GetBindings();
 	if (!Bindings)
 	{
-		KeyList->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Key bindings unavailable."), 13, LooterUI::Color::Worse()));
+		KeyList->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Key bindings unavailable."), KeyNameSize, Color::Worse()))
+			->SetPadding(FMargin(SettingsPageArt::NumberWidth, 16.f, 0.f, 0.f));
 		RebuildNavigation();
 		return;
 	}
@@ -224,27 +232,31 @@ void USettingsMenuWidget::RebuildControls()
 		if (Binding.Category.ToString() != LastCategory)
 		{
 			LastCategory = Binding.Category.ToString();
-			KeyList->AddChildToVerticalBox(MakeLedgerSection(LastCategory))->SetPadding(FMargin(0.f, Index == 0 ? 0.f : 8.f, 0.f, 0.f));
+			KeyList->AddChildToVerticalBox(MakeLedgerSection(LastCategory));
 		}
 
 		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(RowLabel(WidgetTree, Binding.DisplayName.ToString(), KeyLabelSize + 1, Color::SlateLabel()));
+		UTextBlock* Name = MakeRowName(Binding.DisplayName.ToString(), KeyNameSize, Color::SlateText());
+		UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(Name);
 		NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		NameSlot->SetVerticalAlignment(VAlign_Center);
 
-		// The key keeps the kit's key button (it shows the key's name, which changes as it's rebound).
-		ULooterButton* KeyButton = MakeButton(ActionRebind, Index, TEXT(""), 13, EButtonKind::Key);
-		UHorizontalBoxSlot* KeySlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, KeyButton, KeyColumnWidth, SettingsMenuArt::ChipHeight));
-		KeySlot->SetPadding(FMargin(8.f, 0.f));
+		// The key, a switch showing its name (RefreshKeyLabels: it changes as it's rebound), gold while it waits for a key.
+		USettingsPageArt* KeyLabel = nullptr;
+		ULooterButton* KeyButton = MakeArtButton(ActionRebind, Index, TEXT(""), KeyFontSize, EButtonKind::Key, &KeyLabel);
+		UHorizontalBoxSlot* KeySlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, KeyButton, KeyColumnWide, KeySwitchHeight));
+		KeySlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
 		KeySlot->SetVerticalAlignment(VAlign_Center);
 		KeyButtons.Add(KeyButton);
+		KeyLabels.Add(KeyLabel);
 
-		ULooterButton* DefaultButton = MakeArtButton(ActionResetOne, Index, TEXT("Default"), ESettingsArt::Chip, 12, ChipSpacing, EButtonKind::Mini);
-		UHorizontalBoxSlot* DefaultSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, DefaultButton, DefaultColumnWidth));
+		ULooterButton* DefaultButton = MakeArtButton(ActionResetOne, Index, TEXT("Default"), DefaultFontSize, EButtonKind::Mini);
+		UHorizontalBoxSlot* DefaultSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, DefaultButton, DefaultColumnWide, KeySwitchHeight));
+		DefaultSlot->SetPadding(FMargin(SettingsPageArt::SwitchGap, 0.f, 0.f, 0.f));
 		DefaultSlot->SetVerticalAlignment(VAlign_Center);
 		DefaultButtons.Add(DefaultButton);
 
-		UWidget* KeyRow = MakeLedgerRow(Line, KeyRowHeight, /*bNumbered*/ true, /*bKeyList*/ true);
+		UWidget* KeyRow = MakeLedgerRow(Line, Name, SettingsPageArt::KeyRowHeight, /*bNumbered*/ true, /*bKeyList*/ true, Color::SlateText());
 		KeyList->AddChildToVerticalBox(KeyRow);
 		KeyNav.Add(FMenuNavRow{ FMenuNavItem::MakeButton(KeyButton, KeySection, KeyRow), FMenuNavItem::MakeButton(DefaultButton, KeySection, KeyRow) });
 		Describe(KeyRow, KeyHelp(Binding.Id, Binding.DisplayName.ToString(), Binding.DefaultKey.IsValid() ? Binding.DefaultKey.GetDisplayName().ToString() : FString()),
@@ -276,21 +288,27 @@ void USettingsMenuWidget::RefreshKeyLabels()
 	}
 
 	const TArray<FRebindableKey>& List = Bindings->GetBindings();
-	for (ULooterButton* Button : KeyButtons)
+	for (int32 KeyIndex = 0; KeyIndex < KeyButtons.Num(); ++KeyIndex)
 	{
-		if (!List.IsValidIndex(Button->Index))
+		ULooterButton* Button = KeyButtons[KeyIndex];
+		if (!Button || !List.IsValidIndex(Button->Index))
 		{
 			continue;
 		}
 		const bool bListening = Button->Index == ListeningIndex;
+		// Key names keep their own case ("Left Mouse Button" reads better than in capitals, and fits the column).
 		const FKey Key = Bindings->GetKey(List[Button->Index].Id);
-		Button->SetLabel(bListening ? FText::FromString(TEXT("Press a key...")) : Key.GetDisplayName());
+		const FString Words = bListening ? FString(TEXT("Press a key...")) : Key.GetDisplayName().ToString();
+		if (KeyLabels.IsValidIndex(KeyIndex) && KeyLabels[KeyIndex])
+		{
+			KeyLabels[KeyIndex]->SetLabel(Words, KeyFontSize, SwitchSpacing);
+		}
 		Button->SetHighlighted(bListening);
 	}
 
 	for (ULooterButton* Button : ModeButtons)
 	{
-		if (List.IsValidIndex(Button->Index))
+		if (Button && List.IsValidIndex(Button->Index))
 		{
 			const bool bToggle = Bindings->IsToggleMode(List[Button->Index].Id);
 			Button->SetHighlighted((Button->Action == ActionToggleMode) == bToggle);

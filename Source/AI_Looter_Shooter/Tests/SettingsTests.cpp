@@ -74,8 +74,8 @@ bool FWeaponSlotKeysTest::RunTest(const FString& Parameters)
 {
 	// One key per equip slot, the number keys above the letters by default.
 	TestEqual(TEXT("A key for every slot"), UKeyBindingSubsystem::NumWeaponSlotKeys, GetDefault<UWeaponManagerComponent>()->MaxWeapons);
-	const FKey Expected[] = { EKeys::One, EKeys::Two, EKeys::Three };
-	TestEqual(TEXT("Three slot keys"), UKeyBindingSubsystem::NumWeaponSlotKeys, static_cast<int32>(UE_ARRAY_COUNT(Expected)));
+	const FKey Expected[] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four };
+	TestEqual(TEXT("Four slot keys (the user, 2026-10-31: four guns)"), UKeyBindingSubsystem::NumWeaponSlotKeys, static_cast<int32>(UE_ARRAY_COUNT(Expected)));
 	TestFalse(TEXT("No key past the last slot"), UKeyBindingSubsystem::DefaultWeaponSlotKey(UKeyBindingSubsystem::NumWeaponSlotKeys).IsValid());
 
 	// The context the player gets: the settings menu rebinds each slot's mapping to its default key, so it has to be there.

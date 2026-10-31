@@ -10,6 +10,7 @@
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
+#include "Creatures/UnpaidLifeWork.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -287,6 +288,10 @@ void AUnpaidCreature::PoseArms(float DeltaSeconds, float Time, float Speed, cons
 		Bend[Side] += 25.f * Cocked - 10.f * Swept;
 		Wrist[Side] += 20.f * Cocked - 18.f * Swept;
 		Curl[Side] += 20.f * Swept - 25.f * Cocked;
+		// Its body language's own (the lurch's swing, a fall's last reach: UnpaidCreatureGait.cpp) and its rise's (a hand up
+		// out of the dirt, both planted for the haul: UnpaidCreatureRise.cpp), before the keep-out sees the arm.
+		FUnpaidGaitWork::ArmPose(*this, Side, Swing[Side], OutBeforeKeepOut[Side], Bend[Side], Wrist[Side], Curl[Side]);
+		FUnpaidRiseWork::ArmPose(*this, Side, Swing[Side], OutBeforeKeepOut[Side], Bend[Side], Wrist[Side], Curl[Side]);
 		TurnArm(Arms[Side], Swing[Side] + Sway.KeepSwing, OutBeforeKeepOut[Side] + Sway.KeepOut, Bend[Side], Wrist[Side], Curl[Side]);
 	}
 

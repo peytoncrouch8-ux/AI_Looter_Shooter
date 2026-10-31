@@ -1,11 +1,11 @@
 // USettingsMenuWidget for the keyboard and a controller, Borderlands' way: the focus moves down the page, steps sliders
 // (held, faster and faster) and switches, presses buttons, turns the tabs on the bumpers and backs out on B; the focus
-// look and the prompts along the bottom follow the device last used (LooterUIFocus.h, MenuNav.h, MenuNavigator.h).
+// look and the key hints bottom-right follow the device last used (LooterUIFocus.h, MenuNav.h, MenuNavigator.h).
 
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/Menus/SettingsMenuHelp.h"
 #include "UI/Menus/SettingsMenuParts.h"
-#include "UI/Cards/LooterHollowKey.h"
+#include "UI/Menus/SettingsPageArt.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -20,16 +20,10 @@
 
 using namespace MenuNav;
 using namespace SettingsMenu;
+using namespace SettingsMenu::Layout;
 
 namespace
 {
-	/** The gap between the prompts under the plate, between a key and its word, and the word's size and spacing. */
-	constexpr float PromptGap = 30.f;
-	constexpr float PromptKeyGap = 10.f;
-	constexpr int32 PromptWordSize = 18;
-	constexpr int32 PromptWordSpacing = 111;
-	/** Room kept round a stop scrolled into view, so the rows beside it show too. */
-	constexpr float ScrollPadding = 24.f;
 	/** A slider's tick per step (the volume sliders tick at their own new level instead). */
 	constexpr float StepTickVolume = 0.6f;
 }
@@ -50,26 +44,17 @@ USlider* USettingsMenuWidget::GetMinimapSizeSlider() const
 
 void USettingsMenuWidget::RebuildNavigation(const UWidget* Prefer)
 {
-	if (!ResumeButton)
+	if (!PageNav.IsValidIndex(CurrentPage))
 	{
 		return;
 	}
-	// Top to bottom: Back in its reticle, the page on show (on Controls, its key list after its sliders), then the footer's
-	// Back chip (hidden: the focus passes over it). Only the page on show: the others' rows aren't on screen to move to.
-	// Save & Quit is no longer here: the pause menu's list has it (the user, 2026-10-29 night).
-	TArray<FMenuNavRow> Rows;
-	Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(ResumeButton) });
-	if (PageNav.IsValidIndex(CurrentPage))
-	{
-		Rows.Append(PageNav[CurrentPage]);
-	}
+	// Top to bottom: the page on show (on Controls, its key list after its sliders). Only the page on show: the others'
+	// rows aren't on screen to move to. Going back is Esc or B (or ESC BACK clicked): no row for it (the full page, the
+	// user's pick 2026-10-30); Save & Quit is the pause menu's.
+	TArray<FMenuNavRow> Rows = PageNav[CurrentPage];
 	if (CurrentPage == static_cast<int32>(ESettingsPage::Controls))
 	{
 		Rows.Append(KeyNav);
-	}
-	if (BackButton)
-	{
-		Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(BackButton, NumPages) });
 	}
 	// A long page: the ends stop the focus rather than throw it to the far end.
 	Nav.SetWrap(false);
@@ -103,9 +88,8 @@ UWidget* USettingsMenuWidget::FirstPageStop() const
 
 void USettingsMenuWidget::ResetNavigation()
 {
-	// Over the game the focus starts on the top row, Back to the pause menu's list (as it started on Resume when this was
-	// the pause menu); from the main menu on the page's first setting.
-	RebuildNavigation(Mode == ESettingsMenuMode::Pause ? static_cast<UWidget*>(ResumeButton.Get()) : FirstPageStop());
+	// Either way the focus starts on the page's first setting, the row lit as the page opens (the mockup: row 01).
+	RebuildNavigation(FirstPageStop());
 }
 
 // ---------------------------------------------------------------------------
@@ -286,7 +270,7 @@ void USettingsMenuWidget::AdvanceNav(float DeltaSeconds)
 	}
 	Nav.Tick(DeltaSeconds);
 	AdvanceHoverLook();
-	// The description column follows the focus or the pointer (SettingsMenuTabs.cpp).
+	// The help card follows the focus or the pointer (SettingsMenuHelpCard.cpp).
 	AdvanceHelp();
 }
 
@@ -451,38 +435,31 @@ void USettingsMenuWidget::RefreshPrompts()
 		return;
 	}
 	ShownPrompts = Line;
-	// Under the plate, floating: each a hollow key (the user's pick, 2026-10-28) and its word, spaced (c1/c3: 18 px).
+	// Bottom-right, floating: each a gold key cap (common.css .cap) and its word, spaced. The last is always the way back
+	// (Back, or Cancel while a key is awaited): it is ESC BACK, the button that stays, so a mouse can click it.
 	PromptBar->ClearChildren();
-	for (int32 Index = 0; Index < Prompts.Num(); ++Index)
+	const int32 Last = Prompts.Num() - 1;
+	for (int32 Index = 0; Index < Last; ++Index)
 	{
-		ULooterHollowKey* Key = WidgetTree->ConstructWidget<ULooterHollowKey>(ULooterHollowKey::StaticClass());
-		Key->SetLabel(Prompts[Index].Key.ToUpper());
-		Key->SetVisibility(ESlateVisibility::HitTestInvisible);
-		UHorizontalBoxSlot* KeySlot = PromptBar->AddChildToHorizontalBox(Key);
+		USettingsPageArt* Cap = nullptr;
+		UHorizontalBoxSlot* KeySlot = PromptBar->AddChildToHorizontalBox(SettingsPageArt::MakeKeyCap(WidgetTree, Prompts[Index].Key, nullptr, Cap));
 		KeySlot->SetVerticalAlignment(VAlign_Center);
-		KeySlot->SetPadding(FMargin(Index > 0 ? PromptGap : 0.f, 0.f, 0.f, 0.f));
-		UTextBlock* Word = LooterUI::MakeFloatingText(WidgetTree, PromptWordSize, LooterUI::Color::SlateText(), PromptWordSpacing);
+		KeySlot->SetPadding(FMargin(Index > 0 ? HintGap : 0.f, 0.f, 0.f, 0.f));
+		UTextBlock* Word = LooterUI::MakeFloatingText(WidgetTree, HintWordSize, LooterUI::Color::SlateText(), HintWordSpacing);
 		Word->SetText(FText::FromString(Prompts[Index].Text.ToUpper()));
 		UHorizontalBoxSlot* WordSlot = PromptBar->AddChildToHorizontalBox(Word);
 		WordSlot->SetVerticalAlignment(VAlign_Center);
-		WordSlot->SetPadding(FMargin(PromptKeyGap, 0.f, 0.f, 0.f));
+		WordSlot->SetPadding(FMargin(HintKeyGap, 0.f, Index + 1 == Last ? HintGap : 0.f, 0.f));
 	}
-}
-
-void USettingsMenuWidget::ScrollToFocus()
-{
-	const FMenuNavItem* Here = Nav.GetFocused();
-	if (!Body || !Here)
+	if (Prompts.IsValidIndex(Last))
 	{
-		return;
-	}
-	if (UWidget* Row = Here->Row.Get())
-	{
-		Body->ScrollWidgetIntoView(Row, true, EDescendantScrollDestination::IntoView, ScrollPadding);
-	}
-	else if (Here->Button.Get() == ResumeButton)
-	{
-		// Resume sits over the list: the list goes back to its top under it.
-		Body->ScrollToStart();
+		if (BackKey)
+		{
+			BackKey->SetLabel(Prompts[Last].Key.ToUpper(), SettingsPageArt::KeyCapFontSize, SettingsPageArt::KeyCapSpacing);
+		}
+		if (BackWord)
+		{
+			BackWord->SetText(FText::FromString(Prompts[Last].Text.ToUpper()));
+		}
 	}
 }

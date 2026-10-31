@@ -14,7 +14,11 @@ are exactly the scripted spider's; only the parts (one mesh per bone, each movin
   the knee. Tripo's legs are 114-159 cm at this scale and the rig's 230-238, so they stretch along (the coxa and patella
   only a little) and a little across, and each segment takes Spider.py's chitin plate (neck, swell, rim) so the joints
   read. The chelicerae (with their fangs) and the palps: rings round their own lines, unstretched.
-- Bristles (parts_spider_hair.py) as the scripted spider's."""
+- Bristles (parts_spider_hair.py) as the scripted spider's.
+- The look (2026-10-31): Tripo's own paint, colour, roughness and normal, carried onto the same atlas layout as
+  Art/Textures/SpiderTripo (parts_spider_look.py; MI_SpiderBody). The legs: across = stretch ** ACROSS_POWER (thicker:
+  the stretched legs read as thin spikes in the game), Tripo's bends between the joints kept (BEND_KEEP), the coxa
+  Tripo's own girth where it leaves the body. LOOTER_SPIDER_LOOK=0 reuses the maps on disk (check runs)."""
 import math
 import os
 
@@ -22,6 +26,7 @@ import numpy as np
 
 import parts_spider_hair as hair
 import parts_spider_limbs as sl
+import parts_spider_look as look
 import parts_spider_shape as ss
 import parts_spider_shells as sh
 
@@ -31,11 +36,21 @@ STEP = 2.0              # cm between a limb's stations, in the model's pose
 HIP_IN = 6.0            # cm: the femur's tube starts this far inside the body, before Tripo's hip ring
 COXA_STRETCH, PATELLA_STRETCH = 1.1, 1.3
 TROCHANTER = 5.0        # cm past the coxa's narrow point, the femur's own region starts
-ACROSS = (1.0, 1.4)     # the legs' scale across: the square root of their stretch, within these
+ACROSS = (1.0, 1.65)    # the legs' scale across: their stretch to the power ACROSS_POWER, within these
+ACROSS_POWER = 0.75     # (was the square root, within 1.4: legs stretched 1.5-2.6x along came out thin, spiky poles
+                        # in the game, 2026-10-31, and Tripo's painted fur streaked along them like wood grain)
+BEND_KEEP = 0.8         # how much of Tripo's bends between the joints a stretched leg keeps (0: flattened by its
+                        # stretch, as before: the tibia read as one straight spike; 1: every bend's angle kept)
 STATION = 3.5           # cm between a leg's rings along it, in the model's pose ...
 JOINT_STATIONS = (-2.4, -1.2, -0.5, 0.0, 0.6, 1.5)   # ... and these round each joint (cm)
 PLATE = 0.7             # how much of Spider.py's chitin plate (neck, swell, rim) each segment takes on Tripo's radius
 MIN_GAP = 0.4           # cm: the least gap between a leg's rings
+MATERIAL_OUT = None     # MI_SpiderBody on Tripo's paint (parts_spider_look.py), once build() has run
+
+
+def material():
+    """The spider's material once build() has run: the SpiderBody slot on the SpiderTripo set."""
+    return MATERIAL_OUT
 
 
 def log(message):
@@ -89,9 +104,10 @@ def plate_profile(s, bounds, plate):
     return out
 
 
-def build_leg(m_femur, m_tibia, src, V, labels, leg, rig, pole_r, ns_plate):
+def build_leg(m_femur, m_tibia, src, V, labels, leg, rig, pole_r, ns_plate, templates=None):
     """One leg's femur and tibia meshes. rig: (hip, knee, foot) cm; pole_r: the rig's knee pole for it; ns_plate:
-    Spider.py's plate()."""
+    Spider.py's plate(); templates: (femur, tibia) lc.Meshes to take the same tubes where they lay on Tripo's leg
+    (unstretched, for parts_spider_look.py), or None."""
     tree = ss.surface(V, src.F, labels == leg)
     P = ss.leg_line(src, V, labels, leg, SCALE, STEP, tree)
     members = np.nonzero(labels == leg)[0]
@@ -121,7 +137,7 @@ def build_leg(m_femur, m_tibia, src, V, labels, leg, rig, pole_r, ns_plate):
     normal_r = np.cross(knee_r - hip_r, foot_r - knee_r)
     normal_r /= np.linalg.norm(normal_r)
     total = np.linalg.norm(knee_r - hip_r) + np.linalg.norm(foot_r - knee_r)
-    across = float(np.clip(math.sqrt(total / (J['tip'] - start)), *ACROSS))
+    across = float(np.clip((total / (J['tip'] - start)) ** ACROSS_POWER, *ACROSS))
 
     def frame(head, tail, normal, pole):
         y = (tail - head) / np.linalg.norm(tail - head)
@@ -157,7 +173,9 @@ def build_leg(m_femur, m_tibia, src, V, labels, leg, rig, pole_r, ns_plate):
     s = s_new
     R = R * plate_profile(s, [start] + marks + [J['tip']], ns_plate)[:, None]
     keep = s <= J['knee'] + 1e-6
-    C = sl.carry(P[keep], fs, ft, g_f, across)
+    # The centre line's bends scaled up with the stretch (BEND_KEEP of it), the rings' radii only by across.
+    bend = lambda stretch: across + (max(stretch, across) - across) * BEND_KEEP
+    C = sl.carry(P[keep], fs, ft, g_f, bend(L_f / a_k))
     _, top_r, side_r = sl.frames(C, normal_r, pole_r)
     troch = J['coxa'] + TROCHANTER
     sk = s[keep]
@@ -166,9 +184,18 @@ def build_leg(m_femur, m_tibia, src, V, labels, leg, rig, pole_r, ns_plate):
     u_coxa = np.interp(sk, [0.0, J['coxa'], troch], [0.0, 0.7, 1.0])
     u_femur = np.interp(sk, [troch, J['knee']], [0.0, 1.0])
     seam = int(np.searchsorted(sk, troch))
-    sl.tube(m_femur, C, top_r, side_r, R[keep] * across, lambda k, reg: u_coxa[k] if reg == 'coxa' else u_femur[k],
+    # Thickened by across from the coxa's narrow point on; the coxa keeps Tripo's own girth where it leaves the body
+    # (it fits the body's socket, and a thicker back coxa reached into the abdomen in the death curl).
+    girth = np.interp(sk, [start, J['coxa']], [1.0, across])[:, None]
+    sl.tube(m_femur, C, top_r, side_r, R[keep] * girth, lambda k, reg: u_coxa[k] if reg == 'coxa' else u_femur[k],
             'coxa', start='hub', end='round', region_at=lambda k: 'coxa' if k < seam else 'femur')
-    femur = dict(C=C, top=top_r, side=side_r, R=R[keep] * across, U=u_femur)
+    femur = dict(C=C, top=top_r, side=side_r, R=R[keep] * girth, U=u_femur)
+    # Where the same rings lay on Tripo's leg (its own frames, unstretched): the look's template.
+    _, top_t, side_t = sl.frames(P, normal, pole_t)
+    if templates is not None:
+        sl.tube(templates[0], P[keep], top_t[keep], side_t[keep], R[keep],
+                lambda k, reg: u_coxa[k] if reg == 'coxa' else u_femur[k], 'coxa', start='hub', end='round',
+                region_at=lambda k: 'coxa' if k < seam else 'femur')
     # The tibia: from the knee to the claw, the patella a little longer, the claw's tip on the foot bone.
     ts, tt = frame(K, tip, normal, pole_t), frame(knee_r, foot_r, normal_r, pole_r)
     a_p = (_at(P, s, J['patella']) - K) @ ts[2]
@@ -176,7 +203,7 @@ def build_leg(m_femur, m_tibia, src, V, labels, leg, rig, pole_r, ns_plate):
     L_t = np.linalg.norm(foot_r - knee_r)
     g_t = sl.piecewise([(0.0, 0.0), (a_p, a_p * PATELLA_STRETCH), (a_f, L_t)])
     keep = s >= J['knee'] - 1e-6
-    C = sl.carry(P[keep], ts, tt, g_t, across)
+    C = sl.carry(P[keep], ts, tt, g_t, bend(L_t / a_f))
     _, top_r, side_r = sl.frames(C, normal_r, pole_r)
     sk = s[keep]
     U = np.interp(sk, [J['knee'], J['patella'], J['meta'], J['tarsus'], J['tip']], [0.0, 0.13, 0.51, 0.86, 0.985])
@@ -184,6 +211,9 @@ def build_leg(m_femur, m_tibia, src, V, labels, leg, rig, pole_r, ns_plate):
     sl.tube(m_tibia, C[:-1], top_r[:-1], side_r[:-1], R[keep][:-1] * across, U[:-1], 'tibia', start='round', end='tip',
             tip=claw)
     tibia = dict(C=C, top=top_r, side=side_r, R=R[keep] * across, U=U)
+    if templates is not None:
+        sl.tube(templates[1], P[keep][:-1], top_t[keep][:-1], side_t[keep][:-1], R[keep][:-1], U[:-1], 'tibia',
+                start='round', end='tip', tip=tip)
     log(f'leg {leg}: {J["tip"] - start:.0f} cm along (femur {a_k:.0f} -> {L_f:.0f}, tibia {a_f:.0f} -> {L_t:.0f}), '
         f'across {across:.2f}; joints at ' + ', '.join(f'{k} {v - start:.0f}' for k, v in J.items()) +
         f'; the claw {np.linalg.norm(claw - foot_r):.2f} cm off the foot')
@@ -230,25 +260,48 @@ def build(ns):
     Vu = space.U(src.V)
     abdomen_fit = ss.split_abdomen(Vu, labels)
     parts, limbs = {}, {}
+    rep = (lc.Mesh(ATLAS), lc.Mesh(ATLAS))       # the look's templates of the leg whose paint fills the leg regions
     for leg, (suffix, rig, pole) in legs.items():
         parts[f'femur_{suffix}'] = lc.Mesh(ATLAS)
         parts[f'tibia_{suffix}'] = lc.Mesh(ATLAS)
         limbs[f'femur_{suffix}'], limbs[f'tibia_{suffix}'] = build_leg(
-            parts[f'femur_{suffix}'], parts[f'tibia_{suffix}'], src, Vu, labels, leg, rig, pole, ns['plate'])
+            parts[f'femur_{suffix}'], parts[f'tibia_{suffix}'], src, Vu, labels, leg, rig, pole, ns['plate'],
+            templates=rep if leg == look.REP_LEG else None)
     Vc = space.stretch(Vu)
     parts['body'], parts['head'] = lc.Mesh(ATLAS), lc.Mesh(ATLAS)
     face = sh.cephalothorax(parts['body'], parts['head'], src, Vc, labels)
     parts['abdomen'] = lc.Mesh(ATLAS)
     belly = sh.abdomen(parts['abdomen'], src, Vu, labels, abdomen_fit, space)
+    shifts = {}
     for label, bone in ((ss.CHEL_L, 'fang_l'), (ss.CHEL_R, 'fang_r'), (ss.PALP_L, 'palp_l'), (ss.PALP_R, 'palp_r')):
         members = labels == label
         root = Vu[members].mean(0)
         shift = space.stretch(root) - root
+        shifts[label] = shift
         parts[bone] = lc.Mesh(ATLAS)
         P, tip = build_limb(parts[bone], src, Vu, labels, label, shift=shift)
         if bone.startswith('fang'):
             log(f'{bone}: its top {np.round(P[0], 1).tolist()}, its pivot {np.round(bones[bone][0], 1).tolist()}, '
                 f'its fang tip {np.round(tip, 1).tolist()}')
+    # Tripo's own paint onto the atlas (parts_spider_look.py), before the eyes take their solid patch on the head.
+    global MATERIAL_OUT
+    if os.environ.get('LOOTER_SPIDER_LOOK', '1') == '0' and os.path.exists(look.lt.texture_path(look.SET, 'BC')):
+        log('the look is kept as written (LOOTER_SPIDER_LOOK=0)')
+        MATERIAL_OUT = look.material()
+    else:
+        paint = look.Look(src)
+        on = lambda *keep: np.isin(labels[src.F], keep).all(1)
+        paint.carry('carapace', parts['body'], Vc, on(ss.CARAPACE))
+        paint.carry('head', parts['head'], Vc, on(ss.CARAPACE))
+        paint.carry('abdomen', parts['abdomen'], Vu + belly['shift'], on(ss.ABDOMEN))
+        paint.carry('femur and coxa', rep[0], Vu, on(look.REP_LEG))
+        paint.carry('tibia', rep[1], Vu, on(look.REP_LEG))
+        paint.carry('chelicera', parts['fang_l'], Vu + shifts[ss.CHEL_L], on(ss.CHEL_L))
+        paint.carry('palp', parts['palp_l'], Vu + shifts[ss.PALP_L], on(ss.PALP_L))
+        paint.solids(ATLAS)
+        MATERIAL_OUT = paint.write()
+    for m in rep:
+        m.bm.free()
     sh.eyes(parts['head'], face)
     # The bristles, as the scripted spider's: on the legs, combed back over the carapace (the body's part of it) and the
     # abdomen's upper side.

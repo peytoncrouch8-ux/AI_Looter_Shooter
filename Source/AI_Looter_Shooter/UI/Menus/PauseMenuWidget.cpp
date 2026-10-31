@@ -1,96 +1,112 @@
-// UPauseMenuWidget: the pause menu's list over the paused game (the user, 2026-10-29 night: Esc opens a menu of menus, not
-// the settings; Resume Game at the top, Save & Quit at the bottom). This file puts it together in the settings menu's
-// round 3 look (its pieces: PauseMenuPieces.cpp), writes its words and says what was picked. PauseMenuNav.cpp drives it by
-// keys; PauseMenuMotion.cpp moves it.
+// UPauseMenuWidget: the full-screen pause hub (E2 "Big Dial"). This file holds the options' words, puts the hub together
+// on its stage (the design space of PauseMenuLayout, fitted to the screen), opens it and says what was picked. Its pieces
+// are built in PauseMenuPieces.cpp and PauseMenuCards.cpp, driven by keys in PauseMenuNav.cpp, moved in
+// PauseMenuMotion.cpp.
 
 #include "UI/Menus/PauseMenuWidget.h"
-#include "UI/Menus/SettingsMenuArt.h"
-#include "UI/Menus/SettingsMenuParts.h"
+#include "UI/Menus/PauseMenuArt.h"
+#include "UI/Menus/PauseMenuLayout.h"
 #include "UI/Style/LooterButton.h"
+#include "UI/Style/LooterReticleArt.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Areas/AreaDefinition.h"
 #include "Areas/AreaRulesSubsystem.h"
-#include "Audio/LooterSound.h"
-#include "Bestiary/Ledger.h"
-#include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/SessionSubsystem.h"
 #include "Blueprint/WidgetTree.h"
-#include "Components/Border.h"
 #include "Components/CanvasPanel.h"
-#include "Components/HorizontalBox.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
+#include "Components/SizeBoxSlot.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
-#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Widgets/Layout/Anchors.h"
 
-// The settings menu's sizes (the plate's padding, the ledger's margin), so the two read as one.
-using namespace SettingsMenu;
+using namespace PauseMenuLayout;
 
 namespace
 {
-	/** Every row's button carries this action, its Index the row (EPauseMenuItem). */
-	const FName ActionPick(TEXT("PausePick"));
-	const FName ActionSaveQuit(TEXT("SaveQuit"));
-
-	const EPauseMenuItem RowOrder[] = {
+	const EPauseMenuItem ItemRows[] = {
 		EPauseMenuItem::Resume,
-		EPauseMenuItem::Inventory,
-		EPauseMenuItem::Missions,
-		EPauseMenuItem::Map,
-		EPauseMenuItem::Bestiary,
-		EPauseMenuItem::Embers,
 		EPauseMenuItem::Settings,
 		EPauseMenuItem::SaveQuit,
+		EPauseMenuItem::QuitGame,
 	};
+	static_assert(UE_ARRAY_COUNT(ItemRows) == NumRows, "One row of the layout for each option");
 
-	/** The few words at a row's right: what is behind it. */
-	const TCHAR* DetailOf(EPauseMenuItem Item)
-	{
-		switch (Item)
-		{
-		case EPauseMenuItem::Inventory: return TEXT("Your guns and backpack");
-		case EPauseMenuItem::Missions:  return TEXT("Active, open and done");
-		case EPauseMenuItem::Map:       return TEXT("The area, pins, fast travel");
-		case EPauseMenuItem::Bestiary:  return TEXT("Everything you have met");
-		case EPauseMenuItem::Embers:    return TEXT("Your ember powers");
-		case EPauseMenuItem::Settings:  return TEXT("Graphics, audio, interface, controls");
-		default:                        return TEXT("");
-		}
-	}
+	/** The backdrop's field and its texture (PauseMenuArt::Backdrop: 96 x 54 at 1 px a unit, stretched over the screen). */
+	const FVector2D BackdropField(96.f, 54.f);
 }
+
+// ---------------------------------------------------------------------------
+// The options' words
+// ---------------------------------------------------------------------------
 
 TConstArrayView<EPauseMenuItem> UPauseMenuWidget::ItemOrder()
 {
-	return MakeArrayView(RowOrder);
+	return MakeArrayView(ItemRows);
 }
 
-FString UPauseMenuWidget::ItemWord(EPauseMenuItem Item, bool bLedger)
+FString UPauseMenuWidget::ItemWord(EPauseMenuItem Item)
 {
 	switch (Item)
 	{
-	case EPauseMenuItem::Resume:    return TEXT("RESUME GAME");
-	case EPauseMenuItem::Inventory: return TEXT("INVENTORY");
-	case EPauseMenuItem::Missions:  return TEXT("MISSIONS");
-	case EPauseMenuItem::Map:       return TEXT("MAP");
-	case EPauseMenuItem::Bestiary:  return FString(Ledger::BookName(bLedger)).ToUpper();
-	case EPauseMenuItem::Embers:    return TEXT("EMBERS");
-	case EPauseMenuItem::Settings:  return TEXT("SETTINGS");
-	case EPauseMenuItem::SaveQuit:  return TEXT("SAVE & QUIT");
-	default:                        return FString();
+	case EPauseMenuItem::Resume:   return TEXT("BACK TO GAME");
+	case EPauseMenuItem::Settings: return TEXT("SETTINGS");
+	case EPauseMenuItem::SaveQuit: return TEXT("SAVE & QUIT");
+	case EPauseMenuItem::QuitGame: return TEXT("QUIT GAME");
+	default:                       return FString();
 	}
 }
 
-void UPauseMenuWidget::Open(EPauseMenuItem Focus)
+FString UPauseMenuWidget::ItemHelp(EPauseMenuItem Item)
+{
+	// The mockup's words (the contract).
+	switch (Item)
+	{
+	case EPauseMenuItem::Resume:   return TEXT("Close the menu and pick up where you stopped.");
+	case EPauseMenuItem::Settings: return TEXT("Graphics, audio, interface and controls.");
+	case EPauseMenuItem::SaveQuit: return TEXT("Save and return to the main menu.");
+	case EPauseMenuItem::QuitGame: return TEXT("Save and close the game.");
+	default:                       return FString();
+	}
+}
+
+FString UPauseMenuWidget::ItemFlavor(EPauseMenuItem Item, bool bSession)
+{
+	switch (Item)
+	{
+	case EPauseMenuItem::Resume:   return TEXT("The world waits while you're here.");
+	case EPauseMenuItem::Settings: return TEXT("Changes apply as you make them.");
+	case EPauseMenuItem::SaveQuit:
+	case EPauseMenuItem::QuitGame:
+		// Played without a session (Looter.PlayLevel, a level from the editor) nothing is written: it mustn't say it is.
+		return bSession ? TEXT("Your session is saved first.") : TEXT("No session is played: nothing is saved.");
+	default:
+		return FString();
+	}
+}
+
+bool UPauseMenuWidget::SavesFirst(EPauseMenuItem Item)
+{
+	return Item == EPauseMenuItem::SaveQuit || Item == EPauseMenuItem::QuitGame;
+}
+
+// ---------------------------------------------------------------------------
+// Opening
+// ---------------------------------------------------------------------------
+
+void UPauseMenuWidget::Open(EPauseMenuItem Focus, bool bReturning)
 {
 	SetIsFocusable(true);
 	bLeaving = false;
 	OpenFocus = Focus;
+	bOpenReturning = bReturning;
 	StopNavHold();
 	NavStick = FVector2D::ZeroVector;
 	NavStickMove = MenuNav::EMove::None;
@@ -108,6 +124,7 @@ void UPauseMenuWidget::Open(EPauseMenuItem Focus)
 void UPauseMenuWidget::ApplyOpen()
 {
 	RefreshWords();
+	RefreshCards();
 	RebuildNavigation(GetItemButton(OpenFocus));
 	RefreshNavLook();
 	BeginOpenMotion();
@@ -115,21 +132,54 @@ void UPauseMenuWidget::ApplyOpen()
 
 ULooterButton* UPauseMenuWidget::GetItemButton(EPauseMenuItem Item) const
 {
-	const FPauseMenuLine* Found = Lines.FindByPredicate([Item](const FPauseMenuLine& Line) { return Line.Item == Item; });
-	return Found ? Found->Button.Get() : nullptr;
+	const FPauseMenuOption* Option = FindOption(Item);
+	return Option ? Option->Button.Get() : nullptr;
 }
 
 FString UPauseMenuWidget::GetShownWord(EPauseMenuItem Item) const
 {
-	const FPauseMenuLine* Found = Lines.FindByPredicate([Item](const FPauseMenuLine& Line) { return Line.Item == Item; });
-	return Found && Found->Word.IsValid() ? Found->Word->GetText().ToString() : ItemWord(Item, false);
+	const FPauseMenuOption* Option = FindOption(Item);
+	return Option && Option->Word.IsValid() ? Option->Word->GetText().ToString() : ItemWord(Item);
+}
+
+FPauseMenuOption* UPauseMenuWidget::FindOption(EPauseMenuItem Item)
+{
+	return Options.FindByPredicate([Item](const FPauseMenuOption& Option) { return Option.Item == Item; });
+}
+
+const FPauseMenuOption* UPauseMenuWidget::FindOption(EPauseMenuItem Item) const
+{
+	return Options.FindByPredicate([Item](const FPauseMenuOption& Option) { return Option.Item == Item; });
+}
+
+const FPauseMenuOption* UPauseMenuWidget::FindOption(const ULooterButton* Button) const
+{
+	return Button ? Options.FindByPredicate([Button](const FPauseMenuOption& Option) { return Option.Button.Get() == Button; }) : nullptr;
 }
 
 void UPauseMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	FitStage();
 	AdvanceNav(InDeltaTime);
 	AdvanceLook(InDeltaTime);
+}
+
+void UPauseMenuWidget::FitStage()
+{
+	// 1080 tall; as wide as the screen's shape asks, never under 1920 (a narrower screen scales the whole down instead, in
+	// the scale box). A wider one keeps the dial on the left edge and the cards on the right.
+	const FVector2D Size(GetCachedGeometry().GetLocalSize());
+	if (!StageBox || Size.X < 1.0 || Size.Y < 1.0)
+	{
+		return;
+	}
+	const float Wanted = FMath::Max(DesignWidth, static_cast<float>(DesignHeight * Size.X / Size.Y));
+	if (FMath::Abs(Wanted - StageWidth) > 0.5f)
+	{
+		StageWidth = Wanted;
+		StageBox->SetWidthOverride(Wanted);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -144,140 +194,146 @@ TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
 		UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Root"));
 		WidgetTree->RootWidget = Root;
 
-		// The dimming over the paused game; it takes the clicks off the game.
-		UBorder* Dimmer = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Dimmer"));
-		Dimmer->SetBrush(RectBrush(Color::Backdrop()));
-		Dimmer->SetVisibility(ESlateVisibility::Visible);
-		MarkBackground(Dimmer);
-		UOverlaySlot* DimmerSlot = Root->AddChildToOverlay(Dimmer);
-		DimmerSlot->SetHorizontalAlignment(HAlign_Fill);
-		DimmerSlot->SetVerticalAlignment(VAlign_Fill);
+		// The paused game dimmed, darker to the left, its edges in a vignette (a background). It takes the clicks off the game.
+		Backdrop = MakeImage(WidgetTree, PaintedIconBrush(TEXT("PauseHubBackdrop"), PauseMenuArt::Backdrop(), 1.f, BackdropField));
+		Backdrop->SetVisibility(ESlateVisibility::Visible);
+		MarkBackground(Backdrop);
+		UOverlaySlot* BackdropSlot = Root->AddChildToOverlay(Backdrop);
+		BackdropSlot->SetHorizontalAlignment(HAlign_Fill);
+		BackdropSlot->SetVerticalAlignment(VAlign_Fill);
 
-		UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		auto Add = [Column](UWidget* Child, float Top, bool bFill = false)
-		{
-			UVerticalBoxSlot* ChildSlot = Column->AddChildToVerticalBox(Child);
-			ChildSlot->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
-			if (bFill)
-			{
-				ChildSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			}
-		};
+		// The stage: the design space, scaled down to fit a screen narrower than 16:9 (FitStage widens it for a wider one).
+		Stage = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Stage"));
+		Stage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		StageWidth = DesignWidth;
+		StageBox = MakeSized(WidgetTree, Stage, DesignWidth, DesignHeight);
+		UScaleBox* Fit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
+		Fit->SetStretch(EStretch::ScaleToFit);
+		Fit->SetStretchDirection(EStretchDirection::DownOnly);
+		Fit->SetContent(StageBox);
+		Fit->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		UOverlaySlot* FitSlot = Root->AddChildToOverlay(Fit);
+		FitSlot->SetHorizontalAlignment(HAlign_Fill);
+		FitSlot->SetVerticalAlignment(VAlign_Fill);
 
-		Lines.Reset();
+		// Back to front: the title and the dial, the options over the arc, their callouts, the cards, the keys.
+		Options.Reset();
 		ItemButtons.Reset();
-		// GAME PAUSED beside the halo, RESUME GAME in its reticle under it: the top of the list, as the user asked.
-		Add(MakeHeader(), 0.f);
-		Add(MakeResumeRow(), 14.f);
-
-		// The ledger: the screens to go to, numbered in a margin ruled off by the gold double line (c1). Far enough down that
-		// the first row's number clears the halo's lowest ticks.
-		UOverlay* LedgerBox = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		USettingsMenuArt* Margin = USettingsMenuArt::Make(WidgetTree, ESettingsArt::MarginRule);
-		Margin->SetMarginX(LedgerMargin);
-		FillOverlaySlot(LedgerBox->AddChildToOverlay(Margin));
-		UVerticalBox* Rows = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		int32 Number = 1;
-		for (const EPauseMenuItem Item : RowOrder)
+		MakeTitle();
+		MakeDial();
+		for (int32 Row = 0; Row < NumRows; ++Row)
 		{
-			if (Item != EPauseMenuItem::Resume && Item != EPauseMenuItem::SaveQuit)
-			{
-				Rows->AddChildToVerticalBox(MakeLedgerRow(Item, Number++, DetailOf(Item)));
-			}
+			MakeOption(ItemRows[Row], Row);
 		}
-		FillOverlaySlot(LedgerBox->AddChildToOverlay(Rows));
-		Add(LedgerBox, 30.f);
-
-		// Save & Quit's stamp at the bottom, the serial beside it (the room left over sits above them).
-		Add(MakeSized(WidgetTree, nullptr, 0.f), 0.f, true);
-		Add(MakeFooter(), 8.f);
-
-		// The plate: its glass (a background), its double trim and rivets, its contents, and the free art over them.
-		Plate = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		USettingsMenuArt* Glass = USettingsMenuArt::Make(WidgetTree, ESettingsArt::PlateFill);
-		MarkBackground(Glass);
-		FillOverlaySlot(Plate->AddChildToOverlay(Glass));
-		FillOverlaySlot(Plate->AddChildToOverlay(USettingsMenuArt::Make(WidgetTree, ESettingsArt::PlateLines)));
-		FillOverlaySlot(Plate->AddChildToOverlay(Column), FMargin(PlatePadX, PlatePadTop, PlatePadX, PlatePadBottom));
-		PlateArt = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-		PlateArt->SetVisibility(ESlateVisibility::HitTestInvisible);
-		FillOverlaySlot(Plate->AddChildToOverlay(PlateArt));
-		MakePlateArt();
-
-		// The plate and the hollow keys under it, in the middle of the screen; it drops in as it opens.
-		PromptBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		Stack->AddChildToVerticalBox(MakeSized(WidgetTree, Plate, PauseMenu::PlateWidth, PauseMenu::PlateHeight));
-		UVerticalBoxSlot* PromptSlot = Stack->AddChildToVerticalBox(PromptBar);
-		PromptSlot->SetHorizontalAlignment(HAlign_Center);
-		PromptSlot->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
-		Panel = MakeSized(WidgetTree, Stack, 0.f);
-		UOverlaySlot* PanelSlot = Root->AddChildToOverlay(Panel);
-		PanelSlot->SetHorizontalAlignment(HAlign_Center);
-		PanelSlot->SetVerticalAlignment(VAlign_Center);
+		for (FPauseMenuOption& Option : Options)
+		{
+			MakeCallout(Option);
+		}
+		MakeHeroCard();
+		MakeMissionCard();
+		MakeSessionCard();
+		MakeKeys();
 
 		ApplyOpen();
 	}
 	return Super::RebuildWidget();
 }
 
-ULooterButton* UPauseMenuWidget::MakeItemButton(UWidget* Content, EPauseMenuItem Item)
+FSlateBrush UPauseMenuWidget::PictureBrush(const TCHAR* Base, const LooterUI::FPaintedIcon& Picture, float Resolution) const
 {
-	ULooterButton* Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
-	const bool bQuit = Item == EPauseMenuItem::SaveQuit;
-	Button->SetupContent(Content, bQuit ? ActionSaveQuit : ActionPick, static_cast<int32>(Item), LooterUI::EButtonKind::Bare);
-	// Resume is the page's close (the HUD plays the same cue in the same moment, heard as one, as the settings' Resume did);
-	// Save & Quit sounds as the settings' stamp did; the rest click, and the HUD opens their screen with its own sound.
-	if (Item == EPauseMenuItem::Resume)
+	const FName Name(*FString::Printf(TEXT("%s_%dx%d"), Base, FMath::RoundToInt32(Picture.ViewBox.X * 10.0), FMath::RoundToInt32(Picture.ViewBox.Y * 10.0)));
+	return LooterUI::PaintedIconBrush(Name, Picture, Resolution > 0.f ? Resolution : PictureResolution, Picture.ViewBox);
+}
+
+UImage* UPauseMenuWidget::MakePicture(const TCHAR* Base, const LooterUI::FPaintedIcon& Picture, float Resolution)
+{
+	return LooterUI::MakeImage(WidgetTree, PictureBrush(Base, Picture, Resolution));
+}
+
+USizeBox* UPauseMenuWidget::MakeBand(UWidget* Content, float Width, float Height, EHorizontalAlignment Across)
+{
+	USizeBox* Box = LooterUI::MakeSized(WidgetTree, Content, Width, Height);
+	if (USizeBoxSlot* BoxSlot = Cast<USizeBoxSlot>(Box->GetContentSlot()))
 	{
-		Button->ClickCue = LooterSoundCue::Close;
+		BoxSlot->SetHorizontalAlignment(Across);
+		BoxSlot->SetVerticalAlignment(VAlign_Center);
+	}
+	Box->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	return Box;
+}
+
+UCanvasPanelSlot* UPauseMenuWidget::Put(UCanvasPanel* Canvas, UWidget* Widget, const FVector2D& Position, const FVector2D& Size, bool bRight)
+{
+	UCanvasPanelSlot* PieceSlot = Canvas->AddChildToCanvas(Widget);
+	const bool bOwnSize = Size.IsNearlyZero();
+	PieceSlot->SetAutoSize(bOwnSize);
+	if (!bOwnSize)
+	{
+		PieceSlot->SetSize(Size);
+	}
+	if (bRight)
+	{
+		// Kept to the right edge: a wider stage moves it with the edge.
+		PieceSlot->SetAnchors(FAnchors(1.f, 0.f));
+		PieceSlot->SetPosition(FVector2D(Position.X - DesignWidth, Position.Y));
 	}
 	else
 	{
-		Button->ClickCue = ULooterButton::ClickCueFor(bQuit ? ActionSaveQuit : ActionPick,
-			bQuit ? LooterUI::EButtonKind::Danger : LooterUI::EButtonKind::Normal);
+		PieceSlot->SetPosition(Position);
 	}
-	Button->OnButtonClicked.BindUObject(this, &UPauseMenuWidget::HandleButton);
-	Button->OnButtonHovered.BindUObject(this, &UPauseMenuWidget::HandleButtonHovered);
-	ItemButtons.Add(Button);
-	return Button;
+	return PieceSlot;
 }
+
+UCanvasPanel* UPauseMenuWidget::MakeGroup(const FVector2D& Position, const FVector2D& Size, bool bRight)
+{
+	UCanvasPanel* Group = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+	Group->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	Put(Stage, Group, Position, Size, bRight);
+	return Group;
+}
+
+UWidget* UPauseMenuWidget::MakeShape(const TCHAR* Base, const LooterUI::FPaintedIcon& Glass, const LooterUI::FPaintedIcon& Lines, const FVector2D& Size)
+{
+	// The glass under (a background: the UI transparency fades it), the lines over; both reach Pad past the box.
+	UCanvasPanel* Shape = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+	Shape->SetVisibility(ESlateVisibility::HitTestInvisible);
+	const FVector2D Corner(-LooterReticle::Pad, -LooterReticle::Pad);
+	UImage* GlassImage = MakePicture(*FString::Printf(TEXT("%sGlass"), Base), Glass);
+	LooterUI::MarkBackground(GlassImage);
+	Put(Shape, GlassImage, Corner, FVector2D::ZeroVector);
+	Put(Shape, MakePicture(*FString::Printf(TEXT("%sLines"), Base), Lines), Corner, FVector2D::ZeroVector);
+	return LooterUI::MakeSized(WidgetTree, Shape, Size.X, Size.Y);
+}
+
+// ---------------------------------------------------------------------------
+// Words
+// ---------------------------------------------------------------------------
 
 void UPauseMenuWidget::RefreshWords()
 {
-	// The session played (none from Looter.PlayLevel: 0) and the area's name, as the map page names it; the player's level.
+	// The area's name, as the map page names it.
 	const UWorld* World = GetWorld();
-	const USessionSubsystem* Sessions = USessionSubsystem::Get(this);
-	const int32 Session = Sessions && Sessions->IsPlayingSession() ? Sessions->GetActiveSession() + 1 : 0;
 	const UAreaRulesSubsystem* Rules = World ? World->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
 	const UAreaDefinition* Area = Rules ? Rules->GetArea() : nullptr;
 	const FString AreaName = Area && !Area->DisplayName.IsEmpty() ? Area->DisplayName.ToString()
 		: (World ? USessionSubsystem::AreaName(USessionSubsystem::MapOf(World)) : FString());
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	const UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
-	const int32 Level = Progression ? Progression->GetLevel() : 1;
+	if (AreaText)
+	{
+		AreaText->SetText(FText::FromString(AreaName.ToUpper()));
+	}
 
-	if (AreaPlate)
+	// The saves' flavor lines say whether anything is written (no session: nothing is).
+	const USessionSubsystem* Sessions = USessionSubsystem::Get(this);
+	const bool bSession = Sessions && Sessions->IsPlayingSession();
+	for (FPauseMenuOption& Option : Options)
 	{
-		const FString Words = SettingsMenuArt::PlateText(Session, AreaName);
-		AreaPlate->SetLabel(Words, 13, 160);
-		AreaPlate->SetVisibility(Words.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
-	}
-	if (SerialText)
-	{
-		SerialText->SetText(FText::FromString(SettingsMenuArt::SerialText(Session, Level)));
-	}
-	if (Stamp)
-	{
-		Stamp->SetLabel(ItemWord(EPauseMenuItem::SaveQuit, false), 26, 230);
-	}
-	// The bestiary's row reads LEDGER once Sexton has handed his book over, as its tab does.
-	const bool bLedger = Ledger::IsOpenIn(this);
-	for (const FPauseMenuLine& Line : Lines)
-	{
-		if (UTextBlock* Word = Line.Word.Get())
+		if (UTextBlock* Word = Option.Word.Get())
 		{
-			Word->SetText(FText::FromString(ItemWord(Line.Item, bLedger)));
+			Word->SetText(FText::FromString(ItemWord(Option.Item)));
+		}
+		if (UTextBlock* Flavor = Option.CalloutFlavor.Get())
+		{
+			Flavor->SetText(FText::FromString(ItemFlavor(Option.Item, bSession)));
 		}
 	}
 }
@@ -301,13 +357,15 @@ void UPauseMenuWidget::Choose(EPauseMenuItem Item)
 		return;
 	}
 	StopNavHold();
-	if (Item == EPauseMenuItem::SaveQuit)
+	if (SavesFirst(Item))
 	{
-		// The level is on its way out: the stamp says so, and nothing more is taken meanwhile.
+		// The level is on its way out: its tag says what's happening, and nothing more is taken meanwhile.
 		bLeaving = true;
-		if (Stamp)
+		const USessionSubsystem* Sessions = USessionSubsystem::Get(this);
+		const bool bSession = Sessions && Sessions->IsPlayingSession();
+		if (FPauseMenuOption* Option = FindOption(Item); Option && Option->Word.IsValid())
 		{
-			Stamp->SetLabel(TEXT("SAVING..."), 26, 230);
+			Option->Word->SetText(FText::FromString(bSession ? TEXT("SAVING...") : Item == EPauseMenuItem::QuitGame ? TEXT("CLOSING...") : TEXT("LEAVING...")));
 		}
 	}
 	OnChoice.ExecuteIfBound(Item);

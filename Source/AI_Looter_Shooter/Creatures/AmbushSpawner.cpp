@@ -5,6 +5,8 @@
 #include "Creatures/EncounterSubsystem.h"
 #include "Creatures/HuntingGround.h"
 #include "Creatures/PackRules.h"
+#include "Creatures/SpiderAmbushRules.h"
+#include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
@@ -35,6 +37,17 @@ AAmbushSpawner::AAmbushSpawner()
 {
 	// Sprung, they come at once.
 	bHuntOnSpawn = true;
+}
+
+void AAmbushSpawner::BeginPlay()
+{
+	// Lurkers wait on their perches for the player to pass (each springs on its own: ASpiderCreature::BeginLurk), so they're
+	// never set on the player as they're brought out, nor recalled as stragglers out of a fight they haven't joined.
+	if (Entrance == EAmbushEntrance::Lurk)
+	{
+		bHuntOnSpawn = false;
+	}
+	Super::BeginPlay();
 }
 
 bool AAmbushSpawner::IsOnAmbushGround(const FVector& Point) const
@@ -85,21 +98,28 @@ void AAmbushSpawner::OnCreatureSpawned(ACreatureBase& Creature)
 	switch (Entrance)
 	{
 	case EAmbushEntrance::Rise:
-		// Out of the ground where it stands, its shroud's ends first, shot through until it's mostly there (as Abel's adds).
+	case EAmbushEntrance::RiseAround:
 		if (AUnpaidCreature* Unpaid = Cast<AUnpaidCreature>(&Creature))
 		{
-			Unpaid->RiseIn();
+			// Out of the ground, staggered across the pack: the ground stirring over each first, then a hand, the haul and the
+			// stand, each with its own sounds (UnpaidCreatureRise.cpp); where it stands, or round the player who sprang it.
+			const UEncounterSubsystem* Encounters = GetEncounters();
+			Unpaid->RiseAmbush(Encounters ? Encounters->GetPlayer() : nullptr, Entrance == EAmbushEntrance::RiseAround, RiseRadius);
 		}
 		else
 		{
 			// Not one of the dead: out of the ground its kind's way (a spider climbing out of the dirt), if it's seen.
 			Creature.PlayEntranceIfSeen();
+			LooterSound::PlayAt(this, RiseCue, Creature.GetActorLocation());
 		}
-		LooterSound::PlayAt(this, RiseCue, Creature.GetActorLocation());
 		break;
 
 	case EAmbushEntrance::Drop:
 		Drop(Creature);
+		break;
+
+	case EAmbushEntrance::Lurk:
+		SetOnPerch(Creature);
 		break;
 
 	default:
@@ -136,4 +156,76 @@ void AAmbushSpawner::Drop(ACreatureBase& Creature) const
 		Movement->SetMovementMode(MOVE_Falling);
 	}
 	LooterSound::PlayAttached(DropCue, Creature.GetRootComponent());
+}
+
+void AAmbushSpawner::SetOnPerch(ACreatureBase& Creature)
+{
+	ASpiderCreature* Spider = Cast<ASpiderCreature>(&Creature);
+	if (!Spider || FSpiderLurkTuning::Live().Enabled == 0)
+	{
+		// Not a spider, or the lurk turned off (Looter.Spider.Lurk 0): it drops in and comes for the player at once.
+		if (Spider)
+		{
+			Drop(Creature);
+		}
+		else
+		{
+			Creature.PlayEntranceIfSeen();
+		}
+		const UEncounterSubsystem* Encounters = GetEncounters();
+		if (APawn* Player = Encounters ? Encounters->GetPlayer() : nullptr)
+		{
+			Creature.AlertTo(Player);
+		}
+		return;
+	}
+	// The nearest free perch to where it was spawned (its spot is the ground under its perch).
+	PerchHolders.SetNum(Perches.Num());
+	int32 Best = INDEX_NONE;
+	double BestDistance = TNumericLimits<double>::Max();
+	for (int32 Index = 0; Index < Perches.Num(); ++Index)
+	{
+		const ACreatureBase* Holder = PerchHolders[Index].Get();
+		if (Holder && !Holder->IsDead() && Holder != &Creature)
+		{
+			continue;
+		}
+		const double Distance = FVector::DistSquared2D(Perches[Index].Spot, Creature.GetActorLocation());
+		if (Distance < BestDistance)
+		{
+			BestDistance = Distance;
+			Best = Index;
+		}
+	}
+	if (Best == INDEX_NONE)
+	{
+		// More spiders than perches: it lurks crouched on the ground where it stands, as still.
+		FSpiderPerchSpot Ground;
+		Ground.Kind = ESpiderPerchKind::Ledge;
+		Ground.Spot = Creature.GetActorLocation();
+		Ground.FaceYaw = static_cast<float>(Creature.GetActorRotation().Yaw);
+		Spider->BeginLurk(Ground, this);
+		return;
+	}
+	PerchHolders[Best] = &Creature;
+	Spider->BeginLurk(Perches[Best], this);
+}
+
+void AAmbushSpawner::NoteLurkerSprang(const ASpiderCreature& Spider, APawn* Prey)
+{
+	const FSpiderLurkTuning Tuning = FSpiderLurkTuning::Live();
+	for (ACreatureBase* Each : GetAliveCreatures())
+	{
+		ASpiderCreature* Mate = Cast<ASpiderCreature>(Each);
+		if (!Mate || Mate == &Spider || Mate->GetLurkPhase() != ESpiderLurkPhase::Perched)
+		{
+			continue;
+		}
+		// Only those who can reach the player come now; the rest keep waiting for them to pass.
+		if (Prey && FVector::Dist(Mate->GetActorLocation(), Prey->GetActorLocation()) > Tuning.MateReach * Mate->GetSizeScale())
+		{
+			continue;
+		}
+		Mate->NoteMateSprang(Prey, SpiderAmbushRules::MateDelay(FMath::FRand(), Tuning));
+	}
 }

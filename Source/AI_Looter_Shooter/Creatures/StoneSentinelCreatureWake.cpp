@@ -1,12 +1,14 @@
 // AStoneSentinelCreature's sleep and waking: a statue on its plinth (held passive, no tag, no traits), woken by a player
-// within WakeDistance or a shot; it cracks loose and grinds round to face them while its brain is held, then fights. Calm
-// again by its plinth, it climbs back on and is a statue once more, whole. Its death's crumble is timed here too.
+// within WakeDistance or a shot; it cracks loose, stretches free of the years and grinds round to face them while its brain
+// is held, drops into its stance with a thud, then fights. Calm again by its plinth, it climbs back on and is a statue once
+// more, whole. Its death's crumble is timed here too.
 
 #include "Creatures/StoneSentinelCreature.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Audio/LooterSoundCues.h"
 #include "Audio/LooterSoundRules.h"
+#include "Bosses/BossCameraShake.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/GravemotherFX.h"
 #include "Components/CapsuleComponent.h"
@@ -23,6 +25,8 @@ namespace
 	constexpr float GritRate = 5.f;
 	/** Climbing back on its plinth it rises this much over the straight line (cm, at size 1): a step up, not a glide. */
 	constexpr float SettleLift = 30.f;
+	/** The share of its waking at which it drops into its stance (StoneSentinelRules::WakePoseAt's drop ends with it). */
+	constexpr float StanceAt = 0.96f;
 }
 
 void AStoneSentinelCreature::SetPhase(EStoneSentinelPhase NewPhase)
@@ -55,8 +59,12 @@ void AStoneSentinelCreature::Wake(APawn* By)
 	bShowsHealthTag = true;
 	// Its tier's traits come on as it wakes: a ward's cage forms round the stone as it cracks loose.
 	ShowTraits(true);
-	// Its brain waits out the waking (it stands, turning): no chase or slam until it's free of the stone.
+	// Its brain waits out the waking (it stands, turning): no chase or slam until it's free of the stone. Its other moves
+	// come ready a moment after it's loose (their first delays), so its first blow is a slam or a short wait.
 	HoldBrain(Tuning.WakeSeconds);
+	bStanceTaken = false;
+	ShockReadyIn = FMath::Max(ShockReadyIn, ShockTuning.FirstDelay);
+	BoulderReadyIn = FMath::Max(BoulderReadyIn, BoulderTuning.FirstDelay);
 	if (By)
 	{
 		// As if it had been hurt by them: a hunt, its bestiary page open (a shot's hunt follows from the hit itself).
@@ -66,13 +74,13 @@ void AStoneSentinelCreature::Wake(APawn* By)
 	// The stone cracks loose: its cue, chips and dust bursting off it, the dust of the years shaken down round its feet.
 	const float Scale = GetSizeScale();
 	const FVector Middle = GetActorLocation();
-	LooterSound::PlayAttached(FName(LooterSoundCue::Sentinel::Wake), GetRootComponent(), NAME_None, 1.f, LooterSoundRules::PitchForSize(Scale));
+	LooterSound::PlayAttached(FName(StoneSentinelCue::Wake), GetRootComponent(), NAME_None, 1.f, LooterSoundRules::PitchForSize(Scale));
 	ThrowChips(Middle + FVector(0.0, 0.0, 50.0 * Scale), FVector::UpVector, Tuning.WakeChips, 260.f, 5.f, 14.f);
-	StoneDust(Middle + FVector(0.0, 0.0, 60.0 * Scale), 5, 70.f * Scale, 40.f * Scale);
-	StoneDust(GetFeet(), 6, 100.f * Scale, 70.f * Scale, /*bFloor*/ true);
+	StoneDust(Middle + FVector(0.0, 0.0, 60.0 * Scale), 3, 70.f * Scale, 40.f * Scale);
+	StoneDust(GetFeet(), 3, 100.f * Scale, 70.f * Scale, /*bFloor*/ true);
 	if (UGravemotherFX* Effects = UGravemotherFX::Get(this))
 	{
-		Effects->Chunks(EGraveChunk::StoneChip, Middle, FVector::UpVector, 6, 300.f, 0.8f);
+		Effects->Chunks(EGraveChunk::StoneChip, Middle, FVector::UpVector, 4, 300.f, 0.7f);
 	}
 	UE_LOG(LogLooter, Log, TEXT("%s wakes%s."), *GetName(), By ? *FString::Printf(TEXT(" for %s"), *By->GetName()) : TEXT(" (shot)"));
 }
@@ -129,12 +137,32 @@ void AStoneSentinelCreature::TickWaking(float DeltaSeconds)
 		const float Scale = GetSizeScale();
 		StoneDust(GetActorLocation() + FVector(0.0, 0.0, FMath::FRandRange(-40.f, 80.f) * Scale), 1, 35.f * Scale, 25.f * Scale);
 	}
+	// The last of the waking: its weight its own again, it drops into its stance (on its Wake cue's settle).
+	if (!bStanceTaken && PhaseTime >= Tuning.WakeSeconds * StanceAt)
+	{
+		SettleIntoStance();
+	}
 	if (PhaseTime >= Tuning.WakeSeconds)
 	{
 		AwakeWeight = 1.f;
 		CalmTime = 0.f;
 		SetPhase(EStoneSentinelPhase::Awake);
 	}
+}
+
+void AStoneSentinelCreature::SettleIntoStance()
+{
+	bStanceTaken = true;
+	const float Scale = GetSizeScale();
+	const FVector Feet = GetFeet();
+	// Tons settling: dust pushed out round its feet, pebbles shaken off its joints, a thud felt underfoot nearby.
+	StoneDust(Feet, 3, 110.f * Scale, 90.f * Scale, /*bFloor*/ true);
+	ShedGrit(4);
+	if (Tuning.WakeSettleShake > 0.f)
+	{
+		BossCameraShake::Kick(this, Feet, Tuning.WakeSettleShake, 0.35f, Tuning.WakeSettleShakeRadius * Scale);
+	}
+	Jolt.X += 1.5f;
 }
 
 void AStoneSentinelCreature::TickAwake(float DeltaSeconds)
@@ -164,7 +192,7 @@ void AStoneSentinelCreature::TickAwake(float DeltaSeconds)
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	Movement->StopMovementImmediately();
 	Movement->DisableMovement();
-	LooterSound::PlayAt(this, FName(LooterSoundCue::Sentinel::Step), GetFeet(), 0.8f, LooterSoundRules::PitchForSize(GetSizeScale()));
+	LooterSound::PlayAt(this, FName(StoneSentinelCue::Step), GetFeet(), 0.8f, LooterSoundRules::PitchForSize(GetSizeScale()));
 }
 
 void AStoneSentinelCreature::TickSettling(float DeltaSeconds)
@@ -189,7 +217,7 @@ void AStoneSentinelCreature::TickSettling(float DeltaSeconds)
 	Health->ResetHealth();
 	const float Scale = GetSizeScale();
 	StoneDust(GetFeet(), 4, 70.f * Scale, 40.f * Scale, /*bFloor*/ true);
-	LooterSound::PlayAt(this, FName(LooterSoundCue::Sentinel::Step), GetFeet(), 1.f, LooterSoundRules::PitchForSize(Scale));
+	LooterSound::PlayAt(this, FName(StoneSentinelCue::Step), GetFeet(), 1.f, LooterSoundRules::PitchForSize(Scale));
 	UE_LOG(LogLooter, Log, TEXT("%s is a statue again."), *GetName());
 	BecomeStatue();
 }

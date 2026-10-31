@@ -13,6 +13,7 @@
 #include "Creatures/CreatureReactSubsystem.h"
 #include "Creatures/GravemotherAssets.h"
 #include "Creatures/GravemotherFX.h"
+#include "Creatures/StoneSentinelFX.h"
 #include "World/WorldQueries.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -41,6 +42,15 @@ namespace
 	constexpr float FloorReach = 600.f;
 	/** The stand-in's block: a granite chip of the engine's 100 cm cube. */
 	constexpr float StandInChipSize = 100.f;
+	/** Pebbles off a joint: at most this many at once, how fast they fall away (cm/s), how big (cm), the share that bring a
+	 *  breath of dust, and their sound now and then, never closer together than PebbleSoundGap (s). */
+	constexpr int32 MostPebbles = 3;
+	constexpr float PebbleSpeed = 70.f;
+	constexpr float PebbleMin = 1.5f;
+	constexpr float PebbleMax = 3.5f;
+	constexpr float PebbleDustShare = 0.5f;
+	constexpr float PebbleSoundShare = 0.45f;
+	constexpr double PebbleSoundGap = 0.35;
 }
 
 void AStoneSentinelCreature::SetupChips()
@@ -91,7 +101,8 @@ void AStoneSentinelCreature::SetupChips()
 	}
 }
 
-void AStoneSentinelCreature::ThrowChips(const FVector& At, const FVector& Up, int32 Count, float Speed, float SizeMin, float SizeMax)
+void AStoneSentinelCreature::ThrowChips(const FVector& At, const FVector& Up, int32 Count, float Speed, float SizeMin, float SizeMax, float LifeMin,
+	float LifeMax)
 {
 	UWorld* World = GetWorld();
 	UCreatureReactSubsystem* Reacts = UCreatureReactSubsystem::Get(this);
@@ -124,7 +135,7 @@ void AStoneSentinelCreature::ThrowChips(const FVector& At, const FVector& Up, in
 		Chip.Velocity = Way * (Speed * FMath::FRandRange(0.6f, 1.2f));
 		Chip.Rotation = FQuat(FMath::VRand(), FMath::FRandRange(0.f, 2.f * PI));
 		Chip.Spin = FMath::VRand() * FMath::FRandRange(4.f, 10.f);
-		Chip.Life = FMath::FRandRange(1.8f, 3.f);
+		Chip.Life = FMath::FRandRange(LifeMin, FMath::Max(LifeMin, LifeMax));
 		Chip.FloorZ = FloorZ;
 	}
 }
@@ -203,18 +214,28 @@ void AStoneSentinelCreature::DrawChips()
 		{
 			continue;
 		}
-		const TArray<FTransform>& Transforms = Sets[Index];
+		TArray<FTransform>& Transforms = Sets[Index];
 		bAnything |= !Transforms.IsEmpty();
-		if (Set->GetInstanceCount() != Transforms.Num())
+		// A pool that only grows: new instances added once, spare ones hidden (shrunk to nothing under its feet), so a frame
+		// is one transform update, never the instances torn down and built again as pieces come and go.
+		const int32 Have = Set->GetInstanceCount();
+		const int32 Want = Transforms.Num();
+		if (Want > Have)
 		{
-			Set->ClearInstances();
-			if (Transforms.Num() > 0)
-			{
-				Set->AddInstances(Transforms, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true, /*bUpdateNavigation*/ false);
-			}
-			Set->MarkRenderStateDirty();
+			TArray<FTransform> Extra;
+			Extra.Append(Transforms.GetData() + Have, Want - Have);
+			Set->AddInstances(Extra, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true, /*bUpdateNavigation*/ false);
+			Transforms.SetNum(Have);
 		}
-		else if (Transforms.Num() > 0)
+		else
+		{
+			const FTransform Hidden(FQuat::Identity, GetActorLocation() - FVector(0.0, 0.0, 500.0), FVector(0.001f));
+			while (Transforms.Num() < Have)
+			{
+				Transforms.Add(Hidden);
+			}
+		}
+		if (Transforms.Num() > 0)
 		{
 			Set->BatchUpdateInstancesTransforms(0, Transforms, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ true, /*bTeleport*/ true);
 		}
@@ -224,23 +245,30 @@ void AStoneSentinelCreature::DrawChips()
 
 void AStoneSentinelCreature::StoneDust(const FVector& At, int32 Count, float Size, float Spread, bool bFloor) const
 {
-	UGravemotherFX* Effects = UGravemotherFX::Get(this);
-	if (!Effects || Count <= 0)
+	if (Count <= 0)
 	{
 		return;
 	}
+	// Short-lived, never at the lens and within the sentinels' dust budget (StoneSentinelFX: big translucent cards at the
+	// camera cost a frame its life, 2026-10-31).
 	FGraveDustBurst Burst;
 	Burst.Kind = bFloor ? EGraveDust::Floor : EGraveDust::Stone;
 	Burst.Count = Count;
 	Burst.Spread = Spread;
 	Burst.SpreadUp = Spread * 0.4f;
 	Burst.StartSize = Size * 0.6f;
-	Burst.EndSize = Size * 1.6f;
-	Burst.Life = 1.4f;
+	Burst.EndSize = Size * 1.4f;
+	Burst.Life = 1.f;
 	Burst.Opacity = 0.32f;
 	Burst.Drift = FVector(0.0, 0.0, 25.0);
 	Burst.Outward = 90.f;
-	Effects->Puffs(At, Burst);
+	StoneSentinelFX::Dust(this, At, Burst);
+}
+
+void AStoneSentinelCreature::ThrowStones(const FVector& At, const FVector& Up, int32 Count, float Speed, float SizeMin, float SizeMax)
+{
+	// Its own stone pieces (one instanced set a mesh, no shadows), short-lived: a rock's burst reuses them, nothing new spawned.
+	ThrowChips(At, Up, Count, Speed, SizeMin, SizeMax, 0.8f, 1.4f);
 }
 
 void AStoneSentinelCreature::Crumble()
@@ -257,12 +285,82 @@ void AStoneSentinelCreature::Crumble()
 	// ground's own kicked up, the rubble's thud, a jolt for whoever stood near.
 	ThrowChips(Middle, FVector::UpVector, Tuning.CrumbleChips, 300.f, 12.f * Scale, 34.f * Scale);
 	ThrowChips(Feet + FVector(0.0, 0.0, 30.0 * Scale), FVector::UpVector, 6, 160.f, 18.f * Scale, 40.f * Scale);
-	StoneDust(Middle, 10, 140.f * Scale, 70.f * Scale);
-	StoneDust(Feet, 8, 160.f * Scale, 110.f * Scale, /*bFloor*/ true);
+	StoneDust(Middle, 4, 120.f * Scale, 70.f * Scale);
+	StoneDust(Feet, 3, 130.f * Scale, 110.f * Scale, /*bFloor*/ true);
 	if (UGravemotherFX* Effects = UGravemotherFX::Get(this))
 	{
-		Effects->Chunks(EGraveChunk::StoneChip, Middle, FVector::UpVector, 10, 380.f, 1.f);
+		Effects->Chunks(EGraveChunk::StoneChip, Middle, FVector::UpVector, 4, 380.f, 0.8f);
 	}
-	LooterSound::PlayAt(this, FName(LooterSoundCue::Sentinel::Step), Feet, 1.f, LooterSoundRules::PitchForSize(Scale) * 0.85f);
+	LooterSound::PlayAt(this, FName(StoneSentinelCue::Step), Feet, 1.f, LooterSoundRules::PitchForSize(Scale) * 0.85f);
 	BossCameraShake::Kick(this, Middle, 0.15f, 0.4f, 1100.f * Scale);
+}
+
+// ---------------------------------------------------------------------------
+// Grit off its joints
+// ---------------------------------------------------------------------------
+
+void AStoneSentinelCreature::TickGrit(float DeltaSeconds)
+{
+	if (Phase == EStoneSentinelPhase::Dormant || Phase == EStoneSentinelPhase::Crumbling || IsPoseFrozen())
+	{
+		GritOwed = 0.f;
+		return;
+	}
+	// Stone moving sheds itself: a little standing, more walking, a stream as it heaves, the most as it cracks loose.
+	float Rate = Tuning.GritIdle;
+	if (Phase == EStoneSentinelPhase::Waking)
+	{
+		Rate = Tuning.GritWaking;
+	}
+	else
+	{
+		Rate += Tuning.GritWalking * Walking;
+		if (GetCreatureState() == ECreatureState::Attack && GetStateTime() < AttackWindup)
+		{
+			Rate += Tuning.GritWindup;
+		}
+		if (IsExposed())
+		{
+			Rate += Tuning.GritExposed;
+		}
+	}
+	GritOwed += Rate * DeltaSeconds;
+	if (GritOwed >= 1.f)
+	{
+		const int32 Count = FMath::FloorToInt32(GritOwed);
+		GritOwed -= static_cast<float>(Count);
+		ShedGrit(FMath::Min(Count, MostPebbles));
+	}
+}
+
+void AStoneSentinelCreature::ShedGrit(int32 Count, int32 Joint)
+{
+	if (Count <= 0)
+	{
+		return;
+	}
+	// A joint: the one asked for, or a shoulder, an elbow, its neck, a knee or its back by chance.
+	int32 Bone = Joint;
+	if (Bone == INDEX_NONE && Rig.bReady)
+	{
+		const int32 Joints[] = { Rig.Upper[0], Rig.Upper[1], Rig.Lower[0], Rig.Lower[1], Rig.Head, Rig.Calf[0], Rig.Calf[1], Rig.Spine2 };
+		Bone = Joints[FMath::RandRange(0, static_cast<int32>(UE_ARRAY_COUNT(Joints)) - 1)];
+	}
+	const float Scale = GetSizeScale();
+	const FVector Anywhere = GetActorLocation() + FVector(FMath::FRandRange(-30.f, 30.f), FMath::FRandRange(-30.f, 30.f), FMath::FRandRange(0.f, 90.f)) * Scale;
+	const FVector At = BoneSpot(Bone, Anywhere);
+	// Down and a little off it, as grit falls out of a crack.
+	const FVector Down(FMath::FRandRange(-0.3f, 0.3f), FMath::FRandRange(-0.3f, 0.3f), -1.f);
+	ThrowChips(At, Down, Count, PebbleSpeed, PebbleMin, PebbleMax);
+	if (FMath::FRand() < PebbleDustShare)
+	{
+		StoneDust(At, 1, 14.f * Scale, 4.f * Scale);
+	}
+	const UWorld* World = GetWorld();
+	const double Now = World ? World->GetTimeSeconds() : 0.0;
+	if (Now - LastPebbleSound >= PebbleSoundGap && FMath::FRand() < PebbleSoundShare)
+	{
+		LastPebbleSound = Now;
+		LooterSound::PlayAt(this, FName(StoneSentinelCue::Pebbles), At, 0.7f, LooterSoundRules::PitchForSize(Scale));
+	}
 }

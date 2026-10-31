@@ -26,7 +26,7 @@
 
 // The mouse wheel through the weapon slots (the user, 2026-10-14: "if I have weapon 2 equipped, and scroll up, it goes
 // down"). The HUD's slot column has slot 1 on top, so the wheel moves along it: up to the slot above (2 -> 1), down to the
-// one below (2 -> 3), round at the ends. Followed from the key to the gun in hand: the player's copy of the weapon
+// one below (2 -> 3), round at the ends (four slots since 2026-10-31; a test's character has every slot open). Followed from the key to the gun in hand: the player's copy of the weapon
 // controls (UKeyBindingSubsystem), the action it maps the wheel to, and what the real character's weapon manager does
 // with that action. The gamepad's Y still steps forward.
 
@@ -95,7 +95,7 @@ bool FInputWheelCyclesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...each its own key (no conflict)"), Keys->FindConflict(WheelTestNextId, NextRow->DefaultKey) == NAME_None
 		&& Keys->FindConflict(WheelTestPreviousId, PreviousRow->DefaultKey) == NAME_None);
 
-	// The real character's weapon manager and its three slots.
+	// The real character's weapon manager and its four slots (no local player here: every slot open).
 	FEditorScriptExecutionGuard RunActorEvents;
 	UWorld* World = TestLevel.GetTestWorld();
 	LocomotionTestWorld::SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(2000.0, 2000.0, 100.0));
@@ -111,7 +111,7 @@ bool FInputWheelCyclesTest::RunTest(const FString& Parameters)
 	{
 		Weapons->GiveWeapon(UWeaponRollLibrary::RollWeaponWithRarity(Rifle, EWeaponRarity::Common, 1));
 	}
-	if (!TestEqual(TEXT("Three guns in the slots"), Weapons->GetWeapons().Num(), UKeyBindingSubsystem::NumWeaponSlotKeys))
+	if (!TestEqual(TEXT("Four guns in the slots"), Weapons->GetWeapons().Num(), UKeyBindingSubsystem::NumWeaponSlotKeys))
 	{
 		return false;
 	}
@@ -145,9 +145,10 @@ bool FInputWheelCyclesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Weapon 2 in hand, the wheel up: weapon 1, the slot above"), Press(EKeys::MouseScrollUp), 1);
 	Weapons->EquipSlot(1);
 	TestEqual(TEXT("Weapon 2 in hand, the wheel down: weapon 3, the slot below"), Press(EKeys::MouseScrollDown), 3);
-	TestEqual(TEXT("Weapon 3, the wheel down: round to weapon 1"), Press(EKeys::MouseScrollDown), 1);
-	TestEqual(TEXT("Weapon 1, the wheel up: round to weapon 3"), Press(EKeys::MouseScrollUp), 3);
-	TestEqual(TEXT("...and up again: weapon 2"), Press(EKeys::MouseScrollUp), 2);
+	TestEqual(TEXT("Weapon 3, the wheel down: weapon 4"), Press(EKeys::MouseScrollDown), 4);
+	TestEqual(TEXT("Weapon 4, the wheel down: round to weapon 1"), Press(EKeys::MouseScrollDown), 1);
+	TestEqual(TEXT("Weapon 1, the wheel up: round to weapon 4"), Press(EKeys::MouseScrollUp), 4);
+	TestEqual(TEXT("...and up again: weapon 3"), Press(EKeys::MouseScrollUp), 3);
 
 	// The gamepad's Y is the next weapon still, stepping forward through the slots.
 	Weapons->EquipSlot(1);

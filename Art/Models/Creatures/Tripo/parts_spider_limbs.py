@@ -138,7 +138,8 @@ def piecewise(knots):
 
 
 def carry(P, source, target, g, across):
-    """Stations P from the source bone frame into the target's: along through g, across scaled."""
+    """Stations P from the source bone frame into the target's: along through g, across scaled (across: the off-line
+    scale of the centre line, the bends of a leg between its joints)."""
     h, x, y, z = source
     H, X, Y, Z = target
     d = P - h

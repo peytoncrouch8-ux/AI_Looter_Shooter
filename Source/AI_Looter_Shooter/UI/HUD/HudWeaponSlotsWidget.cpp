@@ -2,6 +2,7 @@
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
+#include "Inventory/GunSlotRules.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponBase.h"
@@ -56,6 +57,12 @@ namespace
 	/** A gun or ammo icon in a slot that isn't in hand: dimmed a little (grey dims an Inked icon). */
 	const FLinearColor RestingIcon(0.72f, 0.72f, 0.72f, 0.9f);
 
+	/** A shut slot: its gunmetal ring and padlock dimmed this much (the slot is there, not yet the player's), its tab fainter. */
+	constexpr float LockedMetal = 0.42f;
+	constexpr float LockedPadlock = 0.85f;
+	/** The ring flashing out as a slot opens: it starts on the circle's edge and grows this much as it fades. */
+	constexpr float UnlockGrow = 0.42f;
+
 	FLinearColor SlotWithAlpha(FLinearColor Tone, float Alpha)
 	{
 		Tone.A = Alpha;
@@ -107,6 +114,14 @@ TSharedRef<SWidget> UHudWeaponSlotsWidget::RebuildWidget()
 			Cell.AccentRing->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 			Cell.AccentRing->SetRenderScale(FVector2D((SlotDiameter + AccentMargin * 2.f) / SlotDiameter));
 			Cell.AccentRing->SetRenderOpacity(0.f);
+			// A shut slot's padlock in the disc's middle (Paint shows it).
+			Cell.Lock = AddSlotLayer(WidgetTree, Layers, PictureBrush(EHudSlotPicture::Lock));
+			Cell.Lock->SetVisibility(ESlateVisibility::Hidden);
+			// The opening's flash: the accent ring's picture in soul gold, grown and faded out by TickUnlockFlash.
+			Cell.UnlockRing = AddSlotLayer(WidgetTree, Layers, PictureBrush(EHudSlotPicture::AccentRing));
+			Cell.UnlockRing->SetColorAndOpacity(Color::SoulGold());
+			Cell.UnlockRing->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+			Cell.UnlockRing->SetVisibility(ESlateVisibility::Hidden);
 			FSlateBrush NoGun;
 			NoGun.DrawAs = ESlateBrushDrawType::NoDrawType;
 			Cell.Gun = AddSlotLayer(WidgetTree, Layers, NoGun);
@@ -185,8 +200,17 @@ void UHudWeaponSlotsWidget::Update(const UWeaponManagerComponent* Manager, float
 		Cell.Root->SetVisibility(ESlateVisibility::HitTestInvisible);
 		const AWeaponBase* Weapon = Weapons.IsValidIndex(Index) ? Weapons[Index] : nullptr;
 		const bool bInHand = Weapon && Weapon == Active;
+		// Only an empty slot can be shut (a slot holding an older save's gun is in use: GetSlotLock).
+		const EGunSlotLock Lock = Weapon ? EGunSlotLock::Open : Manager->GetSlotLock(Index);
+		const bool bLocked = Lock != EGunSlotLock::Open;
+		// Shut on the last look and open now: it just opened, and flashes.
+		if (Cell.bWasLocked && !bLocked)
+		{
+			Cell.UnlockAge = 0.f;
+		}
+		Cell.bWasLocked = bLocked;
 
-		// Repaint only when the slot's gun, its ammo type or whether it's in hand changed.
+		// Repaint only when the slot's gun, its ammo type, whether it's in hand or what shuts it changed.
 		uint32 Shown = bInHand ? 1u : 0u;
 		if (Weapon)
 		{
@@ -195,11 +219,17 @@ void UHudWeaponSlotsWidget::Update(const UWeaponManagerComponent* Manager, float
 			Shown = HashCombine(Shown, HashCombine(GetTypeHash(Item.Definition.Get()), HashCombine(GetTypeHash(Item.Seed),
 				HashCombine(static_cast<uint32>(Item.Rarity) + 2u, AmmoKey))));
 		}
+		else
+		{
+			Shown = 16u + static_cast<uint32>(Lock);
+		}
 		if (Shown != Cell.Shown)
 		{
 			Cell.Shown = Shown;
-			Paint(Cell, Index, Manager, bInHand);
+			Cell.ShownLock = Lock;
+			Paint(Cell, Index, Manager, bInHand, Lock);
 		}
+		TickUnlockFlash(Cell, DeltaTime);
 
 		// The slot in hand moves left and grows, its ring and glow coming up; the one it took over from settles back.
 		const float Wanted = bInHand ? 1.f : 0.f;
@@ -217,7 +247,7 @@ void UHudWeaponSlotsWidget::Update(const UWeaponManagerComponent* Manager, float
 	}
 }
 
-void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeaponManagerComponent* Manager, bool bInHand)
+void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeaponManagerComponent* Manager, bool bInHand, EGunSlotLock Lock)
 {
 	const TArray<AWeaponBase*> Weapons = Manager->GetWeapons();
 	const AWeaponBase* Weapon = Weapons.IsValidIndex(Index) ? Weapons[Index] : nullptr;
@@ -225,6 +255,32 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 	{
 		Widget->SetVisibility(bShown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 	};
+
+	if (!Weapon && Lock != EGunSlotLock::Open)
+	{
+		// Shut: the slot is there but not the player's yet. Its gunmetal ring dimmed round a darker socket, a small padlock in
+		// it, no dashes (nothing can go in), the key fainter still than an empty slot's.
+		Show(Cell.Glow, false);
+		Show(Cell.AccentRing, false);
+		Show(Cell.Arc, false);
+		Show(Cell.Hairline, false);
+		Show(Cell.Gun, false);
+		Show(Cell.Ammo, false);
+		Show(Cell.TabLit, false);
+		Show(Cell.Dashed, false);
+		Show(Cell.TabGlass, true);
+		Show(Cell.Metal, true);
+		Show(Cell.Lock, true);
+		Cell.Metal->SetColorAndOpacity(SlotWithAlpha(FLinearColor::White, LockedMetal));
+		Cell.Lock->SetColorAndOpacity(SlotWithAlpha(FLinearColor::White, LockedPadlock));
+		Cell.Rim->SetColorAndOpacity(SlotWithAlpha(Color::Ink(), 0.5f));
+		Cell.Disc->SetColorAndOpacity(SlotWithAlpha(Color::ScreenBg(), 0.72f));
+		Cell.TabEdge->SetColorAndOpacity(SlotWithAlpha(Color::Hairline(), 0.3f));
+		Cell.TabNumber->SetColorAndOpacity(FSlateColor(SlotWithAlpha(Color::TextDim(), 0.5f)));
+		return;
+	}
+	Show(Cell.Lock, false);
+	Cell.Metal->SetColorAndOpacity(FLinearColor::White);
 
 	if (!Weapon)
 	{
@@ -280,4 +336,43 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 	Show(Cell.TabGlass, !bInHand);
 	Cell.TabEdge->SetColorAndOpacity(bInHand ? Color::Ink() : SlotWithAlpha(Color::Hairline(), 0.7f));
 	Cell.TabNumber->SetColorAndOpacity(FSlateColor(bInHand ? Color::AccentDark() : Color::Text()));
+}
+
+void UHudWeaponSlotsWidget::TickUnlockFlash(FSlotWidgets& Cell, float DeltaTime)
+{
+	if (!Cell.UnlockRing)
+	{
+		return;
+	}
+	if (Cell.UnlockAge >= UnlockSeconds)
+	{
+		if (Cell.UnlockRing->GetVisibility() != ESlateVisibility::Hidden)
+		{
+			Cell.UnlockRing->SetVisibility(ESlateVisibility::Hidden);
+		}
+		return;
+	}
+	// A soul-gold ring leaves the circle's edge and grows as it fades, eased out: the slot's own small moment under the
+	// banner's (the user's rule: every action rewarding).
+	const float Alpha = FMath::Clamp(Cell.UnlockAge / UnlockSeconds, 0.f, 1.f);
+	const float Eased = FMath::InterpEaseOut(0.f, 1.f, Alpha, 2.f);
+	Cell.UnlockRing->SetVisibility(ESlateVisibility::HitTestInvisible);
+	Cell.UnlockRing->SetRenderScale(FVector2D((SlotDiameter + AccentMargin * 2.f) / SlotDiameter * (1.f + UnlockGrow * Eased)));
+	Cell.UnlockRing->SetRenderOpacity(FMath::Square(1.f - Alpha));
+	Cell.UnlockAge += DeltaTime;
+}
+
+bool UHudWeaponSlotsWidget::IsSlotShown(int32 Index) const
+{
+	return Slots.IsValidIndex(Index) && Slots[Index].Root && Slots[Index].Root->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+EGunSlotLock UHudWeaponSlotsWidget::GetShownLock(int32 Index) const
+{
+	return Slots.IsValidIndex(Index) ? Slots[Index].ShownLock : EGunSlotLock::Open;
+}
+
+bool UHudWeaponSlotsWidget::IsUnlockFlashing(int32 Index) const
+{
+	return Slots.IsValidIndex(Index) && Slots[Index].UnlockAge < UnlockSeconds;
 }

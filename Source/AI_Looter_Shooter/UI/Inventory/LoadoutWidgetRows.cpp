@@ -13,6 +13,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Inventory/GunSlotRules.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -215,7 +216,9 @@ void ULoadoutWidget::RebuildSlots()
 	SlotRows.Reset();
 	for (int32 SlotIndex = 0; SlotIndex < NumSlots(); ++SlotIndex)
 	{
-		const FRow Row = MakeSlotRow(SlotIndex);
+		// A shut slot shows how it opens (the player's slots open with their progress: GunSlotRules).
+		const EGunSlotLock Lock = SlotLock(SlotIndex);
+		const FRow Row = Lock != EGunSlotLock::Open ? MakeLockedSlotRow(SlotIndex, Lock) : MakeSlotRow(SlotIndex);
 		SlotList->AddChildToVerticalBox(Row.Button)->SetPadding(FMargin(0.f, SlotIndex > 0 ? LoadoutLayout::RowGap : 0.f, 0.f, 0.f));
 		SlotRows.Add(Row);
 	}
