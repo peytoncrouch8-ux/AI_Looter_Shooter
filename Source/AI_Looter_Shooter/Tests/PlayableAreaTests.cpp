@@ -329,6 +329,25 @@ bool FFallRecoveryTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("...but 31 m is"), PitBottom.IsSet() && *PitBottom == EFallRecoveryReason::LongFall);
 	}
 
+	// Held still and set down 46 m below (the ore lift's ride to its foot): no fall, and a new safe spot once standing.
+	{
+		FFallRecoveryTracker Tracker;
+		for (int32 Frame = 0; Frame < 60; ++Frame)
+		{
+			Tracker.Update(RecoveryFrame, FVector(2000.0, 2000.0, 0.0), Facing, true, &Square, Rules);
+		}
+		Tracker.Forget();
+		TestFalse(TEXT("Held, the old safe spot is gone"), Tracker.HasSafeSpot());
+		bool bFired = false;
+		for (int32 Frame = 0; Frame < 30; ++Frame)
+		{
+			bFired |= Tracker.Update(RecoveryFrame, FVector(1000.0, 2000.0, -4600.0), Facing, false, &Square, Rules).IsSet();
+		}
+		TestFalse(TEXT("...set down 46 m below, nobody is brought back"), bFired);
+		Tracker.Update(RecoveryFrame, FVector(1000.0, 2000.0, -4600.0), Facing, true, &Square, Rules);
+		TestTrue(TEXT("...standing there takes a new safe spot"), Tracker.HasSafeSpot() && FMath::IsNearlyEqual(Tracker.GetSafeLocation().Z, -4600.0));
+	}
+
 	// Without a playable area (the tutorial island), today's rule: only a long fall.
 	{
 		FFallRecoveryTracker Tracker;

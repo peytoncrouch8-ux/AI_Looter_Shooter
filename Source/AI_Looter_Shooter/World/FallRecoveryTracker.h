@@ -46,6 +46,12 @@ struct AI_LOOTER_SHOOTER_API FFallRecoveryTracker
 	/** The player was just put back on the safe spot (inside the area). */
 	void MarkRecovered();
 
+	/**
+	 * Drops the safe spot and the way out: the player is held still or set down somewhere new (an ore lift ride lays them
+	 * on the far landing at its start), so where they stood before says nothing about a fall. Standing again takes a new one.
+	 */
+	void Forget();
+
 	bool HasSafeSpot() const { return bHasSafeSpot; }
 	const FVector& GetSafeLocation() const { return SafeLocation; }
 	const FRotator& GetSafeRotation() const { return SafeRotation; }

@@ -74,6 +74,15 @@ void FFallRecoveryTracker::MarkRecovered()
 	ExitEdge = INDEX_NONE;
 }
 
+void FFallRecoveryTracker::Forget()
+{
+	bHasSafeSpot = false;
+	SampleTimer = 0.f;
+	bHasLastInside = false;
+	bOutside = false;
+	ExitEdge = INDEX_NONE;
+}
+
 bool FFallRecoveryTracker::LeftOverOpenEdge(const FPlayableBoundary& Boundary, const FVector2D& Where) const
 {
 	return Boundary.IsOpen(ExitEdge) || Boundary.IsOpen(Boundary.FindNearestEdge(Where));

@@ -6,6 +6,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
+- Riding the ore lift down put the player back at the top (2026-10-30 playtest). Cause: the ride lays the hidden body on the
+  far landing at its start (`AOreLift::ParkRider`); fall recovery saw a 46 m drop from the top's safe spot and brought them
+  back ("off an open edge, edge 14"), and the ride's end lets them go where they were. Fix: `UFallRecoverySubsystem` skips a
+  character whose movement is `MOVE_None` (held by a scene or the lift) and `FFallRecoveryTracker::Forget()`s its safe spot;
+  standing again takes a new one (`Looter.World.FallRecovery`). Lesson: read the packaged build's log
+  (`Builds/Playtest/<stamp>/Windows/AI_Looter_Shooter/Saved/Logs`) first; anything that moves the player must not look like a fall.
+
 - A modal "build lighting" message blocked every MCP call (2026-10-27, building Lvl_MenuTeropa). Cause: the menu-map script
   (`build_menu_teropa.py`) set the World Settings' `force_no_precomputed_lighting` (bForceNoPrecomputedLighting); the editor
   answered with a message box that waits for OK. Fix: find the window with `Tools\editorwindows.ps1` and click OK

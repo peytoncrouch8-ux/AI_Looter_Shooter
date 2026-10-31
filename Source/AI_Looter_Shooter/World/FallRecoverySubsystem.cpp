@@ -44,6 +44,13 @@ void UFallRecoverySubsystem::Tick(float DeltaTime)
 		}
 
 		FFallRecoveryTracker& Tracker = Trackers.FindOrAdd(Character);
+		// Held still (a scene carrying them, the ore lift laying them on its far landing): they can't fall, and they may
+		// be set down far below where they last stood (46 m at the lift's foot), which is no fall either.
+		if (Movement->MovementMode == MOVE_None)
+		{
+			Tracker.Forget();
+			continue;
+		}
 		const bool bOnWalkableGround = Movement->IsMovingOnGround() && Movement->CurrentFloor.IsWalkableFloor();
 		const TOptional<EFallRecoveryReason> Reason = Tracker.Update(DeltaTime, Character->GetActorLocation(), PC->GetControlRotation(),
 			bOnWalkableGround, Boundary, Rules);
