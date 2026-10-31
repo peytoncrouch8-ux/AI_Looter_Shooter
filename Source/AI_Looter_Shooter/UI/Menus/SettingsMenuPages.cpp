@@ -70,6 +70,17 @@ void USettingsMenuWidget::MakeInterfacePage()
 	// Let go by the mouse, or by the key or stick that stepped it (the menu's keys hold a slider as a controller does).
 	TransparencySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyReleased);
 	TransparencySlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyReleased);
+	// The pause menu's size (the user, 2026-10-31): it shows the new size as the menu comes back.
+	USlider* PauseSize = nullptr;
+	UTextBlock* PauseSizeText = nullptr;
+	UWidget* PauseSizeRow = MakeSliderRow(TEXT("Pause menu size"), UGraphicsSettingsSubsystem::MinPauseMenuScale,
+		UGraphicsSettingsSubsystem::MaxPauseMenuScale, PauseSize, PauseSizeText);
+	AddPageRow(Describe(NavSlider(PauseSizeRow, PauseSize), RowHelp(ESettingRow::PauseMenuSize)));
+	PauseSizeSlider = PauseSize;
+	PauseSizeValue = PauseSizeText;
+	PauseSizeSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandlePauseSizeChanged);
+	PauseSizeSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandlePauseSizeReleased);
+	PauseSizeSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandlePauseSizeReleased);
 	ULooterButton* MapOn = nullptr;
 	ULooterButton* MapOff = nullptr;
 	UWidget* MapRow = MakeToggleRow(TEXT("Minimap"), TEXT("On"), TEXT("Off"), ActionMinimapOn, ActionMinimapOff, 0, false, MapOn, MapOff);

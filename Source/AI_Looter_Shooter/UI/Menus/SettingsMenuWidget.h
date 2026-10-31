@@ -310,6 +310,11 @@ private:
 	UFUNCTION()
 	void HandleTransparencyReleased();
 	UFUNCTION()
+	void HandlePauseSizeChanged(float Value);
+	/** Let go: saved. */
+	UFUNCTION()
+	void HandlePauseSizeReleased();
+	UFUNCTION()
 	void HandleMinimapSizeChanged(float Value);
 	UFUNCTION()
 	void HandleMinimapSizeGrabbed();
@@ -539,6 +544,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> SubtitlesOff;
 	UPROPERTY(Transient) TObjectPtr<USlider> TransparencySlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TransparencyValue;
+	UPROPERTY(Transient) TObjectPtr<USlider> PauseSizeSlider;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PauseSizeValue;
 	UPROPERTY(Transient) TObjectPtr<USlider> MinimapSlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapValue;
 	UPROPERTY(Transient) TObjectPtr<USlider> MinimapZoomSlider;

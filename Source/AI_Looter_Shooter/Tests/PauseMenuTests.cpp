@@ -13,6 +13,7 @@
 #include "UI/Style/LooterReticleArt.h"
 #include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "Settings/GraphicsSettingsSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "InputCoreTypes.h"
@@ -324,6 +325,29 @@ bool FPauseHubLayoutTest::RunTest(const FString& Parameters)
 		PauseMenuArt::Card(300.f, 200.f, true, false, 0.f, PauseMenuArt::EPart::Fill).Layers.Num() + PauseMenuArt::Card(300.f, 200.f, true, false, 0.f, PauseMenuArt::EPart::Lines).Layers.Num()
 		== PauseMenuArt::Card(300.f, 200.f, true, false, 0.f).Layers.Num());
 	TestTrue(TEXT("The backdrop is painted"), PauseMenuArt::Backdrop().Layers.Num() > 4);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPauseHubSizeTest, "Looter.UI.PauseHub.Size",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FPauseHubSizeTest::RunTest(const FString& Parameters)
+{
+	// The user, 2026-10-31: a setting that makes the pause menu smaller. The stage's room grows as the size shrinks, so the
+	// fit to the screen shrinks the menu by it; full size is the design space as it was.
+	using namespace PauseMenuLayout;
+	using GS = UGraphicsSettingsSubsystem;
+	const FVector2D Screen(1920.f, 1080.f);
+	TestTrue(TEXT("Full size: the design space"), StageRoom(Screen, 1.f).Equals(FVector2D(DesignWidth, DesignHeight), 0.01f));
+	const FVector2D Small = StageRoom(Screen, GS::MinPauseMenuScale);
+	TestTrue(TEXT("Smallest: the room grows by 1 / size, so the menu shows at that size"),
+		FMath::IsNearlyEqual(Screen.Y / Small.Y, GS::MinPauseMenuScale, 0.001f)
+		&& FMath::IsNearlyEqual(Screen.X / Small.X, GS::MinPauseMenuScale, 0.001f));
+	TestTrue(TEXT("A wide screen: wider room, the same height"),
+		StageRoom(FVector2D(2560.f, 1080.f), 1.f).Equals(FVector2D(2560.f, DesignHeight), 0.01f));
+	TestTrue(TEXT("A narrow screen: never under the design width"), StageRoom(FVector2D(1600.f, 1200.f), 1.f).X >= DesignWidth);
+	TestTrue(TEXT("It only shrinks"), GS::MaxPauseMenuScale == 1.f && GS::MinPauseMenuScale > 0.f && GS::MinPauseMenuScale < 1.f);
+	TestEqual(TEXT("Default: full size"), GetDefault<ULooterGraphicsSave>()->PauseMenuScale, 1.f);
 	return true;
 }
 

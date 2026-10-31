@@ -257,7 +257,10 @@ private:
 	void RefreshWords();
 	/** What Open does once the widgets exist (RebuildWidget runs it for an Open before them). */
 	void ApplyOpen();
-	/** Keeps the stage 1080 tall and at least 1920 wide for the screen's shape. */
+	/**
+	 * Keeps the stage 1080 tall and at least 1920 wide for the screen's shape, in a room as much bigger as the player's
+	 * pause menu size is smaller (PauseMenuLayout::StageRoom), so the fit shrinks it.
+	 */
 	void FitStage();
 	void HandleButton(ULooterButton* Button);
 	void Choose(EPauseMenuItem Item);
@@ -314,6 +317,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UImage> Backdrop;
 	/** The design space (PauseMenuLayout), fitted to the screen, and the canvas everything stands on. */
 	UPROPERTY(Transient) TObjectPtr<USizeBox> StageBox;
+	/** The room the stage stands in the middle of (PauseMenuLayout::StageRoom); the scale box fits it to the screen. */
+	UPROPERTY(Transient) TObjectPtr<USizeBox> StageRoomBox;
 	UPROPERTY(Transient) TObjectPtr<UCanvasPanel> Stage;
 	/** The groups that move as the hub opens. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> TitleGroup;
@@ -340,6 +345,10 @@ private:
 	float SwingLength = 0.f;
 	float SwingDelay = 0.f;
 	float ReticleAngle = 0.f;
-	/** The stage's width now (PauseMenuLayout::DesignWidth or wider). */
-	float StageWidth = 0.f;
+	/** The stage's room now (PauseMenuLayout::StageRoom). */
+	FVector2D StageSize = FVector2D::ZeroVector;
+
+public:
+	/** The stage's room now, for the tests (design units: 1920 x 1080 on a 16:9 screen at full size). */
+	FVector2D GetStageRoom() const { return StageSize; }
 };

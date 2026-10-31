@@ -317,6 +317,12 @@ void USettingsMenuWidget::RefreshGraphics()
 		TransparencySlider->SetValue(Transparency);
 		TransparencyValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Transparency * 100.f))));
 	}
+	if (PauseSizeSlider && PauseSizeValue)
+	{
+		const float PauseScale = Graphics->GetPauseMenuScale();
+		PauseSizeSlider->SetValue(PauseScale);
+		PauseSizeValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), FMath::RoundToInt(PauseScale * 100.f))));
+	}
 	if (MinimapSlider)
 	{
 		const float Scale = Graphics->GetMinimapScale();

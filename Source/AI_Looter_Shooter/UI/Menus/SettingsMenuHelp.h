@@ -37,6 +37,7 @@ namespace SettingsMenu
 		InterfaceVolume,
 		MusicVolume,
 		UITransparency,
+		PauseMenuSize,
 		Minimap,
 		MinimapSize,
 		MinimapZoom,

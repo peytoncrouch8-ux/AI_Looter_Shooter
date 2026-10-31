@@ -70,6 +70,10 @@ public:
 	UPROPERTY()
 	float MinimapZoom = 1.f;
 
+	/** The pause menu's size, relative to its standard size (the user, 2026-10-31). Saves from before it load with 1. */
+	UPROPERTY()
+	float PauseMenuScale = 1.f;
+
 	/** The frame rate counter in the HUD's top-left corner. Saves from before it existed load with it on. */
 	UPROPERTY()
 	bool bShowFrameRate = true;
@@ -180,6 +184,17 @@ public:
 
 	/** The HUD follows on its next frame. bSave as for SetUITransparency. */
 	void SetMinimapZoom(float Zoom, bool bSave = true);
+
+	/**
+	 * The pause menu's size relative to its standard size (the user, 2026-10-31: "a gui option to decrease its size"): it
+	 * only shrinks, the dial and the options staying on the left edge and the cards on the right.
+	 */
+	static constexpr float MinPauseMenuScale = 0.6f;
+	static constexpr float MaxPauseMenuScale = 1.f;
+	float GetPauseMenuScale() const;
+
+	/** The pause menu follows on its next frame. bSave as for SetUITransparency. */
+	void SetPauseMenuScale(float Scale, bool bSave = true);
 
 	/** The HUD minimap (it follows on its next frame, and does no work while off). */
 	bool IsMinimapShown() const;

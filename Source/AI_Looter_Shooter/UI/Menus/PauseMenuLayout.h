@@ -153,6 +153,14 @@ namespace PauseMenuLayout
 
 	// --- Rules ---
 
+	/**
+	 * The room the stage is laid out in, in design units, for a screen of ScreenSize at the player's pause menu size
+	 * (Settings > Interface, MenuScale): 1080 / MenuScale tall and as wide as the screen's shape asks (never under 1920 /
+	 * MenuScale), so the scale box fitting it to the screen shrinks it by MenuScale. The stage spans its width (the dial on
+	 * the left edge, the cards on the right) and stands 1080 tall in its middle.
+	 */
+	FVector2D StageRoom(const FVector2D& ScreenSize, float MenuScale);
+
 	/** Where row Row crosses the range arc (its tick). */
 	FVector2D RowArcPoint(int32 Row);
 

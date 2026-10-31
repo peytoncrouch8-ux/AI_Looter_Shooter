@@ -160,8 +160,12 @@ FSettingHelp SettingsMenu::RowHelp(ESettingRow Row)
 	case ESettingRow::UITransparency:
 		return Help(TEXT("UI transparency"), TEXT("How see-through the backgrounds of every menu and panel are, this one included. Text, outlines and bars stay solid."),
 			FString::Printf(TEXT("0%% is solid. Default %s."), *PercentText(0.f)));
+	case ESettingRow::PauseMenuSize:
+		return Help(TEXT("Pause menu size"), TEXT("How big the pause menu is, against its standard size. Smaller keeps its options on the left "
+			"and its cards on the right, with more of the paused game between them."),
+			FString::Printf(TEXT("%s to %s. Default 100%%."), *PercentText(GS::MinPauseMenuScale), *PercentText(GS::MaxPauseMenuScale)));
 	case ESettingRow::Minimap:
-		return Help(TEXT("Minimap"), TEXT("The round map in the HUD's top-right corner. Off, the mission tracker moves up into its place and the map does no work at all."),
+		return Help(TEXT("Minimap"), TEXT("The round map in the HUD's top-right corner. Off, the map does no work at all."),
 			OnOffDefault(true));
 	case ESettingRow::MinimapSize:
 		return Help(TEXT("Minimap size"), TEXT("How big the HUD's minimap is, against its standard size. While you set it, an outline in its corner shows the size."),

@@ -146,6 +146,30 @@ void USettingsMenuWidget::HandleTransparencyReleased()
 	SetKeyboardFocus();
 }
 
+void USettingsMenuWidget::HandlePauseSizeChanged(float Value)
+{
+	// The pause menu takes it on its next frame: as Back returns to it.
+	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+	{
+		Graphics->SetPauseMenuScale(Value, /*bSave*/ false);
+	}
+	if (PauseSizeValue)
+	{
+		PauseSizeValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Value * 100.f))));
+	}
+}
+
+void USettingsMenuWidget::HandlePauseSizeReleased()
+{
+	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+	{
+		Graphics->SaveSettings();
+		SetStatus(FString::Printf(TEXT("Pause menu size %d%%."), FMath::RoundToInt(Graphics->GetPauseMenuScale() * 100.f)), LooterUI::Color::TextDim());
+	}
+	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
+	SetKeyboardFocus();
+}
+
 void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 {
 	UKeyBindingSubsystem* Bindings = GetBindings();

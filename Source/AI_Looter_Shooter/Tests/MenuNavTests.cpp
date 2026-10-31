@@ -373,6 +373,10 @@ bool FSettingsMenuNavTest::RunTest(const FString& Parameters)
 	Menu->HandleNavKey(EKeys::Gamepad_RightShoulder);
 	TestTrue(TEXT("RB: the Interface tab, a slider (the UI transparency)"), Cast<USlider>(Menu->GetFocusedWidget()) && Menu->GetFocusedWidget() != Master
 		&& Menu->GetPage() == static_cast<int32>(SettingsMenu::ESettingsPage::Interface));
+	const UWidget* Transparency = Menu->GetFocusedWidget();
+	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
+	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Down);
+	TestTrue(TEXT("Down: the pause menu's size, a slider"), Cast<USlider>(Menu->GetFocusedWidget()) && Menu->GetFocusedWidget() != Transparency);
 	Menu->HandleNavKey(EKeys::Gamepad_DPad_Down);
 	Menu->HandleNavKeyUp(EKeys::Gamepad_DPad_Down);
 	TestTrue(TEXT("Down: the minimap's switch"), ActionOf(Menu->GetFocusedWidget()) == SettingsMenu::ActionMinimapOn);

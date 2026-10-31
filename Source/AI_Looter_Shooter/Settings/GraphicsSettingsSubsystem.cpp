@@ -95,6 +95,26 @@ namespace
 		TEXT("Sets and saves the first-person field of view in degrees: Looter.FieldOfView 70-110"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetFieldOfViewCommand));
 
+	/** Looter.PauseMenuSize <60-100>: sets and saves the pause menu's size in percent, as the settings menu's slider does. */
+	void SetPauseMenuSizeCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		ULocalPlayer* Player = World ? World->GetFirstLocalPlayerFromController() : nullptr;
+		UGraphicsSettingsSubsystem* Graphics = Player ? Player->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+		if (!Graphics || Args.Num() != 1 || !Args[0].IsNumeric())
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.PauseMenuSize <%d-%d>"),
+				FMath::RoundToInt32(UGraphicsSettingsSubsystem::MinPauseMenuScale * 100.f), FMath::RoundToInt32(UGraphicsSettingsSubsystem::MaxPauseMenuScale * 100.f));
+			return;
+		}
+		Graphics->SetPauseMenuScale(FCString::Atof(*Args[0]) / 100.f);
+		UE_LOG(LogLooter, Display, TEXT("Pause menu size: %d%%."), FMath::RoundToInt32(Graphics->GetPauseMenuScale() * 100.f));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs SetPauseMenuSizeCommandRegistration(
+		TEXT("Looter.PauseMenuSize"),
+		TEXT("Sets and saves the pause menu's size in percent: Looter.PauseMenuSize 60-100"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetPauseMenuSizeCommand));
+
 	/** Looter.Subtitles on|off: sets and saves the subtitles switch, as the settings menu's row does. */
 	void SetSubtitlesCommand(const TArray<FString>& Args, UWorld* World)
 	{
@@ -348,6 +368,24 @@ void UGraphicsSettingsSubsystem::SetMinimapZoom(float Zoom, bool bSave)
 		return;
 	}
 	SaveData->MinimapZoom = FMath::Clamp(Zoom, MinMinimapZoom, MaxMinimapZoom);
+	if (bSave)
+	{
+		SaveSettings();
+	}
+}
+
+float UGraphicsSettingsSubsystem::GetPauseMenuScale() const
+{
+	return SaveData ? FMath::Clamp(SaveData->PauseMenuScale, MinPauseMenuScale, MaxPauseMenuScale) : 1.f;
+}
+
+void UGraphicsSettingsSubsystem::SetPauseMenuScale(float Scale, bool bSave)
+{
+	if (!SaveData)
+	{
+		return;
+	}
+	SaveData->PauseMenuScale = FMath::Clamp(Scale, MinPauseMenuScale, MaxPauseMenuScale);
 	if (bSave)
 	{
 		SaveSettings();

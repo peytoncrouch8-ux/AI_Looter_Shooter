@@ -47,6 +47,14 @@ float PauseMenuLayout::NeedleSwing(float Alpha)
 	return 1.f + (SwingBack + 1.f) * U * U * U + SwingBack * U * U;
 }
 
+FVector2D PauseMenuLayout::StageRoom(const FVector2D& ScreenSize, float MenuScale)
+{
+	const float Scale = FMath::Clamp(MenuScale, 0.1f, 1.f);
+	const float Aspect = ScreenSize.Y >= 1.f ? static_cast<float>(ScreenSize.X / ScreenSize.Y) : DesignWidth / DesignHeight;
+	const float Width = FMath::Max(DesignWidth, DesignHeight * Aspect);
+	return FVector2D(Width / Scale, DesignHeight / Scale);
+}
+
 FBox2D PauseMenuLayout::MakeBox(float X, float Y, float Width, float Height)
 {
 	return FBox2D(FVector2D(X, Y), FVector2D(X + Width, Y + Height));

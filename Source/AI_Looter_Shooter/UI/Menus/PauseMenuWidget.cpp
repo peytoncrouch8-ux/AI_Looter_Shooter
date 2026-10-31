@@ -12,6 +12,7 @@
 #include "Areas/AreaDefinition.h"
 #include "Areas/AreaRulesSubsystem.h"
 #include "Session/SessionSubsystem.h"
+#include "Settings/GraphicsSettingsSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -22,6 +23,7 @@
 #include "Components/SizeBox.h"
 #include "Components/SizeBoxSlot.h"
 #include "Components/TextBlock.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
@@ -168,17 +170,22 @@ void UPauseMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 void UPauseMenuWidget::FitStage()
 {
 	// 1080 tall; as wide as the screen's shape asks, never under 1920 (a narrower screen scales the whole down instead, in
-	// the scale box). A wider one keeps the dial on the left edge and the cards on the right.
+	// the scale box). A wider one keeps the dial on the left edge and the cards on the right. The player's pause menu size
+	// makes the room round it bigger, so the fit shrinks it all (live: the settings page sets it while the hub waits).
 	const FVector2D Size(GetCachedGeometry().GetLocalSize());
-	if (!StageBox || Size.X < 1.0 || Size.Y < 1.0)
+	if (!StageBox || !StageRoomBox || Size.X < 1.0 || Size.Y < 1.0)
 	{
 		return;
 	}
-	const float Wanted = FMath::Max(DesignWidth, static_cast<float>(DesignHeight * Size.X / Size.Y));
-	if (FMath::Abs(Wanted - StageWidth) > 0.5f)
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+	const FVector2D Wanted = StageRoom(Size, Settings ? Settings->GetPauseMenuScale() : 1.f);
+	if (!Wanted.Equals(StageSize, 0.5f))
 	{
-		StageWidth = Wanted;
-		StageBox->SetWidthOverride(Wanted);
+		StageSize = Wanted;
+		StageRoomBox->SetWidthOverride(Wanted.X);
+		StageRoomBox->SetHeightOverride(Wanted.Y);
+		StageBox->SetWidthOverride(Wanted.X);
 	}
 }
 
@@ -202,15 +209,23 @@ TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
 		BackdropSlot->SetHorizontalAlignment(HAlign_Fill);
 		BackdropSlot->SetVerticalAlignment(VAlign_Fill);
 
-		// The stage: the design space, scaled down to fit a screen narrower than 16:9 (FitStage widens it for a wider one).
+		// The stage: the design space, scaled down to fit a screen narrower than 16:9 (FitStage widens it for a wider one),
+		// standing in the middle of its room (as big as the stage at full size; bigger for a smaller pause menu).
 		Stage = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Stage"));
 		Stage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		StageWidth = DesignWidth;
+		StageSize = FVector2D(DesignWidth, DesignHeight);
 		StageBox = MakeSized(WidgetTree, Stage, DesignWidth, DesignHeight);
+		StageRoomBox = MakeSized(WidgetTree, StageBox, DesignWidth, DesignHeight);
+		StageRoomBox->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		if (USizeBoxSlot* RoomSlot = Cast<USizeBoxSlot>(StageRoomBox->GetContentSlot()))
+		{
+			RoomSlot->SetHorizontalAlignment(HAlign_Fill);
+			RoomSlot->SetVerticalAlignment(VAlign_Center);
+		}
 		UScaleBox* Fit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
 		Fit->SetStretch(EStretch::ScaleToFit);
 		Fit->SetStretchDirection(EStretchDirection::DownOnly);
-		Fit->SetContent(StageBox);
+		Fit->SetContent(StageRoomBox);
 		Fit->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		UOverlaySlot* FitSlot = Root->AddChildToOverlay(Fit);
 		FitSlot->SetHorizontalAlignment(HAlign_Fill);
