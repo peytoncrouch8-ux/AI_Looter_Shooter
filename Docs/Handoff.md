@@ -3,6 +3,14 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-31 night: Wardens story restart, round 1 IN PROGRESS (Docs/Work/2026-10-31-Wardens/)
+The user restarted the story (DECISIONS.md: living Lantern Wardens on the airship the Lamplighter vs Cornelius Vane, soul
+coal and soul smog; hero renamed Sully Graves; no grave start) and asked for a turn-in card on every mission (card, then
+talk). Round 1 = the turn-in card + Landfall (the new Main 1) per CONTRACT.md; 7 agents (TURNIN, DREDGER, CREW, FLIGHT,
+WORLD, STORY, SOUND) write lanes/<LANE>.md; then Main merges, builds, runs scripts, tests, plays it in PIE, measures perf.
+Models: stand-ins; the user makes every new model in Tripo from TRIPO_MODELS.md (sent to them). Then: the user plays
+Landfall; later rounds remap Mains 2-7 (concept.html table).
+
 ## 2026-10-31 night: pause menu size BUILT
 The user: "ESC menu ui needs a gui option to decrease its size". Built: Settings > Interface "Pause menu size" 60-100%
 (default 100%) shrinks the hub and, over the game, the settings page (the user: "Settings page too"; Pipeline Game.md pause menu "Size"). Tests PauseHub.Size, MenuNav.SettingsMenu, PauseHub, SettingsMenu, Settings pass; seen at 70% in uishots.
