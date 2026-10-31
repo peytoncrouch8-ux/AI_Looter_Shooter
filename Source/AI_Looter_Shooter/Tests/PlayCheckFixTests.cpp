@@ -61,10 +61,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayCheckLootCardTest, "Looter.UI.LootCardClea
 
 bool FPlayCheckLootCardTest::RunTest(const FString& Parameters)
 {
-	// The loot card stands on the right edge's middle; a tall one drops just clear of the minimap's frame (the tracker's
-	// top), never past the screen's foot.
-	const float Under100 = UHudMissionTrackerWidget::TopFor(1.f, true);
-	const float Under150 = UHudMissionTrackerWidget::TopFor(1.5f, true);
+	// The loot card stands on the right edge's middle; a tall one drops just clear of the minimap's frame, never past the
+	// screen's foot.
+	const float Under100 = UHudMinimapWidget::ClearTop(1.f, true);
+	const float Under150 = UHudMinimapWidget::ClearTop(1.5f, true);
 	TestTrue(TEXT("A bigger minimap reaches lower"), Under150 > Under100);
 	TestEqual(TEXT("A card that fits stays in the middle"), UPlayerHUDWidget::LootCardDrop(1080.f, 400.f, Under100), 0.f);
 	const float Tall = 1080.f - 2.f * (Under150 - 40.f);
@@ -72,7 +72,7 @@ bool FPlayCheckLootCardTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A tall card under a big minimap drops"), FMath::IsNearlyEqual(Drop, 40.f, 0.01f));
 	TestTrue(TEXT("...its top just clear of the frame"), FMath::IsNearlyEqual((1080.f - Tall) * 0.5f + Drop, Under150, 0.01f));
 	TestEqual(TEXT("A card taller than the room stops at the foot"), UPlayerHUDWidget::LootCardDrop(1080.f, 900.f, 350.f), 54.f);
-	TestEqual(TEXT("Minimap off: nothing above to clear"), UPlayerHUDWidget::LootCardDrop(1080.f, 900.f, UHudMissionTrackerWidget::TopFor(1.5f, false)), 0.f);
+	TestEqual(TEXT("Minimap off: nothing above to clear"), UPlayerHUDWidget::LootCardDrop(1080.f, 900.f, UHudMinimapWidget::ClearTop(1.5f, false)), 0.f);
 	TestEqual(TEXT("Not laid out yet: no drop"), UPlayerHUDWidget::LootCardDrop(0.f, 400.f, Under150), 0.f);
 	TestEqual(TEXT("No card height yet: no drop"), UPlayerHUDWidget::LootCardDrop(1080.f, 0.f, Under150), 0.f);
 	return true;

@@ -64,7 +64,6 @@ void UHudMissionTrackerWidget::Advance(float DeltaSeconds)
 	{
 		BindMissions();
 	}
-	UpdatePlacement();
 	// A done objective or the closing line holds the tracker until it has shown its time; changes wait for it.
 	if (bRefreshPending && (Phase == EPhase::Idle || Phase == EPhase::Showing))
 	{
@@ -176,7 +175,6 @@ void UHudMissionTrackerWidget::Present(const FMission& Mission)
 	Shown = Mission.Tracker;
 	Shown.bDone = false;
 	PaintTitle(ShownTitle);
-	PaintSteps(Shown.Step, Shown.Step, Shown.StepCount, Shown.Step + 1);
 	PaintObjective();
 	PaintHint();
 	OptionalTickAges.Reset();
@@ -224,7 +222,6 @@ void UHudMissionTrackerWidget::UpdateInPlace(const FMission& Mission)
 	const bool bCountPops = Now.Progress > Shown.Progress && !Now.bCountIsTime;
 	const bool bNewHint = !Now.HintKey.Equals(Shown.HintKey, ESearchCase::CaseSensitive)
 		|| !Now.HintText.Equals(Shown.HintText, ESearchCase::CaseSensitive);
-	const bool bNewSteps = Now.StepCount != Shown.StepCount;
 	Shown = Now;
 	if (bNewTitle)
 	{
@@ -242,10 +239,6 @@ void UHudMissionTrackerWidget::UpdateInPlace(const FMission& Mission)
 	if (bNewHint)
 	{
 		PaintHint();
-	}
-	if (bNewSteps)
-	{
-		PaintSteps(Shown.Step, Shown.Step, Shown.StepCount, Shown.Step + 1);
 	}
 	if (bNewOptionals)
 	{
@@ -280,10 +273,6 @@ void UHudMissionTrackerWidget::BeginFinish(bool bStepDone, bool bMissionEnded)
 	{
 		StartPop();
 	}
-	if (bStepDone)
-	{
-		PaintSteps(Shown.Step + 1, INDEX_NONE, Shown.StepCount, Shown.Step + 1, /*bPopChecks*/ true);
-	}
 	PlayFinishSound(bStepDone, bMissionEnded);
 }
 
@@ -301,7 +290,6 @@ void UHudMissionTrackerWidget::ShowClosing()
 	Shown.Step = ClosingSteps - 1;
 	Shown.bDone = true;
 	PaintTitle(ShownTitle);
-	PaintSteps(ClosingSteps, INDEX_NONE, ClosingSteps, ClosingSteps);
 	PaintObjective();
 	PaintHint();
 	PaintOptionals();

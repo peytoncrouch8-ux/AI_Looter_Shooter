@@ -1,5 +1,5 @@
 // UHudMissionTrackerWidget: the step's optional objectives, under the objective and its hint. Smaller and dimmed, a dashed
-// ring for a mark (in the marks' column under the medal) and "Optional:" before each, so they never read as the job; one
+// ring for a mark (in the marks' column under the medal) and "Optional:" after it, so they never read as the job; one
 // done is checked where it stands (the check pops in over the ring, the line flashes cyan and settles dim, its own small
 // sound) and stays checked until the step ends.
 
@@ -23,7 +23,7 @@ using namespace LooterUI;
 
 namespace
 {
-	/** The rows sit under the hint, their marks in the column under the objective's circle, their words ending where its words end. */
+	/** The rows sit under the hint, their marks in the column under the objective's circle, their words starting where its words start. */
 	constexpr float OptionalTop = 6.f;
 	constexpr float OptionalRowGap = 3.f;
 	constexpr float OptionalMarkColumn = HudTrackerShapes::MedalBox;
@@ -34,8 +34,8 @@ namespace
 	constexpr int32 OptionalLineSize = 15;
 	/** A long optional line wraps rather than run across the screen, inside the tracker's MaxWidth with its label and count. */
 	constexpr float OptionalWrap = 330.f;
-	/** The row's nudge as it's struck off (toward the screen's edge, the tracker's side). */
-	constexpr float RowNudge = 8.f;
+	/** The row's nudge as it's struck off (toward the screen's edge, the tracker's side: left). */
+	constexpr float RowNudge = -8.f;
 
 	/** Out fast, overshooting a touch, settling (a pop's ease). */
 	float EaseOutBack(float Share)
@@ -53,10 +53,10 @@ UWidget* UHudMissionTrackerWidget::BuildOptionals()
 {
 	OptionalBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	OptionalBox->SetVisibility(ESlateVisibility::Collapsed);
-	OptionalBox->SetRenderTransformPivot(FVector2D(1.f, 0.5f));
+	OptionalBox->SetRenderTransformPivot(FVector2D(0.f, 0.5f));
 	UVerticalBox* Holder = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UVerticalBoxSlot* BoxSlot = Holder->AddChildToVerticalBox(OptionalBox);
-	BoxSlot->SetHorizontalAlignment(HAlign_Right);
+	BoxSlot->SetHorizontalAlignment(HAlign_Left);
 	BoxSlot->SetPadding(FMargin(0.f, OptionalTop, 0.f, 0.f));
 	return Holder;
 }
@@ -66,20 +66,6 @@ void UHudMissionTrackerWidget::EnsureOptionalRows(int32 Count)
 	while (OptionalBox && OptionalRows.Num() < Count)
 	{
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-
-		// "OPTIONAL:" small and cyan, then the line dimmed (a long one wraps, right-aligned), then its count.
-		UTextBlock* Label = MakeFloatingText(WidgetTree, OptionalLabelSize, Color::Hairline(), OptionalLabelSpacing);
-		Label->SetText(LOCTEXT("Optional", "OPTIONAL:"));
-		UHorizontalBoxSlot* LabelSlot = Row->AddChildToHorizontalBox(Label);
-		LabelSlot->SetVerticalAlignment(VAlign_Center);
-		LabelSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
-		UTextBlock* Line = MakeFloatingText(WidgetTree, OptionalLineSize, Color::TextDim(), 0, ETextJustify::Right);
-		Line->SetWrapTextAt(OptionalWrap);
-		Row->AddChildToHorizontalBox(Line)->SetVerticalAlignment(VAlign_Center);
-		UTextBlock* CountWords = MakeFloatingText(WidgetTree, OptionalLineSize, Color::CyanText());
-		UHorizontalBoxSlot* CountSlot = Row->AddChildToHorizontalBox(CountWords);
-		CountSlot->SetVerticalAlignment(VAlign_Center);
-		CountSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
 
 		// The mark in the column: the dashed ring, the check over it once done (it pops about its middle).
 		UOverlay* Mark = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
@@ -95,10 +81,24 @@ void UHudMissionTrackerWidget::EnsureOptionalRows(int32 Count)
 		CheckSlot->SetVerticalAlignment(VAlign_Center);
 		UHorizontalBoxSlot* MarkSlot = Row->AddChildToHorizontalBox(MakeSized(WidgetTree, Mark, OptionalMarkColumn, OptionalMarkHeight));
 		MarkSlot->SetVerticalAlignment(VAlign_Center);
-		MarkSlot->SetPadding(FMargin(OptionalWordsGap, 0.f, 0.f, 0.f));
+		MarkSlot->SetPadding(FMargin(0.f, 0.f, OptionalWordsGap, 0.f));
+
+		// "OPTIONAL:" small and cyan, then the line dimmed (a long one wraps), then its count.
+		UTextBlock* Label = MakeFloatingText(WidgetTree, OptionalLabelSize, Color::Hairline(), OptionalLabelSpacing);
+		Label->SetText(LOCTEXT("Optional", "OPTIONAL:"));
+		UHorizontalBoxSlot* LabelSlot = Row->AddChildToHorizontalBox(Label);
+		LabelSlot->SetVerticalAlignment(VAlign_Center);
+		LabelSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
+		UTextBlock* Line = MakeFloatingText(WidgetTree, OptionalLineSize, Color::TextDim(), 0, ETextJustify::Left);
+		Line->SetWrapTextAt(OptionalWrap);
+		Row->AddChildToHorizontalBox(Line)->SetVerticalAlignment(VAlign_Center);
+		UTextBlock* CountWords = MakeFloatingText(WidgetTree, OptionalLineSize, Color::CyanText());
+		UHorizontalBoxSlot* CountSlot = Row->AddChildToHorizontalBox(CountWords);
+		CountSlot->SetVerticalAlignment(VAlign_Center);
+		CountSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
 
 		UVerticalBoxSlot* RowSlot = OptionalBox->AddChildToVerticalBox(Row);
-		RowSlot->SetHorizontalAlignment(HAlign_Right);
+		RowSlot->SetHorizontalAlignment(HAlign_Left);
 		RowSlot->SetPadding(FMargin(0.f, OptionalRows.IsEmpty() ? 0.f : OptionalRowGap, 0.f, 0.f));
 		OptionalRows.Add(Row);
 		OptionalMarks.Add(Ring);

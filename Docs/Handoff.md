@@ -3,6 +3,12 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-31 night: mission tracker top-left BUILT
+The user: missions and their tasks on the left, a little under the top corner; no "3/4", just the next objective; the
+objective's circle bigger, the task on its right. Built: tracker top-left (Left 36, Top 96), left-aligned, step row gone,
+ring 28 / check 32 px, control hint moved to 330. Tests TrackerTopLeft, ObjectiveChecks, LootCardClear, Missions.Tracker
+pass; seen in hudshots (Ransom's Rest and the island). Pipeline Game.md "HUD".
+
 ## 2026-10-31 evening: Sink dens BUILT (contract Docs/Archive/Work/2026-10-31-SinkDens/CONTRACT.md)
 The user: the Sink's spiders (Main 5) crawl out of dens in the walls instead of being there; picks: every time they spawn, when
 the player reaches the floor. Built: EAmbushEntrance::Den (spider crawls out, tips onto the face, climbs down, hunts), four burrows

@@ -2,7 +2,7 @@
 #include "UI/Cards/GunCardRules.h"
 #include "UI/Cards/GunCardWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
-#include "UI/HUD/HudMissionTrackerWidget.h"
+#include "UI/HUD/HudMinimapWidget.h"
 #include "Interaction/InteractionComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Shields/ShieldPickup.h"
@@ -60,7 +60,7 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 	{
 		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 		const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
-		const float ClearTop = UHudMissionTrackerWidget::TopFor(Settings ? Settings->GetMinimapScale() : 1.f, !Settings || Settings->IsMinimapShown());
+		const float ClearTop = UHudMinimapWidget::ClearTop(Settings ? Settings->GetMinimapScale() : 1.f, !Settings || Settings->IsMinimapShown());
 		const float Drop = LootCardDrop(static_cast<float>(GetCachedGeometry().GetLocalSize().Y), static_cast<float>(PickupCard->GetDesiredSize().Y),
 			ClearTop);
 		const FVector2D Wanted(CardSlot->GetPosition().X, Drop);

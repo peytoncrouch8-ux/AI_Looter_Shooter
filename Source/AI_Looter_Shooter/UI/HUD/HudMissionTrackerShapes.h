@@ -5,7 +5,8 @@
 
 /**
  * The mission tracker's marks (the user's call, 2026-10-14: circles, checked once done, instead of the old straight
- * lines): the objective's, the step row's and the optional objectives'. Drawn once per session through the kit's
+ * lines): the objective's (bigger since 2026-10-31, the user's call) and the optional objectives'. The step row's are gone
+ * (2026-10-31: the tracker shows the next objective only). Drawn once per session through the kit's
  * painted pictures (HudMissionTrackerShapes.cpp).
  */
 enum class EHudTrackerMark : uint8
@@ -14,12 +15,6 @@ enum class EHudTrackerMark : uint8
 	Objective,
 	/** Done: a cyan disc (the experience bar's two halves) with an ink check, as the level gem has its number in ink. */
 	ObjectiveDone,
-	/** A step done: a small checked disc. */
-	StepDone,
-	/** The step being played: an orange ring round an orange dot. */
-	StepNow,
-	/** A step still to come: a faint ring. */
-	StepToCome,
 	/** An optional objective: a dashed cyan ring, so it never reads as the job. */
 	Optional,
 	/** Done: a small checked disc. */

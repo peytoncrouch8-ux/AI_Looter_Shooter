@@ -5,6 +5,7 @@
 #include "Missions/MissionSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "UI/HUD/HudBossBarWidget.h"
+#include "UI/HUD/HudControlHintWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/HUD/HudMissionTrackerShapes.h"
@@ -22,58 +23,40 @@
 #include "Engine/World.h"
 #include "Tests/AutomationCommon.h"
 
-// The gameplay HUD's pieces the user asked for on 2026-10-14 (Looter.UI.HUD.*): the mission tracker under the minimap with
-// circles that are checked once done, the "+XP" by the experience bar, the gun's notches beside its name, no crosshair
+// The gameplay HUD's pieces the user asked for on 2026-10-14 (Looter.UI.HUD.*): the mission tracker (top-left since
+// 2026-10-31, the next objective only, its big circle before it) with circles that are checked once done, the "+XP" by the experience bar, the gun's notches beside its name, no crosshair
 // while aiming down the sights, and the health and experience bars 25% bigger with nothing in the frame overlapping.
 
 namespace
 {
 	/** 1080p, the screen every HUD number is written for. */
 	constexpr float HudTestScreenWidth = 1920.f;
-
-	/** Marks as words, for the tests' messages. */
-	FString HudTestMarks(const TArray<EHudTrackerMark>& Marks)
-	{
-		FString Words;
-		for (const EHudTrackerMark Mark : Marks)
-		{
-			Words += FString::Printf(TEXT("%d "), static_cast<int32>(Mark));
-		}
-		return Words;
-	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudTrackerUnderMapTest, "Looter.UI.HUD.TrackerUnderMap",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudTrackerTopLeftTest, "Looter.UI.HUD.TrackerTopLeft",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FHudTrackerUnderMapTest::RunTest(const FString& Parameters)
+bool FHudTrackerTopLeftTest::RunTest(const FString& Parameters)
 {
 	using TrackerRules = UHudMissionTrackerWidget;
-	TestEqual(TEXT("Right-aligned to the minimap's column"), TrackerRules::RightInset, UHudMinimapWidget::Margin);
+	// The user, 2026-10-31: on the left, a little under the top corner.
+	TestEqual(TEXT("In from the left edge as far as the minimap is from the right"), TrackerRules::Left, UHudMinimapWidget::Margin);
+	TestTrue(TEXT("A little under the corner (the frame rate counter sits there)"),
+		TrackerRules::Top > UHudMinimapWidget::Margin + 40.f && TrackerRules::Top <= 140.f);
+	TestTrue(TEXT("The control hint stands under it"), UHudControlHintWidget::Middle > TrackerRules::Top + 200.f
+		&& UHudControlHintWidget::Left == TrackerRules::Left);
 
-	// Under the minimap's whole frame (the bezel, the compass letters riding it, the place's name) at every size the
-	// settings allow, and close under it.
-	float LastTop = 0.f;
-	for (const float MapScale : { UGraphicsSettingsSubsystem::MinMinimapScale, 1.f, UGraphicsSettingsSubsystem::MaxMinimapScale })
-	{
-		const float TrackerTop = TrackerRules::TopFor(MapScale, true);
-		const float BezelBottom = UHudMinimapWidget::Margin + (UHudMinimapWidget::Diameter + UHudMinimapWidget::BezelReach) * MapScale;
-		const float MapFrameBottom = UHudMinimapWidget::Margin + UHudMinimapWidget::FrameBottom(MapScale);
-		TestTrue(FString::Printf(TEXT("At %.0f%%: under the bezel and the place's name (%.1f under %.1f)"), MapScale * 100.f,
-			TrackerTop, MapFrameBottom), TrackerTop >= MapFrameBottom && MapFrameBottom > BezelBottom);
-		TestTrue(FString::Printf(TEXT("At %.0f%%: close under it"), MapScale * 100.f), TrackerTop - MapFrameBottom <= 24.f);
-		TestTrue(FString::Printf(TEXT("At %.0f%%: a bigger minimap pushes it down"), MapScale * 100.f), TrackerTop > LastTop);
-		LastTop = TrackerTop;
-	}
-	TestEqual(TEXT("With the minimap off it takes the corner"), TrackerRules::TopFor(1.f, false), UHudMinimapWidget::Margin);
+	// Its widest stays clear of what's at the top's middle: the level-up banner and the boss bar's cluster (its rank gem
+	// reaches 60 px past the bar).
+	const float TrackerRightmost = TrackerRules::Left + TrackerRules::MaxWidth;
+	TestTrue(TEXT("Clear of the level-up banner"), TrackerRightmost <= HudTestScreenWidth * 0.5f - UHudLevelUpBannerWidget::Width * 0.5f);
+	TestTrue(TEXT("Clear of the boss bar"), TrackerRightmost <= HudTestScreenWidth * 0.5f - UHudBossBarWidget::BarWidth * 0.5f - 60.f);
 
-	// Its widest stays clear of what's at the top's middle, even in the corner with the minimap off: the level-up banner
-	// and the boss bar's cluster (its rank gem reaches 60 px past the bar).
-	const float TrackerLeftmost = HudTestScreenWidth - TrackerRules::RightInset - TrackerRules::MaxWidth;
-	TestTrue(TEXT("Clear of the level-up banner"), TrackerLeftmost >= HudTestScreenWidth * 0.5f + UHudLevelUpBannerWidget::Width * 0.5f);
-	TestTrue(TEXT("Clear of the boss bar"), TrackerLeftmost >= HudTestScreenWidth * 0.5f + UHudBossBarWidget::BarWidth * 0.5f + 60.f);
+	// The objective's circle is bigger than the optional ones' (the user: "should be bigger").
+	TestTrue(TEXT("The objective's circle: big"), HudTrackerShapes::MarkSize(EHudTrackerMark::Objective).X >= 26.f
+		&& HudTrackerShapes::MarkSize(EHudTrackerMark::Objective).X > HudTrackerShapes::MarkSize(EHudTrackerMark::Optional).X);
 
-	// Built, it hangs from its top-right corner there.
+	// Built, it hangs from its top-left corner there.
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -87,8 +70,7 @@ bool FHudTrackerUnderMapTest::RunTest(const FString& Parameters)
 	// Its Slate widget held for the test, as a viewport holds it in play.
 	const TSharedRef<SWidget> TrackerSlate = TestTracker->TakeWidget();
 	TestTracker->Advance(0.f);
-	TestTrue(TEXT("Placed under the minimap, right-aligned"),
-		TestTracker->GetPlacedCorner().Equals(FVector2D(TrackerRules::RightInset, TrackerRules::TopFor(1.f, true)), 0.5f));
+	TestTrue(TEXT("Placed top-left"), TestTracker->GetPlacedCorner().Equals(FVector2D(TrackerRules::Left, TrackerRules::Top), 0.5f));
 	return true;
 }
 
@@ -103,9 +85,6 @@ bool FHudObjectiveChecksTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Done: its check"), TrackerRules::ObjectiveMark(true, false) == EHudTrackerMark::ObjectiveDone);
 	TestTrue(TEXT("An optional one: a dashed ring, then its check"), TrackerRules::ObjectiveMark(false, true) == EHudTrackerMark::Optional
 		&& TrackerRules::ObjectiveMark(true, true) == EHudTrackerMark::OptionalDone);
-	TestTrue(TEXT("Steps: done checked, the current one orange, the rest to come"),
-		TrackerRules::StepMark(0, 1, 1) == EHudTrackerMark::StepDone && TrackerRules::StepMark(1, 1, 1) == EHudTrackerMark::StepNow
-		&& TrackerRules::StepMark(2, 1, 1) == EHudTrackerMark::StepToCome && TrackerRules::StepMark(1, 2, INDEX_NONE) == EHudTrackerMark::StepDone);
 	TestTrue(TEXT("A check's picture is no smaller than its ring's"),
 		HudTrackerShapes::MarkSize(EHudTrackerMark::ObjectiveDone).X >= HudTrackerShapes::MarkSize(EHudTrackerMark::Objective).X);
 
@@ -134,10 +113,7 @@ bool FHudObjectiveChecksTest::RunTest(const FString& Parameters)
 	Parts.Optionals.Add(Extra);
 	TestMissions->SetObjective(MissionId, FText::FromString(TEXT("Ring the bell.")), TOptional<FVector>(), Parts);
 	TestTracker->Advance(0.1f);
-	const TArray<EHudTrackerMark> FirstSteps = { EHudTrackerMark::StepDone, EHudTrackerMark::StepNow, EHudTrackerMark::StepToCome };
 	TestTrue(TEXT("The objective to do: its ring"), TestTracker->GetShownObjectiveMark() == EHudTrackerMark::Objective);
-	TestTrue(FString::Printf(TEXT("Its steps: the first checked, this one orange, the last to come (%s)"),
-		*HudTestMarks(TestTracker->GetShownStepMarks())), TestTracker->GetShownStepMarks() == FirstSteps);
 	TestTrue(TEXT("The optional one: a dashed ring"), TestTracker->GetShownOptionalMarks() == TArray<EHudTrackerMark>({ EHudTrackerMark::Optional }));
 
 	// The optional objective done: checked where it stands.
@@ -147,7 +123,7 @@ bool FHudObjectiveChecksTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The optional one done: checked"), TestTracker->GetShownOptionalMarks() == TArray<EHudTrackerMark>({ EHudTrackerMark::OptionalDone }));
 	TestTrue(TEXT("...and the objective still to do"), TestTracker->GetShownObjectiveMark() == EHudTrackerMark::Objective);
 
-	// Seen a while, then its step done (the next step up): the objective is checked, and its step's circle.
+	// Seen a while, then its step done (the next step up): the objective is checked.
 	TestTracker->Advance(0.5f);
 	FMissionTrackerParts Next;
 	Next.Line = TEXT("Leave the tower");
@@ -155,17 +131,11 @@ bool FHudObjectiveChecksTest::RunTest(const FString& Parameters)
 	Next.StepCount = 3;
 	TestMissions->SetObjective(MissionId, FText::FromString(TEXT("Leave the tower.")), TOptional<FVector>(), Next);
 	TestTracker->Advance(0.01f);
-	const TArray<EHudTrackerMark> DoneSteps = { EHudTrackerMark::StepDone, EHudTrackerMark::StepDone, EHudTrackerMark::StepToCome };
 	TestTrue(TEXT("Done: the objective's check"), TestTracker->GetShownObjectiveMark() == EHudTrackerMark::ObjectiveDone);
-	TestTrue(FString::Printf(TEXT("...and its step's circle checked (%s)"), *HudTestMarks(TestTracker->GetShownStepMarks())),
-		TestTracker->GetShownStepMarks() == DoneSteps);
 
-	// After its hold, the next objective: a ring again, its step's circle orange.
+	// After its hold, the next objective: a ring again.
 	TestTracker->Advance(UHudMissionTrackerWidget::DoneHoldSeconds + 0.1f);
-	const TArray<EHudTrackerMark> LastSteps = { EHudTrackerMark::StepDone, EHudTrackerMark::StepDone, EHudTrackerMark::StepNow };
 	TestTrue(TEXT("The next objective: its ring"), TestTracker->GetShownObjectiveMark() == EHudTrackerMark::Objective);
-	TestTrue(FString::Printf(TEXT("...its step orange, the others checked (%s)"), *HudTestMarks(TestTracker->GetShownStepMarks())),
-		TestTracker->GetShownStepMarks() == LastSteps);
 	TestTrue(TEXT("...and no optional one"), TestTracker->GetShownOptionalMarks().IsEmpty());
 	return true;
 }

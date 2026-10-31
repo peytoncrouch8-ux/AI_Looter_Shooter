@@ -56,9 +56,10 @@ enum class EGunSlotLock : uint8;
  *    (UHudMagazineWidget); under them, right-aligned, the status ("RELOADING") and fire mode on one line, and the gun's
  *    name in its rarity's colour after a small rarity gem, with the gun's notches before the gem once it has any (a tally
  *    mark and the count, popping on each kill with it: UHudNotchTallyWidget)
- *  - top-right: the minimap (UHudMinimapWidget); under it the mission tracker (UHudMissionTrackerWidget, a viewport widget
- *    of its own that ALooterHUD makes, which steps aside while the in-hand card would cover it: GetLootCardBounds)
- *  - top-left: the frame rate (UHudFrameRateWidget)
+ *  - top-right: the minimap (UHudMinimapWidget)
+ *  - top-left: the frame rate (UHudFrameRateWidget); a little under the corner the mission tracker (UHudMissionTrackerWidget,
+ *    a viewport widget of its own that ALooterHUD makes, which steps aside while the in-hand card would cover it:
+ *    GetLootCardBounds); under it, the control hint (UHudControlHintWidget)
  *  - top-centre, its middle (the big level number) 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up;
  *    in the same place, taking turns with it, the mission-complete banner (UHudMissionCompleteWidget) as a mission is turned in;
  *    a little higher, the "GRAVE MARKED" banner (UHudGraveMarkedWidget) when the player walks up to a respawn grave for the first time;
@@ -130,7 +131,7 @@ public:
 
 	/**
 	 * How far down (HUD pixels) the in-hand card moves from the right edge's middle, where it stands, so a tall card keeps
-	 * its top at ClearTop: under the minimap's frame and the place's name (the tracker's top, UHudMissionTrackerWidget::TopFor),
+	 * its top at ClearTop: under the minimap's frame and the place's name (UHudMinimapWidget::ClearTop),
 	 * but its bottom never goes past BottomKeep above the screen's foot (a card too tall for the room between stops there).
 	 * 0 for a card that fits, or before anything is laid out.
 	 */

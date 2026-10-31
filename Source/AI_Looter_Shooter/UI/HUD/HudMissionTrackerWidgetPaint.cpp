@@ -1,5 +1,5 @@
-// UHudMissionTrackerWidget: painting what it shows (only when it changes): the title, the step circles and their number,
-// the objective row with its ring or check, and the key hint; and the checks popping in. The optional objectives under
+// UHudMissionTrackerWidget: painting what it shows (only when it changes): the title, the objective row with its ring or
+// check, and the key hint; and the check popping in. The optional objectives under
 // them are HudMissionTrackerWidgetOptional.cpp's.
 
 #include "UI/HUD/HudMissionTrackerWidget.h"
@@ -45,32 +45,9 @@ EHudTrackerMark UHudMissionTrackerWidget::ObjectiveMark(bool bDone, bool bOption
 	return bDone ? EHudTrackerMark::ObjectiveDone : EHudTrackerMark::Objective;
 }
 
-EHudTrackerMark UHudMissionTrackerWidget::StepMark(int32 Index, int32 DoneCount, int32 Current)
-{
-	if (Index < DoneCount)
-	{
-		return EHudTrackerMark::StepDone;
-	}
-	return Index == Current ? EHudTrackerMark::StepNow : EHudTrackerMark::StepToCome;
-}
-
 EHudTrackerMark UHudMissionTrackerWidget::GetShownObjectiveMark() const
 {
 	return ObjectiveMark(Shown.bDone, false);
-}
-
-TArray<EHudTrackerMark> UHudMissionTrackerWidget::GetShownStepMarks() const
-{
-	// Only the circles on show: a one-step mission has none.
-	TArray<EHudTrackerMark> Marks;
-	if (StepRow && StepRow->GetVisibility() != ESlateVisibility::Collapsed)
-	{
-		for (int32 Index = 0; Index < FMath::Min(Shown.StepCount, StepMarks.Num()); ++Index)
-		{
-			Marks.Add(StepMarks[Index]);
-		}
-	}
-	return Marks;
 }
 
 TArray<EHudTrackerMark> UHudMissionTrackerWidget::GetShownOptionalMarks() const
@@ -89,45 +66,6 @@ void UHudMissionTrackerWidget::PaintTitle(const FText& Title)
 	{
 		TitleText->SetText(Title.ToUpper());
 	}
-}
-
-void UHudMissionTrackerWidget::PaintSteps(int32 DoneCount, int32 Current, int32 StepCount, int32 Number, bool bPopChecks)
-{
-	if (!StepRow || !StepText)
-	{
-		return;
-	}
-	// A mission of one step has no row.
-	const bool bRow = StepCount > 1;
-	StepRow->SetVisibility(bRow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	if (!bRow)
-	{
-		return;
-	}
-	EnsureSteps(StepCount);
-	for (int32 Index = 0; Index < StepImages.Num(); ++Index)
-	{
-		UImage* Circle = StepImages[Index];
-		if (Index >= StepCount)
-		{
-			Circle->SetVisibility(ESlateVisibility::Collapsed);
-			StepPopAges[Index] = CheckPopSeconds;
-			continue;
-		}
-		Circle->SetVisibility(ESlateVisibility::HitTestInvisible);
-		const EHudTrackerMark Mark = StepMark(Index, DoneCount, Current);
-		if (Mark != StepMarks[Index])
-		{
-			// A step just done is checked with a pop, as the objective's check pops; anything else (a mission shown anew
-			// with steps done already) is just shown.
-			const bool bChecked = bPopChecks && Mark == EHudTrackerMark::StepDone && StepMarks[Index] != EHudTrackerMark::StepDone;
-			StepMarks[Index] = Mark;
-			Circle->SetBrush(HudTrackerShapes::MarkBrush(Mark));
-			StepPopAges[Index] = bChecked ? 0.f : CheckPopSeconds;
-			ApplyCheckPop(Circle, bChecked ? 0.f : 1.f);
-		}
-	}
-	StepText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), FMath::Clamp(Number, 1, StepCount), StepCount)));
 }
 
 void UHudMissionTrackerWidget::PaintObjective()
@@ -181,14 +119,5 @@ void UHudMissionTrackerWidget::AnimateChecks(float DeltaTime)
 	{
 		CheckPopAge = FMath::Min(CheckPopAge + DeltaTime, CheckPopSeconds);
 		ApplyCheckPop(ObjectiveCheck.Get(), CheckPopAge / CheckPopSeconds);
-	}
-	for (int32 Index = 0; Index < FMath::Min(StepPopAges.Num(), StepImages.Num()); ++Index)
-	{
-		float& Age = StepPopAges[Index];
-		if (Age < CheckPopSeconds)
-		{
-			Age = FMath::Min(Age + DeltaTime, CheckPopSeconds);
-			ApplyCheckPop(StepImages[Index].Get(), Age / CheckPopSeconds);
-		}
 	}
 }

@@ -75,10 +75,15 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   space, 15 cm over the top, orange ring-diamond round a dot; gone within 2.5 m, whole from 4.5 m; shows through walls like
   the giver's mark). `Looter.Highlight.List` says ", marked". Test `Looter.Missions.Highlight.Marker`.
 - Holds: every hold-to-use shows the kit's round ring (`SLooterProgressRing`, `LooterUI::MakeHoldKeyCap`).
-- HUD (the user's list, 2026-10-14): the mission tracker sits under the minimap, right-aligned (`TopFor`, `RightInset` 36,
-  `MaxWidth` 540: clear of the boss bar's 380 px either side of the middle); enemy name tags under a shown boss bar fade to 0.15 in 0.2 s
-  (`UHudBossBarWidget::CoveredArea`, `UCreatureHealthBarWidget::FadeUnderBossBar`; 2026-10-30, they hid its title); steps and the objective are circles, checked
-  once done; a line without a count takes the count's room before wrapping. A kill's XP floats by the kill (`XpPopup*`) and
+- HUD (the user's list, 2026-10-14): the mission tracker sits top-left, left-aligned, a little under the corner (the user,
+  2026-10-31; was under the minimap): `Left` 36, `Top` 96 (the frame rate counter fits over it), `MaxWidth` 540 (clear of
+  the boss bar's 380 px either side of the middle); medal then title; the objective's big circle (28 px ring, 32 px check
+  disc; was 16/20) then its line on the circle's right; no step count ("3 / 4") and no step circles (the user: "just tell
+  you what your next objective is"); an objective's own count ("0 / 6" spiders) stays; optional rows: mark, "OPTIONAL:",
+  line. The control hint moved under it (`UHudControlHintWidget::Middle` 330, was 250). The loot card clears the minimap
+  by `UHudMinimapWidget::ClearTop`. Test `Looter.UI.HUD.TrackerTopLeft`. Enemy name tags under a shown boss bar fade to 0.15 in 0.2 s
+  (`UHudBossBarWidget::CoveredArea`, `UCreatureHealthBarWidget::FadeUnderBossBar`; 2026-10-30, they hid its title); the objective
+  is a circle, checked once done; a line without a count takes the count's room before wrapping. A kill's XP floats by the kill (`XpPopup*`) and
   as "+N XP" after the XP bar's numbers. The gun's notches (inked tally in its tier's colour, count) sit before its name.
   Health and XP bars 25% longer and thicker (`HudFrameShapes::BarScale`). Subtitles On/Off in Interface
   (`Looter.Subtitles`): off hides lines with a speaker (barks too); notices stay. The game has no voice acting, so off

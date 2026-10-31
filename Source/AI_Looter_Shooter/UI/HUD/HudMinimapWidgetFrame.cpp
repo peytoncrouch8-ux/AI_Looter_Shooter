@@ -237,6 +237,11 @@ float UHudMinimapWidget::FrameBottom(float MapScale)
 	return MapRadius + FrameBezelOuter * MapScale + PlaceGap + PlaceLineHeight;
 }
 
+float UHudMinimapWidget::ClearTop(float MapScale, bool bShown)
+{
+	return bShown ? Margin + FrameBottom(MapScale) + ClearGap : Margin;
+}
+
 void UHudMinimapWidget::BuildFrame(UCanvasPanel* Layer)
 {
 	if (!WidgetTree || !Layer)

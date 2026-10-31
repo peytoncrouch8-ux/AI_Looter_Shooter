@@ -1,5 +1,4 @@
-// UHudMissionTrackerWidget: where it stands and how it moves: placed under the minimap as the player has it sized, stepping
-// aside under menus, scenes, the pause and the loot card, its fade, the objective's slide-in and the count's pop. Following
+// UHudMissionTrackerWidget: how it moves: stepping aside under menus, scenes, the pause and the loot card, its fade, the objective's slide-in and the count's pop. Following
 // the tracked mission is HudMissionTrackerWidget.cpp's.
 
 #include "UI/HUD/HudMissionTrackerWidget.h"
@@ -7,7 +6,6 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Scenes/SceneSubsystem.h"
-#include "Settings/GraphicsSettingsSubsystem.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
@@ -22,8 +20,8 @@ namespace
 {
 	/** Seconds for the whole tracker to fade in or out. */
 	constexpr float TrackerFadeSeconds = 0.35f;
-	/** The next objective slides in from this far right (from the screen's edge, the tracker's side). */
-	constexpr float SlideDistance = 14.f;
+	/** The next objective slides in from this far left (from the screen's edge, the tracker's side). */
+	constexpr float SlideDistance = -14.f;
 	/** A new count pops to this size, white, and settles over PopSeconds. */
 	constexpr float PopScale = 1.35f;
 	/** Room kept between the tracker and the loot card before it steps aside for the card. */
@@ -37,17 +35,9 @@ namespace
 	}
 }
 
-void UHudMissionTrackerWidget::UpdatePlacement()
+FVector2D UHudMissionTrackerWidget::GetPlacedCorner() const
 {
-	// The player's minimap size and switch, live (the settings menu changes them while the game is paused).
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
-	const float WantedTop = TopFor(Settings ? Settings->GetMinimapScale() : 1.f, !Settings || Settings->IsMinimapShown());
-	if (BlockSlot && !FMath::IsNearlyEqual(WantedTop, PlacedTop, 0.25f))
-	{
-		PlacedTop = WantedTop;
-		BlockSlot->SetPosition(FVector2D(-RightInset, PlacedTop));
-	}
+	return BlockSlot ? BlockSlot->GetPosition() : FVector2D(-1.f);
 }
 
 bool UHudMissionTrackerWidget::IsCovered() const

@@ -91,9 +91,16 @@ public:
 
 	/**
 	 * How far below the widget's box top (the map's top edge) its frame reaches at MapScale (1 = Diameter): the bezel with
-	 * the compass letters riding it, then the place's name under it. The mission tracker hangs under it.
+	 * the compass letters riding it, then the place's name under it.
 	 */
 	static float FrameBottom(float MapScale);
+
+	/**
+	 * The first free line under the minimap's whole frame, in 1080p pixels from the screen's top: FrameBottom at the
+	 * player's minimap size plus ClearGap, or the margin with the minimap off. The loot card keeps its top at it.
+	 */
+	static float ClearTop(float MapScale, bool bShown);
+	static constexpr float ClearGap = 14.f;
 
 	/**
 	 * Where a waypoint at WorldDelta from the player shows on a map that turns with the view (ViewYaw up): itself when it

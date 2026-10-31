@@ -25,15 +25,14 @@ namespace
 
 	// --- The marks: boxes, and the rings' and discs' radii in them ---
 
-	/** The objective's ring, and its checked disc (a bigger box, room for the pop). */
-	constexpr float ObjectiveBox = 16.f;
-	constexpr float ObjectiveRadius = 5.8f;
-	constexpr float ObjectiveCheckBox = 20.f;
-	constexpr float ObjectiveCheckRadius = 7.6f;
-	/** The step row's pips. */
-	constexpr float PipBox = 12.f;
-	constexpr float PipRadius = 4.4f;
-	constexpr float PipCheckRadius = 5.f;
+	/**
+	 * The objective's ring, and its checked disc (a bigger box, room for the pop): as tall as its line's capitals and more
+	 * (the user, 2026-10-31: "should be bigger"; it was a 5.8 ring in a 16 box).
+	 */
+	constexpr float ObjectiveBox = 28.f;
+	constexpr float ObjectiveRadius = 10.f;
+	constexpr float ObjectiveCheckBox = 32.f;
+	constexpr float ObjectiveCheckRadius = 12.5f;
 	/** The optional objectives' dashed ring, and their checked disc. */
 	constexpr float OptionalBox = 12.f;
 	constexpr float OptionalRadius = 4.6f;
@@ -126,32 +125,8 @@ namespace
 		const TArray<FVector2D> Ring = ShapesClosed(ShapesCircle(Center, ObjectiveRadius));
 		FPaintedIcon Icon;
 		Icon.ViewBox = FVector2D(ObjectiveBox);
-		Icon.Layers.Add(ShapesStroke({ Ring }, 3.6f, Color::Ink()));
-		Icon.Layers.Add(ShapesStroke({ Ring }, 1.9f, Color::Accent()));
-		return Icon;
-	}
-
-	/** The step being played: the objective's orange ring a size down, round an orange dot. */
-	FPaintedIcon MakePipNow()
-	{
-		const FVector2D Center(PipBox * 0.5f);
-		const TArray<FVector2D> Ring = ShapesClosed(ShapesCircle(Center, PipRadius));
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(PipBox);
-		Icon.Layers.Add(ShapesStroke({ Ring }, 3.f, Color::Ink()));
-		Icon.Layers.Add(ShapesStroke({ Ring }, 1.5f, Color::Accent()));
-		Icon.Layers.Add(ShapesFill({ ShapesCircle(Center, 1.9f) }, Color::Accent()));
-		return Icon;
-	}
-
-	/** A step still to come: a faint cyan ring over a faint dark one. */
-	FPaintedIcon MakePipToCome()
-	{
-		const TArray<FVector2D> Ring = ShapesClosed(ShapesCircle(FVector2D(PipBox * 0.5f), PipRadius));
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(PipBox);
-		Icon.Layers.Add(ShapesStroke({ Ring }, 2.6f, Color::Ink(), 0.55f));
-		Icon.Layers.Add(ShapesStroke({ Ring }, 1.1f, Color::Hairline(), 0.5f));
+		Icon.Layers.Add(ShapesStroke({ Ring }, 5.2f, Color::Ink()));
+		Icon.Layers.Add(ShapesStroke({ Ring }, 2.8f, Color::Accent()));
 		return Icon;
 	}
 
@@ -289,9 +264,6 @@ FVector2D HudTrackerShapes::MarkSize(EHudTrackerMark Mark)
 	{
 	case EHudTrackerMark::Objective: return FVector2D(ObjectiveBox);
 	case EHudTrackerMark::ObjectiveDone: return FVector2D(ObjectiveCheckBox);
-	case EHudTrackerMark::StepDone:
-	case EHudTrackerMark::StepNow:
-	case EHudTrackerMark::StepToCome: return FVector2D(PipBox);
 	case EHudTrackerMark::Optional: return FVector2D(OptionalBox);
 	case EHudTrackerMark::OptionalDone: return FVector2D(OptionalCheckBox);
 	default: return FVector2D(ObjectiveBox);
@@ -302,18 +274,12 @@ FSlateBrush HudTrackerShapes::MarkBrush(EHudTrackerMark Mark)
 {
 	static const FPaintedIcon ObjectiveRing = MakeObjectiveRing();
 	static const FPaintedIcon ObjectiveCheck = MakeCheckDisc(ObjectiveCheckBox, ObjectiveCheckRadius);
-	static const FPaintedIcon PipDone = MakeCheckDisc(PipBox, PipCheckRadius);
-	static const FPaintedIcon PipNow = MakePipNow();
-	static const FPaintedIcon PipToCome = MakePipToCome();
 	static const FPaintedIcon OptionalRing = MakeOptionalRing();
 	static const FPaintedIcon OptionalCheck = MakeCheckDisc(OptionalCheckBox, OptionalCheckRadius);
 	const FVector2D Size = MarkSize(Mark);
 	switch (Mark)
 	{
 	case EHudTrackerMark::ObjectiveDone: return PaintedIconBrush(TEXT("HudTrackerCheck"), ObjectiveCheck, ShapesPixelsPerUnit, Size);
-	case EHudTrackerMark::StepDone: return PaintedIconBrush(TEXT("HudTrackerPipDone"), PipDone, ShapesPixelsPerUnit, Size);
-	case EHudTrackerMark::StepNow: return PaintedIconBrush(TEXT("HudTrackerPipNow"), PipNow, ShapesPixelsPerUnit, Size);
-	case EHudTrackerMark::StepToCome: return PaintedIconBrush(TEXT("HudTrackerPipToCome"), PipToCome, ShapesPixelsPerUnit, Size);
 	case EHudTrackerMark::Optional: return PaintedIconBrush(TEXT("HudTrackerOptionalRing"), OptionalRing, ShapesPixelsPerUnit, Size);
 	case EHudTrackerMark::OptionalDone: return PaintedIconBrush(TEXT("HudTrackerOptionalCheck"), OptionalCheck, ShapesPixelsPerUnit, Size);
 	default: return PaintedIconBrush(TEXT("HudTrackerRing"), ObjectiveRing, ShapesPixelsPerUnit, Size);
