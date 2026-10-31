@@ -27,7 +27,8 @@ class UWidget;
  * disc that pops in and its words dim (an objective is done when the objective or the step in the mission's parts moves
  * on, never when only its words change: a rebound key rewrites them in place), and after DoneHoldSeconds the next
  * objective slides in from the left. The
- * step's optional objectives sit under it, smaller and dimmed, a dashed ring for a mark, "Optional:" after it: one done
+ * step's optional objectives sit under it, as big as the objective (the user, 2026-10-31) but dimmed, a dashed ring for a
+ * mark, "Optional:" after it: one done
  * is checked where it stands (the check pops, the line flashes cyan and settles, its own small sound) and stays checked
  * until the step ends. Once every step is done a mission waiting for its turn-in shows "Turn in to <who>", checked as
  * it's turned in. The tutorial's closing line (ShowClosingLine, from ATutorialDirector through
@@ -50,11 +51,11 @@ public:
 
 	/**
 	 * Its block's top-left corner in 1080p pixels: in from the left edge as far as the minimap is from the right
-	 * (UHudMinimapWidget::Margin, the frame rate counter's and the control hint's edge too), a little under the corner
-	 * (the frame rate counter, when it's on, sits in the corner over it).
+	 * (UHudMinimapWidget::Margin, the frame rate counter's and the control hint's edge too), under the corner (the user,
+	 * 2026-10-31: "lower the tracker some"; it was 96; the frame rate counter, when it's on, sits in the corner over it).
 	 */
 	static constexpr float Left = 36.f;
-	static constexpr float Top = 96.f;
+	static constexpr float Top = 150.f;
 
 	/**
 	 * The widest the block gets: its long lines wrap inside it, so it stays clear of what's at the top's middle (the boss

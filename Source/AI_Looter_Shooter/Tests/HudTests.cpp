@@ -41,8 +41,8 @@ bool FHudTrackerTopLeftTest::RunTest(const FString& Parameters)
 	using TrackerRules = UHudMissionTrackerWidget;
 	// The user, 2026-10-31: on the left, a little under the top corner.
 	TestEqual(TEXT("In from the left edge as far as the minimap is from the right"), TrackerRules::Left, UHudMinimapWidget::Margin);
-	TestTrue(TEXT("A little under the corner (the frame rate counter sits there)"),
-		TrackerRules::Top > UHudMinimapWidget::Margin + 40.f && TrackerRules::Top <= 140.f);
+	TestTrue(TEXT("Under the corner (the frame rate counter sits there)"),
+		TrackerRules::Top > UHudMinimapWidget::Margin + 40.f && TrackerRules::Top <= 200.f);
 	TestTrue(TEXT("The control hint stands under it"), UHudControlHintWidget::Middle > TrackerRules::Top + 200.f
 		&& UHudControlHintWidget::Left == TrackerRules::Left);
 
@@ -52,9 +52,11 @@ bool FHudTrackerTopLeftTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Clear of the level-up banner"), TrackerRightmost <= HudTestScreenWidth * 0.5f - UHudLevelUpBannerWidget::Width * 0.5f);
 	TestTrue(TEXT("Clear of the boss bar"), TrackerRightmost <= HudTestScreenWidth * 0.5f - UHudBossBarWidget::BarWidth * 0.5f - 60.f);
 
-	// The objective's circle is bigger than the optional ones' (the user: "should be bigger").
-	TestTrue(TEXT("The objective's circle: big"), HudTrackerShapes::MarkSize(EHudTrackerMark::Objective).X >= 26.f
-		&& HudTrackerShapes::MarkSize(EHudTrackerMark::Objective).X > HudTrackerShapes::MarkSize(EHudTrackerMark::Optional).X);
+	// The objective's circle is big (the user: "should be bigger"), the optional ones' the same.
+	TestTrue(TEXT("The objective's circle: big"), HudTrackerShapes::MarkSize(EHudTrackerMark::Objective).X >= 26.f);
+	TestTrue(TEXT("The optional ones' circles: the same size"),
+		HudTrackerShapes::MarkSize(EHudTrackerMark::Optional) == HudTrackerShapes::MarkSize(EHudTrackerMark::Objective)
+		&& HudTrackerShapes::MarkSize(EHudTrackerMark::OptionalDone) == HudTrackerShapes::MarkSize(EHudTrackerMark::ObjectiveDone));
 
 	// Built, it hangs from its top-left corner there.
 	FTestWorldWrapper TestLevel;

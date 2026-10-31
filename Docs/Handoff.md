@@ -5,8 +5,9 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 
 ## 2026-10-31 night: mission tracker top-left BUILT
 The user: missions and their tasks on the left, a little under the top corner; no "3/4", just the next objective; the
-objective's circle bigger, the task on its right. Built: tracker top-left (Left 36, Top 96), left-aligned, step row gone,
-ring 28 / check 32 px, control hint moved to 330. Tests TrackerTopLeft, ObjectiveChecks, LootCardClear, Missions.Tracker
+objective's circle bigger, the task on its right; then "lower the tracker some, make the optional objective the same size".
+Built: tracker top-left (Left 36, Top 150), left-aligned, step row gone, ring 28 / check 32 px, optional rows the same size,
+control hint moved to 420. Tests TrackerTopLeft, ObjectiveChecks, LootCardClear, Missions.Tracker
 pass; seen in hudshots (Ransom's Rest and the island). Pipeline Game.md "HUD".
 
 ## 2026-10-31 evening: Sink dens BUILT (contract Docs/Archive/Work/2026-10-31-SinkDens/CONTRACT.md)

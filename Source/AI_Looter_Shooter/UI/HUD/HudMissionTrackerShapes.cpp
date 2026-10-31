@@ -33,13 +33,13 @@ namespace
 	constexpr float ObjectiveRadius = 10.f;
 	constexpr float ObjectiveCheckBox = 32.f;
 	constexpr float ObjectiveCheckRadius = 12.5f;
-	/** The optional objectives' dashed ring, and their checked disc. */
-	constexpr float OptionalBox = 12.f;
-	constexpr float OptionalRadius = 4.6f;
-	constexpr float OptionalCheckBox = 16.f;
-	constexpr float OptionalCheckRadius = 5.6f;
-	/** The dashed ring's dashes and how much of each eighth they fill. */
-	constexpr int32 OptionalDashes = 8;
+	/** The optional objectives' dashed ring, and their checked disc: the objective's size (the user, 2026-10-31; was 12/16). */
+	constexpr float OptionalBox = ObjectiveBox;
+	constexpr float OptionalRadius = ObjectiveRadius;
+	constexpr float OptionalCheckBox = ObjectiveCheckBox;
+	constexpr float OptionalCheckRadius = ObjectiveCheckRadius;
+	/** The dashed ring's dashes (12 on the big ring) and how much of each one's share they fill. */
+	constexpr int32 OptionalDashes = 12;
 	constexpr float OptionalDashShare = 0.62f;
 
 	/** A circle as a polygon, clockwise on screen from the right. */
@@ -148,8 +148,8 @@ namespace
 		}
 		FPaintedIcon Icon;
 		Icon.ViewBox = FVector2D(OptionalBox);
-		Icon.Layers.Add(ShapesStroke(Dashes, 3.f, Color::Ink(), 0.7f));
-		Icon.Layers.Add(ShapesStroke(Dashes, 1.3f, Color::Hairline(), 0.9f));
+		Icon.Layers.Add(ShapesStroke(Dashes, 5.f, Color::Ink(), 0.7f));
+		Icon.Layers.Add(ShapesStroke(Dashes, 2.4f, Color::Hairline(), 0.9f));
 		return Icon;
 	}
 

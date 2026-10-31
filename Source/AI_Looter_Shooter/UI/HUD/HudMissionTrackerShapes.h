@@ -5,7 +5,7 @@
 
 /**
  * The mission tracker's marks (the user's call, 2026-10-14: circles, checked once done, instead of the old straight
- * lines): the objective's (bigger since 2026-10-31, the user's call) and the optional objectives'. The step row's are gone
+ * lines): the objective's (bigger since 2026-10-31, the user's call) and the optional objectives' (the same size). The step row's are gone
  * (2026-10-31: the tracker shows the next objective only). Drawn once per session through the kit's
  * painted pictures (HudMissionTrackerShapes.cpp).
  */

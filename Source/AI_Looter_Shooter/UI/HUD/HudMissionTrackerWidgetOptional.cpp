@@ -1,4 +1,5 @@
-// UHudMissionTrackerWidget: the step's optional objectives, under the objective and its hint. Smaller and dimmed, a dashed
+// UHudMissionTrackerWidget: the step's optional objectives, under the objective and its hint. As big as the objective (the
+// user, 2026-10-31: they were smaller) but dimmed, a dashed
 // ring for a mark (in the marks' column under the medal) and "Optional:" after it, so they never read as the job; one
 // done is checked where it stands (the check pops in over the ring, the line flashes cyan and settles dim, its own small
 // sound) and stays checked until the step ends.
@@ -25,15 +26,16 @@ namespace
 {
 	/** The rows sit under the hint, their marks in the column under the objective's circle, their words starting where its words start. */
 	constexpr float OptionalTop = 6.f;
-	constexpr float OptionalRowGap = 3.f;
+	constexpr float OptionalRowGap = 4.f;
 	constexpr float OptionalMarkColumn = HudTrackerShapes::MedalBox;
-	constexpr float OptionalMarkHeight = 18.f;
+	/** The objective's sizes: its mark's box (its check disc) and its line's type (HudMissionTrackerWidgetLayout.cpp's LineSize). */
+	constexpr float OptionalMarkHeight = 32.f;
 	constexpr float OptionalWordsGap = 10.f;
-	constexpr int32 OptionalLabelSize = 12;
+	constexpr int32 OptionalLabelSize = 13;
 	constexpr int32 OptionalLabelSpacing = 120;
-	constexpr int32 OptionalLineSize = 15;
+	constexpr int32 OptionalLineSize = 18;
 	/** A long optional line wraps rather than run across the screen, inside the tracker's MaxWidth with its label and count. */
-	constexpr float OptionalWrap = 330.f;
+	constexpr float OptionalWrap = 340.f;
 	/** The row's nudge as it's struck off (toward the screen's edge, the tracker's side: left). */
 	constexpr float RowNudge = -8.f;
 

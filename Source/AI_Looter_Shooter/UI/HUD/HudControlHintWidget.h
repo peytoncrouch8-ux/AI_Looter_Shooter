@@ -29,11 +29,11 @@ public:
 
 	/**
 	 * Its line's left end and middle, in 1080p pixels from the screen's top-left: in from the edge as far as the minimap is,
-	 * under the mission tracker (top-left since 2026-10-31: its title, objective, key hint and two optional rows end
-	 * about 260 px down).
+	 * under the mission tracker (top-left since 2026-10-31, from 150 px down: its title, objective, key hint and two
+	 * optional rows end about 340 px down).
 	 */
 	static constexpr float Left = 36.f;
-	static constexpr float Middle = 330.f;
+	static constexpr float Middle = 420.f;
 
 	/** The slide in, the done flash and the fade out. */
 	static constexpr float SlideSeconds = 0.25f;
