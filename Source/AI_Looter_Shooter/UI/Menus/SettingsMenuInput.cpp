@@ -148,7 +148,7 @@ void USettingsMenuWidget::HandleTransparencyReleased()
 
 void USettingsMenuWidget::HandlePauseSizeChanged(float Value)
 {
-	// The pause menu takes it on its next frame: as Back returns to it.
+	// The pause menu takes it on its next frame (as Back returns to it); this page as the slider is let go.
 	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
 	{
 		Graphics->SetPauseMenuScale(Value, /*bSave*/ false);
@@ -166,6 +166,8 @@ void USettingsMenuWidget::HandlePauseSizeReleased()
 		Graphics->SaveSettings();
 		SetStatus(FString::Printf(TEXT("Pause menu size %d%%."), FMath::RoundToInt(Graphics->GetPauseMenuScale() * 100.f)), LooterUI::Color::TextDim());
 	}
+	// This page shrinks with it, now it's let go.
+	TakePageScale();
 	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
 	SetKeyboardFocus();
 }

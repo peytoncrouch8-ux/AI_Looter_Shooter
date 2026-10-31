@@ -97,6 +97,15 @@ public:
 
 	ESettingsMenuMode GetMode() const { return Mode; }
 
+	/**
+	 * The page's size for Mode at the player's pause menu size (Settings > Interface, the user's 2026-10-31 call: the ESC
+	 * menu and its settings page shrink together): that size over the game, full size from the main menu.
+	 */
+	static float PageScaleFor(ESettingsMenuMode InMode, float PauseMenuScale);
+
+	/** The size the page is drawn at now (1: full size). */
+	float GetPageScale() const { return PageScale; }
+
 	/** Back (to the pause menu over the game, to the main menu from it): Esc, B, or ESC BACK clicked. */
 	FOnSettingsMenuAction OnClose;
 
@@ -428,6 +437,18 @@ private:
 
 	/** The page's canvas (everything but the shade and the previews): it ghosts for the field of view's preview. */
 	UPROPERTY(Transient) TObjectPtr<UCanvasPanel> PageCanvas;
+	/**
+	 * The room the page is laid out in: the screen over PageScale, which the scale box round it fits back to the screen (so
+	 * the page shrinks with its pieces still on their edges).
+	 */
+	UPROPERTY(Transient) TObjectPtr<USizeBox> PageRoom;
+	/** The page's size, taken as it opens and as the pause menu size slider is let go (never mid-drag: the slider would
+	 *  move under the mouse). */
+	float PageScale = 1.f;
+	/** Takes PageScale from the setting for the mode. */
+	void TakePageScale();
+	/** Keeps PageRoom the screen over PageScale (NativeTick). */
+	void FitPage();
 	/** The pages, one scrolling list each, of which the switcher shows the current one (Body is that one's list). */
 	UPROPERTY(Transient) TObjectPtr<UWidgetSwitcher> Pages;
 	UPROPERTY(Transient) TArray<TObjectPtr<UScrollBox>> PageLists;

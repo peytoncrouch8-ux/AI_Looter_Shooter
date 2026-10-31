@@ -23,7 +23,9 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
+#include "Components/SizeBoxSlot.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
@@ -41,6 +43,7 @@ void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 	StopListening();
 	SetIsFocusable(true);
 	ApplyMode();
+	TakePageScale();
 	RefreshKeyLabels();
 	RefreshGraphics();
 	RefreshAudio();
@@ -105,10 +108,43 @@ void USettingsMenuWidget::ApplyMode()
 void USettingsMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	FitPage();
 	AdvancePreviews(InDeltaTime);
 	AdvanceNav(InDeltaTime);
 	AdvanceLook(InDeltaTime);
 	AdvanceScroll(InDeltaTime);
+}
+
+float USettingsMenuWidget::PageScaleFor(ESettingsMenuMode InMode, float PauseMenuScale)
+{
+	if (InMode != ESettingsMenuMode::Pause)
+	{
+		return 1.f;
+	}
+	return FMath::Clamp(PauseMenuScale, UGraphicsSettingsSubsystem::MinPauseMenuScale, UGraphicsSettingsSubsystem::MaxPauseMenuScale);
+}
+
+void USettingsMenuWidget::TakePageScale()
+{
+	const UGraphicsSettingsSubsystem* Graphics = GetGraphics();
+	PageScale = PageScaleFor(Mode, Graphics ? Graphics->GetPauseMenuScale() : 1.f);
+	FitPage();
+}
+
+void USettingsMenuWidget::FitPage()
+{
+	const FVector2D Size(GetCachedGeometry().GetLocalSize());
+	if (!PageRoom || Size.X < 1.0 || Size.Y < 1.0)
+	{
+		return;
+	}
+	const FVector2D Room = Size / FMath::Max(PageScale, 0.1f);
+	if (!FMath::IsNearlyEqual(PageRoom->GetWidthOverride(), static_cast<float>(Room.X), 0.5f)
+		|| !FMath::IsNearlyEqual(PageRoom->GetHeightOverride(), static_cast<float>(Room.Y), 0.5f))
+	{
+		PageRoom->SetWidthOverride(Room.X);
+		PageRoom->SetHeightOverride(Room.Y);
+	}
 }
 
 UKeyBindingSubsystem* USettingsMenuWidget::GetBindings() const
@@ -171,9 +207,22 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 
 		// The page: every piece at its mockup place on a canvas over the whole screen (the help card and the hints keep to
 		// the right edge, the rows stretch between).
+		// Over the game it stands in a room the screen over the pause menu size, fitted back to the screen (FitPage): the
+		// whole page shrinks with the ESC menu (the user, 2026-10-31).
 		PageCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Page"));
 		Panel = PageCanvas;
-		FillOverlaySlot(Root->AddChildToOverlay(PageCanvas));
+		PageRoom = MakeSized(WidgetTree, PageCanvas, 1920.f, 1080.f);
+		PageRoom->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		if (USizeBoxSlot* RoomSlot = Cast<USizeBoxSlot>(PageRoom->GetContentSlot()))
+		{
+			RoomSlot->SetHorizontalAlignment(HAlign_Fill);
+			RoomSlot->SetVerticalAlignment(VAlign_Fill);
+		}
+		UScaleBox* PageFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
+		PageFit->SetStretch(EStretch::ScaleToFit);
+		PageFit->SetContent(PageRoom);
+		PageFit->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		FillOverlaySlot(Root->AddChildToOverlay(PageFit));
 
 		// The dial, SETTINGS and the breadcrumb (SettingsMenuHeader.cpp).
 		MakeHeader();

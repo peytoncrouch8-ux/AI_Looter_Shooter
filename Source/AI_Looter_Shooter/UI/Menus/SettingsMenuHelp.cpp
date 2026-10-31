@@ -161,8 +161,8 @@ FSettingHelp SettingsMenu::RowHelp(ESettingRow Row)
 		return Help(TEXT("UI transparency"), TEXT("How see-through the backgrounds of every menu and panel are, this one included. Text, outlines and bars stay solid."),
 			FString::Printf(TEXT("0%% is solid. Default %s."), *PercentText(0.f)));
 	case ESettingRow::PauseMenuSize:
-		return Help(TEXT("Pause menu size"), TEXT("How big the pause menu is, against its standard size. Smaller keeps its options on the left "
-			"and its cards on the right, with more of the paused game between them."),
+		return Help(TEXT("Pause menu size"), TEXT("How big the pause menu and this settings page are over the game, against their standard size. "
+			"Smaller leaves more of the paused game showing; this page takes it as you let go."),
 			FString::Printf(TEXT("%s to %s. Default 100%%."), *PercentText(GS::MinPauseMenuScale), *PercentText(GS::MaxPauseMenuScale)));
 	case ESettingRow::Minimap:
 		return Help(TEXT("Minimap"), TEXT("The round map in the HUD's top-right corner. Off, the map does no work at all."),

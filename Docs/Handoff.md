@@ -5,8 +5,7 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 
 ## 2026-10-31 night: pause menu size BUILT
 The user: "ESC menu ui needs a gui option to decrease its size". Built: Settings > Interface "Pause menu size" 60-100%
-(default 100%) shrinks the hub (Pipeline Game.md pause menu "Size"). The settings page itself doesn't scale (offered to
-the user). Tests PauseHub.Size, MenuNav.SettingsMenu, PauseHub, SettingsMenu, Settings pass; seen at 70% in uishots.
+(default 100%) shrinks the hub and, over the game, the settings page (the user: "Settings page too"; Pipeline Game.md pause menu "Size"). Tests PauseHub.Size, MenuNav.SettingsMenu, PauseHub, SettingsMenu, Settings pass; seen at 70% in uishots.
 
 ## 2026-10-31 night: mission tracker top-left BUILT
 The user: missions and their tasks on the left, a little under the top corner; no "3/4", just the next objective; the

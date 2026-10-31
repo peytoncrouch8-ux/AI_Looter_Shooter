@@ -348,6 +348,10 @@ bool FPauseHubSizeTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A narrow screen: never under the design width"), StageRoom(FVector2D(1600.f, 1200.f), 1.f).X >= DesignWidth);
 	TestTrue(TEXT("It only shrinks"), GS::MaxPauseMenuScale == 1.f && GS::MinPauseMenuScale > 0.f && GS::MinPauseMenuScale < 1.f);
 	TestEqual(TEXT("Default: full size"), GetDefault<ULooterGraphicsSave>()->PauseMenuScale, 1.f);
+	// Its settings page shrinks with it over the game; from the main menu it stays full size.
+	TestEqual(TEXT("The settings page over the game: the same size"), USettingsMenuWidget::PageScaleFor(ESettingsMenuMode::Pause, 0.7f), 0.7f);
+	TestEqual(TEXT("...from the main menu: full size"), USettingsMenuWidget::PageScaleFor(ESettingsMenuMode::MainMenu, 0.7f), 1.f);
+	TestEqual(TEXT("...kept in the range"), USettingsMenuWidget::PageScaleFor(ESettingsMenuMode::Pause, 0.1f), GS::MinPauseMenuScale);
 	return true;
 }
 

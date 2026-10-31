@@ -491,8 +491,9 @@ Contract `Docs/Archive/Work/2026-10-30-PauseMenu/CONTRACT.md`; the picks, the da
 - Round 1, four concepts (A Salt Rail, B Open Range, C Tag Rack = the gun card's tag laid on its side, D Spur Rowel): "a mix of C and D, the spur rowel is a good idea, but the left dial should look like our main menu screen". Round 2, E1 (tags on the arc) and E2 (big dial R 232 cut by the screen's edge, straight tags): E2. Round 3: "The sun symbol needs to go and the dial to fit the removal of the symbol" -> E2b, no rowel, an open centre with a needle on a pivot.
 - Single player: no news, party or friends panels. The options are the four real ones only; Inventory, Missions, Map, Bestiary and Embers stay on Tab and their own keys.
 - Size (the user, 2026-10-31: "ESC menu ui needs a gui option to decrease its size"): Settings > Interface "Pause menu size",
-  60-100%, default 100% (`UGraphicsSettingsSubsystem::PauseMenuScale`, `Looter.PauseMenuSize <60-100>`). The hub only
-  (not the settings page). `PauseMenuLayout::StageRoom`: the stage's room grows by 1 / size, the scale box fits it to the
+  60-100%, default 100% (`UGraphicsSettingsSubsystem::PauseMenuScale`, `Looter.PauseMenuSize <60-100>`). The hub and,
+  over the game, its settings page (the user: "Settings page too"; `USettingsMenuWidget::PageScaleFor`, `PageRoom` in a
+  scale box, taken at open and as the slider is let go, never mid-drag; the main menu's settings stay full size). `PauseMenuLayout::StageRoom`: the stage's room grows by 1 / size, the scale box fits it to the
   screen; the stage spans the room's width (dial and options keep the left edge, cards the right) and stands 1080 tall in
   its middle. Test `Looter.UI.PauseHub.Size`; seen at 70% (`uishots.ps1 -Exec "Looter.PauseMenuSize 70"`; back up
   %LOCALAPPDATA%\UnrealEngine\5.8\Saved\SaveGames\GraphicsSettings.sav first: the command saves it).
