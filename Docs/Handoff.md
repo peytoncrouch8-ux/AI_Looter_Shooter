@@ -331,6 +331,8 @@ suggests ~70; the user's call); UI.GunSlotUnlocked cue unwritten (banner uses UI
 Unpaid ambushes are active day and night; a safe zone rejects every rise spot (by design); the editor sat at ~10 GB with
 memory-pressure warnings after many builds (restart it every few builds). PIE fps reads 12-19 when the editor is unfocused
 (its background throttle), not a game cost: focus it before reading fps.
+Playtest package Builds/Playtest/2026-10-31_0318 (1.48 GB; smoke menu + Ransom's Rest pass; marked installed: saves and settings
+in %LOCALAPPDATA%AI_Looter_ShooterSaved, the user's Session1 and settings carried over). `Play Latest Build.bat` runs it.
 
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:
