@@ -698,7 +698,7 @@
    "location": [
     14600.0,
     2700.0,
-    4702.4
+    4703.7
    ],
    "yaw": 184.0
   },
@@ -1056,16 +1056,6 @@
    ],
    "flatRadius": 550.0,
    "blend": 300.0
-  },
-  {
-   "id": "liftHead",
-   "center": [
-    14600.0,
-    2700.0,
-    4699.5
-   ],
-   "flatRadius": 300.0,
-   "blend": 200.0
   },
   {
    "id": "watchtower",
@@ -2373,7 +2363,7 @@
     "location": [
      14200.0,
      3500.0,
-     4690.1
+     4689.1
     ],
     "piece": "TorB",
     "height": 400.0,
@@ -10476,32 +10466,32 @@
     [
      15608.8,
      3545.6,
-     4779.7
+     4779.8
     ],
     [
      15443.0,
      3434.9,
-     4758.3
+     4758.5
     ],
     [
      15279.5,
      3320.9,
-     4739.8
+     4740.2
     ],
     [
      15119.9,
      3201.4,
-     4724.8
+     4725.5
     ],
     [
      14969.4,
      3070.8,
-     4713.9
+     4715.0
     ],
     [
      14840.7,
      2918.9,
-     4706.8
+     4708.3
     ]
    ]
   },
@@ -20414,7 +20404,7 @@
    [
     14000.0,
     3500.0,
-    4690.1
+    4689.1
    ],
    [
     13850.0,
@@ -22163,7 +22153,7 @@
   "cell": 100.0,
   "largest": 1513.3,
   "overTarget": 0.0135,
-  "walkable": 53709,
+  "walkable": 53692,
   "worst": [
    {
     "location": [
@@ -22240,7 +22230,7 @@
   "note": "distances (cm) from walkable ground inside the boundary to its nearest break: largest is the widest empty circle's radius; worst lists the centers of the emptiest stretches (one per stretch); overTarget is the share of walkable ground farther than target from a break"
  },
  "farTrees": {
-  "note": "far trees past the boundary (Art/Levels/area_fartrees.py), one instanced component per mesh: [x, y, z, yaw, scale] in cm and degrees, the pivot (the trunk's foot) at the lowest ground under the trunk; 2624 in all, 1823 seen from inside the boundary, 84 of them pines in the ridges' creases",
+  "note": "far trees past the boundary (Art/Levels/area_fartrees.py), one instanced component per mesh: [x, y, z, yaw, scale] in cm and degrees, the pivot (the trunk's foot) at the lowest ground under the trunk; 2624 in all, 1824 seen from inside the boundary, 84 of them pines in the ridges' creases",
   "meshes": {
    "SM_FarPine_A": [
     [-54602,-873,2573,223,1.31],
@@ -22470,7 +22460,7 @@
     [-17800,-27057,-7081,251,0.92],
     [-17568,41634,-2628,296,0.95],
     [-17847,42602,-2679,236,0.95],
-    [-17257,25066,2246,225,0.82],
+    [-17257,25066,2245,225,0.82],
     [-17048,46874,-2889,200,1.16],
     [-17049,47359,-2934,40,1.11],
     [-16946,-26081,-7108,324,1.17],
@@ -24874,5 +24864,5 @@
    ]
   }
  },
- "layoutSha1": "3291da79bd3a757d1c38115c1a72a0edada4af9b"
+ "layoutSha1": "7c71535aff637bde88e8b64e12ae0226696685f5"
 }

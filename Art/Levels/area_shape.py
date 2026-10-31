@@ -66,9 +66,10 @@ FOOTPRINTS = {
     'FalseFront_Undertaker': (6.5, 3.0), 'FalseFront_Saloon': (7.0, 3.0), 'FalseFront_Store': (7.0, 3.0),
     'FalseFront_Sheriff': (5.5, 3.0),
     # Ransom's Rest's mountain (Docs/Areas/RansomsRest_Expansion.md, section 6): each stands on a level pad of the
-    # layout's (the quarry's floor, the lift head's shoulder, Calder's Post's yard, the Diggings), wider than this, so
-    # placing it there changes nothing. The lift's tower and the mine's portal stand on a slope and in a band: none.
-    'RR_LiftHouse': (5.5, 3.0), 'RR_LiftHead': (3.0, 2.0), 'RR_Watchtower': (2.8, 2.0), 'RR_RangerCabin': (4.5, 2.5),
+    # layout's (the quarry's floor, Calder's Post's yard, the Diggings), wider than this, so placing it there changes
+    # nothing. The lift's tower and the mine's portal stand on a slope and in a band: none. Nor the lift head: its
+    # circle levelled the end of the lift's cutting back up to the shoulder, and the cage ran 2 m into it (2026-10-30).
+    'RR_LiftHouse': (5.5, 3.0), 'RR_Watchtower': (2.8, 2.0), 'RR_RangerCabin': (4.5, 2.5),
     'RR_LeanTo': (3.0, 2.0), 'RR_OreBin': (4.5, 2.5), 'RR_PowderHouse': (3.0, 2.0), 'RR_Smithy': (4.5, 2.5),
     # Ransom's Rest's own homes and fronts (section 9), centred on their pivots (the front doors), each about two thirds
     # of the way to its farthest back corner. The hotel, the workshop and Amos's barn stand on pads instead; the dugout

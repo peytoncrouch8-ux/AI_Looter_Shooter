@@ -6,6 +6,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
+- The ore lift's cage clipped the mountain near the top (2026-10-30 playtest). Cause: area_shape.py lays building footprints
+  after pads, and RR_LiftHead's 3 m + 2 m footprint circle levelled the last 5 m of the lift's cutting (`liftCut`) back up
+  to the shoulder: the cage ran 2.2 m into it; the cutting also lay 0.7 m shallower than its note. Fix: RR_LiftHead has no
+  footprint (it stands on the liftHead pad), the cutting and slot 0.5 m deeper, the cutting 11 m wide toward the cage's side
+  (the rider faced a wall a metre off). Measured with a cage sweep (box trace of the cage body along the cable, line traces
+  under its floor): no contact, 1.6 m under the floor up the cutting. Lesson: a footprint over a designed pad undoes it.
+
 - Riding the ore lift down put the player back at the top (2026-10-30 playtest). Cause: the ride lays the hidden body on the
   far landing at its start (`AOreLift::ParkRider`); fall recovery saw a 46 m drop from the top's safe spot and brought them
   back ("off an open edge, edge 14"), and the ride's end lets them go where they were. Fix: `UFallRecoverySubsystem` skips a

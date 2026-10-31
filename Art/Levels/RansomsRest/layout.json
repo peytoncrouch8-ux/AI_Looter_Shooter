@@ -806,15 +806,15 @@
     {
       "id": "liftCut",
       "type": "pad",
-      "center": [13875,2649],
-      "size": [1093,700],
+      "center": [13861,2849],
+      "size": [1093,1100],
       "yaw": 4.0,
       "corner": 0.02,
-      "height": 3893,
+      "height": 3843,
       "grade": [1.0479,0.0734],
       "exact": true,
       "bank": { "slope": 82, "round": 20, "toe": 20, "reach": 600 },
-      "note": "the lift's cutting through the crest's lip along the cable's line, from bench 2's back (y 133.3) to the head's landing (1.8 m short of its pivot): its floor 6 m under the cable, rising with it"
+      "note": "the lift's cutting through the crest's lip along the cable's line, from bench 2's back (y 133.3) to the head's landing (1.8 m short of its pivot): its floor 6 m under the cable, rising with it; 0.5 m deeper on 2026-10-30 (the user saw the cage clip: built, it lay 5.3 m under the cable, 1.1 m under the cage's floor); 11 m wide since 2026-10-30, its east side (the cage's, which faces it) 7.5 m out from the cable instead of 3.5, so the rider no longer brushes a wall"
     },
     {
       "id": "liftHeadSlot",
@@ -823,11 +823,11 @@
       "size": [170,180],
       "yaw": 4.0,
       "corner": 0.02,
-      "height": 4535,
+      "height": 4485,
       "grade": [1.0479,0.0734],
       "exact": true,
       "bank": { "slope": 85, "round": 10, "toe": 10, "reach": 200 },
-      "note": "the slot under the lift head's landing notch: the cage drops out of its dock into it (its floor 6 m under the cable, 0.9 m east of it, from 2 m to 0.3 m short of the head's pivot)"
+      "note": "the slot under the lift head's landing notch: the cage drops out of its dock into it (its floor 6 m under the cable, 0.9 m east of it, from 2 m to 0.3 m short of the head's pivot; 0.5 m deeper with the cutting, 2026-10-30)"
     },
     {
       "id": "calderKnoll",

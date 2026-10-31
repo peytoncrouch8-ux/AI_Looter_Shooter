@@ -314,6 +314,13 @@ status reactions, status icons + callouts, hit marks + bigger deaths, all four t
 today's parts would be done twice), the old tables stay as their fallback until then, 4. Loot and pacing pass (play 1-7, drops, XP, money, difficulty, unique legendaries).
 Offered and not picked: real models/moves for the placeholder enemies; a performance pass (70-88 fps in the editor).
 
+Terrain, the user's call (2026-10-30), built the NEXT time terrain is touched (before that job's own change): (a) rebuild only
+what changed: the generator rebuilds and exports only the tiles a layout edit reaches and repaints only that patch of the
+macro/scatter maps (a small edit went ~45 min: 6 min shape, ~40 min full macro repaint, 10 min import of all 46 meshes);
+(b) an erosion pass in area_shape.py (our own numpy: hydraulic + thermal after the features, sparing pads/roads/exact
+features; flow and sediment maps to feed the macro colours). No new tool (Gaea, World Machine, Houdini were offered;
+not picked). Until then a shape-only tweak can run --computed without --macro.
+
 ## Suggestions for the user (Main's; none built without a go-ahead)
 - A decal-friendly objective highlight or a small world marker for flat mission items (posters, papers).
 - More bounty variety before Main 5: open the Webwood arena after Main 4 and add a spider/Spitter arena.
