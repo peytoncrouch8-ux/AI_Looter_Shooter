@@ -5,6 +5,7 @@
 #include "Audio/LooterSound.h"
 #include "UI/Cards/GunCardStyle.h"
 #include "UI/HUD/LooterHUD.h"
+#include "UI/Inventory/LoadoutBackpackRules.h"
 #include "UI/Inventory/LoadoutGunStage.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutRules.h"
@@ -30,8 +31,9 @@ namespace
 
 void ULoadoutWidget::RunAction(EAction Action)
 {
-	// A ward's row takes its own (LoadoutWidgetWard.cpp); closing, cancelling and sorting are the screen's.
-	if (Zone == EZone::Wards && RunWardAction(Action))
+	// A ward's row (the WARD row, a backpack ward) takes its own (LoadoutWidgetWardKeys.cpp); closing, cancelling and sorting
+	// are the screen's.
+	if (IsOnWard() && RunWardAction(Action))
 	{
 		return;
 	}
@@ -98,8 +100,8 @@ void ULoadoutWidget::Activate()
 			PlayCue(bMoved ? Sounds::Equip : LooterSoundCue::Denied);
 			return;
 		}
-		// A slot is the swap target: choose its replacement from the backpack, sorted best for it.
-		if (ListOrder.IsEmpty())
+		// A slot is the swap target: choose its replacement from the backpack's guns, sorted best for it.
+		if (LoadoutBackpack::CountGuns(ListOrder) == 0)
 		{
 			PlayCue(LooterSoundCue::Denied);
 			return;
@@ -107,13 +109,16 @@ void ULoadoutWidget::Activate()
 		TargetSlot = SlotIndex;
 		RebuildList();
 		PlayCue(LooterSoundCue::Click);
-		MoveCursorTo(EZone::Backpack, 0, true, false);
+		// The first gun's row (a ward may lead the list when no gun of the slot's kind is carried).
+		const int32 FirstGun = ListOrder.IndexOfByPredicate([](int32 Entry) { return Entry >= 0; });
+		MoveCursorTo(EZone::Backpack, FMath::Max(FirstGun, 0), true, false);
 		RefreshCounts();
 		return;
 	}
 
-	// A backpack gun goes into the target slot, trading places with the gun there (or into the first free slot).
-	if (!ListOrder.IsValidIndex(CursorIndex))
+	// A backpack gun goes into the target slot, trading places with the gun there (or into the first free slot). A ward's row
+	// never comes here (RunAction), but a picked-up slot's E on the WARD row would: nothing to do there.
+	if (Zone != EZone::Backpack || !ListOrder.IsValidIndex(CursorIndex) || ListOrder[CursorIndex] < 0)
 	{
 		PlayCue(LooterSoundCue::Denied);
 		return;
@@ -158,7 +163,8 @@ void ULoadoutWidget::Hold()
 				bDone = true;
 			}
 		}
-		else if (ListOrder.IsValidIndex(CursorIndex) && Inventory->EquipFromBackpack(ListOrder[CursorIndex]))
+		else if (Zone == EZone::Backpack && ListOrder.IsValidIndex(CursorIndex) && ListOrder[CursorIndex] >= 0
+			&& Inventory->EquipFromBackpack(ListOrder[CursorIndex]))
 		{
 			// It's in a slot now, in hand: follow it there.
 			Zone = EZone::Slots;
@@ -223,7 +229,7 @@ void ULoadoutWidget::Drop()
 		{
 			bDropped = SlotItem(CursorIndex) && Inventory->DropSlot(CursorIndex);
 		}
-		else if (ListOrder.IsValidIndex(CursorIndex))
+		else if (Zone == EZone::Backpack && ListOrder.IsValidIndex(CursorIndex) && ListOrder[CursorIndex] >= 0)
 		{
 			bDropped = Inventory->DropFromBackpack(ListOrder[CursorIndex]);
 		}
@@ -260,13 +266,14 @@ void ULoadoutWidget::ToggleInspect()
 
 void ULoadoutWidget::CycleSort()
 {
+	// The guns and wards in the list together: nothing to sort with fewer than two.
 	const UWeaponManagerComponent* Inventory = Manager.Get();
-	if (!Inventory || Inventory->GetBackpack().Num() < 2)
+	if (!Inventory || ListOrder.Num() < 2)
 	{
 		PlayCue(LooterSoundCue::Denied);
 		return;
 	}
-	// The cursor stays on the same gun as the list re-sorts under it.
+	// The cursor stays on the same gun (or ward: its list entry is its own) as the list re-sorts under it.
 	const int32 BackpackIndex = Zone == EZone::Backpack && ListOrder.IsValidIndex(CursorIndex) ? ListOrder[CursorIndex] : INDEX_NONE;
 	Sort = LoadoutRules::NextSort(Sort);
 	RebuildList();

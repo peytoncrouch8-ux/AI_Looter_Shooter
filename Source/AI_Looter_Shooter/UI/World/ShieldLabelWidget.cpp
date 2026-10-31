@@ -1,5 +1,4 @@
 #include "UI/World/ShieldLabelWidget.h"
-#include "Settings/KeyBindingSubsystem.h"
 #include "Shields/ShieldDefinition.h"
 #include "Shields/ShieldRules.h"
 #include "Shields/ShieldText.h"
@@ -13,26 +12,19 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
-#include "Engine/LocalPlayer.h"
+#include "HAL/PlatformTime.h"
+
+// The ward's label from afar (its icon, name and trait's name, floating as a gun's) and which of its looks shows. The
+// looked-at card over the ward box is ShieldLabelWidgetCard.cpp.
 
 using namespace LooterUI;
 
 namespace
 {
-	/** The Inked icon beside the name: small from afar, a size up once looked at. */
-	constexpr float IconFar = 22.f;
-	constexpr float IconNear = 30.f;
-
-	/** "+6", "-0.4": a number's change, signed (whole points, or tenths of a second). */
-	FString SignedWhole(float Delta)
-	{
-		return FString::Printf(TEXT("%+d"), FMath::RoundToInt32(Delta));
-	}
-
-	FString SignedTenths(float Delta)
-	{
-		return FString::Printf(TEXT("%+.1f"), Delta);
-	}
+	/** The Inked icon beside the name from afar. */
+	constexpr float IconSize = 22.f;
+	/** A look back at the same ward this soon (seconds) after looking away plays no intro again (the gun label's rule). */
+	constexpr double RefocusQuietSeconds = 0.3;
 }
 
 TSharedRef<SWidget> UShieldLabelWidget::RebuildWidget()
@@ -41,23 +33,20 @@ TSharedRef<SWidget> UShieldLabelWidget::RebuildWidget()
 	{
 		UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Root"));
 		WidgetTree->RootWidget = Root;
-		auto AddFill = [Root](UWidget* Child, const FMargin& ChildPadding)
-		{
-			UOverlaySlot* ChildSlot = Root->AddChildToOverlay(Child);
-			ChildSlot->SetHorizontalAlignment(HAlign_Fill);
-			ChildSlot->SetVerticalAlignment(VAlign_Fill);
-			ChildSlot->SetPadding(ChildPadding);
-		};
-		// The plate a gun's label opens when looked at: dark glass (a background) and its cyan line.
-		PlateFill = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		PlateFill->SetBrush(ShapeBrush(EShape::Control, false, Color::ScreenBg()));
-		MarkBackground(PlateFill);
-		AddFill(PlateFill, FMargin(0.f));
-		PlateLine = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		PlateLine->SetBrush(ShapeBrush(EShape::Control, true, Color::ScreenLine()));
-		AddFill(PlateLine, FMargin(0.f));
 
-		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		// Two looks, one at a time: the lines from afar, the card when looked at (each collapses whole).
+		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Lines"));
+		UOverlaySlot* LinesSlot = Root->AddChildToOverlay(Box);
+		LinesSlot->SetHorizontalAlignment(HAlign_Fill);
+		LinesSlot->SetVerticalAlignment(VAlign_Fill);
+		LinesSlot->SetPadding(FMargin(12.f, 6.f));
+		Lines = Box;
+
+		// The card stands on its tether's diamond, at the label's foot where the name hung (the component's pivot is 0.5, 1).
+		UOverlaySlot* StackSlot = Root->AddChildToOverlay(BuildFocusStack());
+		StackSlot->SetHorizontalAlignment(HAlign_Center);
+		StackSlot->SetVerticalAlignment(VAlign_Bottom);
+
 		UHorizontalBox* NameLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Icon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 		NameLine->AddChildToHorizontalBox(Icon)->SetVerticalAlignment(VAlign_Center);
@@ -66,16 +55,8 @@ TSharedRef<SWidget> UShieldLabelWidget::RebuildWidget()
 		NameSlot->SetVerticalAlignment(VAlign_Center);
 		NameSlot->SetPadding(FMargin(6.f, 0.f, 0.f, 0.f));
 		Box->AddChildToVerticalBox(NameLine)->SetHorizontalAlignment(HAlign_Center);
-
 		TraitText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Trait"));
-		StatsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Stats"));
-		CompareText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Compare"));
-		PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Prompt"));
-		for (UTextBlock* Line : { TraitText.Get(), StatsText.Get(), CompareText.Get(), PromptText.Get() })
-		{
-			Box->AddChildToVerticalBox(Line)->SetHorizontalAlignment(HAlign_Center);
-		}
-		AddFill(Box, FMargin(12.f, 6.f));
+		Box->AddChildToVerticalBox(TraitText)->SetHorizontalAlignment(HAlign_Center);
 		ApplyContent();
 	}
 	return Super::RebuildWidget();
@@ -83,27 +64,44 @@ TSharedRef<SWidget> UShieldLabelWidget::RebuildWidget()
 
 void UShieldLabelWidget::SetWard(const FShieldInstanceData& InWard, const FShieldInstanceData* InWorn)
 {
+	// The ward worn is read live by the card (UpdateCard), so a swap shows at once; InWorn stays for the pickup's call.
 	const uint32 Identity = ShieldRules::Identity(InWard);
-	const uint32 WornIdentity = InWorn ? ShieldRules::Identity(*InWorn) : 0;
-	if (Identity == ShownIdentity && WornIdentity == ShownWorn)
+	if (Identity == ShownIdentity)
 	{
 		return;
 	}
 	Ward = InWard;
-	bHasWorn = InWorn != nullptr;
-	Worn = InWorn ? InWorn->Stats : FShieldStats();
 	ShownIdentity = Identity;
-	ShownWorn = WornIdentity;
 	ApplyContent();
+	if (bIsFocused)
+	{
+		UpdateFromViewer();
+	}
+}
+
+void UShieldLabelWidget::SetSource(const AActor* InSource)
+{
+	Source = InSource;
 }
 
 void UShieldLabelWidget::SetFocused(bool bFocused)
 {
-	if (bIsFocused != bFocused)
+	if (bIsFocused == bFocused)
 	{
-		bIsFocused = bFocused;
-		ApplyContent();
+		return;
 	}
+	bIsFocused = bFocused;
+	// A ward newly looked at unfolds its card with its sound; a look back within a blink just shows it again.
+	const double Now = FPlatformTime::Seconds();
+	if (bFocused)
+	{
+		bIntroPending = Now - LostFocusAt > RefocusQuietSeconds;
+	}
+	else
+	{
+		LostFocusAt = Now;
+	}
+	ApplyContent();
 }
 
 FText UShieldLabelWidget::GetNameText() const
@@ -111,9 +109,9 @@ FText UShieldLabelWidget::GetNameText() const
 	return NameText ? NameText->GetText() : FText::GetEmpty();
 }
 
-FText UShieldLabelWidget::GetStatsText() const
+FText UShieldLabelWidget::GetTraitText() const
 {
-	return StatsText ? StatsText->GetText() : FText::GetEmpty();
+	return TraitText ? TraitText->GetText() : FText::GetEmpty();
 }
 
 void UShieldLabelWidget::ApplyContent()
@@ -122,16 +120,11 @@ void UShieldLabelWidget::ApplyContent()
 	{
 		return;
 	}
-	const ESlateVisibility Detail = bIsFocused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-	PlateFill->SetVisibility(bIsFocused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-	PlateLine->SetVisibility(bIsFocused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-
-	// The ward box's Inked icon, then its name in its rarity's colour, as a gun's label names it.
+	// From afar: the ward box's Inked icon and its name in its rarity's colour, outlined, floating as a gun's name.
 	const FName IconName = Ward.Definition ? Ward.Definition->IconName : FName(TEXT("WardBox"));
 	if (const FInkedIcon* Inked = FindInkedIcon(IconName))
 	{
-		const float Size = bIsFocused ? IconNear : IconFar;
-		Icon->SetBrush(InkedIconBrush(IconName, *Inked, FVector2D(Size, Size)));
+		Icon->SetBrush(InkedIconBrush(IconName, *Inked, FVector2D(IconSize, IconSize)));
 		Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
 	else
@@ -139,49 +132,16 @@ void UShieldLabelWidget::ApplyContent()
 		Icon->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	NameText->SetText(FText::FromString(ShieldText::Name(Ward).ToUpper()));
-	StyleFloatingText(NameText, bIsFocused ? 17 : 14, ShieldText::Color(Ward), 80);
+	StyleFloatingText(NameText, 14, ShieldText::Color(Ward), 80);
 
-	// The trait from afar (its name: the reason to walk over), its whole line up close.
-	const FString Trait = bIsFocused ? ShieldText::TraitLine(Ward) : ShieldText::TraitName(Ward.Trait).ToUpper();
+	// Its trait's name under it (the reason to walk over), in the trait's colour, as a gun's element line.
+	const FString Trait = ShieldText::TraitName(Ward.Trait).ToUpper();
 	TraitText->SetText(FText::FromString(Trait));
-	StyleFloatingText(TraitText, bIsFocused ? 12 : 11, ShieldText::TraitColor(Ward), bIsFocused ? 20 : 120);
-	TraitText->SetAutoWrapText(bIsFocused);
-	TraitText->SetWrapTextAt(bIsFocused ? 300.f : 0.f);
+	StyleFloatingText(TraitText, 11, ShieldText::TraitColor(Ward), 120);
 	TraitText->SetVisibility(Trait.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 
-	const FShieldStats& S = Ward.Stats;
-	StatsText->SetText(FText::FromString(FString::Printf(TEXT("LV %d   %s WARD   %s WAIT   %s"), Ward.Level, *ShieldText::CapacityString(S),
-		*ShieldText::DelayString(S).ToUpper(), *ShieldText::RateString(S).ToUpper())));
-	StyleFloatingText(StatsText, 11, Color::TextDim(), 60);
-	StatsText->SetVisibility(Detail);
-
-	// Against the ward worn: what it would add or cost, in green or red; a first ward is all gain.
-	FString Compare;
-	FLinearColor CompareColor = Color::Better();
-	if (bHasWorn)
-	{
-		const float Gain = S.Capacity - Worn.Capacity;
-		const float Sooner = Worn.RechargeDelay - S.RechargeDelay;
-		// The verdict as the loadout gives it (ShieldRules::Worth, within 3%: about the same).
-		const float Mine = ShieldRules::Worth(S);
-		const float Theirs = ShieldRules::Worth(Worn);
-		const int32 Verdict = Mine > Theirs * 1.03f ? 1 : (Mine < Theirs * 0.97f ? -1 : 0);
-		Compare = FString::Printf(TEXT("%s WARD   %s S SOONER"), *SignedWhole(Gain), *SignedTenths(Sooner));
-		CompareColor = Verdict > 0 ? Color::Better() : (Verdict < 0 ? Color::Worse() : Color::TextDim());
-	}
-	else
-	{
-		Compare = TEXT("NO WARD WORN");
-	}
-	CompareText->SetText(FText::FromString(Compare));
-	StyleFloatingText(CompareText, 11, CompareColor, 60);
-	CompareText->SetVisibility(Detail);
-
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
-	const FString Key = Bindings ? Bindings->GetKey(TEXT("Interact")).GetDisplayName().ToString().ToUpper() : FString(TEXT("E"));
-	PromptText->SetText(FText::FromString(bHasWorn ? FString::Printf(TEXT("[%s] PICK UP  |  HOLD WEAR"), *Key)
-		: FString::Printf(TEXT("[%s] WEAR"), *Key)));
-	StyleFloatingText(PromptText, 13, Color::Accent(), 150);
-	PromptText->SetVisibility(Detail);
+	// Looked at: the card over the box in place of the lines.
+	FocusStack->SetVisibility(bIsFocused ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	Lines->SetVisibility(bIsFocused ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	TetherDiamond->SetColorAndOpacity(ShieldText::Color(Ward));
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Inventory/BackpackOrder.h"
 #include "Shields/ShieldTypes.h"
 #include "Weapons/WeaponPartSwap.h"
 #include "Weapons/WeaponTypes.h"
@@ -22,6 +23,14 @@ struct AI_LOOTER_SHOOTER_API FWeaponInventorySave
 
 	UPROPERTY()
 	TArray<FWeaponInstanceData> Backpack;
+
+	/**
+	 * How the backpack's guns and spare wards (Shields.Spares) interleave, in the order they went in (FBackpackOrder; the
+	 * user, 2026-10-31: guns and wards share the backpack). A session saved before reads it empty: its wards then follow
+	 * its guns.
+	 */
+	UPROPERTY()
+	TArray<EBackpackItem> BackpackOrder;
 
 	/** Rounds carried per ammo class, indexed by EAmmoType. */
 	UPROPERTY()

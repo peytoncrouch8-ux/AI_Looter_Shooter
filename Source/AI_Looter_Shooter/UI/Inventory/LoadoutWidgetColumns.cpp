@@ -1,11 +1,13 @@
 // ULoadoutWidget: the cursor in the page's two columns (2026-10-28). W / S move within a column: on the left the equip
-// slots then the wards, on the right the backpack's guns. A / D switch columns to the row nearest the cursor's on the page,
-// as the eye goes across, so the cursor never jumps to the top of a long list.
+// slots then the WARD row, on the right the backpack's guns and spare wards. A / D switch columns to the row nearest the
+// cursor's on the page, as the eye goes across, so the cursor never jumps to the top of a long list.
 
 #include "UI/Inventory/LoadoutWidget.h"
 #include "Audio/LooterSound.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutRules.h"
+#include "Shields/ShieldRules.h"
+#include "Shields/ShieldTypes.h"
 #include "UI/Style/LooterButton.h"
 #include "Components/ScrollBox.h"
 
@@ -105,12 +107,9 @@ float ULoadoutWidget::RowCenterY(EZone RowZone, int32 Index) const
 	{
 		const int32 NumSlotRows = SlotRows.Num();
 		const float SlotsEnd = FirstRowTop + NumSlotRows * SlotRowHeight + FMath::Max(NumSlotRows - 1, 0) * RowGap;
+		// One row since 2026-10-31: the ward worn (the spares are backpack rows).
 		const float WardTop = SlotsEnd + SectionGap + HeaderHeight + HeaderGap;
-		if (Index <= 0)
-		{
-			return WardTop + WardRowHeight * 0.5f;
-		}
-		return WardTop + WardRowHeight + RowGap + (Index - 1) * (BackpackRowHeight + RowGap) + BackpackRowHeight * 0.5f;
+		return WardTop + WardRowHeight * 0.5f;
 	}
 	default:
 		return FirstRowTop + Index * (BackpackRowHeight + RowGap) + BackpackRowHeight * 0.5f - (ListBox ? ListBox->GetScrollOffset() : 0.f);
@@ -145,6 +144,10 @@ void ULoadoutWidget::MarkSeen()
 	if (const FWeaponInstanceData* Gun = CursorItem())
 	{
 		SeenGuns.Add(LoadoutRules::GunIdentity(*Gun));
+	}
+	else if (const FShieldInstanceData* Ward = CursorWard())
+	{
+		SeenGuns.Add(ShieldRules::Identity(*Ward));
 	}
 }
 

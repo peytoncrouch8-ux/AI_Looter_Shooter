@@ -22,9 +22,9 @@ bool UWeaponManagerComponent::TryPickup(AWeaponBase* Pickup)
 	}
 
 	// Slots full but backpack has room: stash it like Borderlands does.
-	if (Weapons.Num() >= MaxWeapons && Backpack.Num() < BackpackCapacity)
+	if (Weapons.Num() >= MaxWeapons && HasBackpackRoom())
 	{
-		Backpack.Add(Pickup->GetInstanceForStorage());
+		BackpackAdd(Pickup->GetInstanceForStorage());
 		SendMessage(FString::Printf(TEXT("%s sent to backpack"), *Pickup->GetDisplayName().ToString()));
 		ReleaseGun(Pickup);
 		OnInventoryChanged.Broadcast();
@@ -66,7 +66,7 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 
 	// Every slot full: in view, the gun in hand goes down first and they change places out of sight (FinishHolster). With
 	// the backpack full too, the old gun is thrown down at once instead: its toss shows it going.
-	if (Backpack.Num() < BackpackCapacity && ShouldAnimateSwap())
+	if (HasBackpackRoom() && ShouldAnimateSwap())
 	{
 		BeginSwap(nullptr, Pickup);
 		return true;
@@ -93,10 +93,10 @@ void UWeaponManagerComponent::PutLootInHand(AWeaponBase* Pickup)
 	if (AWeaponBase* Outgoing = Weapons[Slot])
 	{
 		const FString OutgoingName = Outgoing->GetDisplayName().ToString();
-		if (Backpack.Num() < BackpackCapacity)
+		if (HasBackpackRoom())
 		{
 			Outgoing->OnHolstered();
-			Backpack.Add(Outgoing->GetInstanceForStorage());
+			BackpackAdd(Outgoing->GetInstanceForStorage());
 			ReleaseGun(Outgoing);
 			SendMessage(FString::Printf(TEXT("%s sent to backpack"), *OutgoingName));
 		}

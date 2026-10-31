@@ -1,11 +1,14 @@
 // ULoadoutWidget: the rows (an equip slot's on the left, a backpack gun's or a free place's on the right) in the "Wide
-// Sweep" row look (ULooterCardBackdrop, Row), and how each looks as the cursor moves. The ward rows are
-// LoadoutWidgetWard.cpp; the counts, the ammo line and the prompt bar LoadoutWidgetPrompts.cpp.
+// Sweep" row look (ULooterCardBackdrop, Row), and how each looks as the cursor moves. The ward rows (the WARD row, and a
+// spare ward's among the backpack's since 2026-10-31) are LoadoutWidgetWard.cpp; the counts, the ammo line and the prompt
+// bar LoadoutWidgetPrompts.cpp.
 
 #include "UI/Inventory/LoadoutWidget.h"
 #include "UI/Cards/LooterCardBackdrop.h"
+#include "UI/Inventory/LoadoutBackpackRules.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutRules.h"
+#include "Shields/PlayerShieldComponent.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
@@ -294,13 +297,18 @@ void ULoadoutWidget::RebuildList()
 	}
 	ListBox->ClearChildren();
 	ListRows.Reset();
-	LoadoutRules::SortBackpack(Inventory->GetBackpack(), SlotItem(TargetSlot), Sort, ListOrder);
+	// The guns and the spare wards together, in the order they went in or the sort's (the user, 2026-10-31: wards go in the
+	// backpack, sharing its room).
+	const UPlayerShieldComponent* Shield = GetShield();
+	static const TArray<FShieldInstanceData> NoWards;
+	LoadoutBackpack::SortList(Inventory->GetBackpack(), Shield ? Shield->GetSpares() : NoWards, Inventory->GetBackpackItems(), SlotItem(TargetSlot),
+		Sort, ListOrder);
 
-	// The guns in the sort's order (best for slot leads with the target's kind, whose rows carry the compare arrows), then a
-	// faint EMPTY row per free place: the backpack's room reads at a glance, as it did before the 2026-10-08 redesign.
+	// The rows in that order (best for slot leads with the target's kind, whose rows carry the compare arrows; a ward's row
+	// compares with the ward worn), then a faint EMPTY row per free place: the backpack's room reads at a glance.
 	for (int32 Row = 0; Row < ListOrder.Num(); ++Row)
 	{
-		const FRow Made = MakeBackpackRow(Row);
+		const FRow Made = ListWard(Row) ? MakeBackpackWardRow(Row) : MakeBackpackRow(Row);
 		if (UScrollBoxSlot* RowSlot = Cast<UScrollBoxSlot>(ListBox->AddChild(Made.Button)))
 		{
 			RowSlot->SetPadding(FMargin(0.f, Row > 0 ? LoadoutLayout::RowGap : 0.f, 8.f, 0.f));

@@ -24,20 +24,19 @@
 #endif
 
 // Ransom's Rest's finds as Tools/Unreal/build_area_finds.py placed them (Docs/Work/2026-10-28-Core/FINDS.md, lane C): the
-// fifteen finds and the six Ledger pages, each on a source that exists, on the ground, inside the playable area, off the
-// story's people; the tarn's lockbox under deep water, the bolt-hole's crawl gap, Ranger Post Three's steps. The level is
+// fourteen finds and the six Ledger pages, each on a source that exists, on the ground, inside the playable area, off the
+// story's people; the tarn's lockbox under deep water, the bolt-hole's crawl gap; Ranger Post Three gone (the user,
+// 2026-10-31: its chest and stone steps stood by the grave the player wakes in). The level is
 // loaded to look at only (no physics), so heights come from the terrain's triangles and the hidden cubes' boxes. How the
 // finds play is FindWorldTests.cpp's.
 
 namespace
 {
-	constexpr int32 FindCount = 15;
+	constexpr int32 FindCount = 14;
 	constexpr int32 LoreCount = 6;
 	/** The bolt-hole's gap (cm): a crouched player (116 cm) passes, a standing one (163) doesn't. */
 	constexpr double GapLeast = 120.0;
 	constexpr double GapMost = 145.0;
-	/** Each of Ranger Post Three's rises (cm), under the 1.5 m mantle. */
-	constexpr double RiseMost = 140.0;
 	/** The tarn's lockbox top at least this far under the surface (cm). */
 	constexpr double TarnCover = 40.0;
 	/** No find this near a story character or speaker point (cm). */
@@ -286,7 +285,7 @@ bool FFindsLevelTest::RunTest(const FString& Parameters)
 			}
 		}
 	}
-	TestEqual(TEXT("Fifteen finds"), Finds, FindCount);
+	TestEqual(TEXT("Fourteen finds"), Finds, FindCount);
 	TestEqual(TEXT("Six Ledger pages, counted apart"), Lore, LoreCount);
 
 	// The tarn's lockbox: on the bed, its top TarnCover under the surface, inside the deep zone (no creature follows there).
@@ -308,22 +307,9 @@ bool FFindsLevelTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("The bolt-hole's gap is %.0f cm (%.0f-%.0f)"), Gap, GapLeast, GapMost), Gap >= GapLeast && Gap <= GapMost);
 	}
 
-	// Ranger Post Three: from the ground to the first step, step to step, the last to the deck, each rise RiseMost or less.
-	if (TestTrue(TEXT("Ranger Post Three has four steps or more"), Steps.Num() >= 4) && TestEqual(TEXT("...and its deck"), Decks.Num(), 1))
-	{
-		Steps.Sort([](const AActor& A, const AActor& B) { return PlacedAt(&A).Z < PlacedAt(&B).Z; });
-		const TOptional<double> Foot = TerrainUnder(*Level, FVector2D(PlacedAt(Steps[0])));
-		double Last = Foot.IsSet() ? Foot.GetValue() : CubeSpan(Steps[0]).Value;
-		TArray<const AActor*> Climb = Steps;
-		Climb.Add(Decks[0]);
-		for (int32 Index = 0; Index < Climb.Num(); ++Index)
-		{
-			const double Top = CubeSpan(Climb[Index]).Value;
-			TestTrue(FString::Printf(TEXT("Ranger Post rise %d is %.0f cm (up, at most %.0f)"), Index + 1, Top - Last, RiseMost),
-				Top - Last > 0.0 && Top - Last <= RiseMost);
-			Last = Top;
-		}
-	}
+	// Ranger Post Three is gone, and none of its pieces stands (the user, 2026-10-31).
+	TestEqual(TEXT("No Ranger Post steps"), Steps.Num(), 0);
+	TestEqual(TEXT("...nor its deck"), Decks.Num(), 0);
 	AddInfo(FString::Printf(TEXT("%d finds and %d Ledger pages checked."), Finds, Lore));
 	return true;
 }

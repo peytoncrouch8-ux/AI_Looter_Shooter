@@ -25,6 +25,8 @@ namespace LoadoutParts
 {
 	inline const FName ActionSlot(TEXT("Slot"));
 	inline const FName ActionBackpack(TEXT("Backpack"));
+	/** The loadout's WARD row (the ward worn; a spare ward's row in the backpack is an ActionBackpack row). */
+	inline const FName ActionWard(TEXT("Ward"));
 	/** A title tab: its index is the page (EInventoryPage). */
 	inline const FName ActionPage(TEXT("Page"));
 	inline const TCHAR* const StageMaterialPath = TEXT("/Game/UI/Loadout/M_UI_LoadoutStage.M_UI_LoadoutStage");

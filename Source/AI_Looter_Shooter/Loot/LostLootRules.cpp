@@ -132,8 +132,8 @@ bool LostLootRules::HasRoom(const UWeaponManagerComponent& Manager)
 LostLootRules::ETake LostLootRules::WhereItGoes(const UWeaponManagerComponent& Manager)
 {
 	// Into the backpack, where the inventory shows it to compare (as a vendor's gun of the day goes); a free equip slot when
-	// the backpack is full.
-	if (Manager.GetBackpack().Num() < Manager.BackpackCapacity)
+	// the backpack is full (its room shared with the spare wards).
+	if (Manager.HasBackpackRoom())
 	{
 		return ETake::InBackpack;
 	}

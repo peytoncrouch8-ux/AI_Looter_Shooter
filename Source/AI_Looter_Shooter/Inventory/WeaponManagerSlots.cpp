@@ -151,14 +151,14 @@ bool UWeaponManagerComponent::StashSlot(int32 SlotIndex)
 	{
 		return false;
 	}
-	if (Backpack.Num() >= BackpackCapacity)
+	if (!HasBackpackRoom())
 	{
 		SendMessage(TEXT("Backpack full"));
 		return false;
 	}
 
 	AWeaponBase* Weapon = RemoveFromSlots(SlotIndex);
-	Backpack.Add(Weapon->GetInstanceForStorage());
+	BackpackAdd(Weapon->GetInstanceForStorage());
 	ReleaseGun(Weapon);
 	OnInventoryChanged.Broadcast();
 	return true;
@@ -173,14 +173,14 @@ bool UWeaponManagerComponent::EquipFromBackpack(int32 BackpackIndex)
 
 	const int32 Before = NumCarriedGuns();
 	const FWeaponInstanceData Incoming = Backpack[BackpackIndex];
-	Backpack.RemoveAt(BackpackIndex);
+	const int32 Place = BackpackRemoveAt(BackpackIndex);
 
 	if (Weapons.Num() >= MaxWeapons)
 	{
 		// Swap: the weapon in hand goes into the backpack where the new one came from.
 		const int32 Slot = FMath::Max(ActiveSlot, 0);
 		AWeaponBase* Outgoing = RemoveFromSlots(Slot);
-		Backpack.Insert(Outgoing->GetInstanceForStorage(), BackpackIndex);
+		BackpackInsert(Outgoing->GetInstanceForStorage(), BackpackIndex, Place);
 		ReleaseGun(Outgoing);
 	}
 
@@ -204,7 +204,7 @@ bool UWeaponManagerComponent::DropFromBackpack(int32 BackpackIndex)
 
 	const int32 Before = NumCarriedGuns();
 	const FWeaponInstanceData Instance = Backpack[BackpackIndex];
-	Backpack.RemoveAt(BackpackIndex);
+	BackpackRemoveAt(BackpackIndex);
 
 	AActor* Owner = GetOwner();
 	if (AWeaponBase* Weapon = UWeaponRollLibrary::SpawnWeapon(this, Instance, Owner ? Owner->GetActorTransform() : FTransform::Identity))
@@ -261,7 +261,7 @@ bool UWeaponManagerComponent::SwapSlotWithBackpack(int32 SlotIndex, int32 Backpa
 	}
 	else
 	{
-		Backpack.RemoveAt(BackpackIndex);
+		BackpackRemoveAt(BackpackIndex);
 	}
 
 	Weapons[SlotIndex] = Incoming;
@@ -282,10 +282,10 @@ bool UWeaponManagerComponent::MoveBackpackToSlot(int32 BackpackIndex)
 		return false;
 	}
 	const FWeaponInstanceData Instance = Backpack[BackpackIndex];
-	Backpack.RemoveAt(BackpackIndex);
+	const int32 Place = BackpackRemoveAt(BackpackIndex);
 	if (!GiveWeapon(Instance))
 	{
-		Backpack.Insert(Instance, BackpackIndex);
+		BackpackInsert(Instance, BackpackIndex, Place);
 		return false;
 	}
 	OnInventoryChanged.Broadcast();
@@ -318,12 +318,12 @@ bool UWeaponManagerComponent::AddToBackpack(const FWeaponInstanceData& Instance)
 	{
 		return false;
 	}
-	if (Backpack.Num() >= BackpackCapacity)
+	if (!HasBackpackRoom())
 	{
 		SendMessage(TEXT("Backpack full"));
 		return false;
 	}
-	Backpack.Add(Instance);
+	BackpackAdd(Instance);
 	OnInventoryChanged.Broadcast();
 	return true;
 }

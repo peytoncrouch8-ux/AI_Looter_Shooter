@@ -138,7 +138,8 @@ FVendorTradeResult VendorTrade::BuyGrenade(UWalletSubsystem& Wallet, UPlayerThro
 
 bool VendorTrade::HasRoomForGun(const UWeaponManagerComponent& Manager)
 {
-	return Manager.GetBackpack().Num() < Manager.BackpackCapacity || Manager.GetWeapons().Num() < Manager.MaxWeapons;
+	// The backpack's room is shared with the spare wards (UWeaponManagerComponent::HasBackpackRoom).
+	return Manager.HasBackpackRoom() || Manager.GetWeapons().Num() < Manager.MaxWeapons;
 }
 
 FVendorTradeResult VendorTrade::BuyOffer(UWalletSubsystem& Wallet, UWeaponManagerComponent& Manager)
@@ -167,7 +168,7 @@ FVendorTradeResult VendorTrade::BuyOffer(UWalletSubsystem& Wallet, UWeaponManage
 	}
 	// Into the backpack, where the inventory shows it to compare; a free equip slot when the backpack is full.
 	const FWeaponInstanceData Gun = Offer.Gun;
-	const bool bGiven = Manager.GetBackpack().Num() < Manager.BackpackCapacity ? Manager.AddToBackpack(Gun) : Manager.GiveWeapon(Gun) != nullptr;
+	const bool bGiven = Manager.HasBackpackRoom() ? Manager.AddToBackpack(Gun) : Manager.GiveWeapon(Gun) != nullptr;
 	if (!bGiven || !Wallet.Spend(Result.Silver))
 	{
 		Result.Result = EVendorTrade::NoRoom;

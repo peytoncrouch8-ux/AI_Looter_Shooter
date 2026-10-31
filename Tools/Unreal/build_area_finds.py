@@ -1,6 +1,6 @@
 """Things to find off the path, as one find system (Docs/Work/2026-10-28-Core/FINDS.md; the user's 2026-10-21 complaint
 "nothing to find off the path"), for build_area.py's gameplay pass: an AFindSpot (World/FindSpot.h, hidden data, tag
-Find) for each of the fifteen finds and the six Ledger pages, and the six new finds' pieces. Read from the layout's
+Find) for each of the fourteen finds (Ranger Post Three removed 2026-10-31, the user: the chest and steps by the wake-up grave) and the six Ledger pages, and the new finds' pieces. Read from the layout's
 gameplay.finds (positions, kinds, regions, sources, loot numbers; layout x north, y east, cm); the words are
 story_texts.py's (FINDS: name, region, Hob's lines; READABLES: the readables' words and READABLE_MODELS). Everything goes
 in the area's Gameplay/Finds folder (a gameplay build clears Gameplay first). A find whose class, source, layout entry or
@@ -10,7 +10,7 @@ layout whose gameplay has a finds block).
 - The nine existing finds (build_area_secrets.py's chests, found here by label): only the spot, the tells and the find's
   pay (Silver), plus Pike's field-book scrap (READABLES Find_PikeScrap) beside the surveyor's tin on Coffin Rock.
 - The new ones (build_area_finds_sites.py): the tarn's sunken lockbox (N1), the Tumble's bolt-hole (N2), Ranger Post
-  Three on the Rimrock (N3), Pike's cache by the Nose (N4), the miser's grave on boot hill (N5), the Tollman's spot on
+  Three on the Rimrock (N3; removed 2026-10-31, its builder kept), Pike's cache by the Nose (N4), the miser's grave on boot hill (N5), the Tollman's spot on
   the keeper's road (N6, an Elite: found by the kill of the creature tagged Find_Tollman, its encounter is the FIGHTS
   lane's patches/fights.json).
 - New chest ids (never renamed once placed): Find_TarnLockbox, Find_BoltHole, Find_RangerPost (tiers: chest_tiers.py

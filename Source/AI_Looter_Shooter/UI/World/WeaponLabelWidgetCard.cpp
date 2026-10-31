@@ -150,7 +150,8 @@ void UWeaponLabelWidget::UpdateCard(const UWeaponManagerComponent* Manager, cons
 	if (Manager)
 	{
 		Keys.bSlotsFull = Manager->GetWeapons().Num() >= Manager->MaxWeapons;
-		Keys.bBackpackFull = Manager->GetBackpack().Num() >= Manager->BackpackCapacity;
+		// The backpack's room is shared with the spare wards.
+		Keys.bBackpackFull = !Manager->HasBackpackRoom();
 	}
 	const AActor* Looked = Interaction ? Interaction->GetFocusedActor() : nullptr;
 	Keys.Hold = Looked && Looked == Weapon.Get() ? Interaction->GetHoldProgress() : 0.f;

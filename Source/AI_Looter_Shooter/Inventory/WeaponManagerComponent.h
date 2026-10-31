@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Interaction/InteractionSource.h"
+#include "Inventory/BackpackOrder.h"
 #include "Inventory/WeaponManagerTypes.h"
 #include "Player/PawnInputBinding.h"
 #include "Player/WeaponSwapMotion.h"
@@ -147,8 +148,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Inventory")
 	bool AddToBackpack(const FWeaponInstanceData& Instance);
 
+	/** The backpack's guns (its spare wards are the shield component's: GetBackpackItems lists both, in order). */
 	UFUNCTION(BlueprintPure, Category = "Weapons|Inventory")
 	const TArray<FWeaponInstanceData>& GetBackpack() const { return Backpack; }
+
+	// --- The backpack's shared room (WeaponManagerBackpack.cpp; the user, 2026-10-31: guns and wards share it) ---
+
+	/** Its guns and the owner's spare wards (UPlayerShieldComponent::GetSpares), and the spares alone. */
+	int32 GetBackpackUsed() const;
+	int32 NumBackpackWards() const;
+	/** Room for one more gun or ward: every "is there room" asks this. An old save may load over the room once (nothing is
+	 *  thrown away); then nothing goes in until enough comes out. */
+	bool HasBackpackRoom() const;
+	/** The guns and wards in the order they went in (the save keeps it; the loadout lists by it). */
+	TArray<FBackpackItem> GetBackpackItems() const;
+	/** The spares changed (RemovedSpare: the one that came out; a new one goes in last): the order follows, listeners hear it. */
+	void NoteWardsChanged(int32 RemovedSpare = INDEX_NONE);
 
 	// --- Ammo: one shared pool per ammo class, used by every weapon of that class ---
 
@@ -253,6 +268,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Weapons|Ammo")
 	FOnAmmoPickedUp OnAmmoPickedUp;
 
+	/** The backpack's places, shared by its guns and the spare wards (HasBackpackRoom). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Inventory", meta = (ClampMin = "0"))
 	int32 BackpackCapacity = 12;
 
@@ -424,6 +440,14 @@ private:
 	/** How many guns are in the equip slots. */
 	int32 NumEquipped() const;
 
+	// --- The backpack's guns in and out, keeping their places in BackpackOrder (WeaponManagerBackpack.cpp) ---
+	void BackpackAdd(const FWeaponInstanceData& Instance);
+	/** Returns where its entry stood in the order, for BackpackInsert to put another back there. */
+	int32 BackpackRemoveAt(int32 Index);
+	void BackpackInsert(const FWeaponInstanceData& Instance, int32 Index, int32 Position = INDEX_NONE);
+	/** The order brought into step with the guns and wards carried before a change counts on it. */
+	void SyncBackpackOrder();
+
 	/**
 	 * Puts a gun made from Instance into an equip slot in place of the one there (WeaponManagerBench.cpp): taken in hand if
 	 * that one was in hand. False (nothing changed) when the gun can't be made.
@@ -460,6 +484,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<FWeaponInstanceData> Backpack;
+
+	/** How the backpack's guns and the spare wards interleave (GetBackpackItems). */
+	FBackpackOrder BackpackOrder;
 
 	/** The gunsmith's bench's parts box (GetPartsBox). */
 	UPROPERTY(Transient)

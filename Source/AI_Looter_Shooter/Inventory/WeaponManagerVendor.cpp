@@ -10,7 +10,7 @@ bool UWeaponManagerComponent::TakeFromBackpack(int32 BackpackIndex, FWeaponInsta
 	}
 	const int32 Before = NumCarriedGuns();
 	OutGun = Backpack[BackpackIndex];
-	Backpack.RemoveAt(BackpackIndex);
+	BackpackRemoveAt(BackpackIndex);
 	OnInventoryChanged.Broadcast();
 	NoteGunsGone(Before, TEXT("sold from the backpack: TakeFromBackpack"));
 	return true;

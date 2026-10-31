@@ -3729,10 +3729,6 @@
       "spots": [
         {"id": "WidowsBox", "kind": "Cache", "region": "Farm & Point", "source": {"chest": "Secret_WidowsStrongbox"}, "glint": [0, 0, 55], "crows": 2, "note": "E1: the tier 5 strongbox on widow2Rock's north side; glint off its brass from the keeper's path past the slab"},
         {"id": "Mooring", "kind": "Cache", "region": "Farm & Point", "source": {"chest": "Secret_MooringLocker"}, "glint": [0, 0, 40], "crows": 2, "note": "E2: the gang's locker on the Mooring Ledge (cliff stairs from the lookout)"},
-        {"id": "RangerPost", "kind": "Hidden", "region": "Farm & Point", "build": "rangerPost", "source": {"chest": "Find_RangerPost"}, "glint": [0, 0, 60], "crows": 2,
-         "chest": {"id": "Find_RangerPost", "kind": "Tier"},
-         "steps": {"rock": "rimrockMiddleRock", "face": "east", "depth": 115, "width": 230, "into": 40, "bury": 30, "least": 4, "maxRise": 120, "stakeOut": 80, "stakeSide": 160, "readable": "Find_RangerNote"},
-         "note": "N3: the Rimrock middle piece's top (6 m) by flat-topped Boulder_D steps up its east face (each rise at most 1.2 m, under the 1.5 m mantle), a hidden cube on each top and a hidden deck on the rock's top (the Coffin Rock lesson); a stake with a Ranger cache tag at the foot; the vista over Gravewind Canyon"},
         {"id": "BoltHole", "kind": "Hidden", "region": "Farm & Point", "build": "boltHole", "source": {"chest": "Find_BoltHole"}, "glintOn": false, "crows": 2,
          "chest": {"id": "Find_BoltHole", "kind": "Tier"},
          "boltHole": {"rockfall": "theTumble", "near": [-8600, -5200], "facing": [1.0, -0.3], "hollow": 300, "clear": 220, "level": 35, "laneWidth": 120, "laneLength": 210, "jamb": 110, "gap": 130, "lean": 8, "pathClear": 650, "view": 800, "fill": "SM_Boulder_C", "wall": 320, "readable": "Find_MarkedCard"},

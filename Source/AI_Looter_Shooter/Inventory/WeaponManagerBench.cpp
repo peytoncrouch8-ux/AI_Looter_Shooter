@@ -126,7 +126,7 @@ bool UWeaponManagerComponent::ScrapGun(const FCarriedGun& Gun, FName KeepSlot)
 	PartsBox.Add(*Kept);
 	if (Gun.bBackpack)
 	{
-		Backpack.RemoveAt(Gun.Index);
+		BackpackRemoveAt(Gun.Index);
 	}
 	else if (AWeaponBase* Weapon = RemoveFromSlots(Gun.Index))
 	{

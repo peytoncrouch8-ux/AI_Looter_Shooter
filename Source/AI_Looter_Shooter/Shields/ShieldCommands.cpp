@@ -134,7 +134,7 @@ namespace
 		}
 		for (const FShieldInstanceData& Spare : Shield->GetSpares())
 		{
-			LogWard(TEXT("spare"), Spare);
+			LogWard(TEXT("in the backpack"), Spare);
 		}
 	}
 
@@ -161,7 +161,7 @@ namespace
 		TEXT("(worn at once with 'wear'). Traits: LastBreath, Barbwire, Lodestone, Harvest, SaintsGrace; builds: Standard, Bulwark, Quickset."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GiveCommand));
 	FAutoConsoleCommandWithWorldAndArgs StateRegistration(TEXT("Looter.Shield.State"),
-		TEXT("Looter.Shield.State: the ward worn and the spares carried, in the log."),
+		TEXT("Looter.Shield.State: the ward worn and the spares in the backpack, in the log."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&StateCommand));
 	FAutoConsoleCommandWithWorldAndArgs BreakRegistration(TEXT("Looter.Shield.Break"),
 		TEXT("Looter.Shield.Break: the ward worn broken as a hit breaks it (its sound, the HUD's break, its trait)."),

@@ -23,6 +23,10 @@ void UWeaponManagerComponent::SaveInventory(FWeaponInventorySave& OutSave) const
 		}
 	}
 	OutSave.Backpack = Backpack;
+	// How the guns and the spare wards interleave, brought into step first (the wards are saved by the shield, below).
+	FBackpackOrder Order = BackpackOrder;
+	Order.Reconcile(Backpack.Num(), NumBackpackWards());
+	OutSave.BackpackOrder = Order.Items;
 	OutSave.Ammo.SetNum(LooterAmmo::NumTypes);
 	for (int32 Type = 0; Type < LooterAmmo::NumTypes; ++Type)
 	{
@@ -44,9 +48,29 @@ void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
 
 	// The wards before the guns: a save that had them keeps its own (and its starting ward given), so the first gun coming
 	// back doesn't hand over another; an older save gets the starting ward as its guns come back.
-	if (UPlayerShieldComponent* Shield = UPlayerShieldComponent::Find(GetOwner()))
+	UPlayerShieldComponent* Shield = UPlayerShieldComponent::Find(GetOwner());
+	if (Shield)
 	{
 		Shield->RestoreWards(Save.Shields);
+	}
+
+	// The backpack's order as saved (the wards' places too). A spare ward that couldn't come back (its kind gone) gives up
+	// its place; the guns' are given up below as they come back or don't.
+	BackpackOrder.Items = Save.BackpackOrder;
+	if (Shield)
+	{
+		int32 KeptWards = 0;
+		for (const FShieldInstanceData& Spare : Save.Shields.Spares)
+		{
+			if (Spare.IsSet())
+			{
+				++KeptWards;
+			}
+			else
+			{
+				BackpackOrder.RemoveAt(EBackpackItem::Ward, KeptWards);
+			}
+		}
 	}
 
 	// Guns whose kind no longer exists (their data asset gone) can't come back; the warning below counts them.
@@ -57,12 +81,28 @@ void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
 			GiveWeapon(Instance);
 		}
 	}
+	// The guns' own count as before: the spare wards never push a saved gun out (an old save's wards may take the backpack
+	// over its room once, below).
 	for (const FWeaponInstanceData& Instance : Save.Backpack)
 	{
 		if (Instance.Definition && Backpack.Num() < BackpackCapacity)
 		{
 			Backpack.Add(Instance);
 		}
+		else
+		{
+			BackpackOrder.RemoveAt(EBackpackItem::Gun, Backpack.Num());
+		}
+	}
+	// An old save (no order) lists its guns, then its wards in their old order.
+	BackpackOrder.Reconcile(Backpack.Num(), NumBackpackWards());
+	if (GetBackpackUsed() > BackpackCapacity)
+	{
+		// The user's rule (2026-10-31): nothing is thrown away. The backpack holds more than its room this once; nothing more
+		// goes in until enough comes out.
+		UE_LOG(LogLooter, Warning, TEXT("Backpack: the save carries %d guns and %d spare wards, over the backpack's %d places (wards had their own "
+			"room before 2026-10-31). All kept; nothing more goes in until %d come out."), Backpack.Num(), NumBackpackWards(), BackpackCapacity,
+			GetBackpackUsed() - BackpackCapacity + 1);
 	}
 	const int32 Saved = Save.Equipped.Num() + Save.Backpack.Num();
 	WarnGunsLost(Saved - NumCarriedGuns(), TEXT("RestoreInventory (a load)"),
@@ -129,6 +169,7 @@ void UWeaponManagerComponent::EmptyInventory()
 		ReleaseGun(Weapon);
 	}
 	Backpack.Reset();
+	BackpackOrder.Reconcile(0, NumBackpackWards());
 	PartsBox.Reset();
 	for (int32 Type = 0; Type < LooterAmmo::NumTypes; ++Type)
 	{

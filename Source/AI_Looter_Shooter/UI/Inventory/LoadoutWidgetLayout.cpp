@@ -4,6 +4,7 @@
 
 #include "UI/Inventory/LoadoutWidget.h"
 #include "UI/Cards/GunCardWidget.h"
+#include "UI/Cards/WardCardWidget.h"
 #include "UI/Cards/LooterCardBackdrop.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutPaintLayer.h"
@@ -198,8 +199,12 @@ void ULoadoutWidget::BuildCards()
 	GunCard = WidgetTree->ConstructWidget<UGunCardWidget>(UGunCardWidget::StaticClass(), TEXT("GunCard"));
 	GunCard->SetVisibility(ESlateVisibility::Collapsed);
 	PlaceOnPage(GunCard, FVector2D(PageMiddle, LoadoutLayout::CardTop), FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
+	// A ward's card in the same place (the user, 2026-10-31: wards look like the guns here too).
+	WardCard = WidgetTree->ConstructWidget<UWardCardWidget>(UWardCardWidget::StaticClass(), TEXT("WardCard"));
+	WardCard->SetVisibility(ESlateVisibility::Collapsed);
+	PlaceOnPage(WardCard, FVector2D(PageMiddle, LoadoutLayout::CardTop), FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
 
-	// The plain card, for what the gun card doesn't show: a ward, an empty slot, and Inspect's every stat. Its head wears
+	// The plain card, for what the gun card doesn't show: an empty slot or WARD row, and Inspect's every stat. Its head wears
 	// the gun's maker's sweep on Inspect: the mark, the maker's word and its quirk, as the gun card's does.
 	{
 		UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());

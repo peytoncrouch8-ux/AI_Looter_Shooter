@@ -15,7 +15,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnShieldWardsChanged);
 
 /**
  * The player's ward (the user's pick, 2026-10-22: a recharging shield over health, found as loot; Docs/Work/2026-10-22-Next/
- * SHIELD.md). It wears one ward and carries up to MaxSpares more, and stands in front of the player's health through the
+ * SHIELD.md). It wears one ward and carries spares in the backpack, where they share the guns' places (the user, 2026-10-31;
+ * UWeaponManagerComponent::HasBackpackRoom), and it stands in front of the player's health through the
  * health component's shield hook (UHealthComponent::Shield, the creature wards' way): every hit is soaked by its charge
  * first, the hit that empties it breaks it (only part of the overflow gets through), and after RechargeDelay unhurt it
  * fills again at RechargeRate. Health's own regen (FWoundsClose) holds its ramp until the ward is full again
@@ -34,9 +35,6 @@ public:
 	static UPlayerShieldComponent* Find(const AActor* Owner);
 	/** Find, or a new one added to Owner (registered, and begun if Owner's play has). */
 	static UPlayerShieldComponent* FindOrAdd(AActor& Owner);
-
-	/** Spare wards carried besides the one worn. */
-	static constexpr int32 MaxSpares = 3;
 
 	// --- The ward worn, as it stands ---
 
@@ -70,25 +68,35 @@ public:
 
 	// --- The wards carried (PlayerShieldWards.cpp) ---
 
+	/** The spare wards, in the backpack (the order they went in among its guns: UWeaponManagerComponent::GetBackpackItems). */
 	const TArray<FShieldInstanceData>& GetSpares() const { return Spares; }
-	bool HasSpareRoom() const { return Spares.Num() < MaxSpares; }
+	/**
+	 * Room in the backpack for one more: the weapon manager's shared count (guns and wards), or NoManagerRoom spares on a
+	 * holder without one (tests' stand-ins).
+	 */
+	bool HasBackpackRoom() const;
+	static constexpr int32 NoManagerRoom = 12;
 
 	/**
-	 * Wears Ward now: the one worn goes to the spares (or onto the ground in front of the player when they're full). It
-	 * comes on empty and starts its wait, unless bFull (a load, the starting ward). Returns false for a ward with no definition.
+	 * Wears Ward now: the one worn goes to the backpack (or onto the ground in front of the player when it's full: "Backpack
+	 * full", as a gun's swap says). It comes on empty and starts its wait, unless bFull (a load, the starting ward). Returns
+	 * false for a ward with no definition.
 	 */
 	bool Equip(const FShieldInstanceData& NewWard, bool bFull = false);
-	/** A ward picked up with a tap: worn when none is, else into the spares; false when the spares are full. */
+	/** A ward picked up into the backpack: worn when none is, else a spare; false when the backpack is full. */
 	bool Take(const FShieldInstanceData& NewWard);
-	/** The spare at Index is worn, the one worn takes its place among the spares. */
+	/** The spare at Index is worn, the one worn takes its place in the backpack (the same place in its order). */
 	bool EquipSpare(int32 Index);
-	/** The ward worn into the spares (none worn after). False when the spares are full. */
+	/** The ward worn into the backpack (none worn after). False when the backpack is full. */
 	bool StowWard();
 	/** Puts the ward worn, or a spare, on the ground in front of the player. */
 	bool DropWard();
 	bool DropSpare(int32 Index);
 
-	/** What it carries, into a session's save and back (the ward worn comes back full). */
+	/**
+	 * What it carries, into a session's save and back (the ward worn comes back full). Every saved spare comes back, even
+	 * over the backpack's room (an old save's: UWeaponManagerComponent::RestoreInventory says so in the log).
+	 */
 	void SaveWards(FShieldInventorySave& OutSave) const;
 	void RestoreWards(const FShieldInventorySave& Save);
 	/** Nothing worn or carried (a load's, before restoring). */
@@ -141,6 +149,12 @@ private:
 	/** A ward was put on (worn or loaded): the trait's readiness and the break state start over. */
 	void ResetWardState(bool bFull);
 	FVector DropSpot() const;
+	/** The weapon manager on the same holder (the backpack's room and order), or null. */
+	UWeaponManagerComponent* FindManager() const;
+	/** The spares changed: the weapon manager places them in the backpack's order (RemovedSpare: the one that came out). */
+	void NoteSparesChanged(int32 RemovedSpare = INDEX_NONE);
+	/** "Backpack full: X dropped" / "X sent to backpack", on the weapon manager's message line as a gun's. */
+	void SayToHud(const FString& Message) const;
 
 	UPROPERTY(Transient)
 	FShieldInstanceData Ward;

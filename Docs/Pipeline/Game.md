@@ -496,3 +496,12 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   `Art/Sounds/recipes/flask.py` (seven `Player.Flask.*`, 2D).
 - Dev: `Looter.Flask.Fill [n]`, `Looter.Flask.Drink [hurt]`, `Looter.Flask.Status`. Photograph a drink at `slomo 0.15`:
   grab 2 s and 3 s after `Looter.Flask.Drink hurt`; wait 8 s (1.1 game s) before the next drink.
+
+## Wards like guns, one backpack (2026-10-31, the user: "Wards should have a similar UI to the weapons ... guns and wards take up the same backpack space")
+- The worn ward stays in the loadout's WARD slot (left); spare wards are backpack rows mixed with the guns in the order they
+  went in (`FBackpackOrder`, saved), all inside `BackpackCapacity` 12 (`GetBackpackUsed`/`HasBackpackRoom` everywhere a room
+  check was). `MaxSpares` is gone. An old save's spares join after its guns, kept even past 12 (one warning; "14 / 12" once).
+- A ward on the ground opens `UWardCardWidget` (the gun card's tag look: rarity line, name, capacity / recharge delay /
+  recharge rate with arrows vs the worn ward, build, trait, their lines) with the guns' keys: nothing worn = tap wears;
+  room = tap to backpack, hold wears; full = tap swaps (the worn drops). The loadout shows the same card for ward rows.
+- Vendors don't buy wards (they didn't before); no junk mark for wards.

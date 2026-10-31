@@ -6,6 +6,7 @@
 #include "UI/Inventory/LoadoutWidget.h"
 #include "AI_Looter_Shooter.h"
 #include "UI/Cards/GunCardWidget.h"
+#include "UI/Cards/WardCardWidget.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutGunStage.h"
 #include "UI/Inventory/LoadoutParts.h"
@@ -14,7 +15,10 @@
 #include "UI/Style/WeaponText.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Shields/PlayerShieldComponent.h"
+#include "Shields/ShieldRules.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/TextBlock.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -92,6 +96,18 @@ void ULoadoutWidget::Open(ALooterHUD* InHUD, UWeaponManagerComponent* InManager)
 		{
 			SeenGuns.Add(LoadoutRules::GunIdentity(Gun));
 		}
+		// The wards carried then too (a ward's identity is its own hash: ShieldRules::Identity).
+		if (const UPlayerShieldComponent* Shield = UPlayerShieldComponent::Find(InManager->GetOwner()))
+		{
+			if (Shield->HasWard())
+			{
+				SeenGuns.Add(ShieldRules::Identity(Shield->GetWard()));
+			}
+			for (const FShieldInstanceData& Spare : Shield->GetSpares())
+			{
+				SeenGuns.Add(ShieldRules::Identity(Spare));
+			}
+		}
 		bSeenPrimed = true;
 	}
 
@@ -155,22 +171,25 @@ void ULoadoutWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 void ULoadoutWidget::FitGunCard()
 {
 	// The card's height changes with the gun (stat rows, bullet lines); its layout size is known after a pass, so it is fitted
-	// each frame from its desired size, shrunk from its top so its foot never covers the key hints.
-	if (!GunCard || GunCard->GetVisibility() == ESlateVisibility::Collapsed)
+	// each frame from its desired size, shrunk from its top so its foot never covers the key hints. The ward card the same.
+	for (UUserWidget* Card : { static_cast<UUserWidget*>(GunCard.Get()), static_cast<UUserWidget*>(WardCard.Get()) })
 	{
-		return;
-	}
-	const float Height = GunCard->GetDesiredSize().Y;
-	if (Height <= 1.f)
-	{
-		return;
-	}
-	const float Room = LoadoutLayout::PromptBarPosition.Y - LoadoutLayout::CardFootGap - LoadoutLayout::CardTop;
-	const float Scale = FMath::Clamp(Room / Height, LoadoutLayout::CardMinScale, 1.f);
-	if (!FMath::IsNearlyEqual(static_cast<float>(GunCard->GetRenderTransform().Scale.Y), Scale, 0.005f))
-	{
-		GunCard->SetRenderTransformPivot(FVector2D(0.5f, 0.f));
-		GunCard->SetRenderScale(FVector2D(Scale, Scale));
+		if (!Card || Card->GetVisibility() == ESlateVisibility::Collapsed)
+		{
+			continue;
+		}
+		const float Height = Card->GetDesiredSize().Y;
+		if (Height <= 1.f)
+		{
+			continue;
+		}
+		const float Room = LoadoutLayout::PromptBarPosition.Y - LoadoutLayout::CardFootGap - LoadoutLayout::CardTop;
+		const float Scale = FMath::Clamp(Room / Height, LoadoutLayout::CardMinScale, 1.f);
+		if (!FMath::IsNearlyEqual(static_cast<float>(Card->GetRenderTransform().Scale.Y), Scale, 0.005f))
+		{
+			Card->SetRenderTransformPivot(FVector2D(0.5f, 0.f));
+			Card->SetRenderScale(FVector2D(Scale, Scale));
+		}
 	}
 }
 
@@ -220,11 +239,13 @@ ULoadoutWidget::FView ULoadoutWidget::GetView() const
 	FView View;
 	View.bOnSlot = Zone == EZone::Slots;
 	View.bOnWard = Zone == EZone::Wards;
+	View.bOnBackpackWard = Zone == EZone::Backpack && ListWard(CursorIndex) != nullptr;
 	View.Cursor = CursorIndex;
 	View.TargetSlot = TargetSlot;
 	View.bInspecting = bInspecting;
 	View.Sort = Sort;
 	View.ListOrder = ListOrder;
+	View.BackpackCount = BackpackCount ? BackpackCount->GetText().ToString() : FString();
 	for (const FRow& Row : ListRows)
 	{
 		View.JunkRows.Add(Row.JunkMark != nullptr);
@@ -247,6 +268,12 @@ ULoadoutWidget::FView ULoadoutWidget::GetView() const
 	{
 		View.CardName = GunCard->GetNameText().ToString();
 		View.CardVerdict = GunCard->GetVerdictText().ToString();
+	}
+	View.bWardCard = WardCard && WardCard->GetVisibility() != ESlateVisibility::Collapsed && WardCard->GetVisibility() != ESlateVisibility::Hidden;
+	if (View.bWardCard)
+	{
+		View.WardCardName = WardCard->GetNameText().ToString();
+		View.WardCardVerdict = WardCard->GetVerdictText().ToString();
 	}
 	return View;
 }
@@ -312,7 +339,8 @@ int32 ULoadoutWidget::GetActiveSlot() const
 bool ULoadoutWidget::HasBackpackRoom() const
 {
 	const UWeaponManagerComponent* Inventory = Manager.Get();
-	return Inventory && Inventory->GetBackpack().Num() < Inventory->BackpackCapacity;
+	// Shared with the spare wards (the user, 2026-10-31).
+	return Inventory && Inventory->HasBackpackRoom();
 }
 
 bool ULoadoutWidget::IsNew(uint32 Identity) const

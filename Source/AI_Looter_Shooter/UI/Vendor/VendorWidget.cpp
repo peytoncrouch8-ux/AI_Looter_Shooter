@@ -233,10 +233,12 @@ void UVendorWidget::BuildPanel()
 	{
 		UVerticalBox* Sell = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Sell->AddChildToVerticalBox(MakeSection(WidgetTree, LOCTEXT("Sell", "Sell").ToString()));
+		// The sell rows are the backpack's guns (wards aren't sold); the count is the backpack's, its wards too (they share its room).
 		const int32 Carried = Manager ? Manager->GetBackpack().Num() : 0;
+		const int32 Used = Manager ? Manager->GetBackpackUsed() : 0;
 		const int32 Room = Manager ? Manager->BackpackCapacity : 0;
 		const FText Note = FText::Format(LOCTEXT("BackpackNote", "Backpack {0} / {1} · guns in your hands aren't for sale"),
-			FText::AsNumber(Carried), FText::AsNumber(Room));
+			FText::AsNumber(Used), FText::AsNumber(Room));
 		Sell->AddChildToVerticalBox(MakeText(WidgetTree, Note.ToString(), 11, Color::TextDim()))->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 
 		SellList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());

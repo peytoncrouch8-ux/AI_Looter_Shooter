@@ -14,6 +14,7 @@ class UBorder;
 class UCanvasPanel;
 class UCanvasPanelSlot;
 class UGunCardWidget;
+class UWardCardWidget;
 class UHorizontalBox;
 class UImage;
 class ULoadoutPaintLayer;
@@ -31,10 +32,10 @@ struct FWeaponInstanceData;
 /** The loadout page's layout, on the inventory's 1600 x 900 page (the user's 2026-10-28 ask: the backpack back on the right). */
 namespace LoadoutLayout
 {
-	/** Left: EQUIPPED (a row per slot), WARD, then AMMO. */
+	/** Left: EQUIPPED (a row per slot), the WARD worn (a row like a slot's), then AMMO. */
 	inline constexpr float ListX = 56.f;
 	inline constexpr float ListWidth = 488.f;
-	/** Right: the BACKPACK, a row per place in it (empty ones faint), scrolling when they don't fit. */
+	/** Right: the BACKPACK, a row per place in it (its guns and spare wards, then empty ones faint), scrolling when they don't fit. */
 	inline constexpr float BackpackX = 1056.f;
 	inline constexpr float BackpackWidth = 488.f;
 	inline constexpr float ColumnTop = 104.f;
@@ -44,8 +45,8 @@ namespace LoadoutLayout
 	inline constexpr float HeaderGap = 8.f;
 	inline constexpr float SectionGap = 20.f;
 	inline constexpr float SlotRowHeight = 72.f;
-	/** The ward worn's row; the spares' are BackpackRowHeight. */
-	inline constexpr float WardRowHeight = 56.f;
+	/** The ward worn's row, a slot's height (the user, 2026-10-31: wards look like the guns); the backpack's wards are BackpackRowHeight. */
+	inline constexpr float WardRowHeight = 72.f;
 	inline constexpr float BackpackRowHeight = 46.f;
 	inline constexpr float RowGap = 6.f;
 	/** Where both columns' first row starts: A / D keep the nearest row by where the rows are laid out from here. */
@@ -79,16 +80,19 @@ namespace LoadoutLayout
  * backpack back on the right). Two columns of rows in the "Wide Sweep" row look (ULooterCardBackdrop), the gun under the
  * cursor between them:
  *  - left: EQUIPPED (a row per equip slot: its number, lit while in hand, the gun's icon, name in its rarity's colour,
- *    kind, level and damage), the WARD (the ward worn, then the spares; LoadoutWidgetWard.cpp), then the ammo and silver
- *  - right: the BACKPACK (a row per gun: icon, name, level, damage, an arrow against the gun it would replace; sorted
- *    best-for-slot, by rarity, level or newest with R), then a faint EMPTY row per free place
+ *    kind, level and damage), the WARD worn (a row like a slot's: icon, name, kind, capacity; LoadoutWidgetWard.cpp), then
+ *    the ammo and silver
+ *  - right: the BACKPACK (a row per gun or spare ward, which share its places since 2026-10-31: icon, name, level, damage
+ *    or capacity, an arrow against what it would replace; in the order they went in, sorted best-for-slot, by rarity,
+ *    level or newest with R), then a faint EMPTY row per free place
  *  - middle: the gun under the cursor, built from its parts, turning slowly (drag to turn, click to inspect), and under it
- *    its gun card (UGunCardWidget, Loadout: compared with the gun of the slot it would go to). A ward or an empty slot
- *    gets a plain card there instead
+ *    its gun card (UGunCardWidget, Loadout: compared with the gun of the slot it would go to); a ward's row its ward card
+ *    (UWardCardWidget, against the ward worn) with the ward box in the showcase; an empty slot a plain card
  *  - Inspect (X, or a click on the gun) hides the lists, shows the gun large, and every stat, the parts and the history
  *    on a card wearing its maker's sweep where the backpack was
  *  - bottom: what the keys do right now; each hint is also a button
- * W / S move within a column (the slots then the wards; the backpack), A / D switch columns to the nearest row. E on a
+ * W / S move within a column (the slots then the ward worn; the backpack), A / D switch columns to the nearest row. E on
+ * the WARD row goes to the backpack's wards, E (or F) on a backpack ward wears it, C stows the worn one, Q drops. E on a
  * slot picks it as the swap target and goes to the backpack; E on a backpack gun swaps it into the target slot (or equips
  * it into a free one). F takes a gun in hand, M moves a slot (then E puts it down), C stows a slot's gun in the backpack,
  * Q drops, R sorts, X inspects. Guns can also be dragged: onto a slot, a backpack gun, the backpack, or the showcase (in
@@ -109,17 +113,21 @@ public:
 	/** What the screen shows, for tests. */
 	struct FView
 	{
-		/** The cursor is on an equip slot (else on a ward's row or a backpack row). */
+		/** The cursor is on an equip slot (else on the WARD row or a backpack row). */
 		bool bOnSlot = true;
-		/** The cursor is on a ward's row (Cursor 0 the ward worn, then the spares). */
+		/** The cursor is on the WARD row (the ward worn; Cursor 0). */
 		bool bOnWard = false;
+		/** The cursor is on a spare ward's row in the backpack. */
+		bool bOnBackpackWard = false;
 		int32 Cursor = 0;
 		/** The slot a backpack gun goes into. */
 		int32 TargetSlot = 0;
 		bool bInspecting = false;
 		LoadoutRules::ESort Sort = LoadoutRules::ESort::Match;
-		/** Backpack indices, in the list's order. */
+		/** The backpack list's entries in order: a gun's backpack index, or a spare ward's LoadoutBackpack::WardCode. */
 		TArray<int32> ListOrder;
+		/** The backpack header's count ("3 / 12": guns and wards together). */
+		FString BackpackCount;
 		/** What the prompt bar says, "E: Swap into slot 1" and so on, in order. */
 		TArray<FString> Prompts;
 		/** For each backpack row, in the list's order: it carries the JUNK tag (its gun is marked junk). */
@@ -132,6 +140,10 @@ public:
 		bool bGunCard = false;
 		FString CardName;
 		FString CardVerdict;
+		/** The middle ward card: shown, the ward's name on it and its verdict ("UPGRADE" against the ward worn, or empty). */
+		bool bWardCard = false;
+		FString WardCardName;
+		FString WardCardVerdict;
 	};
 	FView GetView() const;
 
@@ -148,7 +160,7 @@ protected:
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 
 private:
-	/** Where the cursor is: the left column's slots or wards, or the right column's backpack. */
+	/** Where the cursor is: the left column's slots or its WARD row, or the right column's backpack (guns and wards). */
 	enum class EZone : uint8 { Slots, Backpack, Wards };
 
 	/** Where a dragged gun can be let go. */
@@ -306,34 +318,44 @@ private:
 	bool ProjectToPage(const FVector& WorldLocation, FVector2f& OutPoint) const;
 	/** The plain card sliding in, a row's flash fading. */
 	void TickMotion(float DeltaTime);
-	/** Shrinks the gun card from its top so a tall card never runs under the key hints (LoadoutLayout::CardFootGap). */
+	/** Shrinks the gun card (and the ward card) from its top so a tall card never runs under the key hints (LoadoutLayout::CardFootGap). */
 	void FitGunCard();
 
-	// --- The wards (LoadoutWidgetWard.cpp; their card LoadoutWidgetWardCard.cpp) ---
-	/** Adds the WARD header and its list to the left column (after the slots). */
+	// --- The wards (LoadoutWidgetWard.cpp: the WARD row, the backpack's ward rows, their keys; their card and the showcase
+	// LoadoutWidgetWardCard.cpp). Since 2026-10-31 the spares are backpack rows (the user: wards share the guns' backpack). ---
+	/** Adds the WARD header and its row to the left column (after the slots). */
 	void BuildWardSection(UVerticalBox* Column);
-	/** The ward rows (the one worn, then the spares), and the shield bound so its changes refresh the screen. */
+	/** The WARD row (the ward worn), and the shield bound so its changes refresh the screen. */
 	void RebuildWards();
-	FRow MakeWardRow(int32 Row);
+	FRow MakeWornWardRow();
+	/** A spare ward's row in the backpack list (Row: the list's row), in a backpack gun row's look. */
+	FRow MakeBackpackWardRow(int32 Row);
 	void RestyleWards();
+	/** The ward card in the middle for the ward under the cursor (or a plain card when none is worn). */
 	void RefreshWardCard();
+	/** Shows the ward card (and hides the gun card and the plain card), or puts it away. */
+	void ShowWardCard(bool bShow);
 	/** The ward showcase: its Inked icon, big, where the gun would turn. */
 	void RefreshWardShowcase();
 	TArray<FPrompt> WardPrompts() const;
-	/** An action on a ward's row; false when it isn't one the wards take (close, cancel, sort). */
+	/** An action on a ward's row (the WARD row or a backpack ward); false when it isn't one the wards take (close, cancel, sort). */
 	bool RunWardAction(EAction Action);
 	void WardActivate();
 	void WardStow();
 	void WardDrop();
-	void HandleWardClicked(ULooterButton* Button);
-	void HandleWardHovered(ULooterButton* Button);
-	/** The ward on row Row (0 the one worn, then the spares), or null. */
-	const FShieldInstanceData* WardItem(int32 Row) const;
+	/** The ward worn, or null. */
+	const FShieldInstanceData* WornWard() const;
+	/** The spare ward on a backpack list row (its index in the spares through OutSpare), or null for a gun's row. */
+	const FShieldInstanceData* ListWard(int32 Row, int32* OutSpare = nullptr) const;
+	/** The ward under the cursor (the WARD row's or a backpack ward's), or null. */
+	const FShieldInstanceData* CursorWard() const;
+	/** The cursor is on the WARD row or on a backpack ward's row. */
+	bool IsOnWard() const;
 	UPlayerShieldComponent* GetShield() const;
 
 	// --- Queries (LoadoutWidget.cpp) ---
 	const FWeaponInstanceData* SlotItem(int32 SlotIndex) const;
-	/** The backpack gun on a row of the list. */
+	/** The backpack gun on a row of the list (null on a ward's row). */
 	const FWeaponInstanceData* ListItem(int32 Row) const;
 	/** The gun under the cursor, or null (an empty slot, a ward). */
 	const FWeaponInstanceData* CursorItem() const;
@@ -370,6 +392,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> AmmoRow;
 	/** The middle's gun card. */
 	UPROPERTY(Transient) TObjectPtr<UGunCardWidget> GunCard;
+	/** The middle's ward card, in the gun card's place on a ward's row. */
+	UPROPERTY(Transient) TObjectPtr<UWardCardWidget> WardCard;
 	/** The plain card: a ward's or an empty slot's in the middle, Inspect's on the right. Its head wears a maker's sweep on Inspect. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> PlainCard;
 	UPROPERTY(Transient) TObjectPtr<UCanvasPanelSlot> PlainCardSlot;
@@ -396,12 +420,12 @@ private:
 
 	TArray<FRow> SlotRows;
 	TArray<FRow> ListRows;
-	/** The ward rows: the one worn (always, "No ward" when none), then a row per spare. */
+	/** The WARD row: the one worn (always, "No ward worn" when none). The spares are ListRows. */
 	TArray<FRow> WardRows;
 	/** The backpack's free places, shown as EMPTY rows after its guns. */
 	int32 NumEmptyRows = 0;
 	TWeakObjectPtr<UPlayerShieldComponent> BoundShield;
-	/** Backpack indices in the order the list shows them. */
+	/** The list's entries in the order it shows them: a gun's backpack index, or a spare ward's LoadoutBackpack::WardCode. */
 	TArray<int32> ListOrder;
 
 	EZone Zone = EZone::Slots;
@@ -415,7 +439,7 @@ private:
 	/** One action can change the inventory several times: refresh once, when it's done. */
 	bool bApplyingAction = false;
 
-	/** Guns the cursor has been on, or that were carried when the screen first opened: the rest are NEW. */
+	/** Guns and wards the cursor has been on, or that were carried when the screen first opened: the rest are NEW. */
 	TSet<uint32> SeenGuns;
 	bool bSeenPrimed = false;
 

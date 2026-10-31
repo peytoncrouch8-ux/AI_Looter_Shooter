@@ -4,6 +4,7 @@
 #include "UI/Inventory/LoadoutWidget.h"
 #include "Economy/EconomyRules.h"
 #include "Economy/WalletSubsystem.h"
+#include "UI/Inventory/LoadoutBackpackRules.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Vendor/SilverUI.h"
 #include "UI/Inventory/LoadoutRules.h"
@@ -33,10 +34,11 @@ void ULoadoutWidget::RefreshCounts()
 		return;
 	}
 	EquippedCount->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), NumWeapons(), NumSlots())));
-	BackpackCount->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), Inventory->GetBackpack().Num(), Inventory->BackpackCapacity)));
+	// Its guns and its spare wards together: they share its places (the user, 2026-10-31).
+	BackpackCount->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), Inventory->GetBackpackUsed(), Inventory->BackpackCapacity)));
 	SortText->SetText(FText::FromString(FString::Printf(TEXT("R  Sort: %s"), LoadoutRules::SortName(Sort)).ToUpper()));
-	// Nothing to sort with fewer than two guns.
-	SortButton->SetVisibility(Inventory->GetBackpack().Num() > 1 ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+	// Nothing to sort with fewer than two things in it.
+	SortButton->SetVisibility(ListOrder.Num() > 1 ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 }
 
 void ULoadoutWidget::RefreshAmmo()
@@ -97,7 +99,7 @@ TArray<ULoadoutWidget::FPrompt> ULoadoutWidget::CurrentPrompts() const
 	}
 
 	// The main action first (its cap lit), then the others the cursor's gun allows, then closing.
-	const bool bBackpackGuns = !ListOrder.IsEmpty();
+	const bool bBackpackGuns = LoadoutBackpack::CountGuns(ListOrder) > 0;
 	if (bInspecting)
 	{
 		Prompts.Add({ TEXT("X"), TEXT("Back"), EAction::Inspect });
@@ -132,8 +134,9 @@ TArray<ULoadoutWidget::FPrompt> ULoadoutWidget::CurrentPrompts() const
 			Prompts.Add({ TEXT("E"), TEXT("Choose from backpack"), EAction::Activate });
 		}
 	}
-	else if (Zone == EZone::Wards)
+	else if (IsOnWard())
 	{
+		// The WARD row, or a spare ward's row in the backpack.
 		Prompts.Append(WardPrompts());
 	}
 	else if (ListItem(CursorIndex))

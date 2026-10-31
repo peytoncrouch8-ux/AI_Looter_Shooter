@@ -16,8 +16,9 @@ class UWidgetComponent;
 /**
  * A ward lying as loot (a kill's or a chest's drop, one the player dropped): the ward box (SM_WardBox_<Rarity>, its coal
  * window glowing in the rarity's colour) spinning under its rarity's beam, as a gun's (LootDropMoments), with a floating
- * label (UShieldLabelWidget: its name, numbers, trait and how it compares with the ward worn). The Interact key takes it:
- * a tap picks it up (worn if none is, else a spare), a hold wears it now (the worn one becomes a spare, or drops). Rare
+ * label (UShieldLabelWidget: its name and trait from afar; looked at, the ward card in the gun card's style with the keys).
+ * The Interact key takes it as a gun is taken (ShieldPickupRules): a tap wears it when none is worn, else puts it in the
+ * backpack, else swaps it with the worn one (which drops); a hold wears it now (the worn one to the backpack, or dropped). Rare
  * and up sting and flare their beam as they land, as guns do. It lies for LifeSeconds (longer while the player stands
  * near), and a session doesn't keep it: leaving the map leaves it (Lost Property keeps only guns for now).
  */

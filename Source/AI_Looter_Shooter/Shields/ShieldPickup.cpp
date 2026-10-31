@@ -9,6 +9,7 @@
 #include "Loot/LootTossComponent.h"
 #include "Shields/PlayerShieldComponent.h"
 #include "Shields/ShieldDefinition.h"
+#include "Shields/ShieldPickupRules.h"
 #include "Shields/ShieldRules.h"
 #include "Shields/ShieldText.h"
 #include "UI/World/ShieldLabelWidget.h"
@@ -126,6 +127,8 @@ void AShieldPickup::BeginPlay()
 	if (UShieldLabelWidget* Widget = Cast<UShieldLabelWidget>(Label->GetUserWidgetObject()))
 	{
 		Widget->SetWard(Ward, nullptr);
+		// Its label watches the player's look at it itself, so the card opens the moment it's looked at.
+		Widget->SetSource(this);
 	}
 }
 
@@ -265,14 +268,14 @@ FInteractionOptions AShieldPickup::GetInteractionOptions(const UInteractionCompo
 	Options.bHold = true;
 	Options.HoldSeconds = WearHoldSeconds;
 	Options.HoldPrompt = FText::FromString(TEXT("Wear"));
-	// A tap takes it: worn when none is, else a spare; with the spares full only the hold wears it (the worn one drops).
-	const bool bWears = Shield && !Shield->HasWard();
-	Options.bTap = Shield && (bWears || Shield->HasSpareRoom());
-	Options.TapPrompt = FText::FromString(bWears ? TEXT("Wear") : TEXT("Pick up"));
-	if (bWears)
-	{
-		Options.bHold = false;
-	}
+	// As a gun is taken (the user, 2026-10-31: wards like guns): a tap wears it when none is worn, else puts it in the
+	// backpack, else (the backpack full) swaps it with the one worn, which drops; a hold always wears it.
+	const ShieldPickupRules::ETap Tap = ShieldPickupRules::TapFor(Shield);
+	Options.bTap = Shield != nullptr;
+	Options.TapPrompt = FText::FromString(Tap == ShieldPickupRules::ETap::Wear ? TEXT("Wear") : (Tap == ShieldPickupRules::ETap::ToBackpack
+		? TEXT("To backpack") : TEXT("Swap")));
+	// With none worn the tap already wears it: no hold to wait for.
+	Options.bHold = Tap != ShieldPickupRules::ETap::Wear;
 	return Options;
 }
 
@@ -283,13 +286,15 @@ bool AShieldPickup::Interact(UInteractionComponent& User, bool bHeld)
 	{
 		return false;
 	}
-	const bool bTaken = bHeld ? Shield->Equip(Ward, false) : Shield->Take(Ward);
+	// A hold wears it; so does a tap with none worn, or with the backpack full (a swap: the worn one drops, as a gun's does).
+	const bool bWear = bHeld || ShieldPickupRules::TapFor(Shield) != ShieldPickupRules::ETap::ToBackpack;
+	const bool bTaken = bWear ? Shield->Equip(Ward, false) : Shield->Take(Ward);
 	if (!bTaken)
 	{
 		LooterSound::Play2D(this, FName(LooterSoundCue::Denied));
 		return false;
 	}
-	UE_LOG(LogLooter, Log, TEXT("Shield: %s %s %s (lv %d)"), bHeld ? TEXT("wore") : TEXT("took"), *UEnum::GetDisplayValueAsText(Ward.Rarity).ToString(),
+	UE_LOG(LogLooter, Log, TEXT("Shield: %s %s %s (lv %d)"), bWear ? TEXT("wore") : TEXT("stowed"), *UEnum::GetDisplayValueAsText(Ward.Rarity).ToString(),
 		*ShieldText::Name(Ward), Ward.Level);
 	Ward = FShieldInstanceData();
 	Destroy();

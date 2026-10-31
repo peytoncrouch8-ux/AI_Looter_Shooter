@@ -17,6 +17,7 @@
 #include "UI/HUD/HudPlayerFrameShapes.h"
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudShieldBarWidget.h"
+#include "UI/Inventory/LoadoutBackpackRules.h"
 #include "UI/Inventory/LoadoutWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/UserWidget.h"
@@ -287,7 +288,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FShieldWardsTest, "Looter.Shields.Wards", Shiel
 
 bool FShieldWardsTest::RunTest(const FString& Parameters)
 {
-	// Carrying: a tap takes a ward (worn when none is, else a spare), spares swap with the one worn, and the save keeps it all.
+	// Carrying: a tap takes a ward (worn when none is, else into the backpack), spares swap with the one worn, the backpack's
+	// room is shared with the guns (2026-10-31), and the save keeps it all.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -301,25 +303,31 @@ bool FShieldWardsTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	// A backpack of four places: the spares fill it as guns would.
+	UWeaponManagerComponent* Inventory = NewObject<UWeaponManagerComponent>(Player);
+	Inventory->RegisterComponent();
+	Inventory->BackpackCapacity = 4;
 	UShieldDefinition* Definition = NewObject<UShieldDefinition>();
 	const FShieldInstanceData First = TestWard(Definition, EWeaponRarity::Common, 1, 11);
 	const FShieldInstanceData Second = TestWard(Definition, EWeaponRarity::Rare, 1, 12, EShieldBuild::Quickset, EShieldTrait::Harvest);
 	TestTrue(TEXT("A tap with none worn: worn"), Shield->Take(First) && Shield->HasWard() && Shield->GetSpares().IsEmpty());
 	TestTrue(TEXT("...a ward put on comes on empty, waiting"), Shield->GetCharge() == 0.f && Shield->IsBroken());
-	TestTrue(TEXT("A second tap: a spare"), Shield->Take(Second) && Shield->GetSpares().Num() == 1);
+	TestTrue(TEXT("A second tap: into the backpack"), Shield->Take(Second) && Shield->GetSpares().Num() == 1);
+	TestEqual(TEXT("...one of the backpack's places taken"), Inventory->GetBackpackUsed(), 1);
 	TestTrue(TEXT("Wearing the spare: the first takes its place"), Shield->EquipSpare(0) && Shield->GetWard().Seed == 12 && Shield->GetSpares()[0].Seed == 11);
-	for (int32 Index = 1; Index < UPlayerShieldComponent::MaxSpares; ++Index)
+	for (int32 Index = 1; Index < Inventory->BackpackCapacity; ++Index)
 	{
 		Shield->Take(TestWard(Definition, EWeaponRarity::Common, 1, 100 + Index));
 	}
-	TestEqual(TEXT("Spares fill to the most"), Shield->GetSpares().Num(), UPlayerShieldComponent::MaxSpares);
-	TestFalse(TEXT("...a tap then takes nothing"), Shield->Take(TestWard(Definition, EWeaponRarity::Common, 1, 999)));
+	TestEqual(TEXT("Spares fill the backpack"), Shield->GetSpares().Num(), Inventory->BackpackCapacity);
+	TestFalse(TEXT("...no room left"), Shield->HasBackpackRoom() || Inventory->HasBackpackRoom());
+	TestFalse(TEXT("...a tap into the backpack then takes nothing"), Shield->Take(TestWard(Definition, EWeaponRarity::Common, 1, 999)));
 	TestFalse(TEXT("...and the worn one can't be stowed"), Shield->StowWard());
 
 	// The save: the worn ward, the spares, the starting ward's flag; it comes back full, its numbers rebuilt.
 	FShieldInventorySave Saved;
 	Shield->SaveWards(Saved);
-	TestTrue(TEXT("Saved: the worn ward and the spares"), Saved.Equipped.Seed == 12 && Saved.Spares.Num() == UPlayerShieldComponent::MaxSpares);
+	TestTrue(TEXT("Saved: the worn ward and the spares"), Saved.Equipped.Seed == 12 && Saved.Spares.Num() == Inventory->BackpackCapacity);
 	Shield->EmptyWards();
 	TestFalse(TEXT("Emptied"), Shield->HasWard());
 	FShieldInventorySave Edited = Saved;
@@ -328,7 +336,7 @@ bool FShieldWardsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Restored: the same ward worn"), Shield->HasWard() && Shield->GetWard().Seed == 12 && Shield->GetWard().Trait == EShieldTrait::Harvest);
 	TestEqual(TEXT("...its numbers its own, not the save's"), Shield->GetWard().Stats.Capacity, Second.Stats.Capacity, 0.001f);
 	TestTrue(TEXT("...full"), Shield->IsFull());
-	TestEqual(TEXT("...the spares back"), Shield->GetSpares().Num(), UPlayerShieldComponent::MaxSpares);
+	TestEqual(TEXT("...the spares back"), Shield->GetSpares().Num(), Inventory->BackpackCapacity);
 
 	// An older session's inventory: no wards in it at all.
 	const FWeaponInventorySave Old;
@@ -390,8 +398,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FShieldLoadoutTest, "Looter.Shields.Loadout", S
 
 bool FShieldLoadoutTest::RunTest(const FString& Parameters)
 {
-	// The loadout's WARD section: W / S walk from the slots into it, E on the worn ward goes to the spares, E on a spare wears
-	// it, C stows, Q drops.
+	// The loadout's wards (2026-10-31: wards in the backpack, looking like guns): the WARD row under the slots holds the ward
+	// worn; the spares are backpack rows, counted with the guns. E on the WARD row goes to the backpack's wards, E on one
+	// wears it (the worn one takes its place), C stows the worn one, Q drops; a ward's row shows the ward card.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -407,10 +416,12 @@ bool FShieldLoadoutTest::RunTest(const FString& Parameters)
 	UWeaponManagerComponent* Inventory = NewObject<UWeaponManagerComponent>(Player);
 	Inventory->RegisterComponent();
 	Inventory->MaxWeapons = 3;
+	Inventory->BackpackCapacity = 12;
 	UPlayerShieldComponent* Shield = UPlayerShieldComponent::FindOrAdd(*Player);
 	UShieldDefinition* Definition = NewObject<UShieldDefinition>();
 	Shield->Equip(TestWard(Definition, EWeaponRarity::Common, 1, 21), true);
-	Shield->Take(TestWard(Definition, EWeaponRarity::Epic, 1, 22, EShieldBuild::Bulwark, EShieldTrait::SaintsGrace));
+	const FShieldInstanceData Spare = TestWard(Definition, EWeaponRarity::Epic, 1, 22, EShieldBuild::Bulwark, EShieldTrait::SaintsGrace);
+	Shield->Take(Spare);
 
 	ULoadoutWidget* Screen = CreateWidget<ULoadoutWidget>(World, ULoadoutWidget::StaticClass());
 	if (!TestNotNull(TEXT("The screen"), Screen))
@@ -419,27 +430,41 @@ bool FShieldLoadoutTest::RunTest(const FString& Parameters)
 	}
 	Screen->Open(nullptr, Inventory);
 	Screen->TakeWidget();
+	ULoadoutWidget::FView View = Screen->GetView();
+	TestTrue(TEXT("The spare is a backpack row"), View.ListOrder.Num() == 1 && LoadoutBackpack::WardOf(View.ListOrder[0]) == 0);
+	TestEqual(TEXT("...counted in the backpack"), View.BackpackCount, FString(TEXT("1 / 12")));
+	TestEqual(TEXT("...the rest of the backpack's places empty"), View.EmptyBackpackRows, 11);
 	for (int32 Press = 0; Press < 3; ++Press)
 	{
 		Screen->HandleKey(EKeys::S);
 	}
-	ULoadoutWidget::FView View = Screen->GetView();
-	TestTrue(TEXT("S past the three slots: the ward worn"), View.bOnWard && View.Cursor == 0);
-	TestTrue(TEXT("...E goes to the spares"), !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("E: Choose a spare"));
+	View = Screen->GetView();
+	TestTrue(TEXT("S past the three slots: the WARD row"), View.bOnWard && View.Cursor == 0);
+	TestTrue(TEXT("...its card is the ward card"), View.bWardCard && !View.bGunCard);
+	TestTrue(TEXT("...E swaps from the backpack"), !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("E: Swap from backpack"));
 	Screen->HandleKey(EKeys::E);
 	View = Screen->GetView();
-	TestTrue(TEXT("E: on the spare"), View.bOnWard && View.Cursor == 1 && !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("E: Wear"));
+	TestTrue(TEXT("E: on the backpack's ward"), View.bOnBackpackWard && !View.bOnWard && View.Cursor == 0);
+	TestTrue(TEXT("...E wears it"), !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("E: Swap with worn"));
+	TestEqual(TEXT("...its card names it"), View.WardCardName, ShieldText::Name(Spare).ToUpper());
+	TestEqual(TEXT("...an upgrade on the ward worn"), View.WardCardVerdict, FString(TEXT("UPGRADE")));
 	Screen->HandleKey(EKeys::E);
 	View = Screen->GetView();
-	TestTrue(TEXT("E: the spare worn, the cursor on it"), Shield->GetWard().Seed == 22 && View.bOnWard && View.Cursor == 0);
-	TestTrue(TEXT("...the old one a spare"), Shield->GetSpares().Num() == 1 && Shield->GetSpares()[0].Seed == 21);
+	TestTrue(TEXT("E: the spare worn, the cursor on the WARD row"), Shield->GetWard().Seed == 22 && View.bOnWard && View.Cursor == 0);
+	TestTrue(TEXT("...the old one in the backpack in its place"), Shield->GetSpares().Num() == 1 && Shield->GetSpares()[0].Seed == 21);
 	Screen->HandleKey(EKeys::C);
+	View = Screen->GetView();
 	TestTrue(TEXT("C: stowed, none worn"), !Shield->HasWard() && Shield->GetSpares().Num() == 2);
-	Screen->HandleKey(EKeys::S);
-	Screen->HandleKey(EKeys::Q);
-	TestEqual(TEXT("Q on a spare: dropped"), Shield->GetSpares().Num(), 1);
+	TestEqual(TEXT("...two of the backpack's places"), View.BackpackCount, FString(TEXT("2 / 12")));
+	TestTrue(TEXT("...none worn: E chooses from the backpack"), !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("E: Choose from backpack"));
+	Screen->HandleKey(EKeys::D);
+	View = Screen->GetView();
+	TestTrue(TEXT("D: over to a backpack ward"), View.bOnBackpackWard);
 	Screen->HandleKey(EKeys::X);
 	TestFalse(TEXT("X: a ward isn't inspected"), Screen->GetView().bInspecting);
+	Screen->HandleKey(EKeys::Q);
+	TestEqual(TEXT("Q on a backpack ward: dropped"), Shield->GetSpares().Num(), 1);
+	TestEqual(TEXT("...one place taken"), Screen->GetView().BackpackCount, FString(TEXT("1 / 12")));
 	Screen->Close();
 	return true;
 }

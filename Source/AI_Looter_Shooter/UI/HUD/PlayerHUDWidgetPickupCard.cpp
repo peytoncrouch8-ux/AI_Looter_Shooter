@@ -5,6 +5,7 @@
 #include "UI/HUD/HudMissionTrackerWidget.h"
 #include "Interaction/InteractionComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Shields/ShieldPickup.h"
 #include "Weapons/WeaponBase.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Components/CanvasPanelSlot.h"
@@ -32,9 +33,11 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 	}
 	// The key's name is only needed while something is looked at (a fading prompt keeps its words).
 	const FString Key = Interaction && Interaction->GetFocusedActor() ? BoundKeyName(TEXT("Interact"), TEXT("E")) : FString();
+	// A ward lying as loot shows its own card with its keys over it too (UShieldLabelWidget, 2026-10-31), so no prompt here.
+	const bool bWardLoot = Interaction && Cast<AShieldPickup>(Interaction->GetFocusedActor()) != nullptr;
 	if (InteractPrompt)
 	{
-		InteractPrompt->Update(Pickup ? nullptr : Interaction, Key, DeltaTime);
+		InteractPrompt->Update(Pickup || bWardLoot ? nullptr : Interaction, Key, DeltaTime);
 	}
 
 	// The gun in hand, while loot is looked at; unarmed there is nothing to hold the loot against, so no card.

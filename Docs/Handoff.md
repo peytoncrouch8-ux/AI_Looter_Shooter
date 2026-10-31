@@ -307,6 +307,21 @@ The user's calls this stretch:
 - Playtest package `Builds/Playtest/2026-10-30_0828` (1.47 GB, everything above; smoke menu + Ransom's Rest pass; `Play Latest
   Build.bat` runs it). Not seen in play yet: the grass blast, the tag fade, the harder Abel and Foreman.
 
+## Overnight 2026-10-31 (the user asleep; their asks and answers, in their words where given)
+In flight at bedtime: the pause menu E2 "Big Dial" hub + the full-page Settings (contract Docs/Work/2026-10-30-PauseMenu/CONTRACT.md),
+wards like guns (ward card in the gun card's style in the world and the loadout, ward rows like gun rows, spare wards in the
+backpack sharing the 12 slots with guns; worn ward stays left), Ranger Post Three removed (chest + stone steps by the wake-up grave;
+not committed yet: layout, build_area_finds.py docstring, FindLevelTests 14 finds, the level). Then, the user's overnight asks:
+1. Spider and Unpaid models "didn't import right": textures/colours wrong AND rig deforming wrong (the user's picks); their
+   animations need improving.
+2. Spider and Unpaid AI "lackluster": the user's pick is AMBUSH (spiders drop from walls/ledges, Unpaid rise from the ground
+   near the player).
+3. Stone Sentinel: animations weak, not a threat: harder to kill, and BOTH a hurled boulder at range and a ground-slam
+   shockwave up close (the user's pick), besides its melee.
+4. Gun slots: 4 equipped. "2 slots available at the start of the game, 3rd slot available at level 3, and fourth slot
+   available after finishing all of Ransom's Rest's main missions."
+5. Package a playtest build at the end (as every overnight), smoke-tested; handoff and doc index current.
+
 ## Queue (the user's picks, 2026-10-29 night)
 1. The AR's grip spots (in progress), 2. Make elements matter (Docs/Archive/Work/2026-10-29-NewElements/ELEMENT_DESIGN.md:
 typed wards, bodies, immunities, Touched variants, Stone Sentinel, x2 / x0.33; plus element feedback: firing looks,

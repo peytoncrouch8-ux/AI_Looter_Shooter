@@ -115,7 +115,10 @@ struct AI_LOOTER_SHOOTER_API FShieldInventorySave
 	UPROPERTY()
 	FShieldInstanceData Equipped;
 
-	/** The spare wards carried, oldest first (UPlayerShieldComponent::MaxSpares at most). */
+	/**
+	 * The spare wards carried, oldest first. Since 2026-10-31 they live in the backpack and share its room with the guns
+	 * (FWeaponInventorySave::BackpackOrder says how they interleave); an older save's (three at most) all come back.
+	 */
 	UPROPERTY()
 	TArray<FShieldInstanceData> Spares;
 

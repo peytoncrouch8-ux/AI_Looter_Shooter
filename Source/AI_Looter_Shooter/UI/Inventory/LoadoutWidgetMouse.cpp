@@ -19,7 +19,8 @@ using namespace LoadoutParts;
 void ULoadoutWidget::HandleRowClicked(ULooterButton* Button)
 {
 	HandleRowHovered(Button);
-	Activate();
+	// Through RunAction, so a ward's row (the WARD row, a backpack ward) does a ward's E.
+	RunAction(EAction::Activate);
 	// Clicking handed keyboard focus to the game viewport (LooterButton); take it back for the screen's keys.
 	SetKeyboardFocus();
 }
@@ -28,7 +29,8 @@ void ULoadoutWidget::HandleRowHovered(ULooterButton* Button)
 {
 	if (Button && !bInspecting)
 	{
-		MoveCursorTo(Button->Action == ActionSlot ? EZone::Slots : EZone::Backpack, Button->Index, false, false);
+		const EZone RowZone = Button->Action == ActionSlot ? EZone::Slots : (Button->Action == ActionWard ? EZone::Wards : EZone::Backpack);
+		MoveCursorTo(RowZone, Button->Index, false, false);
 	}
 }
 

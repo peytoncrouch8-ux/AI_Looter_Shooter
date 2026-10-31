@@ -265,7 +265,7 @@ UWidget* ULostLootWidget::MakeClaimBar(const FLostLootEntry& Entry)
 	switch (Where)
 	{
 	case LostLootRules::ETake::InBackpack:
-		Words = FText::Format(LOCTEXT("IntoBackpack", "Into your backpack · {0} / {1}"), FText::AsNumber(Weapons->GetBackpack().Num()),
+		Words = FText::Format(LOCTEXT("IntoBackpack", "Into your backpack · {0} / {1}"), FText::AsNumber(Weapons->GetBackpackUsed()),
 			FText::AsNumber(Weapons->BackpackCapacity));
 		break;
 	case LostLootRules::ETake::InSlot:

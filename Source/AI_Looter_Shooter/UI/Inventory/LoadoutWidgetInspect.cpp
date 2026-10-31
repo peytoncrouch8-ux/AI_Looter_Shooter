@@ -1,7 +1,7 @@
 // ULoadoutWidget: the cards and the showcase. In the middle, under the turning gun, its gun card (UGunCardWidget, Loadout:
-// what it is, its damage, three bars against the gun it would replace, one special line); a ward or an empty slot gets the
-// plain card there instead. On Inspect the plain card opens to everything (every stat, how it fires and feeds, its parts
-// and bonuses, its history) where the backpack was, wearing its maker's sweep.
+// what it is, its damage, three bars against the gun it would replace, one special line); a ward's row its ward card
+// (LoadoutWidgetWardCard.cpp); an empty slot the plain card. On Inspect the plain card opens to everything (every stat, how
+// it fires and feeds, its parts and bonuses, its history) where the backpack was, wearing its maker's sweep.
 
 #include "UI/Inventory/LoadoutWidget.h"
 #include "Audio/LooterSound.h"
@@ -116,10 +116,14 @@ void ULoadoutWidget::RefreshCard()
 	{
 		return;
 	}
-	if (Zone == EZone::Wards)
+	if (IsOnWard() || Zone == EZone::Wards)
 	{
-		// A ward's card is its own (LoadoutWidgetWardCard.cpp).
-		ShowPlainCard(true);
+		// A ward's card is its own (LoadoutWidgetWardCard.cpp). Inspect is a gun's: W / S walking onto a ward ends it.
+		if (bInspecting)
+		{
+			bInspecting = false;
+			ApplyMode();
+		}
 		RefreshWardCard();
 		return;
 	}
@@ -241,6 +245,8 @@ void ULoadoutWidget::ShowPlainCard(bool bPlain, const FWeaponInstanceData* Sweep
 	{
 		GunCard->SetVisibility(bPlain ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
+	// A gun's card or a plain one: the ward card goes (ShowWardCard brings it back on a ward's row).
+	ShowWardCard(false);
 	if (!PlainCard)
 	{
 		return;
