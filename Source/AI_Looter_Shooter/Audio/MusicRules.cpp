@@ -55,18 +55,67 @@ FMusicPiece MusicRules::Combat()
 
 FMusicPiece MusicRules::BossFor(EBossTheme Theme)
 {
-	// 4/4: a bar is four quarters at 128 (1.875 s) for Abel, at 120 (2 s) for the Gravemother.
-	if (Theme == EBossTheme::Keeper)
+	// 4/4, a bar four quarters (Docs/Archive/Work/2026-10-31-Score/CONTRACT.md; the recipes' meters): Abel at 128, the Gravemother
+	// at 120, Cyrus Teague at 112 (32 bars each), the Stone Sentinel at 100 (24 bars: its fights are shorter).
+	switch (Theme)
 	{
-		return Piece(LooterSoundCue::MusicBossKeeper, 16, 4, 1.875f);
+	case EBossTheme::Keeper:
+		return Piece(LooterSoundCue::MusicBossKeeper, 32, 4, 4.f * 60.f / 128.f);
+	case EBossTheme::Foreman:
+		return Piece(LooterSoundCue::MusicBossForeman, 32, 4, 4.f * 60.f / 112.f);
+	case EBossTheme::Sentinel:
+		return Piece(LooterSoundCue::MusicBossSentinel, 24, 4, 4.f * 60.f / 100.f);
+	default:
+		return Piece(LooterSoundCue::MusicBossGravemother, 32, 4, 4.f * 60.f / 120.f);
 	}
-	return Piece(LooterSoundCue::MusicBossGravemother, 16, 4, 2.f);
+}
+
+FMusicPiece MusicRules::RageFor(EBossTheme Theme)
+{
+	FMusicPiece Rage = BossFor(Theme);
+	switch (Theme)
+	{
+	case EBossTheme::Keeper:
+		Rage.Cue = FName(LooterSoundCue::MusicBossKeeperRage);
+		break;
+	case EBossTheme::Foreman:
+		Rage.Cue = FName(LooterSoundCue::MusicBossForemanRage);
+		break;
+	case EBossTheme::Sentinel:
+		Rage.Cue = FName(LooterSoundCue::MusicBossSentinelRage);
+		break;
+	default:
+		Rage.Cue = FName(LooterSoundCue::MusicBossGravemotherRage);
+		break;
+	}
+	return Rage;
+}
+
+FMusicPiece MusicRules::Menu()
+{
+	// 4/4 at 72: a bar of 3.333 s, 32 bars (106.7 s) round.
+	return Piece(LooterSoundCue::MusicMenuTheme, 32, 4, 4.f * 60.f / 72.f);
+}
+
+FMusicPiece MusicRules::CalmFor(ELooterAudioArea Area, bool bMenu)
+{
+	return bMenu ? Menu() : ExploreFor(Area);
+}
+
+TArray<EBossTheme> MusicRules::AllBossThemes()
+{
+	return { EBossTheme::Keeper, EBossTheme::Gravemother, EBossTheme::Foreman, EBossTheme::Sentinel };
 }
 
 TArray<FMusicPiece> MusicRules::AllPieces()
 {
-	return { ExploreFor(ELooterAudioArea::Skyreach), ExploreFor(ELooterAudioArea::RansomsRest), Combat(),
-		BossFor(EBossTheme::Keeper), BossFor(EBossTheme::Gravemother) };
+	TArray<FMusicPiece> Pieces = { ExploreFor(ELooterAudioArea::Skyreach), ExploreFor(ELooterAudioArea::RansomsRest), Combat(), Menu() };
+	for (const EBossTheme Theme : AllBossThemes())
+	{
+		Pieces.Add(BossFor(Theme));
+		Pieces.Add(RageFor(Theme));
+	}
+	return Pieces;
 }
 
 double MusicRules::NextBoundary(double Now, double Origin, double Step)
@@ -115,6 +164,39 @@ bool MusicRules::IsElite(ECreatureRank Rank)
 {
 	// Gravebound and above, short of a boss (whose fight has music of its own).
 	return LooterRanks::IsAtLeast(Rank, ECreatureRank::Epic) && Rank != ECreatureRank::Boss;
+}
+
+EBossTheme MusicRules::ThemeFor(EBossKind Kind)
+{
+	switch (Kind)
+	{
+	case EBossKind::Foreman:
+		return EBossTheme::Foreman;
+	case EBossKind::Sentinel:
+		return EBossTheme::Sentinel;
+	case EBossKind::Unpaid:
+		return EBossTheme::Keeper;
+	default:
+		return EBossTheme::Gravemother;
+	}
+}
+
+bool MusicRules::WantsRage(int32 Phase, int32 NumPhases, float HealthShare)
+{
+	if (NumPhases >= 2)
+	{
+		return Phase >= NumPhases - 1;
+	}
+	return HealthShare <= RageHealthShare;
+}
+
+double MusicRules::LoopPlace(double Now, double StartedAt, double LoopSeconds)
+{
+	if (!(LoopSeconds > 0.0) || Now <= StartedAt)
+	{
+		return 0.0;
+	}
+	return FMath::Fmod(Now - StartedAt, LoopSeconds);
 }
 
 EBossTheme MusicRules::ThemeFor(bool bUnpaidBoss)

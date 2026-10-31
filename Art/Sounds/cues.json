@@ -4189,30 +4189,6 @@
     "space": "2D",
     "max_concurrent": 2
   },
-  "Music.Boss.Keeper": {
-    "files": [
-      "Music_Boss_Keeper_01.wav"
-    ],
-    "volume_db": -16.5,
-    "pitch_jitter": 0.0,
-    "class": "Music",
-    "attenuation": "None",
-    "loop": true,
-    "space": "2D",
-    "max_concurrent": 2
-  },
-  "Music.Boss.Gravemother": {
-    "files": [
-      "Music_Boss_Gravemother_01.wav"
-    ],
-    "volume_db": -14.5,
-    "pitch_jitter": 0.0,
-    "class": "Music",
-    "attenuation": "None",
-    "loop": true,
-    "space": "2D",
-    "max_concurrent": 2
-  },
   "Music.Sting.Elite": {
     "files": [
       "Music_Sting_Elite_01.wav"
@@ -9550,5 +9526,125 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 2
+  },
+  "Music.Menu.Theme": {
+    "files": [
+      "Music_Menu_Theme_01.wav"
+    ],
+    "volume_db": -24.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Gravemother": {
+    "files": [
+      "Music_Boss_Gravemother_01.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Gravemother.Rage": {
+    "files": [
+      "Music_Boss_Gravemother_Rage_01.wav"
+    ],
+    "volume_db": -23.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Sentinel": {
+    "files": [
+      "Music_Boss_Sentinel_01.wav"
+    ],
+    "volume_db": -20.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Sentinel.Rage": {
+    "files": [
+      "Music_Boss_Sentinel_Rage_01.wav"
+    ],
+    "volume_db": -24.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Keeper": {
+    "files": [
+      "Music_Boss_Keeper_01.wav"
+    ],
+    "volume_db": -21.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Keeper.Rage": {
+    "files": [
+      "Music_Boss_Keeper_Rage_01.wav"
+    ],
+    "volume_db": -25.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Foreman": {
+    "files": [
+      "Music_Boss_Foreman_01.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Foreman.Rage": {
+    "files": [
+      "Music_Boss_Foreman_Rage_01.wav"
+    ],
+    "volume_db": -22.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Sting.BossVictory": {
+    "files": [
+      "Music_Sting_BossVictory_01.wav"
+    ],
+    "volume_db": -22.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
   }
 }

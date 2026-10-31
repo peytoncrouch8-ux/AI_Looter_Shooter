@@ -4,12 +4,16 @@
 #include "Audio/LooterSoundCues.h"
 #include "Audio/LooterSoundSubsystem.h"
 #include "Bosses/BossComponent.h"
+#include "Combat/HealthComponent.h"
 #include "Components/AudioComponent.h"
+#include "Core/LooterMenuGameMode.h"
 #include "Creatures/CreatureBase.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Sound/SoundWave.h"
+#include "Story/NewGameIntroSubsystem.h"
 
 namespace
 {
@@ -49,11 +53,13 @@ void UMusicDirectorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		return;
 	}
 	Area = AmbienceRules::AreaForMap(InWorld.GetMapName());
+	bMenu = InWorld.GetAuthGameMode() && InWorld.GetAuthGameMode()->IsA<ALooterMenuGameMode>();
 	bStarted = true;
 	// The air comes up first; the theme a moment after.
 	PendingTheme = Now() + MusicRules::FirstThemeDelay;
-	UE_LOG(LogLooter, Log, TEXT("Music: %s's theme (%s) in %s."), Area == ELooterAudioArea::RansomsRest ? TEXT("Ransom's Rest") : TEXT("Skyreach"),
-		*MusicRules::ExploreFor(Area).Cue.ToString(), *InWorld.GetMapName());
+	UE_LOG(LogLooter, Log, TEXT("Music: %s's theme (%s) in %s."),
+		bMenu ? TEXT("the menu") : Area == ELooterAudioArea::RansomsRest ? TEXT("Ransom's Rest") : TEXT("Skyreach"),
+		*MusicRules::CalmFor(Area, bMenu).Cue.ToString(), *InWorld.GetMapName());
 }
 
 void UMusicDirectorSubsystem::Deinitialize()
@@ -62,9 +68,11 @@ void UMusicDirectorSubsystem::Deinitialize()
 	FadeAway(Theme, 0.1f);
 	FadeAway(CombatLayer, 0.1f);
 	FadeAway(BossTrack, 0.1f);
+	FadeAway(RageTrack, 0.1f);
 	Theme = nullptr;
 	CombatLayer = nullptr;
 	BossTrack = nullptr;
+	RageTrack = nullptr;
 	bStarted = false;
 	Super::Deinitialize();
 }
@@ -103,7 +111,13 @@ void UMusicDirectorSubsystem::Update(double At)
 	{
 		NextLook = At + MusicRules::PollSeconds;
 		Senses = Sense();
+		HoldSentinel(Senses, At);
 		Notice(Senses, At);
+		// A second Sentinel takes up the fight when the first falls: the win is the last one's.
+		if (Mood == EMusicMood::Boss && Senses.BossFoe.IsValid() && (!BossFoe.IsValid() || BossFoe->IsDead()) && Senses.Theme == BossTheme)
+		{
+			BossFoe = Senses.BossFoe;
+		}
 		Memory.Update(Senses.Hunters > 0, At, MusicRules::CalmAfterSeconds);
 		EMusicMood Wanted = MusicRules::Resolve(Senses.bBossFight, Memory.bInCombat);
 		EBossTheme WantedTheme = Senses.Theme;
@@ -119,6 +133,7 @@ void UMusicDirectorSubsystem::Update(double At)
 		}
 	}
 	RunPending(At);
+	TickRage(At);
 	TickCalm(At);
 	ApplyGains(At);
 }
@@ -134,10 +149,12 @@ void UMusicDirectorSubsystem::Transition(EMusicMood From, EMusicMood To, double 
 		FadeAway(Theme, 1.f);
 		FadeAway(CombatLayer, 1.f);
 		FadeAway(BossTrack, 0.5f);
+		FadeAway(RageTrack, 0.5f);
 		Theme = nullptr;
 		CombatLayer = nullptr;
 		BossTrack = nullptr;
-		PendingTheme = PendingCombatIn = PendingCombatOut = PendingVictory = -1.0;
+		RageTrack = nullptr;
+		PendingTheme = PendingCombatIn = PendingCombatOut = PendingVictory = PendingRage = -1.0;
 		PendingBoss = At + MusicRules::PhaseStingHit;
 		bBossWon = false;
 		BossFoe = Senses.BossFoe;
@@ -147,14 +164,18 @@ void UMusicDirectorSubsystem::Transition(EMusicMood From, EMusicMood To, double 
 	if (From == EMusicMood::Boss)
 	{
 		PendingBoss = -1.0;
+		PendingRage = -1.0;
 		FadeAway(BossTrack, MusicRules::BossOutSeconds);
+		FadeAway(RageTrack, MusicRules::BossOutSeconds);
 		BossTrack = nullptr;
+		RageTrack = nullptr;
 		// Won: the boss died (its fight says so, or its body does). Not when the player died or ran.
 		const bool bFoeFell = BossFoe.IsValid() ? BossFoe->IsDead() : !BossFoe.IsExplicitlyNull();
 		const bool bWon = bBossWon || (WatchedBoss.IsValid() && WatchedBoss->IsWon()) || bFoeFell;
 		if (bWon && !bForced)
 		{
-			PlaySting(LooterSoundCue::StingVictory);
+			// The orchestra's resolution for a boss (or a Sentinel), not the band's for a fight.
+			PlaySting(LooterSoundCue::StingBossVictory);
 			NextVictory = At + MusicRules::VictoryCooldown;
 		}
 		UnwatchBoss();
@@ -223,6 +244,7 @@ void UMusicDirectorSubsystem::RunPending(double At)
 		PendingBoss = -1.0;
 		const FMusicPiece Piece = MusicRules::BossFor(BossTheme);
 		BossTrack = StartTrack(Piece.Cue, 0.05f, BossGain);
+		BossStartedAt = At;
 		GridOrigin = At;
 		GridBar = Piece.BarSeconds;
 		GridBeat = Piece.BeatSeconds();
@@ -261,9 +283,52 @@ void UMusicDirectorSubsystem::RunPending(double At)
 	}
 }
 
+void UMusicDirectorSubsystem::TickRage(double At)
+{
+	if (Mood != EMusicMood::Boss || !BossTrack || RageTrack)
+	{
+		return;
+	}
+	if (PendingRage < 0.0)
+	{
+		bool bWanted = bRageForced;
+		if (!bWanted)
+		{
+			const UBossComponent* Boss = WatchedBoss.Get();
+			const ACreatureBase* Foe = BossFoe.Get();
+			const UHealthComponent* Health = Foe ? Foe->FindComponentByClass<UHealthComponent>() : nullptr;
+			bWanted = MusicRules::WantsRage(Boss ? Boss->GetPhase() : INDEX_NONE, Boss ? Boss->NumPhases() : 0,
+				Health ? Health->GetHealthPercent() : 1.f);
+		}
+		if (bWanted)
+		{
+			PendingRage = MusicRules::NextBoundary(At, GridOrigin, GridBar);
+		}
+		return;
+	}
+	if (At < PendingRage)
+	{
+		return;
+	}
+	PendingRage = -1.0;
+	// In step with the theme: started at the theme's place in its loop, so their bars are one.
+	const FMusicPiece Rage = MusicRules::RageFor(BossTheme);
+	const double Place = MusicRules::LoopPlace(At, BossStartedAt, Rage.LoopSeconds());
+	RageTrack = StartTrack(Rage.Cue, MusicRules::RageFadeInSeconds, RageGain, static_cast<float>(Place));
+	UE_LOG(LogLooter, Verbose, TEXT("Music: %s comes in at %.2f s."), *Rage.Cue.ToString(), Place);
+}
+
+bool UMusicDirectorSubsystem::IsIntroPlaying() const
+{
+	const UWorld* World = GetWorld();
+	const UGameInstance* Game = World ? World->GetGameInstance() : nullptr;
+	const UNewGameIntroSubsystem* Intro = Game ? Game->GetSubsystem<UNewGameIntroSubsystem>() : nullptr;
+	return Intro && Intro->IsPlayingPlanet();
+}
+
 void UMusicDirectorSubsystem::StartTheme(double At)
 {
-	const FMusicPiece Piece = MusicRules::ExploreFor(Area);
+	const FMusicPiece Piece = MusicRules::CalmFor(Area, bMenu);
 	Theme = StartTrack(Piece.Cue, MusicRules::ExploreFadeInSeconds, ThemeGain);
 	if (!Theme)
 	{
@@ -285,6 +350,28 @@ void UMusicDirectorSubsystem::TickCalm(double At)
 	if (Mood != EMusicMood::Calm)
 	{
 		return;
+	}
+	// The new game's intro brings its own music to the menu's world: the theme stands down, and comes back if the intro
+	// was only a preview and the menu is still here.
+	if (bMenu)
+	{
+		const bool bIntro = IsIntroPlaying();
+		if (bIntro && !bIntroHeld)
+		{
+			bIntroHeld = true;
+			PendingTheme = -1.0;
+			FadeAway(Theme, MusicRules::MenuIntroFadeSeconds);
+			Theme = nullptr;
+		}
+		else if (!bIntro && bIntroHeld)
+		{
+			bIntroHeld = false;
+			RestUntil = At + MusicRules::FirstThemeDelay;
+		}
+		if (bIntroHeld)
+		{
+			return;
+		}
 	}
 	if (Theme)
 	{
@@ -323,9 +410,10 @@ void UMusicDirectorSubsystem::ApplyGains(double At)
 	Move(Theme, ThemeGain, Duck * (CombatLayer ? MusicRules::UnderCombat : 1.f));
 	Move(CombatLayer, CombatGain, Duck);
 	Move(BossTrack, BossGain, Duck * (At < PhaseDuckUntil ? MusicRules::PhaseDuck : 1.f));
+	Move(RageTrack, RageGain, Duck * (At < PhaseDuckUntil ? MusicRules::PhaseDuck : 1.f));
 }
 
-UAudioComponent* UMusicDirectorSubsystem::StartTrack(FName Cue, float FadeSeconds, float Gain)
+UAudioComponent* UMusicDirectorSubsystem::StartTrack(FName Cue, float FadeSeconds, float Gain, float StartAt)
 {
 	ULooterSoundSubsystem* Sounds = ULooterSoundSubsystem::Find(this);
 	if (!Sounds)
@@ -346,7 +434,7 @@ UAudioComponent* UMusicDirectorSubsystem::StartTrack(FName Cue, float FadeSecond
 	}
 	// The music goes on over a paused game (quieter: ApplyGains); a UI sound isn't paused with the world.
 	Track->bIsUISound = true;
-	Track->FadeIn(FMath::Max(FadeSeconds, 0.01f), Gain);
+	Track->FadeIn(FMath::Max(FadeSeconds, 0.01f), Gain, FMath::Max(StartAt, 0.f));
 	return Track;
 }
 
@@ -379,13 +467,24 @@ void UMusicDirectorSubsystem::Release()
 	NextLook = 0.0;
 }
 
+void UMusicDirectorSubsystem::ForceRage(bool bOn)
+{
+	bRageForced = bOn;
+	if (!bOn && RageTrack)
+	{
+		FadeAway(RageTrack, MusicRules::RageFadeInSeconds);
+		RageTrack = nullptr;
+		PendingRage = -1.0;
+	}
+}
+
 FString UMusicDirectorSubsystem::Describe() const
 {
 	const double At = Now();
 	FString ThemeState;
 	if (Theme)
 	{
-		const int32 Bar = GridBar > 0.0 ? FMath::FloorToInt32((At - ThemeStarted) / GridBar) % MusicRules::ExploreFor(Area).Bars + 1 : 0;
+		const int32 Bar = GridBar > 0.0 ? FMath::FloorToInt32((At - ThemeStarted) / GridBar) % MusicRules::CalmFor(Area, bMenu).Bars + 1 : 0;
 		ThemeState = FString::Printf(TEXT("theme playing (bar %d)"), Bar);
 	}
 	else if (PendingTheme >= 0.0)
@@ -396,8 +495,10 @@ FString UMusicDirectorSubsystem::Describe() const
 	{
 		ThemeState = FString::Printf(TEXT("theme resting %.0f s more"), FMath::Max(0.0, RestUntil - At));
 	}
-	return FString::Printf(TEXT("Music: %s%s; %s; combat layer %s; boss track %s; %d hunting, fight %.0f s with %d kill(s)."),
-		MoodName(Mood), bForced ? TEXT(" (forced)") : TEXT(""), *ThemeState, CombatLayer ? TEXT("on") : TEXT("off"),
-		BossTrack ? (BossTheme == EBossTheme::Keeper ? TEXT("Abel's") : TEXT("the Gravemother's")) : TEXT("off"),
-		Senses.Hunters, Memory.bInCombat ? At - Memory.StartedAt : 0.0, FightKills);
+	const FString BossState = BossTrack
+		? FString::Printf(TEXT("%s%s"), *MusicRules::BossFor(BossTheme).Cue.ToString(), RageTrack ? TEXT(" + Rage") : PendingRage >= 0.0 ? TEXT(" (Rage due)") : TEXT(""))
+		: FString(TEXT("off"));
+	return FString::Printf(TEXT("Music: %s%s%s; %s; combat layer %s; boss track %s; %d hunting, fight %.0f s with %d kill(s)."),
+		MoodName(Mood), bForced ? TEXT(" (forced)") : TEXT(""), bMenu ? (bIntroHeld ? TEXT(" (menu, the intro playing)") : TEXT(" (menu)")) : TEXT(""),
+		*ThemeState, CombatLayer ? TEXT("on") : TEXT("off"), *BossState, Senses.Hunters, Memory.bInCombat ? At - Memory.StartedAt : 0.0, FightKills);
 }

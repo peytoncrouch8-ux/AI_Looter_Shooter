@@ -6,6 +6,8 @@
 #include "Bosses/BossComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRank.h"
+#include "Creatures/ForemanCreature.h"
+#include "Creatures/StoneSentinelCreature.h"
 #include "Creatures/UnpaidCreature.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -29,13 +31,13 @@ UMusicDirectorSubsystem::FSenses UMusicDirectorSubsystem::Sense() const
 		{
 			continue;
 		}
-		const bool bUnpaid = Creature->IsA<AUnpaidCreature>();
+		const EBossKind Kind = KindOf(*Creature);
 		if (UBossComponent* Boss = Creature->FindComponentByClass<UBossComponent>())
 		{
 			if (Boss->IsFighting())
 			{
 				Seen.bBossFight = true;
-				Seen.Theme = MusicRules::ThemeFor(bUnpaid);
+				Seen.Theme = MusicRules::ThemeFor(Kind);
 				Seen.Boss = Boss;
 				Seen.BossFoe = Creature;
 			}
@@ -46,17 +48,58 @@ UMusicDirectorSubsystem::FSenses UMusicDirectorSubsystem::Sense() const
 		{
 			++Seen.Hunters;
 			Seen.HunterList.Add(Creature);
+			// A Stone Sentinel coming at the player is a boss's fight to the music (Update holds it a while after it lets go).
+			if (Kind == EBossKind::Sentinel && !Seen.Sentinel.IsValid())
+			{
+				Seen.Sentinel = Creature;
+			}
 		}
 		// A Soulfed monster with a lair (the Gravemother) is a boss's fight, bar or no bar, for as long as it is after the
 		// player, searching too: its boss theme (and the phase sting that opens it) must not come and go with every lost sight.
 		if (Player && Creature->GetTarget() == Player && Creature->GetRank() == ECreatureRank::Legendary && !Seen.bBossFight)
 		{
 			Seen.bBossFight = true;
-			Seen.Theme = MusicRules::ThemeFor(bUnpaid);
+			Seen.Theme = MusicRules::ThemeFor(Kind);
 			Seen.BossFoe = Creature;
 		}
 	}
 	return Seen;
+}
+
+EBossKind UMusicDirectorSubsystem::KindOf(const ACreatureBase& Creature)
+{
+	// The Foreman before the Unpaid: his dead miners are Unpaid, but his fight has its own music.
+	if (Creature.IsA<AForemanCreature>())
+	{
+		return EBossKind::Foreman;
+	}
+	if (Creature.IsA<AStoneSentinelCreature>())
+	{
+		return EBossKind::Sentinel;
+	}
+	return Creature.IsA<AUnpaidCreature>() ? EBossKind::Unpaid : EBossKind::Other;
+}
+
+void UMusicDirectorSubsystem::HoldSentinel(FSenses& Seen, double At)
+{
+	if (Seen.Sentinel.IsValid())
+	{
+		SentinelFoe = Seen.Sentinel;
+		SentinelSeenAt = At;
+	}
+	const ACreatureBase* Foe = SentinelFoe.Get();
+	if (!Foe || Foe->IsDead() || At - SentinelSeenAt > MusicRules::SentinelHoldSeconds)
+	{
+		// It fell (the boss music's end sees the body, BossFoe, and plays the win) or let the player go long enough.
+		SentinelFoe.Reset();
+		return;
+	}
+	if (!Seen.bBossFight)
+	{
+		Seen.bBossFight = true;
+		Seen.Theme = EBossTheme::Sentinel;
+		Seen.BossFoe = SentinelFoe;
+	}
 }
 
 void UMusicDirectorSubsystem::Notice(const FSenses& Seen, double At)

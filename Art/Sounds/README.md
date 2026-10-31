@@ -34,7 +34,7 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
 - fauna (the ambient birds, insects, tumbleweeds, dust devils, washing); bosses (the boss fights' stings and voices); gravemother_barrow (the Gravemother's Barrow fight: clod, stone, furrow,
   mounds; on bosses.py's helpers); tiers (the enemy tiers' notice stings, deaths and loot pops, and the traits' cues;
   Creature.Trait.Mend is a loop);
-  ambience (beds by area and light, sweeteners); music (the score: themes, combat and boss layers, stingers).
+  ambience (beds by area and light, sweeteners); music (the score: themes, combat layer, stingers); orchestra (the orchestral instruments), score_menu, score_beasts, score_men (the orchestral menu and boss pieces, 2026-10-31).
 - voices (the Unpaid's murmured barks, the idle calls, the living heard through walls); throwables (the grave-salt
   grenade); props (the lootable world: crates, barrels, graves, coffins, mailboxes, footlockers); economy (silver found,
   the vendor's counter: buy, sell, not enough).
@@ -150,6 +150,26 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
   pieces line up on a 1.6 s bar and the director (`Audio/MusicDirectorSubsystem`) crossfades on bar lines. Themes:
   plucked strings in drop D, a reed calling between phrases, a far bell, cello and ghost strings. Combat: galloping
   toms, a bass ostinato, climbing tremolo strings. Kept about 10 dB under creature cries.
+- **The orchestral score** (2026-10-31, the user: script-made, "mix by moment": folk/ambient exploring, rock in fights later,
+  orchestral for the menu and bosses). `recipes/orchestra.py` is the orchestra (API: `Docs/Archive/Work/2026-10-31-Score/
+  ORCHESTRA_API.md`; contract beside it). `MAIN_MOTIF` (D A G Bb A F G E, three 4/4 bars) is the game's theme: the menu
+  states it, every boss quotes its first four notes. Pieces (exact lengths, `MusicRules` and `Looter.Audio.Director.BarLines`
+  check them): `Music.Menu.Theme` 32 bars 4/4 at 72 (106.67 s; solo horn, strings, choir pad, F major B section, drop-D
+  guitar), `Music.Boss.Keeper` 32 at 128 (60 s; bell, reed lament on RR_REED, taiko), `.Foreman` 32 at 112 (68.57 s; rail
+  and anvil hammers, men's chant, mine bell, C minor), `.Gravemother` 32 at 120 (64 s; col legno legs, whispers, D
+  Phrygian), `.Sentinel` 24 at 100 (57.6 s; timpani 3+3+2, stone, A minor); each boss has a `.Rage` stem as long (no
+  energy under 120 Hz, made by the same score function with `part`/`rage`, fixed seeds so base and stem share hall and
+  timing) laid over it from the last phase. `Music.Sting.BossVictory` 7.6 s to D major. Renders: 2-8 min each under load
+  (orchestra cost: a string player ~0.04 s per second of music, brass 0.06, a singer 0.05; use `takes=`). Nobody had
+  listened when they went in: the user's ear is the check. Previews (theme once, then with its Rage):
+  `Saved/MusicPreview/<Boss>_Full.wav` by `Art/Sounds/preview_boss.py` (base + rage at cues.json gains).
+  The director (`Audio/MusicDirectorSubsystem`, `MusicRules`): the menu's game mode plays `Music.Menu.Theme` without rests
+  and fades it (2 s) while the new game's intro plays; Cyrus Teague plays his own theme (checked before Unpaid: his miners
+  are Unpaid); a Stone Sentinel coming at the player is a boss fight to the music, held `SentinelHoldSeconds` 8 after it
+  lets go, its death the win; the Rage stem starts on a bar line at the theme's loop place (`LoopPlace`, FadeIn StartTime)
+  from the last phase of a boss with 2+ phases, else at half the foe's health (`WantsRage`), and stays; a boss win plays
+  `Music.Sting.BossVictory` (fights keep `Music.Sting.Victory`). Listen: `Looter.Music.Force <Keeper|Gravemother|Foreman|
+  Sentinel>`, `Looter.Music.Rage 1`, `Looter.Music.Sting BossVictory`; `Looter.Music` says what plays.
 - **Ambience**: two loops per area and light (19 s and 13 s, played together, so nothing audibly repeats for minutes)
   and one-shot sweeteners placed round the listener; places that sound (creeks, ponds, falls, the windmill, the Rim's
   wind, the Sink) are 3D emitters placed by `Tools/Unreal/build_area_sound.py`.

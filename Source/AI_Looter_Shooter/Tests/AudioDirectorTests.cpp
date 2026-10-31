@@ -82,6 +82,23 @@ bool FAudioMoodTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A boss's fight before anything hunts is still the boss's"), MusicRules::Resolve(true, false) == EMusicMood::Boss);
 	TestTrue(TEXT("The Unpaid's boss plays Abel's theme"), MusicRules::ThemeFor(true) == EBossTheme::Keeper);
 	TestTrue(TEXT("Any other plays the Gravemother's"), MusicRules::ThemeFor(false) == EBossTheme::Gravemother);
+	TestTrue(TEXT("Cyrus Teague plays his own (his miners are Unpaid)"), MusicRules::ThemeFor(EBossKind::Foreman) == EBossTheme::Foreman);
+	TestTrue(TEXT("The Stone Sentinel plays its own"), MusicRules::ThemeFor(EBossKind::Sentinel) == EBossTheme::Sentinel);
+	TestTrue(TEXT("An Unpaid boss: Abel's"), MusicRules::ThemeFor(EBossKind::Unpaid) == EBossTheme::Keeper);
+	TestTrue(TEXT("Any other kind: the Gravemother's"), MusicRules::ThemeFor(EBossKind::Other) == EBossTheme::Gravemother);
+
+	// The Rage layer: a boss's last phase, or (no phases) half the foe's health.
+	TestFalse(TEXT("A three-phase boss in its first: no Rage"), MusicRules::WantsRage(0, 3, 0.2f));
+	TestFalse(TEXT("...in its second"), MusicRules::WantsRage(1, 3, 0.2f));
+	TestTrue(TEXT("...in its last"), MusicRules::WantsRage(2, 3, 0.9f));
+	TestTrue(TEXT("A two-phase boss in its second"), MusicRules::WantsRage(1, 2, 1.f));
+	TestFalse(TEXT("No phases, at full health"), MusicRules::WantsRage(INDEX_NONE, 0, 1.f));
+	TestFalse(TEXT("...just over half"), MusicRules::WantsRage(INDEX_NONE, 0, 0.51f));
+	TestTrue(TEXT("...at half"), MusicRules::WantsRage(INDEX_NONE, 0, MusicRules::RageHealthShare));
+	TestTrue(TEXT("A one-phase boss counts its health"), MusicRules::WantsRage(0, 1, 0.3f));
+	TestTrue(TEXT("Loop place: into the second time round"), FMath::IsNearlyEqual(MusicRules::LoopPlace(75.0, 10.0, 60.0), 5.0, 1.e-6));
+	TestEqual(TEXT("Loop place before it began: its start"), MusicRules::LoopPlace(5.0, 10.0, 60.0), 0.0);
+	TestEqual(TEXT("Loop place, no loop"), MusicRules::LoopPlace(15.0, 10.0, 0.0), 0.0);
 
 	// Ducking: under a scene and a pause the music dips, never to silence (a paused game keeps its music).
 	TestEqual(TEXT("Nothing to duck under"), MusicRules::DuckFor(false, false), 1.f);
@@ -134,6 +151,19 @@ bool FAudioBarLinesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("6/8 at 75: a bar of 1.6 s, two beats"), FMath::IsNearlyEqual(Fight.BarSeconds, 1.6f) && Fight.BeatsPerBar == 2);
 	TestTrue(TEXT("Abel's: 4/4 at 128"), FMath::IsNearlyEqual(MusicRules::BossFor(EBossTheme::Keeper).BeatSeconds(), 60.f / 128.f));
 	TestTrue(TEXT("The Gravemother's: 4/4 at 120"), FMath::IsNearlyEqual(MusicRules::BossFor(EBossTheme::Gravemother).BeatSeconds(), 0.5f));
+	TestTrue(TEXT("Cyrus Teague's: 4/4 at 112"), FMath::IsNearlyEqual(MusicRules::BossFor(EBossTheme::Foreman).BeatSeconds(), 60.f / 112.f));
+	TestTrue(TEXT("The Sentinel's: 4/4 at 100, 24 bars"), FMath::IsNearlyEqual(MusicRules::BossFor(EBossTheme::Sentinel).BeatSeconds(), 0.6f)
+		&& MusicRules::BossFor(EBossTheme::Sentinel).Bars == 24);
+	TestTrue(TEXT("The menu's: 4/4 at 72, 32 bars"), FMath::IsNearlyEqual(MusicRules::Menu().BeatSeconds(), 60.f / 72.f) && MusicRules::Menu().Bars == 32);
+	TestEqual(TEXT("The menu plays its own theme"), MusicRules::CalmFor(ELooterAudioArea::Unknown, true).Cue, FName(LooterSoundCue::MusicMenuTheme));
+	TestEqual(TEXT("...and a level its area's"), MusicRules::CalmFor(ELooterAudioArea::RansomsRest, false).Cue, Rest.Cue);
+	for (const EBossTheme Theme : MusicRules::AllBossThemes())
+	{
+		const FMusicPiece Boss = MusicRules::BossFor(Theme);
+		const FMusicPiece Rage = MusicRules::RageFor(Theme);
+		TestEqual(FString::Printf(TEXT("%s's Rage is its own cue"), *Boss.Cue.ToString()), Rage.Cue.ToString(), Boss.Cue.ToString() + TEXT(".Rage"));
+		TestTrue(TEXT("...exactly as long, on its bars"), Rage.Bars == Boss.Bars && FMath::IsNearlyEqual(Rage.BarSeconds, Boss.BarSeconds));
+	}
 	TestTrue(TEXT("The phase sting's hit is within its first second"), MusicRules::PhaseStingHit > 0.f && MusicRules::PhaseStingHit < 1.f);
 
 	// Every piece is a Music cue, and once the bank is built each one's sound is exactly its bars long and loops.
@@ -383,7 +413,7 @@ bool FAudioDirectorCuesTest::RunTest(const FString& Parameters)
 	{
 		Check(Piece.Cue.ToString(), TEXT("Music"), true, true);
 	}
-	for (const TCHAR* Sting : { LooterSoundCue::StingElite, LooterSoundCue::StingPhase, LooterSoundCue::StingVictory })
+	for (const TCHAR* Sting : { LooterSoundCue::StingElite, LooterSoundCue::StingPhase, LooterSoundCue::StingVictory, LooterSoundCue::StingBossVictory })
 	{
 		Check(Sting, TEXT("Music"), false, true);
 	}

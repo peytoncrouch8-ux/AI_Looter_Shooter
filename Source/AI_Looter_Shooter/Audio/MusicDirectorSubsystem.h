@@ -21,6 +21,11 @@ class UBossComponent;
  *  - Boss, while a boss's fight runs (UBossComponent::IsFighting) or a Soulfed monster is after the player: the phase sting
  *    hits, and Abel's theme (an Unpaid boss) or the Gravemother's starts on its hit; each later phase hits the sting
  *    again over the theme; a win plays the victory sting and the area's theme returns after it.
+ *  - A Stone Sentinel coming at the player plays its own boss theme (held SentinelHoldSeconds after it lets go); Cyrus
+ *    Teague has his own. From a boss's last phase (the Sentinel or a Soulfed monster: half health) the theme's Rage layer
+ *    comes in over it on a bar line, in step (started at the theme's place in its loop). A boss's win plays the
+ *    orchestral boss victory, not the fight's.
+ *  - In the main menu (ALooterMenuGameMode) the menu's theme plays on, and gives way while the new game's intro plays.
  *  - A creature of high rank (Gravebound, Soulfed) coming for the player the first time plays the elite sting.
  * Under a scene (USceneSubsystem) the music dips; over a paused game it goes on, quieter (its tracks are UI sounds, so
  * the pause doesn't stop them). The Music slider sets the Music class, which every piece is in.
@@ -53,6 +58,12 @@ public:
 	/** Plays a stinger now (Looter.Music.Sting). */
 	void PlaySting(FName Cue);
 
+	/** Holds the boss theme's Rage layer on (Looter.Music.Rage 1) whatever the fight says, for listening; 0 gives it back. */
+	void ForceRage(bool bOn);
+
+	bool IsMenu() const { return bMenu; }
+	bool IsRageOn() const { return RageTrack != nullptr; }
+
 	/** A line describing what it's doing, for the console (Looter.Music). */
 	FString Describe() const;
 
@@ -68,7 +79,13 @@ private:
 		/** The creature the boss's music is for (a boss, or a Soulfed monster): its death is the win. */
 		TWeakObjectPtr<ACreatureBase> BossFoe;
 		TArray<TWeakObjectPtr<ACreatureBase>> HunterList;
+		/** A Stone Sentinel coming at the player (its fight plays as a boss's). */
+		TWeakObjectPtr<ACreatureBase> Sentinel;
 	};
+
+	static EBossKind KindOf(const ACreatureBase& Creature);
+	/** The Sentinel's fight goes on SentinelHoldSeconds after it last came at the player, unless a boss's is on. */
+	void HoldSentinel(FSenses& Seen, double At);
 
 	double Now() const;
 
@@ -89,9 +106,13 @@ private:
 	void ApplyGains(double At);
 	void StartTheme(double At);
 	bool HasPlayer() const;
+	/** The boss theme's Rage layer: wanted now (the fight's last phase, or half the foe's health), started on a bar line. */
+	void TickRage(double At);
+	/** The menu's theme gives way to the new game's intro (its own music): true while the intro plays. */
+	bool IsIntroPlaying() const;
 
 	// --- Playing ---
-	UAudioComponent* StartTrack(FName Cue, float FadeSeconds, float Gain);
+	UAudioComponent* StartTrack(FName Cue, float FadeSeconds, float Gain, float StartAt = 0.f);
 	static void FadeAway(UAudioComponent* Track, float Seconds);
 
 	UPROPERTY(Transient)
@@ -103,13 +124,28 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> BossTrack;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> RageTrack;
+
 	ELooterAudioArea Area = ELooterAudioArea::Unknown;
 	EMusicMood Mood = EMusicMood::Calm;
 	EBossTheme BossTheme = EBossTheme::Keeper;
 	FSenses Senses;
 	FCombatMemory Memory;
 	bool bStarted = false;
+	/** The main menu's world (its game mode): the menu's theme, no rests. */
+	bool bMenu = false;
+	/** The menu's theme stood down for the intro. */
+	bool bIntroHeld = false;
 	double NextLook = 0.0;
+
+	/** When the boss theme began (the Rage layer starts at its place in the loop), and the Rage layer's bar line. */
+	double BossStartedAt = 0.0;
+	double PendingRage = -1.0;
+	float RageGain = 1.f;
+	bool bRageForced = false;
+	TWeakObjectPtr<ACreatureBase> SentinelFoe;
+	double SentinelSeenAt = -1000.0;
 
 	/** The bar grid the layers keep to: where bar 1 fell and how long a bar and a beat are. */
 	double GridOrigin = 0.0;

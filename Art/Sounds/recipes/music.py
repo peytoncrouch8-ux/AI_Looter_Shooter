@@ -4,13 +4,11 @@ Every piece is a seamless loop that the music director (Audio/MusicDirectorSubsy
 pieces that layer share a tempo and a key: the exploration themes and the combat layer are in 6/8 at 75 dotted
 quarters a minute (a bar is 1.6 s) and in D, Skyreach's open and major (Mixolydian), Ransom's Rest's minor (Dorian, its
 dominant borrowed major); the combat layer is built on a D pedal so it fits under either. The bosses have their own
-tempos in 4/4. Bars per piece are the director's (MusicRules::Pieces): change both together.
+tempos in 4/4 and play the orchestra (score_beasts.py, score_men.py; since 2026-10-31). Bars per piece are the director's (MusicRules::Pieces): change both together.
 
     Music.Skyreach.Explore     32 bars: fingerpicked guitar, a whistled tune, a bowed drone, a cello line in the middle
     Music.RansomsRest.Explore  32 bars: fingerpicked guitar in drop D, a harmonica-like reed, a far bell, low strings
     Music.Combat               16 bars: galloping toms and hooves, a big drum, a spiccato bass ostinato, tremolo strings
-    Music.Boss.Keeper          16 bars of 4/4 at 128: Abel's fight; the chapel bell, a gallop, the reed's lament
-    Music.Boss.Gravemother     16 bars of 4/4 at 120: the Sink's queen; skittering col legno, a lurching ostinato
     Music.Sting.*              one-shots: a high-rank creature appears, a boss's phase turns, a fight is won
 
 The music sits under the effects: the master bus clears the sub-bass and dips the 2-5 kHz band, and each cue's level
@@ -403,195 +401,11 @@ def combat(v, r):
 
 
 # --- Bosses ----------------------------------------------------------------------------------------------------------
-
-KEEPER_CHORDS = ['Dm', 'Dm', 'Bb', 'A', 'Dm', 'Dm', 'Gm', 'A', 'Dm', 'F', 'C', 'Dm', 'Bb', 'Gm', 'A', 'A']
-KEEPER_ROOTS = {'Dm': ('D2', 'A2', 'D3'), 'Bb': ('Bb1', 'F2', 'Bb2'), 'A': ('A1', 'E2', 'A2'), 'Gm': ('G1', 'D2', 'G2'),
-                'F': ('F2', 'C3', 'F3'), 'C': ('C2', 'G2', 'C3')}
-KEEPER_PADS = {'Dm': ('D4', 'F4', 'A4'), 'Bb': ('D4', 'F4', 'Bb4'), 'A': ('C#4', 'E4', 'A4'), 'Gm': ('D4', 'G4', 'Bb4'),
-               'F': ('C4', 'F4', 'A4'), 'C': ('C4', 'E4', 'G4')}
-
-# The reed's lament: the Rest's call, slowed and grieving, over the gallop (4/4, in sixteenths).
-KEEPER_REED = [
-    [(4, 0, 6, 'D5', {'scoop': 1.0}), (4, 6, 2, 'C5'), (4, 8, 8, 'A4'), (5, 0, 4, 'G4'),
-     (5, 4, 10, 'A4', {'vib': 0.22})],
-    [(6, 0, 6, 'Bb4', {'scoop': 0.6}), (6, 6, 2, 'A4'), (6, 8, 8, 'G4'), (7, 0, 8, 'A4'),
-     (7, 8, 7, 'C#5', {'vib': 0.25})],
-    [(12, 0, 6, 'F5', {'scoop': 1.0}), (12, 6, 2, 'D5'), (12, 8, 8, 'C5'), (13, 0, 4, 'Bb4'),
-     (13, 4, 10, 'D5', {'vib': 0.22})],
-    [(14, 0, 8, 'E5'), (14, 8, 4, 'D5'), (14, 12, 4, 'C#5'), (15, 0, 14, 'E5', {'vib': 0.26, 'fall': 1.0})],
-]
-
-# The twang riff over the D minor bars (sixteenths, note): a low baritone line with a lean on the blue note.
-KEEPER_RIFF = [(0, 'D3'), (3, 'D3'), (4, 'F3'), (6, 'G3'), (8, 'A3'), (11, 'C4'), (12, 'A3'), (14, 'G3'),
-               (16, 'F3'), (18, 'D3'), (22, 'C3'), (23, 'D3')]
-
-
-def _twang_fx(x, circular):
-    """The baritone twang: a guitar's body pushed into a little grit."""
-    return B.guitar_body(D.drive(normalize(x, -3.0), 6.0, 'tanh'), circular)
-
+# The boss themes moved to the orchestra on 2026-10-31 (score_beasts.py, score_men.py on orchestra.py); the band's first
+# takes of Abel's and the Gravemother's are in git history (this file before that day).
 
 def _hp_fx(freq):
     return lambda x, c: F.filt(x, F.hp(freq), extend=False, circular=c)
-
-
-@cue('Music.Boss.Keeper', variations=1, space='2D', cls='Music', jitter=0.0, conc=2, loop=True, level=-14.0,
-     align=False)
-def boss_keeper(v, r):
-    # Abel's fight on the burial deck: the chapel's bell tolling every four bars, big drums and toms galloping, a
-    # baritone twang riff, a spiccato bass on the roots, tremolo strings on the chords; the reed's lament quoting the
-    # Rest's call, slowed and grieving, because it's Pa.
-    m = B.Meter(128.0, 4, 4)
-    bars = 16
-    desk = B.Desk(bars * m.bar)
-    desk.track('big', 0.0, 0.0, -14.0)
-    desk.track('toms', -3.5, 0.0, -15.0)
-    desk.track('snare', -8.0, 0.1, -12.0)
-    desk.track('bell', -7.0, -0.25, -6.0, _hp_fx(100.0))
-    desk.track('bass', -3.0, 0.0, -18.0, B.cello_body)
-    desk.track('twang', -6.0, -0.3, -8.0, _twang_fx)
-    desk.track('reed', -2.0, 0.15, -9.0)
-    desk.track('strings', -7.0, 0.0, -10.0, B.cello_body)
-    desk.track('swell', -12.0, 0.0, -10.0)
-    rr = child(r, 'perc')
-    for bar in range(bars):
-        hits = [(0, 0.95), (6, 0.7), (8, 0.85)] + ([(14, 0.7)] if bar >= 12 else [])
-        if bar == 15:
-            hits += [(12, 0.6), (13, 0.65), (15, 0.85)]
-        for s, vel in hits:
-            desk.add('big', B.big_drum(child(rr, 'b', bar, s), vel), m.at(bar, s) + B.human(rr, 0.003))
-        for beat in range(4):
-            gallop = [(0, 'G2', 0.85), (2, 'C3', 0.5), (3, 'C3', 0.48)] if bar >= 4 else [(0, 'G2', 0.7)]
-            for s, note, vel in gallop:
-                st = beat * 4 + s
-                desk.add('toms', B.tom(note, child(rr, 't', bar, st), B.lively(rr, vel, 0.1)),
-                         m.at(bar, st) + B.human(rr, 0.004), pan=-0.2 if note == 'G2' else 0.2)
-        for s in (4, 12):
-            desk.add('snare', B.frame_drum(child(rr, 's', bar, s), B.lively(rr, 0.75)),
-                     m.at(bar, s) + B.human(rr, 0.004))
-        if bar % 4 == 0:
-            desk.add('bell', B.bell('D4', child(rr, 'bell', bar), 0.9, t60=6.0, dur=6.0, bright=0.85), m.at(bar))
-    rb = child(r, 'bass')
-    for bar, chord in enumerate(KEEPER_CHORDS):
-        root, fifth, octave = KEEPER_ROOTS[chord]
-        for k, note in enumerate([root, root, octave, root, fifth, root, octave, fifth]):
-            vel = 0.95 if k in (0, 4) else 0.72
-            desk.add('bass', B.spiccato(note, child(rb, bar, k), B.lively(rb, vel, 0.08), 0.18),
-                     m.at(bar, k * 2) + B.human(rb, 0.004))
-    gtr = B.Guitar(child(r, 'twang'), bright=0.85)
-    for start in (0, 8):
-        for s, note in KEEPER_RIFF:
-            gtr.pick(m.at(start, s), 1 if B.hz(note) < 140 else 2, note, 0.75)
-        gtr.damp(m.at(start + 2))
-    gtr.render(desk, 'twang', max_ring=1.2)
-    rre = child(r, 'reed')
-    for i, notes in enumerate(KEEPER_REED):
-        x, t0 = B.reed(_phrase(m, notes), child(rre, 'p', i))
-        desk.add('reed', x, t0)
-    rs = child(r, 'strings')
-    for bar, chord in enumerate(KEEPER_CHORDS):
-        up = 2.0 if bar >= 12 else 1.0
-        for j, note in enumerate(KEEPER_PADS[chord]):
-            dur = m.bar + 0.15
-            env = fit(E.ar(dur, 0.08, 0.12, 2.0), ns(dur))
-            x = B.ensemble(B.hz(note) * up, dur, child(rs, bar, j), 0.55 if bar < 12 else 0.7, voices=3,
-                           tremolo=14.0, env=env, bright=0.6, width=0.8, kmax=20)
-            desk.add('strings', x, m.at(bar) - 0.01)
-    rsw = child(r, 'swell')
-    for bar in (7, 15):
-        desk.add('swell', B.swell(m.bar, child(rsw, bar), 300.0, 7000.0), m.at(bar))
-    return desk.mix(_reverb(r, 2.0), B.master_bus)
-
-
-def _gravemother_bass(bar, step):
-    """The Sink queen's ostinato: D in sixteenths, crawling to the flat second and back like legs feeling ahead."""
-    a = ['D2', 'D2', 'Eb2', 'D2', 'D2', 'D2', 'C2', 'D2', 'D2', 'Eb2', 'D2', 'C2', 'D2', 'D2', 'Eb2', 'F2']
-    b = ['D2', 'D2', 'Eb2', 'D2', 'F2', 'Eb2', 'D2', 'C2', 'D2', 'D2', 'Eb2', 'D2', 'Ab2', 'G2', 'Eb2', 'D2']
-    return (b if bar % 4 == 3 else a)[step]
-
-
-def _col_legno(f0, r, vel):
-    """A bow's wood struck on the string: a dry tick with the string's pitch barely there."""
-    n = ns(0.12)
-    t = times(n)
-    tone = sum((1.0 / k) * np.sin(2 * np.pi * f0 * k * t) * np.exp(-t / (0.02 / k)) for k in range(1, 6))
-    tick = F.filt(N.white(n, r) * E.decay(n, 0.004), F.bp(2500.0, 0.8), extend=False)
-    return normalize(normalize(tone) + 0.6 * normalize(tick), 0.0) * vel
-
-
-@cue('Music.Boss.Gravemother', variations=1, space='2D', cls='Music', jitter=0.0, conc=2, loop=True, level=-14.0,
-     align=False)
-def boss_gravemother(v, r):
-    # The Sink's queen: D Phrygian. Bows struck with their wood skittering like legs everywhere, a low spiccato
-    # ostinato crawling to the flat second, big drums lurching 3+3+2, a rattle every other bar, a high tremolo cluster
-    # swelling and, in the last bars, sliding down like something lowering itself on a thread; an eerie bowed glide.
-    m = B.Meter(120.0, 4, 4)
-    bars = 16
-    desk = B.Desk(bars * m.bar)
-    desk.track('big', 0.0, 0.0, -14.0)
-    desk.track('toms', -5.0, 0.0, -15.0)
-    desk.track('skitter', -9.0, 0.0, -10.0)
-    desk.track('rattle', -14.0, 0.35, -12.0)
-    desk.track('bass', -2.5, 0.0, -18.0, B.cello_body)
-    desk.track('drone', -10.0, 0.0, -12.0, B.cello_body)
-    desk.track('cluster', -9.0, 0.0, -8.0, B.cello_body)
-    desk.track('glide', -12.0, 0.2, -6.0)
-    rr = child(r, 'perc')
-    for bar in range(bars):
-        if bar < 8:
-            hits = [(0, 0.95), (6, 0.8), (12, 0.85)]
-        else:
-            hits = [(0, 0.95), (3, 0.7), (6, 0.8), (8, 0.9), (11, 0.7), (14, 0.8)]
-        for s, vel in hits:
-            desk.add('big', B.big_drum(child(rr, 'b', bar, s), vel, f0=52.0), m.at(bar, s) + B.human(rr, 0.003))
-        if bar >= 8:
-            for s in range(16):
-                if bar % 2 == 0 and s < 8:
-                    continue
-                vel = 0.3 + 0.5 * (s / 15.0) if bar % 2 else 0.35 + 0.4 * ((s - 8) / 7.0)
-                note = ['G2', 'C3', 'E3'][s % 3]
-                desk.add('toms', B.tom(note, child(rr, 't', bar, s), B.lively(rr, vel, 0.1)),
-                         m.at(bar, s) + B.human(rr, 0.003), pan=[-0.3, 0.0, 0.3][s % 3])
-        if bar % 2 == 1:
-            desk.add('rattle', B.shaker(child(rr, 'rat', bar), 0.8, 0.7), m.at(bar, 12))
-    rk = child(r, 'skitter')
-    for bar in range(bars):
-        for s in range(16):
-            if rk.random() > (0.55 if bar < 8 else 0.75):
-                continue
-            note = ['D4', 'Eb4', 'A4', 'C5', 'D5'][int(rk.integers(0, 5))]
-            click = _col_legno(B.hz(note), child(rk, bar, s), B.lively(rk, 0.6, 0.3))
-            desk.add('skitter', click, m.at(bar, s) + B.human(rk, 0.005), pan=rk.uniform(-0.8, 0.8))
-    rb = child(r, 'bass')
-    for bar in range(bars):
-        for s in range(16):
-            vel = 0.95 if s % 4 == 0 else 0.68
-            desk.add('bass', B.spiccato(_gravemother_bass(bar, s), child(rb, bar, s), B.lively(rb, vel, 0.08), 0.1),
-                     m.at(bar, s) + B.human(rb, 0.003))
-    desk.add('drone', B.bowed('D2', bars * m.bar + 2.0, child(r, 'drone'), 0.7, attack=2.0, release=2.0, vib=0.04,
-                              bright=0.3, kmax=30), -1.0)
-    rc = child(r, 'cluster')
-    for k, bar in enumerate(range(0, 12, 4)):
-        dur = 4 * m.bar + 0.3
-        env = fit(E.ar(dur, 2.5 * m.bar, 1.2 * m.bar, 2.0), ns(dur))
-        for j, note in enumerate(['D5', 'Eb5']):
-            desk.add('cluster', B.ensemble(note, dur, child(rc, k, j), 0.5, voices=3, tremolo=15.0, env=env,
-                                           bright=0.85, width=0.9, kmax=16), m.at(bar))
-    # The last four bars: the cluster sliding down a fifth.
-    dur = 4 * m.bar + 0.3
-    n = ns(dur)
-    env = fit(E.ar(dur, 0.6, 1.0, 2.0), n)
-    for j, (a, b) in enumerate([('A5', 'D5'), ('Bb5', 'Eb5')]):
-        curve = O.expsweep(B.hz(a), B.hz(b), dur, 1.0, n=n)
-        desk.add('cluster', B.ensemble(curve, dur, child(rc, 'slide', j), 0.55, voices=3, tremolo=15.0, env=env,
-                                       bright=0.85, width=0.9, kmax=16), m.at(12))
-    rg = child(r, 'glide')
-    for k, bar in enumerate((6, 14)):
-        dur = 2 * m.bar
-        curve = O.expsweep(B.hz('A5'), B.hz('Eb5'), dur, 0.8, n=ns(dur))
-        x = B.bowed(curve, dur, child(rg, k), 0.8, attack=0.8, release=1.0, vib=0.3, vib_rate=6.0, bright=0.2, kmax=3)
-        desk.add('glide', x, m.at(bar))
-    return desk.mix(_reverb(r, 2.2), B.master_bus)
 
 
 # --- Stingers --------------------------------------------------------------------------------------------------------

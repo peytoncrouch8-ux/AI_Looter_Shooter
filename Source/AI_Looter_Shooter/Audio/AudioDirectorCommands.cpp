@@ -78,6 +78,14 @@ namespace
 		{
 			Music->Force(EMusicMood::Boss, EBossTheme::Gravemother);
 		}
+		else if (What.Equals(TEXT("Foreman"), ESearchCase::IgnoreCase) || What.Equals(TEXT("Teague"), ESearchCase::IgnoreCase))
+		{
+			Music->Force(EMusicMood::Boss, EBossTheme::Foreman);
+		}
+		else if (What.Equals(TEXT("Sentinel"), ESearchCase::IgnoreCase))
+		{
+			Music->Force(EMusicMood::Boss, EBossTheme::Sentinel);
+		}
 		else
 		{
 			Music->Release();
@@ -101,9 +109,23 @@ namespace
 		{
 			Music->PlaySting(LooterSoundCue::StingVictory);
 		}
+		else if (What.Equals(TEXT("BossVictory"), ESearchCase::IgnoreCase))
+		{
+			Music->PlaySting(LooterSoundCue::StingBossVictory);
+		}
 		else
 		{
 			Music->PlaySting(LooterSoundCue::StingElite);
+		}
+	}
+
+	void ForceMusicRage(const TArray<FString>& Args, UWorld* World)
+	{
+		if (UMusicDirectorSubsystem* Music = FindMusic(World))
+		{
+			const bool bOn = Args.IsEmpty() || Args[0] != TEXT("0");
+			Music->ForceRage(bOn);
+			UE_LOG(LogLooter, Display, TEXT("Music: the Rage layer %s."), bOn ? TEXT("held on (on the next bar line of a boss theme)") : TEXT("given back to the fight"));
 		}
 	}
 
@@ -127,11 +149,14 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs MusicCommand(TEXT("Looter.Music"), TEXT("What the music is doing."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ShowMusic));
 	FAutoConsoleCommandWithWorldAndArgs MusicForceCommand(TEXT("Looter.Music.Force"),
-		TEXT("Looter.Music.Force <Calm|Combat|Keeper|Gravemother|Off>: holds the music in a mood (Off gives it back to the world)."),
+		TEXT("Looter.Music.Force <Calm|Combat|Keeper|Gravemother|Foreman|Sentinel|Off>: holds the music in a mood (Off gives it back to the world)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ForceMusic));
 	FAutoConsoleCommandWithWorldAndArgs MusicStingCommand(TEXT("Looter.Music.Sting"),
-		TEXT("Looter.Music.Sting <Elite|Phase|Victory>: plays a stinger."),
+		TEXT("Looter.Music.Sting <Elite|Phase|Victory|BossVictory>: plays a stinger."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PlayMusicSting));
+	FAutoConsoleCommandWithWorldAndArgs MusicRageCommand(TEXT("Looter.Music.Rage"),
+		TEXT("Looter.Music.Rage [1|0]: holds a boss theme's Rage layer on (with Looter.Music.Force <boss>, to listen), or gives it back."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ForceMusicRage));
 	FAutoConsoleCommandWithWorldAndArgs AmbienceCommand(TEXT("Looter.Ambience"), TEXT("The area's bed, light and sweeteners."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ShowAmbience));
 	FAutoConsoleCommandWithWorldAndArgs SweetenerCommand(TEXT("Looter.Ambience.Sweetener"), TEXT("Plays the next sweetener now."),

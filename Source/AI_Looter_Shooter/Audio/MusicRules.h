@@ -13,11 +13,24 @@ enum class EMusicMood : uint8
 	Boss,
 };
 
-/** A boss fight's theme: Abel's (the Unpaid's), or the Gravemother's (the spiders'). */
+/** A boss fight's theme: Abel's (the Unpaid's), the Gravemother's (the spiders'), Cyrus Teague's (the Foreman's, the
+ *  mine's), the Stone Sentinel's (a fight with one plays as a boss's). */
 enum class EBossTheme : uint8
 {
 	Keeper,
 	Gravemother,
+	Foreman,
+	Sentinel,
+};
+
+/** Who the boss is, as the music asks it (MusicDirectorSenses.cpp reads the creature's class). */
+enum class EBossKind : uint8
+{
+	/** Any other boss or Soulfed monster: the Gravemother's theme, as before. */
+	Other,
+	Unpaid,
+	Foreman,
+	Sentinel,
 };
 
 /**
@@ -60,7 +73,15 @@ namespace MusicRules
 	AI_LOOTER_SHOOTER_API FMusicPiece ExploreFor(ELooterAudioArea Area);
 	AI_LOOTER_SHOOTER_API FMusicPiece Combat();
 	AI_LOOTER_SHOOTER_API FMusicPiece BossFor(EBossTheme Theme);
+	/** The boss theme's Rage layer: as long as the theme, in step with it, laid over it from the fight's last phase. */
+	AI_LOOTER_SHOOTER_API FMusicPiece RageFor(EBossTheme Theme);
+	/** The main menu's theme (in place of the area's exploration theme wherever the menu's game mode runs). */
+	AI_LOOTER_SHOOTER_API FMusicPiece Menu();
+	/** The calm piece: the menu's theme in the menu, else the area's. */
+	AI_LOOTER_SHOOTER_API FMusicPiece CalmFor(ELooterAudioArea Area, bool bMenu);
+	/** Every looping piece (the Rage layers too). */
 	AI_LOOTER_SHOOTER_API TArray<FMusicPiece> AllPieces();
+	AI_LOOTER_SHOOTER_API TArray<EBossTheme> AllBossThemes();
 
 	/**
 	 * The first bar line (or beat: Step) at or after Now on a grid starting at Origin. A line passed less than
@@ -88,6 +109,27 @@ namespace MusicRules
 
 	/** Which theme a boss's fight plays: the Unpaid's (Abel) or the spiders' (the Gravemother, and any other). */
 	AI_LOOTER_SHOOTER_API EBossTheme ThemeFor(bool bUnpaidBoss);
+	/** Which theme a boss of this kind plays: Cyrus Teague his own (though his dead miners are Unpaid), the Stone Sentinel
+	 *  its own, an Unpaid boss Abel's, any other the Gravemother's. */
+	AI_LOOTER_SHOOTER_API EBossTheme ThemeFor(EBossKind Kind);
+
+	/**
+	 * Whether the boss theme's Rage layer is wanted: from a boss's last phase (of two or more), or a fight without phases
+	 * (the Stone Sentinel, a Soulfed monster) once the foe is down to RageHealthShare of its health. Once in, it stays in.
+	 */
+	AI_LOOTER_SHOOTER_API bool WantsRage(int32 Phase, int32 NumPhases, float HealthShare);
+	inline constexpr float RageHealthShare = 0.5f;
+	/** The Rage layer comes in on a bar line over this long, and starts where the theme is (its loop's place). */
+	inline constexpr float RageFadeInSeconds = 1.5f;
+	/** Where in a loop of LoopSeconds a piece is, StartedAt seconds after it began. */
+	AI_LOOTER_SHOOTER_API double LoopPlace(double Now, double StartedAt, double LoopSeconds);
+
+	/** A fight with a Stone Sentinel plays as a boss's while it comes at the player and this long after it lets go (it
+	 *  searches, it can't reach), so a lost sight doesn't end the music; its death is the win. */
+	inline constexpr float SentinelHoldSeconds = 8.f;
+
+	/** The menu's theme fades out this fast when the new game's intro takes the menu world (its own music plays). */
+	inline constexpr float MenuIntroFadeSeconds = 2.f;
 
 	/** In calm, the theme plays two or three times through (Roll), then rests for a while (Roll across 40-90 s): space
 	 *  between the music's appearances, as between its phrases, so the world's own sound gets its turn. */

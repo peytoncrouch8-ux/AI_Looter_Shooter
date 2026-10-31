@@ -3,6 +3,17 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-10-31 afternoon: orchestral score round 1 BUILT (contract Docs/Archive/Work/2026-10-31-Score/CONTRACT.md)
+The user: "We need soundtracks, different music for the menu screen, introductory scenes, ransom rest will have different music
+than the gilded lily". Their picks: keep music script-made (no Suno, no libraries, no composer); round 1 = main menu theme +
+boss fights; style "mix by moment" (ambient/folk exploring, rock in fights, orchestral for bosses and the menu).
+Built: recipes/orchestra.py (instruments), Music.Menu.Theme, the four boss themes each with a .Rage last-phase stem (Abel,
+Cyrus Teague, Gravemother, Stone Sentinel), Music.Sting.BossVictory; the director plays them (Art/Sounds/README "The orchestral
+score"). Imported; Looter.Audio.Director 5 pass; checked in PIE (menu theme plays; Sentinel + Rage forced, Rage starts in step).
+Previews sent to the user (Saved/MusicPreview). Waiting on: the user's ear on all of it. Next rounds (not started): intro
+scenes (Music.Intro.*, Music.BossIntro.*), Ransom's Rest by area, combat in rock, the Lily (on hold). Open: orchestra.py is
+1.6k lines (split by section when next touched); the choir's realism is the least sure part.
+
 ## 2026-10-29 day: UI round 3 BUILT (contract Docs/Archive/Work/2026-10-29-UI3Build/CONTRACT.md)
 The user picked from six concepts: pause/settings = mix of 1 Ledger & Brass + 3 Halo Reticle, main menu = 3 with a new logo
 (two logo rounds; picked 6 Spur Rowel), level-up = 5 Signal Glass. All built, photographed with the new `Tools\uishots.ps1`

@@ -743,19 +743,32 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* Splash = TEXT("Player.Splash");
 	}
 
-	// --- Music (UMusicDirectorSubsystem; Art/Sounds/recipes/music.py; bars and tempos in MusicRules) ---
+	// --- Music (UMusicDirectorSubsystem; Art/Sounds/recipes/music.py, the orchestral pieces score_menu.py, score_beasts.py,
+	// score_men.py on orchestra.py; bars and tempos in MusicRules) ---
+	/** The main menu's theme (Teropa from orbit; 32 bars of 4/4 at 72, orchestral), playing on as long as the menu does. */
+	inline constexpr const TCHAR* MusicMenuTheme = TEXT("Music.Menu.Theme");
 	/** The exploration themes (32 bars of 6/8 in D at 75), and the combat layer laid over either (16 bars on a D pedal). */
 	inline constexpr const TCHAR* MusicSkyreachExplore = TEXT("Music.Skyreach.Explore");
 	inline constexpr const TCHAR* MusicRansomsRestExplore = TEXT("Music.RansomsRest.Explore");
 	inline constexpr const TCHAR* MusicCombat = TEXT("Music.Combat");
-	/** The boss themes: Abel's (4/4 at 128) and the Gravemother's (4/4 at 120), 16 bars each. */
+	/** The boss themes (orchestral since 2026-10-31): Abel's (4/4 at 128, 32 bars), the Gravemother's (120, 32), Cyrus
+	 *  Teague's (112, 32), the Stone Sentinel's (100, 24). Each has a .Rage layer, as long, played over it in step from the
+	 *  fight's last phase (the Sentinel: under half its health). */
 	inline constexpr const TCHAR* MusicBossKeeper = TEXT("Music.Boss.Keeper");
 	inline constexpr const TCHAR* MusicBossGravemother = TEXT("Music.Boss.Gravemother");
+	inline constexpr const TCHAR* MusicBossForeman = TEXT("Music.Boss.Foreman");
+	inline constexpr const TCHAR* MusicBossSentinel = TEXT("Music.Boss.Sentinel");
+	inline constexpr const TCHAR* MusicBossKeeperRage = TEXT("Music.Boss.Keeper.Rage");
+	inline constexpr const TCHAR* MusicBossGravemotherRage = TEXT("Music.Boss.Gravemother.Rage");
+	inline constexpr const TCHAR* MusicBossForemanRage = TEXT("Music.Boss.Foreman.Rage");
+	inline constexpr const TCHAR* MusicBossSentinelRage = TEXT("Music.Boss.Sentinel.Rage");
 	/** Stingers: a creature of high rank comes for the player; a boss's fight begins or turns (its hit lands 0.75 s in,
 	 *  MusicRules::PhaseStingHit); a fight is won. */
 	inline constexpr const TCHAR* StingElite = TEXT("Music.Sting.Elite");
 	inline constexpr const TCHAR* StingPhase = TEXT("Music.Sting.Phase");
 	inline constexpr const TCHAR* StingVictory = TEXT("Music.Sting.Victory");
+	/** A boss (or the Stone Sentinel) falls: the orchestra resolving into D major, in place of the fight's victory sting. */
+	inline constexpr const TCHAR* StingBossVictory = TEXT("Music.Sting.BossVictory");
 	/** The new game's intro (Story/NewGameIntro.h; Art/Sounds/recipes/intro.py): Teropa from orbit or Westward (28 s, one-shot),
 	 *  Ransom's Rest (50.5 s and a ringing tail), a card coming up, the white rising at a part's end. */
 	inline constexpr const TCHAR* IntroPlanet = TEXT("Music.Intro.Planet");
