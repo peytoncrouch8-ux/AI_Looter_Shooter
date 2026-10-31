@@ -16,6 +16,12 @@
 #   -Zip          also zips the game next to it, to send to someone (playtests on this PC don't need it)
 #   -NoZip        accepted and ignored (older notes use it; the zip is opt-in now)
 #   -DebugInfo    keeps the .pdb files in the package (a lot bigger; the build keeps its own, which is enough to read a crash)
+# Saves and settings (the user, 2026-10-30: they must never reset with a new build): every package is marked installed
+# (Windows\Engine\Build\InstalledProjectBuild.txt, FApp::IsInstalled), so the game keeps its Saved folder (sessions,
+# settings, key bindings, GameUserSettings.ini, logs) in %LOCALAPPDATA%\AI_Looter_Shooter\Saved, as the Steam (Shipping)
+# build will, not beside the exe in each build's folder. The first time, the newest older build's saves and settings are
+# copied there (Copy-SavesOnce); after that nothing here touches them. Smoke runs pass -NotInstalled, so they write into
+# the new build's own folder and never into the player's saves.
 # Prints the elapsed time and the archive's size. The whole UAT log is Saved\Logs\package_<stamp>.log (smoke runs write
 # package_<stamp>_smoke_*.log beside it); a failure prints the first errors from it. The cook's own log is
 # Saved\Logs\AI_Looter_Shooter.log. Exit codes: 0 ok, 1 refused to start, 2 packaging failed, 3 smoke test failed.
@@ -131,6 +137,12 @@ if ($exitCode -ne 0 -or -not $exe) {
 }
 "Packaged: $stage"
 
+# Installed: the game's saves and settings live in the player's own folder and outlive every build (see the header).
+$marker = Join-Path $stage 'Engine\Build\InstalledProjectBuild.txt'
+New-Item -ItemType Directory -Force -Path (Split-Path $marker) | Out-Null
+Set-Content -LiteralPath $marker -Encoding ascii -Value 'Marks this build installed (Tools\package.ps1): saves and settings go to %LOCALAPPDATA%\AI_Looter_Shooter\Saved.'
+& "$PSScriptRoot\keep_saves.ps1" -Exclude $archive
+
 if ($Zip) {
     Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -169,7 +181,8 @@ function Read-SharedText([string]$Path) {
 function Invoke-SmokeRun([string]$Name, [string]$GameExe, [string]$MapArg, [string]$LoadedPattern, [int]$TimeoutSec) {
     $log = Join-Path $root "Saved\Logs\package_${stamp}_smoke_$Name.log"
     Remove-Item -LiteralPath $log -ErrorAction SilentlyContinue
-    $gameArgs = "$MapArg -windowed -ResX=1280 -ResY=720 -nosplash -log -abslog=`"$log`"".Trim()
+    # -NotInstalled: the smoke run's saves and settings stay in the build's own folder, away from the player's.
+    $gameArgs = "$MapArg -NotInstalled -windowed -ResX=1280 -ResY=720 -nosplash -log -abslog=`"$log`"".Trim()
     $proc = Start-Process $GameExe -ArgumentList $gameArgs -PassThru
     $fatalPattern = '(?i)Fatal error|Assertion failed|Unhandled Exception|appError called'
     $verdict = $null

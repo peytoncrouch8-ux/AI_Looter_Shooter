@@ -31,7 +31,8 @@ if not defined GAME_DIR (
 
 echo Starting build %GAME_NAME%...
 rem -fullscreen like the editor launcher; Alt+Enter switches to a window and back. No map is named, so the game opens
-rem the main menu. The folder is the working directory so the game finds its Saved folder beside it.
+rem the main menu. Saves and settings live in %LOCALAPPDATA%\AI_Looter_Shooter\Saved (Tools\package.ps1 marks builds
+rem installed), so every build shares them.
 pushd "%GAME_DIR%"
 start "" "%GAME_DIR%\AI_Looter_Shooter.exe" -fullscreen
 popd

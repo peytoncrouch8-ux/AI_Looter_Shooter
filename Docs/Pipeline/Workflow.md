@@ -119,6 +119,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - The first run is long (every shader compiles for D3D12 SM6 and D3D11 SM5); later ones reuse the derived data cache.
   - Progress: `Saved\Logs\package_<yyyy-MM-dd_HHmm>.log` (UAT's whole log). A failure prints the first errors. Exit codes: 0 ok, 1 refused,
     2 packaging failed, 3 smoke test failed. It prints the elapsed time and the archive's size.
+- Saves and settings (the user, 2026-10-30: never reset unless the player resets them; saved games survive a new package):
+  `package.ps1` marks every build installed (`Windows\Engine\Build\InstalledProjectBuild.txt`, read by `FApp::IsInstalled`), so
+  the game keeps its Saved folder (sessions, graphics/audio/control/key settings, hints, `GameUserSettings.ini`, its log) in
+  `%LOCALAPPDATA%\AI_Looter_Shooter\Saved`, as a Shipping build does, instead of beside the exe in each build's folder (where
+  every new build started empty). `Tools\keep_saves.ps1` copies an older build's saves there once (never overwrites;
+  `-Mark <build>` marks an old build installed). Smoke runs pass `-NotInstalled` and stay out of the player's saves. The user's
+  playtest log: `%LOCALAPPDATA%\AI_Looter_Shooter\Saved\Logs\AI_Looter_Shooter.log`.
 - Playtest builds land in `Builds\Playtest\<yyyy-MM-dd_HHmm>\Windows\` (git-ignored; run `AI_Looter_Shooter.exe`). `Play Latest Build.bat`
   at the repo root starts the newest one fullscreen at the menu (it needs no editor, and says so if no build exists).
 - `-SmokeTest` starts the real game exe (`Windows\AI_Looter_Shooter\Binaries\Win64\`; the root exe is a stub) windowed 1280x720 twice:

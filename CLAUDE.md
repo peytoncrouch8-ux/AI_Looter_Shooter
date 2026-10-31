@@ -50,7 +50,8 @@ keep it short; details go in the pipeline.
   `?Session=N`; the session saves player and world; pause menu's Save & Quit returns to the menu.
 - PIE opens the menu too. `Looter.PlayLevel [map]` (`pie.ps1` runs it) or a map on the command line (`perf.ps1`,
   `tour.ps1`) plays a new game and saves nothing. `Looter.Session.Play <1-3>` plays a session from the console.
-- Standalone game and PIE share `Saved\SaveGames`; command-line runs use `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
+- Standalone game and PIE share `Saved\SaveGames`; command-line runs use `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`. Packaged builds
+  keep saves, settings and logs in `%LOCALAPPDATA%\AI_Looter_Shooter\Saved`, never reset by a new build (the user, 2026-10-30).
 
 ## Build, run, test
 
