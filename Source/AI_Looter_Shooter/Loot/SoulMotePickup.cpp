@@ -3,6 +3,8 @@
 #include "Audio/LooterSound.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/PlayerVitalsSubsystem.h"
+#include "Player/PlayerFlaskComponent.h"
+#include "Player/PlayerFlaskRules.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "World/WorldQueries.h"
 #include "Components/CapsuleComponent.h"
@@ -276,7 +278,7 @@ bool ASoulMotePickup::Advance(float DeltaSeconds, APawn* Player)
 	}
 
 	UHealthComponent* Health = Player ? Player->FindComponentByClass<UHealthComponent>() : nullptr;
-	if (Health && Age >= Settings.MoteCollectDelay && NeedsHealing(*Health))
+	if (Health && Age >= Settings.MoteCollectDelay && IsWanted(*Player, *Health))
 	{
 		FVector Position = GetActorLocation();
 		float Distance = DistanceToBody(Position, *Player);
@@ -315,8 +317,31 @@ bool ASoulMotePickup::Advance(float DeltaSeconds, APawn* Player)
 	return false;
 }
 
+bool ASoulMotePickup::IsWanted(const APawn& Player, const UHealthComponent& Health)
+{
+	if (NeedsHealing(Health))
+	{
+		return true;
+	}
+	// At full health it's no longer wasted: it fills the soul flask, while there's room in it.
+	const UPlayerFlaskComponent* Flask = UPlayerFlaskComponent::Find(&Player);
+	return !Health.IsDead() && Flask && !Flask->IsFull();
+}
+
 void ASoulMotePickup::Collect(APawn& Player, UHealthComponent& Health)
 {
+	if (!NeedsHealing(Health))
+	{
+		if (UPlayerFlaskComponent* Flask = UPlayerFlaskComponent::Find(&Player))
+		{
+			Flask->AddSoul(FFlaskRules::MoteSoul);
+			UE_LOG(LogLooter, Verbose, TEXT("%s took a soul-mote at full health: %.0f soul into the flask (%d charges, %.0f%% toward the next)"),
+				*Player.GetName(), FFlaskRules::MoteSoul, Flask->GetCharges(), Flask->GetSoulShare() * 100.f);
+		}
+		LooterSound::PlayAt(this, SoulMoteCue::Pickup, GetActorLocation());
+		Destroy();
+		return;
+	}
 	const float Healed = Health.Heal(Settings.MoteHeal(Health.GetMaxHealth()));
 	UE_LOG(LogLooter, Verbose, TEXT("%s took a soul-mote: healed %.1f (now %.1f / %.1f)"), *Player.GetName(), Healed, Health.GetHealth(), Health.GetMaxHealth());
 	LooterSound::PlayAt(this, SoulMoteCue::Pickup, GetActorLocation());

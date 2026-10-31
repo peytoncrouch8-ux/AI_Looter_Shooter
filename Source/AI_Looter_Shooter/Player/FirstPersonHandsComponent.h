@@ -9,6 +9,7 @@
 class AWeaponBase;
 class UCameraComponent;
 class UEmberComponent;
+class UPlayerFlaskComponent;
 class UPlayerMeleeComponent;
 class UPlayerThrowComponent;
 class UPlayerViewComponent;
@@ -29,7 +30,8 @@ class UWeaponModelComponent;
  *    throw's dip) moves the hand with it.
  *  - The left hand holds the foregrip (a six-gun's support palm) and does the work: the reloads (magazine, shells and
  *    pump, cylinder) and the grenade (FirstPersonHandsMotion), on the same clocks as the parts and the jar they handle,
- *    and an ember power's cast (UEmberComponent's cast clock; FirstPersonHandsCast.cpp).
+ *    an ember power's cast (UEmberComponent's cast clock; FirstPersonHandsCast.cpp) and a drink from the soul flask
+ *    (UPlayerFlaskComponent's clock; FirstPersonHandsFlask.cpp).
  *  - A melee strike takes the right hand off the grip onto the hero's tool (UPlayerMeleeComponent::GetToolHold), the gun
  *    dropped into the left. With no gun in hand the arms still show for a strike or a cast, the idle hand resting under
  *    the frame (FirstPersonHandsActions.cpp).
@@ -178,7 +180,9 @@ private:
 	FHandPlacement RightOnTool(const FHandPlacement& OnGrip);
 	/** The support hand in an ember power's cast now, from OnGun; false when no cast is showing. */
 	bool CastSupport(const FHandPlacement& OnGun, FHandPlacement& OutPlacement) const;
-	/** No gun in hand: both hands for a strike or a cast (Targets), else false (hidden). */
+	/** The support hand in a drink from the soul flask now, from OnGun; false when none is under way. */
+	bool DrinkSupport(const FHandPlacement& OnGun, FHandPlacement& OutPlacement) const;
+	/** No gun in hand: both hands for a strike, a cast or a drink (Targets), else false (hidden). */
 	bool PlaceBareHands();
 	/** Swimming (FirstPersonHandsSwim.cpp): both hands stroke once the gun is lowered away; false when not swimming. */
 	bool PlaceSwimHands(float DeltaTime);
@@ -216,6 +220,7 @@ private:
 	TWeakObjectPtr<UPlayerThrowComponent> Throw;
 	TWeakObjectPtr<UPlayerMeleeComponent> Melee;
 	TWeakObjectPtr<UEmberComponent> Embers;
+	TWeakObjectPtr<UPlayerFlaskComponent> Flask;
 
 	/** The last pose in the component's space, and the targets it was posed for (camera space). */
 	TArray<FTransform> PosedSpace;

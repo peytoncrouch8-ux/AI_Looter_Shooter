@@ -23,7 +23,9 @@ enum class EHandsSupportJob : uint8
 	Reload,
 	Throw,
 	/** An ember power's cast (FirstPersonHandsMotion::SupportInCast). */
-	Cast
+	Cast,
+	/** A drink from the soul flask (FirstPersonHandsMotion::SupportInDrink). */
+	Drink
 };
 
 /** How a hand's fingers close round what it holds (FHandFingers::Of has each one's curls). */

@@ -1,5 +1,6 @@
 #include "Player/PlayerViewComponent.h"
 #include "Combat/HealthComponent.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
@@ -40,7 +41,9 @@ void UPlayerViewComponent::UpdateAim(float DeltaTime)
 	// Dead (until the respawn resets health) the sights drop and a toggled aim is let go.
 	const UHealthComponent* Health = OwnerHealth.Get();
 	const bool bDead = Health && Health->IsDead();
-	const bool bCanAim = Weapon && !bDead && !Weapon->IsReloading() && !bSprinting && !bSwimming && !Manager->IsSwapping()
+	// The soul flask at the lips: the gun is dipped away, so the sights wait (a held aim comes up as the drink ends).
+	const bool bDrinking = UPlayerFlaskComponent::IsDrinkingActor(GetOwner());
+	const bool bCanAim = Weapon && !bDead && !Weapon->IsReloading() && !bSprinting && !bSwimming && !Manager->IsSwapping() && !bDrinking
 		&& Mode != EPlayerViewMode::ThirdPersonFront;
 	if (!Weapon || bDead || bSwimming)
 	{

@@ -748,6 +748,38 @@ def long_shot():
     return Icon('LongShot', shapes, strokes=[ring + ring[:1]], shade=30, outline=OUTLINE['Ammo'], stroke_width=3.4, cut_width=1.1)
 
 
+# --- The soul flask (2026-10-30, Docs/Work/2026-10-30-SoulFlask; the HUD's flask row, UHudFlaskWidget), in the ammo
+# icons' box ---
+
+def soul_flask():
+    """The soul flask (Art/Models/Items/SoulFlask.py: a worn glass flask in a leather and tin harness, with a cork): a
+    round-bellied flask on a flat foot, its short neck a little crooked (tipped 5 degrees, as a hand-blown one sits), the
+    tin collar at its base, the lip, and the cork wider at its top with its wax ring. The harness is a leather band round
+    the belly's widest, wider than the glass so it reads as wrapped on. The soul's level is a cut across the belly with
+    the shade under it, so the lower glass reads as filled. No straps up the glass: at HUD size they crossed the level
+    and read as cracks. Told apart from the grenade (a squat tin with a fuse) by its round belly and its band (never by
+    colour)."""
+    cx, cy, r = 32.0, 43.5, 18.0
+    base = cy + r * 0.86                                                                       # the flat foot
+    belly = [(x, min(y, base)) for x, y in circle(cx, cy, r, 40)]
+    # The neck and what sits on it, tipped round the collar's middle: hand-blown glass, not a chemist's.
+    tip = lambda poly: rot(poly, cx, 25.5, 5.0)
+    neck = tip(rect(28.6, 35.4, 17.0, 28.0))
+    collar = tip(rect(25.4, 38.6, 23.2, 27.4))                                                 # the tin collar
+    lip = tip(rect(27.0, 37.0, 14.6, 17.8))
+    cork = tip([(28.4, 14.6), (27.5, 7.4), (36.5, 7.4), (35.6, 14.6)])                        # wider at its top
+    band = rect(cx - r - 1.6, cx + r + 1.6, cy - 3.0, cy + 3.0)                                # the leather band
+    level = cy - 9.0
+    half = math.sqrt(r * r - 9.0 * 9.0) - 0.9
+    cuts = [
+        [(cx - r - 1.6, cy - 3.0), (cx + r + 1.6, cy - 3.0)],                                  # the band's edges
+        [(cx - r - 1.6, cy + 3.0), (cx + r + 1.6, cy + 3.0)],
+        quad((cx - half, level), (cx, level + 1.8), (cx + half, level)),                       # the soul's level
+        tip([(28.2, 11.6), (35.8, 11.6)])]                                                     # the cork's wax ring
+    return Icon('SoulFlask', [belly, neck, collar, lip, cork, band], cuts=cuts, shade=level, outline=OUTLINE['Ammo'],
+                cut_width=1.1)
+
+
 # The ink line's width in each icon's units: guns scale it with their length so every gun's line looks the same
 # when they're drawn the same width; the ammo icons, the grenade and the ember powers share one box and one width.
 OUTLINE = {'Rifle': 1.72, 'Shotgun': 2.56, 'Revolver': 0.72, 'SMG': 1.51, 'Sniper': 3.08, 'LMG': 2.42, 'Launcher': 2.49,
@@ -759,8 +791,9 @@ EMBER_ICONS = ('DustDevil', 'Sundown', 'BorrowedTime', 'LuckyStreak', 'FiftyTwoP
 
 
 def is_square(icon):
-    """Drawn in the ammo icons' square box (the ammo, the grenade, the ember powers), as against a gun's own wide one."""
-    return (icon.name.startswith('Ammo') or icon.name in ('GraveSaltGrenade', 'WardBox') or icon.name in EMBER_ICONS
+    """Drawn in the ammo icons' square box (the ammo, the grenade, the ember powers, the flask), as against a gun's own
+    wide one."""
+    return (icon.name.startswith('Ammo') or icon.name in ('GraveSaltGrenade', 'WardBox', 'SoulFlask') or icon.name in EMBER_ICONS
             or icon.name.startswith('Maker'))
 
 
@@ -782,7 +815,7 @@ def icons():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # Blender's python doesn't add the script's folder
     import MakerMarks
     return (guns + [r.place(square) for r in rounds] + [grave_salt_grenade().place(square)] + [e.place(square) for e in embers]
-            + [ward_box().place(square)] + MakerMarks.maker_marks(square))
+            + [ward_box().place(square)] + MakerMarks.maker_marks(square) + [soul_flask().place(square)])
 
 
 # --- The rules the game draws by (see the module's docstring), for the reference pictures ---

@@ -48,6 +48,9 @@ private:
 	/** A death carried by the crows goes black by this share of RespawnDelay, under them (the rest held black). */
 	static constexpr float CrowsCover = 0.85f;
 
+	/** How often the fight is looked for (a walk over the level's creatures): four times a second, as the music does. */
+	static constexpr float CombatLookSeconds = 0.25f;
+
 	struct FPlayerVitals
 	{
 		float LastHealth = -1.f;
@@ -57,6 +60,9 @@ private:
 		float DeathTime = 0.f;
 		/** The wait since the last hurt and the run of healing after it. */
 		FWoundsClose Wounds;
+		/** A creature is fighting them (FightState::IsInCombat), looked at a few times a second (CombatLookSeconds). */
+		bool bInCombat = false;
+		float CombatLookIn = 0.f;
 	};
 
 	void Respawn(APlayerController* PC, FPlayerVitals& Vitals);

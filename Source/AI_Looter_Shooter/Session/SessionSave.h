@@ -6,6 +6,7 @@
 #include "GameFramework/SaveGame.h"
 #include "Inventory/WeaponInventorySave.h"
 #include "Loot/LostLootStore.h"
+#include "Player/PlayerFlaskSave.h"
 #include "Player/PlayerThrowSave.h"
 #include "Progression/PlayerProgressData.h"
 #include "Session/BossRecallRecord.h"
@@ -331,6 +332,13 @@ public:
 
 	UPROPERTY()
 	FThrowablesSave Throwables;
+
+	/**
+	 * The soul flask's charges and soul (UPlayerFlaskComponent::SaveFlask). A save from before the flask has its bSaved
+	 * false: the flask comes back full, as in a new game.
+	 */
+	UPROPERTY()
+	FFlaskSave Flask;
 
 	/**
 	 * The ember powers below were captured (UEmberComponent::SaveEmbers: the equipped one and its cooldown left). A save

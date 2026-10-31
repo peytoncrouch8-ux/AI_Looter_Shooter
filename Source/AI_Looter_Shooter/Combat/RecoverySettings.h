@@ -39,11 +39,20 @@ struct AI_LOOTER_SHOOTER_API FRecoverySettings
 	float RegenRampSeconds = 1.5f;
 
 	/**
-	 * Share of the most health, per second, healed at the ramp's top: 0.07 takes about fifteen seconds to heal a bar (0.12, a
-	 * little over eight, until the fight contract of 2026-10-21). In play Looter.Fight.RegenRate sets it each frame.
+	 * Share of the most health, per second, healed at the ramp's top: 0.035 takes about thirty seconds to heal a bar (the
+	 * user's playtest call, 2026-10-30: slower, the soul flask heals in a fight; 0.07 and fifteen seconds from 2026-10-21,
+	 * 0.12 before). In play Looter.Fight.RegenRate sets it each frame.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wounds That Close", meta = (ClampMin = "0", ClampMax = "1"))
-	float RegenRatePerSecond = 0.07f;
+	float RegenRatePerSecond = 0.035f;
+
+	/**
+	 * Out of the fight completely first (the user, 2026-10-30): while any creature is fighting the player (FightState::
+	 * IsInCombat, the music's rule) nothing heals, and the wait can't end sooner than this many seconds after the last one
+	 * stopped. Being hurt still restarts the whole RegenDelaySeconds.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wounds That Close", meta = (ClampMin = "0", Units = "s"))
+	float RegenCalmSeconds = 4.f;
 
 	// --- Soul-motes: how often they drop ---
 
@@ -61,6 +70,14 @@ struct AI_LOOTER_SHOOTER_API FRecoverySettings
 	/** "Gravebound", and every rank above it but a boss (Hallowed, Ethereal, Soulfed). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soul-motes", meta = (ClampMin = "0", ClampMax = "1"))
 	float DropChanceGravebound = 0.5f;
+
+	/**
+	 * A kill during a boss's fight (its helpers: Abel's risen, the Gravemother's brood, the Foreman's crew) leaves a mote this
+	 * often, or at its rank's chance if that is higher (the user, 2026-10-30: half the time, so the helpers are the fight's
+	 * healing).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soul-motes", meta = (ClampMin = "0", ClampMax = "1"))
+	float BossFightMoteChance = 0.5f;
 
 	/** How many a boss leaves (from, to, both included): enough to heal a hurt player once the fight is won. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soul-motes", meta = (ClampMin = "0"))
@@ -121,8 +138,11 @@ struct AI_LOOTER_SHOOTER_API FRecoverySettings
 	/** The chance a kill of this rank leaves a mote (a boss: 1; it leaves BossMotesMin to BossMotesMax). */
 	float DropChance(ECreatureRank Rank) const;
 
-	/** How many motes one kill of this rank leaves, drawn from Random (a seeded stream repeats it). */
-	int32 RollMotes(ECreatureRank Rank, FRandomStream& Random) const;
+	/**
+	 * How many motes one kill of this rank leaves, drawn from Random (a seeded stream repeats it). bBossFight: killed during a
+	 * boss's fight (not the boss itself), at least BossFightMoteChance.
+	 */
+	int32 RollMotes(ECreatureRank Rank, FRandomStream& Random, bool bBossFight = false) const;
 
 	/** What one mote heals a player of this much health at most. */
 	float MoteHeal(float MaxHealth) const { return MaxHealth * MoteHealShare; }

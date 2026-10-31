@@ -7,8 +7,8 @@ struct FRecoverySettings;
 
 /**
  * "Wounds that close", the revenant's own trait (FRecoverySettings has the numbers): after RegenDelaySeconds without being
- * hurt, health comes back, the rate rising from nothing to RegenRatePerSecond of the most health over RegenRampSeconds,
- * until it is full. Any hurt (damage that landed, or a cursed iron's drain) stops it and starts the wait over; a scene or
+ * hurt and once out of the fight (RegenCalmSeconds after the last creature stopped fighting the player), health comes back,
+ * the rate rising from nothing to RegenRatePerSecond of the most health over RegenRampSeconds, until it is full. Any hurt (damage that landed, or a cursed iron's drain) stops it and starts the wait over; a scene or
  * a death only holds it. One of these per player, ticked by UPlayerVitalsSubsystem. It is plain
  * data and plain functions, so the tests run it without a world (Step) or with a bare health component (Tick).
  */
@@ -33,13 +33,15 @@ struct FWoundsClose
 	/**
 	 * Moves the rule on DeltaSeconds and returns the health to give now (never past the most): nothing while it waits.
 	 * bHurt: something hurt the player since the last step (restarts the wait). bHeld: dead or in a scene (nothing
-	 * heals, the ramp starts over when it lets go, the wait is kept).
+	 * heals, the ramp starts over when it lets go, the wait is kept). bInCombat: a creature is fighting the player (nothing
+	 * heals, and at least RegenCalmSeconds of the wait are left once it ends).
 	 */
-	float Step(const FRecoverySettings& Settings, float DeltaSeconds, float Health, float MaxHealth, bool bHurt, bool bHeld);
+	float Step(const FRecoverySettings& Settings, float DeltaSeconds, float Health, float MaxHealth, bool bHurt, bool bHeld,
+		bool bInCombat = false);
 
 	/**
 	 * Step for one body: reads its hurt count and health, and heals it. Returns what it healed. A dead body resets the rule
 	 * and gets nothing.
 	 */
-	float Tick(const FRecoverySettings& Settings, UHealthComponent& Health, float DeltaSeconds, bool bHeld);
+	float Tick(const FRecoverySettings& Settings, UHealthComponent& Health, float DeltaSeconds, bool bHeld, bool bInCombat = false);
 };

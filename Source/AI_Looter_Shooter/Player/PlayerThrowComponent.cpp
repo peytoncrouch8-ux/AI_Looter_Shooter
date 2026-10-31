@@ -8,6 +8,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerThrowSave.h"
@@ -167,7 +168,8 @@ FThrowGateInput UPlayerThrowComponent::GatherGate() const
 	const ALooterHUD* Hud = Player ? Player->GetHUD<ALooterHUD>() : nullptr;
 	In.bMenuOpen = (Hud && Hud->IsMenuOpen()) || (World && World->IsPaused());
 	const UPlayerMeleeComponent* Melee = UPlayerMeleeComponent::Find(Owner);
-	In.bMeleeing = Melee && Melee->IsSwinging();
+	// A drink from the soul flask has the off hand as a strike has the gun: the throw waits for it (EThrowBlock::Busy).
+	In.bMeleeing = (Melee && Melee->IsSwinging()) || UPlayerFlaskComponent::IsDrinkingActor(Owner);
 	In.Grenades = Grenades;
 	return In;
 }

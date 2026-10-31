@@ -5,6 +5,7 @@
 #include "Player/Animation/LooterStancePose.h"
 #include "Player/Animation/LooterStancePoseCarry.h"
 #include "Player/Animation/LooterStancePoseDetail.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerThrowComponent.h"
@@ -163,6 +164,14 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 		Throw = Pawn->FindComponentByClass<UPlayerThrowComponent>();
 	}
 	StanceInput.ThrowTime = Throw.IsValid() && Throw->IsThrowing() ? Throw->GetThrowTime() : -1.f;
+
+	// A drink from the soul flask lifts it to the mouth with the left hand on the drink's own clock (the first-person flask
+	// and the gun's dip follow it too).
+	if (!Flask.IsValid() && Pawn)
+	{
+		Flask = UPlayerFlaskComponent::Find(Pawn);
+	}
+	StanceInput.DrinkTime = Flask.IsValid() && Flask->IsDrinking() ? Flask->GetDrinkTime() : -1.f;
 
 	// No pawn (the loadout screen's stand-in): hold the gun it was given, standing still and aiming level.
 	if (!Pawn && Mesh && StandaloneHold.IsSet() && bHoldsWeapon)

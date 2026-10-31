@@ -118,6 +118,10 @@ void FControlHintRules::LearnFrom(const FControlHintInput& In)
 	{
 		Learn(EControlHint::Grenade);
 	}
+	if (In.bDrankFlask)
+	{
+		Learn(EControlHint::Flask);
+	}
 	if (In.bInteracted || In.bHeldUse)
 	{
 		Learn(EControlHint::Interact);
@@ -199,6 +203,8 @@ bool FControlHintRules::Wants(EControlHint Hint, const FControlHintInput& In) co
 	switch (Hint)
 	{
 	case EControlHint::Move:      return IdleFor >= MoveIdleSeconds;
+	// The sense only reports the wound in a fight with a charge to drink, while this hint could still show.
+	case EControlHint::Flask:     return In.bHurtInFight;
 	case EControlHint::Reload:    return In.bGunInHand && In.bMagazineLow && !In.bReloading;
 	case EControlHint::Fire:      return In.bGunInHand && In.bTargetInSights;
 	// Fists work too, so no gun needed. The sense only reports a close creature to a body that hasn't struck yet.

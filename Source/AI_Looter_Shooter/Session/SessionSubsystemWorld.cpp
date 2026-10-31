@@ -17,6 +17,8 @@
 #include "Loot/LostLootStore.h"
 #include "Loot/LostLootSubsystem.h"
 #include "Loot/WeaponRack.h"
+#include "Player/PlayerFlaskComponent.h"
+#include "Player/PlayerFlaskSave.h"
 #include "Player/PlayerThrowComponent.h"
 #include "Shields/ShieldPickup.h"
 #include "Session/SessionSave.h"
@@ -96,6 +98,15 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	{
 		Throw->SaveThrowables(Save.Throwables);
 		Save.bHasThrowables = true;
+	}
+	if (const UPlayerFlaskComponent* Flask = UPlayerFlaskComponent::Find(Pawn))
+	{
+		Flask->SaveFlask(Save.Flask);
+		// Saved while dead: the respawn would have filled it, so the load does too.
+		if (!bAlive)
+		{
+			Save.Flask = FFlaskSave();
+		}
 	}
 	if (const UEmberComponent* Embers = UEmberComponent::Find(Pawn))
 	{
@@ -448,6 +459,11 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			{
 				Throw->RestoreThrowables(Save.Throwables);
 			}
+		}
+		// The soul flask's charges and soul (a save from before the flask, or one saved dead: full).
+		if (UPlayerFlaskComponent* Flask = UPlayerFlaskComponent::Find(Pawn))
+		{
+			Flask->RestoreFlask(Save.Flask);
 		}
 		// The equipped ember power and its cooldown left (a save from before the powers keeps the new game's: the first, ready).
 		if (Save.bHasEmbers)

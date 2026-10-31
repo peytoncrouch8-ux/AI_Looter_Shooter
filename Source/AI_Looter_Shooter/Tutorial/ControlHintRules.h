@@ -11,6 +11,11 @@ enum class EControlHint : uint8
 {
 	/** Move and look: only for a player who hasn't moved for a while after control came. */
 	Move,
+	/**
+	 * The soul flask (2026-10-30): the first time health drops under FlaskHealthShare in a fight with a charge to drink.
+	 * Weighed first after moving: a player about to die needs it most.
+	 */
+	Flask,
 	/** Reload: the magazine low, with rounds to reload from. */
 	Reload,
 	/** Fire: something alive under the crosshair with a gun in hand, and the player hasn't fired yet. */
@@ -89,6 +94,13 @@ struct AI_LOOTER_SHOOTER_API FControlHintInput
 	bool bMeleed = false;
 	/** Two or more live creatures ahead in sight, with a grenade to throw and none thrown yet (UPlayerThrowComponent::CountTargetsAhead). */
 	bool bCrowdAhead = false;
+	/**
+	 * Health under FControlHintRules::FlaskHealthShare in a fight (FightState::IsInCombat) with a flask charge to drink; the
+	 * sense only looks while the flask's hint could still show.
+	 */
+	bool bHurtInFight = false;
+	/** The soul flask is being drunk (UPlayerFlaskComponent::IsDrinking: 1.1 s, so no look misses one). */
+	bool bDrankFlask = false;
 	/** A grenade throw started since the last look. */
 	bool bThrew = false;
 	/** Grenades picked up since the last look, none thrown yet with this body. */
@@ -160,9 +172,10 @@ enum class EControlHintEnd : uint8
  *    a press would use it too (hold); two guns in the slots
  *    (swap); a gun picked up past the first, due until learned, or a mission asking (inventory); a mission asking for the
  *    Ledger (Ledger); two missions going for MissionsSettleSeconds, or a mission asking (missions); MapWalkSeconds of
- *    walking toward a tracked objective farther than MapWaypointDistance (map); at a bench with two guns of a kind (bench).
+ *    walking toward a tracked objective farther than MapWaypointDistance (map); at a bench with two guns of a kind (bench);
+ *    health under FlaskHealthShare in a fight with a flask charge to drink (flask).
  *  - A hint shows up to ShowSeconds; one about a moment (a ledge, a target, a low magazine, a close creature, a crowd,
- *    something to use, the bench) goes LingerSeconds after the moment passes. Unheeded, it may come again after
+ *    something to use, the bench, a wound in a fight) goes LingerSeconds after the moment passes. Unheeded, it may come again after
  *    RetrySeconds, until it has shown MaxShows times.
  *  - GapSeconds of quiet between two hints. With hints off, the one on show goes and none come. While someone talks (a
  *    caption on screen) none comes and the one on show waits, its time stopped.
@@ -183,6 +196,8 @@ public:
 	static constexpr float LearnMoveDistance = 150.f;
 	/** Aimed at something this long standing, a crouch would steady the shot. */
 	static constexpr float CrouchAimSeconds = 1.5f;
+	/** Health under this share of the most, in a fight, is the soul flask hint's moment. */
+	static constexpr float FlaskHealthShare = 0.4f;
 	/** Looked at something to use this long without using anything yet, the player may not know the key. */
 	static constexpr float InteractDwellSeconds = 2.f;
 	/** Looked at something that takes a hold this long, with no hold done yet. */

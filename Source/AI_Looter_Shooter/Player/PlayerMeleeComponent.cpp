@@ -6,6 +6,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Player/CameraShakeModifier.h"
 #include "Player/PlayerLocomotionComponent.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerMeleeMotion.h"
 #include "Player/PlayerThrowComponent.h"
 #include "Player/PlayerViewComponent.h"
@@ -127,6 +128,8 @@ FMeleeGateInput UPlayerMeleeComponent::GatherGate() const
 	// An ember power's cast has the left hand off the gun: the swing would leave the gun in neither (one at a time).
 	const UEmberComponent* Embers = UEmberComponent::Find(Owner);
 	In.bSwinging |= Embers && Embers->IsCasting();
+	// A drink from the soul flask has the left hand and the gun dipped away: the strike waits for it (one at a time).
+	In.bSwinging |= UPlayerFlaskComponent::IsDrinkingActor(Owner);
 	In.bAlive = Owner && Player && !IsOwnerDead();
 	const UPlayerLocomotionComponent* Locomotion = Owner ? Owner->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
 	In.bTraversing = Locomotion && Locomotion->IsTraversing();

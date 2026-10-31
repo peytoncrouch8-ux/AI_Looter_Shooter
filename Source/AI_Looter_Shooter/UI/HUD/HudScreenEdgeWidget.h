@@ -17,6 +17,9 @@ class UWidget;
  * costs nothing, and that's how it rests. It is feedback, not a background: the UI transparency setting leaves it alone.
  * A scream that rattles the player (UPlayerRattleSubsystem, the Unpaid's failed-lunge shriek, 2026-10-29) frosts the edges
  * over in the pale grave-salt line's colour, under the red and the cyan.
+ * While the soul flask's heal flows (UPlayerFlaskComponent::IsHealing, 2026-10-30) the edges glow softly in the soul-light's
+ * green, easing in with the gulp and out after it: faint, and only at the very edges, never over the view. It lies over
+ * the frost and under the cyan and the red, so a hit taken mid-drink still reads.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudScreenEdgeWidget : public UUserWidget
@@ -34,6 +37,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> WardEdges;
 	/** The rattle's frost, under both. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> FrostEdges;
+	/** The flask's heal glow, over the frost and under the cyan. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> HealEdges;
 
 	/** The pawn's health and ward from frame to frame. */
 	FHudWardHitWatch Watch;
@@ -45,4 +50,7 @@ private:
 	float ShownOpacity = -1.f;
 	float ShownWardOpacity = -1.f;
 	float ShownFrostOpacity = -1.f;
+	float ShownHealOpacity = -1.f;
+	/** The heal glow's strength (0-1), eased toward the flask's heal. */
+	float HealGlow = 0.f;
 };

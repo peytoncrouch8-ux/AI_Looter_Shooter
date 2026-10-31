@@ -38,14 +38,15 @@ float FRecoverySettings::DropChance(ECreatureRank Rank) const
 	return DropChanceBasic;
 }
 
-int32 FRecoverySettings::RollMotes(ECreatureRank Rank, FRandomStream& Random) const
+int32 FRecoverySettings::RollMotes(ECreatureRank Rank, FRandomStream& Random, bool bBossFight) const
 {
 	if (Rank == ECreatureRank::Boss)
 	{
 		const int32 Fewest = FMath::Max(BossMotesMin, 0);
 		return Random.RandRange(Fewest, FMath::Max(BossMotesMax, Fewest));
 	}
-	return Random.FRand() < DropChance(Rank) ? 1 : 0;
+	const float Chance = bBossFight ? FMath::Max(DropChance(Rank), BossFightMoteChance) : DropChance(Rank);
+	return Random.FRand() < Chance ? 1 : 0;
 }
 
 float FRecoverySettings::MoteVisible(float Age) const

@@ -100,7 +100,7 @@ bool FSettingsMenuHelpWordsTest::RunTest(const FString& Parameters)
 	// Every binding UKeyBindingSubsystem lists (its Initialize, in order) has words of its own.
 	TArray<FName> Bindings = { TEXT("MoveForward"), TEXT("MoveBackward"), TEXT("MoveLeft"), TEXT("MoveRight"), TEXT("Jump"), TEXT("Sprint"),
 		TEXT("Crouch"), TEXT("Fire"), TEXT("Aim"), UKeyBindingSubsystem::MeleeBindingId(), UKeyBindingSubsystem::GrenadeBindingId(),
-		UKeyBindingSubsystem::EmberBindingId(), TEXT("Reload"), TEXT("NextWeapon"), TEXT("PreviousWeapon"), TEXT("DropWeapon"), TEXT("Interact"),
+		UKeyBindingSubsystem::EmberBindingId(), UKeyBindingSubsystem::FlaskBindingId(), TEXT("Reload"), TEXT("NextWeapon"), TEXT("PreviousWeapon"), TEXT("DropWeapon"), TEXT("Interact"),
 		TEXT("ToggleView"), TEXT("Inventory"), TEXT("InventoryAlt"), UKeyBindingSubsystem::MapBindingId() };
 	for (int32 Slot = 0; Slot < UKeyBindingSubsystem::NumWeaponSlotKeys; ++Slot)
 	{

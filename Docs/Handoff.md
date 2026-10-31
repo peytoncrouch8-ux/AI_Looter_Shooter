@@ -299,6 +299,11 @@ The user's calls this stretch:
   play.py goto <name> <cm> [yaw] frames a creature for a grab.
 - The user's playtest notes, one at a time ("so the quality gets better with each iteration"): 1. riding the lift down put
   the player back at the top: fixed (fall recovery forgets a held player's safe spot; Pipeline Bugs.md), played down and up in PIE.
+  2. the cage clipped the mountain near the top: the lift head's footprint circle levelled the end of the lift's cutting; footprint
+  dropped (area_shape.py), the cutting 0.5 m deeper and 11 m wide (layout liftCut, liftHeadSlot); terrain rebuilt. 3. regen slower and
+  only out of combat, a way to heal in a fight: built (Pipeline Game.md "Healing"): regen 3.5%/s after the fight, boss fights'
+  kills leave motes half the time, the soul flask (H; 3 charges, refilled by kills and respawn). Played in PIE 1P/3P; the user
+  hasn't tried it.
 - Playtest package `Builds/Playtest/2026-10-30_0828` (1.47 GB, everything above; smoke menu + Ransom's Rest pass; `Play Latest
   Build.bat` runs it). Not seen in play yet: the grass blast, the tag fade, the harder Abel and Foreman.
 

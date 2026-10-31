@@ -1,4 +1,7 @@
 #include "Loot/LootDropComponent.h"
+#include "Bosses/BossComponent.h"
+#include "Combat/FightState.h"
+#include "Kismet/GameplayStatics.h"
 #include "Areas/AreaRulesSubsystem.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/SoulMotePickup.h"
@@ -69,7 +72,12 @@ TArray<ASoulMotePickup*> ULootDropComponent::DropSoulMotes(FRandomStream& Random
 		return {};
 	}
 	const FRecoverySettings& Settings = UPlayerVitalsSubsystem::SettingsFor(this);
-	const int32 Count = Settings.RollMotes(Creature->GetRank(), Random);
+	// A boss's helpers are the fight's healing (the user, 2026-10-30): killed while a boss's fight runs, and not the boss or
+	// a lair's monster itself, a creature leaves a mote at least half the time.
+	const bool bIsBoss = Creature->GetRank() == ECreatureRank::Boss || Creature->GetRank() == ECreatureRank::Legendary
+		|| Creature->FindComponentByClass<UBossComponent>() != nullptr;
+	const bool bBossFight = !bIsBoss && FightState::IsBossFightOn(GetWorld(), UGameplayStatics::GetPlayerPawn(this, 0));
+	const int32 Count = Settings.RollMotes(Creature->GetRank(), Random, bBossFight);
 	return ASoulMotePickup::SpawnMotes(GetWorld(), Creature->GetActorLocation(), Count);
 }
 

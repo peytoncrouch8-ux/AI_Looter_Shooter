@@ -44,6 +44,7 @@ namespace
 			{ UKeyBindingSubsystem::MeleeBindingId(), TEXT("Strikes whatever gets too close in front of you.") },
 			{ UKeyBindingSubsystem::GrenadeBindingId(), TEXT("Throws a grave-salt grenade that bursts among a crowd.") },
 			{ UKeyBindingSubsystem::EmberBindingId(), TEXT("Fires your hero's equipped ember power. It runs for a while, then cools down before it can be used again.") },
+			{ UKeyBindingSubsystem::FlaskBindingId(), TEXT("Drinks from your soul flask: a third of your health back over a moment, even mid-fight. Kills and soul-motes fill it again.") },
 			{ TEXT("Reload"), TEXT("Refills the gun's magazine from your ammo.") },
 			{ TEXT("NextWeapon"), TEXT("Takes the next gun down the HUD's weapon column in hand.") },
 			{ TEXT("PreviousWeapon"), TEXT("Takes the gun above in the HUD's weapon column in hand.") },

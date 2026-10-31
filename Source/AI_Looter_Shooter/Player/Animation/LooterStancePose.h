@@ -97,6 +97,8 @@ struct FLooterIdleStance
  *  - melee: the strike's jab twists the chest into the blow and drives the right hand (the gun's stock, or a fist) forward
  *  - grenade: an overarm toss with the left hand (cocked by the ear, slung out to where the jar leaves it), the chest
  *    winding up and turning into it, the gun hand dipping out of its way (LooterStancePoseThrow.cpp)
+ *  - a drink from the soul flask: the left hand brings it to the mouth and tips it, the chest leaning back a touch, the gun
+ *    hand dipping as for a throw (LooterStancePoseFlask.cpp, through the throw's own arm and body stages)
  *  - a revolver's reload: no animation; the gun comes in, the left hand rides the cylinder out, punches the ejector rod,
  *    fetches a speedloader from the belt and pushes it in, and bats the cylinder home as the gun hand flicks
  *    (LooterStancePoseReload.cpp), on the gun's own reload steps (Weapons/ReloadMotion)
@@ -132,6 +134,15 @@ namespace LooterStancePose
 	 * follows through across the body and goes back to what it was doing by the throw's end. Nothing at 0 or after.
 	 */
 	FLooterThrowStance DescribeThrow(float ThrowTime);
+
+	/**
+	 * A drink from the soul flask DrinkTime seconds in, on FFlaskRules' and FlaskMotion's clock, as a throw's body (the left
+	 * arm, the chest, the gun hand's dip; LooterStancePoseFlask.cpp): the arm brings the flask up to the mouth as the
+	 * first-person one comes up (FlaskMotion::RaiseSeconds), lifts the elbow as it tips it through the pour, the chest
+	 * leaning back a touch, and lowers it away by FlaskMotion::LowerSeconds, back to what it was doing by the drink's end.
+	 * Nothing at 0 or after.
+	 */
+	FLooterThrowStance DescribeDrink(float DrinkTime);
 
 	/**
 	 * A revolver's reload Progress (0 to 1) of the way through, on Weapons/ReloadMotion's steps for a cylinder: the left

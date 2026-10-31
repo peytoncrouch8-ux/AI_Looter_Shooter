@@ -51,13 +51,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRecoveryWoundsRulesTest, "Looter.Recovery.Woun
 
 bool FRecoveryWoundsRulesTest::RunTest(const FString& Parameters)
 {
-	// The decided numbers (Borderlands normal, the fight contract of 2026-10-21; Looter.Fight.RegenDelay and RegenRate set them
-	// in play, with the same defaults): a 7 s wait, a 1.5 s ramp up to 7% of the most health a second. Motes unchanged.
+	// The decided numbers (the user's playtest call, 2026-10-30; Looter.Fight.RegenDelay and RegenRate set them in play, with
+	// the same defaults): a 7 s wait, 4 s of calm after a fight, a 1.5 s ramp up to 3.5% of the most health a second (about
+	// 30 s a bar). Motes unchanged, but half the kills in a boss's fight leave one.
 	const FRecoverySettings Decided;
 	const FFightTuning Fight;
 	TestEqual(TEXT("The wait is 7 s"), Decided.RegenDelaySeconds, 7.f);
 	TestEqual(TEXT("The ramp is 1.5 s"), Decided.RegenRampSeconds, 1.5f);
-	TestEqual(TEXT("The rate is 7% a second"), Decided.RegenRatePerSecond, 0.07f);
+	TestEqual(TEXT("The rate is 3.5% a second"), Decided.RegenRatePerSecond, 0.035f);
+	TestEqual(TEXT("The calm after a fight is 4 s"), Decided.RegenCalmSeconds, 4.f);
+	TestEqual(TEXT("Half a boss fight's kills leave a mote"), Decided.BossFightMoteChance, 0.5f);
+	{
+		// A bar from empty: the ramp's half plus the level rate, about thirty seconds.
+		const float Seconds = Decided.RegenRampSeconds * 0.5f + 1.f / Decided.RegenRatePerSecond;
+		TestTrue(FString::Printf(TEXT("...a whole bar in about 30 s (%.1f)"), Seconds), Seconds > 28.f && Seconds < 31.f);
+	}
 	TestEqual(TEXT("...the fight's wait the same"), Fight.RegenDelay, Decided.RegenDelaySeconds);
 	TestEqual(TEXT("...and its rate"), Fight.RegenRate, Decided.RegenRatePerSecond);
 	TestEqual(TEXT("A mote heals 15% of the most health"), Decided.MoteHealShare, 0.15f);
@@ -160,6 +168,26 @@ bool FRecoveryWoundsRulesTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Held: nothing"), Wounds.Step(Settings, Quarter, 40.f, 100.f, false, true), 0.f);
 		TestFalse(TEXT("...not regenerating"), Wounds.IsRegenerating());
 		TestEqual(TEXT("Let go: a quarter point again, not the top rate"), StepQuarters(Wounds, Settings, 1), 0.25f, 0.0001f);
+	}
+
+	// In a fight (the user, 2026-10-30): nothing heals while a creature fights the player, though nothing hurt them, and once
+	// it ends the wait still has the calm to run (6 s wait, 4 s calm: 4 s after, not 0).
+	{
+		FRecoverySettings Calm = RoundPace();
+		Calm.RegenCalmSeconds = 4.f;
+		FWoundsClose Wounds;
+		Wounds.QuietSeconds = 6.f;
+		TestEqual(TEXT("Mid-run, a creature comes at them: nothing"), Wounds.Step(Calm, 1.f, 40.f, 100.f, false, false, true), 0.f);
+		TestFalse(TEXT("...not regenerating"), Wounds.IsRegenerating());
+		TestEqual(TEXT("...the wait set back to leave the calm"), Wounds.QuietSeconds, 2.f, 0.0001f);
+		TestEqual(TEXT("A long fight unhurt: still nothing"), Wounds.Step(Calm, 30.f, 40.f, 100.f, false, false, true), 0.f);
+		TestEqual(TEXT("3.75 s after: nothing yet"), Wounds.Step(Calm, 3.75f, 40.f, 100.f, false, false, false), 0.f);
+		TestTrue(TEXT("Past 4 s: it heals"), Wounds.Step(Calm, 0.5f, 40.f, 100.f, false, false, false) > 0.f);
+		// A hurt long ago and a short brush with a creature: the calm, not the whole wait.
+		FWoundsClose Brush;
+		Brush.QuietSeconds = 1.f;
+		Brush.Step(Calm, 0.25f, 40.f, 100.f, false, false, true);
+		TestEqual(TEXT("Early in the wait, a fight doesn't add to it"), Brush.QuietSeconds, 1.f, 0.0001f);
 	}
 
 	// Nothing a bad number can do: a zero ramp is the full rate at once, a zero rate heals nothing.
@@ -331,6 +359,19 @@ bool FRecoveryMoteDropsTest::RunTest(const FString& Parameters)
 		TestEqual(FString::Printf(TEXT("Rank %d: one mote at most"), static_cast<int32>(Case.Rank)), Most, 1);
 		TestTrue(FString::Printf(TEXT("Rank %d: at least as likely as the rank below"), static_cast<int32>(Case.Rank)), Share >= Last - 0.01);
 		Last = Share;
+	}
+
+	// In a boss's fight its helpers leave one half the time, or at their rank's chance if higher (the user, 2026-10-30).
+	{
+		FRandomStream Random(20261030);
+		int32 Motes = 0;
+		constexpr int32 Helpers = 40000;
+		for (int32 Kill = 0; Kill < Helpers; ++Kill)
+		{
+			Motes += Settings.RollMotes(ECreatureRank::Basic, Random, /*bBossFight*/ true);
+		}
+		const double Share = static_cast<double>(Motes) / Helpers;
+		TestTrue(FString::Printf(TEXT("A boss fight's plain helper: %.2f%% (decided 50%%)"), Share * 100.0), FMath::Abs(Share - 0.5) <= 0.015);
 	}
 
 	// The same seed rolls the same kills.

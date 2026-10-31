@@ -49,7 +49,8 @@ public:
  * Player key rebinding without touching input assets. Every mapping context the game uses is swapped
  * for a runtime copy with the player's keys applied; overrides are saved to the "KeyBindings" slot.
  * Also owns the always-on global actions (pause menu, inventory, map), the code-built character actions
- * (sprint, crouch, aim, melee, grenade, ember power, toggle camera view) and the number keys that take a weapon slot in hand.
+ * (sprint, crouch, aim, melee, grenade, ember power, soul flask, toggle camera view) and the number keys that take a weapon
+ * slot in hand. The combat actions' builders are in KeyBindingSubsystemCombat.cpp.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UKeyBindingSubsystem : public ULocalPlayerSubsystem
@@ -88,6 +89,7 @@ public:
 	const UInputAction* GetMeleeAction() const { return MeleeAction; }
 	const UInputAction* GetGrenadeAction() const { return GrenadeAction; }
 	const UInputAction* GetEmberAction() const { return EmberAction; }
+	const UInputAction* GetFlaskAction() const { return FlaskAction; }
 	const UInputAction* GetMapAction() const { return MapAction; }
 
 	// --- Map: M, and down on the D-pad on a gamepad (ALooterHUD binds it: the inventory opens on its map page) ---
@@ -164,6 +166,26 @@ public:
 	 */
 	static UInputAction* AddEmberAction(UObject* Outer, UInputMappingContext& Context);
 
+	// --- Soul flask: H, and left on the D-pad on a gamepad (UPlayerFlaskComponent binds it; 2026-10-30) ---
+
+	/** The soul flask's rebindable binding: "Flask" ("Soul flask" under Combat). */
+	static FName FlaskBindingId();
+
+	/** H, for heal: free, and in reach of the left hand's fingers beside G. */
+	static FKey DefaultFlaskKey();
+
+	/**
+	 * Left on the D-pad: free in play (up is the camera view, down the map; left and right only move menus' selections), and
+	 * on the left of the pad as the flask's pips sit on the left of the HUD by the health bar.
+	 */
+	static FKey DefaultFlaskGamepadKey();
+
+	/**
+	 * Makes the flask action in Outer and maps it in Context to its default keys (DefaultFlaskKey, DefaultFlaskGamepadKey).
+	 * Static so tests can check the mapping the settings menu rebinds.
+	 */
+	static UInputAction* AddFlaskAction(UObject* Outer, UInputMappingContext& Context);
+
 	/**
 	 * Drop weapon's default key: X, since G is the grenade's. The weapon controls asset still maps the action to G; the
 	 * player's copy of it gets this key (the binding finds the asset's mapping by DropWeaponAssetKey).
@@ -171,7 +193,7 @@ public:
 	static FKey DefaultDropWeaponKey();
 	static FKey DropWeaponAssetKey();
 
-	/** The player's copy of the character controls (sprint, crouch, aim, melee, grenade, ember power, camera view). Added while the character is possessed. */
+	/** The player's copy of the character controls (sprint, crouch, aim, melee, grenade, ember power, soul flask, camera view). Added while the character is possessed. */
 	UInputMappingContext* GetCharacterContext() { return GetRuntimeContext(CharacterContext); }
 
 	/** Input priority the character components add GetCharacterContext() with. */
@@ -241,6 +263,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UInputAction> MeleeAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> GrenadeAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> EmberAction;
+	UPROPERTY(Transient) TObjectPtr<UInputAction> FlaskAction;
 
 	/** The weapon slot keys get their own context: the weapon carrier adds it, whatever the weapon controls asset holds. */
 	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> WeaponSlotContext;

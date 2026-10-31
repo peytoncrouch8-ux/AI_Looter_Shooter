@@ -31,6 +31,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerXPChanged, int64 /*Gained*/, EXPSo
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerLevelUp, int32 /*NewLevel*/);
 /** A kill's experience and what was killed, after it's added (the "+38 XP" floating up at the kill: UXpPopupSubsystem). */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerKillXP, int64 /*XP*/, const AActor* /*Victim*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerKill, const AActor* /*Victim*/);
 
 /**
  * The player's level and experience, the tutorial done or not, and the bestiary's kinds met and defeated. A local player
@@ -163,6 +164,8 @@ public:
 	FOnPlayerLevelUp OnLevelUp;
 	/** A kill gave experience (AwardKill), told after OnLevelUp and OnXPChanged, with the victim for where it happened. */
 	FOnPlayerKillXP OnKillXP;
+	/** Every kill the local player makes (AwardKill), experience or not (at the top level, a kill worth none): the soul flask fills on it. */
+	FOnPlayerKill OnKill;
 
 private:
 	/** Has the session being played saved a few seconds from now, so a fight's worth of kills makes one write. */

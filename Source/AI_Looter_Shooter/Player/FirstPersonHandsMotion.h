@@ -19,6 +19,9 @@
  * The throw (FirstPersonHandsThrow.cpp): off the gun and round the jar (ThrowMotion::JarPose) through the draw and the
  * sling, open past the release, back to the gun as it comes up.
  *
+ * The soul flask's drink (FirstPersonHandsFlask.cpp): off the gun and round the flask (FlaskMotion::FlaskPose) as it comes
+ * up to the lips, tipping it up with the wrist through the pour, down out of sight with it, back to the gun as it comes up.
+ *
  * An ember power's cast (FirstPersonHandsCast.cpp; the user's note 27, 2026-10-27): the left hand off the gun, raised and
  * gathered through the cast's lead (UEmberComponent::CastLeadSeconds), flared open at the release as the power fires, held
  * out a moment, back to the gun; its shape by the power (CastKindOf: a fling, a push, a clench, a press to the ground).
@@ -69,6 +72,14 @@ namespace FirstPersonHandsMotion
 
 	/** The hand round the jar ThrowTime seconds into a throw, where ThrowMotion::JarPose has the jar (camera space). */
 	AI_LOOTER_SHOOTER_API FHandPlacement OnJar(float ThrowTime);
+
+	// --- The soul flask's drink (FirstPersonHandsFlask.cpp) ---
+
+	/** The support hand DrinkTime seconds into a drink; OnGun: where it holds the gun now (its dip included), or rests. */
+	AI_LOOTER_SHOOTER_API FHandPlacement SupportInDrink(const FHandPlacement& OnGun, float DrinkTime);
+
+	/** The hand round the flask DrinkTime seconds in, where FlaskMotion::FlaskPose has the flask (camera space). */
+	AI_LOOTER_SHOOTER_API FHandPlacement OnFlask(float DrinkTime);
 
 	// --- Casts and the melee tool (FirstPersonHandsCast.cpp) ---
 

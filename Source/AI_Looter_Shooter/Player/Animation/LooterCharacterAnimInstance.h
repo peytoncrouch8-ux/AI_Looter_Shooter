@@ -11,6 +11,7 @@
 class AWeaponBase;
 class FNumericProperty;
 class UBodyFigureComponent;
+class UPlayerFlaskComponent;
 class UPlayerLocomotionComponent;
 class UPlayerMeleeComponent;
 class UPlayerThrowComponent;
@@ -201,6 +202,7 @@ private:
 	TWeakObjectPtr<const UPlayerViewComponent> View;
 	TWeakObjectPtr<const UPlayerMeleeComponent> Melee;
 	TWeakObjectPtr<const UPlayerThrowComponent> Throw;
+	TWeakObjectPtr<const UPlayerFlaskComponent> Flask;
 	/** The hero's body worn over this one (its gun hold). */
 	TWeakObjectPtr<const UBodyFigureComponent> Figure;
 };

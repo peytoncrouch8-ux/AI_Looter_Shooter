@@ -84,6 +84,13 @@ struct FLooterStanceInput
 	float ThrowTime = -1.f;
 
 	/**
+	 * A drink from the soul flask's clock (seconds in, UPlayerFlaskComponent::GetDrinkTime; negative with none under way):
+	 * the left arm bringing the flask to the mouth and tipping it, the chest leaning back a touch, the gun hand's dip
+	 * (LooterStancePose::DescribeDrink).
+	 */
+	float DrinkTime = -1.f;
+
+	/**
 	 * A revolver's reload (the Drover's cylinder): its progress, 0 to 1, or negative when the gun in hand isn't reloading
 	 * one. It replaces the reload animation (ReloadAnimation is null then) and shows by ReloadWeight like it
 	 * (LooterStancePose::DescribeCylinderReload).
@@ -128,7 +135,7 @@ struct FLooterStanceInput
 	{
 		return CrouchAlpha > UE_KINDA_SMALL_NUMBER || SprintAlpha > UE_KINDA_SMALL_NUMBER || SlideAlpha > UE_KINDA_SMALL_NUMBER
 			|| Climb.IsActive() || bAimWithTorso || bHandOnForegrip || ReloadWeight > UE_KINDA_SMALL_NUMBER || UpperBodyPose
-			|| !FMath::IsNearlyZero(MeleeJab) || ThrowTime > 0.f || IdleAlpha > UE_KINDA_SMALL_NUMBER
+			|| !FMath::IsNearlyZero(MeleeJab) || ThrowTime > 0.f || DrinkTime > 0.f || IdleAlpha > UE_KINDA_SMALL_NUMBER
 			|| !FMath::IsNearlyZero(Idle.HeadLift);
 	}
 };

@@ -12,6 +12,7 @@ class UHealthComponent;
 class UHudCrosshairWidget;
 class UHudEmberSocketWidget;
 class UHudFindBannerWidget;
+class UHudFlaskWidget;
 class UHudGraveMarkedWidget;
 class UHudGrenadeWidget;
 class UHudInteractPromptWidget;
@@ -25,6 +26,7 @@ class UHudWeaponSlotsWidget;
 class UGunCardWidget;
 class UImage;
 class UInteractionComponent;
+class UPlayerFlaskComponent;
 class UPlayerMeleeComponent;
 class UPlayerThrowComponent;
 class USizeBox;
@@ -34,12 +36,14 @@ class UWeaponManagerComponent;
 struct FFindBannerShow;
 enum class EEmberDenied : uint8;
 enum class EEmberState : uint8;
+enum class EFlaskChange : uint8;
 enum class EGrenadeChange : uint8;
 
 /**
  * In-game HUD in the shared UI style, built to stay out of the way while playing:
  *  - bottom-left: the player frame (UHudPlayerFrameWidget): the portrait in its gunmetal medallion, the health bar, the
- *    level gem and the experience bar
+ *    level gem and the experience bar; under the experience bar, the soul flask's row (UHudFlaskWidget: the Flask key's
+ *    tab, the flask's icon and a pip per charge, the next filling with soul; 2026-10-30)
  *  - bottom-right, 48 px in from the edge: at the column's top the grave-salt grenades carried (UHudGrenadeWidget: key tab,
  *    the tin's icon, the count and its pips, once the player has grenades; no silver readout: the user's call, 2026-10-27,
  *    the purse shows at the vendor's counter), then
@@ -72,7 +76,8 @@ enum class EGrenadeChange : uint8;
  *    but loot, whose card stands over the gun (its label, UWeaponLabelWidget); lower, the message plate (the weapon
  *    manager's messages)
  *  - right-middle, while loot is looked at with a gun in hand: "IN HAND" over that gun's card (UGunCardWidget, InHand)
- *  - behind everything: the screen edges' red flash on a hit and pulse at low health (UHudScreenEdgeWidget)
+ *  - behind everything: the screen edges' red flash on a hit and pulse at low health, and their soft green while the
+ *    soul flask's heal flows (UHudScreenEdgeWidget)
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on activity (firing,
  * reloading, switching, taking damage). The in-hand card and messages only appear when relevant. Reads the
  * possessed pawn every frame, so it survives respawns.
@@ -156,6 +161,12 @@ public:
 	/** The crosshair's lines (null before the HUD is built), for the tests. */
 	UHudCrosshairWidget* GetCrosshair() const { return CrosshairLines; }
 
+	/** The soul flask's row under the player frame (null before the HUD is built), for the tests. */
+	UHudFlaskWidget* GetFlaskRow() const { return FlaskRow; }
+
+	/** The pickup feed's line for a flask charge filled by soul (PlayerHUDWidgetFlask.cpp; tests). */
+	static FString FlaskChargeLine();
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -207,6 +218,18 @@ private:
 	void HandleEmberDenied(EEmberDenied Why);
 	void HandleEmberState(EEmberState NewState);
 
+	/** Follows the pawn's soul flask (PlayerHUDWidgetFlask.cpp): its changes flash the row and tell the feed of a filled charge. */
+	void BindFlask(UPlayerFlaskComponent* Flask);
+
+	/** The flask's row, frame by frame. */
+	void UpdateFlask(float DeltaTime);
+
+	/** The flask changed (a drink, soul, a filled charge, a refusal, a top-up, a load). */
+	void HandleFlaskChanged(int32 Charges, int32 Delta, EFlaskChange Why);
+
+	/** The Flask key as bound ("H" until the binding exists). */
+	FString FlaskKeyName() const;
+
 	UFUNCTION()
 	void HandleFired();
 
@@ -229,8 +252,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> HitMarker;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> HitMarkerTicks;
 
-	// Bottom-left: the player frame; top-centre: the level-up banner
+	// Bottom-left: the player frame and the soul flask's row under it; top-centre: the level-up banner
 	UPROPERTY(Transient) TObjectPtr<UHudPlayerFrameWidget> PlayerFrame;
+	UPROPERTY(Transient) TObjectPtr<UHudFlaskWidget> FlaskRow;
 	UPROPERTY(Transient) TObjectPtr<UHudLevelUpBannerWidget> LevelUpBanner;
 	/** The mission-complete banner, in the level-up banner's place: a level-up during it waits for it. */
 	UPROPERTY(Transient) TObjectPtr<UHudMissionCompleteWidget> MissionBanner;
@@ -284,6 +308,8 @@ private:
 	TWeakObjectPtr<UEmberComponent> BoundEmbers;
 	FDelegateHandle EmberDeniedHandle;
 	FDelegateHandle EmberStateHandle;
+	TWeakObjectPtr<UPlayerFlaskComponent> BoundFlask;
+	FDelegateHandle FlaskChangedHandle;
 	/** The frame the last grenade hit came in: a burst's other hits that frame show the marker without its sound again. */
 	uint64 GrenadeHitFrame = 0;
 	bool bMuteHitSound = false;

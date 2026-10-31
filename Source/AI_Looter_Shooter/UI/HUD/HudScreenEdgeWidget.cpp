@@ -3,6 +3,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/HUD/HudWardHit.h"
 #include "Combat/HealthComponent.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerRattleSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -41,6 +42,13 @@ namespace
 	// A scream's frost (UPlayerRattleSubsystem): the pale salt line's colour, light over a bright world like the ward's cyan,
 	// so it shows at about its strength.
 	constexpr float FrostEdgeStrength = 0.75f;
+	// The flask's heal (2026-10-30): the soul-light's green, soft (about half the frost's strength: a warmth at the edges,
+	// not a wash over the view), in with the gulp and out slower, like light settling.
+	constexpr float HealEdgeStrength = 0.4f;
+	constexpr float HealGlowInSpeed = 10.f;
+	constexpr float HealGlowOutSpeed = 3.f;
+	/** Below this the glow is gone: the layer collapses. */
+	constexpr float HealGlowGone = 0.005f;
 
 	/**
 	 * A strip's picture: Tint (the red, or the ward's cyan) fading from its edge inward. bAcrossX: the fade runs along x (the
@@ -122,6 +130,11 @@ TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 		static const FPaintedIcon FrostRight = EdgeStrip(true, true, Color::SaltLine());
 		static const FPaintedIcon FrostTop = EdgeStrip(false, false, Color::SaltLine());
 		static const FPaintedIcon FrostBottom = EdgeStrip(false, true, Color::SaltLine());
+		// The flask's heal: the soul-light's green.
+		static const FPaintedIcon HealLeft = EdgeStrip(true, false, Color::Heal());
+		static const FPaintedIcon HealRight = EdgeStrip(true, true, Color::Heal());
+		static const FPaintedIcon HealTop = EdgeStrip(false, false, Color::Heal());
+		static const FPaintedIcon HealBottom = EdgeStrip(false, true, Color::Heal());
 
 		UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
 		// A set of four strips filling the screen, each strip stretched between its anchors, whatever the screen's shape.
@@ -144,8 +157,9 @@ TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 			Set->SetVisibility(ESlateVisibility::Collapsed);
 			return Set;
 		};
-		// The frost under all, then the cyan, so a breaking hit's red lies over both.
+		// The frost under all, the heal's green over it, then the cyan, so a breaking hit's red lies over them all.
 		FrostEdges = AddSet(TEXT("HudFrostEdge"), FrostLeft, FrostRight, FrostTop, FrostBottom);
+		HealEdges = AddSet(TEXT("HudHealEdge"), HealLeft, HealRight, HealTop, HealBottom);
 		WardEdges = AddSet(TEXT("HudWardEdge"), WardLeft, WardRight, WardTop, WardBottom);
 		Edges = AddSet(TEXT("HudEdge"), Left, Right, Top, Bottom);
 
@@ -153,6 +167,8 @@ TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 		ShownOpacity = 0.f;
 		ShownWardOpacity = 0.f;
 		ShownFrostOpacity = 0.f;
+		ShownHealOpacity = 0.f;
+		HealGlow = 0.f;
 	}
 	return Super::RebuildWidget();
 }
@@ -222,4 +238,14 @@ void UHudScreenEdgeWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 		Frost = 0.f;
 	}
 	ShowEdgeLayer(FrostEdges, Frost * FrostEdgeStrength, ShownFrostOpacity);
+
+	// The flask's heal flowing: a soft green warmth at the edges, eased in and out (the heal itself lasts 0.8 s).
+	const UPlayerFlaskComponent* Flask = UPlayerFlaskComponent::Find(Player ? Player->GetPawn() : nullptr);
+	const float HealTarget = Flask && Flask->IsHealing() ? 1.f : 0.f;
+	HealGlow = FMath::FInterpTo(HealGlow, HealTarget, InDeltaTime, HealGlow < HealTarget ? HealGlowInSpeed : HealGlowOutSpeed);
+	if (HealGlow < HealGlowGone && HealTarget <= 0.f)
+	{
+		HealGlow = 0.f;
+	}
+	ShowEdgeLayer(HealEdges, HealGlow * HealEdgeStrength, ShownHealOpacity);
 }

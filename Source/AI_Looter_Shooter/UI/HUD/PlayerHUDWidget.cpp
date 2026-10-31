@@ -16,6 +16,7 @@
 #include "Combat/HealthComponent.h"
 #include "Embers/EmberComponent.h"
 #include "Interaction/InteractionComponent.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerThrowComponent.h"
@@ -76,6 +77,8 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	UpdateGrenades(InDeltaTime);
 	BindEmbers(UEmberComponent::Find(Pawn));
 	UpdateEmbers(InDeltaTime);
+	BindFlask(UPlayerFlaskComponent::Find(Pawn));
+	UpdateFlask(InDeltaTime);
 	UpdateWeaponCluster(Manager, InDeltaTime);
 	UpdatePlayerFrame(Health, InDeltaTime);
 	UpdatePickupCard(Manager, Interaction, InDeltaTime);

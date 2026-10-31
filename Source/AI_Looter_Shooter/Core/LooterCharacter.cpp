@@ -11,6 +11,7 @@
 #include "Player/Animation/BodyFigureComponent.h"
 #include "Player/Animation/HandJarComponent.h"
 #include "Player/FirstPersonHandsComponent.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerFootfallComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
@@ -56,6 +57,7 @@ ALooterCharacter::ALooterCharacter()
 	Melee = CreateDefaultSubobject<UPlayerMeleeComponent>(TEXT("Melee"));
 	Throw = CreateDefaultSubobject<UPlayerThrowComponent>(TEXT("Throw"));
 	Embers = CreateDefaultSubobject<UEmberComponent>(TEXT("Embers"));
+	Flask = CreateDefaultSubobject<UPlayerFlaskComponent>(TEXT("Flask"));
 	// The jar in the throwing hand, which the third-person body otherwise lobbed with an empty fist.
 	HandJar = CreateDefaultSubobject<UHandJarComponent>(TEXT("HandJar"));
 	HandJar->SetupAttachment(GetMesh(), UHandJarComponent::HandSocket());

@@ -24,6 +24,9 @@ int32 FControlHintRules::MaxShows(EControlHint Hint)
 	{
 	case EControlHint::Jump:
 	case EControlHint::Slide:
+	// The flask's: the first time health drops low in a fight (the contract's "first time"); its key tab sits on the HUD
+	// by the flask besides.
+	case EControlHint::Flask:
 		return 1;
 	case EControlHint::Crouch:
 	case EControlHint::Hold:
@@ -38,6 +41,8 @@ FName FControlHintRules::Action(EControlHint Hint)
 	switch (Hint)
 	{
 	case EControlHint::Move:      return TEXT("Move");
+	// The soul flask's binding id (the contract's "Flask", in UKeyBindingSubsystem).
+	case EControlHint::Flask:     return TEXT("Flask");
 	case EControlHint::Reload:    return TEXT("Reload");
 	case EControlHint::Fire:      return TEXT("Fire");
 	// UKeyBindingSubsystem::MeleeBindingId(), spelled out here as the others are so the rules need no subsystem.
@@ -70,6 +75,7 @@ FText FControlHintRules::Words(EControlHint Hint, bool bToggle)
 	switch (Hint)
 	{
 	case EControlHint::Move:      return LOCTEXT("Move", "Move, and look around with the mouse");
+	case EControlHint::Flask:     return LOCTEXT("Flask", "Soul flask");
 	case EControlHint::Reload:    return LOCTEXT("Reload", "Reload");
 	case EControlHint::Fire:      return LOCTEXT("Fire", "Fire");
 	case EControlHint::Melee:     return LOCTEXT("Melee", "Melee: strike what gets too close");
@@ -103,6 +109,7 @@ FName FControlHintRules::Id(EControlHint Hint)
 	switch (Hint)
 	{
 	case EControlHint::Move:      return TEXT("Move");
+	case EControlHint::Flask:     return TEXT("Flask");
 	case EControlHint::Reload:    return TEXT("Reload");
 	case EControlHint::Fire:      return TEXT("Fire");
 	case EControlHint::Melee:     return TEXT("Melee");
@@ -142,6 +149,7 @@ bool FControlHintRules::IsMomentary(EControlHint Hint)
 {
 	switch (Hint)
 	{
+	case EControlHint::Flask:
 	case EControlHint::Reload:
 	case EControlHint::Fire:
 	case EControlHint::Melee:

@@ -10,6 +10,7 @@ class UFirstPersonHandsComponent;
 class UHandJarComponent;
 class UInputAction;
 class UInteractionComponent;
+class UPlayerFlaskComponent;
 class UPlayerFootfallComponent;
 class UPlayerMeleeComponent;
 class UPlayerSoundComponent;
@@ -18,8 +19,8 @@ struct FInputActionValue;
 
 /**
  * The player's character: walking, looking and jumping. Everything else lives in components (view, locomotion,
- * health, weapons, interaction, sounds, melee, grenades, ember powers). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
- * placement and the component settings. The whole character is the full-size mannequin scaled down
+ * health, weapons, interaction, sounds, melee, grenades, ember powers, the soul flask). The Blueprint child,
+ * BP_LooterCharacter, holds only data: meshes, animation, camera placement and the component settings. The whole character is the full-size mannequin scaled down
  * (Player/PlayerSize.h), and walks at the full-size speed scaled the same, slowed to the game's pace.
  */
 UCLASS(Abstract)
@@ -62,6 +63,10 @@ protected:
 	/** The Ember key's powers: the hero's three, one equipped, their clocks and save (made here, not in the Blueprint). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UEmberComponent> Embers;
+
+	/** The Flask key's soul flask: the drink that heals in a fight, its three charges and the soul that fills them (made here, not in the Blueprint). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPlayerFlaskComponent> Flask;
 
 	/** The jar seen in the body's left hand through a throw's wind-up, in third person (on the hand's grip socket). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

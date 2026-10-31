@@ -8,6 +8,8 @@
 #include "Scenes/SceneSubsystem.h"
 #include "Shields/PlayerShieldComponent.h"
 #include "World/RespawnMarker.h"
+#include "Combat/FightState.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "World/RoostCarrySubsystem.h"
 #include "World/RoostVeil.h"
 #include "Camera/PlayerCameraManager.h"
@@ -109,7 +111,14 @@ void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 			// until it's full (Looter.Shield.HealthWaits). A ward that fills inside the 7 s wait changes nothing.
 			const UPlayerShieldComponent* Ward = UPlayerShieldComponent::Find(Character);
 			const bool bWardFirst = Ward && Ward->HoldsHealthBack() && Vitals.Wounds.QuietSeconds >= Recovery.RegenDelaySeconds;
-			Vitals.Wounds.Tick(Recovery, *Health, DeltaTime, bInScene || bWardFirst);
+			// Out of the fight first (the user, 2026-10-30): while anything fights them, nothing heals.
+			Vitals.CombatLookIn -= DeltaTime;
+			if (Vitals.CombatLookIn <= 0.f)
+			{
+				Vitals.CombatLookIn = CombatLookSeconds;
+				Vitals.bInCombat = FightState::IsInCombat(GetWorld(), Character);
+			}
+			Vitals.Wounds.Tick(Recovery, *Health, DeltaTime, bInScene || bWardFirst, Vitals.bInCombat);
 		}
 	}
 
@@ -155,6 +164,11 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 	Character->TeleportTo(Location, Rotation, false, true);
 	PC->SetControlRotation(Rotation);
 	Health->ResetHealth();
+	// Woken at the roost with the flask full again (the soul flask, 2026-10-30).
+	if (UPlayerFlaskComponent* Flask = UPlayerFlaskComponent::Find(Character))
+	{
+		Flask->RefillAll();
+	}
 	PC->ResetIgnoreMoveInput();
 	PC->ResetIgnoreLookInput();
 	if (PC->PlayerCameraManager)

@@ -97,8 +97,9 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	float DamageScale = 1.8f;
 	/** Looter.Fight.RegenDelay: seconds unhurt before the player's wounds start to close (was 6). */
 	float RegenDelay = 7.f;
-	/** Looter.Fight.RegenRate: the share of the player's most health healed a second at the ramp's top (was 0.12). */
-	float RegenRate = 0.07f;
+	/** Looter.Fight.RegenRate: the share of the player's most health healed a second at the ramp's top: 0.035, about 30 s a bar,
+	 *  since the user's playtest call of 2026-10-30 (0.07 from 2026-10-21, 0.12 before). */
+	float RegenRate = 0.035f;
 
 	/** The cvars' values now (read at each use, so a change in PIE counts at once). */
 	static FFightTuning Live();

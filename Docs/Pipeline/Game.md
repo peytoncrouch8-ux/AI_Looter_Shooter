@@ -475,3 +475,24 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 - Lessons: `Points.Add(Points[0])` on a TArray asserts (the element comes from the array being grown): copy it first. A
   crash in a standalone run leaves CrashReportClientEditor holding the game DLL: the next build's link fails until it's closed.
 
+
+## Healing: regen, soul-motes, the soul flask (2026-10-30, the user's playtest note 2)
+
+- The user: regen slower and only out of combat; a way to heal in a fight; boss helpers drop motes half the time; regular
+  kills keep their mote odds; plus a soul flask that works in boss fights. Contract: `Docs/Work/2026-10-30-SoulFlask/CONTRACT.md`.
+- Regen (`FWoundsClose`, numbers in `Enemies.md` "Difficulty"): 3.5%/s (~30 s a bar), waits 7 s after a hurt and 4 s after
+  the last creature stops fighting (`FightState::IsInCombat`, 4x/s in `UPlayerVitalsSubsystem`).
+- Soul flask (`UPlayerFlaskComponent`, `FFlaskRules` hold every number): 3 charges, H / D-pad left, 1.1 s drink, 35% over
+  0.8 s from 0.35 s, 0.75 walk, the gun dipped as the grenade throw does; refused (quiet) mid-throw/strike/cast/swap/swim,
+  said (`FlaskFX::Denied`, HUD red shake or "Health full") when empty or at full health. Soul 100 a charge: kills Basic 15,
+  Restless 30, Gravebound 45, Hallowed/Ethereal 60, Legendary 100, boss 300, any kill in a boss fight at least 25; a mote
+  touched at full health pours 34. Respawn refills; new game full; saved (old save = full). Kills come from
+  `UPlayerProgressionSubsystem::OnKill` (every kill; `OnKillXP` is quiet at the top level).
+- Look: SM_SoulFlask (`Art/Models/Items/SoulFlask.py`, `/Game/Art/Items`, cooked by path; `MI_SoulFlaskLiquid` "Glow"),
+  first person at `ViewScale` 0.6, low left, under a fifth of the view (the first pose filled 40% over the crosshair; fixed
+  after the play-check); `FlaskFX` motes into the lips (1P) or chest (3P, never near the camera); screen edges glow
+  soul-green while it heals (`HudScreenEdgeWidget`); HUD row `UHudFlaskWidget` beside the gem under the XP bar (made 1.6x
+  bigger after the play-check: icon box 46 px, pips 16x28); first-time hint "Soul flask" under 40% in a fight. Sounds
+  `Art/Sounds/recipes/flask.py` (seven `Player.Flask.*`, 2D).
+- Dev: `Looter.Flask.Fill [n]`, `Looter.Flask.Drink [hurt]`, `Looter.Flask.Status`. Photograph a drink at `slomo 0.15`:
+  grab 2 s and 3 s after `Looter.Flask.Drink hurt`; wait 8 s (1.1 game s) before the next drink.

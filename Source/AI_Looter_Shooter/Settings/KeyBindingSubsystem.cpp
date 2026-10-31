@@ -64,6 +64,7 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AddBinding(MeleeBindingId(), TEXT("Melee"), TEXT("Combat"), CharacterContext, MeleeAction, DefaultMeleeKey());
 	AddBinding(GrenadeBindingId(), TEXT("Grenade"), TEXT("Combat"), CharacterContext, GrenadeAction, DefaultGrenadeKey());
 	AddBinding(EmberBindingId(), TEXT("Ember power"), TEXT("Combat"), CharacterContext, EmberAction, DefaultEmberKey());
+	AddBinding(FlaskBindingId(), TEXT("Soul flask"), TEXT("Combat"), CharacterContext, FlaskAction, DefaultFlaskKey());
 	AddBinding(TEXT("Reload"), TEXT("Reload"), TEXT("Combat"), WeaponContext, Reload, EKeys::R);
 	// The wheel moves along the HUD's slot column (slot 1 on top): up to the slot above, down to the one below (the user,
 	// 2026-10-14: up went down). The asset maps them the other way round; the player's copy gets these keys.
@@ -133,30 +134,7 @@ void UKeyBindingSubsystem::BuildCharacterContext()
 	MeleeAction = AddMeleeAction(this, *CharacterContext);
 	GrenadeAction = AddGrenadeAction(this, *CharacterContext);
 	EmberAction = AddEmberAction(this, *CharacterContext);
-}
-
-FName UKeyBindingSubsystem::MeleeBindingId()
-{
-	return TEXT("Melee");
-}
-
-FKey UKeyBindingSubsystem::DefaultMeleeKey()
-{
-	return EKeys::V;
-}
-
-FKey UKeyBindingSubsystem::DefaultMeleeGamepadKey()
-{
-	return EKeys::Gamepad_RightThumbstick;
-}
-
-UInputAction* UKeyBindingSubsystem::AddMeleeAction(UObject* Outer, UInputMappingContext& Context)
-{
-	// Built in code like the other character actions: no input asset to keep in step.
-	UInputAction* Action = NewObject<UInputAction>(Outer, TEXT("IA_Melee"));
-	Context.MapKey(Action, DefaultMeleeKey());
-	Context.MapKey(Action, DefaultMeleeGamepadKey());
-	return Action;
+	FlaskAction = AddFlaskAction(this, *CharacterContext);
 }
 
 FName UKeyBindingSubsystem::MapBindingId()
@@ -188,66 +166,6 @@ bool UKeyBindingSubsystem::IsMapKey(const FKey& Key) const
 {
 	// The keyboard's key only: on the open page the D-pad moves the selection (a pad closes it with B or View).
 	return Key == GetKey(MapBindingId());
-}
-
-FName UKeyBindingSubsystem::GrenadeBindingId()
-{
-	return TEXT("Grenade");
-}
-
-FKey UKeyBindingSubsystem::DefaultGrenadeKey()
-{
-	return EKeys::G;
-}
-
-FKey UKeyBindingSubsystem::DefaultGrenadeGamepadKey()
-{
-	return EKeys::Gamepad_RightShoulder;
-}
-
-UInputAction* UKeyBindingSubsystem::AddGrenadeAction(UObject* Outer, UInputMappingContext& Context)
-{
-	// Built in code like the melee action: no input asset to keep in step.
-	UInputAction* Action = NewObject<UInputAction>(Outer, TEXT("IA_Grenade"));
-	Context.MapKey(Action, DefaultGrenadeKey());
-	Context.MapKey(Action, DefaultGrenadeGamepadKey());
-	return Action;
-}
-
-FName UKeyBindingSubsystem::EmberBindingId()
-{
-	return TEXT("Ember");
-}
-
-FKey UKeyBindingSubsystem::DefaultEmberKey()
-{
-	return EKeys::Q;
-}
-
-FKey UKeyBindingSubsystem::DefaultEmberGamepadKey()
-{
-	return EKeys::Gamepad_LeftShoulder;
-}
-
-UInputAction* UKeyBindingSubsystem::AddEmberAction(UObject* Outer, UInputMappingContext& Context)
-{
-	// Built in code like the grenade action: no input asset to keep in step.
-	UInputAction* Action = NewObject<UInputAction>(Outer, TEXT("IA_Ember"));
-	Context.MapKey(Action, DefaultEmberKey());
-	Context.MapKey(Action, DefaultEmberGamepadKey());
-	return Action;
-}
-
-FKey UKeyBindingSubsystem::DefaultDropWeaponKey()
-{
-	// Out of the way of the fight's keys (G throws now; Q and F are kept for the ember powers), and never pressed by
-	// accident while running and gunning.
-	return EKeys::X;
-}
-
-FKey UKeyBindingSubsystem::DropWeaponAssetKey()
-{
-	return EKeys::G;
 }
 
 FName UKeyBindingSubsystem::WeaponSlotBindingId(int32 SlotIndex)

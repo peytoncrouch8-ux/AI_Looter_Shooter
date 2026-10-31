@@ -4,6 +4,7 @@
 // show, so a player who knows the game costs a few comparisons a look.
 
 #include "Tutorial/ControlHintSubsystem.h"
+#include "Combat/FightState.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Interaction/InteractionComponent.h"
@@ -14,6 +15,7 @@
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionSubsystem.h"
 #include "Missions/MissionTargets.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerThrowComponent.h"
@@ -177,6 +179,10 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 	In.bGrenadesGained = In.bInControl && LastGrenades != INDEX_NONE && Grenades > LastGrenades && Throw && !Throw->HasThrown();
 	LastGrenades = Grenades;
 
+	// --- The soul flask: a drink teaches the key (1.1 s long, so no look misses one) ---
+	const UPlayerFlaskComponent* Flask = UPlayerFlaskComponent::Find(Character);
+	In.bDrankFlask = Flask && Flask->IsDrinking();
+
 	// --- The Interact key: something to use in front (its prompt is up), by a press, a hold or both ---
 	const UInteractionComponent* Interaction = BoundInteraction.Get();
 	if (In.bInControl && Interaction && Interaction->GetFocusedActor())
@@ -222,6 +228,13 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 		if (!Rules.IsRetired(EControlHint::Bench) && Weapons && Carried >= 2)
 		{
 			In.bAtBenchWithPair = IsAtBenchWithPair(*Character, *Weapons);
+		}
+		// Hurt in a fight with a charge to drink: the flask's moment. The fight's walk over the creatures only runs once
+		// the wound is there.
+		if (!Rules.IsRetired(EControlHint::Flask) && Flask && Flask->GetCharges() > 0 && Health
+			&& Health->GetHealthPercent() < FControlHintRules::FlaskHealthShare)
+		{
+			In.bHurtInFight = FightState::IsInCombat(World, Character);
 		}
 	}
 	return In;

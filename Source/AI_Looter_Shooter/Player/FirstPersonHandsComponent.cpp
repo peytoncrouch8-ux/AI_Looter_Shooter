@@ -7,6 +7,7 @@
 #include "Player/FirstPersonHandsGrips.h"
 #include "Player/FirstPersonHandsMarks.h"
 #include "Player/FirstPersonHandsMotion.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerThrowComponent.h"
@@ -113,6 +114,7 @@ void UFirstPersonHandsComponent::BeginPlay()
 	Throw = UPlayerThrowComponent::Find(Owner);
 	Melee = UPlayerMeleeComponent::Find(Owner);
 	Embers = UEmberComponent::Find(Owner);
+	Flask = UPlayerFlaskComponent::Find(Owner);
 	// Its tick group already follows the locomotion's and the strike's tool; said here too, so a move of either keeps the order.
 	if (UPlayerMeleeComponent* Striker = Melee.Get())
 	{
@@ -337,10 +339,17 @@ FHandPlacement UFirstPersonHandsComponent::PlaceSupportHand(const FHandsGun& Gun
 	EHandsSupportJob Job = EHandsSupportJob::Foregrip;
 	FHandPlacement Wanted = OnGun;
 	FHandPlacement CastHand;
+	FHandPlacement DrinkHand;
 	if (Thrower && Thrower->IsThrowing())
 	{
 		Job = EHandsSupportJob::Throw;
 		Wanted = FirstPersonHandsMotion::SupportInThrow(OnGun, Thrower->GetThrowTime());
+	}
+	else if (DrinkSupport(OnGun, DrinkHand))
+	{
+		// The soul flask in the left hand (its gate keeps throws and casts out of a drink, so only one has the hand).
+		Job = EHandsSupportJob::Drink;
+		Wanted = DrinkHand;
 	}
 	else if (CastSupport(OnGun, CastHand))
 	{

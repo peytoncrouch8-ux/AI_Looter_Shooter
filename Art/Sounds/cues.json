@@ -9199,5 +9199,101 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 3
+  },
+  "Player.Flask.Uncork": {
+    "files": [
+      "Player_Flask_Uncork_01.wav",
+      "Player_Flask_Uncork_02.wav",
+      "Player_Flask_Uncork_03.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Flask.Drink": {
+    "files": [
+      "Player_Flask_Drink_01.wav",
+      "Player_Flask_Drink_02.wav",
+      "Player_Flask_Drink_03.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Flask.Heal": {
+    "files": [
+      "Player_Flask_Heal_01.wav",
+      "Player_Flask_Heal_02.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.01,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Flask.ChargeFilled": {
+    "files": [
+      "Player_Flask_ChargeFilled_01.wav",
+      "Player_Flask_ChargeFilled_02.wav",
+      "Player_Flask_ChargeFilled_03.wav"
+    ],
+    "volume_db": -23.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Player.Flask.Empty": {
+    "files": [
+      "Player_Flask_Empty_01.wav",
+      "Player_Flask_Empty_02.wav",
+      "Player_Flask_Empty_03.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Flask.Full": {
+    "files": [
+      "Player_Flask_Full_01.wav",
+      "Player_Flask_Full_02.wav",
+      "Player_Flask_Full_03.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Player.Flask.Refilled": {
+    "files": [
+      "Player_Flask_Refilled_01.wav",
+      "Player_Flask_Refilled_02.wav"
+    ],
+    "volume_db": -26.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
   }
 }

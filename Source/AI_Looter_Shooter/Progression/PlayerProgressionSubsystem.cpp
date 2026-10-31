@@ -205,6 +205,7 @@ void UPlayerProgressionSubsystem::AwardKill(const AController* Killer, const AAc
 		return;
 	}
 	Progression->RecordDefeat(Victim);
+	Progression->OnKill.Broadcast(Victim);
 	const int64 XP = KillXP(Victim, Progression->GetLevel());
 	if (XP > 0)
 	{

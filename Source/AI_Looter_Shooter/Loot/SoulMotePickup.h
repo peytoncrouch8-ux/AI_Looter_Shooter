@@ -23,8 +23,9 @@ namespace SoulMoteCue
  * A soul-mote: a small pale-green wisp some kills leave behind (Docs/Polish/BorderlandsComparison.md, item 3;
  * FRecoverySettings has every number). It rises out of the body, floats at chest height with a soft bob and a faint trail,
  * and heals 15% of the most health of a hurt player who comes near: within a few meters it drifts toward them, faster
- * the closer it gets, and a short run past takes it. It ignores a player at full health (it is no use to them) and waits
- * for them, about 30 seconds, flickering out through the last few. Green is the HUD's heal color (LooterUI::Color::Heal),
+ * the closer it gets, and a short run past takes it. At full health it drifts in the same way and pours its soul into the
+ * player's soul flask instead (FFlaskRules::MoteSoul), unless the flask is full: then it ignores them (it is no use to
+ * them) and waits for them, about 30 seconds, flickering out through the last few. Green is the HUD's heal color (LooterUI::Color::Heal),
  * the one color on a drop that doesn't mean rarity; no light of its own and no beam, as the ammo drops (an emissive
  * surface, which also draws on the Nanite fallback). Drawn as opaque emissive spheres from the stylized surface material,
  * so it fades by shrinking and flickering rather than by translucency.
@@ -52,13 +53,19 @@ public:
 
 	/**
 	 * Moves it on DeltaSeconds with Player (the nearest player's pawn, or null): it ages, floats, drifts toward a player who
-	 * needs healing and is near, and heals them on reaching them. True when it healed Player (and is gone). Past its life
-	 * it destroys itself and returns false.
+	 * can use it (IsWanted) and is near, and heals them (or fills their soul flask) on reaching them. True when Player took
+	 * it (and it is gone). Past its life it destroys itself and returns false.
 	 */
 	bool Advance(float DeltaSeconds, APawn* Player);
 
 	/** Whether Health could use a mote: alive and short of the most by more than half a point. */
 	static bool NeedsHealing(const UHealthComponent& Health);
+
+	/**
+	 * Whether Player could use a mote at all: hurt (NeedsHealing), or alive at full health with a soul flask that isn't full
+	 * (the mote pours FFlaskRules::MoteSoul into it instead).
+	 */
+	static bool IsWanted(const APawn& Player, const UHealthComponent& Health);
 
 	/** How far Point is from the nearest part of Player's body (cm): its capsule's surface for a character. */
 	static float DistanceToBody(const FVector& Point, const APawn& Player);
@@ -89,7 +96,7 @@ private:
 	/** The nearest local player's pawn, or null. */
 	APawn* FindPlayerPawn() const;
 
-	/** Heals Player and goes. */
+	/** Heals Player (or, at full health, fills their soul flask) and goes. */
 	void Collect(APawn& Player, UHealthComponent& Health);
 
 	/** Floats on: drift fades out, the height settles on the hover plus a bob. */

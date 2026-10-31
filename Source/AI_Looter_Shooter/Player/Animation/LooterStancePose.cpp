@@ -13,7 +13,8 @@ using namespace LooterStancePoseDetail;
 // jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the left hand's grip on the gun (its turn and its
 // fingers) in LooterStancePoseGrip.cpp, the gun carried low or in a sprint in
 // LooterStancePoseCarry.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp, a grenade throw's in
-// LooterStancePoseThrow.cpp and a revolver's reload in LooterStancePoseReload.cpp; the idle in LooterStancePoseIdle.cpp (its
+// LooterStancePoseThrow.cpp (the soul flask's drink in LooterStancePoseFlask.cpp) and a revolver's reload in
+// LooterStancePoseReload.cpp; the idle in LooterStancePoseIdle.cpp (its
 // hands in LooterStancePoseIdleHands.cpp, the hand rig in LooterStancePoseHands.cpp) and the aim down the sights in
 // LooterStancePoseAim.cpp.
 
@@ -188,8 +189,13 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 	}
 
 	// A grenade throw winds the chest up and turns it into the toss, and dips the gun hand out of the way; the left arm
-	// throws after the foregrip, below, so it lets go of the gun where the dip took it.
-	const FLooterThrowStance Throw = LooterStancePose::DescribeThrow(Stance.ThrowTime);
+	// throws after the foregrip, below, so it lets go of the gun where the dip took it. A drink from the soul flask is the
+	// same stages on its own clock (the gates never let the two run together).
+	FLooterThrowStance Throw = LooterStancePose::DescribeThrow(Stance.ThrowTime);
+	if (!Throw.IsActive())
+	{
+		Throw = LooterStancePose::DescribeDrink(Stance.DrinkTime);
+	}
 	if (Throw.IsActive())
 	{
 		ApplyThrowBody(Pose, Bones, Stance, Throw, Forward, Right);

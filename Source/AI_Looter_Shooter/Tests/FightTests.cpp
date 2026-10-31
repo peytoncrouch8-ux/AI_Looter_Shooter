@@ -65,7 +65,7 @@ bool FFightTuningDefaultsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Chase x1.3"), Tuning.ChaseScale, 1.3f);
 	TestEqual(TEXT("Damage x1.8 (raised from 1.5 for the player's ward, 2026-10-22)"), Tuning.DamageScale, 1.8f);
 	TestEqual(TEXT("Regen waits 7 s"), Tuning.RegenDelay, 7.f);
-	TestEqual(TEXT("...and heals 7% a second"), Tuning.RegenRate, 0.07f);
+	TestEqual(TEXT("...and heals 3.5% a second (the user, 2026-10-30)"), Tuning.RegenRate, 0.035f);
 	TestEqual(TEXT("Live() with nothing set gives the defaults (chase)"), FFightTuning::Live().ChaseScale, Tuning.ChaseScale);
 	return true;
 }

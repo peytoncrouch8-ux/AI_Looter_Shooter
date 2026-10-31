@@ -7,6 +7,7 @@
 #include "Embers/EmberPower.h"
 #include "Embers/HeroDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerThrowComponent.h"
@@ -228,8 +229,8 @@ EEmberDenied UEmberComponent::GetBlock() const
 	}
 
 	// The body spoken for, as the grenade's gate judges it: a scene, a menu or a paused game, a mantle or vault, a gun swap,
-	// a melee strike or a grenade on its way. Without a player controlling the owner (a test's bare body) only the world's
-	// own (a scene, a pause) count.
+	// a melee strike, a grenade on its way or a drink from the soul flask. Without a player controlling the owner (a test's
+	// bare body) only the world's own (a scene, a pause) count.
 	const AActor* Owner = GetOwner();
 	const UWorld* World = GetWorld();
 	if (IsInScene(this) || (World && World->IsPaused()))
@@ -247,7 +248,7 @@ EEmberDenied UEmberComponent::GetBlock() const
 	const UPlayerMeleeComponent* Melee = UPlayerMeleeComponent::Find(Owner);
 	const UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(Owner);
 	if ((Locomotion && Locomotion->IsTraversing()) || (Manager && Manager->IsSwapping()) || (Melee && Melee->IsSwinging())
-		|| (Throw && Throw->IsThrowing()))
+		|| (Throw && Throw->IsThrowing()) || UPlayerFlaskComponent::IsDrinkingActor(Owner))
 	{
 		return EEmberDenied::Busy;
 	}

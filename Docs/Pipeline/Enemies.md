@@ -299,8 +299,11 @@ difficulty. Code: `Creatures/FightDirectorSubsystem.h/.cpp` + `FightDirectorPlac
 - Difficulty: `ChaseScale` [1.3] on chase and track speed (`GetChaseSpeedNow`; the `ChaseSpeed` field is unchanged, so the
   traits' and rally's x/÷ stay exact; the slime hops at its own rhythm, unchanged); spider 413 -> 537 (walk 459, sprint 711).
   `DamageScale` [1.5] on `HitWithAttack` and the Spitter's glob, splash and puddle (`GetFightDamageScale`). Regen
-  `RegenDelay` [7 s] and `RegenRate` [0.07] set into `UPlayerVitalsSubsystem::Recovery` each frame (`FRecoverySettings`
-  defaults 7 and 0.07 too). Not scaled: the Grave-burst trait's blast (CreatureTraitComponentBurst.cpp) and the bestiary's
+  `RegenDelay` [7 s] and `RegenRate` [0.035 since 2026-10-30, about 30 s a bar; was 0.07] set into `UPlayerVitalsSubsystem::Recovery`
+  each frame (`FRecoverySettings` defaults the same). Regen waits out the fight (the user, 2026-10-30): nothing heals while a
+  creature fights the player (`FightState::IsInCombat`, the music's rule, looked at 4x a second) and the wait ends no sooner
+  than `RegenCalmSeconds` [4] after it. A boss fight's helpers (any kill while `FightState::IsBossFightOn`, not the boss)
+  leave a soul-mote at `BossFightMoteChance` [0.5] or their rank's chance if higher. Not scaled: the Grave-burst trait's blast (CreatureTraitComponentBurst.cpp) and the bestiary's
   shown damage.
 - Perf (2026-10-21): 10 spiders fighting in town 7.5-7.7 ms (Docs/Performance.md). CSV stats `Exclusive/GameThread/CreatureTick`,
   `CreatureBrain`, `CreatureFight`, `CreatureSteer`, `CreatureFace`, `CreatureSpacing`, `CreatureTag`, `FightRefresh` show a

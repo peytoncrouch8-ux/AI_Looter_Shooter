@@ -5,6 +5,7 @@
 #include "UI/HUD/HudEmberSocketWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
 #include "UI/HUD/HudFindBannerWidget.h"
+#include "UI/HUD/HudFlaskWidget.h"
 #include "UI/HUD/HudGraveMarkedWidget.h"
 #include "UI/HUD/HudGrenadeWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
@@ -221,6 +222,13 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		PlayerFrame = WidgetTree->ConstructWidget<UHudPlayerFrameWidget>(UHudPlayerFrameWidget::StaticClass());
 		PlayerFrame->OnLevelUp.BindUObject(this, &UPlayerHUDWidget::HandleLevelUp);
 		PlaceOnCanvas(Root, PlayerFrame, FAnchors(0.f, 1.f), FVector2D(0.f, 1.f), FVector2D::ZeroVector);
+
+		// Under the frame's experience bar, its left end level with the bar's: the soul flask's row (collapsed with no flask),
+		// its middle at UHudFlaskWidget::Middle on the 1080p screen. Healing sits with health; clear of the medallion, the
+		// gem, the bar and its numbers.
+		FlaskRow = WidgetTree->ConstructWidget<UHudFlaskWidget>(UHudFlaskWidget::StaticClass());
+		PlaceOnCanvas(Root, FlaskRow, FAnchors(0.f, 1.f), FVector2D(0.f, 0.5f),
+			FVector2D(UHudFlaskWidget::Left, -(UHudFlaskWidget::ScreenBottom - UHudFlaskWidget::Middle)));
 
 		// Bottom-right: the weapon slots in a column with the cartridge standing on their right, its base level with the
 		// last slot's; under them the status and fire mode, and under those the gun's name ending in its rarity gem.

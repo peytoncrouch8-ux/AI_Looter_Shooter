@@ -17,7 +17,8 @@ void FWoundsClose::Reset()
 	RunSeconds = 0.f;
 }
 
-float FWoundsClose::Step(const FRecoverySettings& Settings, float DeltaSeconds, float Health, float MaxHealth, bool bHurt, bool bHeld)
+float FWoundsClose::Step(const FRecoverySettings& Settings, float DeltaSeconds, float Health, float MaxHealth, bool bHurt, bool bHeld,
+	bool bInCombat)
 {
 	DeltaSeconds = FMath::Max(DeltaSeconds, 0.f);
 	const float Delay = FMath::Max(Settings.RegenDelaySeconds, 0.f);
@@ -27,6 +28,14 @@ float FWoundsClose::Step(const FRecoverySettings& Settings, float DeltaSeconds, 
 		// Any hurt, however small, is a fight still on: the whole wait again.
 		QuietSeconds = 0.f;
 		RunSeconds = 0.f;
+		return 0.f;
+	}
+	if (bInCombat)
+	{
+		// A fight on is no rest, hurt or not (a gap in the shooting, the Unpaid circling): nothing heals, and the wait can't
+		// end sooner than the calm after the fight.
+		RunSeconds = 0.f;
+		QuietSeconds = FMath::Min(QuietSeconds, FMath::Max(Delay - FMath::Max(Settings.RegenCalmSeconds, 0.f), 0.f));
 		return 0.f;
 	}
 	if (bHeld)
@@ -62,7 +71,7 @@ float FWoundsClose::Step(const FRecoverySettings& Settings, float DeltaSeconds, 
 	return FMath::Min(MaxHealth * Share, MaxHealth - Health);
 }
 
-float FWoundsClose::Tick(const FRecoverySettings& Settings, UHealthComponent& Health, float DeltaSeconds, bool bHeld)
+float FWoundsClose::Tick(const FRecoverySettings& Settings, UHealthComponent& Health, float DeltaSeconds, bool bHeld, bool bInCombat)
 {
 	// A hurt since the last look: the count moved. The first look takes the count as it stands (a player loaded hurt waits
 	// the whole delay from the start anyway).
@@ -76,6 +85,6 @@ float FWoundsClose::Tick(const FRecoverySettings& Settings, UHealthComponent& He
 		Reset();
 		return 0.f;
 	}
-	const float Give = Step(Settings, DeltaSeconds, Health.GetHealth(), Health.GetMaxHealth(), bHurt, bHeld);
+	const float Give = Step(Settings, DeltaSeconds, Health.GetHealth(), Health.GetMaxHealth(), bHurt, bHeld, bInCombat);
 	return Give > 0.f ? Health.Heal(Give) : 0.f;
 }
