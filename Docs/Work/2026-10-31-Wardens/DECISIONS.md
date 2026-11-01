@@ -47,3 +47,24 @@ Landfall's details (the user's answers, 2026-10-31 night):
 - **The crew are on deck as models** (Holloway at the wheel, Finch at the Great Lantern, Junie at the engine).
 - **Models: the user makes every new model in Tripo later** ("just compile a list"); the build uses stand-ins until then.
   The list: `TRIPO_MODELS.md` here.
+
+More calls (the user, 2026-10-31 night, "Do you have any questions?"):
+- Hero abilities: **"skills"** on screen (the user: "Change the hero abilities' name to 'skills'. No lore required for
+  skills right now"); code names (Ember*, EmberPowers) stay.
+- The Bestiary ("the Ledger", Sexton's book): **"The Warden's Log"**.
+- The legendary gun named "Lamplighter": **renamed** (Main's pick: "Wickcutter"), so Lamplighter is only the ship.
+- Respawn: **lantern posts** (the user asked "What do you mean when I die?"; explained: going down brings you back at the
+  last respawn grave, like Borderlands' New-U). Wardens light lantern posts as they explore; going down wakes you at the
+  nearest lit post; "GRAVE MARKED" becomes "POST LIT"; the grave spots get a lantern post (stand-in until Tripo).
+
+Mains 2-7 calls (the user, 2026-10-31 night, on MAINS_2_7.md §15; that doc needs revising to these):
+- Main 2: Sexton sells the plan at **his ferry in the fog under Gravewind Point** (new landing).
+- **The Gravemother stays optional** (Side 3); Main 5 ends on the intake set piece.
+- **No Doorward** (the Sentinels stay as placed).
+- The user asked "Who is Lucky Ned? Why is he the final boss in Ransom?" (explained: the gang member who tore Abel's soul out
+  and runs the barge). **Ransom's Rest's final boss: Abel, corrupted** (the furnace twisted his soul; you fight him to free
+  him, then he goes back to Saint Ada). **Lucky Ned is fought midway through the story, in area 4 or 5**, not on the Rest
+  (the Rest's barge is crewed by the Company; Ned can be named).
+- **Leaving the Rest: by train** (Tilly's hearse car, as today).
+- **The barge falls into Gravewind Canyon** (a burning wreck below the Rim, seen from the Point).
+- **Sexton stays at his ferry and sells secrets for silver** (e.g. marks the Rest's finds on the map).
