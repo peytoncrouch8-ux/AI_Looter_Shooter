@@ -1,5 +1,7 @@
 #include "Story/MisterSexton.h"
 #include "AI_Looter_Shooter.h"
+#include "Economy/SecretBroker.h"
+#include "Interaction/InteractionComponent.h"
 #include "Story/SpeakerPointComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -56,6 +58,9 @@ AMisterSexton::AMisterSexton()
 	Ledger->SetMobility(EComponentMobility::Movable);
 	Ledger->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Ledger->SetGenerateOverlapEvents(false);
+
+	// He sells the level's secrets once the story lets him (lanes/SECRETS.md): his tap opens the list instead of his talk.
+	Secrets = CreateDefaultSubobject<USecretBrokerComponent>(TEXT("Secrets"));
 
 	static UStaticMesh* const Seated = FindIfMade<UStaticMesh>(ModelPath);
 	static UStaticMesh* const Book = FindIfMade<UStaticMesh>(LedgerPath);
@@ -156,4 +161,28 @@ bool AMisterSexton::IsWatched() const
 		return true;
 	}
 	return Body && Body->WasRecentlyRendered(SeenSeconds);
+}
+
+FInteractionOptions AMisterSexton::GetInteractionOptions(const UInteractionComponent& User) const
+{
+	FInteractionOptions Options = Super::GetInteractionOptions(User);
+	if (!Secrets || !Secrets->ShouldTrade())
+	{
+		return Options;
+	}
+	// Trading: a tap opens his list, at the talk's reach. A mission waiting at him (Paid on Delivery) talks first: ShouldTrade.
+	Options.bUsable = true;
+	Options.bTap = true;
+	Options.bHold = false;
+	Options.TapPrompt = Secrets->Prompt;
+	return Options;
+}
+
+bool AMisterSexton::Interact(UInteractionComponent& User, bool bHeld)
+{
+	if (Secrets && Secrets->ShouldTrade())
+	{
+		return !bHeld && Secrets->OpenFor(User.GetOwner());
+	}
+	return Super::Interact(User, bHeld);
 }

@@ -212,7 +212,7 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 3 as its asset has it: id exactly Main3 (Side 1 opens after it), offered by Delia after Main 2 on Ransom's Rest;
 	// the farm road to the gate, the gate's fight cleared (seven), Bright & Daughter; turned in to Tilly at her window, her
-	// whole talk (she hands Pa's bail over, Main 6's item, carried from the turn-in: HandItems); 1,000 experience and an
+	// whole talk (she hands Pa's bail over, Main 6's item, carried from the turn-in: HandItems); 800 experience and an
 	// Uncommon gun or better.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main3")))
 	{
@@ -236,7 +236,9 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 				Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag
 				&& Asset->TurnIn.Lines.ContainsByPredicate([](const FStoryLine& Line) { return Line.Text.ToString() == Collar; })
 				&& Asset->TurnIn.HandItems.Contains(FName(TEXT("LanternBail"))));
-			TestEqual(TEXT("Its reward: 1,000 experience"), Asset->Rewards.Experience, 1000);  // (trimmed 2026-10-21; 1,200)
+			// 800 since 2026-11-01 (the Pacing band: the Dredgers on Mains 4-6's way are paid for out of mission XP); 1,000 after
+			// the 2026-10-21 trim, 1,200 before.
+			TestEqual(TEXT("Its reward: 800 experience"), Asset->Rewards.Experience, 800);
 			TestTrue(TEXT("...and a gun, Uncommon or better"), Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Uncommon);
 			TestTrue(TEXT("...said so on the Missions page"), MissionRewards::Describe(Asset->Rewards).Contains(TEXT("Gun: Uncommon or better")));
 		}

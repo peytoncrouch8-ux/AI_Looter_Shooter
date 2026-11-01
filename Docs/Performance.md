@@ -122,3 +122,4 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-30 | Overnight 10-30: horde + 3 shrieks | e0a73e5e | 1920x1080 | 7.9 | 127 | 10.4 | 6.1 | 7.7 | 1.7 | 6.8 | 777 | 798943 | 1.83 |
 | 2026-10-30 | Overnight 10-30: horde + 1 shriek every 2.5 s | e0a73e5e | 1920x1080 | 6.5 | 153 | 7.8 | 6.2 | 4.3 | 1.8 | 5.3 | 762 | 766871 | 1.79 |
 | 2026-10-30 | Overnight 10-30: Tripo Gravemother fight in town | e0a73e5e | 1920x1080 | 6.4 | 157 | 6.9 | 4.8 | 6.1 | 1.7 | 5.2 | 803 | 718376 | 1.80 |
+| 2026-11-01 | Wardens r1 + Mains 2-3 + Tripo people/farm/Drover/Gravemother | 05f5512d | 1920x1080 | 5.8 | 171 | 6.6 | 4.9 | 5.6 | 1.8 | 4.9 | 693 | 697998 | n/a |

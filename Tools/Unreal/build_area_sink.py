@@ -1,4 +1,5 @@
-"""Main 5, "The Keeper's Lantern" (Docs/Areas/RansomsRest.md), for build_area_story.py: the Sink's floor dressed and the
+"""Main 5, "Choke Point" (was "The Keeper's Lantern"; the Wardens story since 2026-11-01: build_area_main5.py places its
+new pieces, the satchel, the intake's set piece, the drops, the second hose), for build_area_story.py: the Sink's floor dressed and the
 story's pieces in it, placed from the layout's zone sink (its middle and outline), its obstacles (sinkFloorBlocks,
 webwood, sinkRoadDeadTree), the computed ramp sinkRamp and Den Rock as build_area.py placed it, with the floor and the
 walls found by traces at build time, so everything sits on what's really there. build_area_story's place() calls place()
@@ -72,10 +73,14 @@ FLOOR_TAG = 'Spider_SinkFloor'
 SAC_TAG = 'EggSac'
 SAC_SPIDER_TAG = 'Spider_EggSac'
 LANTERN_TAG = 'Lantern_Keeper'
-# Main 5's steps, from 0: down, the sacs, the lantern, out.
+# Main 5's steps, from 0: the charges and down, the sacs, the lantern, the intake (Choke Point since 2026-11-01, lane
+# MAIN45: build_area_main5.py places its pieces), out. OUT_STEP is the step after the lantern's: the lantern is taken only
+# in its own step, and the floor's spiders are on until it's taken (the intake's own fight is build_area_main5's).
 SAC_STEP = 1
 LANTERN_STEP = 2
 OUT_STEP = 3
+INTAKE_STEP = 3
+CLIMB_STEP = 4
 
 PROPS = '/Game/Art/Props/'
 MATERIALS = '/Game/Art/Materials/'

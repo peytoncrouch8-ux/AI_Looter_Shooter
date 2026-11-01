@@ -1,6 +1,7 @@
-// AAbelKeeper: construction, his props and light, his place in the story (in the world during Main 6 only), his frame and
-// his coal. AbelKeeperFight.cpp has his fight's moments, AbelKeeperMoves.cpp each moment frame by frame and his ending,
-// AbelKeeperWind.cpp the Gravewind, AbelKeeperPose.cpp his pose table laid over the Unpaid's body.
+// AAbelKeeper: construction, his props and light, his place in the story (in the world during Main 7 from its fight step),
+// his frame and his coal. AbelKeeperFight.cpp has his fight's moments, AbelKeeperMoves.cpp each moment frame by frame and his
+// ending, AbelKeeperWind.cpp the Gravewind, AbelKeeperPose.cpp his pose table laid over the Unpaid's body; the furnace's part
+// (the call-backs, tendrils, drink, fog surge) is his UAbelCorruptionComponent's (AbelCorruption*.cpp).
 
 #include "Bosses/AbelKeeper.h"
 #include "AI_Looter_Shooter.h"
@@ -8,7 +9,7 @@
 #include "Combat/HealthComponent.h"
 #include "Missions/MissionRunner.h"
 #include "Player/PlayerSize.h"
-#include "Story/AbelOnBoard.h"
+#include "Bosses/AbelCorruption.h"
 #include "World/KeeperLanternPost.h"
 #include "AnimationRuntime.h"
 #include "Algo/Sort.h"
@@ -28,7 +29,8 @@
 
 const FName AAbelKeeper::BossTag(TEXT("Boss_Abel"));
 const FName AAbelKeeper::BossId(TEXT("Abel"));
-const FName AAbelKeeper::Mission(TEXT("Main6"));
+// Main 7, "Given to the Wind" since 2026-11-01 (was Main 6, "The Gravewind"): the same step numbers.
+const FName AAbelKeeper::Mission(TEXT("Main7"));
 const TCHAR* const AAbelKeeper::ModelPath = TEXT("/Game/Art/Creatures/SK_Abel.SK_Abel");
 const TCHAR* const AAbelKeeper::HatPath = TEXT("/Game/Art/Creatures/SM_AbelHat.SM_AbelHat");
 const TCHAR* const AAbelKeeper::LanternPath = TEXT("/Game/Art/Creatures/SM_AbelLantern.SM_AbelLantern");
@@ -174,7 +176,7 @@ AAbelKeeper::AAbelKeeper()
 	// the Keeper's Gate's, which the build script points his boss at.
 	Boss = CreateDefaultSubobject<UBossComponent>(TEXT("Boss"));
 	Boss->BossId = BossId;
-	Boss->BossName = NSLOCTEXT("LooterAbel", "AbelBar", "Abel Ransom, the Keeper");
+	Boss->BossName = NSLOCTEXT("LooterAbel", "AbelBar", "Abel Ransom, Corrupted");
 	Boss->Phases = AbelRules::MakePhases();
 	Boss->EngageRadius = 0.f;
 	Boss->bStartWhenHurt = false;
@@ -185,8 +187,13 @@ AAbelKeeper::AAbelKeeper()
 	Boss->LootShower = AbelRules::MakeLootShower();
 	Buckshot = AbelRules::Buckshot();
 
-	// Main 6: there all through it; his fight once the lantern hangs; the ending at its last step.
+	// What the furnace did to him (the call-backs, the tendrils, the drink, the fog surge, the last call): his frame drives it.
+	Corruption = CreateDefaultSubobject<UAbelCorruptionComponent>(TEXT("Corruption"));
+
+	// Main 7: there from its fight step (the lantern hung on the keeper's post calls him up out of the canyon fog); his fight
+	// from then; the ending at its scene step.
 	PresentWhen.DuringMission = Mission;
+	PresentWhen.FromStep = FightStep;
 	FightWhen.DuringMission = Mission;
 	FightWhen.FromStep = FightStep;
 	EndingWhen.DuringMission = Mission;
@@ -231,14 +238,6 @@ void AAbelKeeper::BeginPlay()
 		OwnLunge = LungeSpeed;
 	}
 	FindLanternPosts();
-	if (!OnBoard)
-	{
-		for (TActorIterator<AAbelOnBoard> It(GetWorld()); It; ++It)
-		{
-			OnBoard = *It;
-			break;
-		}
-	}
 	if (UMissionRunner* Runner = UMissionRunner::Get(this))
 	{
 		BoundRunner = Runner;
@@ -347,7 +346,7 @@ void AAbelKeeper::RefreshStory()
 		SetPresent(false);
 		return;
 	}
-	// Knelt at zero, the scene has him until it sits him on his board, whatever the missions say meanwhile.
+	// Knelt at zero, the last call and the scene have him until he's in his own lantern, whatever the missions say meanwhile.
 	if (IsDead())
 	{
 		SetPresent(true);
@@ -361,8 +360,8 @@ void AAbelKeeper::RefreshStory()
 	}
 	const bool bWanted = bForcedPresent || StoryHolds(PresentWhen);
 	SetPresent(bWanted);
-	// Once the lantern hangs, a player on the deck starts his fight (and starts it again after a death).
-	Boss->EngageRadius = bWanted && StoryHolds(FightWhen) ? DeckRadius : 0.f;
+	// Once the lantern hangs and he's up on the boards, a player on the deck starts his fight (and again after a death).
+	Boss->EngageRadius = bWanted && StoryHolds(FightWhen) && Move != EAbelMove::Ascend ? DeckRadius : 0.f;
 }
 
 void AAbelKeeper::ForcePresent(bool bForce)
@@ -395,10 +394,18 @@ void AAbelKeeper::SetPresent(bool bInPresent)
 	{
 		StopWind();
 		ClearWisps();
+		Corruption->HandleHidden();
 	}
 	if (bChanged)
 	{
 		UE_LOG(LogLooter, Log, TEXT("%s: %s."), *GetActorNameOrLabel(), bPresent ? TEXT("walks the boards") : TEXT("isn't on the boards"));
+	}
+	// Called by his own lantern on the keeper's post (the story's fight step, in play): he comes up out of the canyon fog.
+	const UWorld* World = GetWorld();
+	if (bChanged && bPresent && !bForcedPresent && World && World->IsGameWorld() && !IsDead() && !Boss->IsFighting()
+		&& StoryHolds(FightWhen))
+	{
+		BeginAscend();
 	}
 }
 
@@ -421,19 +428,22 @@ void AAbelKeeper::Tick(float DeltaSeconds)
 	{
 		TickWind(DeltaSeconds);
 	}
+	// The furnace's part (its tendrils, the drink, the call-backs, his smog): after his moment has placed him this frame.
+	Corruption->Advance(DeltaSeconds);
 }
 
 bool AAbelKeeper::IsCriticalSpot(const FHitResult& Hit) const
 {
-	// "His lantern arm covers it while he fights; it is open only when he grieves" (and while a pull stuns him).
+	// His lantern arm covers it while he fights; it is open only as he turns to the six dead, as a pull stuns him, or staggered.
 	return IsCoalOpen() && Super::IsCriticalSpot(Hit);
 }
 
 void AAbelKeeper::UpdateDeathLook(float DeltaSeconds)
 {
-	// He doesn't fade: he kneels, and his coal sinks to an ember.
-	PhaseAmount = 0.f;
-	Heat = FMath::FInterpTo(Heat, EmberHeat, DeltaSeconds, 1.5f);
+	// He doesn't fade: he kneels, and his coal sinks to an ember; only the scene fades him, into his own lantern.
+	PhaseAmount = SceneFade;
+	// Freed in the scene his coal burns again, warm and gold (the saint's colour), not the sunk ember of his kneel.
+	Heat = FMath::FInterpTo(Heat, Move == EAbelMove::Scene ? 0.25f : EmberHeat, DeltaSeconds, 1.5f);
 }
 
 void AAbelKeeper::GetExtraRigBones(TArray<FName>& OutBones) const
@@ -471,16 +481,4 @@ FVector AAbelKeeper::GetFogSpot() const
 		return FogSpot;
 	}
 	return GetHome().GetLocation() + GetSunsetDirection() * FogDistance + FVector(0.0, 0.0, FogRise);
-}
-
-bool AAbelKeeper::GetBoardPlace(FVector& OutLocation, float& OutYaw) const
-{
-	if (!OnBoard)
-	{
-		return false;
-	}
-	// His feet on the board, his middle a scaled half height over them, facing as the board's seat faces.
-	OutLocation = OnBoard->GetActorLocation() + FVector(0.0, 0.0, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-	OutYaw = static_cast<float>(OnBoard->GetActorRotation().Yaw);
-	return true;
 }

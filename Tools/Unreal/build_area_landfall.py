@@ -839,8 +839,10 @@ def plan_moored(build, plan):
     return True
 
 
-def hull_clear(a, b):
-    """Whether the hull can sail the segment a -> b (pivots): its keel, bag top and both sides."""
+def hull_clear(a, b, ignore=()):
+    """Whether the hull can sail the segment a -> b (pivots): its keel, bag top and both sides. ignore: actors the sweep
+    looks through (the ship herself, once she's placed: a course that starts or ends over her mooring runs through her
+    own bag)."""
     d = flat((b[0] - a[0], b[1] - a[1]))
     across = (-d[1], d[0])
     half = SHIP['beam'] * 0.5
@@ -848,7 +850,7 @@ def hull_clear(a, b):
                (across[0] * half, across[1] * half, SHIP['deck_over_pivot']),
                (-across[0] * half, -across[1] * half, SHIP['deck_over_pivot']))
     for ox, oy, oz in offsets:
-        if blocked_line((a[0] + ox, a[1] + oy, a[2] + oz), (b[0] + ox, b[1] + oy, b[2] + oz)):
+        if blocked_line((a[0] + ox, a[1] + oy, a[2] + oz), (b[0] + ox, b[1] + oy, b[2] + oz), ignore=ignore):
             return False
     return True
 

@@ -25,7 +25,17 @@ if ($CsvPath) {
     if ($Exec) { $commands += $Exec.Split(',') | ForEach-Object { $_.Trim() } }
     if ($commands) { $gameArgs += " -ExecCmds=`"$($commands -join ',')`"" }
     $proc = Start-Process "$engine\Engine\Binaries\Win64\UnrealEditor.exe" -ArgumentList $gameArgs -PassThru
-    if (-not $proc.WaitForExit(900000)) { $proc.Kill(); "The game did not exit in time."; exit 2 }
+    # The Zen cache's "keep waiting?" box stalls a -game start as it does the editor's (2026-11-01: two runs hung on it
+    # until the 15-minute limit): answer it while the game runs, as launch.ps1 does.
+    $waited = 0
+    while (-not $proc.WaitForExit(5000)) {
+        & "$PSScriptRoot\zenwait.ps1" | Out-Null
+        $waited += 5
+        # The CSV written, a game that then hangs on its way out (DDC maintenance, 2026-11-01) is stopped: the capture is done.
+        $written = $csvDirs | Where-Object { Test-Path $_ } | ForEach-Object { Get-ChildItem $_ -Filter *.csv } | Where-Object { $before -notcontains $_.FullName }
+        if ($written -and ((Get-Date) - ($written | Sort-Object LastWriteTime | Select-Object -Last 1).LastWriteTime).TotalSeconds -gt 30) { $proc.Kill(); break }
+        if ($waited -ge 900) { $proc.Kill(); "The game did not exit in time."; exit 2 }
+    }
     $csv = $csvDirs | Where-Object { Test-Path $_ } | ForEach-Object { Get-ChildItem $_ -Filter *.csv } | Where-Object { $before -notcontains $_.FullName } | Sort-Object LastWriteTime | Select-Object -Last 1
     if (-not $csv) { "No CSV was written."; exit 3 }
 }

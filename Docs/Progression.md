@@ -152,7 +152,8 @@ the Sink as the Foreman is over the mine. No Restless creature anywhere is above
 
 ## Givers and turn-ins (Borderlands' way)
 
-Every mission but Main 1 is **picked up from a giver** (the user's call, 2026-10-13): a ? over them once the mission
+Every mission but Main 1 and Paid on Delivery (no card by design: it starts itself after Main 6, MAINS_2_7 section 12;
+`Looter.Missions.Definitions` names it) is **picked up from a giver** (the user's call, 2026-10-13): a ? over them once the mission
 before it is turned in; talked to, their offer's lines and the offer card (or the card alone from a board or a found
 artifact). A mission whose objectives are all done is **ready to turn in**: the tracker says "Turn in to <giver>", a !
 over them; talking to them finishes it (the experience, the purse, the reward gun at the player's feet, MISSION COMPLETE)
@@ -169,18 +170,29 @@ and any mission they offer next is offered straight after, as one conversation. 
 | Calder's Caches | Ruth Calder's note | Main 3 | the Rim Rangers' board | 250 | 30 | — |
 | The Old Fare | Mr. Sloane, through his door | Main 3 | Josiah Fenn, in his coffin | 450 | 30 | Rare Drover |
 | Lost and Found (2026-10-27) | Mr. Sloane, at his ticket window | the Old Fare | Mr. Sloane (opens Lost Property) | 150 | 20 | — |
-| Main 4, Hallowed Ground | Tilly | Main 3 | Father Aldana, at the vestry door | 1,300 | 40 | — |
+| Main 4, A Coal Under Ash | Tilly | Main 3 | Father Aldana, at the vestry door | 1,000 | 40 | — |
 | Side 2, Unfinished Business | Amos, at his fence | Main 4 | Amos | 600 | 60 | Epic |
 | Knocking Below | Tilly | Main 4 | Tilly | 600 | 40 | Rare |
-| Main 5, The Keeper's Lantern | Father Aldana | Main 4 | Father Aldana | 3,000 | 50 | — |
+| Main 5, Choke Point | Father Aldana | Main 4 | Brother Finch, at the Reliquary | 1,400 | 50 | — |
 | Side 3, The Gravemother | the sheriff's bounty on the Rangers' board | Main 5 | Mrs. Pruitt, at the store's hatch | 900 | 80 | (her Legendary table) |
 | **Dead Lift** (main since 2026-10-27) | Hiram Coyle, in the winch house (met) | Main 5 | Hiram, up the speaking tube | 5,000 | 40 | Rare rifle |
 | The Last Watch | the board at Calder's Post | Dead Lift | the post's board | 900 | 60 | (Calder's fourth cache) |
 | **Back Pay** (main since 2026-10-27) | Hiram, at the lift head's speaking tube (met) | Dead Lift | the tag board: pay the eleven, or keep the payroll | 6,500 | 0 / 400 | Rare / — |
-| Main 6, The Gravewind | Delia | Back Pay | nobody: finishes as Pa sits down | 5,000 | — | (Abel's loot) |
-| Main 7, The Lantern Leans | Pa, on his board | Main 6 | Tilly | 4,500 | 60 | (Heirloom, by hand) |
+| Main 6, The Pilot Light (2026-11-01, lane MAIN67) | Captain Holloway, at the Lamplighter's wheel | Back Pay | Holloway, at the wheel | 3,000 | 50 | — |
+| Paid on Delivery (2026-11-01, lanes/SECRETS.md) | none: starts when Main 6 is done | Main 6 | Mister Sexton, at his ferry (the barge manifest) | 150 | — | Rare gun; his secrets a quarter off |
+| Main 7, Given to the Wind (lane MAIN67) | Holloway (one conversation) | Main 6 | Delia, at the chapel door | 3,000 | 60 | (Abel's loot; Heirloom, by hand) |
 
-Main missions **27,300 XP** in all (nine), side missions **4,150** (eight). Raised on 2026-10-27 (STORY round 3, the
+Mains 6-7 (2026-11-01, lane MAIN67; `Docs/Work/2026-10-31-Wardens/lanes/MAIN67.md` "Pacing"): the barge's 20 Dredgers and
+the Hallowed Chief Stoker (level 7) join Main 6, Abel and his adds move to Main 7 with the west road's 5 Dredgers; Main 6
+5,000 → 3,000, Main 7 4,500 → 3,000 (trim mission XP, not kills). Paper: story about 6.99, everything about 7.68; the
+missions' share of the story's experience falls to about half (51%; the user lowered the test's floor from three fifths to
+half, 2026-11-01). Re-copy the tables below from `Looter.Progression.Pacing` once it runs.
+
+Main missions **25,050 XP** in all (nine), side missions **4,300** (nine, with Paid on Delivery's 150). Trimmed on
+2026-11-01 (MAINS_2_7 section 15: mission XP, not kills) when Mains 4-5's Dredgers (+17 kills) put everything once at
+7.76 and the explorer at the Foreman at 6.54: Main 4 1,300 → 1,000, Main 5 3,000 → 1,400, Paid on Delivery 300 → 150
+(paper: story about 6.93, missions about 61%; everything about 7.66, the Foreman met about 6.4; re-copy the tables below
+from the test's log once it runs). Raised on 2026-10-27 (STORY round 3, the
 mine in the story: Main 5 2,200, Dead Lift 1,000, Back Pay 1,300, Main 6 4,400, Main 7 4,100 before; Lost and Found new)
 so a player arrives near each boss's level. Trimmed on 2026-10-21 (FIGHT-LAYOUT) to hold the two ends
 when the user's bigger fights (6-10 a fight, three set pieces) put more kills on every path: they were 15,700 and 8,850
@@ -197,7 +209,7 @@ mission assets' rewards, the creatures' own numbers, the layout's levels and enc
 counted with its groups). Kills one at a time at the level the ones before left the player on, each averaged over the
 levels where it stands and the area's promotions (8% Restless, 2% Gravebound, 0.4% Hallowed, 0.08% Ethereal) as the game
 rolls them; then the turn-in. It fails outside **6.7-7.1** for the story alone and **7.3-7.7** for everything (5.3-5.8
-and 6.6-7.0 before the mine joined the story, 2026-10-27; the test's 2026-11-01 sums: 6.99 and 7.70), if the missions give under three fifths of the story's
+and 6.6-7.0 before the mine joined the story, 2026-10-27; the test's 2026-11-01 sums: 6.99 and 7.70), if the missions give under half (the user, 2026-11-01; three fifths before) of the story's
 experience, or if a boss is met off its level: the story alone meets the Foreman and Abel no more than 1.25 levels under
 and never over, everything once meets each boss at most half a level over (`FPathResult::Arrivals`).
 
@@ -216,9 +228,9 @@ roaming dead once (boot hill's, the north road's, the west road's walkers).
 | Main 1, Landfall | the Lamplighter's deck (1-2): 3 Dredger riflemen, 1 hose-man; the Mooring Ledge (1-2): 4 Unpaid; Delia's porch (1-2): 3 riflemen, 2 hose-men, 3 Unpaid (the tender's 2 riflemen fall with it, uncounted) | 342.0 | 450 | 792.0 | 1.74 |
 | Main 2 | the Three Widows' nest (1-2): 4 spiders, 1 Restless; the boards' crew on Gravewind Point's deck (level 2): 3 Dredger riflemen, 1 hose-man, 4 Unpaid from the cart's spill (+8 at level 2; Wardens story, 2026-11-01) | 355.5 | 400 | 1,547.5 | 2.18 |
 | Main 3 | the Company's checkpoint at the town gate (2-3): 3 Dredger riflemen, 1 hose-man, 2 Unpaid, 1 Restless (was 7 Unpaid); Main Street (2-3): 6 Unpaid, 1 Restless, a Bell-Ringer, +2 riflemen with the second push | 730.0 | 800 | 3,077.5 | 2.76 |
-| Main 4 | the chapel yard (3-4): 15 Unpaid, 1 Restless | 1,077.5 | 1,300 | 5,455.0 | 3.36 |
+| Main 4 | Saint Ada's Yard (3-4): 13 Unpaid, the Gravebound Leftover, the crew's 2 hose-men; the tender's drop (level 3-4): 4 riflemen, 2 hose-men (lane MAIN45, 2026-11-01; 22 kills, was 16; kill XP and sums to re-copy from `Looter.Progression.Pacing`) | 1,358.0 | 1,000 | 5,435.5 | 3.4 |
 | (roaming) | boot hill, the north road (3-4): 10 Unpaid; the west road (4-5): 5 Unpaid | 1,343.1 | | 6,798.1 | 3.64 |
-| Main 5 | the churchyard (3-4): 6 Unpaid, 1 Restless, a Bell-Ringer; the Sink (4-5): 12 spiders | 1,277.8 | 3,000 | 11,075.9 | 4.33 |
+| Main 5 | the churchyard (3-4): 6 Unpaid, 1 Restless, a Bell-Ringer; the Sink (4-5): 12 spiders, 3 more down the ramp, the intake's drops: 4 riflemen, 2 hose-men (lane MAIN45, 2026-11-01; +9 kills; kill XP and sums to re-copy) | 2,064.9 | 1,400 | about 10,240 | about 4.35 |
 | Dead Lift | the quarry floor (5-6): the lift crew 5 and Abe Haskett (Restless), the raising steam 4 spiders, 2 Spitters, 2 miners | 1,268.0 | 5,000 | 17,343.9 | 5.11 |
 | Back Pay | the spoil heap 6, the upper gallery 7 + 1, the lower drift 7 + 1 + a Bell-Ringer (5-6); the Foreman (6: 946, met at 5.27) and his 6; the cave-in 9 + 1 | 4,820.0 | 6,500 | 28,663.9 | 6.11 |
 | Main 6 | the sheep fold (4-5): 6; about 12 of Abel's adds (5-6) and Abel (7: 2,066, met at 6.12) | 3,368.5 | 5,000 | 37,032.4 | 6.68 |
@@ -242,12 +254,12 @@ rest of the mountain before Main 6), their fights, and every optional camp, patr
 | The Old Fare | the depot's waiting room (2-3) and its second push: 15 | 485.5 | 450 | 5,240.5 | 3.31 |
 | Lost and Found | none | 0.0 | 150 | 5,390.5 | 3.35 |
 | Boot Hill's Gravepickers (placeholders) | 6 placeholder creatures at boot hill | 324.0 |  | 5,714.5 | 3.41 |
-| Main 4 | the chapel yard: 30 kills in all | 1,771.5 | 1,300 | 8,786.0 | 4.03 |
+| Main 4 | the chapel yard and the tender's drop: 34 kills in all | 2,052.0 | 1,000 | about 8,770 | about 4.0 |
 | Stone Sentinels, the keeper's road's hounds | 9 kills | 1,185.1 |  | 9,971.1 | 4.19 |
 | Side 2, Unfinished Business | Amos's hands (3-4): 11 | 568.0 | 600 | 11,139.1 | 4.34 |
 | Knocking Below | Tilly's cellar (3-4): 10 | 386.5 | 600 | 12,125.6 | 4.47 |
 | (roaming) | as above | 1,320.7 |  | 13,446.3 | 4.65 |
-| Main 5 | the Webwood's set piece (5-6, optional: 8 spiders, 2 Spitters), the churchyard, the Sink: 39 | 2,971.0 | 3,000 | 19,417.4 | 5.30 |
+| Main 5 | the Webwood's set piece (5-6, optional: 8 spiders, 2 Spitters), the churchyard, the Sink and the Intake's drops: 48 | 3,700.3 | 1,400 | about 18,530 | about 5.2 |
 | Side 3, The Gravemother | the Gravemother (6: 859, met at 5.30) and about 6 of her brood (4) | 1,129.0 | 900 | 21,446.4 | 5.49 |
 | Dead Lift | the lift crew and Abe Haskett, the raising steam, the crest's spiders (5-6): 19 | 1,741.4 | 5,000 | 28,187.7 | 6.08 |
 | The tramway's Knockers (placeholders) | 6 placeholder creatures at the tramway | 274.5 |  | 28,462.2 | 6.10 |
@@ -349,10 +361,10 @@ Strongbox's own roll. Repeatable: what an explorer's silver is for (Lost Propert
 | Side 1, Wanted: Already Dead | Tilly (the posters' reward money) | 50 |
 | Calder's Caches | the Rangers' board (the gang's banknotes, the Deacon's "kid's share") | 30 |
 | The Old Fare | Josiah Fenn (what was under him with the pistol) | 30 |
-| Main 4, Hallowed Ground | Father Aldana (the poor box) | 40 |
+| Main 4, A Coal Under Ash | Father Aldana (the poor box) | 40 |
 | Side 2, Unfinished Business | Amos (a season's wages) | 60 |
 | Knocking Below | Tilly (her father's box under the counter) | 40 |
-| Main 5, The Keeper's Lantern | Father Aldana | 50 |
+| Main 5, Choke Point | Father Aldana | 50 |
 | Side 3, The Gravemother | Mrs. Pruitt (the town's purse, the sheriff's bounty) | 80 |
 | Dead Lift | Hiram (the company's tool box at the lift head) | 40 |
 | The Last Watch | the post's board | 60 |

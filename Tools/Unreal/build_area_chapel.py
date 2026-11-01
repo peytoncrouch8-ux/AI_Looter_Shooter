@@ -1,4 +1,6 @@
-"""Main 4, "Hallowed Ground" (Docs/Areas/RansomsRest.md), for build_area_story.py: the story's pieces at the Chapel of
+"""Main 4, "A Coal Under Ash" (was "Hallowed Ground"; the Wardens story since 2026-11-01, MAINS_2_7.md section 6: the
+yard's two pushes with the crew's hose-men, the Reliquary whole; build_area_main4.py places the mission's new pieces: the
+window's hose and its cart, the tender's drop, the lychgate's loudspeaker, Finch), for build_area_story.py: the story's pieces at the Chapel of
 Saint Ada, placed from the chapel build_area.py placed (SM_Chapel, Art/Models/Buildings/Chapel.py: its sockets) and from
 the layout's zones, obstacles, roads and placements, so they follow the level whenever it's rebuilt. build_area_story's
 place() calls place() here (reloaded each run, as the editor keeps modules between runs) and gets Hob's two chapel perches
@@ -9,9 +11,9 @@ class isn't there yet is left out with a warning.
   within 15 m of it.
 - The chapel yard's fight (ASetPieceSpawner ChapelYard, "Saint Ada's Yard", since 2026-10-28 an arena: YARD_PUSHES, placed
   through build_area_fights_mountain.place_one) on the chapel's spot, turned as the chapel is, its creatures' spots round
-  the chapel in the chapel's own frame (YARD_SPOTS): three pushes, 6 Unpaid; 5 and a Restless leader; 4 and a Gravebound
-  leader (the Sexton's Debt), the Bell-Ringer on the vestry steps from the second, a fog gate across the fence's gateway
-  while it is fought, tagged Unpaid_ChapelYard. On during
+  the chapel in the chapel's own frame (YARD_SPOTS, YARD_HOSE_SPOTS): two pushes, 8 Unpaid; then 2 Dredger hose-men by
+  the window's cart, 5 Unpaid and a Gravebound leader (the Leftover), a fog gate across the fence's gateway while it is
+  fought, tagged Unpaid_ChapelYard. On during
   Main 4's second step only, springing as the player comes near, hunting only inside the churchyard's iron fence (the
   obstacle churchyardFence) and its 2 m margin. The yard is levelled on the knoll's top (layout churchyardPad, 7.5 m;
   2026-10-12: before, the knoll fell about 8 m from the chapel's door to the fence's far corners and the limits were 9 m
@@ -19,10 +21,9 @@ class isn't there yet is left out with a warning.
   floor, players up to 6 m.
 - The bell (AChapelBell tagged Bell_Chapel) at the rope's grip (SOCKET_Interact), its bell (SM_ChapelBell) hung on the
   belfry's SOCKET_Bell: "Ring the chapel bell", any time.
-- The smashed Reliquary (AChapelReliquary tagged Reliquary_Chapel) on the apse's plinth (SOCKET_Reliquary), facing the
-  nave, looked at from Main 4's fourth step on: its model (the first of RELIQUARY_MESHES imported: the art session's
-  Art/Models/Props/Reliquary.py, export family RR_Reliquary, with SOCKET_Ember and SOCKET_Interact), else the class's
-  stand-in.
+- Saint Ada's Reliquary, whole (AChapelReliquary tagged Reliquary_Chapel) on the apse's plinth (SOCKET_Reliquary),
+  facing the nave, her ember guttering in its lid, looked at from Main 4's fourth step on: its model (RELIQUARY_MESHES:
+  the user's Tripo whole Reliquary, with SOCKET_Ember and SOCKET_Interact), else the class's whole stand-in.
 - Father Aldana's vestry door (ASpeakerPoint tagged Speaker_Aldana) on SOCKET_Speaker: barred before the yard is quiet
   (and before Main 4), the bell and the Reliquary next, the doc's words at Main 4's last step, the Sink after, and the
   lantern found after Main 5 (take it home to Delia).
@@ -53,10 +54,12 @@ ALDANA_TAG = 'Speaker_Aldana'
 BOOT_HILL = 'BootHill'
 NORTH_ROAD = 'NorthRoad'
 
-# The models: the chapel's bell, and the smashed Reliquary. Its name is still to be confirmed by the art session: the
-# planned SM_Reliquary_Smashed, or SM_Reliquary as Reliquary.py names its object today; the first imported is used.
+# The models: the chapel's bell, and the Reliquary. Since A Coal Under Ash (2026-11-01, MAINS_2_7.md section 2) the
+# Reliquary is whole, guttering, never smashed: the user's Tripo model (TRIPO_MODELS.md "Mains 4-5" M45-1, the backlog
+# design unbroken, with SOCKET_Ember in the lid's recess and SOCKET_Interact at its front); until it's in, the class's own
+# whole stand-in (AChapelReliquary). SM_Reliquary_Smashed stays imported, unused.
 BELL_MESH = '/Game/Art/Buildings/SM_ChapelBell'
-RELIQUARY_MESHES = ('/Game/Art/Props/SM_Reliquary_Smashed', '/Game/Art/Props/SM_Reliquary')
+RELIQUARY_MESHES = ('/Game/Art/Tripo/SM_ReliquaryWhole',)
 
 # The chapel's own frame for the yard's spots (cm): +X its front (the tower, the door, the road), -X its apse, +Y the side
 # away from the vestry (the west grave rows), -Y the vestry's side (the east rows). The spots: the lawn before the door,
@@ -70,17 +73,24 @@ YARD_SPOTS = (
 )
 YARD_CLEAR = 150.0
 # Saint Ada's Yard (FIGHTS lane 6, 2026-10-28; the user: "clearly harder", an elite in most fights, Main's call: the arena at
-# the chapel yard only): the yard fight is a set piece in three pushes of Unpaid that rise from the yard's spots (indexes into
-# YARD_SPOTS): 6; then 5 and a Restless leader; then 4 and a Gravebound leader, "the Sexton's Debt" (17 in all, the Bell-Ringer
-# on the vestry steps from the second push besides: 18). At most 9 out at once; the next push comes when 3 are left or 35 s
-# after the last. A fog gate shuts the iron fence's gateway (the south side, before the chapel's door) once the player is
-# inside, and opens when the Unpaid are down or the player dies; the shower is the set piece's own (2 guns, 2 ammo, a box).
+# the chapel yard only): the yard fight is a set piece in pushes that rise from the yard's spots (indexes into YARD_SPOTS).
+# A Coal Under Ash (2026-11-01, lane MAIN45; MAINS_2_7.md section 6): two pushes, 16 in all. First the eight dead the
+# Company's crew spilled; then the crew's two hose-men working the hose at the side window (the push's first spots, by the
+# window: YARD_HOSE_SPOTS), five more dead and the Gravebound leader, renamed "the Leftover" (Sexton isn't a villain now;
+# MAINS_2_7 section 2). The Bell-Ringer is gone from the yard: the bell is Sully's to ring now (he stays on Main Street's
+# balcony, the depot and Barn Doors). At most 9 out at once; the next push comes when 3 are left or 35 s after the last. A
+# fog gate shuts the iron fence's gateway (the south side, before the chapel's door) once the player is inside, and opens
+# when the yard is down or the player dies; the shower is the set piece's own (2 guns, 2 ammo, a box).
 YARD_PUSHES = (
-    # (Basic Unpaid, the leader's rank or None, the leader's name or None, the push's spots)
-    (6, None, None, [0, 1, 2, 3, 4, 9]),
-    (5, 'Rare', None, [5, 10, 7, 8, 4, 9]),
-    (4, 'Epic', "the Sexton's Debt", [6, 7, 8, 0, 1]),
+    # (Basic Unpaid, the leader's rank or None, the leader's name or None, the push's spots, Dredger hose-men first)
+    (8, None, None, [0, 1, 2, 3, 4, 9, 5, 10], 0),
+    (5, 'Epic', 'the Leftover', [11, 12, 6, 7, 8, 0, 1, 2], 2),
 )
+# The hose-men's spots (the chapel's frame, cm; appended to YARD_SPOTS as 11 and 12): either side of the hose's cart
+# (build_area_main4.CART_AT (-440, 950), its reel toward the side window the hose runs in at, WINDOW (-440, 320)), clear of
+# its 2.5 m bed and of spot 5 by the wall, in the west lane: the first grave row stands at Y 790-810 here, so Y 700 had
+# its headboards within 1.5 m (the 2026-11-01 gameplay pass); Y 620 keeps YARD_CLEAR from them and 2 m off the cart's bed.
+YARD_HOSE_SPOTS = ((-150.0, 620.0), (-730.0, 620.0))
 YARD_MAX_ALIVE = 9
 YARD_PUSH_WHEN_LEFT = 3
 YARD_PUSH_AFTER = 35.0
@@ -101,15 +111,14 @@ VESTRY_FALLBACK = (-200.0, -1050.0)
 YARD_STEP = 400.0
 YARD_RISE = 600.0
 # Hob's words for it (the beats' speaker; a caption), and the cues each push comes with (existing cues).
+# (A Coal Under Ash, 2026-11-01: each line a reason, under 90 characters.)
 YARD_BEATS = (
-    dict(wave=1, speaker='Hob', line='They were waiting in the graves, sunshine. And the fog has shut the gate behind you. Hold the yard.',
+    dict(wave=1, speaker='Hob', line="The crew spilled her dead in the yard, sunshine. Fog's shut the gate. Hold it.",
          sting='Boss.Phase', cue='Creature.Unpaid.Shriek', shake=0.2, shakeSeconds=0.6),
-    dict(wave=2, speaker='Hob', line='Bell-ringer on the vestry steps! He keeps them coming. Drop the loud one first, sunshine.',
-         sting='Creature.RankSting', shake=0.15, shakeSeconds=0.5),
-    dict(wave=3, speaker='Hob', line="That's the Sexton's Debt walking up. Put him down and the rest lose their nerve.",
-         sting='Boss.Phase', cue='Boss.Gravemother.Quake', shake=0.3, shakeSeconds=0.8),
+    dict(wave=2, speaker='Hob', line="Hose-men at her window! Drop them, or that hose drinks her dry.",
+         sting='Boss.Phase', cue='Creature.Dredger.Bark', shake=0.3, shakeSeconds=0.8),
 )
-YARD_CLEARED = dict(speaker='Hob', line='Fog is lifting. Quiet as a church, sunshine. Go knock on the vestry door.', cue='Boss.Loot.Burst')
+YARD_CLEARED = dict(speaker='Hob', line='Fog is lifting. Quiet as a church, sunshine.', cue='Boss.Loot.Burst')
 
 # The roaming Unpaid after Main 4: how many Basic-or-promoted ones on each stretch (and a Restless leader on top: six),
 # how far the north road's runs round its spawner, and how far each spreads them out (cm).
@@ -187,9 +196,12 @@ def yard_entry(chapel, fence):
     setPiece block: build_area_setpieces.py): three pushes of Unpaid with their leaders, the Bell-Ringer from the second,
     the fog gate across the fence's gateway, Hob's words. Its spots are the chapel's, turned as it is."""
     at = chapel.get_actor_location()
-    spots = [chapel_point(chapel, x, y) for x, y in YARD_SPOTS]
+    spots = [chapel_point(chapel, x, y) for x, y in YARD_SPOTS + YARD_HOSE_SPOTS]
     groups, beats = [], []
-    for wave, (basic, leader_rank, leader_name, indexes) in enumerate(YARD_PUSHES, start=1):
+    for wave, (basic, leader_rank, leader_name, indexes, hosemen) in enumerate(YARD_PUSHES, start=1):
+        # The crew's hose-men first, so they take the push's first spots (by the window's cart); counted by the spawner.
+        if hosemen:
+            groups.append({'class': 'DredgerHoseMan', 'count': hosemen, 'rank': 'Basic', 'firstWave': wave, 'lastWave': wave})
         groups.append({'class': 'UnpaidCreature', 'count': basic, 'rank': 'Basic', 'firstWave': wave, 'lastWave': wave})
         if leader_rank:
             leader = {'class': 'UnpaidCreature', 'count': 1, 'rank': leader_rank, 'firstWave': wave, 'lastWave': wave, 'leader': True}
@@ -211,7 +223,8 @@ def yard_entry(chapel, fence):
             'doneFlag': 'SetPiece.ChapelYard', 'waves': len(YARD_PUSHES), 'pushWhenLeft': YARD_PUSH_WHEN_LEFT,
             'pushAfter': YARD_PUSH_AFTER, 'springRadius': YARD_SPRING,
             'beats': beats, 'cleared': dict(YARD_CLEARED),
-            'placed': [{'class': 'BellRingerCreature', 'rank': 'Basic', 'wave': 2, 'at': vestry_steps(chapel)}],
+            # (The Bell-Ringer on the vestry steps went with Hallowed Ground, 2026-11-01: vestry_steps stays for a later use.)
+            'placed': [],
             'reward': chapel_point(chapel, 700.0, 0.0),
             'arena': {'gates': [[list(a), list(b)] for a, b in YARD_GATES], 'margin': YARD_GATE_MARGIN},
         },
@@ -220,16 +233,17 @@ def yard_entry(chapel, fence):
 
 def place_yard(build, chapel):
     """The chapel yard's fight as the set piece Saint Ada's Yard (spawner id ChapelYard, the missions' and the tests' name
-    for it): 17 Unpaid in three pushes with a Restless and a Gravebound leader, a Bell-Ringer from the second, a fog gate."""
+    for it): 16 in two pushes (eight Unpaid; two hose-men, five Unpaid and the Gravebound Leftover), a fog gate."""
     fence = story.layout_entry(build, 'obstacles', 'churchyardFence')
     if fence is None:
         build.warn('no churchyardFence in the layout: no fight in the chapel yard')
         return
     fights = importlib.reload(importlib.import_module('build_area_fights_mountain'))
     fights.place_one(build, yard_entry(chapel, fence), None)
-    unpaid = sum(basic + (1 if rank else 0) for basic, rank, _, _ in YARD_PUSHES)
-    build.log(f"the chapel yard's set piece ({YARD}: {unpaid} Unpaid in {len(YARD_PUSHES)} pushes and a Bell-Ringer, a fog gate "
-              f"at the fence's gateway) round the chapel, inside the churchyard fence, during {MAIN4}'s second step")
+    unpaid = sum(basic + (1 if rank else 0) for basic, rank, _, _, _ in YARD_PUSHES)
+    hosemen = sum(push[4] for push in YARD_PUSHES)
+    build.log(f"the chapel yard's set piece ({YARD}: {unpaid} Unpaid and {hosemen} hose-men in {len(YARD_PUSHES)} pushes, a "
+              f"fog gate at the fence's gateway) round the chapel, inside the churchyard fence, during {MAIN4}'s second step")
     check_yard_clear(build, chapel)
 
 
@@ -242,7 +256,7 @@ def check_yard_clear(build, chapel):
     at = chapel.get_actor_location()
     yaw = math.radians(chapel.get_actor_rotation().yaw)
     spots = [(at.x + math.cos(yaw) * x - math.sin(yaw) * y, at.y + math.sin(yaw) * x + math.cos(yaw) * y)
-             for x, y in YARD_SPOTS]
+             for x, y in YARD_SPOTS + YARD_HOSE_SPOTS]
     crowded = []
     for x, y, piece_yaw, half_y, half_x, line in dressing.footprints(build.source, build.layout['placements']):
         if line:
@@ -282,7 +296,8 @@ def place_bell(build, chapel):
 
 
 def place_reliquary(build, chapel):
-    """The smashed Reliquary on the apse's plinth, facing the nave: its model when imported, else its stand-in."""
+    """Saint Ada's Reliquary, whole, on the apse's plinth, facing the nave: its model when imported, else its stand-in.
+    Her ember gutters in its lid's recess (AChapelReliquary's own: a coal under ash) and flares once when looked at."""
     cls = story.actor_class('ChapelReliquary')
     plinth = story.socket(chapel, 'Reliquary')
     if cls is None or plinth is None:
@@ -298,13 +313,13 @@ def place_reliquary(build, chapel):
     if model:
         reliquary.get_editor_property('mesh').set_static_mesh(unreal.load_asset(model))
     else:
-        build.warn(f'no {" or ".join(RELIQUARY_MESHES)} yet (Art/Models/Props/Reliquary.py, the art session\'s): the '
+        build.warn(f'no {" or ".join(RELIQUARY_MESHES)} yet (the Tripo whole Reliquary, TRIPO_MODELS.md M45-1): the '
                    f'Reliquary stands in plain shapes until it\'s imported and this runs again')
     # From Main 4's fifth step on (from 0: 4; the knock at Aldana's door is the third, the bell the fourth). Set last, so
     # the editor builds it again and shows what play will.
     reliquary.set_editor_property('look_when', story.condition(during=MAIN4, from_step=4))
-    build.log(f'the smashed Reliquary ({model or "its stand-in"}) on the plinth at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f}), '
-              f'looked at from {MAIN4}\'s fifth step')
+    build.log(f'Saint Ada\'s Reliquary, whole ({model or "its stand-in"}), on the plinth at ({at.x:.0f}, {at.y:.0f}, '
+              f'{at.z:.0f}), looked at from {MAIN4}\'s fifth step')
 
 
 def place_aldana(build, chapel):

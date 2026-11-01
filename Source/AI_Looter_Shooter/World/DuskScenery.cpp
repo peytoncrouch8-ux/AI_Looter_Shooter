@@ -71,6 +71,6 @@ void ADuskScenery::OnLightingChanged(const FLightingStateChange& Change)
 void ADuskScenery::ApplyState(FName State)
 {
 	// FName equality ignores case, as the console's state names do.
-	bShownNow = !State.IsNone() && State == ShownState;
+	bShownNow = !State.IsNone() && (State == ShownState || AlsoShownStates.Contains(State));
 	SetActorHiddenInGame(!bShownNow);
 }

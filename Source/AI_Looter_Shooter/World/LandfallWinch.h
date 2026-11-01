@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interaction/Interactable.h"
+#include "Story/StoryCondition.h"
 #include "LandfallWinch.generated.h"
 
 class ALamplighterShip;
@@ -18,6 +19,11 @@ class UStaticMeshComponent;
  * Placed on the ledge by WORLD's build script (or spawned by the ship beside her gangway when the level has none); it
  * finds the ship itself. Stand-in look: a timber block, an iron drum and a crank arm built from engine shapes, the chain a
  * stretched iron cylinder (paths in the .cpp; the Tripo anchor winch replaces them).
+ *
+ * Main 6 (2026-11-01, "The Pilot Light", step 0): the same winch casts her off. While CastOffWhen holds (build_area_main6_
+ * sortie.py: Main 6's first step) and she's anchored with the level's sortie waiting, a hold ("Cast off") turns the crank
+ * the other way, the chain clatters in off her hull, and the sortie lifts her off the ledge with the player aboard. The
+ * missions hear the held use of Landfall_AnchorWinch as Main 1's anchor step does.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALandfallWinch : public AActor, public IInteractable
@@ -43,6 +49,19 @@ public:
 
 	/** It can be wound now: her down on the ledge, not anchored. */
 	bool CanWind() const;
+
+	/** It casts her off now: CastOffWhen holds, she's moored and anchored, and the level's sortie is waiting to fly her. */
+	bool CanCastOff() const;
+
+	/** Casts her off as the player's hold does: the chain in, the sortie told. False when it can't now (bForce: whatever the story). */
+	bool CastOff(bool bForce = false);
+
+	/** Main 6's cast-off is offered while this holds (its first step). Empty: never (Landfall's winch only drops the anchor). */
+	UPROPERTY(EditAnywhere, Category = "Winch")
+	FStoryCondition CastOffWhen;
+
+	UPROPERTY(EditAnywhere, Category = "Winch")
+	FText CastOffPrompt;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<USceneComponent> Root;

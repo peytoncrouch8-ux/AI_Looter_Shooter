@@ -31,7 +31,7 @@ namespace LanternLean
  * flame leans north-east, over the ridges", toward Lucky Ned Purcell and the Gilded Lily). The lantern's own glass glows
  * (its LanternGlow slot) and has no flame in it, so this draws one: a few crossed glow cards (M_FX_Glow, the gunfire's
  * additive glow; one instanced draw) standing on its SOCKET_Light, the wick, leaned toward Bearing in the world whichever
- * way the lantern hangs. It shows while ShownWhen holds (after Main 6, when Abel has lit the lantern), and is gone before.
+ * way the lantern hangs. It shows while ShownWhen holds (after Main 7, when Abel has lit the lantern), and is gone before.
  *
  * Tools/Unreal/build_area_depot.py hangs it in the Keeper's Lantern where Main 6 leaves it lit (on the keeper's post on the
  * burial deck, AKeeperLanternPost, which tilts the lantern itself on its hook toward the same bearing), attached there so

@@ -283,10 +283,60 @@ void AKeeperLanternPost::ApplyLantern()
 {
 	ApplyGlass(Post, !bDark, PostGlow);
 	PostLight->SetVisibility(bCastsLight && !bDark);
-	KeepersLantern->SetVisibility(bHung);
-	ApplyGlass(KeepersLantern, bLanternLit, LanternGlow);
-	KeepersLight->SetVisibility(bHung && bLanternLit);
+	const bool bOnHook = bHung && !bTakenDown;
+	KeepersLantern->SetVisibility(bOnHook);
+	// Lit, or warmed a third at a time by the call-backs (his soul coming home to it): its glass glows, its light a share of lit.
+	const float Glow = bLanternLit ? FMath::Max(CallGlow, 1.f) : CallGlow;
+	ApplyGlass(KeepersLantern, Glow > 0.01f, LanternGlow);
+	KeepersLight->SetVisibility(bOnHook && Glow > 0.01f);
+	KeepersLight->SetIntensity(KeepersCandela * FMath::Max(Glow, 0.f));
 	FitToModel();
+}
+
+void AKeeperLanternPost::SetCallGlow(float Share)
+{
+	const float Wanted = FMath::Max(Share, 0.f);
+	if (FMath::IsNearlyEqual(Wanted, CallGlow, 0.005f))
+	{
+		return;
+	}
+	CallGlow = Wanted;
+	ApplyLantern();
+}
+
+void AKeeperLanternPost::OpenCallBack(float HoldSeconds, const FText& Prompt)
+{
+	bCallBackOpen = true;
+	CallBackSeconds = FMath::Max(HoldSeconds, 0.1f);
+	CallBackPrompt = Prompt;
+}
+
+void AKeeperLanternPost::CloseCallBack()
+{
+	bCallBackOpen = false;
+}
+
+bool AKeeperLanternPost::CallBack(AActor* ByWhom)
+{
+	if (!bCallBackOpen)
+	{
+		return false;
+	}
+	bCallBackOpen = false;
+	UE_LOG(LogLooter, Log, TEXT("%s: Abel called back at the keeper's post%s."), *GetActorNameOrLabel(),
+		ByWhom ? *FString::Printf(TEXT(" by %s"), *ByWhom->GetName()) : TEXT(""));
+	OnCalledBack.Broadcast(*this);
+	return true;
+}
+
+void AKeeperLanternPost::TakeDownLit()
+{
+	bHung = true;
+	bLanternLit = true;
+	bTakenDown = true;
+	bCallBackOpen = false;
+	ApplyLantern();
+	UE_LOG(LogLooter, Log, TEXT("%s: the Keeper's Lantern taken down off the hook, lit, to be carried home."), *GetActorNameOrLabel());
 }
 
 void AKeeperLanternPost::SetDark(bool bInDark)
@@ -365,10 +415,17 @@ void AKeeperLanternPost::RefreshStory()
 	{
 		const bool bStoryHung = HungWhen.ContainsByPredicate([this](const FStoryCondition& When) { return !When.IsEmpty() && StoryHolds(When); });
 		const bool bStoryLit = !LitWhen.IsEmpty() && StoryHolds(LitWhen);
+		const bool bStoryGone = GoneWhen.ContainsByPredicate([this](const FStoryCondition& When) { return !When.IsEmpty() && StoryHolds(When); });
+		const bool bAtHanging = !HangWhen.IsEmpty() && StoryHolds(HangWhen);
 		// Hung by the story, or hung here this visit; but the story gone back to its hanging step (the console starting Main
-		// 6 over) takes it down again.
-		bHung = bStoryHung || bStoryLit || (bHung && !(!HangWhen.IsEmpty() && StoryHolds(HangWhen)));
+		// 7 over) takes it down again. Carried off (Main 7 from its carry step on), the hook is empty.
+		bHung = !bStoryGone && (bStoryHung || bStoryLit || (bHung && !bAtHanging));
 		bLanternLit = bStoryLit || (bLanternLit && bHung);
+		bTakenDown = bStoryGone || (bTakenDown && !bAtHanging);
+		if (bAtHanging)
+		{
+			CallGlow = 0.f;
+		}
 	}
 	ApplyLantern();
 }
@@ -386,6 +443,16 @@ FInteractionOptions AKeeperLanternPost::GetInteractionOptions(const UInteraction
 {
 	FInteractionOptions Options;
 	Options.Reach = Reach;
+	if (bCallBackOpen)
+	{
+		// Calling Abel back (his bar locked, him knelt): a hold, under fire, so a stray tap does nothing. First: a dark lantern
+		// waits for it (the call opens only with him on the deck).
+		Options.bTap = false;
+		Options.bHold = true;
+		Options.HoldSeconds = CallBackSeconds;
+		Options.HoldPrompt = CallBackPrompt.IsEmpty() ? NSLOCTEXT("LooterAbel", "CallBack", "Call him back") : CallBackPrompt;
+		return Options;
+	}
 	if (bDark)
 	{
 		// Relit under pressure: a hold, so a stray tap in the fight does nothing.
@@ -407,6 +474,10 @@ FInteractionOptions AKeeperLanternPost::GetInteractionOptions(const UInteraction
 
 bool AKeeperLanternPost::Interact(UInteractionComponent& User, bool bHeld)
 {
+	if (bCallBackOpen)
+	{
+		return bHeld && CallBack(User.GetOwner());
+	}
 	if (bDark)
 	{
 		return bHeld && Relight(User.GetOwner());

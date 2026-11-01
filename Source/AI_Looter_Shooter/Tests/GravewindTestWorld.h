@@ -1,9 +1,10 @@
 #pragma once
 
-// What the Main 6 tests ("The Gravewind": GravewindTests.cpp) build in their test levels: Main 6 as the mission script makes
-// it (Tools/Unreal/create_mission_assets.py), Delia's door with its Main 6 topic, the keeper's post and the lighting as the
-// build script sets them up (Tools/Unreal/build_area_deck.py, build_area_farm.py), a level lit in Day with a Dusk to
-// switch to; and the ids, tags and words they're found by.
+// What the Gravewind tests (GravewindTests.cpp: Abel's fight on the burial boards, Main 7 "Given to the Wind" since
+// 2026-11-01; it was Main 6 "The Gravewind") build in their test levels: Main 7's fight steps as the mission script makes them
+// (Tools/Unreal/create_mission_assets.py; its carry and Reliquary steps are stand-ins here: lane W5 tests them), the keeper's
+// post and the lighting as the build script sets them up (Tools/Unreal/build_area_deck.py), a level lit in Day with a
+// DuskSmog and a Dusk to switch to; and the ids, tags and words they're found by.
 
 #include "CoreMinimal.h"
 
@@ -14,9 +15,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionEventObjectives.h"
 #include "Missions/MissionPlaceObjectives.h"
-#include "Scenes/SitWithPa.h"
-#include "Story/SpeakerPoint.h"
-#include "Story/SpeakerPointComponent.h"
+#include "Scenes/FreeAbel.h"
 #include "Story/StoryCondition.h"
 #include "Tests/MissionTestWorld.h"
 #include "World/KeeperLanternPost.h"
@@ -35,89 +34,85 @@
 
 namespace GravewindTestWorld
 {
-	// The ids, tags and events Main 6 finds its pieces by (create_mission_assets.py, build_area_deck.py, build_area_farm.py;
-	// the boss's and the post's are their classes' own).
-	inline const FName MainFive(TEXT("Main5"));
+	// The ids, tags and events Main 7 finds its pieces by (create_mission_assets.py, build_area_deck.py; the boss's and the
+	// post's are their classes' own).
 	inline const FName MainSix(TEXT("Main6"));
+	inline const FName MainSeven(TEXT("Main7"));
 	inline const FName PointPlace(TEXT("Place_GravewindPoint"));
-	inline const FName DeliaTag(TEXT("Speaker_Delia"));
-	inline const FName DeliaEvent(TEXT("Delia.Main6"));
+	inline const FName ChapelPlace(TEXT("Place_Chapel"));
+	inline const FName StartEvent(TEXT("Test.MainSevenOffered"));
+	inline const FName ReliquaryEvent(TEXT("Test.ReliquaryDone"));
 	inline const FName KeepersGrave(TEXT("KeepersGrave"));
 	inline const FName Dusk(TEXT("Dusk"));
+	inline const FName DuskSmog(TEXT("DuskSmog"));
 	inline const FName Valley(TEXT("TestValley"));
 
-	/** Main 6's steps: to Gravewind Point, the lantern hung, Abel defeated, sitting with Pa. */
-	inline constexpr int32 MainSixSteps = 4;
+	/** Main 7's steps: the point, the lantern hung, Abel freed, the scene, the carry home, the Reliquary. */
+	inline constexpr int32 MainSevenSteps = 6;
+	inline constexpr int32 CarryStep = 4;
 
 	/** How close to the Keeper's Gate counts as at Gravewind Point (cm, on the map). */
 	inline constexpr float PointRadius = 1000.f;
 
-	/** Delia's line through the door that starts it (the doc's words). */
-	inline const TCHAR* DeliaLine = TEXT("Take him the lantern. Show him the way, even if he can't go.");
-
-	/** A stand-in for Main 5: one event finishes it. */
-	inline UMissionDefinition* MakeMainFive(UObject* Outer)
+	/** A stand-in for Main 6: one event finishes it. */
+	inline UMissionDefinition* MakeMainSix(UObject* Outer)
 	{
-		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main5"), EMissionKind::Main, EMissionStart::Automatic, Valley);
-		MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, 0)->Event = TEXT("Test.MainFiveDone");
+		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main6"), EMissionKind::Main, EMissionStart::Automatic, Valley);
+		MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, 0)->Event = TEXT("Test.MainSixDone");
 		return Mission;
 	}
 
-	/** Main 6 as the mission script makes it, in code: after Main 5, started at Delia's door, its four steps, 30% of a level. */
-	inline UMissionDefinition* MakeMainSix(UObject* Outer)
+	/**
+	 * Main 7 as the mission script makes it, in code: after Main 6, started by an event here (Holloway's word on the move in
+	 * the game), the point, the lantern hung, Abel freed (any kill), the scene, then stand-ins for the carry and the
+	 * Reliquary (lane W5's: Place_Chapel reached, an event).
+	 */
+	inline UMissionDefinition* MakeMainSeven(UObject* Outer)
 	{
-		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main6"), EMissionKind::Main, EMissionStart::OnEvent, Valley);
-		Mission->Prerequisites = { MainFive };
-		Mission->StartEvent = DeliaEvent;
+		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main7"), EMissionKind::Main, EMissionStart::OnEvent, Valley);
+		Mission->Prerequisites = { MainSix };
+		Mission->StartEvent = StartEvent;
 		UMissionReachObjective* Point = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, 0);
 		Point->Place.Actor.ActorTag = PointPlace;
 		Point->Place.Radius = PointRadius;
 		MissionTestWorld::AddObjective<UMissionInteractObjective>(Mission, 1)->Target.ActorTag = AKeeperLanternPost::KeepersPostTag;
-		MissionTestWorld::AddObjective<UMissionKillNamedObjective>(Mission, 2)->ActorTag = AAbelKeeper::BossTag;
-		MissionTestWorld::AddObjective<UMissionSceneObjective>(Mission, 3)->Scene = SitWithPa::SceneName();
+		UMissionKillNamedObjective* Free = MissionTestWorld::AddObjective<UMissionKillNamedObjective>(Mission, 2);
+		Free->ActorTag = AAbelKeeper::BossTag;
+		Free->bPlayerKillsOnly = false;
+		MissionTestWorld::AddObjective<UMissionSceneObjective>(Mission, 3)->Scene = FreeAbel::SceneName();
+		UMissionReachObjective* Chapel = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, 4);
+		Chapel->Place.Actor.ActorTag = ChapelPlace;
+		Chapel->Place.Radius = 1500.f;
+		MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, 5)->Event = ReliquaryEvent;
 		Mission->Rewards.ExperienceShare = 0.3f;
 		return Mission;
 	}
 
-	/** The keeper's post's story as the build script sets it: hung in Main 6's second step, there after it, lit after Main 6. */
+	/**
+	 * The keeper's post's story as build_area_deck.py sets it: hung in Main 7's second step, there through the fight and the
+	 * scene, gone from the hook from the carry step (and after Main 7: at the Reliquary).
+	 */
 	inline void SetUpKeepersPost(AKeeperLanternPost& Post)
 	{
 		Post.HangWhen = FStoryCondition();
-		Post.HangWhen.DuringMission = MainSix;
+		Post.HangWhen.DuringMission = MainSeven;
 		Post.HangWhen.FromStep = AAbelKeeper::HangStep;
 		Post.HangWhen.BeforeStep = AAbelKeeper::FightStep;
 		FStoryCondition During;
-		During.DuringMission = MainSix;
+		During.DuringMission = MainSeven;
 		During.FromStep = AAbelKeeper::FightStep;
+		During.BeforeStep = CarryStep;
+		Post.HungWhen = { During };
+		Post.LitWhen = FStoryCondition();
+		FStoryCondition Carried;
+		Carried.DuringMission = MainSeven;
+		Carried.FromStep = CarryStep;
 		FStoryCondition After;
-		After.AfterMissions = { MainSix };
-		Post.HungWhen = { During, After };
-		Post.LitWhen = After;
+		After.AfterMissions = { MainSeven };
+		Post.GoneWhen = { Carried, After };
 	}
 
-	/** Delia's screen door with her Main 6 topic (after Main 5, until Main 6 is done), whose event starts it. */
-	inline ASpeakerPoint* PlaceDeliasDoor(UWorld* World, const FVector& Where)
-	{
-		ASpeakerPoint* Door = World->SpawnActor<ASpeakerPoint>(Where, FRotator::ZeroRotator);
-		if (!Door)
-		{
-			return nullptr;
-		}
-		Door->SpeakerPoint->SetRelativeLocation(FVector::ZeroVector);
-		Door->SpeakerPoint->SpeakerName = FText::FromString(TEXT("Grandma Delia"));
-		Door->SpeakerPoint->Lines = { FStoryLine::Make(FText::GetEmpty(), FText::FromString(TEXT("There's a plate on the porch."))) };
-		FSpeakerTopic Topic;
-		Topic.When.AfterMissions = { MainFive };
-		Topic.When.BeforeMissions = { MainSix };
-		Topic.Lines = { FStoryLine::Make(FText::GetEmpty(), FText::FromString(DeliaLine)) };
-		Topic.Event = DeliaEvent;
-		Door->SpeakerPoint->Topics = { Topic };
-		Door->Tags.Add(DeliaTag);
-		Door->DispatchBeginPlay();
-		return Door;
-	}
-
-	/** A level lit in Day (its lights placed and found) with a Dusk to switch to, as build_area_environment.py places them. */
+	/** A level lit in Day (its lights placed and found) with a DuskSmog and a Dusk to switch to, as build_area_environment.py places them. */
 	inline ALightingStates* SpawnDuskLevel(UWorld* World)
 	{
 		ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>();
@@ -139,7 +134,9 @@ namespace GravewindTestWorld
 		Evening.Name = Dusk;
 		Evening.SunBearing = 252.f;
 		Evening.SunElevation = 4.f;
-		States->States = { Day, Evening };
+		FLightingState Smoggy = Evening;
+		Smoggy.Name = DuskSmog;
+		States->States = { Day, Smoggy, Evening };
 		States->Sun = Sun;
 		States->SkyLight = Sky;
 		States->Atmosphere = Air;
@@ -149,16 +146,20 @@ namespace GravewindTestWorld
 		return States;
 	}
 
-	/** The story's light as the build script sets it: Main 6 (and Main 7, which goes on at dusk) at Dusk. */
+	/** The story's light as build_area_deck.py sets it: Main 7 at DuskSmog until Saint Ada wakes (its step 6 on), then Dusk. */
 	inline AStoryLighting* SpawnStoryLighting(UWorld* World)
 	{
 		AStoryLighting* Light = World->SpawnActor<AStoryLighting>();
 		if (Light)
 		{
-			FStoryLightingRule DuringSix;
-			DuringSix.When.DuringMission = MainSix;
-			DuringSix.State = Dusk;
-			Light->Rules = { DuringSix };
+			FStoryLightingRule Woken;
+			Woken.When.DuringMission = MainSeven;
+			Woken.When.FromStep = MainSevenSteps;
+			Woken.State = Dusk;
+			FStoryLightingRule DuringSeven;
+			DuringSeven.When.DuringMission = MainSeven;
+			DuringSeven.State = DuskSmog;
+			Light->Rules = { Woken, DuringSeven };
 		}
 		return Light;
 	}

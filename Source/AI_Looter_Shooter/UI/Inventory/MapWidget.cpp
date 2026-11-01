@@ -46,7 +46,7 @@ namespace
 	/** The legend's rows, top to bottom (the player's own arrow comes first, apart). */
 	const EMapPinKind LegendKinds[] = {
 		EMapPinKind::Objective, EMapPinKind::Offer, EMapPinKind::TurnIn, EMapPinKind::Grave, EMapPinKind::Station, EMapPinKind::Vendor, EMapPinKind::Bench,
-		EMapPinKind::Shrine,
+		EMapPinKind::Shrine, EMapPinKind::Secret,
 	};
 
 	/** The legend's badge: a pin as the map draws it, small. */

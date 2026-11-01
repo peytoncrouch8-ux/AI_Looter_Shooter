@@ -476,28 +476,27 @@ PAGES = {
     # in Friends until his fight is over, with his fight's stats on his page.
     'Abel': dict(
         asset='DA_Bestiary_Abel',
-        name='Abel Ransom, the Keeper',
+        name='Abel Ransom, Corrupted',
         section='FRIEND',
         kind='Keeper of Saint Ada',
         actor='/Script/AI_Looter_Shooter.AbelKeeper',
         model='/Game/Art/Creatures/SK_Abel',
         ledger_only=True,
-        known_when=dict(after=['Main6']),
+        known_when=dict(after=['Main7']),
         habitat="Ransom's Rest: his board on Gravewind Point's burial deck",
-        description=("Abel Ransom, Keeper of Saint Ada, and your father, friend. He hung the lantern on Gravewind Point at "
-                     "dusk so the dead could find their way west. Ned Purcell shot him before he could raise it, and he got "
-                     "up out of his grave to keep the boards himself. He's quieter now. He sits on his board facing the "
-                     "sunset and waits for you to bring Saint Ada home."),
+        description=("A week in Vane's furnace twisted the keeper. Freed, he keeps Saint Ada from inside her."),
         notes=[
-            "His coal is soft only while he grieves, turned to the sunset with his lantern arm down, or while he's stunned "
-            "from being dragged back. Then a shot through it is critical, for 1.5 times the damage.",
-            "When his lantern flares, a spread of spectral buckshot follows a second later. Put a bier between you.",
-            "Come too close and he swings the stock.",
-            "When the chapel bell rings he drifts out over the canyon where no gun reaches him. Relight the deck's three "
-            "lanterns (hold at each) and they drag him back.",
-            "At the last the Gravewind pours across the deck toward the open end. Keep off the end. Hob will fetch you back, "
-            "and he'll have something to say about it.",
-            "He isn't fought again. He keeps the boards now.",
+            "His coal is soft while he turns toward the six dead on their biers, and for a moment after he's dragged back "
+            "from the fog. A shot through it then is critical, for 1.5 times the damage.",
+            "When his black lantern flares, buckshot follows a second later. Shoot the lantern in its flare to break a "
+            "tendril; get 14 m away or stagger him and it breaks too.",
+            "At two thirds and one third he kneels. Hold at his keeper's post and a little of him comes back. Miss it and he "
+            "kneels again soon.",
+            "Out in the fog he drinks the six dead one by one. Three hits on a hose's collar break it. Relight the deck's "
+            "three lanterns to drag him back. Save all six if you can.",
+            "At the last the fog closes in and he hits twice as hard. When he falls, hold at his post and the black lantern "
+            "cracks. Then carry him home.",
+            "He isn't fought again. The smog's echo of him waits at the Vigil Stone; the real Abel keeps Saint Ada.",
         ],
         sort_order=6,
     ),

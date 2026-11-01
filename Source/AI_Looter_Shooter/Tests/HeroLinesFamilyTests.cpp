@@ -10,7 +10,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
 #include "Scenes/ColdOpen.h"
-#include "Scenes/SitWithPa.h"
+#include "Scenes/FreeAbel.h"
 #include "Story/HeroLines.h"
 #include "Story/HeroLineTable.h"
 #include "Story/StoryLine.h"
@@ -232,12 +232,12 @@ bool FHeroLinesNoFamilyTest::RunTest(const FString& Parameters)
 	}
 
 	CollectLines(ColdOpen::Lines(), TEXT("ColdOpen::Lines"), Texts);
-	CollectLines(SitWithPa::Lines(), TEXT("SitWithPa::Lines"), Texts);
+	CollectLines(FreeAbel::Lines(), TEXT("FreeAbel::Lines"), Texts);
 	for (int32 Phase = 0; Phase < 3; ++Phase)
 	{
 		CollectLines({ AbelRules::PhaseLine(Phase) }, FString::Printf(TEXT("AbelRules::PhaseLine(%d)"), Phase), Texts);
 	}
-	CollectLines({ AbelRules::BellLine(), AbelRules::HobOnFall() }, TEXT("AbelRules::BellLine, HobOnFall"), Texts);
+	CollectLines({ AbelRules::HobOnFall() }, TEXT("AbelRules::HobOnFall"), Texts);
 	const TArray<FBossPhase> Phases = AbelRules::MakePhases();
 	for (int32 Phase = 0; Phase < Phases.Num(); ++Phase)
 	{

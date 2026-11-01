@@ -74,29 +74,52 @@ Main 7. Main 5's turn-in says why the mine comes first and points at the lift; M
                    checkpoint broken (TownGate, 7: three riflemen, a hose-man, three Unpaid), 2 Bright & Daughter (within
                    8 m of Speaker_Tilly) + optional the UNDER NEW MANAGEMENT banner cut down (MainStreet.BannerDown, its
                    two ropes shot). Turned in to Tilly Bright at her window (card, then her lines; DA_Lines_TillyMain3 the
-                   same, her topic "during Main3 from step 3"): she hands Abel's lantern bail over (Main 6's item
+                   same, her topic "during Main3 from step 3"): she hands Abel's lantern bail over (Main 5's item
                    LanternBail, carried from the turn-in: hand_items); the reward gun drops. 800 XP (1,000 until 2026-11-01: the Pacing band), an Uncommon gun or
                    better, her purse (40). Its id must stay "Main3" (Main Street's safe ground and shutters, Pruitt's
                    hatch follow it).
-  DA_Mission_Main4 "Hallowed Ground", offered by Tilly after Main 3: 0 the chapel (Place_Chapel), 1 the chapel yard
-                   (ChapelYard, 16), 2 the knock at the vestry door (Speaker_Aldana: "ring her bell"), 3 the bell held
-                   (Bell_Chapel), 4 the Reliquary seen (GraveSight.Reliquary; its look_when "during Main4 from step 4") +
-                   optional the keepers' roll (KeepersRoll). Turned in to Aldana: a keeper's lantern can find an ember, and
-                   Pa's fell whole. 1,300 XP, a Saint Maud Uncommon gun with Hallow rounds, the poor box (40).
-  DA_Mission_Main5 "The Keeper's Lantern", offered by Aldana after Main 4 (straight after its turn-in, one conversation):
-                   0 into the Sink (Place_SinkFloor, height counted), 1 the three egg sacs, 2 the lantern taken (it must
-                   stay step 2: AKeepersLantern::TakeStep), 3 out at the ramp head (Place_SinkRim) + optional the
-                   sheriff's hat by the den (SheriffHat). Turned in to Aldana: the altar candle won't take; Delia will know
-                   what's owed a keeper, but not before Cyrus Teague's dead are settled (at dusk they'd follow Ellis to the
-                   boards); Hob points at the old lift. 3,000 XP, his purse (50).
+  DA_Mission_Main4 "A Coal Under Ash" (the Wardens story since 2026-11-01, was "Hallowed Ground"; the id stays Main4;
+                   MAINS_2_7.md section 6, lane MAIN45: build_area_chapel.py and build_area_main4.py place its pieces),
+                   offered by Tilly after Main 3, started on the move: 0 the chapel (Place_Chapel), 1 the chapel yard
+                   (ChapelYard, 16: eight Unpaid, then two hose-men, five Unpaid and the Leftover) + the Company's hose
+                   pulled out of the side window (Hose_ChapelWindow, held; or its cart stopped), 2 the knock at the
+                   vestry door (Speaker_Aldana: "ring her bell"), 3 the bell held (Bell_Chapel), 4 the Reliquary seen
+                   (GraveSight.Reliquary: her ember flares once; its look_when "during Main4 from step 4") + the barge's
+                   answer held off (BellAnswered, 6: a tender's drop on ropes) + optional the keepers' roll (KeepersRoll).
+                   Turned in to Aldana (card, then his words: she's going out; every grave open to the hose; Ned threw the
+                   lantern down the Sink). 1,000 XP, a Saint Maud Uncommon gun with Hallow rounds, the poor box (40).
+                   Brother Finch stands at the Reliquary from its turn-in.
+  DA_Mission_Main5 "Choke Point" (since 2026-11-01, was "The Keeper's Lantern"; MAINS_2_7.md section 7; build_area_sink.py
+                   and build_area_main5.py), offered by Aldana after Main 4 (straight after its turn-in, one conversation;
+                   Junie and Hob join in), started on the move: 0 Junie's salt charges (SaltCharges, in Hob's satchel at
+                   the ramp head) + into the Sink (Place_SinkFloor, height counted), 1 the three egg sacs, 2 Abel's lantern
+                   taken (it must stay step 2: AKeepersLantern::TakeStep), 3 three charges set on the intake's collar
+                   (Intake_Charge, 3 holds: the set piece; the hose blows, Intake.Choked), 4 out at the ramp head
+                   (Place_SinkRim) + optional the sheriff's hat by the den (SheriffHat). Turned in to Brother Finch at
+                   the Reliquary (Speaker_FinchChapel; card, then his words, Junie's and Hob's: the second hose is down
+                   the mine's air shaft, the old lift at the quarry). 1,400 XP, his purse (50). SmogThin from its turn-in.
   (Dead Lift, met at Hiram's stool, and Back Pay, met at the lift head's speaking tube: create_side_mission_assets.py.)
-  DA_Mission_Main6 "The Gravewind", offered by Delia after Back Pay (accepting fades the Rest to dusk): 0 Gravewind Point
-                   (Place_GravewindPoint) + optional by the keeper's path (Place_KeepersBridge) + Pa's lantern bail carried
-                   (its item LanternBail, off Tilly's sill since Main 3), 1 the lantern on the keeper's post, 2 Abel,
-                   3 sitting with Pa (Abel's steps: HangStep 1, FightStep 2, SceneStep 3). Finishes with the scene. 5,000 XP.
-  DA_Mission_Main7 "The Lantern Leans", offered by Pa on his board (Speaker_Abel) after Main 6: 0 home to Delia (her step
-                   must stay 0: ADoorHandoff) + optional eat what's on the porch plate (PorchPlate.Eaten). Turned in to
-                   Tilly (her father's car). 4,500 XP, the Gilded Lily opened, Heirloom by Delia's hand, her purse (60).
+  DA_Mission_Main6 "The Pilot Light" (since 2026-11-01, was "The Gravewind"; MAINS_2_7.md section 10, lane MAIN67:
+                   main67_src/CONTRACT67.md's step table; build_area_main6.py and build_area_main6_sortie.py place its
+                   pieces), offered by Captain Holloway at the Lamplighter's wheel after Back Pay (met first: her talk starts
+                   it and fades the Rest to dusk): 0 cast off (Landfall_AnchorWinch, held), 1 the Company's tenders fought
+                   off (Pilot.TendersDown), 2 the barge grappled (Lamplighter_GrappleLauncher, 2 holds), 3 her top deck
+                   (BargeDeck, 9) and the furnace hatch (Barge_FurnaceHatch) + optional the hose drum jammed (Barge_HoseDrum,
+                   held: Pilot.DrumJammed) + optional her four horns (Barge_Horn), 4 the manifest (Item_BargeManifest: Paid on
+                   Delivery's BargeManifest, carried from here), 5 the three draft valves (Furnace_DraftValve, held) and the
+                   Chief Stoker's crew (FurnaceHall, 8), 6 the soul cage (Furnace_SoulCage, held; scene CageBurst), 7 the jump
+                   to her deck (Lamplighter_Deck) and the barge's fall (scene BargeFall). Turned in to Holloway (card, then
+                   hers, Finch's and Hob's words). 3,000 XP (5,000 until 2026-11-01: the Pacing band), 50 silver.
+  DA_Mission_Main7 "Given to the Wind" (since 2026-11-01, was "The Lantern Leans"; MAINS_2_7.md section 11, lane MAIN67;
+                   build_area_deck.py (the fight) and build_area_main7.py), offered by Holloway straight after Main 6's
+                   turn-in, started on the move: 0 the burial boards (Place_GravewindPoint) + optional the souls in the
+                   barge's coal freed (SoulCoal, 12 lasting holds) + optional the keeper's path, 1 Abel's lantern on the
+                   keeper's post (AAbelKeeper::HangStep), 2 Abel freed (Boss_Abel; FightStep) + optional the six dead saved
+                   (Abel.SixSaved), 3 Abel called home (scene FreeAbel; SceneStep), 4 his lantern carried to the chapel
+                   (Place_Chapel; WestRoadCrew latch its light), 5 set on the Reliquary (Reliquary_Lantern, held; scene
+                   SaintAdaWakes). Turned in to Delia at the chapel door (Speaker_DeliaChapel; card, then her topic's words).
+                   3,000 XP (4,500 until 2026-11-01), the Gilded Lily opened, Heirloom by Delia's hand, her purse (60), the
+                   hearse car coupled.
 
 The mission features (wave 2a, sections 3-4), each a helper below:
   - optional objectives: objective(..., optional=True) (or event_objective / read_objective / collect_items with
@@ -621,94 +644,247 @@ def main3_steps(asset):
     ]
 
 
+# Main 4's and Main 5's tags, encounters and events (Docs/Work/2026-10-31-Wardens/MAINS_2_7.md sections 6-7, lane MAIN45;
+# who gives each: build_area_chapel.py places the chapel's marker, the yard's set piece ChapelYard, the bell, the Reliquary
+# and Aldana's door; build_area_main4.py the window's hose (AChapelWindowHose), the yard's cart, the tender and its drop
+# BellAnswered, the lychgate's loudspeaker and Finch at the Reliquary; build_area_sink.py the egg sacs, the lantern and the
+# floor's places; build_area_main5.py the satchel (Junie's charges), the intake (ASinkIntake, which sends Intake.Choked) and
+# its three clamp spots (AIntakeCharge), the drops down the hose and the ramp's spiders).
+ALDANA_TAG = 'Speaker_Aldana'
+CHAPEL_HOSE = 'Hose_ChapelWindow'
+YARD = 'ChapelYard'
+BELL_ANSWERED = 'BellAnswered'
+RELIQUARY_TAG = 'Reliquary_Chapel'
+RELIQUARY_SIGHT = 'GraveSight.Reliquary'
+FINCH_CHAPEL = 'Speaker_FinchChapel'
+SALT_CHARGES = 'SaltCharges'
+INTAKE_CHARGE = 'Intake_Charge'
+INTAKE_TAG = 'Intake_Sink'
+# The crew's speaker names, as their points name them (AWardenCrewMember::NameFor).
+JUNIE = 'Junie Calloway'
+FINCH = 'Brother Finch'
+
+
 def main4_steps(asset):
-    """Main 4, "Hallowed Ground": up to the chapel, the yard cleared, the knock at the vestry door (Aldana sends Ellis to
-    the bell), the bell rung, the Reliquary seen (and the keepers' roll read, if Ellis does); then it's turned in at
-    Aldana's vestry door, and Main 5 offered after it. The tags, the encounter's id and the event are the ones
-    build_area_chapel.py and the C++ give them (AChapelBell::BellTag, AChapelReliquary::ReliquaryTag and SightEvent)."""
+    """Main 4, "A Coal Under Ash" (the Wardens story since 2026-11-01, was "Hallowed Ground"; MAINS_2_7.md section 6): up
+    the north road to the chapel; its yard cleared of the dead the Company's crew spilled and its hose pulled out of the
+    side window, where it drinks the saint; the knock at the vestry door (Aldana sends Sully to the bell); the bell rung;
+    the Reliquary seen (Saint Ada's ember, a coal under ash, flares once: AChapelReliquary's flash) while the barge's answer,
+    a tender's drop over the knoll, is fought off (and the keepers' roll read, if Sully will). Then it's turned in at
+    Aldana's vestry door (card, then his words), and Main 5 offered after it. The Reliquary's look must stay step 4 (its
+    look_when, build_area_chapel.py). Every step's words say why."""
     waypoint = unreal.MissionWaypoint
     return [
-        step(objective(asset, unreal.MissionReachObjective, 'Go up the north road to the Chapel of Saint Ada.',
-                       place=place(tag='Place_Chapel', radius=1500.0))),
-        # "12 Unpaid in two waves, and one Restless": 13, counted from the spawner.
-        step(objective(asset, unreal.MissionClearObjective, 'Clear the chapel yard.',
-                       spawner_id=unreal.Name('ChapelYard'), count=17)),
-        step(objective(asset, unreal.MissionTalkObjective, 'Knock at the vestry door.',
-                       speaker_tag=unreal.Name('Speaker_Aldana'))),
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Go up the north road to the Chapel of Saint Ada. If her light still burns, Father Aldana will know.",
+                       short='Go up to the Chapel of Saint Ada', place=place(tag='Place_Chapel', radius=1500.0))),
+        # Saint Ada's Yard (16: eight Unpaid; then two hose-men, five Unpaid and the Leftover, counted from the set piece's
+        # spawner) and the hose: a hold on it at the window, or its cart stopped (AChapelWindowHose tells the missions it's
+        # out either way, as a held Interact on itself).
+        step(objective(asset, unreal.MissionClearObjective,
+                       "Clear the chapel yard of the dead the Company's crew spilled.",
+                       short='Clear the chapel yard', spawner_id=unreal.Name(YARD), count=16),
+             objective(asset, unreal.MissionInteractObjective,
+                       "Pull the Company's hose out of the chapel's side window: it's drinking the saint. Hold {Interact} "
+                       "on it, or stop its cart.",
+                       short="Pull the hose out of the window", target=actor_filter(tag=CHAPEL_HOSE), count=1, hold=True)),
+        step(objective(asset, unreal.MissionTalkObjective,
+                       "Knock at the vestry door. Father Aldana has barred himself in since Wednesday.",
+                       short='Knock at the vestry door', speaker_tag=unreal.Name(ALDANA_TAG))),
         step(objective(asset, unreal.MissionInteractObjective,
-                       'Ring the chapel bell: hold {Interact} on the rope inside the door.',
-                       target=actor_filter(tag='Bell_Chapel'), count=1, hold=True)),
-        # Done as the flash ends, so the turn-in comes after the vision; the arrow on the Reliquary meanwhile.
-        step(objective(asset, unreal.MissionEventObjective, "Examine Saint Ada's smashed Reliquary, where her light burned.",
-                       waypoint=waypoint.ACTOR, waypoint_tag='Reliquary_Chapel', show_count=False,
-                       event=unreal.Name('GraveSight.Reliquary'), count=1),
+                       'Ring the chapel bell: hold {Interact} on the rope inside the door. If Saint Ada can answer, she will.',
+                       short='Ring the chapel bell', target=actor_filter(tag='Bell_Chapel'), count=1, hold=True)),
+        # Done as the flash ends (AChapelReliquary::SightEvent); the arrow on the Reliquary. The barge's answer, counted from
+        # the tender's drop (four riflemen and two hose-men); the count shown: six on ropes.
+        step(objective(asset, unreal.MissionEventObjective,
+                       "Look at Saint Ada's Reliquary: see if her ember still burns.",
+                       short="Look at Saint Ada's Reliquary", waypoint=waypoint.ACTOR, waypoint_tag=RELIQUARY_TAG,
+                       show_count=False, event=unreal.Name(RELIQUARY_SIGHT), count=1),
+             objective(asset, unreal.MissionClearObjective,
+                       "Hold the chapel against the barge's answer: the Company is coming down on ropes.",
+                       short='Hold the chapel', spawner_id=unreal.Name(BELL_ANSWERED), count=6),
              read_objective(asset, "Read the keepers' roll in the nave.", 'KeepersRoll', optional=True)),
     ]
 
 
 def main5_steps(asset):
-    """Main 5, "The Keeper's Lantern": down into the Sink, its three egg sacs shot down, the Keeper's Lantern taken from the
-    webbing, and out at the ramp head (the sheriff's hat by the den on the way, if Ellis looks). The tags and the event are
-    the ones build_area_sink.py and the C++ give them (AEggSac::EggSacTag and BurstEvent, AKeepersLantern::LanternTag); the
-    lantern's step must stay the third (AKeepersLantern::TakeStep, counted from 0: 2), as Ellis has it from the step
-    after."""
+    """Main 5, "Choke Point" (the Wardens story since 2026-11-01, was "The Keeper's Lantern"; MAINS_2_7.md section 7): Junie's
+    salt charges taken from Hob's satchel at the ramp head and down into the Sink; its three egg sacs shot down (the hoard
+    behind them); Abel's lantern taken from the webbing; three charges set on the barge's intake collar against its draw
+    while the Company comes down the hose and the spiders down the ramp (the set piece, "the Intake": the hose blows,
+    swings and hangs limp, Intake.Choked); and out at the ramp head (the sheriff's hat by the den on the way, if Sully
+    looks). Then it's turned in to Brother Finch at the Reliquary (card, then his words). The lantern's step must stay the
+    third (AKeepersLantern::TakeStep, counted from 0: 2). Every step's words say why."""
     waypoint = unreal.MissionWaypoint
     return [
-        # Height counted: the rim and the ramp's upper half are within a few metres of the floor's middle as the crow flies.
-        step(objective(asset, unreal.MissionReachObjective, 'Climb down into the Sink.',
-                       place=place(tag='Place_SinkFloor', radius=900.0, ignore_height=False))),
+        # The satchel first (an item: the arrow on it at the ramp head), then the floor; height counted, as the rim and the
+        # ramp's upper half are within a few metres of the floor's middle as the crow flies.
+        step(collect_items(asset, "Take Junie's salt charges from Hob's satchel at the ramp head.", [SALT_CHARGES],
+                           short="Take Junie's salt charges"),
+             objective(asset, unreal.MissionReachObjective,
+                       "Climb down into the Sink. Abel's lantern is down there, and so is the barge's mouth.",
+                       short='Climb down into the Sink', place=place(tag='Place_SinkFloor', radius=900.0, ignore_height=False))),
         # Each sac tells the missions as it lands burst; the arrow on the nearest one still up.
-        step(objective(asset, unreal.MissionEventObjective, 'Shoot down the three egg sacs.',
-                       waypoint=waypoint.ACTOR, waypoint_tag='EggSac', event=unreal.Name('EggSac.Burst'), count=3)),
-        step(objective(asset, unreal.MissionInteractObjective, "Take the Keeper's Lantern from the webbing.",
-                       target=actor_filter(tag='Lantern_Keeper'), count=1)),
+        step(objective(asset, unreal.MissionEventObjective,
+                       "Shoot down the three egg sacs. The spiders' hoard is behind them.",
+                       short='Shoot down the egg sacs', waypoint=waypoint.ACTOR, waypoint_tag='EggSac',
+                       event=unreal.Name('EggSac.Burst'), count=3)),
+        step(objective(asset, unreal.MissionInteractObjective, "Take Abel's lantern from the webbing.",
+                       short="Take Abel's lantern", target=actor_filter(tag='Lantern_Keeper'), count=1)),
+        # Each clamp spot a hold (AIntakeCharge, 1.5 s); a set one can't be set again, so three holds are three spots.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       "Choke the hose: set three salt charges on the intake's collar. Hold {Interact} at each clamp, and "
+                       "lean against its pull.",
+                       short='Set the salt charges on the intake', target=actor_filter(tag=INTAKE_CHARGE), count=3,
+                       hold=True),
+             # The blast itself (ASinkIntake::ChokedEvent, 5 s after the third charge lights the fuses): the step ends on
+             # the choke, not on the last clamp, so "climb out" never shows while the fuses still burn.
+             event_objective(asset, "Get clear of the intake's pull before the fuses blow.", 'Intake.Choked',
+                             short='Get clear of the blast')),
         # The ramp head on the west rim, by the fence's gap; height counted, so the ramp just under it isn't out yet.
-        step(objective(asset, unreal.MissionReachObjective, 'Climb out of the Sink.',
-                       place=place(tag='Place_SinkRim', radius=600.0, ignore_height=False)),
+        step(objective(asset, unreal.MissionReachObjective, 'Climb out of the Sink before the barge finds its breath.',
+                       short='Climb out of the Sink', place=place(tag='Place_SinkRim', radius=600.0, ignore_height=False)),
              read_objective(asset, 'Look at the hat by the den.', 'SheriffHat', optional=True)),
     ]
 
 
+# Mains 6-7's tags, encounters, events and scenes (Docs/Work/2026-10-31-Wardens/main67_src/CONTRACT67.md, lane MAIN67; who
+# gives each: the Lamplighter's sortie (APilotSortie, World/PilotSortieRules.h's PilotLight names) the winch's cast-off,
+# Pilot.TendersDown, the two launchers and her deck's marker; the barge (ABargeBoarding, build_area_main6.py) BargeDeck, the
+# hatch, the hose drum, the horns, the manifest (Paid on Delivery's item, picked up here), the valves, FurnaceHall, the cage
+# and the scenes CageBurst and BargeFall; Abel's (AAbelKeeper, its corruption, build_area_deck.py) the keeper's post, the
+# boss, Abel.SixSaved and FreeAbel; Main 7's world (build_area_main7.py) the soul coal, WestRoadCrew, the Reliquary's lantern
+# rest, SaintAdaWakes and Delia at the chapel door).
+HOLLOWAY = 'Captain Holloway'
+HOLLOWAY_TAG = 'Speaker_Holloway'
+DELIA_CHAPEL = 'Speaker_DeliaChapel'
+LAUNCHER_TAG = 'Lamplighter_GrappleLauncher'
+SHIP_DECK = 'Lamplighter_Deck'
+TENDERS_DOWN = 'Pilot.TendersDown'
+BARGE_DECK = 'BargeDeck'
+FURNACE_HATCH = 'Barge_FurnaceHatch'
+HOSE_DRUM = 'Barge_HoseDrum'
+BARGE_HORN = 'Barge_Horn'
+MANIFEST_TAG = 'Item_BargeManifest'
+DRAFT_VALVE = 'Furnace_DraftValve'
+FURNACE_HALL = 'FurnaceHall'
+SOUL_CAGE = 'Furnace_SoulCage'
+SOUL_COAL = 'SoulCoal'
+SIX_SAVED = 'Abel.SixSaved'
+RELIQUARY_LANTERN = 'Reliquary_Lantern'
+
+
 def main6_steps(asset):
-    """Main 6, "The Gravewind": Pa's lantern bail in Ellis's pocket (off Tilly's sill, where it lies from Main 3's end:
-    most players took it then, and it counts at once), the lantern carried to Gravewind Point (by the keeper's path over
-    Keeper's Bridge, if Ellis walks it the Ransoms' way) and hung on the keeper's post by its bail, Abel defeated, the scene
-    after. The tags and the scene are the ones build_area_deck.py and the C++ give them (AKeeperLanternPost's
-    KeepersPostTag, AAbelKeeper's BossTag, SitWithPa::SceneName); the steps' order is Abel's (HangStep 1, FightStep 2,
-    SceneStep 3, counted from 0)."""
+    """Main 6, "The Pilot Light" (the Wardens story since 2026-11-01, was "The Gravewind"; MAINS_2_7.md section 10, lane
+    MAIN67): starved of both her hoses, Vane's barge comes down over the chapel at dusk to hose Saint Ada herself, the one
+    time she's in reach. Cast off from the Mooring Ledge, fight off the Company's tenders in the air, grapple the barge with
+    the Company's own launchers, fight across her top deck to the furnace hatch (her hose drum jammed and her horns shot out,
+    if Sully will), take her manifest (Sexton's price: Paid on Delivery's item, carried from here), shut her furnace's three
+    draft valves against the Chief Stoker, open the soul cage (what comes out isn't Abel: CageBurst), and get off her as she
+    dies (BargeFall: down into Gravewind Canyon). Turned in to Holloway at the wheel as the Lamplighter flies home. The steps
+    are the sortie's and the barge's (PilotLight's CastOffStep 0 .. EscapeStep 7): never reorder. Every step says why."""
     waypoint = unreal.MissionWaypoint
     return [
-        # Either road: the west road or the keeper's path; both end at the keeper's grave, and the cairns lead to the gate.
-        # The bail third, so the point's objective keeps its place (0, 0) and the keeper's path its (0, 1).
-        step(objective(asset, unreal.MissionReachObjective,
-                       "Carry the lantern to Gravewind Point, by the west road or the keeper's path.",
-                       place=place(tag='Place_GravewindPoint', radius=1000.0)),
-             objective(asset, unreal.MissionReachObjective,
-                       "Take the keeper's path over Keeper's Bridge, the way the Ransoms walked their dead.",
-                       short="Take the keeper's path", place=place(tag='Place_KeepersBridge', radius=600.0), optional=True),
-             collect_items(asset, "Bring Pa's lantern bail. Tilly handed it over.", ['LanternBail'],
-                           short="Bring Pa's lantern bail")),
-        step(objective(asset, unreal.MissionInteractObjective, "Hang the Keeper's Lantern on the keeper's post.",
-                       target=actor_filter(tag='LanternPost_Keeper'), count=1)),
-        # A boss falling off the deck is still beaten (any kill counts).
-        step(objective(asset, unreal.MissionKillNamedObjective, 'Defeat Abel Ransom, the Keeper.',
-                       actor_tag=unreal.Name('Boss_Abel'), player_kills_only=False)),
-        step(objective(asset, unreal.MissionSceneObjective, 'Sit with Pa.',
-                       waypoint=waypoint.NONE, scene=unreal.Name('SitWithPa'))),
+        # 0. Landfall's winch, reversed: its cast-off hold while she's anchored (ALandfallWinch's CastOffWhen).
+        step(objective(asset, unreal.MissionInteractObjective,
+                       "Cast off: hold {Interact} on the anchor winch. The barge is coming down over the chapel.",
+                       short='Cast off the anchor', target=actor_filter(tag=LANDFALL_WINCH), count=1, hold=True)),
+        # 1. The sortie sends it when both tenders are down and every boarder is dead; the arrow on the nearer tender is the
+        # sortie's own (no waypoint: they move).
+        step(event_objective(asset, "Fight off the Company's tenders. Shoot their gas-bags: they burn.", TENDERS_DOWN,
+                             short="Fight off the Company's tenders", waypoint=waypoint.NONE)),
+        # 2. The two launchers on her starboard rail, a hold each (ALamplighterLauncher): the Company's own grapples.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       "Grapple the barge: hold {Interact} on both launchers on the starboard rail.",
+                       short='Fire the grapple launchers', target=actor_filter(tag=LAUNCHER_TAG), count=2, hold=True)),
+        # 3. The top deck: its fight counted from the spawner, the furnace hatch reached (height counted: not from the hall
+        # under it); the drum's jam (sets Pilot.DrumJammed: Delia's turn-in knows it) and the horns, optional.
+        step(objective(asset, unreal.MissionClearObjective,
+                       "Fight across the barge's top deck. Mind the furnace vents.",
+                       short="Fight across the barge's deck", spawner_id=unreal.Name(BARGE_DECK), count=9),
+             objective(asset, unreal.MissionReachObjective, 'Get to the furnace hatch. Her pilot light burns below.',
+                       short='Get to the furnace hatch', place=place(tag=FURNACE_HATCH, radius=300.0, ignore_height=False)),
+             objective(asset, unreal.MissionInteractObjective,
+                       "Jam the hose drum: hold {Interact} on its lever. Stop the hose short of the chapel roof.",
+                       short='Jam the hose drum', target=actor_filter(tag=HOSE_DRUM), count=1, hold=True, optional=True),
+             objective(asset, unreal.MissionKillObjective, "Silence the barge's horns.",
+                       short="Silence the barge's horns", target=actor_filter(tag=BARGE_HORN), count=4,
+                       player_kills_only=True, optional=True)),
+        # 4. Sexton's price: an Interact on the AMissionItem (Paid on Delivery's BargeManifest; a collect objective here would
+        # name another mission's item, which check_features refuses). Picking it up carries it into Paid on Delivery.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       "Take the barge's manifest from the Company office. Sexton's price.",
+                       short="Take the barge's manifest", target=actor_filter(tag=MANIFEST_TAG), count=1)),
+        # 5. The set piece: three valves under the turning hot ring, while the Chief Stoker's crew comes in two pushes.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       "Kill the furnace: hold {Interact} on its three draft valves.",
+                       short="Shut the furnace's draft valves", target=actor_filter(tag=DRAFT_VALVE), count=3, hold=True),
+             objective(asset, unreal.MissionClearObjective, 'Put down the Chief Stoker and his crew.',
+                       short='Put down the stokers', spawner_id=unreal.Name(FURNACE_HALL), count=8)),
+        # 6. The cage (a hold, only with Abel's lantern); the step ends as CageBurst has played, so "get off" never shows
+        # under the twist.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       "Open the soul cage: hold {Interact}. Abel's lantern is ready.",
+                       short='Open the soul cage', target=actor_filter(tag=SOUL_CAGE), count=1, hold=True),
+             objective(asset, unreal.MissionSceneObjective, "See what comes out of the cage.",
+                       short='Abel', waypoint=waypoint.NONE, scene=unreal.Name('CageBurst'), show_count=False)),
+        # 7. The jump onto her deck (height counted: the barge's deck is above it), then the barge's fall from it.
+        step(objective(asset, unreal.MissionReachObjective, "Get off the barge! Jump for the Lamplighter's deck.",
+                       short='Get off the barge!', place=place(tag=SHIP_DECK, radius=400.0, ignore_height=False)),
+             objective(asset, unreal.MissionSceneObjective, 'Watch the barge go down.',
+                       short='Watch her go', waypoint=waypoint.NONE, scene=unreal.Name('BargeFall'), show_count=False)),
     ]
 
 
 def main7_steps(asset):
-    """Main 7, "The Lantern Leans": home to Delia (Heirloom out through her door), and the biscuits on the porch plate
-    eaten if Ellis will (Pa asked it; the plate's eat_when is "during Main7"); then it's turned in at Tilly's window, which
-    Main Street passes on the way to the depot (her Main 7 lines: her father's car coupled up at the platform). The Lily
-    opens on the station board as it's turned in, so the depot and the board come after it. Delia's step must stay the
-    first (ADoorHandoff's Step 0), as Heirloom comes out as it ends; its optional stays doable until the turn-in."""
+    """Main 7, "Given to the Wind" (the Wardens story since 2026-11-01, was "The Lantern Leans"; MAINS_2_7.md section 11,
+    lane MAIN67): the furnace twisted Abel and he's drinking the six dead on the burial boards. To the Point (freeing the
+    souls in the barge's fallen coal on the way, if Sully will), his own lantern hung on the keeper's post to call him, the
+    fight to burn the smog off him (all six dead saved, if Sully can), his call home into his lantern (FreeAbel), the lantern
+    carried home to the chapel under the Company's hoses, and set on Saint Ada's Reliquary (SaintAdaWakes). Turned in to
+    Delia at the chapel door. Abel's step constants keep their numbers, read on Main7 now (AAbelKeeper::HangStep 1,
+    FightStep 2, SceneStep 3); CarryStep 4 and ReliquaryStep 5 are World/CarriedLanternRules.h's. Never reorder."""
     waypoint = unreal.MissionWaypoint
     return [
-        step(objective(asset, unreal.MissionTalkObjective, 'Go home to Delia.', speaker_tag=unreal.Name('Speaker_Delia')),
-             event_objective(asset, "Eat what's on the porch plate.", PORCH_EATEN, optional=True,
-                             waypoint=waypoint.ACTOR, waypoint_tag=PORCH_TAG)),
+        # 0. Either road ends at the keeper's grave; the coal lies along both (ASoulCoalLump, a 1 s hold each, used up for
+        # good: the lasting objective counts what's freed before the step too).
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Go to the burial boards on Gravewind Point. Abel came down there, among the six dead.",
+                       short='Go to the burial boards', place=place(tag='Place_GravewindPoint', radius=1000.0)),
+             objective(asset, unreal.MissionLastingInteractObjective,
+                       "Free the souls in the barge's fallen coal: hold {Interact} on each lump.",
+                       short='Free the souls in the coal', target=actor_filter(tag=SOUL_COAL), count=12, hold=True,
+                       optional=True),
+             objective(asset, unreal.MissionReachObjective,
+                       "Take the keeper's path over Keeper's Bridge, the way the Ransoms walked their dead.",
+                       short="Take the keeper's path", place=place(tag='Place_KeepersBridge', radius=600.0), optional=True)),
+        # 1. (AAbelKeeper::HangStep) His own lantern on its post calls him up out of the canyon fog.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       "Hang Abel's lantern on the keeper's post. It's the one thing of his he'll come to.",
+                       short="Hang Abel's lantern on the keeper's post", target=actor_filter(tag='LanternPost_Keeper'),
+                       count=1)),
+        # 2. (FightStep) Any kill counts (a fall off the deck too); the six saved: his corruption sends Abel.SixSaved as the
+        # fight is won with none of them drunk.
+        step(objective(asset, unreal.MissionKillNamedObjective,
+                       "Free Abel: burn the smog off him. When he falls to his knees, call him back at the keeper's post.",
+                       short='Free Abel', actor_tag=unreal.Name('Boss_Abel'), player_kills_only=False),
+             event_objective(asset, "Save all six of the dead on the boards: shoot the smog where it bites.", SIX_SAVED,
+                             short='Save the six dead', optional=True, waypoint=waypoint.NONE)),
+        # 3. (SceneStep) The last call is a 3 s hold on the post at zero; FreeAbel plays once it's held.
+        step(objective(asset, unreal.MissionSceneObjective, "Call Abel home: hold {Interact} on the keeper's post.",
+                       short='Call Abel home', waypoint=waypoint.ACTOR, waypoint_tag='LanternPost_Keeper',
+                       scene=unreal.Name('FreeAbel'), show_count=False)),
+        # 4. The lantern carried lit (UCarriedLanternSubsystem): WestRoadCrew's hose-men latch it, not Sully; nothing fails.
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Carry Abel home to Saint Ada. Keep the Company's hoses off his light.",
+                       short='Carry Abel home to Saint Ada', place=place(tag='Place_Chapel', radius=1500.0))),
+        # 5. The lid's recess (AReliquaryLantern, a 3 s hold), then the relighting; the turn-in after it, at the door.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       "Set Abel's lantern on Saint Ada's Reliquary: hold {Interact}.",
+                       short="Set the lantern on the Reliquary", target=actor_filter(tag=RELIQUARY_LANTERN), count=1,
+                       hold=True),
+             objective(asset, unreal.MissionSceneObjective, 'Saint Ada wakes.', short='Saint Ada wakes',
+                       waypoint=waypoint.NONE, scene=unreal.Name('SaintAdaWakes'), show_count=False)),
     ]
 
 
@@ -811,97 +987,119 @@ MISSIONS = [
                      "Bright, the undertaker, laid out his body. Vane's Company has taken the town, and its men hold the "
                      "gate."),
          # Card first, then her lines (DA_Lines_TillyMain3 says the same, her topic from step 3): the bail out of his fist
-         # (Main 6's item, carried from the turn-in), the box of effects (the reward gun); then Tilly offers Main 4.
+         # (Main 5's item, carried from the turn-in), the box of effects (the reward gun); then Tilly offers Main 4.
          turn_in=dict(speaker=TILLY_TAG, giver='Tilly Bright', lines=[
              ('', "A Warden. Lord. Come close, the whole street's watching."),
              ('', "His lantern wasn't on him. Only its bail, snapped off in his fist."),
              ('', "Couldn't open his hand till morning. Here. And the box: he'd want it used."),
          ], hand_items=['LanternBail']),
          rewards=dict(experience=800, gun=True, gun_rarity_floor='UNCOMMON')),
-    dict(asset='DA_Mission_Main4', id='Main4', title='Hallowed Ground',
-         summary="Father Aldana blessed Pa's lantern every spring and sat up with his body the night he died. He has barred "
-                 "himself in the chapel's vestry since the dead came home, and the chapel yard is full of them.",
+    dict(asset='DA_Mission_Main4', id='Main4', title='A Coal Under Ash',
+         summary="A keeper's lantern is lit from his saint, and nobody has seen Saint Ada burn since Abel was taken. Father "
+                 "Aldana has barred himself in the chapel's vestry, and a Company crew is in the chapel yard.",
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main3'], sort_order=4, steps=main4_steps,
-         offer=dict(giver_tag='Speaker_Tilly', giver='Tilly', lines=[
-             ('', "Father Aldana blessed that lantern every spring. He's barred in the vestry. Knock loud."),
-         ], briefing="Father Aldana blessed your father's lantern every spring and sat up with his body the night he died. "
-                     "Since the dead came home he has barred himself in the chapel's vestry. The chapel yard is full of "
-                     "them."),
-         # The doc's words, word for word (DA_Lines_AldanaMain4 holds the same); his offer of Main 5 follows them as one
-         # conversation.
-         turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana', lines=[
-             ('', "She didn't answer. Now you've seen why."),
-             (ELLIS, 'How do I find them?'),
-             ('', "A keeper's lantern can find an ember."),
-             ('', "They shot the keeper first in every town, and smashed his lantern."),
-             ('', "Your father's fell in the dark, whole."),
-             ('', "Spiders hoard anything a saint has touched."),
-             ('', "Look in the Sink."),
+         # Tilly at her window, straight after Main 3's turn-in (one conversation): a main mission starts on the move.
+         offer=dict(giver_tag='Speaker_Tilly', giver='Tilly Bright', lines=[
+             ('', "Father Aldana blessed Abel's lantern every spring. If Saint Ada's still lit, he'd know."),
+             ('', "He's barred in the vestry since Wednesday. The Company's at the chapel. Knock loud."),
+         ], briefing="A keeper's lantern is lit from his saint, and nobody has seen Saint Ada burn since Abel was taken. "
+                     "Father Aldana has barred himself in the chapel's vestry. A Company crew is in the chapel yard."),
+         # Card first, then the doc's words, word for word (DA_Lines_AldanaMain4 holds the same): the clock (she's going out),
+         # the stakes (every grave open to the hose), Ned's luck and the Sink. His offer of Main 5 follows as one conversation.
+         turn_in=dict(speaker=ALDANA_TAG, giver='Father Aldana', lines=[
+             ('', "She's a coal under ash, Warden. Without her keeper she's going out."),
+             ('', "When she does, every grave on the Rest is open to that hose."),
+             ('', "I watched from the vestry. Ned Purcell wouldn't break Abel's lantern. Bad luck, he said."),
+             ('', "He threw it down the Sink. Spiders hoard what a saint has touched."),
          ]),
          # A Saint Maud Uncommon with Hallow rounds, the chapel's gift for the yard (was nothing; the RR tuning the user
-         # took, 2026-10-29 night: the dead ahead are weak to Hallow).
-         rewards=dict(experience=1300, gun=True, gun_rarity_floor='UNCOMMON', gun_maker='SaintMaud', gun_element='SoulLight')),
-    dict(asset='DA_Mission_Main5', id='Main5', title="The Keeper's Lantern",
-         summary="The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. "
-                 "Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg sacs.",
+         # took, 2026-10-29 night: the dead ahead are weak to Hallow). His poor box stays the kept 40 (SilverFor).
+         # 1,000 (was 1,300; 2026-11-01): the yard's two pushes and the tender's drop put eight Dredgers more on the way, so
+         # the mission gives less to hold the Pacing bands (MAINS_2_7.md section 15: trim mission XP, not kills).
+         rewards=dict(experience=1000, gun=True, gun_rarity_floor='UNCOMMON', gun_maker='SaintMaud', gun_element='SoulLight')),
+    dict(asset='DA_Mission_Main5', id='Main5', title='Choke Point',
+         summary="Ned threw Abel's lantern into the Sink, where the spiders hoard what a saint has touched. The barge's hose "
+                 "drinks from the Sink's floor too. Junie says three salt charges on its intake collar will choke it.",
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main4'], sort_order=5, steps=main5_steps,
-         # Said straight after Main 4's turn-in ("...Look in the Sink."), as one conversation.
-         offer=dict(giver_tag='Speaker_Aldana', giver='Father Aldana', lines=[
-             ('', "Bring it back. I'd stake the chapel on it."),
-         ], briefing="The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. "
-                     "Spiders hoard anything a saint has touched. Go down into the Sink and bring it back."),
-         # The twist: the altar candle won't light it. Delia's word starts Main 6 (her offer), but the mine comes first since
-         # 2026-10-27 (the user's note 32: Cyrus Teague the second boss): who he is is Hiram's to say (Back Pay's offer), why
-         # first is Aldana's here (at dusk the dead come to the boards, and Teague's would come too), and Hob points at the
-         # lift, where Dead Lift is met. Shared words: no "Pa", "Ellis" or "kid" (the hero lines' rule), so no new rows.
-         turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana', lines=[
-             ('', "Dark, but whole. Let me try the altar candle."),
-             ('', "...It won't take. It's lit from the saint, and the saint is out."),
-             (ELLIS, 'Then how do I light it?'),
-             ('', "I don't know. Your grandmother will know what's owed a keeper."),
-             ('', "But not yet. Cyrus Teague still drives his dead shift in the Providence, and at dusk they'd come to the "
-                  "boards with you."),
-             (HOB, "The old ore lift's at the quarry, sunshine. Its engineman never left."),
-         ]),
-         rewards=dict(experience=3000)),
-    dict(asset='DA_Mission_Main6', id='Main6', title='The Gravewind',
-         summary="At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the Keeper's "
-                 "Lantern on his post and show him the way, even if he can't go.",
-         # After the mine since 2026-10-27 (Back Pay: the Foreman, the second boss; Dead Lift sorts 6, Back Pay 7), so Abel is
-         # the last. The Old Quarry's lift and the Providence are create_side_mission_assets.py's (their ids unchanged).
-         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['BackPay'], sort_order=8,
-         # Aldana sends Ellis to Delia, by way of the mine: met first, her talk starts it (no card), and that fades the Rest
-         # to dusk (AStoryLighting, during Main 6).
-         offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', meet_first=True, lines=[
-             (ELLIS, "Father Aldana couldn't light it."),
-             ('', "No. That was never a priest's to do."),
-             ('', "Take him the lantern. Show him the way, even if he can't go."),
-             ('', "He'll be on the boards at dusk. He won't know you, Ellis. Go anyway."),
-         ], briefing="At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the "
-                     "Keeper's Lantern on his post and show him the way, even if he can't go."),
-         # Pa's lantern bail, put out on Tilly's sill at Main 3's turn-in: this mission's item, so it lies there from then
-         # (story_texts.py ITEMS: shown after Main 3) and goes with the lantern onto the post as this one finishes.
-         items=[dict(item_id='LanternBail', name="Pa's lantern bail",
+         # Said straight after Main 4's turn-in, as one conversation: Aldana's word, Junie on the tube (the Lamplighter's
+         # speaking tube, a voice only), Hob's grumble. Started on the move.
+         offer=dict(giver_tag=ALDANA_TAG, giver='Father Aldana', lines=[
+             ('', "Bring up Abel's lantern. And that hose drinks from the Sink's floor."),
+             (JUNIE, "Choke it? Salt round the intake collar and blow it. Hob's bringing you charges."),
+             (HOB, "I'm a lookout, not a mule. ...Fine."),
+         ], briefing="Ned threw Abel's lantern into the Sink, where the spiders hoard what a saint has touched. The barge's "
+                     "hose drinks from the Sink's floor too. Junie says three salt charges on its intake collar will choke "
+                     "it: starve the barge, Sexton said, and her crew will have to bring her down."),
+         # Junie's charges: in Hob's satchel at the ramp head (story_texts.ITEMS SaltCharges), gone with the mission.
+         items=[dict(item_id=SALT_CHARGES, name="Junie's salt charges",
+                     line="Three bundles of salt jars wired to a fuse and a magnet clamp. Junie packed them. Hob carried "
+                          "them, complaining.",
+                     mesh='/Game/Art/Tripo/SM_SaltSatchel'),
+                # Pa's lantern bail, put out on Tilly's sill at Main 3's turn-in: this mission's item (it goes on Abel's
+                # lantern here; story_texts.py ITEMS: shown after Main 3).
+                dict(item_id='LanternBail', name="Pa's lantern bail",
                      line="The ring Pa's lantern hung by, snapped off in his fist. Tilly couldn't open his hand till "
                           "morning.",
                      mesh=PROPS + 'SM_LanternBail')],
-         # It ends with sitting with Pa, its own hand-in: Pa on his board, the lantern lit and the train's steam all follow
-         # Main 6 finished, so it finishes as that scene ends (and Pa offers Main 7 from his board).
-         steps=main6_steps, turn_in=dict(automatic=True), rewards=dict(experience=5000)),
-    dict(asset='DA_Mission_Main7', id='Main7', title='The Lantern Leans',
-         summary="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell "
-                 "and the Gilded Lily. Go home to Delia first. Then Tilly's hearse car waits at the depot.",
+         # Card first, then: the lantern home, the sunrise it'll burn with, and where the barge drinks next (the tube, the
+         # lift): Dead Lift is met at Hiram's stool. Finch was never named by its steps, so the tracker says why.
+         turn_in=dict(speaker=FINCH_CHAPEL, giver=FINCH, why="Brother Finch keeps Saint Ada lit at the Reliquary", lines=[
+             ('', "Abel's lantern. Whole. Ned's luck is ours, Warden."),
+             ('', "It'll stay cold till his soul's in it. Then it'll burn like a sunrise."),
+             (JUNIE, "That second hose is down the old mine's air shaft. Up the ridge."),
+             (HOB, "Old ore lift at the quarry. Somebody dead's sat by it four years."),
+         ]),
+         # 1,400 (was 3,000; 2026-11-01): the Intake's two drops and the ramp's spiders (nine kills more, the Sink's 4-5)
+         # pushed everything-once past 7.7 and the explorer over the Foreman's 6.5: trimmed with Main 4 and Paid on Delivery
+         # (MAINS_2_7.md section 15: mission XP, not kills; Docs/Progression.md).
+         rewards=dict(experience=1400)),
+    dict(asset='DA_Mission_Main6', id='Main6', title='The Pilot Light',
+         summary="Starved of both her hoses, Vane's barge is coming down over the chapel at dusk to hose Saint Ada herself. "
+                 "The Lamplighter is patched. Board the barge, kill her furnace, and take Abel out of it.",
+         # After the mine since 2026-10-27 (Back Pay: the Foreman, the second boss; Dead Lift sorts 6, Back Pay 7). The Old
+         # Quarry's lift and the Providence are create_side_mission_assets.py's (their ids unchanged).
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['BackPay'], sort_order=8,
+         # Holloway at the Lamplighter's wheel on the Mooring Ledge (the ship's crew member tagged Speaker_Holloway): met
+         # first, her talk starts it (no card), and that fades the Rest to dusk (AStoryLighting during Main 6: DuskSmog).
+         offer=dict(giver_tag=HOLLOWAY_TAG, giver=HOLLOWAY, meet_first=True, lines=[
+             ('', "She's starving. She's coming down over the chapel to drink Saint Ada dry."),
+             (JUNIE, "Bag's patched. Their grapples were still in my hull, so I re-rigged them. Waste not."),
+             ('', "We go now, Warden. Bring Abel's lantern."),
+         ], briefing="Starved of both her hoses, Vane's barge is coming down over the chapel at dusk to hose Saint Ada "
+                     "herself. The Lamplighter is patched, and Junie has re-rigged the Company's own grapples. Board the "
+                     "barge, kill her furnace, and take Abel out of it in his own lantern."),
+         # Card first, then her words and the crew's, as the Lamplighter sets back down on the ledge (the sortie flies her
+         # home after BargeFall). The manifest stays carried: it's Paid on Delivery's item. Main 7 follows (one conversation).
+         turn_in=dict(speaker=HOLLOWAY_TAG, giver=HOLLOWAY, lines=[
+             ('', "Eleven years since Vane's first barge took my town. That one's for them."),
+             (FINCH, "That wasn't Abel, Warden. That was a week of furnace wearing him."),
+             (FINCH, "He's gone to the boards. A keeper goes where his dead are."),
+             (HOB, "Six of them laid out there, sunshine. And he's thirsty."),
+         ]),
+         # 3,000 (was 5,000; 2026-11-01, lane MAIN67): the barge's twenty Dredgers and the Hallowed Chief Stoker (about 3,600
+         # kill XP at level 6-7) moved onto the story path, so the mission gives less to hold the Pacing bands (MAINS_2_7.md
+         # section 15: trim mission XP, not kills; lanes/MAIN67.md "Pacing"). Its purse 50.
+         steps=main6_steps, rewards=dict(experience=3000, silver=50)),
+    dict(asset='DA_Mission_Main7', id='Main7', title='Given to the Wind',
+         summary="The furnace twisted Abel's soul, and he fled to the burial boards on Gravewind Point, where six of the "
+                 "Rest's dead lie unwalked. Burn the smog off him, call him back into his lantern, and take him home.",
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main6'], sort_order=9, steps=main7_steps,
-         offer=dict(giver_tag='Speaker_Abel', giver='Pa', lines=[
-             ('', "She leans north-east, El. Over the ridges. That's Ned Purcell."),
-             ('', "Your grandmother's kept something back for you. Go home first."),
-             ('', "Eat what's on her plate, even if you can't taste it."),
-         ], briefing="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned "
-                     "Purcell and the Gilded Lily. Go home to Delia first: she has kept something back. Tilly's hearse "
-                     "car waits at the depot."),
-         # Turned in at Tilly's, not Delia's, whose step it was: the tracker says why (round 3 of 2026-10-23: no hint).
-         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', why="Tilly is readying her hearse car: see her at her shop"),
-         rewards=dict(experience=4500, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
+         # Holloway, straight after Main 6's turn-in (one conversation), Finch on the tube: started on the move.
+         offer=dict(giver_tag=HOLLOWAY_TAG, giver=HOLLOWAY, lines=[
+             (FINCH, "Burn the smog off him. Then hang his lantern where he can see it. He'll come."),
+             ('', "Go, Warden. Before he drinks those six."),
+         ], briefing="The furnace twisted Abel's soul, and when the cage broke he fled to the burial boards on Gravewind "
+                     "Point, where six of the Rest's dead lie unwalked. Burn the smog off him and call him back into his own "
+                     "lantern. Then take him home to Saint Ada before she goes out."),
+         # Delia at the chapel door (a second placement, tagged Speaker_DeliaChapel, build_area_main7.py). No lines of its
+         # own, as Landfall's turn-in: her topic says them (story_texts.TOPICS['Speaker_DeliaChapel']: the hose drum's flag
+         # picks DA_Lines_DeliaMain7Jammed, else DA_Lines_DeliaMain7), card first. She hands Heirloom over (by hand: it
+         # retires ADoorHandoff); the Lily opens on the station board and Tilly's hearse car is coupled. Its steps never named
+         # her, so the tracker says why.
+         turn_in=dict(speaker=DELIA_CHAPEL, giver='Delia Ransom', why="Delia has come up the hill to the chapel"),
+         # 3,000 (was 4,500; lane MAIN67): Abel (2,066), his adds and the west road's crew moved here from Main 6 (Pacing).
+         rewards=dict(experience=3000, silver=60, unlock_areas=['GildedLily'], named_gun='Heirloom',
+                      named_gun_by_hand=True)),
 ]
 
 

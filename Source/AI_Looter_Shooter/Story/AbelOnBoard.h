@@ -21,7 +21,7 @@ class UStaticMeshComponent;
  * create_story_lines.py), he turns his head to the listener and his jaw moves while his lines play; otherwise nothing of him
  * moves. A hidden hull about his seated size stops the player and finds the Interact line; shots and pellets pass through.
  *
- * The scene after the fight (SitWithPa) shows him the moment the boss sits down on the board (ShowNow), before Main 6 is
+ * The scene after the fight (FreeAbel) shows him the moment the boss sits down on the board (ShowNow), before Main 7 is
  * recorded finished; from then on the story keeps him there.
  */
 UCLASS()
@@ -88,6 +88,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel", meta = (ClampMin = "-1", ClampMax = "0"))
 	float EmberHeat = -0.65f;
 
+	/**
+	 * Standing (the pose table's idle) rather than sat on a board: Abel's soul by Saint Ada's Reliquary after Main 7 (lane
+	 * MAIN67: "Abel stands by the Reliquary, himself, a soul in his keeper's coat"), keeping her from in there.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel")
+	bool bStanding = false;
+
+	/**
+	 * His soul's look, not the ghost's: gold-white, his coal burning warm (no ember sunk), his lantern and the spectral pump
+	 * put away (his lantern is in the Reliquary's lid now; a keeper is buried with his lantern, not his iron).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel")
+	bool bSoulLook = false;
+
 	/** How far he turns his head to whoever he talks to (degrees), and how fast (degrees a second). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel", meta = (ClampMin = "0", ClampMax = "80"))
 	float HeadTurnLimit = 50.f;
@@ -103,8 +117,10 @@ private:
 	void HandleTalked(USpeakerPointComponent& Point, AActor* Listener);
 	/** His head turned by Yaw and his jaw open by Jaw (degrees), on the sit. */
 	void PoseHead(float Yaw, float Jaw);
-	/** The ember and the Boss rank's gold on his body and props (custom primitive data, as M_Ghost reads it). */
+	/** The ember and the Boss rank's gold on his body and props (custom primitive data, as M_Ghost reads it); his soul's look with bSoulLook. */
 	void ApplyEmber();
+	/** The pose he rests in: the sit, or standing (bStanding). */
+	uint8 RestPoseIndex() const;
 
 	/** The sit as solved for his skeleton (component space, by bone index), and his head's and jaw's bones. */
 	TArray<FTransform> Seated;

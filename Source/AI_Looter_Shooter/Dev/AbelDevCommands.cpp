@@ -1,16 +1,17 @@
-// Developer console commands for Abel's fight, Main 6 "The Gravewind" (not in shipping builds).
+// Developer console commands for Abel's fight, Main 7 "Given to the Wind" (was Main 6's; not in shipping builds).
 
 #include "CoreMinimal.h"
 
 #if !UE_BUILD_SHIPPING
 
 #include "AI_Looter_Shooter.h"
+#include "Bosses/AbelCorruption.h"
 #include "Bosses/AbelKeeper.h"
 #include "Bosses/AbelRules.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/HealthComponent.h"
 #include "Scenes/ColdOpen.h"
-#include "Scenes/SitWithPa.h"
+#include "Scenes/FreeAbel.h"
 #include "World/KeeperLanternPost.h"
 #include "World/LightingStateSubsystem.h"
 #include "World/WorldQueries.h"
@@ -139,7 +140,7 @@ namespace
 		{
 			return;
 		}
-		const float Share = Phase == 1 ? 1.f : Phase == 2 ? AbelRules::BellShare : AbelRules::WindShare;
+		const float Share = Phase == 1 ? 1.f : Phase == 2 ? AbelRules::HoseShare : AbelRules::KeeperShare;
 		UHealthComponent* Health = Abel->GetBoss()->GetBossHealth();
 		// A little under the phase's line: its events start at once.
 		Health->SetHealth(FMath::Max(1.f, Health->GetMaxHealth() * Share - (Phase == 1 ? 0.f : 1.f)));
@@ -167,7 +168,7 @@ namespace
 		{
 			return;
 		}
-		// As the player's kill, so it counts (experience, his loot, Main 6's step); no spell saves him.
+		// As the player's kill, so it counts (experience, his loot, Main 7's step); no spell saves him.
 		Abel->GetBoss()->EndUntargetable();
 		UHealthComponent* Health = Abel->GetBoss()->GetBossHealth();
 		UGameplayStatics::ApplyDamage(Abel, Health->GetMaxHealth() * 10.f, Controller, Pawn, UDamageType::StaticClass());
@@ -184,7 +185,7 @@ namespace
 		}
 		Abel->ForcePresent(true);
 		Abel->SetPose(EAbelPose::Kneel, 0.f);
-		const bool bPlays = SitWithPa::Play(*Abel);
+		const bool bPlays = FreeAbel::Play(*Abel);
 		UE_LOG(LogLooter, Log, TEXT("Looter.Abel.Scene: %s (Looter.Abel.Back puts him on the boards again)."),
 			bPlays ? TEXT("the scene plays with him where he stands") : TEXT("no scene could play (scenes off, or one is playing)"));
 	}
@@ -287,6 +288,119 @@ namespace
 			Abel->GetLanternPosts().Num(), Abel->IsWindBlowing() ? TEXT("blowing") : TEXT("still"), Abel->IsHastened() ? TEXT("hastened") : TEXT("at his pace"));
 	}
 
+	// --- The corruption (Main 7, 2026-11-01): the call-backs, the pips, the tendrils, the drink, the fog surge, the freeing ---
+
+	UAbelCorruptionComponent* CorruptionOf(UWorld* World, const TCHAR* Command, AAbelKeeper** OutAbel = nullptr)
+	{
+		AAbelKeeper* Abel = FindAbel(FindGameWorld(World), Command);
+		if (OutAbel)
+		{
+			*OutAbel = Abel;
+		}
+		return Abel ? Abel->GetCorruption() : nullptr;
+	}
+
+	void AbelCallBack(const TArray<FString>& Args, UWorld* World)
+	{
+		// The keeper's post's hold done now, as the player's would (a call-back's pip, or the last call at zero).
+		AAbelKeeper* Abel = nullptr;
+		UAbelCorruptionComponent* Corruption = CorruptionOf(World, TEXT("Looter.Abel.CallBack"), &Abel);
+		AKeeperLanternPost* Post = Abel ? Abel->GetKeepersPost() : nullptr;
+		if (!Corruption || !Post)
+		{
+			return;
+		}
+		const bool bCalled = Post->CallBack(PlayerPawn(FindGameWorld(World)));
+		UE_LOG(LogLooter, Log, TEXT("Looter.Abel.CallBack: %s (pips %d)."), bCalled ? TEXT("called back") : TEXT("no call is open (he isn't knelt for one)"),
+			Corruption->GetPips());
+	}
+
+	void AbelPips(const TArray<FString>& Args, UWorld* World)
+	{
+		UAbelCorruptionComponent* Corruption = CorruptionOf(World, TEXT("Looter.Abel.Pips"));
+		if (Corruption)
+		{
+			Corruption->SetPips(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0);
+			UE_LOG(LogLooter, Log, TEXT("Looter.Abel.Pips: %d of 3 (the smog on him: %.0f%%)."), Corruption->GetPips(), Corruption->GetCorruption() * 100.f);
+		}
+	}
+
+	void AbelTendril(const TArray<FString>& Args, UWorld* World)
+	{
+		UAbelCorruptionComponent* Corruption = CorruptionOf(World, TEXT("Looter.Abel.Tendril"));
+		if (Corruption)
+		{
+			const bool bTwo = Args.Num() > 0 && Args[0] == TEXT("2");
+			UE_LOG(LogLooter, Log, TEXT("Looter.Abel.Tendril: %s."), Corruption->ThrowTendrils(bTwo) ? TEXT("thrown after the black lantern's flare")
+				: TEXT("not now (his fight on, the player within 12 m, his bar not locked, none out already)"));
+		}
+	}
+
+	void AbelDrink(const TArray<FString>& Args, UWorld* World)
+	{
+		AAbelKeeper* Abel = nullptr;
+		UAbelCorruptionComponent* Corruption = CorruptionOf(World, TEXT("Looter.Abel.Drink"), &Abel);
+		if (!Corruption || !Abel)
+		{
+			return;
+		}
+		if (!Abel->IsOutInFog())
+		{
+			Abel->DriftOut();
+		}
+		const int32 Index = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0;
+		UE_LOG(LogLooter, Log, TEXT("Looter.Abel.Drink %d: %s (%d dead on the boards, %d drunk)."), Index,
+			Corruption->StartDrink(Index) ? TEXT("a smog line to that body") : TEXT("not now (wait for him to settle in the fog, or it's drunk)"),
+			Corruption->BoardsDead.Num(), Corruption->NumDrunk());
+	}
+
+	void AbelSurge(const TArray<FString>& Args, UWorld* World)
+	{
+		UAbelCorruptionComponent* Corruption = CorruptionOf(World, TEXT("Looter.Abel.Surge"));
+		if (Corruption)
+		{
+			const bool bOn = !(Args.Num() > 0 && Args[0] == TEXT("0"));
+			Corruption->SetSurge(bOn);
+			UE_LOG(LogLooter, Log, TEXT("Looter.Abel.Surge %d: the wreck's smog %s."), bOn ? 1 : 0, bOn ? TEXT("pours up over the deck") : TEXT("thins"));
+		}
+	}
+
+	void AbelFree(const TArray<FString>& Args, UWorld* World)
+	{
+		// Straight to the freeing: at zero as the player's kill, the last call held, the scene.
+		UWorld* GameWorld = FindGameWorld(World);
+		AAbelKeeper* Abel = FindAbel(GameWorld, TEXT("Looter.Abel.Free"));
+		APlayerController* Controller = nullptr;
+		APawn* Pawn = PlayerPawn(GameWorld, &Controller);
+		if (!Abel || !StartFightNow(GameWorld, *Abel, false))
+		{
+			return;
+		}
+		Abel->GetBoss()->EndUntargetable();
+		UHealthComponent* Health = Abel->GetBoss()->GetBossHealth();
+		UGameplayStatics::ApplyDamage(Abel, Health->GetMaxHealth() * 10.f, Controller, Pawn, UDamageType::StaticClass());
+		UE_LOG(LogLooter, Log, TEXT("Looter.Abel.Free: at zero; Looter.Abel.CallBack once he kneels holds the last call."));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs AbelCallBackCommand(TEXT("Looter.Abel.CallBack"),
+		TEXT("Looter.Abel.CallBack: the keeper's post's hold done now (a call-back's pip while he kneels for one; the last call at zero)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelCallBack));
+	FAutoConsoleCommandWithWorldAndArgs AbelPipsCommand(TEXT("Looter.Abel.Pips"),
+		TEXT("Looter.Abel.Pips <0-3>: his pips (and the smog's look on him) set at once."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelPips));
+	FAutoConsoleCommandWithWorldAndArgs AbelTendrilCommand(TEXT("Looter.Abel.Tendril"),
+		TEXT("Looter.Abel.Tendril [2]: a smog tendril (two with 2) at the player now, after the black lantern's flare."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelTendril));
+	FAutoConsoleCommandWithWorldAndArgs AbelDrinkCommand(TEXT("Looter.Abel.Drink"),
+		TEXT("Looter.Abel.Drink <0-5>: out into the fog (if he isn't) and a smog line to that body on the boards."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelDrink));
+	FAutoConsoleCommandWithWorldAndArgs AbelSurgeCommand(TEXT("Looter.Abel.Surge"),
+		TEXT("Looter.Abel.Surge [0|1]: the wreck's smog up over the deck (the level's height fog thickened to about 15 m), or thinned."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelSurge));
+	FAutoConsoleCommandWithWorldAndArgs AbelFreeCommand(TEXT("Looter.Abel.Free"),
+		TEXT("Looter.Abel.Free: his fight on and him at zero as the player's kill: he kneels, the last call opens at the keeper's post."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelFree));
+
 	/**
 	 * Looter.Abel.Perf [adds]: the tour's view 13 measured where it happens (perf.ps1 -Exec): dusk at once, the player on
 	 * the deck facing Abel and unhurtable, his fight on, and adds (10 by default, the fight's most) rising round the deck's
@@ -316,17 +430,19 @@ namespace
 		TEXT("'here'), the fog wall closing as they're inside it."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelFight));
 	FAutoConsoleCommandWithWorldAndArgs AbelPhaseCommand(TEXT("Looter.Abel.Phase"),
-		TEXT("Looter.Abel.Phase <1|2|3>: his fight on (started if needed) and his health set just under the phase's line: 2 the bell ")
-		TEXT("and the fog, 3 the Gravewind (the lanterns relit first)."),
+		TEXT("Looter.Abel.Phase <1|2|3>: his fight on (started if needed) and his health set just under the phase's line: 2 The Hose ")
+		TEXT("(the call-back, then the fog and the drink), 3 Keeper (the call-back, then the surge and the Gravewind; the lanterns relit first). ")
+		TEXT("Looter.Abel.CallBack answers a call-back."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelPhase));
 	FAutoConsoleCommandWithWorldAndArgs AbelKneelCommand(TEXT("Looter.Abel.Kneel"),
-		TEXT("Looter.Abel.Kneel: brings him to zero as the player's kill: he kneels and the scene (Sit with Pa) follows."),
+		TEXT("Looter.Abel.Kneel: brings him to zero as the player's kill: he kneels and the last call opens at the keeper's post."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelKneel));
 	FAutoConsoleCommandWithWorldAndArgs AbelSceneCommand(TEXT("Looter.Abel.Scene"),
-		TEXT("Looter.Abel.Scene: plays Sit with Pa alone with him where he stands, recording nothing; Looter.Abel.Back after."),
+		TEXT("Looter.Abel.Scene: plays Free Abel alone with him where he stands (it records the scene: run it on a throwaway session); ")
+		TEXT("Looter.Abel.Back after."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelScene));
 	FAutoConsoleCommandWithWorldAndArgs AbelBackCommand(TEXT("Looter.Abel.Back"),
-		TEXT("Looter.Abel.Back: puts him back on the boards from his board after Looter.Abel.Scene (not once he's been beaten)."),
+		TEXT("Looter.Abel.Back: puts him back on the boards after Looter.Abel.Scene (not once he's been beaten)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&AbelBack));
 	FAutoConsoleCommandWithWorldAndArgs AbelResetCommand(TEXT("Looter.Abel.Reset"),
 		TEXT("Looter.Abel.Reset: starts his fight over, as the player's death does (he goes home healed, the adds go, the lanterns burn, the wall drops)."),

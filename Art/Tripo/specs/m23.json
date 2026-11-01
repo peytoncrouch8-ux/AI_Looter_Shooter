@@ -1,0 +1,46 @@
+{
+  "SextonsFerry": {
+    "prompt": "A long narrow black wooden ferry boat for carrying the dead, about six times as long as it is wide, side three-quarter view. Tarred black planks, old and rotted, grey weathered grain on the worn edges, an open hull with floor boards and ribs inside, empty. A high curved upswept prow carrying a tall black iron lantern pole with a short arm and an empty hook at its end, no lantern. A raised plank seat across the stern. One long sweep oar resting off the stern. Iron chain eye rings at bow and stern. Palette: tar-black and charcoal-grey weathered wood, dull rusted black iron, a little grey-green moss in the seams. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier. One boat alone.",
+    "negative": "water, sea, waves, people, person, character, lantern, light, base, platform, pedestal, ground plane, text, watermark, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours",
+    "faces": 14000,
+    "person": false
+  },
+  "ShroudedDead": {
+    "prompt": "A dead body wrapped completely in a pale linen burial shroud, lying flat on its back, the long cloth bundle tied with rough rope at the chest, at the knees and at the ankles, the shape of the head, shoulders and feet just showing through the cloth, no face, no skin. Off-white and oatmeal linen with soft folds and creases, faint earth stains and grey dust, brown hemp rope. Full natural colour, matte fabric. Stylized realistic game asset, hand-painted look, 1880s American frontier. One wrapped body alone, lying on nothing.",
+    "negative": "skin, face, hands, blood, gore, skeleton, coffin, bed, table, stretcher, base, platform, pedestal, ground plane, text, watermark, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours",
+    "faces": 8000,
+    "person": false
+  },
+  "CompanyHoseCart": {
+    "prompt": "A two-wheeled industrial pump cart, side three-quarter view, about twice as long as it is tall. A riveted black iron tank lying lengthwise on a wooden cart bed between two large spoked iron-rimmed wooden wheels; two round brass pressure gauges on the tank; a brass valve hand-wheel standing on top of the tank at the front; a hand-crank pump lever beside it; a reel of coiled black rubber hose at the back; a small blank brass plate on the tank's side; two short wooden pull handles reaching forward. Sinister company machinery, oily and used. Palette: oily black iron with brown rust streaks, dull worn brass, weathered grey-brown wood, black rubber. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier. One cart alone.",
+    "negative": "horse, people, person, character, base, platform, pedestal, ground plane, text, letters, watermark, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours",
+    "faces": 14000,
+    "person": false
+  },
+  "CompanySandbags": {
+    "prompt": "A straight low defensive wall of stacked burlap sandbags, about four times as long as it is tall, waist high: three rows of plump filled bags laid in an overlapping brick pattern, the top row slightly slumped, a flat straight front and back, both ends finished. Khaki and tan coarse burlap with darker damp stains, dust and dried mud, twine ties at the bag ends, a few bags darker brown and patched. Full natural colour, matte coarse fabric. Stylized realistic game asset, hand-painted look, 1880s American frontier. One wall section alone.",
+    "negative": "people, person, character, weapons, base, platform, pedestal, ground plane, text, letters, watermark, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours",
+    "faces": 10000,
+    "person": false
+  },
+  "CompanyCheckpointSign": {
+    "prompt": "A blank checkpoint sign: a wide rectangular painted wooden board, about two and a half times as wide as it is tall, set on two square wooden posts, front view. The board's flat front face is plain matte black paint with nothing written on it, a narrow wooden frame round its edge, the paint chipped and weathered at the edges and corners showing grey wood, rusty iron bolts holding it to the posts. The board's bottom edge is at waist height on the posts, the posts' feet square. Grey-brown weathered wood posts. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier. One sign alone.",
+    "negative": "text, letters, words, writing, numbers, logo, symbols, painting, poster, people, base, platform, pedestal, ground plane, watermark, modern, glossy, plastic, toy, cartoon, low poly, grey clay, untextured",
+    "faces": 6000,
+    "person": false,
+    "paint": "Painted in full natural colour: the board's flat face matte black paint, worn and chipped along the edges and corners showing weathered grey-brown wood beneath, a narrow weathered honey-brown wooden frame, square posts of weathered grey-brown wood with visible grain, cracks and dry splits, rusty iron bolts, dust and dried mud at the feet. Nothing written on the board. Matte, hand-painted stylized realism, soft neutral daylight.",
+    "paint_style": "Art/Tripo/style/cottage_preview.png"
+  },
+  "CompanyBanner": {
+    "prompt": "A long horizontal blank canvas banner, very long and narrow, about eight times as long as it is tall, front view, hanging flat with a slight sag in the middle. Plain pale cream canvas with nothing written on it, a sewn hem along the top and bottom edges, a brass grommet with a short rope tie at each top corner, a little dust and weather staining toward the edges. Thin flat cloth. Full natural colour, matte canvas. Stylized realistic game asset, hand-painted look, 1880s American frontier. One banner alone.",
+    "negative": "text, letters, words, writing, numbers, logo, symbols, flag, poles, frame, people, base, platform, pedestal, ground plane, watermark, glossy, plastic, toy, cartoon, low poly, grey clay, untextured",
+    "faces": 6000,
+    "person": false
+  },
+  "ShroudedDead2": {
+    "prompt": "A corpse sewn into a long pale linen burial shroud, lying flat on its back: a smooth closed cloth bundle the length of a man, rounded at the head end, narrowing to a closed tied-off end at the feet like a long sack, no feet, hands or face showing, only the soft shape of head and shoulders under the cloth. Three bands of rough hemp rope tied round it at the chest, the knees and the ankles. Oatmeal and off-white linen with soft folds, faint earth stains and grey dust, brown rope. Full natural colour, matte fabric. Stylized realistic game asset, hand-painted look, 1880s American frontier. One wrapped body alone, lying on nothing.",
+    "negative": "skin, face, hands, feet, holes, blood, gore, skeleton, coffin, bed, table, stretcher, base, platform, pedestal, ground plane, text, watermark, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours",
+    "faces": 8000,
+    "person": false
+  }
+}

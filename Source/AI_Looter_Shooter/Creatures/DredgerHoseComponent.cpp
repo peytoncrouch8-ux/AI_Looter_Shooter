@@ -17,6 +17,7 @@
 #include "Creatures/FightEvent.h"
 #include "Player/PlayerRattleSubsystem.h"
 #include "Weapons/WeaponFX.h"
+#include "World/CarriedLantern.h"
 #include "World/WorldQueries.h"
 #include "Components/AudioComponent.h"
 #include "Engine/World.h"
@@ -46,6 +47,17 @@ namespace
 	/** The drain's shown strength eases in and out this fast (a second). */
 	constexpr float DrainShowIn = 3.f;
 	constexpr float DrainShowOut = 2.f;
+
+	/**
+	 * Main 7 (lane MAIN67): while Sully carries Abel home in his lantern, the Company's hose-men want his light, not Sully's
+	 * soul: a line on a player then holds the lantern at their hip and drains it (UCarriedLanternSubsystem), and deals no
+	 * damage. Null when it's an ordinary latch.
+	 */
+	UCarriedLanternSubsystem* LanternOn(const APawn* Pawn)
+	{
+		UCarriedLanternSubsystem* Carried = Pawn && Pawn->IsPlayerControlled() ? UCarriedLanternSubsystem::Get(Pawn) : nullptr;
+		return Carried && Carried->IsCarried() ? Carried : nullptr;
+	}
 
 	FWeaponFX* HoseEffects(UWorld* World)
 	{
@@ -164,6 +176,11 @@ bool UDredgerHoseComponent::Fire(APawn* InVictim)
 FVector UDredgerHoseComponent::VictimChest() const
 {
 	const APawn* Pawn = Victim.Get();
+	if (Pawn && LanternOn(Pawn))
+	{
+		// The lantern at their hip, where the line bites while Abel's light is carried.
+		return UCarriedLanternSubsystem::LanternPoint(Pawn);
+	}
 	return Pawn ? Pawn->GetActorLocation() + FVector(0.f, 0.f, DredgerRules::ChestRise) : Tip;
 }
 
@@ -253,6 +270,10 @@ void UDredgerHoseComponent::Latch()
 	}
 	TouchVictim(true);
 	HoseMan->Bark(LooterSoundCue::DredgerBark, 0.7f);
+	if (UCarriedLanternSubsystem* Carried = LanternOn(Pawn))
+	{
+		Carried->SetLatched(HoseMan, true);
+	}
 }
 
 void UDredgerHoseComponent::StepLatched(float DeltaSeconds)
@@ -283,10 +304,23 @@ void UDredgerHoseComponent::StepLatched(float DeltaSeconds)
 		return;
 	}
 
+	// On Abel's lantern (Main 7): the light drains, not Sully (the subsystem drains it for every line it holds). A line that
+	// latched before the lantern was carried, or after it's set down, is an ordinary one again.
+	UCarriedLanternSubsystem* Carried = LanternOn(Pawn);
+	if (Carried)
+	{
+		Carried->SetLatched(HoseMan, true);
+	}
 	// The drain: his rate, dealt in small ticks as damage (the ward takes it first; it can kill), counted either way.
 	DrainOwed += HoseMan->GetDrainPerSecond() * DeltaSeconds;
 	DrainClock += DeltaSeconds;
-	if (DrainClock >= DrainTick)
+	if (Carried && DrainClock >= DrainTick)
+	{
+		DrainClock -= DrainTick;
+		DrainDealt += DrainOwed;
+		DrainOwed = 0.f;
+	}
+	else if (DrainClock >= DrainTick)
 	{
 		DrainClock -= DrainTick;
 		const float Amount = DrainOwed;
@@ -360,6 +394,14 @@ void UDredgerHoseComponent::Break(EDredgerHoseBreak Why, bool bQuiet)
 	}
 	const bool bWasLatched = State == EDredgerHoseState::Latched;
 	LastBreak = Why;
+	if (bWasLatched)
+	{
+		// Off Abel's lantern too (if it was on it): the light fills again once every line has let go.
+		if (UCarriedLanternSubsystem* Carried = UCarriedLanternSubsystem::Get(this))
+		{
+			Carried->SetLatched(GetOwner(), false);
+		}
+	}
 	StopDrainSound();
 	SnapFrom = bWasLatched ? VictimChest() : Tip;
 	SnapShare = 0.f;

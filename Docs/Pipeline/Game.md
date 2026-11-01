@@ -176,6 +176,14 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     (`AmmoPrice`), equal to clicking Buy until full. The row shows "+N rounds across K kinds" and the price; FULL when full; red
     "Not enough silver" when too dear; otherwise a confirm panel. It is the default selection (a confirm guards it); no hotkey.
     Buy column ~66 px taller: check it fits at 1080p. Tests `Looter.Economy.Trade.RefillPrice/.RefillAll`.
+  - **Sexton's secrets** (2026-11-01, lanes/SECRETS.md): `USecretCatalog` per level (`/Game/Data/Secrets/DA_Secrets_<Level>`,
+    `create_secret_assets.py` from `story_texts.SEXTON_SECRETS`), sold by `USecretBrokerComponent` (on `AMisterSexton`: tap
+    "Buy a secret" unless a mission waits at him) through `USecretsWidget` (opens itself like the bounty board: `GetOpen`,
+    counted in `ALooterHUD::IsMenuOpen`). A buy sets `SecretSold.<Id>` (saved with the story flags) and spends silver at
+    `SecretRules::PriceFor` (level-grown, a quarter off after `DiscountMission`). Marks: `USecretSubsystem::GetMarks` (find
+    spots by id until `Find.<Id>`, or actors by `MarkTag` until `DoneWhen`) feed `MapPins` (`EMapPinKind::Secret`) and the
+    minimap (`HudMinimapWidgetSecrets.cpp`, PlaceRoosts). A secret whose find isn't in the level isn't listed. Dev:
+    `Looter.Secrets.*`.
   - Settings menu (note 4): four tabs (Graphics, Audio, Interface, Controls; LB/RB or PgUp/PgDn wrap; each page its own
     `UScrollBox` in a `UWidgetSwitcher`), panel fixed 940 x 840, and a 272 px description column right of the page (row name, what
     it does, a dim range/default line; follows focus under keys and pad, the pointer under the mouse; words in

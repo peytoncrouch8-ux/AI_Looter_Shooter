@@ -246,6 +246,9 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 	// flows below play the order it had before the givers, AddStep's: the system's, not today's data.)
 	constexpr int32 AssetSteps = 2;
 	constexpr int32 AssetBales = 3;
+	// The hands as the set piece Barn Doors (2026-10-28, create_side_mission_assets.py HANDS_COUNT): 5 and a Restless leader,
+	// then 4 more; the Bell-Ringer is placed, not counted. (The flows below keep the older one-wave fight: the system's.)
+	constexpr int32 AssetHands = 10;
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Side2")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Side2.DA_Mission_Side2"));
@@ -261,8 +264,8 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 			const UMissionObjective* Chalk = Asset->GetObjective(1, 1);
 			TestTrue(TEXT("1: three hay bales loaded, held, counted from the world"), Load && Load->Count == AssetBales && Load->bHold
 				&& Load->Target.ActorTag == AHayBale::BaleTag);
-			TestTrue(TEXT("2: the hands driven off (their encounter cleared, eight)"), Hands && Hands->SpawnerId == HandsId
-				&& Hands->Count == HandsBasic + 1);
+			TestTrue(TEXT("2: the hands driven off (their encounter cleared, ten: Barn Doors)"), Hands && Hands->SpawnerId == HandsId
+				&& Hands->Count == AssetHands);
 			TestTrue(TEXT("...and, optional, the wages chalked in the barn"), Chalk && Chalk->bOptional);
 			TestTrue(TEXT("Turned in to Amos (his thanks: the topic from its third step)"), Asset->NeedsTurnIn()
 				&& Asset->TurnIn.SpeakerTag == AAmosWhitlock::SpeakerTag);
@@ -730,7 +733,10 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 	}
 	if (TestNotNull(TEXT("The hired hands' fight"), Hands))
 	{
-		TestEqual(TEXT("...seven Basic Unpaid"), CountBrought(*Hands, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), HandsBasic);
+		// The set piece Barn Doors (build_area_whitlock.place_hands, 2026-10-28): 5 and a Restless leader in the yard, then 4
+		// out of the barn's front (and a placed Bell-Ringer, not one of the groups).
+		constexpr int32 PlacedBasic = 9;
+		TestEqual(TEXT("...nine Basic Unpaid over two pushes"), CountBrought(*Hands, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), PlacedBasic);
 		TestEqual(TEXT("...and one Restless"), CountBrought(*Hands, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 		TestTrue(TEXT("...on Side 2's second step only"), Hands->ActiveWhen.DuringMission == SideTwo && Hands->ActiveWhen.FromStep == 1
 			&& Hands->ActiveWhen.BeforeStep == 2);

@@ -8,8 +8,8 @@
 #include "Story/StoryCondition.h"
 #include "AbelKeeper.generated.h"
 
-class AAbelOnBoard;
 class AKeeperLanternPost;
+class UAbelCorruptionComponent;
 class UBossComponent;
 class UInstancedStaticMeshComponent;
 class UMaterialInstanceDynamic;
@@ -26,7 +26,7 @@ enum class EAbelMove : uint8
 	None,
 	/** His fight's start: turned to the player, his lantern raised and flaring (AbelKeeperShow.cpp); any moment cuts it short. */
 	Intro,
-	/** Turned to the sunset, the lantern lowered: his coal open (phase one's grief, every 12 s for 3 s). */
+	/** Turned to the six dead on the boards to walk them (the keeper in him), muttering: his coal open (every 12 s for 3 s). */
 	Grieve,
 	/** The lantern's flare before the buckshot (1 s), then the shot. */
 	Flare,
@@ -35,44 +35,52 @@ enum class EAbelMove : uint8
 	DriftOut,
 	InFog,
 	DragBack,
-	/** Walking off into the wind (phase three), then the dark saint's pull: a stun, his coal open. */
+	/** Walking to a deck lantern post to hang his black lantern there ("Keeper"), then the furnace's pull: a stun, coal open. */
 	WalkOff,
 	Pulled,
 	/** Staggered by crits on his coal (his boss's stagger): down on a knee facing the player, his coal still open. */
 	Staggered,
-	/** At zero: knelt, his coal sunk to an ember; the scene has him from there. */
+	/** At zero: knelt, his coal sunk to an ember; the last call at the keeper's post, then the scene has him. */
 	Kneel,
 	Scene,
+	/** Down on his knees for a call-back, his bar locked (UAbelCorruptionComponent): the keeper's post can call him home a third. */
+	CallKneel,
+	/** Coming up out of the canyon fog onto the boards as his own lantern on the keeper's post calls him (his fight's step). */
+	Ascend,
 };
 
 /**
- * Abel Ransom, the Keeper (Docs/Areas/RansomsRest.md, "The boss: Abel Ransom, the Keeper"; Main 6, "The Gravewind"): the
- * area's boss, an Unpaid in his Sunday keeper's coat with his ghost lantern and the spectral twin of his Ranchhand pump.
- * SK_Abel on the Unpaid's rig (Art/Models/Creatures/Abel.py) at 1.3, posed by AUnpaidCreature's code with his pose table
- * laid over it (AbelKeeperPose.cpp, AbelPoses): the fight's idle, the flare, the shot, the stock lunge, the turn to the
- * sunset, the kneel and the sit. Boss rank, 40 Unpaid tough (about 10,500 health at level 9), his fight his UBossComponent's
- * (AbelRules::MakePhases), his own moments its Custom events (AbelKeeperFight.cpp):
+ * Abel Ransom, Corrupted (Main 7 "Given to the Wind", Docs/Work/2026-10-31-Wardens/MAINS_2_7.md section 11; was the Keeper of
+ * Main 6 "The Gravewind"): Ransom's Rest's last boss. A week in Vane's furnace twisted his soul into smog with a keeper's
+ * memory: the Unpaid's rig at 1.3 in his keeper's coat gone smog-black, his coal furnace-orange behind black ribs, a black
+ * furnace lantern in one fist and his spectral Ranchhand in the other. The fight is to burn the smog off him and call him
+ * back into his own lantern, not to kill him. SK_Abel posed by AUnpaidCreature's code with his pose table laid over it
+ * (AbelKeeperPose.cpp, AbelPoses). Boss rank, set level 7, 40 Unpaid tough times the playtest's scale, his fight his
+ * UBossComponent's (AbelRules::MakePhases), his own moments its Custom events (AbelKeeperFight.cpp), the furnace's part his
+ * UAbelCorruptionComponent's (the call-backs and pips, the tendrils, the drink, the fog surge, the last call):
  *
- *  - "You brought them here": he fights as an Unpaid (the stock lunge up close) and fires spectral buckshot after a
- *    one-second lantern flare; two Unpaid rise through the deck every 25 s (at most 4); every 12 s he turns to the sunset
- *    for 3 s, and only then is his coal open: a gold crit spot (6 cm), which his lantern arm covers the rest of the time.
- *  - "The bell" (60%): the chapel bell tolls, he drifts out into the fog over the canyon where he can't be hurt, the deck's
- *    three lanterns go dark and 8 Unpaid rise in two waves. Each lantern relit (hold Interact 1.5 s) drags him a third of
- *    the way back; with all three he's on the deck again, stunned a moment, his coal open.
- *  - "Let me go" (25%): the Gravewind pours off the point in gusts toward the deck's open end (AbelKeeperWind.cpp); he
- *    tries to walk off into it and the dark saint pulls him back, stunning him 3 s with his coal open; between pulls he
- *    fights faster. A fall off the deck is fall recovery's (its outside rule), the wind taking the player down past the end.
- *  - At zero he kneels, his coal sinks to an ember, and the scene plays (Scenes/SitWithPa): he lights the Keeper's Lantern
- *    from his ghost light, its flame leaning north-east, and sits on his board, where AAbelOnBoard takes his place.
- *  - The player's death starts it all over: he goes home healed, his adds go, the lanterns are lit, the wall drops; he
- *    waits until the player walks back onto the deck. The fog wall is the Keeper's Gate's (ABossSeal, placed).
- *  - The show (AbelKeeperShow.cpp, AbelRules::MakeShow): his lantern raised as his bar sweeps in, shots from the fog while
- *    the lanterns are dark, a barrage in the wind, a knee when crits on his coal stagger him, his coal's flare as he falls;
- *    his Boss table's loot bursts from the deck's middle once he has sat with Ellis.
+ *  - "Stoker" (100-66%): he fights as an Unpaid (the stock lunge) and fires smog buckshot after a one-second flare of the
+ *    black lantern; the smog tendril latches the player; two Unpaid rise every 25 s (at most 4); every 12 s he turns to the
+ *    six dead on the boards to walk them (the keeper in him), muttering, his coal open for 3 s (a gold crit spot, 6 cm).
+ *  - The call-back at 66% and 33%: his Smog bar locks and he kneels; held at the keeper's post, a pip fills and a third of
+ *    the smog boils off him for good.
+ *  - "The Hose" (66-33%): out over the canyon into the fog where he can't be hurt, the deck's three lanterns dark, drinking
+ *    the six dead one at a time (shoot each line's collar); each lantern relit drags him a third of the way back; with all
+ *    three he's on the deck again, stunned a moment, his coal open.
+ *  - "Keeper" (33-0%): the wreck's smog pours up over the deck (the fog surge), the Gravewind gusts toward the open end
+ *    (AbelKeeperWind.cpp); two tendrils, a buckshot barrage; between attacks the keeper in him walks to a lantern post to hang
+ *    his black lantern there and the furnace pulls him back (a 3 s stun, his coal open). A fall off the deck is Hob's catch.
+ *  - At zero he kneels: the last call (a 3 s hold on the keeper's post under a tendril's drain); the black lantern falls into
+ *    the canyon, and the scene (Scenes/FreeAbel) boils the smog off him, gold-white and whole; he steps into his own lantern,
+ *    which Sully takes down, lit. He's gone from the boards for good (Main 7 carries him home to Saint Ada).
+ *  - The player's death starts it all over: he goes home healed, his adds go, the lanterns burn, the six dead lie back on
+ *    their biers, the smog is all on him again, the wall drops. The fog wall is the Keeper's Gate's (ABossSeal, placed).
+ *  - The show (AbelKeeperShow.cpp, AbelRules::MakeShow): his entrance, shots from the fog, a barrage in the wind, a knee on a
+ *    stagger, his coal's flare as he falls; his Boss table's loot bursts from the deck's middle after the scene.
  *
- * He's in the world during Main 6 only (PresentWhen): hidden, still and ticking nothing otherwise. Until the Keeper's
- * Lantern hangs on the keeper's post (FightWhen) he walks the boards, unhurt by anything; then a player on the deck starts
- * his fight. He's fought once: a session loaded at Main 6's scene step finds the ending as the scene leaves it.
+ * He's in the world during Main 7 from its fight step (PresentWhen): the lantern hung on the keeper's post calls him up out
+ * of the canyon fog (Ascend), and a player on the deck starts his fight. Fought once; a session loaded at the scene step
+ * finds the ending as the scene leaves it. His vigil stone calls back the smog's echo of him (a rematch: no call-backs).
  */
 UCLASS(Config = Game)
 class AI_LOOTER_SHOOTER_API AAbelKeeper : public AUnpaidCreature
@@ -80,7 +88,7 @@ class AI_LOOTER_SHOOTER_API AAbelKeeper : public AUnpaidCreature
 	GENERATED_BODY()
 
 public:
-	/** The tag missions find him by (Main 6's "Defeat Abel"), his boss id in the campaign, his mission and its steps (from 0). */
+	/** The tag missions find him by (Main 7's "Free Abel"), his boss id in the campaign, his mission and its steps (from 0). */
 	static const FName BossTag;
 	static const FName BossId;
 	static const FName Mission;
@@ -102,10 +110,11 @@ public:
 	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
 
 	UBossComponent* GetBoss() const { return Boss; }
+	UAbelCorruptionComponent* GetCorruption() const { return Corruption; }
 
 	// --- In the story (AbelKeeper.cpp) ---
 
-	/** He's in the world now: Main 6 (PresentWhen), or forced by the console. */
+	/** He's in the world now: Main 7 from its fight step (PresentWhen), or forced by the console. */
 	bool IsPresent() const { return bPresent; }
 
 	/** Reads the story again: there or not, his fight able to start, the ending's state on a load past it. */
@@ -114,7 +123,7 @@ public:
 	/** In the world whatever the story says (the console, the tests), or back to the story's word. */
 	void ForcePresent(bool bForce);
 
-	/** His fight was won and the scene has sat him on his board (or the story is past it): he's gone from here for good. */
+	/** His fight was won and he's in his own lantern (the scene, its end state, or the story past it): gone from here for good. */
 	bool IsEndingDone() const { return bEndingDone; }
 
 	// --- His fight (AbelKeeperFight.cpp; each moment frame by frame, AbelKeeperMoves.cpp) ---
@@ -144,7 +153,7 @@ public:
 	FVector GetFogSpot() const;
 	FVector GetSunsetDirection() const;
 
-	/** He's fighting faster between the dark saint's pulls (phase three). */
+	/** He's fighting faster between the furnace's pulls ("Keeper"). */
 	bool IsHastened() const { return bHastened; }
 
 	/** His hurt zones now: the lunge, the buckshot's cone (AbelKeeperRules.cpp; Looter.Boss.HurtZones 1 draws them). */
@@ -181,22 +190,32 @@ public:
 	/** Where his lantern's globe is now (world): its light. */
 	FVector GetLanternGlobe() const;
 
-	// --- His ending (AbelKeeperMoves.cpp; the scene is Scenes/SitWithPa) ---
+	// --- The call-backs' kneel (AbelKeeperMoves.cpp; the corruption component asks) ---
 
-	/** The scene's hold on him: placed by it each frame, his pose its choice. */
+	/** Down on his knees for a call-back (whatever he was at), his coal open; and up again. */
+	void BeginCallKneel();
+	void EndCallKneel();
+
+	// --- His ending (AbelKeeperMoves.cpp; the scene is Scenes/FreeAbel) ---
+
+	/** The scene's hold on him: placed by it each frame, his pose its choice; how far he's faded into his lantern (0-1). */
 	void BeginScene();
 	void SetScenePlace(const FVector& Location, float Yaw);
+	void SetSceneFade(float Share) { SceneFade = FMath::Clamp(Share, 0.f, 1.f); }
 
-	/** Where he sits on his board: AAbelOnBoard's place, his middle over it at his size; false without it. */
-	bool GetBoardPlace(FVector& OutLocation, float& OutYaw) const;
+	/** The last call is done: the scene (FreeAbel), or its end state when scenes are off. */
+	void PlayFreeScene();
 
-	/** He sits on his board for good: AAbelOnBoard shows there and he's gone (the scene's end, played or skipped). */
-	void SitOnBoard();
+	/**
+	 * He's in his own lantern for good (the scene's end, played or skipped): the Keeper's Lantern lit and taken down off the
+	 * post, him gone from the boards. bLanternToo off: the smog's echo boiling away (a rematch: no lantern of his to step into).
+	 */
+	void CompleteFreeing(bool bLanternToo = true);
 
-	/** The ending's end state without the scene (scenes off, a load past it): the lantern lit, him on his board. */
+	/** The ending's end state without the scene (scenes off, a load past it): freed, the lantern lit and taken down. */
 	void FinishEndingAtOnce();
 
-	/** Back on the boards from his board, alive at his spot (the console, after the scene played alone). False once he's dead. */
+	/** Back on the boards, alive at his spot (the console; a vigil stone's echo of him). False once he's dead. */
 	bool ComeBack();
 
 	/** The Keeper's Lantern's post: the keeper's post among LanternPosts. */
@@ -206,6 +225,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UBossComponent> Boss;
+
+	/** What the furnace did to him: the smog, the call-backs and pips, the tendrils, the drink, the fog surge, the last call. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UAbelCorruptionComponent> Corruption;
 
 	/**
 	 * His ghost lantern on the lantern bone, and its light at its globe (SOCKET_Light): shadowless, his one light. It shines
@@ -228,15 +251,15 @@ public:
 
 	// --- Settings: the story ---
 
-	/** He's in the world while this holds (Main 6). Empty: always. */
+	/** He's in the world while this holds (Main 7 from its fight step: the lantern hung calls him up). Empty: always. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel|Story")
 	FStoryCondition PresentWhen;
 
-	/** His fight can start (a player on the deck starts it) while this holds: the lantern hung (Main 6 from its third step). */
+	/** His fight can start (a player on the deck starts it) while this holds: the lantern hung (Main 7 from its third step). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel|Story")
 	FStoryCondition FightWhen;
 
-	/** The ending is due: Main 6's scene step. A session loaded there finds the ending's end state (FinishEndingAtOnce). */
+	/** The ending is due: Main 7's scene step. A session loaded there finds the ending's end state (FinishEndingAtOnce). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel|Story")
 	FStoryCondition EndingWhen;
 
@@ -249,10 +272,6 @@ public:
 	/** The deck's three lantern posts (none set: those in the level tagged LanternPost_Deck, nearest first). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel|Deck")
 	TArray<TObjectPtr<AKeeperLanternPost>> LanternPosts;
-
-	/** Where he sits after the fight (none: the level's AAbelOnBoard). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel|Deck")
-	TObjectPtr<AAbelOnBoard> OnBoard;
 
 	/** Where he hangs in the fog (world). Zero: FogDistance ahead of his spot toward the sunset, FogRise up. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel|Deck")
@@ -390,9 +409,10 @@ private:
 	/** Where the lanterns have dragged him so far: between the fog and his spot. */
 	FVector DragTarget() const;
 	float SunsetYaw() const;
-	/** The scene after the fight, once his kneel has settled (Scenes/SitWithPa), or its end state when scenes are off. */
+	/** Once his kneel at zero has settled: the last call at the keeper's post (the corruption component's). */
 	void PlayEnding();
-	void RingTheBell();
+	/** Comes up out of the canyon fog to his spot as his fight's step begins (the lantern hung calls him). */
+	void BeginAscend();
 	void ApplyPace(bool bFaster);
 	/** Every lantern lit again at once, without a word (a reset, a win). */
 	void LightAllLanterns();
@@ -447,6 +467,10 @@ private:
 	TWeakObjectPtr<APawn> LastFighter;
 	float KneelYaw = 0.f;
 	bool bEndingAsked = false;
+	/** The last call is done and the scene has been asked for (asked again while another scene plays). */
+	bool bFreeAsked = false;
+	/** FreeAbel's fade of him into his own lantern (his look's dissolve while he kneels dead; 0 solid). */
+	float SceneFade = 0.f;
 	/** His own pace, as his rank and level left it, for giving back. */
 	bool bPaceCaptured = false;
 	float OwnCooldown = 1.3f;

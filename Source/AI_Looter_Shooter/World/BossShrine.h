@@ -61,8 +61,9 @@ struct FBossShrineView
  *    answers from its arena. A lair brings its boss anew (AEncounterSpawner::TriggerWave); a placed boss is readied at its
  *    spot (UBossComponent::PrepareRematch). Either way its fight starts as the first did (its seal, intro, phases), its
  *    story kept as it is: no scene, no mission, no story reward again. Its loot shower rolls exactly as the first kill's
- *    did: the same table and luck (the user's call). Abel: Pa leaves his board while the Keeper walks the boards again; beaten, he
- *    kneels, and before "Sit with Pa" could play again he's back on his board (BossShrineCallBack.cpp).
+ *    did: the same table and luck (the user's call). Abel: his stone calls back "the smog's echo of him" (the furnace's shadow
+ *    of Abel; the real Abel keeps Saint Ada at the chapel): no call-backs, no last call; beaten, it kneels and boils away into
+ *    the fog before "Free Abel" could play again (BossShrineCallBack.cpp).
  *  - A lair's boss away for this visit (the Gravemother's twenty-minute rule) comes back by its lair's own rule or the bell, never
  *    by a load alone (2026-10-27: it did after a Save & Quit, which readied every stone together).
  *
@@ -134,7 +135,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vigil Stone")
 	FStoryCondition BeatenWhen;
 
-	/** It can be called back only while this holds (Abel: after Main 6). Empty: always. */
+	/** It can be called back only while this holds (Abel's echo: after Main 7). Empty: always. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vigil Stone")
 	FStoryCondition CallableWhen;
 
@@ -298,9 +299,9 @@ private:
 	bool CallAbel(AAbelKeeper& Abel);
 	/** Marks its lair's boss out there a called-back fight (its text says "again"), while a call from the lair is on. */
 	void MarkLairBosses();
-	/** Abel's called-back fight, frame by frame: once he has knelt a moment, his ending without its scene. */
+	/** The echo's fight, frame by frame: once it has knelt a moment, it boils away (no last call, no scene). */
 	void TickAbelRematch();
-	/** Abel's called-back fight is over: Pa on his board again, the Keeper's story as the story keeps it. */
+	/** The echo's fight is over: gone from the boards, Abel's story as the story keeps it. */
 	void EndAbelRematch(bool bWon);
 
 	/** Its state as last read. */
@@ -337,7 +338,6 @@ private:
 	TWeakObjectPtr<AAbelKeeper> RematchAbel;
 	bool bAbelRematch = false;
 	FStoryCondition SavedFightWhen;
-	FStoryCondition SavedShownWhen;
 
 	FDelegateHandle BossWonHandle;
 };

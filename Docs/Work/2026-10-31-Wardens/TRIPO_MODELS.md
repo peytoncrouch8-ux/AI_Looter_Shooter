@@ -93,3 +93,67 @@ it can letter cleanly.
   `/Game/Art/Tripo/SM_CompanyLoudspeaker`; Main 2-3 make it shootable, so its horns are best near the top, facing +X.)
 - Not needed: the ferry's landing and rope ladder (built in code, timber and rope), Lucky Ned's skiff (the built
   SM_Skiff_A_Gang), the ASSESSED chalk (drawn).
+
+## Mains 4-5
+
+Lane MAIN45 (Main 4 "A Coal Under Ash", Main 5 "Choke Point"; MAINS_2_7.md §6-7, §14). Not generated: the user makes and
+approves each (spend only when approved). Each has one swap path; until it's imported the stand-in shows. Already in the
+game and reused: the Company tender (no. 14, `/Game/Art/Tripo/SM_CompanyTender`, flown by `ACompanyTenderDrop`), the dredge
+hose and intake (no. 13), the loudspeaker post (no. 18), the hose-cart (M23-3).
+
+- **M45-1. Saint Ada's Reliquary, whole** (§14 no. 28). A granite chest 1.2 x 0.75 m, 0.6 m tall (2.2 m with the plinth if
+  made together: make the chest alone, the chapel's plinth is its own), banded in gold, a shallow round recess on the lid
+  where her ember lies, worn carving on the front. Unbroken. Front +X, pivot at the bottom middle; sockets `SOCKET_Ember`
+  (the recess's middle, +Z up) and `SOCKET_Interact` (the front's middle). Swap: `/Game/Art/Tripo/SM_ReliquaryWhole`
+  (`build_area_chapel.RELIQUARY_MESHES`); stand-in: `AChapelReliquary`'s granite chest with a brass band and a dark recess.
+- **M45-2. Junie's salt charges** (§14 no. 26): a canvas satchel, 0.6 m, flap open, three charges showing (swap
+  `/Game/Art/Tripo/SM_SaltSatchel`: `build_area_main5.SATCHEL_MODELS` and Main 5's item mesh; stand-in SM_FlourSacks at
+  0.45); and one charge, 40 cm: three salt jars wrapped in wire with a fuse and a round magnet clamp on its back, the clamp's
+  face -X (it goes on the collar) (swap `/Game/Art/Tripo/SM_SaltCharge`, `AIntakeCharge::ChargeModelPath`; stand-in: three
+  white cylinders and an iron disc).
+- **M45-3. Company air-shaft head** (§14 no. 35). A timbered shaft head for the Providence on Larkspur High: a square
+  timber collar 3 x 3 m, a pulley frame over it 4 m tall, a riveted iron cowl where the barge's hose goes in. Pivot at the
+  ground middle, the cowl's opening up. Swap: `/Game/Art/Tripo/SM_AirShaftHead` (`build_area_main5.SHAFT_MODELS`); stand-in:
+  a 3.2 x 3.2 x 1 m block in MI_LanternWood.
+- Not Tripo (drawn or built in code): the soot handprint on the chapel's door (a decal texture to draw; stand-in
+  MI_Decal_ImpactScar), the window's hose and its whip, the intake's clamp collar, the ropes, the smog pool, the second hose.
+
+## Mains 6-7
+
+Lane MAIN67 (Main 6 "The Pilot Light", Main 7 "Given to the Wind"; MAINS_2_7.md §10-11, §14; lanes/MAIN67.md). Not
+generated: the user makes and approves each (spend only when approved). Each has one swap path (first one that exists
+wins); until it's imported the stand-in shows. All Company iron in the barge's rust and VC paint, our stylized realism, real
+sizes, pivot at the bottom middle, front +X unless said. Already in and reused: the dredge barge (no. 12,
+`SM_DredgeBarge`: the walkable barge's hull and its wreck's stand-in), the tender (no. 14), the hose (no. 13), the
+loudspeaker post (no. 18), Abel's body (TRIPO_PEOPLE).
+
+- **M67-1. Barge deck plate and rail** (§14 no. 30): a riveted iron deck plate 10 x 10 m (and one with a hatch), a rail
+  section 10 m. Swap `SM_BargeDeckPlate`, `SM_BargeRail` (`World/BargeLooks.h`; declared, not wired yet: the kit's shapes
+  show). Stand-in: engine cubes in MI_Landfall_BargeIron.
+- **M67-2. Smokestack, jib crane, hose drum, furnace vent** (§14 no. 32): stack 3 m across, 14 m tall, a ladder up one side
+  (`SM_BargeStack`); a 12 m deck crane (`SM_BargeCrane`); the hose drum on its gantry, drum 6 m across, a jam lever on its
+  side (`SM_BargeHoseDrum`); a 2 x 2 m vent grille with glowing slots (`SM_FurnaceVent`). Stand-ins:
+  engine cylinders and cubes.
+- **M67-3. Soul coal** (§14 no. 31): a 30 cm lump of black faceted coal with glowing cyan veins (emissive veins, no
+  translucency); and a burlap sack stencilled VC. Swap `SM_SoulCoal` (`ASoulCoalLump::ModelPath`, `build_area_main7`,
+  BargeFall's coal rain); stand-in SM_Rock_B tinted dark with a cyan crust.
+- **M67-4. The soul furnace** (§14 no. 33): a 6 m iron furnace with pipes, a glass-windowed soul cage at its heart (the
+  glass an emissive slot), an intact and a burst version. Swap `SM_SoulFurnace`, `SM_SoulFurnaceBurst` (`ABargeFurnace`);
+  stand-in: shapes and a glowing core.
+- **M67-5. Furnace hall** (§14 no. 34): a round riveted shell 22 m across (the hull's beam holds no more than that, so not
+  the design's 26) and 9 m high, a catwalk ring at 4 m, two stokehold doors; a floor grate wedge (12 make the ring,
+  `SM_FurnaceGrate`); a draft valve, a wheel on a pipe run, 1.5 m (`SM_DraftValve`); the stoker's office set (a desk, an iron
+  safe, a radio set); the manifest: a thick ledger with brass VC corners (`SM_BargeManifest`, `build_area_main6`
+  MANIFEST_MODELS; stand-in SM_PayrollBook). Shell and office: no swap path yet (the kit's shapes).
+- **M67-6. Dredger chief stoker** (§14 no. 29): the hose-man in a furnace-proof leather hood and long gauntlets, two tanks on
+  his back (the Chief Stoker; stand-in: a Hallowed hose-man, gold tag). No swap path yet (DREDGER's body per role).
+- **M67-7. The barge wreck** (§14 no. 37): the barge broken in two and burning, for the canyon floor (seen from afar, LODs
+  low). Swap `SM_BargeWreck` (`build_area_main6` WRECK_MODELS); stand-in: SM_DredgeBarge pitched into the canyon.
+- **M67-8. Grapple launcher** (§14 no. 37): the tender's launcher as its own model for the Lamplighter's starboard rail
+  (a short iron barrel on a swivel, a crank, the grapple seated in its mouth). No swap path yet (`ALamplighterLauncher`'s
+  shapes).
+- **M67-9. Abel's furnace lantern** (§14 no. 27): a keeper's lantern of black iron, its glass soot-black with a cyan glint
+  inside. Stand-in: his ghost lantern (SM_AbelLantern) blackened by material. No swap path yet.
+- (optional) **M67-10. Company hopper car** (§14 no. 38) for the depot's siding: not used yet.
+- Not Tripo (built in code): the tender's gas-bag weak spot, the chains, the gangplank, the grate's heat, the vents' fire
+  columns, the smog tendril and drink lines, the soul followers and the river of lights, the light wave, the fog surge.

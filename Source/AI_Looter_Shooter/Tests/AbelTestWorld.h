@@ -1,17 +1,18 @@
 #pragma once
 
-// What Abel's tests (AbelTests.cpp, AbelFightTests.cpp, GravewindTests.cpp) build in their test levels: Abel on a deck
-// whose middle is the origin and whose open end is +X (the sunset), the deck's three lantern posts, his board, a player
-// stand-in toward the gate (-X), and time moved on as the game moves it (his boss's fight, then him).
+// What Abel's tests (AbelTests.cpp, AbelFightTests.cpp, AbelCorruptionTests.cpp, GravewindTests.cpp) build in their test
+// levels: Abel on a deck whose middle is the origin and whose open end is +X (the sunset), the deck's three lantern posts,
+// the six dead on the boards round the aisle, a player stand-in toward the gate (-X), and time moved on as the game moves it
+// (his boss's fight, then him). (Pa's board went with Main 7's rework, 2026-11-01: he's carried home in his lantern now.)
 
 #include "CoreMinimal.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Bosses/AbelCorruption.h"
 #include "Bosses/AbelKeeper.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/HealthComponent.h"
-#include "Story/AbelOnBoard.h"
 #include "Tests/BossTestWorld.h"
 #include "World/KeeperLanternPost.h"
 #include "Engine/World.h"
@@ -25,11 +26,17 @@ namespace AbelTestWorld
 	/** One frame of the tests (s). */
 	inline constexpr float Frame = 0.05f;
 
-	/** Where the deck's pieces stand round its middle (cm): the two front posts, the keeper's post by the entrance, his board. */
+	/** Where the deck's pieces stand round its middle (cm): the two front posts, the keeper's post by the entrance. */
 	inline const FVector FrontLeftPost(860.0, -760.0, 0.0);
 	inline const FVector FrontRightPost(860.0, 760.0, 0.0);
 	inline const FVector KeepersPost(-940.0, -460.0, 0.0);
-	inline const FVector Board(480.0, 210.0, 90.0);
+
+	/** The six dead on their biers either side of the aisle (a body's middle, cm), as build_area_deck.py sets them on him. */
+	inline TArray<FVector> BoardsDead()
+	{
+		return { FVector(500.0, -380.0, 100.0), FVector(500.0, 380.0, 100.0), FVector(0.0, -380.0, 100.0), FVector(0.0, 380.0, 100.0),
+			FVector(-500.0, -380.0, 100.0), FVector(-500.0, 380.0, 100.0) };
+	}
 
 	/** Looter.Scenes set for a test (2: on, 0: off), and put back after it. */
 	class FScenesSetting
@@ -58,6 +65,36 @@ namespace AbelTestWorld
 		int32 Previous = 1;
 	};
 
+	/**
+	 * His smog tendrils off for a test about something else (Looter.Abel.Tendrils 0), and back after: a tendril drains the
+	 * player stand-in (100 health) and its death would start the fight over mid-test.
+	 */
+	class FTendrilsOff
+	{
+	public:
+		FTendrilsOff()
+			: Variable(IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Abel.Tendrils")))
+		{
+			if (Variable)
+			{
+				Previous = Variable->GetInt();
+				Variable->Set(0, ECVF_SetByConsole);
+			}
+		}
+
+		~FTendrilsOff()
+		{
+			if (Variable)
+			{
+				Variable->Set(Previous, ECVF_SetByConsole);
+			}
+		}
+
+	private:
+		IConsoleVariable* Variable = nullptr;
+		int32 Previous = 1;
+	};
+
 	/** A lantern post as the build script sets it up, begun. */
 	inline AKeeperLanternPost* SpawnPost(UWorld* World, const FVector& Where, bool bKeepers)
 	{
@@ -74,24 +111,17 @@ namespace AbelTestWorld
 		return Post;
 	}
 
-	/** His board, as the build script sets it on the bier's Sit socket (facing the sunset), not begun. */
-	inline AAbelOnBoard* PlaceBoard(UWorld* World)
-	{
-		return World->SpawnActor<AAbelOnBoard>(Board, FRotator::ZeroRotator);
-	}
-
 	/**
-	 * Abel on the deck's middle facing the sunset (+X), with the deck's three posts and his board, begun. With bStory his
-	 * story is the class's (Main 6); without it he's always there and his fight can start any time (the fight's tests).
+	 * Abel on the deck's middle facing the sunset (+X), with the deck's three posts and the six dead's spots, begun. With
+	 * bStory his story is the class's (Main 7); without it he's always there and his fight can start any time (the fight's
+	 * tests). bDead off: no dead on the boards (the optional's "none to save").
 	 */
-	inline AAbelKeeper* SpawnAbel(UWorld* World, bool bStory = false, TArray<AKeeperLanternPost*>* OutPosts = nullptr,
-		AAbelOnBoard** OutBoard = nullptr)
+	inline AAbelKeeper* SpawnAbel(UWorld* World, bool bStory = false, TArray<AKeeperLanternPost*>* OutPosts = nullptr, bool bDead = true)
 	{
 		TArray<AKeeperLanternPost*> Posts = { SpawnPost(World, FrontLeftPost, false), SpawnPost(World, FrontRightPost, false),
 			SpawnPost(World, KeepersPost, true) };
-		AAbelOnBoard* OnBoard = PlaceBoard(World);
 		AAbelKeeper* Abel = World->SpawnActor<AAbelKeeper>(FVector(0.0, 0.0, 120.0), FRotator::ZeroRotator);
-		if (!Abel || !OnBoard || Posts.Contains(nullptr))
+		if (!Abel || Posts.Contains(nullptr))
 		{
 			return nullptr;
 		}
@@ -105,21 +135,39 @@ namespace AbelTestWorld
 		{
 			Abel->LanternPosts.Add(Post);
 		}
-		Abel->OnBoard = OnBoard;
+		if (bDead)
+		{
+			Abel->GetCorruption()->BoardsDead = BoardsDead();
+		}
 		// The deck's open end, 10 m on from his spot.
 		Abel->OpenEndDistance = 1000.f;
-		OnBoard->DispatchBeginPlay();
 		Abel->DispatchBeginPlay();
 		BossTestWorld::NoLoot(Abel);
 		if (OutPosts)
 		{
 			*OutPosts = Posts;
 		}
-		if (OutBoard)
-		{
-			*OutBoard = OnBoard;
-		}
 		return Abel;
+	}
+
+	/**
+	 * Answers the call-back he's knelt for (the keeper's post's hold done), as the player would. False when no call is open.
+	 * The fight goes on into the phase's own (the fog, or the surge and the wind).
+	 */
+	inline bool CallBack(AAbelKeeper* Abel, AActor* By = nullptr)
+	{
+		AKeeperLanternPost* Post = Abel ? Abel->GetKeepersPost() : nullptr;
+		return Post && Post->CallBack(By);
+	}
+
+	/** Hurts him to just under a phase's line and answers its call-back at once (the fight's tests that are about the phase). */
+	inline void HurtIntoPhase(AAbelKeeper* Abel, float Share)
+	{
+		if (Abel)
+		{
+			BossTestWorld::HurtTo(*Abel->GetBoss(), Share);
+			CallBack(Abel);
+		}
 	}
 
 	/** Moves his fight and him on by Seconds, a frame at a time, as the game would (his boss's fight, then his frame). */

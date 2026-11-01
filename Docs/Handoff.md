@@ -3,6 +3,23 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
+## 2026-11-01 evening: Mains 4-7 + Sexton's secrets + Paid on Delivery BUILT, tests pass; PIE check next
+All of the Wardens story's Ransom's Rest mains are in (lanes MAIN45.md, MAIN67.md + CONTRACT67.md, SECRETS.md): Main 4 "A Coal
+Under Ash" (chapel window hose, tender drop on ropes), Main 5 "Choke Point" (Sink intake, salt charges, turned in to Finch),
+Main 6 "The Pilot Light" (the Lamplighter's sortie, boarding the barge, furnace hall, cage burst, the barge falls into
+Gravewind Canyon), Main 7 "Given to the Wind" (corrupted Abel: call-backs at his post, the six dead an optional save, the
+fog's three phases; FreeAbel; carry his light home; SaintAdaWakes). Sexton sells 17 secrets for silver (map keyholes);
+Paid on Delivery after Main 6. Mission XP trimmed for the Pacing band (Main 2 400, 3 800, 4 1,000, 5 1,400, 6 3,000, 7
+3,000, Paid on Delivery 150); the missions' share floor is now 50% (the user's pick). Tripo M23 models in (ferry, shrouded
+dead, hose-cart, sandbags, board, banner; 230 credits, balance 85); farmhouse/cottage windows glow again (lit panes).
+Tests: every group passes (Story, World, Bosses 39, Scenes, Missions 64, Lines, Train, Progression, Creatures in 32
+subgroups (one 204-test batch crashes the GPU driver: run Creatures by subgroup), Bestiary, UI 78). Perf before Mains 4-7:
+default view 171 fps; tour of Ransom's Rest heaviest PointOverValley_FarShadow 8.26 ms, farm 7.50 ms. Tools: perf.ps1
+answers the Zen prompt and stops a game hung on exit after its CSV; launch.ps1 waits for a closing editor before building.
+Next: PIE check Mains 4-7 (MAIN45/MAIN67 walkthroughs), then perf on the new set pieces, commit, package. Known: the
+Lamplighter's sortie course "still touches something" warnings (look in PIE); SM_ReliquaryWhole and the Mains 4-7 Tripo
+models (TRIPO_MODELS.md M45-*, M67-*) not made (85 credits left: ask the user); Mooring Ledge warning (works).
+
 ## 2026-11-01: Wardens round 1 + Mains 2-3 BUILT, Tripo models in (Docs/Work/2026-10-31-Wardens/)
 The user restarted the story (DECISIONS.md: living Lantern Wardens on the airship the Lamplighter vs Cornelius Vane, soul
 coal and smog; hero Sully Graves; no grave start) and asked for a turn-in card on every mission (card, then talk).
@@ -23,8 +40,7 @@ of this commit), TRIPO-M23 (ferry, shrouded dead, hose-cart, sandbags/board, ban
 remain"; ~315 balance before it). Tripo balance after both: about 25-65.
 Next: merge those two (import, gameplay pass, tests), perf before/after (farm view +17k tris, Drover 33-35k), package
 the playtest (the user said yes), then Mains 4-7 (the user: keep going overnight; MAINS_2_7.md).
-Known: Mooring Ledge warning (ship moors at the design spot, works); Sexton's secrets-for-silver vendor page not built
-(MAINS_2_7 section 12) nor Paid on Delivery; farmhouse knee-brace bits under the porch roof, dormer roof slightly wavy;
+Known: Mooring Ledge warning (ship moors at the design spot, works); farmhouse knee-brace bits under the porch roof, dormer roof slightly wavy;
 Assay/Barber Tripo fronts fitted but not hooked (lose lettered signs); Depot/Chapel/Workshop/Smithy/Watchtower Tripo
 models kept for later (need cut openings).
 

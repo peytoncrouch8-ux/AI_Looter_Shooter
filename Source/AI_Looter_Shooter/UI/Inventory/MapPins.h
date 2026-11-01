@@ -23,6 +23,11 @@ enum class EMapPinKind : uint8
 	/** Where trips leave from: the train's depot, Skyreach's skiff jetty. */
 	Station,
 	/**
+	 * A place one of Sexton's secrets marks (bought from him, until it's found: USecretSubsystem::GetMarks): the player's
+	 * purchase, not a chest the map gives away.
+	 */
+	Secret,
+	/**
 	 * One of Hob's roosts found (or opened) in this story that is a fast-travel station (ARespawnMarker::bFastTravelStation):
 	 * fast travel goes there. A roost that is only a place to rise after a death (the Sheriff's Office's) has no pin. (Named
 	 * for the graves the roosts replaced.)

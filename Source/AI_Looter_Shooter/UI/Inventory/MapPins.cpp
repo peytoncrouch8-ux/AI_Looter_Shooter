@@ -1,4 +1,6 @@
 #include "UI/Inventory/MapPins.h"
+#include "Economy/SecretRules.h"
+#include "Economy/SecretSubsystem.h"
 #include "Economy/Vendor.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
@@ -81,6 +83,21 @@ namespace MapPins
 			Pin.Name = Vendor->Title.IsEmpty() ? LOCTEXT("Store", "Store") : Vendor->Title;
 			Pin.Detail = LOCTEXT("StoreDetail", "Buy ammo and salt, sell your guns");
 			Pin.Id = Vendor->GetFName();
+		}
+
+		// Sexton's secrets bought and not found yet (lanes/SECRETS.md): paid for, so shown, unlike the chests the map never
+		// gives away. Found, they're gone.
+		if (const USecretSubsystem* Secrets = Sources.Campaign ? USecretSubsystem::Get(World) : nullptr)
+		{
+			for (const FSecretMark& Mark : Secrets->GetMarks(*Sources.Campaign, Sources.Runner))
+			{
+				FMapPin& Pin = Pins.AddDefaulted_GetRef();
+				Pin.Kind = EMapPinKind::Secret;
+				Pin.Location = Mark.Location;
+				Pin.Name = Mark.Title;
+				Pin.Detail = Mark.Line;
+				Pin.Id = Mark.Id;
+			}
 		}
 
 		// Where trips leave from: a station's board (the train), and Skyreach's jetty (the skiff).
@@ -231,6 +248,7 @@ namespace MapPins
 		case EMapPinKind::Shrine:      return LOCTEXT("KindShrine", "Vigil Stone");
 		case EMapPinKind::Vendor:     return LOCTEXT("KindVendor", "Store");
 		case EMapPinKind::Station:    return LOCTEXT("KindStation", "Station");
+		case EMapPinKind::Secret:     return LOCTEXT("KindSecret", "Sexton's secret");
 		case EMapPinKind::Grave:       return LOCTEXT("KindPost", "Lantern post");
 		case EMapPinKind::Offer:       return LOCTEXT("KindOffer", "Mission offered");
 		case EMapPinKind::TurnIn:      return LOCTEXT("KindTurnIn", "Turn in");

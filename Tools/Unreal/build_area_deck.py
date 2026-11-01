@@ -1,42 +1,48 @@
-"""Main 6, "The Gravewind" (Docs/Areas/RansomsRest.md: Main 6, "The boss: Abel Ransom, the Keeper"), for build_area_story.py:
-the burial boards deck on Gravewind Point dressed and the story's pieces on it, placed from the deck build_area.py placed
+"""Main 7, "Given to the Wind" (Docs/Work/2026-10-31-Wardens/MAINS_2_7.md section 11: "Abel Ransom, Corrupted"), for
+build_area_story.py: the burial boards deck on Gravewind Point dressed and the story's pieces on it, placed from the deck build_area.py placed
 (SM_BurialDeck, Art/Models/Props/BurialDeck.py: its SOCKET_Bier_1..8 and SOCKET_LanternPost_1..3, its front the open end
 over the canyon), from the layout's features (the Keeper's Gate's rocks gateSouth and gateNorth), placements (graveKeeper)
 and boundary (its open edges along the Rim), so they follow the level whenever it's rebuilt. build_area_story's place()
-calls place() here (reloaded each run, as the editor keeps modules between runs) and gets Hob's Main 6 perches back for
+calls place() here (reloaded each run, as the editor keeps modules between runs) and gets Hob's deck perches back for
 his. It uses build_area_story's helpers. Everything goes in the area's Gameplay folder; a piece whose model or class isn't
 there yet is left out with a warning.
 
 - The eight biers (SM_Bier, tagged Obstacle) on the deck's Bier sockets, turned as each socket is: the fight's cover.
 - The three keeper's lantern posts (AKeeperLanternPost with SM_KeeperLanternPost, tagged LanternPost_Deck and Obstacle) on
   the LanternPost sockets. The third, by the entrance, is the keeper's post (bKeepersPost, also tagged LanternPost_Keeper):
-  the Keeper's Lantern is hung there in Main 6's second step, hangs there from its third, and is lit and leaning north-east
-  after it.
+  the Keeper's Lantern is hung there in Main 7's second step (from 0: 1), hangs there through the fight and the scene (from
+  2 before 4), and is gone from the hook from the carry step (4) and after Main 7 (Sully carries it home: build_area_main7).
+  Never lit by the story: Abel's freeing (Scenes/FreeAbel) lights it. Its flame leans toward the chapel (Place_Chapel's
+  chapel), the way the lantern is carried. The fight's call-backs are a hold on this post (AKeeperLanternPost::CallBack).
 - Abel (AAbelKeeper, tagged Boss_Abel) in the aisle between the biers' two rows, facing the deck's open front (the sunset),
-  in the world during Main 6: his three posts, his board, where he hangs in the fog (FOG_OUT past the deck's open front,
-  FOG_UP over his middle), how far the open end is from him, and his boss's fog wall.
-- Pa's board (AAbelOnBoard, tagged Speaker_Abel) on the SOCKET_Sit of the bier ABEL_BIER, facing the sunset, after Main 6,
-  his words by the story (create_story_lines.py's DA_Lines_AbelOnBoard, and DA_Lines_AbelAfterMain7 after Main 7).
+  in the world from Main 7's fight step (the C++: he rises out of the fog): his three posts, where he hangs in the fog
+  (FOG_OUT past the deck's open front, FOG_UP over his middle), how far the open end is from him, his boss's fog wall, and
+  the six dead on the boards (his corruption's BoardsDead: build_area_main2.py's shrouded dead on SHROUD_BIERS, a body's
+  middle BODY_UP over its bier's top), which he walks to and drinks.
+- (Pa's board is gone: Abel is freed into his lantern in Main 7, his soul stands at the Reliquary after it, W5's.)
 - The fog wall (ABossSeal, a gate) across the Keeper's Gate, between the gate's rocks (inset into each by GATE_INSET of its
   radius, so nobody slips round its ends), the deck ahead of it.
 - Gravewind Point's place (a target point tagged Place_GravewindPoint) at the Keeper's Gate: "Carry the lantern to
   Gravewind Point" ends within 10 m of it (both roads end at the keeper's grave; the cairns lead on to the gate).
 - (The keeper's grave's respawn grave is gone: Hob's roost at the keeper's crossroads replaced it, build_area_roosts.py,
   the layout's gameplay.roosts KeepersGrave, the same id and still open after Main 5, so a death in Abel's fight wakes Ellis
-  there. The grave stays, Hob's first Main 6 perch on its board.)
-- The story's dusk (AStoryLighting): Main 6 (and Main 7, which goes on in the evening) in the Dusk lighting state; once
-  lit, the dusk lasts until the level loads again.
+  there. The grave stays, Hob's first deck perch on its board.)
+- The story's dusk (AStoryLighting), first match: Main 7 from its step 6 (Saint Ada awake) Dusk; the rest of Main 7 and
+  all of Main 6 DuskSmog (Dusk's sun under thin smog; layout.json's state). After Main 7, Day (build_area_main5's SmogThin
+  stops then).
 - The Gravewind's wisps and the canyon's fog (ADuskScenery, one per mesh, tagged Gravewind; the art session's
-  SM_GravewindWisp_A-D and SM_CanyonFog_A-C with their own materials), seen only at dusk: five wisps along the deck's open
+  SM_GravewindWisp_A-D and SM_CanyonFog_A-C with their own materials), seen in DuskSmog (and Dusk too, once ADuskScenery
+  has AlsoShownStates): five wisps along the deck's open
   front, about 2.8 per 10 m along Gravewind Point's open lips, about 1 per 10 m along the rest of the open Rim (a Curl,
   mirrored, at each corner), WISP_MOST in all; three fog banks off the point (FOGS).
 Abel's adds need no spawner: his boss raises them round the deck's middle (AbelRules::RisingUnpaid).
 Abel's ghost lantern lights what's round him and never him: it shines on a lighting channel of its own
 (AbelRules::GhostLightChannel), so the deck and the biers take that channel as well as 0 here (the posts and his adds take
 it in the C++).
-Hob's perches (returned to build_area_story.place_hob): on the keeper's grave's board for the way there, on the Keeper's
-Gate's north rock for the lantern and the fight, on the bier beside Pa's for the scene and after Main 6.
+Hob's perches (returned to build_area_story.place_hob, the same keys as before): on the keeper's grave's board for the way
+there, on the Keeper's Gate's north rock for the lantern and the fight, on the bier HOB_BIER for the scene.
 """
+import importlib
 import math
 import random
 
@@ -44,20 +50,24 @@ import unreal
 
 import build_area_story as story
 
-# The story's ids and tags, as the C++ (AAbelKeeper, AKeeperLanternPost, AAbelOnBoard) and the mission asset
-# (Tools/Unreal/create_mission_assets.py, DA_Mission_Main6) name them.
+# The story's ids and tags, as the C++ (AAbelKeeper, AKeeperLanternPost, UAbelCorruptionComponent) and the mission asset
+# (Tools/Unreal/create_mission_assets.py, DA_Mission_Main7) name them.
 MAIN6 = 'Main6'
 MAIN7 = 'Main7'
 BOSS_TAG = 'Boss_Abel'
 DECK_POST_TAG = 'LanternPost_Deck'
 KEEPERS_POST_TAG = 'LanternPost_Keeper'
-ABEL_TAG = 'Speaker_Abel'
 PLACE_POINT = 'Place_GravewindPoint'
 DUSK = 'Dusk'
+DUSK_SMOG = 'DuskSmog'
 GRAVEWIND_TAG = 'Gravewind'
-# Main 6's steps, from 0: to the point, the lantern hung, Abel, the scene.
+# Main 7's steps, from 0: to the point, the lantern hung, Abel, his freeing, the carry, the Reliquary, then turned in.
 HANG_STEP = 1
 FIGHT_STEP = 2
+CARRY_STEP = 4
+READY_STEP = 6
+# The six dead's bodies: their middle this far over their bier's top (a shrouded body lying on it is about 40 cm high).
+BODY_UP = 20.0
 
 PROPS = '/Game/Art/Props/'
 BIER_MESH = PROPS + 'SM_Bier'
@@ -70,7 +80,8 @@ DECK_SURFACE = 40.0
 BIERS = 8
 POSTS = 3
 KEEPERS_POST = 3
-# Pa's own bier: the front row's (the one nearest the sunset), right of the aisle. Hob perches on the one beside it.
+# Pa's old bier (the front row's, nearest the sunset, right of the aisle): kept bare (build_area_main2's shrouds skip it and
+# HOB_BIER). Hob perches on the one beside it.
 ABEL_BIER = 3
 HOB_BIER = 2
 # The aisle's middle between the rows, where Abel stands: between these biers' sockets.
@@ -80,7 +91,7 @@ ABEL_UP = 120.0
 # Where he hangs in the fog: this far out past the deck's open front, this far up over his middle on the boards (cm).
 FOG_OUT = 900.0
 FOG_UP = 150.0
-# Hob on a bier: over its head end (away from Pa's seat at its foot), on the board (cm; Bier: 2.2 m long, its top 0.9 m).
+# Hob on a bier: over its head end (away from the aisle's middle), on the board (cm; Bier: 2.2 m long, its top 0.9 m).
 BIER_HEAD = 80.0
 BIER_TOP = 92.0
 
@@ -167,7 +178,7 @@ def mesh(build, path, what):
 
 
 # ---------------------------------------------------------------------------
-# The deck: biers, lantern posts, Abel, his board
+# The deck: biers, lantern posts, Abel and his six dead
 # ---------------------------------------------------------------------------
 
 def place_biers(build, deck):
@@ -183,6 +194,16 @@ def place_biers(build, deck):
         let_ghost_light_reach(biers[k])
     build.log(f'{len([b for b in biers.values() if b])} biers on the deck')
     return biers
+
+
+def chapel_bearing(build, deck):
+    """The compass bearing (0 north, 90 east) from the deck to the chapel, where Sully carries the lantern; north-east
+    (the post's own default) when the chapel isn't placed."""
+    chapel = story.placed(build, 'Chapel')
+    if chapel is None:
+        return 45.0
+    to = chapel.get_actor_location() - deck.get_actor_location()
+    return math.degrees(math.atan2(to.y, to.x)) % 360.0
 
 
 def place_posts(build, deck):
@@ -205,38 +226,36 @@ def place_posts(build, deck):
             post.get_editor_property('post').set_static_mesh(post_mesh)
         post.set_editor_property('keepers_post', keepers)
         if keepers:
-            # Hung in Main 6's second step (from 0: 1); there from its third and after it; lit and leaning after it.
-            post.set_editor_property('hang_when', story.condition(during=MAIN6, from_step=HANG_STEP, before_step=FIGHT_STEP))
-            post.set_editor_property('hung_when', [story.condition(during=MAIN6, from_step=FIGHT_STEP), story.condition(after=[MAIN6])])
-            post.set_editor_property('lit_when', story.condition(after=[MAIN6]))
+            # Hung in Main 7's second step (from 0: 1); there through the fight and his freeing (2, 3); gone from the hook
+            # from the carry (4) and after Main 7. Never lit by the story: FreeAbel lights it.
+            post.set_editor_property('hang_when', story.condition(during=MAIN7, from_step=HANG_STEP, before_step=FIGHT_STEP))
+            post.set_editor_property('hung_when', [story.condition(during=MAIN7, from_step=FIGHT_STEP, before_step=CARRY_STEP)])
+            post.set_editor_property('lit_when', unreal.StoryCondition())
+            post.set_editor_property('gone_when', [story.condition(during=MAIN7, from_step=CARRY_STEP), story.condition(after=[MAIN7])])
+            bearing = chapel_bearing(build, deck)
+            post.set_editor_property('flame_bearing', bearing)
+            build.log(f'the keeper\'s post: hung in {MAIN7} from step {HANG_STEP}, gone from step {CARRY_STEP}; its flame leans '
+                      f'toward the chapel (bearing {bearing:.0f})')
         posts.append(post)
     build.log(f'{len(posts)} keeper\'s lantern posts on the deck, the keeper\'s post by the entrance')
     return posts
 
 
-def place_board(build, biers):
-    """Pa's place on his bier's Sit socket, facing the sunset, after Main 6."""
-    cls = story.actor_class('AbelOnBoard')
-    bier = biers.get(ABEL_BIER)
-    seat = story.socket(bier, 'Sit') if bier else None
-    if cls is None or seat is None:
-        build.warn('no AbelOnBoard class (build the game module first): Pa has no board' if cls is None
-                   else f'no Bier_{ABEL_BIER} with a Sit socket: Pa has no board')
-        return None
-    board = place_rotated(build, cls, seat, 'Abel_OnBoard', tags=(ABEL_TAG,))
-    board.set_editor_property('shown_when', story.condition(after=[MAIN6]))
-    # The first that holds is said: after Main 7 (the lantern leaning toward Ned), after Main 6. Each ember paid adds one.
-    board.get_editor_property('speaker_point').set_editor_property('topics', story.topics(
-        build,
-        (story.condition(after=[MAIN7]), 'DA_Lines_AbelAfterMain7'),
-        (story.condition(after=[MAIN6]), 'DA_Lines_AbelOnBoard'),
-    ))
-    at = seat.translation
-    build.log(f'Pa\'s board on Bier_{ABEL_BIER} at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f}), after {MAIN6}')
-    return board
+def boards_dead(build, deck):
+    """The six shrouded dead's middles (world), on build_area_main2's SHROUD_BIERS: Abel walks to them and drinks them."""
+    main2 = importlib.import_module('build_area_main2')
+    dead = []
+    for k in main2.SHROUD_BIERS:
+        spot = story.socket(deck, f'Bier_{k}')
+        if spot is None:
+            build.warn(f'the deck has no Bier_{k} socket: Abel has one dead fewer to walk to')
+            continue
+        at = spot.translation
+        dead.append(unreal.Vector(at.x, at.y, at.z + BIER_TOP + BODY_UP))
+    return dead
 
 
-def place_abel(build, deck, biers, posts, board, seal):
+def place_abel(build, deck, biers, posts, seal):
     """Abel in the aisle between the rows, facing the sunset, with what his fight needs."""
     cls = story.actor_class('AbelKeeper')
     sockets = [story.socket(deck, f'Bier_{k}') for k in AISLE_BIERS]
@@ -251,8 +270,12 @@ def place_abel(build, deck, biers, posts, board, seal):
     forward = flat(deck.get_actor_forward_vector().to_tuple())
     abel = build.place(cls, (x, y, boards_z + ABEL_UP), yaw_of(forward), label='Abel', folder='Gameplay', tags=(BOSS_TAG,))
     abel.set_editor_property('lantern_posts', posts)
-    if board is not None:
-        abel.set_editor_property('on_board', board)
+    dead = boards_dead(build, deck)
+    corruption = abel.get_editor_property('corruption')
+    if corruption is None:
+        build.warn('Abel has no corruption component (build the game module first): the six dead are not his to walk')
+    else:
+        corruption.set_editor_property('boards_dead', dead)
     # The open front: DECK_HALF_LENGTH out from the deck's middle; he hangs FOG_OUT past it, FOG_UP over his middle.
     front = (deck_at.x + forward[0] * DECK_HALF_LENGTH, deck_at.y + forward[1] * DECK_HALF_LENGTH)
     open_end = (front[0] - x) * forward[0] + (front[1] - y) * forward[1]
@@ -262,7 +285,7 @@ def place_abel(build, deck, biers, posts, board, seal):
     if seal is not None:
         abel.get_editor_property('boss').set_editor_property('seal', seal)
     build.log(f'Abel on the deck at ({x:.0f}, {y:.0f}), facing yaw {yaw_of(forward):.0f}; the open end {open_end:.0f} cm on, '
-              f'the fog at ({fog.x:.0f}, {fog.y:.0f}, {fog.z:.0f}); during {MAIN6}')
+              f'the fog at ({fog.x:.0f}, {fog.y:.0f}, {fog.z:.0f}); {len(dead)} dead on the boards; {MAIN7} from step {FIGHT_STEP}')
     return abel
 
 
@@ -311,20 +334,24 @@ def place_keepers_grave(build, gate):
 
 
 def place_dusk(build, at):
-    """Main 6 and Main 7 at dusk (the lighting states' Dusk)."""
+    """The story's light, first match: Main 7 from step 6 (Saint Ada awake) at Dusk; the rest of Main 7, and Main 6, at
+    DuskSmog (layout.json's state: Dusk's sun under thin smog)."""
     cls = story.actor_class('StoryLighting')
     if cls is None:
-        build.warn('no StoryLighting class (build the game module first): Main 6 starts in the afternoon')
+        build.warn('no StoryLighting class (build the game module first): Mains 6 and 7 start in the afternoon')
         return
     light = build.place(cls, at, 0.0, label='StoryLighting', folder='Gameplay')
     rules = []
-    for mission in (MAIN6, MAIN7):
+    for when, state in (
+            (story.condition(during=MAIN7, from_step=READY_STEP), DUSK),
+            (story.condition(during=MAIN7), DUSK_SMOG),
+            (story.condition(during=MAIN6), DUSK_SMOG)):
         rule = unreal.StoryLightingRule()
-        rule.set_editor_property('when', story.condition(during=mission))
-        rule.set_editor_property('state', unreal.Name(DUSK))
+        rule.set_editor_property('when', when)
+        rule.set_editor_property('state', unreal.Name(state))
         rules.append(rule)
     light.set_editor_property('rules', rules)
-    build.log(f'the story\'s light: {MAIN6} and {MAIN7} at {DUSK}')
+    build.log(f'the story\'s light: {MAIN7} from step {READY_STEP} at {DUSK}; the rest of {MAIN7} and {MAIN6} at {DUSK_SMOG}')
 
 
 # ---------------------------------------------------------------------------
@@ -451,12 +478,20 @@ def place_gravewind(build, deck, gate):
             continue
         name = path.rsplit('/', 1)[-1].replace('SM_', '')
         scenery = build.place(cls, (0.0, 0.0, 0.0), 0.0, label=f'Dusk_{name}', folder='Gameplay', tags=(GRAVEWIND_TAG,))
+        scenery.set_editor_property('shown_state', unreal.Name(DUSK_SMOG))
+        # Dusk too (Main 7 after Saint Ada wakes), once ADuskScenery has AlsoShownStates; until then only DuskSmog.
+        try:
+            scenery.set_editor_property('also_shown_states', [unreal.Name(DUSK)])
+        except Exception:
+            if not wisps and not fogs:
+                build.warn('ADuskScenery has no AlsoShownStates yet: the Gravewind hides once Saint Ada wakes (Dusk)')
         scenery.set_instances(model, transforms)
         if 'Wisp' in path:
             wisps += len(transforms)
         else:
             fogs += len(transforms)
-    build.log(f'the Gravewind at dusk: {wisps} wisps along the deck and the Rim, {fogs} fog banks off the point (tagged {GRAVEWIND_TAG})')
+    build.log(f'the Gravewind at {DUSK_SMOG}: {wisps} wisps along the deck and the Rim, {fogs} fog banks off the point '
+              f'(tagged {GRAVEWIND_TAG})')
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +499,7 @@ def place_gravewind(build, deck, gate):
 # ---------------------------------------------------------------------------
 
 def hob_spots(build, grave, gate, biers):
-    """Hob's Main 6 perches, (x, y, z, yaw) each or None: the keeper's grave's board, the gate's north rock, the bier beside Pa's."""
+    """Hob's deck perches, (x, y, z, yaw) each or None: the keeper's grave's board, the gate's north rock, the bier HOB_BIER."""
     spots = {'keeperGrave': story.hob_on_board(grave) if grave else None, 'gateRock': None, 'deckBier': None}
     north = story.layout_entry(build, 'features', 'gateNorth')
     if north is not None:
@@ -480,18 +515,17 @@ def hob_spots(build, grave, gate, biers):
 
 
 def place(build):
-    """Everything above, in the Gameplay folder. Returns Hob's Main 6 perches for build_area_story's place_hob."""
+    """Everything above, in the Gameplay folder. Returns Hob's deck perches for build_area_story's place_hob."""
     deck = story.placed(build, 'BurialDeck')
     if deck is None:
-        build.warn('no burial deck: Main 6 has nowhere to happen (import BurialDeck.py and build the whole level)')
+        build.warn('no burial deck: Main 7 has nowhere to happen (import BurialDeck.py and build the whole level)')
         return {'keeperGrave': None, 'gateRock': None, 'deckBier': None}
     # The deck is build_area.py's; its boards catch Abel's lantern (his lighting channel), as the biers on it do.
     let_ghost_light_reach(deck)
     biers = place_biers(build, deck)
     posts = place_posts(build, deck)
-    board = place_board(build, biers)
     seal, gate = place_gate(build, deck)
-    place_abel(build, deck, biers, posts, board, seal)
+    place_abel(build, deck, biers, posts, seal)
     grave = place_keepers_grave(build, gate)
     at = deck.get_actor_location()
     place_dusk(build, (at.x, at.y, at.z + 500.0))

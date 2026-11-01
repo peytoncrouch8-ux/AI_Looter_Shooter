@@ -109,11 +109,19 @@ def groups(build, entry):
 _TILES = {}
 
 
+def _alive(mesh):
+    """A cached component still in a level: a stale one can't even be asked (is_valid throws on it)."""
+    try:
+        return bool(unreal.SystemLibrary.is_valid(mesh)) and mesh.get_owner() is not None
+    except Exception:
+        return False
+
+
 def tiles(build):
     # The cache outlives a reopened level (open_clean.py: 2026-11-01, every trace then threw "ObjectInstance is null"):
     # tiles whose components went with the old level are fetched again.
     cached = _TILES.get(build.tag)
-    if cached and not all(unreal.SystemLibrary.is_valid(mesh) for mesh, *_ in cached):
+    if cached and not all(_alive(mesh) for mesh, *_ in cached):
         del _TILES[build.tag]
     if build.tag not in _TILES:
         _TILES[build.tag] = build_area.terrain_tiles(build.tag)

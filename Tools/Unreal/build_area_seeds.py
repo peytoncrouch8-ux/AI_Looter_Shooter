@@ -16,8 +16,8 @@ apply_readable(); each readable sets its story flag when read (AReadableProp::Se
 - The Deacon's two letters (SM_DeaconLetter, else SM_DeaconsSlip): DeaconLetter_Cleft on the ledge by the mooring post
   (never sent), DeaconLetter_Saloon standing in the third slot of the saloon's post rack (SM_PostRack, a plain mesh on the
   Gilt Spur's front right of its doors, 1.4 m up; the letter on its SOCKET_Slot_3 when the rack has one).
-- The Reliquary's lid (ReliquaryLid, no model: the smashed Reliquary's own lid) at the Reliquary's SOCKET_Interact, shown
-  after Main 4.
+- (retired 2026-11-01) The Reliquary's lid (ReliquaryLid, no model: the smashed Reliquary's own lid) at the Reliquary's
+  SOCKET_Interact, shown after Main 4.
 - The map of the Reaches (ReachesMap, SM_ReachesMap) flat on the ticket office's back wall over the agent's desk, 1.55 m
   over SOCKET_AgentDesk.
 - The second light (AFarSignalLight SecondLight, steady): from Gravewind Point's place 9 km out to the west, nudged off any
@@ -558,7 +558,7 @@ def place(build):
     place_tagboard_page(build)
     place_cleft(build, found)
     place_post_rack(build, found)
-    place_reliquary_lid(build)
+    # (The Reliquary's lid went with A Coal Under Ash, 2026-11-01: the Reliquary is whole, never prised.)
     place_reaches_map(build, kit, found)
     place_second_light(build)
     place_seven(build, found)

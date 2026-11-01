@@ -134,33 +134,48 @@ namespace AbelRules
 	/** His size: the Unpaid's rig at 1.3 (his model is built at 1; the Boss rank adds none). */
 	inline constexpr float BodyScale = 1.3f;
 
-	/** The phases' shares of health: "You brought them here" from full, "The bell" at 60%, "Let me go" at 25%. */
-	inline constexpr float BellShare = 0.6f;
-	inline constexpr float WindShare = 0.25f;
+	/**
+	 * The phases' shares of health (Main 7, "Given to the Wind", 2026-11-01: MAINS_2_7.md section 11): "Stoker" from full (the
+	 * furnace in him), "The Hose" at 66% (he drinks the six dead on the boards), "Keeper" at 33% (the keeper in him fights the
+	 * furnace). Each later phase opens with a call-back (UAbelCorruptionComponent): his bar locks until he's called home a third.
+	 */
+	inline constexpr float HoseShare = 0.66f;
+	inline constexpr float KeeperShare = 0.33f;
 
-	/** Phase one: two Unpaid rise every 25 s, at most 4; he grieves every 12 s, for 3 s. */
+	/** Phase one: two Unpaid rise every 25 s, at most 4; every 12 s he turns to the six dead for 3 s (his "grief"), coal open. */
 	inline constexpr float RiseEvery = 25.f;
 	inline constexpr int32 RiseCount = 2;
 	inline constexpr int32 RiseMaxAlive = 4;
 	inline constexpr float GrieveEvery = 12.f;
 	inline constexpr float GrieveSeconds = 3.f;
 
-	/** Phase two: 8 Unpaid in two waves of four, the first this long into it, the second this long after the first. */
+	/**
+	 * Phase two: 8 Unpaid in two waves of four, the first this long into it (after the call-back's kneel, about 6 s, so the
+	 * dead come up as he drifts out, not while the player holds the post), the second this long after the first.
+	 */
 	inline constexpr int32 BellWave = 4;
-	inline constexpr float FirstWaveAt = 2.5f;
+	inline constexpr float FirstWaveAt = 9.f;
 	inline constexpr float SecondWaveAfter = 22.f;
 	/**
 	 * Then (2026-10-27, his health 1.6x) the dead keep rising in phase two as in phase one, two every RiseEvery at most
-	 * RiseMaxAlive, from one rise after the second wave: back on the deck the bell's 35% of his health is the fight's longest
-	 * stretch, and it shouldn't turn into a long duel. While the bell's waves stand (up to the fight's ten) none rise.
+	 * RiseMaxAlive, from one rise after the second wave: back on the deck the hose's 33% of his health is a long stretch, and
+	 * it shouldn't turn into a long duel. While the two waves stand (up to the fight's ten) none rise.
 	 */
-	inline constexpr float BellRiseFrom = FirstWaveAt + SecondWaveAfter + RiseEvery;
+	inline constexpr float HoseRiseFrom = FirstWaveAt + SecondWaveAfter + RiseEvery;
+
+	/** The smog tendril: thrown every so often in each phase (the first this long in), two at once in "Keeper". */
+	inline constexpr float TendrilFirst = 9.f;
+	inline constexpr float TendrilEvery = 14.f;
+	inline constexpr float KeeperTendrilEvery = 12.f;
 
 	/** The lanterns: three, each relit by holding Interact this long. */
 	inline constexpr int32 Lanterns = 3;
 	inline constexpr float RelightSeconds = 1.5f;
 
-	/** Phase three: he tries to walk off into the wind this often; each pull stuns him this long, his coal open. */
+	/**
+	 * Phase three: the keeper in him walks to a deck lantern post this often to hang his black lantern there, and the furnace
+	 * pulls him back; each pull stuns him this long, his coal open.
+	 */
 	inline constexpr float WalkOffEvery = 10.f;
 	inline constexpr float PullStunSeconds = 3.f;
 
@@ -172,25 +187,35 @@ namespace AbelRules
 	inline constexpr float BuckshotEvery = 7.f;
 	inline constexpr float WindBuckshotEvery = 6.5f;
 
-	/** Out in the fog (phase two), a shot from his lantern's flare: the first this long into the phase, then every so often. */
-	inline constexpr float FogShotFirst = 6.f;
+	/**
+	 * Out in the fog ("The Hose"), a shot from his black lantern's flare: the first this long into the phase (the call-back's
+	 * kneel and his drift out come first), then every so often.
+	 */
+	inline constexpr float FogShotFirst = FirstWaveAt + 1.f;
 	inline constexpr float FogShotEvery = 6.f;
 
-	/** His custom events (FBossPhaseEvent::Name), as his phases send them. */
+	/**
+	 * His custom events (FBossPhaseEvent::Name), as his phases send them. The call-back opens "The Hose" and "Keeper" (his bar
+	 * locks); the drift into the fog and the Gravewind no longer come from the phases: the call-back's end starts them
+	 * (UAbelCorruptionComponent), so they never begin while he's knelt for it.
+	 */
 	AI_LOOTER_SHOOTER_API FName BuckshotEvent();
 	AI_LOOTER_SHOOTER_API FName GrieveEvent();
-	AI_LOOTER_SHOOTER_API FName BellEvent();
-	AI_LOOTER_SHOOTER_API FName GravewindEvent();
 	AI_LOOTER_SHOOTER_API FName WalkOffEvent();
 	AI_LOOTER_SHOOTER_API FName FogShotEvent();
+	AI_LOOTER_SHOOTER_API FName CallBackEvent();
+	AI_LOOTER_SHOOTER_API FName TendrilEvent();
+
+	/** Out over the canyon in "The Hose": he can't be hurt until the lanterns drag him back (no time limit, not his adds). */
+	AI_LOOTER_SHOOTER_API FBossUntargetable FogSpell();
 
 	/** His attacks' names in his boss's attack log (Bosses/BossAttackRules: never three of one in a row): the lunge, the buckshot. */
 	AI_LOOTER_SHOOTER_API FName LungeAttack();
 	AI_LOOTER_SHOOTER_API FName BuckshotAttack();
 
 	/**
-	 * His bar's show: "Waiting on a Dark Saint" spelled out under his name, his moan as it sweeps in, his wail at each later
-	 * phase, his gasp as he's staggered, his last breath; the bar's last word is "He kneels".
+	 * His bar's show: "A Keeper Under Smog" spelled out under his name, his moan as it sweeps in, his wail at each later
+	 * phase, his gasp as he's staggered, his last breath; the bar's last word is "The smog breaks".
 	 */
 	AI_LOOTER_SHOOTER_API FBossShow MakeShow();
 
@@ -225,9 +250,8 @@ namespace AbelRules
 	/** A falling player's upward speed once the wind has them past the open end (cm/s): never slower down than its downdraft. */
 	AI_LOOTER_SHOOTER_API double FallSpeedPastEnd(const FAbelGustRules& Rules, double VelocityZ);
 
-	/** His lines in the fight (drafts): at a phase's start (0-2), the bell, and Hob's word on a fall off the deck. */
+	/** His lines in the fight (drafts): the furnace talking at a phase's start (0-2), and Hob's word on a fall off the deck. */
 	AI_LOOTER_SHOOTER_API FStoryLine PhaseLine(int32 Phase);
-	AI_LOOTER_SHOOTER_API FStoryLine BellLine();
 	AI_LOOTER_SHOOTER_API FStoryLine HobOnFall();
 
 	/**

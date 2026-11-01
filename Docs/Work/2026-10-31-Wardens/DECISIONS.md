@@ -85,3 +85,4 @@ Mains 2-7 calls (the user, 2026-10-31 night, on MAINS_2_7.md §15; that doc need
 ## 2026-11-01 night (user, before bed)
 - Mains 2-3 Tripo models (M23-1..5, ~250 credits): make them only from credits left after the running jobs, no top-up; stand-ins stay otherwise.
 - Overnight: build, test, commit Mains 2-3, package the playtest, then keep going into Mains 4-7.
+- Missions' share of story XP: the Pacing floor drops from 60% to 50% (2026-11-01, the user's pick: keep all fights; Mains 6-7 pay 3,000 each).

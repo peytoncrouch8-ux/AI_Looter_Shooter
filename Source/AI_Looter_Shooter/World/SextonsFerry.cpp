@@ -42,10 +42,13 @@ namespace
 	constexpr float DeckUnderside = 45.f;
 	/** The ferry hangs this far under the landing's planks (its gunwale about at the planks). */
 	constexpr float FerryHang = -20.f;
-	/** The stern thwart where Sexton sits, and the chain eyes at bow and stern (ferry frame, cm). */
-	const FVector SeatAt(0.0, -320.0, 8.0);
-	const FVector BowEye(0.0, 440.0, 10.0);
-	const FVector SternEye(0.0, -440.0, 10.0);
+	/** The stern thwart where Sexton sits, and the chain eyes at bow and stern (ferry frame, cm): the Tripo ferry's sockets
+	    SeatAt / BowEye / SternEye (lanes/TRIPO_M23.md; the stand-in's were (0,-320,8) and (0,+-440,10), close enough). */
+	const FVector SeatAt(0.0, -333.0, 6.0);
+	const FVector BowEye(0.0, 456.0, 27.0);
+	const FVector SternEye(0.0, -403.0, 30.0);
+	/** Where the Tripo ferry's own lantern hangs, on its pole at the stern (its Lantern socket). */
+	const FVector TripoLanternAt(-1.0, -430.0, 112.0);
 	/** The prow's lantern, hanging from its pole's arm. */
 	const FVector LanternAt(0.0, 530.0, 135.0);
 	/** The sway: a slow roll, a slower turn, a bob (degrees, cm), each at its own pace (s a swing) so they never fall in step. */
@@ -247,6 +250,13 @@ ASextonsFerry::ASextonsFerry()
 	LanternLight->SetLightColor(FLinearColor(1.f, 0.72f, 0.42f));
 	LanternLight->SetCastShadows(false);
 	LanternLight->SetMobility(EComponentMobility::Movable);
+	if (TripoFerry)
+	{
+		// The Tripo ferry carries its own lantern on a pole at the stern: the stand-in's prow lantern goes, the light moves onto it.
+		Lantern->SetVisibility(false);
+		Lantern->SetHiddenInGame(true);
+		LanternLight->SetRelativeLocation(TripoLanternAt);
+	}
 
 	BowChain = MakePart(Root, TEXT("BowChain"), Cylinder.Object, Iron.Object, FVector::ZeroVector, FRotator::ZeroRotator, FVector::OneVector, false);
 	SternChain = MakePart(Root, TEXT("SternChain"), Cylinder.Object, Iron.Object, FVector::ZeroVector, FRotator::ZeroRotator, FVector::OneVector, false);

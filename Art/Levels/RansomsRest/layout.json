@@ -2970,6 +2970,28 @@
           "backdrop": { "tint": [0.55, 0.6, 0.5] },
           "clouds": { "tint": [0.6, 0.62, 0.52] },
           "post": { "exposureBias": 0.2 }
+        },
+        "SmogThin": {
+          "about": "The smog thinned (Choke Point's turn-in on, lane MAIN45: one hose choked, the barge down to one stack; after Main 6 it stays thin with no source; build_area_main5.py's AStoryLighting rule, before the Smog rule): halfway back from Smog to the clean golden hour.",
+          "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 5.5, "temperature": 4050 },
+          "sky": { "intensity": 0.88 },
+          "atmosphere": { "skyLuminance": [0.95, 1.22, 1.65] },
+          "fog": { "density": 0.007, "inscattering": [0.23, 0.25, 0.24],
+                   "directional": { "color": [1.1, 0.72, 0.25], "exponent": 7.5 } },
+          "backdrop": { "tint": [0.78, 0.8, 0.75] },
+          "clouds": { "tint": [0.8, 0.81, 0.76] },
+          "post": { "exposureBias": 0.3 }
+        },
+        "DuskSmog": {
+          "about": "Dusk under thin smog (Mains 6-7, lane MAIN67): the barge starved and down but its smog still over the Rest; build_area_deck.py's AStoryLighting rules (Main 6, and Main 7 until Saint Ada wakes); SaintAdaWakes blends it to the clean Dusk. Dusk's sun, a little dimmer; the haze thicker and greyed, its glow toward the sun dulled to brass; the far ranges and clouds greyed.",
+          "sun": { "azimuth": 252, "elevation": 4, "intensity": 3.4, "temperature": 3500, "shadowDistance": 6000, "cascades": 2 },
+          "sky": { "intensity": 0.5 },
+          "atmosphere": { "skyLuminance": [1.05, 1.6, 3.4], "ozone": 2.6 },
+          "fog": { "density": 0.0065, "inscattering": [0.08, 0.085, 0.09],
+                   "directional": { "color": [0.75, 0.42, 0.18], "exponent": 6.5 } },
+          "backdrop": { "tint": [0.34, 0.32, 0.28] },
+          "clouds": { "tint": [0.28, 0.2, 0.16] },
+          "post": { "exposureBias": 0.45 }
         }
       }
     },
@@ -3183,11 +3205,17 @@
         { "id": "BluffNest", "polygon": [[-1590,-9620],[1300,-9620],[1300,-6000],[-1590,-6000]], "during": "Main2", "by": "build_area_main2.py (the Three Widows on the keeper's path, since 2026-11-01)" },
         { "id": "BoardsCrew", "zone": "gravewindPoint", "during": "Main2", "by": "build_area_main2.py (the Company's crew on the burial boards, level 2)" },
         { "id": "TownGate", "between": ["townGateNorth", "townGateSouth"], "radius": 3000, "during": "Main3", "by": "build_area_main3.py" },
-        { "id": "ChapelYard", "obstacle": "churchyardFence", "during": "Main4", "by": "build_area_chapel.py" },
+        { "id": "ChapelYard", "obstacle": "churchyardFence", "during": "Main4", "by": "build_area_chapel.py (Saint Ada's Yard: two pushes, the crew's two hose-men; A Coal Under Ash, 2026-11-01)" },
+        { "id": "BellAnswered", "obstacle": "churchyardFence", "during": "Main4", "by": "build_area_main4.py (the tender's drop on ropes: four riflemen level 3, two hose-men level 4)" },
+        { "id": "IntakeDrop", "zone": "sink", "during": "Main5", "by": "build_area_main5.py (two drops down the barge's hose, the Sink's 4-5)" },
+        { "id": "IntakeSpiders", "zone": "sink", "during": "Main5", "by": "build_area_main5.py (three spiders down the webbed ramp)" },
+        { "id": "BargeDeck", "obstacle": "churchyardFence", "during": "Main6", "by": "build_area_main6.py (the barge's deck 25 m over the chapel knoll: six riflemen, three hose-men, level 6; The Pilot Light, 2026-11-01)" },
+        { "id": "FurnaceHall", "obstacle": "churchyardFence", "during": "Main6", "by": "build_area_main6.py (the furnace hall: the Chief Stoker, Hallowed 7; four riflemen, three hose-men, level 6)" },
+        { "id": "WestRoadCrew", "at": [2800, -7900], "radius": 3000, "during": "Main7", "by": "build_area_main7.py (the barge's crew on the west road: three riflemen, two hose-men, level 6; Given to the Wind)" },
         { "id": "BootHill", "zone": "bootHill", "after": "Main4", "by": "build_area_chapel.py (roaming)" },
         { "id": "NorthRoad", "at": [4256, 1350], "radius": 2500, "after": "Main4", "by": "build_area_chapel.py (roaming): halfway between the hanging tree and the north road" },
         { "id": "WhitlockHands", "obstacle": "barnYardFence", "during": "Side2", "by": "build_area_whitlock.py" },
-        { "id": "Abel", "zone": "gravewindPoint", "during": "Main6", "by": "build_area_deck.py" },
+        { "id": "Abel", "zone": "gravewindPoint", "during": "Main7", "by": "build_area_deck.py (Abel, corrupted: Given to the Wind, 2026-11-01)" },
         {
           "id": "CalderPost",
           "polygon": [[15800,-7900],[15800,-5100],[18200,-5100],[18200,-7900]],
@@ -3245,7 +3273,7 @@
           "where": "the west field: round the sheep fold, between the Dry Wash and the west road",
           "after": ["Main4"],
           "budget": "main",
-          "countedBefore": "Main6",
+          "countedBefore": "Main7",
           "groups": [
             { "class": "UnpaidCreature", "count": 6, "rank": "Basic" },
             { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "leader": true }
@@ -3254,7 +3282,7 @@
           "spots": [[2750, -8150], [2750, -7650], [2350, -7150], [2050, -8700], [3050, -7950]],
           "ground": { "polygon": [[2450, -6850], [3700, -7600], [3300, -8500], [2300, -9300], [1550, -8600], [2050, -7500]], "maxRise": 300 },
           "crate": [[2100, -8440, -90, true], [2300, -8440, -90, true], [2540, -7900, 0, true], [2100, -7360, 90, true]],
-          "note": "Old herders who never left the fold stand round it. Seen across the wash from the keeper's path and met on the west road (Main 6's two ways to the deck). Its ground is the strip between the wash's north bank and the far side of the road: nobody is hunted in the wash or over it. The crate stands against the fold's wall."
+          "note": "Old herders who never left the fold stand round it. Seen across the wash from the keeper's path and met on the west road (Main 7's two ways to the deck, and the carry home). Its ground is the strip between the wash's north bank and the far side of the road: nobody is hunted in the wash or over it. The crate stands against the fold's wall."
         },
         {
           "id": "OrchardEdge",

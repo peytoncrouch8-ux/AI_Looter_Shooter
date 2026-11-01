@@ -28,6 +28,84 @@ def _smoke(obj, shell_top, near, why='onto the Tripo chimney top'):
         tb.log(f'{obj.name}: no chimney top found near {near}: SOCKET_Smoke left where it was')
 
 
+# --- Lamplit windows over Tripo's painted ones ---
+# The lived-in houses' lamplit panes are their WindowGlow slot: AHouseLights raises its Glow at dusk (and
+# Looter.World.HouseLights checks the farmhouse has it). Tripo paints its windows into its atlas, so a fitted shell has
+# no such slot: the scripted model's own lit window (its glass on WindowGlow, the linen curtains, the sash bars) is
+# copied over each of Tripo's painted windows that the scripted house had lit, stretched to the painted glass, its
+# glass 1.2 cm proud of the painted glass. Tripo modelled each of these windows as a recess behind its own sash bars and
+# frame (farmhouse glass 0.2 m in, the cottage's 6-10 cm; its curtains bulge in places, so those stay in front of the
+# glow): the copy sits in the recess without the scripted bars. Painted glass
+# measured on the fitted shells' colour maps (orthographic wall views, 2026-11-01); a wall is (along, out):
+# u = along . p, out = the outward axis.
+
+_WALLS = {'front': (Vector((1.0, 0.0, 0.0)), Vector((0.0, -1.0, 0.0))),
+          'east': (Vector((0.0, 1.0, 0.0)), Vector((1.0, 0.0, 0.0))),
+          'west': (Vector((0.0, -1.0, 0.0)), Vector((-1.0, 0.0, 0.0)))}
+
+
+def _wall_frame(wall):
+    """Wall coordinates (u along it, out of it, z up) to the model's: the columns along, out, up."""
+    along, out = _WALLS[wall]
+    return Matrix((along, out, Vector((0.0, 0.0, 1.0)))).transposed()
+
+
+def _lit_windows(shell, scripted, source, targets, label):
+    """Copies of the scripted model's lit window (source: a box round its glass on a front wall, and that wall's outer
+    plane y) over each target (wall, (u0, u1), (z0, z1), start: the painted glass, and the out coordinate rays start
+    from to find the shell's face there). Returns the pieces to join."""
+    search, wall_y = source
+    me = scripted.data
+    names = [m.name if m else '' for m in me.materials]
+    if 'WindowGlow' not in names:
+        tb.log(f'{label}: the scripted model has no WindowGlow: no lamplit panes')
+        return []
+    slot = names.index('WindowGlow')
+    glass = [p.index for p in me.polygons
+             if p.material_index == slot and all(search[0][k] <= p.center[k] <= search[1][k] for k in range(3))]
+    if not glass:
+        tb.log(f'{label}: no WindowGlow glass in {search}: no lamplit panes')
+        return []
+    lo, hi = tb.bounds(scripted, glass)
+    # Inside the opening, from the wall's face to the glass's back: glass, curtains, sash bars. The reveal and the sill
+    # (on the opening's edges) and the casing and shutters (round it) stay out.
+    box = ((lo.x + 0.003, wall_y + 0.003, lo.z + 0.003), (hi.x - 0.003, hi.y + 0.003, hi.z - 0.003))
+    from_wall = _wall_frame('front').transposed().to_4x4()
+    origin = Matrix.Translation(-Vector((lo.x, -lo.y, lo.z)))      # the glass's front, lower left corner
+    bvh = tb.tree(shell)
+    pieces = []
+    for wall, (u0, u1), (z0, z1), start in targets:
+        frame = _wall_frame(wall)
+        out = _WALLS[wall][1]
+        hits = []
+        for i in range(4):
+            for j in range(4):
+                u = u0 + 0.05 + (u1 - u0 - 0.1) * i / 3.0
+                z = z0 + 0.05 + (z1 - z0 - 0.1) * j / 3.0
+                hit = tb.probe(shell, frame @ Vector((u, start, z)), -out, 1.5, bvh)
+                if hit:
+                    hits.append(hit[0].dot(out))
+        if not hits:
+            tb.log(f'{label}: no shell under the {wall} window at u {u0}..{u1}: left unlit')
+            continue
+        # The painted glass: the deepest the rays reach (Tripo models most windows as a recess, the glass ~0.2 m behind
+        # its own sash bars and frame); a hole into the shell's inside (far past the rest) aside.
+        middle = tb.median(hits)
+        face = min(h for h in hits if h > middle - 0.3)
+        scale = Matrix.Diagonal(((u1 - u0) / (hi.x - lo.x), 1.0, (z1 - z0) / (hi.z - lo.z), 1.0))
+        matrix = (Matrix.Translation(frame @ Vector((u0, face + 0.012, z0))) @ frame.to_4x4() @ scale @ origin
+                  @ from_wall)
+        piece = tb.copy_faces(scripted, [box], matrix, '_TripoLitWindow')
+        # Tripo's own sash bars stand in front: the scripted ones go (axis-aligned boards); the glass and the curtains
+        # (folded, so never axis-aligned) stay.
+        tb.delete_faces(piece, [p.index for p in piece.data.polygons
+                                if p.material_index != slot and max(abs(c) for c in p.normal) > 0.999])
+        pieces.append(piece)
+        tb.log(f'{label}: lamplit window on the {wall} wall at u {u0}..{u1}, z {z0}..{z1}, glass at out {face + 0.012:.3f} '
+               f'({len(piece.data.polygons)} faces; shell out {sorted(round(h, 3) for h in hits)})')
+    return pieces
+
+
 # --- Landfall farm ---
 
 FARM_PORCH = [(x, -4.7) for x in (-3.6, -2.6, -1.6, 1.6, 2.6, 3.6)]   # porch deck points, clear of the steps
@@ -38,6 +116,11 @@ FARM_POST = ((1.03, -5.25, 0.62), (1.27, -5.01, 3.06))   # one scripted porch po
 FARM_POST_AT = Vector((1.15, -5.13, 0.6))                # its foot
 FARM_STEPS = ((-0.9, -5.95, -0.05), (0.9, -5.22, 0.45))  # the scripted steps (two treads, x +-0.82, y -5.3..-5.9)
 FARM_STEPS_BACK = -5.30                                  # where they meet the scripted deck's front edge
+# The lamplit windows (_lit_windows): the scripted front window left of the door (Farmhouse.py: x -3.05..-2.15, z
+# 1.45..2.75, wall y -3.10) copied over Tripo's two painted front windows either side of the door.
+FARM_LIT_FROM = (((-3.2, -3.3, 1.3), (-2.0, -2.8, 2.9)), -3.10)
+FARM_LIT = [('front', (-2.715, -1.935), (1.155, 2.425), 3.6),     # (1.5 cm over the painted glass: its curtains'
+            ('front', (1.925, 2.695), (1.155, 2.425), 3.6)]      # blue showed at the edges)
 
 
 def _farm_roof_group(co, n):
@@ -250,6 +333,7 @@ def farmhouse(obj):
         dy = found['edge'] - FARM_STEPS_BACK
         pieces.append(tb.copy_faces(scripted, [FARM_STEPS], Matrix.Translation((0.0, dy, 0.0)), '_TripoSteps'))
         pieces.append(_farm_trim(found))
+        pieces += _lit_windows(shell, scripted, FARM_LIT_FROM, FARM_LIT, 'farmhouse')
         return pieces
 
     def retexture(shell, scripted):
@@ -316,6 +400,16 @@ def barn(obj):
     return obj
 
 
+# The cottage's lamplit windows (_lit_windows), as Cottage.py lit them: the front room's (the front wall right of the
+# door, the front gable's loft window, the front window on each side). Source: its front window (Cottage.py: x
+# 0.55..1.37, z 1.30..2.60, wall y -3.20).
+COTTAGE_LIT_FROM = (((0.4, -3.4, 1.15), (1.5, -2.9, 2.75)), -3.20)
+COTTAGE_LIT = [('front', (0.82, 1.425), (1.31, 2.655), 3.7),
+               ('front', (-0.245, 0.245), (4.08, 5.25), 3.7),
+               ('east', (-1.857, -1.0), (1.24, 2.62), 3.0),     # u = y
+               ('west', (1.01, 1.87), (1.24, 2.62), 3.0)]       # u = -y
+
+
 def cottage(obj):
     """The settler's cottage (SM_Cottage_Ransom): the stoop at the scripted stoop's height; SOCKET_Light stays in the
     front room, SOCKET_Smoke goes to the shell's chimney top."""
@@ -333,7 +427,11 @@ def cottage(obj):
     def extra(shell, scripted):
         found['smoke'] = tb.protrusion_top(shell, scripted, (-1.0, 1.9), radius=4.0)
 
+    def more_pieces(shell, scripted):
+        return _lit_windows(shell, scripted, COTTAGE_LIT_FROM, COTTAGE_LIT, 'cottage')
+
     tb.swap(obj, 'CottageRansom', anchors=anchors, extra=extra, faces_limit=10000, fallback=100.0,
+            more_pieces=more_pieces,
             hulls_drop=[((-2.0, -3.8, 1.0), (0.0, -3.55, 2.6))],      # the scripted stoop posts (x -1.89, -0.13)
             post_region=((-2.9, -4.3, 0.4), (2.9, -3.25, 2.6)), post_band=(1.0, 2.0))
     _smoke(obj, found.get('smoke'), (-1.0, 1.9))

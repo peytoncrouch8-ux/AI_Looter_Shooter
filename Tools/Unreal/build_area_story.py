@@ -566,7 +566,7 @@ def hob_on_sign(shop):
 
 
 def place_hob(build, grave_abel, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots,
-              landfall_spots=None, main2_spots=None):
+              landfall_spots=None, main2_spots=None, main5_spots=None, main6_spots=None, main7_spots=None):
     cls = actor_class('HobBird')
     board = hob_on_board(grave_abel)
     if cls is None or board is None:
@@ -612,6 +612,14 @@ def place_hob(build, grave_abel, lookout, seat, nest, shop, chapel_spots, sink_s
         # measured by build_area_main2.place.
         'widows': (main2_spots or {}).get('widows'),
         'ladderTop': (main2_spots or {}).get('ladderTop'),
+        # Main 5's (story_texts.MAIN45_PERCHES names it): beside Hob's satchel on the Sink's rim (build_area_main5.place).
+        'satchel': (main5_spots or {}).get('satchel'),
+        # Mains 6-7's (story_texts.MAIN67_PERCHES names them): the Lamplighter's wheel housing while she's moored
+        # (build_area_main6_sortie through build_area_main6); a coal lump by the west road and the chapel's front door
+        # (build_area_main7.place).
+        'wheel': (main6_spots or {}).get('wheel'),
+        'roadCoal': (main7_spots or {}).get('roadCoal'),
+        'chapelDoor': (main7_spots or {}).get('chapelDoor'),
     }
 
     def perch(spot, when, arrival=None):
@@ -655,30 +663,12 @@ def place_hob(build, grave_abel, lookout, seat, nest, shop, chapel_spots, sink_s
         # Mains 2 and 3 (story_texts.MAIN23_PERCHES, the Wardens story's: each on the first of its spots the build has).
         *[perch(next((spots[name] for name in names if spots.get(name)), None), texts.condition(when), arrival)
           for names, when, arrival in texts.MAIN23_PERCHES],
-        # Main 4: on the door hood for the Reliquary and the bell; on the vestry lantern's bracket for the knock at
-        # Aldana's door (step 2); on the door hood again for the yard's fight and the way up.
-        perch(spots['hood'], condition(during=MAIN4, from_step=4), 'DA_Lines_HobMain4Reliquary'),
-        perch(spots['hood'], condition(during=MAIN4, from_step=3)),
-        perch(spots['lantern'], condition(during=MAIN4, from_step=2)),
-        perch(spots['hood'], condition(during=MAIN4, from_step=1), 'DA_Lines_HobMain4Yard'),
-        perch(spots['hood'], condition(during=MAIN4)),
-        # Main 5: on the Sink road's tree by the ramp head once the lantern is taken; on the floor's block for the
-        # lantern and the sacs (no flight between them: a word at each); on Den Rock over the den for the way down.
-        perch(spots['roadTree'], condition(during=MAIN5, from_step=3), 'DA_Lines_HobMain5Out'),
-        perch(spots['block'], condition(during=MAIN5, from_step=2)),
-        perch(spots['block'], condition(during=MAIN5, from_step=1)),
-        perch(spots['denRock'], condition(during=MAIN5), 'DA_Lines_HobMain5Way'),
-        # Main 6: on the bier beside Pa's for the scene (his word is the scene's own); on the gate's north rock for the fight
-        # and the lantern (no flight between them: a word at each); on the keeper's grave's board for the way there.
-        perch(spots['deckBier'], condition(during=MAIN6, from_step=3)),
-        perch(spots['gateRock'], condition(during=MAIN6, from_step=2), 'DA_Lines_HobMain6Fight'),
-        perch(spots['gateRock'], condition(during=MAIN6, from_step=1)),
-        # (story_texts.PERCHES' keepersBridge isn't one: it holds when this does, so it would take him off the main way.)
-        perch(spots['keeperGrave'], condition(during=MAIN6), 'DA_Lines_HobMain6Way'),
-        # Main 7: on the hearse car's roof for the depot and the board (a word at each); on the keeper's post by the lantern.
-        perch(spots['hearse'], condition(during=MAIN7, from_step=2)),
-        perch(spots['hearse'], condition(during=MAIN7, from_step=1)),
-        perch(spots['keeperPost'], condition(during=MAIN7), 'DA_Lines_HobMain7Lean'),
+        # Mains 4 and 5 (story_texts.MAIN45_PERCHES, the Wardens story's: each on the first of its spots the build has).
+        *[perch(next((spots[name] for name in names if spots.get(name)), None), texts.condition(when), arrival)
+          for names, when, arrival in texts.MAIN45_PERCHES],
+        # Mains 6 and 7 (story_texts.MAIN67_PERCHES, the Wardens story's: each on the first of its spots the build has).
+        *[perch(next((spots[name] for name in names if spots.get(name)), None), texts.condition(when), arrival)
+          for names, when, arrival in texts.MAIN67_PERCHES],
         # Back Pay's first step, while no main mission holds him: on the Providence's tag board.
         perch(spots['mineMouth'], texts.condition(texts.PERCHES['mineMouth'][0]), texts.PERCHES['mineMouth'][1]),
         # After each, where the last left him. After Main 6 he lands again on the bier beside Pa's (the scene's spot, no
@@ -754,8 +744,20 @@ def place(build):
     # Main 3, Under New Management (its own module): the checkpoint and its fight, the loudspeakers, the banner, the chalk,
     # the Gilt Spur's cart, Lucky Ned's skiff.
     importlib.reload(importlib.import_module('build_area_main3')).place(build)
+    # Main 4, A Coal Under Ash (its own module; after the chapel and Landfall): the window's hose and its cart, the
+    # lychgate's horn, the tender's drop, Finch at the Reliquary, the marks.
+    importlib.reload(importlib.import_module('build_area_main4')).place(build)
+    # Main 5, Choke Point (its own module; after the Sink and Landfall): the satchel, the intake and its charges, the
+    # drops, the ramp's spiders, the horns, the air shaft, SmogThin; Hob's satchel spot.
+    main5_spots = importlib.reload(importlib.import_module('build_area_main5')).place(build)
+    # Main 6, The Pilot Light (its own module; after the chapel, Landfall and Main 5): the barge over the chapel, its fights,
+    # horns and manifest, the wreck; then the Lamplighter's sortie (build_area_main6_sortie). Hob's wheel spot back.
+    main6_spots = importlib.reload(importlib.import_module('build_area_main6')).place(build)
+    # Main 7, Given to the Wind past the fight (its own module; after the deck and Main 4's Finch): the soul coal, the west
+    # road's crew, the Reliquary's lantern rest, Abel's soul, Delia at the chapel door. Hob's spots back.
+    main7_spots = importlib.reload(importlib.import_module('build_area_main7')).place(build)
     place_hob(build, grave_abel, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots,
-              landfall_spots, main2_spots)
+              landfall_spots, main2_spots, main5_spots, main6_spots, main7_spots)
     # Hob's roosts, last, so each keeps clear of everything the story stands on the ground (its own module, reloaded as the
     # chapel's is; it places nothing for a layout without gameplay.roosts).
     importlib.reload(importlib.import_module('build_area_roosts')).place(build)

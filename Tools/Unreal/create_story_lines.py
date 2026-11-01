@@ -34,14 +34,28 @@ his taps only Main 1's, the Old Fare's and a catch-all; where a perch had only d
            HobMain3Gate, Main3VaneGate (the gate's loudspeaker), Main3VaneStreet (Main Street's, the street won),
            HobMain3Tilly, TillyClosed, TillyMain3 (her talk, the turn-in's words from step 3: she hands the bail over),
            TillyAfterMain3, DeliaMain3 (her word meanwhile)
-  Main 4   HobMain4Yard/Reliquary, AldanaBarred, AldanaWaiting (the knock at the vestry door, step 2), AldanaBell (the bell
-           and the Reliquary waiting), AldanaMain4 (the turn-in's words), AldanaAfterMain4
-  Main 5   HobMain5Way/Out, AldanaAfterMain5
+  Main 4   A Coal Under Ash (2026-11-01, lane MAIN45): HobMain4Yard/Reliquary (his arrivals), AldanaBarred, AldanaWaiting
+           (the knock at the vestry door, step 2), AldanaBell (the bell waiting), AldanaAnswer (the barge's answer),
+           AldanaMain4 (the turn-in's words), AldanaAfterMain4, Main4VaneBell (the lychgate's horn), Main4VaneHose (the
+           yard cart's stop), FinchReliquary, FinchAfterMain5 (Finch at the Reliquary from Main 4's turn-in)
+  Main 5   Choke Point (2026-11-01): HobMain5Satchel, HobMain5Out, HobMain5Fuse, HobMain5Growl, HobMain5Mine,
+           Main5VaneSink (the fence's horn), Main5VaneCharge and Main5VaneChoked (the barge's horn), AldanaAfterMain5;
+           HobMain5Way unused since (kept)
   The mine (main since 2026-10-27: Dead Lift, Back Pay, Cyrus Teague the second boss) DeliaMine (her door meanwhile);
            Teague's build-up is otherwise the missions' own words (Main 5's turn-in, Back Pay's offer at the lift tube)
-  Main 6   DeliaMain6, HobMain6Way/Fight, AbelOnBoard, AbelAfterMain7
-  Main 7   DeliaMain7, DeliaMain7After, HobMain7Lean, TillyMain7, TillyMain7Father (once Knocking Below is done),
-           TillyAfterMain7
+  Main 6   The Pilot Light (2026-11-01, lane MAIN67; main67_src/CONTRACT67.md's line table says who plays each):
+           Main6CastOff, Main6Tenders, Main6TenderDown1/2, Main6Boarders, Main6Launchers, Main6Flicker, Main6Plank (the
+           sortie), Main6VaneDeck (the barge's bow horn), Main6Vents, Main6DrumJammed, Main6FinchDimming, Main6Manifest,
+           Main6NedRadio, Main6Hall, Main6Valve1/2/3, Main6Cage, Main6Fall (the barge, CageBurst, BargeFall), Main6Jump
+           (the sortie), HobMain6Wheel (his arrival on her wheel housing); DeliaMain6,
+           AbelOnBoard, AbelAfterMain7 unused since (kept; Delia no longer offers Main 6, Abel has no board)
+  Main 7   Given to the Wind (2026-11-01, lane MAIN67): AbelMutter, AbelCallHint, AbelCallBack1/2, AbelDrink, AbelSurge,
+           AbelFinal, FreeAbel (Abel's fight and scene), Main7Coal, Main7Road, Main7Latch, Main7Arrive, SaintAdaWakes (the
+           carry home and the relighting), Main7Gate (Vane at the Keeper's Gate's horn), DeliaMain7 / DeliaMain7Jammed (the
+           turn-in at the chapel door: her topic, the hose drum's flag picks), AbelReliquary (his soul at the Reliquary
+           after), HobMain6Way/Fight (his arrivals on the way and at the fight: Main 7's now), HobMain7Point,
+           HobMain7Chapel, TillyMain7 (reworded), TillyMain7Father, TillyAfterMain7; DeliaMain7After, HobMain7Lean unused
+           since (kept)
 The valley's side missions:
   Old Fare AgentDoor, AgentCoins (Mr. Sloane's door: waiting, then the confession), AgentWindow, AgentWindowLily (his
            ticket window after it), FennLook, FennCoins (Fenn's coffin: looked into, the coins laid back), FennAfter,
@@ -88,6 +102,8 @@ DELIA = 'Delia Ransom'
 SULLY = 'Sully'
 # Lucky Ned on the radio as he leaves the Rest (Main 3's fly-by; he's fought in a later area, the user's call).
 NED = 'Lucky Ned'
+# Abel, corrupted then freed (Main 7, lane MAIN67): his words in his fight, his scene and by the Reliquary after.
+ABEL = 'Abel'
 
 SETS = {
     # --- Main 1, Landfall (the Wardens story, 2026-10-31; Docs/Work/2026-10-31-Wardens/CONTRACT.md's step table, steps
@@ -255,8 +271,9 @@ SETS = {
     'DA_Lines_BossIntroForeman': [
         ('Cyrus Teague', "Dig. Keep digging. It was the roof."),
     ],
+    # Corrupted Abel (Main 7, lane MAIN67): a week of furnace on him, fought to free him.
     'DA_Lines_BossIntroAbel': [
-        (HOB, "A keeper doesn't lie still while his saint is dark."),
+        (HOB, "That's a week of furnace on him. Burn it off, sunshine."),
     ],
 
     # --- Main 2, The Ferryman's Price (the Wardens story, 2026-11-01; Docs/Work/2026-10-31-Wardens/MAINS_2_7.md section 4;
@@ -361,51 +378,103 @@ SETS = {
         ('', "Tilly's at Bright & Daughter, end of Main Street. Mind the Company at the gate."),
     ],
 
+    # --- Main 4, A Coal Under Ash (the Wardens story, 2026-11-01; Docs/Work/2026-10-31-Wardens/MAINS_2_7.md section 6,
+    # lane MAIN45; build_area_chapel.py and build_area_main4.py place who says each). Sully's lines name SULLY. ---
+    # Hob's arrival on the door hood as the yard's step begins (story_texts.MAIN45_PERCHES): why the hose, and how.
     'DA_Lines_HobMain4Yard': [
-        (HOB, "No light, no road. Every soul on the Sundown Road drifted home when she went out."),
+        (HOB, "They've a hose in through her window, sunshine. Pull it, and mind the dead they spilled."),
     ],
+    # His arrival on the hood as the bell's answer begins (step 4): before Vane's horn (it waits for quiet).
     'DA_Lines_HobMain4Reliquary': [
-        (HOB, "Nobody answered. It's the saint that's out, sunshine."),
+        (HOB, "Something answered, sunshine. Go and look at her."),
     ],
+    # The vestry door barred (his default: before Main 4 and while the yard is held).
     'DA_Lines_AldanaBarred': [
-        ('', "Stay back from that door. I've no comfort left for the dead."),
+        ('', "Go away. I've nothing left to give anybody."),
     ],
     # The knock at the vestry door (Main 4's third step, its talk): the doc's words, and the bell's reason.
     'DA_Lines_AldanaWaiting': [
-        (ELLIS, "Tilly sent me. Pa's lantern."),
-        ('', "...Abel's child. Lord forgive me, I'd know that voice through any door."),
-        ('', "Ring her bell. If the saint still knows you, she'll answer."),
+        ('', "Stay back from that door!"),
+        (SULLY, "Warden. Tilly sent me."),
+        ('', "Then ring her bell. If she can still answer, she will."),
     ],
-    # While the bell and the Reliquary wait (from Main 4's fourth step).
+    # While the bell waits (from Main 4's fourth step).
     'DA_Lines_AldanaBell': [
-        ('', "Ring her. Then go and look at the Reliquary."),
-        ('', "Saint Ada's light burned over it. Our dead steered home by that. Now it's smashed."),
+        ('', "The rope's inside the door, Warden. Ring her."),
     ],
-    # Main 4's turn-in, the doc's words, word for word: the mission says them (its turn-in lines), and his offer of Main 5
-    # follows them as one conversation.
+    # While the barge's answer is fought (step 4): through the door.
+    'DA_Lines_AldanaAnswer': [
+        ('', "She answered! Look at her, Warden. And mind the yard: so did they."),
+    ],
+    # Main 4's turn-in, the doc's words, word for word: the mission says them (its turn-in lines, after the card), and his
+    # offer of Main 5 follows them as one conversation.
     'DA_Lines_AldanaMain4': [
-        ('', "She didn't answer. Now you've seen why."),
-        (ELLIS, "How do I find them?"),
-        ('', "A keeper's lantern can find an ember."),
-        ('', "They shot the keeper first in every town, and smashed his lantern."),
-        ('', "Your father's fell in the dark, whole."),
-        ('', "Spiders hoard anything a saint has touched."),
-        ('', "Look in the Sink."),
+        ('', "She's a coal under ash, Warden. Without her keeper she's going out."),
+        ('', "When she does, every grave on the Rest is open to that hose."),
+        ('', "I watched from the vestry. Ned Purcell wouldn't break Abel's lantern. Bad luck, he said."),
+        ('', "He threw it down the Sink. Spiders hoard what a saint has touched."),
     ],
     'DA_Lines_AldanaAfterMain4': [
-        ('', "The Sink. I'll pray it's whole."),
+        ('', "The Sink, Warden. Bring his lantern up whole."),
+    ],
+    # Vane on the lychgate's loudspeaker as the bell is answered (its cue: during Main 4 from step 4; it waits for Hob).
+    'DA_Lines_Main4VaneBell': [
+        (VANE, "Ringing for help? Charming."),
+        (VANE, "Somebody's home, then. Tender, go and see who."),
+    ],
+    # Vane on the same horn as the chapel's hose comes out of the window (the yard cart's stop_broadcast).
+    'DA_Lines_Main4VaneHose': [
+        (VANE, "That hose is Company property, Warden. You're making a habit of this."),
+    ],
+    # Brother Finch at the Reliquary from Main 4's turn-in (story_texts.TOPICS['Speaker_FinchChapel']).
+    'DA_Lines_FinchReliquary': [
+        ('', "I'll sit with her. Somebody has to keep her lit."),
+    ],
+    'DA_Lines_FinchAfterMain5': [
+        ('', "His lantern's cold, but it's home. So is she, for now."),
     ],
 
-    # --- Main 5 ---
+    # --- Main 5, Choke Point (2026-11-01; MAINS_2_7.md section 7; build_area_sink.py and build_area_main5.py) ---
+    # (Unused since 2026-11-01: Hob waits at the satchel for the way down now. Kept, no asset deletes.)
     'DA_Lines_HobMain5Way': [
         (HOB, "Whatever dug the hole under me, let's not wake it."),
     ],
+    # His arrival on the satchel's rock at the ramp head as Main 5 starts: why the satchel.
+    'DA_Lines_HobMain5Satchel': [
+        (HOB, "Junie's salt, sunshine. Three charges. I carried the lot, so don't drop them."),
+    ],
+    # His arrival on the floor's block once the lantern is taken (step 3): the lantern (kept), then the intake.
     'DA_Lines_HobMain5Out': [
         (HOB, "Dark as a shut eye, but whole. Missing its bail. You've got that, sunshine."),
+        (HOB, "Now the hose. Three charges round its collar, and mind its pull."),
     ],
-    # After Main 5 (its turn-in has the candle that won't take): a word in passing.
+    # Vane on the Sink fence's loudspeaker as Main 5 starts (its cue: during Main 5 before step 1).
+    'DA_Lines_Main5VaneSink': [
+        (VANE, "The Sink is Company property, Warden. So is everything in it."),
+    ],
+    # Vane on the barge's own horn (ASinkIntake: as the first charge goes on; as the intake is choked).
+    'DA_Lines_Main5VaneCharge': [
+        (VANE, "Warden, that's my supper you're fiddling with."),
+    ],
+    'DA_Lines_Main5VaneChoked': [
+        (VANE, "...Coughing. My barge is coughing."),
+        (VANE, "Stoker! Find me another mouth."),
+    ],
+    # Hob as the third charge's fuse is lit (ASinkIntake's fuse_lines): the draw doubles, so get clear.
+    'DA_Lines_HobMain5Fuse': [
+        (HOB, "Fuse is lit! Get clear, sunshine, she pulls harder now!"),
+    ],
+    # Hob as the smog pool by the den drains and something huge growls in the dark (ASinkIntake's growl_lines; Side 3's hook).
+    'DA_Lines_HobMain5Growl': [
+        (HOB, "Whatever that was, it was drinking that runoff. Now it's hungry."),
+    ],
+    # His arrival on the Sink road's tree at the rim, as the barge drops its second hose onto Larkspur High (ready to turn in).
+    'DA_Lines_HobMain5Mine': [
+        (HOB, "She's not starving yet, sunshine. She's found the mine."),
+    ],
+    # After Main 5: a word in passing (Finch keeps the saint now).
     'DA_Lines_AldanaAfterMain5': [
-        ('', "I tried the candle again after you'd gone. Old habits."),
+        ('', "Brother Finch sits with her all night. I bring him coffee. It's something."),
     ],
 
     # --- The mine, between Main 5 and Main 6 (2026-10-27, the user's note 32: Cyrus Teague the story's second boss) ---
@@ -433,12 +502,166 @@ SETS = {
         ('', "Go on, El. I'll keep the boards."),
     ],
 
-    # --- Main 7 ---
+    # --- Main 6, The Pilot Light (the Wardens story, 2026-11-01; MAINS_2_7.md section 10, lane MAIN67;
+    # main67_src/CONTRACT67.md's line table: who plays each). The sortie (APilotSortie, the Lamplighter's flight): ---
+    'DA_Lines_Main6CastOff': [
+        (HOLLOWAY, "Anchor's up. Hold on to something, Warden."),
+        (JUNIE, "Engine's hot. Bag's holding. Mostly."),
+    ],
+    'DA_Lines_Main6Tenders': [
+        (HOLLOWAY, "Two tenders off the barge! Coming up on us!"),
+        (JUNIE, "Shoot their bags! They burn lovely!"),
+    ],
+    'DA_Lines_Main6TenderDown1': [
+        (JUNIE, "That's one cooked!"),
+    ],
+    'DA_Lines_Main6TenderDown2': [
+        (HOLLOWAY, "Second one's down. Watch the deck!"),
+    ],
+    'DA_Lines_Main6Boarders': [
+        (HOLLOWAY, "They're boarding! Clear my deck, Warden!"),
+    ],
+    'DA_Lines_Main6Launchers': [
+        (HOLLOWAY, "Alongside! Starboard launchers, Warden. Junie rigged them."),
+        (JUNIE, "Their own grapples. Waste not."),
+    ],
+    'DA_Lines_Main6Flicker': [
+        (FINCH, "Her light's flickering! Hurry!"),
+    ],
+    'DA_Lines_Main6Plank': [
+        (HOLLOWAY, "Plank's down. Go. We'll hold her here."),
+    ],
+    'DA_Lines_Main6Jump': [
+        (HOLLOWAY, "She's going down! Get to the gangway!"),
+        (HOLLOWAY, "Jump, Warden!"),
+    ],
+    # Hob's arrival on her wheel housing as Holloway's offer waits (story_texts.MAIN67_PERCHES).
+    'DA_Lines_HobMain6Wheel': [
+        (HOB, "The captain wants you, sunshine. The barge is coming down."),
+    ],
+    # The barge (ABargeBoarding, its furnace, valves and drum; CageBurst, BargeFall): ---
+    'DA_Lines_Main6VaneDeck': [
+        (VANE, "Welcome aboard, Warden. Mind the vents. They bite."),
+        (VANE, "Gentlemen, the Warden is trespassing. See to it."),
+    ],
+    'DA_Lines_Main6Vents': [
+        (HOB, "Vents glow before they blow, sunshine. Count to one."),
+    ],
+    'DA_Lines_Main6DrumJammed': [
+        (FINCH, "It's stopped! Bless you, Warden."),
+    ],
+    'DA_Lines_Main6FinchDimming': [
+        (FINCH, "She's dimming, Warden. That hose is nearly on her roof."),
+    ],
+    'DA_Lines_Main6Manifest': [
+        (HOB, "Vane's fare bill. The Ferryman'll frame it."),
+    ],
+    'DA_Lines_Main6NedRadio': [
+        (NED, "Barge, this is Purcell. Is my keeper still burning?"),
+        (NED, "I've money on him. Don't let him go out."),
+    ],
+    'DA_Lines_Main6Hall': [
+        ('The Chief Stoker', "Keep her lit! Mister Vane's watching!"),
+        (VANE, "Warden, those valves are worth more than you are."),
+    ],
+    'DA_Lines_Main6Valve1': [
+        ('The Chief Stoker', "She's cooling! Stoke her!"),
+    ],
+    'DA_Lines_Main6Valve2': [
+        (HOB, "Two down. She's choking, sunshine."),
+    ],
+    'DA_Lines_Main6Valve3': [
+        (FINCH, "The cage, Warden! Now, while she's cold!"),
+    ],
+    'DA_Lines_Main6Cage': [
+        (VANE, "Oh, that's not good."),
+        (VANE, "Gentlemen, abandon my barge. Leave the Warden."),
+    ],
+    'DA_Lines_Main6Fall': [
+        (HOB, "There she goes. Into the canyon."),
+        (FINCH, "Look. Something came down on the boards."),
+    ],
+
+    # --- Main 7, Given to the Wind (lane MAIN67; MAINS_2_7.md section 11). Abel's fight (UAbelCorruptionComponent) and
+    # his scene (FreeAbel); the C++ carries the same words as fallbacks. ---
+    'DA_Lines_AbelMutter': [
+        (ABEL, "Dusk. It's dusk. Who's sitting with them?"),
+        (ABEL, "Six on the boards. Somebody walk them."),
+        (ABEL, "Saint Ada's dark. Why is she dark?"),
+    ],
+    'DA_Lines_AbelCallHint': [
+        (HOB, "He's down! Get to the keeper's post. Call him back!"),
+    ],
+    'DA_Lines_AbelCallBack1': [
+        (ABEL, "...Ma? Is that my lantern?"),
+    ],
+    'DA_Lines_AbelCallBack2': [
+        (ABEL, "Who are you? You're not from here."),
+    ],
+    'DA_Lines_AbelDrink': [
+        (HOB, "He's drinking the dead! Shoot the smog where it bites!"),
+    ],
+    'DA_Lines_AbelSurge': [
+        (HOB, "Can't see a thing. Aim for the coal, sunshine."),
+    ],
+    'DA_Lines_AbelFinal': [
+        (FINCH, "Now, Warden! Hold the post! Call him home!"),
+    ],
+    'DA_Lines_FreeAbel': [
+        (ABEL, "That's my lantern. You've been looking after it."),
+        (ABEL, "I can't get home on my own. Will you carry me?"),
+    ],
+    # The carry home and the relighting (ASoulCoalLump, UCarriedLanternSubsystem, AReliquaryLantern, SaintAdaWakes).
+    'DA_Lines_Main7Coal': [
+        (HOB, "A soul in every lump, sunshine. They'll follow the lantern."),
+    ],
+    'DA_Lines_Main7Road': [
+        (HOB, "Company men off the barge. They want his light, sunshine."),
+    ],
+    'DA_Lines_Main7Latch': [
+        (FINCH, "They're draining him! Break that line!"),
+    ],
+    'DA_Lines_Main7Arrive': [
+        (FINCH, "Bring him here, Warden. On the lid. Gently."),
+    ],
+    'DA_Lines_SaintAdaWakes': [
+        (ABEL, "Ma. You came up the hill. Your knees."),
+        (DELIA, "Hush. You held the door."),
+        (ABEL, "I'll keep her now. From in here. She won't go out again."),
+        (ABEL, "Warden. Whatever they took me for, there's more of it. Go and get them back."),
+    ],
+    # Vane at the Keeper's Gate's horn as the fog wall drops (story_texts' MAIN67 block: Main 7 from step 4).
+    'DA_Lines_Main7Gate': [
+        (VANE, "That was a very expensive barge, Warden."),
+        (VANE, "I have forty more. Do come and see them."),
+    ],
+    # Hob's arrivals: on the coal by the west road as Main 7 starts (why the coal), on the chapel door for the carry home.
+    'DA_Lines_HobMain7Point': [
+        (HOB, "The barge rained coal all over the Rest. Souls in it, sunshine."),
+    ],
+    'DA_Lines_HobMain7Chapel': [
+        (HOB, "Mind the road. The barge's crew got off alive, and they're sore about it."),
+    ],
+    # Abel's soul by the Reliquary after Main 7 (his topic: AAbelOnBoard standing, tagged Speaker_Abel).
+    'DA_Lines_AbelReliquary': [
+        (ABEL, "She's warm again. I can feel the whole valley sleeping."),
+        (ABEL, "Go on, Warden. I'm not going anywhere."),
+    ],
+
+    # --- Main 7's turn-in at the chapel door (Delia's topic: the card first, then these; the design's words, Holloway on
+    # the tube last; with the hose drum jammed in Main 6, Finch's word on it first). ---
     'DA_Lines_DeliaMain7': [
-        ('', "A keeper's buried with his lantern, not his iron."),
-        ('', "His lantern wasn't on him, so I kept this back."),
-        ('', "He'd want you to have it."),
-        ('', "Hold the door."),
+        (DELIA, "Forty years he kept her. Looks like he'll keep her forty more."),
+        (DELIA, "A keeper's buried with his lantern, not his iron. I kept this back. It's yours."),
+        (DELIA, "Hold the door, Warden. Wherever that train of yours goes."),
+        (HOLLOWAY, "Vane's fleet watches the sky. Nobody searches a hearse car. We'll meet you there."),
+    ],
+    'DA_Lines_DeliaMain7Jammed': [
+        (DELIA, "Finch says you stopped that hose short of her roof."),
+        (DELIA, "Forty years he kept her. Looks like he'll keep her forty more."),
+        (DELIA, "A keeper's buried with his lantern, not his iron. I kept this back. It's yours."),
+        (DELIA, "Hold the door, Warden. Wherever that train of yours goes."),
+        (HOLLOWAY, "Vane's fleet watches the sky. Nobody searches a hearse car. We'll meet you there."),
     ],
     'DA_Lines_DeliaMain7After': [
         ('', "I'll keep setting a plate."),
@@ -447,12 +670,12 @@ SETS = {
         (HOB, "That's Purcell. The Lily's moored out that way."),
     ],
     'DA_Lines_TillyMain7': [
-        ('', "Father's car is coupled up. The living won't ride with you, so it's the coffins."),
-        ('', "Mind the brass. I polished it for him, and he never once complained."),
+        ('', "Your car's coupled, Warden. Mind the brass."),
+        ('', "Nobody searches a hearse car. Father always said so."),
     ],
     # Main 7 once Knocking Below is done: she knows now what he thought of the brass.
     'DA_Lines_TillyMain7Father': [
-        ('', "Father's car is coupled up. The living won't ride with you, so it's the coffins."),
+        ('', "Your car's coupled, Warden. Nobody searches a hearse car."),
         ('', "Mind the brass. He liked it, as it turns out. He just never said."),
     ],
     'DA_Lines_TillyAfterMain7': [

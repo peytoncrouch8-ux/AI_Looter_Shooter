@@ -16,7 +16,9 @@ namespace
 	/** The missions the mutters follow, by id as the campaign record keeps them. */
 	const FName Main3(TEXT("Main3"));
 	const FName Main4(TEXT("Main4"));
-	const FName Main6(TEXT("Main6"));
+	// Abel is at rest once Saint Ada has him back: Main 7, Given to the Wind (lane MAIN67; Main 6 only takes him out of the
+	// barge's furnace, and what comes out isn't at rest).
+	const FName Main7(TEXT("Main7"));
 	const FName DeadLift(TEXT("DeadLift"));
 
 	/** How far the story has come for a mutter: the town afraid, then the gate won, the bell rung, Abel at rest. */
@@ -181,7 +183,7 @@ TArray<FSpeakerTopic> TownLifeRules::MutterTopicsFor(FName Household)
 		EStage Stage;
 		FName After;
 	} Stages[] = {
-		{ EStage::AbelAtRest, Main6 },
+		{ EStage::AbelAtRest, Main7 },
 		{ EStage::BellRung, Main4 },
 		{ EStage::GateWon, Main3 },
 		{ EStage::Afraid, NAME_None },

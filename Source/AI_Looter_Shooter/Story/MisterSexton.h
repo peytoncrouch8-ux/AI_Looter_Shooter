@@ -5,6 +5,7 @@
 #include "MisterSexton.generated.h"
 
 class UStaticMeshComponent;
+class USecretBrokerComponent;
 
 /**
  * Mister Sexton on the lookout's railing (Docs/Areas/RansomsRest.md, Main 2 "Shall We Talk Business?"; Docs/Story.md,
@@ -30,6 +31,17 @@ class AI_LOOTER_SHOOTER_API AMisterSexton : public AStoryCharacter
 
 public:
 	AMisterSexton();
+
+	// --- IInteractable: his secrets for silver once he trades (lanes/SECRETS.md), else the story character's talk ---
+	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
+	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
+
+	/**
+	 * His secrets for silver at his ferry (MAINS_2_7.md section 12): the level's catalog, sold from his stern from Main 2's
+	 * turn-in on; a mission waiting at him (Paid on Delivery's turn-in) still talks first.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<USecretBrokerComponent> Secrets;
 
 	/** The story's condition: shown, or hidden, but only once nobody is looking at him or listening to him. */
 	virtual void RefreshShown() override;

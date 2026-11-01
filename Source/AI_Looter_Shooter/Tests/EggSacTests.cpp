@@ -28,7 +28,7 @@
 // The Sink's props in Main 5, "The Keeper's Lantern" (Docs/Areas/RansomsRest.md): an egg sac shot down (its fall, its burst
 // and its two spiders), shootable only in its step and down from the start after it; the Keeper's Lantern dark in the
 // webbing, taken in its step and gone for good after. Main 5 itself, the floor's fight and the placed level are
-// KeepersLanternTests.cpp's.
+// ChokePointTests.cpp's.
 
 using namespace KeepersLanternTestWorld;
 

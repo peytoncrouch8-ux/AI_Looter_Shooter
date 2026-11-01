@@ -42,6 +42,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Scenery")
 	FName ShownState = FName(TEXT("Dusk"));
 
+	/**
+	 * Other lighting states it's seen in as well (the Gravewind's wisps: shown in DuskSmog through Mains 6-7 and in the clean
+	 * Dusk after Saint Ada wakes, lane MAIN67). Empty: only ShownState.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Scenery")
+	TArray<FName> AlsoShownStates;
+
 	/** Each instance fades from this far and is gone at CullDistance (cm): the art's 70 m. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Scenery", meta = (ClampMin = "0", Units = "cm"))
 	float CullDistance = 7000.f;

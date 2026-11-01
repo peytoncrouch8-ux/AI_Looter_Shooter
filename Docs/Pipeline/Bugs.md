@@ -170,7 +170,8 @@ Each line: bug (date). Cause. Fix.
   to its own element (the add may reallocate). Fix: add a copy, `Outline.Add(FVector2D(Outline[0]))`. Grep new code for `X.Add(X[`
   before building, recursively: Windows PowerShell's `Select-String -Path Source\**\*.cpp` is not recursive and missed the cracked
   coin's `Points.Add(Points[0])` (2026-10-08). Use `Get-ChildItem Source -Recurse -Include *.cpp,*.h |
-  Select-String '(\w+)\.(Add|Emplace)\(\s*\1\['`.
+  Select-String '(\w+)\.(Add|Emplace)\(\s*\1\['`. Missed again 2026-11-01: MapIcons' SecretIcon `Ring.Add(Ring[0])` crashed
+  the editor in FCompassLettersTest (the minimap's secrets); run that grep before every build of new icon code.
 - HUD text came out a third bigger than the mockup. Cause: Slate sets a font's Size in points at 96 DPI (Size 18 draws 24 px); the
   mockups use CSS px. Kept: the user chose the larger text (2026-10-07), so mockup px stay the Slate Size; px × 0.75 would match.
 - Keycap corners drew twice their size; the boss hatch leaned 26°. Cause: Slate sizes a Box brush's ends and repeats a tiled brush in

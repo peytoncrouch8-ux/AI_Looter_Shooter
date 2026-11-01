@@ -308,6 +308,7 @@ void UHudBossBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	// The intro, the flashes, the jolt and the callout (HudBossBarWidgetMotion.cpp); the armour's bar (HudBossBarWidgetArmour.cpp).
 	TickMotion(InDeltaTime);
 	TickArmour(InDeltaTime);
+	TickPips(InDeltaTime);
 }
 
 bool UHudBossBarWidget::IsMenuOpen() const

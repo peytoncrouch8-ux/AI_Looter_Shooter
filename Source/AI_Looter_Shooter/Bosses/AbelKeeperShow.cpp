@@ -5,6 +5,7 @@
 #include "Bosses/AbelKeeper.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
+#include "Bosses/AbelCorruption.h"
 #include "Bosses/AbelPoses.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/EnemyProjectileSubsystem.h"
@@ -66,7 +67,7 @@ bool AAbelKeeper::CanBeStaggered() const
 {
 	// Not out over the canyon, nor mid-lunge or mid-attack, nor knelt at the end.
 	return !IsDead() && !IsOutInFog() && !IsLunging() && GetCreatureState() != ECreatureState::Attack && Move != EAbelMove::Kneel
-		&& Move != EAbelMove::Scene;
+		&& Move != EAbelMove::Scene && Move != EAbelMove::CallKneel && Move != EAbelMove::Ascend;
 }
 
 void AAbelKeeper::HandleStaggered(bool bStaggered)
@@ -77,7 +78,9 @@ void AAbelKeeper::HandleStaggered(bool bStaggered)
 		{
 			return;
 		}
-		// Whatever he was at (his grief, a pull's stun, his walk into the wind), he's down on a knee, his coal still open.
+		// Whatever he was at (his turn to the six, a pull's stun, his walk to a post), he's down on a knee, his coal still open;
+		// a staggering hit tears his tendrils off the player too.
+		Corruption->HandleStaggered();
 		EndMove();
 		BeginMove(EAbelMove::Staggered);
 		HoldStill(false);

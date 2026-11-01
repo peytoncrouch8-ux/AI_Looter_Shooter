@@ -11,9 +11,8 @@
 #include "Creatures/UnpaidCreature.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/PlayerSize.h"
+#include "Scenes/FreeAbel.h"
 #include "Scenes/SceneSubsystem.h"
-#include "Scenes/SitWithPa.h"
-#include "Story/AbelOnBoard.h"
 #include "Tests/AbelTestWorld.h"
 #include "World/FallRecoveryTracker.h"
 #include "World/KeeperLanternPost.h"
@@ -25,8 +24,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Tests/AutomationCommon.h"
 
-// Abel's fight in play (Docs/Areas/RansomsRest.md, "The boss"): his phases and their moments, the lanterns, his fight
-// starting over, the fog wall, the Gravewind and a fall off the deck, and his kneel and the scene after.
+// Abel's fight in play (Main 7 "Given to the Wind", MAINS_2_7.md section 11; was Main 6's): his phases and their moments,
+// the call-backs that open "The Hose" and "Keeper", the lanterns, his fight starting over, the fog wall, the Gravewind and a
+// fall off the deck, and his kneel, the last call and the scene after. (His tendrils are off here: AbelCorruptionTests.)
 
 using namespace AbelTestWorld;
 
@@ -35,6 +35,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAbelPhasesTest, "Looter.Bosses.Abel.Phases",
 
 bool FAbelPhasesTest::RunTest(const FString& Parameters)
 {
+	FTendrilsOff NoTendrils;
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -52,7 +53,7 @@ bool FAbelPhasesTest::RunTest(const FString& Parameters)
 	}
 	UHealthComponent* Health = Boss->GetBossHealth();
 	TestFalse(TEXT("His fight on, he can be hurt"), Health->bInvulnerable);
-	TestEqual(TEXT("\"You brought them here\""), Boss->GetPhase(), 0);
+	TestEqual(TEXT("\"Stoker\""), Boss->GetPhase(), 0);
 
 	// The buckshot: a one-second lantern flare, then the pellets from the pump.
 	const float FlareAt = RunUntil(Abel, 6.f, [Abel]() { return Abel->GetMove() == EAbelMove::Flare; });
@@ -65,11 +66,18 @@ bool FAbelPhasesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...a cone of buckshot in flight"), Shots->NumShotsFrom(Abel), Abel->Buckshot.Pellets);
 	TestTrue(TEXT("...his shot pose"), Abel->GetPoseNow() == EAbelPose::Fire);
 
-	// Every 12 s he turns to the sunset for 3 s, his coal open (after a shot under way, if one is).
+	// Every 12 s he turns to the six dead on the boards for 3 s, his coal open (after a shot under way, if one is).
 	const float GriefAt = RunUntil(Abel, 10.f, [Abel]() { return Abel->GetMove() == EAbelMove::Grieve; });
-	TestTrue(TEXT("He grieves"), GriefAt >= 0.f);
-	TestTrue(TEXT("...his coal open, turned to the sunset"), Abel->IsCoalOpen() && Abel->GetPoseNow() == EAbelPose::Sunset);
-	Run(Abel, Abel->GrieveSeconds + 0.1f);
+	TestTrue(TEXT("He turns to the six dead"), GriefAt >= 0.f);
+	Run(Abel, 1.f);
+	TestTrue(TEXT("...his coal open, his lantern lowered"), Abel->IsCoalOpen() && Abel->GetPoseNow() == EAbelPose::Sunset);
+	FVector Dead;
+	if (Abel->GetCorruption()->GetDeadToWalk(Abel->GetActorLocation(), Dead))
+	{
+		const float ToDead = static_cast<float>((Dead - Abel->GetActorLocation()).Rotation().Yaw);
+		TestTrue(TEXT("...facing them"), FMath::Abs(FMath::FindDeltaAngleDegrees(static_cast<float>(Abel->GetActorRotation().Yaw), ToDead)) < 25.f);
+	}
+	Run(Abel, Abel->GrieveSeconds - 1.f + 0.1f);
 	TestFalse(TEXT("Three seconds on, guarded again"), Abel->IsCoalOpen());
 
 	// Two Unpaid rise through the boards every 25 s, at most four.
@@ -83,10 +91,19 @@ bool FAbelPhasesTest::RunTest(const FString& Parameters)
 	Run(Abel, 25.5f);
 	TestEqual(TEXT("...and never more than four"), Boss->NumAliveAdds(), 4);
 
-	// "The bell" at 60%: out over the canyon into the fog, out of reach, the lanterns dark, 8 Unpaid in two waves.
-	HurtTo(Abel, AbelRules::BellShare);
-	TestEqual(TEXT("At 60%: \"The bell\""), Boss->GetPhase(), 1);
-	TestTrue(TEXT("...he drifts out, and can't be hurt"), Abel->GetMove() == EAbelMove::DriftOut && Boss->IsUntargetable());
+	// "The Hose" at 66%: first the call-back (his bar locked, him knelt), then out over the canyon into the fog, out of reach,
+	// the lanterns dark, 8 Unpaid in two waves.
+	HurtTo(Abel, AbelRules::HoseShare);
+	TestEqual(TEXT("At 66%: \"The Hose\""), Boss->GetPhase(), 1);
+	UAbelCorruptionComponent* Corruption = Abel->GetCorruption();
+	TestTrue(TEXT("...his bar locks and he kneels for the call-back"), Corruption->IsLocked() && Corruption->IsKneeling()
+		&& Abel->GetMove() == EAbelMove::CallKneel && Boss->IsUntargetable());
+	const float Locked = Health->GetHealth();
+	BossTestWorld::Hurt(Abel, 1000.f);
+	TestEqual(TEXT("...locked, a shot only sparks"), Health->GetHealth(), Locked);
+	TestTrue(TEXT("Called back at the keeper's post"), CallBack(Abel, Player));
+	TestTrue(TEXT("...a pip, and he drifts out, still out of reach"), Corruption->GetPips() == 1 && !Corruption->IsLocked()
+		&& Abel->GetMove() == EAbelMove::DriftOut && Boss->IsUntargetable());
 	TestEqual(TEXT("...the three lanterns go dark"), Abel->NumLitLanterns(), 0);
 	Run(Abel, Abel->DriftSeconds + 0.1f);
 	TestTrue(TEXT("He hangs in the fog over the canyon"), Abel->GetMove() == EAbelMove::InFog
@@ -94,6 +111,7 @@ bool FAbelPhasesTest::RunTest(const FString& Parameters)
 	const float InFog = Health->GetHealth();
 	BossTestWorld::Hurt(Abel, 1000.f);
 	TestEqual(TEXT("...where a shot takes nothing"), Health->GetHealth(), InFog);
+	Run(Abel, AbelRules::FirstWaveAt - Abel->DriftSeconds);
 	TestEqual(TEXT("The first wave rose (four more, ten at most)"), Boss->NumAliveAdds(), 8);
 	Run(Abel, AbelRules::SecondWaveAfter);
 	TestEqual(TEXT("...the second, to the fight's ten"), Boss->NumAliveAdds(), 10);
@@ -114,16 +132,19 @@ bool FAbelPhasesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...hurtable, stunned, his coal open"), !Boss->IsUntargetable() && Abel->GetMove() == EAbelMove::Pulled && Abel->IsCoalOpen());
 	RunUntil(Abel, Abel->StunSeconds + 1.f, [Abel]() { return Abel->GetMove() == EAbelMove::None; });
 
-	// "Let me go" at 25%: the Gravewind; he walks off into it and the dark saint pulls him back; between pulls, faster.
+	// "Keeper" at 33%: the call-back again; then the wreck's smog up over the deck and the Gravewind; he walks to a lantern post
+	// to hang his black lantern and the furnace pulls him back; between pulls, faster.
 	BossTestWorld::KillAdds(*Boss);
-	HurtTo(Abel, AbelRules::WindShare);
-	TestEqual(TEXT("At 25%: \"Let me go\""), Boss->GetPhase(), 2);
-	TestTrue(TEXT("...the Gravewind blows"), Abel->IsWindBlowing());
-	const float WalkAt = RunUntil(Abel, 8.f, [Abel]() { return Abel->GetMove() == EAbelMove::WalkOff; });
-	TestTrue(TEXT("He walks off into the wind"), WalkAt >= 0.f && Abel->GetPoseNow() == EAbelPose::Sunset);
+	HurtTo(Abel, AbelRules::KeeperShare);
+	TestEqual(TEXT("At 33%: \"Keeper\""), Boss->GetPhase(), 2);
+	TestTrue(TEXT("...locked and knelt again, no wind yet"), Corruption->IsLocked() && Corruption->IsKneeling() && !Abel->IsWindBlowing());
+	TestTrue(TEXT("Called back again"), CallBack(Abel, Player) && Corruption->GetPips() == 2);
+	TestTrue(TEXT("...the Gravewind blows, the smog surges up over the deck"), Abel->IsWindBlowing() && Corruption->IsSurging());
+	const float WalkAt = RunUntil(Abel, 12.f, [Abel]() { return Abel->GetMove() == EAbelMove::WalkOff; });
+	TestTrue(TEXT("He walks to a lantern post, his black lantern held out"), WalkAt >= 0.f && Abel->GetPoseNow() == EAbelPose::Flare);
 	const FVector Sunset = Abel->GetSunsetDirection();
 	const float PullAt = RunUntil(Abel, Abel->WalkOffSeconds + 1.f, [Abel]() { return Abel->GetMove() == EAbelMove::Pulled; });
-	TestTrue(TEXT("...and is pulled back"), PullAt >= 0.f);
+	TestTrue(TEXT("...and the furnace pulls him back"), PullAt >= 0.f);
 	TestTrue(TEXT("...never past the open end"), FVector::DotProduct(Abel->GetActorLocation() - Abel->GetHome().GetLocation(), Sunset) < Abel->OpenEndDistance);
 	TestTrue(TEXT("...stunned, his coal open"), Abel->IsCoalOpen());
 	const float CooldownBefore = Abel->AttackCooldown;
@@ -171,7 +192,7 @@ bool FAbelLanternsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...still once"), Relit, 1);
 
 	// The keeper's post: nothing to hang without the story (Ellis hasn't the lantern here); hung, it's dark until lit.
-	TestFalse(TEXT("No lantern to hang outside Main 6"), Keepers->CanHang());
+	TestFalse(TEXT("No lantern to hang outside Main 7"), Keepers->CanHang());
 	TestFalse(TEXT("...nor on the other posts"), Post->CanHang());
 	TestTrue(TEXT("Hung (as the story would)"), Keepers->Hang(Player, /*bForce*/ true) && Keepers->IsKeepersLanternHung());
 	TestTrue(TEXT("...on the hook, dark"), Keepers->KeepersLantern->IsVisible() && !Keepers->IsKeepersLanternLit() && !Keepers->KeepersLight->IsVisible());
@@ -187,6 +208,26 @@ bool FAbelLanternsTest::RunTest(const FString& Parameters)
 	const double Tilt = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(Up, FVector::UpVector)));
 	TestTrue(FString::Printf(TEXT("...plainly, on its hook (%.1f degrees)"), Tilt), FMath::IsNearlyEqual(Tilt, static_cast<double>(Keepers->LeanDegrees), 1.0));
 	TestTrue(TEXT("...its body drawn toward the bearing"), FVector::DotProduct((-Up).GetSafeNormal2D(), Lean) > 0.99);
+
+	// Main 7's call-back (2026-11-01): opened by Abel's corruption, a hold calls him back; the hung lantern warms a third a pip;
+	// taken down lit, the hook is empty.
+	AKeeperLanternPost* Calling = SpawnPost(World, FVector(0.0, 2000.0, 0.0), true);
+	int32 Called = 0;
+	Calling->OnCalledBack.AddLambda([&Called](AKeeperLanternPost&) { ++Called; });
+	TestTrue(TEXT("Hung for the fight"), Calling->Hang(Player, /*bForce*/ true));
+	TestFalse(TEXT("No call open: nothing to hold"), Calling->GetInteractionOptions(*Interaction).CanUse());
+	Calling->OpenCallBack(1.5f, FText::FromString(TEXT("Call him back")));
+	const FInteractionOptions Call = Calling->GetInteractionOptions(*Interaction);
+	TestTrue(TEXT("A call open: hold 1.5 s, \"Call him back\""), Call.CanUse() && Call.bHold && !Call.bTap
+		&& FMath::IsNearlyEqual(Call.HoldSeconds, 1.5f) && Call.HoldPrompt.ToString() == TEXT("Call him back"));
+	TestFalse(TEXT("...a tap does nothing"), Calling->Interact(*Interaction, false));
+	TestTrue(TEXT("...the hold calls him back, once"), Calling->Interact(*Interaction, true) && Called == 1 && !Calling->IsCallBackOpen());
+	Calling->SetCallGlow(1.f / 3.f);
+	TestTrue(TEXT("A pip: the hung lantern warms, its light a third of lit"), Calling->KeepersLight->IsVisible() && !Calling->IsKeepersLanternLit());
+	Calling->LightKeepersLantern();
+	Calling->TakeDownLit();
+	TestTrue(TEXT("Taken down lit: off the hook, carried"), Calling->IsKeepersLanternTaken() && !Calling->KeepersLantern->IsVisible()
+		&& !Calling->KeepersLight->IsVisible());
 	return true;
 }
 
@@ -195,6 +236,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAbelResetTest, "Looter.Bosses.Abel.Reset",
 
 bool FAbelResetTest::RunTest(const FString& Parameters)
 {
+	FTendrilsOff NoTendrils;
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -209,10 +251,11 @@ bool FAbelResetTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	// Into the second phase: out in the fog, the lanterns dark, adds up.
-	HurtTo(Abel, AbelRules::BellShare);
-	Run(Abel, 3.f);
+	// Into the second phase: called back once, out in the fog, the lanterns dark, adds up.
+	HurtIntoPhase(Abel, AbelRules::HoseShare);
+	Run(Abel, AbelRules::FirstWaveAt + 0.5f);
 	TestTrue(TEXT("In the fog, the lanterns dark, adds risen"), Abel->IsOutInFog() && Abel->NumLitLanterns() == 0 && Boss->NumAliveAdds() > 0);
+	TestEqual(TEXT("...one pip won"), Abel->GetCorruption()->GetPips(), 1);
 
 	// The player falls: it all starts over.
 	BossTestWorld::Kill(Player);
@@ -224,6 +267,8 @@ bool FAbelResetTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...his adds gone"), Boss->NumAliveAdds(), 0);
 	TestEqual(TEXT("...the lanterns burning"), Abel->NumLitLanterns(), 3);
 	TestTrue(TEXT("...no wind, his own pace"), !Abel->IsWindBlowing() && !Abel->IsHastened());
+	TestTrue(TEXT("...the smog all on him again: no pips, no lock, no surge, the six dead whole"), Abel->GetCorruption()->GetPips() == 0
+		&& !Abel->GetCorruption()->IsLocked() && !Abel->GetCorruption()->IsSurging() && Abel->GetCorruption()->NumDrunk() == 0);
 	TestTrue(TEXT("...a player back on the deck starts it again"), FMath::IsNearlyEqual(Boss->EngageRadius, Abel->DeckRadius));
 
 	// And it does start again, from the first phase.
@@ -238,6 +283,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAbelSealTest, "Looter.Bosses.Abel.Seal",
 
 bool FAbelSealTest::RunTest(const FString& Parameters)
 {
+	FTendrilsOff NoTendrils;
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -375,7 +421,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAbelKneelTest, "Looter.Bosses.Abel.Kneel",
 
 bool FAbelKneelTest::RunTest(const FString& Parameters)
 {
-	// Played, skipped, and with scenes off: each ends the same, the lantern lit and leaning, Pa on his board.
+	// Played, skipped, and with scenes off: each ends the same: the last call held, Abel gone into his own lantern, the
+	// lantern lit and taken down off the post.
+	FTendrilsOff NoTendrils;
 	for (int32 Way = 0; Way < 3; ++Way)
 	{
 		const TCHAR* Name = Way == 0 ? TEXT("Played") : Way == 1 ? TEXT("Skipped") : TEXT("Scenes off");
@@ -387,8 +435,7 @@ bool FAbelKneelTest::RunTest(const FString& Parameters)
 		}
 		UWorld* World = WorldWrapper.GetTestWorld();
 		TArray<AKeeperLanternPost*> Posts;
-		AAbelOnBoard* OnBoard = nullptr;
-		AAbelKeeper* Abel = SpawnAbel(World, false, &Posts, &OnBoard);
+		AAbelKeeper* Abel = SpawnAbel(World, false, &Posts);
 		USceneSubsystem* Played = World->GetSubsystem<USceneSubsystem>();
 		ACharacter* Player = nullptr;
 		UBossComponent* Boss = Abel && Played ? StartFight(*this, World, Abel, Player) : nullptr;
@@ -408,16 +455,30 @@ bool FAbelKneelTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s: the Keeper's Lantern not lit yet"), Name), Keepers && !Keepers->IsKeepersLanternLit());
 
 		Run(Abel, 1.f);
+		// His kneel settled: the last call, not the scene; nothing plays until the post is held.
+		UAbelCorruptionComponent* Corruption = Abel->GetCorruption();
+		TestTrue(FString::Printf(TEXT("%s: the last call opens at the keeper's post"), Name), Corruption->IsFinalCallOpen()
+			&& Keepers->IsCallBackOpen() && !Played->IsPlaying());
+		const FInteractionOptions Last = Keepers->GetInteractionOptions(*NewObject<UInteractionComponent>(Player));
+		TestTrue(FString::Printf(TEXT("%s: ...a 3 s hold, \"Call him home\""), Name), Last.bHold
+			&& FMath::IsNearlyEqual(Last.HoldSeconds, AbelCorruptionRules::FinalHold) && Last.HoldPrompt.ToString() == TEXT("Call him home"));
+		Run(Abel, 5.f);
+		TestTrue(FString::Printf(TEXT("%s: ...it waits for the player, however long"), Name), Corruption->IsFinalCallOpen() && !Played->IsPlaying());
+		TestTrue(FString::Printf(TEXT("%s: Called home"), Name), CallBack(Abel, Player));
+		TestTrue(FString::Printf(TEXT("%s: ...the third pip, freed, the black lantern gone from his hand"), Name), Corruption->GetPips() == 3
+			&& Corruption->IsFreed() && !Abel->Lantern->IsVisible());
+		Run(Abel, Frame);
 		if (Way == 0)
 		{
-			TestTrue(TEXT("Played: the scene plays once his kneel settles"), Played->IsPlaying() && Played->GetPlayingName() == SitWithPa::SceneName());
-			for (float Time = 0.f; Time < SitWithPa::Duration() + 1.f; Time += Frame)
+			TestTrue(TEXT("Played: the scene plays once he's called home"), Played->IsPlaying() && Played->GetPlayingName() == FreeAbel::SceneName());
+			for (float Time = 0.f; Time < FreeAbel::Duration() + 1.f; Time += Frame)
 			{
 				Played->Tick(Frame);
 				Abel->Tick(Frame);
-				if (FMath::IsNearlyEqual(Time, 26.f, Frame * 0.5f))
+				if (FMath::IsNearlyEqual(Time, 6.f, Frame * 0.5f))
 				{
-					TestFalse(TEXT("Played: before he raises his light, the lantern is dark"), Keepers->IsKeepersLanternLit());
+					TestTrue(TEXT("Played: the smog boiled off him"), Corruption->GetCorruption() < 0.05f);
+					TestFalse(TEXT("Played: before he steps into it, the lantern isn't lit"), Keepers->IsKeepersLanternLit());
 				}
 			}
 		}
@@ -427,15 +488,11 @@ bool FAbelKneelTest::RunTest(const FString& Parameters)
 			Played->SkipScene();
 		}
 		TestFalse(FString::Printf(TEXT("%s: the scene is over"), Name), Played->IsPlaying());
-		TestTrue(FString::Printf(TEXT("%s: Main 6 hears it played"), Name), Played->HasPlayed(SitWithPa::SceneName()));
-		TestTrue(FString::Printf(TEXT("%s: the Keeper's Lantern hangs lit, leaning north-east"), Name), Keepers->IsKeepersLanternHung()
-			&& Keepers->IsKeepersLanternLit() && Keepers->GetLeanDirection().X > 0.6 && Keepers->GetLeanDirection().Y > 0.6);
-		TestTrue(FString::Printf(TEXT("%s: Pa sits on his board"), Name), OnBoard->IsShown() && Abel->IsEndingDone() && !Abel->IsPresent()
-			&& Abel->IsHidden());
-		if (OnBoard->Figure->GetSkinnedAsset())
-		{
-			TestTrue(FString::Printf(TEXT("%s: ...in the sit"), Name), OnBoard->IsSeated());
-		}
+		TestTrue(FString::Printf(TEXT("%s: Main 7 hears it played"), Name), Played->HasPlayed(FreeAbel::SceneName()));
+		TestTrue(FString::Printf(TEXT("%s: the Keeper's Lantern lit and taken down off the post"), Name), Keepers->IsKeepersLanternLit()
+			&& Keepers->IsKeepersLanternTaken() && !Keepers->KeepersLantern->IsVisible());
+		TestTrue(FString::Printf(TEXT("%s: Abel is in it: gone from the boards"), Name), Abel->IsEndingDone() && !Abel->IsPresent() && Abel->IsHidden()
+			&& Corruption->GetCorruption() == 0.f);
 	}
 	return true;
 }

@@ -28,6 +28,9 @@ line sets the topics below name are Tools/Unreal/create_story_lines.py's.
               first the placing script has), when, and its arrival line set; they replace the old Main 1 board perches.
   MAIN23_PERCHES, MAIN23_AFTER_PERCHES Hob's perches through Mains 2 and 3 (the Wardens story, 2026-11-01), as
               LANDFALL_PERCHES; they replace the old Main 2/3 perches in build_area_story.place_hob.
+  MAIN45_PERCHES Hob's perches through Mains 4 and 5 (A Coal Under Ash, Choke Point; lane MAIN45, 2026-11-01), as
+              LANDFALL_PERCHES; they replace the old Main 4/5 perches in build_area_story.place_hob. The same block adds
+              Mains 4-5's LOUDSPEAKER_CUES and ENCOUNTERS (BellAnswered, IntakeDrop, IntakeSpiders).
   MUTTER_POINTS lines said unasked at a spot with no one there (an unseen speaker point's mutters), by its tag.
   LOUDSPEAKER_CUES what Vane says from each Company loudspeaker (ACompanyLoudspeaker), by its tag; NED_LEFT_FLAG and
               BANNER_DOWN_FLAG, Main 3's story flags.
@@ -86,19 +89,21 @@ READABLES = {
         title='The boards where it happened', heading="Ransom's Point, the lookout's deck", prompt='Look', text='',
         lines=[(ELLIS, 'He was standing right here.'),
                (HOB, 'So were you, sunshine. Briefly.')]),
-    # Main 4, optional: the keepers' roll, a painted plank in the nave (SM_KeepersRoll).
+    # Main 4 (A Coal Under Ash, the Wardens story since 2026-11-01), step 4's optional: the keepers' roll, a painted plank in
+    # the nave (SM_KeepersRoll_Bare: no name painted out under ABEL now; the hero is Sully, a Warden, no Ransom). Every
+    # Ransom keeper since the saint, Abel the last (MAINS_2_7.md section 6). The words build_area_missionprops_valley.py
+    # places are its own READABLES' (lane MAIN45's exact edit E6 makes them these).
     'KeepersRoll': dict(
         title="The keepers' roll", heading='Painted on a plank in the nave', prompt='Read',
-        # The names the board itself carries (SM_KeepersRoll, the props art).
-        text=('KEEPERS\nOF SAINT ADA\n\nSILAS\nHANNAH\nJONAS\nABEL\n\n'
-              'Under ABEL a name has been painted out. It still shows through:\nELLIS'),
-        lines=[(HOB, 'Heir to the family business, sunshine. Funny how that goes.')]),
-    # Main 5, optional: the sheriff's hat by the den, on the Sink's floor (SM_SheriffHat, chewed).
+        text=("KEEPERS OF THE LANTERN\nSAINT ADA'S, RANSOM'S REST\n\nSILAS RANSOM\nHANNAH RANSOM\nJONAS RANSOM\n"
+              'ABEL RANSOM\n\nThe last name is fresh paint. There is room under it, and nobody to put there.'),
+        lines=[(HOB, 'Ninety years of Ransoms kept her lit. Not one of them got a hose.')]),
+    # Main 5 (Choke Point), step 4's optional: the sheriff's hat by the den, on the Sink's floor (SM_SheriffHat, chewed).
+    # Sully is a Warden and never knew him: Hob's word only.
     'SheriffHat': dict(
         title="A lawman's hat", heading='In the webbing by the den', prompt='Look',
         text='Chewed through the crown. The band is stamped W. ODELL.',
-        lines=[(ELLIS, 'Wade Odell. The sheriff.'),
-               (HOB, 'Whatever lives in that hole had the sheriff for supper.')]),
+        lines=[(HOB, 'Whatever lives in that hole had the sheriff for supper.')]),
     # Side 3, optional: his badge, deep in the Gravemother's den (SM_SheriffBadge).
     'SheriffBadge': dict(
         title="Sheriff Odell's badge", heading='Caught in the webbing, deep in her den', prompt='Look', text='',
@@ -214,7 +219,9 @@ READABLES = {
               "Burn this.\n\n" + DASH + ' A. Dunne'),
         lines=[(ELLIS, 'He tried to warn her.'),
                (HOB, 'Tried. Then he came anyway. Mind the difference, sunshine.')]),
-    # The smashed Reliquary's lid after Hallowed Ground (no model: the lid prised askew is the Reliquary's own).
+    # (Retired 2026-11-01 with Hallowed Ground: the Reliquary is whole in the Wardens story, its lid never prised, and the
+    # toll mark was the old Sexton's; lane MAIN45's exact edit E7 stops build_area_seeds.py placing it. Kept so an old
+    # level's prop still reads until the gameplay rebuild removes it.) The smashed Reliquary's lid after Hallowed Ground.
     'ReliquaryLid': dict(
         title="The Reliquary's lid", heading='Prised up at one edge', prompt='Look', text='',
         shown_when=dict(after=['Main4']),
@@ -243,7 +250,8 @@ READABLES = {
               "And there she stopped, and held up her light, so nobody of this valley would pay to cross again.\n\n"
               "She never crossed herself. No saint does. Every one of them is somebody who stayed behind.\n\n"
               + DASH + ' M.A.'),
-        lines=[(ELLIS, 'Sixty years at the edge of the world.'),
+        # (Sully's since 2026-11-01, lane MAIN45: the hero is a Warden; no count of years, the keepers' roll says ninety.)
+        lines=[(SULLY, 'All that time at the edge of the world, holding up her light.'),
                (HOB, 'Some debts you pay standing up, sunshine.')]),
 
     # --- Things to find off the path (2026-10-21; SECRETS below places their chests): each found readable sets its
@@ -485,10 +493,16 @@ ARTIFACTS = {
 # ---------------------------------------------------------------------------
 
 ITEMS = {
-    # Main 6's item (Main 3's own items vanish as it's turned in): Tilly puts it out on her sill at Main 3's turn-in, and
-    # it lies there until it's taken; Main 6's first step asks for it, so most players carry it by then.
-    'LanternBail': dict(mission='Main6', where="on Tilly's window sill (Bright & Daughter's Speaker socket, in front)",
+    # Main 5's item (it goes on Abel's lantern there; Main 3's own items vanish as it's turned in): Tilly puts it out on her
+    # sill at Main 3's turn-in, and it lies there until it's taken.
+    'LanternBail': dict(mission='Main5', where="on Tilly's window sill (Bright & Daughter's Speaker socket, in front)",
                         prompt="Take Pa's lantern bail", shown_when=dict(after=['Main3'])),
+    # Choke Point (Main 5, lane MAIN45, 2026-11-01): Junie's three salt charges in the canvas satchel Hob drops on the Sink's
+    # rim at the ramp head (build_area_main5.py places it there, tagged Item_SaltCharges); step 0 asks for them, step 3
+    # sets them on the intake's collar. Shown while Main 5 runs, until taken.
+    'SaltCharges': dict(mission='Main5', name="Junie's salt charges",
+                        where="in Hob's satchel on the Sink's rim by the ramp head (build_area_main5.py)",
+                        prompt="Take Junie's salt charges", shown_when=dict(during='Main5')),
     # Shown from the story's start, so the bluff path's (by the crate Main 2 opens) can be taken then and counts later.
     'CacheTag1': dict(mission='CaldersCaches', where="on the windmill's Ranger cache (RangerCache_Windmill's lid)",
                       prompt="Take the Ranger's tag", shown_when=dict(after=['Main1'])),
@@ -560,12 +574,22 @@ TOPICS = {
     ]),
     # build_area_chapel: the knock is Main 4's third step (2); the bell and the Reliquary follow (3, 4); his Main 4 words
     # are the mission's turn-in lines now (AldanaMain4 is no topic). The Reliquary's look_when: during Main4 from_step 4.
+    # (A Coal Under Ash since 2026-11-01, lane MAIN45: while the barge's answer is fought, step 4, he calls through the
+    # door; before_step 5 so the turn-in, from step 5, says the mission's own words.)
     'Speaker_Aldana': dict(default='DA_Lines_AldanaBarred', topics=[
+        (dict(during='Main4', from_step=4, before_step=5), 'DA_Lines_AldanaAnswer'),
         (dict(during='Main4', from_step=3), 'DA_Lines_AldanaBell'),
         (dict(during='Main4', from_step=2), 'DA_Lines_AldanaWaiting'),
         # (What Ada gave up is a page slid under his door now: READABLES AldanaPage.)
         (dict(after=['Main5']), 'DA_Lines_AldanaAfterMain5'),
         (dict(after=['Main4']), 'DA_Lines_AldanaAfterMain4'),
+    ]),
+    # Brother Finch at the Reliquary (Main 4's turn-in on, lane MAIN45: CREW's AWardenCrewMember, Keeper, a second placement
+    # by build_area_main4.py, tagged Speaker_FinchChapel so the ship's Finch keeps Speaker_Finch). He keeps the saint alive
+    # by hand until Abel is back; Main 5 is turned in to him (its own words). After Main 5, the lantern by him.
+    'Speaker_FinchChapel': dict(default='DA_Lines_FinchReliquary', name='Brother Finch', topics=[
+        (dict(after=['Main5']), 'DA_Lines_FinchAfterMain5'),
+        (dict(after=['Main4']), 'DA_Lines_FinchReliquary'),
     ]),
     # build_area_whitlock: the bales are Side 2's first step (LOAD_STEP 0), the hands its second (FIGHT_STEP 1; the road
     # talk went into the fight's end, the hands' spawner's cleared_lines DA_Lines_AmosRoad), the thanks the turn-in
@@ -855,6 +879,109 @@ FIND_COMPLETE = dict(
     lines=[(HOB, "That's all of it, sunshine. Even I didn't know about the tarn.")])
 
 
+# ---------------------------------------------------------------------------
+# Mains 4-5 (lane MAIN45, 2026-11-01; Docs/Work/2026-10-31-Wardens/MAINS_2_7.md sections 6-7, lanes/MAIN45.md):
+# A Coal Under Ash (Main 4) and Choke Point (Main 5). Their own block, so the other lanes' blocks stay apart.
+# ---------------------------------------------------------------------------
+
+# Hob through Mains 4 and 5, as LANDFALL_PERCHES (spots tried in order, when, arrival set or None), in first-match order:
+# build_area_story.place_hob takes them in place of its old Main 4/5 perches (lanes/MAIN45.md, exact edit E2). Spots:
+# 'hood' and 'lantern' (the chapel's door hood and vestry lantern, build_area_chapel.hob_spots), 'denRock', 'block',
+# 'roadTree' (build_area_sink.hob_spots) as place_hob has them; 'satchel' (the satchel's rock on the Sink's rim by the ramp
+# head) from build_area_main5.place.
+MAIN45_PERCHES = [
+    # Main 4: on the door hood for the barge's answer (his word first; Vane's horn waits for quiet), the bell and the yard
+    # (why the hose, and how); on the vestry lantern's bracket for the knock; on the hood for the way up, silent.
+    (('hood',), dict(during='Main4', from_step=4), 'DA_Lines_HobMain4Reliquary'),
+    (('hood',), dict(during='Main4', from_step=3), None),
+    (('lantern', 'hood'), dict(during='Main4', from_step=2), None),
+    (('hood',), dict(during='Main4', from_step=1), 'DA_Lines_HobMain4Yard'),
+    (('hood',), dict(during='Main4'), None),
+    # Main 5: on the Sink road's dead tree at the rim as the barge drops its second hose (ready to turn in: from step 5);
+    # there for the way out (step 4, silent: Vane and the growl have the words); on the floor's block once the lantern is
+    # taken (the lantern, then the intake), and for the sacs; on the satchel's rock at the ramp head for the way down.
+    (('roadTree',), dict(during='Main5', from_step=5), 'DA_Lines_HobMain5Mine'),
+    (('roadTree',), dict(during='Main5', from_step=4), None),
+    (('block',), dict(during='Main5', from_step=3), 'DA_Lines_HobMain5Out'),
+    (('block',), dict(during='Main5', from_step=1), None),
+    (('satchel', 'denRock'), dict(during='Main5'), 'DA_Lines_HobMain5Satchel'),
+]
+
+# What Vane says from Mains 4-5's loudspeakers (ACompanyLoudspeaker cues, as LOUDSPEAKER_CUES above): the lychgate's horn
+# as the barge answers the bell (step 4); the Sink fence's as Main 5 starts. The barge's own horn over the Sink
+# (Loudspeaker_Barge, a voice only) is ASinkIntake's to cue (its charge and choke lines), so it has none here.
+LOUDSPEAKER_CUES.update({
+    'Loudspeaker_Lychgate': [(dict(during='Main4', from_step=4), 'DA_Lines_Main4VaneBell')],
+    'Loudspeaker_SinkFence': [(dict(during='Main5', before_step=1), 'DA_Lines_Main5VaneSink')],
+    'Loudspeaker_Barge': [],
+})
+
+# When Mains 4-5's new fights are on (as ENCOUNTERS above). BellAnswered: the tender's drop over the chapel knoll, from the
+# bell (step 4) until the turn-in. IntakeDrop (the Dredgers down the hose, two drops) and IntakeSpiders (down the webbed
+# ramp) from the intake's step (3) through the climb out (4), so a man still standing when the hose blows fights on.
+# (ChapelYard stays build_area_chapel.py's set piece: during Main 4's second step.)
+ENCOUNTERS.update({
+    'BellAnswered': dict(during='Main4', from_step=4, before_step=5),
+    'IntakeDrop': dict(during='Main5', from_step=3, before_step=5),
+    'IntakeSpiders': dict(during='Main5', from_step=3, before_step=5),
+})
+
+
+# ---------------------------------------------------------------------------
+# Mains 6-7 (lane MAIN67, 2026-11-01; Docs/Work/2026-10-31-Wardens/MAINS_2_7.md sections 10-11, lanes/MAIN67.md,
+# main67_src/CONTRACT67.md): The Pilot Light (Main 6) and Given to the Wind (Main 7). Their own block.
+# ---------------------------------------------------------------------------
+
+# Hob through Mains 6 and 7, as LANDFALL_PERCHES (spots tried in order, when, arrival set or None), in first-match order:
+# build_area_story.place_hob takes them in place of its old Main 6/7 perches (lanes/MAIN67.md, exact edit). Spots:
+# 'wheel' (the Lamplighter's wheel housing while she's moored, build_area_main6_sortie.place through build_area_main6),
+# 'roadCoal' (a lump of the barge's coal by the west road) and 'chapelDoor' (over the chapel's front door) from
+# build_area_main7.place; 'keeperGrave', 'gateRock' (build_area_deck.hob_spots) and 'hood' (the chapel's door hood) as
+# place_hob has them. A perch is a fixed world point, so none holds while the Lamplighter flies (Main 6's steps 1-7: he
+# rides with the crew, a voice in the captions); he waits on the chapel's door hood under the barge then, silent.
+MAIN67_PERCHES = [
+    # Main 7: on the chapel door for the carry home (why the road is dangerous) and the Reliquary; on the Keeper's Gate's
+    # north rock for the fight (his built word on the open end) and the scene; on the keeper's grave's board as the lantern
+    # is to be hung; on the coal by the west road as Main 7 starts (why the coal matters).
+    (('chapelDoor', 'hood'), dict(during='Main7', from_step=5), None),
+    (('chapelDoor', 'hood'), dict(during='Main7', from_step=4), 'DA_Lines_HobMain7Chapel'),
+    (('gateRock',), dict(during='Main7', from_step=3), None),
+    (('gateRock',), dict(during='Main7', from_step=2), 'DA_Lines_HobMain6Fight'),
+    (('keeperGrave', 'gateRock'), dict(during='Main7', from_step=1), 'DA_Lines_HobMain6Way'),
+    (('roadCoal', 'keeperGrave'), dict(during='Main7'), 'DA_Lines_HobMain7Point'),
+    # Main 6: on the door hood while she flies and fights (silent); on her wheel housing for the cast-off.
+    (('hood',), dict(during='Main6', from_step=1), None),
+    (('wheel', 'mooringLedge'), dict(during='Main6'), None),
+    # After Back Pay, until Main 6 is taken: on her wheel housing, calling Sully to Holloway (her offer, met first).
+    (('wheel', 'mooringLedge'), dict(after=['BackPay'], before=['Main6']), 'DA_Lines_HobMain6Wheel'),
+]
+
+# What Vane says from Mains 6-7's loudspeakers (as LOUDSPEAKER_CUES above). The Keeper's Gate's horn as the fog wall drops
+# after FreeAbel (Main 7 from step 4). The barge's bow horn (Barge_Horn) is build_area_main6.py's own cue
+# (DA_Lines_Main6VaneDeck, Main 6 from step 3).
+LOUDSPEAKER_CUES['Loudspeaker_KeepersGate'] = [(dict(during='Main7', from_step=4), 'DA_Lines_Main7Gate')]
+
+# When Mains 6-7's fights are on (as ENCOUNTERS above; build_area_main6.py and build_area_main7.py read them). BargeDeck:
+# from the grapples (step 2) until the manifest, so a man still up when the hatch is reached fights on. FurnaceHall: the
+# valves' step. WestRoadCrew: the carry home until the turn-in.
+ENCOUNTERS.update({
+    'BargeDeck': dict(during='Main6', from_step=2, before_step=4),
+    'FurnaceHall': dict(during='Main6', from_step=5, before_step=6),
+    'WestRoadCrew': dict(during='Main7', from_step=4, before_step=6),
+})
+
+# Speakers new in Mains 6-7 (as TOPICS above). Delia at the chapel door (a second ADeliaRansom, build_area_main7.py): Main 7's
+# turn-in has no lines of its own, so these say it once it's ready (from step 6, the step past the last): the hose drum's
+# flag (Main 6's optional) first. Abel's soul by the Reliquary after Saint Ada wakes (AAbelOnBoard standing): his word.
+TOPICS.update({
+    'Speaker_DeliaChapel': dict(default=None, name='Delia Ransom', topics=[
+        (dict(during='Main7', from_step=6, with_flags=['Pilot.DrumJammed']), 'DA_Lines_DeliaMain7Jammed'),
+        (dict(during='Main7', from_step=6), 'DA_Lines_DeliaMain7'),
+    ]),
+    'Speaker_Abel': dict(default='DA_Lines_AbelReliquary', name='Abel', topics=[]),
+})
+
+
 def condition(spec):
     """An unreal.StoryCondition from a condition dict (None or {}: always)."""
     import unreal
@@ -904,3 +1031,106 @@ def apply_readable(prop, readable_id):
             unreal.log_warning(f'{readable_id}: no ReadableProp.sets_flag ({error}): reading it sets no '
                                f'{spec["sets_flag"]} (build the game module)')
     return prop
+
+
+# ---------------------------------------------------------------------------
+# SECRETS lane (2026-11-01)
+# ---------------------------------------------------------------------------
+# Mister Sexton's secrets for silver (MAINS_2_7.md section 12; DECISIONS.md: the neutral Ferryman sells secrets at his
+# ferry under Gravewind Point; Docs/Work/2026-10-31-Wardens/lanes/SECRETS.md). Tools/Unreal/create_secret_assets.py
+# writes SEXTON_SECRETS into the level's catalog, /Game/Data/Secrets/DA_Secrets_RansomsRest (USecretCatalog,
+# Economy/SecretCatalog.h); his tap at the ferry opens its list (USecretsWidget) once open_when holds. Each secret bought
+# (story flag SecretSold.<id>: never rename an id) marks its place on the map page and the minimap until it's found (its
+# finds' Find.<FindId> flags) or done (done_when); then it drops off the list. Prices are level-1 silver, grown with the
+# player's level as the vendors' are (LooterEconomy::AtLevel), a quarter off once discount_mission (Paid on Delivery) is
+# done. Each secret's when (its available_when) is the story's step that puts it on his list (a region as the story
+# reaches it). Lines fit a caption (90 characters); his voice: dry, "friend", a ferryman's trade.
+#   asset, title, tab  the catalog's asset name, the screen's title, its panel's tab
+#   open_when          when he trades at all (after Main 2: his turn-in says "Come back when you've silver")
+#   greetings          (condition, line) pairs: the first that holds is his line over the list
+#   sold_out           his line when nothing is left to sell
+#   secrets            id, title (the find's banner name), teaser (shown before buying), line (his, once bought),
+#                      region (FIND_REGIONS' or 'The Rest'), kind (Cache, Strongbox, Named, Elite, Lore, Story: the price
+#                      tier and the row's mark), price (level 1), finds (the AFindSpot ids it marks; done when all are
+#                      found), mark_tag (a story secret: the actors carrying it are marked instead), when, done_when (a
+#                      story secret's end), sets_flag (a story flag set as it's sold, for a line that knows)
+_SECRETS_AFTER_MAIN2 = dict(after=['Main2'])
+_SECRETS_AFTER_MAIN3 = dict(after=['Main3'])
+_SECRETS_AFTER_MAIN4 = dict(after=['Main4'])
+_SECRETS_AFTER_MAIN5 = dict(after=['Main5'])
+_SECRETS_AFTER_LIFT = dict(after=['DeadLift'])
+
+SEXTON_SECRETS = dict(
+    asset='DA_Secrets_RansomsRest',
+    title="The Ferryman's Secrets",
+    tab='Mister Sexton',
+    open_when=_SECRETS_AFTER_MAIN2,
+    discount_mission='PaidOnDelivery',
+    discount=0.25,
+    greetings=[
+        (dict(after=['PaidOnDelivery']), "Paid in full, friend. For prompt payment, a quarter off whatever I know."),
+        (dict(), "The barge's manifest, friend. Bring it and we're square. Meanwhile, I sell what I know."),
+    ],
+    sold_out="That's all I know of the Rest, friend. For now.",
+    secrets=[
+        # --- Farm & Point and the West Road (after Main 2: he's just been met) ---
+        dict(id='WidowsBox', title="The Widow's Strongbox", teaser="A strongbox from the gang's bank years.",
+             line='Under the middle Widow, friend. North side, off the path. Mind your back.',
+             region='Farm & Point', kind='Strongbox', price=100, finds=['WidowsBox'], when=_SECRETS_AFTER_MAIN2),
+        dict(id='Mooring', title="The Gang's Locker", teaser='A locker left beside a skiff.',
+             line='The gang left a locker on the Mooring Ledge. Nobody came back to pay for it.',
+             region='Farm & Point', kind='Cache', price=40, finds=['Mooring'], when=_SECRETS_AFTER_MAIN2),
+        dict(id='BoltHole', title='The Bolt-Hole', teaser='Where the gang waited out a day.',
+             line="When the Dunnes ran, they ran to the Tumble. There's a hole under the rockfall.",
+             region='Farm & Point', kind='Cache', price=40, finds=['BoltHole'], when=_SECRETS_AFTER_MAIN2),
+        dict(id='RangerPost', title='Ranger Post Three', teaser="A Rangers' post nobody climbs to.",
+             line='The Rangers kept a third post up on the Rimrock. Climb, friend. The stores are there.',
+             region='Farm & Point', kind='Cache', price=40, finds=['RangerPost'], when=_SECRETS_AFTER_MAIN2),
+        dict(id='Chimney', title="The Averys' Savings", teaser="A family's savings, kept from the fire.",
+             line="The Averys never trusted a bank. Look up the chimney of what's left.",
+             region='West Road', kind='Cache', price=40, finds=['Chimney'], when=_SECRETS_AFTER_MAIN2),
+        dict(id='LanternHouse', title="The Keepers' Stores", teaser='What the keepers kept for long nights.',
+             line="The old lantern house by the keeper's grave. Keepers stocked it for long nights.",
+             region='West Road', kind='Cache', price=40, finds=['LanternHouse'], when=_SECRETS_AFTER_MAIN2),
+        # --- After Main 3: the town is open ---
+        dict(id='Tollman', title='The Tollman', teaser="A collector who walks the dead's road.",
+             line='A tollman walks the cairns road, collecting from the dead. Collect from him.',
+             region='West Road', kind='Elite', price=150, finds=['Tollman'], when=_SECRETS_AFTER_MAIN3),
+        dict(id='Hoard', title="The Spiders' Hoard", teaser='What the spiders keep.',
+             line='Spiders keep a hoard under the hanging tree on boot hill. Bring a light.',
+             region='Town & Boot Hill', kind='Cache', price=40, finds=['Hoard'], when=_SECRETS_AFTER_MAIN3),
+        dict(id='MiserGrave', title="The Miser's Fare", teaser="A miser's fare, taken into the ground.",
+             line="A miser on boot hill took his fare into the ground. Dig, friend. He won't mind.",
+             region='Town & Boot Hill', kind='Cache', price=40, finds=['MiserGrave'], when=_SECRETS_AFTER_MAIN3),
+        dict(id='LedgerPages', title="The Gang's Ledger Pages", teaser="Six pages of a dead man's accounts.",
+             line="Six pages of the gang's ledger blew about the Rest. I've marked where they settled.",
+             region='The Rest', kind='Lore', price=60,
+             finds=['LedgerPage_HighwaterLanding', 'LedgerPage_DustwaterMesa', 'LedgerPage_SaintAgnesMire',
+                    'LedgerPage_FurnaceHollow', 'LedgerPage_TheNeedles', 'LedgerPage_RansomsRest'],
+             when=_SECRETS_AFTER_MAIN3),
+        # --- South Fields (after Main 4) ---
+        dict(id='Bottle', title="Thaddeus's Bottle", teaser="A bottle Tilly mustn't hear about.",
+             line='Thaddeus Bright hid a bottle in the springhouse. Under the flat stone. Not a word.',
+             region='South Fields', kind='Cache', price=40, finds=['Bottle'], when=_SECRETS_AFTER_MAIN4),
+        dict(id='CoffinRock', title="The Surveyor's Tin", teaser="A surveyor's tin, up high.",
+             line='A surveyor left his tin on top of Coffin Rock. The north face slab is your stair.',
+             region='South Fields', kind='Cache', price=40, finds=['CoffinRock'], when=_SECRETS_AFTER_MAIN4),
+        dict(id='PikesCache', title="Pike's Cache", teaser="A man's pay, buried by the yard.",
+             line='Pike buried his pay off his own bench mark. Find the mark, friend, then count yards.',
+             region='South Fields', kind='Named', price=100, finds=['PikesCache'], when=_SECRETS_AFTER_MAIN4),
+        # --- After Main 5: the Sink (a story secret); after Dead Lift: the mountain ---
+        dict(id='Gravemother', title="The Gravemother's Barrow", teaser='Where the Gravemother sleeps.',
+             line="She keeps her barrow at the bottom of the Sink. Nobody's come back to complain.",
+             region='The Rest', kind='Story', price=60, finds=[], mark_tag='Place_SinkFloor',
+             when=_SECRETS_AFTER_MAIN5, done_when=dict(after=['Side3'])),
+        dict(id='Powder', title="Teague's Powder Box", teaser="A powder box from the mine's boss.",
+             line='Teague kept a powder box on Larkspur Bench, behind the big granite. Carry it gently.',
+             region='The Mountain', kind='Cache', price=40, finds=['Powder'], when=_SECRETS_AFTER_LIFT),
+        dict(id='Crate', title='The Fallen Crate', teaser='A crate the old derrick dropped.',
+             line='The old derrick dropped a crate among the quarry blocks. Nobody went down for it.',
+             region='The Mountain', kind='Cache', price=40, finds=['Crate'], when=_SECRETS_AFTER_LIFT),
+        dict(id='Tarn', title="Where They Can't Wade", teaser="A lockbox where the dead won't follow.",
+             line="Ruth Calder sank a lockbox in Larkspur Tarn, where the dead won't wade. Hold your breath.",
+             region='The Mountain', kind='Named', price=100, finds=['Tarn'], when=_SECRETS_AFTER_LIFT),
+    ],
+)

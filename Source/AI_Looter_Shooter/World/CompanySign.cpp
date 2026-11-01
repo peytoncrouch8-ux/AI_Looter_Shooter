@@ -31,6 +31,12 @@ namespace
 	constexpr float PostGirth = 12.f;
 	constexpr float WordsOff = 4.f;
 
+	/** The board's two looks, kept for Arrange (lanes/TRIPO_M23.md): the Tripo signboard (only for a signboard-sized board, so the
+	    900 x 14 barrier across the road stays a plain pole) or the stand-in's cube in the paint. */
+	UStaticMesh* SignModelMesh = nullptr;
+	UStaticMesh* SignCubeMesh = nullptr;
+	UMaterialInterface* SignPaint = nullptr;
+
 	UStaticMesh* SignModelIfMade()
 	{
 		const FString Path(ACompanySign::BoardModelPath);
@@ -59,6 +65,20 @@ ACompanySign::ACompanySign()
 
 	Board = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Board"));
 	Board->SetupAttachment(Root);
+	if (!SignCubeMesh)
+	{
+		// Loaded once, kept for Arrange: rooted so they outlive the constructor's finders.
+		SignModelMesh = Model;
+		SignCubeMesh = Cube.Object;
+		SignPaint = Paint.Object;
+		for (UObject* Kept : { static_cast<UObject*>(SignModelMesh), static_cast<UObject*>(SignCubeMesh), static_cast<UObject*>(SignPaint) })
+		{
+			if (Kept)
+			{
+				Kept->AddToRoot();
+			}
+		}
+	}
 	Board->SetStaticMesh(Model ? Model : Cube.Object.Get());
 	if (!Model)
 	{
@@ -96,7 +116,29 @@ void ACompanySign::OnConstruction(const FTransform& Transform)
 
 void ACompanySign::Arrange()
 {
-	const bool bModel = Board && Board->GetStaticMesh() && Board->GetStaticMesh()->GetPathName() == FString(BoardModelPath);
+	// The checkpoint's signboard model only on a signboard-sized board: a wide, thin one (the barrier) is the cube.
+	const bool bModel = SignModelMesh != nullptr && BoardSize.X < 500.0 && BoardSize.Y > 60.0;
+	if (Board)
+	{
+		UStaticMesh* const Wanted = bModel ? SignModelMesh : SignCubeMesh;
+		if (Wanted && Board->GetStaticMesh() != Wanted)
+		{
+			Board->SetStaticMesh(Wanted);
+			if (bModel)
+			{
+				Board->EmptyOverrideMaterials();
+			}
+			else
+			{
+				Board->SetMaterial(0, SignPaint);
+			}
+		}
+		if (bModel)
+		{
+			Board->SetRelativeLocation(FVector::ZeroVector);
+			Board->SetRelativeScale3D(FVector::OneVector);
+		}
+	}
 	const bool bBoard = Look == ECompanySignLook::Board;
 	const float Middle = BoardLift + static_cast<float>(BoardSize.Y) * 0.5f;
 	if (Board)

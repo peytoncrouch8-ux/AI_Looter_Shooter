@@ -10,6 +10,8 @@
 #include "World/LamplighterEffects.h"
 #include "World/LamplighterRules.h"
 #include "World/LamplighterShip.h"
+#include "World/PilotSortie.h"
+#include "Missions/MissionRunner.h"
 #include "Components/AudioComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -99,6 +101,7 @@ ALandfallWinch::ALandfallWinch()
 	Chain->SetVisibility(false);
 
 	WindPrompt = LOCTEXT("Wind", "Drop the anchor");
+	CastOffPrompt = LOCTEXT("CastOff", "Cast off");
 }
 
 void ALandfallWinch::BeginPlay()
@@ -147,16 +150,51 @@ bool ALandfallWinch::IsBeingWound() const
 	return Interaction && Interaction->GetFocusedActor() == this && Interaction->IsHolding() && Interaction->GetHoldProgress() > 0.f;
 }
 
+bool ALandfallWinch::CanCastOff() const
+{
+	const ALamplighterShip* Boat = Ship.Get();
+	if (!Boat || Boat->GetFlight() != EShipFlight::Moored || !Boat->IsAnchored() || CastOffWhen.IsEmpty())
+	{
+		return false;
+	}
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	const APilotSortie* Sortie = APilotSortie::Find(GetWorld());
+	return Runner && CastOffWhen.IsMet(Runner->GetCampaign(), Runner) && Sortie && Sortie->GetPhase() == EPilotPhase::WaitCastOff;
+}
+
+bool ALandfallWinch::CastOff(bool bForce)
+{
+	APilotSortie* Sortie = APilotSortie::Find(GetWorld());
+	if ((!bForce && !CanCastOff()) || !Sortie)
+	{
+		return false;
+	}
+	LooterSound::Stop(CrankSound.Get(), 0.05f);
+	CrankSound.Reset();
+	// The chain comes in off her hull with a clatter and the pawl drops: she's free of the ledge.
+	LooterSound::PlayAt(this, LooterSoundCue::AnchorSet, GetActorLocation(), 1.f, 1.15f);
+	LamplighterEffects::Sparks(this, Drum->GetComponentLocation(), FVector::UpVector, 5, 1.f);
+	PlaceChain(false);
+	if (!Sortie->CastOff())
+	{
+		UE_LOG(LogLooter, Warning, TEXT("%s: cast off, but the sortie wasn't waiting to fly her."), *GetActorNameOrLabel());
+	}
+	return true;
+}
+
 void ALandfallWinch::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	const bool bWinding = CanWind() && IsBeingWound();
+	// Wound to drop the anchor (Main 1), or the other way to bring it up (Main 6's cast off).
+	const bool bCastingOff = IsBeingWound() && CanCastOff();
+	const bool bWinding = (CanWind() && IsBeingWound()) || bCastingOff;
 	if (bWinding)
 	{
-		CrankAngle = FMath::Fmod(CrankAngle + CrankDegreesPerSecond * DeltaSeconds, 360.f);
+		const float Turn = bCastingOff ? -CrankDegreesPerSecond : CrankDegreesPerSecond;
+		CrankAngle = FMath::Fmod(CrankAngle + Turn * DeltaSeconds + 360.f, 360.f);
 		if (!CrankSound.IsValid())
 		{
-			CrankSound = LooterSound::Start(this, LooterSoundCue::AnchorCrank, Drum);
+			CrankSound = LooterSound::Start(this, LooterSoundCue::AnchorCrank, Drum, NAME_None, 1.f, bCastingOff ? 1.12f : 1.f);
 		}
 	}
 	else if (CrankSound.IsValid())
@@ -194,7 +232,8 @@ bool ALandfallWinch::Wind()
 
 FInteractionOptions ALandfallWinch::GetInteractionOptions(const UInteractionComponent& User) const
 {
-	if (!CanWind())
+	const bool bWind = CanWind();
+	if (!bWind && !CanCastOff())
 	{
 		return FInteractionOptions::None();
 	}
@@ -202,13 +241,13 @@ FInteractionOptions ALandfallWinch::GetInteractionOptions(const UInteractionComp
 	Options.bTap = false;
 	Options.bHold = true;
 	Options.HoldSeconds = HoldSeconds;
-	Options.HoldPrompt = WindPrompt;
+	Options.HoldPrompt = bWind ? WindPrompt : CastOffPrompt;
 	return Options;
 }
 
 bool ALandfallWinch::Interact(UInteractionComponent& User, bool bHeld)
 {
-	return bHeld && Wind();
+	return bHeld && (Wind() || CastOff());
 }
 
 TOptional<FVector> ALandfallWinch::GetInteractionLocation() const
@@ -250,8 +289,8 @@ void ALandfallWinch::PlaceChain(bool bShown)
 	Chain->SetWorldLocationAndRotation((From + To) * 0.5, FRotationMatrix::MakeFromZ(Span).Rotator());
 	Chain->SetWorldScale3D(FVector(ChainWidth / 100.0, ChainWidth / 100.0, Length / 100.0));
 	Chain->SetVisibility(true);
-	// Taut now: nothing more to move each frame.
-	SetActorTickEnabled(false);
+	// Taut now: nothing more to move each frame (unless it may cast her off again: its crank turns under the hold then).
+	SetActorTickEnabled(!CastOffWhen.IsEmpty());
 }
 
 #undef LOCTEXT_NAMESPACE

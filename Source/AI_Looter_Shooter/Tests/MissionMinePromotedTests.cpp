@@ -126,13 +126,13 @@ bool FMissionMinePromotedTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("...The Gravewind still shut"), Runner->IsMeeting(Gravewind->GetMissionId()));
 	}
 
-	// Back Pay turned in (the Foreman down): Delia's door, The Gravewind.
+	// Back Pay turned in (the Foreman down): Holloway's wheel, The Pilot Light (Main 6 since the Wardens story, lane MAIN67).
 	FCampaignRecord AfterMine = AfterLift;
 	AfterMine.CompletedMissions.Add(BackPay->GetMissionId());
 	FTestWorldWrapper ThirdLevel;
 	if (UMissionRunner* Runner = StartRunner(*this, ThirdLevel, Missions, AfterMine))
 	{
-		TestTrue(TEXT("After Back Pay: \"Talk to Grandma Delia\" (The Gravewind)"), Runner->IsMeeting(Gravewind->GetMissionId()));
+		TestTrue(TEXT("After Back Pay: \"Talk to Captain Holloway\" (The Pilot Light)"), Runner->IsMeeting(Gravewind->GetMissionId()));
 	}
 	return true;
 }

@@ -169,12 +169,14 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestTrue(TEXT("\"You brought them here\" from full, \"The bell\" at 60%, \"Let me go\" at 25%"),
-		Phases[0].Name.ToString() == TEXT("You brought them here") && Phases[1].Name.ToString() == TEXT("The bell")
-		&& Phases[2].Name.ToString() == TEXT("Let me go") && Phases[0].HealthShare == 1.f && Phases[1].HealthShare == 0.6f && Phases[2].HealthShare == 0.25f);
-	TestEqual(TEXT("At 61% he's in the first"), BossRules::PhaseAt(Phases, 0.61f), 0);
-	TestEqual(TEXT("At 59% the second"), BossRules::PhaseAt(Phases, 0.59f), 1);
-	TestEqual(TEXT("At 24% the third"), BossRules::PhaseAt(Phases, 0.24f), 2);
+	// Main 7 since 2026-11-01 (MAINS_2_7.md section 11): "Stoker" from full, "The Hose" at 66%, "Keeper" at 33%.
+	TestTrue(TEXT("\"Stoker\" from full, \"The Hose\" at 66%, \"Keeper\" at 33%"),
+		Phases[0].Name.ToString() == TEXT("Stoker") && Phases[1].Name.ToString() == TEXT("The Hose")
+		&& Phases[2].Name.ToString() == TEXT("Keeper") && Phases[0].HealthShare == 1.f && Phases[1].HealthShare == AbelRules::HoseShare
+		&& Phases[2].HealthShare == AbelRules::KeeperShare && FMath::IsNearlyEqual(AbelRules::HoseShare, 0.66f) && FMath::IsNearlyEqual(AbelRules::KeeperShare, 0.33f));
+	TestEqual(TEXT("At 67% he's in the first"), BossRules::PhaseAt(Phases, 0.67f), 0);
+	TestEqual(TEXT("At 65% the second"), BossRules::PhaseAt(Phases, 0.65f), 1);
+	TestEqual(TEXT("At 32% the third"), BossRules::PhaseAt(Phases, 0.32f), 2);
 
 	auto Find = [](const FBossPhase& Phase, TFunctionRef<bool(const FBossPhaseEvent&)> Match) -> const FBossPhaseEvent*
 	{
@@ -182,19 +184,26 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 	};
 	auto Custom = [&Find](const FBossPhase& Phase, FName Name) { return Find(Phase, [Name](const FBossPhaseEvent& Event) { return Event.Kind == EBossEventKind::Custom && Event.Name == Name; }); };
 
-	// "You brought them here": the buckshot, the grief every 12 s, two Unpaid every 25 s (at most 4), round the deck's middle.
+	// "Stoker": the buckshot, the smog tendril, the turn to the six dead every 12 s, two Unpaid every 25 s (at most 4), round
+	// the deck's middle.
 	const FBossPhaseEvent* Buckshot = Custom(Phases[0], AbelRules::BuckshotEvent());
 	const FBossPhaseEvent* Grief = Custom(Phases[0], AbelRules::GrieveEvent());
+	const FBossPhaseEvent* Tendril = Custom(Phases[0], AbelRules::TendrilEvent());
 	const FBossPhaseEvent* Rising = Find(Phases[0], [](const FBossPhaseEvent& Event) { return Event.Kind == EBossEventKind::AddWave; });
 	TestTrue(TEXT("Phase one: the buckshot, again and again"), Buckshot && Buckshot->RepeatEvery > 0.f);
-	TestTrue(TEXT("...he grieves every 12 s"), Grief && Grief->Delay == 12.f && Grief->RepeatEvery == 12.f);
+	TestTrue(TEXT("...his tendril, again and again"), Tendril && Tendril->RepeatEvery > 0.f);
+	TestTrue(TEXT("...he turns to the six dead every 12 s"), Grief && Grief->Delay == 12.f && Grief->RepeatEvery == 12.f);
 	TestTrue(TEXT("...two Unpaid rise every 25 s, at most 4, round the deck's middle"), Rising && Rising->Delay == 25.f && Rising->RepeatEvery == 25.f
 		&& Rising->Wave.Count == 2 && Rising->Wave.MaxAlive == 4 && Rising->Wave.bAroundSpot
 		&& Rising->Wave.CreatureClass == AUnpaidCreature::StaticClass() && Rising->Wave.Rank == ECreatureRank::Basic);
+	TestNull(TEXT("...no call-back opens the first phase"), Custom(Phases[0], AbelRules::CallBackEvent()));
 
-	// "The bell": the bell at once, out of reach until his own code ends it (the lanterns), 8 Unpaid in two waves of four.
-	const FBossPhaseEvent* Bell = Custom(Phases[1], AbelRules::BellEvent());
-	const FBossPhaseEvent* Spell = Find(Phases[1], [](const FBossPhaseEvent& Event) { return Event.Kind == EBossEventKind::Untargetable; });
+	// "The Hose": the call-back at once (the drift follows it, not the phase), 8 Unpaid in two waves of four after it. The fog's
+	// spell is his code's to cast (AbelRules::FogSpell), out of reach until the lanterns drag him back.
+	const FBossPhaseEvent* Bell = Custom(Phases[1], AbelRules::CallBackEvent());
+	const FBossUntargetable FogSpell = AbelRules::FogSpell();
+	const FBossUntargetable* Spell = &FogSpell;
+	TestNull(TEXT("...no spell in the phase itself (it waits for the call-back)"), Find(Phases[1], [](const FBossPhaseEvent& Event) { return Event.Kind == EBossEventKind::Untargetable; }));
 	TArray<const FBossPhaseEvent*> Waves;
 	for (const FBossPhaseEvent& Event : Phases[1].Events)
 	{
@@ -203,13 +212,14 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 			Waves.Add(&Event);
 		}
 	}
-	TestTrue(TEXT("Phase two: the bell as it starts"), Bell && Bell->Delay == 0.f && Bell->RepeatEvery == 0.f);
-	TestTrue(TEXT("...he can't be hurt until the lanterns drag him back (no time limit, not his adds)"), Spell && Spell->Untargetable.Seconds == 0.f
-		&& !Spell->Untargetable.bUntilAddsDie && Spell->Untargetable.bWithdraw && !Spell->Untargetable.Hint.IsEmpty());
+	TestTrue(TEXT("Phase two: the call-back as it starts"), Bell && Bell->Delay == 0.f && Bell->RepeatEvery == 0.f);
+	TestTrue(TEXT("...out in the fog he can't be hurt until the lanterns drag him back (no time limit, not his adds)"), Spell->Seconds == 0.f
+		&& !Spell->bUntilAddsDie && Spell->bWithdraw && !Spell->Hint.IsEmpty());
 	TArray<const FBossPhaseEvent*> BellWaves = Waves.FilterByPredicate([](const FBossPhaseEvent* Event) { return Event->RepeatEvery == 0.f; });
 	const FBossPhaseEvent* const* StillRising = Waves.FindByPredicate([](const FBossPhaseEvent* Event) { return Event->RepeatEvery > 0.f; });
-	TestTrue(TEXT("...8 Unpaid in two waves of four, the second later"), BellWaves.Num() == 2 && BellWaves[0]->Wave.Count + BellWaves[1]->Wave.Count == 8
-		&& BellWaves[1]->Delay > BellWaves[0]->Delay && BellWaves[0]->Wave.bAroundSpot);
+	TestTrue(TEXT("...8 Unpaid in two waves of four, the second later, the first after the call-back's kneel"), BellWaves.Num() == 2
+		&& BellWaves[0]->Wave.Count + BellWaves[1]->Wave.Count == 8 && BellWaves[1]->Delay > BellWaves[0]->Delay && BellWaves[0]->Wave.bAroundSpot
+		&& BellWaves[0]->Delay > AbelCorruptionRules::KneelSeconds);
 	// His health 1.6x (2026-10-27): after the second wave the dead keep rising as in phase one, so the long back half on the
 	// deck isn't a bare duel; never over phase one's four alive.
 	TestTrue(TEXT("...then two every 25 s, at most 4, from after the second wave"), Waves.Num() == 3 && StillRising
@@ -217,12 +227,15 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 		&& (*StillRising)->Wave.Count == AbelRules::RiseCount && (*StillRising)->Wave.MaxAlive == AbelRules::RiseMaxAlive);
 	TestEqual(TEXT("Never more than 10 adds at once"), BossRules::AddsToSpawn(8, 4, 0, 10), 6);
 
-	// "Let me go": the Gravewind at once, the walk into it every 10 s, the buckshot quicker.
-	const FBossPhaseEvent* Wind = Custom(Phases[2], AbelRules::GravewindEvent());
+	// "Keeper": the call-back at once (the wind and the surge follow it), the walk to a lantern post every 10 s, the buckshot
+	// and the tendrils quicker.
+	const FBossPhaseEvent* Wind = Custom(Phases[2], AbelRules::CallBackEvent());
 	const FBossPhaseEvent* Walk = Custom(Phases[2], AbelRules::WalkOffEvent());
 	const FBossPhaseEvent* Quicker = Custom(Phases[2], AbelRules::BuckshotEvent());
-	TestTrue(TEXT("Phase three: the wind as it starts, the walk into it every 10 s"), Wind && Wind->Delay == 0.f && Walk && Walk->RepeatEvery == 10.f);
+	const FBossPhaseEvent* Tendrils = Custom(Phases[2], AbelRules::TendrilEvent());
+	TestTrue(TEXT("Phase three: the call-back as it starts, the walk to a post every 10 s"), Wind && Wind->Delay == 0.f && Walk && Walk->RepeatEvery == 10.f);
 	TestTrue(TEXT("...the buckshot quicker than before"), Quicker && Buckshot && Quicker->RepeatEvery < Buckshot->RepeatEvery);
+	TestTrue(TEXT("...the tendrils quicker too (two at once)"), Tendrils && Tendril && Tendrils->RepeatEvery < Tendril->RepeatEvery);
 
 	// The buckshot: a one-second flare of his own (no muzzle glow of the boss's), slow pale pellets in a cone.
 	const FBossVolley Volley = AbelRules::Buckshot();
@@ -249,9 +262,12 @@ bool FAbelRulesTest::RunTest(const FString& Parameters)
 		&& FMath::IsNearlyEqual(Defaults->BodyScale, 1.3f) && FMath::IsNearlyEqual(Defaults->CoalCritRadius, 6.f) && !Defaults->bShowsHealthTag);
 	TestTrue(TEXT("His fight starts by itself only once the lantern hangs, never from a hit"), Defaults->GetBoss()->EngageRadius == 0.f
 		&& !Defaults->GetBoss()->bStartWhenHurt && Defaults->GetBoss()->BossId == AAbelKeeper::BossId);
-	TestTrue(TEXT("He's in the world during Main 6, his fight from its third step, the ending at its fourth"),
-		Defaults->PresentWhen.DuringMission == AAbelKeeper::Mission && Defaults->FightWhen.FromStep == AAbelKeeper::FightStep
+	TestTrue(TEXT("He's in the world during Main 7 from its third step (the lantern hung calls him), his fight from it, the ending at its fourth"),
+		AAbelKeeper::Mission == FName(TEXT("Main7")) && Defaults->PresentWhen.DuringMission == AAbelKeeper::Mission
+		&& Defaults->PresentWhen.FromStep == AAbelKeeper::FightStep && Defaults->FightWhen.FromStep == AAbelKeeper::FightStep
 		&& Defaults->EndingWhen.FromStep == AAbelKeeper::SceneStep);
+	TestEqual(TEXT("His bar names him \"Abel Ransom, Corrupted\""), Defaults->GetBoss()->BossName.ToString(), FString(TEXT("Abel Ransom, Corrupted")));
+	TestNotNull(TEXT("...the furnace's part is his"), Defaults->GetCorruption());
 
 	// The lanterns drag him back a third each.
 	TestEqual(TEXT("None lit: out in the fog"), AbelRules::DragShare(0, 3), 0.f);

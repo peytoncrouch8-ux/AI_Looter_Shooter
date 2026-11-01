@@ -32,8 +32,11 @@ namespace
 	const TCHAR* SmokePath = TEXT("/Game/Art/Props/SM_SmokePlume.SM_SmokePlume");
 	const TCHAR* ColdGlassPath = TEXT("/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim");
 
-	/** Main 7, "The Lantern Leans", starts as Main 6 ends: from then on the train has steam up. */
-	const FName WarmAfter(TEXT("Main6"));
+	/**
+	 * Tilly's hearse car is coupled as Main 7, "Given to the Wind", is turned in (the Wardens story, lane MAIN67: Abel home,
+	 * the Rest left by train, "nobody searches a hearse car"): from then on the train has steam up and its door open.
+	 */
+	const FName WarmAfter(TEXT("Main7"));
 
 	const FName CouplerFront(TEXT("Coupler_Front"));
 	const FName CouplerBack(TEXT("Coupler_Back"));

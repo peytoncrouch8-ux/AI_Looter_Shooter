@@ -4,9 +4,11 @@
 #include "GameFramework/Actor.h"
 #include "World/LamplighterCourse.h"
 #include "World/LamplighterRules.h"
+#include "Story/StoryCondition.h"
 #include "LamplighterShip.generated.h"
 
 class AActor;
+class APilotSortie;
 class ACompanyTender;
 class ACreatureBase;
 class ALandfallGrapple;
@@ -35,6 +37,11 @@ enum class EShipFlight : uint8
 	Landing,
 	/** Down on the ledge at Moored, for the rest of the game: the crew's ship. */
 	Moored,
+	/**
+	 * Main 6's sortie ("The Pilot Light", 2026-11-01): off the ledge to the barge over the chapel and home again, her pose
+	 * set each frame by the level's APilotSortie (LamplighterShipSortie.cpp). Last, so Landfall's states keep their order.
+	 */
+	Sortie,
 };
 
 /**
@@ -60,7 +67,8 @@ enum class EShipFlight : uint8
  *
  * Split by topic: LamplighterShip.cpp (life, the flight's clock, sailing), LamplighterShipParts.cpp (her pieces, crew and
  * lantern), LamplighterShipBoarding.cpp (the tender, the grapples, the boarders), LamplighterShipLanding.cpp (breaking free,
- * the landing, moored and the anchor), LamplighterShipStory.cpp (the campaign, the player on deck, the crew's lines).
+ * the landing, moored and the anchor), LamplighterShipStory.cpp (the campaign, the player on deck, the crew's lines),
+ * LamplighterShipSortie.cpp (Main 6: handed to APilotSortie for the flight to the barge and home; gone after Main 7).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALamplighterShip : public AActor
@@ -131,6 +139,14 @@ public:
 	/** The boarders and the tender's riflemen (off in tests: the waves are then empty, and the deck clears at once). */
 	UPROPERTY(EditAnywhere, Category = "Lamplighter|Fight")
 	bool bSpawnBoarders = true;
+
+	/**
+	 * She's gone from the Rest while this holds (after Main 7: she lifts off dark at dawn to meet Sully at the next region;
+	 * MAINS_2_7.md section 11): a level loaded then has no ship on the ledge, no crew, nothing to fly. Read as the level
+	 * begins her; empty: always there.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Lamplighter|Story")
+	FStoryCondition GoneWhen;
 
 	// --- Her deck's size (the Tripo hull's, measured in Blender: lanes/IMPORT.md; cm, her own frame) ---
 
@@ -210,6 +226,33 @@ public:
 
 	/** Where the anchor chain ties on her hull (world). */
 	FVector GetAnchorPoint() const;
+
+	// --- Main 6's sortie (LamplighterShipSortie.cpp; APilotSortie drives her) ---
+
+	/**
+	 * Hands her to Driver for Main 6: the anchor up, in the Sortie state (her engine labouring, saves held, the gangway shut),
+	 * her pose Driver's from now on (it moves her from its DriveShip, called from her own tick so the deck's riders follow her
+	 * in the same frame). False when she can't (gone, not begun yet).
+	 */
+	bool BeginSortie(APilotSortie& Driver);
+
+	/** Her pose now (Pose: with her bob and bank) and calm (what escorts keep station on), set by the sortie's driver. */
+	void SetSortiePose(const FTransform& Pose, const FTransform& Calm);
+
+	/** The sortie keeps the player on her deck (as Landfall's flight does) only while it says so: not on the barge. */
+	void SetSortieKeepsAboard(bool bKeep);
+
+	/** The sortie holds the session's saves while she's in the air (and lets them go while the player's on the barge). */
+	void SetSortieSavesHeld(bool bHold);
+
+	/** Opens the middle length of her starboard rail for the plank to the barge (or shuts it again). */
+	void OpenStarboardRail(bool bOpen);
+
+	/** Back on the ledge at Moored, anchored, the gangway down: the sortie's over. */
+	void EndSortie();
+
+	/** She's gone from the Rest (GoneWhen held as the level began her). */
+	bool IsGone() const { return bGone; }
 
 	// --- Her pieces (LamplighterShipParts.cpp) ---
 
@@ -323,6 +366,14 @@ private:
 	void AdvanceMoored(float DeltaSeconds);
 	ALandfallWinch* FindOrSpawnWinch();
 
+	// --- LamplighterShipSortie.cpp ---
+	/** Her sortie state's frame: her driver moves her (a driver gone, she holds where she is). */
+	void AdvanceSortie(float DeltaSeconds);
+	/** GoneWhen holds in the story now. */
+	bool IsGoneInStory() const;
+	/** Gone for good this visit: hidden, no collision, no crew, no flame, nothing ticking. */
+	void MakeGone();
+
 	// --- LamplighterShipStory.cpp ---
 	void BindMissions();
 	void HandleMissionsChanged();
@@ -384,6 +435,15 @@ private:
 	// The player kept aboard.
 	float OffDeckFor = 0.f;
 	bool bSavesHeld = false;
+
+	// Main 6's sortie: who drives her, whether the player is hers to keep aboard; gone after Main 7.
+	TWeakObjectPtr<APilotSortie> SortieDriver;
+	bool bSortieKeepsAboard = true;
+	bool bSortieSavesHeld = false;
+	bool bGone = false;
+	bool bGoneChecked = false;
+	/** What the Great Lantern leaned toward before the sortie turned it to the barge (Abel's soul is aboard it). */
+	FName LanternTargetBeforeSortie;
 
 	// The missions.
 	int32 LastMainStep = INDEX_NONE;

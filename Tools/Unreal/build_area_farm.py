@@ -10,8 +10,8 @@ out with a warning.
   in front of her screen door (SOCKET_Speaker, 1.5 m over the porch floor, facing out), facing out, her capsule's middle
   68 cm over the floor. Her talk (on her own speaker_point; the tag is on her alone, no screen-door speaker point):
   Landfall's topics first (story_texts.TOPICS['Speaker_Delia']: the turn-in, the hat's variant, a word mid-fight), then
-  the mine's main missions, "Take him the lantern..." (DA_Lines_DeliaMain6), whose event (Delia.Main6) starts Main 6, and
-  Main 7's hand-off words; her porch words (DA_Lines_DeliaPorch) otherwise. Until CREW's class is built she's the old
+  the mine's main missions and Main 7's porch word (Main 6 is Holloway's since lane MAIN67; Main 7's turn-in is the chapel
+  door Delia's); her porch words (DA_Lines_DeliaPorch) otherwise. Until CREW's class is built she's the old
   screen-door speaker point (same tag, name and topics), so the game keeps working.
 - The screen door (SM_ScreenDoor) hung closed on SOCKET_ScreenDoor, the hinge line at its foot.
 - The plate Delia sets out (SM_PorchPlate) on the porch stool's SOCKET_Plate (build_area_missionprops_valley.py makes it
@@ -102,14 +102,9 @@ def delia_topics(build):
     mine = story.lines(build, 'DA_Lines_DeliaMine')
     if mine:
         said.append(story.topic(story.condition(after=[MAIN5], before=['BackPay']), mine))
-    lantern = story.lines(build, 'DA_Lines_DeliaMain6')
-    if lantern:
-        take_him = story.topic(story.condition(after=['BackPay'], before=[MAIN6]), lantern)
-        take_him.set_editor_property('event', unreal.Name(MAIN6_EVENT))
-        said.append(take_him)
-    # Main 7: Heirloom handed out (its first step, from 0: 0), then a word once she has.
-    said += story.topics(build, (story.condition(during=MAIN7, from_step=1), 'DA_Lines_DeliaMain7After'),
-                         (story.condition(during=MAIN7), 'DA_Lines_DeliaMain7'))
+    # Main 6 is Holloway's now (her event Delia.Main6 started nothing since 2026-10-22).
+    # Main 7 (Given to the Wind): a word on the porch; her turn-in is at the chapel door (build_area_main7.py).
+    said += story.topics(build, (story.condition(during=MAIN7), 'DA_Lines_DeliaMain7After'))
     return said, spec.get('default') or 'DA_Lines_DeliaPorch'
 
 

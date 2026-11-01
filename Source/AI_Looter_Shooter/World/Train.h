@@ -208,7 +208,7 @@ public:
 
 	// --- The story ---
 
-	/** When it's warm: steam up, lamps lit, the hearse car's door open (from Main 7, "The Lantern Leans": after Main 6). */
+	/** When it's warm: steam up, lamps lit, the hearse car's door open (from Main 7, "Given to the Wind": after Main 7). */
 	UPROPERTY(EditAnywhere, Category = "Train|Story")
 	FStoryCondition WarmWhen;
 

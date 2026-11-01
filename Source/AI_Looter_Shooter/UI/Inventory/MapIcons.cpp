@@ -66,6 +66,25 @@ namespace
 		return Icon;
 	}
 
+	/** A keyhole in a ring: a place Sexton sold the player (his secrets, lanes/SECRETS.md). */
+	const FVectorIcon& SecretIcon()
+	{
+		static const FVectorIcon Icon = []
+		{
+			FVectorIcon Result;
+			Result.StrokeWidth = 2.f;
+			TArray<FVector2D> Ring = Circle(FVector2D(12.0, 12.0), 9.0, 24);
+			// Closed by a copy of its first point: Ring.Add(Ring[0]) passes a reference into the array it may grow (TArray asserts).
+			const FVector2D First = Ring[0];
+			Ring.Add(First);
+			Result.Strokes.Add(Ring);
+			Result.Fills.Add(Circle(FVector2D(12.0, 10.0), 3.0, 16));
+			Result.Fills.Add(TArray<FVector2D>{ FVector2D(10.6, 11.0), FVector2D(13.4, 11.0), FVector2D(14.4, 17.5), FVector2D(9.6, 17.5) });
+			return Result;
+		}();
+		return Icon;
+	}
+
 	/** An anvil: the gunsmith's bench. */
 	const FVectorIcon& BenchIcon()
 	{
@@ -176,6 +195,8 @@ namespace MapIcons
 		// Hob's roost in its beacon's own colour, the one the world shows (URoostSettings::BeaconColor).
 		case EMapPinKind::Grave:       return LooterUI::Color::Roost();
 		case EMapPinKind::Station:     return LooterUI::Color::Title();
+		// Sexton's secrets in soul-gold: what was paid for, apart from the offers' gold marks (those are ?s and !s).
+		case EMapPinKind::Secret:      return LooterUI::Color::SoulGold();
 		case EMapPinKind::Vendor:      return LooterUI::Color::IconShade();
 		case EMapPinKind::Bench:       return LooterUI::Color::IconLight();
 		// The vigil stone's candlelit brass (the cursed irons' tarnished gold): apart from the offers' gold and the bench's ivory.
@@ -193,6 +214,7 @@ namespace MapIcons
 		case EMapPinKind::TurnIn:      return 24.f;
 		case EMapPinKind::Grave:       return 26.f;
 		case EMapPinKind::Station:     return 24.f;
+		case EMapPinKind::Secret:      return 22.f;
 		case EMapPinKind::Vendor:      return 24.f;
 		case EMapPinKind::Bench:       return 22.f;
 		case EMapPinKind::Shrine:      return 26.f;
@@ -215,6 +237,7 @@ namespace MapIcons
 		case EMapPinKind::TurnIn:      return MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::TurnIn, true, Box);
 		case EMapPinKind::Grave:       return RoostBrush(IconSize, Tint);
 		case EMapPinKind::Station:     return LooterUI::IconBrush(TEXT("MapStation"), StationIcon(), PixelsPerUnit, Box, Tint);
+		case EMapPinKind::Secret:      return SecretBrush(IconSize, Tint);
 		case EMapPinKind::Vendor:      return LooterUI::IconBrush(TEXT("MapVendor"), VendorIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Bench:       return LooterUI::IconBrush(TEXT("MapBench"), BenchIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Shrine:      return LooterUI::IconBrush(TEXT("MapShrine"), ShrineIcon(), PixelsPerUnit, Box, Tint);
@@ -233,5 +256,12 @@ namespace MapIcons
 		// Small on the minimap, so the texture's resolution follows the size it's drawn at.
 		const float Pixels = IconSize < 16.f ? 4.f : PixelsPerUnit;
 		return LooterUI::IconBrush(TEXT("MapPost"), RoostIcon(), Pixels, FVector2D(IconSize, IconSize), Tint);
+	}
+
+	FSlateBrush SecretBrush(float IconSize, const FLinearColor& Tint)
+	{
+		// As the roost's: small on the minimap, so the texture's resolution follows the size it's drawn at.
+		const float Pixels = IconSize < 16.f ? 4.f : PixelsPerUnit;
+		return LooterUI::IconBrush(TEXT("MapSecret"), SecretIcon(), Pixels, FVector2D(IconSize, IconSize), Tint);
 	}
 }

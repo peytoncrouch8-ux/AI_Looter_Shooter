@@ -1,6 +1,6 @@
 #pragma once
 
-// What the Main 5 tests ("The Keeper's Lantern": EggSacTests.cpp, KeepersLanternTests.cpp) build in their test levels: Main 5
+// What the Main 5 tests ("The Keeper's Lantern": EggSacTests.cpp, ChokePointTests.cpp) build in their test levels: Main 5
 // as the mission script makes it (Tools/Unreal/create_mission_assets.py), the egg sacs, the lantern in the webbing and the
 // floor's spiders as the build script sets them up (Tools/Unreal/build_area_sink.py), round a Sink whose floor is the test
 // level's z = 0 and whose middle is its origin; and the ids, tags and words they're found by.
@@ -21,7 +21,9 @@
 #include "Story/StoryCondition.h"
 #include "Tests/MissionTestWorld.h"
 #include "World/EggSac.h"
+#include "World/IntakeCharge.h"
 #include "World/KeepersLantern.h"
+#include "World/SinkIntake.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
@@ -40,8 +42,16 @@ namespace KeepersLanternTestWorld
 	inline const FName SacSpiderTag(TEXT("Spider_EggSac"));
 	inline const FName Valley(TEXT("TestValley"));
 
-	/** Main 5's steps: down into the Sink, the egg sacs, the lantern, out. */
-	inline constexpr int32 MainFiveSteps = 4;
+	/**
+	 * Main 5's steps (Choke Point since 2026-11-01): Junie's charges and down into the Sink, the egg sacs, the lantern, the
+	 * intake (three charges, then the blast), out. (The asset's first step also has the satchel's item; the stand-in leaves it
+	 * out: a mission item needs the mission's own items, checked on the asset.)
+	 */
+	inline constexpr int32 MainFiveSteps = 5;
+	inline constexpr int32 IntakeStep = 3;
+	inline constexpr int32 OutStep = 4;
+	/** Main 5 is turned in to Brother Finch at the Reliquary (build_area_main4.py places him there). */
+	inline const FName FinchTag(TEXT("Speaker_FinchChapel"));
 
 	/** The floor's spiders: how many, and how far above their spawner a player is still on their ground (cm). */
 	inline constexpr int32 FloorSpiders = 6; // (fights enlarged 2026-10-21; 4)
@@ -103,9 +113,18 @@ namespace KeepersLanternTestWorld
 		case 2:
 			MissionTestWorld::AddObjective<UMissionInteractObjective>(Mission, 2)->Target.ActorTag = AKeepersLantern::LanternTag;
 			break;
+		case IntakeStep:
+		{
+			UMissionInteractObjective* Charges = MissionTestWorld::AddObjective<UMissionInteractObjective>(Mission, IntakeStep);
+			Charges->Target.ActorTag = AIntakeCharge::ChargeTag;
+			Charges->Count = 3;
+			Charges->bHold = true;
+			MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, IntakeStep)->Event = ASinkIntake::ChokedEvent;
+			break;
+		}
 		default:
 		{
-			UMissionReachObjective* Out = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, 3);
+			UMissionReachObjective* Out = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, OutStep);
 			Out->Place.Actor.ActorTag = RimPlace;
 			Out->Place.Radius = RimRadius;
 			Out->Place.bIgnoreHeight = false;
@@ -122,10 +141,10 @@ namespace KeepersLanternTestWorld
 		return Mission;
 	}
 
-	/** Father Aldana's tag: Main 5 is turned in to him, who sent Ellis to the Sink. */
+	/** Father Aldana's tag: Main 5 is offered by him, who sent Sully to the Sink. */
 	inline const FName AldanaTag(TEXT("Speaker_Aldana"));
 
-	/** Main 5 as the mission script makes it, in code: after Main 4, its four steps, turned in to Aldana, 40 experience. */
+	/** Main 5 as the mission script makes it, in code: after Main 4, its five steps, turned in to Finch, 40 experience. */
 	inline UMissionDefinition* MakeMainFive(UObject* Outer)
 	{
 		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main5"), EMissionKind::Main, EMissionStart::Automatic, Valley);
@@ -134,8 +153,8 @@ namespace KeepersLanternTestWorld
 		{
 			AddStep(Mission, Step);
 		}
-		Mission->TurnIn.SpeakerTag = AldanaTag;
-		Mission->TurnIn.GiverName = FText::FromString(TEXT("Father Aldana"));
+		Mission->TurnIn.SpeakerTag = FinchTag;
+		Mission->TurnIn.GiverName = FText::FromString(TEXT("Brother Finch"));
 		Mission->Rewards.Experience = 40;
 		return Mission;
 	}

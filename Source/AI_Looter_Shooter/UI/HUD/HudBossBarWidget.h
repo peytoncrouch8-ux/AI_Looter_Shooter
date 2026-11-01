@@ -96,6 +96,16 @@ public:
 	bool IsArmourShown() const { return bArmourWanted; }
 	float GetArmourFraction() const { return ArmourFraction; }
 
+	/**
+	 * Cheap to call every frame: a row of Total gold pips under the bar's far end, Filled of them lit, with PipLabel beside
+	 * them ("ABEL"), and BarLabel over the bar's far end ("SMOG"): Abel's call-backs (UAbelCorruptionComponent). A pip that
+	 * fills pops and flashes. Total 0 hides them (HudBossBarWidgetPips.cpp).
+	 */
+	void SetPips(int32 Total, int32 Filled, const FText& InPipLabel, const FText& InBarLabel);
+	int32 GetPipsTotal() const { return PipsTotal; }
+	int32 GetPipsFilled() const { return PipsFilled; }
+	FText GetBarLabelText() const { return BarLabelText; }
+
 	// What it shows, for the tests (the text blocks' own text once it's built).
 	FText GetNameText() const;
 	/** The level as words ("LV 9"); the gem shows its number. */
@@ -157,6 +167,10 @@ private:
 	void BuildArmour();
 	void TickArmour(float DeltaSeconds);
 	void ApplyArmour();
+	/** The pips' row and the bar's word: made the first time a boss asks, their pops and fade moved on (HudBossBarWidgetPips.cpp). */
+	void BuildPips();
+	void TickPips(float DeltaSeconds);
+	void ApplyPips();
 
 	UPROPERTY(Transient) TObjectPtr<UWidget> Cluster;
 	/** The gem's face, tinted the rank's color, and the level's number on it. */
@@ -232,4 +246,19 @@ private:
 	float ArmourFlash = 0.f;
 	float ShownArmourFill = -1.f;
 	float ShownArmourChip = -1.f;
+
+	/** The pips' row under the bar's far end, its pips, its label, and the word over the bar (HudBossBarWidgetPips.cpp). */
+	UPROPERTY(Transient) TObjectPtr<UWidget> PipRow;
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> PipBoxes;
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> PipFaces;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PipLabel;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> BarWord;
+	bool bPipsWanted = false;
+	int32 PipsTotal = 0;
+	int32 PipsFilled = 0;
+	FText PipLabelText;
+	FText BarLabelText;
+	float PipsOpacity = 0.f;
+	/** Each pip's pop (1 as it fills, easing to 0). */
+	TArray<float> PipPop;
 };

@@ -10,7 +10,7 @@ ground, derived from the arena as it's built (nothing hand-placed):
     pit ends (the layout's theSink ramp, sinkRamp, its first point); off her ground (more than her lair's reach from the den's
     mouth, or the rim's 12 m over its floor), clear of the ramp, the road and the fence. Her lair (Encounter_Gravemother)
     brings her back.
-  - Abel (Main 6): outside the Keeper's Gate (the layout's gateSouth and gateNorth), on the side away from the burial deck,
+  - Abel's echo (after Main 7: the furnace's shadow of him; the real Abel keeps Saint Ada): outside the Keeper's Gate (the layout's gateSouth and gateNorth), on the side away from the burial deck,
     beside the road where the player walks out after the fight and the scene; far enough from his spot that calling him
     back doesn't start his fight (his deck radius, 14 m), clear of the road, the gate's rocks and the cairns. Abel (the
     placed AAbelKeeper labelled Abel) is called back at his spot.
@@ -75,9 +75,9 @@ SHRINES = (
     dict(key='Gravemother', boss_class='GravemotherCreature', kind='LAIR', name='The Gravemother',
          loot="Two guns from a Legendary monster's table, a chance of a legendary, and ammo",
          answer='Boss.Gravemother.Roar', beaten_after=['Side3'], callable_after=[]),
-    dict(key='Abel', boss_class='AbelKeeper', kind='PLACED', name='Abel Ransom, the Keeper',
+    dict(key='Abel', boss_class='AbelKeeper', kind='PLACED', name="The smog's echo of Abel",
          loot="Three guns from a boss's table, a fair chance of a legendary, and ammo",
-         answer='Boss.Abel.Wail', beaten_after=['Main6'], callable_after=['Main6']),
+         answer='Boss.Abel.Wail', beaten_after=['Main7'], callable_after=['Main7']),
     dict(key='Foreman', boss_class='ForemanCreature', kind='LAIR', name='The Foreman',
          loot="Two guns from a Legendary monster's table, a chance of a legendary, and ammo",
          answer='Boss.Foreman.Intro', beaten_after=['BackPay'], callable_after=[]),

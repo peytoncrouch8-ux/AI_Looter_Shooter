@@ -44,9 +44,9 @@ namespace
 	const TCHAR* CartHosePath = TEXT("/Game/Art/Landfall/Materials/MI_Landfall_HoseRubber.MI_Landfall_HoseRubber");
 
 	/** Where things are on the cart (cm, its frame: X its handles' way, Z up from the ground). */
-	const FVector ReelAt(-85.0, 0.0, 110.0);
+	const FVector ReelAt(-100.0, 0.0, 118.0);
 	const FVector ValveAt(40.0, 0.0, 180.0);
-	const FVector TankAt(5.0, 0.0, 125.0);
+	const FVector TankAt(-2.0, 0.0, 104.0);
 	/** The hose: 14 cm across, swelling this much at a pump's stroke, this many strokes a second. */
 	constexpr float HoseWidth = 14.f;
 	constexpr float HosePulse = 0.09f;
@@ -179,7 +179,7 @@ ACompanyHoseCart::ACompanyHoseCart()
 	// Shots on the tank only (world dynamic, so ground traces pass it), a little bigger than the tank so its edge counts.
 	TankHit = CreateDefaultSubobject<UCapsuleComponent>(TEXT("TankHit"));
 	TankHit->SetupAttachment(Root);
-	TankHit->InitCapsuleSize(55.f, 85.f);
+	TankHit->InitCapsuleSize(48.f, 100.f);
 	TankHit->SetRelativeLocationAndRotation(TankAt, FRotator(90.0, 0.0, 0.0));
 	TankHit->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	TankHit->SetCollisionObjectType(ECC_WorldDynamic);

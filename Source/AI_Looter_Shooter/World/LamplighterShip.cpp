@@ -140,6 +140,20 @@ void ALamplighterShip::Tick(float DeltaSeconds)
 
 void ALamplighterShip::Advance(float DeltaSeconds)
 {
+	if (bGone)
+	{
+		return;
+	}
+	// After Main 7 she's gone from the Rest: looked at once, on her first frame, when the missions have the story.
+	if (!bGoneChecked)
+	{
+		bGoneChecked = true;
+		if (IsGoneInStory())
+		{
+			MakeGone();
+			return;
+		}
+	}
 	if (!bBegun)
 	{
 		// Nothing began her (a level without the travel subsystem's arrival): she begins herself.
@@ -167,9 +181,14 @@ void ALamplighterShip::Advance(float DeltaSeconds)
 	case EShipFlight::Moored:
 		AdvanceMoored(DeltaSeconds);
 		break;
+	case EShipFlight::Sortie:
+		// Main 6: the sortie moves her (and its tenders, launchers and plank) from here, in her own tick, so whoever stands
+		// on her deck rides the pose of this frame (LamplighterShipSortie.cpp).
+		AdvanceSortie(DeltaSeconds);
+		break;
 	}
 	AdvancePieces(DeltaSeconds);
-	if (Flight != EShipFlight::Moored)
+	if (Flight != EShipFlight::Moored && (Flight != EShipFlight::Sortie || bSortieKeepsAboard))
 	{
 		KeepPlayerAboard(DeltaSeconds);
 	}
@@ -336,7 +355,9 @@ void ALamplighterShip::UpdateSounds()
 	}
 	if (UAudioComponent* Running = EngineSound.Get())
 	{
-		const float Pitch = Flight == EShipFlight::Grappled ? 1.18f : Flight == EShipFlight::Breaking || Flight == EShipFlight::Landing ? 0.8f : 1.f;
+		// (In Main 6's sortie her engine runs a touch harder: she's carrying the crew to a fight.)
+		const float Pitch = Flight == EShipFlight::Grappled ? 1.18f : Flight == EShipFlight::Breaking || Flight == EShipFlight::Landing ? 0.8f
+			: Flight == EShipFlight::Sortie ? 1.06f : 1.f;
 		Running->SetPitchMultiplier(Pitch);
 	}
 	if (!bRunning)
@@ -407,6 +428,10 @@ void ALamplighterShip::SetFlight(EShipFlight State)
 		bAnchored = false;
 		EnterFlight(EShipFlight::Moored);
 		FindOrSpawnWinch();
+		break;
+	case EShipFlight::Sortie:
+		// Only her driver begins a sortie (APilotSortie::SetPhase, Looter.Pilot.State): it needs the barge and its course.
+		UE_LOG(LogLooter, Warning, TEXT("Landfall: SetFlight(Sortie) does nothing: Main 6's sortie begins her (Looter.Pilot.State)."));
 		break;
 	}
 }

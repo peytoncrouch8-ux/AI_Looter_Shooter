@@ -1,18 +1,18 @@
-// AAbelKeeper's fight: his own moments as his phases' events start them (the grief, the buckshot's flare, the bell and the
-// drift into the fog, the lanterns dragging him back, the walk into the wind and the pull), and the fight starting, starting
-// over and won. AbelKeeperMoves.cpp moves his moments on frame by frame and has his ending (the scene, his board);
-// AbelKeeper.cpp has his place in the story.
+// AAbelKeeper's fight: his own moments as his phases' events start them (the turn to the six dead, the buckshot's flare,
+// the drift into the fog, the lanterns dragging him back, the walk to a lantern post and the furnace's pull; the call-backs
+// and tendrils go to his corruption component), and the fight starting, starting over and won. AbelKeeperMoves.cpp moves
+// his moments on frame by frame and has his ending (the last call, the scene); AbelKeeper.cpp has his place in the story.
 
 #include "Bosses/AbelKeeper.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
+#include "Bosses/AbelCorruption.h"
 #include "Bosses/BossAttackRules.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/EnemyProjectileSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Scenes/BossIntro.h"
 #include "Story/CaptionSubsystem.h"
-#include "World/ChapelBell.h"
 #include "World/KeeperLanternPost.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
@@ -52,6 +52,8 @@ void AAbelKeeper::HandleFightStarted()
 	LightAllLanterns();
 	ApplyPace(false);
 	EndMove();
+	bFreeAsked = false;
+	Corruption->HandleFightStarted();
 	// He turns to the player and raises his lantern as his bar sweeps in.
 	BeginIntro();
 	// His first fight in this session: the boards and his lantern before it (Scenes/BossIntro; he's fought once).
@@ -71,16 +73,19 @@ void AAbelKeeper::HandleFightReset()
 	SetLanternFlare(0.f);
 	SetPose(EAbelPose::Idle, 0.3f);
 	KnownAdds.Reset();
+	// The six dead back on their biers, the smog all on him again, the fog thin, the post's call shut.
+	Corruption->HandleFightReset();
 	UE_LOG(LogLooter, Log, TEXT("%s: the fight starts over; the lanterns burn, he walks the boards again."), *GetActorNameOrLabel());
 }
 
 void AAbelKeeper::HandleFightWon()
 {
-	// His adds and the wall went with the fight (the boss's); his kneel and the scene come with his death (OnDied).
+	// His adds and the wall went with the fight (the boss's); his kneel, the last call and the scene come with his death.
 	StopWind();
 	LightAllLanterns();
 	KnownAdds.Reset();
-	UE_LOG(LogLooter, Log, TEXT("%s: beaten. He kneels."), *GetActorNameOrLabel());
+	Corruption->HandleFightWon();
+	UE_LOG(LogLooter, Log, TEXT("%s: the smog breaks. He kneels."), *GetActorNameOrLabel());
 }
 
 void AAbelKeeper::HandlePhaseChanged(int32 NewPhase, int32 OldPhase)
@@ -110,15 +115,15 @@ void AAbelKeeper::HandleCustomEvent(FName EventName)
 			GrieveWaited = 0.f;
 		}
 	}
-	else if (EventName == AbelRules::BellEvent())
+	else if (EventName == AbelRules::CallBackEvent())
 	{
-		RingTheBell();
-		Say(AbelRules::BellLine());
-		DriftOut();
+		// His bar locks and he kneels: the keeper's post calls him back a third (the drift or the wind follow it).
+		Corruption->BeginCallBack();
 	}
-	else if (EventName == AbelRules::GravewindEvent())
+	else if (EventName == AbelRules::TendrilEvent())
 	{
-		StartWind();
+		// In "Keeper" two tendrils at once.
+		Corruption->ThrowTendrils(Boss->GetPhase() >= 2);
 	}
 	else if (EventName == AbelRules::WalkOffEvent())
 	{
@@ -250,10 +255,12 @@ bool AAbelKeeper::Grieve()
 	{
 		return false;
 	}
-	// He stops and turns to the sunset, his lantern lowered: his coal open for its seconds.
+	// The keeper in him: he stops and turns to the six dead on the boards to walk them, his lantern lowered, muttering; his
+	// coal open for its seconds (the best damage comes when he tries to do his job).
 	BeginMove(EAbelMove::Grieve);
 	HoldStill(false);
-	UE_LOG(LogLooter, Verbose, TEXT("%s grieves: his coal is open."), *GetActorNameOrLabel());
+	Corruption->Mutter();
+	UE_LOG(LogLooter, Verbose, TEXT("%s turns to the six dead: his coal is open."), *GetActorNameOrLabel());
 	return true;
 }
 
@@ -321,20 +328,40 @@ bool AAbelKeeper::WalkOff()
 	{
 		return false;
 	}
-	// Toward the deck's open end, into the wind, stopping short of the edge.
-	const FVector Sunset = GetSunsetDirection();
+	// The keeper in him walks to the nearest deck lantern post to hang his black lantern there, stopping short of it (the
+	// furnace pulls him back before he gets there). Without a post: toward the deck's open end, as the old walk into the wind.
 	const FVector Here = GetActorLocation();
-	const double Along = FVector::DotProduct(Here - GetHome().GetLocation(), Sunset);
-	const double Left = FMath::Max(0.0, (OpenEndDistance - 120.0) - Along);
-	if (Left < 30.0)
+	const AKeeperLanternPost* Nearest = nullptr;
+	for (const AKeeperLanternPost* Post : LanternPosts)
+	{
+		if (Post && (!Nearest || FVector::DistSquared2D(Post->GetActorLocation(), Here) < FVector::DistSquared2D(Nearest->GetActorLocation(), Here)))
+		{
+			Nearest = Post;
+		}
+	}
+	FVector Goal;
+	if (Nearest)
+	{
+		const FVector Toward = (Nearest->GetActorLocation() - Here) * FVector(1.0, 1.0, 0.0);
+		const double Length = Toward.Size();
+		const double Walk = FMath::Max(0.0, Length - 170.0 * GetSizeScale());
+		Goal = Here + Toward.GetSafeNormal() * Walk;
+	}
+	else
+	{
+		const FVector Sunset = GetSunsetDirection();
+		const double Along = FVector::DotProduct(Here - GetHome().GetLocation(), Sunset);
+		Goal = Here + Sunset * FMath::Max(0.0, (OpenEndDistance - 120.0) - Along);
+	}
+	if (FVector::Dist2D(Goal, Here) < 30.0)
 	{
 		Pull();
 		return true;
 	}
 	BeginMove(EAbelMove::WalkOff);
 	HoldStill(true);
-	MoveTo = Here + Sunset * Left;
-	UE_LOG(LogLooter, Log, TEXT("%s walks off into the wind."), *GetActorNameOrLabel());
+	MoveTo = Goal;
+	UE_LOG(LogLooter, Log, TEXT("%s walks to a lantern post to hang his black lantern there."), *GetActorNameOrLabel());
 	return true;
 }
 
@@ -344,15 +371,16 @@ void AAbelKeeper::Pull()
 	{
 		return;
 	}
-	// The dark saint pulls him back from the edge: a yank toward the deck's middle, then a stun with his coal open.
+	// The furnace in him pulls him back from the post: a yank toward the deck's middle (his spot), then a stun, coal open.
 	EndMove();
 	BeginMove(EAbelMove::Pulled);
 	HoldStill(true);
-	const FVector Sunset = GetSunsetDirection();
-	const double Along = FVector::DotProduct(GetActorLocation() - GetHome().GetLocation(), Sunset);
-	const double Back = FMath::Max(Along - PullDistance * GetSizeScale(), -OpenEndDistance * 0.5);
-	MoveTo = GetActorLocation() + Sunset * (Back - Along);
-	UE_LOG(LogLooter, Log, TEXT("%s: the dark saint pulls him back; stunned, his coal open."), *GetActorNameOrLabel());
+	const FVector HomeAt = GetHome().GetLocation();
+	const FVector Back = (HomeAt - GetActorLocation()) * FVector(1.0, 1.0, 0.0);
+	const double Yank = FMath::Min(Back.Size(), static_cast<double>(PullDistance * GetSizeScale()));
+	MoveTo = GetActorLocation() + Back.GetSafeNormal() * Yank;
+	LooterSound::PlayAt(this, LooterSoundCue::AbelStagger, GetActorLocation(), 0.8f);
+	UE_LOG(LogLooter, Log, TEXT("%s: the furnace pulls him back from the post; stunned, his coal open."), *GetActorNameOrLabel());
 }
 
 FVector AAbelKeeper::DragTarget() const
@@ -416,18 +444,6 @@ void AAbelKeeper::ApplyPace(bool bFaster)
 	AttackWindup = OwnWindup * (bFaster ? Pace.Windup : 1.f);
 	ChaseSpeed = OwnChase * (bFaster ? Pace.Chase : 1.f);
 	LungeSpeed = OwnLunge * (bFaster ? Pace.Lunge : 1.f);
-}
-
-void AAbelKeeper::RingTheBell()
-{
-	// The chapel's bell, across the valley; the missions don't hear it (nobody rang it).
-	for (TActorIterator<AChapelBell> It(GetWorld()); It; ++It)
-	{
-		if (It->ActorHasTag(AChapelBell::BellTag))
-		{
-			It->Ring(nullptr);
-		}
-	}
 }
 
 void AAbelKeeper::RiseNewAdds()

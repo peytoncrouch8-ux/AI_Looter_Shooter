@@ -188,3 +188,19 @@ talk at givers -44%.
   first (FerryLadderClimb, the ore lift's way), never a free climb.
 - Words on boards and banners are drawn (`UTextRenderComponent`, ACompanySign, ACompanyBanner): Tripo models for them come
   blank.
+- Mains 4-5 (lane MAIN45, `build_area_main4.py`, `build_area_main5.py`): men off a tender or down a hose are an
+  `ARappelSpawner` (its creatures lifted to a rope's top, held passive, slid down, then hunting); a tender's ropes follow it
+  (`AnchorTag` an `ACompanyTenderDrop`, whose first drop waits for it to hover). A step that ends on something timed (the
+  intake's fuse) carries an Event objective for its end (`Intake.Choked`), or the next step's story starts early. A thing
+  that swaps a baked Landfall prop for a moving one (the intake's hose) draws the same curve (read with Landfall's own plan
+  functions) and hides the prop by tag the moment it takes over; the prop's `hidden_when` covers later loads.
+- An objective a thing finishes by itself (the window hose freed by its cart's stop) sends the same event the player's
+  interaction would (`FMissionEvent::Interaction(this, true)`), so one objective covers both ways.
+- Mains 6-7 (lane MAIN67, `build_area_main6.py` + `_sortie.py`, `build_area_deck.py`, `build_area_main7.py`; parallel
+  sub-lanes against `Docs/Work/2026-10-31-Wardens/lanes/CONTRACT67.md`): a ship flown from outside is `EShipFlight::Sortie` (APilotSortie sets her
+  pose each frame; her deck stays the moving floor); a walkable set high in the air is one actor of code-built boxes
+  (`ABargeBoarding`) whose layout Python reads back through `BlueprintCallable` getters, never copied numbers; a stage a
+  player can fall off keeps them aboard (off it 0.6 s, or a death: put back at its start with a fade). A step that ends on a
+  scene carries a Scene objective beside its action (CageBurst, BargeFall, FreeAbel, SaintAdaWakes), so the next step never
+  shows under it. A turn-in whose words depend on a flag has no lines of its own: the giver's topic says them (Main 1's,
+  Main 7's at the chapel door). Another mission's item picked up mid-mission is an Interact on its tag (`Item_<Id>`).

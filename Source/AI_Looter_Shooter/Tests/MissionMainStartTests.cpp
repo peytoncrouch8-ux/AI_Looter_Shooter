@@ -408,16 +408,16 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMissionMainStartAssetsTest, "Looter.Missions.M
 
 bool FMissionMainStartAssetsTest::RunTest(const FString& Parameters)
 {
-	// The data as create_mission_assets.py and create_side_mission_assets.py write it (2026-10-22): Main 3 and Main 6 met
-	// first at Delia's door, Dead Lift at Hiram's stool and Back Pay at the lift head's speaking tube (main since
-	// 2026-10-27), the other main missions with a giver starting by themselves; the speakers' jobs with words for once
-	// they're taken.
+	// The data as create_mission_assets.py and create_side_mission_assets.py write it (2026-10-22): Main 3 met first at
+	// Delia's, Main 6 at Holloway's wheel on the Lamplighter (the Wardens story, lane MAIN67), Dead Lift at Hiram's stool and
+	// Back Pay at the lift head's speaking tube (main since 2026-10-27), the other main missions with a giver starting by
+	// themselves; the speakers' jobs with words for once they're taken.
 	struct FMeet
 	{
 		const TCHAR* Id;
 		const TCHAR* Giver;
 	};
-	for (const FMeet& Meet : { FMeet{ TEXT("Main3"), TEXT("Speaker_Delia") }, FMeet{ TEXT("Main6"), TEXT("Speaker_Delia") },
+	for (const FMeet& Meet : { FMeet{ TEXT("Main3"), TEXT("Speaker_Delia") }, FMeet{ TEXT("Main6"), TEXT("Speaker_Holloway") },
 		FMeet{ TEXT("DeadLift"), TEXT("Speaker_Hiram") }, FMeet{ TEXT("BackPay"), TEXT("Speaker_LiftTube") } })
 	{
 		const UMissionDefinition* Asset = LoadMission(Meet.Id);

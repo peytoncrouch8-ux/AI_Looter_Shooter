@@ -195,6 +195,19 @@ private:
 	TArray<FMinimapRoost> RoostCache;
 	float RoostLookLeft = 0.f;
 
+	// --- Sexton's secrets bought (HudMinimapWidgetSecrets.cpp; lanes/SECRETS.md) ---
+
+	/** Builds the secrets' markers (a dark badge ringed gold, the keyhole over it) into Layer, over the roosts. */
+	void BuildSecrets(UCanvasPanel* Layer);
+	/** Asks for the bought secrets' places now and then (USecretSubsystem::GetMarks) and places their markers. */
+	void UpdateSecrets(const FVector& PlayerLocation, float Yaw, float Radius, float PixelsPerCm, float DeltaSeconds);
+
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> SecretBadges;
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> SecretIcons;
+	/** The marks as last asked for, and the seconds until the next ask. */
+	TArray<FMinimapRoost> SecretCache;
+	float SecretLookLeft = 0.f;
+
 	// --- The frame round the map (HudMinimapWidgetFrame.cpp) ---
 
 	/** Builds the bezel, its ticks, the N on its disc, the notch and the place's two lines into Layer, over the map. */

@@ -1,13 +1,17 @@
-// AAbelKeeper's moments frame by frame (where each one puts him, which way he faces, what comes at its end) and his ending:
-// the kneel, the scene after (Scenes/SitWithPa), his board. AbelKeeperFight.cpp starts the moments.
+// AAbelKeeper's moments frame by frame (where each one puts him, which way he faces, what comes at its end), his rise out of
+// the canyon fog, the call-backs' kneel, and his ending: the kneel at zero, the last call, the scene after (Scenes/FreeAbel),
+// and him gone into his own lantern. AbelKeeperFight.cpp starts the moments.
 
 #include "Bosses/AbelKeeper.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
+#include "Bosses/AbelCorruption.h"
 #include "Bosses/BossCameraShake.h"
 #include "Bosses/BossComponent.h"
+#include "Combat/BulletSubsystem.h"
+#include "Scenes/FreeAbel.h"
 #include "Scenes/SceneSubsystem.h"
-#include "Scenes/SitWithPa.h"
-#include "Story/AbelOnBoard.h"
+#include "Weapons/WeaponFX.h"
 #include "World/KeeperLanternPost.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -36,6 +40,11 @@ namespace
 
 	/** Staggered, his lantern burns low (toward an ember). */
 	constexpr float StaggerLantern = -0.5f;
+
+	/** His rise out of the canyon fog: this far below his spot, out past the open end, and how long it takes (s). */
+	constexpr float AscendDrop = 1600.f;
+	constexpr float AscendOut = 900.f;
+	constexpr float AscendSeconds = 4.5f;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,13 +106,47 @@ void AAbelKeeper::TickMove(float DeltaSeconds)
 		break;
 
 	case EAbelMove::Grieve:
-		FaceYaw(SunsetYaw(), DeltaSeconds, TurnRate);
+	{
+		// Toward the six dead on the boards (the keeper's job), or the sunset where there are none.
+		FVector Dead;
+		const float Yaw = Corruption->GetDeadToWalk(GetActorLocation(), Dead) ? static_cast<float>((Dead - GetActorLocation()).Rotation().Yaw)
+			: SunsetYaw();
+		FaceYaw(Yaw, DeltaSeconds, TurnRate);
 		if (MoveTime >= GrieveSeconds)
 		{
 			EndMove();
 			Rejoin();
 		}
 		break;
+	}
+
+	case EAbelMove::CallKneel:
+		// Down on his knees facing the keeper's post (his own lantern calling him), his bar locked; the corruption component
+		// lets him up (called back, or the kneel run out).
+		if (const AKeeperLanternPost* Post = GetKeepersPost())
+		{
+			FaceYaw(static_cast<float>((Post->GetActorLocation() - GetActorLocation()).Rotation().Yaw), DeltaSeconds, TurnRate * 0.5f);
+		}
+		SetLanternFlare(StaggerLantern);
+		break;
+
+	case EAbelMove::Ascend:
+	{
+		// Up out of the canyon fog to his spot on the boards, smog pouring off him, the view jolting as he lands.
+		const float Alpha = FMath::Clamp(MoveTime / AscendSeconds, 0.f, 1.f);
+		SetActorLocation(AbelRules::GlideAt(MoveFrom, GetHome().GetLocation(), Alpha, 120.f * Scale), false, nullptr, ETeleportType::TeleportPhysics);
+		FaceYaw(static_cast<float>((-GetSunsetDirection()).Rotation().Yaw), DeltaSeconds, TurnRate);
+		SetLanternFlare(Alpha);
+		if (MoveTime >= AscendSeconds)
+		{
+			BossCameraShake::Kick(this, GetActorLocation(), IntroShake, 0.6f);
+			LooterSound::PlayAt(this, LooterSoundCue::AbelIntro, GetActorLocation());
+			EndMove();
+			// On the boards: a player on the deck starts his fight now.
+			RefreshStory();
+		}
+		break;
+	}
 
 	case EAbelMove::Flare:
 		FacePlayer();
@@ -185,7 +228,11 @@ void AAbelKeeper::TickMove(float DeltaSeconds)
 
 	case EAbelMove::WalkOff:
 	{
-		FaceYaw(SunsetYaw(), DeltaSeconds, TurnRate);
+		// Facing the post he's making for (his black lantern held out to hang).
+		if (!MoveTo.Equals(GetActorLocation(), 5.0))
+		{
+			FaceYaw(static_cast<float>((MoveTo - GetActorLocation()).Rotation().Yaw), DeltaSeconds, TurnRate);
+		}
 		const FVector Here = GetActorLocation();
 		const FVector Next = FMath::VInterpConstantTo(Here, MoveTo, DeltaSeconds, WalkOffSpeed * Scale);
 		SetActorLocation(Next, false, nullptr, ETeleportType::TeleportPhysics);
@@ -206,7 +253,7 @@ void AAbelKeeper::TickMove(float DeltaSeconds)
 			LetGo();
 			HoldStill(false);
 		}
-		FaceYaw(SunsetYaw(), DeltaSeconds, TurnRate * 0.5f);
+		FacePlayer();
 		if (MoveTime >= PullYankSeconds + StunSeconds)
 		{
 			EndMove();
@@ -224,6 +271,11 @@ void AAbelKeeper::TickMove(float DeltaSeconds)
 		if (!bEndingAsked && MoveTime >= KneelSettleSeconds)
 		{
 			PlayEnding();
+		}
+		// The last call held at the keeper's post: the scene (asked again while another one plays).
+		if (bEndingAsked && !bFreeAsked && Corruption->IsFreed())
+		{
+			PlayFreeScene();
 		}
 		break;
 
@@ -251,18 +303,68 @@ void AAbelKeeper::TickMove(float DeltaSeconds)
 void AAbelKeeper::PlayEnding()
 {
 	bEndingAsked = true;
-	if (SitWithPa::Play(*this))
+	// The smog's echo (a vigil stone's rematch) is its stone's to end: nothing of Abel's is in it to call home.
+	if (Boss->IsRematch())
+	{
+		return;
+	}
+	// The last call at the keeper's post: the hold under the last of the smog (UAbelCorruptionComponent), then the scene.
+	Corruption->BeginFinalCall();
+}
+
+void AAbelKeeper::PlayFreeScene()
+{
+	bFreeAsked = true;
+	if (FreeAbel::Play(*this))
 	{
 		return;
 	}
 	if (USceneSubsystem::AreScenesOn(GetWorld()))
 	{
 		// Another scene is playing: ask again shortly.
-		bEndingAsked = false;
+		bFreeAsked = false;
 		return;
 	}
-	// Scenes off (a tour, a perf run): the missions heard it as played; the world as the scene would leave it.
+	// Scenes off (a tour, a perf run): the missions hear it as played; the world as the scene would leave it.
 	FinishEndingAtOnce();
+}
+
+void AAbelKeeper::BeginAscend()
+{
+	// From down in the canyon fog out past the open end, rising to his spot: his own lantern on the post has called him.
+	const FVector HomeAt = GetHome().GetLocation();
+	SetActorLocation(HomeAt + GetSunsetDirection() * (OpenEndDistance + AscendOut) - FVector(0.0, 0.0, AscendDrop), false, nullptr,
+		ETeleportType::TeleportPhysics);
+	EndMove();
+	BeginMove(EAbelMove::Ascend);
+	HoldStill(true);
+	Boss->EngageRadius = 0.f;
+	LooterSound::PlayAt(this, LooterSoundCue::AbelWindRise, HomeAt);
+	UE_LOG(LogLooter, Log, TEXT("%s: his lantern on the keeper's post calls him; he comes up out of the canyon fog."), *GetActorNameOrLabel());
+}
+
+void AAbelKeeper::BeginCallKneel()
+{
+	if (IsDead())
+	{
+		return;
+	}
+	// Whatever he was at, down on his knees: the smog in him fighting the keeper, his bar locked (the corruption's).
+	EndMove();
+	BeginMove(EAbelMove::CallKneel);
+	HoldStill(false);
+	SetPose(EAbelPose::Kneel, 0.35f);
+	BossCameraShake::Kick(this, GetActorLocation(), IntroShake * 0.6f, 0.5f);
+}
+
+void AAbelKeeper::EndCallKneel()
+{
+	if (Move != EAbelMove::CallKneel)
+	{
+		return;
+	}
+	EndMove();
+	Rejoin();
 }
 
 void AAbelKeeper::BeginScene()
@@ -279,25 +381,33 @@ void AAbelKeeper::SetScenePlace(const FVector& Location, float Yaw)
 	SetActorLocationAndRotation(Location, FRotator(0.f, Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
 }
 
-void AAbelKeeper::SitOnBoard()
+void AAbelKeeper::CompleteFreeing(bool bLanternToo)
 {
 	if (bEndingDone)
 	{
 		return;
 	}
 	bEndingDone = true;
-	if (AKeeperLanternPost* Post = GetKeepersPost())
+	if (bLanternToo)
 	{
-		Post->LightKeepersLantern();
+		// He's in his own lantern, burning like a sunrise, and Sully has it down off the post: Main 7 carries it home.
+		Corruption->SetFreed();
+		if (AKeeperLanternPost* Post = GetKeepersPost())
+		{
+			Post->LightKeepersLantern();
+			Post->TakeDownLit();
+		}
 	}
-	if (OnBoard)
+	else if (UWorld* World = GetWorld())
 	{
-		OnBoard->ShowNow();
-	}
-	else
-	{
-		UE_LOG(LogLooter, Warning, TEXT("%s: no AAbelOnBoard in the level to sit him on his board (build_area_deck.py places it)."),
-			*GetActorNameOrLabel());
+		// The smog's echo boils away into the fog: there's nothing in it to step into a lantern.
+		if (UBulletSubsystem* Bullets = World->GetSubsystem<UBulletSubsystem>())
+		{
+			FWeaponFX& Effects = Bullets->GetEffects();
+			Effects.Initialize(World);
+			Effects.SpawnSoulTatters(GetActorLocation(), FVector::UpVector, FLinearColor(0.05f, 0.035f, 0.07f), 90.f, 16);
+		}
+		LooterSound::PlayAt(this, LooterSoundCue::UnpaidDissolve, GetActorLocation());
 	}
 	SetPresent(false);
 }
@@ -310,14 +420,16 @@ bool AAbelKeeper::ComeBack()
 	}
 	bEndingDone = false;
 	bEndingAsked = false;
+	bFreeAsked = false;
 	Move = EAbelMove::None;
 	MoveTime = 0.f;
 	bScriptedMove = false;
 	ResetToHome();
 	SetPose(EAbelPose::Idle, 0.f);
-	if (OnBoard)
+	if (Lantern)
 	{
-		OnBoard->ForgetScene();
+		// The black lantern in his fist again (it fell into the canyon with the real one's freeing).
+		Lantern->SetVisibility(true);
 	}
 	ForcePresent(true);
 	return true;
@@ -329,12 +441,12 @@ void AAbelKeeper::FinishEndingAtOnce()
 	{
 		return;
 	}
-	SitOnBoard();
-	// The missions' last step waits for the scene: counted as played (the story is past it).
+	CompleteFreeing(true);
+	// The missions' scene step waits for the scene: counted as played (the story is past it).
 	USceneSubsystem* Scenes = USceneSubsystem::Get(this);
-	if (Scenes && !Scenes->HasPlayed(SitWithPa::SceneName()))
+	if (Scenes && !Scenes->HasPlayed(FreeAbel::SceneName()))
 	{
-		Scenes->MarkPlayed(SitWithPa::SceneName(), true);
+		Scenes->MarkPlayed(FreeAbel::SceneName(), true);
 	}
-	UE_LOG(LogLooter, Log, TEXT("%s: the ending as the scene leaves it: the Keeper's Lantern lit, Abel on his board."), *GetActorNameOrLabel());
+	UE_LOG(LogLooter, Log, TEXT("%s: the ending as the scene leaves it: Abel in his own lantern, lit, taken down off the post."), *GetActorNameOrLabel());
 }

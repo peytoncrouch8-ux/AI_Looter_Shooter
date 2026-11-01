@@ -20,8 +20,10 @@
 #include "World/CompanySign.h"
 #include "World/GangSkiffFlyBy.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/HitResult.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
 #include "Kismet/GameplayStatics.h"
@@ -392,10 +394,30 @@ bool FCompanySignTest::RunTest(const FString& Parameters)
 	Chalk->Text = FText::FromString(TEXT("ASSESSED"));
 	Chalk->Look = ECompanySignLook::Chalk;
 	Chalk->Slant = 6.f;
+	// The barrier across the gate: a long, thin board (build_area_main3 BARRIER_SIZE), never the signboard model.
+	ACompanySign* Barrier = World->SpawnActor<ACompanySign>(FVector(-500.0, 0.0, 0.0), FRotator::ZeroRotator);
+	if (!Barrier)
+	{
+		AddError(TEXT("The test level isn't whole."));
+		return false;
+	}
+	Barrier->BoardSize = FVector2D(900.0, 14.0);
 	Board->DispatchBeginPlay();
 	Chalk->DispatchBeginPlay();
-	TestTrue(TEXT("A board: board, posts and words"), Board->Board->IsVisible() && Board->PostLeft->IsVisible()
-		&& Board->Words->Text.ToString() == TEXT("VANE CONSOLIDATED"));
+	Barrier->DispatchBeginPlay();
+	// A signboard-sized board is the Tripo model once it's imported (its own posts: the stand-in's are hidden), else the
+	// cube on the two cylinder posts (lanes/TRIPO_M23.md).
+	auto MeshPath = [](const ACompanySign* Sign)
+	{
+		const UStaticMesh* Mesh = Sign->Board->GetStaticMesh();
+		return Mesh ? Mesh->GetPathName() : FString();
+	};
+	const bool bModel = MeshPath(Board) == ACompanySign::BoardModelPath;
+	TestTrue(TEXT("A board: board, posts and words"), Board->Board->IsVisible() && Board->PostLeft->IsVisible() != bModel
+		&& Board->PostRight->IsVisible() != bModel && Board->Words->Text.ToString() == TEXT("VANE CONSOLIDATED"));
+	TestTrue(TEXT("The barrier: a pole (the cube) on the stand-in's posts, never the signboard model"),
+		MeshPath(Barrier) != ACompanySign::BoardModelPath && Barrier->Board->IsVisible() && Barrier->PostLeft->IsVisible()
+		&& Barrier->PostRight->IsVisible());
 	TestTrue(TEXT("...its words over the board's middle"), FMath::IsNearlyEqual(Board->Words->GetRelativeLocation().Z,
 		Board->BoardLift + Board->BoardSize.Y * 0.5, 1.0));
 	TestTrue(TEXT("Chalk: the words alone, slanted"), !Chalk->Board->IsVisible() && !Chalk->PostLeft->IsVisible()

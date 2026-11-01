@@ -8,9 +8,11 @@
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Scenes/TrainShots.h"
+#include "Missions/MissionDefinition.h"
+#include "Missions/MissionEventObjectives.h"
 #include "Session/CampaignRecord.h"
-#include "Tests/LanternLeansTestWorld.h"
 #include "Tests/MissionTestWorld.h"
+#include "HAL/IConsoleManager.h"
 #include "World/MinimapSubsystem.h"
 #include "World/SkiffJetty.h"
 #include "World/Train.h"
@@ -27,10 +29,62 @@
 // "a short shot, then a fade"): put together from Train.py's parts, cold and shut until Main 7, its wheels rolling as it
 // moves, its two shots, and which trips go by it.
 
-using namespace LanternLeansTestWorld;
-
 namespace
 {
+	// Since the Wardens story (2026-11-01, lane MAIN67) Tilly's hearse car is coupled as Main 7, "Given to the Wind", is
+	// turned in: these tests make Mains 6 and 7 themselves (each finished by an event of its own) rather than reading the
+	// old Lantern Leans test world, which W1 retires.
+	const FName MainSix(TEXT("Main6"));
+	const FName MainSeven(TEXT("Main7"));
+	const FName LilyId(TEXT("GildedLily"));
+	const FName Valley(TEXT("TestValley"));
+
+	UMissionDefinition* MakeFinishedBy(UObject* Outer, const TCHAR* Id, const TCHAR* Event, TArray<FName> After)
+	{
+		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, Id, EMissionKind::Main, EMissionStart::Automatic, Valley);
+		Mission->Prerequisites = MoveTemp(After);
+		MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, 0)->Event = Event;
+		Mission->TurnIn.bAutomatic = true;
+		return Mission;
+	}
+
+	UMissionDefinition* MakeMainSix(UObject* Outer)
+	{
+		return MakeFinishedBy(Outer, TEXT("Main6"), TEXT("Test.MainSixDone"), {});
+	}
+
+	UMissionDefinition* MakeMainSeven(UObject* Outer)
+	{
+		return MakeFinishedBy(Outer, TEXT("Main7"), TEXT("Test.MainSevenDone"), { MainSix });
+	}
+
+	/** Looter.Scenes set for a test (2: scenes play even in a test run), and put back after it. */
+	class FScenesOn
+	{
+	public:
+		FScenesOn()
+			: Variable(IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Scenes")))
+		{
+			if (Variable)
+			{
+				Previous = Variable->GetInt();
+				Variable->Set(2, ECVF_SetByConsole);
+			}
+		}
+
+		~FScenesOn()
+		{
+			if (Variable)
+			{
+				Variable->Set(Previous, ECVF_SetByConsole);
+			}
+		}
+
+	private:
+		IConsoleVariable* Variable = nullptr;
+		int32 Previous = 1;
+	};
+
 	constexpr float SceneFrame = 1.f / 30.f;
 
 	/** Where the layout parks the hearse car (layout.json's hearseCar): the train's origin, facing out along +Y. */
@@ -200,7 +254,7 @@ bool FTrainStoryTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestTrue(TEXT("Warm from Main 7 on: after Main 6"), Train->WarmWhen.AfterMissions == TArray<FName>({ MainSix }));
+	TestTrue(TEXT("Warm once Main 7 is turned in (its hearse car coupled)"), Train->WarmWhen.AfterMissions == TArray<FName>({ MainSeven }));
 	Runner->Update(0.f);
 
 	const UStaticMeshComponent* Hearse = Train->HearseCar;
@@ -217,6 +271,9 @@ bool FTrainStoryTest::RunTest(const FString& Parameters)
 
 	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Test.MainSixDone")));
 	TestTrue(TEXT("Main 6 done, Main 7 begun"), Campaign.HasCompleted(MainSix) && Runner->IsRunning(MainSeven));
+	TestTrue(TEXT("...still cold through Main 7 (Abel isn't home yet)"), !Train->IsWarm() && !Train->IsDoorOpen());
+	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Test.MainSevenDone")));
+	TestTrue(TEXT("Main 7 turned in"), Campaign.HasCompleted(MainSeven));
 	TestTrue(TEXT("...steam up, and Tilly's car's door open"), Train->IsWarm() && Train->IsDoorOpen()
 		&& Train->Smoke->IsVisible() == (Train->SmokeMesh != nullptr));
 	if (Glass != INDEX_NONE)

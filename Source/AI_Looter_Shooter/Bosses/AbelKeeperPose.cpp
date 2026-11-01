@@ -61,9 +61,17 @@ EAbelPose AAbelKeeper::WantedPose(float& OutBlendSeconds) const
 		OutBlendSeconds = 0.08f;
 		return EAbelPose::Fire;
 	case EAbelMove::DriftOut:
-	case EAbelMove::WalkOff:
 		OutBlendSeconds = 0.8f;
 		return EAbelPose::Sunset;
+	case EAbelMove::WalkOff:
+	case EAbelMove::Ascend:
+		// His black lantern held up and out: to hang on a post, or as his own lantern calls him up out of the fog.
+		OutBlendSeconds = 0.6f;
+		return EAbelPose::Flare;
+	case EAbelMove::CallKneel:
+		// Down on both knees for the call-back, as he'll kneel at zero.
+		OutBlendSeconds = 0.35f;
+		return EAbelPose::Kneel;
 	case EAbelMove::InFog:
 		// A shot from the fog: his lantern raised, flaring, as for the buckshot on the deck.
 		OutBlendSeconds = FogFlareLeft > 0.f ? 0.3f : 0.6f;

@@ -22,8 +22,8 @@ namespace
 	constexpr float StreakShape = 0.f;
 	constexpr float RoundShape = 1.f;
 
-	/** Abel lights it at the end of Main 6, "The Gravewind". */
-	const FName LitAfter(TEXT("Main6"));
+	/** Abel lights it at the end of Main 7, "Given to the Wind" (it was Main 6 until 2026-11-01; the class is unplaced on the deck now). */
+	const FName LitAfter(TEXT("Main7"));
 
 	/** The tongues and the core: three cards each, 60 degrees apart about the flame's axis, so it reads from every side. */
 	constexpr int32 CardsAround = 3;

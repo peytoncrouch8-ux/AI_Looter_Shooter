@@ -134,6 +134,8 @@ TSharedRef<SWidget> UHudMinimapWidget::RebuildWidget()
 		AddLayer(MarkerLayer);
 		// Hob's roosts first, under every other marker: a landmark, never in the way of a fight (HudMinimapWidgetRoosts.cpp).
 		BuildRoosts(MarkerLayer);
+		// Sexton's secrets bought, over the roosts and under the rest (HudMinimapWidgetSecrets.cpp).
+		BuildSecrets(MarkerLayer);
 		for (int32 Index = 0; Index < MaxMarkers; ++Index)
 		{
 			UImage* Marker = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -377,6 +379,7 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	}
 
 	UpdateRoosts(Location, Yaw, Radius, PixelsPerCm, InDeltaTime);
+	UpdateSecrets(Location, Yaw, Radius, PixelsPerCm, InDeltaTime);
 	UpdateWaypoint(Location, Yaw, Radius, PixelsPerCm);
 }
 

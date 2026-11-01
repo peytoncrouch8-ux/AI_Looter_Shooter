@@ -25,9 +25,9 @@
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
 
-// The Chapel of Saint Ada in Main 4, "Hallowed Ground" (Docs/Areas/RansomsRest.md): the bell rung from its rope, the smashed
-// Reliquary seen in a Grave Sight flash, and Father Aldana at the vestry door. Main 4 itself, its yard and what comes after
-// it are HallowedGroundTests.cpp's.
+// The Chapel of Saint Ada in Main 4, "A Coal Under Ash" (was "Hallowed Ground"; MAINS_2_7.md section 6): the bell rung from
+// its rope, the whole Reliquary's guttering ember flaring in a Grave Sight flash, and Father Aldana at the vestry door. Main 4
+// itself, its yard, the window's hose, the barge's answer and what comes after it are CoalUnderAshTests.cpp's.
 
 using namespace HallowedGroundTestWorld;
 
@@ -60,10 +60,10 @@ bool FHallowedGroundBellTest::RunTest(const FString& Parameters)
 		AddError(TEXT("The test level isn't whole."));
 		return false;
 	}
-	Runner->BeginForTesting({ MakeMainFourAt(CreatePackage(nullptr), 2) }, Campaign, Player, Valley);
+	Runner->BeginForTesting({ MakeMainFourAt(CreatePackage(nullptr), BellStep) }, Campaign, Player, Valley);
 	Runner->Update(0.f);
-	Runner->SetStep(MainFour, 2);
-	TestEqual(TEXT("Main 4 at the bell"), Runner->GetStep(MainFour), 2);
+	Runner->SetStep(MainFour, BellStep);
+	TestEqual(TEXT("Main 4 at the bell"), Runner->GetStep(MainFour), BellStep);
 	if (!Bell->Bell->GetStaticMesh())
 	{
 		AddInfo(TEXT("SM_ChapelBell isn't imported in this checkout: the bell swings unseen."));
@@ -77,10 +77,10 @@ bool FHallowedGroundBellTest::RunTest(const FString& Parameters)
 	Interaction->PressInteract();
 	Interaction->UpdateInteraction(Bell->HoldSeconds * 0.5f);
 	TestTrue(TEXT("Half a hold: the bar half full, nothing rung"), FMath::IsNearlyEqual(Interaction->GetHoldProgress(), 0.5f, 0.01f)
-		&& !Bell->IsRinging() && Runner->GetStep(MainFour) == 2);
+		&& !Bell->IsRinging() && Runner->GetStep(MainFour) == BellStep);
 	Interaction->UpdateInteraction(Bell->HoldSeconds * 0.5f + 0.01f);
 	TestTrue(TEXT("Held: it rings"), Bell->IsRinging());
-	TestEqual(TEXT("...and the bell's step is done"), Runner->GetStep(MainFour), 3);
+	TestEqual(TEXT("...and the bell's step is done"), Runner->GetStep(MainFour), BellStep + 1);
 	Interaction->ReleaseInteract();
 	Interaction->UpdateInteraction(0.f);
 	TestTrue(TEXT("Swinging, it can't be rung: never looked at"), !Bell->CanRing() && Interaction->GetFocusedActor() == nullptr);
@@ -154,36 +154,46 @@ bool FHallowedGroundGraveSightTest::RunTest(const FString& Parameters)
 		AddError(TEXT("The test level isn't whole."));
 		return false;
 	}
-	Runner->BeginForTesting({ MakeMainFourAt(CreatePackage(nullptr), 3) }, Campaign, Player, Valley);
+	Runner->BeginForTesting({ MakeMainFourAt(CreatePackage(nullptr), ReliquaryStep) }, Campaign, Player, Valley);
 	Runner->Update(0.f);
 	TestEqual(TEXT("Main 4 on its way up"), Runner->GetStep(MainFour), 0);
 	TestTrue(TEXT("Before its step the Reliquary isn't offered"), !Reliquary->CanLook()
 		&& !Reliquary->GetInteractionOptions(*Interaction).bUsable && !Reliquary->Look(Player) && !Sight->IsFlashing());
 
-	Runner->SetStep(MainFour, 3);
+	Runner->SetStep(MainFour, ReliquaryStep);
 	const FInteractionOptions Options = Reliquary->GetInteractionOptions(*Interaction);
 	TestTrue(TEXT("At its step: a tap, \"Look at the Reliquary\""), Options.bUsable && Options.bTap && !Options.bHold
 		&& Options.TapPrompt.ToString() == TEXT("Look at the Reliquary"));
 	if (!Reliquary->HasModel())
 	{
-		AddInfo(TEXT("The smashed Reliquary isn't imported in this checkout: its stand-in stands in."));
-		TestTrue(TEXT("The stand-in's ember starts over its lid"), Reliquary->GetEmberStart().Z > Reliquary->GetActorLocation().Z + 60.0);
+		AddInfo(TEXT("The whole Reliquary isn't imported in this checkout: its stand-in stands in."));
+		TestTrue(TEXT("The stand-in's ember lies in the recess over its lid"), Reliquary->GetEmberStart().Z > Reliquary->GetActorLocation().Z + 60.0);
 	}
+	// A Coal Under Ash (2026-11-01): whole, her ember guttering low before anyone looks; never out.
+	Reliquary->Advance(0.1f);
+	const float Gutter = Reliquary->GetEmberGlow();
+	TestTrue(TEXT("Before the look: her ember gutters, low but lit"), Gutter > 0.f && Gutter <= 7.01f && !Reliquary->IsLit());
 	const FVector EmberFrom = Reliquary->GetEmberStart();
 	TestTrue(TEXT("Looked at"), Reliquary->Look(Player));
 	TestTrue(TEXT("...the flash on the screen, two seconds"), Sight->IsFlashing() && FMath::IsNearlyEqual(Sight->GetFlash().GetSeconds(), 2.f));
 	TestFalse(TEXT("...and while it plays, it can't be looked at again"), Reliquary->CanLook() || Reliquary->Look(Player));
 	Reliquary->Advance(1.f);
 	Sight->Advance(1.f);
-	TestTrue(TEXT("A second in: the ember well up off the lid, burning"), Reliquary->GetEmberLocation().Z > EmberFrom.Z + Reliquary->EmberRise * 0.5
-		&& Reliquary->GetEmberGlow() > 0.f && Sight->GetFlash().GetOverlayAlpha() > 0.5f);
-	TestEqual(TEXT("...the step waits for the sight to end"), Runner->GetStep(MainFour), 3);
+	TestTrue(TEXT("A second in: her ember flares through the grey, lifting off the recess"), Reliquary->GetEmberGlow() > 2.f * Gutter
+		&& Reliquary->GetEmberLocation().Z > EmberFrom.Z + Reliquary->EmberRise * 0.5 && Sight->GetFlash().GetOverlayAlpha() > 0.5f);
+	TestEqual(TEXT("...the step waits for the sight to end"), Runner->GetStep(MainFour), ReliquaryStep);
 	Reliquary->Advance(1.1f);
 	Sight->Advance(1.1f);
-	TestTrue(TEXT("Two seconds: it times out, the ember gone"), !Reliquary->IsFlashing() && Reliquary->GetEmberGlow() == 0.f
+	TestTrue(TEXT("Two seconds: it times out, the flare sinking back under the ash"), !Reliquary->IsFlashing()
+		&& Reliquary->GetEmberGlow() > 0.f && Reliquary->GetEmberGlow() <= 7.01f && FMath::IsNearlyEqual(Reliquary->GetEmberLocation().Z, EmberFrom.Z, 1.0)
 		&& Reliquary->GetLooks() == 1);
 	TestTrue(TEXT("...the screen plain again"), !Sight->IsFlashing() && Sight->GetFlash().GetOverlayAlpha() == 0.f);
-	TestEqual(TEXT("...and the Reliquary's step done"), Runner->GetStep(MainFour), 4);
+	TestEqual(TEXT("...and the Reliquary's step done"), Runner->GetStep(MainFour), ReliquaryStep + 1);
+	// A hose drinking her: the gutter lower still (AChapelWindowHose sets it).
+	Reliquary->SetDrinking(true);
+	Reliquary->Advance(0.1f);
+	TestTrue(TEXT("Drunk by the hose: her ember lower"), Reliquary->IsDrinking() && Reliquary->GetEmberGlow() < 7.f * 0.41f);
+	Reliquary->SetDrinking(false);
 	TestTrue(TEXT("Over, it can be looked at again while its story allows"), Reliquary->CanLook());
 
 	// The console's way: past what the story allows.
@@ -198,8 +208,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHallowedGroundAldanaTest, "Looter.Story.Hallow
 
 bool FHallowedGroundAldanaTest::RunTest(const FString& Parameters)
 {
-	// Father Aldana's topics by the story: the door barred before Main 4 and while the yard is held, the bell and the
-	// Reliquary once it's quiet, the doc's words at Main 4's last step, the Sink after.
+	// Father Aldana's topics by the story (A Coal Under Ash): the door barred before Main 4 and while the yard is held, the
+	// knock answered, the bell, his call through the door while the barge's answer is fought, the Sink after.
 	FCampaignRecord Campaign;
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
@@ -233,33 +243,34 @@ bool FHallowedGroundAldanaTest::RunTest(const FString& Parameters)
 	Says(Topic);
 	TestEqual(TEXT("While the yard is held: barred"), Topic, static_cast<int32>(INDEX_NONE));
 	Campaign.ActiveMissionStep = 2;
-	Says(Topic);
-	TestEqual(TEXT("The yard quiet: the bell and the Reliquary"), Topic, 1);
-	Campaign.ActiveMissionStep = 3;
-	Says(Topic);
-	TestEqual(TEXT("...still, at the Reliquary"), Topic, 1);
-	Campaign.ActiveMissionStep = 4;
 	Lines = Says(Topic);
-	TestEqual(TEXT("Main 4's last step: his words"), Topic, 0);
-	TestTrue(TEXT("...the doc's, in order, in his name"), HoldsAldanasWords(Lines, /*bNamed*/ true));
-	TestTrue(TEXT("...and Ellis asks, by name"), Lines.ContainsByPredicate([](const FStoryLine& Line)
+	TestEqual(TEXT("The yard quiet: the knock answered"), Topic, 2);
+	TestTrue(TEXT("...\"Then ring her bell.\""), Lines.ContainsByPredicate([](const FStoryLine& Line)
 	{
-		return Line.Speaker.ToString() == TEXT("Ellis");
+		return Line.Text.ToString() == AldanaWaiting;
 	}));
+	Campaign.ActiveMissionStep = BellStep;
+	Says(Topic);
+	TestEqual(TEXT("...the bell waiting"), Topic, 1);
+	Campaign.ActiveMissionStep = ReliquaryStep;
+	Says(Topic);
+	TestEqual(TEXT("The barge's answer: he calls through the door"), Topic, 0);
+	Campaign.ActiveMissionStep = ReliquaryStep + 1;
+	Says(Topic);
+	TestTrue(TEXT("Ready to turn in: no topic of his own (the turn-in's words are the mission's)"), Topic != 0);
 	Campaign.Complete(MainFour);
 	Says(Topic);
-	TestEqual(TEXT("After Main 4: a word about the Sink, not his words again"), Topic, 2);
+	TestEqual(TEXT("After Main 4: a word about the Sink"), Topic, 3);
 
 	// The words as the story script writes them, when it has.
 	if (const UStoryLineSet* Main = LoadLines(TEXT("DA_Lines_AldanaMain4")))
 	{
 		TestTrue(TEXT("His Main 4 set holds the doc's words, in order, in his own voice"), HoldsAldanasWords(Main->Lines, /*bNamed*/ false));
-		TestTrue(TEXT("...ending \"Look in the Sink.\""), !Main->Lines.IsEmpty()
+		TestTrue(TEXT("...ending on the Sink"), !Main->Lines.IsEmpty()
 			&& Main->Lines.Last().Text.ToString() == AldanaWords[AldanaWordCount - 1]);
-		// (Hob's road, bell and knock perches went silent 2026-10-21, and his Main 4 tap went: the yard's and the Reliquary's
-		// words carry it.)
-		const TCHAR* const Others[] = { TEXT("DA_Lines_AldanaBarred"), TEXT("DA_Lines_AldanaWaiting"), TEXT("DA_Lines_AldanaAfterMain4"),
-			TEXT("DA_Lines_HobMain4Yard"), TEXT("DA_Lines_HobMain4Reliquary") };
+		const TCHAR* const Others[] = { TEXT("DA_Lines_AldanaBarred"), TEXT("DA_Lines_AldanaWaiting"), TEXT("DA_Lines_AldanaBell"),
+			TEXT("DA_Lines_AldanaAnswer"), TEXT("DA_Lines_AldanaAfterMain4"), TEXT("DA_Lines_HobMain4Yard"), TEXT("DA_Lines_HobMain4Reliquary"),
+			TEXT("DA_Lines_Main4VaneBell"), TEXT("DA_Lines_Main4VaneHose"), TEXT("DA_Lines_FinchReliquary") };
 		for (const TCHAR* Name : Others)
 		{
 			TestNotNull(*FString::Printf(TEXT("%s is made"), Name), LoadLines(Name));

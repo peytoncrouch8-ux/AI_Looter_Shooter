@@ -129,9 +129,10 @@ LINES = {
         (THADDEUS, "A cellar wants keeping. I'll keep it."))),
 }
 
-# What every hero but Ellis sees in place of a readable's model (2026-10-20, the hero pick: AReadableProp.OtherMesh):
-# the keepers' roll with no ELLIS painted out under ABEL (Art/Models/Props/MissionProps.py KeepersRoll_Bare).
-OTHER_MESHES = {'KeepersRoll': 'KeepersRoll_Bare'}
+# What every hero but Ellis sees in place of a readable's model (2026-10-20, the hero pick: AReadableProp.OtherMesh).
+# None now (2026-11-01, lane MAIN45): Sully is a Warden, so no ELLIS shows under ABEL for anyone; the keepers' roll's
+# first model to try is KeepersRoll_Bare (Art/Models/Props/MissionProps.py), the bare one.
+OTHER_MESHES = {}
 
 # The readables: id -> (title, heading, text, lines after, prompt, models to try in order). The design's words.
 READABLES = {
@@ -140,8 +141,9 @@ READABLES = {
         (HOB, "So were you, sunshine. Briefly.")), "Look", ()),
     'KeepersRoll': ("The keepers' roll", "Painted on a plank in the nave",
                     "KEEPERS OF THE LANTERN\nSAINT ADA'S, RANSOM'S REST\n\nSILAS RANSOM\nHANNAH RANSOM\nJONAS RANSOM\n"
-                    "ABEL RANSOM\n\nUnder Abel's name a line has been painted out in white. It still shows through: ELLIS.",
-                    say((HOB, "Heir to the family business, sunshine. Funny how that goes.")), "Read", ('KeepersRoll',)),
+                    "ABEL RANSOM\n\nThe last name is fresh paint. There is room under it, and nobody to put there.",
+                    say((HOB, "Ninety years of Ransoms kept her lit. Not one of them got a hose.")), "Read",
+                    ('KeepersRoll_Bare', 'KeepersRoll')),
     'SheriffHat': ("A lawman's hat", "By the den's mouth", "Chewed through the crown. The band reads W. ODELL.", say(
         (HOB, "Whatever lives in that hole had the sheriff for supper.")), "Look", ()),
     'SheriffBadge': ("Sheriff Odell's badge", "In the webbing", "A tin star bent nearly double. SHERIFF, it says, and under "

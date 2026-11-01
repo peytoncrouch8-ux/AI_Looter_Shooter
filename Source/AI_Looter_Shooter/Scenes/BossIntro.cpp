@@ -231,7 +231,8 @@ const TArray<FStoryLine>& BossIntro::ScriptLines(EBossIntro Kind)
 		FStoryLine::Make(LOCTEXT("Teague", "Cyrus Teague"), LOCTEXT("ForemanLine0", "Dig. Keep digging. It was the roof.")),
 	};
 	static const TArray<FStoryLine> Abel = {
-		FStoryLine::Make(LOCTEXT("Hob", "Hob"), LOCTEXT("AbelLine0", "A keeper doesn't lie still while his saint is dark.")),
+		// (Main 7 since 2026-11-01: the corrupted Abel. DA_Lines_BossIntroAbel holds the same.)
+		FStoryLine::Make(LOCTEXT("Hob", "Hob"), LOCTEXT("AbelLine0", "That's a week of furnace on him. Burn it off, sunshine.")),
 	};
 	switch (Kind)
 	{

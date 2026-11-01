@@ -230,6 +230,9 @@ namespace
 		case EPathRank::Gravebound:
 			Odds.Add({ ECreatureRank::Epic, 1.0 });
 			break;
+		case EPathRank::Hallowed:
+			Odds.Add({ ECreatureRank::Hallowed, 1.0 });
+			break;
 		case EPathRank::Own:
 			Odds.Add({ Creature.StartingRank, 1.0 });
 			break;
@@ -503,9 +506,10 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 		LevelOf(Curve, Played.WithoutRoaming) >= 5.0);
 	// The turn-ins carry most of a level, as in Borderlands. At least three fifths since the user's bigger fights (2026-10-21:
 	// 6-10 a fight and the set pieces put about 94 kills on the story's way, near 7,300 XP, and the missions were trimmed to
-	// hold the ends, so their share fell from 73% to about 66%); two thirds before.
-	TestTrue(FString::Printf(TEXT("Most of a level's worth is the turn-ins', not the kills': the missions give at least three fifths (%.0f%%)"),
-		Played.Total > 0.0 ? 100.0 * Played.FromMissions / Played.Total : 0.0), Played.FromMissions >= Played.Total * 3.0 / 5.0);
+	// hold the ends, so their share fell from 73% to about 66%); two thirds before. The floor is half since 2026-11-01 (the
+	// user's pick): Main 6's barge puts 20 Dredgers and the Chief Stoker on the main path (lane MAIN67), about 51% from missions.
+	TestTrue(FString::Printf(TEXT("Most of a level's worth is the turn-ins', not the kills': the missions give at least half (%.0f%%)"),
+		Played.Total > 0.0 ? 100.0 * Played.FromMissions / Played.Total : 0.0), Played.FromMissions >= Played.Total * 0.5);
 
 	// Everything once: every mission (the valley's side missions, the Gravemother, the mountain's three), every optional
 	// camp, patrol and ambush, the roaming dead once.

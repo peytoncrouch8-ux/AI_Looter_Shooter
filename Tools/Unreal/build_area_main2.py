@@ -379,7 +379,7 @@ def place_shrouds(build, deck):
     length = max(hi.x - lo.x, hi.y - lo.y, 1.0)
     scale = SHROUD_LENGTH / length
     shown = [story.condition(after=[MAIN1])]
-    hidden = [story.condition(after=[MAIN7])]
+    hidden = [story.condition(after=[MAIN7]), texts().condition(dict(with_flags=['Main7.SaintAdaAwake']))]
     for k in SHROUD_BIERS:
         spot = deck.biers.get(k)
         if spot is None:

@@ -73,16 +73,16 @@ turn in shows a ! at whoever takes it.
 | S1 | Wanted: Already Dead | the poster on the town gate's post | artifact | M3 | 10 | Rare gun, 50 silver | Tilly |
 | V2 | The Old Fare (new) | Mr. Sloane, the station agent, through his door upstairs in the depot | talk | M3 | 12 | Rare Drover revolver, 30 silver | Josiah Fenn, in his coffin |
 | V3 | Lost and Found (2026-10-27) | Mr. Sloane, at his ticket window | talk | V2 | 4 | 20 silver; Lost Property opens | Mr. Sloane |
-| M4 | Hallowed Ground | Tilly, at her window | talk | M3 | 12 | 40 silver | Father Aldana, at the vestry door |
+| M4 | A Coal Under Ash (since 2026-11-01; was Hallowed Ground) | Tilly, at her window | on the move | M3 | 13 | 1,000 XP (1,300 until the 2026-11-01 Pacing trim), Saint Maud Uncommon (Hallow), 40 silver | Father Aldana, at the vestry door |
 | S2 | Unfinished Business | Amos Whitlock, at his fence | talk | M4 | 12 | Epic gun, 60 silver | Amos |
 | V1 | Knocking Below (new) | Tilly, at her window | talk | M4 | 12 | Rare gun, 40 silver | Tilly |
-| M5 | The Keeper's Lantern | Father Aldana, at the vestry door | talk | M4 | 10 | 50 silver | Father Aldana |
+| M5 | Choke Point (since 2026-11-01; was The Keeper's Lantern) | Father Aldana, at the vestry door | on the move | M4 | 13 | 1,400 XP (3,000 until the 2026-11-01 Pacing trim), 50 silver | Brother Finch, at the Reliquary |
 | S3 | The Gravemother | Sheriff Odell's bounty on the Rangers' board | board | M5 | 10 | 80 silver bounty; her Legendary table every kill | Mrs. Pruitt, at the store's hatch |
 | N1 | Dead Lift (new; **main** since 2026-10-27) | Hiram Coyle, the lift's dead engineman, in the winch house | met (talk) | M5 | 15 | Rare gun, 40 silver, the ore lift | Hiram, through the speaking tube at the lift head |
 | N2 | The Last Watch (new) | the board at Calder's Post | board | N1 | 12 | Calder's fourth cache, 60 silver | the post's board |
 | N3 | Back Pay (new; **main** since 2026-10-27) | Hiram, up the lift head's speaking tube (was No. 7's tag, an artifact) | met (talk) | N1 | 22 | the Foreman's Legendary table; pay the eleven (Rare gun) or keep the payroll (about 400 silver) | the tag board |
-| M6 | The Gravewind | Delia, at her door | talk | N3 (was M5) | 12 | Abel's boss loot | none: the scene with Pa |
-| M7 | The Lantern Leans | Pa, on his board | talk | M6 | 8 | Heirloom, 60 silver, the *Lily* on the station board | Tilly |
+| M6 | The Pilot Light (since 2026-11-01; was The Gravewind) | Captain Holloway, at the Lamplighter's wheel | met (talk) | N3 | 18 | 50 silver; the barge's manifest (Paid on Delivery) | Holloway, at the wheel |
+| M7 | Given to the Wind (since 2026-11-01; was The Lantern Leans) | Holloway (one conversation) | on the move | M6 | 20 | Abel's boss loot, Heirloom by hand, 60 silver, the *Lily* on the station board, the hearse car | Delia, at the chapel door |
 
 - **Since 2026-10-27 (the user's note 32):** the main path is M1–M5, N1, N3, M6, M7 (Cyrus Teague, the Foreman, the second
   boss; Abel the last), about 110 minutes; N1 and N3 are met first (no card), N3 straight after N1's turn-in at the
@@ -215,76 +215,58 @@ wasn't on him. Only its bail, snapped off in his fist."* / *"Couldn't open his h
 it used."* She hands the bail over (Main 6's item `LanternBail`, carried: hand_items) and the box (the reward gun). After:
 *"Every coffin in my cellar's salted, Warden. The hose won't have them."* (seeds Knocking Below).
 
-### Main 4: Hallowed Ground (Tilly; about 12 minutes)
+### Main 4: A Coal Under Ash (Tilly; about 13 minutes; since 2026-11-01)
 
-**Offer**, Tilly: *"Father Aldana sat up with your Pa the night they brought him down. If anyone knows where a keeper's
-lantern goes, it's the man who blessed it."* *"He's barred himself in the vestry since the dead came home. Knock loud."*
-**Card:** Father Aldana blessed your father's lantern every spring and sat up with his body the night he died. Since the
-dead came home he has barred himself in the chapel's vestry. The chapel yard is full of them.
-**Steps:**
-1. Go up the north road to the Chapel of Saint Ada. [Reach Place_Chapel]
-2. Clear the chapel yard. [Clear ChapelYard 13]
-3. Knock at the vestry door. [Talk Speaker_Aldana] **New talk:** *"Stay back from that door."* Ellis: *"Tilly sent me.
-   Pa's lantern."* Aldana: *"Abel's child. ...If the saint still knows you, she'll answer her bell. Ring it. Then look at
-   what was done to her."* (Today's AldanaWaiting line moves here.)
-4. Ring the chapel bell: hold {Interact} on the rope. [Interact Bell_Chapel, hold]
-5. Look at the Reliquary. [Event GraveSight.Reliquary]
-6. Optional: read the keepers' roll. [Interact, **new** KeepersRoll] A board in the nave lists every Ransom keeper since
-   the saint. Under ABEL a name has been painted out, and still shows through: ELLIS. Hob: *"Heir to the family business,
-   sunshine. Funny how that goes."*
+The design word for word: `Docs/Work/2026-10-31-Wardens/MAINS_2_7.md` section 6; as built: `lanes/MAIN45.md`
+(create_mission_assets.py, build_area_chapel.py, build_area_main4.py). Why: a keeper's lantern is lit from his saint; is she
+still alight? Ringing her bell tells the barge somebody's home.
+**Steps (from 0):** 0 the chapel [Reach Place_Chapel]; 1 the yard [Clear ChapelYard 16: eight Unpaid, then the crew's two
+hose-men, five Unpaid and the Gravebound Leftover] + the Company's hose out of the side window [Interact Hose_ChapelWindow,
+held 2 s, or its cart stopped]; 2 the knock [Talk Speaker_Aldana]; 3 the bell [Interact Bell_Chapel, held]; 4 her ember
+flares [Event GraveSight.Reliquary] + the barge's answer, a tender's drop on four ropes [Clear BellAnswered 6: four riflemen
+level 3, two hose-men level 4] + optional the keepers' roll (every Ransom keeper since the saint, ABEL RANSOM the last).
+**Turned in to Aldana** (card, then: she's a coal under ash; every grave open to the hose; Ned wouldn't break Abel's
+lantern; he threw it down the Sink). Brother Finch stands at the Reliquary from then (Speaker_FinchChapel). The Reliquary
+is whole, guttering (AChapelReliquary), its Tripo model M45-1 to come.
 
-**Turned in to Aldana** (today's Main 4 lines: *"A keeper's lantern can find an ember"* through *"Look in the Sink."*).
-The ChapelYard roost opens (section 8).
-**New:** the keepers' roll (a plank prop in the nave with an interact point and its text).
+### Main 5: Choke Point (Aldana; about 13 minutes; since 2026-11-01)
 
-### Main 5: The Keeper's Lantern (Aldana; about 10 minutes)
+The design: MAINS_2_7.md section 7; as built: lanes/MAIN45.md (build_area_sink.py, build_area_main5.py). Why: the lantern is
+in the Sink, and so is the barge's mouth; one trip, two jobs.
+**Steps (from 0):** 0 Junie's salt charges from Hob's satchel at the ramp head [Collect SaltCharges] + down [Reach
+Place_SinkFloor, height counted]; 1 the three egg sacs [Event EggSac.Burst ×3]; 2 Abel's lantern [Interact Lantern_Keeper:
+it must stay step 2]; 3 the Intake set piece [Interact Intake_Charge ×3, held 1.5 s, against its draw; two drops down the
+hose (two riflemen and a hose-man each, the second on the second charge), three spiders down the ramp on the first; a 5 s
+fuse, the draw doubled] + [Event Intake.Choked: the hose swings across the floor and hangs limp]; 4 out [Reach
+Place_SinkRim, height counted] + optional the sheriff's hat (W. ODELL; the smog pool drains, the Gravemother growls: Side
+3's hook). At the rim the barge lets a second hose down onto Larkspur High's new air shaft (until Back Pay is done).
+**Turned in to Brother Finch** at the Reliquary (card, then: the lantern whole; it'll burn like a sunrise with his soul in
+it; Junie: the second hose is down the mine's air shaft; Hob: the old ore lift). SmogThin from the turn-in.
 
-**Offer**, Aldana: *"Spiders hoard what a saint has touched, and your father's lantern was lit from her every night for
-thirty years. It's in the Sink, Ellis. I'd stake the chapel on it."*
-**Card:** The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. Spiders
-hoard anything a saint has touched. Go down into the Sink and bring it back.
-**Steps:**
-1. Climb down into the Sink. [Reach Place_SinkFloor, height counted]
-2. Shoot down the three egg sacs. [Event EggSac.Burst ×3]
-3. Take the Keeper's Lantern from the webbing. [Interact Lantern_Keeper] Hob: *"Dark as a shut eye, but whole. Missing
-   its bail. You've got that, sunshine."*
-4. Optional: look at the hat by the den. [Interact, **new** SheriffHat] A lawman's hat, chewed, the band reading W. ODELL.
-   Hob: *"Whatever lives in that hole had the sheriff for supper."* (Seeds Side 3.)
-5. Climb out of the Sink. [Reach Place_SinkRim, height counted]
+### Main 6: The Pilot Light (Holloway; about 18 minutes; lane MAIN67, 2026-11-01)
 
-**Turned in to Aldana**, with a twist before today's lines: he tries the altar candle on it and it won't take. *"It won't
-take a candle's flame. A keeper's lantern is lit from the saint, and the saint is out."* Ellis: *"Then how do I light
-it?"* *"I don't know. Take it home to your grandmother, Ellis. She'll know what's owed a keeper."* The question is
-Abel's to answer at the boards.
+The design: `Docs/Work/2026-10-31-Wardens/MAINS_2_7.md` section 10; as built: `lanes/MAIN67.md` (steps, tags and who
+places each in `Docs/Work/2026-10-31-Wardens/lanes/CONTRACT67.md`). Starved of both hoses, the barge comes down 25 m over the chapel knoll at dusk
+to hose Saint Ada herself. Met first at Holloway's wheel on the Mooring Ledge (accepting: dusk under thin smog,
+`DuskSmog`). 0 cast off (the anchor winch, reversed); 1 the Lamplighter flies east over the farm and town and two Company
+tenders attack (shoot their gas-bags; one boards three men); 2 the two starboard launchers grapple the barge, the plank
+drops; 3 the barge's top deck (BargeDeck 9, vents flaring every 6 s) to the furnace hatch, + optional jam the hose drum
+(`Pilot.DrumJammed`) and shoot out her four horns; 4 the manifest in the stoker's office (Paid on Delivery's item; Ned on
+the radio); 5 the furnace hall: three draft valves under the turning hot grate ring, the Chief Stoker (Hallowed, 7) and his
+crew in two pushes; 6 the soul cage: what comes out isn't Abel (CageBurst); 7 the barge dies, the jump to her deck, the
+barge falls into Gravewind Canyon (BargeFall). Turned in to Holloway at the wheel as she flies home and sets down.
+3,000 XP, 50 silver. After: the wreck burning in the canyon, soul coal strewn across the valley.
 
-### Main 6: The Gravewind (Delia; boss, about 12 minutes)
+### Main 7: Given to the Wind (Holloway; boss Abel, corrupted; about 20 minutes; lane MAIN67)
 
-**Offer**, Delia: *"Take him the lantern. Show him the way, even if he can't go."* (today's) *"He'll be on the boards at
-dusk. He won't know you, Ellis. Go anyway."* Accepting fades the Rest to dusk (`AStoryLighting`, as today).
-**Card:** At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the Keeper's
-Lantern on his post and show him the way, even if he can't go.
-**Steps:**
-1. Carry the lantern to Gravewind Point, by the west road or the keeper's path. [Reach Place_GravewindPoint] Optional:
-   take the keeper's path, the way the Ransoms walked their dead. [Reach Keeper's Bridge] Hob: *"Every Ransom for sixty
-   years walked the dead this way at sundown. Your Pa did it Tuesday."*
-2. Hang the lantern on the keeper's post by Pa's bail. [Interact LanternPost_Keeper]
-3. Defeat Abel Ransom, the Keeper. [KillNamed Boss_Abel]
-4. Sit with Pa. [Scene SitWithPa] He lights it from his ghost light; it leans north-east.
-
-**Finishes with the scene** (today's). The Keeper's Crossroads roost (open after Main 5, section 8) is on the way.
-
-### Main 7: The Lantern Leans (Pa; about 8 minutes)
-
-**Offer**, Pa on his board: *"She leans north-east, El. That's Purcell."* *"Your grandmother's kept something back for
-you. Go home and get it. Then go and bring Saint Ada home."*
-**Card:** Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell and the
-*Gilded Lily*. Go home to Delia first. Tilly's hearse car waits at the depot.
-**Steps:**
-1. Go home to Delia. [Talk Speaker_Delia] Heirloom out through the door (today's lines and `ADoorHandoff`).
-2. Optional: eat what's on the porch plate. [Interact PorchPlate] Pa asked it on his board (*"Eat it, even if you can't
-   taste it. She needs to see it gone."*). Delia, through the door: *"...Thank you, Ellis."*
-
-**Turned in to Tilly** (today's Main 7 lines), the *Lily* on the station board.
+The design: MAINS_2_7.md section 11. Started on the move after Main 6's turn-in. 0 the burial boards (+ optional free the
+souls in 12 lumps of the barge's coal; the keeper's path); 1 Abel's lantern on the keeper's post; 2 the fight: Abel
+Ransom, Corrupted (Smog bar, three gold "Abel" pips: at 66% and 33% the bar locks until a 1.5 s hold at the keeper's post
+calls him back; tendrils; phase 2 drinks the six shrouded dead, + optional save all six; phase 3's fog surge; at zero a 3 s
+hold); 3 FreeAbel (he steps into his own lantern); 4 carry him home to the chapel (WestRoadCrew's hose-men latch his
+light); 5 set the lantern on the Reliquary (SaintAdaWakes: the smog burns off in a wave, the dead go west on the Gravewind,
+Abel stays by her, Delia comes up the hill). Turned in to Delia at the chapel door: Heirloom by hand, the *Lily* on the
+station board, the hearse car coupled. 3,000 XP, 60 silver. After: Day; Abel's soul at the Reliquary; Finch back aboard.
 
 ### Side 1: Wanted: Already Dead (the gate's poster; about 10 minutes)
 

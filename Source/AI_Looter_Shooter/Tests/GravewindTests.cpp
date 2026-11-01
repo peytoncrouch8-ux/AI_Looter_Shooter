@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Bosses/AbelCorruption.h"
 #include "Bosses/AbelKeeper.h"
 #include "Bosses/BossComponent.h"
 #include "Bosses/BossSeal.h"
@@ -10,24 +11,19 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionPlayerObjectives.h"
 #include "Missions/MissionRunner.h"
+#include "Scenes/FreeAbel.h"
 #include "Scenes/SceneSubsystem.h"
-#include "Scenes/SitWithPa.h"
 #include "Session/CampaignRecord.h"
-#include "Story/AbelOnBoard.h"
 #include "Story/HobBird.h"
-#include "Story/SpeakerPoint.h"
-#include "Story/SpeakerPointComponent.h"
 #include "Tests/AbelTestWorld.h"
 #include "Tests/GravewindTestWorld.h"
 #include "Tests/MissionTestWorld.h"
 #include "World/DuskScenery.h"
 #include "World/KeeperLanternPost.h"
 #include "World/LightingStateSubsystem.h"
-#include "World/RespawnMarker.h"
 #include "World/StoryLighting.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
-#include "Components/PoseableMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
@@ -37,73 +33,23 @@
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
 
-// Main 6, "The Gravewind" (Docs/Areas/RansomsRest.md): Delia's word at the door, dusk, the lantern carried to Gravewind
-// Point and hung on the keeper's post, Abel's fight, and sitting with Pa; his board after it; the level as built.
+// Abel's fight on the burial boards at Gravewind Point, Main 7 "Given to the Wind" since 2026-11-01 (MAINS_2_7.md section 11;
+// it was Main 6 "The Gravewind", whose tests these were): the lantern carried there and hung on the keeper's post, Abel
+// called up out of the canyon fog, his fight with its call-backs, the last call and the scene, the lantern taken down lit,
+// the dusk under thin smog; the level as built; the Gravewind's scenery. (Main 7's asset and words are
+// GivenToTheWindTests.cpp's, lane W1; the carry home and the Reliquary are lane W5's.)
 
 using namespace GravewindTestWorld;
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravewindMissionTest, "Looter.Story.Gravewind.Mission",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravewindFightTest, "Looter.Story.Gravewind.Fight",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FGravewindMissionTest::RunTest(const FString& Parameters)
+bool FGravewindFightTest::RunTest(const FString& Parameters)
 {
-	// Main 6 as its asset has it: id exactly Main6, after Main 5 on Ransom's Rest, offered by Delia at her door (since the
-	// givers, 2026-10-13: the flows below still start it by her topic's event, as it was); to Gravewind Point (by Keeper's
-	// Bridge, optional) with Pa's lantern bail carried (its item, off Tilly's sill since Main 3), the lantern hung (a tap on
-	// the keeper's post), Abel defeated, the scene; 5,000 experience, as it ends.
-	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main6")))
-	{
-		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main6.DA_Mission_Main6"));
-		if (TestNotNull(TEXT("DA_Mission_Main6 loads"), Asset))
-		{
-			TestTrue(TEXT("Main6, a main mission on Ransom's Rest after Back Pay (since 2026-10-27), offered at Delia's door"), Asset->GetMissionId() == MainSix
-				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Offered
-				&& Asset->Offer.GiverTag == FName(TEXT("Speaker_Delia")) && !Asset->Offer.Lines.IsEmpty()
-				&& Asset->Area == FName(TEXT("RansomsRest")) && Asset->Prerequisites == TArray<FName>({ FName(TEXT("BackPay")) }));
-			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), MainSixSteps);
-			const UMissionObjective* Bridge = Asset->GetObjective(0, 1);
-			TestTrue(TEXT("...the keeper's path over Keeper's Bridge, optional, beside the first"), Bridge && Bridge->bOptional);
-			const UMissionCollectItemObjective* Bail = Cast<UMissionCollectItemObjective>(Asset->GetObjective(0, 2));
-			TestTrue(TEXT("...and Pa's lantern bail carried (required), the mission's own item"), Bail && !Bail->bOptional
-				&& Bail->Items == TArray<FName>({ FName(TEXT("LanternBail")) }) && Asset->FindItem(TEXT("LanternBail")) != nullptr);
-			const UMissionReachObjective* Point = Cast<UMissionReachObjective>(Asset->GetObjective(0, 0));
-			const UMissionInteractObjective* Hang = Cast<UMissionInteractObjective>(Asset->GetObjective(1, 0));
-			const UMissionKillNamedObjective* Defeat = Cast<UMissionKillNamedObjective>(Asset->GetObjective(2, 0));
-			const UMissionSceneObjective* Sit = Cast<UMissionSceneObjective>(Asset->GetObjective(3, 0));
-			TestTrue(TEXT("1: to Gravewind Point"), Point && Point->Place.Actor.ActorTag == PointPlace);
-			TestTrue(TEXT("2: the lantern hung on the keeper's post, a tap"), Hang && Hang->Target.ActorTag == AKeeperLanternPost::KeepersPostTag && !Hang->bHold);
-			TestTrue(TEXT("3: Abel defeated"), Defeat && Defeat->ActorTag == AAbelKeeper::BossTag);
-			TestTrue(TEXT("4: sit with Pa"), Sit && Sit->Scene == SitWithPa::SceneName());
-			// It finishes by itself as Pa sits down: that scene is its hand-in (his board, the lantern lit and the train's steam
-			// follow Main 6 finished), so there's no one to turn it in to.
-			TestTrue(TEXT("It finishes by itself, no turn-in"), Asset->TurnIn.bAutomatic && !Asset->NeedsTurnIn());
-			TestEqual(TEXT("Its reward: 5,000 experience"), Asset->Rewards.Experience, 5000);  // (4,400 from 2026-10-21; 5,000 again since 2026-10-27)
-			TestTrue(TEXT("Its steps are the ones Abel's story counts"), AAbelKeeper::HangStep == 1 && AAbelKeeper::FightStep == 2 && AAbelKeeper::SceneStep == 3);
-		}
-	}
-	else
-	{
-		AddWarning(TEXT("DA_Mission_Main6 isn't made yet: run Tools/Unreal/create_mission_assets.py. The flow below runs on a copy."));
-	}
-	// (The post's perch went silent 2026-10-21, and Hob's Main 6 tap went.)
-	const TCHAR* const LineSets[] = { TEXT("DA_Lines_DeliaMain6"), TEXT("DA_Lines_HobMain6Way"), TEXT("DA_Lines_HobMain6Fight"),
-		TEXT("DA_Lines_AbelOnBoard") };
-	int32 LinesMade = 0;
-	for (const TCHAR* Name : LineSets)
-	{
-		LinesMade += FPackageName::DoesPackageExist(FString(TEXT("/Game/Data/Story/")) + Name) ? 1 : 0;
-	}
-	if (LinesMade == 0)
-	{
-		AddWarning(TEXT("Main 6's line sets aren't made yet: run Tools/Unreal/create_story_lines.py."));
-	}
-	else
-	{
-		TestEqual(TEXT("Main 6's line sets are made, every one"), LinesMade, static_cast<int32>(UE_ARRAY_COUNT(LineSets)));
-	}
-
-	// Played through in a test level, the deck's middle at the origin and its gate 16 m toward -X.
+	// Played through in a test level, the deck's middle at the origin and its gate 16 m toward -X, on a copy of Main 7's
+	// fight steps: to the point, the lantern hung, Abel freed, the scene, then the carry.
 	AbelTestWorld::FScenesSetting ScenesOn(2);
+	AbelTestWorld::FTendrilsOff NoTendrils;
 	FCampaignRecord Campaign;
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
@@ -123,52 +69,36 @@ bool FGravewindMissionTest::RunTest(const FString& Parameters)
 	}
 	ALightingStates* States = SpawnDuskLevel(World);
 	AStoryLighting* StoryLight = SpawnStoryLighting(World);
-	ASpeakerPoint* Door = PlaceDeliasDoor(World, FVector(-5000.0, 300.0, 150.0));
 	AActor* Point = MissionTestWorld::SpawnMarker(World, FVector(-1600.0, 0.0, 120.0), PointPlace);
-	ARespawnMarker* Grave = World->SpawnActor<ARespawnMarker>(FVector(-2600.0, 0.0, 0.0), FRotator::ZeroRotator);
 	TArray<AKeeperLanternPost*> Posts;
-	AAbelOnBoard* OnBoard = nullptr;
-	AAbelKeeper* Abel = AbelTestWorld::SpawnAbel(World, /*bStory*/ true, &Posts, &OnBoard);
-	if (!Runner || !Lighting || !Scenes || !Player || !Interaction || !States || !StoryLight || !Door || !Point || !Grave || !Abel)
+	AAbelKeeper* Abel = AbelTestWorld::SpawnAbel(World, /*bStory*/ true, &Posts);
+	if (!Runner || !Lighting || !Scenes || !Player || !Interaction || !States || !StoryLight || !Point || !Abel)
 	{
 		AddError(TEXT("The test level isn't whole."));
 		return false;
 	}
 	AKeeperLanternPost* KeeperPost = Abel->GetKeepersPost();
 	SetUpKeepersPost(*KeeperPost);
-	Grave->MarkerId = KeepersGrave;
-	Grave->ActiveAfterMission = MainFive;
-	Grave->DispatchBeginPlay();
 	UPackage* Scratch = CreatePackage(nullptr);
-	UMissionDefinition* MainSixMission = MakeMainSix(Scratch);
-	Runner->BeginForTesting({ MakeMainFive(Scratch), MainSixMission }, Campaign, Player, Valley);
+	UMissionDefinition* MainSevenMission = MakeMainSeven(Scratch);
+	Runner->BeginForTesting({ MakeMainSix(Scratch), MainSevenMission }, Campaign, Player, Valley);
 	StoryLight->DispatchBeginPlay();
 	Runner->Update(0.f);
+	// Main 5 carried Abel's lantern up out of the Sink: the post's "Ellis has it" rule reads Main 5 past its taking step.
+	Campaign.Complete(TEXT("Main5"));
 
-	TestTrue(TEXT("Main 5 first; Main 6 waits for it"), Runner->IsRunning(MainFive) && Runner->GetStatus(*MainSixMission) == EMissionStatus::Locked);
-	TestFalse(TEXT("...Abel isn't on the boards in the day"), Abel->IsPresent());
-	TestFalse(TEXT("...the keeper's grave isn't open yet"), Grave->IsActive(Campaign));
+	TestFalse(TEXT("Before Main 7, Abel isn't on the boards"), Abel->IsPresent());
+	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Test.MainSixDone")));
+	Runner->NotifyEvent(FMissionEvent::Named(StartEvent));
+	TestTrue(TEXT("Main 7 starts: to Gravewind Point"), Runner->IsRunning(MainSeven) && Runner->GetStep(MainSeven) == 0);
+	TestTrue(TEXT("...the Rest at dusk, under thin smog"), Lighting->GetState() == DuskSmog);
+	TestFalse(TEXT("...the boards empty: he's down in the canyon fog"), Abel->IsPresent());
 
-	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Test.MainFiveDone")));
-	TestTrue(TEXT("Main 5 done: Main 6 waits for Delia's word"), Campaign.HasCompleted(MainFive) && !Runner->IsRunning(MainSix));
-	TestTrue(TEXT("...the keeper's grave is open (Ellis wakes there if Pa wins)"), Grave->IsActive(Campaign));
-	TestTrue(TEXT("...still day"), Lighting->GetState() == ALightingStates::DayState);
-
-	// Delia, through the door: "Take him the lantern..." starts it, and the Rest fades to dusk.
-	TestEqual(TEXT("Delia's word"), Door->SpeakerPoint->GetLinesNow().Num() > 0 ? Door->SpeakerPoint->GetLinesNow()[0].Text.ToString() : FString(), FString(DeliaLine));
-	TestTrue(TEXT("Talked to at her door"), Door->SpeakerPoint->Talk(Player));
-	TestTrue(TEXT("Main 6 starts: carry the lantern to Gravewind Point"), Runner->IsRunning(MainSix) && Runner->GetStep(MainSix) == 0);
-	TestTrue(TEXT("...the Rest at dusk"), Lighting->GetState() == Dusk);
-	TestTrue(TEXT("...Pa walks the boards"), Abel->IsPresent() && Abel->IsPassive());
-	TestTrue(TEXT("...unhurt by anything, his fight not yet to start"), Abel->FindComponentByClass<UHealthComponent>()->bInvulnerable
-		&& Abel->GetBoss()->EngageRadius == 0.f && !Abel->GetBoss()->IsFighting());
-	TestFalse(TEXT("...nothing to hang yet"), KeeperPost->CanHang());
-
-	// At Gravewind Point: hang the lantern on the keeper's post.
+	// At Gravewind Point: hang the lantern on the keeper's post; his own lantern calls him up.
 	Player->SetActorLocation(Point->GetActorLocation() + FVector(200.0, 0.0, 0.0));
 	Runner->Update(0.2f);
-	TestEqual(TEXT("At the Keeper's Gate: hang it on the keeper's post"), Runner->GetStep(MainSix), 1);
-	TestTrue(TEXT("...Ellis has the lantern, and the post takes it"), KeeperPost->CanHang());
+	TestEqual(TEXT("At the Keeper's Gate: hang it on the keeper's post"), Runner->GetStep(MainSeven), 1);
+	TestTrue(TEXT("...Sully has the lantern, and the post takes it"), KeeperPost->CanHang());
 	const TOptional<FVector> PostAt = KeeperPost->GetInteractionLocation();
 	if (TestTrue(TEXT("The keeper's post can be found"), PostAt.IsSet()))
 	{
@@ -180,84 +110,51 @@ bool FGravewindMissionTest::RunTest(const FString& Parameters)
 	Interaction->PressInteract();
 	Interaction->ReleaseInteract();
 	TestTrue(TEXT("Hung, dark"), KeeperPost->IsKeepersLanternHung() && !KeeperPost->IsKeepersLanternLit());
-	TestEqual(TEXT("...defeat Abel"), Runner->GetStep(MainSix), 2);
+	TestEqual(TEXT("...free Abel"), Runner->GetStep(MainSeven), 2);
+	TestTrue(TEXT("...he's there now (in a test level he's on the boards at once; in play he comes up out of the fog)"), Abel->IsPresent());
 	TestTrue(TEXT("...a player on the deck starts his fight"), Abel->GetBoss()->EngageRadius >= FVector::Dist2D(Player->GetActorLocation(), Abel->GetHome().GetLocation()));
 
-	// His fight (started as a player on the deck starts it; a test level has no player controller to find).
+	// His fight: the bar locks at 66% and at 33% until he's called back at the post; his pips fill.
 	Abel->GetBoss()->StartFight(Player);
 	TestTrue(TEXT("The fight is on, and he can be hurt"), Abel->GetBoss()->IsFighting() && !Abel->FindComponentByClass<UHealthComponent>()->bInvulnerable);
+	UAbelCorruptionComponent* Corruption = Abel->GetCorruption();
+	BossTestWorld::HurtTo(*Abel->GetBoss(), AbelRules::HoseShare);
+	TestTrue(TEXT("At 66%: locked, knelt for the call-back"), Corruption->IsLocked() && Corruption->IsKneeling() && KeeperPost->IsCallBackOpen());
+	Interaction->UpdateInteraction(0.f);
+	TestTrue(TEXT("...the keeper's post says \"Call him back\", a hold"), Interaction->GetFocusedActor() == KeeperPost
+		&& Interaction->GetFocusedOptions().bHold && Interaction->GetFocusedOptions().HoldPrompt.ToString() == TEXT("Call him back"));
+	TestTrue(TEXT("Called back: the first pip"), AbelTestWorld::CallBack(Abel, Player) && Corruption->GetPips() == 1);
+	TestTrue(TEXT("...the hung lantern warms a third"), FMath::IsNearlyEqual(KeeperPost->GetCallGlow(), 1.f / 3.f, 0.01f));
+	// (The fog and its lanterns are AbelFightTests'; here, back on the deck for the last third.)
+	for (AKeeperLanternPost* Post : Posts)
+	{
+		Post->Relight(Player);
+	}
+	AbelTestWorld::Run(Abel, Abel->DriftSeconds + Abel->DragBackSeconds + 4.f);
+	BossTestWorld::KillAdds(*Abel->GetBoss());
+	BossTestWorld::HurtTo(*Abel->GetBoss(), AbelRules::KeeperShare);
+	TestTrue(TEXT("At 33%: locked again"), Corruption->IsLocked());
+	TestTrue(TEXT("Called back: the second pip"), AbelTestWorld::CallBack(Abel, Player) && Corruption->GetPips() == 2);
+	TestTrue(TEXT("...and none of the six drunk: they're saved (the optional's event)"), Corruption->NumDrunk() == 0);
+
+	// At zero: the last call; then the scene; the lantern taken down lit; the carry home.
 	BossTestWorld::Kill(Abel);
-	TestEqual(TEXT("Beaten: sit with Pa"), Runner->GetStep(MainSix), 3);
+	TestEqual(TEXT("Beaten: call him home"), Runner->GetStep(MainSeven), 3);
 	TestTrue(TEXT("...he kneels, still there"), Abel->IsPresent() && Abel->GetMove() == EAbelMove::Kneel);
 	AbelTestWorld::Run(Abel, 2.2f);
-	TestTrue(TEXT("The scene plays"), Scenes->IsPlaying() && Scenes->GetPlayingName() == SitWithPa::SceneName());
+	TestTrue(TEXT("The last call is open at the post"), Corruption->IsFinalCallOpen() && KeeperPost->IsCallBackOpen() && !Scenes->IsPlaying());
+	TestTrue(TEXT("Called home"), AbelTestWorld::CallBack(Abel, Player));
+	AbelTestWorld::Run(Abel, AbelTestWorld::Frame);
+	TestTrue(TEXT("The scene plays"), Scenes->IsPlaying() && Scenes->GetPlayingName() == FreeAbel::SceneName());
 	Scenes->SkipScene();
 	Runner->Update(0.2f);
-	TestTrue(TEXT("Main 6 is finished"), Campaign.HasCompleted(MainSix) && !Runner->IsRunning(MainSix));
-	TestTrue(TEXT("...the Keeper's Lantern hangs lit, leaning north-east"), KeeperPost->IsKeepersLanternLit() && KeeperPost->GetLeanDirection().Y > 0.6);
-	TestTrue(TEXT("...Pa on his board, the boss gone"), OnBoard->IsShown() && !Abel->IsPresent());
-	TestTrue(TEXT("...and it stays dusk"), Lighting->GetState() == Dusk);
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravewindFriendTest, "Looter.Story.Gravewind.Friend",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FGravewindFriendTest::RunTest(const FString& Parameters)
-{
-	// Pa on his board for the rest of the game: there after Main 6, sat, wearing his things, turning his head to whoever talks.
-	FCampaignRecord Campaign;
-	FTestWorldWrapper TestLevel;
-	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
-	{
-		return false;
-	}
-	UWorld* World = TestLevel.GetTestWorld();
-	UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
-	ACharacter* Listener = BossTestWorld::SpawnPlayer(World, AbelTestWorld::Board + FVector(150.0, 250.0, 0.0));
-	AAbelOnBoard* OnBoard = AbelTestWorld::PlaceBoard(World);
-	if (!Runner || !Listener || !OnBoard)
-	{
-		AddError(TEXT("The test level isn't whole."));
-		return false;
-	}
-	OnBoard->SpeakerPoint->Lines = { FStoryLine::Make(FText::GetEmpty(), FText::FromString(TEXT("Sit a while, El."))) };
-	UPackage* Scratch = CreatePackage(nullptr);
-	Runner->BeginForTesting({ MakeMainFive(Scratch), MakeMainSix(Scratch) }, Campaign, Listener, Valley);
-	OnBoard->DispatchBeginPlay();
-	TestTrue(TEXT("Shown after Main 6, by the class's own story"), OnBoard->ShownWhen.AfterMissions.Contains(MainSix));
-	TestFalse(TEXT("Before Main 6 his board is empty"), OnBoard->IsShown());
-	Campaign.Complete(MainFive);
-	Campaign.Complete(MainSix);
-	OnBoard->RefreshShown();
-	TestTrue(TEXT("After it, there he sits"), OnBoard->IsShown());
-	TestTrue(TEXT("Tagged for the console and the missions"), OnBoard->ActorHasTag(AAbelOnBoard::SpeakerTag));
-	TestTrue(TEXT("His speaker point is at his head, over the board"), OnBoard->SpeakerPoint->GetComponentLocation().Z - OnBoard->GetActorLocation().Z > 60.0);
-	TestTrue(TEXT("His ghost light lights his bier and the deck, never him (its own lighting channel)"),
-		AbelRules::IsOnGhostChannel(*OnBoard->LanternLight) && !AbelRules::DoesGhostLightReach(*OnBoard->Figure)
-		&& !AbelRules::DoesGhostLightReach(*OnBoard->Hat) && !AbelRules::DoesGhostLightReach(*OnBoard->Lantern) && !AbelRules::DoesGhostLightReach(*OnBoard->Pump));
-
-	if (!OnBoard->Figure->GetSkinnedAsset())
-	{
-		AddWarning(TEXT("SK_Abel isn't imported (or wasn't when the editor started): his seated body isn't checked."));
-		return true;
-	}
-	TestTrue(TEXT("Seated"), OnBoard->IsSeated());
-	const FVector Pelvis = OnBoard->Figure->GetBoneLocationByName(TEXT("pelvis"), EBoneSpaces::ComponentSpace);
-	TestTrue(FString::Printf(TEXT("...his pelvis a hand over the board (%.1f cm, at size 1)"), Pelvis.Z), FMath::IsNearlyEqual(Pelvis.Z, 10.0, 1.5));
-	TestTrue(TEXT("His hat, lantern and pump on their bones"), OnBoard->Hat->GetAttachSocketName() == FName(TEXT("hat"))
-		&& OnBoard->Lantern->GetAttachSocketName() == FName(TEXT("lantern")) && OnBoard->Pump->GetAttachSocketName() == FName(TEXT("gun")));
-
-	// Talked to, he turns his head to the listener while his line plays.
-	const FQuat Still = OnBoard->Figure->GetBoneRotationByName(TEXT("head"), EBoneSpaces::ComponentSpace).Quaternion();
-	TestTrue(TEXT("Talked to"), OnBoard->SpeakerPoint->Talk(Listener));
-	for (int32 Step = 0; Step < 20; ++Step)
-	{
-		OnBoard->UpdatePose(0.05f);
-	}
-	const FQuat Turned = OnBoard->Figure->GetBoneRotationByName(TEXT("head"), EBoneSpaces::ComponentSpace).Quaternion();
-	TestTrue(FString::Printf(TEXT("...he turns his head to them (%.0f degrees)"), FMath::RadiansToDegrees(Still.AngularDistance(Turned))),
-		FMath::RadiansToDegrees(Still.AngularDistance(Turned)) > 10.0);
+	TestEqual(TEXT("Main 7 goes on: carry him home"), Runner->GetStep(MainSeven), CarryStep);
+	TestTrue(TEXT("...the Keeper's Lantern lit and off the hook (carried)"), KeeperPost->IsKeepersLanternLit() && KeeperPost->IsKeepersLanternTaken()
+		&& !KeeperPost->KeepersLantern->IsVisible());
+	TestTrue(TEXT("...Abel gone from the boards, in his lantern"), !Abel->IsPresent() && Abel->IsEndingDone());
+	KeeperPost->RefreshStory();
+	TestTrue(TEXT("...and it stays off the hook as the story reads it again"), !KeeperPost->KeepersLantern->IsVisible());
+	TestTrue(TEXT("...still dusk under thin smog until Saint Ada wakes"), Lighting->GetState() == DuskSmog);
 	return true;
 }
 
@@ -266,10 +163,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravewindPlacedTest, "Looter.Story.Gravewind.P
 
 bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 {
-	// Ransom's Rest as built (Tools/Unreal/build_area_deck.py): Abel on the deck facing the sunset, its three lantern posts
-	// (one the keeper's), the eight biers, his board, the fog wall across the Keeper's Gate pointed to by his boss, the story's
-	// dusk, Gravewind Point's place, and Hob's perches in Main 6. (The keeper's crossroads roost went with the cut to two a
-	// map, 2026-10-14: Looter.Roost.Placed.PerMap.)
+	// Ransom's Rest as built (Tools/Unreal/build_area_deck.py): Abel on the deck facing the sunset with the six dead's spots,
+	// its three lantern posts (one the keeper's, its call-back's post), the eight biers, the fog wall across the Keeper's Gate
+	// pointed to by his boss, the story's dusk (DuskSmog in Main 7), Gravewind Point's place, and Hob's perches in Main 7. Pa's
+	// board is gone (2026-11-01: Abel is carried home in his lantern).
 	if (!FPackageName::DoesPackageExist(TEXT("/Game/Maps/Lvl_RansomsRest")))
 	{
 		AddInfo(TEXT("Lvl_RansomsRest isn't built: skipped."));
@@ -282,7 +179,6 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	const AAbelKeeper* Abel = nullptr;
-	const AAbelOnBoard* OnBoard = nullptr;
 	const AStoryLighting* StoryLight = nullptr;
 	const AHobBird* Hob = nullptr;
 	TArray<const AKeeperLanternPost*> Posts;
@@ -298,7 +194,6 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 			continue;
 		}
 		Abel = Abel ? Abel : Cast<AAbelKeeper>(Actor);
-		OnBoard = OnBoard ? OnBoard : Cast<AAbelOnBoard>(Actor);
 		StoryLight = StoryLight ? StoryLight : Cast<AStoryLighting>(Actor);
 		Hob = Hob ? Hob : Cast<AHobBird>(Actor);
 		if (const AKeeperLanternPost* Post = Cast<AKeeperLanternPost>(Actor))
@@ -320,18 +215,19 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 		}
 		bPoint |= Actor->ActorHasTag(PointPlace);
 	}
-	if (!Abel && Posts.IsEmpty() && !OnBoard)
+	if (!Abel && Posts.IsEmpty())
 	{
-		AddWarning(TEXT("Main 6's pieces aren't placed yet: build the C++, then run Tools/Unreal/build_area.py RansomsRest gameplay."));
+		AddWarning(TEXT("Main 7's fight isn't placed yet: build the C++, then run Tools/Unreal/build_area.py RansomsRest gameplay."));
 		return true;
 	}
 	if (TestNotNull(TEXT("Abel on the deck"), Abel))
 	{
-		TestTrue(TEXT("...tagged for Main 6, during Main 6"), Abel->ActorHasTag(AAbelKeeper::BossTag) && Abel->PresentWhen.DuringMission == MainSix);
+		TestTrue(TEXT("...tagged for Main 7, there from its fight step"), Abel->ActorHasTag(AAbelKeeper::BossTag) && Abel->PresentWhen.DuringMission == MainSeven
+			&& Abel->PresentWhen.FromStep == AAbelKeeper::FightStep);
 		const ABossSeal* Seal = Abel->GetBoss() ? Abel->GetBoss()->Seal.Get() : nullptr;
 		TestTrue(TEXT("...his fog wall across the Keeper's Gate"), Seal && Seal->Shape == EBossSealShape::Gate && Seal->IsInside(Abel->GetActorLocation(), 300.f));
 		TestEqual(TEXT("...his three lantern posts"), Abel->LanternPosts.Num(), 3);
-		TestTrue(TEXT("...his board"), Abel->OnBoard != nullptr);
+		TestEqual(TEXT("...the six dead's spots on the boards (build_area_main2.py's shrouds)"), Abel->GetCorruption()->BoardsDead.Num(), 6);
 		TestTrue(TEXT("...the fog's spot out over the canyon, past the open end"), Abel->FogSpot.IsNearlyZero()
 			|| FVector::Dist2D(Abel->FogSpot, Abel->GetActorLocation()) > Abel->OpenEndDistance);
 	}
@@ -341,28 +237,27 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 	{
 		if (Post->bKeepersPost)
 		{
-			TestTrue(TEXT("...its lantern hung in Main 6's second step, lit after it"), Post->HangWhen.DuringMission == MainSix
-				&& Post->HangWhen.FromStep == AAbelKeeper::HangStep && Post->LitWhen.AfterMissions.Contains(MainSix));
+			TestTrue(TEXT("...its lantern hung in Main 7's second step, gone from the hook from its carry step"), Post->HangWhen.DuringMission == MainSeven
+				&& Post->HangWhen.FromStep == AAbelKeeper::HangStep && Post->GoneWhen.ContainsByPredicate([](const FStoryCondition& When)
+				{
+					return When.DuringMission == MainSeven && When.FromStep == CarryStep;
+				}));
 		}
 		TestTrue(TEXT("...each the post's model"), Post->Post->GetStaticMesh() && Post->Post->GetStaticMesh()->GetName() == TEXT("SM_KeeperLanternPost"));
 	}
 	TestEqual(TEXT("Eight biers on the deck"), Biers, 8);
 	TestEqual(TEXT("...each lit by Abel's lantern (his lighting channel; if not, run build_area.py RansomsRest gameplay again)"), BiersLit, Biers);
-	if (TestNotNull(TEXT("Pa's board"), OnBoard))
-	{
-		TestTrue(TEXT("...after Main 6"), OnBoard->ShownWhen.AfterMissions.Contains(MainSix));
-	}
 	if (TestNotNull(TEXT("The story's dusk"), StoryLight))
 	{
-		TestTrue(TEXT("...Main 6 at dusk"), StoryLight->Rules.ContainsByPredicate([](const FStoryLightingRule& Rule)
+		TestTrue(TEXT("...Main 7 at dusk under thin smog"), StoryLight->Rules.ContainsByPredicate([](const FStoryLightingRule& Rule)
 		{
-			return Rule.When.DuringMission == MainSix && Rule.State == Dusk;
+			return Rule.When.DuringMission == MainSeven && Rule.State == DuskSmog;
 		}));
 	}
 	TestTrue(TEXT("Gravewind Point's place"), bPoint);
 	if (TestNotNull(TEXT("Hob"), Hob))
 	{
-		TestTrue(TEXT("Hob has perches in Main 6"), Hob->Perches.ContainsByPredicate([](const FHobPerch& Perch) { return Perch.When.DuringMission == MainSix; }));
+		TestTrue(TEXT("Hob has perches in Main 7"), Hob->Perches.ContainsByPredicate([](const FHobPerch& Perch) { return Perch.When.DuringMission == MainSeven; }));
 	}
 	if (Wisps == 0 && Fogs == 0)
 	{

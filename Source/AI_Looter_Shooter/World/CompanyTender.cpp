@@ -36,9 +36,10 @@ namespace
 	constexpr float HingeOut = 120.f;
 	constexpr float PlankLength = 300.f;
 
-	/** Alongside: this far out from her middle and this much higher, so its riflemen look down onto her deck (cm). */
-	constexpr float AlongsideOut = 850.f;
-	constexpr float AlongsideUp = 110.f;
+	/** Alongside: this far out from her middle and this much higher, so its riflemen look down onto her deck (cm; the class's,
+	 *  so Main 6's boarding escort keeps the same station and its plank reaches her rail). */
+	constexpr float AlongsideOut = ACompanyTender::StationOut;
+	constexpr float AlongsideUp = ACompanyTender::StationUp;
 	/** Where its run in starts in her frame: astern, out and above, angled in (cm, degrees). */
 	const FVector ApproachFrom(-6500.0, 3200.0, 1800.0);
 	constexpr float ApproachYaw = 18.f;
@@ -115,6 +116,19 @@ ACompanyTender::ACompanyTender()
 		Launcher->SetRelativeScale3D(FVector(0.22, 0.22, 1.1));
 		Launchers.Add(Launcher);
 	}
+
+	// Main 6's escorts' weak spot: round the gas-bag along the hull, a little bigger than it so a near miss counts. Off (no
+	// collision at all) unless it's an escort: Landfall's tender never takes a shot on its bag.
+	BagHit = CreateDefaultSubobject<UCapsuleComponent>(TEXT("BagHit"));
+	BagHit->SetupAttachment(Root);
+	BagHit->InitCapsuleSize(150.f, 500.f);
+	BagHit->SetRelativeLocationAndRotation(FVector(0.0, 0.0, BagHeight - 40.0), FRotator(90.0, 0.0, 0.0));
+	BagHit->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BagHit->SetCollisionObjectType(ECC_WorldDynamic);
+	BagHit->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BagHit->SetGenerateOverlapEvents(false);
+	BagHit->SetCanEverAffectNavigation(false);
+	BagHit->SetHiddenInGame(true);
 }
 
 ACompanyTender* ACompanyTender::SpawnFor(ALamplighterShip& ForShip)
@@ -156,6 +170,10 @@ void ACompanyTender::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	LooterSound::Stop(EngineSound.Get(), 0.3f);
 	EngineSound.Reset();
+	LooterSound::Stop(LeakSound.Get(), 0.2f);
+	LeakSound.Reset();
+	LooterSound::Stop(WreckSound.Get(), 1.f);
+	WreckSound.Reset();
 	for (const TWeakObjectPtr<ACreatureBase>& Rifleman : Riflemen)
 	{
 		if (ACreatureBase* Gone = Rifleman.Get())
@@ -191,8 +209,45 @@ void ACompanyTender::SetAlongsideNow()
 
 void ACompanyTender::Advance(float DeltaSeconds)
 {
-	const ALamplighterShip* Boat = Ship.Get();
+	if (bCrashed)
+	{
+		AdvanceWreck(DeltaSeconds);
+		return;
+	}
 	if (bFalling)
+	{
+		AdvanceFall(DeltaSeconds);
+		return;
+	}
+	if (bEscort)
+	{
+		AdvanceEscort(DeltaSeconds);
+		return;
+	}
+	const ALamplighterShip* Boat = Ship.Get();
+	if (!Boat)
+	{
+		return;
+	}
+	Clock += DeltaSeconds;
+	const float Alpha = Clock / ApproachSeconds;
+	if (!bAlongside && Alpha >= 1.f)
+	{
+		bAlongside = true;
+		UE_LOG(LogLooter, Log, TEXT("Landfall: the Company tender is alongside."));
+	}
+	// Bobbing while it runs in and keeps station on a sailing ship; dead still beside a grappled one.
+	const bool bStill = Boat->GetFlight() == EShipFlight::Grappled;
+	const float Heave = bStill ? 0.f : HeaveCm * FMath::Sin(UE_TWO_PI * HeaveHz * Clock);
+	FTransform Station = StationAt(Alpha);
+	Station.AddToTranslation(FVector(0.0, 0.0, Heave));
+	Station.SetScale3D(FVector::OneVector);
+	SetActorTransform(Station * Boat->GetCalmTransform());
+	UpdatePlank(DeltaSeconds);
+}
+
+void ACompanyTender::AdvanceFall(float DeltaSeconds)
+{
 	{
 		FallClock += DeltaSeconds;
 		// Pushed off her side as the lines part, sinking faster as its bag empties, rolling away and nosing down.
@@ -229,31 +284,33 @@ void ACompanyTender::Advance(float DeltaSeconds)
 					/*bSweep*/ false, nullptr, ETeleportType::TeleportPhysics);
 			}
 		}
-		if (FallClock >= FallSeconds)
+		// Main 6's escorts fall into the fields, not the canyon: they end on the ground (CompanyTenderEscort.cpp).
+		if (bEscort)
+		{
+			GroundWait -= DeltaSeconds;
+			if (GroundWait <= 0.f)
+			{
+				GroundWait = 0.05f;
+				FHitResult Hit;
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(TenderFallGround), false, this);
+				const FVector From = Now.GetLocation() + FVector(0.0, 0.0, 100.0);
+				const FVector To = From + FVector(0.0, 0.0, -350.0) + FallVelocity * 0.06f;
+				if (GetWorld() && GetWorld()->LineTraceSingleByObjectType(Hit, From, To, FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+				{
+					Crash(Hit.ImpactPoint);
+					return;
+				}
+			}
+		}
+		if (FallClock >= (bEscort ? FallSeconds * 3.f : FallSeconds))
 		{
 			Destroy();
 		}
-		return;
 	}
-	if (!Boat)
-	{
-		return;
-	}
-	Clock += DeltaSeconds;
-	const float Alpha = Clock / ApproachSeconds;
-	if (!bAlongside && Alpha >= 1.f)
-	{
-		bAlongside = true;
-		UE_LOG(LogLooter, Log, TEXT("Landfall: the Company tender is alongside."));
-	}
-	// Bobbing while it runs in and keeps station on a sailing ship; dead still beside a grappled one.
-	const bool bStill = Boat->GetFlight() != EShipFlight::Sailing;
-	const float Heave = bStill ? 0.f : HeaveCm * FMath::Sin(UE_TWO_PI * HeaveHz * Clock);
-	FTransform Station = StationAt(Alpha);
-	Station.AddToTranslation(FVector(0.0, 0.0, Heave));
-	Station.SetScale3D(FVector::OneVector);
-	SetActorTransform(Station * Boat->GetCalmTransform());
+}
 
+void ACompanyTender::UpdatePlank(float DeltaSeconds)
+{
 	if (bPlankLowering && PlankAlpha < 1.f)
 	{
 		PlankAlpha = FMath::Min(PlankAlpha + DeltaSeconds / PlankSeconds, 1.f);
@@ -262,6 +319,11 @@ void ACompanyTender::Advance(float DeltaSeconds)
 			const FVector End = Gangplank->GetComponentTransform().TransformPosition(FVector(0.0, -PlankLength, 0.0));
 			LooterSound::PlayAt(this, LooterSoundCue::ImpactWood, End);
 		}
+	}
+	else if (!bPlankLowering && PlankAlpha > 0.f)
+	{
+		// Raised again (an escort pulling off her rail).
+		PlankAlpha = FMath::Max(PlankAlpha - DeltaSeconds / PlankSeconds, 0.f);
 	}
 	// The plank on its hinge: it reaches along its own -Y from the hinge, so on the port side it's turned about.
 	const float Gap = AlongsideOut - HingeOut - ALamplighterShip::RailOut;
@@ -293,7 +355,7 @@ void ACompanyTender::LowerGangplank()
 	bPlankLowering = true;
 }
 
-void ACompanyTender::SpawnRiflemen()
+void ACompanyTender::SpawnRiflemen(int32 Level)
 {
 	UWorld* World = GetWorld();
 	const TSubclassOf<ACreatureBase> Class = ADredgerCreature::ClassFor(EDredgerRole::Rifleman);
@@ -308,6 +370,8 @@ void ACompanyTender::SpawnRiflemen()
 	{
 		ACreatureBase::FRuntimeSpawn Spawn;
 		Spawn.bMayBeTouched = false;
+		// Main 6's escorts carry the barge's men (level 6), not the fields' they fly over; Landfall's keep the area's (0).
+		Spawn.Level = Level;
 		ACreatureBase* Rifleman = ACreatureBase::SpawnAtRuntime(World, Class, GetActorTransform().TransformPosition(Spot), Yaw, Spawn);
 		if (!Rifleman)
 		{

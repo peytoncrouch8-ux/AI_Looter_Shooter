@@ -60,12 +60,18 @@ namespace
 	}
 
 	/** His head over the board in the sit, before his size (cm): the table's head, a little up to his eyes. */
-	FVector SeatedHead()
+	FVector SeatedHead(EAbelPose Pose = EAbelPose::Sit)
 	{
 		const int32 Head = AbelPoses::FindBone(TEXT("head"));
-		const FAbelPoseHeads Sit = AbelPoses::SolveHeads(EAbelPose::Sit);
-		return Sit.Heads.IsValidIndex(Head) ? Sit.Heads[Head] + FVector(0.0, 0.0, 10.0) : FVector(4.0, 0.0, 80.0);
+		const FAbelPoseHeads Sit = AbelPoses::SolveHeads(Pose);
+		const FVector Fallback = Pose == EAbelPose::Sit ? FVector(4.0, 0.0, 80.0) : FVector(4.0, 0.0, 165.0);
+		return Sit.Heads.IsValidIndex(Head) ? Sit.Heads[Head] + FVector(0.0, 0.0, 10.0) : Fallback;
 	}
+
+	/** His soul's look (Main 7 on): gold-white, nearly the rank's full strength, his coal warm and burning. */
+	const FLinearColor SoulWhite(1.f, 0.93f, 0.76f);
+	constexpr float SoulStrength = 1.f;
+	constexpr float SoulHeat = 0.f;
 
 	/** His jaw moves 6 to 10 degrees while he speaks (his jaw is closed at rest). */
 	float SpeakingJaw(float Clock)
@@ -134,17 +140,28 @@ AAbelOnBoard::AAbelOnBoard()
 	SpeakerPoint->SetRelativeLocation(SeatedHead() * BodyScale);
 }
 
+uint8 AAbelOnBoard::RestPoseIndex() const
+{
+	return static_cast<uint8>(bStanding ? EAbelPose::Idle : EAbelPose::Sit);
+}
+
 void AAbelOnBoard::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 	Figure->SetRelativeScale3D(FVector(BodyScale));
+	if (bStanding)
+	{
+		// Standing by the Reliquary: the hidden hull his whole height, so the player walks round him, not through.
+		Body->SetRelativeLocation(FVector(0.0, 0.0, 100.0));
+		Body->SetRelativeScale3D(FVector(0.55, 0.55, 2.0));
+	}
 	ApplySeat();
 }
 
 void AAbelOnBoard::BeginPlay()
 {
 	Figure->SetRelativeScale3D(FVector(BodyScale));
-	SpeakerPoint->SetRelativeLocation(SeatedHead() * BodyScale);
+	SpeakerPoint->SetRelativeLocation(SeatedHead(static_cast<EAbelPose>(RestPoseIndex())) * BodyScale);
 	if (SpeakerPoint)
 	{
 		SpeakerPoint->OnTalked.AddUObject(this, &AAbelOnBoard::HandleTalked);
@@ -172,7 +189,7 @@ bool AAbelOnBoard::ApplySeat()
 		return false;
 	}
 	const FReferenceSkeleton& Skeleton = Model->GetRefSkeleton();
-	Seated = AbelPoses::Solve(Skeleton, EAbelPose::Sit);
+	Seated = AbelPoses::Solve(Skeleton, static_cast<EAbelPose>(RestPoseIndex()));
 	Rest.SetNum(Skeleton.GetNum());
 	for (int32 Index = 0; Index < Skeleton.GetNum(); ++Index)
 	{
@@ -246,14 +263,16 @@ void AAbelOnBoard::HandleTalked(USpeakerPointComponent& Point, AActor* InListene
 
 FVector AAbelOnBoard::GetHeadLocation() const
 {
-	return GetActorTransform().TransformPosition(SeatedHead() * BodyScale);
+	return GetActorTransform().TransformPosition(SeatedHead(static_cast<EAbelPose>(RestPoseIndex())) * BodyScale);
 }
 
 void AAbelOnBoard::ApplyEmber()
 {
-	// The Boss rank's gold, glowing low; the coal sunk to an ember. The same on his props, as the boss wears them.
-	const FLinearColor Gold = UCreatureRankSettings::Get(ECreatureRank::Boss).Color;
-	const FVector4 RankColor(Gold.R, Gold.G, Gold.B, 0.6f);
+	// The Boss rank's gold, glowing low; the coal sunk to an ember. The same on his props, as the boss wears them. His soul
+	// (Main 7 on) is gold-white and burning warm: the smog burnt off him, himself again.
+	const FLinearColor Gold = bSoulLook ? SoulWhite : UCreatureRankSettings::Get(ECreatureRank::Boss).Color;
+	const FVector4 RankColor(Gold.R, Gold.G, Gold.B, bSoulLook ? SoulStrength : 0.6f);
+	const float Heat = bSoulLook ? SoulHeat : EmberHeat;
 	const TArray<UPrimitiveComponent*> Parts = { Figure.Get(), Hat.Get(), Lantern.Get(), Pump.Get() };
 	for (UPrimitiveComponent* Part : Parts)
 	{
@@ -261,8 +280,15 @@ void AAbelOnBoard::ApplyEmber()
 		{
 			Part->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, RankColor);
 			Part->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, 0.f);
-			Part->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, EmberHeat);
+			Part->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
 		}
+	}
+	// His lantern is in the Reliquary's lid now, and a keeper's buried with his lantern, not his iron: his hands are empty.
+	if (bSoulLook)
+	{
+		Lantern->SetHiddenInGame(true);
+		Pump->SetHiddenInGame(true);
+		LanternLight->SetHiddenInGame(true);
 	}
 }
 

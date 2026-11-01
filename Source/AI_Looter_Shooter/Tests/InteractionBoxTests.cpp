@@ -140,7 +140,7 @@ bool FInteractionBoxLanternTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	// Any time (its story is Main 5's: KeepersLanternTests.cpp).
+	// Any time (its story is Main 5's: ChokePointTests.cpp).
 	Lantern->TakeWhen = FStoryCondition();
 	Lantern->DispatchBeginPlay();
 	TOptional<FInteractionBox> Box = Lantern->GetInteractionBox();

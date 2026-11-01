@@ -45,9 +45,9 @@ PLACEMENTS = [
     # The hounds' camp stands 20 m in from the Rim (its edge runs diagonally past the lantern house: at (2900, -10600) they
     # chased the player to the lip and fell, PIE 2026-10-22).
     dict(id='KeepersRoadHounds', where="the keeper's road between the cairns and the old lantern house, raiding the boards "
-         "nobody sits up with (after Hallowed Ground, until Abel keeps his board after The Gravewind)",
+         "nobody sits up with (once the barge falls, until Abel is home: they raid the boards he can't sit up with)",
          center=(2000.0, -10000.0), rings=[(450.0, 3), (750.0, 2)], ground={'radius': 1100.0, 'maxStep': 300.0},
-         after=['Main4'], before=['Main6'], groups=[('BoneHound', 4, 'Basic'), ('BoneHound', 1, 'Rare')]),
+         after=['Main6'], before=['Main7'], groups=[('BoneHound', 4, 'Basic'), ('BoneHound', 1, 'Rare')]),
     dict(id='TramwayKnockers', where="the ore tramway across the Bench, round the ore cars off the rails, picking at the "
          "spilled ore (after Dead Lift; clear of the Diggings' spoil ambush, the Dinner Pail camp and the crest patrol)",
          center=(17300.0, 3900.0), rings=[(300.0, 3), (600.0, 3)], ground={'radius': 1200.0, 'maxStep': 300.0},

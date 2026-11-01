@@ -11,6 +11,9 @@ if ($p -and $Build) {
     $p = $null
 }
 if ($Build) {
+    # A closing editor (or one whose window went before its process) still holds Live Coding: the build refuses (2026-11-01).
+    for ($i = 0; $i -lt 60 -and (Get-Process UnrealEditor -ErrorAction SilentlyContinue); $i++) { Start-Sleep 2 }
+    if (Get-Process UnrealEditor -ErrorAction SilentlyContinue) { "AN UNREAL EDITOR IS STILL RUNNING: not building"; exit 2 }
     $out = & "$engine\Engine\Build\BatchFiles\Build.bat" AI_Looter_ShooterEditor Win64 Development "-Project=$root\AI_Looter_Shooter.uproject" -WaitMutex -NoHotReload 2>&1
     $out | Select-String -Pattern 'error C|error LNK|: error|Result:' | Select-Object -Last 25 | ForEach-Object { $_.Line }
     if (-not ($out -match 'Result: Succeeded')) { "BUILD FAILED"; exit 1 }

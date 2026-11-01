@@ -85,6 +85,14 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     down (his lair, Foreman), 6 the payroll from the stope (item Payroll). Turned in at the tag board
                     (Speaker_TagBoard) with a choice: pay the eleven (story flag BackPay.Paid, an Epic gun) or keep the
                     payroll (BackPay.Kept, 400 silver); Hob then sends Ellis to Delia's door (Main 6). 6,500 XP either way.
+  After Main 6 (the Wardens story, 2026-11-01; MAINS_2_7.md section 12; lanes/SECRETS.md):
+  DA_Mission_PaidOnDelivery "Paid on Delivery", no card: it starts by itself once Main 6 is done (the barge's manifest,
+                    item BargeManifest, its own: picked up in Main 6's stoker's office, Item_BargeManifest, or handed at
+                    Main 6's turn-in), tracked "Pay the Ferryman": 0 down the ladder to the Ferryman's landing (the
+                    SextonsFerry actor within 4 m, height counted: the landing is 3.8 m under the boards). Turned in to
+                    Mister Sexton at his ferry (Speaker_Sexton; card, then his three lines: the fortune, the account, the
+                    tip on Purcell). 150 XP, a Rare gun "from the ferry's bilge"; from then his secrets cost a quarter
+                    less (USecretCatalog::DiscountMission).
 
 Objectives are instanced objects inside the asset, one class per kind, made with unreal.new_object(<class>, asset) and
 listed in each step's 'objectives'. Classes for actor filters are loaded by their script path
@@ -138,6 +146,12 @@ HOB = 'Hob'
 # Back Pay's last word, either choice (2026-10-27: the mine is the story's now, and the boards come next): Hob sends Ellis
 # to Delia's door, where The Gravewind is met. Shared words (no "Pa", "Ellis" or "kid"), so no hero line row.
 BOARDS_NEXT = "Teague's settled. Now the Keeper, sunshine. Delia's door first."
+# Paid on Delivery (lanes/SECRETS.md): Sexton at his ferry (build_area_main2.py: AMisterSexton tagged Speaker_Sexton) and
+# his landing (the ASextonsFerry actor, tagged SextonsFerry, its origin the landing's middle at the planks). Within 4 m of
+# it, height counted: anywhere on the 4 x 6 m landing, never from the deck 3.8 m above.
+SEXTON_TAG = 'Speaker_Sexton'
+FERRY_TAG = 'SextonsFerry'
+FERRY_REACH = 400.0
 
 
 def mission_types():
@@ -576,6 +590,15 @@ def back_pay_steps(asset):
     ]
 
 
+def paid_on_delivery_steps(asset):
+    """Down the rope ladder to the Ferryman's landing with the manifest (its turn-in is the talk with Sexton there, so the
+    step is only the landing: a giver's talk can't also be the last objective)."""
+    return [
+        step(reach(asset, "Take the barge's manifest down to Mister Sexton's ferry under Gravewind Point.", FERRY_TAG,
+                   FERRY_REACH, ignore_height=False, short='Pay the Ferryman')),
+    ]
+
+
 MISSIONS = [
     # --- The valley, after Main 3 ---
     dict(asset='DA_Mission_Side1', id='Side1', title='Wanted: Already Dead',
@@ -851,6 +874,27 @@ MISSIONS = [
          rewards=dict(experience=6500),
          expect=['MissionReachObjective', 'MissionClearObjective', ['MissionEventObjective', 'MissionEventObjective'],
                  'MissionClearObjective', 'MissionEventObjective', 'MissionClearObjective', 'MissionCollectItemObjective']),
+    # --- After Main 6 (the Wardens story, 2026-11-01; MAINS_2_7.md section 12; lanes/SECRETS.md) ---
+    # Sexton's price, paid: no card (it starts by itself once the barge is down; Main 6 takes the manifest off the barge),
+    # a short walk down his ladder, his three lines after the turn-in card, a gun from the bilge and his secrets a quarter
+    # cheaper from then on (USecretCatalog::DiscountMission names this id). The manifest is this mission's item, so it
+    # stays in the Carried list from Main 6's office until it's handed over here.
+    dict(asset='DA_Mission_PaidOnDelivery', id='PaidOnDelivery', title='Paid on Delivery',
+         summary="Vane's barge is down and its manifest is in your pack: every soul the Company burned, and who sold "
+                 "each one. Mister Sexton named it as his price. Take it down to his ferry under Gravewind Point.",
+         kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main6'], sort_order=20,
+         steps=paid_on_delivery_steps,
+         items=[dict(item_id='BargeManifest', name="The barge's manifest",
+                     line="Vane Consolidated's ledger off the barge: 412 names, the Rest's and four other towns', each "
+                          "with its price. Sexton's fare.")],
+         turn_in=dict(speaker=SEXTON_TAG, giver='Mister Sexton', lines=[
+             ('', "Four hundred and twelve. Vane owes me a fortune, friend."),
+             ('', "Paid in full. I keep my accounts, and you're in the black."),
+             ('', "A tip, for prompt payment: Purcell's gone south. The Deacon's calling the gang in."),
+         ]),
+         # 150 (was 300; 2026-11-01): a short errand, as Lost and Found; the everything band (Docs/Progression.md).
+         rewards=dict(experience=150, gun=True, gun_rarity_floor='RARE', optional_silver=0),
+         expect=['MissionReachObjective']),
 ]
 
 

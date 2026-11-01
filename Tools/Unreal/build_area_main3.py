@@ -227,9 +227,11 @@ def place_checkpoint(build, gate):
     if sacks is None:
         build.warn(f'no sandbag model ({", ".join(SANDBAG_MODELS)}): the checkpoint has no sandbags')
     else:
+        # The Tripo wall is 2 m long: one to a spot (the stand-in's sacks are shorter: two overlap).
+        per_wall = 1 if sacks.get_path_name().startswith(SANDBAG_MODELS[0]) else SANDBAGS_PER_WALL
         for along_in, along_side in SANDBAG_WALLS:
-            for k in range(SANDBAGS_PER_WALL):
-                offset = (k - (SANDBAGS_PER_WALL - 1) * 0.5) * SANDBAG_STEP
+            for k in range(per_wall):
+                offset = (k - (per_wall - 1) * 0.5) * SANDBAG_STEP
                 x, y = gate.point(along_in, along_side + offset)
                 build.place(sacks, (x, y, story.ground_at(x, y)), yaw_of(gate.side) + (k * 17.0 % 30.0),
                             label=f'Main3_Sandbags_{count}', folder=FOLDER, tags=('Obstacle',))

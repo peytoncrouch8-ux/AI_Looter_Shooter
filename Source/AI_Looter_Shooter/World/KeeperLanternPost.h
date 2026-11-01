@@ -16,6 +16,7 @@ class UStaticMeshComponent;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnKeeperLanternRelit, AKeeperLanternPost& /*Post*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnKeepersLanternLit, AKeeperLanternPost& /*Post*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnKeeperCalledBack, AKeeperLanternPost& /*Post*/);
 
 /**
  * One of the three keeper's lantern posts on the burial boards deck at Gravewind Point (Docs/Areas/RansomsRest.md, "The boss:
@@ -33,10 +34,16 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnKeepersLanternLit, AKeeperLanternPost& /*
  *    light comes on in it, and it leans on its hook toward FlameBearing (north-east, over the ridges, toward Ned: Main 7's
  *    way), as a lantern leans toward a saint's light.
  *
- * What the story keeps of it is read from the campaign record, not saved apart: the Keeper's Lantern hangs there from
- * Main 6's third step on (HungWhen) and is lit and leaning once Main 6 is finished (LitWhen). A box round the post's lantern
- * is what the Interact key's line finds. It never ticks; its light is off unless bCastsLight (the deck's lanterns are
- * emissive glass, and the area keeps to three shadowless lights in view).
+ * What the story keeps of it is read from the campaign record, not saved apart: the Keeper's Lantern hangs there through
+ * Main 7's fight (HungWhen) and is gone from the hook once Sully has carried it off (GoneWhen: from Main 7's carry step;
+ * after Main 7 it's on Saint Ada's Reliquary). A box round the post's lantern is what the Interact key's line finds. It never
+ * ticks; its light is off unless bCastsLight (the deck's lanterns are emissive glass, and the area keeps to three shadowless
+ * lights in view).
+ *
+ * Main 7 "Given to the Wind" (2026-11-01): the keeper's post is where Abel is called back (UAbelCorruptionComponent opens a
+ * hold on it: "Call him back" at each locked third, "Call him home" at zero). The hung Keeper's Lantern brightens a third
+ * with each call-back (SetCallGlow), burns like a sunrise as he steps into it (Scenes/FreeAbel), and is taken down lit
+ * (TakeDownLit) for Sully to carry home.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AKeeperLanternPost : public AActor, public IInteractable
@@ -104,6 +111,30 @@ public:
 	/** Reads the story again: the lantern hung or not, lit or not, as the campaign record has it. */
 	void RefreshStory();
 
+	// --- Calling Abel back (Main 7; UAbelCorruptionComponent opens and closes it) ---
+
+	/** A hold on it of HoldSeconds says Prompt and calls him back (OnCalledBack), while it's open. */
+	void OpenCallBack(float HoldSeconds, const FText& Prompt);
+	void CloseCallBack();
+	bool IsCallBackOpen() const { return bCallBackOpen; }
+
+	/** Calls him back as the hold does (the console, a test). False when no call is open. */
+	bool CallBack(AActor* ByWhom);
+
+	/** A hold on it finished while a call was open. */
+	FOnKeeperCalledBack OnCalledBack;
+
+	/**
+	 * The hung Keeper's Lantern's glow from the call-backs: 0 dark, a third more with each, 1 lit, more than 1 the sunrise as he
+	 * steps into it (its light's candela times this). Its glass shows lit while above 0.
+	 */
+	void SetCallGlow(float Share);
+	float GetCallGlow() const { return CallGlow; }
+
+	/** Sully takes the lit lantern down off the hook (FreeAbel's end): gone from the post, carried. */
+	void TakeDownLit();
+	bool IsKeepersLanternTaken() const { return bTakenDown; }
+
 	// --- Components ---
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -143,9 +174,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lantern Post")
 	TArray<FStoryCondition> HungWhen;
 
-	/** It's lit and leaning from the start while this holds (after Main 6). Empty: only Abel lights it. */
+	/** It's lit and leaning from the start while this holds. Empty: only Abel lights it (Main 7, as he steps into it). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lantern Post")
 	FStoryCondition LitWhen;
+
+	/** The Keeper's Lantern is gone from the hook while this holds (Main 7 from its carry step, and after: carried home). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lantern Post")
+	TArray<FStoryCondition> GoneWhen;
 
 	/** How long Interact is held to relight a dark lantern (s). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lantern Post", meta = (ClampMin = "0.1", Units = "s"))
@@ -210,6 +245,11 @@ private:
 	bool bDark = false;
 	bool bHung = false;
 	bool bLanternLit = false;
+	bool bTakenDown = false;
+	bool bCallBackOpen = false;
+	float CallBackSeconds = 1.5f;
+	FText CallBackPrompt;
+	float CallGlow = 0.f;
 
 	TWeakObjectPtr<UMissionRunner> BoundRunner;
 	FDelegateHandle MissionsChangedHandle;

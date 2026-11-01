@@ -24,15 +24,16 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAbelShowTest, "Looter.Bosses.Abel.Show",
 bool FAbelShowTest::RunTest(const FString& Parameters)
 {
 	// His bar's show and his loot as data: his title, his cries, the shower after the scene from the deck's middle.
+	AbelTestWorld::FTendrilsOff NoTendrils;
 	const FBossShow Show = AbelRules::MakeShow();
-	TestEqual(TEXT("His title"), Show.Title.ToString(), FString(TEXT("Waiting on a Dark Saint")));
+	TestEqual(TEXT("His title"), Show.Title.ToString(), FString(TEXT("A Keeper Under Smog")));
 	TestTrue(TEXT("...his cries at the start, each phase, a stagger and his death"), !Show.IntroCue.IsNone() && !Show.PhaseCue.IsNone()
 		&& !Show.StaggerCue.IsNone() && !Show.DeathCue.IsNone());
 	const FBossLootShowerSettings Shower = AbelRules::MakeLootShower();
 	TestTrue(TEXT("His loot waits for the scene, and bursts from the deck's middle (not the open end)"), Shower.bAfterScene && Shower.bFromSpot
 		&& Shower.Delay >= 2.f && Shower.BonusAmmo > 0);
 	const TArray<FBossPhase> Phases = BossRules::Ordered(AbelRules::MakePhases());
-	TestTrue(TEXT("\"The bell\" has his shots from the fog"), Phases.Num() == 3 && Phases[1].Events.ContainsByPredicate([](const FBossPhaseEvent& Event)
+	TestTrue(TEXT("\"The Hose\" has his shots from the fog"), Phases.Num() == 3 && Phases[1].Events.ContainsByPredicate([](const FBossPhaseEvent& Event)
 	{
 		return Event.Kind == EBossEventKind::Custom && Event.Name == AbelRules::FogShotEvent() && Event.RepeatEvery > 0.f;
 	}));
@@ -59,8 +60,8 @@ bool FAbelShowTest::RunTest(const FString& Parameters)
 	const float IntroOver = RunUntil(Abel, Abel->ShowRules.IntroSeconds + 0.5f, [Abel]() { return Abel->GetMove() != EAbelMove::Intro; });
 	TestTrue(FString::Printf(TEXT("...for under two seconds (%.2f s)"), IntroOver), IntroOver > 0.f && IntroOver <= Abel->ShowRules.IntroSeconds + Frame);
 
-	// Staggered while he grieves: down on a knee facing the player, his coal still open; then up again.
-	if (TestTrue(TEXT("He grieves"), Abel->Grieve()))
+	// Staggered as he turns to the six dead: down on a knee facing the player, his coal still open; then up again.
+	if (TestTrue(TEXT("He turns to the six dead"), Abel->Grieve()))
 	{
 		TestTrue(TEXT("Crits on his open coal stagger him"), Boss->BeginStagger() && Abel->GetMove() == EAbelMove::Staggered);
 		Run(Abel, Frame);
@@ -69,9 +70,13 @@ bool FAbelShowTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("...then up again"), !Boss->IsStaggered() && Abel->GetMove() != EAbelMove::Staggered);
 	}
 
-	// Out in the fog: no stagger, and his lantern flares over the canyon before he fires from it.
-	HurtTo(Abel, AbelRules::BellShare);
-	TestTrue(TEXT("At 60% he drifts out"), Abel->IsOutInFog());
+	// Knelt for a call-back: no stagger either (his bar is locked). Out in the fog: no stagger, and his black lantern flares
+	// over the canyon before he fires from it.
+	HurtTo(Abel, AbelRules::HoseShare);
+	TestTrue(TEXT("At 66% he kneels for the call-back"), Abel->GetMove() == EAbelMove::CallKneel);
+	TestFalse(TEXT("...where nothing staggers him"), Boss->BeginStagger());
+	CallBack(Abel, Player);
+	TestTrue(TEXT("Called back, he drifts out"), Abel->IsOutInFog());
 	TestFalse(TEXT("...where nothing staggers him"), Boss->BeginStagger());
 	Run(Abel, Abel->DriftSeconds + 0.1f);
 	const float FlareAt = RunUntil(Abel, AbelRules::FogShotFirst + 1.f, [Abel]()

@@ -134,10 +134,14 @@ hull 0.585; barricade spots 0.551; chair seat 1.048.
 
 ## Known gaps
 
-- Farmhouse front windows and the cottage's front-room windows are Tripo paint now, not lamplit `WindowGlow`: no dusk
-  glow there (HouseLights still finds the farmhouse's WindowGlow slot; the hall lamp shows through the door). The
-  cottage's SOCKET_Light dusk lamp sits inside a closed shell (unshadowed, so it lights nothing outside; drop it or
-  leave it).
+- FIXED 2026-11-01 (after import, `Looter.World.HouseLights` failed: no WindowGlow faces, so Unreal dropped the slot):
+  `parts_buildings._lit_windows` copies the scripted lit window's glass (WindowGlow) and curtains, stretched, into each
+  of Tripo's painted windows the scripted house had lit (farmhouse: both front; cottage: front, front gable, the front
+  window on each side), 1.2 cm proud of the painted glass, behind Tripo's own modelled sash bars (scripted bars
+  dropped). Rects measured on the colour maps (`FARM_LIT`, `COTTAGE_LIT`). Export: `Intermediate/ArtExport_TripoLitWindows`
+  (Farmhouse, Cottage); check `Saved/ArtPreviews/TripoBuildings/LitWindows_Dusk.png`. A re-fit that moves the shell
+  needs the rects re-measured. The cottage's SOCKET_Light dusk lamp sits inside a closed shell (unshadowed, so it
+  lights nothing outside; drop it or leave it).
 - Hob's perch 41 cm lower; Delia's porch hull 3 cm over the boards at the door.
 
 ## Main's import steps

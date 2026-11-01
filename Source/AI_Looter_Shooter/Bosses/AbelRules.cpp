@@ -54,14 +54,14 @@ namespace AbelRules
 		return FName(TEXT("Grieve"));
 	}
 
-	FName BellEvent()
+	FName CallBackEvent()
 	{
-		return FName(TEXT("Bell"));
+		return FName(TEXT("CallBack"));
 	}
 
-	FName GravewindEvent()
+	FName TendrilEvent()
 	{
-		return FName(TEXT("Gravewind"));
+		return FName(TEXT("Tendril"));
 	}
 
 	FName WalkOffEvent()
@@ -77,7 +77,8 @@ namespace AbelRules
 	FBossShow MakeShow()
 	{
 		FBossShow Show;
-		Show.Title = LOCTEXT("Title", "Waiting on a Dark Saint");
+		// (Main 7, 2026-11-01: was "Waiting on a Dark Saint". The bar's own label says SMOG; the pips under it say ABEL.)
+		Show.Title = LOCTEXT("Title", "A Keeper Under Smog");
 		Show.IntroCue = LooterSoundCue::AbelIntro;
 		Show.PhaseCue = LooterSoundCue::AbelWail;
 		Show.StaggerCue = LooterSoundCue::AbelStagger;
@@ -89,7 +90,7 @@ namespace AbelRules
 		Show.DeathShake = 0.8f;
 		Show.DeathSlowMo = 0.3f;
 		Show.DeathSlowSeconds = 0.9f;
-		Show.DefeatedLine = LOCTEXT("Kneels", "He kneels");
+		Show.DefeatedLine = LOCTEXT("SmogBreaks", "The smog breaks");
 		return Show;
 	}
 
@@ -109,8 +110,10 @@ namespace AbelRules
 	{
 		FBossLootShowerSettings Shower;
 		Shower.BonusAmmo = 3;
-		// He kneels (2 s) and the scene plays; the loot comes once the player has their eyes back.
-		Shower.Delay = 3.f;
+		// He kneels (2 s), the last call at the keeper's post (a 3 s hold), then the scene (FreeAbel); the loot waits for the
+		// scene if it has begun by then, and comes once the player has their eyes back. A player who walks off and leaves him
+		// knelt gets it on the boards anyway (6 s), never lost.
+		Shower.Delay = 6.f;
 		Shower.bAfterScene = true;
 		// From the deck's middle: he may fall at the open end, over the canyon.
 		Shower.bFromSpot = true;
@@ -152,50 +155,63 @@ namespace AbelRules
 		return Wave;
 	}
 
-	TArray<FBossPhase> MakePhases()
+	FBossUntargetable FogSpell()
 	{
-		// "You brought them here" (100-60%): the buckshot after the flare, two Unpaid every 25 s (at most 4), and every 12 s
-		// he turns to the sunset for 3 s with his coal open.
-		FBossPhase Brought;
-		Brought.Name = LOCTEXT("PhaseBrought", "You brought them here");
-		Brought.HealthShare = 1.f;
-		Brought.Events.Add(FBossPhaseEvent::MakeCustom(BuckshotEvent(), 4.f, BuckshotEvery));
-		Brought.Events.Add(FBossPhaseEvent::MakeCustom(GrieveEvent(), GrieveEvery, GrieveEvery));
-		Brought.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(RiseCount, RiseMaxAlive), RiseEvery, RiseEvery));
-
-		// "The bell" (60-25%): the bell tolls, he drifts out into the fog over the canyon where he can't be hurt, the lanterns
-		// go dark, and 8 Unpaid rise in two waves. Relit, the lanterns drag him back (his own code ends the spell).
-		FBossPhase Bell;
-		Bell.Name = LOCTEXT("PhaseBell", "The bell");
-		Bell.HealthShare = BellShare;
-		Bell.Events.Add(FBossPhaseEvent::MakeCustom(BellEvent()));
+		// Out over the canyon in the fog, drinking the dead: he can't be hurt until the three lanterns drag him back (his own
+		// code ends the spell), and he leaves the fight (withdrawn) while he's out there.
 		FBossUntargetable InTheFog;
 		InTheFog.Seconds = 0.f;
 		InTheFog.bUntilAddsDie = false;
 		InTheFog.bWithdraw = true;
-		InTheFog.Hint = LOCTEXT("RelightHint", "Relight the keeper's lanterns");
-		Bell.Events.Add(FBossPhaseEvent::MakeUntargetable(InTheFog));
-		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), FirstWaveAt));
-		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), FirstWaveAt + SecondWaveAfter));
+		InTheFog.Hint = LOCTEXT("RelightHint", "Relight the lanterns. Shoot the smog lines");
+		return InTheFog;
+	}
+
+	TArray<FBossPhase> MakePhases()
+	{
+		// "Stoker" (100-66%), the furnace in him: the buckshot after the black lantern's flare, the smog tendril, two Unpaid
+		// every 25 s (at most 4), and every 12 s he turns to the six dead on the boards for 3 s, his coal open (the keeper in
+		// him trying to walk them; the event keeps its old name, Grieve).
+		FBossPhase Stoker;
+		Stoker.Name = LOCTEXT("PhaseStoker", "Stoker");
+		Stoker.HealthShare = 1.f;
+		Stoker.Events.Add(FBossPhaseEvent::MakeCustom(BuckshotEvent(), 4.f, BuckshotEvery));
+		Stoker.Events.Add(FBossPhaseEvent::MakeCustom(GrieveEvent(), GrieveEvery, GrieveEvery));
+		Stoker.Events.Add(FBossPhaseEvent::MakeCustom(TendrilEvent(), TendrilFirst, TendrilEvery));
+		Stoker.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(RiseCount, RiseMaxAlive), RiseEvery, RiseEvery));
+
+		// "The Hose" (66-33%): the call-back first (his bar locks, he kneels: the keeper's post), then out over the canyon
+		// into the fog (the call-back's end starts it: UAbelCorruptionComponent), the lanterns dark, a smog line to one of the
+		// six dead at a time, and 8 Unpaid in two waves. Relit, the lanterns drag him back.
+		FBossPhase Hose;
+		Hose.Name = LOCTEXT("PhaseHose", "The Hose");
+		Hose.HealthShare = HoseShare;
+		Hose.Events.Add(FBossPhaseEvent::MakeCustom(CallBackEvent()));
+		Hose.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), FirstWaveAt));
+		Hose.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), FirstWaveAt + SecondWaveAfter));
 		// Then the dead keep rising as in phase one (his health 1.6x, 2026-10-27: the back half on the deck is long).
-		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(RiseCount, RiseMaxAlive), BellRiseFrom, RiseEvery));
-		// Out in the fog his lantern flares, a beacon over the canyon, and he fires from it: the lanterns are relit under fire,
-		// from behind the biers.
-		Bell.Events.Add(FBossPhaseEvent::MakeCustom(FogShotEvent(), FogShotFirst, FogShotEvery));
+		Hose.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(RiseCount, RiseMaxAlive), HoseRiseFrom, RiseEvery));
+		// Out in the fog his black lantern flares, a beacon over the canyon, and he fires from it: the lanterns are relit and
+		// the smog lines shot under fire, from behind the biers.
+		Hose.Events.Add(FBossPhaseEvent::MakeCustom(FogShotEvent(), FogShotFirst, FogShotEvery));
 		// Back on the deck he fights on as before (out in the fog these wait for him).
-		Bell.Events.Add(FBossPhaseEvent::MakeCustom(BuckshotEvent(), 8.f, BuckshotEvery));
-		Bell.Events.Add(FBossPhaseEvent::MakeCustom(GrieveEvent(), 14.f, GrieveEvery));
+		Hose.Events.Add(FBossPhaseEvent::MakeCustom(BuckshotEvent(), 16.f, BuckshotEvery));
+		Hose.Events.Add(FBossPhaseEvent::MakeCustom(GrieveEvent(), 20.f, GrieveEvery));
+		Hose.Events.Add(FBossPhaseEvent::MakeCustom(TendrilEvent(), 18.f, TendrilEvery));
 
-		// "Let me go" (25-0%): the Gravewind pours off the point in gusts; he tries to walk off into it and the dark saint
-		// pulls him back (a stun, his coal open); between pulls he fights faster, his buckshot a barrage.
-		FBossPhase Wind;
-		Wind.Name = LOCTEXT("PhaseWind", "Let me go");
-		Wind.HealthShare = WindShare;
-		Wind.Events.Add(FBossPhaseEvent::MakeCustom(GravewindEvent()));
-		Wind.Events.Add(FBossPhaseEvent::MakeCustom(WalkOffEvent(), 4.f, WalkOffEvery));
-		Wind.Events.Add(FBossPhaseEvent::MakeCustom(BuckshotEvent(), 2.f, WindBuckshotEvery));
+		// "Keeper" (33-0%): the call-back again, then the smog from the wreck pours up over the deck (the fog surge) and the
+		// Gravewind gusts (both started by the call-back's end); he fights faster (two tendrils, his buckshot a barrage), and
+		// between attacks the keeper in him walks to a lantern post to hang his black lantern there and the furnace pulls him
+		// back (a stun, his coal open).
+		FBossPhase Keeper;
+		Keeper.Name = LOCTEXT("PhaseKeeper", "Keeper");
+		Keeper.HealthShare = KeeperShare;
+		Keeper.Events.Add(FBossPhaseEvent::MakeCustom(CallBackEvent()));
+		Keeper.Events.Add(FBossPhaseEvent::MakeCustom(WalkOffEvent(), 10.f, WalkOffEvery));
+		Keeper.Events.Add(FBossPhaseEvent::MakeCustom(BuckshotEvent(), 8.f, WindBuckshotEvery));
+		Keeper.Events.Add(FBossPhaseEvent::MakeCustom(TendrilEvent(), 12.f, KeeperTendrilEvery));
 
-		return { Brought, Bell, Wind };
+		return { Stoker, Hose, Keeper };
 	}
 
 	float DragShare(int32 LitLanterns, int32 TotalLanterns)
@@ -238,24 +254,20 @@ namespace AbelRules
 
 	FStoryLine PhaseLine(int32 Phase)
 	{
+		// The furnace talking with his mouth (drafts; no family words: he doesn't know the Warden). His own words come back a
+		// third at a time with the call-backs (DA_Lines_AbelCallBack1/2), and whole in FreeAbel.
 		const FText Abel = LOCTEXT("Abel", "Abel");
 		switch (Phase)
 		{
 		case 0:
-			return FStoryLine::Make(Abel, LOCTEXT("LineBrought", "You brought them here, El. Right to our door."), 3.4f);
+			return FStoryLine::Make(Abel, LOCTEXT("LineStoker", "Off my boards. These six are mine to walk."), 3.2f);
 		case 1:
-			return FStoryLine::Make(Abel, LOCTEXT("LineBell", "Hear her ring? Ringing for a saint that isn't there."), 3.6f);
+			return FStoryLine::Make(Abel, LOCTEXT("LineHose", "So hungry. They smell like home."), 3.f);
 		case 2:
-			return FStoryLine::Make(Abel, LOCTEXT("LineLetGo", "Let me go, El. The wind's come for me."), 3.4f);
+			return FStoryLine::Make(Abel, LOCTEXT("LineKeeper", "Let it burn. Let the whole Rest burn down."), 3.2f);
 		default:
 			return FStoryLine();
 		}
-	}
-
-	FStoryLine BellLine()
-	{
-		// No sound is made yet, so the bell is read, as the cold open's is.
-		return FStoryLine::Make(FText::GetEmpty(), LOCTEXT("BellTolls", "[The chapel bell tolls across the valley.]"), 2.8f);
 	}
 
 	FStoryLine HobOnFall()

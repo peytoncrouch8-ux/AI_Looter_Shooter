@@ -205,7 +205,8 @@ bool FFerrymansPriceMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 2 as its asset has it, once the mission script has made it: offered by Hob after Main 1 on Ransom's Rest; the way
 	// out (+ Keeper's Bridge), the cart stopped and its crew fought off (+ the gate's loudspeaker), Sexton, the Log (the
-	// step the Log's rule names); turned in to Sexton with his price, for 550 experience.
+	// step the Log's rule names); turned in to Sexton with his price, for 400 experience (550 until 2026-11-01: Main trimmed
+	// it to keep the Pacing band, Docs/Progression.md).
 	if (!FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main2")))
 	{
 		AddWarning(TEXT("DA_Mission_Main2 isn't made yet: run Tools/Unreal/create_mission_assets.py."));
@@ -243,7 +244,7 @@ bool FFerrymansPriceMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Turned in to Sexton, his price in his own words"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == FerrySextonTag
 		&& Asset->TurnIn.Lines.Num() == static_cast<int32>(UE_ARRAY_COUNT(FerryPriceWords))
 		&& Asset->TurnIn.Lines[0].Text.ToString() == FerryPriceWords[0]);
-	TestEqual(TEXT("Its reward: 550 experience"), Asset->Rewards.Experience, 550);
+	TestEqual(TEXT("Its reward: 400 experience"), Asset->Rewards.Experience, 400);
 	TestFalse(TEXT("...and no gun"), Asset->Rewards.bGun);
 	return true;
 }

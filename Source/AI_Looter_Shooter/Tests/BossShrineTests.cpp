@@ -16,12 +16,11 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/EncounterSpawner.h"
 #include "Missions/MissionRunner.h"
+#include "Scenes/FreeAbel.h"
 #include "Scenes/SceneSubsystem.h"
-#include "Scenes/SitWithPa.h"
 #include "Session/BossRecallRecord.h"
 #include "Session/SessionSave.h"
 #include "Session/SessionSubsystem.h"
-#include "Story/AbelOnBoard.h"
 #include "Tests/AbelTestWorld.h"
 #include "Tests/BossTestWorld.h"
 #include "World/BossShrine.h"
@@ -306,10 +305,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBossShrineRematchTest, "Looter.Bosses.Shrine.R
 
 bool FBossShrineRematchTest::RunTest(const FString& Parameters)
 {
-	// Abel, called back: the Keeper walks the boards again while Pa's board stands empty, unhurt until his fight starts as it
-	// first did (a player on the deck); beaten again he kneels, and is back on his board before "Sit with Pa" could play a
-	// second time; Main 6's story (his FightWhen) back as it was.
+	// Abel's vigil stone calls back "the smog's echo of him" (the user's call, 2026-10-31 night): the furnace's shadow walks
+	// the boards again, unhurt until its fight starts as the first did (a player on the deck), with no call-backs (no Abel in
+	// it to call); beaten, it kneels and boils away before the last call or "Free Abel" could come a second time; Main 7's
+	// story (his FightWhen) back as it was.
 	AbelTestWorld::FScenesSetting Scenes(2);
+	AbelTestWorld::FTendrilsOff NoTendrils;
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -317,12 +318,11 @@ bool FBossShrineRematchTest::RunTest(const FString& Parameters)
 	}
 	UWorld* World = WorldWrapper.GetTestWorld();
 	TArray<AKeeperLanternPost*> Posts;
-	AAbelOnBoard* OnBoard = nullptr;
-	AAbelKeeper* Abel = AbelTestWorld::SpawnAbel(World, false, &Posts, &OnBoard);
+	AAbelKeeper* Abel = AbelTestWorld::SpawnAbel(World, false, &Posts);
 	USceneSubsystem* Played = World->GetSubsystem<USceneSubsystem>();
 	ACharacter* Player = nullptr;
 	UBossComponent* Boss = Abel && Played ? AbelTestWorld::StartFight(*this, World, Abel, Player) : nullptr;
-	if (!Boss || !OnBoard)
+	if (!Boss)
 	{
 		return false;
 	}
@@ -339,38 +339,48 @@ bool FBossShrineRematchTest::RunTest(const FString& Parameters)
 	}
 	Stone->TestClock.PlayedSeconds = 0.0;
 
-	// The first fight: won, the scene plays (skipped), Pa on his board.
+	// The first fight: won, the last call held, the scene plays (skipped), Abel gone into his lantern.
 	FEditorScriptExecutionGuard RunActorEvents;
 	AbelTestWorld::Run(Abel, 3.f);
 	BossTestWorld::Kill(Abel);
 	AbelTestWorld::Run(Abel, 2.5f);
-	TestTrue(TEXT("First defeat: Sit with Pa plays"), Played->IsPlaying() && Played->GetPlayingName() == SitWithPa::SceneName());
+	TestTrue(TEXT("First defeat: the last call at the keeper's post"), AbelTestWorld::CallBack(Abel, Player));
+	AbelTestWorld::Run(Abel, AbelTestWorld::Frame);
+	TestTrue(TEXT("...Free Abel plays"), Played->IsPlaying() && Played->GetPlayingName() == FreeAbel::SceneName());
 	Played->SkipScene();
-	TestTrue(TEXT("...and Pa sits on his board"), Abel->IsEndingDone() && OnBoard->IsShown() && !Abel->IsPresent());
+	TestTrue(TEXT("...and he's in his lantern, gone from the boards"), Abel->IsEndingDone() && !Abel->IsPresent());
 	RunShrine(Stone, BossShrineRules::RiseDelay + Stone->RiseSeconds + 1.f);
 	TestTrue(TEXT("The scene over, his stone stands outside the gate"), Stone->IsRisen() && !Stone->IsRising());
 
-	// Five minutes on, called back, with Main 6's own FightWhen on him (kept to its fight step).
-	FStoryCondition MainSix;
-	MainSix.DuringMission = AAbelKeeper::Mission;
-	MainSix.FromStep = AAbelKeeper::FightStep;
-	Abel->FightWhen = MainSix;
+	// Five minutes on, called back, with Main 7's own FightWhen on him (kept to its fight step).
+	FStoryCondition MainSeven;
+	MainSeven.DuringMission = AAbelKeeper::Mission;
+	MainSeven.FromStep = AAbelKeeper::FightStep;
+	Abel->FightWhen = MainSeven;
 	Stone->TestClock.PlayedSeconds = 301.0;
 	Stone->Refresh();
 	TestTrue(TEXT("Five minutes on: ready"), Stone->GetState() == EBossShrineState::Ready);
 	TestTrue(TEXT("Called back"), Stone->CallBack(Player));
 	UHealthComponent* Health = Abel->FindComponentByClass<UHealthComponent>();
-	TestTrue(TEXT("The Keeper walks the boards again, alive, his fight unwon, a rematch"), Abel->IsPresent() && !Abel->IsDead()
+	TestTrue(TEXT("The smog's echo walks the boards, alive, its fight unwon, a rematch"), Abel->IsPresent() && !Abel->IsDead()
 		&& !Abel->IsEndingDone() && !Boss->IsWon() && Boss->IsRematch());
-	TestFalse(TEXT("Pa's board stands empty meanwhile"), OnBoard->IsShown());
 	TestTrue(TEXT("Unhurt until his fight starts"), Health && Health->bInvulnerable);
 	TestTrue(TEXT("His fight starts as it first did: a player on the deck"), FMath::IsNearlyEqual(Boss->EngageRadius, Abel->DeckRadius));
 	TestTrue(TEXT("The stone says he's out there"), Stone->GetState() == EBossShrineState::Present);
 	Boss->StartFight(Player);
 	TestTrue(TEXT("His fight again: his first phase, hurtable"), Boss->IsFighting() && Boss->GetPhase() == 0 && Health && !Health->bInvulnerable);
 
-	// Beaten again: no scene, Pa back on his board, the Keeper's Lantern lit, the story as it was.
-	AbelTestWorld::Run(Abel, 1.f);
+	// The echo has no call-backs: past 66% its bar never locks (the phase goes straight on into the fog).
+	BossTestWorld::HurtTo(*Boss, AbelRules::HoseShare);
+	TestTrue(TEXT("No call-back in the echo: no lock, no pips"), !Abel->GetCorruption()->IsLocked() && Abel->GetCorruption()->GetPips() == 0
+		&& Abel->IsOutInFog());
+	for (AKeeperLanternPost* Post : Posts)
+	{
+		Post->Relight(Player);
+	}
+	AbelTestWorld::Run(Abel, Abel->DriftSeconds + Abel->DragBackSeconds + 4.f);
+
+	// Beaten again: no last call, no scene, it boils away, the story as it was.
 	BossTestWorld::Kill(Abel);
 	TestTrue(TEXT("Beaten again: he kneels"), Boss->IsWon() && Abel->GetMove() == EAbelMove::Kneel);
 	bool bScenePlayed = false;
@@ -381,12 +391,10 @@ bool FBossShrineRematchTest::RunTest(const FString& Parameters)
 		Stone->Advance(Frame);
 		bScenePlayed |= Played->IsPlaying();
 	}
-	TestFalse(TEXT("Sit with Pa never plays again"), bScenePlayed);
-	TestTrue(TEXT("Pa back on his board, the Keeper gone from the boards"), OnBoard->IsShown() && Abel->IsEndingDone() && !Abel->IsPresent()
-		&& Abel->IsHidden());
-	AKeeperLanternPost* Keepers = Abel->GetKeepersPost();
-	TestTrue(TEXT("The Keeper's Lantern lit on its post"), Keepers && Keepers->IsKeepersLanternLit());
-	TestTrue(TEXT("Main 6's FightWhen back on him"), Abel->FightWhen.DuringMission == AAbelKeeper::Mission
+	TestFalse(TEXT("Free Abel never plays again"), bScenePlayed);
+	TestFalse(TEXT("...nor the last call"), Abel->GetCorruption()->IsFinalCallOpen());
+	TestTrue(TEXT("The echo boiled away, gone from the boards"), Abel->IsEndingDone() && !Abel->IsPresent() && Abel->IsHidden());
+	TestTrue(TEXT("Main 7's FightWhen back on him"), Abel->FightWhen.DuringMission == AAbelKeeper::Mission
 		&& Abel->FightWhen.FromStep == AAbelKeeper::FightStep);
 	TestTrue(TEXT("His stone waits five minutes again"), Stone->GetState() == EBossShrineState::Waiting);
 

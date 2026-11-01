@@ -6,7 +6,10 @@
 // fights carry the design's spot (Docs/Areas/RansomsRest_Expansion.md section 6) for while the layout doesn't name them.
 // The counts are the user's bigger fights' (2026-10-21: 6-10 a fight, the set pieces); the missions' experience was trimmed
 // to hold the two paths' ends (Docs/Progression.md). Since 2026-10-27 (the user's note 32) the story goes through the mine
-// (Dead Lift, Back Pay) before the boards, and the turn-ins were raised so a player arrives near each boss's level.
+// (Dead Lift, Back Pay) before the boards, and the turn-ins were raised so a player arrives near each boss's level. On
+// 2026-11-01 Mains 4-5's Dredgers (+17 kills) were paid for out of Main 4 (1,000), Main 5 (1,400) and Paid on Delivery (150).
+// On 2026-11-01 (lane MAIN67) Main 6 took the barge's 20 Dredgers and the Chief Stoker, Main 7 Abel (from Main 6) and the west
+// road's crew: Main 6 5,000 -> 3,000, Main 7 4,500 -> 3,000.
 
 #include "CoreMinimal.h"
 
@@ -32,6 +35,8 @@ namespace PacingPaths
 		Restless,
 		/** A Gravebound leader (the chapel yard's Sexton's Debt, the lower drift's, the Tollman). */
 		Gravebound,
+		/** Hallowed (the barge's Chief Stoker, Main 6). */
+		Hallowed,
 		/** Rolled as a placed or spawned creature is on Ransom's Rest: 8% Restless, 2% Gravebound. */
 		AreaRolled,
 		/** The creature's own starting rank (Abel's Boss, the Gravemother's and the Foreman's Soulfed). */
@@ -231,12 +236,15 @@ namespace PacingPaths
 
 	inline FPathStop MainFourStop(const FPathCast& Foes)
 	{
-		// The chapel yard, Saint Ada's Yard (FIGHTS lane 6, 2026-10-28, build_area_chapel.py YARD_PUSHES): fifteen Unpaid in three
-		// pushes (6; 5; 4), a Restless leader with the second, a Gravebound one (the Sexton's Debt) with the third, and the
-		// Bell-Ringer on the vestry steps from the second.
-		return { TEXT("Main 4, Hallowed Ground"), TEXT("Main4"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 15, TEXT("ChapelYard")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("ChapelYard")),
-			  MakeKills(Foes.Unpaid, EPathRank::Gravebound, 1, TEXT("ChapelYard")), MakeKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("ChapelYard")) }, 1300 };
+		// A Coal Under Ash (2026-11-01, build_area_chapel.py YARD_PUSHES, build_area_main4.py): Saint Ada's Yard in two pushes
+		// (eight Unpaid; then the crew's two hose-men, five Unpaid and the Gravebound Leftover), then the barge's answer down the
+		// tender's ropes (BellAnswered: four riflemen at level 3, two hose-men at 4) round the churchyard (layout (6700, -1900)).
+		FPathStop Stop = { TEXT("Main 4, A Coal Under Ash"), TEXT("Main4"),
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 13, TEXT("ChapelYard")), MakeKills(Foes.Unpaid, EPathRank::Gravebound, 1, TEXT("ChapelYard")) }, 1000 };
+		AddKills(Stop.Kills, MakeKills(Foes.DredgerHoseMan, EPathRank::Basic, 2, TEXT("ChapelYard")));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerRifleman, EPathRank::Basic, 4, TEXT("BellAnswered"), 6700.0, -1900.0, 3, 3));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerHoseMan, EPathRank::Basic, 2, TEXT("BellAnswered"), 6700.0, -1900.0, 4, 4));
+		return Stop;
 	}
 
 	inline FPathStop RoamingStop(const FPathCast& Foes)
@@ -250,9 +258,14 @@ namespace PacingPaths
 
 	inline FPathStop MainFiveStop(const FPathCast& Foes)
 	{
-		// The Sink: its floor's six spiders and the egg sacs' six (build_area_sink.py, SinkFloor; two to a sac).
-		return { TEXT("Main 5, The Keeper's Lantern"), TEXT("Main5"),
-			{ MakeKills(Foes.Spider, EPathRank::AreaRolled, 6, TEXT("sink")), MakeKills(Foes.Spider, EPathRank::Basic, 6, TEXT("sink")) }, 3000 };
+		// Choke Point (2026-11-01, build_area_sink.py, build_area_main5.py): the floor's six spiders and the egg sacs' six; the
+		// Intake's set piece: two drops down the hose (four riflemen, two hose-men) and three spiders down the ramp, the Sink's 4-5.
+		FPathStop Stop = { TEXT("Main 5, Choke Point"), TEXT("Main5"),
+			{ MakeKills(Foes.Spider, EPathRank::AreaRolled, 6, TEXT("sink")), MakeKills(Foes.Spider, EPathRank::Basic, 6, TEXT("sink")),
+			  MakeKills(Foes.Spider, EPathRank::AreaRolled, 3, TEXT("sink")) }, 1400 };
+		AddKills(Stop.Kills, MakeKills(Foes.DredgerRifleman, EPathRank::Basic, 4, TEXT("sink")));
+		AddKills(Stop.Kills, MakeKills(Foes.DredgerHoseMan, EPathRank::Basic, 2, TEXT("sink")));
+		return Stop;
 	}
 
 	inline FPathStop DeadLiftStop(const FPathCast& Foes, bool bWithCrest)
@@ -294,20 +307,44 @@ namespace PacingPaths
 
 	inline FPathStop MainSixStop(const FPathCast& Foes)
 	{
-		// The deck: about twelve of Abel's adds in a 3-4 minute fight (phase 1's two every 25 s, phase 2's two waves of four),
-		// then Abel.
-		return { TEXT("Main 6, The Gravewind"), TEXT("Main6"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 12, TEXT("Abel")), MakeKills(Foes.Abel, EPathRank::Own, 1, TEXT("Abel")) }, 5000 };
+		// The Pilot Light (2026-11-01, lane MAIN67): the escort tender's boarders over the Lamplighter's plank (two riflemen and a
+		// hose-man; the tenders' own deck riflemen fall with them, uncounted, as in Landfall), the barge's top deck (BargeDeck:
+		// six riflemen, three hose-men) and its furnace hall (FurnaceHall: the Chief Stoker, a Hallowed hose-man at 5 + 2 = 7;
+		// four riflemen, three hose-men), all kept at level 6, 25 m over the chapel knoll (layout (6700, -1900)).
+		FPathStop Stop = { TEXT("Main 6, The Pilot Light"), TEXT("Main6"), {}, 3000 };
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerRifleman, EPathRank::Basic, 2, TEXT("LamplighterSortie"), 6700.0, -1900.0, 6, 6));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerHoseMan, EPathRank::Basic, 1, TEXT("LamplighterSortie"), 6700.0, -1900.0, 6, 6));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerRifleman, EPathRank::Basic, 6, TEXT("BargeDeck"), 6700.0, -1900.0, 6, 6));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerHoseMan, EPathRank::Basic, 3, TEXT("BargeDeck"), 6700.0, -1900.0, 6, 6));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerRifleman, EPathRank::Basic, 4, TEXT("FurnaceHall"), 6700.0, -1900.0, 6, 6));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerHoseMan, EPathRank::Basic, 3, TEXT("FurnaceHall"), 6700.0, -1900.0, 6, 6));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerHoseMan, EPathRank::Hallowed, 1, TEXT("FurnaceHall"), 6700.0, -1900.0, 5, 5));
+		return Stop;
 	}
 
-	inline FPathStop MainSevenStop() { return { TEXT("Main 7, The Lantern Leans"), TEXT("Main7"), {}, 4500 }; }
+	inline FPathStop MainSevenStop(const FPathCast& Foes, bool bWithHounds)
+	{
+		// Given to the Wind (lane MAIN67): about twelve of Abel's adds in a 5-6 minute fight, then Abel (7); the west road's
+		// crew off the barge on the carry home (WestRoadCrew: three riflemen, two hose-men, kept 6). The keeper's road's Bone
+		// Hounds (placeholders) on the way to the boards, met by everything once (the keeper's path is optional).
+		FPathStop Stop = { TEXT("Main 7, Given to the Wind"), TEXT("Main7"),
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 12, TEXT("Abel")), MakeKills(Foes.Abel, EPathRank::Own, 1, TEXT("Abel")) }, 3000 };
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerRifleman, EPathRank::Basic, 3, TEXT("WestRoadCrew"), 2800.0, -7900.0, 6, 6));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerHoseMan, EPathRank::Basic, 2, TEXT("WestRoadCrew"), 2800.0, -7900.0, 6, 6));
+		if (bWithHounds)
+		{
+			AddKills(Stop.Kills, PlannedKills(Foes.BoneHound, EPathRank::Basic, 4, TEXT("KeepersRoadHounds"), 2000.0, -10000.0));
+			AddKills(Stop.Kills, PlannedKills(Foes.BoneHound, EPathRank::Restless, 1, TEXT("KeepersRoadHounds"), 2000.0, -10000.0));
+		}
+		return Stop;
+	}
 
 	/** The story alone, as a player who only follows it meets it: since 2026-10-27 up the ore lift and into the Providence
 	 * (Dead Lift, Back Pay: the Foreman, the second boss) between the Sink and the boards. */
 	inline TArray<FPathStop> StoryPath(const FPathCast& Foes)
 	{
 		return { MainOneStop(Foes), MainTwoStop(Foes), MainThreeStop(Foes), MainFourStop(Foes), RoamingStop(Foes), MainFiveStop(Foes),
-			DeadLiftStop(Foes, /*bWithCrest*/ false), BackPayStop(Foes), MainSixStop(Foes), MainSevenStop() };
+			DeadLiftStop(Foes, /*bWithCrest*/ false), BackPayStop(Foes), MainSixStop(Foes), MainSevenStop(Foes, /*bWithHounds*/ false) };
 	}
 
 	/**
@@ -338,12 +375,10 @@ namespace PacingPaths
 			  PlannedKills(Foes.GravepickerLookout, EPathRank::Basic, 2, TEXT("BootHillDiggers"), 3200.0, 0.0) }));
 		Path.Add(MainFourStop(Foes));
 		// After Hallowed Ground: the four Stone Sentinels (build_area_sentinels.py: two on Boot Hill, two on the churchyard's east
-		// rows; the area's rank odds) and the keeper's road's Bone Hounds until The Gravewind (placeholders: KeepersRoadHounds).
-		Path.Add(KillsStop(TEXT("Stone Sentinels, the keeper's road's hounds"),
+		// rows; the area's rank odds) (the hounds moved to Main 7, lane MAIN67).
+		Path.Add(KillsStop(TEXT("Stone Sentinels"),
 			{ PlannedKills(Foes.Sentinel, EPathRank::AreaRolled, 2, TEXT("SentinelsBootHill"), 3275.0, -1050.0),
-			  PlannedKills(Foes.Sentinel, EPathRank::AreaRolled, 2, TEXT("SentinelsChurchyard"), 7200.0, -750.0),
-			  PlannedKills(Foes.BoneHound, EPathRank::Basic, 4, TEXT("KeepersRoadHounds"), 2000.0, -10000.0),
-			  PlannedKills(Foes.BoneHound, EPathRank::Restless, 1, TEXT("KeepersRoadHounds"), 2000.0, -10000.0) }));
+			  PlannedKills(Foes.Sentinel, EPathRank::AreaRolled, 2, TEXT("SentinelsChurchyard"), 7200.0, -750.0) }));
 		// Amos's old hands, Barn Doors (FIGHTS lane 6): five Unpaid and a Restless leader in the yard, then four out of the barn
 		// and a Bell-Ringer (build_area_whitlock.py, WhitlockHands).
 		Path.Add({ TEXT("Side 2, Unfinished Business"), TEXT("Side2"),
@@ -376,7 +411,9 @@ namespace PacingPaths
 			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("DinnerPail"), 17000.0, -500.0) }, 900 });
 		Path.Add(BackPayStop(Foes));
 		Path.Add(MainSixStop(Foes));
-		Path.Add(MainSevenStop());
+		// Paid on Delivery (2026-11-01, lanes/SECRETS.md): Sexton's price, the manifest handed over at his ferry. No fight.
+		Path.Add({ TEXT("Paid on Delivery"), TEXT("PaidOnDelivery"), {}, 150 });
+		Path.Add(MainSevenStop(Foes, /*bWithHounds*/ true));
 		return Path;
 	}
 }

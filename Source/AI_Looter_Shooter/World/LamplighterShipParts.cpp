@@ -290,6 +290,12 @@ void ALamplighterShip::SpawnPieces()
 				continue;
 			}
 			Member->Crew = Station.Crew;
+			// Brother Finch goes ashore at Main 4's turn-in to keep Saint Ada lit by hand (A Coal Under Ash; build_area_main4.py
+			// stands him at the Reliquary from then): the ship's Finch is aboard until it.
+			if (Station.Crew == EWardenCrew::Keeper)
+			{
+				Member->ShownWhen.BeforeMissions = { FName(TEXT("Main4")) };
+			}
 			Member->FinishSpawning(At);
 			// Standing on the spot whatever its origin: a capsule's is its middle.
 			if (const UCapsuleComponent* Capsule = Cast<UCapsuleComponent>(Member->GetRootComponent()))

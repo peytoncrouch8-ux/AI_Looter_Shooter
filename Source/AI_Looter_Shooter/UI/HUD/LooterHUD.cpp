@@ -2,6 +2,7 @@
 #include "UI/World/BossShrineWidget.h"
 #include "UI/World/BountyBoardWidget.h"
 #include "UI/World/LostLootWidget.h"
+#include "UI/Vendor/SecretsWidget.h"
 #include "Audio/LooterSound.h"
 #include "Bestiary/Ledger.h"
 #include "UI/Bench/BenchWidget.h"
@@ -166,7 +167,8 @@ bool ALooterHUD::IsMenuOpen() const
 	// A Vigil Stone's menu and the Lost Property window's are their own widgets (UI/World), not the HUD's pages, so
 	// they're asked directly.
 	return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen || bBenchOpen || bNoticeBoardOpen || bVendorOpen || bMissionOfferOpen
-		|| UBossShrineWidget::GetOpen() != nullptr || ULostLootWidget::GetOpen() != nullptr || UBountyBoardWidget::GetOpen() != nullptr;
+		|| UBossShrineWidget::GetOpen() != nullptr || ULostLootWidget::GetOpen() != nullptr || UBountyBoardWidget::GetOpen() != nullptr
+		|| USecretsWidget::GetOpen() != nullptr;
 }
 
 ALooterHUD* ALooterHUD::FindFor(const AActor* Player)
