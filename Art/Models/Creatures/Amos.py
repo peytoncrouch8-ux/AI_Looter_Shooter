@@ -3389,5 +3389,15 @@ def previews():
     place()
 
 
+# The Tripo body (the user's call 2026-11-01, the story people): Art/Models/Creatures/Tripo/parts_people.py swaps it in
+# for the script body above, on the same rig and rest, after the pose table and its checks (which measured the script
+# body). LOOTER_PEOPLE_TRIPO=0 keeps the script body.
+if os.environ.get('LOOTER_PEOPLE_TRIPO', '1') != '0':
+    sys.path.insert(0, os.path.join(lt.REPO, 'Art', 'Models', 'Creatures', 'Tripo'))
+    import parts_people
+    BODY = parts_people.swap('Amos', globals())
+    RAW_COLORS = None
+
+
 if want_preview():
     previews()

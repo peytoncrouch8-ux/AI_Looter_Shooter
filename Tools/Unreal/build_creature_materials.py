@@ -38,6 +38,9 @@
   MI_Ghost_C    MI_GhostCoal are the model importer's, made from SK_Unpaid's own slots (Ghost_A, GhostCoal): this never
                 touches them. B and C take MI_Ghost_A's settings (all but its zone colors) when it exists, so run this
                 again after importing SK_Unpaid.
+  MI_DeadMiner_B, the dead miners' other two outfits, over MI_DeadMiner_A (the importer's, from SK_DeadMiner's slot) as
+  MI_DeadMiner_C  MI_Ghost_B and _C are over MI_Ghost_A: A's settings, the Tripo body's paint (PaintAmount, PaintZone, the
+                paint texture) included, and each zone the paint's mean times the outfit's color over A's (MINER_CLOTHES).
   MI_SpiderBody_Pale  the Gravemother's bone-pale hide (Side 3): M_World with Spider.py's pale color map
                 (T_SpiderBody_Pale_BC, imported here whenever the PNG changes) over the brown spider's normal and ORM.
 
@@ -80,7 +83,12 @@ CLOTHES = {
     'B': (SKIN, 0xc6beae, 0x4d4e51, 0x8f8b7e),   # Sunday: cream shirt, charcoal vest, grey
     'C': (SKIN, 0xa38f7e, 0x7b7f6e, 0xcfc095),   # harvest: dusty brown shirt (a rust one read as the legendary orange in sun), drab vest, straw
 }
-RIM = 0xdcecee            # pale and only barely cool, so no rarity color covers the body
+# The dead miners' outfits (Art/Models/Creatures/DeadMiner.py's CLOTHES): A is the model's own slot (MI_DeadMiner_A, the
+# importer's, the Tripo body's paint on it); B and C are its tints, made here as MI_Ghost_B and _C are.
+MINER_CLOTHES = {'A': (0xbac4c6, 0x8f9cab, 0xa08d6c, 0x6a5a4a),
+                 'B': (0xbac4c6, 0xc9c0aa, 0x72849a, 0x3d3836),
+                 'C': (0xbac4c6, 0x9a958c, 0x7a4f42, 0x6f6a60)}
+RIM = 0xdcecee           # pale and only barely cool, so no rarity color covers the body
 COLD_RIM = 0xa4e0ee       # the painted ghost's cold rim (sheet 1): a pale cyan, far from the rare blue
 STAIN = 0x9c8c78          # grave dirt: what a stain multiplies the cloth by at full strength (sRGB)
 BASIC_COAL = 0xb02a18     # a Basic coal's dull red: what a mesh no creature drives shows
@@ -397,10 +405,10 @@ def parameter_name(value):
     return str(value.get_editor_property('parameter_info').get_editor_property('name'))
 
 
-def first_tint_settings():
-    """MI_Ghost_A's own settings but its zone colors (the importer writes them from the model's script), or None before
-    SK_Unpaid is imported."""
-    path = f'{INSTANCE_FOLDER}/MI_Ghost_A'
+def first_tint_settings(first_name='MI_Ghost_A'):
+    """MI_Ghost_A's (or first_name's) own settings but its zone colors (the importer writes them from the model's script),
+    or None before SK_Unpaid is imported."""
+    path = f'{INSTANCE_FOLDER}/{first_name}'
     if not unreal.EditorAssetLibrary.does_asset_exist(path):
         return None
     first = unreal.load_asset(path)
@@ -414,15 +422,16 @@ def first_tint_settings():
             {k: v for k, v in textures.items() if k not in skip and v is not None})
 
 
-def paint_clothes(zones, shared):
+def paint_clothes(zones, shared, base=None):
     """A set of clothes' zone colours (linear RGBA). Over a model's own paint (MI_Ghost_A with PaintAmount 1) each is the
     paint's mean in that zone times this set's colour over the first set's (CLOTHES['A']): the same recolouring the
     flat tints made, the paint's detail kept; skin and robe (zone 1, the same in every set) stay the paint's."""
+    base = base or CLOTHES['A']
     scalars, vectors = (shared[0], shared[1]) if shared else ({}, {})
     if scalars.get('PaintAmount', 0.0) <= 0.0 or not all(k in vectors for k in PAINT_ZONES):
         return [linear(color) for color in zones]
     out = []
-    for color, first, key in zip(zones, CLOTHES['A'], PAINT_ZONES):
+    for color, first, key in zip(zones, base, PAINT_ZONES):
         mean = vectors[key]
         mine, theirs = linear(color), linear(first)
         out.append(tuple(min(1.0, m * a / max(b, 1e-4)) for m, a, b in
@@ -430,7 +439,7 @@ def paint_clothes(zones, shared):
     return out
 
 
-def clothes(name, zones, master, shared):
+def clothes(name, zones, master, shared, base=None):
     path = f'{INSTANCE_FOLDER}/{name}'
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         instance = unreal.load_asset(path)
@@ -456,7 +465,7 @@ def clothes(name, zones, master, shared):
             MEL.set_material_instance_vector_parameter_value(instance, key, value)
         for key, value in textures.items():
             MEL.set_material_instance_texture_parameter_value(instance, key, value)
-    for key, color in zip(ZONES, paint_clothes(zones, shared)):
+    for key, color in zip(ZONES, paint_clothes(zones, shared, base)):
         MEL.set_material_instance_vector_parameter_value(instance, key, unreal.LinearColor(*color))
     MEL.update_material_instance(instance)
     unreal.EditorAssetLibrary.save_loaded_asset(instance, only_if_is_dirty=False)
@@ -533,6 +542,12 @@ def run(wanted):
         shared = first_tint_settings()
         for key in ('B', 'C'):
             clothes(f'MI_Ghost_{key}', CLOTHES[key], master, shared)
+    if not wanted or {'MI_DeadMiner_B', 'MI_DeadMiner_C'} & wanted:
+        # The miners' tints, over MI_DeadMiner_A (the importer's): its settings, the paint's too, and its zones recoloured.
+        master = unreal.load_asset(f'{W.FOLDER}/M_Ghost')
+        shared = first_tint_settings('MI_DeadMiner_A')
+        for key in ('B', 'C'):
+            clothes(f'MI_DeadMiner_{key}', MINER_CLOTHES[key], master, shared, MINER_CLOTHES['A'])
     if not wanted or PALE_HIDE in wanted:
         pale_hide()
     log('done')

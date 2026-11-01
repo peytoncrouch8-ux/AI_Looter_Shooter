@@ -1,0 +1,38 @@
+{
+  "Abel": {
+    "prompt": "Full body single character in a relaxed A-pose: arms straight, angled down 35 degrees away from the body, not touching the coat, both hands in loose fists, facing forward, mouth closed, bareheaded. The ghost of a frontier chapel keeper of fifty-five: a weathered, dignified, grieving face, deep-set eyes under heavy grey brows, a short trimmed grey beard, short grey hair. A long black wool frock coat buttoned to the throat, skirts closed to the knee, a white collar and thin black string tie, a long bone-white stole hanging down his front with a faded gold sun-ring stitched near each end. Below the coat's hem no legs: a long tattered shroud of pale grey torn cloth hangs straight down in ragged strips, no feet. Pale ashen skin with a cool blue tint. Painted in full natural colour. Stylized realistic game character, hand-painted look, matte cloth, muted warm frontier 1880s palette.",
+    "negative": "hat, glasses, weapon, lantern, holding objects, legs, feet, boots, T-pose, arms raised, base, pedestal, ground, multiple characters, cropped, glossy, plastic, toy, cartoon, photoreal, grey clay, untextured",
+    "faces": 40000,
+    "person": false
+  },
+  "Foreman": {
+    "prompt": "Full body single character in a relaxed A-pose: arms straight, angled down 35 degrees away from the body, not touching the coat, both hands in big loose fists, facing forward, mouth closed, bareheaded. The ghost of a silver mine's company foreman, heavy-set, about fifty: a heavy jowled hard face, sunken hungry eyes, a thick black walrus moustache, black hair slicked flat. A mouse-brown wool overcoat to the knee buttoned over a black waistcoat, its dark velvet collar turned up round a stiff white collar and a black necktie. Below the overcoat's hem no legs: a long tattered shroud of pale grey torn cloth hangs straight down in ragged strips, no feet. Pale ashen skin with a cool blue tint. Painted in full natural colour. Stylized realistic game character, hand-painted look, matte cloth, muted warm frontier 1880s palette.",
+    "negative": "hat, bowler, lamp, glasses, weapon, pick, satchel, bag, holding objects, legs, feet, boots, T-pose, arms raised, base, pedestal, ground, multiple characters, cropped, glossy, plastic, toy, cartoon, photoreal, grey clay, untextured",
+    "faces": 40000,
+    "person": false
+  },
+  "Amos": {
+    "prompt": "Full body single character in a relaxed A-pose: arms straight, angled down 35 degrees away from the body, not touching it, right hand in a loose fist, left hand relaxed, facing forward, mouth closed, bareheaded. The friendly ghost of a farmer of fifty: a tired, patient, kind sun-creased face, grey-brown stubble, short sun-bleached hair. A collarless cream linen shirt, sleeves rolled past the elbows, one brown leather brace over the right shoulder, the left brace hanging in a loop by the hip, brown canvas trousers patched with flour sack, ending at the knees in frayed hems. Below the knees no legs: a long tattered shroud of pale grey torn cloth hangs straight down in ragged strips, no feet. Pale ashen skin with a cool blue tint. Painted in full natural colour. Stylized realistic game character, hand-painted look, matte cloth, muted warm frontier 1880s palette.",
+    "negative": "hat, straw hat, glasses, pitchfork, tool, weapon, holding objects, feet, boots, shins, T-pose, arms raised, base, pedestal, ground, multiple characters, cropped, glossy, plastic, toy, cartoon, photoreal, grey clay, untextured",
+    "faces": 40000,
+    "person": false
+  },
+  "Hiram": {
+    "prompt": "Full body single character in a relaxed A-pose: arms straight, angled down 35 degrees away from the body, not touching the coat, hands relaxed, fingers slightly curled, facing forward, mouth closed, bareheaded. The kind ghost of a steam engineman of sixty: a square, soot-creased, friendly face, big bushy grey mutton-chop whiskers joined by a grey moustache, shaved chin, short grey hair. A hip-length tan canvas work coat hanging open over a blue-and-white striped work shirt, dark leather braces, a faded red rag knotted at the neck, dark brown work trousers ending at the knees in frayed hems, soot smudges. Below the knees no legs: a long tattered shroud of pale grey torn cloth hangs straight down in ragged strips, no feet. Pale ashen skin with a cool blue tint. Painted in full natural colour. Stylized realistic game character, hand-painted look, matte cloth, muted warm frontier 1880s palette.",
+    "negative": "hat, cap, goggles, glasses, stool, sitting, tool, weapon, holding objects, feet, boots, shins, T-pose, arms raised, base, pedestal, ground, multiple characters, cropped, glossy, plastic, toy, cartoon, photoreal, grey clay, untextured",
+    "faces": 40000,
+    "person": false
+  },
+  "Thaddeus": {
+    "prompt": "Full body single character in a relaxed A-pose: arms straight, angled down 35 degrees away from the body, not touching the apron, hands relaxed, fingers slightly curled, facing forward, mouth closed, no hat. The gentle ghost of a frontier undertaker of sixty, long, thin and a little stooped: a long narrow solemn face, clean shaven, bald on top with a fringe of short grey hair round the back and sides. A collarless off-white shirt, sleeves rolled up and held by black sleeve garters, a black wool waistcoat, a long tan leather work apron from the chest to below the knees. Below the knees no legs: a long tattered shroud of pale grey torn cloth hangs straight down in ragged strips, no feet. Pale ashen skin with a cool blue tint. Painted in full natural colour. Stylized realistic game character, hand-painted look, matte cloth and leather, muted warm frontier 1880s palette.",
+    "negative": "hat, glasses, spectacles, pencil, measuring tape, tool, weapon, holding objects, feet, boots, shins, T-pose, arms raised, base, pedestal, ground, multiple characters, cropped, glossy, plastic, toy, cartoon, photoreal, grey clay, untextured",
+    "faces": 40000,
+    "person": false
+  },
+  "DeadMiner": {
+    "prompt": "Full body single character in a relaxed A-pose: arms straight, angled down 35 degrees away from the body, not touching the coat, both hands in loose fists, facing forward, mouth closed, bareheaded. The hungry ghost of a frontier silver miner: a gaunt hollow-cheeked face, sunken dark eye sockets, a hard stare, short dark hair, stubble. A hip-length tan canvas work coat hanging open over a faded red-brown flannel shirt, dark leather braces, a dusty blue neckerchief, rock dust on the cloth. Below the coat's hem at the waist no legs: a long tattered shroud of pale grey torn cloth hangs straight down in ragged strips, no feet. Pale ashen skin with a cool blue tint. Painted in full natural colour. Stylized realistic game character, hand-painted look, matte cloth, muted warm frontier 1880s palette.",
+    "negative": "hat, helmet, lamp, glasses, pick, pail, tool, weapon, holding objects, legs, trousers, feet, boots, T-pose, arms raised, base, pedestal, ground, multiple characters, cropped, glossy, plastic, toy, cartoon, photoreal, grey clay, untextured",
+    "faces": 40000,
+    "person": false
+  }
+}

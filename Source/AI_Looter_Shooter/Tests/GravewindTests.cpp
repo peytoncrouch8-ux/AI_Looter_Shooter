@@ -56,10 +56,10 @@ bool FGravewindMissionTest::RunTest(const FString& Parameters)
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main6.DA_Mission_Main6"));
 		if (TestNotNull(TEXT("DA_Mission_Main6 loads"), Asset))
 		{
-			TestTrue(TEXT("Main6, a main mission on Ransom's Rest after Main5, offered at Delia's door"), Asset->GetMissionId() == MainSix
+			TestTrue(TEXT("Main6, a main mission on Ransom's Rest after Back Pay (since 2026-10-27), offered at Delia's door"), Asset->GetMissionId() == MainSix
 				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Offered
 				&& Asset->Offer.GiverTag == FName(TEXT("Speaker_Delia")) && !Asset->Offer.Lines.IsEmpty()
-				&& Asset->Area == FName(TEXT("RansomsRest")) && Asset->Prerequisites == TArray<FName>({ MainFive }));
+				&& Asset->Area == FName(TEXT("RansomsRest")) && Asset->Prerequisites == TArray<FName>({ FName(TEXT("BackPay")) }));
 			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), MainSixSteps);
 			const UMissionObjective* Bridge = Asset->GetObjective(0, 1);
 			TestTrue(TEXT("...the keeper's path over Keeper's Bridge, optional, beside the first"), Bridge && Bridge->bOptional);
@@ -77,7 +77,7 @@ bool FGravewindMissionTest::RunTest(const FString& Parameters)
 			// It finishes by itself as Pa sits down: that scene is its hand-in (his board, the lantern lit and the train's steam
 			// follow Main 6 finished), so there's no one to turn it in to.
 			TestTrue(TEXT("It finishes by itself, no turn-in"), Asset->TurnIn.bAutomatic && !Asset->NeedsTurnIn());
-			TestEqual(TEXT("Its reward: 4,400 experience"), Asset->Rewards.Experience, 4400);  // (trimmed 2026-10-21; 5,000)
+			TestEqual(TEXT("Its reward: 5,000 experience"), Asset->Rewards.Experience, 5000);  // (4,400 from 2026-10-21; 5,000 again since 2026-10-27)
 			TestTrue(TEXT("Its steps are the ones Abel's story counts"), AAbelKeeper::HangStep == 1 && AAbelKeeper::FightStep == 2 && AAbelKeeper::SceneStep == 3);
 		}
 	}
