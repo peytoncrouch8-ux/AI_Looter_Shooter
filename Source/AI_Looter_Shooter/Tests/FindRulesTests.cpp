@@ -87,7 +87,7 @@ bool FFindRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Count"), FindRules::BannerCount(4, 15).ToString(), FString(TEXT("4 / 15")));
 	TestEqual(TEXT("Count line"), FindRules::CountLine(4, 15, Area).ToString(), FString(TEXT("4 / 15 · RANSOM'S REST")));
 	TestEqual(TEXT("Count line without an area"), FindRules::CountLine(4, 15, FText::GetEmpty()).ToString(), FString(TEXT("4 / 15")));
-	TestEqual(TEXT("Lore line"), FindRules::LoreLine(2, 6).ToString(), FString(TEXT("LEDGER PAGE · 2 / 6")));
+	TestEqual(TEXT("Lore line"), FindRules::LoreLine(2, 6).ToString(), FString(TEXT("LOG PAGE · 2 / 6")));
 	TestEqual(TEXT("Completion"), FindRules::CompleteTitle(Area).ToString(), FString(TEXT("EVERY FIND IN RANSOM'S REST")));
 	TestEqual(TEXT("Collapsed"), FindRules::CollapsedTitle(3).ToString(), FString(TEXT("3 FOUND")));
 	TestFalse(TEXT("Hob's last word"), FindRules::CompletionWords().IsEmpty());

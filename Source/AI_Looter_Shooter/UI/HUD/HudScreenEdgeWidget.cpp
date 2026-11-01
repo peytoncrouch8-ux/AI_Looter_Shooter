@@ -5,6 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Player/PlayerFlaskComponent.h"
 #include "Player/PlayerRattleSubsystem.h"
+#include "Creatures/DredgerHoseComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -49,6 +50,9 @@ namespace
 	constexpr float HealGlowOutSpeed = 3.f;
 	/** Below this the glow is gone: the layer collapses. */
 	constexpr float HealGlowGone = 0.005f;
+	// A soul-hose's drain: the ink layer and its cyan rim at full latch.
+	constexpr float DrainInkStrength = 0.7f;
+	constexpr float DrainCyanStrength = 0.45f;
 
 	/**
 	 * A strip's picture: Tint (the red, or the ward's cyan) fading from its edge inward. bAcrossX: the fade runs along x (the
@@ -135,6 +139,14 @@ TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 		static const FPaintedIcon HealRight = EdgeStrip(true, true, Color::Heal());
 		static const FPaintedIcon HealTop = EdgeStrip(false, false, Color::Heal());
 		static const FPaintedIcon HealBottom = EdgeStrip(false, true, Color::Heal());
+		static const FPaintedIcon DrainInkLeft = EdgeStrip(true, false, Color::Ink());
+		static const FPaintedIcon DrainInkRight = EdgeStrip(true, true, Color::Ink());
+		static const FPaintedIcon DrainInkTop = EdgeStrip(false, false, Color::Ink());
+		static const FPaintedIcon DrainInkBottom = EdgeStrip(false, true, Color::Ink());
+		static const FPaintedIcon DrainLeft = EdgeStrip(true, false, Color::XPDark());
+		static const FPaintedIcon DrainRight = EdgeStrip(true, true, Color::XPDark());
+		static const FPaintedIcon DrainTop = EdgeStrip(false, false, Color::XPDark());
+		static const FPaintedIcon DrainBottom = EdgeStrip(false, true, Color::XPDark());
 
 		UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
 		// A set of four strips filling the screen, each strip stretched between its anchors, whatever the screen's shape.
@@ -160,6 +172,8 @@ TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 		// The frost under all, the heal's green over it, then the cyan, so a breaking hit's red lies over them all.
 		FrostEdges = AddSet(TEXT("HudFrostEdge"), FrostLeft, FrostRight, FrostTop, FrostBottom);
 		HealEdges = AddSet(TEXT("HudHealEdge"), HealLeft, HealRight, HealTop, HealBottom);
+		DrainInkEdges = AddSet(TEXT("HudDrainInkEdge"), DrainInkLeft, DrainInkRight, DrainInkTop, DrainInkBottom);
+		DrainEdges = AddSet(TEXT("HudDrainEdge"), DrainLeft, DrainRight, DrainTop, DrainBottom);
 		WardEdges = AddSet(TEXT("HudWardEdge"), WardLeft, WardRight, WardTop, WardBottom);
 		Edges = AddSet(TEXT("HudEdge"), Left, Right, Top, Bottom);
 
@@ -168,6 +182,8 @@ TSharedRef<SWidget> UHudScreenEdgeWidget::RebuildWidget()
 		ShownWardOpacity = 0.f;
 		ShownFrostOpacity = 0.f;
 		ShownHealOpacity = 0.f;
+		ShownDrainInkOpacity = 0.f;
+		ShownDrainOpacity = 0.f;
 		HealGlow = 0.f;
 	}
 	return Super::RebuildWidget();
@@ -248,4 +264,9 @@ void UHudScreenEdgeWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 		HealGlow = 0.f;
 	}
 	ShowEdgeLayer(HealEdges, HealGlow * HealEdgeStrength, ShownHealOpacity);
+
+	// The soul-hose draining them (Vane's hose-men): black creeping in with a cyan rim while the line holds.
+	const float Drain = UDredgerHoseComponent::GetDrainOn(Player ? Player->GetPawn() : nullptr);
+	ShowEdgeLayer(DrainInkEdges, Drain * DrainInkStrength, ShownDrainInkOpacity);
+	ShowEdgeLayer(DrainEdges, Drain * DrainCyanStrength, ShownDrainOpacity);
 }

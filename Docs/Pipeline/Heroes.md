@@ -93,7 +93,9 @@ docstring and `OPTIONS`).
 Before a new game the player picks one of five (Docs/Story.md "The heroes"; contract `Saved/Heroes/CONTRACT.md`, not
 committed: its names are here). The session keeps the pick; the character takes the hero's body and powers.
 - **Ids (never change, like part keys):** `Ellis`, `Odessa`, `Crane`, `Gauge`, `Pike`, the roster's order
-  (`UHeroDefinition::RosterIds`). Roles: the Revenant, the Cardsharp, the Unpaid, the Iron Hand, the Surveyor. Colours
+  (`UHeroDefinition::RosterIds`). Roles: the Lantern Warden (Ellis, shown as **Sully Graves**, "Sully", they, since
+  2026-10-31; was the Revenant), the Cardsharp, the Unpaid, the Iron Hand, the Surveyor (the four still tell the Revenant
+  story until their own round). Colours
   (sRGB): Ellis #5AD8FF, Odessa #D04A68, Crane #B9D98C, Gauge #FFB347, Pike #3FBFAA (data, like an ember's).
 - **Data:** `DA_Hero_<Id>` in `/Game/Data/Embers` (name, role, story, colour, `Portrait` `/Game/UI/Portraits/T_Portrait_<Id>`,
   `FigureMesh` `/Game/Art/Characters/SK_<Id>`, `Retargeter` `/Game/Player/Retarget/RTG_MannyTo<Id>`, three powers) and the
@@ -343,3 +345,68 @@ has the swing's clock and fallbacks). A set `DA_Hero_<Id>` `MeleeTool.Mesh` over
     `FMeleeRules::AttackerHitStop` 0.09 so the swing still ends before the cooldown; a wall hit is 0.6 of the first. The struck creature's
     own stagger/flinch is the existing `FHitReaction::MeleeHitStop` 0.06 and sparks per material are round 4's.
   - The hit's view kick and shake (`MeleeMotion::Impact`, `KillShake`) are round 3's. Checked in PIE; `Looter.Melee` passes (13 tests).
+
+## Story people's bodies (lane CREW, 2026-10-31; not yet built or seen in PIE)
+
+- Every story person (`AWardenCrewMember`: Holloway, Finch, Junie on the Lamplighter's deck; `ADeliaRansom` on her porch)
+  = the hidden mannequin (SKM_Manny_Simple) playing **MM_Idle** in a native anim instance (`UWardenCrewAnimInstance`, no
+  Anim Blueprint), with a code layer on top (`WardenCrewPose`: hips lowered/turned on planted feet, spine lean/sway/twist,
+  head look, two-bone IK hands to world spots or a two-handed gun on `HandGrip_R`), worn as a hero's body standing in
+  through `UBodyFigureComponent::SetShownHero`, tinted by the character masters' `Tint`. Picked over AStoryCharacter's
+  code-only posing: a captured idle breathes and shifts weight as no sine does.
+- Stand-ins and the one soft path each (swap = put the asset at the path; no code change; `Story/WardenCrewStations.cpp`,
+  `Story/DeliaRansomShotgun.cpp`): Delia `/Game/Art/Characters/SK_Delia` (Odessa, 0.79); Holloway `SK_Holloway` (Odessa,
+  0.86); Finch `SK_Finch` (Crane, 0.78); Junie `SK_Junie` (Pike, 0.79); own models at 0.85; Delia's shotgun
+  `/Game/Art/Props/SM_DeliaShotgun` (sockets `Grip`, `Foregrip`, `Muzzle`, +X barrel; stand-in from Ranchhand heritage parts).
+- **Tripo import rule:** people go onto the **SK_Mannequin skeleton** (else a warning and the stand-in stays): humanoid
+  A-pose for auto-rigging; the mesh needs `HandGrip_R` if that's a mesh socket on SKM_Manny_Simple (check).
+- Tests `Looter.Story.WardenCrew.*` (Roles, Looks, Brace, Pose, Station), `Looter.Story.Delia.*` (Rules, Fight, NeverDies,
+  Talks); numbers in `DeliaFightRules` and `FWardenLife`. Warnings (not failures) where a checkout lacks the mannequin, a hero body or
+  `DA_Lines_DeliaFight`.
+- Files (`Story/`): `WardenCrewPose` (`FWardenHand`, `FWardenGunHold`, `FWardenPoseInput`; `Apply`, `GunFrame` shouldered/carried/broken/kicked;
+  limits: look 75/35/40, body turn 60), `WardenCrewAnimInstance` (MM_Idle on the person's own clock, then `Apply`; `SetPoseInput` each tick),
+  `WardenCrewLife` (`FWardenLife`, `FWardenLookSense`), `WardenCrewBody` (`FWardenLook`, `MakeBody`, `WearLook`, `DressStandIn`: tints per master
+  Skin/Hair/Glow/cloth, hides `*HolsterGun`; `DetailFor`/`ApplyDetail`), `WardenCrewMember` + `WardenCrewStations.cpp` (the one table),
+  `DeliaRansom*` (body, fight, shotgun, rules).
+- **Crew** (`AWardenCrewMember : AStoryCharacter`, `EWardenCrew { Captain, Keeper, Engineer }`, speaker names exactly "Captain Holloway",
+  "Brother Finch", "Junie Calloway", tags `Speaker_Holloway/_Finch/_Junie`, `bMissionsOnly` so STORY/WORLD put topics on `speaker_point` and clear
+  `missions_only` if they should always talk): actor origin = feet on the deck, +X facing the station; hull 55 cm wide, 180 x scale tall, blocks
+  pawns (Dredgers walk round), ignores Weapon/Camera. Stations: Holloway's hands on the wheel (rim centre ~(40,0,95), radius ~22, scale 0.86),
+  Finch's up at the Great Lantern (cage centre ~(30,0,134), hands at its sides +-12, flame focus (43,0,139), 0.78), Junie leaning 22 degrees
+  into the engine with a wrench (works ~(44,10,68), left hand braced (40,-20,79), 0.79, knees 9 cm); fit with `HandsShift` (actor-space cm, both
+  hands) rather than moving the hands. `Brace(Seconds)` / `BraceAll(this, Seconds)` on every lurch (on 7/s, off 1.8/s, a ringing sway 7 degrees
+  roll / 3 pitch, decay 1.6/s; brace 11 cm / 6 degrees); `SetAtStation(false)` stands them at ease. Look rules (`FWardenLife`): listener > focus-only
+  > the player near (radius `CrewNoticeRadius` 450, watched 3.5-6.5 s then away 1.2-2.6 s, 0.35 s notice beat) > glances every 3.5-8 s > the
+  station's focus; a talk turns them (2.5/s). The captain keeps her right hand on the wheel and turns <= 35 degrees; Finch lets go to talk.
+  Detail by distance: full < `FullDetailRange` 3000, 15 Hz < `ReducedDetailRange` 8000, held and no shadow beyond, `DrawDistance` 15000.
+- **Delia** (`ADeliaRansom : ACharacter, IInteractable`, tag `Speaker_Delia` alone, name "Delia Ransom", the turn-in giver; place at porch floor
+  + 68 cm, capsule r 26 half-height 68, facing the yard): shotgun carried low, glances, faces and watches a talker. **Fights** creatures within
+  18 m flat of her porch (scan 5/s; raise 0.35 s, lower 0.6 s; she turns 220 deg/s): a blast every 1.8 +- 0.2 s at the nearest she can see (a
+  Visibility trace from her eyes, so keep the barricade off her eye line ~1.3 m), 2 shells then a reload of 2.4 s (break open 0-0.15, hand to
+  pocket 0.18-0.38, back 0.48-0.68, shut 0.8-0.92); 9 pellets through `UBulletSubsystem` (22000 cm/s, range 39.6 m, Weapon channel, never into
+  the player, never critical), each pellet = target MaxHealth x 0.25 / (9 x 0.8) (a 140 HP rifleman: ~35 a blast), spread atan(35 cm / dist)
+  clamped 1.5-5 degrees, `LandingScale` so no hit takes a target below 10%; a target under 15% isn't shot (she covers it and calls the finish);
+  the player within 70 cm of her line and between her and the target holds her fire; ready 2.5 s after the last creature; muzzle flash and burst
+  through `FWeaponFX`. Health 500, invulnerable (`Drain` nothing), no numbers; a hit or a shove = flinch (chest back 7, roll 4) and a bark 60%;
+  talking is refused only while the gun is up on a target. `SetFighting(bool)` / `ClearFightingOverride` for scripts. Barks (`DA_Lines_DeliaFight`;
+  ORDER IS LOAD-BEARING, `DeliaFightRules::BarkLines`): 0 "Off my porch!" = first sight; 3 "Reloading! Cover me" = reload; 4 "Hose-man coming!" =
+  a hose-man in reach (she knows `ADredgerHoseMan` by class name containing "HoseMan"); 2 (or 1) = her target goes down; 6, 5 = she's hit; 7, 1, 5
+  = she knocked one to the floor for the player; never the same line twice running, 7 s apart at least (`BarkGap`), never over a caption,
+  queued; the all-clear (`EDeliaBark::Clear`) is silent until the table names a line. Creatures take her up as prey (`CheckHunt`: a
+  character with health), her shots blamed on her AI controller. Sounds `DeliaShotgun`, `DeliaReload`. Other tunables: `DeliaNoticeRadius` 600,
+  turn rates 220/140/70 deg/s, chest lead 35, flash 1.4, bark chances Hurt 0.6, Reload 0.35, Down 0.5, Finish 0.6, HoseMan 0.9.
+- Stand-in details: Delia = Odessa, cloth x(0.3,0.28,0.3), hair x1.8; Holloway = Odessa, cloth x(0.38,0.5,0.5); Finch = Crane, cloth
+  x(0.62,0.55,0.45), skin x(1.25,1,0.88), glow 0.08; Junie = Pike, cloth x(0.42,0.5,0.68); shotgun = Ranchhand Body/Barrel Heritage, Muzzle Crown,
+  Stock Field, Magazine Tube6, Pump Walnut, wear 0.85; Junie's wrench = engine Cylinder + Cube (no Tripo entry yet).
+- Not checked (no build, no PIE): (1) the graph-less native anim instance (`Evaluate_WithRoot` with no root: REVIEW found UE 5.8 calls
+  it, so a ref-pose stall is not expected; if bodies stand in the reference pose give the proxy a `FAnimNode_SequencePlayer` on MM_Idle and
+  keep `Apply` after it); (2) bone-space signs (the mannequin faces +Y, right = -X in component space; lean forward = +about right): `.Pose`
+  checks reach/feet/look size, not the lean's direction; (3) `HandGrip_R`'s frame (gun +X barrel, +Z up) so the shotgun may sit rotated;
+  (4) station hand targets vs the Lamplighter's props (`HandsShift`); (5) stand-in heights (Crane ~1.95 m, Pike ~1.78 m), tints are
+  multipliers so Crane's skin may read grey; (6) `UBodyFigureComponent` on non-players (its holster logic finds no weapons; Odessa's card
+  prop stays hidden); (7) creatures hunting Delia is new (any code assuming the target is a player: Dredger hose, fight director pressure,
+  `FightState`); Dredger bullets pass through her (optional: add `ADeliaRansom` to `EnemyProjectileSubsystem::Victims`); (8) perf: 4 people x
+  (MM_Idle + layer + a retargeted hero) every frame within 30 m, all near the player during the deck fight: cut `FullDetailRange` or skip
+  the figure's swing bones if it shows; (9) `FPackageName::DoesPackageExist` runs in each anim instance's constructor (4 at load).
+- Bestiary pages: Delia (name "Delia Ransom", habitat "Ransom Farm: her porch"), and Friends `DA_Bestiary_Holloway`, `_Finch`, `_Junie`
+  (STORY_CHARACTER, ledger-only, known after Main 1, no model) after Hob (sort 1-3; Tilly..Thaddeus shifted to 4-9).

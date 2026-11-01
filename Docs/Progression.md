@@ -7,7 +7,7 @@ The user's calls:
   steps (2026-10-08).
 - Since the mountain and the givers (2026-10-13, `Docs/Areas/RansomsRest_Expansion.md` section 13): the story alone
   ended about level 5.5, a full clear of Ransom's Rest about level 6.8 (superseded by the 2026-10-27 call below: 6.9 and
-  7.5).
+  7.5; measured 6.99 and 7.70 on 2026-11-01).
 - (2026-10-13) **Levelling works like Borderlands': it takes more experience, the top level is 65, and kills give real
   numbers again.** In the user's words: "Just make it take more XP to level up. Find something similar to the way
   Borderlands handles their level up system and do that. We plan on making a bunch of maps or areas with a max level of
@@ -16,8 +16,8 @@ The user's calls:
   should be the final boss so that means cyrus is the second boss fight (the story and progression should adjust to this
   change)". Dead Lift and Back Pay are main missions after Main 5; the Foreman (Cyrus Teague) is set a level under Abel
   (6 and 7); the turn-ins were raised so **a player arrives near each boss's level**: the story alone about a level
-  under the Foreman and Abel, a full clear at them. **The story alone now ends about level 6.9, a full clear about
-  7.5** (were 5.5 and 6.8), so the *Lily* (8-13) is met a level or so under its floor either way.
+  under the Foreman and Abel, a full clear at them. **The story alone now ends about level 7.0, a full clear about
+  7.7** (were 5.5 and 6.8), so the *Lily* (8-13) is met a level or so under its floor either way.
 - (2026-10-31) **Gun slots open with progress:** 2 at the start, the 3rd at level 3, the 4th after every Ransom's Rest main mission (see "Unlocks").
 
 ## How Borderlands does it (the research, 2026-10-13)
@@ -126,7 +126,7 @@ rising along the story, the mountain 5-6 (the user's call):
 
 | Zone | Where (layout) | What's fought there | Levels | The player there, story alone / everything |
 |---|---|---|---:|---:|
-| bluff | `ransomsPoint` | Main 2's spider nest | 1-2 | 1 / 1 |
+| bluff | `ransomsPoint` | (Main 2's spider nest moved to the `widows` zone, 1-2, at the Three Widows on the keeper's path, 2026-11-01) | 1-2 | 1 / 1 |
 | valley | everywhere else | Main 3's town gate, the orchard's edge camp, Main Street, the depot's waiting room (The Old Fare) | 2-3 | 2 / 2-3 |
 | chapel | `chapel` | Main 4's chapel yard, the churchyard's risen dead | 3-4 | 2-3 / 3 |
 | bootHill, northRoad | `bootHill`; 25 m round the north road | the roaming Unpaid after Main 4 | 3-4 | 3 / 4 |
@@ -162,9 +162,9 @@ and any mission they offer next is offered straight after, as one conversation. 
 
 | Mission | Picked up from | After | Turned in to | XP | Purse | Gun |
 |---|---|---|---|---:|---:|---|
-| Main 1, Seven Days | (a new game) | — | Delia, at her screen door | 450 | 20 | — |
-| Main 2, Shall We Talk Business? | Hob | Main 1 | Mister Sexton, on the rail | 550 | — | (the Ledger) |
-| Main 3, Cold Welcome | Delia | Main 2 | Tilly, at her window | 1,000 | 40 | Uncommon+ |
+| Main 1, Landfall | (a new game) | — | Delia Ransom, on her porch (the turn-in card first) | 450 | 20 | — |
+| Main 2, The Ferryman's Price | Hob | Main 1 | Mister Sexton, on the Ferryman's ferry | 400 | — | (the Ledger) |
+| Main 3, Under New Management | Delia | Main 2 | Tilly, at her window | 800 | 40 | Uncommon+ |
 | Side 1, Wanted: Already Dead | the poster on the town gate | Main 3 | Tilly | 300 | 50 | Rare |
 | Calder's Caches | Ruth Calder's note | Main 3 | the Rim Rangers' board | 250 | 30 | — |
 | The Old Fare | Mr. Sloane, through his door | Main 3 | Josiah Fenn, in his coffin | 450 | 30 | Rare Drover |
@@ -197,13 +197,13 @@ mission assets' rewards, the creatures' own numbers, the layout's levels and enc
 counted with its groups). Kills one at a time at the level the ones before left the player on, each averaged over the
 levels where it stands and the area's promotions (8% Restless, 2% Gravebound, 0.4% Hallowed, 0.08% Ethereal) as the game
 rolls them; then the turn-in. It fails outside **6.7-7.1** for the story alone and **7.3-7.7** for everything (5.3-5.8
-and 6.6-7.0 before the mine joined the story, 2026-10-27), if the missions give under three fifths of the story's
+and 6.6-7.0 before the mine joined the story, 2026-10-27; the test's 2026-11-01 sums: 6.99 and 7.70), if the missions give under three fifths of the story's
 experience, or if a boss is met off its level: the story alone meets the Foreman and Abel no more than 1.25 levels under
 and never over, everything once meets each boss at most half a level over (`FPathResult::Arrivals`).
 
-The tables are the paper model of 2026-10-27 (STORY round 3, a node copy of the test's sums with today's counts and
-levels: Main Street's 6 + 1 + a Bell-Ringer and the bluff's 4 + 1 since "Soften early only"); the test's own sums print
-in its log and may differ by a few hundredths.
+The tables are the test's own sums from its log (2026-11-01, after Landfall and the trimmed Main 2 and Main 3 XP; Landfall
+= Main 1: 16 kills at levels 1-2, `Tests/PacingPaths.h` MainOneStop). The kill-count details in the row descriptions are
+older paper counts and may differ by a few kills from the log's (Main 4 18, roaming 18). If a band fails, trim Main 1's or Main 2's XP, not the kills.
 
 ### The story alone
 
@@ -213,20 +213,19 @@ roaming dead once (boot hill's, the north road's, the west road's walkers).
 
 | After | Kills on the way (their levels) | Kill XP | Turned in | XP in all | Level |
 |---|---|---:|---:|---:|---:|
-| Main 1, Seven Days | none | 0 | 450 | 450 | 1.42 |
-| Main 2 | the bluff nest (1-2): 4 spiders, 1 Restless | 127 | 550 | 1,127 | 2.02 |
-| Main 3 | the town gate (2-3): 6 Unpaid, 1 Restless; Main Street (2-3): 6 Unpaid, 1 Restless, a Bell-Ringer | 586 | 1,000 | 2,713 | 2.62 |
-| Main 4 | the chapel yard (3-4): 15 Unpaid, 1 Restless | 797 | 1,300 | 4,810 | 3.23 |
-| (roaming) | boot hill, the north road (3-4): 10 Unpaid; the west road (4-5): 5 Unpaid | 944 | | 5,754 | 3.42 |
-| Main 5 | the churchyard (3-4): 6 Unpaid, 1 Restless, a Bell-Ringer; the Sink (4-5): 12 spiders | 1,278 | 3,000 | 10,031 | 4.20 |
-| Dead Lift | the quarry floor (5-6): the lift crew 5 and Abe Haskett (Restless), the raising steam 4 spiders, 2 Spitters, 2 miners | 1,268 | 5,000 | 16,299 | 5.02 |
-| Back Pay | the spoil heap 6, the upper gallery 7 + 1, the lower drift 7 + 1 + a Bell-Ringer (5-6); the Foreman (6: 946, met at 5.27) and his 6; the cave-in 9 + 1 | 4,659 | 6,500 | 27,458 | 6.03 |
-| Main 6 | the sheep fold (4-5): 6; about 12 of Abel's adds (5-6) and Abel (7: 2,066, met at 6.12) | 3,321 | 5,000 | 35,779 | 6.60 |
-| Main 7, The Lantern Leans | none | 0 | 4,500 | **40,279** | **6.91** |
+| Main 1, Landfall | the Lamplighter's deck (1-2): 3 Dredger riflemen, 1 hose-man; the Mooring Ledge (1-2): 4 Unpaid; Delia's porch (1-2): 3 riflemen, 2 hose-men, 3 Unpaid (the tender's 2 riflemen fall with it, uncounted) | 342.0 | 450 | 792.0 | 1.74 |
+| Main 2 | the Three Widows' nest (1-2): 4 spiders, 1 Restless; the boards' crew on Gravewind Point's deck (level 2): 3 Dredger riflemen, 1 hose-man, 4 Unpaid from the cart's spill (+8 at level 2; Wardens story, 2026-11-01) | 355.5 | 400 | 1,547.5 | 2.18 |
+| Main 3 | the Company's checkpoint at the town gate (2-3): 3 Dredger riflemen, 1 hose-man, 2 Unpaid, 1 Restless (was 7 Unpaid); Main Street (2-3): 6 Unpaid, 1 Restless, a Bell-Ringer, +2 riflemen with the second push | 730.0 | 800 | 3,077.5 | 2.76 |
+| Main 4 | the chapel yard (3-4): 15 Unpaid, 1 Restless | 1,077.5 | 1,300 | 5,455.0 | 3.36 |
+| (roaming) | boot hill, the north road (3-4): 10 Unpaid; the west road (4-5): 5 Unpaid | 1,343.1 | | 6,798.1 | 3.64 |
+| Main 5 | the churchyard (3-4): 6 Unpaid, 1 Restless, a Bell-Ringer; the Sink (4-5): 12 spiders | 1,277.8 | 3,000 | 11,075.9 | 4.33 |
+| Dead Lift | the quarry floor (5-6): the lift crew 5 and Abe Haskett (Restless), the raising steam 4 spiders, 2 Spitters, 2 miners | 1,268.0 | 5,000 | 17,343.9 | 5.11 |
+| Back Pay | the spoil heap 6, the upper gallery 7 + 1, the lower drift 7 + 1 + a Bell-Ringer (5-6); the Foreman (6: 946, met at 5.27) and his 6; the cave-in 9 + 1 | 4,820.0 | 6,500 | 28,663.9 | 6.11 |
+| Main 6 | the sheep fold (4-5): 6; about 12 of Abel's adds (5-6) and Abel (7: 2,066, met at 6.12) | 3,368.5 | 5,000 | 37,032.4 | 6.68 |
+| Main 7, The Lantern Leans | none | 0.0 | 4,500 | **41,532.4** | **6.99** |
 
-**144 kills give about 13,000 XP, nine missions 27,300 (68%): about 40,300 XP, level 6.9** (6.85 without the roaming
-dead). The Foreman is met at 5.3 (he's 6), Abel at 6.1 (he's 7): a level under each, as a story-only player should be.
-Each further visit's roaming kills add about 940.
+**176 kills give 14,582 XP, nine missions 26,950 (65%): 41,532 XP, level 6.99** (level 5 at 16,128, level 6 at 26,990). The Foreman is met at 5.3 (he's 6), Abel at 6.1 (he's 7): a level under each, as a story-only player should be.
+Each further visit's roaming kills add about 1,340.
 
 ### Everything once
 
@@ -235,23 +234,29 @@ rest of the mountain before Main 6), their fights, and every optional camp, patr
 
 | After | Kills on the way | Kill XP | Turned in | XP in all | Level |
 |---|---|---:|---:|---:|---:|
-| Mains 1-3 | as above | 713 | 2,000 | 2,713 | 2.62 |
-| Side 1 | the optional camps and patrol counted before it: the orchard's edge (2-3), Mill Creek's slimes (3-4), the quarry track (5-6; since 2026-10-30 4-5, counted before Main 5): 19 | 1,201 | 300 | 4,213 | 3.10 |
-| Calder's Caches | none | 0 | 250 | 4,463 | 3.15 |
-| The Old Fare | the depot's waiting room (2-3) and its second push: 11 | 452 | 450 | 5,365 | 3.34 |
-| Lost and Found | none | 0 | 150 | 5,515 | 3.37 |
-| Main 4 | the chapel yard | 797 | 1,300 | 7,612 | 3.81 |
-| Side 2; Knocking Below | Amos's hands (3-4): 8; Tilly's cellar (3-4): 6 | 772 | 1,200 | 9,583 | 4.14 |
-| (roaming) | as above | 922 | | 10,505 | 4.26 |
-| Main 5 | the Webwood's set piece (5-6, optional: 8 spiders, 2 Spitters), the churchyard, the Sink | 2,146 | 3,000 | 15,651 | 4.94 |
-| Side 3 | the Gravemother (6: 859, met at 4.94) and about 6 of her brood (4) | 1,129 | 900 | 17,680 | 5.14 |
-| Dead Lift | the lift crew and Abe Haskett, the raising steam, the crest's spiders (5-6): 19 | 1,741 | 5,000 | 24,421 | 5.76 |
-| The Last Watch | Calder's Post's yard and the watch (5-6): 12; the Dinner Pail camp: 6 | 1,807 | 900 | 27,128 | 6.01 |
-| Back Pay | the spoil heap, the two shifts (5-6): 23; the Foreman (6: 946, met at 6.19) and his 6; the cave-in: 10 | 4,459 | 6,500 | 38,087 | 6.76 |
-| Main 6 | the sheep fold, Abel's adds and Abel (7, met at 6.84) | 3,321 | 5,000 | 46,407 | 7.25 |
-| Main 7 | none | 0 | 4,500 | **50,907** | **7.49** |
+| Main 1, Landfall | as in the story alone | 342.0 | 450 | 792.0 | 1.74 |
+| Main 2 | as in the story alone | 355.5 | 400 | 1,547.5 | 2.18 |
+| Main 3 | as in the story alone | 730.0 | 800 | 3,077.5 | 2.76 |
+| Side 1, Wanted: Already Dead | the optional camps and patrol counted before it: the orchard's edge (2-3), Mill Creek's slimes (3-4), the quarry track (5-6; since 2026-10-30 4-5, counted before Main 5): 14 | 677.5 | 300 | 4,055.0 | 3.07 |
+| Calder's Caches | none | 0.0 | 250 | 4,305.0 | 3.12 |
+| The Old Fare | the depot's waiting room (2-3) and its second push: 15 | 485.5 | 450 | 5,240.5 | 3.31 |
+| Lost and Found | none | 0.0 | 150 | 5,390.5 | 3.35 |
+| Boot Hill's Gravepickers (placeholders) | 6 placeholder creatures at boot hill | 324.0 |  | 5,714.5 | 3.41 |
+| Main 4 | the chapel yard: 30 kills in all | 1,771.5 | 1,300 | 8,786.0 | 4.03 |
+| Stone Sentinels, the keeper's road's hounds | 9 kills | 1,185.1 |  | 9,971.1 | 4.19 |
+| Side 2, Unfinished Business | Amos's hands (3-4): 11 | 568.0 | 600 | 11,139.1 | 4.34 |
+| Knocking Below | Tilly's cellar (3-4): 10 | 386.5 | 600 | 12,125.6 | 4.47 |
+| (roaming) | as above | 1,320.7 |  | 13,446.3 | 4.65 |
+| Main 5 | the Webwood's set piece (5-6, optional: 8 spiders, 2 Spitters), the churchyard, the Sink: 39 | 2,971.0 | 3,000 | 19,417.4 | 5.30 |
+| Side 3, The Gravemother | the Gravemother (6: 859, met at 5.30) and about 6 of her brood (4) | 1,129.0 | 900 | 21,446.4 | 5.49 |
+| Dead Lift | the lift crew and Abe Haskett, the raising steam, the crest's spiders (5-6): 19 | 1,741.4 | 5,000 | 28,187.7 | 6.08 |
+| The tramway's Knockers (placeholders) | 6 placeholder creatures at the tramway | 274.5 |  | 28,462.2 | 6.10 |
+| The Last Watch | Calder's Post's yard and the watch (5-6): 12; the Dinner Pail camp: 6 | 1,717.0 | 900 | 31,079.2 | 6.28 |
+| Back Pay | the spoil heap, the two shifts (5-6): 23; the Foreman (6: 946) and his 6; the cave-in: 10 | 4,620.0 | 6,500 | 42,199.2 | 7.03 |
+| Main 6 | the sheep fold, Abel's adds and Abel (7) | 3,144.5 | 5,000 | 50,343.7 | 7.46 |
+| Main 7 | none | 0.0 | 4,500 | **54,843.7** | **7.70** |
 
-**About 228 kills give about 19,500 XP, seventeen missions 31,450 (62%): about 50,900 XP, level 7.5.** A side mission is
+**308 kills give 23,744 XP, seventeen missions 31,100 (57%): 54,844 XP, level 7.70** (level 7 at 41,656; Main 2 at 400 and Main 3 at 800 XP, trimmed 2026-11-01, keep it inside the 7.3-7.7 band). A side mission is
 about a tenth to a seventh of a level where it's met (the fights round it carry the rest; Calder's Caches and Lost and
 Found, short errands, a twentieth or less). An explorer meets the Gravemother a level under her, the Foreman and Abel at
 their levels. The Gravemother's and the Foreman's Vigil Stones (a kill each again) add about 860 and 950 a time.
@@ -339,7 +344,7 @@ Strongbox's own roll. Repeatable: what an explorer's silver is for (Lost Propert
 
 | Mission | Giver | Silver |
 |---|---|---:|
-| Main 1, Seven Days | Delia (Grandpa's egg money under the door) | 20 |
+| Main 1, Landfall | Delia Ransom, on her porch (her egg money) | 20 |
 | Main 3, Cold Welcome | Tilly (the unclaimed dead's pockets) | 40 |
 | Side 1, Wanted: Already Dead | Tilly (the posters' reward money) | 50 |
 | Calder's Caches | the Rangers' board (the gang's banknotes, the Deacon's "kid's share") | 30 |

@@ -15,6 +15,12 @@ namespace
 	const FName StandingObstacleTag(TEXT("Obstacle"));
 
 	/**
+	 * An obstacle built to be walked on (the burial deck: the minimap still draws it solid) carries this tag too, and its
+	 * walkable top is ground: Main 2's crew found no spot on the boards without it (the play-through of 2026-11-01).
+	 */
+	const FName WalkableFloorTag(TEXT("Floor"));
+
+	/**
 	 * The room's capsule is lifted off its ground by this share of its radius, so a walkable slope (up to 50 degrees) under
 	 * it doesn't read as no room: 30 cm under the 40 cm body every spot once needed.
 	 */
@@ -150,7 +156,8 @@ FEncounterGroundHit FEncounterGroundProbe::Look(const FVector& Spot) const
 		return Found;
 	}
 	const AActor* Under = Hit.GetActor();
-	const bool bOnObstacle = Under && Under->ActorHasTag(StandingObstacleTag) && !IsInsideHome(Hit);
+	const bool bOnObstacle = Under && Under->ActorHasTag(StandingObstacleTag) && !Under->ActorHasTag(WalkableFloorTag)
+		&& !IsInsideHome(Hit);
 	Found.bFound = true;
 	Found.Point = Hit.ImpactPoint;
 	Found.bStandable = Hit.ImpactNormal.Z >= WalkableGroundNormalZ && !bOnObstacle;

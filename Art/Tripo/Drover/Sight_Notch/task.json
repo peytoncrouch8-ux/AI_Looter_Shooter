@@ -1,0 +1,8 @@
+{
+  "model": {
+    "task_id": "f7837f38-779b-4c84-b055-9cb0557c010a",
+    "status": "success",
+    "credits": 30.0,
+    "kind": "/generation/multiview-to-model"
+  }
+}

@@ -9,6 +9,8 @@
 #include "Scenes/TransitionScreenSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "Session/SessionSubsystem.h"
+#include "Story/NewGameIntroSubsystem.h"
+#include "World/LamplighterShip.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -61,6 +63,13 @@ FCampaignRecord* UColdOpenSubsystem::FindCampaign() const
 bool UColdOpenSubsystem::BeginIfDue()
 {
 	UWorld* World = GetWorld();
+	// Landfall (the Wardens story, 2026-10-31): a level with the Lamplighter opens on her deck. The old opening (the Rest's
+	// intro, the cold open, the grave) is never played there; its code stays for the console (Looter.Scene.ColdOpen).
+	if (ALamplighterShip* Ship = ALamplighterShip::Find(World))
+	{
+		BeginLandfall(*Ship);
+		return false;
+	}
 	if (!World || !AColdOpenSet::Find(World))
 	{
 		// Not the story's first area: nothing opens here.
@@ -111,6 +120,28 @@ bool UColdOpenSubsystem::BeginIfDue()
 		return false;
 	}
 	return true;
+}
+
+void UColdOpenSubsystem::BeginLandfall(ALamplighterShip& Ship)
+{
+	UWorld* World = GetWorld();
+	// The menu's planet part is done with whatever it showed: its handoff is taken so no later level asks after it.
+	const USessionSubsystem* Sessions = USessionSubsystem::Get(World);
+	if (UNewGameIntroSubsystem* Intro = UNewGameIntroSubsystem::Get(World))
+	{
+		Intro->TakeHandoff(Sessions ? Sessions->GetActiveSession() : INDEX_NONE);
+	}
+	// She reads the campaign and begins (the flight, or moored), passing the old opening in the record for good.
+	const bool bFlies = Ship.BeginLandfall();
+	// Should anything still ask after the old scenes, they're behind the player (the missions aren't told: nothing of
+	// Landfall waits for them).
+	if (USceneSubsystem* Scenes = USceneSubsystem::Get(World))
+	{
+		Scenes->MarkPlayed(NewGameIntro::SceneName(), /*bTellMissions*/ false);
+		Scenes->MarkPlayed(ColdOpen::SceneName(), /*bTellMissions*/ false);
+		Scenes->MarkPlayed(GraveWake::SceneName(), /*bTellMissions*/ false);
+	}
+	UE_LOG(LogLooter, Log, TEXT("Opening: Landfall%s (the old cold open and grave are passed)."), bFlies ? TEXT(", on the Lamplighter's deck") : TEXT(": she's moored"));
 }
 
 bool UColdOpenSubsystem::PlayColdOpen(bool bRecord)

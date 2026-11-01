@@ -92,7 +92,7 @@ bool FStationBoardLinesTest::RunTest(const FString& Parameters)
 	{
 		const FStationBoardLine& Leave = Lines[0];
 		TestTrue(TEXT("It's the first cast-off, to Ransom's Rest"), Leave.bFirstCastOff && Leave.AreaId == Rest->GetAreaId() && Leave.IsDestination());
-		TestTrue(TEXT("It arrives at the family plot"), Leave.Landing == FName(TEXT("Landing_FamilyPlot")));
+		TestTrue(TEXT("It arrives on the Lamplighter"), Leave.Landing == FName(TEXT("Landing_Lamplighter")));
 		TestTrue(TEXT("Its level is in the game (the stand-in's)"), Leave.bLevelBuilt);
 		TestEqual(TEXT("Its name"), Leave.Name.ToString(), FString(TEXT("Ransom's Rest")));
 	}
@@ -238,8 +238,8 @@ bool FStationArrivalsTest::RunTest(const FString& Parameters)
 	StationBoard::RecordFirstCastOff(Save->Campaign);
 	Save->PrepareTrip(TEXT("/Game/Maps/Lvl_RansomsRest"), StationBoard::FirstArrivalLanding());
 	const ULooterSessionSave* Arriving = WriteAndRead(Save);
-	TestTrue(TEXT("It arrives at the family plot, the story begun, Skyreach's world kept"), Arriving
-		&& Arriving->GetArrivalOn(TEXT("/Game/Maps/Lvl_RansomsRest")) == FName(TEXT("Landing_FamilyPlot")) && Arriving->Campaign.bFirstCastOff
+	TestTrue(TEXT("It arrives on the Lamplighter, the story begun, Skyreach's world kept"), Arriving
+		&& Arriving->GetArrivalOn(TEXT("/Game/Maps/Lvl_RansomsRest")) == FName(TEXT("Landing_Lamplighter")) && Arriving->Campaign.bFirstCastOff
 		&& Arriving->FindWorld(IslandMap) && Arriving->FindWorld(IslandMap)->AmmoPickups.Num() == 1);
 
 	// The project's areas: a trip to Ransom's Rest arrives at its depot, one to Skyreach at its jetty.

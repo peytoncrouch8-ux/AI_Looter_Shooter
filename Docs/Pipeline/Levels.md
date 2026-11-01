@@ -229,6 +229,80 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     kind of pin is a `MapPins` change.
   - Check with `Looter.Map` (opens the page), `Looter.Map.Graves` (each grave and whether travel could go there),
     `Looter.Map.Travel <grave id>`; tests `Looter.UI.Map.*`.
+- **Landfall's world** (WORLD, 2026-10-31; built by `Tools/Unreal/build_area_landfall.py`, hooked into `build_area_story.place()` after the
+  deck's StoryLighting and before Hob; everything in `Gameplay/Landfall`; runs alone too: `py .../build_area_landfall.py RansomsRest`, clears
+  only its folder; Hob and Delia need the full gameplay pass). One table of other lanes' names (`NAMES`, `SHIP`) and one of stand-in paths
+  (`STAND_INS`, `MATERIALS`, the farm's `BARRICADE`). Frames: layout.json X north, Y east; UE cm. Run order: `Saved/landfall_probe.py` (read-only;
+  prints `LANDFALL` lines + `Saved/landfall_probe.txt`: classes, stand-in bounds, merge API, an ASCII map of the ledge, the whole plan, course
+  clearance per segment, Beyond meshes' collision), `build_landfall_materials.py` (5 MIs in `/Game/Art/Landfall/Materials`:
+  `MI_Landfall_AbelTrail` M_GravewindWisp gold-white, `_SoulSmog` M_Smoke black-violet, `_SoulSmogGlint` faint cyan, `_BargeIron` MI_IronBlack,
+  `_HoseRubber` MI_PaintBlack; no new master), `build_area.py RansomsRest environment` (adds the Smog state), `build_area.py RansomsRest
+  gameplay`, then `build_area_loot.py` / `build_area_fauna.py` (they read the built level), optionally `build_island_scatter.py` (grass back
+  where Ellis's grave stood; kept off the barricade); delete unused `/Game/Art/Landfall/Baked/SM_Landfall_*` from earlier runs (a changed level
+  makes a new hash). Read the log's `landfall plan:` lines: tier (`on`/`relaxed`/`alongside`/`design` = nothing fit, check), share on the
+  ledge, winch not None, 4 climbers, course raised count (0-3 fine; 14 = still touching), `open air under the stop: True`, barge keel ~ rim +
+  4500, spyglass yaw ~51, trail ~40-50 wisps, hat not None, porch dredgers 5 / dead 3; warnings "placed one by one" (merge failed), "no ... class",
+  "left out".
+  - **The Mooring Ledge finding:** the real ledge (boundary corners 71-74, mooring post ~(-10100,-10200, z -25)) is only ~9 m deep, so the
+    hull (30 x 8 m) cannot sit on it: the moored tier is `alongside` (hull wholly over the drop beside the ledge edge, deck flush with the ledge,
+    level; one side <= 1.5 m from ground along >= 35% of its length), over the Mooring Notch. Tiers tried in order: `on` (bow third 90% on
+    ground, >= 40% of the hull, stern over the drop, roll 2.5 / pitch 1.5 degrees), `relaxed` (60%, 30%), `alongside`. A traced 50 cm height grid
+    round the post (X -1100..+900, Y -2000..+2300) classifies cells ground / rough / drop / rock; keep-outs: post 4.2 m (covers the seeds' page,
+    letter and `Secret_MooringLocker`, all <= 2.7 m from it), stairs' foot 3 m. HardLanding should scrape her along the edge and settle; the
+    winch's line holds her.
+  - Course: start ~350 m west over the plains (40 m over what is under it), down into the canyon (25 m under the ledge level, 190 m out), the
+    grapple stop 120 m back along her approach 8 m over the ledge (approach = moored heading if open air there, else due east), then two landing
+    points (40 m out 12 m up; 3 m over Moored). Every segment before the stop is swept (keel -6 m, bag top +17 m, both sides) and raised 5 m at a
+    time (<= 14 tries). The ship is placed AT Moored in the editor (tours see her on the ledge) and FLIGHT puts her at `Course[0]` for a new game
+    (a command-line tour plays a new game, so LedgeMoored / LedgeFromStairs won't show her moored). SHIP dict = the stand-in's real numbers:
+    length 3240 (bag; hull 2430), beam 1130 (bag; hull 700), keel_below_pivot 0, top_over_pivot 980, deck_over_pivot 56, forward_yaw 0.
+  - Winch: beside the bow on the ledge side, 2.6 m off the hull. `LedgeClimbers` (`AmbushSpawner`, entrance Rise, 35 m, 4 Basic Unpaid at ledge
+    cells next to the drop, >= 2.5 m off the hull, `during Main1 step 4` only, give up 30 m, tag `Unpaid_LedgeClimbers`; its spots sit at the drop's
+    edge and may fall outside the playable boundary: `Looter.World.RansomsRest.InsideBoundary`). `FarmPorch` (`EncounterSpawner`, at the porch
+    front; spots 15-23 m from the porch; on approach 45 m; `during Main1 from the trail step before porch step + 1`; give up 60 m; tag
+    `Landfall_FarmPorch`; max 5 alive). `encounter_when` reads `story_texts.ENCOUNTERS[id]` (from 4 before 5; from 7 before 9).
+  - Spyglass: the lookout deck point (commonest height 5.6-7.6 m over the pivot) with a clear eye-height line to the barge, >= 1.3 m from
+    Sexton's seat and the ranger cache's two spots; faces the barge.
+  - **Barge** (one `AStoryProp`, tag `Landfall_Barge`, pivot = keel middle; the reveal looks at its actor location): `SM_Skiff_A_Gang` x7 (63 m),
+    all slots `MI_Landfall_BargeIron`, keel 45 m over the Sink's highest rim vertex, broadside to the lookout; 3 stacks (cylinders), 12 glowing
+    vents (MI_CinderGlow), a hose drum under the keel. **Hose** (`Landfall_BargeHose`): >= 6 sections 1.5 m across with collars, a 6 m sideways
+    sag, to an iron intake 4.5 m off the floor's middle. Both are baked into one mesh each (`/Game/Art/Landfall/Baked/SM_Landfall_<Piece>_<hash>`,
+    reused while the parts don't change; the merge is `StaticMeshEditorSubsystem.merge_static_mesh_actors`; fallback: 5 props / 8 sections /
+    trail 30 wisps culled at 60 m). Smog: 3 plumes x4 (32 m) on the stacks (`SM_SmokePlume`, `MI_Landfall_SoulSmog`), a cyan glint plume x2.8 in the
+    middle one, x2.2 at the intake. Drone: `AAmbientEmitter` loop `Ambience.Smog`. All shown `before Main6` (`BARGE_UNTIL`).
+  - **Smog rule:** see `Game.md` "Landfall and the Lamplighter" (state values in layout.json; `AStoryLighting` rule `Smog while before [Main6]`).
+  - **Abel's trail** (`Landfall_AbelTrail`, one baked AStoryProp, `during Main1 from the trail step`): ~45 wisps (`SM_GravewindWisp_B/C/A` x0.55-0.75,
+    lifted 1.1 m, pitched 22 degrees so the ribbons lie over the ground, flowing toward the farm) every 3.4 m: the lookout's foot -> bluff path
+    (ramp reversed) -> bluff approach -> past Abel's grave -> family plot path -> round the farmhouse's north corners -> the porch steps; the
+    merge must keep vertex colours and UV1.
+  - **Abel's hat:** the bluff path's middle bend (-7000,-6600), 1.1 m toward the bluff side (see `Game.md` for its readable and flag).
+  - **Loudspeakers:** posts (`SM_FencePost` stretched to 4.2 m, solid), two brass cone horns, a black plate; 3 `InstancedProps` (culled 150 m);
+    one on Ransom's Point 6.5-11 m from the lookout toward the bluff path's top, horns toward town; up to three on Main Street at X +-700 (Y 900,
+    2600, 4300), horns across the street; each off roads, on Ground, nothing solid there; a `TargetPoint` tagged `Landfall_Loudspeaker` at each
+    post's horns (`UVaneBroadcast` could play its hiss there).
+  - **Edits in other files (WORLD/HOOKS):** `build_area_story.py`: Ellis's grave actor destroyed in `place_family_plot` (the layout placement
+    `graveEllis` KEPT: ~12 scripts gate "is Ransom's Rest" on it), Ellis's readable headboard + `hero_headboards` removed, Abel's stays; the farm
+    safe zone is now `after Main1` (the porch fight is inside it; `ColdWelcomeTests` line changed to match); Hob placed on Abel's headboard and
+    perched by Main 1 step from `story_texts.LANDFALL_PERCHES` (winch for the anchor step, lookout rail for the point step, Abel's headboard for
+    the trail step, porch beam end for the porch step; away for steps 0-3; after Main 1 on the porch beam), warning if a perch has no spot.
+    `build_area_farm.py`: `ADeliaRansom` on the porch floor + 68 cm (`DELIA_HALF_HEIGHT`) facing out, tag `Speaker_Delia`, name "Delia Ransom",
+    `story_texts.TOPICS['Speaker_Delia']` first then the later topics (mine, Main 6 with its `Delia.Main6` event, Main 7); the screen-door
+    `ASpeakerPoint` is placed only if her class is missing; the porch barricade (6 solid stand-ins tagged `Obstacle`,`Barricade`: SM_Bench,
+    SM_LumberStack, SM_FlourSacks x2, SM_Crate_B, SM_Cart; each ground/road/overlap checked; keep her eye line at ~1.3 m clear).
+    `build_area_missionprops_valley.py`: the porch plate is a free pickup `after Main1`. `layout.json`: environment `Smog` state; level-band zones
+    `landfallLedge` (polygon, levels 1-2) and `landfallPorch` (at [-4000,-5280], r 2600, levels 1-2) before `west` (then
+    `create_area_assets.py`; tests `Looter.Areas.Bands`, `Looter.Creatures.AreaLevels`). `views.json`: LedgeMoored, LedgeFromStairs, SpyglassBarge,
+    FarmBarge, SinkUnderBarge before `DeckFight_Dusk` (still last); TrailFromPoint left out until `Looter.Landfall 7` is known not to move the
+    tour's camera. Tour views to check: those five plus PointOverValley, PointOverValley_FarShadow, Farm, Aerial, Aerial_Dusk, PointWest (sees
+    the ship), MainStreet (speakers, plumes), SinkRim.
+  - **Perf risks (margin 0.2-0.5 ms):** valley views gain the barge (1 baked mesh, casts a shadow inside the shadow distance only), the hose,
+    5 translucent plumes 18-32 m tall (overdraw looked up at from town / the Sink), the drone; the Farm view (7.8 ms, a heaviest one) gains 6
+    barricade draws + Delia + the trail (steps 7-8 only). If over: `cast_shadow` off on the barge, drop the glint plume, `STACK_PLUME` 3; bake the
+    barricade (`merge_physics_data` True) or cut yard pieces. `perf.ps1`'s "RR spawn" moves (a new game starts on the ship over the canyon), so
+    its numbers aren't comparable with the old spawn's: compare tour views.
+  - **Unchecked:** the merge API in 5.8 Python and that the merged pivot is the first part's place; whether the canyon/ring meshes (tagged Beyond)
+    collide (else the course sweep can't see them); `AReadableProp`'s `shown_when` re-read when the hat flag is set; the skiff bag shape under
+    the stacks and vents; the barricade stand-ins' long axes; M_Smoke's CloudTint dimming the glint.
 
 ## The tutorial island and the older levels
 

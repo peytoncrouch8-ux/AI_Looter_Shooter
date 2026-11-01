@@ -38,6 +38,15 @@ namespace
 	constexpr float HandsPlayInFrame = 0.85f;
 	/** The trigger hand's grip point may sit as low as the frame's edge (the framing lowers the long guns a little). */
 	constexpr float HandsPlayTriggerInFrame = 1.f;
+	/**
+	 * How low the support hand's grip point may sit (share of the half-height). The user's calls of 2026-10-29 put the
+	 * Bullpup's support glove low on purpose: cupped at the bottom of the trigger housing and the whole hold 4 cm lower
+	 * (WeaponHipHold 27.5 down; Bullpup.py "Grip spots"). Its cup then lands 0.8-0.9 down by the body rolled, lowest on the
+	 * Marksman shell, whose housing ends 4.5 cm further back (its Hold_L_Cup at u 31, the others' at 33.8-35.5): still the
+	 * Borderlands framing (the support glove 80-100% down the frame, FirstPersonHandsFraming.cpp) with the glove's palm
+	 * clear of the bottom edge. Across, the 0.85 above still holds.
+	 */
+	constexpr float HandsPlaySupportLow = 0.95f;
 	/** Frames for a sight to come all the way up (a slow gun takes under half a second). */
 	constexpr int32 HandsPlayRaiseFrames = 40;
 
@@ -154,9 +163,13 @@ namespace
 				const float Across = InView.X > 1.0 ? static_cast<float>(InView.Y / InView.X) / HalfWide : 9.f;
 				const float Down = InView.X > 1.0 ? static_cast<float>(InView.Z / InView.X) / HalfHigh : 9.f;
 				// The trigger glove may sit on the frame's bottom edge (Borderlands': mostly under the gun, low on the right).
-				const float Limit = Side.Hand == EFirstPersonHand::Right ? HandsPlayTriggerInFrame : HandsPlayInFrame;
-				Test.TestTrue(FString::Printf(TEXT("%s: %s in view (%.2f across, %.2f up, of the frame's half)"), *Name, Side.Which, Across, Down),
-					FMath::Abs(Across) <= Limit && FMath::Abs(Down) <= Limit);
+				const bool bTrigger = Side.Hand == EFirstPersonHand::Right;
+				const float Limit = bTrigger ? HandsPlayTriggerInFrame : HandsPlayInFrame;
+				const float LowLimit = bTrigger ? HandsPlayTriggerInFrame : HandsPlaySupportLow;
+				// The gun is rolled with a random seed (UWeaponRollLibrary), so its parts are named: the body sets the cup.
+				Test.TestTrue(FString::Printf(TEXT("%s: %s in view (%.2f across, %.2f up, of the frame's half; parts %s)"), *Name, Side.Which, Across, Down,
+					*FString::JoinBy(Player.Gun->GetInstance().Parts, TEXT(" "), [](const FName& Key) { return Key.ToString(); })),
+					FMath::Abs(Across) <= Limit && Down <= Limit && -Down <= LowLimit);
 			}
 		}
 	}

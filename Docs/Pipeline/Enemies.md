@@ -700,3 +700,73 @@ Notes and previews: `Docs/Archive/Work/2026-10-31-Creatures/ART_README.md`, `Sav
 - Unpaid rig (`parts_unpaid_rig.py`): forearm/hand/fingers wholly the arm's; each finger 100% its bone from 1.2 cm past its knuckle (`FINGER_HOLD`); shoulder upper-arm weight smoothed (`SHOULDER_BLEND`); jaw eased over the cheeks past the corners and smoothed (`JAW_CORNER`, `JAW_CHEEK`). Measured after: hand/finger stretch gone (rake 59 -> 4 edges over 2 cm, reach 197 -> 31); jaw edges still over 2 cm are inside the mouth's pocket (looks right: the shriek face).
 - Order (editor open, nothing else needs C++): apply the M_Ghost change (shared file: `ART_build_creature_materials.patch`, `git apply`), `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_creature_materials.py M_Ghost"` (new params on the master before the import sets them, else the importer warns and skips them), `Tools\models.ps1 -Only Spider,Unpaid` (~3.5 min: SK_Spider, SK_Unpaid, SM_UnpaidHat, the textures, MI_SpiderBody on SpiderTripo, MI_Ghost_A with the paint), then the materials script again (MI_Ghost_B/_C copy the new A); importing before the patch shows the paint as box-projected grain and very dark zones. Tests `Looter.Creatures.Spider`, `Looter.Creatures.Anim` (hit zones, death curl, Unpaid arms/shroud); PIE `Looter.SpawnCreature Spider` / `Unpaid` in daylight and at night, one Unpaid in each clothes set.
 - Risks: MI_Ghost_B/C on meshes without UV 1 would sample garbage paint (only SK_Unpaid and SM_UnpaidHat get B/C: Unpaid, BellRinger, Thaddeus fallback; both have UV 1); the paint atlas has many small islands (LOD1/2 may smear a few seams: check at mid range); the robe keeps a few dark Tripo tear marks (read as rips); not seen in the game's lighting yet (tune Ghost_A's RimStrength/TopLight or the spider's `ROUGH_MAX`); check stance width after the new bind pose (the 0.8 standing rest pulls feet in). Previews: `Saved/ArtPreviews/Creatures/Fix1031/` and `SpiderTripo/`; check scripts `Docs/Archive/Work/2026-10-31-Creatures/art_checks/`. Lesson: a Blender script given a relative output path wrote to `C:\Saved\ArtPreviews\Creatures\Fix1031` at the drive root (a stray empty folder remained; safety check blocked its removal: delete by hand); pass absolute paths.
+
+## Vane's Dredgers (DREDGER, 2026-10-31; the user: "Vane's Dredgers, a new recurring human enemy (company men, rubber coats, gas masks); rifles + hose-men"; written, not built or played yet)
+
+Cornelius Vane's company men (story: `Game.md` "Landfall and the Lamplighter"). Two roles; used by Landfall's deck boarders, the tender's two
+riflemen, and the farm porch fight; levels by area (RR 1-2), nothing special.
+- **Classes** (`Creatures/Dredger*`): `EDredgerRole { Rifleman, HoseMan }` (`DredgerTypes.h`, append only), `ADredgerCreature : ACreatureBase`
+  (Abstract; `Role`, `static ClassFor(EDredgerRole)`, `SetHoldsGround(bool)`, `GetBodyInput`, `GetMuzzle`, `Bark`, `ResetBarks`),
+  `ADredgerRifleman`, `ADredgerHoseMan` (paths `/Script/AI_Looter_Shooter.DredgerRifleman` / `.DredgerHoseMan`: what spawners, the pacing
+  paths and bestiary pages name). Spawn: `ACreatureBase::SpawnAtRuntime(World, Class, Feet, Yaw, Spawn)` then `AlertTo(PlayerPawn)`.
+  All have `bCanWalkOffLedges = false` and need walkable STATIC collision under them (no navmesh). Pack tag `Dredger` (one shot one, all
+  within 30 m turn). `SetHoldsGround(true)` (the tender's two): no cover, no keep-away, the brain never walks them toward the player;
+  they turn and fire.
+- **Body and animation (no Anim Blueprint):** the project's mannequin (`SKM_Manny_Simple`) animated by `UDredgerBodyAnimInstance`
+  (`FDredgerBodyProxy`), the way the player's third-person body is: the mannequin's 8-way `MF_Unarmed_Walk_*`/`Jog_*` clips (16) on one step
+  cycle (`DredgerBody::WayBlend`, `GaitShares`, `CycleRate`), `MF_Rifle_Idle_ADS` held on the upper body (spine kept in mesh space, the
+  player's hold), `MM_Rifle_Reload` overlay, then `LooterStancePose::Apply` (crouch, aim pitch, left hand on the foregrip, kick) and the code
+  layer (`ApplyCodeLayer`: flinch, stagger, wound, lean, brace, notice, breath, fall) from `FDredgerBodyInput`. Look (`DredgerCreatureKit.cpp`
+  `PlaceKit`): black rubber coat tint, gas mask (face, snout, filter, two lenses that flare as tells), cap; the head is the crit spot (a crit
+  breaks a lens); held thing on `HandGrip_R` turned to the aim like the player's gun. Death: ragdoll thrown by the kill style (code fall when
+  `Looter.Dredger.Body.Ragdoll 0`), soul-smog from the mask, sink after ~7 s. Blood: `ECreatureBlood::Clay` in dark oxblood
+  (0.16, 0.025, 0.02) (`Weapons/CreatureBlood.cpp`).
+- **Rifleman** (140 HP, 7 dmg a bullet, 14 XP, walk 170 / chase 360; Ranged turns of the fight director): keeps 10-25 m (`DredgerRules::ChooseKeep`),
+  cover search by traces (4 spots a frame, ~68 traces over ~4 frames every ~2.5 s; `ScoreSpot`, `SpotCandidates`), crouches in cover, flanks in
+  pairs (squad bearings, `FlankAngle` 40), a burst tell (rise, lens flare, gold muzzle glint, windup 0.6 s), 3 real rounds 0.13 s apart through
+  `UEnemyProjectileSubsystem` + gold tracer streaks + impact puffs, 9-round magazine, reload 2.4 s (clip and magazine out/in, a call), rifle
+  butt within 2.3 m. Accuracy 0.7 at 15 m (0.88 at 8 m, 0.3 at 30 m), moving penalty 0.3; shot damage 7 x level/rank x `Looter.Fight.DamageScale`
+  1.5 = about 10.5 felt. Crit spot: the mask's lenses (1.5x crit rule).
+- **Hose-man** (220 HP, club 10 dmg, 18 XP, size 1.03, walk 150 / chase 290; Melee turns): walks in; at 8 m (`LatchRange` 800) the latch tell
+  (plant, cyan swell at the nozzle, gauge and lenses flare, windup 0.85 s), then `UDredgerHoseComponent` throws the soul-hose (line speed 3200)
+  and latches: the player is pulled slowly (`Pull` 0.35 of their walking input, only a player-controlled pawn), slowed, drained about 5 HP/s
+  (`Drain` 5, damage ticks 0.35 s, through `ApplyDamage`: the ward first; it can kill), rattled (sway, shake, arc), soul pulses drawn back along the
+  hose (both hoses are cylinders on one ISM), a hiss loop on the victim. The line breaks if the player gets 14 m away (`BreakRange` 1400), steps
+  behind a wall (`BlockedBreak` 0.4 s), crits his mask, staggers him, or after `MaxSeconds` 8 (then `Rest` 2.5 s). The TANK on his back (a crit
+  spot, 30% of his health, `Tank.Share` 0.3) and the gauge are the weak spot: at the share it bursts (`NoteTankHit`/`BurstTank`: cyan soul blast,
+  ring, shake, radius 320, splash 0.15 on creatures, self damage 0.15 next tick, stagger 1.6 s, hose torn, he clubs after). His brain is held while
+  latched (braced, tugged, facing).
+- **HUD drain edge:** `UDredgerHoseComponent::GetDrainOn(Pawn)` feeds `UHudScreenEdgeWidget` two extra edge sets (`HudDrainInkEdge` ink at 0.7,
+  `HudDrainEdge` cyan rim at 0.45): black creeping in with a cyan rim while the line holds. Applied, so `FDredgerTuning::FrostEdge` defaults 0
+  (the latch still rattles once); `Looter.Dredger.Hose.FrostEdge 1` brings back the pale frost stand-in.
+- **Delia and non-players:** the pull and slow apply only to player-controlled pawns; for Delia the drain hits invulnerable health, her
+  `LaunchCharacter` is a flinch, rattle/frost skip non-local players, tank splash hits `ACreatureBase` only. `EnemyProjectileSubsystem`'s victims are
+  players only, so Dredger bullets aimed at Delia pass through her (optional: add `ADeliaRansom` to `Victims` to see her flinch and shout). She
+  warns of hose-men by class name containing "HoseMan".
+- **Cvars `Looter.Dredger.*`** (`FDredgerTuning::Live()`, `DredgerTuning.h`; field values = defaults): `.Rifle.BulletScale` 1, `.Burst` 3, `.BurstGap`
+  0.13, `.Period` 2.2, `.Windup` 0.6, `.Magazine` 9, `.Reload` 2.4, `.Accuracy` 0.7 @15 m (`.AccuracyNear` 0.88 @8 m, `.AccuracyFar` 0.3 @30 m),
+  `.MovingPenalty` 0.3, `.BulletSpeed` 7500, `.Near` 1000, `.Far` 2500, `.Preferred` 1600, `.CoverRecheck` 2.5, `.RelocateAfter` 3, `.FlankAngle` 40,
+  `.ButtReach` 230; `.Hose.LatchRange` 800, `.BreakRange` 1400, `.LineSpeed` 3200, `.Drain` 5, `.Pull` 0.35, `.Windup` 0.85, `.MaxSeconds` 8, `.Rest` 2.5,
+  `.BlockedBreak` 0.4, `.FrostEdge`; `.Tank.Share` 0.3, `.Stagger` 1.6, `.Radius` 320, `.Splash` 0.15, `.Self` 0.15; `.Body.WalkSpeed` 165, `.JogSpeed` 375
+  (clip speeds guessed: expect foot sliding until tuned), `.Ragdoll` 1, `.Kit` 1; `.BarkGap` 1.6. Class stats live in code (the bestiary reads them).
+- **Dev:** `Looter.Dredger.Spawn <Rifleman|HoseMan> [count] [rank] [level=n] [hold]` (`hold` = they stand and fire from where they are),
+  `.State` (tactic/spot), `.Latch`, `.Tank`, `.Reload`; `Looter.SpawnCreature` / `Looter.Perf.Horde DredgerRifleman ...` also take them
+  (`Dev/CreatureDevCommandsSpawn.cpp`): perf run `Tools\perf.ps1 -Label "dredgers" -Exec "Looter.Quality Medium,Looter.Perf.Horde DredgerRifleman 5 Basic 0 -1400 90"`.
+- **Stand-ins and the Tripo swap** (all in `Creatures/DredgerLook.h`): body `SKM_Manny_Simple` darkened (the hose-man's separate: `HoseManBodyMeshPath`),
+  company rifle = `DA_AssaultRifle` parts at seed 1771, tank = `SM_Barrel_A` brass, nozzle/mask/lenses/cap = engine shapes. Swap: point the paths
+  at the rigged Dredger models (rigged to the mannequin skeleton), set `FDredgerTuning::Kit` default 0 (keeps their materials, hides the shape kit;
+  the tank stays, it is the weak spot), re-run the bestiary pages with the new `model`.
+- **Bestiary:** pages `DA_Bestiary_DredgerRifleman`, `DA_Bestiary_DredgerHoseMan` (ENEMY, sort 5/6, stand `SKM_Manny_Simple`) from
+  `create_bestiary_pages.py DredgerRifleman DredgerHoseMan`; `Looter.Bestiary.Entries` checks them.
+- **Sounds** (`Art/Sounds/recipes/dredger.py`): `DredgerRifleFire/Reload/Bark (6 takes, masked shouts, random pick)/Hurt/Death`, `DredgerHoseLatch`,
+  `DredgerHoseDrain` (loop, `LooterSound::Start` on the victim), `DredgerHoseSnap`, `DredgerTankBurst` (the satisfying pop), plus the existing
+  `Melee::Hit` for the butt. The rifle is the player's own L85/Tavor recordings slowed 0.82-0.93x and layered (identity: the dark boom, barrel ring,
+  spark flare; knobs `dredger._rifle_dry`).
+- **Tests** `Looter.Creatures.Dredger.Rules/.Classes/.Spawn/.Cover/.Latch/.Tank` (and `Looter.Bestiary`).
+- **Not checked in play (compile and look both unverified):** `HandGrip_R` is a socket on the `SK_Mannequin` skeleton (a warning logs if the held
+  thing hangs untuned), `PA_Mannequin` as `SKM_Manny_Simple`'s physics asset (hit zones, ragdoll; the ragdoll detaches the mesh so the hit
+  reaction's corpse knock moves only the empty capsule), the `MF_Unarmed_*` root motion, `LooterStancePose::Apply` fed a Dredger's input (elbows
+  and left hand may need the `Looter.Grip.*` values), the kit's placement numbers, the hose's sag, small decks (the Lamplighter is 24 x 7 m: riflemen
+  mostly stand Exposed/BackOff; lower `.Rifle.Near`). Perf: each Dredger samples 3-6 clips a frame on a worker thread, ~13 static mesh parts, the
+  hose ISM; `DredgerHoseComponentDraw.cpp` builds a ~21-entry `TArray<FTransform>` per frame per visible hose-man (make it a reused member with
+  `Reset()` if perf shows it). Measure with the horde above.

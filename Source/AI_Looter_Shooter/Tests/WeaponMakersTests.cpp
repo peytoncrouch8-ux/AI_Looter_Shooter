@@ -384,8 +384,14 @@ bool FWeaponMakersBiasTest::RunTest(const FString& Parameters)
 	};
 	const int32 PlainElements = Count(NAME_None, EWeaponRarity::Uncommon, true);
 	const int32 MaudElements = Count(TEXT("SaintMaud"), EWeaponRarity::Uncommon, true);
-	TestTrue(FString::Printf(TEXT("Saint Maud's rounds are blessed more often (%d vs %d of %d)"), MaudElements, PlainElements, Guns),
-		PlainElements > 0 && MaudElements > 2 * PlainElements);
+	// Saint Maud's quirk is "element parts x3 as likely" (MAKERS.md): each element magazine's weight x3. That triples the
+	// odds of an element gun, not its share: the share saturates as element parts get common (five per gun since Thunder
+	// and Rot, about 30% of the Uncommon magazines, so x3 weight gives about 1.9x the guns). Compare odds, with margin.
+	const int64 MaudOdds = int64(MaudElements) * (Guns - PlainElements);
+	const int64 PlainOdds = int64(PlainElements) * (Guns - MaudElements);
+	TestTrue(FString::Printf(TEXT("Saint Maud's rounds are blessed more often (%d vs %d of %d: odds x%.2f)"), MaudElements, PlainElements, Guns,
+		PlainOdds > 0 ? double(MaudOdds) / double(PlainOdds) : 0.0),
+		PlainElements > 0 && MaudElements < Guns && MaudOdds > 2 * PlainOdds);
 	const int32 PlainEffects = Count(NAME_None, EWeaponRarity::Epic, false);
 	const int32 WindfallEffects = Count(TEXT("Windfall"), EWeaponRarity::Epic, false);
 	TestTrue(FString::Printf(TEXT("Windfall's odd bits come more often (%d vs %d of %d)"), WindfallEffects, PlainEffects, Guns),

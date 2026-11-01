@@ -104,7 +104,8 @@ FText FindRules::CountLine(int32 Found, int32 Total, const FText& AreaName)
 
 FText FindRules::LoreLine(int32 Found, int32 Total)
 {
-	return FText::Format(LOCTEXT("LoreLine", "LEDGER PAGE · {0}"), BannerCount(Found, Total));
+	// The loose pages of the Warden's Log (the Ledger's until 2026-10-31, the user's rename).
+	return FText::Format(LOCTEXT("LoreLineLog", "LOG PAGE · {0}"), BannerCount(Found, Total));
 }
 
 FText FindRules::CompleteTitle(const FText& AreaName)

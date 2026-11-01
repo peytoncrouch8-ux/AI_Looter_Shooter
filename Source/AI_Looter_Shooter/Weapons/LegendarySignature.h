@@ -17,6 +17,9 @@ enum class ELegendarySignature : uint8
 	Gravesilk,
 	/** Company Scrip (the Foreman's Thresher): kills in one burst speed it up; a reload pays some of the magazine back. */
 	CompanyScrip,
-	/** Lamplighter (Abel's Longhorn): a scoped kill leaves a lantern that heals the player near it. */
+	/**
+	 * Wickcutter on screen since 2026-10-31 (Abel's Longhorn; the Lamplighter is the Wardens' airship now): a scoped kill
+	 * leaves a lantern that heals the player near it. Its code name, id and asset keep "Lamplighter" (saves name them).
+	 */
 	Lamplighter
 };

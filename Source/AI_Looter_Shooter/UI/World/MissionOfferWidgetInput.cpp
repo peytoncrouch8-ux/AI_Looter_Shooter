@@ -1,4 +1,5 @@
-// UMissionOfferWidget for the keyboard, a controller and the mouse: E takes the mission, Esc or B puts it back; left and
+// UMissionOfferWidget for the keyboard, a controller and the mouse: E takes the mission (turns it in, on a turn-in card), Esc
+// or B puts it back; left and
 // right move the focus between the two buttons and Enter, Space or A presses the one focused; the prompts at the bottom
 // name the keys of the device last used (LooterUIFocus.h, MenuNav.h, MenuNavigator.h).
 
@@ -64,7 +65,8 @@ void UMissionOfferWidget::RefreshNavLook()
 	}
 	PromptBar->ClearChildren();
 	const bool bPadNow = LooterUI::IsMenuGamepad();
-	if (Mode != EMissionCardMode::Offer)
+	// A turn-in's two buttons take the offer's prompts (Turn in, Not now); a choice and a page read have their own.
+	if (Mode == EMissionCardMode::Choice || Mode == EMissionCardMode::Read)
 	{
 		// Choosing: the keys that move between the two, the hold that chooses (E, or a pad's A), and the way out. Reading:
 		// only the way out.
@@ -138,6 +140,12 @@ void UMissionOfferWidget::StepNav(EMove Move)
 // Buttons and the mouse
 // ---------------------------------------------------------------------------
 
+bool UMissionOfferWidget::PressPrimary()
+{
+	// The same key and button take a job on or turn one in: the card's mode says which.
+	return Mode == EMissionCardMode::TurnIn ? TurnIn() : Accept();
+}
+
 void UMissionOfferWidget::HandleButton(ULooterButton* Button)
 {
 	if (!Button || bClosing)
@@ -160,7 +168,7 @@ void UMissionOfferWidget::HandleButton(ULooterButton* Button)
 	}
 	if (Button == AcceptButton.Get())
 	{
-		if (!Accept() && IsInViewport())
+		if (!PressPrimary() && IsInViewport())
 		{
 			// A click handed the keyboard to the game viewport (LooterButton): the card keeps it while it stays.
 			SetKeyboardFocus();
@@ -252,7 +260,7 @@ FReply UMissionOfferWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 		RevealNav(Key);
 		if (!InKeyEvent.IsRepeat())
 		{
-			Accept();
+			PressPrimary();
 		}
 		return FReply::Handled();
 	}

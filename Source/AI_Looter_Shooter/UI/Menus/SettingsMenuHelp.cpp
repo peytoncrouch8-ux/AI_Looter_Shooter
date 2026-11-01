@@ -43,7 +43,7 @@ namespace
 			{ TEXT("Aim"), TEXT("Raises the gun's sight to your eye for a steadier, zoomed shot at range.") },
 			{ UKeyBindingSubsystem::MeleeBindingId(), TEXT("Strikes whatever gets too close in front of you.") },
 			{ UKeyBindingSubsystem::GrenadeBindingId(), TEXT("Throws a grave-salt grenade that bursts among a crowd.") },
-			{ UKeyBindingSubsystem::EmberBindingId(), TEXT("Fires your hero's equipped ember power. It runs for a while, then cools down before it can be used again.") },
+			{ UKeyBindingSubsystem::EmberBindingId(), TEXT("Uses your hero's equipped skill. It runs for a while, then cools down before it can be used again.") },
 			{ UKeyBindingSubsystem::FlaskBindingId(), TEXT("Drinks from your soul flask: a third of your health back over a moment, even mid-fight. Kills and soul-motes fill it again.") },
 			{ TEXT("Reload"), TEXT("Refills the gun's magazine from your ammo.") },
 			{ TEXT("NextWeapon"), TEXT("Takes the next gun down the HUD's weapon column in hand.") },
@@ -51,7 +51,7 @@ namespace
 			{ TEXT("DropWeapon"), TEXT("Drops the gun in your hands to the ground.") },
 			{ TEXT("Interact"), TEXT("Uses what's in front of you: open, read, talk, pick up. On a gun a tap picks it up, a hold takes it straight in hand.") },
 			{ TEXT("ToggleView"), TEXT("Switches between the first-person view and the over-the-shoulder third-person view.") },
-			{ TEXT("Inventory"), TEXT("Opens the inventory: your loadout, ember powers, bestiary, missions and map.") },
+			{ TEXT("Inventory"), TEXT("Opens the inventory: your loadout, skills, the Warden's Log, missions and map.") },
 			{ TEXT("InventoryAlt"), TEXT("A second key for the inventory, so either key opens it.") },
 			{ UKeyBindingSubsystem::MapBindingId(), TEXT("Opens the inventory straight on its map page.") },
 		};

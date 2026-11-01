@@ -39,6 +39,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> FrostEdges;
 	/** The flask's heal glow, over the frost and under the cyan. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> HealEdges;
+	/** A soul-hose draining the player (Vane's hose-men): ink creeping in under a cyan rim. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> DrainInkEdges;
+	UPROPERTY(Transient) TObjectPtr<UWidget> DrainEdges;
 
 	/** The pawn's health and ward from frame to frame. */
 	FHudWardHitWatch Watch;
@@ -51,6 +54,8 @@ private:
 	float ShownWardOpacity = -1.f;
 	float ShownFrostOpacity = -1.f;
 	float ShownHealOpacity = -1.f;
+	float ShownDrainInkOpacity = -1.f;
+	float ShownDrainOpacity = -1.f;
 	/** The heal glow's strength (0-1), eased toward the flask's heal. */
 	float HealGlow = 0.f;
 };

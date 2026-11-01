@@ -57,21 +57,24 @@ ARespawnMarker::ARespawnMarker()
 	Anchor->SetMobility(EComponentMobility::Movable);
 	RootComponent = Anchor;
 
-	// The models found only once they're in this checkout, so the class works, and its tests run, without them.
-	static UStaticMesh* const RoostModel = RoostKit::FindIfMade<UStaticMesh>(RoostKit::RoostPath);
+	// The models found only once they're in this checkout, so the class works, and its tests run, without them. The post
+	// is the Wardens' lantern post since 2026-10-31 (RoostKit::PostPath, a stand-in until the Tripo model).
+	static UStaticMesh* const RoostModel = RoostKit::FindIfMade<UStaticMesh>(RoostKit::PostPath);
 	static UStaticMesh* const BellModel = RoostKit::FindIfMade<UStaticMesh>(RoostKit::BellPath);
 	static UStaticMesh* const CubeModel = RoostKit::FindIfMade<UStaticMesh>(RoostKit::CubePath);
 	static UMaterialInterface* const WoodLook = RoostKit::FindIfMade<UMaterialInterface>(RoostKit::WoodPath);
 	static UMaterialInterface* const IronLook = RoostKit::FindIfMade<UMaterialInterface>(RoostKit::IronPath);
 	static UMaterialInterface* const StoneLook = RoostKit::FindIfMade<UMaterialInterface>(RoostKit::StonePath);
+	static UMaterialInterface* const DarkGlassLook = RoostKit::FindIfMade<UMaterialInterface>(RoostKit::DarkGlassPath);
 	RoostMesh = RoostModel;
 	BellMesh = BellModel;
+	DarkGlass = DarkGlassLook;
 
 	Roost = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Roost"));
 	Roost->SetupAttachment(Anchor);
 	Roost->SetMobility(EComponentMobility::Movable);
 	Roost->SetStaticMesh(RoostModel);
-	// A mast stops the player and shots as a mast does (its hulls: the mast and the cairn), and no creature plans round it.
+	// A post stops the player and shots as a post does (its hulls: the post and its foot), and no creature plans round it.
 	Roost->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	Roost->SetCanEverAffectNavigation(false);
 	Roost->SetCastShadow(true);

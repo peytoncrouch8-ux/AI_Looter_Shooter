@@ -9661,5 +9661,422 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 6
+  },
+  "Ship.Lamplighter.Engine": {
+    "files": [
+      "Ship_Lamplighter_Engine_01.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ship.Lamplighter.Creak": {
+    "files": [
+      "Ship_Lamplighter_Creak_01.wav"
+    ],
+    "volume_db": -22.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ship.Lamplighter.Lurch": {
+    "files": [
+      "Ship_Lamplighter_Lurch_01.wav",
+      "Ship_Lamplighter_Lurch_02.wav",
+      "Ship_Lamplighter_Lurch_03.wav"
+    ],
+    "volume_db": -6.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ship.Lamplighter.BagTear": {
+    "files": [
+      "Ship_Lamplighter_BagTear_01.wav",
+      "Ship_Lamplighter_BagTear_02.wav",
+      "Ship_Lamplighter_BagTear_03.wav"
+    ],
+    "volume_db": -5.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ship.Lamplighter.HardLanding": {
+    "files": [
+      "Ship_Lamplighter_HardLanding_01.wav",
+      "Ship_Lamplighter_HardLanding_02.wav",
+      "Ship_Lamplighter_HardLanding_03.wav"
+    ],
+    "volume_db": -1.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ship.Grapple.Fire": {
+    "files": [
+      "Ship_Grapple_Fire_01.wav",
+      "Ship_Grapple_Fire_02.wav",
+      "Ship_Grapple_Fire_03.wav"
+    ],
+    "volume_db": -3.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ship.Grapple.Hit": {
+    "files": [
+      "Ship_Grapple_Hit_01.wav",
+      "Ship_Grapple_Hit_02.wav",
+      "Ship_Grapple_Hit_03.wav"
+    ],
+    "volume_db": -4.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ship.Grapple.Strain": {
+    "files": [
+      "Ship_Grapple_Strain_01.wav"
+    ],
+    "volume_db": -24.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ship.Grapple.Cut": {
+    "files": [
+      "Ship_Grapple_Cut_01.wav",
+      "Ship_Grapple_Cut_02.wav",
+      "Ship_Grapple_Cut_03.wav"
+    ],
+    "volume_db": -2.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ship.Tender.Fall": {
+    "files": [
+      "Ship_Tender_Fall_01.wav",
+      "Ship_Tender_Fall_02.wav"
+    ],
+    "volume_db": -1.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ship.Anchor.Crank": {
+    "files": [
+      "Ship_Anchor_Crank_01.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ship.Anchor.Set": {
+    "files": [
+      "Ship_Anchor_Set_01.wav",
+      "Ship_Anchor_Set_02.wav",
+      "Ship_Anchor_Set_03.wav"
+    ],
+    "volume_db": -2.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Story.Vane.RadioIn": {
+    "files": [
+      "Story_Vane_RadioIn_01.wav",
+      "Story_Vane_RadioIn_02.wav",
+      "Story_Vane_RadioIn_03.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Story.Vane.RadioOut": {
+    "files": [
+      "Story_Vane_RadioOut_01.wav",
+      "Story_Vane_RadioOut_02.wav",
+      "Story_Vane_RadioOut_03.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Story.Vane.RadioHiss": {
+    "files": [
+      "Story_Vane_RadioHiss_01.wav"
+    ],
+    "volume_db": -32.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Story.Spyglass.Open": {
+    "files": [
+      "Story_Spyglass_Open_01.wav",
+      "Story_Spyglass_Open_02.wav",
+      "Story_Spyglass_Open_03.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Story.Lantern.Lean": {
+    "files": [
+      "Story_Lantern_Lean_01.wav",
+      "Story_Lantern_Lean_02.wav",
+      "Story_Lantern_Lean_03.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ambience.Smog": {
+    "files": [
+      "Ambience_Smog_01.wav"
+    ],
+    "volume_db": -32.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Story.Delia.Shotgun": {
+    "files": [
+      "Story_Delia_Shotgun_01.wav",
+      "Story_Delia_Shotgun_02.wav",
+      "Story_Delia_Shotgun_03.wav",
+      "Story_Delia_Shotgun_04.wav",
+      "Story_Delia_Shotgun_05.wav"
+    ],
+    "volume_db": -1.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Story.Delia.Reload": {
+    "files": [
+      "Story_Delia_Reload_01.wav",
+      "Story_Delia_Reload_02.wav",
+      "Story_Delia_Reload_03.wav",
+      "Story_Delia_Reload_04.wav"
+    ],
+    "volume_db": -5.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "UI.TurnIn.Stamp": {
+    "files": [
+      "UI_TurnIn_Stamp_01.wav",
+      "UI_TurnIn_Stamp_02.wav",
+      "UI_TurnIn_Stamp_03.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Creature.Dredger.Rifle.Fire": {
+    "files": [
+      "Creature_Dredger_Rifle_Fire_01.wav",
+      "Creature_Dredger_Rifle_Fire_02.wav",
+      "Creature_Dredger_Rifle_Fire_03.wav",
+      "Creature_Dredger_Rifle_Fire_04.wav",
+      "Creature_Dredger_Rifle_Fire_05.wav"
+    ],
+    "volume_db": -8.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Creature.Dredger.Rifle.Reload": {
+    "files": [
+      "Creature_Dredger_Rifle_Reload_01.wav",
+      "Creature_Dredger_Rifle_Reload_02.wav",
+      "Creature_Dredger_Rifle_Reload_03.wav",
+      "Creature_Dredger_Rifle_Reload_04.wav"
+    ],
+    "volume_db": -5.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Dredger.Bark": {
+    "files": [
+      "Creature_Dredger_Bark_01.wav",
+      "Creature_Dredger_Bark_02.wav",
+      "Creature_Dredger_Bark_03.wav",
+      "Creature_Dredger_Bark_04.wav",
+      "Creature_Dredger_Bark_05.wav",
+      "Creature_Dredger_Bark_06.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Dredger.Hurt": {
+    "files": [
+      "Creature_Dredger_Hurt_01.wav",
+      "Creature_Dredger_Hurt_02.wav",
+      "Creature_Dredger_Hurt_03.wav",
+      "Creature_Dredger_Hurt_04.wav",
+      "Creature_Dredger_Hurt_05.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Dredger.Death": {
+    "files": [
+      "Creature_Dredger_Death_01.wav",
+      "Creature_Dredger_Death_02.wav",
+      "Creature_Dredger_Death_03.wav",
+      "Creature_Dredger_Death_04.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Dredger.Hose.Latch": {
+    "files": [
+      "Creature_Dredger_Hose_Latch_01.wav",
+      "Creature_Dredger_Hose_Latch_02.wav",
+      "Creature_Dredger_Hose_Latch_03.wav"
+    ],
+    "volume_db": -4.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Dredger.Hose.Drain": {
+    "files": [
+      "Creature_Dredger_Hose_Drain_01.wav"
+    ],
+    "volume_db": -20.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Dredger.Hose.Snap": {
+    "files": [
+      "Creature_Dredger_Hose_Snap_01.wav",
+      "Creature_Dredger_Hose_Snap_02.wav",
+      "Creature_Dredger_Hose_Snap_03.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Dredger.Tank.Burst": {
+    "files": [
+      "Creature_Dredger_Tank_Burst_01.wav",
+      "Creature_Dredger_Tank_Burst_02.wav",
+      "Creature_Dredger_Tank_Burst_03.wav"
+    ],
+    "volume_db": -3.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
   }
 }

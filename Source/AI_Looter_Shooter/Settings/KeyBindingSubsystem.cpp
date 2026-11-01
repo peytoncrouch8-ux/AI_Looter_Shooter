@@ -63,7 +63,8 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AddBinding(TEXT("Aim"), TEXT("Aim down sights"), TEXT("Combat"), CharacterContext, AimAction, EKeys::RightMouseButton, true);
 	AddBinding(MeleeBindingId(), TEXT("Melee"), TEXT("Combat"), CharacterContext, MeleeAction, DefaultMeleeKey());
 	AddBinding(GrenadeBindingId(), TEXT("Grenade"), TEXT("Combat"), CharacterContext, GrenadeAction, DefaultGrenadeKey());
-	AddBinding(EmberBindingId(), TEXT("Ember power"), TEXT("Combat"), CharacterContext, EmberAction, DefaultEmberKey());
+	// "Skill" on screen (the user, 2026-10-31); its id stays EmberBindingId's, so saved keys still find it.
+	AddBinding(EmberBindingId(), TEXT("Skill"), TEXT("Combat"), CharacterContext, EmberAction, DefaultEmberKey());
 	AddBinding(FlaskBindingId(), TEXT("Soul flask"), TEXT("Combat"), CharacterContext, FlaskAction, DefaultFlaskKey());
 	AddBinding(TEXT("Reload"), TEXT("Reload"), TEXT("Combat"), WeaponContext, Reload, EKeys::R);
 	// The wheel moves along the HUD's slot column (slot 1 on top): up to the slot above, down to the one below (the user,

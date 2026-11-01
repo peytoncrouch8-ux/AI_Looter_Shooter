@@ -44,22 +44,40 @@ Main 7. Main 5's turn-in says why the mine comes first and points at the lift; M
 
   Ransom's Rest's story (steps counted from 0, as the build scripts' conditions count them; "+ optional" is an optional
   objective in that step, Docs/Areas/RansomsRest_Expansion.md section 3):
-  DA_Mission_Main1 "Seven Days", automatic on a new game: 0 the cold open (scene ColdOpen), 1 the claw-out (GraveWake),
-                   2 Abel's headboard (Headboard_Abel) + optional Ellis's own (readable HeadboardEllis), 3 up to the
-                   farmhouse (within 9 m of Speaker_Delia), 4 the porch plate taken (PorchPlate.Taken: two jars of grave
-                   salt; APorchPlate's take_when is "during Main1 from step 4"). Turned in to Delia at her door: the doc's
-                   three lines and "eat what's on that plate". 450 XP, her purse (20).
-  DA_Mission_Main2 "Shall We Talk Business?", offered by Hob (Speaker_Hob) after Main 1: 0 up onto Ransom's Point
-                   (Place_RansomsPoint, height counted), 1 the nest cleared (BluffNest, 5), 2 Mister Sexton
-                   (Speaker_Sexton) + optional the boards where it happened (LookoutStains), 3 the Ledger opened (it must
-                   stay step 3: Ledger::HandedOverStep). Turned in to Sexton, who sends Ellis to Delia about the lantern.
-                   550 XP and the Ledger.
-  DA_Mission_Main3 "Cold Welcome", offered by Delia after Main 2: 0 the farm road to the town gate (Place_TownGate),
-                   1 the gate's Unpaid (TownGate, 7), 2 Bright & Daughter (within 8 m of Speaker_Tilly). Turned in to Tilly
-                   at her window, her whole talk (DA_Lines_TillyMain3 the same, her topic "during Main3 from step 3"):
-                   she hands Pa's lantern bail over (Main 6's item LanternBail, carried from the turn-in: hand_items; the
-                   sill's pickup only while the game module lacks FMissionTurnIn::HandItems); the reward gun drops. 1,000 XP, an Uncommon gun or better, her purse (40). Its id must stay "Main3" (Main Street's
-                   safe ground and shutters, Pruitt's hatch follow it).
+  DA_Mission_Main1 "Landfall" (the Wardens story since 2026-10-31, was "Seven Days"; the id stays Main1: saves, conditions
+                   and tests key on it; Docs/Work/2026-10-31-Wardens/CONTRACT.md's step table), automatic on a new game,
+                   on the Lamplighter's deck: 0 the Great Lantern at the prow (within 3.5 m of Lamplighter_Prow), 1 Vane's
+                   boarders (event Landfall.DeckClear), 2 the two grapple lines cut (hold on Landfall_Grapple, 2), 3 the
+                   hard landing (scene HardLanding), 4 the anchor (hold on Landfall_AnchorWinch) and the dead off the ledge
+                   (LedgeClimbers, 4), 5 Ransom's Point (Place_RansomsPoint, height counted), 6 the spyglass
+                   (Landfall_Spyglass: scene SmogReveal), 7 Abel's trail to the farm (within 18 m of Speaker_Delia) +
+                   optional Abel's hat (Landfall_AbelsHat: its readable sets Landfall.AbelsHat), 8 Delia's porch held
+                   (FarmPorch, 8). Turned in to Delia Ransom on her porch: no lines of its own, so her topic says it
+                   (story_texts.TOPICS['Speaker_Delia']: DA_Lines_DeliaLandfallHat with the hat's flag, else
+                   DA_Lines_DeliaLandfall). 450 XP, her purse (20). The porch plate is no step now: its jars are free after
+                   Main 1 (story_texts.PORCH_PLATE).
+  DA_Mission_Main2 "The Ferryman's Price" (the Wardens story since 2026-11-01, was "Shall We Talk Business?"; the id stays
+                   Main2; Docs/Work/2026-10-31-Wardens/MAINS_2_7.md section 4; build_area_main2.py places its pieces),
+                   offered by Hob (Speaker_Hob) after Main 1, started on the move: 0 the keeper's path to Gravewind Point
+                   (within 25 m of Place_GravewindPoint, so the cart's step begins as its crew comes into sight past the
+                   cairns; BluffNest's spiders lie on the way at the Three Widows) + optional Keeper's Bridge
+                   (Place_KeepersBridge), 1 the Company's hose-cart stopped (HoseCart.Stopped, ACompanyHoseCart's event
+                   for its valve shut or its tank burst; the arrow on HoseCart_Boards) and its crew and spill fought off
+                   (BoardsCrew, 8, the count hidden: the spill's four dead are the twist) + optional Vane's loudspeaker at
+                   the Keeper's Gate silenced (Loudspeaker_KeepersGate, killed), 2 Mister Sexton at his ferry under the
+                   boards (Speaker_Sexton, down the rope ladder), 3 the Warden's Log opened (it must stay step 3:
+                   Ledger::HandedOverStep: Sexton's ledger pages go into it). Turned in to Sexton at his ferry (card,
+                   then his price: the barge's manifest). 400 XP (550 until 2026-11-01: the Pacing band).
+  DA_Mission_Main3 "Under New Management" (the Wardens story since 2026-11-01, was "Cold Welcome"; MAINS_2_7.md section 5;
+                   build_area_main3.py), offered by Delia Ransom after Main 2 (met first: her talk starts it): 0 the farm
+                   road to the town gate (Place_TownGate; Lucky Ned's skiff leaves the barge as it starts), 1 the Company's
+                   checkpoint broken (TownGate, 7: three riflemen, a hose-man, three Unpaid), 2 Bright & Daughter (within
+                   8 m of Speaker_Tilly) + optional the UNDER NEW MANAGEMENT banner cut down (MainStreet.BannerDown, its
+                   two ropes shot). Turned in to Tilly Bright at her window (card, then her lines; DA_Lines_TillyMain3 the
+                   same, her topic "during Main3 from step 3"): she hands Abel's lantern bail over (Main 6's item
+                   LanternBail, carried from the turn-in: hand_items); the reward gun drops. 800 XP (1,000 until 2026-11-01: the Pacing band), an Uncommon gun or
+                   better, her purse (40). Its id must stay "Main3" (Main Street's safe ground and shutters, Pruitt's
+                   hatch follow it).
   DA_Mission_Main4 "Hallowed Ground", offered by Tilly after Main 3: 0 the chapel (Place_Chapel), 1 the chapel yard
                    (ChapelYard, 16), 2 the knock at the vestry door (Speaker_Aldana: "ring her bell"), 3 the bell held
                    (Bell_Chapel), 4 the Reliquary seen (GraveSight.Reliquary; its look_when "during Main4 from step 4") +
@@ -87,8 +105,8 @@ The mission features (wave 2a, sections 3-4), each a helper below:
     collect_items(asset, text, [ids]); placed in the level as AMissionItem (its item_id) by the level's build script
     (Tools/Unreal/story_texts.py ITEMS says where and from when).
   - readables and the porch plate: read_objective(asset, text, 'KeepersRoll') counts reading the AReadableProp whose
-    readable_id is KeepersRoll (its words: story_texts.py READABLES); event_objective(asset, text, PORCH_TAKEN /
-    PORCH_EATEN) the porch plate's two uses.
+    readable_id is KeepersRoll (its words: story_texts.py READABLES); event_objective(asset, text, PORCH_EATEN) the porch
+    plate's eating (Main 7; PORCH_TAKEN, its jars, was Seven Days' step and is no mission's since Landfall).
   - a turn-in with a choice of two: turn_in(..., choices=[choice(...), choice(...)], question=...), each choice with its
     flag (BackPay.Paid), stamp, lines and rewards (rewards()'s fields, in place of the mission's own).
   - a purse of its own: rewards(silver=...) (the old missions' purses stay kept by id in MissionRewards::SilverFor).
@@ -453,64 +471,153 @@ def board_skiff_steps(asset):
 ELLIS = 'Ellis'
 HOB = 'Hob'
 
+# Landfall's tags, event, scene and encounters (Docs/Work/2026-10-31-Wardens/CONTRACT.md's step table: exact). Who gives
+# each: FLIGHT's ship and its pieces (the prow's marker, the grapples, the winch, the spyglass, the event, the scenes),
+# WORLD's build_area_landfall.py (the spawners, the hat), CREW's Delia (Speaker_Delia); Place_RansomsPoint is today's.
+LANDFALL_PROW = 'Lamplighter_Prow'
+DECK_CLEAR = 'Landfall.DeckClear'
+LANDFALL_GRAPPLE = 'Landfall_Grapple'
+HARD_LANDING = 'HardLanding'
+LANDFALL_WINCH = 'Landfall_AnchorWinch'
+LEDGE_CLIMBERS = 'LedgeClimbers'
+LANDFALL_SPYGLASS = 'Landfall_Spyglass'
+LANDFALL_HAT = 'Landfall_AbelsHat'
+FARM_PORCH = 'FarmPorch'
+DELIA_TAG = 'Speaker_Delia'
+
 
 def main1_steps(asset):
-    """Main 1, "Seven Days": the cold open, the claw-out, the headboard beside Ellis's (and, if they like, their own), the
-    farmhouse, and the porch plate's jars (Delia's grave salt: the first grenades); then it's turned in at Delia's door.
-    The scenes' names are the C++'s (ColdOpen::SceneName, GraveWake::SceneName); the tags are the ones the build scripts
-    give what they place; the plate's step must stay the fifth (APorchPlate's take_when: during Main1 from step 4)."""
+    """Main 1, "Landfall" (2026-10-31, the Wardens story): the Lamplighter sails in over Gravewind Canyon with the player on
+    her deck; the Great Lantern at the prow (Finch: it's leaning hard; Vane breaks in on the horn as they arrive), Vane's
+    boarders off the deck, the grapples cut under fire, the hard landing on the Mooring Ledge, the anchor dropped while the
+    dead climb out of the canyon, the climb to Ransom's Point, the spyglass's reveal (the barge over the Sink, its hose, the
+    smog; then the Lantern finds Abel's trail), the trail down the bluff path (and Abel's hat on it, if they pick it up), and
+    Delia's porch held. Then it's turned in to Delia. Step indices are the contract's (FLIGHT's old-save move goes to step
+    5; story_texts' conditions count them): never reorder. Every step's words say why."""
     waypoint = unreal.MissionWaypoint
     return [
-        step(objective(asset, unreal.MissionSceneObjective, 'Seven days ago.',
-                       waypoint=waypoint.NONE, scene=unreal.Name('ColdOpen'))),
-        step(objective(asset, unreal.MissionSceneObjective, 'Claw out of the grave: press {Jump}.',
-                       waypoint=waypoint.NONE, scene=unreal.Name('GraveWake'))),
-        step(objective(asset, unreal.MissionInteractObjective, 'Read the headboard beside yours.',
-                       target=actor_filter(tag='Headboard_Abel'), count=1),
-             read_objective(asset, 'Read your own headboard.', 'HeadboardEllis', optional=True)),
-        step(objective(asset, unreal.MissionReachObjective, 'Go up to the farmhouse.',
-                       place=place(tag='Speaker_Delia', radius=900.0))),
-        # The arrow on the plate; done as the jars are taken (the plate's TakenFlag, sent as an event).
-        step(event_objective(asset, "Take what's on the porch plate.", PORCH_TAKEN,
-                             waypoint=waypoint.ACTOR, waypoint_tag=PORCH_TAG)),
+        # 0. A walk to the prow, the first control lesson; the arrow on the marker FLIGHT puts at the Great Lantern.
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Go to the Great Lantern at the prow. Brother Finch says it's leaning hard.",
+                       short='Go to the Great Lantern at the prow', place=place(tag=LANDFALL_PROW, radius=350.0))),
+        # 1. The boarders' two waves (FLIGHT sends the event once the last of them is down; the tender's own riflemen don't
+        # count). No arrow: the fight is all round the player.
+        step(event_objective(asset, "Fight off Vane's boarders before they take the ship.", DECK_CLEAR,
+                             short="Fight off Vane's boarders", waypoint=waypoint.NONE)),
+        # 2. Both grapples, each held (a tap doesn't cut), with the tender's riflemen still firing.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       'Cut the grapple lines: hold {Interact} on each chain, or the tender tows the ship to the barge.',
+                       short='Cut the grapple lines', target=actor_filter(tag=LANDFALL_GRAPPLE), count=2, hold=True)),
+        # 3. The hard landing plays (FLIGHT's scene, about 5 s, skippable): the tracker barely shows it.
+        step(objective(asset, unreal.MissionSceneObjective, 'Hold on: Captain Holloway is taking her down.',
+                       short='Hold on', waypoint=waypoint.NONE, scene=unreal.Name(HARD_LANDING))),
+        # 4. The anchor, held (about 2.5 s on FLIGHT's winch), while the dead climb up from the canyon (WORLD's spawner).
+        step(objective(asset, unreal.MissionInteractObjective,
+                       'Drop the anchor: hold {Interact} on the winch, or the ship slides off the ledge into the canyon.',
+                       short='Drop the anchor', target=actor_filter(tag=LANDFALL_WINCH), count=1, hold=True),
+             objective(asset, unreal.MissionClearObjective, 'Fight off the dead climbing out of the canyon.',
+                       short='Fight off the dead', spawner_id=unreal.Name(LEDGE_CLIMBERS), count=4)),
+        # 5. Height counted, as Main 2's climb is: the bluff path runs under the top's edge.
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Climb to Ransom's Point. Captain Holloway wants eyes on the valley.",
+                       short="Climb to Ransom's Point",
+                       place=place(tag='Place_RansomsPoint', radius=1800.0, ignore_height=False))),
+        # 6. The spyglass on the lookout (FLIGHT's: its use plays SmogReveal). A tap or a hold counts, as FLIGHT offers it.
+        step(objective(asset, unreal.MissionInteractObjective,
+                       'Look over the Rest through the spyglass on the lookout.',
+                       short='Look over the Rest', target=actor_filter(tag=LANDFALL_SPYGLASS), count=1)),
+        # 7. The trail's glow down the bluff path to the farm (WORLD's), the arrow on Delia; on the way, Abel's hat (an
+        # AReadableProp tagged Landfall_AbelsHat: story_texts.READABLES AbelsHat, held; it sets Landfall.AbelsHat).
+        step(objective(asset, unreal.MissionReachObjective, "Follow Abel's trail down the bluff path to the farm.",
+                       short="Follow Abel's trail", place=place(tag=DELIA_TAG, radius=1800.0)),
+             objective(asset, unreal.MissionInteractObjective, "Pick up Abel's hat on the bluff path.",
+                       short="Pick up Abel's hat", target=actor_filter(tag=LANDFALL_HAT), count=1, optional=True)),
+        # 8. Dredgers and the dead at Delia's steps (WORLD's spawner: 3 riflemen, 2 hose-men, 3 Unpaid); she fights from
+        # the porch (CREW).
+        step(objective(asset, unreal.MissionClearObjective, 'Help Delia hold the porch.',
+                       short='Help Delia hold the porch', spawner_id=unreal.Name(FARM_PORCH), count=8)),
     ]
 
 
+# Main 2's and Main 3's tags, encounters and events (Docs/Work/2026-10-31-Wardens/MAINS_2_7.md sections 4-5; who gives
+# each: build_area_main2.py and build_area_main3.py place them, ACompanyHoseCart sends HoseCart.Stopped, ACompanyBanner
+# sends its DownEvent, ACompanyLoudspeaker dies by its tag). Place_GravewindPoint and Place_KeepersBridge are build_area_deck's
+# and build_area_story's; Place_TownGate is build_area_story's.
+SULLY = 'Sully'
+SEXTON_TAG = 'Speaker_Sexton'
+BOARDS_CART = 'HoseCart_Boards'
+BOARDS_CREW = 'BoardsCrew'
+CART_STOPPED = 'HoseCart.Stopped'
+GATE_LOUDSPEAKER = 'Loudspeaker_KeepersGate'
+TOWN_GATE = 'TownGate'
+TILLY_TAG = 'Speaker_Tilly'
+BANNER_TAG = 'Banner_MainStreet'
+BANNER_DOWN = 'MainStreet.BannerDown'
+
+
 def main2_steps(asset):
-    """Main 2, "Shall We Talk Business?": up onto Ransom's Point, the spider nest cleared, Sexton's deal (and the boards
-    where it happened, if Ellis looks), the Ledger. The tags and the encounter's id are the ones
-    Tools/Unreal/build_area_story.py gives what it places; the Ledger's step must stay the fourth
-    (Ledger::HandedOverStep, counted from 0: 3), as the book is his from it."""
+    """Main 2, "The Ferryman's Price" (the Wardens story, MAINS_2_7.md section 4): the keeper's path out to Gravewind Point
+    (past the Three Widows' spiders, over Keeper's Bridge if Sully walks it Abel's way), the Company's hose-cart stopped on
+    the burial boards and its crew fought off (the spill's dead the twist; Vane's loudspeaker at the Keeper's Gate shot out
+    if Sully will), Mister Sexton's price heard at his ferry in the fog under the boards, the Warden's Log opened. The Log's
+    step must stay the fourth (Ledger::HandedOverStep, counted from 0: 3), as Sexton's pages are in it from then. Every
+    step's words say why."""
+    waypoint = unreal.MissionWaypoint
     return [
-        # Height counted: the bluff path runs under the top's edge, a few metres from its middle as the crow flies.
-        step(objective(asset, unreal.MissionReachObjective, "Climb the bluff path to Ransom's Point.",
-                       place=place(tag='Place_RansomsPoint', radius=1800.0, ignore_height=False))),
-        step(objective(asset, unreal.MissionClearObjective, 'Clear the spiders nesting at the top.',
-                       spawner_id=unreal.Name('BluffNest'), count=5)),  # four and a Restless one (softened 2026-10-23; 6)
-        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Mister Sexton.',
-                       speaker_tag=unreal.Name('Speaker_Sexton')),
-             read_objective(asset, 'Look at the boards where it happened.', 'LookoutStains', optional=True)),
-        # {Page.Bestiary}: the tab's number key from the inventory's own order (MissionText), never a digit written in
-        # ("then 2" went stale when the Embers tab came second).
-        step(objective(asset, unreal.MissionOpenPageObjective, 'Open the Ledger: {Inventory}, then {Page.Bestiary}.',
-                       page=unreal.MissionPage.BESTIARY)),
+        # 0. 25 m round the Keeper's Gate (its marker): the cart's step begins as its crew comes into sight past the last
+        # cairn, so it is the step listening when the cart is stopped. The Three Widows' nest (BluffNest) lies on the way.
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Follow the keeper's path to Gravewind Point. The Ferryman waits by the burial boards, and he says he "
+                       "knows the barge.",
+                       short="Follow the keeper's path to Gravewind Point",
+                       place=place(tag='Place_GravewindPoint', radius=2500.0)),
+             objective(asset, unreal.MissionReachObjective, "Cross Keeper's Bridge, the way Abel walked the dead every sundown.",
+                       short="Cross Keeper's Bridge", place=place(tag='Place_KeepersBridge', radius=600.0), optional=True)),
+        # 1. The cart, either way it's stopped (ACompanyHoseCart sends the event about itself); its crew and the four dead
+        # its spill brings, counted from the spawner (the count hidden: the spill is the twist); the gate's loudspeaker.
+        step(event_objective(asset, "Stop the Company's hose-cart: it's pumping the week's dead off the boards. Hold "
+                                    "{Interact} on its valve, or burst its tank.", CART_STOPPED,
+                             short='Stop the hose-cart', waypoint=waypoint.ACTOR, waypoint_tag=BOARDS_CART),
+             objective(asset, unreal.MissionClearObjective, "Fight off the Company's crew on the boards, and whatever the "
+                                                             "cart spills.",
+                       short="Fight off the crew", spawner_id=unreal.Name(BOARDS_CREW), count=8, show_count=False),
+             objective(asset, unreal.MissionKillNamedObjective, "Silence Vane's loudspeaker at the Keeper's Gate.",
+                       short="Silence Vane's loudspeaker", actor_tag=unreal.Name(GATE_LOUDSPEAKER), player_kills_only=True,
+                       optional=True)),
+        # 2. Down the rope ladder off the deck's west end to his landing (AFerryLadder); his talk is the deal.
+        step(objective(asset, unreal.MissionTalkObjective,
+                       "Climb down to the Ferryman's landing under the boards and hear Mister Sexton's price.",
+                       short='Talk to Mister Sexton', speaker_tag=unreal.Name(SEXTON_TAG))),
+        # 3. {Page.Bestiary}: the tab's number key from the inventory's own order (MissionText), never a digit written in.
+        step(objective(asset, unreal.MissionOpenPageObjective,
+                       "Open the Warden's Log: {Inventory}, then {Page.Bestiary}. Sexton has written his ledger's pages into "
+                       "it.",
+                       short="Open the Warden's Log", page=unreal.MissionPage.BESTIARY)),
     ]
 
 
 def main3_steps(asset):
-    """Main 3, "Cold Welcome": the farm road into town, the Unpaid at the gate, Bright & Daughter found; then it's turned
-    in at Tilly's window, her whole talk (DA_Lines_TillyMain3 holds the same words, her topic from step 3, the step past
-    the last): Pa's lantern wasn't on him, only its bail, which she puts out on the sill (Main 6's item, lying there from
-    Main 3's end), and the box of effects on the step (the reward gun); Main 4 offered after it. The design's optional
-    "read the poster on the gate" is left out: the gate's poster is torn by holding, and it offers Side 1 only after Main 3
-    (the valley-placement step, 2026-10-13)."""
+    """Main 3, "Under New Management" (the Wardens story, MAINS_2_7.md section 5): the farm road into town (Lucky Ned's
+    skiff leaving the barge over it), the Company's checkpoint at the town gate broken, Bright & Daughter reached down a
+    Main Street the Company holds (its banner cut down if Sully will); then it's turned in at Tilly's window (card, then her
+    lines): Abel's lantern wasn't on him, only its bail, which she hands over (Main 6's item), and the box of effects (the
+    reward gun); Main 4 offered after it. The gate's fight counts from its spawner, which stands from the road (its men at
+    their sandbags as the player comes up the orchard), so a rifleman shot from the road counts."""
+    waypoint = unreal.MissionWaypoint
     return [
-        step(objective(asset, unreal.MissionReachObjective, 'Follow the farm road through the orchard into town.',
-                       place=place(tag='Place_TownGate', radius=1000.0))),
-        step(objective(asset, unreal.MissionClearObjective, 'Fight off the Unpaid at the town gate.',
-                       spawner_id=unreal.Name('TownGate'), count=7)),
-        step(objective(asset, unreal.MissionReachObjective, 'Find Bright & Daughter, Undertakers.',
-                       place=place(tag='Speaker_Tilly', radius=800.0))),
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Take the farm road into town. Tilly Bright laid Abel out: if his lantern came home, she has it.",
+                       short='Take the farm road into town', place=place(tag='Place_TownGate', radius=1000.0))),
+        step(objective(asset, unreal.MissionClearObjective,
+                       "Break the Company's checkpoint at the town gate. Nobody goes in or out while the town's dead are "
+                       "assessed.",
+                       short="Break the Company's checkpoint", spawner_id=unreal.Name(TOWN_GATE), count=7)),
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Get to Bright & Daughter, Undertakers. The Company holds Main Street.",
+                       short='Get to Bright & Daughter', place=place(tag=TILLY_TAG, radius=800.0)),
+             event_objective(asset, "Cut down the Company's UNDER NEW MANAGEMENT banner over Main Street: shoot both its "
+                                    "ropes.", BANNER_DOWN,
+                             short='Cut down the banner', optional=True, waypoint=waypoint.ACTOR, waypoint_tag=BANNER_TAG)),
     ]
 
 
@@ -659,63 +766,58 @@ MISSIONS = [
     # game), and turned in for a fixed amount of experience (Docs/Progression.md: the story alone ends about level 5.5).
     # Their purses are the givers' kept by id (MissionRewards::SilverFor: Main 1 20, Main 3 40, Main 4 40, Main 5 50,
     # Main 7 60).
-    dict(asset='DA_Mission_Main1', id='Main1', title='Seven Days',
-         summary="Seven days after the Dunne Gang's last job, Ellis claws out of a fresh grave in the Ransom family plot, "
-                 "beside Pa's. Read the board beside yours, then go up to the farmhouse. Grandma Delia won't open the door "
-                 "to a corpse, but she has left a plate on the porch.",
+    dict(asset='DA_Mission_Main1', id='Main1', title='Landfall',
+         summary="Vane Consolidated's dredge barge has hung over Ransom's Rest for a week, pressing its dead into soul coal. "
+                 "Bring the Lamplighter in under the smog, find what the Great Lantern is leaning toward, and learn what "
+                 "became of the town's keeper.",
          kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=[], sort_order=1, steps=main1_steps,
-         # The whole talk is the turn-in, once the plate's taken (knocked at before it, she sends Ellis to the plate:
-         # DA_Lines_DeliaMain1). The biscuits stay on the plate until Main 7.
-         turn_in=dict(speaker='Speaker_Delia', giver='Delia', lines=[
-             ('', "I was to lay you on the boards tonight."),
-             ('', "Your Pa got up Wednesday night, came up through the dirt like it was fog."),
-             ('', "A keeper doesn't lie still while his saint is dark."),
-             ('', "And eat what's on that plate."),
-         ]),
+         # No lines of its own (as Side 2's turn-in to Amos has none): what Delia says as it's turned in is her
+         # topic at that moment (story_texts.TOPICS['Speaker_Delia'], "during Main1 from step 9"), so the hat's flag can
+         # choose her words: DA_Lines_DeliaLandfallHat with Landfall.AbelsHat, else DA_Lines_DeliaLandfall. The turn-in
+         # card (TURNIN) takes those lines before it turns the mission in. Her purse stays the kept 20 (SilverFor).
+         turn_in=dict(speaker=DELIA_TAG, giver='Delia Ransom'),
          rewards=dict(experience=450)),
-    dict(asset='DA_Mission_Main2', id='Main2', title='Shall We Talk Business?',
-         summary="Someone is waiting on Ransom's Point, the lookout where the Deacon shot Ellis seven days ago. Spiders nest "
-                 "at the top now, and a tall man in a stovepipe hat sits on the lookout's rail with a ledger on his knee.",
+    dict(asset='DA_Mission_Main2', id='Main2', title="The Ferryman's Price",
+         summary="Mister Sexton, the old Ferryman, says he can sell the Wardens a way at Vane's barge. He keeps his ferry in "
+                 "the fog under Gravewind Point, and a Company crew is pumping the week's dead off the burial boards above "
+                 "it.",
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main1'], sort_order=2, steps=main2_steps,
+         # Hob on Delia's porch rail, as Landfall's turn-in ends: a main mission starts on the move, these said as it does.
          offer=dict(giver_tag='Speaker_Hob', giver='Hob', lines=[
-             ('', "Someone's waiting on you, sunshine. Up top, where it happened."),
-             (ELLIS, 'Who?'),
-             ('', "Tall. Polite. Keeps a ledger. You'll like him. Nobody does."),
-         ], briefing="Someone is waiting on Ransom's Point, the lookout where the Deacon shot you seven days ago. Spiders "
-                     "have nested at the top since. Hob won't say who it is, only that he keeps a ledger."),
-         # Back to him once his ledger is read; he's still on the rail (shown all through Main 2). Asked about Pa's
-         # lantern, he sends Ellis to Delia, whose offer is Main 3's.
-         turn_in=dict(speaker='Speaker_Sexton', giver='Mister Sexton', lines=[
-             ('', "Seven names, friend. The new moon won't wait."),
-             (ELLIS, "Pa's lantern. Where is it?"),
-             ('', "I attend deaths, friend, not lost property. Ask your grandmother what he ran out with."),
-             (HOB, "South-face stairs go down to where the gang tied up, sunshine."),
+             ('', "Man down on the burial boards wants a word, sunshine. Says he knows the barge."),
+             (SULLY, 'Who is he?'),
+             ('', "The Ferryman. I flew for him eighty years. Don't take his first price."),
+         ], briefing="Mister Sexton, the old Ferryman, is waiting at the burial boards on Gravewind Point and says he can sell "
+                     "a way at the barge. Hob flew for him once and says don't take his first price. Go by the keeper's "
+                     "path, the way Abel walked the dead."),
+         # At his ferry, card first, then his price (the barge's manifest: Paid on Delivery after Main 6) and his trade
+         # (his secrets for silver: MAINS_2_7.md section 12, a later round). Then Delia's word starts Main 3.
+         turn_in=dict(speaker=SEXTON_TAG, giver='Mister Sexton', lines=[
+             ('', "My price: the barge's manifest. Every soul Vane burned, with my fare beside it."),
+             (SULLY, "And if I don't bring it?"),
+             ('', "Then you'll owe me, friend. Ask the crow how that goes."),
+             ('', "Come back when you've silver. I know where things lie on the Rest."),
          ]),
-         rewards=dict(experience=550)),
-    dict(asset='DA_Mission_Main3', id='Main3', title='Cold Welcome',
-         summary="Pa ran up the bluff path with his keeper's lantern lit, and nobody has seen it since. Go into town by the "
-                 "farm road and ask Tilly Bright, who laid him out, what came home with him. The living shutter their "
-                 "windows, and the Unpaid come for the corpse at the gate.",
+         rewards=dict(experience=400)),
+    dict(asset='DA_Mission_Main3', id='Main3', title='Under New Management',
+         summary="Abel's soul has to ride home in his own keeper's lantern, and nobody has seen it since Wednesday. Tilly "
+                 "Bright, the undertaker, laid out his body. Vane's Company has taken the town, and its men hold the gate.",
          kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main2'], sort_order=3, steps=main3_steps,
-         # Sexton sends Ellis to Delia: met first (listed as "Talk to Grandma Delia"), her talk starts it, no card.
-         offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', meet_first=True, lines=[
-             ('', "You've been up there. I can smell the cold on you."),
-             ('', "He ran out with his lantern lit. They carried him down without it."),
-             ('', "Tilly Bright laid him out. Ask her."),
-         ], briefing="Pa ran up the bluff path with his keeper's lantern lit, and nobody has seen it since. Tilly Bright, "
-                     "the undertaker's daughter, laid him out. Go into town and ask her what came home with him."),
-         # Her whole talk is the turn-in (DA_Lines_TillyMain3 says the same, her topic from step 3): the doc's lines, the
-         # bail out onto the sill (Main 6's item: Main 3's own would vanish as it's turned in), the box of effects on the
-         # step (the reward gun); then Tilly offers Main 4.
-         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', lines=[
-             ('', "I laid you out, you know. You and your Pa, the same morning."),
-             ('', "You've ruined my collar, by the way."),
-             (ELLIS, "Pa's lantern. Was it with him?"),
-             ('', "No. It wasn't on him. I looked."),
-             ('', "Only its bail, snapped off in his fist. I couldn't open his hand till morning."),
-             ('', "Here. A lantern's no use if it can't be hung."),
+         # Sexton said "his own lantern": Delia's word, met first (listed as "Talk to Delia Ransom"), her talk starts it.
+         offer=dict(giver_tag='Speaker_Delia', giver='Delia Ransom', meet_first=True, lines=[
+             ('', "Tilly Bright laid my boy out. What the hose left of him."),
+             ('', "If his lantern came home, she has it. Town's Company ground now. Mind yourself."),
+         ], briefing="Abel's soul has to ride home in his own keeper's lantern, and nobody has seen it since Wednesday. Tilly "
+                     "Bright, the undertaker, laid out his body. Vane's Company has taken the town, and its men hold the "
+                     "gate."),
+         # Card first, then her lines (DA_Lines_TillyMain3 says the same, her topic from step 3): the bail out of his fist
+         # (Main 6's item, carried from the turn-in), the box of effects (the reward gun); then Tilly offers Main 4.
+         turn_in=dict(speaker=TILLY_TAG, giver='Tilly Bright', lines=[
+             ('', "A Warden. Lord. Come close, the whole street's watching."),
+             ('', "His lantern wasn't on him. Only its bail, snapped off in his fist."),
+             ('', "Couldn't open his hand till morning. Here. And the box: he'd want it used."),
          ], hand_items=['LanternBail']),
-         rewards=dict(experience=1000, gun=True, gun_rarity_floor='UNCOMMON')),
+         rewards=dict(experience=800, gun=True, gun_rarity_floor='UNCOMMON')),
     dict(asset='DA_Mission_Main4', id='Main4', title='Hallowed Ground',
          summary="Father Aldana blessed Pa's lantern every spring and sat up with his body the night he died. He has barred "
                  "himself in the chapel's vestry since the dead came home, and the chapel yard is full of them.",

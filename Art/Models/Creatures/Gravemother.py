@@ -256,17 +256,31 @@ def hide_painter(bare):
 
 
 KEEP = 'keep' in lb.argv()          # -ScriptArgs keep: the texture sets as they are (a quicker look at the mesh)
-for name, bare in ((SET, False), (BARE_SET, True)):
-    folder = os.path.join(lt.TEXTURE_DIR, name)
-    if KEEP and all(os.path.exists(lt.texture_path(name, k)) for k in ('BC', 'N', 'ORM')):
-        continue
-    os.makedirs(folder, exist_ok=True)
-    lc.paint_atlas(ATLAS, hide_painter(bare), SIZE, PX_M, folder, name, normal_strength=NORMAL_STRENGTH)
-    lb.log(f'{name}: painted ({SIZE} px)')
-lb.ensure_set(lb.MUD_SET, lb.paint_mud, always=not KEEP)
-
-HIDE = lt.material(SET, name='GravemotherHide')
-ABDOMEN = lt.material(SET, name='GravemotherAbdomen')
+if TRIPO:
+    # The user's Tripo paint (2026-11-01: "Use Tripo's paint"): Tripo's own colours carried onto her remeshed pieces
+    # (Tripo/parts_gravemother_paint.py) in GravemotherTripo, the same in GravemotherBare (the stone's print is in both);
+    # the GRAVE painter below is the scripted body's. LOOTER_GRAVEMOTHER_LOOK=0 (or keep) reuses the maps on disk.
+    import parts_gravemother_paint as gp
+    TRIPO_PIECES = gb.build({n: (np.array(h[:]), np.array(t[:])) for n, h, t, p in S['bones']})[0]
+    TRIPO_MODEL = gp.Tripo()
+    if gp.kept() or (KEEP and all(os.path.exists(lt.texture_path(s, k)) for s in (gp.SET, gp.BARE_SET)
+                                  for k in ('BC', 'N', 'ORM'))):
+        lb.log('Tripo paint kept as written')
+    else:
+        gp.paint(TRIPO_MODEL, TRIPO_PIECES, ATLAS)
+    HIDE = lt.material(gp.SET, name='GravemotherHide')
+    ABDOMEN = lt.material(gp.SET, name='GravemotherAbdomen')
+else:
+    for name, bare in ((SET, False), (BARE_SET, True)):
+        folder = os.path.join(lt.TEXTURE_DIR, name)
+        if KEEP and all(os.path.exists(lt.texture_path(name, k)) for k in ('BC', 'N', 'ORM')):
+            continue
+        os.makedirs(folder, exist_ok=True)
+        lc.paint_atlas(ATLAS, hide_painter(bare), SIZE, PX_M, folder, name, normal_strength=NORMAL_STRENGTH)
+        lb.log(f'{name}: painted ({SIZE} px)')
+    lb.ensure_set(lb.MUD_SET, lb.paint_mud, always=not KEEP)
+    HIDE = lt.material(SET, name='GravemotherHide')
+    ABDOMEN = lt.material(SET, name='GravemotherAbdomen')
 MUD = lb.mud()
 ROOTS = lb.roots()
 
@@ -389,6 +403,11 @@ def root_stubs(bm):
 
 def finish(bm, name, material, uv_per):
     """A dressing piece as a Blender object (creature cm to Blender metres), tiling cube UVs in its own cm."""
+    # Faced outward first (lc.face_out; 2026-10-31: the root stubs, open tubes, reached Unreal inside out like the
+    # arachnids' parts), before the cube UVs pick each face's side by its normal.
+    turned = lc.face_out(bm)
+    if turned:
+        lb.log(f'{name}: {turned} pieces turned to face outward')
     bm.normal_update()
     lb.box_uv_faces(bm, list(bm.faces), uv_per)
     bmesh.ops.transform(bm, matrix=lc.TO_BLENDER, verts=bm.verts)
@@ -396,12 +415,17 @@ def finish(bm, name, material, uv_per):
 
 
 if TRIPO:
-    # The Tripo body (parts_gravemother_look.body): its pieces rigid on the spider's bones, mud on its own tibias, the
-    # skulls in BoneDry, a hull round each bone's pieces; the root stubs as before.
+    # The Tripo body (parts_gravemother_look.body): its pieces rigid on the spider's bones in Tripo's paint (no mud: its
+    # legs are clean; the skulls on the atlas), Tripo's grave railings back on her back behind the stone (set down onto
+    # her hide, no hit hull), a hull round each bone's pieces; the root stubs as before.
     bm = lb.new_bm()
     root_stubs(bm)
     stubs = finish(bm, 'RootStubs', ROOTS, UV_ROOT)
-    rig, gravemother, bones = gl.body(S, dict(hide=HIDE, abdomen=ABDOMEN, mud=MUD, bone=lb.bone()), stubs)
+    from mathutils.bvhtree import BVHTree
+    _ab = TRIPO_PIECES['abdomen']
+    hide_tree = BVHTree.FromPolygons(np.asarray(_ab['V'], float).tolist(), [list(map(int, f)) for f in _ab['F']])
+    railings = gp.railings(TRIPO_MODEL, STONE, hide_tree, ATLAS)
+    rig, gravemother, bones = gl.body(S, dict(hide=HIDE, abdomen=ABDOMEN, mud=None, bone=None), stubs, railings)
     removed = 0
 else:
     removed = bald_under_stone()

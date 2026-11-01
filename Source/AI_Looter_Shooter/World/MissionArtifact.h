@@ -18,8 +18,9 @@ class UStaticMeshComponent;
  * with its own words (Text, else the mission's Briefing) as a found document.
  *
  * With bTakeOnAccept it's gone once its mission is taken, and stays gone (a tag pocketed); without, it stays where it lies
- * (a notice nailed up). A mission can also be turned in at it (its turn-in's speaker tag on it): Interact then turns it
- * in, as a talk does. It never ticks: it hears the mission runner's changes.
+ * (a notice nailed up). A mission can also be turned in at it (its turn-in's speaker tag on it): Interact then opens the
+ * turn-in card (ALooterHUD::OpenTurnInCard), whose Turn In turns it in, as a talk does (TurnInFromCard); a choice of two
+ * opens its choice card. It never ticks: it hears the mission runner's changes.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AMissionArtifact : public AActor, public IInteractable
@@ -45,6 +46,13 @@ public:
 
 	/** The mission it offers now (the first available, a main one first), or null. */
 	const UMissionDefinition* GetOffer() const;
+
+	/**
+	 * Turns MissionId in here (the turn-in card's Turn In; Use without a HUD): the talk's event finishes everything waiting
+	 * here, then the turn-in's words are said (as written: a found thing has no voice). False when it isn't waiting here
+	 * with no choice to make.
+	 */
+	bool TurnInFromCard(FName MissionId);
 
 	/** Taken for good: bTakeOnAccept and every mission it offers taken (or finished). Hidden then, and off the Interact key. */
 	bool IsTaken() const;

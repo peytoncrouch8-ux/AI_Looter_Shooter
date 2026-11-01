@@ -14,17 +14,26 @@ story_texts.py (READABLES). Lines marked "the doc's" are Docs/Story.md's or Docs
 rest are drafts in the game's voice for the user (2026-10-13, the missions' data step).
 
   Intro    NewGameIntro (the new game's intro narration, Story/NewGameIntro.h: 11 lines, no speaker, in the
-           captions' order; the code keeps the same words as its fallback and Looter.Intro.Lines checks they match)
+           captions' order; the code keeps the same words as its fallback and Looter.Intro.Lines checks they match;
+           lines 0-3, the planet part, are the Wardens story's since 2026-10-31; 4-10 the old Rest part's, unplayed)
   Bosses   BossIntroGravemother, BossIntroForeman, BossIntroAbel (the boss intros' captions, Scenes/BossIntro.h: line N
            fills the script's caption slot N; the code keeps the same words as its fallback and
            Looter.Scenes.BossIntro.Lines checks they match)
 The main story (2026-10-21, the user's cut of the story's talk: offers two or three lines, Hob's perch arrivals one line,
 his taps only Main 1's, the Old Fare's and a catch-all; where a perch had only directions he lands silent):
-  Main 1   DeliaMain1 (her door during Main 1, before the turn-in: take the plate first), DeliaPorch (after),
-           HeadboardEllis, HeadboardAbel, HobWakes, HobMain1, HobAfterMain1 (his catch-all tap)
-  Main 2   HobMain2Blue, SextonWaiting, SextonDeal, SextonLedger, SextonAfter
-  Main 3   HobMain3Road, HobMain3Gate, HobMain3Tilly, TillyClosed, TillyMain3 (her talk, the turn-in's words from step 3:
-           she hands the bail over), TillyAfterMain3
+  Main 1   Landfall (2026-10-31, the Wardens story): LandfallDeck, LandfallVaneHorn, LandfallBoarders,
+           LandfallBoardersWave2, LandfallGrapples, LandfallLanding, LandfallAnchor, LandfallClimb, LandfallPoint,
+           LandfallVaneValley, LandfallTrail, HobLandfallPorch, DeliaFight (her barks),
+           DeliaLandfallWait, DeliaLandfall and DeliaLandfallHat (the turn-in, her topics), DeliaPorch (after),
+           HeadboardAbel, HobMain1, HobAfterMain1 (his catch-all tap). Who plays each: the comment over them.
+  Main 2   The Ferryman's Price (2026-11-01, the Wardens story): HobMain2Blue (the Widows' nest cleared), HobMain2Bridge
+           (Keeper's Bridge's mutter), HobMain2Cart (his arrival at the Keeper's Gate), HobMain2Spill (the cart stopped),
+           Main2VaneCart (Vane's complaint on the gate's loudspeaker), HobMain2Ladder (his arrival at the ladder),
+           SextonWaiting, SextonDeal, SextonLedger, SextonAfter (Sexton at his ferry)
+  Main 3   Under New Management (2026-11-01): HobMain3Road, Main3Radio and Main3NedAfter (Lucky Ned's skiff leaving),
+           HobMain3Gate, Main3VaneGate (the gate's loudspeaker), Main3VaneStreet (Main Street's, the street won),
+           HobMain3Tilly, TillyClosed, TillyMain3 (her talk, the turn-in's words from step 3: she hands the bail over),
+           TillyAfterMain3, DeliaMain3 (her word meanwhile)
   Main 4   HobMain4Yard/Reliquary, AldanaBarred, AldanaWaiting (the knock at the vestry door, step 2), AldanaBell (the bell
            and the Reliquary waiting), AldanaMain4 (the turn-in's words), AldanaAfterMain4
   Main 5   HobMain5Way/Out, AldanaAfterMain5
@@ -53,6 +62,9 @@ Gone on 2026-10-21 (delete their assets after the gameplay rebuild that stops po
   HobMain2, HobMain3, HobMain4Road, HobMain4Bell, HobMain4Aldana, HobMain4, HobMain5Sacs, HobMain5Lantern, HobMain5,
   HobMain6Bridge, HobMain6Post, HobMain6, HobMain7Depot, HobMain7Board, HobMain7, HobSide1, HobCaches, AgentWindowCoal,
   HobKnocking, HobSide3, HobDeadLift, HobLastWatch, HobBackPay, AldanaAda.
+Gone on 2026-10-31 with Seven Days (the Wardens story; delete their assets after the gameplay rebuild that stops pointing
+  at them: build_area_farm.py's DeliaMain1 topic, build_area_story.py's HobWakes perch): DeliaMain1, HeadboardEllis,
+  HobWakes.
 """
 import unreal
 
@@ -64,30 +76,145 @@ ELLIS = 'Ellis'
 # A hay bale's remark, and the twist said as the hands' fight is won, play with no speaker point to name him, so they
 # name him (as his point does).
 AMOS = 'Amos Whitlock'
+# Landfall's voices (the Wardens story, 2026-10-31): the Lamplighter's crew as their speaker points name them
+# (AWardenCrewMember), Vane as UVaneBroadcast names him, Delia as ADeliaRansom's point does (for her barks, said with no
+# point), and the player character in the new lines: "Sully" (the hero Ellis's display name is Sully Graves; the id stays
+# Ellis), which hero_lines.json's speaker.Sully turns into the played hero's name for the other four.
+HOLLOWAY = 'Captain Holloway'
+FINCH = 'Brother Finch'
+JUNIE = 'Junie Calloway'
+VANE = 'Cornelius Vane'
+DELIA = 'Delia Ransom'
+SULLY = 'Sully'
+# Lucky Ned on the radio as he leaves the Rest (Main 3's fly-by; he's fought in a later area, the user's call).
+NED = 'Lucky Ned'
 
 SETS = {
-    # --- Main 1 ---
-    # Her door while Main 1 runs (the topic "before Main 1"): the player reaches it at the porch-plate step, so she sends
-    # them to the plate; her real talk (the doc's three lines and the plate) is Main 1's turn-in, once the plate is taken.
-    'DA_Lines_DeliaMain1': [
-        ('', "...Ellis? Don't. Don't you open that door."),
-        ('', "Take what's on the porch plate."),
+    # --- Main 1, Landfall (the Wardens story, 2026-10-31; Docs/Work/2026-10-31-Wardens/CONTRACT.md's step table, steps
+    # counted from 0). Who plays each set: FLIGHT's ship and scenes (Deck as control starts on deck, VaneHorn as step 0 is
+    # done, Boarders as the first wave comes over, BoardersWave2 with the second, Grapples as step 2 starts, Landing in
+    # HardLanding, VaneValley then Trail in SmogReveal); Hob's perches' arrivals (story_texts.LANDFALL_PERCHES: Anchor at
+    # step 4, Climb at 5, Point at 6, HobLandfallPorch at 8; none at 7, which starts under the reveal); CREW's Delia (DeliaFight, her barks);
+    # Delia's topics (story_texts.TOPICS['Speaker_Delia']: the turn-in is DeliaLandfall, or DeliaLandfallHat once Abel's hat
+    # was picked up, flag Landfall.AbelsHat). Shared words: no family words (Sully Graves is no Ransom), so no hero rows; the
+    # player's own lines name speaker SULLY ("Sully": hero_lines.json speaker.Sully gives the other heroes their name).
+    # Short captions, each a reason or a feeling. Vane's lines are all his, said by UVaneBroadcast (radio in, hiss, out).
+    'DA_Lines_LandfallDeck': [
+        (HOLLOWAY, "That's Ransom's Rest under the smog. Vane's had it a week."),
+        (FINCH, "The Lantern's leaning hard, Warden. Come up to the prow and see where."),
+        (JUNIE, "This smog's eating my engine. Whatever we're doing, let's do it quick."),
+        (HOB, "Morning, sunshine. First job. Try not to fall off."),
+        (HOLLOWAY, "Eyes open. Vane doesn't like visitors."),
     ],
+    'DA_Lines_LandfallVaneHorn': [
+        (VANE, "Wardens! Welcome to Ransom's Rest, a wholly owned subsidiary as of Wednesday."),
+        (VANE, "Mind the smog. That's somebody's Aunt Mabel."),
+        (VANE, "I've sent a tender for your ship. Do let my men aboard: they're paid by the soul."),
+    ],
+    'DA_Lines_LandfallBoarders': [
+        (HOLLOWAY, "Grapples! They've got us! Warden, clear my deck!"),
+        (JUNIE, "Get behind something! Those company rifles shoot straight!"),
+        (HOB, "See the one with the tank? Shoot the tank, sunshine. It pops."),
+    ],
+    # The second wave over the gangplank (FLIGHT plays it when that wave comes; none: nothing is said).
+    'DA_Lines_LandfallBoardersWave2': [
+        (HOLLOWAY, "More coming over the plank!"),
+        (FINCH, "If a hose latches on, break the line before it drinks you dry!"),
+    ],
+    'DA_Lines_LandfallGrapples': [
+        (HOLLOWAY, "Deck's clear. Now cut those grapple lines, or they tow us to the barge!"),
+        (JUNIE, "Hold the cutter on the chain till it parts. Keep your head down."),
+        (HOB, "Their riflemen are still on the tender. They've noticed you, sunshine."),
+    ],
+    # In the hard landing (about 5 s): two short lines.
+    'DA_Lines_LandfallLanding': [
+        (JUNIE, "They holed the bag! We're losing lift!"),
+        (HOLLOWAY, "Hold on! I'm putting her down on the ledge!"),
+    ],
+    # As step 4 starts (Hob's arrival on the Mooring Ledge): why the anchor, and why the dead.
+    'DA_Lines_LandfallAnchor': [
+        (HOLLOWAY, "She's sliding! Crank that anchor winch, or she goes over the edge!"),
+        (FINCH, "And the dead are climbing up out of the canyon. The smog stirs them."),
+        (HOB, "Crank and shoot, sunshine. You can do both. Probably."),
+    ],
+    # As step 5 starts (the anchor set, the dead down): why the climb.
+    'DA_Lines_LandfallClimb': [
+        (JUNIE, "She's holding. Patching that bag'll take me till dark."),
+        (HOLLOWAY, "Warden, get up to Ransom's Point. I want eyes on that valley."),
+        (FINCH, "Get up high. From there the Lantern can see what you see."),
+    ],
+    # As step 6 starts (on the Point): the spyglass.
+    'DA_Lines_LandfallPoint': [
+        (HOLLOWAY, "You up? There's a spyglass on the lookout. Tell me what Vane's done."),
+        (HOB, "Brace yourself, sunshine. It's not pretty."),
+    ],
+    # Vane over the valley's company loudspeakers, in the reveal (SmogReveal): the barge, the hose, the smog.
+    'DA_Lines_LandfallVaneValley': [
+        (VANE, "Good evening, Ransom's Rest. Cornelius Vane, your new landlord."),
+        (VANE, "Your dead are fuel now. Your trains will run on time. You're welcome."),
+        (VANE, "Lucky Ned tells me your keeper is our pilot light. Burns beautifully."),
+        (VANE, "And Wardens: lovely ship. I'll have her melted down for buttons."),
+    ],
+    # Finch, as the reveal ends: the Lantern has Abel, and his trail (step 7's why); Hob last, a nudge toward the optional
+    # hat. (Step 7 starts as the spyglass is used, under the reveal, so Hob's flight down to the path's foot is silent and
+    # this set, said after the reveal, carries his word.)
+    'DA_Lines_LandfallTrail': [
+        (FINCH, "The Lantern's got him! Abel Ransom, the keeper. His light's in that barge."),
+        (FINCH, "He ran from them first. See his trail? Down the bluff path to the farm."),
+        (HOLLOWAY, "Follow it, Warden. Whoever's at the end of it saw what they did."),
+        (HOB, "Somebody dropped a hat on that path, sunshine. Keepers don't drop hats."),
+    ],
+    # Hob's arrival on Delia's porch rail as step 8 starts.
+    'DA_Lines_HobLandfallPorch': [
+        (HOB, "She's holding that porch alone. Help her, sunshine!"),
+    ],
+    # Delia's barks while she fights (CREW: ADeliaRansom, queued captions, rate-limited); her name on each, as no speaker
+    # point says them.
+    'DA_Lines_DeliaFight': [
+        (DELIA, "Off my porch!"),
+        (DELIA, "Come on, then! I've buried better than you!"),
+        (DELIA, "That's for my son!"),
+        (DELIA, "Reloading! Cover me, Warden!"),
+        (DELIA, "Hose-man coming! Shoot his tank!"),
+        (DELIA, "Get off my steps!"),
+        (DELIA, "Too old for this, and too mean to die!"),
+        (DELIA, "Keep them off the steps, Warden!"),
+    ],
+    # Her topic while Main 1 runs, before it's ready to turn in (talked to mid-fight).
+    'DA_Lines_DeliaLandfallWait': [
+        ('', "Talk after! Shoot first!"),
+    ],
+    # Main 1's turn-in (her topic "during Main1 from step 9", the step past the last; the mission's own turn-in lines are
+    # empty so this topic is what she says): what the gang did, the hose, why it matters, and the salt on her plate (the
+    # porch plate's jars, free to take from now: story_texts.PORCH_PLATE).
+    'DA_Lines_DeliaLandfall': [
+        ('', "So the Wardens came. A week late, but you came."),
+        ('', "Wednesday last they put a hose to my son at the chapel door. He held it anyway."),
+        ('', "His soul tore loose and ran home to me. They reeled it in on my own steps."),
+        ('', "Now it burns in that barge. Bring him back to Saint Ada, Warden."),
+        ('', "Salt's on the plate. The dead don't care for it."),
+    ],
+    # The same turn-in once Abel's hat was picked up on the bluff path (flag Landfall.AbelsHat, set by the hat's readable;
+    # her topic "during Main1 from step 9 with Landfall.AbelsHat", listed first): her best line.
+    'DA_Lines_DeliaLandfallHat': [
+        ('', "...That's his hat. Give it here."),
+        ('', "Forty years I told that man to tie it on."),
+        ('', "Wednesday last they put a hose to my son at the chapel door. He held it anyway."),
+        ('', "His soul tore loose and ran home to me. They reeled it in on my own steps."),
+        ('', "Bring him back to Saint Ada, Warden. And take the salt off my plate."),
+    ],
+    # Her default after Landfall (she stands on her porch now, ADeliaRansom; was the screen door's "I can't open this door").
     'DA_Lines_DeliaPorch': [
-        ('', "I can't open this door to you."),
+        ('', "Go on, Warden. I'll keep the porch."),
     ],
-    'DA_Lines_HeadboardEllis': [
-        ('', "ELLIS RANSOM. CAME HOME AT THE LAST."),
-    ],
+    # Abel's grave stays in the family plot (his headboard's words).
     'DA_Lines_HeadboardAbel': [
         ('', "ABEL RANSOM. KEEPER OF SAINT ADA. HE HELD THE DOOR."),
         (HOB, "Frost in August. That's no weather, sunshine."),
     ],
-    'DA_Lines_HobWakes': [
-        (HOB, "Morning, sunshine. Most folks who get up do it after dark."),
-    ],
+    # Hob talked to while Landfall runs (story_texts.TOPICS['Speaker_Hob']).
     'DA_Lines_HobMain1': [
-        ('', "Up to the house, sunshine."),
+        ('', "I'm the lookout, sunshine, not the help."),
     ],
     'DA_Lines_HobAfterMain1': [
         ('', "Don't look at me. I only carry the messages."),
@@ -97,13 +224,15 @@ SETS = {
     # Story/NewGameIntro.h: line N fills the intro's caption slot N (NewGameIntro::ScriptLines), so the order and the count
     # matter (a set with a line missing or extra is ignored, the code's own words play); the code keeps the same words as
     # its fallback and Looter.Intro.Lines checks they match. Narration, no speaker; no family words (no hero rows).
-    # Teropa from orbit (or Westward over the canyon in its place).
+    # Teropa from orbit (or Westward over the canyon in its place): the Wardens story's words (2026-10-31), ending on the
+    # Lamplighter flying into the smog over Ransom's Rest, where a new game opens on her deck.
     'DA_Lines_NewGameIntro': [
-        ('', "One sun, one moon, wide seas, and one great continent."),
-        ('', "Its railroad runs west to the Rim, and no farther."),
-        ('', "Out here the dead are given to the wind."),
-        ('', "At dusk the Gravewind carries them west, down the Sundown Road."),
-        # Ransom's Rest: over the Rim, the chapel, home, the grave.
+        ('', "On Teropa the dead go west, and a saint lights the way."),
+        ('', "Then Cornelius Vane started dredging up the dead."),
+        ('', "Soul coal, he calls it. The Lantern Wardens call it theft."),
+        ('', "Now the Lamplighter flies into his smog over Ransom's Rest."),
+        # Ransom's Rest: over the Rim, the chapel, home, the grave (the old intro's part: a new game no longer plays it since
+        # 2026-10-31; kept so the set keeps its eleven slots).
         ('', "Every town keeps a saint, whose light shows its dead the way across."),
         ('', "Seven days ago the Dunne Gang robbed Saint Ada, and the Rest went dark."),
         ('', "Seven towns. Seven saints. Not one light left burning."),
@@ -130,59 +259,106 @@ SETS = {
         (HOB, "A keeper doesn't lie still while his saint is dark."),
     ],
 
+    # --- Main 2, The Ferryman's Price (the Wardens story, 2026-11-01; Docs/Work/2026-10-31-Wardens/MAINS_2_7.md section 4;
+    # build_area_main2.py places who says each). Shared words: no family words, so no hero rows; Sully's lines name SULLY. ---
+    # The Three Widows' nest (BluffNest, moved there from the Point's top): said as its last spider falls (its spawner's
+    # cleared_lines), the Restless one usually last: the ranks' lesson, and why its loot is better.
     'DA_Lines_HobMain2Blue': [
-        (HOB, "See the blue one? Fed longer on the dark. Hits harder, drops better."),
+        (HOB, "See the blue on that one? Fed longer on the smog. Hits harder, and its iron's better."),
     ],
+    # Keeper's Bridge, the optional: Hob's word as the player crosses (a mutter point on the bridge, during Main 2).
+    'DA_Lines_HobMain2Bridge': [
+        (HOB, "Abel walked the dead over this every sundown for thirty years. Tuesday too."),
+    ],
+    # Hob's arrival on the Keeper's Gate's north rock as the cart's step begins: why the cart, how to stop it, and why the
+    # loudspeaker (the optional).
+    'DA_Lines_HobMain2Cart': [
+        (HOB, "They're pumping the dead off the boards, sunshine. Shut that valve, or burst the tank."),
+        (HOB, "And that horn's Vane's mouth. Shoot it and he stops talking."),
+    ],
+    # Said as the cart is stopped (ACompanyHoseCart's spill_lines), before Vane's complaint: the twist named.
+    'DA_Lines_HobMain2Spill': [
+        (HOB, "That's what the hose leaves, sunshine. Half a soul and a temper."),
+    ],
+    # Vane on the Keeper's Gate's loudspeaker as the cart is stopped (its stop_broadcast); a shot horn cuts him at "your bi-".
+    'DA_Lines_Main2VaneCart': [
+        (VANE, "Wardens. That cart is Company property."),
+        (VANE, "I'm adding it to your bill."),
+    ],
+    # Hob's arrival on the ladder's crossbar as the talk step begins: why down the ladder.
+    'DA_Lines_HobMain2Ladder': [
+        (HOB, "He's down the ladder, sunshine. The Ferryman doesn't climb for anybody."),
+    ],
+    # Sexton at his ferry (story_texts.TOPICS['Speaker_Sexton']): talked to before the boards are clear; the deal (step 2's
+    # talk, the plan's words, ending on the Log handed up); while the Log waits; after Main 2, his price again.
     'DA_Lines_SextonWaiting': [
-        ('', "The spiders first, friend. I'll keep."),
+        ('', "The boards first, friend. Vane's men are drinking my fares."),
     ],
     'DA_Lines_SextonDeal': [
-        ('', "Shall we talk business?"),
-        (ELLIS, "You were on this rail. The night they shot me."),
-        ('', "I attend every death, friend. It's my trade."),
-        ('', "Seven old friends of yours carry embers that aren't theirs. Bring each to this rail at the new moon."),
-        ('', "Each one paid buys back a little of you. Bring me all seven, and you rest."),
-        ('', "And your father crosses. I'll see to his fare myself."),
-        (ELLIS, "And if I don't?"),
-        ('', "Then you ride the Gravewind, friend. For ever, and no shore at the end of it."),
-        (ELLIS, "They scattered. Where do I even start?"),
-        ('', "Ask a keeper. Their lanterns lean toward a saint's light."),
-        (ELLIS, "The keeper's dead."),
-        ('', "So are you, friend."),
+        ('', "Warden. You've come about the barge. Everyone does, eventually."),
+        ('', "She's out of reach. But a barge must eat, and Company men are greedy."),
+        ('', "Starve her, and they'll bring her down to where the food is."),
+        ('', "Mind: a keeper's soul goes in his own lantern, or it goes out like a match."),
+        ('', "Write down every soul you meet. I bill by the head."),
     ],
     'DA_Lines_SextonLedger': [
-        ('', "Do read them, friend."),
+        ('', "Open it, friend. My pages are in your Log now."),
     ],
     'DA_Lines_SextonAfter': [
-        ('', "Seven names, friend. The new moon won't wait."),
+        ('', "The barge's manifest, friend. Bring it, and we're square."),
     ],
 
-    # --- Main 3 ---
+    # --- Main 3, Under New Management (the Wardens story, 2026-11-01; MAINS_2_7.md section 5; build_area_main3.py) ---
+    # Hob's arrival on the town gate's post as Main 3 starts (said before Ned's skiff casts off: it waits for quiet).
     'DA_Lines_HobMain3Road': [
-        (HOB, "Farm road, through the orchard. They'll shutter up at you. Let them."),
+        (HOB, "Farm road, sunshine. Town's past the orchard, and so's the Company."),
     ],
+    # Lucky Ned leaving (AGangSkiffFlyBy): Vane and Ned on the radio (UVaneBroadcast: radio_lines), then Hob and Sully once
+    # the radio's off the air (after_lines).
+    'DA_Lines_Main3Radio': [
+        (VANE, "Off you go, Ned. The Deacon wants you down south."),
+        (NED, "Keep my keeper burning, Cornelius. Keepers are lucky."),
+    ],
+    'DA_Lines_Main3NedAfter': [
+        (HOB, "That's Lucky Ned, sunshine. He's the one put the hose to Abel."),
+        (SULLY, "He's getting away."),
+        (HOB, "For now. Lantern never forgets a smell."),
+    ],
+    # Hob on the gate's post as the checkpoint's step begins (Vane's gate cue waits for him to finish).
     'DA_Lines_HobMain3Gate': [
-        (HOB, "Here they come. Nothing draws the dead like a corpse with a gun."),
+        (HOB, "Company checkpoint. They won't let a Warden through, sunshine. Make them."),
     ],
+    # Vane on the town gate's loudspeaker as the checkpoint fight begins (its cue: during Main 3 from step 1).
+    'DA_Lines_Main3VaneGate': [
+        (VANE, "Ah, the Warden. Main Street is closed for assessment."),
+        (VANE, "Your dead are being counted. Please don't make me count you."),
+    ],
+    # Vane on Main Street's loudspeaker as the street is won (its cue: during Main 3 with SetPiece.MainStreet): why every
+    # shutter slams.
+    'DA_Lines_Main3VaneStreet': [
+        (VANE, "Residents! Anyone hiding a Warden will be assessed first."),
+    ],
+    # Hob's arrival on Bright & Daughter's sign once the gate is won.
     'DA_Lines_HobMain3Tilly': [
-        (HOB, "Bright & Daughter's down the street. Mind the boardwalks."),
+        (HOB, "Bright & Daughter's down the street, sunshine. Every shutter's shut against the Company."),
     ],
     'DA_Lines_TillyClosed': [
-        ('', "We're closed. Back after the funeral."),
+        ('', "Closed. The Company counts every door that opens on this street."),
     ],
     # Her talk, Main 3's turn-in (her topic from its step 3, the step past the last; the mission's turn-in lines are the
-    # same words): the doc's beats, the bail out through the window onto the sill (Main 6's item, lying there from Main 3's
-    # end), and the box of effects on the step (the reward gun).
+    # same words, said after its card): the bail from his fist (Main 6's item), the box of effects (the reward gun).
     'DA_Lines_TillyMain3': [
-        ('', "I laid you out, you know. You and your Pa, the same morning."),
-        ('', "You've ruined my collar, by the way."),
-        (ELLIS, "Pa's lantern. Was it with him?"),
-        ('', "No. It wasn't on him. I looked."),
-        ('', "Only its bail, snapped off in his fist. I couldn't open his hand till morning."),
-        ('', "Here. A lantern's no use if it can't be hung."),
+        ('', "A Warden. Lord. Come close, the whole street's watching."),
+        ('', "His lantern wasn't on him. Only its bail, snapped off in his fist."),
+        ('', "Couldn't open his hand till morning. Here. And the box: he'd want it used."),
     ],
+    # After it: why she opened anyway (seeds Knocking Below).
     'DA_Lines_TillyAfterMain3': [
-        ('', "Still closed. Mind that collar."),
+        ('', "Every coffin in my cellar's salted, Warden. The hose won't have them."),
+    ],
+    # Delia while Main 3 runs (story_texts.TOPICS['Speaker_Delia']).
+    'DA_Lines_DeliaMain3': [
+        ('', "Tilly's at Bright & Daughter, end of Main Street. Mind the Company at the gate."),
     ],
 
     'DA_Lines_HobMain4Yard': [

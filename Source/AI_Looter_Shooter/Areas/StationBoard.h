@@ -92,7 +92,7 @@ namespace StationBoard
 	/** The story's first area: a new game (and the old first cast-off) goes there. */
 	AI_LOOTER_SHOOTER_API FName FirstAreaId();
 
-	/** Where the story's first arrival puts the player: the family plot, by Ellis's grave (the cold open plays from there). */
+	/** Where the story's first arrival puts the player: the Lamplighter's deck (Landfall; the ship carries the tag). */
 	AI_LOOTER_SHOOTER_API FName FirstArrivalLanding();
 
 	/** The first cast-off recorded in Campaign: the story has begun, and its first area is open to travel. */

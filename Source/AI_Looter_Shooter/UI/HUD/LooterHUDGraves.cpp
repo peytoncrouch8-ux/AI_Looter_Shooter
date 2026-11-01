@@ -1,5 +1,5 @@
-// ALooterHUD: the "ROOST FOUND" banner, shown when the player walks up to one of Hob's roosts for the first time
-// (ARespawnMarker; named for the graves the roosts replaced).
+// ALooterHUD: the "POST LIT" banner, shown when the player walks up to one of the Wardens' lantern posts for the first time
+// (ARespawnMarker; named for the graves the roosts, then the posts, replaced).
 
 #include "UI/HUD/LooterHUD.h"
 #include "UI/HUD/FindBannerShow.h"

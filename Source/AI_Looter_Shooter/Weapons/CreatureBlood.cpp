@@ -3,6 +3,7 @@
 #include "Creatures/StoneSentinelCreature.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/DeadMinerCreature.h"
+#include "Creatures/DredgerCreature.h"
 #include "Creatures/GravemotherCreature.h"
 #include "Creatures/PlaceholderCreature.h"
 #include "Creatures/PlaceholderCreatureDefinition.h"
@@ -82,6 +83,11 @@ ECreatureBlood CreatureBlood::OfClass(const UClass* Class)
 	{
 		return ECreatureBlood::Clay;
 	}
+	// Vane's Dredgers: men in rubber coats, spilling dark blood and grit, never a spider's ichor (TintOf).
+	if (Class->IsChildOf(ADredgerCreature::StaticClass()))
+	{
+		return ECreatureBlood::Clay;
+	}
 	// A creature with no look of its own yet: the old splash.
 	return ECreatureBlood::Ichor;
 }
@@ -123,6 +129,11 @@ FLinearColor CreatureBlood::TintOf(const AActor* Actor)
 	if (Cast<AStoneSentinelCreature>(Actor))
 	{
 		return GravemotherAssets::GraniteColor();
+	}
+	// A Dredger's dark oxblood (a man's, darkened by the smog he breathes).
+	if (Cast<ADredgerCreature>(Actor))
+	{
+		return FLinearColor(0.16f, 0.025f, 0.02f);
 	}
 	// A placeholder's clay in its kind's colour.
 	if (const APlaceholderCreature* Placeholder = Cast<APlaceholderCreature>(Actor))

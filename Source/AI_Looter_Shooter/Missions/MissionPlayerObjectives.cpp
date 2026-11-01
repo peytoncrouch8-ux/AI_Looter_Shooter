@@ -206,7 +206,7 @@ FString UMissionOpenPageObjective::DescribeRule() const
 	switch (Page)
 	{
 	case EMissionPage::Loadout:  return TEXT("Open your loadout ({Inventory})");
-	case EMissionPage::Bestiary: return TEXT("Open the bestiary ({Inventory}, then {Page.Bestiary})");
+	case EMissionPage::Bestiary: return TEXT("Open the Warden's Log ({Inventory}, then {Page.Bestiary})");
 	case EMissionPage::Missions: return TEXT("Open your missions ({Inventory}, then {Page.Missions})");
 	case EMissionPage::Any:      break;
 	}

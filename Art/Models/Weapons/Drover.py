@@ -39,6 +39,13 @@ pale gold filigree, saint's medals or lanterns and a gold-white glow, Grave-salt
 alone).
 
     blender -b --factory-startup --python Art/Models/Weapons/Drover.py -- --preview
+
+Tripo parts (2026-11-01): four maker sets of five parts (Saint Maud: Blued, Service, Fluted6, Notch, Plowhandle;
+Roundhouse: Ironclad, Lugged, Bigbore5, Glass, Coffin; Windfall: Scrapper, Comped, Plain6, Peep, Wrapped; Meridian:
+Ranger, Vented, Moon6, Pip, Target) are Tripo models made from views of these parts in each maker's colours and detail,
+fitted over them by Tools/Blender/looter_tripo_gun.py from Art/Models/Weapons/Tripo/Drover/parts_set<N>.py (texture sets
+TripoDrover<Slot><Key> on the Gun master, a paintable shell slot, glow slots, the scripted sockets). Same mesh names,
+keys and sockets. LOOTER_DROVER_TRIPO=0 builds the scripted ones.
 """
 import math
 
@@ -800,8 +807,20 @@ barrels()
 cylinders()
 sights()
 grips()
+
+# --- Tripo parts (2026-11-01, lane TRIPO-PISTOLS): four maker sets of five parts made by Tripo from views of the parts
+# above (Tools/Blender/drover_views.py) replace their scripted models, keeping name, key and sockets
+# (Tools/Blender/looter_tripo_gun.py; each set's fitting in Art/Models/Weapons/Tripo/Drover/parts_set<N>.py).
+# LOOTER_DROVER_TRIPO=0 builds every part from the script; =1,3 only sets 1 and 3 from Tripo.
+TRIPO_DIR = 'Art/Models/Weapons/Tripo/Drover'
+TRIPO_LENGTH = 0.28   # m: a Service-barrelled Drover, grip butt to muzzle (the Tripo parts' LOD switch sizes scale by it)
+import looter_tripo_gun as tripo_gun   # noqa: E402  (after the scripted parts it replaces)
+TRIPO = tripo_gun.specs(TRIPO_DIR, 'LOOTER_DROVER_TRIPO')
+tripo_gun.override(g, TRIPO, TRIPO_DIR, 'Drover')
+
 lg.fill_uvs(g)   # glows and glass get UVs, so Unreal builds their tangents quietly
 built = g.build(origins)
+tripo_gun.lods(built, TRIPO, TRIPO_LENGTH)
 
 
 def socket_at(obj, name):

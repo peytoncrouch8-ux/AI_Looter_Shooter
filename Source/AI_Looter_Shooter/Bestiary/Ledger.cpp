@@ -9,7 +9,8 @@ bool Ledger::IsOpen(const FCampaignRecord& Campaign, const UMissionRunner* Runne
 	{
 		return true;
 	}
-	// Handed over as the deal ends: Main 2 on its "Open the Ledger" step, here or wherever the campaign stands.
+	// Handed over as the deal ends: Main 2 on its "Open the Ledger" step (its words are the mission asset's), here or
+	// wherever the campaign stands.
 	FStoryCondition HandedOver;
 	HandedOver.DuringMission = Mission;
 	HandedOver.FromStep = HandedOverStep;
@@ -24,40 +25,34 @@ bool Ledger::IsOpenIn(const UObject* WorldContextObject)
 
 const TCHAR* Ledger::BookName(bool bOpen)
 {
-	return bOpen ? TEXT("Ledger") : TEXT("Bestiary");
+	// The Warden's Log (the user's call, 2026-10-31: the bestiary and Sexton's Ledger are one book, the Wardens' own, so it
+	// carries the name from the first page; opening it only writes the story's pages in).
+	return TEXT("Warden's Log");
 }
 
 const Ledger::FWords& Ledger::Words(bool bOpen)
 {
-	// The field guide's words, as the bestiary always had them.
-	static const FWords Guide = []()
+	// A Warden's field notes: plain, practical, written for the next Warden to read.
+	static const FWords Log = []()
 	{
 		FWords Made;
-		Made.ListTitle = TEXT("Field guide");
+		Made.ListTitle = TEXT("The Warden's Log");
 		Made.One = TEXT("entry");
 		Made.Many = TEXT("entries");
 		Made.NotMet = TEXT("Not met yet");
-		Made.NotMetHelp = TEXT("You haven't met one yet. Find it out in the world, or let it find you, to fill in this page.");
+		Made.NotMetHelp = TEXT("No entry yet. Find it out in the world, or let it find you, and it goes in the log.");
 		Made.NotMetPersonHelp = TEXT("You haven't met them yet.");
-		Made.Empty = TEXT("Bestiary");
-		Made.EmptyHelp = TEXT("The creatures, enemies and people you meet are written up here.");
+		Made.Empty = TEXT("Warden's Log");
+		Made.EmptyHelp = TEXT("The creatures, enemies and people you meet are logged here.");
 		Made.BlankWhereabouts = TEXT("Unknown");
 		return Made;
 	}();
-	// Sexton's: polite, patient, and keeping count (first drafts, for the user to judge).
-	static const FWords Book = []()
+	// Opened, the story's pages are in it too: the names' whereabouts a blank line until the Lantern finds them.
+	static const FWords Opened = []()
 	{
-		FWords Made;
-		Made.ListTitle = TEXT("The Ledger");
-		Made.One = TEXT("account");
-		Made.Many = TEXT("accounts");
-		Made.NotMet = TEXT("Not yet acquainted");
-		Made.NotMetHelp = TEXT("We haven't been introduced, friend. Make its acquaintance, and I'll write it in.");
-		Made.NotMetPersonHelp = TEXT("You two haven't met, friend. You will.");
-		Made.Empty = TEXT("Ledger");
-		Made.EmptyHelp = TEXT("Every soul you meet goes in my book, friend.");
+		FWords Made = Log;
 		Made.BlankWhereabouts = TEXT("______________");
 		return Made;
 	}();
-	return bOpen ? Book : Guide;
+	return bOpen ? Opened : Log;
 }

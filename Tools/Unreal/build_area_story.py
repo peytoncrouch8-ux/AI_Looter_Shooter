@@ -1,37 +1,33 @@
-"""The story's actors for build_area.py (Docs/Areas/RansomsRest.md: Main 1 "Seven Days", Main 2 "Shall We Talk Business?",
-Main 3 "Cold Welcome", Main 4 "Hallowed Ground", Main 5 "The Keeper's Lantern", Main 6 "The Gravewind"), placed from the models build_area.py
-placed and their sockets (Art/Models/Props/Graves.py, Buildings/Lookout.py, Buildings/Farmhouse.py,
-Buildings/FalseFronts.py, Buildings/Chapel.py, Rocks/Outcrops.py's Den Rock) and from the layout's zones, obstacles,
-features and roads, so they follow the level whenever it's rebuilt. Only a level whose layout has Ellis's grave
-(Ransom's Rest) gets any of it, and each piece waits for what it's placed from (no lookout: no cold open, no Sexton).
-Everything goes in the area's Gameplay folder, so a "gameplay" build places it all again.
+"""The story's actors for build_area.py (Docs/Areas/RansomsRest.md: Main 1 "Landfall" since the Wardens story of
+2026-10-31, Main 2 "Shall We Talk Business?", Main 3 "Cold Welcome", Main 4 "Hallowed Ground", Main 5 "The Keeper's
+Lantern", Main 6 "The Gravewind"), placed from the models build_area.py placed and their sockets (Art/Models/Props/Graves.py,
+Buildings/Lookout.py, Buildings/Farmhouse.py, Buildings/FalseFronts.py, Buildings/Chapel.py, Rocks/Outcrops.py's Den Rock)
+and from the layout's zones, obstacles, features and roads, so they follow the level whenever it's rebuilt. Only a level
+whose layout has the Grave_Ellis placement (Ransom's Rest: kept in layout.json as the area's mark, though the grave itself
+is gone from the level since 2026-10-31) gets any of it, and each piece waits for what it's placed from (no lookout: no
+cold open, no Sexton). Everything goes in the area's Gameplay folder, so a "gameplay" build places it all again.
 
-Main 1:
-- The cold open's set (AColdOpenSet) where the lookout stands, facing as it faces: its marks on Ransom's Point are the
-  lookout's (Scenes/ColdOpenSet.h); the gang's skiff's course is in the world's own frame.
+Main 1 (Landfall: the Lamplighter, the ledge, the spyglass, the barge, Abel's trail, the porch fight: build_area_landfall.py):
+- The old cold open's set (AColdOpenSet) where the lookout stands, facing as it faces (no new game plays it now; kept for
+  Looter.Scene.ColdOpen and old saves): its marks on Ransom's Point are the lookout's (Scenes/ColdOpenSet.h).
 - Hob's roosts (2026-10-13, wave 3: they replaced the respawn graves as the one save, respawn and fast-travel point):
   build_area_roosts.py places every one from the layout's gameplay.roosts, the farm's (FamilyPlot) outside the family
-  plot's east gate first; the cold open's grave wake stays a scene of its own.
-- The two headboards to read ("Read", from 2.5 m) at the graves' Interact sockets: Abel's an ASpeakerPoint tagged
-  Headboard_Abel, Ellis's own an AReadableProp HeadboardEllis tagged Headboard_Ellis (Main 1's optional reads it).
-- Grandma Delia's screen door (ASpeakerPoint tagged Speaker_Delia) on the farmhouse's front door, and her house's screen
-  door and plate (build_area_farm.py).
-Main 2:
-- Mister Sexton (AMisterSexton, tagged Speaker_Sexton) on the lookout's SOCKET_Sit, facing into the deck, there during
-  Main 2. Talked to: the spiders first; the deal once they're cleared; the Ledger; and a word after, before he's gone.
+  plot's east gate first.
+- The family plot without Ellis's grave (the user, 2026-10-31: no grave wake; the hero is Sully Graves, a Warden, no
+  Ransom): build_area.py still stands SM_Grave_Ellis at the layout's graveEllis in a full build, and the story's pass
+  takes it out again. Abel's grave stays, his headboard to read ("Read", from 2.5 m) at its Interact socket, an
+  ASpeakerPoint tagged Headboard_Abel.
+- Delia Ransom on her porch (ADeliaRansom tagged Speaker_Delia, lane CREW), her house's screen door and plate, and the
+  porch barricade (build_area_farm.py).
+- Delia's salt line (the farm's safe zone) only after Main 1: Landfall's porch fight is inside it.
+Main 2 (The Ferryman's Price: build_area_main2.py places Sexton's ferry and ladder, the Three Widows' spider nest, the
+  boards' crew and hose cart, the gate's loudspeaker; it replaced the Sexton-on-the-rail and bluff nest pieces):
 - Ransom's Point's middle (a target point tagged Place_RansomsPoint, at the middle of the layout's zone ransomsPoint): where
-  the climb ends.
-- The spider nest (AEncounterSpawner BluffNest) in the middle of the nest ring: four spiders and a Restless one, at most
-  two out at once, in two pushes (two, then two and the Restless as the first is cleared), lighter than their class
-  (NEST_HEALTH), tagged Spider_BluffNest, on during Main 2's climb and fight (its steps 1-2), appearing as the player
-  comes up the bluff path (30 m), hunting only on the bluff top (the zone ransomsPoint as their ground), so the fight
-  stays on one level.
-Main 3:
+  the climb ends (Landfall climbs to it).
+Main 3 (Under New Management: build_area_main3.py places the checkpoint and its fight, the loudspeakers, banner, chalk, the
+  Gilt Spur's cart and Ned's skiff; it replaced the gate-fight bullet that stood here):
 - The town gate (a target point tagged Place_TownGate) between its posts (the obstacles townGateNorth and townGateSouth).
-- The gate's fight (AEncounterSpawner TownGate) on the same spot: six Unpaid and a Restless one, at most four out at once
-  (GATE_MAX_ALIVE: the rest rise as they fall, the Restless last), tagged Unpaid_TownGate, on during Main 3's second step only, standing north-east of the gate and on the street's south side (two ways at once,
-  clear of the farm fence), coming for the player as they appear, and giving up 30 m from the gate (or at Delia's salt
-  line, the farm's safe zone). Main Street's set piece follows it (layout gameplay.encounters.fights MainStreet).
+  Main Street's set piece follows the checkpoint (layout gameplay.encounters.fights MainStreet).
 - Tilly's window (ASpeakerPoint tagged Speaker_Tilly) on Bright & Daughter's SOCKET_Speaker: the shop closed until Main 3's
   last step, then her lines, then a word after.
 - The shutters (AWindowShutter) on every SOCKET_Shutter_<L|R><n> of Pruitt's store (FalseFronts.py: eight), open until the
@@ -57,11 +53,13 @@ Side 3 (build_area_den.py): the Gravemother's lair at the den's mouth under Den 
 The Ranger caches (build_area_caches.py, step 26): Ruth Calder's three Supply Crates (under the windmill, on the Sink's
   rim, on the bluff path) and the gang's Strongbox on the sheriff's office's floor, open from the start.
 Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying his piece as he lands:
-  Main 1: on Ellis's headboard (silent from the claw-out, "Morning, sunshine" once Ellis is out), and after it.
-  Main 2: at the bluff path's foot ("Someone's waiting on you..."), on the bluff top's east rock as the fight begins ("See
-          the blue on that one?..."), on the lookout's front rail beside Sexton for the deal, and there after it.
-  Main 3: on the town gate's north post (its SOCKET_Perch: the farm road's way, then the fight), on Bright & Daughter's
-          sign once the gate is won, and there after Main 3.
+  Main 1: away while the Lamplighter sails, is boarded and lands (steps 0-3: he rides her rigging, FLIGHT's); on the
+          anchor winch on the ledge (the anchor and the dead), on the lookout's rail (the climb, then the spyglass), on
+          Abel's headboard (the trail, which runs past it; silent), on the porch beam's end (the porch fight and the
+          turn-in); after it on the porch beam still (Main 2's offer is his). Steps, spots and arrival lines:
+          story_texts.LANDFALL_PERCHES (STORY's), on the spots build_area_landfall measures (winch, porch beam).
+  Mains 2-3: story_texts.MAIN23_PERCHES and MAIN23_AFTER_PERCHES (the middle Widow's top, the ferry ladder's crossbar, the
+          town gate's north post, Bright & Daughter's sign), each on the first of its spots the build has.
   Main 4: on the chapel's door hood (SOCKET_Perch_Hood) for the way up, the yard's fight, the bell and the Reliquary (a
           word at each, no flight between them), then on the vestry lantern's bracket (SOCKET_Perch_Lantern) for Aldana,
           and there after Main 4.
@@ -107,10 +105,8 @@ PERCH_UP = 30.0
 PERCH_BACK = 12.0
 # Reading a headboard is done close to (cm).
 READ_REACH = 250.0
-# The headboard on Ellis's grave, carved for each hero (Art/Models/Props/Graves.py: Headboard_<Hero>, the grave's pivot):
-# Ellis's is the readable's own model, the others' go in its hero_meshes (UHeroDefinition ids).
-HEADBOARD_MESH = '/Game/Art/Props/SM_Headboard_{}'
-HEADBOARD_HEROES = ('Odessa', 'Crane', 'Gauge', 'Pike')
+# (The headboard carved for each hero on Ellis's grave, SM_Headboard_<Hero>, went with the grave on 2026-10-31; the
+# meshes stay imported, unused.)
 # A conversation through a window carries as far as one through a door (USpeakerPointComponent's default, cm).
 TALK_REACH = 400.0
 
@@ -358,153 +354,50 @@ def place_cold_open(build):
 
 
 def place_family_plot(build):
-    """Ellis's grave, as build_area.py placed it (its headboard and Hob's first perch stand on it). Its respawn grave is gone:
-    Hob's roost by the family plot's gate replaced it (build_area_roosts.py, the layout's gameplay.roosts FamilyPlot, the same
-    id, so a save's marks carry over)."""
-    return placed(build, 'Grave_Ellis')
+    """The family plot without Ellis's grave (the Wardens story, 2026-10-31: nobody wakes in a grave): build_area.py's
+    full build stands SM_Grave_Ellis at the layout's graveEllis (the placement stays in layout.json, where every area
+    script's "is this Ransom's Rest" check reads it), and this takes it out of the level again. Returns Abel's grave (his
+    headboard and Hob's perches stand on it), or None. Its respawn grave went long ago: Hob's roost by the family plot's
+    gate replaced it (build_area_roosts.py, gameplay.roosts FamilyPlot)."""
+    keys = [key for key, spot in build.layout['placements'].items() if spot['kind'] == 'Grave_Ellis']
+    gone = [actor for actor in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+            if str(actor.get_actor_label()) in keys and unreal.Name(build.tag) in actor.tags]
+    for actor in gone:
+        unreal.get_editor_subsystem(unreal.EditorActorSubsystem).destroy_actor(actor)
+    if gone:
+        build.log(f'Ellis\'s grave taken out of the family plot ({len(gone)} actor(s)): Abel\'s stays')
+    return placed(build, 'Grave_Abel')
 
 
-def place_headboards(build, grave_ellis):
-    """The two headboards to read, at their graves' Interact sockets. Abel's is a speaker point (Headboard_Abel: his
-    carving and Hob's frost said as captions; Main 1's step "Read the headboard beside yours" is an Interact on it).
-    Ellis's own is a readable (AReadableProp HeadboardEllis, tagged Headboard_Ellis too: the carving on the reading card,
-    then Ellis's and Hob's words, story_texts.py READABLES), so Main 1's optional "Read your own headboard" counts it
-    (its Readable.HeadboardEllis event); as a speaker point it sent no such event and the optional could never be done."""
-    import story_texts
-    texts = importlib.reload(story_texts)
+def place_headboards(build, grave_abel):
+    """Abel's headboard to read, at his grave's Interact socket: a speaker point (Headboard_Abel: his carving and Hob's
+    frost said as captions). (Ellis's own readable, HeadboardEllis, went with his grave on 2026-10-31.)"""
     point_cls = actor_class('SpeakerPoint')
-    readable_cls = actor_class('ReadableProp')
-    for kind, tag in (('Grave_Ellis', 'Headboard_Ellis'), ('Grave_Abel', 'Headboard_Abel')):
-        grave = grave_ellis if kind == 'Grave_Ellis' else placed(build, kind)
-        face = socket(grave, 'Interact') if grave else None
-        if face is None:
-            if grave:
-                build.warn(f'{kind} has no Interact socket: its headboard can\'t be read')
-            continue
-        at = face.translation
-        yaw = face.rotation.rotator().yaw
-        if kind == 'Grave_Ellis':
-            if readable_cls is None:
-                build.warn('no ReadableProp class (build the game module first): Ellis\'s headboard can\'t be read')
-                continue
-            board = build.place(readable_cls, (at.x, at.y, at.z), yaw, label=tag, folder='Gameplay',
-                                tags=(tag, 'Readable', 'Readable_HeadboardEllis'))
-            texts.apply_readable(board, 'HeadboardEllis')
-            board.set_editor_property('reach', READ_REACH)
-            hero_headboards(build, board, grave)
-        elif point_cls is not None:
-            speaker(build, point_cls, (at.x, at.y, at.z), yaw, tag, tag, prompt='Read', reach=READ_REACH,
-                    line_set=lines(build, 'DA_Lines_HeadboardAbel'))
-    build.log('the headboards, to read (Ellis\'s a readable for Main 1\'s optional)')
-
-
-def hero_headboards(build, board, grave):
-    """The carving on the grave's headboard follows the played hero (2026-10-20, the hero pick): the board is its own
-    model now (Graves.py's Headboard_<Hero>, split out of Grave_Ellis on the grave's pivot), so the readable brings it:
-    the readable stays on the Interact socket and its mesh stands on the grave's transform, SM_Headboard_Ellis as
-    placed, the other four in its hero_meshes (AReadableProp swaps to the played hero's as play begins). Without the
-    boards (Graves not imported again yet: the grave still has its own) it stays as it was, nothing of its own to show."""
-    ellis = HEADBOARD_MESH.format('Ellis')
-    if not unreal.EditorAssetLibrary.does_asset_exist(ellis):
-        build.warn(f'no {ellis} yet (Tools/models.ps1 -Only Graves): the headboard shows only the grave\'s own carving')
+    face = socket(grave_abel, 'Interact') if grave_abel else None
+    if face is None or point_cls is None:
+        if grave_abel is not None and face is None:
+            build.warn('Grave_Abel has no Interact socket: his headboard can\'t be read')
         return
-    mesh = board.get_editor_property('mesh')
-    mesh.set_static_mesh(unreal.load_asset(ellis))
-    # World = relative * parent, so the mesh's relative transform is the grave's times the readable's inverse.
-    on_grave = grave.get_actor_transform().multiply(board.get_actor_transform().inverse())
-    mesh.set_relative_transform(on_grave, False, True)
-    off = (mesh.get_world_location() - grave.get_actor_location()).length()
-    if off > 1.0:
-        build.warn(f'the headboard stands {off:.0f} cm off the grave\'s pivot: check Headboard_Ellis in the level')
-    meshes = {}
-    for hero in HEADBOARD_HEROES:
-        path = HEADBOARD_MESH.format(hero)
-        if unreal.EditorAssetLibrary.does_asset_exist(path):
-            meshes[unreal.Name(hero)] = unreal.load_asset(path)
-        else:
-            build.warn(f'no {path}: {hero} reads the board as Ellis\'s')
-    try:
-        try:
-            board.set_editor_property('hero_meshes', meshes)
-        except TypeError:   # a plain dict not taken for the TMap: build one
-            typed = unreal.Map(unreal.Name, unreal.StaticMesh)
-            for key, value in meshes.items():
-                typed[key] = value
-            board.set_editor_property('hero_meshes', typed)
-    except Exception as error:   # a game module from before the hero lines: Ellis's board for everyone
-        build.warn(f'no ReadableProp.hero_meshes ({error}): build the game module with the hero lines, then run this '
-                   f'again; every hero sees Ellis\'s board till then')
-        return
-    build.log(f'Ellis\'s headboard carries the played hero\'s name ({len(meshes)} other boards)')
+    at = face.translation
+    speaker(build, point_cls, (at.x, at.y, at.z), face.rotation.rotator().yaw, 'Headboard_Abel', 'Headboard_Abel',
+            prompt='Read', reach=READ_REACH, line_set=lines(build, 'DA_Lines_HeadboardAbel'))
+    build.log('Abel\'s headboard, to read')
 
 
 # ---------------------------------------------------------------------------
 # Main 2: Ransom's Point
 # ---------------------------------------------------------------------------
 
-def place_sexton(build, lookout, seat):
-    """Mister Sexton on the lookout's Sit socket (seat), there during Main 2."""
-    cls = actor_class('MisterSexton')
-    if cls is None or seat is None:
-        if cls is None:
-            build.warn('no MisterSexton class (build the game module first): no Sexton on the rail')
-        elif lookout is not None:
-            build.warn('the lookout has no Sit socket: no Sexton on the rail')
-        return
-    at = seat.translation
-    sexton = build.place(cls, (at.x, at.y, at.z), seat.rotation.rotator().yaw, label='MisterSexton', folder='Gameplay',
-                         tags=('Speaker_Sexton',))
-    # Snapped to the socket, as his model's notes ask (MisterSexton.py): its whole turn, not only its yaw.
-    sexton.set_actor_rotation(seat.rotation.rotator(), False)
-    sexton.set_editor_property('shown_when', condition(during=MAIN2))
-    # The first that holds is said: the Ledger's step (from 0: 3), the deal (step 2), the climb and the fight, after.
-    sexton.get_editor_property('speaker_point').set_editor_property('topics', topics(
-        build,
-        (condition(during=MAIN2, from_step=3), 'DA_Lines_SextonLedger'),
-        (condition(during=MAIN2, from_step=2), 'DA_Lines_SextonDeal'),
-        (condition(during=MAIN2), 'DA_Lines_SextonWaiting'),
-        (condition(after=[MAIN2]), 'DA_Lines_SextonAfter'),
-    ))
-    build.log(f'Mister Sexton on the lookout\'s rail at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f}), during {MAIN2}')
-
-
 def place_bluff_top(build):
-    """Ransom's Point's middle, where the climb ends, and the spider nest in its ring. Returns the nest's middle."""
+    """Ransom's Point's middle, where the climb ends (Landfall climbs to its marker). The spider nest and Sexton moved to
+    build_area_main2.py (the Three Widows, the Ferryman's landing). Returns None: there is no nest here any more."""
     top = layout_entry(build, 'zones', 'ransomsPoint')
-    ring = layout_entry(build, 'obstacles', 'nestRing')
     if top is None:
         return None
     cx, cy = centroid(top['polygon'])
     marker(build, cx, cy, PLACE_POINT)
     build.log(f'Ransom\'s Point\'s middle at ({cx:.0f}, {cy:.0f}), tagged {PLACE_POINT}')
-
-    spider = actor_class('SpiderCreature')
-    cls = actor_class('EncounterSpawner')
-    if ring is None or spider is None or cls is None:
-        if cls is None or spider is None:
-            build.warn('no EncounterSpawner or SpiderCreature class (build the game module first): no spider nest')
-        return None
-    nx, ny = centroid(ring['polygon'])
-    nz = ground_at(nx, ny)
-    nest = build.place(cls, (nx, ny, nz + 50.0), 0.0, label=f'Encounter_{NEST}', folder='Gameplay')
-    nest.set_editor_property('spawner_id', unreal.Name(NEST))
-    # Four Basic spiders and a Restless one in two pushes, two out at most (NEST_PUSHES; softened 2026-10-23).
-    nest.set_editor_property('groups', [group(spider, count, rank, wave, wave, NEST_HEALTH[rank], leader=rank == 'RARE')
-                                        for count, rank, wave in NEST_PUSHES])
-    nest.set_editor_property('num_waves', max(wave for _, _, wave in NEST_PUSHES))
-    nest.set_editor_property('wait_for_clear', True)
-    nest.set_editor_property('wave_interval', NEST_BREATH)
-    nest.set_editor_property('max_alive', NEST_MAX_ALIVE)
-    nest.set_editor_property('creature_tags', [unreal.Name(NEST_TAG)])
-    # The climb and the fight (Main 2's steps 1 and 2, from 0: before 2): a session loaded at the deal finds no spiders.
-    nest.set_editor_property('active_when', condition(during=MAIN2, before_step=2))
-    nest.set_editor_property('activation_radius', NEST_ACTIVATION)
-    nest.set_editor_property('spawn_radius', NEST_SPREAD)
-    # Their ground is the bluff top: nobody on the path below it, or on the farm, is hunted from up here.
-    nest.set_editor_property('ground_corners', [unreal.Vector(x, y, nz) for x, y in top['polygon']])
-    build.log(f'the spider nest ({NEST}: {NEST_BASIC} spiders and a Restless one, {NEST_MAX_ALIVE} out at most) at ({nx:.0f}, '
-              f'{ny:.0f}, {nz:.0f}), during {MAIN2}\'s climb and fight')
-    return nx, ny, nz
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -522,26 +415,7 @@ def place_town_gate(build):
     gz = ground_at(gx, gy)
     build.log(f'the town gate at ({gx:.0f}, {gy:.0f}), tagged {PLACE_GATE}')
 
-    unpaid = actor_class('UnpaidCreature')
-    cls = actor_class('EncounterSpawner')
-    if unpaid is None or cls is None:
-        build.warn('no EncounterSpawner or UnpaidCreature class (build the game module first): no fight at the gate')
-        return gx, gy, gz
-    gate = build.place(cls, (gx, gy, gz + 50.0), 0.0, label=f'Encounter_{GATE}', folder='Gameplay')
-    gate.set_editor_property('spawner_id', unreal.Name(GATE))
-    # Six Basic Unpaid and a Restless one (the design's "4, one of them Restless" until the bigger fights).
-    gate.set_editor_property('groups', [group(unpaid, GATE_BASIC, 'BASIC'), group(unpaid, 1, 'RARE', leader=True)])
-    # Four out at once; the rest (the Restless last, the groups' order) rise as those fall (softened 2026-10-23).
-    gate.set_editor_property('max_alive', GATE_MAX_ALIVE)
-    gate.set_editor_property('creature_tags', [unreal.Name(GATE_TAG)])
-    # Main 3's second step only (from 0: from 1, before 2): a fight already won doesn't come back on a later load.
-    gate.set_editor_property('active_when', condition(during=MAIN3, from_step=1, before_step=2))
-    # They come for the corpse: from the street's mouth and the field north of it, at the player as they appear.
-    gate.set_editor_property('spawn_points', [unreal.Vector(x, y, 0.0) for x, y in GATE_SPOTS])
-    gate.set_editor_property('hunt_on_spawn', True)
-    gate.set_editor_property('give_up_radius', GATE_GIVE_UP)
-    build.log(f'the gate\'s fight ({GATE}: {GATE_BASIC} Unpaid and a Restless one, {GATE_MAX_ALIVE} out at most) at ({gx:.0f}, '
-              f'{gy:.0f}), during {MAIN3}\'s second step')
+    # The gate's fight (the checkpoint and its men) is build_area_main3.py's now.
     return gx, gy, gz
 
 
@@ -601,12 +475,13 @@ def place_shutters(build):
 
 
 def place_safe_zones(build):
-    """Delia's salt line round the farm (always) and Main Street (after Main 3), from the layout's zones."""
+    """Delia's salt line round the farm (after Main 1: Landfall's porch fight is fought inside it, and a safe zone keeps
+    every creature off its ground) and Main Street (after Main 3), from the layout's zones."""
     cls = actor_class('SafeGround')
     if cls is None:
         build.warn('no SafeGround class (build the game module first): no safe zones')
         return
-    for zone_id, layout_id, after in (('Farm', 'farm', ()), ('MainStreet', 'mainStreet', (MAIN3,))):
+    for zone_id, layout_id, after in (('Farm', 'farm', (MAIN1,)), ('MainStreet', 'mainStreet', (MAIN3,))):
         zone = layout_entry(build, 'zones', layout_id)
         if zone is None:
             continue
@@ -624,9 +499,10 @@ def place_safe_zones(build):
 # Hob
 # ---------------------------------------------------------------------------
 
-def hob_on_board(grave_ellis):
-    """On Ellis's headboard: over its Interact socket, back over its lean. (x, y, z, yaw) or None."""
-    face = socket(grave_ellis, 'Interact') if grave_ellis else None
+def hob_on_board(grave):
+    """On a grave's headboard (Abel's, the keeper's): over its Interact socket, back over its lean. (x, y, z, yaw) or
+    None."""
+    face = socket(grave, 'Interact') if grave else None
     if face is None:
         return None
     # A Quat has no forward vector in Python: the rotator's does.
@@ -689,11 +565,16 @@ def hob_on_sign(shop):
     return at.x, at.y, z, shop.get_actor_rotation().yaw
 
 
-def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots):
+def place_hob(build, grave_abel, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots,
+              landfall_spots=None, main2_spots=None):
     cls = actor_class('HobBird')
-    board = hob_on_board(grave_ellis)
+    board = hob_on_board(grave_abel)
     if cls is None or board is None:
+        if cls is not None:
+            build.warn('no Abel\'s grave with its Interact socket: no Hob')
         return
+    landfall_spots = landfall_spots or {}
+    steps = landfall_spots.get('steps', {})
     import story_texts
     texts = importlib.reload(story_texts)
     # The mountain's mouth (build_area_providence.hob_spots: the Providence's tag board's roof).
@@ -721,6 +602,16 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         'hearse': depot_spots.get('hearse'),
         # Back Pay's (story_texts.py PERCHES): the Providence's mouth.
         'mineMouth': mountain.get('mineMouth'),
+        # Landfall's (story_texts.py LANDFALL_PERCHES names them): the porch beam's end over Delia's steps and the anchor
+        # winch's top on the Mooring Ledge, both measured by build_area_landfall.place; Abel's headboard, which his trail
+        # runs past (Hob's first spot too).
+        'porchRail': landfall_spots.get('porch'),
+        'mooringLedge': landfall_spots.get('winch'),
+        'abelBoard': board,
+        # Mains 2-3's (story_texts.MAIN23_PERCHES names them): the middle Widow's top and the ferry ladder's crossbar,
+        # measured by build_area_main2.place.
+        'widows': (main2_spots or {}).get('widows'),
+        'ladderTop': (main2_spots or {}).get('ladderTop'),
     }
 
     def perch(spot, when, arrival=None):
@@ -740,22 +631,30 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
 
     x, y, z, yaw = board
     hob = build.place(cls, (x, y, z), yaw, label='Hob', folder='Gameplay', tags=('Speaker_Hob',))
+    # Landfall's (Main 1) perches, latest step first (story_texts.LANDFALL_PERCHES: STORY's words and steps, each on the
+    # first of its spots the build has): the porch beam for the fight and the turn-in, Abel's headboard for the trail, the
+    # lookout's rail for the spyglass and the climb (a word at each, no flight), the winch for the anchor and the dead.
+    # Before the anchor (the ship sailing, boarded, landing) none holds: he's away, riding her rigging (FLIGHT's).
+    main1 = []
+    for names, when, arrival in texts.LANDFALL_PERCHES:
+        spot = next((spots[name] for name in names if spots.get(name)), None)
+        if spot is None:
+            build.warn(f'Hob: no spot for Landfall\'s perch {when} (tried {", ".join(names)}): left out')
+        main1.append(perch(spot, texts.condition(when), arrival))
+    # Main 1's data and these perches must count the same steps (build_area_landfall read the data's).
+    said_steps = sorted({when.get('from_step', 0) for _, when, _ in texts.LANDFALL_PERCHES})
+    data_steps = sorted(set(steps.values()))
+    if data_steps and said_steps != data_steps:
+        build.warn(f'Hob: story_texts.LANDFALL_PERCHES\' steps {said_steps} aren\'t Main 1\'s data\'s {data_steps} (anchor, '
+                   f'point, spyglass, trail, porch): fix the perches')
     # The first that holds is his, so a mission's later steps come before its earlier ones, and each mission's perches
     # before the ones after the missions before it (steps counted from 0).
     # Where only the objective's arrow had words (the way up, the bell, the knock, the sacs, the post, the depot), he flies
     # there and says nothing: the user's cut of the story's talk (2026-10-21).
-    perches = [
-        # Main 1: on the board saying his piece once Ellis is out (step 2), on it silently while Ellis claws out (step 1).
-        perch(board, condition(during=MAIN1, from_step=2), 'DA_Lines_HobWakes'),
-        perch(board, condition(during=MAIN1, from_step=1)),
-        # Main 2: beside Sexton for the deal and the Ledger; on the rock for the fight; at the path's foot for the climb.
-        perch(spots['rail'], condition(during=MAIN2, from_step=2)),
-        perch(spots['rock'], condition(during=MAIN2, from_step=1), 'DA_Lines_HobMain2Blue'),
-        perch(spots['path'], condition(during=MAIN2)),
-        # Main 3: on the sign once the gate is won; on the gate's post for the fight (no flight: the same spot) and the road.
-        perch(spots['sign'], condition(during=MAIN3, from_step=2), 'DA_Lines_HobMain3Tilly'),
-        perch(spots['gate'], condition(during=MAIN3, from_step=1), 'DA_Lines_HobMain3Gate'),
-        perch(spots['gate'], condition(during=MAIN3), 'DA_Lines_HobMain3Road'),
+    perches = main1 + [
+        # Mains 2 and 3 (story_texts.MAIN23_PERCHES, the Wardens story's: each on the first of its spots the build has).
+        *[perch(next((spots[name] for name in names if spots.get(name)), None), texts.condition(when), arrival)
+          for names, when, arrival in texts.MAIN23_PERCHES],
         # Main 4: on the door hood for the Reliquary and the bell; on the vestry lantern's bracket for the knock at
         # Aldana's door (step 2); on the door hood again for the yard's fight and the way up.
         perch(spots['hood'], condition(during=MAIN4, from_step=4), 'DA_Lines_HobMain4Reliquary'),
@@ -788,9 +687,11 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         perch(spots['deckBier'], texts.condition(texts.PERCHES['gravewindPoint'][0]), texts.PERCHES['gravewindPoint'][1]),
         perch(spots['roadTree'], condition(after=[MAIN5])),
         perch(spots['lantern'], condition(after=[MAIN4])),
-        perch(spots['sign'], condition(after=[MAIN3])),
-        perch(spots['rail'], condition(after=[MAIN2])),
-        perch(board, condition(after=[MAIN1])),
+        # After Mains 3 and 2 (story_texts.MAIN23_AFTER_PERCHES): on the undertaker's sign; on the ladder by the Ferryman.
+        *[perch(next((spots[name] for name in names if spots.get(name)), None), texts.condition(when), arrival)
+          for names, when, arrival in texts.MAIN23_AFTER_PERCHES],
+        # After Landfall on the porch rail, where it was turned in: Main 2's offer is his.
+        perch(spots['porchRail'] or spots['path'] or board, condition(after=[MAIN1])),
     ]
     hob.set_editor_property('perches', [each for each in perches if each is not None])
     # His talk: the missions' data's (story_texts.py TOPICS), the side missions after the main ones.
@@ -801,8 +702,8 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
     if mutters:
         talk.set_editor_property('mutters', topics(build, *[(texts.condition(when), name) for when, name in mutters]))
     missing = [name for name, spot in spots.items() if spot is None]
-    build.log(f'Hob on Ellis\'s headboard at ({x:.0f}, {y:.0f}, {z:.0f}), {len([p for p in perches if p is not None])} perches'
-              f'{" (without " + ", ".join(missing) + ")" if missing else ""}')
+    build.log(f'Hob placed on Abel\'s headboard at ({x:.0f}, {y:.0f}, {z:.0f}), {len([p for p in perches if p is not None])} '
+              f'perches{" (without " + ", ".join(missing) + ")" if missing else ""}')
 
 
 def place(build):
@@ -811,14 +712,13 @@ def place(build):
     if not any(spot['kind'] == 'Grave_Ellis' for spot in build.layout['placements'].values()):
         return
     place_cold_open(build)
-    grave_ellis = place_family_plot(build)
-    place_headboards(build, grave_ellis)
-    # Delia's door and her house's pieces (their own module, reloaded as the chapel's is).
+    grave_abel = place_family_plot(build)
+    place_headboards(build, grave_abel)
+    # Delia on her porch, her house's pieces and the porch barricade (their own module, reloaded as the chapel's is).
     importlib.reload(importlib.import_module('build_area_farm')).place(build)
     # Main 2.
     lookout = placed(build, 'Lookout')
     seat = socket(lookout, 'Sit') if lookout else None
-    place_sexton(build, lookout, seat)
     nest = place_bluff_top(build)
     # Main 3.
     place_town_gate(build)
@@ -844,7 +744,18 @@ def place(build):
     depot_spots = importlib.reload(importlib.import_module('build_area_depot')).place(build)
     # Dead Lift and The Last Watch: the ore lift, its bell pulls and speaking tube, Calder's watch fire and the far light.
     importlib.reload(importlib.import_module('build_area_lift')).place(build)
-    place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots)
+    # Main 1, Landfall (its own module, reloaded as the chapel's is): the Lamplighter, the ledge's winch and climbers, the
+    # spyglass, Vane's barge and the smog, Abel's trail and hat, the porch fight, the loudspeakers; after the deck (the
+    # Smog rule joins its StoryLighting); it hands back Hob's Landfall perches.
+    landfall_spots = importlib.reload(importlib.import_module('build_area_landfall')).place(build)
+    # Main 2, The Ferryman's Price (its own module, reloaded as the chapel's is; after the deck and Landfall): the Widows'
+    # nest, the boards' cart, crew and dead, the gate's loudspeaker, the Ferryman's landing, ferry and ladder; Hob's spots.
+    main2_spots = importlib.reload(importlib.import_module('build_area_main2')).place(build)
+    # Main 3, Under New Management (its own module): the checkpoint and its fight, the loudspeakers, the banner, the chalk,
+    # the Gilt Spur's cart, Lucky Ned's skiff.
+    importlib.reload(importlib.import_module('build_area_main3')).place(build)
+    place_hob(build, grave_abel, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots,
+              landfall_spots, main2_spots)
     # Hob's roosts, last, so each keeps clear of everything the story stands on the ground (its own module, reloaded as the
     # chapel's is; it places nothing for a layout without gameplay.roosts).
     importlib.reload(importlib.import_module('build_area_roosts')).place(build)

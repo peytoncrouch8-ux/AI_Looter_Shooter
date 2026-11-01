@@ -5,6 +5,7 @@
 #include "ColdOpenSubsystem.generated.h"
 
 class AColdOpenSet;
+class ALamplighterShip;
 struct FCampaignRecord;
 
 namespace GraveWake
@@ -25,6 +26,10 @@ namespace GraveWake
  * Where it can't play (scenes off in a tour or perf run, no grave, a level played without the story begun), it's passed:
  * recorded as seen, and the missions told both scenes have played, so Main 1 goes on to the headboard. A level whose story
  * is past it tells its missions the same as it begins. Looter.Scene.ColdOpen and Looter.Scene.GraveWake play it by hand.
+ *
+ * Since the Wardens story (2026-10-31, Landfall) a level with the Lamplighter (ALamplighterShip) never plays any of that:
+ * BeginIfDue hands the opening to her (BeginLandfall: the flight with the player on her deck, or moored for a story past
+ * it), and the old opening is recorded passed. The cold open's code is kept, reachable only from the console.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UColdOpenSubsystem : public UWorldSubsystem
@@ -42,8 +47,10 @@ public:
 	static bool IsDue(const FCampaignRecord& Campaign);
 
 	/**
-	 * As the level begins (the travel subsystem's arrival): plays the cold open when the level has its set and it's due,
-	 * taking the screen; passes it where it's due but can't play. True when it plays (the caller leaves the white to it).
+	 * As the level begins (the travel subsystem's arrival): a level with the Lamplighter begins Landfall (false: the arrival
+	 * reveals its white, the title rising through it on the story's first arrival). Elsewhere, plays the cold open when the
+	 * level has its set and it's due, taking the screen; passes it where it's due but can't play. True when the cold open
+	 * plays (the caller leaves the white to it).
 	 */
 	bool BeginIfDue();
 
@@ -66,6 +73,9 @@ public:
 	void PassColdOpen(bool bRecord);
 
 private:
+	/** Landfall's opening: the menu's intro handoff taken, the ship begun from the campaign, the old scenes passed. */
+	void BeginLandfall(ALamplighterShip& Ship);
+
 	/** The story being played here (the mission runner's record: the session's, or a test's). */
 	FCampaignRecord* FindCampaign() const;
 

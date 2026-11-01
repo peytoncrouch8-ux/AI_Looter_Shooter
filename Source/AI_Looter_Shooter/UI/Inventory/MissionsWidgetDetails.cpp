@@ -335,7 +335,7 @@ void UMissionsWidget::RefreshPrompts()
 		Prompts.Add({ TEXT("E"), bTracked ? TEXT("Untrack") : TEXT("Track") });
 	}
 	Prompts.Add({ TEXT("1"), TEXT("Loadout") });
-	Prompts.Add({ TEXT("2"), TEXT("Embers") });
+	Prompts.Add({ TEXT("2"), TEXT("Skills") });
 	Prompts.Add({ TEXT("3"), Ledger::BookName(Ledger::IsOpenIn(this)) });
 	Prompts.Add({ TEXT("5"), TEXT("Map") });
 	Prompts.Add({ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") });

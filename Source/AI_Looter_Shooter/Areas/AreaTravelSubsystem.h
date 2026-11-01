@@ -18,15 +18,15 @@ struct FStationBoardLine;
  *  - the first cast-off, off Skyreach, for a session begun there before the story was the start (a new game begins on the
  *    story's first arrival itself, USessionSubsystem::StartNewGame): its jetty plays the skiff's ride
  *    (ASkiffJetty::CastOff), and behind the white the ride ends in, CompleteFirstCastOff records it and travels to the
- *    story's first arrival: the family plot on Ransom's Rest (Landing_FamilyPlot). Without a jetty or a ride it goes at
+ *    story's first arrival: the Lamplighter's deck on Ransom's Rest (Landing_Lamplighter). Without a jetty or a ride it goes at
  *    once, behind the white (LeaveForFirstArrival).
  *  - every later trip (every station board): a plain fade to black, then the session's travel to the destination's
  *    station (its first landing). No cutscene: a default the user can change. Except by train: a trip to an opened area
  *    of the story from a station whose train stands at its platform plays the train's departure (Scenes/TrainShots.h: it
  *    pulls out, then black), and arrives by train (it backs in, then the player's view), as step 9 chose. Trips from
  *    Skyreach's jetty and the console's (Looter.Travel) stay plain fades both ways.
- *  - arriving: the story's first area opens on the cold open while it's due (UColdOpenSubsystem takes the held white and
- *    reveals it with REVENANT on the gang's skiff, then Ellis claws out of the grave). Otherwise a white held through the
+ *  - arriving: the story's first area opens on Landfall while it's due (UColdOpenSubsystem::BeginIfDue hands the opening to
+ *    ALamplighterShip: the player on her deck as she sails in; 2026-10-31). Otherwise a white held through the
  *    level load (UTransitionScreenSubsystem) is revealed, with the title REVENANT on the story's first arrival and none
  *    otherwise; after a plain trip the screen fades in from black.
  * Saves wait while a trip fades out (the trip's own save has everything).

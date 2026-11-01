@@ -35,7 +35,8 @@ What each number means to its power (UEmberDefinition's fields; each power class
             the rest as each entry says.
 
 Heroes (UHeroDefinition): the roster's five (Ellis, Odessa, Crane, Gauge, Pike; UHeroDefinition::RosterIds), each with
-role, short name (the id: what a caption calls them), story (the concept doc's lines; Ellis is "they" in all text), colour (the contract's), the portrait
+display name (the hero Ellis's is "Sully Graves" since 2026-10-31; the id stays Ellis), role, short name (what a caption
+calls them: the id, or "Sully" for Ellis), story (the concept doc's lines; Ellis is "they" in all text), colour (the contract's), the portrait
 /Game/UI/Portraits/T_Portrait_<Id>, the body /Game/Art/Characters/SK_<Id> and its retargeter
 /Game/Player/Retarget/RTG_MannyTo<Id>, the first-person arms /Game/Art/Characters/SK_FP_Arms_<Id> (Ellis's SK_FP_Arms)
 (each field set once its asset exists; the game finds a missing one by the same name, so a hero lights up as Main lands
@@ -248,9 +249,13 @@ def pose_struct(struct_type, fields):
     return value
 
 
-def hero(id, name, role, story, color, powers):
+def hero(id, name, role, story, color, powers, short=''):
+    """One hero. short: what a caption calls them (UHeroDefinition::ShortName); empty: the id, as for four of the five.
+    The hero Ellis shows as Sully Graves since 2026-10-31 (the Wardens story: just a Warden, no Ransom), "Sully" in
+    captions; the id, assets and paths keep Ellis's name."""
     arms = 'SK_FP_Arms' if id == 'Ellis' else f'SK_FP_Arms_{id}'
-    return dict(asset=f'DA_Hero_{id}', id=id, name=name, role=role, story=story, color=color, powers=powers,
+    return dict(asset=f'DA_Hero_{id}', id=id, name=name, short=short or id, role=role, story=story, color=color,
+                powers=powers,
                 portrait=f'/Game/UI/Portraits/T_Portrait_{id}.T_Portrait_{id}',
                 mesh=f'/Game/Art/Characters/SK_{id}.SK_{id}',
                 retargeter=f'/Game/Player/Retarget/RTG_MannyTo{id}.RTG_MannyTo{id}',
@@ -260,10 +265,13 @@ def hero(id, name, role, story, color, powers):
 
 # The roster's order (UHeroDefinition::RosterIds); each hero's first power is equipped in a new game.
 HEROES = [
-    hero('Ellis', 'Ellis Ransom', 'the Revenant',
-         "Shot on Ransom's Point by the Dunne Gang and raised by Sexton to bring the stolen embers home. Pa's lantern "
-         "still burns at the hip.",
-         '#5AD8FF', ['DA_Ember_DustDevil', 'DA_Ember_Sundown', 'DA_Ember_BorrowedTime']),
+    # Sully Graves since 2026-10-31 (the user: just a Warden, no tie to the Ransoms; "they"; dry, steady): a Lantern
+    # Warden's role and words on the pick screen. The id, assets and powers stay Ellis's. The other four still tell the
+    # Revenant story: the heroes' own round of the Wardens story.
+    hero('Ellis', 'Sully Graves', 'the Lantern Warden',
+         "The Lantern Wardens' newest sworn hand: says little, misses less. Where the Great Lantern leans, Sully goes, "
+         "and the stolen dead come home.",
+         '#5AD8FF', ['DA_Ember_DustDevil', 'DA_Ember_Sundown', 'DA_Ember_BorrowedTime'], short='Sully'),
     hero('Odessa', 'Odessa Lark', 'the Cardsharp',
          "A riverboat gambler who caught Lucky Ned dealing seconds, and caught his bullet for it. Sexton bought her "
          "marker.",
@@ -372,8 +380,9 @@ def setup_hero(spec, cls, made):
     asset, created = load_or_create(spec['asset'], cls)
     asset.set_editor_property('id', unreal.Name(spec['id']))
     asset.set_editor_property('display_name', unreal.Text(spec['name']))
-    # What a caption calls them (the player character's lines, Story/HeroLines' {Hero}): the id is the word for all five.
-    asset.set_editor_property('short_name', unreal.Text(spec['id']))
+    # What a caption calls them (the player character's lines, Story/HeroLines' {Hero}): the id for four of them, "Sully"
+    # for the hero Ellis (hero()'s short).
+    asset.set_editor_property('short_name', unreal.Text(spec['short']))
     asset.set_editor_property('role', unreal.Text(spec['role']))
     asset.set_editor_property('story', unreal.Text(spec['story']))
     asset.set_editor_property('color', linear_color(spec['color']))

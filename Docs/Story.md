@@ -1,6 +1,58 @@
 # Revenant
 
-> *Seven outlaws killed you. Something sent you back to bring them in.*
+## The Wardens story (2026-10-31)
+
+The user's restart (word for word and the rejected ideas: `Docs/Work/2026-10-31-Wardens/DECISIONS.md`; the job's contract
+`CONTRACT.md` beside it; concept page https://claude.ai/artifact/Djuw8pYuh6jpnVDmgfo1cG). It **overrides everything below
+where they clash**; the rest of this file is the Revenant canon, kept until later rounds rewrite it (the world's lore of
+saints, keepers, the Gravewind, the Unpaid, Hob's voice, Delia mostly stays). Round 1 built: the turn-in card and
+Landfall (Main 1). Main 2 onward still play their Revenant words.
+
+- **The user's words:** "I don't want to die at all or wake up anywhere. The story should be something along the lines
+  of 'we're taking the airship to ransoms rest to eliminate the corruption and return Abel's soul to whomever'." Final
+  boss someone other than Sexton.
+- **Premise:** Cornelius Vane, chairman of Vane Consolidated ("the Company"), learned a soul burns hotter than coal. His
+  dredge barges hang over towns and suck the dead out of the ground; his refineries press them into **soul coal** for
+  his trains. The runoff, **soul smog** (black, a faint cyan glint), sours the land and stirs the restless dead (the
+  Unpaid). His men: **Dredgers** (rubber coats, gas masks; riflemen and hose-men, whose soul-hose drains the living).
+  He taunts over radios, ships' horns and company loudspeakers (Borderlands' way): smug and funny, never cartoonish.
+  Final boss: Vane in an iron suit fed by burned souls, on his flagship refinery airship; freed furnace by furnace.
+- **The player's side:** the **Lantern Wardens**, a living order on the airship **the Lamplighter**, flying wherever the
+  dead are taken. Its **Great Lantern** at the prow leans toward stolen souls. Crew: **Captain Mercy Holloway** (steady;
+  lost her own town to Vane's first barge), **Brother Tobiah Finch** (lantern-keeper, reads the lean), **Junie Calloway**
+  (engineer, ex-Vane rail mechanic), **Hob** (the one-eyed crow, the ship's lookout, dry, says "sunshine").
+- **The hero:** **Sully Graves**, the newest sworn Warden; "they"; no tie to the Ransoms. Display only: the internal hero
+  id stays `Ellis`, the model SK_Ellis, every asset its name (`create_ember_assets.py`: display name Sully Graves, short
+  name Sully; `hero_lines.json` speaker.Sully). Nobody dies or wakes up: no grave, no Revenant, no deal for the hero.
+- **Ransom's Rest:** a week ago (Wednesday) Vane's barge came and hung over the Sink, its hose in the Sink's floor. The
+  **Dunne Gang** are Vane's hired soul-thieves now (regional bosses; **Lucky Ned** runs this barge). They put a hose to
+  **Abel Ransom**, Saint Ada's keeper, as he held the chapel door; his soul tore loose and ran home over the Point and
+  down the bluff path; they reeled it in on **Delia Ransom**'s steps (his mother; not the player's family now). A
+  keeper's soul burns longest, so Abel is the barge's pilot light. Goal: bring Abel back **to his saint** (relights Saint
+  Ada's Reliquary; the smog lifts area by area).
+- **Sexton** becomes the neutral **Ferryman**: he hates Vane (Vane steals his passengers) and sells secrets, never for
+  free. Not the villain.
+- **Tone kept:** Weird West, dry humour (Hob), Delia hard and grieving; captions only for now (voices later; Vane's with a
+  radio crackle). No copyrighted text.
+
+What replaced what (built in round 1):
+
+| Was (Revenant) | Now (Wardens) |
+|---|---|
+| Logline "Seven outlaws killed you..." | Vane burns the dead for soul coal; the Wardens fly in to take them back |
+| The planet intro's words (the saints, the gang, "you rode in with that gang") | Planet part only: the saints light the dead west; Vane dredges them; soul coal, "the Lantern Wardens call it theft"; the Lamplighter flying into his smog over Ransom's Rest (`NewGameIntro::ScriptLines` 0-3, `DA_Lines_NewGameIntro`). The Rest part (lines 4-10), the cold open and the grave wake-up: no new game plays them (code kept this round) |
+| Main 1 "Seven Days": cold open, claw out of the grave, headboards, Delia's screen door, the porch plate | Main 1 **"Landfall"** (id `Main1`): on the Lamplighter's deck, the Great Lantern, Vane's boarders, the grapples, the hard landing on the Mooring Ledge, the anchor, Ransom's Point, the spyglass's reveal, Abel's trail (optional: his hat), Delia's porch held; turned in to Delia Ransom (card, then her words). Steps: `Docs/Areas/RansomsRest_Expansion.md` "Main 1" |
+| Ellis Ransom, Abel's child, a Revenant | Sully Graves, a Warden (id Ellis) |
+| Delia behind her screen door, "Grandma" | Delia Ransom on her porch with a shotgun, fighting, then face to face |
+| Ellis's grave and headboard in the family plot | Gone; Abel's grave stays |
+| The porch plate's jars: Main 1's last step | A free pickup after Landfall (Delia: "Salt's on the plate") |
+| Hob: Sexton's messenger, on Ellis's headboard | The Lamplighter's lookout; through Landfall on the ledge, the Point's rail, the bluff path's foot, Delia's porch rail |
+
+Still Revenant (later rounds, one mission at a time, then the docs): Main 2 (Sexton's deal on the Point), Mains 3-7, the
+side missions, Hob's feathers (his mutters after Main 1), the heroes' roles and stories on the pick screen, the Ledger,
+Tilly's and Aldana's words. The legendary once named "Lamplighter" (the Sundown Road's) is renamed Wickcutter (id stays Lamplighter), so the clash with the ship is resolved.
+
+> *Seven outlaws killed you. Something sent you back to bring them in.* (Revenant's logline, replaced above.)
 
 On Teropa, in the frontier country called the Reaches, the Dunne Gang shot Ellis Ransom on the lookout above the family farm on Ransom's Rest. They shot Ellis's father on the path below, robbed the town's saint and flew off in their skiff. A week later Ellis claws out of a grave in the family plot. A soft-spoken stranger holds their soul in pawn until all seven outlaws are brought down. No living gun can kill what the gang has become.
 

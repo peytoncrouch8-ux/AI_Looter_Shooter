@@ -61,10 +61,11 @@ bool FEmberPagesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The map last"), static_cast<int32>(EInventoryPage::Map), 4);
 	TestEqual(TEXT("A tab per page"), LoadoutParts::NumPages, static_cast<int32>(EInventoryPage::Map) + 1);
 
-	TestEqual(TEXT("The second tab reads Embers"), LoadoutParts::PageTabName(static_cast<int32>(EInventoryPage::Embers), false), FString(TEXT("Embers")));
-	TestEqual(TEXT("The third, Bestiary before Sexton hands it over"), LoadoutParts::PageTabName(static_cast<int32>(EInventoryPage::Bestiary), false),
-		FString(Ledger::BookName(false)));
-	TestEqual(TEXT("...and the Ledger after"), LoadoutParts::PageTabName(static_cast<int32>(EInventoryPage::Bestiary), true), FString(Ledger::BookName(true)));
+	// The heroes' powers are "Skills" on screen and the bestiary "Warden's Log" (the user's calls, 2026-10-31).
+	TestEqual(TEXT("The second tab reads Skills"), LoadoutParts::PageTabName(static_cast<int32>(EInventoryPage::Embers), false), FString(TEXT("Skills")));
+	TestEqual(TEXT("The third, the Warden's Log"), LoadoutParts::PageTabName(static_cast<int32>(EInventoryPage::Bestiary), false),
+		FString(TEXT("Warden's Log")));
+	TestEqual(TEXT("...the same once its story pages open"), LoadoutParts::PageTabName(static_cast<int32>(EInventoryPage::Bestiary), true), FString(Ledger::BookName(true)));
 	TestEqual(TEXT("2 turns to the ember powers"), LoadoutParts::PageForNumberKey(EKeys::Two), static_cast<int32>(EInventoryPage::Embers));
 	TestEqual(TEXT("3 to the bestiary"), LoadoutParts::PageForNumberKey(EKeys::Three), static_cast<int32>(EInventoryPage::Bestiary));
 	TestEqual(TEXT("5 to the map"), LoadoutParts::PageForNumberKey(EKeys::Five), static_cast<int32>(EInventoryPage::Map));
@@ -98,8 +99,8 @@ bool FEmberPagesTest::RunTest(const FString& Parameters)
 	});
 	TestEqual(TEXT("Five title tabs"), Tabs, LoadoutParts::NumPages);
 	LoadoutParts::TitlePageTabs(Tree, true);
-	TestEqual(TEXT("Its own tab reads EMBERS"), EmberTestTabWords(Tree, static_cast<int32>(EInventoryPage::Embers)), FString(TEXT("EMBERS")));
-	TestEqual(TEXT("...and the Ledger's tab is renamed, not it"), EmberTestTabWords(Tree, static_cast<int32>(EInventoryPage::Bestiary)),
+	TestEqual(TEXT("Its own tab reads SKILLS"), EmberTestTabWords(Tree, static_cast<int32>(EInventoryPage::Embers)), FString(TEXT("SKILLS")));
+	TestEqual(TEXT("...and the log's tab is titled, not it"), EmberTestTabWords(Tree, static_cast<int32>(EInventoryPage::Bestiary)),
 		FString(Ledger::BookName(true)).ToUpper());
 	TestEqual(TEXT("No pawn, no powers: no cards"), Page->NumCards(), 0);
 	TestFalse(TEXT("...and nothing to equip"), Page->EquipSelected());

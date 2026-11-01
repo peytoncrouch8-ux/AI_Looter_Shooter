@@ -3,13 +3,30 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## 2026-10-31 night: Wardens story restart, round 1 IN PROGRESS (Docs/Work/2026-10-31-Wardens/)
+## 2026-11-01: Wardens round 1 + Mains 2-3 BUILT, Tripo models in (Docs/Work/2026-10-31-Wardens/)
 The user restarted the story (DECISIONS.md: living Lantern Wardens on the airship the Lamplighter vs Cornelius Vane, soul
-coal and soul smog; hero renamed Sully Graves; no grave start) and asked for a turn-in card on every mission (card, then
-talk). Round 1 = the turn-in card + Landfall (the new Main 1) per CONTRACT.md; 7 agents (TURNIN, DREDGER, CREW, FLIGHT,
-WORLD, STORY, SOUND) write lanes/<LANE>.md; then Main merges, builds, runs scripts, tests, plays it in PIE, measures perf.
-Models: stand-ins; the user makes every new model in Tripo from TRIPO_MODELS.md (sent to them). Then: the user plays
-Landfall; later rounds remap Mains 2-7 (concept.html table).
+coal and smog; hero Sully Graves; no grave start) and asked for a turn-in card on every mission (card, then talk).
+Committed (this commit): the turn-in card; Landfall (Main 1: ship, tender, boarders, grapples, hard landing, winch,
+spyglass reveal, Abel's trail and hat, Delia's porch fight; played end to end); Vane's Dredgers; Delia and the crew;
+renames (skills, the Warden's Log, Wickcutter, lantern posts); creature inside-out fix (looter_creatures face_out);
+Main 2 "The Ferryman's Price" and Main 3 "Under New Management" (lanes/MAIN23.md; PIE played start to turn-in, fixes:
+deck Floor tag, barrier height, banner flip, spill colour, ferry fog, gate riflemen posted 6 m (PostRadius/SetPost),
+radio waits for quiet, bestiary only for creatures with a page (HasPageFor)); mission XP Main 2 400, Main 3 800 (Pacing
+band: everything once 7.70, story 6.99; Docs/Progression.md). Tripo models imported: 17 Landfall statics + crew/Delia/
+Dredger people (IMPORT), farmhouse/barn/cottage/windmill (TRIPO_BUILDINGS: farmhouse posts, roof, fascia, deck rim on
+trim boards; dusk window glow lost on farmhouse/cottage fronts), Drover 4 sets (TRIPO_PISTOLS, 20 parts, keys kept),
+Gravemother in Tripo's paint with new smooth eye domes (the user: "weird bumpy eyes"). Tests: every changed group
+passes (Makers.Bias and Hands.OnGun fixed: outdated assumptions). Tools: grab.ps1 takes the editor frame by title;
+build_area_camps tile cache refreshes after open_clean; Hob's Keeper's Bridge word placed after the bridge marker.
+Running: TRIPO-PEOPLE (Abel, Amos, Hiram, Thaddeus, Foreman, DeadMiner bodies; 180 of 220 credits; its files left out
+of this commit), TRIPO-M23 (ferry, shrouded dead, hose-cart, sandbags/board, banner; cap 250, the user: "only if credits
+remain"; ~315 balance before it). Tripo balance after both: about 25-65.
+Next: merge those two (import, gameplay pass, tests), perf before/after (farm view +17k tris, Drover 33-35k), package
+the playtest (the user said yes), then Mains 4-7 (the user: keep going overnight; MAINS_2_7.md).
+Known: Mooring Ledge warning (ship moors at the design spot, works); Sexton's secrets-for-silver vendor page not built
+(MAINS_2_7 section 12) nor Paid on Delivery; farmhouse knee-brace bits under the porch roof, dormer roof slightly wavy;
+Assay/Barber Tripo fronts fitted but not hooked (lose lettered signs); Depot/Chapel/Workshop/Smithy/Watchtower Tripo
+models kept for later (need cut openings).
 
 ## 2026-10-31 night: pause menu size BUILT
 The user: "ESC menu ui needs a gui option to decrease its size". Built: Settings > Interface "Pause menu size" 60-100%

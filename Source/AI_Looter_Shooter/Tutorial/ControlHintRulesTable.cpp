@@ -94,7 +94,8 @@ FText FControlHintRules::Words(EControlHint Hint, bool bToggle)
 	// After the inventory's keycap, the page's number inside it from the tabs' own order, as the missions' words give it
 	// (UMissionOpenPageObjective: "{Inventory}, then {Page.Bestiary}"), so neither drifts when the tabs move.
 	case EControlHint::Ledger:
-		return FText::Format(LOCTEXT("Ledger", "Then {0}: the Ledger"), PageKeyText(EInventoryPage::Bestiary));
+		// "The Warden's Log" on screen since 2026-10-31 (the hint's id stays Ledger: saves keep the hints learned by it).
+		return FText::Format(LOCTEXT("WardensLog", "Then {0}: the Warden's Log"), PageKeyText(EInventoryPage::Bestiary));
 	case EControlHint::Missions:
 		return FText::Format(LOCTEXT("Missions", "Then {0}: your missions, to choose which to follow"), PageKeyText(EInventoryPage::Missions));
 	case EControlHint::Map:       return LOCTEXT("Map", "Map: where you are, and where you're headed");

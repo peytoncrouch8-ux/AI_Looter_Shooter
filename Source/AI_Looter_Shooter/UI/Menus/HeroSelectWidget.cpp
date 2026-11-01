@@ -231,7 +231,7 @@ UWidget* UHeroSelectWidget::MakeHeader()
 	Header->AddChildToVerticalBox(Eyebrow)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
 	Header->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Choose your hero"), 30, Color::Title(), true, 120))
 		->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
-	UTextBlock* Sub = MakeText(WidgetTree, TEXT("Whoever you pick is the Revenant Sexton raised. A session keeps its hero."), 12, Color::TextDim());
+	UTextBlock* Sub = MakeText(WidgetTree, TEXT("Whoever you pick is a sworn Lantern Warden. A session keeps its hero."), 12, Color::TextDim());
 	Sub->SetFont(Font(12, false));
 	// Two short lines, clear of the hero's hat on the stand beside them.
 	Sub->SetAutoWrapText(true);
@@ -294,9 +294,9 @@ UWidget* UHeroSelectWidget::MakePanel()
 	StoryText->SetAutoWrapText(true);
 	Content->AddChildToVerticalBox(StoryText)->SetPadding(FMargin(0.f, 14.f, 0.f, 0.f));
 
-	// The three powers, all owned from the start.
-	Content->AddChildToVerticalBox(MakeSection(WidgetTree, TEXT("Ember powers")))->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
-	UTextBlock* Note = MakeText(WidgetTree, TEXT("All three are theirs from the start. One is equipped at a time; the others wait on the inventory's Embers page."), 10, Color::TextDim());
+	// The three powers, all owned from the start ("Skills" on screen: the user, 2026-10-31).
+	Content->AddChildToVerticalBox(MakeSection(WidgetTree, TEXT("Skills")))->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
+	UTextBlock* Note = MakeText(WidgetTree, TEXT("All three are theirs from the start. One is equipped at a time; the others wait on the inventory's Skills page."), 10, Color::TextDim());
 	Note->SetFont(Font(10, false));
 	Note->SetAutoWrapText(true);
 	Content->AddChildToVerticalBox(Note)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));

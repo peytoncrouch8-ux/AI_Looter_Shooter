@@ -1,5 +1,6 @@
 // UMissionOfferWidget's motion: rising into place as it fades up, its ! popping and its glow breathing, the ACCEPTED stamp
-// slammed down and held before the card lifts away, or the card sinking as it's put back; then the HUD takes it away.
+// slammed down and held before the card lifts away, or the card sinking as it's put back; then the HUD takes it away. The
+// turn-in mode adds its own (ApplyTurnInMotion, MissionOfferWidgetTurnIn.cpp).
 
 #include "UI/World/MissionOfferWidget.h"
 #include "Components/Image.h"
@@ -72,9 +73,8 @@ void UMissionOfferWidget::ApplyMotion()
 	float Slide = (1.f - In) * SlideDistance;
 	if (bClosing && bAccepted)
 	{
-		// Out after the stamp has been seen: lifting away, taken (a choice's stamp is held a little longer).
-		const float Held = Mode == EMissionCardMode::Choice ? ChoiceStampHoldSeconds : StampHoldSeconds;
-		const float Out = EaseIn((CloseAge - StampSlamSeconds - Held) / StampOutSeconds);
+		// Out after the stamp has been seen: lifting away, taken (a choice's stamp, a turn-in's, held a little longer).
+		const float Out = EaseIn((CloseAge - StampSlamSeconds - GetStampHoldSeconds()) / StampOutSeconds);
 		Shown *= 1.f - Out;
 		Slide -= Out * SlideDistance;
 	}
@@ -123,5 +123,11 @@ void UMissionOfferWidget::ApplyMotion()
 				FVector2D::ZeroVector, StampAngle));
 			Stamp->SetRenderOpacity(FMath::Min(1.f, Slam * 1.6f));
 		}
+	}
+
+	// The turn-in mode's own: its list ticking in, the burst and the thump as its stamp lands (MissionOfferWidgetTurnIn.cpp).
+	if (Mode == EMissionCardMode::TurnIn)
+	{
+		ApplyTurnInMotion();
 	}
 }

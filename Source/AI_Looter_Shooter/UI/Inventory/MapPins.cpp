@@ -122,7 +122,8 @@ namespace MapPins
 			Pin.Kind = EMapPinKind::Grave;
 			Pin.Location = Grave->GetActorLocation();
 			Pin.Name = Grave->GetGraveName();
-			Pin.Detail = LOCTEXT("GraveDetail", "Hob's roost: fast travel");
+			// A lantern post since 2026-10-31 (the user's call; the code's names still say grave).
+			Pin.Detail = LOCTEXT("PostDetail", "Lantern post: fast travel");
 			Pin.Grave = Grave;
 			Pin.Id = Grave->GetMarkerId();
 		}
@@ -230,7 +231,7 @@ namespace MapPins
 		case EMapPinKind::Shrine:      return LOCTEXT("KindShrine", "Vigil Stone");
 		case EMapPinKind::Vendor:     return LOCTEXT("KindVendor", "Store");
 		case EMapPinKind::Station:    return LOCTEXT("KindStation", "Station");
-		case EMapPinKind::Grave:       return LOCTEXT("KindGrave", "Hob's roost");
+		case EMapPinKind::Grave:       return LOCTEXT("KindPost", "Lantern post");
 		case EMapPinKind::Offer:       return LOCTEXT("KindOffer", "Mission offered");
 		case EMapPinKind::TurnIn:      return LOCTEXT("KindTurnIn", "Turn in");
 		case EMapPinKind::Objective:   return LOCTEXT("KindObjective", "Objective");

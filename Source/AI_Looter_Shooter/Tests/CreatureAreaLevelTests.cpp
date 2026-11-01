@@ -82,7 +82,7 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 
 	// The story's fights, where they stand: 1-2 near the start, 2-4 round the town and the fields, 4-6 from the Sink on.
 	const FPlannedLevels Story[] = {
-		{ TEXT("BluffNest"), 1, 2, TEXT("Main 2's spider nest on the bluff") },
+		{ TEXT("BluffNest"), 1, 2, TEXT("Main 2's spider nest at the Three Widows") },
 		{ TEXT("TownGate"), 2, 3, TEXT("Main 3's Unpaid at the town gate") },
 		{ TEXT("ChapelYard"), 3, 4, TEXT("Main 4's chapel yard") },
 		{ TEXT("WhitlockHands"), 3, 4, TEXT("Side 2's hired hands") },
@@ -127,6 +127,8 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 		{ TEXT("Webwood"), 5, 6, TEXT("the Webwood's drop") },
 		// The finds' encounters (FINDS lane E): the far plot on boot hill (its zone 3-4) and the Tollman on the keeper's road (4-5).
 		{ TEXT("MiserPlot"), 3, 4, TEXT("the Miser's plot on boot hill (a find)") },
+		// The field hands rising out of Whitlock's fallow (the Unpaid's RiseAround, 2026-10-31), after Main 3: the fields' 3-4.
+		{ TEXT("FurrowDead"), 3, 4, TEXT("Whitlock's fallow's risen field hands (after Main 3)") },
 		{ TEXT("Tollman"), 4, 5, TEXT("the Tollman on the keeper's road (a find)") },
 		// The new side missions' and the mountain's (2026-10-13), should the layout list them among its encounters: the
 		// depot's waiting room and Tilly's cellar in the valley (the cellar's spawner keeps its own 3-4), the mountain 5-6.

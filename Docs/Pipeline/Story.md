@@ -165,3 +165,26 @@ talk at givers -44%.
   in, within 18 cm) and ignore actors named `*Scatter`. A `delete_asset` that logs "deleted" can leave the file on disk (one
   of 25 came back on the next editor start): check the file is gone. A layout obstacle's centroid lands on the rock's top:
   trace the ground at the spot itself, not at the anchor.
+
+## Story missions as world pieces (Mains 2-3 of the Wardens story, lane MAIN23, 2026-11-01)
+
+- A main mission's world is its own build module (`Tools/Unreal/build_area_main2.py`, `build_area_main3.py`), hooked into
+  `build_area_story.place()` with one line, run after Landfall (it reads the deck's sockets, Landfall's barge and loudspeaker
+  markers) and before Hob (it hands back his spots). A module takes out stale copies of what it replaces by label first
+  (the old rail Sexton, `Encounter_BluffNest`, `Encounter_TownGate`), so one of each stands whether or not the old code is cut.
+- A placed actor's tags are the script's: `build.place` replaces the C++ defaults, so a script passes the class's own tags
+  too (`CompanyLoudspeaker`, `HoseCart`, `Obstacle`).
+- Twist waves: a spawner whose later wave comes only on a thing's word: `num_waves` 2, `wave_interval` 0, `wait_for_clear`
+  off; the thing sets the spawner's `SpawnPoints` (relative to the spawner) and calls `TriggerWave` (ACompanyHoseCart's
+  spill). A set piece can't do it (it pushes on its own once the last wave thins).
+- An event objective only hears events during its step: a thing that can be done early (a tank shot from the approach)
+  stays inert outside its step (`pumping_when`), and the step before it ends close enough (Main 2's way out: 25 m round
+  the gate) that the thing is still ahead when its step starts. A spawner-counted Clear objective has no such trap.
+- Vane's radio (`UVaneBroadcast`) interrupts captions and drops what waits: anything that should be heard with him waits
+  for quiet first (`ACompanyLoudspeaker` cues, the fly-by, the cart's complaint after Hob's spill line), and words meant
+  after him queue once `IsSpeaking` is false.
+- Ground under a drop: a landing outside the playable area stays safe with walls round it for pawns only and a drop under
+  the fall recovery's open-edge 5 m (ASextonsFerry 3.8 m); a climb is a short scene that stands the body at the far end
+  first (FerryLadderClimb, the ore lift's way), never a free climb.
+- Words on boards and banners are drawn (`UTextRenderComponent`, ACompanySign, ACompanyBanner): Tripo models for them come
+  blank.

@@ -2,7 +2,8 @@
 // (the user's call, 2026-10-22: Accept never waits for them), once the player is still there with nothing covering the game
 // (ALooterHUD::OpenMissionOffer); Accept cuts the words short for the job's accept lines (SayInstead), Not now stops them
 // (StopTalking). A turn-in's choice card, and a job offered after a turn-in, wait for the turn-in's words first. A main
-// mission met first (FMissionOffer::bMeetFirst) gets no card: the talk starts it (StartMet).
+// mission met first (FMissionOffer::bMeetFirst) gets no card: the talk starts it (StartMet). Any other turn-in shows its
+// turn-in card first (OpenTurnInCard), and the talk goes ahead once the player presses Turn In (TurnInFromCard).
 
 #include "Story/SpeakerPointComponent.h"
 #include "AI_Looter_Shooter.h"
@@ -11,6 +12,7 @@
 #include "Scenes/SceneSubsystem.h"
 #include "Story/CaptionSubsystem.h"
 #include "UI/HUD/LooterHUD.h"
+#include "UI/World/MissionOfferWidget.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
@@ -146,6 +148,44 @@ int32 USpeakerPointComponent::SayInstead(const TArray<FStoryLine>& Said)
 	// They still have the floor: what they were saying stops, these come at once, and they can't be talked over meanwhile.
 	Conversation = Captions->Play(InOwnName(Said), ECaptionPlay::Interrupt);
 	return Conversation;
+}
+
+// ---------------------------------------------------------------------------
+// A turn-in, card first (the user's call, 2026-10-31: "Card, then talk")
+// ---------------------------------------------------------------------------
+
+bool USpeakerPointComponent::OpenTurnInCard(AActor* Listener)
+{
+	// Only a turn-in with no choice to make (that one's words come first, then its choice card), and only with a HUD to show
+	// it: none (tests, a headless run) turns it in by the talk at once, as before the card.
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	AActor* Owner = GetOwner();
+	const UMissionDefinition* Waiting = Runner ? Runner->FindTurnInAt(Owner) : nullptr;
+	ALooterHUD* HUD = Waiting && FMissionOfferCard::HasTurnInCard(*Waiting) ? ALooterHUD::FindFor(Listener) : nullptr;
+	if (!HUD || !HUD->OpenTurnInCard(Waiting->GetMissionId(), Owner))
+	{
+		return false;
+	}
+	// Nothing said yet and nothing turned in: what they offer comes after the turn-in, whenever it's made.
+	ClearPendingOffer();
+	UE_LOG(LogLooter, Log, TEXT("%s: %s's turn-in card for %s; they speak once it's turned in."), *Owner->GetActorNameOrLabel(),
+		*SpeakerName.ToString(), *Waiting->GetMissionId().ToString());
+	// They turn to the player all the same (a story character's look, a voice leaning to its tube).
+	OnTalked.Broadcast(*this, Listener);
+	return true;
+}
+
+bool USpeakerPointComponent::TurnInFromCard(AActor* Listener, FName MissionId)
+{
+	// Still theirs to take, and the one the card showed: the talk it stood in front of now goes ahead. CanTalk isn't asked
+	// again: the card's Turn In is the player talking to them, whatever was being said meanwhile.
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	const UMissionDefinition* Waiting = Runner && bTalkable && GetOwner() ? Runner->FindTurnInAt(GetOwner()) : nullptr;
+	if (!Waiting || Waiting->GetMissionId() != MissionId || !FMissionOfferCard::HasTurnInCard(*Waiting))
+	{
+		return false;
+	}
+	return TalkNow(Listener);
 }
 
 void USpeakerPointComponent::StartMet(const UMissionDefinition& Mission)

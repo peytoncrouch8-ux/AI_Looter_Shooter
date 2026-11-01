@@ -1,7 +1,7 @@
 // UMissionOfferWidget: the card (its ! and kind line, title, giver, story, objectives, rewards and the two buttons), opening
 // in each mode, accepting, declining. Its motion is MissionOfferWidgetMotion.cpp's, its words MissionOfferWidgetCard.cpp's,
 // its keys, stick and mouse MissionOfferWidgetInput.cpp's; the choice mode MissionOfferWidgetChoice.cpp's, the reading mode
-// MissionOfferWidgetRead.cpp's.
+// MissionOfferWidgetRead.cpp's, the turn-in mode MissionOfferWidgetTurnIn.cpp's.
 
 #include "UI/World/MissionOfferWidget.h"
 #include "Audio/LooterSound.h"
@@ -112,14 +112,15 @@ void UMissionOfferWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+float UMissionOfferWidget::GetStampHoldSeconds() const
+{
+	// A choice's stamp and a turn-in's stay a moment longer: they end the mission, not only take it on.
+	return Mode == EMissionCardMode::Choice ? ChoiceStampHoldSeconds : Mode == EMissionCardMode::TurnIn ? TurnInStampHoldSeconds : StampHoldSeconds;
+}
+
 float UMissionOfferWidget::GetCloseSeconds() const
 {
-	if (!bAccepted)
-	{
-		return DeclineSeconds;
-	}
-	// A choice's stamp stays a moment longer: it ends the mission, not only takes it on.
-	return StampSlamSeconds + (Mode == EMissionCardMode::Choice ? ChoiceStampHoldSeconds : StampHoldSeconds) + StampOutSeconds;
+	return bAccepted ? StampSlamSeconds + GetStampHoldSeconds() + StampOutSeconds : DeclineSeconds;
 }
 
 bool UMissionOfferWidget::Accept()
@@ -242,6 +243,10 @@ void UMissionOfferWidget::BuildCard()
 	ChoiceRings.Reset();
 	ChoiceKeys.Reset();
 	ChoiceHoldWords.Reset();
+	DoneRows.Reset();
+	DoneTicks.Reset();
+	BurstGlow = nullptr;
+	BurstRays = nullptr;
 	AcceptButton = nullptr;
 	DeclineButton = nullptr;
 
@@ -256,6 +261,11 @@ void UMissionOfferWidget::BuildCard()
 	{
 		PanelTitle = LOCTEXT("ReadTitle", "Read").ToString();
 		BuildReadContent(Content);
+	}
+	else if (Mode == EMissionCardMode::TurnIn)
+	{
+		PanelTitle = LOCTEXT("TurnInTitle", "Turn in").ToString();
+		BuildTurnInContent(Content);
 	}
 	else
 	{
@@ -276,9 +286,15 @@ void UMissionOfferWidget::BuildCard()
 	PromptSlot->SetHorizontalAlignment(HAlign_Center);
 	PromptSlot->SetPadding(FMargin(0.f, 12.f, 0.f, 2.f));
 
-	// The panel, and the stamp over it once accepted (or chosen).
+	// The panel, and the stamp over it once accepted (or chosen, or turned in: then with its burst of light under it).
 	UOverlay* Body = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 	FillOverlaySlot(Body->AddChildToOverlay(MakePanel(WidgetTree, PanelTitle, Content)));
+	if (Mode == EMissionCardMode::TurnIn)
+	{
+		UOverlaySlot* BurstSlot = Body->AddChildToOverlay(MakeBurst());
+		BurstSlot->SetHorizontalAlignment(HAlign_Center);
+		BurstSlot->SetVerticalAlignment(VAlign_Center);
+	}
 	Stamp = MakeStamp();
 	UOverlaySlot* StampSlot = Body->AddChildToOverlay(Stamp);
 	StampSlot->SetHorizontalAlignment(HAlign_Center);
@@ -300,7 +316,8 @@ UWidget* UMissionOfferWidget::MakeHeader()
 	MarkImage = nullptr;
 	if (Mode != EMissionCardMode::Read)
 	{
-		const MissionMarkIcons::EMark Glyph = Mode == EMissionCardMode::Choice ? MissionMarkIcons::EMark::TurnIn : MissionMarkIcons::EMark::Offer;
+		const bool bEnds = Mode == EMissionCardMode::Choice || Mode == EMissionCardMode::TurnIn;
+		const MissionMarkIcons::EMark Glyph = bEnds ? MissionMarkIcons::EMark::TurnIn : MissionMarkIcons::EMark::Offer;
 		UOverlay* Mark = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		MarkHalo = MakeImage(WidgetTree, MissionMarkIcons::HaloBrush(Card.bMain, FVector2D(MarkBox), 0.55f));
 		FillOverlaySlot(Mark->AddChildToOverlay(MarkHalo));

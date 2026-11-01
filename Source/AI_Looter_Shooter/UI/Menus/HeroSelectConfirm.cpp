@@ -36,7 +36,7 @@ bool UHeroSelectWidget::Confirm()
 	if (!CanConfirm(Selected))
 	{
 		LooterSound::Play2D(this, LooterSoundCue::Denied);
-		SetStatus(FString::Printf(TEXT("%s is in the works: their model and powers aren't in the game yet."), *Hero->DisplayName.ToString()), Color::Worse());
+		SetStatus(FString::Printf(TEXT("%s is in the works: their model and skills aren't in the game yet."), *Hero->DisplayName.ToString()), Color::Worse());
 		return false;
 	}
 	// The pick takes: the equip's clack and the ember's chime, the hero lifting into the light, then the session starts.

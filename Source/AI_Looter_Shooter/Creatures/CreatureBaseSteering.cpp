@@ -15,6 +15,9 @@ namespace
 {
 	constexpr float SteerInterval = 0.1f;
 
+	/** Within this (cm, at size 1) of its post's edge, where its goal lies past it, it stands rather than creep along the edge. */
+	constexpr float PostArrive = 60.f;
+
 	/** Settling on the ground lifts a creature no more than this (cm, or its half height if taller) from where it was put. */
 	constexpr float SettleMostRise = 120.f;
 	/** ...past that the ground is looked for from this far over its feet (cm): over the floor it was put on, under any ceiling. */
@@ -31,9 +34,37 @@ namespace
 // ten meeting one head-on up close; four looks at most far away. Updates come every 0.1 s, or at its slower update rate.
 // ---------------------------------------------------------------------------
 
-void ACreatureBase::MoveToward(const FVector& Goal, float Speed, float DeltaSeconds)
+void ACreatureBase::SetPost(float Radius)
+{
+	PostRadius = FMath::Max(Radius, 0.f);
+}
+
+bool ACreatureBase::IsWithinPost(const FVector& Where) const
+{
+	return PostRadius <= 0.f || FVector::DistSquared2D(Where, Home.GetLocation()) <= FMath::Square(static_cast<double>(PostRadius));
+}
+
+FVector ACreatureBase::KeepToPost(const FVector& Goal) const
+{
+	if (IsWithinPost(Goal))
+	{
+		return Goal;
+	}
+	const FVector Middle = Home.GetLocation();
+	FVector Kept = Middle + (Goal - Middle).GetSafeNormal2D() * PostRadius;
+	Kept.Z = Goal.Z;
+	return Kept;
+}
+
+void ACreatureBase::MoveToward(const FVector& WantedGoal, float Speed, float DeltaSeconds)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CreatureSteer);
+	// At a post, whatever it's after: never past the post's edge (it stands there, at the nearest point to its goal).
+	const FVector Goal = KeepToPost(WantedGoal);
+	if (PostRadius > 0.f && Goal != WantedGoal && FVector::DistSquared2D(GetActorLocation(), Goal) < FMath::Square(PostArrive * SizeScale))
+	{
+		return;
+	}
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	Movement->MaxWalkSpeed = Speed;
 	// A fresh start (SetState zeroes StuckTime): the wall it was following and any glide free are over.

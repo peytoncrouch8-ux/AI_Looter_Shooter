@@ -11,6 +11,7 @@ class ARoostCrows;
 class UArrowComponent;
 class UAudioComponent;
 class UInstancedStaticMeshComponent;
+class UMaterialInterface;
 class UMissionDefinition;
 class UMissionRunner;
 class UPointLightComponent;
@@ -45,6 +46,13 @@ struct AI_LOOTER_SHOOTER_API FRespawnWakeSpot
 };
 
 /**
+ * A Wardens' lantern post since 2026-10-31 (the user's call, the Wardens story: "lantern posts instead of graves"; the
+ * Wardens light them as they explore, going down wakes the player at the last one lit, the banner reads POST LIT). Only its
+ * look and words changed: the model is a lantern post (RoostKit::PostPath, a stand-in until the Tripo model; its lamp's
+ * glass dark until lit, the beacon and its light at the lamp, the bell under its arm, Hob's crows on its post and arm), and
+ * everything below about roosts holds for the posts: the same class, ids, save data and rules (an old save's marked graves
+ * and found roosts are lit posts). The roost's story as it was:
+ *
  * One of Hob's roosts (the user's call, 2026-10-13; two a map since 2026-10-14 and a town roost on top since 2026-10-23,
  * Ransom's Rest's Main Street's by the sheriff's office, the Depot and Calder's Post): the one save, respawn and fast-travel point on every map, the same everywhere: the Crow's Mast (the user's pick from look sheet 41: a mast on a cairn, its yard cockbilled, crosstrees, a
  * stork's nest round the topmast, a fire basket on top, an old bell, the crow's-foot mark burnt in a board; SM_HobRoost, its
@@ -129,19 +137,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point")
 	FName MarkAfterMission;
 
-	// --- The roost's model ---
+	// --- The post's model ---
 
-	/** SM_HobRoost (found by itself once it's imported; the build script sets it too). None: the greybox stand-in. */
+	/**
+	 * The lantern post (RoostKit::PostPath, found by itself once it's imported; the stand-in SM_KeeperLanternPost until the
+	 * Tripo model). None: the greybox stand-in. A level saved with the old Crow's Mast (SM_HobRoost) here shows the post.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost|Model")
 	TObjectPtr<UStaticMesh> RoostMesh;
 
-	/** SM_HobRoostBell, hung on the roost's Bell socket by the top of its loop. None: a box stands in for it. */
+	/** SM_HobRoostBell, hung on the post's Bell socket (under its arm) by the top of its loop. None: a box stands in for it. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost|Model")
 	TObjectPtr<UStaticMesh> BellMesh;
 
-	/** How far the mast's foot stands above the player's spot (cm; the build script measures the ground at both). */
+	/** How far the post's foot stands above the player's spot (cm; the build script measures the ground at both). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost|Model", meta = (Units = "cm"))
 	float RoostLift = 0.f;
+
+	/** The post's lamp glass while dark (RoostKit::DarkGlassPath); lit, its own LanternGlow. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> DarkGlass;
 
 	// --- Components ---
 
@@ -281,8 +296,14 @@ public:
 	/** The light on the post now (candela), for the tests; zero when dark. */
 	float GetLightCandela() const;
 
-	/** The roost's model is in (not the stand-in). */
+	/** The post's model is in (not the stand-in). */
 	bool HasModel() const { return RoostMesh != nullptr; }
+
+	/**
+	 * The material on the post's lamp glass now (its LanternGlow slot): the dark glass until it's lit, its own glow once lit.
+	 * Null without a model or a glass slot (the greybox's lantern is plain iron).
+	 */
+	UMaterialInterface* GetLampGlass() const;
 
 	/** Where one of the roost's sockets is in the world (RoostKit's names): the model's, or the stand-in's. False without one. */
 	bool GetRoostSocket(FName Socket, FTransform& OutWorld) const;
@@ -339,6 +360,9 @@ private:
 	void BuildGreybox();
 	void ApplyLook();
 	void ApplyLightFlare();
+
+	/** The lamp's glass dark or lit with the post (bLit). */
+	void ApplyLamp();
 
 	/** Hob's crows on its perches, as play begins. */
 	void SpawnCrows();

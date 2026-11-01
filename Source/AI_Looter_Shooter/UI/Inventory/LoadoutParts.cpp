@@ -366,12 +366,12 @@ namespace LoadoutParts
 
 	FString PageTabName(int32 Page, bool bLedger)
 	{
-		// EInventoryPage order: the loadout, the ember powers (the second tab: the user's call, 2026-10-15), the bestiary
-		// (the Ledger once Sexton has handed it over), the missions, the map.
+		// EInventoryPage order: the loadout, the ember powers (the second tab: the user's call, 2026-10-15; "Skills" on screen
+		// since 2026-10-31), the bestiary (the Warden's Log once it's handed over), the missions, the map.
 		switch (Page)
 		{
 		case 0: return TEXT("Loadout");
-		case 1: return TEXT("Embers");
+		case 1: return TEXT("Skills");
 		case 2: return Ledger::BookName(bLedger);
 		case 3: return TEXT("Missions");
 		case 4: return TEXT("Map");
@@ -408,7 +408,12 @@ namespace LoadoutParts
 				return Page;
 			}
 		}
-		return INDEX_NONE;
+		// The tabs' names before 2026-10-31 (mission assets' {Page.X} still write them) and the log's without its space and
+		// apostrophe; pages by PageTabName's count (1 the skills, 2 the log).
+		const bool bSkills = Name.Equals(TEXT("Embers"), ESearchCase::IgnoreCase);
+		const bool bLog = Name.Equals(TEXT("Bestiary"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("Ledger"), ESearchCase::IgnoreCase)
+			|| Name.Equals(TEXT("WardensLog"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("Log"), ESearchCase::IgnoreCase);
+		return bSkills ? 1 : bLog ? 2 : INDEX_NONE;
 	}
 
 	void TitlePageTabs(UWidgetTree& Tree, bool bLedger)

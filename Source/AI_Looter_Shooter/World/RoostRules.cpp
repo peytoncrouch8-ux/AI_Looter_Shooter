@@ -83,12 +83,14 @@ namespace RoostRules
 
 	FStoryLine FirstDeathLine()
 	{
-		return HobSays(LOCTEXT("FirstDeath", "Told you, sunshine. You can't stay dead with the debt unpaid."));
+		// The Wardens story (2026-10-31): a living Warden knocked down, never a revenant back from the dead.
+		return HobSays(LOCTEXT("FirstDeathWarden", "Up you get, sunshine. A Warden doesn't stay down while a post still burns."));
 	}
 
 	FStoryLine FirstRoostLine()
 	{
-		return HobSays(LOCTEXT("FirstRoost", "One of my roosts. My crows carry you between them, and back to the last one when you drop."));
+		// Lantern posts, not roosts, since 2026-10-31 (the user's call): the Wardens light them as they go.
+		return HobSays(LOCTEXT("FirstPost", "That's a Warden's post lit. My crows fly you between them, and back to the last one when you drop."));
 	}
 
 	FStoryLine FirstTravelLine()

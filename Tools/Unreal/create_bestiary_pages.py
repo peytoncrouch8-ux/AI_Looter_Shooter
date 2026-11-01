@@ -13,8 +13,8 @@ Three kinds of page (UBestiaryEntry::Page, Docs/Areas/RansomsRest.md "The Ledger
     imported the page isn't made, and the script says so.
   - a story character's page (STORY_CHARACTER): words, and a model on the stand when it has one (Hob's SK_Hob, or still
     ones: Mister Sexton seated on a length of the lookout's rail, his ledger on his knee), but no actor, numbers or
-    kills (Sexton, Grandma Delia, Tilly, Father Aldana, Ranger Calder: a seated figure and talking doors and windows;
-    Hob, who is never fought). Open once its known_when holds (the mission that introduces them).
+    kills (Sexton, Delia Ransom, Tilly, Father Aldana, Ranger Calder, the Lamplighter's crew: a seated figure, people on
+    porches and decks, talking doors and windows; Hob, who is never fought). Open once its known_when holds (the mission that introduces them).
   - a Ledger name (LEDGER_NAME): one of the seven names Sexton writes in the Ledger, its whereabouts (habitat) blank until
     found_when holds (the Keeper's Lantern finds Lucky Ned in Main 7; the others wait for their missions).
 Pages ledger_only (and every Ledger name) are listed only once Sexton has handed the Ledger over, Main 2's last step; they
@@ -30,7 +30,9 @@ are written in his voice (first drafts, for the user to judge).
   DA_Bestiary_Hob         Hob, in Friends: a story character's page with SK_Hob on the stand; in the Ledger, known after
                           Main 1 (he never fights, so the player never "meets" him the way they meet a creature).
   DA_Bestiary_Sexton      Mister Sexton, NPCs, seated on the stand; in the Ledger, known from the start (he wrote it).
-  DA_Bestiary_Delia       Grandma Delia Ransom, NPCs; known after Main 1.
+  DA_Bestiary_Holloway, DA_Bestiary_Finch, DA_Bestiary_Junie  the Lamplighter's crew (Captain Mercy Holloway, Brother
+                          Tobiah Finch, Junie Calloway), Friends after Hob, words only; known after Main 1 (Landfall).
+  DA_Bestiary_Delia       Delia Ransom (Abel's mother, on her porch), NPCs; known after Main 1.
   DA_Bestiary_Tilly       Tilly Bright, Friends (Docs/Story.md's cast); known after Main 3.
   DA_Bestiary_Aldana      Father Moses Aldana, NPCs; known after Main 4.
   DA_Bestiary_Ruth        Ranger Ruth Calder, Friends (the cast's); known after Side 1 (her note on the board).
@@ -203,6 +205,54 @@ PAGES = {
         ],
         sort_order=4,
     ),
+    # Vane's Dredgers (Docs/Work/2026-10-31-Wardens/CONTRACT.md, DREDGER): the Company's men, the first human enemy, met
+    # boarding the Lamplighter in Landfall (Main1). Field guide's voice, as the Unpaid's. Stand-in stand: the mannequin
+    # until the user's Tripo Dredgers (TRIPO_MODELS.md 5-6, rigged to its skeleton) land; then point model at them.
+    'DredgerRifleman': dict(
+        asset='DA_Bestiary_DredgerRifleman',
+        name='Dredger Rifleman',
+        section='ENEMY',
+        kind="Vane Consolidated's company man",
+        actor='/Script/AI_Looter_Shooter.DredgerRifleman',
+        model='/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple',
+        habitat="Wherever Cornelius Vane is taking the dead: the Lamplighter's deck, Ransom's Rest",
+        description=("A dredge crewman of Vane Consolidated, in a black rubber coat and a gas mask with two round glass "
+                     "eyes. The Company pays him to keep the barges fed and the curious away, and he does both without "
+                     "asking what's in the coal. He breathes the smog through that filter every day, and it shows."),
+        notes=[
+            "The mask's lenses are his weak spot: a head shot is critical, for 1.5 times the damage, and cracks a lens.",
+            "He keeps fifteen meters or so off and fights from cover: down behind a rail, a crate or a wall, up to fire.",
+            "Watch for his tell: he stands, his lenses flare and a gold glint shows at the muzzle. Then three rounds.",
+            "Three bursts empty his rifle. He ducks to reload and calls it out: that's your moment to close.",
+            "Riflemen work in pairs: while one keeps you pinned, the other walks round to your flank.",
+            "Get in close and he clubs you with the butt.",
+            "Every Dredger drops ammo, most often for the gun that killed him, and about one in three drops a weapon.",
+        ],
+        sort_order=5,
+    ),
+    'DredgerHoseMan': dict(
+        asset='DA_Bestiary_DredgerHoseMan',
+        name='Dredger Hose-man',
+        section='ENEMY',
+        kind="Vane Consolidated's soul-hose crewman",
+        actor='/Script/AI_Looter_Shooter.DredgerHoseMan',
+        model='/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple',
+        habitat="Wherever Cornelius Vane is taking the dead: the Lamplighter's deck, Ransom's Rest",
+        description=("The Company's soul-man: a bigger Dredger with a brass and iron tank on his back and a soul-hose in his "
+                     "hands, the same kind the barges sink into the graves, only smaller. On a barge it pulls the dead "
+                     "out of the ground. On a deck it works just as well on the living."),
+        notes=[
+            "The brass tank on his back is his weak spot: every hit on it is critical. Put enough into it and it bursts, "
+            "throwing him off his feet, hurting everything round him and tearing the hose off.",
+            "At eight meters he plants his feet, raises the nozzle and its mouth swells cyan. Then he throws the line: step "
+            "aside as it comes.",
+            "Latched, the hose pulls you in and drains you. Break it: get fourteen meters away, put a wall between you, or "
+            "stagger him with a shot to the mask.",
+            "With his tank gone he fights on, swinging the nozzle like a club, and he's quicker for it.",
+            "Every Dredger drops ammo, most often for the gun that killed him, and about one in three drops a weapon.",
+        ],
+        sort_order=6,
+    ),
     'Gravemother': dict(
         asset='DA_Bestiary_Gravemother',
         name='The Gravemother',
@@ -276,6 +326,60 @@ PAGES = {
         ],
         sort_order=0,
     ),
+    # The Lamplighter's crew (the Wardens story, 2026-10-31; lane CREW's AWardenCrewMember, on deck at their stations): met
+    # on deck at Landfall's start, known after it as Hob is. Words only (their own models land with the Tripo people,
+    # TRIPO_MODELS.md 2-4; the stand-ins are hero bodies, nothing to put on a stand).
+    'Holloway': dict(
+        asset='DA_Bestiary_Holloway',
+        page='STORY_CHARACTER',
+        name='Captain Mercy Holloway',
+        section='FRIEND',
+        kind="The Lamplighter's captain",
+        ledger_only=True,
+        known_when=dict(after=['Main1']),
+        habitat='The Lamplighter: the wheel',
+        description=("Captain of the Lantern Wardens' airship. She has flown the Lamplighter into every valley Vane has "
+                     "dredged, and brought her home from most of them in one piece."),
+        notes=[
+            "She keeps the wheel; the ship's speaking-tube keeps her voice in your ear.",
+            "When she says hold on, hold on.",
+        ],
+        sort_order=1,
+    ),
+    'Finch': dict(
+        asset='DA_Bestiary_Finch',
+        page='STORY_CHARACTER',
+        name='Brother Tobiah Finch',
+        section='FRIEND',
+        kind='Lantern-keeper',
+        ledger_only=True,
+        known_when=dict(after=['Main1']),
+        habitat='The Lamplighter: the Great Lantern',
+        description=("He keeps the Great Lantern at the Lamplighter's prow. Its flame leans toward stolen souls, and he "
+                     "reads the lean the way other men read a compass."),
+        notes=[
+            "Where the Lantern leans, the Wardens go.",
+            "He trims the flame by hand, and talks to it when he thinks nobody's listening.",
+        ],
+        sort_order=2,
+    ),
+    'Junie': dict(
+        asset='DA_Bestiary_Junie',
+        page='STORY_CHARACTER',
+        name='Junie Calloway',
+        section='FRIEND',
+        kind="The Lamplighter's engineer",
+        ledger_only=True,
+        known_when=dict(after=['Main1']),
+        habitat='The Lamplighter: the engine',
+        description=("She keeps the Lamplighter's engine turning on wire, grease and spite. If it's bolted to the ship, "
+                     "she's fixed it twice."),
+        notes=[
+            "Find her at the engine with a wrench in her hand.",
+            "She has a name for every part of the ship, and none of them kind.",
+        ],
+        sort_order=3,
+    ),
 
     # --- The story's characters: words only ---
     'Sexton': dict(
@@ -302,17 +406,19 @@ PAGES = {
     'Delia': dict(
         asset='DA_Bestiary_Delia',
         page='STORY_CHARACTER',
-        name='Grandma Delia Ransom',
+        name='Delia Ransom',
         section='NPC',
         kind="The Keeper's mother",
         ledger_only=True,
         known_when=dict(after=['Main1']),
-        habitat="Ransom Farm: behind the screen door",
-        description=("Abel Ransom's mother. She buried her son and her grandchild on the same day, and her son got up on "
-                     "the Wednesday night. She won't open her door to you, friend, but she still sets a plate."),
+        habitat="Ransom Farm: her porch",
+        # The Wardens story (2026-10-31, lane CREW): she stands and fights on her porch now (ADeliaRansom), no kin of the
+        # hero's.
+        description=("Abel Ransom's mother. Forty years on that farm, and she's not leaving it to Vane's men or "
+                     "anything they stir up."),
         notes=[
-            "She keeps the salt line round the farm. The Unpaid won't cross it.",
-            "Talk to her through the screen door. She doesn't open it to the dead.",
+            "She keeps her shotgun loaded and her porch clear.",
+            "She softens them up. Finishing is your job.",
         ],
         sort_order=1,
     ),
@@ -347,7 +453,7 @@ PAGES = {
             "She talks through her shop window. The card says she's back after the funeral.",
             "She knows the old rites.",
         ],
-        sort_order=1,
+        sort_order=4,
     ),
     'Ruth': dict(
         asset='DA_Bestiary_Ruth',
@@ -364,7 +470,7 @@ PAGES = {
             "She signs herself Capt. R. Calder.",
             "She leaves caches for her Rangers.",
         ],
-        sort_order=2,
+        sort_order=5,
     ),
     # The doc has him an Enemy until The Gravewind is done, then a Friend; a page can't move sections yet, so he waits
     # in Friends until his fight is over, with his fight's stats on his page.
@@ -393,7 +499,7 @@ PAGES = {
             "and he'll have something to say about it.",
             "He isn't fought again. He keeps the boards now.",
         ],
-        sort_order=3,
+        sort_order=6,
     ),
     # A story character with a skinned model: his hat and fork go on its bones as he wears them at his fence.
     'Amos': dict(
@@ -417,7 +523,7 @@ PAGES = {
             "His coal is banked low, under ash. He has no quarrel with you.",
             "Since his hay went in he sits on his fence, waiting for Saint Ada to come home.",
         ],
-        sort_order=4,
+        sort_order=7,
     ),
     # The friendly dead of the expansion (Docs/Areas/RansomsRest_Expansion.md, section 4): story characters, each on their
     # own model (sheet 40) with their things as bone parts.
@@ -439,7 +545,7 @@ PAGES = {
             "He talks to the lift head through the speaking tube. Anyone talking up there is talking to Hiram.",
             "He keeps an account of the coal the Rangers owe him. He means to collect.",
         ],
-        sort_order=5,
+        sort_order=8,
     ),
     'Thaddeus': dict(
         asset='DA_Bestiary_Thaddeus',
@@ -459,7 +565,7 @@ PAGES = {
             "The knocking under Main Street at night is his knuckles on the board.",
             "He wrote his own order: pine, no brass. Tilly put brass on it anyway. He liked it.",
         ],
-        sort_order=6,
+        sort_order=9,
     ),
 
     # --- The seven names: Enemies, before the Unpaid, whereabouts blank until the lantern finds them ---

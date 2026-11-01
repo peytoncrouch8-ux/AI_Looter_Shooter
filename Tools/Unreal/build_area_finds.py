@@ -359,7 +359,8 @@ def place_ledger(build, block, found):
         entry = dict(block, id=page['id'], region=page['region'], kind='Lore', sourceEvent=f'Readable.{page["id"]}')
         town = page['id'].split('_', 1)[1]
         name = words.LEDGER_TOWNS.get(town, {}).get('name', town)
-        spot = place_spot(build, entry, placed_at(readable), readable, name=f'Ledger page: {name}')
+        # "Log page" on screen: the Ledger is the Warden's Log since 2026-10-31 (the user's rename; ids keep Ledger).
+        spot = place_spot(build, entry, placed_at(readable), readable, name=f'Log page: {name}')
         if spot is not None:
             made += 1
             build.log(f'FINDS {page["id"]}: Lore on {readable.get_actor_label()}')

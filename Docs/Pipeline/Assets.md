@@ -205,6 +205,17 @@ Rules that saved time:
   - `swim.py` (9 cues): `Player.Swim.In`, `.Out`, `.Stroke`, `.StrokeUnder` (2D), `.Gasp` (2D), `Player.Underwater.Loop`, `.Enter`, `.Exit`,
     `.Bubbles` (2D, made dark and close already: the mix low-passes the world). Names: `SwimCue` in `Player/UnderwaterView.h`.
   - Render with `Tools\sounds.ps1 <patterns>` then `build_sound_bank.py`. Those cue names live in headers other than `LooterSoundCues.h`.
+- Landfall and the Dredgers (2026-10-31; recipes `landfall.py`, `landfall_story.py`, `dredger.py`, all in `GROUPS`; 30 cues, flat constants at the
+  end of `LooterSoundCue` in `LooterSoundCues.h`, `VaneRadioIn` ... `TurnInStamp`; group notes and two lessons in `Art/Sounds/README.md`):
+  synthesized except the two guns, which reuse recordings already in `packs/` (the Dredger rifle: L85 and Tavor slowed 0.82-0.93x plus a
+  synthesized crack, barrel ring and spark flare; Delia's shotgun: the Ranchhand's blast slowed 0.86-0.88x). Rendered, not yet imported or heard:
+  `Tools\sounds.ps1 Ship.*,Story.Vane.*,Story.Spyglass.*,Story.Lantern.*,Story.Delia.*,Ambience.Smog,UI.TurnIn.*,Creature.Dredger.*` (the
+  "all shifted -0.8 dB" line is the standing value), then `build_sound_bank.py` and `... check`. Loops (`Vane.RadioHiss`, `Ship.Lamplighter.Engine|Creak`,
+  `Ship.Grapple.Strain`, `Ship.Anchor.Crank`, `Ambience.Smog`, `Creature.Dredger.Hose.Drain`) go through `LooterSound::Start`/`Stop`; `Grapple.Strain`,
+  `Hose.Drain` and the ship's loops are 3D mono 'Creature' (35 m); the Vane hiss and the smog bed are 2D. `Ship.Lamplighter.HardLanding` and
+  `Ship.Tender.Fall` carry like a gunshot ('Gun', ~60 m): play them at the ship/tender, shake timed to the hit at 0 s and the skip at ~0.4 s.
+  `Creature.Dredger.Bark` is one cue with 6 takes (random pick; rate-limit it). Most likely to need the user's ear: the masked voices (could sound
+  too narrow or steady), the rifle's boom, the crash's debris balance, the lantern's tone, the tender's fall.
 
 ## Niagara by script (round 5, 2026-10-27; the user's pick from a video: "try Niagara effects")
 

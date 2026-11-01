@@ -160,7 +160,8 @@ TSharedRef<SWidget> UEmbersWidget::RebuildWidget()
 		// The header: whose powers, and how they work.
 		{
 			UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			HeroTitle = Label(WidgetTree, TEXT("Embers"), 10, Color::Accent(), 300);
+			// "Skills" on screen (the user, 2026-10-31: "Change the hero abilities' name to 'skills'"); the code keeps Ember.
+			HeroTitle = Label(WidgetTree, TEXT("Skills"), 10, Color::Accent(), 300);
 			Header->AddChildToHorizontalBox(HeroTitle)->SetVerticalAlignment(VAlign_Center);
 			HowTo = MakeText(WidgetTree, TEXT(""), 10, Color::TextDim(), false, 60);
 			UHorizontalBoxSlot* HowSlot = Header->AddChildToHorizontalBox(HowTo);
@@ -173,7 +174,7 @@ TSharedRef<SWidget> UEmbersWidget::RebuildWidget()
 		// The cards, side by side (RebuildCards fills the row), and what to say with none.
 		CardRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Place(CardRow, FVector2D(PageSize.X * 0.5f, CardsTop), FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
-		EmptyText = Label(WidgetTree, TEXT("No embers yet"), 12, Color::TextDim(), 200);
+		EmptyText = Label(WidgetTree, TEXT("No skills yet"), 12, Color::TextDim(), 200);
 		EmptyText->SetVisibility(ESlateVisibility::Collapsed);
 		Place(EmptyText, FVector2D(PageSize.X * 0.5f, CardsTop + CardHeight * 0.4f), FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
 
@@ -242,7 +243,7 @@ void UEmbersWidget::RebuildCards()
 	const UEmberComponent* Component = GetEmbers();
 	const UHeroDefinition* Hero = Component ? Component->GetHero() : nullptr;
 	const FString HeroName = Hero && !Hero->DisplayName.IsEmpty() ? Hero->DisplayName.ToString() : FString();
-	HeroTitle->SetText(FText::FromString((HeroName.IsEmpty() ? FString(TEXT("Embers")) : FString::Printf(TEXT("%s's embers"), *HeroName)).ToUpper()));
+	HeroTitle->SetText(FText::FromString((HeroName.IsEmpty() ? FString(TEXT("Skills")) : FString::Printf(TEXT("%s's skills"), *HeroName)).ToUpper()));
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
 	const FString Key = Bindings ? Bindings->GetKey(UKeyBindingSubsystem::EmberBindingId()).GetDisplayName().ToString() : FString(TEXT("Q"));

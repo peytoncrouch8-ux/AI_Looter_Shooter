@@ -120,8 +120,10 @@ def _block(region):
         slice(int(round(u0 * TEX)), int(round(u1 * TEX)))
 
 
-def face_look(region, front, cracked, pointy, lines):
-    """looter_barrow_stone._paint_face without its painted carving: Tripo's grooves (pointy under 0.5) carry it."""
+def face_look(region, front, cracked, pointy, lines, base=None):
+    """looter_barrow_stone._paint_face without its painted carving: Tripo's grooves (pointy under 0.5) carry it. base
+    (sRGB): Tripo's own colour (the user, 2026-11-01: "Use Tripo's paint"): it replaces the painted granite and its
+    weathering (Tripo painted its own); the relief, the cracks of a cracked face and the roughness stay ours."""
     xs, zs = lbs._face_xz(region)
     shape = xs.shape
     if not front:
@@ -131,6 +133,14 @@ def face_look(region, front, cracked, pointy, lines):
     seed = 500 + (0 if front else 50) + (7 if cracked else 0)
     color, height, fine = lbs._granite(shape, 500 + (0 if front else 50), "polished" if front else "pitched")
     groove = np.maximum(lt.smooth(0.485, 0.43, lt.blur(pointy, 1.2)), lines)
+    if base is not None:
+        color = base * (1.0 - 0.18 * groove)[..., None]
+        round_off = lt.smooth(1.6, 0.0, inside_d)
+        color = lt.mix(color, color * 0.85, round_off * 0.3)
+        if cracked:
+            color, height = lbs._cracks_on(color, height, xs, zs, shape, seed + 30, chips=16 if front else 8)
+        rough = np.full(shape, 0.78 if front else 0.86, np.float32) + 0.05 * fine + 0.15 * groove
+        return color, height, rough, groove
     color = lt.mix(color, lt.rgb(0x252321), groove * 0.55)
     color = lt.mix(color, lt.rgb(0x5f6046), groove * lt.smooth(0.2, 1.0, lt.noise(shape, 603, 8.0)) * 0.35)
     ridge = lt.smooth(0.53, 0.6, lt.blur(pointy, 1.2))
@@ -171,10 +181,21 @@ def paint(low, tripo):
     lines = np.clip((lt.blur(luma, 6.0) - luma) / max(float(np.median(luma)), 1e-3) * 2.2, 0.0, 1.0)
     lines = lt.smooth(0.25, 0.7, lines) * 0.8
     relief[..., 1] *= -1.0                                   # Blender's OpenGL green to DirectX
+    # Tripo's own colour (the user, 2026-11-01: "Use Tripo's paint"): the bake's emission is scene-linear; to sRGB.
+    c = np.clip(baked['COLOUR'], 0.0, 1.0)
+    base = np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(c, 1.0 / 2.4) - 0.055).astype(np.float32)
+    # Texels the bake never reached keep the image's start value (_image's flat normal, lavender): the baked colour
+    # spread into them, so no gutter bleeds lavender into the slab's edges at a distance.
+    import looter_rebake as rb
+    reached = np.abs(baked['COLOUR'] - np.array([0.5, 0.5, 1.0], np.float32)).max(-1) > 1e-4
+    spread = rb._dilate(base, reached, steps=96)
+    spread[~reached & (np.abs(spread - base).max(-1) < 1e-6)] = np.median(base[reached], axis=0)
+    base = spread
     for a, b in (('front0', 'front1'), ('back0', 'back1'), ('edge0', 'edge1')):
         pointy[_block(b)] = pointy[_block(a)]
         relief[_block(b)] = relief[_block(a)]
         lines[_block(b)] = lines[_block(a)]
+        base[_block(b)] = base[_block(a)]
     color = np.zeros((TEX, TEX, 3), np.float32)
     color[:] = lt.rgb(0x44413d)
     height = np.zeros((TEX, TEX), np.float32)
@@ -182,19 +203,21 @@ def paint(low, tripo):
     groove = np.zeros((TEX, TEX), np.float32)
     for region in ('front0', 'front1', 'back0', 'back1'):
         sl = _block(region)
-        c, h, r, g = face_look(region, region.startswith('front'), region.endswith('1'), pointy[sl], lines[sl])
+        c, h, r, g = face_look(region, region.startswith('front'), region.endswith('1'), pointy[sl], lines[sl],
+                               base[sl])
         color[sl], height[sl], rough[sl], groove[sl] = c, h, r, g
     for region in ('edge0', 'edge1'):
         sl = _block(region)
         c, h, r = lbs._paint_edge(region, region.endswith('1'))
         g = np.maximum(lt.smooth(0.485, 0.43, lt.blur(pointy[sl], 1.2)), lines[sl] * 0.6)
-        color[sl] = lt.mix(c, lt.rgb(0x252321), g * 0.5)
+        color[sl] = base[sl] * (1.0 - 0.25 * g)[..., None]
         height[sl], rough[sl], groove[sl] = h, r, g
     px_m = 0.01 / lbs.PX_CM
     ao = lt.occlusion(height, px_m, (2, 5, 12), 1.0) * (1.0 - 0.35 * groove)
-    color = color * (0.72 + 0.28 * ao)[..., None]
+    color = color * (0.86 + 0.14 * ao)[..., None]
     painted = lt.normal_map(height, px_m, 1.0).astype(np.float32) / 255.0 * 2.0 - 1.0
     normal = _whiteout(relief, painted)
     lt.save_set(lbs.SET, color, height, px_m, np.clip(rough, 0.0, 1.0), ao=ao, normal=lt.to8(normal * 0.5 + 0.5))
-    log_ = f'{lbs.SET}: painted for the Tripo slab ({TEX} px), Tripo\'s carving baked in'
+    log_ = (f"{lbs.SET}: painted for the Tripo slab ({TEX} px) in Tripo's own colour (median sRGB "
+            f'{np.round(np.median(base.reshape(-1, 3), axis=0), 2).tolist()}), its carving baked in')
     print('GRAVEMOTHER STONE:', log_, flush=True)

@@ -1,6 +1,7 @@
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Areas/AreaRulesSubsystem.h"
+#include "Bestiary/BestiaryEntry.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Progression/ProgressionSettings.h"
@@ -33,6 +34,8 @@ void UPlayerProgressionSubsystem::PlayerControllerChanged(APlayerController* New
 		// full at its level's health and the session's saved health fits inside it.
 		NewPlayerController->OnPossessedPawnChanged.AddUniqueDynamic(this, &UPlayerProgressionSubsystem::HandlePossessedPawnChanged);
 		ApplyLevelRewards(NewPlayerController->GetPawn());
+		// Which kinds the bestiary has pages for, read as the level starts rather than at the first shot of a fight.
+		UBestiaryEntry::ReadPages();
 	}
 }
 
@@ -204,7 +207,11 @@ void UPlayerProgressionSubsystem::AwardKill(const AController* Killer, const AAc
 	{
 		return;
 	}
-	Progression->RecordDefeat(Victim);
+	// The bestiary counts only kinds with a page (a target dummy has one; a loudspeaker's horns shot out don't count).
+	if (Victim && UBestiaryEntry::HasPageFor(Victim->GetClass()))
+	{
+		Progression->RecordDefeat(Victim);
+	}
 	Progression->OnKill.Broadcast(Victim);
 	const int64 XP = KillXP(Victim, Progression->GetLevel());
 	if (XP > 0)
@@ -262,7 +269,8 @@ void UPlayerProgressionSubsystem::RecordEncounter(const AController* Player, con
 	const APlayerController* PlayerController = Cast<APlayerController>(Player);
 	const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
 	UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
-	if (!Progression || !Actor)
+	// Only kinds with a bestiary page are met: a prop that takes shots (a hose-cart, a banner, a loudspeaker's horns) never.
+	if (!Progression || !Actor || !UBestiaryEntry::HasPageFor(Actor->GetClass()))
 	{
 		return;
 	}

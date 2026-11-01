@@ -6,7 +6,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 - Story: *Revenant* (`Docs/Story.md`), weird west on the planet Teropa. One area per Hollow, each designed in `Docs/Areas/`.
 - Areas, map order since 2026-10-13:
-  - 1 Ransom's Rest: a new game starts on the new game's intro, then its cold open; its first missions teach the controls by hints. Mountain expansion:
+  - 1 Ransom's Rest: a new game starts on the planet intro, then control on the Lamplighter's deck (Landfall, below; since 2026-10-31 no Rest intro, cold open or grave wake-up); its first missions teach the controls by hints. Mountain expansion:
     `Docs/Areas/RansomsRest_Expansion.md`.
   - 2 the *Gilded Lily*: behind the north mountain, by train; not built.
   - 3 Skyreach (the old tutorial island): reached later from the Lily by skylift; off the station boards for now, test with
@@ -17,11 +17,68 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     map, the minimap and over the giver (`UGiverMarkSubsystem`).
   - Offer card `UMissionOfferWidget`: Accept / Not now. The Missions tab lists only missions taken up.
     `Looter.Mission.Offer <id>` opens a card.
+  - Turn-in card (the user, 2026-10-31: "Every mission", "Card, then talk"): every non-choice turn-in at a speaker point,
+    a board or an artifact opens the card first (`ALooterHUD::OpenTurnInCard`, `EMissionCardMode::TurnIn`): what you did
+    (each step's lines, ticked; optional ones done = BONUS), rewards, Turn In / Not now (keeps it ready); Turn In stamps
+    TURNED IN (`UI.TurnIn.Stamp`, a burst), then the giver's words (`TurnInFromCard`), then any follow-up offer. Choice
+    turn-ins keep their words-then-choice card. No HUD (tests, headless): the direct talk as before. Tests
+    `Looter.Missions.TurnInCard.*` (Card, CardThenWords, NotNow, Board, Artifact, ChoiceUnchanged, NoHUD).
+    - Flow: speaker point Interact -> `USpeakerPointComponent::Talk` -> CanTalk -> private `OpenTurnInCard` (a mission ready
+      here via `FindTurnInAt`, no choice, a HUD) else `TalkNow` (the old body). Nothing is said and no Talk event is sent
+      until Turn In (Not now leaves another mission's "Talk to X" objective uncounted). Turn In -> `UMissionOfferWidget::TurnIn`
+      -> `TurnInAtGiver`: speaker point `TurnInFromCard` -> `TalkNow` (skips CanTalk); board `ANoticeBoard::TurnIn`; artifact
+      `AMissionArtifact::TurnInFromCard`; no giver `Runner->TurnIn`. A board's Ready posting opens the card over the board
+      screen and returns to the board; an artifact's `Use` opens it (no HUD: turns in at once, now also says its lines). The
+      follow-up offer waits for the card to close and for the words (`QueueOffer(..., bWaitForWords)`).
+    - Empty `TurnIn.Lines` (Landfall, Amos): the words are the giver point's `GetLinesNow()` taken BEFORE the Talk event turns
+      the mission in (so a topic like "during Main1 from step 9 with Landfall.AbelsHat" still holds), and that topic's
+      Event/SetsFlag fire as `Talk()` does.
+    - Card: header `!` (gold main / white side), "Mission complete", title, "Turn in to <giver> . <place>" (giver =
+      `TurnIn.GiverName`, else the speaker point's `SpeakerName`, else the board's/artifact's title). "What you did" =
+      every step's objectives' tracker lines in order, required ticked, optional done = BONUS (gold tick), the LAST step's
+      optional not done = STILL OPEN (plus the hint that Not now keeps it ready); missed optionals of earlier steps and scene
+      objectives (`UMissionSceneObjective`) left out; max 10 lines then "And N more"; lines slide in 0.06 s apart from 0.16 s.
+      Rewards = `DescribeRewards` + "Bonus: +N silver . K optional done" (`MissionRewards::OptionalBonus`). Buttons Not now |
+      Turn In (E / Enter / Space / click / pad A; Esc / B = Not now). Several missions ready at one speaker: the card shows
+      the first; Turn In's talk turns in all (the banner lists each).
+    - Stamp: TURNED IN (ACCEPTED plate, mark colour), `LooterSoundCue::TurnInStamp` (+ `BoardTurnIn` at a board), a burst (soft
+      glow + 16-ray starburst, 0.5 s), a thump (2.2% squash over 0.16 s), hold `TurnInStampHoldSeconds` 0.8 s, lift away. The
+      mission-complete banner keeps the fanfare. The open sound reuses `MissionFeatures::ChoiceOpen` (a "UI.TurnIn.Open" cue
+      could be asked of SOUND). Tunables: `BurstSeconds` 0.5, `GlowTo` 2.1, `RaysTo` 1.9, `RaysTurn` 14, `ThumpDepth` 0.022,
+      `ListStagger` 0.06. Files: `UI/World/MissionOfferWidgetTurnIn.cpp` (the mode), `MissionOfferWidgetCard.cpp`
+      (`MakeTurnIn`, `HasTurnInCard`), `LooterHUDMissionOffer.cpp`, `SpeakerPointComponent*.cpp`, `MissionArtifact.cpp`,
+      `NoticeBoardWidgetCards.cpp`. Open: a board turn-in through the card gives no "turned in. <rewards>" status line on the
+      board (the optional `NoticeBoardWidget::HandleOfferClosed` edit was not made).
   - Features: optional objectives (`bOptional`: never hold a step, pay `OptionalSilver` at the turn-in); mission items
     (`AMissionItem`, carried, dropped by a creature); a turn-in with a choice of two (held to choose; story flags in
     `FCampaignRecord::StoryFlags`, read by `FStoryCondition::WithFlags`); readable props; the porch plate; an UNDERGROUND minimap
     plate (actors tagged `Underground`); any speaker point or a vendor's hatch as a turn-in.
-- Hob's roosts (the user's pick, 2026-10-13): the ONE save / respawn / fast-travel point on every map: the Crow's Mast
+- Respawn: lantern posts (the user, 2026-10-31: "What do you mean when I die?" -> Wardens light lantern posts as they
+  explore; going down wakes you at the nearest lit post; "GRAVE MARKED"/"ROOST FOUND" becomes "POST LIT"). Words and model
+  only; everything below (the roosts' rules, `ARespawnMarker`, ids, `FCampaignRecord::LastGraves/MarkedGraves/ActiveRespawns`,
+  fast travel by Hob's crows) is unchanged, so old saves' marked graves / found roosts are lit posts with no migration.
+  - Model: `RoostKit::PostPath` = `/Game/Art/Props/SM_KeeperLanternPost` (BurialDeck.py's KeeperLanternPost: 3.2 m post, braced
+    arm toward +X, iron lantern, `LanternGlow` glass, SOCKET_Light) is THE one path (stand-in until the Tripo post, see
+    TRIPO_MODELS "Lantern post": swap = `World/RoostKit.h` PostPath). `build_area_roosts.py` no longer sets `roost_mesh`; a level
+    saved with SM_HobRoost shows the post anyway (`FitRoost` swaps the mast for the class default), a rerun is cleaner. Stand-in
+    sockets (RoostKit fallbacks, cm in the post frame, +X the arm): Wake (170,0,0), Beacon = the model's Light socket (fallback
+    (90.5,0,236)), Bell (64,0,302) under the arm (old SM_HobRoostBell kept), Speaker (0,0,330), six perches (post top, arm,
+    lantern cap, brace; 2.76-3.22 m). No model: greybox post + arm in wood, lantern in iron, footing in stone.
+  - Lighting moment: the lamp's glass is dark (MI_HouseTrim on `LanternGlow`) until lit; lit, its glow returns as the beacon
+    ignites (column from the lamp, point light flares 5x then settles, bell, crows lift). Sounds: `World.Roost.Found` plus the
+    old `World.Grave.Marked` at the lamp (0.9; "Again": `World.Grave.Remarked` 0.7).
+  - Words: banner "POST LIT" (`UHudGraveMarkedWidget::TitleWords`, new painted post picture with Hob's crow on the arm); map
+    and minimap icon = a post with a hung lantern; pins "Lantern post: fast travel", legend "Lantern post"; travel card "Save
+    point"/"Lantern post", "CHOOSE A POST", "NO POST LIT" + help, "LANTERN POSTS . N", prompt "G Next post"; refusals "Hob's
+    crows don't fly to this post..." / "This post isn't lit yet. Walk up to it first."; Hob's once-only lines: first post
+    "That's a Warden's post lit. My crows fly you between them, and back to the last one when you drop.", first death "Up you get,
+    sunshine. A Warden doesn't stay down while a post still burns." Left as they were: Hob's four death lines (hero variants keyed
+    by text in `hero_lines.json`; "Easy. Breathe. Well, pretend to." hints at undeath: change there and in `RoostRules.cpp`
+    together), logs, dev commands, cue names, `URoostSettings` ("Hob's Roosts"), `LooterUI::Color::Roost`.
+  - Not checked in play: the arm axis (+X assumed; if the bell and perches float flip X in the RoostKit fallbacks), the glass
+    slot name, the beacon's 1.3 m flame cards (`URoostSettings::FlameSize` ~70 / `HaloScale` may want tuning for a lantern at
+    2.4 m). Tests `Looter.UI.GraveMarked`, `Looter.Roost.Play`, `Looter.Map`.
+- Hob's roosts (the user's pick, 2026-10-13; now lantern posts, above): the ONE save / respawn / fast-travel point on every map: was the Crow's Mast
   (`SM_HobRoost`, bell `SM_HobRoostBell`), beacon in Hob's Ember (#D8321C, core #FF8A52; `URoostSettings`, in Project Settings
   under Game > Hob's Roosts; `LooterUI::Color::Roost`).
   - Walk within 9 m (clear line) to find one: column shoots up, bell rings, crows lift, three circle the beacon, ROOST FOUND,
@@ -113,7 +170,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     Dot size and the 4 not judged by eye yet.
   - Selling (`LooterEconomy::CanSell`): Rare and up asks first; a story heirloom (named, no signature: Heirloom, Bench Mark,
     Ferryman's Due, Still Water) never sells (the hero's "not for sale" line); a boss's named legendary (Gravesilk, Company
-    Scrip, Lamplighter) sells with its own confirm ("one of a kind"; the user, 2026-10-30).
+    Scrip, Wickcutter (id Lamplighter, renamed 2026-10-31)) sells with its own confirm ("one of a kind"; the user, 2026-10-30).
   - General store REFILL ALL AMMO (note 13): first row under BUY (`VendorTrade::RefillAllAmmo`, `TallyRefill`, `RefillPrice`):
     every ammo type to its most for one payment, all or nothing; price per type = whole boxes x box price + the last part box
     (`AmmoPrice`), equal to clicking Buy until full. The row shows "+N rounds across K kinds" and the price; FULL when full; red
@@ -232,6 +289,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     `.Due`, `.Framing`, `.SkipKeys`, `.Rest`, `.Lines`; `ColdOpenTests`' first-arrival test sets the `Intro.Seen` flag.
     Round 4 (the round 3 play-check's two nits): the intro ends on REVENANT, the title rising through the white (`ReturnFromScene(UTransitionScreenSubsystem::GameTitle())`; with no cold open to take the white it rises through it anyway, logged "nothing took the white").
     Not seen in the engine yet: the Rest's shot framing (an occluding cliff at Over the Rim's start, the chapel's height).
+    Since 2026-10-31 (Landfall, below) a new game plays ONLY Part 1, in new Wardens words (`ScriptLines` L0-L3 in `NewGameIntro.cpp`,
+    ending on the Lamplighter line; `PlanetCaptions()` retimed in the same six slots: Teropa card 1.0 s for 3.0, L0 4.2/4.4, L1 8.8/4.1,
+    Reaches card 13.1/3.0, L2 16.3/4.6, L3 21.1/4.9, all done by `PlanetWhiteAt` 26; `DA_Lines_NewGameIntro` lines 0-3 new, 11 kept).
+    Part 2 (L4-L10, the Rest's shots) stays in code, console-only (`Looter.Intro.Play`). The cards now hold 3.0 s (the test's minimum):
+    the Teropa/Reaches card sounds move 0.8 s earlier than the music was tuned for.
   - Melee (note 5, the heroes' tools: `Heroes.md`): each hero swings their own tool on the right arm; the gun drops out of view and is
     hidden through the swing (round 5; `Heroes.md` "Round 5, swing feel": smear, hit-stop 65 ms / 85 on a kill). The clock: swing 0.5 s, blow at 0.15 s (was 0.45/0.12; the third-person jab follows);
     draw from under the frame, wind-up, accelerating strike with a wrist snap, a landed bounce or a follow-through, return; hit-stop,
@@ -287,9 +349,10 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   hand follows reload parts and carries the jar. SK_FP_Arms (approved 2026-10-14; `Art/Models/Characters/FPArms.py`,
   sheet `Saved/Concepts/Hands/fp_arms_sheet.png`) at `ArmsScale` 0.88 (the user: hands looked big). The rig reads bone
   positions only (the import turns bone axes). Hip holds (`Weapons/WeaponHipHold.cpp`; the revolver's in
-  `create_revolver.py`): grip cm ahead/right/up, rifle 43, 23, -23.5 (50 until 2026-10-29); shotgun 30, 22.5, -23; revolver 50, 22, -21 (the
+  `create_revolver.py`): grip cm ahead/right/up, rifle 43, 23, -27.5 (50 ahead and 23.5 down until 2026-10-29); shotgun 30, 22.5, -23; revolver 50, 22, -21 (the
   user's Borderlands framing: low right, both gloves in view; `Looter.Player.Hands.OnGun` keeps the support grip point inside
-  0.85 of the half-frame, the trigger's inside 1.0 (but for the shotgun's); the Borderlands framing nudges these, below). Long guns level (no muzzle-down tilt: the user, "the AR is
+  0.85 of the half-frame across and above, 0.95 below (the Bullpup's cup at the trigger housing's bottom, 0.8-0.9 down by
+  body, Marksman lowest; its gun is a random roll, the message names the parts), the trigger's inside 1.0 (but for the shotgun's); the Borderlands framing nudges these, below). Long guns level (no muzzle-down tilt: the user, "the AR is
   tilted forward"). Support hand palm up under the fore-end, forearms from below so the sleeve's cut end (SK_FP_Arms
   ends at the elbow in a capped cut) stays under the frame (`ForeForearm` in `FirstPersonHandsGrips.cpp`).
 - Long forearms (2026-10-22, `Saved/FPHands/PLAN.md` fix E): every SK_FP_Arms* forearm (elbow to wrist) is 1.25x Ellis's,
@@ -568,3 +631,138 @@ Contract `Docs/Archive/Work/2026-10-30-PauseMenu/CONTRACT.md`; the picks, the da
 - Sound owed: the banner plays `UI.GunSlotUnlocked`, deliberately NOT in `Audio/LooterSoundCues.h` (it would fail `Looter.Audio.BankCoversCues` until rendered); until then `UI.NotchMilestone` plays (checked with `ULooterSoundSubsystem::HasSounds`). Recipe to write (`Art/Sounds/recipes/ui.py`, ~1.6 s, 2D, Interface): a heavy steel catch thrown open and a rack's latch dropping under a rising soul-gold shimmer settling on one warm struck chord, the chord at 0.42 s; then add it to `LooterSoundCues.h` + `cues.json` together and swap the banner's local `GunSlotCue`.
 - Dev: `Looter.GunSlots` (lists the 9 story missions), `Looter.GunSlots.FinishStory` (their rewards, Heirloom included -> NEW GUN SLOT 4), `Looter.SetLevel 3`; `Looter.MenuShots` and `Tools\hudshots.ps1` show shut slots at level 1. PIE/Demo play-checks that expected 3 slots at level 1 now get 2 (by design): `Looter.GiveWeapon Rifle` x3 sends the third to the backpack.
 - Tests: `Looter.GunSlots.*` (rule, pickups, saves, moment, keys), `Looter.UI.GunSlots.Column/.Loadout/.Banner` (the column test runs a Slate prepass on the whole HUD in a test world; drop that half if it misbehaves), `Looter.Input.WheelCycles` (4 guns, 3 -> 4 -> 1), `Looter.Settings.WeaponSlotKeys`. `WeaponManagerComponent.h` is 559 lines (over the ~500 guide).
+
+## Landfall and the Lamplighter (the Wardens story round 1, 2026-10-31; written, not built or played yet)
+
+The user: "First main mission is strange and has no substance or reason ... Aim for high quality work and make the game exciting
+with a reason behind every action the player does"; "I don't want to die at all or wake up anywhere": the player is **Sully Graves**
+(display only; hero id stays `Ellis`; "they"), a sworn Lantern Warden. The cold open, grave wake-up and Rest intro no longer play for
+a new game (old code kept, console-only: `Looter.Scene.ColdOpen`, `Looter.Intro.Play`). Story: `Docs/Story.md` "The Wardens story".
+Cast: Captain Mercy Holloway (wheel), Brother Tobiah Finch (Great Lantern), Junie Calloway (engineer), Hob the crow ("sunshine"),
+villain Cornelius Vane (Vane Consolidated, "the Company"; his men are Dredgers, `Enemies.md` "Vane's Dredgers"), Delia Ransom (Abel's
+mother; bodies: `Heroes.md` "Story people's bodies").
+
+**Main 1 "Landfall"** (id stays `Main1`; automatic, area RansomsRest, XP 450, purse 20 silver). Steps counted from 0:
+0 Reach `Lamplighter_Prow` r 350 (Go to the Great Lantern) - 1 Event `Landfall.DeckClear` (Fight off Vane's boarders) -
+2 Interact HELD `Landfall_Grapple` x2 (Cut the grapple lines) - 3 Scene `HardLanding` (hidden) - 4 Interact held
+`Landfall_AnchorWinch` + Clear `LedgeClimbers` 4 (Drop the anchor / Fight off the dead) - 5 Reach `Place_RansomsPoint` r 1800, height
+counted - 6 Interact `Landfall_Spyglass` (a tap) - 7 Reach `Speaker_Delia` r 1800 + optional Interact `Landfall_AbelsHat` -
+8 Clear `FarmPorch` 8 - turn in: talk to Delia (giver "Delia Ransom"), through the turn-in card. Encounters (levels 1-2 by the
+area zones `landfallLedge`, `landfallPorch`): deck 3 riflemen + 1 hose-man in two waves plus 2 riflemen on the tender; ledge 4
+Unpaid rising from the canyon side; porch 3 riflemen + 2 hose-men + 3 Unpaid (wave 1: 2 riflemen + 3 Unpaid, wave 2: 1 rifleman +
+2 hose-men). Mission data: `Tools/Unreal/create_mission_assets.py` (constants `LANDFALL_PROW` ... `DELIA_TAG`).
+
+**Opening flow.** `USessionSubsystem::StartNewGame` plays the planet intro and opens Ransom's Rest; `StationBoard::FirstArrivalLanding()`
+= `Landing_Lamplighter` (the ship carries the tag and a `LandingSpot`; `PlaceAtLanding` stands the pawn on the moving deck and
+`SetBase`s it). `UAreaTravelSubsystem::HandleLevelBegun` -> `UColdOpenSubsystem::BeginIfDue` finds a ship in the level and
+hands the opening to `ALamplighterShip::BeginLandfall` (takes the intro's handoff, marks NewGameIntro/ColdOpen/GraveWake played
+without telling missions; returns false so the arrival reveals the white with REVENANT). The ship also begins itself 1 s into play
+if nothing called it. `Looter.PlayLevel` / `Tools\pie.ps1 -Map RansomsRest` start the same way.
+
+**`ALamplighterShip`** (`World/Lamplighter*`; `EShipFlight` Sailing, Grappled, Breaking, Landing, Moored). Properties (the build
+script sets them): `Course` (TArray<FVector>, keel pivots, >= 2), `GrappleStop` (index), `Moored` (FTransform), `TenderSide` +1/-1,
+`GangwaySide` (default -1 port), `GangwayAt` (cm from midships, -1150..750, default 475), `CanyonSide` (vector toward the drop; she
+slides up to 80 cm that way until anchored), `HullScale` (2.7, 2.9, 1.3), `LanternTarget` (Speaker_Delia). Pivot = keel middle, bow +X,
+deck top 56 cm over it, rails 3.15 m out, bag top ~980 over it. Tags `Landing_Lamplighter`, `Lamplighter` (a script's tags replace the
+C++ defaults). Parts built in code (`LamplighterShipParts.cpp`): stand-in hull (SM_Skiff_A_Packet scaled, NoCollision: shots pass
+through hull and bag), deck boxes (WorldStatic, so Dredgers have ground), rail walls (WorldDynamic, pawn-only), Great Lantern
+(lantern mesh, flame card leaning toward `LanternTarget` via `ALanternFlame` maths, 40 cd, scale 4.2), wheel, engine, gangway, the
+`Lamplighter_Prow` `ALandfallMarker`, and the crew (`AWardenCrewMember`, attached at their stations).
+- Course (`FLamplighterCourse`): Catmull-Rom by distance; cruise 900 cm/s, creep 160, accel 120, creep limit 30 m past the stop,
+  bank 6 / pitch 4 degrees, bob 14 cm. The player is placed at `LandingSpot` and based on the deck with full control. Off the
+  deck while flying 0.6 s (a death's wake, a fall) -> back on deck out of a short black. Autosaves held (`HoldSaves("Landfall")`)
+  until moored. Deck lines (`DA_Lines_LandfallDeck`) at 4.5 s.
+- Start rules (`LandfallRules::StartFor/ApplyStart`, `ELandfallStart`): Main1 done -> moored + anchored; Main1 running without
+  flag `Landfall.Begun` (an OLD SAVE) -> moored, anchored, Main1 moved to step 5, its old optional keys cleared; running with the
+  flag at step <= 3 (Save & Quit mid-air) -> flies again from the start, step back to 0; step >= 4 -> moored (anchored if flag
+  `Landfall.Anchored` or step > 4); otherwise (new game, `Looter.PlayLevel`) flight. `ApplyStart` sets `bColdOpenSeen`, `Intro.Seen`,
+  `Landfall.Begun` on every Ransom's Rest load (flags only). Scenes off (tour/perf) or no course -> moored, anchored, record
+  untouched. It must run before the runner's first update resumes Main1 (the arrival path is first; the 1 s self-start would be late:
+  check once with an old save).
+- Boarding (`LamplighterShipBoarding.cpp`, `ACompanyTender`, `ALandfallGrapple`): prow reached (Main1 step > 0, or within 350 cm of the
+  marker with no Main1) -> `UVaneBroadcast::Say(DA_Lines_LandfallVaneHorn)` -> tender spawned astern 2 s later (65 m astern / 32 m
+  out / 18 m up, runs in to 8.5 m out, 1.1 m up), alongside 9 s after -> grapples fire when alongside, within 4 m of the stop and Vane
+  done (max 30 s wait): two grapples fly 0.4 s, bite (clang, sparks, shake) -> pinned: lurch 1.4 s (roll 4, pitch 2.5), then not
+  one transform change until the lines part (creatures stand on the deck). +1 s the tender's 2 riflemen (`SetHoldsGround`),
+  +2.2 s gangplank, +3 s wave 1 (2 riflemen 0.7 s apart), wave 2 (hose-man + rifleman) 1.5 s after wave 1 is down (or 25 s in with
+  one left). All four down -> `NotifyEvent("Landfall.DeckClear")` + `DA_Lines_LandfallGrapples`; only then are the hooks usable
+  (hold 1.2 s each). Both cut -> the tender falls burning (fireball, smoke, riflemen frozen and carried, gone after 8 s), bag tear,
+  lurch, `DA_Lines_LandfallLanding`. The crew brace on every lurch (`AWardenCrewMember::Brace`: grapples 1.2 s, stop 1.5 s, bag tear
+  1.5 s, landing 3.0 s).
+- Landing (`LamplighterShipLanding.cpp`, `Scenes/HardLanding`): 2 s breaking (player free, gas jetting), then scene `HardLanding`
+  (look-only, carried, 5.8 s, skippable; the mission's hidden scene objective needs the scene to mark itself played under that exact
+  name): drop, list to the torn side (list 9, nose 6, flare 3), touch at 6 s (crash cue, big shake + kick, dust skirt, keel sparks,
+  squash 25), 0.8 s skid, settle exactly at `Moored` (1 s). Moored: the gangway opens on `GangwaySide` at `GangwayAt`, engine + creak
+  run, she groans and shifts every 3.5-7 s (12 cm) until the winch is wound. `ALandfallWinch` (tag `Landfall_AnchorWinch`, hold 2.5 s,
+  crank turns, `AnchorCrank` loop, `AnchorSet`, chain to her hull 7 m fore of midships on the gangway side, engine and creak fade,
+  flag `Landfall.Anchored`; the ship's `winch_offset` is used only when none is placed). `DA_Lines_LandfallAnchor` plays when she
+  is down, if not anchored.
+- Spyglass: `ALandfallSpyglass` (tag `Landfall_Spyglass`, `barge_tag` `Landfall_Barge`, aims itself at the barge, eye 1.4 m up): tap ->
+  scene `SmogReveal`: dip into the glass, the barge (FOV 18->10), down the hose to the traced ground, up 35 m of smog; Vane's
+  valley broadcast at 1 s (`DA_Lines_LandfallVaneValley`), waits for him (max 45 s), dips out, `DA_Lines_LandfallTrail` + the
+  `LanternLean` cue. First look only (flag `Landfall.Revealed`); later looks are the quiet 9.8 s version. The reveal plays during
+  Main1 step 7 (the Interact begins it).
+- `UVaneBroadcast::Say(Context, Lines)` / `Stop` / `IsSpeaking`: `VaneRadioIn` click, captions in "Cornelius Vane" (an empty speaker
+  becomes his name) under the `VaneRadioHiss` loop, `VaneRadioOut`. Captions only for now (voices later, the user's call).
+- Line sets FLIGHT's code plays (NOT also attached to step talks): Deck, VaneHorn, Boarders, Grapples, Landing, VaneValley,
+  Trail. Anchor, Climb and Point are Hob's perch arrivals at steps 4, 5, 6 (`story_texts.LANDFALL_PERCHES`); the ship no longer
+  plays `AnchorLines()`/`PointLines()` (Main, 2026-10-31: one owner, never said twice).
+- Abel's trail: baked wisps `Landfall_AbelTrail` shown `during Main1 from the trail step` (`Levels.md` "Landfall's world"). Abel's
+  hat: an `AReadableProp` (id `AbelsHat`, tags `Landfall_AbelsHat`, `Readable`, `Readable_AbelsHat`, hold-to-read, sets flag
+  `Landfall.AbelsHat`, hidden once taken; mesh `story_texts.READABLE_MODELS['AbelsHat']` = SM_SheriffHat as a stand-in, also on
+  Delia's rocking chair after). The flag picks Delia's turn-in set: topics in order `during Main1 from_step 9 with Landfall.AbelsHat`
+  -> `DA_Lines_DeliaLandfallHat`; `from_step 9` -> `DA_Lines_DeliaLandfall`; `during Main1` -> `DA_Lines_DeliaLandfallWait` (9 = ready to
+  turn in); the turn-in has no lines of its own (see the turn-in card, empty-lines rule). After Main 1 her default is
+  `DA_Lines_DeliaPorch`. Retired sets (delete the assets only after the gameplay rebuild): `DA_Lines_DeliaMain1`,
+  `DA_Lines_HeadboardEllis`, `DA_Lines_HobWakes`.
+- The Smog lighting state: `level.environment.states.Smog` in `layout.json` (sun 4.5, sky 0.75, fog density 0.011 grey-green, brass
+  glow, greyed backdrop/clouds, exposure 0.2 vs Day's 0.4; `ALightingStates`, `FLightingState`), applied by an `AStoryLighting` rule
+  `Smog while before [Main6]` appended to the deck's StoryLighting (Main 6/7's Dusk rules stay). It costs nothing but changes the look
+  of every perf/tour shot in a new game. Smoke plumes use `MI_Landfall_SoulSmog` (M_Smoke times `MPC CloudTint`, dimmed to 0.6 in
+  Smog: the cyan glint plume may vanish; raise its SmokeColor). The barge's drone (`Ambience.Smog`) always plays, also after Main 6.
+- Dev: `Looter.Landfall [0-8]` (jump to a step: ship state, player position, shows the trail at 7), `Looter.Landfall.Ship <Sailing|
+  Grappled|Breaking|Landing|Moored|Anchored>`, `Looter.Landfall.ClearDeck`. Tests `Looter.Story.Landfall.Flight.Course/.OldSave/
+  .LandingPath/.Sequence/.Skip`, `Looter.Scenes.ColdOpen.Landfall` (the old three ColdOpen tests stay: a level without the ship still
+  plays the old opening), `Looter.Story.Landfall.Mission/.Lines`.
+- Stand-ins until Tripo (`Docs/Work/2026-10-31-Wardens/TRIPO_MODELS.md`; one soft path each): the ship hull (a Tripo ship needs
+  her own deck/rail numbers in `LamplighterShipParts.cpp` and `IsPlayerAboard`'s bounds), tender, grapples, winch, spyglass, the barge.
+- Unchecked risks: the player on a fast rolling base (9 m/s, bank, bob: if the view jitters or the player slides, lower
+  `MaxBankDegrees`/bob in `LamplighterCourse.h` or the cruise; the CMC's based-movement tick order), `UFallRecoverySubsystem` must not
+  recover a player based on the ship (she sails over open canyon and the stern hangs over the drop once moored), Dredgers on a 24 x 7 m
+  deck (they stand Exposed/BackOff; lower `Looter.Dredger.Rifle.Near`), crew hands against the stand-in wheel/lantern/engine
+  (`AWardenCrewMember::HandsShift`, `Stations[]` in `LamplighterShipParts.cpp`), and a scene playing when she breaks free (she hangs at the 2 s pose).
+- Numbers to tune: `LamplighterCourse.h` (cruise, creep, accel, bank, pitch, bob); `LamplighterShipBoarding.cpp` / `LamplighterShip.cpp`
+  (tender lead 2 s, approach 9 s, stop tolerance 4 m, Vane wait 30 s, lurch, riflemen 1 s, plank 2.2 s, wave 1 at 3 s, gap 1.5 s,
+  timeout 25 s); `HardLanding.h` (break 2 s, touch 6 s, skid 0.8, settle 1, list 9, nose 6, flare 3, squash 25);
+  `LamplighterShipLanding.cpp` (groan 3.5-7 s, shift 12 cm, slide max 80); holds 1.2 s (grapple) / 2.5 s (winch); prow radius 350;
+  trail radius 1800.
+- Pacing: Landfall adds 4 deck + 4 ledge + 8 farm kills at levels 1-2; the end levels move a little. If a `Looter.Progression.Pacing`
+  band fails, trim Main 1's or Main 2's XP, not the kills. `Docs/Progression.md` Main 1's rows and `Tests/PacingPaths.h`
+  (`MainOneStop`; `ScriptCreatureOf` finds the Dredgers by `/Script/...` path) hold the new sums; later pacing rows are low until copied in.
+- PIE check (nothing seen yet): new game -> planet intro -> on deck facing the prow, crew at wheel/lantern/engine, engine + creak
+  heard, no jitter, jumping lands back on her; prow -> Vane on the air; tender, grapples, lurch, dead still; boarders; deck clear;
+  hold the hooks under fire; tender falls, landing (skip it once); anchor; Point; spyglass reveal; trail; hat; porch fight; the card;
+  a Save & Quit mid-flight; an old session with Main 1 running; `stat unit` / `Tools\perf.ps1` at the deck fight and the Farm view.
+
+## Renames on screen (the user, 2026-10-31): Skills, the Warden's Log, Wickcutter
+
+Words only; code names, asset names, ids and save data are unchanged.
+- **Skills** (hero abilities; the user: "No lore required for skills right now"): inventory tab "Embers" -> "Skills" (`PageTabName`),
+  title "SKILLS" / "<HERO>'S SKILLS", "No skills yet", prompts "2 Skills", hero select section "Skills", the key binding's display name
+  "Skill" (id `Ember` unchanged, saved keys still bind), settings help. `{Page.Embers}` still resolves (alias) and `{Page.Skills}` too
+  (`LoadoutParts::PageNamed`). Left: `UEmberComponent`, `EInventoryPage::Embers`, `DA_Ember_*`, `Ember.*` cues, `Looter.Embers.*`, the
+  gun element "Ember" (a burn), lore words.
+- **The Warden's Log** (the bestiary, was Sexton's Ledger): the book reads "Warden's Log" on screen from the first page, open or not
+  (Main's pick, `Ledger::BookName`; a Landfall player sees the new name at once), one Warden's-voice `Ledger::Words` set ("entry/entries",
+  "Not met yet"); the gate (Main 2 step 3 opens the story pages, `bLedgerOnly`, `LedgerName`) is unchanged. Also: control hint "Then 3: the
+  Warden's Log" (hint id `Ledger`), find banner "LOG PAGE . 2 / 6", the map's "LOG PAGES 2 / 6" (title box 52 -> 68 px), the open-page
+  objective "Open the Warden's Log ({Inventory}, then {Page.Bestiary})", find spots "Log page: <Town>" (next gameplay rebuild).
+  `PageNamed` aliases: Embers, Bestiary, Ledger, WardensLog, Log. Left: `Ledger::`, `bLedgerOnly`, `Ledger.Page.<Town>` flags,
+  `LedgerPage_*`, `SM_LedgerPage`, `Looter.Story.Ledger`, the settings menu's "Ledger & Brass" look, gun notch names, Sexton's own
+  ledger lines. Also reworded: `create_mission_assets.py` ("Open the Warden's Log: ..."), `story_texts.py` ("A page of the Warden's
+  Log"), Pike's "if the Log's right" in `hero_lines.json`; the pages' own texts may still speak as Sexton's ledger (Main 2's redo).
+- **Wickcutter**: the legendary sniper once named "Lamplighter" (Abel's, Main 6's boss) shows as Wickcutter (`create_named_weapons.py`
+  `name=`; run it to update `DA_Named_Lamplighter`); asset, `LegendaryDrops::LamplighterId`, `ELegendarySignature::Lamplighter`,
+  `Looter.Legendary.Lamplighter.*` and the card text stay. "Lamplighter" is now only the ship.
+- Still telling the old story (to fix): hero select's subtitle (`UI/Menus/HeroSelectWidget.cpp` "Whoever you pick is the Revenant
+  Sexton raised.") and `Embers/HeroDefinition.h`'s comment; the other four heroes keep their Revenant stories until their own round.

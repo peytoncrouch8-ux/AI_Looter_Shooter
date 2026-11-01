@@ -1,0 +1,16 @@
+{
+  "model": {
+    "task_id": "98eceb5c-5d97-4d23-b3ce-6ceae4f513fe",
+    "status": "success",
+    "credits": 30.0,
+    "kind": "/generation/multiview-to-model"
+  },
+  "attempts": [
+    {
+      "task_id": "cf8e4fd1-aeaa-4512-9bb1-9dbf47e3b81b",
+      "status": "success",
+      "credits": 40.0,
+      "kind": "/generation/multiview-to-model"
+    }
+  ]
+}

@@ -1647,6 +1647,10 @@ def previews(house, ransom, door, dishes):
 house = farmhouse()
 if __name__ != '__overview__':            # the buildings' overview shows the tutorial island's house only
     ransom = farmhouse('Farmhouse_Ransom', lived_in=True)
+    # The Tripo model fitted into it (Art/Models/Buildings/Tripo/parts_buildings.py, Tools/Blender/looter_tripo_buildings.py;
+    # LOOTER_BUILDINGS_TRIPO=0 keeps the scripted one).
+    import looter_tripo_buildings as tripo_buildings
+    tripo_buildings.apply(ransom, 'FarmhouseRansom')
     write_screen_weave()
     door = screen_door()
     dishes = [porch_plate(), porch_jars(), porch_biscuits()]

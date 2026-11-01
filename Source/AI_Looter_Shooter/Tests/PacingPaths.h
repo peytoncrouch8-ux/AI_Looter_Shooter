@@ -116,6 +116,9 @@ namespace PacingPaths
 		const ACreatureBase* Knocker = nullptr;
 		const ACreatureBase* Gravepicker = nullptr;
 		const ACreatureBase* GravepickerLookout = nullptr;
+		/** Vane's Dredgers (Landfall, 2026-10-31: ADredgerRifleman, ADredgerHoseMan), found by class name (null until built). */
+		const ACreatureBase* DredgerRifleman = nullptr;
+		const ACreatureBase* DredgerHoseMan = nullptr;
 	};
 
 
@@ -125,6 +128,17 @@ namespace PacingPaths
 		const FString Path = FString::Printf(TEXT("/Game/Data/Placeholders/BP_Placeholder_%s.BP_Placeholder_%s_C"), Kind, Kind);
 		const UClass* Class = LoadClass<ACreatureBase>(nullptr, *Path);
 		return Class ? Class->GetDefaultObject<ACreatureBase>() : nullptr;
+	}
+
+	/**
+	 * A game class's default by its C++ name (/Script/AI_Looter_Shooter.<Name>), or null while it isn't in the module: the
+	 * Dredgers are found so, so these paths never include another lane's headers.
+	 */
+	inline const ACreatureBase* ScriptCreatureOf(const TCHAR* ClassName)
+	{
+		const FString Path = FString::Printf(TEXT("/Script/AI_Looter_Shooter.%s"), ClassName);
+		const UClass* Class = FindObject<UClass>(nullptr, *Path);
+		return Class && Class->IsChildOf(ACreatureBase::StaticClass()) ? Class->GetDefaultObject<ACreatureBase>() : nullptr;
 	}
 
 	/** Kills added only for a creature whose class is made (a placeholder before its BP exists counts nothing). */
@@ -163,30 +177,56 @@ namespace PacingPaths
 		Made.Knocker = PlaceholderOf(TEXT("Knocker"));
 		Made.Gravepicker = PlaceholderOf(TEXT("Gravepicker"));
 		Made.GravepickerLookout = PlaceholderOf(TEXT("GravepickerLookout"));
+		Made.DredgerRifleman = ScriptCreatureOf(TEXT("DredgerRifleman"));
+		Made.DredgerHoseMan = ScriptCreatureOf(TEXT("DredgerHoseMan"));
 		return Made;
 	}
 
 	// The main missions' stops, in order (their experience as Docs/Progression.md plans it).
-	inline FPathStop MainOneStop() { return { TEXT("Main 1, Seven Days"), TEXT("Main1"), {}, 450 }; }
+	inline FPathStop MainOneStop(const FPathCast& Foes)
+	{
+		// Landfall (2026-10-31, Docs/Work/2026-10-31-Wardens/CONTRACT.md "Encounters"): the boarders on the Lamplighter's deck
+		// (3 riflemen and a hose-man; the tender's own two riflemen fall away with it, uncounted), over the canyon short of
+		// the Mooring Ledge; the four Unpaid climbing onto the ledge (LedgeClimbers); the farm's fight at Delia's steps
+		// (FarmPorch: 3 riflemen, 2 hose-men, 3 Unpaid). Spots in layout cm (X north, Y east): the ledge about (-10100, -10200),
+		// the deck about 120 m west of it, the farmhouse (-4000, -5800). The Dredgers count once their classes are built.
+		FPathStop Stop = { TEXT("Main 1, Landfall"), TEXT("Main1"), {}, 450 };
+		AddKills(Stop.Kills, PlannedKills(Foes.DredgerRifleman, EPathRank::Basic, 3, TEXT("LamplighterDeck"), -10100.0, -22200.0));
+		AddKills(Stop.Kills, PlannedKills(Foes.DredgerHoseMan, EPathRank::Basic, 1, TEXT("LamplighterDeck"), -10100.0, -22200.0));
+		AddKills(Stop.Kills, PlannedKills(Foes.Unpaid, EPathRank::Basic, 4, TEXT("LedgeClimbers"), -10100.0, -10200.0));
+		AddKills(Stop.Kills, PlannedKills(Foes.DredgerRifleman, EPathRank::Basic, 3, TEXT("FarmPorch"), -4000.0, -5800.0));
+		AddKills(Stop.Kills, PlannedKills(Foes.DredgerHoseMan, EPathRank::Basic, 2, TEXT("FarmPorch"), -4000.0, -5800.0));
+		AddKills(Stop.Kills, PlannedKills(Foes.Unpaid, EPathRank::Basic, 3, TEXT("FarmPorch"), -4000.0, -5800.0));
+		return Stop;
+	}
 
 	inline FPathStop MainTwoStop(const FPathCast& Foes)
 	{
-		// The bluff nest: four spiders and a Restless one (build_area_story.py NEST_PUSHES; five and one until the user's
-		// "Soften early only", 2026-10-23).
-		return { TEXT("Main 2, Shall We Talk Business?"), TEXT("Main2"),
-			{ MakeKills(Foes.Spider, EPathRank::Basic, 4, TEXT("BluffNest")), MakeKills(Foes.Spider, EPathRank::Restless, 1, TEXT("BluffNest")) }, 550 };
+		// The Ferryman's Price (2026-11-01, build_area_main2.py): the Three Widows' nest, four spiders and a Restless one (the
+		// user's "Soften early only" numbers, moved off the Point); the boards' crew at level 2 whatever the deck's zone says
+		// (three riflemen, a hose-man, then the cart's spill: four Unpaid), on Gravewind Point's deck (layout (1200, -15000)).
+		FPathStop Stop = { TEXT("Main 2, The Ferryman's Price"), TEXT("Main2"),
+			{ MakeKills(Foes.Spider, EPathRank::Basic, 4, TEXT("BluffNest")), MakeKills(Foes.Spider, EPathRank::Restless, 1, TEXT("BluffNest")),
+			  KeptKills(Foes.Unpaid, EPathRank::Basic, 4, TEXT("BoardsCrew"), 1200.0, -15000.0, 2, 2) }, 400 };
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerRifleman, EPathRank::Basic, 3, TEXT("BoardsCrew"), 1200.0, -15000.0, 2, 2));
+		AddKills(Stop.Kills, KeptKills(Foes.DredgerHoseMan, EPathRank::Basic, 1, TEXT("BoardsCrew"), 1200.0, -15000.0, 2, 2));
+		return Stop;
 	}
 
 	inline FPathStop MainThreeStop(const FPathCast& Foes)
 	{
-		// The town gate: six Unpaid and a Restless one (TownGate); then Main Street's set piece on the way to Tilly (layout
-		// gameplay.encounters.fights MainStreet): six Unpaid, a Restless one and the balcony's Bell-Ringer, at the valley's 2-3
-		// (nine and one until the user's "Soften early only", 2026-10-23).
-		return { TEXT("Main 3, Cold Welcome"), TEXT("Main3"),
-			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 6, TEXT("TownGate")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("TownGate")),
+		// Under New Management (2026-11-01, build_area_main3.py): the Company's checkpoint (TownGate: three riflemen, a
+		// hose-man, two Unpaid and a Restless one); then Main Street's set piece (layout gameplay.encounters.fights MainStreet):
+		// six Unpaid, a Restless one, the balcony's Bell-Ringer and, with its second push, two riflemen, at the valley's 2-3.
+		FPathStop Stop = { TEXT("Main 3, Under New Management"), TEXT("Main3"),
+			{ MakeKills(Foes.Unpaid, EPathRank::Basic, 2, TEXT("TownGate")), MakeKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("TownGate")),
 			  PlannedKills(Foes.Unpaid, EPathRank::Basic, 6, TEXT("MainStreet"), 0.0, 3400.0),
 			  PlannedKills(Foes.Unpaid, EPathRank::Restless, 1, TEXT("MainStreet"), 0.0, 3400.0),
-			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("MainStreet"), 0.0, 3400.0) }, 1000 };
+			  PlannedKills(Foes.BellRinger, EPathRank::Basic, 1, TEXT("MainStreet"), 0.0, 3400.0) }, 800 };
+		AddKills(Stop.Kills, MakeKills(Foes.DredgerRifleman, EPathRank::Basic, 3, TEXT("TownGate")));
+		AddKills(Stop.Kills, MakeKills(Foes.DredgerHoseMan, EPathRank::Basic, 1, TEXT("TownGate")));
+		AddKills(Stop.Kills, PlannedKills(Foes.DredgerRifleman, EPathRank::Basic, 2, TEXT("MainStreet"), 0.0, 3400.0));
+		return Stop;
 	}
 
 	inline FPathStop MainFourStop(const FPathCast& Foes)
@@ -266,7 +306,7 @@ namespace PacingPaths
 	 * (Dead Lift, Back Pay: the Foreman, the second boss) between the Sink and the boards. */
 	inline TArray<FPathStop> StoryPath(const FPathCast& Foes)
 	{
-		return { MainOneStop(), MainTwoStop(Foes), MainThreeStop(Foes), MainFourStop(Foes), RoamingStop(Foes), MainFiveStop(Foes),
+		return { MainOneStop(Foes), MainTwoStop(Foes), MainThreeStop(Foes), MainFourStop(Foes), RoamingStop(Foes), MainFiveStop(Foes),
 			DeadLiftStop(Foes, /*bWithCrest*/ false), BackPayStop(Foes), MainSixStop(Foes), MainSevenStop() };
 	}
 
@@ -277,7 +317,7 @@ namespace PacingPaths
 	 */
 	inline TArray<FPathStop> EverythingPath(const FPathCast& Foes)
 	{
-		TArray<FPathStop> Path = { MainOneStop(), MainTwoStop(Foes), MainThreeStop(Foes) };
+		TArray<FPathStop> Path = { MainOneStop(Foes), MainTwoStop(Foes), MainThreeStop(Foes) };
 		Path.Add({ TEXT("Side 1, Wanted: Already Dead"), TEXT("Side1"), {}, 300 });
 		Path.Add({ TEXT("Calder's Caches"), TEXT("CaldersCaches"), {}, 250 });
 		// The depot's waiting room (the valley's 2-3): four Unpaid, a Restless one and a Bell-Ringer; and its second push as

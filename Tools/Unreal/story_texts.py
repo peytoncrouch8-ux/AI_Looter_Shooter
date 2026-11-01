@@ -24,6 +24,13 @@ line sets the topics below name are Tools/Unreal/create_story_lines.py's.
               so with that flag in its without_flags it's a talk given once (Aldana's Ada.Told).
   MUTTERS     lines a speaker point says unasked as the player passes, with when.
   PERCHES     Hob's new perches' arrival lines (the spot is the placing script's), with when.
+  LANDFALL_PERCHES Hob's perches through Landfall (Main 1 since 2026-10-31), in first-match order: each its spots (the
+              first the placing script has), when, and its arrival line set; they replace the old Main 1 board perches.
+  MAIN23_PERCHES, MAIN23_AFTER_PERCHES Hob's perches through Mains 2 and 3 (the Wardens story, 2026-11-01), as
+              LANDFALL_PERCHES; they replace the old Main 2/3 perches in build_area_story.place_hob.
+  MUTTER_POINTS lines said unasked at a spot with no one there (an unseen speaker point's mutters), by its tag.
+  LOUDSPEAKER_CUES what Vane says from each Company loudspeaker (ACompanyLoudspeaker), by its tag; NED_LEFT_FLAG and
+              BANNER_DOWN_FLAG, Main 3's story flags.
   ENCOUNTERS  when each mission fight is on (an encounter spawner's active_when), by its spawner id.
   SECRETS     the things to find off the path (2026-10-21): each one's chest, its loot, its anchor and its readable
               (build_area_secrets.py places them).
@@ -39,21 +46,42 @@ The file stays plain ASCII: a signature's dash is DASH, an escape.
 
 HOB = 'Hob'
 ELLIS = 'Ellis'
+# The player character in the Wardens story's new lines (2026-10-31): the hero Ellis shows as Sully Graves (id kept), and
+# hero_lines.json's speaker.Sully names the played hero for the other four.
+SULLY = 'Sully'
 # The long dash before a signature (an em dash), made from its code so the file stays plain ASCII.
 DASH = chr(0x2014)
+
+# Landfall's story flag (Main 1 since 2026-10-31): set by reading Abel's hat (READABLES AbelsHat, its sets_flag); Delia's
+# turn-in topic with it comes first (TOPICS['Speaker_Delia']), her best line.
+ABELS_HAT_FLAG = 'Landfall.AbelsHat'
 
 # ---------------------------------------------------------------------------
 # Readables (AReadableProp: readable_id, title, heading, text, lines, prompt, shown_when)
 # ---------------------------------------------------------------------------
 
 READABLES = {
-    # Main 1, optional: Ellis's own headboard, beside Abel's in the family plot (Grave_Ellis's Interact socket).
+    # Landfall (Main 1), step 7's optional: Abel's hat on the bluff path, where he lost it running down to warn his mother
+    # the night the barge came (the trail's glow passes it). Placed by WORLD's build_area_landfall.py as an AReadableProp
+    # with apply_readable(prop, 'AbelsHat'), also tagged Landfall_AbelsHat (the mission's Interact objective counts the
+    # interaction by that tag) and hold_to_read on (a step's key action, the mission gates' rule). Only during Main 1 from
+    # step 7, and gone once picked up (the flag in without_flags: the prop hides as the runner changes). Reading it sets
+    # Landfall.AbelsHat: Delia's turn-in says her hat lines (TOPICS['Speaker_Delia']).
+    'AbelsHat': dict(
+        title="Abel's hat", heading='Dropped on the bluff path', prompt='Pick up', text='',
+        lines=[(SULLY, "A keeper's hat, dropped on the run."),
+               (HOB, 'Take it down to the farm, sunshine. Somebody will want it.')],
+        shown_when=dict(during='Main1', from_step=7, without_flags=[ABELS_HAT_FLAG]),
+        sets_flag=ABELS_HAT_FLAG),
+    # (Retired 2026-10-31 with Seven Days: WORLD stops placing Ellis's grave and headboard. Kept so an old level's prop still
+    # reads; delete once the gameplay rebuild has removed it.) Ellis's own headboard, beside Abel's in the family plot.
     'HeadboardEllis': dict(
         title="Ellis's headboard", heading='Fresh pine, in the family plot', prompt='Read',
         text='ELLIS RANSOM.\nCAME HOME AT THE LAST.',
         lines=[(ELLIS, 'Who carved this?'),
                (HOB, 'Your grandmother. She did the letters twice.')]),
-    # Main 2, optional: the lookout's boards where the Deacon shot Ellis (Ransom's Point).
+    # (Retired 2026-11-01 with "Shall We Talk Business?": Main 2 is The Ferryman's Price now and no step reads it; kept so
+    # an old level's prop still reads until the gameplay rebuild removes it.) The lookout's boards where the Deacon shot Ellis.
     'LookoutStains': dict(
         title='The boards where it happened', heading="Ransom's Point, the lookout's deck", prompt='Look', text='',
         lines=[(ELLIS, 'He was standing right here.'),
@@ -394,7 +422,7 @@ LEDGER_TOWNS = {
 for _town, _page in LEDGER_TOWNS.items():
     if _page['found']:
         READABLES['LedgerPage_' + _town] = dict(
-            title='A page of the Ledger: ' + _page['name'], heading=_page['heading'], prompt='Read', text=_page['text'],
+            title="A page of the Warden's Log: " + _page['name'], heading=_page['heading'], prompt='Read', text=_page['text'],
             lines=_page['lines'], sets_flag='Ledger.Page.' + _town)
 del _town, _page
 
@@ -404,6 +432,8 @@ READABLE_MODELS = {
     'KeepersRoll': 'SM_KeepersRoll', 'SheriffHat': 'SM_SheriffHat', 'SheriffBadge': 'SM_SheriffBadge',
     'RuthJournal': 'SM_Journal', 'CodeBook': 'SM_CodeBook', 'PostLog': 'SM_PostLog', 'PayrollBook': 'SM_PayrollBook',
     'DeaconsSlip': 'SM_DeaconsSlip',
+    # Landfall's hat: the user's Tripo hat (/Game/Art/Props/SM_AbelsHat, lanes/IMPORT.md; the stand-in was SM_SheriffHat).
+    'AbelsHat': 'SM_AbelsHat',
     # The Rest's seeds (the props art's; build_area_seeds.py falls back to SM_DeaconsSlip while one isn't imported).
     'DeaconLetter_Cleft': 'SM_DeaconLetter', 'DeaconLetter_Saloon': 'SM_DeaconLetter', 'ReachesMap': 'SM_ReachesMap',
     # Slips (build_area_secrets.py falls back to SM_DeaconsSlip, the slip it is): Aldana's page, Teague's powder slip.
@@ -422,9 +452,12 @@ PORCH_PLATE = dict(
     take_prompt='Take the jars', eat_prompt='Eat the biscuits',
     # The slip under the jars, read as they're taken (two grave-salt grenades).
     take_lines=[("Delia's slip", "SALT FOR THE ROAD. THEY DON'T CARE FOR IT. " + DASH + ' D.')],
-    # Delia through the door, as the biscuits go (Main 7's optional).
-    eat_lines=[('Grandma Delia', '...Thank you, Ellis.')],
-    take_when=dict(during='Main1', from_step=4),
+    # Delia, as the biscuits go (Main 7's optional). (Since 2026-10-31 she's Delia Ransom, the hero a Warden, no kin.)
+    eat_lines=[('Delia Ransom', '...Thank you, Warden.')],
+    # Since Landfall (2026-10-31) the plate is no Main 1 step: Delia's turn-in sends the player to it ("Salt's on the
+    # plate"), and the jars are a free pickup from then on, once (its TakenFlag). WORLD's valley script takes this as the
+    # plate's take_when as it is, without looking for a mission step.
+    take_when=dict(after=['Main1']),
     eat_when=dict(during='Main7'),
 )
 
@@ -493,8 +526,29 @@ ITEMS = {
 # ---------------------------------------------------------------------------
 
 TOPICS = {
+    # Delia Ransom on her porch (ADeliaRansom, CREW; placed by WORLD's build_area_farm.py, which puts these FIRST in her
+    # point's topics, before its own later ones: the mine, Main 6's "Take him the lantern" with its event, Main 7's). Main 1's
+    # turn-in has no lines of its own, so what she says as it's turned in is the first of these that holds: steps counted
+    # from 0, Landfall has nine, so from_step 9 is "ready to turn in" (the step past the last). The hat's first, then the
+    # plain turn-in, then a word if she's talked to mid-fight. default: after Landfall.
+    'Speaker_Delia': dict(default='DA_Lines_DeliaPorch', name='Delia Ransom', topics=[
+        (dict(during='Main1', from_step=9, with_flags=[ABELS_HAT_FLAG]), 'DA_Lines_DeliaLandfallHat'),
+        (dict(during='Main1', from_step=9), 'DA_Lines_DeliaLandfall'),
+        (dict(during='Main1'), 'DA_Lines_DeliaLandfallWait'),
+        # Main 3 (Under New Management, 2026-11-01): her word while Sully's on the way to Tilly's (her own talk started it).
+        (dict(during='Main3'), 'DA_Lines_DeliaMain3'),
+    ]),
+    # Mister Sexton in his ferry's stern under Gravewind Point (Main 2, The Ferryman's Price, 2026-11-01; build_area_main2.py
+    # sits him there, shown from Main 2 on: he stays at his ferry). The first that holds: the Log waiting (step 3 on), the
+    # deal (step 2's talk: its last line hands the Log up), the boards first (steps 0-1), his price after Main 2.
+    'Speaker_Sexton': dict(default='DA_Lines_SextonAfter', name='Mister Sexton', topics=[
+        (dict(during='Main2', from_step=3), 'DA_Lines_SextonLedger'),
+        (dict(during='Main2', from_step=2), 'DA_Lines_SextonDeal'),
+        (dict(during='Main2'), 'DA_Lines_SextonWaiting'),
+        (dict(after=['Main2']), 'DA_Lines_SextonAfter'),
+    ]),
     # build_area_story.place_tilly: her talk is Main 3's turn-in (from its step 3, the step past the last of its three; the
-    # mission's turn-in lines say the same), her Main 7 words know her father.
+    # mission's turn-in lines say the same, after its card), her Main 7 words know her father.
     'Speaker_Tilly': dict(default='DA_Lines_TillyClosed', topics=[
         (dict(during='Main3', from_step=3), 'DA_Lines_TillyMain3'),
         (dict(during='KnockingBelow'), 'DA_Lines_TillyKnocking'),
@@ -525,7 +579,7 @@ TOPICS = {
     ]),
     # build_area_story.place_hob: his talk, the side missions after the main ones (the story first).
     # (2026-10-21, the user's cut of the story's talk: his perch arrivals carry the story; talked to, he has Main 1's word,
-    # the Old Fare's, kept whole as that mission is, and his catch-all.)
+    # the Old Fare's, kept whole as that mission is, and his catch-all. Main 1's word is Landfall's since 2026-10-31.)
     'Speaker_Hob': dict(default=None, topics=[
         (dict(during='Main1'), 'DA_Lines_HobMain1'),
         (dict(during='OldFare'), 'DA_Lines_HobOldFare'),
@@ -601,9 +655,94 @@ PERCHES = {
     'gravewindPoint': (dict(after=['Main6']), 'DA_Lines_HobMain6Point'),
 }
 
+# Hob through Landfall (Main 1 since 2026-10-31; steps counted from 0), in first-match order, as build_area_story.place_hob
+# takes perches: each (spots, when, arrival line set or None). spots: the place_hob spot names to try in order, the first
+# one the build has (a perch whose spots are all missing is left out, and its arrival words with it, so each ends on a spot
+# that exists today). Landfall's spots in place_hob's spots (measured by build_area_landfall.place): 'porchRail' (the
+# porch beam's end over Delia's steps, facing the yard), 'mooringLedge' (the anchor winch's top on the Mooring Ledge);
+# 'abelBoard' is Abel's headboard in the family plot, which the trail runs past.
+# While the Lamplighter sails (steps 0-3) no perch holds and he is away (FLIGHT may show a stand-in on the rigging): the
+# crew's words carry those steps. The arrivals are said as their step starts, wherever the player is: the Anchor, Climb and
+# Point sets are the crew's words (their speakers are on the lines). After Landfall he stays on the porch rail
+# (place_hob's last perch: porchRail, else path), where Main 2's offer finds him. place_hob warns if these steps aren't
+# the ones Main 1's data asks for (anchor, point, spyglass, trail, porch).
+LANDFALL_PERCHES = [
+    # Step 8: on the porch rail as the fight at the farm begins; there for the turn-in too.
+    (('porchRail', 'path'), dict(during='Main1', from_step=8), 'DA_Lines_HobLandfallPorch'),
+    # Step 7: on Abel's headboard, which the trail runs past on its way to the farm (else the bluff path's foot). Silent:
+    # the step starts as the spyglass is used, under the reveal's words; his word on the hat ends DA_Lines_LandfallTrail,
+    # said after it.
+    (('abelBoard', 'path'), dict(during='Main1', from_step=7), None),
+    # Step 6: on the lookout's rail by the spyglass (Holloway's word, then his).
+    (('rail',), dict(during='Main1', from_step=6), 'DA_Lines_LandfallPoint'),
+    # Step 5: on the rail already, waiting at the top of the climb (the crew's word on why).
+    (('rail',), dict(during='Main1', from_step=5), 'DA_Lines_LandfallClimb'),
+    # Step 4: on the Mooring Ledge by the winch (the crew's word on the anchor and the dead).
+    (('mooringLedge', 'rail'), dict(during='Main1', from_step=4), 'DA_Lines_LandfallAnchor'),
+]
+
+# Hob through Mains 2 and 3 (the Wardens story, 2026-11-01: The Ferryman's Price, Under New Management), as
+# LANDFALL_PERCHES (spots tried in order, when, arrival set or None), in first-match order: build_area_story.place_hob
+# takes them in place of its old Main 2/3 perches (Docs/Work/2026-10-31-Wardens/lanes/MAIN23.md, its exact edit). Spots:
+# 'widows' (the middle Widow's top, over the keeper's path) and 'ladderTop' (the ferry ladder's crossbar on the deck's
+# edge) from build_area_main2.place; 'gateRock' (the Keeper's Gate's north rock), 'gate' (the town gate's post) and 'sign'
+# (Bright & Daughter's sign) as place_hob has them already.
+MAIN23_PERCHES = [
+    # Main 2: on the ladder for the talk and the Log (why down the ladder); on the gate's north rock for the cart (why the
+    # cart, how, and the loudspeaker); on the middle Widow for the way out, silent (the offer's words are said on the move).
+    (('ladderTop', 'gateRock'), dict(during='Main2', from_step=2), 'DA_Lines_HobMain2Ladder'),
+    (('gateRock',), dict(during='Main2', from_step=1), 'DA_Lines_HobMain2Cart'),
+    (('widows', 'path'), dict(during='Main2'), None),
+    # Main 3: on the undertaker's sign once the checkpoint is broken; on the gate's post for its fight (Vane's gate cue
+    # comes after his word) and for the farm road (his word, then Ned's skiff, which waits for quiet).
+    (('sign',), dict(during='Main3', from_step=2), 'DA_Lines_HobMain3Tilly'),
+    (('gate',), dict(during='Main3', from_step=1), 'DA_Lines_HobMain3Gate'),
+    (('gate',), dict(during='Main3'), 'DA_Lines_HobMain3Road'),
+]
+# Where he waits after each (place_hob's after-perches, latest mission first): on the sign after Main 3, on the ladder's
+# crossbar after Main 2 (by the Ferryman, whom he flew for).
+MAIN23_AFTER_PERCHES = [
+    (('sign',), dict(after=['Main3']), None),
+    (('ladderTop', 'gateRock'), dict(after=['Main2']), None),
+]
+
+# Lines said unasked as the player passes a spot with no one there (an unseen speaker point: talkable off, its mutters
+# these), by the point's tag; build_area_main2.py places Keeper's Bridge's (its middle, the bridge's own build).
+MUTTER_POINTS = {
+    'Mutter_KeepersBridge': dict(name='Hob', radius=700.0, mutters=[(dict(during='Main2'), 'DA_Lines_HobMain2Bridge')]),
+}
+
+# What Vane says from each Company loudspeaker (ACompanyLoudspeaker cues: once a visit each, the first time its condition
+# holds with the player in earshot, into a quiet moment), by the loudspeaker's tag. The Keeper's Gate's speaks only when
+# the boards' hose-cart is stopped (the cart's stop_broadcast, DA_Lines_Main2VaneCart): no cue of its own.
+LOUDSPEAKER_CUES = {
+    'Loudspeaker_KeepersGate': [],
+    'Loudspeaker_TownGate': [(dict(during='Main3', from_step=1), 'DA_Lines_Main3VaneGate')],
+    'Loudspeaker_MainStreet': [(dict(during='Main3', with_flags=['SetPiece.MainStreet']), 'DA_Lines_Main3VaneStreet')],
+}
+
+# Mains 2-3's story flags: Lucky Ned's skiff has flown (AGangSkiffFlyBy's done_flag), Main Street's banner is down
+# (ACompanyBanner's down_flag; its down_event is what Main 3's optional counts).
+NED_LEFT_FLAG = 'Main3.NedLeft'
+BANNER_DOWN_FLAG = 'MainStreet.BannerDown'
+
 # When each mission fight is on (an encounter's active_when): the missions count their kills from the spawner, so a fight
 # cleared before its step began still counts.
 ENCOUNTERS = {
+    # Landfall (Main 1, 2026-10-31; WORLD's build_area_landfall.py places both spawners): four Unpaid rising from the canyon
+    # side of the Mooring Ledge while the anchor is dropped (step 4); and the farm's fight, three riflemen, two hose-men and
+    # three Unpaid at Delia's steps, on from step 7 (the spawner's own trigger, about 45 m from the farmhouse, starts it as
+    # the player comes down the trail), cleared in step 8.
+    'LedgeClimbers': dict(during='Main1', from_step=4, before_step=5),
+    'FarmPorch': dict(during='Main1', from_step=7, before_step=9),
+    # The Ferryman's Price (Main 2, 2026-11-01; build_area_main2.py): the Three Widows' spiders on the keeper's path, on the
+    # whole way out (step 0) and through the boards' fight, so a nest left for later is still there; the boards' crew from
+    # the way out (they stand at work by the cart as the player comes up the cairns) until the talk (step 2).
+    'BluffNest': dict(during='Main2', before_step=2),
+    'BoardsCrew': dict(during='Main2', before_step=2),
+    # Under New Management (Main 3; build_area_main3.py): the checkpoint's men at their sandbags from the farm road (step 0)
+    # through its fight (step 1), so a rifleman shot from the road counts and a fight won doesn't come back on a later load.
+    'TownGate': dict(during='Main3', before_step=2),
     'DepotWaiting': dict(during='OldFare', before_step=1),
     # "Rob a dead man's eyes and every soul for a mile hears about it": the waiting room fills again as Fenn's coins come
     # down the stair (the Old Fare's lay step, from 0: 5), until they're back on his eyes (build_area_missionprops_valley).

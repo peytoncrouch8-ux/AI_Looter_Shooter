@@ -14,7 +14,29 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
+#include "HAL/PlatformTime.h"
 #include "Modules/ModuleManager.h"
+
+namespace
+{
+	/** The classes with an actor page (their paths), and when they were read (FPlatformTime seconds; below 0: never). */
+	TSet<FTopLevelAssetPath> PageClasses;
+	double PagesReadAt = -1.0;
+	/** In the editor, a miss reads the pages again at most this often (s). */
+	constexpr double PagesRereadSeconds = 10.0;
+
+	bool IsPageClass(const UClass* ActorType)
+	{
+		for (const UClass* Class = ActorType; Class; Class = Class->GetSuperClass())
+		{
+			if (PageClasses.Contains(Class->GetClassPathName()))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+}
 
 FBestiaryStats UBestiaryEntry::ReadStats() const
 {
@@ -219,6 +241,44 @@ TArray<UBestiaryEntry*> UBestiaryEntry::LoadAll()
 		return A.DisplayName.CompareTo(B.DisplayName) < 0;
 	});
 	return Entries;
+}
+
+void UBestiaryEntry::ReadPages()
+{
+	PagesReadAt = FPlatformTime::Seconds();
+	PageClasses.Reset();
+	for (const UBestiaryEntry* Entry : LoadAll())
+	{
+		const FSoftObjectPath Path = Entry->ActorClass.ToSoftObjectPath();
+		if (Path.IsValid())
+		{
+			PageClasses.Add(Path.GetAssetPath());
+		}
+	}
+}
+
+bool UBestiaryEntry::HasPageFor(const UClass* ActorType)
+{
+	if (!ActorType)
+	{
+		return false;
+	}
+	if (PagesReadAt < 0.0)
+	{
+		ReadPages();
+	}
+	if (IsPageClass(ActorType))
+	{
+		return true;
+	}
+#if WITH_EDITOR
+	if (FPlatformTime::Seconds() - PagesReadAt >= PagesRereadSeconds)
+	{
+		ReadPages();
+		return IsPageClass(ActorType);
+	}
+#endif
+	return false;
 }
 
 FText UBestiaryEntry::CategoryName(EBestiaryCategory Category)

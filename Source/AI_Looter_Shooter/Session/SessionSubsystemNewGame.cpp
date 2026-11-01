@@ -1,5 +1,6 @@
-// USessionSubsystem: a new game, which starts the story at its first arrival (the cold open, then Ellis's grave on
-// Ransom's Rest). Skyreach is no longer the start (the user's call, 2026-10-13): it comes later, from the Lily.
+// USessionSubsystem: a new game, which starts the story at its first arrival: the planet intro in the menu, then the
+// Lamplighter's deck as she sails in to Ransom's Rest (Landfall, the Wardens story, 2026-10-31: no grave, no dying).
+// Skyreach is no longer the start (the user's call, 2026-10-13): it comes later, from the Lily.
 
 #include "Session/SessionSubsystem.h"
 #include "Story/NewGameIntroSubsystem.h"
@@ -61,7 +62,7 @@ bool USessionSubsystem::ApplyNewGame(ULooterSessionSave& Save, const UAreaDefini
 	Save.Progress.bTutorialDone = true;
 	StationBoard::RecordFirstCastOff(Save.Campaign);
 
-	// The Reaches bury their dead with their irons: a Common Bullpup in the coffin, in hand, with its starting magazines.
+	// A sworn Warden's issue iron: a Common Bullpup in hand as she sails in, with its starting magazines.
 	bool bArmed = false;
 	if (Bullpup)
 	{
@@ -78,7 +79,8 @@ bool USessionSubsystem::ApplyNewGame(ULooterSessionSave& Save, const UAreaDefini
 		bArmed = true;
 	}
 
-	// Straight to the story's first arrival: the session continues in the first area's level, at the family plot's grave.
+	// Straight to the story's first arrival: the session continues in the first area's level, on the Lamplighter's deck
+	// (Landing_Lamplighter; the ship begins her flight from the campaign as the level opens).
 	Save.PrepareTrip(FirstArea.GetMapPackage(), StationBoard::FirstArrivalLanding());
 	return bArmed;
 }
@@ -137,8 +139,8 @@ bool USessionSubsystem::StartNewGame(int32 Index, FName HeroId)
 	const FString Map = First->GetMapPackage();
 	UE_LOG(LogLooter, Log, TEXT("Session %d: new game as %s, the story begins in %s at %s"), Index + 1, *Save->HeroId.ToString(), *Map,
 		*StationBoard::FirstArrivalLanding().ToString());
-	// Behind the white: the cold open takes it on the story's first level (UAreaTravelSubsystem), or, with scenes off, the
-	// title rises through it there.
+	// Behind the white: on the story's first level the arrival reveals it with the title rising through it, the player on
+	// the Lamplighter's deck (UAreaTravelSubsystem, UColdOpenSubsystem::BeginIfDue hands the opening to the ship).
 	const TWeakObjectPtr<USessionSubsystem> WeakThis = this;
 	TFunction<void()> Open = [WeakThis, Map, Index]()
 	{

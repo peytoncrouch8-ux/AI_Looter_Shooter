@@ -52,9 +52,13 @@ bool FLedgerTest::RunTest(const FString& Parameters)
 	Campaign.ActiveMission = MainThree;
 	Campaign.ActiveMissionStep = 0;
 	TestTrue(TEXT("Main 2 done: his for good"), Ledger::IsOpen(Campaign));
-	TestEqual(TEXT("Its tab, before"), FString(Ledger::BookName(false)), FString(TEXT("Bestiary")));
-	TestEqual(TEXT("...and after"), FString(Ledger::BookName(true)), FString(TEXT("Ledger")));
-	TestNotEqual(TEXT("Its words change with it"), Ledger::Words(true).ListTitle, Ledger::Words(false).ListTitle);
+	// The Warden's Log on screen from the first page (the user's call, 2026-10-31): opening it only writes the story's pages in.
+	TestEqual(TEXT("Its tab, before"), FString(Ledger::BookName(false)), FString(TEXT("Warden's Log")));
+	TestEqual(TEXT("...and after"), FString(Ledger::BookName(true)), FString(TEXT("Warden's Log")));
+	TestEqual(TEXT("Its title the same either way"), Ledger::Words(true).ListTitle, FString(TEXT("The Warden's Log")));
+	TestEqual(TEXT("...before too"), Ledger::Words(false).ListTitle, Ledger::Words(true).ListTitle);
+	TestFalse(TEXT("No Ledger or Sexton's voice left on screen"), Ledger::Words(true).EmptyHelp.Contains(TEXT("friend"))
+		|| Ledger::Words(true).Empty.Contains(TEXT("Ledger")));
 	TestFalse(TEXT("A blank to fill in for the whereabouts"), Ledger::Words(true).BlankWhereabouts.IsEmpty());
 
 	// The page types. An actor page: listed always, open once met (or once its KnownWhen holds).

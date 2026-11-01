@@ -62,7 +62,9 @@ namespace StationBoard
 
 	FName FirstArrivalLanding()
 	{
-		return FName(TEXT("Landing_FamilyPlot"));
+		// The Lamplighter's deck (Landfall, 2026-10-31): the story opens on her as she sails in, not at a grave. The ship
+		// carries the tag (ALamplighterShip, LandfallRules::LandingTag).
+		return FName(TEXT("Landing_Lamplighter"));
 	}
 
 	void RecordFirstCastOff(FCampaignRecord& Campaign)

@@ -19,6 +19,8 @@
 #include "Creatures/BellRingerCreature.h"
 #include "Creatures/SpitterSpider.h"
 #include "Creatures/StoneSentinelCreature.h"
+#include "Creatures/DredgerRifleman.h"
+#include "Creatures/DredgerHoseMan.h"
 #include "Elements/ElementRules.h"
 #include "World/WorldQueries.h"
 #include "Components/CapsuleComponent.h"
@@ -103,6 +105,14 @@ namespace
 		else if (Kind.Equals(TEXT("StoneSentinel"), ESearchCase::IgnoreCase) || Kind.Equals(TEXT("Sentinel"), ESearchCase::IgnoreCase))
 		{
 			Found.Class = AStoneSentinelCreature::StaticClass();
+		}
+		else if (Kind.Equals(TEXT("DredgerRifleman"), ESearchCase::IgnoreCase) || Kind.Equals(TEXT("Rifleman"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = ADredgerRifleman::StaticClass();
+		}
+		else if (Kind.Equals(TEXT("DredgerHoseMan"), ESearchCase::IgnoreCase) || Kind.Equals(TEXT("HoseMan"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = ADredgerHoseMan::StaticClass();
 		}
 		return Found;
 	}

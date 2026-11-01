@@ -436,7 +436,7 @@ void UBestiaryWidget::RefreshPrompts()
 	const FPrompt Prompts[] = {
 		{ TEXT("W / S"), TEXT("Browse") },
 		{ TEXT("1"), TEXT("Loadout") },
-		{ TEXT("2"), TEXT("Embers") },
+		{ TEXT("2"), TEXT("Skills") },
 		{ TEXT("4"), TEXT("Missions") },
 		{ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") },
 	};

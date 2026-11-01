@@ -22,22 +22,24 @@ namespace
 	}
 
 	/**
-	 * Hob's roost, the same on the map, the minimap and its rim: the crow's-foot mark burnt in a board on every roost (look
-	 * sheet 41), a bird's track: three toes spread up from the pad, the hind toe down. Four bold strokes and the pad: on the
-	 * minimap's rim it is hardly ten pixels across and still reads.
+	 * A Wardens' lantern post (the user's call, 2026-10-31; Hob's roost's crow's-foot before), the same on the map, the
+	 * minimap and its rim: the post on its foot, the arm out, the lantern hung from its end. Three bold strokes and the
+	 * lantern's shape: on the minimap's rim it is hardly ten pixels across and still reads as a post with a light on it.
 	 */
 	const FVectorIcon& RoostIcon()
 	{
 		static const FVectorIcon Icon = []
 		{
 			FVectorIcon Result;
-			Result.StrokeWidth = 2.6f;
-			const FVector2D Pad(12.0, 13.2);
-			Result.Strokes.Add(TArray<FVector2D>{Pad, FVector2D(12.0, 2.4) });
-			Result.Strokes.Add(TArray<FVector2D>{Pad, FVector2D(4.4, 5.0) });
-			Result.Strokes.Add(TArray<FVector2D>{Pad, FVector2D(19.6, 5.0) });
-			Result.Strokes.Add(TArray<FVector2D>{Pad, FVector2D(12.0, 21.8) });
-			Result.Fills.Add(Circle(Pad, 2.4, 16));
+			Result.StrokeWidth = 2.4f;
+			// The post, its foot and its arm.
+			Result.Strokes.Add(TArray<FVector2D>{ FVector2D(7.0, 22.0), FVector2D(7.0, 3.0) });
+			Result.Strokes.Add(TArray<FVector2D>{ FVector2D(3.0, 22.0), FVector2D(11.0, 22.0) });
+			Result.Strokes.Add(TArray<FVector2D>{ FVector2D(5.8, 3.4), FVector2D(18.0, 3.4) });
+			// The lantern under the arm's end: its cap, its glass and its base, solid.
+			Result.Fills.Add(TArray<FVector2D>{ FVector2D(11.6, 8.0), FVector2D(15.5, 4.8), FVector2D(19.4, 8.0) });
+			Result.Fills.Add(TArray<FVector2D>{ FVector2D(12.2, 8.0), FVector2D(18.8, 8.0), FVector2D(19.4, 16.6), FVector2D(11.6, 16.6) });
+			Result.Fills.Add(TArray<FVector2D>{ FVector2D(11.0, 16.6), FVector2D(20.0, 16.6), FVector2D(20.0, 18.6), FVector2D(11.0, 18.6) });
 			return Result;
 		}();
 		return Icon;
@@ -230,6 +232,6 @@ namespace MapIcons
 	{
 		// Small on the minimap, so the texture's resolution follows the size it's drawn at.
 		const float Pixels = IconSize < 16.f ? 4.f : PixelsPerUnit;
-		return LooterUI::IconBrush(TEXT("MapRoost"), RoostIcon(), Pixels, FVector2D(IconSize, IconSize), Tint);
+		return LooterUI::IconBrush(TEXT("MapPost"), RoostIcon(), Pixels, FVector2D(IconSize, IconSize), Tint);
 	}
 }

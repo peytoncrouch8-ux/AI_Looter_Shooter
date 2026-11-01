@@ -1,0 +1,84 @@
+{
+  "FarmhouseRansom": {
+    "prompt": "A one-and-a-half-storey frontier farmhouse, 8.4 m wide, 6.2 m deep, long side to the front, a 40 degree gable roof of rusty corrugated tin weathered dull brown-grey, a small gabled dormer in the front slope, a black stovepipe. Weathered grey-brown vertical plank siding, a fieldstone foundation 0.6 m high. A covered porch across the whole front, 2.6 m deep: plank deck at knee height, steps in the middle, four square posts with knee braces, a low tin shed roof. A front door exactly in the middle of the front wall with a faded teal screen door, a lantern beside it, one window each side with faded teal shutters latched open and linen curtains. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 30000,
+    "person": false,
+    "paint": "Painted in full natural colour, a lived-in, cared-for frontier farmhouse: warm honey-brown and grey-brown weathered vertical plank siding, sound boards with soft grain and no white peeling paint, dark brown corner boards, a grey fieldstone foundation, the roof dull dark brown-grey corrugated tin with soft rust-brown streaks, the porch deck and posts warm brown planks, faded teal front door, screen door and shutters, cream linen curtains, a black iron stovepipe. Warm late-afternoon light, matte hand-painted stylized realism.",
+    "paint_style": "Art/Tripo/style/cottage_preview.png"
+  },
+  "BarnRansom": {
+    "prompt": "A big frontier farm barn, 8 m wide and 12 m long, its gable end facing front, a gambrel roof covered in weathered silver-grey cedar shakes, a wooden ridge cap. Weathered grey-brown vertical board siding on a low fieldstone footing. In the front gable a great pair of plank double doors 3.2 m wide and 3.4 m tall, framed and cross-braced with faded oxide-red boards, a hayloft door above them under a projecting hoist beam with a rusty pulley and hook, small square windows with oxide-red frames and X braces along both long sides, a small door in the back gable. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 25000,
+    "person": false,
+    "paint": "Painted in full natural colour: a frontier barn of warm honey-brown weathered vertical boards with soft grain, no white peeling paint, the gambrel roof warm grey-brown cedar shakes, faded oxide-red trim on the great doors and window frames, grey fieldstone footing, a rusty iron pulley. Warm late-afternoon light, matte hand-painted stylized realism.",
+    "paint_style": "Art/Tripo/style/barn_ingame.png"
+  },
+  "CottageRansom": {
+    "prompt": "A small frontier settler's cottage, 4.8 m wide and 6.4 m deep, its gable end facing front, a steep 55 degree roof of weathered grey-brown cedar shakes, a fieldstone chimney rising through the left slope near the back. Weathered brown clapboard walls with vertical boards in the gables, hewn corner boards, a fieldstone base 0.45 m high. Two-over-two sash windows in faded teal casings with linen curtains, a small window high in the front gable. A faded teal plank door left of centre on the front, over a small plank stoop with a stone step, under a little shed roof of shakes on two thin posts; a bench under the front window, firewood stacked under one side eave. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 20000,
+    "person": false
+  },
+  "DepotRR": {
+    "prompt": "A two-storey frontier railroad depot, 14 m long and 8 m deep, its long side facing front toward the tracks: railroad-red board and batten siding with cream painted trim and window casings, a gable roof of weathered grey cedar shakes, a fieldstone chimney. Along the whole front a long low canopy of shakes on wooden knee brackets with a plain blank board hanging from its edge, over a raised plank platform floor at knee height. A projecting bay with a ticket window, open double doors into the waiting room, tall sash windows, a few panes broken. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 40000,
+    "person": false
+  },
+  "ChapelRR": {
+    "prompt": "A small white clapboard frontier chapel with a long narrow nave, twice as long as it is wide, its gable end facing front, a steep roof of weathered grey cedar shakes, on a fieldstone footing. A square bell tower centred on the front gable: oxide-red double doors at its foot under a small gabled hood, above them a board-and-batten belfry with a louvred opening on each face and an iron bell inside, topped by a slender white shingled octagonal spire with a small iron cross, 18 m tall in all. Tall pointed gothic windows down both long sides, a small lean-to vestry on the right side near the back. White paint weathered grey and flaking near the ground. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 35000,
+    "person": false
+  },
+  "WorkshopBright": {
+    "prompt": "A one-storey frontier undertaker's workshop, 10 m wide and 7 m deep, its long side facing front: weathered black-stained board and batten siding with black trim, a gable roof of weathered grey cedar shakes, a thin iron stovepipe. Big plank double doors in the middle of the front wall standing open, a low stone step before them, small sash windows with black frames, a lantern on a bracket beside the doors. Plain, sombre and well kept. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 25000,
+    "person": false
+  },
+  "BarnWhitlock": {
+    "prompt": "A very long, low frontier hay barn, twice as long as it is deep and three times as long as it is tall, its long side facing front, one long gable roof of weathered grey cedar shakes. Weathered grey-brown board and batten walls close its back and both gable ends. The front stands open along two thirds of its length: four heavy timber posts under a plate beam with knee braces, showing a hay bay with loose golden hay and stacked hay bales inside on an earth floor. The last third is a closed tack room with a plank door standing open and a small window with its shutter folded back. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 25000,
+    "person": false
+  },
+  "SmithyRR": {
+    "prompt": "An open-fronted frontier blacksmith's shed, 5 m wide and 4 m deep, a shake roof of weathered grey cedar shakes on heavy timber posts, weathered plank back and side walls, the front open. Inside against the back wall a big fieldstone forge with a hooded stone chimney rising through the roof, a cold grey hearth, an iron anvil on a wooden stump, a water trough, tongs and hammers hung on the wall. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 20000,
+    "person": false
+  },
+  "FrontHotel": {
+    "prompt": "A two-storey frontier western hotel with a tall flat square false front, 10 m wide and 13 m deep, bleached pale cream boards with black painted trim, a bracketed cornice along the top, a plain blank black sign band across the front. A covered porch across the front with four wooden posts and a shed roof of weathered grey shakes over a plank deck. Every window and both front doors boarded over with weathered grey planks. A gable roof of shakes behind the false front. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 30000,
+    "person": false
+  },
+  "FrontAssay": {
+    "prompt": "A one-storey frontier mining company assay office, 7 m wide and 9 m deep, with a tall false front shaped like a classical temple front: cream painted pilasters and a triangular pediment on weathered grey-brown siding, a plain blank black sign board. Black iron shutters closed and barred over both front windows, a heavy plank door with iron straps, a chain and padlock across it. A gable roof of weathered shakes behind the front, small barred windows along the sides. Shut and stern. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 20000,
+    "person": false
+  },
+  "FrontBarber": {
+    "prompt": "A small one-storey frontier barber shop, 5 m wide and 9 m deep, with a stepped false front of faded teal painted boards with cream trim, a plain blank cream sign board, a red and white striped barber pole on a bracket beside the door, the front window closed with faded shutters, a plank door. A gable roof of weathered grey shakes behind the false front, weathered grey-brown board sides. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 20000,
+    "person": false
+  },
+  "WatchtowerRR": {
+    "prompt": "A tall timber frontier watchtower, 4 m square and 16 m tall: weathered grey-brown board and batten walls between four heavy corner posts, narrow slit windows up the sides, a plank door at the foot. At the top, 12 m up, an open lookout deck 4.8 m square with a wooden railing, under a pyramid roof of weathered grey cedar shakes on four corner posts, and an iron fire basket on a bracket at one corner. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "people, animals, trees, fence, ground plane, terrain, base, pedestal, text, letters, watermark, multiple buildings, modern, glossy, plastic, toy, cartoon, low poly, faceted, grey clay, untextured, saturated colours, blue roof",
+    "faces": 25000,
+    "person": false
+  },
+  "WindmillRR": {
+    "prompt": "An American farm windpump, 9 m tall, NOT a Dutch windmill: an open tapering lattice tower of four hewn timber legs with diagonal board cross-bracing, see-through, a ladder up one leg to a small railed plank platform under the head. On top a round fan wheel 3 m across made of many narrow wooden blades set like daisy petals in a ring, facing front, a long flat wooden tail vane behind it, a pump rod down the middle of the tower. Beside it a wooden stave water tank with iron hoops on a low stand, fed by a pipe. Palette: warm honey-brown and grey-brown weathered wood, grey-brown shakes, grey fieldstone, faded teal and oxide-red paint. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier town. One building alone, front facing the viewer.",
+    "negative": "Dutch windmill, smock mill, four sails, mill house, building, people, ground plane, terrain, base, debris, text, modern, metal, glossy, plastic, toy, cartoon, low poly, grey clay, untextured",
+    "faces": 20000,
+    "person": false
+  }
+}

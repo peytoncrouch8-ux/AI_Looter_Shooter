@@ -1,5 +1,6 @@
-// ARespawnMarker's roost: the model (or its greybox stand-in) placed by its Wake socket, the beacon and its light on its top,
-// its sockets, the light's flare as it's found, its sound near the player, and the crows' welcome when they bring someone.
+// ARespawnMarker's post (the Wardens' lantern post since 2026-10-31, Hob's roost before): the model (or its greybox stand-in)
+// placed by its Wake socket, the beacon and its light at its lamp, its sockets, the lamp's glass dark until lit, the light's
+// flare as it's lit, its sound near the player, and the crows' welcome when they bring someone.
 
 #include "World/RespawnMarker.h"
 #include "AI_Looter_Shooter.h"
@@ -18,6 +19,7 @@
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Materials/MaterialInterface.h"
 
 namespace
 {
@@ -39,16 +41,48 @@ namespace
 	constexpr float RingTravel = 0.5f;
 	constexpr float RingAgain = 0.3f;
 
-	/** A socket of the roost's model, in the model's own frame; false when the model has none so named. */
+	/**
+	 * A socket of the post's model, in the model's own frame; false when the model has none so named. The beacon, with no
+	 * Beacon socket, stands at the lamp's flame (the stand-in post's SOCKET_Light).
+	 */
 	bool ModelSocket(const UStaticMesh* Model, FName Name, FTransform& Out)
 	{
 		const UStaticMeshSocket* Socket = Model ? Model->FindSocket(Name) : nullptr;
+		if (!Socket && Model && Name == RoostKit::BeaconSocket())
+		{
+			Socket = Model->FindSocket(RoostKit::LightSocket());
+		}
 		if (!Socket)
 		{
 			return false;
 		}
 		Out = FTransform(Socket->RelativeRotation, Socket->RelativeLocation, Socket->RelativeScale);
 		return true;
+	}
+
+	/** The post's lamp glass slot (RoostKit::GlassSlot by its name, or the slot whose own material is named for it); INDEX_NONE without one. */
+	int32 LampGlassSlot(const UStaticMeshComponent& Post)
+	{
+		const UStaticMesh* Model = Post.GetStaticMesh();
+		if (!Model)
+		{
+			return INDEX_NONE;
+		}
+		const int32 Named = Post.GetMaterialIndex(RoostKit::GlassSlot());
+		if (Named != INDEX_NONE)
+		{
+			return Named;
+		}
+		const FString Glow = RoostKit::GlassSlot().ToString();
+		for (int32 Index = 0; Index < Post.GetNumMaterials(); ++Index)
+		{
+			const UMaterialInterface* Own = Model->GetMaterial(Index);
+			if (Own && Own->GetName().Contains(Glow))
+			{
+				return Index;
+			}
+		}
+		return INDEX_NONE;
 	}
 
 	/** The stand-in's own socket by name (RoostKit's), in the roost's frame; false for a name it hasn't. */
@@ -111,6 +145,12 @@ void ARespawnMarker::UpdateTicking()
 
 void ARespawnMarker::FitRoost()
 {
+	// A roost placed before 2026-10-31 saved the Crow's Mast as its model: the lantern post (the class's own) stands there
+	// now, so a level not yet rebuilt shows posts too (build_area_roosts.py leaves the model to the class).
+	if (RoostMesh && RoostMesh->GetPathName() == RoostKit::RoostPath)
+	{
+		RoostMesh = GetDefault<ARespawnMarker>()->RoostMesh;
+	}
 	if (Roost->GetStaticMesh() != RoostMesh)
 	{
 		Roost->SetStaticMesh(RoostMesh);
@@ -123,8 +163,8 @@ void ARespawnMarker::FitRoost()
 	{
 		Wake = FTransform(FRotator(0.0, FromModel.Rotator().Yaw, 0.0), FVector(FromModel.GetLocation().X, FromModel.GetLocation().Y, 0.0));
 	}
-	// The roost stands so that spot is this actor's: the player waking here stands on it facing the arrow, out over the land
-	// with the mast at their back; lifted or sunk to the ground at the mast's foot (RoostLift, measured by the build script).
+	// The post stands so that spot is this actor's: the player waking here stands on it facing the arrow, out over the land
+	// with the post and its lamp at their back; lifted or sunk to the ground at its foot (RoostLift, measured by the build script).
 	FTransform Placement = Wake.Inverse();
 	Placement.AddToTranslation(FVector(0.0, 0.0, RoostLift));
 	Roost->SetRelativeTransform(Placement);
@@ -152,7 +192,7 @@ void ARespawnMarker::FitRoost()
 	BellRest = Bell->GetRelativeRotation().Quaternion();
 	BellStrength = 0.f;
 
-	// The beacon and its light in the fire basket.
+	// The beacon and its light at the lamp (the post's Light socket, or the stand-in's lantern).
 	FTransform Top;
 	if (!ModelSocket(RoostMesh, RoostKit::BeaconSocket(), Top))
 	{
@@ -162,14 +202,15 @@ void ARespawnMarker::FitRoost()
 	BeaconLight->SetRelativeLocation(Top.GetLocation());
 	Beacon->BuildCards();
 	const URoostSettings& Settings = URoostSettings::Get();
-	// The fire's own light on the mast and the ground round it: its hot core's colour.
+	// The lamp's own warm light on the post and the ground round it: its hot core's colour.
 	BeaconLight->SetLightColor(Settings.GetFlameCoreColor());
 	BeaconLight->SetAttenuationRadius(Settings.LightRadius);
+	ApplyLamp();
 }
 
 void ARespawnMarker::BuildGreybox()
 {
-	// The stand-in until the art's roost is imported: boxes of the engine's cube in their materials, the roost's own shape.
+	// The stand-in while no post model is in: boxes of the engine's cube in their materials, the post's own shape.
 	const bool bStandIn = RoostMesh == nullptr;
 	const TPair<UInstancedStaticMeshComponent*, TArray<RoostKit::FGreyboxPart>> Sets[] = {
 		{ GreyboxWood, RoostKit::GreyboxWood() }, { GreyboxIron, RoostKit::GreyboxIron() }, { GreyboxStone, RoostKit::GreyboxStone() } };
@@ -318,8 +359,31 @@ float ARespawnMarker::GetBellSwing() const
 void ARespawnMarker::ApplyLook()
 {
 	Beacon->SetLit(bLit);
+	ApplyLamp();
 	ApplyLightFlare();
 	UpdateCirclingCrows();
+}
+
+void ARespawnMarker::ApplyLamp()
+{
+	// Dark glass until the post is lit, then its own LanternGlow (the keeper's posts' way of putting a lantern out).
+	const int32 Slot = LampGlassSlot(*Roost);
+	if (Slot == INDEX_NONE)
+	{
+		return;
+	}
+	UMaterialInterface* Own = Roost->GetStaticMesh()->GetMaterial(Slot);
+	UMaterialInterface* Wanted = bLit || !DarkGlass ? Own : DarkGlass.Get();
+	if (Wanted && Roost->GetMaterial(Slot) != Wanted)
+	{
+		Roost->SetMaterial(Slot, Wanted);
+	}
+}
+
+UMaterialInterface* ARespawnMarker::GetLampGlass() const
+{
+	const int32 Slot = Roost ? LampGlassSlot(*Roost) : INDEX_NONE;
+	return Slot == INDEX_NONE ? nullptr : Roost->GetMaterial(Slot);
 }
 
 void ARespawnMarker::ApplyLightFlare()
@@ -352,7 +416,9 @@ void ARespawnMarker::StartFlare(EGraveMark Kind)
 	FlareKind = Kind;
 	FlareLength = GraveMarkRules::FlareSeconds(Kind);
 	FlareAge = 0.f;
-	// Found: the column shoots up out of the basket and the bell rings out; made the save point again: a pulse climbs it and
+	// The lamp's glass catches with its light (ApplyLightFlare's rise).
+	ApplyLamp();
+	// Lit: the column shoots up out of the lamp and the bell rings out; made the save point again: a pulse climbs it and
 	// the bell is tapped.
 	if (Kind == EGraveMark::First || !Beacon->IsLit())
 	{

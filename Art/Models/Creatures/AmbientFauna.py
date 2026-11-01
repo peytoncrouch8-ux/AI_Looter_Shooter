@@ -780,6 +780,10 @@ def tumbleweed():
                 p = p.normalized() * min(p.length, radius * 1.02)     # held to the ball
                 twig.append(p)
             stem_tube(bm, uv_layer, twig, [0.0032, 0.0026, 0.002, 0.0012])
+    # stem_tube winds inward as lc.tube did (2026-10-31, the arachnids' see-through bug): every stem faced outward.
+    turned = lc.face_out(bm)
+    if turned:
+        lt._log(f'Tumbleweed: {turned} pieces turned to face outward')
     mesh = bpy.data.meshes.new('Tumbleweed')
     bm.to_mesh(mesh)
     bm.free()

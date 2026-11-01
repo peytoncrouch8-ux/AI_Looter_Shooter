@@ -218,7 +218,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberKeysTest, "Looter.Embers.Keys",
 
 bool FEmberKeysTest::RunTest(const FString& Parameters)
 {
-	// Q by default (rebindable, "Ember power" under Combat), the left bumper on a gamepad (the user's call, 2026-10-15).
+	// Q by default (rebindable, "Skill" under Combat since 2026-10-31), the left bumper on a gamepad (the user's call, 2026-10-15).
 	TestTrue(TEXT("Its binding is \"Ember\""), UKeyBindingSubsystem::EmberBindingId() == FName(TEXT("Ember")));
 	TestTrue(TEXT("Q by default"), UKeyBindingSubsystem::DefaultEmberKey() == EKeys::Q);
 	TestTrue(TEXT("The left bumper on a gamepad"), UKeyBindingSubsystem::DefaultEmberGamepadKey() == EKeys::Gamepad_LeftShoulder);

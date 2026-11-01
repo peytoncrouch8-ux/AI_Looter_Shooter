@@ -68,3 +68,20 @@ Mains 2-7 calls (the user, 2026-10-31 night, on MAINS_2_7.md §15; that doc need
 - **Leaving the Rest: by train** (Tilly's hearse car, as today).
 - **The barge falls into Gravewind Canyon** (a burning wreck below the Rim, seen from the Point).
 - **Sexton stays at his ferry and sells secrets for silver** (e.g. marks the Rest's finds on the map).
+- On MAINS_2_7.md §16 (revised plan: corrupted Abel the finale): **keep Abel's Vigil Stone rematch as "the smog's echo of
+  him"**; **the call-backs are a hold at his keeper's post** (the bar locks at 66% and 33% until you hold Interact there
+  under fire); **the six dead are an optional save** (shoot the lines); **keep the Chief Stoker** guarding the furnace hall.
+
+2026-11-01 (the user's answers):
+- Tripo: spend only when approved; approved so far: the Landfall list (23 models + 2 repaints, 905 credits), then story
+  people bodies, main buildings (Landfall farm + the Rest's civic 10) and the Drover revolver's 4 part sets (caps 220,
+  480, 750). "Make sure everything generated in TRIPO matches our current art style."
+- Abilities on screen are "skills"; the Bestiary is "The Warden's Log"; the legendary "Lamplighter" gun is "Wickcutter";
+  respawn at lantern posts ("POST LIT").
+- The Gravemother uses Tripo's own paint (not our pale-bone repaint).
+- Mains 2-7: start building now in parallel (Main 2 and Main 3 first), from MAINS_2_7.md.
+- Package a new playtest build once Landfall is checked and the Tripo models are in.
+
+## 2026-11-01 night (user, before bed)
+- Mains 2-3 Tripo models (M23-1..5, ~250 credits): make them only from credits left after the running jobs, no top-up; stand-ins stay otherwise.
+- Overnight: build, test, commit Mains 2-3, package the playtest, then keep going into Mains 4-7.

@@ -12,11 +12,11 @@ class UTextBlock;
 class UWidget;
 
 /**
- * The "ROOST FOUND" banner, near the top of the screen (the user's call, 2026-10-13: Hob's roosts are the save, respawn and
- * fast-travel points, found by walking up to them): a small painted roost (Hob's crow on the post's top, the beacon's glow in
- * the roost's colour behind it: the map's roost icon, painted), "ROOST FOUND" in orange between fading cyan rules, and the
- * roost's name in white under it. It eases in (a small pop, as the level-up banner does), holds and eases out over 2.5 s.
- * Floating outlined text and solid shapes, no panel. (Named for the graves the roosts replaced.)
+ * The "POST LIT" banner, near the top of the screen (the user's call, 2026-10-31: the Wardens' lantern posts are the save,
+ * respawn and fast-travel points, lit by walking up to them; Hob's roosts before, the respawn graves before those): a small
+ * painted lantern post (its lantern just lit with its column rising, Hob's crow on the arm, the light's glow behind it), "POST
+ * LIT" in orange between fading cyan rules, and the post's name in white under it. It eases in (a small pop, as the level-up
+ * banner does), holds and eases out over 2.5 s. Floating outlined text and solid shapes, no panel. (Named for the graves.)
  *
  * ARespawnMarker announces a first find through ALooterHUD::ShowGraveMarked, which hands it here. Finds that come close
  * together show one after the other. It waits while a menu is open, a scene holds the player or the game is paused (that time
@@ -42,8 +42,11 @@ public:
 	/** The "NEW GUN SLOT" banner, a little under this one: this waits while it shows (it waits while this shows). */
 	void SetGunSlotBanner(UHudGunSlotBannerWidget* InGunSlotBanner);
 
-	/** Announces a roost found: queued behind any being shown. */
+	/** Announces a post lit: queued behind any being shown. */
 	void Announce(const FText& GraveName);
+
+	/** Its title, "POST LIT" (the tests read it). */
+	static FText TitleWords();
 
 	/** It's on screen, or has an announcement waiting. */
 	bool IsBusy() const;

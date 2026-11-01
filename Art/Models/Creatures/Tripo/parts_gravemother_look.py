@@ -9,8 +9,8 @@ bone) and hit hulls. Not a model: Tools\\models.ps1 skips parts_*.py.
 - The atlas: the legs' tubes along and round (coxa + femur on the femur bone, tibia on the tibia bone), the palps on
   'palp', the chelicerae on 'chel' (their fangs' last half on the fang patch), the cephalothorax on the carapace region
   (one latitude-longitude round it; its front, past X_HEAD, is the head bone's, her crit), the abdomen on its egg's own
-  grid. Tripo's milky eyes are glossy black spheres now (Spider.py's, on the eye patch); spinnerets hide the abdomen's
-  rear pole. The skulls wear BoneDry (the den's bone).
+  grid. Tripo's milky eyes are smooth glossy domes on the eye patch (Spider.py's, set on the painted eyes: EYES);
+  spinnerets hide the abdomen's rear pole. The skulls wear BoneDry (the den's bone).
 - Mud: a crust over each tibia from a ragged line part way down, thickening toward the claw (Gravemother.py's rule, laid
   on the tube's own rings so it hugs Tripo's leg)."""
 import math
@@ -19,6 +19,7 @@ import bmesh
 import bpy
 import numpy as np
 from mathutils import Vector, noise
+from mathutils.bvhtree import BVHTree
 
 import looter_barrow as lb
 import looter_creatures as lc
@@ -154,38 +155,73 @@ def thorax_uvs(atlas, piece, carapace, head):
     return out
 
 
-def eyes(atlas, eye_points, head_centre, material):
-    """Her eyes as Spider.py's: glossy black spheres on the eye patch, one on each of Tripo's milky eyes (its pale
-    vertices clustered), sunk a third into the face. Returns the object, or None."""
-    P = np.asarray(eye_points, float)
-    group = -np.ones(len(P), int)
-    count = 0
-    for i in range(len(P)):
-        if group[i] >= 0:
-            continue
-        stack = [i]
-        group[i] = count
-        while stack:
-            k = stack.pop()
-            near = np.nonzero((np.linalg.norm(P - P[k], axis=1) < 2.2) & (group < 0))[0]
-            group[near] = count
-            stack.extend(near.tolist())
-        count += 1
+# Her eyes, one mirrored pair per row (creature cm): where Tripo painted its milky eyes on the face, and how big,
+# measured once off its colour map (the face sampled densely, luma > 0.55, each painted disc's middle and reach;
+# 2026-11-01). Until then the eyes were found from Tripo's pale vertices alone: too few of them (37, 1.4 cm apart)
+# clustered into three overlapping balls on one big eye, a pea on the other and nothing on the small ones, over the
+# painted milky discs: the user's "weird bumpy eyes". (x, |y|, z, radius, sink: the dome's middle this share of its
+# radius under the face, so it fills its painted dark socket as a lens and doesn't stand out as a ball, (segments,
+# rings) of the dome). The big pair's middles sit a little in and down from the painted discs' (their highlight
+# pulled those up and out).
+EYES = ((44.3, 8.6, 69.2, 6.4, 0.55, (18, 6)),     # the big front pair (Tripo's domes: a sphere fit gives r 6.0;
+                                                    # a little more, so its base covers the painted disc's edge)
+        (37.0, 4.2, 77.6, 2.4, 0.45, (12, 4)),     # the pair above them, between
+        (34.5, 18.4, 71.0, 1.6, 0.4, (10, 4)),     # the side pair, low
+        (33.8, 14.8, 77.6, 1.4, 0.4, (10, 4)))     # the side pair, high
+EYE_CAP = 90.0          # degrees from the dome's top (a half sphere): the rest is inside her head, never drawn
+
+
+def eye_dome(m, centre, n, r, segs, rings):
+    """One eye: a sphere's cap about n down to EYE_CAP (its rim well inside the face), every corner on the eye patch,
+    faces outward. Rings evenly spaced in angle, so the silhouette stays round at the boss's close range."""
+    n = Vector(n).normalized()
+    a = n.orthogonal().normalized()
+    b = n.cross(a)
+    centre = Vector(centre)
+    uv = m.at('eye', 0.5, 0.5)
+    bm = m.bm
+    top = bm.verts.new(centre + n * r)
+    ring = []
+    for i in range(1, rings + 1):
+        t = math.radians(EYE_CAP) * i / rings
+        across = r * math.sin(t)
+        ring.append([bm.verts.new(centre + n * (r * math.cos(t)) + (a * math.cos(p) + b * math.sin(p)) * across)
+                     for p in (2.0 * math.pi * j / segs for j in range(segs))])
+    faces = []
+    for j in range(segs):
+        j1 = (j + 1) % segs
+        faces.append(m.face((top, ring[0][j], ring[0][j1]), [uv] * 3))
+        for i in range(rings - 1):
+            faces.append(m.face((ring[i][j], ring[i + 1][j], ring[i + 1][j1], ring[i][j1]), [uv] * 4))
+    for f in faces:
+        f.normal_update()
+        if f.normal.dot(f.calc_center_median() - centre) < 0.0:
+            f.normal_flip()
+    return len(faces) + segs * (rings - 1)
+
+
+def eyes(atlas, V, F, material):
+    """Her eyes as smooth glossy domes on the eye patch (Spider.py's look, in Tripo's milky colour): each pair of EYES
+    set on her remeshed face (V, F: the cephalothorax, creature cm) at its nearest point, along the face's mean normal
+    round it, sunk by its row's share of its radius. Returns the object."""
+    V = np.asarray(V, float)
+    tree = BVHTree.FromPolygons(V.tolist(), [list(map(int, f)) for f in F])
+    mid = np.array([V[np.asarray(f)].mean(0) for f in F])
+    normals = []
+    for f in F:
+        p = V[np.asarray(f)]
+        normals.append(np.cross(p[1] - p[0], p[2] - p[0]) + (np.cross(p[2] - p[0], p[3] - p[0]) if len(p) > 3 else 0.0))
+    normals = np.array(normals)                  # area-weighted
     m = lc.Mesh(atlas)
-    made = 0
-    for g in range(count):
-        Q = P[group == g]
-        if len(Q) < 3:
-            continue
-        c = Q.mean(0)
-        r = max(float(np.linalg.norm(Q - c, axis=1).max()) * 0.85, 1.2)
-        n = (c - head_centre) / np.linalg.norm(c - head_centre)
-        big = r > 2.5
-        lc.ellipsoid(m, Vector(c - n * r * 0.35), (r, r, r), 'eye', segs=12 if big else 8, rings=8 if big else 5,
-                     patch=True)
-        made += 1
-    pg.log(f'{made} eyes from Tripo\'s {count} pale patches')
-    return m.finish('Eyes', material) if made else None
+    tris = 0
+    for x, y, z, r, sink, (segs, rings) in EYES:
+        for side in (1.0, -1.0):
+            at, _n, _i, _d = tree.find_nearest(Vector((x, side * y, z)))
+            near = np.linalg.norm(mid - np.array(at), axis=1) < r * 1.2
+            n = Vector(normals[near].sum(0)).normalized() if near.any() else Vector(_n)
+            tris += eye_dome(m, Vector(at) - n * (r * sink), n, r, segs, rings)
+    pg.log(f'{2 * len(EYES)} eyes ({tris} triangles) on the painted milky eyes')
+    return m.finish('Eyes', material)
 
 
 def fit_ellipsoid(P):
@@ -305,9 +341,26 @@ def points_object(name, P):
 TUBE_KINDS = ('femur', 'tibia', 'palp', 'claw', 'chel')
 
 
-def assemble(pieces, extra, atlas, mats):
-    """Her pieces as objects in her slots (mats: hide, abdomen, mud, bone). Returns (entries for skin(), {bone: [points
-    a hit hull wraps]})."""
+def skull_uvs(atlas, piece):
+    """A skull on the head region (the Tripo paint's: the cephalothorax is all on the carapace's): one
+    latitude-longitude round its own middle, its face (+x, toward her head) the region's middle."""
+    V, F = np.asarray(piece['V'], float), piece['F']
+    centre, radii = fit_ellipsoid(V)
+    rel = (V - centre) / np.maximum(radii, 1e-6)
+    n = np.linalg.norm(rel, axis=1) + 1e-9
+    theta = np.arccos(np.clip(rel[:, 2] / n, -1.0, 1.0))                  # from the crown
+    U = (np.arctan2(rel[:, 1], rel[:, 0]) + math.pi) / (2.0 * math.pi)  # 0.5 = the face
+    out = []
+    for f, uu in zip(F, unwrap(F, U)):
+        cu, cv = region_uv(atlas, 'head', uu, 1.0 - theta[f] / math.pi)
+        out.append(list(zip(cu, cv)))
+    return out
+
+
+def assemble(pieces, extra, atlas, mats, railings=None):
+    """Her pieces as objects in her slots (mats: hide, abdomen, mud, bone; mud None: no mud sleeves; bone None: the
+    skulls on the atlas's head region in the hide, as the Tripo paint has them). railings: (V, F, corner UVs) in the
+    hide on the abdomen bone, outside its hit hull. Returns (entries for skin(), {bone: [points a hit hull wraps]})."""
     entries, hulls = [], {}
 
     def add(obj, bone_names, V):
@@ -321,10 +374,9 @@ def assemble(pieces, extra, atlas, mats):
     head = fit_ellipsoid(V[V[:, 0] >= X_HEAD - 6.0])
     obj = mesh_object('Thorax', V, F, thorax_uvs(atlas, th, carapace, head), [mats['hide']], [0] * len(F))
     add(obj, ['head' if p[0] >= X_HEAD else 'body' for p in V], V)
-    obj = eyes(atlas, extra['eye_points'], head[0], mats['hide'])
-    if obj is not None:
-        Ve = np.array([tuple(lc.TO_BLENDER.inverted() @ v.co) for v in obj.data.vertices])
-        add(obj, ['head'] * len(Ve), Ve)
+    obj = eyes(atlas, V, F, mats['hide'])
+    Ve = np.array([tuple(lc.TO_BLENDER.inverted() @ v.co) for v in obj.data.vertices])
+    add(obj, ['head'] * len(Ve), Ve)
     seed = 0
     for name, p in sorted(pieces.items()):
         if p['kind'] not in TUBE_KINDS:
@@ -332,7 +384,7 @@ def assemble(pieces, extra, atlas, mats):
         V, F = p['V'], p['F']
         obj = mesh_object(name.title().replace('_', ''), V, F, tube_uvs(atlas, p), [mats['hide']], [0] * len(F))
         add(obj, [p['bone']] * len(V), V)
-        if p['kind'] == 'tibia':
+        if p['kind'] == 'tibia' and mats.get('mud') is not None:
             Vm, Fm = mud_sleeve(p, seed)
             seed += 1
             obj = mesh_object('Mud' + name.title().replace('_', ''), Vm, Fm, box_uvs(Vm, Fm, UV_MUD), [mats['mud']],
@@ -356,15 +408,22 @@ def assemble(pieces, extra, atlas, mats):
         if sk is None:
             continue
         V, F = sk['V'], sk['F']
-        obj = mesh_object(f'Skull{k}', V, F, box_uvs(V, F, 0.02), [mats['bone']], [0] * len(F), smooth_angle=50.0)
+        if mats.get('bone') is not None:
+            obj = mesh_object(f'Skull{k}', V, F, box_uvs(V, F, 0.02), [mats['bone']], [0] * len(F), smooth_angle=50.0)
+        else:
+            obj = mesh_object(f'Skull{k}', V, F, skull_uvs(atlas, sk), [mats['abdomen']], [0] * len(F), smooth_angle=50.0)
         add(obj, ['abdomen'] * len(V), V)
+    if railings is not None:
+        V, F, uvs = railings
+        obj = mesh_object('Railings', V, F, uvs, [mats['abdomen']], [0] * len(F), smooth_angle=40.0)
+        entries.append((obj, ['abdomen'] * len(obj.data.vertices)))
     return entries, hulls
 
 
-def body(S, mats, stubs):
+def body(S, mats, stubs, railings=None):
     """SK_Gravemother's rig and skin from the Tripo pieces: Spider.py's bones (the fangs' moved onto Tripo's chelicerae:
     the game turns a fang about its bone's head), every piece on its bone, a hit hull round each bone's pieces (stubs: the
-    root stubs, on the abdomen). Returns (rig, the skinned mesh, the bones as laid)."""
+    root stubs, on the abdomen; railings: assemble's, no hull). Returns (rig, the skinned mesh, the bones as laid)."""
     import looter_model as lm
     import parts_gravemother_build as pb
     bones = list(S['bones'])
@@ -375,7 +434,7 @@ def body(S, mats, stubs):
             bones[i] = (n, Vector(root), Vector(tip), p)
     rig = lm.armature()
     lm.bones(rig, [(n, lc.to_blender(h), lc.to_blender(t), p) for n, h, t, p in bones])
-    entries, hulls = assemble(pieces, extra, S['ATLAS'], mats)
+    entries, hulls = assemble(pieces, extra, S['ATLAS'], mats, railings)
     entries.append((stubs, ['abdomen'] * len(stubs.data.vertices)))
     for bone, sets in sorted(hulls.items()):
         points = points_object(f'_hull_{bone}', np.vstack(sets))

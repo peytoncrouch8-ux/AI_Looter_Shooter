@@ -144,7 +144,7 @@ namespace LoadoutParts
 	 */
 	ULooterButton* MakeKeyHintButton(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary, int32 Index);
 
-	/** How many pages the inventory has (EInventoryPage), and the tab's words for page Page (the bestiary's reads "Ledger" once given). */
+	/** How many pages the inventory has (EInventoryPage), and the tab's words for page Page ("Skills", "Warden's Log" since 2026-10-31). */
 	inline constexpr int32 NumPages = 5;
 	FString PageTabName(int32 Page, bool bLedger);
 
@@ -158,7 +158,10 @@ namespace LoadoutParts
 	 */
 	FKey PageNumberKey(int32 Page);
 
-	/** The page called Name, in any case: Loadout, Embers, Bestiary (or Ledger, its name once Sexton's), Missions, Map; else INDEX_NONE. */
+	/**
+	 * The page called Name, in any case: its tab's words (Loadout, Skills, Warden's Log, Missions, Map), or an old or
+	 * spaceless name (Embers, Bestiary, Ledger, WardensLog, Log); else INDEX_NONE.
+	 */
 	int32 PageNamed(const FString& Name);
 
 	/**
@@ -170,8 +173,8 @@ namespace LoadoutParts
 	inline const FVector2D PageTabsPosition(800.f, 36.f);
 
 	/**
-	 * Names the tabs MakePageTabs made in Tree as the story stands: the bestiary's reads "Ledger" once Sexton has handed it
-	 * over (Bestiary/Ledger.h). A page's tabs are made once, so the HUD calls this as each page opens.
+	 * Names the tabs MakePageTabs made in Tree as the story stands: the bestiary's from Ledger::BookName (the Warden's Log
+	 * either way since 2026-10-31; Bestiary/Ledger.h). A page's tabs are made once, so the HUD calls this as each page opens.
 	 */
 	void TitlePageTabs(UWidgetTree& Tree, bool bLedger);
 

@@ -105,9 +105,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNewGameStoryStartTest, "Looter.NewGame.StorySt
 bool FNewGameStoryStartTest::RunTest(const FString& Parameters)
 {
 	// The project as it is: the story's first area and its level are in the game, so an empty slot's New Game starts there
-	// (USessionSubsystem::PlaySession hands it to StartNewGame), arriving at the family plot with the title.
+	// (USessionSubsystem::PlaySession hands it to StartNewGame), arriving on the Lamplighter's deck with the title.
 	TestEqual(TEXT("The story's first area"), StationBoard::FirstAreaId(), FName(TEXT("RansomsRest")));
-	TestEqual(TEXT("...its first arrival: Ellis's grave in the family plot"), StationBoard::FirstArrivalLanding(), FName(TEXT("Landing_FamilyPlot")));
+	TestEqual(TEXT("...its first arrival: the Lamplighter's deck"), StationBoard::FirstArrivalLanding(), FName(TEXT("Landing_Lamplighter")));
 	const UAreaDefinition* Rest = UAreaDefinition::FindByName(StationBoard::FirstAreaId().ToString());
 	if (!TestNotNull(TEXT("DA_Area_RansomsRest (Tools/Unreal/create_area_assets.py)"), Rest))
 	{

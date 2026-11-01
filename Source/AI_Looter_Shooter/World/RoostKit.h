@@ -1,7 +1,8 @@
 #pragma once
 
-// What Hob's roost's pieces share (ARespawnMarker's RespawnMarker*.cpp, URoostBeaconComponent, ARoostCrows): the models and
-// materials they look for, the model's sockets, and the stand-in's (its greybox, until the art's SM_HobRoost is imported).
+// What the save points' pieces share (ARespawnMarker's RespawnMarker*.cpp, URoostBeaconComponent, ARoostCrows): the models and
+// materials they look for, the model's sockets, and the stand-in's (its greybox, while no post model is in this checkout).
+// The Wardens' lantern posts since 2026-10-31 (Hob's roosts before; the code keeps the roost's and the grave's names).
 // Not for anyone else.
 
 #include "CoreMinimal.h"
@@ -11,17 +12,36 @@
 namespace RoostKit
 {
 	/**
-	 * The roost, the user's pick (2026-10-13, look sheet 41, design B): the Crow's Mast, a mast with its yard cockbilled,
-	 * crosstrees, a stork's nest round the topmast and a fire basket on top, on a cairn, the crow's-foot mark burnt in a board
-	 * at eye height (the map's icon). Its pivot at the mast's foot; a slim hull on the mast and a low one over the cairn.
-	 * Sockets (Art/README.md: SOCKET_<Name>, imported without the prefix): Beacon (the fire basket's middle), Bell (where the
-	 * bell hangs), Perch_1 to Perch_6 (the crows' feet, facing out), Wake (on the ground, where the player stands on waking,
-	 * facing away from the mast) and Speaker (Hob's line).
+	 * The Wardens' lantern post (the user's call, 2026-10-31: "lantern posts instead of graves"; the Wardens light them as
+	 * they explore). THE ONE PATH for its model: a STAND-IN until the user's Tripo "Lantern post" is imported, Art/Models/
+	 * Props/BurialDeck.py's KeeperLanternPost (a 3.2 m post on a cross foot with a braced arm toward +X and an iron lantern
+	 * hung from its end, LanternGlow glass, SOCKET_Light at the flame; hulls on the post and the foot). Its pivot at the
+	 * post's foot. The Tripo model may carry the roost's sockets (below: Beacon at the lamp, Bell, Perch_1 to Perch_6, Wake,
+	 * Speaker; else the stand-in's numbers stand) and should keep the arm toward +X, the glass slot LanternGlow and a Light
+	 * socket. Swap it here (and nowhere else: build_area_roosts.py reads the class's default).
+	 */
+	// The user's Tripo lantern post since lane IMPORT (lanes/IMPORT.md: every socket above, LanternGlow glass); the
+	// stand-in was /Game/Art/Props/SM_KeeperLanternPost.SM_KeeperLanternPost.
+	inline const TCHAR* const PostPath = TEXT("/Game/Art/Tripo/SM_LanternPost.SM_LanternPost");
+
+	/**
+	 * The Crow's Mast the posts replaced (the user's pick, 2026-10-13, look sheet 41): SM_HobRoost. A level saved with it on
+	 * a roost (built before 2026-10-31) shows the post instead (ARespawnMarker::FitRoost), so no rebuild is needed for it.
 	 */
 	inline const TCHAR* const RoostPath = TEXT("/Game/Art/Props/SM_HobRoost.SM_HobRoost");
 
-	/** Its bell, a piece of its own so it swings when rung: hung on the Bell socket, its pivot the top of its loop. */
+	/** Its bell, a piece of its own so it swings when rung: hung on the Bell socket (the post's arm), its pivot the top of its loop. */
 	inline const TCHAR* const BellPath = TEXT("/Game/Art/Props/SM_HobRoostBell.SM_HobRoostBell");
+
+	/**
+	 * The post's lamp dark until it's lit: its glass slot (BurialDeck.py's LanternGlow) shows the house trim's window glass,
+	 * as the keeper's lantern posts' do when Abel puts them out (AKeeperLanternPost; their glass UVs sit on that glass).
+	 */
+	inline const TCHAR* const DarkGlassPath = TEXT("/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim");
+	inline FName GlassSlot() { return FName(TEXT("LanternGlow")); }
+
+	/** The post model's flame (BurialDeck.py's SOCKET_Light): the beacon and its light stand there when it has no Beacon socket. */
+	inline FName LightSocket() { return FName(TEXT("Light")); }
 
 	/** The stand-in's pieces: the engine's cube in the lantern post's weathered wood and iron, on the stone wall's stone. */
 	inline const TCHAR* const CubePath = TEXT("/Engine/BasicShapes/Cube.Cube");
@@ -57,28 +77,39 @@ namespace RoostKit
 	inline constexpr int32 PerchCount = 6;
 	inline FName PerchSocket(int32 Index) { return FName(*FString::Printf(TEXT("Perch_%d"), Index + 1)); }
 
-	// --- The stand-in's sockets: the model's own (cm, its frame: the mast's foot, +X its front, +Z up), so the greybox
-	//     stands, wakes and perches as the model will ---
+	// --- The post's sockets where the model has none: the stand-in's own numbers (cm, its frame: the post's foot, +X the
+	//     arm and its lantern, +Z up; BurialDeck.py's KeeperLanternPost: 3.2 m tall, the arm's top at 3.13 m reaching 0.95 m,
+	//     the lantern's glass at (90.5, 0, 236) as AKeeperLanternPost's FallbackGlass), so the post and its greybox stand,
+	//     wake, ring and perch alike ---
 
 	/**
-	 * Where the player wakes: 1.7 m out in front of the mast on the ground, facing away from it, out over the land. The
-	 * build script keeps the same numbers for a level built before the model is in (build_area_roosts.py's FALLBACK_WAKE).
+	 * Where the player wakes: 1.7 m out in front of the post on the ground (past the lantern), facing away from it, out over
+	 * the land. The build script keeps the same numbers (build_area_roosts.py's FALLBACK_WAKE: change both together).
 	 */
 	inline FTransform FallbackWake()
 	{
 		return FTransform(FRotator::ZeroRotator, FVector(170.0, 0.0, 0.0));
 	}
-	inline FVector FallbackBeacon() { return FVector(-21.0, -5.0, 476.0); }
-	inline FVector FallbackBell() { return FVector(5.0, -82.0, 208.0); }
-	inline FVector FallbackSpeaker() { return FVector(38.0, -4.0, 364.0); }
+	/** The beacon at the lamp: the lantern's glass, where its light burns and its column rises from. */
+	inline FVector FallbackBeacon() { return FVector(90.5, 0.0, 236.0); }
+	/** The bell hung under the arm between the brace's top and the lantern (its loop's top at the arm's underside). */
+	inline FVector FallbackBell() { return FVector(64.0, 0.0, 302.0); }
+	/** Hob's word from the post's top. */
+	inline FVector FallbackSpeaker() { return FVector(0.0, 0.0, 330.0); }
 
-	/** A perch of the stand-in, the model's, facing out from the mast. */
+	/** A perch of the stand-in: on the post's top, along the arm, on the lantern's cap and the brace, looking out or across. */
 	inline FTransform FallbackPerch(int32 Index)
 	{
-		static const FVector Spots[PerchCount] = { FVector(25.0, 65.0, 271.0), FVector(8.0, -55.0, 235.0), FVector(-123.0, 20.0, 320.0),
-			FVector(88.0, -3.0, 320.0), FVector(10.0, -55.0, 363.0), FVector(20.0, -23.0, 413.0) };
-		const FVector& Spot = Spots[FMath::Clamp(Index, 0, PerchCount - 1)];
-		return FTransform(FRotator(0.0, FMath::RadiansToDegrees(FMath::Atan2(Spot.Y, Spot.X)), 0.0), Spot);
+		struct FPerch
+		{
+			FVector Spot;
+			double Yaw;
+		};
+		static const FPerch Perches[PerchCount] = { { FVector(0.0, 0.0, 322.0), 0.0 }, { FVector(24.0, 0.0, 316.0), 90.0 },
+			{ FVector(46.0, 0.0, 316.0), -90.0 }, { FVector(80.0, 0.0, 316.0), 90.0 }, { FVector(90.5, 0.0, 284.0), 0.0 },
+			{ FVector(29.0, 0.0, 276.0), -90.0 } };
+		const FPerch& Perch = Perches[FMath::Clamp(Index, 0, PerchCount - 1)];
+		return FTransform(FRotator(0.0, Perch.Yaw, 0.0), Perch.Spot);
 	}
 
 	/** One box of the stand-in: its middle and size (cm), in the roost's frame. */
@@ -88,24 +119,22 @@ namespace RoostKit
 		FVector Size;
 	};
 
-	/** The stand-in's weathered wood: the mast, the yard, the crosstrees, the nest, the topmast, the bell's arm. */
+	/** The stand-in post's weathered wood: the post and its arm. */
 	inline TArray<FGreyboxPart> GreyboxWood()
 	{
-		return { { FVector(0.0, 0.0, 225.0), FVector(24.0, 24.0, 450.0) }, { FVector(16.0, 5.0, 253.0), FVector(14.0, 160.0, 14.0) },
-			{ FVector(-17.0, 8.0, 314.0), FVector(230.0, 14.0, 12.0) }, { FVector(5.0, -15.0, 395.0), FVector(120.0, 120.0, 30.0) },
-			{ FVector(-10.0, -5.0, 438.0), FVector(12.0, 12.0, 60.0) }, { FVector(2.0, -41.0, 212.0), FVector(10.0, 82.0, 8.0) } };
+		return { { FVector(0.0, 0.0, 160.0), FVector(18.0, 18.0, 320.0) }, { FVector(43.0, 0.0, 308.0), FVector(104.0, 13.0, 10.0) } };
 	}
 
-	/** Its iron: the fire basket on the topmast. (The bell is a piece of its own: the stand-in hangs a box for it.) */
+	/** Its iron: the lantern under the arm's end. (The bell is a piece of its own: the stand-in hangs a box for it.) */
 	inline TArray<FGreyboxPart> GreyboxIron()
 	{
-		return { { FVector(-21.0, -5.0, 476.0), FVector(44.0, 44.0, 40.0) } };
+		return { { FVector(90.5, 0.0, 240.0), FVector(26.0, 26.0, 40.0) } };
 	}
 
-	/** Its stone: the cairn the mast is set in. */
+	/** Its stone: the footing the post stands in. */
 	inline TArray<FGreyboxPart> GreyboxStone()
 	{
-		return { { FVector(0.0, 0.0, 25.0), FVector(130.0, 130.0, 50.0) } };
+		return { { FVector(0.0, 0.0, 8.0), FVector(90.0, 90.0, 16.0) } };
 	}
 
 	/** The stand-in's bell: a box this big, hung its height under the Bell socket (the cube's pivot is its middle). */

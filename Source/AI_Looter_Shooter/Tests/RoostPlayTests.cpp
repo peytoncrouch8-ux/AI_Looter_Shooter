@@ -24,9 +24,9 @@
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
 
-// Hob's roosts in test levels (the user's call, 2026-10-13): the roost's look (the greybox until SM_HobRoost is in, the post
-// at the player's front left, the beacon dark until found, then rising), its crows, being found, and the crows' carry for a
-// fast travel and a death with Hob's words.
+// The save points in test levels (Hob's roosts, the user's call 2026-10-13; the Wardens' lantern posts since 2026-10-31):
+// the post's look (the greybox until its model is in, the post at the player's back, the lamp and its beacon dark until lit,
+// then rising), its crows, being found, and the crows' carry for a fast travel and a death with Hob's words.
 
 using namespace MissionTestWorld;
 
@@ -78,23 +78,25 @@ bool FRoostLookTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	// The Wardens' lantern post since 2026-10-31 (RoostKit::PostPath, the stand-in SM_KeeperLanternPost), never the old mast.
 	if (!Roost->HasModel())
 	{
-		AddInfo(TEXT("SM_HobRoost isn't imported: the greybox stands in."));
-		TestTrue(TEXT("The greybox: mast, yard, crosstrees, nest and arms in wood, the basket in iron, the cairn in stone"),
-			Roost->GreyboxWood->GetInstanceCount() == 6 && Roost->GreyboxIron->GetInstanceCount() == 1 && Roost->GreyboxStone->GetInstanceCount() == 1
+		AddInfo(TEXT("The lantern post's model isn't imported: the greybox stands in."));
+		TestTrue(TEXT("The greybox: the post and its arm in wood, the lantern in iron, the footing in stone"),
+			Roost->GreyboxWood->GetInstanceCount() == 2 && Roost->GreyboxIron->GetInstanceCount() == 1 && Roost->GreyboxStone->GetInstanceCount() == 1
 			&& Roost->GreyboxWood->IsVisible());
 	}
 	else
 	{
 		TestTrue(TEXT("The model in, the greybox gone"), Roost->GreyboxWood->GetInstanceCount() == 0 && !Roost->GreyboxWood->IsVisible());
+		TestEqual(TEXT("...the lantern post's"), Roost->RoostMesh->GetPathName(), FString(RoostKit::PostPath));
 	}
 
-	// Waking here: on its spot, facing its arrow, out over the land with the mast at their back.
+	// Waking here: on its spot, facing its arrow, out over the land with the post at their back.
 	const FRespawnWakeSpot Spot = Roost->GetWakeSpot();
-	TestTrue(TEXT("The player wakes on the roost's own spot"), Spot.Grave == Roost && Spot.Location.Equals(Roost->GetActorLocation()));
+	TestTrue(TEXT("The player wakes on the post's own spot"), Spot.Grave == Roost && Spot.Location.Equals(Roost->GetActorLocation()));
 	FTransform Foot;
-	if (TestTrue(TEXT("The mast's foot"), Roost->GetRoostSocket(NAME_None, Foot)))
+	if (TestTrue(TEXT("The post's foot"), Roost->GetRoostSocket(NAME_None, Foot)))
 	{
 		const FVector Toward = Foot.GetLocation() - Roost->GetActorLocation();
 		const double Bearing = FMath::RadiansToDegrees(FMath::Atan2(Toward.Y, Toward.X));
@@ -103,7 +105,10 @@ bool FRoostLookTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("...at their back as they wake, facing out (%.0f degrees off the arrow)"), Bearing), FMath::Abs(Bearing) > 120.0);
 	}
 	const FVector Beacon = Roost->GetBeaconLocation();
-	TestTrue(TEXT("The beacon on the roost's top, well over a man"), Beacon.Z - Roost->GetActorLocation().Z > 400.0);
+	// At the lamp, hung from the arm: over the player's head, its light beside the post.
+	TestTrue(TEXT("The beacon at the post's lamp, over the player's head"), Beacon.Z - Roost->GetActorLocation().Z > 200.0
+		&& Beacon.Z - Roost->GetActorLocation().Z < 400.0);
+	TestTrue(TEXT("...its light there with it"), FVector::Dist(Roost->BeaconLight->GetComponentLocation(), Beacon) < 1.0);
 	const TArray<FTransform> Perches = Roost->GetPerches();
 	TestEqual(TEXT("Six perches for Hob's crows"), Perches.Num(), RoostKit::PerchCount);
 	bool bHigh = true;
@@ -127,10 +132,20 @@ bool FRoostLookTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...one draw of its cards"), Column->GetInstanceCount() == URoostBeaconComponent::CardCount);
 	TestTrue(TEXT("Its light: shadowless, small, gone beyond a long walk"), !Roost->BeaconLight->CastShadows
 		&& Roost->BeaconLight->AttenuationRadius <= 1000.f && Roost->BeaconLight->MaxDrawDistance > 0.f);
+	// The lamp's glass dark (the model's glass slot; the greybox's lantern is plain iron).
+	const bool bGlass = Roost->GetLampGlass() != nullptr && Roost->DarkGlass != nullptr;
+	if (bGlass)
+	{
+		TestTrue(TEXT("Not lit: the lamp's glass dark"), Roost->GetLampGlass() == Roost->DarkGlass);
+	}
 
-	// Found: the column shoots up out of the post, the light catches and spikes, then both settle, lit for good.
+	// Lit: the lamp's glass catches, the column shoots up out of it, the light catches and spikes, then both settle, lit for good.
 	const URoostSettings& Settings = URoostSettings::Get();
 	Roost->StartFlare(EGraveMark::First);
+	if (bGlass)
+	{
+		TestTrue(TEXT("Lit: the lamp's glass its own glow"), Roost->GetLampGlass() != Roost->DarkGlass);
+	}
 	TestTrue(TEXT("Found: lit, its column rising from the post"), Roost->IsLit() && Column->IsVisible() && Column->IsShowing()
 		&& Column->GetBeamLength() < Settings.BeamHeight * 0.1f);
 	TestTrue(TEXT("...the light catching from nothing"), Roost->GetLightCandela() == 0.f && Roost->BeaconLight->IsVisible());
@@ -171,6 +186,10 @@ bool FRoostLookTest::RunTest(const FString& Parameters)
 	// Dark again at once (the console takes a find back).
 	Roost->SetLit(false);
 	TestTrue(TEXT("Dark again"), !Roost->IsLit() && !Column->IsVisible() && !Roost->BeaconLight->IsVisible() && Roost->GetLightCandela() == 0.f);
+	if (bGlass)
+	{
+		TestTrue(TEXT("...its glass dark again"), Roost->GetLampGlass() == Roost->DarkGlass);
+	}
 	return true;
 }
 

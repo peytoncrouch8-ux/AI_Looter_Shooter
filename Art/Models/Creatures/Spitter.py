@@ -241,6 +241,12 @@ def tripo():
     skin = {}
     for bone, plist in pieces.items():
         skin[bone] = [look.to_object(p, 'V', gel if p.look == 'gel' else body) for p in plist]
+        # Faced outward (lc.face_out; 2026-10-31: the arachnids reached Unreal inside out and drew see-through: this
+        # body's legs, palps, fangs, eyes and veins wind inward). Here, not in parts_spitter_look.to_object: that file is
+        # one of the bake cache's sources, and the bake's templates stay as they were.
+        turned = sum(lc.face_out_mesh(o.data) for o in skin[bone])
+        if turned:
+            lt._log(f'Spitter Tripo: {bone}: {turned} pieces turned to face outward')
         if bone != 'sac':
             lm.hit_hull(rig, bone, skin[bone])
     # The bulb's hit zones: the sac above its middle (with a little overlap), the abdomen below.

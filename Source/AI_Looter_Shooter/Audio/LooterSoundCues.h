@@ -1399,4 +1399,69 @@ namespace LooterSoundCue
 		/** A ward picked up or worn (2D): the box's catch and its strap. */
 		inline constexpr const TCHAR* Pickup = TEXT("Shield.Pickup");
 	}
+
+	// --- Landfall, the Lamplighter and Vane's Dredgers (2026-10-31 Wardens, Docs/Work/2026-10-31-Wardens/CONTRACT.md SOUND;
+	//     Art/Sounds/recipes/landfall.py, landfall_story.py, dredger.py). All 3D at the thing that makes them unless said:
+	//     the radio, spyglass and turn-in stamp are 2D; the loops are marked (start them with LooterSound::Start). ---
+
+	/** Cornelius Vane's radio keyed on (2D, ~0.55 s): a relay's clack, squelch, a carrier locking in, crackle, mains hum. */
+	inline constexpr const TCHAR* VaneRadioIn = TEXT("Story.Vane.RadioIn");
+	/** The radio keyed off (2D, ~0.35 s): a fading burst of static and the relay's last click. */
+	inline constexpr const TCHAR* VaneRadioOut = TEXT("Story.Vane.RadioOut");
+	/** The open channel's bed while Vane speaks (2D LOOP, 6 s): hiss, mains hum, crackle. Start at RadioIn, stop at RadioOut. */
+	inline constexpr const TCHAR* VaneRadioHiss = TEXT("Story.Vane.RadioHiss");
+	/** The Lamplighter under way (LOOP, 8 s, at the ship): the propeller's whump, the engine's drone and chuffs, the rigging singing. */
+	inline constexpr const TCHAR* ShipEngine = TEXT("Ship.Lamplighter.Engine");
+	/** Her timbers working (LOOP, 10 s, at the ship): groans, rope and iron creaks between slow sways. */
+	inline constexpr const TCHAR* ShipCreak = TEXT("Ship.Lamplighter.Creak");
+	/** The grapples take her (3 takes, ~1.9 s): chains snap taut, the hull shudders and groans to a stop. */
+	inline constexpr const TCHAR* ShipLurch = TEXT("Ship.Lamplighter.Lurch");
+	/** The gas bag torn (3 takes, ~2.6 s): canvas ripping, a great gas rush, stays snapping. */
+	inline constexpr const TCHAR* ShipBagTear = TEXT("Ship.Lamplighter.BagTear");
+	/** The crash onto the Mooring Ledge (3 takes, ~4.3 s, carried like a gunshot): keel, splintering, a long scrape, debris, a last groan. */
+	inline constexpr const TCHAR* ShipHardLanding = TEXT("Ship.Lamplighter.HardLanding");
+	/** The tender's harpoon gun (3 takes, ~1.2 s): a pop of air, the chain whipping out. */
+	inline constexpr const TCHAR* GrappleFire = TEXT("Ship.Grapple.Fire");
+	/** The grapnel biting the deck (3 takes, ~1 s): iron into timber, the chain settling, the cable twanging taut. */
+	inline constexpr const TCHAR* GrappleHit = TEXT("Ship.Grapple.Hit");
+	/** A taut grapple cable under the ship's weight (LOOP, 6 s, at the grapple): a hum, links groaning. Stop it when the line is cut. */
+	inline constexpr const TCHAR* GrappleStrain = TEXT("Ship.Grapple.Strain");
+	/** A grapple line cut (3 takes, ~1.3 s): the cutter's blow, the link cracking, the cable whipping away, chain rattling off. */
+	inline constexpr const TCHAR* GrappleCut = TEXT("Ship.Grapple.Cut");
+	/** The tender falling smoking into the canyon (2 takes, ~7 s, carried like a gunshot): a bang as the grapples let go, a long fall, a far crash at ~5 s. */
+	inline constexpr const TCHAR* TenderFall = TEXT("Ship.Tender.Fall");
+	/** The windlass cranked (LOOP, 4 s, at the winch): a pawl ratcheting, links, the gear groaning. Play while the hold runs. */
+	inline constexpr const TCHAR* AnchorCrank = TEXT("Ship.Anchor.Crank");
+	/** The anchor let go and set (3 takes, ~2.7 s): chain running out, the flukes biting stone at ~0.7 s, the chain taut at ~1.2 s, the pawl locking at ~1.9 s. */
+	inline constexpr const TCHAR* AnchorSet = TEXT("Ship.Anchor.Set");
+	/** The spyglass drawn out (2D, 3 takes, ~1.1 s): lens cap, three brass slides each ending on a tick, a glass ring. */
+	inline constexpr const TCHAR* SpyglassOpen = TEXT("Story.Spyglass.Open");
+	/** The Great Lantern's flame leaning toward a stolen soul (3 takes, ~3.2 s, swells on purpose): a gust, a warm glass tone bending up, a chime, a far whisper. */
+	inline constexpr const TCHAR* LanternLean = TEXT("Story.Lantern.Lean");
+	/** The soul smog over the valley (2D LOOP, 16 s, ambience): a low drone, thick air, the barge's throb, whispers. */
+	inline constexpr const TCHAR* SmogAmbience = TEXT("Ambience.Smog");
+	/** A Dredger's company rifle (5 takes, ~1.1 s, 'Gun'): a heavy dark boom, a flat crack, a barrel's ring, a flare of sparks. */
+	inline constexpr const TCHAR* DredgerRifleFire = TEXT("Creature.Dredger.Rifle.Fire");
+	/** A Dredger reloading (4 takes, ~1.7 s): bolt, spent case, clip pressed in, rounds thumbed, bolt forward. */
+	inline constexpr const TCHAR* DredgerRifleReload = TEXT("Creature.Dredger.Rifle.Reload");
+	/** A Dredger shouting through his gas mask (6 takes, 0.6-0.9 s, no words): a hail, a sighting, an order. */
+	inline constexpr const TCHAR* DredgerBark = TEXT("Creature.Dredger.Bark");
+	/** A Dredger hit (5 takes, ~0.55 s): a grunt through the mask, the rubber coat's slap. */
+	inline constexpr const TCHAR* DredgerHurt = TEXT("Creature.Dredger.Hurt");
+	/** A Dredger dying (4 takes, ~1.7 s): a gasp, a falling groan, the valve wheezing, knees then body, the rifle clattering. */
+	inline constexpr const TCHAR* DredgerDeath = TEXT("Creature.Dredger.Death");
+	/** The soul-hose latching on the player (3 takes, ~0.9 s): the clamp, the twist-lock, a wet suck, the valve's hiss. */
+	inline constexpr const TCHAR* DredgerHoseLatch = TEXT("Creature.Dredger.Hose.Latch");
+	/** The hose draining (LOOP, 6 s): a pump's pulse, wet gulps, a whistle of air, a soul's whisper. Stop it when the hose breaks or the man dies. */
+	inline constexpr const TCHAR* DredgerHoseDrain = TEXT("Creature.Dredger.Hose.Drain");
+	/** The hose broken (3 takes, ~1.2 s): a whip crack, the valve spitting, the hose thrashing, pressure hissing out, a soul's cry. */
+	inline constexpr const TCHAR* DredgerHoseSnap = TEXT("Creature.Dredger.Hose.Snap");
+	/** The hose-man's tank bursting (3 takes, ~2.9 s, carried like a gunshot): a bang and a heave of air, shards, gas, the souls' wail. */
+	inline constexpr const TCHAR* DredgerTankBurst = TEXT("Creature.Dredger.Tank.Burst");
+	/** Delia's old double-barrel (5 takes, ~1.7 s, carried like a gunshot): a deeper, longer boom than the pump's. */
+	inline constexpr const TCHAR* DeliaShotgun = TEXT("Story.Delia.Shotgun");
+	/** Delia reloading (4 takes, ~1.9 s): the barrels dropped open, two hulls ringing on boards, two shells in, snapped shut. */
+	inline constexpr const TCHAR* DeliaReload = TEXT("Story.Delia.Reload");
+	/** The turn-in card's stamp (2D, 3 takes, ~1.3 s): a heavy stamp on the card's slam (0.11 s in), silver chinking, three rising notes. */
+	inline constexpr const TCHAR* TurnInStamp = TEXT("UI.TurnIn.Stamp");
 }

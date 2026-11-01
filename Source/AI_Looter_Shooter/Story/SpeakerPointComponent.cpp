@@ -184,6 +184,17 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 	{
 		return false;
 	}
+	// A mission ready to turn in here with no choice to make: its card first, the talk once Turn In is pressed
+	// (TurnInFromCard; SpeakerPointComponentOffers.cpp). Without a HUD to show it (tests, a headless run), the talk at once.
+	if (OpenTurnInCard(Listener))
+	{
+		return true;
+	}
+	return TalkNow(Listener);
+}
+
+bool USpeakerPointComponent::TalkNow(AActor* Listener)
+{
 	// Talked to over its own words still being said (a turn-in, MayTalkOver): what it says now follows them.
 	const bool bOverOwnWords = IsTalking();
 	AActor* Owner = GetOwner();

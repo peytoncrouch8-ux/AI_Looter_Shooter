@@ -39,8 +39,9 @@ Calder's Caches: Ruth's note on the Rangers' board offers it (AMissionArtifact A
   from the layout's gameplay.boards.
 Side 1: the town gate's poster offers it (AMissionArtifact Artifact_PosterGate over the poster's paper); the sheriff's
   daybook on his desk (OdellDaybook).
-Main 1: Delia's porch plate (APorchPlate on the farmhouse's SOCKET_Plate, in place of the plain plate build_area_farm.py
-  stands there). Main 2: the boards where it happened (LookoutStains, on the lookout's stained boards, with the stain's decal). Main 3: Pa's lantern bail on
+Delia's porch plate (APorchPlate on the farmhouse's SOCKET_Plate, in place of the plain plate build_area_farm.py stands
+  there): since the Wardens story (2026-10-31) no Landfall step asks for it, so its jars (Delia's salt for the road) are
+  a free pickup after Main 1 unless the mission data or story_texts.PORCH_PLATE say otherwise (porch_plate_when). Main 2: the boards where it happened (LookoutStains, on the lookout's stained boards, with the stain's decal). Main 3: Pa's lantern bail on
   Tilly's sill (LanternBail, after Main 3). Main 4: the keepers' roll in the nave (KeepersRoll). Main 5 and Side 3: the
   sheriff's hat by the den's mouth (SheriffHat, on the den dressing's hat) and his badge in the den (SheriffBadge).
   Main 6: Keeper's Bridge's place (Place_KeepersBridge, on the grounded deck: build_area_town_rr.py).
@@ -62,6 +63,7 @@ pieces must stand):
 On its own, in the open editor (clears Gameplay/Valley, places, saves):
     Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area_missionprops_valley.py RansomsRest"
 """
+import importlib
 import json
 import math
 import os
@@ -91,7 +93,7 @@ HOB = 'Hob'
 SLOANE = 'Mr. Sloane'
 FENN = 'Josiah Fenn'
 THADDEUS = 'Thaddeus Bright'
-DELIA = 'Grandma Delia'
+DELIA = 'Delia Ransom'
 
 
 def say(*pairs):
@@ -863,8 +865,7 @@ def place_lookout_stains(build, meshes, found):
     turn = seat.rotation.rotator()
     spot = seat.translation + turn.get_forward_vector() * STAIN_AT[0] + turn.get_right_vector() * STAIN_AT[1]
     deck = onto(lookout, spot.x, spot.y, seat.translation.z + 100.0, seat.translation.z - 200.0)
-    readable(build, meshes, 'LookoutStains', deck if deck is not None else spot, turn.yaw,
-             shown_when=story.condition(during=MAIN2))
+    # (The LookoutStains readable went with Shall We Talk Business?, 2026-11-01: only the old stain's decal stays.)
     if deck is None:
         build.warn('nothing of the lookout under its stain: no decal on the boards')
         return
@@ -907,8 +908,29 @@ def place_barn_chalk(build, meshes, found):
 # The farm, Tilly's sill, the caches, the posters, the bridge, Main Street
 # ---------------------------------------------------------------------------
 
+def porch_plate_when(build, steps, texts):
+    """When the plate's jars can be taken: a Main 1 step that asks for them (the data's PorchPlate.Taken event or an
+    Interact on the plate), else story_texts.PORCH_PLATE's take_when (STORY's call), else (the Wardens story, 2026-10-31:
+    Landfall no longer asks for the plate) a free pickup once Main 1 is done: Delia's salt for the road. A take_when still
+    naming Main 1 without a step asking for the plate is the old design's: it's left for the free pickup, and logged."""
+    asks = (('event', 'PorchPlate.Taken'), ('interact', 'PorchPlate'))
+    found = [s for kind, key in asks for s in steps.find_all(MAIN1, kind, key)]
+    if found:
+        return story.condition(during=MAIN1, from_step=min(found)), f'Main 1\'s step {min(found)}'
+    spec = getattr(texts, 'PORCH_PLATE', {}).get('take_when')
+    if spec and spec.get('during') != MAIN1:
+        return texts.condition(spec), f'story_texts.PORCH_PLATE\'s take_when {spec}'
+    if spec:
+        build.log(f'the porch plate: story_texts.PORCH_PLATE\'s take_when {spec} is the old Main 1 step (no Landfall step '
+                  f'asks for the plate): a free pickup after {MAIN1} instead')
+    return story.condition(after=[MAIN1]), f'after {MAIN1} (a free pickup)'
+
+
 def place_porch_plate(build, meshes, steps, found):
-    """Delia's plate as the APorchPlate (the jars once in Main 1, the biscuits in Main 7), where the plain plate stood."""
+    """Delia's plate as the APorchPlate (the jars, Delia's salt for the road; the biscuits in Main 7), where the plain
+    plate stood. Its words are story_texts.PORCH_PLATE's (STORY's), else the design's."""
+    import story_texts
+    texts = importlib.reload(story_texts)
     cls = actor_class('PorchPlate')
     house = found.get('farmhouse')
     at = socket(house, 'Plate') if house is not None else None
@@ -919,9 +941,8 @@ def place_porch_plate(build, meshes, steps, found):
     plain = found.get('Farmhouse_Plate')
     if plain is not None:
         actors.destroy_actor(plain)
-    # The data's step is the jars taken (the plate's PorchPlate.Taken event, which Looter.Story.SevenDays.Mission checks); an
-    # Interact on the plate would do as well.
-    take_step = steps.find_any(MAIN1, (('event', 'PorchPlate.Taken'), ('interact', 'PorchPlate')), 4)
+    take_when, said = porch_plate_when(build, steps, texts)
+    words = getattr(texts, 'PORCH_PLATE', {})
     plate = put(build, cls, at.translation, at.rotation.rotator().yaw, 'PorchPlate_Delia', tags=('PorchPlate', 'Obstacle'))
     plate.set_actor_rotation(at.rotation.rotator(), False)
     for part, names in (('plate', ('PorchPlate_Plate', 'PorchPlate')), ('jars', ('PorchPlate_Jars',)),
@@ -929,13 +950,21 @@ def place_porch_plate(build, meshes, steps, found):
         model = first_mesh(meshes, names)
         if model is not None:
             plate.get_editor_property(part).set_static_mesh(model)
-    plate.set_editor_property('take_when', story.condition(during=MAIN1, from_step=take_step))
-    plate.set_editor_property('eat_when', story.condition(during=MAIN7))
-    plate.set_editor_property('take_lines', lines_of([("Delia's slip", "SALT FOR THE ROAD. THEY DON'T CARE FOR IT. — D.")]))
-    plate.set_editor_property('eat_lines', lines_of([(DELIA, '...Thank you, Ellis.')]))
+    plate.set_editor_property('take_when', take_when)
+    plate.set_editor_property('eat_when', texts.condition(words['eat_when']) if words.get('eat_when')
+                              else story.condition(during=MAIN7))
+    plate.set_editor_property('take_lines', lines_of(words.get('take_lines') or
+                                                     [("Delia's slip", "SALT FOR THE ROAD. THEY DON'T CARE FOR IT. — D.")]))
+    plate.set_editor_property('eat_lines', lines_of(words.get('eat_lines') or [(DELIA, '...Thank you.')]))
+    for prop, key in (('take_prompt', 'take_prompt'), ('eat_prompt', 'eat_prompt')):
+        if words.get(key):
+            try:
+                plate.set_editor_property(prop, unreal.Text(words[key]))
+            except Exception:
+                pass
     if 'PorchPlate_Jars' not in meshes:
         build.log('no SM_PorchPlate_Jars yet: the jars stay drawn on the plate after they\'re taken (one model)')
-    build.log(f'Delia\'s porch plate (the jars from Main 1\'s step {take_step}, the biscuits in Main 7)')
+    build.log(f'Delia\'s porch plate (the jars {said}, the biscuits in Main 7)')
 
 
 def place_bail(build, meshes, found):

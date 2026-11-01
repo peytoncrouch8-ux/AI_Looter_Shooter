@@ -1,6 +1,7 @@
 // ALooterHUD: the mission offer card (UMissionOfferWidget), opened by a giver: someone after their lines, a notice board's
 // posting (over the board's screen, which it goes back to), an artifact picked up, or the console. The same card in its
-// choice mode for a turn-in with a choice of two (OpenTurnInChoice), and in its reading mode for something read in the
+// choice mode for a turn-in with a choice of two (OpenTurnInChoice), in its turn-in mode for every other turn-in at someone,
+// a board or an artifact (OpenTurnInCard: card first, then the talk), and in its reading mode for something read in the
 // world (OpenMissionOffer with no mission, from an AReadableProp).
 
 #include "UI/HUD/LooterHUD.h"
@@ -160,6 +161,61 @@ bool ALooterHUD::OpenTurnInChoice(const UMissionDefinition* Mission, AActor* Giv
 	bMissionOfferOpen = true;
 	LiftCaptions(false);
 	UE_LOG(LogLooter, Log, TEXT("Choice card: %s%s."), *Mission->GetMissionId().ToString(),
+		Giver ? *FString::Printf(TEXT(" at %s"), *Giver->GetActorNameOrLabel()) : TEXT(""));
+	return true;
+}
+
+bool ALooterHUD::OpenTurnInCard(FName MissionId, AActor* Giver)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	// Over the game or a notice board's screen (a posting turned in there), as the choice card.
+	if (!PC || !PC->IsLocalController() || bPauseMenuOpen || bInventoryOpen || bStationBoardOpen || bBenchOpen || bVendorOpen
+		|| UBossShrineWidget::GetOpen() != nullptr || UBountyBoardWidget::GetOpen() != nullptr)
+	{
+		return false;
+	}
+	// Only a mission waiting for its turn-in, with no choice of two (that one has its choice card).
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	const UMissionDefinition* Mission = Runner ? Runner->FindDefinition(MissionId) : nullptr;
+	if (!Mission || !FMissionOfferCard::HasTurnInCard(*Mission) || !Runner->IsRunning(MissionId) || !Runner->IsReadyToTurnIn(MissionId))
+	{
+		UE_LOG(LogLooter, Log, TEXT("The turn-in card isn't opened: %s isn't waiting to be turned in on a card."), *MissionId.ToString());
+		return false;
+	}
+	if (!MissionOfferWidget)
+	{
+		MissionOfferWidget = CreateWidget<UMissionOfferWidget>(PC, UMissionOfferWidget::StaticClass());
+	}
+	if (!MissionOfferWidget)
+	{
+		return false;
+	}
+	if (const APawn* Pawn = PC->GetPawn())
+	{
+		if (UWeaponManagerComponent* Manager = Pawn->FindComponentByClass<UWeaponManagerComponent>())
+		{
+			Manager->StopFire();
+		}
+	}
+
+	MissionOfferWidget->OpenTurnIn(this, Mission, Giver, bNoticeBoardOpen);
+	if (!bMissionOfferOpen)
+	{
+		MissionOfferWidget->AddToViewport(OfferZOrder);
+	}
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(MissionOfferWidget->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	PC->SetInputMode(InputMode);
+	PC->SetShowMouseCursor(true);
+	if (IsWithinScreenReach(Giver))
+	{
+		ScreenAnchor = Giver;
+	}
+	bMissionOfferOpen = true;
+	// The giver's words wait under it (CoversCaptions): card first, then the talk.
+	LiftCaptions(false);
+	UE_LOG(LogLooter, Log, TEXT("Turn-in card: %s%s."), *MissionId.ToString(),
 		Giver ? *FString::Printf(TEXT(" at %s"), *Giver->GetActorNameOrLabel()) : TEXT(""));
 	return true;
 }

@@ -226,4 +226,8 @@ def shake_roof(m, slopes):
 
 barn()
 if __name__ != '__overview__':            # the buildings' overview shows the tutorial island's barn only
-    barn('Barn_Ransom', ransom=True)
+    ransom = barn('Barn_Ransom', ransom=True)
+    # The Tripo model fitted into it (Art/Models/Buildings/Tripo/parts_buildings.py, Tools/Blender/looter_tripo_buildings.py;
+    # LOOTER_BUILDINGS_TRIPO=0 keeps the scripted one).
+    import looter_tripo_buildings as tripo_buildings
+    tripo_buildings.apply(ransom, 'BarnRansom')

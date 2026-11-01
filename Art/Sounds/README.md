@@ -82,6 +82,18 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
 - hit_feel (2026-10-28, the hit reactions, `CreatureHitCue` in `Creatures/CreatureHitCues.h`): `Creature.Spider.LegCrack`,
   `.Spider.Stagger`, `Creature.Unpaid.HatOff`, `.Stagger`, `.Gutter`, `.Snuff`, `.Tear`, `Creature.Slime.Stagger`, `.Pop`,
   `Creature.Hit.Overkill`; 4-5 takes each, 3D 'Creature', synthesized on creatures.py's helpers.
+- landfall, landfall_story, dredger (2026-10-31, the Wardens story, `Docs/Work/2026-10-31-Wardens/CONTRACT.md` SOUND; names in
+  `LooterSoundCues.h` flat at the end of `LooterSoundCue`: `VaneRadioIn` ... `TurnInStamp`, 30 cues). landfall.py: the
+  Lamplighter (`Ship.Lamplighter.Engine|Creak` loops, `.Lurch`, `.BagTear`, `.HardLanding`), the grapples (`Ship.Grapple.Fire|Hit|Cut`,
+  `.Strain` loop), `Ship.Tender.Fall`, the winch (`Ship.Anchor.Crank` loop, `.Set`). landfall_story.py: `Story.Vane.RadioIn|Out` and
+  `.RadioHiss` (loop; Vane's radio through a horn speaker and a coarse converter), `Story.Spyglass.Open`, `Story.Lantern.Lean`,
+  `Ambience.Smog` (loop), `Story.Delia.Shotgun` (the Ranchhand's recorded blast slowed to a bigger bore) and `.Reload`,
+  `UI.TurnIn.Stamp` (the stamp lands 0.11 s in, `givers.STAMP_LANDS`). dredger.py: the company rifle (`Creature.Dredger.Rifle.Fire`:
+  recorded rifles slowed to a big bore, a barrel's ring, a spark flare; `.Reload`), a man's voice through a gas mask (`.Bark` 6 takes,
+  `.Hurt`, `.Death`; formant shouts, no words, `_mask`: highs gone, a canister's comb, a valve's flutter) and the soul-hose
+  (`.Hose.Latch`, `.Hose.Drain` loop, `.Hose.Snap`, `.Tank.Burst`). Render only these:
+  `Tools\sounds.ps1 Ship.*,Story.Vane.*,Story.Spyglass.*,Story.Lantern.*,Story.Delia.*,Ambience.Smog,UI.TurnIn.*,Creature.Dredger.*`.
+  No numbers flag; nobody had listened when they went in (the user's ear is the check).
 
 ## Render
 
@@ -341,5 +353,10 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
   loudness (crest 16-22 dB against a Core's 12-15). Make a kind louder through its Core's density (the limiter push) and
   its tails, keep the lows modest, and ease them in so their tops miss the Core's (2026-10-28: a 30 ms rise took the
   shotgun's and the revolver's worst sums down 2-3 dB; a post-hoc high-pass on a limited Core raises its peak instead).
+- A cue whose `level` needs more than 0 dB of volume shifts every cue in cues.json down (the render prints "all shifted -N dB";
+  the standing shift is -0.8, ShutterSlam's). Short, sharp events (a chain cut, a harpoon shot) measure quiet over 200 ms: push
+  them into the soft clip and limiter (`bosses._master`, landfall.py's `_dense`) instead of raising `level`, and read the
+  written `volume_db` after a render. Lay a sustained bed under an impact by loudness (`kit.set_level(x, ref, db, 0.1)`, 12-20
+  dB under) or it flattens the hit (a crash's debris and dust, a tank's gas and wail).
 - The worst own-gun peak is a maker's and a room's: Roundhouse (Low x1.3) and Windfall (Mech x1.5 + rattle) with
   TailInside set the headroom, not the plain gun in the open (often 1.5-2 dB lower).

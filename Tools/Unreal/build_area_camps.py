@@ -110,6 +110,11 @@ _TILES = {}
 
 
 def tiles(build):
+    # The cache outlives a reopened level (open_clean.py: 2026-11-01, every trace then threw "ObjectInstance is null"):
+    # tiles whose components went with the old level are fetched again.
+    cached = _TILES.get(build.tag)
+    if cached and not all(unreal.SystemLibrary.is_valid(mesh) for mesh, *_ in cached):
+        del _TILES[build.tag]
     if build.tag not in _TILES:
         _TILES[build.tag] = build_area.terrain_tiles(build.tag)
         if not _TILES[build.tag]:

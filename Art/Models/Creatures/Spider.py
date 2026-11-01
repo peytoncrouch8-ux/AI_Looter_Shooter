@@ -766,6 +766,9 @@ if TRIPO:
     # painted above for the Gravemother's pale hide and the Spitter's scripted fallback.
     MATERIAL = parts_spider_build.material()
 
+# Every part is turned to face outward in lc.Mesh.finish (lc.face_out; the user, 2026-10-31: "spiders are see through":
+# lc.ellipsoid, lc.tube and the Tripo shells wind inward), before seam_normals averages the outward face normals.
+
 rig = lm.armature()
 lm.bones(rig, [(name, lc.to_blender(head), lc.to_blender(tail), parent) for name, head, tail, parent in bones])
 skin = {}

@@ -4,6 +4,8 @@
 
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRank.h"
+#include "Creatures/DredgerHoseMan.h"
+#include "Creatures/DredgerRifleman.h"
 #include "Creatures/EncounterGroup.h"
 #include "Creatures/EncounterSpawner.h"
 #include "Creatures/UnpaidCreature.h"
@@ -38,8 +40,10 @@
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
 
-// Main 3, "Cold Welcome" (Docs/Areas/RansomsRest.md): the farm road into town, the Unpaid at the gate, Bright & Daughter,
-// Tilly at her window; the shutters that slam, and Main Street safe after it.
+// Main 3, "Under New Management" (was "Cold Welcome"; Docs/Areas/RansomsRest_Expansion.md): the farm road into town, the
+// fight at the gate, Bright & Daughter, Tilly at her window; the shutters that slam, and Main Street safe after it. The
+// test names keep "ColdWelcome". The flow below plays the gate's fight with its own stand-in setup (Unpaid only, from the
+// fight's step): the built level's checkpoint is the Placed test's; its new pieces are UnderNewManagementTests.cpp's.
 
 namespace
 {
@@ -52,9 +56,10 @@ namespace
 	const FName TillyTag(TEXT("Speaker_Tilly"));
 	const FName Valley(TEXT("TestValley"));
 
-	const TCHAR* const Collar = TEXT("You've ruined my collar, by the way.");
-	const TCHAR* const Closed = TEXT("We're closed. Back after the funeral.");
-	const TCHAR* const Later = TEXT("Still closed. Mind that collar.");
+	// Her words since Under New Management (the Wardens story, 2026-11-01; create_story_lines.py's TillyMain3/Closed/AfterMain3).
+	const TCHAR* const Collar = TEXT("His lantern wasn't on him. Only its bail, snapped off in his fist.");
+	const TCHAR* const Closed = TEXT("Closed. The Company counts every door that opens on this street.");
+	const TCHAR* const Later = TEXT("Every coffin in my cellar's salted, Warden. The hose won't have them.");
 
 	/** Where the gate's Unpaid stand, from the gate (build_area_story.py's GATE_SPOTS: north-east of it). */
 	const FVector GateSpots[] = { FVector(600.0, 900.0, 0.0), FVector(1100.0, 400.0, 0.0), FVector(300.0, 1500.0, 0.0),
@@ -116,9 +121,9 @@ namespace
 	}
 
 	/**
-	 * The gate's fight as the build script sets it up: six Unpaid and a Restless one (fights enlarged 2026-10-21; three), at
-	 * most four out at once, the rest rising as they fall, the Restless last (the user's "Soften early only", 2026-10-23:
-	 * seven at once killed a player standing still), on Main 3's second step only.
+	 * A stand-in for the gate's fight (the flow's own: the built one is the Company's checkpoint, from the road, Placed's):
+	 * six Unpaid and a Restless one, at most four out at once, the rest rising as they fall, the Restless last (the user's
+	 * "Soften early only", 2026-10-23), on Main 3's second step only.
 	 */
 	void SetUpGate(AEncounterSpawner& Setup)
 	{
@@ -153,8 +158,8 @@ namespace
 		FSpeakerTopic During;
 		During.When.DuringMission = MainThree;
 		During.When.FromStep = 3;
-		During.Lines = MainSet ? MainSet->Lines : TArray<FStoryLine>({ Said(TEXT(""), TEXT("I laid you out, you know.")),
-			Said(TEXT(""), Collar), Said(TEXT("Ellis"), TEXT("Pa's lantern. Was it with him?")) });
+		During.Lines = MainSet ? MainSet->Lines : TArray<FStoryLine>({ Said(TEXT(""), TEXT("A Warden. Lord. Come close, the whole street's watching.")),
+			Said(TEXT(""), Collar), Said(TEXT(""), TEXT("Couldn't open his hand till morning. Here. And the box: he'd want it used.")) });
 		FSpeakerTopic After;
 		After.When.AfterMissions = { MainThree };
 		After.Lines = AfterSet ? AfterSet->Lines : TArray<FStoryLine>({ Said(TEXT(""), Later) });
@@ -345,7 +350,7 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 		bCollar = OnScreen(*Captions) == FString(TEXT("Tilly Bright|")) + Collar;
 		Captions->Update(Captions->GetCurrent()->Seconds + 0.01f);
 	}
-	TestTrue(TEXT("...her lines: \"You've ruined my collar, by the way.\""), bCollar);
+	TestTrue(TEXT("...her lines: \"His lantern wasn't on him. Only its bail, snapped off in his fist.\""), bCollar);
 	Captions->Update(600.f);
 	TestTrue(TEXT("After Main 3, her word through the window"), Tilly->SpeakerPoint->Talk(Player));
 	const TArray<FStoryLine> Now = Tilly->SpeakerPoint->GetLinesNow();
@@ -395,9 +400,9 @@ bool FColdWelcomeTillyTest::RunTest(const FString& Parameters)
 	{
 		return Line.Text.ToString() == Collar && Line.Speaker.ToString() == TEXT("Tilly Bright");
 	}));
-	TestTrue(TEXT("...and Ellis asks after Pa's lantern, by name"), Lines.ContainsByPredicate([](const FStoryLine& Line)
+	TestTrue(TEXT("...and she hands over the box of his effects"), Lines.ContainsByPredicate([](const FStoryLine& Line)
 	{
-		return Line.Speaker.ToString() == TEXT("Ellis") && Line.Text.ToString().Contains(TEXT("lantern"));
+		return Line.Speaker.ToString() == TEXT("Tilly Bright") && Line.Text.ToString().Contains(TEXT("box"));
 	}));
 	Campaign.Complete(MainThree);
 	Says(Topic);
@@ -516,9 +521,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColdWelcomePlacedTest, "Looter.Story.ColdWelco
 
 bool FColdWelcomePlacedTest::RunTest(const FString& Parameters)
 {
-	// Ransom's Rest as built (build_area_story.py): the gate's place and its fight (six Unpaid and a Restless one, on
-	// Main 3's second step only, coming as they appear, giving up 30 m out), Tilly's window, the store's shutters, and the
-	// safe zones (the farm always, Main Street after Main 3).
+	// Ransom's Rest as built (build_area_story.py, build_area_main3.py): the gate's place and its fight (the Company's
+	// checkpoint: three riflemen, a hose-man, two Unpaid and a Restless one, from Main 3's road through its fight, guarding,
+	// giving up 30 m out), Tilly's window, the store's shutters, and the safe zones (the farm after Landfall, Main Street
+	// after Main 3).
 	const ULevel* Level = LoadRansomsRest(*this);
 	if (!Level)
 	{
@@ -565,12 +571,16 @@ bool FColdWelcomePlacedTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The town gate is marked for the farm road's end"), bPlace);
 	if (TestNotNull(TEXT("The gate's fight"), Gate))
 	{
-		TestEqual(TEXT("...six Basic Unpaid"), CountBrought(*Gate, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 6);  // (fights enlarged 2026-10-21; 3)
+		// The Company's checkpoint since Under New Management (2026-11-01, build_area_main3.py): its men, then the dead drawn by
+		// the smog, seven in all as before.
+		TestEqual(TEXT("...three Dredger riflemen"), CountBrought(*Gate, ADredgerRifleman::StaticClass(), ECreatureRank::Basic), 3);
+		TestEqual(TEXT("...a hose-man"), CountBrought(*Gate, ADredgerHoseMan::StaticClass(), ECreatureRank::Basic), 1);
+		TestEqual(TEXT("...two Basic Unpaid"), CountBrought(*Gate, AUnpaidCreature::StaticClass(), ECreatureRank::Basic), 2);
 		TestEqual(TEXT("...and one Restless"), CountBrought(*Gate, AUnpaidCreature::StaticClass(), ECreatureRank::Rare), 1);
 		TestEqual(TEXT("...four out at most (softened 2026-10-23)"), Gate->MaxAlive, 4);
-		TestTrue(TEXT("...on Main 3's second step only"), Gate->ActiveWhen.DuringMission == MainThree && Gate->ActiveWhen.FromStep == 1
-			&& Gate->ActiveWhen.BeforeStep == 2);
-		TestTrue(TEXT("...coming for the player as they appear"), Gate->bHuntOnSpawn);
+		TestTrue(TEXT("...from Main 3's road through its fight (the men stand at the sandbags as the player comes)"),
+			Gate->ActiveWhen.DuringMission == MainThree && Gate->ActiveWhen.FromStep == 0 && Gate->ActiveWhen.BeforeStep == 2);
+		TestFalse(TEXT("...guarding, not hunting, until the player starts it"), Gate->bHuntOnSpawn);
 		TestTrue(TEXT("...giving up 30 m from the gate"), FMath::IsNearlyEqual(Gate->GiveUpRadius, 3000.f) && Gate->GroundCorners.IsEmpty());
 		TestTrue(TEXT("...tagged for the fight"), Gate->CreatureTags.Contains(GateTag));
 		// (fights enlarged 2026-10-21: two ways at once, north-east of the gate and on the street's south side, all east of it)
@@ -592,7 +602,7 @@ bool FColdWelcomePlacedTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Shutters on the store (eight sockets)"), Shutters >= 8);
 	TestEqual(TEXT("...each hung, and shut after Main 3"), ShuttersAfterMain3, Shutters);
-	TestTrue(TEXT("Delia's salt line keeps the farm safe from the start"), Farm && Farm->ActiveWhen.IsEmpty() && Farm->Corners.Num() >= 3);
+	TestTrue(TEXT("Delia's salt line keeps the farm safe after Landfall (its porch fight is fought inside it)"), Farm && Farm->ActiveWhen.AfterMissions.Contains(FName(TEXT("Main1"))) && Farm->Corners.Num() >= 3);
 	TestTrue(TEXT("Main Street is safe after Main 3"), Street && Street->ActiveWhen.AfterMissions.Contains(MainThree) && Street->Corners.Num() >= 3);
 	return true;
 }

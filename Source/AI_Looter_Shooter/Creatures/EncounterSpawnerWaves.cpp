@@ -277,6 +277,11 @@ ACreatureBase* AEncounterSpawner::SpawnOne(const FOwedCreature& Entry, const FVe
 	}
 	// It fights on the spawner's ground, and carries its tags for the missions that count its kind.
 	Creature->HuntingGround = MakeHuntingGround();
+	// A group holding a post (a checkpoint's crew): round where it appeared.
+	if (Group.PostRadius > 0.f)
+	{
+		Creature->SetPost(Group.PostRadius);
+	}
 	for (const FName& Tag : CreatureTags)
 	{
 		if (!Tag.IsNone())

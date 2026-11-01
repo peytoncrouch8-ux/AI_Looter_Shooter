@@ -39,6 +39,12 @@ bool FPlayCheckPageKeysTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("No key past the last page"), LoadoutParts::PageNumberKey(LoadoutParts::NumPages).IsValid());
 	TestTrue(TEXT("The bestiary's key is 3"), LoadoutParts::PageNumberKey(static_cast<int32>(EInventoryPage::Bestiary)) == EKeys::Three);
 	TestEqual(TEXT("The Ledger is the bestiary"), LoadoutParts::PageNamed(TEXT("ledger")), static_cast<int32>(EInventoryPage::Bestiary));
+	// The names on screen since 2026-10-31, and the old ones mission assets still write.
+	TestEqual(TEXT("The Warden's Log is the bestiary"), LoadoutParts::PageNamed(TEXT("Warden's Log")), static_cast<int32>(EInventoryPage::Bestiary));
+	TestEqual(TEXT("...WardensLog too"), LoadoutParts::PageNamed(TEXT("WardensLog")), static_cast<int32>(EInventoryPage::Bestiary));
+	TestEqual(TEXT("Skills are the embers"), LoadoutParts::PageNamed(TEXT("skills")), static_cast<int32>(EInventoryPage::Embers));
+	TestEqual(TEXT("...Embers still"), LoadoutParts::PageNamed(TEXT("Embers")), static_cast<int32>(EInventoryPage::Embers));
+	TestEqual(TEXT("...Bestiary still"), LoadoutParts::PageNamed(TEXT("Bestiary")), static_cast<int32>(EInventoryPage::Bestiary));
 	TestEqual(TEXT("Nothing else is a page"), LoadoutParts::PageNamed(TEXT("Nowhere")), static_cast<int32>(INDEX_NONE));
 
 	// In the missions' words: {Page.X} is that tab's number key, needing no player to ask.

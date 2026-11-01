@@ -150,7 +150,8 @@ public:
 
 	/**
 	 * Notes that the local player behind Player has met this actor's kind: it hunted them, they hurt it, or they
-	 * defeated it. Its bestiary page opens from then on. Nothing when Player isn't a local player.
+	 * defeated it. Its bestiary page opens from then on. Nothing when Player isn't a local player, or the actor's kind has
+	 * no bestiary page (UBestiaryEntry::HasPageFor: a prop that takes shots).
 	 */
 	static void RecordEncounter(const AController* Player, const AActor* Actor);
 

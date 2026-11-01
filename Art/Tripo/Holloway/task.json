@@ -1,0 +1,12 @@
+{
+  "model": {
+    "task_id": "c42a1bc9-1627-45a8-b1d9-0c3ff300001f",
+    "status": "success",
+    "credits": 30.0
+  },
+  "rig": {
+    "task_id": "1cbbf6ec-9ec2-4bec-ae8e-942c261444f9",
+    "status": "success",
+    "credits": 25.0
+  }
+}

@@ -1,4 +1,5 @@
-// AMissionArtifact: a found thing that offers a mission: picking it up, the offer card, gone once taken.
+// AMissionArtifact: a found thing that offers a mission: picking it up, the offer card, gone once taken; a mission turned in
+// at it, card first (TurnInFromCard).
 
 #include "World/MissionArtifact.h"
 #include "AI_Looter_Shooter.h"
@@ -9,6 +10,8 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
+#include "Story/CaptionSubsystem.h"
+#include "Story/StoryLine.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -179,7 +182,7 @@ bool AMissionArtifact::Use(AActor* Player)
 		return false;
 	}
 	const FVector Where = GetInteractionLocation().Get(GetActorLocation());
-	// A mission turned in here comes first, as at someone's door: the talk's event finishes it.
+	// A mission turned in here comes first, as at someone's door.
 	if (const UMissionDefinition* Waiting = Runner->FindTurnInAt(this))
 	{
 		LooterSound::PlayAt(this, LooterSoundCue::Giver::ArtifactRead, Where);
@@ -189,8 +192,13 @@ bool AMissionArtifact::Use(AActor* Player)
 			ALooterHUD* ChoiceHUD = ALooterHUD::FindFor(Player);
 			return ChoiceHUD && ChoiceHUD->OpenTurnInChoice(Waiting, this);
 		}
-		Runner->NotifyEvent(FMissionEvent::Talked(this));
-		return true;
+		// Card first (the user's call, 2026-10-31): what was done and what it pays; its Turn In turns it in here
+		// (TurnInFromCard). Without a HUD (tests, a headless run) it's turned in at once.
+		if (ALooterHUD* CardHUD = ALooterHUD::FindFor(Player))
+		{
+			return !CardHUD->IsMenuOpen() && CardHUD->OpenTurnInCard(Waiting->GetMissionId(), this);
+		}
+		return TurnInFromCard(Waiting->GetMissionId());
 	}
 	const UMissionDefinition* Offer = GetOffer();
 	ALooterHUD* HUD = ALooterHUD::FindFor(Player);
@@ -205,6 +213,34 @@ bool AMissionArtifact::Use(AActor* Player)
 		return false;
 	}
 	UE_LOG(LogLooter, Log, TEXT("%s: picked up, offering %s."), *GetActorNameOrLabel(), *Offer->GetMissionId().ToString());
+	return true;
+}
+
+bool AMissionArtifact::TurnInFromCard(FName MissionId)
+{
+	UMissionRunner* Runner = UMissionRunner::Get(this);
+	const UMissionDefinition* Mission = Runner ? Runner->FindDefinition(MissionId) : nullptr;
+	if (!Mission || !Mission->NeedsTurnIn() || Mission->HasTurnInChoice() || !ActorHasTag(Mission->TurnIn.SpeakerTag)
+		|| !Runner->IsRunning(MissionId) || !Runner->IsReadyToTurnIn(MissionId))
+	{
+		return false;
+	}
+	// Its words, copied before the runner lets the mission go.
+	const TArray<FStoryLine> Said = Mission->TurnIn.Lines;
+	// The talk's event, as at someone's door: everything waiting here is turned in (and a talk objective about it counts).
+	Runner->NotifyEvent(FMissionEvent::Talked(this));
+	if (Runner->IsRunning(MissionId) && !Runner->TurnIn(MissionId))
+	{
+		return false;
+	}
+	// Its moment, said once the card is gone (the captions wait under it). A found thing has no voice of its own: a line
+	// naming nobody is shown as it's written.
+	UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this);
+	if (Captions && !Said.IsEmpty())
+	{
+		Captions->Play(Said, ECaptionPlay::Interrupt);
+	}
+	UE_LOG(LogLooter, Log, TEXT("%s: %s turned in here (%d lines said)."), *GetActorNameOrLabel(), *MissionId.ToString(), Said.Num());
 	return true;
 }
 

@@ -1,4 +1,7 @@
-"""Hob's roosts (World/RespawnMarker: ARespawnMarker), from the layout's gameplay.roosts, for build_area.py's gameplay pass
+"""The Wardens' lantern posts, Hob's roosts until 2026-10-31 (the user's call: "lantern posts instead of graves"; the same
+actors, ids and layout entries, only the model and the words changed: World/RespawnMarker.h), as the roosts were:
+
+Hob's roosts (World/RespawnMarker: ARespawnMarker), from the layout's gameplay.roosts, for build_area.py's gameplay pass
 (build_area_story.py calls it, where the family plot's grave marker was placed), or on their own in the open level:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area_roosts.py RansomsRest"
 which replaces every roost in the level (the build's and any placed by hand; a trip's landing marker stays) with the
@@ -17,7 +20,7 @@ gameplay.roosts (level cm, X north, Y east, as every layout point is):
     "openAfter": "Main4", "markAfter": "Main3", "startOpen": false, "note": "..." }
   - id: its MarkerId, the save data's name; never change an id once a session may have saved it (the roosts that
     replaced graves kept the graves' ids, so old saves' marked graves were found roosts).
-  - name: what the map and the ROOST FOUND banner call it.
+  - name: what the map and the POST LIT banner call it.
   - at: where the mast stands; yaw: the way the player faces on waking there (degrees: 0 north, 90 east). The player's spot
     (the actor) is the model's Wake socket from the mast (FALLBACK_WAKE before the model is imported, the same numbers as
     World/RoostKit.h): 1.7 m out in front of the mast, facing away from it, so face the yaw out over the land.
@@ -55,8 +58,10 @@ OBSTACLE_TAG = 'Obstacle'
 # places its first three and warns.
 MOST_PER_MAP = 3
 
-# The models (Art/Models/Props/HobRoost.py: the Crow's Mast and its bell); a roost without them stands as the C++ greybox.
-ROOST_MESH = '/Game/Art/Props/SM_HobRoost'
+# The models. The post is the class's own (World/RoostKit.h PostPath: the Wardens' lantern post since 2026-10-31, the user's
+# call; a stand-in, SM_KeeperLanternPost, until the Tripo "Lantern post"), so its one path lives in the C++ and this script
+# leaves it to the class; the Crow's Mast (SM_HobRoost) it replaced is no longer set. The bell (Art/Models/Props/HobRoost.py's
+# SM_HobRoostBell) hangs under the post's arm. A post without its model stands as the C++ greybox.
 BELL_MESH = '/Game/Art/Props/SM_HobRoostBell'
 # The model's Wake socket before it's imported (World/RoostKit.h FallbackWake: change both together): where the player stands
 # in the mast's frame (cm) and the way they face there (degrees).
@@ -320,10 +325,11 @@ def place(build):
     if cls is None:
         build.warn('no RespawnMarker class (build the game module first): the roosts are left out')
         return
-    roost_mesh = load_if_made(ROOST_MESH)
+    # The lantern post the class finds by itself (RoostKit::PostPath): its Wake socket, if the model has one, places the player.
+    roost_mesh = unreal.get_default_object(cls).get_editor_property('roost_mesh')
     bell_mesh = load_if_made(BELL_MESH)
     if roost_mesh is None:
-        build.warn(f'no {ROOST_MESH} yet: the roosts stand as their greybox')
+        build.warn('no lantern post model (World/RoostKit.h PostPath) in this checkout: the posts stand as their greybox')
     wake = wake_socket(roost_mesh)
     found = blockers(build)
     ids = set()
@@ -347,8 +353,7 @@ def place(build):
         roost.set_editor_property('mark_after_mission', unreal.Name(entry.get('markAfter', 'None')))
         # fastTravel false: a death-respawn and save point only (the town roost; ARespawnMarker.bFastTravelStation).
         roost.set_editor_property('fast_travel_station', bool(entry.get('fastTravel', True)))
-        if roost_mesh is not None:
-            roost.set_editor_property('roost_mesh', roost_mesh)
+        # The post's model is left to the class (RoostKit::PostPath), so swapping in the Tripo post is one C++ line.
         if bell_mesh is not None:
             roost.set_editor_property('bell_mesh', bell_mesh)
         # The mast's foot on its own ground, a little sunk so its cairn never shows a gap.

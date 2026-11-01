@@ -1,4 +1,5 @@
-// UHudGraveMarkedWidget: the "ROOST FOUND" banner. What it shows and when is here; its pictures and widgets are built below.
+// UHudGraveMarkedWidget: the "POST LIT" banner (a lantern post lit; ROOST FOUND until 2026-10-31). What it shows and when is
+// here; its pictures and widgets are built below.
 
 #include "UI/HUD/HudGraveMarkedWidget.h"
 #include "Scenes/SceneSubsystem.h"
@@ -49,7 +50,7 @@ namespace
 	constexpr float GlowHeight = 120.f;
 	constexpr float GlowOpacity = 0.16f;
 
-	/** "ROOST FOUND": orange, letter-spaced, its middle this far under the box's middle; the cyan rules either side. */
+	/** "POST LIT": orange, letter-spaced, its middle this far under the box's middle; the cyan rules either side. */
 	constexpr int32 TitleSize = 32;
 	constexpr int32 TitleSpacing = 220;
 	constexpr float TitleDrop = 6.f;
@@ -144,11 +145,12 @@ namespace
 	}
 
 	/**
-	 * Hob's roost, painted: the weathered mast on its cairn with the yard and the old brass bell, the crow's-foot mark burnt
-	 * glowing in its board (the map's roost icon), the beacon's flame on top with its column of light rising in Hob's Ember,
-	 * and Hob's crow perched on the yard's end, its one eye catching the fire.
+	 * A Wardens' lantern post, painted (the user's call, 2026-10-31: lantern posts replace Hob's roosts): the weathered post
+	 * on its cross foot with its braced arm, the iron lantern hung from the arm's end just lit, its glass hot and a warm glow
+	 * round it, its light rising in a soft column (the beacon the world shows), and Hob's crow perched on the arm by the
+	 * post, its one eye catching the light.
 	 */
-	const FPaintedIcon& RoostPicture()
+	const FPaintedIcon& LanternPostPicture()
 	{
 		static const FPaintedIcon Picture = []
 		{
@@ -156,36 +158,49 @@ namespace
 			Result.ViewBox = FVector2D(RoostWidth, RoostHeight);
 			const FLinearColor Light = Color::Roost();
 			const FLinearColor HotLight = Color::RoostCore();
-			// The column, fading out as it climbs.
-			FPaintLayer Column = Fill({ FVector2D(20.4f, 2.f), FVector2D(23.6f, 2.f), FVector2D(25.f, 22.f), FVector2D(19.f, 22.f) },
+			// The column out of the lantern, fading as it climbs past the arm.
+			FPaintLayer Column = Fill({ FVector2D(30.f, 0.f), FVector2D(33.f, 0.f), FVector2D(34.6f, 22.f), FVector2D(28.4f, 22.f) },
 				Light.CopyWithNewOpacity(0.f));
-			Column.GradientTo = Light.CopyWithNewOpacity(0.9f);
-			Column.GradientStart = FVector2D(22.f, 2.f);
-			Column.GradientEnd = FVector2D(22.f, 22.f);
+			Column.GradientTo = Light.CopyWithNewOpacity(0.85f);
+			Column.GradientStart = FVector2D(31.5f, 0.f);
+			Column.GradientEnd = FVector2D(31.5f, 22.f);
 			Result.Layers.Add(MoveTemp(Column));
-			// The post in its footing, the crossbar, the bell under the bar's far end and its clapper.
-			AddInked(Result, { FVector2D(20.f, 25.f), FVector2D(24.f, 25.f), FVector2D(24.f, 49.f), FVector2D(20.f, 49.f) }, Color::MetalMid());
-			AddInked(Result, { FVector2D(15.5f, 47.5f), FVector2D(28.5f, 47.5f), FVector2D(29.5f, 51.f), FVector2D(14.5f, 51.f) }, Color::MetalLow());
-			AddInked(Result, { FVector2D(7.f, 31.f), FVector2D(37.f, 31.f), FVector2D(37.f, 34.f), FVector2D(7.f, 34.f) }, Color::MetalMid());
-			AddInked(Result, { FVector2D(29.f, 34.f), FVector2D(33.f, 34.f), FVector2D(34.5f, 40.f), FVector2D(27.5f, 40.f) }, Color::Curse());
-			Result.Layers.Add(Fill(Circle(FVector2D(31.f, 41.f), 0.9f), Color::Ink()));
-			// The board on the mast with the crow's-foot burnt in it, still glowing: three toes up, the hind toe down.
-			AddInked(Result, { FVector2D(18.5f, 37.5f), FVector2D(25.5f, 37.5f), FVector2D(25.5f, 46.5f), FVector2D(18.5f, 46.5f) }, Color::MetalLow());
-			Result.Layers.Add(Stroke({ { FVector2D(22.f, 42.6f), FVector2D(22.f, 38.8f) }, { FVector2D(22.f, 42.6f), FVector2D(19.8f, 39.6f) },
-				{ FVector2D(22.f, 42.6f), FVector2D(24.2f, 39.6f) }, { FVector2D(22.f, 42.6f), FVector2D(22.f, 45.4f) } }, 0.9f, HotLight));
-			// The beacon's flame on the post's top, hot at its heart.
-			Result.Layers.Add(Fill(Oval(FVector2D(22.f, 22.5f), 3.3f, 4.2f), Light));
-			Result.Layers.Add(Fill(Oval(FVector2D(22.f, 23.2f), 1.5f, 2.1f), HotLight));
-			// Hob's crow on the bar's near end, facing out: tail, body, head, beak, its feet on the bar.
-			AddCrowPart(Result, { FVector2D(16.5f, 27.f), FVector2D(21.5f, 31.f), FVector2D(20.f, 32.4f), FVector2D(15.f, 29.5f) });
-			AddCrowPart(Result, { FVector2D(7.5f, 25.f), FVector2D(10.f, 21.5f), FVector2D(14.5f, 20.5f), FVector2D(17.5f, 22.f),
-				FVector2D(18.5f, 25.5f), FVector2D(16.f, 29.5f), FVector2D(11.f, 30.5f), FVector2D(8.5f, 29.f) });
-			AddCrowPart(Result, Circle(FVector2D(8.2f, 20.2f), 2.9f));
-			AddCrowPart(Result, { FVector2D(5.6f, 19.2f), FVector2D(2.6f, 20.6f), FVector2D(5.6f, 21.4f) });
-			Result.Layers.Add(Stroke({ { FVector2D(11.f, 30.2f), FVector2D(11.f, 31.2f) }, { FVector2D(13.5f, 30.4f), FVector2D(13.5f, 31.2f) } },
+			// The lantern's warm glow on the air round it, under everything solid.
+			Result.Layers.Add(Fill(Oval(FVector2D(31.5f, 27.5f), 9.5f, 10.5f), Light, 0.35f));
+			// The post on its cross foot, the arm out to the right and its brace.
+			AddInked(Result, { FVector2D(12.f, 15.f), FVector2D(16.f, 15.f), FVector2D(16.f, 48.5f), FVector2D(12.f, 48.5f) }, Color::MetalMid());
+			AddInked(Result, { FVector2D(6.5f, 47.f), FVector2D(21.5f, 47.f), FVector2D(22.5f, 50.5f), FVector2D(5.5f, 50.5f) }, Color::MetalLow());
+			AddInked(Result, { FVector2D(16.f, 27.f), FVector2D(24.f, 17.2f), FVector2D(26.5f, 17.2f), FVector2D(16.f, 30.f) }, Color::MetalLow());
+			AddInked(Result, { FVector2D(11.f, 14.f), FVector2D(35.f, 14.f), FVector2D(35.f, 17.2f), FVector2D(11.f, 17.2f) }, Color::MetalMid());
+			// Its hook, the lantern's iron cap, the lit glass with the flame's heart, the bars and its base.
+			Result.Layers.Add(Stroke({ { FVector2D(31.5f, 17.2f), FVector2D(31.5f, 20.f) } }, 1.f, Color::Ink()));
+			AddInked(Result, { FVector2D(27.f, 21.8f), FVector2D(36.f, 21.8f), FVector2D(31.5f, 19.4f) }, Color::MetalLow());
+			AddInked(Result, { FVector2D(27.8f, 21.8f), FVector2D(35.2f, 21.8f), FVector2D(35.8f, 33.f), FVector2D(27.2f, 33.f) }, HotLight);
+			Result.Layers.Add(Fill(Oval(FVector2D(31.5f, 28.f), 1.7f, 2.8f), FLinearColor::White));
+			Result.Layers.Add(Stroke({ { FVector2D(29.7f, 22.f), FVector2D(29.5f, 32.8f) }, { FVector2D(33.3f, 22.f), FVector2D(33.5f, 32.8f) } },
+				0.8f, Color::Ink()));
+			AddInked(Result, { FVector2D(26.8f, 33.f), FVector2D(36.2f, 33.f), FVector2D(36.2f, 35.f), FVector2D(26.8f, 35.f) }, Color::MetalLow());
+			// Hob's crow on the arm by the post, facing out to the left: tail, body, head, beak, its feet on the arm (the
+			// roost picture's crow, moved up onto the arm's top).
+			const FVector2D Perch(6.f, -16.f);
+			auto At = [&Perch](std::initializer_list<FVector2D> Points)
+			{
+				TArray<FVector2D> Moved;
+				for (const FVector2D& Point : Points)
+				{
+					Moved.Add(Point + Perch);
+				}
+				return Moved;
+			};
+			AddCrowPart(Result, At({ FVector2D(16.5f, 27.f), FVector2D(21.5f, 31.f), FVector2D(20.f, 32.4f), FVector2D(15.f, 29.5f) }));
+			AddCrowPart(Result, At({ FVector2D(7.5f, 25.f), FVector2D(10.f, 21.5f), FVector2D(14.5f, 20.5f), FVector2D(17.5f, 22.f),
+				FVector2D(18.5f, 25.5f), FVector2D(16.f, 29.5f), FVector2D(11.f, 30.5f), FVector2D(8.5f, 29.f) }));
+			AddCrowPart(Result, Circle(FVector2D(8.2f, 20.2f) + Perch, 2.9f));
+			AddCrowPart(Result, At({ FVector2D(5.6f, 19.2f), FVector2D(2.6f, 20.6f), FVector2D(5.6f, 21.4f) }));
+			Result.Layers.Add(Stroke({ At({ FVector2D(11.f, 30.2f), FVector2D(11.f, 31.2f) }), At({ FVector2D(13.5f, 30.4f), FVector2D(13.5f, 31.2f) }) },
 				0.9f, Color::Ink()));
-			// Its one eye, catching the roost's light.
-			Result.Layers.Add(Fill(Circle(FVector2D(7.3f, 19.6f), 0.8f), HotLight));
+			// Its one eye, catching the lantern's light.
+			Result.Layers.Add(Fill(Circle(FVector2D(7.3f, 19.6f) + Perch, 0.8f), HotLight));
 			return Result;
 		}();
 		return Picture;
@@ -227,6 +242,12 @@ namespace
 // Building it
 // ---------------------------------------------------------------------------
 
+FText UHudGraveMarkedWidget::TitleWords()
+{
+	// The user's call, 2026-10-31: the Wardens light lantern posts (it read GRAVE MARKED, then ROOST FOUND).
+	return NSLOCTEXT("LooterHUD", "PostLit", "POST LIT");
+}
+
 TSharedRef<SWidget> UHudGraveMarkedWidget::RebuildWidget()
 {
 	if (WidgetTree && !WidgetTree->RootWidget)
@@ -256,7 +277,7 @@ void UHudGraveMarkedWidget::BuildTree()
 		Centre + FVector2D(0.f, TitleDrop + 8.f));
 	Place(MakeImage(WidgetTree, GlowBrush(FVector2D(RoostGlowWidth, RoostGlowHeight), Color::Roost().CopyWithNewOpacity(RoostGlowOpacity))),
 		Centre + FVector2D(0.f, RoostDrop - 6.f));
-	Place(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudRoostFound"), RoostPicture(), PixelsPerUnit, FVector2D(RoostWidth, RoostHeight))),
+	Place(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudPostLit"), LanternPostPicture(), PixelsPerUnit, FVector2D(RoostWidth, RoostHeight))),
 		Centre + FVector2D(0.f, RoostDrop));
 
 	UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -264,7 +285,7 @@ void UHudGraveMarkedWidget::BuildTree()
 	TitleRow->AddChildToHorizontalBox(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudGraveRuleIn"), RulePicture(false), PixelsPerUnit, RuleSize)))
 		->SetVerticalAlignment(VAlign_Center);
 	UTextBlock* Words = MakeFloatingText(WidgetTree, TitleSize, Color::Accent(), TitleSpacing, ETextJustify::Center);
-	Words->SetText(NSLOCTEXT("LooterHUD", "RoostFound", "ROOST FOUND"));
+	Words->SetText(TitleWords());
 	UHorizontalBoxSlot* WordsSlot = TitleRow->AddChildToHorizontalBox(Words);
 	WordsSlot->SetVerticalAlignment(VAlign_Center);
 	WordsSlot->SetPadding(FMargin(RuleGap, 0.f));

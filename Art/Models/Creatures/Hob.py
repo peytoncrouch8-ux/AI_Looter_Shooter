@@ -287,6 +287,11 @@ class Part:
             for k in range(poly.loop_total):
                 values.extend(colors[k] if colors else WHITE)
         col.data.foreach_set('color_srgb', values)
+        # Closed pieces inside out turned (2026-10-31, the arachnids' see-through bug: the game draws one side): the coal,
+        # whose frame is mirrored, was. Not open ones: the eye socket is a bowl seen from within, the feathers are cards.
+        turned = lc.face_out_mesh(mesh, shells=False)
+        if turned:
+            lt._log(f'{self.name}: {turned} closed pieces turned to face outward')
         return obj
 
 

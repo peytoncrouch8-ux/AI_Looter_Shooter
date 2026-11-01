@@ -68,8 +68,9 @@ namespace GraveTravelRules
 		case EGraveTravelBlock::BossFight:    return LOCTEXT("BossFight", "Not in the middle of a boss fight.");
 		case EGraveTravelBlock::Hunted:       return LOCTEXT("Hunted", "Something is hunting you. Lose it or put it down first.");
 		case EGraveTravelBlock::Travelling:   return LOCTEXT("Travelling", "You're already on your way.");
-		case EGraveTravelBlock::NotAStation:  return LOCTEXT("NotAStation", "Hob's crows don't fly to this roost. It only keeps your place.");
-		case EGraveTravelBlock::GraveClosed:  return LOCTEXT("GraveClosed", "Hob's crows don't know this roost yet. Find it first.");
+		// Lantern posts since 2026-10-31 (the user's call); Hob's crows still do the carrying.
+		case EGraveTravelBlock::NotAStation:  return LOCTEXT("NotAStationPost", "Hob's crows don't fly to this post. It only keeps your place.");
+		case EGraveTravelBlock::GraveClosed:  return LOCTEXT("GraveClosedPost", "This post isn't lit yet. Walk up to it first.");
 		case EGraveTravelBlock::AlreadyThere: return LOCTEXT("AlreadyThere", "You're standing at it.");
 		case EGraveTravelBlock::None:         break;
 		}

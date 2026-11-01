@@ -66,9 +66,9 @@ turn in shows a ! at whoever takes it.
 
 | # | Mission | Giver, and where | Offered by | After | Min | Rewards | Turned in to |
 |---|---|---|---|---|---:|---|---|
-| M1 | Seven Days | none: a new game | automatic | — | 10 | 20 silver, 2 jars of grave salt | Delia, at her screen door |
-| M2 | Shall We Talk Business? | Hob, on Delia's porch rail | talk | M1 | 10 | the Ledger | Mister Sexton, on the rail |
-| M3 | Cold Welcome | Delia, at her door | talk | M2 | 12 | Uncommon gun, 40 silver, Pa's lantern bail | Tilly, at her window |
+| M1 | Landfall (since 2026-10-31; was Seven Days) | none: a new game, on the Lamplighter's deck | automatic | — | 12 | 450 XP, 20 silver; the porch plate's 2 jars of grave salt free after it | Delia Ransom, on her porch |
+| M2 | The Ferryman's Price (since 2026-11-01; was Shall We Talk Business?) | Hob, on Delia's porch rail | on the move | M1 | 12 | the Warden's Log's story pages | Mister Sexton, at his ferry under Gravewind Point |
+| M3 | Under New Management (since 2026-11-01; was Cold Welcome) | Delia Ransom, on her porch | met first | M2 | 12 | Uncommon gun, 40 silver, Abel's lantern bail | Tilly Bright, at her window |
 | C | Calder's Caches | Ruth Calder's note on the Rangers' board | artifact | M3 | 12 | 30 silver, three caches and the gang's strongbox | the Rangers' board |
 | S1 | Wanted: Already Dead | the poster on the town gate's post | artifact | M3 | 10 | Rare gun, 50 silver | Tilly |
 | V2 | The Old Fare (new) | Mr. Sloane, the station agent, through his door upstairs in the depot | talk | M3 | 12 | Rare Drover revolver, 30 silver | Josiah Fenn, in his coffin |
@@ -113,61 +113,107 @@ turn in shows a ! at whoever takes it.
   Fenn's coffin, `AChapelReliquary`; `ColdRoomDoor` is a plain door behind the key-locked cellar door.
 - Lines marked as today's are the pre-expansion ones, unchanged; the rest are this design's.
 
-### Main 1: Seven Days (automatic, about 10 minutes)
+### Main 1: Landfall (automatic, about 12 minutes; since 2026-10-31)
 
-The cold open plays as the new game starts, skippable; the grave wake-up follows. **Steps:**
-1. Seven days ago. [Scene ColdOpen]
-2. Claw out of the grave: press {Jump}. [Scene GraveWake] Leaving the plot finds the FamilyPlot roost (section 8).
-3. Read the headboard beside yours. [Interact Headboard_Abel] Optional: read your own. [Interact Headboard_Ellis]
-4. Go up to the farmhouse. [Reach Speaker_Delia, 9 m]
-5. Take what's on the porch plate. [Interact, **new** PorchPlate] Cold biscuits Ellis can't taste, and two jars of grave
-   salt with a slip in Delia's hand: *SALT FOR THE ROAD. THEY DON'T CARE FOR IT. — D.* (Her salt line keeps the Unpaid
-   off the farm; the jars are the grave-salt grenades.)
+The Wardens story's first mission (Docs/Story.md "The Wardens story"; the user: "a reason behind every action"); it
+replaced Seven Days (the cold open, the grave, the headboards, Delia's screen door: their scenes compile but no new game
+reaches them). Id stays `Main1`. 450 XP, 20 silver (`MissionRewards::SilverFor`). Golden hour, the valley under smog.
+Contract and owners: `Docs/Work/2026-10-31-Wardens/CONTRACT.md`; words: `create_story_lines.py` (Landfall sets),
+`story_texts.py` (Delia's and Hob's parts); data: `create_mission_assets.py`. Steps counted from 0, as the scripts count:
+never reorder them (FLIGHT moves an old save's running Main 1 to step 5).
 
-**Turned in to Delia** (today's Main 1 lines), plus: *"And eat what's on that plate. I'll know if you don't."* Ellis
-leaves the biscuits; Main 7 pays that off.
-**New:** the porch plate (an interactable on the porch table that gives two grenades, once), its slip.
+Before step 0 a new game plays the planet intro (new words: soul coal, Vane, the Wardens, the Lamplighter flying into the
+smog) and opens on the Lamplighter's deck as she sails in from the west over Gravewind Canyon, the Bullpup in hand; the
+crew talk from their stations (`DA_Lines_LandfallDeck`).
 
-### Main 2: Shall We Talk Business? (Hob; about 10 minutes)
+0. Go to the Great Lantern at the prow. [Reach `Lamplighter_Prow`, 3.5 m] Finch: it's leaning hard; teaches walking.
+   Arriving, Vane breaks in on the ship's horn (`DA_Lines_LandfallVaneHorn`).
+1. Fight off Vane's boarders. [Event `Landfall.DeckClear`] A Company tender grapples the ship and stops her; 3 riflemen
+   and a hose-man board in two waves (2, 2); 2 riflemen stay on the tender firing across (uncounted). Teaches shooting,
+   cover, the hose-man's tank (`DA_Lines_LandfallBoarders`, `DA_Lines_LandfallBoardersWave2`).
+2. Cut the grapple lines: hold {Interact} on each chain. [Interact, held, `Landfall_Grapple` 2] Or the tender tows the
+   ship to the barge; the tender's riflemen still fire (`DA_Lines_LandfallGrapples`).
+3. Hold on. [Scene `HardLanding`, about 5 s, skippable] The tender falls away; the bag is torn; Holloway puts her down
+   hard on the Mooring Ledge (`DA_Lines_LandfallLanding`).
+4. Drop the anchor: hold {Interact} on the winch. [Interact, held, `Landfall_AnchorWinch`] + Fight off the dead. [Clear
+   `LedgeClimbers` 4: Unpaid rising from the canyon side] Without the anchor she slides into the canyon; the smog stirs
+   the dead (`DA_Lines_LandfallAnchor`, Hob's arrival on the ledge).
+5. Climb to Ransom's Point. [Reach `Place_RansomsPoint`, 18 m, height counted] Holloway wants eyes on the valley; from
+   high ground the Lantern sees what Sully sees (`DA_Lines_LandfallClimb`).
+6. Look over the Rest. [Interact `Landfall_Spyglass`, tap or hold] Holloway first (`DA_Lines_LandfallPoint`). The scene
+   `SmogReveal`: the barge over the Sink, its hose in the ground, the smog; Vane over the valley's loudspeakers
+   (`DA_Lines_LandfallVaneValley`: your keeper is our pilot light); Finch: the Lantern has Abel, and his trail
+   (`DA_Lines_LandfallTrail`).
+7. Follow Abel's trail. [Reach `Speaker_Delia`, 18 m] The glow runs from the Point down the bluff path to the farm: his
+   soul tore loose at the chapel door and ran home, and the gang reeled it in on Delia's steps. Optional: pick up Abel's
+   hat. [Interact `Landfall_AbelsHat`: an AReadableProp `AbelsHat` on the bluff path, held; reading it sets the flag
+   `Landfall.AbelsHat`] Hob points at it (the last line of `DA_Lines_LandfallTrail`).
+8. Help Delia hold the porch. [Clear `FarmPorch` 8: 3 riflemen, 2 hose-men, 3 Unpaid, spawning within about 45 m of the
+   farmhouse from step 7, from the orchard and the farm road] Delia fights from the porch and barks (`DA_Lines_DeliaFight`);
+   Hob on the porch rail (`DA_Lines_HobLandfallPorch`).
 
-**Offer**, Hob on the porch rail: *"Someone's waiting on you, sunshine. Up top, where it happened."* Ellis: *"Who?"*
-Hob: *"Tall. Polite. Keeps a ledger. You'll like him. Nobody does."*
-**Card:** Someone is waiting on Ransom's Point, the lookout where the Deacon shot you seven days ago. Spiders have nested
-at the top since. Hob won't say who it is, only that he keeps a ledger.
-**Steps:**
-1. Climb the bluff path to Ransom's Point. [Reach Place_RansomsPoint, height counted] On the way, Ruth's Ranger cache on
-   the bluff path (a Supply Crate, hold to open) gives a Common Ranchhand the first time when Ellis carries no shotgun:
-   the second gun the swap lesson needs.
-2. Clear the spiders nesting at the top. [Clear BluffNest 5] Hob's blue line on the Restless one (today's).
-3. Optional: look at the boards where it happened. [Interact, **new** LookoutStains] Ellis: *"He was standing right
-   here."* Hob: *"So were you, sunshine. Briefly."*
-4. Talk to Mister Sexton. [Talk Speaker_Sexton] The deal, today's lines.
-5. Open the Ledger: {Inventory}, then 2. [OpenPage Bestiary]
+**Turned in to Delia Ransom** (the turn-in card first, then her words): the mission has no turn-in lines; her topic says
+them (`story_texts.TOPICS['Speaker_Delia']`, "during Main1 from step 9"): `DA_Lines_DeliaLandfallHat` with the hat's flag
+(her best line: *"Forty years I told that man to tie it on."*), else `DA_Lines_DeliaLandfall`. Both: the hose at the
+chapel door, his soul reeled in on her steps, bring him back to Saint Ada, the salt on her plate. Main 2 starts after it
+(Hob's word, on the porch rail).
+**The porch plate:** no Main 1 step now; its two grave-salt jars (grenades, the slip *SALT FOR THE ROAD...*) are a free
+pickup from Main 1's end (`PORCH_PLATE` take_when after Main1); the biscuits stay Main 7's optional.
+Abel's grave stays in the family plot; Ellis's grave and headboard went (WORLD).
 
-**Turned in to Sexton** (today's two lines), then: Ellis: *"Pa's lantern. Where is it?"* Sexton: *"I attend deaths,
-friend, not lost property. Ask your grandmother what he ran out with."* He knows exactly where it fell; the player
-learns that much later.
+### Main 2: The Ferryman's Price (Hob; about 12 minutes; since 2026-11-01)
 
-### Main 3: Cold Welcome (Delia; about 12 minutes)
+The Wardens story's Main 2 (`Docs/Work/2026-10-31-Wardens/MAINS_2_7.md` §4, the user's call: Sexton sells the plan at his
+ferry in the fog under Gravewind Point). Id stays `Main2`; the Log's step stays 3 (`Ledger::HandedOverStep`). 550 XP.
+Data `create_mission_assets.py`; words `create_story_lines.py`; topics, perches, fights `story_texts.py`; world
+`build_area_main2.py`; lane notes `Docs/Work/2026-10-31-Wardens/lanes/MAIN23.md`.
+**Offer**, Hob on the porch rail, on the move: *"Man down on the burial boards wants a word, sunshine. Says he knows the
+barge."* Sully: *"Who is he?"* Hob: *"The Ferryman. I flew for him eighty years. Don't take his first price."*
+**Steps** (from 0):
+0. Follow the keeper's path to Gravewind Point. [Reach `Place_GravewindPoint`, 25 m] On the way the Three Widows' nest
+   (`BluffNest`, moved off the Point's top: 4 spiders + a Restless one, 2 out, two pushes; Hob's blue line as it's cleared).
+   Optional: cross Keeper's Bridge [Reach `Place_KeepersBridge`]: Hob mutters as the player crosses (`Mutter_KeepersBridge`).
+1. Stop the Company's hose-cart [Event `HoseCart.Stopped`: hold Interact on its valve 1.5 s, or burst its tank, 150
+   damage on its tank hit] + fight off the crew [Clear `BoardsCrew` 8, count hidden]: 3 riflemen behind the biers and a
+   hose-man at the cart (level 2, at work as the player comes up the cairns); the cart's spill brings 4 Unpaid rising round
+   it (the spawner's 2nd wave, only on the cart's word); Hob: *"That's what the hose leaves, sunshine. Half a soul and a
+   temper."*; then Vane from the Keeper's Gate loudspeaker: *"Wardens. That cart is Company property."* / *"I'm adding it to
+   your bill."* Optional: silence that loudspeaker [KillNamed `Loudspeaker_KeepersGate`]: shot out mid-line it cuts him at
+   *"your bi—"*. The cart is stoppable only in this step (its `pumping_when`).
+2. Climb down to the Ferryman's landing and hear Mister Sexton's price. [Talk `Speaker_Sexton`] Down the rope ladder off
+   the deck's west end (a 2.6 s climb scene) to a railed landing 3.8 m under the boards; the ferry hangs beside it on
+   chains, swaying, its prow lantern lit, a fog bank under it. The deal: a barge must eat; starve her and her crew bring her
+   down; a keeper's soul goes in his own lantern; *"Write down every soul you meet. I bill by the head."*
+3. Open the Warden's Log: {Inventory}, then {Page.Bestiary}. [OpenPage Bestiary] Sexton's pages are in it.
+**Turned in to Sexton** (card, then): his price, the barge's manifest (Paid on Delivery after Main 6); *"Come back when
+you've silver. I know where things lie on the Rest."* (his secrets: MAINS_2_7.md §12, a later round). He stays at his
+ferry after (shown from Main 2 on). The six shrouded dead stay on the boards until Main 7.
 
-**Offer**, Delia through the screen door: *"You've been up there. I can smell the cold on you."* Ellis: *"Pa's lantern.
-Where is it?"* Delia: *"He ran out with it lit. They carried him down without it. Tilly Bright laid him out. Whatever
-came home with him, she has."* *"Go by the farm road. They'll shutter up at you. Let them."*
-**Card:** Pa ran up the bluff path with his keeper's lantern lit, and nobody has seen it since. Tilly Bright, the
-undertaker's daughter, laid him out. Go into town and ask her what came home with him.
-**Steps:**
-1. Follow the farm road through the orchard into town. [Reach Place_TownGate]
-2. Fight off the Unpaid at the town gate. [Clear TownGate 4] Hob: *"Here they come. Nothing draws the dead like a corpse
-   with a gun."* (today's)
-3. Optional: read the poster on the gate. [Interact posterGate] ELLIS RANSOM, DEAD OR ALIVE, and ALREADY scrawled under
-   it. (After Main 3 the same poster offers Side 1.)
-4. Find Bright & Daughter, Undertakers. [Reach Speaker_Tilly] Shutters slam the length of Main Street.
+### Main 3: Under New Management (Delia; about 12 minutes; since 2026-11-01)
 
-**Turned in to Tilly** (today's Main 3 lines), with one new beat after *"his wasn't on him. I looked."*: *"Only its
-bail, the ring it hangs by, snapped off in his fist. I couldn't open his hand till morning."* She passes the bail out
-through the window with the box of effects (the Uncommon gun). Ellis carries the bail to Main 6, where the lantern goes
-on the keeper's post by it.
-**New:** the lantern's bail as a mission item (`AMissionItem`, section 12), listed under Carried on the Missions page.
+The Wardens story's Main 3 (MAINS_2_7.md §5). Id stays `Main3` (Main Street's safe ground and shutters, Pruitt's hatch
+follow it). 1,000 XP, Uncommon gun or better, 40 silver. World `build_area_main3.py`.
+**Offer**, Delia on her porch (met first): *"Tilly Bright laid my boy out. What the hose left of him."* / *"If his lantern
+came home, she has it. Town's Company ground now. Mind yourself."*
+**Steps** (from 0):
+0. Take the farm road into town. [Reach `Place_TownGate`] As it starts (into a quiet moment), Lucky Ned's dark skiff casts
+   off from Vane's barge and flies south over the Hogback and away (`AGangSkiffFlyBy`, about 22 s, once a campaign:
+   flag `Main3.NedLeft`): Vane and Ned on the radio, then Hob: *"That's Lucky Ned, sunshine. He's the one put the hose to
+   Abel."* Sully: *"He's getting away."* Hob: *"For now. Lantern never forgets a smell."*
+1. Break the Company's checkpoint at the town gate. [Clear `TownGate` 7] Sandbags, a barrier pole and a VANE CONSOLIDATED /
+   ASSESSMENT IN PROGRESS / NO ENTRY. NO EXIT. board across the gate; 3 riflemen behind the sandbags and a hose-man at the
+   barrier, guarding from the road (the spawner on from step 0), then 2 Unpaid and a Restless one drawn by the smog, 4 out at
+   most. Vane on the gate's loudspeaker as the fight begins: *"Ah, the Warden. Main Street is closed for assessment."* /
+   *"Your dead are being counted. Please don't make me count you."* The barrier is gone after Main 3; the sandbags stay.
+2. Get to Bright & Daughter. [Reach `Speaker_Tilly`, 8 m] Main Street's set piece (built), its second push gaining 2
+   Dredger riflemen (layout edit); ASSESSED / n SOULS / V.C. chalked on the doors; a hose-cart assessing the Gilt Spur
+   (burstable, no crew of its own); Vane on Main Street's middle loudspeaker once the street is won: *"Residents! Anyone
+   hiding a Warden will be assessed first."* Optional: cut down the UNDER NEW MANAGEMENT banner [Event
+   `MainStreet.BannerDown`: shoot both its ropes; it falls into the street and stays down].
+**Turned in to Tilly Bright** (card, then): *"A Warden. Lord. Come close, the whole street's watching."* / *"His lantern
+wasn't on him. Only its bail, snapped off in his fist."* / *"Couldn't open his hand till morning. Here. And the box: he'd want
+it used."* She hands the bail over (Main 6's item `LanternBail`, carried: hand_items) and the box (the reward gun). After:
+*"Every coffin in my cellar's salted, Warden. The hose won't have them."* (seeds Knocking Below).
 
 ### Main 4: Hallowed Ground (Tilly; about 12 minutes)
 

@@ -59,8 +59,10 @@ struct AI_LOOTER_SHOOTER_API FSpeakerTopic
  * the offer's lines (else their own) and the offer card opens at once beside them (ALooterHUD::OpenMissionOffer), Accept
  * usable without waiting for the words (the user's call, 2026-10-22); Accept cuts them short for the job's accept lines
  * (SayInstead), Not now stops them (StopTalking). A main mission met first (FMissionOffer::bMeetFirst) gets no card: the
- * talk says its lines and starts it, its accept lines after. A mission waiting to be turned in to them comes first: that
- * talk turns it in, and what they have next is offered once the turn-in's words are said. A turn-in with a choice of two
+ * talk says its lines and starts it, its accept lines after. A mission waiting to be turned in to them comes first, card
+ * first (the user's call, 2026-10-31): the turn-in card opens (ALooterHUD::OpenTurnInCard: what was done, what it pays) and
+ * its Turn In lets the talk go ahead (TurnInFromCard), which turns it in; what they have next is offered once the turn-in's
+ * words are said. Not now leaves it waiting. With no HUD (tests) the talk turns it in at once. A turn-in with a choice of two
  * (FMissionTurnIn::Choices) isn't finished by the talk: once its words are said the card opens in its choice mode
  * (ALooterHUD::OpenTurnInChoice), and the mission finishes when the player chooses.
  *
@@ -90,6 +92,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Speaker")
 	bool Talk(AActor* Listener);
+
+	/**
+	 * The turn-in card's Turn In (UMissionOfferWidget::TurnIn): the talk it stood in front of goes ahead, for MissionId still
+	 * waiting here with no choice to make: the turn-in's words in their voice, the Talk event that turns it in, what they
+	 * offer next once those are said. False when it isn't theirs to take now (and nothing is said).
+	 */
+	bool TurnInFromCard(AActor* Listener, FName MissionId);
 
 	/** It can be talked to now: on, its actor shown, and not still saying its last lines (unless a turn-in waits: MayTalkOver). */
 	UFUNCTION(BlueprintPure, Category = "Speaker")
@@ -250,6 +259,13 @@ private:
 	void QueueChoice(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation);
 	/** A main mission met first, started by this talk (no card): taken, its accept lines after what's being said. */
 	void StartMet(const UMissionDefinition& Mission);
+	/**
+	 * A mission waiting here with no choice to make, and a HUD for Listener: its turn-in card opens (ALooterHUD::OpenTurnInCard)
+	 * and nothing is said yet. False (the talk goes on at once) otherwise. SpeakerPointComponentOffers.cpp.
+	 */
+	bool OpenTurnInCard(AActor* Listener);
+	/** The talk itself (Talk's, once CanTalk and the turn-in card are past): its words, the missions told, what comes next. */
+	bool TalkNow(AActor* Listener);
 	void ClearPendingOffer();
 	void TickPendingOffer();
 

@@ -72,17 +72,19 @@ bool NewGameIntro::IsDue(const FCampaignRecord& Campaign)
 
 const TArray<FStoryLine>& NewGameIntro::ScriptLines()
 {
-	// Docs/Story.md's facts in short captions (the talk cut's rule): The world (Teropa, the Reaches, the Rim, the dead
-	// given to the wind, the saints), the Dunne Gang (seven towns, seven embers, the Rest the seventh, seven days ago), the
-	// Unpaid (the dead lost the light and drifted home), the cold open (the player rode in with the gang) and the logline.
-	// No family words: the same for every hero (Pipeline/Story.md, "Writing new lines"). Index = the captions' Line.
+	// Docs/Story.md's facts in short captions (the talk cut's rule). The planet part (0-3) is the Wardens story's
+	// (2026-10-31, Docs/Story.md "The Wardens story"): the saints light the dead west, Cornelius Vane dredges them up for
+	// soul coal, the Lantern Wardens call it theft, and the last line hands over to the Lamplighter flying into the smog
+	// over Ransom's Rest (a new game opens on her deck). The Rest part (4-10) is the old Revenant intro's, kept compiling
+	// for this round but no longer played for a new game. No family words: the same for every hero (Pipeline/Story.md,
+	// "Writing new lines"). Index = the captions' Line.
 	static const TArray<FStoryLine> Lines = {
 		// The planet part (or Westward).
-		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L0", "One sun, one moon, wide seas, and one great continent.")),
-		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L1", "Its railroad runs west to the Rim, and no farther.")),
-		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L2", "Out here the dead are given to the wind.")),
-		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L3", "At dusk the Gravewind carries them west, down the Sundown Road.")),
-		// Ransom's Rest.
+		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L0", "On Teropa the dead go west, and a saint lights the way.")),
+		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L1", "Then Cornelius Vane started dredging up the dead.")),
+		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L2", "Soul coal, he calls it. The Lantern Wardens call it theft.")),
+		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L3", "Now the Lamplighter flies into his smog over Ransom's Rest.")),
+		// Ransom's Rest (the old intro's part: not played for a new game since 2026-10-31).
 		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L4", "Every town keeps a saint, whose light shows its dead the way across.")),
 		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L5", "Seven days ago the Dunne Gang robbed Saint Ada, and the Rest went dark.")),
 		FStoryLine::Make(FText::GetEmpty(), LOCTEXT("L6", "Seven towns. Seven saints. Not one light left burning.")),
@@ -120,13 +122,14 @@ TArray<FStoryLine> NewGameIntro::Lines()
 const TArray<FIntroCaption>& NewGameIntro::PlanetCaptions()
 {
 	// One thing on screen at a time: a card, then its lines, each held at least a reader's time (FStoryLine::GetSeconds),
-	// all done before the white rises at PlanetWhiteAt.
+	// all done before the white rises at PlanetWhiteAt. Since the Wardens' words (2026-10-31) the two cards stay their
+	// shortest (3 s) so line 2, the longest, has 4.6 s; the same six slots, the same order.
 	static const TArray<FIntroCaption> Captions = {
-		{ 1.0f, 3.8f, EIntroCard::Teropa },
-		{ 5.0f, 4.4f, EIntroCard::None, 0 },
-		{ 9.6f, 4.1f, EIntroCard::None, 1 },
-		{ 13.9f, 3.4f, EIntroCard::Reaches },
-		{ 17.5f, 3.5f, EIntroCard::None, 2 },
+		{ 1.0f, 3.0f, EIntroCard::Teropa },
+		{ 4.2f, 4.4f, EIntroCard::None, 0 },
+		{ 8.8f, 4.1f, EIntroCard::None, 1 },
+		{ 13.1f, 3.0f, EIntroCard::Reaches },
+		{ 16.3f, 4.6f, EIntroCard::None, 2 },
 		{ 21.1f, 4.9f, EIntroCard::None, 3 },
 	};
 	return Captions;

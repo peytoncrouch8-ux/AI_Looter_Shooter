@@ -130,6 +130,11 @@ for state in (0, 1, 2):
     points = hull_points(bm)
     lbs.roots_into(bm, S, snapped=('FrontRight',) if state == 2 else ())
     lbs.mud_collar(bm, S)
+    # The roots and the mud collar (lb.tube) wind inward, as lc.tube did (2026-10-31: the arachnids' see-through bug;
+    # 23-33 pieces per state were inside out): faced outward before the cube UVs pick each face's side by its normal.
+    turned = lc.face_out(bm)
+    if turned:
+        lb.log(f'GravemotherStone_{state}: {turned} pieces turned to face outward')
     lbs.finish_uvs(bm)
     obj = model(f'GravemotherStone_{state}', bm, MATS)
     hull(obj, points)

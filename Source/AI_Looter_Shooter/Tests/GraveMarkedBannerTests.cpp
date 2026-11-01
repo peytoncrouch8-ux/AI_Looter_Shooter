@@ -9,8 +9,9 @@
 #include "Engine/World.h"
 #include "Tests/AutomationCommon.h"
 
-// The HUD's "GRAVE MARKED" banner (the user's call, 2026-10-13): its easing is a pure function of the time into the show; it
-// says the grave's name in capitals, shows for 2.5 s, and shows marks that come close together one after the other.
+// The HUD's "POST LIT" banner (GRAVE MARKED from 2026-10-13, ROOST FOUND, POST LIT since 2026-10-31: the Wardens' lantern
+// posts): its easing is a pure function of the time into the show; it says the post's name in capitals, shows for 2.5 s,
+// and shows marks that come close together one after the other.
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGraveMarkedBannerEasingTest, "Looter.UI.GraveMarked.Easing",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -18,6 +19,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGraveMarkedBannerEasingTest, "Looter.UI.GraveM
 bool FGraveMarkedBannerEasingTest::RunTest(const FString& Parameters)
 {
 	using Banner = UHudGraveMarkedWidget;
+	TestEqual(TEXT("Its title: a lantern post lit"), Banner::TitleWords().ToString(), FString(TEXT("POST LIT")));
 	TestTrue(TEXT("About two and a half seconds"), FMath::IsNearlyEqual(Banner::ShowSeconds, 2.5f, 0.2f));
 	TestTrue(TEXT("Invisible before it and after it"), Banner::OpacityAt(-0.1f) == 0.f && Banner::OpacityAt(Banner::ShowSeconds) == 0.f);
 	TestTrue(TEXT("Starting from nothing"), Banner::OpacityAt(0.f) == 0.f);

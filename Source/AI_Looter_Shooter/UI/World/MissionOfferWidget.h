@@ -41,6 +41,20 @@ enum class EMissionCardMode : uint8
 	Choice,
 	/** Something read (AReadableProp): its words as a document, and Close. */
 	Read,
+	/**
+	 * A mission turned in (no choice to make) at someone, a board or an artifact, card first (the user's call, 2026-10-31):
+	 * what was done, what it pays, Turn In or Not now. The giver's words come after Turn In.
+	 */
+	TurnIn,
+};
+
+/** One line of a turn-in card's "what you did": an objective, checked; an optional one done is a bonus, one still open says so. */
+struct AI_LOOTER_SHOOTER_API FMissionDoneLine
+{
+	FString Text;
+	bool bOptional = false;
+	/** Done (every objective a step asks for is); an optional one of the last step may still be open. */
+	bool bDone = true;
 };
 
 /** One of the card's rewards: what it is (a small label) and how much, in its colour (a gun's rarity's). */
@@ -66,13 +80,13 @@ struct AI_LOOTER_SHOOTER_API FMissionChoiceCard
  * MISSION in gold, SIDE MISSION in white), the title, who offers it and where, the briefing (an artifact's own words as
  * a found document), the first step's objectives (later steps stay a surprise), the rewards, and the two buttons. In its
  * choice mode the two choices with what each gives and what's given either way; in its reading mode a readable thing's
- * words as a document.
+ * words as a document; in its turn-in mode what was done and what it pays.
  */
 struct AI_LOOTER_SHOOTER_API FMissionOfferCard
 {
 	bool bMain = false;
 	EMissionGiverKind GiverKind = EMissionGiverKind::Someone;
-	/** "Main mission", "Side mission"; "Mission complete" for a choice; a readable's own heading. */
+	/** "Main mission", "Side mission"; "Mission complete" for a choice or a turn-in; a readable's own heading. */
 	FText Kind;
 	FText Title;
 	/** "From Delia · Ransom Farm", "Posted on the notice board · Main Street", "Found: a miner's tag". */
@@ -97,10 +111,31 @@ struct AI_LOOTER_SHOOTER_API FMissionOfferCard
 	/** The two choices, in the data's order. */
 	TArray<FMissionChoiceCard> Choices;
 
+	// --- The turn-in mode ---
+
+	/**
+	 * What the player did, in order: every step's objectives the step asked for (checked), the optional ones done (a bonus),
+	 * and the last step's optional ones still open (they can be done before the turn-in: Not now keeps it ready). A scene
+	 * watched is no deed: left out.
+	 */
+	TArray<FMissionDoneLine> Done;
+	/** Some optional objective can still be done before it's turned in. */
+	bool bOptionalOpen = false;
+
 	static FMissionOfferCard Make(const UMissionDefinition& Mission, const AActor* Giver, const UWorld* World);
 
 	/** The card for Mission's turn-in with its choice of two, turned in at Giver. */
 	static FMissionOfferCard MakeChoice(const UMissionDefinition& Mission, const AActor* Giver, const UWorld* World);
+
+	/**
+	 * The turn-in card for Mission, turned in at Giver (a speaker point's actor, a board, an artifact; null: nowhere in
+	 * particular): "Mission complete", the title, "Turn in to Delia Ransom · Ransom Farm", what was done (Done), the rewards
+	 * with the optional objectives' bonus earned, Turn In and Not now.
+	 */
+	static FMissionOfferCard MakeTurnIn(const UMissionDefinition& Mission, const AActor* Giver, const UWorld* World);
+
+	/** Mission is turned in on the turn-in card: it waits for a giver (a talk, a board, an artifact) and has no choice of two. */
+	static bool HasTurnInCard(const UMissionDefinition& Mission);
 
 	/** The card for reading Thing (AReadableProp): its heading, title and words as a document. */
 	static FMissionOfferCard MakeReading(const AActor* Thing, const UWorld* World);
@@ -140,13 +175,21 @@ struct AI_LOOTER_SHOOTER_API FMissionOfferCard
  * never made by a stray key; its stamp slams down and the mission is turned in with it. Esc is "Decide later": the
  * mission waits, ready, for the next talk. Its reading mode (OpenReading): a readable thing's words as a document, Close.
  *
+ * Its turn-in mode (OpenTurnIn, ALooterHUD::OpenTurnInCard): a mission with no choice to make, turned in at someone, a
+ * board or an artifact, card first (the user's call, 2026-10-31: "Card, then talk"). What the player did ticks in line by
+ * line, then what it pays, with Turn In (primary) and Not now, on the offer's keys. Turn In: the giver turns it in (the
+ * runner finishes it; a talk's own words, the board's, the artifact's are queued under the card), a TURNED IN stamp slams
+ * down with a burst of light (LooterSoundCue::TurnInStamp), the card goes and only then are the giver's words heard; what
+ * they offer next waits for those. Not now: it closes and the mission stays ready.
+ *
  * Keys: E (Interact) accepts, Esc or B is Not now; left and right (the arrows, A / D, the D-pad, the stick) move the focus
  * between the two buttons and Enter, Space or A presses the focused one. The mouse clicks either. The prompts follow the
  * device last used (LooterUIFocus.h). Every background it paints follows the UI transparency setting (MarkBackground).
  *
  * MissionOfferWidget.cpp builds it, accepts and declines; MissionOfferWidgetMotion.cpp moves it; MissionOfferWidgetCard.cpp
  * writes its words (every mode's); MissionOfferWidgetInput.cpp is its keys, stick and mouse; MissionOfferWidgetChoice.cpp
- * is the choice mode (its columns, the hold, choosing); MissionOfferWidgetRead.cpp the reading mode.
+ * is the choice mode (its columns, the hold, choosing); MissionOfferWidgetRead.cpp the reading mode;
+ * MissionOfferWidgetTurnIn.cpp the turn-in mode (its list, turning in at the giver, the burst).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UMissionOfferWidget : public UUserWidget
@@ -168,6 +211,8 @@ public:
 	static constexpr float ChoiceHoldSeconds = 0.9f;
 	/** A choice's stamp stays a little longer than ACCEPTED's: it's the end of the mission. */
 	static constexpr float ChoiceStampHoldSeconds = 0.8f;
+	/** TURNED IN stays as long: the end of the mission, its burst played out under it. */
+	static constexpr float TurnInStampHoldSeconds = 0.8f;
 
 	/**
 	 * Opens on Mission, offered by Giver (null: the console's), its words read afresh. bOverScreen: over another screen
@@ -180,6 +225,24 @@ public:
 
 	/** Opens in its reading mode on Thing's words (MissionOfferWidgetRead.cpp). */
 	void OpenReading(ALooterHUD* InHUD, AActor* InThing, bool bInOverScreen);
+
+	/** Opens in its turn-in mode on Mission, ready to turn in at Giver (MissionOfferWidgetTurnIn.cpp). */
+	void OpenTurnIn(ALooterHUD* InHUD, const UMissionDefinition* InMission, AActor* InGiver, bool bInOverScreen);
+
+	/**
+	 * Turn In: the mission is turned in at the giver (TurnInAtGiver), the stamp and its burst, the giver's words once the
+	 * card is gone, then it closes. False (and a word on the card) when it can't be (not armed yet, no longer ready here).
+	 */
+	bool TurnIn();
+
+	/**
+	 * Turns ReadyMission in at AtGiver as the card's Turn In does, without a card: someone at a speaker point talks
+	 * (USpeakerPointComponent::TurnInFromCard: their turn-in words, the Talk event, what they offer next); a board turns it in
+	 * (ANoticeBoard::TurnIn); an artifact (AMissionArtifact::TurnInFromCard); anyone else, the runner, its words in the
+	 * giver's name. Listener: who's turning it in (the player's pawn), for what's offered next. True when it's finished.
+	 * WorldContext: the world it's played in (the card, the giver).
+	 */
+	static bool TurnInAtGiver(const UObject* WorldContext, const UMissionDefinition& ReadyMission, AActor* AtGiver, AActor* Listener);
 
 	/** Takes the mission: recorded, started, tracked; the stamp, then it closes. False (and a word on the card) when it can't be. */
 	bool Accept();
@@ -206,6 +269,9 @@ public:
 
 	/** It was closed by Accept (the HUD tells a notice board behind it). */
 	bool WasAccepted() const { return bAccepted && Mode == EMissionCardMode::Offer; }
+
+	/** It was closed by Turn In: the mission is finished. */
+	bool WasTurnedIn() const { return bAccepted && Mode == EMissionCardMode::TurnIn; }
 
 	/** The choice made (0 or 1), or INDEX_NONE. */
 	int32 GetChosen() const { return Chosen; }
@@ -254,6 +320,10 @@ private:
 	void FinishClose();
 	/** The seconds its way out takes, as it was closed. */
 	float GetCloseSeconds() const;
+	/** How long the stamp is held before the card lifts away (a choice's and a turn-in's longer: the mission's end). */
+	float GetStampHoldSeconds() const;
+	/** The primary button or key (E, Accept, Turn In): Accept, or in the turn-in mode Turn In. */
+	bool PressPrimary();
 
 	// --- MissionOfferWidgetChoice.cpp: the choice mode ---
 
@@ -277,6 +347,16 @@ private:
 	// --- MissionOfferWidgetRead.cpp: the reading mode ---
 
 	void BuildReadContent(UVerticalBox* Content);
+
+	// --- MissionOfferWidgetTurnIn.cpp: the turn-in mode ---
+
+	/** The turn-in mode's content: what was done, the rewards, the word line, the two buttons. */
+	void BuildTurnInContent(UVerticalBox* Content);
+	UWidget* MakeDoneList();
+	/** The burst of light under the stamp (a glow and rays in the mark's colour), hidden until Turn In. */
+	UWidget* MakeBurst();
+	/** The list ticking in as the card opens, and the burst and the card's thump as the stamp lands. */
+	void ApplyTurnInMotion();
 
 	// --- MissionOfferWidgetMotion.cpp ---
 
@@ -345,4 +425,10 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterProgressRing>> ChoiceRings;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> ChoiceKeys;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> ChoiceHoldWords;
+
+	/** The turn-in mode: each line of what was done and its tick (they come in one by one), the burst's glow and rays. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> DoneRows;
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> DoneTicks;
+	UPROPERTY(Transient) TObjectPtr<UWidget> BurstGlow;
+	UPROPERTY(Transient) TObjectPtr<UWidget> BurstRays;
 };

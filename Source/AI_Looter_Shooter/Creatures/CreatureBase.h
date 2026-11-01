@@ -388,6 +388,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Creature|Senses")
 	FHuntingGround HuntingGround;
 
+	/**
+	 * Its post (cm round its home, seen from above): it never walks farther from home than this, chasing, searching or
+	 * wandering (MoveToward keeps its goal inside), though it hunts its whole ground (a checkpoint's crew holding the
+	 * checkpoint; FEncounterGroup::PostRadius, the play check of 2026-11-01). 0, the default: anywhere on its ground.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Movement", meta = (ClampMin = "0", Units = "cm"))
+	float PostRadius = 0.f;
+
+	/** Gives it a post (PostRadius; 0 lets it go). A kind may fight differently at one (a Dredger rifleman holds his). */
+	virtual void SetPost(float Radius);
+	/** Whether Where (seen from above) is within its post: always, with none. */
+	bool IsWithinPost(const FVector& Where) const;
+	/** Goal, or with a post the nearest point to it inside the post (its own height kept). */
+	FVector KeepToPost(const FVector& Goal) const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Movement", meta = (ClampMin = "0"))
 	float WanderRadius = 900.f;
 

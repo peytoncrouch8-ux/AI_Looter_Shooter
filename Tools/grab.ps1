@@ -18,10 +18,15 @@ public static class Grab {
 
 $p = Get-Process UnrealEditor -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
 [Grab]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [Grab]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
-[Grab]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
+# The process's main window can be a tiny tooltip-like one after a rebuild (2026-11-01): take the editor's own frame,
+# found by its title through editorwindows.ps1.
+$hwnd = $p.MainWindowHandle
+$frame = & "$PSScriptRoot\editorwindows.ps1" | Where-Object { $_ -match '^\s*(\d+) \| .*Unreal Editor \|' } | Select-Object -First 1
+if ($frame -match '^\s*(\d+) \|') { $hwnd = [IntPtr][long]$Matches[1] }
+[Grab]::SetForegroundWindow($hwnd) | Out-Null
 Start-Sleep -Milliseconds 400
 
-$r = New-Object Grab+RECT; [Grab]::GetWindowRect($p.MainWindowHandle, [ref]$r) | Out-Null
+$r = New-Object Grab+RECT; [Grab]::GetWindowRect($hwnd, [ref]$r) | Out-Null
 $w = $r.Right - $r.Left; $h = $r.Bottom - $r.Top
 $x = [int]($r.Left + $w * $X0); $y = [int]($r.Top + $h * $Y0)
 $cw = [int]($w * ($X1 - $X0)); $ch = [int]($h * ($Y1 - $Y0))

@@ -69,7 +69,11 @@ class Mesh:
         return f
 
     def finish(self, name, material, sharp=70.0):
-        """The part as a Blender object (in Blender meters), one material, smooth with hard edges past sharp degrees."""
+        """The part as a Blender object (in Blender meters), one material, smooth with hard edges past sharp degrees.
+        Every closed piece (and tube or shell) faces outward first (face_out): ellipsoid() and tube() wind inward."""
+        turned = face_out(self.bm)
+        if turned:
+            lt._log(f'{name}: {turned} pieces turned to face outward')
         bmesh.ops.transform(self.bm, matrix=TO_BLENDER, verts=self.bm.verts)
         mesh = bpy.data.meshes.new(name)
         self.bm.to_mesh(mesh)
@@ -79,6 +83,67 @@ class Mesh:
         bpy.context.scene.collection.objects.link(obj)
         mesh.set_sharp_from_angle(angle=math.radians(sharp))
         return obj
+
+
+def face_out(bm, shells=True):
+    """Turns every inside-out piece of bm (a connected set of faces) to face outward; returns how many it turned.
+    Why (the user, 2026-10-31: "spiders are see through, and this causes their eyes to look unattached"): ellipsoid()
+    and tube() below, the Tripo shells (parts_spider_shells.emit, ellipsoid()'s ring order) and others wind their faces
+    inward, so the arachnids reached Unreal inside out (measured on the FBX). The game's materials are one-sided: it
+    culled each part's near side and drew the inside of its far side, so the body read as see-through and the eyes and
+    leg roots showed through it; Blender's previews draw back faces, so they never showed it (Saved/SPIDER_SEETHROUGH.md).
+    The test is the piece's signed volume about its own middle (negative = inside out), so a piece already outward is
+    left alone and running it twice changes nothing. Turned: closed pieces (every edge on two of its faces), and with
+    shells, open tubes and shells too (a rim short for the area: rim^2 < 12 x area; a leg tube open at its ends, a body
+    shell open at the waist). Never cards: a feather or a hide tongue (rim^2 is 14x its area or more) has no inside, and
+    one curved away from the body has a negative volume while facing the right way; nor (shells=False) a bowl seen from
+    within, such as Hob's eye socket. A volume under 0.002 x area^1.5 (a flat or barely bent piece) is never turned."""
+    seen, turned = set(), 0
+    for start in bm.faces:
+        if start in seen:
+            continue
+        piece, stack = [], [start]
+        seen.add(start)
+        while stack:
+            face = stack.pop()
+            piece.append(face)
+            for edge in face.edges:
+                for other in edge.link_faces:
+                    if other not in seen:
+                        seen.add(other)
+                        stack.append(other)
+        corners = [v.co for face in piece for v in face.verts]
+        middle = sum(corners, Vector()) / len(corners)
+        volume = area = 0.0
+        for face in piece:
+            p = [v.co - middle for v in face.verts]
+            for k in range(1, len(p) - 1):
+                volume += p[0].dot(p[k].cross(p[k + 1])) / 6.0
+            area += face.calc_area()
+        # A closed piece's |volume| is several % of area^1.5 (a sphere's 9.4%, a 2 cm x 100 cm leg tube's ~2.8%).
+        if volume >= -0.002 * area ** 1.5:
+            continue
+        faces = set(piece)
+        rim = sum(e.calc_length() for e in {e for face in piece for e in face.edges}
+                  if sum(1 for other in e.link_faces if other in faces) != 2)
+        if rim > 0.0 and (not shells or rim * rim >= 12.0 * area):
+            continue
+        bmesh.ops.reverse_faces(bm, faces=piece)
+        turned += 1
+    return turned
+
+
+def face_out_mesh(mesh, shells=True):
+    """face_out on a finished Blender mesh (its UVs, colours and weights stay with their corners); returns the count."""
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    turned = face_out(bm, shells)
+    if turned:
+        bm.normal_update()
+        bm.to_mesh(mesh)
+        mesh.update()
+    bm.free()
+    return turned
 
 
 def ellipsoid(m, center, radii, region, fwd=(1, 0, 0), up=(0, 0, 1), segs=24, rings=14, deform=None, patch=None):

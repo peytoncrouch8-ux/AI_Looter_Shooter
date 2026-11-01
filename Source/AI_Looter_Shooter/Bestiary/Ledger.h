@@ -8,11 +8,10 @@ struct FCampaignRecord;
 
 /**
  * The Ledger (Docs/Story.md, "The game's systems": "Bestiary: Sexton's Ledger"; Docs/Areas/RansomsRest.md, Main 2): the
- * bestiary becomes Mister Sexton's book when he hands it over at the end of the deal, as Main 2 reaches its last step
- * ("Open the Ledger"), and stays his for good. It lists the bestiary's pages and the ones written in it only
- * (UBestiaryEntry::bLedgerOnly: the story's characters, the seven names), and speaks in his voice. In the fiction it's his
- * copperplate hand; on screen it keeps the game's style (Concept C). Read from the campaign record, so the book is the
- * same on any map.
+ * bestiary's story pages open when Main 2 reaches its last step ("Open the Ledger"), and stay open for good. It lists the
+ * bestiary's pages and the ones written in it only (UBestiaryEntry::bLedgerOnly: the story's characters, the seven names).
+ * On screen the whole book is "The Warden's Log" since 2026-10-31 (the user's call, the Wardens story: no longer Sexton's
+ * book or voice); the code keeps the Ledger's names. Read from the campaign record, so the book is the same on any map.
  */
 namespace Ledger
 {
@@ -26,15 +25,15 @@ namespace Ledger
 	/** The same in WorldContextObject's level, from its mission runner's campaign record; not without one. */
 	bool IsOpenIn(const UObject* WorldContextObject);
 
-	/** The book's name, on the inventory's tab and in its key hints: "Ledger" once it's open, "Bestiary" before. */
+	/** The book's name, on the inventory's tab and in its key hints: "Warden's Log", open or not (bOpen kept for callers). */
 	const TCHAR* BookName(bool bOpen);
 
-	/** The book's own words, the bestiary's or the Ledger's in Sexton's voice (the pages' words are their own). */
+	/** The book's own words, the log's, open or not (the open one has a blank for a name's whereabouts; the pages' are their own). */
 	struct FWords
 	{
-		/** Over the list of entries: "Field guide", "The Ledger". */
+		/** Over the list of entries: "The Warden's Log". */
 		FString ListTitle;
-		/** What an entry is called, one and many, in the list's count: "entry", "entries"; "account", "accounts". */
+		/** What an entry is called, one and many, in the list's count: "entry", "entries". */
 		FString One;
 		FString Many;
 		/** Under an entry not met yet, in the list and on its page. */

@@ -2959,6 +2959,17 @@
           "backdrop": { "tint": [0.30, 0.24, 0.24] },
           "clouds": { "tint": [0.24, 0.13, 0.11] },
           "post": { "exposureBias": 0.5 }
+        },
+        "Smog": {
+          "about": "Soul smog over the Rest (the Wardens story, 2026-10-31; Docs/Work/2026-10-31-Wardens/CONTRACT.md, lane WORLD): Vane's dredge barge over the Sink pours black runoff into the sky, so from Main 1 until Main 6 is done (build_area_landfall.py's AStoryLighting rule, after the deck's Dusk rules) the golden hour is choked: the haze nearly four times as thick (still starting 60 m out, so a fight stays clear) and a sickly grey-green, its glow toward the sun dulled to brass; the sun dimmer, a touch cooler; the sky light dimmer and the sky itself greyed toward its horizon; the far ranges and the clouds greyed and greened through MPC_Lighting; the exposure lowered so the whole valley reads oppressed. Tune on the Point (PointOverValley) and the farm: the barge must still read as a silhouette at 200 m.",
+          "sun": { "azimuth": 247.5, "elevation": 14, "intensity": 4.5, "temperature": 4000 },
+          "sky": { "intensity": 0.75 },
+          "atmosphere": { "skyLuminance": [0.9, 1.1, 1.35], "ozone": 1.3 },
+          "fog": { "density": 0.011, "inscattering": [0.17, 0.19, 0.14],
+                   "directional": { "color": [0.7, 0.5, 0.2], "exponent": 7 } },
+          "backdrop": { "tint": [0.55, 0.6, 0.5] },
+          "clouds": { "tint": [0.6, 0.62, 0.52] },
+          "post": { "exposureBias": 0.2 }
         }
       }
     },
@@ -3090,6 +3101,25 @@
           "note": "Side 2's hired hands, and Mill Creek's slimes"
         },
         {
+          "id": "landfallLedge",
+          "polygon": [[-7000,-50000],[-7000,-11000],[-9590,-11000],[-9590,-8300],[-11800,-8300],[-11800,-50000]],
+          "levels": [1,2],
+          "note": "Landfall (Main 1): the Lamplighter's course, its boarders and the Mooring Ledge's climbers"
+        },
+        {
+          "id": "landfallPorch",
+          "at": [-4000,-5280],
+          "radius": 2600,
+          "levels": [1,2],
+          "note": "Landfall's porch fight at Delia's (FarmPorch spawns 15-23 m out); kept clear of the OrchardEdge camp's spots at Coffin Rock (29 m+)"
+        },
+        {
+          "id": "widows",
+          "polygon": [[-1590,-9620],[1300,-9620],[1300,-6000],[-1590,-6000]],
+          "levels": [1,2],
+          "note": "Main 2's spider nest at the Three Widows on the keeper's path (the Wardens story, 2026-11-01)"
+        },
+        {
           "id": "west",
           "polygon": [[1000,-4300],[5600,-4300],[5600,-13000],[1000,-13000]],
           "levels": [4,5],
@@ -3122,7 +3152,7 @@
         "socket": "Decal",
         "note": "on the station house's siding by the platform doors (SM_RR_Depot's SOCKET_Decal); trips arrive facing it"
       },
-      { "id": "posterFarm", "host": "barn", "at": [600, 280, 190], "yaw": 0, "note": "Ransom Farm's barn, left of the big doors" },
+      { "id": "posterFarm", "host": "barn", "at": [560, 280, 105], "yaw": 0, "note": "Ransom Farm's barn, left of the big doors (on the Tripo barn since 2026-11-01: wall at x 560, under its window)" },
       {
         "id": "posterWhitlock",
         "host": "whitlockBarn",
@@ -3150,8 +3180,9 @@
         { "zone": "ransomsPoint", "note": "the bluff top: the nest's ground and the lookout" }
       ],
       "storyFights": [
-        { "id": "BluffNest", "zone": "ransomsPoint", "during": "Main2", "by": "build_area_story.py" },
-        { "id": "TownGate", "between": ["townGateNorth", "townGateSouth"], "radius": 3000, "during": "Main3", "by": "build_area_story.py" },
+        { "id": "BluffNest", "polygon": [[-1590,-9620],[1300,-9620],[1300,-6000],[-1590,-6000]], "during": "Main2", "by": "build_area_main2.py (the Three Widows on the keeper's path, since 2026-11-01)" },
+        { "id": "BoardsCrew", "zone": "gravewindPoint", "during": "Main2", "by": "build_area_main2.py (the Company's crew on the burial boards, level 2)" },
+        { "id": "TownGate", "between": ["townGateNorth", "townGateSouth"], "radius": 3000, "during": "Main3", "by": "build_area_main3.py" },
         { "id": "ChapelYard", "obstacle": "churchyardFence", "during": "Main4", "by": "build_area_chapel.py" },
         { "id": "BootHill", "zone": "bootHill", "after": "Main4", "by": "build_area_chapel.py (roaming)" },
         { "id": "NorthRoad", "at": [4256, 1350], "radius": 2500, "after": "Main4", "by": "build_area_chapel.py (roaming): halfway between the hanging tree and the north road" },
@@ -3614,12 +3645,13 @@
           "pass": "valley",
           "mission": "Main3",
           "budget": "main",
-          "where": "Main Street after the town gate (a set piece, Main 3 on the way to Tilly): the Unpaid rise from the boardwalks' shadows round the Gilt Spur, ahead, then behind, seven in two pushes (ten until the user softened the first fights, 2026-10-23), a Bell-Ringer tolling from the saloon's balcony",
+          "where": "Main Street after the town gate (a set piece, Main 3 on the way to Tilly): the Unpaid rise from the boardwalks' shadows round the Gilt Spur, ahead, then behind, seven in two pushes (ten until the user softened the first fights, 2026-10-23), a Bell-Ringer tolling from the saloon's balcony; the second push from the alleys gains two Company riflemen (Under New Management, 2026-11-01)",
           "when": { "during": "Main3", "fromStep": 2 },
           "groups": [
             { "class": "UnpaidCreature", "count": 4, "rank": "Basic", "firstWave": 1, "lastWave": 1 },
             { "class": "UnpaidCreature", "count": 2, "rank": "Basic", "firstWave": 2, "lastWave": 2 },
-            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "firstWave": 2, "lastWave": 2, "leader": true }
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare", "firstWave": 2, "lastWave": 2, "leader": true },
+            { "class": "DredgerRifleman", "count": 2, "rank": "Basic", "firstWave": 2, "lastWave": 2 }
           ],
           "tags": ["Unpaid_MainStreet"],
           "center": [0, 3400],

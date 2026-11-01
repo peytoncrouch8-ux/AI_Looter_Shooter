@@ -349,6 +349,10 @@ void ARespawnMarker::Announce(EGraveMark Result, AActor* Player)
 	FTransform BellSpot;
 	const FVector Ring = GetRoostSocket(RoostKit::BellSocket(), BellSpot) ? BellSpot.GetLocation() : GetBeaconLocation();
 	LooterSound::PlayAt(this, bFirst ? LooterSoundCue::RoostMark::Found : LooterSoundCue::RoostMark::Remarked, Ring);
+	// The lantern post's lamp catching (2026-10-31, the posts replace the roosts): the old grave lantern's breath of flame
+	// and warm swell (World.Grave.Marked; Remarked: the flame lifting), at the lamp, under the bell and the crows.
+	LooterSound::PlayAt(this, bFirst ? LooterSoundCue::GraveMark::Marked : LooterSoundCue::GraveMark::Remarked, GetBeaconLocation(),
+		bFirst ? 0.9f : 0.7f);
 	if (bFirst)
 	{
 		// The crows lift off as its light catches, wheel once and settle.

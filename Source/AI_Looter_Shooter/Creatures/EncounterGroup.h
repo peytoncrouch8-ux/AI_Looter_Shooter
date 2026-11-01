@@ -119,4 +119,12 @@ struct AI_LOOTER_SHOOTER_API FEncounterGroup
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group")
 	TArray<FName> Tags;
+
+	/**
+	 * Its creatures hold a post: each keeps within this (cm, seen from above) of where it appeared, while hunting the whole
+	 * ground (ACreatureBase::PostRadius): the town gate's riflemen behind their sandbags (one walked 20 m out into the field
+	 * in the play check of 2026-11-01). 0: anywhere on the spawner's hunting ground.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group", meta = (ClampMin = "0", Units = "cm"))
+	float PostRadius = 0.f;
 };

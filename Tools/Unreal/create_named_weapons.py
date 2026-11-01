@@ -152,10 +152,12 @@ NAMED = [
          quality=0.85,
          wear=0.3,    # A company man's gun: soot in the vents, the brass kept bright.
          seed=6),
-    # Lamplighter: Abel's (Main 6's boss), a Longhorn sniper. A scoped kill leaves a lantern that heals. The gilded chassis,
+    # Wickcutter: Abel's (Main 6's boss), a Longhorn sniper. A scoped kill leaves a lantern that heals. The gilded chassis,
     # engraved barrel and brass-bound box are a keeper's brass, the forge brake glows like a lamp's ports, the 8x marshal
-    # scope watches the road from the light, the engraved butt plate is the family's.
-    dict(asset='DA_Named_Lamplighter', weapon='DA_Sniper', name='Lamplighter', line='Leave a light on.', rarity='Legendary',
+    # scope watches the road from the light, the engraved butt plate is the family's. Named "Lamplighter" until 2026-10-31
+    # (the Wardens story: the Lamplighter is the airship now). Only the name on screen changed: the asset, its id
+    # (LegendaryDrops::LamplighterId, which mission rewards, drops and saves name) and the signature keep "Lamplighter".
+    dict(asset='DA_Named_Lamplighter', weapon='DA_Sniper', name='Wickcutter', line='Leave a light on.', rarity='Legendary',
          signature='Lamplighter',
          parts={
              'Body': 'Gilded',      # Epic. Sand with brass inlays and ember lines: damage, accuracy, a quicker reload.

@@ -1,5 +1,5 @@
 // UNoticeBoardWidget: the posting cards (title, notice, count, reward, what can be done here) and acting on one: turning it
-// in, tracking it or taking it (the offer card).
+// in (the turn-in card over the board), tracking it or taking it (the offer card).
 
 #include "UI/World/NoticeBoardWidget.h"
 #include "Audio/LooterSound.h"
@@ -338,6 +338,18 @@ void UNoticeBoardWidget::Act(int32 Index)
 			}
 			return;
 		}
+		// Card first (the user's call, 2026-10-31): what was done and what it pays over the board, whose Turn In turns it in
+		// here (ANoticeBoard::TurnIn, via the card) and comes back to the board as it closes.
+		if (ALooterHUD* HUD = OwningHUD.Get())
+		{
+			if (!HUD->OpenTurnInCard(Posting.MissionId, Board.Get()))
+			{
+				LooterSound::Play2D(this, LooterSoundCue::Denied);
+				SetStatus(FText::Format(LOCTEXT("CantTurnIn", "{0} can't be turned in just now."), Title), Color::Worse());
+			}
+			return;
+		}
+		// No HUD (a test's screen): turned in here at once, as before the card.
 		if (!From->TurnIn(*Runner, Posting.MissionId))
 		{
 			LooterSound::Play2D(this, LooterSoundCue::Denied);

@@ -1,18 +1,22 @@
 // UMissionOfferWidget: the card's words (FMissionOfferCard): its kind, title, who offers it and where, its story, the first
 // step's objectives and the rewards, and where a mission is picked up for the Missions page; a turn-in's two choices with
-// what each gives and what comes either way (MakeChoice); a readable thing's words (MakeReading).
+// what each gives and what comes either way (MakeChoice); a readable thing's words (MakeReading); a turn-in's: what was done
+// and what it pays (MakeTurnIn).
 
 #include "UI/World/MissionOfferWidget.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Economy/EconomyRules.h"
 #include "Loot/LootLibrary.h"
 #include "Missions/MissionDefinition.h"
+#include "Missions/MissionEventObjectives.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRewards.h"
 #include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressionSubsystem.h"
+#include "Session/CampaignRecord.h"
 #include "Session/SessionSubsystem.h"
 #include "Story/HeroLines.h"
+#include "Story/SpeakerPointComponent.h"
 #include "UI/Inventory/MapPlaces.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Weapons/NamedWeaponDefinition.h"
@@ -355,6 +359,88 @@ FMissionOfferCard FMissionOfferCard::MakeChoice(const UMissionDefinition& Missio
 	}
 	Card.Accept = LOCTEXT("Choose", "Choose");
 	Card.Decline = LOCTEXT("DecideLater", "Decide later");
+	return Card;
+}
+
+bool FMissionOfferCard::HasTurnInCard(const UMissionDefinition& Mission)
+{
+	return Mission.NeedsTurnIn() && !Mission.HasTurnInChoice();
+}
+
+FMissionOfferCard FMissionOfferCard::MakeTurnIn(const UMissionDefinition& Mission, const AActor* Giver, const UWorld* World)
+{
+	FMissionOfferCard Card;
+	Card.bMain = Mission.Kind == EMissionKind::Main;
+	Card.Kind = LOCTEXT("KindTurnIn", "Mission complete");
+	Card.Title = Mission.Title.IsEmpty() ? FText::FromName(Mission.GetMissionId()) : Mission.Title;
+
+	// Who it goes to, and where: "Turn in to Delia Ransom · Ransom Farm", "Turn in at the Notice Board". The turn-in's own
+	// name for them first (the story's), else the voice at their point, else a board's or an artifact's title.
+	const FString Tag = Mission.TurnIn.SpeakerTag.ToString();
+	Card.GiverKind = Giver ? GiverKindOf(Mission, Giver) : Tag.StartsWith(TEXT("NoticeBoard")) ? EMissionGiverKind::Board
+		: Tag.StartsWith(TEXT("Artifact_")) ? EMissionGiverKind::Artifact : EMissionGiverKind::Someone;
+	FText Name = Mission.TurnIn.GiverName.IsEmpty() ? FText::GetEmpty() : Mission.GetGiverName();
+	if (Name.IsEmpty())
+	{
+		const USpeakerPointComponent* Point = Giver ? Giver->FindComponentByClass<USpeakerPointComponent>() : nullptr;
+		const ANoticeBoard* Board = Cast<ANoticeBoard>(Giver);
+		const AMissionArtifact* Artifact = Cast<AMissionArtifact>(Giver);
+		Name = Point && !Point->SpeakerName.IsEmpty() ? HeroLines::Resolve(Point->SpeakerName)
+			: Board && !Board->Title.IsEmpty() ? HeroLines::Resolve(Board->Title)
+			: Artifact && !Artifact->Title.IsEmpty() ? HeroLines::Resolve(Artifact->Title) : Mission.GetGiverName();
+	}
+	if (!Name.IsEmpty())
+	{
+		Card.From = Card.GiverKind == EMissionGiverKind::Someone ? FText::Format(LOCTEXT("TurnInTo", "Turn in to {0}"), Name)
+			: FText::Format(LOCTEXT("TurnInAt", "Turn in at {0}"), Name);
+		const FText Place = Giver ? PlaceNear(World, Giver->GetActorLocation()) : FText::GetEmpty();
+		if (!Place.IsEmpty())
+		{
+			Card.From = FText::Format(LOCTEXT("FromAt", "{0} · {1}"), Card.From, Place);
+		}
+	}
+
+	// What the player did, step by step, as the tracker put each: what a step asked for, checked; the optional ones done, a
+	// bonus; the last step's optional ones still open, as open (they can be done yet). One missed on an earlier step is gone
+	// with its step, and a scene watched was nothing done: neither is listed.
+	const UMissionRunner* Runner = World ? World->GetSubsystem<UMissionRunner>() : nullptr;
+	const FName MissionId = Mission.GetMissionId();
+	const int32 LastStep = Mission.Steps.Num() - 1;
+	for (int32 Step = 0; Step < Mission.Steps.Num(); ++Step)
+	{
+		// (Not named Objectives: that's the card's own member, and a local hiding it is a shadowing error.)
+		const TArray<TObjectPtr<UMissionObjective>>& StepObjectives = Mission.Steps[Step].Objectives;
+		for (int32 Index = 0; Index < StepObjectives.Num(); ++Index)
+		{
+			const UMissionObjective* Objective = StepObjectives[Index];
+			if (!Objective || Objective->IsA<UMissionSceneObjective>())
+			{
+				continue;
+			}
+			const bool bDone = !Objective->bOptional || (Runner && Runner->GetCampaign().HasDoneOptional(MissionId, Step, Index));
+			if (!bDone && Step != LastStep)
+			{
+				continue;
+			}
+			FMissionDoneLine& Line = Card.Done.AddDefaulted_GetRef();
+			Line.Text = Objective->GetShortText(World);
+			Line.bOptional = Objective->bOptional;
+			Line.bDone = bDone;
+			Card.bOptionalOpen |= !bDone;
+		}
+	}
+
+	// What it pays: the rewards as the offer listed them, and the optional objectives' bonus earned so far.
+	Card.Rewards = DescribeRewards(Mission.Rewards, MissionId);
+	const int32 OptionalDone = Runner ? Runner->CountOptionalDone(MissionId) : 0;
+	if (const int32 Bonus = MissionRewards::OptionalBonus(Mission.Rewards, OptionalDone, PlayerLevelIn(World)); Bonus > 0)
+	{
+		// The label stays a word (its column is narrow); how many earned it goes with the amount.
+		AddReward(Card.Rewards, LOCTEXT("OptionalBonus", "Bonus"), FText::Format(LOCTEXT("BonusDoneValue", "+{0} silver · {1} optional done"),
+			FText::FromString(LooterEconomy::Format(Bonus)), OptionalDone), LooterUI::Color::SoulGold());
+	}
+	Card.Accept = LOCTEXT("TurnIn", "Turn in");
+	Card.Decline = LOCTEXT("Decline", "Not now");
 	return Card;
 }
 

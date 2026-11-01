@@ -259,4 +259,14 @@ public:
 
 	/** Every entry in the project (loaded), by section, then SortOrder, then name. */
 	static TArray<UBestiaryEntry*> LoadAll();
+
+	/**
+	 * Some page's ActorClass is ActorType or a class it's made from (Describes): only these are met and counted
+	 * (UPlayerProgressionSubsystem), never a prop that takes shots (a hose-cart, a banner, a loudspeaker's horns: the play
+	 * check of 2026-11-01). The pages' classes are read once (ReadPages) and, in the editor, again on a miss now and then (a
+	 * page made while it's open).
+	 */
+	static bool HasPageFor(const UClass* ActorType);
+	/** Reads which classes have pages (the entries load; small, every reference in them soft). A level's start calls it. */
+	static void ReadPages();
 };

@@ -113,13 +113,14 @@ void UMapWidget::RefreshTravelCard()
 		Name = Pin->Name.ToString().ToUpper();
 		// The grave last marked is the save point: Continue wakes the player there.
 		const ARespawnMarker* PinGrave = Pin->Grave.Get();
-		const FString Kind = PinGrave && PinGrave->IsSavePoint() ? TEXT("Save point") : TEXT("Hob's roost");
+		// Lantern posts since 2026-10-31 (the user's call: the Wardens light them; the code still says grave and roost).
+		const FString Kind = PinGrave && PinGrave->IsSavePoint() ? TEXT("Save point") : TEXT("Lantern post");
 		Detail = Player ? FString::Printf(TEXT("%s · %s from you"), *Kind, *DistanceWords(FVector::Dist2D(Player->GetActorLocation(), Pin->Location))) : Kind;
 	}
 	else if (Graves > 0)
 	{
-		Name = TEXT("CHOOSE A ROOST");
-		Detail = TEXT("Click a roost on the map or in the list below (G, or the D-pad), then Travel.");
+		Name = TEXT("CHOOSE A POST");
+		Detail = TEXT("Click a lantern post on the map or in the list below (G, or the D-pad), then Travel.");
 		// With none chosen, only a reason that holds whatever the grave is shown.
 		if (Block == EGraveTravelBlock::None)
 		{
@@ -128,8 +129,8 @@ void UMapWidget::RefreshTravelCard()
 	}
 	else
 	{
-		Name = TEXT("NO ROOST FOUND");
-		Detail = TEXT("Find Hob's roosts (a crow's mast, its beacon dark until you reach it). Once you have, his crows carry you between them from here.");
+		Name = TEXT("NO POST LIT");
+		Detail = TEXT("Light the Wardens' lantern posts (dark until you walk up to one). Once one is lit, Hob's crows carry you between them from here.");
 		Status.Reset();
 	}
 	SetTextIfChanged(CardName, Name);
@@ -172,7 +173,7 @@ void UMapWidget::RebuildGraveList()
 	GraveList->ClearChildren();
 	GraveRows.Reset();
 	const int32 Graves = MapPins::Count(Pins, EMapPinKind::Grave);
-	SetTextIfChanged(GraveListHeader, Graves > 0 ? FString::Printf(TEXT("HOB'S ROOSTS  ·  %d"), Graves) : FString(TEXT("NO ROOSTS FOUND YET")));
+	SetTextIfChanged(GraveListHeader, Graves > 0 ? FString::Printf(TEXT("LANTERN POSTS  ·  %d"), Graves) : FString(TEXT("NO POSTS LIT YET")));
 
 	for (const FMapPin& Pin : Pins)
 	{
@@ -245,7 +246,7 @@ void UMapWidget::RefreshPrompts()
 	}
 	if (MapPins::Count(Pins, EMapPinKind::Grave) > 0)
 	{
-		Prompts.Add({ TEXT("G"), TEXT("Next roost") });
+		Prompts.Add({ TEXT("G"), TEXT("Next post") });
 	}
 	Prompts.Add({ TEXT("C"), TEXT("Find me") });
 	Prompts.Add({ TEXT("Drag"), TEXT("Pan") });

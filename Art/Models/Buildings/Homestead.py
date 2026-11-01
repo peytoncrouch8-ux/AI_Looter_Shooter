@@ -1636,6 +1636,12 @@ ROWS = [['RR_Home_D', 'RR_Home_B', 'RR_Home_A', 'RR_Home_H', 'RR_Home_I'],
         ['RR_Windmill', 'RR_Well', 'RR_Outhouse']]
 
 models = [build() for key, build in BUILDERS if not ONLY or key in ONLY]
+# The Tripo windpump fitted into RR_Windmill and its wheel into RR_WindmillFan (Art/Models/Buildings/Tripo/
+# parts_buildings.py, Tools/Blender/looter_tripo_buildings.py; LOOTER_BUILDINGS_TRIPO=0 keeps the scripted ones).
+_built = {o.name: o for o in models}
+if 'RR_Windmill' in _built:
+    import looter_tripo_buildings as tripo_buildings
+    tripo_buildings.apply(_built['RR_Windmill'], 'WindmillRR', fan=_built.get('RR_WindmillFan'))
 
 if lt.want_preview():
     by_name = {o.name: o for o in models}

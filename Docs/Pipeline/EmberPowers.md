@@ -4,6 +4,10 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 ## Ember powers
 
+On screen these are **"skills"** since 2026-10-31 (the user: "Change the hero abilities' name to 'skills'. No lore required for skills
+right now"): inventory tab, page title, prompts, hero select, the key binding's display name. Code, asset and cue names stay Ember*
+(`UEmberComponent`, `EInventoryPage::Embers`, `DA_Ember_*`, `Ember.*`, `Looter.Embers.*`); `Game.md` "Renames on screen".
+
 The heroes' active powers (Docs/Story.md, "The heroes"; the user's calls 2026-10-15: three owned from the start, one
 equipped, Q, the HUD socket by the weapon column, the powers page as the inventory's second tab). The contract the first
 round was built to: the shared headers in `Source/AI_Looter_Shooter/Embers/` (EmberTypes, EmberDefinition, HeroDefinition,

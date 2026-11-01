@@ -44,7 +44,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")
 	FText ShortName;
 
-	/** "the Revenant", "the Cardsharp", "the Unpaid", "the Iron Hand", "the Surveyor". */
+	/** "the Lantern Warden" (Sully; was "the Revenant"), "the Cardsharp", "the Unpaid", "the Iron Hand", "the Surveyor". */
 	UPROPERTY(EditDefaultsOnly, Category = "Hero")
 	FText Role;
 

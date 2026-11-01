@@ -166,11 +166,13 @@ void UMapWidget::BuildFinds(UCanvasPanel& Page)
 	Total->AddChildToHorizontalBox(FindsCount)->SetVerticalAlignment(VAlign_Center);
 	Block->AddChildToVerticalBox(Total);
 
-	// "LEDGER 2 / 6" under it, quieter.
+	// "LOG PAGES 2 / 6" under it, quieter.
 	UHorizontalBox* Ledger = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	UTextBlock* LedgerTitle = MakeFloatingText(WidgetTree, LedgerSize, Color::SlateLabel(), 220, ETextJustify::Left);
-	LedgerTitle->SetText(FText::FromString(TEXT("LEDGER")));
-	Ledger->AddChildToHorizontalBox(MakeSized(WidgetTree, LedgerTitle, TallyWidth + 8.f + 52.f))->SetVerticalAlignment(VAlign_Center);
+	// The Warden's Log's loose pages (the Ledger's until 2026-10-31).
+	LedgerTitle->SetText(FText::FromString(TEXT("LOG PAGES")));
+	// Wide enough for its nine letters at the label's spacing ("LEDGER" had 52 px past the tally).
+	Ledger->AddChildToHorizontalBox(MakeSized(WidgetTree, LedgerTitle, TallyWidth + 8.f + 68.f))->SetVerticalAlignment(VAlign_Center);
 	LedgerCount = MakeFloatingText(WidgetTree, LedgerCountSize, Color::SlateText(), 100, ETextJustify::Left);
 	Ledger->AddChildToHorizontalBox(LedgerCount)->SetVerticalAlignment(VAlign_Center);
 	Block->AddChildToVerticalBox(Ledger)->SetPadding(FMargin(0.f, LedgerGap, 0.f, 0.f));

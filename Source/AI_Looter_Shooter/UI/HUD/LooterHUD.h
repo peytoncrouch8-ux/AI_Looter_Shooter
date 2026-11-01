@@ -199,6 +199,14 @@ public:
 	 */
 	bool OpenTurnInChoice(const UMissionDefinition* Mission, AActor* Giver);
 
+	/**
+	 * Opens the card in its turn-in mode for MissionId, ready to turn in at Giver (someone's speaker point actor, a notice
+	 * board, a mission artifact; null: the console's), card first (the user's call, 2026-10-31): what was done, what it
+	 * pays, Turn In or Not now; the giver's words after Turn In. Over a board's screen it goes back to the board. False when
+	 * another menu is open, or the mission isn't waiting here with no choice to make. LooterHUDMissionOffer.cpp.
+	 */
+	bool OpenTurnInCard(FName MissionId, AActor* Giver);
+
 	/** The short banner over the HUD when a respawn grave is marked as the save point ("GRAVE MARKED", its name). LooterHUDGraves.cpp. */
 	void ShowGraveMarked(const FText& GraveName);
 

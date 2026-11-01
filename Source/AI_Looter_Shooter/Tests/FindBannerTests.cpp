@@ -75,7 +75,7 @@ bool FFindBannerEaseTest::RunTest(const FString& Parameters)
 	// The words.
 	TestEqual(TEXT("Title"), Banner::TitleWords(MakeFind(TEXT("Box"), 4)), FString(TEXT("FOUND")));
 	TestEqual(TEXT("Count line"), Banner::CountWords(MakeFind(TEXT("Box"), 4)), FString(TEXT("4 / 15 · RANSOM'S REST")));
-	TestEqual(TEXT("A ledger page counts apart"), Banner::CountWords(MakeFind(TEXT("Page"), 2, 40, true)), FString(TEXT("LEDGER PAGE · 2 / 6")));
+	TestEqual(TEXT("A log page counts apart"), Banner::CountWords(MakeFind(TEXT("Page"), 2, 40, true)), FString(TEXT("LOG PAGE · 2 / 6")));
 	TestEqual(TEXT("Experience line"), Banner::XpWords(120), FString(TEXT("+120 XP")));
 	TestEqual(TEXT("A thousand has its comma"), Banner::XpWords(1000), FString(TEXT("+1,000 XP")));
 	TestTrue(TEXT("No experience: no line"), Banner::XpWords(0).IsEmpty());
@@ -146,7 +146,7 @@ bool FFindBannerQueueTest::RunTest(const FString& Parameters)
 	// A ledger page: its own count.
 	Banner->Announce(MakeFind(TEXT("Ledger page"), 2, 40, true));
 	Banner->Advance(0.1f);
-	TestEqual(TEXT("A ledger page"), Banner->GetShownCount(), FString(TEXT("LEDGER PAGE · 2 / 6")));
+	TestEqual(TEXT("A log page"), Banner->GetShownCount(), FString(TEXT("LOG PAGE · 2 / 6")));
 	Banner->Advance(UHudFindBannerWidget::ShowSeconds);
 
 	// A crowd (an old save's finds, a console mark): more than two waiting become one "3 FOUND".
