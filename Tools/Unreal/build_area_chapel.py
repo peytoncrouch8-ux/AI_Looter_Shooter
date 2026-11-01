@@ -115,7 +115,10 @@ YARD_RISE = 600.0
 YARD_BEATS = (
     dict(wave=1, speaker='Hob', line="The crew spilled her dead in the yard, sunshine. Fog's shut the gate. Hold it.",
          sting='Boss.Phase', cue='Creature.Unpaid.Shriek', shake=0.2, shakeSeconds=0.6),
+    # The hose is pullable during this fight: pulled before the second push, Hob says what's true then (the 2026-11-01
+    # play-check heard the first line after the hose was out). AChapelWindowHose::PulledEvent.
     dict(wave=2, speaker='Hob', line="Hose-men at her window! Drop them, or that hose drinks her dry.",
+         otherAfter='ChapelHose.Pulled', otherLine="More hose-men, sunshine! Her window's clear. Drop them before they latch on.",
          sting='Boss.Phase', cue='Creature.Dredger.Bark', shake=0.3, shakeSeconds=0.8),
 )
 YARD_CLEARED = dict(speaker='Hob', line='Fog is lifting. Quiet as a church, sunshine.', cue='Boss.Loot.Burst')

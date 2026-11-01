@@ -417,6 +417,7 @@ The bounty board (design `Docs/Work/2026-10-22-Next/BOUNTY.md`).
 
 ## Scenes
 - `Scenes/SceneTimeline`: `FSceneTimeline`, scene as timeline without Sequencer (moves, once-only moments, waits; skip passes waits, `IsSkipping`).
+- `Scenes/SceneTalkView`: `SceneTalkView::Find`, a scene's view of someone talking: framed whole knelt and standing (`Fov` 70), from the first spot round them with nothing solid between, over ground (FreeAbel's talk view).
 - `Scenes/SceneSubsystem`: `USceneSubsystem`, scenes one at a time (`FScenePlay`, `OnTick`, `BindKeys`), `PlaySkiffRide`, skipping (`Looter.Scene.Skip`, hold Interact, Escape twice), `OnSceneEvent`, `Scene.<Name>` to missions, `HasPlayed`, `MarkPlayed`, scenes off in tours/perf (`Looter.Scenes`, `-NoScenes`). `SceneSubsystemPlayer.cpp` holds/gives back the player; `SceneSubsystemKeys.cpp` scene keys and skip keys.
 - `Scenes/SkiffRide`: `SkiffRide`, the first cast-off's course and white-out.
 - `Scenes/HardLanding`: `HardLanding`, the hard landing on the Mooring Ledge: her path as math of time (`PoseAt`), the scene (look-only, skippable; Main 1's hidden `HardLanding` objective). `Scenes/SmogReveal`: `SmogReveal`, the look through the spyglass at the barge, its hose and smog, Vane on the loudspeakers, then Finch's trail lines.

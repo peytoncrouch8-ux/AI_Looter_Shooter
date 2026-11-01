@@ -199,16 +199,31 @@ bool UInteractionComponent::IsInSight(const FInteractionView& View, const FInter
 	{
 		return true;
 	}
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(InteractionSight), /*bTraceComplex*/ false);
-	IgnorePlayer(Params);
+	FCollisionQueryParams PlayerOnly(SCENE_QUERY_STAT(InteractionSight), /*bTraceComplex*/ false);
+	IgnorePlayer(PlayerOnly);
 	auto Sees = [&](const FInteractionCandidate& Seen)
 	{
-		FHitResult Hit;
-		if (!World->LineTraceSingleByChannel(Hit, View.ReachOrigin, Seen.Location, ECC_Visibility, Params))
+		// A creature's (or anyone's) body is never a wall (InteractionFocus::IsPassingBody): one stepping between the eyes and
+		// the thing must not drop the focus, or a hold on it would start over (the 2026-11-01 play-check: Abel's Restless adds
+		// round the keeper's post broke the 1.5 s call-back three times; it passed once they were dead). The line looks on
+		// past a few of them for a real wall.
+		FCollisionQueryParams Params = PlayerOnly;
+		constexpr int32 MostBodies = 4;
+		for (int32 Body = 0; ; ++Body)
 		{
-			return true;
+			FHitResult Hit;
+			if (!World->LineTraceSingleByChannel(Hit, View.ReachOrigin, Seen.Location, ECC_Visibility, Params))
+			{
+				return true;
+			}
+			AActor* HitActor = Hit.GetActor();
+			if (Body < MostBodies && InteractionFocus::IsPassingBody(Seen, HitActor))
+			{
+				Params.AddIgnoredActor(HitActor);
+				continue;
+			}
+			return !InteractionFocus::DoesHitHide(Seen, HitActor, Hit.GetComponent(), Hit.ImpactPoint);
 		}
-		return !InteractionFocus::DoesHitHide(Seen, Hit.GetActor(), Hit.GetComponent(), Hit.ImpactPoint);
 	};
 	if (Sees(Candidate))
 	{

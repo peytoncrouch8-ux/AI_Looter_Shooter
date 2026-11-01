@@ -14,6 +14,7 @@ class APawn;
 class UHealthComponent;
 class ULootDropComponent;
 class USpeakerPointComponent;
+struct FMissionEvent;
 
 /** One beat of a set piece: a push's own spots and how it's announced (a caption, a sting, a shake, dust from the roof). */
 USTRUCT(BlueprintType)
@@ -38,6 +39,23 @@ struct AI_LOOTER_SHOOTER_API FSetPieceBeat
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece", meta = (MultiLine = true))
 	FText Line;
+
+	/**
+	 * Said instead of Line once the missions have heard OtherAfterEvent this visit (by name), so its words stay true to the
+	 * world: Saint Ada's Yard's second push, its hose-men, when the hose is already out of her window (ChapelHose.Pulled;
+	 * the 2026-11-01 play-check heard Hob say the hose was drinking her after it was pulled). None or empty: Line always.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece")
+	FName OtherAfterEvent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece", meta = (MultiLine = true))
+	FText OtherLine;
+
+	/** The words to say now: OtherLine once its event is among Heard, else Line. */
+	const FText& LineToSay(const TSet<FName>& Heard) const
+	{
+		return !OtherAfterEvent.IsNone() && !OtherLine.IsEmpty() && Heard.Contains(OtherAfterEvent) ? OtherLine : Line;
+	}
 
 	/** A sting heard as it comes (2D), and a sound at the player's spot in the world. None: none. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Set Piece")
@@ -234,6 +252,8 @@ private:
 
 	// --- Its beats and its end (SetPieceSpawner.cpp) ---
 	void PlayBeat(const FSetPieceBeat& Beat, bool bInterrupt);
+	/** A mission event: kept when a beat's words change on it (FSetPieceBeat::OtherAfterEvent). */
+	void HandleMissionEvent(const FMissionEvent& Event);
 	void SiftDust(const FVector& Around, int32 Puffs) const;
 	void Finish();
 	void ThrowReward();
@@ -274,4 +294,7 @@ private:
 	/** The highest level of the creatures it brought: its reward's. */
 	int32 HighestLevel = 1;
 	FTimerHandle DoneWatch;
+	/** The mission events its beats' words wait on, heard this visit, and its ear on the mission runner. */
+	TSet<FName> HeardEvents;
+	FDelegateHandle MissionEventHandle;
 };

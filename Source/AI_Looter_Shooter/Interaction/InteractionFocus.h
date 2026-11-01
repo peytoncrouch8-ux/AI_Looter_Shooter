@@ -87,6 +87,14 @@ namespace InteractionFocus
 	 */
 	bool DoesHitHide(const FInteractionCandidate& Candidate, const AActor* HitActor, const UPrimitiveComponent* Part, const FVector& HitPoint);
 
+	/**
+	 * A hit on the line from the eyes to the candidate is a body passing (a creature, a person, or what one carries), not a
+	 * wall: the sight line looks on past it. A body steps out of the way, and one crossing must never drop the focus and
+	 * start a hold over (the 2026-11-01 play-check: Abel's Restless adds round the keeper's post broke the call-back hold).
+	 * The candidate's own body (a person to talk to) isn't one passing.
+	 */
+	bool IsPassingBody(const FInteractionCandidate& Candidate, const AActor* HitActor);
+
 	/** Its standing among the others: its aim, less a little for its distance. */
 	float ScoreOf(const FInteractionView& View, const FInteractionCandidate& Candidate);
 

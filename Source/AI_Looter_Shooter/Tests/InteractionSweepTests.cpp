@@ -179,4 +179,47 @@ bool FInteractionSweepThingsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInteractionSightBodiesTest, "Looter.Interaction.Box.Bodies",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FInteractionSightBodiesTest::RunTest(const FString& Parameters)
+{
+	// A body on the sight line (a creature, or what one carries) is passing, not a wall: the line looks on past it, so Abel's
+	// adds crowding the keeper's post never break the call-back's hold (the 2026-11-01 play-check). A wall still hides; the
+	// thing's own body (a person to talk to) isn't one passing.
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = TestLevel.GetTestWorld();
+	APawn* Add = World->SpawnActor<APawn>();
+	AActor* Carried = World->SpawnActor<AActor>();
+	AActor* Wall = World->SpawnActor<AActor>();
+	APawn* Talker = World->SpawnActor<APawn>();
+	if (!TestTrue(TEXT("A body, what it carries, a wall and a person placed"), Add && Carried && Wall && Talker))
+	{
+		return false;
+	}
+	USceneComponent* CarriedRoot = NewObject<USceneComponent>(Carried, TEXT("Root"));
+	Carried->SetRootComponent(CarriedRoot);
+	CarriedRoot->RegisterComponent();
+	USceneComponent* AddRoot = NewObject<USceneComponent>(Add, TEXT("Root"));
+	Add->SetRootComponent(AddRoot);
+	AddRoot->RegisterComponent();
+	Carried->AttachToActor(Add, FAttachmentTransformRules::KeepWorldTransform);
+
+	FInteractionCandidate Post;
+	Post.Location = FVector(300.0, 0.0, 100.0);
+	TestTrue(TEXT("A creature's body between: passing"), InteractionFocus::IsPassingBody(Post, Add));
+	TestTrue(TEXT("...and what it carries"), InteractionFocus::IsPassingBody(Post, Carried));
+	TestFalse(TEXT("A wall: not passing (it hides as walls do)"), InteractionFocus::IsPassingBody(Post, Wall));
+	TestFalse(TEXT("Nothing hit: not a body"), InteractionFocus::IsPassingBody(Post, nullptr));
+	FInteractionCandidate Person;
+	Person.Actor = Talker;
+	Person.Location = FVector(200.0, 0.0, 100.0);
+	TestFalse(TEXT("The person talked to is no body passing in front of themselves"), InteractionFocus::IsPassingBody(Person, Talker));
+	return true;
+}
+
 #endif

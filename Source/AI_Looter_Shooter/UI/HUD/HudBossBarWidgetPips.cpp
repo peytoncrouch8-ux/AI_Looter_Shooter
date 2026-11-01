@@ -17,6 +17,9 @@
 #include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Rendering/SlateRenderer.h"
 
 using namespace LooterUI;
 
@@ -27,9 +30,11 @@ namespace
 	constexpr float PipsBarTop = 36.f;
 	constexpr float PipsBarHeight = 30.f;
 	constexpr float PipsBarRight = PipsClusterSide + UHudBossBarWidget::BarWidth;
-	/** The row: under the bar's far end, its right edge 10 px inside it (clear of the clamp's foot), 4 px under the bar. */
+	/** The row: under the bar's far end, its right edge 10 px inside it (clear of the clamp's foot), 5 px under the bar. */
 	constexpr float PipsRight = PipsBarRight - 10.f;
 	constexpr float PipsTop = PipsBarTop + PipsBarHeight + 5.f;
+	/** The line under the bar sits this far under the row's foot while the pips show (the type's own leading spaces the two lines). */
+	constexpr float PipsLineGap = 1.f;
 	/** A pip: a 13 px diamond (a square turned 45 degrees), 2 px gold rim, 9 px apart; the label 13 px, 8 px before them. */
 	constexpr float PipSize = 13.f;
 	constexpr float PipRim = 2.f;
@@ -46,6 +51,52 @@ namespace
 	constexpr float PopSeconds = 0.55f;
 	constexpr float FadeSeconds = 0.3f;
 	constexpr float TrackOpacity = 0.85f;
+
+	/** A turned diamond reaches PipSize x sqrt 2 tall; a 13 px line in the kit's type is about 24 with its outline (no Slate to ask). */
+	constexpr float PipTurnedHeight = PipSize * 1.4143f;
+	constexpr float PipLabelFallbackHeight = 24.f;
+}
+
+float UHudBossBarWidget::PipRowHeight()
+{
+	// Measured, not guessed: the label's line in the type the row draws it in (Slate's own measure, cached), so the line under
+	// the bar clears it at any font or DPI scale (the HUD scales as a whole; the measure is in its units).
+	float LabelHeight = PipLabelFallbackHeight;
+	if (FSlateApplication::IsInitialized())
+	{
+		if (FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer())
+		{
+			LabelHeight = Renderer->GetFontMeasureService()->GetMaxCharacterHeight(FloatingFont(PipLabelSize, PipLabelSpacing));
+		}
+	}
+	return FMath::Max(LabelHeight, PipTurnedHeight);
+}
+
+float UHudBossBarWidget::PipRowTop(float ArmourShown)
+{
+	return PipsTop + ArmourRowDrop * FMath::Clamp(ArmourShown, 0.f, 1.f);
+}
+
+float UHudBossBarWidget::PhaseLineTop(float ArmourShown, float PipsShown)
+{
+	// Under the bar; under the armour's bar as it shows; and under the pips' row as it shows (the row itself steps down under
+	// the armour, so the drop for the pips is from where the line would be with the armour alone).
+	const float Armour = FMath::Clamp(ArmourShown, 0.f, 1.f);
+	const float WithArmour = UnderBarTop + ArmourRowDrop * Armour;
+	const float UnderPips = PipRowBottom(Armour) + PipsLineGap;
+	return WithArmour + FMath::Max(0.f, UnderPips - WithArmour) * FMath::Clamp(PipsShown, 0.f, 1.f);
+}
+
+void UHudBossBarWidget::PlaceUnderBar()
+{
+	if (UCanvasPanelSlot* LineSlot = PhaseLabel ? Cast<UCanvasPanelSlot>(PhaseLabel->Slot) : nullptr)
+	{
+		LineSlot->SetPosition(FVector2D(LineSlot->GetPosition().X, PhaseLineTop(ArmourOpacity, PipsRoom)));
+	}
+	if (UCanvasPanelSlot* RowSlot = PipRow ? Cast<UCanvasPanelSlot>(PipRow->Slot) : nullptr)
+	{
+		RowSlot->SetPosition(FVector2D(PipsRight, PipRowTop(ArmourOpacity)));
+	}
 }
 
 void UHudBossBarWidget::SetPips(int32 Total, int32 Filled, const FText& InPipLabel, const FText& InBarLabel)
@@ -145,7 +196,7 @@ void UHudBossBarWidget::BuildPips()
 	UCanvasPanelSlot* RowSlot = Box->AddChildToCanvas(Row);
 	RowSlot->SetAutoSize(true);
 	RowSlot->SetAlignment(FVector2D(1.f, 0.f));
-	RowSlot->SetPosition(FVector2D(PipsRight, PipsTop));
+	RowSlot->SetPosition(FVector2D(PipsRight, PipRowTop(ArmourOpacity)));
 
 	// The word over the bar's far end (the bar's own name for what drains: SMOG), right-aligned over the clamp.
 	BarWord = MakeFloatingText(WidgetTree, BarWordSize, Color::Text(), BarWordSpacing, ETextJustify::Right);
@@ -159,6 +210,7 @@ void UHudBossBarWidget::BuildPips()
 	PipsOpacity = 0.f;
 	Row->SetRenderOpacity(0.f);
 	BarWord->SetRenderOpacity(0.f);
+	PlaceUnderBar();
 	ApplyPips();
 }
 
@@ -199,6 +251,14 @@ void UHudBossBarWidget::TickPips(float DeltaSeconds)
 			BarWord->SetRenderOpacity(PipsOpacity);
 			BarWord->SetVisibility(PipsOpacity > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		}
+	}
+	// The line under the bar steps down under the row as it comes, and back up as it goes (dimmed at the boss's death, the
+	// row still holds its room).
+	const float RoomTarget = bPipsWanted ? 1.f : 0.f;
+	if (PipsRoom != RoomTarget)
+	{
+		PipsRoom = FMath::FInterpConstantTo(PipsRoom, RoomTarget, DeltaSeconds, 1.f / FadeSeconds);
+		PlaceUnderBar();
 	}
 	bool bMoved = false;
 	for (float& Pop : PipPop)

@@ -97,6 +97,21 @@ bool FSetPieceRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The reward's level is the fight's"), RewardLevel(6), 6);
 	TestEqual(TEXT("...never under 1"), RewardLevel(0), 1);
 
+	// A beat's words stay true to the world: the yard's hose-men push says the hose drinks her only while it's in her window
+	// (the 2026-11-01 play-check heard it after the hose was out).
+	FSetPieceBeat HoseMen;
+	HoseMen.Line = FText::FromString(TEXT("Hose-men at her window!"));
+	HoseMen.OtherAfterEvent = FName(TEXT("ChapelHose.Pulled"));
+	HoseMen.OtherLine = FText::FromString(TEXT("More hose-men! Her window's clear."));
+	const TSet<FName> NothingHeard;
+	const TSet<FName> Pulled = { FName(TEXT("ChapelHose.Pulled")) };
+	const TSet<FName> Else = { FName(TEXT("Bell.Rung")) };
+	TestTrue(TEXT("The hose still in: its first words"), HoseMen.LineToSay(NothingHeard).EqualTo(HoseMen.Line) && HoseMen.LineToSay(Else).EqualTo(HoseMen.Line));
+	TestTrue(TEXT("...pulled: the other"), HoseMen.LineToSay(Pulled).EqualTo(HoseMen.OtherLine));
+	FSetPieceBeat Plain;
+	Plain.Line = FText::FromString(TEXT("Look out!"));
+	TestTrue(TEXT("A beat with no other words: its own always"), Plain.LineToSay(Pulled).EqualTo(Plain.Line));
+
 	// The cvars' defaults are the tuning's own (a fresh game and the tests agree).
 	const FSetPieceTuning Defaults;
 	const FSetPieceTuning Now = FSetPieceTuning::Current();

@@ -230,7 +230,10 @@ def place_barge(build):
     # The knoll's ground is the chapel's own foot (Chapel.py stands it on the ground; a trace here would meet its roof).
     ground = chapel.z
     remove_stale(build, 'Barge_Pilot')
-    barge = build.place(cls, (mx, my, ground + KEEL_OVER), yaw, label='Barge_Pilot', folder=FOLDER, tags=(BARGE_TAG, 'Obstacle'))
+    # 'Floor' as well as 'Obstacle' (the minimap draws her solid): an obstacle's top is no ground for encounter spots
+    # unless it carries Floor, and BargeDeck's nine found nowhere to stand on her deck without it (Demo47, as Main 2's boards).
+    barge = build.place(cls, (mx, my, ground + KEEL_OVER), yaw, label='Barge_Pilot', folder=FOLDER,
+                        tags=(BARGE_TAG, 'Obstacle', 'Floor'))
     barge.set_editor_property('hose_target', unreal.Vector(*ridge))
     hull = barge.get_editor_property('hull').static_mesh
     size = hull.get_bounding_box().get_editor_property('max') if hull else None

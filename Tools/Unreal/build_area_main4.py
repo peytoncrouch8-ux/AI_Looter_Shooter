@@ -118,10 +118,12 @@ DROP_SLIDE = 2.2
 # away from the yard), its horns at the chapel.
 GATE_SPEAKER_OUT = 320.0
 GATE_SPEAKER_ALONG = 260.0
-# Finch at the Reliquary: this far in front of the plinth (toward the nave), facing it; his capsule's middle this far over
-# the floor; the sanctuary's floor over the pivot when no trace finds it (Chapel.py FLOOR + SANCT).
-FINCH_OUT = 140.0
-FINCH_HALF_HEIGHT = 90.0
+# Finch at the Reliquary: this far in front of the plinth (toward the nave) and this far to its side, facing it; an
+# AStoryCharacter's pivot is its feet (0 over the floor). Square in front at 90 cm up (a capsule's middle), he stood in the
+# air over the plinth and took the nave's look and the Interact meant for the Reliquary's lantern in Main 7 (Demo47).
+FINCH_OUT = 150.0
+FINCH_SIDE = 150.0
+FINCH_HALF_HEIGHT = 0.0
 SANCTUARY_UP = 79.0
 # The marks: furrows every FURROW_STEP from the gateway toward the cart; the soot mark this far under the door's head.
 FURROW_STEP = 380.0
@@ -513,11 +515,15 @@ def place_finch(build, frame):
     turn = plinth.rotation.rotator()
     # In front of the plinth toward the nave (the Reliquary faces the nave along the socket's +X), facing it.
     ahead = turn.get_forward_vector()
-    at = plinth.translation + ahead * FINCH_OUT
-    # On the sanctuary's floor there (traced onto the chapel), his capsule's middle over it.
+    side = turn.get_right_vector()
+    at = plinth.translation + ahead * FINCH_OUT + side * FINCH_SIDE
+    # On the sanctuary's floor there (traced onto the chapel), his feet on it.
     floor = story.onto_host(frame.chapel, unreal.Vector(at.x, at.y, at.z + 120.0), unreal.Vector(at.x, at.y, at.z - 250.0))
     z = (floor.z if floor is not None else frame.z + SANCTUARY_UP) + FINCH_HALF_HEIGHT
-    finch = build.place(cls, (at.x, at.y, z), turn.yaw + 180.0, label='Finch_Reliquary', folder=FOLDER, tags=(FINCH_TAG,))
+    # Facing the Reliquary from beside it.
+    look = plinth.translation - at
+    yaw = math.degrees(math.atan2(look.y, look.x))
+    finch = build.place(cls, (at.x, at.y, z), yaw, label='Finch_Reliquary', folder=FOLDER, tags=(FINCH_TAG,))
     finch.set_editor_property('crew', crew.KEEPER)
     finch.set_editor_property('at_station', True)
     finch.set_editor_property('shown_when', story.condition(after=[MAIN4], before=['Main7']))

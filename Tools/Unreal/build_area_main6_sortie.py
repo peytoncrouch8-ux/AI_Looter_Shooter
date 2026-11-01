@@ -44,6 +44,12 @@ TOWN_KIND = 'FalseFront_Undertaker'
 
 # The lift's top over Moored (PilotLight::LiftRise 900, and a little more so the course starts above it).
 LIFT_TOP = 1100.0
+# Then straight up over Moored to this before she turns for the farm: the course's first leg (fixed, 11 m up) ran through the
+# lookout on Ransom's Point 15 m off her bow and no raise could move it (Demo47: the "14 raises" warning, seen in PIE). An
+# inner control point the sweep can raise further. It leans CLIMB_LEAD toward the farm: a dead-vertical first leg has no
+# heading, and her lift slewed her round to it (PilotSortieRules::LiftPose turns her to the course's start) the wrong way.
+CLIMB_OUT = 4500.0
+CLIMB_LEAD = 600.0
 # Her course over the valley: this high over the ground under each control point at least (30 m: over the farm's trees and
 # the town's false fronts with the tenders' fall still long), and never lower than the ledge's height plus this.
 OVER_GROUND = 3000.0
@@ -124,7 +130,7 @@ def plan(build, ship, barge):
     m = moored.translation
     ledge_floor = m.z + OVER_LEDGE
     start = (m.x, m.y, m.z + LIFT_TOP)
-    controls = [start]
+    controls = [start, (m.x, m.y, m.z + CLIMB_OUT)]
     for kind in (FARM_KIND, TOWN_KIND):
         spot = story.placed(build, kind)
         if spot is None:
@@ -139,6 +145,12 @@ def plan(build, ship, barge):
     short = min(END_SHORT, length * 0.6)
     ex, ey = berth.x - dx / length * short, berth.y - dy / length * short
     controls.append((ex, ey, max(berth.z + END_OVER_KEEL, over_ground(ex, ey, ledge_floor))))
+    # The climb leans toward the next control so the first leg has a heading. At least a sixth of the way: a shorter lean
+    # under a far next control bows the Catmull-Rom curve back behind the start (her lift turned her to face away).
+    nx, ny = controls[2][0] - m.x, controls[2][1] - m.y
+    far = math.hypot(nx, ny) or 1.0
+    lean = max(CLIMB_LEAD, far / 6.0)
+    controls[1] = (m.x + nx / far * lean, m.y + ny / far * lean, controls[1][2])
     return controls, moored
 
 

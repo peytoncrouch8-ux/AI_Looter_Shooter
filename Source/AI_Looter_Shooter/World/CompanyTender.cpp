@@ -8,6 +8,7 @@
 #include "Creatures/DredgerCreature.h"
 #include "World/LamplighterEffects.h"
 #include "World/LamplighterShip.h"
+#include "World/WorldQueries.h"
 #include "Components/AudioComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
@@ -292,7 +293,10 @@ void ACompanyTender::AdvanceFall(float DeltaSeconds)
 			{
 				GroundWait = 0.05f;
 				FHitResult Hit;
-				FCollisionQueryParams Params(SCENE_QUERY_STAT(TenderFallGround), false, this);
+				// Real ground only: the Rest's PCG volume (up to ~120 m) answered world-static traces and "crashed" the
+				// tender in mid-air the frame its bag tore (Demo47); her hull is world-static too.
+				FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(GetWorld(), TEXT("TenderFallGround"), this);
+				Params.AddIgnoredActor(Ship.Get());
 				const FVector From = Now.GetLocation() + FVector(0.0, 0.0, 100.0);
 				const FVector To = From + FVector(0.0, 0.0, -350.0) + FallVelocity * 0.06f;
 				if (GetWorld() && GetWorld()->LineTraceSingleByObjectType(Hit, From, To, FCollisionObjectQueryParams(ECC_WorldStatic), Params))

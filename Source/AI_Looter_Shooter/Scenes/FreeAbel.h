@@ -16,7 +16,8 @@ class AAbelKeeper;
  *  - He goes to the post and steps into his own lantern: he fades into it, and it burns like a sunrise.
  *  - Sully takes it down, lit, as the scene ends (AKeeperLanternPost::TakeDownLit).
  *
- * Sully's eyes are the camera (the player held and hidden where they stand), easing to the keeper's post and back. Skipped,
+ * The camera frames him whole in front of him, kneeling and standing, where no rail crosses him (Scenes/SceneTalkView; the
+ * player held and hidden where they stand), easing to the keeper's post's lantern, then back to the player's eyes. Skipped,
  * it leaves the world as played: Abel gone into his lantern, the lantern lit and carried. Main 7's scene step waits for it
  * (Scene.FreeAbel).
  */

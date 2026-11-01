@@ -6,6 +6,7 @@
 #include "Missions/MissionEventObjectives.h"
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
+#include "Scenes/SceneTalkView.h"
 #include "Scenes/SceneTimeline.h"
 #include "Scenes/SkiffRide.h"
 #include "Scenes/TransitionScreen.h"
@@ -478,6 +479,38 @@ bool FSkiffRideTest::RunTest(const FString& Parameters)
 	Scenes->ReturnFromScene();
 	TestTrue(TEXT("Returned, the skiff is moored again"), Skiff->GetActorLocation().Equals(Moored.GetLocation(), 0.1));
 	Scenes->OnSceneEvent.Remove(Listening);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSceneTalkViewTest, "Looter.Scenes.TalkView",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSceneTalkViewTest::RunTest(const FString& Parameters)
+{
+	// A talking view frames the one talking whole, knelt and standing (FreeAbel's head left the top as he rose, a rail
+	// across him: the 2026-11-01 play-check), from in front of them first, then round them. No world: the first spot.
+	SceneTalkView::FFigure Tall;
+	Tall.Feet = FVector(1000.0, -500.0, 200.0);
+	Tall.StandTop = 260.f;
+	Tall.LowTop = 170.f;
+	Tall.FacingYaw = 90.f;
+	const TArray<FVector> Spots = SceneTalkView::Spots(Tall, 320.f);
+	const FVector Look = SceneTalkView::LookPoint(Tall);
+	TestTrue(TEXT("First in front of them (they face +Y)"), Spots.Num() > 1 && (Spots[0] - Look).GetSafeNormal2D().Equals(FVector(0.0, 1.0, 0.0), 0.01));
+	TestTrue(TEXT("...the others round them, a ring and a farther one"), Spots.Num() >= 12
+		&& FVector::Dist2D(Spots.Last(), Look) > FVector::Dist2D(Spots[0], Look));
+
+	const FTransform View = SceneTalkView::Find(nullptr, Tall, 320.f);
+	const float HalfUp = FMath::RadiansToDegrees(FMath::Atan(FMath::Tan(FMath::DegreesToRadians(SceneTalkView::Fov * 0.5f)) * 9.f / 16.f));
+	auto Within = [&View, HalfUp](const FVector& Point)
+	{
+		const FVector Local = View.InverseTransformPositionNoScale(Point);
+		return Local.X > 0.0 && FMath::Abs(FMath::RadiansToDegrees(FMath::Atan2(Local.Z, Local.X))) < HalfUp;
+	};
+	TestTrue(TEXT("Standing: their hat and their feet in the frame"), Within(Tall.Feet + FVector(0.0, 0.0, Tall.StandTop))
+		&& Within(Tall.Feet + FVector(0.0, 0.0, 10.0)));
+	TestTrue(TEXT("Knelt: their head too"), Within(Tall.Feet + FVector(0.0, 0.0, Tall.LowTop)));
+	TestTrue(TEXT("Never nearer than asked"), FVector::Dist(View.GetLocation(), Look) >= 320.0 - 1.0);
 	return true;
 }
 

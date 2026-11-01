@@ -16,8 +16,12 @@ Tests: every group passes (Story, World, Bosses 39, Scenes, Missions 64, Lines, 
 subgroups (one 204-test batch crashes the GPU driver: run Creatures by subgroup), Bestiary, UI 78). Perf before Mains 4-7:
 default view 171 fps; tour of Ransom's Rest heaviest PointOverValley_FarShadow 8.26 ms, farm 7.50 ms. Tools: perf.ps1
 answers the Zen prompt and stops a game hung on exit after its CSV; launch.ps1 waits for a closing editor before building.
-Next: PIE check Mains 4-7 (MAIN45/MAIN67 walkthroughs), then perf on the new set pieces, commit, package. Known: the
-Lamplighter's sortie course "still touches something" warnings (look in PIE); SM_ReliquaryWhole and the Mains 4-7 Tripo
+PIE-checked (demo agent): Mains 4-7, the shop and Paid on Delivery play to their turn-in cards; fixed after it: barge deck
+Floor tag, sortie lift-off over the lookout tower, Finch beside the Reliquary, tender fall trace (StaticGeometryParams),
+boss bar hint below the ABEL pips, interact focus ignores passing bodies (call-back hold under adds), FreeAbel camera
+(SceneTalkView), Hob's hose line after ChapelHose.Pulled. Unchecked in PIE: BargeFall and CageBurst scenes, the map page's
+keyholes. Builds: launch.ps1 -Build reopens the level clean first (no Save Content stop). Next: package the playtest,
+perf on the new set pieces. Known: SM_ReliquaryWhole and the Mains 4-7 Tripo
 models (TRIPO_MODELS.md M45-*, M67-*) not made (85 credits left: ask the user); Mooring Ledge warning (works).
 
 ## 2026-11-01: Wardens round 1 + Mains 2-3 BUILT, Tripo models in (Docs/Work/2026-10-31-Wardens/)

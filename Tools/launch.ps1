@@ -6,6 +6,10 @@ $root = Split-Path $PSScriptRoot -Parent
 $engine = "C:\Program Files\Epic Games\UE_5.8"
 $p = Get-Process UnrealEditor -ErrorAction SilentlyContinue
 if ($p -and $Build) {
+    # Levels are built and saved by scripts, so a level left dirty (by PIE, tests or probes) is never work to keep: reopen
+    # it clean first, or the close stops on "Save Content" (2026-11-01, three builds in a day).
+    $openClean = (Join-Path $PSScriptRoot 'Unreal\open_clean.py') -replace '\\', '/'
+    try { & "$PSScriptRoot\console.ps1" "py $openClean" -Until 'OPENCLEAN (opened|.*not opening)' | Out-Null } catch {}
     $closed = & "$PSScriptRoot\close.ps1"
     if ($closed -match 'DID NOT CLOSE') { $closed; exit 2 }
     $p = $null

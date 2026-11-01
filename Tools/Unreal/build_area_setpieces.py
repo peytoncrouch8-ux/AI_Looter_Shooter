@@ -10,7 +10,8 @@ block, in the entry's frame (layout cm, or the mine's metres):
       "springRadius": 0,                       above 0: it springs on the player coming this near (cm), not walking in
       "waitFor": [ids], "hush": [actor tags],  spawners that hold it off while they fight; speakers shut while it's on
       "beats": [{"wave": 1, "spots": [[x, y], ...], "speaker": "Hob", "line": "...", "sting": cue, "cue": cue,
-                 "shake": 0.3, "shakeSeconds": 0.8, "dust": 0}],
+                 "shake": 0.3, "shakeSeconds": 0.8, "dust": 0,
+                 "otherAfter": event, "otherLine": "..."}],   said instead of "line" once that mission event was heard
       "cleared": {beat},                       said and heard as it's won
       "placed": [{"class": ..., "rank": "Basic", "wave": 1, "at": [x, y],
                   "high": cm (the highest ground within this of "at", inside its ground) |
@@ -58,6 +59,9 @@ def beat(spec, where):
         made.set_editor_property('spots', where.relative(spec['spots']))
     made.set_editor_property('speaker', unreal.Text(spec.get('speaker', '')))
     made.set_editor_property('line', unreal.Text(spec.get('line', '')))
+    # Its words once something has happened (a mission event's name): the yard's hose already out of the window.
+    made.set_editor_property('other_after_event', unreal.Name(spec.get('otherAfter', '')))
+    made.set_editor_property('other_line', unreal.Text(spec.get('otherLine', '')))
     made.set_editor_property('sting_cue', unreal.Name(spec.get('sting', '')))
     made.set_editor_property('world_cue', unreal.Name(spec.get('cue', '')))
     made.set_editor_property('shake', float(spec.get('shake', 0.0)))

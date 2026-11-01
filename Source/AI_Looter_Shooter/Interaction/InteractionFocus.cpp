@@ -1,6 +1,7 @@
 #include "Interaction/InteractionFocus.h"
 #include "Interaction/Interactable.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Pawn.h"
 
 FVector InteractionFocus::NearestOnBox(const FInteractionView& View, const FInteractionBox& Box, double Length)
 {
@@ -145,6 +146,17 @@ bool InteractionFocus::DoesHitHide(const FInteractionCandidate& Candidate, const
 		}
 	}
 	return FVector::Dist(HitPoint, Candidate.Location) > SightTolerance;
+}
+
+bool InteractionFocus::IsPassingBody(const FInteractionCandidate& Candidate, const AActor* HitActor)
+{
+	// A body, or something fixed to one (a creature's lantern, a gun in a hand).
+	const AActor* Bearer = HitActor;
+	while (Bearer && !Bearer->IsA<APawn>())
+	{
+		Bearer = Bearer->GetAttachParentActor();
+	}
+	return Bearer && HitActor != Candidate.Actor && Bearer != Candidate.Actor;
 }
 
 FInteractionBox InteractionFocus::GrownBox(const FBox& Bounds, double MinHalfWidth, double MinHalfHeight)

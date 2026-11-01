@@ -10,11 +10,13 @@
 #include "Combat/BulletSubsystem.h"
 #include "Combat/EnemyProjectileSubsystem.h"
 #include "Scenes/SceneSubsystem.h"
+#include "Scenes/SceneTalkView.h"
 #include "Story/CaptionSubsystem.h"
 #include "Weapons/WeaponFX.h"
 #include "World/KeeperLanternPost.h"
 #include "World/LamplighterRules.h"
 #include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -50,10 +52,9 @@ namespace FreeAbel
 
 		/** He stands this far in front of the keeper's post to step into its lantern (cm). */
 		constexpr float PostStandOff = 110.f;
-		/** The views: Sully this near him at most (cm), his head at the kneel, the lantern from this far. */
-		constexpr float NearestTalk = 600.f;
+		/** The views: him from this far at least (SceneTalkView frames him whole), his hat's crown over his head bone (cm, size 1), the lantern from this far. */
 		constexpr float TalkDistance = 320.f;
-		constexpr float EyeHeight = 160.f;
+		constexpr double HatOverHead = 40.0;
 		constexpr float LanternView = 340.f;
 		/** The sunrise: the lantern's glow as he steps in (times its lit light), and the gold it flashes. */
 		constexpr float SunriseGlow = 4.f;
@@ -74,6 +75,9 @@ namespace FreeAbel
 			FVector PlayerFeet = FVector::ZeroVector;
 			bool bHasPlayer = false;
 			TArray<FStoryLine> Said;
+			/** The shared scene camera's lens as the scene found it, given back at the end. */
+			float OwnFov = 90.f;
+			bool bFovSet = false;
 		};
 		using FStateRef = TSharedRef<FState>;
 
@@ -164,21 +168,25 @@ namespace FreeAbel
 			const FVector Feet = State->Kneel - FVector(0.0, 0.0, HalfHeight);
 			const int32 HeadBone = AbelPoses::FindBone(TEXT("head"));
 			const FAbelPoseHeads Knelt = AbelPoses::SolveHeads(EAbelPose::Kneel);
-			const FVector Head = Feet + FVector(0.0, 0.0, (Knelt.Heads.IsValidIndex(HeadBone) ? Knelt.Heads[HeadBone].Z : 90.0) * Scale);
-			FVector Eye = State->Kneel + FRotator(0.f, State->KneelYaw, 0.f).Vector() * TalkDistance;
-			Eye.Z = Feet.Z + EyeHeight;
+			const FAbelPoseHeads Standing = AbelPoses::SolveHeads(EAbelPose::Idle);
+			const double KneltHead = Knelt.Heads.IsValidIndex(HeadBone) ? Knelt.Heads[HeadBone].Z : 90.0;
+			const double StandingHead = Standing.Heads.IsValidIndex(HeadBone) ? Standing.Heads[HeadBone].Z : 150.0;
 			if (const APawn* Player = Scenes.GetHeldPawn())
 			{
 				State->bHasPlayer = true;
 				const float PlayerHalf = Player->GetRootComponent() ? static_cast<float>(Player->GetRootComponent()->Bounds.BoxExtent.Z) : 90.f;
 				State->PlayerFeet = Player->GetActorLocation() - FVector(0.0, 0.0, PlayerHalf);
-				const FVector Theirs = Player->GetActorLocation() + FVector(0.0, 0.0, Player->BaseEyeHeight);
-				if (FVector::Dist2D(Theirs, State->Kneel) <= NearestTalk)
-				{
-					Eye = Theirs;
-				}
 			}
-			State->TalkView = Looking(Eye, Head);
+			// Seen whole, kneeling and then standing, from in front of him where nothing solid stands between (not Sully's
+			// eyes: a metre or two off, aimed at his knelt head, the deck's rail crossed him and his head left the top as he
+			// rose; the 2026-11-01 play-check, m7_18).
+			SceneTalkView::FFigure Him;
+			Him.Feet = Feet;
+			Him.StandTop = static_cast<float>((StandingHead + HatOverHead) * Scale);
+			Him.LowTop = static_cast<float>((KneltHead + HatOverHead) * Scale);
+			Him.FacingYaw = State->KneelYaw;
+			Him.Who = &Abel;
+			State->TalkView = SceneTalkView::Find(Abel.GetWorld(), Him, TalkDistance);
 			if (const AKeeperLanternPost* Post = State->Post.Get())
 			{
 				const FVector PostAt = Post->GetActorLocation();
@@ -211,7 +219,16 @@ namespace FreeAbel
 			Abel->SetPose(EAbelPose::Kneel, 0.4f);
 			Abel->SetSceneFade(0.f);
 			Scenes->SetHeldPlayerHidden(true);
-			Scenes->ViewFromSceneCamera(0.8f);
+			// The lens the talk view is framed for (the scene camera is shared: a boss intro leaves its own on it).
+			if (ACameraActor* Camera = Scenes->ViewFromSceneCamera(0.8f))
+			{
+				if (UCameraComponent* Lens = Camera->GetCameraComponent())
+				{
+					State.OwnFov = Lens->FieldOfView;
+					State.bFovSet = true;
+					Lens->SetFieldOfView(SceneTalkView::Fov);
+				}
+			}
 			SetView(State, State.TalkView);
 			UE_LOG(LogLooter, Log, TEXT("Free Abel: the smog boils off him at %s."), *State.Kneel.ToCompactString());
 		}
@@ -408,6 +425,12 @@ namespace FreeAbel
 		Scene.AfterEnd = [State]()
 		{
 			Quiet(*State);
+			const USceneSubsystem* Played = State->Scenes.Get();
+			const ACameraActor* Camera = Played ? Played->GetSceneCamera() : nullptr;
+			if (UCameraComponent* Lens = Camera && State->bFovSet ? Camera->GetCameraComponent() : nullptr)
+			{
+				Lens->SetFieldOfView(State->OwnFov);
+			}
 			if (AAbelKeeper* Abel = State->Abel.Get())
 			{
 				Abel->CompleteFreeing(true);

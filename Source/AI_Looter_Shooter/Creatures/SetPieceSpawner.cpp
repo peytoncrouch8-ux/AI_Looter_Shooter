@@ -16,6 +16,7 @@
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
+#include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
 #include "Story/CaptionSubsystem.h"
 #include "Story/StoryLine.h"
@@ -61,10 +62,25 @@ void ASetPieceSpawner::BeginPlay()
 		ActiveWhen.WithoutFlags.AddUnique(DoneFlag);
 	}
 	Super::BeginPlay();
+	// A beat whose words change on something happening listens for it (the yard's hose out of Saint Ada's window).
+	const bool bListens = Beats.ContainsByPredicate([](const FSetPieceBeat& Beat) { return !Beat.OtherAfterEvent.IsNone(); })
+		|| !ClearedBeat.OtherAfterEvent.IsNone();
+	if (UMissionRunner* Runner = bListens ? UMissionRunner::Get(this) : nullptr)
+	{
+		MissionEventHandle = Runner->OnEvent.AddUObject(this, &ASetPieceSpawner::HandleMissionEvent);
+	}
 }
 
 void ASetPieceSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (MissionEventHandle.IsValid())
+	{
+		if (UMissionRunner* Runner = UMissionRunner::Get(this))
+		{
+			Runner->OnEvent.Remove(MissionEventHandle);
+		}
+		MissionEventHandle.Reset();
+	}
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DoneWatch);
@@ -225,13 +241,15 @@ void ASetPieceSpawner::PlayBeat(const FSetPieceBeat& Beat, bool bInterrupt)
 	const UEncounterSubsystem* Encounters = GetEncounters();
 	const APawn* Player = Encounters ? Encounters->GetPlayer() : nullptr;
 	const FVector Where = Player ? Player->GetActorLocation() : GetActorLocation();
-	if (!Beat.Line.IsEmpty())
+	// Its words as the world stands now (OtherLine once what it waits on has happened).
+	const FText& Line = Beat.LineToSay(HeardEvents);
+	if (!Line.IsEmpty())
 	{
 		if (UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this))
 		{
 			FStoryLine Said;
 			Said.Speaker = Beat.Speaker;
-			Said.Text = Beat.Line;
+			Said.Text = Line;
 			Captions->Play({ Said }, bInterrupt ? ECaptionPlay::Interrupt : ECaptionPlay::Queue);
 		}
 	}
@@ -252,6 +270,16 @@ void ASetPieceSpawner::PlayBeat(const FSetPieceBeat& Beat, bool bInterrupt)
 	if (Puffs > 0)
 	{
 		SiftDust(Where, Puffs);
+	}
+}
+
+void ASetPieceSpawner::HandleMissionEvent(const FMissionEvent& Event)
+{
+	const bool bWaitedOn = Event.Name == ClearedBeat.OtherAfterEvent
+		|| Beats.ContainsByPredicate([&Event](const FSetPieceBeat& Beat) { return Beat.OtherAfterEvent == Event.Name; });
+	if (bWaitedOn && !Event.Name.IsNone())
+	{
+		HeardEvents.Add(Event.Name);
 	}
 }
 

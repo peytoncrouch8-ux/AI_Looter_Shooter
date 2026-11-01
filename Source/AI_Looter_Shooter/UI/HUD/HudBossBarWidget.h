@@ -106,6 +106,24 @@ public:
 	int32 GetPipsFilled() const { return PipsFilled; }
 	FText GetBarLabelText() const { return BarLabelText; }
 
+	/**
+	 * What's under the bar (px down the readout's box): the line's top with nothing else there, and how far the armour's bar
+	 * steps everything under it down.
+	 */
+	static constexpr float UnderBarTop = 70.f;
+	static constexpr float ArmourRowDrop = 11.f;
+	/** The pips' row's height: its label's line as the type measures it (outline and all), or a turned diamond if taller. */
+	static float PipRowHeight();
+	/** The pips' row's top and foot, under the armour's bar as far as that shows (0-1). */
+	static float PipRowTop(float ArmourShown);
+	static float PipRowBottom(float ArmourShown) { return PipRowTop(ArmourShown) + PipRowHeight(); }
+	/**
+	 * The line under the bar's top: stepped down under the armour's bar and under the pips' row as far as each shows (0-1),
+	 * so a hint of any length ("CALL HIM BACK AT THE KEEPER'S POST") never runs into the pips (the play-check 2026-11-01 saw
+	 * it do so, centred across the row's line).
+	 */
+	static float PhaseLineTop(float ArmourShown, float PipsShown);
+
 	// What it shows, for the tests (the text blocks' own text once it's built).
 	FText GetNameText() const;
 	/** The level as words ("LV 9"); the gem shows its number. */
@@ -171,6 +189,8 @@ private:
 	void BuildPips();
 	void TickPips(float DeltaSeconds);
 	void ApplyPips();
+	/** Puts the pips' row and the line under the bar where the armour's bar and the pips leave room (PhaseLineTop). */
+	void PlaceUnderBar();
 
 	UPROPERTY(Transient) TObjectPtr<UWidget> Cluster;
 	/** The gem's face, tinted the rank's color, and the level's number on it. */
@@ -259,6 +279,8 @@ private:
 	FText PipLabelText;
 	FText BarLabelText;
 	float PipsOpacity = 0.f;
+	/** How much room the line under the bar leaves the pips' row (0-1, easing): all of it while they're wanted, dimmed or not. */
+	float PipsRoom = 0.f;
 	/** Each pip's pop (1 as it fills, easing to 0). */
 	TArray<float> PipPop;
 };

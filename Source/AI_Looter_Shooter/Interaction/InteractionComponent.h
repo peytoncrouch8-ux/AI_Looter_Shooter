@@ -21,7 +21,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInteractionUsed, AActor*, Target
  *
  * Every frame it finds what the player means to use: the thing the crosshair's line meets (only its part to use counts:
  * the station's board, not the depot round it), or else the best of what lies in a cone within reach of the eyes and in
- * plain sight (InteractionFocus::Select). Loot keeps its forgiving cone; the level's interactables are looked at, a
+ * plain sight (InteractionFocus::Select; a body passing in front is no wall: InteractionFocus::IsPassingBody). Loot keeps its forgiving cone; the level's interactables are looked at, a
  * slightly wider cone up close narrowing with distance. It owns the key's tap and hold:
  * a thing with only a tap is used as the key goes down; one with a hold fills while the key is held and is used when the
  * hold runs its time, and letting go early is its tap when it takes one (loot's rule: tap to pick up, hold to equip).

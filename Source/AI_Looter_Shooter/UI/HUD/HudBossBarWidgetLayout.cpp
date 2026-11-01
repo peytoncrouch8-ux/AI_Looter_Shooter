@@ -21,7 +21,8 @@ namespace
 	constexpr float BossClusterTop = 30.f;
 	constexpr float BossClusterSide = 60.f;
 	constexpr float BossClusterWidth = UHudBossBarWidget::BarWidth + BossClusterSide * 2.f;
-	constexpr float BossClusterHeight = 96.f;
+	/** Tall enough for the line under the bar when it steps down under the pips' row (PhaseLineTop): CoveredArea reads it. */
+	constexpr float BossClusterHeight = 120.f;
 
 	/** The bar, under the name: 640 x 30, leaning 16 degrees like every HUD bar (its top toward the right). */
 	constexpr float BossBarTop = 36.f;
@@ -87,6 +88,7 @@ namespace
 	constexpr float BossPhaseGap = 4.f;
 	constexpr int32 BossPhaseSize = 13;
 	constexpr int32 BossPhaseSpacing = 270;
+	static_assert(BossBarTop + BossBarHeight + BossPhaseGap == UHudBossBarWidget::UnderBarTop, "The line under the bar starts where PhaseLineTop says");
 
 	TArray<FVector2D> BossRect(float Left, float Top, float Right, float Bottom)
 	{

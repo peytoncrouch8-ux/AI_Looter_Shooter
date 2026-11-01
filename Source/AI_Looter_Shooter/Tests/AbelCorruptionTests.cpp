@@ -137,6 +137,15 @@ bool FAbelPipsTest::RunTest(const FString& Parameters)
 	Bar->SetPips(0, 0, FText::GetEmpty(), FText::GetEmpty());
 	TestEqual(TEXT("Asked for none: the row goes (its count kept for a later ask)"), Bar->GetPipsTotal(), 3);
 
+	// The line under the bar ("CALL HIM BACK AT THE KEEPER'S POST") steps down under the pips' row, never across it (the
+	// play-check 2026-11-01 saw the hint run into ABEL), with or without an armour bar over both; with no pips it stays put.
+	TestTrue(FString::Printf(TEXT("The pips' row holds its label's line and its diamonds (%.1f px)"), UHudBossBarWidget::PipRowHeight()),
+		UHudBossBarWidget::PipRowHeight() >= 18.f);
+	TestTrue(TEXT("Pips shown: the line under their row"), UHudBossBarWidget::PhaseLineTop(0.f, 1.f) >= UHudBossBarWidget::PipRowBottom(0.f)
+		&& UHudBossBarWidget::PhaseLineTop(1.f, 1.f) >= UHudBossBarWidget::PipRowBottom(1.f));
+	TestTrue(TEXT("...the row itself under an armour bar"), UHudBossBarWidget::PipRowTop(1.f) >= UHudBossBarWidget::PipRowTop(0.f) + UHudBossBarWidget::ArmourRowDrop);
+	TestEqual(TEXT("No pips, no armour: the line right under the bar"), UHudBossBarWidget::PhaseLineTop(0.f, 0.f), UHudBossBarWidget::UnderBarTop);
+
 	// His look follows the pips: a third of the smog off him each (the rules his component plays).
 	const FLinearColor Own(0.8f, 0.75f, 0.7f, 1.f);
 	const FLinearColor Black = AbelCorruptionRules::SmogTint(Own, 1.f);

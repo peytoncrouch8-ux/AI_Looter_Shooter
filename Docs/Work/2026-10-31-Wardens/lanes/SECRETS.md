@@ -42,7 +42,7 @@ compounding as the vendors' are, `LooterEconomy::AtLevel`):
 A secret whose find isn't in the level (no `AFindSpot` with its id: RangerPost if its builder skipped it) isn't listed.
 Later regions: their own catalog `DA_Secrets_<Level>` (the next barge, the gang's ground: §12).
 
-**Paid on Delivery** (side, 300 XP, ~3 min). No card: it starts by itself once Main 6 is done (prerequisite Main6; the
+**Paid on Delivery** (side, 150 XP, ~3 min; was 300, trimmed for the Pacing band: Docs/Progression.md). No card: it starts by itself once Main 6 is done (prerequisite Main6; the
 manifest is its own item `BargeManifest`, so it's in Carried from Main 6's office until handed over). Tracker "Pay the
 Ferryman"; 0: reach the Ferryman's landing (the `SextonsFerry` actor within 4 m, height counted: never from the deck).
 Turned in to Mister Sexton (`Speaker_Sexton`): the card, then "Four hundred and twelve. Vane owes me a fortune, friend." /
@@ -229,7 +229,7 @@ New:
 		Path.Add(BackPayStop(Foes));
 		Path.Add(MainSixStop(Foes));
 		// Paid on Delivery (2026-11-01, lanes/SECRETS.md): Sexton's price, the manifest handed over at his ferry. No fight.
-		Path.Add({ TEXT("Paid on Delivery"), TEXT("PaidOnDelivery"), {}, 300 });
+		Path.Add({ TEXT("Paid on Delivery"), TEXT("PaidOnDelivery"), {}, 150 });
 		Path.Add(MainSevenStop());
 		return Path;
 ```
@@ -240,8 +240,8 @@ New:
 tag: a collect objective there would name another mission's item, which the script refuses). Until the office exists,
 add to Main 6's `turn_in=dict(...)`: `hand_items=['BargeManifest'],` so the manifest is carried into Paid on Delivery.
 Either way Paid on Delivery runs without it (it only adds the Carried row).
-**E3 `Docs/Progression.md`**: the side missions' table: "Paid on Delivery, after Main 6, 300 XP, Rare gun"; the
-everything band's sum +300 (re-copy from `Looter.Progression.Pacing` once it runs; MAINS_2_7 §15: trim mission XP, not
+**E3 `Docs/Progression.md`**: the side missions' table: "Paid on Delivery, after Main 6, 150 XP, Rare gun"; the
+everything band's sum +150 (re-copy from `Looter.Progression.Pacing` once it runs; MAINS_2_7 §15: trim mission XP, not
 kills, if the band fails).
 **E4 `Docs/Pipeline/Game.md`**, a new bullet beside the vendors ("Economy"/vendor screen section):
 "**Sexton's secrets** (2026-11-01, lanes/SECRETS.md): `USecretCatalog` per level (`/Game/Data/Secrets/DA_Secrets_<Level>`,
@@ -315,4 +315,4 @@ before Main 2 is done), `Looter.UI.Minimap` if present.
 
 Prices 40 / 100 / 150 (Lore and Story 60), +8% a level compounding, 25% off after Paid on Delivery. Screen: 900 px wide,
 list 460 px tall then scrolls, closes at 6.5 m. Flash 0.7 s, stamp 0.35 s. Minimap: six markers, two on the rim within
-150 m. Paid on Delivery: 300 XP, Rare, reach 4 m.
+150 m. Paid on Delivery: 150 XP (300 until trimmed for the Pacing band), Rare, reach 4 m.

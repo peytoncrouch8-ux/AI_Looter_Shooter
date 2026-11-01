@@ -24,7 +24,6 @@ namespace
 	constexpr float ArmourBossBarHeight = 30.f;
 	constexpr float ArmourTrackInset = 6.f;
 	constexpr float ArmourSlant = -16.f;
-	constexpr float ArmourPhaseGap = 4.f;
 	/** The armour's bar: 3 px under the boss's, 8 tall, as long as its track; its ink rim 1.5 px. */
 	constexpr float ArmourGap = 3.f;
 	constexpr float ArmourHeight = 8.f;
@@ -34,8 +33,9 @@ namespace
 	/** Its fill's lit top line and shaded foot (px). */
 	constexpr float ArmourTopLine = 2.f;
 	constexpr float ArmourFoot = 1.5f;
-	/** The phase line steps down this far while it shows. */
+	/** The phase line (and the pips' row) step down this far while it shows (PlaceUnderBar). */
 	constexpr float ArmourPhaseDrop = ArmourGap + ArmourHeight;
+	static_assert(ArmourPhaseDrop == UHudBossBarWidget::ArmourRowDrop, "The armour's bar steps what's under it down by its own height and gap");
 	/** It fades in or out over this long (s); a hit's chip holds, then drains (a share of the bar per second), as the boss's. */
 	constexpr float ArmourFadeSeconds = 0.3f;
 	constexpr float ArmourChipHoldSeconds = 0.45f;
@@ -160,12 +160,8 @@ void UHudBossBarWidget::TickArmour(float DeltaSeconds)
 		ArmourOpacity = FMath::FInterpConstantTo(ArmourOpacity, Target, DeltaSeconds, 1.f / ArmourFadeSeconds);
 		ArmourBar->SetRenderOpacity(ArmourOpacity);
 		ArmourBar->SetVisibility(ArmourOpacity > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-		// The phase line steps down under it while it shows.
-		if (UCanvasPanelSlot* LineSlot = PhaseLabel ? Cast<UCanvasPanelSlot>(PhaseLabel->Slot) : nullptr)
-		{
-			const float Top = ArmourBossBarTop + ArmourBossBarHeight + ArmourPhaseGap + ArmourPhaseDrop * ArmourOpacity;
-			LineSlot->SetPosition(FVector2D(LineSlot->GetPosition().X, Top));
-		}
+		// The phase line (and the pips' row, if any) step down under it while it shows.
+		PlaceUnderBar();
 	}
 	bool bMoved = false;
 	if (ArmourChipFraction > ArmourFraction)
