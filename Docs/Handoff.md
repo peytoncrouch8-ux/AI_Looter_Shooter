@@ -3,7 +3,36 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## 2026-11-01 evening: Mains 4-7 + Sexton's secrets + Paid on Delivery BUILT, tests pass; PIE check next
+## START HERE (session end 2026-11-01 night; the next session starts tomorrow when usage resets)
+State: everything the user asked for this session is built, tested, committed and pushed (last commit cb4a704e). Latest
+playtest (Missions 1-7, Sexton's shop, Paid on Delivery, Tripo Reliquary + soul coal): Builds\Playtest\2026-11-01_1753\
+Windows\AI_Looter_Shooter.exe (smoke test passed). The user has not reported on it yet: ask what they found first.
+What's left (none started; ask the user before spending Tripo credits or starting big work):
+1. Tripo models for the rest of Mains 4-7 (TRIPO_MODELS.md M45-*, M67-*): stand-ins in the game. Tripo balance 25 credits
+   (a model costs 30): the user must add credits and approve. Template lanes: TRIPO_M23.md, TRIPO_M47.md.
+2. PIE checks not done: BargeFall (the barge falls into Gravewind Canyon) and CageBurst scenes, the secret keyholes on the
+   full map page (minimap keyhole works). Their tests pass.
+3. Perf on the new set pieces not measured (MAIN67.md run order step 8): the barge deck mid-fight, the furnace hall, the
+   Lamplighter's deck in the tender fight, Abel's phase 3, the SaintAdaWakes wide shot. Last numbers (before Mains 4-7):
+   default view 171 fps, Ransom's Rest tour heaviest 8.26 ms (PointOverValley_FarShadow), farm 7.50 ms.
+4. Side missions still tell the old Revenant premise: MAINS_2_7.md section 13 rewrites them for the Wardens story (Dead
+   Preferred (was Wanted: Already Dead), Calder's Caches, The Old Fare, Knocking Below, The Last Watch, Unfinished Business,
+   The Gravemother). No lane has done it.
+5. Docs/Story.md: the Wardens lore for Mains 6-7 (MAINS_2_7.md section 2) not written in.
+6. Small art: dark Tripo knee-brace bits under the farmhouse porch roof (seen from below), the farmhouse dormer roof slightly
+   wavy. Tripo Depot, Chapel, Workshop Bright, Whitlock barn, Smithy, Watchtower made but not swapped in (need doorways cut
+   round the scripted interiors); Assay and Barber fronts fitted but not hooked (they'd lose the lettered signs); Hotel
+   not tried. Drover grips have no hand markers (do all 8 grips in one pass). Abel's black lantern has no Tripo swap path.
+7. Later, by the user's earlier calls: voices (captions only for now), Lucky Ned's fight (area 4 or 5), the next area (on
+   hold until the user says).
+Known, harmless: the Mooring Ledge warning (the ship moors at the design spot), the flour-sack barricade piece left off a
+road, no Encounter_Tollman yet.
+How to work (lessons this session): run Creatures tests by subgroup (one 204-test batch crashes the GPU driver);
+launch.ps1 -Build reopens the level clean and waits for a closing editor; perf.ps1 answers the Zen prompt; a bare test
+world needs FEditorScriptExecutionGuard for an actor's own delegate handlers; agents stage C++ outside Source/ while Main
+builds (main67_src pattern) or hold C++ edits during packaging; after open_clean.py, reload build_area_camps (fixed now).
+
+## 2026-11-01 evening: Mains 4-7 + Sexton's secrets + Paid on Delivery BUILT, tests pass; PIE-checked, packaged
 All of the Wardens story's Ransom's Rest mains are in (lanes MAIN45.md, MAIN67.md + CONTRACT67.md, SECRETS.md): Main 4 "A Coal
 Under Ash" (chapel window hose, tender drop on ropes), Main 5 "Choke Point" (Sink intake, salt charges, turned in to Finch),
 Main 6 "The Pilot Light" (the Lamplighter's sortie, boarding the barge, furnace hall, cage burst, the barge falls into
@@ -20,8 +49,8 @@ PIE-checked (demo agent): Mains 4-7, the shop and Paid on Delivery play to their
 Floor tag, sortie lift-off over the lookout tower, Finch beside the Reliquary, tender fall trace (StaticGeometryParams),
 boss bar hint below the ABEL pips, interact focus ignores passing bodies (call-back hold under adds), FreeAbel camera
 (SceneTalkView), Hob's hose line after ChapelHose.Pulled. Unchecked in PIE: BargeFall and CageBurst scenes, the map page's
-keyholes. Builds: launch.ps1 -Build reopens the level clean first (no Save Content stop). Next: package the playtest,
-perf on the new set pieces. Known: SM_ReliquaryWhole and the Mains 4-7 Tripo
+keyholes. Builds: launch.ps1 -Build reopens the level clean first (no Save Content stop). Packaged (2026-11-01_1753);
+perf on the new set pieces still to do. Known: the Mains 4-7 Tripo
 models (TRIPO_MODELS.md M45-*, M67-*) not made except SM_ReliquaryWhole and SM_SoulCoal (lane TRIPO_M47, 60 credits; Tripo balance 25); Mooring Ledge warning (works).
 
 ## 2026-11-01: Wardens round 1 + Mains 2-3 BUILT, Tripo models in (Docs/Work/2026-10-31-Wardens/)
