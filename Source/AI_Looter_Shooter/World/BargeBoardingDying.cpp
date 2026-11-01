@@ -15,6 +15,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
@@ -222,6 +223,9 @@ void ABargeBoarding::LayCoal(float Seconds)
 		return;
 	}
 	const FVector Target = FallTarget.IsNearlyZero() ? FallFrom.GetLocation() + BargeRules::FallFallback : FallTarget;
+	// The scales below assume a 100 cm mesh (the engine sphere); the Tripo coal is 30 cm, so size by the mesh.
+	const UStaticMesh* const CoalMesh = CoalRain->GetStaticMesh();
+	const float Fit = CoalMesh ? 100.f / FMath::Max(1.f, 2.f * CoalMesh->GetBounds().BoxExtent.GetMax()) : 1.f;
 	TArray<FTransform> Lumps;
 	Lumps.Reserve(BargeRules::CoalLumps);
 	for (int32 Index = 0; Index < BargeRules::CoalLumps; ++Index)
@@ -241,7 +245,7 @@ void ABargeBoarding::LayCoal(float Seconds)
 		const FTransform After = BargeRules::FallPose(FallFrom, Target, Released + 0.1f);
 		const FVector Speed = (After.GetLocation() - At.GetLocation()) / 0.1;
 		const FVector Where = At.TransformPosition(Under) + Speed * Age - FVector(0.0, 0.0, 0.5 * CoalGravity * Age * Age);
-		Lumps.Add(FTransform(FRotator(Age * 140.f, Index * 37.f, Age * 90.f), Where, FVector(Spot.FRandRange(0.25f, 0.45f))));
+		Lumps.Add(FTransform(FRotator(Age * 140.f, Index * 37.f, Age * 90.f), Where, FVector(Spot.FRandRange(0.25f, 0.45f) * Fit)));
 	}
 	if (CoalRain->GetInstanceCount() != Lumps.Num())
 	{

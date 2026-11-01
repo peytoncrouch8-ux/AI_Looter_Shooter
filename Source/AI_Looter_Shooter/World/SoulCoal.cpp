@@ -303,6 +303,15 @@ void ASoulCoalLump::ApplyCrackedLook()
 {
 	// The soul's gone out of it: no glow, the coal dull and split (a little lower, flatter: what's left of a lump).
 	Glow->SetVisibility(false);
+	// The Tripo coal's vein slot is an emissive surface: it goes dull charcoal too (the stand-in has no such slot).
+	const int32 Vein = Lump->GetMaterialIndex(TEXT("SoulCoalVein"));
+	if (Vein != INDEX_NONE)
+	{
+		if (UMaterialInterface* const Dull = LoadObject<UMaterialInterface>(nullptr, CharcoalPath))
+		{
+			Lump->SetMaterial(Vein, Dull);
+		}
+	}
 	Lump->SetRelativeScale3D(Lump->GetRelativeScale3D() * FVector(1.1, 1.1, 0.6));
 	SetActorTickEnabled(false);
 }

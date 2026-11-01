@@ -91,7 +91,9 @@ void ASoulCoalField::BuildInstances()
 	Crust->ClearInstances();
 	Coal->SetCullDistances(0, static_cast<int32>(DrawDistance));
 	Crust->SetCullDistances(0, static_cast<int32>(DrawDistance * 0.6f));
-	const bool bCrust = bGlints && Crust->GetMaterial(0) != nullptr && Crust->GetStaticMesh() != nullptr;
+	// The Tripo coal carries its own glowing veins: no second, smaller crust copy inside every lump.
+	const bool bTripo = Coal->GetStaticMesh() && Coal->GetStaticMesh()->GetPathName() == ASoulCoalLump::ModelPath;
+	const bool bCrust = bGlints && !bTripo && Crust->GetMaterial(0) != nullptr && Crust->GetStaticMesh() != nullptr;
 	for (const FTransform& Each : Lumps)
 	{
 		Coal->AddInstance(Each, /*bWorldSpace*/ true);

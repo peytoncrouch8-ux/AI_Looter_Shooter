@@ -22,7 +22,7 @@ boss bar hint below the ABEL pips, interact focus ignores passing bodies (call-b
 (SceneTalkView), Hob's hose line after ChapelHose.Pulled. Unchecked in PIE: BargeFall and CageBurst scenes, the map page's
 keyholes. Builds: launch.ps1 -Build reopens the level clean first (no Save Content stop). Next: package the playtest,
 perf on the new set pieces. Known: SM_ReliquaryWhole and the Mains 4-7 Tripo
-models (TRIPO_MODELS.md M45-*, M67-*) not made (85 credits left: ask the user); Mooring Ledge warning (works).
+models (TRIPO_MODELS.md M45-*, M67-*) not made except SM_ReliquaryWhole and SM_SoulCoal (lane TRIPO_M47, 60 credits; Tripo balance 25); Mooring Ledge warning (works).
 
 ## 2026-11-01: Wardens round 1 + Mains 2-3 BUILT, Tripo models in (Docs/Work/2026-10-31-Wardens/)
 The user restarted the story (DECISIONS.md: living Lantern Wardens on the airship the Lamplighter vs Cornelius Vane, soul

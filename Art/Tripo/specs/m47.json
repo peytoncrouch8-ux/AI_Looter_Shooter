@@ -1,0 +1,16 @@
+{
+  "ReliquaryWhole": {
+    "prompt": "A saint's reliquary chest of carved grey granite, front three-quarter view, about one and a half times as long as it is deep and a little lower than it is deep. A solid stone chest with a heavy shut stone lid slightly larger than the chest, banded in worn antique gold: a gold band round the chest's middle, square gold pillars at the four corners, a gold rim round the lid's edge. In the middle of the lid's top a shallow round recess ringed in gold, empty, a little soot in it. On the front a worn carved panel with a gold diamond plaque in the middle and faint carved lines either side. Old, sacred, whole and cared for, dusty, soot at the edges. Palette: speckled light-to-mid grey granite with darker flecks, dull tarnished gold-brown brass, soot black. Full natural colour, weathered matte materials. Stylized realistic game asset, hand-painted look, 1880s American frontier chapel. One chest alone.",
+    "negative": "person, base, plinth, pedestal, table, stand, ground plane, text, letters, watermark, open lid, broken, cracks, candles, cross, modern, glossy, plastic, toy, cartoon, low poly, grey clay, untextured, saturated colours",
+    "faces": 14000,
+    "person": false,
+    "paint": "Painted in full natural colour: speckled light-to-mid grey granite with darker grey and white flecks and soft carved edges, worn antique gold-brown brass bands, corner pillars and lid rim, tarnished darker in the crevices, a gold diamond plaque on the front, soot black in the round recess on the lid and a little soot along the lid's edges, dust in the carving. Matte, hand-painted stylized realism, soft neutral daylight.",
+    "paint_style": "Saved/ArtPreviews/RansomsRest/Reliquary/Reliquary.png"
+  },
+  "SoulCoal": {
+    "prompt": "A single big lump of black coal, a rough irregular chunk about as tall as it is wide, with sharp broken faceted faces and glassy black planes, cracked through by thin jagged veins and fissures glowing bright cyan from inside, as if a soul were trapped in it, a little grey ash in the hollows. Palette: jet black and dark charcoal-grey coal with a faint dull sheen on the facets, vivid glowing cyan cracks. Full natural colour. Stylized realistic game asset, hand-painted look. One lump alone, lying on nothing.",
+    "negative": "base, platform, pedestal, ground plane, pile, many pieces, crystal, gem, smooth, rounded, glossy, plastic, toy, cartoon, grey clay, untextured, text, watermark, fire, flames, orange, red, blue body",
+    "faces": 4000,
+    "person": false
+  }
+}
