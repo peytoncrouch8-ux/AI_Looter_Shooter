@@ -13,7 +13,12 @@
                   on the mesh's own normal (its pre-skinned position, cm: no UV needed, and it rides with a barge that
                   sails), DetailScale meters a tile, DetailStrength, DetailNormal, fading from DetailNear to DetailFar
                   cm (its maps are not read past DetailFar). DetailColorMap, DetailNormalMap, DetailORMMap: a set of
-                  ours (DETAIL_SETS: the means). DETAIL_INSTANCES turns it on per instance (the DetailInstances step,
+                  ours (DETAIL_SETS: the means). DetailGrainUp turns the sides' picture a quarter (a post's or an upright
+                  board's grain runs up). DetailWorld (static, off) lays it in world metres in the piece's own
+                  axes instead (scaled cubes tile at true size and it still rides with a listing barge). DetailPlates
+                  and DetailPlateShape draw riveted plates (off at DetailPlates.z 0; DETAIL_PLATE_DEFAULTS says what
+                  each number is): seams, rivets, each plate's tone, in colour, normal and roughness.
+                  DETAIL_INSTANCES turns it on per instance (the DetailInstances step,
                   run after M_World): the model importer clears an instance's parameters on a re-import, so after
                   re-importing one of their models run this script with DetailInstances (rebuilding M_World keeps them).
   M_Gun           M_World's maps for gun parts, plus per-gun wear: Wear (0 fresh to 1 battered) comes from each part's
@@ -157,7 +162,10 @@ import unreal
 FOLDER = '/Game/Art/Materials/Masters'
 MEL = unreal.MaterialEditingLibrary
 WHITE = '/Engine/EngineResources/WhiteSquareTexture.WhiteSquareTexture'
-FLAT_NORMAL = '/Engine/EngineMaterials/DefaultNormal.DefaultNormal'
+# The engine's flat normal map (32 px). Not /Engine/EngineMaterials/DefaultNormal: that is a 1024 px patterned map (the
+# default material's bricks), and until 2026-11-04 every instance with no NormalMap of its own showed faint blocks
+# (MI_SextonTrousers, MI_SextonWool, four Bullpup part instances, the kit iron).
+FLAT_NORMAL = '/Engine/EngineMaterials/FlatNormal.FlatNormal'
 DEFAULT_ORM_FILE = 'C:/Dev/AI_Looter_Shooter/Art/Textures/Default/T_DefaultORM.png'
 DEFAULT_ORM = '/Game/Art/Textures/Default/T_DefaultORM'
 MACRO_NOISE_FILE = 'C:/Dev/AI_Looter_Shooter/Art/Textures/MacroNoise/T_MacroNoise_M.png'
@@ -242,13 +250,22 @@ class Graph:
         self.link(b, b_out, m, 'B')
         return m
 
-    def custom(self, code, inputs, out_type, x, y, desc):
+    def custom(self, code, inputs, out_type, x, y, desc, outputs=()):
+        """A Custom node; outputs are its additional outputs as (name, type), which the code sets by name and the graph
+        links from by name."""
         pins = []
         for name, _, _ in inputs:
             pin = unreal.CustomInput()
             pin.set_editor_property('input_name', name)
             pins.append(pin)
-        c = self.node(unreal.MaterialExpressionCustom, x, y, code=code, output_type=out_type, description=desc, inputs=pins)
+        extra = []
+        for name, kind in outputs:
+            pin = unreal.CustomOutput()
+            pin.set_editor_property('output_name', name)
+            pin.set_editor_property('output_type', kind)
+            extra.append(pin)
+        c = self.node(unreal.MaterialExpressionCustom, x, y, code=code, output_type=out_type, description=desc, inputs=pins,
+                      additional_outputs=extra)
         for name, source, source_out in inputs:
             self.link(source, source_out, c, name)
         return c
@@ -491,24 +508,105 @@ def bleached(g, color, color_out, ao, ao_out, defaults, x, y, rim_normal=None):
 
 DETAIL = 'Detail'
 DETAIL_SWITCH = 'DetailOn'
+# The layer's frame (static, off: the mesh's own pre-skinned space, cm of the mesh). On: world metres in the piece's own
+# axes (its instance-space position times its scale, its world normal turned into its axes): a cube scaled to a wall
+# tiles at true size, and the pattern still rides with her as she lists and drifts (pure world space would swim).
+DETAIL_WORLD = 'DetailWorld'
 # The layer's numbers (group Detail): meters a tile; how much of the set's light and dark, normal and roughness; the
 # distance (cm, from the camera) where it starts to fade and where it is gone.
 DETAIL_DEFAULTS = {'DetailScale': 1.0, 'DetailStrength': 0.6, 'DetailNormal': 0.7, 'DetailRoughness': 0.6,
-                   'DetailNear': 200.0, 'DetailFar': 1500.0}
+                   'DetailNear': 200.0, 'DetailFar': 1500.0, 'DetailGrainUp': 0.0}
+# Riveted plates drawn by the layer (none of our sets has plate seams): DetailPlates x a plate's length (m, along the
+# side's u: a top's runs along the mesh's X), y its width (m), z how dark its seams are (0: no plates, nothing worked out),
+# w the rivets' strength; DetailPlateShape x a seam's half width (cm), y the rivets' pitch (cm), z a rivet's radius (cm),
+# w each plate's own tone (+-). Rows are staggered by half a plate; a rivet row runs beside each seam on both plates.
+DETAIL_PLATE_DEFAULTS = {'DetailPlates': (0.0, 0.0, 0.0, 0.0), 'DetailPlateShape': (0.8, 14.0, 1.1, 0.05)}
 # Each set's colour map's mean linear luma (0.299, 0.587, 0.114 of its decoded 8-bit sRGB, as looter_textures's
 # _write_stats measures) and its ORM's mean green (roughness), measured from Art/Textures/<Set> 2026-11-04 (1024 px PNGs;
 # these sets have no T_<Set>_stats.json). The layer divides by them, so from afar the macro colour and roughness stay.
 DETAIL_SETS = {'MetalWorn': {'DetailMeanLuma': 0.5076, 'DetailMeanRough': 0.3741},
-               'MetalRust': {'DetailMeanLuma': 0.2051, 'DetailMeanRough': 0.6295}}
+               'MetalRust': {'DetailMeanLuma': 0.2051, 'DetailMeanRough': 0.6295},
+               # Wood grain with no plank seams (Art/Textures/ToolWood, the melee tools' wood): over Tripo's own boards.
+               'ToolWood': {'DetailMeanLuma': 0.6073, 'DetailMeanRough': 0.6007}}
 DETAIL_DEFAULT_SET = 'MetalWorn'
-# The instances that wear the layer: path -> (set, numbers that differ from DETAIL_DEFAULTS), set by the DetailInstances
-# step (apply_detail): the model importer's re-import clears an instance's parameters, so run that step after one.
-DETAIL_INSTANCES = {
-    # The Tripo dredge barge: one soft 2048 atlas over 9,833 m2 (0.14 texels/cm); the audit's finding 2.
-    '/Game/Art/Materials/MI_TripoDredgeBarge': ('MetalWorn', {}),
-}
+BARGE_MI = '/Game/Art/Materials/MI_TripoDredgeBarge'
 
-# Shared by the layer's two reads: each of the mesh's three sides (its own space, so the pattern rides with the mesh)
+
+def detail_on(set_name, strength, scale=1.0, up=False, normal=0.6, rough=None):
+    """A DETAIL_INSTANCES entry for a Tripo model's one slot: the set at a strength low enough that Tripo's paint stays
+    the look, its tile (m), its grain turned up the sides (posts, upright boards)."""
+    return {'set': set_name, 'numbers': {'DetailStrength': strength, 'DetailScale': scale, 'DetailNormal': normal,
+                                         'DetailRoughness': rough if rough is not None else (0.4 if set_name == 'ToolWood' else 0.5),
+                                         'DetailGrainUp': 1.0 if up else 0.0}}
+KIT_IRON_MI = '/Game/Art/Materials/MI_BargeKitIron'
+# The instances that wear the layer, set by the DetailInstances step (apply_detail): the model importer's re-import
+# clears an instance's parameters (static switches too), so run that step after one. Each: 'set' the detail set (absent:
+# the parent instance's detail is inherited), 'numbers' those that differ from DETAIL_DEFAULTS, 'plates' DetailPlates
+# (and 'shape' DetailPlateShape), 'world' DetailWorld; an instance that doesn't exist yet is made, a child of 'parent'
+# (M_World by default) with 'like''s maps (a slot the importer will fill); 'base' parameters (Tint, RoughnessOffset)
+# are set every run, for instances no import owns.
+DETAIL_INSTANCES = {
+    # The Tripo dredge barge: one soft 2048 atlas over 9,833 m2 (0.14 texels/cm), the audit's finding 2; its one slot
+    # until the split mesh (Round 3) is imported.
+    BARGE_MI: {'set': 'MetalWorn'},
+    # The split barge's three slots, all on the same atlas (the REWORK lane's Blender materials TripoDredgeBarge_Deck,
+    # _Hull and _Super, each lt.material('TripoDredgeBarge', name=..., master='World')). Decks: riveted plates that read
+    # at 1-3 m, 2.4 x 1.2 m along her length, over MetalWorn's grain and pits.
+    '/Game/Art/Materials/MI_TripoDredgeBarge_Deck': {
+        'set': 'MetalWorn', 'like': BARGE_MI, 'plates': (2.4, 1.2, 0.6, 0.55),
+        'numbers': {'DetailStrength': 0.7, 'DetailNormal': 0.8, 'DetailRoughness': 0.6}},
+    # The hull below the rubbing strake: MetalRust's blooms and pitting at 1.5 m (Tripo paints its strakes and rivets;
+    # drawn plates would fight them).
+    '/Game/Art/Materials/MI_TripoDredgeBarge_Hull': {
+        'set': 'MetalRust', 'like': BARGE_MI,
+        'numbers': {'DetailScale': 1.5, 'DetailStrength': 0.5, 'DetailNormal': 0.6, 'DetailRoughness': 0.5}},
+    # The house, casing, stacks, tank, fittings and rails: MetalWorn lighter, so Tripo's paint leads.
+    '/Game/Art/Materials/MI_TripoDredgeBarge_Super': {
+        'set': 'MetalWorn', 'like': BARGE_MI,
+        'numbers': {'DetailStrength': 0.4, 'DetailNormal': 0.5, 'DetailRoughness': 0.4}},
+    # The kit's own pieces (engine cubes scaled to rooms, crates and vents: their UVs stretch): plain dark iron in world
+    # metres, MetalWorn at full strength, plates 1.8 x 1.2 m.
+    KIT_IRON_MI: {
+        'set': 'MetalWorn', 'world': True, 'plates': (1.8, 1.2, 0.55, 0.5),
+        'base': {'Tint': (0.0823, 0.0648, 0.0513, 1.0), 'RoughnessOffset': -0.15},
+        'numbers': {'DetailStrength': 1.0, 'DetailNormal': 1.0, 'DetailRoughness': 0.8}},
+    # Its darker variant (the hall's floor and the furnace's surround): the same detail, inherited.
+    '/Game/Art/Materials/MI_BargeKitIronDark': {
+        'parent': KIT_IRON_MI, 'base': {'Tint': (0.0284, 0.0242, 0.0213, 1.0)}},
+    # Round 4 (2026-11-04, the audit's finding 2: the other soft Tripo atlases where the player stands). Each is one slot over
+    # the whole model: the set is what its paint shows most (DETAIL_SPLITS: the ones that would want two).
+    # The Lamplighter: 0.32 texels/cm, underfoot for all of Landfall and the sortie; her deck and hull are planks.
+    '/Game/Art/Materials/MI_TripoLamplighter': detail_on('ToolWood', 0.4),
+    # The Company tender (1.24 texels/cm): a riveted iron hull.
+    '/Game/Art/Materials/MI_TripoCompanyTender': detail_on('MetalRust', 0.5),
+    # Ransom's Rest's Tripo buildings (the farmhouse 0.62 texels/cm on 31% of its atlas): board walls and shingles.
+    '/Game/Art/Materials/MI_TripoBarnRansom': detail_on('ToolWood', 0.45, up=True),
+    '/Game/Art/Materials/MI_TripoFarmhouseRansom': detail_on('ToolWood', 0.45),
+    '/Game/Art/Materials/MI_TripoCottageRansom': detail_on('ToolWood', 0.45),
+    '/Game/Art/Materials/MI_TripoWindmillRR': detail_on('ToolWood', 0.45, scale=0.8, up=True),
+    # The big props where the player walks.
+    '/Game/Art/Materials/MI_TripoHoseIntake': detail_on('MetalRust', 0.5, scale=0.8),
+    '/Game/Art/Materials/MI_TripoGreatLantern': detail_on('MetalWorn', 0.35, scale=0.5),
+    '/Game/Art/Materials/MI_TripoBarricadeBoards': detail_on('ToolWood', 0.5, scale=0.6),
+    '/Game/Art/Materials/MI_TripoBarricadeTable': detail_on('ToolWood', 0.5, scale=0.6),
+    '/Game/Art/Materials/MI_TripoCompanyHoseCart': detail_on('MetalRust', 0.45, scale=0.8),
+    '/Game/Art/Materials/MI_TripoLanternPost': detail_on('ToolWood', 0.5, scale=0.6, up=True),
+    '/Game/Art/Materials/MI_TripoCompanyCheckpointSign': detail_on('ToolWood', 0.45, scale=0.8, up=True),
+    '/Game/Art/Materials/MI_TripoLoudspeakerPost': detail_on('ToolWood', 0.5, scale=0.6, up=True),
+    '/Game/Art/Materials/MI_TripoAnchorWinch': detail_on('ToolWood', 0.45, scale=0.6),
+    '/Game/Art/Materials/MI_TripoSextonsFerry': detail_on('ToolWood', 0.45, scale=0.8),
+}
+# Left without: the sandbags and the barricade's sacks (burlap) and the Company banner (cloth): none of our sets is a woven
+# cloth (a burlap set for looter_textures). One slot over two materials, a split for later (a model change, the importer's
+# slots by Blender material): the Lamplighter (planked hull and deck / the canvas bag / brass fittings), the tender (iron
+# hull / the rope net bag), the hose cart (iron tank / wooden frame and wheels), the anchor winch (timber frame / rope
+# drum / iron), the loudspeaker post (pole / brass horn), the lantern post (post / iron lantern), the farmhouse, barn and
+# cottage (boards / shingles / stone footings).
+DETAIL_SPLITS = ('MI_TripoLamplighter', 'MI_TripoCompanyTender', 'MI_TripoCompanyHoseCart', 'MI_TripoAnchorWinch',
+                 'MI_TripoLoudspeakerPost', 'MI_TripoLanternPost', 'MI_TripoFarmhouseRansom', 'MI_TripoBarnRansom',
+                 'MI_TripoCottageRansom')
+
+# Shared by the layer's two reads: each of the frame's three sides (the mesh's own, so the pattern rides with it)
 # laid with the tile, the weights from its own normal, the pixel's footprint for the reads' mips (taken before any
 # branch: gradients need every pixel of the quad), and the fade with distance. Each side's picture is turned to read
 # the right way round from outside and upright on walls (v runs down the mesh's Z), and tops run along the mesh's X
@@ -522,18 +620,70 @@ float3 Dy = ddy(P);
 float Sx = N.x < 0.0 ? -1.0 : 1.0;
 float Sy = N.y < 0.0 ? -1.0 : 1.0;
 float Sz = N.z < 0.0 ? -1.0 : 1.0;
-float2 UX = float2(-Sx * P.y, -P.z);
-float2 UY = float2(Sy * P.x, -P.z);
-float2 UZ = float2(P.x, Sz * P.y);
-float2 XDx = float2(-Sx * Dx.y, -Dx.z), XDy = float2(-Sx * Dy.y, -Dy.z);
-float2 YDx = float2(Sy * Dx.x, -Dx.z), YDy = float2(Sy * Dy.x, -Dy.z);
-float2 ZDx = float2(Dx.x, Sz * Dx.y), ZDy = float2(Dy.x, Sz * Dy.y);
+// Each side's picture axes in the frame (u, v); GrainUp turns the sides' a quarter (u up the frame's Z: a post's or an
+// upright board's grain), never mirrored.
+float3 AXu = float3(0.0, -Sx, 0.0), AXv = float3(0.0, 0.0, -1.0);
+float3 AYu = float3(Sy, 0.0, 0.0), AYv = float3(0.0, 0.0, -1.0);
+float3 AZu = float3(1.0, 0.0, 0.0), AZv = float3(0.0, Sz, 0.0);
+if (GrainUp > 0.5)
+{
+    float3 Ax = AXu, Ay = AYu;
+    AXu = AXv; AXv = -Ax;
+    AYu = AYv; AYv = -Ay;
+}
+float2 UX = float2(dot(P, AXu), dot(P, AXv)), UY = float2(dot(P, AYu), dot(P, AYv)), UZ = float2(dot(P, AZu), dot(P, AZv));
+float2 XDx = float2(dot(Dx, AXu), dot(Dx, AXv)), XDy = float2(dot(Dy, AXu), dot(Dy, AXv));
+float2 YDx = float2(dot(Dx, AYu), dot(Dx, AYv)), YDy = float2(dot(Dy, AYu), dot(Dy, AYv));
+float2 ZDx = float2(dot(Dx, AZu), dot(Dx, AZv)), ZDy = float2(dot(Dy, AZu), dot(Dy, AZv));
 float Fade = 1.0 - smoothstep(Near, max(Far, Near + 1.0), Depth);
+""" + """// Plates (Plates.z > 0, a uniform branch): riveted plates on the side the pixel faces most (cm of the frame), gone where
+// no side leads (a bevel, a bilge's turn). Every edge is filtered to the pixel's footprint, so far off a seam fades to a
+// faint line and a rivet to nothing instead of shimmering. PSeam, PRivet (cover), PHead (toward a dome's top), PTone (a
+// plate's own tone), PTilt (the normal's lean along the side's u and v; TU, TV those axes in the frame).
+float PSeam = 0.0, PRivet = 0.0, PHead = 0.0, PTone = 0.0;
+float2 PTilt = float2(0.0, 0.0);
+float3 TU = AZu, TV = AZv;
+if (Plates.z > 0.001 && Fade > 0.001)
+{
+    float2 Q = UZ, G = abs(ZDx) + abs(ZDy);
+    float WD = W.z;
+    if (W.x > WD) { Q = UX; G = abs(XDx) + abs(XDy); WD = W.x; TU = AXu; TV = AXv; }
+    if (W.y > WD) { Q = UY; G = abs(YDx) + abs(YDy); WD = W.y; TU = AYu; TV = AYv; }
+    float Cm = 100.0 * max(Tile, 0.05);
+    Q *= Cm;
+    float2 Fp = max(G * Cm, 0.01);
+    float Keep = saturate((WD - 0.5) * 3.0) * Fade;
+    float2 Size = max(Plates.xy, 0.1) * 100.0;
+    float Row = floor(Q.y / Size.y);
+    float Qx = Q.x + frac(Row * 0.5) * Size.x;
+    float Col = floor(Qx / Size.x);
+    float2 F = float2(Qx - Col * Size.x, Q.y - Row * Size.y);
+    float2 D = min(F, Size - F);
+    float2 Toward = float2(F.x * 2.0 < Size.x ? -1.0 : 1.0, F.y * 2.0 < Size.y ? -1.0 : 1.0);
+    float Hw = max(Shape.x, 0.05);
+    float2 Cover = saturate((min(Hw, D + Fp * 0.5) - max(-Hw, D - Fp * 0.5)) / Fp);
+    PSeam = max(Cover.x, Cover.y) * Keep;
+    // The plates' edges bevel down into the seam: the normal leans toward it within two seam widths of its edge.
+    float2 Lean = Toward * saturate(1.0 - max(D - Hw, 0.0) / (Hw * 2.0)) * saturate(2.0 * Hw / Fp - 0.25) * 0.6;
+    float Rr = max(Shape.z, 0.1);
+    float Pitch = max(Shape.y, Rr * 3.0);
+    float In = Hw + Rr * 2.5;
+    float2 A = (frac(F / Pitch) - 0.5) * Pitch;
+    float2 OH = float2(A.x, -Toward.y * (D.y - In));
+    float2 OV = float2(-Toward.x * (D.x - In), A.y);
+    float2 O = dot(OH, OH) < dot(OV, OV) ? OH : OV;
+    float Rd = length(O);
+    float Fr = max(Fp.x, Fp.y);
+    PRivet = saturate((Rr - Rd) / Fr + 0.5) * saturate(2.0 * Rr / Fr) * Keep;
+    PHead = saturate(1.0 - Rd / Rr);
+    PTone = (frac(sin(dot(float2(Row, Col), float2(12.9898, 78.233))) * 43758.5453) - 0.5) * 2.0 * Shape.w * Keep;
+    PTilt = Lean * Plates.z * Keep + O / Rr * 0.8 * PRivet * Plates.w;
+}
 """
 
 # The colour (rgb: the macro colour times the set's light and dark about its mean) and a roughness offset (a: the set's
 # roughness about its mean, x DetailRoughness; its ORM isn't read at 0).
-DETAIL_COLOR_CODE = DETAIL_SETUP + """const float3 Wl = float3(0.299, 0.587, 0.114);
+DETAIL_COLOR_PART = """const float3 Wl = float3(0.299, 0.587, 0.114);
 float L = 0.0, R = 0.0, Ws = 0.0;
 bool Rough = RoughAmount > 0.001;
 if (Fade > 0.001)
@@ -564,44 +714,91 @@ if (Ws > 0.0)
     Result.rgb = Color * max(lerp(1.0, Shade, Strength * Fade), 0.0);
     Result.a = Rough ? (R / Ws - MeanRough) * RoughAmount * Fade : 0.0;
 }
-return Result;"""
+// The plates over it: dark seams with grime in them (rougher), each plate its own tone, rivet heads dark at the rim and
+// rubbed bright and smooth on top.
+Result.rgb *= (1.0 - PSeam * Plates.z) * (1.0 + PTone) * lerp(1.0, 0.7 + 0.65 * PHead, PRivet * Plates.w);
+Result.a += PSeam * 0.2 * Plates.z - PRivet * PHead * 0.15 * Plates.w;
+"""
 
-# The mesh's normal (its own space) leaned by the set's normal map on each side (n.x along the side's u, n.y along its
-# v), x DetailNormal, faded.
-DETAIL_NORMAL_CODE = DETAIL_SETUP + """float3 T = float3(0.0, 0.0, 0.0);
+# The frame's normal leaned by the set's normal map on each side (n.x along the side's u, n.y along its v) x
+# DetailNormal, faded, and by the plates' seams and rivets.
+DETAIL_NORMAL_PART = """float3 T = float3(0.0, 0.0, 0.0);
 if (Fade > 0.001 && Amount > 0.001)
 {
     if (W.x > 0.02)
     {
         float2 n = UnpackNormalMap(Texture2DSampleGrad(NormalMap, NormalMapSampler, UX, XDx, XDy)).xy;
-        T += W.x * (n.x * float3(0.0, -Sx, 0.0) + n.y * float3(0.0, 0.0, -1.0));
+        T += W.x * (n.x * AXu + n.y * AXv);
     }
     if (W.y > 0.02)
     {
         float2 n = UnpackNormalMap(Texture2DSampleGrad(NormalMap, NormalMapSampler, UY, YDx, YDy)).xy;
-        T += W.y * (n.x * float3(Sy, 0.0, 0.0) + n.y * float3(0.0, 0.0, -1.0));
+        T += W.y * (n.x * AYu + n.y * AYv);
     }
     if (W.z > 0.02)
     {
         float2 n = UnpackNormalMap(Texture2DSampleGrad(NormalMap, NormalMapSampler, UZ, ZDx, ZDy)).xy;
-        T += W.z * (n.x * float3(1.0, 0.0, 0.0) + n.y * float3(0.0, Sz, 0.0));
+        T += W.z * (n.x * AZu + n.y * AZv);
     }
 }
-return normalize(N + T * Amount * Fade);"""
+Leaned = normalize(N + T * Amount * Fade + PTilt.x * TU + PTilt.y * TV);
+"""
+# One node for both (its setup and plates worked out once): the colour and roughness offset, and Leaned (an additional
+# output) the frame's normal.
+DETAIL_CODE = DETAIL_SETUP + DETAIL_COLOR_PART + DETAIL_NORMAL_PART + 'return Result;'
 
 # The detail's normal (turned to the tangent frame) over the macro normal map's, by its lean (whiteout: the two
 # slopes add, so neither flattens the other).
 DETAIL_BLEND_CODE = 'return normalize(float3(Base.xy + Detail.xy, Base.z * Detail.z));'
 
 
-def detail_switch(g, on, off, x, y, on_out='', off_out=''):
+def detail_switch(g, on, off, x, y, on_out='', off_out='', name=DETAIL_SWITCH):
     """DetailOn's static switch (off by default): on where an instance turns the layer on, else off (the graph without
-    it, unchanged)."""
-    switch = g.node(unreal.MaterialExpressionStaticSwitchParameter, x, y, parameter_name=DETAIL_SWITCH, default_value=False)
+    it, unchanged). DetailWorld's the same way (name)."""
+    switch = g.node(unreal.MaterialExpressionStaticSwitchParameter, x, y, parameter_name=name, default_value=False)
     switch.set_editor_property('group', DETAIL)
     g.link(on, on_out, switch, 'True')
     g.link(off, off_out, switch, 'False')
     return switch
+
+
+# DetailWorld's frame: the piece's own axes in the world (their lengths its scale), from Instance & Particle space, so an
+# instanced mesh's own instance counts (a component's Local space would be the whole component's). All worked out per
+# vertex and handed on (the position at world size, the unit X and Y axes; 9 interpolator scalars): read in the pixel
+# shader, the instance's double-precision matrices cost ~0.1 ms more on a wall filling the view; handed on, DetailWorld
+# costs what object space does (0.83 ms BasePass either way, 2026-11-04).
+# Z is X cross Y (a mirrored piece, scaled negative, would turn its pattern's relief inside out).
+DETAIL_FRAME_POSITION = 'return P * float3(length(X), length(Y), length(Z));'
+DETAIL_FRAME_NORMAL = """float3 Xn = normalize(X), Yn = normalize(Y);
+return float3(dot(N, Xn), dot(N, Yn), dot(N, cross(Xn, Yn)));"""
+DETAIL_FRAME_TO_WORLD = """float3 Xn = normalize(X), Yn = normalize(Y);
+return normalize(V.x * Xn + V.y * Yn + V.z * cross(Xn, Yn));"""
+
+
+def detail_frame(g, x, y):
+    """DetailWorld's position (cm, world size, the piece's axes) and normal, and its unit X and Y axes (named inputs)
+    for turning the result back."""
+    axes = []
+    for i, axis in enumerate(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
+        unit = g.node(unreal.MaterialExpressionConstant3Vector, x - 300, y + 100 * i, constant=unreal.LinearColor(*axis, 1.0))
+        world = g.node(unreal.MaterialExpressionTransform, x, y + 100 * i,
+                       transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_INSTANCE,
+                       transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+        g.link(unit, '', world, '')
+        axes.append(world)
+    position = g.custom(DETAIL_FRAME_POSITION, [('P', g.node(unreal.MaterialExpressionLocalPosition, x, y + 300), ''),
+                                                ('X', axes[0], ''), ('Y', axes[1], ''), ('Z', axes[2], '')],
+                        unreal.CustomMaterialOutputType.CMOT_FLOAT3, x + 300, y, 'Detail position (world size, own axes)')
+
+    def handed(node, py):
+        interpolator = g.node(unreal.MaterialExpressionVertexInterpolator, x + 600, py)
+        g.link(node, '', interpolator, 'VS')
+        return interpolator
+
+    named = [('X', handed(axes[0], y + 150), ''), ('Y', handed(axes[1], y + 300), '')]
+    normal = g.custom(DETAIL_FRAME_NORMAL, [('N', g.node(unreal.MaterialExpressionVertexNormalWS, x + 600, y + 450), '')] + named,
+                      unreal.CustomMaterialOutputType.CMOT_FLOAT3, x + 900, y + 150, 'Detail normal (own axes)')
+    return handed(position, y), normal, named
 
 
 def detail_map(set_name, kind, fallback):
@@ -623,6 +820,10 @@ def detail_layer(g, color, x, y):
     g.link(g.node(unreal.MaterialExpressionPreSkinnedPosition, x - 300, y), '', local, 'VS')
     local_normal = g.node(unreal.MaterialExpressionVertexInterpolator, x, y + 150)
     g.link(g.node(unreal.MaterialExpressionPreSkinnedNormal, x - 300, y + 150), '', local_normal, 'VS')
+    # Or (DetailWorld) world size in the piece's own axes, worked out in the pixel shader (no interpolators then).
+    frame_position, frame_normal, axes = detail_frame(g, x - 900, y - 600)
+    position = detail_switch(g, frame_position, local, x + 150, y - 100, name=DETAIL_WORLD)
+    normal_in = detail_switch(g, frame_normal, local_normal, x + 150, y + 50, name=DETAIL_WORLD)
 
     def number(name, value, px, py):
         return sparam(g, DETAIL, name, value, px, py)
@@ -635,13 +836,16 @@ def detail_layer(g, color, x, y):
 
     means = DETAIL_SETS[DETAIL_DEFAULT_SET]
     setup = [
-        ('Local', local, ''), ('LocalNormal', local_normal, ''),
+        ('Local', position, ''), ('LocalNormal', normal_in, ''),
         ('Depth', g.node(unreal.MaterialExpressionPixelDepth, x, y + 300), ''),
         ('Tile', number('DetailScale', DETAIL_DEFAULTS['DetailScale'], x, y + 400), ''),
         ('Near', number('DetailNear', DETAIL_DEFAULTS['DetailNear'], x, y + 500), ''),
         ('Far', number('DetailFar', DETAIL_DEFAULTS['DetailFar'], x, y + 600), ''),
+        ('GrainUp', number('DetailGrainUp', DETAIL_DEFAULTS['DetailGrainUp'], x - 300, y + 600), ''),
+        ('Plates', svector(g, DETAIL, 'DetailPlates', DETAIL_PLATE_DEFAULTS['DetailPlates'], x - 300, y + 400), 'RGBA'),
+        ('Shape', svector(g, DETAIL, 'DetailPlateShape', DETAIL_PLATE_DEFAULTS['DetailPlateShape'], x - 300, y + 500), 'RGBA'),
     ]
-    detailed = g.custom(DETAIL_COLOR_CODE, setup + [
+    detailed = g.custom(DETAIL_CODE, setup + [
         ('Color', color, ''),
         ('ColorMap', texture_object('DetailColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR,
                                     detail_map(DETAIL_DEFAULT_SET, 'BC', WHITE), y + 700), ''),
@@ -651,37 +855,81 @@ def detail_layer(g, color, x, y):
         ('RoughAmount', number('DetailRoughness', DETAIL_DEFAULTS['DetailRoughness'], x, y + 1000), ''),
         ('MeanLuma', number('DetailMeanLuma', means['DetailMeanLuma'], x, y + 1100), ''),
         ('MeanRough', number('DetailMeanRough', means['DetailMeanRough'], x, y + 1200), ''),
-    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, x + 400, y, 'Detail colour and roughness')
-    leaned = g.custom(DETAIL_NORMAL_CODE, setup + [
         ('NormalMap', texture_object('DetailNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
                                      detail_map(DETAIL_DEFAULT_SET, 'N', FLAT_NORMAL), y + 1300), ''),
         ('Amount', number('DetailNormal', DETAIL_DEFAULTS['DetailNormal'], x, y + 1400), ''),
-    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, x + 400, y + 300, 'Detail normal (mesh space)')
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, x + 400, y, 'Detail colour, roughness and normal',
+        outputs=[('Leaned', unreal.CustomMaterialOutputType.CMOT_FLOAT3)])
+    leaned = (detailed, 'Leaned')
     tangent = g.node(unreal.MaterialExpressionTransform, x + 700, y + 300,
                      transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_LOCAL,
                      transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_TANGENT)
-    g.link(leaned, '', tangent, '')
-    return detailed, tangent
+    g.link(*leaned, tangent, '')
+    # DetailWorld: turned back out of the piece's axes into the world, then into the tangent frame.
+    in_world = g.custom(DETAIL_FRAME_TO_WORLD, [('V', *leaned)] + axes, unreal.CustomMaterialOutputType.CMOT_FLOAT3,
+                        x + 700, y + 450, 'Detail normal (world)')
+    world_tangent = g.node(unreal.MaterialExpressionTransform, x + 1000, y + 450,
+                           transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_WORLD,
+                           transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_TANGENT)
+    g.link(in_world, '', world_tangent, '')
+    return detailed, detail_switch(g, world_tangent, tangent, x + 1300, y + 300, name=DETAIL_WORLD)
 
 
 def apply_detail():
     """Turns the detail layer on in DETAIL_INSTANCES (the set's maps and means, DETAIL_DEFAULTS and the instance's own
     numbers), so a re-import's cleared instance gets it back when M_World is built."""
     mel = unreal.MaterialEditingLibrary
-    for path, (set_name, numbers) in DETAIL_INSTANCES.items():
-        if not unreal.EditorAssetLibrary.does_asset_exist(path):
-            unreal.log_warning(f'M_World detail: no {path}; skipped')
-            continue
-        instance = unreal.load_asset(path)
-        mel.set_material_instance_static_switch_parameter_value(instance, DETAIL_SWITCH, True)
-        for kind, name in (('BC', 'DetailColorMap'), ('N', 'DetailNormalMap'), ('ORM', 'DetailORMMap')):
-            mel.set_material_instance_texture_parameter_value(instance, name, unreal.load_asset(detail_map(set_name, kind, WHITE)))
-        values = dict(DETAIL_DEFAULTS, **DETAIL_SETS[set_name], **numbers)
-        for name, value in values.items():
+    library = unreal.EditorAssetLibrary
+
+    def put(instance, name, value):
+        if isinstance(value, str):
+            mel.set_material_instance_texture_parameter_value(instance, name, unreal.load_asset(value))
+        elif isinstance(value, (tuple, list)):
+            values = [float(v) for v in value][:4]
+            mel.set_material_instance_vector_parameter_value(instance, name, unreal.LinearColor(*(values + [1.0] * (4 - len(values)))))
+        else:
             mel.set_material_instance_scalar_parameter_value(instance, name, float(value))
+
+    for path, spec in DETAIL_INSTANCES.items():
+        if not library.does_asset_exist(path):
+            if 'like' not in spec and 'base' not in spec:
+                unreal.log_warning(f'M_World detail: no {path}; skipped')
+                continue
+            folder, name = path.rsplit('/', 1)
+            instance = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+                name, folder, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+            mel.set_material_instance_parent(instance, unreal.load_asset(spec.get('parent', f'{FOLDER}/M_World')))
+            like = unreal.load_asset(spec['like']) if 'like' in spec and library.does_asset_exist(spec['like']) else None
+            if like is not None:
+                # The slot's maps until the importer fills it (the same atlas).
+                for p in like.get_editor_property('texture_parameter_values'):
+                    mel.set_material_instance_texture_parameter_value(instance, p.parameter_info.name, p.parameter_value)
+                for p in like.get_editor_property('vector_parameter_values'):
+                    mel.set_material_instance_vector_parameter_value(instance, p.parameter_info.name, p.parameter_value)
+                for p in like.get_editor_property('scalar_parameter_values'):
+                    if not str(p.parameter_info.name).startswith('Detail'):
+                        mel.set_material_instance_scalar_parameter_value(instance, p.parameter_info.name, p.parameter_value)
+            unreal.log(f'M_World detail: made {path}')
+        instance = unreal.load_asset(path)
+        for name, value in spec.get('base', {}).items():
+            put(instance, name, value)
+        said = ''
+        if 'set' in spec:
+            set_name = spec['set']
+            mel.set_material_instance_static_switch_parameter_value(instance, DETAIL_SWITCH, True)
+            mel.set_material_instance_static_switch_parameter_value(instance, DETAIL_WORLD, bool(spec.get('world', False)))
+            for kind, name in (('BC', 'DetailColorMap'), ('N', 'DetailNormalMap'), ('ORM', 'DetailORMMap')):
+                mel.set_material_instance_texture_parameter_value(instance, name, unreal.load_asset(detail_map(set_name, kind, WHITE)))
+            values = dict(DETAIL_DEFAULTS, **DETAIL_SETS[set_name], **spec.get('numbers', {}))
+            values['DetailPlates'] = spec.get('plates', DETAIL_PLATE_DEFAULTS['DetailPlates'])
+            values['DetailPlateShape'] = spec.get('shape', DETAIL_PLATE_DEFAULTS['DetailPlateShape'])
+            for name, value in values.items():
+                put(instance, name, value)
+            said = f'{set_name}{" (world)" if spec.get("world") else ""}, ' + ', '.join(
+                f'{k} {v}' if isinstance(v, (tuple, list)) else f'{k} {v:g}' for k, v in sorted(values.items()))
         mel.update_material_instance(instance)
-        unreal.EditorAssetLibrary.save_loaded_asset(instance)
-        unreal.log(f'M_World detail on {path}: {set_name}, ' + ', '.join(f'{k} {v:g}' for k, v in sorted(values.items())))
+        library.save_loaded_asset(instance)
+        unreal.log(f'M_World detail on {path}: {said or "inherited from " + spec.get("parent", "M_World")}')
 
 
 def build_world(orm_default):

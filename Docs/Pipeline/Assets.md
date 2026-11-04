@@ -36,13 +36,29 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      viewpoints at eye height (before above, after below) into `Saved/ArtPreviews/Terrain/`. It is a numpy port of the master's code:
      keep it in step with `GROUND_WEIGHTS` and `GROUND_DEFAULTS`. It has no shadows, grass or hollows' damp, so look in the editor too.
    - The detail layer (2026-11-04, `M_World`, the art audit's plan row 4; parameters in the script's docstring, numbers
-     `DETAIL_DEFAULTS`): static switch `DetailOn`, off on the master. Off is the old graph exactly (M_World and its instances
-     still 317 VS / 229 PS instructions, 5 samplers, 0 interpolators). On (`MI_TripoDredgeBarge`, MetalWorn at 1 m): 369 PS
-     (every branch counted), 8 samplers, 6 interpolator scalars; one read per map on flat faces, none past `DetailFar`; editor
-     viewport BasePass +0.09-0.12 ms with the barge filling a 1885x866 view (Epic; the ORM's roughness read is ~0.02 of it).
-     Which instances wear it: `DETAIL_INSTANCES`; a set's means: `DETAIL_SETS` (measured from its PNGs). A model re-import
-     clears its instance (FModelImporter's `ClearParameterValuesEditorOnly`, static switches too): run
-     `build_world_materials.py DetailInstances` after one. Grabs: `Saved/ArtPreviews/BargeDetail/` (before/after, compare_*).
+     `DETAIL_DEFAULTS`, `DETAIL_PLATE_DEFAULTS`): static switch `DetailOn`, off on the master. Off is the old graph exactly
+     (M_World and its instances still 317 VS / 229 PS instructions, 5 samplers, 0 interpolators). Static `DetailWorld`: world
+     metres in the piece's own axes (scaled engine cubes tile true; rides with a listing barge, which pure world space
+     would not). `DetailPlates` draws riveted plates (seams, rivets, each plate's tone; none of our sets has plate seams).
+     `DetailGrainUp` 1 turns the sides' picture a quarter (grain up posts and upright boards).
+     One Custom node does it all (`Leaned` an additional output). On, object space: 442 PS, 8 samplers, 6 interpolator
+     scalars; DetailWorld: 340 VS, 450 PS, 9 interpolators (the frame worked out per vertex: per pixel it cost ~0.1 ms
+     more). Editor viewport (Epic, 1885x866), BasePass: barge filling the view +0.09-0.12 ms (round 1); a kit wall filling
+     ~85% of it 0.64 -> 0.79 ms (plates ~0.04 of it, DetailWorld ~0); the deck plates +0.05 ms over the plain detail.
+     Instances: `DETAIL_INSTANCES` (the barge's one slot `MI_TripoDredgeBarge`; its split slots `MI_TripoDredgeBarge_Deck`
+     plates 2.4 x 1.2 m, `_Hull` MetalRust 1.5 m, `_Super` MetalWorn light; `MI_BargeKitIron` dark iron in world metres with
+     plates 1.8 x 1.2 m, child `MI_BargeKitIronDark`; round 4: the Lamplighter, the tender, RR's Tripo buildings and the
+     big props at 0.35-0.5, `detail_on()`; wood = ToolWood (grain, no plank seams, so it never fights Tripo's boards);
+     `DETAIL_SPLITS`: one slot over two materials, and no set for burlap or cloth: sandbags, sacks, banner left without).
+     Their cost (round 4, same view): the Lamplighter's deck +0.15 ms, her bag and deck filling the view +0.16, the barn's
+     wall +0.12 (Nanite, Epic). A set's means: `DETAIL_SETS`. A model re-import clears its instances
+     (FModelImporter's `ClearParameterValuesEditorOnly`, static switches too) and parents them to the master: run
+     `build_world_materials.py DetailInstances` after one. Slots by name: a Blender material `X` is the slot `X` and
+     `/Game/Art/Materials/MI_X` (looter_export `collect_materials`). `FLAT_NORMAL` (the masters' default NormalMap) is
+     `/Engine/EngineMaterials/FlatNormal` since 2026-11-04; it was `DefaultNormal`, a 1024 px brick pattern that six
+     instances showed as faint blocks (MI_SextonTrousers, MI_SextonWool, four Bullpup part instances; M_World, M_Gun,
+     M_CharacterCloth rebuilt; the other 302 instances' stats unchanged). Never use `DefaultNormal` as "flat".
+     Grabs: `Saved/ArtPreviews/BargeDetail/` (before/after, r3before/r3after, compare_*; round 4 in `r4/`).
    - Gun patterns and element stains (2026-10-27, `M_Gun`; numbers `GUN_PATTERN` group GunPattern, `ELEMENT_FINISH` group
      ElementFinish; built by Main's MAT agent): custom primitive data 29-35 (kind, scale cm, seed, tint rgb, amount) -> `PATTERN_CODE` between the paint
      and the wear (the scuffs then wear it through). All in the part's own space (PreSkinnedPosition, cm), triplanar on its own

@@ -191,7 +191,12 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 - Lesson (2026-11-03 night): `perf.ps1` stops a game that hangs on its way out (DDC maintenance) 30 s after the capture ends,
   and it reads that from the run's log (`Capture Ended. Writing CSV`), never from the CSV: Windows reports an open file's size
   and write time as they were when it was made, so a CSV watch killed every run (30 s into loading, then at its first frames) and
-  recorded rows of n/a. An n/a row is a killed run, never a measurement: delete it. `tour.ps1` answers the Zen cache's "keep
+  recorded rows of n/a. An n/a row is a killed run, never a measurement: delete it.
+- Lesson (2026-11-04): an editor probe must never put an engine asset on a mesh (it dirtied
+  `/Engine/EngineMaterials/DefaultMaterial`, which Python cannot clean and must not be saved): the close then waits on "Save
+  Content". With only `/Engine/` packages dirty (`get_dirty_content_packages`), end the process; the next start shows "Restore
+  Packages" (a Slate window, MCP blocked): press "Skip Restore" (`Saved/.../skip_restore.ps1` pattern: a mouse click only, with
+  the dialog verified in front). `tour.ps1` answers the Zen cache's "keep
   waiting?" box in its wait loop too since 2026-11-04 (a tour that sits 15 minutes and writes no `Looter.Tour:` line was on it).
 
 ## Tests
