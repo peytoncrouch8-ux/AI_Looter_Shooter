@@ -4,6 +4,9 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
 ## START HERE (session end 2026-11-01 night; the next session starts tomorrow when usage resets)
+2026-11-03: the user asked for a blunt core-loop audit (Phase 1 done, nothing in the game changed): `Docs/Work/2026-11-03-Audit/AUDIT.md`
+(ranked problems, what to protect, the one change first, the Phase 2 plan). Phase 3 (one change at a time, the user plays each)
+waits on the user approving or reordering that plan. The editor was closed and MCP down during the audit.
 State: everything the user asked for this session is built, tested, committed and pushed (last commit cb4a704e). Latest
 playtest (Missions 1-7, Sexton's shop, Paid on Delivery, Tripo Reliquary + soul coal): Builds\Playtest\2026-11-01_1753\
 Windows\AI_Looter_Shooter.exe (smoke test passed). The user has not reported on it yet: ask what they found first.
