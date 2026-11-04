@@ -5,6 +5,7 @@
 #include "Bestiary/BestiaryEntry.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/MovementSlowComponent.h"
+#include "Creatures/CreatureKindSettings.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/EncounterSettings.h"
 #include "Creatures/ShriekRing.h"
@@ -131,7 +132,9 @@ bool FUnpaidStatsTest::RunTest(const FString& Parameters)
 		const UHealthComponent* Health = Unpaid->FindComponentByClass<UHealthComponent>();
 		if (TestNotNull(FString::Printf(TEXT("%s: has health"), *Name), Health))
 		{
-			TestNearlyEqual(FString::Printf(TEXT("%s: health"), *Name), Health->GetMaxHealth(), 160.f * Case.Health * Growth, 0.01f);
+			// Its base is Project Settings > Game > Creature Kinds' (140 since 2026-11-03, kill speed; the class says 160).
+			TestNearlyEqual(FString::Printf(TEXT("%s: health"), *Name), Health->GetMaxHealth(),
+				UCreatureKindSettings::BaseHealthOf(AUnpaidCreature::StaticClass()) * Case.Health * Growth, 0.01f);
 		}
 		TestNearlyEqual(FString::Printf(TEXT("%s: damage"), *Name), Unpaid->AttackDamage, 8.f * Info.DamageMultiplier * Growth, 0.001f);
 
@@ -160,6 +163,40 @@ bool FUnpaidStatsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Nor a Restless one's"), Restless->GetRankTraits().bSlowingShriek);
 	TestTrue(TEXT("A Gravebound one's shriek slows"), Gravebound->GetRankTraits().bSlowingShriek);
 	TestFalse(TEXT("A boss tunes its own fight"), UnpaidRules::RankTraits(ECreatureRank::Boss).bSlowingShriek);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidHeadCritTest, "Looter.Creatures.Unpaid.HeadCrit",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FUnpaidHeadCritTest::RunTest(const FString& Parameters)
+{
+	// Kill speed (2026-11-03): a shot on the Unpaid's head is a critical hit, as on any humanoid; a shot on its chest is
+	// only one by the coal's own rule (Looter.Creatures.Unpaid.Coal); a shot on anything but its mesh never.
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	const AUnpaidCreature* Unpaid = SpawnUnpaid(World, FVector::ZeroVector);
+	if (!TestNotNull(TEXT("Unpaid spawned"), Unpaid))
+	{
+		return false;
+	}
+	TestFalse(TEXT("A plain Unpaid is no boss"), Unpaid->IsBossCreature());
+	FHitResult Head;
+	Head.Component = Unpaid->GetMesh();
+	Head.BoneName = Unpaid->Rig.Head;
+	TestTrue(TEXT("The head bone is named"), !Unpaid->Rig.Head.IsNone());
+	TestTrue(TEXT("A head shot is critical"), Unpaid->IsCriticalSpot(Head));
+	FHitResult Arm;
+	Arm.Component = Unpaid->GetMesh();
+	Arm.BoneName = Unpaid->Rig.Pelvis;
+	TestFalse(TEXT("A hit on the pelvis isn't"), Unpaid->IsCriticalSpot(Arm));
+	FHitResult OffMesh;
+	OffMesh.BoneName = Unpaid->Rig.Head;
+	TestFalse(TEXT("A hit on no component isn't"), Unpaid->IsCriticalSpot(OffMesh));
 	return true;
 }
 

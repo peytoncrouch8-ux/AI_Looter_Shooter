@@ -6,8 +6,10 @@
 #include "Combat/GraveSaltTuning.h"
 #include "Combat/GrenadeKinds.h"
 #include "Combat/GrenadeKindsTuning.h"
+#include "Creatures/CreatureKindSettings.h"
 #include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/UnpaidCreature.h"
 #include "Player/PlayerThrowRules.h"
 #include "Player/PlayerThrowSave.h"
 #include "Progression/LevelRules.h"
@@ -133,7 +135,8 @@ bool FGrenadeKindsEarlyTest::RunTest(const FString& Parameters)
 	const FGraveSaltTuning Base;
 	const FGrenadeKindTuning Kinds;
 	const FLevelRules Rules = GetDefault<UProgressionSettings>()->GetLevelRules();
-	const float UnpaidBase = 160.f * UCreatureRankSettings::Get(ECreatureRank::Basic).HealthMultiplier;
+	// The Unpaid's health as the game gives it (Project Settings > Game > Creature Kinds' 140 since 2026-11-03).
+	const float UnpaidBase = UCreatureKindSettings::BaseHealthOf(AUnpaidCreature::StaticClass()) * UCreatureRankSettings::Get(ECreatureRank::Basic).HealthMultiplier;
 	for (const int32 Level : { 1, 2, 3 })
 	{
 		const float Health = UnpaidBase * Rules.EnemyScale(Level);

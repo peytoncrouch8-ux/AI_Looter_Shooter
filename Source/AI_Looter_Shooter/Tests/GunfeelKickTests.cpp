@@ -310,17 +310,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelKickCritTest, "Looter.Gunfeel.Kick.Revo
 bool FGunfeelKickCritTest::RunTest(const FString& Parameters)
 {
 	using namespace GunfeelKick;
-	TestEqual(TEXT("A revolver's crit is 1.75x"), CritMultiplier(EWeaponKind::Revolver, LooterCombat::CriticalHitMultiplier, Def::CritRevolver), 1.75f);
-	TestEqual(TEXT("The rifle keeps the game's 1.5x"), CritMultiplier(EWeaponKind::Rifle, LooterCombat::CriticalHitMultiplier, Def::CritRevolver), 1.5f);
-	TestEqual(TEXT("...and the shotgun"), CritMultiplier(EWeaponKind::Shotgun, LooterCombat::CriticalHitMultiplier, Def::CritRevolver), 1.5f);
+	// Kill speed (2026-11-03): the game's crit is 2x, the revolver's 2.25x, the sniper's 2.5x (were 1.5 / 1.75 / 2).
+	TestEqual(TEXT("A revolver's crit is 2.25x"), CritMultiplier(EWeaponKind::Revolver, LooterCombat::CriticalHitMultiplier, Def::CritRevolver), 2.25f);
+	TestEqual(TEXT("The rifle keeps the game's 2x"), CritMultiplier(EWeaponKind::Rifle, LooterCombat::CriticalHitMultiplier, Def::CritRevolver), 2.f);
+	TestEqual(TEXT("...and the shotgun"), CritMultiplier(EWeaponKind::Shotgun, LooterCombat::CriticalHitMultiplier, Def::CritRevolver), 2.f);
+	TestEqual(TEXT("The sniper's is 2.5x"), CritMultiplier(EWeaponKind::Sniper, LooterCombat::CriticalHitMultiplier, Def::CritRevolver, Def::CritSniper), 2.5f);
 	TestEqual(TEXT("A cursed iron's triple wins on a revolver"), CritMultiplier(EWeaponKind::Revolver, 3.f, Def::CritRevolver), 3.f);
-	TestEqual(TEXT("...and Cold's extra quarter (1.875) over the 1.75x"), CritMultiplier(EWeaponKind::Revolver, LooterCombat::CriticalHitMultiplier * 1.25f, Def::CritRevolver), 1.875f);
-	TestEqual(TEXT("A rifle with Cold keeps its own"), CritMultiplier(EWeaponKind::Rifle, LooterCombat::CriticalHitMultiplier * 1.25f, Def::CritRevolver), 1.875f);
+	TestEqual(TEXT("...and Cold's extra quarter (2.5) over the 2.25x"), CritMultiplier(EWeaponKind::Revolver, LooterCombat::CriticalHitMultiplier * 1.25f, Def::CritRevolver), 2.5f);
+	TestEqual(TEXT("A rifle with Cold keeps its own"), CritMultiplier(EWeaponKind::Rifle, LooterCombat::CriticalHitMultiplier * 1.25f, Def::CritRevolver), 2.5f);
 
-	// What it deals: 100 at the roll's middle is 175 on a revolver crit, 150 on a rifle's.
-	TestEqual(TEXT("A revolver crit deals 175"), LooterCombat::HitDamage(100.f, true, 0.5f, CritMultiplier(EWeaponKind::Revolver, 1.5f, Def::CritRevolver)), 175.f, 0.01f);
-	TestEqual(TEXT("A rifle crit deals 150"), LooterCombat::HitDamage(100.f, true, 0.5f, CritMultiplier(EWeaponKind::Rifle, 1.5f, Def::CritRevolver)), 150.f, 0.01f);
-	TestEqual(TEXT("No crit, no multiplier"), LooterCombat::HitDamage(100.f, false, 0.5f, CritMultiplier(EWeaponKind::Revolver, 1.5f, Def::CritRevolver)), 100.f, 0.01f);
+	// What it deals: 100 at the roll's middle is 225 on a revolver crit, 200 on a rifle's.
+	TestEqual(TEXT("A revolver crit deals 225"), LooterCombat::HitDamage(100.f, true, 0.5f, CritMultiplier(EWeaponKind::Revolver, 2.f, Def::CritRevolver)), 225.f, 0.01f);
+	TestEqual(TEXT("A rifle crit deals 200"), LooterCombat::HitDamage(100.f, true, 0.5f, CritMultiplier(EWeaponKind::Rifle, 2.f, Def::CritRevolver)), 200.f, 0.01f);
+	TestEqual(TEXT("No crit, no multiplier"), LooterCombat::HitDamage(100.f, false, 0.5f, CritMultiplier(EWeaponKind::Revolver, 2.f, Def::CritRevolver)), 100.f, 0.01f);
 	return true;
 }
 

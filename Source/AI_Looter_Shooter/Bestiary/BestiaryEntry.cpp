@@ -2,6 +2,7 @@
 #include "Areas/AreaDefinition.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureKindSettings.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/FightRules.h"
 #include "Creatures/FightTuning.h"
@@ -50,7 +51,8 @@ FBestiaryStats UBestiaryEntry::ReadStats() const
 	if (const UHealthComponent* Health = Defaults->FindComponentByClass<UHealthComponent>())
 	{
 		Stats.bHasHealth = true;
-		Stats.Health = Health->MaxHealth;
+		// The kind's number in Project Settings > Game > Creature Kinds, where it has one (the fight reads the same).
+		Stats.Health = UCreatureKindSettings::HealthFor(Class, Health->MaxHealth);
 	}
 	if (const ACreatureBase* Creature = Cast<ACreatureBase>(Defaults))
 	{
@@ -69,12 +71,13 @@ FBestiaryStats UBestiaryEntry::ReadStats() const
 		// took 20 off the player (playtest 2026-10-28). A boss or Legendary monster keeps its own.
 		const float FightScale = FightRules::DamageScaleFor(FightRules::KeepsOwnFight(Creature->StartingRank, Creature->IsBossCreature()),
 			FFightTuning::LiveDamageScale());
-		Stats.AttackDamage = Creature->AttackDamage * Rank.DamageMultiplier * Growth * FightScale;
+		const float Attack = UCreatureKindSettings::AttackDamageFor(Class, Creature->AttackDamage);
+		Stats.AttackDamage = Attack * Rank.DamageMultiplier * Growth * FightScale;
 		// What a kill really gives a player of its level: the kill rules grow the creature's XPReward with its level (Abel's
 		// 200 is 2,066 at his 7), so the page shows what the kill pays.
 		const int32 BaseXP = FMath::Max(0, FMath::RoundToInt32(Creature->XPReward * Rank.XPMultiplier));
 		Stats.XPReward = static_cast<int32>(Rules.KillXP(BaseXP, Stats.Level, Stats.Level));
-		Stats.bAttacks = Creature->AttackDamage > 0.f;
+		Stats.bAttacks = Attack > 0.f;
 	}
 	return Stats;
 }

@@ -4,6 +4,7 @@
 
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureKindSettings.h"
 #include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/FightPaceRules.h"
@@ -31,9 +32,10 @@ namespace
 	{
 		FightPace::FKindNumbers Numbers;
 		Numbers.Name = Name;
+		// As the game gives them: Project Settings > Game > Creature Kinds over the class's own (UCreatureKindSettings).
 		const UHealthComponent* Health = Defaults.FindComponentByClass<UHealthComponent>();
-		Numbers.Health = Health ? Health->MaxHealth : 100.f;
-		Numbers.Damage = Defaults.AttackDamage;
+		Numbers.Health = UCreatureKindSettings::HealthFor(Defaults.GetClass(), Health ? Health->MaxHealth : 100.f);
+		Numbers.Damage = UCreatureKindSettings::AttackDamageFor(Defaults.GetClass(), Defaults.AttackDamage);
 		Numbers.Windup = Defaults.AttackWindup;
 		Numbers.Recovery = Defaults.AttackRecovery;
 		Numbers.Cooldown = Defaults.AttackCooldown;
@@ -146,9 +148,9 @@ bool FFightPaceModelTest::RunTest(const FString& Parameters)
 	TestNearlyEqual(TEXT("A Common rifle puts 120 a second on the body"), FightPace::GunDps(Common, 1), 120.f, 0.01f);
 	TestNearlyEqual(TEXT("...9% more a level, compounding"), FightPace::GunDps(Common, 3), 120.f * 1.09f * 1.09f, 0.01f);
 	TestNearlyEqual(TEXT("A level-matched gun kills the same in the same time at any level"),
-		FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.09f), FightPace::SecondsToKill(230.f, 9, 1.f, 0.f, Common, 0.09f), 0.01f);
-	TestNearlyEqual(TEXT("A Common rifle takes the spider's 230 health in 1.9 s"), FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.09f), 230.f / 120.f, 0.01f);
-	TestTrue(TEXT("Defense slows a kill"), FightPace::SecondsToKill(230.f, 1, 1.f, 0.2f, Common, 0.09f) > FightPace::SecondsToKill(230.f, 1, 1.f, 0.f, Common, 0.09f));
+		FightPace::SecondsToKill(150.f, 1, 1.f, 0.f, Common, 0.09f), FightPace::SecondsToKill(150.f, 9, 1.f, 0.f, Common, 0.09f), 0.01f);
+	TestNearlyEqual(TEXT("A Common rifle takes the spider's 150 health in 1.25 s"), FightPace::SecondsToKill(150.f, 1, 1.f, 0.f, Common, 0.09f), 150.f / 120.f, 0.01f);
+	TestTrue(TEXT("Defense slows a kill"), FightPace::SecondsToKill(150.f, 1, 1.f, 0.2f, Common, 0.09f) > FightPace::SecondsToKill(150.f, 1, 1.f, 0.f, Common, 0.09f));
 	return true;
 }
 

@@ -122,6 +122,7 @@ ADeadMinerCreature::ADeadMinerCreature()
 	// The Foreman keeps it (he's one of them).
 	ElementBody = EElementBody::Bone;
 	// A shade tougher and heavier than the Unpaid (160 and 8): men who swung a pick for a living.
+	// The class's own; the game's number is Project Settings > Game > Creature Kinds' (150 since 2026-11-03: UCreatureKindSettings).
 	Health->MaxHealth = 180.f;
 	AttackDamage = 9.f;
 	XPReward = 11;

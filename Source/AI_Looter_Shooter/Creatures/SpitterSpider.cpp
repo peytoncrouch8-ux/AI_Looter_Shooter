@@ -63,6 +63,7 @@ ASpitterSpider::ASpitterSpider()
 {
 	DisplayName = FText::FromString(TEXT("Venom Spitter"));
 	// Frailer than the brown spider: it fights from afar, and rushing it should pay.
+	// The class's own; the game's number is Project Settings > Game > Creature Kinds' (150 since 2026-11-03: UCreatureKindSettings).
 	Health->MaxHealth = 200.f;
 	// The head as on every spider, and the glowing sac: a soft, bright target on its back.
 	CriticalSpotBones = { TEXT("head"), SpitterLook::SacBone };

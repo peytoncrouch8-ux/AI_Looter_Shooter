@@ -18,7 +18,8 @@ Code: `Weapons/GunfeelKickTuning.h/.cpp` (cvars, accessors, plain rules; `Gunfee
 - Shotgun falloff (`BulletSubsystem::ResolveHit` via `GunfeelKick::DamageShareAtDistance`): full to `Shotgun.FalloffStart` [0.6] x
   range, `FalloffFloor` [0.25] at `FalloffEnd` [1.6] x range. Every other gun keeps `FWeaponStats::DamageAtDistance` (full to range,
   0.5 at 2x range). A pellet whose gun is gone before it lands falls off the gentle way.
-- Revolver crit `Crit.Revolver` [1.75]: `Shot.CritMultiplier = max(curse's, kind's)`; damage numbers need nothing.
+- Revolver crit `Crit.Revolver` [2.25 since 2026-11-03 "Kill speed" (Enemies.md); was 1.75]: `Shot.CritMultiplier = max(curse's, kind's)`;
+  the game's crit (`LooterCombat::CriticalHitMultiplier`, CombatRules.h) is 2.0 since then (was 1.5), the sniper's `Crit.Sniper` 2.5 (was 2).
 - Handling: sights up in `BaseAimSeconds` (0.2 s) / Handling x `Aim.Time.<Kind>` [1.0/1.1/0.8]; aimed walk = 0.65 x
   `Aim.Move.<Kind>` [1.0/0.9/1.1] (`PlayerLocomotionComponent.cpp`); holster (`HolsterSeconds`, 0.14-0.32 s) and draw
   (`ReadySeconds`, 0.35 s / Handling) x `Swap.<Kind>` [1.0/1.1/0.8].

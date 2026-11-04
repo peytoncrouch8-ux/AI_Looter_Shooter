@@ -19,6 +19,7 @@ ADredgerRifleman::ADredgerRifleman()
 	DredgerRole = EDredgerRole::Rifleman;
 	DisplayName = NSLOCTEXT("Dredger", "RiflemanName", "Dredger Rifleman");
 	const FDredgerTuning Defaults;
+	// The class's own; the game's number is Project Settings > Game > Creature Kinds' (120 since 2026-11-03: UCreatureKindSettings).
 	Health->MaxHealth = 140.f;
 	AttackDamage = 7.f;
 	XPReward = 14;

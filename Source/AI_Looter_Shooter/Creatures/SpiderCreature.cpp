@@ -38,6 +38,7 @@ ASpiderCreature::ASpiderCreature()
 	ElementBody = EElementBody::Chitin;
 	// 230, was 300; its bite 11, was 12 (the spitter's spit stays softer at 10) (the user, 2026-10-22: "soften the spiders"): six at level 2 killed a player with a
 	// Common rifle and ward at any damage scale (three biting at once, 324 health each). The Gravemother keeps 300 and 12.
+	// The class's own; the game's number is Project Settings > Game > Creature Kinds' (150 since 2026-11-03: UCreatureKindSettings).
 	Health->MaxHealth = 230.f;
 	// The head is the critical spot; legs, thorax, abdomen, fangs and feelers take base damage.
 	CriticalSpotBones = { TEXT("head") };

@@ -124,23 +124,26 @@ FightPace::FBandPair FightPace::StandingDeathBands(EPaceKind Kind)
 FightPace::FBandPair FightPace::BasicKillBands(EPaceKind Kind)
 {
 	FBandPair Bands;
+	// Kill speed (2026-11-03, the user's call: Borderlands' pace): a Regular dies to a level-matched Uncommon rifle at 60% on
+	// the body in about a second (spider 150 and Unpaid 140 health in UCreatureKindSettings: two shotgun blasts, three
+	// revolver shots), where the bands of 2026-10-21 asked 2.0-2.5 s and the loop read as plinking.
 	switch (Kind)
 	{
 	case EPaceKind::Spider:
-		Bands.Target = { 2.0f, 2.5f };
-		Bands.Guard = { 1.4f, 3.2f };
+		Bands.Target = { 0.9f, 1.4f };
+		Bands.Guard = { 0.6f, 1.9f };
 		break;
 	case EPaceKind::Unpaid:
-		Bands.Target = { 1.6f, 2.2f };
-		Bands.Guard = { 1.0f, 2.6f };
+		Bands.Target = { 0.8f, 1.3f };
+		Bands.Guard = { 0.6f, 1.8f };
 		break;
 	case EPaceKind::Slime:
-		Bands.Target = { 1.0f, 1.5f };
-		Bands.Guard = { 0.7f, 1.9f };
+		Bands.Target = { 0.8f, 1.5f };
+		Bands.Guard = { 0.6f, 1.9f };
 		break;
 	case EPaceKind::Spitter:
-		Bands.Target = { 2.0f, 2.5f };
-		Bands.Guard = { 1.2f, 3.0f };
+		Bands.Target = { 0.9f, 1.5f };
+		Bands.Guard = { 0.6f, 2.0f };
 		break;
 	}
 	return Bands;

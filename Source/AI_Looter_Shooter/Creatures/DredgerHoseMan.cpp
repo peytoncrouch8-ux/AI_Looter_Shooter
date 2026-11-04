@@ -63,6 +63,7 @@ ADredgerHoseMan::ADredgerHoseMan()
 	DredgerRole = EDredgerRole::HoseMan;
 	DisplayName = NSLOCTEXT("Dredger", "HoseManName", "Dredger Hose-man");
 	const FDredgerTuning Defaults;
+	// The class's own; the game's number is Project Settings > Game > Creature Kinds' (170 since 2026-11-03: UCreatureKindSettings).
 	Health->MaxHealth = 220.f;
 	// His club's blow after the burst; his drain grows from it as he levels (DredgerRules::DrainPerSecond).
 	AttackDamage = 10.f;

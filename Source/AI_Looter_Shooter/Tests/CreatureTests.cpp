@@ -6,6 +6,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/TargetDummy.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureKindSettings.h"
 #include "Creatures/CreatureUpdateRate.h"
 #include "Creatures/SpiderCreature.h"
 #include "UI/World/CreatureHealthBarWidget.h"
@@ -27,14 +28,14 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCriticalHitRuleTest, "Looter.Combat.CriticalHi
 
 bool FCriticalHitRuleTest::RunTest(const FString& Parameters)
 {
-	// Game rule: a hit on a critical spot deals exactly 1.5x what the same hit would deal anywhere else.
-	TestEqual(TEXT("Critical multiplier"), LooterCombat::CriticalHitMultiplier, 1.5f);
-	TestEqual(TEXT("Critical hit damage (middle of the range)"), LooterCombat::HitDamage(20.f, true, 0.5f), 30.f);
+	// Game rule: a hit on a critical spot deals exactly 2x what the same hit would deal anywhere else (2026-11-03; was 1.5x).
+	TestEqual(TEXT("Critical multiplier"), LooterCombat::CriticalHitMultiplier, 2.f);
+	TestEqual(TEXT("Critical hit damage (middle of the range)"), LooterCombat::HitDamage(20.f, true, 0.5f), 40.f);
 	TestEqual(TEXT("Normal hit damage (middle of the range)"), LooterCombat::HitDamage(20.f, false, 0.5f), 20.f);
 	for (const float Roll : { 0.f, 0.25f, 0.8f, 1.f })
 	{
-		TestEqual(FString::Printf(TEXT("Crit is 1.5x the same roll (%.2f)"), Roll), LooterCombat::HitDamage(20.f, true, Roll),
-			LooterCombat::HitDamage(20.f, false, Roll) * 1.5f);
+		TestEqual(FString::Printf(TEXT("Crit is 2x the same roll (%.2f)"), Roll), LooterCombat::HitDamage(20.f, true, Roll),
+			LooterCombat::HitDamage(20.f, false, Roll) * 2.f);
 	}
 
 	// Target dummies: the head bone is the critical spot.
@@ -81,9 +82,9 @@ bool FDamageRangeTest::RunTest(const FString& Parameters)
 	for (int32 Index = 0; Index < 200; ++Index)
 	{
 		const float Crit = LooterCombat::RollHitDamage(20.f, true);
-		if (Crit < 27.f - UE_KINDA_SMALL_NUMBER || Crit > 33.f + UE_KINDA_SMALL_NUMBER)
+		if (Crit < 36.f - UE_KINDA_SMALL_NUMBER || Crit > 44.f + UE_KINDA_SMALL_NUMBER)
 		{
-			AddError(FString::Printf(TEXT("Critical roll %.2f outside 27-33"), Crit));
+			AddError(FString::Printf(TEXT("Critical roll %.2f outside 36-44"), Crit));
 			break;
 		}
 	}
@@ -126,7 +127,10 @@ bool FSpiderCriticalSpotTest::RunTest(const FString& Parameters)
 	}
 	if (TestNotNull(TEXT("Spider has health"), Health))
 	{
-		TestEqual(TEXT("Spider max health (230 since 2026-10-22)"), Health->MaxHealth, 230.f);
+		// The class says 230 (since 2026-10-22); the game's number is Project Settings > Game > Creature Kinds' 150 (kill
+		// speed, 2026-11-03: nine rifle rounds, two blasts, three revolver shots), read as a spider captures its base stats.
+		TestEqual(TEXT("Spider class health (230 since 2026-10-22)"), Health->MaxHealth, 230.f);
+		TestEqual(TEXT("Spider health in the game (150 since 2026-11-03)"), UCreatureKindSettings::BaseHealthOf(ASpiderCreature::StaticClass()), 150.f);
 	}
 	return true;
 }

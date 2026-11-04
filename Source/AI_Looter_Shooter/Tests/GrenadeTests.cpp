@@ -8,6 +8,11 @@
 #include "Player/PlayerThrowRules.h"
 #include "Player/PlayerThrowSave.h"
 #include "Player/ViewKick.h"
+#include "Creatures/CreatureKindSettings.h"
+#include "Creatures/CreatureRank.h"
+#include "Creatures/CreatureRankSettings.h"
+#include "Creatures/SpiderCreature.h"
+#include "Creatures/UnpaidCreature.h"
 #include "Progression/LevelRules.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "InputAction.h"
@@ -255,12 +260,21 @@ bool FGrenadeDamageTest::RunTest(const FString& Parameters)
 		const float Scale = FGraveSaltRules::ThrowerScale(Level, Rules.EnemyScale(Level), Tuning);
 		TestEqual(FString::Printf(TEXT("Level %d: full strength"), Level), Scale, Rules.EnemyScale(Level), 0.0001f);
 		const float Heart = FGraveSaltRules::BurstDamage(0.f, Scale, 0.5f, false, Tuning);
-		TestTrue(FString::Printf(TEXT("Level %d: a Basic spider dies at the heart"), Level), Heart >= 300.f * Scale);
-		TestTrue(FString::Printf(TEXT("Level %d: a Restless spider dies at the heart"), Level), Heart >= 300.f * 2.5f * Rules.EnemyScale(Level + 1));
-		const float Gravebound = 300.f * 5.f * Rules.EnemyScale(Level + 1);
-		TestTrue(FString::Printf(TEXT("Level %d: a Gravebound spider lives, at about half"), Level), Heart < Gravebound && Heart > Gravebound * 0.4f);
+		// The creatures' health as the game gives it (Project Settings > Game > Creature Kinds, kill speed 2026-11-03: spider
+		// 150, Unpaid 140) at their ranks' multipliers and level offsets (the old literals, spider 300 x2.5 / x5, were stale).
+		const float Spider = UCreatureKindSettings::BaseHealthOf(ASpiderCreature::StaticClass());
+		const float Unpaid = UCreatureKindSettings::BaseHealthOf(AUnpaidCreature::StaticClass());
+		const FCreatureRankInfo& Restless = UCreatureRankSettings::Get(ECreatureRank::Rare);
+		const FCreatureRankInfo& Gravebound = UCreatureRankSettings::Get(ECreatureRank::Epic);
+		TestTrue(FString::Printf(TEXT("Level %d: a Basic spider dies at the heart"), Level), Heart >= Spider * Scale);
+		TestTrue(FString::Printf(TEXT("Level %d: a Restless spider dies at the heart"), Level),
+			Heart >= Spider * Restless.HealthMultiplier * Rules.EnemyScale(Level + Restless.LevelOffset));
+		// Since kill speed a full-strength jar's heart (900) takes a Gravebound spider too (150 x 3, grown a level: about 490);
+		// before level 12 the early ramp (Looter.Grenade.Early) is what keeps jars from deciding fights. For the fights pass.
+		const float GraveboundHealth = Spider * Gravebound.HealthMultiplier * Rules.EnemyScale(Level + Gravebound.LevelOffset);
+		TestTrue(FString::Printf(TEXT("Level %d: a Gravebound spider takes more than half at the heart"), Level), Heart > GraveboundHealth * 0.5f);
 		const float Edge = FGraveSaltRules::BurstDamage(Tuning.Radius, Scale, 0.5f, true, Tuning);
-		TestTrue(FString::Printf(TEXT("Level %d: a Basic Unpaid dies even at the edge"), Level), Edge >= 160.f * Scale);
+		TestTrue(FString::Printf(TEXT("Level %d: a Basic Unpaid dies even at the edge"), Level), Edge >= Unpaid * Scale);
 	}
 
 	// A boss never takes more than 8% of its health from one burst, so three never take a quarter.

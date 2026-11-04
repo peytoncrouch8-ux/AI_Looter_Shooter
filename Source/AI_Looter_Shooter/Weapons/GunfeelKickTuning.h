@@ -54,7 +54,7 @@ namespace GunfeelKick
 		inline constexpr float ShotgunFalloffEnd = 1.6f;
 		inline constexpr float ShotgunFalloffFloor = 0.25f;
 
-		inline constexpr float CritRevolver = 1.75f;
+		inline constexpr float CritRevolver = 2.25f;
 
 		inline constexpr float AimTimeRifle = 1.f;
 		inline constexpr float AimTimeShotgun = 1.1f;
@@ -96,7 +96,7 @@ namespace GunfeelKick
 		inline constexpr float SwapLMG = 1.35f;
 		inline constexpr float SwapLauncher = 1.3f;
 		/** The sniper's job is crits (Main's unattended call, 2026-10-21, as the revolver's role allowed above 1.5x). */
-		inline constexpr float CritSniper = 2.f;
+		inline constexpr float CritSniper = 2.5f;
 		/** A burst's climb and hip bloom per shot for the two automatic newcomers (the rifle's are above). */
 		inline constexpr float SMGClimb = 0.03f;
 		inline constexpr float LMGClimb = 0.04f;

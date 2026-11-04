@@ -6,8 +6,10 @@
 #include "Combat/GraveSaltGrenade.h"
 #include "Combat/GraveSaltRules.h"
 #include "Combat/GraveSaltTuning.h"
+#include "Creatures/CreatureKindSettings.h"
 #include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/UnpaidCreature.h"
 #include "Player/PlayerThrowRules.h"
 #include "Progression/LevelRules.h"
 #include "Progression/ProgressionSettings.h"
@@ -76,10 +78,11 @@ bool FGrenadeEarlyTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("90 at the heart at level 1"), Heart, 90.f, 0.5f);
 	TestTrue(FString::Printf(TEXT("A sixth of a Common magazine (%.0f of %.0f)"), Heart, CommonMagazine), Heart < CommonMagazine / 5.f);
 
-	// The Basic Unpaid of Ransom's Rest at levels 1-3, with the health the game gives it (160 grown by its level, times
-	// its tier's multiplier), against a player of its level: a jar never kills one outright, even at its heart at the top
-	// roll; two metres out (a pack's middle) it leaves about a third; the gun finishes it.
-	const float UnpaidBase = 160.f * UCreatureRankSettings::Get(ECreatureRank::Basic).HealthMultiplier;
+	// The Basic Unpaid of Ransom's Rest at levels 1-3, with the health the game gives it (Project Settings > Game > Creature
+	// Kinds' 140 since 2026-11-03, grown by its level, times its tier's multiplier), against a player of its level: a jar
+	// never kills one outright, even at its heart at the top roll; two metres out (a pack's middle) it leaves about a
+	// third; the gun finishes it.
+	const float UnpaidBase = UCreatureKindSettings::BaseHealthOf(AUnpaidCreature::StaticClass()) * UCreatureRankSettings::Get(ECreatureRank::Basic).HealthMultiplier;
 	for (const int32 Level : { 1, 2, 3 })
 	{
 		const float Health = UnpaidBase * Rules.EnemyScale(Level);

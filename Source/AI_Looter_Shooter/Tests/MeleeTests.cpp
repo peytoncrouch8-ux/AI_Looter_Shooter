@@ -7,6 +7,10 @@
 #include "Player/PlayerMeleeRules.h"
 #include "Player/PlayerSize.h"
 #include "Player/ViewKick.h"
+#include "Creatures/CreatureKindSettings.h"
+#include "Creatures/SlimeCreature.h"
+#include "Creatures/SpiderCreature.h"
+#include "Creatures/UnpaidCreature.h"
 #include "Progression/LevelRules.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "InputAction.h"
@@ -150,16 +154,20 @@ bool FMeleeDamageTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...66 at the high end"), FMeleeRules::StrikeDamage(1.f, 1.f), 66.f, 0.01f);
 
 	// Growing with the player's level as enemies do, a strike at equal levels always takes the same share of a Basic
-	// creature: an Unpaid (160 at level 1) in 3, a Meadow Slime (120) in 2, a spider (300) in 5.
+	// creature, with the health Project Settings > Game > Creature Kinds gives it (kill speed, 2026-11-03): an Unpaid (140
+	// at level 1) in 3, a Meadow Slime (120) in 2, a spider (150) in 3.
 	const FLevelRules Rules;
+	const float UnpaidHealth = UCreatureKindSettings::BaseHealthOf(AUnpaidCreature::StaticClass());
+	const float SlimeHealth = UCreatureKindSettings::BaseHealthOf(ASlimeCreature::StaticClass());
+	const float SpiderHealth = UCreatureKindSettings::BaseHealthOf(ASpiderCreature::StaticClass());
 	for (const int32 Level : { 1, 10, 30, 70 })
 	{
 		const float Scale = Rules.EnemyScale(Level);
 		const float Strike = FMeleeRules::StrikeDamage(Scale, 0.5f);
 		const auto Strikes = [Strike, Scale](float LevelOneHealth) { return FMath::CeilToInt(LevelOneHealth * Scale / Strike - 1e-4f); };
-		TestEqual(FString::Printf(TEXT("Level %d: an Unpaid in 3"), Level), Strikes(160.f), 3);
-		TestEqual(FString::Printf(TEXT("Level %d: a slime in 2"), Level), Strikes(120.f), 2);
-		TestEqual(FString::Printf(TEXT("Level %d: a spider in 5"), Level), Strikes(300.f), 5);
+		TestEqual(FString::Printf(TEXT("Level %d: an Unpaid in 3"), Level), Strikes(UnpaidHealth), 3);
+		TestEqual(FString::Printf(TEXT("Level %d: a slime in 2"), Level), Strikes(SlimeHealth), 2);
+		TestEqual(FString::Printf(TEXT("Level %d: a spider in 3"), Level), Strikes(SpiderHealth), 3);
 	}
 
 	// The knock: a hop back of about 1.3 m for a full-size Basic creature.

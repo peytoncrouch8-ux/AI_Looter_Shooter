@@ -80,6 +80,7 @@ AUnpaidCreature::AUnpaidCreature()
 {
 	DisplayName = FText::FromString(TEXT("Unpaid"));
 	ElementBody = EElementBody::Coal;
+	// The class's own; the game's number is Project Settings > Game > Creature Kinds' (140 since 2026-11-03: UCreatureKindSettings).
 	Health->MaxHealth = 160.f;
 	AttackDamage = 8.f;
 	// The coal is found by the shot's line (IsCriticalSpot), never by a bone's hit zone alone.
@@ -223,7 +224,17 @@ bool AUnpaidCreature::IsCoalShotBone(FName Bone) const
 
 bool AUnpaidCreature::IsCriticalSpot(const FHitResult& Hit) const
 {
-	if (Hit.GetComponent() != GetMesh() || !IsCoalShotBone(Hit.BoneName))
+	if (Hit.GetComponent() != GetMesh())
+	{
+		return false;
+	}
+	// Its head is a critical spot, as any humanoid's (kill speed, 2026-11-03: a head shot pays as it does on a Dredger); a
+	// boss on this rig (Abel) keeps its own fight's spots.
+	if (!Hit.BoneName.IsNone() && Hit.BoneName == Rig.Head && !IsBossCreature())
+	{
+		return true;
+	}
+	if (!IsCoalShotBone(Hit.BoneName))
 	{
 		return false;
 	}

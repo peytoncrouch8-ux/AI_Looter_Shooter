@@ -5,8 +5,12 @@
 /** Game-wide combat rules. One place, so every weapon and every target follows the same numbers. */
 namespace LooterCombat
 {
-	/** A hit on any killable target's critical spot deals this multiple of what the hit would otherwise deal. */
-	inline constexpr float CriticalHitMultiplier = 1.5f;
+	/**
+	 * A hit on any killable target's critical spot deals this multiple of what the hit would otherwise deal (2.0 since
+	 * 2026-11-03, Borderlands' double; was 1.5: precision barely paid). The revolver's and sniper's own are higher
+	 * (GunfeelKick::Default::CritRevolver, CritSniper).
+	 */
+	inline constexpr float CriticalHitMultiplier = 2.f;
 
 	/**
 	 * Every hit rolls its damage uniformly within +/- this fraction of the listed damage (0.1 = 90%..110%), so

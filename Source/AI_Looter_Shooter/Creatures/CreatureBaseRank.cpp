@@ -2,6 +2,7 @@
 #include "Areas/AreaDefinition.h"
 #include "Areas/AreaRulesSubsystem.h"
 #include "Combat/HealthComponent.h"
+#include "Creatures/CreatureKindSettings.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/CreatureTierLookComponent.h"
 #include "Creatures/CreatureTouched.h"
@@ -199,6 +200,19 @@ void ACreatureBase::CaptureBaseStats()
 	bBaseCaptured = true;
 	BaseMaxHealth = Health->MaxHealth;
 	BaseAttackDamage = AttackDamage;
+	// A kind's numbers in Project Settings > Game > Creature Kinds (UCreatureKindSettings) replace the class's own, never
+	// what a level designer set on this placed creature (one whose number differs from its class's keeps it).
+	if (const ACreatureBase* Defaults = Cast<ACreatureBase>(GetClass()->GetDefaultObject()))
+	{
+		if (Defaults->Health && Health->MaxHealth == Defaults->Health->MaxHealth)
+		{
+			BaseMaxHealth = UCreatureKindSettings::HealthFor(GetClass(), BaseMaxHealth);
+		}
+		if (AttackDamage == Defaults->AttackDamage)
+		{
+			BaseAttackDamage = UCreatureKindSettings::AttackDamageFor(GetClass(), BaseAttackDamage);
+		}
+	}
 	BaseXPReward = XPReward;
 	BaseLootTable = Loot->LootTable;
 	BaseStepHeight = GetCharacterMovement()->MaxStepHeight;
