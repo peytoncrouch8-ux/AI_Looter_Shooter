@@ -108,6 +108,42 @@ void UDamageNumberWidget::SetDamage(float Damage, bool bCritical, const FElement
 	ApplyDamageText();
 }
 
+void UDamageNumberWidget::SetTotal(float Damage, bool bCritical, const FElementNumberLook& Look)
+{
+	const bool bTurnsCritical = bCritical && !bDisplayedCritical;
+	const bool bNewTag = Look.Callout != DisplayedLook.Callout;
+	const bool bRestyle = bTurnsCritical || bNewTag || bCritical != bDisplayedCritical || Look.bTint != DisplayedLook.bTint
+		|| Look.Element != DisplayedLook.Element || NumberSize(bCritical, Look) != NumberSize(bDisplayedCritical, DisplayedLook);
+	CalloutElement = ELooterElement::None;
+	DisplayedDamage = Damage;
+	bDisplayedCritical = bCritical;
+	DisplayedLook = Look;
+	if (bTurnsCritical)
+	{
+		// It slams in again as a crit: white-hot first, as a crit's own number does.
+		DisplayedHeat = 1.f;
+	}
+	if (bNewTag)
+	{
+		DisplayedTagScale = DamageNumberMotion::TagScaleAt(0.f);
+	}
+	if (bRestyle)
+	{
+		ApplyDamageText();
+	}
+	else if (DamageText)
+	{
+		DamageText->SetText(NumberText());
+	}
+}
+
+FText UDamageNumberWidget::NumberText() const
+{
+	const FText Number = FText::AsNumber(FMath::Max(1, FMath::RoundToInt(DisplayedDamage)));
+	// Headshots carry a "!" so they read instantly in a fight.
+	return bDisplayedCritical ? FText::Format(NSLOCTEXT("Looter", "CritDamage", "{0}!"), Number) : Number;
+}
+
 void UDamageNumberWidget::SetHeat(float Heat)
 {
 	const float Clamped = FMath::Clamp(Heat, 0.f, 1.f);
@@ -137,18 +173,21 @@ void UDamageNumberWidget::ApplyDamageText()
 		return;
 	}
 
-	const FText Number = FText::AsNumber(FMath::Max(1, FMath::RoundToInt(DisplayedDamage)));
+	// A pooled number may have been a status's word before: no glyph beside a number.
+	if (GlyphImage)
+	{
+		GlyphImage->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	const int32 Size = NumberSize(bDisplayedCritical, DisplayedLook);
+	DamageText->SetText(NumberText());
 	if (bDisplayedCritical)
 	{
 		// Headshots: much bigger, slamming in white-hot and cooling to accent orange (tinted toward the element's colour if it
 		// carried one), with a "!" so they read instantly in a fight.
-		DamageText->SetText(FText::Format(NSLOCTEXT("Looter", "CritDamage", "{0}!"), Number));
 		LooterUI::StyleFloatingText(DamageText, Size, ElementCallout::NumberColor(DisplayedLook, true, FMath::Max(DisplayedHeat, 0.f)));
 	}
 	else
 	{
-		DamageText->SetText(Number);
 		LooterUI::StyleFloatingText(DamageText, Size, ElementCallout::NumberColor(DisplayedLook, false, 0.f));
 	}
 

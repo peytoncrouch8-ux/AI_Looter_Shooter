@@ -13,19 +13,20 @@ enum class EHudHitMark : uint8
 	Body,
 	/** A Warded creature's ward took it: the ward's colour (its element's), the ward's glassy tick. */
 	Ward,
-	/** A critical hit on its body: orange, the crit ping. */
+	/** A critical hit on its body: white ticks rimmed red, 1.6x a plain hit's size, its own pop, the crit ping. */
 	Crit,
 	/** The hit broke its ward: the ward's colour, bigger and longer, the break's crack. */
 	WardBreak,
-	/** It died of it: red, bigger and longer (the creature's voice plays the kill's confirm). */
+	/** It died of it: solid red, the biggest and longest (the creature's voice plays the kill's confirm). */
 	Kill
 };
 
 /**
  * The hit marker's rules (the gun feel pass, GF-IMPACT 2026-10-22; UPlayerHUDWidget draws it): which mark a hit shows (a
  * ward's hit and break tell from a crit and a wound), how big (a hit's share of the target's health; a blast by its pellets
- * landed), its sound (one a blast; a stronger mark later in it sounds again), its colour and time. Tests:
- * Looter.UI.HUD.HitMarker.*.
+ * landed; a crit 1.6x a plain hit, a kill bigger still), its sound (one a blast; a stronger mark later in it sounds again),
+ * its look (the ticks' fill and rim) and time (held whole, then faded: change 2 of the 2026-11-03 audit, so every hit is
+ * seen). Tests: Looter.UI.HUD.HitMarker.*.
  */
 namespace HudHitMarker
 {
@@ -37,15 +38,37 @@ namespace HudHitMarker
 		float SizeShare = 0.25f;
 		/** .BlastWindow (s): a pellet gun's hits this soon after its blast's first are that blast's (one marker, one sound). */
 		float BlastWindow = 0.08f;
-		/** .Seconds / .KillSeconds / .BreakSeconds: how long each shows; .Pop / .KillPop / .BreakPop: how much bigger it pops in. */
-		float Seconds = 0.18f;
-		float KillSeconds = 0.34f;
-		float BreakSeconds = 0.3f;
-		float Pop = 0.3f;
-		float KillPop = 0.75f;
-		float BreakPop = 0.6f;
+		/**
+		 * .Seconds / .CritSeconds / .KillSeconds / .BreakSeconds: how long each shows. 0.18 s was gone before the eye found it
+		 * (the audit, 2026-11-03); every mark is seen for at least 0.35 s now, a kill's longest.
+		 */
+		float Seconds = 0.36f;
+		float CritSeconds = 0.42f;
+		float KillSeconds = 0.6f;
+		float BreakSeconds = 0.45f;
+		/** .FadeShare: the last share of its time it fades over; it holds whole (and popped) for the rest first. */
+		float FadeShare = 0.6f;
+		/** .Pop / .CritPop / .KillPop / .BreakPop: how much bigger it shows while it holds, settling to its size as it fades. */
+		float Pop = 0.12f;
+		float CritPop = 0.2f;
+		float KillPop = 0.25f;
+		float BreakPop = 0.3f;
+		/** .CritScale / .KillScale / .BreakScale: the mark's size against a plain hit's for the same hit (a crit's at least 1.6x). */
+		float CritScale = 1.6f;
+		float KillScale = 1.8f;
+		float BreakScale = 1.6f;
+		/** .CritRim (px): the crit's red rim round its white ticks (every other mark keeps the kit's 1 px dark outline). */
+		float CritRim = 1.25f;
 
 		static FTuning Live();
+	};
+
+	/** The look of the marker's ticks: their fill, their rim and its width (px). */
+	struct FLook
+	{
+		FLinearColor Fill = FLinearColor::White;
+		FLinearColor Rim = FLinearColor::Black;
+		float RimWidth = 1.f;
 	};
 
 	/**
@@ -63,11 +86,18 @@ namespace HudHitMarker
 	/** Whether Next takes over a marker showing Shown in the same blast (only a stronger one). */
 	inline bool Outranks(EHudHitMark Next, EHudHitMark Shown) { return static_cast<uint8>(Next) > static_cast<uint8>(Shown); }
 
-	/** How long a mark shows, and how much bigger it pops in. */
+	/** How long a mark shows; the last part of that, its fade (it holds whole before it); how much bigger it holds. */
 	AI_LOOTER_SHOOTER_API float SecondsOf(EHudHitMark Mark, const FTuning& Tuning);
+	AI_LOOTER_SHOOTER_API float FadeSecondsOf(EHudHitMark Mark, const FTuning& Tuning);
 	AI_LOOTER_SHOOTER_API float PopOf(EHudHitMark Mark, const FTuning& Tuning);
 
-	/** The marker's colour: white, the ward's cyan, the crit's orange, the kill's red (LooterUI::Color). */
+	/** A mark's size against a plain hit's (a crit's at least 1.6x, a kill's the biggest): Size and BlastSize times this. */
+	AI_LOOTER_SHOOTER_API float ScaleOf(EHudHitMark Mark, const FTuning& Tuning);
+
+	/**
+	 * The ticks' fill: white, the ward's cyan, white for a crit (its rim is the red, so it reads red and white, apart from a
+	 * plain hit's white and a kill's solid red), the kill's red (LooterUI::Color).
+	 */
 	AI_LOOTER_SHOOTER_API FLinearColor Tint(EHudHitMark Mark);
 
 	/**
@@ -76,6 +106,12 @@ namespace HudHitMarker
 	 * ward with no element. Every other mark as Tint(Mark).
 	 */
 	AI_LOOTER_SHOOTER_API FLinearColor Tint(EHudHitMark Mark, ELooterElement WardElement);
+
+	/** The ticks' rim: the kit's dark outline; a crit's red. */
+	AI_LOOTER_SHOOTER_API FLinearColor Rim(EHudHitMark Mark);
+
+	/** The whole look of a mark's ticks: Tint, Rim and the rim's width. */
+	AI_LOOTER_SHOOTER_API FLook LookOf(EHudHitMark Mark, ELooterElement WardElement, const FTuning& Tuning);
 
 	/**
 	 * The sound the HUD plays for a mark (GunfeelSound::HitConfirmCue's: the ward's tick, the crit's ping, the plain tick; a

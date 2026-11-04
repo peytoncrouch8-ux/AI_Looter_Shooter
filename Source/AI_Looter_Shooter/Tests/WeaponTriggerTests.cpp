@@ -182,6 +182,49 @@ bool FWeaponTriggerRuleTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponTriggerCadenceTest, "Looter.Weapons.Trigger.Cadence",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FWeaponTriggerCadenceTest::RunTest(const FString& Parameters)
+{
+	// The rifle's 650 rpm is 92.3 ms a round. A timer fires on the first frame at or past its due time, so a burst scheduled
+	// afresh from each shot's frame rounds every round up to the frame (100 ms at 60 and 120 fps alike: 600 rpm), while one
+	// scheduled from the last due time keeps the mean (audit 2026-11-03, change 9).
+	const double Interval = 60.0 / 650.0;
+	for (const double Frame : { 1.0 / 60.0, 1.0 / 120.0, 1.0 / 144.0 })
+	{
+		auto Shots = [&](bool bCarried)
+		{
+			int32 Count = 0;
+			double Now = 0.0;
+			double Due = 0.0;
+			double Fired = 0.0;
+			while (Now < 10.0)
+			{
+				if (Now + 1e-9 >= Due)
+				{
+					++Count;
+					Fired = Now;
+					Due = bCarried ? WeaponTrigger::NextShotDue(Due, Fired, Interval) : Fired + Interval;
+				}
+				Now += Frame;
+			}
+			return Count;
+		};
+		const int32 Afresh = Shots(false);
+		const int32 Carried = Shots(true);
+		const FString Rate = FString::Printf(TEXT("%.0f fps"), 1.0 / Frame);
+		TestTrue(*FString::Printf(TEXT("%s: carried, the burst keeps 650 rpm over 10 s (%d rounds)"), *Rate, Carried), Carried >= 107 && Carried <= 109);
+		TestTrue(*FString::Printf(TEXT("%s: afresh from the frame it lost rounds (%d)"), *Rate, Afresh), Afresh < Carried);
+	}
+	// A chain that broke starts from now: the trigger let go for a second and pressed again never owes the shots it skipped.
+	TestEqual(TEXT("No chain: now plus the interval"), WeaponTrigger::NextShotDue(0.0, 5.0, Interval), 5.0 + Interval, 1e-9);
+	TestEqual(TEXT("The last due an interval and more ago: afresh"), WeaponTrigger::NextShotDue(3.0, 5.0, Interval), 5.0 + Interval, 1e-9);
+	TestEqual(TEXT("The last due within an interval: carried"), WeaponTrigger::NextShotDue(5.0, 5.0 + Interval * 0.2, Interval), 5.0 + Interval, 1e-9);
+	TestTrue(TEXT("The next due is never behind now by a whole interval"), WeaponTrigger::NextShotDue(5.0, 5.0 + Interval * 0.9, Interval) > 5.0 + Interval * 0.9);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponTriggerGunTest, "Looter.Weapons.Trigger.Gun",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

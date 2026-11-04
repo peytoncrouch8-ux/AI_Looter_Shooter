@@ -73,7 +73,7 @@ enum class EGunSlotLock : uint8;
  *    its kind's amount and growing in when another kind comes into hand, round its centre dot (the lines
  *    fade out while aiming down the sights, with any gun in any view, and come back as the gun comes down: the user's
  *    call, 2026-10-14; the dot goes too in first person, where the sight's reticle is the aim point, and stays as the aim
- *    point in third person, where no sight is seen), diagonal hit marker (HudHitMarker: orange on a crit, cyan when a
+ *    point in third person, where no sight is seen), diagonal hit marker (HudHitMarker: white rimmed red and 1.6x on a crit since 2026-11-03, cyan when a
  *    creature's ward took it or broke, red on a kill; sized by the hit's share of its health, a blast's pellets one
  *    marker; a kill and a break bigger and held longer), and round it the red arcs pointing to where hits came from (UHudDamageIndicatorWidget)
  *  - under the crosshair: what the Interact key does to the thing looked at (UHudInteractPromptWidget), for everything

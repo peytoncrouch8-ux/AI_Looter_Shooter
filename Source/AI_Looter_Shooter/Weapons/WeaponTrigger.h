@@ -57,4 +57,13 @@ namespace WeaponTrigger
 
 	/** The plan for a rolled gun, with the live tuning. */
 	FTriggerPlan PlanFor(const FWeaponInstanceData& Instance);
+
+	/**
+	 * When the next shot of a burst is due (world seconds): Interval after the last one was DUE (PreviousDue), not after
+	 * the frame that fired it. A timer started afresh from each shot's frame rounded every round up to the frame (the
+	 * rifle's 92.3 ms became 100 at 60 and 120 fps alike: 650 rpm fired 600), and the loss grew with the burst
+	 * (audit 2026-11-03, change 9). Carrying the overshoot keeps the gun's rate its own at any frame rate. A chain that
+	 * broke (no previous due, or the last due more than an interval ago: the trigger was let go) starts afresh from Now.
+	 */
+	double NextShotDue(double PreviousDue, double Now, double Interval);
 }

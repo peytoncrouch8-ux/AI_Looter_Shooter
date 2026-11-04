@@ -22,6 +22,12 @@ public:
 	/** Safe to call before the widget has been built; the value is applied once it is. */
 	void SetDamage(float Damage, bool bCritical, const FElementNumberLook& Look = FElementNumberLook());
 
+	/**
+	 * A merged number's new total (the hits on one target in its window, UDamageNumberSubsystem): restyled only when its look
+	 * changes (it turned a crit: white-hot again; a tag joined; it grew), else just the number, so a settled crit doesn't flash.
+	 */
+	void SetTotal(float Damage, bool bCritical, const FElementNumberLook& Look);
+
 	/** A crit's number white-hot (1) cooling into the crit colour (0), as it slams in. */
 	void SetHeat(float Heat);
 
@@ -54,6 +60,8 @@ protected:
 private:
 	void ApplyDamageText();
 	void ApplyCallout();
+	/** The number as shown: whole, at least 1, a crit's with its "!". */
+	FText NumberText() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DamageText;

@@ -256,7 +256,8 @@ bool FUnpaidCoalTest::RunTest(const FString& Parameters)
 		Unpaid->IsCriticalSpot(ChestShot(*Unpaid, Unpaid->Rig.Coal, Chest + FVector(600.0, 0.0, 0.0), Chest - FVector(100.0, 0.0, 0.0))));
 	TestFalse(TEXT("Through an arm: not critical"),
 		Unpaid->IsCriticalSpot(ChestShot(*Unpaid, Unpaid->Rig.LeftArm.LowerArm, Chest + FVector(600.0, 0.0, 0.0), Chest - FVector(100.0, 0.0, 0.0))));
-	TestFalse(TEXT("On the head: not critical"),
+	// The head is a crit spot of its own since 2026-11-03 (kill speed; Looter.Creatures.Unpaid.HeadCrit), not by the coal's line.
+	TestTrue(TEXT("On the head: critical (its own spot since 2026-11-03)"),
 		Unpaid->IsCriticalSpot(ChestShot(*Unpaid, Unpaid->Rig.Head, Chest + FVector(600.0, 0.0, 0.0), Chest - FVector(100.0, 0.0, 0.0))));
 	TestFalse(TEXT("On its back, from behind: not critical"),
 		Unpaid->IsCriticalSpot(ChestShot(*Unpaid, ChestBone, Chest - FVector(600.0, 0.0, 0.0), Chest + FVector(100.0, 0.0, 0.0))));

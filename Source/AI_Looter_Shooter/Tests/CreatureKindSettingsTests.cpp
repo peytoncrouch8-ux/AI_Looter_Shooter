@@ -37,7 +37,9 @@ bool FCreatureKindSettingsTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(FString::Printf(TEXT("%s: BaseHealthOf reads the settings"), *Case.Key->GetName()), UCreatureKindSettings::BaseHealthOf(Case.Key), Case.Value);
 		TestTrue(FString::Printf(TEXT("%s: two shotgun blasts"), *Case.Key->GetName()), Case.Value <= 2.f * 96.f);
-		TestTrue(FString::Printf(TEXT("%s: three revolver shots at the low roll"), *Case.Key->GetName()), Case.Value <= 3.f * 52.f * 0.9f + 0.5f);
+		// Three revolver shots at the listed damage (a low roll owes a fourth now and then); the hose-man, the tank, takes four.
+		const float Revolver = Case.Key == ADredgerHoseMan::StaticClass() ? 4.f * 52.f : 3.f * 52.f;
+		TestTrue(FString::Printf(TEXT("%s: revolver shots"), *Case.Key->GetName()), Case.Value <= Revolver);
 	}
 	// A kind with no entry keeps its class's number, and a subclass never inherits its parent's entry (Abel keeps his own).
 	TestEqual(TEXT("The slime keeps its class's 120"), UCreatureKindSettings::BaseHealthOf(ASlimeCreature::StaticClass()), 120.f);

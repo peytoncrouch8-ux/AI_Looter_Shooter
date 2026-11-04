@@ -6,6 +6,7 @@
 #include "Audio/LooterSoundSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureTraitComponent.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "Weapons/WeaponBase.h"
 #include "World/BreakableKinds.h"
 #include "Components/Image.h"
@@ -14,8 +15,10 @@
 #include "GameFramework/Actor.h"
 
 // UPlayerHUDWidget's hit marker (the gun feel pass, GF-IMPACT 2026-10-22; the rules are HudHitMarker's): a hit's mark (a
-// crit's orange, a ward's tick and its break in the ward's element's colour, a kill's red), its size by the hit's share of the target's health, a pellet
-// gun's blast as one marker and one sound, and the sound by the mark. NativeTick fades and pops it.
+// crit's white ticks rimmed red at 1.6x, a ward's tick and its break in the ward's element's colour, a kill's solid red and
+// biggest), its size by the hit's share of the target's health, a pellet gun's blast as one marker and one sound, and the
+// sound by the mark. NativeTick fades and pops it: by what is left of its time over its fade (clamped whole), so a time
+// longer than the fade holds it whole and popped first (the 2026-11-03 audit: every hit is seen).
 
 void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCritical)
 {
@@ -67,7 +70,7 @@ void UPlayerHUDWidget::ShowHitMarker(const FHitResult& Hit, float Damage, bool b
 		BlastLanded = 0;
 	}
 	++BlastLanded;
-	const float Size = Pellets > 1 ? HudHitMarker::BlastSize(BlastLanded, Pellets, Tuning)
+	const float HitSize = Pellets > 1 ? HudHitMarker::BlastSize(BlastLanded, Pellets, Tuning)
 		: HudHitMarker::Size(Damage / FMath::Max(TargetHealth->GetMaxHealth(), 1.f), Tuning);
 
 	// Heard as well as seen: once a blast, again only for a stronger mark later in it (a crit pellet, a break).
@@ -97,16 +100,21 @@ void UPlayerHUDWidget::ShowHitMarker(const FHitResult& Hit, float Damage, bool b
 	if (bTakeOver)
 	{
 		ShownMark = Mark;
-		HitMarkerShowFor = HudHitMarker::SecondsOf(Mark, Tuning);
+		// Its whole time to run, faded over the last part of it: whole until then (NativeTick clamps its fade at 1).
+		HitMarkerTime = HudHitMarker::SecondsOf(Mark, Tuning);
+		HitMarkerShowFor = HudHitMarker::FadeSecondsOf(Mark, Tuning);
 		HitMarkerPop = HudHitMarker::PopOf(Mark, Tuning);
-		HitMarkerTime = HitMarkerShowFor;
-		const FLinearColor Tint = HudHitMarker::Tint(Mark, WardElement);
+		// The ticks wear the mark's fill and rim in their own brush, untinted: a crit's white inside its red rim.
+		const HudHitMarker::FLook Look = HudHitMarker::LookOf(Mark, WardElement, Tuning);
+		const FSlateBrush Brush = LooterUI::RectBrush(Look.Fill, Look.Rim, Look.RimWidth);
 		for (UImage* Tick : HitMarkerTicks)
 		{
-			Tick->SetColorAndOpacity(Tint);
+			Tick->SetBrush(Brush);
+			Tick->SetColorAndOpacity(FLinearColor::White);
 		}
 	}
-	// A blast's marker grows as its pellets land; a new hit is its own size.
+	// A blast's marker grows as its pellets land, at the size its strongest mark has (a crit's 1.6x); a new hit is its own size.
+	const float Size = HitSize * HudHitMarker::ScaleOf(ShownMark, Tuning);
 	HitMarkerSize = bSameBlast ? FMath::Max(HitMarkerSize, Size) : (bTakeOver ? Size : FMath::Max(HitMarkerSize, Size));
 	HitMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
 }

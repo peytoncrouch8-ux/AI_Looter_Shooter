@@ -39,7 +39,9 @@ struct AI_LOOTER_SHOOTER_API FGraveSaltTuning
 	 * and even its heart at the top roll (149, 93%) leaves one for a follow-up shot (the user, 2026-10-27: too strong at
 	 * the start). Then 11% at level 4, 20% at 6, 50% at 9, full at 12.
 	 */
-	float EarlyShare = 0.1f;
+	// 0.085 since 2026-11-03 (kill speed: a Regular Unpaid has 140 health, and at 0.1 a jar's heart at the top roll killed one
+	// outright, against the user's 2026-10-27 rule); 0.1 from 2026-10-27, 0.45 before.
+	float EarlyShare = 0.085f;
 	int32 EarlyLevels = 3;
 	int32 FullStrengthLevel = 12;
 

@@ -21,6 +21,18 @@ WeaponTrigger::EPress WeaponTrigger::Decide(EWeaponFireMode FireMode, double Sec
 	return SecondsUntilReady <= BufferSeconds ? EPress::Wait : EPress::Ignore;
 }
 
+double WeaponTrigger::NextShotDue(double PreviousDue, double Now, double Interval)
+{
+	const double Step = FMath::Max(Interval, 0.0);
+	// No chain, or one that broke (the last due is more than an interval behind: the trigger was let go and pressed again),
+	// starts from now; otherwise the next due follows the last due, whatever frame fired it.
+	if (PreviousDue <= 0.0 || Now - PreviousDue > Step)
+	{
+		return Now + Step;
+	}
+	return PreviousDue + Step;
+}
+
 WeaponTrigger::FTriggerPlan WeaponTrigger::PlanFor(EWeaponFireMode DefinitionMode, int32 DefinitionBurst, EPartEffect Effect,
 	const FPartEffectTuning& Tuning)
 {

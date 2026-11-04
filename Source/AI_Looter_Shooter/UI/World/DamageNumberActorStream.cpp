@@ -2,13 +2,12 @@
 // salt's, the rot's) used to float one number each, a ladder of small numbers every half second; now they roll into one
 // number per creature per element that counts up while they come and fades once they stop, so the player reads what the
 // status is doing in total. The first time a status is set on a creature its word ("BURNING") pops over it in its colour
-// (UStatusCalloutSubsystem spawns it). The hit's own number is DamageNumberActor.cpp's.
+// (UStatusCalloutSubsystem spawns it). The hit's own number is DamageNumberActor.cpp's. A stream is one of the pool's numbers
+// (UDamageNumberSubsystem finds a creature's streams and starts them, 2026-11-03); it goes back to the pool once spent.
 
 #include "UI/World/DamageNumberActor.h"
 #include "UI/World/DamageNumberWidget.h"
 #include "Components/WidgetComponent.h"
-#include "Engine/World.h"
-#include "EngineUtils.h"
 
 // ---------------------------------------------------------------------------
 // The rules, as plain math
@@ -86,84 +85,62 @@ float DamageNumberCallout::OpacityAt(float Age)
 }
 
 // ---------------------------------------------------------------------------
-// Finding a creature's streams
+// Which creature's stream it is
 // ---------------------------------------------------------------------------
 
-ADamageNumberActor* ADamageNumberActor::FindStream(const UWorld* World, const AActor* Creature, ELooterElement Element)
+bool ADamageNumberActor::IsStreamOf(const AActor* Creature, ELooterElement Element) const
 {
-	if (!World || !Creature || Element == ELooterElement::None)
-	{
-		return nullptr;
-	}
-	// A handful of numbers are up at most: a walk over them is cheaper than keeping a registry right through deaths and levels.
-	for (TActorIterator<ADamageNumberActor> It(const_cast<UWorld*>(World)); It; ++It)
-	{
-		ADamageNumberActor* Number = *It;
-		if (Number->Kind == EDamageNumberKind::Stream && Number->StreamElement == Element && Number->StreamCreature.Get() == Creature
-			&& !DamageNumberStream::IsSpent(Number->SincePiece))
-		{
-			return Number;
-		}
-	}
-	return nullptr;
+	return Element != ELooterElement::None && StreamElement == Element && IsStreamOn(Creature);
 }
 
-int32 ADamageNumberActor::CountStreams(const UWorld* World, const AActor* Creature)
+bool ADamageNumberActor::IsStreamOn(const AActor* Creature) const
 {
-	int32 Count = 0;
-	if (!World || !Creature)
-	{
-		return Count;
-	}
-	for (TActorIterator<ADamageNumberActor> It(const_cast<UWorld*>(World)); It; ++It)
-	{
-		const ADamageNumberActor* Number = *It;
-		Count += Number->Kind == EDamageNumberKind::Stream && Number->StreamCreature.Get() == Creature
-			&& !DamageNumberStream::IsSpent(Number->SincePiece) ? 1 : 0;
-	}
-	return Count;
+	return bShowing && Kind == EDamageNumberKind::Stream && Creature && Target.Get() == Creature && !DamageNumberStream::IsSpent(SincePiece);
 }
 
 // ---------------------------------------------------------------------------
 // The stream
 // ---------------------------------------------------------------------------
 
-void ADamageNumberActor::StartStream(float Damage, const FElementNumberLook& Look, AActor* Creature, ELooterElement Element)
+void ADamageNumberActor::ShowStream(float Damage, const FElementNumberLook& InLook, const FVector& Where, AActor* Creature,
+	ELooterElement Element, int32 InSlot)
 {
-	// Its place up the screen: over the streams already showing on this creature (counted before this one is a stream).
-	Slot = FMath::Min(CountStreams(GetWorld(), Creature), DamageNumberStream::MaxSlots - 1);
+	// Its place up the screen: over the streams already showing on this creature (the pool counts them before this one).
+	Slot = FMath::Clamp(InSlot, 0, DamageNumberStream::MaxSlots - 1);
 	Kind = EDamageNumberKind::Stream;
 	bCritical = false;
-	StreamCreature = Creature;
+	MergedHits = 0;
+	Target = Creature;
 	StreamElement = Element;
+	Begin(Where);
 	// Where the first piece landed on the body, kept as it moves (a burning creature running).
-	StreamAnchor = GetActorLocation() - Creature->GetActorLocation();
+	StreamAnchor = Creature ? GetActorLocation() - Creature->GetActorLocation() : FVector::ZeroVector;
 	StreamTotal = StreamShown = FMath::Max(Damage, 0.f);
 	SincePiece = 0.f;
 	Age = 0.f;
-	bTagged = Look.Callout != EElementAffinity::Neutral;
+	bTagged = InLook.Callout != EElementAffinity::Neutral;
 	TagAge = 0.f;
-	if (UDamageNumberWidget* NumberWidget = Cast<UDamageNumberWidget>(Widget->GetUserWidgetObject()))
+	if (UDamageNumberWidget* NumberWidget = GetNumberWidget())
 	{
-		NumberWidget->SetDamage(StreamShown, false, Look);
+		NumberWidget->SetDamage(StreamShown, false, InLook);
 	}
 	StreamShownWhole = FMath::Max(1, FMath::RoundToInt(StreamShown));
-	// It lives as long as the pieces keep coming (TickStream lets it go once spent).
-	SetLifeSpan(0.f);
+	// Its first frame's look now (it lives as long as the pieces keep coming; TickStream lets it go once spent).
+	TickStream(0.f);
 }
 
-void ADamageNumberActor::AddToStream(float Damage, const FElementNumberLook& Look)
+void ADamageNumberActor::AddToStream(float Damage, const FElementNumberLook& InLook)
 {
 	StreamTotal += FMath::Max(Damage, 0.f);
 	SincePiece = 0.f;
 	// A weakness called out at a later piece (a new fight on the same creature) still pops its tag beside the stream.
-	if (!bTagged && Look.Callout != EElementAffinity::Neutral)
+	if (!bTagged && InLook.Callout != EElementAffinity::Neutral)
 	{
 		bTagged = true;
 		TagAge = 0.f;
-		if (UDamageNumberWidget* NumberWidget = Cast<UDamageNumberWidget>(Widget->GetUserWidgetObject()))
+		if (UDamageNumberWidget* NumberWidget = GetNumberWidget())
 		{
-			NumberWidget->SetDamage(StreamShown, false, Look);
+			NumberWidget->SetDamage(StreamShown, false, InLook);
 		}
 		StreamShownWhole = -1;
 	}
@@ -176,17 +153,17 @@ void ADamageNumberActor::TickStream(float DeltaSeconds)
 	TagAge += DeltaSeconds;
 	if (DamageNumberStream::IsSpent(SincePiece))
 	{
-		Destroy();
+		Finish();
 		return;
 	}
 	StreamShown = DamageNumberStream::RollToward(StreamShown, StreamTotal, DeltaSeconds);
 	// Over its creature as it moves, risen a little; where it was last once the creature is gone.
-	if (const AActor* Creature = StreamCreature.Get())
+	if (const AActor* Creature = Target.Get())
 	{
 		SetActorLocation(Creature->GetActorLocation() + StreamAnchor + FVector(0.0, 0.0, DamageNumberStream::RiseAt(Age)));
 	}
 
-	UDamageNumberWidget* NumberWidget = Cast<UDamageNumberWidget>(Widget->GetUserWidgetObject());
+	UDamageNumberWidget* NumberWidget = GetNumberWidget();
 	if (!NumberWidget)
 	{
 		return;
@@ -219,16 +196,23 @@ void ADamageNumberActor::ShowCallout(ELooterElement Element, int32 InSlot)
 	Slot = FMath::Clamp(InSlot, 0, DamageNumberStream::MaxSlots - 1);
 	// Straight up and slower than a hit's number, so it stays readable over the creature a moment.
 	Velocity = FVector(0.0, 0.0, DamageNumberCallout::RiseSpeed);
-	if (UDamageNumberWidget* NumberWidget = Cast<UDamageNumberWidget>(Widget->GetUserWidgetObject()))
+	// Where it was spawned (UStatusCalloutSubsystem puts it over the creature); it goes once its word has shown (TickCallout).
+	Begin(GetActorLocation());
+	if (UDamageNumberWidget* NumberWidget = GetNumberWidget())
 	{
 		NumberWidget->SetCallout(Element);
 	}
-	SetLifeSpan(DamageNumberCallout::Seconds + 0.1f);
+	TickCallout(0.f);
 }
 
 void ADamageNumberActor::TickCallout(float DeltaSeconds)
 {
 	Age += DeltaSeconds;
+	if (Age >= DamageNumberCallout::Seconds)
+	{
+		Finish();
+		return;
+	}
 	AddActorWorldOffset(Velocity * DeltaSeconds);
 	Velocity *= FMath::Max(0.f, 1.f - 1.5f * DeltaSeconds);
 	UUserWidget* UserWidget = Widget->GetUserWidgetObject();

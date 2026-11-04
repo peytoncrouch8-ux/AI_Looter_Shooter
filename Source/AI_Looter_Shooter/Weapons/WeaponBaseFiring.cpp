@@ -113,14 +113,17 @@ void AWeaponBase::StartFireAt(double Now)
 	{
 		// Held, it fires charged (x2) when the wind-up is done; let go sooner, it fires what it has (StopFire).
 		UPartEffectComponent::For(*this)->BeginCharge();
+		ShotDueAt = Now + Trigger.ChargeSeconds / GetOwnerTimeScale();
 		Timers.SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, Trigger.ChargeSeconds / GetOwnerTimeScale(), false);
 	}
 	else if (Press == WeaponTrigger::EPress::FireNow)
 	{
+		ShotDueAt = Now;
 		HandleFiring();
 	}
 	else
 	{
+		ShotDueAt = Now + SecondsUntilReady;
 		Timers.SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, static_cast<float>(SecondsUntilReady), false);
 	}
 }
@@ -254,7 +257,11 @@ void AWeaponBase::HandleFiring()
 	if (bContinue)
 	{
 		const float Gap = Trigger.FireMode == EWeaponFireMode::Burst ? Trigger.BurstIntervalScale : 1.f;
-		GetWorldTimerManager().SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, GetShotInterval() * Gap / GetOwnerTimeScale(), false);
+		// The next shot is due an interval after this one was due, not after this frame: a timer restarted from each shot's
+		// frame rounded every round up to the frame and the rifle lost 8% of its rate (WeaponTrigger::NextShotDue).
+		const double Interval = GetShotInterval() * Gap / GetOwnerTimeScale();
+		ShotDueAt = WeaponTrigger::NextShotDue(ShotDueAt, LastFireTime, Interval);
+		GetWorldTimerManager().SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, static_cast<float>(FMath::Max(ShotDueAt - LastFireTime, 0.001)), false);
 	}
 }
 

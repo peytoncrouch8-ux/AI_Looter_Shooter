@@ -7,6 +7,16 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 2026-11-03: the user asked for a blunt core-loop audit (Phase 1 done, nothing in the game changed): `Docs/Work/2026-11-03-Audit/AUDIT.md`
 (ranked problems, what to protect, the one change first, the Phase 2 plan). Phase 3 (one change at a time, the user plays each)
 waits on the user approving or reordering that plan. The editor was closed and MCP down during the audit.
+Evening: the user approved the order (start with kill speed; spiders may change; lower health, not raise guns) and asked for
+parallel agents. Change 1 BUILT and committed (6e64f232: `UCreatureKindSettings`, crit 2.0, Unpaid head crit, bands; Enemies.md
+"Kill speed"); its tests fixed after (see the next commit). Lanes 2-10 running on `Docs/Work/2026-11-03-Phase3/CONTRACT.md`
+(HITS, RECOIL, FIGHTS, LOOT, CAMERA, GAMEPAD, MUZZLE, PERF; Main did 9, the fire timer). The user's worst moment is the ART
+(Tripo models blurry, don't read, collisions wrong; the barge ships, terrain): an art audit (read-only) runs overnight once a
+lane frees; its note `Docs/Work/2026-11-03-ArtAudit/`. **The user's overnight calls (went to bed ~20:45):** go on to changes
+11 (Unpaid: one teleport gate, blink cap, one flee rule, hunched idle) and 12 (reload slaps with overshoot, a thrown magazine)
+after 2-10 land; package a smoke-tested playtest build at the end; Main may retune tokens/DamageScale to the 8-12 s standing
+band after the fight sim; art audit only, no model changes, no Tripo credits. Morning: three sentences + the per-change PIE
+checklist (each lane's note has its line); nobody has PLAYED any of it: the user plays first, one change at a time.
 State: everything the user asked for this session is built, tested, committed and pushed (last commit cb4a704e). Latest
 playtest (Missions 1-7, Sexton's shop, Paid on Delivery, Tripo Reliquary + soul coal): Builds\Playtest\2026-11-01_1753\
 Windows\AI_Looter_Shooter.exe (smoke test passed). The user has not reported on it yet: ask what they found first.

@@ -1,8 +1,10 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
 #include "Elements/ElementCallout.h"
+#include "Elements/ElementStatusComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/DamageNumberActor.h"
+#include "UI/World/DamageNumberSubsystem.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -226,15 +228,21 @@ void UHealthComponent::SpawnDamageNumber(float Damage, bool bCritical, const FVe
 		return;
 	}
 
-	// Its element (a status's piece, a smite, an element gun's crit) and, once a fight, the creature's weakness to it.
-	const FElementNumberLook Look = ElementCallout::LookFor(DamageType, GetOwner(), bCritical, GetWorld()->GetTimeSeconds());
-
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	// Owned by what was hit, so a status's pieces on it find their stream (one rolling number: ADamageNumberActor::Show).
-	Params.Owner = GetOwner();
-	if (ADamageNumberActor* Number = GetWorld()->SpawnActor<ADamageNumberActor>(DamageNumberClass, Location, FRotator::ZeroRotator, Params))
+	UDamageNumberSubsystem* Numbers = UDamageNumberSubsystem::Get(this);
+	if (!Numbers)
 	{
-		Number->Show(Damage, bCritical, Look);
+		return;
 	}
+	// Pooled and merged (the 2026-11-03 audit): no actor spawned per hit, a shotgun's pellets on this body one number, a
+	// status's pieces on it one rolling stream. Its element (a status's piece, a smite, an element gun's crit) and, once a
+	// fight, the creature's weakness to it; whether it is a status's piece is known only while that piece is being dealt.
+	FDamageNumberHit Hit;
+	Hit.Target = GetOwner();
+	Hit.Damage = Damage;
+	Hit.bCritical = bCritical;
+	Hit.Where = Location;
+	Hit.Look = ElementCallout::LookFor(DamageType, GetOwner(), bCritical, GetWorld()->GetTimeSeconds());
+	Hit.bStatusPiece = UElementStatusComponent::IsDealingNow();
+	Hit.Class = DamageNumberClass.Get();
+	Numbers->ShowHit(Hit);
 }

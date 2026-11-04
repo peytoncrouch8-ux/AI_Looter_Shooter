@@ -5,6 +5,7 @@
 #include "Audio/LooterSoundCues.h"
 #include "Creatures/CreatureReactRules.h"
 #include "UI/HUD/HudHitMarker.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "Weapons/BulletMarks.h"
 #include "Weapons/VfxRules.h"
 #include "Weapons/VfxTuning.h"
@@ -314,10 +315,42 @@ bool FHudHitMarkerRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The ward's tick"), Cue(EHudHitMark::Ward), FName(LooterSoundCue::Gunfeel::HitMarkerWard));
 	TestEqual(TEXT("The break's crack"), Cue(EHudHitMark::WardBreak), FName(LooterSoundCue::Gunfeel::WardBreak));
 	TestEqual(TEXT("The plain tick"), Cue(EHudHitMark::Body), FName(LooterSoundCue::HitMarker));
-	TestTrue(TEXT("A kill and a break show longer and pop bigger"), SecondsOf(EHudHitMark::Kill, Tuning) > SecondsOf(EHudHitMark::Body, Tuning)
-		&& SecondsOf(EHudHitMark::WardBreak, Tuning) > SecondsOf(EHudHitMark::Ward, Tuning) && PopOf(EHudHitMark::WardBreak, Tuning) > PopOf(EHudHitMark::Crit, Tuning));
-	TestTrue(TEXT("Each mark its own colour"), !Tint(EHudHitMark::Body).Equals(Tint(EHudHitMark::Crit)) && !Tint(EHudHitMark::Crit).Equals(Tint(EHudHitMark::Ward))
-		&& !Tint(EHudHitMark::Ward).Equals(Tint(EHudHitMark::Kill)));
+	// Seen (the 2026-11-03 audit: 0.18 s was gone before the eye found it): every mark at least 0.35 s, holding whole before
+	// it fades; a crit longer than a plain hit, a break than a ward's tick, a kill longest.
+	const EHudHitMark Marks[] = { EHudHitMark::Body, EHudHitMark::Ward, EHudHitMark::Crit, EHudHitMark::WardBreak, EHudHitMark::Kill };
+	for (const EHudHitMark Mark : Marks)
+	{
+		const float ShowSeconds = SecondsOf(Mark, Tuning);
+		const float FadeSeconds = FadeSecondsOf(Mark, Tuning);
+		TestTrue(FString::Printf(TEXT("Mark %d shows at least 0.35 s (%.2f s)"), static_cast<int32>(Mark), ShowSeconds), ShowSeconds >= 0.35f);
+		TestTrue(FString::Printf(TEXT("...holding whole before its fade (%.2f of %.2f s)"), FadeSeconds, ShowSeconds), FadeSeconds > 0.f && FadeSeconds < ShowSeconds);
+		TestTrue(TEXT("...never smaller than a plain hit's marker"), ScaleOf(Mark, Tuning) >= 1.f);
+	}
+	TestTrue(TEXT("A crit shows longer than a plain hit, a break than a ward's tick"), SecondsOf(EHudHitMark::Crit, Tuning) > SecondsOf(EHudHitMark::Body, Tuning)
+		&& SecondsOf(EHudHitMark::WardBreak, Tuning) > SecondsOf(EHudHitMark::Ward, Tuning));
+	TestTrue(TEXT("A kill shows longest"), SecondsOf(EHudHitMark::Kill, Tuning) > SecondsOf(EHudHitMark::WardBreak, Tuning)
+		&& SecondsOf(EHudHitMark::Kill, Tuning) > SecondsOf(EHudHitMark::Crit, Tuning));
+	// Big: a crit's marker at least 1.6x a plain one's for the same hit, with its own pop; a kill's the biggest.
+	TestTrue(TEXT("A crit's marker at least 1.6x a plain hit's"), ScaleOf(EHudHitMark::Crit, Tuning) * Size(0.1f, Tuning)
+		>= 1.6f * ScaleOf(EHudHitMark::Body, Tuning) * Size(0.1f, Tuning) - 0.001f);
+	TestTrue(TEXT("...a kill's bigger still"), ScaleOf(EHudHitMark::Kill, Tuning) > ScaleOf(EHudHitMark::Crit, Tuning));
+	TestTrue(TEXT("A crit pops its own way, bigger than a plain hit"), PopOf(EHudHitMark::Crit, Tuning) > PopOf(EHudHitMark::Body, Tuning));
+	TestTrue(TEXT("A kill and a break pop bigger than a crit"), PopOf(EHudHitMark::Kill, Tuning) > PopOf(EHudHitMark::Crit, Tuning)
+		&& PopOf(EHudHitMark::WardBreak, Tuning) > PopOf(EHudHitMark::Crit, Tuning));
+	// Its look: a plain hit white, a crit white rimmed red (red and white, the pale gold hid in the grass), a kill solid red.
+	const FLook BodyLook = LookOf(EHudHitMark::Body, ELooterElement::None, Tuning);
+	const FLook WardLook = LookOf(EHudHitMark::Ward, ELooterElement::None, Tuning);
+	const FLook CritLook = LookOf(EHudHitMark::Crit, ELooterElement::None, Tuning);
+	const FLook KillLook = LookOf(EHudHitMark::Kill, ELooterElement::None, Tuning);
+	TestTrue(TEXT("A plain hit: white in the kit's dark rim"), BodyLook.Fill.Equals(FLinearColor::White) && BodyLook.Rim.Equals(LooterUI::Color::Outline()));
+	TestTrue(TEXT("A crit: white rimmed red"), CritLook.Fill.Equals(FLinearColor::White) && CritLook.Rim.Equals(LooterUI::Color::Hurt()));
+	TestTrue(TEXT("...the rim wider than the plain outline, under half the 4 px tick so the white shows"),
+		CritLook.RimWidth > BodyLook.RimWidth && CritLook.RimWidth < 2.f);
+	TestTrue(TEXT("A kill: solid red in the dark rim"), KillLook.Fill.Equals(LooterUI::Color::Hurt()) && KillLook.Rim.Equals(LooterUI::Color::Outline()));
+	const auto SameLook = [](const FLook& A, const FLook& B) { return A.Fill.Equals(B.Fill) && A.Rim.Equals(B.Rim) && FMath::IsNearlyEqual(A.RimWidth, B.RimWidth); };
+	TestTrue(TEXT("Each mark its own look"), !SameLook(BodyLook, CritLook) && !SameLook(CritLook, KillLook) && !SameLook(CritLook, WardLook)
+		&& !SameLook(WardLook, KillLook) && !SameLook(BodyLook, KillLook) && !SameLook(BodyLook, WardLook));
+	TestTrue(TEXT("The fill is the mark's tint"), CritLook.Fill.Equals(Tint(EHudHitMark::Crit)) && KillLook.Fill.Equals(Tint(EHudHitMark::Kill)));
 
 	// The wards remembered.
 	FTestWorldWrapper WorldWrapper;

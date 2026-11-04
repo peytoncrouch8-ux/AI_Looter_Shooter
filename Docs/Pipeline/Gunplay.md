@@ -68,8 +68,8 @@ The user: "grenades are too strong to start with, projectiles are too small and 
 `Tests/GrenadeBlastTests.cpp` (`Looter.Grenade.Early`, `.Blast`, `.JarSize`), `GrenadeTests.cpp`, `GrenadePlayTests.cpp`.
 - Damage: heart at full strength 900 (1.5 Common rifle magazines of 600), radius 400 cm, core 100, edge share 0.2, Unpaid x1.5,
   boss cap 8% (`Damage`, `Radius`, `CoreRadius`, `EdgeShare`, `UnpaidScale`, `BossCap`, `KnockShare`). New early ramp: the burst
-  is `EarlyShare` [0.1] of full through player level `Looter.Grenade.EarlyLevels` [3], then rises on a squared curve to full at
-  `FullLevel` [12] (x the player's `EnemyScale` as before; `FGraveSaltRules::ThrowerScale`): level 1 heart 90 (135 on an Unpaid,
+  is `EarlyShare` [0.085 since 2026-11-03 (kill speed: at 0.1 a jar's heart at the top roll killed a 140-health Regular Unpaid); 0.1 before] of full through player level `Looter.Grenade.EarlyLevels` [3], then rises on a squared curve to full at
+  `FullLevel` [12] (x the player's `EnemyScale` as before; `FGraveSaltRules::ThrowerScale`): level 1 heart 76.5 since 2026-11-03 (115 on an Unpaid; was 90 / 135,
   x1.5), 11% at level 4, 20% at 6, 28% at 7 (Ransom's Rest's top), 50% at 9, full at 12. The first pass (0.45 straight up, heart
   405) still killed a Basic Unpaid (160 health x 1.08 a level); at 0.1 a jar leaves each of a pack about a third and even its heart
   at the top roll leaves one for a follow-up shot (the user, 2026-10-27: too strong at the start).
@@ -90,7 +90,7 @@ The user: "grenades are too strong to start with, projectiles are too small and 
 
 ### Grenade kinds (GRENADES, round 4, 2026-10-27, the user's pick: "a few kinds found as loot"; drop and carry rule: `Game.md` round 4)
 
-Every jar is grave salt packed in a tin; three kinds beside it. Code: `Combat/GrenadeKinds` (`EGrenadeKind`, the rules, the looks), `GrenadeKindsTuning` (`FGrenadeKindTuning`, the cvars), `GraveSaltGrenadeKinds.cpp` (the flight's kind part), `GraveSaltCinderBed`; the burst functions take a kind's tuning and `FGrenadeBurstLook`. Every number is a SHARE of the salt jar's `FGraveSaltTuning`, so the early ramp (`EarlyShare` 0.1 through level 3, full at 12) holds for all of them: every kind's heart at levels 1-3 leaves a Basic Unpaid standing (`Looter.Grenade.Kinds.Early`). Models `Art/Models/Throwables/GrenadeJars.py` (`Assets.md`), sounds `throwables_kinds.py`.
+Every jar is grave salt packed in a tin; three kinds beside it. Code: `Combat/GrenadeKinds` (`EGrenadeKind`, the rules, the looks), `GrenadeKindsTuning` (`FGrenadeKindTuning`, the cvars), `GraveSaltGrenadeKinds.cpp` (the flight's kind part), `GraveSaltCinderBed`; the burst functions take a kind's tuning and `FGrenadeBurstLook`. Every number is a SHARE of the salt jar's `FGraveSaltTuning`, so the early ramp (`EarlyShare` 0.085 since 2026-11-03, 0.1 before, through level 3, full at 12) holds for all of them: every kind's heart at levels 1-3 leaves a Basic Unpaid standing (`Looter.Grenade.Kinds.Early`). Models `Art/Models/Throwables/GrenadeJars.py` (`Assets.md`), sounds `throwables_kinds.py`.
 
 | Kind | Burst (heart / reach / core) | After | Boss cap | Knock |
 |---|---|---|---|---|
@@ -592,3 +592,12 @@ Looter.Embers.Power (15), Looter.Creatures.React (5).
   shrink, pop/over-inflate. Kill weight overkill +0.6 (cap 2.4). Switches `Looter.Hits.*` (Zones, Wounds, KillStyles, Hat,
   StaggerPose, Spider/Unpaid/SlimeScale; `PoiseBreak 0` turns poise off). Dev: `Looter.Hits.Test <zone>`, `Looter.Hits.Show 1`.
 - Not seen by the user yet; DEMO play-check pending. Crosshair per kind: mockup only (Docs/Work/2026-10-28-Core/crosshair).
+
+## Fire cadence carried (2026-11-03; the audit's change 9)
+A burst's next shot was timed afresh from the frame that fired the last one (`AWeaponBase::HandleFiring` set `FireTimer` for
+`GetShotInterval()` from "now"); a timer fires on the first frame at or past its due time, so every round rounded up to the frame:
+the rifle's 92.3 ms became 100 at 60 and at 120 fps (650 rpm fired 600), the SMG's 66.7 ms lost on some frames too, and the loss
+grew with the burst. Now `WeaponTrigger::NextShotDue(PreviousDue, Now, Interval)`: the next shot is due an interval after the last
+was DUE (`AWeaponBase::ShotDueAt`, set as the first shot of a pull fires, waits or winds up); a chain that broke (the trigger let go
+for an interval or more) starts afresh from now, so a re-press never owes skipped shots. Test `Looter.Weapons.Trigger.Cadence`
+(10 s bursts at 60/120/144 fps keep 107-109 rounds). Nothing else about the trigger changed.

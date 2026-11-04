@@ -75,7 +75,8 @@ bool FGrenadeEarlyTest::RunTest(const FString& Parameters)
 
 	// At level 1 the heart is 90, a sixth of a Common rifle's magazine (30 x 20 = 600); it was 900, one and a half.
 	const float Heart = FGraveSaltRules::BurstDamage(0.f, FGraveSaltRules::ThrowerScale(1, Rules.EnemyScale(1), Tuning), 0.5f, false, Tuning);
-	TestEqual(TEXT("90 at the heart at level 1"), Heart, 90.f, 0.5f);
+	// 76.5 since 2026-11-03 (EarlyShare 0.085 of 900; 90 at 0.1 killed a 140-health Unpaid at the top roll).
+	TestEqual(TEXT("76.5 at the heart at level 1"), Heart, 76.5f, 0.5f);
 	TestTrue(FString::Printf(TEXT("A sixth of a Common magazine (%.0f of %.0f)"), Heart, CommonMagazine), Heart < CommonMagazine / 5.f);
 
 	// The Basic Unpaid of Ransom's Rest at levels 1-3, with the health the game gives it (Project Settings > Game > Creature

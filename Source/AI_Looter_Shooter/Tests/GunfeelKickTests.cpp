@@ -112,7 +112,7 @@ bool FGunfeelKickIdentityTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The shotgun rumbles hardest and longest; the rifle is a tick"),
 		Def::RumbleShotgun > Def::RumbleRevolver && Def::RumbleRevolver > Def::RumbleRifle
 		&& Def::RumbleShotgunSeconds > Def::RumbleRevolverSeconds && Def::RumbleRevolverSeconds > Def::RumbleRifleSeconds);
-	TestEqual(TEXT("The user's call: the revolver's crit is 1.75x"), Def::CritRevolver, 1.75f);
+	TestEqual(TEXT("The revolver's crit is 2.25x (kill speed, 2026-11-03; the user's 1.75 before)"), Def::CritRevolver, 2.25f);
 	// The gun feel pass spread the kinds apart (2026-10-22): heaviest first, the SMG a hum (Identity 0's scales).
 	TestTrue(TEXT("Today's view kick runs launcher/sniper, shotgun, revolver, rifle, LMG, SMG"),
 		Today::KickLauncher >= Today::KickSniper && Today::KickSniper > Today::KickShotgun && Today::KickShotgun > Today::KickRevolver

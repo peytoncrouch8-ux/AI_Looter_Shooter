@@ -619,4 +619,6 @@ private:
 
 	FTimerHandle FireTimer;
 	FTimerHandle ReloadTimer;
+	/** When the shot FireTimer waits on is due (world seconds): the next one is set an interval after it, never after the frame (WeaponTrigger::NextShotDue). */
+	double ShotDueAt = 0.0;
 };
