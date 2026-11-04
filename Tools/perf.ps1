@@ -24,16 +24,25 @@ if ($CsvPath) {
     if ($GpuStats) { $commands += 'r.GPUCsvStatsEnabled 1' }
     if ($Exec) { $commands += $Exec.Split(',') | ForEach-Object { $_.Trim() } }
     if ($commands) { $gameArgs += " -ExecCmds=`"$($commands -join ',')`"" }
+    # The run's log (the installed engine writes it under AppData); the last run's is backed up first, as Unreal itself would,
+    # so the loop below never reads an old run's lines.
+    $runLog = Join-Path $env:LOCALAPPDATA 'UnrealEngine\5.8\Saved\Logs\Perf.log'
+    if (Test-Path $runLog) { Rename-Item $runLog ("Perf-backup-" + (Get-Date -Format 'yyyy.MM.dd-HH.mm.ss') + ".log") -ErrorAction SilentlyContinue }
     $proc = Start-Process "$engine\Engine\Binaries\Win64\UnrealEditor.exe" -ArgumentList $gameArgs -PassThru
     # The Zen cache's "keep waiting?" box stalls a -game start as it does the editor's (2026-11-01: two runs hung on it
     # until the 15-minute limit): answer it while the game runs, as launch.ps1 does.
     $waited = 0
+    $ended = $null
     while (-not $proc.WaitForExit(5000)) {
         & "$PSScriptRoot\zenwait.ps1" | Out-Null
         $waited += 5
-        # The CSV written, a game that then hangs on its way out (DDC maintenance, 2026-11-01) is stopped: the capture is done.
-        $written = $csvDirs | Where-Object { Test-Path $_ } | ForEach-Object { Get-ChildItem $_ -Filter *.csv } | Where-Object { $before -notcontains $_.FullName }
-        if ($written -and ((Get-Date) - ($written | Sort-Object LastWriteTime | Select-Object -Last 1).LastWriteTime).TotalSeconds -gt 30) { $proc.Kill(); break }
+        # The capture over (its log says the CSV is written), a game that then hangs on its way out (DDC maintenance,
+        # 2026-11-01) is stopped 30 s later. The CSV's own size and write time are no guide: Windows reports an open file's as
+        # they were when it was made (2026-11-03 night: two CSV-watching versions of this killed every run, 30 s into loading,
+        # then at its first frames; every row read n/a).
+        if (-not $ended) {
+            if ((Test-Path $runLog) -and (Select-String -Path $runLog -Pattern 'Capture Ended\. Writing CSV' -Quiet)) { $ended = Get-Date }
+        } elseif (((Get-Date) - $ended).TotalSeconds -gt 30) { $proc.Kill(); break }
         if ($waited -ge 900) { $proc.Kill(); "The game did not exit in time."; exit 2 }
     }
     $csv = $csvDirs | Where-Object { Test-Path $_ } | ForEach-Object { Get-ChildItem $_ -Filter *.csv } | Where-Object { $before -notcontains $_.FullName } | Sort-Object LastWriteTime | Select-Object -Last 1

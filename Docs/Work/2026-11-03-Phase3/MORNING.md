@@ -1,6 +1,7 @@
 # Morning note (2026-11-04): what landed overnight and what to feel for, one change at a time
 
-Rule: play each in PIE with the editor focused (`Tools\pie.ps1 -Map RansomsRest`, or the packaged build); every change has a switch
+Rule: play each in PIE with the editor focused (`Tools\pie.ps1 -Map RansomsRest`, or the packaged build
+`Builds\Playtest\2026-11-03_2355\Windows\AI_Looter_Shooter.exe`, smoke-tested); every change has a switch
 to A/B the old feel. Nobody has PLAYED any of this; the tests and sims passed where the table says so. Lane notes beside this file.
 
 | # | Change | Commit | Tests | Feel for (PIE) | Switch (old feel) |

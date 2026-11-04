@@ -179,10 +179,23 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 - Lesson (2026-10-14): `Looter.Quality` in a tour or perf run saves the preset to the project's `Saved/SaveGames`, the same file
   the user's game reads: end every batch of runs on Medium (or the user's own preset).
 
+- A "before" row by commit, in the same checkout (2026-11-03 night): the tree clean, delete `Source` and
+  `Config`, `git checkout <commit> -- Source Config` (a path checkout alone never deletes files the old commit lacks, so a new
+  .cpp would compile against old headers), `Build.bat AI_Looter_ShooterEditor Win64 Development`, `perf.ps1`, then the same back to
+  HEAD and `git status --porcelain Source Config` empty before building again. Content stays at HEAD (unknown properties load as
+  nothing). Each swap is a full rebuild, 25 min on the reference PC: run the HEAD rows first, the swap last.
+- Lesson (2026-11-03 night): `perf.ps1` stops a game that hangs on its way out (DDC maintenance) 30 s after the capture ends,
+  and it reads that from the run's log (`Capture Ended. Writing CSV`), never from the CSV: Windows reports an open file's size
+  and write time as they were when it was made, so a CSV watch killed every run (30 s into loading, then at its first frames) and
+  recorded rows of n/a. An n/a row is a killed run, never a measurement: delete it.
+
 ## Tests
 
 - `Tools\runtests.ps1` runs one batch per test group, with `obj gc` between batches (all in one batch let test worlds' GPU buffers
   pile up until the driver removed the device).
+- One `-Filter` per run; `Looter.Creatures.Anim` after any fight-tuning change (2026-11-03: the ring at 300 moved the Unpaid's failed-lunge
+  shriek and its armpit fold grew 4.0 -> 5.3 cm; the limit is 5.5 now). A test that bakes in a tuning number (the melee jab's 0.12 s)
+  breaks silently when the number moves: read the rule's constant instead (`FMeleeRules::ContactSeconds`).
 - Test worlds are editor worlds. Traps:
   - A movement component gets no capsule there: call `SetUpdatedComponent` and set the movement mode yourself.
   - Blueprint native events are dropped: open an `FEditorScriptExecutionGuard`. See `Tests/LocomotionTestWorld.h` and

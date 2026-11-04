@@ -3,7 +3,46 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (session end 2026-11-01 night; the next session starts tomorrow when usage resets)
+## START HERE (session end 2026-11-04 morning: Phase 3 of the core-loop audit is BUILT and packaged; nobody has PLAYED it)
+The user plays first, one change at a time, with the editor focused: `Docs/Work/2026-11-03-Phase3/MORNING.md` (the per-change
+PIE checklist: what to feel for, the switch for the old feel, commit, tests) and the packaged build
+`Builds\Playtest\2026-11-03_2355\Windows\AI_Looter_Shooter.exe` (smoke test: menu and Ransom's Rest PASS; 1.77 GB; 26 min to
+make; saves in `%LOCALAPPDATA%\AI_Looter_Shooter\Saved`). Audit: `Docs/Work/2026-11-03-Audit/AUDIT.md` (Phase 1 findings, Phase 2 plan); lanes: `CONTRACT.md` and
+HITS/RECOIL/FIGHTS/LOOT/CAMERA/GAMEPAD/MUZZLE/PERF/UNPAID/RELOAD.md beside the morning note. Commits: 1 6e64f232; 2 and 9
+c6255e84 (also change 1's test fixes: `git commit` sweeps everything staged); 8 5a67f6b0; 10 7317ee9c; 7 fbceab1e; 5 f0ff713d;
+4 c5fcb0d2 + retune ea3e46be; 6 f02daeb6; 3 0a7d7835; docs c665a1ba; 11 284bd823; 12 ce9543bc; test fix 70059aa3. Pipeline notes:
+Gunplay.md (crits, fire cadence, hits, recoil, muzzle light, reloads with snap), Enemies.md (kill speed, fights press and the
+sim retune, the Unpaid one gate), Game.md (loot, camera, gamepad, actor index).
+The user's calls this round: start with kill speed; spiders may change; lower enemy health, never raise guns; run agents in
+parallel; go on to 11 and 12 overnight; package at the end; Main may retune to the 8-12 s band; their worst moment is the ART
+(Tripo models blurry, don't read as intended, collisions wrong; the barge ships, terrain): read-only audit
+`Docs/Work/2026-11-03-ArtAudit/AUDIT.md` + sheet `Saved/ArtPreviews/ArtAudit/compare.png` (ranked findings, protect list, the one
+change first, a plan; nothing changed, no credits spent). Not approved yet: ask before any art work.
+Decided unattended (night of 11-03): fights retuned to the band from the sims (DamageScale 1.4, spider bite 8, slime bite 10;
+six spiders kill a standing player in 11.7 s, Unpaid 10.3 s, slimes 18.7 s: loosest, left); the Unpaid's hunched drift is OFF
+by default (`Looter.Unpaid.Idle.Hunched 1` shows it: on, the lunge pressed an upper arm 5.3 cm into the trunk and the hunting
+hands came only 3 cm forward); the Unpaid arms test's armpit limit 4.5 -> 5.5 cm (change 4's ring at 300 deepens the failed
+lunge's shriek fold to 5.3 cm, hidden under the skin by the test's own notes; 480 passes; the user decides whether to chase it);
+the melee jab test reads the rules' seconds (it had read old numbers since dbf6cfa4).
+Perf (Medium 1080p, Ransom's Rest town, 10 Basic spiders; rows of 2026-11-04 in `Docs/Performance.md`): the horde idle 7.4 ms /
+135 fps (p95 8.6; game 7.3, render 5.0, GPU 6.2); 30 s of fire into it 8.3-8.5 ms / 118-120 fps with every gun (p95 9.8-10.0; game
+8.2-8.5 vs GPU 6.6-6.8: game-thread bound, the fire costs ~1 ms of game thread); the muzzle and impact lights off change nothing
+(8.5 vs 8.4). The "before" at the audit's code (e3390778, same scene) read 9.4 ms / 107 fps (game 7.4, render 7.8) but ran cold
+(first run after its build, load 14.7 s vs 6 s): the game thread is equal, the render-thread gain is not trusted. The fire rows sit
+a hair over the 8.3 ms line: the next perf work is the game thread under fire (bullets, hits, the fight), not the lights.
+Suggestions (not done, the user's call): Ranchhand/Thresher/Powderkeg have no Rare effect parts (LOOT.md); the slimes' band
+(18.7 s; their leap uptime); the art audit's one change first (Medium's r.Streaming.MipBias 0, r.MaxAnisotropy 8, r.SkeletalMeshLODBias 0 in `GraphicsSettingsSubsystem.cpp` QualityVariables: three lines, measure before and after), then its plan 2, the barge deck;
+delete dead code: `UFightDirectorSubsystem::MayStep/NoteStep`, `FTargetFight::Steps`, `FUnpaidStepGate`,
+`FUnpaidBlinkGate::MayStep` (no callers); the two Chakra Petch font faces (`Content/UI/Fonts/ChakraPetch-*.uasset`) still name
+their .ttf by the old OneDrive project path (seen in a 2026-11-04 game log): check their loading policy is Inline (the bytes in the
+asset) and re-point the source to `Content/UI/Fonts`, or a buyer's PC has no font.
+Lessons: agents stage C++ in `Saved/Phase3Staging/<LANE>/` while Main builds and Main copies it in; the fight sim on a new game
+needs `Looter.Landfall 8` and `Looter.Mission.Complete Main1` first (the flying ship pulls a teleported player back); a perf
+"before" by commit and the tests to rerun after a tuning change: `Docs/Pipeline/Workflow.md` (Performance, Tests).
+Still open from before Phase 3: the 2026-11-01 playtest's report (Missions 1-7, Sexton, Paid on Delivery) and items 1-7 of the
+section below.
+
+## Before Phase 3 (session end 2026-11-01 night): what was left then
 2026-11-03: the user asked for a blunt core-loop audit (Phase 1 done, nothing in the game changed): `Docs/Work/2026-11-03-Audit/AUDIT.md`
 (ranked problems, what to protect, the one change first, the Phase 2 plan). Phase 3 (one change at a time, the user plays each)
 waits on the user approving or reordering that plan. The editor was closed and MCP down during the audit.

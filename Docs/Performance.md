@@ -123,3 +123,10 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-30 | Overnight 10-30: horde + 1 shriek every 2.5 s | e0a73e5e | 1920x1080 | 6.5 | 153 | 7.8 | 6.2 | 4.3 | 1.8 | 5.3 | 762 | 766871 | 1.79 |
 | 2026-10-30 | Overnight 10-30: Tripo Gravemother fight in town | e0a73e5e | 1920x1080 | 6.4 | 157 | 6.9 | 4.8 | 6.1 | 1.7 | 5.2 | 803 | 718376 | 1.80 |
 | 2026-11-01 | Wardens r1 + Mains 2-3 + Tripo people/farm/Drover/Gravemother | 05f5512d | 1920x1080 | 5.8 | 171 | 6.6 | 4.9 | 5.6 | 1.8 | 4.9 | 693 | 697998 | n/a |
+| 2026-11-04 | Phase 3 after (changes 1-12, 70059aa3): 10 Basic spiders in town | 70059aa3 | 1920x1080 | 7.4 | 135 | 8.6 | 7.3 | 5.0 | 1.9 | 6.2 | 1917 | 1940484 | 6.03 |
+| 2026-11-04 | Phase 3 fire: LMG 30 s into 10 Basic spiders | 70059aa3 | 1920x1080 | 8.4 | 119 | 9.9 | 8.4 | 4.0 | 2.0 | 6.6 | 1497 | 1267313 | 4.46 |
+| 2026-11-04 | Phase 3 fire: Rifle 30 s into 10 Basic spiders | 70059aa3 | 1920x1080 | 8.5 | 118 | 9.8 | 8.4 | 4.7 | 2.0 | 6.8 | 1555 | 1483828 | 4.34 |
+| 2026-11-04 | Phase 3 fire: Shotgun 30 s into 10 Basic spiders | 70059aa3 | 1920x1080 | 8.4 | 119 | 9.9 | 8.3 | 4.4 | 2.0 | 6.7 | 1572 | 1345256 | 4.25 |
+| 2026-11-04 | Phase 3 fire: SMG 30 s into 10 Basic spiders | 70059aa3 | 1920x1080 | 8.3 | 120 | 9.8 | 8.2 | 4.9 | 1.9 | 6.7 | 1596 | 1417355 | 4.42 |
+| 2026-11-04 | Phase 3 fire: LMG, muzzle and impact lights off | 70059aa3 | 1920x1080 | 8.5 | 118 | 10.0 | 8.5 | 3.9 | 2.0 | 6.6 | 1576 | 1378181 | 4.35 |
+| 2026-11-04 | Phase 3 before (e3390778 code): 10 Basic spiders in town | 70059aa3 | 1920x1080 | 9.4 | 107 | 9.8 | 7.4 | 7.8 | 2.3 | 6.7 | 1898 | 1880873 | 14.70 |
