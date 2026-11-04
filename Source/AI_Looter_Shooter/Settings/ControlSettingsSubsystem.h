@@ -33,6 +33,20 @@ public:
 	 */
 	UPROPERTY()
 	float ControllerRumble = 1.f;
+
+	/**
+	 * Looking up and down reversed (pushing the stick or the mouse up looks down), mouse and stick alike. Saves from before
+	 * it existed load with it off (UControlSettingsSubsystem::DefaultInvertY).
+	 */
+	UPROPERTY()
+	bool bInvertY = false;
+
+	/**
+	 * Aim assist on a gamepad (AimAssist.h: friction and magnetism; the mouse is never assisted). Saves from before it
+	 * existed load with it on (UControlSettingsSubsystem::DefaultAimAssist).
+	 */
+	UPROPERTY()
+	bool bAimAssist = true;
 };
 
 /**
@@ -43,6 +57,8 @@ public:
  * every shake and kick of the view, the boss fights' too: the one camera modifier that carries them all
  * (UCameraShakeModifier) reads it each frame, and the Looter.CameraShake command sets it for a run. Controller rumble scales
  * the gamepad's rumble (GunfeelKick::PlayRumble reads it for each shot and hit taken; Looter.ControllerRumble sets it for a run).
+ * Invert Y reverses looking up and down for mouse and stick (ALooterCharacter::Look reads it for each input); Aim assist
+ * switches the gamepad's friction and magnetism (AimAssist::ForPlayer; Looter.AimAssist turns it off for everyone).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UControlSettingsSubsystem : public ULocalPlayerSubsystem
@@ -114,6 +130,34 @@ public:
 
 	/** Applies from the next rumble. bSave as for the sensitivity. */
 	void SetControllerRumble(float Rumble, bool bSave = true);
+
+	/** Looking up and down is reversed: off by default. */
+	static constexpr bool DefaultInvertY = false;
+
+	/** A save's invert-Y choice; the default without one (a save from before the setting existed reads off). */
+	static bool InvertYOf(const ULooterControlsSave* Controls);
+
+	/** Invert Y of the player Controller is; off for anything without a local player. */
+	static bool IsInvertYFor(const AController* Controller);
+
+	bool IsInvertY() const;
+
+	/** Applies from the next look input. bSave as for the sensitivity. */
+	void SetInvertY(bool bInvert, bool bSave = true);
+
+	/** Gamepad aim assist: on by default. */
+	static constexpr bool DefaultAimAssist = true;
+
+	/** A save's aim assist choice; the default without one (a save from before the setting existed reads on). */
+	static bool AimAssistOf(const ULooterControlsSave* Controls);
+
+	/** Aim assist of the player Controller is; off for anything without a local player (AI, tests with no one at the pad). */
+	static bool IsAimAssistFor(const AController* Controller);
+
+	bool IsAimAssistOn() const;
+
+	/** Applies from the next look input. bSave as for the sensitivity. */
+	void SetAimAssistOn(bool bOn, bool bSave = true);
 
 	void SaveSettings() const;
 

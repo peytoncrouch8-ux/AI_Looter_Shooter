@@ -5,9 +5,12 @@
 #include "Embers/EmberComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "Interaction/InteractionComponent.h"
+#include "Misc/App.h"
+#include "Player/AimAssist.h"
 #include "Player/Animation/BodyFigureComponent.h"
 #include "Player/Animation/HandJarComponent.h"
 #include "Player/FirstPersonHandsComponent.h"
@@ -20,6 +23,54 @@
 #include "Player/PlayerViewComponent.h"
 #include "Settings/ControlSettingsSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	/**
+	 * The right stick turns the view (AimAssist.h): a dead zone and a response curve, then degrees a second times this
+	 * frame's real time (not the world's, which hit-stop slows: the mouse isn't slowed either), so a full push turns at the
+	 * same speed at 60 or 120 fps. By the look sensitivity and a zoomed sight's slowing like the mouse, slower on a creature
+	 * by the aim assist's friction, nudged toward one by its magnet. Looter.Look.PadDegreesPerSecond 0 gives the old per-frame
+	 * stick back. It lives apart from Look() (the mouse's) because the action says which device turned the view; guessing from
+	 * the last key pressed would treat a mouse as a stick whenever the guess was late.
+	 */
+	void LookByStick(ALooterCharacter& Character, const FInputActionValue& Value)
+	{
+		AController* Controller = Character.GetController();
+		APlayerController* Player = Cast<APlayerController>(Controller);
+		const UPlayerViewComponent* View = Character.FindComponentByClass<UPlayerViewComponent>();
+		const float SightSlowing = View ? View->GetLookSensitivityMultiplier() : 1.f;
+		const bool bInvertY = UControlSettingsSubsystem::IsInvertYFor(Controller);
+		const FVector2D Stick = Value.Get<FVector2D>();
+		const AimAssist::FTuning Tuning = AimAssist::LiveTuning();
+
+		if (Tuning.YawDegreesPerSecond <= 0.f)
+		{
+			const FVector2D Old = AimAssist::InvertY(UControlSettingsSubsystem::ScaleLookInputFor(Controller, Stick) * SightSlowing, bInvertY);
+			Character.AddControllerYawInput(Old.X);
+			Character.AddControllerPitchInput(Old.Y);
+			return;
+		}
+
+		const FVector2D Shaped = AimAssist::ShapeStick(Stick, Tuning.StickDeadZone, Tuning.StickCurve);
+		if (Shaped.IsNearlyZero())
+		{
+			return;
+		}
+		const float DeltaSeconds = static_cast<float>(FApp::GetDeltaTime());
+		const FVector2D Turn = AimAssist::StickTurn(Shaped, Tuning.YawDegreesPerSecond, Tuning.PitchDegreesPerSecond, DeltaSeconds, Tuning.MaxStepSeconds);
+		const AimAssist::FFrame Assist = Player ? AimAssist::ForPlayer(*Player, /*bStickMoving*/ true, DeltaSeconds) : AimAssist::FFrame();
+
+		// Degrees to the controller's input: its legacy scales (2.5 and -2.5 here) are divided out, so 220 is 220 degrees. The
+		// magnet's pull is a rotation already (yaw right, pitch up), so it is not inverted or scaled by the sensitivity: it is
+		// the game's nudge, not the player's input.
+		const FVector2D Look = AimAssist::InvertY(UControlSettingsSubsystem::ScaleLookInputFor(Controller, Turn * Assist.FrictionScale) * SightSlowing, bInvertY);
+		const FVector2D Scales = Player ? AimAssist::LegacyInputScales(*Player) : FVector2D(1.0, 1.0);
+		const FVector2D Input = AimAssist::DegreesToInput(Look, Scales) + AimAssist::RotationToInput(Assist.Pull, Scales);
+		Character.AddControllerYawInput(Input.X);
+		Character.AddControllerPitchInput(Input.Y);
+	}
+}
 
 ALooterCharacter::ALooterCharacter()
 {
@@ -91,7 +142,14 @@ void ALooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 	// The keys come from IMC_Default and IMC_MouseLook, which the player controller adds.
 	Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALooterCharacter::Move);
-	Input->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALooterCharacter::Look);
+	// The stick and the mouse turn the view differently (a speed against a distance), so each has its own handler.
+	Input->BindActionValueLambda(LookAction, ETriggerEvent::Triggered, [Self = TWeakObjectPtr<ALooterCharacter>(this)](const FInputActionValue& Value)
+	{
+		if (ALooterCharacter* Character = Self.Get())
+		{
+			LookByStick(*Character, Value);
+		}
+	});
 	Input->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ALooterCharacter::Look);
 	Input->BindAction(JumpAction, ETriggerEvent::Started, this, &ALooterCharacter::JumpPressed);
 	Input->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
@@ -138,11 +196,12 @@ void ALooterCharacter::Move(const FInputActionValue& Value)
 
 void ALooterCharacter::Look(const FInputActionValue& Value)
 {
-	// The player's look sensitivity (Settings > Controls), then slower through a zoomed sight, so the crosshair crosses a
-	// target at the same pace as unzoomed.
+	// The mouse: its delta is a distance already, so no time or curve (and the engine's mouse smoothing and FOV scaling are off in
+	// DefaultInput.ini). The player's look sensitivity (Settings > Controls), then slower through a zoomed sight, so the
+	// crosshair crosses a target at the same pace as unzoomed; Invert Y last. No aim assist: that is the stick's alone.
 	const UPlayerViewComponent* View = FindComponentByClass<UPlayerViewComponent>();
-	const FVector2D Input = UControlSettingsSubsystem::ScaleLookInputFor(GetController(), Value.Get<FVector2D>())
-		* (View ? View->GetLookSensitivityMultiplier() : 1.f);
+	const FVector2D Input = AimAssist::InvertY(UControlSettingsSubsystem::ScaleLookInputFor(GetController(), Value.Get<FVector2D>())
+		* (View ? View->GetLookSensitivityMultiplier() : 1.f), UControlSettingsSubsystem::IsInvertYFor(GetController()));
 	AddControllerYawInput(Input.X);
 	AddControllerPitchInput(Input.Y);
 }

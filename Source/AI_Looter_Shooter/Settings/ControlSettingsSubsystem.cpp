@@ -7,6 +7,14 @@
 namespace
 {
 	const TCHAR* ControlsSaveSlot = TEXT("ControlSettings");
+
+	/** The controls of the local player Controller is; null for anything else (AI, a world without players). */
+	const UControlSettingsSubsystem* ControlsOf(const AController* Controller)
+	{
+		const APlayerController* Player = Cast<APlayerController>(Controller);
+		const ULocalPlayer* LocalPlayer = Player ? Player->GetLocalPlayer() : nullptr;
+		return LocalPlayer ? LocalPlayer->GetSubsystem<UControlSettingsSubsystem>() : nullptr;
+	}
 }
 
 void UControlSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -55,9 +63,7 @@ FVector2D UControlSettingsSubsystem::ScaleLookInput(const FVector2D& Input, floa
 FVector2D UControlSettingsSubsystem::ScaleLookInputFor(const AController* Controller, const FVector2D& Input)
 {
 	// Only a local player has the setting; anything else turns as the game was made.
-	const APlayerController* Player = Cast<APlayerController>(Controller);
-	const ULocalPlayer* LocalPlayer = Player ? Player->GetLocalPlayer() : nullptr;
-	const UControlSettingsSubsystem* Controls = LocalPlayer ? LocalPlayer->GetSubsystem<UControlSettingsSubsystem>() : nullptr;
+	const UControlSettingsSubsystem* Controls = ControlsOf(Controller);
 	return Controls ? ScaleLookInput(Input, Controls->GetLookSensitivity()) : Input;
 }
 
@@ -137,6 +143,65 @@ void UControlSettingsSubsystem::SetControllerRumble(float Rumble, bool bSave)
 		return;
 	}
 	SaveData->ControllerRumble = ClampControllerRumble(Rumble);
+	if (bSave)
+	{
+		SaveSettings();
+	}
+}
+
+bool UControlSettingsSubsystem::InvertYOf(const ULooterControlsSave* Controls)
+{
+	return Controls ? Controls->bInvertY : DefaultInvertY;
+}
+
+bool UControlSettingsSubsystem::IsInvertYFor(const AController* Controller)
+{
+	const UControlSettingsSubsystem* Controls = ControlsOf(Controller);
+	return Controls ? Controls->IsInvertY() : DefaultInvertY;
+}
+
+bool UControlSettingsSubsystem::IsInvertY() const
+{
+	return InvertYOf(SaveData);
+}
+
+void UControlSettingsSubsystem::SetInvertY(bool bInvert, bool bSave)
+{
+	if (!SaveData)
+	{
+		return;
+	}
+	SaveData->bInvertY = bInvert;
+	if (bSave)
+	{
+		SaveSettings();
+	}
+}
+
+bool UControlSettingsSubsystem::AimAssistOf(const ULooterControlsSave* Controls)
+{
+	return Controls ? Controls->bAimAssist : DefaultAimAssist;
+}
+
+bool UControlSettingsSubsystem::IsAimAssistFor(const AController* Controller)
+{
+	// Nobody at the pad, no assist: the default is for a player's own save, not for a controller that isn't one.
+	const UControlSettingsSubsystem* Controls = ControlsOf(Controller);
+	return Controls && Controls->IsAimAssistOn();
+}
+
+bool UControlSettingsSubsystem::IsAimAssistOn() const
+{
+	return AimAssistOf(SaveData);
+}
+
+void UControlSettingsSubsystem::SetAimAssistOn(bool bOn, bool bSave)
+{
+	if (!SaveData)
+	{
+		return;
+	}
+	SaveData->bAimAssist = bOn;
 	if (bSave)
 	{
 		SaveSettings();

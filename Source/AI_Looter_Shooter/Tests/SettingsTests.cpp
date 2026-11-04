@@ -6,10 +6,18 @@
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "UI/Menus/SettingsMenuHelp.h"
+#include "UI/Menus/SettingsMenuParts.h"
+#include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/Style/LooterButton.h"
+#include "UI/Style/LooterUIFocus.h"
+#include "Blueprint/UserWidget.h"
+#include "Engine/World.h"
 #include "InputAction.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "Kismet/GameplayStatics.h"
+#include "Tests/AutomationCommon.h"
 #include <limits>
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FQualityPresetsTest, "Looter.Settings.QualityPresets",
@@ -131,7 +139,7 @@ bool FLookSensitivitySettingTest::RunTest(const FString& Parameters)
 	ULooterControlsSave* Missing = Controls::LoadControls(Slot, nullptr);
 	TestNotNull(TEXT("No save yet: a fresh set"), Missing);
 	TestEqual(TEXT("...at the default"), Controls::LookSensitivityOf(Missing), Controls::DefaultLookSensitivity);
-	TestEqual(TEXT("No save object at all: the default"), Controls::LookSensitivityOf(nullptr), Controls::DefaultLookSensitivity);
+	TestTrue(TEXT("No save object at all: the default"), (Controls::LookSensitivityOf(nullptr)) == Controls::DefaultLookSensitivity);
 
 	ULooterControlsSave* Written = NewObject<ULooterControlsSave>();
 	Written->LookSensitivity = 1.75f;
@@ -157,6 +165,141 @@ bool FLookSensitivitySettingTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Scaled within the range"), Controls::ScaleLookInput(Input, 50.f).Equals(Input * Controls::MaxLookSensitivity));
 	// Anything without a local player (AI, tests) turns as the game was made.
 	TestTrue(TEXT("No player: unchanged"), Controls::ScaleLookInputFor(nullptr, Input).Equals(Input));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGamepadControlsSettingTest, "Looter.Settings.GamepadControls",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGamepadControlsSettingTest::RunTest(const FString& Parameters)
+{
+	using Controls = UControlSettingsSubsystem;
+
+	// Invert Y starts off and Aim assist on, for a fresh install and for a save from before they existed.
+	TestFalse(TEXT("Invert Y starts off"), Controls::DefaultInvertY);
+	TestTrue(TEXT("Aim assist starts on"), Controls::DefaultAimAssist);
+	TestTrue(TEXT("A fresh save: Invert Y at the default"), (GetDefault<ULooterControlsSave>()->bInvertY) == Controls::DefaultInvertY);
+	TestTrue(TEXT("A fresh save: Aim assist at the default"), (GetDefault<ULooterControlsSave>()->bAimAssist) == Controls::DefaultAimAssist);
+	TestTrue(TEXT("No save object at all: Invert Y at the default"), (Controls::InvertYOf(nullptr)) == Controls::DefaultInvertY);
+	TestTrue(TEXT("No save object at all: Aim assist at the default"), (Controls::AimAssistOf(nullptr)) == Controls::DefaultAimAssist);
+	// A controller that isn't a local player's has no one at the pad: the view isn't inverted and nothing is assisted.
+	TestFalse(TEXT("No local player: not inverted"), Controls::IsInvertYFor(nullptr));
+	TestFalse(TEXT("No local player: no aim assist"), Controls::IsAimAssistFor(nullptr));
+
+	// Saved and read back as the subsystem does, through a slot of the test's own, with the settings beside them untouched.
+	const FString Slot = TEXT("ControlSettings_AutomationTest_Gamepad");
+	UGameplayStatics::DeleteGameInSlot(Slot, 0);
+	const ULooterControlsSave* Missing = Controls::LoadControls(Slot, nullptr);
+	TestTrue(TEXT("No save yet: Invert Y at the default"), (Controls::InvertYOf(Missing)) == Controls::DefaultInvertY);
+	TestTrue(TEXT("...and Aim assist"), (Controls::AimAssistOf(Missing)) == Controls::DefaultAimAssist);
+
+	ULooterControlsSave* Written = NewObject<ULooterControlsSave>();
+	Written->bInvertY = true;
+	Written->bAimAssist = false;
+	Written->LookSensitivity = 1.75f;
+	Written->ControllerRumble = 0.35f;
+	if (!TestTrue(TEXT("Saved"), UGameplayStatics::SaveGameToSlot(Written, Slot, 0)))
+	{
+		return false;
+	}
+	const ULooterControlsSave* ReadBack = Controls::LoadControls(Slot, nullptr);
+	TestTrue(TEXT("Invert Y read back on"), Controls::InvertYOf(ReadBack));
+	TestFalse(TEXT("Aim assist read back off"), Controls::AimAssistOf(ReadBack));
+	TestEqual(TEXT("...with the look sensitivity beside them"), Controls::LookSensitivityOf(ReadBack), 1.75f);
+	TestEqual(TEXT("...and the controller rumble"), Controls::ControllerRumbleOf(ReadBack), 0.35f);
+
+	// And the other way round, so neither value is just the default coming back.
+	Written->bInvertY = false;
+	Written->bAimAssist = true;
+	UGameplayStatics::SaveGameToSlot(Written, Slot, 0);
+	const ULooterControlsSave* ReadAgain = Controls::LoadControls(Slot, nullptr);
+	TestFalse(TEXT("Invert Y read back off"), Controls::InvertYOf(ReadAgain));
+	TestTrue(TEXT("Aim assist read back on"), Controls::AimAssistOf(ReadAgain));
+	UGameplayStatics::DeleteGameInSlot(Slot, 0);
+
+	// Each row has its words (the Help test checks the sentences) and says its default.
+	const SettingsMenu::FSettingHelp Invert = SettingsMenu::RowHelp(SettingsMenu::ESettingRow::InvertY);
+	const SettingsMenu::FSettingHelp Assist = SettingsMenu::RowHelp(SettingsMenu::ESettingRow::AimAssist);
+	TestEqual(TEXT("The Invert Y row is named"), Invert.Title, FString(TEXT("Invert Y")));
+	TestEqual(TEXT("The Aim assist row is named"), Assist.Title, FString(TEXT("Aim assist")));
+	TestTrue(TEXT("Invert Y says it starts off"), Invert.Detail.Contains(TEXT("Off")));
+	TestTrue(TEXT("Aim assist says it starts on"), Assist.Detail.Contains(TEXT("On")));
+	TestTrue(TEXT("Aim assist says it is the gamepad's"), Assist.Body.Contains(TEXT("gamepad")));
+	return true;
+}
+
+namespace
+{
+	/** Puts the menus back under the mouse when the test ends, however it ends. */
+	struct FGamepadRowsMouseAfter
+	{
+		FGamepadRowsMouseAfter() { LooterUI::SetMenuDevice(LooterUI::EMenuDevice::Gamepad); }
+		~FGamepadRowsMouseAfter() { LooterUI::SetMenuDevice(LooterUI::EMenuDevice::Mouse); }
+	};
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGamepadControlsRowsTest, "Looter.Settings.GamepadRows",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGamepadControlsRowsTest::RunTest(const FString& Parameters)
+{
+	using namespace SettingsMenu;
+	FGamepadRowsMouseAfter Device;
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	USettingsMenuWidget* Menu = CreateWidget<USettingsMenuWidget>(TestLevel.GetTestWorld(), USettingsMenuWidget::StaticClass());
+	if (!TestNotNull(TEXT("The menu"), Menu))
+	{
+		return false;
+	}
+	const TSharedRef<SWidget> MenuSlate = Menu->TakeWidget();
+	Menu->Open(ESettingsMenuMode::MainMenu);
+	Menu->AdvanceNav(0.f);
+	auto Tap = [Menu](const FKey& Key)
+	{
+		Menu->HandleNavKey(Key);
+		Menu->HandleNavKeyUp(Key);
+		Menu->AdvanceNav(0.f);
+	};
+
+	// To the Controls page by the bumpers (Audio, Interface, Controls), the controller driving the page. (A first press only
+	// brings the focus look up when the mouse drove the page; Up at the first row moves nothing.)
+	Tap(EKeys::Gamepad_DPad_Up);
+	for (int32 Step = 0; Step < 3; ++Step)
+	{
+		Tap(EKeys::Gamepad_RightShoulder);
+	}
+	if (!TestEqual(TEXT("The Controls page"), Menu->GetPage(), static_cast<int32>(ESettingsPage::Controls)))
+	{
+		return false;
+	}
+
+	// Down the page: the three sliders, then the new switches, then Reset all keys (the key list's first stop).
+	TestEqual(TEXT("Starts on the look sensitivity"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::LookSensitivity).Title);
+	Tap(EKeys::Gamepad_DPad_Down);
+	TestEqual(TEXT("Down: camera shake"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::CameraShake).Title);
+	Tap(EKeys::Gamepad_DPad_Down);
+	TestEqual(TEXT("Down: controller rumble"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::ControllerRumble).Title);
+	Tap(EKeys::Gamepad_DPad_Down);
+	TestEqual(TEXT("Down: Invert Y, described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::InvertY).Title);
+	TestEqual(TEXT("...with its words"), Menu->GetShownHelpText(), RowHelp(ESettingRow::InvertY).Body);
+	ULooterButton* Switch = Cast<ULooterButton>(Menu->GetFocusedWidget());
+	if (TestNotNull(TEXT("...a switch under the focus"), Switch))
+	{
+		// A press lights the side pressed (with no local player the setting itself can't change, but the switch still answers).
+		TestTrue(TEXT("The switch presses"), Switch->Press());
+		TestTrue(TEXT("...and the side pressed is the one lit"), Switch->IsHighlighted());
+	}
+	Tap(EKeys::Gamepad_DPad_Down);
+	TestEqual(TEXT("Down: Aim assist, described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::AimAssist).Title);
+	TestEqual(TEXT("...with its words"), Menu->GetShownHelpText(), RowHelp(ESettingRow::AimAssist).Body);
+	Tap(EKeys::Gamepad_DPad_Down);
+	const ULooterButton* ResetAll = Cast<ULooterButton>(Menu->GetFocusedWidget());
+	TestTrue(TEXT("Down: Reset all keys, after the page's two switches"), ResetAll && ResetAll->Action == ActionResetAll);
+	TestEqual(TEXT("...described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::ResetAllKeys).Title);
 	return true;
 }
 

@@ -188,11 +188,12 @@ bool FSettingsMenuTabsTest::RunTest(const FString& Parameters)
 	SettingsTabsTap(*Menu, EKeys::Gamepad_RightShoulder);
 	TestEqual(TEXT("RB: Controls"), Menu->GetPage(), PageIndex(ESettingsPage::Controls));
 	TestEqual(TEXT("...its first row, the look sensitivity"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::LookSensitivity).Title);
-	for (int32 Step = 0; Step < 3; ++Step)
+	// Five since 2026-11-03: Invert Y and Aim assist (audit change 7) sit after the sliders, before Reset all keys.
+	for (int32 Step = 0; Step < 5; ++Step)
 	{
 		SettingsTabsTap(*Menu, EKeys::Gamepad_DPad_Down);
 	}
-	TestTrue(TEXT("Three down: Reset all keys, after the page's sliders"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionResetAll);
+	TestTrue(TEXT("Five down: Reset all keys, after the page's sliders and switches"), SettingsTabsActionOf(Menu->GetFocusedWidget()) == ActionResetAll);
 	TestEqual(TEXT("...described"), Menu->GetShownHelpTitle(), RowHelp(ESettingRow::ResetAllKeys).Title);
 	SettingsTabsTap(*Menu, EKeys::Gamepad_RightShoulder);
 	TestEqual(TEXT("RB from the last tab: round to Graphics"), Menu->GetPage(), PageIndex(ESettingsPage::Graphics));

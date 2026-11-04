@@ -20,6 +20,15 @@
 using namespace SettingsMenu;
 using namespace SettingsMenu::Layout;
 
+namespace
+{
+	// The Controls page's two switches (MakeControlsPage): their buttons take their own clicks, so these live here.
+	const FName ActionInvertYOn(TEXT("InvertYOn"));
+	const FName ActionInvertYOff(TEXT("InvertYOff"));
+	const FName ActionAimAssistOn(TEXT("AimAssistOn"));
+	const FName ActionAimAssistOff(TEXT("AimAssistOff"));
+}
+
 void USettingsMenuWidget::MakeGraphicsPage()
 {
 	BeginPage();
@@ -185,6 +194,52 @@ void USettingsMenuWidget::MakeControlsPage()
 	ControllerRumbleSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleChanged);
 	ControllerRumbleSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleReleased);
 	ControllerRumbleSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleControllerRumbleReleased);
+
+	// Two switches: Invert Y (mouse and stick) and the gamepad's Aim assist. MakeArtButton wires a click to HandleButton, which
+	// has no case for these, so each switch takes its own click here: it sets the control (saved at once, as a switch is),
+	// says so in the status line and lights the side that is the setting.
+	using FControlSetter = void (UControlSettingsSubsystem::*)(bool, bool);
+	auto AddControlSwitch = [this](const TCHAR* Label, ESettingRow Row, FName OnAction, FName OffAction, bool bNow, FControlSetter Setter,
+		const TCHAR* OnMessage, const TCHAR* OffMessage)
+	{
+		ULooterButton* OnSide = nullptr;
+		ULooterButton* OffSide = nullptr;
+		UWidget* SwitchRow = MakeToggleRow(Label, TEXT("On"), TEXT("Off"), OnAction, OffAction, 0, false, OnSide, OffSide);
+		AddPageRow(Describe(NavChoices(SwitchRow, { OnSide, OffSide }), RowHelp(Row)));
+		OnSide->SetHighlighted(bNow);
+		OffSide->SetHighlighted(!bNow);
+		for (ULooterButton* Side : { OnSide, OffSide })
+		{
+			Side->OnButtonClicked.BindWeakLambda(this, [this, Setter, OnAction, OnMessage, OffMessage,
+				WeakOn = TWeakObjectPtr<ULooterButton>(OnSide), WeakOff = TWeakObjectPtr<ULooterButton>(OffSide)](ULooterButton* Clicked)
+			{
+				StopListening();
+				const bool bOn = Clicked && Clicked->Action == OnAction;
+				if (UControlSettingsSubsystem* Controls = GetControls())
+				{
+					(Controls->*Setter)(bOn, /*bSave*/ true);
+				}
+				if (ULooterButton* OnButton = WeakOn.Get())
+				{
+					OnButton->SetHighlighted(bOn);
+				}
+				if (ULooterButton* OffButton = WeakOff.Get())
+				{
+					OffButton->SetHighlighted(!bOn);
+				}
+				SetStatus(bOn ? OnMessage : OffMessage, Color::TextDim());
+				RefreshKeyLabels();
+				SetKeyboardFocus();
+			});
+		}
+	};
+	const UControlSettingsSubsystem* Controls = GetControls();
+	AddControlSwitch(TEXT("Invert Y"), ESettingRow::InvertY, ActionInvertYOn, ActionInvertYOff,
+		Controls ? Controls->IsInvertY() : UControlSettingsSubsystem::DefaultInvertY, &UControlSettingsSubsystem::SetInvertY,
+		TEXT("Invert Y on: looking up and down is reversed."), TEXT("Invert Y off."));
+	AddControlSwitch(TEXT("Aim assist"), ESettingRow::AimAssist, ActionAimAssistOn, ActionAimAssistOff,
+		Controls ? Controls->IsAimAssistOn() : UControlSettingsSubsystem::DefaultAimAssist, &UControlSettingsSubsystem::SetAimAssistOn,
+		TEXT("Aim assist on: the gamepad's view slows on creatures and drifts onto them."), TEXT("Aim assist off."));
 
 	// The key list's heading: how to change a key (RefreshNavLook words it per device), with Reset all keys beside it, a stop
 	// of its own above the keys (it resets only them, so it lives with them rather than in the footer).
