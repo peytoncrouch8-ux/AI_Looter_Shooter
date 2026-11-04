@@ -107,9 +107,9 @@ FString SettingsMenu::QualityPresetHelp(EGraphicsQuality Quality)
 	switch (Quality)
 	{
 	case EGraphicsQuality::Low:
-		return TEXT("Simpler meshes, one low-resolution shadow cascade, no ambient occlusion. Only slightly faster than Medium.");
+		return TEXT("Simpler meshes and creatures, the smallest textures, one low-resolution shadow cascade, no ambient occlusion. Only slightly faster than Medium.");
 	case EGraphicsQuality::Medium:
-		return TEXT("Simpler meshes, two shadow cascades, TAA smoothing. Made to hold 120 fps at 1080p on a Radeon RX 580.");
+		return TEXT("Simpler meshes, full-size textures, two shadow cascades, TAA smoothing. Made to hold 120 fps at 1080p on a Radeon RX 580.");
 	case EGraphicsQuality::High:
 		return TEXT("Full-detail Nanite meshes, sharp virtual shadows, screen-space reflections and ambient occlusion. About twice Medium's cost (50-70 fps on an RX 580).");
 	case EGraphicsQuality::Epic:

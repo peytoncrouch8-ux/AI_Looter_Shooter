@@ -44,6 +44,16 @@ namespace
 		// (they need the global distance field, which High doesn't otherwise keep).
 		{ TEXT("r.AmbientOcclusionLevels"), { 0, 0, -1, -1 } },
 		{ TEXT("r.DistanceFieldAO"), { 0, 0, 0, 1 } },
+		// Texture detail (the art audit of 2026-11-03, finding 3): the engine's Medium draws every map at half its size (mip
+		// bias 1) and filters it 2x, so decks, ground and walls seen at a slant smear. Medium keeps the full maps and 8x
+		// filtering as High does, with a streaming pool to hold them (the engine's 600 MB would drop mips again): measured
+		// 2026-11-04 at 0.2 ms in a 10-spider horde, the filtering free, and the filtering is what the eye sees (the user's
+		// pick). Creature LOD0 up close stays the engine's Medium (LOD bias 1): 0.3 ms in a horde for a difference nobody
+		// saw at 3 m. Low stays the engine's own (mip bias 16, 1x, 400 MB); High's filtering rises from the engine's 4x.
+		{ TEXT("r.Streaming.MipBias"), { 16, 0, 0, 0 } },
+		{ TEXT("r.MaxAnisotropy"), { 1, 8, 8, 8 } },
+		{ TEXT("r.SkeletalMeshLODBias"), { 2, 1, 0, 0 } },
+		{ TEXT("r.Streaming.PoolSize"), { 400, 1000, 1000, 1000 } },
 	};
 
 	/** Looter.Quality Low|Medium|High|Epic: sets and saves the preset, as the settings menu does (handy for perf runs). */

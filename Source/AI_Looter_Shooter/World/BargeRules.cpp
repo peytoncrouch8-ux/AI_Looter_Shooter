@@ -22,9 +22,81 @@ namespace BargeRules
 		return Name;
 	}
 
+	FBox2D VestibuleArea()
+	{
+		// From its aft wall to the lining just inside the house's fore wall, between its side walls.
+		return FBox2D(FVector2D(VestibuleAft, -VestibuleHalfWidth), FVector2D(HouseFore - HouseWallThick - VestibuleWall, VestibuleHalfWidth));
+	}
+
+	TArray<FRailWall> RailWallLayout()
+	{
+		const auto Box = [](double XMin, double XMax, double YA, double YB)
+		{
+			return FBox2D(FVector2D(XMin, FMath::Min(YA, YB)), FVector2D(XMax, FMath::Max(YA, YB)));
+		};
+		// On the bulwark itself (its inner face to its outer), standing over its 110 cm; the far side whole, the berth side
+		// either side of its gap; then across the bow. The house is the full beam: nothing to close beside it.
+		const double In = BulwarkHalfBeam - BulwarkThick;
+		const double Out = BulwarkHalfBeam;
+		const double Side = BerthSide;
+		return {
+			{ TEXT("RailWallFar"), Box(HouseFore, DeckFore, -Side * In, -Side * Out) },
+			{ TEXT("RailWallBerthFore"), Box(BerthX + GapHalf, DeckFore, Side * In, Side * Out) },
+			{ TEXT("RailWallBerthAft"), Box(HouseFore, BerthX - GapHalf, Side * In, Side * Out) },
+			{ TEXT("RailWallBow"), Box(DeckFore, DeckFore + RailWallThick, -Out, Out) },
+		};
+	}
+
+	bool IsOpenDeck(const FVector2D& At)
+	{
+		if (At.X < DeckAft || At.X > DeckFore || FMath::Abs(At.Y) > DeckHalfBeam)
+		{
+			return false;
+		}
+		for (const FDeckBlock& Block : DeckBlocks())
+		{
+			if (At.X >= Block.XMin && At.X <= Block.XMax && At.Y >= Block.YMin && At.Y <= Block.YMax)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	float PlankSillClearance()
+	{
+		// Her hinge (her deck's edge at her rail) to the landing (BoardingInset in from the arena's edge), measured outward
+		// from the barge's middle; the plank's floor where it crosses the bulwark's inner face, over the gap's sill.
+		const float HingeOut = BerthOut - ShipRailOut;
+		const float HingeUp = DeckTop - BerthUnderDeck;
+		const float LandOut = DeckHalfBeam - BoardingInset;
+		const float CrossOut = BulwarkHalfBeam - BulwarkThick;
+		const float Share = (CrossOut - LandOut) / FMath::Max(HingeOut - LandOut, 1.f);
+		const float Line = FMath::Lerp(DeckTop, HingeUp, Share);
+		return Line - PlankUnderside - (DeckTop + SillUp);
+	}
+
+	float BerthBagClearance()
+	{
+		return BerthOut - ShipBagHalfBeam - BulwarkHalfBeam;
+	}
+
+	float JumpBagClearance()
+	{
+		// The bulwark's top on her side, from her keel at the jump berth (both in the barge's frame), turned by the full list
+		// (the barge's turn about her +X; her berth side goes down) into her level frame: how far inboard of her keel line it
+		// ends up, less her bag's half beam.
+		const FVector2D Bulwark(BerthSide * BulwarkHalfBeam, DeckTop + RailHeight);
+		const FVector2D Keel(BerthSide * JumpOut, DeckTop - JumpUnderDeck - ShipDeckOverKeel);
+		const FVector2D Rel = Bulwark - Keel;
+		const float Turn = FMath::DegreesToRadians(-BerthSide * ListDegrees);
+		const float Across = Rel.X * FMath::Cos(Turn) - Rel.Y * FMath::Sin(Turn);
+		return -BerthSide * Across - ShipBagHalfBeam;
+	}
+
 	bool HallFits(float Radius)
 	{
-		return Radius > 0.f && Radius + WallThickness + HullWall <= HullHalfBeam;
+		return Radius > 0.f && Radius + WallThickness + HullWall <= HallSkinHalfBeam;
 	}
 
 	FVector HallPoint(float AngleDegrees, float Radius, float Up)
@@ -33,9 +105,85 @@ namespace BargeRules
 		return HallCenter + FVector(FMath::Cos(Turn) * Radius, FMath::Sin(Turn) * Radius, HallFloor + Up);
 	}
 
+	FBox2D HallCeilingArea()
+	{
+		// The hall to its wall's outer face (the office and the vestibule have their own roofs).
+		const double Out = HallRadius + WallThickness;
+		return FBox2D(FVector2D(HallCenter.X - Out, HallCenter.Y - Out), FVector2D(HallCenter.X + Out, HallCenter.Y + Out));
+	}
+
+	FBox2D OfficeArea()
+	{
+		return FBox2D(FVector2D(HallCenter.X + HallRadius, HallCenter.Y - OfficeHalfWidth),
+			FVector2D(HallCenter.X + HallRadius + OfficeDepth, HallCenter.Y + OfficeHalfWidth));
+	}
+
+	FStairRun FloorStair(int32 Index)
+	{
+		// Its top on the catwalk, its foot on the hall's floor's top (a hair over the deck).
+		const int32 At = FMath::Clamp(Index, 0, NumFloorStairs - 1);
+		const float Top = FloorStairAngles[At];
+		return { HallPoint(Top, CatwalkMiddle, CatwalkUp), HallPoint(Top + FloorStairWays[At] * FloorStairSpan, CatwalkMiddle, InteriorFloorLift) };
+	}
+
+	float CatwalkSpanAngle(int32 Index)
+	{
+		return (Index + 0.5f) * 360.f / CatwalkSpans;
+	}
+
+	bool IsCatwalkSpanLaid(int32 Index)
+	{
+		// A span whose middle lies over a stair's arc would roof the climb (the stairs run under the ring's middle): open
+		// there. The stairs don't cross 0 degrees.
+		const float Middle = CatwalkSpanAngle(Index);
+		for (int32 Stair = 0; Stair < NumFloorStairs; ++Stair)
+		{
+			const float Top = FloorStairAngles[Stair];
+			const float Foot = Top + FloorStairWays[Stair] * FloorStairSpan;
+			if (Middle > FMath::Min(Top, Foot) && Middle < FMath::Max(Top, Foot))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	float CatwalkEndAngle(int32 Stair)
+	{
+		// The first laid span past the foot, the stair's way round: its near edge.
+		const int32 At = FMath::Clamp(Stair, 0, NumFloorStairs - 1);
+		const float Way = FloorStairWays[At];
+		const float Foot = FloorStairAngles[At] + Way * FloorStairSpan;
+		const float Half = 180.f / CatwalkSpans * CatwalkSpanStretch;
+		float Nearest = Way > 0.f ? 360.f : 0.f;
+		for (int32 Index = 0; Index < CatwalkSpans; ++Index)
+		{
+			const float Middle = CatwalkSpanAngle(Index);
+			if (IsCatwalkSpanLaid(Index) && (Way > 0.f ? Middle >= Foot && Middle < Nearest : Middle <= Foot && Middle > Nearest))
+			{
+				Nearest = Middle;
+			}
+		}
+		return Nearest - Way * Half;
+	}
+
+	float StairSlope(const FStairRun& Stair)
+	{
+		const FVector Run = Stair.To - Stair.From;
+		return FMath::RadiansToDegrees(FMath::Atan2(FMath::Abs(Run.Z), FVector2D(Run.X, Run.Y).Size()));
+	}
+
+	FVector HatchSpot()
+	{
+		return FVector(HouseFore, 0.0, DeckTop);
+	}
+
 	FVector DeskTop()
 	{
-		return HallPoint(OfficeAngle, HallRadius + DeskOut, CatwalkUp + DeskTopUp);
+		// Out from the hall's wall into the office (on the hall's floor's level), then across it toward the port end.
+		const float Turn = FMath::DegreesToRadians(OfficeAngle);
+		const FVector Across(-FMath::Sin(Turn), FMath::Cos(Turn), 0.0);
+		return HallPoint(OfficeAngle, HallRadius + DeskOut, InteriorFloorLift + DeskTopUp) + Across * DeskAcross;
 	}
 
 	int32 HotGrates(int32 ValvesShut)
@@ -162,7 +310,8 @@ namespace BargeRules
 
 	bool IsAboard(const FVector& BargeLocal)
 	{
-		return BargeLocal.X >= DeckAft - 100.f && BargeLocal.X <= DeckFore + 100.f && FMath::Abs(BargeLocal.Y) <= DeckHalfBeam + 60.f
-			&& BargeLocal.Z >= HallFloor - 150.f && BargeLocal.Z <= DeckTop + 900.f;
+		// The whole of her: the house (and the hall in it) aft, the arena and the bow fore, out to her bulwark.
+		return BargeLocal.X >= HouseAft - 100.f && BargeLocal.X <= DeckFore + 150.f && FMath::Abs(BargeLocal.Y) <= BulwarkHalfBeam + 60.f
+			&& BargeLocal.Z >= HallFloor - 150.f && BargeLocal.Z <= HouseRoof + AboardOverRoof;
 	}
 }

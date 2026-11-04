@@ -13,7 +13,24 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 - Presets Low, Medium, High, Epic = the engine's scalability level + Lumen + anti-aliasing method + Nanite. Lumen, TSR and
   distance field AO only on Epic (TAA otherwise); High = Nanite + virtual shadow maps + SSAO + screen-space reflections; Nanite
   off below High (it costs the RX 580 about 2.5 ms). All presets render at full resolution (the engine's own Medium renders at
-  71%). A fresh install starts on Medium.
+  71%). A fresh install starts on Medium. Since 2026-11-04 (the art audit's step 1) Medium keeps its full-size textures
+  (r.Streaming.MipBias 0, was 1), 8x anisotropy (was 2), creature LOD0 (r.SkeletalMeshLODBias 0, was 1) and a 1000 MB streaming
+  pool (was 600), as High; Low stays the engine's own. Measured 2026-11-04 (PC not quiet: agents running): the 42-view Ransom's
+  Rest tour mean 7.19 -> 7.35 ms (PointOverValley left out: a 57 ms streaming hitch on the first view after the change), every
+  view +0.3..0.8 ms, the heaviest Aerial_Dusk 8.69 -> 9.40, Aerial 8.58 -> 9.38, PointOverValley_FarShadow 8.73 -> 9.08 (seven
+  views over 8.3 ms, three were before); the 10-spider horde 7.4 -> 8.6 ms (GPU 6.2 -> 7.2, triangles 1.94 -> 2.21 M: the
+  spiders' LOD0); LMG fire into it 8.4 -> 9.0. Which setting costs what ("isolate" rows, each one put back alone): anisotropy
+  2 -> no change (8.6), mip bias 1 -> 8.4, skeletal LOD bias 1 -> 8.3, all three back (the control) -> 8.1, not the night's 7.4:
+  the PC was ~0.7 ms noisier (render thread 7-8 ms, was 5), so step 1's own cost is the isolates' 0.5 ms in the horde (creature
+  LOD0 0.3, full mips 0.2, anisotropy 0) and the tour's +0.3..0.8 per view is mostly that noise. Close-up grabs
+  (`Saved/ArtPreviews/Step1/closeup`): the filtering shows on slanted boards, full mips show nothing on Tripo walls (soft at the
+  source, audit finding 4), LOD0 barely at 3 m. The user's pick (2026-11-04): keep the filtering and the full mips, creature LOD
+  bias back to the engine's Medium (1). Final (10:34, step 1 as picked, the reworked Tripo barge with the detail layer in the
+  level): the tour mean 7.39 ms over 42 views (7.19 before step 1 at a quieter PC), the heaviest Aerial 9.36, Aerial_Dusk 9.36,
+  PointOverValley_FarShadow 9.10 (nine views over 8.3, mostly aerial and noise); the barge views SpyglassBarge 7.38 -> 7.82,
+  FarmBarge 7.84 -> 8.17, DeckFight_Dusk 7.50 -> 7.40 (the reworked hull 56k triangles, 47 hulls, the detail layer ~0.1 ms);
+  the horde 8.4 ms, LMG fire 8.6 ("Art round 1 final" rows; the earlier "scripted barge hull" rows measured the hull the user
+  then dropped).
 - Small instanced scatter (meshes under 1.5 m radius) stays out of Lumen and the distance fields (`ULumenScatterSubsystem`):
   Ransom's Rest's ~66k grass/flower/pebble instances made Lumen's surface cache recapture ~6,900 tiny cards
   (`LumenSceneUpdate` 400+ ms, frames of 1.3 s alternating with normal ones, even standing still).
@@ -130,3 +147,13 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-11-04 | Phase 3 fire: SMG 30 s into 10 Basic spiders | 70059aa3 | 1920x1080 | 8.3 | 120 | 9.8 | 8.2 | 4.9 | 1.9 | 6.7 | 1596 | 1417355 | 4.42 |
 | 2026-11-04 | Phase 3 fire: LMG, muzzle and impact lights off | 70059aa3 | 1920x1080 | 8.5 | 118 | 10.0 | 8.5 | 3.9 | 2.0 | 6.6 | 1576 | 1378181 | 4.35 |
 | 2026-11-04 | Phase 3 before (e3390778 code): 10 Basic spiders in town | 70059aa3 | 1920x1080 | 9.4 | 107 | 9.8 | 7.4 | 7.8 | 2.3 | 6.7 | 1898 | 1880873 | 14.70 |
+| 2026-11-04 | Art step 1 after (Medium keeps texture and creature detail): 10 Basic spiders in town | 3c85407f | 1920x1080 | 8.6 | 116 | 9.6 | 7.2 | 7.9 | 1.8 | 7.2 | 1914 | 2212572 | 5.68 |
+| 2026-11-04 | Art step 1 after: LMG 30 s into 10 Basic spiders | 3c85407f | 1920x1080 | 9.0 | 111 | 11.5 | 9.0 | 4.5 | 2.1 | 6.9 | 1592 | 1817050 | 4.69 |
+| 2026-11-04 | Art step 1 isolate: anisotropy back to 2 | 3c85407f | 1920x1080 | 8.6 | 117 | 10.3 | 7.6 | 7.1 | 1.9 | 6.9 | 1899 | 2289524 | 7.40 |
+| 2026-11-04 | Art step 1 isolate: mip bias back to 1 | 3c85407f | 1920x1080 | 8.4 | 118 | 9.2 | 6.7 | 8.3 | 1.8 | 7.2 | 1900 | 2247444 | 4.51 |
+| 2026-11-04 | Art step 1 isolate: skeletal LOD bias back to 1 | 3c85407f | 1920x1080 | 8.3 | 120 | 9.1 | 6.8 | 8.1 | 1.8 | 7.0 | 1914 | 1958588 | 4.57 |
+| 2026-11-04 | Art step 1 isolate: all three back (control) | 3c85407f | 1920x1080 | 8.1 | 123 | 9.0 | 7.2 | 7.9 | 1.8 | 6.8 | 1913 | 1935069 | 4.71 |
+| 2026-11-04 | Art round 1 final (step 1 as picked, scripted barge hull): 10 Basic spiders in town | 3c85407f | 1920x1080 | 8.6 | 116 | 10.8 | 8.5 | 4.6 | 2.1 | 6.3 | 1923 | 1898579 | 8.54 |
+| 2026-11-04 | Art round 1 final: LMG 30 s into 10 Basic spiders | 3c85407f | 1920x1080 | 8.9 | 113 | 11.2 | 8.8 | 4.8 | 2.0 | 7.0 | 1525 | 1311132 | 5.23 |
+| 2026-11-04 | Art round 1 final (step 1 as picked, reworked Tripo hull + detail layer): 10 Basic spiders in town | 3c85407f | 1920x1080 | 8.4 | 119 | 9.2 | 6.8 | 8.2 | 1.8 | 7.1 | 1914 | 1889788 | 5.82 |
+| 2026-11-04 | Art round 1 final (reworked Tripo hull): LMG 30 s into 10 Basic spiders | 3c85407f | 1920x1080 | 8.6 | 116 | 10.1 | 8.5 | 5.2 | 2.0 | 7.1 | 1631 | 1443430 | 4.67 |

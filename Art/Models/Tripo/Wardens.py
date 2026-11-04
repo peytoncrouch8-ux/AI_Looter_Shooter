@@ -6,9 +6,15 @@ and why); Delia's shotgun and Abel's hat are Art/Models/Props/TripoProps.py (/Ga
 
     Tools\models.ps1 -Only Wardens,TripoProps -Out Intermediate\ArtExport_Tripo -NoImport
     LOOTER_TRIPO_ONLY=Lamplighter,GreatLantern limits a run to those models.
+    Tools\\artrun.ps1 -Script Art\\Models\\Tripo\\Wardens.py -Preview  (with LOOTER_TRIPO_ONLY=DredgeBarge): the reworked
+    barge's previews in Saved/ArtPreviews/DredgeBargeRework.
 """
+import looter_textures as lt
+import looter_tripo_barge as barge
 import looter_tripo_wardens as tw
 
 for name in tw.names('Tripo'):
     obj, report = tw.build(name)
     tw.describe(name, report)
+    if name == 'DredgeBarge' and lt.want_preview():
+        barge.preview(obj)

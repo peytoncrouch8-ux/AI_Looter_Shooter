@@ -26,11 +26,8 @@ namespace BargeLooks
 	inline constexpr const TCHAR* Wood = TEXT("/Game/Art/Materials/MI_LanternWood.MI_LanternWood");
 
 	// The user's Tripo kit (soft: the shapes stand in until each lands).
-	inline constexpr const TCHAR* TripoDeckPlate = TEXT("/Game/Art/Tripo/SM_BargeDeckPlate.SM_BargeDeckPlate");    // [30]
-	inline constexpr const TCHAR* TripoRail = TEXT("/Game/Art/Tripo/SM_BargeRail.SM_BargeRail");                  // [30]
 	inline constexpr const TCHAR* TripoSoulCoal = TEXT("/Game/Art/Tripo/SM_SoulCoal.SM_SoulCoal");                // [31]
 	inline constexpr const TCHAR* TripoStack = TEXT("/Game/Art/Tripo/SM_BargeStack.SM_BargeStack");               // [32]
-	inline constexpr const TCHAR* TripoCrane = TEXT("/Game/Art/Tripo/SM_BargeCrane.SM_BargeCrane");               // [32]
 	inline constexpr const TCHAR* TripoHoseDrum = TEXT("/Game/Art/Tripo/SM_BargeHoseDrum.SM_BargeHoseDrum");      // [32]
 	inline constexpr const TCHAR* TripoVent = TEXT("/Game/Art/Tripo/SM_FurnaceVent.SM_FurnaceVent");              // [32]
 	inline constexpr const TCHAR* TripoFurnace = TEXT("/Game/Art/Tripo/SM_SoulFurnace.SM_SoulFurnace");           // [33]

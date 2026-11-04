@@ -1,5 +1,5 @@
 // ABargeBoarding: her end. The cage's burst takes her pilot light: every light out, a list to her berth side, a drift
-// west on the dusk wind, her back half burning and the third stack down across the port lane (step 7). Then BargeFall
+// west on the dusk wind, her back half burning and the third stack down across the after deck (step 7). Then BargeFall
 // carries her over the Rest raining soul coal and down into Gravewind Canyon, and she's gone (Pilot.BargeFell).
 
 #include "World/BargeBoarding.h"
@@ -23,9 +23,6 @@
 
 namespace
 {
-	/** Her back half's fires (the barge's frame): where the furnace's breach spilled onto the after deck. */
-	const FVector SternFires[] = { FVector(-3100.0, -500.0, 0.0), FVector(-2900.0, 600.0, 0.0), FVector(-2300.0, -850.0, 0.0),
-		FVector(-2000.0, 300.0, 0.0), FVector(-3300.0, 100.0, 0.0), FVector(-1600.0, 900.0, 0.0) };
 	/** Smoke and the odd burst off them this often while she dies; her timbers' groan this often. */
 	constexpr float FireEvery = 0.2f;
 	constexpr float GroanEvery = 5.f;
@@ -69,11 +66,12 @@ void ABargeBoarding::BeginDying()
 	}
 	LooterSound::Stop(FurnaceDrone.Get(), 3.f);
 	FurnaceDrone.Reset();
-	// Her back half alight where the breach spilled the furnace's coal.
+	// Her back half alight where the breach spilled the furnace's coal: the after deck by the house, the house's roof (each
+	// spot on the surface it burns from).
 	TArray<FTransform> Fires;
-	for (const FVector& Spot : SternFires)
+	for (const FVector& Spot : BargeRules::SternFireSpots)
 	{
-		Fires.Add(FTransform(FQuat::Identity, Spot + FVector(0.0, 0.0, BargeRules::DeckTop + 160.0), FVector(2.2, 2.2, 3.2)));
+		Fires.Add(FTransform(FQuat::Identity, Spot + FVector(0.0, 0.0, 160.0), FVector(2.2, 2.2, 3.2)));
 	}
 	SternFire->ClearInstances();
 	SternFire->AddInstances(Fires, false);
@@ -103,8 +101,8 @@ void ABargeBoarding::AdvanceDying(float DeltaSeconds)
 	if (FireWait <= 0.f)
 	{
 		FireWait = FireEvery;
-		const FVector Spot = SternFires[FMath::RandRange(0, static_cast<int32>(UE_ARRAY_COUNT(SternFires)) - 1)];
-		const FVector At = ToWorld(Spot + FVector(0.0, 0.0, BargeRules::DeckTop + 300.0));
+		const FVector Spot = BargeRules::SternFireSpots[FMath::RandRange(0, BargeRules::NumSternFires - 1)];
+		const FVector At = ToWorld(Spot + FVector(0.0, 0.0, 300.0));
 		LamplighterEffects::SmokePuff(this, At, FVector(0.0, -BargeRules::DriftSpeed, 260.0));
 		if (FMath::FRand() < 0.12f)
 		{
@@ -134,7 +132,8 @@ void ABargeBoarding::DropStack(float Alpha)
 	{
 		return;
 	}
-	// Down across the port lane, a little aft: a turn about the line square to that, through its foot.
+	// Down across the after deck toward the port lane, a little forward (BargeRules::StackFallAft): a turn about the line
+	// square to that, through its foot.
 	const float Aft = FMath::DegreesToRadians(BargeRules::StackFallAft);
 	const FVector Down(-FMath::Sin(Aft), BargeRules::BerthSide * FMath::Cos(Aft), 0.0);
 	const FVector Axis(-Down.Y, Down.X, 0.0);
@@ -146,7 +145,7 @@ void ABargeBoarding::DropStack(float Alpha)
 		return;
 	}
 	bStackDown = true;
-	const FVector Foot = ToWorld(BargeRules::StackSpots[2]);
+	const FVector Foot = ToWorld(BargeRules::FallingStackFoot);
 	const FVector Lying = GetActorTransform().TransformVectorNoScale(Down);
 	const FVector Middle = Foot + Lying * (BargeRules::StackHeight * 0.5);
 	LooterSound::PlayAt(this, LooterSoundCue::Gunfeel::ImpactHeavy, Middle, 1.5f, 0.6f);
@@ -198,7 +197,7 @@ void ABargeBoarding::ApplyFallAt(float Seconds)
 	if (FireWait <= 0.f)
 	{
 		FireWait = FireEvery;
-		LamplighterEffects::SmokePuff(this, ToWorld(FVector(-2600.0, 0.0, BargeRules::DeckTop + 400.0)), FVector(0.0, 0.0, 300.0));
+		LamplighterEffects::SmokePuff(this, ToWorld(BargeRules::FallSmokeSpot), FVector(0.0, 0.0, 300.0));
 	}
 	if (!bImpacted && Seconds >= BargeRules::ImpactAt)
 	{

@@ -1,6 +1,7 @@
-// ABargeBoarding: Vane's barge brought down over the chapel in Main 6: her life in the level, her place in the story, her
-// pieces, the beats the furnace, valves and drum tell her, and the getters the sortie and the build script read.
-// BargeBoardingKit.cpp builds her walkable kit, BargeBoardingDeck.cpp ticks her deck, BargeBoardingDying.cpp her end.
+// ABargeBoarding: Vane's barge brought down over the chapel in Main 6: her life in the level (the hull, shown or not), her
+// place in the story, her pieces, and the beats the furnace, valves and drum tell her. BargeBoardingSpots.cpp has the
+// getters the sortie and the build scripts read, BargeBoardingKit.cpp her deck kit, BargeBoardingHall.cpp the vestibule
+// and the hall below, BargeBoardingDeck.cpp her tick, BargeBoardingDying.cpp her end.
 
 #include "World/BargeBoarding.h"
 #include "AI_Looter_Shooter.h"
@@ -20,6 +21,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -53,26 +55,31 @@ ABargeBoarding::ABargeBoarding()
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
 
-	static UStaticMesh* const TripoHull = BargeLooks::Find<UStaticMesh>(HullPath);
+	static UStaticMesh* const HullMesh = BargeLooks::Find<UStaticMesh>(HullPath);
 	static UStaticMesh* const CubeMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Cube);
 	static UMaterialInterface* const Iron = BargeLooks::Find<UMaterialInterface>(BargeLooks::Iron);
 	Hull = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Hull"));
 	Hull->SetupAttachment(Root);
 	Hull->SetMobility(EComponentMobility::Movable);
-	if (TripoHull)
+	if (HullMesh)
 	{
-		Hull->SetStaticMesh(TripoHull);
+		// The reworked Tripo hull carries its own collision (its UCX boxes: the deck slab, the bulwark round its gap, the hull's
+		// body, the house's walls round its door and its roof, the stacks, the tower, the scoop; nothing inside the house, where
+		// the kit's vestibule, office and hall are): she's walked and shot on as she is.
+		Hull->SetStaticMesh(HullMesh);
+		Hull->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+		Hull->SetCollisionObjectType(ECC_WorldStatic);
 	}
 	else
 	{
-		// Without the Tripo barge: an iron box of her size up to her deck, so the kit stands on something.
+		// Without it: an iron box of her size up to her deck, only to see; the kit lays its own deck plate and rails on it
+		// (and builds the house's rooms on it as on the hull, with no house round them).
 		Hull->SetStaticMesh(CubeMesh);
 		Hull->SetMaterial(0, Iron);
 		Hull->SetRelativeLocation(FVector(0.0, 0.0, BargeRules::DeckTop * 0.5));
 		Hull->SetRelativeScale3D(FVector(BargeRules::HullLength / 100.0, BargeRules::HullHalfBeam / 50.0, BargeRules::DeckTop / 100.0));
+		Hull->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-	// Seen, never walked or shot: the kit carries every collision (her interior is a hall the hull's mesh would fill).
-	Hull->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Hull->SetCanEverAffectNavigation(false);
 	Hull->bCastDynamicShadow = true;
 
@@ -157,16 +164,6 @@ void ABargeBoarding::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-FVector ABargeBoarding::ToWorld(const FVector& Local) const
-{
-	return GetActorTransform().TransformPosition(Local + FVector(0.0, 0.0, KitLift));
-}
-
-FTransform ABargeBoarding::RestTransform() const
-{
-	return bPlacedKnown ? Placed : GetActorTransform();
-}
-
 void ABargeBoarding::SpawnPieces()
 {
 	UWorld* World = GetWorld();
@@ -224,7 +221,7 @@ void ABargeBoarding::SpawnPieces()
 		HoseDrum->JamWhen.BeforeStep = BargeRules::ManifestStep;
 	}
 	// The hatch's marker (Main 6 step 3's Reach), riding her.
-	HatchMarker = ALandfallMarker::SpawnTagged(World, HatchTag, ToWorld(FVector(BargeRules::HatchX, 0.0, BargeRules::DeckTop + 50.0)), Kit);
+	HatchMarker = ALandfallMarker::SpawnTagged(World, HatchTag, ToWorld(BargeRules::HatchSpot() + FVector(0.0, 0.0, 50.0)), Kit);
 }
 
 // ---------------------------------------------------------------------------
@@ -479,110 +476,4 @@ void ABargeBoarding::NoteCageBurst()
 	{
 		SetState(EBargeState::Burst);
 	}
-}
-
-// ---------------------------------------------------------------------------
-// The getters
-// ---------------------------------------------------------------------------
-
-FTransform ABargeBoarding::GetBerth() const
-{
-	const FVector Keel(BargeRules::BerthX, BargeRules::BerthSide * BargeRules::BerthOut,
-		BargeRules::DeckTop - BargeRules::BerthUnderDeck - BargeRules::ShipDeckOverKeel);
-	return FTransform(FRotator(0.f, GetActorRotation().Yaw, 0.f), ToWorld(Keel));
-}
-
-FTransform ABargeBoarding::GetJumpBerth() const
-{
-	// Under the gangway's broken end, as she lists and drifts: the ship keeps level (the barge's yaw only).
-	const FVector Keel(BargeRules::BerthX, BargeRules::BerthSide * BargeRules::JumpOut,
-		BargeRules::DeckTop - BargeRules::JumpUnderDeck - BargeRules::ShipDeckOverKeel);
-	return FTransform(FRotator(0.f, GetActorRotation().Yaw, 0.f), ToWorld(Keel));
-}
-
-FVector ABargeBoarding::GetGrappleAnchor(int32 Index) const
-{
-	const float Along = Index == 0 ? BargeRules::GrappleSpread : -BargeRules::GrappleSpread;
-	return ToWorld(FVector(BargeRules::BerthX + Along, BargeRules::BerthSide * (BargeRules::DeckHalfBeam + 20.0), BargeRules::DeckTop + 90.0));
-}
-
-FVector ABargeBoarding::GetBoardingPoint() const
-{
-	return ToWorld(FVector(BargeRules::BerthX, BargeRules::BerthSide * (BargeRules::DeckHalfBeam - 150.0), BargeRules::DeckTop));
-}
-
-FTransform ABargeBoarding::GetPlayerStart() const
-{
-	// On the deck, standing (a capsule's half height over it), facing inboard: by the plank until the hatch, by the hatch after.
-	const bool bBelow = StoryStep >= BargeRules::ManifestStep;
-	const FVector Local = bBelow ? FVector(BargeRules::HatchX + 300.0, 0.0, BargeRules::DeckTop + 100.0)
-		: FVector(BargeRules::BerthX, BargeRules::BerthSide * (BargeRules::DeckHalfBeam - 200.0), BargeRules::DeckTop + 100.0);
-	const float Yaw = static_cast<float>(GetActorRotation().Yaw) + (bBelow ? 180.f : (BargeRules::BerthSide < 0.f ? 90.f : -90.f));
-	return FTransform(FRotator(0.f, Yaw, 0.f), ToWorld(Local));
-}
-
-TArray<FVector> ABargeBoarding::GetFightSpots(FName Fight) const
-{
-	TArray<FVector> Spots;
-	if (Fight == DeckFight)
-	{
-		for (const FVector& Spot : BargeRules::DeckFightSpots)
-		{
-			Spots.Add(ToWorld(Spot + FVector(0.0, 0.0, 20.0)));
-		}
-	}
-	else if (Fight == HallFight)
-	{
-		// Four at each stokehold's door, in two rows: the pushes come through them.
-		for (const float Angle : BargeRules::StokeholdAngles)
-		{
-			for (int32 Index = 0; Index < BargeRules::HallFightSpots / 2; ++Index)
-			{
-				const float Across = (Index % 2 == 0 ? -1.f : 1.f) * 120.f;
-				const float In = BargeRules::HallRadius - 150.f - (Index / 2) * 180.f;
-				const float Turn = FMath::DegreesToRadians(Angle);
-				const FVector Out(FMath::Cos(Turn), FMath::Sin(Turn), 0.0);
-				const FVector Side(-Out.Y, Out.X, 0.0);
-				Spots.Add(ToWorld(BargeRules::HallCenter + Out * In + Side * Across + FVector(0.0, 0.0, BargeRules::HallFloor + 20.0)));
-			}
-		}
-	}
-	return Spots;
-}
-
-FVector ABargeBoarding::GetOfficeSpot() const
-{
-	return ToWorld(BargeRules::DeskTop());
-}
-
-TArray<FTransform> ABargeBoarding::GetHornSpots() const
-{
-	TArray<FTransform> Spots;
-	for (const FVector& Spot : BargeRules::HornSpots)
-	{
-		// Each post's horns turned in over the deck (toward her middle line).
-		const float Yaw = static_cast<float>(GetActorRotation().Yaw) + (Spot.Y < 0.0 ? 90.f : -90.f);
-		Spots.Add(FTransform(FRotator(0.f, Yaw, 0.f), ToWorld(Spot)));
-	}
-	return Spots;
-}
-
-FVector ABargeBoarding::GetHatchSpot() const
-{
-	return ToWorld(FVector(BargeRules::HatchX, 0.0, BargeRules::DeckTop));
-}
-
-FVector ABargeBoarding::GetDeckMiddle() const
-{
-	return ToWorld(FVector((BargeRules::DeckAft + BargeRules::DeckFore) * 0.5, 0.0, BargeRules::DeckTop + 20.0));
-}
-
-FVector ABargeBoarding::GetHallMiddle() const
-{
-	return ToWorld(BargeRules::HallPoint(0.f, 0.f, 20.f));
-}
-
-FVector ABargeBoarding::GetHoseTop() const
-{
-	return GetActorTransform().TransformPosition(BargeRules::DrumUnderKeel);
 }

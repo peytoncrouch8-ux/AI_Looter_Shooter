@@ -42,6 +42,14 @@ bool FQualityPresetsTest::RunTest(const FString& Parameters)
 		TestEqual(Name + TEXT(" virtual shadow maps"), Settings.FindRef(TEXT("r.Shadow.Virtual.Enable")), bHighOrEpic ? 1 : 0);
 		TestEqual(Name + TEXT(" SSAO"), Settings.FindRef(TEXT("r.AmbientOcclusionLevels")), bHighOrEpic ? -1 : 0);
 		TestEqual(Name + TEXT(" distance field AO"), Settings.FindRef(TEXT("r.DistanceFieldAO")), bEpic ? 1 : 0);
+		// The art audit's step 1 (2026-11-04): Medium keeps its full-size textures and 8x filtering (the user's pick: the
+		// filtering is the visible gain, the mips cost 0.2 ms); creature LOD0 up close stays High's and Epic's; Low stays
+		// the engine's own.
+		const bool bLow = Quality == EGraphicsQuality::Low;
+		TestEqual(Name + TEXT(" texture mip bias"), Settings.FindRef(TEXT("r.Streaming.MipBias")), bLow ? 16 : 0);
+		TestEqual(Name + TEXT(" anisotropy"), Settings.FindRef(TEXT("r.MaxAnisotropy")), bLow ? 1 : 8);
+		TestEqual(Name + TEXT(" skeletal LOD bias"), Settings.FindRef(TEXT("r.SkeletalMeshLODBias")), bLow ? 2 : (bHighOrEpic ? 0 : 1));
+		TestEqual(Name + TEXT(" streaming pool"), Settings.FindRef(TEXT("r.Streaming.PoolSize")), bLow ? 400 : 1000);
 	}
 
 	// A fresh install starts on the minimum spec, without motion blur, with the minimap and the FPS counter showing.

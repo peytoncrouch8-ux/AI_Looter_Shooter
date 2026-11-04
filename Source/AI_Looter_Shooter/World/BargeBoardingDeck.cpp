@@ -114,7 +114,8 @@ void ABargeBoarding::AdvanceVents(float DeltaSeconds)
 		for (int32 Index = 0; Index < BargeRules::NumVents; ++Index)
 		{
 			const FVector Spot = BargeRules::VentSpots[Index];
-			const FTransform Grille(FQuat::Identity, Spot + FVector(0.0, 0.0, 4.0), FVector(BargeRules::VentHalf / 50.0, BargeRules::VentHalf / 50.0, 0.1));
+			const FTransform Grille(FQuat::Identity, Spot + FVector(0.0, 0.0, BargeRules::VentGrilleUp),
+				FVector(BargeRules::VentHalf / 50.0, BargeRules::VentHalf / 50.0, BargeRules::VentGrilleThick / 100.0));
 			((Glow & (1u << Index)) ? Hot : Cold).Add(Grille);
 			if (Fire & (1u << Index))
 			{

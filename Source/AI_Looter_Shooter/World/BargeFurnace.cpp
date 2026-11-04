@@ -152,11 +152,14 @@ ABargeFurnace::ABargeFurnace()
 void ABargeFurnace::BeginPlay()
 {
 	Super::BeginPlay();
-	// The pipes up into the deck, the bands round the drum, the cage's bars across its window.
+	// The pipes up into the hall's ceiling (from under its crown: never through the deck over it), the bands round the drum,
+	// the cage's bars across its window.
 	TArray<FTransform> Iron;
+	const double PipeFoot = BargeRules::FurnaceHeight - BargeRules::PipeUnderCrown;
+	const double PipeLength = BargeRules::HallHeight - PipeFoot;
 	for (const FVector& Pipe : { FVector(-120.0, 150.0, 0.0), FVector(-120.0, -150.0, 0.0), FVector(-220.0, 0.0, 0.0) })
 	{
-		Iron.Add(FTransform(FQuat::Identity, Pipe + FVector(0.0, 0.0, BargeRules::FurnaceHeight + 250.0), FVector(0.55, 0.55, 5.5)));
+		Iron.Add(FTransform(FQuat::Identity, Pipe + FVector(0.0, 0.0, PipeFoot + PipeLength * 0.5), FVector(0.55, 0.55, PipeLength / 100.0)));
 	}
 	const float D = BargeRules::FurnaceRadius * 2.f / 100.f + 0.12f;
 	for (const float Up : { 60.f, 300.f, 540.f })

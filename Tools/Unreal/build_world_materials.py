@@ -5,6 +5,17 @@
                   it darken the base color too, so contact shading shows in direct light. MossAmount (0 = off) grows
                   moss on upward faces, in MossColor, above the MossThreshold slope. RoughnessOffset (added to the
                   map's) and Specular (0.5 is Unreal's 4%) are for cloth and feathers: black wool reflects so little.
+                  The detail layer (2026-11-04, the art audit's plan row 4; group Detail; DETAIL_DEFAULTS, DETAIL_SETUP):
+                  the static switch DetailOn (off: the graph above exactly, no cost) lays a tiled set's light and dark
+                  (its colour's luma over DetailMeanLuma, never its colour), its normal and its roughness (the ORM's
+                  green about DetailMeanRough, x DetailRoughness) over the macro maps, at arm's length: Tripo's soft
+                  atlases on big surfaces (ships, houses) get grain, pits and stains in meters. Object-space triplanar
+                  on the mesh's own normal (its pre-skinned position, cm: no UV needed, and it rides with a barge that
+                  sails), DetailScale meters a tile, DetailStrength, DetailNormal, fading from DetailNear to DetailFar
+                  cm (its maps are not read past DetailFar). DetailColorMap, DetailNormalMap, DetailORMMap: a set of
+                  ours (DETAIL_SETS: the means). DETAIL_INSTANCES turns it on per instance (the DetailInstances step,
+                  run after M_World): the model importer clears an instance's parameters on a re-import, so after
+                  re-importing one of their models run this script with DetailInstances (rebuilding M_World keeps them).
   M_Gun           M_World's maps for gun parts, plus per-gun wear: Wear (0 fresh to 1 battered) comes from each part's
                   custom primitive data 0 (set by UWeaponModelComponent, no material copies per gun): scuffs where the
                   finish is rubbed through to a paler layer, grime in the creases, a duller finish. No moss. Its notches
@@ -135,7 +146,8 @@ the haze at the horizon in the lab's cream fog.
 
 The model importer (FModelImporter) makes MI_<material> instances of these from the Blender materials. Re-running this
 keeps each material asset (so instances stay linked) and rebuilds its graph. Run in the open editor, optionally with the
-names of the masters to build (the rest are left alone):
+names of the masters to build (the rest are left alone; DetailInstances alone only sets M_World's detail layer on its
+instances):
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_world_materials.py [M_Glass ...]"
 """
 import sys
@@ -475,22 +487,233 @@ def bleached(g, color, color_out, ao, ao_out, defaults, x, y, rim_normal=None):
     return base, light
 
 
+# --- M_World's detail layer (the docstring; the art audit's plan row 4, Docs/Work/2026-11-03-ArtAudit/AUDIT.md) ---
+
+DETAIL = 'Detail'
+DETAIL_SWITCH = 'DetailOn'
+# The layer's numbers (group Detail): meters a tile; how much of the set's light and dark, normal and roughness; the
+# distance (cm, from the camera) where it starts to fade and where it is gone.
+DETAIL_DEFAULTS = {'DetailScale': 1.0, 'DetailStrength': 0.6, 'DetailNormal': 0.7, 'DetailRoughness': 0.6,
+                   'DetailNear': 200.0, 'DetailFar': 1500.0}
+# Each set's colour map's mean linear luma (0.299, 0.587, 0.114 of its decoded 8-bit sRGB, as looter_textures's
+# _write_stats measures) and its ORM's mean green (roughness), measured from Art/Textures/<Set> 2026-11-04 (1024 px PNGs;
+# these sets have no T_<Set>_stats.json). The layer divides by them, so from afar the macro colour and roughness stay.
+DETAIL_SETS = {'MetalWorn': {'DetailMeanLuma': 0.5076, 'DetailMeanRough': 0.3741},
+               'MetalRust': {'DetailMeanLuma': 0.2051, 'DetailMeanRough': 0.6295}}
+DETAIL_DEFAULT_SET = 'MetalWorn'
+# The instances that wear the layer: path -> (set, numbers that differ from DETAIL_DEFAULTS), set by the DetailInstances
+# step (apply_detail): the model importer's re-import clears an instance's parameters, so run that step after one.
+DETAIL_INSTANCES = {
+    # The Tripo dredge barge: one soft 2048 atlas over 9,833 m2 (0.14 texels/cm); the audit's finding 2.
+    '/Game/Art/Materials/MI_TripoDredgeBarge': ('MetalWorn', {}),
+}
+
+# Shared by the layer's two reads: each of the mesh's three sides (its own space, so the pattern rides with the mesh)
+# laid with the tile, the weights from its own normal, the pixel's footprint for the reads' mips (taken before any
+# branch: gradients need every pixel of the quad), and the fade with distance. Each side's picture is turned to read
+# the right way round from outside and upright on walls (v runs down the mesh's Z), and tops run along the mesh's X
+# (a ship's length). A side under 2% of the weight isn't read: on flat decks and walls one read in three.
+DETAIL_SETUP = """float3 N = normalize(LocalNormal);
+float3 W = pow(abs(N), 4.0);
+W /= max(W.x + W.y + W.z, 1e-4);
+float3 P = Local * (0.01 / max(Tile, 0.05));
+float3 Dx = ddx(P);
+float3 Dy = ddy(P);
+float Sx = N.x < 0.0 ? -1.0 : 1.0;
+float Sy = N.y < 0.0 ? -1.0 : 1.0;
+float Sz = N.z < 0.0 ? -1.0 : 1.0;
+float2 UX = float2(-Sx * P.y, -P.z);
+float2 UY = float2(Sy * P.x, -P.z);
+float2 UZ = float2(P.x, Sz * P.y);
+float2 XDx = float2(-Sx * Dx.y, -Dx.z), XDy = float2(-Sx * Dy.y, -Dy.z);
+float2 YDx = float2(Sy * Dx.x, -Dx.z), YDy = float2(Sy * Dy.x, -Dy.z);
+float2 ZDx = float2(Dx.x, Sz * Dx.y), ZDy = float2(Dy.x, Sz * Dy.y);
+float Fade = 1.0 - smoothstep(Near, max(Far, Near + 1.0), Depth);
+"""
+
+# The colour (rgb: the macro colour times the set's light and dark about its mean) and a roughness offset (a: the set's
+# roughness about its mean, x DetailRoughness; its ORM isn't read at 0).
+DETAIL_COLOR_CODE = DETAIL_SETUP + """const float3 Wl = float3(0.299, 0.587, 0.114);
+float L = 0.0, R = 0.0, Ws = 0.0;
+bool Rough = RoughAmount > 0.001;
+if (Fade > 0.001)
+{
+    if (W.x > 0.02)
+    {
+        L += W.x * dot(Texture2DSampleGrad(ColorMap, ColorMapSampler, UX, XDx, XDy).rgb, Wl);
+        if (Rough) R += W.x * Texture2DSampleGrad(ORMMap, ORMMapSampler, UX, XDx, XDy).g;
+        Ws += W.x;
+    }
+    if (W.y > 0.02)
+    {
+        L += W.y * dot(Texture2DSampleGrad(ColorMap, ColorMapSampler, UY, YDx, YDy).rgb, Wl);
+        if (Rough) R += W.y * Texture2DSampleGrad(ORMMap, ORMMapSampler, UY, YDx, YDy).g;
+        Ws += W.y;
+    }
+    if (W.z > 0.02)
+    {
+        L += W.z * dot(Texture2DSampleGrad(ColorMap, ColorMapSampler, UZ, ZDx, ZDy).rgb, Wl);
+        if (Rough) R += W.z * Texture2DSampleGrad(ORMMap, ORMMapSampler, UZ, ZDx, ZDy).g;
+        Ws += W.z;
+    }
+}
+float4 Result = float4(Color, 0.0);
+if (Ws > 0.0)
+{
+    float Shade = L / (Ws * max(MeanLuma, 0.01));
+    Result.rgb = Color * max(lerp(1.0, Shade, Strength * Fade), 0.0);
+    Result.a = Rough ? (R / Ws - MeanRough) * RoughAmount * Fade : 0.0;
+}
+return Result;"""
+
+# The mesh's normal (its own space) leaned by the set's normal map on each side (n.x along the side's u, n.y along its
+# v), x DetailNormal, faded.
+DETAIL_NORMAL_CODE = DETAIL_SETUP + """float3 T = float3(0.0, 0.0, 0.0);
+if (Fade > 0.001 && Amount > 0.001)
+{
+    if (W.x > 0.02)
+    {
+        float2 n = UnpackNormalMap(Texture2DSampleGrad(NormalMap, NormalMapSampler, UX, XDx, XDy)).xy;
+        T += W.x * (n.x * float3(0.0, -Sx, 0.0) + n.y * float3(0.0, 0.0, -1.0));
+    }
+    if (W.y > 0.02)
+    {
+        float2 n = UnpackNormalMap(Texture2DSampleGrad(NormalMap, NormalMapSampler, UY, YDx, YDy)).xy;
+        T += W.y * (n.x * float3(Sy, 0.0, 0.0) + n.y * float3(0.0, 0.0, -1.0));
+    }
+    if (W.z > 0.02)
+    {
+        float2 n = UnpackNormalMap(Texture2DSampleGrad(NormalMap, NormalMapSampler, UZ, ZDx, ZDy)).xy;
+        T += W.z * (n.x * float3(1.0, 0.0, 0.0) + n.y * float3(0.0, Sz, 0.0));
+    }
+}
+return normalize(N + T * Amount * Fade);"""
+
+# The detail's normal (turned to the tangent frame) over the macro normal map's, by its lean (whiteout: the two
+# slopes add, so neither flattens the other).
+DETAIL_BLEND_CODE = 'return normalize(float3(Base.xy + Detail.xy, Base.z * Detail.z));'
+
+
+def detail_switch(g, on, off, x, y, on_out='', off_out=''):
+    """DetailOn's static switch (off by default): on where an instance turns the layer on, else off (the graph without
+    it, unchanged)."""
+    switch = g.node(unreal.MaterialExpressionStaticSwitchParameter, x, y, parameter_name=DETAIL_SWITCH, default_value=False)
+    switch.set_editor_property('group', DETAIL)
+    g.link(on, on_out, switch, 'True')
+    g.link(off, off_out, switch, 'False')
+    return switch
+
+
+def detail_map(set_name, kind, fallback):
+    """A detail set's imported map (/Game/Art/Textures/<Set>/T_<Set>_<kind>, as the model importer made it), loaded as
+    it is: importing it again here (import_texture) would change its settings under every instance that uses it."""
+    path = f'/Game/Art/Textures/{set_name}/T_{set_name}_{kind}'
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        return path
+    unreal.log_warning(f'M_World: no {path} (import the {set_name} set); the detail layer defaults to {fallback}')
+    return fallback
+
+
+def detail_layer(g, color, x, y):
+    """The detail layer's colour (rgb, with the roughness offset in a) from the shaded colour, and its normal in the
+    tangent frame (DETAIL_SETUP; the docstring says what each parameter is)."""
+    # The mesh's own position (cm) and normal from the vertex shader (pre-skinned: a static mesh's own space), handed
+    # on to the pixels, as M_Gun's pattern takes them.
+    local = g.node(unreal.MaterialExpressionVertexInterpolator, x, y)
+    g.link(g.node(unreal.MaterialExpressionPreSkinnedPosition, x - 300, y), '', local, 'VS')
+    local_normal = g.node(unreal.MaterialExpressionVertexInterpolator, x, y + 150)
+    g.link(g.node(unreal.MaterialExpressionPreSkinnedNormal, x - 300, y + 150), '', local_normal, 'VS')
+
+    def number(name, value, px, py):
+        return sparam(g, DETAIL, name, value, px, py)
+
+    def texture_object(name, sampler, default, py):
+        node = g.node(unreal.MaterialExpressionTextureObjectParameter, x, py, parameter_name=name, sampler_type=sampler,
+                      texture=unreal.load_asset(default))
+        node.set_editor_property('group', DETAIL)
+        return node
+
+    means = DETAIL_SETS[DETAIL_DEFAULT_SET]
+    setup = [
+        ('Local', local, ''), ('LocalNormal', local_normal, ''),
+        ('Depth', g.node(unreal.MaterialExpressionPixelDepth, x, y + 300), ''),
+        ('Tile', number('DetailScale', DETAIL_DEFAULTS['DetailScale'], x, y + 400), ''),
+        ('Near', number('DetailNear', DETAIL_DEFAULTS['DetailNear'], x, y + 500), ''),
+        ('Far', number('DetailFar', DETAIL_DEFAULTS['DetailFar'], x, y + 600), ''),
+    ]
+    detailed = g.custom(DETAIL_COLOR_CODE, setup + [
+        ('Color', color, ''),
+        ('ColorMap', texture_object('DetailColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR,
+                                    detail_map(DETAIL_DEFAULT_SET, 'BC', WHITE), y + 700), ''),
+        ('ORMMap', texture_object('DetailORMMap', unreal.MaterialSamplerType.SAMPLERTYPE_MASKS,
+                                  detail_map(DETAIL_DEFAULT_SET, 'ORM', DEFAULT_ORM), y + 800), ''),
+        ('Strength', number('DetailStrength', DETAIL_DEFAULTS['DetailStrength'], x, y + 900), ''),
+        ('RoughAmount', number('DetailRoughness', DETAIL_DEFAULTS['DetailRoughness'], x, y + 1000), ''),
+        ('MeanLuma', number('DetailMeanLuma', means['DetailMeanLuma'], x, y + 1100), ''),
+        ('MeanRough', number('DetailMeanRough', means['DetailMeanRough'], x, y + 1200), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, x + 400, y, 'Detail colour and roughness')
+    leaned = g.custom(DETAIL_NORMAL_CODE, setup + [
+        ('NormalMap', texture_object('DetailNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
+                                     detail_map(DETAIL_DEFAULT_SET, 'N', FLAT_NORMAL), y + 1300), ''),
+        ('Amount', number('DetailNormal', DETAIL_DEFAULTS['DetailNormal'], x, y + 1400), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, x + 400, y + 300, 'Detail normal (mesh space)')
+    tangent = g.node(unreal.MaterialExpressionTransform, x + 700, y + 300,
+                     transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_LOCAL,
+                     transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_TANGENT)
+    g.link(leaned, '', tangent, '')
+    return detailed, tangent
+
+
+def apply_detail():
+    """Turns the detail layer on in DETAIL_INSTANCES (the set's maps and means, DETAIL_DEFAULTS and the instance's own
+    numbers), so a re-import's cleared instance gets it back when M_World is built."""
+    mel = unreal.MaterialEditingLibrary
+    for path, (set_name, numbers) in DETAIL_INSTANCES.items():
+        if not unreal.EditorAssetLibrary.does_asset_exist(path):
+            unreal.log_warning(f'M_World detail: no {path}; skipped')
+            continue
+        instance = unreal.load_asset(path)
+        mel.set_material_instance_static_switch_parameter_value(instance, DETAIL_SWITCH, True)
+        for kind, name in (('BC', 'DetailColorMap'), ('N', 'DetailNormalMap'), ('ORM', 'DetailORMMap')):
+            mel.set_material_instance_texture_parameter_value(instance, name, unreal.load_asset(detail_map(set_name, kind, WHITE)))
+        values = dict(DETAIL_DEFAULTS, **DETAIL_SETS[set_name], **numbers)
+        for name, value in values.items():
+            mel.set_material_instance_scalar_parameter_value(instance, name, float(value))
+        mel.update_material_instance(instance)
+        unreal.EditorAssetLibrary.save_loaded_asset(instance)
+        unreal.log(f'M_World detail on {path}: {set_name}, ' + ', '.join(f'{k} {v:g}' for k, v in sorted(values.items())))
+
+
 def build_world(orm_default):
     mat = material('M_World')
     g = Graph(mat)
     bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
-    color, rough = moss(g, bc, shaded_color(g, bc, ao), orm)
+    shaded = shaded_color(g, bc, ao)
+    # The detail layer (DetailOn, off by default: then the switches below pass the graph without it, exactly).
+    detailed, detail_normal = detail_layer(g, shaded, -2400, 2600)
+    detailed_rgb = g.node(unreal.MaterialExpressionComponentMask, -1600, 2600, r=True, g=True, b=True, a=False)
+    g.link(detailed, '', detailed_rgb, '')
+    detailed_rough = g.node(unreal.MaterialExpressionComponentMask, -1600, 2700, r=False, g=False, b=False, a=True)
+    g.link(detailed, '', detailed_rough, '')
+    color, rough = moss(g, bc, detail_switch(g, detailed_rgb, shaded, -1300, 2600), orm)
     # RoughnessOffset raises the map's roughness for cloth and feathers, and Specular (0.5 is Unreal's 4% reflection)
     # lowers how much a dark dielectric reflects: on black wool the bright sky's 4% outweighs the diffuse, and it reads
     # like pale denim. Both default to no change.
-    rough = g.custom('return saturate(Rough + Offset);', [
+    offset = g.scalar('RoughnessOffset', 0.0, 0, -250)
+    plain_rough = g.custom('return saturate(Rough + Offset);', [
         ('Rough', rough, ''),
-        ('Offset', g.scalar('RoughnessOffset', 0.0, 0, -250), ''),
+        ('Offset', offset, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, 300, -400, 'Roughness')
+    detail_rough = g.custom('return saturate(Rough + Offset + Detail);', [
+        ('Rough', rough, ''), ('Offset', offset, ''), ('Detail', detailed_rough, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, 300, -300, 'Roughness with the detail')
+    rough = detail_switch(g, detail_rough, plain_rough, 600, -350)
     # Sunbleached (its switch, off by default): the graded, lavender-shaded colour, and its light as emissive.
     base_b, light_b = bleached(g, color, '', ao, '', style_numbers('sunbleached').SURFACE_DEFAULTS, 400, 1600)
     g.out(styled(g, SUNBLEACHED, base_b, color, 900, -600), '', unreal.MaterialProperty.MP_BASE_COLOR)
-    g.out(nrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
+    blended = g.custom(DETAIL_BLEND_CODE, [('Base', nrm, 'RGB'), ('Detail', detail_normal, '')],
+                       unreal.CustomMaterialOutputType.CMOT_FLOAT3, -1000, 3000, 'Detail normal over the macro')
+    g.out(detail_switch(g, blended, nrm, -700, 200, off_out='RGB'), '', unreal.MaterialProperty.MP_NORMAL)
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(g.scalar('Specular', 0.5, 300, -150), '', unreal.MaterialProperty.MP_SPECULAR)
     g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
@@ -3307,7 +3530,8 @@ def build_character_hair(orm_default):
     return mat
 
 
-BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
+# DetailInstances (M_World's detail layer on DETAIL_INSTANCES) makes no master: it returns nothing.
+BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'DetailInstances': apply_detail, 'M_Gun': lambda: build_gun(DEFAULT_ORM),
             'M_Character': lambda: build_character(DEFAULT_ORM), 'M_CharacterCloth': lambda: build_character_cloth(DEFAULT_ORM),
             'M_CharacterSkin': lambda: build_character_skin(DEFAULT_ORM),
             'M_CharacterHair': lambda: build_character_hair(DEFAULT_ORM), 'M_CharacterGlow': build_character_glow,

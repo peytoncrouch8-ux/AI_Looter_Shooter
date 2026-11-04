@@ -45,19 +45,22 @@ enum class EBargeState : uint8
  * section 10; lane MAIN67's contract, W3): the one time she's in reach, so the Wardens board her. The Lamplighter (W2's
  * sortie) grapples her at GetBerth and lays a plank to GetBoardingPoint; from there everything of steps 3-7 is hers:
  *
- *  - Her top deck, ~70 m of riveted plate walkable as a kit built in code (deck plates, rails and unseen rail walls, three
- *    stacks, a jib crane, cover crates, the hose drum's gantry with ABargeHoseDrum on it, four horn posts the build script
- *    stands ACompanyLoudspeakers on): the BargeDeck fight's ground. Eight furnace vents along it breathe in a running
- *    pattern: a second's glow through their slots, then a column of furnace fire that burns whatever stands in it.
- *  - The furnace hatch aft (a Reach marker tagged Barge_FurnaceHatch), a stair down to the furnace hall's catwalk.
- *  - The furnace hall (22 m round: the widest that fits the hull; the design's 26 m doesn't), 9 m high, its catwalk ring at
- *    4 m, two stokehold doors (the FurnaceHall pushes come through them), the stoker's office off the catwalk (the manifest
- *    lies on its desk; its radio carries Ned's call once the manifest is taken), and in the middle ABargeFurnace (the soul
- *    cage, the grate ring) and three AFurnaceDraftValves at the wall.
+ *  - Her hull: the user's Tripo SM_DredgeBarge reworked for the kit (one flat open deck, the bulwark with its gap, the aft
+ *    house at the full beam with a real door, the stacks and the tower on its roof), all with their own collision. On its
+ *    deck, the 36 x 22 m arena fore of the house (BargeRules::DeckAft..DeckFore), the kit adds unseen rail walls on the
+ *    bulwark's line, cover crates, the hose drum's gantry with ABargeHoseDrum on it, the falling third stack, four horn posts
+ *    the build script stands ACompanyLoudspeakers on: the BargeDeck fight's ground. Eight furnace vents in it breathe in a
+ *    running pattern: a second's glow through their slots, then a column of furnace fire that burns whatever stands in it.
+ *  - The furnace hatch: the house's door (a Reach marker tagged Barge_FurnaceHatch), the vestibule inside it, then the
+ *    stoker's office (the manifest lies on its desk; its radio carries Ned's call once the manifest is taken), which opens
+ *    onto the hall's floor: one level, door to hall.
+ *  - The furnace hall at deck level in the house (22 m round: the widest that fits; the design's 26 m doesn't), 9 m high, its
+ *    catwalk ring at 4 m with two stairs up, two stokehold doors (the FurnaceHall pushes come through them), and in the
+ *    middle ABargeFurnace (the soul cage, the grate ring) and three AFurnaceDraftValves at the wall.
  *  - Her hose, laid each frame as instanced sections from the drum under her keel toward the chapel's roof (HoseTarget),
  *    snaking lower through the fight (BargeRules::HoseReach), and stopped where it is when the drum is jammed.
  *  - The cage's burst (Scenes/CageBurst) sets her dying (step 7): every light out, the deck listing 12 degrees to her berth
- *    side and drifting west on the dusk wind, her back half burning, the third stack toppling across the port lane; the
+ *    side and drifting west on the dusk wind, her back half burning, the third stack toppling across the after deck; the
  *    Lamplighter hangs under the broken gangway (GetJumpBerth) for the jump.
  *  - BargeFall (Scenes/BargeFall) carries her over the Rest raining soul coal and down into Gravewind Canyon (FallTarget):
  *    the fireball, then Pilot.BargeFell, and she's gone (the build script's wreck shows from that flag).
@@ -66,8 +69,13 @@ enum class EBargeState : uint8
  * not ticking otherwise. A session loaded on any step finds her as that step leaves her (valves open on step 5's start,
  * all shut past it; the cage burst from step 7; dying in step 7). A player off both her and the Lamplighter during steps
  * 3-7 is put back aboard (a fall, a death's wake at a lantern post far below). Split by topic: BargeBoarding.cpp (life,
- * story, the getters), BargeBoardingKit.cpp (the walkable kit), BargeBoardingDeck.cpp (the tick: vents, hose, keeping the
- * player aboard, the beats' lines), BargeBoardingDying.cpp (dying, the stack, the fall).
+ * story, the beats), BargeBoardingSpots.cpp (the getters), BargeBoardingKit.cpp (the deck kit), BargeBoardingHall.cpp (the
+ * vestibule, the office, the hall), BargeBoardingDeck.cpp (the tick: vents, hose, keeping the player aboard, the beats'
+ * lines), BargeBoardingDying.cpp (dying, the stack, the fall).
+ *
+ * The house is a shell of 20 cm walls with nothing inside it (no floor, no rooms), so the vestibule, the office and the
+ * hall build their own rooms in it (floors, walls, lining, roofs, ceiling, alcoves, lintels): nobody sees into its empty
+ * inside. Without the hull (not imported) she's an iron box and the kit lays its own deck plate and rails on it.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ABargeBoarding : public AActor
@@ -84,7 +92,7 @@ public:
 	/** The deck's and the hall's fights' spawner ids (their spots: GetFightSpots). */
 	static const FName DeckFight;
 	static const FName HallFight;
-	/** The user's Tripo hull (one path; the stand-in is an iron box of its size). */
+	/** The reworked Tripo hull (one path; without it an iron box of its size stands in). */
 	static const TCHAR* const HullPath;
 
 	/** The level's barge (the first found), or null. */
@@ -107,7 +115,7 @@ public:
 	 *  (the barge's yaw, not her list). Moves with the dying barge. */
 	FTransform GetJumpBerth() const;
 
-	/** The two points on her rail the Lamplighter's grapples bite (world), Index 0 fore, 1 aft. */
+	/** The two points on her bulwark's top the Lamplighter's grapples bite (world), Index 0 fore, 1 aft. */
 	FVector GetGrappleAnchor(int32 Index) const;
 
 	/** Where the gangplank from the Lamplighter's starboard rail lands on her deck (world). */
@@ -188,9 +196,15 @@ public:
 	/** Moves her on by DeltaSeconds (the tick's work; tests call it with no play running). */
 	void Advance(float DeltaSeconds);
 
-	/** The walkable kit's pieces (for the tests: the deck is there, the rails stand, the hall's walls fit the hull). */
-	const TArray<TObjectPtr<UPrimitiveComponent>>& GetWalkables() const { return Walkables; }
+	/** The unseen pawn-only rail walls (one per BargeRules::RailWallLayout entry, in its order). */
 	const TArray<TObjectPtr<UBoxComponent>>& GetRailWalls() const { return RailWalls; }
+	/** The kit's floor plates as built (each BargeRules::DeckPlates entry laid, cut round the hatch's hole): the vestibule's,
+	 *  and the open deck's over the stand-in box only. */
+	const TArray<TObjectPtr<UPrimitiveComponent>>& GetDeckPlates() const { return PlateParts; }
+	/** The unseen walls round superstructure a hull without collision would need (one per BargeRules::DeckBlocks entry). */
+	const TArray<TObjectPtr<UBoxComponent>>& GetDeckBlocks() const { return BlockWalls; }
+	/** True when the reworked hull is hers (not the stand-in box): its deck, bulwark and house carry their own collision. */
+	bool HasHull() const;
 
 	// --- Placed by the build script ---
 
@@ -211,8 +225,9 @@ public:
 	FVector BoardsPoint = FVector::ZeroVector;
 
 	/**
-	 * The walkable kit raised (or lowered) this far over the hull (cm): BargeRules::DeckTop is read off the Tripo model's
-	 * proportions by eye, so this fits the kit's deck onto the hull's own once she's seen placed. 0: as the rules have it.
+	 * The walkable kit raised (or lowered) this far over the hull (cm). The deck is fitted to SM_DredgeBarge's own in
+	 * BargeRules::DeckTop (measured: Docs/Work/2026-11-04-Art/BARGE.md), not here, so this stays 0; a placed barge given
+	 * another hull would use it.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Barge|Kit", meta = (Units = "cm"))
 	float KitLift = 0.f;
@@ -226,7 +241,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<USceneComponent> Kit;
 
-	/** The hull's look (SM_DredgeBarge, or the stand-in box); no collision: the kit is what's walked and shot. */
+	/** The hull: our SM_DredgeBarge, its look and its collision (walked and shot on), or the stand-in box (seen only). */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Hull;
 
@@ -292,6 +307,9 @@ private:
 	void OnStepBegan(int32 Step);
 	/** Her pieces that are actors of their own (the furnace, valves, drum, the hatch's marker), spawned and attached once. */
 	void SpawnPieces();
+
+	// --- BargeBoardingSpots.cpp ---
+	/** A point in her frame (BargeRules', Z from the keel) in the world, with KitLift. */
 	FVector ToWorld(const FVector& Local) const;
 	/** Her placed pose (before any list or drift), the frame the getters and the dying pose start from. */
 	FTransform RestTransform() const;
@@ -300,12 +318,24 @@ private:
 	void BuildKit();
 	UStaticMeshComponent* MakePiece(const TCHAR* Name, UStaticMesh* Mesh, UMaterialInterface* Look, const FVector& Center,
 		const FVector& Size, const FRotator& Turn = FRotator::ZeroRotator, bool bWalkable = true);
+	/** An unseen solid box (the hall's iron, a hidden plate): stops pawns and shots alike; any look is laid apart. */
 	UBoxComponent* MakeWall(const TCHAR* Name, const FVector& Center, const FVector& Half, const FRotator& Turn = FRotator::ZeroRotator);
+	/** An unseen solid box standing Up tall on the deck over a flat footprint (her house, her tank: BargeRules::DeckBlocks). */
+	UBoxComponent* MakeBlock(const TCHAR* Name, const FBox2D& Footprint, float Up);
 	UInstancedStaticMeshComponent* MakeInstanced(const TCHAR* Name, UStaticMesh* Mesh, UMaterialInterface* Look);
 	void BuildDeck();
-	void BuildHall();
-	/** The instanced looks that never change (rails, cover, walls, catwalk), laid once (OnConstruction and BeginPlay). */
+	/** The instanced looks that never change (rails, cover, vents; the hall's through LayHallLooks), laid once (OnConstruction
+	 *  and BeginPlay). */
 	void LayStaticLooks();
+
+	// --- BargeBoardingHall.cpp ---
+	/** The vestibule inside the house's door: its walls, the lining round the door, its roof, its aft wall round the doorway
+	 *  into the office (its floor is a deck plate). */
+	void BuildVestibule();
+	/** The furnace hall: floor, wall panels and lintels, ceiling, catwalk and its stairs, stokehold alcoves; the stoker's office. */
+	void BuildHall();
+	/** The hall's instanced looks (its walls, alcoves and lintels as their boxes stand; the catwalk's grating). */
+	void LayHallLooks();
 
 	// --- BargeBoardingDeck.cpp ---
 	void AdvanceVents(float DeltaSeconds);
@@ -369,13 +399,16 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ALandfallMarker> HatchMarker;
 
-	/** Everything walkable (deck, floors, stairs, catwalk): what the tests look at. */
-	UPROPERTY()
-	TArray<TObjectPtr<UPrimitiveComponent>> Walkables;
-
 	UPROPERTY()
 	TArray<TObjectPtr<UBoxComponent>> RailWalls;
 
+	/** The hall's solid iron with a look laid over it (wall panels, lintels, the alcoves' floors, walls and roofs). */
 	UPROPERTY()
 	TArray<TObjectPtr<UBoxComponent>> HallWalls;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UPrimitiveComponent>> PlateParts;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UBoxComponent>> BlockWalls;
 };

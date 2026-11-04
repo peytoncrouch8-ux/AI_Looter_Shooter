@@ -35,6 +35,14 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
    - Judge a change without Unreal first: `Tools\artrun.ps1 -Script Tools\Blender\ground_preview.py` renders the layers from tour
      viewpoints at eye height (before above, after below) into `Saved/ArtPreviews/Terrain/`. It is a numpy port of the master's code:
      keep it in step with `GROUND_WEIGHTS` and `GROUND_DEFAULTS`. It has no shadows, grass or hollows' damp, so look in the editor too.
+   - The detail layer (2026-11-04, `M_World`, the art audit's plan row 4; parameters in the script's docstring, numbers
+     `DETAIL_DEFAULTS`): static switch `DetailOn`, off on the master. Off is the old graph exactly (M_World and its instances
+     still 317 VS / 229 PS instructions, 5 samplers, 0 interpolators). On (`MI_TripoDredgeBarge`, MetalWorn at 1 m): 369 PS
+     (every branch counted), 8 samplers, 6 interpolator scalars; one read per map on flat faces, none past `DetailFar`; editor
+     viewport BasePass +0.09-0.12 ms with the barge filling a 1885x866 view (Epic; the ORM's roughness read is ~0.02 of it).
+     Which instances wear it: `DETAIL_INSTANCES`; a set's means: `DETAIL_SETS` (measured from its PNGs). A model re-import
+     clears its instance (FModelImporter's `ClearParameterValuesEditorOnly`, static switches too): run
+     `build_world_materials.py DetailInstances` after one. Grabs: `Saved/ArtPreviews/BargeDetail/` (before/after, compare_*).
    - Gun patterns and element stains (2026-10-27, `M_Gun`; numbers `GUN_PATTERN` group GunPattern, `ELEMENT_FINISH` group
      ElementFinish; built by Main's MAT agent): custom primitive data 29-35 (kind, scale cm, seed, tint rgb, amount) -> `PATTERN_CODE` between the paint
      and the wear (the scuffs then wear it through). All in the part's own space (PreSkinnedPosition, cm), triplanar on its own
@@ -133,6 +141,24 @@ Rules that saved time:
      larkspurTarn should get a deep zone (1.7 m deep); the island's pond (1.2 m) and the Wallow's pools none. `SWIM_DEPTH` 160 x 0.85 is
      `Looter.Swim.StartDepth` at the player's size, kept equal by hand. A full `build_area.py` build clears the waters, so it calls the
      script's `place` at the end of its gameplay part and in its `water` mode.
+12. The reworked Tripo barge (2026-11-04; why, the user's decisions, the numbers and the kit on it: `Game.md` "The barge: the reworked Tripo hull and the kit on it"). A Tripo model the player walks on is reshaped by script on the fitted
+   mesh, not replaced (the scripted replacement was dropped: Workflow.md). `SPECS['DredgeBarge']` in `Tools/Blender/looter_tripo_wardens.py` has `rework=barge.rework` and `boxes=[]` (the rework adds its own `UCX_` boxes); `build()` runs the hook
+   after the turn, scale and pivot and before the maps, sockets and LODs, so every export reproduces it. A reworked spec can't carry glow faces (their indices move).
+   - Files: `Tools/Blender/looter_tripo_barge.py` (the rework; its docstring lists the steps in order, its constants are the contract's numbers, which `BargeRules.h` shares: change both together), `looter_tripo_barge_house.py` (round 2: ribs,
+     portholes, a catwalk ring, a door frame and steps; see its docstring), `looter_tripo_rework.py` (the toolkit, in the Unreal frame in cm: `bisect`, `spanning`, `cap`, `outline`, `Build`, `Paint`, `tidy`, `ucx`; `B()` to Blender metres, front -Y).
+     Tripo's mesh is one closed skin (75,775 triangles, 37 open edges); the build logs `reworked tris`.
+   - New faces and UVs: Tripo's atlas has no tiling area, so `Paint` gives each new face a tiny square of the atlas (`PATCH` 2 px of 1024) inside the UV charts of a matching Tripo surface (`PAINTS`: the old foredeck for the deck, the midship
+     walls for the house, the casing's roof for the roof, the hull's sheer band for the bulwark and guard), where colour and normal map are flattest and the colour is that surface's usual one. Each ~3 m tile (`TILE` 300) takes one of up to 8 patches at random
+     (`SEED` 1104), so plates differ a little in tone; the detail layer draws the plates close up; the maps and `write_maps` are unchanged. A new kind of surface = a new `PAINTS` entry (normal test, x, z and |y| ranges). `tidy` keeps the
+     export's tangent check clean (nearly level faces aren't cut level, cut polygons are triangulated the best way round, hairline slivers dropped).
+   - Collision rule: the script writes the `UCX_` boxes (list in `Game.md`; each is logged as `UCX <name>: centre, size`). The kit needs the deck slab's top at exactly 2250, the bulwark round its gap, the house's walls split round the door and
+     nothing inside the house; the hull-body boxes are as wide as the skin's narrowest section over their x, less 25 cm. `Looter.World.Barge.Hull` checks the imported result.
+   - Sockets (`lm.socket`; an Unreal yaw turns the other way about Blender's Z): `Door` (-400, 0, 2250) facing +X and `Gangway` (2000, -1237.5, 2250) facing -Y from the rework; `HoseDrum`, `Stack_1`, `Stack_2` from the spec (Landfall's build reads them).
+   - Preview (bow, stern, top, the deck at eye height, the berth, the bow's end into `Saved/ArtPreviews/DredgeBargeRework/`): `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\artrun.ps1 -Script Art\Models\Tripo\Wardens.py -Preview`. Export test:
+     `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\artrun.ps1 -Export Wardens -Family DredgeBarge`, then `Tools\artrun.ps1 -Script Tools\Blender\tangentcheck.py -ScriptArgs Intermediate\ArtExport_DredgeBarge,--where`. Without `LOOTER_TRIPO_ONLY` a run builds all the Wardens' models.
+   - Import (editor open): `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\models.ps1 -Only Wardens` overwrites `/Game/Art/Tripo/SM_DredgeBarge`, `MI_TripoDredgeBarge` and its maps. **After any re-import run**
+     `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_world_materials.py DetailInstances"`: the importer clears the instance's parameters, the `DetailOn` static switch too, and the barge would fall back to Tripo's soft atlas.
+     Then rebuild the level if the deck or the sockets moved (`Levels.md` "The barge in the level").
 
 - Exports must be repeatable. Never iterate BMesh sets (their order changes between runs). Export twice and compare; only FBX IDs
   and time stamps may differ.

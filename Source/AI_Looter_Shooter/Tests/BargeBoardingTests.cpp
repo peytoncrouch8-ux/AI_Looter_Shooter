@@ -7,44 +7,69 @@
 #include "World/BargeHoseDrum.h"
 #include "World/BargeRules.h"
 #include "World/FurnaceDraftValve.h"
+#include "World/LamplighterShip.h"
 #include "Components/BoxComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Tests/AutomationCommon.h"
+#include "Tests/BargeTestWorld.h"
 
-// Main 6's barge (the Wardens story, lane MAIN67's W3): her walkable kit, the grate ring's wheel, the valves, the cage, her
-// dying and her fall, each in a test level with no story (ForceStep plays her as if Main 6 were on a step).
+// Main 6's barge (the Wardens story, lane MAIN67's W3): her kit on the reworked Tripo hull (the deck's arena, the berth, the
+// vestibule, the office and the hall at deck level in the house), each in a test level with no story (ForceStep plays her as
+// if Main 6 were on a step). With SM_DredgeBarge not imported she stands on the stand-in box and the kit's own deck plate:
+// the same tests hold (but .Hull, which skips).
+// Her beats (the grates, valves, cage, dying, fall): BargeBoardingBeatsTests.cpp.
+
+using BargeTestWorld::GroundUnder;
+using BargeTestWorld::SpawnBarge;
 
 namespace
 {
-	/** A barge in a fresh test level at Where, begun and played as if Main 6 were on Step. */
-	ABargeBoarding* SpawnBarge(FTestWorldWrapper& TestLevel, FAutomationTestBase& Test, int32 Step, const FVector& Where = FVector(0.0, 0.0, 10000.0))
-	{
-		if (!Test.TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
-		{
-			return nullptr;
-		}
-		UWorld* World = TestLevel.GetTestWorld();
-		ABargeBoarding* Barge = World->SpawnActor<ABargeBoarding>(Where, FRotator::ZeroRotator);
-		if (!Test.TestNotNull(TEXT("The barge"), Barge))
-		{
-			return nullptr;
-		}
-		Barge->DispatchBeginPlay();
-		Barge->ForceStep(Step);
-		return Barge;
-	}
-
-	/** Where a straight drop from From hits world-static ground, or false. */
-	bool GroundUnder(const UWorld* World, const FVector& From, FVector& OutHit)
+	/** Where a straight climb from From meets world-static iron within Reach, or false. */
+	bool IronOver(const UWorld* World, const FVector& From, double Reach, FVector& OutHit)
 	{
 		FHitResult Hit;
-		if (World->LineTraceSingleByObjectType(Hit, From, From - FVector(0.0, 0.0, 3000.0), FCollisionObjectQueryParams(ECC_WorldStatic)))
+		if (World->LineTraceSingleByObjectType(Hit, From, From + FVector(0.0, 0.0, Reach), FCollisionObjectQueryParams(ECC_WorldStatic)))
 		{
 			OutHit = Hit.ImpactPoint;
 			return true;
 		}
 		return false;
+	}
+
+	/** True when a pawn's way from From to To (her frame, at a walker's chest height over the deck) is clear. */
+	bool WalkClear(const UWorld* World, const ABargeBoarding& Barge, const FVector2D& From, const FVector2D& To)
+	{
+		const double Chest = BargeRules::DeckTop + 100.0;
+		const FVector A = Barge.GetActorTransform().TransformPosition(FVector(From.X, From.Y, Chest));
+		const FVector B = Barge.GetActorTransform().TransformPosition(FVector(To.X, To.Y, Chest));
+		return !World->LineTraceTestByChannel(A, B, ECC_Pawn);
+	}
+
+	/** True when a walker with his feet at Feet (her frame, on a surface) has Headroom over him: a capsule of a player's
+	 *  shoulders, from a little over his feet up Headroom, meets nothing a pawn bumps into. */
+	bool HeadroomClear(const UWorld* World, const ABargeBoarding& Barge, const FVector& Feet, double Headroom)
+	{
+		// The player's capsule (34 x 0.85) to the nearest hand; clear of the step under him and of a 33 degree slope.
+		constexpr float Shoulders = 30.f;
+		constexpr double OverFeet = 30.0;
+		const float Half = static_cast<float>(Headroom * 0.5);
+		const FVector Middle = Barge.GetActorTransform().TransformPosition(Feet + FVector(0.0, 0.0, OverFeet + Half));
+		return !World->OverlapAnyTestByChannel(Middle, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(Shoulders, Half));
+	}
+
+	/** A component's box now (computed, not the cached bounds: instanced looks laid this frame count). */
+	FBox BoxOf(const UPrimitiveComponent& Part)
+	{
+		return Part.CalcBounds(Part.GetComponentTransform()).GetBox();
+	}
+
+	/** A flat box round a deck piece (centre, half size). */
+	FBox2D Around(const FVector& Spot, double HalfX, double HalfY)
+	{
+		return FBox2D(FVector2D(Spot.X - HalfX, Spot.Y - HalfY), FVector2D(Spot.X + HalfX, Spot.Y + HalfY));
 	}
 }
 
@@ -56,7 +81,16 @@ bool FBargeKitTest::RunTest(const FString& Parameters)
 	// The design's 26 m hall doesn't fit the 24.75 m hull; the 22 m one does, with the hull's wall all round.
 	TestFalse(TEXT("A 26 m hall wouldn't fit the hull"), BargeRules::HallFits(BargeRules::DesignHallRadius));
 	TestTrue(TEXT("The 22 m hall fits"), BargeRules::HallFits(BargeRules::HallRadius));
-	TestTrue(TEXT("The deck is about 70 m"), BargeRules::DeckFore - BargeRules::DeckAft >= 6500.f);
+	TestTrue(TEXT("The deck's arena lies fore of the house, inside her bulwark"), BargeRules::DeckAft < BargeRules::DeckFore
+		&& BargeRules::DeckAft >= BargeRules::HouseFore && BargeRules::DeckFore < BargeRules::HullLength * 0.5f
+		&& BargeRules::DeckHalfBeam < BargeRules::BulwarkHalfBeam - BargeRules::BulwarkThick);
+	// The berth against the hull's bulwark (110 high, its gap's sill at the berth): the plank runs over the sill, her bag clears
+	// the bulwark alongside and, at the jump, with the barge listed toward her.
+	TestTrue(TEXT("The plank clears the bulwark gap's sill"), BargeRules::PlankSillClearance() > 0.f);
+	TestTrue(TEXT("Her bag clears the bulwark at the berth"), BargeRules::BerthBagClearance() > 0.f);
+	TestTrue(TEXT("...and at the jump, the barge listed toward her"), BargeRules::JumpBagClearance() > 0.f);
+	TestTrue(TEXT("The ship's numbers are the ship's"), FMath::IsNearlyEqual(BargeRules::ShipDeckOverKeel, ALamplighterShip::DeckTop)
+		&& FMath::IsNearlyEqual(BargeRules::ShipRailOut, ALamplighterShip::RailOut));
 
 	FTestWorldWrapper TestLevel;
 	ABargeBoarding* Barge = SpawnBarge(TestLevel, *this, BargeRules::DeckStep);
@@ -67,7 +101,18 @@ bool FBargeKitTest::RunTest(const FString& Parameters)
 	UWorld* World = TestLevel.GetTestWorld();
 	TestTrue(TEXT("Shown as the deck fight's step"), Barge->IsPresent() && Barge->GetState() == EBargeState::Hanging);
 	TestTrue(TEXT("Her furnace, three valves, the drum"), Barge->GetFurnace() && Barge->GetValves().Num() == BargeRules::NumValves && Barge->GetHoseDrum());
-	TestTrue(TEXT("Rail walls round her deck and the hatch (8)"), Barge->GetRailWalls().Num() == 8);
+	// The rail walls as the rules lay them out, each where its footprint says, as tall as the rules have them.
+	const TArray<BargeRules::FRailWall> Layout = BargeRules::RailWallLayout();
+	bool bWallsLaid = Barge->GetRailWalls().Num() == Layout.Num();
+	for (int32 Index = 0; bWallsLaid && Index < Layout.Num(); ++Index)
+	{
+		const UBoxComponent* Wall = Barge->GetRailWalls()[Index];
+		const FVector Middle = Wall ? Wall->GetRelativeLocation() : FVector::ZeroVector;
+		const FVector Half = Wall ? Wall->GetUnscaledBoxExtent() : FVector::ZeroVector;
+		bWallsLaid &= Wall && Wall->GetName() == Layout[Index].Name && FVector2D(Middle.X, Middle.Y).Equals(Layout[Index].Footprint.GetCenter(), 0.5)
+			&& FVector2D(Half.X, Half.Y).Equals(Layout[Index].Footprint.GetExtent(), 0.5) && FMath::IsNearlyEqual(Half.Z * 2.0, static_cast<double>(BargeRules::RailWallHeight), 0.5);
+	}
+	TestTrue(TEXT("Rail walls on her bulwark and across the bow, as the rules lay them out"), bWallsLaid);
 	FVector Hit;
 	TestTrue(TEXT("The plank's landing is on her deck"), GroundUnder(World, Barge->GetBoardingPoint() + FVector(0.0, 0.0, 150.0), Hit)
 		&& FMath::IsNearlyEqual(static_cast<float>(Hit.Z), static_cast<float>(Barge->GetBoardingPoint().Z), 5.f));
@@ -79,190 +124,361 @@ bool FBargeKitTest::RunTest(const FString& Parameters)
 	{
 		bDeckSpots &= GroundUnder(World, Spot + FVector(0.0, 0.0, 100.0), Hit) && FMath::Abs(Hit.Z - (Barge->GetActorLocation().Z + BargeRules::DeckTop)) < 5.0;
 	}
-	TestTrue(TEXT("Nine deck fight spots, each on the deck"), Barge->GetFightSpots(ABargeBoarding::DeckFight).Num() == 9 && bDeckSpots);
+	TestTrue(TEXT("One deck fight spot per rules spot, each on the deck"), Barge->GetFightSpots(ABargeBoarding::DeckFight).Num() == static_cast<int32>(UE_ARRAY_COUNT(BargeRules::DeckFightSpots)) && bDeckSpots);
 	bool bHallSpots = true;
 	for (const FVector& Spot : Barge->GetFightSpots(ABargeBoarding::HallFight))
 	{
 		const FVector Flat = Spot - Barge->GetHallMiddle();
 		bHallSpots &= FVector2D(Flat.X, Flat.Y).Size() < BargeRules::HallRadius && GroundUnder(World, Spot + FVector(0.0, 0.0, 100.0), Hit);
 	}
-	TestTrue(TEXT("Eight hall spots, each on the hall's floor"), Barge->GetFightSpots(ABargeBoarding::HallFight).Num() == 8 && bHallSpots);
-	// The berth: her starboard to the barge's port side, her deck a little under the barge's.
+	TestTrue(TEXT("The hall's spots, each on the hall's floor"), Barge->GetFightSpots(ABargeBoarding::HallFight).Num() == BargeRules::HallFightSpots && bHallSpots);
+	// The berth: her starboard to the barge's port side, level, her deck by BerthUnderDeck off the barge's.
 	const FTransform Berth = Barge->GetBerth();
 	TestTrue(TEXT("The berth is off her port side, level"), Berth.GetLocation().Y < -BargeRules::HullHalfBeam
 		&& FMath::IsNearlyZero(static_cast<float>(Berth.Rotator().Pitch)) && FMath::IsNearlyZero(static_cast<float>(Berth.Rotator().Roll)));
-	TestTrue(TEXT("...her deck under the barge's by the plank's climb"), FMath::IsNearlyEqual(
+	TestTrue(TEXT("...her deck off the barge's by the plank's fall"), FMath::IsNearlyEqual(
 		static_cast<float>(Berth.GetLocation().Z + BargeRules::ShipDeckOverKeel), static_cast<float>(Barge->GetBoardingPoint().Z - BargeRules::BerthUnderDeck), 1.f));
-	TestTrue(TEXT("The grapples bite her port rail fore and aft"), Barge->GetGrappleAnchor(0).X > Barge->GetGrappleAnchor(1).X
-		&& Barge->GetGrappleAnchor(0).Y < 0.0 && Barge->GetHornSpots().Num() == 4 && !Barge->GetOfficeSpot().IsNearlyZero());
+	const FVector BiteOnHer = Barge->GetActorTransform().InverseTransformPosition(Barge->GetGrappleAnchor(0));
+	TestTrue(TEXT("The grapples bite her port bulwark fore and aft"), Barge->GetGrappleAnchor(0).X > Barge->GetGrappleAnchor(1).X
+		&& FMath::IsNearlyEqual(static_cast<float>(-BiteOnHer.Y), BargeRules::BulwarkHalfBeam - BargeRules::BulwarkThick * 0.5f, 1.f)
+		&& FMath::IsNearlyEqual(static_cast<float>(BiteOnHer.Z), BargeRules::DeckTop + BargeRules::RailHeight, 1.f));
+	TestTrue(TEXT("Her horns and the office's desk"), Barge->GetHornSpots().Num() == static_cast<int32>(UE_ARRAY_COUNT(BargeRules::HornSpots))
+		&& !Barge->GetOfficeSpot().IsNearlyZero());
 	Barge->ForceStep(INDEX_NONE);
 	TestTrue(TEXT("With no story she isn't there"), !Barge->IsPresent() && Barge->IsHidden());
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeGratesTest, "Looter.World.Barge.Grates",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeHallTest, "Looter.World.Barge.Hall",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FBargeGratesTest::RunTest(const FString& Parameters)
+bool FBargeHallTest::RunTest(const FString& Parameters)
 {
-	// 4 of 12 hot, spread evenly; the wheel steps a wedge every 3 s; a second's glow, then the burn; each valve cools it.
-	const auto Count = [](uint32 Mask) { return static_cast<int32>(FMath::CountBits(Mask)); };
-	TestEqual(TEXT("4 of 12 hot with no valve shut"), Count(BargeRules::HotMask(0.f, 0)), 4);
-	TestTrue(TEXT("...every third wedge"), BargeRules::HotMask(0.f, 0) == ((1u << 0) | (1u << 3) | (1u << 6) | (1u << 9)));
-	TestTrue(TEXT("A turn later the wheel has stepped one wedge"), BargeRules::HotMask(3.1f, 0) == ((1u << 1) | (1u << 4) | (1u << 7) | (1u << 10)));
-	TestTrue(TEXT("...the same all through a turn"), BargeRules::HotMask(5.9f, 0) == BargeRules::HotMask(3.1f, 0));
-	TestFalse(TEXT("Glowing, not burning, in a turn's first second"), BargeRules::IsBurning(3.5f));
-	TestTrue(TEXT("Burning after it"), BargeRules::IsBurning(4.5f));
-	TestEqual(TEXT("One valve: 3 hot"), Count(BargeRules::HotMask(0.f, 1)), 3);
-	TestEqual(TEXT("Two: 2"), Count(BargeRules::HotMask(0.f, 2)), 2);
-	TestTrue(TEXT("Three: cold"), BargeRules::HotMask(0.f, 3) == 0u);
-	TestEqual(TEXT("The ring's wedge under a point"), BargeRules::GrateAt(FVector2D(600.0, 10.0)), 0);
-	TestEqual(TEXT("...off the ring by the furnace"), BargeRules::GrateAt(FVector2D(350.0, 0.0)), INDEX_NONE);
-	TestEqual(TEXT("...and outside it"), BargeRules::GrateAt(FVector2D(950.0, 0.0)), INDEX_NONE);
-
-	// The vents: a second's glow before every burn, never all at once.
-	bool bToldFirst = true;
-	for (float Time = 0.f; Time < 30.f; Time += 0.05f)
+	using namespace BargeRules;
+	// The hall at deck level in the house: its floor the deck's level, its walls and ceiling under the house's roof, its round
+	// wall inside the house's walls.
+	TestEqual(TEXT("The hall's floor is the deck's level"), HallFloor, DeckTop);
+	TestTrue(TEXT("Its ceiling under the house's roof"), CeilingThickness > 0.f && HallFloor + HallHeight + CeilingThickness < HouseRoof);
+	const FBox2D Ceiling = HallCeilingArea();
+	TestTrue(TEXT("The hall stands inside the house"), Ceiling.Min.X >= HouseAft + HouseWallThick && Ceiling.Max.X <= HouseFore - HouseWallThick
+		&& Ceiling.Max.Y <= HallSkinHalfBeam && Ceiling.Min.Y >= -HallSkinHalfBeam);
+	// Fore of it, on the same level: the office from the hall's rim to the vestibule, the vestibule from there to the door.
+	const FBox2D Vestibule = VestibuleArea();
+	const FBox2D Office = OfficeArea();
+	TestTrue(TEXT("The office runs from the hall's rim to the vestibule's aft wall"), FMath::IsNearlyEqual(Office.Min.X, HallCenter.X + HallRadius, 1.0)
+		&& FMath::IsNearlyEqual(Office.Max.X, static_cast<double>(VestibuleAft - VestibuleWall), 1.0));
+	TestTrue(TEXT("...the vestibule from there to the lining inside the door"), FMath::IsNearlyEqual(Vestibule.Max.X, static_cast<double>(HouseFore - HouseWallThick - VestibuleWall), 1.0)
+		&& Vestibule.Max.Y >= DoorHalfWidth && Office.Max.Y >= Vestibule.Max.Y && Office.Max.Y + OfficeWall <= HallSkinHalfBeam);
+	// The desk in the office, out of the way from door to door; the radio on its top.
+	const FVector Desk = DeskTop();
+	const FBox2D DeskBox = Around(Desk, 45.0, 90.0);
+	const FVector Radio = Desk + RadioOnDesk;
+	TestTrue(TEXT("The desk is in the office, out of the way through it"), Office.IsInside(DeskBox.Min) && Office.IsInside(DeskBox.Max)
+		&& DeskBox.Max.Y < -DoorHalfWidth);
+	TestTrue(TEXT("...the radio on it"), DeskBox.IsInside(FVector2D(Radio.X, Radio.Y)) && Radio.Z > Desk.Z && Radio.Z < Desk.Z + 30.0);
+	// The two stairs from the floor up to the catwalk; the catwalk open over them (two of its spans each), its span past each
+	// top laid (the landing), its end past each foot short of the stair's foot.
+	bool bFloorStairs = true;
+	for (int32 Index = 0; Index < NumFloorStairs; ++Index)
 	{
-		if (BargeRules::VentPhase(0, Time) == BargeRules::EVentPhase::Burn && BargeRules::VentPhase(0, Time - 0.06f) == BargeRules::EVentPhase::Quiet)
-		{
-			bToldFirst = false;
-		}
+		const FStairRun Stair = FloorStair(Index);
+		bFloorStairs &= StairSlope(Stair) <= StairMostSlope && FMath::IsNearlyEqual(static_cast<float>(Stair.To.Z), HallFloor + InteriorFloorLift, 1.f)
+			&& FMath::IsNearlyEqual(static_cast<float>(Stair.From.Z), HallFloor + CatwalkUp, 1.f);
 	}
-	TestTrue(TEXT("A vent glows before it burns"), bToldFirst);
-	int32 MostBurning = 0;
-	for (float Time = 6.f; Time < 18.f; Time += 0.05f)
+	TestTrue(TEXT("The stairs up to the catwalk are walkable"), bFloorStairs);
+	int32 Open = 0;
+	for (int32 Index = 0; Index < CatwalkSpans; ++Index)
 	{
-		int32 Burning = 0;
-		for (int32 Vent = 0; Vent < BargeRules::NumVents; ++Vent)
-		{
-			Burning += BargeRules::VentPhase(Vent, Time) == BargeRules::EVentPhase::Burn ? 1 : 0;
-		}
-		MostBurning = FMath::Max(MostBurning, Burning);
+		Open += IsCatwalkSpanLaid(Index) ? 0 : 1;
 	}
-	TestTrue(TEXT("...and they run in a pattern, a few at a time"), MostBurning > 0 && MostBurning <= 3);
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeValvesTest, "Looter.World.Barge.Valves",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FBargeValvesTest::RunTest(const FString& Parameters)
-{
-	FTestWorldWrapper TestLevel;
-	ABargeBoarding* Barge = SpawnBarge(TestLevel, *this, BargeRules::FurnaceStep);
-	ABargeFurnace* Furnace = Barge ? Barge->GetFurnace() : nullptr;
-	if (!Furnace)
+	bool bLandings = Open == 2 * NumFloorStairs;
+	const double SpanDegrees = 360.0 / CatwalkSpans;
+	for (int32 Index = 0; Index < NumFloorStairs; ++Index)
 	{
-		return false;
+		const double Landing = FloorStairAngles[Index] - FloorStairWays[Index] * SpanDegrees * 0.5;
+		const double Foot = FloorStairAngles[Index] + FloorStairWays[Index] * FloorStairSpan;
+		bLandings &= IsCatwalkSpanLaid(FMath::FloorToInt32(Landing / SpanDegrees))
+			&& (CatwalkEndAngle(Index) - Foot) * FloorStairWays[Index] > 0.0;
 	}
-	TestTrue(TEXT("The furnace's step: the ring turns, every valve open"), Furnace->IsRingRunning() && Barge->CountValvesShut() == 0);
-	Barge->Advance(1.5f);
-	TestTrue(TEXT("...4 wedges burning 1.5 s in"), FMath::CountBits(Furnace->GetHotMask()) == 4 && Furnace->IsRingBurning());
-	AFurnaceDraftValve* First = Barge->GetValves()[0];
-	TestTrue(TEXT("A valve shuts (a hold)"), First->Shut(nullptr, /*bForce*/ true) && First->IsShut());
-	TestFalse(TEXT("...and can't be shut again"), First->Shut(nullptr, true));
-	TestTrue(TEXT("...the ring a notch colder"), Furnace->GetValvesShut() == 1 && FMath::CountBits(Furnace->GetHotMask()) == 3);
-	for (AFurnaceDraftValve* Valve : Barge->GetValves())
-	{
-		Valve->Shut(nullptr, true);
-	}
-	TestTrue(TEXT("All three: the ring cold and still"), Barge->CountValvesShut() == 3 && !Furnace->IsRingRunning() && Furnace->GetHotMask() == 0u);
-	First->Tick(2.f);
-	TestTrue(TEXT("...the wheel spun down and seated"), FMath::IsNearlyEqual(First->GetTurn(), 1.f));
-	// A load on the cage's step finds them all shut; one on the furnace's step finds them open again.
-	Barge->ForceStep(BargeRules::CageStep);
-	TestEqual(TEXT("Past the furnace's step: all shut"), Barge->CountValvesShut(), 3);
-	Barge->ForceStep(BargeRules::FurnaceStep);
-	TestEqual(TEXT("On it again (a load): open"), Barge->CountValvesShut(), 0);
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeCageTest, "Looter.World.Barge.Cage",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FBargeCageTest::RunTest(const FString& Parameters)
-{
-	FTestWorldWrapper TestLevel;
-	ABargeBoarding* Barge = SpawnBarge(TestLevel, *this, BargeRules::CageStep);
-	ABargeFurnace* Furnace = Barge ? Barge->GetFurnace() : nullptr;
-	if (!Furnace)
-	{
-		return false;
-	}
-	TestTrue(TEXT("Its step, the ring cold: the cage whole"), !Furnace->IsCageBurst() && Furnace->GetValvesShut() == 3);
-	// No campaign here, so no lantern: the cage won't open without Abel's own lantern to carry him in.
-	TestFalse(TEXT("Not without Abel's lantern"), Furnace->CanOpenCage());
-	TestTrue(TEXT("...the story aside, it could"), Furnace->CanOpenCage(/*bForce*/ true));
-	TestTrue(TEXT("The cage's heart faces into the hall"), FVector::Dist(Furnace->GetCageLocation(), Barge->GetHallMiddle()) < BargeRules::FurnaceRadius + 200.f);
-	// Its burst's end state (the scene leaves it so): the heart gone, the barge's pilot light out.
-	Barge->NoteCageBurst();
-	TestTrue(TEXT("Burst: the cage open, the barge without her pilot light"), Furnace->IsCageBurst() && Barge->GetState() == EBargeState::Burst);
-	TestFalse(TEXT("...nothing more to open"), Furnace->CanOpenCage(true));
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeDyingTest, "Looter.World.Barge.Dying",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FBargeDyingTest::RunTest(const FString& Parameters)
-{
-	TestTrue(TEXT("Her list comes in over its seconds to 12 degrees"), FMath::IsNearlyZero(BargeRules::ListAt(0.f))
-		&& FMath::IsNearlyEqual(BargeRules::ListAt(BargeRules::ListSeconds + 1.f), BargeRules::ListDegrees));
-	TestTrue(TEXT("Her drift eases in, then holds its speed, never past its most"), BargeRules::DriftAt(1.f) < BargeRules::DriftSpeed
-		&& BargeRules::DriftAt(100.f) <= BargeRules::DriftMost);
+	TestTrue(TEXT("The catwalk is open over the stairs, laid past their tops, ended past their feet"), bLandings);
+	// The hatch as the story knows it: the house's door; a player put back after the manifest stands on the deck before it.
+	TestTrue(TEXT("The hatch's spot is the house's door"), HatchSpot().Equals(FVector(HouseFore, 0.0, DeckTop), 1.0)
+		&& IsOpenDeck(FVector2D(HouseFore + HatchStartOut, 0.0)));
+	// The stokehold alcoves stay inside the house's walls, and still reach past the hall's wall.
+	TestTrue(TEXT("The alcoves fit inside the house's walls"), HallRadius + AlcoveDepth + AlcoveWall + SkinGap <= HallSkinHalfBeam + 0.01f
+		&& AlcoveDepth > WallThickness);
 
 	FTestWorldWrapper TestLevel;
-	const FVector Where(0.0, 0.0, 10000.0);
-	ABargeBoarding* Barge = SpawnBarge(TestLevel, *this, BargeRules::EscapeStep, Where);
+	ABargeBoarding* Barge = SpawnBarge(TestLevel, *this, ManifestStep);
 	if (!Barge)
 	{
 		return false;
 	}
-	TestTrue(TEXT("The escape's step: she's dying"), Barge->IsDying() && Barge->GetFurnace()->IsCageBurst());
-	const FVector JumpAtStart = Barge->GetJumpBerth().GetLocation();
-	const FVector JumpOnHerAtStart = Barge->GetActorTransform().InverseTransformPosition(JumpAtStart);
-	Barge->Advance(BargeRules::StackFallsAt + BargeRules::StackFallSeconds + 0.5f);
-	const float Dying = Barge->GetDyingSeconds();
-	TestTrue(TEXT("Drifting west"), FMath::IsNearlyEqual(static_cast<float>(Where.Y - Barge->GetActorLocation().Y), BargeRules::DriftAt(Dying), 2.f));
-	TestTrue(TEXT("...listing to her berth side"), FMath::Abs(static_cast<float>(Barge->GetActorRotation().Roll)) > 5.f);
-	// The berth hangs under the gangway's broken end, so it lists with her as well as drifting: her 12 degrees swing it about
-	// a metre further west than the drift alone (it's 16.5 m out and 6 m up her frame). Fixed in her frame, then; west by
-	// at least the drift.
-	const FVector JumpNow = Barge->GetJumpBerth().GetLocation();
-	TestTrue(TEXT("...the jump berth going with her"), Barge->GetActorTransform().InverseTransformPosition(JumpNow).Equals(JumpOnHerAtStart, 1.0)
-		&& JumpAtStart.Y - JumpNow.Y >= BargeRules::DriftAt(Dying) - 2.f);
-	TestTrue(TEXT("...the ship's berth kept level"), FMath::IsNearlyZero(static_cast<float>(Barge->GetJumpBerth().Rotator().Roll)));
-	TestFalse(TEXT("The third stack is down across the port lane"), Barge->FallingStackPivot->GetRelativeRotation().Equals(FRotator::ZeroRotator, 1.f));
+	UWorld* World = TestLevel.GetTestWorld();
+	const double Keel = Barge->GetActorLocation().Z;
+	const FTransform Her = Barge->GetActorTransform();
+	// The ceiling over the hall (between the furnace and the catwalk); the vestibule and the office roofed.
+	FVector Hit;
+	TestTrue(TEXT("The hall has a ceiling at its walls' top"), IronOver(World, Her.TransformPosition(HallPoint(45.f, 700.f, 100.f)), 2000.0, Hit)
+		&& FMath::IsNearlyEqual(Hit.Z, Keel + HallFloor + HallHeight, 5.0));
+	TestTrue(TEXT("The vestibule is roofed"), IronOver(World, Her.TransformPosition(FVector(Vestibule.GetCenter().X, 0.0, DeckTop + StandUp)), 1000.0, Hit)
+		&& FMath::IsNearlyEqual(Hit.Z, Keel + DeckTop + VestibuleHeight, 5.0));
+	TestTrue(TEXT("...and the office"), IronOver(World, Her.TransformPosition(FVector(Office.GetCenter().X, 0.0, DeckTop + StandUp)), 1000.0, Hit)
+		&& FMath::IsNearlyEqual(Hit.Z, Keel + DeckTop + OfficeHeight, 5.0));
+	// The way in, on one level: from the deck through the door, the vestibule and the office onto the hall's floor, a floor
+	// under every step of it.
+	const double InHall = HallCenter.X + HallRadius - HallSpotIn;
+	TestTrue(TEXT("Through the door, the vestibule and the office into the hall"), WalkClear(World, *Barge, FVector2D(HouseFore + HatchStartOut, 0.0), FVector2D(InHall, 0.0)));
+	bool bFloored = true;
+	for (const double X : { Vestibule.GetCenter().X, Office.GetCenter().X, InHall })
+	{
+		bFloored &= GroundUnder(World, Her.TransformPosition(FVector(X, 0.0, DeckTop + StandUp)), Hit)
+			&& FMath::IsNearlyEqual(Hit.Z, Keel + DeckTop + InteriorFloorLift, 1.0);
+	}
+	TestTrue(TEXT("...floored all the way, a hair over the deck"), bFloored);
+	// Up each stair to the catwalk, a step every 50 cm from its foot to its top: the stair under the feet, 2.1 m clear over the
+	// head (round 4's stairs ran under the ring and failed this halfway up), then the catwalk past the top; and the ring's end
+	// past the foot walled, so nobody walks off it into the drop.
+	constexpr double Step = 50.0;
+	constexpr double Head = 210.0;
+	bool bClimb = true;
+	bool bEnds = true;
+	for (int32 Index = 0; Index < NumFloorStairs; ++Index)
+	{
+		const FStairRun Stair = FloorStair(Index);
+		const FVector Up = Stair.From - Stair.To;
+		const double Length = Up.Size();
+		for (double Along = 0.0; Along <= Length; Along += Step)
+		{
+			const FVector Feet = Stair.To + Up * (Along / Length);
+			bClimb &= GroundUnder(World, Her.TransformPosition(Feet + FVector(0.0, 0.0, Step)), Hit) && FMath::IsNearlyEqual(Hit.Z, Keel + Feet.Z, 5.0)
+				&& HeadroomClear(World, *Barge, Feet, Head);
+		}
+		const FVector Beyond = Stair.From + Up.GetSafeNormal2D() * Step;
+		bClimb &= GroundUnder(World, Her.TransformPosition(Beyond + FVector(0.0, 0.0, Step)), Hit)
+			&& FMath::IsNearlyEqual(Hit.Z, Keel + HallFloor + CatwalkUp, 2.0);
+		const double Way = FloorStairWays[Index];
+		const FVector OnRing = Her.TransformPosition(HallPoint(CatwalkEndAngle(Index) + Way * SpanDegrees * 0.5, CatwalkMiddle, CatwalkUp + StandUp));
+		const FVector OverDrop = Her.TransformPosition(HallPoint(CatwalkEndAngle(Index) - Way * SpanDegrees * 0.5, CatwalkMiddle, CatwalkUp + StandUp));
+		bEnds &= World->LineTraceTestByChannel(OnRing, OverDrop, ECC_Pawn);
+	}
+	TestTrue(TEXT("Up each stair from the floor onto the catwalk, headroom all the way"), bClimb);
+	TestTrue(TEXT("...and the ring's end past each stair's foot walled"), bEnds);
+	// After the manifest she puts a player back before the house's door, on the deck.
+	const FVector Start = Barge->GetPlayerStart().GetLocation();
+	const FVector StartOnHer = Her.InverseTransformPosition(Start);
+	TestTrue(TEXT("Put back before the door: on the open deck"), IsOpenDeck(FVector2D(StartOnHer.X, StartOnHer.Y))
+		&& GroundUnder(World, Start, Hit) && FMath::IsNearlyEqual(Hit.Z, Keel + DeckTop, 5.0));
+	// Nothing of the alcoves' iron pokes past the house's walls (the barge stands unturned: her Y is the world's).
+	bool bAlcovesIn = true;
+	int32 AlcoveParts = 0;
+	for (UActorComponent* Part : Barge->GetComponents())
+	{
+		const UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Part);
+		if (Prim && Prim->GetName().StartsWith(TEXT("Alcove")))
+		{
+			const FBox Box = BoxOf(*Prim);
+			bAlcovesIn &= FMath::Max(FMath::Abs(Box.Min.Y), FMath::Abs(Box.Max.Y)) <= HallSkinHalfBeam - SkinGap + 1.0;
+			++AlcoveParts;
+		}
+	}
+	TestTrue(TEXT("The alcoves' iron is inside the house's walls"), AlcoveParts > 0 && bAlcovesIn);
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeFallTest, "Looter.World.Barge.Fall",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeDeckTest, "Looter.World.Barge.Deck",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FBargeFallTest::RunTest(const FString& Parameters)
+bool FBargeDeckTest::RunTest(const FString& Parameters)
 {
-	const FTransform From(FRotator::ZeroRotator, FVector(0.0, 0.0, 10000.0));
-	const FVector To(0.0, -30000.0, 1000.0);
-	TestTrue(TEXT("Her fall starts where she was"), BargeRules::FallPose(From, To, 0.f).GetLocation().Equals(From.GetLocation(), 1.0));
-	TestTrue(TEXT("...and ends on the canyon's floor"), BargeRules::FallPose(From, To, BargeRules::FallSeconds).GetLocation().Equals(To, 1.0));
-	TestTrue(TEXT("...gliding first, high over the brink at the plunge"), BargeRules::FallPose(From, To, BargeRules::PlungeAt).GetLocation().Z
-		> (From.GetLocation().Z + To.Z) * 0.5);
+	using namespace BargeRules;
+	// Every spot on her deck stands in the arena (and out of any blocks); the roof's fires on the roof. The hatch's hole is
+	// in the vestibule, aft of the arena (the Hall test holds it there).
+	bool bSpots = true;
+	const auto Check = [&bSpots](const FVector& Spot) { bSpots &= IsOpenDeck(FVector2D(Spot.X, Spot.Y)); };
+	for (const FVector& Spot : DeckFightSpots) { Check(Spot); }
+	for (const FVector& Spot : CoverSpots) { Check(Spot); }
+	for (const FVector& Spot : VentSpots) { Check(Spot); }
+	for (const FVector& Spot : HornSpots) { Check(Spot); }
+	Check(DrumOnDeck);
+	Check(FallingStackFoot);
+	Check(FVector(BerthX, BerthSide * (DeckHalfBeam - BoardingInset), 0.0));
+	TestTrue(TEXT("Every deck spot is in the deck's arena"), bSpots);
+	bool bFires = true;
+	const FBox2D Roof(FVector2D(HouseAft, -HouseHalfBeam), FVector2D(HouseFore, HouseHalfBeam));
+	for (const FVector& Spot : SternFireSpots)
+	{
+		const FVector2D Flat(Spot.X, Spot.Y);
+		const float Up = static_cast<float>(Spot.Z);
+		bFires &= FMath::IsNearlyEqual(Up, DeckTop) ? IsOpenDeck(Flat) : FMath::IsNearlyEqual(Up, HouseRoof) && Roof.IsInside(Flat);
+	}
+	TestTrue(TEXT("Her fires on the after deck or on the house's roof"), bFires);
+	// The pieces keep apart: the solid ones (crates, the falling stack's foot, the drum's gantry) never
+	// overlap each other or a vent, and no fight spot stands inside one or on a vent.
+	TArray<FBox2D> Solids;
+	for (const FVector& Crate : CoverSpots)
+	{
+		Solids.Add(Around(Crate, CoverHalf.X, CoverHalf.Y));
+	}
+	Solids.Add(Around(FallingStackFoot, StackRadius, StackRadius));
+	Solids.Add(Around(DrumOnDeck, DrumGantryHalf.X, DrumGantryHalf.Y));
+	TArray<FBox2D> Vents;
+	for (const FVector& Vent : VentSpots)
+	{
+		Vents.Add(Around(Vent, VentHalf, VentHalf));
+	}
+	bool bApart = true;
+	for (int32 Index = 0; Index < Solids.Num(); ++Index)
+	{
+		for (int32 Other = Index + 1; Other < Solids.Num(); ++Other)
+		{
+			bApart &= !Solids[Index].Intersect(Solids[Other]);
+		}
+		for (const FBox2D& Vent : Vents)
+		{
+			bApart &= !Solids[Index].Intersect(Vent);
+		}
+	}
+	for (const FVector& Spot : DeckFightSpots)
+	{
+		const FVector2D Flat(Spot.X, Spot.Y);
+		for (const FBox2D& Piece : Solids)
+		{
+			bApart &= !Piece.IsInside(Flat);
+		}
+		for (const FBox2D& Vent : Vents)
+		{
+			bApart &= !Vent.IsInside(Flat);
+		}
+	}
+	TestTrue(TEXT("Crates, the stack, the gantry, vents and fight spots keep apart"), bApart);
 
 	FTestWorldWrapper TestLevel;
-	ABargeBoarding* Barge = SpawnBarge(TestLevel, *this, BargeRules::EscapeStep, From.GetLocation());
+	ABargeBoarding* Barge = SpawnBarge(TestLevel, *this, DeckStep);
 	if (!Barge)
 	{
 		return false;
 	}
-	Barge->FallTarget = To;
-	Barge->ApplyFallAt(6.f);
-	TestTrue(TEXT("The scene has her: falling, on her way"), Barge->GetState() == EBargeState::Falling && Barge->GetActorLocation().Y < 0.0);
-	Barge->ApplyFallAt(BargeRules::FallSeconds);
-	TestTrue(TEXT("...down in the canyon"), Barge->GetActorLocation().Equals(To, 50.0));
-	Barge->FinishFall();
-	TestTrue(TEXT("Its end: gone from the sky, hidden, no collision"), Barge->GetState() == EBargeState::Fallen && Barge->IsHidden()
-		&& !Barge->GetActorEnableCollision() && !Barge->IsPresent());
+	const double Keel = Barge->GetActorLocation().Z;
+	const bool bHull = Barge->HasHull();
+	// The hull walks and shoots as it is (its own collision); the stand-in box doesn't.
+	TestTrue(TEXT("The hull collides only when it's ours"), (Barge->Hull->GetCollisionEnabled() != ECollisionEnabled::NoCollision) == bHull);
+	// The plates: the vestibule's always (a hair over the deck), the open deck's only over the stand-in, drawn.
+	const TArray<TObjectPtr<UPrimitiveComponent>>& Parts = Barge->GetDeckPlates();
+	int32 Next = 0;
+	bool bPlates = true;
+	for (const FDeckPlate& Plate : DeckPlates)
+	{
+		if (Plate.bOnHullDeck && bHull)
+		{
+			continue;
+		}
+		const UPrimitiveComponent* Part = Parts.IsValidIndex(Next) ? Parts[Next].Get() : nullptr;
+		const double PlateTop = Keel + DeckTop + (Plate.bOnHullDeck ? 0.0 : static_cast<double>(InteriorFloorLift));
+		bPlates &= Part && Part->IsA<UStaticMeshComponent>() && Part->IsVisible() && !Part->bHiddenInGame
+			&& FMath::IsNearlyEqual(BoxOf(*Part).Max.Z, PlateTop, 2.0) && Part->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Block;
+		++Next;
+	}
+	TestTrue(TEXT("The kit's plates: the vestibule's, and the open deck's over the stand-in only"), bPlates && Next == Parts.Num());
+	// No superstructure walled off (the hull has its own).
+	TestTrue(TEXT("No blocks"), Barge->GetDeckBlocks().Num() == DeckBlocks().Num());
+	// Nothing she draws pokes out of her hull's beam (the hose and the coal hang in the world's frame: not hers).
+	bool bInside = true;
+	FString Out;
+	for (UActorComponent* Part : Barge->GetComponents())
+	{
+		const UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Part);
+		if (!Prim || !Prim->IsVisible() || Prim->bHiddenInGame || Prim == Barge->Hull.Get() || Prim == Barge->HoseSections.Get()
+			|| Prim == Barge->CoalRain.Get())
+		{
+			continue;
+		}
+		const FBox Box = BoxOf(*Prim);
+		if (FMath::Max(FMath::Abs(Box.Min.Y), FMath::Abs(Box.Max.Y)) > HullHalfBeam)
+		{
+			bInside = false;
+			Out += Prim->GetName() + TEXT(" ");
+		}
+	}
+	TestTrue(FString::Printf(TEXT("Nothing she draws pokes out of her beam (%s)"), *Out), bInside);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeHullTest, "Looter.World.Barge.Hull",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBargeHullTest::RunTest(const FString& Parameters)
+{
+	// The reworked Tripo hull's own collision, which is what breaks when the model is reworked or exported again: traced
+	// against the hull alone (no kit piece answers), where the kit counts on it.
+	using namespace BargeRules;
+	FTestWorldWrapper TestLevel;
+	ABargeBoarding* Barge = SpawnBarge(TestLevel, *this, DeckStep);
+	if (!Barge)
+	{
+		return false;
+	}
+	if (!Barge->HasHull())
+	{
+		AddInfo(FString::Printf(TEXT("%s isn't imported: the hull's collision isn't checked (she stands on the stand-in box)."), ABargeBoarding::HullPath));
+		return true;
+	}
+	const FTransform Her = Barge->GetActorTransform();
+	UPrimitiveComponent* Hull = Barge->Hull.Get();
+	const auto HitsHull = [Hull, &Her](const FVector& From, const FVector& To, FHitResult& Hit)
+	{
+		return Hull->LineTraceComponent(Hit, Her.TransformPosition(From), Her.TransformPosition(To), FCollisionQueryParams(SCENE_QUERY_STAT(BargeHullTest), false));
+	};
+	FHitResult Hit;
+	// The kit lays no plate over the arena: every one of its plates is the vestibule's, inside the house.
+	bool bNoPlates = true;
+	for (const UPrimitiveComponent* Part : Barge->GetDeckPlates())
+	{
+		bNoPlates &= Part && Her.InverseTransformPosition(BoxOf(*Part).Max).X <= HouseFore + 1.0;
+	}
+	TestTrue(TEXT("Over the hull the kit lays no plate on the open deck"), bNoPlates);
+	// The deck's top at the arena's four corners.
+	bool bDeck = true;
+	for (const float X : { DeckAft, DeckFore })
+	{
+		for (const float Y : { -DeckHalfBeam, DeckHalfBeam })
+		{
+			bDeck &= HitsHull(FVector(X, Y, DeckTop + 200.0), FVector(X, Y, DeckTop - 200.0), Hit)
+				&& FMath::IsNearlyEqual(Her.InverseTransformPosition(Hit.ImpactPoint).Z, static_cast<double>(DeckTop), 2.0);
+		}
+	}
+	TestTrue(TEXT("Her deck's top at the arena's corners"), bDeck);
+	// The bulwark's gap at the berth: open a hand inside its posts, closed a hand outside them (across the bulwark, at half
+	// its height).
+	constexpr double Hand = 20.0;
+	const double Waist = DeckTop + RailHeight * 0.5;
+	const auto AcrossBulwark = [&](double X)
+	{
+		return HitsHull(FVector(X, BerthSide * (DeckHalfBeam - Hand), Waist), FVector(X, BerthSide * (BulwarkHalfBeam + Hand), Waist), Hit);
+	};
+	TestTrue(TEXT("The bulwark's gap is open at the berth"), !AcrossBulwark(BerthX - GapHalf + Hand) && !AcrossBulwark(BerthX + GapHalf - Hand));
+	TestTrue(TEXT("...and the bulwark closed past it"), AcrossBulwark(BerthX - GapHalf - Hand) && AcrossBulwark(BerthX + GapHalf + Hand));
+	// The house's door: open at its middle, its wall either side of it.
+	const double Chest = DeckTop + DoorHeight * 0.5;
+	const auto ThroughFore = [&](double Y)
+	{
+		return HitsHull(FVector(HouseFore + 100.0, Y, Chest), FVector(HouseFore - HouseWallThick - 100.0, Y, Chest), Hit);
+	};
+	TestTrue(TEXT("The house's door is open"), !ThroughFore(0.0));
+	TestTrue(TEXT("...its wall either side"), ThroughFore(DoorHalfWidth + Hand) && ThroughFore(-(DoorHalfWidth + Hand)));
+	// Nothing solid inside the house (the kit's hall stands in it), at a walker's height and just under its roof (where the
+	// stacks and the tower must stop).
+	const double InsideFore = HouseFore - HouseWallThick - Hand;
+	const double InsideAft = HouseAft + HouseWallThick + Hand;
+	const double InsideSide = HallSkinHalfBeam - Hand;
+	bool bHollow = true;
+	for (const double Up : { double(DeckTop + StandUp), double(HouseRoof - 2.0 * StandUp) })
+	{
+		bHollow &= !HitsHull(FVector(InsideFore, 0.0, Up), FVector(InsideAft, 0.0, Up), Hit)
+			&& !HitsHull(FVector((InsideFore + InsideAft) * 0.5, -InsideSide, Up), FVector((InsideFore + InsideAft) * 0.5, InsideSide, Up), Hit)
+			&& !HitsHull(FVector(HallCenter.X, -InsideSide, Up), FVector(HallCenter.X, InsideSide, Up), Hit);
+	}
+	TestTrue(TEXT("The house is empty inside, fore to aft and side to side, low and high"), bHollow);
 	return true;
 }
 

@@ -3,7 +3,73 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (session end 2026-11-04 morning: Phase 3 of the core-loop audit is BUILT and packaged; nobody has PLAYED it)
+## START HERE (session end 2026-11-04 day: Art round 1 BUILT, the audit's steps 1-2 on the REWORKED Tripo hull; Phase 3 below is still UNPLAYED)
+The user's calls today, in order: "Art: steps 1-2" (not play-testing Phase 3 yet); "more agents for faster delivery"; after the
+measurement, the barge on a scripted hull in our sets; after seeing it in PIE: **"remove the hull we just made, and use the Tripo
+model but rework the model to fit our needs and expectations"**, then **"Reshape for the kit"** and **"Tripo paint + our tiled
+detail"**; step 1 kept as **filtering + full mips** (creature LOD bias back to the engine's Medium). Job notes:
+`Docs/Work/2026-11-04-Art/` (CONTRACT.md: every shared number and decision, "Round 2" is the one in the game; BARGE.md the kit's
+design, round 4-5 current; BARGE_MEASURE.md why the Tripo hull failed as it was; BARGE_LEVEL.md the build scripts and the rebuild
+order). The scripted hull (`DredgeBarge.py`, `looter_barge.py`, its assets) is deleted, never committed.
+- **Step 1** (`Settings/GraphicsSettingsSubsystem.cpp` QualityVariables, `Tests/SettingsTests.cpp`, the preset help text):
+  Medium keeps full-size textures (r.Streaming.MipBias 0), 8x anisotropy, a 1000 MB streaming pool; r.SkeletalMeshLODBias stays
+  1. Measured in `Docs/Performance.md` (rows "Art step 1", "isolate", "Art round 1 final"; the 42-view tour CSVs and shots in
+  `Saved/ArtPreviews/Step1/`, close-ups in `closeup/`): the filtering is free and the only visible gain, the mips 0.2 ms.
+- **Step 2, the barge:** the Tripo hull as bought has no deck to stand on (28% of the kit's rectangle standable, no opening, a V
+  hull), so `Tools/Blender/looter_tripo_barge.py` (+ `looter_tripo_rework.py`, `looter_tripo_barge_house.py`, hooked as
+  `rework=` in `looter_tripo_wardens.py`) reshapes it on import: the midship superstructure cut, the deck filled flat at 2250
+  over x -400..3350, the house x -3300..-400 full beam to 3300 with a 240 x 300 door at (-400, 0), the tower moved onto its
+  roof, the bucket moved forward onto a seat at the bow, ribs, portholes, a catwalk ring, a door frame and steps, a bulwark with
+  the gap at BerthX 2000, 47 UCX hulls, sockets Door/Gangway/HoseDrum/Stack_1/Stack_2, new faces on Tripo atlas patches;
+  `MI_TripoDredgeBarge` wears M_World's new opt-in object-space triplanar detail layer (MetalWorn, ~0.1 ms; the importer clears
+  the switch: after any re-import run `build_world_materials.py DetailInstances`). The kit (`World/BargeRules.h`, rounds 4-5):
+  DeckTop 2250, the arena x -300..3300 x +-1100, the house hollow, door -> vestibule -> office -> the furnace hall AT DECK LEVEL
+  (centre (-2050, 0), R 1100, catwalk 4 m up with two stairs through openings in the ring), no crane, vents flush; new files
+  `BargeBoardingHall.cpp`, `BargeBoardingSpots.cpp`, `BargeBoardingBeatsTests.cpp`, `BargeTestWorld.h`. The level rebuilt
+  (`build_area.py RansomsRest gameplay`, Landfall before Main 6, both barges on `/Game/Art/Tripo/SM_DredgeBarge`). Tests Barge
+  9/9 (`.Hull` traces the imported collision), PilotSortie 5/5, Settings 13/13. PIE walked by the DEMO lane (feet on the deck,
+  the bulwark stops you, door/vestibule/office/hall, no sky; the stairs' re-lay checked last, see the Game.md line; grabs in
+  `Saved/ArtPreviews/BargeRework/`). Pipeline: Game.md "The barge: the reworked Tripo hull and the kit on it", Assets.md item
+  12 and the detail-layer bullet, Levels.md "The barge in the level", Workflow.md (measure a Tripo model's walkable surface
+  before fitting gameplay to it; rework the bought model, don't replace it; the lane split).
+- **Faults seen, not fixed (the audit's plan row 3, the kit made real, is next):** the kit's engine-cube rooms (vestibule,
+  office, hall) carry stretched cube UVs and have no light of their own; the office floor and desk are flat `MI_LanternWood`;
+  the vents are plain slabs with bare cone fires; the kit's falling stack is a bare cylinder; the house walls are flat Tripo
+  atlas patches (the detail layer gives grain, not plates); the deck's 3 m tiles are plain; the Lamplighter's plank and the 5 m
+  jump were not walked; the old `AttachTo` warning (static `EncounterSpawner` under the movable `BargeBoarding`) stands.
+- Lanes today, all on CONTRACT.md with one editor lane (Main builds, imports, rebuilds, tests): MEASURE, KIT (5 rounds), HULL
+  (dropped), REWORK (2 rounds), MATERIAL, LEVEL (3), REVIEW, GRAB, DEMO (3), DOCS (2). Lesson: a review lane between a code
+  round and the build paid for itself (10 real fixes); a demo walk after every build found what tests did not (the stairs).
+Suggestions (not done, the user's call): plan row 3 first (interior and deck pieces as scripted models or world-aligned iron,
+lights in the vestibule, office and hall); the Phase 3 suggestions below. Job notes: `Docs/Work/2026-11-04-Art/` (CONTRACT.md: every shared number and decision; BARGE.md the kit's
+design, rounds 1-3; BARGE_MEASURE.md why the Tripo hull failed; BARGE_LEVEL.md the build scripts and the rebuild order).
+- **Step 1** (`Settings/GraphicsSettingsSubsystem.cpp` QualityVariables, `Tests/SettingsTests.cpp`, the preset help text):
+  Medium keeps full-size textures (r.Streaming.MipBias 0), 8x anisotropy, a 1000 MB streaming pool; r.SkeletalMeshLODBias stays
+  1. Measured in `Docs/Performance.md` (rows "Art step 1", "isolate", "Art round 1 final"; the 42-view tour CSVs and shots in
+  `Saved/ArtPreviews/Step1/`, close-ups in `closeup/`): the filtering is free and the only visible gain, the mips 0.2 ms.
+- **Step 2, the barge:** the Tripo hull has no deck to stand on (28% of the kit's rectangle standable, no opening, a V hull: the
+  hall fits nowhere), so `Art/Models/Vehicles/DredgeBarge.py` (toolkit `Tools/Blender/looter_barge.py`) builds the hull in our
+  sets -> `/Game/Art/Vehicles/SM_DredgeBarge` (+ `MI_BargeIron`, `MI_BargeRust`; 41k triangles, 65 convex hulls, sockets
+  HoseDrum/Door/Stack_1/Stack_2/Gangway); the kit refitted (`World/BargeRules.h`: DeckTop 2250, the arena x -300..3300 x
+  +-1100, the house x -3300..-400 with its door at (-400, 0), a vestibule, a straight 32° stair, the office, the hall at (-1900, 0)
+  floor 1250, the berth/plank/jump recomputed against the bulwark; new files `BargeBoardingHall.cpp`, `BargeBoardingSpots.cpp`,
+  `BargeBoardingBeatsTests.cpp`, `BargeTestWorld.h`); the level rebuilt (`build_area.py RansomsRest gameplay`, Landfall before
+  Main 6, both barges on the new asset). Tests: Barge 9/9 (the new `.Hull` traces the imported collision), PilotSortie 5/5. PIE
+  walked by the DEMO lane (feet on the hull's plates, the bulwark stops you, door/stair/office/hall, no sky leaks; grabs in
+  `Saved/ArtPreviews/Barge/`). Pipeline: Game.md "The barge: scripted hull and the kit on it", Assets.md item 12, Levels.md "The
+  barge in the level", Workflow.md (measure a Tripo model's walkable surface before fitting gameplay to it; the lane split).
+- **Faults seen, not fixed (the next step = the audit's plan row 3, the kit made real):** the kit's engine-cube rooms
+  (vestibule, office, hall) carry stretched cube UVs and have no light; the vents are plain slabs with bare cone fires; the
+  kit's falling stack is a bare cylinder beside the model's two; at range the hull reads as a flat-ended box with a gridded rust
+  set (less shaped than the Tripo's: a sheer/flare/scoop pass is the user's call); the deck's MetalWorn shows its repeat (plan
+  row 4, the detail layer); the Lamplighter's berth, plank and the 5 m jump were not walked; the old `AttachTo` warning (static
+  `EncounterSpawner_6/7` under the movable `BargeBoarding_0`) stands.
+- Lanes today, all on CONTRACT.md with one editor lane (Main builds, imports, rebuilds, tests): MEASURE, KIT (3 rounds), HULL,
+  LEVEL (2), REVIEW, GRAB, DEMO, DOCS. Lesson: a review lane between a code round and the build paid for itself (10 real fixes).
+Suggestions (not done, the user's call): plan row 3 first (interior and deck pieces as scripted models or world-aligned iron,
+lights in the vestibule, office and hall); then row 4 (the detail layer) and a hull shape pass; the Phase 3 suggestions below.
+
+## Before today (session end 2026-11-04 morning: Phase 3 of the core-loop audit is BUILT and packaged; nobody has PLAYED it)
 The user plays first, one change at a time, with the editor focused: `Docs/Work/2026-11-03-Phase3/MORNING.md` (the per-change
 PIE checklist: what to feel for, the switch for the old feel, commit, tests) and the packaged build
 `Builds\Playtest\2026-11-03_2355\Windows\AI_Looter_Shooter.exe` (smoke test: menu and Ransom's Rest PASS; 1.77 GB; 26 min to

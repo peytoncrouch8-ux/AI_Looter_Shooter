@@ -28,6 +28,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 import looter_model as lm
+import looter_tripo_barge as barge
 import looter_textures as lt
 import looter_tripo as tripo
 
@@ -74,7 +75,9 @@ SPECS = {
         sockets={'Lantern': ('glb', (1.60, 0.0, -0.475))}),
     'DredgeBarge': dict(
         category='Tripo', kind='ship', master='World', maps=2048, turn=90.0, size=('length', 75.0), pivot='bottom',
-        boxes=[((0.02, 0.05, 0.17), (0.98, 0.95, 0.8))],
+        # Reshaped for the walkable kit (looter_tripo_barge: one flat deck, the house, the tower on it, bulwark, guard),
+        # which adds its own UCX_ boxes and the Door and Gangway sockets.
+        rework=barge.rework, boxes=[],
         # The two smokestacks' tops (the smog plumes) and the hose drum's underside (the hose hangs from it).
         sockets={'Stack_1': ('stack', (0.265, 0.0)), 'Stack_2': ('stack', (0.572, 0.0)),
                  'HoseDrum': ('glb', (0.22, 0.08, -0.6))}),
@@ -210,6 +213,10 @@ def _arrays(obj):
     return V.reshape(-1, 3), C.reshape(-1, 3)
 
 
+def _triangles(obj):
+    return sum(len(p.vertices) - 2 for p in obj.data.polygons)
+
+
 def _faces_in(centres, box):
     lo, hi = np.array(box[0]), np.array(box[1])
     return np.nonzero(np.all((centres >= lo) & (centres <= hi), axis=1))[0]
@@ -275,8 +282,10 @@ def blender_to_ue(p):
     return (-p[1] * 100.0, -p[0] * 100.0, p[2] * 100.0)
 
 
-def build(name):
-    """Builds SPECS[name] in the open scene as the model object <name> at the origin. Returns it and what was measured."""
+def fitted(name):
+    """SPECS[name]'s Tripo mesh loaded, cut, its glow faces and mesh-found sockets measured in Tripo's space, then turned,
+    sized and pivoted into the model's frame (Blender metres, front -Y). Returns (obj, maps, report, found, glow_faces);
+    report['M'] is the transform from Tripo's space."""
     spec = SPECS[name]
     obj, maps = tripo.load(os.path.join(TRIPO_DIR, name, name + '.glb'))
     V, C = _arrays(obj)
@@ -344,6 +353,24 @@ def build(name):
     report['scale'] = round(s, 4)
     report['size m'] = (hi - lo).round(3).tolist()
     report['M'] = M
+    return obj, maps, report, found, glow_faces
+
+
+def build(name):
+    """Builds SPECS[name] in the open scene as the model object <name> at the origin. Returns it and what was measured."""
+    spec = SPECS[name]
+    obj, maps, report, found, glow_faces = fitted(name)
+    M = report['M']
+    if spec.get('rework'):
+        # The model reshaped by script on Tripo's fitted mesh (the barge: looter_tripo_barge), before its maps, sockets and
+        # collision, so every export reproduces it. Glow faces are found by index before it, so a reworked spec has none.
+        if glow_faces:
+            raise ValueError(f'{name}: a reworked model cannot carry glow faces (their indices move)')
+        spec['rework'](obj, report, maps)
+        report['reworked tris'] = _triangles(obj)
+    V, _ = _arrays(obj)
+    lo, hi = V.min(0), V.max(0)
+    report['size m'] = (hi - lo).round(3).tolist()
 
     # Materials: the graded texture set on its master; lantern glass on the shared LanternGlow.
     mat = write_maps(maps, name, spec['master'], spec['maps'], spec['kind'], tint=spec.get('tint'))
@@ -413,6 +440,7 @@ def build(name):
             w = spec['post_box']
             lm.hull_box(obj, (w, w, hi[2]), (0.0, 0.0, hi[2] / 2.0))
     report['tris'] = len(obj.data.polygons)
+    report['triangles'] = _triangles(obj)
     return obj, report
 
 

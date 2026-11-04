@@ -28,8 +28,15 @@ traces) and the barge's own C++ layout (ABargeBoarding's getters: nothing of her
   intake's limp hose gone during Main 6 too (its gone_when).
 - Then the Lamplighter's sortie (W2's build_area_main6_sortie.place(build, barge)): its spots come back as this module's.
 Returns Hob's Main 6 spot for build_area_story.place_hob: {'wheel': (x, y, z, yaw) or None} (W2's).
+
+Nothing of her deck's height or rectangle is written here: every spot on or in her (the deck's middle and fight spots, the hall's,
+the horns, the desk, the hose drum, the berth) is read from her getters when this runs, so a change to BargeRules (DeckTop, the
+rectangle, KitLift) reaches the level by running this again, and by nothing else: the pieces below are saved at the world
+positions the getters gave then. Runs alone too: `py .../build_area_main6.py RansomsRest` clears Gameplay/Main6 only (the barge,
+her spawners, horns, manifest, the wreck and its smoke, the sortie) and places it again.
 """
 import importlib
+import json
 import math
 import os
 import sys
@@ -78,8 +85,8 @@ MANIFEST_MODELS = ('/Game/Art/Tripo/SM_BargeManifest', '/Game/Art/Props/SM_Payro
 KEEL_OVER = 2500.0
 # The nave's ridge in the chapel's frame (Chapel.py: the eave 4.8 m, the roof's rise 3.8 m; the nave along X, the tower +X).
 RIDGE_LOCAL = (-150.0, 0.0, 860.0)
-# Her hose drum (ABargeBoarding's BargeRules::DrumUnderKeel) beside the ridge by this much, off her berth side.
-DRUM_LOCAL = (-889.0, 323.0)
+# Her hose drum (under her keel; where it is on her is ABargeBoarding::GetHoseTop, read when she is placed) stands this far
+# beside the ridge, off her berth side (her +Y).
 DRUM_BESIDE = 700.0
 # The fights.
 DECK_GROUPS = (('DredgerRifleman', 4, 1), ('DredgerHoseMan', 1, 1), ('DredgerRifleman', 2, 2), ('DredgerHoseMan', 2, 2))
@@ -224,22 +231,34 @@ def place_barge(build):
     def turn(lx, ly):
         return c * lx - s * ly, s * lx + c * ly
 
-    # Her drum DRUM_BESIDE off the ridge, away from the berth side; her middle from there.
-    off = turn(DRUM_LOCAL[0], DRUM_LOCAL[1] - DRUM_BESIDE)
-    mx, my = ridge[0] - off[0], ridge[1] - off[1]
     # The knoll's ground is the chapel's own foot (Chapel.py stands it on the ground; a trace here would meet its roof).
     ground = chapel.z
     remove_stale(build, 'Barge_Pilot')
     # 'Floor' as well as 'Obstacle' (the minimap draws her solid): an obstacle's top is no ground for encounter spots
     # unless it carries Floor, and BargeDeck's nine found nowhere to stand on her deck without it (Demo47, as Main 2's boards).
-    barge = build.place(cls, (mx, my, ground + KEEL_OVER), yaw, label='Barge_Pilot', folder=FOLDER,
+    barge = build.place(cls, (ridge[0], ridge[1], ground + KEEL_OVER), yaw, label='Barge_Pilot', folder=FOLDER,
                         tags=(BARGE_TAG, 'Obstacle', 'Floor'))
+    # Her drum DRUM_BESIDE off the ridge, away from the berth side: placed and turned first, then slid by where her own
+    # getter puts the drum (world, her yaw already in it), so the drum's place on her is hers and not copied here.
+    here, drum, beside = barge.get_actor_location(), barge.get_hose_top(), turn(0.0, DRUM_BESIDE)
+    mx, my = ridge[0] + beside[0] - (drum.x - here.x), ridge[1] + beside[1] - (drum.y - here.y)
+    barge.set_actor_location(unreal.Vector(mx, my, here.z), False, True)
     barge.set_editor_property('hose_target', unreal.Vector(*ridge))
     hull = barge.get_editor_property('hull').static_mesh
     size = hull.get_bounding_box().get_editor_property('max') if hull else None
-    build.log(f'the barge over the chapel at ({mx:.0f}, {my:.0f}, {ground + KEEL_OVER:.0f}), yaw {yaw:.0f} (her berth side to the '
-              f'ledge), her hose to the ridge ({ridge[0]:.0f}, {ridge[1]:.0f}, {ridge[2]:.0f}); hull top {size.z if size else 0:.0f} cm '
-              f'over her keel (the kit\'s deck is BargeRules::DeckTop 1400: set kit_lift if they disagree)')
+    top = size.z if size else 0.0
+    # The kit's deck over her keel, as the placed actor has it: the hatch spot is the deck's walking surface in her frame
+    # (BargeRules::DeckTop plus her KitLift, through her own ToWorld), so this follows the C++ and not a number copied here.
+    deck = barge.get_hatch_spot().z - here.z
+    try:
+        lift = f'{barge.get_editor_property("kit_lift"):.0f}'
+    except Exception:
+        lift = 'none'
+    build.log(f'the barge over the chapel at ({mx:.0f}, {my:.0f}, {here.z:.0f}), yaw {yaw:.0f} (her berth side to the '
+              f'ledge), her hose to the ridge ({ridge[0]:.0f}, {ridge[1]:.0f}, {ridge[2]:.0f}); hull mesh top {top:.0f} cm over her '
+              f'keel (stacks and bridge included), the kit\'s deck {deck:.0f} cm over her keel as the placed actor reports it '
+              f'(kit_lift {lift}), {top - deck:.0f} cm under the mesh top (the mesh top is the stacks\'; the deck is fitted to the '
+              f'hull\'s own open deck in BargeRules, not here)')
     return barge
 
 
@@ -278,12 +297,17 @@ def place_spawner(build, barge, fight, groups, middle, activation, when, waves, 
     spawner.set_editor_property('active_when', when)
     spawner.set_editor_property('activation_radius', activation)
     spawner.set_editor_property('hunt_on_spawn', True)
-    # Her deck is 39 m over the knoll: the ground the spots stand on is hers, at their own height.
+    # Her deck and her hall are high over the knoll: the ground the spots stand on is hers, at their own height (each spot is
+    # kept relative to the spawner, which stands 50 cm over the getter's middle).
     spawner.set_editor_property('spawn_points', [unreal.Vector(p.x - middle.x, p.y - middle.y, p.z - middle.z - 50.0) for p in spots])
     spawner.set_editor_property('ground_max_rise', 300.0)
     attach(spawner, barge)
     count = sum(g.get_editor_property('count') for g in groups)
-    build.log(f'{fight}: {count} Dredgers on the barge ({len(spots)} spots, {waves} pushes)')
+    # Heights over her keel: what to look for in the editor after a rebuild (they come from her getters, not from here).
+    keel = barge.get_actor_location().z
+    low, high = min(p.z for p in spots) - keel, max(p.z for p in spots) - keel
+    build.log(f'{fight}: {count} Dredgers on the barge ({len(spots)} spots {low:.0f}..{high:.0f} cm over her keel, spawner '
+              f'{middle.z + 50.0 - keel:.0f} cm over it, {waves} pushes)')
     return spawner
 
 
@@ -389,12 +413,21 @@ def place_wreck(build, barge):
               f'column rising past the Rim, shown from {FELL_FLAG} or after {MAIN6}; her fall ends there')
 
 
+def same_condition(a, b):
+    try:
+        return bool(a == b)
+    except Exception:
+        return False
+
+
 def tag_conditions(actor, prop, when):
     try:
         held = [c for c in actor.get_editor_property(prop)]
     except Exception:
         return False
-    actor.set_editor_property(prop, held + when)
+    # Only what isn't there yet: this module runs alone too (run() below) on pieces Landfall's build left, and a second
+    # run must not stack the same condition again.
+    actor.set_editor_property(prop, held + [c for c in when if not any(same_condition(c, each) for each in held)])
     return True
 
 
@@ -434,3 +467,23 @@ def place(build):
     made = sortie.place(build, barge) or {}
     spots.update(made)
     return spots
+
+
+def run(name):
+    """Places Gameplay/Main6 again on its own (the barge and what stands on and in her, the wreck and its smoke, the sortie) and
+    saves; Hob's wheel spot is not placed again (it doesn't move). Needs the rest of the gameplay pass standing: the chapel, the
+    Lamplighter and her winch, Landfall's barge, the burial deck."""
+    import build_area  # noqa: E402 (here: build_area imports build_area_story, which this module uses)
+    build = build_area.AreaBuild(name)
+    with open(build.computed_path) as f:
+        build.layout = json.load(f)
+    build.open_level(FOLDER)
+    place(build)
+    unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level()
+    build.log('Main 6\'s pieces placed and saved')
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        raise SystemExit('usage: build_area_main6.py <Area> (a folder under Art/Levels)')
+    run(sys.argv[1])

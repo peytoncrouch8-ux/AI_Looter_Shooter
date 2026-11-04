@@ -1270,7 +1270,12 @@ def barge_parts(build, plan):
         build.warn(f'no {STAND_INS["barge_hull"]}: no barge')
         return [], [], None
     if is_tripo(STAND_INS['barge_hull']):
-        return tripo_barge(plan, hull)
+        made = tripo_barge(plan, hull)
+        missing = [name for name in ('Stack_1', 'HoseDrum') if socket_at(hull, name) is None]
+        if missing:
+            build.warn(f'{STAND_INS["barge_hull"]} has no socket {", ".join(missing)}: the smog needs the Stack_n sockets '
+                       f'(none: no plumes on the stacks) and the hose the HoseDrum (none: the hull\'s bottom middle)')
+        return made
     iron, glow = material('iron'), material('glow')
     box = hull.get_bounding_box()
     lo, hi = box.get_editor_property('min'), box.get_editor_property('max')

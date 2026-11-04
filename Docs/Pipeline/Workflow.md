@@ -33,6 +33,10 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   notes (a DOCS agent does that at the end of a round). Two agents never own one file: the second writes its exact edit in its
   README for the owner (round 3: INTRO's story lines went to STORY's `create_story_lines.py`; WORLD's SECRETS anchors to STORY).
 - Overnight lanes (2026-10-31: pause hub, settings, gun slots, spider, Unpaid, Stone Sentinel, art; each with a README in its tree or in `Docs/Work/<job>/`): a change an art agent needs in a shared master or script (M_Ghost in `build_creature_materials.py`) goes as a patch (`git apply`), not an edit; a second agent's edit to a file the first owns (UNPAID's `AmbushSpawner` on top of SPIDER's) is written for Main to lay on the first's tree; agents may not build, so the READMEs carry run order, hooks, tests and the PIE check; a Blender script needs an absolute output path (a relative one wrote `C:\Saved\ArtPreviews\Creatures\Fix1031` at the drive root, and the safety check blocked removing the stray folder: delete it by hand).
+- Art round 1 (2026-11-04, `Docs/Work/2026-11-04-Art/`): measure a Tripo model's walkable surface before fitting gameplay to it (rays down its source triangles on a grid: standable share, headroom, openings). The audit's plan assumed a
+  22.5 m deck for the barge; it was five patches (28% standable, no opening), found by the MEASURE lane before the build, and the user then picked a scripted hull; after seeing it in PIE they turned it down for the Tripo model reworked (`Game.md` "The barge: the reworked Tripo hull and the kit on it"). A scripted
+  replacement that drops the bought model's look is not what the user wants; rework the model (geometry for gameplay, our detail over its paint) instead. The lane split that worked: MEASURE, KIT, HULL, LEVEL, REVIEW, GRAB (round 2: REWORK, MATERIAL, KIT, LEVEL)
+  on one `CONTRACT.md` (every shared number and the user's decisions; code and model both name the numbers they share), one editor lane (Main's), builds and imports by Main, one `<LANE>.md` note each.
 - A script that sets editor state (World Settings flags, level properties) can raise a modal dialog that blocks every MCP call:
   `Tools\editorwindows.ps1` lists the editor's windows; see `Bugs.md` ("A modal 'build lighting' message").
 - The art session (a separate session) models in Blender (`Art/Models/**`), never commits, never opens Unreal. It exports into
@@ -187,7 +191,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 - Lesson (2026-11-03 night): `perf.ps1` stops a game that hangs on its way out (DDC maintenance) 30 s after the capture ends,
   and it reads that from the run's log (`Capture Ended. Writing CSV`), never from the CSV: Windows reports an open file's size
   and write time as they were when it was made, so a CSV watch killed every run (30 s into loading, then at its first frames) and
-  recorded rows of n/a. An n/a row is a killed run, never a measurement: delete it.
+  recorded rows of n/a. An n/a row is a killed run, never a measurement: delete it. `tour.ps1` answers the Zen cache's "keep
+  waiting?" box in its wait loop too since 2026-11-04 (a tour that sits 15 minutes and writes no `Looter.Tour:` line was on it).
 
 ## Tests
 

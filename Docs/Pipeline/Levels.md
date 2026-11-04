@@ -263,12 +263,13 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     `Landfall_FarmPorch`; max 5 alive). `encounter_when` reads `story_texts.ENCOUNTERS[id]` (from 4 before 5; from 7 before 9).
   - Spyglass: the lookout deck point (commonest height 5.6-7.6 m over the pivot) with a clear eye-height line to the barge, >= 1.3 m from
     Sexton's seat and the ranger cache's two spots; faces the barge.
-  - **Barge** (one `AStoryProp`, tag `Landfall_Barge`, pivot = keel middle; the reveal looks at its actor location): `SM_Skiff_A_Gang` x7 (63 m),
+  - **Barge** (one `AStoryProp`, tag `Landfall_Barge`, pivot = keel middle; the reveal looks at its actor location): the user's Tripo hull `/Game/Art/Tripo/SM_DredgeBarge`,
+    reworked 2026-11-04 (75 m, two stacks, plumes at its `Stack_n` sockets; "The barge in the level" below). The first build, still the branch for a missing hull: `SM_Skiff_A_Gang` x7 (63 m),
     all slots `MI_Landfall_BargeIron`, keel 45 m over the Sink's highest rim vertex, broadside to the lookout; 3 stacks (cylinders), 12 glowing
     vents (MI_CinderGlow), a hose drum under the keel. **Hose** (`Landfall_BargeHose`): >= 6 sections 1.5 m across with collars, a 6 m sideways
-    sag, to an iron intake 4.5 m off the floor's middle. Both are baked into one mesh each (`/Game/Art/Landfall/Baked/SM_Landfall_<Piece>_<hash>`,
-    reused while the parts don't change; the merge is `StaticMeshEditorSubsystem.merge_static_mesh_actors`; fallback: 5 props / 8 sections /
-    trail 30 wisps culled at 60 m). Smog: 3 plumes x4 (32 m) on the stacks (`SM_SmokePlume`, `MI_Landfall_SoulSmog`), a cyan glint plume x2.8 in the
+    sag, to an iron intake 4.5 m off the floor's middle. Baking each into one mesh (`/Game/Art/Landfall/Baked/SM_Landfall_<Piece>_<hash>`,
+    reused while the parts don't change; the merge is `StaticMeshEditorSubsystem.merge_static_mesh_actors`) is off (`BAKE = False` since 2026-11-01: the 5.8 merge destroyed the placed parts), so the barge is one live prop
+    `Landfall_Barge_01` (the hull as is) and no `SM_Landfall_Barge_*` is made; the fallback runs: 5 props / 8 sections / trail 30 wisps culled at 60 m. Smog: 3 plumes x4 (32 m) on the stacks (`SM_SmokePlume`, `MI_Landfall_SoulSmog`), a cyan glint plume x2.8 in the
     middle one, x2.2 at the intake. Drone: `AAmbientEmitter` loop `Ambience.Smog`. All shown `before Main6` (`BARGE_UNTIL`).
   - **Smog rule:** see `Game.md` "Landfall and the Lamplighter" (state values in layout.json; `AStoryLighting` rule `Smog while before [Main6]`).
   - **Abel's trail** (`Landfall_AbelTrail`, one baked AStoryProp, `during Main1 from the trail step`): ~45 wisps (`SM_GravewindWisp_B/C/A` x0.55-0.75,
@@ -295,7 +296,7 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     FarmBarge, SinkUnderBarge before `DeckFight_Dusk` (still last); TrailFromPoint left out until `Looter.Landfall 7` is known not to move the
     tour's camera. Tour views to check: those five plus PointOverValley, PointOverValley_FarShadow, Farm, Aerial, Aerial_Dusk, PointWest (sees
     the ship), MainStreet (speakers, plumes), SinkRim.
-  - **Perf risks (margin 0.2-0.5 ms):** valley views gain the barge (1 baked mesh, casts a shadow inside the shadow distance only), the hose,
+  - **Perf risks (margin 0.2-0.5 ms):** valley views gain the barge (1 prop; casts a shadow inside the shadow distance only), the hose,
     5 translucent plumes 18-32 m tall (overdraw looked up at from town / the Sink), the drone; the Farm view (7.8 ms, a heaviest one) gains 6
     barricade draws + Delia + the trail (steps 7-8 only). If over: `cast_shadow` off on the barge, drop the glint plume, `STACK_PLUME` 3; bake the
     barricade (`merge_physics_data` True) or cut yard pieces. `perf.ps1`'s "RR spawn" moves (a new game starts on the ship over the canyon), so
@@ -303,6 +304,23 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - **Unchecked:** the merge API in 5.8 Python and that the merged pivot is the first part's place; whether the canyon/ring meshes (tagged Beyond)
     collide (else the course sweep can't see them); `AReadableProp`'s `shown_when` re-read when the hat flag is set; the skiff bag shape under
     the stacks and vents; the barricade stand-ins' long axes; M_Smoke's CloudTint dimming the glint.
+- **The barge in the level** (2026-11-04, `Docs/Work/2026-11-04-Art/BARGE_LEVEL.md`; model and kit: `Game.md` "The barge: the reworked Tripo hull and the kit on it"). Landfall's Sink barge and Main 6's `Barge_Pilot` both use
+  `/Game/Art/Tripo/SM_DredgeBarge` (the reworked model, same path as before the rework; the scripted `/Game/Art/Vehicles/` hull and its `SCRIPTED_BARGE` are gone). Landfall: `build_area_landfall.py` `STAND_INS['barge_hull']`, whose `barge_parts`
+  takes the Tripo branch (`is_tripo`): the hull as is, one plume per `Stack_n` socket, the hose at `HoseDrum`, a warning if the mesh lacks `Stack_1` or `HoseDrum` (the new `Door`/`Gangway` sockets are ignored); Landfall's barge is one live prop (no bake, so no
+  `SM_Landfall_Barge_*` to delete). Main 6's own barge takes the hull from C++ (`ABargeBoarding::HullPath`); `build_area_main6.py` `WRECK_MODELS` has it second (`SM_BargeWreck` first; the wreck's fallback hull, worn in `MI_GunScorched`). Both meshes are read live, so
+  a re-import needs no clearing of stale copies. Who reads the hull: Landfall's `place_barge` (the Sink barge, the plumes, the drum from `HoseDrum`, the drone path from the hull's length), Main 5's `Hose` (re-plans with `lf.barge_parts`), Main 6's wreck; Main 4's tender and Main 3's skiff use only the keel.
+  - Main 6 saves everything on the deck as the world position the C++ getters gave when it ran (`GetFightSpots GetOfficeSpot GetHornSpots GetHatchSpot GetDeckMiddle GetHallMiddle GetHoseTop GetBerth`; properties `hull`,
+    `hose_target`, `fall_target`, `boards_point`: renaming any breaks the scripts). So after any `BargeRules` change, and after the C++ build (the getters answer from the compiled class), rebuild. The C++-spawned pieces (hatch marker,
+    furnace, valves, hose drum, deck, hall, stairs, rails) follow at BeginPlay. `KitLift` stays 0: a raise stored on the placed actor would be lost at the next rebuild (it would need a C++ default).
+  - `build_area_main6.py` now runs alone (`run()`: `py .../build_area_main6.py RansomsRest`; refuses with unsaved edits elsewhere): it destroys the build-tagged actors in `Gameplay/Main6` (13: `Barge_Pilot`, `Encounter_BargeDeck`,
+    `Encounter_FurnaceHall`, `Barge_Horn_1..4`, `Item_BargeManifest`, `Main6_BargeWreck`, `Main6_WreckSmoke_1..3`, `PilotSortie`), places them again, sets again the Lamplighter's `gone_when`, the winch's `cast_off_when`, `hidden_when` on
+    `Landfall_Barge*`/`Landfall_Smog*` and `gone_when` on `Intake_Sink*`, and saves. The barge's x,y comes from `get_hose_top()` (the drum lands `DRUM_BESIDE` 7 m off the chapel ridge; `KEEL_OVER` 25 m stays); the sortie's course end
+    uses `get_berth()` and warns if it fails (it used to fall back silently to the keel middle).
+  - **Rebuild order** (after the import, `build_world_materials.py DetailInstances` and `Tools\launch.ps1 -Build`): the whole `build_area.py RansomsRest gameplay` (Landfall, Mains 2-5, then Main 6; no loot or fauna rerun). Barge only: Landfall alone, THEN Main 6 alone (the other way
+    round Landfall wipes Main 6's patches and the sortie's refs); that loses Main 5's patches (the hose and three plumes stay shown after the choke) until the next gameplay pass. Main 6 alone leaves Landfall's pieces as built (the hose's start does not move while `HoseDrum` stays at (-889, 323, 0)). Last rebuilt 2026-11-04 10:02.
+  - Check the log: deck 2250 over her keel (`kit_lift` 0); BargeDeck spots 2270, spawner 2320; FurnaceHall spots 2270 (`HallFloor` 2250 + 20, the hall is at deck level now), spawner 2320; the sortie's berth 1928 (DeckTop - `BerthUnderDeck` - 422; BARGE_LEVEL.md's D - 572
+    predates -100); Landfall "2 stacks smoking" (`No socket` = the model lacks `Stack_1`/`HoseDrum`); no "can't be called from Python", "aimed at the barge's keel middle", "no ... class", "left out". The deck fight is 9 creatures on 9 spots and
+    `count=9` (`create_mission_assets.py`), the hall 8 and `count=8`: change both sides together.
 
 ## The tutorial island and the older levels
 

@@ -14,7 +14,7 @@ class UStaticMeshComponent;
 
 /**
  * The barge's soul furnace in the middle of its furnace hall (Main 6 steps 5-6, "Kill the furnace" and "Open the soul
- * cage": MAINS_2_7.md section 10): a 6 m riveted iron furnace, pipes up into the deck, and at its heart a glass-windowed
+ * cage": MAINS_2_7.md section 10): a 6 m riveted iron furnace, pipes up into the ceiling, and at its heart a glass-windowed
  * soul cage where Abel's light beats like a heart, flaring black at its edges (his soul burning as the barge's pilot light).
  * ABargeBoarding spawns it and keeps it in her frame (its origin the hall floor's middle, its +X the cage's window).
  *
@@ -120,7 +120,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Crown;
 
-	/** The pipes up into the deck and the riveted bands (one instanced look). */
+	/** The pipes up into the hall's ceiling and the riveted bands (one instanced look). */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> Ironwork;
 

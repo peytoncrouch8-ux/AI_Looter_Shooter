@@ -15,7 +15,14 @@ $tour = "Looter.Tour $Views quit" + $(if ($NoShots) { ' noshots' } else { '' })
 $gameArgs = "`"$root\AI_Looter_Shooter.uproject`" $Map -game -windowed -ResX=$ResX -ResY=$ResY -nosplash -log=Tour.log -ExecCmds=`"Looter.Quality $Quality,$(if ($Exec) { "$Exec," })$tour`""
 $started = Get-Date
 $proc = Start-Process $engine -ArgumentList $gameArgs -PassThru
-if (-not $proc.WaitForExit(900000)) { $proc.Kill(); "The game did not finish the tour in time."; exit 2 }
+# The Zen cache's "keep waiting?" box stalls a -game start as it does the editor's (2026-11-04: a tour sat on it the whole 15
+# minutes and wrote nothing): answer it while the game runs, as perf.ps1 and launch.ps1 do.
+$waited = 0
+while (-not $proc.WaitForExit(5000)) {
+    & "$PSScriptRoot\zenwait.ps1" | Out-Null
+    $waited += 5
+    if ($waited -ge 900) { $proc.Kill(); "The game did not finish the tour in time."; exit 2 }
+}
 
 $log = Join-Path $root 'Saved\Logs\Tour.log'
 if (-not (Test-Path $log)) { "No log was written."; exit 3 }
