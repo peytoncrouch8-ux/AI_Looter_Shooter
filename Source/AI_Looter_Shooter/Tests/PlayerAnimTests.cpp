@@ -5,6 +5,8 @@
 #include "Player/Animation/LooterClimbPose.h"
 #include "Player/Animation/LooterStanceInput.h"
 #include "Player/Animation/LooterStancePose.h"
+#include "Player/PlayerMeleeMotion.h"
+#include "Player/PlayerMeleeRules.h"
 #include "Player/PlayerSize.h"
 #include "Tests/PlayerAnimTestKit.h"
 
@@ -344,13 +346,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerAnimMeleeJabTest, "Looter.PlayerAnim.Mel
 bool FPlayerAnimMeleeJabTest::RunTest(const FString& Parameters)
 {
 	// Third person had no melee strike: the body stood still while the first-person stock swung. The stance layer jabs it
-	// now, on the strike's clock: cocked back a little, out at the blow, back by the swing's end, never in a jump.
+	// now, on the strike's clock (FMeleeRules and MeleeMotion own the seconds; the test reads them, never a number): cocked back a little, out at the blow, back by the swing's end, never in a jump.
 	TestEqual(TEXT("At rest, no jab"), LooterStancePose::MeleeJab(0.f), 0.f);
-	TestTrue(TEXT("Cocked back first"), LooterStancePose::MeleeJab(0.05f) < -0.2f);
-	TestNearlyEqual(TEXT("Out at the blow"), LooterStancePose::MeleeJab(0.12f), 1.f, 0.01f);
-	TestEqual(TEXT("Back by the swing's end"), LooterStancePose::MeleeJab(0.45f), 0.f);
+	TestTrue(TEXT("Cocked back first"), LooterStancePose::MeleeJab(MeleeMotion::CockSeconds) < -0.2f);
+	TestNearlyEqual(TEXT("Out at the blow"), LooterStancePose::MeleeJab(FMeleeRules::ContactSeconds), 1.f, 0.01f);
+	TestEqual(TEXT("Back by the swing's end"), LooterStancePose::MeleeJab(FMeleeRules::SwingSeconds), 0.f);
 	float BiggestStep = 0.f;
-	for (float Time = 0.f; Time < 0.5f; Time += 1.f / 120.f)
+	for (float Time = 0.f; Time < FMeleeRules::SwingSeconds + 0.05f; Time += 1.f / 120.f)
 	{
 		BiggestStep = FMath::Max(BiggestStep, FMath::Abs(LooterStancePose::MeleeJab(Time + 1.f / 120.f) - LooterStancePose::MeleeJab(Time)));
 	}
