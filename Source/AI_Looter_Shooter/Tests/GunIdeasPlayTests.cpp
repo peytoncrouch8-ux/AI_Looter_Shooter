@@ -232,8 +232,12 @@ bool FGunIdeasCurseShotsTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("The last round fired alone"), LastRoundGun->GetCurrentMagazine(), 0);
 	}
 
-	// Restless's doubled recoil reaches the kick the view and the gun read.
-	AWeaponBase* RestlessGun = UWeaponRollLibrary::SpawnWeapon(World, MakeGun(Rifle, TEXT("Restless")), FTransform::Identity);
+	// Restless's doubled recoil reaches the kick the view and the gun read. The twin is the same roll (the same spread, so the
+	// same accuracy calm) with the curse on it: MakeGun rolls fresh stats each call, and since the tier slot (2026-11-03) two
+	// Rare rolls differ in their parts' accuracy, which the kick's calm reads.
+	FWeaponInstanceData RestlessTwin = Plain;
+	RestlessTwin.Curse = TEXT("Restless");
+	AWeaponBase* RestlessGun = UWeaponRollLibrary::SpawnWeapon(World, RestlessTwin, FTransform::Identity);
 	AWeaponBase* PlainGun = UWeaponRollLibrary::SpawnWeapon(World, Plain, FTransform::Identity);
 	if (TestNotNull(TEXT("A Restless gun and its plain twin"), RestlessGun) && PlainGun && PlainGun->GetRecoilProfile().MuzzleFlip > 0.f)
 	{
@@ -243,8 +247,9 @@ bool FGunIdeasCurseShotsTest::RunTest(const FString& Parameters)
 	// Critical hits use the gun's curse's multiplier: Unlucky's triple, Cold's extra quarter, the game's 1.5x otherwise.
 	const float Roll = 0.5f;
 	TestNearlyEqual(TEXT("Unlucky's crit triples"), LooterCombat::HitDamage(100.f, true, Roll, WeaponCurses::CritMultiplier(Unlucky)), 300.f, 0.01f);
-	TestNearlyEqual(TEXT("Cold's crit"), LooterCombat::HitDamage(100.f, true, Roll, WeaponCurses::CritMultiplier(MakeGun(Rifle, TEXT("Cold")))), 187.5f, 0.01f);
-	TestNearlyEqual(TEXT("A plain gun's crit"), LooterCombat::HitDamage(100.f, true, Roll, WeaponCurses::CritMultiplier(Plain)), 150.f, 0.01f);
+	// The game's crit is 2x since 2026-11-03 (kill speed): Cold's quarter on top makes 250, a plain gun's 200 (were 187.5 / 150).
+	TestNearlyEqual(TEXT("Cold's crit"), LooterCombat::HitDamage(100.f, true, Roll, WeaponCurses::CritMultiplier(MakeGun(Rifle, TEXT("Cold")))), 250.f, 0.01f);
+	TestNearlyEqual(TEXT("A plain gun's crit"), LooterCombat::HitDamage(100.f, true, Roll, WeaponCurses::CritMultiplier(Plain)), 200.f, 0.01f);
 	TestNearlyEqual(TEXT("No crit, no multiplier"), LooterCombat::HitDamage(100.f, false, Roll, WeaponCurses::CritMultiplier(Unlucky)), 100.f, 0.01f);
 	TestEqual(TEXT("A plain shot's default is the game's rule"), FBulletShot().CritMultiplier, LooterCombat::CriticalHitMultiplier);
 	return true;

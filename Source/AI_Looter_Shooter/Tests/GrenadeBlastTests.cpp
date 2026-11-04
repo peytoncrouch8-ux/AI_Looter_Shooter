@@ -52,10 +52,12 @@ bool FGrenadeEarlyTest::RunTest(const FString& Parameters)
 	// Weak at the start: 10% of its strength through level 3, then up on a curve to full at level 12, never past it.
 	for (const int32 Level : { 0, 1, 2, 3 })
 	{
-		TestEqual(FString::Printf(TEXT("10%% at level %d"), Level), FGraveSaltRules::EarlyShare(Level, Tuning), 0.1f, 0.0001f);
+		// 8.5% since 2026-11-03 (kill speed: at 10% a jar's heart at the top roll killed a 140-health Unpaid; was 10% from 2026-10-27).
+		TestEqual(FString::Printf(TEXT("8.5%% at level %d"), Level), FGraveSaltRules::EarlyShare(Level, Tuning), 0.085f, 0.0001f);
 	}
 	TestTrue(TEXT("Slow at first: under a quarter at level 6"), FGraveSaltRules::EarlyShare(6, Tuning) < 0.25f);
-	TestEqual(TEXT("Half at level 9"), FGraveSaltRules::EarlyShare(9, Tuning), 0.5f, 0.0001f);
+	// 0.085 + 0.915 x (6/9)^2 = 0.49 (exactly a half when the start was 0.1).
+	TestEqual(TEXT("About half at level 9"), FGraveSaltRules::EarlyShare(9, Tuning), 0.5f, 0.02f);
 	TestEqual(TEXT("Full at level 12"), FGraveSaltRules::EarlyShare(12, Tuning), 1.f, 0.0001f);
 	TestEqual(TEXT("...and after"), FGraveSaltRules::EarlyShare(40, Tuning), 1.f, 0.0001f);
 	float Last = 0.f;

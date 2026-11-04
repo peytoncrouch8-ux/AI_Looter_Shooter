@@ -238,7 +238,8 @@ contract and in each tuning header's `Default`).
   13/14 (StoneHeavy, WoodHeavy) from mark scale 1.2 (`Looter.BulletMarks.HeavyCracks`/`.HeavyFrom`; needs
   `make_bullet_marks.py` + `build_world_materials.py M_BulletMark`). Marker: Kill > WardBreak > Crit > Ward > Body (a blast
   shows its strongest, one sound unless stronger); ward = Warded trait's ward up after the hit, break = up before and gone
-  after (`FHudWardMemory`); colours white / CyanText / Accent / Hurt; size 1 + 0.4 x min(share / 0.25, 1)
+  after (`FHudWardMemory`); colours white / CyanText / Accent / Hurt (since 2026-11-03, audit change 2: the crit is white ticks
+  with a red rim at 1.6x, held >= 0.35 s, kill 1.8x and 0.6 s: Docs/Work/2026-11-03-Phase3/HITS.md); size 1 + 0.4 x min(share / 0.25, 1)
   (`Looter.UI.HitMarker.*`). No lights, no new materials. Cost: sniper ~25 pieces + 3 billows a shot; a blast's sheet ~15.
 
 ## Loot: the four new guns (GUNS-CODE, built 2026-10-22)
@@ -601,3 +602,29 @@ grew with the burst. Now `WeaponTrigger::NextShotDue(PreviousDue, Now, Interval)
 was DUE (`AWeaponBase::ShotDueAt`, set as the first shot of a pull fires, waits or winds up); a chain that broke (the trigger let go
 for an interval or more) starts afresh from now, so a re-press never owes skipped shots. Test `Looter.Weapons.Trigger.Cadence`
 (10 s bursts at 60/120/144 fps keep 107-109 rounds). Nothing else about the trigger changed.
+
+## Phase 3 of the 2026-11-03 audit: hits, recoil, muzzle light (lane notes: Docs/Work/2026-11-03-Phase3/HITS.md, RECOIL.md, MUZZLE.md)
+- **Hit confirmation (change 2):** the marker holds >= 0.35 s (body 0.36, crit 0.42, kill 0.6, ward break 0.45; whole for the first
+  40% then fading), a crit is white ticks with a 1.25 px red rim at 1.6x with its own pop, a kill solid red at 1.8x; order and cues
+  unchanged; `Looter.UI.HitMarker.*`. Damage numbers come from a pool of 20 (`UDamageNumberSubsystem`, no spawn per hit); hits on one
+  target within `Looter.UI.DamageNumbers.MergeSeconds` [0.08] are one number summing them (a shotgun blast one big number that keeps
+  rising from the first pellet's spot; a crit pellet makes it the crit; WEAK/RESIST tags and element colours kept; a smite's burst its
+  own; status pieces still one rolling stream); `.MergeGrow` 0.04 to `.MergeGrowMax` 1.3, `.PoolSize` 20. Rifle rounds 92 ms apart stay
+  one number each. Open: the 20 hidden widget components idle-tick (as the XP popups do); `UStatusCalloutSubsystem` still spawns its own.
+- **Recoil that climbs (change 3):** one kick layer (the `Identity 0` kick path deleted; `Looter.Gunfeel.Identity` now only sound, heft,
+  brass, reload beats). A held Common rifle climbs ~7.3 deg over 30 rounds: aim kick 0.8 deg a round recovering at `Recoil.WhileFiring`
+  [0.1] of its rate behind `Recoil.RecoveryDelay` [0.12 s] (6.6 deg), plus a slow view lift (`ViewKicks::ForLift`, 2.2 Hz rifle / 3 SMG /
+  1.8 LMG; `Kick.Lift`) stacking under the rifle's 1.0 deg sustain cap, which now trims (free stack 1.0, held 0.83); straight up 5 rounds
+  then 2 deg right; a 3-round tap settles to 4% in 0.3 s at 120/60/30 fps. The per-round crack (14 Hz) stays: at 8 Hz a kick is gone
+  before the next round anyway and `Looter.Feedback.ViewKicks` wants the rifle's faster than the shotgun's. `Recoil.More` applied once
+  (`KickShare` = ShotRecoil / 1.4: model kicks are 1/1.4 of before); revolver aimed flip 11 -> 5 deg; shotgun aimed push <= 0.6 of the
+  eye-to-sight gap (`Recoil.AimedBackGap`); `AccuracyCalm` ^-0.8 held 0.6-1.3 (an Epic with +40% accuracy kicks at 64% of a Common).
+  The per-kind table lives in `UGunFeelSettings` (Project Settings > Game > Gun Feel; ~74 per-kind cvars gone). A/B in PIE:
+  `Looter.Gunfeel.Recoil.WhileFiring 0.35` (old) or `Looter.Gunfeel.Kick.Lift 0`. Max view kicks at once 12 -> 16.
+- **The gun lights the hands and the ground (change 8):** shot light 24 -> 400 cd x kind (shotgun 1.5, launcher 1.6, SMG 0.6), 3.2 -> 5 m,
+  40 ms (min with the flash's life), unshadowed, hung +10 cm along the barrel where the muzzle shows, first and third person
+  (`Looter.Vfx.Muzzle.Light` is candelas now, was a x1 multiplier; `MuzzleFlashScale` no longer scales the light; `.Light1P` the
+  first-person share: lower it first if the hands blow out); aimed flash 0.55 -> 0.8; impact flash 150 cd / 60 ms on stone, metal and
+  wood from 4 pooled lights (`UImpactFlashSubsystem`; nothing within 1 m of the eye, eased to full at 2 m, nothing past 40 m;
+  `Looter.Vfx.Impact.Light*`). Rocket and rubble ground hits flash too (they share `SpawnSurfaceImpact`). Perf: measure with
+  `Looter.Perf.Fire` (PERF lane) lights on vs off before trusting the 0.07 ms margin.

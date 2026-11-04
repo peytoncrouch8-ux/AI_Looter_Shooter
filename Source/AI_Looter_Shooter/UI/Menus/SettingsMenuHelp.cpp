@@ -94,7 +94,7 @@ FSettingHelp SettingsMenu::PageHelp(int32 Page)
 	case ESettingsPage::Interface:
 		return FSettingHelp{ Title, TEXT("What the HUD shows, and how see-through the menus are."), TEXT("Point at a setting to see what it does.") };
 	case ESettingsPage::Controls:
-		return FSettingHelp{ Title, TEXT("How the view turns and shakes, the gamepad's rumble, and your keyboard and mouse keys."),
+		return FSettingHelp{ Title, TEXT("How the view turns and shakes, the gamepad's rumble and aim assist, and your keyboard and mouse keys."),
 			TEXT("Point at a setting or a key to see what it does.") };
 	}
 	return FSettingHelp();
@@ -201,6 +201,12 @@ FSettingHelp SettingsMenu::RowHelp(ESettingRow Row)
 			"It only rumbles while you're playing on the gamepad."),
 			FString::Printf(TEXT("%s to %s. Default %s."), *PercentText(CS::MinControllerRumble), *PercentText(CS::MaxControllerRumble),
 				*PercentText(CS::DefaultControllerRumble)));
+	case ESettingRow::InvertY:
+		return Help(TEXT("Invert Y"), TEXT("Reverses looking up and down: pushing the right stick or moving the mouse up looks down. "
+			"It applies to the mouse and the gamepad both."), OnOffDefault(CS::DefaultInvertY));
+	case ESettingRow::AimAssist:
+		return Help(TEXT("Aim assist"), TEXT("Helps the gamepad's aim: the view slows as the crosshair crosses a creature and drifts gently onto one it is nearly on. "
+			"The mouse is never assisted."), OnOffDefault(CS::DefaultAimAssist));
 	case ESettingRow::ResetAllKeys:
 		return Help(TEXT("Reset all keys"), TEXT("Puts every key and every Hold or Toggle choice back to the game's defaults. Your other settings stay as they are."));
 	case ESettingRow::BackToPause:

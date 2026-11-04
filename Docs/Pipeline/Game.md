@@ -774,3 +774,31 @@ Words only; code names, asset names, ids and save data are unchanged.
   `Looter.Legendary.Lamplighter.*` and the card text stay. "Lamplighter" is now only the ship.
 - Still telling the old story (to fix): hero select's subtitle (`UI/Menus/HeroSelectWidget.cpp` "Whoever you pick is the Revenant
   Sexton raised.") and `Embers/HeroDefinition.h`'s comment; the other four heroes keep their Revenant stories until their own round.
+
+## Phase 3 of the 2026-11-03 audit: loot drops, the camera, the gamepad, the actor index (lane notes in Docs/Work/2026-11-03-Phase3)
+- **Loot that differs (change 5, LOOT.md):** at Rare and up one slot (by seed) always rolls a part of the gun's own tier or better
+  (`WeaponParts::TierSlot`, `Looter.Loot.Parts.TierSlot` [1]; a Legendary falls back to Epic where the gun has no Legendary part;
+  saved guns keep their parts); CSV weights: effect rows 0.5-0.6 -> 3, element rows 0.35 -> 1.5 (Weight column only; rerun
+  `setup_gun_parts.py`): a Rare rifle carries an effect 33% of the time (was 7%), an Epic 83% (28%); Ranchhand, Thresher and
+  Powderkeg still 0% at Rare (no Rare effect row: a data call for the user). A rolled Legendary takes one of the three signatures
+  by seed (`LegendaryRules::SignatureOf`, `Looter.Legendary.Rolled`; Company Scrip only on full-auto guns; no save change), on its
+  card. Commons get a 250 cm beam (`Looter.Loot.Drop.Beam.Common`) and a soft 3D landing glint; `LootBeamCrowd` counts only guns
+  whose beam shows; Uncommon and Rare stingers play 2D (`.Stinger.FlatFrom`). Side effect: a Common ward gets the beam too.
+- **The camera answers the body (change 6, CAMERA.md):** landing dip 0.4-1.6 deg + eye drop 1-4 cm by fall speed (nothing under
+  300 cm/s), jump kick 0.3 up, mantle/vault landing 0.5/0.8, each footfall nods 0.15-0.35 (sprint rolls 0.2 to the stepping foot's
+  side) in the gun bob's own stride clock, a strafe leans 0.6; x the Camera shake setting, 25% through the sights, local player only.
+  `Looter.Camera.Motion` [1] (0 = the dead camera before), 22 `Looter.Camera.Motion.*` numbers. The `OnTraversalLanded` listener
+  binds on the first frame (`UpdateCameraMotion`); `PlayerLocomotionComponent.h` is 550 lines (a declaration can't split).
+- **The gamepad (change 7, GAMEPAD.md):** the right stick turns in degrees a second x real frame time (`Looter.Look.PadDegreesPerSecond`
+  220 yaw / 160 pitch, dead zone 0.18, power 1.6, x the look sensitivity; a full push is a 360 in ~1.6 s at any fps; the old pad
+  turned ~150 deg/s at 60 fps and twice that at 120), told from the mouse by input action (`LookAction` -> `LookByStick`,
+  `MouseLookAction` -> `Look`); `DefaultInput.ini`'s legacy input scales (2.5 / -2.5) are divided out. Invert Y (pad and mouse)
+  and Aim assist (pad only: friction 0.6 within a creature's capsule + 20 cm, magnetism up to 2 deg/s, sight-line checked, the
+  creature list at most 10x a second; `Looter.AimAssist*`) are Settings > Controls switches saved with the controls; mouse
+  smoothing and FOV scaling off in `DefaultInput.ini`. If the stick feels numb (the IMC's own 0.2 dead zone stacks on ours, ~0.34
+  raw): `Looter.Look.PadDeadZone 0.05`. The two switches rebind `OnButtonClicked` in `SettingsMenuPages.cpp` (move to `HandleButton` later).
+- **No per-frame world scans (change 10, PERF.md):** `UActorIndexSubsystem` keeps the lists (0.1 s refresh + the spawn hook); the
+  minimap, loot labels (now with an `IsTickable` gate), the weapon manager's pickups and enemy shots read it (about 720 world passes a
+  second at 120 fps became 80). Enemy shots keep a brush-only ignore list built from the index (not `UGroundIgnoreSubsystem`'s: that
+  one ignores whole volume actors and the scatter's trees are components of the PCG volume). `Looter.Perf.Fire <kind> [seconds] [kill]`
+  (Dev) is the sustained-fire row for `perf.ps1 -Exec` (recipe in PERF.md). `DefaultEngine.ini` gc.* untouched: no capture ties a hitch to GC.
