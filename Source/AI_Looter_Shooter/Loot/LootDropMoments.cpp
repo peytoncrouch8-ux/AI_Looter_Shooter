@@ -8,6 +8,15 @@ namespace
 {
 	struct FDropTuning
 	{
+		// A Common's beam (2026-11-03, every drop seen): short, faint and thin, still over the ammo's 150 cm white ones.
+		float BeamCommon = 250.f;
+		float CommonGlow = 1.6f;
+		float CommonRadius = 5.f;
+		// A Common's landing: the Uncommon's glint, quieter and lower, from where it fell (no new cue).
+		float CommonVolume = 0.5f;
+		float CommonPitch = 0.8f;
+		// From this rarity up the landing's sting is heard flat (EWeaponRarity: 1 Uncommon; Epic and up until 2026-11-03).
+		int32 StingerFlatFrom = 1;
 		// The beams' heights (cm), by rarity: the old 350 / 650 / 1000 / 1600 each a good step taller.
 		float BeamUncommon = 450.f;
 		float BeamRare = 900.f;
@@ -27,6 +36,15 @@ namespace
 	const FDropTuning DropDefaults;
 	const FLegendaryBurst BurstDefaults;
 
+	TAutoConsoleVariable<float> CVarBeamCommon(TEXT("Looter.Loot.Drop.Beam.Common"), DropDefaults.BeamCommon,
+		TEXT("A Common gun's loot beam, cm tall (0 = none, as before 2026-11-03)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCommonVolume(TEXT("Looter.Loot.Drop.Common.Volume"), DropDefaults.CommonVolume,
+		TEXT("A Common drop's soft landing sting (the Uncommon's, from where it fell), times its volume (0 = only the knock)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarCommonPitch(TEXT("Looter.Loot.Drop.Common.Pitch"), DropDefaults.CommonPitch,
+		TEXT("...times its pitch."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarStingerFlatFrom(TEXT("Looter.Loot.Drop.Stinger.FlatFrom"), DropDefaults.StingerFlatFrom,
+		TEXT("From this rarity up a drop's landing sting is heard flat, wherever the player looks (0 Common .. 4 Legendary; ")
+		TEXT("3 = Epic and up, as before 2026-11-03); under it, from where it fell."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarBeamUncommon(TEXT("Looter.Loot.Drop.Beam.Uncommon"), DropDefaults.BeamUncommon,
 		TEXT("An Uncommon gun's loot beam, cm tall."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarBeamRare(TEXT("Looter.Loot.Drop.Beam.Rare"), DropDefaults.BeamRare,
@@ -122,6 +140,10 @@ namespace
 	FDropTuning LiveTuning()
 	{
 		FDropTuning Tuning;
+		Tuning.BeamCommon = FMath::Max(CVarBeamCommon.GetValueOnGameThread(), 0.f);
+		Tuning.CommonVolume = FMath::Max(CVarCommonVolume.GetValueOnGameThread(), 0.f);
+		Tuning.CommonPitch = FMath::Clamp(CVarCommonPitch.GetValueOnGameThread(), 0.2f, 4.f);
+		Tuning.StingerFlatFrom = CVarStingerFlatFrom.GetValueOnGameThread();
 		Tuning.BeamUncommon = FMath::Max(CVarBeamUncommon.GetValueOnGameThread(), 0.f);
 		Tuning.BeamRare = FMath::Max(CVarBeamRare.GetValueOnGameThread(), 0.f);
 		Tuning.BeamEpic = FMath::Max(CVarBeamEpic.GetValueOnGameThread(), 0.f);
@@ -145,6 +167,14 @@ namespace
 		const bool bEpicUp = Rarity == EWeaponRarity::Epic || Rarity == EWeaponRarity::Legendary;
 		switch (Rarity)
 		{
+		case EWeaponRarity::Common:
+			// Every drop seen and heard (the audit: ammo and silver went dark beside an unseen Common): a short beam in its
+			// colour, and a soft glint where it fell under the toss's knock.
+			Moment.BeamHeight = Tuning.BeamCommon;
+			Moment.Stinger = Tuning.CommonVolume > 0.f ? FName(LooterSoundCue::DropUncommon) : NAME_None;
+			Moment.StingerVolume = Tuning.CommonVolume;
+			Moment.StingerPitch = Tuning.CommonPitch;
+			break;
 		case EWeaponRarity::Uncommon:
 			Moment.BeamHeight = Tuning.BeamUncommon;
 			Moment.Stinger = LooterSoundCue::DropUncommon;
@@ -174,9 +204,12 @@ namespace
 		default:
 			break;
 		}
-		Moment.BeamGlow = bEpicUp ? 3.f : 2.f;
-		Moment.BeamRadius = Rarity == EWeaponRarity::Legendary ? 11.f : (bEpicUp ? 9.f : 6.f);
-		Moment.bStingerFlat = bEpicUp;
+		const bool bCommon = Rarity == EWeaponRarity::Common;
+		Moment.BeamGlow = bEpicUp ? 3.f : (bCommon ? Tuning.CommonGlow : 2.f);
+		Moment.BeamRadius = Rarity == EWeaponRarity::Legendary ? 11.f : (bEpicUp ? 9.f : (bCommon ? Tuning.CommonRadius : 6.f));
+		// Flat for the local player from Uncommon up: the Rare's sting rode the creatures' falloff and was lost 20 m off
+		// under fire (the audit, 2026-11-03); a Common's soft one stays where it fell.
+		Moment.bStingerFlat = static_cast<int32>(Rarity) >= Tuning.StingerFlatFrom;
 		if (bEpicUp)
 		{
 			Moment.SpinRate = Tuning.SpinRate;

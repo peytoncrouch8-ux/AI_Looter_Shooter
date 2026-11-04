@@ -26,6 +26,11 @@ TArray<bool> LootBeamCrowd::ChooseShown(TConstArrayView<FVector> Small, TConstAr
 	return Shown;
 }
 
+bool LootBeamCrowd::ShowsBeam(const UStaticMeshComponent* Beam)
+{
+	return Beam && Beam->GetVisibleFlag() && !Beam->bHiddenInGame;
+}
+
 void ULootBeamCrowdSubsystem::Join(AActor* Owner, UStaticMeshComponent* Beam)
 {
 	UWorld* World = Owner ? Owner->GetWorld() : nullptr;
@@ -64,7 +69,8 @@ void ULootBeamCrowdSubsystem::Refresh()
 	TArray<FVector> Guns;
 	for (TActorIterator<AWeaponBase> It(GetWorld()); It; ++It)
 	{
-		if (It->IsPickup() && !It->IsActorBeingDestroyed())
+		// Only a gun whose beam shows stands for the spot (one without, a Common before 2026-11-03, left it dark).
+		if (It->IsPickup() && !It->IsActorBeingDestroyed() && LootBeamCrowd::ShowsBeam(It->GetLootBeam()))
 		{
 			Guns.Add(It->GetActorLocation());
 		}

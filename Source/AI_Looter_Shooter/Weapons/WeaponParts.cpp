@@ -2,9 +2,27 @@
 #include "Affixes/WeaponMakers.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponDefinition.h"
+#include "HAL/IConsoleManager.h"
 
 namespace
 {
+	TAutoConsoleVariable<int32> CVarTierSlot(TEXT("Looter.Loot.Parts.TierSlot"), 1,
+		TEXT("A rolled Rare or better gun has one slot (by its seed) that always rolls a part of its own tier or better (1), or ")
+		TEXT("every slot rolls as before 2026-11-03 (0). Saved guns keep their parts either way; a new roll reads it."),
+		ECVF_Default);
+
+	/** The tier slot's own stream (TierSlot): the parts' and the paints' draws never move for it. */
+	constexpr uint32 TierSlotSalt = 0x71E25107u;
+
+	/** The slot offers a part of Tier or better that a gun of Rarity can have. */
+	bool OffersTier(const FWeaponPartSlot& Slot, EWeaponRarity Tier, EWeaponRarity Rarity)
+	{
+		return Slot.Options.ContainsByPredicate([Tier, Rarity](const FWeaponPartOption& Option)
+		{
+			return Option.Mesh && Option.MinRarity >= Tier && Option.MinRarity <= Rarity;
+		});
+	}
+
 	/**
 	 * The option Roll (0-1) lands on among the allowed ones, by WeightOf (a maker's leanings can weigh a part up); null
 	 * when none is allowed.
@@ -72,6 +90,10 @@ FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, E
 	// numbers would tie each part's odds to a stat's roll.
 	FRandomStream Random(static_cast<int32>(HashCombine(static_cast<uint32>(Seed), 0x9E3779B9u)));
 	const bool bSaved = SavedParts.Num() == Definition.Parts.Num();
+	// The tier slot, on a fresh roll only: a saved gun is what it was saved as, and a lost part of one is picked again by
+	// the plain draw. Until a slot takes a part of the tier, every slot from the chosen one on tries for one.
+	const EWeaponRarity Tier = bSaved ? EWeaponRarity::Common : TierSlotRarity(Definition, Rarity);
+	int32 TierFrom = bSaved ? INDEX_NONE : TierSlot(Definition, Seed, Rarity);
 	for (int32 Index = 0; Index < Definition.Parts.Num(); ++Index)
 	{
 		const FWeaponPartSlot& Slot = Definition.Parts[Index];
@@ -93,15 +115,26 @@ FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, E
 				continue;
 			}
 		}
-		Look.Parts.Add(PickByWeight(Slot.Options, Roll, [&](const FWeaponPartOption& Option)
+		const auto Allowed = [&](const FWeaponPartOption& Option)
 		{
 			return Option.Mesh && Option.MinRarity <= Rarity && Fits(Option, Definition, Look.Parts);
-		}, [Maker, Lean](const FWeaponPartOption& Option)
+		};
+		const auto WeightOf = [Maker, Lean](const FWeaponPartOption& Option)
 		{
 			// A Touched creature's element leans the pick toward its parts (never forces it).
 			const float Leaning = Lean != ELooterElement::None && Option.Element == Lean ? ElementLeanWeight : 1.f;
 			return WeaponMakers::PartWeight(Maker, Option) * Leaning;
-		}));
+		};
+		const FWeaponPartOption* Part = nullptr;
+		if (TierFrom != INDEX_NONE && Index >= TierFrom)
+		{
+			// The same draw among the slot's parts of the tier and up. None fitting (a long magazine on a stub barrel) hands
+			// the rule on to the next slot.
+			Part = PickByWeight(Slot.Options, Roll, [&](const FWeaponPartOption& Option) { return Allowed(Option) && Option.MinRarity >= Tier; },
+				WeightOf);
+			TierFrom = Part ? INDEX_NONE : TierFrom;
+		}
+		Look.Parts.Add(Part ? Part : PickByWeight(Slot.Options, Roll, Allowed, WeightOf));
 	}
 	for (const FWeaponPaint& Paint : Definition.Paints)
 	{
@@ -124,6 +157,41 @@ FWeaponLook WeaponParts::Pick(const FWeaponInstanceData& Instance)
 {
 	return Instance.Definition ? Pick(*Instance.Definition, Instance.Seed, Instance.Rarity, Instance.Parts, WeaponMakers::Of(Instance))
 		: FWeaponLook();
+}
+
+EWeaponRarity WeaponParts::TierSlotRarity(const UWeaponDefinition& Definition, EWeaponRarity Rarity)
+{
+	// Its own tier where a slot offers one, else the best below it down to Rare: few guns have a Legendary part, and a
+	// Legendary should be sure of at least what an Epic is.
+	for (int32 Tier = static_cast<int32>(Rarity); Tier >= static_cast<int32>(TierSlotFrom); --Tier)
+	{
+		const EWeaponRarity AtLeast = static_cast<EWeaponRarity>(Tier);
+		if (Definition.Parts.ContainsByPredicate([AtLeast, Rarity](const FWeaponPartSlot& Slot) { return OffersTier(Slot, AtLeast, Rarity); }))
+		{
+			return AtLeast;
+		}
+	}
+	return EWeaponRarity::Common;
+}
+
+int32 WeaponParts::TierSlot(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity)
+{
+	const EWeaponRarity Tier = TierSlotRarity(Definition, Rarity);
+	if (CVarTierSlot.GetValueOnAnyThread() == 0 || Tier < TierSlotFrom)
+	{
+		return INDEX_NONE;
+	}
+	TArray<int32, TInlineAllocator<8>> Offering;
+	for (int32 Index = 0; Index < Definition.Parts.Num(); ++Index)
+	{
+		if (OffersTier(Definition.Parts[Index], Tier, Rarity))
+		{
+			Offering.Add(Index);
+		}
+	}
+	// Every slot that offers one as likely (a better barrel as often as a better sight), from a stream of its own.
+	FRandomStream Random(static_cast<int32>(HashCombine(static_cast<uint32>(Seed), TierSlotSalt)));
+	return Offering.IsEmpty() ? INDEX_NONE : Offering[Random.RandHelper(Offering.Num())];
 }
 
 TArray<FName> WeaponParts::PartKeys(const FWeaponLook& Look)

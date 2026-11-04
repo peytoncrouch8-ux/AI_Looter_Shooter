@@ -5,8 +5,10 @@
 
 /**
  * How a gun's drop plays out by its rarity (Phase 12.3: bigger drop moments; ULootFanfareSubsystem plays it, AWeaponBase's
- * beam takes its height from it). The rules: a taller beam in the rarity's colour each tier up; Rare and up a stinger
- * (Loot.Drop.<Rarity>) as it lands; Epic and up a spin and a ring of light along the ground as it lands; a Legendary's
+ * beam takes its height from it). The rules: a taller beam in the rarity's colour each tier up, a Common's a short one
+ * (every drop seen: the audit's change 5, 2026-11-03); a stinger (Loot.Drop.<Rarity>) as it lands, a Common's a soft,
+ * low take on the Uncommon's from where it fell, Uncommon and up heard flat (a Rare's had been lost 20 m off under fire);
+ * Epic and up a spin and a ring of light along the ground as it lands; a Legendary's
  * stinger the moment it drops (felt before it's seen), and as it lands its burst (FLegendaryBurst: the user, 2026-10-27,
  * "There should be a galactic explosion instead of a game stutter"), a column of light seen from 60 m, its name popping up
  * over it, motes rising, and Loot.Drop.Legendary.Land. The world's clock is never touched (the 0.25 s slow at 0.3 the drop
@@ -15,16 +17,19 @@
  */
 struct AI_LOOTER_SHOOTER_API FDropMoment
 {
-	/** The steady loot beam (AWeaponBase::RefreshLootBeam): cm tall, glow, cm round. 0 tall: none (a Common). */
+	/** The steady loot beam (AWeaponBase::RefreshLootBeam): cm tall, glow, cm round. 0 tall: none. */
 	float BeamHeight = 0.f;
 	float BeamGlow = 2.f;
 	float BeamRadius = 6.f;
 
-	/** The landing's sting (Loot.Drop.<Rarity>; none for a Common), and whether it plays as it drops instead. */
+	/** The landing's sting (Loot.Drop.<Rarity>), and whether it plays as it drops instead. None: only the landing's knock. */
 	FName Stinger;
 	bool bStingerAtDrop = false;
 	/** Heard flat (wherever the player looks) rather than from where it fell. */
 	bool bStingerFlat = false;
+	/** The sting's volume and pitch, times the cue's own (a Common's is the Uncommon's, quieter and lower). */
+	float StingerVolume = 1.f;
+	float StingerPitch = 1.f;
 	/** A second sound as it lands (a Legendary's impact). */
 	FName LandCue;
 

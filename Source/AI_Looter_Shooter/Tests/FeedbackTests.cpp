@@ -380,7 +380,9 @@ bool FLootFanfareTest::RunTest(const FString& Parameters)
 		Cues.AddUnique(Fanfare::DropCue(Rarity));
 	}
 	TestEqual(TEXT("Each rarer gun sounds its own"), Cues.Num(), 4);
-	TestFalse(TEXT("A Rare is heard from where it fell"), Fanfare::IsDropCueFlat(EWeaponRarity::Rare));
+	// Since 2026-11-03 (audit change 5) an Uncommon's and a Rare's stinger play flat too: in the world on the creature
+	// attenuation they were inaudible at 20 m under gunfire, so a blue dropped mid-fight went unheard.
+	TestTrue(TEXT("An Uncommon and a Rare are heard flat too"), Fanfare::IsDropCueFlat(EWeaponRarity::Uncommon) && Fanfare::IsDropCueFlat(EWeaponRarity::Rare));
 	TestTrue(TEXT("An Epic is heard flat"), Fanfare::IsDropCueFlat(EWeaponRarity::Epic) && Fanfare::IsDropCueFlat(EWeaponRarity::Legendary));
 	TestFalse(TEXT("An Uncommon's beam doesn't flare"), Fanfare::FlaresBeam(EWeaponRarity::Uncommon));
 	TestTrue(TEXT("A Rare's and up do"), Fanfare::FlaresBeam(EWeaponRarity::Rare) && Fanfare::FlaresBeam(EWeaponRarity::Legendary));

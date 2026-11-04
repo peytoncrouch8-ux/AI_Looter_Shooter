@@ -14,8 +14,21 @@ struct FWeaponInstanceData;
  */
 namespace LegendaryRules
 {
-	/** The gun's signature: its named gun's (UNamedWeaponDefinition::Signature), None for every other gun. */
+	/**
+	 * The gun's signature: a named gun's own (UNamedWeaponDefinition::Signature, None for a named gun without one), a rolled
+	 * Legendary's by its seed (RolledSignature), None for every other gun. Nothing is saved for it: the seed and the gun's
+	 * kind decide it every time, so every Legendary already found has one too.
+	 */
 	AI_LOOTER_SHOOTER_API ELegendarySignature SignatureOf(const FWeaponInstanceData& Gun);
+
+	/**
+	 * A rolled Legendary's signature (the audit's change 5, 2026-11-03: a Legendary always does something): one of the three
+	 * the named guns carry, each as likely, by Seed from a stream of its own, among those that suit the gun. Company Scrip
+	 * needs a gun that fires while the trigger is held (bHeldFire: its kills "in one burst" and its reload's pay); on a
+	 * pump, a six-gun, a bolt or a launcher it would do next to nothing, so those roll Gravesilk or the lantern.
+	 * None when Looter.Legendary.Rolled is 0.
+	 */
+	AI_LOOTER_SHOOTER_API ELegendarySignature RolledSignature(int32 Seed, bool bHeldFire);
 
 	/** What it does, in a line for the gun card, with the live numbers ("Hits lay silk: 6 root the target for 1 s..."). */
 	AI_LOOTER_SHOOTER_API FString Description(ELegendarySignature Signature, const FLegendaryTuning& Tuning);

@@ -29,13 +29,14 @@
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "HAL/IConsoleManager.h"
 #include "Math/RandomStream.h"
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
 
 // The unique legendaries (Looter.Weapons.Legendary.*; the user's call, 2026-10-29 night): each one's rules (Gravesilk's
 // silk and root, Company Scrip's burst and refund, Lamplighter's scoped kill and lantern), its card line, its boss's 10%
-// drop, and the bosses naming their own. The rules read a default-made FLegendaryTuning (the cvars' defaults); the play
+// drop, the bosses naming their own, and a rolled Legendary's signature by its seed (2026-11-03). The rules read a default-made FLegendaryTuning (the cvars' defaults); the play
 // parts run in test levels, which never tick: their clock stands still, so everything there happens "at once".
 
 namespace
@@ -327,6 +328,87 @@ bool FLegendaryLamplighterTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("At most three burn at once"), Legendaries->NumLanterns() <= Tuning.LamplighterMaxLanterns);
 	Lantern->Advance(Tuning.LamplighterSeconds);
 	TestTrue(TEXT("It goes out at its end"), !IsValid(Lantern) || Lantern->IsActorBeingDestroyed());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLegendaryRolledTest, "Looter.Weapons.Legendary.Rolled",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FLegendaryRolledTest::RunTest(const FString& Parameters)
+{
+	// A rolled Legendary always does something (the audit's change 5, 2026-11-03): one of the three signatures by its seed,
+	// the same every time (nothing saved), shown on its card; Company Scrip only on a gun that fires while held.
+	IConsoleVariable* Rolled = IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Legendary.Rolled"));
+	if (!TestNotNull(TEXT("Its switch"), Rolled))
+	{
+		return false;
+	}
+	// Put back as it was, however the test ends.
+	struct FPutBack
+	{
+		IConsoleVariable* Variable;
+		FString Was;
+		~FPutBack() { Variable->Set(*Was, ECVF_SetByConsole); }
+	} PutBack{ Rolled, Rolled->GetString() };
+	Rolled->Set(TEXT("1"), ECVF_SetByConsole);
+	UWeaponDefinition* Rifle = LoadObject<UWeaponDefinition>(nullptr, TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"));
+	UWeaponDefinition* Shotgun = LoadObject<UWeaponDefinition>(nullptr, TEXT("/Game/Weapons/Data/DA_PumpShotgun.DA_PumpShotgun"));
+	if (!TestNotNull(TEXT("The rifle loads"), Rifle) || !TestNotNull(TEXT("The pump loads"), Shotgun))
+	{
+		return false;
+	}
+	const FLegendaryTuning Tuning;
+	constexpr int32 Seeds = 3000;
+	for (UWeaponDefinition* Kind : { Rifle, Shotgun })
+	{
+		const bool bHeld = Kind->FireMode == EWeaponFireMode::FullAuto;
+		int32 Counts[4] = { 0, 0, 0, 0 };
+		for (int32 Seed = 0; Seed < Seeds; ++Seed)
+		{
+			FWeaponInstanceData Gun;
+			Gun.Definition = Kind;
+			Gun.Rarity = EWeaponRarity::Legendary;
+			Gun.Seed = Seed;
+			const ELegendarySignature Signature = LegendaryRules::SignatureOf(Gun);
+			++Counts[FMath::Clamp(static_cast<int32>(Signature), 0, 3)];
+			if (Signature != LegendaryRules::SignatureOf(Gun) || Signature != LegendaryRules::RolledSignature(Seed, bHeld))
+			{
+				AddError(FString::Printf(TEXT("%s seed %d: its signature isn't its seed's"), *Kind->GetName(), Seed));
+				return false;
+			}
+			if (Seed < 20 && !GunCardRules::Lines(Gun).Contains(LegendaryRules::Description(Signature, Tuning)))
+			{
+				AddError(FString::Printf(TEXT("%s seed %d: its card doesn't show its signature"), *Kind->GetName(), Seed));
+			}
+		}
+		const FString Name = Kind->GetName();
+		TestEqual(FString::Printf(TEXT("%s: every rolled Legendary has one"), *Name), Counts[0], 0);
+		// Each as likely: a third each on the rifle (1,000 expected, 200 is over seven spreads), half each on the pump.
+		const int32 Share = bHeld ? Seeds / 3 : Seeds / 2;
+		TestTrue(FString::Printf(TEXT("%s: Gravesilk about its share (%d)"), *Name, Counts[1]), FMath::Abs(Counts[1] - Share) < 200);
+		TestTrue(FString::Printf(TEXT("%s: Lamplighter about its share (%d)"), *Name, Counts[3]), FMath::Abs(Counts[3] - Share) < 200);
+		TestTrue(FString::Printf(TEXT("%s: Company Scrip %s (%d)"), *Name, bHeld ? TEXT("about its share") : TEXT("never"), Counts[2]),
+			bHeld ? FMath::Abs(Counts[2] - Share) < 200 : Counts[2] == 0);
+	}
+
+	// Not a Legendary, or a named gun: as before. Off: none.
+	FWeaponInstanceData Epic;
+	Epic.Definition = Rifle;
+	Epic.Rarity = EWeaponRarity::Epic;
+	Epic.Seed = 11;
+	TestEqual(TEXT("An Epic has none"), LegendaryRules::SignatureOf(Epic), ELegendarySignature::None);
+	FWeaponInstanceData Heirloom;
+	Heirloom.Definition = Rifle;
+	Heirloom.Rarity = EWeaponRarity::Legendary;
+	Heirloom.Named = MakeNamed(ELegendarySignature::None, Rifle);
+	TestEqual(TEXT("A named gun without one stays without"), LegendaryRules::SignatureOf(Heirloom), ELegendarySignature::None);
+	FWeaponInstanceData Boss = Heirloom;
+	Boss.Named = MakeNamed(ELegendarySignature::Lamplighter, Rifle);
+	TestEqual(TEXT("A named gun keeps its own"), LegendaryRules::SignatureOf(Boss), ELegendarySignature::Lamplighter);
+	Rolled->Set(TEXT("0"), ECVF_SetByConsole);
+	FWeaponInstanceData Plain = Epic;
+	Plain.Rarity = EWeaponRarity::Legendary;
+	TestEqual(TEXT("Off: a rolled Legendary has none"), LegendaryRules::SignatureOf(Plain), ELegendarySignature::None);
 	return true;
 }
 

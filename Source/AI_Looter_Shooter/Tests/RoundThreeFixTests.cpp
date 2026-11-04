@@ -6,6 +6,7 @@
 #include "Missions/MissionDefinition.h"
 #include "UI/World/NoticeBoardWidget.h"
 #include "World/NoticeBoard.h"
+#include "Components/StaticMeshComponent.h"
 #include "UObject/Package.h"
 
 // The rules from the Ransom's Rest play-check's round 3 (2026-10-23): one beam for a crowd of small drops, a job on a
@@ -38,6 +39,19 @@ bool FRoundThreeBeamCrowdTest::RunTest(const FString& Parameters)
 	// The first collected: the next of the crowd takes the beam.
 	const TArray<FVector> Picked(Shower.GetData() + 1, Shower.Num() - 1);
 	TestTrue(TEXT("Once it's taken, the next stands for the crowd"), ChooseShown(Picked, NoGuns)[0]);
+
+	// Only a gun whose own beam shows stands for its spot (2026-11-03: ammo and silver went dark beside a beamless Common).
+	using LootBeamCrowd::ShowsBeam;
+	UStaticMeshComponent* GunBeam = NewObject<UStaticMeshComponent>(GetTransientPackage());
+	GunBeam->SetVisibility(true);
+	TestTrue(TEXT("A gun's beam that shows stands for the spot"), ShowsBeam(GunBeam));
+	GunBeam->SetHiddenInGame(true);
+	TestFalse(TEXT("...not one hidden in game"), ShowsBeam(GunBeam));
+	GunBeam->SetHiddenInGame(false);
+	GunBeam->SetVisibility(false);
+	TestFalse(TEXT("...nor one switched off (a gun with no beam)"), ShowsBeam(GunBeam));
+	TestFalse(TEXT("...nor none at all"), ShowsBeam(nullptr));
+	GunBeam->MarkAsGarbage();
 	return true;
 }
 

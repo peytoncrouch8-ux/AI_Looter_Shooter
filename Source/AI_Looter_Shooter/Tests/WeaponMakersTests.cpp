@@ -392,10 +392,15 @@ bool FWeaponMakersBiasTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("Saint Maud's rounds are blessed more often (%d vs %d of %d: odds x%.2f)"), MaudElements, PlainElements, Guns,
 		PlainOdds > 0 ? double(MaudOdds) / double(PlainOdds) : 0.0),
 		PlainElements > 0 && MaudElements < Guns && MaudOdds > 2 * PlainOdds);
+	// Windfall's lean doubles each effect part's weight; since effect parts weigh 3 (audit change 5, 2026-11-03) most Epics carry
+	// one anyway, so the share saturates as Saint Maud's does: compare odds, with margin.
 	const int32 PlainEffects = Count(NAME_None, EWeaponRarity::Epic, false);
 	const int32 WindfallEffects = Count(TEXT("Windfall"), EWeaponRarity::Epic, false);
-	TestTrue(FString::Printf(TEXT("Windfall's odd bits come more often (%d vs %d of %d)"), WindfallEffects, PlainEffects, Guns),
-		PlainEffects > 0 && WindfallEffects * 10 > PlainEffects * 13);
+	const int64 WindfallOdds = int64(WindfallEffects) * (Guns - PlainEffects);
+	const int64 PlainEffectOdds = int64(PlainEffects) * (Guns - WindfallEffects);
+	TestTrue(FString::Printf(TEXT("Windfall's odd bits come more often (%d vs %d of %d: odds x%.2f)"), WindfallEffects, PlainEffects, Guns,
+		PlainEffectOdds > 0 ? double(WindfallOdds) / double(PlainEffectOdds) : 0.0),
+		PlainEffects > 0 && WindfallEffects < Guns && WindfallOdds * 10 > PlainEffectOdds * 13);
 	TestEqual(TEXT("Roundhouse doesn't lean"), Count(TEXT("Roundhouse"), EWeaponRarity::Uncommon, true), PlainElements);
 	return true;
 }

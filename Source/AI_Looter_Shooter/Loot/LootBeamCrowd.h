@@ -10,7 +10,8 @@ class UStaticMeshComponent;
 /**
  * Where small drops (ammo, silver, grenades: the plain white 1.5 m beam, the user's rule for a lone drop) lie close
  * together, one beam stands for them all, and none stands within reach of a gun's beam: the Gravemother's loot shower
- * left fifteen white beams filling her den (2026-10-23, round 3). Guns keep theirs, always.
+ * left fifteen white beams filling her den (2026-10-23, round 3). Guns keep theirs, always. Only a gun whose own beam
+ * shows stands for its spot (ShowsBeam): a gun without one had left the ammo beside it dark and the spot unseen.
  */
 namespace LootBeamCrowd
 {
@@ -27,6 +28,9 @@ namespace LootBeamCrowd
 	 */
 	AI_LOOTER_SHOOTER_API TArray<bool> ChooseShown(TConstArrayView<FVector> Small, TConstArrayView<FVector> Guns, float Merge = MergeRadius,
 		float NearGun = NearGunRadius);
+
+	/** A gun's beam shows the spot: it is there, visible and not hidden in game (what ChooseShown's Guns are made of). */
+	AI_LOOTER_SHOOTER_API bool ShowsBeam(const UStaticMeshComponent* Beam);
 }
 
 /**

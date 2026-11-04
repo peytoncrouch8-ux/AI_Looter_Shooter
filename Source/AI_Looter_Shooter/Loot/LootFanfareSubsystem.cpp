@@ -60,7 +60,8 @@ FName ULootFanfareSubsystem::DropCue(EWeaponRarity Rarity)
 
 bool ULootFanfareSubsystem::IsDropCueFlat(EWeaponRarity Rarity)
 {
-	return Rarity >= EWeaponRarity::Epic;
+	// Uncommon and up since 2026-11-03 (Looter.Loot.Drop.Stinger.FlatFrom): the drop moment holds the rule.
+	return LootDropMoments::For(Rarity).bStingerFlat;
 }
 
 bool ULootFanfareSubsystem::FlaresBeam(EWeaponRarity Rarity)
@@ -156,18 +157,21 @@ void ULootFanfareSubsystem::Land(AWeaponBase& Weapon, bool bStung)
 	const double Now = World ? World->GetTimeSeconds() : 0.0;
 	const FDropMoment Moment = LootDropMoments::For(Rarity);
 
-	// Heard by rarity; a chest's guns landing together sound once, for the rarest of them. A Legendary stung as it dropped
-	// lands with its impact.
-	const FName Cue = bStung ? Moment.LandCue : DropCue(Rarity);
-	if (!Cue.IsNone() && (bStung || Now - LastCueTime >= CueGap || Rarity > LastCueRarity))
+	// Heard by rarity (its moment's sting: a Common's soft and low, from where it fell; Uncommon and up flat, for the local
+	// player, so a Rare is heard under fire); a chest's guns landing together sound once, for the rarest of them. A
+	// Legendary stung as it dropped lands with its impact.
+	const FName Cue = bStung ? Moment.LandCue : Moment.Stinger;
+	const float Volume = bStung ? 1.f : Moment.StingerVolume;
+	const float Pitch = bStung ? 1.f : Moment.StingerPitch;
+	if (!Cue.IsNone() && Volume > 0.f && (bStung || Now - LastCueTime >= CueGap || Rarity > LastCueRarity))
 	{
-		if (IsDropCueFlat(Rarity))
+		if (Moment.bStingerFlat)
 		{
-			LooterSound::Play2D(this, Cue);
+			LooterSound::Play2D(this, Cue, Volume, Pitch);
 		}
 		else
 		{
-			LooterSound::PlayAt(this, Cue, Weapon.GetActorLocation());
+			LooterSound::PlayAt(this, Cue, Weapon.GetActorLocation(), Volume, Pitch);
 		}
 		LastCueTime = Now;
 		LastCueRarity = Rarity;

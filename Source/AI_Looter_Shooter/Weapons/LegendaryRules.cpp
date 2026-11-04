@@ -1,9 +1,20 @@
 #include "Weapons/LegendaryRules.h"
 #include "Weapons/NamedWeaponDefinition.h"
+#include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponTypes.h"
+#include "HAL/IConsoleManager.h"
+#include "Math/RandomStream.h"
 
 namespace
 {
+	TAutoConsoleVariable<int32> CVarRolledSignature(TEXT("Looter.Legendary.Rolled"), 1,
+		TEXT("A rolled (not named) Legendary carries one of the named guns' signatures, chosen by its seed (1), or none, as ")
+		TEXT("before 2026-11-03 (0). Nothing is saved: it switches every Legendary at once."),
+		ECVF_Default);
+
+	/** The rolled signature's own stream from the gun's seed (its parts, stats, curse and wear draw from theirs). */
+	constexpr uint32 RolledSignatureSalt = 0x5160A7u;
+
 	/** "1", "0.5", "1.5": a number for a card line without trailing zeros. */
 	FString Short(float Value)
 	{
@@ -18,8 +29,30 @@ namespace
 
 ELegendarySignature LegendaryRules::SignatureOf(const FWeaponInstanceData& Gun)
 {
-	const UNamedWeaponDefinition* Named = Gun.Named;
-	return Named ? Named->Signature : ELegendarySignature::None;
+	// A named gun keeps its own (a story heirloom has none, and stays without one).
+	if (const UNamedWeaponDefinition* Named = Gun.Named)
+	{
+		return Named->Signature;
+	}
+	const UWeaponDefinition* Definition = Gun.Definition;
+	return Definition && Gun.Rarity == EWeaponRarity::Legendary
+		? RolledSignature(Gun.Seed, Definition->FireMode == EWeaponFireMode::FullAuto) : ELegendarySignature::None;
+}
+
+ELegendarySignature LegendaryRules::RolledSignature(int32 Seed, bool bHeldFire)
+{
+	if (CVarRolledSignature.GetValueOnAnyThread() == 0)
+	{
+		return ELegendarySignature::None;
+	}
+	FRandomStream Random(static_cast<int32>(HashCombine(static_cast<uint32>(Seed), RolledSignatureSalt)));
+	if (bHeldFire)
+	{
+		static const ELegendarySignature Any[] = { ELegendarySignature::Gravesilk, ELegendarySignature::CompanyScrip, ELegendarySignature::Lamplighter };
+		return Any[Random.RandHelper(static_cast<int32>(UE_ARRAY_COUNT(Any)))];
+	}
+	static const ELegendarySignature OneAtATime[] = { ELegendarySignature::Gravesilk, ELegendarySignature::Lamplighter };
+	return OneAtATime[Random.RandHelper(static_cast<int32>(UE_ARRAY_COUNT(OneAtATime)))];
 }
 
 FString LegendaryRules::Description(ELegendarySignature Signature, const FLegendaryTuning& Tuning)

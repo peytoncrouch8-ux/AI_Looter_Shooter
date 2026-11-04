@@ -9,7 +9,8 @@ class AWeaponBase;
 class UWeaponManagerComponent;
 
 /**
- * A unique legendary's state on its gun (LegendaryRules; added at runtime the first time a legendary fires,
+ * A legendary's signature state on its gun (a named one's or, since 2026-11-03, a rolled Legendary's by its seed:
+ * LegendaryRules::SignatureOf; added at runtime the first time it fires,
  * ULegendarySubsystem): Company Scrip's kills in this burst (its fire rate, AWeaponBase::GetShotInterval) and Lamplighter's
  * last shot, scoped or not. Every other gun never gets one, and the static helpers answer for it as a plain gun. It never
  * ticks: a burst lapses by the clock (FLegendaryTuning::CompanyScripBurstGap) or when the trigger is let go (EndBurstOf).
@@ -38,7 +39,7 @@ public:
 	 */
 	static int32 RefundReload(AWeaponBase& Weapon, UWeaponManagerComponent* Inventory, int32 RoundsTaken);
 
-	/** Its gun's signature (its named gun's; None for a gun that isn't a unique legendary). */
+	/** Its gun's signature (LegendaryRules::SignatureOf: a named gun's, a rolled Legendary's by its seed; None for any other gun). */
 	ELegendarySignature GetSignature() const;
 
 	/** A round left the gun at When, its holder's sights raised AimAlpha of the way (0 for none). */

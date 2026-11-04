@@ -4,20 +4,53 @@
 
 #include "Affixes/WeaponRollLibrary.h"
 #include "Audio/LooterSoundCues.h"
+#include "Loot/LootBeamCrowd.h"
 #include "Loot/LootDropMoments.h"
 #include "Loot/LootFanfareSubsystem.h"
 #include "UI/World/WeaponLabelWidget.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Tests/AutomationCommon.h"
 
 // The bigger drop moments (Looter.Loot.DropMoments.*, Phase 12.3): what each rarity's drop does (taller beams each tier,
-// stingers, an Epic's spin and ring, a Legendary's sting at the drop, burst, column, name pop and landing impact), the
-// name pop's motion, and a Legendary dropped and landed in a test level: the world never slowed (the user, 2026-10-27: the
+// a Common's short one and soft landing since 2026-11-03, stingers heard flat from Uncommon up, an Epic's spin and ring, a
+// Legendary's sting at the drop, burst, column, name pop and landing impact), the name pop's motion, a Common dropped in
+// a test level (its beam up), and a Legendary dropped and landed there: the world never slowed (the user, 2026-10-27: the
 // slow read as a stutter), its burst thrown, its column and name taken from the pools and given back. The rules read the
 // cvars' defaults.
+
+namespace
+{
+	/** A console variable set for a test and put back after it. */
+	class FDropScopedCVar
+	{
+	public:
+		FDropScopedCVar(const TCHAR* Name, const TCHAR* Value)
+			: Variable(IConsoleManager::Get().FindConsoleVariable(Name))
+		{
+			if (Variable)
+			{
+				Previous = Variable->GetString();
+				Variable->Set(Value, ECVF_SetByConsole);
+			}
+		}
+		~FDropScopedCVar()
+		{
+			if (Variable)
+			{
+				Variable->Set(*Previous, ECVF_SetByConsole);
+			}
+		}
+
+	private:
+		IConsoleVariable* Variable = nullptr;
+		FString Previous;
+	};
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDropMomentRulesTest, "Looter.Loot.DropMoments.Rules",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -31,18 +64,26 @@ bool FDropMomentRulesTest::RunTest(const FString& Parameters)
 	const FDropMoment Epic = Defaults(EWeaponRarity::Epic);
 	const FDropMoment Legendary = Defaults(EWeaponRarity::Legendary);
 
-	TestEqual(TEXT("A Common has no beam"), Common.BeamHeight, 0.f);
-	TestTrue(TEXT("Each tier's beam is taller"), Uncommon.BeamHeight > 0.f && Rare.BeamHeight > Uncommon.BeamHeight
+	// Every drop seen (2026-11-03): a Common's short beam, 2.5 m, over the ammo's 1.5 m white ones and under an Uncommon's.
+	TestEqual(TEXT("A Common's beam: 2.5 m"), Common.BeamHeight, 250.f);
+	TestTrue(TEXT("...fainter and thinner than an Uncommon's"), Common.BeamGlow < Uncommon.BeamGlow && Common.BeamRadius < Uncommon.BeamRadius);
+	TestTrue(TEXT("Each tier's beam is taller"), Common.BeamHeight > 150.f && Uncommon.BeamHeight > Common.BeamHeight && Rare.BeamHeight > Uncommon.BeamHeight
 		&& Epic.BeamHeight > Rare.BeamHeight && Legendary.BeamHeight > Epic.BeamHeight);
 	TestTrue(TEXT("...taller than before the drop moments (350 / 650 / 1000 / 1600)"), Uncommon.BeamHeight > 350.f && Rare.BeamHeight > 650.f
 		&& Epic.BeamHeight > 1000.f && Legendary.BeamHeight > 1600.f);
-	TestTrue(TEXT("A Common has no sting"), Common.Stinger.IsNone());
+	// ...and heard: a Common's soft landing, the Uncommon's glint quieter and lower, from where it fell.
+	TestEqual(TEXT("A Common's soft landing: the Uncommon's glint"), Common.Stinger, FName(LooterSoundCue::DropUncommon));
+	TestTrue(TEXT("...quieter and lower"), Common.StingerVolume > 0.f && Common.StingerVolume < 1.f && Common.StingerPitch < 1.f);
+	TestTrue(TEXT("...the rarer ones at their own"), Uncommon.StingerVolume == 1.f && Rare.StingerVolume == 1.f && Legendary.StingerPitch == 1.f);
+	TestEqual(TEXT("An Uncommon's sting"), Uncommon.Stinger, FName(LooterSoundCue::DropUncommon));
 	TestEqual(TEXT("A Rare's sting"), Rare.Stinger, FName(LooterSoundCue::DropRare));
 	TestEqual(TEXT("An Epic's"), Epic.Stinger, FName(LooterSoundCue::DropEpic));
 	TestEqual(TEXT("A Legendary's"), Legendary.Stinger, FName(LooterSoundCue::DropLegendary));
-	TestTrue(TEXT("Only a Legendary's plays as it drops"), Legendary.bStingerAtDrop && !Epic.bStingerAtDrop && !Rare.bStingerAtDrop);
+	TestTrue(TEXT("Only a Legendary's plays as it drops"), Legendary.bStingerAtDrop && !Epic.bStingerAtDrop && !Rare.bStingerAtDrop && !Common.bStingerAtDrop);
 	TestEqual(TEXT("...and lands with its impact"), Legendary.LandCue, FName(LootDropMoments::LegendaryLandCue));
-	TestTrue(TEXT("Epic and up: heard flat"), Epic.bStingerFlat && Legendary.bStingerFlat && !Rare.bStingerFlat);
+	// Uncommon and up heard flat by the player (a Rare's sting had been lost 20 m off under fire); a Common's where it fell.
+	TestTrue(TEXT("Uncommon and up: heard flat"), Uncommon.bStingerFlat && Rare.bStingerFlat && Epic.bStingerFlat && Legendary.bStingerFlat);
+	TestFalse(TEXT("...a Common's from where it fell"), Common.bStingerFlat);
 
 	TestTrue(TEXT("Epic and up spin as they land"), Epic.SpinRate > 0.f && Legendary.SpinRate > 0.f && Rare.SpinRate == 0.f);
 	TestTrue(TEXT("...and ring the ground, a Legendary's wider"), Epic.RingRadius > 0.f && Legendary.RingRadius > Epic.RingRadius
@@ -78,6 +119,63 @@ bool FDropMomentPopTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Full while it shows"), UWeaponLabelWidget::PopOpacityAt(1.f, 4.5f), 1.f);
 	TestTrue(TEXT("...fading at its end"), UWeaponLabelWidget::PopOpacityAt(4.2f, 4.5f) < 1.f);
 	TestEqual(TEXT("...gone at its end"), UWeaponLabelWidget::PopOpacityAt(4.5f, 4.5f), 0.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDropMomentCommonTest, "Looter.Loot.DropMoments.Common",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FDropMomentCommonTest::RunTest(const FString& Parameters)
+{
+	FDropScopedCVar Beam(TEXT("Looter.Loot.Drop.Beam.Common"), TEXT("250"));
+	FDropScopedCVar Flat(TEXT("Looter.Loot.Drop.Stinger.FlatFrom"), TEXT("1"));
+	FEditorScriptExecutionGuard RunEvents;
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	ULootFanfareSubsystem* Fanfare = World->GetSubsystem<ULootFanfareSubsystem>();
+	UWeaponDefinition* Rifle = LoadObject<UWeaponDefinition>(nullptr, TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"));
+	if (!TestNotNull(TEXT("The fanfare runs in a test level"), Fanfare) || !TestNotNull(TEXT("The rifle loads"), Rifle))
+	{
+		return false;
+	}
+	FWeaponInstanceData Instance = UWeaponRollLibrary::RollWeaponWithRarity(Rifle, EWeaponRarity::Common, 1);
+	Instance.Curse = NAME_None;
+	AWeaponBase* Gun = UWeaponRollLibrary::SpawnWeapon(World, Instance, FTransform(FVector(0.0, 0.0, 50.0)));
+	if (!TestNotNull(TEXT("A Common rifle"), Gun))
+	{
+		return false;
+	}
+	Gun->OnDropped();
+	// Lying as loot, its beam stands 2.5 m: seen, and it stands for its spot among the small drops' beams.
+	const UStaticMeshComponent* Shown = Gun->GetLootBeam();
+	TestTrue(TEXT("A Common lying as loot shows its beam"), Gun->IsPickup() && LootBeamCrowd::ShowsBeam(Shown));
+	TestEqual(TEXT("...2.5 m tall"), Shown ? static_cast<float>(Shown->GetRelativeScale3D().Z) * 100.f : 0.f, 250.f, 1.f);
+
+	// It lands quietly otherwise: no flare, no spin, no ring; its soft sting from where it fell, a Rare's heard flat.
+	ULootFanfareSubsystem::ExpectLanding(Gun);
+	Fanfare->Advance(ULootFanfareSubsystem::LandingTimeout);
+	TestEqual(TEXT("It landed"), Fanfare->NumExpected(), 0);
+	TestTrue(TEXT("...no flare, no spin, no ring"), Fanfare->NumFlaring() == 0 && Fanfare->NumSpinning() == 0 && Fanfare->NumRings() == 0);
+	TestFalse(TEXT("A Common's sting from where it fell"), ULootFanfareSubsystem::IsDropCueFlat(EWeaponRarity::Common));
+	TestTrue(TEXT("...an Uncommon's and a Rare's flat, for the player"), ULootFanfareSubsystem::IsDropCueFlat(EWeaponRarity::Uncommon)
+		&& ULootFanfareSubsystem::IsDropCueFlat(EWeaponRarity::Rare));
+
+	// Off (Looter.Loot.Drop.Beam.Common 0, as before): a Common lies dark and stands for nothing.
+	{
+		FDropScopedCVar Dark(TEXT("Looter.Loot.Drop.Beam.Common"), TEXT("0"));
+		AWeaponBase* Unseen = UWeaponRollLibrary::SpawnWeapon(World, Instance, FTransform(FVector(500.0, 0.0, 50.0)));
+		if (TestNotNull(TEXT("Another Common rifle"), Unseen))
+		{
+			Unseen->OnDropped();
+			TestFalse(TEXT("Off: no beam, and none standing for its spot"), LootBeamCrowd::ShowsBeam(Unseen->GetLootBeam()));
+			Unseen->Destroy();
+		}
+	}
+	Gun->Destroy();
 	return true;
 }
 

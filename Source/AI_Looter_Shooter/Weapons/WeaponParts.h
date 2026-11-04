@@ -162,7 +162,8 @@ struct AI_LOOTER_SHOOTER_API FWeaponPartOption
 
 	/**
 	 * What it makes the gun do beyond its numbers (a bounce, a burst, a blast, a round through, a charge, two bullets):
-	 * Epic parts and a few Rare (the spreadsheet's Effect column). A gun has one at most: its first part with one.
+	 * Epic parts and a few Rare (the spreadsheet's Effect column; weight 3 since 2026-11-03, element parts 1.5, so most
+	 * blues and purples do something). A gun has one at most: its first part with one.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
 	EPartEffect Effect = EPartEffect::None;
@@ -275,9 +276,30 @@ namespace WeaponParts
 	 * parts never change) and its paints then recolour the look from a stream of their own (WeaponMakers::PaintLook).
 	 * With a Lean (the element a Touched creature leans its dropped guns to), that element's parts weigh ElementLeanWeight times
 	 * more, on top of the maker's. Only the weights move, so every draw is the same and the other slots pick as they did.
+	 * A fresh Rare or better roll has a tier slot (TierSlot): that slot draws among its parts of TierSlotRarity and up, by
+	 * the same draw it always takes, so the slots after it pick as they would have (a slot with none fitting hands the rule
+	 * on to the next).
 	 */
 	AI_LOOTER_SHOOTER_API FWeaponLook Pick(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity,
 		TConstArrayView<FName> SavedParts = {}, const FWeaponMaker* Maker = nullptr, ELooterElement Lean = ELooterElement::None);
+
+	/** The rarity from which a gun has a tier slot. */
+	inline constexpr EWeaponRarity TierSlotFrom = EWeaponRarity::Rare;
+
+	/**
+	 * The tier a gun of Rarity's tier slot rolls (the audit's change 5, 2026-11-03: rarity that plays differently, so a
+	 * blue is sure of a blue part): its own rarity, or the best below it that one of its slots offers (no Bullpup part is
+	 * Legendary: a Legendary Bullpup's tier slot rolls an Epic one). Common when the gun is under TierSlotFrom or none of
+	 * its slots offers a part of TierSlotFrom or better.
+	 */
+	AI_LOOTER_SHOOTER_API EWeaponRarity TierSlotRarity(const UWeaponDefinition& Definition, EWeaponRarity Rarity);
+
+	/**
+	 * Which slot is a fresh roll's tier slot: one of the slots offering a part of TierSlotRarity, each as likely, chosen
+	 * by Seed from a stream of its own (the parts' and paints' draws never move). INDEX_NONE when it has none, or
+	 * Looter.Loot.Parts.TierSlot is 0.
+	 */
+	AI_LOOTER_SHOOTER_API int32 TierSlot(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity);
 
 	/** Pick for a rolled gun, with its saved parts and its maker (WeaponMakers::Of). */
 	AI_LOOTER_SHOOTER_API FWeaponLook Pick(const FWeaponInstanceData& Instance);
