@@ -1,7 +1,8 @@
 #include "Creatures/UnpaidGaitRules.h"
 
 // The Unpaid's body language as plain rules (2026-10-31): the lurch it drifts with, its breath and head's tilt at rest, the
-// coil of a wind-up, a rake's twist, a hit's loll and stumble, and how a plain kill falls. UnpaidCreatureGait.cpp lays them on.
+// coil of a wind-up, a rake's twist, a hit's loll and stumble, how a plain kill falls, and (2026-11-03) the hunched drift.
+// UnpaidCreatureGait.cpp lays them on.
 
 namespace
 {
@@ -296,6 +297,41 @@ UnpaidGait::FFallPose UnpaidGait::FallPose(EFall Fall, float DeathTime, float Si
 		break;
 	}
 	return Pose;
+}
+
+// ---------------------------------------------------------------------------
+// The hunched drift
+// ---------------------------------------------------------------------------
+
+float UnpaidGait::HunchTrunk(float Hunch, float Rear, float Reach, float Crumple, float Alive)
+{
+	// The shriek rears it back and the lunge throws it long: their own poses, so the hunch gives way as they come.
+	auto Share = [](float Value) { return FMath::Clamp(Value, 0.f, 1.f); };
+	return Share(Hunch) * (1.f - Share(Rear)) * (1.f - Share(Reach)) * (1.f - Share(Crumple)) * Share(Alive);
+}
+
+float UnpaidGait::HunchArm(float Trunk, float Spread, float Rake)
+{
+	// Flung wide (a shriek, a stagger) or raking, the arm is that move's.
+	return FMath::Clamp(Trunk, 0.f, 1.f) * (1.f - FMath::Clamp(Spread, 0.f, 1.f)) * (1.f - FMath::Clamp(FMath::Abs(Rake), 0.f, 1.f));
+}
+
+float UnpaidGait::HuntArmShare(float Hunch, float HuntArms)
+{
+	return FMath::Lerp(1.f, FMath::Clamp(HuntArms, 0.f, 1.f), FMath::Clamp(Hunch, 0.f, 1.f));
+}
+
+UnpaidGait::FArmHunch UnpaidGait::ArmHunch(const FHunch& Numbers, float Share, float Hunt)
+{
+	FArmHunch Arm;
+	const float At = FMath::Clamp(Share, 0.f, 1.f);
+	// The trunk's curl carries the arm forward with it; swung back by most of that, it hangs plumb under the rolled shoulders.
+	const float Hunting = FMath::Clamp(Hunt, 0.f, 1.f);
+	Arm.Swing = At * Numbers.ArmHang * (Numbers.Spine + Numbers.Chest + Hunting * Numbers.HuntCurl);
+	Arm.Out = At * Numbers.ArmOut;
+	Arm.Bend = At * (Numbers.Elbow + Hunting * Numbers.HuntElbow);
+	Arm.Curl = At * Numbers.Curl;
+	return Arm;
 }
 
 void FUnpaidGaitState::Reset()

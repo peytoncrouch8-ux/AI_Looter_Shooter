@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Creatures/UnpaidGaitRules.h"
 
 /**
  * The numbers of the Unpaid's 2026-10-31 round (the user: "their animations need improved upon", "their AI is lackluster", the
@@ -17,6 +18,18 @@ struct AI_LOOTER_SHOOTER_API FUnpaidLifeTuning
 	/** Looter.Unpaid.Gait.Lurch / .Tilt: how much of the lurch and of the head's tilt it shows (1 as designed, 0 none). */
 	float LurchScale = 1.f;
 	float TiltScale = 1.f;
+
+	// --- Its idle and drift pose (Looter.Unpaid.Idle.*, 2026-11-03, the audit's change 11): the plain Unpaid only ---
+	/**
+	 * Looter.Unpaid.Idle.Hunched: 1 a hunched drift (shoulders rolled forward, elbows bent, hands low at its hips, head carried
+	 * low, the shroud trailing; arms raised only by the moves that raise them); 0 the arms-out float as before. The numbers:
+	 * .Spine .Chest .Neck .HeadUp .ArmHang .ArmOut .Elbow .Curl .HuntArms .HuntElbow .HuntCurl .ShroudTrail (UnpaidGait::FHunch).
+	 */
+	// 0 for now (2026-11-03 night): with it on, the lunge's throw pressed an upper arm 5.3 cm into spine_01 through the hunched
+	// hang (Looter.Creatures.Anim.UnpaidArms holds 4.5), and the hunting hands came only 3 cm forward; it needs an eye in PIE
+	// (Looter.Unpaid.Idle.Hunched 1 shows it live) before it is the default.
+	int32 Hunched = 0;
+	UnpaidGait::FHunch Idle;
 
 	// --- The rise (Looter.Unpaid.Rise.*): an ambush's dead (RiseAmbush) ---
 	/** Looter.Unpaid.Rise.Radius: round the player this far (cm) when their ambush gives no distance of its own. */

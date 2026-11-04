@@ -29,6 +29,8 @@ enum class EUnpaidTally : uint8
 	/** An ambush's dead rising round the player, and the pack punishing an opening (2026-10-31). */
 	Rise,
 	Opening,
+	/** Any blink the one gate let go (2026-11-03): phase-steps, flanks, phase-strikes, fade-backs, the Phasing trait's. */
+	Blink,
 	Count
 };
 
@@ -40,8 +42,9 @@ inline constexpr int32 NumUnpaidTallies = static_cast<int32>(EUnpaidTally::Count
  * (FUnpaidMoveBoard: two never commit the same move at once), each pack's last failed-lunge shriek at each player (one a
  * Looter.Unpaid.Shriek.PackGap), the move tally (Looter.Unpaid.Moves), and the shriek's show: a small pool of its coal's
  * lights and the ground wave's lifted dust, grass and leaves as the ring rolls out; since 2026-10-31 each player's burst of the
- * dead rising round them (FUnpaidRiseBurst) and their opening's gate (FUnpaidOpeningGate: one punish a gap). Ticks only while a
- * wave rolls or a light fades. Played worlds and the editor preview worlds the tests build (no lights there).
+ * dead rising round them (FUnpaidRiseBurst) and their opening's gate (FUnpaidOpeningGate: one punish a gap); since 2026-11-03
+ * the one blink gate every Unpaid blink at a player asks (FUnpaidBlinkGate: its budget and gap; MayLandAt: where it may land).
+ * Ticks only while a wave rolls or a light fades. Played worlds and the editor preview worlds the tests build (no lights there).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UUnpaidPackSubsystem : public UTickableWorldSubsystem
@@ -72,6 +75,20 @@ public:
 	FUnpaidRiseBurst& BurstFor(const APawn* Target);
 	/** Target's opening at the pack's last look, and its punish's gate. */
 	FUnpaidOpeningGate& OpeningFor(const APawn& Target);
+
+	// --- The one blink gate (UnpaidPackSubsystemBlinks.cpp; 2026-11-03, the audit's change 11) ---
+
+	/**
+	 * Whether Id may blink at Target now (Looter.Unpaid.BlinkGap, .BlinksPerMinute; bOwed: a press step owed goes first).
+	 * Each blink's own reasons to go are its own; only this permission is shared. Nothing is counted until NoteBlink.
+	 */
+	bool MayBlink(const APawn& Target, uint32 Id, bool bOwed);
+	/** Id blinked at Target now: counted against the gap and the minute (and the tally's Blink). */
+	void NoteBlink(const APawn& Target, uint32 Id);
+	/** Target's blinks in the minute before now. */
+	int32 BlinksInMinute(const APawn& Target) const;
+	/** Whether a blink may land at Feet round Target: never behind their back nearer than the rule's; a flank's (bFlank) within its arc of their view. */
+	static bool MayLandAt(const APawn& Target, const FVector& Feet, bool bFlank);
 
 	// --- The tally ---
 
@@ -140,6 +157,8 @@ private:
 	};
 
 	double Now() const;
+	/** Target's blink gate, made on first use. */
+	FUnpaidBlinkGate& GateFor(const APawn& Target);
 	/** Moves the waves on, throwing their front's pieces (UnpaidPackSubsystemShow.cpp). */
 	void AdvanceWaves(float DeltaSeconds);
 	/** Fades the lights given back. */
@@ -151,6 +170,8 @@ private:
 	/** Each player's rising burst and opening gate, and the burst of rises with no player. */
 	TMap<TWeakObjectPtr<const APawn>, FUnpaidRiseBurst> Bursts;
 	TMap<TWeakObjectPtr<const APawn>, FUnpaidOpeningGate> Openings;
+	/** Each player's blink gate (players gone are dropped as a new one is made). */
+	TMap<TWeakObjectPtr<const APawn>, FUnpaidBlinkGate> Blinks;
 	FUnpaidRiseBurst Unaimed;
 	int32 Tally[NumUnpaidTallies] = {};
 	int32 Landed[NumUnpaidTallies] = {};

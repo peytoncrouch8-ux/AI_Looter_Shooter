@@ -3,7 +3,8 @@
 // it left (its sound, soul-light, a ring of sparks, an after-image), a streak of light to where it's going, a moment gone
 // while light gathers where it'll be (the tell to turn the sights there), then a shimmer as it's back. Where it may land is
 // the Unpaid phase-step's way: ground it can stand on near its own height, room for its body, no wall between, its
-// hitter in sight, no safe zone, inside the playable area and its hunting ground.
+// hitter in sight, no safe zone, inside the playable area and its hunting ground. An Unpaid's (not a boss's) asks the pack's
+// one blink gate at its hitter too (2026-11-03: it asked none, UUnpaidPackSubsystem::MayBlink, MayLandAt, NoteBlink).
 
 #include "Creatures/CreatureTraitComponent.h"
 #include "AI_Looter_Shooter.h"
@@ -15,6 +16,7 @@
 #include "Creatures/CreatureTraitSettings.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Creatures/UnpaidPackSubsystem.h"
 #include "Weapons/WeaponFX.h"
 #include "World/PlayableArea.h"
 #include "World/WorldQueries.h"
@@ -143,12 +145,19 @@ void UCreatureTraitComponent::TickPhasing(float DeltaSeconds, FWeaponFX* Effects
 		}
 		return;
 	}
+	// An Unpaid's blink asks its pack's one gate at its hitter, as every Unpaid blink does (refused: as if nowhere to go).
+	const APawn* Hitter = Unpaid && !Unpaid->IsBossCreature() ? FindAttacker() : nullptr;
+	UUnpaidPackSubsystem* Packs = Hitter ? UUnpaidPackSubsystem::Get(this) : nullptr;
 	FVector To;
-	if (!FindBlinkSpot(To))
+	if ((Packs && !Packs->MayBlink(*Hitter, Creature->GetUniqueID(), false)) || !FindBlinkSpot(To))
 	{
 		// Nowhere to go from here: it looks again in a moment (the hits still count while they're recent).
 		SinceBlink = FMath::Max(Tuning.Cooldown - Tuning.RetrySeconds, 0.f);
 		return;
+	}
+	if (Packs)
+	{
+		Packs->NoteBlink(*Hitter, Creature->GetUniqueID());
 	}
 	StartBlink(To);
 }
@@ -209,8 +218,10 @@ bool UCreatureTraitComponent::FindBlinkSpot(FVector& OutFeet) const
 		{
 			continue;
 		}
-		// Not onto its hitter, and (for the tests' sake as much as play's) never off its ground or into a safe zone.
+		// Not onto its hitter (an Unpaid's never behind their back near them: the one gate's rule), and (for the tests' sake
+		// as much as play's) never off its ground or into a safe zone.
 		if ((Attacker && FVector::Dist2D(Ground, Attacker->GetActorLocation()) < Tuning.NearestToAttacker)
+			|| (Attacker && Cast<AUnpaidCreature>(Creature) && !UUnpaidPackSubsystem::MayLandAt(*Attacker, Ground, false))
 			|| (Encounters && Encounters->IsInSafeZone(Ground)) || (Playable && !Playable->Contains(Ground))
 			|| !Creature->IsOnItsGround(Ground))
 		{

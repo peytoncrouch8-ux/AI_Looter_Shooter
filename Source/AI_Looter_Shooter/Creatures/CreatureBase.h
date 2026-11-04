@@ -737,6 +737,8 @@ private:
 	int32 TouchedLives = 0;
 	/** What the class or the level gave it, which ranks multiply (CaptureBaseStats). */
 	bool bBaseCaptured = false;
+	/** A runtime spawn's HealthScale (SpawnAtRuntime), so CaptureBaseStats scales the kind's settings number the same. */
+	float RuntimeHealthScale = 1.f;
 	float BaseMaxHealth = 100.f;
 	float BaseAttackDamage = 0.f;
 	int32 BaseXPReward = 0;

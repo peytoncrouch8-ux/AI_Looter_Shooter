@@ -14,7 +14,7 @@
 #include "HAL/IConsoleManager.h"
 
 // UUnpaidPackSubsystem: the pack's board, its shriek gate and the move tally (2026-10-29). The show (lights, the ground wave)
-// is UnpaidPackSubsystemShow.cpp.
+// is UnpaidPackSubsystemShow.cpp; the one blink gate (2026-11-03) UnpaidPackSubsystemBlinks.cpp.
 
 namespace
 {
@@ -38,6 +38,7 @@ namespace
 		case EUnpaidTally::ShriekInterrupted: return TEXT("ShriekInterrupted");
 		case EUnpaidTally::Rise: return TEXT("Rise");
 		case EUnpaidTally::Opening: return TEXT("Opening");
+		case EUnpaidTally::Blink: return TEXT("Blink");
 		default: return TEXT("?");
 		}
 	}
@@ -49,9 +50,9 @@ namespace
 	}
 
 #if !UE_BUILD_SHIPPING
-	/** Looter.Unpaid.Moves [reset]: the move mix since the last reset (the brief's play-check: counts per move over a fight). */
+	/** Looter.Unpaid.Moves [reset]: the move mix since the last reset (the brief's play-check: counts per move over a fight; Blink: every blink the one gate let go). */
 	FAutoConsoleCommandWithWorldAndArgs MovesCommand(TEXT("Looter.Unpaid.Moves"),
-		TEXT("Prints the Unpaid's move mix since its last reset (each move, how many landed, flanks, cinders, rallies, shrieks, interrupts); 'reset' starts it again."),
+		TEXT("Prints the Unpaid's move mix since its last reset (each move, how many landed, flanks, cinders, rallies, shrieks, interrupts, rises, openings, blinks); 'reset' starts it again."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			UUnpaidPackSubsystem* Packs = UUnpaidPackSubsystem::Get(World);

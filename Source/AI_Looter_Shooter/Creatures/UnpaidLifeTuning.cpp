@@ -1,8 +1,8 @@
 #include "Creatures/UnpaidLifeTuning.h"
 #include "HAL/IConsoleManager.h"
 
-// The Looter.Unpaid.Gait.*, .Rise.* and .Opening.* cvars of the Unpaid's 2026-10-31 round. Their defaults are
-// FUnpaidLifeTuning's own field values, so the tests (a default-made tuning) and a fresh game agree.
+// The Looter.Unpaid.Gait.*, .Rise.* and .Opening.* cvars of the Unpaid's 2026-10-31 round, and its idle's .Idle.* (2026-11-03).
+// Their defaults are FUnpaidLifeTuning's own field values, so the tests (a default-made tuning) and a fresh game agree.
 
 namespace
 {
@@ -15,6 +15,34 @@ namespace
 		TEXT("How much of their lurch the Unpaid show (1 as designed, 0 none)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarTilt(TEXT("Looter.Unpaid.Gait.Tilt"), LifeDefaults.TiltScale,
 		TEXT("How much of their heads' tilt the Unpaid show (1 as designed, 0 none)."), ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarIdleHunched(TEXT("Looter.Unpaid.Idle.Hunched"), LifeDefaults.Hunched,
+		TEXT("1: the Unpaid drift hunched (shoulders forward, elbows bent, hands low at the hips, head low, shroud trailing); 0: the arms-out float as before."),
+		ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleSpine(TEXT("Looter.Unpaid.Idle.Spine"), LifeDefaults.Idle.Spine,
+		TEXT("Hunched, the Unpaid's waist curls forward this far (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleChest(TEXT("Looter.Unpaid.Idle.Chest"), LifeDefaults.Idle.Chest,
+		TEXT("Hunched, its chest rolls its shoulders forward this far over the waist (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleNeck(TEXT("Looter.Unpaid.Idle.Neck"), LifeDefaults.Idle.Neck,
+		TEXT("Hunched, its neck carries the head low and forward this far (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleHeadUp(TEXT("Looter.Unpaid.Idle.HeadUp"), LifeDefaults.Idle.HeadUp,
+		TEXT("Hunched, its face lifts back toward its prey this far (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleArmHang(TEXT("Looter.Unpaid.Idle.ArmHang"), LifeDefaults.Idle.ArmHang,
+		TEXT("Hunched, its arms swing back this share of the waist's and chest's curl (1: plumb under the shoulders)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleArmOut(TEXT("Looter.Unpaid.Idle.ArmOut"), LifeDefaults.Idle.ArmOut,
+		TEXT("Hunched, its arms hang this far out from the body (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleElbow(TEXT("Looter.Unpaid.Idle.Elbow"), LifeDefaults.Idle.Elbow,
+		TEXT("Hunched, its elbows bend this much more (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleCurl(TEXT("Looter.Unpaid.Idle.Curl"), LifeDefaults.Idle.Curl,
+		TEXT("Hunched, its fingers curl this much more (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleHuntArms(TEXT("Looter.Unpaid.Idle.HuntArms"), LifeDefaults.Idle.HuntArms,
+		TEXT("Hunched and hunting, the share of the old arms-up clawing kept (1: as before)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleHuntElbow(TEXT("Looter.Unpaid.Idle.HuntElbow"), LifeDefaults.Idle.HuntElbow,
+		TEXT("Hunched and hunting, its elbows bend this much more again (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleHuntCurl(TEXT("Looter.Unpaid.Idle.HuntCurl"), LifeDefaults.Idle.HuntCurl,
+		TEXT("Hunched and hunting, its chest curls this much more (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarIdleShroudTrail(TEXT("Looter.Unpaid.Idle.ShroudTrail"), LifeDefaults.Idle.ShroudTrail,
+		TEXT("Hunched, its shroud trails back this far off its hang (degrees)."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarRiseRadius(TEXT("Looter.Unpaid.Rise.Radius"), LifeDefaults.RiseRadius,
 		TEXT("An ambush's dead rise round the player this far (cm) when the ambush gives no distance of its own."), ECVF_Default);
@@ -68,6 +96,19 @@ FUnpaidLifeTuning FUnpaidLifeTuning::Live()
 	Numbers.Gait = CVarGait.GetValueOnGameThread();
 	Numbers.LurchScale = Positive(CVarLurch);
 	Numbers.TiltScale = Positive(CVarTilt);
+	Numbers.Hunched = CVarIdleHunched.GetValueOnGameThread();
+	Numbers.Idle.Spine = CVarIdleSpine.GetValueOnGameThread();
+	Numbers.Idle.Chest = CVarIdleChest.GetValueOnGameThread();
+	Numbers.Idle.Neck = CVarIdleNeck.GetValueOnGameThread();
+	Numbers.Idle.HeadUp = CVarIdleHeadUp.GetValueOnGameThread();
+	Numbers.Idle.ArmHang = FMath::Clamp(CVarIdleArmHang.GetValueOnGameThread(), 0.f, 1.5f);
+	Numbers.Idle.ArmOut = CVarIdleArmOut.GetValueOnGameThread();
+	Numbers.Idle.Elbow = CVarIdleElbow.GetValueOnGameThread();
+	Numbers.Idle.Curl = CVarIdleCurl.GetValueOnGameThread();
+	Numbers.Idle.HuntArms = Share(CVarIdleHuntArms);
+	Numbers.Idle.HuntElbow = CVarIdleHuntElbow.GetValueOnGameThread();
+	Numbers.Idle.HuntCurl = CVarIdleHuntCurl.GetValueOnGameThread();
+	Numbers.Idle.ShroudTrail = FMath::Clamp(CVarIdleShroudTrail.GetValueOnGameThread(), 0.f, 30.f);
 	Numbers.RiseRadius = FMath::Max(CVarRiseRadius.GetValueOnGameThread(), 150.f);
 	Numbers.RiseFirst = Positive(CVarRiseFirst);
 	Numbers.RiseGap = Positive(CVarRiseGap);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Creatures/UnpaidFightRules.h"
 
 /**
  * The Unpaid's fighting kit (round 2, 2026-10-27; the user: "Unpaid have terrible ai, need better attacks and targeting
@@ -17,7 +18,8 @@
  *    pack comes on at once (FrenzyTokens turns, FrenzyChase pace).
  *  - Howl: the first of a pack to see the player howls, heard far off.
  *  - A pack with a head (FIGHTS.md lane 5, 2026-10-29): a led pack's rally is its leader's alone; its fall makes the pack's
- *    coals gutter. A hurt Basic fades back a moment (FadeBack). A camping player is punished (CampPunish).
+ *    coals gutter (the one flee rule since 2026-11-03; the fade-back is off, FadeBack). A camping player is punished (CampPunish).
+ *  - Every blink at one player asks one gate (BlinkGap, BlinksPerMinute, Landing; 2026-11-03).
  */
 struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 {
@@ -80,10 +82,16 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	 */
 	int32 Sight = 1;
 	/**
-	 * Looter.Unpaid.PackStepGap: at most one phase-step or flank at one player every this many seconds, across all the Unpaid
-	 * (an owed press step first); 0: no gap. DEMO 2026-10-28: at 0.8 a busy fight blinked like a metronome (~70 a minute).
+	 * The one blink gate (2026-11-03, the audit's change 11; FUnpaidBlinkGate): every blink at one player (phase-step, press
+	 * step, step to sight, flank, phase-strike, fade-back, the Phasing trait), across all the Unpaid after them, asks it.
+	 * Looter.Unpaid.BlinkGap: never two within this many seconds (was Looter.Unpaid.PackStepGap 1.2, phase-steps and flanks only:
+	 * ~50 a minute; DEMO 2026-10-28 at 0.8: ~70). Looter.Unpaid.BlinksPerMinute: never more than this in any minute (0: no
+	 * budget). Both 0: the gate is off.
 	 */
-	float PackStepGap = 1.2f;
+	float BlinkGap = 2.f;
+	int32 BlinksPerMinute = 15;
+	/** Looter.Unpaid.BlinkNearestBehind, .FlankArcMin, .FlankArcMax: where any blink may land round its player (UnpaidBlinkRules::MayLand). */
+	FUnpaidBlinkLanding Landing;
 	/** Looter.Unpaid.StepJitter: spawning or noticing a target, an Unpaid's next phase-step waits up to this much longer (s, rolled each), so a pack doesn't blink as one. */
 	float StepJitter = 1.5f;
 	/**
@@ -140,7 +148,8 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	// --- The flank ---
 	/**
 	 * Looter.Unpaid.FlankChance: waiting on the ring in front of the player's eyes, its next turn opens with a flank with this
-	 * chance (rolled once a wait). DEMO 2026-10-28 (flanks working at last): at 0.6 a two-wave yard fight saw 10-13 flanks in
+	 * chance (rolled once a wait; since 2026-11-03 it lands within Landing's arc of their view). DEMO 2026-10-28 (flanks
+	 * working at last): at 0.6 a two-wave yard fight saw 10-13 flanks in
 	 * under a minute, one behind the player every ~5 s on top of the phase-steps; 0.4 keeps it a special move (6).
 	 */
 	float FlankChance = 0.4f;
@@ -195,8 +204,11 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	float TellFlare = 0.6f;
 
 	// --- The fade-back (FIGHTS.md lane 5, 2026-10-29: a hurt one slips out of the fight a moment, then comes back) ---
-	/** Looter.Unpaid.FadeBack: the chance (rolled once a life) a hurt Basic fades back after its turn; 0: never. */
-	float FadeBack = 0.5f;
+	/**
+	 * Looter.Unpaid.FadeBack: the chance (rolled once a life) a hurt Basic fades back after its turn; 0: never. 0 since
+	 * 2026-11-03 (the audit's change 11: one flee rule, its pack leader's fall; it was 0.5): set 0.5 for the A/B.
+	 */
+	float FadeBack = 0.f;
 	/** Looter.Unpaid.FadeBackBelow: hurt under this share of its health. */
 	float FadeBackBelow = 0.35f;
 	/** Looter.Unpaid.FadeBackNear / FadeBackFar: it comes back this far from its target (cm at size 1): the ring's outer edge (480). */
@@ -221,6 +233,8 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 
 	/** The cvars' values now (read at each ask, so a change in PIE counts at once). */
 	static FUnpaidFightTuning Live();
+	/** The landing rule's three alone, now: asked for every spot a blink tries. */
+	static FUnpaidBlinkLanding LiveLanding();
 	/** Looter.Unpaid.Kit alone, now: asked many times a frame. */
 	static bool IsKitOn();
 };

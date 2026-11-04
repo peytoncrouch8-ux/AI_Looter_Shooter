@@ -3,14 +3,15 @@
 // can stand on, room for its body, its target in sight from there, no safe zone and nothing past the playable area. Its
 // material does the fading (Phase, in the mesh's custom primitive data): the solid body goes first and the shroud's
 // ends last, and coming back the ends come first. Out of its target's sight and too near to gain ground, it may step to
-// where it sees them instead (UnpaidCreatureSight.cpp); one step or flank at a player at a time across the pack (MayPackStep).
+// where it sees them instead (UnpaidCreatureSight.cpp). Every blink asks the one gate at its target (MayPackStep, counted
+// here at StartStepTo) and lands only where the gate's rule lets it (CanStandAt: never behind their back near them).
 
 #include "Creatures/UnpaidCreature.h"
 #include "Creatures/UnpaidFightTuning.h"
 #include "Creatures/UnpaidLifeWork.h"
+#include "Creatures/UnpaidPackSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/EncounterSubsystem.h"
-#include "Creatures/FightDirectorSubsystem.h"
 #include "World/PlayableArea.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
@@ -63,7 +64,7 @@ void AUnpaidCreature::TickPhaseStep(float DeltaSeconds)
 		Kit.SinceLastStep = FMath::Min(Kit.SinceLastStep + DeltaSeconds, 1000.f);
 		Kit.RetryIn = FMath::Max(Kit.RetryIn - DeltaSeconds, 0.f);
 		WatchProgress(DeltaSeconds);
-		// One blink at a player at a time across the pack (the gate asked last: the step is wanted).
+		// The one blink gate at its target (asked last: the step is wanted).
 		if (WantsToStep() && MayPackStep(*GetTarget()))
 		{
 			StartPhaseStep();
@@ -194,10 +195,11 @@ FString AUnpaidCreature::DescribePhaseRefusals() const
 	const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 	const float TheirFeet = FeetZOf(*Victim);
 	// Each candidate's first refusal: 0 off its ground, 1 no ground, 2 steep or an obstacle's top, 3 no room, 4 no sight,
-	// 5 safe zone or past the area, 6 another level (a step to sight: neither its own level nor its target's).
+	// 5 safe zone or past the area, 6 behind them too near (the blink gate's rule), 7 another level (a step to sight: neither
+	// its own level nor its target's).
 	auto Count = [&](const TArray<FVector>& Candidates, bool bToSight)
 	{
-		int32 Counts[7] = {};
+		int32 Counts[8] = {};
 		int32 Fine = 0;
 		for (const FVector& Candidate : Candidates)
 		{
@@ -210,7 +212,7 @@ FString AUnpaidCreature::DescribePhaseRefusals() const
 			int32 Refusal = 0;
 			if (!CanStandAt(Candidate, Ground, &Refusal, bToSight))
 			{
-				++Counts[FMath::Clamp(Refusal, 1, 5)];
+				++Counts[FMath::Clamp(Refusal, 1, 6)];
 				continue;
 			}
 			const bool bLevel = bToSight
@@ -218,13 +220,13 @@ FString AUnpaidCreature::DescribePhaseRefusals() const
 				: FMath::Abs(Ground.Z - Feet.Z) <= PhaseStep.MaxRise;
 			if (!bLevel)
 			{
-				++Counts[6];
+				++Counts[7];
 				continue;
 			}
 			++Fine;
 		}
-		return FString::Printf(TEXT("%d spots: fine %d, off ground %d, no ground %d, steep/obstacle %d, no room %d, no sight %d, safe/area %d, other level %d"),
-			Candidates.Num(), Fine, Counts[0], Counts[1], Counts[2], Counts[3], Counts[4], Counts[5], Counts[6]);
+		return FString::Printf(TEXT("%d spots: fine %d, off ground %d, no ground %d, steep/obstacle %d, no room %d, no sight %d, safe/area %d, behind them %d, other level %d"),
+			Candidates.Num(), Fine, Counts[0], Counts[1], Counts[2], Counts[3], Counts[4], Counts[5], Counts[6], Counts[7]);
 	};
 	const FString Gaining = Count(UnpaidRules::PhaseCandidates(PhaseStep, Feet, Victim->GetActorLocation()), false);
 	const FString ToSight = Count(UnpaidRules::SightCandidates(PhaseStep, Feet, Victim->GetActorLocation(), TheirFeet), true);
@@ -258,11 +260,12 @@ void AUnpaidCreature::StartStepTo(const FVector& Feet)
 	Kit.PhaseState = EPhaseState::Out;
 	Kit.PhaseTime = 0.f;
 	GetCharacterMovement()->StopMovementImmediately();
-	// Counted at its target's step gate (a phase-step or a flank alike): the next of the pack waits Looter.Unpaid.PackStepGap.
-	UFightDirectorSubsystem* Director = !IsBossCreature() ? UFightDirectorSubsystem::Get(this) : nullptr;
-	if (const APawn* Victim = GetTarget(); Director && Victim)
+	// Counted at its target's one blink gate (every blink comes here): the pack's next waits Looter.Unpaid.BlinkGap, and the
+	// minute's budget is one less. A boss's steps are its own fight's.
+	UUnpaidPackSubsystem* Packs = !IsBossCreature() ? UUnpaidPackSubsystem::Get(this) : nullptr;
+	if (const APawn* Victim = GetTarget(); Packs && Victim)
 	{
-		Director->NoteStep(*this, *Victim);
+		Packs->NoteBlink(*Victim, GetUniqueID());
 	}
 }
 
@@ -305,6 +308,14 @@ bool AUnpaidCreature::CanStandAt(const FVector& Candidate, FVector& OutGround, i
 	const float Scale = GetSizeScale();
 	const FVector TargetEye = Victim->GetActorLocation() + FVector(0.f, 0.f, 50.f);
 	const float Reach = PhaseStep.MaxRise + 50.f;
+
+	// A blink (not a rise: For) lands only where the one gate's rule lets it: never behind their back near them. First, as it
+	// costs no trace.
+	if (!For && !IsBossCreature() && !UUnpaidPackSubsystem::MayLandAt(*Victim, Candidate, false))
+	{
+		Refusal = 6;
+		return false;
+	}
 
 	// World-static ground only (terrain and solid props, never volumes); the room and sight checks see the trees and rocks
 	// too, and never itself or its target.

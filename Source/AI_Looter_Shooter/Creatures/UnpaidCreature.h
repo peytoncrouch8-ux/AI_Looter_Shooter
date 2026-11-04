@@ -38,22 +38,20 @@ namespace UnpaidLook
  *  - The coal is its critical spot, found by the shot's line as the slime's core is (UnpaidRules::IsCoalShot): a shot
  *    that lands on its chest from the front (within CoalViewAngle) and whose line passes within CoalCritRadius of the
  *    coal is critical. From behind, or through an arm, a hand or the head in the way, it isn't.
- *  - It attacks with a shriek and a lunge (UnpaidCreatureAttack.cpp): the shriek is the wind-up (jaw dropped, arms
- *    spread), then it flies at its target and the strike lands if it reaches them. Back off and the lunge falls short.
+ *  - Its lunge (UnpaidCreatureAttack.cpp): a shriek's wind-up (jaw dropped, arms spread), then a flight that may fall short.
  *  - Its fighting kit (UnpaidCreatureMoves.cpp, Looter.Unpaid.*, round 2): the lunge leads its target, close in it rakes
  *    twice, on the ring it throws cinders and screams its pack on (a led pack: its leader only), given its turn in front of
- *    the player's eyes it fades round to their side, hurt it fades back a moment (UnpaidCreatureFadeBack.cpp). Kinds on its
- *    rig with attacks of their own (the miners, the Bell-Ringer, Abel) and a boss's adds keep the old way (HasFightKit).
- *    Varied (2026-10-29, Looter.Unpaid.Variety): each turn picks its move by range and situation (feints, phase-strikes, low
- *    swipes, hang-backs too), and a missed lunge may turn into a shriek (UnpaidCreatureVariety.cpp, UnpaidCreatureShriek.cpp).
- *  - Stuck, or fallen far behind, it phase-steps (UnpaidCreaturePhase.cpp): fades out and comes back 3 to 5 m nearer its
- *    target, never into a wall, off its level of ground or off its hunting ground.
- *  - Its rank shows in its coal and ember edge (custom primitive data, UnpaidLook): dull red Basic, the rank's tag color
- *    above it. Restless and up lunge faster; Gravebound and up shriek a ring that slows the player (AShriekRing).
- *  - It wears one of three sets of clothes, hat and all: the model's own (Ghost_A) or MI_Ghost_B and C (OtherClothes).
+ *    the player's eyes it fades round to the edge of their view; its leader's fall makes it falter (its one flee rule since
+ *    2026-11-03; the fade-back, UnpaidCreatureFadeBack.cpp, is off). Kinds on its rig with attacks of their own (the miners,
+ *    the Bell-Ringer, Abel) and a boss's adds keep the old way (HasFightKit). Varied (2026-10-29, Looter.Unpaid.Variety): each
+ *    turn picks its move by range and situation, and a missed lunge may turn into a shriek (UnpaidCreatureVariety.cpp).
+ *  - Stuck, or fallen far behind, it phase-steps (UnpaidCreaturePhase.cpp): 3 to 5 m nearer its target, never into a wall,
+ *    off its ground; every blink at a player asks one gate (UUnpaidPackSubsystem::MayBlink, 2026-11-03).
+ *  - Its rank shows in its coal and ember edge (UnpaidLook): dull red Basic, the rank's tag color above it; Restless and up
+ *    lunge faster, Gravebound and up shriek a slowing ring (AShriekRing). Its clothes: Ghost_A or OtherClothes (MI_Ghost_B, C).
  *
  * The body is SK_Unpaid (Art/Models/Creatures/Unpaid.py), 33 bones, all posed by code (UnpaidCreatureRig.cpp) over the rest pose
- * (the idle hang): it bobs, leans into its drift, looks at its target; the shroud's chains (FShroudChain) trail it, lifting off
+ * (the idle hang): it bobs, drifts hunched, looks at its target; the shroud's chains (FShroudChain) trail it, lifting off
  * rising ground. Its arms (UnpaidCreatureArms.cpp) drift, reach, claw, fling wide for the shriek, lag on springs and never pass
  * into its torso (the model's hit hulls). Without the model it hunts unseen, its coal at CoalPointWithoutRig.
  */
@@ -130,8 +128,8 @@ public:
 	/** Throws a cinder at its target now, led at where they'll be: the end of a cinder's tell. True when one left its hand. */
 	bool ThrowCinder();
 	/**
-	 * Hurt, at its turn's end: fades back out of the fight to the ring's outer edge, waits, and returns (Looter.Unpaid.FadeBack,
-	 * once a life; UnpaidCreatureFadeBack.cpp). bRoll false skips its chance (the tests). True when it went.
+	 * Hurt, at its turn's end: fades back out of the fight to the ring's outer edge, waits, and returns (once a life; only with
+	 * Looter.Unpaid.FadeBack above 0, its default 0 since 2026-11-03). bRoll false skips its chance (the tests). True when it went.
 	 */
 	bool TryFadeBack(bool bRoll = true);
 	bool IsFadingBack() const { return Kit.Fade != EUnpaidFadeBack::None; }
@@ -363,12 +361,13 @@ private:
 	/** Where a step lands now: the rules' first spot the level allows (ground, room, sight of its target, safe zones). */
 	bool FindPhaseSpot(FVector& OutFeet) const;
 	/**
-	 * Whether it may come back at Candidate (ground, room, target in sight, no safe zone; OutGround). bTheirFloorToo: their floor
-	 * counts, Obstacle or not. For: whose sight it needs (none: its target's; an ambush's rise has no target yet).
+	 * Whether it may come back at Candidate (the blink gate's landing rule, ground, room, target in sight, no safe zone;
+	 * OutGround). bTheirFloorToo: their floor counts, Obstacle or not. For: whose sight it needs (none: its target's, a blink;
+	 * an ambush's rise has no target yet and is no blink).
 	 */
 	bool CanStandAt(const FVector& Candidate, FVector& OutGround, int32* OutRefusal = nullptr, bool bTheirFloorToo = false,
 		const APawn* For = nullptr) const;
-	/** Starts a step to Feet now: it fades out here and comes back there (counted at its target's step gate). */
+	/** Starts a step to Feet now: it fades out here and comes back there (counted at its target's one blink gate). */
 	void StartStepTo(const FVector& Feet);
 
 	// --- Sight and the pack's steps (UnpaidCreatureSight.cpp) ---
@@ -376,7 +375,7 @@ private:
 	void TickSight(float DeltaSeconds);
 	/** With its kit, out of its target's sight: a turn it holds is let go (true), and it asks for none until it sees them (a blind spell). */
 	bool TickBlindTurn(UFightDirectorSubsystem& Director, const APawn& Victim);
-	/** Whether its target's step gate lets it phase-step or flank now (Looter.Unpaid.PackStepGap; an owed press step first). */
+	/** Whether the one blink gate at its target lets it blink now (UUnpaidPackSubsystem::MayBlink; an owed press step first). */
 	bool MayPackStep(const APawn& Victim);
 	/** Its kit's sight rule is on (Looter.Unpaid.Sight). */
 	bool NeedsSight() const;

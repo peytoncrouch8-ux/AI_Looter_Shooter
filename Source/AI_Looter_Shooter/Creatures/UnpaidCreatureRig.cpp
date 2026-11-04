@@ -407,6 +407,8 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		const double Rise = FVector::DotProduct(Normal, Facing.Vector());
 		WantedLift = FMath::Clamp(static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Rise, Normal.Z))), 0.f, MaxShroudLift);
 	}
+	// Hunched, its shroud trails back off its hang besides (Looter.Unpaid.Idle.ShroudTrail; UnpaidCreatureGait.cpp eases it).
+	WantedLift += Kit.Gait.Trail;
 	ShroudLift = Dt > 0.f ? FMath::FInterpTo(ShroudLift, WantedLift, Dt, 4.f) : WantedLift;
 
 	// The shroud and its strips trail the drift, out of phase with each other, and snap straight with the lunge; its

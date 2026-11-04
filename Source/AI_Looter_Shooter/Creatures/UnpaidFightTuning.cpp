@@ -38,8 +38,16 @@ namespace
 		TEXT("1: an Unpaid waiting its turn may phase-step when it has stood stalled out of its target's sight, or pressed with them past its edge."), ECVF_Default);
 	TAutoConsoleVariable<int32> CVarSight(TEXT("Looter.Unpaid.Sight"), KitDefaults.Sight,
 		TEXT("1: an Unpaid starts no melee turn and flies no lunge without a clear line at its target; out of sight it lets its turn go and may step to where it sees them."), ECVF_Default);
-	TAutoConsoleVariable<float> CVarPackStepGap(TEXT("Looter.Unpaid.PackStepGap"), KitDefaults.PackStepGap,
-		TEXT("At most one Unpaid phase-step or flank at one player every this many seconds (an owed press step first); 0: no gap."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarBlinkGap(TEXT("Looter.Unpaid.BlinkGap"), KitDefaults.BlinkGap,
+		TEXT("Never two Unpaid blinks (phase-steps, flanks, phase-strikes, fade-backs, the Phasing trait) at one player within this many seconds (an owed press step first); 0: no gap."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarBlinksPerMinute(TEXT("Looter.Unpaid.BlinksPerMinute"), KitDefaults.BlinksPerMinute,
+		TEXT("Never more than this many Unpaid blinks at one player in any minute, across the pack; 0: no budget."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarBlinkNearestBehind(TEXT("Looter.Unpaid.BlinkNearestBehind"), KitDefaults.Landing.NearestBehind,
+		TEXT("An Unpaid blink never lands behind the player's back (past 90 degrees off their view) nearer them than this (cm)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarFlankArcMin(TEXT("Looter.Unpaid.FlankArcMin"), KitDefaults.Landing.ArcMin,
+		TEXT("A flank or phase-strike lands at least this far round from the way the player looks (degrees)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarFlankArcMax(TEXT("Looter.Unpaid.FlankArcMax"), KitDefaults.Landing.ArcMax,
+		TEXT("...and at most this far (degrees; 180 is straight behind)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarArrivalHold(TEXT("Looter.Unpaid.ArrivalHold"), KitDefaults.ArrivalHold,
 		TEXT("After a phase-step or flank lands, no attack starts for this long (s): a beat to see it."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarArrivalHoldNear(TEXT("Looter.Unpaid.ArrivalHoldNear"), KitDefaults.ArrivalHoldNear,
@@ -135,7 +143,7 @@ namespace
 		TEXT("An Unpaid's coal flares up to this through every wind-up."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarFadeBack(TEXT("Looter.Unpaid.FadeBack"), KitDefaults.FadeBack,
-		TEXT("The chance (once a life) a hurt Basic Unpaid fades back out of the fight after its turn, waits, and returns; 0: never."), ECVF_Default);
+		TEXT("The chance (once a life) a hurt Basic Unpaid fades back out of the fight after its turn, waits, and returns; 0: never (the default since 2026-11-03: one flee rule; 0.5 before)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFadeBackBelow(TEXT("Looter.Unpaid.FadeBackBelow"), KitDefaults.FadeBackBelow,
 		TEXT("An Unpaid fades back only hurt under this share of its health."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarFadeBackNear(TEXT("Looter.Unpaid.FadeBackNear"), KitDefaults.FadeBackNear,
@@ -194,7 +202,9 @@ FUnpaidFightTuning FUnpaidFightTuning::Live()
 	Numbers.PressSeconds = Positive(CVarPressSeconds);
 	Numbers.BlindStep = CVarBlindStep.GetValueOnGameThread();
 	Numbers.Sight = CVarSight.GetValueOnGameThread();
-	Numbers.PackStepGap = Positive(CVarPackStepGap);
+	Numbers.BlinkGap = Positive(CVarBlinkGap);
+	Numbers.BlinksPerMinute = FMath::Max(CVarBlinksPerMinute.GetValueOnGameThread(), 0);
+	Numbers.Landing = LiveLanding();
 	Numbers.StepJitter = Positive(CVarStepJitter);
 	Numbers.ArrivalHold = Positive(CVarArrivalHold);
 	Numbers.RakeRange = Positive(CVarRakeRange);
@@ -248,6 +258,15 @@ FUnpaidFightTuning FUnpaidFightTuning::Live()
 	Numbers.CampCinderGap = Positive(CVarCampCinderGap);
 	Numbers.CampFlankChance = Share(CVarCampFlankChance);
 	return Numbers;
+}
+
+FUnpaidBlinkLanding FUnpaidFightTuning::LiveLanding()
+{
+	FUnpaidBlinkLanding Landing;
+	Landing.NearestBehind = Positive(CVarBlinkNearestBehind);
+	Landing.ArcMin = FMath::Clamp(CVarFlankArcMin.GetValueOnGameThread(), 0.f, 180.f);
+	Landing.ArcMax = FMath::Clamp(CVarFlankArcMax.GetValueOnGameThread(), Landing.ArcMin, 180.f);
+	return Landing;
 }
 
 FUnpaidFightTuning FUnpaidFightTuning::ForCamping(bool bCamping) const

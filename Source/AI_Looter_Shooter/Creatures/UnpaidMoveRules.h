@@ -47,7 +47,7 @@ struct AI_LOOTER_SHOOTER_API FUnpaidMoveContext
 	/** A pack-mate comes at the player from the front now (a lunge, a rake...), or from their side or behind (a phase-strike, a flank). */
 	bool bMateFront = false;
 	bool bMateSide = false;
-	/** Its pack's blink gate lets it phase-step now (Looter.Unpaid.PackStepGap). */
+	/** The one blink gate at this player lets it blink now (Looter.Unpaid.BlinkGap, .BlinksPerMinute). */
 	bool bMayBlink = true;
 	/** The player stands still or hides too long while 3+ fight them (the director's read). */
 	bool bCamping = false;

@@ -8,6 +8,7 @@
 #include "Creatures/UnpaidCreature.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidPackSubsystem.h"
 #include "Creatures/UnpaidRules.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Tests/LocomotionTestWorld.h"
@@ -18,7 +19,8 @@
 
 // The Unpaid's sight and its pack's blinks (the 2026-10-28 play-check; Creatures/UnpaidCreatureSight.cpp): no melee turn or
 // lunge through a wall, a turn it can't use let go, a blink to where it sees its target when it's too near to gain ground
-// (the chapel's nave), and one phase-step or flank at a player at a time across the pack, an owed press step first.
+// (the chapel's nave), and the pack's blinks at a player through the one gate (2026-11-03; its own tests:
+// UnpaidBlinkGateTests.cpp), each its own player's, an owed press step first.
 
 namespace
 {
@@ -190,69 +192,52 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidKitPackStepTest, "Looter.Creatures.Unpai
 
 bool FUnpaidKitPackStepTest::RunTest(const FString& Parameters)
 {
-	// The gate's rules on their own clock: one step a gap, an owed one first, its hold running out if it finds nowhere.
+	// The pack's step numbers; the one gate's own rules are Looter.Creatures.Unpaid.Blink.Gate (UnpaidBlinkGateTests.cpp).
 	const FUnpaidFightTuning Tuning;
-	TestTrue(TEXT("A gap of a second or so: a pack still presses"), Tuning.PackStepGap > 0.f && Tuning.PackStepGap <= 2.f);
+	TestTrue(TEXT("A blink gap of a second or two: a pack still presses"), Tuning.BlinkGap > 0.f && Tuning.BlinkGap <= 3.f);
 	TestTrue(TEXT("A jitter of a second or two"), Tuning.StepJitter > 0.f && Tuning.StepJitter <= 2.f);
 	TestTrue(TEXT("A beat after a blink lands, shorter than its cooldown"), Tuning.ArrivalHold > 0.2f && Tuning.ArrivalHold < 1.5f);
-	const float Gap = Tuning.PackStepGap;
-	FUnpaidStepGate Gate;
-	TestTrue(TEXT("The first may step"), Gate.MayStep(1, false, 0.0, Gap));
-	Gate.Note(1, 0.0);
-	TestFalse(TEXT("...the next not within the gap"), Gate.MayStep(2, false, Gap - 0.05, Gap));
-	TestTrue(TEXT("...but after it"), Gate.MayStep(2, false, Gap + 0.05, Gap));
-	Gate.Note(2, Gap + 0.05);
-	// An owed one asks every frame while it waits (WantsToStep), so its hold is fresh when the gap is up.
-	const double Then = Gap + 0.05;
-	TestFalse(TEXT("An owed one waits the gap too"), Gate.MayStep(3, true, Then + Gap - 0.1, Gap));
-	TestFalse(TEXT("...but, asking, goes before the rest"), Gate.MayStep(1, false, Then + Gap + 0.01, Gap));
-	TestTrue(TEXT("...its turn when the gap is up"), Gate.MayStep(3, true, Then + Gap + 0.02, Gap));
-	Gate.Note(3, Then + Gap + 0.02);
-	const double Later = Then + Gap + 0.02;
-	TestTrue(TEXT("After it, the rest again"), Gate.MayStep(1, false, Later + Gap + 0.01, Gap));
-	// One owed that asks and finds nowhere to land (it stops asking a while): its hold runs out and the rest go.
-	const double Open = Later + Gap + 0.02;
-	TestTrue(TEXT("An owed one may go"), Gate.MayStep(2, true, Open, Gap));
-	TestFalse(TEXT("...holding the opening a moment"), Gate.MayStep(1, false, Open + 0.01, Gap));
-	TestTrue(TEXT("...then, found nowhere, its hold runs out"), Gate.MayStep(1, false, Open + FUnpaidStepGate::OwedHold + 0.01, Gap));
-	TestTrue(TEXT("No gap: anyone, any time"), Gate.MayStep(4, false, Open, 0.f));
+	const float Gap = Tuning.BlinkGap;
 
 	// The step clock jittered at a new target: later by up to the jitter, never earlier, never sooner than a step just taken.
 	TestNearlyEqual(TEXT("Rolled 0: as soon as its cooldown allows"), UnpaidFightRules::JitterStepClock(1000.f, 3.f, 1.5f, 0.f), 3.f, 0.001f);
 	TestNearlyEqual(TEXT("Rolled 1: the whole jitter later"), UnpaidFightRules::JitterStepClock(1000.f, 3.f, 1.5f, 1.f), 1.5f, 0.001f);
 	TestNearlyEqual(TEXT("Just stepped: its clock as it was"), UnpaidFightRules::JitterStepClock(1.f, 3.f, 1.5f, 0.5f), 1.f, 0.001f);
 
-	// The director keeps a gate per player.
+	// The pack subsystem keeps a gate per player.
 	FSightLevel Level;
 	if (!TestTrue(TEXT("Test level made"), Level.Create()))
 	{
 		return false;
 	}
 	UWorld* World = Level.Wrapper.GetTestWorld();
-	UFightDirectorSubsystem* Director = World->GetSubsystem<UFightDirectorSubsystem>();
+	UUnpaidPackSubsystem* Packs = World->GetSubsystem<UUnpaidPackSubsystem>();
 	FEditorScriptExecutionGuard RunActorEvents;
 	FSightCVar KitOn(TEXT("Looter.Unpaid.Kit"), TEXT("1"));
-	FSightCVar GapOn(TEXT("Looter.Unpaid.PackStepGap"), *FString::SanitizeFloat(Gap));
+	FSightCVar GapOn(TEXT("Looter.Unpaid.BlinkGap"), *FString::SanitizeFloat(Gap));
 	LocomotionTestWorld::SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(8000.0, 8000.0, 100.0));
 	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector(0.0, 0.0, 90.0));
 	ACharacter* Other = EncounterTestWorld::SpawnPlayer(World, FVector(0.0, 3000.0, 90.0));
 	AUnpaidCreature* First = SpawnUnpaid(World, FVector(1800.0, 0.0, 0.0));
 	AUnpaidCreature* Second = SpawnUnpaid(World, FVector(-1800.0, 0.0, 0.0));
-	if (!TestNotNull(TEXT("A director"), Director) || !TestNotNull(TEXT("Player stand-in"), Player) || !TestNotNull(TEXT("..."), Other)
+	if (!TestNotNull(TEXT("The pack subsystem"), Packs) || !TestNotNull(TEXT("Player stand-in"), Player) || !TestNotNull(TEXT("..."), Other)
 		|| !TestNotNull(TEXT("First Unpaid"), First) || !TestNotNull(TEXT("Second Unpaid"), Second))
 	{
 		return false;
 	}
-	TestTrue(TEXT("The director: the first may step"), Director->MayStep(*First, *Player, Gap, false));
-	Director->NoteStep(*First, *Player);
-	TestFalse(TEXT("...the second not at once"), Director->MayStep(*Second, *Player, Gap, false));
-	TestTrue(TEXT("...though at another player it may"), Director->MayStep(*Second, *Other, Gap, false));
+	const uint32 FirstId = First->GetUniqueID();
+	const uint32 SecondId = Second->GetUniqueID();
+	TestTrue(TEXT("The gate: the first may blink"), Packs->MayBlink(*Player, FirstId, false));
+	Packs->NoteBlink(*Player, FirstId);
+	TestFalse(TEXT("...the second not at once"), Packs->MayBlink(*Player, SecondId, false));
+	TestTrue(TEXT("...though at another player it may"), Packs->MayBlink(*Other, SecondId, false));
 	World->TimeSeconds += Gap - 0.1;
-	TestFalse(TEXT("The second owes a step: it waits the gap too, and asks"), Director->MayStep(*Second, *Player, Gap, true));
+	TestFalse(TEXT("The second owes a step: it waits the gap too, and asks"), Packs->MayBlink(*Player, SecondId, true));
 	World->TimeSeconds += 0.15;
-	TestFalse(TEXT("...the gap up, the first waits for the owed one"), Director->MayStep(*First, *Player, Gap, false));
-	TestTrue(TEXT("...which goes"), Director->MayStep(*Second, *Player, Gap, true));
-	Director->NoteStep(*Second, *Player);
+	TestFalse(TEXT("...the gap up, the first waits for the owed one"), Packs->MayBlink(*Player, FirstId, false));
+	TestTrue(TEXT("...which goes"), Packs->MayBlink(*Player, SecondId, true));
+	Packs->NoteBlink(*Player, SecondId);
+	TestEqual(TEXT("Two at that player this minute, none at the other"), Packs->BlinksInMinute(*Player) * 10 + Packs->BlinksInMinute(*Other), 20);
 
 	// In play: both far behind the player, they blink at least the gap apart (they once went on one frame).
 	World->TimeSeconds += 10.0;
@@ -260,7 +245,7 @@ bool FUnpaidKitPackStepTest::RunTest(const FString& Parameters)
 	Second->DevPutInState(ECreatureState::Chase, Player);
 	TArray<double> Starts;
 	bool bWasPhasing[2] = { false, false };
-	for (int32 Index = 0; Index < 240; ++Index)
+	for (int32 Index = 0; Index < 300; ++Index)
 	{
 		World->TimeSeconds += Frame;
 		AUnpaidCreature* Pair[2] = { First, Second };
@@ -275,7 +260,7 @@ bool FUnpaidKitPackStepTest::RunTest(const FString& Parameters)
 			bWasPhasing[Which] = bPhasing;
 		}
 	}
-	TestTrue(FString::Printf(TEXT("Both blink in 4 s (%d steps)"), Starts.Num()), Starts.Num() >= 2);
+	TestTrue(FString::Printf(TEXT("Both blink in 5 s (%d steps)"), Starts.Num()), Starts.Num() >= 2);
 	Starts.Sort();
 	for (int32 Index = 1; Index < Starts.Num(); ++Index)
 	{

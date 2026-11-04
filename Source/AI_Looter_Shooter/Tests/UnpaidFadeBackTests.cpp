@@ -4,6 +4,7 @@
 
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/EncounterSettings.h"
 #include "Creatures/FightDirectorSubsystem.h"
 #include "Creatures/FightTuning.h"
 #include "Creatures/UnpaidCreature.h"
@@ -16,10 +17,11 @@
 #include "HAL/IConsoleManager.h"
 #include "Tests/AutomationCommon.h"
 
-// The Unpaid as a pack with a head (FIGHTS.md lane 5, 2026-10-29; Creatures/UnpaidCreatureFadeBack.cpp): a hurt Basic fades
-// back once a life to the ring's outer edge, waits, and comes on again; a led pack's rally is its leader's alone, none in
-// the lull after its fall, and the packmates' coals gutter; a camping player is punished (no lead, a wider lunge, cinders
-// sooner, more flanks); a step that lands right by its target holds longer (the chapel's dais).
+// The Unpaid as a pack with a head (FIGHTS.md lane 5, 2026-10-29; Creatures/UnpaidCreatureFadeBack.cpp): one flee rule since
+// 2026-11-03 (its leader's fall: the falter and the gutter; the pack's break-offs never reach the dead; the fade-back off
+// unless Looter.Unpaid.FadeBack is set, then a hurt Basic fades back once a life to the ring's outer edge, waits, and comes
+// on again); a led pack's rally is its leader's alone; a camping player is punished (no lead, a wider lunge, cinders sooner,
+// more flanks); a step that lands right by its target holds longer (the chapel's dais).
 
 namespace
 {
@@ -88,10 +90,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidKitFadeBackTest, "Looter.Creatures.Unpai
 
 bool FUnpaidKitFadeBackTest::RunTest(const FString& Parameters)
 {
-	// Its numbers: now and then, only badly hurt, back to the ring's outer edge, a short wait (a window, not a retreat).
+	// One flee rule (2026-11-03): the fade-back is off by default, and the pack's break-offs are the animals' (never the dead's).
 	const FUnpaidFightTuning Tuning;
 	const FFightTuning Fight;
-	TestTrue(TEXT("A chance, not a rule"), Tuning.FadeBack > 0.f && Tuning.FadeBack < 1.f);
+	TestEqual(TEXT("The fade-back is off (one flee rule: its leader's fall)"), Tuning.FadeBack, 0.f);
+	TestFalse(TEXT("The Unpaid never break off as a hurt pack's last does"), UEncounterSettings::Get().MayRetreat(AUnpaidCreature::StaticClass()));
+	// Its numbers, for the A/B (Looter.Unpaid.FadeBack 0.5): only badly hurt, back to the ring's outer edge, a short wait.
 	TestTrue(TEXT("Only badly hurt"), Tuning.FadeBackBelow > 0.f && Tuning.FadeBackBelow <= 0.5f);
 	TestTrue(TEXT("Out past the ring"), Tuning.FadeBackNear > Fight.RingRadius && Tuning.FadeBackFar >= Tuning.FadeBackNear);
 	TestTrue(TEXT("...but still in the fight"), Tuning.FadeBackFar <= Tuning.FlankMaxRange);
@@ -139,11 +143,16 @@ bool FUnpaidKitFadeBackTest::RunTest(const FString& Parameters)
 	Healthy->DevPutInState(ECreatureState::Chase, Player);
 	TestFalse(TEXT("At full health it fights on"), Healthy->TryFadeBack(false));
 
-	// A Basic, as its rules ask (a test spawn rolls no rank, but say so).
+	// A Basic, as its rules ask (a test spawn rolls no rank, but say so): with the fade-back off it fights on, hurt or not.
 	Unpaid->SetRank(ECreatureRank::Basic);
 	Unpaid->DevPutInState(ECreatureState::Chase, Player);
 	SetHealthShare(*Unpaid, 0.3f);
-	if (!TestTrue(TEXT("Hurt, it fades back"), Unpaid->TryFadeBack(false)))
+	{
+		FFadeCVar FadeOff(TEXT("Looter.Unpaid.FadeBack"), TEXT("0"));
+		TestFalse(TEXT("Fade-back off: hurt, it fights on"), Unpaid->TryFadeBack(false));
+	}
+	FFadeCVar FadeOn(TEXT("Looter.Unpaid.FadeBack"), TEXT("0.5"));
+	if (!TestTrue(TEXT("Fade-back on (the A/B): hurt, it fades back"), Unpaid->TryFadeBack(false)))
 	{
 		return false;
 	}

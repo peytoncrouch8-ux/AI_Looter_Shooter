@@ -9,7 +9,11 @@
 //    and the shiver as it's about to go, so the release reads; a rake's twist (the trunk wound away from the drawn arm, thrown
 //    on through each swipe);
 //  - a hit's loll (its head knocked over on a spring) and stumble (its beat held, its hips sagging);
-//  - how a plain kill falls: a slump, a last reach at its killer, a twist away, a buckle.
+//  - how a plain kill falls: a slump, a last reach at its killer, a twist away, a buckle;
+//  - (2026-11-03, the audit's change 11: its idle read as a floating arms-out scarecrow) the plain Unpaid's hunched drift:
+//    waist and chest curled forward, the head carried low, the arms hanging plumb under the rolled shoulders with the elbows
+//    bent, hands low at its hips, the shroud trailing; hunting, its hands come only a little forward. The moves that pose the
+//    body (the shriek and rally, the lunge, a rake, a low swipe, its rise) take it over; Looter.Unpaid.Idle.Hunched 0 as before.
 // Every Unpaid on its rig but a boss (Abel's body is his fight's show); Looter.Unpaid.Gait 0 is the body as it was. Angles in
 // the rig's degrees (Pitch nods forward, Roll tips left, Yaw turns right).
 
@@ -74,6 +78,20 @@ namespace
 	{
 		return Move == EUnpaidMove::Lunge || Move == EUnpaidMove::Feint || Move == EUnpaidMove::LowSwipe || Move == EUnpaidMove::None;
 	}
+
+	/** It settles into its hunch, and out of it for a move's own pose, this quickly (1/s): about a third of a second. */
+	constexpr float HunchRate = 3.f;
+
+	/** The plain Unpaid (its class or a data-only child): the kinds on its rig with arms of their own (the miners, the Bell-Ringer) keep theirs. */
+	bool IsPlainUnpaid(const AUnpaidCreature& Unpaid)
+	{
+		const UClass* Native = Unpaid.GetClass();
+		while (Native && !Native->HasAnyClassFlags(CLASS_Native))
+		{
+			Native = Native->GetSuperClass();
+		}
+		return Native == AUnpaidCreature::StaticClass();
+	}
 }
 
 bool FUnpaidGaitWork::IsOn(const AUnpaidCreature& Unpaid)
@@ -103,6 +121,10 @@ void FUnpaidGaitWork::Step(AUnpaidCreature& Unpaid, float DeltaSeconds, float Sp
 	Gait.bOn = Unpaid.bRigReady && !Unpaid.IsBossCreature() && Tuning.Gait != 0;
 	if (!Gait.bOn)
 	{
+		// The body as it was: no hunch, the hunt's arms its own.
+		Gait.Hunch = -1.f;
+		Gait.HuntShare = 1.f;
+		Gait.Trail = 0.f;
 		return;
 	}
 	const float Dt = FMath::Max(DeltaSeconds, 0.f);
@@ -147,6 +169,19 @@ void FUnpaidGaitWork::Step(AUnpaidCreature& Unpaid, float DeltaSeconds, float Sp
 		CoilGoal = UnpaidGait::Coil(Unpaid.GetStateTime() / FMath::Max(Unpaid.AttackWindup, 0.01f));
 	}
 	Gait.Coil = Dt > 0.f ? FMath::FInterpTo(Gait.Coil, CoilGoal, Dt, CoilRate) : CoilGoal;
+
+	// Its hunch, eased (its first frame starts there): given up to the moves that pose the whole body (the shriek and the
+	// rally, a low swipe's own crouch), its rise and its death; the rest (a lunge's reach, a rake's arms) give it up by their
+	// channels as they come (LayBones, ArmPose).
+	Gait.Idle = Tuning.Idle;
+	// Every attack gives it up (not only the low swipe): with the trunk still curled through the shriek's rear-back the right
+	// upper arm sank 5 cm into spine_01 (Looter.Creatures.Anim.UnpaidArms, the first build of 2026-11-03).
+	const bool bOwnPose = !bAlive || Unpaid.IsRising() || Unpaid.Kit.Action == EUnpaidAction::Shriek || Unpaid.Kit.Action == EUnpaidAction::Rally
+		|| State == ECreatureState::Attack;
+	const float HunchGoal = Tuning.Hunched != 0 && IsPlainUnpaid(Unpaid) && !bOwnPose ? 1.f : 0.f;
+	Gait.Hunch = Gait.Hunch < 0.f || Dt <= 0.f ? HunchGoal : FMath::FInterpTo(Gait.Hunch, HunchGoal, Dt, HunchRate);
+	Gait.HuntShare = UnpaidGait::HuntArmShare(Gait.Hunch, Gait.Idle.HuntArms);
+	Gait.Trail = Gait.Idle.ShroudTrail * Gait.Hunch;
 }
 
 void FUnpaidGaitWork::LayBones(AUnpaidCreature& Unpaid)
@@ -173,6 +208,17 @@ void FUnpaidGaitWork::LayBones(AUnpaidCreature& Unpaid)
 	const float Time = Unpaid.PoseTime + Unpaid.PoseSeed;
 	const float Alive = 1.f - Unpaid.Pose.Death;
 	const ECreatureState State = Unpaid.GetCreatureState();
+
+	// Its hunch: the waist and chest curled forward (the shoulders rolled over; more hunting), the head carried low on the
+	// neck, its face lifted back toward its prey; a shriek's rear, a lunge's reach and a crumple take it over as they come.
+	const float Trunk = UnpaidGait::HunchTrunk(Gait.Hunch, Unpaid.Pose.Rear, Unpaid.Pose.Reach, Unpaid.Pose.Crumple, Alive);
+	if (Trunk > 0.01f)
+	{
+		Turn(Unpaid.SpineBone, Pitch(Gait.Idle.Spine * Trunk));
+		Turn(Unpaid.ChestBone, Pitch((Gait.Idle.Chest + Unpaid.Pose.Hunt * Gait.Idle.HuntCurl) * Trunk));
+		Turn(Unpaid.NeckBone, Pitch(Gait.Idle.Neck * Trunk));
+		Turn(Unpaid.HeadBone, Pitch(-Gait.Idle.HeadUp * Trunk));
+	}
 
 	// The lurch: its hips heaved and dragged, the trunk thrown onto the heaving side, the chest driven round, the head held level.
 	if (Gait.Move > 0.01f && Gait.LurchScale > 0.f)
@@ -244,13 +290,26 @@ void FUnpaidGaitWork::ArmPose(const AUnpaidCreature& Unpaid, int32 Side, float& 
 	{
 		return;
 	}
+	// Its hunch: hanging plumb under the rolled shoulders, elbows bent, out a little, fingers half shut, hands low at its hips;
+	// flung wide (a shriek, a stagger) or raking, the arm is that move's. Dead it eases off with the trunk's (no pop).
+	const UnpaidBody::FPoseChannels& Pose = Unpaid.Pose;
+	const float Trunk = UnpaidGait::HunchTrunk(Gait.Hunch, Pose.Rear, Pose.Reach, Pose.Crumple, 1.f - Pose.Death);
+	const float Share = UnpaidGait::HunchArm(Trunk, Pose.Spread, Pose.Rake[Side]);
+	if (Share > 0.01f)
+	{
+		const UnpaidGait::FArmHunch Hang = UnpaidGait::ArmHunch(Gait.Idle, Share, Pose.Hunt);
+		Swing += Hang.Swing;
+		Out += Hang.Out;
+		Bend += Hang.Bend;
+		Curl += Hang.Curl;
+	}
 	if (!Unpaid.IsDead())
 	{
 		// The lurch's swing: the heaving side's arm thrown forward, the other trailing; less while its arms claw or reach.
 		if (Gait.Move > 0.01f && Gait.LurchScale > 0.f)
 		{
 			const UnpaidGait::FLurch Beat = UnpaidGait::Lurch(Gait.Phase, Gait.Move, Gait.Limp, Gait.Side);
-			const float Free = (1.f - 0.5f * Unpaid.Pose.Hunt) * (1.f - Unpaid.Pose.Reach);
+			const float Free = (1.f - 0.5f * Pose.Hunt * Gait.HuntShare) * (1.f - Pose.Reach);
 			Swing += Beat.ArmSwing[Side] * Gait.LurchScale * Free;
 		}
 		return;

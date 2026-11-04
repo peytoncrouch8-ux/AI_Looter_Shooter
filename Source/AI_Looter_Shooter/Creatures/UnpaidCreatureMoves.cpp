@@ -6,8 +6,8 @@
 //  - Its attack (OnAttackStarted, its turn from the fight director): close in, a rake (two swipes, one arm then the other,
 //    drifting in); else the lunge, aimed where the target will be (UnpaidCreatureAttack.cpp). With the varied kit
 //    (2026-10-29, Looter.Unpaid.Variety) the turn picks from every move instead: UnpaidCreatureVariety.cpp.
-//  - Its turn, while it's in front of the player's eyes: now and then it fades and comes back at their side or behind them
-//    (the phase-step's fade, UnpaidCreaturePhase.cpp), a whisper heard from there first.
+//  - Its turn, while it's in front of the player's eyes: now and then it fades and comes back at their side, at the edge of
+//    their view (the phase-step's fade, UnpaidCreaturePhase.cpp; the one blink gate's arc), a whisper heard from there first.
 //  - Each frame: its tells (the coal), its turn's flank, its look at the ring, its pace.
 //  - Waiting on the ring: cinders and the rally scream (UnpaidCreatureRing.cpp).
 //  - Its pace: farther off it closes in faster, and faster still in its pack's frenzy (the director's chase boost).
@@ -260,8 +260,8 @@ void AUnpaidCreature::TickFightKit(float DeltaSeconds)
 	}
 
 	// Its turn has come with a flank ready (ThinkOnRing armed it while it waited in front of the player's eyes): it fades
-	// round to their side; with no spot round them, once they've turned from it, or with another of the pack just blinked
-	// (one at a player at a time: MayPackStep), it attacks from where it is next frame. Out of their sight (a wall between)
+	// round to their side; with no spot round them, once they've turned from it, or with the one blink gate shut (MayPackStep:
+	// another just blinked, or the minute's budget is spent), it attacks from where it is next frame. Out of their sight (a wall between)
 	// it lets the turn go for another to take (UnpaidCreatureSight.cpp).
 	if (Director->HoldsToken(*this))
 	{
@@ -425,16 +425,17 @@ bool AUnpaidCreature::TryFlank(const APawn& Victim)
 	{
 		return false;
 	}
-	// Round them on their own level of ground, never off its hunting ground: the first spot the level allows, its own side first.
+	// Round them on their own level of ground, never off its hunting ground: the first spot the level allows, its own side
+	// first, within the one gate's arc of their view (60-120 degrees: they see it arrive at the edge of the screen).
 	const float VictimFeet = static_cast<float>(Center.Z) - Victim.GetSimpleCollisionHalfHeight();
 	const float Radius = Tuning.FlankRadius * GetSizeScale();
-	for (const float Around : UnpaidFightRules::FlankBearings(ViewYaw, Bearing))
+	for (const float Around : UnpaidFightRules::FlankBearings(ViewYaw, Bearing, Tuning.Landing.ArcMin, Tuning.Landing.ArcMax))
 	{
 		const float Radians = FMath::DegreesToRadians(Around);
 		const FVector Candidate(Center.X + FMath::Cos(Radians) * Radius, Center.Y + FMath::Sin(Radians) * Radius, VictimFeet);
 		FVector Feet;
-		if (!HuntingGround.ContainsSpot(Candidate, GetHome().GetLocation()) || !CanStandAt(Candidate, Feet)
-			|| FMath::Abs(Feet.Z - VictimFeet) > PhaseStep.MaxRise)
+		if (!UUnpaidPackSubsystem::MayLandAt(Victim, Candidate, true) || !HuntingGround.ContainsSpot(Candidate, GetHome().GetLocation())
+			|| !CanStandAt(Candidate, Feet) || FMath::Abs(Feet.Z - VictimFeet) > PhaseStep.MaxRise)
 		{
 			continue;
 		}

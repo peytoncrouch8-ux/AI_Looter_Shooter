@@ -1,8 +1,8 @@
 // AUnpaidCreature's varied fight (2026-10-29; the user: "in play the Unpaid just lunge on repeat"). Each turn picks its move
 // by range and situation (UnpaidMoveRules: weighted, each move its own cooldown, never a third time in a row, never a move a
 // pack-mate is committing at the same player): the lunge; the rake up close (a close move planned from the ring closes in
-// first); a feint that flies part way, stops short and slides aside; a phase-strike that fades round to the player's side or
-// back and claws after a clear tell; a low swipe skimming in at the feet that a jump clears; or it hangs back, circling wide,
+// first); a feint that flies part way, stops short and slides aside; a phase-strike that fades round to the edge of the
+// player's view and claws after a clear tell; a low swipe skimming in at the feet that a jump clears; or it hangs back, circling wide,
 // until a pack-mate commits. One pressures while another flanks: a phase-strike weighs more while a pack-mate comes from the
 // front. A lunge that misses may turn into a shriek (UnpaidCreatureShriek.cpp). Each move's tell is its own: the lunge's
 // shriek pose and coal flare (the feint shares it: that's the feint), the low swipe's sinking crouch and dragging claws, the
@@ -127,7 +127,7 @@ namespace
 		Context.bLastLungeMissed = State.bLastLungeMissed;
 		Context.bNow = bNow;
 		// The player open (reloading, swapping, empty, drinking): quick commits, no hang-back; its punisher's turn its punish
-		// (UnpaidCreatureOpening.cpp). In front of their view (frontness over a half) its punish blinks round to their back.
+		// (UnpaidCreatureOpening.cpp). In front of their view (frontness over a half) its punish blinks round to their side.
 		Context.bOpening = FUnpaidOpeningWork::IsOpen(Unpaid, Victim);
 		Context.bPunisher = FUnpaidOpeningWork::IsPunisher(Unpaid, Victim);
 		Context.bInFront = FightRules::Frontness(PackRules::BearingAround(Victim.GetActorLocation(), Unpaid.GetActorLocation()),
@@ -234,18 +234,21 @@ bool FUnpaidMoveWork::PlanTurn(AUnpaidCreature& Unpaid, const APawn& Victim, flo
 
 bool FUnpaidMoveWork::BlinkToStrike(AUnpaidCreature& Unpaid, const APawn& Victim, const FUnpaidMoveTuning& Tuning, int32& OutArm)
 {
-	// PhaseStrikeLand off them, at their side or behind (the flank's bearings), its own side first.
+	// PhaseStrikeLand off them at their side, at the edge of their view (the flank's bearings in the one gate's arc; at 1.7 m
+	// never behind their back: the gate's landing rule), its own side first.
 	const FVector Center = Victim.GetActorLocation();
 	const float ViewYaw = static_cast<float>(Victim.GetViewRotation().Yaw);
 	const float Bearing = PackRules::BearingAround(Center, Unpaid.GetActorLocation());
 	const float VictimFeet = static_cast<float>(Center.Z) - Victim.GetSimpleCollisionHalfHeight();
 	const float Radius = Tuning.PhaseStrikeLand * Unpaid.GetSizeScale();
-	for (const float Around : UnpaidFightRules::FlankBearings(ViewYaw, Bearing))
+	const FUnpaidBlinkLanding Landing = FUnpaidFightTuning::LiveLanding();
+	for (const float Around : UnpaidFightRules::FlankBearings(ViewYaw, Bearing, Landing.ArcMin, Landing.ArcMax))
 	{
 		const float Radians = FMath::DegreesToRadians(Around);
 		const FVector Candidate(Center.X + FMath::Cos(Radians) * Radius, Center.Y + FMath::Sin(Radians) * Radius, VictimFeet);
 		FVector Feet;
-		if (!Unpaid.HuntingGround.ContainsSpot(Candidate, Unpaid.GetHome().GetLocation(), Unpaid.GetGroundReach())
+		if (!UUnpaidPackSubsystem::MayLandAt(Victim, Candidate, true)
+			|| !Unpaid.HuntingGround.ContainsSpot(Candidate, Unpaid.GetHome().GetLocation(), Unpaid.GetGroundReach())
 			|| !Unpaid.CanStandAt(Candidate, Feet) || FMath::Abs(Feet.Z - VictimFeet) > Unpaid.PhaseStep.MaxRise)
 		{
 			continue;
@@ -290,8 +293,8 @@ bool FUnpaidMoveWork::Choose(AUnpaidCreature& Unpaid)
 		Context.bCamping = Unpaid.IsTargetCamping(*Victim);
 		Move = UnpaidMoveRules::Choose(Context, Tuning, FMath::FRand());
 	}
-	// The phase-strike's blink: the pack's gate asked again (another may have blinked since it planned), then a spot at their
-	// side or behind; shut out or with nowhere to land it rakes if near, else lunges (never a third: then the other).
+	// The phase-strike's blink: the one gate asked again (another may have blinked since it planned), then a spot at their
+	// side; shut out or with nowhere to land it rakes if near, else lunges (never a third: then the other).
 	if (Move == EUnpaidMove::PhaseStrike && (!Unpaid.MayPackStep(*Victim) || !BlinkToStrike(Unpaid, *Victim, Tuning, State.StrikeArm)))
 	{
 		Move = Distance <= Kit.RakeRange * Scale ? EUnpaidMove::Rake : EUnpaidMove::Lunge;

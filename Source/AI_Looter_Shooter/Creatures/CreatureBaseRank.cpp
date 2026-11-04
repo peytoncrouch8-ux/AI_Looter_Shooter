@@ -204,9 +204,10 @@ void ACreatureBase::CaptureBaseStats()
 	// what a level designer set on this placed creature (one whose number differs from its class's keeps it).
 	if (const ACreatureBase* Defaults = Cast<ACreatureBase>(GetClass()->GetDefaultObject()))
 	{
-		if (Defaults->Health && Health->MaxHealth == Defaults->Health->MaxHealth)
+		// A runtime spawn's HealthScale (a toll's raised Unpaid at half) is the class's number scaled, not an edit.
+		if (Defaults->Health && FMath::IsNearlyEqual(Health->MaxHealth, Defaults->Health->MaxHealth * RuntimeHealthScale, 0.01f))
 		{
-			BaseMaxHealth = UCreatureKindSettings::HealthFor(GetClass(), BaseMaxHealth);
+			BaseMaxHealth = UCreatureKindSettings::HealthFor(GetClass(), Defaults->Health->MaxHealth) * RuntimeHealthScale;
 		}
 		if (AttackDamage == Defaults->AttackDamage)
 		{
@@ -355,10 +356,12 @@ ACreatureBase* ACreatureBase::SpawnAtRuntime(UWorld* World, TSubclassOf<ACreatur
 	Creature->BodyScale = StartScale;
 	// Before play begins: its touch is rolled as its rank is applied there.
 	Creature->bMayBeTouched = Creature->bMayBeTouched && Spawn.bMayBeTouched;
-	// Before play begins, so its base health (what its level and rank multiply, CaptureBaseStats) includes it.
+	// Before play begins, so its base health (what its level and rank multiply, CaptureBaseStats) includes it; remembered,
+	// so the kind's number in Project Settings > Creature Kinds is scaled the same (a raised Unpaid at half health is half of 140).
 	if (!FMath::IsNearlyEqual(Spawn.HealthScale, 1.f))
 	{
-		Creature->Health->MaxHealth = FMath::Max(1.f, Creature->Health->MaxHealth * FMath::Max(Spawn.HealthScale, 0.01f));
+		Creature->RuntimeHealthScale = FMath::Max(Spawn.HealthScale, 0.01f);
+		Creature->Health->MaxHealth = FMath::Max(1.f, Creature->Health->MaxHealth * Creature->RuntimeHealthScale);
 	}
 	if (Spawn.Level > 0)
 	{

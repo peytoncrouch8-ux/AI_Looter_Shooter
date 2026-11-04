@@ -240,8 +240,11 @@ bool FUnpaidMovesMixTest::RunTest(const FString& Parameters)
 {
 	// Four Unpaid taking turns round a player for a long while (a turn every 0.65 s: each about every 2.6 s, its attack
 	// committed 1.3 s), most turns from the ring: every move shows, none dominates, none comes a third time in a row, two
-	// never commit the same move at once. The numbers printed are the expected mix (the play-check measures the real one).
+	// never commit the same move at once; the phase-strikes through the one blink gate (its gap and its minute's budget,
+	// 2026-11-03). The numbers printed are the expected mix (the play-check measures the real one).
 	const FUnpaidMoveTuning Tuning;
+	const FUnpaidFightTuning Kit;
+	FUnpaidBlinkGate Blinks;
 	using M = EUnpaidMove;
 	struct FMate
 	{
@@ -258,7 +261,6 @@ bool FUnpaidMovesMixTest::RunTest(const FString& Parameters)
 	int32 Attacks = 0;
 	int32 Threes = 0;
 	int32 Clashes = 0;
-	float LastBlink = -10.f;
 	float Clock = 0.f;
 	constexpr int32 Turns = 4000;
 	constexpr float TurnGap = 0.65f;
@@ -291,7 +293,8 @@ bool FUnpaidMovesMixTest::RunTest(const FString& Parameters)
 				Context.bMateSide |= Other.Move == M::PhaseStrike;
 			}
 		}
-		Context.bMayBlink = Clock - LastBlink >= 1.2f;
+		const uint32 Id = static_cast<uint32>(Turn % 4) + 1;
+		Context.bMayBlink = Blinks.MayBlink(Id, false, Clock, Kit.BlinkGap, Kit.BlinksPerMinute);
 		Context.bLastLungeMissed = Me.bMissed;
 		Context.Mates = 3;
 		const M Move = UnpaidMoveRules::Choose(Context, Tuning, Dice.FRand());
@@ -312,7 +315,10 @@ bool FUnpaidMovesMixTest::RunTest(const FString& Parameters)
 		Me.Move = Move;
 		Me.CommittedUntil = Clock + 1.3f;
 		Me.bMissed = Move == M::Lunge && Dice.FRand() < 0.7f;
-		LastBlink = Move == M::PhaseStrike ? Clock : LastBlink;
+		if (Move == M::PhaseStrike)
+		{
+			Blinks.Note(Id, Clock);
+		}
 	}
 	TestEqual(TEXT("Never a third time in a row"), Threes, 0);
 	TestEqual(TEXT("Never a pack-mate's move at once"), Clashes, 0);

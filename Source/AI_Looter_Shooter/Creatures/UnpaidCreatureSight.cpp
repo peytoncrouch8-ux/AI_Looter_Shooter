@@ -6,15 +6,17 @@
 //    spell), and stalled out of sight it may blink to where it sees them, nearer or not, on its own floor or theirs
 //    (UnpaidCreaturePhase.cpp, UnpaidRules::ChooseSightSpot): into the doorway, into the nave, up onto the dais.
 //  - The pack's blinks: those past FarBehind all stepped on one frame as they noticed the player or a wave spawned hunting
-//    (5-6 at once). Now at most one phase-step or flank at a player every Looter.Unpaid.PackStepGap across all the Unpaid
-//    (the fight director's step gate, FUnpaidStepGate; an owed press step first), and each one's step clock is jittered
-//    (Looter.Unpaid.StepJitter) as it gets a new target.
+//    (5-6 at once), and seven places each decided a blink of their own (up to ~50 a minute at one player). Since 2026-11-03
+//    every blink (phase-step, press step, step to sight, flank, phase-strike, fade-back) asks the one gate at its target
+//    (MayPackStep: UUnpaidPackSubsystem::MayBlink; Looter.Unpaid.BlinkGap, .BlinksPerMinute; an owed press step first), and
+//    each one's step clock is jittered (Looter.Unpaid.StepJitter) as it gets a new target.
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/FightDirectorSubsystem.h"
 #include "Creatures/UnpaidFightRules.h"
 #include "Creatures/UnpaidFightTuning.h"
+#include "Creatures/UnpaidPackSubsystem.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
 #include "Components/CapsuleComponent.h"
@@ -137,6 +139,7 @@ bool AUnpaidCreature::MayPackStep(const APawn& Victim)
 	{
 		return true;
 	}
-	UFightDirectorSubsystem* Director = UFightDirectorSubsystem::Get(this);
-	return !Director || Director->MayStep(*this, Victim, FUnpaidFightTuning::Live().PackStepGap, Kit.bPressStepOwed);
+	// The one gate at its target, whichever blink asks (StartStepTo counts it).
+	UUnpaidPackSubsystem* Packs = UUnpaidPackSubsystem::Get(this);
+	return !Packs || Packs->MayBlink(Victim, GetUniqueID(), Kit.bPressStepOwed);
 }

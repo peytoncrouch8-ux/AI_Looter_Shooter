@@ -4,21 +4,48 @@
 
 #include "Creatures/UnpaidCreature.h"
 #include "Creatures/UnpaidGaitRules.h"
+#include "Creatures/UnpaidLifeTuning.h"
+#include "Creatures/UnpaidPackSubsystem.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "HAL/IConsoleManager.h"
 #include "Tests/AutomationCommon.h"
 
 // The Unpaid's body language (2026-10-31; Creatures/UnpaidGaitRules, UnpaidCreatureGait.cpp): its lurch (a quick heave and a
 // slow drag each beat, thrown side to side, one side weaker, its head held level, its arms swung with it, no jump between
 // frames, no creep), its breath, its head's tilt at rest and hunting (a loll, now and then a crack; level as it attacks), the
 // coil and shiver of a wind-up, a rake's twist, a hit's loll and stumble, how a plain kill falls, and in a test level its head
-// moving at rest and its body never jumping through idle, a hunt, a hit and a fall.
+// moving at rest and its body never jumping through idle, a hunt, a hit and a fall; and (2026-11-03) its hunched drift: the
+// rules, and in a level the head carried lower and the hunting hands kept low against the arms-out float it replaced.
 
 namespace
 {
 	constexpr float Frame = 1.f / 60.f;
+
+	/** Sets a cvar for one test and puts back what it was. */
+	struct FGaitCVar
+	{
+		IConsoleVariable* Variable = nullptr;
+		FString Was;
+		FGaitCVar(const TCHAR* Name, const TCHAR* Value)
+		{
+			Variable = IConsoleManager::Get().FindConsoleVariable(Name);
+			if (Variable)
+			{
+				Was = Variable->GetString();
+				Variable->Set(Value, ECVF_SetByConsole);
+			}
+		}
+		~FGaitCVar()
+		{
+			if (Variable)
+			{
+				Variable->Set(*Was, ECVF_SetByConsole);
+			}
+		}
+	};
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidGaitRulesTest, "Looter.Creatures.Unpaid.Gait.Rules",
@@ -118,6 +145,29 @@ bool FUnpaidGaitRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Never past its limit"), FMath::Abs(HitHeadRoll(FVector(0.0, 1.0, 0.0), 10.f)) <= 24.f);
 	TestEqual(TEXT("A graze doesn't stumble it"), HitStumble(0.1f), 0.f);
 	TestTrue(TEXT("A real hit does, briefly"), HitStumble(1.f) > 0.1f && HitStumble(5.f) <= 0.4f);
+
+	// The hunch (2026-11-03): on by default; the trunk's curl small enough that its coal still faces out (the coal test's 18
+	// degrees, with its lean and breath); given up to a shriek's rear, a lunge's reach, a crumple, death; an arm's to a spread
+	// and its own rake; the hunt's raise kept only in part; the arms swung back to hang (never raised by it), elbows bent more hunting.
+	const FUnpaidLifeTuning Life;
+	const FHunch& Hunch = Life.Idle;
+	TestEqual(TEXT("Off by default until seen in PIE (the night note in UnpaidLifeTuning.h)"), Life.Hunched, 0);
+	TestTrue(TEXT("Its waist and chest curl little (its coal faces out)"), Hunch.Spine + Hunch.Chest > 0.f && Hunch.Spine + Hunch.Chest <= 12.f);
+	TestTrue(TEXT("Its head carried low, its face lifted back toward its prey"), Hunch.Neck > 0.f && Hunch.HeadUp > 0.f && Hunch.HeadUp < Hunch.Spine + Hunch.Chest + Hunch.Neck);
+	TestNearlyEqual(TEXT("All of it hanging about"), HunchTrunk(1.f, 0.f, 0.f, 0.f, 1.f), 1.f, 0.0001f);
+	TestNearlyEqual(TEXT("None reared for the shriek"), HunchTrunk(1.f, 1.f, 0.f, 0.f, 1.f), 0.f, 0.0001f);
+	TestNearlyEqual(TEXT("Half through a lunge's reach"), HunchTrunk(1.f, 0.f, 0.5f, 0.f, 1.f), 0.5f, 0.0001f);
+	TestNearlyEqual(TEXT("None crumpled or dead"), HunchTrunk(1.f, 0.f, 0.f, 1.f, 1.f) + HunchTrunk(1.f, 0.f, 0.f, 0.f, 0.f), 0.f, 0.0001f);
+	TestNearlyEqual(TEXT("An arm flung wide is the shriek's"), HunchArm(1.f, 1.f, 0.f), 0.f, 0.0001f);
+	TestNearlyEqual(TEXT("...a raking arm the rake's, drawn or swept"), HunchArm(1.f, 0.f, -1.f) + HunchArm(1.f, 0.f, 1.f), 0.f, 0.0001f);
+	TestNearlyEqual(TEXT("Upright: the hunt's raise as before"), HuntArmShare(0.f, Hunch.HuntArms), 1.f, 0.0001f);
+	TestNearlyEqual(TEXT("Hunched: only its share"), HuntArmShare(1.f, Hunch.HuntArms), Hunch.HuntArms, 0.0001f);
+	TestTrue(TEXT("...and that's under half"), Hunch.HuntArms < 0.5f);
+	const FArmHunch Hanging = ArmHunch(Hunch, 1.f, 0.f);
+	const FArmHunch Hunting = ArmHunch(Hunch, 1.f, 1.f);
+	TestTrue(TEXT("Its arms swing back to hang under its shoulders, never forward"), Hanging.Swing > 0.f && Hanging.Swing <= Hunch.Spine + Hunch.Chest + 0.01f);
+	TestTrue(TEXT("...elbows bent, more hunting"), Hanging.Bend > 0.f && Hunting.Bend > Hanging.Bend);
+	TestNearlyEqual(TEXT("...nothing of it when the move takes the arm"), ArmHunch(Hunch, 0.f, 1.f).Bend, 0.f, 0.0001f);
 	return true;
 }
 
@@ -292,6 +342,97 @@ bool FUnpaidGaitPoseTest::RunTest(const FString& Parameters)
 	BossTestWorld::Kill(Unpaid);
 	Run(1.5f, TEXT("falling"), nullptr);
 	TestTrue(FString::Printf(TEXT("No bone jumps (at most %.1f cm a frame: %s)"), Jump, *JumpWhere), Jump <= 45.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnpaidGaitHunchTest, "Looter.Creatures.Unpaid.Gait.Hunch",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FUnpaidGaitHunchTest::RunTest(const FString& Parameters)
+{
+	// In a level, against the arms-out float it replaced (Looter.Unpaid.Idle.Hunched 0): hanging about its head is carried
+	// forward and its chest rolled forward (its coal still facing out); hunting, its hands stay low. Each look is averaged over
+	// a breath (3.7 s), so its breath and sway don't decide it.
+	FTestWorldWrapper Wrapper;
+	if (!TestTrue(TEXT("Test world created"), Wrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = Wrapper.GetTestWorld();
+	AUnpaidCreature* Unpaid = Cast<AUnpaidCreature>(EncounterTestWorld::SpawnCreature(World, AUnpaidCreature::StaticClass(), FVector::ZeroVector));
+	ACharacter* Player = BossTestWorld::SpawnPlayer(World, FVector(1500.0, 0.0, 90.0));
+	if (!TestNotNull(TEXT("Unpaid spawned"), Unpaid) || !TestNotNull(TEXT("Player stand-in"), Player))
+	{
+		return false;
+	}
+	if (!Unpaid->GetMesh()->GetSkeletalMeshAsset() || Unpaid->GetBonePose().Num() < 20)
+	{
+		AddWarning(TEXT("SK_Unpaid isn't imported: its hunch isn't checked."));
+		return true;
+	}
+	// It hunts from where it is: the player's blink gate spent (the test's clock stands still), so no phase-step brings it into
+	// reach of an attack (a different pose) between the two looks.
+	if (UUnpaidPackSubsystem* Packs = World->GetSubsystem<UUnpaidPackSubsystem>())
+	{
+		for (uint32 Index = 0; Index < 64; ++Index)
+		{
+			Packs->NoteBlink(*Player, 900000u + Index);
+		}
+	}
+	const FName Head = Unpaid->Rig.Head;
+	const FName Hands[2] = { Unpaid->Rig.LeftArm.Hand, Unpaid->Rig.RightArm.Hand };
+	struct FLook
+	{
+		float HeadX = 0.f;
+		float HandZ = 0.f;
+		float CoalUp = 0.f;
+		float CoalAhead = 0.f;
+	};
+	// Five seconds of ticks with the cvar set (the hunch eases in or out over the first), the last 3.7 s averaged.
+	constexpr float Seconds = 5.f;
+	constexpr float Averaged = 3.7f;
+	auto Watch = [&](const TCHAR* Hunched)
+	{
+		FGaitCVar Setting(TEXT("Looter.Unpaid.Idle.Hunched"), Hunched);
+		FLook Sum;
+		int32 Count = 0;
+		for (float Time = 0.f; Time < Seconds; Time += Frame)
+		{
+			Unpaid->Tick(Frame);
+			if (Time < Seconds - Averaged)
+			{
+				continue;
+			}
+			for (const FCreatureBonePose& Bone : Unpaid->GetBonePose())
+			{
+				if (Bone.Bone == Head)
+				{
+					// Its own frame: X ahead.
+					Sum.HeadX += static_cast<float>(Bone.Transform.GetLocation().X);
+				}
+				else if (Bone.Bone == Hands[0] || Bone.Bone == Hands[1])
+				{
+					Sum.HandZ += 0.5f * static_cast<float>(Bone.Transform.GetLocation().Z);
+				}
+			}
+			const FVector Facing = Unpaid->GetCoalFacing();
+			Sum.CoalUp += static_cast<float>(Facing.Z);
+			Sum.CoalAhead += static_cast<float>(FVector::DotProduct(Facing, Unpaid->GetActorForwardVector()));
+			++Count;
+		}
+		const float Share = 1.f / FMath::Max(Count, 1);
+		return FLook{ Sum.HeadX * Share, Sum.HandZ * Share, Sum.CoalUp * Share, Sum.CoalAhead * Share };
+	};
+	const FLook Upright = Watch(TEXT("0"));
+	const FLook Hunched = Watch(TEXT("1"));
+	TestTrue(FString::Printf(TEXT("Hanging about, its head is carried forward (%.1f cm)"), Hunched.HeadX - Upright.HeadX), Hunched.HeadX > Upright.HeadX + 4.f);
+	TestTrue(FString::Printf(TEXT("...its chest rolled forward (its coal faces %.2f lower)"), Upright.CoalUp - Hunched.CoalUp), Hunched.CoalUp < Upright.CoalUp - 0.08f);
+	TestTrue(FString::Printf(TEXT("...its coal still facing out ahead (%.3f)"), Hunched.CoalAhead), Hunched.CoalAhead > 0.95f);
+	Unpaid->AlertTo(Player);
+	const FLook HuntUpright = Watch(TEXT("0"));
+	const FLook HuntHunched = Watch(TEXT("1"));
+	TestTrue(FString::Printf(TEXT("Hunting, its hands stay low: %.1f cm under the arms-out float's"), HuntUpright.HandZ - HuntHunched.HandZ),
+		HuntHunched.HandZ < HuntUpright.HandZ - 5.f);
 	return true;
 }
 

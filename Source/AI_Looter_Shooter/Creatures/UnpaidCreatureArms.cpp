@@ -1,6 +1,7 @@
 // AUnpaidCreature's arms, over the trunk's pose (UnpaidCreatureRig.cpp). They used to hang almost still, moving as one
 // piece with the chest (stiff, Main's tour 2026-10-08). Now they drift loose at rest (a twitch now and then), hang against
-// the body's lean, come up and claw in turn as it hunts, fling wide and shake for the shriek, reach long and a little wide
+// the body's lean (hunched since 2026-11-03: low at its hips, UnpaidCreatureGait.cpp), claw in turn as it hunts (only a
+// little forward, hunched), fling wide and shake for the shriek, reach long and a little wide
 // in the lunge, and lag its moves and hits on springs; a hit's flinch rises over a few frames instead of one. They keep
 // out of the torso: the model's own hit hulls (PA_Unpaid) measure how deep each arm sits in the pelvis, waist, chest and
 // the shroud's top links past where it sits at rest, and when a pose would push it deeper the upper arm moves (out, back or
@@ -241,8 +242,13 @@ void AUnpaidCreature::PoseArms(float DeltaSeconds, float Time, float Speed, cons
 	}
 
 	const float Lean = FMath::Max(Pose.Lean, 0.f);
-	const float Calm = (1.f - Pose.Hunt) * (1.f - Pose.Spread) * (1.f - Pose.Reach) * Alive;
-	const float Hunt = Pose.Hunt * Alive;
+	// Hunched (Looter.Unpaid.Idle.Hunched, the plain Unpaid), the hunt raises its arms only a share of the old way: its hands
+	// stay low and come a little forward, the claws still working (Kit.Gait.HuntShare; 1 upright, as before). The hunch's own
+	// hang is laid on in FUnpaidGaitWork::ArmPose.
+	const float Raise = Pose.Hunt * Kit.Gait.HuntShare;
+	const float Calm = (1.f - Raise) * (1.f - Pose.Spread) * (1.f - Pose.Reach) * Alive;
+	const float Hunt = Raise * Alive;
+	const float Hunger = Pose.Hunt * Alive;
 	const float Tremble = Pose.Spread * Alive;
 	float Swing[2];
 	float OutBeforeKeepOut[2];
@@ -266,7 +272,7 @@ void AUnpaidCreature::PoseArms(float DeltaSeconds, float Time, float Speed, cons
 
 		Swing[Side] = Calm * DriftSwing
 			+ HangShare * Lean * (1.f - Pose.Reach)
-			+ 8.f * Moving * (1.f - Pose.Hunt) * (1.f - Pose.Reach)
+			+ 8.f * Moving * (1.f - Raise) * (1.f - Pose.Reach)
 			- Hunt * (HuntReach + HuntClaw * Claw)
 			+ 15.f * Pose.Spread + 2.5f * Shake
 			- 80.f * Pose.Reach + (Side == 0 ? -5.f : 5.f) * Pose.Reach
@@ -275,10 +281,10 @@ void AUnpaidCreature::PoseArms(float DeltaSeconds, float Time, float Speed, cons
 		// Swung back past the hips, an arm swings a little wide of them.
 		OutBeforeKeepOut[Side] = RestOut + Calm * DriftOut + 6.f * Moving + Hunt * (4.f + 5.f * Claw) + 55.f * Pose.Spread + 2.f * Shake
 			+ 18.f * Pose.Reach + 0.25f * FMath::Max(Swing[Side], 0.f) + Sway.Out;
-		Bend[Side] = RestBend + Calm * DriftBend + 14.f * Moving * (1.f - Pose.Hunt) * (1.f - Pose.Reach) + Hunt * (20.f + 18.f * Claw)
+		Bend[Side] = RestBend + Calm * DriftBend + 14.f * Moving * (1.f - Raise) * (1.f - Pose.Reach) + Hunt * (20.f + 18.f * Claw)
 			+ 30.f * Pose.Spread - 6.f * Pose.Reach + 25.f * Pose.Death;
 		Wrist[Side] = Calm * DriftWrist + 15.f * Pose.Spread - 12.f * Pose.Reach - Hunt * 12.f * Claw;
-		Curl[Side] = Pose.Curl + Calm * DriftCurl + Hunt * 14.f * (Claw - 0.3f);
+		Curl[Side] = Pose.Curl + Calm * DriftCurl + Hunger * 14.f * (Claw - 0.3f);
 		// Its kit's rake (and the cinder's throw): drawn back and out wide, then swept forward from out there, so the claw
 		// comes round across its front without crossing its own chest (the keep-out below holds it off anyway).
 		const float Cocked = FMath::Max(-Pose.Rake[Side], 0.f) * Alive;

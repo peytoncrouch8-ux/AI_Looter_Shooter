@@ -144,26 +144,70 @@ struct FUnpaidSightState
 };
 
 /**
- * One phase-step or flank at a time at one target, across all the Unpaid after them (2026-10-28 play-check: a pack past
- * FarBehind blinked on one frame as it noticed the player or a wave spawned, 5-6 at once): at most one every Gap seconds.
- * One that owes a press step (hit from past its edge) goes ahead of the rest: its ask holds the next opening for it a moment
- * (OwedHold), so the others wait; one that finds nowhere to land stops asking and the hold runs out. Plain, so the tests
- * check it with their own clock (UFightDirectorSubsystem keeps one per target: MayStep, NoteStep).
+ * The one gate every Unpaid blink at one player asks (2026-11-03, the audit's change 11: the teleport was decided in seven places,
+ * up to ~50 blinks a minute at a player): the phase-step, the press step, the step to sight, the flank, the phase-strike, the
+ * fade-back and the Phasing trait each keep their own reasons to go; this alone says whether they may. Never two blinks at one
+ * player within Gap seconds, never more than PerMinute in any minute, across all the Unpaid after them (2026-10-28: a pack once
+ * blinked on one frame). One that owes a press step (hit from past its edge) goes ahead of the rest: its ask holds the next
+ * opening for it a moment (OwedHold), so the others wait; one that finds nowhere to land stops asking and the hold runs out.
+ * Plain, so the tests check it with their own clock (UUnpaidPackSubsystem keeps one per player: MayBlink, NoteBlink).
  */
-struct AI_LOOTER_SHOOTER_API FUnpaidStepGate
+struct AI_LOOTER_SHOOTER_API FUnpaidBlinkGate
 {
 	/** An owed step's ask holds the next opening this long (s) after it last asked. */
 	static constexpr float OwedHold = 0.25f;
+	/** The budget's window (s). */
+	static constexpr double Minute = 60.0;
 
-	/** Whether Id may step now (bOwed: it owes a press step). Asking owed holds the next opening for it; nothing is counted until Note. */
-	bool MayStep(uint32 Id, bool bOwed, double Now, float Gap);
-	/** Id stepped (or flanked) at Now: the next waits the gap; its owed hold, if any, is spent. */
+	/**
+	 * Whether Id may blink now (bOwed: it owes a press step): Gap since the last blink, fewer than PerMinute in the minute before
+	 * Now (0: no budget), nobody else's owed step first; Gap and PerMinute both 0: the gate is off. Asking owed holds the next
+	 * opening for it; nothing is counted until Note.
+	 */
+	bool MayBlink(uint32 Id, bool bOwed, double Now, float Gap, int32 PerMinute);
+	/** The gap alone: UFightDirectorSubsystem::MayStep's old ask, which no Unpaid makes since 2026-11-03. */
+	bool MayStep(uint32 Id, bool bOwed, double Now, float Gap) { return MayBlink(Id, bOwed, Now, Gap, 0); }
+	/** Id blinked at Now: the next waits the gap and the minute counts it; its owed hold, if any, is spent. */
 	void Note(uint32 Id, double Now);
+	/** Blinks noted in the minute before Now. */
+	int32 CountInMinute(double Now) const;
 
 	double LastStep = -1.0e9;
 	uint32 OwedId = 0;
 	double OwedAsked = -1.0e9;
+	/** When each blink of the last minute went, oldest first (older ones dropped as Note adds). */
+	TArray<double> Recent;
 };
+
+/** The director's old name for it (its FTargetFight still holds one); goes with UFightDirectorSubsystem::MayStep and NoteStep. */
+using FUnpaidStepGate = FUnpaidBlinkGate;
+
+/** Where a blink may land round its player (UnpaidBlinkRules::MayLand; Looter.Unpaid.BlinkNearestBehind, .FlankArcMin, .FlankArcMax). */
+struct AI_LOOTER_SHOOTER_API FUnpaidBlinkLanding
+{
+	/** Behind the player's back (past BehindFrom off their view), never nearer them than this (cm). */
+	float NearestBehind = 250.f;
+	/** A flank or a phase-strike comes back within these angles off the way they look (degrees): at the edge of their view, never straight behind. */
+	float ArcMin = 60.f;
+	float ArcMax = 120.f;
+};
+
+/** The one gate's landing rule as plain functions (the tests check them without a level; UUnpaidPackSubsystem::MayLandAt plays them). */
+namespace UnpaidBlinkRules
+{
+	/** "Behind their back": more than this off the way they look (degrees). */
+	inline constexpr float BehindFrom = 90.f;
+
+	/** How far round from the way a player at PlayerAt looks (ViewYaw) Spot lies, seen from above (degrees, 0 to 180). */
+	AI_LOOTER_SHOOTER_API float AngleOffView(const FVector& PlayerAt, float ViewYaw, const FVector& Spot);
+
+	/**
+	 * Whether a blink may land at Spot round a player at PlayerAt looking along ViewYaw: never behind their back nearer than
+	 * Landing.NearestBehind; a flank's (bFlank: a flank or a phase-strike) only within its arc of their view, so they see it come
+	 * at the edge of the screen. Half a degree's slack for spots worked out from bearings on the arc's edges.
+	 */
+	AI_LOOTER_SHOOTER_API bool MayLand(const FVector& PlayerAt, float ViewYaw, const FVector& Spot, bool bFlank, const FUnpaidBlinkLanding& Landing);
+}
 
 /** The kit's rules as plain functions (the tests check them without a level; AUnpaidCreature plays them). Distances in cm. */
 namespace UnpaidFightRules
@@ -190,11 +234,12 @@ namespace UnpaidFightRules
 	AI_LOOTER_SHOOTER_API FVector TurnToward(const FVector& Direction, const FVector& Wanted, float MaxDegrees);
 
 	/**
-	 * Where round the player a flank may come back, as bearings (degrees, world), best first: at their side and behind them
-	 * (ViewYaw: the way they look), the side nearer its own bearing CreatureBearing first, wide sides before straight behind,
-	 * the near-front sides last.
+	 * Where round the player a flank (or a phase-strike) may come back, as bearings (degrees, world), best first: only within
+	 * ArcMin to ArcMax off the way they look (ViewYaw; the one gate's arc: at the edge of their view, never straight behind), its
+	 * middle first, then toward their front, toward their back, the arc's front edge, its back edge; each its own side first
+	 * (the side nearer its bearing CreatureBearing: the shorter way round, never across their eyes).
 	 */
-	AI_LOOTER_SHOOTER_API TArray<float> FlankBearings(float ViewYaw, float CreatureBearing);
+	AI_LOOTER_SHOOTER_API TArray<float> FlankBearings(float ViewYaw, float CreatureBearing, float ArcMin, float ArcMax);
 
 	/** Whether its turn should open with a flank: it's in front of the player's eyes (Frontness at least Front) and between MinRange and MaxRange off. */
 	AI_LOOTER_SHOOTER_API bool WantsFlank(float Frontness, float Distance, float Front, float MinRange, float MaxRange);
@@ -221,7 +266,7 @@ namespace UnpaidFightRules
 
 	/**
 	 * Whether a hurt one may fade back after its turn: a Basic, alive under Below of its health, not yet this life. Its chance
-	 * (Looter.Unpaid.FadeBack) is rolled apart, once a life.
+	 * (Looter.Unpaid.FadeBack, 0 since 2026-11-03: off, one flee rule) is rolled apart, once a life.
 	 */
 	AI_LOOTER_SHOOTER_API bool MayFadeBack(bool bBasic, float HealthShare, float Below, bool bFadedThisLife);
 

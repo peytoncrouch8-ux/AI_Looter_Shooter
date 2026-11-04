@@ -150,6 +150,63 @@ namespace UnpaidGait
 	};
 
 	AI_LOOTER_SHOOTER_API FFallPose FallPose(EFall Fall, float DeathTime, float Side);
+
+	// --- The hunched drift (2026-11-03, the audit's change 11: its idle read as a floating arms-out scarecrow) ---
+
+	/**
+	 * The plain Unpaid's hunch, over the rest pose's idle hang (Looter.Unpaid.Idle.*; degrees in the rig's turns): the waist
+	 * and chest curled forward (shoulders rolled forward), the head carried low on the neck with its face lifted back toward
+	 * its prey, the arms swung back to hang plumb under the rolled shoulders with the elbows bent (hands low at its hips),
+	 * the fingers half shut; hunting, its hands come only a little forward (a share of the old raise) and the elbows bend more;
+	 * the shroud trails back. The moves that pose the body (a shriek, a rally, a lunge, a rake, a low swipe) take it over.
+	 */
+	struct AI_LOOTER_SHOOTER_API FHunch
+	{
+		/**
+		 * At rest the waist's and chest's curl stay small (9 in all, over the model's own 9 degree hunch): its coal faces out of
+		 * its chest, and with its lean (4) and its breath and sway (up to about 4) Looter.Creatures.Unpaid.Coal holds that within
+		 * about 18 degrees of its facing; the neck carries most of the stoop. Hunting, the chest curls HuntCurl more.
+		 */
+		float Spine = 3.f;
+		float Chest = 6.f;
+		float Neck = 16.f;
+		float HeadUp = 18.f;
+		/** The share of the trunk's curl the arms swing back (1: plumb under the shoulders). */
+		// ArmHang 0.85 / ArmOut 3 on the first build of 2026-11-03 pressed an upper arm 5 cm into spine_01 in the shriek's rear-back
+		// (Looter.Creatures.Anim.UnpaidArms): the arms swing back less with the stoop and stand further off the flanks, and the
+		// hunch itself gives way through every attack (UnpaidCreatureGait.cpp).
+		float ArmHang = 0.5f;
+		float ArmOut = 6.f;
+		float Elbow = 22.f;
+		float Curl = 12.f;
+		/** Hunting: the share of the old clawing raise kept (1: arms up and forward as before), the elbows' and chest's extra. */
+		float HuntArms = 0.3f;
+		float HuntElbow = 8.f;
+		float HuntCurl = 8.f;
+		/** The shroud lifted back off its hang (degrees, on top of a slope's lift). */
+		float ShroudTrail = 10.f;
+	};
+
+	/** One arm's share of the hunch on its angles (degrees, as PoseArms turns them: Swing above 0 back, Out from the body). */
+	struct AI_LOOTER_SHOOTER_API FArmHunch
+	{
+		float Swing = 0.f;
+		float Out = 0.f;
+		float Bend = 0.f;
+		float Curl = 0.f;
+	};
+
+	/** How much of its hunch its trunk shows now (0-1): its eased Hunch, given up to a rear (the shriek's), a reach (the lunge's), a crumple, alive only. */
+	AI_LOOTER_SHOOTER_API float HunchTrunk(float Hunch, float Rear, float Reach, float Crumple, float Alive);
+
+	/** An arm's share of it: the trunk's, less a flung spread (a shriek, a stagger) and its own rake (drawn back or swept). */
+	AI_LOOTER_SHOOTER_API float HunchArm(float Trunk, float Spread, float Rake);
+
+	/** The share of the hunting arm-raise kept: all of it upright (Hunch 0), HuntArms hunched (1). */
+	AI_LOOTER_SHOOTER_API float HuntArmShare(float Hunch, float HuntArms);
+
+	/** An arm's hunch at Share (0-1) with its Hunt (0-1): swung back to hang under the shoulders, elbows bent (more hunting), out a little, fingers shut. */
+	AI_LOOTER_SHOOTER_API FArmHunch ArmHunch(const FHunch& Numbers, float Share, float Hunt);
 }
 
 /** What AUnpaidCreature keeps of its body language as it goes (its Kit.Gait; UnpaidCreatureGait.cpp). */
@@ -174,6 +231,15 @@ struct AI_LOOTER_SHOOTER_API FUnpaidGaitState
 	/** How it falls (chosen as it dies), and to which side. */
 	UnpaidGait::EFall Fall = UnpaidGait::EFall::Slump;
 	float FallSide = 1.f;
+	/**
+	 * Its hunch (a plain Unpaid with Looter.Unpaid.Idle.Hunched): how far it shows (eased, 0-1; below 0 not posed yet: its first
+	 * frame starts there), the hunting arm-raise kept (UnpaidCreatureArms.cpp), the shroud's trail (degrees, the rig's), and
+	 * this frame's numbers.
+	 */
+	float Hunch = -1.f;
+	float HuntShare = 1.f;
+	float Trail = 0.f;
+	UnpaidGait::FHunch Idle;
 
 	/** Back as it was made (a respawn); its limp and side are kept. */
 	void Reset();

@@ -181,20 +181,20 @@ bool FUnpaidKitRulesTest::RunTest(const FString& Parameters)
 	TestNearlyEqual(TEXT("Turns 30 of 90 degrees"), static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Turned.Y, Turned.X))), 30.f, 0.01f);
 	TestTrue(TEXT("A small turn all the way"), UnpaidFightRules::TurnToward(Ahead, At(10.f, 1.f), 30.f).Equals(At(10.f, 1.f), 0.001));
 
-	// The flank: its side first, at their side and behind them, never in the middle of their view.
-	const TArray<float> Bearings = UnpaidFightRules::FlankBearings(0.f, 20.f);
-	if (TestEqual(TEXT("Seven spots to try"), Bearings.Num(), 7))
+	// The flank: its side first, at the edge of their view (the one blink gate's arc, 60-120 degrees: never behind them, never
+	// in the middle of their view; its landing rule's own test is Looter.Creatures.Unpaid.Blink.Landing).
+	const FUnpaidBlinkLanding Arc;
+	const TArray<float> Bearings = UnpaidFightRules::FlankBearings(0.f, 20.f, Arc.ArcMin, Arc.ArcMax);
+	if (TestEqual(TEXT("Ten spots to try"), Bearings.Num(), 10))
 	{
-		TestNearlyEqual(TEXT("First: its own side, wide"), Bearings[0], 105.f, 0.01f);
-		TestNearlyEqual(TEXT("Then the other side"), Bearings[1], -105.f, 0.01f);
-		TestNearlyEqual(TEXT("Then behind the shoulder"), Bearings[2], 145.f, 0.01f);
-		TestNearlyEqual(TEXT("Straight behind, fifth"), FMath::Abs(Bearings[4]), 180.f, 0.01f);
+		TestTrue(TEXT("First: its own side, square to their view; then the other"), FMath::IsNearlyEqual(Bearings[0], 90.f, 0.01f) && FMath::IsNearlyEqual(Bearings[1], -90.f, 0.01f));
 		for (const float Bearing : Bearings)
 		{
-			TestTrue(FString::Printf(TEXT("%.0f is out of the middle of their view"), Bearing), FMath::Abs(FMath::UnwindDegrees(Bearing)) >= 70.f);
+			const float Off = FMath::Abs(FMath::UnwindDegrees(Bearing));
+			TestTrue(FString::Printf(TEXT("%.0f is at the edge of their view, never behind them"), Bearing), Off >= 59.9f && Off <= 120.1f);
 		}
 	}
-	TestNearlyEqual(TEXT("From their right, the right side first"), UnpaidFightRules::FlankBearings(0.f, -30.f)[0], -105.f, 0.01f);
+	TestNearlyEqual(TEXT("From their right, the right side first"), UnpaidFightRules::FlankBearings(0.f, -30.f, Arc.ArcMin, Arc.ArcMax)[0], -90.f, 0.01f);
 	TestTrue(TEXT("In front, in range: flank"), UnpaidFightRules::WantsFlank(0.9f, 700.f, 0.75f, 450.f, 1100.f));
 	TestFalse(TEXT("Already beside them: no"), UnpaidFightRules::WantsFlank(0.5f, 700.f, 0.75f, 450.f, 1100.f));
 	TestFalse(TEXT("Too near: no"), UnpaidFightRules::WantsFlank(0.9f, 300.f, 0.75f, 450.f, 1100.f));

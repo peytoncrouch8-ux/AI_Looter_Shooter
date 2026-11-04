@@ -808,3 +808,17 @@ and revolver (121) did less than the rifle (180-195) and the health sat just ove
   six slimes 28.7 s; about 3 s of each is the walk in. Retuned to the 8-12 s band (the user's call): `DamageScale` 1.4, spider bite 8,
   slime bite 10 (Creature Kinds), `FittedUptime` 0.45 / 0.4 / 0.4 (the evening's paper fits ran 1.3-2.3x hot). Expected now: Unpaid
   ~13 s, spiders ~12, slimes ~15 (the slime hops and misses; its band is the loosest). The second sim's numbers: the handoff.
+
+## The Unpaid, one gate (2026-11-03 night; the audit's change 11; lane note Docs/Work/2026-11-03-Phase3/UNPAID.md)
+- Seven blink permissions became one: phase-step, press step, step to sight, flank, phase-strike, fade-back and the Phasing trait (which
+  asked nothing) all go through `UUnpaidPackSubsystem::MayBlink` / `NoteBlink` (`UnpaidPackSubsystemBlinks.cpp`): at most
+  `Looter.Unpaid.BlinksPerMinute` [15] at one player (was ~50 at `PackStepGap` 1.2, now removed), never two within
+  `Looter.Unpaid.BlinkGap` [2.0 s], never a landing within `Looter.Unpaid.BlinkNearestBehind` [2.5 m] behind the player's back, flanks
+  only `Looter.Unpaid.FlankArcMin/Max` [60-120 degrees] off the view (were 105/145/180/75). Each path keeps its own reason to step.
+- One flee rule: the leader-down falter stays; the fade-back is off (`Looter.Unpaid.FadeBack` 0.5 -> 0, live for an A/B); the break-offs
+  never reached the Unpaid (they apply to `RetreatKinds`: spiders, slimes; a test pins it).
+- The hunched drift (`Looter.Unpaid.Idle.Hunched` [0 since the night of 11-03: on, the lunge pressed an upper arm 5.3 cm into spine_01 and the hunting hands came only 3 cm forward, Anim.UnpaidArms holds 4.5 and wants 5; set 1 to see it in PIE before it is the default], `Looter.Unpaid.Idle.*`): shoulders forward, elbows bent, hands low, head forward,
+  the shroud trailing; 9 degrees in the waist and chest at most (the coal's facing must stay within ~18 degrees for
+  `Looter.Creatures.Unpaid.Coal`), most of it in the neck; raised arms only for the rake, lunge and shriek that pose them.
+- Left for later: `UFightDirectorSubsystem::MayStep`/`NoteStep` and `FTargetFight::Steps` have no caller now (delete with the
+  `FUnpaidStepGate` alias and the `FUnpaidBlinkGate::MayStep` shim). Tests `Looter.Creatures.Unpaid.Blink.*` (new) and the Unpaid groups.

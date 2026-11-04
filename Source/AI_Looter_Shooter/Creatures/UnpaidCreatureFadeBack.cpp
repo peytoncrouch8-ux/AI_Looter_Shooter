@@ -1,11 +1,12 @@
 // AUnpaidCreature as a pack with a head (FIGHTS.md lane 5, 2026-10-29; the user: fights "clearly harder", Borderlands-normal).
-//  - The fade-back (Looter.Unpaid.FadeBack): a hurt Basic, at the end of a turn, may slip out of the fight once a life: it
-//    phase-steps away to the ring's outer edge (500-650 cm from its target, counted at the pack's step gate like any blink),
-//    waits there a moment (its brain held, no turns), then comes on again. A read the player can punish: a fading coal at
-//    the edge of the fight is a kill for whoever follows it up.
 //  - Its pack's leader down (ACreatureBase::OnPackLeaderDown, from PackLeaderRules): it falters as every kind does, a scream
 //    or a cinder's tell dies in its throat, and its coal gutters a moment (Looter.Unpaid.GutterSeconds), the pack's fire
-//    gone low. The director ends the frenzy and holds off rallies for the lull (UnpaidCreatureRing.cpp reads it).
+//    gone low. The director ends the frenzy and holds off rallies for the lull (UnpaidCreatureRing.cpp reads it). Since
+//    2026-11-03 (the audit's change 11: four flee rules on a body that lives about a second) this is the Unpaid's one flee
+//    rule; the pack's break-offs never reached the dead (UEncounterSettings::RetreatKinds: spiders and slimes).
+//  - The fade-back, off unless Looter.Unpaid.FadeBack is above 0 (0.5 was its chance: the A/B): a hurt Basic, at the end of a
+//    turn, slips out of the fight once a life: it phase-steps away to the ring's outer edge (500-650 cm from its target, a
+//    blink at the one gate like any), waits there a moment (its brain held, no turns), then comes on again.
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
@@ -48,7 +49,9 @@ bool AUnpaidCreature::TryFadeBack(bool bRoll)
 	}
 	const FUnpaidFightTuning Tuning = FUnpaidFightTuning::Live();
 	const float HealthShare = Health->GetHealthPercent();
-	if (!UnpaidFightRules::MayFadeBack(GetRank() == ECreatureRank::Basic, HealthShare, Tuning.FadeBackBelow, Kit.bFadedBack))
+	// Off by default (one flee rule: its leader's fall); a chance above 0 brings it back, the tests' skipped roll included.
+	if (Tuning.FadeBack <= 0.f
+		|| !UnpaidFightRules::MayFadeBack(GetRank() == ECreatureRank::Basic, HealthShare, Tuning.FadeBackBelow, Kit.bFadedBack))
 	{
 		return false;
 	}
@@ -64,7 +67,7 @@ bool AUnpaidCreature::TryFadeBack(bool bRoll)
 			return false;
 		}
 	}
-	// One blink at a player at a time across the pack (StartStepTo counts it at the gate); a refused one tries at its next turn.
+	// The one blink gate at its target (StartStepTo counts it); a refused one tries at its next turn.
 	FVector Feet;
 	if (!MayPackStep(*Victim) || !FindFadeSpot(*Victim, Feet))
 	{
