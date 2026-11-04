@@ -17,6 +17,9 @@ class UWeaponLabelWidget;
  * full ones out with LootLabelLayout::Arrange (the looked-at one stays put, the others step just above or below it) and
  * eases each widget's render translation there. The labels' own components and visibility stay their owners'.
  * Looter.LootLabels.* cvars.
+ *
+ * It ticks only while a label shows or it still holds one's shift or fold to put back (IsTickable), and finds the loot in the
+ * actor index (World/ActorIndexSubsystem), not by walking the world's actors every frame.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULootLabelSubsystem : public UTickableWorldSubsystem
@@ -25,7 +28,14 @@ class AI_LOOTER_SHOOTER_API ULootLabelSubsystem : public UTickableWorldSubsystem
 
 public:
 	virtual void Tick(float DeltaTime) override;
+	virtual bool IsTickable() const override;
 	virtual TStatId GetStatId() const override;
+
+	/**
+	 * The sleep rule: it ticks while a loot label shows (bLabelShowing) or while it holds labels' eased shifts and folds
+	 * (bHoldsLabels), which the one tick after the last label hides puts back. Nothing shows most of the game.
+	 */
+	static bool NeedsTick(bool bLabelShowing, bool bHoldsLabels);
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 	virtual void Deinitialize() override;
 

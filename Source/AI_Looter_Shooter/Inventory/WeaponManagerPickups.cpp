@@ -5,8 +5,8 @@
 #include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
 #include "Weapons/WeaponBase.h"
+#include "World/ActorIndexSubsystem.h"
 #include "EnhancedPlayerInput.h"
-#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
@@ -120,17 +120,18 @@ void UWeaponManagerComponent::PutLootInHand(AWeaponBase* Pickup)
 
 void UWeaponManagerComponent::GatherInteractions(const FInteractionView& View, TArray<FInteractionCandidate>& OutCandidates) const
 {
-	UWorld* World = GetWorld();
-	if (!World)
+	// The guns from the actor index (this ran a TActorIterator over the world every frame the interaction component looked).
+	UActorIndexSubsystem* Index = UActorIndexSubsystem::Get(GetWorld());
+	if (!Index)
 	{
 		return;
 	}
 	const double RangeSquared = FMath::Square(static_cast<double>(PickupRange));
-	for (TActorIterator<AWeaponBase> It(World); It; ++It)
+	for (const TWeakObjectPtr<AWeaponBase>& Entry : Index->GetGuns())
 	{
-		AWeaponBase* Weapon = *It;
+		AWeaponBase* Weapon = Entry.Get();
 		// A hidden gun (one a scene hasn't shown yet) is never offered: Delia's Heirloom was once taken unseen this way.
-		if (!Weapon->IsPickup() || Weapon->IsHidden()
+		if (!Weapon || !Weapon->IsPickup() || Weapon->IsHidden()
 			|| FVector::DistSquared(Weapon->GetActorLocation(), View.ReachOrigin) > RangeSquared)
 		{
 			continue;
@@ -195,8 +196,8 @@ void UWeaponManagerComponent::HandleInteractionFocusChanged(AActor* Focused)
 void UWeaponManagerComponent::UpdateLootLabels()
 {
 	APlayerController* PC = InputBinding.GetController();
-	UWorld* World = GetWorld();
-	if (!PC || !World)
+	UActorIndexSubsystem* Index = UActorIndexSubsystem::Get(GetWorld());
+	if (!PC || !Index)
 	{
 		return;
 	}
@@ -217,10 +218,10 @@ void UWeaponManagerComponent::UpdateLootLabels()
 	const UInteractionComponent* Interaction = LabelFocus.Get();
 	const AActor* Focused = Interaction ? Interaction->GetFocusedActor() : nullptr;
 	TArray<TWeakObjectPtr<AWeaponBase>> NowLabeled;
-	for (TActorIterator<AWeaponBase> It(World); It; ++It)
+	for (const TWeakObjectPtr<AWeaponBase>& Entry : Index->GetGuns())
 	{
-		AWeaponBase* Weapon = *It;
-		if (Weapon->IsPickup() && FVector::Dist(Weapon->GetActorLocation(), Eyes) <= LabelRange)
+		AWeaponBase* Weapon = Entry.Get();
+		if (Weapon && Weapon->IsPickup() && FVector::Dist(Weapon->GetActorLocation(), Eyes) <= LabelRange)
 		{
 			NowLabeled.Add(Weapon);
 		}

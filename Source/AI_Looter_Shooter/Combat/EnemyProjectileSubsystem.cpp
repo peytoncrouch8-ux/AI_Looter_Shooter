@@ -4,12 +4,12 @@
 #include "Combat/EnemyShotDamageType.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "World/ActorIndexSubsystem.h"
 #include "World/PlayableArea.h"
 #include "Components/BrushComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
@@ -347,12 +347,17 @@ void UEnemyProjectileSubsystem::NoteFlyBy(int32 Index, const FVector& From, cons
 TArray<TWeakObjectPtr<ACharacter>> UEnemyProjectileSubsystem::GatherVictims() const
 {
 	TArray<TWeakObjectPtr<ACharacter>> Victims;
-	for (TActorIterator<ACharacter> It(GetWorld()); It; ++It)
+	// The characters that aren't creatures (the players, friends) from the actor index: this tick once walked every character
+	// of the world, the whole horde among them, each update while a shot flew.
+	if (UActorIndexSubsystem* Index = UActorIndexSubsystem::Get(GetWorld()))
 	{
-		// Who fired doesn't matter here: no creature is ever hurt by a pellet (CanHurt checks each pellet's shooter).
-		if (CanHurt(nullptr, *It))
+		for (const TWeakObjectPtr<ACharacter>& Entry : Index->GetCharacters())
 		{
-			Victims.Add(*It);
+			// Who fired doesn't matter here: no creature is ever hurt by a pellet (CanHurt checks each pellet's shooter).
+			if (CanHurt(nullptr, Entry.Get()))
+			{
+				Victims.Add(Entry);
+			}
 		}
 	}
 	return Victims;
@@ -361,24 +366,31 @@ TArray<TWeakObjectPtr<ACharacter>> UEnemyProjectileSubsystem::GatherVictims() co
 FCollisionQueryParams UEnemyProjectileSubsystem::MakeWorldQuery() const
 {
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(EnemyShot), /*bTraceComplex*/ false);
-	const UWorld* World = GetWorld();
-	if (!World)
+	UActorIndexSubsystem* Index = UActorIndexSubsystem::Get(GetWorld());
+	if (!Index)
 	{
 		return Params;
 	}
 	// A volume is an invisible box that still answers world-static queries (the meadow's PCG volume is the first thing a
-	// trace across the island meets). Only its box is skipped: the trees and rocks it scattered still stop pellets.
-	for (TActorIterator<AVolume> It(World); It; ++It)
+	// trace across the island meets). Only its box is skipped: the trees and rocks it scattered still stop pellets. (That is
+	// why this isn't UGroundIgnoreSubsystem's list, which skips whole volume actors: the scatter's trees are components of the
+	// PCG volume's actor, and a shot must not fly through them.) From the actor index, not a walk through the world's actors
+	// on every update while a shot flies.
+	for (const TWeakObjectPtr<AVolume>& Entry : Index->GetVolumes())
 	{
-		if (const UBrushComponent* Brush = It->GetBrushComponent())
+		const AVolume* Volume = Entry.Get();
+		if (const UBrushComponent* Brush = Volume ? Volume->GetBrushComponent() : nullptr)
 		{
 			Params.AddIgnoredComponent(Brush);
 		}
 	}
 	// The playable area's invisible walls only stop walking pawns.
-	for (TActorIterator<APlayableArea> It(World); It; ++It)
+	for (const TWeakObjectPtr<APlayableArea>& Entry : Index->GetPlayableAreas())
 	{
-		Params.AddIgnoredActor(*It);
+		if (const APlayableArea* Area = Entry.Get())
+		{
+			Params.AddIgnoredActor(Area);
+		}
 	}
 	return Params;
 }

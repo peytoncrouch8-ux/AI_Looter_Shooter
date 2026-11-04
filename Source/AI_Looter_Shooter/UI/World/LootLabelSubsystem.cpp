@@ -8,11 +8,11 @@
 #include "UI/World/WeaponLabelWidget.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponTypes.h"
+#include "World/ActorIndexSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -47,6 +47,34 @@ namespace
 		UWeaponLabelWidget* GunLabel = nullptr;
 		FLootPileLabel Pile;
 	};
+
+	/** A loot label is on (its component shows): the gate for ticking at all, cheaper than the layout and the same test Gather starts with. */
+	bool IsShowing(const UWidgetComponent* Label)
+	{
+		return Label && Label->IsVisible();
+	}
+
+	/** Some gun lying as loot or some ward on the ground shows its label now (a few entries read, not a world walked). */
+	bool AnyLabelShowing(UActorIndexSubsystem& Index)
+	{
+		for (const TWeakObjectPtr<AWeaponBase>& Entry : Index.GetGuns())
+		{
+			const AWeaponBase* Gun = Entry.Get();
+			if (Gun && Gun->IsPickup() && IsShowing(Gun->GetLabelComponent()))
+			{
+				return true;
+			}
+		}
+		for (const TWeakObjectPtr<AShieldPickup>& Entry : Index.GetShieldPickups())
+		{
+			const AShieldPickup* Ward = Entry.Get();
+			if (Ward && IsShowing(Ward->GetLabelComponent()))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/** Adds Label when it's showing, on screen, with its widget made. */
 	FShownLabel* Gather(APlayerController& PC, const FVector& Eyes, const AActor& Owner, const AActor* Focused, UWidgetComponent* Label,
@@ -126,6 +154,18 @@ bool ULootLabelSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType)
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
 }
 
+bool ULootLabelSubsystem::NeedsTick(bool bLabelShowing, bool bHoldsLabels)
+{
+	return bLabelShowing || bHoldsLabels;
+}
+
+bool ULootLabelSubsystem::IsTickable() const
+{
+	// Asked every frame: a read of the shown labels' flags in the actor index, no more. Asleep, a frame costs nothing here.
+	UActorIndexSubsystem* Index = UActorIndexSubsystem::Get(GetWorld());
+	return NeedsTick(Index && AnyLabelShowing(*Index), !Shown.IsEmpty() || !Folded.IsEmpty());
+}
+
 void ULootLabelSubsystem::Deinitialize()
 {
 	Shown.Reset();
@@ -162,25 +202,33 @@ void ULootLabelSubsystem::Tick(float DeltaTime)
 		const UInteractionComponent* Interaction = Pawn ? Pawn->FindComponentByClass<UInteractionComponent>() : nullptr;
 		const AActor* Focused = Interaction ? Interaction->GetFocusedActor() : nullptr;
 		const FVector Eyes = Pawn ? Pawn->GetPawnViewLocation() : PC->GetFocalLocation();
-		// Guns lying as loot and wards on the ground: their labels show only near the player, so this stays a handful.
-		for (TActorIterator<AWeaponBase> It(World); It; ++It)
+		// Guns lying as loot and wards on the ground: their labels show only near the player, so this stays a handful. From the
+		// actor index, not a walk through the world's actors every frame.
+		if (UActorIndexSubsystem* Index = UActorIndexSubsystem::Get(World))
 		{
-			if (!It->IsPickup())
+			for (const TWeakObjectPtr<AWeaponBase>& Entry : Index->GetGuns())
 			{
-				continue;
+				AWeaponBase* Gun = Entry.Get();
+				if (!Gun || !Gun->IsPickup())
+				{
+					continue;
+				}
+				if (FShownLabel* Label = Gather(*PC, Eyes, *Gun, Focused, Gun->GetLabelComponent(), Labels))
+				{
+					Label->GunLabel = Cast<UWeaponLabelWidget>(Label->Widget);
+					Label->Pile.Location = Gun->GetActorLocation();
+					Label->Pile.Distance = Label->Box.Distance;
+					Label->Pile.Rank = static_cast<int32>(Gun->GetInstance().Rarity);
+					Label->Pile.bFocused = Label->Box.bFocused;
+				}
 			}
-			if (FShownLabel* Label = Gather(*PC, Eyes, **It, Focused, It->GetLabelComponent(), Labels))
+			for (const TWeakObjectPtr<AShieldPickup>& Entry : Index->GetShieldPickups())
 			{
-				Label->GunLabel = Cast<UWeaponLabelWidget>(Label->Widget);
-				Label->Pile.Location = It->GetActorLocation();
-				Label->Pile.Distance = Label->Box.Distance;
-				Label->Pile.Rank = static_cast<int32>(It->GetInstance().Rarity);
-				Label->Pile.bFocused = Label->Box.bFocused;
+				if (AShieldPickup* Ward = Entry.Get())
+				{
+					Gather(*PC, Eyes, *Ward, Focused, Ward->GetLabelComponent(), Labels);
+				}
 			}
-		}
-		for (TActorIterator<AShieldPickup> It(World); It; ++It)
-		{
-			Gather(*PC, Eyes, **It, Focused, It->GetLabelComponent(), Labels);
 		}
 	}
 	FoldPiles(Labels, Folded);

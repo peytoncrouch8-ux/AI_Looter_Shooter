@@ -9,6 +9,7 @@
 #include "Missions/MissionSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Weapons/WeaponBase.h"
+#include "World/ActorIndexSubsystem.h"
 #include "World/MinimapSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -19,7 +20,6 @@
 #include "Components/TextBlock.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/Texture2D.h"
-#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
@@ -256,26 +256,38 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	FMarkerSpots AmmoSpots;
 	FMarkerSpots GunSpots;
 	FMarkerSpots HostileSpots;
-	// Ammo in the ammo icons' light (the mockup's ammo dot), smaller than the loot's dots.
-	for (TActorIterator<AAmmoPickup> It(World); It; ++It)
+	// From the actor index (a few dozen entries, looked up again a few times a second): this tick once walked every pickup,
+	// gun and creature of the world with a TActorIterator, a Cast each, every frame. What can change between the index's
+	// looks (a pickup gun taken, a creature dead or hidden) is asked here.
+	if (UActorIndexSubsystem* Index = UActorIndexSubsystem::Get(World))
 	{
-		Gather(AmmoSpots, It->GetActorLocation(), Color::IconLight(), AmmoMarkerSize);
-	}
-	for (TActorIterator<AWeaponBase> It(World); It; ++It)
-	{
-		if (It->IsPickup())
+		// Ammo in the ammo icons' light (the mockup's ammo dot), smaller than the loot's dots.
+		for (const TWeakObjectPtr<AAmmoPickup>& Entry : Index->GetAmmoPickups())
 		{
-			Gather(GunSpots, It->GetActorLocation(), LooterWeaponText::Color(It->GetInstance()), GunMarkerSize);
+			if (const AAmmoPickup* Ammo = Entry.Get())
+			{
+				Gather(AmmoSpots, Ammo->GetActorLocation(), Color::IconLight(), AmmoMarkerSize);
+			}
 		}
-	}
-	for (TActorIterator<ACreatureBase> It(World); It; ++It)
-	{
-		// A Stone Sentinel standing as a statue isn't shown, nor a creature still hidden (a spider waiting in its den): the map
-		// mustn't give the trap away.
-		const AStoneSentinelCreature* Sentinel = Cast<AStoneSentinelCreature>(*It);
-		if (!It->IsDead() && !It->IsHidden() && !(Sentinel && Sentinel->IsDormant()))
+		for (const TWeakObjectPtr<AWeaponBase>& Entry : Index->GetGuns())
 		{
-			Gather(HostileSpots, It->GetActorLocation(), Color::Health(), HostileMarkerSize);
+			const AWeaponBase* Gun = Entry.Get();
+			if (Gun && Gun->IsPickup())
+			{
+				Gather(GunSpots, Gun->GetActorLocation(), LooterWeaponText::Color(Gun->GetInstance()), GunMarkerSize);
+			}
+		}
+		for (const FIndexedCreature& Entry : Index->GetCreatures())
+		{
+			// A Stone Sentinel standing as a statue isn't shown, nor a creature still hidden (a spider waiting in its den): the
+			// map mustn't give the trap away. (The index knows which are sentinels: no Cast here.)
+			const ACreatureBase* Creature = Entry.Creature.Get();
+			if (!Creature || Creature->IsDead() || Creature->IsHidden()
+				|| (Entry.bSentinel && static_cast<const AStoneSentinelCreature*>(Creature)->IsDormant()))
+			{
+				continue;
+			}
+			Gather(HostileSpots, Creature->GetActorLocation(), Color::Health(), HostileMarkerSize);
 		}
 	}
 	// The givers' marks within the rim, from the marks over the world (a few looks a second): a ! for a mission to pick
