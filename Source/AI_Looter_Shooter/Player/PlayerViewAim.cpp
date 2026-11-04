@@ -5,6 +5,7 @@
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Camera/CameraComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Controller.h"
 
@@ -124,12 +125,18 @@ void UPlayerViewComponent::HandleWeaponFired()
 {
 	if (const AWeaponBase* Weapon = FiringWeapon.Get())
 	{
-		// The gun model kicks less through the sight (AddShot blends by how far the sights are up); the aim then takes the
-		// kind's pattern on top: a rifle's drift, an SMG's shimmy, an LMG's sway, by the shot's place in the burst.
-		// The LMG's dig-in reaches the pattern too (the profile already has it).
+		// The gun model kicks less through the sight (AddShot blends by how far the sights are up), and its shove stops short of
+		// the eye, a share of how far the sight sits ahead of it (first person: the gun at the eye); the aim then takes the
+		// kind's pattern on top: a rifle's drift, an SMG's shimmy, an LMG's sway, by the shot's place in the burst, sized by
+		// the shot's kick as the aim's own is. The LMG's dig-in reaches the pattern too (the profile already has it).
 		const EWeaponKind Kind = GunfeelKick::KindOf(Weapon);
-		Recoil.AddShot(Weapon->GetRecoilProfile(), RecoilRandom, GetAimAlpha());
-		Recoil.AddAimYaw(GunfeelKick::PatternSide(Kind, Recoil.GetShotInBurst()) * GunfeelKick::ShotRecoil(Weapon) * Weapon->GetKickDigIn());
+		FWeaponRecoilProfile Profile = Weapon->GetRecoilProfile();
+		if (IsFirstPerson())
+		{
+			Profile.AimedBackMost = GunfeelKick::AimedBackMost(GunfeelKick::SightGap(FirstPersonCamera.Get(), *Weapon));
+		}
+		Recoil.AddShot(Profile, RecoilRandom, GetAimAlpha());
+		Recoil.AddAimYaw(GunfeelKick::PatternSide(Kind, Recoil.GetShotInBurst()) * GunfeelKick::KickShare(Weapon) * Weapon->GetKickDigIn());
 		// A bolt gun's kick holds while its bolt is worked, then the world settles (none for any other gun).
 		Recoil.HoldRecovery(Weapon->GetRecoilHoldSeconds());
 		// The view's own kick on top of the recoil (only what the player sees; the aim takes the recoil above).

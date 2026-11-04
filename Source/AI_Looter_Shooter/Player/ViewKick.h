@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponTypes.h"
 
 /**
@@ -29,8 +30,8 @@ struct AI_LOOTER_SHOOTER_API FViewKick
 	float Pivot = 0.f;
 
 	/**
-	 * Sustained-shot cap (degrees of view pitch; 0 = this is no automatic's shot kick, nothing capped). A kick with one
-	 * counts among the stack's shot kicks, and FViewKickStack::Add trims it so the shot kicks together stay under the cap
+	 * Sustained-shot cap (degrees of view pitch; 0 = nothing capped). A kick with one counts among the stack's shot kicks (an
+	 * automatic's stacking lift, ViewKicks::ForLift), and FViewKickStack::Add trims it so they together stay under the cap
 	 * (a lone kick bigger than the cap is never trimmed), but never below SustainFloor of its size.
 	 */
 	float SustainCap = 0.f;
@@ -84,8 +85,11 @@ public:
 
 	/** A kick is dropped once its spring's swing is under this share of its peak. */
 	static constexpr float SettledShare = 0.005f;
-	/** No more than this many at once (a full-auto burst keeps a handful going); the oldest gives way. */
-	static constexpr int32 MaxKicks = 12;
+	/**
+	 * No more than this many at once; the oldest gives way. 16 (was 12, 2026-11-03): a held LMG keeps about seven lifts and a
+	 * crack or two going (each lift lives about half a second), with room for a hit, a kill and the camera's own motion.
+	 */
+	static constexpr int32 MaxKicks = 16;
 	/** The most the view turns (pitch and roll; yaw is held to two thirds of it) and widens or narrows, all kicks together. */
 	static constexpr float MaxTurn = 3.f;
 	static constexpr float MaxFieldOfView = 0.05f;
@@ -124,8 +128,11 @@ struct AI_LOOTER_SHOOTER_API FShotKickShape
  */
 namespace ViewKicks
 {
-	/** The Recoil stat a base Common shoots with (its stat 1 x Recoil.More 1.4): ForShot's table is its hip peaks there. */
-	inline constexpr float BaseShotRecoil = 1.4f;
+	/**
+	 * The Recoil a base Common shoots with (its stat 1 x the shipped Recoil.More): every table here is its hip peaks there, and
+	 * a shot scales them by its ShotRecoil over this (GunfeelKick::KickShare), as the aim and the gun model do.
+	 */
+	inline constexpr float BaseShotRecoil = GunfeelKick::Default::RecoilMore;
 
 	/**
 	 * A shot from a gun of Kind, each kind its own (gun identity, GUNS.md 2026-10-28; hip peaks at RecoilStat 1.4): the SMG a
@@ -135,19 +142,22 @@ namespace ViewKicks
 	 * thunderclap (2.0, 1.6%, 8 Hz, 1.2 cm), the launcher a heave (1.4 up, 4.4% wider, 4.5 Hz, 3.5 cm; ForHeave follows it).
 	 * Every one stays under the stack's limits at a base gun, so none clips: the heavy kinds read apart by shape. The Recoil
 	 * stat scales it (as RecoilStat / 1.4, held to 0.4-2.0, so the accuracy's calm reaches both ends); through the sight the
-	 * shape's shares are kept. Random sets the ways a roll or yaw may go (the revolver's never varies).
+	 * shape's shares are kept. Random sets the ways a roll or yaw may go (the revolver's never varies). Each is one round's
+	 * crack, gone before the next; an automatic's held burst stacks its ForLift instead.
 	 */
 	AI_LOOTER_SHOOTER_API FViewKick ForShot(EWeaponKind Kind, float RecoilStat, float AimAlpha, FRandomStream& Random, const FShotKickShape& Shape);
 	/** The same with Kind's shipped shape (FShotKickShape::For). */
 	AI_LOOTER_SHOOTER_API FViewKick ForShot(EWeaponKind Kind, float RecoilStat, float AimAlpha, FRandomStream& Random);
 
 	/**
-	 * A shot's view kick as it was before gun identity (Looter.Gunfeel.Identity 0, times Default::Today's scale): the rifle
-	 * a tick (0.32 degrees up, 0.5% wider), the shotgun a shove (1.15, 2.2%), the revolver a snap (0.9, 1.2%), the SMG 0.2,
-	 * the LMG 0.42, the sniper 1.3 (2%), the launcher 1.4 (3%); the Recoil stat held to 0.6-1.5; through the sight half the
-	 * turn and 60% of the widening for every kind.
+	 * An automatic's slow view lift under each round's crack (2026-11-03): a soft, well damped push that outlasts the round
+	 * (peaking 60-95 ms after it, gone in about half a second), so a held burst's lifts stack on each other and the kind's
+	 * sustain cap holds them (FViewKick::SustainCap, set by the caller). A crack fast enough to read as one (the rifle's
+	 * 14 Hz; any spring above about 6.5 Hz) is all but gone by the next round at 650 a minute, so it can never stack. The
+	 * rifle 0.5 degrees at 2.2 Hz, the SMG 0.25 at 3 Hz (its hum held low), the LMG 0.6 at 1.8 Hz (its weight), all damped
+	 * 0.8; sized as ForShot is, through the sight times the shape's AimedTurn. Nothing (IsNone) for a single-shot kind.
 	 */
-	AI_LOOTER_SHOOTER_API FViewKick ForShotToday(EWeaponKind Kind, float RecoilStat, float AimAlpha, FRandomStream& Random);
+	AI_LOOTER_SHOOTER_API FViewKick ForLift(EWeaponKind Kind, float RecoilStat, float AimAlpha, const FShotKickShape& Shape);
 
 	/**
 	 * The launcher's heave after its shove: the tube's weight settling (0.5 degrees down, 0.16 s after the shot, 6 Hz),

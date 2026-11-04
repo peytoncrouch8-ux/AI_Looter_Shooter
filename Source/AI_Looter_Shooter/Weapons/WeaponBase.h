@@ -250,7 +250,7 @@ public:
 
 	/**
 	 * The LMG's dig-in on every kick it makes now (aim, view, model; GunfeelKick::LMGDigIn by its spin): harder while it
-	 * spins up, steadier once spun. 1 for every other gun and with Looter.Gunfeel.Identity 0. WeaponBaseKick.cpp.
+	 * spins up, steadier once spun. 1 for every other gun. WeaponBaseKick.cpp.
 	 */
 	float GetKickDigIn() const;
 

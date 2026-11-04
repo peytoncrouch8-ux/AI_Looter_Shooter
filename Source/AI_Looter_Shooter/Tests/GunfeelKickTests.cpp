@@ -62,15 +62,21 @@ bool FGunfeelKickVariablesTest::RunTest(const FString& Parameters)
 		TEXT("Shotgun.FalloffStart"), TEXT("Shotgun.FalloffEnd"), TEXT("Shotgun.FalloffFloor"), TEXT("Crit.Revolver"),
 		TEXT("Aim.Time.Rifle"), TEXT("Aim.Time.Shotgun"), TEXT("Aim.Time.Revolver"), TEXT("Aim.Move.Rifle"), TEXT("Aim.Move.Shotgun"),
 		TEXT("Aim.Move.Revolver"), TEXT("Swap.Rifle"), TEXT("Swap.Shotgun"), TEXT("Swap.Revolver"),
-		// The gun feel pass (2026-10-22): the sight, the pattern, the first shot, the sustained cap, the rack.
-		TEXT("Recoil.AimedFlip"), TEXT("Recoil.AimedRoll"), TEXT("Recoil.AimedBack"), TEXT("Kick.FirstShot"), TEXT("Spread.FirstShot"),
-		TEXT("Recoil.Pattern"), TEXT("Recoil.SideRandom"), TEXT("Kick.SustainCap"), TEXT("Kick.SustainFloor"), TEXT("Kick.Rack"),
-		TEXT("Recoil.RifleDrift"), TEXT("Recoil.RifleDriftFrom"), TEXT("Recoil.SMGShimmy"), TEXT("Recoil.LMGSway"),
-		TEXT("Recoil.LMGSwayShots"), TEXT("Spread.FirstShotRest"), TEXT("Spread.FirstShotEase") };
+		// The gun feel pass (2026-10-22): the pattern, the first shot, the sustained cap's floor, the rack.
+		TEXT("Kick.FirstShot"), TEXT("Spread.FirstShot"), TEXT("Recoil.Pattern"), TEXT("Recoil.SideRandom"), TEXT("Kick.SustainFloor"),
+		TEXT("Kick.Rack"), TEXT("Recoil.RifleDrift"), TEXT("Recoil.RifleDriftFrom"), TEXT("Recoil.SMGShimmy"), TEXT("Recoil.LMGSway"),
+		TEXT("Recoil.LMGSwayShots"), TEXT("Spread.FirstShotRest"), TEXT("Spread.FirstShotEase"),
+		// A burst that climbs (2026-11-03): the recovery while held, its delay, the aimed shove's limit, the stacking lift.
+		TEXT("Recoil.WhileFiring"), TEXT("Recoil.RecoveryDelay"), TEXT("Recoil.AimedBackGap"), TEXT("Kick.Lift") };
 	for (const TCHAR* Name : Names)
 	{
 		const FString Full = FString(TEXT("Looter.Gunfeel.")) + Name;
 		TestNotNull(*FString::Printf(TEXT("%s exists"), *Full), IConsoleManager::Get().FindConsoleVariable(*Full));
+	}
+	// One kick layer: the shared cap and sight shares only Identity 0 read are gone (each kind's own are in Gun Feel).
+	for (const TCHAR* Gone : { TEXT("Kick.SustainCap"), TEXT("Recoil.AimedFlip"), TEXT("Recoil.AimedRoll"), TEXT("Recoil.AimedBack") })
+	{
+		TestNull(*FString::Printf(TEXT("Looter.Gunfeel.%s is gone"), Gone), IConsoleManager::Get().FindConsoleVariable(*(FString(TEXT("Looter.Gunfeel.")) + Gone)));
 	}
 
 	// They are read each time they are asked, so a change in play shows on the next shot.
@@ -87,6 +93,19 @@ bool FGunfeelKickVariablesTest::RunTest(const FString& Parameters)
 		FScopedVariable Aim(TEXT("Looter.Gunfeel.Aim.Time.Rifle"), 1.7f);
 		TestEqual(TEXT("A gun with no kind of its own is the rifle"), GunfeelKick::AimTimeScale(EWeaponKind::None), 1.7f);
 	}
+	{
+		FScopedVariable WhileFiring(TEXT("Looter.Gunfeel.Recoil.WhileFiring"), 0.25f);
+		FScopedVariable Delay(TEXT("Looter.Gunfeel.Recoil.RecoveryDelay"), 0.2f);
+		FScopedVariable Gap(TEXT("Looter.Gunfeel.Recoil.AimedBackGap"), 0.5f);
+		TestEqual(TEXT("The recovery while held is read at once"), GunfeelKick::WhileFiringShare(), 0.25f);
+		TestEqual(TEXT("...its delay"), GunfeelKick::RecoveryDelaySeconds(), 0.2f);
+		TestEqual(TEXT("...the aimed shove's limit"), GunfeelKick::AimedBackMost(20.f), 10.f, 0.0001f);
+		const GunfeelKick::FProfileNumbers Live = GunfeelKick::LiveProfileNumbers(EWeaponKind::Rifle);
+		TestTrue(TEXT("...and reach the shot's profile"), FMath::IsNearlyEqual(Live.WhileFiring, 0.25f) && FMath::IsNearlyEqual(Live.RecoveryDelay, 0.2f));
+	}
+	// The shipped ones.
+	TestEqual(TEXT("Held, the aim recovers at a tenth of its rate (0.35 before)"), Def::RecoveryWhileFiring, 0.1f);
+	TestTrue(TEXT("...until past the automatics' 92 ms rounds"), Def::RecoveryDelay > 60.f / 650.f);
 	return true;
 }
 
@@ -97,14 +116,12 @@ bool FGunfeelKickIdentityTest::RunTest(const FString& Parameters)
 {
 	// The shipped numbers give each gun its character: the shotgun shoves hardest, the six-gun is quickest on its feet and
 	// to the eye, the shotgun slowest. Since gun identity (2026-10-28) the view kick's per-kind weight is ViewKicks::ForShot's
-	// own table, so every Kick.<Kind> starts at 1; Identity 0's old scales (Default::Today) keep today's order.
-	namespace Today = Def::Today;
+	// own table, so every Kick.<Kind> starts at 1.
 	for (const float Scale : { Def::KickRifle, Def::KickShotgun, Def::KickRevolver, Def::KickSMG, Def::KickSniper, Def::KickLMG, Def::KickLauncher })
 	{
 		TestEqual(TEXT("Every kind's view kick scale starts at 1 (one table to read)"), Scale, 1.f);
 	}
-	TestTrue(TEXT("The shotgun shoves, the rifle ticks"), Today::KickShotgun >= Today::KickRevolver && Today::KickRevolver < Today::KickRifle + 0.5f
-		&& Today::KickRifle > 1.f && Def::RecoilShotgun > Def::RecoilRifle);
+	TestTrue(TEXT("The shotgun's model shoves harder than the rifle's"), Def::RecoilShotgun > Def::RecoilRifle);
 	TestTrue(TEXT("The six-gun comes up quickest, the shotgun slowest"), Def::AimTimeRevolver < Def::AimTimeRifle && Def::AimTimeRifle < Def::AimTimeShotgun);
 	TestTrue(TEXT("...is swapped quickest, the shotgun slowest"), Def::SwapRevolver < Def::SwapRifle && Def::SwapRifle < Def::SwapShotgun);
 	TestTrue(TEXT("...and walks fastest aimed, the shotgun slowest"), Def::AimMoveRevolver > Def::AimMoveRifle && Def::AimMoveRifle > Def::AimMoveShotgun);
@@ -113,10 +130,6 @@ bool FGunfeelKickIdentityTest::RunTest(const FString& Parameters)
 		Def::RumbleShotgun > Def::RumbleRevolver && Def::RumbleRevolver > Def::RumbleRifle
 		&& Def::RumbleShotgunSeconds > Def::RumbleRevolverSeconds && Def::RumbleRevolverSeconds > Def::RumbleRifleSeconds);
 	TestEqual(TEXT("The revolver's crit is 2.25x (kill speed, 2026-11-03; the user's 1.75 before)"), Def::CritRevolver, 2.25f);
-	// The gun feel pass spread the kinds apart (2026-10-22): heaviest first, the SMG a hum (Identity 0's scales).
-	TestTrue(TEXT("Today's view kick runs launcher/sniper, shotgun, revolver, rifle, LMG, SMG"),
-		Today::KickLauncher >= Today::KickSniper && Today::KickSniper > Today::KickShotgun && Today::KickShotgun > Today::KickRevolver
-		&& Today::KickRevolver > Today::KickRifle && Today::KickRifle > Today::KickLMG && Today::KickLMG > Today::KickSMG);
 	// Gun identity's table at a base gun: the light guns low, the heavy three up high but apart (Looter.Gunfeel.Identity.*).
 	FRandomStream Random(2);
 	auto Hip = [&Random](EWeaponKind Kind) { return ViewKicks::ForShot(Kind, ViewKicks::BaseShotRecoil, 0.f, Random).Pitch; };
@@ -138,7 +151,7 @@ bool FGunfeelKickViewTest::RunTest(const FString& Parameters)
 {
 	// A shot's view kick times the kind's weight (UPlayerViewComponent::AddShotKick), at a base Common (Recoil 1.4): the rifle a
 	// crack, the shotgun the biggest shove, and a burst of any of them still stays within the view's limits (FViewKickStack
-	// holds the sum).
+	// holds the sum). The automatics' stacking lift is Looter.Gunfeel.Burst.* and Looter.Gunfeel.Identity.SustainCaps.
 	FRandomStream Random(5);
 	const float Base = ViewKicks::BaseShotRecoil;
 	const FViewKick Rifle = ViewKicks::ForShot(EWeaponKind::Rifle, Base, 0.f, Random) * Def::KickRifle;
@@ -150,10 +163,7 @@ bool FGunfeelKickViewTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...and pushes the camera back"), Shotgun.Push > 0.f && Rifle.Push == 0.f && Revolver.Push == 0.f);
 	TestTrue(TEXT("A single kick stays within the view's limits"), Shotgun.Pitch <= FViewKickStack::MaxTurn && Shotgun.FieldOfView <= FViewKickStack::MaxFieldOfView
 		&& Shotgun.Push <= FViewKickStack::MaxPush);
-
-	// Identity 0's kick is today's: the old table times the old scale (a rifle 0.32 x 1.3 at Recoil 1).
-	const FViewKick OldRifle = ViewKicks::ForShotToday(EWeaponKind::Rifle, 1.f, 0.f, Random) * Def::Today::KickRifle;
-	TestEqual(TEXT("Today's rifle tick"), OldRifle.Pitch, 0.32f * 1.3f, 0.0001f);
+	TestEqual(TEXT("The table is a base Common's: its Recoil 1 x the shipped More"), ViewKicks::BaseShotRecoil, Def::RecoilMore);
 
 	FViewKickStack Burst;
 	for (int32 Shot = 0; Shot < 20; ++Shot)
@@ -193,7 +203,7 @@ bool FGunfeelKickClimbTest::RunTest(const FString& Parameters)
 		Recoil.AddShot(Profile, Random);
 		Recoil.Tick(0.1f);
 	}
-	TestEqual(TEXT("After five shots: 30% more"), Recoil.GetClimb(Profile), 1.f + 5.f * Def::RifleClimb, 0.0001f);
+	TestEqual(TEXT("After five shots: 10% more"), Recoil.GetClimb(Profile), 1.f + 5.f * Def::RifleClimb, 0.0001f);
 	for (int32 Shot = 0; Shot < 30; ++Shot)
 	{
 		Recoil.AddShot(Profile, Random);
@@ -227,7 +237,8 @@ bool FGunfeelKickClimbTest::RunTest(const FString& Parameters)
 			Steady += SteadyRecoil.Tick(0.01f).Pitch;
 		}
 	}
-	TestTrue(FString::Printf(TEXT("A climbing burst ends higher (%.2f against %.2f degrees)"), Climbing, Steady), Climbing > Steady * 1.15f);
+	// The build is small since 2026-11-03 (the climb is mostly the aim barely recovering while held: Looter.Gunfeel.Burst).
+	TestTrue(FString::Printf(TEXT("A climbing burst ends higher (%.2f against %.2f degrees)"), Climbing, Steady), Climbing > Steady * 1.08f);
 
 	// A profile that doesn't climb (the shotgun's, the six-gun's, an old one) is unchanged by the rule.
 	FWeaponRecoil Plain;

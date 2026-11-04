@@ -7,7 +7,7 @@
 
 // The Looter.Gunfeel.* variables for the kick side of gunplay (GunfeelKickTuning.h), and the plain rules that read them.
 // Each accessor reads its variable when asked, never caching it, so a change in play shows on the next shot. The rumble is
-// in GunfeelKickRumble.cpp.
+// in GunfeelKickRumble.cpp, each kind's identity in GunfeelKickKinds.cpp, a shot's profile in WeaponBaseKick.cpp.
 
 namespace
 {
@@ -36,7 +36,15 @@ namespace
 		TEXT("The click's pitch at the last round (1 at the first click of the last share)."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarRecoilMore(TEXT("Looter.Gunfeel.Recoil.More"), Def::RecoilMore,
-		TEXT("Every gun's kick (aim, model, view, pattern) times this, before the accuracy's calm."), ECVF_Default);
+		TEXT("Every gun's kick (aim, model, view, pattern) times this over its shipped 1.4, before the accuracy's calm."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarWhileFiring(TEXT("Looter.Gunfeel.Recoil.WhileFiring"), Def::RecoveryWhileFiring,
+		TEXT("While a burst is held the aim recovers at this share of its rate (low: the burst climbs and wants pulling down)."),
+		ECVF_Default);
+	TAutoConsoleVariable<float> CVarRecoveryDelay(TEXT("Looter.Gunfeel.Recoil.RecoveryDelay"), Def::RecoveryDelay,
+		TEXT("Seconds after the last shot before the aim recovers fully (keep it past the automatics' shot intervals)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarAimedBackGap(TEXT("Looter.Gunfeel.Recoil.AimedBackGap"), Def::AimedBackGap,
+		TEXT("Through the sight the gun's push back stops at this share of how far the sight is from the eye (0 no limit)."),
+		ECVF_Default);
 	TAutoConsoleVariable<float> CVarAccuracyCalm(TEXT("Looter.Gunfeel.Recoil.AccuracyCalm"), Def::AccuracyCalm,
 		TEXT("A gun shooting R times tighter than its kind's base kicks R^-this as hard (0: accuracy leaves the kick alone)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarAccuracyCalmLeast(TEXT("Looter.Gunfeel.Recoil.AccuracyCalmLeast"), Def::AccuracyCalmLeast,
@@ -282,6 +290,32 @@ float GunfeelKick::ShotRecoil(const AWeaponBase* Weapon)
 	return Weapon ? ShotRecoil(Weapon->GetInstance().Definition.Get(), Weapon->GetStats()) : 0.f;
 }
 
+float GunfeelKick::KickShare(float InShotRecoil)
+{
+	// Over the shipped More, not the live one: a More of 2 is then 2 / 1.4 on every layer, the view's table included.
+	return FMath::Max(InShotRecoil, 0.f) / Default::RecoilMore;
+}
+
+float GunfeelKick::KickShare(const AWeaponBase* Weapon)
+{
+	return KickShare(ShotRecoil(Weapon));
+}
+
+float GunfeelKick::WhileFiringShare()
+{
+	return FMath::Clamp(CVarWhileFiring.GetValueOnGameThread(), 0.f, 1.f);
+}
+
+float GunfeelKick::RecoveryDelaySeconds()
+{
+	return FMath::Max(CVarRecoveryDelay.GetValueOnGameThread(), 0.f);
+}
+
+float GunfeelKick::AimedBackGapShare()
+{
+	return FMath::Clamp(CVarAimedBackGap.GetValueOnGameThread(), 0.f, 1.f);
+}
+
 float GunfeelKick::FeltRecoil(const UWeaponDefinition* Definition, const FWeaponStats& Stats)
 {
 	return Stats.Recoil * AccuracyCalm(Definition ? Definition->BaseStats.Spread : 0.f, Stats.Spread, AccuracyKickNumbers());
@@ -365,9 +399,8 @@ float GunfeelKick::BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha,
 
 float GunfeelKick::BloomAfterShot(EWeaponKind Kind, float Bloom, float AimAlpha)
 {
-	// The SMG's cone opens wider since gun identity (hosed, it spreads rather than climbs); Identity 0 gives today's back.
-	const float SMGPerShot = IdentityOn() ? CVarSMGBloom.GetValueOnGameThread() : Default::Today::SMGBloom;
-	const float PerShot = Kind == EWeaponKind::SMG ? SMGPerShot
+	// The SMG's cone opens wider since gun identity (hosed, it spreads rather than climbs).
+	const float PerShot = Kind == EWeaponKind::SMG ? CVarSMGBloom.GetValueOnGameThread()
 		: (Kind == EWeaponKind::LMG ? CVarLMGBloom.GetValueOnGameThread() : CVarRifleBloom.GetValueOnGameThread());
 	return BloomAfterShot(Kind, Bloom, AimAlpha, PerShot, CVarBloomMax.GetValueOnGameThread());
 }

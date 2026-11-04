@@ -4,17 +4,20 @@
 
 #include "Player/CameraShakeModifier.h"
 #include "Player/ViewKick.h"
+#include "Weapons/GunFeelSettings.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/GunKindsTuning.h"
 #include "Weapons/WeaponRecoil.h"
 #include "Weapons/WeaponTypes.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/ConfigCacheIni.h"
 #include "UObject/Package.h"
 
 // Gun identity (GUNS.md lane A, 2026-10-28), the second half: the LMG's dig-in, the automatics' rhythm, each kind's ADS
-// curve and sight-arrival settle, the heavy kinds' shakes, a held LMG belt's climb cap (2026-10-29), and the master switch Looter.Gunfeel.Identity giving today's
-// numbers back (the kicks, the sight and the recovery are GunfeelIdentityTests.cpp). Driven with the shipped defaults; the
-// few live reads set the variables they read for their scope and put them back.
+// curve and sight-arrival settle, the heavy kinds' shakes, a held LMG belt's climb cap (2026-10-29), and the kinds' numbers
+// in Project Settings > Game > Gun Feel with one kick layer (2026-11-03: Looter.Gunfeel.Identity no longer touches the kick).
+// The kicks, the sight and the recovery are GunfeelIdentityTests.cpp. Driven with the shipped defaults; the few live reads
+// set the variables or settings they read for their scope and put them back.
 
 namespace
 {
@@ -43,6 +46,36 @@ namespace
 		FString Was;
 	};
 
+	/** One kind's Gun Feel entry (Project Settings > Game > Gun Feel) set to Feel for the scope and put back after. */
+	struct FScopedFeelSetting
+	{
+		FScopedFeelSetting(EWeaponKind InKind, const GunfeelKick::FKindFeel& Feel)
+			: Kind(InKind)
+			, Was(GetMutableDefault<UGunFeelSettings>()->For(InKind))
+		{
+			GetMutableDefault<UGunFeelSettings>()->For(Kind) = FGunKindFeelSettings(Feel);
+		}
+		~FScopedFeelSetting()
+		{
+			GetMutableDefault<UGunFeelSettings>()->For(Kind) = Was;
+		}
+		EWeaponKind Kind;
+		FGunKindFeelSettings Was;
+	};
+
+	/** Whether two kinds' numbers match, every one. */
+	bool SameFeel(const GunfeelKick::FKindFeel& A, const GunfeelKick::FKindFeel& B)
+	{
+		const float Tolerance = 0.0001f;
+		return FMath::IsNearlyEqual(A.AimedTurn, B.AimedTurn, Tolerance) && FMath::IsNearlyEqual(A.AimedFieldOfView, B.AimedFieldOfView, Tolerance)
+			&& FMath::IsNearlyEqual(A.AimedBack, B.AimedBack, Tolerance) && FMath::IsNearlyEqual(A.AimedFlip, B.AimedFlip, Tolerance)
+			&& FMath::IsNearlyEqual(A.AimedRoll, B.AimedRoll, Tolerance) && FMath::IsNearlyEqual(A.AimKick, B.AimKick, Tolerance)
+			&& FMath::IsNearlyEqual(A.Recovery, B.Recovery, Tolerance) && FMath::IsNearlyEqual(A.Cadence, B.Cadence, Tolerance)
+			&& FMath::IsNearlyEqual(A.AimCurve, B.AimCurve, Tolerance) && FMath::IsNearlyEqual(A.AimSettle, B.AimSettle, Tolerance)
+			&& FMath::IsNearlyEqual(A.SustainCap, B.SustainCap, Tolerance) && FMath::IsNearlyEqual(A.Shake, B.Shake, Tolerance)
+			&& FMath::IsNearlyEqual(A.ShakeSeconds, B.ShakeSeconds, Tolerance);
+	}
+
 	constexpr EWeaponKind AllKinds[] = { EWeaponKind::SMG, EWeaponKind::Rifle, EWeaponKind::LMG, EWeaponKind::Revolver,
 		EWeaponKind::Shotgun, EWeaponKind::Sniper, EWeaponKind::Launcher };
 
@@ -63,15 +96,25 @@ namespace
 
 	/**
 	 * The trigger held Seconds on a cold LMG at Fps, as UPlayerViewComponent and AWeaponBase do it with the shipped numbers:
-	 * DA_LMG's recoil (create_new_guns.py: aim kick 0.3, side 0.18, recovery 6), the kind's recovery share, its spin-up rate,
-	 * its dig-in, its climb, its sway pattern and the climb cap (or none, bCapped false); ShotRecoil the gun's Recoil stat
-	 * as GunfeelKick::ShotRecoil gives it. The timer fires every shot due in a frame (several a frame when the game runs
-	 * slow), then the view's recoil ticks. No hand on the mouse: nothing pulls down.
+	 * DA_LMG's recoil (create_new_guns.py) through GunfeelKick::ShotProfile with the LMG's shipped numbers (its aim kick,
+	 * recovery, climb, the recovery while held and the climb cap, or none with bCapped false), its spin-up rate, its dig-in
+	 * and its sway pattern; Share the gun's KickShare (1 a base Common). The timer fires every shot due in a frame (several a
+	 * frame when the game runs slow), then the view's recoil ticks. No hand on the mouse: nothing pulls down.
 	 */
-	FLMGBurst HoldLMG(float ShotRecoil, float Seconds, float Fps, bool bCapped)
+	FLMGBurst HoldLMG(float Share, float Seconds, float Fps, bool bCapped)
 	{
 		namespace KindsDef = GunKinds::Default;
-		const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeelDefault(EWeaponKind::LMG);
+		GunfeelKick::FProfileNumbers Numbers = GunfeelKick::ShippedProfileNumbers(EWeaponKind::LMG);
+		Numbers.ClimbCap = bCapped ? KindsDef::LMGClimbCap : 0.f;
+		FWeaponRecoilProfile Asset;
+		Asset.KickBack = 2.6f;
+		Asset.MuzzleFlip = 2.2f;
+		Asset.MuzzleTwist = 0.9f;
+		Asset.Roll = 1.6f;
+		Asset.AimKick = 0.3f;
+		Asset.AimKickSide = 0.18f;
+		Asset.AimRecovery = 6.f;
+		Asset.Snappiness = 0.85f;
 		const GunfeelKick::FPatternNumbers Pattern{};
 		const float FullInterval = 60.f / 650.f;
 		const float Dt = 1.f / Fps;
@@ -88,16 +131,8 @@ namespace
 			while (NextShot <= Time)
 			{
 				const float Spin = GunKinds::SpinAfter(0.f, NextShot, true, KindsDef::LMGSpinUp, KindsDef::LMGSpinDown);
-				const float Kick = ShotRecoil * GunfeelKick::DigIn(Spin, IdDef::LMGDigInFrom, IdDef::LMGDigInStart, IdDef::LMGDigInEnd);
-				FWeaponRecoilProfile Profile;
-				Profile.AimKick = 0.3f * Kick;
-				Profile.AimKickSide = 0.18f * Kick * IdDef::SideRandom;
-				Profile.AimRecovery = 6.f * Feel.Recovery;
-				Profile.ClimbPerShot = IdDef::LMGClimb;
-				Profile.ClimbMax = IdDef::RifleClimbMax;
-				Profile.ClimbCap = bCapped ? KindsDef::LMGClimbCap : 0.f;
-				Profile.ClimbCapFloor = KindsDef::LMGClimbCapFloor;
-				Recoil.AddShot(Profile, Random, 1.f);
+				const float Kick = Share * GunfeelKick::DigIn(Spin, IdDef::LMGDigInFrom, IdDef::LMGDigInStart, IdDef::LMGDigInEnd);
+				Recoil.AddShot(GunfeelKick::ShotProfile(Asset, Kick, Numbers), Random, 1.f);
 				Recoil.AddAimYaw(GunfeelKick::PatternSide(EWeaponKind::LMG, Recoil.GetShotInBurst(), Pattern) * Kick);
 				++Burst.Shots;
 				NextShot += FullInterval / GunKinds::SpinRateShare(Spin, KindsDef::LMGSpinStart);
@@ -140,15 +175,13 @@ bool FGunfeelIdentityDigInTest::RunTest(const FString& Parameters)
 		Last = Each;
 	}
 	{
-		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
 		FIdentityScopedVariable StartVar(TEXT("Looter.Gunfeel.LMG.DigInStart"), Start);
 		FIdentityScopedVariable EndVar(TEXT("Looter.Gunfeel.LMG.DigInEnd"), End);
 		FIdentityScopedVariable FromVar(TEXT("Looter.Gunfeel.LMG.DigInFrom"), From);
 		TestEqual(TEXT("The live one reads its variables"), GunfeelKick::LMGDigIn(0.f), Start, 0.0001f);
-	}
-	{
+		// One kick layer: the old switch no longer takes it away.
 		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 0.f);
-		TestEqual(TEXT("Identity 0: no dig-in"), GunfeelKick::LMGDigIn(0.f), 1.f);
+		TestEqual(TEXT("Identity 0 keeps the dig-in"), GunfeelKick::LMGDigIn(0.f), Start, 0.0001f);
 	}
 	return true;
 }
@@ -159,10 +192,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelIdentityLMGBurstTest, "Looter.Gunfeel.I
 bool FGunfeelIdentityLMGBurstTest::RunTest(const FString& Parameters)
 {
 	// A held belt climbs a few degrees and then rides its cap, swaying side to side (the 2026-10-29 play-check saw a 2 s
-	// burst walk the view into the sky). The base gun (Recoil 1 x More 1.4) and a sloppy one (past the accuracy's worst).
+	// burst walk the view into the sky); held, it barely recovers now (2026-11-03), so the cap does all the holding. The base
+	// gun (KickShare 1) and a sloppy one (past the accuracy's worst).
 	const float Cap = GunKinds::Default::LMGClimbCap;
-	const float Base = IdDef::RecoilMore;
-	const float Sloppy = IdDef::RecoilMore * IdDef::AccuracyCalmMost * 1.15f;
+	const float Base = 1.f;
+	const float Sloppy = IdDef::AccuracyCalmMost * 1.15f;
 	const float Margin = 0.3f;
 
 	const FLMGBurst Two = HoldLMG(Base, 2.f, 60.f, true);
@@ -241,8 +275,8 @@ bool FGunfeelIdentityCadenceTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("A single shot's rhythm is the pull's own"), GunfeelKick::KindFeelDefault(Single).Cadence, 0.f);
 	}
 	{
-		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
-		FIdentityScopedVariable LMG(TEXT("Looter.Gunfeel.Cadence.LMG"), GunfeelKick::KindFeelDefault(EWeaponKind::LMG).Cadence);
+		FScopedFeelSetting LMG(EWeaponKind::LMG, GunfeelKick::KindFeelDefault(EWeaponKind::LMG));
+		FScopedFeelSetting Revolver(EWeaponKind::Revolver, GunfeelKick::KindFeelDefault(EWeaponKind::Revolver));
 		TestEqual(TEXT("An LMG still spinning up keeps its climb"), GunfeelKick::CadenceScale(EWeaponKind::LMG, 5, 0.5f), 1.f);
 		TestEqual(TEXT("...spun up it has its rhythm"), GunfeelKick::CadenceScale(EWeaponKind::LMG, 5, 1.f),
 			GunfeelKick::CadenceJitter(5, GunfeelKick::KindFeelDefault(EWeaponKind::LMG).Cadence), 0.0001f);
@@ -273,14 +307,7 @@ bool FGunfeelIdentityAimCurveTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The SMG and the six-gun come up quickest, the LMG and the scope slowest"),
 		Early(EWeaponKind::SMG) > Early(EWeaponKind::Rifle) && Early(EWeaponKind::Revolver) > Early(EWeaponKind::Rifle)
 		&& Early(EWeaponKind::Rifle) > Early(EWeaponKind::LMG) && Early(EWeaponKind::Rifle) > Early(EWeaponKind::Sniper));
-	TestEqual(TEXT("The rifle keeps today's ease"), GunfeelKick::KindFeelDefault(EWeaponKind::Rifle).AimCurve, IdDef::Today::AimCurve);
-	{
-		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 0.f);
-		for (const EWeaponKind Kind : AllKinds)
-		{
-			TestEqual(TEXT("Identity 0: one ease for all"), GunfeelKick::KindFeel(Kind).AimCurve, IdDef::Today::AimCurve);
-		}
-	}
+	TestEqual(TEXT("The rifle keeps the old shared ease (2)"), GunfeelKick::KindFeelDefault(EWeaponKind::Rifle).AimCurve, 2.f);
 	return true;
 }
 
@@ -308,10 +335,6 @@ bool FGunfeelIdentitySettleTest::RunTest(const FString& Parameters)
 		Stack.Tick(0.001f);
 	}
 	TestTrue(TEXT("Even the heaviest is gone in 0.3 s"), Stack.IsSettled());
-	{
-		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 0.f);
-		TestEqual(TEXT("Identity 0: no settle"), GunfeelKick::KindFeel(EWeaponKind::LMG).AimSettle, 0.f);
-	}
 	return true;
 }
 
@@ -358,10 +381,6 @@ bool FGunfeelIdentityShakesTest::RunTest(const FString& Parameters)
 		Most = FMath::Max(Most, Modifier->GetAmount());
 	}
 	TestTrue(FString::Printf(TEXT("A held belt's shake stays under %.2f (%.3f)"), LMGMax, Most), Most <= LMGMax + 0.0001f);
-	{
-		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 0.f);
-		TestEqual(TEXT("Identity 0: no shot shakes"), GunfeelKick::ShotShake(EWeaponKind::Launcher, 0.f, 0.f).Strength, 0.f);
-	}
 	return true;
 }
 
@@ -370,101 +389,108 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelIdentitySwitchTest, "Looter.Gunfeel.Ide
 
 bool FGunfeelIdentitySwitchTest::RunTest(const FString& Parameters)
 {
-	// Looter.Gunfeel.Identity 0 gives back today's numbers everywhere; 1 (the default) every kind's own.
+	// Each kind's numbers live in Project Settings > Game > Gun Feel (UGunFeelSettings, 2026-11-03), starting at
+	// KindFeelDefault; the kick has one layer: Looter.Gunfeel.Identity still switches the sound, heft, brass and reload beats
+	// for an A/B, but nothing in the kick, the sight or the rhythm asks it.
 	FIdentityScopedVariable Pattern(TEXT("Looter.Gunfeel.Recoil.Pattern"), IdDef::RecoilPattern);
 	FIdentityScopedVariable Drift(TEXT("Looter.Gunfeel.Recoil.RifleDrift"), IdDef::RifleDrift);
 	FIdentityScopedVariable DriftFrom(TEXT("Looter.Gunfeel.Recoil.RifleDriftFrom"), IdDef::RifleDriftFrom);
 	FIdentityScopedVariable DriftBack(TEXT("Looter.Gunfeel.Recoil.RifleDriftBack"), IdDef::RifleDriftBack);
 	FIdentityScopedVariable DriftBackFrom(TEXT("Looter.Gunfeel.Recoil.RifleDriftBackFrom"), IdDef::RifleDriftBackFrom);
 	FIdentityScopedVariable Shimmy(TEXT("Looter.Gunfeel.Recoil.SMGShimmy"), IdDef::SMGShimmy);
-	FIdentityScopedVariable Side(TEXT("Looter.Gunfeel.Recoil.SideRandom"), IdDef::SideRandom);
 	FIdentityScopedVariable SideSMG(TEXT("Looter.Gunfeel.Recoil.SideRandom.SMG"), IdDef::SideRandomSMG);
-	FIdentityScopedVariable Cap(TEXT("Looter.Gunfeel.Kick.SustainCap"), IdDef::SustainCap);
-	FIdentityScopedVariable Bloom(TEXT("Looter.Gunfeel.Spread.SMGBloom"), IdDef::SMGBloom);
-	FIdentityScopedVariable BloomMax(TEXT("Looter.Gunfeel.Spread.BloomMax"), IdDef::BloomMax);
-	FIdentityScopedVariable KickRifle(TEXT("Looter.Gunfeel.Kick.Rifle"), IdDef::KickRifle);
-	FIdentityScopedVariable KickLauncher(TEXT("Looter.Gunfeel.Kick.Launcher"), IdDef::KickLauncher);
-	TestNotNull(TEXT("The switch exists"), IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Gunfeel.Identity")));
-	// Every new number is a live variable: the single ones, and each kind's own at its shipped default.
+	FIdentityScopedVariable Heave(TEXT("Looter.Gunfeel.Kick.Heave"), IdDef::HeaveKick);
+	FIdentityScopedVariable BoltHome(TEXT("Looter.Gunfeel.Kick.BoltHome"), IdDef::BoltHomeKick);
+	FIdentityScopedVariable Hold(TEXT("Looter.Gunfeel.Recoil.SniperHold"), IdDef::SniperHold);
+	TestNotNull(TEXT("The switch exists (sound, heft, brass, reload beats)"), IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Gunfeel.Identity")));
+	// The single numbers are live variables.
 	for (const TCHAR* Name : { TEXT("LMG.DigInStart"), TEXT("LMG.DigInEnd"), TEXT("LMG.DigInFrom"), TEXT("Shake.LMGMax"),
-		TEXT("Recoil.SniperHold"), TEXT("Kick.Heave"), TEXT("Kick.BoltHome"), TEXT("Recoil.SideRandom.SMG"), TEXT("Recoil.RifleDriftBack"),
-		TEXT("Recoil.RifleDriftBackFrom") })
+		TEXT("Recoil.SniperHold"), TEXT("Kick.Heave"), TEXT("Kick.BoltHome"), TEXT("Kick.Lift"), TEXT("Recoil.SideRandom.SMG"),
+		TEXT("Recoil.RifleDriftBack"), TEXT("Recoil.RifleDriftBackFrom") })
 	{
 		TestNotNull(*FString::Printf(TEXT("Looter.Gunfeel.%s exists"), Name), IConsoleManager::Get().FindConsoleVariable(*(FString(TEXT("Looter.Gunfeel.")) + Name)));
 	}
+
+	// The kinds' numbers are settings now, not a variable each.
 	const TCHAR* KindNames[] = { TEXT("SMG"), TEXT("Rifle"), TEXT("LMG"), TEXT("Revolver"), TEXT("Shotgun"), TEXT("Sniper"), TEXT("Launcher") };
+	for (const TCHAR* Old : { TEXT("Kick.AimedTurn."), TEXT("Recoil.Recovery."), TEXT("Aim.Curve."), TEXT("Kick.SustainCap.") })
+	{
+		TestNull(*FString::Printf(TEXT("Looter.Gunfeel.%sRifle is gone (Gun Feel settings)"), Old),
+			IConsoleManager::Get().FindConsoleVariable(*(FString(TEXT("Looter.Gunfeel.")) + Old + KindNames[1])));
+	}
+	// Each kind's entry starts at its shipped numbers (unless a designer has saved their own to DefaultGame.ini), round-trips
+	// to the rules' numbers, and is what the live rule reads.
+	const bool bSaved = GConfig && GConfig->DoesSectionExist(TEXT("/Script/AI_Looter_Shooter.GunFeelSettings"), GGameIni);
 	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(AllKinds)); ++Index)
 	{
 		const EWeaponKind Kind = AllKinds[Index];
-		const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeelDefault(Kind);
-		TArray<TPair<FString, float>> Own = {
-			{ TEXT("Kick.AimedTurn."), Feel.AimedTurn }, { TEXT("Kick.AimedFov."), Feel.AimedFieldOfView },
-			{ TEXT("Recoil.AimedBack."), Feel.AimedBack }, { TEXT("Recoil.AimedFlip."), Feel.AimedFlip }, { TEXT("Recoil.AimedRoll."), Feel.AimedRoll },
-			{ TEXT("Recoil.Recovery."), Feel.Recovery }, { TEXT("Aim.Curve."), Feel.AimCurve }, { TEXT("Aim.Settle."), Feel.AimSettle } };
-		if (IsAutomatic(Kind))
+		const GunfeelKick::FKindFeel Shipped = GunfeelKick::KindFeelDefault(Kind);
+		TestTrue(FString::Printf(TEXT("%s: its entry round-trips"), KindNames[Index]), SameFeel(FGunKindFeelSettings(Shipped).ToFeel(), Shipped));
+		if (!bSaved)
 		{
-			Own.Add({ TEXT("Cadence."), Feel.Cadence });
-			Own.Add({ TEXT("Kick.SustainCap."), Feel.SustainCap });
+			TestTrue(FString::Printf(TEXT("%s: Gun Feel ships at its defaults"), KindNames[Index]), SameFeel(UGunFeelSettings::Get().For(Kind).ToFeel(), Shipped));
 		}
-		if (Feel.Shake > 0.f)
+		GunfeelKick::FKindFeel Own = Shipped;
+		Own.AimKick = Shipped.AimKick + 0.5f;
+		Own.SustainCap = IsAutomatic(Kind) ? Shipped.SustainCap + 0.25f : 0.f;
+		FScopedFeelSetting Setting(Kind, Own);
+		TestEqual(FString::Printf(TEXT("%s: the live aim kick is its setting"), KindNames[Index]), GunfeelKick::KindFeel(Kind).AimKick, Own.AimKick, 0.0001f);
+		TestEqual(FString::Printf(TEXT("%s: ...and its cap"), KindNames[Index]), GunfeelKick::SustainCapFor(Kind), Own.SustainCap, 0.0001f);
+	}
+	if (bSaved)
+	{
+		AddInfo(TEXT("DefaultGame.ini has saved Gun Feel numbers: the shipped-defaults check was skipped."));
+	}
+	{
+		GunfeelKick::FKindFeel Wild = GunfeelKick::KindFeelDefault(EWeaponKind::Rifle);
+		Wild.Cadence = 0.9f;
+		Wild.AimCurve = 0.1f;
+		Wild.Recovery = -1.f;
+		FScopedFeelSetting Setting(EWeaponKind::Rifle, Wild);
+		const GunfeelKick::FKindFeel Held = GunfeelKick::KindFeel(EWeaponKind::Rifle);
+		TestTrue(TEXT("A wild setting is held to sane ranges"), Held.Cadence <= 0.2f && Held.AimCurve >= 1.f && Held.Recovery >= 0.1f);
+	}
+
+	// One kick layer: with the switch at 0 or 1 the kick reads the same (the kinds at their shipped numbers for the check).
+	FScopedFeelSetting ShippedSMG(EWeaponKind::SMG, GunfeelKick::KindFeelDefault(EWeaponKind::SMG));
+	FScopedFeelSetting ShippedRifle(EWeaponKind::Rifle, GunfeelKick::KindFeelDefault(EWeaponKind::Rifle));
+	FScopedFeelSetting ShippedLMG(EWeaponKind::LMG, GunfeelKick::KindFeelDefault(EWeaponKind::LMG));
+	FScopedFeelSetting ShippedShotgun(EWeaponKind::Shotgun, GunfeelKick::KindFeelDefault(EWeaponKind::Shotgun));
+	auto Read = [](TArray<float>& Out)
+	{
+		for (const EWeaponKind Kind : AllKinds)
 		{
-			Own.Add({ TEXT("Shake."), Feel.Shake });
+			const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeel(Kind);
+			Out.Append({ Feel.AimedTurn, Feel.AimKick, Feel.Recovery, Feel.AimCurve, Feel.AimSettle, GunfeelKick::SustainCapFor(Kind),
+				GunfeelKick::CadenceScale(Kind, 3, 1.f), GunfeelKick::ViewKickScale(Kind), GunfeelKick::SideRandomScale(Kind),
+				GunfeelKick::PatternSide(Kind, 9), GunfeelKick::ShotShake(Kind, 0.f, 0.f).Strength });
 		}
-		for (const TPair<FString, float>& Each : Own)
-		{
-			const FString Name = FString(TEXT("Looter.Gunfeel.")) + Each.Key + KindNames[Index];
-			const IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(*Name);
-			if (TestNotNull(*FString::Printf(TEXT("%s exists"), *Name), Variable))
-			{
-				TestNearlyEqual(*FString::Printf(TEXT("%s ships at its default"), *Name), Variable->GetFloat(), Each.Value, 0.0001f);
-			}
-		}
-		if (Feel.Shake > 0.f)
-		{
-			TestNotNull(TEXT("...and its shake's seconds"), IConsoleManager::Get().FindConsoleVariable(
-				*FString::Printf(TEXT("Looter.Gunfeel.Shake.%sSeconds"), KindNames[Index])));
-		}
+		Out.Append({ GunfeelKick::BloomAfterShot(EWeaponKind::SMG, 0.f, 0.f), GunfeelKick::LMGDigIn(0.f), GunfeelKick::SniperRecoilHold(0.5f),
+			GunfeelKick::HeaveScale(), GunfeelKick::BoltHomeScale(), GunfeelKick::LiftScale() });
+	};
+	TArray<float> On;
+	TArray<float> Off;
+	{
+		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
+		TestTrue(TEXT("1 is on"), GunfeelKick::IdentityOn());
+		Read(On);
 	}
 	{
 		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 0.f);
 		TestFalse(TEXT("0 is off"), GunfeelKick::IdentityOn());
-		TestEqual(TEXT("Today's rifle weight on today's table"), GunfeelKick::ViewKickScale(EWeaponKind::Rifle), IdDef::Today::KickRifle, 0.0001f);
-		TestEqual(TEXT("...and the launcher's"), GunfeelKick::ViewKickScale(EWeaponKind::Launcher), IdDef::Today::KickLauncher, 0.0001f);
-		FRandomStream Random(6);
-		TestEqual(TEXT("Today's table: a rifle 0.32 at Recoil 1"), ViewKicks::ForShotToday(EWeaponKind::Rifle, 1.f, 0.f, Random).Pitch, 0.32f, 0.0001f);
-		TestEqual(TEXT("...held to 1.5x"), ViewKicks::ForShotToday(EWeaponKind::Shotgun, 9.f, 0.f, Random).Pitch, 1.15f * 1.5f, 0.0001f);
-		TestEqual(TEXT("...half the turn through the sight"), ViewKicks::ForShotToday(EWeaponKind::Sniper, 1.f, 1.f, Random).Pitch, 1.3f * 0.5f, 0.0001f);
-		TestEqual(TEXT("...and no push"), ViewKicks::ForShotToday(EWeaponKind::Launcher, 1.f, 0.f, Random).Push, 0.f);
-		for (const EWeaponKind Kind : AllKinds)
-		{
-			const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeel(Kind);
-			TestTrue(TEXT("One sight share, ease, recovery; no rhythm, settle or shake"),
-				FMath::IsNearlyEqual(Feel.AimedTurn, 0.5f) && FMath::IsNearlyEqual(Feel.AimedFieldOfView, 0.6f) && FMath::IsNearlyEqual(Feel.AimCurve, 2.f)
-				&& FMath::IsNearlyEqual(Feel.Recovery, 1.f) && Feel.Cadence == 0.f && Feel.AimSettle == 0.f && Feel.Shake == 0.f);
-			TestEqual(TEXT("...one cap for the automatics"), GunfeelKick::SustainCapFor(Kind), IsAutomatic(Kind) ? IdDef::SustainCap : 0.f, 0.0001f);
-			TestEqual(TEXT("...no cadence"), GunfeelKick::CadenceScale(Kind, 3, 1.f), 1.f);
-		}
-		TestEqual(TEXT("The SMG keeps the shared side random"), GunfeelKick::SideRandomScale(EWeaponKind::SMG), IdDef::SideRandom, 0.0001f);
-		TestEqual(TEXT("...today's shimmy"), GunfeelKick::PatternSide(EWeaponKind::SMG, 0), IdDef::Today::SMGShimmy, 0.0001f);
-		TestEqual(TEXT("...and today's bloom"), GunfeelKick::BloomAfterShot(EWeaponKind::SMG, 0.f, 0.f), IdDef::Today::SMGBloom, 0.0001f);
-		TestEqual(TEXT("The rifle drifts right and stays"), GunfeelKick::PatternSide(EWeaponKind::Rifle, 30), IdDef::RifleDrift, 0.0001f);
-		TestEqual(TEXT("No dig-in"), GunfeelKick::LMGDigIn(0.f), 1.f);
-		TestEqual(TEXT("No held recovery"), GunfeelKick::SniperRecoilHold(0.8f), 0.f);
-		TestEqual(TEXT("No heave"), GunfeelKick::HeaveScale(), 0.f);
-		TestEqual(TEXT("No bolt-home beat"), GunfeelKick::BoltHomeScale(), 0.f);
-		TestEqual(TEXT("No shot shake"), GunfeelKick::ShotShake(EWeaponKind::Shotgun, 0.f, 0.f).Strength, 0.f);
+		Read(Off);
 	}
+	bool bSame = On.Num() == Off.Num();
+	for (int32 Index = 0; bSame && Index < On.Num(); ++Index)
 	{
-		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
-		TestTrue(TEXT("1 is on"), GunfeelKick::IdentityOn());
-		TestEqual(TEXT("The table holds the weight: the scale is 1"), GunfeelKick::ViewKickScale(EWeaponKind::Rifle), 1.f, 0.0001f);
-		TestEqual(TEXT("The SMG's own side random"), GunfeelKick::SideRandomScale(EWeaponKind::SMG), IdDef::SideRandomSMG, 0.0001f);
-		TestEqual(TEXT("...its own shimmy"), GunfeelKick::PatternSide(EWeaponKind::SMG, 0), IdDef::SMGShimmy, 0.0001f);
-		TestEqual(TEXT("...its own bloom"), GunfeelKick::BloomAfterShot(EWeaponKind::SMG, 0.f, 0.f), IdDef::SMGBloom, 0.0001f);
-		TestTrue(TEXT("The rifle's S comes back left"), GunfeelKick::PatternSide(EWeaponKind::Rifle, 30) < 0.f);
-		TestTrue(TEXT("The heave and the bolt-home beat are on"), GunfeelKick::HeaveScale() > 0.f && GunfeelKick::BoltHomeScale() > 0.f);
-		TestTrue(TEXT("A sniper's recovery holds"), GunfeelKick::SniperRecoilHold(0.5f) > 0.f);
+		bSame = FMath::IsNearlyEqual(On[Index], Off[Index], 0.0001f);
 	}
+	TestTrue(TEXT("Identity 0 leaves the kick, the sight and the rhythm as they are"), bSame);
+	TestTrue(TEXT("...the SMG its own shimmy and side random"), FMath::IsNearlyEqual(GunfeelKick::PatternSide(EWeaponKind::SMG, 0), IdDef::SMGShimmy)
+		&& FMath::IsNearlyEqual(GunfeelKick::SideRandomScale(EWeaponKind::SMG), IdDef::SideRandomSMG));
+	TestTrue(TEXT("...the rifle's hook back left"), GunfeelKick::PatternSide(EWeaponKind::Rifle, 29) < 0.f);
+	TestTrue(TEXT("...the heave, the bolt-home beat and a sniper's held recovery on"), GunfeelKick::HeaveScale() > 0.f && GunfeelKick::BoltHomeScale() > 0.f
+		&& GunfeelKick::SniperRecoilHold(0.5f) > 0.f);
 	return true;
 }
 

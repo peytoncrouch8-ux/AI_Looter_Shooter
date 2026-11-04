@@ -4,9 +4,9 @@
 
 // The gun feel pass's kick rules (GF-KICK, 2026-10-22): the recoil pattern, the first shot's reward, the sustained-kick cap
 // and the gun model's kick through the sight; since gun identity (2026-10-28) the rifle's S, the SMG's own side random and
-// each automatic's own cap (Looter.Gunfeel.Identity 0 gives today's back). Variables are Looter.Gunfeel.*, read each time
-// they are asked (live in play); the rules are plain functions over numbers so the tests drive them with the shipped
-// defaults (GunfeelKickTuning.h).
+// each automatic's own cap (one layer since 2026-11-03: the shared cap and sight shares of Identity 0 are gone). Variables are
+// Looter.Gunfeel.*, read each time they are asked (live in play); the rules are plain functions over numbers so the tests
+// drive them with the shipped defaults (GunfeelKickTuning.h).
 
 namespace
 {
@@ -37,19 +37,10 @@ namespace
 
 	TAutoConsoleVariable<float> CVarKpFirstShotKick(TEXT("Looter.Gunfeel.Kick.FirstShot"), KpDef::KickFirstShot,
 		TEXT("The view kick of a burst's first shot (rifle, SMG) times this."), ECVF_Default);
-	TAutoConsoleVariable<float> CVarKpSustainCap(TEXT("Looter.Gunfeel.Kick.SustainCap"), KpDef::SustainCap,
-		TEXT("An automatic's summed shot kicks (view pitch, degrees) are held under this; 0 turns the cap off."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarKpSustainFloor(TEXT("Looter.Gunfeel.Kick.SustainFloor"), KpDef::SustainFloor,
-		TEXT("A shot kick stacked over the cap still keeps this share of its size."), ECVF_Default);
+		TEXT("A view lift stacked over its kind's cap still keeps this share of its size."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarKpRack(TEXT("Looter.Gunfeel.Kick.Rack"), KpDef::RackKick,
 		TEXT("The nudge the shotgun's pump rack gives the view times this (0 none)."), ECVF_Default);
-
-	TAutoConsoleVariable<float> CVarKpAimedFlip(TEXT("Looter.Gunfeel.Recoil.AimedFlip"), KpDef::AimedFlip,
-		TEXT("Through the sight the gun model's muzzle flip and twist are this share of the hip's."), ECVF_Default);
-	TAutoConsoleVariable<float> CVarKpAimedRoll(TEXT("Looter.Gunfeel.Recoil.AimedRoll"), KpDef::AimedRoll,
-		TEXT("Through the sight the gun model's roll is this share of the hip's."), ECVF_Default);
-	TAutoConsoleVariable<float> CVarKpAimedBack(TEXT("Looter.Gunfeel.Recoil.AimedBack"), KpDef::AimedBack,
-		TEXT("Through the sight the gun model's push back along the sight line is this share of the hip's."), ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarKpSpreadFirst(TEXT("Looter.Gunfeel.Spread.FirstShot"), KpDef::SpreadFirstShot,
 		TEXT("The first shot after a rest (rifle, SMG, LMG) has this share of the spread (1 = no reward)."), ECVF_Default);
@@ -61,7 +52,7 @@ namespace
 	/** The kinds that fire bursts and so have a pattern, a first shot's reward and a sustained cap. */
 	bool IsAutomatic(EWeaponKind Kind)
 	{
-		return Kind == EWeaponKind::Rifle || Kind == EWeaponKind::SMG || Kind == EWeaponKind::LMG;
+		return GunfeelKick::IsAutomaticKind(Kind);
 	}
 }
 
@@ -99,10 +90,8 @@ float GunfeelKick::PatternSide(EWeaponKind Kind, int32 ShotInBurst)
 	Numbers.RifleDriftFrom = CVarKpRifleDriftFrom.GetValueOnGameThread();
 	Numbers.LMGSway = CVarKpLMGSway.GetValueOnGameThread();
 	Numbers.LMGSwayShots = CVarKpLMGSwayShots.GetValueOnGameThread();
-	// Identity 0: today's shimmy and a drift that never turns back.
-	const bool bIdentity = IdentityOn();
-	Numbers.SMGShimmy = bIdentity ? CVarKpSMGShimmy.GetValueOnGameThread() : KpDef::Today::SMGShimmy;
-	Numbers.RifleDriftBack = bIdentity ? CVarKpRifleDriftBack.GetValueOnGameThread() : 0.f;
+	Numbers.SMGShimmy = CVarKpSMGShimmy.GetValueOnGameThread();
+	Numbers.RifleDriftBack = CVarKpRifleDriftBack.GetValueOnGameThread();
 	Numbers.RifleDriftBackFrom = CVarKpRifleDriftBackFrom.GetValueOnGameThread();
 	return PatternSide(Kind, ShotInBurst, Numbers) * FMath::Max(CVarKpPattern.GetValueOnGameThread(), 0.f);
 }
@@ -132,7 +121,7 @@ float GunfeelKick::SideRandomScale(EWeaponKind Kind)
 	// Pattern 0 gives the old random back whole; 1 keeps SideRandom of it (the SMG its own since gun identity: the hornet
 	// buzzes about, it doesn't walk).
 	const float Strength = FMath::Clamp(CVarKpPattern.GetValueOnGameThread(), 0.f, 1.f);
-	const float Keep = Kind == EWeaponKind::SMG && IdentityOn() ? CVarKpSideRandomSMG.GetValueOnGameThread() : CVarKpSideRandom.GetValueOnGameThread();
+	const float Keep = Kind == EWeaponKind::SMG ? CVarKpSideRandomSMG.GetValueOnGameThread() : CVarKpSideRandom.GetValueOnGameThread();
 	return FMath::Lerp(1.f, FMath::Max(Keep, 0.f), Strength);
 }
 
@@ -154,7 +143,7 @@ float GunfeelKick::SustainCapFor(EWeaponKind Kind)
 		return 0.f;
 	}
 	// Each automatic its own since gun identity: the SMG's hum held low, the LMG's chug allowed to dig in.
-	return FMath::Max(IdentityOn() ? KindFeel(Kind).SustainCap : CVarKpSustainCap.GetValueOnGameThread(), 0.f);
+	return FMath::Max(KindFeel(Kind).SustainCap, 0.f);
 }
 
 float GunfeelKick::SustainFloor()
@@ -172,12 +161,6 @@ void GunfeelKick::AimedModelKick(float AimAlpha, float Back, float Flip, float R
 	const float Alpha = FMath::Clamp(AimAlpha, 0.f, 1.f);
 	BackFlipRoll = FVector(FMath::Lerp(1.f, FMath::Max(Back, 0.f), Alpha), FMath::Lerp(1.f, FMath::Max(Flip, 0.f), Alpha),
 		FMath::Lerp(1.f, FMath::Max(Roll, 0.f), Alpha));
-}
-
-void GunfeelKick::AimedModelKick(float AimAlpha, FVector& BackFlipRoll)
-{
-	AimedModelKick(AimAlpha, CVarKpAimedBack.GetValueOnGameThread(), CVarKpAimedFlip.GetValueOnGameThread(),
-		CVarKpAimedRoll.GetValueOnGameThread(), BackFlipRoll);
 }
 
 float GunfeelKick::FirstShotBloom(EWeaponKind Kind, float Bloom, float SecondsSinceShot, float Rest, float Ease, float FirstShot)

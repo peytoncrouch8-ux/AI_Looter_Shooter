@@ -3,42 +3,37 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Player/ViewKick.h"
+#include "Weapons/GunFeelSettings.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Weapons/WeaponRecoil.h"
 #include "Weapons/WeaponTypes.h"
 #include "HAL/IConsoleManager.h"
 
 // Gun identity (GUNS.md lane A, 2026-10-28), the first half: every kind its own view kick (none clipping the caps, every pair
-// apart), its own sustain cap, its sight shares, its recovery (the six-gun's quick, the sniper's held through the bolt) and the
-// launcher's heave. The rhythm, the ADS curve, the settle, the shakes and the master switch are GunfeelIdentityFeelTests.cpp.
-// The rules are driven with the shipped defaults (GunfeelKick::Default, KindFeelDefault, the view table); the few live reads
-// set the variables they read for their scope and put them back.
+// apart), its own sustain cap on its stacking lift, its sight shares, its recovery (the six-gun's quick, the sniper's held
+// through the bolt) and the launcher's heave. The rhythm, the ADS curve, the settle, the shakes and the settings are
+// GunfeelIdentityFeelTests.cpp. The rules are driven with the shipped defaults (GunfeelKick::Default, KindFeelDefault, the
+// view table); the few live reads set the settings they read for their scope and put them back.
 
 namespace
 {
 	namespace IdDef = GunfeelKick::Default;
 
-	/** A console variable, set to Value for the scope and put back after. */
-	struct FIdentityScopedVariable
+	/** One kind's Gun Feel entry (Project Settings > Game > Gun Feel) set to Feel for the scope and put back after. */
+	struct FScopedKindFeel
 	{
-		FIdentityScopedVariable(const TCHAR* Name, float Value)
-			: Variable(IConsoleManager::Get().FindConsoleVariable(Name))
+		FScopedKindFeel(EWeaponKind InKind, const GunfeelKick::FKindFeel& Feel)
+			: Kind(InKind)
+			, Was(GetMutableDefault<UGunFeelSettings>()->For(InKind))
 		{
-			if (Variable)
-			{
-				Was = Variable->GetString();
-				Variable->Set(*FString::SanitizeFloat(Value), ECVF_SetByConsole);
-			}
+			GetMutableDefault<UGunFeelSettings>()->For(Kind) = FGunKindFeelSettings(Feel);
 		}
-		~FIdentityScopedVariable()
+		~FScopedKindFeel()
 		{
-			if (Variable)
-			{
-				Variable->Set(*Was, ECVF_SetByConsole);
-			}
+			GetMutableDefault<UGunFeelSettings>()->For(Kind) = Was;
 		}
-		IConsoleVariable* Variable = nullptr;
-		FString Was;
+		EWeaponKind Kind;
+		FGunKindFeelSettings Was;
 	};
 
 	constexpr EWeaponKind AllKinds[] = { EWeaponKind::SMG, EWeaponKind::Rifle, EWeaponKind::LMG, EWeaponKind::Revolver,
@@ -111,7 +106,7 @@ namespace
 		return Trace;
 	}
 
-	/** An aim-only profile (no model kick, no side, no random spread on the climb to speak of). */
+	/** An aim-only profile (no model kick, no side, no random spread on the climb to speak of), recovering as shipped. */
 	FWeaponRecoilProfile AimOnly(float Recovery)
 	{
 		FWeaponRecoilProfile Profile;
@@ -122,6 +117,8 @@ namespace
 		Profile.AimKick = 1.f;
 		Profile.AimKickSide = 0.f;
 		Profile.AimRecovery = Recovery;
+		Profile.RecoveryWhileFiring = IdDef::RecoveryWhileFiring;
+		Profile.RecoveryDelay = IdDef::RecoveryDelay;
 		return Profile;
 	}
 }
@@ -137,18 +134,19 @@ bool FGunfeelIdentityCapsTest::RunTest(const FString& Parameters)
 {
 	// The user's caps stay (3 degrees, 5% wider, 4 cm back): at a base gun no kind's hip shot reaches them, so the heavy three
 	// read apart by shape, not by all clipping to the same peak as before. Played out on the stack, with every extra a shot
-	// can carry: the rifle's and the SMG's first shot, a cold LMG's dig-in, the launcher's heave.
+	// can carry: the rifle's and the SMG's first shot, a cold LMG's dig-in, the launcher's heave, an automatic's lift.
 	FRandomStream Random(21);
 	for (const EWeaponKind Kind : AllKinds)
 	{
-		const float Extra = FMath::Max(GunfeelKick::FirstShotKick(Kind, 0, IdDef::KickFirstShot), 1.f)
-			* (Kind == EWeaponKind::LMG ? IdDef::LMGDigInStart : 1.f);
+		const float DigIn = Kind == EWeaponKind::LMG ? IdDef::LMGDigInStart : 1.f;
+		const float Extra = FMath::Max(GunfeelKick::FirstShotKick(Kind, 0, IdDef::KickFirstShot), 1.f) * DigIn;
 		const FShotKickShape Shape = FShotKickShape::For(Kind);
 		const FViewKick Shot = HipKick(Kind, Random) * Extra;
 		const FViewKick Heave = ViewKicks::ForHeave(Kind, ViewKicks::BaseShotRecoil, 0.f, Shape) * Extra;
+		const FViewKick Lift = ViewKicks::ForLift(Kind, ViewKicks::BaseShotRecoil, 0.f, Shape) * DigIn;
 		TestTrue(FString::Printf(TEXT("Kind %d: its kick lifts (%.2f degrees)"), static_cast<int32>(Kind), Shot.Pitch), Shot.Pitch > 0.f);
 		float Pitch, FieldOfView, Push;
-		StackPeaks(TArray<FViewKick>{ Shot, Heave }, 0.6f, Pitch, FieldOfView, Push);
+		StackPeaks(TArray<FViewKick>{ Shot, Heave, Lift }, 0.6f, Pitch, FieldOfView, Push);
 		TestTrue(FString::Printf(TEXT("Kind %d: the hip turn %.2f stays under 2.9 degrees"), static_cast<int32>(Kind), Pitch), Pitch <= 2.9f);
 		TestTrue(FString::Printf(TEXT("Kind %d: the widening %.3f under 4.8%%"), static_cast<int32>(Kind), FieldOfView), FieldOfView <= 0.048f);
 		TestTrue(FString::Printf(TEXT("Kind %d: the push %.2f cm under 3.8"), static_cast<int32>(Kind), Push), Push <= 3.8f);
@@ -219,16 +217,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelIdentitySustainTest, "Looter.Gunfeel.Id
 
 bool FGunfeelIdentitySustainTest::RunTest(const FString& Parameters)
 {
-	// Each automatic its own cap: the SMG's hum held low, the rifle's in between, the LMG's allowed to dig in.
+	// Each automatic its own cap on its stacking lift: the SMG's hum held low, the rifle's in between, the LMG's allowed to dig in.
 	const float SMG = GunfeelKick::KindFeelDefault(EWeaponKind::SMG).SustainCap;
 	const float Rifle = GunfeelKick::KindFeelDefault(EWeaponKind::Rifle).SustainCap;
 	const float LMG = GunfeelKick::KindFeelDefault(EWeaponKind::LMG).SustainCap;
 	TestTrue(TEXT("SMG 0.5 < rifle 1.0 < LMG 1.6"), FMath::IsNearlyEqual(SMG, 0.5f) && FMath::IsNearlyEqual(Rifle, 1.f) && FMath::IsNearlyEqual(LMG, 1.6f));
 	{
-		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
-		FIdentityScopedVariable CapSMG(TEXT("Looter.Gunfeel.Kick.SustainCap.SMG"), SMG);
-		FIdentityScopedVariable CapRifle(TEXT("Looter.Gunfeel.Kick.SustainCap.Rifle"), Rifle);
-		FIdentityScopedVariable CapLMG(TEXT("Looter.Gunfeel.Kick.SustainCap.LMG"), LMG);
+		FScopedKindFeel ShippedSMG(EWeaponKind::SMG, GunfeelKick::KindFeelDefault(EWeaponKind::SMG));
+		FScopedKindFeel ShippedRifle(EWeaponKind::Rifle, GunfeelKick::KindFeelDefault(EWeaponKind::Rifle));
+		FScopedKindFeel ShippedLMG(EWeaponKind::LMG, GunfeelKick::KindFeelDefault(EWeaponKind::LMG));
 		TestEqual(TEXT("The live cap is the SMG's own"), GunfeelKick::SustainCapFor(EWeaponKind::SMG), SMG, 0.0001f);
 		TestEqual(TEXT("...the rifle's"), GunfeelKick::SustainCapFor(EWeaponKind::Rifle), Rifle, 0.0001f);
 		TestEqual(TEXT("...the LMG's"), GunfeelKick::SustainCapFor(EWeaponKind::LMG), LMG, 0.0001f);
@@ -238,20 +235,33 @@ bool FGunfeelIdentitySustainTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("A single shot has no cap"), GunfeelKick::SustainCapFor(Single), 0.f);
 		}
 	}
-	// Three seconds held at the real rates with the wildest parts (Recoil 2) and every shot given the first shot's extra (and
-	// the LMG its cold dig-in): never past the cap, or a lone kick's own size where that is bigger.
+	// At a base Common held at the real rates the lifts stack (a lone one outlasts the round) and the cap does its job: they
+	// are held under it and lower than they would pile up free. With the wildest parts (Recoil 2) and the LMG's cold dig-in:
+	// never past the cap, or a lone kick's own size where that is bigger.
 	struct FRate { EWeaponKind Kind; float ShotsPerSecond; };
-	FRandomStream Random(31);
-	for (const FRate& Each : { FRate{ EWeaponKind::SMG, 15.f }, FRate{ EWeaponKind::Rifle, 14.f }, FRate{ EWeaponKind::LMG, 11.f } })
+	for (const FRate& Each : { FRate{ EWeaponKind::SMG, 15.f }, FRate{ EWeaponKind::Rifle, 650.f / 60.f }, FRate{ EWeaponKind::LMG, 650.f / 60.f } })
 	{
 		const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeelDefault(Each.Kind);
-		FViewKick Burst = ViewKicks::ForShot(Each.Kind, 2.f, 0.f, Random)
-			* (IdDef::KickFirstShot * (Each.Kind == EWeaponKind::LMG ? IdDef::LMGDigInStart : 1.f));
-		Burst.SustainCap = Feel.SustainCap;
-		Burst.SustainFloor = IdDef::SustainFloor;
-		const float Peak = BurstPeak(Burst, 1.f / Each.ShotsPerSecond, 3.f);
-		const float Most = FMath::Max(Feel.SustainCap, Burst.Pitch);
-		TestTrue(FString::Printf(TEXT("Kind %d held 3 s: %.2f degrees, at most %.2f"), static_cast<int32>(Each.Kind), Peak, Most), Peak <= Most + 0.01f);
+		const FShotKickShape Shape = FShotKickShape::For(Each.Kind);
+		const float Interval = 1.f / Each.ShotsPerSecond;
+		FViewKick Base = ViewKicks::ForLift(Each.Kind, ViewKicks::BaseShotRecoil, 0.f, Shape);
+		TestTrue(FString::Printf(TEXT("Kind %d: a lift still holds %.0f%% at the next round"), static_cast<int32>(Each.Kind),
+			100.f * FViewKickStack::Response(Interval, Base.Frequency, Base.Damping)), FViewKickStack::Response(Interval, Base.Frequency, Base.Damping) > 0.5f);
+		Base.SustainCap = 99.f;
+		const float Free = BurstPeak(Base, Interval, 3.f);
+		Base.SustainCap = Feel.SustainCap;
+		Base.SustainFloor = IdDef::SustainFloor;
+		const float Held = BurstPeak(Base, Interval, 3.f);
+		TestTrue(FString::Printf(TEXT("Kind %d: free the lifts stack to %.2f (%.1f a lift)"), static_cast<int32>(Each.Kind), Free, Base.Pitch), Free > Base.Pitch * 1.5f);
+		TestTrue(FString::Printf(TEXT("Kind %d: the cap holds them at %.2f, under %.1f"), static_cast<int32>(Each.Kind), Held, Feel.SustainCap),
+			Held <= Feel.SustainCap + 0.01f && Held < Free * 0.95f);
+
+		FViewKick Wild = ViewKicks::ForLift(Each.Kind, 2.f, 0.f, Shape) * (Each.Kind == EWeaponKind::LMG ? IdDef::LMGDigInStart : 1.f);
+		Wild.SustainCap = Feel.SustainCap;
+		Wild.SustainFloor = IdDef::SustainFloor;
+		const float Peak = BurstPeak(Wild, Interval, 3.f);
+		const float Most = FMath::Max(Feel.SustainCap, Wild.Pitch);
+		TestTrue(FString::Printf(TEXT("Kind %d held 3 s wild: %.2f degrees, at most %.2f"), static_cast<int32>(Each.Kind), Peak, Most), Peak <= Most + 0.01f);
 	}
 	return true;
 }
@@ -262,7 +272,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelIdentityAimedTest, "Looter.Gunfeel.Iden
 bool FGunfeelIdentityAimedTest::RunTest(const FString& Parameters)
 {
 	// Through the sight each kind keeps its own share of the view kick, the sniper's scope the least (and the least widening,
-	// so it stays readable); the gun model's sight shares are the kind's, the six-gun's flip its character through the irons.
+	// so it stays readable); the gun model's sight shares are the kind's, the six-gun's flip about 5 degrees through the irons.
 	for (const EWeaponKind Kind : AllKinds)
 	{
 		const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeelDefault(Kind);
@@ -289,14 +299,18 @@ bool FGunfeelIdentityAimedTest::RunTest(const FString& Parameters)
 	const GunfeelKick::FKindFeel Shotgun = GunfeelKick::KindFeelDefault(EWeaponKind::Shotgun);
 	TestTrue(TEXT("The rifle keeps today's sight shares"), FMath::IsNearlyEqual(Rifle.AimedBack, IdDef::AimedBack)
 		&& FMath::IsNearlyEqual(Rifle.AimedFlip, IdDef::AimedFlip) && FMath::IsNearlyEqual(Rifle.AimedRoll, IdDef::AimedRoll));
-	TestTrue(TEXT("The six-gun flips most through the irons"), Revolver.AimedFlip > Rifle.AimedFlip && Revolver.AimedFlip > Shotgun.AimedFlip);
+	// DA_Revolver flips 8 degrees; its model weight (Recoil.Revolver 1.4) and its sight share make about 5 through the irons
+	// (11 before 2026-11-03, when Recoil.More doubled up on the model and the share was 0.7).
+	const float RevolverSightFlip = 8.f * IdDef::RecoilRevolver * Revolver.AimedFlip;
+	TestTrue(FString::Printf(TEXT("The six-gun flips %.1f degrees through the irons, about 5"), RevolverSightFlip), RevolverSightFlip > 4.5f && RevolverSightFlip < 5.5f);
 	TestTrue(TEXT("The SMG flips least"), SMG.AimedFlip < Rifle.AimedFlip);
 	TestTrue(TEXT("The shotgun shoves back most"), Shotgun.AimedBack > Rifle.AimedBack && Shotgun.AimedBack > Revolver.AimedBack);
 	{
-		// The live numbers read their variables.
-		FIdentityScopedVariable Identity(TEXT("Looter.Gunfeel.Identity"), 1.f);
-		FIdentityScopedVariable Flip(TEXT("Looter.Gunfeel.Recoil.AimedFlip.Revolver"), 0.9f);
-		TestEqual(TEXT("A kind's sight flip is its variable"), GunfeelKick::KindFeel(EWeaponKind::Revolver).AimedFlip, 0.9f, 0.0001f);
+		// The live numbers read the kind's Gun Feel settings.
+		GunfeelKick::FKindFeel Own = GunfeelKick::KindFeelDefault(EWeaponKind::Revolver);
+		Own.AimedFlip = 0.9f;
+		FScopedKindFeel Setting(EWeaponKind::Revolver, Own);
+		TestEqual(TEXT("A kind's sight flip is its setting"), GunfeelKick::KindFeel(EWeaponKind::Revolver).AimedFlip, 0.9f, 0.0001f);
 	}
 	return true;
 }
@@ -310,8 +324,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelIdentityRecoveryTest, "Looter.Gunfeel.I
 
 bool FGunfeelIdentityRecoveryTest::RunTest(const FString& Parameters)
 {
-	// The revolver (its asset's recovery 9, x its kind's): the sight is back on target within 0.35 s, before the next pull
-	// (0.43 s at 140 a minute), and quicker than before.
+	// The revolver (its asset's recovery 9, x its kind's; recovering as shipped, a tenth of the rate for 0.12 s after the
+	// shot): the sight is back on target within 0.35 s, before the next pull (0.43 s at 140 a minute), and quicker than before.
 	const float RevolverAsset = 9.f;
 	const float Faster = GunfeelKick::KindFeelDefault(EWeaponKind::Revolver).Recovery;
 	TestTrue(TEXT("The six-gun recovers faster than its asset"), Faster > 1.f);

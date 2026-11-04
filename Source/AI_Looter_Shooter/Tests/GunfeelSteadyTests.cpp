@@ -117,10 +117,18 @@ bool FGunfeelSteadyAccuracyTest::RunTest(const FString& Parameters)
 	TestNearlyEqual(TEXT("...and the kick is the stat x More"), GunfeelKick::ShotRecoil(1.f, 2.f, 2.f, Shipped), KickDef::RecoilMore, 0.0001f);
 	TestTrue(TEXT("Every gun kicks harder than before"), KickDef::RecoilMore > 1.f);
 
-	// The stat clearly matters: +30% accuracy about two thirds the kick, twice as tight about a third.
-	TestNearlyEqual(TEXT("+30% accuracy: 1.3^-1.5"), GunfeelKick::AccuracyCalm(1.3f, 1.f, Shipped), FMath::Pow(1.3f, -1.5f), 0.001f);
-	TestNearlyEqual(TEXT("Twice as tight: 2^-1.5"), GunfeelKick::AccuracyCalm(2.f, 1.f, Shipped), FMath::Pow(2.f, -1.5f), 0.001f);
-	TestTrue(TEXT("A high accuracy calms the kick a lot (under half at 1.6x)"), GunfeelKick::AccuracyCalm(1.6f, 1.f, Shipped) < 0.5f);
+	// The stat is felt but never takes the kick away (2026-11-03; it took an Epic with +40% to 30% of a Common's): +30%
+	// accuracy about four fifths the kick, a plain Epic (its rarity's 0.8 spread) about 84%, an Epic with +40% still at least
+	// 60%, twice as tight held at the floor.
+	TestNearlyEqual(TEXT("+30% accuracy: 1.3^-0.8"), GunfeelKick::AccuracyCalm(1.3f, 1.f, Shipped), FMath::Pow(1.3f, -KickDef::AccuracyCalm), 0.001f);
+	TestTrue(TEXT("...a clear calm"), GunfeelKick::AccuracyCalm(1.3f, 1.f, Shipped) < 0.85f);
+	const float Epic = GunfeelKick::AccuracyCalm(0.8f, 0.8f * 0.8f, Shipped);
+	TestTrue(FString::Printf(TEXT("A plain Epic kicks %.0f%% of a Common"), Epic * 100.f), Epic > 0.8f && Epic < 0.9f);
+	const float EpicSteady = GunfeelKick::AccuracyCalm(0.8f, 0.8f * 0.8f / 1.4f, Shipped);
+	TestTrue(FString::Printf(TEXT("An Epic with +40%% accuracy still kicks %.0f%% of a Common, 60%% or more"), EpicSteady * 100.f),
+		EpicSteady >= 0.6f && EpicSteady < 0.7f);
+	TestNearlyEqual(TEXT("Twice as tight: the floor"), GunfeelKick::AccuracyCalm(2.f, 1.f, Shipped),
+		FMath::Max(FMath::Pow(2.f, -KickDef::AccuracyCalm), KickDef::AccuracyCalmLeast), 0.001f);
 	TestTrue(TEXT("A sloppy roll kicks harder than base"), GunfeelKick::AccuracyCalm(1.f, 1.25f, Shipped) > 1.f);
 
 	// Always calmer as the gun tightens, both ends held.
@@ -143,7 +151,7 @@ bool FGunfeelSteadyAccuracyTest::RunTest(const FString& Parameters)
 	Off.Exponent = 0.f;
 	TestNearlyEqual(TEXT("AccuracyCalm 0: accuracy leaves the kick alone"), GunfeelKick::AccuracyCalm(2.f, 1.f, Off), 1.f, 0.0001f);
 	TestNearlyEqual(TEXT("The Recoil stat still scales it"), GunfeelKick::ShotRecoil(0.5f, 2.f, 1.f, Shipped),
-		0.5f * KickDef::RecoilMore * FMath::Pow(2.f, -1.5f), 0.001f);
+		0.5f * KickDef::RecoilMore * GunfeelKick::AccuracyCalm(2.f, 1.f, Shipped), 0.001f);
 
 	// The live ones, by a definition's base spread; the card's number leaves out the "more" so a plain gun reads its stat.
 	FShippedAccuracyKick Live;
@@ -152,10 +160,11 @@ bool FGunfeelSteadyAccuracyTest::RunTest(const FString& Parameters)
 	FWeaponStats Tight;
 	Tight.Spread = 1.f;
 	Tight.Recoil = 1.f;
-	TestNearlyEqual(TEXT("Live: the definition's spread is the base"), GunfeelKick::ShotRecoil(Definition, Tight),
-		KickDef::RecoilMore * FMath::Pow(2.f, -1.5f), 0.001f);
+	const float TwiceTight = GunfeelKick::AccuracyCalm(2.f, 1.f, Shipped);
+	TestNearlyEqual(TEXT("Live: the definition's spread is the base"), GunfeelKick::ShotRecoil(Definition, Tight), KickDef::RecoilMore * TwiceTight, 0.001f);
 	TestNearlyEqual(TEXT("Live: no definition, no calm"), GunfeelKick::ShotRecoil(nullptr, Tight), KickDef::RecoilMore, 0.001f);
-	TestNearlyEqual(TEXT("The card's recoil: the stat x the calm"), GunfeelKick::FeltRecoil(Definition, Tight), FMath::Pow(2.f, -1.5f), 0.001f);
+	TestNearlyEqual(TEXT("The card's recoil: the stat x the calm"), GunfeelKick::FeltRecoil(Definition, Tight), TwiceTight, 0.001f);
+	TestNearlyEqual(TEXT("A base Common's kick share is 1 (Recoil.More applied once)"), GunfeelKick::KickShare(GunfeelKick::ShotRecoil(nullptr, Tight)), 1.f, 0.0001f);
 	FWeaponStats Plain = Tight;
 	Plain.Spread = 2.f;
 	TestNearlyEqual(TEXT("...a plain gun reads its stat"), GunfeelKick::FeltRecoil(Definition, Plain), 1.f, 0.0001f);
@@ -167,8 +176,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGunfeelSteadyProfileTest, "Looter.Gunfeel.Stea
 
 bool FGunfeelSteadyProfileTest::RunTest(const FString& Parameters)
 {
-	// On real guns: the kick in the hand and on the aim is the definition's profile x ShotRecoil, so a more accurate rifle of
-	// the same make kicks less for the same Recoil stat.
+	// On real guns: the kick in the hand and on the aim is the definition's profile x the shot's KickShare (ShotRecoil over a
+	// base Common's), x the kind's aim kick on the aim, so a more accurate rifle of the same make kicks less for the same
+	// Recoil stat.
 	UWeaponDefinition* Rifle = LoadObject<UWeaponDefinition>(nullptr, TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"));
 	FTestWorldWrapper WorldWrapper;
 	if (!TestNotNull(TEXT("Rifle loads"), Rifle) || !TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
@@ -184,18 +194,27 @@ bool FGunfeelSteadyProfileTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	FScopedVariable WhileFiring(TEXT("Looter.Gunfeel.Recoil.WhileFiring"), KickDef::RecoveryWhileFiring);
+	FScopedVariable RecoveryDelay(TEXT("Looter.Gunfeel.Recoil.RecoveryDelay"), KickDef::RecoveryDelay);
+	FScopedVariable ModelRifle(TEXT("Looter.Gunfeel.Recoil.Rifle"), KickDef::RecoilRifle);
 	for (const AWeaponBase* Gun : { Common, Legendary })
 	{
 		const float Shot = GunfeelKick::ShotRecoil(Gun);
-		TestNearlyEqual(TEXT("The aim's kick is the profile's x ShotRecoil"), Gun->GetRecoilProfile().AimKick, Rifle->Recoil.AimKick * Shot, 0.0001f);
+		const float Share = GunfeelKick::KickShare(Shot);
+		// Gun identity (2026-10-28): the aim kicks and comes back at the kind's own numbers on the asset's, the model's sight
+		// shares are the kind's (the rifle's are the old shared ones), and nothing but an LMG digs in.
+		const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeel(EWeaponKind::Rifle);
+		const FWeaponRecoilProfile Profile = Gun->GetRecoilProfile();
+		TestNearlyEqual(TEXT("The aim's kick is the profile's x KickShare x the kind's aim kick"), Profile.AimKick,
+			Rifle->Recoil.AimKick * Share * Feel.AimKick, 0.0001f);
+		TestNearlyEqual(TEXT("The model's flip is the profile's x KickShare x Recoil.Rifle (More once)"), Profile.MuzzleFlip,
+			Rifle->Recoil.MuzzleFlip * Share * KickDef::RecoilRifle, 0.0001f);
 		TestNearlyEqual(TEXT("ShotRecoil is the stat x More x the calm"), Shot,
 			Gun->GetStats().Recoil * KickDef::RecoilMore * GunfeelKick::AccuracyCalm(Rifle->BaseStats.Spread, Gun->GetStats().Spread,
 				GunfeelKick::FAccuracyKick()), 0.0001f);
-		// Gun identity (2026-10-28): the aim comes back at the kind's pace on the asset's, the model's sight shares are the
-		// kind's (the rifle's are today's), and nothing but an LMG digs in.
-		const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeel(EWeaponKind::Rifle);
-		const FWeaponRecoilProfile Profile = Gun->GetRecoilProfile();
 		TestNearlyEqual(TEXT("The aim's recovery is the asset's x the kind's"), Profile.AimRecovery, Rifle->Recoil.AimRecovery * Feel.Recovery, 0.0001f);
+		TestNearlyEqual(TEXT("...held, it barely recovers"), Profile.RecoveryWhileFiring, KickDef::RecoveryWhileFiring, 0.0001f);
+		TestNearlyEqual(TEXT("...until its delay"), Profile.RecoveryDelay, KickDef::RecoveryDelay, 0.0001f);
 		TestNearlyEqual(TEXT("...its sight flip the kind's"), Profile.AimedFlip, Feel.AimedFlip, 0.0001f);
 		TestNearlyEqual(TEXT("...its sight push back the kind's"), Profile.AimedBack, Feel.AimedBack, 0.0001f);
 		TestNearlyEqual(TEXT("A rifle doesn't dig in"), Gun->GetKickDigIn(), 1.f, 0.0001f);

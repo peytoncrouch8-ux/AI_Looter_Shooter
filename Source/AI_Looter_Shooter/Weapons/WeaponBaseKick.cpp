@@ -6,59 +6,132 @@
 #include "Engine/World.h"
 
 // AWeaponBase's kick: what a shot does to the gun in the hand (its recoil profile, by kind) and to its cone (an automatic's
-// bloom, and the reward of a first shot after a rest). The numbers are GunfeelKickTuning's Looter.Gunfeel.* variables, read
-// per shot, so a change in play shows on the next one. The kick's size is GunfeelKick::ShotRecoil (the Recoil stat, the
-// "more kick" for all, the accuracy's calm); the view's kick and the pattern read the same (PlayerViewKicks/PlayerViewAim).
-// Gun identity (2026-10-28) adds each kind's sight shares and recovery, the LMG's dig-in and the sniper's held recovery;
-// the LMG's climb cap (2026-10-29) keeps a held belt from walking the view up.
+// bloom, and the reward of a first shot after a rest). The numbers are GunfeelKickTuning's Looter.Gunfeel.* variables and
+// each kind's identity (Project Settings > Game > Gun Feel), read per shot, so a change in play shows on the next one. The
+// kick's size is GunfeelKick::KickShare (the Recoil stat, the "more kick" for all, the accuracy's calm, over a base Common's);
+// the view's kick and the pattern read the same (PlayerViewKicks/PlayerViewAim), so each is applied once and alike.
+// Gun identity (2026-10-28) adds each kind's sight shares, aim kick and recovery, the LMG's dig-in and the sniper's held
+// recovery; the LMG's climb cap (2026-10-29) keeps a held belt from walking the view up.
 
-FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
+namespace
 {
-	FWeaponRecoilProfile Profile = Instance.Definition ? Instance.Definition->Recoil : FWeaponRecoilProfile();
-	const EWeaponKind Kind = GunfeelKick::KindOf(this);
-	// The gun's Recoil stat (its parts) scales every kick, on the gun and on the aim alike; the springs stay the same. Since
-	// playtest round 2 every gun kicks harder (Recoil.More) and its accuracy calms it (the tighter it shoots against its
-	// kind, the steadier: the user's call, 2026-10-27), so the accuracy stat is felt on every shot.
-	// An LMG still spinning up kicks harder, a spun one steadier (its dig-in; 1 for the rest).
-	const float Kick = GunfeelKick::ShotRecoil(Instance.Definition.Get(), Instance.Stats) * GetKickDigIn();
-	// The kind's own weight in the hand on top: its model kicks back, flips, twists and rolls that much more. The aim's
-	// kick (what the player pulls down against) is left alone.
-	const float Weight = Kick * GunfeelKick::RecoilScale(Kind);
+	namespace KickDef = GunfeelKick::Default;
+
+	/** Recoil.<Kind>'s shipped default: the gun model's own weight by kind. */
+	float ShippedModelWeight(EWeaponKind Kind)
+	{
+		switch (Kind)
+		{
+		case EWeaponKind::Shotgun: return KickDef::RecoilShotgun;
+		case EWeaponKind::Revolver: return KickDef::RecoilRevolver;
+		case EWeaponKind::SMG: return KickDef::RecoilSMG;
+		case EWeaponKind::Sniper: return KickDef::RecoilSniper;
+		case EWeaponKind::LMG: return KickDef::RecoilLMG;
+		case EWeaponKind::Launcher: return KickDef::RecoilLauncher;
+		default: return KickDef::RecoilRifle;
+		}
+	}
+
+	/** A burst's climb per shot as shipped (GunfeelKick::ClimbPerShot's defaults). */
+	float ShippedClimb(EWeaponKind Kind)
+	{
+		switch (Kind)
+		{
+		case EWeaponKind::Rifle: return KickDef::RifleClimb;
+		case EWeaponKind::SMG: return KickDef::SMGClimb;
+		case EWeaponKind::LMG: return KickDef::LMGClimb;
+		default: return 0.f;
+		}
+	}
+}
+
+GunfeelKick::FProfileNumbers GunfeelKick::ShippedProfileNumbers(EWeaponKind Kind)
+{
+	FProfileNumbers Numbers;
+	Numbers.Feel = KindFeelDefault(Kind);
+	Numbers.ModelWeight = ShippedModelWeight(Kind);
+	// The pattern (shipped at full strength) takes over most of an automatic's sideways kick.
+	Numbers.SideRandom = Kind == EWeaponKind::SMG ? KickDef::SideRandomSMG : (IsAutomaticKind(Kind) ? KickDef::SideRandom : 1.f);
+	Numbers.Settle = Kind == EWeaponKind::Shotgun ? KickDef::ShotgunSettle : 1.f;
+	Numbers.ClimbPerShot = ShippedClimb(Kind);
+	Numbers.ClimbMax = IsAutomaticKind(Kind) ? KickDef::RifleClimbMax : 1.f;
+	Numbers.ClimbCap = Kind == EWeaponKind::LMG ? GunKinds::Default::LMGClimbCap : 0.f;
+	Numbers.ClimbCapFloor = Kind == EWeaponKind::LMG ? GunKinds::Default::LMGClimbCapFloor : 0.f;
+	Numbers.WhileFiring = KickDef::RecoveryWhileFiring;
+	Numbers.RecoveryDelay = KickDef::RecoveryDelay;
+	return Numbers;
+}
+
+GunfeelKick::FProfileNumbers GunfeelKick::LiveProfileNumbers(EWeaponKind Kind)
+{
+	FProfileNumbers Numbers;
+	Numbers.Feel = KindFeel(Kind);
+	Numbers.ModelWeight = RecoilScale(Kind);
+	Numbers.SideRandom = SideRandomScale(Kind);
+	Numbers.Settle = Kind == EWeaponKind::Shotgun ? ShotgunSettle() : 1.f;
+	Numbers.ClimbPerShot = ClimbPerShot(Kind);
+	Numbers.ClimbMax = IsAutomaticKind(Kind) ? RifleClimbMax() : 1.f;
+	Numbers.ClimbCap = Kind == EWeaponKind::LMG ? GunKinds::LMGClimbCap() : 0.f;
+	Numbers.ClimbCapFloor = Kind == EWeaponKind::LMG ? GunKinds::LMGClimbCapFloor() : 0.f;
+	Numbers.WhileFiring = WhileFiringShare();
+	Numbers.RecoveryDelay = RecoveryDelaySeconds();
+	return Numbers;
+}
+
+FWeaponRecoilProfile GunfeelKick::ShotProfile(const FWeaponRecoilProfile& Asset, float Kick, const FProfileNumbers& Numbers)
+{
+	FWeaponRecoilProfile Profile = Asset;
+	const float Share = FMath::Max(Kick, 0.f);
+	// The gun's kick (its stats, the "more kick" for all, the accuracy's calm) scales the gun model and the aim alike; the
+	// springs stay the same. The kind's own weight in the hand on top: its model kicks back, flips, twists and rolls that much.
+	const float Weight = Share * FMath::Max(Numbers.ModelWeight, 0.f);
 	Profile.KickBack *= Weight;
 	Profile.MuzzleFlip *= Weight;
 	Profile.MuzzleTwist *= Weight;
 	Profile.Roll *= Weight;
-	Profile.AimKick *= Kick;
-	// An automatic's sideways kick is mostly its pattern now (UPlayerViewComponent::HandleWeaponFired adds that), so only a
-	// share of the old random stays; the other kinds keep all of it.
-	Profile.AimKickSide *= Kick * GunfeelKick::SideRandomScale(Kind);
+	// The aim's kick (what the player pulls down against) is the kind's own number on the asset's (the rifle's 0.8 degrees).
+	const float Aim = Share * FMath::Max(Numbers.Feel.AimKick, 0.f);
+	Profile.AimKick *= Aim;
+	// An automatic's sideways kick is mostly its pattern (UPlayerViewComponent::HandleWeaponFired adds that), so only a share
+	// of the random stays; the other kinds keep all of it.
+	Profile.AimKickSide *= Aim * FMath::Max(Numbers.SideRandom, 0.f);
 	// Through the sight the model kicks by its kind's shares (full-sight numbers; AddShot blends by how far the sights are
-	// up): the six-gun's flip stays its character through the irons, the shotgun shoves back. And the aim comes back at its
+	// up): the six-gun's flip about 5 degrees through the irons, the shotgun shoving back. And the aim comes back at its
 	// kind's pace on the asset's own (the six-gun back on target before the next pull, the heavy tubes slower).
-	const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeel(Kind);
-	Profile.AimedBack = Feel.AimedBack;
-	Profile.AimedFlip = Feel.AimedFlip;
-	Profile.AimedRoll = Feel.AimedRoll;
-	Profile.AimRecovery *= Feel.Recovery;
-	if (Kind == EWeaponKind::Shotgun)
+	Profile.AimedBack = Numbers.Feel.AimedBack;
+	Profile.AimedFlip = Numbers.Feel.AimedFlip;
+	Profile.AimedRoll = Numbers.Feel.AimedRoll;
+	Profile.AimRecovery *= FMath::Max(Numbers.Feel.Recovery, 0.1f);
+	// Heavy (the shotgun's): it settles slower, so the shove is held a moment.
+	Profile.Snappiness *= FMath::Max(Numbers.Settle, 0.1f);
+	// A burst climbs: the rifle's, the SMG's a little, the LMG's under its weight; a single shot's profile keeps the asset's.
+	if (Numbers.ClimbPerShot > 0.f)
 	{
-		// Heavy: it settles slower, so the shove is held a moment.
-		Profile.Snappiness *= GunfeelKick::ShotgunSettle();
+		Profile.ClimbPerShot = Numbers.ClimbPerShot;
+		Profile.ClimbMax = Numbers.ClimbMax;
 	}
-	else if (Kind == EWeaponKind::Rifle || Kind == EWeaponKind::SMG || Kind == EWeaponKind::LMG)
+	// A held belt lifts the aim a few degrees and no further: past its cap a shot only nods, and the sway carries the burst
+	// sideways (a belt that walks into the sky was never the feel we wanted).
+	if (Numbers.ClimbCap > 0.f)
 	{
-		// A burst climbs: the rifle's, the SMG's a little, the LMG's under its weight.
-		Profile.ClimbPerShot = GunfeelKick::ClimbPerShot(Kind);
-		Profile.ClimbMax = GunfeelKick::RifleClimbMax();
+		Profile.ClimbCap = Numbers.ClimbCap;
+		Profile.ClimbCapFloor = Numbers.ClimbCapFloor;
 	}
-	if (Kind == EWeaponKind::LMG)
-	{
-		// A held belt lifts the aim a few degrees and no further: past its cap a shot only nods, and the sway carries the
-		// burst sideways (with Identity 0 too: a belt that walks into the sky was never the feel we wanted).
-		Profile.ClimbCap = GunKinds::LMGClimbCap();
-		Profile.ClimbCapFloor = GunKinds::LMGClimbCapFloor();
-	}
+	// Held, the aim barely settles, so a burst climbs and wants pulling down; let go, it comes back.
+	Profile.RecoveryWhileFiring = Numbers.WhileFiring;
+	Profile.RecoveryDelay = Numbers.RecoveryDelay;
 	return Profile;
+}
+
+FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
+{
+	const FWeaponRecoilProfile Asset = Instance.Definition ? Instance.Definition->Recoil : FWeaponRecoilProfile();
+	const EWeaponKind Kind = GunfeelKick::KindOf(this);
+	// The gun's Recoil stat (its parts) and its accuracy against its kind (the user's call, 2026-10-27: the tighter it shoots,
+	// the steadier) set the shot's share of a base Common's kick; an LMG still spinning up kicks harder, a spun one steadier
+	// (its dig-in; 1 for the rest).
+	const float Kick = GunfeelKick::KickShare(GunfeelKick::ShotRecoil(Instance.Definition.Get(), Instance.Stats)) * GetKickDigIn();
+	return GunfeelKick::ShotProfile(Asset, Kick, GunfeelKick::LiveProfileNumbers(Kind));
 }
 
 float AWeaponBase::GetKickDigIn() const

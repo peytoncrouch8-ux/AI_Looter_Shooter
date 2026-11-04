@@ -8,9 +8,8 @@ namespace
 	constexpr float SpringDamping = 0.55f;
 	/** The aim kick goes in over a few frames (about 1/rate seconds) rather than snapping. */
 	constexpr float AimKickRate = 45.f;
-	/** Full recovery starts this long after the last shot; while firing, the aim settles back at a fraction of the rate. */
-	constexpr float AimRecoveryDelay = 0.09f;
-	constexpr float AimRecoveryWhileFiring = 0.35f;
+	// While firing the aim settles back at the profile's RecoveryWhileFiring share of its rate, fully once RecoveryDelay has
+	// passed since the last shot (the shipped ones are Looter.Gunfeel.Recoil.WhileFiring / .RecoveryDelay).
 
 	/**
 	 * Velocity that makes a spring at rest peak at Peak. The impulse response of a spring with this damping peaks at
@@ -51,7 +50,14 @@ void FWeaponRecoil::AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& 
 	const float BackShare = FMath::Lerp(1.f, FMath::Max(Profile.AimedBack, 0.f), Sight);
 	const float FlipShare = FMath::Lerp(1.f, FMath::Max(Profile.AimedFlip, 0.f), Sight);
 	const float RollShare = FMath::Lerp(1.f, FMath::Max(Profile.AimedRoll, 0.f), Sight);
-	Back.Velocity += ImpulseFor(Profile.KickBack * BackShare, Omega);
+	float BackPeak = Profile.KickBack * BackShare;
+	if (Profile.AimedBackMost > 0.f)
+	{
+		// Through the sight the shove stops short of the eye: blended toward the limit by how far the sights are up, never
+		// past the shot's own.
+		BackPeak = FMath::Min(BackPeak, FMath::Lerp(BackPeak, Profile.AimedBackMost, Sight));
+	}
+	Back.Velocity += ImpulseFor(BackPeak, Omega);
 	Pitch.Velocity += ImpulseFor(Profile.MuzzleFlip * FlipShare, Omega);
 	// The random draws stay in the old order and count, so a profile with no sight shares kicks exactly as it did.
 	Yaw.Velocity += ImpulseFor(Random.FRandRange(-1.f, 1.f) * Profile.MuzzleTwist * FlipShare, Omega);
@@ -69,6 +75,8 @@ void FWeaponRecoil::AddShot(const FWeaponRecoilProfile& Profile, FRandomStream& 
 	AimPending.Pitch += CappedPitchKick(Profile, Profile.AimKick * Climb * Random.FRandRange(0.85f, 1.15f));
 	AimPending.Yaw += Random.FRandRange(-1.f, 1.f) * Profile.AimKickSide;
 	AimRecovery = Profile.AimRecovery;
+	WhileFiring = FMath::Clamp(Profile.RecoveryWhileFiring, 0.f, 1.f);
+	RecoveryDelay = FMath::Max(Profile.RecoveryDelay, 0.f);
 	SinceShot = 0.f;
 	// A hold is the shot's own (HoldRecovery after this sets it).
 	HoldSeconds = 0.f;
@@ -116,7 +124,7 @@ FRotator FWeaponRecoil::Tick(float DeltaSeconds, float PlayerPitchInput)
 	// ...and settles back: slowly while still firing, fully once the shooting stops; not at all while a hold lasts (a bolt
 	// gun's kick stays up while the bolt is worked, then the world settles).
 	SinceShot += Dt;
-	const float Rate = SinceShot < HoldSeconds ? 0.f : AimRecovery * (SinceShot > AimRecoveryDelay ? 1.f : AimRecoveryWhileFiring);
+	const float Rate = SinceShot < HoldSeconds ? 0.f : AimRecovery * (SinceShot > RecoveryDelay ? 1.f : WhileFiring);
 	const FRotator Settle = AimApplied * (1.f - FMath::Exp(-Rate * Dt));
 	AimApplied -= Settle;
 	return Kick - Settle;

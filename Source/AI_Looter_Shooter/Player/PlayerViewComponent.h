@@ -299,7 +299,7 @@ private:
 
 	/** Linear 0..1 (GetAimAlpha eases it). */
 	float AimAlpha = 0.f;
-	/** The ease's exponent for the gun in hand (Looter.Gunfeel.Aim.Curve.<Kind>; 2 with Identity 0), set as the sights move. */
+	/** The ease's exponent for the gun in hand (its kind's AimCurve in Project Settings > Game > Gun Feel), set as the sights move. */
 	float AimCurve = 2.f;
 	/** The sights have been under half way since they last arrived, so arriving again settles the view once. */
 	bool bAimSettleArmed = true;

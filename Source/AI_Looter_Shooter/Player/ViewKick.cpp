@@ -245,7 +245,8 @@ FViewKick ViewKicks::ForShot(EWeaponKind Kind, float RecoilStat, float AimAlpha,
 		Kick.Damping = 0.45f;
 		break;
 	default:
-		// The workhorse: a crisp crack per round, quick enough that a burst reads as a rattle, not a sway.
+		// The workhorse: a crisp crack per round, quick enough that a burst reads as a rattle, not a sway (its slow lift,
+		// ForLift, carries the held burst's climb).
 		Kick.Pitch = 0.55f;
 		Kick.Roll = 0.38f * Lean;
 		Kick.Yaw = 0.1f * Side;
@@ -266,88 +267,33 @@ FViewKick ViewKicks::ForShot(EWeaponKind Kind, float RecoilStat, float AimAlpha,
 	return Scaled;
 }
 
-FViewKick ViewKicks::ForShotToday(EWeaponKind Kind, float RecoilStat, float AimAlpha, FRandomStream& Random)
+FViewKick ViewKicks::ForLift(EWeaponKind Kind, float RecoilStat, float AimAlpha, const FShotKickShape& Shape)
 {
+	// Soft and well damped, so it outlasts the round and the next one's piles on: the burst's view climbs under the cracks
+	// until the kind's cap holds it, and falls back in a few tenths of a second once the trigger is let go.
 	FViewKick Kick;
-	const float Side = Random.FRandRange(-1.f, 1.f);
-	const float Lean = Random.RandRange(0, 1) == 0 ? -1.f : 1.f;
-	if (Kind == EWeaponKind::Shotgun)
+	switch (Kind)
 	{
-		// A heavy shove: slower, bigger, wider, so the blast is felt in the shoulders.
-		Kick.Pitch = 1.15f;
-		Kick.Roll = 0.55f * Lean;
-		Kick.Yaw = 0.15f * Side;
-		Kick.FieldOfView = 0.022f;
-		Kick.Frequency = 6.5f;
-		Kick.Damping = 0.5f;
+	case EWeaponKind::Rifle:
+		Kick.Pitch = 0.5f;
+		Kick.Frequency = 2.2f;
+		break;
+	case EWeaponKind::SMG:
+		// The hornet's hum held low: a small lift, quicker to fall.
+		Kick.Pitch = 0.25f;
+		Kick.Frequency = 3.f;
+		break;
+	case EWeaponKind::LMG:
+		// The belt's weight: the slowest, the deepest.
+		Kick.Pitch = 0.6f;
+		Kick.Frequency = 1.8f;
+		break;
+	default:
+		return Kick;
 	}
-	else if (Kind == EWeaponKind::Revolver)
-	{
-		// A sharp snap up and straight back down: quick and well damped, so the sights are back before the next pull.
-		Kick.Pitch = 0.9f;
-		Kick.Roll = 0.3f * Lean;
-		Kick.Yaw = 0.08f * Side;
-		Kick.FieldOfView = 0.012f;
-		Kick.Frequency = 11.f;
-		Kick.Damping = 0.65f;
-	}
-	else if (Kind == EWeaponKind::Sniper)
-	{
-		// One big round: a hard punch up and a long settle, the view thumped wider.
-		Kick.Pitch = 1.3f;
-		Kick.Roll = 0.4f * Lean;
-		Kick.Yaw = 0.1f * Side;
-		Kick.FieldOfView = 0.02f;
-		Kick.Frequency = 7.5f;
-		Kick.Damping = 0.55f;
-	}
-	else if (Kind == EWeaponKind::Launcher)
-	{
-		// The rocket leaving: a slower, heavier shove than the shotgun's, the view thrown wide.
-		Kick.Pitch = 1.4f;
-		Kick.Roll = 0.7f * Lean;
-		Kick.Yaw = 0.25f * Side;
-		Kick.FieldOfView = 0.03f;
-		Kick.Frequency = 5.f;
-		Kick.Damping = 0.45f;
-	}
-	else if (Kind == EWeaponKind::LMG)
-	{
-		// The rifle's tick with weight behind it: a deeper, slower chug, so a long burst rolls rather than rattles.
-		Kick.Pitch = 0.42f;
-		Kick.Roll = 0.28f * Lean;
-		Kick.Yaw = 0.09f * Side;
-		Kick.FieldOfView = 0.007f;
-		Kick.Frequency = 11.f;
-		Kick.Damping = 0.6f;
-	}
-	else if (Kind == EWeaponKind::SMG)
-	{
-		// A light, fast buzz: smaller than the rifle's tick and quicker to settle.
-		Kick.Pitch = 0.2f;
-		Kick.Roll = 0.16f * Lean;
-		Kick.Yaw = 0.07f * Side;
-		Kick.FieldOfView = 0.003f;
-		Kick.Frequency = 18.f;
-		Kick.Damping = 0.65f;
-	}
-	else
-	{
-		// A crisp tick per round: quick enough that a full-auto burst reads as a rattle, not a sway.
-		Kick.Pitch = 0.32f;
-		Kick.Roll = 0.22f * Lean;
-		Kick.Yaw = 0.06f * Side;
-		Kick.FieldOfView = 0.005f;
-		Kick.Frequency = 14.f;
-		Kick.Damping = 0.6f;
-	}
-	FViewKick Scaled = Kick * FMath::Clamp(RecoilStat, 0.6f, 1.5f);
-	// Through the sight: half the turn and less of the widening, so the reticle stays readable on target.
-	const float Turn = SightShare(AimAlpha, GunfeelKick::Default::Today::AimedTurn);
-	Scaled.Pitch *= Turn;
-	Scaled.Yaw *= Turn;
-	Scaled.Roll *= Turn;
-	Scaled.FieldOfView *= SightShare(AimAlpha, GunfeelKick::Default::Today::AimedFieldOfView);
+	Kick.Damping = 0.8f;
+	FViewKick Scaled = Kick * (FMath::Clamp(RecoilStat, 0.4f, 2.f) / BaseShotRecoil);
+	Scaled.Pitch *= SightShare(AimAlpha, Shape.AimedTurn);
 	return Scaled;
 }
 

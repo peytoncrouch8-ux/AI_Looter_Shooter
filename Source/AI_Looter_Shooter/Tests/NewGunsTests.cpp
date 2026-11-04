@@ -154,7 +154,7 @@ bool FNewGunsVariablesTest::RunTest(const FString& Parameters)
 		}
 	}
 	// The contract's start numbers.
-	TestEqual(TEXT("The sniper's crits are 2x"), GunfeelKick::Default::CritSniper, 2.f);
+	TestEqual(TEXT("The sniper's crits are 2.5x (kill speed, 2026-11-03; 2x before)"), GunfeelKick::Default::CritSniper, 2.5f);
 	TestEqual(TEXT("The LMG spins up over 0.35 s"), Def::LMGSpinUp, 0.35f);
 	TestEqual(TEXT("...from 60% of its rate"), Def::LMGSpinStart, 0.6f);
 	TestEqual(TEXT("The LMG's aimed walk is 0.8x"), GunfeelKick::Default::AimMoveLMG, 0.8f);
@@ -269,7 +269,7 @@ bool FNewGunsRulesTest::RunTest(const FString& Parameters)
 
 	// Crits: the sniper's 2x (its job), the revolver's own, 1.5x for the rest; a cursed iron's own wins when larger.
 	TestEqual(TEXT("Sniper crit"), GunfeelKick::CritMultiplier(EWeaponKind::Sniper, 1.f, 1.75f, 2.f), 2.f);
-	TestEqual(TEXT("SMG crit: the game's"), GunfeelKick::CritMultiplier(EWeaponKind::SMG, 1.f, 1.75f, 2.f), 1.5f);
+	TestEqual(TEXT("SMG crit: the game's (2x since 2026-11-03)"), GunfeelKick::CritMultiplier(EWeaponKind::SMG, 1.f, 1.75f, 2.f), 2.f);
 	TestEqual(TEXT("A cursed sniper's 3x wins"), GunfeelKick::CritMultiplier(EWeaponKind::Sniper, 3.f, 1.75f, 2.f), 3.f);
 	TestEqual(TEXT("The three-number rule gives the sniper its default"), GunfeelKick::CritMultiplier(EWeaponKind::Sniper, 1.f, 1.75f),
 		GunfeelKick::Default::CritSniper);

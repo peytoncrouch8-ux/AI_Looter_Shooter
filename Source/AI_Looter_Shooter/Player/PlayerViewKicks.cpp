@@ -13,9 +13,26 @@
 
 // UPlayerViewComponent's view kicks (ViewKicks, played by UCameraShakeModifier on the player's camera): each shot's kick by
 // gun (since gun identity, 2026-10-28, each kind its own shape: a launcher's heave after its shove, a heavy gun's shake, the
-// sights' settle as they arrive), and the jolt of being hurt, away from where the hit came from. Only what the player sees
-// moves; the aim keeps the recoil (PlayerViewAim.cpp) and nothing else. A creature's death gives its killer the kill's
-// punch (UCreatureHitReactionComponent). Looter.Gunfeel.Identity 0 plays today's kicks and none of the new ones.
+// sights' settle as they arrive; since 2026-11-03 an automatic's slow lift that stacks over a held burst under its cap), and
+// the jolt of being hurt, away from where the hit came from. These turn the camera (and with it the line the shots fly,
+// which reads the camera's view) and spring back by themselves; the aim's own recoil, the part the player pulls down
+// against, is PlayerViewAim.cpp. A creature's death gives its killer the kill's punch (UCreatureHitReactionComponent). One
+// kick layer since 2026-11-03 (Looter.Gunfeel.Identity no longer swaps in the old kicks).
+
+float GunfeelKick::SightGap(const UCameraComponent* Camera, const AWeaponBase& Weapon)
+{
+	if (!Camera)
+	{
+		return 0.f;
+	}
+	const FVector Sight = Weapon.GetActorTransform().TransformPosition(Weapon.GetAimPoint());
+	return FMath::Max(static_cast<float>(FVector::DotProduct(Sight - Camera->GetComponentLocation(), Camera->GetForwardVector())), 0.f);
+}
+
+float GunfeelKick::AimedBackMost(float Gap)
+{
+	return FMath::Max(Gap, 0.f) * AimedBackGapShare();
+}
 
 void UPlayerViewComponent::AddShotKick(const AWeaponBase& Weapon)
 {
@@ -30,20 +47,29 @@ void UPlayerViewComponent::AddShotKick(const AWeaponBase& Weapon)
 	const float ShotRecoil = GunfeelKick::ShotRecoil(&Weapon);
 	// The kind's own weight on top (Looter.Gunfeel.Kick.*). The first shot of a rifle's or SMG's burst is felt harder (Recoil
 	// already counted it in HandleWeaponFired), an LMG still spinning up bullies the shooter and a spun one settles (its
-	// dig-in), and an automatic's kicks stack under its sustained cap (FViewKickStack::Add) so a long burst never shakes the
-	// view past what the sights can follow.
-	const float Scale = GunfeelKick::ViewKickScale(Kind) * GunfeelKick::FirstShotKick(Kind, Recoil.GetShotInBurst()) * Weapon.GetKickDigIn();
-	const bool bIdentity = GunfeelKick::IdentityOn();
+	// dig-in).
+	const float Weight = GunfeelKick::ViewKickScale(Kind) * Weapon.GetKickDigIn();
+	const float Scale = Weight * GunfeelKick::FirstShotKick(Kind, Recoil.GetShotInBurst());
 	const GunfeelKick::FKindFeel Feel = GunfeelKick::KindFeel(Kind);
 	FShotKickShape Shape;
 	Shape.AimedTurn = Feel.AimedTurn;
 	Shape.AimedFieldOfView = Feel.AimedFieldOfView;
 	Shape.Lean = GunfeelKick::PatternLean(Kind, Recoil.GetShotInBurst());
-	FViewKick Kick = (bIdentity ? ViewKicks::ForShot(Kind, ShotRecoil, Aim, KickRandom, Shape)
-		: ViewKicks::ForShotToday(Kind, ShotRecoil, Aim, KickRandom)) * Scale;
-	Kick.SustainCap = GunfeelKick::SustainCapFor(Kind);
-	Kick.SustainFloor = GunfeelKick::SustainFloor();
-	UCameraShakeModifier::Kick(Player, Kick);
+	// Each round's crack, gone before the next: never trimmed, never counted against the cap, so every round is felt.
+	UCameraShakeModifier::Kick(Player, ViewKicks::ForShot(Kind, ShotRecoil, Aim, KickRandom, Shape) * Scale);
+	// An automatic's slow lift outlasts the round, so a held burst's lifts stack, held under the kind's sustain cap
+	// (FViewKickStack::Add) so the view climbs with the burst but never past what the sights can follow.
+	const float Lift = GunfeelKick::LiftScale();
+	if (Lift > 0.f)
+	{
+		FViewKick Climb = ViewKicks::ForLift(Kind, ShotRecoil, Aim, Shape) * (Weight * Lift);
+		if (!Climb.IsNone())
+		{
+			Climb.SustainCap = GunfeelKick::SustainCapFor(Kind);
+			Climb.SustainFloor = GunfeelKick::SustainFloor();
+			UCameraShakeModifier::Kick(Player, Climb);
+		}
+	}
 	// The launcher's tube sags back a moment later (never counted against a cap: it pulls the view down).
 	const float Heave = GunfeelKick::HeaveScale();
 	if (Heave > 0.f)
@@ -55,13 +81,10 @@ void UPlayerViewComponent::AddShotKick(const AWeaponBase& Weapon)
 		}
 	}
 	// The heavy kinds' shot also shakes the camera a moment (the LMG's held small, its rattle never a blur).
-	if (bIdentity)
+	if (UCameraShakeModifier* Modifier = UCameraShakeModifier::FindOrAdd(Player))
 	{
-		if (UCameraShakeModifier* Modifier = UCameraShakeModifier::FindOrAdd(Player))
-		{
-			const GunfeelKick::FShotShake Shake = GunfeelKick::ShotShake(Kind, Aim, Modifier->GetAmount());
-			Modifier->AddShake(Shake.Strength, Shake.Seconds);
-		}
+		const GunfeelKick::FShotShake Shake = GunfeelKick::ShotShake(Kind, Aim, Modifier->GetAmount());
+		Modifier->AddShake(Shake.Strength, Shake.Seconds);
 	}
 	// And in the hands, on a gamepad.
 	GunfeelKick::RumbleShot(Player, Kind);
@@ -69,10 +92,10 @@ void UPlayerViewComponent::AddShotKick(const AWeaponBase& Weapon)
 
 void UPlayerViewComponent::AddAimSettleKick(const AWeaponBase& Weapon)
 {
-	// The sights arriving at the eye: a small settle, heavier for a heavy gun (Looter.Gunfeel.Aim.Settle.<Kind>; none with
-	// Identity 0).
+	// The sights arriving at the eye: a small settle, heavier for a heavy gun (its kind's AimSettle, Project Settings > Game >
+	// Gun Feel).
 	APlayerController* Player = Character.IsValid() ? Cast<APlayerController>(Character->GetController()) : nullptr;
-	if (!Player || !Player->IsLocalController() || !GunfeelKick::IdentityOn())
+	if (!Player || !Player->IsLocalController())
 	{
 		return;
 	}
@@ -83,11 +106,9 @@ void UPlayerViewComponent::AddAimSettleKick(const AWeaponBase& Weapon)
 		// gun, which rides the camera and not this kick, tips about its sight). About the eye, the dip took the shots 0.12
 		// degrees under the raised sight for a moment (Looter.Weapons.Aim.CrouchAligned).
 		FViewKick Kick = ViewKicks::ForAimSettle(Settle);
-		const UCameraComponent* Camera = FirstPersonCamera.Get();
-		if (IsFirstPerson() && Camera)
+		if (IsFirstPerson())
 		{
-			const FVector Sight = Weapon.GetActorTransform().TransformPosition(Weapon.GetAimPoint());
-			Kick.Pivot = FMath::Max(static_cast<float>(FVector::DotProduct(Sight - Camera->GetComponentLocation(), Camera->GetForwardVector())), 0.f);
+			Kick.Pivot = GunfeelKick::SightGap(FirstPersonCamera.Get(), Weapon);
 		}
 		UCameraShakeModifier::Kick(Player, Kick);
 	}

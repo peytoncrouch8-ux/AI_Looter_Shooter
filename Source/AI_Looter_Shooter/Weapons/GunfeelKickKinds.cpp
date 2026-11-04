@@ -1,23 +1,25 @@
+#include "Weapons/GunfeelKickKinds.h"
 #include "Weapons/GunfeelKickTuning.h"
 #include "Settings/ControlSettingsSubsystem.h"
+#include "Weapons/GunFeelSettings.h"
 #include "Weapons/GunKindsTuning.h"
 #include "Weapons/WeaponTypes.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 
-// Gun identity (GUNS.md lane A, 2026-10-28): the master switch Looter.Gunfeel.Identity, each kind's own numbers (FKindFeel,
-// one Looter.Gunfeel.* variable per number per kind, defaulting to KindFeelDefault), and the plain rules that read them: the
-// cadence's jitter, the LMG's dig-in, the sniper's held recovery, the shot shakes, the bolt-home beat's rumble. Identity 0
-// hands every rule today's numbers back, so the two are compared in one console line.
+// Gun identity (GUNS.md lane A, 2026-10-28), the kick side: each kind's own numbers (FKindFeel, from Project Settings > Game >
+// Gun Feel since 2026-11-03; they were one Looter.Gunfeel.* variable per number per kind) and the plain rules that read them:
+// the cadence's jitter, the LMG's dig-in, the sniper's held recovery, the shot shakes, the bolt-home beat's rumble. One kick
+// layer since 2026-11-03: the master switch Looter.Gunfeel.Identity still lives here, but only the sound, heft, brass and
+// reload beats ask it.
 
 namespace
 {
 	namespace IdDef = GunfeelKick::Default;
-	using GunfeelKick::FKindFeel;
 
 	TAutoConsoleVariable<int32> CVarIdentity(TEXT("Looter.Gunfeel.Identity"), 1,
-		TEXT("1: every gun kind its own feel (kick, sight, sound, heft, brass, reload beats). 0: today's shared feel, for an A/B."),
+		TEXT("1: every gun kind its own sound, heft, brass and reload beats. 0: the shared ones, for an A/B (the kick has one layer)."),
 		ECVF_Default);
 	TAutoConsoleVariable<float> CVarDigInStart(TEXT("Looter.Gunfeel.LMG.DigInStart"), IdDef::LMGDigInStart,
 		TEXT("An LMG still spinning up kicks this much harder (aim, view, model)..."), ECVF_Default);
@@ -33,144 +35,9 @@ namespace
 		TEXT("The launcher's heave (the tube settling a moment after the shove) times this (0 none)."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarBoltHome(TEXT("Looter.Gunfeel.Kick.BoltHome"), IdDef::BoltHomeKick,
 		TEXT("The nudge (and rumble) the sniper's bolt gives as it closes times this (0 none)."), ECVF_Default);
-
-	/** The seven kinds, in EWeaponKind's order after None, as the variables name them. */
-	constexpr EWeaponKind Kinds[] = { EWeaponKind::Rifle, EWeaponKind::Shotgun, EWeaponKind::Revolver, EWeaponKind::SMG,
-		EWeaponKind::Sniper, EWeaponKind::LMG, EWeaponKind::Launcher };
-	constexpr int32 KindCount = static_cast<int32>(UE_ARRAY_COUNT(Kinds));
-
-	const TCHAR* KindName(EWeaponKind Kind)
-	{
-		switch (Kind)
-		{
-		case EWeaponKind::Shotgun: return TEXT("Shotgun");
-		case EWeaponKind::Revolver: return TEXT("Revolver");
-		case EWeaponKind::SMG: return TEXT("SMG");
-		case EWeaponKind::Sniper: return TEXT("Sniper");
-		case EWeaponKind::LMG: return TEXT("LMG");
-		case EWeaponKind::Launcher: return TEXT("Launcher");
-		default: return TEXT("Rifle");
-		}
-	}
-
-	/** Where Kind sits in Kinds (a gun with no kind is the rifle). */
-	int32 KindIndex(EWeaponKind Kind)
-	{
-		for (int32 Index = 0; Index < KindCount; ++Index)
-		{
-			if (Kinds[Index] == Kind)
-			{
-				return Index;
-			}
-		}
-		return 0;
-	}
-
-	/** Which kinds a number has a variable for: all, the automatics (cadence, sustain cap), or the heavy kinds that shake. */
-	enum class EKinds : uint8
-	{
-		All,
-		Automatics,
-		Shakers
-	};
-
-	bool Covers(EKinds Which, EWeaponKind Kind)
-	{
-		switch (Which)
-		{
-		case EKinds::Automatics: return Kind == EWeaponKind::Rifle || Kind == EWeaponKind::SMG || Kind == EWeaponKind::LMG;
-		case EKinds::Shakers: return Kind == EWeaponKind::LMG || Kind == EWeaponKind::Shotgun || Kind == EWeaponKind::Sniper
-			|| Kind == EWeaponKind::Launcher;
-		default: return true;
-		}
-	}
-
-	/**
-	 * One number of FKindFeel as a variable per kind, Looter.Gunfeel.<Prefix><Kind><Suffix>, starting at KindFeelDefault's
-	 * value; a kind it has no variable for keeps its default. Registered as the module loads, as TAutoConsoleVariable is.
-	 */
-	class FKindVariable
-	{
-	public:
-		FKindVariable(const TCHAR* Prefix, const TCHAR* Suffix, float FKindFeel::*InField, const TCHAR* Help, EKinds Which)
-			: Field(InField)
-		{
-			for (int32 Index = 0; Index < KindCount; ++Index)
-			{
-				const EWeaponKind Kind = Kinds[Index];
-				if (Covers(Which, Kind))
-				{
-					const FString Name = FString::Printf(TEXT("Looter.Gunfeel.%s%s%s"), Prefix, KindName(Kind), Suffix);
-					Variables[Index] = IConsoleManager::Get().RegisterConsoleVariable(*Name, GunfeelKick::KindFeelDefault(Kind).*Field, Help,
-						ECVF_Default);
-				}
-			}
-		}
-
-		~FKindVariable()
-		{
-			for (IConsoleVariable* Variable : Variables)
-			{
-				if (Variable)
-				{
-					IConsoleManager::Get().UnregisterConsoleObject(Variable);
-				}
-			}
-		}
-
-		FKindVariable(const FKindVariable&) = delete;
-		FKindVariable& operator=(const FKindVariable&) = delete;
-
-		float Get(EWeaponKind Kind) const
-		{
-			const IConsoleVariable* Variable = Variables[KindIndex(Kind)];
-			return Variable ? Variable->GetFloat() : GunfeelKick::KindFeelDefault(Kind).*Field;
-		}
-
-	private:
-		float FKindFeel::*Field;
-		IConsoleVariable* Variables[KindCount] = {};
-	};
-
-	const FKindVariable AimedTurn(TEXT("Kick.AimedTurn."), TEXT(""), &FKindFeel::AimedTurn,
-		TEXT("Through the sight a shot's view kick keeps this share of its hip turn (gun identity, one per kind)."), EKinds::All);
-	const FKindVariable AimedFov(TEXT("Kick.AimedFov."), TEXT(""), &FKindFeel::AimedFieldOfView,
-		TEXT("Through the sight a shot's view kick keeps this share of its widening and push (one per kind)."), EKinds::All);
-	const FKindVariable AimedBack(TEXT("Recoil.AimedBack."), TEXT(""), &FKindFeel::AimedBack,
-		TEXT("Through the sight the gun model's push back is this share of the hip's (one per kind)."), EKinds::All);
-	const FKindVariable AimedFlip(TEXT("Recoil.AimedFlip."), TEXT(""), &FKindFeel::AimedFlip,
-		TEXT("Through the sight the gun model's flip and twist are this share of the hip's (one per kind)."), EKinds::All);
-	const FKindVariable AimedRoll(TEXT("Recoil.AimedRoll."), TEXT(""), &FKindFeel::AimedRoll,
-		TEXT("Through the sight the gun model's roll is this share of the hip's (one per kind)."), EKinds::All);
-	const FKindVariable Recovery(TEXT("Recoil.Recovery."), TEXT(""), &FKindFeel::Recovery,
-		TEXT("The aim's recovery after a shot times this, on the gun's own AimRecovery (one per kind)."), EKinds::All);
-	const FKindVariable Cadence(TEXT("Cadence."), TEXT(""), &FKindFeel::Cadence,
-		TEXT("Each shot's interval is +- this share, the mean kept (an automatic's rhythm; the LMG's once spun up)."), EKinds::Automatics);
-	const FKindVariable AimCurve(TEXT("Aim.Curve."), TEXT(""), &FKindFeel::AimCurve,
-		TEXT("The ease of the sights coming up (its exponent; 2 the old one for all; higher eases in and out harder)."), EKinds::All);
-	const FKindVariable AimSettle(TEXT("Aim.Settle."), TEXT(""), &FKindFeel::AimSettle,
-		TEXT("The view's settle as the sights arrive times this (0 none)."), EKinds::All);
-	const FKindVariable SustainCap(TEXT("Kick.SustainCap."), TEXT(""), &FKindFeel::SustainCap,
-		TEXT("This automatic's summed shot kicks (view pitch, degrees) are held under this; 0 turns its cap off."), EKinds::Automatics);
-	const FKindVariable Shake(TEXT("Shake."), TEXT(""), &FKindFeel::Shake,
-		TEXT("A shot shakes the camera this hard (0-1; 0 none; the Camera shake setting scales it)..."), EKinds::Shakers);
-	const FKindVariable ShakeSeconds(TEXT("Shake."), TEXT("Seconds"), &FKindFeel::ShakeSeconds,
-		TEXT("...dying away over this many seconds."), EKinds::Shakers);
-
-	float TodayKick(EWeaponKind Kind)
-	{
-		namespace Today = IdDef::Today;
-		switch (Kind)
-		{
-		case EWeaponKind::Shotgun: return Today::KickShotgun;
-		case EWeaponKind::Revolver: return Today::KickRevolver;
-		case EWeaponKind::SMG: return Today::KickSMG;
-		case EWeaponKind::Sniper: return Today::KickSniper;
-		case EWeaponKind::LMG: return Today::KickLMG;
-		case EWeaponKind::Launcher: return Today::KickLauncher;
-		default: return Today::KickRifle;
-		}
-	}
+	TAutoConsoleVariable<float> CVarLift(TEXT("Looter.Gunfeel.Kick.Lift"), IdDef::LiftKick,
+		TEXT("The automatics' slow view lift that stacks over a held burst (under each kind's sustain cap) times this (0 none)."),
+		ECVF_Default);
 }
 
 // ---------------------------------------------------------------------------
@@ -184,39 +51,29 @@ bool GunfeelKick::IdentityOn()
 
 GunfeelKick::FKindFeel GunfeelKick::KindFeel(EWeaponKind Kind)
 {
-	FKindFeel Feel;
-	if (!IdentityOn())
-	{
-		// Today's shared numbers: the struct's own (half the turn, curve 2, no cadence, settle or shake), the sight's model
-		// shares and the automatics' cap as their old variables have them.
-		FVector Shares(1.f, 1.f, 1.f);
-		AimedModelKick(1.f, Shares);
-		Feel.AimedBack = static_cast<float>(Shares.X);
-		Feel.AimedFlip = static_cast<float>(Shares.Y);
-		Feel.AimedRoll = static_cast<float>(Shares.Z);
-		Feel.SustainCap = SustainCapFor(Kind);
-		return Feel;
-	}
-	Feel.AimedTurn = FMath::Max(AimedTurn.Get(Kind), 0.f);
-	Feel.AimedFieldOfView = FMath::Max(AimedFov.Get(Kind), 0.f);
-	Feel.AimedBack = FMath::Max(AimedBack.Get(Kind), 0.f);
-	Feel.AimedFlip = FMath::Max(AimedFlip.Get(Kind), 0.f);
-	Feel.AimedRoll = FMath::Max(AimedRoll.Get(Kind), 0.f);
-	Feel.Recovery = FMath::Max(Recovery.Get(Kind), 0.1f);
+	// Held to sane ranges whatever was typed into the settings.
+	FKindFeel Feel = UGunFeelSettings::Get().For(Kind).ToFeel();
+	Feel.AimedTurn = FMath::Max(Feel.AimedTurn, 0.f);
+	Feel.AimedFieldOfView = FMath::Max(Feel.AimedFieldOfView, 0.f);
+	Feel.AimedBack = FMath::Max(Feel.AimedBack, 0.f);
+	Feel.AimedFlip = FMath::Max(Feel.AimedFlip, 0.f);
+	Feel.AimedRoll = FMath::Max(Feel.AimedRoll, 0.f);
+	Feel.AimKick = FMath::Max(Feel.AimKick, 0.f);
+	Feel.Recovery = FMath::Max(Feel.Recovery, 0.1f);
 	// More than a fifth either way would be heard as a stutter, not a rhythm.
-	Feel.Cadence = FMath::Clamp(Cadence.Get(Kind), 0.f, 0.2f);
+	Feel.Cadence = FMath::Clamp(Feel.Cadence, 0.f, 0.2f);
 	// Under 1 the ease would rush the middle and crawl at both ends.
-	Feel.AimCurve = FMath::Clamp(AimCurve.Get(Kind), 1.f, 6.f);
-	Feel.AimSettle = FMath::Max(AimSettle.Get(Kind), 0.f);
-	Feel.SustainCap = FMath::Max(SustainCap.Get(Kind), 0.f);
-	Feel.Shake = FMath::Clamp(Shake.Get(Kind), 0.f, 1.f);
-	Feel.ShakeSeconds = FMath::Max(ShakeSeconds.Get(Kind), 0.f);
+	Feel.AimCurve = FMath::Clamp(Feel.AimCurve, 1.f, 6.f);
+	Feel.AimSettle = FMath::Max(Feel.AimSettle, 0.f);
+	Feel.SustainCap = FMath::Max(Feel.SustainCap, 0.f);
+	Feel.Shake = FMath::Clamp(Feel.Shake, 0.f, 1.f);
+	Feel.ShakeSeconds = FMath::Max(Feel.ShakeSeconds, 0.f);
 	return Feel;
 }
 
 float GunfeelKick::ViewKickScale(EWeaponKind Kind)
 {
-	return KickScale(Kind) * (IdentityOn() ? 1.f : TodayKick(Kind));
+	return KickScale(Kind);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +96,7 @@ float GunfeelKick::CadenceJitter(int32 Shot, float Amount)
 
 float GunfeelKick::CadenceScale(EWeaponKind Kind, int32 Shot, float Spin)
 {
-	if (Kind == EWeaponKind::None || !IdentityOn())
+	if (Kind == EWeaponKind::None)
 	{
 		return 1.f;
 	}
@@ -264,10 +121,6 @@ float GunfeelKick::DigIn(float Spin, float From, float Start, float End)
 
 float GunfeelKick::LMGDigIn(float Spin)
 {
-	if (!IdentityOn())
-	{
-		return 1.f;
-	}
 	return DigIn(Spin, CVarDigInFrom.GetValueOnGameThread(), CVarDigInStart.GetValueOnGameThread(), CVarDigInEnd.GetValueOnGameThread());
 }
 
@@ -278,7 +131,7 @@ float GunfeelKick::RecoilHold(float BoltSeconds, float MaxSeconds, float Share)
 
 float GunfeelKick::SniperRecoilHold(float BoltSeconds)
 {
-	return IdentityOn() ? RecoilHold(BoltSeconds, GunKinds::SniperBoltMaxSeconds(), CVarSniperHold.GetValueOnGameThread()) : 0.f;
+	return RecoilHold(BoltSeconds, GunKinds::SniperBoltMaxSeconds(), CVarSniperHold.GetValueOnGameThread());
 }
 
 // ---------------------------------------------------------------------------
@@ -309,21 +162,22 @@ GunfeelKick::FShotShake GunfeelKick::ShotShake(EWeaponKind Kind, const FKindFeel
 
 GunfeelKick::FShotShake GunfeelKick::ShotShake(EWeaponKind Kind, float AimAlpha, float Amount)
 {
-	if (!IdentityOn())
-	{
-		return FShotShake();
-	}
 	return ShotShake(Kind, KindFeel(Kind), AimAlpha, Amount, CVarShakeLMGMax.GetValueOnGameThread());
 }
 
 float GunfeelKick::HeaveScale()
 {
-	return IdentityOn() ? FMath::Max(CVarHeave.GetValueOnGameThread(), 0.f) : 0.f;
+	return FMath::Max(CVarHeave.GetValueOnGameThread(), 0.f);
 }
 
 float GunfeelKick::BoltHomeScale()
 {
-	return IdentityOn() ? FMath::Max(CVarBoltHome.GetValueOnGameThread(), 0.f) : 0.f;
+	return FMath::Max(CVarBoltHome.GetValueOnGameThread(), 0.f);
+}
+
+float GunfeelKick::LiftScale()
+{
+	return FMath::Max(CVarLift.GetValueOnGameThread(), 0.f);
 }
 
 void GunfeelKick::RumbleBeat(APlayerController* Player, float Intensity, float Seconds)

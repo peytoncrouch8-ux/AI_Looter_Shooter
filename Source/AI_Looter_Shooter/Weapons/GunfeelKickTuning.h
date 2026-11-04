@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Weapons/WeaponTypes.h"
+// Each kind's identity, the shot profile's chain and their defaults (split out to keep this header readable).
+#include "Weapons/GunfeelKickKinds.h"
 
 class AWeaponBase;
 class APlayerController;
@@ -13,8 +15,9 @@ class UWeaponDefinition;
  * hip bloom, the shotgun's sharper falloff, the revolver's bigger crit) plus the handling per kind (aim, aimed walk, swap).
  *
  * Every number is a Looter.Gunfeel.* console variable read through an accessor here, each time it is asked, so the player
- * tunes it live in play. The rules are plain functions over numbers (Default holds the shipped ones) so tests drive them
- * without a world or a variable the player may have set.
+ * tunes it live in play (each kind's identity is Project Settings > Game > Gun Feel instead: GunfeelKickKinds.h). The rules
+ * are plain functions over numbers (Default holds the shipped ones) so tests drive them without a world or a variable the
+ * player may have set.
  */
 namespace GunfeelKick
 {
@@ -22,7 +25,7 @@ namespace GunfeelKick
 	namespace Default
 	{
 		// The view kick by kind times this (Kick.<Kind>). Since gun identity (2026-10-28) ViewKicks::ForShot's table holds each
-		// kind's own numbers, so every kind's scale starts at 1 (one table to read); Today keeps the old scales for Identity 0.
+		// kind's own numbers, so every kind's scale starts at 1 (one table to read).
 		inline constexpr float KickRifle = 1.f;
 		inline constexpr float KickShotgun = 1.f;
 		inline constexpr float KickRevolver = 1.f;
@@ -44,8 +47,10 @@ namespace GunfeelKick
 		inline constexpr float LowAmmoShare = 0.25f;
 		inline constexpr float LowAmmoPitchTop = 1.35f;
 
-		inline constexpr float RifleClimb = 0.06f;
-		inline constexpr float RifleClimbMax = 1.8f;
+		// 0.02 / 1.2, were 0.06 / 1.8 (2026-11-03): with the aim barely recovering while held, the old growth took 30 rounds
+		// past 11 degrees; this keeps a little build (the burst's last rounds kick a fifth harder than its first).
+		inline constexpr float RifleClimb = 0.02f;
+		inline constexpr float RifleClimbMax = 1.2f;
 		inline constexpr float RifleBloom = 0.15f;
 		inline constexpr float BloomMax = 2.f;
 		inline constexpr float BloomRecovery = 3.f;
@@ -105,7 +110,8 @@ namespace GunfeelKick
 		inline constexpr float LMGBloom = 0.12f;
 
 		// Gun feel pass (GF-KICK, 2026-10-22). The sight: the gun model kicks less up and twisting, more back (the view kick
-		// already halves; the model's 11 degree revolver flip put the sights off target before the next pull).
+		// already halves; the model's 11 degree revolver flip put the sights off target before the next pull). Since gun identity
+		// each kind has its own (KindFeelDefault); these are the rifle's.
 		inline constexpr float AimedFlip = 0.45f;
 		inline constexpr float AimedRoll = 0.4f;
 		inline constexpr float AimedBack = 1.2f;
@@ -118,16 +124,16 @@ namespace GunfeelKick
 		/** The recoil pattern's strength (0 off, 1 as shipped), and the share of the old random sideways kick that stays with it. */
 		inline constexpr float RecoilPattern = 1.f;
 		inline constexpr float SideRandom = 0.4f;
-		/** An automatic's summed shot kicks (degrees of view pitch) are held under this; a stacked kick keeps at least the floor's share. */
-		inline constexpr float SustainCap = 1.2f;
+		/** A stacked view lift past its kind's cap (FKindFeel::SustainCap) still keeps this share of its size. */
 		inline constexpr float SustainFloor = 0.25f;
 		/** The rifle drifts right by RifleDrift degrees a shot from shot RifleDriftFrom on; the SMG shimmies +- SMGShimmy; the LMG sways. */
-		// 0.1, was 0.04: at 0.04 twenty shots drifted 0.11 deg, too little to see (play-check 2026-10-23).
-		inline constexpr float RifleDrift = 0.1f;
-		inline constexpr float RifleDriftFrom = 6.f;
-		/** Gun identity: from shot RifleDriftBackFrom the rifle drifts back left by this a shot (an S you learn). */
-		inline constexpr float RifleDriftBack = -0.06f;
-		inline constexpr float RifleDriftBackFrom = 16.f;
+		// 0.3 from shot 5 (2026-11-03; was 0.1 x Recoil.More from shot 6): the old drift, half recovered while held, stayed within
+		// 0.35 degrees, inside the hip cone; this reaches about 2 degrees right, a pattern the hand can read.
+		inline constexpr float RifleDrift = 0.3f;
+		inline constexpr float RifleDriftFrom = 5.f;
+		/** Gun identity: from shot RifleDriftBackFrom the rifle drifts back left by this a shot (a hook at the magazine's end). */
+		inline constexpr float RifleDriftBack = -0.04f;
+		inline constexpr float RifleDriftBackFrom = 22.f;
 		/** 0.05, was 0.03 (gun identity): the hornet's buzz is felt sideways. */
 		inline constexpr float SMGShimmy = 0.05f;
 		inline constexpr float LMGSway = 0.15f;
@@ -136,20 +142,25 @@ namespace GunfeelKick
 		inline constexpr float RackKick = 1.f;
 
 		// Playtest round 2 (the user, 2026-10-27, note 28): "more kick on every gun; a high accuracy stat calms it a lot".
-		/** Every gun's kick (aim, model, view, pattern) times this, before the accuracy's calm: the "more kick" for all. */
+		/**
+		 * Every gun's kick (aim, model, view, pattern) times this, before the accuracy's calm: the "more kick" for all. Applied
+		 * once since 2026-11-03: each layer reads a shot's KickShare (ShotRecoil over this), so its own numbers are a base
+		 * Common's and this one variable scales all four alike (it used to be divided out of the view and doubled on the model).
+		 */
 		inline constexpr float RecoilMore = 1.4f;
 		/**
 		 * The accuracy's calm: a gun shooting Ratio times tighter than its kind's base (the definition's spread over its own)
-		 * kicks Ratio^-Exponent as hard, held between Least and Most. 1.5 so the stat clearly matters: a +30% accuracy gun
-		 * kicks 0.67x, a 1.5x tight one 0.54x, twice as tight 0.35x; a sloppy roll (0.8) 1.4x.
+		 * kicks Ratio^-Exponent as hard, held between Least and Most. 0.8 (was 1.5, 2026-11-03: rarity's spread alone took an
+		 * Epic to 72% and a +40% part to 30%): +30% accuracy kicks 0.81x, a plain Epic 0.84x, an Epic with +40% 0.64x, a
+		 * Legendary with +60% the floor; a sloppy roll up to 1.3x. Accuracy is felt, the kick never vanishes.
 		 */
-		inline constexpr float AccuracyCalm = 1.5f;
-		/** The calm's floor: a pinpoint gun still kicks this share (never a laser). */
-		inline constexpr float AccuracyCalmLeast = 0.3f;
-		/** The wild end's ceiling: the worst roll (about 0.64 of base accuracy) kicks at most this much (x RecoilMore = 1.96x the old kick). */
-		inline constexpr float AccuracyCalmMost = 1.4f;
+		inline constexpr float AccuracyCalm = 0.8f;
+		/** The calm's floor: a pinpoint gun still kicks this share (0.6, was 0.3: never a laser). */
+		inline constexpr float AccuracyCalmLeast = 0.6f;
+		/** The wild end's ceiling: the worst roll kicks at most this much (1.3, was 1.4). */
+		inline constexpr float AccuracyCalmMost = 1.3f;
 
-		// Gun identity (GUNS.md, 2026-10-28): every kind its own feel; the per-kind numbers are KindFeelDefault below.
+		// Gun identity (GUNS.md, 2026-10-28): every kind its own feel; the per-kind numbers are KindFeelDefault (GunfeelKickKinds.h).
 		/**
 		 * The LMG's dig-in: every kick it makes (aim, view, model) x DigInStart until its spin reaches DigInFrom, easing to
 		 * DigInEnd at full spin, so the first rounds bully the shooter and a held belt settles.
@@ -170,75 +181,15 @@ namespace GunfeelKick
 		inline constexpr float BoltHomeRumble = 0.2f;
 		inline constexpr float BoltHomeRumbleSeconds = 0.04f;
 
-		/** What Looter.Gunfeel.Identity 0 gives back: the numbers from before gun identity, exactly. */
+		/**
+		 * Two of the view kick scales from before gun identity (the old Kick.<Kind> defaults), kept only because a test outside
+		 * the kick's (NewGunsTests' "launcher kicked hardest") still reads them; nothing in the game does since the Identity 0
+		 * kick was deleted (2026-11-03). Delete them with that line.
+		 */
 		namespace Today
 		{
-			/** The view kick scales (Kick.<Kind>'s old defaults) on ViewKicks::ForShotToday. */
-			inline constexpr float KickRifle = 1.3f;
 			inline constexpr float KickShotgun = 1.9f;
-			inline constexpr float KickRevolver = 1.6f;
-			inline constexpr float KickSMG = 0.8f;
-			inline constexpr float KickSniper = 2.f;
-			inline constexpr float KickLMG = 1.2f;
 			inline constexpr float KickLauncher = 2.f;
-			inline constexpr float SMGShimmy = 0.03f;
-			inline constexpr float SMGBloom = 0.09f;
-			/** One ADS ease for every kind, and one view kick share through the sight (half the turn, 60% of the widening). */
-			inline constexpr float AimCurve = 2.f;
-			inline constexpr float AimedTurn = 0.5f;
-			inline constexpr float AimedFieldOfView = 0.6f;
-		}
-	}
-
-	/**
-	 * One kind's identity numbers (GUNS.md "Per kind", 2026-10-28). Through the sight (AimAlpha 1) its view kick keeps AimedTurn
-	 * of the hip's turn and AimedFieldOfView of its widening and push, and its gun model AimedBack/Flip/Roll of the hip's push
-	 * back, flip (and twist) and roll. Recovery times the asset's AimRecovery. Cadence: each shot's interval is +- this share
-	 * (deterministic, the mean kept). AimCurve: the ADS ease's exponent (UPlayerViewComponent::GetAimAlpha); AimSettle: the
-	 * sight-arrival kick times this (ViewKicks::ForAimSettle; 0 none). SustainCap: an automatic's summed view kicks (degrees;
-	 * 0 none). Shake/ShakeSeconds: a camera shake each shot (UCameraShakeModifier strength; 0 none).
-	 */
-	struct FKindFeel
-	{
-		float AimedTurn = Default::Today::AimedTurn;
-		float AimedFieldOfView = Default::Today::AimedFieldOfView;
-		float AimedBack = Default::AimedBack;
-		float AimedFlip = Default::AimedFlip;
-		float AimedRoll = Default::AimedRoll;
-		float Recovery = 1.f;
-		float Cadence = 0.f;
-		float AimCurve = Default::Today::AimCurve;
-		float AimSettle = 0.f;
-		float SustainCap = 0.f;
-		float Shake = 0.f;
-		float ShakeSeconds = 0.f;
-	};
-
-	/**
-	 * Kind's shipped identity (a gun with no kind is the rifle), each number a Looter.Gunfeel.* variable's default
-	 * (GunfeelKickKinds.cpp). In order: aimed turn, aimed widening, aimed back, flip, roll, recovery, cadence, ADS curve, settle,
-	 * sustain cap, shake, shake seconds.
-	 */
-	constexpr FKindFeel KindFeelDefault(EWeaponKind Kind)
-	{
-		switch (Kind)
-		{
-		// A hornet in the hand: light, quick to the eye; hosed, the cone opens rather than the climb.
-		case EWeaponKind::SMG: return { 0.6f, 0.6f, 1.f, 0.35f, 0.3f, 1.2f, 0.05f, 1.6f, 0.5f, 0.5f, 0.f, 0.f };
-		// A mill wheel: slow to wake, rolls the shoulders, a shake held small under the belt's rattle.
-		case EWeaponKind::LMG: return { 0.55f, 0.6f, 1.f, 0.4f, 0.35f, 0.9f, 0.03f, 2.6f, 1.6f, 1.6f, 0.035f, 0.15f };
-		// The gunslinger's iron: the flip is its character through the irons, back on target before the next pull.
-		case EWeaponKind::Revolver: return { 0.55f, 0.6f, 1.1f, 0.7f, 0.6f, 1.25f, 0.f, 1.6f, 0.6f, 0.f, 0.f, 0.f };
-		// A porch cannon: one shove through the shoulders.
-		case EWeaponKind::Shotgun: return { 0.6f, 0.6f, 1.5f, 0.5f, 0.45f, 0.8f, 0.f, 2.2f, 1.3f, 0.f, 0.1f, 0.18f };
-		// One thunderclap: the scope kept readable (a smaller share of the turn and the widening).
-		case EWeaponKind::Sniper: return { 0.4f, 0.4f, 1.3f, 0.45f, 0.4f, 1.f, 0.f, 2.6f, 1.2f, 0.f, 0.12f, 0.3f };
-		// A keg on the shoulder: a whoomph that heaves, the tube sagging back.
-		case EWeaponKind::Launcher: return { 0.6f, 0.6f, 1.4f, 0.55f, 0.5f, 0.8f, 0.f, 2.4f, 1.5f, 0.f, 0.3f, 0.45f };
-		// The workhorse: today's sight shares, a climb to learn, a crisp crack.
-		case EWeaponKind::Rifle:
-		case EWeaponKind::None:
-		default: return { 0.5f, 0.6f, 1.2f, 0.45f, 0.4f, 1.f, 0.025f, 2.f, 1.f, 1.f, 0.f, 0.f };
 		}
 	}
 
@@ -247,7 +198,7 @@ namespace GunfeelKick
 
 	// --- The live numbers (the console variables' current values) ---
 
-	/** Kick.<Kind>: the view kick of a shot from Kind times this (the shot's view kick reads ViewKickScale, which adds Identity 0's old scale). */
+	/** Kick.<Kind>: the view kick of a shot from Kind times this. */
 	AI_LOOTER_SHOOTER_API float KickScale(EWeaponKind Kind);
 	/** The gun's own kick (back, flip, twist, roll) of a shot from Kind times this. */
 	AI_LOOTER_SHOOTER_API float RecoilScale(EWeaponKind Kind);
@@ -292,6 +243,13 @@ namespace GunfeelKick
 	/** The live one for a gun's stats (Definition may be null: no calm, More only). */
 	AI_LOOTER_SHOOTER_API float ShotRecoil(const UWeaponDefinition* Definition, const FWeaponStats& Stats);
 	AI_LOOTER_SHOOTER_API float ShotRecoil(const AWeaponBase* Weapon);
+	/**
+	 * A shot's kick against a base Common's: ShotRecoil over the shipped RecoilMore (1 for a plain gun at the shipped More). The
+	 * aim, the gun model and the pattern scale by this, as the view's table does (ViewKicks::BaseShotRecoil), so More and the
+	 * gun's Recoil and accuracy reach every layer once and alike.
+	 */
+	AI_LOOTER_SHOOTER_API float KickShare(float ShotRecoil);
+	AI_LOOTER_SHOOTER_API float KickShare(const AWeaponBase* Weapon);
 	/**
 	 * The recoil a card should show: the Recoil stat x the live AccuracyCalm, without More (so a plain gun still reads 100%
 	 * and the number moves with accuracy). For the loadout's/bench's Recoil row.
@@ -367,7 +325,7 @@ namespace GunfeelKick
 	 * learn: the rifle straight up for RifleDriftFrom shots, then right by RifleDrift a shot, then from RifleDriftBackFrom
 	 * back left by RifleDriftBack a shot (an S; 0 keeps drifting right); the SMG a shimmy, +- SMGShimmy alternating; the LMG a
 	 * slow sway, LMGSway x sin over LMGSwayShots shots (its 11 shots a second make about 1.5 Hz). The other kinds none. The
-	 * live one is also times Recoil.Pattern (0 turns it off); with Identity 0 it has today's SMG shimmy and no drift back.
+	 * live one is also times Recoil.Pattern (0 turns it off). The view adds it times the shot's KickShare.
 	 */
 	AI_LOOTER_SHOOTER_API float PatternSide(EWeaponKind Kind, int32 ShotInBurst, const FPatternNumbers& Numbers);
 	AI_LOOTER_SHOOTER_API float PatternSide(EWeaponKind Kind, int32 ShotInBurst);
@@ -386,17 +344,16 @@ namespace GunfeelKick
 	AI_LOOTER_SHOOTER_API float FirstShotKick(EWeaponKind Kind, int32 ShotInBurst, float FirstShot);
 	AI_LOOTER_SHOOTER_API float FirstShotKick(EWeaponKind Kind, int32 ShotInBurst);
 	/**
-	 * The cap on the summed shot kicks of an automatic (rifle, SMG, LMG; degrees): its own Kick.SustainCap.<Kind> (gun identity),
-	 * with Identity 0 the shared Kick.SustainCap; 0 (none) for the single shots.
+	 * The cap on an automatic's stacked view lifts (rifle, SMG, LMG; degrees; ViewKicks::ForLift): its kind's FKindFeel::SustainCap
+	 * (Project Settings > Game > Gun Feel); 0 (none) for the single shots.
 	 */
 	AI_LOOTER_SHOOTER_API float SustainCapFor(EWeaponKind Kind);
 	AI_LOOTER_SHOOTER_API float SustainFloor();
 	/**
 	 * The gun model's kick through the sight: BackFlipRoll = (back, flip, roll) multipliers at AimAlpha (1 at the hip, easing
-	 * to AimedBack/AimedFlip/AimedRoll at 1). The flip's share also scales the sideways twist. AimedModelKick(1, ...) fills the
-	 * profile's full-sight numbers (AWeaponBase::GetRecoilProfile); FWeaponRecoil::AddShot blends them by the shot's AimAlpha.
+	 * to Back/Flip/Roll at 1), as FWeaponRecoil::AddShot blends a profile's Aimed* shares by the shot's AimAlpha (the flip's
+	 * share also scales the sideways twist). Each kind's shares are its FKindFeel's.
 	 */
-	AI_LOOTER_SHOOTER_API void AimedModelKick(float AimAlpha, FVector& BackFlipRoll);
 	AI_LOOTER_SHOOTER_API void AimedModelKick(float AimAlpha, float Back, float Flip, float Roll, FVector& BackFlipRoll);
 	/**
 	 * The bloom the next shot's spread uses: Bloom (the raw one) until the gun has rested Rest seconds, then easing over Ease
@@ -409,64 +366,14 @@ namespace GunfeelKick
 	AI_LOOTER_SHOOTER_API void RackBeat(const AWeaponBase& Weapon);
 	AI_LOOTER_SHOOTER_API float RackKickScale();
 
-	// --- Gun identity (GUNS.md lane A, 2026-10-28; GunfeelKickKinds.cpp) ---
+	// --- The aim's recovery while firing, the aimed push's limit (2026-11-03) ---
 
-	/**
-	 * Looter.Gunfeel.Identity 1|0 [1]: every gun kind its own feel (kick, sight, sound, heft, brass, beats). 0 gives back the
-	 * numbers from before it everywhere, so the two compare in one console line. Every lane's rule asks this.
-	 */
-	AI_LOOTER_SHOOTER_API bool IdentityOn();
-	/**
-	 * Kind's identity numbers now: its Looter.Gunfeel.* variables (Kick.AimedTurn/AimedFov.<Kind>, Recoil.AimedBack/Flip/Roll
-	 * .<Kind>, Recoil.Recovery.<Kind>, Cadence.<Kind>, Aim.Curve/Settle.<Kind>, Kick.SustainCap.<Kind>, Shake.<Kind>(Seconds)).
-	 * With Identity 0, today's shared ones: the Recoil.Aimed* shares, half the turn, the shared sustain cap for the automatics,
-	 * curve 2, recovery 1, and no cadence, settle or shake.
-	 */
-	AI_LOOTER_SHOOTER_API FKindFeel KindFeel(EWeaponKind Kind);
-	/** The view kick of a shot from Kind times this: Kick.<Kind> (1), and with Identity 0 times its old scale (Default::Today). */
-	AI_LOOTER_SHOOTER_API float ViewKickScale(EWeaponKind Kind);
-	/**
-	 * A shot's interval times this: 1 + Amount x a number in -1..1 that is a hash of Shot (the gun's shot count), so the two
-	 * reads a shot's interval gets (the trigger's ready check, the auto-fire timer) agree and the mean holds (DPS unchanged).
-	 */
-	AI_LOOTER_SHOOTER_API float CadenceJitter(int32 Shot, float Amount);
-	/** The live one for a gun of Kind at its Shot: its Cadence.<Kind>; an LMG's only once fully spun up (Spin 1); 1 with Identity 0. */
-	AI_LOOTER_SHOOTER_API float CadenceScale(EWeaponKind Kind, int32 Shot, float Spin);
-	/** The LMG's dig-in at Spin: Start up to spin From, easing to End at full spin. */
-	AI_LOOTER_SHOOTER_API float DigIn(float Spin, float From, float Start, float End);
-	/** The live one (LMG.DigInStart/End/From); 1 with Identity 0. */
-	AI_LOOTER_SHOOTER_API float LMGDigIn(float Spin);
-	/** Seconds a sniper's aim kick holds before it recovers: Share of the bolt's work (BoltSeconds, until it is home), at most MaxSeconds. */
-	AI_LOOTER_SHOOTER_API float RecoilHold(float BoltSeconds, float MaxSeconds, float Share);
-	/** The live one (Recoil.SniperHold, Sniper.BoltMaxSeconds); 0 with Identity 0. */
-	AI_LOOTER_SHOOTER_API float SniperRecoilHold(float BoltSeconds);
-
-	/** A camera shake to add with a shot: its strength (UCameraShakeModifier::AddShake) and seconds; no strength, none. */
-	struct FShotShake
-	{
-		float Strength = 0.f;
-		float Seconds = 0.f;
-	};
-	/**
-	 * The shake a shot from Kind adds: Feel's Shake for ShakeSeconds, through the sight (AimAlpha 1) Feel.AimedTurn of it; the
-	 * LMG's only up to what keeps the shakes already going (Amount, UCameraShakeModifier::GetAmount) under LMGMax.
-	 */
-	AI_LOOTER_SHOOTER_API FShotShake ShotShake(EWeaponKind Kind, const FKindFeel& Feel, float AimAlpha, float Amount, float LMGMax);
-	/** The live one (Shake.<Kind>, Shake.LMGMax); none with Identity 0. */
-	AI_LOOTER_SHOOTER_API FShotShake ShotShake(EWeaponKind Kind, float AimAlpha, float Amount);
-	/** The launcher's heave and the sniper's bolt-home beat times these (Kick.Heave, Kick.BoltHome); 0 with Identity 0. */
-	AI_LOOTER_SHOOTER_API float HeaveScale();
-	AI_LOOTER_SHOOTER_API float BoltHomeScale();
-	/**
-	 * The sniper's bolt home after its cycle (AWeaponBase::UpdateBoltCycle): a small nudge of the local player's view
-	 * (ViewKicks::ForBoltHome x Kick.BoltHome) and a tick of rumble on a gamepad. Nothing with Identity 0. PlayerViewKicks.cpp.
-	 */
-	AI_LOOTER_SHOOTER_API void BoltHomeBeat(const AWeaponBase& Weapon);
-	/**
-	 * A beat's rumble (a bolt home, a magazine seated): Intensity (0-1) for Seconds on Player's gamepad, only a local player's
-	 * whose last input was a gamepad's, x the Controller rumble setting and Rumble.Scale, both sides' small motors.
-	 */
-	AI_LOOTER_SHOOTER_API void RumbleBeat(APlayerController* Player, float Intensity, float Seconds);
+	/** Looter.Gunfeel.Recoil.WhileFiring [0.1]: the aim recovers at this share of its rate while a burst is held. */
+	AI_LOOTER_SHOOTER_API float WhileFiringShare();
+	/** Looter.Gunfeel.Recoil.RecoveryDelay [0.12 s]: full recovery starts this long after the last shot. */
+	AI_LOOTER_SHOOTER_API float RecoveryDelaySeconds();
+	/** Looter.Gunfeel.Recoil.AimedBackGap [0.6]: the aimed push back stops at this share of the eye-to-sight distance (0 no limit). */
+	AI_LOOTER_SHOOTER_API float AimedBackGapShare();
 
 	// --- The gamepad ---
 

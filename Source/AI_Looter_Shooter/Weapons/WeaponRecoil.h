@@ -61,13 +61,29 @@ struct FWeaponRecoilProfile
 	float ClimbCapFloor = 0.f;
 
 	/**
-	 * The gun model's kick through the sight as a share of the hip's (GunfeelKick::AimedModelKick(1, ...)): the muzzle flip and
-	 * twist, the roll, and the push back along the sight line. 1 = the same as the hip. Not data: GetRecoilProfile sets them
-	 * from the Looter.Gunfeel.Recoil.Aimed* variables; AddShot blends them in by the shot's AimAlpha.
+	 * The gun model's kick through the sight as a share of the hip's: the muzzle flip and twist, the roll, and the push back
+	 * along the sight line. 1 = the same as the hip. Not data: GetRecoilProfile sets them from the kind's identity
+	 * (GunfeelKick::FKindFeel, Project Settings > Game > Gun Feel); AddShot blends them in by the shot's AimAlpha.
 	 */
 	float AimedBack = 1.f;
 	float AimedFlip = 1.f;
 	float AimedRoll = 1.f;
+
+	/**
+	 * The most the gun model's push back may reach with the sights fully up (cm; 0 = no limit), blended in by the shot's
+	 * AimAlpha: a share of how far the sight sits ahead of the eye, so a heavy or sloppy gun's shove never brings the sight
+	 * into the eye (2026-11-03). Not data: UPlayerViewComponent::HandleWeaponFired measures it per shot.
+	 */
+	float AimedBackMost = 0.f;
+
+	/**
+	 * While firing (until RecoveryDelay after the last shot) the aim settles back at RecoveryWhileFiring of AimRecovery, then
+	 * at all of it. Not data: GetRecoilProfile sets the shipped ones (Looter.Gunfeel.Recoil.WhileFiring [0.1] /
+	 * .RecoveryDelay [0.12]: a held burst barely recovers, so it climbs and wants pulling down). 0.35 / 0.09 here keep a
+	 * profile nobody set (a test's) as it always was.
+	 */
+	float RecoveryWhileFiring = 0.35f;
+	float RecoveryDelay = 0.09f;
 };
 
 /**
@@ -134,6 +150,9 @@ private:
 	FRotator AimPending = FRotator::ZeroRotator;
 	FRotator AimApplied = FRotator::ZeroRotator;
 	float AimRecovery = 7.f;
+	/** The last shot's profile's RecoveryWhileFiring and RecoveryDelay. */
+	float WhileFiring = 0.35f;
+	float RecoveryDelay = 0.09f;
 	float SinceShot = 100.f;
 	/** The aim kick holds until SinceShot reaches this (HoldRecovery). */
 	float HoldSeconds = 0.f;
